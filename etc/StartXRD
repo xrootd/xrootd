@@ -7,19 +7,24 @@
 # Produced by Andrew Hanushevsky for Stanford University under contract
 #            DE-AC03-76-SFO0515 with the Deprtment of Energy
 
-# Syntax: StartXRD [-c cfile] [-D] [-r] [-s service] [oth] [-v] [ver]
+# Syntax: StartXRD [-c cfile] [-D] [-f] [-r] [-s service] [-t] [oth] [-v] [ver]
 
 # Where:  -c  specifies the configuration file to be used.
 #         -D  turns on script debugging.
+#         -f  does not use an arbitrary port even when it is possible to do so.
 #         -r  designates this an a redirecting xrootd. The option is the
 #             default if an olb master is enabled (see StartXRD.cf)
 #         -s  is the service name whose port number is to be used by xrootd.
+#         -t  designates this as a redirection target xrootd. The option is the
+#             default if an olb server is enabled (see StartXRD.cf)
 #         -v  produces verbose output.
 #         oth Any other single letter options to be passed to the executable.
 
 #        ver  is version number to use. This is the string that is put in
 #             $XRDBASE/<ver>/bin, the default is prod.
 #
+# Notes: 1. If both -r and -t are specified, then the xrootd is started as
+#           a redirecting supervisor.
 # Set default values
 #
 . $0.cf
@@ -28,7 +33,7 @@ VERBOSE=0
 
 # Change TEST to be /bin/echo to see what will be executed
 #
-TEST=
+TEST=echo
 
 umask 002
 
@@ -94,6 +99,10 @@ Notify () {
 XRDOPTIONS=
 HAVEVER=
 XRDPARMS=$*
+XRDRT=0
+XRDPORT=
+XRDPFIX=0
+XRDLOGSFX=
 
 while test -n "$1"; do
      isopt=0
@@ -113,9 +122,17 @@ while test -n "$1"; do
         shift
    elif [ "$1" = "-D" ]; then
         set -x
+   elif [ "$1" = "-f" ]; then
+        XRDPFIX=1
    elif [ "$1" = "-r" ]; then
-        XRDMODE='-r'
-        XRDTYPE='redirecting'
+        if [ "$XRDRT" = "1" ]; then
+           XRDMODE='-r -t'
+           XRDTYPE='supervisor'
+           else
+           XRDMODE='-r'
+           XRDTYPE='manager'
+        fi
+        XRDRT=1
    elif [ "$1" = "-s" ]; then
         if [ -z "$2" ]; then
            Notify "Service not specified."
@@ -124,11 +141,18 @@ while test -n "$1"; do
         if [ -z "$xrd_XRDALT" ]; then
            Notify "Service $2 not found."
         fi
-        xrd_PORTNUM=$xrd_XRDALT
-        xrd_XRDALT=$2
-        XRDLOGFILE=$XRDLOGDIR/${XRDLOGFN}_$2
-        XRDOPTIONS = "$XRDOPTIONS -p $xrd_PORTNUM"
+        XRDPORT=$xrd_XRDALT
+        XRDLOGSFX=_$2
         shift
+   elif [ "$1" = "-t" ]; then
+        if [ "$XRDRT" = "1" ]; then
+           XRDMODE='-r -t'
+           XRDTYPE='supervisor'
+           else
+           XRDMODE='-t'
+           XRDTYPE='server'
+        fi
+        XRDRT=1
    elif [ "$1" = "-v" ]; then
         VERBOSE=1
    else
@@ -150,7 +174,11 @@ while test -n "$1"; do
   if [ "$XRDCONFIGFN" = "" ]; then
      XRDCONFIGFN=$XRDBASE/etc/$XRDCONFIG
   fi
-  XRDLOGFILE=$XRDLOGDIR/$XRDLOGFN
+
+  XRDLOGFILE=$XRDLOGDIR/${XRDLOGFN}$XRDLOGSFX
+  if [ "x$XRDMODE" = "x-r -t" ]; then
+     XRDLOGFILE=$XRDLOGFILE.super
+  fi
 
   if [ -z "$LD_LIBRARY_PATH" ]; then
      LD_LIBRARY_PATH=$XRDLIBBASE
@@ -169,6 +197,17 @@ if [ $MYNAME = root ]; then
    elif [ $MYNAME != $XRDUSER ]; then
         Notify "Attempt to start $XRDUSER XRD as user $MYNAME."
 fi
+
+# Establish the port number to be used
+#
+  if [ "$XRDPFIX" = "0" -a "x$XRDPORT" = "x" ]; then
+     if [ "x$XRDMODE" = "x-r -t" -o "x$XRDMODE" = "x-t" ]; then
+        XRDPORT=any
+     fi
+  fi
+  if [ "x$XRDPORT" != "x" ]; then
+     XRDPORT="-p $XRDPORT"
+  fi
 
 # Verify that all required directories are present
 #
@@ -211,7 +250,7 @@ $TEST ulimit -c unlimited
 #
 /bin/echo Starting $XRDTYPE xrootd ...
 $TEST cd $XRDHOMEDIR
-$TEST $XRDPROG $XRDOPTIONS $XRDMODE -l $XRDLOGFILE -c $XRDCONFIGFN &
+$TEST $XRDPROG $XRDOPTIONS $XRDMODE $XRDPORT -l $XRDLOGFILE -c $XRDCONFIGFN &
 stat=$?
 
 # Check if we were successful

@@ -49,15 +49,27 @@ XRDLOGFN=xrdlog
 
 #  The following logic tries to determine whether or not xrootd is to run
 #  in redirecting mode. Use whatever logic you need to use. Set
-#  XRDMODE - '-r' for redirecting mode, otherwise blank.
+#  XRDMODE - '-r'    for manager    redirecting  mode.
+#  XRDMODE - '-t'    for server     target       mode.
+#  XRDMODE - '-r -t' for supervisor redirecting  mode.
 #  XRDTYPE = the mode word to appear in messages (e.g., 'redirecting' if '-r')
 #
 XRDMODE=
 XRDTYPE=
-RESP=`/usr/local/bin/taylor -q opts | grep '^olbd=.*master'`
+RESP=`/usr/local/bin/taylor -q opts | grep '^olbd=.*super'`
+if [ $? -eq 0 ]; then
+XRDMODE='-r -t'
+XRDTYPE='supervisor'
+fi
+RESP=`/usr/local/bin/taylor -q opts | grep '^olbd=.*server'`
+if [ $? -eq 0 ]; then
+XRDMODE='-t'
+XRDTYPE='target'
+fi
+RESP=`/usr/local/bin/taylor -q opts | grep '^olbd=.*manager'`
 if [ $? -eq 0 ]; then
 XRDMODE='-r'
-XRDTYPE='redirecting'
+XRDTYPE='manager'
 fi
 
 #-#-#-#-#-#-#-#-#   E N D   O F   C O N F I G U R A T I O N   #-#-#-#-#-#-#-#-#
