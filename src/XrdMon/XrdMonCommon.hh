@@ -27,9 +27,11 @@ const kXR_int16 TRACELEN       =    16;
 
 const kXR_int16 PORT           =  9930;
 
-const char PACKET_TYPE_ADMIN = 'A';
-const char PACKET_TYPE_DICT  = 'd';
-const char PACKET_TYPE_TRACE = 't';
+const kXR_char PACKET_TYPE_ADMIN = 'A';
+const kXR_char PACKET_TYPE_DICT  = 'd';
+const kXR_char PACKET_TYPE_INFO  = 'i';
+const kXR_char PACKET_TYPE_TRACE = 't';
+const kXR_char PACKET_TYPE_USER  = 'u';
 
 const char XROOTD_MON_RWREQUESTMASK = 0x80;
 // why 0x80: anything that is < 0x7f is rwrequest
