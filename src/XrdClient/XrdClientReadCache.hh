@@ -23,7 +23,7 @@
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientVector.hh"
 
-#define min(a, b) (a < b ? a : b)
+#define xrdmin(a, b) (a < b ? a : b)
 
 //
 // XrdClientReadCacheItem
@@ -86,7 +86,7 @@ class XrdClientReadCacheItem {
       if (b < 0) return 0;
 
       // The starting point is in the interval. Let's get the minimum endpoint
-      e = min(end_offs, fEndOffset);
+      e = xrdmin(end_offs, fEndOffset);
 
       l = e - b + 1;
 
