@@ -40,7 +40,6 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
     XrdMonCtrWriter::setMaxLogSize(maxLogSize);
 
     if ( rtDec ) {
-        const string path("pathToOutput");
         _decoder = new XrdMonDecPacketDecoder(dBaseDir, rtLogDir);
     }
 }

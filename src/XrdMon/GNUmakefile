@@ -26,6 +26,7 @@ OBJECTS_LIB_CTR =                             \
 	$(OBJDIR)/XrdMonCtrWriter.o
 
 OBJECTS_LIB_DEC =                             \
+	$(OBJDIR)/XrdMonDecArgParser.o        \
         $(OBJDIR)/XrdMonDecDictInfo.o         \
         $(OBJDIR)/XrdMonDecPacketDecoder.o    \
         $(OBJDIR)/XrdMonDecSink.o             \
@@ -42,14 +43,10 @@ OBJECTS_LIB_SND =                             \
 	$(OBJDIR)/XrdMonSndTraceEntry.o       \
 	$(OBJDIR)/XrdMonSndTransmitter.o
 
-OBJECTS_BIN_CTR =                             \
-	$(OBJDIR)/XrdMonCtrMainApp.o
-
-OBJECTS_BIN_ADM =                             \
-	$(OBJDIR)/XrdMonSndAdminApp.o
-
-OBJECTS_BIN_SND =                             \
-	$(OBJDIR)/XrdMonSndDummyXrootdApp.o
+OBJECTS_BIN_CTR = $(OBJDIR)/XrdMonCtrMainApp.o
+OBJECTS_BIN_ADM = $(OBJDIR)/XrdMonSndAdminApp.o
+OBJECTS_BIN_SND = $(OBJDIR)/XrdMonSndDummyXrootdApp.o
+OBJECTS_BIN_DMP = $(OBJDIR)/XrdMonDumpPacketsApp.o
 
 LIBRARY_OUC    = $(LIBDIR)/libXrdOuc.a
 
@@ -64,28 +61,30 @@ LIBRARIES      = $(LIBRARY_COMMON) $(LIBRARY_CTR) \
 COLLECTOR      = $(BINDIR)/xrdmoncollector
 SENDER         = $(BINDIR)/xrdmondummysender
 ADMIN          = $(BINDIR)/xrdmonadmin
-BINARIES       = $(COLLECTOR) $(SENDER) $(ADMIN)
+DUMPPACKETS    = $(BINDIR)/xrdmondumppackets
+BINARIES       = $(COLLECTOR) $(SENDER) $(ADMIN) \
+                 $(DUMPPACKETS)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
-#------------------------------------------------------------------------------#
-#                           S e a r c h   P a t h s                            #
-#------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------#
+#                           S e a r c h   P a t h s                           #
+#-----------------------------------------------------------------------------#
 
 vpath XrdMon% ../XrdMon
 
-#------------------------------------------------------------------------------#
-#                          I n i t i a l   R u l e s                           #
-#------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------#
+#                          I n i t i a l   R u l e s                          #
+#-----------------------------------------------------------------------------#
  
 include ../GNUmake.options
 
 anything: $(TARGETS)
 	@echo Make XrdMon done.
 
-#------------------------------------------------------------------------------#
-#                           D e p e n d e n c i e s                            #
-#------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------#
+#                           D e p e n d e n c i e s                           #
+#-----------------------------------------------------------------------------#
 
 $(LIBRARY_COMMON): $(OBJECTS_LIB_COMMON)
 	@echo Creating archive $(LIBRARY_COMMON) 
@@ -140,7 +139,9 @@ $(ADMIN):	$(OBJECTS_BIN_ADM) $(LIBRARY_SND) $(LIBRARY_COMMON)
 	@echo Creating executable $(@F)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
-
+$(DUMPPACKETS):	$(OBJECTS_BIN_DMP) $(LIBRARY_DEC) $(LIBRARY_COMMON) 
+	@echo Creating executable $(@F)
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
 $(OBJDIR)/%.o : %.cc
 	@echo Compiling $(<F)

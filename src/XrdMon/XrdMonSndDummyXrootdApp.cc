@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
     XrdMonSndDummyXrootd::NEWUSERFREQUENCY  =  200;
     XrdMonSndDummyXrootd::NEWPROCFREQUENCY  =   50;
     kXR_int16 NEWDICTENTRYFREQUENCY =  8000;
-    kXR_int16 calls2NewXrdMonSndDictEntry    =  1;    
+    kXR_int16 calls2NewXrdMonSndDictEntry  =     1;    
     
     XrdMonSndDebug::initialize();
 
@@ -148,6 +148,7 @@ int main(int argc, char* argv[]) {
     }
 
     // use this loop to test light decoder
+    /*
     for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
         calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
         doDictionaryXrdMonSndPacket(xrootd, coder, transmitter, noP);
@@ -166,10 +167,9 @@ int main(int argc, char* argv[]) {
             usleep(1);
         }
     }
-
+    */
 
     // use this loop to test full tracing
-    /*    
     for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
         if ( ! --calls2NewXrdMonSndDictEntry ) {
             calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
         if ( i%1001 == 1000 ) {
             usleep(1);
         }
-    }*/
+    }
 
     if ( XrdMonSndDebug::verbose(XrdMonSndDebug::Sending) ) {
         cout << "Flushing cache" << endl;
