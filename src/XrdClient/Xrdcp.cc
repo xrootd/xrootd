@@ -453,7 +453,8 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    void *buf;
    long long offs = 0;
    // Loop to write until ended or timeout err
-   while (len > 0)
+   while (len > 0) {
+
       if ( cpnfo.queue.GetBuffer(&buf, len) ) {
 	 if (len && buf) {
 
@@ -477,6 +478,9 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	 retvalue = -1;
 	 break;
       }
+
+      buf = 0;
+   }
 	 
    pthread_cancel(myTID);
    pthread_join(myTID, &thret);
@@ -519,23 +523,26 @@ int main(int argc, char**argv) {
    EnvPutString( NAME_CONNECTDOMAINALLOW_RE, "*" );
    EnvPutString( NAME_REDIRDOMAINDENY_RE, "" );
    EnvPutString( NAME_CONNECTDOMAINDENY_RE, "" );
+   EnvPutInt( NAME_DEBUG, -1);
 
    for (int i=1; i < argc; i++) {
 
       
       if ( (strstr(argv[i], "-DS") == argv[i]) &&
 	   (argc >= i+2) ) {
-	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1];
-	 EnvPutString( argv[i]+3, argv[++i] );
+	cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << ". ";
+	 EnvPutString( argv[i]+3, argv[i+1] );
 	 cerr << " Final value: " << EnvGetString(argv[i]+3) << endl;
+	 i++;
 	 continue;
       }
 
       if ( (strstr(argv[i], "-DI") == argv[i]) &&
 	   (argc >= i+2) ) {
-	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << endl;
-	 EnvPutInt( argv[i]+3, atoi(argv[++i]) );
+	cerr << "Overriding '" << argv[i]+3 << "' with value " << argv[i+1] << ". ";
+	 EnvPutInt( argv[i]+3, atoi(argv[i+1]) );
 	 cerr << " Final value: " << EnvGetLong(argv[i]+3) << endl;
+	 i++;
 	 continue;
       }
 

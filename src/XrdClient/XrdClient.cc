@@ -18,6 +18,7 @@
 #include "XrdClient/XrdClientUrlSet.hh"
 #include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdClient/XrdClientConnMgr.hh"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -38,9 +39,10 @@ XrdClient::XrdClient(const char *url) {
    fUseCache = (CacheSize > 0);
    fReadAheadSize = EnvGetLong(NAME_READAHEADSIZE);
 
-   Info(XrdClientDebug::kNODEBUG,
-	"Create",
-	"(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
+   if (!XrdClientConnectionMgr::IsAlive())
+     Info(XrdClientDebug::kNODEBUG,
+	  "Create",
+	  "(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
 
    signal(SIGPIPE, SIG_IGN);
 

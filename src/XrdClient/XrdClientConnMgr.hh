@@ -73,6 +73,10 @@ public:
                           int BufferLength);
 
    static XrdClientConnectionMgr* Instance();
+   static bool IsAlive() {
+     return (fgInstance);
+   }
+
    static void              Reset();
 
 

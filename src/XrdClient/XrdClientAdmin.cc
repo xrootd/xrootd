@@ -18,6 +18,7 @@
 #include "XrdClient/XrdClientUrlSet.hh"
 #include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdClient/XrdClientConnMgr.hh"
 
 
 #include <stdio.h>
@@ -59,9 +60,10 @@ void joinStrings(XrdClientString &buf, vecString vs)
 //_____________________________________________________________________________
 XrdClientAdmin::XrdClientAdmin(const char *url) {
 
-   Info(XrdClientDebug::kNODEBUG,
-	"",
-	"(C) 2004 SLAC XrdClientAdmin " << XRD_CLIENT_VERSION);
+  if (!XrdClientConnectionMgr::IsAlive())
+    Info(XrdClientDebug::kNODEBUG,
+	 "",
+	 "(C) 2004 SLAC XrdClientAdmin " << XRD_CLIENT_VERSION);
 
    fInitialUrl.TakeUrl(url);
 
