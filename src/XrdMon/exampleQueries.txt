@@ -158,6 +158,18 @@ WHERE  userId=users.id AND
        LIMIT 10;
 
 
+## top 5 files per skim
+SELECT DISTINCT SUBSTRING_INDEX(SUBSTRING_INDEX(path, '/', 6), '/', -1) as skimName, 
+       COUNT(*) as noFiles
+FROM   rtOpenedFiles of, paths 
+WHERE  paths.id=of.pathId AND
+       path LIKE "%skim%" 
+       GROUP BY skimName 
+       ORDER BY noFiles
+       DESC
+       LIMIT 5;
+
+
 
 
 

@@ -248,19 +248,46 @@ sub findOrInsertHostId() {
 sub findOrInsertPathId() {
     my ($path) = @_;
 
-    my $pathId = $pathIds{$path};
-    if ( $pathId ) {
+    my $info = $pathInfo{$path};
+    if ( $info ) {
+        my ($pathId, $skimTypeId, $skimId) = split($info, ' ');
+	print "from cache: $pathId for $path\n";
         return $pathId;
     }
-    $pathId = runQueryWithRet("SELECT id FROM paths WHERE path = \"$path\"");
+    my($pathId, $skimTypeId, $skimId) =
+	runQueryWithRet("SELECT id, skimTypeId, skimId FROM paths WHERE path = \"$path\"");
     if ( $pathId ) {
 	#print "Will reuse pathId for $path\n";
     } else {
 	#print "$path not in mysql yet, inserting...\n";
-	runQuery("INSERT INTO paths (path) VALUES (\"$path\");");
 
+        # split path and find skim type and skim name
+	$skimTypeId = 0;
+	$skimNameId = 0;
+	my @sections = split(/\//, $path);
+	if ( $sections[2] =~ /skims/ ) {
+	    my $skimTypeName = $sections[2];
+	    my $skimName     = $sections[5];
+
+	    # find if the skim type has already id, reuse if it does
+	    $skimTypeId = $skimTypes{$skimTypeName};
+	    if ( ! $skimTypeId ) {
+		runQuery("INSERT INTO skimTypes(name) VALUES($skimTypeName) ");
+		$skimTypeId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+	    }
+
+	    # find if the skim name has already id, reuse if it does
+	    $skimNameId = $skimNames{$skimName};
+	    if ( ! $skimNameId ) {
+		runQuery("INSERT INTO skimNames(name) VALUES($skimName) ");
+		$skimNameId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+	    }
+	}
+
+	runQuery("INSERT INTO paths (path) VALUES (\"$path\");");
 	$pathId = runQueryWithRet("SELECT LAST_INSERT_ID();");
-	$pathIds{$path} = $pathId;
+
+	$pathInfo{$path} = "$pathId $skimTypeId $skimNameId";
     }
     return $pathId;
 }

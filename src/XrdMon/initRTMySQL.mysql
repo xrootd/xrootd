@@ -90,13 +90,16 @@ CREATE TABLE IF NOT EXISTS hosts (
 CREATE INDEX hosts_id_index USING BTREE ON hosts(id);
 
 
-
 CREATE TABLE IF NOT EXISTS paths (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  skimTypeId    TINYINT NOT NULL,   # BaBar specific
+  skimId        TINYINT NOT NULL,   # BaBar specific
   path          VARCHAR(256) NOT NULL
 );
-CREATE INDEX paths_id_index USING BTREE ON paths(id);
-CREATE INDEX paths_path_index ON paths(path(256));
+CREATE INDEX paths_id_index         USING BTREE ON paths(id);
+CREATE INDEX paths_skimTypeId_index USING BTREE ON paths(skimTypeId);
+CREATE INDEX paths_skimId_index     USING BTREE ON paths(skimId);
+##CREATE INDEX paths_path_index ON paths(path(256));
 
 
 CREATE TABLE IF NOT EXISTS rtHour (
@@ -106,6 +109,8 @@ CREATE TABLE IF NOT EXISTS rtHour (
   noUniqueF     INT,
   noNonUniqueF  INT
 );
+CREATE INDEX rtHour_min_index      USING BTREE ON rtHour(min);
+
 
 CREATE TABLE IF NOT EXISTS rtDay (
   hour          DATE,
@@ -122,13 +127,15 @@ CREATE TABLE IF NOT EXISTS rtDay (
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
+CREATE INDEX rtDay_hour_index      USING BTREE ON rtDay(hour);
+
 
 CREATE TABLE IF NOT EXISTS rtMonth (
   day           DATE,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
-  noNonUniqueF  INT
+  noNonUniqueF  INT,
   minJobs       SMALLINT,
   minUsers      SMALLINT,
   minUniqueF    INT,
@@ -138,6 +145,8 @@ CREATE TABLE IF NOT EXISTS rtMonth (
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
+CREATE INDEX rtMonth_day_index     USING BTREE ON rtMonth(day);
+
 
 CREATE TABLE IF NOT EXISTS rtYear (
   month         DATE,
@@ -147,8 +156,9 @@ CREATE TABLE IF NOT EXISTS rtYear (
   noNonUniqueF  INT
 );
 
+
 CREATE TABLE IF NOT EXISTS rtAllYears (
-  year          TINY INT,
+  year          TINYINT,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
@@ -167,3 +177,22 @@ CREATE TABLE IF NOT EXISTS rtChanges (
   nonUniqueF_p  FLOAT,
   lastUpdate    DATETIME
 );
+
+###########################
+### BaBar specific below
+###########################
+
+
+CREATE TABLE IF NOT EXISTS skimType (
+  name         VARCHAR(16),
+  id           TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+);
+INSERT INTO skimType(name, id) VALUES("invalid", 0);
+
+
+CREATE TABLE IF NOT EXISTS skims (
+  name         VARCHAR(32),
+  id           TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+);
+CREATE INDEX skims_id_index      USING BTREE ON skims(id);
+INSERT INTO skims(name, id) VALUES("invalid", 0);
