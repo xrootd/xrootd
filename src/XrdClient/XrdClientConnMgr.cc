@@ -228,8 +228,8 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    //  - Returns the logical connection ID. Every client will use this
    //    ID to deal with the server.
 
-   XrdClientLogConnection *logconn;
-   XrdClientPhyConnection *phyconn;
+   XrdClientLogConnection *logconn = 0;
+   XrdClientPhyConnection *phyconn = 0;
    short int  newid;
    bool phyfound;
 
