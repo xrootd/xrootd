@@ -25,6 +25,53 @@ const char *XrdOucProgCVSID = "$Id$";
 #include "XrdOuc/XrdOucStream.hh"
 
 /******************************************************************************/
+/*                            D e s t r u c t o r                             */
+/******************************************************************************/
+  
+XrdOucProg::~XrdOucProg()
+{
+   if (ArgBuff) free(ArgBuff);
+   if (myStream) delete myStream;
+}
+
+/******************************************************************************/
+/*                                  F e e d                                   */
+/******************************************************************************/
+
+int XrdOucProg::Feed(const char *data[], const int dlen[])
+{
+   static XrdOucMutex feedMutex;
+   XrdOucMutexHelper  feedHelper;
+   int rc;
+
+// Make sure we have a stream
+//
+   if (!myStream) return EPIPE;
+   feedHelper.Lock(&feedMutex);
+
+// Check if this command is still running
+//
+   if (!myStream->isAlive() && !Restart())
+      {if (eDest) eDest->Emsg("Prog" "Unable to restart", Arg[0]);
+        return EPIPE;
+      }
+
+// Send the line to the program
+//
+   if (!myStream->Put((const char **)data, (const int *)dlen)) return 0;
+   if (eDest) 
+      eDest->Emsg("Prog", myStream->LastError(), (char *)"feed", Arg[0]);
+   if ((rc = Restart()))
+      {if (eDest) eDest->Emsg("Prog", rc, "restart", Arg[0]);
+       return EPIPE;
+      }
+   if (!myStream->Put((const char **)data, (const int *)dlen)) return 0;
+   if (eDest) 
+      eDest->Emsg("Prog", myStream->LastError(), (char *)"refeed", Arg[0]);
+   return EPIPE;
+}
+  
+/******************************************************************************/
 /*                                   R u n                                    */
 /******************************************************************************/
   
@@ -62,7 +109,7 @@ int XrdOucProg::Run(XrdOucStream *Sp,char *arg1,char *arg2,char *arg3,char *arg4
 
 // Execute the command
 //
-   if (Sp->Exec(Arg))
+   if (Sp->Exec(Arg, 1))
       {rc = Sp->LastError();
        if (eDest) eDest->Emsg("Run", rc, (char *)"execute", Arg[0]);
        return -rc;
@@ -130,7 +177,7 @@ int  XrdOucProg::Setup(char *prog, XrdOucError *errP)
 //
    if (ArgBuff) free(ArgBuff);
    pp = ArgBuff = strdup(prog);
-   if (errP) eDest = errP;
+   if (!errP) errP = eDest;
   
 // Construct the argv array based on passed command line.
 //
@@ -162,4 +209,34 @@ for (j = 0; j < maxArgs-1 && *pp; j++)
        return rc;
       }
    return 0;
+}
+ 
+/******************************************************************************/
+/*                                 S t a r t                                  */
+/******************************************************************************/
+  
+int XrdOucProg::Start()
+{
+
+// Create a stream for this command (it is an eror if we are already started)
+//
+   if (myStream) return EBUSY;
+   if (!(myStream = new XrdOucStream())) return ENOMEM;
+
+// Execute the command and let it linger
+//
+   return Run(myStream);
+}
+ 
+/******************************************************************************/
+/*                       P r i v a t e   M e t h o d s                        */
+/******************************************************************************/
+/******************************************************************************/
+/*                               R e s t a r t                                */
+/******************************************************************************/
+  
+int XrdOucProg::Restart()
+{
+   myStream->Close();
+   return Run(myStream);
 }
