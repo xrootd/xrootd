@@ -112,7 +112,8 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
                 decodeClose(packet+offset, timestamp);
             } else {
                 stringstream es(stringstream::out);
-                es << "Unsupported infoType of trace packet: " << infoType;
+                es << "Unsupported infoType of trace packet: " 
+                   << (int) infoType;
                 throw XrdMonException(ERR_INVALIDINFOTYPE, es.str());
             }
             offset += TRACELEN;
