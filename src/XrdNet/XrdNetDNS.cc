@@ -298,7 +298,7 @@ int XrdNetDNS::getPort(const char  *servname,
    if ((rc=getservbyname_r(servname,servtype,&sent,sbuff,sizeof(sbuff),&sp)))
       return (errtxt ? setET(errtxt, rc) : 0);
 #endif
-   return sent.s_port;
+   return int(ntohs(sent.s_port));
 #else
    if ((rc = getaddrinfo(0,servname,(const struct addrinfo *)&myhints,&rp))
    || !(np = rp)) return (errtxt ? setETni(errtxt, rc) : 0);
@@ -306,7 +306,7 @@ int XrdNetDNS::getPort(const char  *servname,
    while(np)      if (np->ai_socktype == SOCK_STREAM && *servtype == 't') break;
              else if (np->ai_socktype == SOCK_DGRAM  && *servtype == 'u') break;
              else np = np->ai_next;
-   if (np) portnum = ((struct sockaddr_in *)(np->ai_addr))->sin_port;
+   if (np) portnum=int(ntohs(((struct sockaddr_in *)(np->ai_addr))->sin_port));
    freeaddrinfo(rp);
    if (!portnum) return (errtxt ? setET(errtxt, ESRCH) : 0);
    return portnum;
