@@ -99,58 +99,58 @@ CREATE INDEX paths_id_index USING BTREE ON paths(id);
 CREATE INDEX paths_path_index ON paths(path(256));
 
 
-CREATE TABLE IF NOT EXISTS _rtHour
-  min           TINY INT,
-  noJobs        SMALL INT,
-  noUsers       SMALL INT,
+CREATE TABLE IF NOT EXISTS rtHour (
+  min           DATETIME,
+  noJobs        SMALLINT,
+  noUsers       SMALLINT,
   noUniqueF     INT,
   noNonUniqueF  INT
 );
 
-CREATE TABLE IF NOT EXISTS _rtDay
-  hour          TINY INT,
-  noJobs        SMALL INT,
-  noUsers       SMALL INT,
+CREATE TABLE IF NOT EXISTS rtDay (
+  hour          DATE,
+  noJobs        SMALLINT,
+  noUsers       SMALLINT,
   noUniqueF     INT,
   noNonUniqueF  INT,
-  minJobs       SMALL INT,
-  minUsers      SMALL INT,
+  minJobs       SMALLINT,
+  minUsers      SMALLINT,
   minUniqueF    INT,
   minNonUniqueF INT,
-  maxJobs       SMALL INT,
-  maxUsers      SMALL INT,
+  maxJobs       SMALLINT,
+  maxUsers      SMALLINT,
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
 
-CREATE TABLE IF NOT EXISTS _rtMonth
-  dayNo         TINY INT,
-  noJobs        SMALL INT,
-  noUsers       SMALL INT,
+CREATE TABLE IF NOT EXISTS rtMonth (
+  day           DATE,
+  noJobs        SMALLINT,
+  noUsers       SMALLINT,
   noUniqueF     INT,
   noNonUniqueF  INT
-  minJobs       SMALL INT,
-  minUsers      SMALL INT,
+  minJobs       SMALLINT,
+  minUsers      SMALLINT,
   minUniqueF    INT,
   minNonUniqueF INT,
-  maxJobs       SMALL INT,
-  maxUsers      SMALL INT,
+  maxJobs       SMALLINT,
+  maxUsers      SMALLINT,
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
 
-CREATE TABLE IF NOT EXISTS _rtYear
-  month         TINY INT,
-  noJobs        SMALL INT,
-  noUsers       SMALL INT,
+CREATE TABLE IF NOT EXISTS rtYear (
+  month         DATE,
+  noJobs        SMALLINT,
+  noUsers       SMALLINT,
   noUniqueF     INT,
   noNonUniqueF  INT
 );
 
-CREATE TABLE IF NOT EXISTS _rtAllYears
+CREATE TABLE IF NOT EXISTS rtAllYears (
   year          TINY INT,
-  noJobs        SMALL INT,
-  noUsers       SMALL INT,
+  noJobs        SMALLINT,
+  noUsers       SMALLINT,
   noUniqueF     INT,
   noNonUniqueF  INT
 );
