@@ -1075,7 +1075,7 @@ bool XrdClientConn::DoLogin()
 
    SetSID(reqhdr.header.streamid);
    reqhdr.header.requestid = kXR_login;
-   reqhdr.login.capver = XRD_CLIENT_CAPVER;
+   reqhdr.login.capver[0] = XRD_CLIENT_CAPVER;
    reqhdr.login.pid = getpid();
 
    // Get username from Url

@@ -490,9 +490,9 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
 					 0, fStats , FALSE, (char *)"Stat");
    
    if (ok) {
-      if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
-	 Info(XrdClientDebug::kHIDEBUG,
-	      "Stat", "Returned stats=" << fStats);
+
+      Info(XrdClientDebug::kHIDEBUG,
+	   "Stat", "Returned stats=" << fStats);
    
       sscanf(fStats, "%ld %Ld %ld %ld",
 	     &fStatInfo.id,

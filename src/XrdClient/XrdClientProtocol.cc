@@ -359,8 +359,8 @@ void smartPrintClientHeader(ClientRequest* hdr)
              (kXR_int32)sizeof(hdr->login.reserved));
 
       printf("%40s%d\n",
-             "ClientHeader.login.version = ",
-             hdr->login.version[0]);
+             "ClientHeader.login.capver = ",
+             hdr->login.capver[0]);
 
       printf("%40s%d\n", 
              "ClientHeader.login.role = ",

@@ -256,8 +256,11 @@ int XrdClientAdmin::Stat(char *fname, long &id, long &size, long &flags, long &m
 				    NULL, fStats , FALSE, (char *)"Stat");
 
 
-   if (ok)
+   if (ok) {
+      Info(XrdClientDebug::kHIDEBUG,
+	   "Stat", "Returned stats=" << fStats);
       sscanf(fStats, "%ld %ld %ld %ld", &id, &size, &flags, &modtime);
+   }
 
    return ok;
 }

@@ -56,7 +56,7 @@
 // Printable version
 #define XRD_CLIENT_VERSION      (char *)"0.3"
 // Version and capabilities sent to the server
-#define XRD_CLIENT_CAPVER       kXR_asyncap
+#define XRD_CLIENT_CAPVER       (kXR_char)kXR_asyncap
 
 
 
