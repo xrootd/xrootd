@@ -328,10 +328,6 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
        return 0;
       } else hname = XrdNetDNS::getHostName(addr);
 
-// Trim the host name if we have a domain name
-//
-   if (Domain) Trim(hname);
-
 // Fill in the peer structure. We use our base FD for outgoing messages.
 // Note that XrdNetLink object never closes this FDS for UDP messages.
 //
