@@ -31,9 +31,16 @@ const char *XrdOssAioCVSID = "$Id$";
 
 // All AIO interfaces are defined here.
  
-/******************************************************************************/
-/*                         L o c a l   C l a s s e s                          */
-/******************************************************************************/
+
+// Currently we disable aio support for MacOS because it is way too
+// buggy and incomplete. The two major problems are:
+// 1) No implementation of sigwaitinfo(). Though we can simulate it...
+// 2) Event notification returns an incomplete siginfo structure.
+//
+#ifdef __macos__
+#undef _POSIX_ASYNCHRONOUS_IO
+#endif
+
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
@@ -215,14 +222,14 @@ int XrdOssFile::Write(XrdSfsAio *aiop)
 
 int   XrdOssSys::AioAllOk = 0;
   
-/*
-#if defined( _POSIX_ASYNCHRONOUS_IO) && !defined(HAS_SIGWTI)
+#if defined(_POSIX_ASYNCHRONOUS_IO) && !defined(HAS_SIGWTI)
 // The folowing is for sigwaitinfo() emulation
 //
 siginfo_t *XrdOssAioInfoR;
 siginfo_t *XrdOssAioInfoW;
+extern "C" {extern void XrdOssAioRSH(int, siginfo_t *, void *);}
+extern "C" {extern void XrdOssAioWSH(int, siginfo_t *, void *);}
 #endif
-*/
 
 /******************************************************************************/
 /*                               A i o I n i t                                */
@@ -235,7 +242,7 @@ siginfo_t *XrdOssAioInfoW;
 
 int XrdOssSys::AioInit()
 {
-#ifdef _POSIX_ASYNCHRONOUS_IO
+#if defined(_POSIX_ASYNCHRONOUS_IO)
    EPNAME("AioInit");
    extern void *XrdOssAioWait(void *carg);
    pthread_t tid;
@@ -248,8 +255,6 @@ int XrdOssSys::AioInit()
 // signals, we prohibit one signal hander from interrupting another one.
 //
     struct sigaction sa;
-    extern void XrdOssAioRSH(int, siginfo_t *, void *);
-    extern void XrdOssAioWSH(int, siginfo_t *, void *);
 
     sa.sa_sigaction = XrdOssAioRSH;
     sa.sa_flags = SA_SIGINFO;
@@ -309,23 +314,38 @@ void *XrdOssAioWait(void *mySigarg)
    int mySignum = int(mySigarg);
    const char *sigType = (mySignum == OSS_AIO_READ_DONE ? "read" : "write");
    const int  isRead   = (mySignum == OSS_AIO_READ_DONE);
-   sigset_t  mySig;
+   sigset_t  mySigset;
    siginfo_t myInfo;
    XrdSfsAio *aiop;
    int rc, numsig;
    ssize_t retval;
 #ifndef HAS_SIGWTI
    extern int sigwaitinfo(const sigset_t *set, siginfo_t *info);
-#endif
+   extern siginfo_t *XrdOssAioInfoR;
+   extern siginfo_t *XrdOssAioInfoW;
+
+// We will catch one signal at a time. So, the address of siginfo_t can be
+// placed in a global area where the signal handler will find it. We have one
+// two places where this can go.
+//
+   if (isRead) XrdOssAioInfoR = &myInfo;
+      else XrdOssAioInfoW = &myInfo;
+
+// Initialize the signal we will be suspended for
+//
+   sigfillset(&mySigset);
+   sigdelset(&mySigset, mySignum);
+#else
 
 // Initialize the signal we will be waiting for
 //
-   sigemptyset(&mySig);
-   sigaddset(&mySig, mySignum);
+   sigemptyset(&mySigset);
+   sigaddset(&mySigset, mySignum);
+#endif
 
 // Simply wait for events and requeue the completed AIO operation
 //
-   do {do {numsig = sigwaitinfo(&mySig, &myInfo);}
+   do {do {numsig = sigwaitinfo((const sigset_t *)&mySigset, &myInfo);}
           while (numsig < 0 && errno == EINTR);
        if (numsig < 0)
           {OssEroute.Emsg("AioWait",errno,sigType,(char *)"wait for AIO signal");
@@ -333,8 +353,8 @@ void *XrdOssAioWait(void *mySigarg)
            break;
           }
        if (numsig != mySignum || myInfo.si_code != SI_ASYNCIO)
-          {char buff[32];
-           sprintf(buff, "%d", numsig);
+          {char buff[64];
+           sprintf(buff, "%d %d", myInfo.si_code, numsig);
            OssEroute.Emsg("AioWait", "received unexpected signal", buff);
            continue;
           }
@@ -366,20 +386,11 @@ void *XrdOssAioWait(void *mySigarg)
 /******************************************************************************/
   
 // Some platforms do not have sigwaitinfo() (e.g., MacOS). We provide for
-// emulation here. It's not as good as the kernel version but it works.
+// emulation here. It's not as good as the kernel version and the 
+// implementation is very specific to the task at hand.
 //
 int sigwaitinfo(const sigset_t *set, siginfo_t *info)
 {
-   extern siginfo_t *XrdOssAioInfoR;
-   extern siginfo_t *XrdOssAioInfoW;
-
-// We will catch one signal at a time. So, the address of siginfo_t can be
-// placed in a global area where the signal handler will find it. We have one
-// two places where this can go.
-//
-   if (sigismember(set, OSS_AIO_READ_DONE)) XrdOssAioInfoR = info;
-      else XrdOssAioInfoW = info;
-
 // Now enable the signal handler by unblocking the signal. It will move the
 // siginfo into the waiting struct and we can return.
 //
@@ -407,7 +418,11 @@ void XrdOssAioRSH(int signum, siginfo_t *info, void *ucontext)
    XrdOssAioInfoR->si_signo = info->si_signo;
    XrdOssAioInfoR->si_errno = info->si_errno;
    XrdOssAioInfoR->si_code  = info->si_code;
-   XrdOssAioInfoR->si_value = info->si_value;
+#ifdef __macos__
+   XrdOssAioInfoR->si_value.sigval_ptr = info->si_addr;
+#else
+   XrdOssAioInfoR->si_value.sigval_ptr = info->si_value.sigval_ptr;
+#endif
 }
 }
  
@@ -431,7 +446,11 @@ void XrdOssAioWSH(int signum, siginfo_t *info, void *ucontext)
    XrdOssAioInfoW->si_signo = info->si_signo;
    XrdOssAioInfoW->si_errno = info->si_errno;
    XrdOssAioInfoW->si_code  = info->si_code;
-   XrdOssAioInfoW->si_value = info->si_value;
+#ifdef __macos__
+   XrdOssAioInfoW->si_value.sigval_ptr = info->si_addr;
+#else
+   XrdOssAioInfoW->si_value.sigval_ptr = info->si_value.sigval_ptr;
+#endif
 }
 }
 #endif
