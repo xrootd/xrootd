@@ -101,7 +101,7 @@ Notify () {
 #
 HAVEVER=
 OLBOPTS=
-OLBPARM=&*
+OLBPARM=$*
 
 while test -n "$1"; do
      isopt=0
@@ -213,7 +213,7 @@ $TEST ulimit -c unlimited
 #
 /bin/echo Starting $OLBTYPE OLB ...
 $TEST cd $OLBHOMEDIR
-$TEST $OLBPROG $OLBOPTS $OLBMODE -l $OLBLOGFILE $OLBCONFIGFN &
+$TEST $OLBPROG $OLBOPTS $OLBMODE -l $OLBLOGFILE -c $OLBCONFIGFN &
 stat=$?
 
 # Check if we were successful

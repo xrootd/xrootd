@@ -91,7 +91,7 @@ Notify () {
 #
 XRDOPTIONS=
 HAVEVER=
-XRDPARMS=&*
+XRDPARMS=$*
 
 while test -n "$1"; do
      isopt=0
