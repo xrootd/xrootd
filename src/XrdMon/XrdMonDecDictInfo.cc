@@ -17,6 +17,7 @@
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include <netinet/in.h>
+#include <stdio.h>
 #include <sstream>
 using std::cout;
 using std::cerr;
