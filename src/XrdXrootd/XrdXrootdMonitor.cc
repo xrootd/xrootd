@@ -36,6 +36,8 @@ XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
 XrdOucError       *XrdXrootdMonitor::eDest      = 0;
 XrdOucLink        *XrdXrootdMonitor::monDest    = 0;
 XrdOucMutex        XrdXrootdMonitor::windowMutex;
+kXR_int32          XrdXrootdMonitor::startTime  =
+                            static_cast<kXR_int32>(htonl((long)time(0)));
 int                XrdXrootdMonitor::monBlen    = 0;
 int                XrdXrootdMonitor::lastEnt    = 0;
 int                XrdXrootdMonitor::isEnabled  = 0;
@@ -163,6 +165,7 @@ XrdXrootdMonitor *XrdXrootdMonitor::Alloc(int force)
 void XrdXrootdMonitor::Flush()
 {
    int       size;
+   kXR_int32 now = static_cast<kXR_int32>(htonl((long)time(0)));
 
 // Do not flush if the buffer is empty
 //
@@ -177,11 +180,11 @@ void XrdXrootdMonitor::Flush()
 //
    monBuff->info[nextEnt].offset.id[0] = XROOTD_MON_WINDOW;
    monBuff->info[nextEnt].arg1.Window  =
-   monBuff->info[nextEnt].arg2.Window  = monBuff->hdr.ptod;
+   monBuff->info[nextEnt].arg2.Window  = now;
    Send((void *)monBuff, size);
    monBuff->info[      0].offset.id[0] = XROOTD_MON_WINDOW;
    monBuff->info[      0].arg1.Window  =
-   monBuff->info[      0].arg2.Window  = monBuff->hdr.ptod;
+   monBuff->info[      0].arg2.Window  = now;
    nextEnt = 1;
 }
 
@@ -286,7 +289,6 @@ void XrdXrootdMonitor::fillHeader(XrdXrootdMonHeader *hdr,
 {  static XrdOucMutex seqMutex;
    static int         seq = 0;
           int         myseq;
-          time_t      now = time(0);
 
 // Generate a new sequence number
 //
@@ -299,7 +301,7 @@ void XrdXrootdMonitor::fillHeader(XrdXrootdMonHeader *hdr,
    hdr->code = static_cast<kXR_char>(id);
    hdr->pseq = static_cast<kXR_char>(myseq);
    hdr->plen = static_cast<kXR_int16>(htonl(size));
-   hdr->ptod = static_cast<kXR_int32>(htonl(now));
+   hdr->stod = startTime;
 }
 
 /******************************************************************************/

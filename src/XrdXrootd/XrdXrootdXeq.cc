@@ -936,12 +936,13 @@ int XrdXrootdProtocol::do_Set()
 /*                            d o _ S e t _ M o n                             */
 /******************************************************************************/
 
-// Process: set monitor {off | on [appid]}
+// Process: set monitor {off | on [appid] | info [info]}
 
 int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 {
   static XrdOucMutex seqMutex;
   static int seqnum = 0;
+  int setON;
   char *val, *appid;
   kXR_int32 myseq;
 
@@ -952,16 +953,16 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 
 // Determine if on or off and do appropriate processing
 //
-        if (!strcmp(val, "on"))
-           {if (Monitor || (Monitor = XrdXrootdMonitor::Alloc(1)))
+        if ((setON = !strcmp(val, "on")) || !strcmp(val, "info"))
+           {if (Monitor || (setON && (Monitor = XrdXrootdMonitor::Alloc(1))))
                {while(*appid && *appid == ' ') appid++;
                 if (strlen(appid) > 80) appid[80] = '\0';
                 if (*appid)
                    {seqMutex.Lock(); 
                     myseq = static_cast<kXR_int32>(htonl(seqnum++));
                     seqMutex.UnLock();
-                    Monitor->Map(XROOTD_MON_MAPUSER, myseq,
-                             (const char *)Link->ID, (const char *)appid);
+                    Monitor->Map((setON?XROOTD_MON_MAPUSER:XROOTD_MON_MAPINFO),
+                             myseq,(const char *)Link->ID,(const char *)appid);
                    }
                 return Response.Send();
                }

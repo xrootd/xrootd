@@ -91,6 +91,7 @@ static XrdOucMutex        windowMutex;
 static int                monBlen;
        int                nextEnt;
 static int                lastEnt;
+static kXR_int32          startTime;
        kXR_int32          lastWindow;
 static kXR_int32          currWindow;
 static kXR_int32          sizeWindow;

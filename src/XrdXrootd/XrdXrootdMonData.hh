@@ -19,10 +19,10 @@
 /******************************************************************************/
   
 struct XrdXrootdMonHeader
-       {kXR_char   code;         // 'a' | 'd' | 't'
+       {kXR_char   code;         // 'a' | 'd' | 'i' | 't'
         kXR_char   pseq;         // packet sequence
         kXR_int16  plen;         // packet length
-        kXR_int32  ptod;         // packet Unix time
+        kXR_int32  stod;         // Unix time at Server Start
        };
 
 struct XrdXrootdMonTrace
@@ -48,5 +48,6 @@ struct XrdXrootdMonMap
 
 #define XROOTD_MON_MAPUSER 'a'
 #define XROOTD_MON_MAPPATH 'd'
+#define XROOTD_MON_MAPINFO 'i'
 
 #endif
