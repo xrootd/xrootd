@@ -201,41 +201,41 @@ enum XErrorCode {
 
 struct ClientAdminRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[16];
    kXR_int32  dlen;
 };
 struct ClientAuthRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[12];
    kXR_char credtype[4];
    kXR_int32  dlen;
 };
 struct ClientChmodRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char  reserved[14];
-   kXR_int16 mode;
+   kXR_unt16 mode;
    kXR_int32  dlen;
 };
 struct ClientCloseRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char fhandle[4];
    kXR_char reserved[12];
    kXR_int32  dlen;
 };
 struct ClientDirlistRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[15];
    kXR_char options[1];
    kXR_int32  dlen;
 };
 struct ClientGetfileRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_int32 options;
    kXR_char reserved[8];
    kXR_int32 buffsz;
@@ -243,7 +243,7 @@ struct ClientGetfileRequest {
 };
 struct ClientLoginRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_int32 pid;
    kXR_char username[8];
    kXR_char reserved[2];
@@ -253,42 +253,42 @@ struct ClientLoginRequest {
 };
 struct ClientMkdirRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char options[1];
    kXR_char reserved[13];
-   kXR_int16 mode;
+   kXR_unt16 mode;
    kXR_int32  dlen;
 };
 
 struct ClientMvRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[16];
    kXR_int32  dlen;
 };
 struct ClientOpenRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
-   kXR_int16 mode;
-   kXR_int16 options;
+   kXR_unt16 requestid;
+   kXR_unt16 mode;
+   kXR_unt16 options;
    kXR_char  reserved[12];
    kXR_int32  dlen;
 };
 struct ClientPingRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[16];
    kXR_int32  dlen;
 };
 struct ClientProtocolRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[16];
    kXR_int32  dlen;
 };
 struct ClientPrepareRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char options;
    kXR_char prty;
    kXR_char reserved[14];
@@ -296,7 +296,7 @@ struct ClientPrepareRequest {
 };
 struct ClientPutfileRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_int32 options;
    kXR_char  reserved[8];
    kXR_int32 buffsz;
@@ -304,14 +304,14 @@ struct ClientPutfileRequest {
 };
 struct ClientQueryRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
-   kXR_int16 infotype;
+   kXR_unt16 requestid;
+   kXR_unt16 infotype;
    kXR_char reserved[14];
    kXR_int32  dlen;
 };
 struct ClientReadRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char fhandle[4];
    kXR_int64 offset;
    kXR_int32 rlen;
@@ -319,38 +319,38 @@ struct ClientReadRequest {
 };
 struct ClientRmRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[16];
    kXR_int32  dlen;
 };
 struct ClientRmdirRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[16];
    kXR_int32  dlen;
 };
 struct ClientSetRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[16];
    kXR_int32  dlen;
 };
 struct ClientStatRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char reserved[16];
    kXR_int32  dlen;
 };
 struct ClientSyncRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char fhandle[4];
    kXR_char reserved[12];
    kXR_int32  dlen;
 };
 struct ClientWriteRequest {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char fhandle[4];
    kXR_int64 offset;
    kXR_char reserved[4];
@@ -359,7 +359,7 @@ struct ClientWriteRequest {
 
 struct ClientRequestHdr {
    kXR_char  streamid[2];
-   kXR_int16 requestid;
+   kXR_unt16 requestid;
    kXR_char  body[16];
    kXR_int32  dlen;
 };
@@ -410,7 +410,7 @@ struct readahead_list {
 
 struct ServerResponseHeader {
    kXR_char streamid[2];
-   kXR_int16 status;
+   kXR_unt16 status;
    kXR_int32  dlen;
 };
 
@@ -486,8 +486,8 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
    char chkszrsp[ 9-sizeof(ServerResponseHeader)];
 };
 
-char *convertRequestIdToChar(kXR_int16 requestid);
-char *convertRespStatusToChar(kXR_int16 status);
+char *convertRequestIdToChar(kXR_unt16 requestid);
+char *convertRespStatusToChar(kXR_unt16 status);
 void smartPrintClientHeader(ClientRequest*);
 void smartPrintServerHeader(struct ServerResponseHeader*);
 
