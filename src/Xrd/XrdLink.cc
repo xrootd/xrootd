@@ -142,8 +142,8 @@ void XrdLink::Reset()
   
 XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
 {
-   static XrdOucMutex instMutex;
-   static int         myInstance = 0;
+   static XrdOucMutex  instMutex;
+   static unsigned int myInstance = 1;
    XrdLink *lp;
    char *unp, buff[16];
    int bl;
@@ -228,6 +228,7 @@ int XrdLink::Close()
    opMutex.Lock();
    InUse--;
    if (InUse > 0) {opMutex.UnLock(); return 0;}
+   Instance = 0;
 
 // Add up the statistic for this link
 //

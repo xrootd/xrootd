@@ -69,6 +69,9 @@ char         *ID;      // This is referenced a lot
 
 int           isConnected() {return FD >= 0;}
 
+int           isInstance(unsigned int inst)
+                        {return FD >= 0 && Instance == inst;}
+
 const char   *Name(sockaddr *ipaddr=0)
                      {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(ipaddr));
                       return (const char *)Lname;
@@ -150,7 +153,7 @@ XrdPoll            *Poller;
 struct pollfd      *PollEnt;
 char               *Etext;
 int                 FD;
-int                 Instance;
+unsigned int        Instance;
 time_t              conTime;
 int                 InUse;
 int                 doPost;
