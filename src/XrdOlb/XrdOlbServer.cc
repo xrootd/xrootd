@@ -1132,7 +1132,7 @@ int XrdOlbServer::do_State(char *rid,int mustresp)
    if (XrdOlbConfig.LocalRLen)
       if (XrdOlbConfig.GenLocalPath((const char *)tp, lclpath)) return 0;
          else pp = lclpath;
-      else pp = lclpath;
+      else pp = tp;
 
 // Do a stat, respond if we have the file
 //
