@@ -11,8 +11,8 @@
 // $Id$
 
 #include "XProtocol/XPtypes.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 
-typedef kXR_int64 offset_t;
 typedef kXR_int32 length_t;
 typedef kXR_int32 dictid_t;
 typedef kXR_char  packet_t;
