@@ -152,6 +152,8 @@ int CreateDestPath_xrd(string url, bool isdir) {
    bool res = -1;
    long id, size, flags, modtime;
 
+   if (url == "-") return 0;
+
    if (!isdir)
       url = url.substr(0,  url.rfind("/", url.size()) );
 
@@ -246,6 +248,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    // ----------- xrd to loc affair
    pthread_t myTID;
    XrdClientStatInfo stat;
+   int f;
 
    // Open the input file (xrdc)
    cpnfo.XrdCli = new XrdClient(src);
@@ -255,18 +258,25 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       cpnfo.XrdCli->Stat(&stat);
       cpnfo.len = stat.size;
 
-      unlink(dst);
-      int f = open(dst, 
-                   O_CREAT | O_WRONLY | O_TRUNC,
-                   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);   
-      if (f < 0) {
-	 Error("xrdcp", "Error " << strerror(errno) <<
-	       " creating " << dst);
-	 delete cpnfo.XrdCli;
-	 cpnfo.XrdCli = 0;
-	 return -1;
-      }
+      if (strcmp(dst, "-")) {
+	 // Copy to local fs
+	 unlink(dst);
+	 f = open(dst, 
+		      O_CREAT | O_WRONLY | O_TRUNC,
+		      S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);   
+	 if (f < 0) {
+	    Error("xrdcp", "Error " << strerror(errno) <<
+		  " creating " << dst);
+	    delete cpnfo.XrdCli;
+	    cpnfo.XrdCli = 0;
+	    return -1;
+	 }
       
+      }
+      else
+	 // Copy to stdout
+	 f = STDOUT_FILENO;
+
       // Start reader on xrdc
       XrdOucThread_Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
 
@@ -302,6 +312,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 
    return 0;
 }
+
+
 
 int doCp_loc2xrd(const char *src, const char * dst) {
 // ----------- loc to xrd affair

@@ -123,21 +123,29 @@ int XrdCpWorkLst::SetDest(const char *url) {
    else {
       // It's a local file or path
 
-      // We must see if it's a dir
-      DIR *d = opendir(url);
+      if (strcmp(url, "-")) {
+	 // We must see if it's a dir
+	 DIR *d = opendir(url);
 
-      fDestIsDir = TRUE;
-      if (!d) {
-	 if (errno == ENOTDIR)
-	    fDestIsDir = FALSE;
-	 else
-	    if (errno == ENOENT)
+	 fDestIsDir = TRUE;
+	 if (!d) {
+	    if (errno == ENOTDIR)
 	       fDestIsDir = FALSE;
 	    else
-	       return errno;
+	       if (errno == ENOENT)
+		  fDestIsDir = FALSE;
+	       else
+		  return errno;
+	 }
+	 fDest = url;
+	 if (d) closedir(d);
+
       }
-      fDest = url;
-      if (d) closedir(d);
+      else {
+	 // dest is stdout
+	 fDest = url;
+	 fDestIsDir = FALSE;
+      }
 
    }
 
