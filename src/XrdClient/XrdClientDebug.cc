@@ -10,7 +10,7 @@
 // Author: Alvise Dorigo, Fabrizio Furano
 
 #include "XrdClientDebug.hh"
-#include "XrdClientEnv.hh"
+
 #include "XrdClientMutexLocker.hh"
 XrdClientDebug *XrdClientDebug::fgInstance = 0;
 

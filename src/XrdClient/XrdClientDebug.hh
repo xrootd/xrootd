@@ -21,7 +21,7 @@
 #include <sstream>
 #include "XrdClientConst.hh"
 #include "XrdClientMutexLocker.hh"
-
+#include "XrdClientEnv.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
 
@@ -30,6 +30,7 @@ using namespace std;
 
 
 #define DebugLevel() XrdClientDebug::Instance()->GetDebugLevel()
+#define DebugSetLevel(l) XrdClientDebug::Instance()->SetLevel(l)
 
 #define Info(lvl, where, what) { \
 XrdClientDebug::Instance()->Lock();\
@@ -78,6 +79,11 @@ class XrdClientDebug {
        }
 
    static XrdClientDebug *Instance();
+
+   inline void SetLevel(int l) {
+      XrdClientMutexLocker m(fMutex);
+      fDbgLevel = l;
+   }
 
    inline void TraceStream(short DbgLvl, ostringstream &s) {
       XrdClientMutexLocker m(fMutex);

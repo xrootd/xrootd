@@ -29,7 +29,7 @@
 #define DFLT_MAXREDIRECTCOUNT   255
 #define NAME_MAXREDIRECTCOUNT   (char *)"MaxRedirectcount"
 
-#define DFLT_DEBUG              2
+#define DFLT_DEBUG              1
 #define NAME_DEBUG              (char *)"DebugLevel"
 
 #define DFLT_RECONNECTTIMEOUT   10

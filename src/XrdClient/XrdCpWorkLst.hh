@@ -37,6 +37,11 @@ class XrdCpWorkLst {
    // Sets the destination of the file copy
    int SetDest(const char *url);
 
+   inline void GetDest(string &dest, bool& isdir) {
+      dest = fDest;
+      isdir = fDestIsDir;
+   }
+
    // Actually builds the worklist
    int BuildWorkList_xrd(string url);
    int BuildWorkList_loc(DIR *dir, string pat);

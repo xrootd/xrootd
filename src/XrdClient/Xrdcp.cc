@@ -6,7 +6,7 @@
 //                                                                      //
 // A cp-like command line tool for xrootd environments                  //
 // Usage:                                                               //
-//       xrdcp <source> <dest>                                          //
+//       xrdcp [-d<debuglevel>] <source> <dest>                         //
 //  where:                                                              //
 //       <source> is the path/name of a file or                         //
 //                its xrootd URL in the form accepted by XrdClient, i.e.//
@@ -27,6 +27,7 @@
 #include "XrdCpMthrQueue.hh"
 #include "XrdClientDebug.hh"
 #include "XrdCpWorkLst.hh"
+#include "XrdClientEnv.hh"
 
 
 
@@ -131,6 +132,53 @@ extern "C" void *ReaderThread_loc(void *) {
    return 0;
 }
 
+
+int CreateDestPath_loc(string path, bool isdir) {
+   // We need the path name without the file
+   if (!isdir)
+      path = path.substr(0,  path.rfind("/", path.size()) );
+
+   return ( mkdir(
+		  path.c_str(),
+		  S_IRUSR | S_IWUSR | S_IXUSR |
+		  S_IRGRP | S_IWGRP | S_IXGRP |
+		  S_IROTH | S_IXOTH)
+	    );
+}
+   
+
+int CreateDestPath_xrd(string url, bool isdir) {
+   // We need the path name without the file
+   bool res = -1;
+   long id, size, flags, modtime;
+
+   if (!isdir)
+      url = url.substr(0,  url.rfind("/", url.size()) );
+
+   XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
+   if (adm->Connect()) {
+      XrdClientUrlInfo u(url);
+
+      if ( adm->Stat((char *)u.File.c_str(), id, size, flags, modtime) ) {
+
+	 // If the path already exists, it's good
+	 if (flags & kXR_isDir) res = 0;
+
+	 else if ( !(flags & kXR_xset) && !(flags & kXR_other) &&
+		   ( adm->Mkdir(u.File.c_str(),
+				kXR_ur | kXR_uw,
+				kXR_gw | kXR_gr,
+				kXR_or) ) )
+	    res = 0;
+	 
+      }
+      else res = 0;
+
+   }
+
+   delete adm;
+   return res;
+}
 
 int doCp_xrd2xrd(const char *src, const char *dst) {
    // ----------- xrd to xrd affair
@@ -324,11 +372,27 @@ int doCp_loc2xrd(const char *src, const char * dst) {
 
 // Main program
 int main(int argc, char**argv) {
+   char *srcpath = 0, *destpath = 0;
+   int newdbglvl = -1;
 
-   if (argc != 3) {
+   if (argc < 3) {
       Error("xrdcp", "usage: xrdcp <source> <dest>");
       exit(1);
    }
+
+   DebugSetLevel(0);
+   
+   for (int i=1; i < argc; i++) {
+      if (strstr(argv[i], "-d") == argv[i])
+	 newdbglvl = atoi(argv[i]+2);
+      else {
+	 if (!srcpath) srcpath = argv[i];
+	 else
+	    if (!destpath) destpath = argv[i];
+      }
+   }
+
+   if (newdbglvl >= 0) DebugSetLevel(newdbglvl);
 
    Info(XrdClientDebug::kNODEBUG, "main", XRDCP_VERSION);
 
@@ -336,8 +400,15 @@ int main(int argc, char**argv) {
    string src, dest;
 
    
-   wklst->SetSrc(argv[1]);
-   wklst->SetDest(argv[2]);
+   if (wklst->SetSrc(srcpath)) {
+      Error("xrdcp", "Error accessing path/file for " << srcpath);
+      exit(1);
+   }
+
+   if (wklst->SetDest(destpath)) {
+      Error("xrdcp", "Error accessing path/file for " << destpath);
+      exit(1);
+   }
 
    while (wklst->GetCpJob(src, dest)) {
       Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
@@ -345,16 +416,40 @@ int main(int argc, char**argv) {
       if (src.find("root://", 0) == 0) {
 	 // source is xrootd
 
-	 if (dest.find("root://", 0) == 0)
-	    doCp_xrd2xrd(src.c_str(), dest.c_str());
-	 else
-	    doCp_xrd2loc(src.c_str(), dest.c_str());
+	 if (dest.find("root://", 0) == 0) {
+	    string d;
+	    bool isd;
+	    wklst->GetDest(d, isd);
+	    if (!CreateDestPath_xrd(d, isd))
+	       doCp_xrd2xrd(src.c_str(), dest.c_str());
+	    else
+	       Error("xrdcp", "Error accessing path for " << d);
+	 }
+	 else {
+	    string d;
+	    bool isd;
+	    int res;
+	    wklst->GetDest(d, isd);
+	    res = CreateDestPath_loc(d, isd);
+	    if (!res || (errno == EEXIST) || !errno)
+	       doCp_xrd2loc(src.c_str(), dest.c_str());
+	    else
+	       Error("xrdcp", "Error " << strerror(errno) <<
+		     " accessing path for " << d);
+	 }
       }
       else {
 	 // source is localfs
 
-	 if (dest.find("root://", 0) == 0)
-	    doCp_loc2xrd(src.c_str(), dest.c_str());
+	 if (dest.find("root://", 0) == 0) {
+	    string d;
+	    bool isd;
+	    wklst->GetDest(d, isd);
+	    if (!CreateDestPath_xrd(d, isd))
+	       doCp_loc2xrd(src.c_str(), dest.c_str());
+	    else
+	       Error("xrdcp", "Error accessing path for " << d);
+	 }
 	 else {
 	    Error("xrdcp", "Better to use cp in this case.");
 	    exit(2);

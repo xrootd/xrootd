@@ -51,6 +51,8 @@ int XrdCpWorkLst::SetSrc(const char *url) {
 	       fWorkList.push_back(url);
          
 	 }
+	 else
+	    fWorkList.push_back(url); 
 
       }
 
@@ -71,9 +73,11 @@ int XrdCpWorkLst::SetSrc(const char *url) {
 	    return errno;
       }
 
-      BuildWorkList_loc(d, url);
+      if (d) {
+	 BuildWorkList_loc(d, url);
 
-      closedir(d);
+	 closedir(d);
+      }
 
    }
 
@@ -85,6 +89,13 @@ int XrdCpWorkLst::SetSrc(const char *url) {
 // i.e. decides if it's a directory or file name
 int XrdCpWorkLst::SetDest(const char *url) {
    long id, size, flags, modtime;
+
+   // Special case: if url terminates with "/" then it's a dir
+   if (url[strlen(url)-1] == '/') {
+      fDest = url;
+      fDestIsDir = TRUE;
+      return 0;
+   }
 
    if (strstr(url, "root://") == url) {
       // It's an xrd url
@@ -100,11 +111,11 @@ int XrdCpWorkLst::SetDest(const char *url) {
 	    if (flags & kXR_isDir)
 	       fDestIsDir = TRUE;
       
-	    fDest = url;
 	 }
 
       }
 
+      fDest = url;
       delete xrda_dst;
       xrda_dst = 0;
    }
@@ -119,7 +130,10 @@ int XrdCpWorkLst::SetDest(const char *url) {
 	 if (errno == ENOTDIR)
 	    fDestIsDir = FALSE;
 	 else
-	    return errno;
+	    if (errno == ENOENT)
+	       fDestIsDir = FALSE;
+	    else
+	       return errno;
       }
       fDest = url;
       closedir(d);
@@ -172,6 +186,10 @@ int XrdCpWorkLst::BuildWorkList_loc(DIR *dir, string path) {
    while ( (ent = readdir(dir)) ) {
       struct stat ftype;
 
+      if ( !strcmp(ent->d_name, ".") ||
+	   !strcmp(ent->d_name, "..") )
+	 continue;
+
       // Assemble full path name.
       fullpath = path + "/" + ent->d_name;
 
@@ -183,9 +201,11 @@ int XrdCpWorkLst::BuildWorkList_loc(DIR *dir, string path) {
       if (S_ISDIR (ftype.st_mode)) {
 	 DIR *d = opendir(fullpath.c_str());
 
-	 BuildWorkList_loc(d, fullpath);
+	 if (d) {
+	    BuildWorkList_loc(d, fullpath);
 
-	 closedir(d);
+	    closedir(d);
+	 }
       }
       else
 	 // If it's a file, then add it to the worklist
@@ -222,3 +242,4 @@ bool XrdCpWorkLst::GetCpJob(string &src, string &dest) {
 
    return TRUE;
 }
+

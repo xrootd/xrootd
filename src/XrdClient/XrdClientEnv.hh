@@ -28,6 +28,7 @@ using namespace std;
 #define EnvGetLong(x) XrdClientEnv::Instance()->GetInt(x)
 #define EnvGetString(x) XrdClientEnv::Instance()->Get(x)
 #define EnvPutString(name, val) XrdClientEnv::Instance()->Put(name, strdup(val))
+#define EnvPutInt(name, val) XrdClientEnv::Instance()->PutInt(name, val)
 
 class XrdClientEnv {
  private:
