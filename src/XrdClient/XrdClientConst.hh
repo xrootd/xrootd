@@ -52,7 +52,7 @@
 #define DFLT_GOASYNC 1
 #define NAME_GOASYNC            (char *)"GoAsync"
 
-#define  XRD_CLIENT_VERSION (char *)"0.1.0alpha"
+#define  XRD_CLIENT_VERSION (char *)"0.2 beta"
 
 // Defaults for ReadAhead and Cache
 #define DFLT_READCACHESIZE      4000000

@@ -115,6 +115,9 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 
    Disconnect();
 
+   if (fReaderthreadrunning)
+      pthread_cancel(fReaderthreadhandler);
+
    pthread_mutex_destroy(&fRwMutex);
    pthread_mutex_destroy(&fMutex);
 
@@ -408,11 +411,16 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
          // has to be freed.
 	 //if ( !IgnoreTimeouts || !m->IsError() )
 
+         bool waserror;
+
          if (IgnoreTimeouts) {
 
             if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_timeout) {
+               waserror = m->IsError();
+
                fMsgQ.PutMsg(m);
-               if (m->IsError())
+
+               if (waserror)
                   for (int kk=0; kk < 10; kk++) fMsgQ.PutMsg(0);
             }
             else {

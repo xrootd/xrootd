@@ -35,7 +35,7 @@ struct XrdCpInfo {
 } cpnfo;
 
 #define XRDCP_BLOCKSIZE          200000
-#define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 0.1.0alpha"
+#define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 0.2 beta"
 
 // The body of a thread which reads from the global
 //  XrdClient and keeps the queue filled
