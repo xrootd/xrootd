@@ -202,7 +202,7 @@ void XrdXrootdResponse::Set(unsigned char *stream)
 
    if (TRACING(TRACE_REQ|TRACE_RSP))
       {outbuff = trsid;
-       for (i = 0; i < sizeof(Resp.streamid); i++)
+       for (i = 0; i < (int)sizeof(Resp.streamid); i++)
            {*outbuff++ = hv[(stream[i] >> 4) & 0x0f];
             *outbuff++ = hv[ stream[i]       & 0x0f];
             }

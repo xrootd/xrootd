@@ -117,7 +117,6 @@ private:
        void  Cleanup();
 static int   ConfigFn(char *fn);
 static int   ConfigIt(char *parms);
-       int   fsError(XrdOucErrInfo &myError);
        int   fsError(int rc, XrdOucErrInfo &myError);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapError(int rc);
@@ -198,7 +197,7 @@ long                       myIOLen;
 
 // Buffers to handle client requests
 //
-struct ClientRequestHeader Request;
+ClientRequest              Request;
 XrdXrootdResponse          Response;
 };
 #endif

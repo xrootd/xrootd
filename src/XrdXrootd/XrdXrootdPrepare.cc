@@ -72,7 +72,6 @@ XrdXrootdPrepare::XrdXrootdPrepare(XrdOucError *errp, XrdScheduler *sp)
   
 int XrdXrootdPrepare::List(XrdXrootdPrepArgs &pargs, char *resp, int resplen)
 {
-   XrdOucTList *tp = pargs.paths;
    char *up, path[2048];
    struct dirent *dp;
    struct stat buf;
@@ -96,7 +95,7 @@ int XrdXrootdPrepare::List(XrdXrootdPrepArgs &pargs, char *resp, int resplen)
 // Find the next entry that satisfies the search criteria
 //
    errno = 0;
-   while(dp = readdir(pargs.dirP))
+   while((dp = readdir(pargs.dirP)))
         {if (!(up = index((const char *)dp->d_name, '_'))) continue;
          if (pargs.reqlen && strncmp(dp->d_name, pargs.reqid, pargs.reqlen))
             continue;
@@ -107,16 +106,16 @@ int XrdXrootdPrepare::List(XrdXrootdPrepArgs &pargs, char *resp, int resplen)
          strcpy(path+LogDirLen, (const char *)dp->d_name);
          if (stat((const char *)path, &buf)) continue;
          *up = ' ';
-         if (up = index((const char *)(up+1), (int)'_')) *up = ' ';
+         if ((up = index((const char *)(up+1), (int)'_'))) *up = ' ';
             else continue;
-         if (up = index((const char *)(up+1), (int)'_')) *up = ' ';
+         if ((up = index((const char *)(up+1), (int)'_'))) *up = ' ';
             else continue;
-         return snprintf(resp, resplen-1, "%s %d", dp->d_name, buf.st_mtime);
+         return snprintf(resp, resplen-1, "%s %ld", dp->d_name, buf.st_mtime);
         }
 
 // Completed
 //
-   if (rc = errno)
+   if ((rc = errno))
       eDest->Emsg("List", errno, "reading prep log directory", LogDir);
    closedir(pargs.dirP);
    pargs.dirP = 0;
@@ -256,7 +255,6 @@ int XrdXrootdPrepare::Open(const char *reqid, int &fsz)
   
 void XrdXrootdPrepare::Scrub()
 {
-   const char *epname = "Scrub";
    DIR *prepD;
    time_t stale = time(0) - scrubkeep;
    char *up, path[2048], *fn = path+LogDirLen;
@@ -278,7 +276,7 @@ void XrdXrootdPrepare::Scrub()
 // Delete all stale entries
 //
    errno = 0;
-   while(dp = readdir(prepD))
+   while((dp = readdir(prepD)))
         {if (!(up = index((const char *)dp->d_name, '_'))) continue;
          strcpy(fn, (const char *)dp->d_name);
          if (stat((const char *)path, &buf)) continue;
@@ -312,7 +310,7 @@ int XrdXrootdPrepare::setParms(char *ldir)
 {
    char path[2048];
    struct stat buf;
-   int plen, slen;
+   int plen;
 
 // If parm not supplied, ignore call
 //

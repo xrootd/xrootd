@@ -31,6 +31,16 @@ const char *XrdXrootdLoadLibCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
   
 /******************************************************************************/
+/*                        G l o b a l   S y m b o l s                         */
+/******************************************************************************/
+  
+XrdSecProtocol *(*XrdXrootdSecGetProtocol)(const struct sockaddr  &,
+                                           const XrdSecParameters &,
+                                                 XrdOucErrInfo    *) = 0;
+
+void            (*XrdXrootdSecDelProtocol)(XrdSecProtocol *) = 0;
+
+/******************************************************************************/
 /*                 x r o o t d _ l o a d F i l e s y s t e m                  */
 /******************************************************************************/
 
@@ -99,6 +109,28 @@ XrdSecProtocol *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib, char *cf
 //
    if (!(CIA = (*ep)(eDest->logger(), (const char *)cfn)))
       {eDest->Emsg("Config", "Unable to create security protocol object via",seclib);
+       return 0;
+      }
+
+// Get the client object creator (in case we are acting as a client)
+//
+   if (!(XrdXrootdSecGetProtocol = 
+                 (XrdSecProtocol *(*)(const struct sockaddr  &,
+                                      const XrdSecParameters &,
+                                            XrdOucErrInfo    *))
+                 dlsym(libhandle, "XrdSecGetProtocolClient")))
+      {eDest->Emsg("Config", dlerror(),
+                   (char *)"finding XrdSecGetProtocol() in", seclib);
+       return 0;
+      }
+
+// Get the client object destroyer
+//
+   if (!(XrdXrootdSecDelProtocol =
+                 (void (*)(XrdSecProtocol *))dlsym(libhandle,
+                                                   "XrdSecGetProtocolClient")))
+      {eDest->Emsg("Config", dlerror(),
+                   (char *)"finding XrdSecDelProtocol() in", seclib);
        return 0;
       }
 

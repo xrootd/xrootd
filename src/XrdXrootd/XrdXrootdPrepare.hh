@@ -47,7 +47,7 @@ XrdOucTList *paths;
                     {if (reqid)  free(reqid);
                      if (notify) free(notify);
                     }
-                 if (freepaths) while(tp=paths) {paths=paths->next; delete tp;}
+                 if (freepaths) while((tp=paths)) {paths=paths->next; delete tp;}
                  if (dirP) closedir(dirP);
                 }
 private:

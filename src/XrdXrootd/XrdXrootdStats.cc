@@ -53,7 +53,7 @@ Refresh  = 0;     // Stats: Number of refresh requests
 int XrdXrootdStats::Stats(char *buff, int blen)
 {
    static const char statfmt[] = "<stats id=\"xrootd\"><num>%ld</num>"
-   "<ops><open>%ld</open><rf>%ld</rf><rd>%ld</rd><pr>%ld</pr><wr>%d</wr>"
+   "<ops><open>%ld</open><rf>%ld</rf><rd>%ld</rd><pr>%ld</pr><wr>%ld</wr>"
    "<sync>%ld</sync><getf>%ld</getf><putf>%ld</putf><misc>%ld</misc></ops>"
    "<aio><num>%ld</num><max>%ld</max><rej>%ld</rej></aio></stats>";
    int len;

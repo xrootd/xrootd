@@ -69,7 +69,7 @@ int XrdXrootdFileLock1::Lock(XrdXrootdFile *fp, int force)
 
 // See if we already have a lock on this file
 //
-   if (lp = XrdXrootdLockTable.Find(fp->FileKey))
+   if ((lp = XrdXrootdLockTable.Find(fp->FileKey)))
       {if (fp->FileMode == 'r')
           {if (lp->numWriters && !force)
               return -lp->numWriters;

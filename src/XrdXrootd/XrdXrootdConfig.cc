@@ -52,7 +52,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 
    xrootd [options]
 
-   options: [<xopt>] [-m] [-r] [-s] [-t] [path]
+   options: [<xopt>] [-m] [-r] [-s] [-t] [-y] [path]
 
 Where:
    xopt   are xrd specified options that are screened out.
@@ -64,6 +64,8 @@ Where:
    -s     This server should port balance.
 
    -t     This server is a redirection target.
+
+   -y     This server is a proxy server.
 
     path  Export path. Any number of paths may be specified.
           By default, only '/tmp' is exported.
@@ -96,8 +98,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *, char *, 
                                                     const char *);
    extern XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *, XrdOucLogger *);
-   extern char *optarg;
-   extern int optind, opterr, optopt;
+   extern int optind, opterr;
    XrdXrootdXPath *xp;
    char *fsver, c, buff[1024], Multxrd = 0;
    int NoGo;
@@ -128,6 +129,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                  putenv((char *)"XRDREDIRECT=L");
                  break;
        case 't': putenv((char *)"XRDRETARGET=1");
+                 break;
+       case 'y': putenv((char *)"XRDREDPROXY=1");
                  break;
        default:  eDest.Say(0, (char *)"Warning, ignoring invalid option ",
                            pi->argv[optind-1]);
@@ -271,7 +274,7 @@ int XrdXrootdProtocol::ConfigIt(char *parms)
    // Process items
    //
    while(Config.GetLine())
-        {if (var = Config.GetToken())
+        {if ((var = Config.GetToken()))
             {if (!(ignore = strncmp("xrootd.", var, 7)) && var[7]) var += 7;
                   if TS_Xeq("async",         xasync);
              else if TS_Xeq("chksum",        xcksum);
@@ -314,13 +317,12 @@ int XrdXrootdProtocol::xasync(XrdOucTokenizer &Config)
     int  i, ppp;
     int  V_mapl = -1, V_maps = -1, V_iosz = -1;
     long long llp;
-    long maxsz = as_maxbfsz;
     static struct asyncopts {const char *opname; int minv; int *oploc;
                              const char *opmsg;} asopts[] =
        {
-        "maxpl",      0, &V_mapl, "async maxpl",
-        "maxps",      0, &V_maps, "async maxps",
-        "iosz",    4096, &V_iosz, "async iosz"};
+        {"maxpl",      0, &V_mapl, "async maxpl"},
+        {"maxps",      0, &V_maps, "async maxps"},
+        {"iosz",    4096, &V_iosz, "async iosz"}};
     int numopts = sizeof(asopts)/sizeof(struct asyncopts);
 
     if (!(val = Config.GetToken()))
@@ -517,7 +519,7 @@ int XrdXrootdProtocol::xprep(XrdOucTokenizer &Config)
                    }
                 }
         else eDest.Emsg("Config", "Warning, invalid prep option", val);
-       } while(val = Config.GetToken());
+       } while((val = Config.GetToken()));
 
 // Set the values
 //
@@ -577,18 +579,18 @@ int XrdXrootdProtocol::xsecl(XrdOucTokenizer &Config)
 int XrdXrootdProtocol::xtrace(XrdOucTokenizer &Config)
 {
     char *val;
-    static struct traceopts { char * opname; int opval;} tropts[] =
+    static struct traceopts {const char *opname; int opval;} tropts[] =
        {
-       (char *)"all",      TRACE_ALL,
-       (char *)"emsg",     TRACE_EMSG,
-       (char *)"debug",    TRACE_DEBUG,
-       (char *)"fs",       TRACE_FS,
-       (char *)"login",    TRACE_LOGIN,
-       (char *)"mem",      TRACE_MEM,
-       (char *)"stall",    TRACE_STALL,
-       (char *)"redirect", TRACE_REDIR,
-       (char *)"request",  TRACE_REQ,
-       (char *)"response", TRACE_RSP
+        {"all",      TRACE_ALL},
+        {"emsg",     TRACE_EMSG},
+        {"debug",    TRACE_DEBUG},
+        {"fs",       TRACE_FS},
+        {"login",    TRACE_LOGIN},
+        {"mem",      TRACE_MEM},
+        {"stall",    TRACE_STALL},
+        {"redirect", TRACE_REDIR},
+        {"request",  TRACE_REQ},
+        {"response", TRACE_RSP}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
@@ -596,7 +598,7 @@ int XrdXrootdProtocol::xtrace(XrdOucTokenizer &Config)
        {eDest.Emsg("config", "trace option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) trval = 0;
-             else {if (neg = (val[0] == '-' && val[1])) val++;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
                    for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, tropts[i].opname))
                            {if (neg) trval &= ~tropts[i].opval;

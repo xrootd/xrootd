@@ -45,7 +45,6 @@ extern XrdOucTrace      *XrdXrootdTrace;
 XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
 {
      struct stat buf;
-     char   key[256];
      int i;
 
     XrdSfsp    = fp;

@@ -109,7 +109,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 /******************************************************************************/
 
 XrdXrootdProtocol::XrdXrootdProtocol() 
-                    : ProtLink(this), XrdProtocol("xrootd protocol handler")
+                    : XrdProtocol("xrootd protocol handler"), ProtLink(this)
 {
    Reset();
 }
@@ -254,15 +254,15 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
 
 // Deserialize the data
 //
-   Request.requestid = ntohs(Request.requestid);
-   Request.dlen      = ntohl(Request.dlen);
-   Response.Set(Request.streamid);
-   TRACEP(REQ, "req=" <<Request.requestid <<" dlen=" <<Request.dlen);
+   Request.header.requestid = ntohs(Request.header.requestid);
+   Request.header.dlen      = ntohl(Request.header.dlen);
+   Response.Set(Request.header.streamid);
+   TRACEP(REQ, "req=" <<Request.header.requestid <<" dlen=" <<Request.header.dlen);
 
 // If the user is not yet logged in, restrict what the user can do
 //
    if (!Status)
-      switch(Request.requestid)
+      switch(Request.header.requestid)
             {case kXR_login:    return do_Login();
              case kXR_protocol: return do_Protocol();
              default:           Response.Send(kXR_InvalidRequest,
@@ -271,7 +271,7 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
                                 return -1;
             }
       else 
-      switch(Request.requestid)   // First, the ones with file handles
+      switch(Request.header.requestid)   // First, the ones with file handles
             {case kXR_read:     return do_Read();
              case kXR_write:    return do_Write();
              case kXR_sync:     return do_Sync();
@@ -291,7 +291,7 @@ int XrdXrootdProtocol::Process2()
 
 // First select any protocol that does not need an argument
 //
-   switch(Request.requestid)
+   switch(Request.header.requestid)
          {case kXR_protocol: return do_Protocol();
           case kXR_ping:     return do_Ping();
           default:           break;
@@ -299,9 +299,9 @@ int XrdXrootdProtocol::Process2()
 
 // Get a buffer for this argument
 //
-   if (!argp || Request.dlen+1 > argp->bsize)
+   if (!argp || Request.header.dlen+1 > argp->bsize)
       {if (argp) BPool->Release(argp);
-       if (!(argp = BPool->Obtain(Request.dlen+1)))
+       if (!(argp = BPool->Obtain(Request.header.dlen+1)))
           {Response.Send(kXR_ArgTooLong, "Request argument is too long");
            return 0;
           }
@@ -309,9 +309,9 @@ int XrdXrootdProtocol::Process2()
 
 // Read in the remainder of the request and process it
 //
-   if (rc = getData("arg", argp->buff, Request.dlen))
+   if ((rc = getData("arg", argp->buff, Request.header.dlen)))
       {Resume = &XrdXrootdProtocol::Process3; return rc;}
-   argp->buff[Request.dlen] = '\0';
+   argp->buff[Request.header.dlen] = '\0';
    return Process3();
 }
 
@@ -324,7 +324,7 @@ int XrdXrootdProtocol::Process3()
 // Force authentication at this point, if need be
 //
    if (Status & XRD_NEED_AUTH)
-      if (Request.requestid == kXR_auth) return do_Auth();
+      if (Request.header.requestid == kXR_auth) return do_Auth();
          else {Response.Send(kXR_InvalidRequest,
                             "Invalid request; user not logged in");
                ABANDON(Link,"protocol sequence error 2");
@@ -333,7 +333,7 @@ int XrdXrootdProtocol::Process3()
 
 // Process items that keep own statistics
 //
-   switch(Request.requestid)
+   switch(Request.header.requestid)
          {case kXR_open:      return do_Open();
           case kXR_getfile:   return do_Getfile();
           case kXR_putfile:   return do_Putfile();
@@ -346,7 +346,7 @@ int XrdXrootdProtocol::Process3()
 
 // Now process whatever we have
 //
-   switch(Request.requestid)
+   switch(Request.header.requestid)
          {case kXR_admin:     if (Status & XRD_ADMINUSER) return do_Admin();
                                  else break;
           case kXR_chmod:     return do_Chmod();
