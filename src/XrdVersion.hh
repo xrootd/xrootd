@@ -6,7 +6,7 @@
 #define XrdVSTRING XrdVERSION "_dbg"
 #else
 #define XrdVSTRING XrdVERSION
+#endif
 
 #define XrdDEFAULTPORT 1094;
-#endif
 #endif
