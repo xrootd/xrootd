@@ -42,7 +42,7 @@
 
 #include "XrdClientAbs.hh"
 #include "XrdClientString.hh"
-#include "XrdClientConn.hh"
+
 
 
 
@@ -63,8 +63,6 @@ struct XrdClientStatInfo {
 class XrdClient : public XrdClientAbs {
 
 private:
-
-   XrdClientConn*           fConnModule;
 
    char                     fHandle[4];          // The file handle returned by the server,
                                                  // to use for successive requests

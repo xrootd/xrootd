@@ -19,7 +19,6 @@
 
 #include "XrdClientAbs.hh"
 #include "XrdClientString.hh"
-#include "XrdClientConn.hh"
 #include "XrdClientVector.hh"
 
 
@@ -30,7 +29,6 @@ void joinStrings(XrdClientString &buf, vecString vs);
 
 class XrdClientAdmin : public XrdClientAbs {
 
-   XrdClientConn*               fConnModule;
    XrdClientUrlInfo             fInitialUrl;
 
  public:

@@ -5,7 +5,6 @@
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 //                                                                      //
 // A cp-like command line tool for xrootd environments                  //
-
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
@@ -155,7 +154,7 @@ void BuildFullDestFilename(XrdClientString &src, XrdClientString &dest, bool des
    }
 }
 
-int CreateDestPath_xrd(XrdClientString url, bool isdir) {
+int CreateDestPath_xrd(XrdClientString &url, bool isdir) {
    // We need the path name without the file
    bool statok = FALSE, done = FALSE;
    long id, size, flags, modtime;
@@ -170,14 +169,22 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    if (adm->Connect()) {
      XrdClientUrlInfo u(url);
      
+     statok = adm->Stat((char *)u.File.c_str(), id, size, flags, modtime);
+
+     // We might have been redirected to a destination server. Better to remember it and use
+     //  only this one as output.
+     if (adm->GetCurrentUrl().IsValid()) {
+	u.Host = adm->GetCurrentUrl().Host;
+	u.Port = adm->GetCurrentUrl().Port;
+	url = u.GetUrl();
+     }
+
      path = (char *)u.File.c_str();
      slash = path;
 
      // FIXME: drop the top level directory as it cannot be stat by the xrootd server
      slash += strspn(slash, "/");
      slash += strcspn(slash, "/");
-     
-     statok = adm->Stat((char *)u.File.c_str(), id, size, flags, modtime);
      
      // If the path already exists, it's good
      done = (statok && (flags & kXR_isDir));
@@ -196,13 +203,19 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
 	 Info(XrdClientDebug::kHIDEBUG,
 	      "CreateDestPath__xrd",
 	      "Creating directory " << path);
-	 if (! adm->Mkdir(path, 7, 5, 5)) {
-	   return -1;
-	 }
+
+	 adm->Mkdir(path, 7, 5, 5);
+
+// 	 if (! adm->Mkdir(path, 7, 5, 5)) {
+// 	    delete adm;
+// 	    return -1;
+// 	 }
+
        }
        *slash = '/';
      }
    }
+
    delete adm;
    return 0;
 }

@@ -17,14 +17,28 @@
 #define XRD_ABSCLIENTBASE_H
 
 #include "XrdClientUnsolMsg.hh"
+#include "XrdClientConn.hh"
 
 class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
-public:
+ protected:
+   XrdClientConn*           fConnModule;
+ public:
 
-  virtual bool OpenFileWhenRedirected(char *newfhandle, 
-				      bool &wasopen) = 0;
-  void SetParm(const char *parm, int val);
-  void SetParm(const char *parm, double val);
+   virtual bool OpenFileWhenRedirected(char *newfhandle, 
+				       bool &wasopen) = 0;
+   void SetParm(const char *parm, int val);
+   void SetParm(const char *parm, double val);
+
+   inline XrdClientUrlInfo GetCurrentUrl() {
+      if (fConnModule)
+	 return fConnModule->GetCurrentUrl();
+      else {
+	 XrdClientUrlInfo empty;
+	 return empty;
+      }
+   }
+
+
 };
 
 #endif

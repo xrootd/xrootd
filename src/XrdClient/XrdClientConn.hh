@@ -20,10 +20,11 @@
 #include "XrdClientConst.hh"
 
 #include "time.h"
-#include "XrdClientAbs.hh"
 #include "XrdClientMessage.hh"
 #include "XrdClientUrlInfo.hh"
 #include "XrdClientReadCache.hh"
+
+class XrdClientAbs;
 
 class XrdClientConn {
 

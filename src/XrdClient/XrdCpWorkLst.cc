@@ -102,6 +102,7 @@ int XrdCpWorkLst::SetDest(const char *url) {
 
    if (strstr(url, "root://") == url) {
       // It's an xrd url
+      fDest = url;
 
       xrda_dst = new XrdClientAdmin(url);
       if (xrda_dst->Connect()) {
@@ -116,9 +117,18 @@ int XrdCpWorkLst::SetDest(const char *url) {
       
 	 }
 
+	 // In any case we might have been assigned a destination data server
+	 // Better to take this into account instead of the former one
+	 if (xrda_dst->GetCurrentUrl().IsValid()) {
+	    XrdClientUrlInfo uu;
+	    uu = xrda_dst->GetCurrentUrl();
+	    u.Host = uu.Host;
+	    u.Port = uu.Port;
+	    fDest = u.GetUrl();
+	 }	 
+
       }
 
-      fDest = url;
       delete xrda_dst;
       xrda_dst = 0;
    }

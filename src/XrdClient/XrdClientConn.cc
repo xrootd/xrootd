@@ -24,6 +24,7 @@
 #include "XrdClientUrlInfo.hh"
 #include "XrdClientStringMatcher.hh"
 #include "XrdClientEnv.hh"
+#include "XrdClientAbs.hh"
 
 #include <stdio.h>      // needed by printf
 #include <stdlib.h>     // needed by getenv()
