@@ -115,7 +115,7 @@ $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdInet.hh \
 
 $(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh        XrdProtocol.hh   \
                        XrdPoll.cc       XrdPollDev.hh     XrdPollDev.icc \
-                       XrdPollPoll.hh   XrdPollDev.icc    XrdScheduler.hh \
+                       XrdPollPoll.hh   XrdPollPoll.icc   XrdScheduler.hh \
                        XrdTrace.hh     \
                        XrdOucError.hh   XrdOucPlatform.hh XrdOucPthread.hh \
                        XrdOucTrace.hh

@@ -416,7 +416,7 @@ void XrdScheduler::setParms(int minw, int maxw, int avlw, int maxi)
 //
    if (minw > 0)  min_Workers = minw;
    if (maxw > 0)  max_Workers = maxw;
-   if (maxi > 0)  max_Workidl = maxi;
+   if (maxi >=0)  max_Workidl = maxi;
    if (avlw > 0) {stk_Workers = max_Workers - avlw;
                   avl_Workers = avlw;
                  }
@@ -425,7 +425,7 @@ void XrdScheduler::setParms(int minw, int maxw, int avlw, int maxi)
 //
    SchedMutex.UnLock();
 
-// If we an idle interval, schedule the idle check
+// If we have an idle interval, schedule the idle check
 //
    if (maxi > 0) Schedule((XrdJob *)this, (time_t)maxi+time(0));
 

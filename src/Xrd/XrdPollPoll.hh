@@ -26,11 +26,9 @@ public:
 
        void Disable(XrdLink *lp, const char *etxt=0);
 
-       int   Enable(XrdLink *lp);
+       int  Enable(XrdLink *lp);
 
        void Start(XrdOucSemaphore *syncp, int &rc);
-
-       int  XSignal;
 
             XrdPollPoll(struct pollfd *pp, int numfd);
            ~XrdPollPoll();
@@ -48,13 +46,10 @@ void  LogEvent(int req, int pollfd, int cmdfd);
 void  Recover(int numleft);
 void  Restart(int ecode);
 
-struct     pollfd      PipePoll;
-
-struct     pollfd     *PollTab;
-           int         PollTNum;
-           XrdLink    *PollQ;
-XrdOucMutex PollMutex;                 // Protects above data
-
-           int        maxent;
+struct     pollfd     *PollTab;    //<---
+           int         PollTNum;   // PollMutex protects these elements
+           XrdLink    *PollQ;      //<---
+           XrdOucMutex PollMutex;
+           int         maxent;
 };
 #endif

@@ -1075,7 +1075,7 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
         {"mint",       1, &V_mint, "sched mint"},
         {"maxt",       1, &V_maxt, "sched maxt"},
         {"avlt",       1, &V_avlt, "sched avlt"},
-        {"idle",      90, &V_idle, "sched idle"}
+        {"idle",       0, &V_idle, "sched idle"}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
 

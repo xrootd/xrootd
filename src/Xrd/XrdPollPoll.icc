@@ -39,11 +39,16 @@ extern XrdOucTrace    XrdTrace;
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
   
-#ifdef __linux__
+// We turn on ComPollTab for all platform. Though compressing the poll table
+// is a platform-specific optimization, not compressing the poll table may
+// actually cause poll attach failure on those platforms that do not share the
+// poll table between user space and kernel space. The reason is that in those
+// cases, the kernel actually wipes out any changes to the table made while
+// the poll() was active on the table. This optimization is quickly becomming
+// moot since many platform provide the '/dev/poll' alternative which will be
+// preferentially used.
+//
 #define __CompPollTab__
-#else
-#undef  __CompPollTab__
-#endif
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -133,7 +138,7 @@ int XrdPollPoll::Include(XrdLink *lp)
    ptnum = PollTNum;
 #else
    ptnum = 0;
-   while(ptnum < PollTNum && PollTab[ptnum].fd != -1) ptnum++;
+   while((ptnum < PollTNum) && (PollTab[ptnum].fd != -1)) ptnum++;
 #endif
 
 // Make sure we have enough table entries to add this link
@@ -403,7 +408,8 @@ void XrdPollPoll::doDetach(int pti)
      }
   PollTNum--;
 #else
-  if (pti == lastent) PollTNum--;
+  if (pti == lastent) 
+     do {PollTNum--;} while(PollTNum && PollTab[PollTNum-1].fd == -1);
 #endif
   PollMutex.UnLock();
 }

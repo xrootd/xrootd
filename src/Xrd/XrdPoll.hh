@@ -89,8 +89,6 @@ static     XrdPoll   *newPoller(int pollid, int numfd)    /* = 0 */;
 
 // The following is common to all implementations
 //
-XrdOucMutex   PollMutex;
-
 XrdOucMutex   PollPipe;
 struct pollfd PipePoll;
 int           CmdFD;      // FD to send PipeData commands
