@@ -7,11 +7,11 @@
 # Order in which components must be made
 #
 SERVER  = XrdOuc   XrdNet   XrdSfs   XrdAcc XrdSec @xrdsecplugins@ XrdOdc \
-          XrdXr    XrdOss   XrdOfs XrdOlb Xrd  XrdRootd   XrdXrootd
+          XrdXr    XrdOss   XrdOfs   XrdOlb Xrd  XrdRootd   XrdXrootd
 
 XRDSEC  = XrdOuc XrdSec @xrdsecplugins@
 
-XRDCLIENT = XrdClient
+XRDCLIENT = XrdClient XrdPosix
 
 TARGETS = @targets@ $(XRDCLIENT)
 
@@ -87,6 +87,11 @@ XrdClientPerl: FORCE
 	@cd src/XrdClient;\
 	$(MAKE) perlmod ARCH=$(ARCH) --no-print-directory
 
+XrdNet: FORCE
+	@echo $(XMSG) ouc $(XDBG) component...
+	@cd src/XrdNet;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
 XrdOdc: FORCE
 	@echo $(XMSG) odc $(XDBG) component...
 	$(ECHO)cd src/XrdOdc;\
@@ -112,9 +117,9 @@ XrdOuc: FORCE
 	$(ECHO)cd src/XrdOuc;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
-XrdNet: FORCE
-	@echo $(XMSG) ouc $(XDBG) component...
-	@cd src/XrdNet;\
+XrdPosix: FORCE
+	@echo $(XMSG) posix $(XDBG) component...
+	$(ECHO)cd src/XrdPosix;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdSfs: FORCE
