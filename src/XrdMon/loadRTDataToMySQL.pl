@@ -267,7 +267,7 @@ sub runQueryWithRet() {
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
-    print "$sql\n";
+    #print "$sql\n";
     return $sth->fetchrow_array;
 }
 
@@ -276,7 +276,7 @@ sub runQuery() {
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
-    print "$sql\n";
+    #print "$sql\n";
 }
 
 
