@@ -25,13 +25,13 @@ mkdir -p $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/bin
 mkdir -p $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib
 mkdir -p $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/etc
 
-install -s -m 755 bin/i386_linux24/xrootd $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/bin/xrootd
-install -s -m 755 bin/i386_linux24/olbd $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/bin/olbd
-install -s -m 755 lib/i386_linux24/libXrdOfs.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdOfs.so
-install -s -m 755 lib/i386_linux24/libXrdRootd.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdRootd.so
-install -s -m 755 lib/i386_linux24/libXrdSec.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdSec.so
-install -s -m 755 lib/i386_linux24/libXrdSeckrb4.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdSeckrb4.so
-install -s -m 755 lib/i386_linux24/libXrdSeckrb5.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdSeckrb5.so
+install -s -m 755 bin/XRD-SYSNAME-XRD/xrootd $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/bin/xrootd
+install -s -m 755 bin/XRD-SYSNAME-XRD/olbd $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/bin/olbd
+install -s -m 755 lib/XRD-SYSNAME-XRD/libXrdOfs.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdOfs.so
+install -s -m 755 lib/XRD-SYSNAME-XRD/libXrdRootd.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdRootd.so
+install -s -m 755 lib/XRD-SYSNAME-XRD/libXrdSec.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdSec.so
+install -s -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb4.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdSeckrb4.so
+install -s -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb5.so $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/lib/libXrdSeckrb5.so
 install -m 755 etc/StartOLB $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/etc/StartOLB
 install -m 644 etc/StartOLB.cf $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/etc/StartOLB.cf
 install -m 755 etc/StartXRD $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/etc/StartXRD
