@@ -25,7 +25,7 @@ if ( @ARGV ne 1 ) {
 $dbh = DBI->connect('dbi:mysql:rtxrdmon',"becla");
 
 
-
+$nr = 0;
 $inFName = $ARGV[0];
 open inF, "< $inFName" or die "Can't open file $inFName for reading\n";
 while ( $_ = <inF> ) {
@@ -34,9 +34,13 @@ while ( $_ = <inF> ) {
     if ( $_ =~ m/^d/ ) { loadCloseSession($_); }
     if ( $_ =~ m/^o/ ) { loadOpenFile($_);     }
     if ( $_ =~ m/^c/ ) { loadCloseFile($_);    }
+    $nr += 1;
+    if ( $nr % 1001 == 1000 ) {
+($Second, $Minute, $Hour, $Day, $Month, $Year, $WeekDay, $DayOfYear, $IsDST) = localtime(time) ; 
+	print "$Hour:$Minute:$Second $nr\n";
+    }
 }
 close inF;
-
 
 sub loadOpenSession() {
     my ($line) = @_;
@@ -49,14 +53,9 @@ sub loadOpenSession() {
     my $serverHostId = findOrInsertHostId($srvHost);
 
     #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
+    runQuery("INSERT INTO openedSessions (userId, pId, clientHId, serverHId) VALUES ($userId, $pid, $clientHostId, $serverHostId)");
 
-    my $sql = "INSERT INTO openedSessions (userId, pId, clientHId, serverHId) VALUES ($userId, $pid, $clientHostId, $serverHostId)";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
-
-    $sql = "INSERT INTO hosts (hostName) VALUES (\"$clientHost\")";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
+    runQuery("INSERT INTO hosts (hostName) VALUES (\"$clientHost\")");
 }
 
 
@@ -67,25 +66,19 @@ sub loadCloseSession() {
     #print "d=$d, sId=$sessionId, sec=$sec, t=$timestamp\n";
 
     # find if there is corresponding open session, if not don't bother
-    my $sql = "SELECT userId, pId, clientHId, serverHId FROM openedSessions WHERE id = $sessionId";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
+    my ($userId, $pId, $clientHId, $serverHId) = 
+	runQuery("SELECT userId, pId, clientHId, serverHId FROM openedSessions WHERE id = $sessionId");
 
-    my ($userId, $pId, $clientHId, $serverHId) = $sth->fetchrow_array;
     if ( $pId < 1 ) {
 	return;
     }
     #print "received decend data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
 
     # remove it from the open session table
-    my $sql = "DELETE FROM openedSessions WHERE id = $id;";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
+    runQuery("DELETE FROM openedSessions WHERE id = $id;");
 
     # and insert into the closed
-    my $sql = "INSERT INTO closedSessions (sessionId, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
+    runQuery("INSERT INTO closedSessions (sessionId, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
 }
 
 
@@ -101,9 +94,7 @@ sub loadOpenFile() {
 	return; # error: no corresponding session id
     }
 
-    my $sql = "INSERT INTO openedFiles (sessionId, openT, filePath) VALUES ($sessionId, \"$openTime\", \"$path\")";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
+    runQuery("INSERT INTO openedFiles (sessionId, openT, filePath) VALUES ($sessionId, \"$openTime\", \"$path\")");
 }
 
 sub loadCloseFile() {
@@ -113,23 +104,17 @@ sub loadCloseFile() {
     #print "c=$c, id=$fileId, br=$bytesR, bw=$bytesW, t=$closeT\n";
 
     # find if there is corresponding open file, if not don't bother
-    my $sql = "SELECT sessionId, openT, filePath FROM openedFiles WHERE id = $fileId";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
-    my ($sessionId, $openT, $filePath) = $sth->fetchrow_array;
+    my ($sessionId, $openT, $filePath) = 
+	runQueryWithRet("SELECT sessionId, openT, filePath FROM openedFiles WHERE id = $fileId");
     if ( ! $sessionId ) {
 	return;
     }
 
     # remove it from the open files table
-    my $sql = "DELETE FROM openedFiles WHERE id = $fileId;";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
+    runQuery("DELETE FROM openedFiles WHERE id = $fileId;");
 
     # and insert into the closed
-    my $sql = "INSERT INTO closedFiles (sessionId, openT, closeT, bytesR, bytesW, filePath) VALUES ($sessionId, \"$openT\", \"$closeT\", $bytesR, $bytesW, \"$filePath\");";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
+    runQuery("INSERT INTO closedFiles (sessionId, openT, closeT, bytesR, bytesW, filePath) VALUES ($sessionId, \"$openT\", \"$closeT\", $bytesR, $bytesW, \"$filePath\");");
 }
 
 sub findSessionId() {
@@ -139,35 +124,26 @@ sub findSessionId() {
     my $clientHostId = findOrInsertHostId($clientHost);
     my $serverHostId = findOrInsertHostId($srvHost);
 
-    my $sql = "SELECT id FROM openedSessions WHERE userId=$userId AND clientHId=$clientHostId AND serverHId=$serverHostId;";
-
-#    my $sql = "SELECT openedSessions.id FROM openedSessions, users, hosts WHERE userName=\"$user\" AND users.id=openedSessions.userId AND pid=$pid AND hostName=\"$clientHost\" AND hosts.id=openedSessions.clientHId AND hostName=\"$srvHost\" AND hosts.id=openedSessions.serverHId;";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
-    my $sessionId = $sth->fetchrow_array;
-    return $sessionId;
+    return runQueryWithRet("SELECT id FROM openedSessions WHERE userId=$userId AND clientHId=$clientHostId AND serverHId=$serverHostId;");
 }
 
 
 sub findOrInsertUserId() {
     my ($userName) = @_;
 
-    my $sql = "SELECT id FROM users WHERE userName = \"$userName\"";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
-    my $userId = $sth->fetchrow_array;
+    my $userId = $userIds{$userName};
+    if ( $userId ) {
+        return $userId;
+    }
+    $userId = runQueryWithRet("SELECT id FROM users WHERE userName = \"$userName\"");
     if ( $ userId ) {
 	#print "Will reuse user id $userId for $userName\n";
     } else {
 	#print "$userName not in mysql yet, inserting...\n";
-	my $sql = "INSERT INTO users (userName) VALUES (\"$userName\");";
-	my $sth = $dbh->prepare($sql);
-	$sth->execute || die "Failed to exec \"$sql\"";
+	runQuery("INSERT INTO users (userName) VALUES (\"$userName\");");
 
-	my $sql = "SELECT LAST_INSERT_ID();";
-	my $sth = $dbh->prepare($sql);
-	$sth->execute || die "Failed to exec \"$sql\"";
-	$userId = $sth->fetchrow_array;
+	$userId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+        $userIds{$userName} = $userId;
     }
     return $userId;
 }
@@ -175,25 +151,38 @@ sub findOrInsertUserId() {
 sub findOrInsertHostId() {
     my ($hostName) = @_;
 
-    my $sql = "SELECT id FROM hosts WHERE hostName = \"$hostName\"";
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
-    my $hostId = $sth->fetchrow_array;
+    my $hostId = $hostIds{$hostName};
+    if ( $hostId ) {
+        return $hostId;
+    }
+    $hostId = runQueryWithRet("SELECT id FROM hosts WHERE hostName = \"$hostName\"");
     if ( $hostId ) {
 	#print "Will reuse hostId $clientHostId for $hostName\n";
     } else {
 	#print "$hostName not in mysql yet, inserting...\n";
-	my $sql = "INSERT INTO hosts (hostName) VALUES (\"$hostName\");";
-	my $sth = $dbh->prepare($sql);
-	$sth->execute || die "Failed to exec \"$sql\"";
+	runQuery("INSERT INTO hosts (hostName) VALUES (\"$hostName\");");
 
-	my $sql = "SELECT LAST_INSERT_ID();";
-	my $sth = $dbh->prepare($sql);
-	$sth->execute || die "Failed to exec \"$sql\"";
-	$hostId = $sth->fetchrow_array;
+	$hostId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+	$hostIds{$hostName} = $hostId;
     }
     return $hostId;
 }
+
+sub runQuery() {
+    my ($sql) = @_;
+    my $sth = $dbh->prepare($sql);
+    $sth->execute || die "Failed to exec \"$sql\"";
+    #print "\n$sql\n";
+}
+
+sub runQueryWithRet() {
+    my ($sql) = @_;
+    my $sth = $dbh->prepare($sql);
+    $sth->execute || die "Failed to exec \"$sql\"";
+    #print "\n$sql\n";
+    return $sth->fetchrow_array;
+}
+
 
 sub printHelp() {
 
