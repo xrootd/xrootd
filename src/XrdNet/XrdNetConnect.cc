@@ -20,6 +20,7 @@ const char *XrdNetConnectCVSID = "$Id$";
 #include <sys/socket.h>
 
 #include "XrdNet/XrdNetConnect.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 
 /******************************************************************************/
 /*                               C o n n e c t                                */
@@ -30,7 +31,8 @@ int XrdNetConnect::Connect(             int       fd,
                                         int       namelen, 
                                         int       tsec)
 {
-   int old_flags, new_flags, myRC, myRClen = sizeof(myRC);
+   int old_flags, new_flags, myRC;
+   socklen_t myRClen = sizeof(myRC);
 
 // If no timeout wanted, do a plain connect() which will timeout after 3
 // minutes on most platforms.
