@@ -24,7 +24,7 @@ const char *XrdOucLoggerCVSID = "$Id$";
 #include <sys/termios.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#ifndef __macos__
+#if !defined(__macos__) && !defined(__CYGWIN__)
 #include <stropts.h>
 #endif
 

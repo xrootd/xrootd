@@ -44,7 +44,12 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(LIBDEPS)
 	@echo Creating shared library $(TARGETS) 
-	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(TARGETS)
+	$(ECHO)if [ "x$(TYPE)" = "xcygwin" ]; then \
+	   $(CC) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) \
+		-Wl,--out-implib=$(TARGETS).a -o $(TARGETS); \
+	else \
+	   $(CC) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(TARGETS); \
+	fi
 
 $(OBJDIR)/XrdSecProtocolkrb4.o: XrdSecProtocolkrb4.cc XrdSecInterface.hh \
                                 XrdOucPthread.hh      XrdOucTokenizer.hh \

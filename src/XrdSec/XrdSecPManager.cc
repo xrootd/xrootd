@@ -24,7 +24,7 @@ const char *XrdSecPManagerCVSID = "$Id$";
 #endif
 
 #include <dlfcn.h>
-#ifndef __macos__
+#if !defined(__macos__) && !defined(__CYGWIN__)
 #include <link.h>
 #endif
 #include <strings.h>

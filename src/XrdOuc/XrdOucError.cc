@@ -22,7 +22,7 @@ const char *XrdOucErrorCVSID = "$Id$";
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#ifndef __macos__
+#if !defined(__macos__) && !defined(__CYGWIN__)
 #include <stropts.h>
 #endif
 

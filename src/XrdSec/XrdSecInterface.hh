@@ -19,6 +19,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
+#if defined(__CYGWIN__)
+#include <sys/socket.h>
+#endif
 
 #include "XrdSec/XrdSecEntity.hh"
 
