@@ -127,10 +127,12 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 
 // Process the configuration file and authorization database
 //
-   if (!(NoGo = ConfigFile(Eroute, cfn))
-   &&  !(Authorization = new XrdAccAccess(&Eroute))
+   if (!(Authorization = new XrdAccAccess(&Eroute))
+   &&  !(NoGo = ConfigFile(Eroute, cfn))
    &&  !(NoGo = ConfigDB(0, Eroute)))
-       {delete Authorization, Authorization = 0; NoGo = 1;}
+       {if (Authorization) {delete Authorization, Authorization = 0;}
+        NoGo = 1;
+       }
 
 // Start a refresh thread unless this was a refresh thread call
 //
