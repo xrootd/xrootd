@@ -14,6 +14,9 @@ XRDSEC  = XrdOuc XrdSec @xrdsecplugins@
 TARGETS = @targets@
 
 ARCH    = @arch@
+ARCHDIR = @archdir@
+
+ECHO    = @xrdecho@
 
 TYPE    = @type@
 
@@ -26,95 +29,101 @@ LN      = @lnpath@
 
 all:
 	@$(MAKE) $(TARGETS) MAKEXEQ=all XMSG=Making XDBG=@dbgmsg@ --no-print-directory
-	@$(RM) -f bin/arch@dbgsfx@ lib/arch@dbgsfx@
-	@$(LN) -s ./$(ARCH)@dbgsfx@  bin/arch@dbgsfx@
-	@$(LN) -s ./$(ARCH)@dbgsfx@  lib/arch@dbgsfx@
+	@if [ "x$(ARCHDIR)" != "x" ]; then \
+	    $(RM) -fr bin/arch@dbgsfx@ lib/arch@dbgsfx@;\
+	    $(LN) -s ./$(ARCH)@dbgsfx@  bin/arch@dbgsfx@;\
+	    $(LN) -s ./$(ARCH)@dbgsfx@  lib/arch@dbgsfx@;\
+	fi
 	@echo Make all done
 
 clean: FORCE
 	@$(MAKE) $(TARGETS) MAKEXEQ=clean XMSG=Cleaning --no-print-directory
-	@$(RM) -fr bin/arch@dbgsfx@ lib/arch@dbgsfx@
-	@$(RM) -fr bin/$(ARCH)@dbgsfx@ lib/$(ARCH)@dbgsfx@ obj/$(ARCH)@dbgsfx@
-	@if [ "$(TYPE)" = "sunos" ]; then \
-	$(RM) -fr obj/$(ARCH)/SunWS_cache;\
-	$(RM) -fr obj/$(ARCH)/dbg/SunWS_cache;\
-fi
+	@if [ "x$(ARCHDIR)" != "x" ]; then \
+	   $(RM) -fr bin/arch@dbgsfx@ lib/arch@dbgsfx@;\
+	   $(RM) -fr bin/$(ARCHDIR) lib/$(ARCHDIR) obj/$(ARCHDIR);\
+	   if [ "$(TYPE)" = "sunos" ]; then \
+	      $(RM) -fr obj/$(ARCH)/SunWS_cache;\
+	      $(RM) -fr obj/$(ARCH)/dbg/SunWS_cache;\
+	   fi;\
+	else \
+	   $(RM) -fr bin lib obj;\
+	fi
 
 distclean: FORCE
 	@$(MAKE) $(TARGETS) MAKEXEQ=clean XMSG=Cleaning --no-print-directory
-	@$(RM) -fr bin lib obj GNUMakefile src/GNUMake.env src/GNUMake.options
-	@$(RM) -f GNUmakefile
-	@$(RM) -f src/GNUmake.env
-	@$(RM) -f src/GNUmake.options
+	$(ECHO)$(RM) -fr bin lib obj
+	$(ECHO)$(RM) -f GNUmakefile
+	$(ECHO)$(RM) -f src/GNUmake.env
+	$(ECHO)$(RM) -f src/GNUmake.options
 
 XrdAcc: FORCE
 	@echo $(XMSG) acc $(XDBG) component...
-	@cd src/XrdAcc;\
+	$(ECHO)cd src/XrdAcc;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdOdc: FORCE
 	@echo $(XMSG) odc $(XDBG) component...
-	@cd src/XrdOdc;\
+	$(ECHO)cd src/XrdOdc;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdOfs: FORCE
 	@echo $(XMSG) ofs $(XDBG) component...
-	@cd src/XrdOfs;\
+	$(ECHO)cd src/XrdOfs;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdOlb: FORCE
 	@echo $(XMSG) olb $(XDBG) component...
-	@cd src/XrdOlb;\
+	$(ECHO)cd src/XrdOlb;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdOss: FORCE
 	@echo $(XMSG) oss $(XDBG) component...
-	@cd src/XrdOss;\
+	$(ECHO)cd src/XrdOss;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdOuc: FORCE
 	@echo $(XMSG) ouc $(XDBG) component...
-	@cd src/XrdOuc;\
+	$(ECHO)cd src/XrdOuc;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdSfs: FORCE
 	@echo $(XMSG) sfs $(XDBG) component...
-	@cd src/XrdSfs;\
+	$(ECHO)cd src/XrdSfs;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdRootd: FORCE
 	@echo $(XMSG) rootd $(XDBG) component...
-	@cd src/XrdRootd;\
+	$(ECHO)cd src/XrdRootd;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdSec: FORCE
 	@echo $(XMSG) sec $(XDBG) component...
-	@cd src/XrdSec;\
+	$(ECHO)cd src/XrdSec;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdSeckrb4: FORCE
 	@echo $(XMSG) seckrb4 $(XDBG) component...
-	@cd src/XrdSeckrb4;\
+	$(ECHO)cd src/XrdSeckrb4;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdSeckrb5: FORCE
 	@echo $(XMSG) seckrb5 $(XDBG) component...
-	@cd src/XrdSeckrb5;\
+	$(ECHO)cd src/XrdSeckrb5;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 Xrd: FORCE
 	@echo $(XMSG) xrd $(XDBG) component...
-	@cd src/Xrd;\
+	$(ECHO)cd src/Xrd;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdXr: FORCE
 	@echo $(XMSG) XrdXr $(XDBG) component...
-	@cd src/XrdXr;\
+	$(ECHO)cd src/XrdXr;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdXrootd: FORCE
 	@echo $(XMSG) xrootd $(XDBG) component...
-	@cd src/XrdXrootd;\
+	$(ECHO)cd src/XrdXrootd;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 FORCE: ;

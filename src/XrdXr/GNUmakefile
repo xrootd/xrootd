@@ -5,7 +5,7 @@
 #------------------------------------------------------------------------------#
 include ../GNUmake.env
 
-BINLIBS = -L../../lib/$(ARCH)$(DBGSFX) -lXrdOuc -lXrdSec
+BINLIBS = -L$(LIBDIR) -lXrdOuc -lXrdSec
 
 
 #------------------------------------------------------------------------------#
@@ -26,7 +26,7 @@ OBJECTS = \
         $(OBJDIR)/XrdXrMain.o  
 
 OBJDEPS = \
-          ../../lib/$(ARCH)$(DBGSFX)/libXrdOuc.a 
+          $(LIBDIR)/libXrdOuc.a 
 
 LIBRARY = $(LIBDIR)/libXrdXr.a
 

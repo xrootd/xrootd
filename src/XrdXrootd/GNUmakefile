@@ -37,9 +37,9 @@ OBJECTS = \
         $(OBJDIR)/XrdXrootdXeq.o
 
 OBJDEPS = \
-          ../../lib/$(ARCH)$(DBGSFX)/libXrd.a \
-          ../../lib/$(ARCH)$(DBGSFX)/libXrdOuc.a \
-          ../../obj/$(ARCH)$(DBGSFX)/XrdSfsNative.o
+          $(LIBDIR)/libXrd.a \
+          $(LIBDIR)/libXrdOuc.a \
+          $(OBJDIR)/XrdSfsNative.o
 
 TARGETS  = $(BINDIR)/xrootd
 

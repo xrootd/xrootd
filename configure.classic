@@ -36,6 +36,7 @@ noact="no"
 nohowto="no"
 strlcpy="noidea"
 seconly="no"
+usearchdirs="yes"
 
 options="                 \
    enable_echo            \
@@ -483,6 +484,7 @@ with options, prefix with --with-, enables corresponding support
 
 Advanced options:
 
+   --no-arch-subdirs  Do not use architecture dependent names for bin/lib paths
    --build-sec-only   Build only security modules
    --use-xrd-strlcpy  Force use of the xrd implementation of strlcpy 
 
@@ -557,6 +559,7 @@ if test $# -gt 0 ; then
       #
       # With options to specifiy third part software
       #
+      --no-arch-subdirs)       usearchdirs="no"      ;;
       --build-sec-only)        seconly="yes"         ;;
       --ccflavour=*)           nccflv=$optarg        ;;
       --no-create)             noact="yes"           ;;
@@ -784,6 +787,16 @@ if test "x$xrdbuild" = "xdebug"; then
    dbgflg="1"
    dbgmsg="debug"
    buildopt="TYPEDBG"
+fi
+
+######################################################################
+#
+### echo %%% Check if architecure dependent names for bin, lib, obj
+### echo %%% have to be used
+#
+archdir="/$arch$dbgsfx"
+if test "x$usearchdirs" = "xno" ; then
+   archdir=""
 fi
 
 ######################################################################
@@ -1224,6 +1237,8 @@ fi
 #
 message "Writing $MAKEOUT "
 sed -e "s|@arch@|$arch|"                   \
+    -e "s|@xrdecho@|$xrdecho|"           \
+    -e "s|@archdir@|$archdir|"           \
     -e "s|@targets@|$targets|"             \
     -e "s|@type@|$type|"                   \
     -e "s|@rmpath@|$rmpath|"                   \
@@ -1243,6 +1258,7 @@ message "Writing $ENVOUT "
 sed -e "s|@arch@|$arch|"                 \
     -e "s|@type@|$type|"                 \
     -e "s|@xrdecho@|$xrdecho|"           \
+    -e "s|@archdir@|$archdir|"           \
     -e "s|@ccflv@|$ccflv|"               \
     -e "s|@threadlib@|$threadlib|"       \
     -e "s|@threadlibdir@|$threadlibdir|" \

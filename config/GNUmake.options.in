@@ -5,7 +5,7 @@
 #------------------------------------------------------------------------------#
 
 all:
-	@/bin/mkdir -p $(BINDIR)@dbgsfx@ $(LIBDIR)@dbgsfx@ $(OBJDIR)@dbgsfx@
+	@/bin/mkdir -p $(BINDIR) $(LIBDIR) $(OBJDIR)
 	@$(MAKE) $(TYPE)all @dbgopt@ XrdDEBUG=@dbgflg@ --no-print-directory
 
 $(TYPE)all:
