@@ -8,7 +8,7 @@
   else {exit(255);}
 
 $path = $ARGV[0];
-@resp = `/bin/df -k $path`;
+@resp = `$DF -k $path`;
 exit($?) if ($?);
 
 (@toks) = split(' ', $resp[1]);
