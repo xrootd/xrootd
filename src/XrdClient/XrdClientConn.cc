@@ -1358,7 +1358,9 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
                   " with server [" << fUrl.Host << ":" << fUrl.Port <<
 		  "]. Rebouncing here.");
 
-            newhost = fUrl.Host;
+	    if (fUrl.HostAddr.size())  newhost = fUrl.HostAddr;
+	    else
+	       newhost = fUrl.Host;
             newport = fUrl.Port;
          }
       

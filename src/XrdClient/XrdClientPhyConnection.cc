@@ -191,6 +191,7 @@ void XrdClientPhyConnection::StartReader() {
       do {
           {
              XrdClientMutexLocker l(fMutex);
+	     pthread_detach(fReaderthreadhandler);
              running = fReaderthreadrunning;
           }
 
