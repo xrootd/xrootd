@@ -304,7 +304,6 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    // Process common items
    //
    TS_Xeq("buffers",       xbuf);
-   TS_Xeq("log",           xlog);
    TS_Xeq("network",       xnet);
    TS_Xeq("sched",         xsched);
    TS_Xeq("trace",         xtrace);
@@ -807,49 +806,6 @@ int XrdConfig::xcon(XrdOucError *eDest, XrdOucStream &Config)
     ProtInfo.ConnLife = dval;
     ProtInfo.ConnMax  = fval;
 
-    return 0;
-}
-
-/******************************************************************************/
-/*                                  x l o g                                   */
-/******************************************************************************/
-  
-
-/* Function: xlog
-
-   Purpose:  To parse the directive: log <events>
-
-             <events> the blank separated list of events to log.
-
-   Output: 0 upon success or 1 upon failure.
-*/
-
-int XrdConfig::xlog(XrdOucError *eDest, XrdOucStream &Config)
-{
-    char *val;
-    static struct logopts {const char *opname; int opval;} lgopts[] =
-       {
-        {"all",     -1},
-        {"disc",    OUC_LOG_02},
-        {"login",   OUC_LOG_01}
-       };
-    int i, neg, lgval = -1, numopts = sizeof(lgopts)/sizeof(struct logopts);
-
-    if (!(val = Config.GetWord()))
-       {eDest->Emsg("config", "log option not specified"); return 1;}
-    while (val)
-          {if ((neg = (val[0] == '-' && val[1]))) val++;
-           for (i = 0; i < numopts; i++)
-               {if (!strcmp(val, lgopts[i].opname))
-                   {if (neg) lgval &= ~lgopts[i].opval;
-                       else  lgval |=  lgopts[i].opval;
-                    break;
-                   }
-               }
-           if (i >= numopts) eDest->Emsg("config","invalid log option",val);
-           val = Config.GetWord();
-          }
-    XrdLogger.setLogmask(lgval);
     return 0;
 }
 
