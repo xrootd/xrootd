@@ -125,7 +125,7 @@ extern "C"
 #endif
 
 //
-// To make socklen_t portable
+// To make socklen_t portable use SOCKLEN_t
 //
 #if defined(__sun) && !defined(__linux)
 #   if __GNUC__ >= 3 || __GNUC_MINOR__ >= 90
@@ -146,15 +146,15 @@ extern "C"
 #if defined(_AIX) || \
    (defined(__FreeBSD__) && (!defined(__alpha) || defined(__linux))) || \
    (defined(XR__SUNGCC3) && !defined(__arch64__))
-#   define socklen_t size_t
+#   define SOCKLEN_t size_t
 #elif defined(XR__GLIBC) || \
    (defined(__FreeBSD__) && (defined(__alpha) && !defined(__linux))) || \
    (defined(XR__SUNGCC3) && defined(__arch64__))
-#   ifndef socklen_t
-#      define socklen_t socklen_t
+#   ifndef SOCKLEN_t
+#      define SOCKLEN_t socklen_t
 #   endif
-#else
-#   define socklen_t int
+#elif !defined(SOCKLEN_t)
+#   define SOCKLEN_t unsigned int
 #endif
 
 #endif  // __XRDOUC_PLATFORM_H__
