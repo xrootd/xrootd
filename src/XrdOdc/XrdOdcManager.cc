@@ -175,8 +175,8 @@ void XrdOdcManager::whatsUp()
    if (Silent > nrMax)
       {Active = 0;
        if (Link) Link->Close();
-       myData.UnLock();
       }
+   myData.UnLock();
 }
 
 /******************************************************************************/
