@@ -48,7 +48,7 @@ Terminate() {
 
     # Now kill the process
     #
-      set -- `/bin/kill $xrdpid 2>&1`
+      set -- `/bin/kill -9 $xrdpid 2>&1`
       if [ $? -ne 0 ]; then
          shift 2
          Emsg "Unable to kill process $xrdpid; $*."

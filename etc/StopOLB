@@ -40,7 +40,7 @@ Terminate() {
 
     # Now kill the process
     #
-      set -- `/bin/kill $olbpid 2>&1`
+      set -- `/bin/kill -9 $olbpid 2>&1`
       if [ $? -ne 0 ]; then
          shift 2
          Emsg "Unable to kill process $olbpid; $*."
