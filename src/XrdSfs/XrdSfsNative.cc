@@ -183,7 +183,7 @@ const char *XrdSfsNativeDirectory::nextEntry()
 // Read the next directory entry
 //
    errno = 0;
-   if (retc = readdir_r(dh, d_pnt, &rp))
+   if ((retc = readdir_r(dh, d_pnt, &rp)))
       {if (retc && errno != 0)
           XrdSfsNative::Emsg(epname,error,retc,"reading directory",fname);
        d_pnt->d_name[0] = '\0';
@@ -474,7 +474,7 @@ XrdSfsAIO *XrdSfsNativeFile::waitaio()
 
   do {XrdSfsAIOQueue.Wait();
       XrdSfsAIOMutex.Lock();
-      if (aiop = XrdSfsAIOFirst)
+      if ((aiop = XrdSfsAIOFirst))
          if (aiop == XrdSfsAIOLast) XrdSfsAIOFirst = XrdSfsAIOLast = 0;
             else XrdSfsAIOFirst = aiop->next;
       XrdSfsAIOMutex.UnLock();
@@ -573,70 +573,6 @@ int XrdSfsNativeFile::truncate(XrdSfsFileOffset  flen)  // In
 
 /******************************************************************************/
 /*         F i l e   S y s t e m   O b j e c t   I n t e r f a c e s          */
-/******************************************************************************/
-
-/******************************************************************************/
-/*                    C r e a t e   F i l e   O b j e c t                     */
-/******************************************************************************/
-  
-XrdSfsFile *XrdSfsNative::openFile(const char             *fileName,   // In
-                                   XrdSfsFileOpenMode      openMode,   // In
-                                   mode_t                  createMode, // In
-                                   XrdOucErrInfo          &out_error,  // Out
-                                   const XrdSecClientName *client,     // In
-                                   const char             *opaque)     // In
-/*
-  Function: Create a file object and open it.
-
-  Input:    See open() for full details.
-
-  Output:   Return a pointer to a file object upon success; o/w a NULL pointer.
-*/
-{
-   XrdSfsNativeFile *fp = new XrdSfsNativeFile;
-
-// If we were able to create the file object open it, else indicate error
-//
-   if (!fp) out_error.setErrInfo(ENOMEM, "insufficient memory");
-      else if (fp->open(fileName, openMode, createMode, client, opaque))
-              {out_error = fp->error; delete fp; fp = 0;}
-
-// Return a pointer to the file object or a NULL
-//
-   return fp;
-}
-
-/******************************************************************************/
-/*               C r e a t e   D i r e c t o r y   O b j e c t                */
-/******************************************************************************/
-  
-XrdSfsDirectory *XrdSfsNative::openDir(const char             *directoryPath,
-                                       XrdOucErrInfo          &out_error,
-                                       const XrdSecClientName *client)
-/*
-  Function: Create a directory object and open it.
-
-  Input:    See open() for full details.
-
-  Output:   A pointer to a directior object upon success; o/w a NULL pointer.
-*/
-{
-   static const char *epname = "openDir";
-   XrdSfsNativeDirectory *dp = new XrdSfsNativeDirectory;
-
-// If we were able to create the directory object open it, else indicate error
-//
-   if (!dp) out_error.setErrInfo(ENOMEM, "insufficient memory");
-      else if (dp->open(directoryPath, client))
-              {out_error = dp->error; delete dp; dp = 0;}
-
-// Return a pointer to the file object or a NULL
-//
-   return dp;
-}
-
-/******************************************************************************/
-/*               M i s c e l l a n e o u s   F u n c t i o n s                */
 /******************************************************************************/
 /******************************************************************************/
 /*                                 c h m o d                                  */

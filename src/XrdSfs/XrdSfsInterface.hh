@@ -114,27 +114,13 @@ class XrdSfsFileSystem
 {
 public:
 
-// File Functions
+// The following two methods allocate a directory or file object
 //
-virtual XrdSfsFile *openFile(const char             *fileName,
-                                 XrdSfsFileOpenMode  openMode,
-                                 mode_t              createMode,
-                                 XrdOucErrInfo      &out_error,
-                           const XrdSecClientName   *client = 0,
-                           const char               *opaque = 0) = 0;
+virtual XrdSfsDirectory *newDir()  = 0;
 
-// Directory Functions
-//
-virtual XrdSfsDirectory *openDir(const char           *directoryPath,
-                                     XrdOucErrInfo    &out_error,
-                               const XrdSecClientName *client = 0) = 0;
+virtual XrdSfsFile      *newFile() = 0;
 
-virtual int            mkdir(const char             *dirName,
-                                   XrdSfsMode        Mode,
-                                   XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0) = 0;
-
-// Other Functions
+// The following are filesystem related methods
 //
 virtual int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
@@ -154,6 +140,11 @@ virtual int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,
                               const XrdSecClientName    *client = 0) = 0;
+
+virtual int            mkdir(const char             *dirName,
+                                   XrdSfsMode        Mode,
+                                   XrdOucErrInfo    &out_error,
+                             const XrdSecClientName *client = 0) = 0;
 
 virtual int            prepare(      XrdSfsPrep       &pargs,
                                      XrdOucErrInfo    &out_error,
@@ -182,11 +173,8 @@ virtual int            stat(const char             *Name,
                                   XrdOucErrInfo    &out_error,
                             const XrdSecClientName *client = 0) = 0;
 
-// destruct called at server exit
-//
-void (*destruct)(); // can set to 0, to not destruct
-
-XrdSfsFileSystem() {destruct = NULL;}
+                       XrdSfsFileSystem() {}
+virtual               ~XrdSfsFileSystem() {}
 };
 
 /******************************************************************************/
@@ -242,6 +230,7 @@ virtual int            truncate(XrdSfsFileOffset fileOffset) = 0;
 
 virtual int            getCXinfo(char cxtype[4], int &cxrsz) = 0;
 
+                       XrdSfsFile() {}
 virtual               ~XrdSfsFile() {}
 
 }; // class XrdSfsFile
@@ -264,6 +253,7 @@ virtual int         close() = 0;
 
 virtual const char *FName() = 0;
 
+                    XrdSfsDirectory() {}
 virtual            ~XrdSfsDirectory() {}
 
 }; // class XrdSfsDirectory

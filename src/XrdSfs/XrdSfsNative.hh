@@ -21,101 +21,44 @@
 class XrdOucError;
 class XrdOucLogger;
 
-class XrdSfsNative : public XrdSfsFileSystem
+/******************************************************************************/
+/*                 X r d S f s N a t i v e D i r e c t o r y                  */
+/******************************************************************************/
+  
+class XrdSfsNativeDirectory : public XrdSfsDirectory
 {
 public:
 
-// File Functions
-//
-        XrdSfsFile *openFile(const char              *fileName,
-                                 XrdSfsFileOpenMode   openMode,
-                                 mode_t               createMode,
-                                 XrdOucErrInfo       &out_error,
-                           const XrdSecClientName    *client = 0,
-                           const char                *opaque = 0);
+        int         open(const char              *dirName,
+                         const XrdSecClientName  *client = 0);
 
-// Directory Functions
-//
-        XrdSfsDirectory *openDir(const char            *directoryPath,
-                                     XrdOucErrInfo     &out_error,
-                               const XrdSecClientName  *client = 0);
+        const char *nextEntry();
 
-        int            mkdir(const char             *dirName,
-                                   XrdSfsMode        Mode,
-                                   XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0);
+        int         close();
 
-        int            rmdir(const char             *dirName,
-                                   XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0);
+const   char       *FName() {return (const char *)fname;}
 
-// Other Functions
-//
-        int            chmod(const char             *Name,
-                                   XrdSfsMode        Mode,
-                                   XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0);
-
-        int            exists(const char                *fileName,
-                                    XrdSfsFileExistence &exists_flag,
-                                    XrdOucErrInfo       &out_error,
-                              const XrdSecClientName    *client = 0);
-
-        int            fsctl(const int               cmd,
-                             const char             *args,
-                                   XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0) {return 0;}
-
-        int            getStats(char *buff, int blen) {return 0;}
-
-const   char          *getVersion();
-
-        int            prepare(      XrdSfsPrep       &pargs,
-                                     XrdOucErrInfo    &out_error,
-                               const XrdSecClientName *client = 0) {return 0;}
-
-        int            rem(const char             *path,
-                                 XrdOucErrInfo    &out_error,
-                           const XrdSecClientName *client = 0);
-
-        int            remdir(const char             *dirName,
-                                    XrdOucErrInfo    &out_error,
-                              const XrdSecClientName *client = 0);
-
-        int            rename(const char             *oldFileName,
-                              const char             *newFileName,
-                                    XrdOucErrInfo    &out_error,
-                              const XrdSecClientName *client = 0);
-
-        int            stat(const char             *Name,
-                                  struct stat      *buf,
-                                  XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client = 0);
-
-        int            stat(const char             *Name,
-                                  mode_t           &mode,
-                                  XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client = 0)
-                       {struct stat bfr;
-                        int rc = stat(Name, &bfr, out_error, client);
-                        if (!rc) mode = bfr.st_mode;
-                        return rc;
-                       }
-
-// Common functions
-//
-static  int            Emsg(const char *, XrdOucErrInfo&, int, const char *x,
-                            const char *y="");
-
-                       XrdSfsNative(XrdOucError *lp);
-                      ~XrdSfsNative() {}
-
+                    XrdSfsNativeDirectory() {ateof = 0; fname = 0;
+                                             dh    = (DIR *)0;
+                                             d_pnt = &dirent_full.d_entry;
+                                            }
+                   ~XrdSfsNativeDirectory() {if (dh) close();}
 private:
 
-static XrdOucError *eDest;
+DIR           *dh;  // Directory stream handle
+char           ateof;
+char          *fname;
+
+struct {struct dirent d_entry;
+               char   pad[MAXNAMLEN];   // This is only required for Solaris!
+       } dirent_full;
+
+struct dirent *d_pnt;
+
 };
+
 /******************************************************************************/
-/*                        s f s _ N a t i v e F i l e                         */
+/*                      X r d S f s N a t i v e F i l e                       */
 /******************************************************************************/
   
 class XrdSfsNativeFile : public XrdSfsFile
@@ -167,38 +110,89 @@ char *fname;
 };
 
 /******************************************************************************/
-/*                   s f s _ N a t i v e D i r e c t o r y                    */
+/*                          X r d S f s N a t i v e                           */
 /******************************************************************************/
   
-class XrdSfsNativeDirectory : public XrdSfsDirectory
+class XrdSfsNative : public XrdSfsFileSystem
 {
 public:
 
-        int         open(const char              *dirName,
-                         const XrdSecClientName  *client = 0);
+// Object Allocation Functions
+//
+        XrdSfsDirectory *newDir()  
+                        {return (XrdSfsDirectory *)new XrdSfsNativeDirectory;}
 
-        const char *nextEntry();
+        XrdSfsFile      *newFile() 
+                        {return      (XrdSfsFile *)new XrdSfsNativeFile;}
 
-        int         close();
+// Other Functions
+//
+        int            chmod(const char             *Name,
+                                   XrdSfsMode        Mode,
+                                   XrdOucErrInfo    &out_error,
+                             const XrdSecClientName *client = 0);
 
-const   char       *FName() {return (const char *)fname;}
+        int            exists(const char                *fileName,
+                                    XrdSfsFileExistence &exists_flag,
+                                    XrdOucErrInfo       &out_error,
+                              const XrdSecClientName    *client = 0);
 
-                    XrdSfsNativeDirectory() {ateof = 0; fname = 0;
-                                             dh    = (DIR *)0;
-                                             d_pnt = &dirent_full.d_entry;
-                                            }
-                   ~XrdSfsNativeDirectory() {if (dh) close();}
+        int            fsctl(const int               cmd,
+                             const char             *args,
+                                   XrdOucErrInfo    &out_error,
+                             const XrdSecClientName *client = 0) {return 0;}
+
+        int            getStats(char *buff, int blen) {return 0;}
+
+const   char          *getVersion();
+
+        int            mkdir(const char             *dirName,
+                                   XrdSfsMode        Mode,
+                                   XrdOucErrInfo    &out_error,
+                             const XrdSecClientName *client = 0);
+
+        int            prepare(      XrdSfsPrep       &pargs,
+                                     XrdOucErrInfo    &out_error,
+                               const XrdSecClientName *client = 0) {return 0;}
+
+        int            rem(const char             *path,
+                                 XrdOucErrInfo    &out_error,
+                           const XrdSecClientName *client = 0);
+
+        int            remdir(const char             *dirName,
+                                    XrdOucErrInfo    &out_error,
+                              const XrdSecClientName *client = 0);
+
+        int            rename(const char             *oldFileName,
+                              const char             *newFileName,
+                                    XrdOucErrInfo    &out_error,
+                              const XrdSecClientName *client = 0);
+
+        int            stat(const char             *Name,
+                                  struct stat      *buf,
+                                  XrdOucErrInfo    &out_error,
+                            const XrdSecClientName *client = 0);
+
+        int            stat(const char             *Name,
+                                  mode_t           &mode,
+                                  XrdOucErrInfo    &out_error,
+                            const XrdSecClientName *client = 0)
+                       {struct stat bfr;
+                        int rc = stat(Name, &bfr, out_error, client);
+                        if (!rc) mode = bfr.st_mode;
+                        return rc;
+                       }
+
+// Common functions
+//
+static  int            Emsg(const char *, XrdOucErrInfo&, int, const char *x,
+                            const char *y="");
+
+                       XrdSfsNative(XrdOucError *lp);
+virtual               ~XrdSfsNative() {}
+
 private:
 
-DIR           *dh;  // Directory stream handle
-char           ateof;
-char          *fname;
-
-struct {struct dirent d_entry;
-               char   pad[MAXNAMLEN];   // This is only required for Solaris!
-       } dirent_full;
-
-struct dirent *d_pnt;
-
+static XrdOucError *eDest;
 };
 #endif
