@@ -158,16 +158,71 @@ WHERE  userId=users.id AND
        LIMIT 10;
 
 
-## top 5 files per skim
-SELECT DISTINCT SUBSTRING_INDEX(SUBSTRING_INDEX(path, '/', 6), '/', -1) as skimName, 
-       COUNT(*) as noFiles
-FROM   rtOpenedFiles of, paths 
-WHERE  paths.id=of.pathId AND
-       path LIKE "%skim%" 
-       GROUP BY skimName 
+## top 5 skims (max no files)
+SELECT skimNames.name AS skimName, 
+       COUNT(*) AS noFiles 
+from   paths, skimNames 
+WHERE  skimNames.id=skimId 
+       GROUP BY skimId
        ORDER BY noFiles
        DESC
        LIMIT 5;
+
+## top 5 skims (max no sessions)
+SELECT skimNames.name AS skimName, 
+       COUNT(DISTINCT os.id) AS noJobs 
+from   paths, skimNames, rtOpenedSessions os, rtOpenedFiles of
+WHERE  skimNames.id=paths.skimId AND
+       paths.id = of.pathId AND
+       of.sessionId = os.id
+       GROUP BY skimId
+       ORDER BY noJobs
+       DESC
+       LIMIT 5;
+
+## top 5 skims (max no users)
+SELECT skimNames.name AS skimName, 
+       COUNT(DISTINCT os.userId) AS noUsers 
+from   paths, skimNames, rtOpenedSessions os, rtOpenedFiles of
+WHERE  skimNames.id=paths.skimId AND
+       paths.id = of.pathId AND
+       of.sessionId = os.id
+       GROUP BY skimId
+       ORDER BY noUsers
+       DESC
+       LIMIT 5;
+
+
+## top 5 skims (max nofiles, no sessions, no users, sorted by max no files)
+SELECT skimNames.name AS skimName, 
+       COUNT(DISTINCT os.id) AS noJobs,
+       COUNT(DISTINCT of.id) AS noFiles,
+       COUNT(DISTINCT os.userId) AS noUsers 
+FROM   paths, skimNames, rtOpenedSessions os, rtOpenedFiles of
+WHERE  skimNames.id=paths.skimId AND
+       paths.id = of.pathId AND
+       of.sessionId = os.id
+       GROUP BY skimId
+       ORDER BY noFiles
+       DESC
+       LIMIT 5;
+
+
+## hottest files:
+
+SELECT paths.path AS filePath,
+       COUNT(DISTINCT of.sessionId) AS noJobs,
+       COUNT(DISTINCT os.userId) AS noUsers
+FROM   paths, rtOpenedFiles of, rtOpenedSessions os
+WHERE  paths.id = of.pathId AND
+       of.sessionId = os.id
+       GROUP BY of.id
+       ORDER BY noJobs 
+       DESC
+       LIMIT 5;
+
+      
+
 
 
 
