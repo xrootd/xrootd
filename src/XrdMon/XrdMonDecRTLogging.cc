@@ -22,9 +22,9 @@ using std::fstream;
 using std::ios;
 
 
-XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir)
+XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir, int rtBufSize)
     : _buf(0), 
-      _bufSize(1024*1024)
+      _bufSize(rtBufSize)
 {
     _rtLog = dir;
     _rtLog += "/realTimeLogging.txt";

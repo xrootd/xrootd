@@ -35,6 +35,7 @@ const int       defaultDecHDFlushDelay = 600;           // [sec]
 const int       defaultDecRTFlushDelay = 5;             // [sec]
 const kXR_int64 defaultMaxCtrLogSize = 1024*1024*1024;  // 1GB
 const kXR_int32 defaultCtrBufSize    = 64*1024;         // 64 KB
+const int       defaultRTBufSize     = 128*1024;        // 128 KB
 
 void
 printHelp()
@@ -48,6 +49,7 @@ printHelp()
          << "    [-decHDFlushDelay <value>]\n"
          << "    [-maxCtrLogSize <value>]\n"
          << "    [-ctrBufSize <value>]\n"
+         << "    [-rtBufSize <value>]\n"
          << "    [-port <portNr>]\n"
          << "\n"
          << "-onlineDec <on|off>      Turns on/off online decoding.\n"
@@ -60,15 +62,17 @@ printHelp()
          << "                         Default value is \"" << defaultDecLogDir << "\".\n"
          << "-rtLogDir <path>         Directory where real time log file are stored.\n"
          << "                         Default value is \"" << defaultRTLogDir << "\".\n"
-         << "-decHDFlushDelay <value> Value in sec specifying how often history data is\n"
+         << "-decHDFlushDelay <delay> Value in sec specifying how often history data is\n"
          << "                         flushed to collector's log files. History data means\n"
          << "                         the data corresponding to *closed* sessions and files.\n" 
          << "                         Default value is \"" << defaultDecHDFlushDelay << "\".\n"
-         << "-maxCtrLogSize <value>   Max size of collector's log file.\n"
+         << "-maxCtrLogSize <size>    Max size of collector's log file.\n"
          << "                         Default value is \"" << defaultMaxCtrLogSize << "\".\n"
-         << "-ctrBufSize <value>      Size of transient buffer of collected packets. It has to be\n"
-         << "                         larger than max page size (64K).\n"
+         << "-ctrBufSize <size>       Size of transient buffer of collected packets. It has to be\n"
+         << "                         larger than or equal to max page size (64K).\n"
          << "                         Default value is \"" << defaultCtrBufSize << "\".\n"
+         << "-rtBufSize <size>        Size of transient buffer of collected real time data.\n"
+         << "                         Default value is \"" << defaultRTBufSize << "\".\n"
          << "-port <portNr>           Port number to be used.\n"
          << "                         Default valus is \"" << DEFAULT_PORT << "\".\n"
 
@@ -99,6 +103,8 @@ int main(int argc, char* argv[])
         arg_ctrBufSize("-ctrBufSize", defaultCtrBufSize);
     XrdMonArgParser::ArgImpl<int, Convert2Int> 
         arg_port("-port", DEFAULT_PORT);
+    XrdMonArgParser::ArgImpl<int, Convert2Int> 
+        arg_rtBufSize   ("-maxCtrLogSize", defaultRTBufSize);
 
     try {
         XrdMonArgParser argParser;
@@ -112,6 +118,7 @@ int main(int argc, char* argv[])
         argParser.registerExpectedArg(&arg_maxFSize);
         argParser.registerExpectedArg(&arg_ctrBufSize);
         argParser.registerExpectedArg(&arg_port);
+        argParser.registerExpectedArg(&arg_rtBufSize);
         argParser.parseArguments(argc, argv);
     } catch (XrdMonException& e) {
         e.printIt();
@@ -144,6 +151,7 @@ int main(int argc, char* argv[])
          << "decHDFlushDelay is " << arg_decHDFlushDel.myVal() << '\n'
          << "maxCtrLogSize   is " << arg_maxFSize.myVal() << '\n'
          << "ctrBufSize      is " << arg_ctrBufSize.myVal() << '\n'
+         << "rtBufSize       is " << arg_rtBufSize.myVal() << '\n'
          << "port            is " << arg_port.myVal()
          << endl;
 
@@ -179,6 +187,7 @@ int main(int argc, char* argv[])
                                arg_rtLogDir.myVal(),
                                arg_maxFSize.myVal(),
                                arg_ctrBufSize.myVal(),
+                               arg_rtBufSize.myVal(),
                                arg_onlineDecOn.myVal(), 
                                arg_rtOn.myVal());
     archiver();

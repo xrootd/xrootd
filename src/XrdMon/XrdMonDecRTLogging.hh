@@ -21,7 +21,7 @@ using std::string;
 
 class XrdMonDecRTLogging {
 public:
-    XrdMonDecRTLogging(const char* dir);
+    XrdMonDecRTLogging(const char* dir, int rtBufSize);
     ~XrdMonDecRTLogging();
 
     void add(XrdMonDecUserInfo::TYPE t, XrdMonDecUserInfo* x);

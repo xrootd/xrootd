@@ -31,6 +31,7 @@ class XrdMonDecSink {
 public:
     XrdMonDecSink(const char* baseDir,
                   const char* rtLogDir,
+                  int rtBufSize,
                   bool saveTraces,
                   int maxTraceLogSize);
     ~XrdMonDecSink();

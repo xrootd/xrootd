@@ -34,6 +34,7 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
                                      const char* rtLogDir,
                                      kXR_int64 maxLogSize,
                                      int ctrBufSize,
+                                     int rtBufSize,
                                      bool onlineDec,
                                      bool rtDec)
     : _decoder(0), 
@@ -45,7 +46,7 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
     XrdMonCtrWriter::setBufferSize(ctrBufSize);
     
     if ( onlineDec ) {
-        _decoder = new XrdMonDecPacketDecoder(dBaseDir, rtLogDir);
+        _decoder = new XrdMonDecPacketDecoder(dBaseDir, rtLogDir, rtBufSize);
         // BTW, MT-safety inside Sink
         if ( 0 != pthread_create(&_decHDFlushThread, 
                                  0, 

@@ -30,6 +30,7 @@ using std::setw;
 
 XrdMonDecSink::XrdMonDecSink(const char* baseDir,
                              const char* rtLogDir,
+                             int rtBufSize,
                              bool saveTraces,
                              int maxTraceLogSize)
     : _rtLogger(0),
@@ -70,7 +71,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     }
 
     if ( 0 != rtLogDir ) {
-        _rtLogger = new XrdMonDecRTLogging(rtLogDir);
+        _rtLogger = new XrdMonDecRTLogging(rtLogDir, rtBufSize);
     } else {
         loadUniqueIdsAndSeq();
     }
