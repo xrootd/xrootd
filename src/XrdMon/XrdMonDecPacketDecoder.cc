@@ -179,37 +179,31 @@ XrdMonDecPacketDecoder::decodeTime(const char* packet)
 void
 XrdMonDecPacketDecoder::decodeRWRequest(const char* packet, time_t timestamp)
 {
-    struct X {
-        kXR_int64 tOffset;
-        kXR_int32 tLen;
-        kXR_int32 dictId;
-    } x;
-    memcpy(&x, packet, sizeof(X));
-    x.tOffset = ntohll(x.tOffset);
-    x.tLen = ntohl(x.tLen);
-    x.dictId = ntohl(x.dictId);
+    XrdXrootdMonTrace trace;
+    memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
+    kXR_int64 tOffset = ntohll(trace.data.arg0.val);
+    kXR_int32 tLen    = ntohl (trace.data.arg1.buflen);
+    kXR_unt32 dictId  = ntohl (trace.data.arg2.dictid);
 
-    if ( x.tOffset < 0 ) {
+    if ( tOffset < 0 ) {
         throw XrdMonException(ERR_NEGATIVEOFFSET);
     }
     char rwReq = 'r';
-    if ( x.tLen<0 ) {
+    if ( tLen<0 ) {
         rwReq = 'w';
-        x.tLen *= -1;
+        tLen *= -1;
     }
 
-    XrdMonDecTraceInfo trace(x.tOffset, x.tLen, rwReq, timestamp);
-    _sink.add(x.dictId, trace);
+    XrdMonDecTraceInfo traceInfo(tOffset, tLen, rwReq, timestamp);
+    _sink.add(dictId, traceInfo);
 }
 
 void
 XrdMonDecPacketDecoder::decodeOpen(const char* packet, time_t timestamp)
 {
-    kXR_int32 dictId;
-    memcpy(&dictId, 
-           packet+sizeof(kXR_int64)+sizeof(kXR_int32), 
-           sizeof(kXR_int32));
-    dictId = ntohl(dictId);
+    XrdXrootdMonTrace trace;
+    memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
+    kXR_unt32 dictId = ntohl(trace.data.arg2.dictid);
 
     _sink.openFile(dictId, timestamp);
 }
@@ -220,12 +214,12 @@ XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
     kXR_unt32 dictId = ntohl(trace.data.arg2.dictid);
-    kXR_unt32 tR    = ntohl(trace.data.arg0.rTot[1]);
-    kXR_unt32 tW    = ntohl(trace.data.arg1.wTot);
-    char rShift    = trace.data.arg0.id[1];
-    char wShift    = trace.data.arg0.id[2];
-    kXR_int64 realR = tR; realR = realR << rShift;
-    kXR_int64 realW = tW; realW = realW << wShift;
+    kXR_unt32 tR     = ntohl(trace.data.arg0.rTot[1]);
+    kXR_unt32 tW     = ntohl(trace.data.arg1.wTot);
+    char rShift      = trace.data.arg0.id[1];
+    char wShift      = trace.data.arg0.id[2];
+    kXR_int64 realR  = tR; realR = realR << rShift;
+    kXR_int64 realW  = tW; realW = realW << wShift;
 
     //cout << "decoded close file, dict " << dictId 
     //     << ", total r " << tR << " shifted " << (int) rShift << ", or " << realR
@@ -240,7 +234,6 @@ XrdMonDecPacketDecoder::decodeDisconnect(const char* packet, time_t timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
-
     kXR_int32 sec    = ntohl(trace.data.arg1.buflen);
     kXR_unt32 dictId = ntohl(trace.data.arg2.dictid);
 

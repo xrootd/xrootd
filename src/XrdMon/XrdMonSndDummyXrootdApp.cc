@@ -147,48 +147,46 @@ int main(int argc, char* argv[]) {
         sleep(1);
     }
 
-    // use this loop to test light decoder
-    cout << "\n***** sending LIGHT data *****\n" << endl;
-    for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
-        calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
-        doDictionaryXrdMonSndPacket(xrootd, coder, transmitter, noP);
-
-        if ( i % 3 ) { // every 3 opens, close one file...
-            closeFiles(xrootd, coder, transmitter, noP, true);
-        }
-
-        if ( noP >= maxNoXrdMonSndPackets-2 ) {
-            break;
-        }
-        if ( 0 == access("stop.txt", F_OK) ) {
-            break;
-        }
-        if ( i%1001 == 1000 ) {
-            usleep(1);
-        }
-    }
-
-    // use this loop to test full tracing
-    /*
-    cout << "\n***** sending BULK data *****\n" << endl;
-    for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
-        if ( ! --calls2NewXrdMonSndDictEntry ) {
+    bool sendLight = false;
+    
+    if ( sendLight ) { // use this loop to test light decoder
+        cout << "\n***** sending LIGHT data *****\n" << endl;
+        for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
             calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
             doDictionaryXrdMonSndPacket(xrootd, coder, transmitter, noP);
-        } else {
-            doTraceXrdMonSndPacket(xrootd, coder, transmitter, cache, noP);            
+            if ( i % 3 ) { // every 3 opens, close one file...
+                closeFiles(xrootd, coder, transmitter, noP, true);
+            }
+            if ( noP >= maxNoXrdMonSndPackets-2 ) {
+                break;
+            }
+            if ( 0 == access("stop.txt", F_OK) ) {
+                break;
+            }
+            if ( i%1001 == 1000 ) {
+                usleep(1);
+            }
         }
-        if ( noP >= maxNoXrdMonSndPackets-2 ) {
-            break;
-        }
-        if ( 0 == access("stop.txt", F_OK) ) {
-            break;
-        }
-        if ( i%1001 == 1000 ) {
-            usleep(1);
+    } else { //  use this loop to test full tracing
+        cout << "\n***** sending BULK data *****\n" << endl;
+        for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
+            if ( ! --calls2NewXrdMonSndDictEntry ) {
+                calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
+                doDictionaryXrdMonSndPacket(xrootd, coder, transmitter, noP);
+            } else {
+                doTraceXrdMonSndPacket(xrootd, coder, transmitter, cache, noP);            
+            }
+            if ( noP >= maxNoXrdMonSndPackets-2 ) {
+                break;
+            }
+            if ( 0 == access("stop.txt", F_OK) ) {
+                break;
+            }
+            if ( i%1001 == 1000 ) {
+                usleep(1);
+            }
         }
     }
-    */
 
     if ( XrdMonSndDebug::verbose(XrdMonSndDebug::Sending) ) {
         cout << "Flushing cache" << endl;
