@@ -52,7 +52,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
 {
     // uncomment all 3 below if you want to print the string
     //char*b = new char [len+1];strncpy(b, s, len);b[len] = '\0';
-    //cout << "Decoding string " << b << endl;
+    //cout << "Decoding string in DictInfo " << b << endl;
     //delete [] b;
     
     // decode theString, format: <user>.<pid>:<fd>@<host>\n<path>

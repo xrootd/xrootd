@@ -1,3 +1,4 @@
+
 /*****************************************************************************/
 /*                                                                           */
 /*                           XrdMonDecUserInfo.cc                            */
@@ -47,7 +48,7 @@ XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
 {
     // uncomment all 3 below if you want to print the string
     //char*b = new char [len+1];strncpy(b, s, len);b[len] = '\0';
-    //cout << "Decoding string " << b << endl;
+    //cout << "Decoding string in UserInfo " << b << endl;
     //delete [] b;
     
     // decode theString, format: <user>.<pid>:<fd>@<host>
@@ -60,7 +61,7 @@ XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
         string es("Cannot find "); es+='.'; es+=" in "; es+=s;
         throw XrdMonException(ERR_INVDICTSTRING, es);
     }
-    _user = buf;
+    _user = (x1 != 0 ? buf : "unknown");
 
     x2 += x1+1;
     x1 = doOne(s+x2, buf, len-x2, ':');
