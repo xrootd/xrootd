@@ -22,7 +22,6 @@
 
 // for DEBUG/PRINT_SPEED only
 #include "XrdMon/XrdMonCtrDebug.hh"
-#include "XrdMon/XrdMonCtrMutexLocker.hh"
 #include "XrdMon/XrdMonSenderInfo.hh"
 
 #include <iomanip>

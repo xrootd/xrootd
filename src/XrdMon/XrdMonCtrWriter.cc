@@ -16,7 +16,6 @@
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonCtrDebug.hh"
 #include "XrdMon/XrdMonErrors.hh"
-#include "XrdMon/XrdMonCtrMutexLocker.hh"
 #include "XrdMon/XrdMonCtrWriter.hh"
 
 #include <assert.h>

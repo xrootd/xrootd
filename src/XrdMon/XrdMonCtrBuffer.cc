@@ -10,7 +10,6 @@
 
 #include "XrdMon/XrdMonCtrBuffer.hh"
 #include "XrdMon/XrdMonCtrDebug.hh"
-#include "XrdMon/XrdMonCtrMutexLocker.hh"
 #include <iomanip>
 #include <iostream>
 using std::cout;
