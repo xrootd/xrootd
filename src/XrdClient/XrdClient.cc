@@ -224,7 +224,7 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
 }
 
 //_____________________________________________________________________________
-int XrdClient::Read(const void *buf, long long offset, int len) {
+int XrdClient::Read(void *buf, long long offset, int len) {
 
    struct ServerResponseHeader srh;
 

@@ -104,7 +104,7 @@ public:
 
    bool         Open(kXR_int16 mode, kXR_int16 options);
 
-   int          Read(const void *buf, long long offset, int len);
+   int          Read(void *buf, long long offset, int len);
 
    bool         Stat(struct XrdClientStatInfo *stinfo);
 
