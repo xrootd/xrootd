@@ -33,12 +33,13 @@ install -m 755 lib/XRD-SYSNAME-XRD/libXrdSec.so $RPM_BUILD_ROOT/opt/xrootd/lib/l
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb4.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSeckrb4.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb5.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSeckrb5.so
 install -m 755 etc/StartOLB $RPM_BUILD_ROOT/opt/xrootd/etc/StartOLB
-install -m 644 etc/StartOLB.cf $RPM_BUILD_ROOT/opt/xrootd/etc/StartOLB.cf
+install -m 644 etc/StartOLB.cf.example $RPM_BUILD_ROOT/opt/xrootd/etc/StartOLB.cf.example
 install -m 755 etc/StartXRD $RPM_BUILD_ROOT/opt/xrootd/etc/StartXRD
-install -m 644 etc/StartXRD.cf $RPM_BUILD_ROOT/opt/xrootd/etc/StartXRD.cf
+install -m 644 etc/StartXRD.cf.example $RPM_BUILD_ROOT/opt/xrootd/etc/StartXRD.cf.example
 install -m 755 etc/StopOLB $RPM_BUILD_ROOT/opt/xrootd/etc/StopOLB
 install -m 755 etc/StopXRD $RPM_BUILD_ROOT/opt/xrootd/etc/StopXRD
 install -m 755 etc/XrdOlbMonPerf $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbMonPerf
+install -m 644 etc/README $RPM_BUILD_ROOT/opt/xrootd/etc/README
 
 %clean
 
@@ -52,12 +53,13 @@ install -m 755 etc/XrdOlbMonPerf $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbMonPerf
 /opt/xrootd/lib/libXrdSeckrb4.so
 /opt/xrootd/lib/libXrdSeckrb5.so
 /opt/xrootd/etc/StartOLB
-/opt/xrootd/etc/StartOLB.cf
+/opt/xrootd/etc/StartOLB.cf.example
 /opt/xrootd/etc/StartXRD
-/opt/xrootd/etc/StartXRD.cf
+/opt/xrootd/etc/StartXRD.cf.example
 /opt/xrootd/etc/StopOLB
 /opt/xrootd/etc/StopXRD
 /opt/xrootd/etc/XrdOlbMonPerf
+/opt/xrootd/etc/README
 
 %changelog
 * XRD-CHANGE1-XRD
