@@ -193,7 +193,7 @@ int XrdClientSock::SendRaw(const void* buffer, int length)
       if (fds_w.revents & (POLLERR | POLLHUP | POLLNVAL)) {
 
 	 Error( "ClientSock::SendRaw",
-		"Disconnection detected writing " << length << " bytes from socket " <<
+		"Disconnection detected writing " << length << " bytes to socket " <<
 		fds_w.fd << " (server[" << fHost.TcpHost.Host << ":" << fHost.TcpHost.Port <<
 		"]). Revents=" << fds_w.revents );
 	 

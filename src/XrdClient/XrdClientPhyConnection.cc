@@ -117,6 +117,7 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
    // Destructor
 
    Disconnect();
+   UnlockChannel();
 
    if (fReaderthreadrunning)
       pthread_cancel(fReaderthreadhandler);
@@ -345,7 +346,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 	      fServer.Host << ":" << fServer.Port << ". errno=" << errno );
       }
 
-      // If a socket error comes, then we disconnect (and destroy the fSocket)
+      // If a socket error comes, then we disconnect
       // but we have not to disconnect in the case of a timeout
       if ((res && (res != TXSOCK_ERR_TIMEOUT)) ||
           (!fSocket->IsConnected())) {

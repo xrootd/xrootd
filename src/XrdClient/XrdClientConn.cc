@@ -497,9 +497,6 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *reqtmp, ClientRequest 
    // Send message to server
 
    // Strong mutual exclusion over the physical channel
-   // Note that we consider this the beginning of an atomic transaction
-   // Also note that the lock is removed at the end of the block (Stroustroup 
-   // page 365)
    {
       XrdClientPhyConnLocker pcl(ConnectionManager->GetConnection(fLogConnID)
                                            ->GetPhyConnection());

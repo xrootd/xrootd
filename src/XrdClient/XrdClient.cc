@@ -61,7 +61,7 @@ XrdClient::XrdClient(const char *url) {
 XrdClient::~XrdClient()
 {
    // Destructor
-
+   Close();
    delete fConnModule;
 }
 
@@ -555,12 +555,19 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 
    if (fOpenPars.options & kXR_delete) {
       Info(XrdClientDebug::kHIDEBUG,
-         "OpenFileWhenRedirected", "Stripping off the delete option." );
+         "OpenFileWhenRedirected", "Stripping off the 'delete' option." );
 
       options &= !kXR_delete;
       options |= kXR_open_updt;
    }
 
+   if (fOpenPars.options & kXR_new) {
+      Info(XrdClientDebug::kHIDEBUG,
+         "OpenFileWhenRedirected", "Stripping off the 'new' option." );
+
+      options &= !kXR_new;
+      options |= kXR_open_updt;
+   }
    // After a redirection we must not reinit the TFile ancestor...
    if ( Open(fOpenPars.mode, options) ) {
 

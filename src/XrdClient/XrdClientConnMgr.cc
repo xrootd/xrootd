@@ -164,30 +164,51 @@ void XrdClientConnectionMgr::GarbageCollect()
    {
       XrdClientMutexLocker mtx(fMutex);
 
-      // We cycle all the physical connections
+      // We cycle all the physical connections to disconnect the elapsed ones
       for (int i = 0; i < fPhyVec.GetSize(); i++) { 
    
 	 // If a single physical connection has no linked logical connections,
 	 // then we kill it if its TTL has expired
 	 if ( fPhyVec[i] && (GetPhyConnectionRefCount(fPhyVec[i]) <= 0) && 
-	      fPhyVec[i]->ExpiredTTL() ) {
+	      fPhyVec[i]->ExpiredTTL() && fPhyVec[i]->IsValid() ) {
       
-	    Info(XrdClientDebug::kDUMPDEBUG,
-		 "GarbageCollect", "Purging physical connection " << i);
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "GarbageCollect", "Disconnecting physical connection " << i);
 
-	    // Wait until the physical connection is unlocked (it may be in use by 
-	    // slow processes)
-
+	    fPhyVec[i]->Touch();
 	    fPhyVec[i]->Disconnect();
-	    delete fPhyVec[i];
-	    fPhyVec[i] = 0;
-      
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "GarbageCollect", "Purged physical connection " << i);
+	          
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "GarbageCollect", "Disconnected physical connection " << i);
 
 	 }
       }
 
+
+
+
+      // We cycle all the physical connections to destroy the
+      // elapsed once more after a disconnection
+      // Doing this way, a phyconn in async mode has all the time it needs
+      //  to terminate its reader thread
+      for (int i = 0; i < fPhyVec.GetSize(); i++) { 
+   
+	 // If a single physical connection has no linked logical connections,
+	 // then we kill it if its TTL has expired after disconnection
+	 if ( fPhyVec[i] && (GetPhyConnectionRefCount(fPhyVec[i]) <= 0) && 
+	      fPhyVec[i]->ExpiredTTL() && !fPhyVec[i]->IsValid() ) {
+      
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "GarbageCollect", "Purging physical connection " << i);
+
+	    delete fPhyVec[i];
+	    fPhyVec[i] = 0;
+      
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "GarbageCollect", "Purged physical connection " << i);
+
+	 }
+      }
 
    }
 
@@ -345,7 +366,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
 	 // Note that here we cannot destroy the phyconn, since there can be other 
 	 // logconns pointing to it the phyconn will be removed when there are no 
 	 // more logconns pointing to it
-	 fLogVec[LogConnectionID]->GetPhyConnection()->SetTTL(0);
+	 //fLogVec[LogConnectionID]->GetPhyConnection()->SetTTL(0);
 	 fLogVec[LogConnectionID]->GetPhyConnection()->Disconnect();
       }
     
