@@ -1037,7 +1037,7 @@ int XrdOfsFile::getCXinfo(char cxtype[4], int &cxrsz)
   
 void XrdOfsFile::setCXinfo(XrdSfsFileOpenMode mode)
 {
-    const char *epname = "setCXinfo";
+    EPNAME("setCXinfo")
     if (mode & SFS_O_RAWIO)
        {char cxtype[5], buffer[OUC_MAX_ERROR_LEN];
         dorawio = 1;
@@ -1527,7 +1527,9 @@ int XrdOfs::Close(XrdOfsHandle *oh)
 int XrdOfs::Unopen(XrdOfsHandle *oh)
 {
     static const char *epname = "Unopen";
+#ifndef NODEBUG
     static const char *tident = "";
+#endif
     int retc = 0;
 
 // Close the file appropriately if it's really open
@@ -1635,8 +1637,10 @@ int XrdOfs::Stall(XrdOucErrInfo   &einfo, // Error text & code
 {
     const char *msgfmt = "File %s is being staged; "
                          "estimated time to completion %s";
+    EPNAME("Stall")
+#ifndef NODEBUG
     const char *tident = (char *)"";
-    const char *epname = "Stall";
+#endif
     char Mbuff[2048], Tbuff[32];
 
 // Format the stall message
@@ -1703,8 +1707,10 @@ extern "C"
 {
 void *XrdOfsIdleScan(void *noargs)
 {
-   const char *epname = "IdleScan";
+   EPNAME("IdleScan")
+#ifndef NODEBUG
    const char *tident = "";
+#endif
    int num_closed;
    struct timeval tod;
    struct timespec naptime = {XrdOfsFS.FDMinIdle, 0};
@@ -1782,8 +1788,10 @@ void XrdOfsIdleCheck(XrdOfsHandleAnchor &anchor)
 
 int XrdOfsIdleXeq(XrdOfsHandle *op, void *tsecarg)
 {
-    const char *epname = "IdleXeq";
+    EPNAME("IdleXeq")
+#ifndef NODEBUG
     const char *tident = "";
+#endif
     time_t tsec = (time_t)tsecarg;
     XrdOfsHandleAnchor *anchor = &(op->Anchor());
     int IdleTime;

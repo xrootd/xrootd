@@ -95,7 +95,7 @@ XrdOlbMeter::~XrdOlbMeter()
   
 long XrdOlbMeter::FreeSpace(long &tot_free)
 {
-     const char *epname = "FreeSpace";
+     EPNAME("FreeSpace")
      static XrdOucMutex fsMutex;
      static int Now, lastCalc = 0;
      long long bytes, fsavail = 0, fstotav = 0;
@@ -152,7 +152,7 @@ long XrdOlbMeter::FreeSpace(long &tot_free)
   
 int XrdOlbMeter::Monitor(char *pgm, int itv)
 {
-   const char *epname = "Monitor";
+   EPNAME("Monitor")
    char *mp, pp;
 
 // Isolate the program name

@@ -33,14 +33,18 @@
 
 #define DEBUG(x) if (GTRACE(debug)) TRACES(x)
 
+#define EPNAME(x) const char *epname = x;
+
 #else
 
 #define FTRACE(x, y)
 #define GTRACE(x)    0
-#define XTRACE(x, y, a1, a2, a3, a4)
+#define TRACES(x)
+#define XTRACE(x, y, a1)
 #define YTRACE(x, y, a1, a2, a3, a4, a5)
 #define ZTRACE(x, y)
 #define DEBUG(x)
+#define EPNAME(x)
 
 #endif
 

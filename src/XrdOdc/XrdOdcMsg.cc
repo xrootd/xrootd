@@ -100,7 +100,7 @@ void XrdOdcMsg::Recycle()
   
 int XrdOdcMsg::Reply(int msgid, char *msg)
 {
-   const char *epname = "Reply";
+   EPNAME("Reply")
    XrdOdcMsg *mp;
    int retc;
 

@@ -304,7 +304,9 @@ int XrdOssSys::concat_fn(const char *prefix, // String to prefix oldp
 */
 int XrdOssDir::Opendir(const char *dir_path) 
 {
+#ifndef NODEBUG
    const char *epname = "Opendir";
+#endif
    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *remote_path;
    int retc, isremote;
 
@@ -746,9 +748,11 @@ int XrdOssFile::Ftruncate(unsigned long long flen) {
 
 int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
 {
-    const char *epname = "Open_ufs";
+    EPNAME("Open_ufs")
     int myfd, newfd, retc;
+#ifndef NODEBUG
     char *ftype = (char *)" path=";
+#endif
     XrdOssLock ufs_file;
 #ifdef XRDOSSCX
     int attcx = 0;

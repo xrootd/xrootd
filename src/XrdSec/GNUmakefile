@@ -66,11 +66,11 @@ $(LIBRARY): $(OBJSLIB) $(LIBDEPS)
 
 $(TSTBINA): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(TSTBINA) 
-	@$(CC) $(LDOP) $(OBJECTA) $(BINLIBS) $(LIBPATH) -lXrdSec $(LIBS) -o $(TSTBINA)
+	@$(LD) $(LDOP) $(OBJECTA) $(BINLIBS) $(LIBPATH) -lXrdSec $(LIBS) -o $(TSTBINA)
 
 $(TSTBINB): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TSTBINB) 
-	@$(CC) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBPATH) -lXrdSec $(LIBS) -o $(TSTBINB)
+	@$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBPATH) -lXrdSec $(LIBS) -o $(TSTBINB)
 
 $(OBJDIR)/XrdSecClient.o: XrdOucPthread.hh XrdSecPManager.hh XrdSecInterface.hh \
                           XrdOucErrInfo.hh XrdSecClient.cc

@@ -29,7 +29,9 @@ const char *XrdSchedulerCVSID = "$Id$";
 
 extern XrdOucError   XrdLog;
   
+#ifndef NODEBUG
 extern XrdOucTrace   XrdTrace;
+#endif
 
        const char   *XrdScheduler::TraceID = "Sched";
 

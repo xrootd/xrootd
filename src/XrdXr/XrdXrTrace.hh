@@ -14,6 +14,19 @@
 
 #include "XrdOuc/XrdOucTrace.hh"
 
+// Trace flags
+//
+#define TRACE_All       0x0dff
+#define TRACE_Login     0x0001
+#define TRACE_Auth      0x0002
+#define TRACE_Open      0x0004
+#define TRACE_Read      0x0010
+#define TRACE_Stat      0x0014
+#define TRACE_Close     TRACE_Open
+#define TRACE_Logout    0x0018
+#define TRACE_Wait      0x0019
+#define TRACE_Debug     0x8000
+
 #ifndef NODEBUG
 
 #include <iostream.h>
@@ -30,22 +43,10 @@
 #define DEBUGX(y) if (QTRACE(Debug)) \
                     {XrTrace.Beg(epname); std::cerr <<y; XrTrace.End();}
 
-// Trace flags
-//
-#define TRACE_All       0x0dff
-#define TRACE_Login     0x0001
-#define TRACE_Auth      0x0002
-#define TRACE_Open      0x0004
-#define TRACE_Read      0x0010
-#define TRACE_Stat      0x0014
-#define TRACE_Close     TRACE_Open
-#define TRACE_Logout    0x0018
-#define TRACE_Wait      0x0019
-#define TRACE_Debug     0x8000
-
 #else
 
-#define DEBUGX(x, y)
+#define DEBUGX(x)
+#define QTRACE(x) 0
 #define TRACE(x, y)
 #define TRACEReturn(type, ecode, msg) return ecode
 

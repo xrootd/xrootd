@@ -391,7 +391,8 @@ int XrdOssSys::MSS_Init(int Warm) {
 
   Output:   Zero is returned upon success; otherwise an error code is returned.
 */
-   const char *epname = "MSS_Init";
+
+   EPNAME("MSS_Init")
    int retc, child;
    struct sockaddr_un USock;
 
@@ -426,7 +427,8 @@ int XrdOssSys::MSS_Init(int Warm) {
 /******************************************************************************/
 
 int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
-    const char *epname = "MSS_Xeq";
+
+    EPNAME("MSS_Xeq")
     char mss_cmd[XrdOssMAX_PATH_LEN*2+1024], *resp;
     int retc, cmd_len;
     XrdOucStream *sp;
@@ -488,7 +490,8 @@ int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
 /******************************************************************************/
   
 void XrdOssSys::MSS_Gateway(void) {
-     const char *epname = "MSS_Gateway";
+
+     EPNAME("MSS_Gateway")
      XrdOucStream IOStream(&OssEroute);
      XrdOucSocket IOSock(&OssEroute);
      int i, InSock, pidstat;

@@ -133,7 +133,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 
   Output:   0 upon success or !0 otherwise.
 */
-   const char *epname = "Configure";
+   EPNAME("Configure")
    XrdOucError_Table *ETab = new XrdOucError_Table(XRDOSS_EBASE, XRDOSS_ELAST,
                                                    XrdOssErrorText);
    char *val;

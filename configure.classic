@@ -35,10 +35,12 @@ show_pkglist=no
 noact="no"
 nohowto="no"
 strlcpy="noidea"
+seconly="no"
 
 options="                 \
    enable_krb4            \
    enable_krb5            \
+   enable_trace           \
 "
 
 #
@@ -360,16 +362,16 @@ guess_architecture () {
     ccflv="gcc"
     echo "Guessing architecture/compiler:"
     case "$osys:$chip:$rele" in
-#      aix:*:*)            arch=rs_aix4$rele    ; platform=aix;   ccflv=aix;;
-#      osf1*:alpha:*)      arch=alphacxx6       ; platform=alpha; ccflv=alphaosf;;
+      aix:*:5*)           arch=rs_aix5         ; platform=aix;   ccflv=xlC;;
+      osf1*:alpha:*)      arch=alphacxx6       ; platform=alpha; ccflv=cxx;;
       freebsd*:*:5*)      arch=FreeBSD5        ; platform=fbsd;  ccflv=gcc;;
       freebsd*:*:4.2*)    arch=FreeBSD42       ; platform=fbsd;  ccflv=gcc;;
       freebsd*:*:4.3*)    arch=FreeBSD43       ; platform=fbsd;  ccflv=gcc;;
       freebsd*:*:4.4*)    arch=FreeBSD44       ; platform=fbsd;  ccflv=gcc;;
       freebsd*:*:4*)      arch=FreeBSD4        ; platform=fbsd;  ccflv=gcc;;
       freebsd*:*:*)       arch=FreeBSD         ; platform=fbsd;  ccflv=gcc;;
-#      hp-ux:ia64:*)       arch=hpuxia64        ; platform=hpux;  ccflv=hpuxia64;;
-#      hp-ux:*:*)          arch=hpux            ; platform=hpux;  ccflv=hpux;;
+      hp-ux:ia64:*)       arch=hpuxia64        ; platform=hpux;  ccflv=aCC;;
+      hurd*:*:*)          arch=hurddeb         ; platform=linux; ccflv=gcc;;
       linux:ia64:2.2*)    arch=ia64_linux22    ; platform=linux; ccflv=icc;;
       linux:ia64:2.4*)    arch=ia64_linux24    ; platform=linux; ccflv=icc;;
       linux:ia64:2.6*)    arch=ia64_linux26    ; platform=linux; ccflv=icc;;
@@ -387,6 +389,7 @@ guess_architecture () {
       linux:ppc*:*)       arch=ppc_linux       ; platform=linux; ccflv=gcc;;
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
       darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
+      irix*:sgi*:*)       arch=sgi             ; platform=sgi;    ccflv=sgiCC;;
       sunos:*:6*)         arch=sun4x_6         ; platform=solaris; ccflv=sunCC;;
       sunos:*:5.6)        arch=sun4x_56        ; platform=solaris; ccflv=sunCC;;
       sunos:*:5.7)        arch=sun4x_57        ; platform=solaris; ccflv=sunCC;;
@@ -394,6 +397,7 @@ guess_architecture () {
       sunos:*:5.9)        arch=sun4x_59        ; platform=solaris; ccflv=sunCC;;
       sunos:*:5*)         arch=sun4x_5         ; platform=solaris; ccflv=sunCC;;
       sunos:*:4*)         arch=sun4x_4         ; platform=solaris; ccflv=sunCC;;
+      cygwin_*:*:*)       arch=win32           ; platform=win32;  ccflv=wingcc;;
       *)
           echo "Attempts at guessing your architecture failed."
           echo "Please specify the architecture as the first argument."
@@ -462,6 +466,7 @@ To build in debug mode use option '--build=debug' .
 enable/disable options, prefix with either --enable- or --disable-
    krb4            Kerberos4 support, requires Kerberos libs
    krb5            Kerberos5 support, requires Kerberos libs
+   trace           Support for trace statements via the "-d" flag
 
 with options, prefix with --with-, enables corresponding support
 
@@ -475,16 +480,30 @@ with options, prefix with --with-, enables corresponding support
 
 Advanced options:
 
+   --build-sec-only   Build only security modules
    --use-xrd-strlcpy  Force use of the xrd implementation of strlcpy 
 
 Supported Architectures:
 
-   Platform        Default      Description
+   Platform        Default  Support Description
                    flavour
-
 EOF
-   cat config/ARCHS | sed -e 's/^/   /'
+
+exec 10< config/ARCHS
+read line <&10
+while [ ! "x$line" = "x" ]
+do
+   set $line
+   if test ! "x$3" = "xno" ; then
+      echo "   $line"
+   fi
+   read line <&10
+done
+
 cat <<EOF
+
+   Support: all    support for all the modules
+            sec    support for the security modules only
 
 A different flavour can be forced with option --ccflavour=[flavour], 
 e.g. --ccflavour=gccia64 to use the gcc compiler on Itanium.
@@ -517,23 +536,6 @@ else
    esac
 fi
 
-# check that we got a valid architecture
-if test "$arch" = "linuxegcs" ; then
-    arch="linux"
-fi
-
-goodarch="no"
-if `awk '{ print $1 }' $ARCHS | grep "^$arch$" > /dev/null  2>&1` ; then
-   goodarch="yes"
-else
-   echo "Invalid architecture. Try $0 --help"
-   exit 1
-fi
-
-if test "x$platform" = "macosx" ; then
-   finkdir=`which fink 2>&1 | sed -ne "s/\/bin\/fink//p"`
-fi
-
 ######################################################################
 #
 ### echo %%% Command line arguments
@@ -552,6 +554,8 @@ if test $# -gt 0 ; then
       #
       # With options to specifiy third part software
       #
+      --build-sec-only)        seconly="yes"         ;;
+      --ccflavour=*)           nccflv=$optarg        ;;
       --no-create)             noact="yes"           ;;
       --nohowto)               nohowto="yes"         ;;
       --use-xrd-strlcpy)       strlcpy="local"       ;;
@@ -562,7 +566,6 @@ if test $# -gt 0 ; then
       --with-krb5-incdir=*)    krb5incdir=$optarg    ; enable_krb5="yes"    ;;
       --with-krb5-libdir=*)    krb5libdir=$optarg    ; enable_krb5="yes"    ;;
       --with-thread-libdir=*)  threadlibdir=$optarg  ; enable_thread="yes"  ;;
-      --ccflavour=*)           nccflv=$optarg        ;;
       ################################################################
       #
       # Enable/disable to turn on/off third party software linkage and
@@ -602,8 +605,56 @@ if test $# -gt 0 ; then
       shift
    done
 fi
-if test "x$ccflv" = "xgccx8664" ; then
-   checklib64="yes"
+
+#####################################################################
+#
+# Check that we got a potentially valid architecture
+#
+if test "$arch" = "linuxegcs" ; then
+    arch="linux"
+fi
+
+goodarch="no"
+if `awk '{ print $1 }' $ARCHS | grep "^$arch$" > /dev/null  2>&1` ; then
+   goodarch="yes"
+else
+   echo "Invalid architecture. Try $0 --help"
+   exit 1
+fi
+#
+# Check support status
+#
+support=`grep "$arch" "$ARCHS" 2>/dev/null | awk '{ print $3 }'`
+if test "x$support" = "xno" ; then
+   goodarch="no"
+   echo "Architecture not yet supported. Try $0 --help"
+   exit 1
+fi
+#
+# Exit if we want the all thing but we have support for security
+# modules only  
+#
+if test "x$support" = "xsec" ; then
+   if test "x$seconly" = "xno" ; then
+      goodarch="no"
+      echo "Architecture supported for security modules only."
+      echo "Rerun with option '--build-sec-only'"
+      exit 1
+   fi
+fi
+
+if test "x$platform" = "macosx" ; then
+   finkdir=`which fink 2>&1 | sed -ne "s/\/bin\/fink//p"`
+fi
+
+# Notify configuration settings
+if test "x$platform" = "xsolaris" && test "x$nccflv" = "xgcc" ; then
+   nccflv="sungcc"
+fi
+if test "x$platform" = "xlinux" && test "x$chip" = "xx86_64" ; then
+   if test "x$nccflv" = "xicc" ; then
+      nccflv="iccx8664"
+   fi
 fi
 
 # Notify configuration settings
@@ -613,6 +664,25 @@ if test ! "x$nccflv" = "x$ccflv" ; then
 fi
 echo "Configuring for $arch and compiler $ccflv"
 
+# For gcc on opteron force checking for 64-bit libs
+if test "x$ccflv" = "xgccx8664" ; then
+   checklib64="yes"
+fi
+
+# Check if rtrace option has been required
+tracedbg="-DNODEBUG"
+if test "x$enable_trace" = "xyes" ; then
+   tracedbg=""
+else
+   echo "Support for trace statements disabled"
+fi
+
+# Which targets to build
+targets="\$(SERVER)"
+if test "x$seconly" = "xyes" ; then
+   echo "Building only security modules..."
+   targets="\$(XRDSEC)"
+fi
 
 ######################################################################
 #
@@ -630,6 +700,19 @@ if test ! "x$strlcpy" = "xlocal"; then
 else
    echo "Using xrd implementation of strlcpy"
 fi
+
+######################################################################
+#
+### echo %%% Flag for /dev/poll
+#
+hasdevpoll=""
+message "Checking architecture for /dev/poll:"
+case "$osys:$rele" in
+  sunos:6*)       hasdevpoll="-D_DEVPOLL" ; echo "yes" ;;
+  sunos:5.8)      hasdevpoll="-D_DEVPOLL" : echo "yes" ;;
+  sunos:5.9)      hasdevpoll="-D_DEVPOLL" ; echo "yes" ;;
+  *)                                        echo "no"  ;;
+esac
 
 ######################################################################
 #
@@ -1096,6 +1179,7 @@ fi
 #
 message "Writing $MAKEOUT "
 sed -e "s|@arch@|$arch|"                   \
+    -e "s|@targets@|$targets|"             \
     -e "s|@type@|$type|"                   \
     -e "s|@rmpath@|$rmpath|"                   \
     -e "s|@lnpath@|$lnpath|"                   \
@@ -1120,7 +1204,9 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@libkrb4@|$libkrb4|"           \
     -e "s|@inckrb5@|$inckrb5|"           \
     -e "s|@libkrb5@|$libkrb5|"           \
+    -e "s|@hasdevpoll@|$hasdevpoll|" \
     -e "s|@hasstrlcpy@|$hasstrlcpy|" \
+    -e "s|@tracedbg@|$tracedbg|" \
     < GNUmake.env.tmp > $ENVOUT
 rm -f GNUmake.env.tmp
 

@@ -26,12 +26,14 @@
 
 #define DEBUG(y) if (QTRACE(Debug)) \
                     {SecTrace->Beg(epname); cerr <<y; SecTrace->End();}
+#define EPNAME(x) const char *epname = x;
 
 #else
 
 #define  TRACE(x, y)
-#define QTRACE(x, y)
+#define QTRACE(x)
 #define DEBUG(x)
+#define EPNAME(x)
 
 #endif
 

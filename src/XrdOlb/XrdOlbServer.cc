@@ -357,7 +357,7 @@ int XrdOlbServer::do_AvKb(char *rid)
   
 int XrdOlbServer::do_Chmod(char *rid, int do4real)
 {
-   const char *epname = "do_Chmod";
+   EPNAME("do_Chmod")
    char *tp, modearg[16];
    char lclpath[PATH_MAX+1];
    mode_t mode;
@@ -535,7 +535,7 @@ int XrdOlbServer::do_Load(char *rid)
   
 int XrdOlbServer::do_Mkdir(char *rid, int do4real)
 {
-   const char *epname = "do_Mkdir";
+   EPNAME("do_Mkdir";)
    char *tp, modearg[16];
    char lclpath[PATH_MAX+1];
    mode_t mode;
@@ -591,7 +591,7 @@ int XrdOlbServer::do_Mkdir(char *rid, int do4real)
   
 int XrdOlbServer::do_Mv(char *rid, int do4real)
 {
-   const char *epname = "do_Mv";
+   EPNAME("do_Mv")
    char *tp;
    char old_lclpath[PATH_MAX+1];
    char new_lclpath[PATH_MAX+1];
@@ -760,7 +760,7 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
   
 int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs &pargs)
 {
-    const char *epname = "do_PrepAdd4Real";
+   EPNAME("do_PrepAdd4Real")
     char  *oldpath, lclpath[PATH_MAX+1];
 
 // Generate the true local path
@@ -796,7 +796,7 @@ int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs &pargs)
   
 int XrdOlbServer::do_PrepDel(char *rid, int server)
 {
-   const char *epname = "do_PrepDel";
+   EPNAME("do_PrepDel")
    char *tp;
    SMask_t amask = (SMask_t)-1;
    BUFF(2048);
@@ -837,7 +837,7 @@ int XrdOlbServer::do_PrepDel(char *rid, int server)
   
 int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is static!!
 {
-   const char *epname = "do_PrepSel";
+   EPNAME("do_PrepSel")
    extern XrdOlbScheduler *XrdOlbSchedM;
    BUFF(2048);
    XrdOlbPInfo pinfo;
@@ -929,7 +929,7 @@ int XrdOlbServer::do_Pong(char *rid)
   
 int XrdOlbServer::do_Rm(char *rid, int do4real)
 {
-   const char *epname = "do_Rm";
+   EPNAME("do_Rm")
    char *tp;
    char lclpath[PATH_MAX+1];
    int rc;
@@ -972,7 +972,7 @@ int XrdOlbServer::do_Rm(char *rid, int do4real)
   
 int XrdOlbServer::do_Rmdir(char *rid, int do4real)
 {
-   const char *epname = "do_Rmdir";
+   EPNAME("do_Rmdir")
    char lclpath[PATH_MAX+1];
    char *tp;
    int rc;
@@ -1015,7 +1015,7 @@ int XrdOlbServer::do_Rmdir(char *rid, int do4real)
   
 int XrdOlbServer::do_Select(char *rid, int reset)
 {
-   const char *epname = "do_Select";
+   EPNAME("do_Select")
    BUFF(2048);
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
@@ -1265,7 +1265,7 @@ int XrdOlbServer::do_Usage(char *rid)
   
 int XrdOlbServer::Inform(const char *cmd, XrdOlbPrepArgs *pargs)
 {
-   const char *epname = "Inform";
+   EPNAME("Inform")
    char *mdest, *minfo;
    struct iovec iodata[8];
 
@@ -1342,7 +1342,7 @@ int XrdOlbServer::isOnline(char *path, int upt)
   
 char *XrdOlbServer::Receive(char *idbuff, int blen)
 {
-   const char *epname = "Receive";
+   EPNAME("Receive")
    char *lp, *tp;
    if ((lp=Link->GetLine()) && *lp)
       {DEBUG("From " <<myName <<": " <<lp);

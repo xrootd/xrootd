@@ -235,8 +235,10 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
   
 int XrdOfs::ConfigRedir(XrdOucError &Eroute) 
 {
-   const char *epname = "ConfigRedir";
+   EPNAME("ConfigRedir")
+#ifndef NODEBUG
    const char *tident = "";
+#endif
    int i, port, isprime = 1;
    struct sockaddr_in name;
    XrdOdcFinderLCL *myFinder;

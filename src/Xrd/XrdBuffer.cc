@@ -44,7 +44,9 @@ void *XrdReshaper(void *pp)
   
 extern XrdOucError  XrdLog;
 
+#ifndef NODEBUG 
 extern XrdOucTrace  XrdTrace;
+#endif
 
 const char *XrdBuffManager::TraceID = "BuffManager";
  

@@ -160,7 +160,7 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
   
 off_t  XrdOssSys::Adjust(dev_t devid, off_t size)
 {
-   const char *epname = "Adjust";
+   EPNAME("Adjust")
    XrdOssCache_FSData *fsdp;
 
 // Obtain cache lock
@@ -213,7 +213,7 @@ void XrdOssSys::List_Cache(char *lname, int self, XrdOucError &Eroute)
 
 void *XrdOssSys::CacheScan(void *carg)
 {
-   const char *epname = "CacheScan";
+   EPNAME("CacheScan")
    XrdOssCache_FSData *fsdp;
    STATFS_t fsbuff;
    const struct timespec naptime = {XrdOssSS.cscanint, 0};

@@ -197,7 +197,7 @@ int  XrdSecProtocolsrvr::Authenticate(XrdSecCredentials  *cred,     // In
   
 const char *XrdSecProtocolsrvr::getParms(int &size, const char *hname)
 {
-   const char *epname = "getSecToken";
+   EPNAME("getSecToken")
    XrdSecProtBind *bp;
 
 // Try to find a specific token binding for a host or return default binding
@@ -405,7 +405,7 @@ int XrdSecProtocolsrvr::xpamode(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdSecProtocolsrvr::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    const char *epname = "xpbind";
+    EPNAME("xpbind")
     char *val, *thost;
     struct XrdSecProtBind *bnow;
     char sectoken[4096], *secbuff = sectoken;
@@ -597,8 +597,10 @@ int XrdSecProtocolsrvr::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
 
 // Propogate the debug option
 //
+#ifndef NODEBUG
    if (QTRACE(Debug)) PManager.setDebug(1);
       else            PManager.setDebug(0);
+#endif
     return 0;
 }
 
@@ -646,7 +648,7 @@ int XrdSecProtocolsrvr::add2token(XrdOucError &Eroute, char *pid,
   
 int XrdSecProtocolsrvr::ProtBind_Complete(XrdOucError &Eroute)
 {
-    const char *epname = "ProtBind_Complete";
+    EPNAME("ProtBind_Complete")
     XrdSecProtBind *bnow;
     char *sectp;
 

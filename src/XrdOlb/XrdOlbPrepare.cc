@@ -254,7 +254,8 @@ void XrdOlbPrepare::Scrub()
 /******************************************************************************/
   
 int XrdOlbPrepare::startIF()  // Must be called with PTMutex locked!
-{   const char *epname = "startIF";
+{   
+    EPNAME("startIF")
     int NoGo = 0;
 
     if (!prepif)

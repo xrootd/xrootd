@@ -54,7 +54,7 @@ extern XrdOssSys XrdOssSS;
 */
 int XrdOssSys::Rename(const char *oldname, const char *newname)
 {
-    const char *epname = "Rename";
+    EPNAME("Rename")
     int i, retc2, remotefs_Old, remotefs_New, remotefs, retc = XrdOssOK;
     int old_popts, new_popts;
     XrdOssLock old_file, new_file;

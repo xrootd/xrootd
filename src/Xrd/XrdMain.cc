@@ -92,7 +92,9 @@ void *mainAdmin(void *parg)
    XrdLink *newlink;
 // static XrdProtocol_Admin  ProtAdmin;
    long ProtAdmin;
+#ifndef NODEBUG
    char *TraceID = (char *)"Admin";
+#endif
 
 // At this point we should be able to accept new connections
 //
@@ -115,8 +117,9 @@ void *mainUser(void *parg)
 {
    XrdLink *newlink;
    static XrdProtocol_Select ProtSelect;
+#ifndef NODEBUG
    char *TraceID = (char *)"User";
-
+#endif
 
 // At this point we should be able to accept new connections
 //
@@ -135,7 +138,9 @@ void *mainUser(void *parg)
   
 int main(int argc, char *argv[])
 {
+#ifndef NODEBUG
    char *TraceID = (char *)"Main";
+#endif
 
 // Turn off sigpipe before we start any threads
 //

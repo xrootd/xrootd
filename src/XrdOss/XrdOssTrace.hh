@@ -14,6 +14,13 @@
 
 #include "XrdOuc/XrdOucTrace.hh"
 
+// Trace flags
+//
+#define TRACE_ALL       0x0fff
+#define TRACE_Opendir   0x0001
+#define TRACE_Open      0x0002
+#define TRACE_Debug     0x0800
+
 #ifndef NODEBUG
 
 #include <iostream.h>
@@ -30,18 +37,15 @@
 #define DEBUG(y) if (QTRACE(Debug)) \
                     {OssTrace.Beg(epname); cerr <<y; OssTrace.End();}
 
-// Trace flags
-//
-#define TRACE_ALL       0x0fff
-#define TRACE_Opendir   0x0001
-#define TRACE_Open      0x0002
-#define TRACE_Debug     0x0800
+#define EPNAME(x) const char *epname = x;
 
 #else
 
-#define DEBUG(x, y)
+#define DEBUG(x)
+#define QTRACE(x) 0
 #define TRACE(x, y)
 #define TRACEReturn(type, ecode, msg) return ecode
+#define EPNAME(x)
 
 #endif
 #endif

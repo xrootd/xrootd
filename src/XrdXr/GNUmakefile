@@ -62,7 +62,7 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TESTBIN) ...
-	@$(CC) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
+	@$(LD) $(LDOP) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
 	@echo Creating shared library $(LIBRARY)
 	@ar r $(LIBRARY) $(XROBJS)
 

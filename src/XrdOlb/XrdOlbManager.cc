@@ -271,7 +271,7 @@ XrdOlbSInfo *XrdOlbManager::ListServers(SMask_t mask, int opts)
   
 void *XrdOlbManager::Login(XrdOucLink *lnkp)
 {
-   const char *epname = "Login";
+   EPNAME("Login")
    XrdOlbServer *sp;
    char *tp;
    int   fdsk = 0, numfs = 1, addedp = 0, port = 0;
@@ -593,7 +593,7 @@ void *XrdOlbManager::Pander(char *manager, int mport)
   
 void *XrdOlbManager::Process()
 {
-    const char *epname = "Process";
+    EPNAME("Process")
     int i;
     char *hnp;
     XrdOlbServer Server(0);
@@ -665,7 +665,7 @@ void *XrdOlbManager::Respond()
 void XrdOlbManager::Remove_Server(const char *reason, 
                                   int sent, int sinst, int immed)
 {
-   const char *epname = "Remove_Server";
+   EPNAME("Remove_Server")
    XrdOlbServer *sp;
 
 // Obtain a lock on the servtab
@@ -732,7 +732,7 @@ int XrdOlbManager::SelServer(int needrw, char *path,
                             SMask_t pmask, SMask_t amask, char *hbuff,
                             const struct iovec *iodata, int iovcnt)
 {
-    const char *epname = "SelServer";
+    EPNAME("SelServer")
     char *reason;
     int delay, nump, isalt = 0, pass = 2;
     SMask_t mask;
@@ -982,8 +982,8 @@ SMask_t XrdOlbManager::AddPath(XrdOlbServer *sp)
   
 int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
 {
-    const char *epname = "AddManager";
-    int i;
+   EPNAME("AddManager")
+   int i;
 
 // Find available ID for this server
 //
@@ -1025,7 +1025,7 @@ int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
 XrdOlbServer *XrdOlbManager::AddServer(XrdOucLink *lp, int port,
                                        int nostage, int suspend)
 {
-    const char *epname = "AddServer";
+   EPNAME("AddServer")
     int tmp, i, j = -1, k = -1;
     char *hnp = lp->Name();
     unsigned long ipaddr = lp->Addr();
@@ -1139,7 +1139,7 @@ XrdOlbServer *XrdOlbManager::calcDelay(int nump, int numd, int numf, int numo,
 
 int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 {
-   const char *epname = "Drop_Server";
+   EPNAME("Drop_Server")
    XrdOlbServer *sp;
    char hname[256];
 
@@ -1206,7 +1206,7 @@ void *XrdOlbManager::Login_Failed(const char *reason,
   
 void XrdOlbManager::Record(char *path, const char *reason)
 {
-   const char *epname = "Record";
+   EPNAME("Record")
    static int msgcnt = 256;
    static XrdOucMutex mcMutex;
    int mcnt;
@@ -1228,9 +1228,11 @@ void XrdOlbManager::Record(char *path, const char *reason)
 
 void XrdOlbManager::Remove_Manager(const char *reason, XrdOlbServer *sp)
 {
-   const char *epname = "Remove_Manager";
+   EPNAME("Remove_Manager")
    int sent  = sp->ServID;
+#ifndef NODEBUG
    int sinst = sp->Instance;
+#endif
 
 // Obtain a lock on the servtab
 //

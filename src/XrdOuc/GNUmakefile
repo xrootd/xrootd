@@ -128,7 +128,7 @@ $(OBJDIR)/XrdOucNList.o: XrdOucNList.cc XrdOucNList.hh XrdOucPthread.hh
 
 $(OBJDIR)/XrdOucPlatform.o: XrdOucPlatform.cc XrdOucPlatform.hh
 	@echo Compiling XrdOucPlatform.cc
-	@$(CC) -c $(CFLAGS) $(CFEXTRA) $(INCLUDE) XrdOucPlatform.cc -o $(OBJDIR)/XrdOucPlatform.o
+	@$(CC) -c $(CFLAGS) $(CFSTRLCPY) $(INCLUDE) XrdOucPlatform.cc -o $(OBJDIR)/XrdOucPlatform.o
 
 $(OBJDIR)/XrdOucProg.o: XrdOucProg.cc  XrdOucProg.hh \
                         XrdOucError.hh XrdOucStream.hh XrdOucPthread.hh

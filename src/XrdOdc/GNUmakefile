@@ -69,7 +69,7 @@ fi
 
 $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
-	@$(CC) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
+	@$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
                           XrdOuca2x.hh    XrdOucNetwork.hh XrdOucStream.hh \

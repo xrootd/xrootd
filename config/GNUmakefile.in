@@ -6,10 +6,12 @@
 
 # Order in which components must be made
 #
-SERVER  = XrdOuc   XrdSfs   XrdAcc XrdSec @xrdsecplugins@ XrdOdc \
-          XrdXr    XrdOss   XrdOfs XrdOlb Xrd  XrdRootd   XrdXrootd
+SERVER  = XrdOuc XrdSfs XrdAcc XrdSec @xrdsecplugins@ XrdOdc \
+          XrdXr  XrdOss XrdOfs XrdOlb Xrd XrdRootd XrdXrootd
 
-TARGETS = $(SERVER)
+XRDSEC  = XrdOuc XrdSec @xrdsecplugins@
+
+TARGETS = @targets@
 
 ARCH    = @arch@
 
@@ -37,6 +39,13 @@ clean: FORCE
 	$(RM) -fr obj/$(ARCH)/SunWS_cache;\
 	$(RM) -fr obj/$(ARCH)/dbg/SunWS_cache;\
 fi
+
+distclean: FORCE
+	@$(MAKE) $(TARGETS) MAKEXEQ=clean XMSG=Cleaning --no-print-directory
+	@$(RM) -fr bin lib obj GNUMakefile src/GNUMake.env src/GNUMake.options
+	@$(RM) -f GNUmakefile
+	@$(RM) -f src/GNUmake.env
+	@$(RM) -f src/GNUmake.options
 
 XrdAcc: FORCE
 	@echo $(XMSG) acc $(XDBG) component...

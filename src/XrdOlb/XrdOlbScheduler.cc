@@ -49,7 +49,7 @@ void *XrdOlbStartTSched(void *carg)
   
 XrdOlbScheduler::XrdOlbScheduler(XrdOlbWorker *WFunc)
 {
-    const char *epname = "Scheduler";
+   EPNAME("Scheduler")
     int retc;
     pthread_t tid;
 
@@ -119,7 +119,7 @@ void XrdOlbScheduler::Schedule(XrdOucLink *lp)
  
 void XrdOlbScheduler::Schedule(XrdOlbJob *jp, time_t atime)
 {
-   const char *epname = "Schedule";
+   EPNAME("Schedule")
    XrdOlbJob *pp = 0, *p;
 
 // Lock the queue
@@ -150,7 +150,7 @@ void XrdOlbScheduler::Schedule(XrdOlbJob *jp, time_t atime)
   
 void XrdOlbScheduler::setWorkers(int minw, int maxw)
 {
-   const char *epname = "setWorkers";
+   EPNAME("setWorkers")
 
 // Lock the data area
 //
@@ -176,7 +176,7 @@ void XrdOlbScheduler::setWorkers(int minw, int maxw)
   
 void XrdOlbScheduler::TimeSched()
 {
-   const char *epname = "TimeSched";
+   EPNAME("TimeSched")
    XrdOlbJob *jp;
    int wtime;
 
@@ -207,7 +207,7 @@ void XrdOlbScheduler::TimeSched()
   
 void XrdOlbScheduler::hireWorker()
 {
-   const char *epname = "hireWorker";
+   EPNAME("hireWorker")
    pthread_t tid;
    int retc;
 

@@ -53,7 +53,7 @@ extern XrdOssSys XrdOssSS;
 */
 int XrdOssSys::Unlink(const char *path) 
 {
-    const char *epname = "Unlink";
+    EPNAME("Unlink")
     int i, remotefs, retc2, retc = XrdOssOK;
     XrdOssLock un_file;
     struct stat statbuff;
@@ -121,7 +121,7 @@ int XrdOssSys::Unlink(const char *path)
 
 int XrdOssSys::BreakLink(const char *local_path, struct stat &statbuff)
 {
-    const char *epname = "BreakLink";
+    EPNAME("BreakLink")
     char lnkbuff[PATH_MAX+1];
     int lnklen, retc = 0;
 

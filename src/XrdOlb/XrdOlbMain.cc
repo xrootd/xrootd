@@ -131,7 +131,7 @@ void *XrdOlbStartUDP(void *carg)
   
 int main(int argc, char *argv[])
 {
-   const char *epname = "main";
+   EPNAME("main")
    int forManager = 1;
    XrdOucSemaphore SyncUp(0);
    pthread_t    tid;

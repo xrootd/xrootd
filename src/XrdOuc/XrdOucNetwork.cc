@@ -38,8 +38,10 @@ const char *XrdOucNetworkCVSID = "$Id$";
 #ifndef NODEBUG
 #define NETDBG(x) {if (eTrace && eTrace->What & tFlag) \
                       {eTrace->Beg(epname); cerr <<x; eTrace->End();}}
+#define EPNAME(x) const char *epname = x;
 #else
 #define NETDBG(x)
+#define EPNAME(x)
 #endif
 
 /******************************************************************************/
@@ -82,7 +84,7 @@ XrdOucLink *XrdOucNetwork::Accept(int opts, int timeout)
   
 int XrdOucNetwork::Bind(int bindport, const char *contype)
 {
-    const char *epname = "Bind";
+   EPNAME("Bind")
     struct sockaddr_in InetAddr;
     struct sockaddr *SockAddr = (struct sockaddr *)&InetAddr;
     int SockSize = sizeof(InetAddr), retc;
@@ -371,7 +373,7 @@ XrdOucLink *XrdOucNetwork::Relay(XrdOucError *errp, int opts, char *dest)
   
 XrdOucLink *XrdOucNetwork::do_Accept(int opts)
 {
-  const char *epname = "Accept";
+  EPNAME("Accept")
   int        newfd;
   char      *hname;
   XrdOucLink *newconn;
@@ -419,7 +421,7 @@ XrdOucLink *XrdOucNetwork::do_Accept(int opts)
 
 XrdOucLink *XrdOucNetwork::do_Receive(int opts)
 {
-  const char *epname = "Receive";
+  EPNAME("Receive")
   int        maxlen, dlen, newfd;
   char      *hname;
   XrdOucLink *newconn;

@@ -211,7 +211,7 @@ void XrdOdcManager::Sleep(int slpsec)
   
 char *XrdOdcManager::Receive(int &msgid)
 {
-   const char *epname = "Receive";
+   EPNAME("Receive")
    char *lp, *tp, *rest;
    if ((lp=Link->GetLine()) && *lp)
       {DEBUG("Server: Received from " <<Link->Name() <<": " <<lp);

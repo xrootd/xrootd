@@ -14,15 +14,15 @@
 
 #include "XrdOuc/XrdOucTrace.hh"
 
-#ifndef NODEBUG
-
-#include <iostream.h>
-#include "XrdOuc/XrdOucTrace.hh"
-
 #define TRACE_ALL   0x0007
 #define TRACE_Debug 0x0001
 #define TRACE_Stage 0x0002
 #define TRACE_Defer 0x0004
+
+#ifndef NODEBUG
+
+#include <iostream.h>
+#include "XrdOuc/XrdOucTrace.hh"
 
 #define DEBUG(y) if (XrdOlbTrace.What & TRACE_Debug) TRACEX(y)
 
@@ -30,10 +30,13 @@
 
 #define TRACEX(y) {XrdOlbTrace.Beg(0,epname); cerr <<y; XrdOlbTrace.End();}
 
+#define EPNAME(x) const char *epname = x;
+
 #else
 
 #define DEBUG(y)
 #define TRACE(x, y)
+#define EPNAME(x)
 
 #endif
 #endif

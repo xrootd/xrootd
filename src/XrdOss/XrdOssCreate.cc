@@ -70,7 +70,7 @@ extern XrdOssSys XrdOssSS;
 */
 int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
 {
-    const char *epname = "Create";
+    EPNAME("Create")
     const int LKFlags = XrdOssFILE|XrdOssSHR|XrdOssNOWAIT|XrdOssRETIME;
     char  local_path[XrdOssMAX_PATH_LEN+1];
     char remote_path[XrdOssMAX_PATH_LEN+1];
@@ -153,7 +153,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
 
 int XrdOssSys::Alloc_Cache(const char *path, mode_t amode, XrdOucEnv &env)
 {
-   const char *epname = "Alloc_Cache";
+   EPNAME("Alloc_Cache")
    double fuzz, diffree;
    int datfd, rc;
    XrdOssCache_FS *fsp, *fspend, *fsp_sel;

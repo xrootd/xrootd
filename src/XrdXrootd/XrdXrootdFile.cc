@@ -30,8 +30,10 @@ const char *XrdXrootdFileCVSID = "$Id$";
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-  
+
+#ifndef NODEBUG  
 extern XrdOucTrace      *XrdXrootdTrace;
+#endif
 
        XrdXrootdFileLock *XrdXrootdFile::Locker;
 

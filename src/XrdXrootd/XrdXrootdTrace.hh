@@ -11,6 +11,20 @@
 /******************************************************************************/
 
 //        $Id$
+
+// Trace flags
+//
+#define TRACE_ALL       0x0fff
+#define TRACE_DEBUG     0x0001
+#define TRACE_EMSG      0x0002
+#define TRACE_FS        0x0004
+#define TRACE_LOGIN     0x0008
+#define TRACE_MEM       0x0010
+#define TRACE_REQ       0x0020
+#define TRACE_REDIR     0x0040
+#define TRACE_RSP       0x0080
+#define TRACE_SCHED     0x0100
+#define TRACE_STALL     0x0200
  
 #ifndef NODEBUG
 
@@ -37,27 +51,13 @@
 
 #define TRACING(x) XrdXrootdTrace->What & x
 
-// Trace flags
-//
-#define TRACE_ALL       0x0fff
-#define TRACE_DEBUG     0x0001
-#define TRACE_EMSG      0x0002
-#define TRACE_FS        0x0004
-#define TRACE_LOGIN     0x0008
-#define TRACE_MEM       0x0010
-#define TRACE_REQ       0x0020
-#define TRACE_REDIR     0x0040
-#define TRACE_RSP       0x0080
-#define TRACE_SCHED     0x0100
-#define TRACE_STALL     0x0200
-
 #else
 
 #define TRACE(act,x)
 #define TRACEI(act,x)
 #define TRACEP(act,x)
 #define TRACES(act,x)
-#define TRACING(x)
+#define TRACING(x) 0
 #endif
 
 #endif

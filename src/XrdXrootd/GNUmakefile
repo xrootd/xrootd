@@ -68,7 +68,7 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TARGETS) 
-	@$(CC) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGETS)
+	@$(LD) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGETS)
 
 $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdFileLock.hh XrdXrootdFileLock1.hh \

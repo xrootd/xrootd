@@ -112,7 +112,7 @@ $(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh       XrdProtocol.hh   \
                        XrdPollPoll.hh   XrdPollDev.icc   XrdTrace.hh     \
                        XrdOucError.hh   XrdOucPthread.hh XrdOucTrace.hh
 	@echo Compiling XrdPoll.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPoll.o XrdPoll.cc
+	@$(CC) -c $(CFLAGS) $(CFDEVPOLL) $(INCLUDE) -o $(OBJDIR)/XrdPoll.o XrdPoll.cc
 
 $(OBJDIR)/XrdProtocol.o: XrdJob.hh        XrdLink.hh     XrdPoll.hh \
                          XrdProtocol.cc   XrdProtocol.hh XrdTrace.hh \

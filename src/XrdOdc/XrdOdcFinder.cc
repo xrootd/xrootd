@@ -128,7 +128,7 @@ XrdOdcFinderLCL::~XrdOdcFinderLCL()
   
 int XrdOdcFinderLCL::Configure(char *cfn)
 {
-   const char *epname = "Config";
+   EPNAME("Config")
    XrdOdcConfig config(&OdcEDest, myPort);
    int repsid;
 
@@ -240,7 +240,7 @@ int XrdOdcFinderLCL::LocbyRR()
   
 void *XrdOdcFinderLCL::InspectLoad()
 {
-   const char *epname = "InspectLoad";
+   EPNAME("InspectLoad")
    int i, load, port, sport, sleeptime;
    pid_t spid;
    long cputime;
@@ -330,7 +330,7 @@ void *XrdOdcFinderLCL::ReportLoad()
   
 void XrdOdcFinderLCL::calcLoad(int &load, long &totcpu)
 {
-   const char *epname = "calcLoad";
+   EPNAME("calcLoad")
    static clock_t lastcpu = 0;
    static clock_t lasttod = 0;
    static int     cpu = sysconf(_SC_NPROCESSORS_CONF);
@@ -383,7 +383,7 @@ void *XrdOdcInspectLoad(void *carg)
 
 int XrdOdcFinderLCL::StartMonitor(int Inspect, int tint)
 {
-    const char *epname = "StartMonitor";
+    EPNAME("StartMonitor")
     pthread_t tid;
     int retc;
 
@@ -581,7 +581,7 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
   
 int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 {
-   const char *epname = "Locate";
+   EPNAME("Locate")
    int  val, retc, mlen, noresp = 0;
    char *colon, *tinfo, *msg, stype, ptype, mbuff[64];
    XrdOdcMsg *mp;
@@ -664,7 +664,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
   
 int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
 {
-   const char *epname = "Prepare";
+   EPNAME("Prepare")
    char mbuff1[32], mbuff2[32], *mode;
    XrdOucTList *tp;
    int allok, mint, pathloc, plenloc = 0;
@@ -786,7 +786,7 @@ XrdOdcManager *XrdOdcFinderRMT::SelectManager(XrdOucErrInfo &Resp, char *path)
   
 void XrdOdcFinderRMT::SelectManFail(XrdOucErrInfo &Resp)
 {
-   const char *epname = "SelectManFail";
+   EPNAME("SelectManFail")
    static time_t nextMsg = 0;
    time_t now;
 
@@ -817,7 +817,7 @@ void *XrdOdcStartManager(void *carg)
 
 int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
 {
-   const char *epname = "StartManagers";
+   EPNAME("StartManagers")
    XrdOucTList *tp;
    XrdOdcManager *mp, *firstone = 0;
    int i = 0;
@@ -912,7 +912,7 @@ void *XrdOdcStartOlb(void *carg)
   
 int XrdOdcFinderTRG::Configure(char *cfn)
 {
-   const char *epname = "Config";
+   EPNAME("Config")
    XrdOdcConfig config(&OdcEDest, 0);
    pthread_t tid;
 

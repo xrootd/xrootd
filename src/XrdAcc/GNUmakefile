@@ -71,7 +71,7 @@ fi
 
 $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
-	@$(CC) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
+	@$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(OBJDIR)/XrdAccAccess.o: XrdAccAccess.cc     XrdAccAccess.hh \
                           XrdAccCapability.hh XrdAccConfig.hh    XrdAccGroups.hh \

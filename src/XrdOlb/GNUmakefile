@@ -63,7 +63,7 @@ anything: $(TARGETS)
 
 $(BINARY): $(OBJECTS) $(LIBDEPS)
 	@echo Creating executable $(BINARY) 
-	@$(CC) $(OBJECTS) $(BINLIBS) $(LIBS) -o $(BINARY)
+	@$(LD) $(LDOP) $(OBJECTS) $(BINLIBS) $(LIBS) -o $(BINARY)
 
 $(OBJDIR)/XrdOlbAdmin.o: XrdOlbAdmin.hh  XrdOlbAdmin.cc \
                          XrdOlbConfig.hh XrdOlbManager.hh  XrdOlbPrepare.hh \

@@ -98,7 +98,7 @@ SMask_t XrdOlbPList_Anchor::Insert(char *pname, XrdOlbPInfo *pinfo)
   
 void XrdOlbPList_Anchor::Remove(SMask_t mask)
 {
-    const char *epname = "Remove";
+    EPNAME("Remove")
     SMask_t zmask = ~mask;
     XrdOlbPList *pp = next, *prevp = 0;
 

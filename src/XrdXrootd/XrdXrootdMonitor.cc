@@ -58,7 +58,10 @@ class XrdXrootdMonitor_Tick : public XrdJob
 {
 public:
 
-void          DoIt() {const char *TraceID = "MonTick";
+void          DoIt() {
+#ifndef NODEBUG
+                      const char *TraceID = "MonTick";
+#endif
                       time_t Now = XrdXrootdMonitor::Tick();
                       if (Window && Now)
                          Sched->Schedule((XrdJob *)this, Now+Window);

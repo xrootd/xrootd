@@ -726,7 +726,7 @@ int XrdOlbConfig::PidFile()
   
 int XrdOlbConfig::setupManager()
 {
-   const char *epname = "setupManager";
+   EPNAME("setupManager")
    static XrdOlbStartup StartService;
    pthread_t tid;
    int rc;
@@ -787,7 +787,7 @@ int XrdOlbConfig::setupManager()
   
 int XrdOlbConfig::setupServer()
 {
-   const char *epname = "setupServer";
+   EPNAME("setupServer")
    pthread_t tid;
    int rc;
 
