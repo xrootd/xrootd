@@ -26,7 +26,7 @@ XrdMonDecTraceInfo::convertToString(char s[256])
         XrdMonDecTraceInfo::_lastT = _timestamp;
         XrdMonDecTraceInfo::_lastS = timestamp2string(_timestamp);
     }
-    sprintf(s, "%lld\t%d\t%c\t%s\t%d\n", _offset, 
+    sprintf(s, "%lld\t%d\t%c\t%s\t%d\n", (long long)_offset, 
             _length, _rwReq, _lastS.c_str(), _uniqueId);
 }
 
