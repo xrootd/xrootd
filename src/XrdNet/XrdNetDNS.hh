@@ -103,8 +103,8 @@ static int Host2Dest(char            *InetName,
 //           returned in ipaddr (unless it is zero, in which only a conversion
 //           check is performed). 1 is returned upon success, 0 upon failure.
 //
-static int XrdNetDNS::Host2IP(char          *InetName,
-                              unsigned long *ipaddr=0);
+static int Host2IP(char          *InetName,
+                   unsigned long *ipaddr=0);
 
 // IPAddr() returns the IPV4 version of the address in the address argument
 //
@@ -121,9 +121,9 @@ static int isLoopback(struct sockaddr &InetAddr);
 //            determined, 0 is returned and the error text is placed in errtxt
 //            if an address is supplied.
 //
-static char *XrdNetDNS::Peername(       int       snum,
-                                 struct sockaddr *sap=0,
-                                        char    **errtxt=0);
+static char *Peername(       int       snum,
+                      struct sockaddr *sap=0,
+                             char    **errtxt=0);
 
 // setPort() sets the port number InetAddr. If anyaddr is true,, InetAddr is
 //           initialized to the network defined "any" IP address.
