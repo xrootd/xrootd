@@ -83,10 +83,10 @@ XrdMonCtrArchiver::operator()()
 
 // this function runs in a separate thread, wakes up
 // every now and then and triggers data flushing
-void*
-XrdMonCtrArchiver::decFlushHeartBeat(void* arg)
+extern "C" void*
+decFlushHeartBeat(void* arg)
 {
-    if ( _decFlushDelay == -1 ) {
+    if ( XrdMonCtrArchiver::_decFlushDelay == -1 ) {
         return (void*)0; // should never happen
     }
     XrdMonDecPacketDecoder* myDecoder = (XrdMonDecPacketDecoder*) arg;
@@ -95,7 +95,7 @@ XrdMonCtrArchiver::decFlushHeartBeat(void* arg)
                               "invalid archiver passed");
     }
     while ( 1 ) {
-        sleep(_decFlushDelay);
+        sleep(XrdMonCtrArchiver::_decFlushDelay);
         myDecoder->flushDataNow();
     }
 

@@ -76,7 +76,8 @@ CONVTIME       = $(BINDIR)/xrdmonConvertTime
 TESTPARSER     = $(BINDIR)/testParser
 
 BINARIES       = $(COLLECTOR) $(DECODER) $(SENDER) $(ADMIN) \
-                 $(DUMPPACKETS) $(DEBUGPACKET) $(CONVTIME) $(TESTPARSER)
+                 $(DUMPPACKETS) $(DEBUGPACKET) $(CONVTIME)  \
+#                 $(TESTPARSER)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
@@ -151,11 +152,11 @@ $(DECODER):	$(OBJECTS_BIN_DEC) $(LIBRARY_DEC) $(LIBRARY_OUC) \
 
 $(SENDER):	$(OBJECTS_BIN_SND) $(LIBRARY_SND) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
-	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -lresolv -o $@ $^
 
 $(ADMIN):	$(OBJECTS_BIN_ADM) $(LIBRARY_SND) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
-	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -lresolv -o $@ $^
 
 $(DUMPPACKETS):	$(OBJECTS_BIN_DMP) $(LIBRARY_DEC) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)

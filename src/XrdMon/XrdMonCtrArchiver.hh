@@ -26,6 +26,8 @@ class XrdMonDecPacketDecoder;
 // Manages heartbeat for writers (writers inactive for 24 hours
 // are closed). It does not interpret data inside packet.
 
+extern "C" void* decFlushHeartBeat(void* arg);
+
 class XrdMonCtrArchiver {
 public:
     XrdMonCtrArchiver(const char* cBaseDir, 
@@ -43,7 +45,7 @@ public:
 private:
     void check4InactiveSenders();
     void archivePacket(XrdMonCtrPacket* p);
-    static void* decFlushHeartBeat(void* arg);
+    friend void* decFlushHeartBeat(void* arg);
     void deleteWriters();
     
 private:
