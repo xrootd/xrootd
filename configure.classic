@@ -43,6 +43,7 @@ options="                 \
    enable_echo            \
    enable_krb4            \
    enable_krb5            \
+   enable_perlint         \
    enable_trace           \
 "
 
@@ -53,6 +54,7 @@ options="                 \
 for c in $options ; do eval $c="yes" ; done
 
 enable_echo=no
+enable_perlint=no
 enable_thread=yes
 
 #
@@ -475,6 +477,7 @@ enable/disable options, prefix with either --enable- or --disable-
    echo            Enable/disable echoing of commands during building
    krb4            Kerberos4 support, requires Kerberos libs
    krb5            Kerberos5 support, requires Kerberos libs
+   perlint         Enable/disable building of the perl admin interface
    trace           Support for trace statements via the "-d" flag
 
 with options, prefix with --with-, enables corresponding support
@@ -485,6 +488,7 @@ with options, prefix with --with-, enables corresponding support
    krb5            Kerberos5 support, location of Kerberos distribution
    krb5-incdir     Kerberos5 support, location of krb5.h
    krb5-libdir     Kerberos5 support, location of libkrb5
+   perl            Path to the perl executable to be used for the perl module
    thread-libdir   Path to libpthread
 
 Advanced options:
@@ -576,6 +580,7 @@ if test $# -gt 0 ; then
       --with-krb5=*)           krb5dir=$optarg       ; enable_krb5="yes"    ;;
       --with-krb5-incdir=*)    krb5incdir=$optarg    ; enable_krb5="yes"    ;;
       --with-krb5-libdir=*)    krb5libdir=$optarg    ; enable_krb5="yes"    ;;
+      --with-perl=*)           perlbin=$optarg       ; enable_perlint="yes" ;;
       --with-thread-libdir=*)  threadlibdir=$optarg  ; enable_thread="yes"  ;;
       ################################################################
       #
@@ -834,6 +839,92 @@ xrdecho="@"
 if test "x$enable_echo" = "xyes" ; then
    xrdecho=""
 fi
+
+
+######################################################################
+#
+### echo %%% Check PERL stuff
+#
+
+if test "x$enable_perlint" = "xyes" ; then
+   message "Checking for perl"
+   if test "x$perlbin" = "x" || test ! -f $perlbin ; then
+      perlbin=`which perl 2> /dev/null`
+      if test "x$perlbin" = "x" ; then
+         enable_perlint="no"
+         echo "no"
+      else
+         echo "yes"
+      fi
+   else
+      echo "yes"
+   fi
+fi
+
+if test "x$enable_perlint" = "xyes" ; then
+
+   # Check version
+   message "Checking for perl version"
+   # Get major number
+   perl_major=`$perlbin -v | grep "This is perl, " \
+               | sed -n "s/This is perl, v//p" | cut -d . -f 1`
+   # Get minor number
+   perl_minor=`$perlbin -v | grep "This is perl, " \
+               | sed -n "s/This is perl, v//p" | cut -d . -f 2`
+
+   # require perl versions >= 5.8
+   if [ "$perl_major" -lt 5 ] || [ "$perl_minor" -lt 8 ] ; then
+      echo "$perl_major.$perl_minor: not OK (needs >= 5.8: re-run with --with-perl=<perl_5.8_location>)"
+      enable_perlint="no"
+      perlbin=""
+   else
+      echo "$perl_major.$perl_minor: OK"
+   fi
+fi
+
+if test "x$enable_perlint" = "xyes" ; then
+
+   # Search the location of include files needed
+
+   inclist="perl.h EXTERN.h XSUB.h"
+
+   perlincdir=""
+   perlincdirlist=`$perlbin -e 'print "@INC";'` 
+   perlincdirs=""
+   for i in $perlincdirlist ; do
+      perlincdirs="$perlincdirs $i $i/CORE"
+   done
+   for i in $inclist ; do
+       check_header "$i" "" "$perlincdirs"
+       if test "x$found_hdr" = "x" ; then
+          perlincdir=""
+          enable_perlint="no"
+          break
+       fi
+       if test "x$perlincdir" = "x" ; then
+          perlincdir="-I$found_dir"
+       else
+          have_already="no"
+          for k in $perlincdir ; do
+             if test "x$k" = "x-I$found_dir" ; then
+                have_already="yes"
+             fi
+          done
+          if test "x$have_already" = "xno" ; then
+             perlincdir="-I$found_dir $perlincdir"
+          fi
+       fi
+   done
+
+   # The compilation flags
+   perlccflags=""
+   if test "x$enable_perlint" = "xyes" ; then
+      perlccflags=`$perlbin -e 'use Config; print $Config{ccflags};'`
+   fi
+
+fi
+
+
 
 ######################################################################
 #
@@ -1347,6 +1438,8 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasprotor@|$hasprotor|" \
     -e "s|@tracedbg@|$tracedbg|" \
     -e "s|@suncache@|$suncache|" \
+    -e "s|@perlincdir@|$perlincdir|" \
+    -e "s|@perlccflags@|$perlccflags|" \
     < GNUmake.env.tmp > $ENVOUT
 rm -f GNUmake.env.tmp
 
