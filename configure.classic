@@ -397,9 +397,8 @@ guess_architecture () {
           echo "Do '$0 --help' for a list of avaliable architectures."
           exit 1
           ;;
-   esac
+    esac
     echo "$osys | $chip | $rele | $arch | $ccflv"
-
 }
 
 ###################################################################
@@ -640,24 +639,28 @@ fi
 message "Checking for rm"
 rmpath="/bin/rm"
 if test ! -x $rmpath ; then
-locrm=`which rm 2> /dev/null`
-if test ! "x$locrm" = "x" ; then
-   rmpath="$locrm"
-   echo "$rmpath"
+   locrm=`which rm 2> /dev/null`
+   if test ! "x$locrm" = "x" ; then
+      rmpath="$locrm"
+      echo "$rmpath"
+   else
+      echo "no: assume $rmpath"
+   fi
 else
-   echo "no: assume $rmpath"
-fi
+   echo "$rmpath"
 fi
 message "Checking for ln"
 lnpath="/bin/ln"
 if test ! -x $lnpath ; then
-locln=`which ln 2> /dev/null`
-if test ! "x$locln" = "x" ; then
-   lnpath="$locln"
-   echo "$lnpath"
+   locln=`which ln 2> /dev/null`
+   if test ! "x$locln" = "x" ; then
+      lnpath="$locln"
+      echo "$lnpath"
+   else
+      echo "no: assume $lnpath"
+   fi
 else
-   echo "no: assume $lnpath"
-fi
+   echo "$lnpath"
 fi
 
 ######################################################################
