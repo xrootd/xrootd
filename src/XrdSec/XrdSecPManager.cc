@@ -52,17 +52,16 @@ class XrdSecProtList
 {
 public:
 
-XrdSecPMask_t      protnum;
-char               protid[8];
-const char        *protargs;
-XrdSecProtocol    *protp;
-XrdSecProtList    *Next;
+XrdSecPMask_t    protnum;
+char             protid[XrdSecPROTOIDSIZE+1];
+char            *protargs;
+XrdSecProtocol  *(*ep)(PROTPARMS);
+XrdSecProtList  *Next;
 
-                XrdSecProtList(char *pid, XrdSecProtocol *pp)
-                      {int i;
-                       strncpy(protid, pid, sizeof(protid)-1);
-                       protid[7] = '\0';   protp = pp; Next = 0;
-                       protargs = pp->getParms(i);
+                XrdSecProtList(const char *pid, const char *parg)
+                      {strncpy(protid, pid, sizeof(protid)-1);
+                       protid[XrdSecPROTOIDSIZE] = '\0'; ep = 0; Next = 0;
+                       protargs = (parg ? strdup(parg): (char *)"");
                       }
                ~XrdSecProtList() {} // ProtList objects never get freed!
 };
@@ -74,63 +73,53 @@ XrdSecProtList    *Next;
 /*                                  F i n d                                   */
 /******************************************************************************/
   
-XrdSecProtocol *XrdSecPManager::Find(const char *pid,   // In
-                                     const char *parg)  // In
+XrdSecPMask_t XrdSecPManager::Find(const char *pid, char **parg)
 {
    XrdSecProtList *plp;
 
-// Since we only add protocols and never remove them, we need only to lock
-// the protocol list to get the first item.
-//
-   myMutex.Lock();
-   plp = First;
-   myMutex.UnLock();
-
-// Now we can go and find a matching protocol
-//
-   if (plp)
-      do {if (!strcmp(plp->protid,   pid) && parg
-          &&  !strcmp(plp->protargs, parg)) break;
-         } while((plp = plp->Next));
-
-   if (plp) return plp->protp;
-   return (XrdSecProtocol *)0;
-}
-  
-XrdSecProtocol *XrdSecPManager::Find(const         char  *pid,   // In
-                                                   char **parg,  // Out
-                                     XrdSecPMask_t       *pnum)  // Out
-{
-   XrdSecProtList *plp;
-
-// Since we only add protocols and never remove them, we need only to lock
-// the protocol list to get the first item.
-//
-   myMutex.Lock();
-   plp = First;
-   myMutex.UnLock();
-
-// Now we can go and find a matching protocol
-//
-   if (plp)
-      do {if (!strcmp(plp->protid,   pid)) break;
-         } while((plp = plp->Next));
-
-   if (!plp) return (XrdSecProtocol *)0;
-   if (parg) *parg = (char *)plp->protargs;
-   if (pnum) *pnum = plp->protnum;
-   return plp->protp;
+   if ((plp = Lookup(pid)))
+      {if (parg) *parg = plp->protargs;
+       return plp->protnum;
+      }
+   return 0;
 }
 
 /******************************************************************************/
 /*                                   G e t                                    */
 /******************************************************************************/
 
-XrdSecProtocol *XrdSecPManager::Get(char *sectoken)
+XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
+                                    const sockaddr &netaddr,
+                                    const char     *pname,
+                                    XrdOucErrInfo  *erp)
+{
+   XrdSecProtList *pl;
+   char *msgv[2];
+
+// Find the protocol and get an instance of the protocol object
+//
+   if ((pl = Lookup(pname)))
+      {DEBUG("Using " <<pname <<" protocol, args='"
+              <<(pl->protargs ? pl->protargs : "") <<"'");
+       return pl->ep('s', hname, netaddr, 0, erp);
+      }
+
+// Protocol is not supported
+//
+   msgv[0] = (char *)pname;
+   msgv[1] = (char *)" security protocol is not supported.";
+   erp->setErrInfo(EPROTONOSUPPORT, msgv, 2);
+   return 0;
+}
+
+XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
+                                    const sockaddr &netaddr,
+                                    char           *sectoken)
 {
    char *nscan, *pname, *pargs, *bp = sectoken;
+   XrdSecProtList *pl;
    XrdSecProtocol *pp;
-   XrdOucErrInfo erp;
+   XrdOucErrInfo   erp;
 
 // Find a protocol marker in the info block and check if acceptable
 //
@@ -147,11 +136,10 @@ XrdSecProtocol *XrdSecPManager::Get(char *sectoken)
                               else nscan = 0;
                           }
                   }
-         if ((pp = Find(pname, pargs))
-         || ( pp = Load(&erp, 0, pname, pargs, 'c')))
-            {DEBUG("Reusing " <<pname <<" protocol, args='"
+         if ((pl = Lookup(pname)) || (pl = ldPO(&erp, 'c', pname)))
+            {DEBUG("Using " <<pname <<" protocol, args='"
                    <<(pargs ? pargs : "") <<"'");
-             return pp;
+             if ((pp = pl->ep('c', hname, netaddr, pargs, &erp))) return pp;
             }
          if (erp.getErrInfo() != ENOENT)
             cerr <<erp.getErrText() <<endl;
@@ -160,32 +148,67 @@ XrdSecProtocol *XrdSecPManager::Get(char *sectoken)
          }
     return (XrdSecProtocol *)0;
 }
+ 
+/******************************************************************************/
+/*                       P r i v a t e   M e t h o d s                        */
+/******************************************************************************/
+/******************************************************************************/
+/*                                   A d d                                    */
+/******************************************************************************/
+  
+XrdSecProtList *XrdSecPManager::Add(XrdOucErrInfo  *eMsg, const char *pid,
+                                    XrdSecProtocol *(*ep)(PROTPARMS),
+                                    const char *parg)
+{
+   XrdSecProtList *plp;
+
+// Make sure we did not overflow the protocol stack
+//
+   if (!protnum)
+      {eMsg->setErrInfo(-1, "XrdSec: Too many protocols defined.");
+       return 0;
+      }
+
+// Add this protocol to our protocol stack
+//
+   plp = new XrdSecProtList((char *)pid, parg);
+   plp->ep = ep;
+   myMutex.Lock();
+   if (Last) {Last->Next = plp; Last = plp;}
+      else First = Last = plp;
+   plp->protnum = protnum; 
+   if (protnum & 0x40000000) protnum = 0;
+      else protnum = protnum<<1;
+   myMutex.UnLock();
+
+// All went well
+//
+   return plp;
+}
 
 /******************************************************************************/
-/*                                  L o a d                                   */
+/*                                  l d P O                                   */
 /******************************************************************************/
 
-XrdSecProtocol *XrdSecPManager::Load(XrdOucErrInfo *eMsg,  // In
-                                     const char    *spath, // In
+#define INITPARMS const char, const char *, XrdOucErrInfo *
+  
+XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
+                                     const char     pmode, // In 'c' | 's'
                                      const char    *pid,   // In
                                      const char    *parg,  // In
-                                     const char     pmode) // In 'c' | 's'
+                                     const char    *spath) // In
 {
-   static XrdSecProtocolhost HostProtocol;
+   extern XrdSecProtocol *XrdSecProtocolhostObject(PROTPARMS);
    void *libhandle;
-   XrdSecProtocol *(*ep)(XrdOucErrInfo *, const char, const char *, const char *);
-   XrdSecProtocol *Prot;
-   char *tlist[8], poname[80], libfn[80], libpath[2048], *libloc;
+   XrdSecProtocol *(*ep)(PROTPARMS);
+   char           *(*ip)(INITPARMS);
+   char *tlist[8], poname[80], libfn[80], libpath[2048], *libloc, *newargs;
    int i, k = 1;
 
 // The "host" protocol is builtin.
 //
-   if (!strcmp(pid, "host")) return Add(eMsg, pid, &HostProtocol);
-
-// Preset the tlist array and name of routine to load
-//
+   if (!strcmp(pid, "host")) return Add(eMsg,pid,XrdSecProtocolhostObject,0);
    tlist[0] = (char *)"XrdSec: ";
-   sprintf(poname, "XrdSecProtocol%sObject", pid);
 
 // Form library name
 //
@@ -222,8 +245,8 @@ XrdSecProtocol *XrdSecPManager::Load(XrdOucErrInfo *eMsg,  // In
 
 // Get the protocol object creator
 //
-   if (!(ep = (XrdSecProtocol *(*)(XrdOucErrInfo *, const char, const char *,
-               const char *))dlsym(libhandle, poname)))
+   sprintf(poname, "XrdSecProtocol%sObject", pid);
+   if (!(ep = (XrdSecProtocol *(*)(PROTPARMS))dlsym(libhandle, poname)))
       {tlist[k++] = (char *)dlerror();
        tlist[k++] = (char *)" finding ";
        tlist[k++] = poname;
@@ -233,41 +256,46 @@ XrdSecProtocol *XrdSecPManager::Load(XrdOucErrInfo *eMsg,  // In
        return 0;
       }
 
-// Get the protocol object
+// Get the protocol initializer
 //
-   if (!(Prot = (*ep)(eMsg, pmode, pid, parg))) return 0;
+   sprintf(poname, "XrdSecProtocol%sInit", pid);
+   if (!(ip = (char *(*)(INITPARMS))dlsym(libhandle, poname)))
+      {tlist[k++] = (char *)dlerror();
+       tlist[k++] = (char *)" finding ";
+       tlist[k++] = poname;
+       tlist[k++] = (char *)" in ";
+       tlist[k++] = libloc;
+       eMsg->setErrInfo(-1, tlist, k);
+       return 0;
+      }
+
+// Invoke the one-time initialization
+//
+   if (!(newargs = ip(pmode, (pmode == 'c' ? 0 : parg), eMsg))) return 0;
 
 // Add this protocol to our protocol stack
 //
-   return Add(eMsg, pid, Prot);
+   return Add(eMsg, pid, ep, newargs);
 }
  
 /******************************************************************************/
-/*                       P r i v a t e   M e t h o d s                        */
-/******************************************************************************/
-/******************************************************************************/
-/*                                   A d d                                    */
+/*                                L o o k u p                                 */
 /******************************************************************************/
   
-XrdSecProtocol *XrdSecPManager::Add(XrdOucErrInfo  *eMsg, const char *pid,
-                                    XrdSecProtocol *Prot)
+XrdSecProtList *XrdSecPManager::Lookup(const char *pid)   // In
 {
    XrdSecProtList *plp;
 
-// Add this protocol to our protocol stack
+// Since we only add protocols and never remove them, we need only to lock
+// the protocol list to get the first item.
 //
-   plp = new XrdSecProtList((char *)pid, Prot);
    myMutex.Lock();
-   if (Last) {Last->Next = plp; Last = plp;}
-      else First = Last = plp;
-   plp->protnum = protnum; protnum = protnum<<1;
+   plp = First;
    myMutex.UnLock();
 
-// Make sure we did not overflow the protocol stack
+// Now we can go and find a matching protocol
 //
-   if (!protnum)
-      {eMsg->setErrInfo(-1, "XrdSec: Too many protocols defined.");
-       return 0;
-      }
-   return Prot;
+   while(plp && strcmp(plp->protid, pid)) plp = plp->Next;
+
+   return plp;
 }

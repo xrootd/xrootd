@@ -28,6 +28,10 @@
 //
 #define XRDNET_MULTREAD 0x000000400
 
+// Do not trim off fomain in the host name.
+//
+#define XRDNET_NODNTRIM 0x000000800
+
 /******************************************************************************/
 /*     X r d N e t W o r k   &   X r d N e t S o c k e t   O p t i o n s      */
 /******************************************************************************/

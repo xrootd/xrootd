@@ -27,7 +27,6 @@ const char *XrdSectestServerCVSID = "$Id$";
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdSec/XrdSecProtocolsrvr.hh"
   
 /******************************************************************************/
 /*                    L O C A L   D E F I N I T I O N S                       */
@@ -92,10 +91,10 @@ int main(int argc, char **argv)
 
   XrdOucErrInfo einfo;
   XrdOucLogger Logger;
-  XrdSecProtocol *ServerSecurity;
+  XrdSecService *ServerSecurity;
   XrdSecParameters *parmp;
   XrdSecCredentials cred((char *)malloc(8192), 8192);
-  XrdSecClientName Client;
+  XrdSecProtocol *pp;
   unsigned char bbuff[4096];
 
 // Parse the argument list.
@@ -121,7 +120,7 @@ int main(int argc, char **argv)
 
 // Create a new security server
 //
-   ServerSecurity = XrdSecProtocolsrvrObject(&Logger, (const char *)opts.cfn);
+   ServerSecurity = XrdSecgetService(&Logger, (const char *)opts.cfn);
    if (!ServerSecurity) 
       {cerr <<"testServer: Unable to create server." <<endl; exit(1);}
 
@@ -143,35 +142,32 @@ int main(int argc, char **argv)
 //
    if (cred.size < 0) emsg(100,(char *)"Invalid credentials format.");
 
-// Prefill the client sructure
+// Get the protocol
 //
-   strcpy(Client.host, opts.host);
-   memcpy((void *)&Client.hostaddr, (const void *)netaddr,
-             sizeof(struct sockaddr));
-
-// We will try two different tests
-//
-   for (i = 1; i < 3; i++) {
-
-   // Now convert the credentials
-   //
-      if (ServerSecurity->Authenticate(&cred, &parmp, Client, &einfo) < 0)
-         {rc = einfo.getErrInfo();
-          cerr << "testServer: Authenticate error " <<rc <<"; ";
-          cerr  <<einfo.getErrText() <<endl;
-          exit(1);
-         }
-
-   // Tell everyone what the client identity is.
-   //
-      cout <<Client.name <<"@" <<Client.host <<" prot=" <<Client.prot <<endl;
-
-   // Check if we can resolve null credentials
-   //
-      if (!opts.xtra) break;
-      cred.size = 0;
-      cout << "Null credentials test:" <<endl;
+   if (!(pp = ServerSecurity->getProtocol((const char *)opts.host,
+                                          (const sockaddr &)caddr,
+                                          (const XrdSecCredentials *)&cred,
+                                          &einfo)))
+      {rc = einfo.getErrInfo();
+       cerr << "testServer: getProtocol error " <<rc <<"; ";
+       cerr  <<einfo.getErrText() <<endl;
+       exit(1);
       }
+
+// Now convert the credentials
+//
+   if (pp->Authenticate(&cred, &parmp, &einfo) < 0)
+      {rc = einfo.getErrInfo();
+       cerr << "testServer: Authenticate error " <<rc <<"; ";
+       cerr  <<einfo.getErrText() <<endl;
+       exit(1);
+      }
+
+// Tell everyone what the client identity is.
+//
+      cout <<(pp->Entity.name ? pp->Entity.name : "?")
+           <<"@" <<(pp->Entity.host ? pp->Entity.host : "?")
+           <<" prot=" <<pp->Entity.prot <<endl;
 
 // All done
 //

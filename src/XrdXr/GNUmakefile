@@ -67,7 +67,7 @@ $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	$(ECHO)ranlib $(LIBRARY)
 
 $(OBJDIR)/XrdXrClientWorker.o: XrdXrClientWorker.hh XrdXrClientWorker.cc \
-                               XrdXrTrace.hh \
+                               XrdXrTrace.hh         XrdNetDNS.hh \
                                XrdNetLink.hh         XrdNetWork.hh \
                                XrdOucErrInfo.hh      XrdOucError.hh \
                                XrdOucLogger.hh       XrdOucPlatform.hh \

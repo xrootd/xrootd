@@ -64,7 +64,7 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
-#include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
@@ -164,9 +164,7 @@ XrdOfs::XrdOfs()
    LockTries     = XrdOfsLOCKTRIES;
    LockWait      = XrdOfsLOCKWAIT;
    MaxDelay      = 60;
-#ifdef __SECURITY__
    Authorization = 0;
-#endif
    Finder        = 0;
    Google        = 0;
    Reporter      = 0;
@@ -203,7 +201,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 //
    OfsEroute.SetPrefix("ofs_");
    OfsEroute.logger(lp);
-   OfsEroute.Emsg("Init", "(c) 2004 Stanford University/SLAC, Ofs Version "
+   OfsEroute.Emsg("Init", "(c) 2005 Stanford University/SLAC, Ofs Version "
                           XrdVSTRING);
 
 // Initialize the subsystems
@@ -237,7 +235,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 /******************************************************************************/
 
 int XrdOfsDirectory::open(const char              *dir_path, // In
-                          const XrdSecClientName  *client)   // In
+                          const XrdSecEntity      *client)   // In
 /*
   Function: Open the directory `path' and prepare for reading.
 
@@ -255,10 +253,8 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
    static const char *epname = "opendir";
    int retc;
 
-// Iniialize tracing now
+// Trace entry
 //
-   tident = client->tident;
-   error.setErrUser(tident);
    XTRACE(opendir, dir_path, "");
 
 // Verify that this object is not already associated with an open directory
@@ -401,7 +397,7 @@ int XrdOfsDirectory::close()
 int XrdOfsFile::open(const char          *path,      // In
                      XrdSfsFileOpenMode   open_mode, // In
                      mode_t               Mode,      // In
-               const XrdSecClientName    *client,    // In
+               const XrdSecEntity        *client,    // In
                const char                *info)      // In
 /*
   Function: Open the file `path' in the mode indicated by `open_mode'.  
@@ -435,10 +431,8 @@ int XrdOfsFile::open(const char          *path,      // In
    XrdOssDF           *fp;
    XrdOucEnv Open_Env(info);
 
-// Setup tracing
+// Trace entry
 //
-   tident = client->tident;
-   error.setErrUser(tident);
    ZTRACE(open, std::hex <<open_mode <<"-" <<std::oct <<Mode <<std::dec <<" fn=" <<path);
 
 // Verify that this object is not already associated with an open file
@@ -1155,7 +1149,7 @@ int XrdOfsFile::Unclose()
 int XrdOfs::chmod(const char             *path,    // In
                         XrdSfsMode        Mode,    // In
                         XrdOucErrInfo    &einfo,   // Out
-                  const XrdSecClientName *client)  // In
+                  const XrdSecEntity     *client)  // In
 /*
   Function: Change the mode on a file or directory.
 
@@ -1168,8 +1162,7 @@ int XrdOfs::chmod(const char             *path,    // In
 {
    static const char *epname = "chmod";
    mode_t acc_mode = Mode & S_IAMB;
-   char *tident = client->tident;
-   einfo.setErrUser(tident);
+   char *tident = einfo.getErrUser();
    int retc;
    XTRACE(chmod, path, "");
 
@@ -1207,7 +1200,7 @@ int XrdOfs::chmod(const char             *path,    // In
 int XrdOfs::exists(const char                *path,        // In
                          XrdSfsFileExistence &file_exists, // Out
                          XrdOucErrInfo       &einfo,       // Out
-                   const XrdSecClientName    *client)      // In
+                   const XrdSecEntity        *client)      // In
 /*
   Function: Determine if file 'path' actually exists.
 
@@ -1228,8 +1221,7 @@ int XrdOfs::exists(const char                *path,        // In
    static const char *epname = "exists";
    struct stat fstat;
    int retc;
-   char *tident = client->tident;
-   einfo.setErrUser(tident);
+   char *tident = einfo.getErrUser();
    XTRACE(exists, path, "");
 
 // Apply security, as needed
@@ -1276,7 +1268,7 @@ const char *XrdOfs::getVersion() {return XrdVSTRING;}
 int XrdOfs::mkdir(const char             *path,    // In
                         XrdSfsMode        Mode,    // In
                         XrdOucErrInfo    &einfo,   // Out
-                  const XrdSecClientName *client)  // In
+                  const XrdSecEntity     *client)  // In
 /*
   Function: Create a directory entry.
 
@@ -1293,8 +1285,7 @@ int XrdOfs::mkdir(const char             *path,    // In
    static const char *epname = "mkdir";
    mode_t acc_mode = Mode & S_IAMB;
    int retc, mkpath = Mode & SFS_O_MKPTH;
-   char *tident = client->tident;
-   einfo.setErrUser(tident);
+   char *tident = einfo.getErrUser();
    XTRACE(mkdir, path, "");
 
 // Apply security, as needed
@@ -1329,15 +1320,16 @@ int XrdOfs::mkdir(const char             *path,    // In
 
 int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
                           XrdOucErrInfo    &out_error,  // Out
-                    const XrdSecClientName *client)     // In
+                    const XrdSecEntity     *client)     // In
 {
+   static const char *epname = "prepare";
    XrdOucTList *tp = pargs.paths;
    int retc;
 
 // Run through the paths to make sure client can read each one
 //
    while(tp)
-        {AUTHORIZE(client, AOP_Read, "preparing", tp->text, error, SFS_ERROR);
+        {AUTHORIZE(client,AOP_Read,"preparing",tp->text,out_error,SFS_ERROR);
          tp = tp->next;
         }
 
@@ -1356,7 +1348,7 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
 int XrdOfs::remove(const char              type,    // In
                    const char             *path,    // In
                          XrdOucErrInfo    &einfo,   // Out
-                   const XrdSecClientName *client)  // In
+                   const XrdSecEntity     *client)  // In
 /*
   Function: Delete a file from the namespace and release it's data storage.
 
@@ -1370,8 +1362,7 @@ int XrdOfs::remove(const char              type,    // In
 {
    int retc;
    static const char *epname = "remove";
-   char *tident = client->tident;
-   einfo.setErrUser(tident);
+   char *tident = einfo.getErrUser();
    XTRACE(remove, path, "");
 
 // Apply security, as needed
@@ -1407,7 +1398,7 @@ int XrdOfs::remove(const char              type,    // In
 int XrdOfs::rename(const char             *old_name,  // In
                    const char             *new_name,  // In
                          XrdOucErrInfo    &einfo,     //Out
-                   const XrdSecClientName *client)    // In
+                   const XrdSecEntity     *client)    // In
 /*
   Function: Renames a file with name 'old_name' to 'new_name'.
 
@@ -1421,8 +1412,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 {
    static const char *epname = "rename";
    int retc;
-   char *tident = client->tident;
-   einfo.setErrUser(tident);
+   char *tident = einfo.getErrUser();
    XTRACE(rename, new_name, "old fn=" <<old_name <<" new ");
 
 // Apply security, as needed
@@ -1465,7 +1455,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 int XrdOfs::stat(const char             *path,        // In
                        struct stat      *buf,         // Out
                        XrdOucErrInfo    &einfo,       // Out
-                 const XrdSecClientName *client)      // In
+                 const XrdSecEntity     *client)      // In
 /*
   Function: Return file status information
 
@@ -1479,8 +1469,7 @@ int XrdOfs::stat(const char             *path,        // In
 {
    static const char *epname = "stat";
    int retc;
-   char *tident = client->tident;
-   einfo.setErrUser(tident);
+   char *tident = einfo.getErrUser();
    XTRACE(stat, path, "");
 
 // Apply security, as needed
@@ -1507,7 +1496,7 @@ int XrdOfs::stat(const char             *path,        // In
 int XrdOfs::stat(const char             *path,        // In
                        mode_t           &mode,        // Out
                        XrdOucErrInfo    &einfo,       // Out
-                 const XrdSecClientName *client)      // In
+                 const XrdSecEntity     *client)      // In
 /*
   Function: Return file status information (resident files only)
 
@@ -1524,8 +1513,7 @@ int XrdOfs::stat(const char             *path,        // In
    static const char *epname = "stat";
    struct stat buf;
    int retc;
-   char *tident = client->tident;
-   einfo.setErrUser(tident);
+   char *tident = einfo.getErrUser();
    XTRACE(stat, path, "");
 
 // Apply security, as needed

@@ -11,33 +11,43 @@
 /******************************************************************************/
 
 //       $Id$
+
+#include <sys/socket.h>
   
+#include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdOucErrInfo;
 class XrdSecProtList;
 class XrdSecProtocol;
 
-typedef unsigned int XrdSecPMask_t;
+typedef int XrdSecPMask_t;
+
+#define PROTPARMS const char, const char *, const struct sockaddr &, \
+                  const char *, XrdOucErrInfo *
 
 class XrdSecPManager
 {
 public:
 
-XrdSecProtocol *Find(const         char    *pid,    // In
-                     const         char    *parg=0);// In
+XrdSecPMask_t   Find(const         char  *pid,      // In
+                                   char **parg=0);  // Out
 
-XrdSecProtocol *Find(const         char  *pid,      // In
-                                   char **parg,     // Out
-                     XrdSecPMask_t       *pnum=0);  // Out
+XrdSecProtocol *Get(const char     *hname,
+                    const sockaddr &netaddr,
+                    const char     *pname,
+                    XrdOucErrInfo  *erp);
 
-XrdSecProtocol *Get (      char    *sect);  // Out
+XrdSecProtocol *Get (const char            *hname,
+                     const struct sockaddr &netaddr,
+                     char                  *sect);
 
-XrdSecProtocol *Load(XrdOucErrInfo *eMsg,   // In
-                     const char    *pid,    // In
-                     const char    *parg,   // In
-                     const char    *spath,  // In
-                     const char     pmode); // In 'c' | 's'
+int             Load(XrdOucErrInfo *eMsg,    // In
+                     const char     pmode,   // In 'c' | 's'
+                     const char    *pid,     // In
+                     const char    *parg,    // In
+                     const char    *path)    // In
+                     {return (0 != ldPO(eMsg, pmode, pid, parg, path));}
 
 void            setDebug(int dbg) {DebugON = dbg;}
 
@@ -47,7 +57,15 @@ void            setDebug(int dbg) {DebugON = dbg;}
 
 private:
 
-XrdSecProtocol    *Add(XrdOucErrInfo *erp,const char *pid,XrdSecProtocol *prot);
+XrdSecProtList    *Add(XrdOucErrInfo  *eMsg, const char *pid,
+                       XrdSecProtocol *(*ep)(PROTPARMS), const char *parg);
+XrdSecProtList    *ldPO(XrdOucErrInfo *eMsg,    // In
+                        const char     pmode,   // In 'c' | 's'
+                        const char    *pid,     // In
+                        const char    *parg=0,  // In
+                        const char    *spath=0);// In
+XrdSecProtList    *Lookup(const char *pid);
+
 XrdSecPMask_t      protnum;
 XrdOucMutex        myMutex;
 XrdSecProtList    *First;

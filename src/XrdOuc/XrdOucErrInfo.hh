@@ -84,7 +84,7 @@ const char *getErrText(int &ecode)
                 return *this;
                }
 
-      XrdOucErrInfo() {ErrUser = (char *)"?";}
+      XrdOucErrInfo(char *user=0) {ErrUser = (user ? user : (char *)"?");}
 
 protected:
 

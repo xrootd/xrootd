@@ -48,191 +48,79 @@ class XrdSecProtocolkrb4 : public XrdSecProtocol
 {
 public:
 
+
         int                Authenticate  (XrdSecCredentials *cred,
                                           XrdSecParameters **parms,
-                                          XrdSecClientName  &client,
                                           XrdOucErrInfo     *einfo=0);
 
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        const char        *getParms(int &plen, const char *host=0)
-                                   {plen = Parmsize;
-                                    return (const char *)Parms;
-                                   }
+static  char              *getPrincipal() {return Principal;}
 
-        int  Init(XrdOucErrInfo *einfo, char *parms);
-        int  Init_Client(XrdOucErrInfo *einfo);
-        int  Init_Server(XrdOucErrInfo *einfo, char *info=0);
+static  int                Init_Server(XrdOucErrInfo *einfo, 
+                                       char *KP=0, char *kfn=0);
 
-              XrdSecProtocolkrb4(int opts)
-                    {sname[0]    = '\0';
-                     iname[0]    = '\0';
-                     rname[0]    = '\0';
-                     keyfile     = (char *)"";
-                     Parms       = (char *)"";
-                     Parmsize    = 0;
-                     Principal   = (char *)"?";
-                     lifetime    = 0; options = opts;
-                    }
+static  void               setOpts(int opts) {options = opts;}
 
-             ~XrdSecProtocolkrb4() {} // Protocol objects are never deleted!!!
+        XrdSecProtocolkrb4(const char                *KP,
+                           const char                *hname,
+                           const struct sockaddr     *ipadd)
+                          {Service = (KP ? strdup(KP) : 0);
+                           Entity.host = strdup(hname);
+                           memcpy(&hostaddr, ipadd, sizeof(hostaddr));
+                           CName[0] = '?'; CName[1] = '\0';
+                           Entity.name = CName;
+                          }
+
+        void              Delete();
 
 private:
-static XrdOucMutex  krbContext;
 
-char  sname[SNAME_SZ+1];
-char  iname[INST_SZ+1];
-char  rname[REALM_SZ+1];
-char *Principal;
+       ~XrdSecProtocolkrb4() {} // Delete() does it all
 
-unsigned int lifetime;     // Client-side only
-char *keyfile;             // Server-side only
-char *Parms;
-int   Parmsize;
-int   options;
 
-char *Append(char *dst, const char *src);
-int   Fatal(XrdOucErrInfo *erp, int rc, const char *msg1, const char *msg2=0);
-int   get_SIR(XrdOucErrInfo *erp, const char *sh, char *sbuff, char *ibuff, 
+static char *Append(char *dst, const char *src);
+static int Fatal(XrdOucErrInfo *erp,int rc,const char *msg1,char *KP=0,int krc=0);
+static int   get_SIR(XrdOucErrInfo *erp, const char *sh, char *sbuff, char *ibuff,
               char *rbuff);
+
+static XrdOucMutex        krbContext;           // Client or server
+static int                options;              // Client or server
+static char               mySname[SNAME_SZ+1];  // Server
+static char               myIname[INST_SZ+1];   // Server
+static char               myRname[REALM_SZ+1];  // Server
+
+static char              *keyfile;       // Server-side only
+static char              *Principal;     // Server's principal name
+
+struct sockaddr           hostaddr;      // Client-side only
+char                      CName[256];    // Kerberos limit
+char                     *Service;       // Target principal for client
 };
-  
-/******************************************************************************/
-/*                        G l o b a l   O b j e c t s                         */
-/******************************************************************************/
-  
-XrdOucMutex XrdSecProtocolkrb4::krbContext;
 
 /******************************************************************************/
-/*       P r o t o c o l   I n i t i a l i z a t i o n   M e t h o d s        */
-/******************************************************************************/
-/******************************************************************************/
-/*                                  I n i t                                   */
+/*                           S t a t i c   D a t a                            */
 /******************************************************************************/
   
-int XrdSecProtocolkrb4::Init(XrdOucErrInfo *erp, char *p_args)
+XrdOucMutex         XrdSecProtocolkrb4::krbContext;          // Client or server
+int                 XrdSecProtocolkrb4::options = 0;         // Client or Server
+
+char                XrdSecProtocolkrb4::mySname[SNAME_SZ+1]; // Server
+char                XrdSecProtocolkrb4::myIname[INST_SZ+1];  // Server
+char                XrdSecProtocolkrb4::myRname[REALM_SZ+1]; // Server
+char               *XrdSecProtocolkrb4::keyfile   = 0;       // Server
+char               *XrdSecProtocolkrb4::Principal = 0;       // Server
+
+/******************************************************************************/
+/*                                D e l e t e                                 */
+/******************************************************************************/
+  
+void XrdSecProtocolkrb4::Delete()
 {
-   int plen;
-
-// Now, extract the "Principal.instance@realm" from the stream
-//
-   if (!p_args) 
-      return Fatal(erp, EINVAL, "krb4 service Principal name not specified.");
-   if (get_SIR(erp, p_args, sname, iname, rname) < 0) return -1;
-   CLDBG("sname='" <<sname <<"' iname='" <<iname <<"' rname='" <<rname <<"'");
-
-// Construct appropriate Principal name
-//
-   plen = strlen(sname) + strlen(iname) + strlen(rname) + 3;
-   if (!(Principal = (char *)malloc(plen)))
-      {Principal = (char *)"?";
-       return Fatal(erp, ENOMEM, "insufficient storage to handle",
-                                 (const char *)p_args);
-      }
-   if (*iname) sprintf((char *)Principal, "%s.%s@%s", sname, iname, rname);
-      else     sprintf((char *)Principal, "%s@%s",    sname, rname);
-
-// All done
-//
-   Parms    = strdup(p_args);
-   Parmsize = strlen(Parms);
-   return 0;
-}
-
-/******************************************************************************/
-/*                           I n i t _ C l i e n t                            */
-/******************************************************************************/
-  
-int XrdSecProtocolkrb4::Init_Client(XrdOucErrInfo *erp)
-{
-   XrdSecCredentials *credp;
-   CREDENTIALS krb_cred;
-   int rc;
-
-// We need to obtain some credentials that we will throw away. We need
-// to do this so that a ticket gets placed in the ticket cache if it's not
-// there already. We then fetch the credentials to get the ticket lifetime.
-//
-   if (!(credp = getCredentials(0,erp))) return -1;
-   delete credp;
-
-// Now get the credentials
-//
-   krbContext.Lock();
-   rc = krb_get_cred(sname, iname, rname, &krb_cred);
-   krbContext.UnLock();
-
-// Diagnose any errors
-//
-   if (rc != KSUCCESS)
-      return Fatal(erp, rc, "Unable to get credentials;", krb_err_txt[rc]);
-
-// Extract out the ticket lifetime
-//
-   lifetime = (unsigned int)krb_cred.lifetime;
-
-// All done, return success
-//
-   return 0;
-}
-
-/******************************************************************************/
-/*                           I n i t _ S e r v e r                            */
-/******************************************************************************/
-  
-int XrdSecProtocolkrb4::Init_Server(XrdOucErrInfo *erp, char *kfn)
-{
-
-// If we have been passed a keyfile name, use it.
-//
-   if (kfn && *kfn) keyfile = strdup(kfn);
-      else keyfile = (char *)"";
-
-// All done
-//
-   return 0;
-}
-
-/******************************************************************************/
-/*                               g e t _ S I R                                */
-/******************************************************************************/
-  
-int XrdSecProtocolkrb4::get_SIR(XrdOucErrInfo *erp, const char *sh,
-                                       char *sbuff, char *ibuff, char *rbuff)
-{
-    int h, i, j, k;
-
-    k = strlen(sh);
-    if (k > MAX_K_NAME_SZ) 
-       return Fatal(erp, EINVAL, "service name is to long -", sh);
-
-    for (j = 0; j < k && sh[j] != '@'; j++) {};
-    if (j > k) j = k;
-       else {if (j == k-1) 
-                return Fatal(erp,EINVAL,"realm name missing after '@' in",sh);
-             if (k-j > REALM_SZ) 
-                return Fatal(erp, EINVAL, "realm name is to long in",sh);
-            }
-
-    for (i = 0; i < j && sh[i] != '.'; i++) {};
-    if (i < j) {if (j-i >= INST_SZ) 
-                   return Fatal(erp, EINVAL, "instance is too long in",sh);
-                if (i+1 == j) 
-                   return Fatal(erp,EINVAL,"instance name missing after '.' in",sh);
-               }
-
-    if (i == SNAME_SZ) 
-       return Fatal(erp, EINVAL, "service name is too long in", sh);
-    if (!i) return Fatal(erp, EINVAL, "service name not specified.");
-
-    strncpy(sbuff, sh, i); sbuff[i] = '\0';
-    if ( (h = j - i - 1) <= 0) ibuff[0] = '\0';
-       else {strncpy(ibuff, &sh[i+1], h); ibuff[h] = '\0';}
-    if ( (h = k - j - 1) <= 0) krb_get_lrealm(rbuff, 1);
-       else {strncpy(rbuff, &sh[j+1], h); rbuff[h] = '\0';}
-
-    return 1;
+     if (Entity.host) free(Entity.host);
+     if (Service)     free(Service);
+     delete this;
 }
 
 /******************************************************************************/
@@ -242,13 +130,27 @@ int XrdSecProtocolkrb4::get_SIR(XrdOucErrInfo *erp, const char *sh,
 /*                        g e t C r e d e n t i a l s                         */
 /******************************************************************************/
 
-XrdSecCredentials *XrdSecProtocolkrb4::getCredentials(XrdSecParameters *parm,
-                                                      XrdOucErrInfo *error)
+
+XrdSecCredentials *XrdSecProtocolkrb4::getCredentials(XrdSecParameters *noparm,
+                                                      XrdOucErrInfo    *error)
 {
    const long cksum = 0L;
    struct ktext katix;       /* Kerberos data */
    krb_rc rc;
    char *buff;
+   char  sname[SNAME_SZ+1];
+   char  iname[INST_SZ+1];
+   char  rname[REALM_SZ+1];
+
+// Extract the "Principal.instance@realm" from the Service name
+//
+   if (!Service)
+      {Fatal(error, EINVAL, "krb4 service Principal name not specified.");
+       return (XrdSecCredentials *)0;
+      }
+   if (get_SIR(error, Service, sname, iname, rname) < 0) 
+      return (XrdSecCredentials *)0;
+   CLDBG("sname='" <<sname <<"' iname='" <<iname <<"' rname='" <<rname <<"'");
 
 // Supply null credentials if so needed for this protocol
 //
@@ -272,13 +174,13 @@ XrdSecCredentials *XrdSecProtocolkrb4::getCredentials(XrdSecParameters *parm,
    if (rc == KSUCCESS)
       {int bsz = XrdSecPROTOIDLEN+katix.length;
        if (!(buff = (char *)malloc(bsz)))
-          {Fatal(error, ENOMEM, "Insufficient memory to hold credentials.");
+          {Fatal(error,ENOMEM,"Insufficient memory for credentials.",Service);
            return (XrdSecCredentials *)0;
           }
        strcpy(buff, XrdSecPROTOIDENT);
        memcpy((void *)(buff+XrdSecPROTOIDLEN),
               (const void *)katix.dat, (size_t)katix.length);
-       CLDBG("Returned " <<bsz <<" bytes of credentials; p=" <<Principal);
+       CLDBG("Returned " <<bsz <<" bytes of credentials; p=" <<sname);
        return new XrdSecCredentials(buff, bsz);
       }
 
@@ -286,9 +188,9 @@ XrdSecCredentials *XrdSecProtocolkrb4::getCredentials(XrdSecParameters *parm,
 //
    {char ebuff[1024];
     snprintf(ebuff, sizeof(ebuff)-1, "Unable to get credentials from %s;",
-             Principal);
+             Service);
     ebuff[sizeof(ebuff)-1] = '\0';
-    Fatal(error, EACCES, (const char *)ebuff, krb_err_txt[rc]);
+    Fatal(error, EACCES, (const char *)ebuff, Service, rc);
     return (XrdSecCredentials *)0;
    }
 }
@@ -302,7 +204,6 @@ XrdSecCredentials *XrdSecProtocolkrb4::getCredentials(XrdSecParameters *parm,
 
 int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
                                      XrdSecParameters **parms,
-                                     XrdSecClientName  &client,
                                      XrdOucErrInfo     *error)
 {
    struct ktext katix;       /* Kerberos data */
@@ -315,8 +216,8 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
 // In either case, use host name as client name
 //
    if (cred->size <= (int)XrdSecPROTOIDLEN || !cred->buffer)
-      {strncpy(client.prot, "host", sizeof(client.prot));
-       client.name[0] = '?'; client.name[1] = '\0';
+      {strncpy(Entity.prot, "host", sizeof(Entity.prot));
+       Entity.name[0] = '?'; Entity.name[1] = '\0';
        return 0;
       }
 
@@ -333,7 +234,7 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
 
 // Indicate who we are
 //
-   strncpy(client.prot, XrdSecPROTOIDENT, sizeof(client.prot));
+   strncpy(Entity.prot, XrdSecPROTOIDENT, sizeof(Entity.prot));
 
 // Create a kerberos style ticket (need to do that, unfortunately)
 //
@@ -346,28 +247,68 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
 // will be history (it's almost there now :-).
 //
    if (options & XrdSecNOIPCHK) ipaddr = 0;
-      else memcpy((void *)&ipaddr, (void *)&client.hostaddr, sizeof(ipaddr));
+      else {sockaddr_in *ip = (sockaddr_in *)&hostaddr;
+            memcpy((void *)&ipaddr,(void *)&ip->sin_addr.s_addr,sizeof(ipaddr));
+           }
 
 // Decode the credentials
 //
    krbContext.Lock();
-   rc = krb_rd_req(&katix, sname, iname, ipaddr, &pid, keyfile);
+   rc = krb_rd_req(&katix, mySname, myIname, ipaddr, &pid, keyfile);
    krbContext.UnLock();
 
 // Diagnose any errors
 //
    if (rc != KSUCCESS)
-      {Fatal(error, rc, "Unable to authenticate credentials;", krb_err_txt[rc]);
+      {Fatal(error,rc,"Unable to authenticate credentials;",Principal,rc);
        return -1;
       }
 
-// Construct the user's name
+// Construct the user's name (use of the fact that names are < 256 chars)
 //
-   idp = Append(client.name, pid.pname);
+   idp = Append(CName, pid.pname);
    if (pid.pinst[0])
       {*idp = '.'; idp++; idp = Append(idp, pid.pinst);}
-   if (pid.prealm[0] && strcasecmp(pid.prealm, rname))
+   if (pid.prealm[0] && strcasecmp(pid.prealm, myRname))
       {*idp = '@'; idp++; idp = Append(idp, pid.prealm);}
+
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
+/*       P r o t o c o l   I n i t i a l i z a t i o n   M e t h o d s        */
+/******************************************************************************/
+/******************************************************************************/
+/*                           I n i t _ S e r v e r                            */
+/******************************************************************************/
+  
+int XrdSecProtocolkrb4::Init_Server(XrdOucErrInfo *erp, char *KP, char *kfn)
+{
+   int plen;
+
+// Now, extract the "Principal.instance@realm" from the stream
+//
+   if (!KP)
+      return Fatal(erp, EINVAL, "krb4 service Principal name not specified.");
+   if (get_SIR(erp, KP, mySname, myIname, myRname) < 0) return -1;
+   CLDBG("sname='" <<mySname <<"' iname='" <<myIname <<"' rname='" <<myRname <<"'");
+
+// Construct appropriate Principal name
+//
+   plen = strlen(mySname) + strlen(myIname) + strlen(myRname) + 3;
+   if (!(Principal = (char *)malloc(plen)))
+      {Principal = (char *)"?";
+       return Fatal(erp, ENOMEM, "insufficient storage", KP);
+      }
+   if (*myIname) sprintf((char *)Principal, "%s.%s@%s",mySname,myIname,myRname);
+      else       sprintf((char *)Principal, "%s@%s",   mySname,myRname);
+
+// If we have been passed a keyfile name, use it.
+//
+   if (kfn && *kfn) keyfile = strdup(kfn);
+      else keyfile = (char *)"";
 
 // All done
 //
@@ -392,21 +333,21 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
 /*                                 F a t a l                                  */
 /******************************************************************************/
 
-int XrdSecProtocolkrb4::Fatal(XrdOucErrInfo *erp, int rc, 
-                              const char *msg1, const char *msg2)
+int XrdSecProtocolkrb4::Fatal(XrdOucErrInfo *erp, int rc, const char *msg,
+                             char *KP, int krc)
 {
    char *msgv[8];
    int k, i = 0;
 
-              msgv[i++] = (char *)"Seckrb4: ";  //0
-              msgv[i++] = (char *)msg1;         //1
-   if (msg2) {msgv[i++] = (char *)" ";          //2
-              msgv[i++] = (char *)msg2;         //3
+              msgv[i++] = (char *)"Seckrb4: ";     //0
+              msgv[i++] = (char *)msg;             //1
+   if (krc)  {msgv[i++] = (char *)"; ";            //2
+              msgv[i++] = (char *)krb_err_txt[rc]; //3
              }
-              msgv[i++] = (char *)" (p=";       //4
-              msgv[i++] = Principal;            //5
-              msgv[i++] = (char *)").";         //6
-
+   if (KP)   {msgv[i++] = (char *)" (p=";          //4
+              msgv[i++] = KP;                      //5
+              msgv[i++] = (char *)").";            //6
+             }
    if (erp) erp->setErrInfo(rc, msgv, i);
       else {for (k = 0; k < i; k++) cerr <<msgv[k];
             cerr <<endl;
@@ -414,32 +355,69 @@ int XrdSecProtocolkrb4::Fatal(XrdOucErrInfo *erp, int rc,
 
    return -1;
 }
+
+/******************************************************************************/
+/*                               g e t _ S I R                                */
+/******************************************************************************/
+  
+int XrdSecProtocolkrb4::get_SIR(XrdOucErrInfo *erp, const char *sh,
+                                       char *sbuff, char *ibuff, char *rbuff)
+{
+    int h, i, j, k;
+
+    k = strlen(sh);
+    if (k > MAX_K_NAME_SZ) 
+       return Fatal(erp, EINVAL, "service name is to long", (char *)sh);
+
+    for (j = 0; j < k && sh[j] != '@'; j++) {};
+    if (j > k) j = k;
+       else {if (j == k-1) 
+                return Fatal(erp,EINVAL,"realm name missing after '@'",(char *)sh);
+             if (k-j > REALM_SZ) 
+                return Fatal(erp, EINVAL, "realm name is to long",(char *)sh);
+            }
+
+    for (i = 0; i < j && sh[i] != '.'; i++) {};
+    if (i < j) {if (j-i >= INST_SZ) 
+                   return Fatal(erp, EINVAL, "instance is too long",(char *)sh);
+                if (i+1 == j) 
+                   return Fatal(erp,EINVAL,"instance name missing after '.'",(char *)sh);
+               }
+
+    if (i == SNAME_SZ) 
+       return Fatal(erp, EINVAL, "service name is too long", (char *)sh);
+    if (!i) return Fatal(erp, EINVAL, "service name not specified.");
+
+    strncpy(sbuff, sh, i); sbuff[i] = '\0';
+    if ( (h = j - i - 1) <= 0) ibuff[0] = '\0';
+       else {strncpy(ibuff, &sh[i+1], h); ibuff[h] = '\0';}
+    if ( (h = k - j - 1) <= 0) krb_get_lrealm(rbuff, 1);
+       else {strncpy(rbuff, &sh[j+1], h); rbuff[h] = '\0';}
+
+    return 1;
+}
  
 /******************************************************************************/
-/*              X r d S e c P r o t o c o l k r b 4 O b j e c t               */
+/*                X r d S e c p r o t o c o l k r b 4 I n i t                 */
 /******************************************************************************/
   
 extern "C"
 {
-XrdSecProtocol *XrdSecProtocolkrb4Object(XrdOucErrInfo *erp,
-                                         const char     mode,
-                                         const char    *name,
-                                         const char    *parms)
+char  *XrdSecProtocolkrb4Init(const char     mode,
+                              const char    *parms,
+                              XrdOucErrInfo *erp)
 {
-   XrdSecProtocolkrb4 *prot;
    char *op, *KPrincipal=0, *Keytab=0;
-   char parmbuff[1024], mbuff[256];
+   char parmbuff[1024];
    XrdOucTokenizer inParms(parmbuff);
-   int NoGo, options = XrdSecNOIPCHK;
+   int options = XrdSecNOIPCHK;
 
-// Verify that the name we are given corresponds to the name we should have
+// For client-side one-time initialization, we only need to set debug flag and
+// initialize the kerberos context and cache location.
 //
-   if (strcmp(name, XrdSecPROTOIDENT))
-      {sprintf(mbuff, "Seckrb4: Protocol name mismatch; %s != %.4s",
-                      XrdSecPROTOIDENT, name);
-       if (erp) erp->setErrInfo(EINVAL, mbuff);
-          else cerr <<mbuff <<endl;
-       return (XrdSecProtocol *)0;
+   if (mode == 'c')
+      {if (getenv("XrdSecDEBUG")) XrdSecProtocolkrb4::setOpts(XrdSecDEBUG);
+       return (char *)"";
       }
 
 // Duplicate the parms
@@ -448,51 +426,78 @@ XrdSecProtocol *XrdSecProtocolkrb4Object(XrdOucErrInfo *erp,
       else {char *msg = (char *)"Seckrb4: Kerberos parameters not specified.";
             if (erp) erp->setErrInfo(EINVAL, msg);
                else cerr <<msg <<endl;
-            return (XrdSecProtocol *)0;
+            return (char *)0;
            }
 
-// For clients, the first (and only) token must be the Principal name
-// For servers: [<keytab>] [-ipchk] <Principal>
+// Expected parameters: [<keytab>] [-ipchk] <principal>
 //
    if (inParms.GetLine())
-      if (mode == 'c') KPrincipal = inParms.GetToken();
-         else {if ((op = inParms.GetToken()) && *op == '/')
-                  {Keytab = op; op = inParms.GetToken();}
-               if (op && !strcmp(op, "-ipchk"))
-                  {options &= ~XrdSecNOIPCHK;
-                   op = inParms.GetToken();
-                  }
-               KPrincipal = op;
+      {if ((op = inParms.GetToken()) && *op == '/')
+          {Keytab = op; op = inParms.GetToken();}
+           if (op && !strcmp(op, "-ipchk"))
+              {options &= ~XrdSecNOIPCHK;
+               op = inParms.GetToken();
               }
+           KPrincipal = op;
+      }
 
 // Now make sure that we have all the right info
 //
    if (!KPrincipal)
-      {char *msg = (char *)"Seckrb4: Kerberos Principal not specified.";
+      {char *msg = (char *)"Seckrb4: Kerberos principal not specified.";
        if (erp) erp->setErrInfo(EINVAL, msg);
           else cerr <<msg <<endl;
-       return (XrdSecProtocol *)0;
+       return (char *)0;
+      }
+
+// Now initialize the server
+//
+   XrdSecProtocolkrb4::setOpts(options);
+   return (XrdSecProtocolkrb4::Init_Server(erp, KPrincipal, Keytab)
+           ? (char *)0 : XrdSecProtocolkrb4::getPrincipal());
+}
+}
+
+/******************************************************************************/
+/*              X r d S e c P r o t o c o l k r b 4 O b j e c t               */
+/******************************************************************************/
+  
+extern "C"
+{
+XrdSecProtocol *XrdSecProtocolkrb4Object(const char              mode,
+                                         const char             *hostname,
+                                         const struct sockaddr  &netaddr,
+                                         const char             *parms,
+                                               XrdOucErrInfo    *erp)
+{
+   XrdSecProtocolkrb4 *prot;
+   char *KPrincipal=0;
+
+// If this is a client call, then we need to get the target principal from the
+// parms (which must be the first and only token). For servers, we use the
+// context we established at initialization time.
+//
+   if (mode == 'c')
+      {if ((KPrincipal = (char *)parms)) while(*KPrincipal == ' ') KPrincipal++;
+       if (!KPrincipal || !*KPrincipal)
+          {char *msg = (char *)"Seckrb4: Kerberos principal not specified.";
+           if (erp) erp->setErrInfo(EINVAL, msg);
+              else cerr <<msg <<endl;
+           return (XrdSecProtocol *)0;
+          }
       }
 
 // Get a new protocol object
 //
-   if (!(prot = new XrdSecProtocolkrb4(options)))
+   if (!(prot = new XrdSecProtocolkrb4(KPrincipal, hostname, &netaddr)))
       {char *msg = (char *)"Seckrb4: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
           else cerr <<msg <<endl;
        return (XrdSecProtocol *)0;
       }
 
-// Initialize this protocol
+// All done
 //
-   if (0 == prot->Init(erp, KPrincipal))
-      if (mode == 'c') NoGo = prot->Init_Client(erp);
-         else          NoGo = prot->Init_Server(erp, Keytab);
-      else NoGo = 1;
-
-// Check if all went well
-//
-   if (NoGo) {delete prot; prot = 0;}
    return prot;
 }
 }

@@ -20,6 +20,7 @@ const char *XrdXrClientWorkerCVSID = "$Id$";
 
 #include "XrdXr/XrdXrClientWorker.hh"
 #include "XrdXr/XrdXrTrace.hh"
+#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 
@@ -31,11 +32,10 @@ XrdOucError XrEroute(0, "xr_");
 
 XrdOucTrace XrTrace(&XrEroute);
 
-extern XrdSecProtocol *(*XrdXrootdSecGetProtocol)(const struct sockaddr  &,
-                                           const XrdSecParameters &,
-                                                 XrdOucErrInfo    *) ;
-                                                                                extern void            (*XrdXrootdSecDelProtocol)(XrdSecProtocol *) ;
-
+extern XrdSecProtocol *(*XrdXrootdSecGetProtocol)(const char *,
+                                                  const struct sockaddr  &,
+                                                  const XrdSecParameters &,
+                                                  XrdOucErrInfo    *);
 
 /*****************************************************************************/
 /*                          c o n s t r u c t o r                            */
@@ -251,15 +251,13 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
   // Prepare host/IP information of the remote xrootd. This is required
   // for the authentication.
   //
-  struct sockaddr_in netaddr;
-  netaddr.sin_family      = AF_INET;
-  netaddr.sin_port        = 0;
-  netaddr.sin_addr.s_addr = INADDR_ANY;
+  struct sockaddr netaddr;
+  char *etext;
 
-  struct hostent *hp;
-  hp = gethostbyname(hostname_);
-  memcpy((void *)&netaddr.sin_addr.s_addr, hp->h_addr_list[0],
-	 sizeof(netaddr.sin_addr.s_addr));
+  if (XrdNetDNS::getHostAddr((char *)hostname_, netaddr, &etext))
+     {XrEroute.Emsg(epname, "Unable to get host address;", etext);
+      return -1;
+     }
       
   XrdSecParameters   secToken;
   XrdSecProtocol    *protocol;
@@ -272,7 +270,9 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
 
   // Retrieve the security protocol context from the xrootd server
   //
-  protocol = XrdXrootdSecGetProtocol((const struct sockaddr &)netaddr,secToken, 0);
+  protocol = XrdXrootdSecGetProtocol((const char *)hostname_, 
+                                     (const struct sockaddr &)netaddr,
+                                      secToken, 0);
   if (!protocol) {
     XrEroute.Emsg(epname, "Unable to get protocol.");
     return -1;

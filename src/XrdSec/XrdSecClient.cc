@@ -46,37 +46,30 @@ class XrdSecProtNone : public XrdSecProtocol
 public:
 int                Authenticate  (XrdSecCredentials  *cred,
                                   XrdSecParameters  **parms,
-                                  XrdSecClientName   &client,
-                                  XrdOucErrInfo    *einfo=0) {return 0;}
+                                  XrdOucErrInfo      *einfo=0) 
+                                 {return 0;}
 
 XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,       // In
                                   XrdOucErrInfo     *einfo=0)
                                  {return new XrdSecCredentials();}
 
-const char        *getParms(int &psize, const char *hname=0)
-                           {psize = 0; return (const char *)0;}
+void               Delete() {}  // Never deleted because it's static!
 
               XrdSecProtNone() {}
              ~XrdSecProtNone() {}
 };
   
 /******************************************************************************/
-/*               X r d S e c G e t P r o t o c o l C l i e n t                */
-/******************************************************************************/
-  
-extern "C"
-{
-XrdSecProtocol *XrdSecGetProtocolClient(const struct sockaddr  &netaddr,
-                                        const XrdSecParameters &parms,
-                                              XrdOucErrInfo    *einfo)
-{return XrdSecGetProtocol(netaddr, parms, einfo);}
-}
- 
-/******************************************************************************/
 /*                     X r d S e c G e t P r o t o c o l                      */
 /******************************************************************************/
 
-XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
+// This function is only invoked by the client. It exists in the top level
+// shared library that interposes between all other protocol shared libraries.
+//
+extern "C"
+{
+XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
+                                  const struct sockaddr  &netaddr,
                                   const XrdSecParameters &parms,
                                         XrdOucErrInfo    *einfo)
 {
@@ -84,7 +77,6 @@ XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
    static XrdSecProtNone ProtNone;
    static XrdSecPManager PManager(DebugON);
    const char *noperr = "XrdSec: No authentication protocols are available.";
-   struct sockaddr_in *sp = (sockaddr_in *)&netaddr;
 
    char sectoken[4096];
    int i;
@@ -92,7 +84,7 @@ XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
 
 // Perform any required debugging
 //
-   DEBUG("protocol request for host " <<inet_ntoa(sp->sin_addr) <<" token='"
+   DEBUG("protocol request for host " <<hostname <<" token='"
          <<(parms.size ? parms.buffer : "") <<"'");
 
 // Check if the server wants no security.
@@ -109,7 +101,7 @@ XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
 
 // Find a supported protocol.
 //
-   if (!(protp = PManager.Get(sectoken)))
+   if (!(protp = PManager.Get(hostname, netaddr, sectoken)))
       if (einfo) einfo->setErrInfo(ENOPROTOOPT, noperr);
          else cerr <<noperr <<endl;
 
@@ -117,25 +109,4 @@ XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
 //
    return protp;
 }
-
-  
-/******************************************************************************/
-/*               X r d S e c D e l P r o t o c o l C l i e n t                */
-/******************************************************************************/
-/******************************************************************************/
-/*               X r d S e c C l i e n t P r o t o c o l D e l                */
-/******************************************************************************/
-  
-extern "C"
-{
-void XrdSecProtocolDelClient(XrdSecProtocol *pp) {XrdSecDelProtocol(pp);}
-}
-
-/******************************************************************************/
-/*                     X r d S e c D e l P r o t o c o l                      */
-/******************************************************************************/
-  
-extern "C"
-{
-void XrdSecDelProtocol(XrdSecProtocol *pp) {}
 }

@@ -97,7 +97,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
   Output:   0 upon success or !0 otherwise.
 */
-   extern XrdSecProtocol   *XrdXrootdloadSecurity(XrdOucError *, char *, char *);
+   extern XrdSecService    *XrdXrootdloadSecurity(XrdOucError *, char *, char *);
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *, char *, 
                                                     const char *);
    extern XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *, 

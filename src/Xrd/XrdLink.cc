@@ -26,6 +26,7 @@ const char *XrdLinkCVSID = "$Id$";
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdInet.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdScheduler.hh"
 #define  TRACELINK this
@@ -67,6 +68,7 @@ extern XrdOucError     XrdLog;
 
 extern XrdScheduler    XrdSched;
 
+extern XrdInet        *XrdNetTCP;
 extern XrdOucTrace     XrdTrace;
 
        XrdLink       **XrdLink::LinkTab;
@@ -102,13 +104,15 @@ extern XrdOucTrace     XrdTrace;
 XrdLink::XrdLink() : XrdJob("connection"), IOSemaphore(0, "link i/o")
 {
   Etext = 0;
+  HostName = 0;
   Reset();
 }
 
 void XrdLink::Reset()
 {
   FD    = -1;
-  if (Etext) {free(Etext); Etext = 0;}
+  if (Etext)    {free(Etext); Etext = 0;}
+  if (HostName) {free(HostName); HostName = 0;}
   Uname[sizeof(Uname)-1] = '@';
   Uname[sizeof(Uname)-2] = '?';
   Lname[0] = '?';
@@ -193,6 +197,8 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
             strlcpy(lp->Lname, host, sizeof(lp->Lname));
             free(host);
            }
+   lp->HostName = strdup(lp->Lname);
+   XrdNetTCP->Trim(lp->Lname);
    bl = sprintf(buff, "?:%d", Peer.fd);
    unp = lp->Lname - bl - 1;
    strncpy(unp, buff, bl);

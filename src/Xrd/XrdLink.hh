@@ -77,6 +77,8 @@ const char   *Name(sockaddr *ipaddr=0)
                       return (const char *)Lname;
                      }
 
+const char   *Host() {return (const char *)HostName;}
+
 static XrdLink *nextLink(int &nextFD);
 
 int           Peek(char *buff, int blen, int timeout=-1);
@@ -140,6 +142,7 @@ static XrdOucMutex  statsMutex;
 struct sockaddr     InetAddr;
 char                Uname[24];  // Uname and Lname must be adjacent!
 char                Lname[232];
+char               *HostName;
 
 XrdOucMutex         opMutex;
 XrdOucMutex         rdMutex;

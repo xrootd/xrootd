@@ -92,6 +92,10 @@ void            setDomain(const char *dname)
                           Domlen = strlen(dname);
                          }
 
+// Trim() trims off the domain name in hname (it's modified).
+//
+void           Trim(char *hname);
+
 // unbind()    Destroys the association between this object and whatever
 //             communications medium it was previously bound to.
 //
@@ -122,6 +126,5 @@ private:
 
 int                do_Accept_TCP(XrdNetPeer &myPeer, int opts);
 int                do_Accept_UDP(XrdNetPeer &myPeer, int opts);
-void               Trim(char *hname);
 };
 #endif

@@ -101,7 +101,7 @@ struct XrdSfsPrep  // Prepare parameters
 class  XrdOucTList;
 class  XrdSfsFile;
 class  XrdSfsDirectory;
-struct XrdSecClientName;
+class  XrdSecEntity;
 
 class XrdSfsFileSystem
 {
@@ -109,21 +109,21 @@ public:
 
 // The following two methods allocate a directory or file object
 //
-virtual XrdSfsDirectory *newDir()  = 0;
+virtual XrdSfsDirectory *newDir(char *user=0)  = 0;
 
-virtual XrdSfsFile      *newFile() = 0;
+virtual XrdSfsFile      *newFile(char *user=0) = 0;
 
 // The following are filesystem related methods
 //
 virtual int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0) = 0;
+                             const XrdSecEntity     *client = 0) = 0;
 
 virtual int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0) = 0;
+                             const XrdSecEntity     *client = 0) = 0;
 
 virtual int            getStats(char *buff, int blen) = 0;
 
@@ -132,39 +132,39 @@ virtual const char    *getVersion() = 0;
 virtual int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,
-                              const XrdSecClientName    *client = 0) = 0;
+                              const XrdSecEntity        *client = 0) = 0;
 
 virtual int            mkdir(const char             *dirName,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0) = 0;
+                             const XrdSecEntity     *client = 0) = 0;
 
 virtual int            prepare(      XrdSfsPrep       &pargs,
                                      XrdOucErrInfo    &out_error,
-                               const XrdSecClientName *client = 0) = 0;
+                               const XrdSecEntity     *client = 0) = 0;
 
 virtual int            rem(const char             *path,
                                  XrdOucErrInfo    &out_error,
-                           const XrdSecClientName *client = 0) = 0;
+                           const XrdSecEntity     *client = 0) = 0;
 
 virtual int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecClientName *client = 0) = 0;
+                              const XrdSecEntity     *client = 0) = 0;
 
 virtual int            rename(const char             *oldFileName,
                               const char             *newFileName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecClientName *client = 0) = 0;
+                              const XrdSecEntity     *client = 0) = 0;
 
 virtual int            stat(const char             *Name,
                                   struct stat      *buf,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client = 0) = 0;
+                            const XrdSecEntity     *client = 0) = 0;
 
 virtual int            stat(const char             *Name,
                                   mode_t           &mode,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client = 0) = 0;
+                            const XrdSecEntity     *client = 0) = 0;
 
                        XrdSfsFileSystem() {}
 virtual               ~XrdSfsFileSystem() {}
@@ -197,7 +197,7 @@ public:
 virtual int            open(const char                *fileName,
                                   XrdSfsFileOpenMode   openMode,
                                   mode_t               createMode,
-                            const XrdSecClientName    *client = 0,
+                            const XrdSecEntity        *client = 0,
                             const char                *opaque = 0) = 0;
 
 virtual int            close() = 0;
@@ -231,7 +231,7 @@ virtual int            truncate(XrdSfsFileOffset fileOffset) = 0;
 
 virtual int            getCXinfo(char cxtype[4], int &cxrsz) = 0;
 
-                       XrdSfsFile() {}
+                       XrdSfsFile(char *user=0) {error.setErrUser(user);}
 virtual               ~XrdSfsFile() {}
 
 }; // class XrdSfsFile
@@ -246,7 +246,7 @@ public:
         XrdOucErrInfo error;
 
 virtual int         open(const char              *dirName,
-                         const XrdSecClientName  *client = 0) = 0;
+                         const XrdSecEntity      *client = 0) = 0;
 
 virtual const char *nextEntry() = 0;
 
@@ -254,7 +254,7 @@ virtual int         close() = 0;
 
 virtual const char *FName() = 0;
 
-                    XrdSfsDirectory() {}
+                    XrdSfsDirectory(char *user=0) {error.setErrUser(user);}
 virtual            ~XrdSfsDirectory() {}
 
 }; // class XrdSfsDirectory

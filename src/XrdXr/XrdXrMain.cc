@@ -57,9 +57,14 @@ enum executionValues {
 bool login = false;    // check if login was successful
 int  fd;               // file descriptor for outfile
 
-XrdSecProtocol *(*XrdXrootdSecGetProtocol)(const struct sockaddr  &,
+extern "C"
+{
+XrdSecProtocol *(*XrdXrootdSecGetProtocol)(const char *,
+                                           const struct sockaddr  &,
                                            const XrdSecParameters &,
-                                                 XrdOucErrInfo    *) = XrdSecGetProtocol;
+                                           XrdOucErrInfo    *)
+                                           = XrdSecGetProtocol;
+}
 
 /*****************************************************************************/
 /*                           g e t T o k e n                                 */

@@ -29,9 +29,9 @@ const char *XrdSfsNativeCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsNative.hh"
-#include "XrdSec/XrdSecInterface.hh"
 
 #ifdef AIX
 #include <sys/mode.h>

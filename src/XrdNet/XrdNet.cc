@@ -93,7 +93,7 @@ int XrdNet::Accept(XrdNetPeer &myPeer, int opts, int timeout)
 
 // Accept completed, trim the host name if a domain has been specified,
 //
-   if (Domain) Trim(myPeer.InetName);
+   if (Domain && !(opts & XRDNET_NODNTRIM)) Trim(myPeer.InetName);
    return 1;
 }
   
@@ -227,6 +227,21 @@ int XrdNet::Relay(XrdNetPeer &Peer, char *dest, int opts)
 {
    return Connect(Peer, dest, -1, opts | XRDNET_UDPSOCKET);
 }
+  
+/******************************************************************************/
+/*                                  T r i m                                   */
+/******************************************************************************/
+  
+void XrdNet::Trim(char *hname)
+{
+  int k = strlen(hname);
+  char *hnp;
+
+  if (k > Domlen)
+     {hnp = hname + (k - Domlen);
+      if (!strcmp(Domain, hnp)) *hnp = '\0';
+     }
+}
 
 /******************************************************************************/
 /*                                u n B i n d                                 */
@@ -338,19 +353,4 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
    if (myPeer.InetBuff) myPeer.InetBuff->Recycle();
    myPeer.InetBuff = bp;
    return 1;
-}
-  
-/******************************************************************************/
-/*                                  T r i m                                   */
-/******************************************************************************/
-  
-void XrdNet::Trim(char *hname)
-{
-  int k = strlen(hname);
-  char *hnp;
-
-  if (k > Domlen)
-     {hnp = hname + (k - Domlen);
-      if (!strcmp(Domain, hnp)) *hnp = '\0';
-     }
 }

@@ -40,7 +40,7 @@ class XrdOfsDirectory : public XrdSfsDirectory
 public:
 
         int         open(const char              *dirName,
-                         const XrdSecClientName  *client);
+                         const XrdSecEntity      *client);
 
         const char *nextEntry();
 
@@ -50,9 +50,11 @@ inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 
 const   char       *FName() {return (const char *)fname;}
 
-                    XrdOfsDirectory() {dp     = (XrdOssDir *)0;
-                                       tident = (char *)""; fname=0; atEOF=0;
-                                      }
+                    XrdOfsDirectory(char *user) : XrdSfsDirectory(user)
+                          {dp     = (XrdOssDir *)0;
+                           tident = (user ? user : (char *)"");
+                           fname=0; atEOF=0;
+                          }
 virtual            ~XrdOfsDirectory() {if (dp) close();}
 
 private:
@@ -75,7 +77,7 @@ public:
         int          open(const char                *fileName,
                                 XrdSfsFileOpenMode   openMode,
                                 mode_t               createMode,
-                          const XrdSecClientName    *client,
+                          const XrdSecEntity        *client,
                           const char                *opaque = 0);
 
         int          close();
@@ -109,9 +111,11 @@ public:
 
         int            getCXinfo(char cxtype[4], int &cxrsz);
 
-                       XrdOfsFile() {oh = (XrdOfsHandle *)0; dorawio = 0;
-                                     gettimeofday(&tod, 0);
-                                    }
+                       XrdOfsFile(char *user) : XrdSfsFile(user)
+                                 {oh = (XrdOfsHandle *)0; dorawio = 0;
+                                  tident = (user ? user : (char *)"");
+                                  gettimeofday(&tod, 0);
+                                 }
 
 virtual               ~XrdOfsFile() {if (oh) close();}
 private:
@@ -141,28 +145,28 @@ public:
 
 // Object allocation
 //
-        XrdSfsDirectory *newDir()  
-                        {return (XrdSfsDirectory *)new XrdOfsDirectory;}
+        XrdSfsDirectory *newDir(char *user=0)
+                        {return (XrdSfsDirectory *)new XrdOfsDirectory(user);}
 
-        XrdSfsFile      *newFile() 
-                        {return      (XrdSfsFile *)new XrdOfsFile;}
+        XrdSfsFile      *newFile(char *user=0)
+                        {return      (XrdSfsFile *)new XrdOfsFile(user);}
 
 // Other functions
 //
         int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client);
+                             const XrdSecEntity     *client);
 
         int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,
-                              const XrdSecClientName    *client);
+                              const XrdSecEntity        *client);
 
         int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client) {return 0;}
+                             const XrdSecEntity     *client) {return 0;}
 
         int            getStats(char *buff, int blen) {return 0;}
 
@@ -171,36 +175,36 @@ const   char          *getVersion();
         int            mkdir(const char             *dirName,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client);
+                             const XrdSecEntity     *client);
 
         int            prepare(      XrdSfsPrep       &pargs,
                                      XrdOucErrInfo    &out_error,
-                               const XrdSecClientName *client = 0);
+                               const XrdSecEntity     *client = 0);
 
         int            rem(const char             *path,
                                  XrdOucErrInfo    &out_error,
-                           const XrdSecClientName *client)
+                           const XrdSecEntity     *client)
                           {return remove('f', path, out_error, client);}
 
         int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecClientName *client)
+                              const XrdSecEntity     *client)
                              {return remove('d', dirName, out_error, client);}
 
         int            rename(const char             *oldFileName,
                               const char             *newFileName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecClientName *client);
+                              const XrdSecEntity     *client);
 
         int            stat(const char             *Name,
                                   struct stat      *buf,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client);
+                            const XrdSecEntity     *client);
 
         int            stat(const char             *Name,
                                   mode_t           &mode,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client);
+                            const XrdSecEntity     *client);
 
 // Management functions
 //
@@ -267,7 +271,7 @@ static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
 static  int   fsError(XrdOucErrInfo &myError, int rc);
         void  Detach_Name(const char *);
         int   remove(const char type, const char *path,
-                     XrdOucErrInfo &out_error, const XrdSecClientName *client);
+                     XrdOucErrInfo &out_error, const XrdSecEntity     *client);
         int   Stall(XrdOucErrInfo  &, int, const char *);
 
 // Function used during Configuration

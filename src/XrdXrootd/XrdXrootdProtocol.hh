@@ -154,7 +154,7 @@ protected:
 
 static XrdXrootdXPath        XPList;    // Exported paths
 static XrdSfsFileSystem     *osFS;      // The filesystem
-static XrdSecProtocol       *CIA;       // Authentication Server
+static XrdSecService        *CIA;       // Authentication Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager
@@ -198,13 +198,18 @@ int                        numWrites;
 XrdLink                   *Link;
 XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
-XrdSecClientName           Client;
 XrdXrootdMonitor          *Monitor;
 kXR_unt32                  monUID;
 char                       monFILE;
 char                       monIO;
 char                       Status;
 unsigned char              CapVer;
+
+// Authentication area
+//
+XrdSecEntity              *Client;
+XrdSecProtocol            *AuthProt;
+XrdSecEntity               Entity;
 
 // Buffer information, used to drive DoIt(), getData(), and (*Resume)()
 //

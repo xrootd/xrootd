@@ -38,7 +38,7 @@ XrdXrootdXPath       *XrdXrootdXPath::first = 0;
 XrdSfsFileSystem     *XrdXrootdProtocol::osFS;
 char                 *XrdXrootdProtocol::FSLib    = 0;
 XrdXrootdFileLock    *XrdXrootdProtocol::Locker;
-XrdSecProtocol       *XrdXrootdProtocol::CIA      = 0;
+XrdSecService        *XrdXrootdProtocol::CIA      = 0;
 char                 *XrdXrootdProtocol::SecLib   = 0;
 XrdScheduler         *XrdXrootdProtocol::Sched;
 XrdBuffManager       *XrdXrootdProtocol::BPool;
@@ -142,7 +142,8 @@ XrdXrootdProtocol XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
    myOffset      = rhs.myOffset;
    Response      = rhs.Response;
    memcpy((void *)&Request,(const void *)&rhs.Request, sizeof(Request));
-   memcpy((void *)&Client, (const void *)&rhs.Client,  sizeof(Client));
+   Client        = rhs.Client;
+   AuthProt      = rhs.AuthProt;
    return *this;
 }
   
@@ -210,12 +211,9 @@ int dlen;
 //
    UPSTATS(Count);
    xp->Link = lp;
-   xp->Client.prot[0] = 'h'; xp->Client.prot[1] = 's';
-   xp->Client.prot[2] = 's'; xp->Client.prot[3] = 't';
-   xp->Client.name[0] = '\0';
-   strlcpy(xp->Client.host,lp->Name(&(xp->Client.hostaddr)),sizeof(Client.host));
-   Client.tident = (char *)xp->Client.host;
    xp->Response.Set(lp);
+   strcpy(xp->Entity.prot, "host");
+   xp->Entity.host = (char *)lp->Host();
    return (XrdProtocol *)xp;
 }
  
@@ -459,6 +457,10 @@ void XrdXrootdProtocol::Cleanup()
 // Handle Monitor
 //
    if (Monitor) {Monitor->unAlloc(Monitor); Monitor = 0;}
+
+// Handle authentication protocol
+//
+   if (AuthProt) {AuthProt->Delete(); AuthProt = 0;}
 }
   
 /******************************************************************************/
@@ -511,4 +513,7 @@ void XrdXrootdProtocol::Reset()
    monUID             = 0;
    monFILE            = 0;
    monIO              = 0;
+   Client             = 0;
+   AuthProt           = 0;
+   memset(&Entity, 0, sizeof(Entity));
 }

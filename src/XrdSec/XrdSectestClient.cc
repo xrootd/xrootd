@@ -107,7 +107,7 @@ void help(int);
           }
        memcpy((void *)&netaddr.sin_addr.s_addr, hp->h_addr_list[0],
               sizeof(netaddr.sin_addr.s_addr));
-      }
+      } else hostspec = (char *)"localhost";
 
 // Do debug processing
 //
@@ -118,7 +118,7 @@ void help(int);
 
 // Get the protocol
 //
-   pp = XrdSecGetProtocol((const struct sockaddr &)netaddr,SecToken,0);
+   pp = XrdSecGetProtocol((const char *)hostspec, (const struct sockaddr &)netaddr,SecToken,0);
    if (!pp) {cerr << "Unable to get protocol." <<endl; exit(1);}
 
 // Get credentials using this context
@@ -144,7 +144,7 @@ void help(int);
 
 // All done.
 //
-   XrdSecDelProtocol(pp);
+   pp->Delete();
 }
 
 char *tohex(char *inbuff, int inlen, char *outbuff) {

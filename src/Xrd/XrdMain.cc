@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
 
 // At this point we should be able to accept new connections
 //
-   while(1) if ((newlink = XrdNetTCP->Accept()))
+   while(1) if ((newlink = XrdNetTCP->Accept(XRDNET_NODNTRIM)))
                {newlink->setProtocol((XrdProtocol *)&ProtSelect);
                 XrdSched.Schedule((XrdJob *)newlink);
                }

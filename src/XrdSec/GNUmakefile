@@ -17,14 +17,16 @@ LIBDEPS = $(LIBDIR)/libXrdOuc.a
 SOURCES = \
         XrdSecClient.cc        \
         XrdSecPManager.cc      \
-        XrdSecProtocolsrvr.cc  \
+        XrdSecProtocolhost.cc  \
+        XrdSecServer.vv        \
         XrdSectestClient.cc    \
         XrdSectestServer.cc    \
   
 OBJSLIB = \
         $(OBJDIR)/XrdSecClient.o        \
         $(OBJDIR)/XrdSecPManager.o      \
-        $(OBJDIR)/XrdSecProtocolsrvr.o
+        $(OBJDIR)/XrdSecProtocolhost.o  \
+        $(OBJDIR)/XrdSecServer.o
 
 OBJECTA = \
         $(OBJDIR)/XrdSectestClient.o
@@ -85,7 +87,7 @@ $(TSTBINB): $(OBJECTB) $(LIBDEPS)
 	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(MORELIBS) -lXrdSec -lXrdOuc $(LIBS) -o $(TSTBINB)
 
 $(OBJDIR)/XrdSecClient.o: XrdOucPthread.hh XrdSecPManager.hh XrdSecInterface.hh \
-                          XrdOucErrInfo.hh XrdSecClient.cc
+                          XrdOucErrInfo.hh XrdSecClient.cc   XrdSecEntity.hh
 	@echo Compiling XrdSecClient.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecClient.o XrdSecClient.cc
 
@@ -96,19 +98,24 @@ $(OBJDIR)/XrdSecPManager.o: XrdSecInterface.hh XrdSecPManager.hh \
 	@echo Compiling XrdSecPManager.cc 
 	$(ECHO)$(CC) -c $(CFLAGS32) $(INCLUDE) -o $(OBJDIR)/XrdSecPManager.o XrdSecPManager.cc
 
-$(OBJDIR)/XrdSecProtocolsrvr.o: XrdSecProtocolsrvr.cc XrdSecProtocolsrvr.hh \
-                                XrdOucErrInfo.hh      XrdOucError.hh \
-                                XrdOucLogger.hh       XrdOucStream.hh \
-                                XrdSecInterface.hh    XrdSecPManager.hh \
-                                XrdSecTrace.hh
-	@echo Compiling XrdSecProtocolsrvr.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolsrvr.o XrdSecProtocolsrvr.cc
+$(OBJDIR)/XrdSecProtocolhost.o: XrdSecProtocolhost.cc XrdSecProtocolhost.hh \
+                                XrdSecInterface.hh    XrdSecEntity.hh
+	@echo Compiling XrdSecProtocolhost.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolhost.o XrdSecProtocolhost.cc
+$(OBJDIR)/XrdSecServer.o: XrdSecServer.cc       XrdSecServer.hh \
+                          XrdOucErrInfo.hh      XrdOucError.hh \
+                          XrdOucLogger.hh       XrdOucStream.hh \
+                          XrdSecInterface.hh    XrdSecPManager.hh \
+                          XrdSecTrace.hh
+	@echo Compiling XrdSecServer.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecServer.o XrdSecServer.cc
 
-$(OBJDIR)/XrdSectestClient.o:   XrdSectestClient.cc XrdSecInterface.hh
+$(OBJDIR)/XrdSectestClient.o:   XrdSectestClient.cc XrdSecInterface.hh \
+                                XrdSecEntity.hh
 	@echo Compiling XrdSectestClient.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSectestClient.o XrdSectestClient.cc
 
-$(OBJDIR)/XrdSectestServer.o: XrdSecProtocolsrvr.hh XrdSecInterface.hh XrdOucLogger.hh \
+$(OBJDIR)/XrdSectestServer.o: XrdSecInterface.hh XrdSecEntity.hh XrdOucLogger.hh \
                               XrdSectestServer.cc
 	@echo Compiling XrdSectestServer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSectestServer.o XrdSectestServer.cc

@@ -57,7 +57,7 @@ struct XrdXrootdFHandle
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
 
-#define CRED (const XrdSecClientName *)&Client
+#define CRED (const XrdSecEntity *)Client
 
 #define TRACELINK Link
 
@@ -78,6 +78,7 @@ int XrdXrootdProtocol::do_Admin()
   
 int XrdXrootdProtocol::do_Auth()
 {
+    struct sockaddr netaddr;
     XrdSecCredentials cred;
     XrdSecParameters *parm = 0;
     XrdOucErrInfo     eMsg;
@@ -86,15 +87,33 @@ int XrdXrootdProtocol::do_Auth()
 
 // Ignore authenticate requests if security turned off
 //
-    if (!CIA) return Response.Send();
-
-// Attempt to authenticate this person
-//
+   if (!CIA) return Response.Send();
    cred.size   = Request.header.dlen;
    cred.buffer = argp->buff;
-   if (!(rc = CIA->Authenticate(&cred, &parm, Client, &eMsg)))
-      {rc = Response.Send(); Status &= ~XRD_NEED_AUTH;
-       eDest.Emsg("Xeq", "User authenticated as", Client.name);
+
+// If we have no auth protocol, try to get it
+//
+   if (!AuthProt)
+      {Link->Name(&netaddr);
+       if (!(AuthProt = CIA->getProtocol(Link->Host(),netaddr,&cred,&eMsg)))
+          {eText = (char *)eMsg.getErrText(rc);
+           eDest.Emsg("Xeq", "User authentication failed;", eText);
+           return Response.Send(kXR_NotAuthorized, eText);
+          }
+       AuthProt->Entity.tident = Link->ID;
+      }
+
+// Now try to authenticate the client using the current protocol
+//
+   if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
+      {char *msg = (Status & XRD_ADMINUSER ? (char *)"admin login as" 
+                                           : (char *)"login as");
+       rc = Response.Send(); Status &= ~XRD_NEED_AUTH;
+       Client = &AuthProt->Entity;
+       if (Client->name) 
+          eDest.Log(OUC_LOG_01, "Xeq", Link->ID, msg, Client->name);
+          else
+          eDest.Log(OUC_LOG_01, "Xeq", Link->ID, msg, (char *)"nobody");
        return rc;
       }
 
@@ -124,7 +143,7 @@ int XrdXrootdProtocol::do_Auth()
 int XrdXrootdProtocol::do_Chmod()
 {
    int mode, rc;
-   XrdOucErrInfo myError;
+   XrdOucErrInfo myError(Link->ID);
 
 // Unmarshall the data
 //
@@ -232,7 +251,7 @@ int XrdXrootdProtocol::do_Dirlist()
 
 // Get a directory object
 //
-   if (!(dp = osFS->newDir()))
+   if (!(dp = osFS->newDir(Link->ID)))
       {snprintf(ebuff,sizeof(ebuff)-1,"Insufficient memory to open %s",argp->buff);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
@@ -331,7 +350,6 @@ int XrdXrootdProtocol::do_Login()
 // Establish the ID for this link
 //
    Link->setID((const char *)uname, pid);
-   Client.tident = Link->ID;
    CapVer = Request.login.capver[0];
 
 // Check if this is an admin login
@@ -339,14 +357,18 @@ int XrdXrootdProtocol::do_Login()
    if (*(Request.login.role) & (kXR_char)kXR_useradmin)
       Status = XRD_ADMINUSER;
 
-// Get the security token for this link
+// Get the security token for this link. We will either get a token, a null
+// string indicating host-only authentication, or a null indicating no
+// authentication. We can then optimize of each case.
 //
    if (CIA)
-      {const char *pp=CIA->getParms(i, (const char *)&Client.host);
+      {const char *pp=CIA->getParms(i, Link->Name());
        if (pp && i ) {rc = Response.Send((void *)pp, i);
-                      Status |= (XRD_LOGGEDIN | XRD_NEED_AUTH);
+                      Status = (XRD_LOGGEDIN | XRD_NEED_AUTH);
                      }
-          else {rc = Response.Send(); Status = XRD_LOGGEDIN;}
+          else {rc = Response.Send(); Status = XRD_LOGGEDIN;
+                if (pp) {Entity.tident = Link->ID; Client = &Entity;}
+               }
       }
       else     {rc = Response.Send(); Status = XRD_LOGGEDIN;}
 
@@ -362,8 +384,9 @@ int XrdXrootdProtocol::do_Login()
 
 // Document this login
 //
-   eDest.Log(OUC_LOG_01, "Xeq", Link->ID, (char *)"login",
-                    (Status & XRD_ADMINUSER ? (char *)"as admin" : 0));
+   if (!(Status & XRD_NEED_AUTH))
+      eDest.Log(OUC_LOG_01, "Xeq", Link->ID, (Status & XRD_ADMINUSER
+                            ? (char *)"admin login" : (char *)"login"));
    return rc;
 }
 
@@ -374,7 +397,7 @@ int XrdXrootdProtocol::do_Login()
 int XrdXrootdProtocol::do_Mkdir()
 {
    int mode, rc;
-   XrdOucErrInfo myError;
+   XrdOucErrInfo myError(Link->ID);
 
 // Unmarshall the data
 //
@@ -403,7 +426,7 @@ int XrdXrootdProtocol::do_Mv()
 {
    int rc;
    char *oldp, *newp;
-   XrdOucErrInfo myError;
+   XrdOucErrInfo myError(Link->ID);
 
 // Find the space separator between the old and new paths
 //
@@ -496,7 +519,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Get a file object
 //
-   if (!(fp = osFS->newFile()))
+   if (!(fp = osFS->newFile(Link->ID)))
       {snprintf(ebuff, sizeof(ebuff)-1,"Insufficient memory to open %s",fn);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
@@ -621,7 +644,7 @@ int XrdXrootdProtocol::do_Prepare()
 {
    int rc, hport, pathnum = 0;
    char opts, hname[32], reqid[64], nidbuff[512], *path;
-   XrdOucErrInfo myError;
+   XrdOucErrInfo myError(Link->ID);
    XrdOucTokenizer pathlist(argp->buff);
    XrdOucTList *pathp = 0;
    XrdXrootdPrepArgs pargs(0, 1);
@@ -681,7 +704,7 @@ int XrdXrootdProtocol::do_Prepare()
 //
    if (opts & kXR_notify)
       {fsprep.notify  = nidbuff;
-       sprintf(nidbuff, Notify, Link->FDnum(), Client.tident);
+       sprintf(nidbuff, Notify, Link->FDnum(), Link->ID);
        fsprep.opts = (opts & kXR_noerrs ? Prep_SENDAOK : Prep_SENDACK);
       }
    if (opts & kXR_wmode) fsprep.opts |= Prep_WMODE;
@@ -694,7 +717,7 @@ int XrdXrootdProtocol::do_Prepare()
    if (!(opts & kXR_stage)) rc = Response.Send();
       else {rc = Response.Send(reqid, strlen(reqid));
             pargs.reqid=reqid;
-            pargs.user=Client.tident;
+            pargs.user=Link->ID;
             pargs.paths=pathp;
             XrdXrootdPrepare::Log(pargs);
            }
@@ -902,7 +925,7 @@ int XrdXrootdProtocol::do_ReadNone(int &retc)
 int XrdXrootdProtocol::do_Rm()
 {
    int rc;
-   XrdOucErrInfo myError;
+   XrdOucErrInfo myError(Link->ID);
 
 // Prescreen the path
 //
@@ -927,7 +950,7 @@ int XrdXrootdProtocol::do_Rm()
 int XrdXrootdProtocol::do_Rmdir()
 {
    int rc;
-   XrdOucErrInfo myError;
+   XrdOucErrInfo myError(Link->ID);
 
 // Prescreen the path
 //
@@ -1052,7 +1075,7 @@ int XrdXrootdProtocol::do_Stat()
    long long fsz;
    char xxBuff[256];
    struct stat buf;
-   XrdOucErrInfo myError;
+   XrdOucErrInfo myError(Link->ID);
    union {long long uuid; struct {int hi; int lo;} id;} Dev;
 
 // Prescreen the path
@@ -1096,7 +1119,7 @@ int XrdXrootdProtocol::do_Statx()
    int rc;
    char *path, *respinfo = argp->buff;
    mode_t mode;
-   XrdOucErrInfo myError;
+   XrdOucErrInfo myError(Link->ID);
    XrdOucTokenizer pathlist(argp->buff);
 
 // Cycle through all of the paths in the list
