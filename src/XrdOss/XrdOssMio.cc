@@ -286,6 +286,7 @@ int XrdOssMio::Reclaim(XrdOssMioFile *mp)
    if (cmp)
       {if (pmp) pmp->Next = mp->Next;
           else  MM_Idle   = mp->Next;
+       if (MM_IdleLast == cmp) MM_IdleLast = pmp;
       }
       else {DEBUG("Cannot find mapping for " <<mp->Dev <<':' <<mp->Ino);}
 
