@@ -106,7 +106,7 @@ const char *XrdOssErrorText[] =
 
 #define TS_Set(x,m,v)  if (!strcmp(x,var)) {m = v; return 0;}
 
-#define max(a,b)       (a < b ? b : a)
+#define xrdmax(a,b)       (a < b ? b : a)
 
 #define XRDOSS_Prefix    "oss."
 #define XRDOSS_PrefLen   sizeof(XRDOSS_Prefix)-1
@@ -839,7 +839,7 @@ int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdOucError &Eroute)
       if (!(val = Config.GetWord())) fdmax = -1;
          else if (!strcmp(val, "max")) fdmax = Hard_FD_Limit;
                  else if (XrdOuca2x::a2i(Eroute, "fdlimit value", val, &fdmax,
-                              max(fence,XrdOssFDMINLIM))) return -EINVAL;
+                              xrdmax(fence,XrdOssFDMINLIM))) return -EINVAL;
                          else if (fdmax > Hard_FD_Limit)
                                  {fdmax = Hard_FD_Limit;
                                   Eroute.Emsg("config", 
