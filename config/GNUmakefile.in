@@ -11,7 +11,9 @@ SERVER  = XrdOuc   XrdNet   XrdSfs   XrdAcc XrdSec @xrdsecplugins@ XrdOdc \
 
 XRDSEC  = XrdOuc XrdSec @xrdsecplugins@
 
-TARGETS = @targets@
+XRDCLIENT = XrdClient
+
+TARGETS = @targets@ $(XRDCLIENT)
 
 ARCH    = @arch@
 ARCHDIR = @archdir@
