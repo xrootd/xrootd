@@ -26,6 +26,7 @@
 #include "XrdClient.hh"
 #include "XrdCpMthrQueue.hh"
 #include "XrdClientDebug.hh"
+#include "XrdCpWorkLst.hh"
 
 
 
@@ -131,7 +132,7 @@ extern "C" void *ReaderThread_loc(void *) {
 }
 
 
-int doCp_xrd2xrd(char *src, char *dst) {
+int doCp_xrd2xrd(const char *src, const char *dst) {
    // ----------- xrd to xrd affair
    pthread_t myTID;
    XrdClientStatInfo stat;
@@ -193,7 +194,7 @@ int doCp_xrd2xrd(char *src, char *dst) {
    return 0;
 }
 
-int doCp_xrd2loc(char *src, char *dst) {
+int doCp_xrd2loc(const char *src, const char *dst) {
    // ----------- xrd to loc affair
    pthread_t myTID;
    XrdClientStatInfo stat;
@@ -254,7 +255,7 @@ int doCp_xrd2loc(char *src, char *dst) {
    return 0;
 }
 
-int doCp_loc2xrd(char *src, char * dst) {
+int doCp_loc2xrd(const char *src, const char * dst) {
 // ----------- loc to xrd affair
    pthread_t myTID;
    XrdClient *xrddest;
@@ -331,22 +332,34 @@ int main(int argc, char**argv) {
 
    Info(XrdClientDebug::kNODEBUG, "main", XRDCP_VERSION);
 
-   if (0 != strstr(argv[1], "root://")) {
-      // source is xrootd
+   XrdCpWorkLst *wklst = new XrdCpWorkLst();
+   string src, dest;
 
-      if (0 != strstr(argv[2], "root://"))
-	  doCp_xrd2xrd(argv[1], argv[2]);
-      else
-	 doCp_xrd2loc(argv[1], argv[2]);
-   }
-   else {
-      // source is localfs
+   
+   wklst->SetSrc(argv[1]);
+   wklst->SetDest(argv[2]);
 
-      if (0 != strstr(argv[2], "root://"))
-	 doCp_loc2xrd(argv[1], argv[2]);
+   while (wklst->GetCpJob(src, dest)) {
+      Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
+
+      if (src.find("root://", 0) == 0) {
+	 // source is xrootd
+
+	 if (dest.find("root://", 0) == 0)
+	    doCp_xrd2xrd(src.c_str(), dest.c_str());
+	 else
+	    doCp_xrd2loc(src.c_str(), dest.c_str());
+      }
       else {
-	 Error("xrdcp", "Better to use cp in this case.");
-	 exit(2);
+	 // source is localfs
+
+	 if (dest.find("root://", 0) == 0)
+	    doCp_loc2xrd(src.c_str(), dest.c_str());
+	 else {
+	    Error("xrdcp", "Better to use cp in this case.");
+	    exit(2);
+	 }
+
       }
 
    }

@@ -45,7 +45,7 @@ class XrdClientAdmin : public XrdClientAbs {
    bool SysStatX(const char *paths_list, kXR_char *binInfo, int numPath);
    int Stat(char *fname, long &id, long &size, long &flags, long &modtime);
 
-   //  bool ExistFile(const char *filename);
+   bool DirList(const char *dir, vecString &);
    bool ExistFiles(vecString, vecBool&);
    bool ExistDirs(vecString, vecBool&);
    bool IsFileOnline(vecString, vecBool&);

@@ -32,7 +32,8 @@ SOURCES = \
 	XrdClientStringMatcher.cc       \
 	XrdClientProtocol.cc            \
 	XrdClientAdmin.cc		\
-	XrdCpMthrQueue.cc
+	XrdCpMthrQueue.cc		\
+	XrdCpWorkLst.cc
 
   
 OBJECTS = \
@@ -53,7 +54,8 @@ OBJECTS = \
 	$(OBJDIR)/XrdClientStringMatcher.o      \
 	$(OBJDIR)/XrdClientAdmin.o              \
 	$(OBJDIR)/XrdClientEnv.o		\
-	$(OBJDIR)/XrdCpMthrQueue.o
+	$(OBJDIR)/XrdCpMthrQueue.o		\
+	$(OBJDIR)/XrdCpWorkLst.o
 
 OBJECTB = $(OBJDIR)/TestXrdClient.o
 OBJECTC = $(OBJDIR)/Xrdcp.o
@@ -236,7 +238,9 @@ $(OBJDIR)/XrdCpMthrQueue.o:      XrdCpMthrQueue.cc\
 	@echo Compiling XrdMthrQueue.cc
 	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCpMthrQueue.o XrdCpMthrQueue.cc
 
-$(OBJDIR)/Xrdcp.o:               Xrdcp.cc
+$(OBJDIR)/Xrdcp.o:               Xrdcp.cc\
+                                 XrdCpMthrQueue.hh\
+				 XrdCpWorkLst.hh
 	@echo Compiling Xrdcp.cc
 	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/Xrdcp.o Xrdcp.cc
 
@@ -248,3 +252,8 @@ $(OBJDIR)/XrdClientStringMatcher.o:      XrdClientStringMatcher.cc\
                                          XrdClientStringMatcher.hh
 	@echo Compiling XrdClientStringMatcher.cc
 	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientStringMatcher.o XrdClientStringMatcher.cc
+
+$(OBJDIR)/XrdCpWorkLst.o:          XrdCpWorkLst.cc\
+                                   XrdCpWorkLst.hh
+	@echo Compiling XrdCpWorkLst.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCpWorkLst.o XrdCpWorkLst.cc

@@ -582,3 +582,10 @@ bool XrdClientAdmin::Prepare(vecString vs, kXR_char option, kXR_char prty)
 
   return ret;
 }
+
+bool  XrdClientAdmin::DirList(const char *dir, vecString &) {
+
+   // TBD
+
+   return FALSE;
+}
