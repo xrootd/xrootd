@@ -607,10 +607,10 @@ int XrdOssFile::Close(void)
   Output:   Returns zero read upon success and -errno upon failure.
 */
 
-size_t XrdOssFile::Read(off_t offset, size_t blen)
+ssize_t XrdOssFile::Read(off_t offset, size_t blen)
 {
 
-     if (fd < 0) return (size_t)-XRDOSS_E8004;
+     if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
      return 0;  // We haven't implemented this yet!
 }
@@ -632,15 +632,15 @@ size_t XrdOssFile::Read(off_t offset, size_t blen)
   Output:   Returns the number bytes read upon success and -errno upon failure.
 */
 
-size_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
+ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
 {
      ssize_t retval;
 
-     if (fd < 0) return (size_t)-XRDOSS_E8004;
+     if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
 #ifdef XRDOSSCX
      if (cxobj)  
-        if (XrdOssSS.XeqFlags & XrdOssNOSSDEC) return (size_t)-XRDOSS_E8021;
+        if (XrdOssSS.XeqFlags & XrdOssNOSSDEC) return (ssize_t)-XRDOSS_E8021;
            else   retval = cxobj->Read((char *)buff, blen, offset);
         else 
 #endif
@@ -666,11 +666,11 @@ size_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
   Output:   Returns the number bytes read upon success and -errno upon failure.
 */
 
-size_t XrdOssFile::ReadRaw(void *buff, off_t offset, size_t blen)
+ssize_t XrdOssFile::ReadRaw(void *buff, off_t offset, size_t blen)
 {
      ssize_t retval;
 
-     if (fd < 0) return (size_t)-XRDOSS_E8004;
+     if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
 #ifdef XRDOSSCX
      if (cxobj)   retval = cxobj->ReadRaw((char *)buff, blen, offset);
@@ -697,14 +697,14 @@ size_t XrdOssFile::ReadRaw(void *buff, off_t offset, size_t blen)
   Output:   Returns the number of bytes written upon success and -errno o/w.
 */
 
-size_t XrdOssFile::Write(const void *buff, off_t offset, size_t blen)
+ssize_t XrdOssFile::Write(const void *buff, off_t offset, size_t blen)
 {
      ssize_t retval;
 
-     if (fd < 0) return (size_t)-XRDOSS_E8004;
+     if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
      if (XrdOssSS.MaxDBsize && offset+blen > XrdOssSS.MaxDBsize) 
-        return (size_t)-XRDOSS_E8007;
+        return (ssize_t)-XRDOSS_E8007;
 
      do { retval = pwrite(fd, buff, blen, offset); }
           while(retval < 0 && errno == EINTR);

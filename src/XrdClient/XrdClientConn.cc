@@ -914,7 +914,7 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
    // Set field in network byte order
    memset(&initHS, 0, sizeof(initHS));
    initHS.fourth = (kXR_int32)htonl(4);
-   initHS.fifth  = (kXR_int32)htonl(2012);
+   initHS.fifth  = (kXR_int32)htonl((unsigned long)2012);
 
    if (ConnectionManager->GetConnection(log)->GetPhyConnection()->fServerType == kBase) {
 

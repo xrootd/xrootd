@@ -67,11 +67,11 @@ int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
 int     isCompressed(char *cxidp=0);
 int     Open(const char *, int, mode_t, XrdOucEnv &);
-size_t  Read(               off_t, size_t);
-size_t  Read(       void *, off_t, size_t);
+ssize_t Read(               off_t, size_t);
+ssize_t Read(       void *, off_t, size_t);
 int     Read(XrdSfsAio *aiop);
-size_t  ReadRaw(    void *, off_t, size_t);
-size_t  Write(const void *, off_t, size_t);
+ssize_t ReadRaw(    void *, off_t, size_t);
+ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
  
         // Constructor and destructor

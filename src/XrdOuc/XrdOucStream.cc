@@ -44,6 +44,7 @@ const char *XrdOucStreamCVSID = "$Id$";
 
 #define Erq(p, a, b) Err(p, a, b, (char *)0)
 #define Err(p, a, b, c) (ecode=(Eroute ? Eroute->Emsg(#p, a, b, c) : a), -1)
+#define Erp(p, a, b, c)  ecode=(Eroute ? Eroute->Emsg(#p, a, b, c) : a)
 
 /******************************************************************************/
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
@@ -217,7 +218,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
     if (Child_in >= 0)
        {if (inrd)
            if (dup2(Child_in, STDIN_FILENO) < 0)
-              {Err(Exec, errno, "set up standard in for", parm[0]);
+              {Erp(Exec, errno, "set up standard in for", parm[0]);
                exit(255);
               } else if (Child_in != Child_out) close(Child_in);
        }
@@ -226,7 +227,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
     //
     if (Child_out >= 0)
        {if (dup2(Child_out, STDOUT_FILENO) < 0)
-           {Err(Exec, errno, "set up standard out for", parm[0]);
+           {Erp(Exec, errno, "set up standard out for", parm[0]);
             exit(255);
            } else close(Child_out);
        }
@@ -234,7 +235,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
     // Invoke the command never to return
     //
     execv(parm[0], parm);
-    Err(Exec, errno, "execute", parm[0]);
+    Erp(Exec, errno, "execute", parm[0]);
     exit(255);
 }
 
@@ -287,8 +288,7 @@ char *XrdOucStream::GetLine()
         {do { retc = read(FD, (void *)bp, (size_t)bcnt); }
             while (retc < 0 && errno == EINTR);
 
-         if (retc < 0) {Erq(GetLine, errno, "read request");
-                        return (char *)0;}
+         if (retc < 0) {Erp(GetLine,errno,"read request",0); return (char *)0;}
          if (!retc)
             {*bp = '\0';
              flags |= XrdOucStream_EOM;
@@ -313,7 +313,7 @@ char *XrdOucStream::GetLine()
 
 // All done, force an end of record.
 //
-   Erq(GetLine, EMSGSIZE, "read full message");
+   Erp(GetLine, EMSGSIZE, "read full message", 0);
    buff[bsize-1] = '\0';
    return buff;
 }
@@ -454,7 +454,7 @@ int XrdOucStream::Put(const char *data, const int dlen) {
               while (retc < 0 && errno == EINTR);
           if (retc >= 0) dcnt -= retc;
              else {flags |= XrdOucStream_BUSY;
-                   Erq(Put, errno, "write to stream");
+                   Erp(Put, errno, "write to stream", 0);
                    flags &= ~XrdOucStream_BUSY;
                    return -1;
                   }
@@ -475,7 +475,7 @@ int XrdOucStream::Put(const char *datavec[], const int dlenvec[]) {
                    while (retc < 0 && errno == EINTR);
                if (retc >= 0) {data += retc; dlen -= retc;}
                   else {flags |= XrdOucStream_BUSY;
-                        Erq(Put, errno, "write to stream");
+                        Erp(Put, errno, "write to stream",0);
                         flags &= ~XrdOucStream_BUSY;
                         return -1;
                        }

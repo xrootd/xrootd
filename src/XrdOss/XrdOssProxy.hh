@@ -70,7 +70,7 @@ public:
    *
    * Output:Returns the number bytes read upon success and -errno upon failure.
    */
-  size_t  Read(void *buff, off_t offset, size_t blen)
+  ssize_t Read(void *buff, off_t offset, size_t blen)
                                    {return client->read(buff, offset, blen);}; 
 
   /**
@@ -86,7 +86,7 @@ public:
 
   // Unsupported methods
   //
-  size_t  Read(off_t, size_t)                {return 0;}; 
+  ssize_t Read(off_t, size_t)                {return 0;};
   int     Read(XrdSfsAio *aiop)              {return -ENOTSUP;}
   int     Opendir(const char*)               {return 0;};
   int     Readdir(char *,int)                {return 0;};
@@ -94,8 +94,8 @@ public:
   int     Fsync(XrdSfsAio *aiop)             {return -ENOTSUP;}
   int     Ftruncate(unsigned long long)      {return -ENOTSUP;}
   int     isCompressed(char *cxidp=0)        {return 0;};
-  size_t  ReadRaw(void *, off_t, size_t)     {return -ENOTSUP;}
-  size_t  Write(const void *, off_t, size_t) {return 0;};
+  ssize_t ReadRaw(void *, off_t, size_t)     {return -ENOTSUP;}
+  ssize_t Write(const void *, off_t, size_t) {return 0;};
   int     Write(XrdSfsAio *aiop)             {return -ENOTSUP;}
   int     Handle()                           {return 0;};    
 

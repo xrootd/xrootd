@@ -788,7 +788,10 @@ int XrdXrClientWorker::initialHandshake()
 
   // Prepare the initial handshake values for the client
   //
-  ClientInitHandShake handshake = {0, 0, 0, htonl((long)4), htonl((long)2012)};
+  ClientInitHandShake handshake = {0, 0, 0, 
+                                   static_cast<kXR_int32>(htonl((long)4)),
+                                   static_cast<kXR_int32>(htonl((unsigned long)2012))
+                                  };
 
   if (lp->Send((void *) &handshake, (long) sizeof(handshake))) {
     XrEroute.Emsg("login", 

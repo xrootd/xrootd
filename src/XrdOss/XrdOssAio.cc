@@ -105,7 +105,7 @@ int XrdOssFile::Fsync(XrdSfsAio *aiop)
 
   Input:    aiop      - An aio request object
 
-/* Output:  <0 -> Operation failed, value is negative errno value.
+   Output:  <0 -> Operation failed, value is negative errno value.
             =0 -> Operation queued
             >0 -> Operation not queued, system resources unavailable or
                                         asynchronous I/O is not supported.
@@ -159,7 +159,7 @@ int XrdOssFile::Read(XrdSfsAio *aiop)
 
   Input:    aiop      - An aio request object.
 
-/* Output:  <0 -> Operation failed, value is negative errno value.
+   Output:  <0 -> Operation failed, value is negative errno value.
             =0 -> Operation queued
             >0 -> Operation not queued, system resources unavailable or
                                         asynchronous I/O is not supported.
