@@ -800,9 +800,9 @@ bool XrdClientConn::GetAccessToSrv()
    XrdClientLogConnection *logconn = 0;
 
    // Now we are connected and we ask for the kind of the server
-   ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->LockChannel();
+   //ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->LockChannel();
    SetServerType(DoHandShake(fLogConnID));
-   ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->UnlockChannel();
+   //ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->UnlockChannel();
 
    // Now we can start the reader thread in the phyconn, if needed
    ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->StartReader();

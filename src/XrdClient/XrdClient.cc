@@ -288,7 +288,7 @@ int XrdClient::Read(const void *buf, long long offset, int len) {
 
         // The processing of the answers from the server should have
         // populated the cache
-        if (fConnModule->GetDataFromCache(buf, offset,
+        if (minlen && fConnModule->GetDataFromCache(buf, offset,
 					  minlen + offset, FALSE) ) {
 
 	   return minlen;

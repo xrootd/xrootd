@@ -134,9 +134,9 @@ XrdClientInputBuffer::~XrdClientInputBuffer() {
 int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
 {
    // Put message in the list
-
+  //XrdClientMutexLocker cndmtx(fCndMutex);
   int sz;
-  pthread_cond_t *cnd;
+  pthread_cond_t *cnd = 0;
 
    {
       XrdClientMutexLocker mtx(fMutex);
@@ -145,14 +145,17 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
       sz = MexSize();
     
    // Is anybody sleeping ?
-   cnd = GetSyncObjOrMakeOne( m->HeaderSID() );
+   if (m)
+      cnd = GetSyncObjOrMakeOne( m->HeaderSID() );
 
    }
 
-   pthread_mutex_lock(&fCndMutex);
-   pthread_cond_signal(cnd);
-   pthread_mutex_unlock(&fCndMutex);
- 
+   if (cnd) {
+      pthread_mutex_lock(&fCndMutex);
+      pthread_cond_signal(cnd);
+      pthread_mutex_unlock(&fCndMutex);
+   }
+
    return sz;
 }
 
@@ -166,9 +169,10 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
 
    pthread_cond_t *cv;
    XrdClientMessage *res, *m;
-
+   //XrdClientMutexLocker cndmtx(fCndMutex);
 
    res = 0;
+
  
    {
       XrdClientMutexLocker mtx(fMutex);
@@ -178,9 +182,11 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
          // If there are messages to dequeue, we pick the oldest one
          for (fMsgIter = fMsgQue.begin(); fMsgIter != fMsgQue.end(); ++fMsgIter) {
             m = *fMsgIter;
-            if (m->MatchStreamid(streamid)) {
+            
+            if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
                res = *fMsgIter;
 	       fMsgQue.erase(fMsgIter);
+               if (!m) return 0;
 	       break;
             }
          }
@@ -194,8 +200,9 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
       // Find the cond where to wait for a msg
       cv = GetSyncObjOrMakeOne(streamid);
 
+      for (int k = 0; k < secstimeout; k++) {
       now = time(0);
-      timeout.tv_sec = now + secstimeout;
+      timeout.tv_sec = now+2;
       timeout.tv_nsec = 0;
 
       // Remember, the wait primitive internally unlocks the mutex!
@@ -211,15 +218,20 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
 	 // If there are messages to dequeue, we pick the oldest one
 	 for (fMsgIter = fMsgQue.begin(); fMsgIter != fMsgQue.end(); ++fMsgIter) {
 	    m = *fMsgIter;
-	    if (m->MatchStreamid(streamid)) {
+	    if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
 	       res = *fMsgIter;
 	       fMsgQue.erase(fMsgIter);
+               if (!m) return 0;
 	       break;
 	    }
 	 }
       }
 
+      if (res) break;
+      } // for
+
    }
+
 
   return res;
 }

@@ -160,7 +160,10 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
       CreateData();
       if (phy->ReadRaw(fData, fHdr.dlen)) {
          Error("XrdClientMessage::ReadRaw", "Error reading " << fHdr.dlen << " bytes.");
+         free( DonateData() );
+
          SetStatusCode(kXrdMSC_readerr);
+         memset(&fHdr, 0, sizeof(fHdr));
       }
    }
    return 1;

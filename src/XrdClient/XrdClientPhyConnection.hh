@@ -20,6 +20,7 @@
 #include "XrdClientUnsolMsg.hh"
 #include "XrdClientInputBuffer.hh"
 #include "XrdClientUrlInfo.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 #include <string>
 
 #include <time.h> // for time_t data type
@@ -59,6 +60,8 @@ private:
 
    void HandleUnsolicited(XrdClientMessage *m);
 
+   XrdOucCondVar       fReaderCV;
+
 public:
    ERemoteServer       fServerType;
    long                fTTLsec;
@@ -73,6 +76,8 @@ public:
    void           Disconnect();
    bool           ExpiredTTL();
    long           GetTTL() { return fTTLsec; }
+
+   void           StartedReader();
 
    bool           IsAddress(string &addr) {
       return ( (fServer.Host == addr) ||

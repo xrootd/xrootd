@@ -42,6 +42,15 @@ XrdClientSock::~XrdClientSock() {
 }
 
 
+
+void XrdClientSock::Disconnect() {
+   if ( (fConnected) && (fSocket) ) {
+      close(fSocket);
+      fConnected = FALSE;
+   }
+}
+
+
 //_____________________________________________________________________________
 int XrdClientSock::RecvRaw(void* buffer, int length) {
    // Read bytes following carefully the timeout rules

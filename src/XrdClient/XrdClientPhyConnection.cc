@@ -44,6 +44,8 @@ extern "C" void *SocketReaderThread(void * arg)
 
    thisObj = (XrdClientPhyConnection *)arg;
 
+   thisObj->StartedReader();
+
    while (1) {
      thisObj->BuildMessage(TRUE, TRUE);
      thisObj->CheckAutoTerm();
@@ -164,14 +166,18 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 //____________________________________________________________________________
 void XrdClientPhyConnection::StartReader() {
    int pt_ret;
-   XrdClientMutexLocker l(fMutex);
+   bool running;
 
+   {
+      XrdClientMutexLocker l(fMutex);
+      running = fReaderthreadrunning;
+   }
    // Start reader thread
 
    // Parametric asynchronous stuff.
    // If we are going Sync, then nothing has to be done,
    // otherwise the reader thread must be started
-   if ( !fReaderthreadrunning && EnvGetLong(NAME_GOASYNC) ) {
+   if ( !running && EnvGetLong(NAME_GOASYNC) ) {
 
       Info(XrdClientDebug::kHIDEBUG,
 	   "StartReader", "Starting reader thread...");
@@ -182,9 +188,25 @@ void XrdClientPhyConnection::StartReader() {
 	 Error("PhyConnection",
 	       "Can't create reader thread: out of system resources");
 
-      fReaderthreadrunning = TRUE;
+      do {
+          {
+             XrdClientMutexLocker l(fMutex);
+             running = fReaderthreadrunning;
+          }
+
+          if (!running) fReaderCV.Wait(100);
+      } while (!running);
+
 
    }
+}
+
+
+//____________________________________________________________________________
+void XrdClientPhyConnection::StartedReader() {
+   XrdClientMutexLocker l(fMutex);
+   fReaderthreadrunning = TRUE;
+   fReaderCV.Signal();
 }
 
 //____________________________________________________________________________
@@ -203,43 +225,47 @@ void XrdClientPhyConnection::Disconnect()
 
    // Parametric asynchronous stuff
    // If we are going async, we have to terminate the reader thread
-   if (EnvGetLong(NAME_GOASYNC)) {
+   //if (EnvGetLong(NAME_GOASYNC)) {
 
-      if (fReaderthreadrunning &&
-	!pthread_equal(pthread_self(), fReaderthreadhandler)) {
+   //   if (fReaderthreadrunning &&
+   //!pthread_equal(pthread_self(), fReaderthreadhandler)) {
 
-         Info(XrdClientDebug::kHIDEBUG,
-	      "Disconnect", "Cancelling reader thread.");
+   //      Info(XrdClientDebug::kHIDEBUG,
+	//      "Disconnect", "Cancelling reader thread.");
 
-	 pthread_cancel(fReaderthreadhandler);
+	 //pthread_cancel(fReaderthreadhandler);
 
-	 Info(XrdClientDebug::kHIDEBUG,
-	      "Disconnect", "Waiting for the reader thread termination...");
+//	 Info(XrdClientDebug::kHIDEBUG,
+//	      "Disconnect", "Waiting for the reader thread termination...");
       
-	 pthread_join(fReaderthreadhandler, 0);
+	 //pthread_join(fReaderthreadhandler, 0);
 
-	 Info(XrdClientDebug::kHIDEBUG,
-	      "Disconnect", "Reader thread canceled.");
+//	 Info(XrdClientDebug::kHIDEBUG,
+//	      "Disconnect", "Reader thread canceled.");
 
-         fReaderthreadrunning = FALSE;
-         fReaderthreadhandler = 0;
-      }
+         //fReaderthreadrunning = FALSE;
+         //fReaderthreadhandler = 0;
+//      }
 
 
-   }
+//   }
 
    // Disconnect from remote server
-   Info(XrdClientDebug::kDUMPDEBUG,
-	"Disconnect", "Deleting low level socket...");
+//   Info(XrdClientDebug::kHIDEBUG,
+//	"Disconnect", "Deleting low level socket...");
 
-   delete fSocket;
-   fSocket = 0;
+     if (fSocket) fSocket->Disconnect();
+//   delete fSocket;
+//   fSocket = 0;
 
 }
 
 
 //____________________________________________________________________________
 void XrdClientPhyConnection::CheckAutoTerm() {
+   bool doexit = FALSE;
+
+  {
    XrdClientMutexLocker l(fMutex);
 
    // Parametric asynchronous stuff
@@ -248,10 +274,22 @@ void XrdClientPhyConnection::CheckAutoTerm() {
         pthread_equal(pthread_self(), fReaderthreadhandler)) {
 
          Info(XrdClientDebug::kHIDEBUG,
-              "Disconnect", "Self-Cancelling reader thread.");
+              "CheckAutoTerm", "Self-Cancelling reader thread.");
 
-         pthread_exit(0);
+
+         fReaderthreadrunning = FALSE;
+         fReaderthreadhandler = 0;
+
+         delete fSocket;
+         fSocket = 0;
+
+         doexit = TRUE;
       }
+
+  }
+
+
+  if (doexit) pthread_exit(0);
 }
 
 
@@ -273,7 +311,7 @@ void XrdClientPhyConnection::Touch()
 //____________________________________________________________________________
 int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
    // Receive 'len' bytes from the connected server and store them in 'buf'.
-   // Return number of bytes received. 
+   // Return 0 if OK. 
 
    int res;
    char errbuf[1024];
@@ -372,8 +410,11 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 
          if (IgnoreTimeouts) {
 
-            if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_timeout)
+            if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_timeout) {
                fMsgQ.PutMsg(m);
+               if (m->IsError())
+                  for (int kk=0; kk < 10; kk++) fMsgQ.PutMsg(0);
+            }
             else {
                delete m;
                m = 0;

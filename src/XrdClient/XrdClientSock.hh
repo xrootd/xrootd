@@ -52,6 +52,9 @@ public:
 
    void           TryConnect();
 
+   void           Disconnect();
+  
+
    bool           IsConnected() { return fConnected; };
 };
 
