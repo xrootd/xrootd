@@ -28,7 +28,16 @@ my $mySQLUser = $ARGV[2];
 my $updInt    = $ARGV[3];
 
 $initFlag = 1;
- 
+
+# prepare counters for updating top performers tables
+                      # update data for top perf 1 hour  period every  1 min
+$dUpdatesFreq =   30; # update data for top perf 1 day   period every 30 min
+$mUpdatesFreq =  720; # update data for top perf 1 month period every 12 hours
+$yUpdatesFreq = 1440; # update data for top perf 1 year  period every 24 hours
+$dCounter  = $dUpdatesFreq;
+$mCounter  = $mUpdatesFreq;
+$yCounter  = $yUpdatesFreq;
+
 
 #start an infinite loop
 while ( 1 ) {
@@ -93,20 +102,23 @@ sub doLoading {
         }
         $nHour += 1;
     }
-    $nMin += 1;
-
-
-                                                                                                                                                      
+    $nMin += 1;                                                                                                                                         
 
     close $inF;
     # make a backup, remove the input file
     my $backupFName = "$inFName.backup";
     `touch $backupFName; cat $inFName >> $backupFName; rm $inFName`;
-    # unlock the lock file, and disconnect from db
+    # unlock the lock file
     unlockTheFile($lockF);
+
+    &reloadTopPerfTables();
+
+    # disconnect from db
     $dbh->disconnect();
+
     $ts = &timestamp();
     print "$ts All done, processed $nr entries.\n";
+
 }
 
 # opens the <fName>.lock file for writing & locks it (write lock)
@@ -269,7 +281,7 @@ sub findOrInsertPathId() {
                                                                                                       
     $pathId = $pathIds{$path};
     if ( $pathId ) {
-        print "from cache: $pathId for $path\n";
+        #print "from cache: $pathId for $path\n";
         return $pathId;
     }
     ($pathId, $typeId, $skimId) =
@@ -505,3 +517,304 @@ sub roundoff() {
 
 
 
+
+
+
+#######################################################
+### everything below is for loading top perf tables ###
+#######################################################
+
+
+sub reloadTopPerfTables() {
+
+    &runTopUsersQueries("1 HOUR", "hour", 20);
+    if ( $dCounter == $dUpdatesFreq ) {
+	&runTopUsersQueries("1 DAY", "day", 20);
+	$dCounter = 0;
+    } else {
+	$dCounter += 1;
+    }
+    if ( $mCounter == $mUpdatesFreq ) {
+	&runTopUsersQueries("1 MONTH", "month", 20);
+	$mCounter = 0;
+    } else {
+	$mCounter += 1;
+    }
+    if ( $yCounter == $yUpdatesFreq ) {
+	&runTopUsersQueries("1 YEAR", "year", 20);
+	$yCounter = 0;
+    } else {
+	$yCounter += 1;
+    }
+}
+
+
+sub runTopUsersQueries() {
+    my ($theInterval, $theKeyword, $theLimit) = @_;
+
+    print "updating topPerf tables for $theInterval\n";
+
+    my $sql_prepTable_tt       = "CREATE TEMPORARY TABLE tt (userId INT PRIMARY KEY)";
+    my $sql_prepTable_t_       = "CREATE TEMPORARY TABLE t_ (userId INT, value BIGINT)";
+    my $sql_prepTable_finalSep = 
+"CREATE TEMPORARY TABLE finalSep (
+    userName    VARCHAR(24),
+    nFilesNow   INT NOT NULL,
+    nJobsNow    INT NOT NULL,
+    mbRead      BIGINT NOT NULL,
+    nFiles      INT NOT NULL,
+    nJobs       INT NOT NULL,
+    timePeriod  VARCHAR(8) # hour, day, month, year
+)";
+
+    my $sql_dropTable_tt       = "DROP TABLE IF EXISTS tt";
+    my $sql_dropTable_t_       = "DROP TABLE IF EXISTS t_";
+    my $sql_dropTable_finalSep = "DROP TABLE IF EXISTS finalSep";
+
+    my $sql_findNow_nFiles = 
+"REPLACE INTO tt 
+       SELECT userId
+       FROM (SELECT userId,
+                    COUNT(DISTINCT pathId) AS n
+             FROM   rtOpenedSessions os, rtOpenedFiles of
+             WHERE  os.id = of.sessionId
+                    GROUP BY userId
+                    ORDER BY n DESC
+                    LIMIT $theLimit
+            ) AS X";
+
+    my $sql_findNow_nJobs = 
+"REPLACE INTO tt 
+       SELECT userId
+       FROM (SELECT userId,
+                    COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+             FROM   rtOpenedSessions os, rtOpenedFiles of
+             WHERE  os.id = of.sessionId
+                    GROUP BY userId
+                    ORDER BY n DESC
+                    LIMIT $theLimit
+            ) AS X";
+
+    my $sql_insert_rb_os = 
+"INSERT INTO t_
+       SELECT userId,
+              SUM(bytesR)/(1024*1024) AS n
+       FROM   rtOpenedSessions os, rtClosedFiles cf
+       WHERE  os.id = cf.sessionId AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY userId
+              ORDER BY n DESC
+              LIMIT $theLimit";
+
+    my $sql_insert_rb_cs = 
+"INSERT INTO t_
+       SELECT userId,
+              SUM(bytesR)/(1024*1024) AS n
+       FROM   rtClosedSessions os, rtClosedFiles cf
+       WHERE  os.id = cf.sessionId AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY userId
+              ORDER BY n DESC
+              LIMIT $theLimit";
+
+    my $sql_add_rb = 
+"REPLACE INTO tt
+        SELECT userId
+        FROM (SELECT userId,
+                     SUM(value) AS n
+              FROM   t_
+                     GROUP BY userId
+                     ORDER BY n DESC
+                     LIMIT $theLimit
+             ) AS X";
+
+    my $sql_findPast_nFiles = 
+"CREATE TEMPORARY TABLE t_ (userId INT, value INT)";
+
+    my $sql_insert_nFiles_os = 
+"INSERT INTO t_
+       SELECT userId,
+              COUNT(DISTINCT pathId) AS n
+       FROM   rtOpenedSessions os, rtClosedFiles cf
+       WHERE  os.id = cf.sessionId AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY userId
+              ORDER BY n DESC
+              LIMIT $theLimit";
+
+    my $sql_insert_nFiles_cs = 
+"INSERT INTO t_
+       SELECT userId,
+              COUNT(DISTINCT pathId) AS n
+       FROM   rtClosedSessions os, rtClosedFiles cf
+       WHERE  os.id = cf.sessionId AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY userId
+              ORDER BY n DESC
+              LIMIT $theLimit";
+
+    my $sql_add_nFiles = 
+"REPLACE INTO tt
+        SELECT userId
+        FROM (SELECT userId,
+                     SUM(value) AS n
+              FROM   t_
+                     GROUP BY userId
+                     ORDER BY n DESC
+                     LIMIT $theLimit
+             ) AS X";
+
+    my $sql_findPast_nJobs = 
+"REPLACE INTO tt
+       SELECT userId
+       FROM (SELECT userId, 
+                    COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+             FROM   rtClosedSessions os
+             WHERE  disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                    GROUP BY userId
+                    ORDER BY n DESC
+                    LIMIT $theLimit
+             ) AS X";
+
+    my $sql_fillNow_nFilesJobs = 
+"INSERT INTO finalSep (userName, nFilesNow, nJobsNow, timePeriod)
+       SELECT userName, 
+              COUNT(DISTINCT pathId),
+              COUNT(DISTINCT CONCAT(pId, clientHId) ),
+              \"$theKeyword\"
+       FROM   users, tt, rtOpenedSessions os, rtOpenedFiles of
+       WHERE  users.id = tt.userId  AND
+              tt.userId = os.userId AND
+              os.id = of.sessionId
+              GROUP BY tt.userId";
+
+    my $sql_fillPast_mbRead_os = 
+"INSERT INTO finalSep (userName, mbRead, timePeriod)
+       SELECT userName,
+              SUM(bytesR)/(1024*1024) AS n,
+              \"$theKeyword\"
+       FROM   users, tt, rtOpenedSessions os, rtClosedFiles cf
+       WHERE  users.id = tt.userId  AND
+              tt.userId = os.userId AND
+              os.id = cf.sessionId  AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY tt.userId";
+
+    my $sql_fillPast_mbRead_cs = 
+"INSERT INTO finalSep (userName, mbRead, timePeriod)
+       SELECT userName,
+              SUM(bytesR)/(1024*1024) AS n,
+              \"$theKeyword\"
+       FROM   users, tt, rtClosedSessions os, rtClosedFiles cf
+       WHERE  users.id = tt.userId  AND
+              tt.userId = os.userId AND
+              os.id = cf.sessionId  AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY tt.userId";
+
+    my $sql_fillPast_nFiles_os = 
+"INSERT INTO finalSep (userName, nFiles, timePeriod)
+       SELECT userName,
+              COUNT(DISTINCT pathId),
+              \"$theKeyword\"
+       FROM   users, tt, rtOpenedSessions os, rtClosedFiles cf
+       WHERE  users.id = tt.userId  AND
+              tt.userId = os.userId AND
+              os.id = cf.sessionId  AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY tt.userId";
+
+    my $sql_fillPast_nFiles_cs = 
+"INSERT INTO finalSep (userName, nFiles, timePeriod)
+       SELECT userName,
+              COUNT(DISTINCT pathId),
+              \"$theKeyword\"
+       FROM   users, tt, rtClosedSessions os, rtClosedFiles cf
+       WHERE  users.id = tt.userId  AND
+              tt.userId = os.userId AND
+              os.id = cf.sessionId  AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY tt.userId";
+
+    my $sql_fillPast_nJobs = 
+"INSERT INTO finalSep (userName, nJobs, timePeriod)
+       SELECT userName,
+              COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n,
+              \"$theKeyword\"
+       FROM   users, tt, rtClosedSessions cs
+       WHERE  users.id = tt.userId AND
+              tt.userId = cs.userId
+              GROUP BY tt.userId";
+
+my $sql_deleteOldData = 
+"DELETE FROM topPerfUsers
+        WHERE timePeriod LIKE \"$theKeyword\"";
+
+    my $sql_compressIntoFinal = 
+"INSERT INTO topPerfUsers
+       SELECT userName,
+              SUM(nFilesNow) AS nFilesNow,
+              SUM(nJobsNow)  AS nJobsNow,
+              SUM(mbRead)    AS mbRead,
+              SUM(nFiles)    AS nFiles,
+              SUM(nJobs)     AS nJobs,
+              timePeriod
+       FROM   finalSep
+       WHERE  timePeriod LIKE \"$theKeyword\"
+              GROUP BY userName
+              ORDER BY mbRead DESC";
+
+    my $sth_prepTable_tt       = $dbh->prepare($sql_prepTable_tt)       or die "\"$sql_prepTable_tt\", $DBI::errstr\n";
+    my $sth_prepTable_t_       = $dbh->prepare($sql_prepTable_t_)       or die "\"$sql_prepTable_t_\", $DBI::errstr\n";
+    my $sth_prepTable_finalSep = $dbh->prepare($sql_prepTable_finalSep) or die "\"$sql_prepTable_finalSep\", $DBI::errstr\n";
+    my $sth_dropTable_tt       = $dbh->prepare($sql_dropTable_tt)       or die "\"$sql_dropTable_tt\", $DBI::errstr\n";
+    my $sth_dropTable_t_       = $dbh->prepare($sql_dropTable_t_)       or die "\"$sql_dropTable_t_\", $DBI::errstr\n";
+    my $sth_dropTable_finalSep = $dbh->prepare($sql_dropTable_finalSep) or die "\"$sql_dropTable_finalSep\", $DBI::errstr\n";
+    my $sth_findNow_nFiles     = $dbh->prepare($sql_findNow_nFiles)     or die "\"$sql_findNow_nFiles\", $DBI::errstr\n";
+    my $sth_findNow_nJobs      = $dbh->prepare($sql_findNow_nJobs)      or die "\"$sql_findNow_nJobs\", $DBI::errstr\n";
+    my $sth_insert_rb_os       = $dbh->prepare($sql_insert_rb_os)       or die "\"$sql_insert_rb_os\", $DBI::errstr\n";
+    my $sth_insert_rb_cs       = $dbh->prepare($sql_insert_rb_cs)       or die "\"$sql_insert_rb_cs\", $DBI::errstr\n";
+    my $sth_add_rb             = $dbh->prepare($sql_add_rb)             or die "\"$sql_add_rb\", $DBI::errstr\n";
+    my $sth_findPast_nFiles    = $dbh->prepare($sql_findPast_nFiles)    or die "\"$sql_findPast_nFiles\", $DBI::errstr\n";
+    my $sth_insert_nFiles_os   = $dbh->prepare($sql_insert_nFiles_os)   or die "\"$sql_insert_nFiles_os\", $DBI::errstr\n";
+    my $sth_insert_nFiles_cs   = $dbh->prepare($sql_insert_nFiles_cs)   or die "\"$sql_insert_nFiles_cs\", $DBI::errstr\n";
+    my $sth_add_nFiles         = $dbh->prepare($sql_add_nFiles)         or die "\"$sql_add_nFiles\", $DBI::errstr\n";
+    my $sth_findPast_nJobs     = $dbh->prepare($sql_findPast_nJobs)     or die "\"$sql_findPast_nJobs\", $DBI::errstr\n";
+    my $sth_fillNow_nFilesJobs = $dbh->prepare($sql_fillNow_nFilesJobs) or die "\"$sql_fillNow_nFilesJobs\", $DBI::errstr\n";
+    my $sth_fillPast_mbRead_os = $dbh->prepare($sql_fillPast_mbRead_os) or die "\"$sql_fillPast_mbRead_os\", $DBI::errstr\n";
+    my $sth_fillPast_mbRead_cs = $dbh->prepare($sql_fillPast_mbRead_cs) or die "\"$sql_fillPast_mbRead_cs\", $DBI::errstr\n";
+    my $sth_fillPast_nFiles_os = $dbh->prepare($sql_fillPast_nFiles_os) or die "\"$sql_fillPast_nFiles_os\", $DBI::errstr\n";
+    my $sth_fillPast_nFiles_cs = $dbh->prepare($sql_fillPast_nFiles_cs) or die "\"$sql_fillPast_nFiles_cs\", $DBI::errstr\n";
+    my $sth_fillPast_nJobs     = $dbh->prepare($sql_fillPast_nJobs)     or die "\"$sql_fillPast_nJobs\", $DBI::errstr\n";
+    my $sth_deleteOldData      = $dbh->prepare($sql_deleteOldData)      or die "\"$sql_deleteOldData\", $DBI::errstr\n";
+    my $sth_compressIntoFinal  = $dbh->prepare($sql_compressIntoFinal)  or die "\"$sql_compressIntoFinal\", $DBI::errstr\n";
+
+    $sth_prepTable_tt->execute()       or die "Failed to exec \"$sql_prepTable_tt\",       $DBI::errstr";
+    $sth_prepTable_finalSep->execute() or die "Failed to exec \"$sql_prepTable_finalSep\", $DBI::errstr";
+    $sth_findNow_nFiles->execute()     or die "Failed to exec \"$sql_findNow_nFiles\",     $DBI::errstr";
+    $sth_findNow_nJobs->execute()      or die "Failed to exec \"$sql_findNow_nJobs\",      $DBI::errstr";
+    $sth_dropTable_t_->execute()       or die "Failed to exec \"$sql_dropTable_t_\",       $DBI::errstr";
+    $sth_prepTable_t_->execute()       or die "Failed to exec \"$sql_prepTable_t_\",       $DBI::errstr";
+    $sth_insert_rb_os->execute()       or die "Failed to exec \"$sql_insert_rb_os\",       $DBI::errstr";
+    $sth_insert_rb_cs->execute()       or die "Failed to exec \"$sql_insert_rb_cs\",       $DBI::errstr";
+    $sth_add_rb->execute()             or die "Failed to exec \"$sql_add_rb\",             $DBI::errstr";
+    $sth_dropTable_t_->execute()       or die "Failed to exec \"$sql_dropTable_t_\",       $DBI::errstr";
+    $sth_prepTable_t_->execute()       or die "Failed to exec \"$sql_prepTable_t_\",       $DBI::errstr";
+    $sth_insert_nFiles_os->execute()   or die "Failed to exec \"$sql_insert_nFiles_os\",   $DBI::errstr";
+    $sth_insert_nFiles_cs->execute()   or die "Failed to exec \"$sql_insert_nFiles_cs\",   $DBI::errstr";
+    $sth_add_nFiles->execute()         or die "Failed to exec \"$sql_add_nFiles\",         $DBI::errstr";
+    $sth_dropTable_t_->execute()       or die "Failed to exec \"$sql_dropTable_t_\",       $DBI::errstr";
+    $sth_findPast_nFiles->execute()    or die "Failed to exec \"$sql_findPast_nFiles\",    $DBI::errstr";
+    $sth_findPast_nJobs->execute()     or die "Failed to exec \"$sql_findPast_nJobs\",     $DBI::errstr";
+    $sth_fillNow_nFilesJobs->execute() or die "Failed to exec \"$sql_fillNow_nFilesJobs\", $DBI::errstr";
+    $sth_fillPast_mbRead_os->execute() or die "Failed to exec \"$sql_fillPast_mbRead\",    $DBI::errstr";
+    $sth_fillPast_mbRead_cs->execute() or die "Failed to exec \"$sql_fillPast_mbRead\",    $DBI::errstr";
+    $sth_fillPast_nFiles_os->execute() or die "Failed to exec \"$sql_fillPast_nFiles_os\", $DBI::errstr";
+    $sth_fillPast_nFiles_cs->execute() or die "Failed to exec \"$sql_fillPast_nFiles_cs\", $DBI::errstr";
+    $sth_fillPast_nJobs->execute()     or die "Failed to exec \"$sql_fillPast_nJobs\",     $DBI::errstr";
+    $sth_deleteOldData->execute()      or die "Failed to exec \"$sql_deleteOldData\",      $DBI::errstr";
+    $sth_compressIntoFinal->execute()  or die "Failed to exec \"$sql_compressIntoFinal\",  $DBI::errstr";
+    $sth_dropTable_tt->execute()       or die "Failed to exec \"$sql_dropTable_tt\",       $DBI::errstr";
+    $sth_dropTable_finalSep->execute() or die "Failed to exec \"$sql_dropTable_finalSep\", $DBI::errstr";
+}
+  

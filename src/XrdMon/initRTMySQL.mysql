@@ -187,6 +187,20 @@ CREATE TABLE IF NOT EXISTS rtChanges (
   lastUpdate    DATETIME
 );
 
+
+# compressed info for top performers (top users) webpage
+CREATE TABLE IF NOT EXISTS topPerfUsers (
+  userName    VARCHAR(24),
+  nFilesNow   INT NOT NULL,
+  nJobsNow    INT NOT NULL,
+  mbRead      BIGINT NOT NULL,
+  nFiles      INT NOT NULL,
+  nJobs       INT NOT NULL,
+  timePeriod  VARCHAR(8) # "hour", "month", "year"
+);
+
+
+
 ###########################
 ### BaBar specific below
 ###########################
