@@ -36,6 +36,7 @@ int           ConWait;      // Seconds to wait for a manager connection
 int           RepWait;      // Seconds to wait for manager replies
 int           RepWaitMS;    // RepWait*1000 for poll()
 int           RepDelay;     // Seconds to delay before retrying manager
+int           RepNone;      // Max number of consecutive non-responses
 
 XrdOdcPselT   pselType;     // How ports are selected
 int           portVec[maxPORTS];  // Port numbers to balance (max of 15)
@@ -55,7 +56,7 @@ unsigned char SModeP;       // Manager selection mode (proxy)
                    SMode = SModeP = ODC_FAILOVER;
                    pselSkey = 1312; pselMint = 60;
                    eDest = erp; lclPort = port;
-                   OLBPath = 0;
+                   OLBPath = 0; RepNone = 4;
                   }
      ~XrdOdcConfig();
 
