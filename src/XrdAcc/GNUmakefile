@@ -74,7 +74,7 @@ $(LIBRARY): $(OBJECTA)
 
 $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(OBJDIR)/XrdAccAccess.o: XrdAccAccess.cc     XrdAccAccess.hh \
                           XrdAccCapability.hh XrdAccConfig.hh    XrdAccGroups.hh \
