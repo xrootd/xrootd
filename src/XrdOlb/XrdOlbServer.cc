@@ -1138,7 +1138,7 @@ int XrdOlbServer::do_State(char *rid,int mustresp)
 
 // Do a stat, respond if we have the file
 //
-   if (isOnline(pp, !mustresp))
+   if (isOnline(pp, 0))
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
              "%s have %s %s\n", rid, XrdOlbConfig.PathList.Type(tp), tp));
 
