@@ -46,6 +46,7 @@ public:
         }
         return _hps[id].first;
     }
+    static void printSelf();
     
     static void shutdown();
     

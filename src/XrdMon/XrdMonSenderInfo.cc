@@ -16,6 +16,9 @@
 
 #include <sys/socket.h>
 #include <netdb.h>
+#include <iostream>
+using std::cout;
+using std::endl;
 
 map<kXR_int64, senderid_t> XrdMonSenderInfo::_ids;
 vector<hp_t>               XrdMonSenderInfo::_hps;
@@ -37,6 +40,16 @@ XrdMonSenderInfo::convert2Id(struct sockaddr_in sAddr)
     return id;
 }
 
+void
+XrdMonSenderInfo::printSelf()
+{
+    cout << "SenderId mapping: \n";
+    int i, s = _hps.size();
+    for (i=0 ; i<s ; ++i) {
+        cout << "    " << i << " --> " 
+             << _hps[i].first << ":" << _hps[i].second << endl;
+    }
+}
 
 void
 XrdMonSenderInfo::shutdown()
