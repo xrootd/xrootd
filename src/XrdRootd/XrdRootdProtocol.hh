@@ -35,9 +35,7 @@ public:
 
        void          Recycle() {}
 
-       int           Stats(char *buff, int blen);
-
-       void          syncStats() {}
+       int           Stats(char *buff, int blen, int do_sync);
 
                      XrdRootdProtocol(XrdProtocol_Config *pi,
                                  const char *pgm, const char **pap);

@@ -228,10 +228,11 @@ void XrdBuffManager::Set(long maxmem, int minw)
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
-int XrdBuffManager::Stats(char *buff, int blen)
+int XrdBuffManager::Stats(char *buff, int blen, int do_sync)
 {
     static char statfmt[] = "<stats id=\"buff\"><reqs>%ld</reqs>"
                 "<mem>%lld</mem><buffs>%ld</buffs><adj>%ld</adj></stats>";
+    int nlen;
 
 // If only size wanted, return it
 //
@@ -239,5 +240,8 @@ int XrdBuffManager::Stats(char *buff, int blen)
 
 // Return formatted stats
 //
-   return snprintf(buff, blen, statfmt, totreq, totalo, totbuf, totadj);
+   if (do_sync) BuffManager.Lock();
+   nlen = snprintf(buff, blen, statfmt, totreq, totalo, totbuf, totadj);
+   if (do_sync) BuffManager.UnLock();
+   return nlen;
 }

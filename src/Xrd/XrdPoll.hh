@@ -52,7 +52,7 @@ virtual    void        Start(XrdOucSemaphore *syncp, int &rc) = 0;
 
 // Stats() is called to provide statistics on polling
 //
-static  int   Stats(char *buff, int blen);
+static  int   Stats(char *buff, int blen, int do_sync=0);
 
 // Identification of the thread handling this object
 //

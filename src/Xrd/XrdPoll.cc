@@ -255,7 +255,7 @@ int XrdPoll::Setup(int numfd)
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
-int XrdPoll::Stats(char *buff, int blen)
+int XrdPoll::Stats(char *buff, int blen, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"poll\"><att>%d</att>"
    "<en>%d</en><ev>%d</ev><int>%d</int></stats>";
@@ -266,7 +266,9 @@ int XrdPoll::Stats(char *buff, int blen)
 //
    if (!buff) return (sizeof(statfmt)+(4*16))*XRD_NUMPOLLERS;
 
-// Verify that we initialized the poller table
+// Get statistics. While we wish we could honor do_sync, doing so would be
+// costly and hardly worth it. So, we do not include code such as:
+//    x = pp->y; if (do_sync) while(x != pp->y) x = pp->y; tot += x;
 //
    for (i = 0; i < XRD_NUMPOLLERS; i++)
        {pp = Pollers[i];

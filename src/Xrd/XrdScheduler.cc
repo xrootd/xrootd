@@ -176,8 +176,10 @@ void XrdScheduler::DoIt()
        TRACE(SCHED, num_Workers <<" threads; " <<num_idle <<" idle");
        if (num_kill > 0)
           {if (num_kill > 1) num_kill = num_kill/2;
-           num_TDestroy += num_kill; // We are the only ones touching this
-           SchedMutex.Lock(); num_Workers -= num_kill; SchedMutex.UnLock();
+           SchedMutex.Lock();
+           num_TDestroy += num_kill;
+           num_Workers  -= num_kill;
+           SchedMutex.UnLock();
            while(num_kill--)
                 if ((fwp = new XrdFireWorker())) Schedule((XrdJob *)fwp);
           }
@@ -472,9 +474,10 @@ void XrdScheduler::Start(int numw)
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
-int XrdScheduler::Stats(char *buff, int blen)
+int XrdScheduler::Stats(char *buff, int blen, int do_sync)
 {
-
+    int cnt_Jobs, cnt_JobsinQ, xam_QLength, cnt_Workers, cnt_idl;
+    int cnt_TCreate, cnt_TDestroy, cnt_Limited;
     static char statfmt[] = "<stats id=\"sched\"><jobs>%d</jobs>"
                 "<inq>%d</inq><maxinq>%d</maxinq>"
                 "<threads>%d</threads><idle>%d</idle>"
@@ -485,11 +488,29 @@ int XrdScheduler::Stats(char *buff, int blen)
 //
    if (!buff) return sizeof(statfmt) + 16*8;
 
+// Get values protected by the Dispatch lock (avoid lock if no sync needed)
+//
+   if (do_sync) DispatchMutex.Lock();
+   cnt_idl = idl_Workers;
+   if (do_sync) DispatchMutex.UnLock();
+
+// Get values protected by the Scheduler lock (avoid lock if no sync needed)
+//
+   if (do_sync) SchedMutex.Lock();
+   cnt_Workers = num_Workers;
+   cnt_Jobs    = num_Jobs;
+   cnt_JobsinQ = num_JobsinQ;
+   xam_QLength = max_QLength;
+   cnt_TCreate = num_TCreate;
+   cnt_TDestroy= num_TDestroy;
+   cnt_Limited = num_Limited;
+   if (do_sync) SchedMutex.UnLock();
+
 // Format the stats and return them
 //
-   return snprintf(buff, blen, statfmt, num_Jobs, num_JobsinQ, max_QLength,
-                   num_Workers, idl_Workers, num_TCreate, num_TDestroy,
-                   num_Limited);
+   return snprintf(buff, blen, statfmt, cnt_Jobs, cnt_JobsinQ, xam_QLength,
+                   cnt_Workers, cnt_idl, cnt_TCreate, cnt_TDestroy,
+                   cnt_Limited);
 }
 
 /******************************************************************************/

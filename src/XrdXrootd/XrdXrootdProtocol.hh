@@ -75,9 +75,7 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        void          Recycle();
 
-       int           Stats(char *buff, int blen);
-
-       void          syncStats();
+       int           Stats(char *buff, int blen, int do_sync=0);
 
               XrdXrootdProtocol &operator =(const XrdXrootdProtocol &rhs);
               XrdXrootdProtocol();

@@ -167,12 +167,12 @@ int XrdProtocol_Select::Process(XrdLink *lp)
 /*                                 S t a t s                                  */
 /******************************************************************************/
 
-int XrdProtocol_Select::Stats(char *buff, int blen)
+int XrdProtocol_Select::Stats(char *buff, int blen, int do_sync)
 {
     int i, k, totlen = 0;
 
     for (i = 0; i <ProtoCnt && blen > 0; i++)
-        {k = Protocol[i]->Stats(buff, blen);
+        {k = Protocol[i]->Stats(buff, blen, do_sync);
          totlen += k; buff += k; blen -= k;
         }
 

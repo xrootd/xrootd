@@ -82,7 +82,7 @@ void          setRef(int cnt);                          // ASYNC Mode
 
 static int    Setup(int maxfd, int idlewait);
 
-static int    Stats(char *buff, int blen);
+static int    Stats(char *buff, int blen, int do_sync=0);
 
        void   syncStats(int *ctime=0);
 

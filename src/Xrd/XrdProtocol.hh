@@ -98,17 +98,16 @@ virtual int           Process(XrdLink *lp) = 0;
 virtual void          Recycle() = 0;
 
 // Stats()     is invoked when we need statistics about all instances of the
-//             protocol. It must return a null terminated string in the
-//             supplied buffer. The return value is as defined by C99 for
-//             snprintf().
+//             protocol. If a buffer is supplied, it must return a null 
+//             terminated string in the supplied buffer and the return value
+//             is the number of bytes placed in the buffer defined by C99 for 
+//             snprintf(). If no buffer is supplied, the method should return
+//             the maximum number of characters that could have been returned.
+//             Regardless of the buffer value, if do_sync is true, the method
+//             should include any local statistics in the global data (if any)
+//             prior to performing any action.
 //
-virtual int           Stats(char *buff, int blen) = 0;
-
-// syncStats() is called for each protocol instance to make sure that local 
-//             statistics are included in the global statistics we are about
-//             to report via Stats().
-//
-virtual void          syncStats() = 0;
+virtual int           Stats(char *buff, int blen, int do_sync=0) = 0;
 
             XrdProtocol(const char *jname): XrdJob(jname) {}
 virtual    ~XrdProtocol() {}
@@ -156,9 +155,7 @@ int           Process(XrdLink *lp);
 
 void          Recycle() {}
 
-int           Stats(char *buff, int blen);
-
-void          syncStats() {}
+int           Stats(char *buff, int blen, int do_sync=0);
 
               XrdProtocol_Select();
              ~XrdProtocol_Select();
@@ -169,7 +166,7 @@ static XrdProtocol *getProtocol(const char *lname, const char *pname,
                                  char *parms, XrdProtocol_Config *pi);
 
 static char         *ProtName[XRD_PROTOMAX]; // ->Supported protocols
-static XrdProtocol *Protocol[XRD_PROTOMAX]; // ->Supported protocols
+static XrdProtocol  *Protocol[XRD_PROTOMAX]; // ->Supported protocols
 static int           ProtoCnt;               // Number in table (at least 1)
 };
 #endif

@@ -40,7 +40,7 @@ long             Refresh;      // Stats: Number of refresh requests
 
 XrdOucMutex      statsMutex;   // Mutex to serialize updates
 
-int              Stats(char *buff, int blen);
+int              Stats(char *buff, int blen, int do_sync=0);
 
 int              Stats(XrdXrootdResponse &resp, char *opts);
 

@@ -45,7 +45,7 @@ void          setParms(int minw, int maxw, int avlt, int maxi);
 
 void          Start(int mode);
 
-int           Stats(char *buff, int blen);
+int           Stats(char *buff, int blen, int do_sync=0);
 
 void          TimeSched();
 

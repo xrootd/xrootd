@@ -16,15 +16,16 @@
 
 #include "XrdOuc/XrdOucPthread.hh"
 
-#define XRD_STATS_ALL  0x00FF
-#define XRD_STATS_INFO 0x0001
-#define XRD_STATS_BUFF 0x0002
-#define XRD_STATS_LINK 0x0004
-#define XRD_STATS_POLL 0x0008
-#define XRD_STATS_PROC 0x0010
-#define XRD_STATS_PROT 0x0020
-#define XRD_STATS_SCHD 0x0040
-  
+#define XRD_STATS_ALL    0x000000FF
+#define XRD_STATS_INFO   0x00000001
+#define XRD_STATS_BUFF   0x00000002
+#define XRD_STATS_LINK   0x00000004
+#define XRD_STATS_POLL   0x00000008
+#define XRD_STATS_PROC   0x00000010
+#define XRD_STATS_PROT   0x00000020
+#define XRD_STATS_SCHD   0x00000040
+#define XRD_STATS_SYNC   0x40000000
+
 class XrdStats
 {
 public:
@@ -41,8 +42,8 @@ void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
 private:
 
 int        getBuff(int xtra);
-int        InfoStats(char *buff, int blen);
-int        ProcStats(char *buff, int blen);
+int        InfoStats(char *buff, int blen, int dosync=0);
+int        ProcStats(char *buff, int blen, int dosync=0);
 
 XrdOucMutex statsMutex;
 

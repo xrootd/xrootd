@@ -57,8 +57,7 @@ char *XrdStats::Stats(int opts)   // statsMutex must be locked!
    static const char tail[] = "</statistics>";
    static const int  ovrhed = strlen(head)+16+sizeof(XrdVSTRING)+strlen(tail);
    char *bp;
-   int   bl;
-   int   sz;
+   int   bl, sz, do_sync = opts & XRD_STATS_SYNC;
 
 // If buffer is not allocated, do it now. We must defer buffer allocation
 // until all components that can provide statistics have been loaded
@@ -78,37 +77,37 @@ char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 // Extract out the statistics, as needed
 //
    if (opts & XRD_STATS_INFO)
-      {sz = InfoStats(bp, bl);
+      {sz = InfoStats(bp, bl, do_sync);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_BUFF)
-      {sz = XrdBuffPool.Stats(bp, bl);
+      {sz = XrdBuffPool.Stats(bp, bl, do_sync);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_LINK)
-      {sz = XrdLink::Stats(bp, bl);
+      {sz = XrdLink::Stats(bp, bl, do_sync);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_POLL)
-      {sz = XrdPoll::Stats(bp, bl);
+      {sz = XrdPoll::Stats(bp, bl, do_sync);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_PROC)
-      {sz = ProcStats(bp, bl);
+      {sz = ProcStats(bp, bl, do_sync);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_PROT)
-      {sz = Protocols.Stats(bp, bl);
+      {sz = Protocols.Stats(bp, bl, do_sync);
        bp += sz; bl -= sz;
       }
 
    if (opts & XRD_STATS_SCHD)
-      {sz = XrdSched.Stats(bp, bl);
+      {sz = XrdSched.Stats(bp, bl, do_sync);
        bp += sz; bl -= sz;
       }
 
@@ -146,7 +145,7 @@ int XrdStats::getBuff(int xtra)
 /*                             I n f o S t a t s                              */
 /******************************************************************************/
   
-int XrdStats::InfoStats(char *bfr, int bln)
+int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"info\"><host>%s</host>"
                      "<port>%d</port></stats>";
@@ -164,7 +163,7 @@ int XrdStats::InfoStats(char *bfr, int bln)
 /*                             P r o c S t a t s                              */
 /******************************************************************************/
   
-int XrdStats::ProcStats(char *bfr, int bln)
+int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"proc\"><pid>%d</pid>"
           "<utime><s>%ld</s><u>%ld</u></utime>"

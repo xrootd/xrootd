@@ -200,7 +200,7 @@ XrdProtocol *XrdRootdProtocol::Match(XrdLink *lp)
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
-int XrdRootdProtocol::Stats(char *buff, int blen)
+int XrdRootdProtocol::Stats(char *buff, int blen, int do_sync)
 {
 
    static char statfmt[] = "<stats id=\"rootd\"><num>%ld</num></stats>";
@@ -209,7 +209,7 @@ int XrdRootdProtocol::Stats(char *buff, int blen)
 //
    if (!buff) return sizeof(statfmt)+16;
 
-// We have only one statistic -- number of successful matches
+// We have only one statistic -- number of successful matches, ignore do_sync
 //
    return snprintf(buff, blen, statfmt, Count);
 }

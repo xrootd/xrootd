@@ -589,7 +589,7 @@ void XrdLink::setRef(int use)
 /*                                 S t a t s                                  */
 /******************************************************************************/
 
-int XrdLink::Stats(char *buff, int blen)
+int XrdLink::Stats(char *buff, int blen, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"link\"><num>%d</num>"
           "<maxn>%d</maxn><tot>%lld</tot><in>%lld</in><out>%lld</out>"
@@ -602,9 +602,11 @@ int XrdLink::Stats(char *buff, int blen)
 
 // We must synchronize the statistical counters
 //
-   LTMutex.Lock();
-   for (i = 0; i <= LTLast; i++) if (LinkTab[i]) LinkTab[i]->syncStats();
-   LTMutex.UnLock();
+   if (do_sync)
+      {LTMutex.Lock();
+       for (i = 0; i <= LTLast; i++) if (LinkTab[i]) LinkTab[i]->syncStats();
+       LTMutex.UnLock();
+      }
 
 // Obtain lock on the stats area and format it
 //
@@ -643,7 +645,7 @@ void XrdLink::syncStats(int *ctime)
 
 // Make sure the protocol updates it's statistics as well
 //
-   if (Protocol) Protocol->syncStats();
+   if (Protocol) Protocol->Stats(0, 0, 1);
 
 // Clear our local counters
 //

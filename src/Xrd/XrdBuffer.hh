@@ -65,7 +65,7 @@ void        Reshape();
 
 void        Set(long maxmem=-1, int minw=-1);
 
-int         Stats(char *buff, int blen);
+int         Stats(char *buff, int blen, int do_sync=0);
 
             XrdBuffManager(int minrst=20*60);
 

@@ -399,25 +399,24 @@ void XrdXrootdProtocol::Recycle()
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
-int XrdXrootdProtocol::Stats(char *buff, int blen)
+int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
 {
-   return SI->Stats(buff, blen);
-}
- 
-/******************************************************************************/
-/*                             s y n c S t a t s                              */
-/******************************************************************************/
+// Synchronize statistics if need be
+//
+   if (do_sync)
+      {SI->statsMutex.Lock();
+       SI->readCnt += numReads;
+       numReads = 0;
+       SI->prerCnt += numReadP;
+       numReadP = 0;
+       SI->writeCnt += numWrites;
+       numWrites = 0;
+       SI->statsMutex.UnLock();
+      }
 
-void XrdXrootdProtocol::syncStats()
-{
-    SI->statsMutex.Lock();
-    SI->readCnt += numReads; 
-    numReads = 0;
-    SI->prerCnt += numReadP;
-    numReadP = 0;
-    SI->writeCnt += numWrites; 
-    numWrites = 0;
-    SI->statsMutex.UnLock();
+// Now return the statistics
+//
+   return SI->Stats(buff, blen, do_sync);
 }
   
 /******************************************************************************/

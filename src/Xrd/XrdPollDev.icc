@@ -50,9 +50,7 @@ int           Process(XrdLink *lp) {lp->Close(); return -1;}
 
 void          Recycle() {}
 
-int           Stats(char *buff, int blen) {return 0;}
-
-void          syncStats() {}
+int           Stats(char *buff, int blen, int do_sync=0) {return 0;}
 
       XrdPoll_End() : XrdProtocol("link termination") {}
      ~XrdPoll_End() {}
