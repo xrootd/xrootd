@@ -3,7 +3,7 @@ Name: xrootd
 Version: XRD-MAJORVER-XRD
 Release: XRD-MINORVER-XRD
 Prefix: /opt/xrootd
-URL: http://www.slac.stanford.edu/~abh/xrootd/
+URL: http://xrootd.slac.stanford.edu/
 Copyright: SLAC/Stanford University
 Group: Applications/File
 Source: XRD-TARBALL-XRD
