@@ -86,7 +86,7 @@ void XrdOlbCache::AddFile(char *path, SMask_t mask, int isrw, int dltime)
 //
    if ((cinfo = PTable.Find(path)))
       {if (dltime > 0) 
-          {cinfo->deadline = dltime;
+          {cinfo->deadline = dltime + time(0);
            cinfo->rovec = 0;
            cinfo->rwvec = 0;
           } else {
@@ -99,7 +99,7 @@ void XrdOlbCache::AddFile(char *path, SMask_t mask, int isrw, int dltime)
                  cinfo->rovec = mask;
                  if (isrw) cinfo->rwvec =  mask;
                     else   cinfo->rwvec = 0;
-                 if (dltime > 0) cinfo->deadline = dltime;
+                 if (dltime > 0) cinfo->deadline = dltime + time(0);
                  PTable.Add(path, cinfo, LifeTime);
                 }
 

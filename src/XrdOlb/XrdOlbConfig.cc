@@ -261,7 +261,6 @@ int XrdOlbConfig::Configure(int argc, char **argv)
        XrdOlbJob *jp=(XrdOlbJob *)new XrdOlbCache_Scrubber(&XrdOlbCache,XrdOlbSchedM);
        XrdOlbSchedM->Schedule(jp, cachelife+time(0));
        if (!isServer)  XrdOlbSchedS = XrdOlbSchedM;
-       doWait = 0;
       }
    if (isServer)  
       {if (!smtype) smtype = (char *)"Server";

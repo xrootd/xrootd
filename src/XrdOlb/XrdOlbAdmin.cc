@@ -169,7 +169,7 @@ void *XrdOlbAdmin::Start(XrdOucSocket *AdminSock)
 
 // If we are in independent mode then let the caller continue
 //
-   if (!XrdOlbConfig.doWait) {SyncUp->Post(); nSync = 1;}
+   if (!XrdOlbConfig.doWait || !XrdOlbConfig.Server()) {SyncUp->Post(); nSync = 1;}
       else XrdOlbSay.Emsg(epname, "Waiting for primary server to login.");
 
 // Accept connections in an endless loop
