@@ -24,6 +24,7 @@ const char *XrdNetDNSCVSID = "$Id$";
 #include <arpa/inet.h>
 
 #include "XrdNet/XrdNetDNS.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
   
 /******************************************************************************/
 /*                           g e t H o s t A d d r                            */
@@ -397,7 +398,7 @@ int XrdNetDNS::isLoopback(struct sockaddr &InetAddr)
 char *XrdNetDNS::Peername(int snum, struct sockaddr *sap, char **errtxt)
 {
    struct sockaddr addr;
-   socklen_t addrlen = sizeof(addr);
+   SOCKLEN_t addrlen = sizeof(addr);
 
 // Get the address on the other side of this socket
 //

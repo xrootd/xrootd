@@ -250,7 +250,7 @@ int XrdNet::do_Accept_TCP(XrdNetPeer &myPeer, int opts)
   int        newfd;
   char      *hname;
   struct sockaddr addr;
-  socklen_t  addrlen = sizeof(addr);
+  SOCKLEN_t  addrlen = sizeof(addr);
 
 // Accept a connection
 //
@@ -294,7 +294,7 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
   char           *hname;
   int             dlen;
   struct sockaddr addr;
-  socklen_t       addrlen = sizeof(addr);
+  SOCKLEN_t       addrlen = sizeof(addr);
   XrdNetBuffer   *bp;
 
 // For UDP connections, get a buffer for the message. To be thread-safe, we

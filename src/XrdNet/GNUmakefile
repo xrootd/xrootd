@@ -78,7 +78,7 @@ $(OBJDIR)/XrdNetConnect.o: XrdNetConnect.cc XrdNetConnect.hh XrdOucPlatform.hh
 	@echo Compiling XrdNetConnect.cc
 	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetConnect.cc -o $(OBJDIR)/XrdNetConnect.o
 
-$(OBJDIR)/XrdNetDNS.o: XrdNetDNS.cc XrdNetDNS.hh
+$(OBJDIR)/XrdNetDNS.o: XrdNetDNS.cc XrdNetDNS.hh XrdOucPlatform.hh
 	@echo Compiling XrdNetDNS.cc
 	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetDNS.cc -o $(OBJDIR)/XrdNetDNS.o
 

@@ -243,7 +243,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
    int i, port, isprime = 1;
    struct sockaddr_in name;
    XrdOdcFinderLCL *myFinder;
-   socklen_t nlen = sizeof(name);
+   SOCKLEN_t nlen = sizeof(name);
 
 // For remote redirection, we simply do a standard config
 //

@@ -32,7 +32,7 @@ int XrdNetConnect::Connect(             int       fd,
                                         int       tsec)
 {
    int old_flags, new_flags, myRC;
-   socklen_t myRClen = sizeof(myRC);
+   SOCKLEN_t myRClen = sizeof(myRC);
 
 // If no timeout wanted, do a plain connect() which will timeout after 3
 // minutes on most platforms.

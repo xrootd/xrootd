@@ -127,7 +127,7 @@ int XrdNetSocket::Open(char *inpath, int port, int flags, int windowsz)
    int myEC, SockSize, backlog;
    int SockType = (flags & XRDNET_UDPSOCKET ? SOCK_DGRAM : SOCK_STREAM);
    const int one = 1;
-   const socklen_t szone = (socklen_t)sizeof(one);
+   const SOCKLEN_t szone = (SOCKLEN_t)sizeof(one);
 
 // Make sure this object is available for a new socket
 //
@@ -260,10 +260,10 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdOucError *eDest)
 {
    int rc = 0;
    const int one = 1;
-   const socklen_t szone = (socklen_t)sizeof(one);
+   const SOCKLEN_t szone = (SOCKLEN_t)sizeof(one);
    static int tcpprotid = XrdNetDNS::getProtoID("tcp");
    static struct linger liopts = {1, XRDNETSOCKET_LINGER};
-   const socklen_t szlio = (socklen_t)sizeof(liopts);
+   const SOCKLEN_t szlio = (SOCKLEN_t)sizeof(liopts);
 
    if (!(opts & XRDNET_NOCLOSEX) && fcntl(xfd, F_SETFD, FD_CLOEXEC))
       {rc = 1;
@@ -300,7 +300,7 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdOucError *eDest)
 int XrdNetSocket::setWindow(int xfd, int Windowsz, XrdOucError *eDest)
 {
    int rc = 0;
-   const socklen_t szwb  = (socklen_t)sizeof(Windowsz);
+   const SOCKLEN_t szwb  = (SOCKLEN_t)sizeof(Windowsz);
 
    if (setsockopt(xfd, SOL_SOCKET, SO_SNDBUF,
                        (const void *)&Windowsz, szwb))
