@@ -200,7 +200,7 @@ XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
          << ", total w " << tW << " shifted " << (int) wShift << ", or " << realW
          << endl;
 
-    _sink.closeFile(dictId, timestamp);
+    _sink.closeFile(dictId, realR, realW, timestamp);
 }
 
 XrdMonDecPacketDecoder::CalcTime

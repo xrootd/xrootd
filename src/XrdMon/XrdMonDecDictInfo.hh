@@ -42,7 +42,7 @@ public:
     void writeSelf2buf(char* buf, int& pos) const;
     
     void openFile(time_t t);
-    void closeFile(time_t t);
+    void closeFile(int64_t bytesR, int64_t bytesW, time_t t);
     bool addTrace(const XrdMonDecTraceInfo& trace);
 
 private:

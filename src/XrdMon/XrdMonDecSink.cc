@@ -188,7 +188,10 @@ XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
 }
 
 void
-XrdMonDecSink::closeFile(dictid_t xrdId, time_t timestamp)
+XrdMonDecSink::closeFile(dictid_t xrdId, 
+                         int64_t bytesR, 
+                         int64_t bytesW, 
+                         time_t timestamp)
 {
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
     if ( itr == _dCache.end() ) {
@@ -196,7 +199,7 @@ XrdMonDecSink::closeFile(dictid_t xrdId, time_t timestamp)
         return;
     }
     cout << "Closing file " << xrdId << endl;
-    itr->second->closeFile(timestamp);
+    itr->second->closeFile(bytesR, bytesW, timestamp);
 }
 
 void

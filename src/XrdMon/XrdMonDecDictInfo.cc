@@ -190,7 +190,7 @@ XrdMonDecDictInfo::openFile(time_t t)
 }
 
 void
-XrdMonDecDictInfo::closeFile(time_t t)
+XrdMonDecDictInfo::closeFile(int64_t bytesR, int64_t bytesW, time_t t)
 {
     if ( 0 == _close ) {
         _close = t;
@@ -202,6 +202,8 @@ XrdMonDecDictInfo::closeFile(time_t t)
              << timestamp2string(useThis) << endl;
         _close = useThis;
     }
+    _noRBytes = bytesR;
+    _noWBytes = bytesW;
 }
 
 // returns true if trace is ok

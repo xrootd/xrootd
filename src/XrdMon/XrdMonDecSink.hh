@@ -37,7 +37,10 @@ public:
     void add(dictid_t xrdId, const char* theString, int len);
     void add(dictid_t xrdId, XrdMonDecTraceInfo& trace);
     void openFile(dictid_t dictId, time_t timestamp);
-    void closeFile(dictid_t dictId, time_t timestamp);
+    void closeFile(dictid_t dictId, 
+                   int64_t bytesR, 
+                   int64_t bytesW, 
+                   time_t timestamp);
 
 private:
     void loadUniqueIdAndSeq();
