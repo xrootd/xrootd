@@ -50,7 +50,6 @@ static XrdOdcMsg   *lastwait;
 static XrdOucMutex  MsgWaitQ;
 
 XrdOdcMsg          *next;
-XrdOucMutex         myData;
 XrdOucCondVar       Hold;
 int                 inwaitq;
 int                 id;

@@ -125,15 +125,15 @@ void XrdOdcMsg::Recycle()
 // Most of the time we are not in the wait queue, do a fast check
 //
    if (inwaitq) 
-      {myData.Lock();
+      {Hold.Lock();
        if (inwaitq)
           {if ((id && XRDODC_MIDMASK) != XRDODC_OBMSGID) inwaitq = 0;
               else {int msgid = id;
-                    myData.UnLock();
+                    Hold.UnLock();
                     XrdOdcMsg::RemFromWaitQ(msgid);
                    }
           }
-       myData.UnLock();
+       Hold.UnLock();
       }
 
 // Delete this element if it's an outboard msg object
@@ -190,8 +190,8 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
 // Reply and return
 //
    mp->Resp->setErrInfo(retc, (const char *)msg);
+   mp->Hold.UnLock();
    mp->Hold.Signal();
-   mp->myData.UnLock();
    return 1;
 }
 
@@ -213,9 +213,9 @@ XrdOdcMsg *XrdOdcMsg::RemFromWaitQ(int msgid)
 // If this is a inboard msg object, we can locate it immediately
 //
   if ((msgnum = msgid & 0xff) < msgHWM)
-     {msgTab[msgnum].myData.Lock();
+     {msgTab[msgnum].Hold.Lock();
       if (!msgTab[msgnum].inwaitq || msgTab[msgnum].id != msgid)
-         return (XrdOdcMsg *)0;
+         {msgTab[msgnum].Hold.UnLock(); return (XrdOdcMsg *)0;}
       msgTab[msgnum].inwaitq = 0;
       return &msgTab[msgnum];
      }
@@ -232,7 +232,7 @@ XrdOdcMsg *XrdOdcMsg::RemFromWaitQ(int msgid)
                 if (mp == lastwait) nextwait = lastwait = 0;
                    else nextwait = mp->next;
                }
-            mp->myData.Lock();
+            mp->Hold.Lock();
             mp->inwaitq = 0;
            }
    MsgWaitQ.UnLock();

@@ -57,7 +57,7 @@ unsigned char SModeP;       // Manager selection mode (proxy)
                    SMode = SModeP = ODC_FAILOVER;
                    pselSkey = 1312; pselMint = 60;
                    eDest = erp; lclPort = port;
-                   OLBPath = 0; RepNone = 8; msgKeep = 128;
+                   OLBPath = 0; RepNone = 8; msgKeep = 255;
                   }
      ~XrdOdcConfig();
 
