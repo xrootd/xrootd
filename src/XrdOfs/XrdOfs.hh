@@ -49,10 +49,10 @@ inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 
 const   char       *FName() {return (const char *)fname;}
 
-        XrdOfsDirectory() {dp    = (XrdOssDir *)0;
-                           tident = (char *)""; fname = 0; atEOF = 0;
-                          }
-       ~XrdOfsDirectory() {if (dp) close();}
+                    XrdOfsDirectory() {dp     = (XrdOssDir *)0;
+                                       tident = (char *)""; fname=0; atEOF=0;
+                                      }
+virtual            ~XrdOfsDirectory() {if (dp) close();}
 
 private:
 
@@ -106,11 +106,11 @@ public:
 
         int            getCXinfo(char cxtype[4], int &cxrsz);
 
-        XrdOfsFile() {oh = (XrdOfsHandle *)0; dorawio = 0;
-                      gettimeofday(&tod, 0);
-                     }
+                       XrdOfsFile() {oh = (XrdOfsHandle *)0; dorawio = 0;
+                                     gettimeofday(&tod, 0);
+                                    }
 
-       ~XrdOfsFile() {if (oh) close();}
+virtual               ~XrdOfsFile() {if (oh) close();}
 private:
 
        void         setCXinfo(XrdSfsFileOpenMode mode);
@@ -136,27 +136,15 @@ friend class XrdOfsFile;
 
 public:
 
-// File Functions
+// Object allocation
 //
-        XrdSfsFile *openFile(const char              *fileName,
-                                 XrdSfsFileOpenMode   openMode,
-                                 mode_t               createMode,
-                                 XrdOucErrInfo       &out_error,
-                           const XrdSecClientName    *client,
-                           const char                *opaque = 0);
+        XrdSfsDirectory *newDir()  
+                        {return (XrdSfsDirectory *)new XrdOfsDirectory;}
 
-// Directory Functions
-//
-        XrdSfsDirectory *openDir(const char            *directoryPath,
-                                     XrdOucErrInfo     &out_error,
-                               const XrdSecClientName  *client);
+        XrdSfsFile      *newFile() 
+                        {return      (XrdSfsFile *)new XrdOfsFile;}
 
-        int            mkdir(const char             *dirName,
-                                   XrdSfsMode        Mode,
-                                   XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client);
-
-// Other Functions
+// Other functions
 //
         int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
@@ -176,6 +164,11 @@ public:
         int            getStats(char *buff, int blen) {return 0;}
 
 const   char          *getVersion();
+
+        int            mkdir(const char             *dirName,
+                                   XrdSfsMode        Mode,
+                                   XrdOucErrInfo    &out_error,
+                             const XrdSecClientName *client);
 
         int            prepare(      XrdSfsPrep       &pargs,
                                      XrdOucErrInfo    &out_error,
@@ -215,7 +208,7 @@ const   char          *getVersion();
         int            Unopen(XrdOfsHandle *);
 
                        XrdOfs();
-                      ~XrdOfs() {}  // Too complicate to delete :-)
+virtual               ~XrdOfs() {}  // Too complicate to delete :-)
 
 /******************************************************************************/
 /*                  C o n f i g u r a t i o n   V a l u e s                   */
@@ -248,6 +241,7 @@ private:
   
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdOdcFinder     *Finder;         //    ->Distrib Cache   Service
+XrdOdcFinder     *Google;         //    ->Remote  Cache   Service
 XrdOdcFinderLCL  *Reporter;       //    ->Server Monitor  Reporter
 XrdOdcFinderTRG  *Balancer;       //    ->Server Balancer Interface
 
@@ -268,6 +262,7 @@ XrdOucPListAnchor VPlist_New; // Used during construction
         int   Close(XrdOfsHandle *);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    const char *y="");
+static  int   fsError(XrdOucErrInfo &myError, int rc);
         void  Detach_Name(const char *);
         int   remove(const char type, const char *path,
                      XrdOucErrInfo &out_error, const XrdSecClientName *client);

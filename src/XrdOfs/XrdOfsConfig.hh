@@ -42,12 +42,13 @@
 #define XrdOfsFDNOSHARE    0x0002
 
 #define XrdOfsREDIRLCL     0x0010
-#define XrdOfsREDIRRMT     0x0020
-#define XrdOfsREDIRTRG     0x0040
-#define XrdOfsREDIRECT     0x0070
+#define XrdOfsREDIROXY     0x0020
+#define XrdOfsREDIRRMT     0x0040
+#define XrdOfsREDIRTRG     0x0080
+#define XrdOfsREDIRECT     0x00F0
 
-#define XrdOfsFWDALL       0x0F80
-#define XrdOfsFWDCHMOD     0x0080
+#define XrdOfsFWDALL       0x1F00
+#define XrdOfsFWDCHMOD     0x1000
 #define XrdOfsFWDMKDIR     0x0100
 #define XrdOfsFWDMV        0x0200
 #define XrdOfsFWDRM        0x0400

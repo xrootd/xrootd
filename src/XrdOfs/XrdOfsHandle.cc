@@ -120,7 +120,7 @@ void XrdOfsHandleAnchor::Add2Open(XrdOfsHandle &item)
 XrdOfsHandle *XrdOfsHandleAnchor::Apply(XrdOucDLlist<XrdOfsHandle> &List,
                                        int (*func)(XrdOfsHandle *, void *),
                                        unsigned long a1, const char *a2)
-{struct XrdOfsHandle_Args args = {a1, a2};
+{struct XrdOfsHandle_Args args(a1, a2);
 
 // Lock the anchor, apply the function to all elements, unlock and exit
 //
@@ -158,7 +158,7 @@ XrdOfsHandle *XrdOfsHandleAnchor::Attach(const char *path)
 // handle from being deleted (link count can only be diddled w/ anchor locked).
 //
    Lock();
-   if (fh = fhtab.Find(path)) fh->links++;
+   if ((fh = fhtab.Find(path))) fh->links++;
    UnLock();
    return fh;
 }
@@ -249,7 +249,7 @@ int XrdOfsHandle_Match(XrdOfsHandle *oh, void *varg)
    handle actually exists since will be returning a pointer to it. If we can't
    lock it, then we pretend we didn't find it. Bad, but better than deadlock.
 */
-   struct XrdOfsHandle_Args *args = static_cast<XrdOfsHandle_Args *>(varg);
+   XrdOfsHandle_Args *args = static_cast<XrdOfsHandle_Args *>(varg);
 
 // Return if this node does not match (no lock needed for this test)
 //
@@ -271,7 +271,7 @@ int XrdOfsHandle_Zap(XrdOfsHandle *oh, void *varg)
    handle since this is an idempotent operation and the handle can't escape
    while we have the anchor locked.
 */
-   struct XrdOfsHandle_Args *args = static_cast<XrdOfsHandle_Args *>(varg);
+   XrdOfsHandle_Args *args = static_cast<XrdOfsHandle_Args *>(varg);
 
    if (args->hval == oh->Hash() && !strcmp(args->name,oh->Name())) oh->Zap();
    return 0;

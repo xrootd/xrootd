@@ -27,9 +27,13 @@
 /*                     X r d O f s H a n d l e _ A r g s                      */
 /******************************************************************************/
   
-struct XrdOfsHandle_Args
-      {const unsigned long hval;
-       const char         *name;
+class XrdOfsHandle_Args
+      {public:
+       unsigned long hval;
+       const char   *name;
+       XrdOfsHandle_Args(unsigned long a1, const char *a2)
+                        {hval = a1; name = a2;}
+      ~XrdOfsHandle_Args() {}
       };
 
 /******************************************************************************/
@@ -56,7 +60,7 @@ public:
 
 unsigned long       Hash() {return hash;}
 const char         *Name() {return name;}
-const unsigned long PHID() {return (const unsigned long)pathid;}
+unsigned long       PHID() {return pathid;}
 
 void                Lock() {mutex.Lock();}
 int             CondLock() {return mutex.CondLock();}

@@ -84,7 +84,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
   Output:   0 upon success or !0 otherwise.
 */
-   char *bp, *val, *var;
+   char *val, *var;
    int  i, cfgFD, retc, NoGo = 0;
    XrdOucStream Config(&Eroute);
 
@@ -118,7 +118,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
            // Now start reading records until eof.
            //
-           while( var = Config.GetFirstWord())
+           while((var = Config.GetFirstWord()))
                 {if (!strncmp(var, OFS_Prefix, OFS_PrefLen))
                     {var += OFS_PrefLen;
                      NoGo |= ConfigXeq(var, Config, Eroute);
@@ -127,7 +127,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
            // Now check if any errors occured during file i/o
            //
-           if (retc = Config.LastError() )
+           if ((retc = Config.LastError()))
            NoGo = Eroute.Emsg("Config", -retc, "reading config file",
                               ConfigFN);
            Config.Close();
@@ -146,12 +146,13 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
 // Check if redirection wanted
 //
-   if (val = getenv("XRDREDIRECT"))
+   if ((val = getenv("XRDREDIRECT")))
       {if (*val == 'R') {i = XrdOfsREDIRRMT; val = (char *)"remote";}
           else if (*val == 'B') {i = XrdOfsREDIRLCL; val = (char *)"local";}
                else i = 0;
       } else i = 0;
    if (getenv("XRDRETARGET")) i |= XrdOfsREDIRTRG;
+   if (getenv("XRDREDPROXY")) i |= XrdOfsREDIROXY;
    if (i)
       {if ((Options & (XrdOfsREDIRLCL | XrdOfsREDIRRMT))&& !(i & Options))
           Eroute.Emsg("Config", "Command line redirect options override config "
@@ -159,7 +160,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
        Options &= ~(XrdOfsREDIRLCL | XrdOfsREDIRRMT);
        Options |= i;
       }
-   if (Options & XrdOfsREDIRECT) NoGo |= ConfigRedir(Eroute);
+   if (Options & (XrdOfsREDIRECT | XrdOfsREDIROXY)) NoGo |= ConfigRedir(Eroute);
 
 // Turn off forwarding if we are not a remote redirector
 //
@@ -183,11 +184,13 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
   
 void XrdOfs::Config_Display(XrdOucError &Eroute)
 {
-     char buff[8192], fwbuff[256], *bp, *cloc, *rdt, *rdu;
+     char buff[8192], fwbuff[256], *bp, *cloc, *rdt, *rdu, *rdp;
 
           if (Options & XrdOfsREDIRLCL) rdt = (char *)"ofs.redirect local\n";
      else if (Options & XrdOfsREDIRRMT) rdt = (char *)"ofs.redirect remote\n";
      else                               rdt = (char *)"";
+          if (Options & XrdOfsREDIROXY) rdp = (char *)"ofs.redirect proxy\n";
+     else                               rdp = (char *)"";
           if (Options & XrdOfsREDIRTRG) rdu = (char *)"ofs.redirect target\n";
      else                               rdu = (char *)"";
 
@@ -209,12 +212,14 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
                                   "%s"
                                   "%s"
                                   "%s"
+                                  "%s"
                                   "ofs.fdscan     %d %d %d\n"
                                   "%s"
                                   "ofs.maxdelay   %d\n"
                                   "ofs.trace      %x",
               cloc, (Options * XrdOfsAUTHORIZE ? "ofs.authorize\n" : ""),
-              rdt, rdu, (Options & XrdOfsFDNOSHARE ? "ofs.fdnoshare\n" : ""),
+              rdp, rdt, rdu, 
+              (Options & XrdOfsFDNOSHARE ? "ofs.fdnoshare\n" : ""),
               FDOpenMax, FDMinIdle, FDMaxIdle, fwbuff, MaxDelay,
               OfsTrace.What);
      Eroute.Say(buff);
@@ -243,6 +248,14 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
       {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger());
        if (!Finder->Configure(ConfigFN))
           {delete Finder; Finder = 0; return 1;}
+      }
+
+// For proxy  redirection, we simply do a standard config
+//
+   if (Options & XrdOfsREDIROXY)
+      {Google=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(), 1);
+       if (!Google->Configure(ConfigFN))
+          {delete Google; Google = 0; return 1;}
       }
 
 // For local or target redirection we need to know the port number
@@ -329,8 +342,10 @@ int XrdOfs::isMe(XrdOucError &eDest, const char *item, char *hval)
     char *mval;
     int i, j, k, retc;
 
+    if (!strcmp(hval, HostName)) return 1;
+
     i = strlen(hval);
-    if (mval = index((const char *)hval, (int)'*'))
+    if ((mval = index((const char *)hval, (int)'*')))
        {*mval = '\0'; mval++; 
         k = strlen(HostName); j = strlen(mval);
         if (i > k || (i+j) > k
@@ -410,15 +425,15 @@ int XrdOfs::xfdscan(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOfs::xforward(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    static struct fwdopts { char * opname; int opval;} fwopts[] =
+    static struct fwdopts {const char *opname; int opval;} fwopts[] =
        {
-       (char *)"all",      XrdOfsFWDALL,
-       (char *)"chmod",    XrdOfsFWDCHMOD,
-       (char *)"mkdir",    XrdOfsFWDMKDIR,
-       (char *)"mv",       XrdOfsFWDMV,
-       (char *)"rm",       XrdOfsFWDREMOVE,
-       (char *)"rmdir",    XrdOfsFWDREMOVE,
-       (char *)"remove",   XrdOfsFWDREMOVE
+        {"all",      XrdOfsFWDALL},
+        {"chmod",    XrdOfsFWDCHMOD},
+        {"mkdir",    XrdOfsFWDMKDIR},
+        {"mv",       XrdOfsFWDMV},
+        {"rm",       XrdOfsFWDREMOVE},
+        {"rmdir",    XrdOfsFWDREMOVE},
+        {"remove",   XrdOfsFWDREMOVE}
        };
     int i, neg, fwval = 0, numopts = sizeof(fwopts)/sizeof(struct fwdopts);
     char *val;
@@ -427,7 +442,7 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdOucError &Eroute)
        {Eroute.Emsg("Config", "foward option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) fwval = 0;
-             else {if (neg = (val[0] == '-' && val[1])) val++;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
                    for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, fwopts[i].opname))
                            {if (neg) fwval &= ~fwopts[i].opval;
@@ -512,9 +527,11 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdOucError &Eroute)
 
 /* Function: xred
 
-   Purpose:  Parse directive: redirect [local|remote|target] [if] [ <hosts> ]
+   Purpose:  Parse directive: redirect [local|proxy|remote|target] 
+                                              [if] [ <hosts> ]
 
    Args:     local    - enables this server for dynamic port balancing
+             proxy    - enables this server for proxy   load balancing
              remote   - enables this server for dynamic load balancing
              target   - enables this server as a redirection target
              hosts    - list of hostnames for which this directive applies
@@ -527,14 +544,17 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
     char *val, *mode = (char *)"remote";
     int ropt = 0, topt = 0;
 
-    if (val = Config.GetWord())
-       {if (!strcmp("local", val)) {ropt = XrdOfsREDIRLCL; 
-                                    mode = (char *)"local";
-                                   }
-           else if (!strcmp("remote", val)) ropt = XrdOfsREDIRRMT;
-                   else if (!strcmp("target", val)) {topt = XrdOfsREDIRTRG;
-                                                     mode = (char *)"target";
-                                                    }
+    if ((val = Config.GetWord()))
+       {     if (!strcmp("local", val)) {ropt = XrdOfsREDIRLCL;
+                                         mode = (char *)"local";
+                                        }
+        else if (!strcmp("proxy",  val)) {ropt = XrdOfsREDIROXY;
+                                          mode = (char *)"proxy";
+                                         }
+        else if (!strcmp("remote", val)) ropt = XrdOfsREDIRRMT;
+        else if (!strcmp("target", val)) {topt = XrdOfsREDIRTRG;
+                                          mode = (char *)"target";
+                                         }
        }
 
     if (!ropt && !topt) ropt = XrdOfsREDIRRMT;
@@ -553,7 +573,10 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
                         }
              }
 
-    if (ropt) Options = (Options & ~(XrdOfsREDIRLCL | XrdOfsREDIRRMT)) | ropt;
+    if (ropt)
+       if (ropt & XrdOfsREDIRLCL)
+          Options = (Options & ~(XrdOfsREDIROXY | XrdOfsREDIRRMT)) | ropt;
+          else if (ropt) Options = (Options & ~(XrdOfsREDIRLCL))   | ropt;
     Options |= topt;
     return 0;
 }
@@ -574,33 +597,33 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOfs::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    static struct traceopts { char * opname; int opval;} tropts[] =
+    static struct traceopts {const char *opname; int opval;} tropts[] =
        {
-       (char *)"aio",      TRACE_aio,
-       (char *)"all",      TRACE_ALL,
-       (char *)"chmod",    TRACE_chmod,
-       (char *)"close",    TRACE_close,
-       (char *)"closedir", TRACE_closedir,
-       (char *)"debug",    TRACE_debug,
-       (char *)"delay",    TRACE_delay,
-       (char *)"dir",      TRACE_dir,
-       (char *)"exists",   TRACE_exists,
-       (char *)"getstats", TRACE_getstats,
-       (char *)"fsctl",    TRACE_fsctl,
-       (char *)"io",       TRACE_IO,
-       (char *)"mkdir",    TRACE_mkdir,
-       (char *)"most",     TRACE_MOST,
-       (char *)"open",     TRACE_open,
-       (char *)"opendir",  TRACE_opendir,
-       (char *)"qscan",    TRACE_qscan,
-       (char *)"read",     TRACE_read,
-       (char *)"readdir",  TRACE_readdir,
-       (char *)"redirect", TRACE_redirect,
-       (char *)"remove",   TRACE_remove,
-       (char *)"rename",   TRACE_rename,
-       (char *)"sync",     TRACE_sync,
-       (char *)"truncate", TRACE_truncate,
-       (char *)"write",    TRACE_write
+        {"aio",      TRACE_aio},
+        {"all",      TRACE_ALL},
+        {"chmod",    TRACE_chmod},
+        {"close",    TRACE_close},
+        {"closedir", TRACE_closedir},
+        {"debug",    TRACE_debug},
+        {"delay",    TRACE_delay},
+        {"dir",      TRACE_dir},
+        {"exists",   TRACE_exists},
+        {"getstats", TRACE_getstats},
+        {"fsctl",    TRACE_fsctl},
+        {"io",       TRACE_IO},
+        {"mkdir",    TRACE_mkdir},
+        {"most",     TRACE_MOST},
+        {"open",     TRACE_open},
+        {"opendir",  TRACE_opendir},
+        {"qscan",    TRACE_qscan},
+        {"read",     TRACE_read},
+        {"readdir",  TRACE_readdir},
+        {"redirect", TRACE_redirect},
+        {"remove",   TRACE_remove},
+        {"rename",   TRACE_rename},
+        {"sync",     TRACE_sync},
+        {"truncate", TRACE_truncate},
+        {"write",    TRACE_write}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
     char *val;
@@ -609,7 +632,7 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
        {Eroute.Emsg("Config", "trace option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) trval = 0;
-             else {if (neg = (val[0] == '-' && val[1])) val++;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
                    for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, tropts[i].opname))
                            {if (neg) trval &= ~tropts[i].opval;

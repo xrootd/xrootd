@@ -47,7 +47,7 @@
 // Trace flags
 //
 #define TRACE_MOST     0x3fcd
-#define TRACE_ALL      0x0fff
+#define TRACE_ALL      0xffff
 #define TRACE_opendir  0x0001
 #define TRACE_readdir  0x0002
 #define TRACE_closedir TRACE_opendir
