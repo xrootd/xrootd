@@ -185,8 +185,9 @@ int XrdOlbCache::DelFile(char *path, SMask_t mask, int dltime)
       {cinfo->rovec &= ~mask;
        cinfo->rwvec &= ~mask;
        cinfo->sbvec &= ~mask;
-       if (dltime > 0) cinfo->deadline = dltime + time(0);
        gone4good = (cinfo->rovec == 0);
+       if (dltime > 0) cinfo->deadline = dltime + time(0);
+          else if (gone4good) PTable.Del(path);
       } else gone4good = 0;
 
 // All done
