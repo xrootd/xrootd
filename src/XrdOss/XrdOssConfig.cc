@@ -645,8 +645,11 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
           strcpy(sfxdir, dp->d_name);
           if (stat((const char *)fn, &buff)) break;
           if (buff.st_mode & S_IFDIR)
+             {val = sfxdir + strlen(sfxdir) - 1;
+             if (*val++ != '/') {*val++ = '/'; *val = '\0';}
              if (xcacheBuild(grp, fn, Eroute)) cnum++;
                 else {closedir(DFD); return 1;}
+             }
           errno = 0;
          }
 

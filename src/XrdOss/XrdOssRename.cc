@@ -186,7 +186,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 
 // Make sure that the target name does not exist
 //
-   if (lstat(newlnk, &statbuff))
+   if (!lstat(newlnk, &statbuff))
       {OssEroute.Emsg("XrdOssRenameLink",-EEXIST,"check new target", newlnk);
        return -EEXIST;
       }
