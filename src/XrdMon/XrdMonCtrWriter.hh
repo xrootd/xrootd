@@ -37,9 +37,9 @@ public:
     void forceClose();
     long lastActivity() const { return _lastActivity; }
 
-    static void setBaseDir(const string dir) { _baseDir    = dir; }
-    static void setMaxLogSize(int64_t size)  { _maxLogSize = size;}
-    static void setBufferSize(int size)      { _bufferSize = size;}
+    static void setBaseDir(const char* dir) { _baseDir    = dir; }
+    static void setMaxLogSize(int64_t size) { _maxLogSize = size;}
+    static void setBufferSize(int size)     { _bufferSize = size;}
     
 private:
     enum LogType { ACTIVE, PERMANENT };

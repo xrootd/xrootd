@@ -19,19 +19,33 @@
 #include "XrdMon/XrdMonCtrPacket.hh"
 #include "XrdMon/XrdMonCtrSenderInfo.hh"
 #include "XrdMon/XrdMonCtrWriter.hh"
+#include "XrdMon/XrdMonDecPacketDecoder.hh"
 #include <sys/time.h>
 
 #include <iostream>
 using std::cout;
 using std::endl;
 
-XrdMonCtrArchiver::XrdMonCtrArchiver()
-    : _currentTime(0),
+XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir, 
+                                     const char* dBaseDir,
+                                     int64_t maxLogSize)
+    : _decoder(0), 
+      _currentTime(0),
       _heartbeat(1) // force taking timestamp first time
-{}
+{
+    XrdMonCtrWriter::setBaseDir(cBaseDir);
+    XrdMonCtrWriter::setMaxLogSize(maxLogSize);
+
+    if ( 1 ) { // FIXME: turning on/off decoder should be configurable
+        const string path("pathToOutput");
+        _decoder = new XrdMonDecPacketDecoder(dBaseDir);
+    }
+}
 
 XrdMonCtrArchiver::~XrdMonCtrArchiver()
 {
+    delete _decoder;
+    
     // go through all writers and shut them down
     int i, s = _writers.size();
     for (i=0 ; i<s ; i++) {
@@ -94,8 +108,12 @@ XrdMonCtrArchiver::archivePacket(XrdMonCtrPacket* p)
         return;
     }
 
-    uint16_t senderId = XrdMonCtrSenderInfo::convert2Id(p->sender);    
+    uint16_t senderId = XrdMonCtrSenderInfo::convert2Id(p->sender);
 
+    if ( 0 != _decoder ) {
+        _decoder->operator()(senderId, header, p->buf);
+    }
+    
     if ( _writers.size() <= senderId ) {
         _writers.push_back(
             new XrdMonCtrWriter(XrdMonCtrSenderInfo::hostPort(senderId)));

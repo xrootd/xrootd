@@ -1,14 +1,14 @@
 #              $Id$
 
-#------------------------------------------------------------------------------#
-#                       C o m m o n   V a r i a b l e s                        #
-#------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------#
+#                       C o m m o n   V a r i a b l e s                       #
+#-----------------------------------------------------------------------------#
   
 include ../GNUmake.env
 
-#------------------------------------------------------------------------------#
-#                             C o m p o n e n t s                              #
-#------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------#
+#                             C o m p o n e n t s                             #
+#-----------------------------------------------------------------------------#
   
 OBJECTS_LIB_COMMON =                          \
         $(OBJDIR)/XrdMonAPException.o         \
@@ -24,6 +24,13 @@ OBJECTS_LIB_CTR =                             \
 	$(OBJDIR)/XrdMonCtrCollector.o        \
 	$(OBJDIR)/XrdMonCtrSenderInfo.o       \
 	$(OBJDIR)/XrdMonCtrWriter.o
+
+OBJECTS_LIB_DEC =                             \
+        $(OBJDIR)/XrdMonDecDictInfo.o         \
+        $(OBJDIR)/XrdMonDecPacketDecoder.o    \
+        $(OBJDIR)/XrdMonDecSink.o             \
+	$(OBJDIR)/XrdMonDecTraceInfo.o
+
 
 OBJECTS_LIB_SND =                             \
 	$(OBJDIR)/XrdMonSndCoder.o            \
@@ -48,10 +55,12 @@ OBJECTS_BIN_SND =                             \
 LIBRARY_OUC    = $(LIBDIR)/libXrdOuc.a
 
 LIBRARY_COMMON = $(LIBDIR)/libXrdMonCommon.a
+LIBRARY_DEC    = $(LIBDIR)/libXrdMonDecoder.a
 LIBRARY_CTR    = $(LIBDIR)/libXrdMonCollector.a
 LIBRARY_SND    = $(LIBDIR)/libXrdMonDummySender.a
 
-LIBRARIES      = $(LIBRARY_COMMON) $(LIBRARY_CTR) $(LIBRARY_SND) 
+LIBRARIES      = $(LIBRARY_COMMON) $(LIBRARY_CTR) \
+                 $(LIBRARY_DEC) $(LIBRARY_SND) 
 
 COLLECTOR      = $(BINDIR)/xrdmoncollector
 SENDER         = $(BINDIR)/xrdmondummysender
@@ -89,7 +98,7 @@ $(LIBRARY_COMMON): $(OBJECTS_LIB_COMMON)
 		ranlib $(LIBRARY_COMMON); \
 	fi
 
-$(LIBRARY_CTR): $(OBJECTS_LIB_CTR)
+$(LIBRARY_CTR):	$(OBJECTS_LIB_CTR)
 	@echo Creating archive $(LIBRARY_CTR) 
 	@rm -f $(LIBRARY_CTR)
 	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
@@ -97,6 +106,16 @@ $(LIBRARY_CTR): $(OBJECTS_LIB_CTR)
 	else \
 		ar -rc $(LIBRARY_CTR) $(OBJECTS_LIB_CTR); \
 		ranlib $(LIBRARY_CTR); \
+	fi
+
+$(LIBRARY_DEC):	$(OBJECTS_LIB_DEC)
+	@echo Creating archive $(LIBRARY_DEC) 
+	@rm -f $(LIBRARY_DEC)
+	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+		$(CC) -xar -o $(LIBRARY_DEC) $(OBJECTS_LIB_DEC); \
+	else \
+		ar -rc $(LIBRARY_DEC) $(OBJECTS_LIB_DEC); \
+		ranlib $(LIBRARY_DEC); \
 	fi
 
 $(LIBRARY_SND): $(OBJECTS_LIB_SND)
@@ -109,7 +128,8 @@ $(LIBRARY_SND): $(OBJECTS_LIB_SND)
 		ranlib $(LIBRARY_SND); \
 	fi
 
-$(COLLECTOR):	$(OBJECTS_BIN_CTR) $(LIBRARY_CTR) $(LIBRARY_OUC) $(LIBRARY_COMMON) 
+$(COLLECTOR):	$(OBJECTS_BIN_CTR) $(LIBRARY_CTR) $(LIBRARY_OUC) \
+	$(LIBRARY_DEC) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 

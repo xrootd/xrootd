@@ -19,6 +19,7 @@ using std::vector;
 
 class XrdMonCtrPacket;
 class XrdMonCtrWriter;
+class XrdMonDecPacketDecoder;
 
 // Class responsible for archiving packets in log files.
 // Manages heartbeat for writers (writers inactive for 24 hours
@@ -26,7 +27,9 @@ class XrdMonCtrWriter;
 
 class XrdMonCtrArchiver {
 public:
-    XrdMonCtrArchiver();
+    XrdMonCtrArchiver(const char* cBaseDir, 
+                      const char* dBaseDir,
+                      int64_t maxFileSize);
     ~XrdMonCtrArchiver();
     void operator()();
 
@@ -39,6 +42,8 @@ private:
     };
     
     vector<XrdMonCtrWriter*> _writers;
+
+    XrdMonDecPacketDecoder* _decoder;
 
     long _currentTime;
     int  _heartbeat; // number of packets since the last time check

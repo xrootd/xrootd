@@ -32,5 +32,24 @@ const err_t ERR_SENDERNOTREG    = 1006;
 
 const err_t SIG_SHUTDOWNNOW     = 1999;
 
+// Decoder. Range: 2000-2999
+const err_t ERR_INVDICTSTRING   = 2001;
+const err_t ERR_INVALIDINFOTYPE = 2003;
+const err_t ERR_NEGATIVEOFFSET  = 2004;
+const err_t ERR_DICTIDINCACHE   = 2005;
+const err_t ERR_NODICTIDINCACHE = 2006;
+const err_t ERR_OUTOFMEMORY     = 2007;
+const err_t ERR_FILENOTCLOSED   = 2009;
+const err_t ERR_FILENOTOPEN     = 2010;
+const err_t ERR_FILEOPEN        = 2011;
+const err_t ERR_PUBLISHFAILED   = 2012;
+const err_t ERR_INVALIDTIME     = 2013;
+const err_t ERR_NOTATIMEWINDOW  = 2014;
+const err_t ERR_INVALIDFNAME    = 2015;
+const err_t ERR_CANNOTOPENFILE  = 2016;
+const err_t ERR_INTERNALERR     = 2017;
+const err_t ERR_INVALIDSEQNO    = 2018;
+const err_t ERR_TOOMANYLOST     = 2019;
+
 
 #endif /* XRDMONERRORS_HH */
