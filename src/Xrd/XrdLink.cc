@@ -521,8 +521,9 @@ int XrdLink::Setup(int maxfds, int idlewait)
 //
    if (!(ichk = idlewait/3)) {iticks = 1; ichk = idlewait;}
       else iticks = 3;
-   XrdLinkScan *ls = new XrdLinkScan(ichk, iticks);
-   XrdSched.Schedule((XrdJob *)ls, ichk+time(0));
+// Disable idle link scanning until this gets fixed
+// XrdLinkScan *ls = new XrdLinkScan(ichk, iticks);
+// XrdSched.Schedule((XrdJob *)ls, ichk+time(0));
 
    return 1;
 }
