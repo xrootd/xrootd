@@ -103,6 +103,7 @@ CREATE INDEX paths_skimId_index     USING BTREE ON paths(skimId);
 
 
 CREATE TABLE IF NOT EXISTS rtHour (
+  seqNo         TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   min           DATETIME,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
@@ -113,6 +114,7 @@ CREATE INDEX rtHour_min_index      USING BTREE ON rtHour(min);
 
 
 CREATE TABLE IF NOT EXISTS rtDay (
+  seqNo         TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   hour          DATE,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
@@ -131,6 +133,7 @@ CREATE INDEX rtDay_hour_index      USING BTREE ON rtDay(hour);
 
 
 CREATE TABLE IF NOT EXISTS rtMonth (
+  seqNo         TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   day           DATE,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
@@ -149,6 +152,7 @@ CREATE INDEX rtMonth_day_index     USING BTREE ON rtMonth(day);
 
 
 CREATE TABLE IF NOT EXISTS rtYear (
+  seqNo         TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   month         DATE,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
