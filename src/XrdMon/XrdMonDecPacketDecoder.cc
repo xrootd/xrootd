@@ -82,7 +82,7 @@ void
 XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
 {
     // decode first packet - time window
-    if ( *packet != XROOTD_MON_WINDOW ) {
+    if ( static_cast<kXR_char>(*packet) != XROOTD_MON_WINDOW ) {
         stringstream se(stringstream::out);
         se << "Expected time window packet (1st packet), got " << (int) *packet;
         throw XrdMonException(ERR_NOTATIMEWINDOW, se.str());
@@ -102,7 +102,7 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
         CalcTime ct = prepareTimestamp(packet, offset, len, begTime);
         int elemNo = 0;
         while ( offset<ct.endOffset ) {
-            char infoType = *(packet+offset);
+            kXR_char infoType = static_cast<kXR_char>(*(packet+offset));
             time_t timestamp = begTime + (time_t) (elemNo++ * ct.timePerTrace);
             if ( !(infoType & XROOTD_MON_RWREQUESTMASK) ) {
                 decodeRWRequest(packet+offset, timestamp);
@@ -213,7 +213,7 @@ XrdMonDecPacketDecoder::prepareTimestamp(const char* packet,
     // look for time window
     int x = offset;
     int noElems = 0;
-    while ( *(packet+x) != XROOTD_MON_WINDOW ) {
+    while ( static_cast<kXR_char>(*(packet+x)) != XROOTD_MON_WINDOW ) {
         if ( x >= len ) {
             throw XrdMonException(ERR_NOTATIMEWINDOW, 
                               "Expected time window packet (last packet)");
