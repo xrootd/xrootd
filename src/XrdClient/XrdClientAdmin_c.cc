@@ -274,6 +274,12 @@ extern "C" {
 
    }
 
+   bool XrdStat(const char *fname, long *id, long long *size, long *flags, long *modtime) {
+      if (!adminst) return false;
+      
+      return (adminst->Stat(fname, *id, *size, *flags, *modtime));
+
+   }
 
 } // extern c
 

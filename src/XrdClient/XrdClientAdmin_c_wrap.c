@@ -823,7 +823,9 @@ static void _swig_create_magic(CPerlObj *pPerl, SV *sv, const char *name, int (C
 
 /* -------- TYPES TABLE (BEGIN) -------- */
 
-static swig_type_info *swig_types[1];
+#define  SWIGTYPE_p_long_long swig_types[0] 
+#define  SWIGTYPE_p_long swig_types[1] 
+static swig_type_info *swig_types[3];
 
 /* -------- TYPES TABLE (END) -------- */
 
@@ -1248,11 +1250,85 @@ XS(_wrap_XrdGetChecksum) {
 }
 
 
+XS(_wrap_XrdStat) {
+    {
+        char *arg1 ;
+        long *arg2 = (long *) 0 ;
+        long long *arg3 = (long long *) 0 ;
+        long *arg4 = (long *) 0 ;
+        long *arg5 = (long *) 0 ;
+        bool result;
+        long temp2 ;
+        long long temp3 ;
+        long temp4 ;
+        long temp5 ;
+        int argvi = 0;
+        dXSARGS;
+        
+        arg2 = &temp2;
+        arg3 = &temp3;
+        arg4 = &temp4;
+        arg5 = &temp5;
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: XrdStat(fname);");
+        }
+        if (!SvOK((SV*) ST(0))) arg1 = 0;
+        else arg1 = (char *) SvPV(ST(0), PL_na);
+        result = (bool)XrdStat((char const *)arg1,arg2,arg3,arg4,arg5);
+        
+        ST(argvi) = sv_newmortal();
+        sv_setiv(ST(argvi++), (IV) result);
+        {
+            if (argvi >= items) {
+                EXTEND(sp,1);
+            }
+            ST(argvi) = sv_newmortal();
+            sv_setiv(ST(argvi),(IV) *(arg2));
+            argvi++;
+        }
+        {
+            char temp[256];
+            if (argvi >= items) {
+                EXTEND(sp,1);
+            }
+            sprintf(temp,"%lld", *(arg3));
+            ST(argvi) = sv_newmortal();
+            sv_setpv(ST(argvi),temp);
+            argvi++;
+        }
+        {
+            if (argvi >= items) {
+                EXTEND(sp,1);
+            }
+            ST(argvi) = sv_newmortal();
+            sv_setiv(ST(argvi),(IV) *(arg4));
+            argvi++;
+        }
+        {
+            if (argvi >= items) {
+                EXTEND(sp,1);
+            }
+            ST(argvi) = sv_newmortal();
+            sv_setiv(ST(argvi),(IV) *(arg5));
+            argvi++;
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
+static swig_type_info _swigt__p_long_long[] = {{"_p_long_long", 0, "long long *", 0, 0, 0, 0},{"_p_long_long", 0, 0, 0, 0, 0, 0},{0, 0, 0, 0, 0, 0, 0}};
+static swig_type_info _swigt__p_long[] = {{"_p_long", 0, "long *", 0, 0, 0, 0},{"_p_long", 0, 0, 0, 0, 0, 0},{0, 0, 0, 0, 0, 0, 0}};
 
 static swig_type_info *swig_types_initial[] = {
+_swigt__p_long_long, 
+_swigt__p_long, 
 0
 };
 
@@ -1283,6 +1359,7 @@ static swig_command_info swig_commands[] = {
 {"XrdClientAdminc::XrdPrepare", _wrap_XrdPrepare},
 {"XrdClientAdminc::XrdDirList", _wrap_XrdDirList},
 {"XrdClientAdminc::XrdGetChecksum", _wrap_XrdGetChecksum},
+{"XrdClientAdminc::XrdStat", _wrap_XrdStat},
 {0,0}
 };
 

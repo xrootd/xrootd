@@ -3,8 +3,12 @@
 #  $Id$
 
 use XrdClientAdmin;
-XrdClientAdmin::XrdInitialize("root://bbrprod01.slac.stanford.edu/dummy", 1);
+XrdClientAdmin::XrdInitialize("root://localhost/dummy", 2);
 
+
+$par = "/tmp/vmware.zip";
+@ans = XrdClientAdmin::XrdStat($par);
+print "\nThe answer of XrdClientAdmin::Stat($par) is: \"$ans[1]\"-\"$ans[2]\"-\"$ans[3]\"-\"$ans[4]\" \n\n\n";
 
 $par = "/prod\n/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root\n/tmp";
 $ans = XrdClientAdmin::XrdSysStatX($par);

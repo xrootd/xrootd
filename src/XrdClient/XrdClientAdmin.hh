@@ -42,7 +42,7 @@ class XrdClientAdmin : public XrdClientAbs {
 
    // Some administration functions, see the protocol specs for details
    bool SysStatX(const char *paths_list, kXR_char *binInfo);
-   int Stat(char *fname, long &id, long &size, long &flags, long &modtime);
+   bool Stat(const char *fname, long &id, long long &size, long &flags, long &modtime);
 
    bool DirList(const char *dir, vecString &);
    bool ExistFiles(vecString&, vecBool&);

@@ -229,7 +229,7 @@ bool XrdClientAdmin::Connect() {
 
 
 //_____________________________________________________________________________
-int XrdClientAdmin::Stat(char *fname, long &id, long &size, long &flags, long &modtime)
+bool XrdClientAdmin::Stat(const char *fname, long &id, long long &size, long &flags, long &modtime)
 {
    // Return file stat information. The interface and return value is
    // identical to TSystem::GetPathInfo().
@@ -264,7 +264,7 @@ int XrdClientAdmin::Stat(char *fname, long &id, long &size, long &flags, long &m
    if (ok) {
       Info(XrdClientDebug::kHIDEBUG,
 	   "Stat", "Returned stats=" << fStats);
-      sscanf(fStats, "%ld %ld %ld %ld", &id, &size, &flags, &modtime);
+      sscanf(fStats, "%ld %lld %ld %ld", &id, &size, &flags, &modtime);
    }
 
    return ok;

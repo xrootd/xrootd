@@ -12,6 +12,7 @@
 
 #ifdef SWIG
 %module XrdClientAdmin
+%include typemaps.i                       // Load the typemaps librayr
 
  // This tells SWIG to treat an char * argument with name res as
  // an output value.  
@@ -29,6 +30,13 @@
 }
 
 %apply char *OUTPUT { char *ans };
+
+// For the stat function to return an array containing the
+// various fields of the answer
+%apply long *OUTPUT {long *id};   // Make "result" an output parameter
+%apply long long *OUTPUT {long long *size};   // Make "result" an output parameter
+%apply long *OUTPUT {long *flags};   // Make "result" an output parameter
+%apply long *OUTPUT {long *modtime};   // Make "result" an output parameter
 
 %{
 #include "XrdClient/XrdClientAdmin_c.hh"
@@ -59,4 +67,6 @@ extern "C" {
    bool XrdPrepare(const char *filepaths, unsigned char opts, unsigned char prty);
    char *XrdDirList(const char *dir);
    char *XrdGetChecksum(const char *path);
+
+   bool XrdStat(const char *fname, long *id, long long *size, long *flags, long *modtime);
 }

@@ -221,7 +221,8 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url) {
 int XrdCpWorkLst::BuildWorkList_xrd(XrdClientString url) {
    vecString entries;
    int it;
-   long id, size, flags, modtime;
+   long id, flags, modtime;
+   long long size;
    XrdClientString fullpath;
    XrdClientUrlInfo u(url);
 
