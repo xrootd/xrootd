@@ -111,7 +111,7 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
     time_t begTime = t.second;
     int offset = TRACELEN;
 
-    cout << "Decoded time (first) " << t.first << " " << t.second << endl;
+    //cout << "Decoded time (first) " << t.first << " " << t.second << endl;
     
     while ( offset < len ) {
         CalcTime ct = prepareTimestamp(packet, offset, len, begTime);
@@ -211,9 +211,6 @@ XrdMonDecPacketDecoder::decodeOpen(const char* packet, time_t timestamp)
            sizeof(kXR_int32));
     dictId = ntohl(dictId);
 
-    cout << "decoded open dictid " << dictId << ", timestamp " 
-         << timestamp << endl;
-    
     _sink.openFile(dictId, timestamp);
 }
 
