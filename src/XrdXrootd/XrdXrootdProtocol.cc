@@ -461,7 +461,7 @@ int XrdXrootdProtocol::getData(const char *dtype, char *buff, int blen)
 //
    rlen = Link->Recv(buff, blen, readWait);
    if (rlen  < 0)
-      {ABANDON(Link,"link read error"); return -1;}
+      {ABANDON(Link,(rlen == -ENOMSG ? 0 : "link read error")); return -1;}
    if (rlen < blen)
       {myBuff = buff+rlen; myBlen = blen-rlen;
        TRACEP(REQ, dtype <<" timeout; read " <<rlen <<" of " <<blen <<" bytes");
@@ -483,6 +483,7 @@ void XrdXrootdProtocol::Reset()
    Resume             = 0;
    myBuff             = (char *)&Request;
    myBlen             = sizeof(Request);
+   myBlast            = 0;
    myOffset           = 0;
    myIOLen            = 0;
    numReads           = 0;

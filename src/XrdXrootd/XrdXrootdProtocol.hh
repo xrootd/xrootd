@@ -111,6 +111,7 @@ private:
        int   do_Sync();
        int   do_Write();
        int   do_WriteAll();
+       int   do_WriteCont();
        int   do_WriteNone();
 
        void  Assign(const XrdXrootdProtocol &rhs);
@@ -199,6 +200,7 @@ char                       Status;
 //
 char                      *myBuff;
 int                        myBlen;
+int                        myBlast;
 int                       (XrdXrootdProtocol::*Resume)();
 XrdXrootdFile             *myFile;
 long long                  myOffset;

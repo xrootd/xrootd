@@ -1160,7 +1160,10 @@ int XrdXrootdProtocol::do_WriteAll()
 //
    while(myIOLen > 0)
         {if ((rc = getData("data", argp->buff, Quantum)))
-            {if (rc > 0) Resume = &XrdXrootdProtocol::do_WriteAll;
+            {if (rc > 0) 
+                {Resume = &XrdXrootdProtocol::do_WriteCont;
+                 myBlast = Quantum;
+                }
              return rc;
             }
          if (myFile->XrdSfsp->write(myOffset, argp->buff, Quantum) < 0)
@@ -1178,6 +1181,34 @@ int XrdXrootdProtocol::do_WriteAll()
    return Response.Send();
 }
 
+/******************************************************************************/
+/*                          d o _ W r i t e C o n t                           */
+/******************************************************************************/
+
+// myFile   = file to be written
+// myOffset = Offset at which to write
+// myIOLen  = Number of bytes to read from socket and write to file
+// myBlast  = Number of bytes already read from the socket
+  
+int XrdXrootdProtocol::do_WriteCont()
+{
+
+// Write data that was finaly finished comming in
+//
+   if (myFile->XrdSfsp->write(myOffset, argp->buff, myBlast) < 0)
+      {myIOLen  = myIOLen-myBlast;
+       myBlen   = 0;
+       Resume   = &XrdXrootdProtocol::do_WriteNone;
+       return 1;
+      }
+    myOffset += myBlast; myIOLen -= myBlast;
+
+// See if we need to finish this request in the normal way
+//
+   if (myIOLen > 0) return do_WriteAll();
+   return Response.Send();
+}
+  
 /******************************************************************************/
 /*                          d o _ W r i t e N o n e                           */
 /******************************************************************************/
