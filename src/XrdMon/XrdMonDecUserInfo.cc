@@ -75,12 +75,8 @@ XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
     //kXR_int16 fd = atoi(buf);
 
     x2 += x1+1;
-    x1 = doOne(s+x2, buf, len-x2, '\0');
-    if ( x1 == -1 ) {
-        delete [] buf;
-        string es("Cannot find "); es+='\n'; es+=" in "; es+=s;
-        throw XrdMonException(ERR_INVDICTSTRING, es);
-    }
+    memcpy(buf, s+x2, len-x2);
+    *(buf+len-x2) = '\0';
     _host = buf;
 
     delete [] buf;

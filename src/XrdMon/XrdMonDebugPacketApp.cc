@@ -12,6 +12,7 @@
 
 #include "XrdMon/XrdMonDecArgParser.hh"
 #include "XrdMon/XrdMonDecDictInfo.hh"
+#include "XrdMon/XrdMonDecUserInfo.hh"
 #include "XrdMon/XrdMonHeader.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
@@ -150,6 +151,20 @@ debugDictPacket(const char* packet, int len)
 }
 
 void
+debugUserPacket(const char* packet, int len)
+{
+    kXR_int32 x32;
+    memcpy(&x32, packet, sizeof(kXR_int32));
+    dictid_t dictId = ntohl(x32);
+    
+    XrdMonDecUserInfo du(dictId, -1, 
+                         packet+sizeof(kXR_int32), 
+                         len-sizeof(kXR_int32));
+    cout << "offset " << setw(5) << HDRLEN
+         << " --> " << du << endl;
+}
+
+void
 debugTracePacket(const char* packet, int len)
 {
     if ( static_cast<kXR_char>(*packet) != XROOTD_MON_WINDOW ) {
@@ -228,15 +243,16 @@ int main(int argc, char* argv[])
     char packet[MAXPACKETSIZE];
     _file.read(packet, len);
 
-    if ( header.packetType() == PACKET_TYPE_TRACE ) {
-        debugTracePacket(packet, len);
-    } else if ( header.packetType() == PACKET_TYPE_DICT ) {
-        debugDictPacket(packet, len);
-    } else {
-        cerr << "Invalid packet type " << header.packetType() << endl;
-        return 1;
+    switch (header.packetType() ) {
+        case PACKET_TYPE_TRACE: { debugTracePacket(packet, len); break; }
+        case PACKET_TYPE_DICT:  { debugDictPacket(packet, len);  break; }
+        case PACKET_TYPE_USER:  { debugUserPacket(packet, len);  break; }
+        default: {
+            cerr << "Invalid packet type " << header.packetType() << endl;
+            return 1;
+        }
     }
-
+    
     _file.close();
     
     return 0;
