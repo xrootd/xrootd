@@ -80,7 +80,6 @@ closeFiles(XrdMonSndDummyXrootd& xrootd,
     if ( justOne ) {
         int32_t id = xrootd.closeOneFile();
         closedFiles.push_back(id);
-        cout << "closing file, id " << id << endl;
     } else {
         xrootd.closeFiles(closedFiles);
     }

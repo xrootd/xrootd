@@ -22,11 +22,13 @@
 #include "XrdOuc/XrdOucPlatform.hh"
 #include <iostream>
 #include <netinet/in.h>
+#include <utility> // for pair
 #include <vector>
 using std::cerr;
 using std::cout;
 using std::endl;
 using std::string;
+using std::pair;
 using std::vector;
 
 // The class responsible for coding data into a binary packet
@@ -47,6 +49,7 @@ public:
 private:
     char* writeHere() { return _packet.offset(_putOffset); }
     int reinitXrdMonSndPacket(packetlen_t newSize, char packetCode);
+    pair<char, uint32_t> generateBigNumber(const char* descr);
     
     inline void add_int08_t(int8_t value) {
         memcpy(writeHere(), &value, sizeof(int8_t));
@@ -83,6 +86,15 @@ private:
         }
         _putOffset += sizeof(int32_t);
     }
+    inline void add_uint32_t(uint32_t value) {
+        uint32_t v = htonl(value);
+        memcpy(writeHere(), &v, sizeof(uint32_t));
+        if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
+            cout << "stored uint32_t value " << value 
+                 << ", _putOffset " << _putOffset << endl;
+        }
+        _putOffset += sizeof(uint32_t);
+    }
     inline void add_int64_t(int64_t value) {
         int64_t v = htonll(value);
         memcpy(writeHere(), &v, sizeof(int64_t));
@@ -92,7 +104,8 @@ private:
         }
         _putOffset += sizeof(int64_t);
     }
-    inline void add_Mark(char mark) {
+    inline void add_Mark(char mark, int noChars=8) {
+        assert(noChars<=8);
         char x[8];
         memset(x, 0, 8);
         x[0] = mark;
@@ -102,7 +115,7 @@ private:
                  << ", _putOffset " << _putOffset << endl;
         }
 
-        _putOffset += 8;
+        _putOffset += noChars;
     }
     inline void add_string(const string& s) {
         int16_t sLen = s.size();

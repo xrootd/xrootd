@@ -112,6 +112,24 @@ XrdMonSndCoder::prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector)
     return 0;
 }
 
+
+pair<char, uint32_t>
+XrdMonSndCoder::generateBigNumber(const char* descr)
+{
+    int64_t xOrg = 1000000000000 + rand();
+    char nuToShift = 0;
+    int64_t x = xOrg;
+    while ( x > 4294967296 ) {
+        ++nuToShift;
+        x = x >> 1;
+    }
+    cout << "Want to send #" << descr << " " << xOrg
+         << ", sending " << x << " noShifted " 
+         << (int) nuToShift << endl;
+
+    return pair<char, uint32_t>(nuToShift, static_cast<uint32_t>(x));
+}
+
 int 
 XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
 {
@@ -141,11 +159,32 @@ XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
     }
 
     for (int16_t i=0 ; i<noElems-2 ; i++ ) {
-        add_Mark(XROOTD_MON_CLOSE);
-        add_int32_t(0);
+        static int largeNr = 0; // from time to time need to send very large nr
+        uint32_t rT, wT;
+        if ( ++ largeNr % 11 == 10 ) {
+            // generate # bytes read/writen (larger than 2^32, shifted)
+            pair<char, uint32_t> bigR = generateBigNumber("read");
+            pair<char, uint32_t> bigW = generateBigNumber("write");
+
+            add_Mark(XROOTD_MON_CLOSE, 1);
+            add_Mark(bigR.first, 1);
+            add_Mark(bigW.first, 2);
+            rT = bigR.second;
+            wT = bigW.second;
+        } else {
+            // generate # bytes read/writen (smaller than 2^32)
+            rT = (uint32_t) rand();
+            wT = (uint32_t) rand() / 512;
+
+            add_Mark(XROOTD_MON_CLOSE, 4);
+        }
+        add_uint32_t(rT);
+        add_uint32_t(wT);
         add_int32_t(vector[i]);
         ++_noClose;
-        cout << "closing file, dictid " << vector[i] << endl;
+        cout << "closing file, dictid " << vector[i] 
+             << ", r=" << rT
+             << ", w=" << wT << endl;
     }
     add_Mark(XROOTD_MON_WINDOW);
     add_int32_t(curTime); // prev window ended
