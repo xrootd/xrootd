@@ -841,12 +841,12 @@ fi
 #
 hasdevpoll=""
 message "Checking for /dev/poll support"
-case "$osys:$rele" in
-  sunos:6*)       hasdevpoll="-D_DEVPOLL" ; echo "yes" ;;
-  sunos:5.8)      hasdevpoll="-D_DEVPOLL" ; echo "yes" ;;
-  sunos:5.9)      hasdevpoll="-D_DEVPOLL" ; echo "yes" ;;
-  *)                                        echo "no"  ;;
-esac
+if test -f /usr/include/sys/devpoll.h -a  -c /dev/poll ; then
+   echo "yes"
+   hasdevpoll="-D_DEVPOLL"
+else
+   echo "no"
+fi
 
 ######################################################################
 #
