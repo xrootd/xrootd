@@ -28,17 +28,20 @@ using std::endl;
 
 XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir, 
                                      const char* dBaseDir,
-                                     kXR_int64 maxLogSize)
+                                     const char* rtLogDir,
+                                     kXR_int64 maxLogSize,
+                                     bool rtDec)
     : _decoder(0), 
       _currentTime(0),
-      _heartbeat(1) // force taking timestamp first time
+      _heartbeat(1), // force taking timestamp first time
+      _rtDec(rtDec)
 {
     XrdMonCtrWriter::setBaseDir(cBaseDir);
     XrdMonCtrWriter::setMaxLogSize(maxLogSize);
 
-    if ( 1 ) { // FIXME: turning on/off decoder should be configurable
+    if ( rtDec ) {
         const string path("pathToOutput");
-        _decoder = new XrdMonDecPacketDecoder(dBaseDir);
+        _decoder = new XrdMonDecPacketDecoder(dBaseDir, rtLogDir);
     }
 }
 

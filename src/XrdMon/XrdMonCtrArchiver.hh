@@ -29,7 +29,9 @@ class XrdMonCtrArchiver {
 public:
     XrdMonCtrArchiver(const char* cBaseDir, 
                       const char* dBaseDir,
-                      kXR_int64 maxFileSize);
+                      const char* rtLogDir,
+                      kXR_int64 maxFileSize,
+                      bool rtDec);
     ~XrdMonCtrArchiver();
     void operator()();
 
@@ -47,6 +49,8 @@ private:
 
     long _currentTime;
     int  _heartbeat; // number of packets since the last time check
+
+    bool _rtDec;
 };
 
 #endif /*  XRDMONCTRARCHIVER_HH */

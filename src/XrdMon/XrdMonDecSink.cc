@@ -32,6 +32,7 @@ using std::setfill;
 using std::stringstream;
 
 XrdMonDecSink::XrdMonDecSink(const char* baseDir,
+                             const char* rtLogDir,
                              bool saveTraces,
                              int maxTraceLogSize)
     : _saveTraces(saveTraces),
@@ -72,6 +73,12 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     }
 
     loadUniqueIdAndSeq();
+
+    if ( 0 != rtLogDir ) {
+        string rtLogName(rtLogDir);
+        rtLogName += "/realTimeLogging.txt";
+        _rtLogFile.open(rtLogName.c_str(), ios::out|ios::ate);
+    }
 }
 
 XrdMonDecSink::~XrdMonDecSink()
@@ -91,7 +98,9 @@ XrdMonDecSink::~XrdMonDecSink()
         }    
         cout << endl;
     }
-
+    if ( _rtLogFile.is_open() ) {
+        _rtLogFile.close();
+    }
 }
 
 void 
@@ -141,7 +150,7 @@ XrdMonDecSink::add(dictid_t xrdId, const char* theString, int len)
     cout << "Added dictInfo to sink: " << *di << endl;
 
     // FIXME: remove this line when xrootd supports openFile
-    //struct timeval tv; gettimeofday(&tv, 0); dinst->openFile(tv.tv_sec-8640000);
+    // struct timeval tv; gettimeofday(&tv, 0); openFile(xrdId, tv.tv_sec-8640000);
 }
 
 void
@@ -185,6 +194,10 @@ XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
     }
     cout << "Opening file " << xrdId << endl;
     itr->second->openFile(timestamp);
+
+    if ( _rtLogFile.is_open() ) {
+        _rtLogFile << "o\t" << itr->second->convert2string() << endl;
+    }
 }
 
 void
@@ -200,6 +213,13 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
     }
     cout << "Closing file id= " << xrdId << " r= " << bytesR << " w= " << bytesW << endl;
     itr->second->closeFile(bytesR, bytesW, timestamp);
+
+    if ( _rtLogFile.is_open() ) {
+        char timeStr[24];
+        timestamp2string(timestamp, timeStr);
+        _rtLogFile << "c\t" << xrdId << '\t' << bytesR 
+                   << '\t' << bytesW << '\t' << timeStr << endl;
+    }
 }
 
 void

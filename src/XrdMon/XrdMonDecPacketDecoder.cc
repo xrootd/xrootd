@@ -27,8 +27,9 @@ using std::endl;
 using std::stringstream;
 
 // for light decoding in real time
-XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir)
-    : _sink(baseDir, false, 2),
+XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir, 
+                                               const char* rtLogDir)
+    : _sink(baseDir, rtLogDir, false, 2),
       _time(0),
       _stopNow(false),
       _upToTime(0)
@@ -38,7 +39,7 @@ XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir,
                                                bool saveTraces,
                                                int maxTraceLogSize,
                                                time_t upToTime)
-    : _sink(baseDir, saveTraces, maxTraceLogSize),
+    : _sink(baseDir, 0, saveTraces, maxTraceLogSize),
       _time(0),
       _stopNow(false),
       _upToTime(upToTime)

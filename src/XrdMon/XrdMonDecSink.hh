@@ -24,6 +24,7 @@ class XrdMonDecTraceInfo;
 class XrdMonDecSink {
 public:
     XrdMonDecSink(const char* baseDir,
+                  const char* rtLogDir,
                   bool saveTraces,
                   int maxTraceLogSize);
     ~XrdMonDecSink();
@@ -55,6 +56,8 @@ private:
     
 private:
     map<dictid_t, XrdMonDecDictInfo*> _dCache;
+
+    fstream _rtLogFile;
 
     bool _saveTraces;
     typedef vector<XrdMonDecTraceInfo> TraceVector;

@@ -24,16 +24,20 @@ int main(int argc, char* argv[])
 {
     XrdMonCtrDebug::initialize();
 
-    // FIXME - when configurable, remove mkdir
+    // FIXME this block should really be configurable
+    bool rtDec = true; // real time decoding on by default
     const kXR_int64 MAXFILESIZE = 1024*1024*1024; // 1GB
 
     const char* BASEDIR         = "./logs";
     const char* COLLECTORLOGDIR = "./logs/collector";
     const char* DECODERLOGDIR   = "./logs/decoder";
-    
+    const char* RTLOGDIR        = "./logs/rt";
+    // end of to-be configurable block
+
     mkdirIfNecessary(BASEDIR);
     mkdirIfNecessary(COLLECTORLOGDIR);
     mkdirIfNecessary(DECODERLOGDIR);
+    mkdirIfNecessary(RTLOGDIR);
 
     // start thread for receiving data
     pthread_t recThread;
@@ -48,7 +52,9 @@ int main(int argc, char* argv[])
     // store received packets until admin packet with sigterm arrives
     XrdMonCtrArchiver archiver(COLLECTORLOGDIR, 
                                DECODERLOGDIR,
-                               MAXFILESIZE);
+                               RTLOGDIR,
+                               MAXFILESIZE, 
+                               rtDec);
     archiver();
 
     return 0;

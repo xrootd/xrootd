@@ -20,7 +20,8 @@ using std::pair;
 
 class XrdMonDecPacketDecoder {
 public:
-    XrdMonDecPacketDecoder(const char* baseDir);
+    XrdMonDecPacketDecoder(const char* baseDir, 
+                           const char* rtLogDir);
 
     XrdMonDecPacketDecoder(const char* baseDir,
                            bool saveTraces,
