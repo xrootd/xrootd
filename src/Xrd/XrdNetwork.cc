@@ -102,17 +102,19 @@ int XrdNetwork::Bind(int bindport, const char *contype)
 // Allocate a socket descriptor and set the options
 //
    if ((iofd = socket(PF_INET, PortType, 0)) < 0)
-      return eDest->Emsg("Bind",-errno,contype,(char *)"creating inet socket");
+      return eDest->Emsg("Bind",-errno, (char *)"create",
+                         ('u' == *contype ? (char *)"udp socket" :
+                                            (char *)"tcp socket"));
    setOpts("bind", iofd, (PortType == SOCK_STREAM ? XRDNET_NODELAY : 0));
 
 // Attempt to do a bind
 //
-   action = (char *)"binding";
+   action = (char *)"bind";
    InetAddr.sin_family = AF_INET;
    InetAddr.sin_addr.s_addr = INADDR_ANY;
    InetAddr.sin_port = htons(port);
    if (!(retc = bind(iofd, SockAddr, SockSize)) && PortType == SOCK_STREAM)
-      {action = (char *)"listening on";
+      {action = (char *)"listen on";
        retc = listen(iofd, 8);
       }
 
@@ -136,7 +138,7 @@ int XrdNetwork::Bind(const char *path, const char *contype)
 // Make sure that the name of the socket is not too long
 //
    if (strlen(path) > sizeof(UnixAddr.sun_path))
-      return eDest->Emsg("Bind",-ENAMETOOLONG,"processing", (char *)path);
+      return eDest->Emsg("Bind",-ENAMETOOLONG,"process", (char *)path);
 
 // Close any open socket here
 //
@@ -147,16 +149,16 @@ int XrdNetwork::Bind(const char *path, const char *contype)
 //
    PortType = ('d'==*contype ? SOCK_DGRAM : SOCK_STREAM);
    if ((iofd = socket(PF_UNIX, PortType, 0)) < 0)
-      return eDest->Emsg("Bind",-errno,(char *)"creating named socket",(char *)path);
+      return eDest->Emsg("Bind",-errno,(char *)"create named socket",(char *)path);
    fcntl(iofd, F_SETFD, FD_CLOEXEC);
 
 // Attempt to do a bind
 //
-   action = (char *)"binding socket";
+   action = (char *)"bind socket";
    UnixAddr.sun_family = AF_UNIX;
    strcpy(UnixAddr.sun_path, path);
    if (!(retc = bind(iofd, SockAddr, SockSize)) && PortType == SOCK_STREAM)
-      {action = (char *)"listening on socket";
+      {action = (char *)"listen on socket";
        retc = listen(iofd, 8);
       }
 
@@ -183,7 +185,7 @@ XrdLink *XrdNetwork::Connect(char *host, int port, int opts)
 //
    if (getHostAddr(host, InetAddr))
       {if (!(opts & XRDNET_NOEMSG))
-          eDest->Emsg("Connect", EHOSTUNREACH, "unable to find", host);
+          eDest->Emsg("Connect", EHOSTUNREACH, "find", host);
        return (XrdLink *)0;
       }
    InetAddr.sin_port = htons(port);
@@ -192,7 +194,7 @@ XrdLink *XrdNetwork::Connect(char *host, int port, int opts)
 //
    if ((newfd = socket(PF_INET, SOCK_STREAM, 0)) < 0)
       {if (!(opts & XRDNET_NOEMSG))
-          eDest->Emsg("Connect", errno, "creating inet socket to", host);
+          eDest->Emsg("Connect", errno, "create inet socket to", host);
        return (XrdLink *)0;
       }
 
@@ -206,7 +208,7 @@ XrdLink *XrdNetwork::Connect(char *host, int port, int opts)
       while(retc < 0 && errno == EINTR);
    if (retc)
       {if (!(opts & XRDNET_NOEMSG))
-          eDest->Emsg("Connect", errno, "unable to connect to", host);
+          eDest->Emsg("Connect", errno, "connect to", host);
        close(newfd);
        return (XrdLink *)0;
       }
@@ -367,12 +369,12 @@ XrdLink *XrdNetwork::do_Accept(int opts)
       while(newfd < 0 && errno == EINTR);
 
    if (newfd < 0)
-      {eDest->Emsg("Accept", errno, "performing accept."); return 0;}
+      {eDest->Emsg("Accept", errno, "perform accept."); return 0;}
 
 // Authorize by ip address or full (slow) hostname format
 //
    if (Police && !(hname = Police->Authorize(&addr)))
-      {eDest->Emsg("Accept", -EACCES, "accepting connection from",
+      {eDest->Emsg("Accept", -EACCES, "accept connection from",
                      (hname = getHostName(addr)));
        free(hname);
        close(newfd);
@@ -422,7 +424,7 @@ XrdLink *XrdNetwork::do_Receive(int opts)
       while(dlen < 0 && errno == EINTR);
 
    if (dlen < 0)
-      {eDest->Emsg("Receive", errno, "performing recvmsg."); 
+      {eDest->Emsg("Receive", errno, "perform recvmsg.");
       XrdBuffPool.Release(bp);
        return 0;
       }
@@ -431,7 +433,7 @@ XrdLink *XrdNetwork::do_Receive(int opts)
 //
    if (addr.sin_addr.s_addr == 0x7f000001
    || (Police && !(hname = Police->Authorize(&addr))))
-      {eDest->Emsg("Accept", -EACCES, "accepting connection from",
+      {eDest->Emsg("Accept", -EACCES, "accept connection from",
                      (hname = getHostName(addr)));
        free(hname);
        close(iofd);
@@ -493,28 +495,28 @@ int XrdNetwork::setOpts(const char *who, int xfd, int opts)
    if (opts == XRDNET_DEFAULTS) opts = netOpts;
 
    if (fcntl(xfd, F_SETFD, FD_CLOEXEC))
-      eDest->Emsg(who, errno, "setting CLOEXEC");
+      eDest->Emsg(who, errno, "set CLOEXEC");
 
    if (rc |= setsockopt(xfd,SOL_SOCKET,SO_REUSEADDR,(const void *)&one,szone))
-      eDest->Emsg(who, errno, "setting REUSEADDR");
+      eDest->Emsg(who, errno, "set REUSEADDR");
 
    liopts.l_onoff = 1; liopts.l_linger = 1;
    if (rc |= setsockopt(xfd,SOL_SOCKET,SO_LINGER,(const void *)&liopts,szlio))
-      eDest->Emsg(who, errno, "setting LINGER");
+      eDest->Emsg(who, errno, "set LINGER");
 
    if ((opts & XRDNET_KEEPALIVE)
    && (rc |= setsockopt(xfd,SOL_SOCKET,SO_KEEPALIVE,(const void *)&one,szone)))
-      eDest->Emsg(who, errno, "setting KEEPALIVE");
+      eDest->Emsg(who, errno, "set KEEPALIVE");
 
    if ((opts & XRDNET_NODELAY)
    && setsockopt(xfd, tcpprotid, TCP_NODELAY, (const void *)&one,szone))
-      eDest->Emsg(who, errno, "setting NODELAY");
+      eDest->Emsg(who, errno, "set NODELAY");
 
    if (Windowsz)
       {if (setsockopt(xfd,SOL_SOCKET,SO_SNDBUF,(const void *)&Windowsz,szwb))
-          eDest->Emsg(who, errno, "setting SNDBUF");
+          eDest->Emsg(who, errno, "set SNDBUF");
        if (setsockopt(xfd,SOL_SOCKET,SO_RCVBUF,(const void *)&Windowsz,szwb))
-          eDest->Emsg(who, errno, "setting RCVBUF");
+          eDest->Emsg(who, errno, "set RCVBUF");
       }
    return rc;
 }

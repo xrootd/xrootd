@@ -82,7 +82,7 @@ XrdPoll::XrdPoll()
        ReqFD = fildes[0]; fcntl(ReqFD, F_SETFD, FD_CLOEXEC);
       } else {
        CmdFD = ReqFD = -1;
-       XrdLog.Emsg("Poll", errno, "creating poll pipe");
+       XrdLog.Emsg("Poll", errno, "create poll pipe");
       }
    PipeBuff        = 0;
    PipeBlen        = 0;
@@ -178,7 +178,7 @@ int XrdPoll::getRequest()
    do {rlen = read(ReqFD, PipeBuff, PipeBlen);} 
       while(rlen < 0 && errno == EINTR);
    if (rlen <= 0)
-      {if (rlen) XrdLog.Emsg("Poll", errno, "reading from request pipe");
+      {if (rlen) XrdLog.Emsg("Poll", errno, "read from request pipe");
        return 0;
       }
 
@@ -236,12 +236,12 @@ int XrdPoll::Setup(int numfd)
         PArg.retcode= 0;
         TRACE(POLL, "Starting poller " <<i);
         if ((retc=XrdOucThread_Sys(&tid,XrdStartPolling,(void *)&PArg)))
-           {XrdLog.Emsg("Poll", retc, "creating poller thread"); return 0;}
+           {XrdLog.Emsg("Poll", retc, "create poller thread"); return 0;}
         TRACE(POLL, "thread " << tid <<" assigned to poller " <<i);
         Pollers[i]->TID = tid;
         PArg.PollSync.Wait();
         if (PArg.retcode)
-           {XrdLog.Emsg("Poll", PArg.retcode, "starting poller");
+           {XrdLog.Emsg("Poll", PArg.retcode, "start poller");
             return 0;
            }
        }

@@ -113,7 +113,7 @@ XrdScheduler::XrdScheduler(int minw, int maxw, int avlw, int maxi)
 // Start a time based scheduler
 //
    if ((retc = XrdOucThread_Sys(&tid, XrdStartTSched, (void *)this)))
-      XrdLog.Emsg("Scheduler", retc, "creating time scheduler thread");
+      XrdLog.Emsg("Scheduler", retc, "create time scheduler thread");
       else TRACE(SCHED, "thread " << tid <<" assigned to time schedeuler");
 
 // If we an idle interval, schedule the idle check
@@ -205,7 +205,7 @@ pid_t XrdScheduler::Fork(const char *id)
 // Fork
 //
    if ((pid = fork()) < 0)
-      {XrdLog.Emsg("Scheduler",errno,(char *)"forking to handle",(char *)id);
+      {XrdLog.Emsg("Scheduler",errno,(char *)"fork to handle",(char *)id);
        return pid;
       }
    if (!pid) return pid;
@@ -222,7 +222,7 @@ pid_t XrdScheduler::Fork(const char *id)
 //
    if (!retc)
       if ((retc = XrdOucThread_Run(&tid, XrdStartReaper, (void *)this)))
-         {XrdLog.Emsg("Scheduler", retc, "creating reaper thread");
+         {XrdLog.Emsg("Scheduler", retc, "create reaper thread");
           ReaperStarted = 0;
          } else TRACE(SCHED, "thread " << tid <<" assigned to reaper");
 
@@ -554,7 +554,7 @@ void XrdScheduler::hireWorker()  // Called with SchedMutex locked!
 // Start a new thread
 //
    if ((retc = XrdOucThread_Run(&tid, XrdStartWorking, (void *)this)))
-      XrdLog.Emsg("Scheduler", retc, "creating worker thread");
+      XrdLog.Emsg("Scheduler", retc, "create worker thread");
       else {num_Workers++;
             num_TCreate++;
             TRACE(SCHED, "new worker; tid=" <<tid <<"; num=" <<num_Workers);

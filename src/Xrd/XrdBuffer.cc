@@ -76,7 +76,7 @@ XrdBuffManager::XrdBuffManager(int minrst) :
 // Start the reshaper thread
 //
    if ((rc = XrdOucThread_Run(&tid, XrdReshaper, (void *)this)))
-      XrdLog.Emsg("BuffManager", rc, "creating reshaper thread");
+      XrdLog.Emsg("BuffManager", rc, "create reshaper thread");
       else {TRACE(MEM, "Buffer Manager reshaper running in thread " <<tid);}
 }
 

@@ -68,14 +68,14 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
 // Open the /dev/poll driver
 //
    if ((pfd = open("/dev/poll", O_RDWR)) < 0)
-      {XrdLog.Emsg("Poll", errno, "opening /dev/poll"); return 0;}
+      {XrdLog.Emsg("Poll", errno, "open /dev/poll"); return 0;}
 
 // Calculate the size of the poll table and allocate it
 //
    bytes     = maxfd * sizeof(struct pollfd);
    alignment = (bytes < pagsz ? 1024 : pagsz);
    if (!(pp = (struct pollfd *)memalign(alignment, bytes)))
-      {XrdLog.Emsg("Poll", ENOMEM, "creating poll table");
+      {XrdLog.Emsg("Poll", ENOMEM, "create poll table");
        close(pfd);
        return 0;
       }
@@ -124,7 +124,7 @@ void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
 
 // Verify that all went well and if termination wanted, terminate the link
 //
-   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disabling link", lp->ID);
+   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disable link", lp->ID);
       else {lp->IOSemaphore.Wait();
             if (etxt)
                {lp->ProtoAlt = lp->Protocol;
@@ -160,7 +160,7 @@ int XrdPollDev::Enable(XrdLink *lp)
 
 // Verify that all went well
 //
-   if (nogo) XrdLog.Emsg("Poll", errno, "enabling link", lp->ID);
+   if (nogo) XrdLog.Emsg("Poll", errno, "enable link", lp->ID);
    return !nogo;
 }
 
@@ -197,7 +197,7 @@ void XrdPollDev::Start(XrdOucSemaphore *syncsem, int &retcode)
    {struct pollfd ptab = {ReqFD, POLLIN | POLLRDNORM, 0};
     if (PollDfd < 0) XrdLog.Emsg("Poll", "poll pipe not allocated");
        else if (write(PollDfd,&ptab,sizeof(struct pollfd))!=sizeof(struct pollfd))
-                XrdLog.Emsg("Poll", errno, "adding pipe to poll set");
+                XrdLog.Emsg("Poll", errno, "add pipe to poll set");
                 else AOK = 1;
    }
 
@@ -213,7 +213,7 @@ void XrdPollDev::Start(XrdOucSemaphore *syncsem, int &retcode)
           while (numpolled < 0 && errno == EINTR);
        if (numpolled == 0) continue;
        if (numpolled <  0)
-          {XrdLog.Emsg("Poll", errno, "polling for events");
+          {XrdLog.Emsg("Poll", errno, "poll for events");
            abort();
           }
        numEvents += numpolled;
@@ -244,7 +244,7 @@ void XrdPollDev::Start(XrdOucSemaphore *syncsem, int &retcode)
        //
        if (write(PollDfd, PollTab, numpolled*sizeof(struct pollfd))
                 != numpolled*sizeof(struct pollfd))
-          XrdLog.Emsg("Poll", errno, (char *)"writing remove to /dev/poll");
+          XrdLog.Emsg("Poll", errno, (char *)"remove an fd from /dev/poll");
 
        // Schedule the polled links
        //
@@ -278,15 +278,15 @@ void XrdPollDev::doRequests(int maxreq)
         {     if (!(lp = XrdLink::fd2link(ReqBuff.fd)))
                  {sprintf(buff, "%d", ReqBuff.fd);
                   XrdLog.Emsg("Poll","FD",buff,(char *)"does not map to a link");
-                  ptab.events = POLLREMOVE; act = (char *)" removed fd ";
+                  ptab.events = POLLREMOVE; act = (char *)" remove fd ";
                  }
          else if (ReqBuff.req == PipeData::EnFD)
                  {ptab.events = POLLIN | POLLRDNORM; 
-                  act = (char *)" enabled fd ";  edval = (char)1; numEnabled++;
+                  act = (char *)" enable fd ";  edval = (char)1; numEnabled++;
                  }
          else if (ReqBuff.req == PipeData::DiFD)
                  {ptab.events = POLLREMOVE; 
-                  act = (char *)" disabled fd "; edval = (char)0;
+                  act = (char *)" disable fd "; edval = (char)0;
                  }
          else    {XrdLog.Emsg("Poll", "Received an invalid poll pipe request");
                   continue;

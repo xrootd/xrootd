@@ -77,7 +77,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
    bytes     = maxfd * sizeof(struct pollfd);
    alignment = (bytes < pagsz ? 1024 : pagsz);
    if (!(pp = (struct pollfd *)memalign(alignment, bytes)))
-      {XrdLog.Emsg("Poll", ENOMEM, "creating poll table");
+      {XrdLog.Emsg("Poll", ENOMEM, "create poll table");
        return 0;
       }
 
@@ -194,7 +194,7 @@ void XrdPollPoll::Disable(XrdLink *lp, const char *etxt)
 
 // Verify that all went well and if termination wanted, terminate the link
 //
-   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disabling link", lp->ID);
+   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disable link", lp->ID);
       else {lp->IOSemaphore.Wait();
             if (etxt)
                {lp->ProtoAlt = lp->Protocol;
@@ -241,7 +241,7 @@ int XrdPollPoll::Enable(XrdLink *lp)
 // Verify that all went well. Note that the link stays in the pollQ.
 //
    if (myerrno)
-      {XrdLog.Emsg("Poll", myerrno, "enabling link", lp->ID); return 0;}
+      {XrdLog.Emsg("Poll", myerrno, "enable link", lp->ID); return 0;}
 
 // All done
 //
@@ -277,7 +277,7 @@ void XrdPollPoll::Exclude(XrdLink *lp)
 
 // Verify that all went well and if termination wanted, terminate the link
 //
-   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disabling link", lp->ID);
+   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disable link", lp->ID);
       else lp->IOSemaphore.Wait();
 }
  
@@ -542,7 +542,7 @@ void XrdPollPoll::Restart(int ecode)
 // Issue error message
 //
    TRACE(POLL, PID <<'-' <<TID <<" Poll error " <<ecode);
-   XrdLog.Emsg("Poll", errno, "doing poll");
+   XrdLog.Emsg("Poll", errno, "poll");
 
 // For any outstanding link here, close the link and detach it
 //

@@ -221,7 +221,7 @@ int XrdLink::Close()
    if (Protocol) {Protocol->Recycle(); Protocol = 0;}
    if (ProtoAlt) {ProtoAlt->Recycle(); ProtoAlt = 0;}
    InUse    = 0;
-   if (rc) XrdLog.Emsg("Link", rc, "closing", ID);
+   if (rc) XrdLog.Emsg("Link", rc, "close", ID);
    if (!isFree) {isFree = 1; LinkStack.Push(&LinkLink);}
       else XrdLog.Emsg("Link",(const char *)ID, (char *)"dup recycle averted");
    return rc;
@@ -301,7 +301,7 @@ int XrdLink::Peek(char *Buff, long Blen, int timeout)
    if (retc != 1)
       {IOMutex.UnLock();
        if (retc == 0) return 0;
-       return XrdLog.Emsg("Link", -errno, "polling", ID);
+       return XrdLog.Emsg("Link", -errno, "poll", ID);
       }
 
 // Verify it is safe to read now
@@ -322,7 +322,7 @@ int XrdLink::Peek(char *Buff, long Blen, int timeout)
 // Return the result
 //
    if (mlen >= 0) return (int)mlen;
-   XrdLog.Emsg("Link", errno, "peeking on", ID);
+   XrdLog.Emsg("Link", errno, "peek on", ID);
    return -1;
 }
   
@@ -347,7 +347,7 @@ int XrdLink::Recv(char *Buff, long Blen)
    IOMutex.UnLock();
 
    if (rlen >= 0) return (int)rlen;
-   XrdLog.Emsg("Link", errno, "receiving from", ID);
+   XrdLog.Emsg("Link", errno, "receive from", ID);
    return -1;
 }
 
@@ -373,7 +373,7 @@ int XrdLink::Recv(char *Buff, long Blen, int timeout)
                     XrdLog.Emsg("Link", ID, (char *)"read timed out");
                  return totlen;
                 }
-             return XrdLog.Emsg("Link", -errno, "polling", ID);
+             return XrdLog.Emsg("Link", -errno, "poll", ID);
             }
 
          // Verify it is safe to read now
@@ -392,7 +392,7 @@ int XrdLink::Recv(char *Buff, long Blen, int timeout)
          if (rlen <= 0)
             {IOMutex.UnLock();
              if (!rlen) return -ENODATA;
-             return XrdLog.Emsg("Link", -errno, "receiving from", ID);
+             return XrdLog.Emsg("Link", -errno, "receive from", ID);
             }
          BytesIn += rlen; totlen += rlen; Blen -= rlen; Buff += rlen;
         }
@@ -427,7 +427,7 @@ int XrdLink::Send(char *Buff, long Blen)
 //
    IOMutex.UnLock();
    if (retc >= 0) return Blen;
-   XrdLog.Emsg("Link", errno, "sending to", ID);
+   XrdLog.Emsg("Link", errno, "send to", ID);
    return -1;
 }
 
@@ -467,7 +467,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
 //
    IOMutex.UnLock();
    if (retc >= 0) return bytes;
-   XrdLog.Emsg("Link", errno, "sending to", ID);
+   XrdLog.Emsg("Link", errno, "send to", ID);
    return -1;
 }
  
@@ -514,7 +514,7 @@ int XrdLink::Setup(int maxfds, int idlewait)
 // Create the link table
 //
    if (!(LinkTab = (XrdLink **)malloc(maxfds*sizeof(XrdLink *))))
-      {XrdLog.Emsg("Link", ENOMEM, "creating LinkTab"); return 0;}
+      {XrdLog.Emsg("Link", ENOMEM, "create LinkTab"); return 0;}
    memset((void *)LinkTab, 0, maxfds*sizeof(XrdLink *));
 
 // Create an idle connection scan job

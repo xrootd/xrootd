@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
       {pthread_t tid;
        int retc;
         if ((retc = XrdOucThread_Sys(&tid,mainAdmin,(void *)0)))
-           {XrdLog.Emsg("main", retc, "creating admin thread"); _exit(3);}
+           {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
         TRACE(DEBUG, "thread " << tid <<" assigned to admin handler");
       }
 
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
       {pthread_t tid;
        int retc;
         if ((retc = XrdOucThread_Sys(&tid,mainUser,(void *)0)))
-           {XrdLog.Emsg("main", retc, "creating user thread"); _exit(3);}
+           {XrdLog.Emsg("main", retc, "create user thread"); _exit(3);}
         TRACE(DEBUG, "thread " << tid <<" assigned to user handler");
       }
 

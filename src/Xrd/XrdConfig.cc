@@ -355,16 +355,16 @@ int XrdConfig::ASocket(const char *path, const char *dname, const char *fname,
 //
    if (stat(sokpath, &buf))
       {if (errno != ENOENT)
-          NoGo=XrdLog.Emsg("Config",errno,"processing admin path",(char *)path);
+          NoGo=XrdLog.Emsg("Config",errno,"process admin path",(char *)path);
           else if (mkdir(sokpath, dmode))
-                  NoGo=XrdLog.Emsg("Config",errno,"creating admin path",(char *)path);
+                  NoGo=XrdLog.Emsg("Config",errno,"create admin path",(char *)path);
       } else {
        if ((buf.st_mode & S_IFMT) != S_IFDIR)
           {XrdLog.Emsg("Config", "Admin path", (char *)path,
                        (char *)"exists but is not a directory"); NoGo = 1;}
           else if ((buf.st_mode & S_IAMB) != dmode
                &&  chmod((const char *)sokpath, dmode))
-                  {XrdLog.Emsg("Config",errno,"setting access mode for",
+                  {XrdLog.Emsg("Config",errno,"set access mode for",
                                 (char *)path); NoGo = 1;}
       }
    if (NoGo) return 1;
@@ -402,7 +402,7 @@ int XrdConfig::ConfigProc()
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {XrdLog.Emsg("Config", errno, "opening config file", ConfigFN);
+      {XrdLog.Emsg("Config", errno, "open config file", ConfigFN);
        return 1;
       }
    Config.Attach(cfgFD);
@@ -419,7 +419,7 @@ int XrdConfig::ConfigProc()
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = XrdLog.Emsg("Config", retc, "reading config file", ConfigFN);
+      NoGo = XrdLog.Emsg("Config", retc, "read config file", ConfigFN);
    Config.Close();
 
 // Return final return code
@@ -441,10 +441,10 @@ int XrdConfig::PidFile(char *dfltp)
     newpidFN[sizeof(newpidFN)-1] = '\0';
 
     if ((xfd = open(newpidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
-       xop = (char *)"opening";
+       xop = (char *)"open";
        else {snprintf(buff, sizeof(buff), "%d", getpid());
              if (write(xfd, (void *)buff, strlen(buff)) < 0)
-                xop = (char *)"writing";
+                xop = (char *)"write";
              close(xfd);
             }
 
@@ -464,7 +464,7 @@ int XrdConfig::setFDL()
 // Get the resource limit
 //
    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
-      return XrdLog.Emsg("Config", errno, "getting FD limit");
+      return XrdLog.Emsg("Config", errno, "get FD limit");
 
 // Set the limit to the maximum allowed
 //
@@ -472,12 +472,12 @@ int XrdConfig::setFDL()
            rlim.rlim_cur = ProtInfo.ConnMax;
       else rlim.rlim_cur = rlim.rlim_max;
    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
-      return XrdLog.Emsg("Config", errno,"setting FD limit");
+      return XrdLog.Emsg("Config", errno,"set FD limit");
 
 // Obtain the actual limit now
 //
    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
-      return XrdLog.Emsg("Config", errno, "getting FD limit");
+      return XrdLog.Emsg("Config", errno, "get FD limit");
 
 // Establish operating limit
 //
@@ -661,7 +661,7 @@ int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
 
 /* Function: xallow
 
-   Purpose:  To parse the directive: allow [host | netgroup] <name>
+   Purpose:  To parse the directive: allow {host | netgroup} <name>
 
              <name> The dns name of the host that is allowed to connect or the
                     netgroup name the host must be a member of. For DNS names,
@@ -673,16 +673,19 @@ int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
 int XrdConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int ishost = 1;
+    int ishost;
 
     if (!(val = Config.GetWord()))
-       {eDest->Emsg("Config", "allow dns name not specified"); return 1;}
+       {eDest->Emsg("Config", "allow type not specified"); return 1;}
 
-    if (!strcmp(val, "netgroup")) ishost = 0;
+    if (!strcmp(val, "host")) ishost = 1;
+       if (!strcmp(val, "netgroup")) ishost = 0;
+          else {eDest->Emsg("Config", "invalid allow type -", val);
+                return 1;
+               }
 
-    if (!strcmp(val, "host") || !ishost)
-       if (!(val = Config.GetWord()))
-          {eDest->Emsg("Config", "allow target name not specified"); return 1;}
+    if (!(val = Config.GetWord()))
+       {eDest->Emsg("Config", "allow target name not specified"); return 1;}
 
     if (!Police) Police = new XrdOucSecurity();
     if (ishost)  Police->AddHost(val);
@@ -712,7 +715,7 @@ int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "buffer memory limit not specified"); return 1;}
-    if (XrdOuca2x::a2sz(*eDest,"invalid buffer limit value",val,&blim,
+    if (XrdOuca2x::a2sz(*eDest,"buffer limit value",val,&blim,
                        (long long)1024*1024)) return 1;
 
     if ((val = Config.GetWord()))
