@@ -29,6 +29,7 @@ class XrdOucEnv;
 class XrdOucError;
 class XrdOucLogger;
 class XrdOucStream;
+class XrdSfsAio;
 
 /******************************************************************************/
 /*                       X r d O f s D i r e c t o r y                        */
@@ -88,17 +89,17 @@ public:
                             char              *buffer,
                             XrdSfsXferSize     buffer_size);
 
-        int            read(XrdSfsAIO *aioparm);
+        int            read(XrdSfsAio *aioparm);
 
         XrdSfsXferSize write(XrdSfsFileOffset   fileOffset,
                              const char        *buffer,
                              XrdSfsXferSize     buffer_size);
 
-        int            write(XrdSfsAIO *aioparm);
-
-        XrdSfsAIO     *waitaio();
+        int            write(XrdSfsAio *aioparm);
 
         int            sync();
+
+        int            sync(XrdSfsAio *aiop);
 
         int            stat(struct stat *buf);
 

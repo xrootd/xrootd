@@ -65,6 +65,7 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 #ifdef AIX
@@ -125,16 +126,6 @@ XrdOucMutex XrdOfsOpen_RW;
 void         *XrdOfsIdleScan(void *);
 void          XrdOfsIdleCheck(XrdOfsHandleAnchor &);
 int           XrdOfsIdleXeq(XrdOfsHandle *, void *);
-
-/******************************************************************************/
-/*                             A s y n c   I / O                              */
-/******************************************************************************/
-  
-XrdSfsAIO      *XrdSfsAIOFirst = 0;
-XrdSfsAIO      *XrdSfsAIOLast  = 0;
-
-XrdOucMutex     XrdSfsAIOMutex;
-XrdOucSemaphore XrdSfsAIOQueue;
 
 /******************************************************************************/
 /*                               d e f i n e s                                */
@@ -742,23 +733,13 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
   
 // For now, this reverts to synchronous I/O
 //
-int XrdOfsFile::read(XrdSfsAIO *aioparm)
+int XrdOfsFile::read(XrdSfsAio *aiop)
 {
-    if (aioparm->buffer)
-       aioparm->errcode = ((aioparm->result =
-                read(aioparm->offset, aioparm->buffer, aioparm->size)) < 0 ?
-                aioparm->errcode = errno : 0);
-       else {aioparm->result = aioparm->size; aioparm->errcode = 0;}
-    aioparm->next = 0;
-
-    XrdSfsAIOMutex.Lock();
-    if (XrdSfsAIOLast)
-       {XrdSfsAIOLast->next = aioparm; XrdSfsAIOLast = aioparm;}
-       else XrdSfsAIOFirst = XrdSfsAIOLast = aioparm;
-    XrdSfsAIOQueue.Post();
-    XrdSfsAIOMutex.UnLock();
-
-    return 0;
+   aiop->Result = this->read((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
+                                       (char *)aiop->sfsAio.aio_buf,
+                               (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
+   aiop->doneRead();
+   return 0;
 }
 
 /******************************************************************************/
@@ -823,40 +804,13 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
   
 // For now, this reverts to synchronous I/O
 //
-int XrdOfsFile::write(XrdSfsAIO *aioparm)
+int XrdOfsFile::write(XrdSfsAio *aiop)
 {
-    aioparm->errcode = ((aioparm->result =
-             write(aioparm->offset, aioparm->buffer, aioparm->size)) < 0 ?
-             aioparm->errcode = errno : 0);
-    aioparm->next = 0;
-
-    XrdSfsAIOMutex.Lock();
-    if (XrdSfsAIOLast)
-       {XrdSfsAIOLast->next = aioparm; XrdSfsAIOLast = aioparm;}
-       else XrdSfsAIOFirst = XrdSfsAIOLast = aioparm;
-    XrdSfsAIOQueue.Post();
-    XrdSfsAIOMutex.UnLock();
-
-    return 0;
-}
-  
-/******************************************************************************/
-/*                               w a i t a i o                                */
-/******************************************************************************/
-
-XrdSfsAIO *XrdOfsFile::waitaio()
-{
-  XrdSfsAIO *aiop = 0;
-
-  do {XrdSfsAIOQueue.Wait();
-      XrdSfsAIOMutex.Lock();
-      if ((aiop = XrdSfsAIOFirst))
-         if ((aiop == XrdSfsAIOLast)) XrdSfsAIOFirst = XrdSfsAIOLast = 0;
-            else XrdSfsAIOFirst = aiop->next;
-      XrdSfsAIOMutex.UnLock();
-     } while(!aiop);
-
-  return aiop;
+   aiop->Result = this->write((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
+                                        (char *)aiop->sfsAio.aio_buf,
+                                (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
+   aiop->doneWrite();
+   return 0;
 }
 
 /******************************************************************************/
@@ -944,6 +898,19 @@ int XrdOfsFile::sync()  // In
    return SFS_OK;
 }
 
+
+/******************************************************************************/
+/*                              s y n c   A I O                               */
+/******************************************************************************/
+  
+// For now, reverts to synchronous case
+//
+int XrdOfsFile::sync(XrdSfsAio *aiop)
+{
+   aiop->Result = this->sync();
+   aiop->doneWrite();
+   return 0;
+}
 /******************************************************************************/
 /*                              t r u n c a t e                               */
 /******************************************************************************/
