@@ -1,0 +1,1105 @@
+#! /bin/sh
+################################################################################
+#                                                                              #
+#                            c o n f i g u r e                                 #
+#                                                                              #
+#  (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   #
+#        All Rights Reserved. See XrdInfo.cc for complete License Terms        #
+#    Produced by Andrew Hanushevsky for Stanford University under contract     #
+#               DE-AC03-76-SFO0515 with the Department of Energy               #
+#                                                                              #
+################################################################################
+#                                                                              #
+# A simple configure script.                                                   #
+#                                                                              #
+# Derived from the ROOT configure script written by Christian Holm Christensen #
+# and Fons Rademakers.                                                         #
+# Simplified and adapted for Xrd by G. Ganis                                   #
+#                                                                              #
+# To help with debugging the script, some comments are preprended with         #
+# 3 '#' echo and 3 '%' - replace that pattern with echo and 3 '%' to           #
+# get printouts.  When done replace the pattern echo and 3 '%' with the        #
+# original pattern of 3 '#' echo and 3 '%'.  Emacs command M-C-% does          #
+# this easily.                                                                 #
+#                                                                              #
+################################################################################
+#
+### echo %%% Some global variables
+#
+found_lib=no
+found_dir=no
+found_hdr=no
+show_pkglist=no
+noact="no"
+nohowto="no"
+
+options="                 \
+   enable_krb4            \
+   enable_krb5            \
+"
+
+#
+# This sets all options to "yes" - we turn off those we don't want
+# on per default explictly afterwards.
+#
+for c in $options ; do eval $c="yes" ; done
+
+enable_thread=yes
+
+#
+# ./configure arguments and defaults set via supported env vars
+#
+envvars="
+KRB4DIR          \
+KRB5DIR          \
+"
+configenvvars=
+for c in $envvars ; do
+   cc=`eval echo "$"$c`
+   if test ! "x$cc" = "x" ; then
+      if test ! "x$configenvvars" = "x" ; then
+         configenvvars="$configenvvars $c=$cc"
+      else
+         configenvvars="$c=$cc"
+      fi
+   fi
+done
+
+configargs="$*"
+# don't write --nohowto to config.h
+configargs=`echo $configargs|sed 's, *--nohowto,,g'`
+
+configoptions=
+if test ! "x$configenvvars" = "x" ; then
+   configoptions=$configenvvars
+fi
+if test ! "x$configargs" = "x" ; then
+   if test ! "x$configoptions" = "x" ; then
+      configoptions="$configoptions $configargs"
+   else
+      configoptions=$configargs
+   fi
+fi
+
+######################################################################
+#
+### echo %%% Some common functions
+#
+#_____________________________________________________________________
+message() {
+    # Write a simple message to std out
+    if test $# -lt 1 ; then
+	echo "message: Too few arguments"
+	return 1
+    fi
+    echo $ac_n "$* ... $ac_c"
+}
+
+#_____________________________________________________________________
+checking_msg() {
+    # Write a simple "checking" message to std out.
+    if test $# -lt 1 ; then
+	echo "checking_msg: Too few arguments"
+	return 1
+    fi
+    echo $ac_n "Checking for$ac_c"
+    while test $# -gt 1  ; do
+	echo $ac_n " $1,$ac_c"
+	shift
+	if test $# -eq 1 ; then
+	    echo $ac_n " or$ac_c"
+	fi
+    done
+    echo $ac_n " $1 ... $ac_c"
+}
+
+#_____________________________________________________________________
+check_library() {
+    # This function will try to locate a library [$1] in the specific
+    # directory [$3] or in a default path [$*].  If the second argument
+    # [$2] is not "no", then shared libraries are favoured.
+    # The result of the search is stored in found_lib and found_dir,
+    # which should be immediately copied, since the variables value will
+    # be overwritten at next invocation of this function.
+
+    # Assert that we got enough arguments
+    if test $# -lt 4 ; then
+	echo "check_library: Too few arguments"
+	return 1
+    fi
+
+    # Save arguments in local names
+    lib=$1       ; shift
+    shared=$1    ; shift
+    libdirl=$1   ; shift
+    libdirs="$*"
+
+    # Write a message
+    checking_msg $lib
+
+    # check if we got a specific argument as to where the library
+    # is to be found
+    if test ! "x$libdirl" = "x" ; then
+        libdirs=$libdirl
+    fi
+    found_lib=no
+    found_dir=no
+
+    # Make list of libraries to search for. The .lib extension is for
+    # Windoze - note $shared is always "no" on windoze, since we need
+    # the .lib export library to link.
+    libs=""
+    for i in $lib ; do
+	for ext in .a .lib "" ; do     # lib without extension for MacOS X
+	    libs="$libs $i$ext"
+	done
+    done
+    slibs=""
+    for i in $lib ; do
+        for ext in .so .sl .dylib .dll.a ; do      # .dll.a for cygwin gcc
+            slibs="$slibs $i$ext"
+        done
+    done
+    if test ! "x$shared" = "xno" ; then
+	libs="$slibs $libs"
+    else
+        libs="$libs $slibs"
+    fi
+
+    # Loop over the list of possible directories, and see if we can
+    # find any of the library files as determind above.
+    for i in $libdirs ; do
+        # look first in the lib32 directories
+        if test "x$checklib32" = "xyes" ; then
+            i32=`echo $i | sed 's|lib*|lib32|'`
+            i="$i32 $i"
+        fi
+        # look first in the lib64 directories
+        if test "x$checklib64" = "xyes" ; then
+            i64=`echo $i | sed 's|lib*|lib64|'`
+            i="$i64 $i"
+        fi
+        for l in $i ; do
+            for j in ${libs} ; do
+	        # if we found the file (it's readable by user), we set the
+	        # logical variables and are on our way, otherwise we continue
+                liblist=`echo $l/$j`    # expands wildcard in $l/$j
+                for n in ${liblist} ; do
+                    if test -f $n ; then
+                        found_dir=$l
+                        found_lib=$j
+                        break 4
+                    fi
+                done
+            done
+        done
+    done
+
+    echo $found_dir
+    unset libs
+    unset slibs
+    unset libdirs
+
+    if test "x$found_dir" = "xno" || test "$found_lib" = "xno" ; then
+	found_dir=""
+	found_lib=""
+    else
+	flib=""
+	for i in $lib ; do
+	    for ext in .a .lib "" ; do     # lib without extension for MacOS X
+		if test "x$found_lib" = "x$i$ext" ; then
+		    flib=$i$ext
+		fi
+	    done
+	done
+	if test "x$found_lib" = "x$flib" ; then
+	    found_lib=${found_dir}/${found_lib}
+	    found_dir=""
+	else
+	    found_lib=`echo $found_lib | sed 's|^lib\(.*\)\..*|-l\1|'`
+	    found_dir=-L${found_dir}
+            # Avoid inclusion of /usr/lib, which is always included anyway
+            if test "x$found_dir" = "x-L/usr/lib"   || \
+               test "x$found_dir" = "x-L/usr/lib32" || \
+               test "x$found_dir" = "x-L/usr/lib64" ; then
+		found_dir=""
+	    fi
+	fi
+
+    fi
+    unset shared
+    unset lib
+    unset flib
+    unset libdirl
+}
+
+#_____________________________________________________________________
+check_header()  {
+    # This function will try to locate a header [$1] in the specific
+    # directory [$2] or in a default path [$*].
+    # The result of the search is stored in found_hdr and found_dir,
+    # which should be immediately copied, since the variables value will
+    # be overwritten at next invocation of this function.
+
+    # Assert that we got enough arguments
+    if test $# -lt 3 ; then
+	echo "check_header: Too few arguments"
+	return 1
+    fi
+
+    # Save arguments in logical names
+    hdrs=$1     ; shift
+    hdrdir=$1   ; shift
+    hdrdirs="$*"
+
+    # Write a message
+    checking_msg $hdrs
+
+    # Check if we got a specific argument as to where the library
+    # is to be found
+    if test ! "x$hdrdir" = "x" ; then
+        hdrdirs=$hdrdir
+    fi
+    found_hdr=no
+    found_dir=no
+
+    # Loop over the list of possible directories, and see if we can
+    # find any of the library files as determind above.
+
+    for i in $hdrdirs; do
+        for j in ${hdrs} ; do
+	    # if we found the file (it's readable by user), we set the
+	    # logical variables and are on our way, otherwise we continue
+            if test -r $i/$j ; then
+                found_dir=$i
+                found_hdr=$j
+                break 2
+            fi
+        done
+    done
+
+    echo $found_dir
+
+    if test "x$found_hdr" = "xno" || test "$found_dir" = "xno" ; then
+	found_hdr=""
+	found_dir=""
+    fi
+
+    # Avoid inclusion of /usr/include, which is always included anyway
+    if test "x$found_dir" = "x/usr/include" ; then
+	found_dir="include"
+    fi
+
+    unset hdrs
+    unset hdrdirs
+    unset hdrdir
+}
+
+#_____________________________________________________________________
+check_symbol() {
+    # This function will try to locate a symbol [$1] in a specific
+    # library [$2] and in a given directory [$3].
+    # The result of the check is stored in found_symbol, 1 if true,
+    # 0 otherwise, which should be immediately copied, since the variable
+    # will be overwritten at next invocation of this function.
+
+    # Assert that we got enough arguments
+    if test $# -ne 3 ; then
+	echo "check_symbol: Not 3 arguments"
+	return 1
+    fi
+
+    # Save arguments in logical names
+    symbol=$1     ; shift
+    symbollib=$1  ; shift
+    symboldir=$1
+
+    # Check if we got a specific argument as to where the library
+    # is to be found
+    symbolfile=$symbollib
+    if test ! "x$symboldir" = "x" ; then
+        symbolfile=$symboldir/$symbollib
+        if test ! -r $symbolfile ; then
+            for i in .a .so .lib ; do
+                if test -r $symbolfile$i ; then
+                    symbolfile=$symbolfile$i
+                    break
+                fi
+             done
+        fi
+    fi
+
+    if test "x$symbolfile" = "x" || test ! -r $symbolfile ; then
+       found_symbol=0
+       return 1
+    fi
+
+    symbol_in_lib=`nm $symbolfile | grep $symbol > /dev/null 2>&1`
+    if test $? -eq 0 ; then
+        found_symbol=1
+    else
+        found_symbol=0
+    fi
+}
+
+#_____________________________________________________________________
+guess_architecture () {
+    # Try to guess the architecture of the host system
+    # Note, that there's no attempt at guessing the compiler.
+    # The `native' compiler is used in all cases.
+    # If a user really want a specifific compiler, s/he better use the
+    # first argument to do so.
+    type=`uname -s`
+    osys=`uname -s | tr '[A-Z]' '[a-z]'`
+    chip=`uname -m | tr '[A-Z]' '[a-z]'`
+    rele=`uname -r`
+    arch="$osys"
+    ccflv="gcc"
+    echo "$osys | $chip | $rele | $arch | $ccflv"
+    case "$osys:$chip:$rele" in
+#      aix:*:*)            arch=rs_aix4$rele    ; platform=aix;   ccflv=aix;;
+#      osf1*:alpha:*)      arch=alphacxx6       ; platform=alpha; ccflv=alphaosf;;
+      freebsd*:*:5*)      arch=FreeBSD5        ; platform=fbsd;  ccflv=gcc;;
+      freebsd*:*:4.2*)    arch=FreeBSD42       ; platform=fbsd;  ccflv=gcc;;
+      freebsd*:*:4.3*)    arch=FreeBSD43       ; platform=fbsd;  ccflv=gcc;;
+      freebsd*:*:4.4*)    arch=FreeBSD44       ; platform=fbsd;  ccflv=gcc;;
+      freebsd*:*:4*)      arch=FreeBSD4        ; platform=fbsd;  ccflv=gcc;;
+      freebsd*:*:*)       arch=FreeBSD         ; platform=fbsd;  ccflv=gcc;;
+#      hp-ux:ia64:*)       arch=hpuxia64        ; platform=hpux;  ccflv=hpuxia64;;
+#      hp-ux:*:*)          arch=hpux            ; platform=hpux;  ccflv=hpux;;
+      linux:ia64:2.2*)    arch=ia64_linux22    ; platform=linux; ccflv=icc;;
+      linux:ia64:2.4*)    arch=ia64_linux24    ; platform=linux; ccflv=icc;;
+      linux:ia64:2.6*)    arch=ia64_linux26    ; platform=linux; ccflv=icc;;
+      linux:ia64:*)       arch=ia64_linux      ; platform=linux; ccflv=icc;;
+      linux:i*86:2.2*)    arch=i386_linux22    ; platform=linux; ccflv=gcc;;
+      linux:i*86:2.4*)    arch=i386_linux24    ; platform=linux; ccflv=gcc;;
+      linux:i*86:2.6*)    arch=i386_linux26    ; platform=linux; ccflv=gcc;;
+      linux:i*86:*)       arch=i386_linux      ; platform=linux; ccflv=gcc;;
+      linux:x86_64:2.2*)  arch=x86_64_linux_22 ; platform=linux; ccflv=gccx8664;;
+      linux:x86_64:2.4*)  arch=x86_64_linux_24 ; platform=linux; ccflv=gccx8664;;
+      linux:x86_64:2.6*)  arch=x86_64_linux_26 ; platform=linux; ccflv=gccx8664;;
+      linux:x86_64:*)     arch=x86_64_linux    ; platform=linux; ccflv=gccx8664;;
+      linux:alpha:*)      arch=alpha_linux     ; platform=linux; ccflv=gcc;;
+      linux:arm*:*)       arch=arm_linux       ; platform=linux; ccflv=gcc;;
+      linux:ppc*:*)       arch=ppc_linux       ; platform=linux; ccflv=gcc;;
+#      darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
+#      darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
+      sunos:*:6*)         arch=sun4x_6         ; platform=solaris; ccflv=sunCC;;
+      sunos:*:5.6)        arch=sun4x_56        ; platform=solaris; ccflv=sunCC;;
+      sunos:*:5.7)        arch=sun4x_57        ; platform=solaris; ccflv=sunCC;;
+      sunos:*:5.8)        arch=sun4x_58        ; platform=solaris; ccflv=sunCC;;
+      sunos:*:5.9)        arch=sun4x_59        ; platform=solaris; ccflv=sunCC;;
+      sunos:*:5*)         arch=sun4x_5         ; platform=solaris; ccflv=sunCC;;
+      sunos:*:4*)         arch=sun4x_4         ; platform=solaris; ccflv=sunCC;;
+      *)
+          echo "Attempts at guessing your architecture failed."
+          echo "Please specify the architecture as the first argument."
+          echo "Do '$0 --help' for a list of avaliable architectures."
+          exit 1
+          ;;
+   esac
+    echo "$osys | $chip | $rele | $arch | $ccflv"
+
+}
+
+###################################################################
+#
+### echo %%% Some skeleton and config files
+#
+ARCHS=config/ARCHS
+MAKEIN=config/GNUmakefile.in
+MAKEOUT=GNUmakefile
+ENVIN=config/GNUmake.env.in
+ENVOUT=src/GNUmake.env
+OPTIN=config/GNUmake.options.in
+OPTOUT=src/GNUmake.options
+
+######################################################################
+#
+### echo %%% Testing the echo features
+#
+if  `(echo "testing\c"; echo 1,2,3) | grep c > /dev/null` ; then
+  if `(echo -n testing; echo 1,2,3) | sed s/-n/xn/ | grep xn > /dev/null`; then
+    ac_n= ac_c='
+' ac_t='	'
+  else
+    ac_n=-n ac_c= ac_t=
+  fi
+else
+  ac_n= ac_c='\c' ac_t=
+fi
+
+
+######################################################################
+#
+### echo %%% Help function
+#
+confhelp() {
+sversion=`grep "define XrdVERSION" src/XrdVersion.hh`
+vers=""
+if test ! "x$sversion" = "x" ; then
+   for i in $sversion ; do
+      if test ! "x$i" = "x#define" && test ! "x$i" = "xXrdVERSION" ; then
+         vers="version $i"
+      fi
+   done
+fi
+cat <<EOF
+
+\`configure' configures XRD $vers to adapt to many kind of systems.
+
+Usage:     $0 [architecture] [flag=value]
+
+The architecture to build for will be guessed from the output of 'uname'.
+If, however, that fails, or you don't want the 'native' compiler on the
+host platform, you can specify the architecture to use by passing as the
+FIRST argument one of the architecures given at the end of this message.
+
+To build in debug mode use option '--build=debug' .
+
+enable/disable options, prefix with either --enable- or --disable-
+   krb4            Kerberos4 support, requires Kerberos libs
+   krb5            Kerberos5 support, requires Kerberos libs
+
+with options, prefix with --with-, enables corresponding support
+
+   krb4            KerberosIV support, location of Kerberos distribution
+   krb4-incdir     KerberosIV support, location of kerberosIV/krb.h
+   krb4-libdir     KerberosIV support, location of libkrb4
+   krb5            Kerberos5 support, location of Kerberos distribution
+   krb5-incdir     Kerberos5 support, location of krb5.h
+   krb5-libdir     Kerberos5 support, location of libkrb5
+   thread-libdir   Path to libpthread
+
+Supported Architectures:
+
+   Platform        Default      Description
+                   flavour
+
+EOF
+   cat config/ARCHS | sed -e 's/^/   /'
+cat <<EOF
+
+A different flavour can be forced with option --ccflavour=[flavour], 
+e.g. --ccflavour=gccia64 to use the gcc compiler on Itanium.
+
+Help output is rather long, so you may want to pipe it through a pager, like
+for example
+
+  $0 --help | more
+
+Report bugs to <abh@stanford.edu>
+EOF
+}
+
+######################################################################
+#
+### echo %%% See if we got the architecture
+#
+if test $# -lt 1 ; then
+   guess_architecture
+else
+    case $1 in
+      -h|--help) confhelp ; exit 0 ;;
+      -*) # in case the first argument wasn't an architecure but an option
+          guess_architecture
+          ;;
+       *)
+          arch=$1
+          shift
+          ;;
+   esac
+fi
+
+# check that we got a valid architecture
+if test "$arch" = "linuxegcs" ; then
+    arch="linux"
+fi
+
+echo "arch = $arch"
+
+if `awk '{ print $1 }' $ARCHS | grep "^$arch$" > /dev/null  2>&1` ; then
+   echo "Configuring for $arch"
+else
+   echo "Invalid architecture. Try $0 --help"
+   exit 1
+fi
+
+if test "x$ccflv" = "xgccx8664" ; then
+   checklib64="yes"
+fi
+if test "x$platform" = "macosx" ; then
+   finkdir=`which fink 2>&1 | sed -ne "s/\/bin\/fink//p"`
+fi
+
+######################################################################
+#
+### echo %%% Command line arguments
+#
+if test $# -gt 0 ; then
+   while test ! "x$1" = "x" ; do
+      case "$1" in
+      -*=*) optarg=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+      *) optarg= ;;
+      esac
+
+      case $1 in
+      --help|-h) confhelp ;   exit 0 ;;
+      ################################################################
+      #
+      # With options to specifiy third part software
+      #
+      --no-create)             noact="yes"           ;;
+      --nohowto)               nohowto="yes"         ;;
+      --with-krb4=*)           krb4dir=$optarg       ; enable_krb4="yes"    ;;
+      --with-krb4-incdir=*)    krb4incdir=$optarg    ; enable_krb4="yes"    ;;
+      --with-krb4-libdir=*)    krb4libdir=$optarg    ; enable_krb4="yes"    ;;
+      --with-krb5=*)           krb5dir=$optarg       ; enable_krb5="yes"    ;;
+      --with-krb5-incdir=*)    krb5incdir=$optarg    ; enable_krb5="yes"    ;;
+      --with-krb5-libdir=*)    krb5libdir=$optarg    ; enable_krb5="yes"    ;;
+      --with-thread-libdir=*)  threadlibdir=$optarg  ; enable_thread="yes"  ;;
+      ################################################################
+      #
+      # Enable/disable to turn on/off third party software linkage and
+      # features
+      #
+      --enable-*)
+	f=`echo $1 | sed -e 's/--//' -e 's/-/_/'`
+	eval $f=yes
+	for c in $options ; do
+	   if test "x$c" = "x$f" ; then
+	      f=""
+	   fi
+	done
+	if test "x$f" != "x" ; then
+	   echo "Invalid option '$1'. Try $0 --help" ; exit 1 ;
+	fi
+	;;
+      --disable-*)
+	f=`echo $1 | sed -e 's/--disable/enable/' -e 's/-/_/'`
+	eval $f=no
+	for c in $options ; do
+	   if test "x$c" = "x$f" ; then
+	      f=""
+	   fi
+	done
+	if test "x$f" != "x" ; then
+	   echo "Invalid option '$1'. Try $0 --help" ; exit 1 ;
+	fi
+	;;
+      ################################################################
+      #
+      # Build steering option
+      #
+      --build=*)      xrdbuild="$optarg"  ;;
+      *)  echo "Invalid option '$1'. Try $0 --help" ; exit 1 ;;
+      esac
+      shift
+   done
+fi
+
+######################################################################
+#
+### echo %%% Copy skeletons to temporary files
+#
+if test "x$noact" = "xno"; then
+    cp -f $MAKEIN GNUmakefile.tmp
+    cp -f $ENVIN  GNUmake.env.tmp
+    cp -f $OPTIN  GNUmake.options.tmp
+fi
+
+######################################################################
+#
+### echo %%% Check type of build
+#
+dbgsfx=""
+dbgopt=""
+dbgflg="0"
+dbgmsg=""
+buildopt="TYPEOPT"
+if test "x$xrdbuild" = "xdebug"; then
+   dbgsfx="_dbg"
+   dbgopt="DBGSFX=_dbg"
+   dbgflg="1"
+   dbgmsg="debug"
+   buildopt="TYPEDBG"
+fi
+
+######################################################################
+#
+### echo %%% Locate standard commands
+#
+message "Checking for rm"
+rmpath="/bin/rm"
+if test ! -x $rmpath ; then
+locrm=`which rm 2> /dev/null`
+if test ! "x$locrm" = "x" ; then
+   rmpath="$locrm"
+   echo "$rmpath"
+else
+   echo "no: assume $rmpath"
+fi
+fi
+message "Checking for ln"
+lnpath="/bin/ln"
+if test ! -x $lnpath ; then
+locln=`which ln 2> /dev/null`
+if test ! "x$locln" = "x" ; then
+   lnpath="$locln"
+   echo "$lnpath"
+else
+   echo "no: assume $lnpath"
+fi
+fi
+
+######################################################################
+#
+### echo %%% Should sonames contain version numbers
+#
+if test "x$enable_soversion" = "xyes"; then
+    major=`sed 's|\(.*\)\..*/.*|\1|' < build/version_number`
+    minor=`sed 's|.*\.\(.*\)/.*|\1|' < build/version_number`
+    revis=`sed 's|.*\..*/\(.*\)|\1|' < build/version_number`
+
+    mkliboption="-v $major $minor $revis "
+    unset major
+    unset minor
+    unset revis
+fi
+
+######################################################################
+#
+### echo %%% Posix Thread Library
+#
+# Check for posix thread library
+#
+case $platform in
+macosx)
+    if test "x$enable_thread" = "x"; then
+        enable_thread="yes"
+    fi
+    ;;
+linux|fbsd)
+    if test "x$enable_thread" = "x"; then
+        enable_thread="yes"
+        threadlib="-pthread"
+        threadlibdir=
+    fi
+    ;;
+esac
+if test "x$enable_thread" = "xyes" && \
+   test "x$threadlib" = "x" ; then
+    check_library "libpthread" "$enable_shared" "$threadlibdir" \
+	$THREAD $THREAD/lib /usr/lib /usr/local/lib /usr/lib/X11 \
+	/usr/local/lib/X11 /usr/X11R6/lib /usr/local/X11R6/lib \
+	/usr/X11/lib /usr/shlib
+    threadlib=$found_lib
+    threadlibdir=$found_dir
+
+    if test "x$threadlib" = "x" ; then
+        enable_thread="no"
+    fi
+fi
+
+
+######################################################################
+#
+### Security plugins
+xrdsecplugins=""
+
+######################################################################
+#
+### echo %%% krb4 Support - Third party libraries
+#
+#
+# Check for krb4 (libkrb4.a)
+#
+krb4extracflags=""
+havekrb4=""
+if test ! "x$enable_krb4" = "xno" ; then
+    enable_krb4="yes"
+
+    if test "x$KRB4DIR" = "x" && test ! "x$KRB5DIR" = "x" ; then
+	KRB4DIR=$KRB5DIR
+    fi
+
+    if test "x$krb4dir" = "x" && test ! "x$KRB4DIR" = "x" ; then
+	krb4dir=$KRB4DIR
+    fi
+
+    if test "x$krb4incdir" = "x" && test ! "x$krb4dir" = "x" ; then
+	krb4incdir=$krb4dir/include
+    fi
+    check_header "kerberosIV/krb.h" "$krb4incdir" \
+            /afs/slac.stanford.edu/package/krb5/include /usr/athena/include \
+	    /usr/local/athena/include /usr/kerberos/include \
+	    /usr/krb5/include /usr/local/kerberos/include \
+	    /usr/include /usr/local/include
+    if test "x$found_dir" = "x" ; then
+	enable_krb4=no
+    else
+        krb4inc=$found_hdr
+        krb4incdir=$found_dir
+    fi
+
+    krb4libdirorg=""
+    if test ! "x$krb4libdir" = "x" ; then
+	krb4libdirorg=$krb4libdir
+    fi
+    if test "x$krb4libdir" = "x" && test ! "x$krb4dir" = "x" ; then
+	krb4libdirorg=$krb4dir/lib
+    fi
+    krb4libdirs="/afs/slac.stanford.edu/package/krb5/lib /usr/athena/lib \
+                 /usr/local/athena/lib /usr/kerberos/lib \
+                 /usr/krb4/lib /usr/local/kerberos/lib /usr/lib /usr/local/lib"
+
+    # check whether using MIT krb5
+    krb4mit=no
+    krb4lib=""
+    krb4libdir=""
+    check_library libk5crypto "$enable_shared" "$krb4libdirorg" $krb4libdirs
+    if test ! "x$found_lib" = "x" ; then
+	krb5mit=yes
+    fi
+    message "Checking whether we're using MIT Kerberos"
+    echo "$krb5mit"
+
+    check_library libkrb5 "$enable_shared" "$krb4libdirorg" $krb4libdirs
+    if test "x$found_lib" = "x" ; then
+	enable_krb4=no
+    else
+	# The order is important here
+	if test "x$krb5mit" = "xyes" ; then
+            tmplibs="libkrb4 libkrb5 libdes425 libk5crypto"
+            for i in $tmplibs ; do
+               check_library $i "$enable_shared" "$krb4libdirorg" $krb4libdirs
+	       if test "x$found_lib" = "x" ; then
+	          enable_krb4=no
+	       else
+	          krb4lib="$krb4lib $found_lib"
+                  if test "x$krb4libdir" = "x" ; then
+                     krb4libdir="$found_dir"
+                  else
+                     have_already=no
+                     for j in $krb4libdir ; do
+                        if test "x$found_dir" = "x$j" ; then
+                           have_already=yes
+                        fi
+                     done
+                     if test "x$have_already" = "xno" ; then
+                        have_already=yes
+	                krb4libdir="$krb4libdir $found_dir"
+                     fi
+                  fi
+	       fi
+            done
+	elif test "x$cryptolib" = "x" ; then
+            check_library "libcrypto" "$enable_shared" "$krb4libdirorg" \
+                          $krb4libdirs
+            cryptolib=$found_lib
+            cryptolibdir=$found_dir
+            if test -r $cryptolib && test "x$enable_shared" = "xno" ; then
+               case $platform in
+                   linux) cryptolib="$cryptolib -ldl"
+               esac
+            fi
+	    if test "x$cryptolib" = "x" ; then
+                enable_krb4=no
+	    fi
+	fi
+    fi
+
+    if test ! "x$enable_krb4" = "xyes" ; then
+        krb4incdir=""
+        krb4lib=""
+        krb4libdir=""
+    else
+        krb4extracflags="-DR__KRB4"
+        havekrb4="krb4"
+        xrdsecplugins="XrdSeckrb4 $xrdsecplugins"
+    fi
+fi
+
+######################################################################
+#
+### echo %%% krb5 Support - Third party libraries
+#
+#
+# Check for krb5 (libkrb5.a)
+#
+krb5extracflags=""
+havekrb5=""
+if test ! "x$enable_krb5" = "xno" ; then
+    enable_krb5="yes"
+
+    if test "x$krb5dir" = "x" && test ! "x$KRB5DIR" = "x" ; then
+	krb5dir=$KRB5DIR
+    fi
+
+    if test "x$krb5incdir" = "x" && test ! "x$krb5dir" = "x" ; then
+	krb5incdir=$krb5dir/include
+    fi
+    check_header "krb5.h" "$krb5incdir" \
+            /afs/slac.stanford.edu/package/krb5/include /usr/athena/include \
+    	    /usr/local/athena/include /usr/kerberos/include \
+    	    /usr/krb5/include /usr/local/kerberos/include \
+    	    /usr/include/et /usr/include /usr/local/include
+    if test "x$found_dir" = "x" ; then
+    	  enable_krb5=no
+    else
+       krb5inc=$found_hdr
+       krb5incdir="$found_dir"
+    fi
+
+    krb5libdirorg=""
+    if test ! "x$krb5libdir" = "x" ; then
+	krb5libdirorg=$krb5libdir
+    fi
+    if test "x$krb5libdir" = "x" && test ! "x$krb5dir" = "x" ; then
+	krb5libdirorg=$krb5dir/lib
+    fi
+    krb5libdirs="/afs/slac.stanford.edu/package/krb5/lib /usr/athena/lib \
+                 /usr/local/athena/lib /usr/kerberos/lib \
+                 /usr/krb5/lib /usr/local/kerberos/lib /usr/lib /usr/local/lib"
+
+    # check whether using MIT krb5
+    krb5mit=no
+    krb5lib=""
+    krb5libdir=""
+    check_library libk5crypto "$enable_shared" "$krb5libdirorg" $krb5libdirs
+    if test ! "x$found_lib" = "x" ; then
+	krb5mit=yes
+        krb5lib=$found_lib
+        krb5libdir=$found_dir
+    fi
+    message "Checking whether we're using MIT Kerberos"
+    echo "$krb5mit"
+
+    check_library libkrb5 "$enable_shared" "$krb5libdirorg" $krb5libdirs
+    if test "x$found_lib" = "x" ; then
+	enable_krb5=no
+    else
+	# The order is important here
+	krb5lib="$found_lib $krb5lib"
+        if test "x$krb5libdir" = "x" ; then
+           krb5libdir="$found_dir"
+        else
+           have_already=no
+           for j in $krb5libdir ; do
+              if test "x$found_dir" = "x$j" ; then
+                 have_already=yes
+              fi
+           done
+           if test "x$have_already" = "xno" ; then
+              have_already=yes
+	      krb5libdir="$krb5libdir $found_dir"
+           fi
+        fi
+
+	if test "x$krb5mit" = "xyes" ; then
+	    :
+	elif test "x$cryptolib" = "x" ; then
+            check_library "libcrypto" "$enable_shared" "$krb5libdirorg" \
+                          $krb5libdirs
+            cryptolib=$found_lib
+            cryptolibdir=$found_dir
+            if test -r $cryptolib && test "x$enable_shared" = "xno" ; then
+               case $platform in
+                   linux) cryptolib="$cryptolib -ldl"
+               esac
+            fi
+	    if test "x$cryptolib" = "x" ; then
+                enable_krb5=no
+	    fi
+	fi
+    fi
+
+    if test ! "x$enable_krb5" = "xyes" ; then
+        krb5incdir=""
+        krb5lib=""
+        krb5libdir=""
+    else
+        krb5extracflags="-DR__KRB5"
+        havekrb5="krb5"
+        xrdsecplugins="XrdSeckrb5 $xrdsecplugins"
+    fi
+fi
+
+######################################################################
+#
+### echo %%% Communication of errors library
+#
+# This library is needed by both AFS and Kerberos support, so to
+# avoid duplicate linkage, this is done here.
+#
+if test "x$enable_krb5" = "xyes" ; then
+
+    comerrincdir="/usr/include/et"
+    if test ! "x$krb5incdir" = "x" ; then
+        if test ! "x$comerrincdir" = "x" ; then
+            comerrincdir="$krb5incdir $comerrincdir"
+        else
+            comerrincdir=$krb5incdir
+        fi
+    fi
+    check_header "com_err.h" "$comerrincdir" \
+            /afs/slac.stanford.edu/package/krb5/include /usr/athena/include \
+    	    /usr/local/athena/include /usr/kerberos/include \
+    	    /usr/krb5/include /usr/local/kerberos/include \
+    	    /usr/include /usr/local/include
+
+    ceincdir=""
+    if test ! "x$found_dir" = "x" ; then
+       ceincdir=$found_dir
+    fi
+
+    if test ! "x$krb5libdirorg" = "x" ; then
+        if test ! "x$comerrlibdir" = "x" ; then
+            comerrlibdir="$comerrlibdir $krb5libdirorg"
+        else
+            comerrlibdir=$krb5libdirorg
+        fi
+    fi
+    check_library libcom_err "$enable_shared" "$comerrlibdir" \
+                                              "$afslibdirs $krb5libdirs"
+
+    inckrb4="INCKRB4 = "
+    libkrb4="LIBKRB4 = "
+    inckrb5="INCKRB5 = "
+    libkrb5="LIBKRB5 = "
+    if test "x$found_lib" = "x" ; then
+	enable_krb4=no
+	enable_krb5=no
+        krb5incdir=""
+        krb5lib=""
+        krb5libdir=""
+        krb5extracflags=""
+	enable_afs=no
+        afslib=""
+	comerrlib=""
+	comerrlibdir=""
+    else
+	comerrlib=$found_lib
+	comerrlibdir=$found_dir
+        if test "x$enable_krb4" = "xyes" ; then
+           # Add header dir, if necessary
+           have_already=no
+           for j in $krb4incdir ; do
+              if test "x$ceincdir" = "x$j" ; then
+                 have_already=yes
+              fi
+           done
+           if test "x$have_already" = "xno" ; then
+              inckrb4="INCKRB4 = -I$krb4incdir -I$ceincdir"
+           else
+              inckrb4="INCKRB4 = -I$krb4incdir"
+           fi
+           # Add lib (and lib dir, if necessary)
+           have_already=no
+           for j in $krb4libdir ; do
+              if test "x$comerrlibdir" = "x$j" ; then
+                 have_already=yes
+              fi
+           done
+           if test "x$have_already" = "xno" ; then
+              libkrb4="LIBKRB4 = $krb4libdir $krb4lib $comerrlibdir $comerrlib"
+           else
+              libkrb4="LIBKRB4 = $krb4libdir $krb4lib $comerrlib"
+           fi
+        fi
+        if test "x$enable_krb5" = "xyes" ; then
+           # Add header dir, if necessary
+           have_already=no
+           for j in $krb5incdir ; do
+              if test "x$ceincdir" = "x$j" ; then
+                 have_already=yes
+              fi
+           done
+           if test "x$have_already" = "xno" ; then
+              inckrb5="INCKRB5 = -I$krb5incdir -I$ceincdir"
+           else
+              inckrb5="INCKRB5 = -I$krb5incdir"
+           fi
+           # Add lib (and lib dir, if necessary)
+           have_already=no
+           for j in $krb5libdir ; do
+              if test "x$comerrlibdir" = "x$j" ; then
+                 have_already=yes
+              fi
+           done
+           if test "x$have_already" = "xno" ; then
+              libkrb5="LIBKRB5 = $krb5libdir $krb5lib $comerrlibdir $comerrlib"
+           else
+              libkrb5="LIBKRB5 = $krb5libdir $krb5lib $comerrlib"
+           fi
+        fi
+    fi
+
+    case $platform in
+	linux|solaris) # Resolver lives in separate library
+	    resolvlib="-lresolv"
+	    ;;
+    esac
+fi
+
+######################################################################
+#
+### echo %%% Exit here if this is a dry run
+#
+if test "x$noact" = "xyes" ; then
+    exit 0
+fi
+
+######################################################################
+#
+### echo %%% Writing files
+#
+#---------------------------------------------------------------------
+# GNUmakefile
+#
+message "Writing $MAKEOUT "
+sed -e "s|@arch@|$arch|"                   \
+    -e "s|@type@|$type|"                   \
+    -e "s|@rmpath@|$rmpath|"                   \
+    -e "s|@lnpath@|$lnpath|"                   \
+    -e "s|@xrdsecplugins@|$xrdsecplugins|" \
+    -e "s|@dbgsfx@|$dbgsfx|g"   \
+    -e "s|@dbgmsg@|$dbgmsg|g"   \
+    < GNUmakefile.tmp > $MAKEOUT
+rm -f GNUmakefile.tmp
+
+echo "done"
+
+#---------------------------------------------------------------------
+# GNUmake.env
+#
+message "Writing $ENVOUT "
+sed -e "s|@arch@|$arch|"                 \
+    -e "s|@type@|$type|"                 \
+    -e "s|@ccflv@|$ccflv|"               \
+    -e "s|@threadlib@|$threadlib|"       \
+    -e "s|@threadlibdir@|$threadlibdir|" \
+    -e "s|@inckrb4@|$inckrb4|"           \
+    -e "s|@libkrb4@|$libkrb4|"           \
+    -e "s|@inckrb5@|$inckrb5|"           \
+    -e "s|@libkrb5@|$libkrb5|"           \
+    < GNUmake.env.tmp > $ENVOUT
+rm -f GNUmake.env.tmp
+
+echo "done"
+
+#---------------------------------------------------------------------
+# GNUmake.options
+#
+message "Writing $OPTOUT "
+sed -e "s|@dbgsfx@|$dbgsfx|g"   \
+    -e "s|@dbgopt@|$dbgopt|"   \
+    -e "s|@dbgflg@|$dbgflg|"   \
+    -e "s|@makemsg@|$makemsg|" \
+    -e "s|@buildopt@|$buildopt|" \
+    < GNUmake.options.tmp > $OPTOUT
+rm -f GNUmake.options.tmp
+
+echo "done"
+
+exit 0

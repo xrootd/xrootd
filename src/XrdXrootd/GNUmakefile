@@ -41,7 +41,7 @@ OBJDEPS = \
           ../../lib/$(ARCH)$(DBGSFX)/libXrdOuc.a \
           ../../obj/$(ARCH)$(DBGSFX)/XrdSfsNative.o
 
-TARGET  = $(BINDIR)/xrootd
+TARGETS  = $(BINDIR)/xrootd
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -57,18 +57,18 @@ vpath XP%     ../XProtocol
 #                          I n i t i a l   R u l e s                           #
 #------------------------------------------------------------------------------#
  
-include ../GNUmake.rules
+include ../GNUmake.options
 
-anything: $(TARGET)
+anything: $(TARGETS)
 	@echo Make XrdXrootd done.
 
 #------------------------------------------------------------------------------#
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
 
-$(TARGET): $(OBJECTS) $(OBJDEPS)
-	@echo Creating executable $(TARGET) 
-	@$(CC) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGET)
+$(TARGETS): $(OBJECTS) $(OBJDEPS)
+	@echo Creating executable $(TARGETS) 
+	@$(CC) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGETS)
 
 $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdFileLock.hh XrdXrootdFileLock1.hh \

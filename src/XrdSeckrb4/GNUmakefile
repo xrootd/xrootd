@@ -33,7 +33,7 @@ vpath XrdSec% ../XrdSec
 #                          I n i t i a l   R u l e s                           #
 #------------------------------------------------------------------------------#
  
-include ../GNUmake.rules
+include ../GNUmake.options
 
 anything: $(TARGETS)
 	@echo Make XrdSeckrb4 done.

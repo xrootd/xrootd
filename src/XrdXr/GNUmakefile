@@ -30,7 +30,9 @@ OBJDEPS = \
 
 LIBRARY = $(LIBDIR)/libXrdXr.a
 
-TARGET  = $(BINDIR)/xrclient$(BINSFX)
+TESTBIN = $(BINDIR)/xrclient$(BINSFX)
+
+TARGETS = $(LIBRARY) $(TESTBIN)
 
 
 #------------------------------------------------------------------------------#
@@ -48,9 +50,9 @@ vpath XrdXr%  ../XrdXr
 #                          I n i t i a l   R u l e s                           #
 #------------------------------------------------------------------------------#
  
-include ../GNUmake.rules
+include ../GNUmake.options
 
-anything: $(TARGET)
+anything: $(TARGETS)
 	@echo Make XrdXr done.
 
 
@@ -58,9 +60,9 @@ anything: $(TARGET)
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
 
-$(TARGET): $(OBJECTS) $(OBJDEPS)
-	@echo Creating executable $(TARGET) ...
-	@$(CC) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGET)
+$(TARGETS): $(OBJECTS) $(OBJDEPS)
+	@echo Creating executable $(TESTBIN) ...
+	@$(CC) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
 	@echo Creating shared library $(LIBRARY)
 	@ar r $(LIBRARY) $(XROBJS)
 
