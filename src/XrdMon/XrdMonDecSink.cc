@@ -205,6 +205,28 @@ XrdMonDecSink::add(dictid_t xrdId, XrdMonDecTraceInfo& trace)
 }
 
 void
+XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
+                                 kXR_int32 sec,
+                                 time_t timestamp)
+{
+    std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(xrdId);
+    if ( itr == _uCache.end() ) {
+        registerLostPacket(xrdId, "User disconnect");
+        return;
+    }
+    itr->second->setDisconnectInfo(sec, timestamp);
+
+    if ( _rtLogFile.is_open() ) {
+        char timeStr[24];
+        timestamp2string(timestamp, timeStr);
+        _rtLogFile << "u " << itr->second->convert2stringRT() 
+                   << ' ' << sec 
+                   << ' ' << timeStr 
+                   << ' ' << _senderHost << endl;
+    }
+}
+
+void
 XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
 {
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);

@@ -40,6 +40,7 @@ public:
     void addDictId(dictid_t xrdId, const char* theString, int len);
     void addUserId(dictid_t xrdId, const char* theString, int len);
     void add(dictid_t xrdId, XrdMonDecTraceInfo& trace);
+    void addUserDisconnect(dictid_t xrdId, kXR_int32 sec, time_t timestamp);
     void openFile(dictid_t dictId, time_t timestamp);
     void closeFile(dictid_t dictId, 
                    kXR_int64 bytesR, 

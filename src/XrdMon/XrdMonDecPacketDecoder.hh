@@ -55,19 +55,15 @@ private:
 
     void checkLostPackets(const XrdMonHeader& header);
     
-    void decodeTracePacket(const char* packet, 
-                           int packetLen);
-    void decodeDictPacket(const char* packet, 
-                          int packetLen);
-    void decodeUserPacket(const char* packet, 
-                          int packetLen);
+    void decodeTracePacket(const char* packet, int packetLen);
+    void decodeDictPacket(const char* packet, int packetLen);
+    void decodeUserPacket(const char* packet, int packetLen);
     TimePair decodeTime(const char* packet);
-    void decodeRWRequest(const char* packet, 
-                         time_t timestamp);
-    void decodeOpen(const char* packet, 
-                    time_t timestamp);
-    void decodeClose(const char* packet,
-                     time_t timestamp);
+    void decodeRWRequest(const char* packet, time_t timestamp);
+    void decodeOpen(const char* packet, time_t timestamp);
+    void decodeClose(const char* packet, time_t timestamp);
+    void decodeDisconnect(const char* packet, time_t timestamp);
+
     CalcTime prepareTimestamp(const char* packet, 
                               int& offset, 
                               int len, 

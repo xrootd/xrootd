@@ -126,7 +126,7 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
             } else if ( infoType == XROOTD_MON_CLOSE ) {
                 decodeClose(packet+offset, timestamp);
             } else if ( infoType == XROOTD_MON_DISC ) {
-                cout << "decoding  user disconnect not implemented" << endl;
+                decodeDisconnect(packet+offset, timestamp);
             } else {
                 stringstream es(stringstream::out);
                 es << "Unsupported infoType of trace packet: " 
@@ -233,6 +233,21 @@ XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
     //     << endl;
 
     _sink.closeFile(dictId, realR, realW, timestamp);
+}
+
+void
+XrdMonDecPacketDecoder::decodeDisconnect(const char* packet, time_t timestamp)
+{
+    XrdXrootdMonTrace trace;
+    memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
+
+    kXR_int32 sec    = ntohl(trace.data.arg1.buflen);
+    kXR_unt32 dictId = ntohl(trace.data.arg2.dictid);
+
+    cout << "decoded user disconnect, dict " << dictId
+         << ", sec = " << sec << endl;
+
+    _sink.addUserDisconnect(dictId, sec, timestamp);
 }
 
 XrdMonDecPacketDecoder::CalcTime

@@ -29,7 +29,9 @@ XrdMonDecUserInfo::XrdMonDecUserInfo()
       _myUniqueId(0),
       _user("InvalidUser"),
       _pid(-1),
-      _host("InvalidHost")
+      _host("InvalidHost"),
+      _sec(0),
+      _dTime(0)
 {}
 
 XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
@@ -37,7 +39,9 @@ XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
                                      const char* s, 
                                      int len)
     : _myXrdId(id),
-      _myUniqueId(uniqueId)
+      _myUniqueId(uniqueId),
+      _sec(0),
+      _dTime(0)
 {
     // uncomment all 3 below if you want to print the string
     //char*b = new char [len+1];strncpy(b, s, len);b[len] = '\0';
@@ -82,6 +86,14 @@ XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
     delete [] buf;
 }
 
+void
+XrdMonDecUserInfo::setDisconnectInfo(kXR_int32 sec,
+                                     time_t timestamp)
+{
+    _sec   = sec;
+    _dTime = timestamp;
+}
+
 int 
 XrdMonDecUserInfo::stringSize() const
 {
@@ -109,7 +121,8 @@ string
 XrdMonDecUserInfo::convert2stringRT() const
 {
     stringstream ss(stringstream::out);
-    ss << ' ' << _user
+    ss << _user
+     //<< ' ' << _pid
        << ' ' << _host;
     return ss.str();
 }

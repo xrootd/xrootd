@@ -31,6 +31,8 @@ public:
                       dictid_t uniqueId,
                       const char* theString,
                       int len);
+
+    void setDisconnectInfo(kXR_int32 sec, time_t timestamp);
     
     dictid_t xrdId() const { return _myXrdId; }
     dictid_t uniqueId() const { return _myUniqueId; }
@@ -57,9 +59,12 @@ private:
     dictid_t _myXrdId;    // the one that come inside packet, not unique
     dictid_t _myUniqueId; // unique (across all dictIds for given xrd server)
 
-    string  _user;
+    string    _user;
     kXR_int16 _pid;
-    string  _host;
+    string    _host;
+
+    kXR_int32 _sec;   // number of seconds that client was connected
+    time_t    _dTime; // disconnect time
     
     friend ostream& operator<<(ostream& o, 
                                const XrdMonDecUserInfo& m);
