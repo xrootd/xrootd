@@ -527,7 +527,8 @@ int main(int argc, char *argv[])
 
   const char* hostname;
   int         port     = 1094;
-  char        input[100];
+  int         len      = 300;  // length of input characters read from stdin  
+  char        input[len];
 
   int command = 0;
   int debug   = 0;
@@ -576,7 +577,7 @@ int main(int argc, char *argv[])
       cout << "hostname:port> ";
       login = false;
     }
-    cin.getline(input, 100);
+    cin.getline(input, len);
  
     command = parseInput(input);
 
