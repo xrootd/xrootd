@@ -287,8 +287,9 @@ XrdMonDecSink::flushClosedDicts()
 {
     fstream fD(_dictPath.c_str(), ios::out | ios::app);
     enum { BUFSIZE = 1024*1024 };
-    
-    char buf[BUFSIZE];
+    string buf;
+    buf.reserve(BUFSIZE);
+
     map<dictid_t, XrdMonDecDictInfo*>::iterator itr;
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
     {
@@ -304,15 +305,15 @@ XrdMonDecSink::flushClosedDicts()
                 dString += '\t';dString += _senderHost;dString += '\n';
                 int strLen = dString.size();
                 if ( curLen == 0 ) {
-                    strcpy(buf, dString.c_str());
+                    buf = dString.c_str();
                 } else {
                     if ( curLen + strLen >= BUFSIZE ) {
-                        fD.write(buf, curLen);
+                        fD.write(buf.c_str(), curLen);
                         curLen = 0;
                         //cout << "flushed to disk: \n" << buf << endl;
-                        strcpy(buf, dString.c_str());
+                        buf = dString.c_str();
                     } else {
-                        strcat(buf, dString.c_str());
+                        buf += dString.c_str();
                     }
                 }
                 curLen += strLen;
@@ -329,7 +330,7 @@ XrdMonDecSink::flushClosedDicts()
     }
     
     if ( curLen > 0 ) {
-        fD.write(buf, curLen);
+        fD.write(buf.c_str(), curLen);
         //cout << "flushed to disk: \n" << buf << endl;
     }
     fD.close();
@@ -342,7 +343,8 @@ XrdMonDecSink::flushUserCache()
     fstream fD(_userPath.c_str(), ios::app);
     enum { BUFSIZE = 1024*1024 };
     
-    char buf[BUFSIZE];
+    string buf;
+    buf.reserve(BUFSIZE);
     map<dictid_t, XrdMonDecUserInfo*>::iterator itr;
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
     {
@@ -358,15 +360,15 @@ XrdMonDecSink::flushUserCache()
                 dString += '\t';dString += _senderHost;dString += '\n';
                 int strLen = dString.size();
                 if ( curLen == 0 ) {
-                    strcpy(buf, dString.c_str());
+                    buf = dString.c_str();
                 } else {
                     if ( curLen + strLen >= BUFSIZE ) {
-                        fD.write(buf, curLen);
+                        fD.write(buf.c_str(), curLen);
                         curLen = 0;
                         cout << "flushed to disk: \n" << buf << endl;
-                        strcpy(buf, dString.c_str());
+                        buf = dString.c_str();
                     } else {
-                        strcat(buf, dString.c_str());
+                        buf + dString.c_str();
                     }
                 }
                 curLen += strLen;
@@ -383,7 +385,7 @@ XrdMonDecSink::flushUserCache()
     }
     
     if ( curLen > 0 ) {
-        fD.write(buf, curLen);
+        fD.write(buf.c_str(), curLen);
         cout << "flushed to disk: \n" << buf << endl;
     }
     fD.close();

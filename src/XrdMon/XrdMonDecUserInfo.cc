@@ -110,13 +110,14 @@ XrdMonDecUserInfo::convert2string() const
 
 // this goes to real time log file
 const char*
-XrdMonDecUserInfo::writeRT2Buffer(TYPE t) const
+XrdMonDecUserInfo::writeRT2Buffer(TYPE t, string& senderHost) const
 {
     static char buf[512];
     
     if ( t == CONNECT ) {
-        sprintf(buf, "c %i\t%s\t%i\t%s\n", 
-                _myUniqueId, _user.c_str(), _pid, _host.c_str());
+        sprintf(buf, "u %i\t%s\t%i\t%s\t%s\n", 
+                _myUniqueId, _user.c_str(), _pid, _host.c_str(), 
+                senderHost.c_str());
     } else {
         static char b[24];
         timestamp2string(_dTime, b);

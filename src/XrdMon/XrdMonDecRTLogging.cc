@@ -24,8 +24,8 @@ XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir, string& senderHost)
       _buf(0), 
       _bufSize(1024*1024)
 {
-    _rtLogDir = dir;
-    _rtLogDir += "/realTimeLogging.txt";
+    _rtLog = dir;
+    _rtLog += "/realTimeLogging.txt";
 
     _buf = new char [_bufSize];
     strcpy(_buf, "");
@@ -41,7 +41,7 @@ XrdMonDecRTLogging::add(XrdMonDecUserInfo::TYPE t, XrdMonDecUserInfo* x)
 {
     XrdOucMutexHelper mh; mh.Lock(&_mutex);
 
-    const char* s = x->writeRT2Buffer(t);
+    const char* s = x->writeRT2Buffer(t, _senderHost);
     if ( static_cast<int>(strlen(_buf) + strlen(s)) >= _bufSize ) {
         flush(false); // false -> don't lock mutex, already locked
     }
@@ -53,7 +53,7 @@ XrdMonDecRTLogging::add(XrdMonDecDictInfo::TYPE t, XrdMonDecDictInfo* x)
 {
     XrdOucMutexHelper mh; mh.Lock(&_mutex);
 
-    const char* s = x->writeRT2Buffer(t);
+    const char* s = x->writeRT2Buffer(t, _senderHost);
     if ( static_cast<int>(strlen(_buf) + strlen(s)) >= _bufSize ) {
         flush(false); // false -> don't lock mutex, already locked
     }
@@ -65,7 +65,7 @@ XrdMonDecRTLogging::flush(bool lockIt)
 {
     cout << "Flushing RT data..." << endl;
 
-    fstream f(_rtLogDir.c_str(), ios::out|ios::app);
+    fstream f(_rtLog.c_str(), ios::out|ios::app);
 
     XrdOucMutexHelper mh;
     if ( lockIt ) {

@@ -30,7 +30,7 @@ public:
     void flush(bool lockMutex=true);
     
 private:
-    string      _rtLogDir;
+    string      _rtLog;
     string&     _senderHost;
     char*       _buf;
     const int   _bufSize; // flush when buffer is full, or when

@@ -309,15 +309,16 @@ XrdMonDecDictInfo::convert2string() const
 
 // this goes to real time log file
 const char*
-XrdMonDecDictInfo::writeRT2Buffer(TYPE t) const
+XrdMonDecDictInfo::writeRT2Buffer(TYPE t, string& senderHost) const
 {
     static char buf[1024];
     static char tBuf[24];
     
     if ( t == OPEN ) {
         timestamp2string(_open, tBuf);
-        sprintf(buf, "o %i\t%s\t%s\t%s\t%s\n", 
-                _myUniqueId, _user.c_str(), _host.c_str(), _path.c_str(),tBuf);
+        sprintf(buf, "o %i\t%s\t%s\t%s\t%s\t%s\n", 
+                _myUniqueId, _user.c_str(), _host.c_str(), _path.c_str(),
+                tBuf, senderHost.c_str());
     } else {
         timestamp2string(_close, tBuf);
         sprintf(buf, "c %i\t%lld\t%lld\t%s\n", 

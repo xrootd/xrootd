@@ -42,7 +42,7 @@ public:
     dictid_t uniqueId() const { return _myUniqueId; }
     
     string convert2string() const;
-    const char* writeRT2Buffer(TYPE t) const;
+    const char* writeRT2Buffer(TYPE t, string& senderHost) const;
     string convert2stringRTDisconnect() const;
 
 private:

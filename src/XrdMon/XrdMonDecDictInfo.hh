@@ -42,7 +42,7 @@ public:
     bool isClosed() const   { return 0 != _close; }
     int stringSize() const;
     string convert2string() const;
-    const char* writeRT2Buffer(TYPE t) const;
+    const char* writeRT2Buffer(TYPE t, string& senderHost) const;
     void writeSelf2buf(char* buf, int& pos) const;
     
     void openFile(time_t t);
