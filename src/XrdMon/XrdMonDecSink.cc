@@ -198,7 +198,7 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
         registerLostPacket(xrdId, "Close file");
         return;
     }
-    cout << "Closing file " << xrdId << endl;
+    cout << "Closing file id= " << xrdId << " r= " << bytesR << " w= " << bytesW << endl;
     itr->second->closeFile(bytesR, bytesW, timestamp);
 }
 

@@ -195,10 +195,10 @@ XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
     int64_t realR = tR; realR = realR << rShift;
     int64_t realW = tW; realW = realW << wShift;
 
-    cout << "decoded close file, dict " << dictId 
-         << ", total r " << tR << " shifted " << (int) rShift << ", or " << realR
-         << ", total w " << tW << " shifted " << (int) wShift << ", or " << realW
-         << endl;
+    //cout << "decoded close file, dict " << dictId 
+    //     << ", total r " << tR << " shifted " << (int) rShift << ", or " << realR
+    //     << ", total w " << tW << " shifted " << (int) wShift << ", or " << realW
+    //     << endl;
 
     _sink.closeFile(dictId, realR, realW, timestamp);
 }
