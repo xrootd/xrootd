@@ -68,7 +68,7 @@ SUN64      = -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 SUNMT      = -D_REENTRANT -mt -D_POSIX_PTHREAD_SEMANTICS
 SUNOPT     = -fast -xarch=v8plus
 SUNLDSO    = -KPIC -G
-SUNDBG     = -g
+SUNDBG     = -g -xs
 SUNCFLAGS  = -DSUN $(SUN64) $(SUNMT) $(SUNCCT)
 
 SUNLFLAGS  =
@@ -79,7 +79,7 @@ LNX32      = -D__linux__ -D_ALL_SOURCE -D_REENTRANT -D_GNU_SOURCE
 LNX64      = -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 LNXOPT     = -O3
 LNXLDSO    = -fPIC -shared
-LNXDBG     = -g
+LNXDBG     = -g -o3
 LNXCFLAGS  = -D__linux__ -D_ALL_SOURCE $(LNX64) -D_REENTRANT -D_GNU_SOURCE \
              -Wno-deprecated
 LNXLFLAGS  = -rdynamic

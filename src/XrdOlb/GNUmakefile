@@ -69,14 +69,14 @@ vpath XrdOuc% ../XrdOuc
 SUN64      = -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 SUNMT      = -D_REENTRANT -mt -D_POSIX_PTHREAD_SEMANTICS
 SUNOPT     = -fast -xarch=v8plus
-SUNDBG     = -g
+SUNDBG     = -g -xs
 SUNCFLAGS  = -DSUN $(SUN64) $(SUNMT) $(SUNCCT)
 
 SUNLIBS    =  -lposix4 -lsocket -lnsl -lpthread
 
 LNX64      = -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 LNXOPT     = -O3
-LNXDBG     = -g
+LNXDBG     = -g -O3
 LNXCFLAGS  = -D__linux__ -D_ALL_SOURCE $(LNX64) -D_REENTRANT -D_GNU_SOURCE \
              -Wno-deprecated
 LNXLIBS    =  -lnsl -lpthread -lrt
