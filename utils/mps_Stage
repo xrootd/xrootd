@@ -662,7 +662,8 @@ if (!$cfn) {$cfn = ($isMPS ? '/opt/xrootd/etc/xrootd.cf'
           pftpport       => 'xfrport',
           pftpuser       => 'xfruser',
          );
-my(%Xcept)= ('ooss.cache'   => 1);
+my(%Xcept)= ('ooss.cache'   => 1,
+              'oss.cache'   => 1);
 
 if (!open(CONFIG, $cfn))
    {if ($? == 2 && !$copt) {&Emsg("error opening '$cfn'; $!.")}
@@ -685,7 +686,7 @@ while( <CONFIG> ) {
          {next if ("$ssys" ne 'stage');} # skip if not for our subsys
    elsif ( !(($sys,$svar) = $var =~ /^(\S*)\.(\S*)$/ )) { next; }
 
-   next if (("$sys" ne "$SSD' && !$Accept) || !$svar); # skip if not for ooss
+   next if (("$sys" ne "$SSD" && !$Accept) || !$svar); # skip if not for ooss
 
    if ($Xlate{$svar}) {$dvd = $Xlate{$svar}}
       else {$dvd = $svar;}
