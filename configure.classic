@@ -38,11 +38,13 @@ strlcpy="noidea"
 seconly="no"
 usearchdirs="yes"
 suncache="/SunWS_cache"
+type=`uname -s`
 
 options="                 \
    enable_echo            \
    enable_krb4            \
    enable_krb5            \
+   enable_mon             \
    enable_perlint         \
    enable_trace           \
 "
@@ -54,6 +56,7 @@ options="                 \
 for c in $options ; do eval $c="yes" ; done
 
 enable_echo=no
+enable_mon=yes
 enable_perlint=no
 enable_thread=yes
 
@@ -411,7 +414,8 @@ guess_architecture () {
       sunos:*:5.9)        arch=sun4x_59        ; platform=solaris; ccflv=sunCC;;
       sunos:*:5*)         arch=sun4x_5         ; platform=solaris; ccflv=sunCC;;
       sunos:*:4*)         arch=sun4x_4         ; platform=solaris; ccflv=sunCC;;
-      cygwin_*:*:*)       arch=win32           ; platform=win32;  ccflv=wingcc;;
+      cygwin_*:*:*)       arch=win32 ; platform=win32;  ccflv=wingcc; type=cygwin;;
+
       *)
           echo "Attempts at guessing your architecture failed."
           echo "Please specify the architecture as the first argument."
@@ -481,6 +485,7 @@ enable/disable options, prefix with either --enable- or --disable-
    echo            Enable/disable echoing of commands during building
    krb4            Kerberos4 support, requires Kerberos libs
    krb5            Kerberos5 support, requires Kerberos libs
+   mon             Enable/disable building of monitoring services
    perlint         Enable/disable building of the perl admin interface
    trace           Support for trace statements via the "-d" flag
 
@@ -678,6 +683,14 @@ if test "x$platform" = "xmacosx" ; then
    fi
 fi
 
+
+#
+# If Cygwin-gcc set the correct cc flavour
+#
+if test "x$arch" = "xwin32gcc" ; then
+    nccflv="wingcc"
+fi
+
 #
 # Check architecture support status
 #
@@ -738,10 +751,14 @@ else
 fi
 
 # Which targets to build
-targets="\$(SERVER)"
+targets="\$(SERVER) \$(XRDCLIENT) "
 if test "x$seconly" = "xyes" ; then
    echo "Building only security modules..."
    targets="\$(XRDSEC)"
+fi
+if test "x$enable_mon" = "xyes" ; then
+   echo "Building monitor module ..."
+   targets="$targets \$(XRDMON)"
 fi
 
 ######################################################################
