@@ -220,8 +220,8 @@ int XrdXrootdProtocol::do_Close()
   
 int XrdXrootdProtocol::do_Dirlist()
 {
-   int rc = 0, dlen, cnt = 0;
-   char *dname, ebuff[2048];
+   int bleft, rc = 0, dlen, cnt = 0;
+   char *buff, *dname, ebuff[4096];
    XrdSfsDirectory *dp;
 
 // Prescreen the path
@@ -242,30 +242,40 @@ int XrdXrootdProtocol::do_Dirlist()
    if ((rc = dp->open((const char *)argp->buff, CRED)))
       {rc = fsError(rc, dp->error); delete dp; return rc;}
 
-// Start retreiving each entry, the protocol is kind of funky because we cannot
-// reflect any error at this point, sigh.
+// Start retreiving each entry and place in a local buffer with a trailing new
+// line character (the last entry will have a null byte). If we cannot fit a
+// full entry in the buffer, send what we have with an OKSOFAR and continue.
+// This code depends on the fact that a directory entry will never be longer
+// than sizeof( ebuff)-1; otherwise, an infinite loop will result. No errors
+// are allowed to be reflected at this point.
 //
-   while((dname = (char *)dp->nextEntry()))
-        {dlen = strlen(dname);
-         if (dname[0] == '.' && (dlen == 1 || (dlen == 2 && dname[1] == '.')))
-            continue;
-         if (!cnt) rc = Response.Send((void *)dname, dlen);
-            else   rc = Response.Push((void *)dname, dlen);
-         if (rc) break;
-         cnt++;
-        }
+  dname = 0;
+  do {buff = ebuff; bleft = sizeof(ebuff);
+      while(dname || (dname = (char *)dp->nextEntry()))
+           {dlen = strlen(dname);
+            if (dlen > 2 || dname[0] != '.' || (dlen == 2 && dname[1] != '.'))
+               {if ((bleft -= (dlen+1)) < 0) break;
+                strcpy(buff, dname); buff += dlen; *buff = '\n'; buff++; cnt++;
+               }
+            dname = 0;
+           }
+       if (dname) rc = Response.Send(kXR_oksofar, ebuff, buff-ebuff);
+     } while(!rc && dname);
 
-// If no errors butr nothing sent, just send a null response
+// Send the ending packet if we actually have one to send
 //
-   if (rc == 0)
-      if (cnt == 0) Response.Send();
-         else Response.Push();
+   if (!rc) 
+      {if (ebuff == buff) rc = Response.Send();
+          else {*(buff-1) = '\0';
+                rc = Response.Send((void *)ebuff, buff-ebuff);
+               }
+      }
 
 // Close the directory
 //
    dp->close();
    delete dp;
-   TRACEP(FS, "dirlist rc=" <<rc <<" entries=" <<cnt <<" path=" <<argp->buff);
+   if (!rc) {TRACEP(FS, "dirlist entries=" <<cnt <<" path=" <<argp->buff);}
    return rc;
 }
 
