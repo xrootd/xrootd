@@ -30,7 +30,7 @@ static int  Connect(             int       fd,      // Open socket descriptor
                                  int       namelen, // Size of address
                                  int       tsec=-1);// Optional timeout
 
-       void ConnectXeq();
+       void ConnectXeq(); // Internal use only!!
 
 private:
         // Only this class is allowed to create and delete this object
@@ -38,7 +38,10 @@ private:
         XrdNetConnect(int fd, const sockaddr *name, int namelen);
        ~XrdNetConnect();
 
+void   doConnect();
+
 static XrdOucSemaphore tLimit;
+       XrdOucMutex     cActv;
        XrdOucCondVar   cDone;
 
 int       myFD;
