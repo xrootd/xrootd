@@ -1043,7 +1043,7 @@ XS(_wrap_XrdMv) {
         dXSARGS;
         
         if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: XrdMv(fileDest,fileSrc);");
+            SWIG_croak("Usage: XrdMv(fileSrc,fileDest);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);

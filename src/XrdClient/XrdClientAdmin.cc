@@ -500,7 +500,7 @@ bool XrdClientAdmin::Mkdir(const char *dir, int user, int group, int other)
 }
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::Mv(const char *fileDest, const char *fileSrc)
+bool XrdClientAdmin::Mv(const char *fileSrc, const char *fileDest)
 {
    bool ret;
 

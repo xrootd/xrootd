@@ -170,10 +170,10 @@ extern "C" {
 
 
 
-   bool XrdMv(const char *fileDest, const char *fileSrc) {
+   bool XrdMv(const char *fileSrc, const char *fileDest) {
       if (!adminst) return adminst;
 
-      return(adminst->Mv(fileDest, fileSrc));
+      return(adminst->Mv(fileSrc, fileDest));
    }
 
 

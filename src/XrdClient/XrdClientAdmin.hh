@@ -50,7 +50,7 @@ class XrdClientAdmin : public XrdClientAbs {
    long GetChecksum(kXR_char *path, kXR_char **chksum);
    bool IsFileOnline(vecString&, vecBool&);
 
-   bool Mv(const char *fileDest, const char *fileSrc);
+   bool Mv(const char *fileSrc, const char *fileDest);
    bool Mkdir(const char *dir, int user, int group, int other);
    bool Chmod(const char *file, int user, int group, int other);
    bool Rm(const char *file);

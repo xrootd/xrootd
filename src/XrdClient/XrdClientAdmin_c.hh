@@ -52,7 +52,7 @@ extern "C" {
    char *XrdExistDirs(const char *filepaths);
    char *XrdIsFileOnline(const char *filepaths);
 
-   bool XrdMv(const char *fileDest, const char *fileSrc);
+   bool XrdMv(const char *fileSrc, const char *fileDest);
    bool XrdMkdir(const char *dir, int user, int group, int other);
    bool XrdChmod(const char *file, int user, int group, int other);
    bool XrdRm(const char *file);
