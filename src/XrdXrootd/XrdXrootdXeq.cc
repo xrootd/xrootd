@@ -454,7 +454,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Map the mode and options
 //
-   mode = mapMode(mode) | S_IRWXU; usage = 'w';
+   mode = mapMode(mode) | S_IRUSR | S_IWUSR; usage = 'w';
         if (opts & kXR_open_read)  
            {openopts  = SFS_O_RDONLY;  *op++ = 'r'; usage = 'r';}
    else if (opts & kXR_new)         
@@ -1228,8 +1228,7 @@ int XrdXrootdProtocol::do_WriteNone()
    TRACEP(REQ, "discarding " <<myIOLen <<" bytes");
    while(myIOLen > 0)
         {rlen = Link->Recv(argp->buff, blen, readWait);
-         if (rlen  < 0)
-            {Link->setEtext("link read error"); Link->Close(); return -1;}
+         if (rlen  < 0) return Link->setEtext("link read error");
          myIOLen -= rlen;
          if (rlen < blen) return 1;
          if (myIOLen < blen) blen = myIOLen;
