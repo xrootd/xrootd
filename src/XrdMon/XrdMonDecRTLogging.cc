@@ -11,6 +11,8 @@
 // $Id$
 
 #include "XrdMonDecRTLogging.hh"
+#include <fcntl.h>
+#include <strings.h> /* bcopy */
 #include <fstream>
 #include <iostream>
 using std::cout;
@@ -63,18 +65,33 @@ XrdMonDecRTLogging::add(XrdMonDecDictInfo::TYPE t, XrdMonDecDictInfo* x)
 void
 XrdMonDecRTLogging::flush(bool lockIt)
 {
-    cout << "Flushing RT data..." << endl;
+    struct flock lock_args;
+    bzero(&lock_args, sizeof(lock_args));
 
-    fstream f(_rtLog.c_str(), ios::out|ios::app);
+    int f = open(_rtLog.c_str(), O_WRONLY|O_CREAT|O_APPEND,S_IRUSR|S_IWUSR);
 
-    XrdOucMutexHelper mh;
-    if ( lockIt ) {
-        mh.Lock(&_mutex);
+    cout << "RT locking." << std::flush;
+    // get the lock, wait if necessary
+    lock_args.l_type = F_WRLCK;
+    fcntl(f, F_SETLKW, &lock_args);    
+    cout << "ok." << std::flush;
+
+    int s = strlen(_buf);
+    if ( s > 0 ) {        
+        XrdOucMutexHelper mh;
+        if ( lockIt ) {
+            mh.Lock(&_mutex);
+        }
+        write(f, _buf, strlen(_buf));
+        strcpy(_buf, "");
     }
+    cout << s;
+    close(f);
 
-    f << _buf;
-    strcpy(_buf, "");
-
-    f.close();
+    // unlocked
+    bzero(&lock_args, sizeof(lock_args));
+    lock_args.l_type = F_UNLCK;
+    fcntl(f, F_SETLKW, &lock_args);
+    cout << ".unlocked" << endl;
 }
 
