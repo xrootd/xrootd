@@ -14,5 +14,6 @@ TYPECF64   =
 TYPEOPT    = $(TYPEMISC) -O3
 TYPEDBG    = $(TYPEMISC) -g -O3
 TYPELDSO   = -shared
+TYPESHLIB  = so
 
 TYPELIBS   =  -lnsl -lsocket $(PTHREAD) -lrt -ldl -lc

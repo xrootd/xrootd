@@ -360,11 +360,11 @@ guess_architecture () {
     # first argument to do so.
     type=`uname -s`
     osys=`uname -s | tr '[A-Z]' '[a-z]'`
-    chip=`uname -m | tr '[A-Z]' '[a-z]'`
+    chip=`uname -p | tr '[A-Z]' '[a-z]'`
     rele=`uname -r`
     arch="$osys"
     ccflv="gcc"
-    echo "Guessing architecture/compiler:"
+    echo "Guessing architecture/compiler: "$osys:$chip:$rele
     case "$osys:$chip:$rele" in
       aix:*:5*)           arch=rs_aix5         ; platform=aix;   ccflv=xlC;;
       osf1*:alpha:*)      arch=alphacxx6       ; platform=alpha; ccflv=cxx;;
@@ -381,9 +381,11 @@ guess_architecture () {
       linux:ia64:2.6*)    arch=ia64_linux26    ; platform=linux; ccflv=icc;;
       linux:ia64:*)       arch=ia64_linux      ; platform=linux; ccflv=icc;;
       linux:i*86:2.2*)    arch=i386_linux22    ; platform=linux; ccflv=gcc;;
+      linux:i*86:2.4*EL*) arch=i386_rhel30     ; platform=linux; ccflv=gcc;;
       linux:i*86:2.4*)    arch=i386_linux24    ; platform=linux; ccflv=gcc;;
       linux:i*86:2.6*)    arch=i386_linux26    ; platform=linux; ccflv=gcc;;
       linux:i*86:*)       arch=i386_linux      ; platform=linux; ccflv=gcc;;
+      linux:u*:2.4*)      arch=i386_linux      ; platform=linux; ccflv=gcc;;
       linux:x86_64:2.2*)  arch=x86_64_linux_22 ; platform=linux; ccflv=gccx8664;;
       linux:x86_64:2.4*)  arch=x86_64_linux_24 ; platform=linux; ccflv=gccx8664;;
       linux:x86_64:2.6*)  arch=x86_64_linux_26 ; platform=linux; ccflv=gccx8664;;
@@ -391,6 +393,7 @@ guess_architecture () {
       linux:alpha:*)      arch=alpha_linux     ; platform=linux; ccflv=gcc;;
       linux:arm*:*)       arch=arm_linux       ; platform=linux; ccflv=gcc;;
       linux:ppc*:*)       arch=ppc_linux       ; platform=linux; ccflv=gcc;;
+      darwin:power*:7.5*) arch=ppc_darwin_70   ; platform=macosx; ccflv=macos;;
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
       darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
       irix*:sgi*:*)       arch=sgi             ; platform=sgi;    ccflv=sgiCC;;
@@ -734,6 +737,43 @@ if test ! "x$strlcpy" = "xlocal"; then
    fi
 else
    echo "Using xrd implementation of strlcpy"
+fi
+
+######################################################################
+#
+### echo %%% Check for getprotobyname_r
+#
+hasprotor=""
+message "Checking whether getprotobyname_r declared in /usr/include/netdb.h"
+if `grep getprotobyname_r /usr/include/netdb.h > /dev/null 2>&1` ; then
+   echo "yes"
+   hasprotor=" -DHAS_PROTOR"
+   else
+   echo "no"
+fi
+
+######################################################################
+#
+### echo %%% Check for gethostbyname_r
+#
+hasgethbyxr=""
+message "Checking whether gethostbyname_r is available"
+if `grep gethostbyname_r /usr/include/netdb.h > /dev/null 2>&1` ; then
+    echo "yes"
+    hasgethbyxr=" -DHAS_GETHBYXR"
+else
+    nitmp=`find /usr/include -name netdb.h`
+    for i in $nitmp ; do
+       if `grep gethostbyname_r $i > /dev/null 2>&1` ; then
+          echo "yes"
+          incdir=`dirname $i`
+          hasgethbyxr=" -DHAS_GETHBYXR -I$incdir"
+          break
+       fi
+    done
+    if test "x$hasgethbyxr" = "x"; then
+       echo "no"
+    fi 
 fi
 
 ######################################################################
@@ -1146,7 +1186,7 @@ if test "x$enable_krb5" = "xyes" ; then
     	    /usr/krb5/include /usr/local/kerberos/include \
     	    /usr/include /usr/local/include
 
-    ceincdir=""
+    ceincdir="."
     if test ! "x$found_dir" = "x" ; then
        ceincdir=$found_dir
     fi
@@ -1288,8 +1328,10 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@inckrb5@|$inckrb5|"           \
     -e "s|@libkrb5@|$libkrb5|"           \
     -e "s|@hasdevpoll@|$hasdevpoll|" \
+    -e "s|@hasgethbyxr@|$hasgethbyxr|" \
     -e "s|@hasnameinfo@|$hasnameinfo|" \
     -e "s|@hasstrlcpy@|$hasstrlcpy|" \
+    -e "s|@hasprotor@|$hasprotor|" \
     -e "s|@tracedbg@|$tracedbg|" \
     -e "s|@suncache@|$suncache|" \
     < GNUmake.env.tmp > $ENVOUT

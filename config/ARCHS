@@ -23,6 +23,7 @@ i386_linux22    icc       all    for Linux kernel 2.2.x Intel icc
 i386_linux24    icc       all    for Linux kernel 2.4.x Intel icc
 i386_linux26    icc       all    for Linux kernel 2.6.x Intel icc
 i386_linux      icc       all    for Linux Intel icc
+i386_rhel30     gcc       all    for Linux kernel 2.4.x Enterprise Release
 x86_64_linux_22 gccx8664  all    for AMD Opteron 64 Linux kernel 2.2.x gcc 3.x, glibc
 x86_64_linux_24 gccx8664  all    for AMD Opteron 64 Linux kernel 2.4.x gcc 3.x, glibc
 x86_64_linux_26 gccx8664  all    for AMD Opteron 64 Linux kernel 2.6.x gcc 3.x, glibc
@@ -34,7 +35,9 @@ x86_64_linux    iccx8664  all    for AMD Opteron 64 Linux Intel icc
 alpha_linux     gcc       no     for Alpha Linux egcs and glibc
 arm_linux       gcc       no     for ARM Linux egcs and glibc
 ppc_linux       gcc       no     for PPC Linux egcs and glibc
-macosx          gcc       no     for MacOSX gcc
+ppc_darwin_70   macos     all    for MacOSX gcc
+macosx_74       macos     all    for MacOSX gcc
+macosx          macos     all    for MacOSX gcc
 sgi             sgiCC     no     for SGI IRIX 6.x with CC (opt -n32)
 sgi             gcc       no     for SGI IRIX 6.x with gcc and glibc
 sgi             KCC       no     for SGI IRIX 6.x with KCC
