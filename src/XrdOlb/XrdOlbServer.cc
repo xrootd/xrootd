@@ -1016,7 +1016,7 @@ int XrdOlbServer::do_Select(char *rid, int reset)
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
    char *tp, *amode, ptc, hbuff[512];
-   int docr, dowt, retc, needrw, resonly = 0, newfile = 0;
+   int dowt, retc, needrw, resonly = 0, newfile = 0;
    SMask_t amask, smask, pmask;
 
 // Process: <id> select[s] {c | r | w | x] <path>
@@ -1052,30 +1052,33 @@ int XrdOlbServer::do_Select(char *rid, int reset)
    if (!(retc = XrdOlbCache.GetFile(tp, cinfo))) pmask = 0;
       else pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
 
-// If we didn't find the file, or it's being searched for, or a cache reset
-// is wanted then the client has to wait. The client also has to wait if a
-// bouncing server made it impossible to select a primary server. In any case,
-// we will ask the relevant servers if they have the file. Note that even if
-// the caller wants the file in r/w mode we will ask both r/o and r/w servers 
-// for the file. This complicated section of code allows us to let the client
-// not wait if we have at least one non-bouncing server in the set. However,
-// we will ask bouncing servers to give us an update for this file.
+// We didn't find the file or a reset is wanted (easy case). Client must wait.
 //
-   dowt = (!retc || cinfo.deadline || reset);
-   docr = (retc && (cinfo.sbvec != 0));
-   if (dowt || docr)
-      {if (dowt || (docr && !pmask))
-          {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.LUPDelay));
-           DEBUG("Lookup delay " <<Name() <<' ' <<XrdOlbConfig.LUPDelay);
-           dowt = 1;
-          }
-       if (!retc || reset) XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
-          else XrdOlbCache.DelFile(tp, cinfo.sbvec,
-                                  (dowt ? XrdOlbConfig.LUPDelay : 0));
-       XrdOlbSM.Broadcast((retc ? cinfo.sbvec : pinfo.rovec), buff,
-                          snprintf(buff, sizeof(buff)-1,
+   if (!retc || reset)
+      {XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
+       XrdOlbSM.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
                           "%s state %s\n", XrdOlbConfig.MsgGID, tp));
-       if (dowt) return 0;
+       dowt = 1;
+      } else
+
+// File was found but either a query is in progress (client must wait)
+// or we have a server bounce (client waits if not alternative is available).
+//
+      {if (cinfo.sbvec != 0)         // Bouncing server
+          {XrdOlbCache.DelFile(tp, cinfo.sbvec, XrdOlbConfig.LUPDelay);
+           XrdOlbSM.Broadcast(cinfo.sbvec,buff,snprintf(buff,sizeof(buff)-1,
+                              "%s state %s\n", XrdOlbConfig.MsgGID, tp));
+           dowt = (pmask == 0);
+          }
+       if (cinfo.deadline) dowt = 1; // Query in progress
+      }
+
+// If the client has to wait now, delay the client and return
+//
+   if (dowt)
+      {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.LUPDelay));
+       DEBUG("Lookup delay " <<Name() <<' ' <<XrdOlbConfig.LUPDelay);
+       return 0;
       }
 
 // Compute the primary and secondary selections:
