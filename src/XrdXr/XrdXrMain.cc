@@ -60,7 +60,7 @@ int  fd;               // file descriptor for outfile
 
 XrdSecProtocol *(*XrdXrootdSecGetProtocol)(const struct sockaddr  &,
                                            const XrdSecParameters &,
-                                                 XrdOucErrInfo    *) = 0;
+                                                 XrdOucErrInfo    *) = XrdSecGetProtocol;
 
 /*****************************************************************************/
 /*                           g e t T o k e n                                 */
@@ -274,6 +274,11 @@ void doLogout()
 
 void doAuth(char *buffer) 
 {
+  if (login == false) {
+    cerr << "Not logged in to a remote server.\n";
+    return;
+  }
+
   kXR_char  *credtype = (kXR_char*) "krb5";
 
   // If the user supplys a credential type, use it. If not, use Kerberos 5 
@@ -454,23 +459,8 @@ void doClose()
 
 void doTest() 
 {
-  string username = getpwuid(getuid())->pw_name;
-  string role;
-  kXR_char *token = (kXR_char *) "Test-token";
-  
-  role = kXR_useruser;
-
-  cout << "Test login with a token ... ";
-  
-  if (client->login((kXR_char*) username.c_str(), 
-		    (kXR_char*) role.c_str(),
-		    (kXR_int32) strlen((char*)token),
-		    token                          ) == 0) {
-    cout << "OK." << endl;
-  } else {
-    cerr << "FAILED." << endl;
-  }
-
+  // For future extension. Currently, only a hardcoded test
+  //
   cout << "Test open /tmp/heinz/testfile\n";
   doOpen((char*) "open /tmp/heinz/testfile");
 
