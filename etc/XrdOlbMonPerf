@@ -23,6 +23,7 @@ $repval = 0;
 $netif  = '';
 $netmax = 0; # bits / s
 $monint = 60;
+$| = 1;                      # unbuffer STDOUT
 
 # Get options
 #
