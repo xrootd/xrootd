@@ -676,11 +676,20 @@ sub runTopUsersQueries() {
                     LIMIT $theLimit
              ) AS X";
 
-    my $sql_fillNow_nFilesJobs = 
-"INSERT INTO finalSep (userName, nFilesNow, nJobsNow, timePeriod)
+    my $sql_fillNow_nJobs = 
+"INSERT INTO finalSep (userName, nJobsNow, timePeriod)
+       SELECT userName, 
+              COUNT(DISTINCT CONCAT(pId, clientHId) ),
+              \"$theKeyword\"
+       FROM   users, tt, rtOpenedSessions os
+       WHERE  users.id = tt.userId  AND
+              tt.userId = os.userId
+              GROUP BY tt.userId";
+
+    my $sql_fillNow_nFiles = 
+"INSERT INTO finalSep (userName, nFilesNow, timePeriod)
        SELECT userName, 
               COUNT(DISTINCT pathId),
-              COUNT(DISTINCT CONCAT(pId, clientHId) ),
               \"$theKeyword\"
        FROM   users, tt, rtOpenedSessions os, rtOpenedFiles of
        WHERE  users.id = tt.userId  AND
@@ -780,7 +789,8 @@ my $sql_deleteOldData =
     my $sth_insert_nFiles_cs   = $dbh->prepare($sql_insert_nFiles_cs)   or die "\"$sql_insert_nFiles_cs\", $DBI::errstr\n";
     my $sth_add_nFiles         = $dbh->prepare($sql_add_nFiles)         or die "\"$sql_add_nFiles\", $DBI::errstr\n";
     my $sth_findPast_nJobs     = $dbh->prepare($sql_findPast_nJobs)     or die "\"$sql_findPast_nJobs\", $DBI::errstr\n";
-    my $sth_fillNow_nFilesJobs = $dbh->prepare($sql_fillNow_nFilesJobs) or die "\"$sql_fillNow_nFilesJobs\", $DBI::errstr\n";
+    my $sth_fillNow_nJobs      = $dbh->prepare($sql_fillNow_nJobs)      or die "\"$sql_fillNow_nJobs\", $DBI::errstr\n";
+    my $sth_fillNow_nFiles     = $dbh->prepare($sql_fillNow_nFiles)     or die "\"$sql_fillNow_nFiles\", $DBI::errstr\n";
     my $sth_fillPast_mbRead_os = $dbh->prepare($sql_fillPast_mbRead_os) or die "\"$sql_fillPast_mbRead_os\", $DBI::errstr\n";
     my $sth_fillPast_mbRead_cs = $dbh->prepare($sql_fillPast_mbRead_cs) or die "\"$sql_fillPast_mbRead_cs\", $DBI::errstr\n";
     my $sth_fillPast_nFiles_os = $dbh->prepare($sql_fillPast_nFiles_os) or die "\"$sql_fillPast_nFiles_os\", $DBI::errstr\n";
@@ -806,7 +816,8 @@ my $sql_deleteOldData =
     $sth_dropTable_t_->execute()       or die "Failed to exec \"$sql_dropTable_t_\",       $DBI::errstr";
     $sth_findPast_nFiles->execute()    or die "Failed to exec \"$sql_findPast_nFiles\",    $DBI::errstr";
     $sth_findPast_nJobs->execute()     or die "Failed to exec \"$sql_findPast_nJobs\",     $DBI::errstr";
-    $sth_fillNow_nFilesJobs->execute() or die "Failed to exec \"$sql_fillNow_nFilesJobs\", $DBI::errstr";
+    $sth_fillNow_nJobs->execute()      or die "Failed to exec \"$sql_fillNow_nJobs\",      $DBI::errstr";
+    $sth_fillNow_nFiles->execute()     or die "Failed to exec \"$sql_fillNow_nFiles\",     $DBI::errstr";
     $sth_fillPast_mbRead_os->execute() or die "Failed to exec \"$sql_fillPast_mbRead\",    $DBI::errstr";
     $sth_fillPast_mbRead_cs->execute() or die "Failed to exec \"$sql_fillPast_mbRead\",    $DBI::errstr";
     $sth_fillPast_nFiles_os->execute() or die "Failed to exec \"$sql_fillPast_nFiles_os\", $DBI::errstr";
