@@ -19,6 +19,7 @@
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
+#include <stdio.h>
 #include <netinet/in.h>
 using std::cerr;
 using std::cout;

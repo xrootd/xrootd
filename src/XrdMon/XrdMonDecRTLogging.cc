@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <fstream>
 #include <iostream>
+#include <stdio.h>
 using std::cout;
 using std::endl;
 using std::fstream;

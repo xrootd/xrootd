@@ -15,6 +15,7 @@
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonHeader.hh"
 #include <netinet/in.h>
+#include <stdio.h>
 #include <iomanip>
 using std::setw;
 
