@@ -561,7 +561,7 @@ void
 XrdMonDecSink::flushRealTimeData()
 {
     cout << "Flushing RT data..." << endl;
-    fstream f(_rtLogDir.c_str(), ios::out|ios::ate);
+    fstream f(_rtLogDir.c_str(), ios::out|ios::app);
 
     {
         XrdOucMutexHelper mh; mh.Lock(&_urtMutex);
