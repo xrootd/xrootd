@@ -205,7 +205,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
        {          close(Child_out);
         if (inrd) close(Child_in );
         if (child < 0)
-           return Err(Exec, errno, "fork request process for ", parm[0]);
+           return Err(Exec, errno, "fork request process for", parm[0]);
         return 0;
        }
 

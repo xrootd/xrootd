@@ -68,14 +68,14 @@ int XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
 // Get the IP address of his id
 //
    hport = 0;
-   if (!(cp = index((const char *)reqid, int(':'))) || cp-reqid != 8) return 0;
-   if (!(ipaddr = strtol((const char *)reqid, &ep, 16)) || ep != cp)  return 0;
+   if (!(cp = index(reqid, int(':'))) || cp-reqid != 8) return 0;
+   if (!(ipaddr = strtol(reqid, &ep, 16)) || ep != cp)  return 0;
 
 // Get the port number
 //
    ep++;
-   if (!(cp = index((const char *)ep, int('.')))     || cp-ep != 4) return 0;
-   if (!(ipport = strtol((const char *)ep, &cp, 16)) || ep != cp)   return 0;
+   if (!(cp = index(ep, int('.')))     || cp-ep != 4) return 0;
+   if (!(ipport = strtol(ep, &cp, 16)) || ep != cp)   return 0;
 
 // Format the address and return the port
 //

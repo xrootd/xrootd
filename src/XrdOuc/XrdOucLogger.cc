@@ -161,7 +161,7 @@ int XrdOucLogger::ReBind(int dorename)
        *bp = '\0'; *(bp+2) = '\0';
        for (i = 0; i < sizeof(seq) && !stat(buff, &bf); i++)
            {*bp = '.'; *(bp+1) = (char)seq[i];}
-       if (i < sizeof(seq)) rename((const char *)ePath, (const char *)buff);
+       if (i < sizeof(seq)) rename(ePath, buff);
       }
 
 // Compute the new suffix

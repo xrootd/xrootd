@@ -76,7 +76,7 @@ void *XrdOucThread_Xeq(void *myargs)
 
    pthread_setspecific(ap->numKey, (const void *)myNum);
    if (ap->eDest && ap->tDesc)
-      ap->eDest->Emsg("Xeq", ap->tDesc, (char *)"thread started");
+      ap->eDest->Emsg("Xeq", ap->tDesc, "thread started");
    retc = ap->proc(ap->arg);
    delete ap;
    return retc;

@@ -229,7 +229,7 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 //
    if (pmode == 'c')
       {struct stat buf;
-       if (!stat((const char *)libloc, &buf) && errno == ENOENT)
+       if (!stat(libloc, &buf) && errno == ENOENT)
           {eMsg->setErrInfo(ENOENT, ""); return 0;}
       }
 

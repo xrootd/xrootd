@@ -28,7 +28,7 @@ inline int          PathOK(const char *pd, const int pl)
 
 inline void         Set(int fval) {flags = fval;}
 
-             XrdOucPList(char *pathdata=(char *)"", int fvals=0)
+             XrdOucPList(const char *pathdata="", int fvals=0)
                   {next = 0; 
                    pathlen = strlen(pathdata); 
                    path    = strdup(pathdata);

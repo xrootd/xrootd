@@ -53,16 +53,16 @@ int XrdOucNList::NameOK(const char *pd, const int pl)
 
 // Check if exact match wanted
 //
-   if (namelenR < 0) return !strcmp(pd, (const char *)nameL);
+   if (namelenR < 0) return !strcmp(pd, nameL);
 
 // Make sure the prefix matches
 //
-   if (namelenL && namelenL <= pl && strncmp(pd,(const char *)nameL,namelenL))
+   if (namelenL && namelenL <= pl && strncmp(pd,nameL,namelenL))
       return 0;
 
 // Make sure suffix matches
 //
    if (!namelenR)     return 1;
    if (namelenR > pl) return 0;
-   return !strcmp((const char *)(pd + pl - namelenR), (const char *)nameR);
+   return !strcmp((pd + pl - namelenR), nameR);
 }

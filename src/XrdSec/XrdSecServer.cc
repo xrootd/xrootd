@@ -177,7 +177,7 @@ int XrdSecProtParm::Cat(char *token)
    int alen;
    alen = strlen(token);
    if (alen+1 > bsize-(bp-buff))
-      {eDest->Emsg("Config",who,ProtoID,(char *)"argument string too long");
+      {eDest->Emsg("Config",who,ProtoID,"argument string too long");
        return 0;
       }
    *bp++ = ' ';
@@ -210,7 +210,7 @@ XrdSecProtParm *XrdSecProtParm::Find(char *pid, int remove)
 int XrdSecProtParm::Insert(char oct)
 {
    if (bsize-(bp-buff) < 1)
-      {eDest->Emsg("Config",who,ProtoID,(char *)"argument string too long");
+      {eDest->Emsg("Config",who,ProtoID,"argument string too long");
        return 0;
       }
    *bp++ = oct;
@@ -299,7 +299,7 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
 // disallowed protocol.
 //
    if (Enforce)
-      {if ((pnum = PManager.Find((const char *)cred->buffer)))
+      {if ((pnum = PManager.Find(cred->buffer)))
           {if (bpFirst && (bp = bpFirst->Find(host))
            &&  !(bp->ValidProts & pnum))
               {msgv[0] = (char *)host;
@@ -320,7 +320,7 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
 // If we passed the protocol binding check, try to get an instance of the
 // protocol the host is using
 //
-   return PManager.Get(host, hadr, (const char *)cred->buffer, einfo);
+   return PManager.Get(host, hadr, cred->buffer, einfo);
 }
 
 /******************************************************************************/
@@ -403,7 +403,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {eDest.Emsg("Config", errno, "opening config file", (char *)ConfigFN);
+      {eDest.Emsg("Config", errno, "opening config file", ConfigFN);
        return 1;
       }
 
@@ -420,11 +420,11 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = eDest.Emsg("Config",-retc,"reading config file", (char *)ConfigFN);
+      NoGo = eDest.Emsg("Config",-retc,"reading config file", ConfigFN);
       else {char buff[12];
             snprintf(buff, sizeof(buff), "%d", recs);
             eDest.Emsg("Config", buff,
-                (char *)" authentication directives processed in ", (char *)ConfigFN);
+                       "authentication directives processed in", ConfigFN);
            }
    Config.Close();
 
@@ -434,7 +434,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
       else if ((pp = XrdSecProtParm::First))
               {NoGo = 1;
                while(pp) {eDest.Emsg("Config", "protparm", pp->ProtoID,
-                          (char *)"does not have a matching protocol.");
+                                     "does not have a matching protocol.");
                           pp = pp->Next;
                          }
               }
@@ -463,7 +463,7 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute
 
     // No match found, complain.
     //
-    Eroute.Emsg("Config", "unknown directive", var, (char *)"ignored.");
+    Eroute.Emsg("Config", "unknown directive", var, "ignored.");
     return 0;
 }
   
@@ -517,9 +517,9 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
         {if (!strcmp(val, "none")) {noprot = 1; break;}
               if (!strcmp(val, "only")) {only = 1; Enforce = 1;}
          else if (!strcmp(val, "host")) {phost = 1; anyprot = 1;}
-         else if (!PManager.Find((const char *)val))
+         else if (!PManager.Find(val))
                  {Eroute.Emsg("Config","protbind", val,
-                              (char *)"protocol not previously defined.");
+                              "protocol not previously defined.");
                   return 1;
                  }
          else if (add2token(Eroute, val, &secbuff, sectlen, PMask))
@@ -547,7 +547,7 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
 //
    if (phost && *sectoken)
       {Eroute.Emsg("Config","Warning! 'protbind", thost,
-                           (char *)"host' negates all other bound protocols.");
+                            "host' negates all other bound protocols.");
        *sectoken = '\0';
       }
 
@@ -612,8 +612,8 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdOucError &Eroute)
 //
    if (strlen(val) > XrdSecPROTOIDSIZE)
       {Eroute.Emsg("Config","protocol id too long - ", val); return 1;}
-   if (PManager.Find((const char *)val))
-      {Eroute.Emsg("Config","protocol",val,(char *)"previously defined."); return 1;}
+   if (PManager.Find(val))
+      {Eroute.Emsg("Config","protocol",val,"previously defined."); return 1;}
 
 // The builtin host protocol does not accept any parameters. Additionally, the
 // host protocol negates any other protocols we may have in the default set.
@@ -639,8 +639,7 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdOucError &Eroute)
 // Load this protocol
 //
    pap = myParms.Result(psize);
-   if (!PManager.Load(&erp, 's', (const char *)pid,
-                     (psize ? (const char *)pap : 0), (const char *)path))
+   if (!PManager.Load(&erp, 's', pid, (psize ? pap : 0), path))
       {Eroute.Emsg("Config", erp.getErrText()); return 1;}
 
 // Add this protocol to the default security token
@@ -687,9 +686,8 @@ int XrdSecServer::xpparm(XrdOucStream &Config, XrdOucError &Eroute)
 //
    if (strlen(val) > XrdSecPROTOIDSIZE)
       {Eroute.Emsg("Config","protocol id too long - ", val); return 1;}
-   if (PManager.Find((const char *)val))
-      {Eroute.Emsg("Config","protparm protocol",val,
-                   (char *)"already defined."); 
+   if (PManager.Find(val))
+      {Eroute.Emsg("Config","protparm protocol",val,"already defined.");
        return 1;
       }
    strcpy(pid, val);
@@ -697,7 +695,7 @@ int XrdSecServer::xpparm(XrdOucStream &Config, XrdOucError &Eroute)
 // Make sure we have at least one parameter here
 //
    if (!(val = Config.GetWord()))
-      {Eroute.Emsg("Config","protparm", pid, (char *)"parameter not specified");
+      {Eroute.Emsg("Config","protparm", pid, "parameter not specified");
        return 1;
       }
 
@@ -790,7 +788,7 @@ int XrdSecServer::add2token(XrdOucError &Eroute, char *pid,
 // Find the protocol argument string
 //
    if (!(protnum = PManager.Find(pid, &pargs)))
-      {Eroute.Emsg("Config","Protocol",pid,(char *)"not found after being added!");
+      {Eroute.Emsg("Config","Protocol",pid,"not found after being added!");
        return 1;
       }
 
@@ -798,7 +796,7 @@ int XrdSecServer::add2token(XrdOucError &Eroute, char *pid,
 //
    i = 4+strlen(pid)+strlen(pargs);
    if (i >= toklen)
-      {Eroute.Emsg("Config","Protocol",pid,(char *)"parms exceed overall maximum!");
+      {Eroute.Emsg("Config","Protocol",pid,"parms exceed overall maximum!");
        return 1;
       }
 

@@ -93,16 +93,20 @@ static char *ec2text(int ecode);
 // <datetime> <epfx><esfx>: error <ecode> (syser[<ecode>]); <text1> <text2>"
 // (returns abs(ecode)).
 //
-int Emsg(const char *esfx, int ecode, const char *text1, char *text2=0);
+int Emsg(const char *esfx, int ecode, const char *text1, const char *text2=0);
 
 // <datetime> <epfx><esfx>: <text1> <text2> <text3>
 //
-void Emsg(const char *esfx, const char *text1, char *text2=0, char *text3=0);
+void Emsg(const char *esfx, const char *text1, 
+                            const char *text2=0,
+                            const char *text3=0);
 
 // <datetime> <epfx><esfx>: <text1> <text2> <text3>
 //
-inline void Log(const int mask, const char *esfx, const char *text1,
-                                char *text2=0, char *text3=0)
+inline void Log(const int mask, const char *esfx, 
+                                const char *text1,
+                                const char *text2=0,
+                                const char *text3=0)
                {if (mask & msgMask) Emsg(esfx, text1, text2, text3);}
 
 // logger() sets/returns the logger object for this message message handler.
@@ -115,7 +119,7 @@ XrdOucLogger *logger(XrdOucLogger *lp=0)
 
 // Say() route a line without timestamp or prefix
 //
-void Say(const char *text1, char *text2=0, char *txt3=0);
+void Say(const char *text1, const char *text2=0, const char *txt3=0);
 
 // Set the loging mask (only used by clients of this object)
 //

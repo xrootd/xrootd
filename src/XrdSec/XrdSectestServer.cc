@@ -120,13 +120,13 @@ int main(int argc, char **argv)
 
 // Create a new security server
 //
-   ServerSecurity = XrdSecgetService(&Logger, (const char *)opts.cfn);
+   ServerSecurity = XrdSecgetService(&Logger, opts.cfn);
    if (!ServerSecurity) 
       {cerr <<"testServer: Unable to create server." <<endl; exit(1);}
 
 // Get the security token and display it
 //
-   const char *sect = ServerSecurity->getParms(i, (const char *)opts.host);
+   const char *sect = ServerSecurity->getParms(i, opts.host);
    if (!sect) cerr <<"testServer: No security token for " <<opts.host <<endl;
       else cerr <<"testServer: " <<i <<" bytes of SecToken='" <<sect <<"'" <<endl;
 
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 
 // Get the protocol
 //
-   if (!(pp = ServerSecurity->getProtocol((const char *)opts.host,
+   if (!(pp = ServerSecurity->getProtocol(opts.host,
                                           (const sockaddr &)caddr,
                                           (const XrdSecCredentials *)&cred,
                                           &einfo)))

@@ -98,8 +98,8 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
  static XrdOucError  Eroute(lp, "XrdSfs");
  static XrdSfsNative myFS(&Eroute);
 
- Eroute.Say(0, (char *)"(c) 2005 Stanford University/SLAC "
-                       "sfs (Standard File System) v 9.0n");
+ Eroute.Say(0, "(c) 2005 Stanford University/SLAC "
+               "sfs (Standard File System) v 9.0n");
 
  return &myFS;
 }
@@ -313,8 +313,7 @@ int XrdSfsNativeFile::open(const char          *path,      // In
 
 // All done.
 //
-   if (oh < 0)
-      return XrdSfsNative::Emsg(epname, error, oh,(const char *)opname, path);
+   if (oh < 0) return XrdSfsNative::Emsg(epname, error, oh, opname, path);
    return SFS_OK;
 }
 
@@ -723,9 +722,9 @@ int XrdSfsNative::Mkpath(const char *path, mode_t mode)
 // do anything with the last component. The caller is responsible for that.
 //
    local_path = actual_path+1;
-   while((next_path = index((const char *)local_path, (int)'/')))
+   while((next_path = index(local_path, int('/'))))
         {*next_path = '\0';
-         if (XrdSfsUFS::Mkdir((const char *)actual_path,mode) && errno != EEXIST)
+         if (XrdSfsUFS::Mkdir(actual_path,mode) && errno != EEXIST)
             return -errno;
          *next_path = '/';
          local_path = next_path+1;

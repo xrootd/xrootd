@@ -326,7 +326,7 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
 
 // Now, extract the "principal/instance@realm" from the stream
 //
-   if ((rc = krb5_parse_name(krb_context,(const char *)KP,&krb_principal)))
+   if ((rc = krb5_parse_name(krb_context,KP,&krb_principal)))
      return Fatal(erp, EINVAL, "Cannot parse service name", KP, rc);
 
 // Establish the correct principal to use
@@ -388,7 +388,7 @@ int XrdSecProtocolkrb5::get_krbCreds(char *KP, krb5_creds **krb_creds)
 
 // Setup the "principal/instance@realm"
 //
-   if ((rc = krb5_parse_name(krb_context,(const char *)KP,&the_principal)))
+   if ((rc = krb5_parse_name(krb_context,KP,&the_principal)))
       {CLDBG("get_krbCreds: Cannot parse service name;" <<krb_etxt(rc));
        return rc;
       }

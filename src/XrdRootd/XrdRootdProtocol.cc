@@ -60,11 +60,11 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 // If a command is available, then this protocol can be used
 //
    if (!(pc = parms))
-      {pi->eDest->Say(0,(char *)"rootd: Protocol handler command not specified");
+      {pi->eDest->Say(0,"rootd: Protocol handler command not specified");
        return (XrdProtocol *)0;
       }
    if (*pc != '/')
-      {pi->eDest->Say(0,(char *)"rootd: Protocol handler command is not absolute");
+      {pi->eDest->Say(0,"rootd: Protocol handler command is not absolute");
        return (XrdProtocol *)0;
       }
 
@@ -74,7 +74,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
    pgm = pc;
    while(*pc && *pc != ' ') pc++;
    if (*pc) {*pc = '\0'; pc++;}
-   if (access((const char *)pgm, F_OK) || access((const char *)pgm, X_OK))
+   if (access(pgm, F_OK) || access(pgm, X_OK))
       {pi->eDest->Emsg("rootd" ,errno, "find rootd program", pgm);
        return (XrdProtocol *)0;
       }
@@ -117,12 +117,11 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 
 // Issue herald
 //
-  pi->eDest->Say(0,(char *)"rootd protocol interface V 1.1 successfully loaded.");
+  pi->eDest->Say(0, "rootd protocol interface V 1.1 successfully loaded.");
 
 // Return the protocol object to be used
 //
-   return (XrdProtocol *)new XrdRootdProtocol(pi,
-          (const char *)strdup(pgm), (const char **)pap);
+   return (XrdProtocol *)new XrdRootdProtocol(pi,strdup(pgm),(const char **)pap);
 }
 }
 
@@ -180,7 +179,7 @@ XrdProtocol *XrdRootdProtocol::Match(XrdLink *lp)
 
 // Fork a process to handle this protocol
 //
-   if ((pid = Scheduler->Fork((const char *)lp->Name())))
+   if ((pid = Scheduler->Fork(lp->Name())))
       {if (pid < 0) lp->setEtext("rootd fork failed");
           else lp->setEtext("link transfered");
        return (XrdProtocol *)0;

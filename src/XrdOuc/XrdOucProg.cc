@@ -60,14 +60,14 @@ int XrdOucProg::Feed(const char *data[], const int dlen[])
 //
    if (!myStream->Put((const char **)data, (const int *)dlen)) return 0;
    if (eDest) 
-      eDest->Emsg("Prog", myStream->LastError(), (char *)"feed", Arg[0]);
+      eDest->Emsg("Prog", myStream->LastError(), "feed", Arg[0]);
    if ((rc = Restart()))
       {if (eDest) eDest->Emsg("Prog", rc, "restart", Arg[0]);
        return EPIPE;
       }
    if (!myStream->Put((const char **)data, (const int *)dlen)) return 0;
    if (eDest) 
-      eDest->Emsg("Prog", myStream->LastError(), (char *)"refeed", Arg[0]);
+      eDest->Emsg("Prog", myStream->LastError(), "refeed", Arg[0]);
    return EPIPE;
 }
   
@@ -75,7 +75,8 @@ int XrdOucProg::Feed(const char *data[], const int dlen[])
 /*                                   R u n                                    */
 /******************************************************************************/
   
-int XrdOucProg::Run(XrdOucStream *Sp,char *arg1,char *arg2,char *arg3,char *arg4)
+int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
+                                      const char *arg3, const char *arg4)
 {
    const int maxArgs = sizeof(Arg)/sizeof(Arg[0]);
    char *myArgs[maxArgs];
@@ -94,15 +95,15 @@ int XrdOucProg::Run(XrdOucStream *Sp,char *arg1,char *arg2,char *arg3,char *arg4
 
 // Append additional arguments as needed
 //
-   if (arg1 && j < maxArgs) Arg[j++] = arg1;
-   if (arg2 && j < maxArgs) Arg[j++] = arg2;
-   if (arg3 && j < maxArgs) Arg[j++] = arg3;
-   if (arg4 && j < maxArgs) Arg[j++] = arg4;
+   if (arg1 && j < maxArgs) Arg[j++] = (char *)arg1;
+   if (arg2 && j < maxArgs) Arg[j++] = (char *)arg2;
+   if (arg3 && j < maxArgs) Arg[j++] = (char *)arg3;
+   if (arg4 && j < maxArgs) Arg[j++] = (char *)arg4;
 
 // Make sure we don't have too many
 //
    if (j >= maxArgs) 
-      {if (eDest) eDest->Emsg("Run", E2BIG, (char *)"execute", Arg[0]);
+      {if (eDest) eDest->Emsg("Run", E2BIG, "execute", Arg[0]);
        return -E2BIG;
       }
    Arg[j] = (char *)0;
@@ -111,7 +112,7 @@ int XrdOucProg::Run(XrdOucStream *Sp,char *arg1,char *arg2,char *arg3,char *arg4
 //
    if (Sp->Exec(Arg, 1))
       {rc = Sp->LastError();
-       if (eDest) eDest->Emsg("Run", rc, (char *)"execute", Arg[0]);
+       if (eDest) eDest->Emsg("Run", rc, "execute", Arg[0]);
        return -rc;
       }
 
@@ -122,7 +123,8 @@ int XrdOucProg::Run(XrdOucStream *Sp,char *arg1,char *arg2,char *arg3,char *arg4
 
 /******************************************************************************/
 
-int XrdOucProg::Run(char *arg1,char *arg2,char *arg3,char *arg4)
+int XrdOucProg::Run(const char *arg1, const char *arg2,
+                    const char *arg3, const char *arg4)
 {
    XrdOucStream cmd;
    char *lp;
@@ -135,7 +137,7 @@ int XrdOucProg::Run(char *arg1,char *arg2,char *arg3,char *arg4)
 // Drain all output
 //
    while((lp = cmd.GetLine()))
-        if (eDest && *lp) eDest->Emsg("Run", (const char *)lp);
+        if (eDest && *lp) eDest->Emsg("Run", lp);
 
 // Drain the command
 //
@@ -147,7 +149,7 @@ int XrdOucProg::Run(char *arg1,char *arg2,char *arg3,char *arg4)
       {if (eDest)
           {char buff[16];
            sprintf(buff, "%d", WTERMSIG(rc));
-           eDest->Emsg("Run",(const char *)Arg[0],(char *)"killed by signal",buff);
+           eDest->Emsg("Run", Arg[0], "killed by signal", buff);
           }
        return -EPIPE;
       }
@@ -156,7 +158,7 @@ int XrdOucProg::Run(char *arg1,char *arg2,char *arg3,char *arg4)
        if (rc && eDest) 
           {char buff[16];
            sprintf(buff, "%d", rc);
-           eDest->Emsg("Run",(const char *)Arg[0],(char *)"ended with status",buff);
+           eDest->Emsg("Run", Arg[0], "ended with status", buff);
           }
        return -rc;
       }
@@ -167,7 +169,7 @@ int XrdOucProg::Run(char *arg1,char *arg2,char *arg3,char *arg4)
 /*                                 S e t u p                                  */
 /******************************************************************************/
   
-int  XrdOucProg::Setup(char *prog, XrdOucError *errP)
+int XrdOucProg::Setup(const char *prog, XrdOucError *errP)
 {
    const int maxArgs = sizeof(Arg)/sizeof(Arg[0]);
    char *pp;
@@ -192,7 +194,7 @@ for (j = 0; j < maxArgs-1 && *pp; j++)
 // Make sure we did not overflow the buffer
 //
    if (j == maxArgs-1 && *pp) 
-      {if (errP) errP->Emsg("Run", E2BIG, (char *)"set up", Arg[0]);
+      {if (errP) errP->Emsg("Run", E2BIG, "set up", Arg[0]);
        free(ArgBuff); ArgBuff = 0;
        return -E2BIG;
       }
@@ -202,9 +204,9 @@ for (j = 0; j < maxArgs-1 && *pp; j++)
 
 // Make sure the program is really executable
 //
-   if (access((const char *)Arg[0], X_OK))
+   if (access(Arg[0], X_OK))
       {int rc = errno;
-       if (errP) errP->Emsg("Run", rc, (char *)"set up", Arg[0]);
+       if (errP) errP->Emsg("Run", rc, "set up", Arg[0]);
        free(ArgBuff); ArgBuff = 0;
        return rc;
       }

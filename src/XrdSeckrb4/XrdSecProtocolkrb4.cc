@@ -191,7 +191,7 @@ XrdSecCredentials *XrdSecProtocolkrb4::getCredentials(XrdSecParameters *noparm,
     snprintf(ebuff, sizeof(ebuff)-1, "Unable to get credentials from %s;",
              Service);
     ebuff[sizeof(ebuff)-1] = '\0';
-    Fatal(error, EACCES, (const char *)ebuff, Service, rc);
+    Fatal(error, EACCES, ebuff, Service, rc);
     return (XrdSecCredentials *)0;
    }
 }
@@ -229,7 +229,7 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
        snprintf(emsg, sizeof(emsg),
                 "Authentication protocol id mismatch (%.4s != %.4s).",
                 XrdSecPROTOIDENT,  cred->buffer);
-       Fatal(error, EINVAL, (const char *)emsg);
+       Fatal(error, EINVAL, emsg);
        return -1;
       }
 

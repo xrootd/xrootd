@@ -55,10 +55,11 @@ XrdOucStream *getStream() {return myStream;}
 // up to four additional arguments that will be added to the end of any
 // existing arguments. The ending status code of the program is returned.
 //
-int          Run(XrdOucStream *Sp,  char *arg1=0, char *arg2=0,
-                                    char *arg3=0, char *arg4=0);
+int          Run(XrdOucStream *Sp,  const char *arg1=0, const char *arg2=0,
+                                    const char *arg3=0, const char *arg4=0);
 
-int          Run(char *arg1=0, char *arg2=0, char *arg3=0, char *arg4=0);
+int          Run(const char *arg1=0, const char *arg2=0,
+                 const char *arg3=0, const char *arg4=0);
 
 
 // Start executes the command that was passed via Setup(). The started
@@ -73,7 +74,7 @@ int          Start(void);
 // sets up a parameter list structure.
 // Zero is returned upon success, otherwise a -errno is returned,
 //
-int          Setup(char *prog, XrdOucError *errP=0);
+int          Setup(const char *prog, XrdOucError *errP=0);
 
 /******************************************************************************/
   

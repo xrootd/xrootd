@@ -118,7 +118,7 @@ void help(int);
 
 // Get the protocol
 //
-   pp = XrdSecGetProtocol((const char *)hostspec, (const struct sockaddr &)netaddr,SecToken,0);
+   pp = XrdSecGetProtocol(hostspec, (const struct sockaddr &)netaddr,SecToken,0);
    if (!pp) {cerr << "Unable to get protocol." <<endl; exit(1);}
 
 // Get credentials using this context

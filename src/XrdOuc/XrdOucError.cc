@@ -72,7 +72,8 @@ char *XrdOucError::ec2text(int ecode)
 /*                                  E m s g                                   */
 /******************************************************************************/
 
-int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1, char *txt2)
+int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1, 
+                                                   const char *txt2)
 {
     struct iovec iov[16];
     int iovpnt = 0;
@@ -102,7 +103,9 @@ int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1, char *txt2)
     return ecode;
 }
   
-void XrdOucError::Emsg(const char *esfx, const char *txt1, char *txt2, char *txt3)
+void XrdOucError::Emsg(const char *esfx, const char *txt1, 
+                                         const char *txt2, 
+                                         const char *txt3)
 {
     struct iovec iov[16];
     int iovpnt = 0;
@@ -124,7 +127,7 @@ void XrdOucError::Emsg(const char *esfx, const char *txt1, char *txt2, char *txt
 /*                                   S a y                                    */
 /******************************************************************************/
   
-void XrdOucError::Say(const char *txt1, char *txt2, char *txt3)
+void XrdOucError::Say(const char *txt1, const char *txt2, const char *txt3)
 {
     struct iovec iov[5];
     int iovpnt = 0;
