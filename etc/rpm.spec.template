@@ -18,7 +18,6 @@ root files. An optional load balancer is also included.
 %setup -q -n xrootd
 
 %build
-gmake clean
 ./configure XRD-DEBUGOPT-XRD
 gmake clean
 gmake
