@@ -78,18 +78,14 @@ enum XOpenRequestMode {
 };
 
 enum XMkdirOptions {
-
-   kXR_none    = 0,
-   kXR_mkpath  = 1
-
+   kXR_mknone  = 0,
+   kXR_mkdirpath  = 1
 };
 
 // this is a bitmask
 enum XLoginCapVer {
-
-   kXR_none    = 0,
+   kXR_lcvnone = 0,
    kXR_asyncap = 64
-
 };
 
 enum XStatRespFlags {
@@ -113,7 +109,7 @@ enum XOpenRequestOption {
    kXR_open_updt= 32,
    kXR_async    = 64,
    kXR_refresh  = 128,
-   kXR_mkdir    = 256
+   kXR_mkpath   = 256
 };
 
 enum XQueryType {
