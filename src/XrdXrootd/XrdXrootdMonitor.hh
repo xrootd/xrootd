@@ -30,7 +30,8 @@
 #define XROOTD_MON_FILE     2
 #define XROOTD_MON_IO       4
 #define XROOTD_MON_INFO     8
-#define XROOTD_MON_PATH    (XROOTD_MON_IO | XROOTD_MON_FILE)
+#define XROOTD_MON_USER    16
+#define XROOTD_MON_PATH    (XROOTD_MON_IO   | XROOTD_MON_FILE)
 
 class XrdScheduler;
   
@@ -59,6 +60,8 @@ static XrdXrootdMonitor *Alloc(int force=0);
 
        void              Close(kXR_unt32 dictid, long long rTot, long long wTot);
 
+       void              Disc(kXR_unt32 dictid, int csec);
+
 static void              Defaults(char *dest1, int m1, char *dest2, int m2);
 static void              Defaults(int msz, int wsz, int flush);
 
@@ -78,6 +81,7 @@ static XrdXrootdMonitor *altMon;
 static char              monIO;
 static char              monINFO;
 static char              monFILE;
+static char              monUSER;
 
                          XrdXrootdMonitor();
 

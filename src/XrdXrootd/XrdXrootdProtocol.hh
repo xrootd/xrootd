@@ -74,7 +74,7 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Process(XrdLink *lp); //  Sync: Job->Link.DoIt->Process
 
-       void          Recycle();
+       void          Recycle(XrdLink *lp, int consec, char *reason);
 
        int           Stats(char *buff, int blen, int do_sync=0);
 
@@ -198,6 +198,7 @@ XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
 XrdSecClientName           Client;
 XrdXrootdMonitor          *Monitor;
+kXR_unt32                  monUID;
 char                       monFILE;
 char                       monIO;
 char                       Status;

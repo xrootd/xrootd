@@ -19,7 +19,7 @@
 /******************************************************************************/
   
 struct XrdXrootdMonHeader
-       {kXR_char   code;         // 'd' | 'i' | 't'
+       {kXR_char   code;         // 'd' | 'i' | 't' | 'u'
         kXR_char   pseq;         // packet sequence
         kXR_int16  plen;         // packet length
         kXR_int32  stod;         // Unix time at Server Start
@@ -52,9 +52,11 @@ struct XrdXrootdMonMap
   
 const char XROOTD_MON_APPID         = 0xa0;
 const char XROOTD_MON_CLOSE         = 0xc0;
+const char XROOTD_MON_DISC          = 0xd0;
 const char XROOTD_MON_OPEN          = 0x80;
 const char XROOTD_MON_WINDOW        = 0xe0;
 
+const char XROOTD_MON_MAPUSER       = 'u';
 const char XROOTD_MON_MAPPATH       = 'd';
 const char XROOTD_MON_MAPINFO       = 'i';
 

@@ -355,12 +355,15 @@ int XrdXrootdProtocol::do_Login()
    if ((Monitor = XrdXrootdMonitor::Alloc()))
       {monFILE = XrdXrootdMonitor::monFILE;
        monIO   = XrdXrootdMonitor::monIO;
+       if (XrdXrootdMonitor::monUSER)
+          monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER,
+                                        (const char *)Link->ID, 0);
       }
 
 // Document this login
 //
-   eDest.Emsg("Xeq", (Status & XRD_ADMINUSER ? "Admin" : "User"),
-                     (char *)"logged in as", Link->ID);
+   eDest.Log(OUC_LOG_01, "Xeq", Link->ID, (char *)"login",
+                    (Status & XRD_ADMINUSER ? (char *)"as admin" : 0));
    return rc;
 }
 
@@ -1000,6 +1003,9 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
               }
            monIO   =  XrdXrootdMonitor::monIO;
            monFILE =  XrdXrootdMonitor::monFILE;
+           if (XrdXrootdMonitor::monUSER && !monUID)
+              monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER,
+                               (const char *)Link->ID, 0);
           }
        return Response.Send();
       }

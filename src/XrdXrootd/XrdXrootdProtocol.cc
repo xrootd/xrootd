@@ -16,6 +16,7 @@ const char *XrdXrootdProtocolCVSID = "$Id$";
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XProtocol/XProtocol.hh"
+#include "XrdOuc/XrdOucTimer.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
@@ -373,8 +374,24 @@ int XrdXrootdProtocol::Process2()
 /*                               R e c y c l e                                */
 /******************************************************************************/
   
-void XrdXrootdProtocol::Recycle()
+void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, char *reason)
 {
+   char *sfxp, ctbuff[24], buff[128];
+
+// Document the disconnect
+//
+   if (lp)
+      {XrdOucTimer::s2hms(csec, ctbuff, sizeof(ctbuff));
+       if (reason) {snprintf(buff, sizeof(buff), "%s (%s)", ctbuff, reason);
+                    sfxp = buff;
+                   } else sfxp = ctbuff;
+
+       eDest.Log(OUC_LOG_02,"Xeq",(const char *)lp->ID,(char *)"disc", sfxp);
+      }
+
+// Check if we should monitor disconnects
+//
+   if (XrdXrootdMonitor::monUSER && Monitor) Monitor->Disc(monUID, csec);
 
 // Release all appendages
 //
@@ -486,6 +503,7 @@ void XrdXrootdProtocol::Reset()
    numReadP           = 0;
    numWrites          = 0;
    Monitor            = 0;
+   monUID             = 0;
    monFILE            = 0;
    monIO              = 0;
 }

@@ -59,6 +59,7 @@ kXR_int32          XrdXrootdMonitor::sizeWindow = 60;
 char               XrdXrootdMonitor::monINFO    = 0;
 char               XrdXrootdMonitor::monIO      = 0;
 char               XrdXrootdMonitor::monFILE    = 0;
+char               XrdXrootdMonitor::monUSER    = 0;
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -143,6 +144,7 @@ XrdXrootdMonitor::XrdXrootdMonitor()
    if (!(monBuff = (XrdXrootdMonBuff *)memalign(getpagesize(), monBlen)))
       eDest->Emsg("Monitor", "Unable to allocate monitor buffer.");
       else {nextEnt = 1;
+            monBuff->info[0].data.arg0.rTot[0] = 0;
             monBuff->info[0].data.arg0.id[0]   = XROOTD_MON_WINDOW;
             monBuff->info[0].data.arg1.Window  =
             monBuff->info[0].data.arg2.Window  = 
@@ -229,6 +231,7 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
    monBuff->info[nextEnt].data.arg0.rTot[1]  =
                 static_cast<kXR_unt32>(htonl(rVal));
    monBuff->info[nextEnt].data.arg0.id[2]    = do_Shift(wTot, wVal);
+   monBuff->info[nextEnt].data.arg0.id[3]    = 0;
    monBuff->info[nextEnt].data.arg1.wTot     =
                 static_cast<kXR_unt32>(htonl(wVal));
    monBuff->info[nextEnt++].data.arg2.dictid = dictid;
@@ -236,6 +239,35 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
 // Check if we need to duplicate this entry
 //
    if (altMon && this != altMon) altMon->Dup(&monBuff->info[nextEnt-1]);
+}
+
+/******************************************************************************/
+/*                                  D i s c                                   */
+/******************************************************************************/
+
+void XrdXrootdMonitor::Disc(kXR_unt32 dictid, int csec)
+{
+  XrdXrootdMonitorLock mLock(this);
+
+// Check if this should not be included in the io trace
+//
+   if (this != altMon && monUSER == 1 && altMon)
+      {altMon->Disc(dictid, csec); return;}
+
+// Fill out the monitor record
+//
+   if (lastWindow != currWindow) Mark();
+      else if (nextEnt == lastEnt) Flush();
+   monBuff->info[nextEnt].data.arg0.rTot[0]  = 0;
+   monBuff->info[nextEnt].data.arg0.id[0]    = XROOTD_MON_DISC;
+   monBuff->info[nextEnt].data.arg1.wTot     =
+                  static_cast<kXR_unt32>(htonl(csec));
+   monBuff->info[nextEnt++].data.arg2.dictid = dictid;
+
+// Check if we need to duplicate this entry
+//
+   if (altMon && this != altMon && monUSER == 3)
+      altMon->Dup(&monBuff->info[nextEnt-1]);
 }
 
 /******************************************************************************/
@@ -260,6 +292,15 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
    monIO     = (mmode & XROOTD_MON_IO   ? 1 : 0);
    monINFO   = (mmode & XROOTD_MON_INFO ? 1 : 0);
    monFILE   = (mmode & XROOTD_MON_FILE ? 1 : 0) | monIO;
+   monUSER   = (mmode & XROOTD_MON_USER ? 1 : 0);
+
+// Check where user information should go
+//
+   if ((mode1 & XROOTD_MON_IO && mode1 & XROOTD_MON_USER)
+   ||  (mode2 & XROOTD_MON_IO && mode2 & XROOTD_MON_USER))
+      if ((!(mode1 & XROOTD_MON_IO) && mode1 & XROOTD_MON_USER)
+      ||  (!(mode2 & XROOTD_MON_IO) && mode2 & XROOTD_MON_USER)) monUSER = 3;
+         else monUSER = 2;
 
 // Do final check
 //
@@ -368,9 +409,9 @@ kXR_unt32 XrdXrootdMonitor::Map(const char code,
                                    const char *uname, const char *path)
 {
      static XrdOucMutex  seqMutex;
-     static unsigned int monSeqID;
+     static unsigned int monSeqID = 1;
      XrdXrootdMonMap     map;
-     int                 size;
+     int                 size, montype;
      unsigned int        mySeqID;
 
 // Assign a unique ID for this entry
@@ -384,18 +425,23 @@ kXR_unt32 XrdXrootdMonitor::Map(const char code,
    map.dictid = static_cast<kXR_unt32>(htonl(mySeqID));
    strcpy(map.info, uname);
    size = strlen(uname);
-   *(map.info+size) = '\n';
-   strlcpy(map.info+size+1, path, sizeof(map.info)-size-1);
+   if (path)
+      {*(map.info+size) = '\n';
+       strlcpy(map.info+size+1, path, sizeof(map.info)-size-1);
+       size = size + strlen(path) + 1;
+      }
 
 // Fill in the header
 //
-   size = sizeof(XrdXrootdMonHeader)+size+1+sizeof(kXR_int32)+strlen(path);
+   size = sizeof(XrdXrootdMonHeader)+sizeof(kXR_int32)+size;
    fillHeader(&map.hdr, code, size);
 
 // Route the packet to all destinations that need them
 //
-   Send(code == XROOTD_MON_MAPINFO ? XROOTD_MON_INFO: XROOTD_MON_PATH,
-        (void *)&map, size);
+   if (code == XROOTD_MON_MAPUSER) montype = XROOTD_MON_USER;
+      else if (code == XROOTD_MON_MAPPATH) montype = XROOTD_MON_PATH;
+              else montype = XROOTD_MON_INFO;
+   Send(montype, (void *)&map, size);
 
 // Return the dictionary id
 //
@@ -413,6 +459,7 @@ void XrdXrootdMonitor::Open(kXR_unt32 dictid)
 
   if (lastWindow != currWindow) Mark();
      else if (nextEnt == lastEnt) Flush();
+  monBuff->info[nextEnt].data.arg0.rTot[0]  = 0;
   monBuff->info[nextEnt].data.arg0.id[0]    = XROOTD_MON_OPEN;
   monBuff->info[nextEnt].data.arg1.buflen   = 0;
   monBuff->info[nextEnt++].data.arg2.dictid = dictid;
@@ -532,6 +579,7 @@ void XrdXrootdMonitor::Flush()
 
 // Place the ending timing mark, send off the buffer and reinitialize it
 //
+   monBuff->info[nextEnt].data.arg0.rTot[0] = 0;
    monBuff->info[nextEnt].data.arg0.id[0]   = XROOTD_MON_WINDOW;
    monBuff->info[nextEnt].data.arg1.Window  =
    monBuff->info[nextEnt].data.arg2.Window  = now;
@@ -541,6 +589,7 @@ void XrdXrootdMonitor::Flush()
             FlushTime = now + autoFlush;
            }
 
+   monBuff->info[0].data.arg0.rTot[0] = 0;
    monBuff->info[0].data.arg0.id[0]   = XROOTD_MON_WINDOW;
    monBuff->info[0].data.arg1.Window  =
    monBuff->info[0].data.arg2.Window  = now;
@@ -568,7 +617,8 @@ void XrdXrootdMonitor::Mark()
       monBuff->info[nextEnt-1].data.arg2.Window = 
                static_cast<kXR_int32>(ntohl(localWindow));
       else if (nextEnt+8 > lastEnt) Flush();
-              else {monBuff->info[nextEnt].data.arg0.id[0]   = XROOTD_MON_WINDOW;
+              else {monBuff->info[nextEnt].data.arg0.rTot[0] = 0;
+                    monBuff->info[nextEnt].data.arg0.id[0]   = XROOTD_MON_WINDOW;
                     monBuff->info[nextEnt].data.arg1.Window  =
                              static_cast<kXR_int32>(ntohl(lastWindow));
                     monBuff->info[nextEnt].data.arg2.Window  =

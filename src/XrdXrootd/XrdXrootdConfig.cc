@@ -566,6 +566,7 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
          files              only monitors file open/close events.
          info               monitors client appid and info requests.
          io                 monitors I/O requests, and files open/close events.
+         user               monitors user login and disconnect events.
          <host:port>        where monitor records are to be sentvia UDP.
 
    Output: 0 upon success or !0 upon failure. Ignored by master.
@@ -614,6 +615,7 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
                    if (!strcmp("files",val)) monMode[i] |=  XROOTD_MON_FILE;
               else if (!strcmp("info", val)) monMode[i] |=  XROOTD_MON_INFO;
               else if (!strcmp("io",   val)) monMode[i] |=  XROOTD_MON_IO;
+              else if (!strcmp("user", val)) monMode[i] |=  XROOTD_MON_USER;
               else break;
           if (!val) {eDest.Emsg("Config","monitor dest value not specified");
                      return 1;
