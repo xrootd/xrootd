@@ -136,7 +136,7 @@ int XrdOlbServer::Login(int dataPort, int suspended, int nostaging)
    if (!dataPort) sprintf(buff, "login server %s %s\n",
                          (suspended ? "suspend" : ""),
                          (nostaging ? "nostage" : ""));
-      else    sprintf(buff, "login server port %d\n", dataPort,
+      else    sprintf(buff, "login server port %d %s %s\n", dataPort,
                             (suspended ? "suspend" : ""),
                             (nostaging ? "nostage" : ""));
    if (Link->Send(buff) < 0) return 0;
