@@ -84,7 +84,7 @@ void xerr(int x);
 /*                          M A I N   P R O G R A M                           */
 /******************************************************************************/
 
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
   int i, rc;
   struct sockaddr    caddr;
@@ -187,6 +187,7 @@ int i, j;
            else if (j == EOF) return i;
                 else xerr(insx("Error reading cred; %s.", Ereason()));
     xerr(insx("Cred longer than %d bytes.", blen));
+    return -1;
 }
 
 /******************************************************************************/
@@ -198,7 +199,6 @@ int i, j;
 void getargs(int argc, char **argv)
   {
   extern int optind; extern char *optarg; char c;
-  int i, j;
 
 /* Establish defaults here.
 */

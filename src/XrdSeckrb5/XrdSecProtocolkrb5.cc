@@ -118,7 +118,7 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *p_args)
 // Create a kerberos context. There is one such context per protocol object.
 //
    krbContext.Lock();
-   if (rc = krb5_init_context(&krb_context))
+   if ((rc = krb5_init_context(&krb_context)))
       {krbContext.UnLock();
        return Fatal(erp,ENOPROTOOPT,"seckrb5: Kerberos initialization failed;",
                     krb_etxt(rc));
@@ -126,7 +126,7 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *p_args)
 
 // Obtain the default cache location
 //
-   if (rc = krb5_cc_default(krb_context, &krb_ccache))
+   if ((rc = krb5_cc_default(krb_context, &krb_ccache)))
       {krbContext.UnLock();
        return Fatal(erp,ENOPROTOOPT,"Unable to locate cred cache",krb_etxt(rc));
       }
@@ -140,15 +140,15 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *p_args)
 
 // Now, extract the "principal/instance@realm" from the stream
 //
-   if (rc = krb5_parse_name(krb_context, (const char *)p_args, &krb_principal))
+   if ((rc = krb5_parse_name(krb_context,(const char *)p_args,&krb_principal)))
      {krbContext.UnLock();
       return Fatal(erp,EPROTO,"Cannot parse service name",krb_etxt(rc));
      }
 
 // Establish the correct principal to use
 //
-   if (rc = krb5_unparse_name(krb_context, (krb5_const_principal)krb_principal,
-                              (char **)&Principal))
+   if ((rc = krb5_unparse_name(krb_context,(krb5_const_principal)krb_principal,
+                              (char **)&Principal)))
       {krbContext.UnLock();
        return Fatal(erp, EPROTO,"Unable to unparse principal;",krb_etxt(rc));
       }
@@ -202,7 +202,7 @@ int XrdSecProtocolkrb5::Init_Server(XrdOucErrInfo *einfo, char *kfn)
 // Try to resolve the keyfile name
 //
    if (kfn && *kfn)
-      {if (rc = krb5_kt_resolve(krb_context, kfn, &krb_keytab))
+      {if ((rc = krb5_kt_resolve(krb_context, kfn, &krb_keytab)))
           {snprintf(buff, sizeof(buff), "Unable to find keytab '%s';", kfn);
            return Fatal(einfo, ESRCH, buff, krb_etxt(rc));
           }
@@ -293,12 +293,12 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
    krb5_address      ipadd;
    krb5_auth_context auth_context = NULL;
    krb_rc rc = 0;
-   char *idp, *iferror;
+   char *iferror = 0;
 
 // Check if we have any credentials or if no credentials really needed.
 // In either case, use host name as client name
 //
-   if (cred->size <= XrdSecPROTOIDLEN || !cred->buffer)
+   if (cred->size <= (int)XrdSecPROTOIDLEN || !cred->buffer)
       {strncpy(client.prot, "host", sizeof(client.prot));
        client.name[0] = '?'; client.name[1] = '\0';
        return 0;
@@ -340,13 +340,13 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 // Decode the credentials and extract client's name
 //
    if (!rc)
-       if (rc = krb5_rd_req(krb_context, &auth_context, &inbuf,
-                             (krb5_const_principal)krb_principal,
-                              krb_keytab, NULL, &ticket))
+       if ((rc = krb5_rd_req(krb_context, &auth_context, &inbuf,
+                            (krb5_const_principal)krb_principal,
+                             krb_keytab, NULL, &ticket)))
           iferror = (char *)"Unable to authenticate credentials;";
-          else if (rc = krb5_aname_to_localname(krb_context,
+          else if ((rc = krb5_aname_to_localname(krb_context,
                                     ticket->enc_part2->client,
-                                    sizeof(client.name)-1, client.name))
+                                    sizeof(client.name)-1, client.name)))
                   iferror = (char *)"Unable to extract client name;";
 
 // Release any allocated storage at this point and unlock mutex
@@ -358,7 +358,7 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 
 // Diagnose any errors
 //
-   if (rc)
+   if (rc && iferror)
       {Fatal(error, EACCES, iferror, krb_etxt(rc));
        return -1;
       }
@@ -416,14 +416,14 @@ int XrdSecProtocolkrb5::get_krbCreds()
 
 // Copy the current target principal into the credentials
 //
-   if (rc = krb5_copy_principal(krb_context, krb_principal, &mycreds.server))
+   if ((rc = krb5_copy_principal(krb_context, krb_principal, &mycreds.server)))
       {CLDBG("get_krbCreds: err copying principal to creds; " <<krb_etxt(rc));
        return rc;
       }
 
 // Get our principal name
 //
-   if (rc = krb5_cc_get_principal(krb_context, krb_ccache, &mycreds.client))
+   if ((rc = krb5_cc_get_principal(krb_context, krb_ccache, &mycreds.client)))
       {krb5_free_cred_contents(krb_context, &mycreds);
        CLDBG("get_krbCreds: err copying client name to creds; " <<krb_etxt(rc));
        return rc;

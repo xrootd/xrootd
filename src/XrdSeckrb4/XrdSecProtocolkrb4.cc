@@ -314,7 +314,7 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
 // Check if we have any credentials or if no credentials really needed.
 // In either case, use host name as client name
 //
-   if (cred->size <= XrdSecPROTOIDLEN || !cred->buffer)
+   if (cred->size <= (int)XrdSecPROTOIDLEN || !cred->buffer)
       {strncpy(client.prot, "host", sizeof(client.prot));
        client.name[0] = '?'; client.name[1] = '\0';
        return 0;
@@ -351,7 +351,7 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
 // Decode the credentials
 //
    krbContext.Lock();
-   rc = krb_rd_req(&katix, sname, iname, (const long)ipaddr, &pid, keyfile);
+   rc = krb_rd_req(&katix, sname, iname, ipaddr, &pid, keyfile);
    krbContext.UnLock();
 
 // Diagnose any errors

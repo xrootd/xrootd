@@ -21,6 +21,7 @@ const char *XrdRootdProtocolCVSID = "$Id$";
 #include "XrdRootd/XrdRootdProtocol.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"
+#undef   XRD_TRACE
 #define  XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
 
@@ -172,7 +173,7 @@ XrdProtocol *XrdRootdProtocol::Match(XrdLink *lp)
 
 // Fork a process to handle this protocol
 //
-   if (pid = Scheduler->Fork((const char *)lp->Name()))
+   if ((pid = Scheduler->Fork((const char *)lp->Name())))
       {if (pid < 0) return DISCARD_LINK("fork failed");
        return DISCARD_LINK(0);
       }

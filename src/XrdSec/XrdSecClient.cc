@@ -59,11 +59,23 @@ const char        *getParms(int &psize, const char *hname=0)
               XrdSecProtNone() {}
              ~XrdSecProtNone() {}
 };
+  
+/******************************************************************************/
+/*               X r d S e c G e t P r o t o c o l C l i e n t                */
+/******************************************************************************/
+  
+extern "C"
+{
+XrdSecProtocol *XrdSecGetProtocolClient(const struct sockaddr  &netaddr,
+                                        const XrdSecParameters &parms,
+                                              XrdOucErrInfo    *einfo)
+{return XrdSecGetProtocol(netaddr, parms, einfo);}
+}
  
 /******************************************************************************/
 /*                     X r d S e c G e t P r o t o c o l                      */
 /******************************************************************************/
-  
+
 XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
                                   const XrdSecParameters &parms,
                                         XrdOucErrInfo    *einfo)
@@ -90,7 +102,7 @@ XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
 // Copy the string into a local buffer so that we can simplify some comparisons
 // and isolate ourselves from server protocol errors.
 //
-   if (parms.size < sizeof(sectoken)) i = parms.size;
+   if (parms.size < (int)sizeof(sectoken)) i = parms.size;
       else i = sizeof(sectoken)-1;
    strncpy(sectoken, parms.buffer, i);
    sectoken[i] = '\0';
@@ -104,6 +116,19 @@ XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
 // All done
 //
    return protp;
+}
+
+  
+/******************************************************************************/
+/*               X r d S e c D e l P r o t o c o l C l i e n t                */
+/******************************************************************************/
+/******************************************************************************/
+/*               X r d S e c C l i e n t P r o t o c o l D e l                */
+/******************************************************************************/
+  
+extern "C"
+{
+void XrdSecProtocolDelClient(XrdSecProtocol *pp) {XrdSecDelProtocol(pp);}
 }
 
 /******************************************************************************/

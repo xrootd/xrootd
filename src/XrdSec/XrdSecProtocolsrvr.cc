@@ -168,7 +168,7 @@ int  XrdSecProtocolsrvr::Authenticate(XrdSecCredentials  *cred,     // In
 // The protocol manager finds the protocol for us. We have preloaded all of
 // the protocol we will use, so we better find something that matches.
 //
-   if (pp = PManager.Find((const char *)cred->buffer, (char **)0, &pnum))
+   if ((pp = PManager.Find((const char *)cred->buffer, (char **)0, &pnum)))
       {if (Enforce)
           {if (!bpFirst || !(bp = bpFirst->Find(client.host))
            ||  !(bp->ValidProts & pnum))
@@ -203,7 +203,7 @@ const char *XrdSecProtocolsrvr::getParms(int &size, const char *hname)
 // Try to find a specific token binding for a host or return default binding
 //
    if (!hname) bp = 0;
-      else if (bp = bpFirst) while(!bp->Match(hname)) bp = bp->next;
+      else if ((bp = bpFirst)) while(!bp->Match(hname)) bp = bp->next;
 
 // If we have a binding, return that else return the default
 //
@@ -305,7 +305,7 @@ int XrdSecProtocolsrvr::ConfigFile(const char *ConfigFN)
 // Now start reading records until eof.
 //
    Config.Attach(cfgFD); Config.Tabs(0);
-   while( var = Config.GetFirstWord())
+   while((var = Config.GetFirstWord()))
         {if (!strncmp(var, SEC_Prefix, SEC_PrefLen))
             {var += SEC_PrefLen; recs++;
              NoGo |= ConfigXeq(var, Config, eDest);
@@ -314,7 +314,7 @@ int XrdSecProtocolsrvr::ConfigFile(const char *ConfigFN)
 
 // Now check if any errors occured during file i/o
 //
-   if (retc = Config.LastError() )
+   if ((retc = Config.LastError()))
       NoGo = eDest.Emsg("Config",-retc,"reading config file", (char *)ConfigFN);
       else {char buff[12];
             snprintf(buff, sizeof(buff), "%d", recs);
@@ -409,7 +409,7 @@ int XrdSecProtocolsrvr::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
     char *val, *thost;
     struct XrdSecProtBind *bnow;
     char sectoken[4096], *secbuff = sectoken;
-    int  i, only = 0, anyprot = 0, noprot = 0;
+    int only = 0, anyprot = 0, noprot = 0;
     int sectlen = sizeof(sectoken)-1;
     unsigned long PMask = 0;
     *secbuff = '\0';
@@ -434,7 +434,7 @@ int XrdSecProtocolsrvr::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
 
 // Now get each protocol to be used (there must be one).
 //
-   while(val = Config.GetWord())
+   while((val = Config.GetWord()))
         {if (!strcmp(val, "none")) {noprot = 1; break;}
          if (!strcmp(val, "only")) {only = 1; Enforce = 1;}
             else if (add2token(Eroute, val, &secbuff, sectlen, PMask))
@@ -497,7 +497,7 @@ int XrdSecProtocolsrvr::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdSecProtocolsrvr::xprot(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    char *vp, *val, pid[16], *args = 0;
+    char *val, pid[16], *args = 0;
     char pathbuff[1024], pargs[4096], *pap = 0, *path = 0;
     int alen, pleft = sizeof(pargs)-1;
     XrdOucErrInfo erp;
@@ -523,7 +523,7 @@ int XrdSecProtocolsrvr::xprot(XrdOucStream &Config, XrdOucError &Eroute)
 
 // Grab the options for the protocol. They are pretty much opaque to us here
 //
-   while(args = Config.GetWord())
+   while((args = Config.GetWord()))
         {alen = strlen(args);
          if (alen+1 > pleft)
             {Eroute.Emsg("Config","Protocol",pid,(char *)"argument string too long");
@@ -562,12 +562,12 @@ int XrdSecProtocolsrvr::xprot(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdSecProtocolsrvr::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    static struct traceopts { char * opname; int opval;} tropts[] =
+    static struct traceopts {const char *opname; int opval;} tropts[] =
        {
-       (char *)"all",            TRACE_ALL,
-       (char *)"debug",          TRACE_Debug,
-       (char *)"auth",           TRACE_Authen,
-       (char *)"authentication", TRACE_Authen,
+        {"all",            TRACE_ALL},
+        {"debug",          TRACE_Debug},
+        {"auth",           TRACE_Authen},
+        {"authentication", TRACE_Authen}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
     char *val;
@@ -577,7 +577,7 @@ int XrdSecProtocolsrvr::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
        {Eroute.Emsg("Config", "trace option not specified"); return 1;}
     while (val && val[0])
          {if (!strcmp(val, "off")) trval = 0;
-             else {if (neg = (val[0] == '-' && val[1])) val++;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
                    for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, tropts[i].opname))
                            {if (neg) trval &= ~tropts[i].opval;
@@ -612,7 +612,7 @@ int XrdSecProtocolsrvr::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
 int XrdSecProtocolsrvr::add2token(XrdOucError &Eroute, char *pid,
                             char **tokbuff, int &toklen, XrdSecPMask_t &pmask)
 {
-    int i, j=0;
+    int i;
     char *pargs, buff[1024];
     unsigned long protnum;
 
@@ -626,7 +626,7 @@ int XrdSecProtocolsrvr::add2token(XrdOucError &Eroute, char *pid,
 // Make sure we have enough room to add
 //
    i = 4+strlen(pid)+strlen(pargs);
-   if (i >= sizeof(buff) || i >= toklen)
+   if (i >= (int)sizeof(buff) || i >= toklen)
       {Eroute.Emsg("Config","Protocol",pid,(char *)"parms exceed overall maximum!");
        return 1;
       }
@@ -647,7 +647,6 @@ int XrdSecProtocolsrvr::ProtBind_Complete(XrdOucError &Eroute)
     const char *epname = "ProtBind_Complete";
     XrdSecProtBind *bnow;
     char *sectp;
-    int NoGo;
 
 // Check if we have a default token, create one otherwise
 //
@@ -683,7 +682,7 @@ XrdSecProtocol *XrdSecProtocolsrvrObject(XrdOucLogger *lp, const char *cfn)
 
 // Create a server object
 //
-   if (sobj = new XrdSecProtocolsrvr(lp)) NoGo = sobj->Configure(cfn);
+   if ((sobj = new XrdSecProtocolsrvr(lp))) NoGo = sobj->Configure(cfn);
 
 // Check if object was successfully create
 //

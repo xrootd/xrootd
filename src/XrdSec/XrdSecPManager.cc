@@ -89,7 +89,7 @@ XrdSecProtocol *XrdSecPManager::Find(const char *pid,   // In
    if (plp)
       do {if (!strcmp(plp->protid,   pid) && parg
           &&  !strcmp(plp->protargs, parg)) break;
-         } while(plp = plp->Next);
+         } while((plp = plp->Next));
 
    if (plp) return plp->protp;
    return (XrdSecProtocol *)0;
@@ -112,7 +112,7 @@ XrdSecProtocol *XrdSecPManager::Find(const         char  *pid,   // In
 //
    if (plp)
       do {if (!strcmp(plp->protid,   pid)) break;
-         } while(plp = plp->Next);
+         } while((plp = plp->Next));
 
    if (!plp) return (XrdSecProtocol *)0;
    if (parg) *parg = (char *)plp->protargs;
@@ -126,7 +126,7 @@ XrdSecProtocol *XrdSecPManager::Find(const         char  *pid,   // In
 
 XrdSecProtocol *XrdSecPManager::Get(char *sectoken)
 {
-   char savec, *nscan, *pname, *pargs, *bp = sectoken;
+   char *nscan, *pname, *pargs, *bp = sectoken;
    XrdSecProtocol *pp;
    XrdOucErrInfo erp;
 

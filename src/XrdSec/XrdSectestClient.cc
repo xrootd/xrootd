@@ -42,7 +42,7 @@ const char *XrdSectestClientCVSID = "$Id$";
 /*                                  m a i n                                   */
 /******************************************************************************/
   
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 char *tohex(char *inbuff, int inlen, char *outbuff);
 
@@ -53,7 +53,6 @@ netaddr.sin_family = AF_INET;
 netaddr.sin_port   = 0;
 netaddr.sin_addr.s_addr = 0x80000001;
 
-int rc, ecode;
 int putbin = 0, putlen = 0;
 char kbuff[8192];
 char c;
@@ -150,7 +149,7 @@ void help(int);
 
 char *tohex(char *inbuff, int inlen, char *outbuff) {
      static char hv[] = "0123456789abcdef";
-     unsigned int hnum, i, j = 0;
+     int i, j = 0;
      for (i = 0; i < inlen; i++) {
          outbuff[j++] = hv[(inbuff[i] >> 4) & 0x0f];
          outbuff[j++] = hv[ inbuff[i]       & 0x0f];
