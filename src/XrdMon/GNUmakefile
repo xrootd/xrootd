@@ -102,8 +102,8 @@ anything: $(TARGETS)
 
 $(LIBRARY_COMMON): $(OBJECTS_LIB_COMMON)
 	@echo Creating archive $(LIBRARY_COMMON) 
-	@rm -f $(LIBRARY_COMMON)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY_COMMON)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 		$(CC) -xar -o $(LIBRARY_COMMON) $(OBJECTS_LIB_COMMON); \
 	else \
 		ar -rc $(LIBRARY_COMMON) $(OBJECTS_LIB_COMMON); \
@@ -112,8 +112,8 @@ $(LIBRARY_COMMON): $(OBJECTS_LIB_COMMON)
 
 $(LIBRARY_CTR):	$(OBJECTS_LIB_CTR)
 	@echo Creating archive $(LIBRARY_CTR) 
-	@rm -f $(LIBRARY_CTR)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY_CTR)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 		$(CC) -xar -o $(LIBRARY_CTR) $(OBJECTS_LIB_CTR); \
 	else \
 		ar -rc $(LIBRARY_CTR) $(OBJECTS_LIB_CTR); \
@@ -122,8 +122,8 @@ $(LIBRARY_CTR):	$(OBJECTS_LIB_CTR)
 
 $(LIBRARY_DEC):	$(OBJECTS_LIB_DEC)
 	@echo Creating archive $(LIBRARY_DEC) 
-	@rm -f $(LIBRARY_DEC)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY_DEC)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 		$(CC) -xar -o $(LIBRARY_DEC) $(OBJECTS_LIB_DEC); \
 	else \
 		ar -rc $(LIBRARY_DEC) $(OBJECTS_LIB_DEC); \
@@ -132,8 +132,8 @@ $(LIBRARY_DEC):	$(OBJECTS_LIB_DEC)
 
 $(LIBRARY_SND): $(OBJECTS_LIB_SND)
 	@echo Creating archive $(LIBRARY_SND) 
-	@rm -f $(LIBRARY_SND)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY_SND)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 		$(CC) -xar -o $(LIBRARY_SND) $(OBJECTS_LIB_SND); \
 	else \
 		ar -rc $(LIBRARY_SND) $(OBJECTS_LIB_SND); \
@@ -176,5 +176,5 @@ $(TESTPARSER):	$(OBJECTS_BIN_TPR) $(LIBRARY_COMMON)
 
 $(OBJDIR)/%.o : %.cc
 	@echo Compiling $(<F)
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $< -o $(OBJDIR)/$@
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $< -o $@
 
