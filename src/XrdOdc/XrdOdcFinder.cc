@@ -620,11 +620,12 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 // Send message and simply wait for the reply
 //
    if (!Manp->Send(xmsg, 3) || (mp->Wait4Reply(RepWait)))
-      {Resp.setErrInfo(RepDelay, ""); 
-       retc = RepDelay;
+      {mp->Recycle();
+       Resp.setErrInfo(RepDelay, "");
        Manp->whatsUp();
        TRACE(Redirect, Resp.getErrUser() <<" got no response from "
                        <<Manp->NPfx() <<" path=" <<path);
+       return RepDelay;
       }
       else {msg = (char *)Resp.getErrText(retc);
                  if (retc == -EREMOTE)

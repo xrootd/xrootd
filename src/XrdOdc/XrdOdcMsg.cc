@@ -209,7 +209,10 @@ XrdOdcMsg *XrdOdcMsg::RemFromWaitQ(int msgid)
   if ((msgnum = msgid & 0xff) < msgHWM)
      {msgTab[msgnum].myData.Lock();
       if (msgTab[msgnum].inwaitq && msgTab[msgnum].id == msgid) 
-         {msgTab[msgnum].inwaitq = 0; return &msgTab[msgnum];}
+         {msgTab[msgnum].inwaitq = 0; 
+          msgTab[msgnum].myData.UnLock();
+          return &msgTab[msgnum];
+         }
       msgTab[msgnum].myData.UnLock();
       return (XrdOdcMsg *)0;
      }
