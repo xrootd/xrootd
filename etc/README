@@ -20,3 +20,5 @@ You need not use the provided start/stop scripts. However, they are provided
 here as a helpful aid in managing the servers.
 
 Don't forget to modify your init scripts to start the servers at boot time!
+
+Full documentation can be found at http://xrootd.slac.stanford.edu/
