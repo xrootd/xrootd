@@ -9,9 +9,13 @@
 /******************************************************************************/
   
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/param.h>
 #include <sys/resource.h>
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdPosixXrootd.hh"
 
 /******************************************************************************/
@@ -239,7 +243,7 @@ int     XrdPosixXrootd::Fsync(int fildes)
 int     XrdPosixXrootd::Open(const char *path, int oflags, int mode)
 {
    XrdPosixFile *fp;
-   int retc, fd, XOflags, XMode;
+   int retc = 0, fd, XOflags, XMode;
 
 // Allocate a new file descriptor.
 //
@@ -530,7 +534,7 @@ int XrdPosixXrootd::mapError(int rc)
         case kXR_NotFile:       return ENOTBLK;
         case kXR_isDir:         return EISDIR;
         case kXR_FSError:       return ENOSYS;
-        default:                return EPROTO;
+        default:                return EPERM;
        }
 }
  
