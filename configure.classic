@@ -489,15 +489,15 @@ Supported Architectures:
                    flavour
 EOF
 
-exec 10< config/ARCHS
-read line <&10
+exec < config/ARCHS
+read line
 while [ ! "x$line" = "x" ]
 do
    set $line
    if test ! "x$3" = "xno" ; then
       echo "   $line"
    fi
-   read line <&10
+   read line
 done
 
 cat <<EOF
