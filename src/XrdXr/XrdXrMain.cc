@@ -51,7 +51,7 @@ enum executionValues {
   xr_exit  = 1,
   xr_help,
   xr_test,
-  xr_out,
+  xr_out
 };
 
 bool login = false;    // check if login was successful
@@ -503,7 +503,7 @@ int main(int argc, char *argv[])
 
   const char* hostname;
   int         port     = 1094;
-  int         len      = 300;  // length of input characters read from stdin  
+  const int   len      = 300;  // length of input characters read from stdin
   char        input[len];
 
   int command = 0;
