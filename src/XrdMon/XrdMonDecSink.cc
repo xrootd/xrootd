@@ -222,8 +222,9 @@ XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
 {
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
-    if ( itr != _dCache.end() ) {
-        cerr << "Multiple attempts to open file, xrdId " << xrdId << endl;
+    if ( itr == _dCache.end() ) {
+        registerLostPacket(xrdId, "Open file");
+        cout << "requested open file " << xrdId << ", xrdId not found" << endl;
         return;
     }
 
