@@ -207,8 +207,9 @@ int doCp_xrd2loc(char *src, char *dst) {
       cpnfo.len = stat.size;
 
       unlink(dst);
-      int f = open(dst, O_CREAT | O_WRONLY |
-		   O_TRUNC | S_IRWXU | S_IRWXG | S_IROTH);   
+      int f = open(dst, 
+                   O_CREAT | O_WRONLY | O_TRUNC,
+                   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);   
       if (f < 0) {
 	 Error("xrdcp", "Error " << strerror(errno) <<
 	       " creating " << dst);
