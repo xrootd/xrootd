@@ -57,7 +57,7 @@ sub doLoading {
     }
     # read the file, load the data, close the file
     print "Loading...\n";
-    $nr = 0;
+    $nr = 1;
     while ( $_ = <$inF> ) {
 	#print "processing $_";
 	chop;
@@ -65,11 +65,11 @@ sub doLoading {
 	if ( $_ =~ m/^d/ ) { loadCloseSession($_); }
 	if ( $_ =~ m/^o/ ) { loadOpenFile($_);     }
 	if ( $_ =~ m/^c/ ) { loadCloseFile($_);    }
-	$nr += 1;
-	if ( $nr % 10001 == 10000 ) {
+	if ( $nr % 10000 == 0 ) {
             $ts = timestamp();
 	    print "$ts $nr\n";
 	}
+	$nr += 1;
     }
 
     close $inF;
@@ -187,7 +187,7 @@ sub loadCloseFile() {
     runQuery("DELETE FROM openedFiles WHERE id = $fileId;");
 
     # and insert into the closed
-    runQuery("INSERT INTO closedFiles (sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
+    runQuery("INSERT INTO closedFiles (id, sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($fileId, $sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
 }
 
 sub findSessionId() {
