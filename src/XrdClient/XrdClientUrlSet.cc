@@ -99,6 +99,11 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
       return;
    }
 
+   if ( tmpurl.HostWPort.empty() ) {
+      Error("TXUrl", "Malformed pathfile (HostWPort is invalid)" );
+      fIsValid = FALSE;
+      return;
+   }
    listOfMachines = tmpurl.HostWPort;
 
    // remove trailing "," that would introduce a null host
