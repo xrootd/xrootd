@@ -141,7 +141,7 @@ int XrdProtocol_Select::Process(XrdLink *lp)
 //
    for (i = 0; i < ProtoCnt; i++) 
        if ((pp = Protocol[i]->Match(lp))) break;
-          else if (!lp->isFlawed()) {lp->Close(); return -1;}
+          else if (lp->isFlawed()) {lp->Close(); return -1;}
    if (!pp) {DISCARD_LINK(lp, "matching protocol not found");}
 
 // Now attach the new protocol object to the link
