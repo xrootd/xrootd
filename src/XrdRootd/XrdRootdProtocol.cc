@@ -85,12 +85,18 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
    while(*fn != '/' && fn != pgm) fn--;
    parg[0] = strdup(++fn);
 
-// Tokenize the arguments (we do not support quotes)
+// Force first argument to the program be '-i', so the user does not
+// need to specify it in the config file; and if it does, the second
+// instance will be ignored
 //
-   for (acnt = 1; acnt < MAX_ARGS-1 && *pc; acnt++)
-       {while(pc && *pc == ' ') pc++;
+   parg[1] = strdup("-i");
+
+// Tokenize the remaining arguments (we do not support quotes)
+//
+   for (acnt = 2; acnt < MAX_ARGS-1 && *pc; acnt++)
+       {while(*pc && *pc == ' ') pc++;
         parg[acnt] = pc;
-        while(pc && *pc != ' ') pc++;
+        while(*pc && *pc != ' ') pc++;
         if (*pc) {*pc = '\0'; pc++;}
         parg[acnt] = strdup(parg[acnt]);
        }
