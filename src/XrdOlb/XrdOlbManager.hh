@@ -82,7 +82,7 @@ void       *MonPing(void);
 void       *MonRefs(void);
 void       *Pander(char *manager, int port);
 void       *Process(void);
-void        Remove_Server(const char *reason, int sent, int sinst);
+void        Remove_Server(const char *reason, int sent, int sinst, int immed=0);
 void        ResetRef(SMask_t smask);
 void       *Respond(void);
 void        Resume();
@@ -104,7 +104,7 @@ int           Add_Manager(XrdOlbServer *sp);
 XrdOlbServer *AddServer(XrdOucLink *lp, int port, int nostage, int suspend);
 XrdOlbServer *calcDelay(int nump, int numd, int numf, int numo,
                         int nums, int &delay, char **reason);
-int           Drop_Server(int sent, int sinst);
+int           Drop_Server(int sent, int sinst, XrdOlbDrop *djp=0);
 void         *Login_Failed(const char *reason, XrdOucLink *lp, XrdOlbServer *sp=0);
 void          Record(char *path, const char *reason);
 void          Remove_Manager(const char *reason, XrdOlbServer *sp);

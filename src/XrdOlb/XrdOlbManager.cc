@@ -63,7 +63,8 @@ class XrdOlbDrop : XrdOlbJob
 public:
 
       int DoIt() {extern XrdOlbManager  XrdOlbSM;
-                  return XrdOlbSM.Drop_Server(servEnt, servInst);
+                  XrdOlbSM.STMutex.Lock();
+                  return XrdOlbSM.Drop_Server(servEnt, servInst, this);
                  }
 
           XrdOlbDrop(int sid, int inst) : XrdOlbJob("drop server")
@@ -433,7 +434,7 @@ void *XrdOlbManager::MonPerf()
          if (--doping < 0) doping = XrdOlbConfig.AskPerf;
          STMutex.Lock();
          for (i = 0; i <= STHi; i++)
-             {if ((sp = ServTab[i])) sp->Lock();
+             {if ((sp = ServTab[i]) && sp->isBound) sp->Lock();
                  else continue;
               STMutex.UnLock();
               if (doping || !XrdOlbConfig.AskPerf)
@@ -441,7 +442,7 @@ void *XrdOlbManager::MonPerf()
                   if ((oldval = sp->pingpong)) sp->pingpong = 0;
                      else sp->pingpong = -1;
                  } else {
-                  reqst = (char *)"1@0 usage\n";
+                  reqst = (char *)"1@0 usage\n";oldval = 0;
                   if ((nldval = sp->newload)) sp->newload = 0;
                      else sp->newload = -1;
                  }
@@ -661,7 +662,8 @@ void *XrdOlbManager::Respond()
 /*                         R e m o v e _ S e r v e r                          */
 /******************************************************************************/
 
-void XrdOlbManager::Remove_Server(const char *reason, int sent, int sinst)
+void XrdOlbManager::Remove_Server(const char *reason, 
+                                  int sent, int sinst, int immed)
 {
    const char *epname = "Remove_Server";
    XrdOlbServer *sp;
@@ -678,6 +680,16 @@ void XrdOlbManager::Remove_Server(const char *reason, int sent, int sinst)
        return;
       }
 
+// Do a partial drop at this point
+//
+   if (sp->Link) {sp->Link->Close(1);}
+   sp->isOffline = 1;
+   if (sp->isBound) {sp->isBound = 0; ServCnt--;}
+
+// If this is an immediate drop request, do so now
+//
+   if (immed) {Drop_Server(sent, sinst); return;}
+
 // If a drop job is already scheduled, update the instance field. Otherwise,
 // Schedule a server drop at a future time.
 //
@@ -685,12 +697,6 @@ void XrdOlbManager::Remove_Server(const char *reason, int sent, int sinst)
    if (sp->DropJob) sp->DropJob->servInst = sinst;
       else sp->DropJob = new XrdOlbDrop(sent, sinst);
 
-// Do a partial drop at this point
-//
-   if (sp->Link) {sp->Link->Close(1);}
-   sp->isOffline = 1;
-   sp->isBound   = 0;
-   ServCnt--;
 
 // Document removal
 //
@@ -1134,20 +1140,18 @@ XrdOlbServer *XrdOlbManager::calcDelay(int nump, int numd, int numf, int numo,
 /*                           D r o p _ S e r v e r                            */
 /******************************************************************************/
   
-int XrdOlbManager::Drop_Server(int sent, int sinst)
+// Warning: STMutex must be locked upon entry. It will be released upon exit!
+
+int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 {
    const char *epname = "Drop_Server";
    XrdOlbServer *sp;
    char hname[256];
 
-// Obtain a lock on the servtab
-//
-   STMutex.Lock();
-
 // Make sure this server is the right one
 //
    if (!(sp = ServTab[sent]) || sp->Instance != sinst)
-      {sp->DropJob = 0; sp->DropTime = 0;
+      {if (djp == sp->DropJob) {sp->DropJob = 0; sp->DropTime = 0;}
        DEBUG("Drop server " <<sent <<'.' <<sinst <<" cancelled.");
        STMutex.UnLock();
        return 0;
@@ -1155,8 +1159,8 @@ int XrdOlbManager::Drop_Server(int sent, int sinst)
 
 // Check if the drop has been rescheduled
 //
-   if (time(0) < sp->DropTime)
-      {XrdOlbSchedM->Schedule((XrdOlbJob *)this, sp->DropTime);
+   if (djp && time(0) < sp->DropTime)
+      {XrdOlbSchedM->Schedule((XrdOlbJob *)djp, sp->DropTime);
        STMutex.UnLock();
        return 1;
       }
@@ -1172,6 +1176,7 @@ int XrdOlbManager::Drop_Server(int sent, int sinst)
    sp->isOffline = 1;
    sp->DropTime  = 0;
    sp->DropJob   = 0;
+   sp->isBound   = 0;
 
 // Readjust STHi
 //
