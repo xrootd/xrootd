@@ -35,7 +35,29 @@ FROM   rtOpenedFiles;
 SELECT COUNT(DISTINCT CONCAT(pId, clientHId))
 FROM   rtOpenedSessions;
 
-## 
+
+## change of number of jobs [in #jobs and in %]
+ # 1st query
+SELECT @lastMin:=min, 
+       @lastValue:=noJobs
+FROM   rtHour
+WHERE  min = (SELECT MAX(min) FROM rtHour);
+ # 2nd query: returns change in number of jobs
+SELECT @lastValue-noJobs AS dif
+FROM   rtHour
+WHERE  min = SUBTIME(@lastMin, "00:01:00");
+ # 3rd query: returns change in %
+## change of number of jobs [in %]
+SELECT 100*(@lastValue-noJobs)/@lastValue as difPerc
+FROM rtHour
+WHERE min = SUBTIME(@lastMin, "00:01:00");
+
+
+
+## select day's range of noJobs
+select MIN(noJobs), MAX(noJobs) from rtDay;
+
+
 
 ## current number of non-unique opened sessions
 SELECT COUNT(*)
