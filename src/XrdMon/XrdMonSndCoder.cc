@@ -117,6 +117,7 @@ XrdMonSndCoder::prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector)
 pair<char, kXR_unt32>
 XrdMonSndCoder::generateBigNumber(const char* descr)
 {
+    /*
     kXR_int64 xOrg = 1000000000000 + rand();
     char nuToShift = 0;
     kXR_int64 x = xOrg;
@@ -127,7 +128,10 @@ XrdMonSndCoder::generateBigNumber(const char* descr)
     cout << "Want to send #" << descr << " " << xOrg
          << ", sending " << x << " noShifted " 
          << (int) nuToShift << endl;
-
+    */
+    kXR_unt32 x = rand();
+    char nuToShift = 0;
+    
     return pair<char, kXR_unt32>(nuToShift, static_cast<kXR_unt32>(x));
 }
 

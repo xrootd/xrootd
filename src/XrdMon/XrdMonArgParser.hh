@@ -13,6 +13,7 @@
 #ifndef XRDMONARGPARSER_HH
 #define XRDMONARGPARSER_HH
 
+#include <stdio.h>
 #include <string>
 #include <vector>
 using std::string;
