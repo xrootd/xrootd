@@ -89,7 +89,7 @@ void        Resume();
 int         SelServer(int pt, char *path, SMask_t pmsk, SMask_t amsk, char *hb,
                       const struct iovec *iodata=0, int iovcnt=0);
 void        setPort(int port) {Port = port;}
-int         Snooze(int slpsec);
+void        Snooze(int slpsec);
 void        Stage(int ison, int doinform=1);
 int         Stats(char *bfr, int bln);
 void       *StartUDP(int formanager);

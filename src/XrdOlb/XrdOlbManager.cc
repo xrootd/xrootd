@@ -430,7 +430,7 @@ void *XrdOlbManager::MonPerf()
 // Sleep for the indicated amount of time, then maintain load on each server
 //
    while(XrdOlbConfig.AskPing)
-        {if (!Snooze(XrdOlbConfig.AskPing)) return (void *)0;
+        {Snooze(XrdOlbConfig.AskPing);
          if (--doping < 0) doping = XrdOlbConfig.AskPerf;
          STMutex.Lock();
          for (i = 0; i <= STHi; i++)
@@ -470,7 +470,7 @@ void *XrdOlbManager::MonPing()
 // interval plus a little. If we don't get one, then declare the manager dead 
 // and re-initialize the manager connection.
 //
-   do {if (!Snooze(XrdOlbConfig.AskPing*2+13)) return (void *)0;
+   do {Snooze(XrdOlbConfig.AskPing*2+13);
        STMutex.Lock();
        for (i = 0; i < XrdOlbMTMAX; i++) 
            if ((sp = MastTab[i]))
@@ -511,7 +511,7 @@ void *XrdOlbManager::MonRefs()
 // reset unless we reached our snooze maximum and enough selections have gone
 // by; in which case, do a global reset.
 //
-   do {if (!Snooze(snooze_interval)) return (void *)0;
+   do {Snooze(snooze_interval);
        loopcnt++;
        STMutex.Lock();
        resetA  = (SelAcnt >= XrdOlbConfig.RefTurn);
@@ -688,7 +688,7 @@ void XrdOlbManager::Remove_Server(const char *reason,
 
 // If this is an immediate drop request, do so now
 //
-   if (immed) {Drop_Server(sent, sinst); return;}
+   if (immed || !XrdOlbConfig.DRPDelay) {Drop_Server(sent, sinst); return;}
 
 // If a drop job is already scheduled, update the instance field. Otherwise,
 // Schedule a server drop at a future time.
@@ -820,9 +820,9 @@ void XrdOlbManager::ResetRef(SMask_t smask)
 /*                                S n o o z e                                 */
 /******************************************************************************/
   
-int XrdOlbManager::Snooze(int slpsec)
+void XrdOlbManager::Snooze(int slpsec)
 {
-   int retc, maxerrs = 3;
+   int retc;
    struct timespec lftp, rqtp = {slpsec, 0};
 
    while ((retc = nanosleep(&rqtp, &lftp)) < 0 && errno == EINTR)
@@ -830,11 +830,7 @@ int XrdOlbManager::Snooze(int slpsec)
           rqtp.tv_nsec = lftp.tv_nsec;
          }
 
-   if (retc < 0)
-      {XrdOlbSay.Emsg("Manager", errno, "sleeping");
-       if (!maxerrs--) return 0;
-      }
-   return 1;
+   if (retc < 0) XrdOlbSay.Emsg("Manager", errno, "sleeping");
 }
 
 /******************************************************************************/
@@ -982,7 +978,7 @@ SMask_t XrdOlbManager::AddPath(XrdOlbServer *sp)
 }
 
 /******************************************************************************/
-/*                             A d d M a s t e r                              */
+/*                           A d d _ M a n a g e r                            */
 /******************************************************************************/
   
 int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
@@ -1228,7 +1224,7 @@ void XrdOlbManager::Record(char *path, const char *reason)
 }
 
 /******************************************************************************/
-/*                         R e m o v e _ M a s t e r                          */
+/*                        R e m o v e _ M a n a g e r                         */
 /******************************************************************************/
 
 void XrdOlbManager::Remove_Manager(const char *reason, XrdOlbServer *sp)

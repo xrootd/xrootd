@@ -21,8 +21,6 @@ const char *XrdOlbMeterCVSID = "$Id$";
 #include <unistd.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/wait.h>
 #ifdef __linux__
 #include <sys/vfs.h>

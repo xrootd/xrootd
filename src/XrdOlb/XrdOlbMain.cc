@@ -185,12 +185,13 @@ int main(int argc, char *argv[])
 // Do manager processing now, simply loop looking for connections
 //
    if (XrdOlbConfig.Manager())
-       XrdOucThread_Run(&tid, XrdOlbStartUDP, (void *)&forManager);
+      {XrdOucThread_Run(&tid, XrdOlbStartUDP, (void *)&forManager);
        DEBUG("Main: Thread " <<tid <<" handling manager UDP traffic.");
        while(1) if ((newlink = XrdOlbNetTCP->Accept()))
                    {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
                     XrdOucThread_Run(&tid, XrdOlbLoginServer, (void *)newlink);
                    }
+      }
 
 // If we ever get here, just exit
 //

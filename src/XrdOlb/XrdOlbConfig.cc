@@ -292,7 +292,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 
 // Process the configuration file
 //
-   NoGo = ConfigProc();
+   NoGo |= ConfigProc();
 
 // Make sure that we have some ports to work with
 //
@@ -912,6 +912,8 @@ exit(rc);
              <name> The dns name of the host that is allowed to connect or the
                     netgroup name the host must be a member of. For DNS names,
                     a single asterisk may be specified anywhere in the name.
+                    If neither host nor netgroup is specified, <name> is
+                    assumed to be a hostname.
 
    Type: Manager only, non-dynamic.
 
@@ -1373,8 +1375,8 @@ int XrdOlbConfig::xpath(XrdOucError *eDest, XrdOucStream &Config)
 
          int <time>    estimated time (seconds, M, H) between reports by <pgm>
          key <num>     This is no longer documented but kept for compatability.
-         pgm <pgm>     program to start that will write perf values into
-                       shared memory. It must be the last option.
+         pgm <pgm>     program to start that will write perf values to standard
+                       out. It must be the last option.
 
    Type: Server only, non-dynamic.
 
