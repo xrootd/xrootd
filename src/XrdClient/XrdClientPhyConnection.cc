@@ -25,7 +25,7 @@
 
 
 //____________________________________________________________________________
-void *SocketReaderThread(void * arg)
+extern "C" void *SocketReaderThread(void * arg)
 {
    // This thread is the base for the async capabilities of TXPhyConnection
    // It repeatedly keeps reading from the socket, while feeding the
@@ -44,7 +44,15 @@ void *SocketReaderThread(void * arg)
 
    thisObj = (XrdClientPhyConnection *)arg;
 
-   while (thisObj->BuildMessage(TRUE, TRUE));
+   while (1) {
+     thisObj->BuildMessage(TRUE, TRUE);
+   
+   }
+
+   Info(XrdClientDebug::kHIDEBUG,
+        "SocketReaderThread",
+        "Reader Thread exiting.");
+
 
    pthread_exit(0);
    return 0;
@@ -279,7 +287,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 	      "Disconnection reported on" <<
 	      fServer.Host << ":" << fServer.Port);
 
-         //Disconnect();
+         Disconnect();
 
       }
 

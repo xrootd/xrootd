@@ -73,7 +73,7 @@ class XrdClientDebug {
    };
 
    short           GetDebugLevel() {
-       XrdClientMutexLocker m(fMutex);
+//       XrdClientMutexLocker m(fMutex);
        return fDbgLevel;
        }
 

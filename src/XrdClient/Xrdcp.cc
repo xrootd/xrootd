@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#define min(a, b) (a < b? a:b)
 
 struct XrdCpInfo {
    XrdClient                    *XrdCli;
