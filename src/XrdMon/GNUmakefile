@@ -75,9 +75,9 @@ DEBUGPACKET    = $(BINDIR)/xrdmonDebugPacket
 CONVTIME       = $(BINDIR)/xrdmonConvertTime
 TESTPARSER     = $(BINDIR)/testParser
 
-BINARIES       = $(COLLECTOR) $(DECODER) $(SENDER) $(ADMIN) \
-                 $(DUMPPACKETS) $(DEBUGPACKET) $(CONVTIME)  \
-#                 $(TESTPARSER)
+BINARIES       = $(COLLECTOR)                                 \
+#              = $(DECODER) $(SENDER) $(ADMIN) $(DUMPPACKETS) \
+#                $(DEBUGPACKET) $(CONVTIME) $(TESTPARSER)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
