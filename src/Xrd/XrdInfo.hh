@@ -18,8 +18,7 @@
 
 #define XrdFORMATB 0x00000200
 
-#define XrdBANNER "(c) 2004 Stanford University/SLAC xrd (eXtended Request Daemon)"
-#define XrdBANVER "xrd version " XrdVERSION
+#define XrdBANNER "(c) 2004 Stanford University/SLAC xrd version " XrdVERSION
 
 #define XrdDEFAULTPORT 1094;
 #endif
