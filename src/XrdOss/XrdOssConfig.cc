@@ -478,7 +478,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
              <fuzz>      the percentage difference between two free space
                          quantities that may be ignored when selecting a cache
                            0 - reduces to finding the largest free space
-                         100 - reduces to simple round-robbing allocation
+                         100 - reduces to simple round-robin allocation
 
    Output: 0 upon success or !0 upon failure.
 */

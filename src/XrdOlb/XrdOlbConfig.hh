@@ -71,7 +71,7 @@ int         DiskWT;       // Seconds to defer client while waiting for space
 int         DiskAsk;      // Seconds between disk inquiries
 int         DiskSS;       // This is a staging server
 
-int         sched_RR;     // 1 -> Simply do round robbin scheduling
+int         sched_RR;     // 1 -> Simply do round robin scheduling
 int         doWait;       // 1 -> Wait for a data end-point
 int         Disabled;     // 1 -> Delay director requests
 

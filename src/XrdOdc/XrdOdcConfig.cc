@@ -431,7 +431,7 @@ int XrdOdcConfig::xpbal(XrdOucError *errp, XrdOucStream &Config)
              <sched>  is the selection algorithm to be used:
                       fd - selects port whose server has the least files open
                       ld - uses a combination of cpu usage and fd
-                      rr - round robbin scheduling
+                      rr - round robin scheduling
 
              <cpu>    the nummber of cpu's in this configuration. If not
                       specified, the value comes from variable xrd_NUMCPU.

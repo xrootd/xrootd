@@ -750,7 +750,7 @@ int XrdOlbConfig::setupManager()
    sched_RR = (100 == P_fuzz) || !AskPerf
               || !(P_cpu || P_io || P_load || P_mem || P_pag);
    if (sched_RR)
-      XrdOlbSay.Emsg("Config", "Round robbin scheduling in effect.");
+      XrdOlbSay.Emsg("Config", "Round robin scheduling in effect.");
 
 // Create statistical monitoring thread
 //

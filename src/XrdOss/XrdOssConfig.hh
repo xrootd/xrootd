@@ -38,7 +38,7 @@
 /* The percentage difference between two free spaces in order for them to be
    considered equivalent in terms of allocation. Specify 0 to 100, where:
      0 - Always uses cache with the most space
-   100 - Always does round robbin allocation regardless of free space
+   100 - Always does round robin allocation regardless of free space
 */
 #define XrdOssFUZALLOC 0
 
