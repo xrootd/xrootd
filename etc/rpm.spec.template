@@ -85,6 +85,7 @@ install -m 755 utils/fs_stat $RPM_BUILD_ROOT/opt/xrootd/utils/fs_stat
 /opt/xrootd/utils/ooss_CAlloc.pm
 /opt/xrootd/utils/ooss_Lock.pm
 /opt/xrootd/utils/ooss_MonP.pm
+/opt/xrootd/utils/fs_stat
 
 
 %changelog
