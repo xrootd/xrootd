@@ -306,6 +306,9 @@ XrdMonDecSink::flushClosedDicts()
     {
         XrdOucMutexHelper mh; mh.Lock(&_dMutex);
         sizeBefore = _dCache.size();
+
+        vector<dictid_t> forDeletion;
+        
         for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
             XrdMonDecDictInfo* di = itr->second;
             if ( di != 0 && di->isClosed() ) {
@@ -326,9 +329,14 @@ XrdMonDecSink::flushClosedDicts()
                 }
                 curLen += strLen;
                 delete itr->second;
-                _dCache.erase(itr);
+                forDeletion.push_back(itr->first);
             }
         }
+        int s = forDeletion.size();
+        for (int i=0 ; i<s ; ++i) {
+            _dCache.erase(forDeletion[i]);
+        }
+        
         sizeAfter = _dCache.size();
     }
     
