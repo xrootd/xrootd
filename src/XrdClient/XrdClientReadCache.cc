@@ -133,25 +133,49 @@ bool XrdClientReadCache::GetDataIfPresent(const void *buffer,
    // Copies the requested data from the cache. False if not possible
 
    int it;
+   long bytesgot = 0;
+   bool advancing = true;
+
    XrdClientMutexLocker mtx(fMutex);
 
    if (PerfCalc)
       fReadsCounter++;
 
-   // We search an item containing all the data we need in one shot.
-   // A future refinement could try to get the data in small blocks from
-   //  multiple items
-   for (it = 0; it < fItems.GetSize(); it++)
-      if (fItems[it] && fItems[it]->GetInterval(buffer, begin_offs, end_offs)) {
-         fItems[it]->Touch(GetTimestampTick());
+   // We try to compose the requested data block by concatenating smaller
+   //  blocks
 
-         if (PerfCalc) {
-            fBytesHit += (end_offs - begin_offs);
-            UpdatePerfCounters();
-         }
-         return TRUE;
+   do {
+      advancing = false;
+
+      // Find a block helping us to go forward
+      for (it = 0; it < fItems.GetSize(); it++) {
+	 long l;
+
+	 if (!fItems[it]) continue;
+
+	 l = fItems[it]->GetPartialInterval(((char *)buffer)+bytesgot,
+					    begin_offs+bytesgot, end_offs);
+
+	 if (l > 0) {
+	    bytesgot += l;
+	    advancing = true;
+
+	    fItems[it]->Touch(GetTimestampTick());
+
+	    if (PerfCalc) {
+	       fBytesHit += l;
+	       UpdatePerfCounters();
+	    }
+
+	    if (bytesgot >= end_offs - begin_offs + 1)
+	       return TRUE;
+	 }
+
       }
 
+   } while (advancing);
+
+   
    if (PerfCalc) {
       fMissCount++;
       UpdatePerfCounters();

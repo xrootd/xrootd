@@ -235,7 +235,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
   //  we don't need to ask the server for them
   if( fUseCache &&
       fConnModule->GetDataFromCache(buf, offset,
-				    len + offset, TRUE) ) {
+				    len + offset - 1, TRUE) ) {
 
      Info(XrdClientDebug::kHIDEBUG, "Read",
 	  "Found data in cache. len=" << len <<
@@ -287,7 +287,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
         // The processing of the answers from the server should have
         // populated the cache
         if (minlen && fConnModule->GetDataFromCache(buf, offset,
-					  minlen + offset, FALSE) ) {
+					  minlen + offset - 1, FALSE) ) {
 
 	   return minlen;
 	}

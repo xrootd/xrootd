@@ -246,8 +246,9 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
          if (xmsg && fMainReadCache && (req->header.requestid == kXR_read) &&
             ((xmsg->HeaderStatus() == kXR_oksofar) || 
              (xmsg->HeaderStatus() == kXR_ok)))
-            fMainReadCache->SubmitXMessage(xmsg, req->read.offset,
-                                           req->read.offset + xmsg->fHdr.dlen);
+	    // To compute the end offset of the block we have to take 1 from the size!
+            fMainReadCache->SubmitXMessage(xmsg, req->read.offset + TotalBlkSize - xmsg->fHdr.dlen,
+                                           req->read.offset + TotalBlkSize - 1);
 
          if (whatToDo == kTSRHReturnNullMex) {
 	    delete xmsg;
