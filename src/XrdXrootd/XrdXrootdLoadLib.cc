@@ -73,11 +73,10 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *eDest,
 /*                   x r o o t d _ l o a d S e c u r i t y                    */
 /******************************************************************************/
 
-XrdSecProtocol *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib)
+XrdSecProtocol *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib, char *cfn)
 {
    void *libhandle;
-   XrdSecProtocol *(*ep)(XrdOucError &);
-   static XrdOucError secDest(eDest->logger());  // Passed only once!
+   XrdSecProtocol *(*ep)(XrdOucLogger *, const char *cfn);
    XrdSecProtocol *CIA;
 
 // Open the security library
@@ -89,7 +88,7 @@ XrdSecProtocol *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib)
 
 // Get the server object creator
 //
-   if (!(ep = (XrdSecProtocol *(*)(XrdOucError &))dlsym(libhandle,
+   if (!(ep = (XrdSecProtocol *(*)(XrdOucLogger *, const char *cfn))dlsym(libhandle,
               "XrdSecProtocolsrvrObject")))
       {eDest->Emsg("Config", dlerror(),
                    (char *)"finding XrdSecProtocolsrvrObject() in", seclib);
@@ -98,7 +97,7 @@ XrdSecProtocol *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib)
 
 // Get the server object
 //
-   if (!(CIA = (*ep)(secDest)))
+   if (!(CIA = (*ep)(eDest->logger(), (const char *)cfn)))
       {eDest->Emsg("Config", "Unable to create security protocol object via",seclib);
        return 0;
       }

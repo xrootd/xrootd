@@ -92,7 +92,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
   Output:   0 upon success or !0 otherwise.
 */
-   extern XrdSecProtocol   *XrdXrootdloadSecurity(XrdOucError *, char *);
+   extern XrdSecProtocol   *XrdXrootdloadSecurity(XrdOucError *, char *, char *);
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *, char *, 
                                                     const char *);
    extern XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *, XrdOucLogger *);
@@ -163,7 +163,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!SecLib) eDest.Say(0, (char *)"XRootd seclib not specified;"
                           " strong authentication disabled");
       else {TRACE(DEBUG, "Loading security library " <<SecLib);
-            if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib)))
+            if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib, pi->ConfigFN)))
                {eDest.Emsg("Config", "Unable to load security system.");
                 return 0;
                }
