@@ -29,9 +29,12 @@ Plots
    - # users
    - # unique open files
    - # non-unique open files
+   - # jobs (open sessions) 
+   - # client hosts 
+   - # server hosts
  time window:
    - # users
-   - # open files
+   - # closed files
    - # jobs
    - volume read
    - volume written
@@ -43,13 +46,15 @@ Tables
 Sortable by column when makes sense]
 
  now:
-   - users: { userName, #jobs/user }
+   - users: { userName, #jobs/user, #uniqueFiles } 
    - files: { filePath, #sessionsUsingIt, #uniqueUsersUsingIt }
    - skims: { skimName, #uniqueFiles, #jobs, #users }
+   - servers: {serverName, #users, #client hosts, #accessed files} 
  time window:
    - users: { userName, #jobs/user, readVolume/user, writeVolume/user }
    - files: { filePath, #sessionsUsingIt, #uniqueUsersUsingIt, readVolume }
    - skims: { skimName, uniqueFiles, #jobs, #users, volumeRead }
+   - servers: {serverName, #users, #client hosts, #accessed files} 
 
 
 Buttons
@@ -59,6 +64,7 @@ Buttons
    - show all server machines
    - show all client machines
    - show all skims 
+   - show all files 
      for all of the above: in a table, each name is a link
  time window:
    -
@@ -74,8 +80,10 @@ Page about one user:
  now:
    - # opened files
    - # opened sessions
+   - # client hosts 
    - list opened files
    - list opened  sessions
+   - list client hosts 
  time window:
    - # accessed (closed) files
    - # closed sessions
@@ -92,6 +100,8 @@ Page about one server host:
  now:
    - current # opened unique files
    - current # opened sessions
+   - current # client hosts 
+   - current # users 
  time window:
    - total # users served
    - total # jobs served
@@ -113,7 +123,8 @@ Page about client host:
    - list of current users
  time window
    - sessions
-
+   - # of accessed files 
+   - # of users 
 
 Page about skim:
 
@@ -122,9 +133,27 @@ Page about skim:
  now:
    - current # unique opened files
    - current # opened sessions
+   - current # unique users 
+   - current list of users 
  time window:
    - volume read
    - volume written
    - #jobs that used given skim
    - #users that used given skim
    - list users that used given skim
+
+Page about file: 
+[allow to choose what to show from the list below] 
+
+ now: 
+   - current # opened sessions 
+   - current # unique users 
+   - current # server hosts 
+   - current list of users 
+   - current list of server hosts 
+ time window: 
+   - volume read 
+   - volume written 
+   - #jobs that used the file 
+   - #users that used the file 
+   - list users that used the file 
