@@ -380,7 +380,7 @@ XrdMonDecSink::flushUserCache()
         }
         int s = forDeletion.size();
         for (int i=0 ; i<s ; ++i) {
-            _dCache.erase(forDeletion[i]);
+            _uCache.erase(forDeletion[i]);
         }
 
         sizeAfter = _uCache.size();
