@@ -57,6 +57,7 @@ install -m 755 etc/XrdOlbMonPerf $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbMonPerf
 /opt/xrootd/etc/StartXRD.cf
 /opt/xrootd/etc/StopOLB
 /opt/xrootd/etc/StopXRD
+/opt/xrootd/etc/XrdOlbMonPerf
 
 %changelog
 * XRD-CHANGE1-XRD
