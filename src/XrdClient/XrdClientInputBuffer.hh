@@ -23,27 +23,27 @@
 #include "XrdClientMessage.hh"
 #include "XrdClientMutexLocker.hh"
 
-#include <list>
-#include <map>
+#include "XrdClientVector.hh"
+#include "XrdOuc/XrdOucHash.hh"
 #include "XrdClientVector.hh"
 
 using namespace std;
-
-typedef map<int, pthread_cond_t *> StreamidCondition;
 
 class XrdClientInputBuffer {
 
 private:
 
-   list<XrdClientMessage*>            fMsgQue;      // queue for incoming messages
-   list<XrdClientMessage*>::iterator  fMsgIter;     // an iterator on it
+   XrdClientVector<XrdClientMessage*> fMsgQue;      // queue for incoming messages
+   int                                fMsgIter;     // an iterator on it
 
    pthread_mutex_t             fMutex;       // mutex to protect data structures
    pthread_mutex_t             fCndMutex;    // mutex to protect the condition variables
 
-   StreamidCondition           fSyncobjRepo; // each streamid counts on a condition
+   XrdOucHash<pthread_cond_t>  fSyncobjRepo;
+                                             // each streamid counts on a condition
                                              // variable to make the caller wait
                                              // until some data is available
+
 
    pthread_cond_t  *GetSyncObjOrMakeOne(int streamid);
    int             MsgForStreamidCnt(int streamid);
@@ -56,12 +56,12 @@ public:
    inline bool     IsSemEmpty() { return (SemSize() == 0); }
    inline int      MexSize() { 
                        XrdClientMutexLocker mtx(fMutex);
-                       return fMsgQue.size();
+                       return fMsgQue.GetSize();
                        }
    int             PutMsg(XrdClientMessage *msg);
    inline int      SemSize() {
                        XrdClientMutexLocker mtx(fMutex);
-                       return fSyncobjRepo.size();
+                       return fSyncobjRepo.Num();
                        }
 
    XrdClientMessage      *GetMsg(int streamid, int secstimeout);

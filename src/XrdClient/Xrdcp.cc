@@ -236,14 +236,14 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
       pthread_cancel(myTID);
       pthread_join(myTID, &thret);	 
 
+      cpnfo.XrdCli->Close();
+      delete cpnfo.XrdCli;
+      cpnfo.XrdCli = 0;
    }
 
-   xrddest->Close();
-   cpnfo.XrdCli->Close();
+   if (xrddest) xrddest->Close();  
 
    delete xrddest;
-   delete cpnfo.XrdCli;
-   cpnfo.XrdCli = 0;
 
    return 0;
 }

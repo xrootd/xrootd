@@ -20,6 +20,7 @@
 #include "XrdClientMutexLocker.hh"
 #include "XrdClientDebug.hh"
 #include <sys/time.h>
+#include <stdio.h>
 
 using namespace std;
 
@@ -31,8 +32,8 @@ int XrdClientInputBuffer::MsgForStreamidCnt(int streamid)
     int cnt = 0;
     XrdClientMessage *m = 0;
 
-    for (fMsgIter = fMsgQue.begin(); fMsgIter != fMsgQue.end(); ++fMsgIter) {
-       m = *fMsgIter;
+    for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
+       m = fMsgQue[fMsgIter];
        if (m->MatchStreamid(streamid))
           cnt++;
     }
@@ -47,22 +48,23 @@ pthread_cond_t *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
 
    pthread_cond_t *cnd;
 
-   StreamidCondition::iterator iter;
-
    {
       XrdClientMutexLocker mtx(fMutex);
+      char buf[20];
 
-      iter = fSyncobjRepo.find(streamid);
+      snprintf(buf, 20, "%d", streamid);
 
-      if (iter == fSyncobjRepo.end()) {
+      cnd = fSyncobjRepo.Find(buf);
+
+      if (!cnd) {
 	 cnd = new pthread_cond_t;
 	 pthread_cond_init(cnd, 0);
 
-         fSyncobjRepo[ streamid ] = cnd;
+         fSyncobjRepo.Rep(buf, cnd);
 	 return cnd;
 
       } else
-         return iter->second;
+         return cnd;
    }
 
 }
@@ -99,30 +101,24 @@ XrdClientInputBuffer::XrdClientInputBuffer() {
       abort();
    }
 
-   fMsgQue.clear();
+   fMsgQue.Clear();
 }
 
+
+
 //_______________________________________________________________________
+int DeleteHashItem(const char *key, pthread_cond_t *cnd, void *Arg) {
+   if (cnd) pthread_cond_destroy(cnd);
+   return -1;
+}
 XrdClientInputBuffer::~XrdClientInputBuffer() {
    // Destructor
 
    // Delete all the syncobjs
-
-   StreamidCondition::iterator iter;
-
    {
       XrdClientMutexLocker mtx(fMutex);
 
-      for (iter = fSyncobjRepo.begin();
-	   iter != fSyncobjRepo.end();
-	   iter++) {
-
-	 pthread_cond_destroy(iter->second);
-	 delete(iter->second);
-
-      }
-
-      fSyncobjRepo.clear();
+      fSyncobjRepo.Apply(DeleteHashItem, 0);
 
    }
 
@@ -141,7 +137,7 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
    {
       XrdClientMutexLocker mtx(fMutex);
     
-      fMsgQue.push_back(m);
+      fMsgQue.Push_back(m);
       sz = MexSize();
     
    // Is anybody sleeping ?
@@ -180,12 +176,12 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
       if (MsgForStreamidCnt(streamid) > 0) {
 
          // If there are messages to dequeue, we pick the oldest one
-         for (fMsgIter = fMsgQue.begin(); fMsgIter != fMsgQue.end(); ++fMsgIter) {
-            m = *fMsgIter;
+         for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
+            m = fMsgQue[fMsgIter];
             
             if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
-               res = *fMsgIter;
-	       fMsgQue.erase(fMsgIter);
+               res = fMsgQue[fMsgIter];
+	       fMsgQue.Erase(fMsgIter);
                if (!m) return 0;
 	       break;
             }
@@ -216,11 +212,11 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
 
 	 // We were awakened. Or the timeout elapsed. The mtx is again locked.
 	 // If there are messages to dequeue, we pick the oldest one
-	 for (fMsgIter = fMsgQue.begin(); fMsgIter != fMsgQue.end(); ++fMsgIter) {
-	    m = *fMsgIter;
+	 for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
+	    m = fMsgQue[fMsgIter];
 	    if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
-	       res = *fMsgIter;
-	       fMsgQue.erase(fMsgIter);
+	       res = fMsgQue[fMsgIter];
+	       fMsgQue.Erase(fMsgIter);
                if (!m) return 0;
 	       break;
 	    }
