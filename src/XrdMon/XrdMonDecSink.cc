@@ -161,7 +161,7 @@ XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
 void
 XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
 {
-    /*std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(usrId);
+    std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(usrId);
     if ( itr != _uCache.end() ) {
         stringstream se;
         se << "UserID already in cache " << usrId;
@@ -171,9 +171,6 @@ XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
     XrdMonDecUserInfo* ui;
     _uCache[usrId] = ui = new XrdMonDecUserInfo(usrId, _uniqueUserId++, theString, len);
     cout << "Added userInfo to sink: " << *ui << endl;
-    */
-    cout << "requested adding userinfo to sink, usrId " << usrId 
-         << ", string " << theString << endl;
 }
 
 void
