@@ -15,7 +15,11 @@
 #include <signal.h>
 #include <sys/types.h>
 #ifdef _POSIX_ASYNCHRONOUS_IO
+#ifdef __macos__
+#include <sys/aio.h>
+#else
 #include <aio.h>
+#endif
 #else
 struct aiocb {           // Minimal structure to avoid compiler errors
        int    aio_fildes;

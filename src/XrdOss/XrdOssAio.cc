@@ -16,7 +16,11 @@ const char *XrdOssAioCVSID = "$Id$";
 #include <stdio.h>
 #include <unistd.h>
 #ifdef _POSIX_ASYNCHRONOUS_IO
+#ifdef __macos
+#include <sys/aio.h>
+#else
 #include <aio.h>
+#endif
 #endif
 
 #include "XrdOss/XrdOssApi.hh"
