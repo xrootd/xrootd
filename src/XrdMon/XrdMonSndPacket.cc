@@ -13,6 +13,7 @@
 #include "XrdMon/XrdMonSndPacket.hh"
 #include <string.h>
 
+
 XrdMonSndPacket::XrdMonSndPacket()
     : _size(0), _data(0)
 {}
