@@ -178,7 +178,7 @@ sub loadCloseFile() {
 
     # find if there is corresponding open file, if not don't bother
     my ($sessionId, $pathId, $openT) = 
-	runQueryWithRet("SELECT id, pathId, openT FROM openedFiles WHERE id = $fileId");
+	runQueryWithRet("SELECT sessionId, pathId, openT FROM openedFiles WHERE id = $fileId");
     if ( ! $sessionId ) {
 	return;
     }
@@ -187,7 +187,7 @@ sub loadCloseFile() {
     runQuery("DELETE FROM openedFiles WHERE id = $fileId;");
 
     # and insert into the closed
-    runQuery("INSERT INTO closedFiles (id, openT, closeT, pathId, bytesR, bytesW) VALUES ($sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
+    runQuery("INSERT INTO closedFiles (sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
 }
 
 sub findSessionId() {
