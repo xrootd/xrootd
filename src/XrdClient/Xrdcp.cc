@@ -459,8 +459,15 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 }
 
 
-
-
+void PrintUsage() {
+   cerr << "usage: xrdcp [-ddebuglevel] <source> <dest> "
+      "[-DSparmname stringvalue] ... [-DIparmname intvalue]" << endl << endl;
+   cerr << " where:" << endl;
+   cerr << "   0 <= debuglevel <= 4" << endl;
+   cerr << "   parmname     is the name of an internal parameter" << endl;
+   cerr << "   stringvalue  is a string to be assigned to an internal parameter" << endl;
+   cerr << "   intvalue     is an int to be assigned to an internal parameter" << endl;
+}
 
 // Main program
 int main(int argc, char**argv) {
@@ -468,7 +475,7 @@ int main(int argc, char**argv) {
    int newdbglvl = -1;
 
    if (argc < 3) {
-      cerr << "usage: xrdcp <source> <dest>" << endl;
+      PrintUsage();
       exit(1);
    }
 
@@ -481,13 +488,36 @@ int main(int argc, char**argv) {
    EnvPutString( NAME_CONNECTDOMAINDENY_RE, "" );
 
    for (int i=1; i < argc; i++) {
-      if (strstr(argv[i], "-d") == argv[i])
+
+      if (strstr(argv[i], "-d") == argv[i]) {
 	 newdbglvl = atoi(argv[i]+2);
-      else {
-	 if (!srcpath) srcpath = argv[i];
-	 else
-	    if (!destpath) destpath = argv[i];
+	 continue;
       }
+
+      if ( (strstr(argv[i], "-DS") == argv[i]) &&
+	   (i < argc - 1) ) {
+	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << endl;
+	 EnvPutString( argv[i]+3, argv[++i] );
+	 continue;
+      }
+
+      if ( (strstr(argv[i], "-DI") == argv[i]) &&
+	   (i < argc - 1) ) {
+	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << endl;
+	 EnvPutInt( argv[i]+3, atoi(argv[++i]) );
+	 continue;
+      }
+
+      if (!srcpath) srcpath = argv[i];
+      else
+	 if (!destpath) destpath = argv[i];
+      
+
+   }
+
+   if (!srcpath || !destpath) {
+      PrintUsage();
+      exit(1);
    }
 
    if (newdbglvl >= 0) DebugSetLevel(newdbglvl);
