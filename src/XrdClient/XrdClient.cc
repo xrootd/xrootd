@@ -493,7 +493,7 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
       Info(XrdClientDebug::kHIDEBUG,
 	   "Stat", "Returned stats=" << fStats);
    
-      sscanf(fStats, "%ld %Ld %ld %ld",
+      sscanf(fStats, "%ld %lld %ld %ld",
 	     &fStatInfo.id,
 	     &fStatInfo.size,
 	     &fStatInfo.flags,

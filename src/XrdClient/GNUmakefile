@@ -114,6 +114,7 @@ $(LIBRARY): $(OBJECTS)
 
 $(TESTBIN): $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
+	@echo $(LD) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 	$(ECHO)$(LD) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
