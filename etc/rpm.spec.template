@@ -18,7 +18,7 @@ root files. An optional load balancer is also included.
 %setup -q -n xrootd
 
 %build
-gmake
+gmake XRD-DEBUGOPT-XRD
 
 %install
 mkdir -p $RPM_BUILD_ROOT/opt/xrootd/bin
