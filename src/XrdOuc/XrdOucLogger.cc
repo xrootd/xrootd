@@ -166,6 +166,17 @@ int XrdOucLogger::ReBind(int dorename)
        if (i < sizeof(seq)) rename((const char *)ePath, (const char *)buff);
       }
 
+// Compute the new suffix
+//
+   localtime_r((const time_t *) &eNow, &nowtime);
+   sprintf(buff, "%4d%02d%02d", nowtime.tm_year+1900, nowtime.tm_mon+1,
+                                nowtime.tm_mday);
+   strncpy(Filesfx, buff, 8);
+
+// Set new close interval
+//
+   if (eInt > 0) while(eNTC <= eNow) eNTC += eInt;
+
 // Open the file for output
 //
    if ((newfd = open(ePath,O_WRONLY|O_APPEND|O_CREAT,0644)) < 0) return -errno;
@@ -175,16 +186,5 @@ int XrdOucLogger::ReBind(int dorename)
 //
    if (dup2(newfd, eFD) < 0) return -errno;
    close(newfd);
-
-// Compute the new suffix
-//
-   localtime_r((const time_t *) &eNow, &nowtime);
-   sprintf(buff, "%4d%02d%02d", nowtime.tm_year+1900, nowtime.tm_mon+1,
-                                nowtime.tm_mday);
-   strncpy(Filesfx, buff, 8);
-
-// Set new close interval and return
-//
-   if (eInt > 0) while(eNTC <= eNow) eNTC += eInt;
    return 0;
 }

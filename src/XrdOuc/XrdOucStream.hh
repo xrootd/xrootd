@@ -54,7 +54,8 @@ int          Drain();
 // Use LastError() to get the actual error code. Subsequent Get() calls
 // will return the standard output of the executed command. If inrd=1 then
 // standrdin is redirected so that subqseuent Put() calls write to the 
-// process via standard in.
+// process via standard in. When inrd=-1 then the current attached FD's are
+// used to redirect STDIN and STDOUT of the child process.
 //
 int          Exec(char *,  int inrd=0);
 int          Exec(char **, int inrd=0);

@@ -189,18 +189,20 @@ int XrdOucStream::Exec(char **parm, int inrd)
 
     // Create a pipe
     //
-    if (pipe(fildes))
-       return Err(Exec, errno, "creating in pipe for", parm[0]);
-       else {Attach(fildes[0]); Child_out = fildes[1];
-             fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
-            }
+    if (inrd >= 0)
+       {if (pipe(fildes))
+           return Err(Exec, errno, "creating in pipe for", parm[0]);
+           else {Attach(fildes[0]); Child_out = fildes[1];
+                 fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
+                }
 
-    if (inrd)
-       if (pipe(fildes))
-               return Err(Exec, errno, "creating out pipe for", parm[0]);
-               else {FE = fildes[1]; Child_in  = fildes[0];
-                     fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
-                    }
+        if (inrd)
+           if (pipe(fildes))
+              return Err(Exec, errno, "creating out pipe for", parm[0]);
+              else {FE = fildes[1]; Child_in  = fildes[0];
+                    fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
+                   }
+       } else {Child_out = FD; Child_in = FE;}
 
     // Fork a process first so we can pick up the next request.
     //
@@ -218,18 +220,22 @@ int XrdOucStream::Exec(char **parm, int inrd)
 
     // Redirect standard in if so requested
     //
-    if (inrd)
-       if (dup2(Child_in, STDIN_FILENO) < 0)
-          {Err(Exec, errno, "setting up standard in for", parm[0]);
-           exit(255);
-          } else close(Child_in);
+    if (Child_in >= 0)
+       {if (inrd)
+           if (dup2(Child_in, STDIN_FILENO) < 0)
+              {Err(Exec, errno, "setting up standard in for", parm[0]);
+               exit(255);
+              } else if (Child_in != Child_out) close(Child_in);
+       }
 
     // Reassign the stream to be standard out to capture all of the output.
     //
-    if (dup2(Child_out, STDOUT_FILENO) < 0)
-       {Err(Exec, errno, "setting up standard out for", parm[0]);
-        exit(255);
-       } else close(Child_out);
+    if (Child_out >= 0)
+       {if (dup2(Child_out, STDOUT_FILENO) < 0)
+           {Err(Exec, errno, "setting up standard out for", parm[0]);
+            exit(255);
+           } else close(Child_out);
+       }
 
     // Invoke the command never to return
     //
