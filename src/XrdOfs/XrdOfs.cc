@@ -54,12 +54,13 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssProxy.hh"
 
+#include "XrdNet/XrdNetDNS.hh"
+
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -185,7 +186,7 @@ XrdOfs::XrdOfs()
 
 // Establish our hostname
 //
-   HostName      = XrdOucNetwork::FullHostName(0);
+   HostName      = XrdNetDNS::getHostName();
    for (i = 0; HostName[i] && HostName[i] != '.'; i++);
    HostName[i] = '\0';
    HostPref = strdup(HostName);
@@ -1485,7 +1486,6 @@ int XrdOfs::stat(const char             *path,        // In
 //
 int XrdOfs::Close(XrdOfsHandle *oh)
 {
-    int retc = 0;
 
 // If this is a real close, then decrement link count. However, we need to
 // obtain the anchor lock before touching the links field.
@@ -1514,7 +1514,7 @@ int XrdOfs::Close(XrdOfsHandle *oh)
 // Free up the storage and return
 //
    delete oh;
-   return retc;
+   return 0;  // We ignore errors here since they are immaterial
 }
 
 /******************************************************************************/

@@ -20,7 +20,7 @@ OBJECTS  = \
         $(OBJDIR)/XrdOfsConfig.o  \
         $(OBJDIR)/XrdOfsHandle.o  
 
-MORELIBS = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdOuc -lXrdXr
+MORELIBS = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdOuc -lXrdXr -lXrdNet
 
 LIBDEP   = $(LIBDIR)/libXrdAcc.a $(LIBDIR)/libXrdOss.a \
            $(LIBDIR)/libXrdOdc.a $(LIBDIR)/libXrdOuc.a \
@@ -34,6 +34,7 @@ TARGETS  = $(LIBRARY)
 #                           S e a r c h   P a t h s                            #
 #------------------------------------------------------------------------------#
 
+vpath XrdNet% ../XrdNet
 vpath XrdOdc% ../XrdOdc
 vpath XrdOfs% ../XrdOfs
 vpath XrdOss% ../XrdOss
@@ -64,8 +65,8 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdOfsOpaque.hh  XrdOfsSecurity.hh     XrdOfsTrace.hh     \
                      XrdOuca2x.hh     XrdOucEnv.hh          XrdOucError.hh     \
                      XrdOucHash.hh    XrdOucLock.hh         XrdOucLogger.hh    \
-                     XrdOucNetwork.hh XrdOucPList.hh        XrdOucPthread.hh   \
-                     XrdOucTrace.hh   XrdSecInterface.hh    XrdSfsInterface.hh \
+                     XrdOucPList.hh   XrdOucPthread.hh      XrdOucTrace.hh     \
+                     XrdNetDNS.hh     XrdSecInterface.hh    XrdSfsInterface.hh \
                      XrdSfsNative.hh  XrdOss.hh             XrdOucTList.hh     \
                      XrdOdcFinder.hh  XrdAccAuthorize.hh    ../XrdVersion.hh
 	@echo Compiling XrdOfs.cc 
@@ -74,7 +75,7 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
 $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
                            XrdOfs.hh         XrdOfsTrace.hh  \
                            XrdOuca2x.hh      XrdOucError.hh   XrdOucStream.hh \
-                           XrdOucNetwork.hh  XrdOucTrace.hh                   \
+                           XrdOucTrace.hh    XrdNetDNS.hh   \
                            XrdAccAuthorize.hh \
                            XrdOdcFinder.hh
 	@echo Compiling XrdOfsConfig.cc 

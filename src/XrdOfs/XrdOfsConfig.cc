@@ -37,9 +37,10 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include "XrdOfs/XrdOfsConfig.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
+#include "XrdNet/XrdNetDNS.hh"
+
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
@@ -340,31 +341,32 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
   
 int XrdOfs::isMe(XrdOucError &eDest, const char *item, char *hval)
 {
-    struct sockaddr_in InetAddr[16];
+    struct sockaddr InetAddr[16];
     char *mval;
     int i, j, k, retc;
 
     if (!strcmp(hval, HostName)) return 1;
 
-    i = strlen(hval);
     if ((mval = index((const char *)hval, (int)'*')))
        {*mval = '\0'; mval++; 
-        k = strlen(HostName); j = strlen(mval);
-        if (i > k || (i+j) > k
+        k = strlen(HostName); j = strlen(mval); i = strlen(hval);
+        if ((i+j) > k
         || strncmp((const char *)HostName,      (const char *)hval,i)
         || strncmp((const char *)(HostName+k-j),(const char *)mval,j)) return 0;
+        return 1;
        }
 
+    i = strlen(hval);
     if (hval[i-1] != '+') i = 0;
         else {hval[i-1] = '\0';
-              if (!(i = XrdOucNetwork::getHostAddr(hval, InetAddr, 16)))
+              if (!(i = XrdNetDNS::getHostAddr(hval, InetAddr, 16)))
                  {eDest.Emsg("Config",item, hval, (char *)"not found");
                   return 0;
                  }
              }
 
     while(i--)
-         {mval = XrdOucNetwork::getHostName(InetAddr[i]);
+         {mval = XrdNetDNS::getHostName(InetAddr[i]);
           retc = !strcmp(mval,HostName) || !strcmp(mval,HostPref);
           free(mval);
           if (retc) return 1;
