@@ -31,6 +31,14 @@ TEST=
 
 umask 002
 
+# Determine where the access command resides
+#
+  if test -x /usr/bin/access; then
+     ACCESS=/usr/bin/access
+     else
+     ACCESS=/usr/local/bin/access
+  fi
+
 ##############################################################################
 #                           s u b r o u t i n e s                            #
 ##############################################################################
@@ -50,7 +58,7 @@ MustExist () {
 
 Writable () {
     Debug "Checking writability of $1 $2 ..."
-    /usr/local/bin/access w $2
+    $ACCESS w $2
     if test $? -gt 0 ; then
        Notify "$1 $2 is not writable by $MYNAME."
     fi
@@ -59,7 +67,7 @@ Writable () {
 Writable2 () {
     Debug "Checking writability of $1 $2 ..."
     if test -f $2 ; then
-       /usr/local/bin/access w $2
+       $ACCESS w $2
        if test $? -gt 0 ; then
           Notify "$1 $2 is not writable by $MYNAME."
        fi
@@ -81,9 +89,6 @@ Wait4File () {
 
 Notify () {
     /bin/echo StartOLB: $1
-exit 4
-    subj="Failed to start OLB on `/usr/bin/hostname`."
-    echo $1 | /usr/ucb/mail -n -s "$subj" $mailto
     exit 4
     }
 
@@ -193,6 +198,16 @@ done
 #
 $TEST ulimit -n $MAXFD
 $TEST ulimit -c unlimited
+
+# Add our "lib" directory to LD_LIBRARY_PATH
+#
+  OLBLIBBASE=$OLBBASE/lib
+  if [ -z "$LD_LIBRARY_PATH" ]; then
+     LD_LIBRARY_PATH=$OLBLIBBASE
+     else
+     LD_LIBRARY_PATH=$OLBLIBBASE:$LD_LIBRARY_PATH
+  fi
+  export LD_LIBRARY_PATH
 
 # Now start the daemon
 #

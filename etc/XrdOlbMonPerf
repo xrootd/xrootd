@@ -48,7 +48,8 @@ $PID    = 0;
             exit(0);
            }
         @perf = split(' ', $resp);
-        $idle = int(($perf[3] > 100 ? 0 : 100 - $perf[3]));
+        $cpul = int($perf[0] + $perf[2]);
+        $cpul = int($cpul > 100 ? 100 : $cpul);
         $load = int($perf[5]*10);
         $load = 100 if $load > 100;
         $pgio = int(($perf[7] + $perf[8])/300*100);
@@ -57,7 +58,7 @@ $PID    = 0;
         $ipio = 100 if $ipio > 100;
         $mem  = getmload($systype);
 
-        print "$load $idle $mem $pgio $ipio\n";
+        print "$load $cpul $mem $pgio $ipio\n";
        }
 
 sub getmload {my($stype) = @_; my($resp, @rv, $used, $load);

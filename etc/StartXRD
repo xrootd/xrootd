@@ -35,6 +35,14 @@ TEST=
 
 umask 002
 
+# Determine where the access command resides
+#
+  if test -x /usr/bin/access; then
+     ACCESS=/usr/bin/access
+     else
+     ACCESS=/usr/local/bin/access
+  fi
+
 ##############################################################################
 #                           s u b r o u t i n e s                            #
 ##############################################################################
@@ -54,7 +62,7 @@ MustExist () {
 
 Writable () {
     Debug "Checking writability of $1 $2 ..."
-    /usr/local/bin/access w $2
+    $ACCESS w $2
     if test $? -gt 0 ; then
        Notify "$1 $2 is not writable by $MYNAME."
     fi
@@ -75,9 +83,6 @@ Wait4File () {
 
 Notify () {
     /bin/echo StartXRD: $1
-    exit 4
-    subj="Failed to start XRD on `/usr/bin/hostname`."
-    echo $1 | /usr/ucb/mail -n -s "$subj" $mailto
     exit 4
     }
 
@@ -154,6 +159,7 @@ while test -n "$1"; do
      else
      LD_LIBRARY_PATH=$XRDLIBBASE:$LD_LIBRARY_PATH
   fi
+  export LD_LIBRARY_PATH
 
 # Verify that we are not executing this script as root (if we are, switch)
 #
