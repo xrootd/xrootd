@@ -46,6 +46,8 @@ int                XrdXrootdMonitor::isEnabled  = 0;
 int                XrdXrootdMonitor::numMonitor = 0;
 kXR_int32          XrdXrootdMonitor::currWindow = 0;
 kXR_int32          XrdXrootdMonitor::sizeWindow = 0;
+char               XrdXrootdMonitor::monIO      = 0;
+char               XrdXrootdMonitor::monFILE    = 0;
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -164,6 +166,28 @@ XrdXrootdMonitor *XrdXrootdMonitor::Alloc(int force)
 }
 
 /******************************************************************************/
+/*                                 C l o s e                                  */
+/******************************************************************************/
+
+void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
+{
+  unsigned int rVal, wVal;
+
+// Fill out the monitor record
+//
+   if (lastWindow != currWindow) Mark();
+      else if (nextEnt == lastEnt) Flush();
+   monBuff->info[nextEnt].offset.id[0]  = XROOTD_MON_CLOSE;
+   monBuff->info[nextEnt].offset.id[1] = do_Shift(rTot, rVal);
+   monBuff->info[nextEnt].offset.rTot[1] =
+                static_cast<kXR_unt32>(htonl(rVal));
+   monBuff->info[nextEnt].offset.id[2] = do_Shift(wTot, wVal);
+   monBuff->info[nextEnt].arg1.wTot =
+                static_cast<kXR_unt32>(htonl(wVal));
+   monBuff->info[nextEnt++].arg2.dictid = dictid;
+}
+  
+/******************************************************************************/
 /*                                 F l u s h                                  */
 /******************************************************************************/
   
@@ -226,15 +250,24 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdOucError *errp,
 /*                                   M a p                                    */
 /******************************************************************************/
   
-void XrdXrootdMonitor::Map(const char code, kXR_int32 dictID,
-                           const char *uname, const char *path)
+kXR_unt32 XrdXrootdMonitor::Map(const char code,
+                                   const char *uname, const char *path)
 {
-     XrdXrootdMonMap map;
-     int             size;
+     static XrdOucMutex  seqMutex;
+     static unsigned int monSeqID;
+     XrdXrootdMonMap     map;
+     int                 size;
+     unsigned int        mySeqID;
+
+// Assign a unique ID for this entry
+//
+   seqMutex.Lock();
+   mySeqID = monSeqID++;
+   seqMutex.UnLock();
 
 // Copy in the username and path
 //
-   map.dictid = dictID;
+   map.dictid = static_cast<kXR_unt32>(htonl(mySeqID));
    strcpy(map.info, uname);
    size = strlen(uname);
    *(map.info+size) = '\n';
@@ -245,6 +278,7 @@ void XrdXrootdMonitor::Map(const char code, kXR_int32 dictID,
    size = sizeof(XrdXrootdMonHeader)+size+1+sizeof(kXR_int32)+strlen(path);
    fillHeader(&map.hdr, code, size);
    Send((void *)&map, size);
+   return map.dictid;
 }
 
 /******************************************************************************/
@@ -262,6 +296,8 @@ void XrdXrootdMonitor::setMode(int mmode)
         if (mmode & XROOTD_MON_ALL)  isEnabled =  1;
    else if (mmode & XROOTD_MON_SOME) isEnabled = -1;
    else                              isEnabled =  0;
+   monIO   = (mmode & XROOTD_MON_IO   ? 1 : 0);
+   monFILE = (mmode & XROOTD_MON_FILE ? 1 : 0) | monIO;
    if (isEnabled > 0 && !wasEnabled)
       {MonTick.Set(Sched, sizeWindow);
        Now = time(0);
@@ -289,6 +325,20 @@ time_t XrdXrootdMonitor::Tick()
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                              d o _ S h i f t                               */
+/******************************************************************************/
+  
+unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
+{
+  unsigned char xshift = 0;
+
+  while(xTot & 0x7fffffff00000000) {xTot >> 1; xshift++;}
+  xVal = static_cast<unsigned int>(xTot);
+
+  return xshift;
+}
+
 /******************************************************************************/
 /*                            f i l l H e a d e r                             */
 /******************************************************************************/

@@ -26,9 +26,9 @@ struct XrdXrootdMonHeader
        };
 
 struct XrdXrootdMonTrace
-       {union {kXR_int64  val;    kXR_char id[8];}   offset;
-        union {kXR_int32  buflen; kXR_int32 Window;} arg1;
-        union {kXR_int32  dictid; kXR_int32 Window;} arg2;
+       {union {kXR_int64  val;    kXR_char id[8];   kXR_unt32 rTot[2];} offset;
+        union {kXR_int32  buflen; kXR_int32 Window; kXR_unt32 wTot;   } arg1;
+        union {kXR_unt32  dictid; kXR_int32 Window;                   } arg2;
        };
 
 struct XrdXrootdMonBuff
@@ -38,7 +38,7 @@ struct XrdXrootdMonBuff
 
 struct XrdXrootdMonMap
        {XrdXrootdMonHeader hdr;
-        kXR_int32          dictid;
+        kXR_unt32          dictid;
         char               info[1024+256];
        };
   
@@ -46,7 +46,7 @@ struct XrdXrootdMonMap
 #define XROOTD_MON_OPEN   0x80
 #define XROOTD_MON_WINDOW 0xe0
 
-#define XROOTD_MON_MAPUSER 'a'
+#define XROOTD_MON_MAPAPID 'a'
 #define XROOTD_MON_MAPPATH 'd'
 #define XROOTD_MON_MAPINFO 'i'
 

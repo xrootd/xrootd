@@ -100,7 +100,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern XrdSecProtocol   *XrdXrootdloadSecurity(XrdOucError *, char *, char *);
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *, char *, 
                                                     const char *);
-   extern XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *, XrdOucLogger *);
+   extern XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *, 
+                                                XrdOucLogger *);
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
@@ -553,11 +554,11 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
 
 /* Function: xmon
 
-   Purpose:  Parse directive: monitor [all] [file] [io] [off] [mbuff <sz>]
+   Purpose:  Parse directive: monitor [all] [files] [io] [off] [mbuff <sz>]
                                       [window <sec>] dest <host:port>
 
          all                enables monitoring for all connections.
-         file               only monitors file close events.
+         files              only monitors file close events.
          io                 only monitors I/O requests.
          off                disabled monitoring but leaves config info in place.
          mbuff  <sz>        size of message buffer.
@@ -576,7 +577,7 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
          {     if (!strcmp("all",  val)) {monMode &= ~XROOTD_MON_SOME;
                                           monMode |=  XROOTD_MON_ALL;
                                           }
-          else if (!strcmp("file", val))  monMode |=  XROOTD_MON_FILE;
+          else if (!strcmp("files",val))  monMode |=  XROOTD_MON_FILE;
           else if (!strcmp("io",   val))  monMode |=  XROOTD_MON_IO;
           else if (!strcmp("off",  val))  monMode &=  XROOTD_MON_NONE;
           else if (!strcmp("mbuff",val))

@@ -205,6 +205,8 @@ XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
 XrdSecClientName           Client;
 XrdXrootdMonitor          *Monitor;
+char                       monFILE;
+char                       monIO;
 char                       Status;
 unsigned char              CapVer;
 

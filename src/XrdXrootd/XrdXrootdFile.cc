@@ -58,16 +58,9 @@ XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
     FileMode = mode;
     AsyncMode= async;
     ID       = id;
+    FileID   = 0;
     readCnt  = 0;
     writeCnt = 0;
-
-// Assign a unique fileID for this file
-//
-   seqMutex.Lock();
-   fileSeq++;
-   tempseq = htonl(fileSeq);
-   seqMutex.UnLock();
-   FileID = static_cast<kXR_int32>(tempseq);
 
 // Develop a unique hash for this file
 //

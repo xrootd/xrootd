@@ -488,4 +488,6 @@ void XrdXrootdProtocol::Reset()
    numReadP           = 0;
    numWrites          = 0;
    Monitor            = 0;
+   monFILE            = 0;
+   monIO              = 0;
 }

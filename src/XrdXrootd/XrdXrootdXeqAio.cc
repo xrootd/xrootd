@@ -161,7 +161,7 @@ int XrdXrootdProtocol::aio_WriteAll()
 {
    XrdXrootdAio *aiop;
    size_t Quantum;
-   int rc;
+   int rc = 0;
 
    if (myStalls) myStalls--;
 

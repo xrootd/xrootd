@@ -40,12 +40,12 @@ public:
 
 // All values for Add_xx() must be passed in network byte order
 //
-inline void              Add_rd(kXR_int32 dictid, 
+inline void              Add_rd(kXR_unt32 dictid,
                                 kXR_int32 rlen,
                                 kXR_int64 offset)
                                {Add_io(dictid, rlen, offset);}
 
-inline void              Add_wr(kXR_int32 dictid, 
+inline void              Add_wr(kXR_unt32 dictid,
                                 kXR_int32 wlen, 
                                 kXR_int64 offset)
                                {unsigned int temp = ~ntohl(wlen)+1;
@@ -55,32 +55,33 @@ inline void              Add_wr(kXR_int32 dictid,
 
 static XrdXrootdMonitor *Alloc(int force=0);
 
-inline void              Close(kXR_int32 dictid)
-                              {do_OC(XROOTD_MON_CLOSE, dictid);}
+       void              Close(kXR_unt32 dictid, long long rTot, long long wTot);
 
        void              Flush();
 
 static int               Init(XrdScheduler *sp, XrdOucError *errp,
                               char *dest, int msz=8192, int wsz=60);
 
-       void              Map(const char code, kXR_int32 dictID,
-                             const char *uname, const char *path);
+       kXR_unt32         Map(const char code,const char *uname,const char *path);
 
-inline void              Open(kXR_int32 dictid)
-                             {do_OC(XROOTD_MON_OPEN, dictid);}
+inline void              Open(kXR_unt32 dictid);
 
 static void              setMode(int onoff);
 
 static time_t            Tick();
+
+static char              monIO;
+
+static char              monFILE;
 
                          XrdXrootdMonitor();
                         ~XrdXrootdMonitor(); 
 
 private:
 
-inline void              Add_io(kXR_int32 dictid, kXR_int32 buflen,
+inline void              Add_io(kXR_unt32 dictid, kXR_int32 buflen,
                                 kXR_int64 offset);
-inline void              do_OC(char opc, kXR_int32 dictid);
+       unsigned char     do_Shift(long long xTot, unsigned int &xVal);
        void              fillHeader(XrdXrootdMonHeader *hdr,
                                     const char id, int size);
        void              Mark();
@@ -109,7 +110,7 @@ static int                numMonitor;
 /*                                A d d _ i o                                 */
 /******************************************************************************/
   
-void XrdXrootdMonitor::Add_io(kXR_int32 dictid,kXR_int32 blen,kXR_int64 offset)
+void XrdXrootdMonitor::Add_io(kXR_unt32 dictid,kXR_int32 blen,kXR_int64 offset)
      {if (lastWindow != currWindow) Mark();
          else if (nextEnt == lastEnt) Flush();
       monBuff->info[nextEnt].offset.val    = offset;
@@ -118,13 +119,13 @@ void XrdXrootdMonitor::Add_io(kXR_int32 dictid,kXR_int32 blen,kXR_int64 offset)
      }
   
 /******************************************************************************/
-/*                                 d o _ O C                                  */
+/*                                  O p e n                                   */
 /******************************************************************************/
   
-void XrdXrootdMonitor::do_OC(char opc, kXR_int32 dictid)
+void XrdXrootdMonitor::Open(kXR_unt32 dictid)
      {if (lastWindow != currWindow) Mark();
          else if (nextEnt == lastEnt) Flush();
-      monBuff->info[nextEnt].offset.id[0]  = opc;
+      monBuff->info[nextEnt].offset.id[0]  = XROOTD_MON_OPEN;
       monBuff->info[nextEnt].arg1.buflen   = 0;
       monBuff->info[nextEnt++].arg2.dictid = dictid;
      }

@@ -196,14 +196,14 @@ int XrdXrootdProtocol::do_Close()
       return Response.Send(kXR_FileNotOpen, 
                           "close does not refer to an open file");
 
-// If we are monitoring, insert a close entry
-//
-   if (Monitor) Monitor->Close(fp->FileID);
-
 // If we are in async mode, serialize the link to make sure any in-flight
 // operations on this handle have completed
 //
    if (fp->AsyncMode) Link->Serialize();
+
+// If we are monitoring, insert a close entry
+//
+   if (monFILE && Monitor) Monitor->Close(fp->FileID,fp->readCnt,fp->writeCnt);
 
 // Delete the file from the file table; this will unlock/close the file
 //
@@ -352,7 +352,10 @@ int XrdXrootdProtocol::do_Login()
 
 // Allocate a monitoring object, if needed for this connection
 //
-   Monitor = XrdXrootdMonitor::Alloc();
+   if ((Monitor = XrdXrootdMonitor::Alloc()))
+      {monFILE = XrdXrootdMonitor::monFILE;
+       monIO   = XrdXrootdMonitor::monIO;
+      }
 
 // Document this login
 //
@@ -569,8 +572,11 @@ int XrdXrootdProtocol::do_Open()
 
 // If we are monitoring, send off a path to dictionary mapping
 //
-   if (Monitor) Monitor->Map(XROOTD_MON_MAPPATH, xp->FileID,
-                             (const char *)Link->ID, (const char *)fn);
+   if (monFILE && Monitor) 
+      {xp->FileID = Monitor->Map(XROOTD_MON_MAPPATH,
+                                (const char *)Link->ID,(const char *)fn);
+       Monitor->Open(xp->FileID);
+      }
 
 // Marshall the file handle (this works on all but alpha platforms)
 //
@@ -783,8 +789,8 @@ int XrdXrootdProtocol::do_Read()
 
 // If we are monitoring, insert a read entry
 //
-   if (Monitor) Monitor->Add_rd(myFile->FileID, Request.read.rlen,
-                                Request.read.offset);
+   if (monIO && Monitor) Monitor->Add_rd(myFile->FileID, Request.read.rlen,
+                                         Request.read.offset);
 
 // If we are in async mode, schedule the read to ocur asynchronously
 //
@@ -958,15 +964,13 @@ int XrdXrootdProtocol::do_Set()
 /*                            d o _ S e t _ M o n                             */
 /******************************************************************************/
 
-// Process: set monitor {off | on [appid] | info [info]}
+// Process: set monitor {off | {files | io | on} [appid] | info [info]}
 
 int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 {
-  static XrdOucMutex seqMutex;
-  static int seqnum = 0;
-  int setON;
+  int setIT, setIO = 0, setON = 0, setFL = 0;
   char *val, *appid;
-  kXR_int32 myseq;
+  kXR_unt32 myseq = 0;
 
 // Get the first argument
 //
@@ -975,18 +979,23 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 
 // Determine if on or off and do appropriate processing
 //
-        if ((setON = !strcmp(val, "on")) || !strcmp(val, "info"))
-           {if (Monitor || (setON && (Monitor = XrdXrootdMonitor::Alloc(1))))
+        if ((setFL = !strcmp(val, "files"))
+        ||  (setIO = !strcmp(val, "io"))
+        ||  (setON = !strcmp(val, "on"))
+        ||  !strcmp(val, "info"))
+           {setIT = setFL | setIO | setON;
+            if (Monitor || (setIT && (Monitor = XrdXrootdMonitor::Alloc(1))))
                {while(*appid && *appid == ' ') appid++;
-                if (strlen(appid) > 80) appid[80] = '\0';
+                if (strlen(appid) > 1024) appid[1024] = '\0';
                 if (*appid)
-                   {seqMutex.Lock(); 
-                    myseq = static_cast<kXR_int32>(htonl(seqnum++));
-                    seqMutex.UnLock();
-                    Monitor->Map((setON?XROOTD_MON_MAPUSER:XROOTD_MON_MAPINFO),
-                             myseq,(const char *)Link->ID,(const char *)appid);
+                   {myseq = Monitor->Map( (setIT ? XROOTD_MON_MAPAPID
+                                                 : XROOTD_MON_MAPINFO),
+                                          (const char *)Link->ID,
+                                          (const char *)appid);
+                    monIO   = (setIO | setON) & XrdXrootdMonitor::monIO;
+                    monFILE =  setIT          & XrdXrootdMonitor::monFILE;
                    }
-                return Response.Send();
+                return Response.Send((void *)&myseq, sizeof(myseq));
                }
            }
    else if (!strcmp(val, "off"))
@@ -1130,8 +1139,8 @@ int XrdXrootdProtocol::do_Write()
 
 // If we are monitoring, insert a write entry
 //
-   if (Monitor) Monitor->Add_wr(myFile->FileID, Request.write.dlen,
-                                Request.write.offset);
+   if (monIO && Monitor) Monitor->Add_wr(myFile->FileID, Request.write.dlen,
+                                         Request.write.offset);
 
 // If zero length write, simply return
 //

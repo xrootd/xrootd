@@ -28,7 +28,7 @@ class XrdXrootdFile
 public:
 
 XrdSfsFile  *XrdSfsp;           // -> Actual file object
-kXR_int32    FileID;            // Marshalled unique file sequence number
+kXR_unt32    FileID;            // Unique file id used for monitoring
 char         FileKey[38];       // -> Unique hash name for the file
 char         FileMode;          // 'r' or 'w'
 char         AsyncMode;         // 1 -> if file in async r/w mode
@@ -44,7 +44,7 @@ static void Init(XrdXrootdFileLock *lp) {Locker = lp;}
 private:
 int bin2hex(char *outbuff, char *inbuff, int inlen);
 static XrdXrootdFileLock *Locker;
-static const char      *TraceID;
+static const char        *TraceID;
 };
  
 /******************************************************************************/
