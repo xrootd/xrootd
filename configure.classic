@@ -355,7 +355,7 @@ guess_architecture () {
     rele=`uname -r`
     arch="$osys"
     ccflv="gcc"
-    echo "$osys | $chip | $rele | $arch | $ccflv"
+    echo "Guessing architecture/compiler:"
     case "$osys:$chip:$rele" in
 #      aix:*:*)            arch=rs_aix4$rele    ; platform=aix;   ccflv=aix;;
 #      osf1*:alpha:*)      arch=alphacxx6       ; platform=alpha; ccflv=alphaosf;;
@@ -516,18 +516,14 @@ if test "$arch" = "linuxegcs" ; then
     arch="linux"
 fi
 
-echo "arch = $arch"
-
+goodarch="no"
 if `awk '{ print $1 }' $ARCHS | grep "^$arch$" > /dev/null  2>&1` ; then
-   echo "Configuring for $arch"
+   goodarch="yes"
 else
    echo "Invalid architecture. Try $0 --help"
    exit 1
 fi
 
-if test "x$ccflv" = "xgccx8664" ; then
-   checklib64="yes"
-fi
 if test "x$platform" = "macosx" ; then
    finkdir=`which fink 2>&1 | sed -ne "s/\/bin\/fink//p"`
 fi
@@ -536,6 +532,7 @@ fi
 #
 ### echo %%% Command line arguments
 #
+notify_ccflv="no"
 if test $# -gt 0 ; then
    while test ! "x$1" = "x" ; do
       case "$1" in
@@ -558,6 +555,7 @@ if test $# -gt 0 ; then
       --with-krb5-incdir=*)    krb5incdir=$optarg    ; enable_krb5="yes"    ;;
       --with-krb5-libdir=*)    krb5libdir=$optarg    ; enable_krb5="yes"    ;;
       --with-thread-libdir=*)  threadlibdir=$optarg  ; enable_thread="yes"  ;;
+      --ccflavour=*)           ccflv=$optarg         ; notify_ccflv="yes"   ;;
       ################################################################
       #
       # Enable/disable to turn on/off third party software linkage and
@@ -597,6 +595,16 @@ if test $# -gt 0 ; then
       shift
    done
 fi
+if test "x$ccflv" = "xgccx8664" ; then
+   checklib64="yes"
+fi
+
+# Notify configuration settings
+if test "x$notify_ccflv" = "xyes" ; then
+   echo "Forcing compiler choice ..."
+fi
+echo "Configuring for $arch and compiler $ccflv"
+
 
 ######################################################################
 #
