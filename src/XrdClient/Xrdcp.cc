@@ -5,17 +5,7 @@
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 //                                                                      //
 // A cp-like command line tool for xrootd environments                  //
-// Usage:                                                               //
-//       xrdcp [-d<debuglevel>] <source> <dest>                         //
-//  where:                                                              //
-//       <source> is the path/name of a file or                         //
-//                its xrootd URL in the form accepted by XrdClient, i.e.//
-//   root://host1[:port1][,host2[:port2]]..[,hostN[:portN]]//filepath   //
-//                                                                      //
-//       <dest> is the path/name of the dest file or its URL            //
-//                                                                      //
-// Note that in this version you have to specify *2* filenames,         //
-// not directory names                                                  //
+
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 

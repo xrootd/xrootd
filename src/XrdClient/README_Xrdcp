@@ -1,0 +1,22 @@
+Xrdcp is a cp-like tool to copy files:
+- FROM an xrootd system TO a local file system
+- FROM ax xrootd system TO an xrootd system (even the same)
+- FROM a local file system TO an xrootd system
+
+
+
+Usage:                                                               
+      xrdcp [-d<debuglevel>] <source> <dest>
+  where:                                    
+      <source> can be:
+               - the path/name of a local file file or directory
+               - the xrootd URL of a file   
+
+      <dest> can be:
+             - the path/name of the local dest file or directory
+             - the xrootd URL of a file or directory           
+                                                                 
+
+An xrootd URL is an URL in the form handled by XrdClient, i.e.:
+
+root://host1[:port1][,host2[:port2]]..[,hostN[:portN]]//filepath

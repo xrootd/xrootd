@@ -358,11 +358,11 @@ void smartPrintClientHeader(ClientRequest* hdr)
 
       printf("%40s%d\n",
              "ClientHeader.login.version = ",
-             hdr->login.version);
+             hdr->login.version[0]);
 
       printf("%40s%d\n", 
              "ClientHeader.login.role = ",
-             hdr->login.role);
+             hdr->login.role[0]);
       break;
 
    case kXR_mkdir:

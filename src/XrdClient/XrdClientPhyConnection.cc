@@ -314,7 +314,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
    // Return 0 if OK. 
 
    int res;
-   char errbuf[1024];
+
 
    Touch();
 
@@ -467,7 +467,7 @@ int XrdClientPhyConnection::WriteRaw(const void *buf, int len)
 {
    // Send 'len' bytes located at 'buf' to the connected server.
    // Return number of bytes sent. 
-   char errbuf[1024];
+
    int res;
 
    Touch();
