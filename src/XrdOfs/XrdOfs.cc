@@ -489,7 +489,8 @@ int XrdOfsFile::open(const char          *path,      // In
 // destination will apply the security that is needed
 //
    if (XrdOfsFS.Finder && (retc = XrdOfsFS.Finder->Locate(error, path,
-                odc_mode|open_flag))) return XrdOfsFS.fsError(error, retc);
+                odc_mode|(open_flag & ~O_EXCL))))
+      return XrdOfsFS.fsError(error, retc);
 
 
 // Create the file if so requested o/w try to attach the file
@@ -1118,7 +1119,7 @@ int XrdOfs::chmod(const char             *path,    // In
           if ((retc = Finder->Forward(einfo,"chmod",buff,(char *)path)))
              return fsError(einfo, retc);
          }
-      else if ((retc = Finder->Locate(einfo,path,O_RDWR|O_EXCL))) 
+      else if ((retc = Finder->Locate(einfo,path,O_RDWR)))
               return fsError(einfo, retc);
 
 // Now try to find the file or directory
@@ -1171,7 +1172,7 @@ int XrdOfs::exists(const char                *path,        // In
 // Find out where we should stat this file
 //
    if (Finder && Finder->isRemote() 
-   &&  (retc = Finder->Locate(einfo, path, O_RDONLY | O_EXCL)))
+   &&  (retc = Finder->Locate(einfo, path, O_RDONLY)))
       return fsError(einfo, retc);
 
 // Now try to find the file or directory
@@ -1240,7 +1241,7 @@ int XrdOfs::mkdir(const char             *path,    // In
           return ((retc = Finder->Forward(einfo,"mkdir",buff,(char *)path)) ?
                   fsError(einfo, retc) : SFS_OK);
          }
-         else if ((retc = Finder->Locate(einfo,path,O_WRONLY|O_EXCL)))
+         else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
                  return fsError(einfo, retc);
 
 // Perform the actual operation
@@ -1313,7 +1314,7 @@ int XrdOfs::remove(const char              type,    // In
       if (Options & (type == 'd' ? XrdOfsFWDRMDIR : XrdOfsFWDRM))
          return ((retc = Finder->Forward(einfo, (type == 'd' ? "rmdir":"rm"),
                          (char *)path)) ? fsError(einfo, retc) : SFS_OK);
-         else if ((retc = Finder->Locate(einfo,path,O_WRONLY|O_EXCL)))
+         else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
                  return fsError(einfo, retc);
 
 // Perform the actual deletion
@@ -1371,7 +1372,7 @@ int XrdOfs::rename(const char             *old_name,  // In
          return ((retc = Finder->Forward(einfo,"mv",(char *)old_name,
                                                     (char *)new_name))
                 ? fsError(einfo, retc) : SFS_OK);
-         else if ((retc = Finder->Locate(einfo,old_name,O_RDWR|O_EXCL)))
+         else if ((retc = Finder->Locate(einfo,old_name,O_RDWR)))
                  return fsError(einfo, retc);
 
 // Perform actual rename operation
@@ -1417,7 +1418,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Find out where we should stat this file
 //
    if (Finder && Finder->isRemote()
-   &&  (retc = Finder->Locate(einfo, path, O_RDONLY | O_EXCL))) 
+   &&  (retc = Finder->Locate(einfo, path, O_RDONLY)))
       return fsError(einfo, retc);
 
 // Now try to find the file or directory
