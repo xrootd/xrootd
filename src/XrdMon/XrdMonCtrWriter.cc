@@ -144,26 +144,18 @@ XrdMonCtrWriter::mkActiveLogNameDirs() const
 string
 XrdMonCtrWriter::logName(LogType t) const
 {
-    string ss(_baseDir);
-    ss += '/';    
-    ss += _sender.first;
-    ss += '/';
-    ss += _sender.second;
-    ss += '/';
+    stringstream ss(stringstream::out);
+    ss << _baseDir << '/' << _sender.first << '/' << _sender.second << '/';
     if ( t == ACTIVE ) {
-        ss += "active";
+        ss << "active";
     } else if ( t == PERMANENT ) {
-        ss += _timestamp;
-        ss += '_';
-        ss += _sender.first;
-        ss += ':';
-        ss += _sender.second;
+        ss << _timestamp << '_' << _sender.first << ':' << _sender.second;
     } else {
         throw XrdMonException(ERR_INVALIDARG, "in XrdMonCtrWriter::logName");
     }
-    ss += ".rcv";
+    ss << ".rcv";
 
-    return ss;
+    return ss.str();
 }
 
 void
