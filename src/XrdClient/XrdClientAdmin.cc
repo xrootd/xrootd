@@ -37,7 +37,7 @@ void joinStrings(string &buf, vecString vs)
   if (vs.size() == 1)
     buf = vs[0];
   else {
-    for(unsigned int j=0; j <= vs.size()-1; j++)
+    for(unsigned int j=0; j < vs.size(); j++)
       {
 	buf += vs[j];
 	buf += "\n";
@@ -76,7 +76,7 @@ XrdClientAdmin::XrdClientAdmin(const char *url) {
 //_____________________________________________________________________________
 XrdClientAdmin::~XrdClientAdmin()
 {
-  SafeDelete(fConnModule);
+  delete fConnModule;
 }
 
 
@@ -103,7 +103,7 @@ bool XrdClientAdmin::Connect() {
   // Check for allowed domains
   bool validDomain = FALSE;
 
-  for (int jj=0; jj <=urlArray.Size()-1; jj++) {
+  for (int jj=0; jj < urlArray.Size(); jj++) {
      XrdClientUrlInfo *thisUrl;
      thisUrl = urlArray.GetNextUrl();
 

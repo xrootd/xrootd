@@ -48,7 +48,7 @@ struct XrdCpInfo {
 // The body of a thread which reads from the global
 //  XrdClient and keeps the queue filled
 //____________________________________________________________________________
-void *ReaderThread_xrd(void *)
+extern "C" void *ReaderThread_xrd(void *)
 {
 
    Info(XrdClientDebug::kHIDEBUG,
@@ -94,7 +94,7 @@ void *ReaderThread_xrd(void *)
 // The body of a thread which reads from the global filehandle
 //  and keeps the queue filled
 //____________________________________________________________________________
-void *ReaderThread_loc(void *) {
+extern "C" void *ReaderThread_loc(void *) {
 
    Info(XrdClientDebug::kHIDEBUG,
 	"ReaderThread_loc",
@@ -150,8 +150,8 @@ int doCp_xrd2xrd(char *src, char *dst) {
       if (!xrddest->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
 			 kXR_delete | kXR_force)) {
 	 Error("xrdcp", "Error opening remote destination file " << dst);
-	 SafeDelete(cpnfo.XrdCli);
-	 SafeDelete(xrddest);
+	 delete cpnfo.XrdCli;
+	 delete xrddest;
 	 cpnfo.XrdCli = 0;
 	 return -1;
       }
@@ -186,8 +186,8 @@ int doCp_xrd2xrd(char *src, char *dst) {
 
    }
 
-   SafeDelete(xrddest);
-   SafeDelete(cpnfo.XrdCli);
+   delete xrddest;
+   delete cpnfo.XrdCli;
    cpnfo.XrdCli = 0;
 
    return 0;
@@ -212,7 +212,7 @@ int doCp_xrd2loc(char *src, char *dst) {
       if (f < 0) {
 	 Error("xrdcp", "Error " << strerror(errno) <<
 	       " creating " << dst);
-	 SafeDelete(cpnfo.XrdCli);
+	 delete cpnfo.XrdCli;
 	 cpnfo.XrdCli = 0;
 	 return -1;
       }
@@ -247,7 +247,7 @@ int doCp_xrd2loc(char *src, char *dst) {
       close(f);
    }
 
-   SafeDelete(cpnfo.XrdCli);
+   delete cpnfo.XrdCli;
    cpnfo.XrdCli = 0;
 
    return 0;
@@ -271,7 +271,7 @@ int doCp_loc2xrd(char *src, char * dst) {
 		      kXR_delete | kXR_force)) {
       Error("xrdcp", "Error opening remote destination file " << dst);
       close(cpnfo.localfile);
-      SafeDelete(xrddest);
+      delete xrddest;
       cpnfo.localfile = 0;
       return -1;
    }
@@ -309,7 +309,7 @@ int doCp_loc2xrd(char *src, char * dst) {
 
    
 
-   SafeDelete(xrddest);
+   delete xrddest;
    close(cpnfo.localfile);
    cpnfo.localfile = 0;
 

@@ -56,10 +56,7 @@ void XrdClientUrlInfo::TakeUrl(string url) {
 
    Clear();
 
-   if (!u.size()) {
-      Port = -1;
-      return;
-   }
+   if (!u.size()) return;
 
    // Get protocol
    if ( (p = u.find("://")) != string::npos) {
@@ -69,7 +66,6 @@ void XrdClientUrlInfo::TakeUrl(string url) {
 
    if (!u.size()) {
       Clear();
-      Port = -1;
       return;
    }
 

@@ -170,7 +170,7 @@ void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
    while (it != fItems.end())
       if ((*it) && (*it)->ContainedInInterval(begin_offs, end_offs)) {
          fTotalByteCount -= (*it)->Size();
-         SafeDelete(*it);
+         delete *it;
          it = fItems.erase(it);
       }
       else it++;
@@ -186,7 +186,7 @@ void XrdClientReadCache::RemoveItems()
    it = fItems.begin();
 
    while (it != fItems.end()) {
-      SafeDelete(*it);
+      delete *it;
       it = fItems.erase(it);
    }
 
@@ -220,7 +220,7 @@ bool XrdClientReadCache::RemoveLRUItem()
 
    if (minticks >= 0) {
       fTotalByteCount -= item->Size();
-      SafeDelete(item);
+      delete item;
       it = fItems.erase(lruit);
    }
 

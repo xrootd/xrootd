@@ -144,7 +144,7 @@ XrdClientUrlSet::~XrdClientUrlSet()
    fTmpUrlArray.clear();
 
    for( unsigned int i=0; i < fUrlArray.size(); i++)
-      SafeDelete( fUrlArray[i] );
+      delete fUrlArray[i];
 
    fUrlArray.clear();
 }

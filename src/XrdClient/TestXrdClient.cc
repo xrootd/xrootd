@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
 
       x->Close();
    }
-   SafeDelete(x);
+   delete x;
 
 
 }

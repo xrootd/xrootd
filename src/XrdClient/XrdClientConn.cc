@@ -109,7 +109,7 @@ XrdClientConn::~XrdClientConn()
    if (fMainReadCache && (DebugLevel() >= XrdClientDebug::kUSERDEBUG))
       fMainReadCache->PrintPerfCounters();
 
-   SafeDelete(fMainReadCache);
+   delete fMainReadCache;
 }
 
 //_____________________________________________________________________________
@@ -357,7 +357,7 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
          } // else... the case of a correct server response but declaring an error
       }
 
-      SafeDelete(cmdrespMex);
+      delete cmdrespMex;
    } // while
 
    return (!abortcmd);
@@ -773,7 +773,7 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
             *tmpMoreData = 0;
          }
 	
-         SafeDelete(Xmsg);
+         delete Xmsg;
          Xmsg = 0;
 
          what_to_do = kTSRHReturnMex;

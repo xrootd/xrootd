@@ -56,11 +56,11 @@ XrdClientDebug::XrdClientDebug() {
 //_____________________________________________________________________________
 XrdClientDebug::~XrdClientDebug() {
    // Destructor
-   SafeDelete(fOucErr);
-   SafeDelete(fOucLog);
+   delete fOucErr;
+   delete fOucLog;
 
    fOucErr = 0;
    fOucLog = 0;
    pthread_mutex_destroy(&fMutex);
-   SafeDelete(fgInstance);
+   delete fgInstance;
 }

@@ -68,8 +68,8 @@ XrdClientEnv::XrdClientEnv() {
 //_____________________________________________________________________________
 XrdClientEnv::~XrdClientEnv() {
    // Destructor
-   SafeDelete(fOucEnv);
-   SafeDelete(fgInstance);
+   delete fOucEnv;
+   delete fgInstance;
    pthread_mutex_destroy(&fMutex);
    fgInstance = 0;
 }

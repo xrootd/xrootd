@@ -237,5 +237,5 @@ void XrdClientSock::TryConnect()
       fSocket = s->Detach();
    }
 
-   SafeDelete(s);
+   delete s;
 }

@@ -64,7 +64,7 @@ XrdClient::~XrdClient()
 {
    // Destructor
 
-   SafeDelete(fConnModule);
+   delete fConnModule;
 }
 
 //_____________________________________________________________________________
@@ -96,7 +96,7 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
   // Check for allowed domains
   bool validDomain = FALSE;
 
-  for (int jj=0; jj <=urlArray.Size()-1; jj++) {
+  for (int jj=0; jj < urlArray.Size(); jj++) {
      XrdClientUrlInfo *thisUrl;
      thisUrl = urlArray.GetNextUrl();
 
@@ -283,7 +283,7 @@ int XrdClient::Read(const void *buf, long long offset, int len) {
      // A side effect of this is to populate the cache with
      //  all the received messages. And avoiding the memcpy.
      if (fConnModule->SendGenCommand(&readFileRequest, 0, 0, 0, FALSE,
-                                     "ReadBuffer", &srh) ) {
+                                     (char *)"ReadBuffer", &srh) ) {
 	int minlen = len;
 	if (minlen > srh.dlen) minlen = srh.dlen;
 
@@ -306,7 +306,7 @@ int XrdClient::Read(const void *buf, long long offset, int len) {
      
      // Without caching
      fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
-				 FALSE, "ReadBuffer", &srh);
+				 FALSE, (char *)"ReadBuffer", &srh);
 
      return srh.dlen;
   }
@@ -333,7 +333,7 @@ bool XrdClient::Write(const void *buf, long long offset, int len) {
    
    
    return fConnModule->SendGenCommand(&writeFileRequest, buf, 0, 0,
-				      FALSE, "Write");
+				      FALSE, (char *)"Write");
 }
 
 
@@ -362,7 +362,7 @@ bool XrdClient::Sync()
    flushFileRequest.sync.dlen = 0;
 
    return fConnModule->SendGenCommand(&flushFileRequest, 0, 0, 0, 
-                                       FALSE, "XrdClient::Flush");
+                                       FALSE, (char *)"Sync");
   
 }
 
@@ -442,7 +442,7 @@ bool XrdClient::LowOpen(const char *file, kXR_int16 mode, kXR_int16 options,
    // Send request to server and receive response
    bool resp = fConnModule->SendGenCommand(&openFileRequest,
 					   (const void *)finalfilename.c_str(),
-					   0, &openresp, FALSE, "Open");
+					   0, &openresp, FALSE, (char *)"Open");
 
    if (resp) {
       // Get the file handle to use for future read/write...
@@ -487,7 +487,7 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
    char fStats[2048];
    
    fConnModule->SendGenCommand(&statFileRequest, (const char*)fInitialUrl.File.c_str(),
-                               0, fStats , FALSE, (char *)"SysStat");
+                               0, fStats , FALSE, (char *)"Stat");
    
    if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
       Info(XrdClientDebug::kHIDEBUG,
@@ -524,7 +524,7 @@ bool XrdClient::Close() {
    closeFileRequest.close.dlen = 0;
   
    fConnModule->SendGenCommand(&closeFileRequest, 0,
-			       0, 0, FALSE, "Close");
+			       0, 0, FALSE, (char *)"Close");
   
    // No file is opened for now
    fOpenPars.opened = FALSE;

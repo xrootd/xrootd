@@ -79,7 +79,7 @@ void XrdClientConnectionMgr::Reset()
 {
    // Reset the connection manager
 
-   SafeDelete(fgInstance);
+   delete fgInstance;
    fgInstance = 0;
 }
 
@@ -177,7 +177,7 @@ void XrdClientConnectionMgr::GarbageCollect()
 	    // slow processes)
 
 	    fPhyVec[i]->Disconnect();
-	    SafeDelete(fPhyVec[i]);
+	    delete fPhyVec[i];
 	    fPhyVec[i] = 0;
       
 	    Info(XrdClientDebug::kHIDEBUG,
@@ -343,7 +343,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
       }
     
       fLogVec[LogConnectionID]->GetPhyConnection()->Touch();
-      SafeDelete(fLogVec[LogConnectionID]);
+      delete fLogVec[LogConnectionID];
       fLogVec[LogConnectionID] = 0;
 
 

@@ -230,7 +230,7 @@ void XrdClientPhyConnection::Disconnect()
    Info(XrdClientDebug::kDUMPDEBUG,
 	"Disconnect", "Deleting low level socket...");
 
-   SafeDelete(fSocket);
+   delete fSocket;
    fSocket = 0;
 
 }

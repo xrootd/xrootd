@@ -64,14 +64,13 @@
 #define NAME_REDIRDOMAINALLOW_RE   (char *)"RedirDomainAllowRE"
 #define NAME_REDIRDOMAINDENY_RE    (char *)"RedirDomainDenyRE"
 #define NAME_CONNECTDOMAINALLOW_RE (char *)"ConnectDomainAllowRE"
-#define NAME_CONNECTDOMAINDENY_RE  "ConnectDomainDenyRE"
+#define NAME_CONNECTDOMAINDENY_RE  (char *)"ConnectDomainDenyRE"
 
-#define PROTO "root"
+#define PROTO (char *)"root"
 
 #define TRUE  1
 #define FALSE 0
 
-#define SafeDelete(x) if (x) delete x;
 
 #endif
 
