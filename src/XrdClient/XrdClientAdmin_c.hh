@@ -41,23 +41,23 @@ extern "C" {
    // In this version we support only one instance to be handled
    // by this wrapper. Supporting more than one instance should be no
    // problem.
-   bool XrdCA_Initialize(const char *url, int debuglvl);
-   bool XrdCA_Terminate();
+   bool XrdInitialize(const char *url, int debuglvl);
+   bool XrdTerminate();
 
    // The other functions, slightly modified from the originals
 
-   bool XrdCA_SysStatX(const char *paths_list, unsigned char *binInfo, int numPath);
+   bool XrdSysStatX(const char *paths_list, unsigned char *binInfo, int numPath);
 
-   char *XrdCA_ExistFiles(const char *filepaths);
-   char *XrdCA_ExistDirs(const char *filepaths);
-   char *XrdCA_IsFileOnline(const char *filepaths);
+   char *XrdExistFiles(const char *filepaths);
+   char *XrdExistDirs(const char *filepaths);
+   char *XrdIsFileOnline(const char *filepaths);
 
-   bool XrdCA_Mv(const char *fileDest, const char *fileSrc);
-   bool XrdCA_Mkdir(const char *dir, int user, int group, int other);
-   bool XrdCA_Chmod(const char *file, int user, int group, int other);
-   bool XrdCA_Rm(const char *file);
-   bool XrdCA_Rmdir(const char *path);
-   bool XrdCA_Prepare(const char *filepaths, unsigned char opts, unsigned char prty);
-   char *XrdCA_DirList(const char *dir);
-   char *XrdCA_GetChecksum(const char *path);
+   bool XrdMv(const char *fileDest, const char *fileSrc);
+   bool XrdMkdir(const char *dir, int user, int group, int other);
+   bool XrdChmod(const char *file, int user, int group, int other);
+   bool XrdRm(const char *file);
+   bool XrdRmdir(const char *path);
+   bool XrdPrepare(const char *filepaths, unsigned char opts, unsigned char prty);
+   char *XrdDirList(const char *dir);
+   char *XrdGetChecksum(const char *path);
 }

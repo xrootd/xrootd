@@ -19,18 +19,18 @@ int main(int argc, char **argv) {
 
 
 
-   XrdCA_Initialize(argv[1], 2);
+   XrdInitialize(argv[1], 2);
    bool ans;
-   ans = XrdCA_ExistFiles("/store");
+   ans = XrdExistFiles("/store");
    cout << "\nThe answer of XTNetAdmin_ExistFiles is:" << ans << endl;
 
-   ans = XrdCA_ExistDirs("/data/babar/kanga\n/etc\n/mydir");
+   ans = XrdExistDirs("/data/babar/kanga\n/etc\n/mydir");
    cout << "\nThe answer of XTNetAdmin_ExistDirs is:" << ans << endl;
 
-   ans = XrdCA_IsFileOnline("/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root");
+   ans = XrdIsFileOnline("/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root");
    cout << "\nThe answer of XTNetAdmin_IsFileOnline is:" << ans << endl;
 
-   XrdCA_Terminate();
+   XrdTerminate();
 
       
 

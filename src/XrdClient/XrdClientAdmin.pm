@@ -45,20 +45,20 @@ sub this {
 
 package XrdClientAdmin;
 
-*XrdCA_Initialize = *XrdClientAdminc::XrdCA_Initialize;
-*XrdCA_Terminate = *XrdClientAdminc::XrdCA_Terminate;
-*XrdCA_SysStatX = *XrdClientAdminc::XrdCA_SysStatX;
-*XrdCA_ExistFiles = *XrdClientAdminc::XrdCA_ExistFiles;
-*XrdCA_ExistDirs = *XrdClientAdminc::XrdCA_ExistDirs;
-*XrdCA_IsFileOnline = *XrdClientAdminc::XrdCA_IsFileOnline;
-*XrdCA_Mv = *XrdClientAdminc::XrdCA_Mv;
-*XrdCA_Mkdir = *XrdClientAdminc::XrdCA_Mkdir;
-*XrdCA_Chmod = *XrdClientAdminc::XrdCA_Chmod;
-*XrdCA_Rm = *XrdClientAdminc::XrdCA_Rm;
-*XrdCA_Rmdir = *XrdClientAdminc::XrdCA_Rmdir;
-*XrdCA_Prepare = *XrdClientAdminc::XrdCA_Prepare;
-*XrdCA_DirList = *XrdClientAdminc::XrdCA_DirList;
-*XrdCA_GetChecksum = *XrdClientAdminc::XrdCA_GetChecksum;
+*XrdInitialize = *XrdClientAdminc::XrdInitialize;
+*XrdTerminate = *XrdClientAdminc::XrdTerminate;
+*XrdSysStatX = *XrdClientAdminc::XrdSysStatX;
+*XrdExistFiles = *XrdClientAdminc::XrdExistFiles;
+*XrdExistDirs = *XrdClientAdminc::XrdExistDirs;
+*XrdIsFileOnline = *XrdClientAdminc::XrdIsFileOnline;
+*XrdMv = *XrdClientAdminc::XrdMv;
+*XrdMkdir = *XrdClientAdminc::XrdMkdir;
+*XrdChmod = *XrdClientAdminc::XrdChmod;
+*XrdRm = *XrdClientAdminc::XrdRm;
+*XrdRmdir = *XrdClientAdminc::XrdRmdir;
+*XrdPrepare = *XrdClientAdminc::XrdPrepare;
+*XrdDirList = *XrdClientAdminc::XrdDirList;
+*XrdGetChecksum = *XrdClientAdminc::XrdGetChecksum;
 
 # ------- VARIABLE STUBS --------
 

@@ -81,7 +81,7 @@ void clientMarshall(ClientRequest* str)
       str->putfile.buffsz  = htonl(str->putfile.buffsz);
       break;
    case kXR_query:
-      // no swap on ASCII fields
+      str->query.infotype = htons(str->query.infotype);
       break;
    case kXR_read:
       memcpy(&tmpl, &str->read.offset, sizeof(kXR_int64) );

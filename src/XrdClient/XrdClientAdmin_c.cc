@@ -85,7 +85,7 @@ XrdClientAdmin *adminst = NULL;
 
 extern "C" {
 
-   bool XrdCA_Initialize(const char *url, int debuglvl) {
+   bool XrdInitialize(const char *url, int debuglvl) {
       DebugSetLevel(debuglvl);
 
       if (!adminst)
@@ -97,7 +97,7 @@ extern "C" {
       return (adminst != NULL);
    }
    
-   bool XrdCA_Terminate() {
+   bool XrdTerminate() {
       delete adminst;
       adminst = NULL;
 
@@ -110,7 +110,7 @@ extern "C" {
    //  in order to deal more easily with the perl syntax.
    // Hey these are wrappers!
 
-   bool XrdCA_SysStatX(const char *paths_list, unsigned char *binInfo, int numPath) {
+   bool XrdSysStatX(const char *paths_list, unsigned char *binInfo, int numPath) {
       if (!adminst) return (adminst);
   
       return(adminst->SysStatX(paths_list, binInfo, numPath));
@@ -118,7 +118,7 @@ extern "C" {
    }
 
 
-   char *XrdCA_ExistFiles(const char *filepaths) {
+   char *XrdExistFiles(const char *filepaths) {
       if (!adminst) return NULL;
       bool res = FALSE;
       vecBool vb;
@@ -134,7 +134,7 @@ extern "C" {
 
    }
 
-   char *XrdCA_ExistDirs(const char *filepaths) {
+   char *XrdExistDirs(const char *filepaths) {
       if (!adminst) return NULL;
       bool res = FALSE;
       vecBool vb;
@@ -150,7 +150,7 @@ extern "C" {
  
    }
 
-   char *XrdCA_IsFileOnline(const char *filepaths) {
+   char *XrdIsFileOnline(const char *filepaths) {
       if (!adminst) return NULL;
       bool res = FALSE;
       vecBool vb;
@@ -169,42 +169,42 @@ extern "C" {
 
 
 
-   bool XrdCA_Mv(const char *fileDest, const char *fileSrc) {
+   bool XrdMv(const char *fileDest, const char *fileSrc) {
       if (!adminst) return adminst;
 
       return(adminst->Mv(fileDest, fileSrc));
    }
 
 
-   bool XrdCA_Mkdir(const char *dir, int user, int group, int other) {
+   bool XrdMkdir(const char *dir, int user, int group, int other) {
       if (!adminst) return adminst;
 
       return(adminst->Mkdir(dir, user, group, other));
    }
 
 
-   bool XrdCA_Chmod(const char *file, int user, int group, int other) {
+   bool XrdChmod(const char *file, int user, int group, int other) {
       if (!adminst) return adminst;
 
       return(adminst->Chmod(file, user, group, other));
    }
 
 
-   bool XrdCA_Rm(const char *file) {
+   bool XrdRm(const char *file) {
       if (!adminst) return adminst;
 
       return(adminst->Rm(file));
    }
 
 
-   bool XrdCA_Rmdir(const char *path) {
+   bool XrdRmdir(const char *path) {
       if (!adminst) return adminst;
 
       return(adminst->Rmdir(path));
    }
 
 
-   bool XrdCA_Prepare(const char *filepaths, unsigned char opts, unsigned char prty) {
+   bool XrdPrepare(const char *filepaths, unsigned char opts, unsigned char prty) {
       if (!adminst) return adminst;
 
       bool res;
@@ -218,7 +218,7 @@ extern "C" {
       return(res);
    }
 
-   char *XrdCA_DirList(const char *dir) {
+   char *XrdDirList(const char *dir) {
       vecString entries;
       XrdClientString lst;
 
@@ -235,7 +235,7 @@ extern "C" {
    }
 
 
-   char *XrdCA_GetChecksum(const char *path) {
+   char *XrdGetChecksum(const char *path) {
       if (!adminst) return 0;
 
       memset(sharedbuf, 0, sizeof(sharedbuf));

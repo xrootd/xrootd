@@ -652,7 +652,8 @@ bool XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char *chksum)
 
    chksumRequest.query.requestid = kXR_query;
    chksumRequest.query.infotype = kXR_Qcksum;
-   bool ret = fConnModule->SendGenCommand(&chksumRequest, NULL,
+   chksumRequest.query.dlen = strlen((char *) path);
+   bool ret = fConnModule->SendGenCommand(&chksumRequest, (const char*) path,
 					  NULL, chksum, FALSE, (char *)"GetChecksum");
   
    return ret;

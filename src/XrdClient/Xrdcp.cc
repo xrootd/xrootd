@@ -152,7 +152,7 @@ void BuildFullDestFilename(XrdClientString &src, XrdClientString &dest, bool des
    }
 }
 
-int CreateDestPath_xrd(XrdClientString &url, bool isdir) {
+int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    // We need the path name without the file
    bool statok = FALSE, done = FALSE;
    long id, size, flags, modtime;

@@ -871,7 +871,7 @@ SWIGCLASS_STATIC int swig_magic_readonly(pTHX_ SV *sv, MAGIC *mg) {
 #ifdef __cplusplus
 extern "C" {
 #endif
-XS(_wrap_XrdCA_Initialize) {
+XS(_wrap_XrdInitialize) {
     {
         char *arg1 ;
         int arg2 ;
@@ -880,12 +880,12 @@ XS(_wrap_XrdCA_Initialize) {
         dXSARGS;
         
         if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: XrdCA_Initialize(url,debuglvl);");
+            SWIG_croak("Usage: XrdInitialize(url,debuglvl);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
         arg2 = (int) SvIV(ST(1));
-        result = (bool)XrdCA_Initialize((char const *)arg1,arg2);
+        result = (bool)XrdInitialize((char const *)arg1,arg2);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -897,16 +897,16 @@ XS(_wrap_XrdCA_Initialize) {
 }
 
 
-XS(_wrap_XrdCA_Terminate) {
+XS(_wrap_XrdTerminate) {
     {
         bool result;
         int argvi = 0;
         dXSARGS;
         
         if ((items < 0) || (items > 0)) {
-            SWIG_croak("Usage: XrdCA_Terminate();");
+            SWIG_croak("Usage: XrdTerminate();");
         }
-        result = (bool)XrdCA_Terminate();
+        result = (bool)XrdTerminate();
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -918,7 +918,7 @@ XS(_wrap_XrdCA_Terminate) {
 }
 
 
-XS(_wrap_XrdCA_SysStatX) {
+XS(_wrap_XrdSysStatX) {
     {
         char *arg1 ;
         unsigned char *arg2 = (unsigned char *) 0 ;
@@ -928,17 +928,17 @@ XS(_wrap_XrdCA_SysStatX) {
         dXSARGS;
         
         if ((items < 3) || (items > 3)) {
-            SWIG_croak("Usage: XrdCA_SysStatX(paths_list,binInfo,numPath);");
+            SWIG_croak("Usage: XrdSysStatX(paths_list,binInfo,numPath);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
         {
             if (SWIG_ConvertPtr(ST(1), (void **) &arg2, SWIGTYPE_p_unsigned_char,0) < 0) {
-                SWIG_croak("Type error in argument 2 of XrdCA_SysStatX. Expected _p_unsigned_char");
+                SWIG_croak("Type error in argument 2 of XrdSysStatX. Expected _p_unsigned_char");
             }
         }
         arg3 = (int) SvIV(ST(2));
-        result = (bool)XrdCA_SysStatX((char const *)arg1,arg2,arg3);
+        result = (bool)XrdSysStatX((char const *)arg1,arg2,arg3);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -950,7 +950,7 @@ XS(_wrap_XrdCA_SysStatX) {
 }
 
 
-XS(_wrap_XrdCA_ExistFiles) {
+XS(_wrap_XrdExistFiles) {
     {
         char *arg1 ;
         char *result;
@@ -958,11 +958,11 @@ XS(_wrap_XrdCA_ExistFiles) {
         dXSARGS;
         
         if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: XrdCA_ExistFiles(filepaths);");
+            SWIG_croak("Usage: XrdExistFiles(filepaths);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        result = (char *)XrdCA_ExistFiles((char const *)arg1);
+        result = (char *)XrdExistFiles((char const *)arg1);
         
         ST(argvi) = sv_newmortal();
         if (result) {
@@ -978,7 +978,7 @@ XS(_wrap_XrdCA_ExistFiles) {
 }
 
 
-XS(_wrap_XrdCA_ExistDirs) {
+XS(_wrap_XrdExistDirs) {
     {
         char *arg1 ;
         char *result;
@@ -986,11 +986,11 @@ XS(_wrap_XrdCA_ExistDirs) {
         dXSARGS;
         
         if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: XrdCA_ExistDirs(filepaths);");
+            SWIG_croak("Usage: XrdExistDirs(filepaths);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        result = (char *)XrdCA_ExistDirs((char const *)arg1);
+        result = (char *)XrdExistDirs((char const *)arg1);
         
         ST(argvi) = sv_newmortal();
         if (result) {
@@ -1006,7 +1006,7 @@ XS(_wrap_XrdCA_ExistDirs) {
 }
 
 
-XS(_wrap_XrdCA_IsFileOnline) {
+XS(_wrap_XrdIsFileOnline) {
     {
         char *arg1 ;
         char *result;
@@ -1014,11 +1014,11 @@ XS(_wrap_XrdCA_IsFileOnline) {
         dXSARGS;
         
         if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: XrdCA_IsFileOnline(filepaths);");
+            SWIG_croak("Usage: XrdIsFileOnline(filepaths);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        result = (char *)XrdCA_IsFileOnline((char const *)arg1);
+        result = (char *)XrdIsFileOnline((char const *)arg1);
         
         ST(argvi) = sv_newmortal();
         if (result) {
@@ -1034,7 +1034,7 @@ XS(_wrap_XrdCA_IsFileOnline) {
 }
 
 
-XS(_wrap_XrdCA_Mv) {
+XS(_wrap_XrdMv) {
     {
         char *arg1 ;
         char *arg2 ;
@@ -1043,13 +1043,13 @@ XS(_wrap_XrdCA_Mv) {
         dXSARGS;
         
         if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: XrdCA_Mv(fileDest,fileSrc);");
+            SWIG_croak("Usage: XrdMv(fileDest,fileSrc);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
         if (!SvOK((SV*) ST(1))) arg2 = 0;
         else arg2 = (char *) SvPV(ST(1), PL_na);
-        result = (bool)XrdCA_Mv((char const *)arg1,(char const *)arg2);
+        result = (bool)XrdMv((char const *)arg1,(char const *)arg2);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -1061,7 +1061,7 @@ XS(_wrap_XrdCA_Mv) {
 }
 
 
-XS(_wrap_XrdCA_Mkdir) {
+XS(_wrap_XrdMkdir) {
     {
         char *arg1 ;
         int arg2 ;
@@ -1072,14 +1072,14 @@ XS(_wrap_XrdCA_Mkdir) {
         dXSARGS;
         
         if ((items < 4) || (items > 4)) {
-            SWIG_croak("Usage: XrdCA_Mkdir(dir,user,group,other);");
+            SWIG_croak("Usage: XrdMkdir(dir,user,group,other);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
         arg2 = (int) SvIV(ST(1));
         arg3 = (int) SvIV(ST(2));
         arg4 = (int) SvIV(ST(3));
-        result = (bool)XrdCA_Mkdir((char const *)arg1,arg2,arg3,arg4);
+        result = (bool)XrdMkdir((char const *)arg1,arg2,arg3,arg4);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -1091,7 +1091,7 @@ XS(_wrap_XrdCA_Mkdir) {
 }
 
 
-XS(_wrap_XrdCA_Chmod) {
+XS(_wrap_XrdChmod) {
     {
         char *arg1 ;
         int arg2 ;
@@ -1102,14 +1102,14 @@ XS(_wrap_XrdCA_Chmod) {
         dXSARGS;
         
         if ((items < 4) || (items > 4)) {
-            SWIG_croak("Usage: XrdCA_Chmod(file,user,group,other);");
+            SWIG_croak("Usage: XrdChmod(file,user,group,other);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
         arg2 = (int) SvIV(ST(1));
         arg3 = (int) SvIV(ST(2));
         arg4 = (int) SvIV(ST(3));
-        result = (bool)XrdCA_Chmod((char const *)arg1,arg2,arg3,arg4);
+        result = (bool)XrdChmod((char const *)arg1,arg2,arg3,arg4);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -1121,7 +1121,7 @@ XS(_wrap_XrdCA_Chmod) {
 }
 
 
-XS(_wrap_XrdCA_Rm) {
+XS(_wrap_XrdRm) {
     {
         char *arg1 ;
         bool result;
@@ -1129,11 +1129,11 @@ XS(_wrap_XrdCA_Rm) {
         dXSARGS;
         
         if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: XrdCA_Rm(file);");
+            SWIG_croak("Usage: XrdRm(file);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        result = (bool)XrdCA_Rm((char const *)arg1);
+        result = (bool)XrdRm((char const *)arg1);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -1145,7 +1145,7 @@ XS(_wrap_XrdCA_Rm) {
 }
 
 
-XS(_wrap_XrdCA_Rmdir) {
+XS(_wrap_XrdRmdir) {
     {
         char *arg1 ;
         bool result;
@@ -1153,11 +1153,11 @@ XS(_wrap_XrdCA_Rmdir) {
         dXSARGS;
         
         if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: XrdCA_Rmdir(path);");
+            SWIG_croak("Usage: XrdRmdir(path);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        result = (bool)XrdCA_Rmdir((char const *)arg1);
+        result = (bool)XrdRmdir((char const *)arg1);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -1169,7 +1169,7 @@ XS(_wrap_XrdCA_Rmdir) {
 }
 
 
-XS(_wrap_XrdCA_Prepare) {
+XS(_wrap_XrdPrepare) {
     {
         char *arg1 ;
         unsigned char arg2 ;
@@ -1179,13 +1179,13 @@ XS(_wrap_XrdCA_Prepare) {
         dXSARGS;
         
         if ((items < 3) || (items > 3)) {
-            SWIG_croak("Usage: XrdCA_Prepare(filepaths,opts,prty);");
+            SWIG_croak("Usage: XrdPrepare(filepaths,opts,prty);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
         arg2 = (unsigned char) SvUV(ST(1));
         arg3 = (unsigned char) SvUV(ST(2));
-        result = (bool)XrdCA_Prepare((char const *)arg1,arg2,arg3);
+        result = (bool)XrdPrepare((char const *)arg1,arg2,arg3);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);
@@ -1197,7 +1197,7 @@ XS(_wrap_XrdCA_Prepare) {
 }
 
 
-XS(_wrap_XrdCA_DirList) {
+XS(_wrap_XrdDirList) {
     {
         char *arg1 ;
         char *result;
@@ -1205,11 +1205,11 @@ XS(_wrap_XrdCA_DirList) {
         dXSARGS;
         
         if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: XrdCA_DirList(dir);");
+            SWIG_croak("Usage: XrdDirList(dir);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        result = (char *)XrdCA_DirList((char const *)arg1);
+        result = (char *)XrdDirList((char const *)arg1);
         
         ST(argvi) = sv_newmortal();
         if (result) {
@@ -1225,7 +1225,7 @@ XS(_wrap_XrdCA_DirList) {
 }
 
 
-XS(_wrap_XrdCA_GetChecksum) {
+XS(_wrap_XrdGetChecksum) {
     {
         char *arg1 ;
         char *result;
@@ -1233,11 +1233,11 @@ XS(_wrap_XrdCA_GetChecksum) {
         dXSARGS;
         
         if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: XrdCA_GetChecksum(path);");
+            SWIG_croak("Usage: XrdGetChecksum(path);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        result = (char *)XrdCA_GetChecksum((char const *)arg1);
+        result = (char *)XrdGetChecksum((char const *)arg1);
         
         ST(argvi) = sv_newmortal();
         if (result) {
@@ -1276,20 +1276,20 @@ static swig_variable_info swig_variables[] = {
 {0,0,0,0}
 };
 static swig_command_info swig_commands[] = {
-{"XrdClientAdminc::XrdCA_Initialize", _wrap_XrdCA_Initialize},
-{"XrdClientAdminc::XrdCA_Terminate", _wrap_XrdCA_Terminate},
-{"XrdClientAdminc::XrdCA_SysStatX", _wrap_XrdCA_SysStatX},
-{"XrdClientAdminc::XrdCA_ExistFiles", _wrap_XrdCA_ExistFiles},
-{"XrdClientAdminc::XrdCA_ExistDirs", _wrap_XrdCA_ExistDirs},
-{"XrdClientAdminc::XrdCA_IsFileOnline", _wrap_XrdCA_IsFileOnline},
-{"XrdClientAdminc::XrdCA_Mv", _wrap_XrdCA_Mv},
-{"XrdClientAdminc::XrdCA_Mkdir", _wrap_XrdCA_Mkdir},
-{"XrdClientAdminc::XrdCA_Chmod", _wrap_XrdCA_Chmod},
-{"XrdClientAdminc::XrdCA_Rm", _wrap_XrdCA_Rm},
-{"XrdClientAdminc::XrdCA_Rmdir", _wrap_XrdCA_Rmdir},
-{"XrdClientAdminc::XrdCA_Prepare", _wrap_XrdCA_Prepare},
-{"XrdClientAdminc::XrdCA_DirList", _wrap_XrdCA_DirList},
-{"XrdClientAdminc::XrdCA_GetChecksum", _wrap_XrdCA_GetChecksum},
+{"XrdClientAdminc::XrdInitialize", _wrap_XrdInitialize},
+{"XrdClientAdminc::XrdTerminate", _wrap_XrdTerminate},
+{"XrdClientAdminc::XrdSysStatX", _wrap_XrdSysStatX},
+{"XrdClientAdminc::XrdExistFiles", _wrap_XrdExistFiles},
+{"XrdClientAdminc::XrdExistDirs", _wrap_XrdExistDirs},
+{"XrdClientAdminc::XrdIsFileOnline", _wrap_XrdIsFileOnline},
+{"XrdClientAdminc::XrdMv", _wrap_XrdMv},
+{"XrdClientAdminc::XrdMkdir", _wrap_XrdMkdir},
+{"XrdClientAdminc::XrdChmod", _wrap_XrdChmod},
+{"XrdClientAdminc::XrdRm", _wrap_XrdRm},
+{"XrdClientAdminc::XrdRmdir", _wrap_XrdRmdir},
+{"XrdClientAdminc::XrdPrepare", _wrap_XrdPrepare},
+{"XrdClientAdminc::XrdDirList", _wrap_XrdDirList},
+{"XrdClientAdminc::XrdGetChecksum", _wrap_XrdGetChecksum},
 {0,0}
 };
 
