@@ -171,14 +171,16 @@ int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"proc\"><pid>%d</pid>"
-          "<utime><s>%ld</s><u>%ld</u></utime>"
-          "<stime><s>%ld</s><u>%ld</u></stime>"
-          "<maxrss>%ld</maxrss><majflt>%ld</majflt><nswap>%ld</nswap>"
-          "<inblock>%ld</inblock><oublock>%ld</oublock>"
-          "<msgsnd>%ld</msgsnd><msgrcv>%ld</msgrcv>"
-          "<nsignals>%ld</nsignals></stats>";
+          "<utime><s>%lld</s><u>%lld</u></utime>"
+          "<stime><s>%lld</s><u>%lld</u></stime>"
+          "<maxrss>%lld</maxrss><majflt>%lld</majflt><nswap>%lld</nswap>"
+          "<inblock>%lld</inblock><oublock>%lld</oublock>"
+          "<msgsnd>%lld</msgsnd><msgrcv>%lld</msgrcv>"
+          "<nsignals>%lld</nsignals></stats>";
    struct rusage r_usage;
-   long utime_sec, utime_usec, stime_sec, stime_usec;
+   long long utime_sec, utime_usec, stime_sec, stime_usec;
+   long long ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock;
+   long long ru_msgsnd, ru_msgrcv, ru_nsignals;
 
 // Check if actual length wanted
 //
@@ -190,16 +192,23 @@ int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 
 // Convert fields to correspond to the format we are using
 //
-   utime_sec  = static_cast<long>(r_usage.ru_utime.tv_sec);
-   utime_usec = static_cast<long>(r_usage.ru_utime.tv_usec);
-   stime_sec  = static_cast<long>(r_usage.ru_stime.tv_sec);
-   stime_usec = static_cast<long>(r_usage.ru_stime.tv_usec);
+   utime_sec   = static_cast<long long>(r_usage.ru_utime.tv_sec);
+   utime_usec  = static_cast<long long>(r_usage.ru_utime.tv_usec);
+   stime_sec   = static_cast<long long>(r_usage.ru_stime.tv_sec);
+   stime_usec  = static_cast<long long>(r_usage.ru_stime.tv_usec);
+   ru_maxrss   = static_cast<long long>(r_usage.ru_maxrss);
+   ru_majflt   = static_cast<long long>(r_usage.ru_majflt);
+   ru_nswap    = static_cast<long long>(r_usage.ru_nswap);
+   ru_inblock  = static_cast<long long>(r_usage.ru_inblock);
+   ru_oublock  = static_cast<long long>(r_usage.ru_oublock);
+   ru_msgsnd   = static_cast<long long>(r_usage.ru_msgsnd);
+   ru_msgrcv   = static_cast<long long>(r_usage.ru_msgrcv);
+   ru_nsignals = static_cast<long long>(r_usage.ru_nsignals);
 
 // Format the statistics
 //
    return snprintf(bfr, bln, statfmt, myPid,
           utime_sec, utime_usec, stime_sec, stime_usec,
-          r_usage.ru_maxrss, r_usage.ru_majflt, r_usage.ru_nswap,
-          r_usage.ru_inblock, r_usage.ru_oublock,
-          r_usage.ru_msgsnd, r_usage.ru_msgrcv, r_usage.ru_nsignals);
+          ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock,
+          ru_msgsnd, ru_msgrcv, ru_nsignals);
 }

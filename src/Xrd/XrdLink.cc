@@ -220,7 +220,6 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
   
 int XrdLink::Close()
 {   int csec, fd, rc = 0;
-    char buff[256];
 
 // Multiple protocols may be bound to this link. If it is in use, defer the
 // actual close until the use count drops to zero.
