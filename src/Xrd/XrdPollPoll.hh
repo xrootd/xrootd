@@ -36,7 +36,7 @@ public:
            ~XrdPollPoll();
 
 protected:
-       void doDetach(struct pollfd *dent);
+       void doDetach(int pti);
        void Exclude(XrdLink *lp);
        int  Include(XrdLink *lp);
 
@@ -52,7 +52,6 @@ struct     pollfd      PipePoll;
 
 struct     pollfd     *PollTab;
            int         PollTNum;
-           int         PollENum;
            XrdLink    *PollQ;
 XrdOucMutex PollMutex;                 // Protects above data
 

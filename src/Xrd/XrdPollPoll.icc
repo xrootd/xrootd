@@ -100,7 +100,6 @@ XrdPollPoll::XrdPollPoll(struct pollfd *pp, int numfd)
 // Initialize the standard stuff
 //
    PollTab = pp;
-   PollENum= 0;
    PollTNum= 0;
    PollQ   = 0;
    maxent  = numfd;
@@ -290,7 +289,7 @@ void XrdPollPoll::Exclude(XrdLink *lp)
   
 void XrdPollPoll::Start(XrdOucSemaphore *syncsem, int &retcode)
 {
-   int numpolled, num2sched, numintable = 0;
+   int numpolled, num2sched;
    XrdJob *jfirst, *jlast;
    XrdLink *plp, *lp, *nlp;
    XrdPoll_End pollend;
@@ -357,9 +356,7 @@ void XrdPollPoll::Start(XrdOucSemaphore *syncsem, int &retcode)
                  }
               plp = lp; nlp = lp->Next;
              }
-       PollENum -= num2sched;
        if (numpolled) Recover(numpolled);
-       numintable = PollENum;
        PollMutex.UnLock();
 
        // Schedule the polled links
@@ -376,9 +373,10 @@ void XrdPollPoll::Start(XrdOucSemaphore *syncsem, int &retcode)
 /*                              d o D e t a c h                               */
 /******************************************************************************/
 
-void XrdPollPoll::doDetach(struct pollfd *dent)
+void XrdPollPoll::doDetach(int pti)
 {
 #ifdef __CompPollTab__
+   struct pollfd *dent = &PollTab[pti];
    XrdLink   *lastlp;
 #endif
    int lastent;
@@ -403,8 +401,10 @@ void XrdPollPoll::doDetach(struct pollfd *dent)
                XrdLog.Emsg("Poll", "Orphaned entry", buff);
               }
      }
-#endif
   PollTNum--;
+#else
+  if (pti == lastent) PollTNum--;
+#endif
   PollMutex.UnLock();
 }
 
@@ -445,7 +445,7 @@ void XrdPollPoll::doRequests(int maxreq)
                  }
          else if (ReqBuff.req == PipeData::RmFD)
                  {PollTab[pti].fd     = -1;
-                  doDetach(&PollTab[pti]);
+                  doDetach(pti);
                   act = (char *)" detached fd ";
                   lp->isEnabled = 0;
                   lp->IOSemaphore.Post();

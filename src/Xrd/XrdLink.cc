@@ -303,26 +303,16 @@ void XrdLink::DoIt()
            }
 
 // Either re-enable the link and cycle back waiting for a new request, leave
-// disabled, or terminate the connection. Note that Close() will delete this
-// object so we should not use any object data after calling Close().
+// disabled, or terminate the connection.
 //
-   if (rc >= 0) Enable();
+   if (rc >= 0) {if (Poller) Poller->Enable(this);}
       else if (rc != -EINPROGRESS) Close();
-}
-
-/******************************************************************************/
-/*                                E n a b l e                                 */
-/******************************************************************************/
-
-int XrdLink::Enable() 
-{
-    return (Poller ? Poller->Enable(this) : 0);
 }
   
 /******************************************************************************/
 /*                              n e x t L i n k                               */
 /******************************************************************************/
-  
+
 XrdLink *XrdLink::nextLink(int &nextFD)
 {
    XrdLink *lp;
