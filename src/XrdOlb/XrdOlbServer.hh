@@ -31,6 +31,8 @@ friend class XrdOlbManager;
        char   isOffline;
        char   isNoStage;
        char   isSuspend;
+       char   isActive;
+       char   isBound;
 
 inline int   isServer(SMask_t smask) {return (smask & ServMask) != 0;}
 inline int   isServer(char *hn) 

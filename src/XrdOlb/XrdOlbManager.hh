@@ -78,6 +78,7 @@ void        Inform(const char *cmd, int clen=0, char *arg=0, int alen=0);
 XrdOlbSInfo *ListServers(SMask_t mask=(SMask_t)-1, int opts=0);
 void       *Login(XrdOucLink *lnkp);
 void       *MonPerf(void);
+void       *MonPing(void);
 void       *MonRefs(void);
 void       *Pander(char *manager, int port);
 void       *Process(void);

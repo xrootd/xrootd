@@ -65,6 +65,8 @@ XrdOlbServer::XrdOlbServer(XrdOucLink *lnkp, int port)
     isNoStage=  0;
     isOffline=  (lnkp == 0);
     isSuspend=  0;
+    isActive =  0;
+    isBound  =  0;
     myLoad   =  0;
     DiskFree =  0;
     DiskNums =  0;
@@ -1344,6 +1346,7 @@ char *XrdOlbServer::Receive(char *idbuff, int blen)
    char *lp, *tp;
    if ((lp=Link->GetLine()) && *lp)
       {DEBUG("From " <<myName <<": " <<lp);
+       isActive = 1;
        if ((tp=Link->GetToken()))
           {strncpy(idbuff, tp, blen-2); idbuff[blen-1] = '\0';
            return Link->GetToken();

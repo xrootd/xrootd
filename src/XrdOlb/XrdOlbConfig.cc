@@ -98,6 +98,8 @@ extern XrdOucError      XrdOlbSay;
   
 extern "C"
 {
+void *XrdOlbStartMonPing(void *carg) { return XrdOlbSM.MonPing(); }
+
 void *XrdOlbStartMonPerf(void *carg) { return XrdOlbSM.MonPerf(); }
 
 void *XrdOlbStartMonRefs(void *carg) { return XrdOlbSM.MonRefs(); }
@@ -275,7 +277,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
             XrdOlbLog.Bind(logfn, logsync);
             new XrdOlbLogWorker(smtype);
            }
-   XrdOlbSay.Emsg("Config",XrdCPR,(char *)" initializing as ",smtype);
+   XrdOlbSay.Emsg("Config",XrdCPR,(char *)"initializing as",smtype);
 
 // Establish the FD limit
 //
@@ -787,6 +789,9 @@ int XrdOlbConfig::setupManager()
   
 int XrdOlbConfig::setupServer()
 {
+   const char *epname = "setupServer";
+   pthread_t tid;
+   int rc;
 
 // Make sure we have enough info to be a server
 //
@@ -834,6 +839,14 @@ int XrdOlbConfig::setupServer()
            XrdOlbSay.Emsg("Config","Load based scheduling disabled.");
           }
       }
+
+// Create manager monitoring thread
+//
+   if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonPing, (void *)0)))
+      {XrdOlbSay.Emsg("Config", rc, "creating ping monitor thread");
+       return 1;
+      }
+   DEBUG("Config: thread " <<(unsigned int)tid <<" assigned to ping monitor");
 
 // If this is a staging server then set up the Prepq object
 //
@@ -1463,15 +1476,13 @@ int XrdOlbConfig::xpidf(XrdOucError *eDest, XrdOucStream &Config)
              usage     The number of pings between resource usage requests.
                        The default is 10. Zero suppresses usage requests.
 
-   Type: Manager only, dynamic.
+   Type: Server for ping value and Manager for all values, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &Config)
 {   int pnum = AskPerf, lnum = LogPerf, ping;
     char *val;
-
-    if (!isManager) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "ping value not specified"); return 1;}
