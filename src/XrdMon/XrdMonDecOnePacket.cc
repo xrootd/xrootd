@@ -14,6 +14,8 @@
 #include "XrdMon/XrdMonHeader.hh"
 #include <iomanip>
 #include <netinet/in.h>
+#include <string.h>
+
 using std::setw;
 using std::streampos;
 
