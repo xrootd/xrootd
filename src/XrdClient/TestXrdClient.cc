@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 
 
 
-   XrdCA_Initialize(argv[1]);
+   XrdCA_Initialize(argv[1], 2);
    bool ans;
    ans = XrdCA_ExistFiles("/store");
    cout << "\nThe answer of XTNetAdmin_ExistFiles is:" << ans << endl;
