@@ -26,7 +26,7 @@ public:
     packet_t    packetType() const { return _header.code; }
     sequen_t    seqNo()      const { return _header.pseq; }
     packetlen_t packetLen()  const { return _header.plen; }
-    time_t      stod()       const { return _header.stod; }
+    kXR_int32      stod()       const { return _header.stod; }
     bool xrdRestarted() const;
     void decode(const char* packet);
 
@@ -36,7 +36,7 @@ private:
     friend ostream& operator<<(ostream& o, 
                                const XrdMonHeader& header);
 
-    static time_t _prevStod;
+    static kXR_int32 _prevStod;
 };
 
 #endif /* XRDMONHEADER_HH */

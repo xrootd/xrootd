@@ -13,14 +13,15 @@
 #ifndef XRDMONUTILS_HH
 #define XRDMONUTILS_HH
 
+#include "XProtocol/XPtypes.hh"
 #include <string>
 #include <utility>
 using std::pair;
 using std::string;
 
 extern string generateTimestamp();
-extern string timestamp2string(time_t t);
-extern void   timestamp2string(time_t t, char s[24]);
+extern string timestamp2string(kXR_int32 t);
+extern void   timestamp2string(kXR_int32 t, char s[24]);
 extern pair<string, string> breakHostPort(const string& hp);
 extern void mkdirIfNecessary(const char* dir);
 

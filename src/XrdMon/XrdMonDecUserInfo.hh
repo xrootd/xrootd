@@ -36,7 +36,7 @@ public:
 
     inline bool readyToBeStored() const {return _dTime > 0;}
     
-    void setDisconnectInfo(kXR_int32 sec, time_t timestamp);
+    void setDisconnectInfo(kXR_int32 sec, kXR_int32 timestamp);
     
     dictid_t xrdId() const { return _myXrdId; }
     dictid_t uniqueId() const { return _myUniqueId; }
@@ -68,7 +68,7 @@ private:
     string    _host;
 
     kXR_int32 _sec;   // number of seconds that client was connected
-    time_t    _dTime; // disconnect time
+    kXR_int32    _dTime; // disconnect time
     
     friend ostream& operator<<(ostream& o, const XrdMonDecUserInfo& m);
 };

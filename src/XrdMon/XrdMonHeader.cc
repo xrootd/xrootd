@@ -21,7 +21,7 @@ using std::ostream;
 using std::setw;
 using std::stringstream;
 
-time_t XrdMonHeader::_prevStod = 0;
+kXR_int32 XrdMonHeader::_prevStod = 0;
 
 void
 XrdMonHeader::decode(const char* packet)

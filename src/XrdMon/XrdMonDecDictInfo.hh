@@ -45,8 +45,8 @@ public:
     const char* writeRT2Buffer(TYPE t, string& senderHost) const;
     void writeSelf2buf(char* buf, int& pos) const;
     
-    void openFile(time_t t);
-    void closeFile(kXR_int64 bytesR, kXR_int64 bytesW, time_t t);
+    void openFile(kXR_int32 t);
+    void closeFile(kXR_int64 bytesR, kXR_int64 bytesW, kXR_int32 t);
     bool addTrace(const XrdMonDecTraceInfo& trace);
 
 private:
@@ -71,8 +71,8 @@ private:
     kXR_int16 _pid;
     string  _host;
     string  _path;
-    time_t  _open;
-    time_t  _close;
+    kXR_int32  _open;
+    kXR_int32  _close;
     
     kXR_int64 _noRBytes;  // no bytes read
     kXR_int64 _noWBytes;  // no bytes writen

@@ -137,7 +137,7 @@ private:
     kXR_int32 _putOffset; // tracks where to write inside packet
     sequen_t _sequenceNo;
 
-    static time_t _serverStartTime;
+    static kXR_int32 _serverStartTime;
     
     // statistics
     kXR_int32 _noDict;

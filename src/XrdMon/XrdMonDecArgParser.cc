@@ -19,8 +19,8 @@
 using std::stringstream;
 
 bool    XrdMonDecArgParser::_forceCloseOnly(false);
-time_t  XrdMonDecArgParser::_upToTime(0);
-time_t  XrdMonDecArgParser::_ignoreIfBefore(0);
+kXR_int32  XrdMonDecArgParser::_upToTime(0);
+kXR_int32  XrdMonDecArgParser::_ignoreIfBefore(0);
 string  XrdMonDecArgParser::_fPath;
 kXR_int64 XrdMonDecArgParser::_offset2Dump(0);
 string  XrdMonDecArgParser::_hostPort;
@@ -59,7 +59,7 @@ XrdMonDecArgParser::parseArguments(int argc, char* argv[])
                 throw XrdMonException(ERR_INVALIDARG, 
                                   "Missing argument after -ignoreIfBefore");
             }
-            sscanf(argv[nr+1], "%ld", &_ignoreIfBefore);
+            sscanf(argv[nr+1], "%d", &_ignoreIfBefore);
             ++nr;
         } else if ( ! strcmp(argv[nr], "-offset2Dump") ) {
             if ( argc < nr+2 ) {

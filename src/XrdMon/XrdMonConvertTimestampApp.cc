@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
         return 1;
     }
     for ( int i=1 ; i<argc ; ++i ) {
-        time_t t;
+        kXR_int32 t;
         sscanf(argv[i], "%ld", &t);
         cout << t << "  --> " << timestamp2string(t) << endl;
     }

@@ -53,12 +53,13 @@ generateTimestamp()
 }
 
 string
-timestamp2string(time_t timestamp)
+timestamp2string(kXR_int32 timestamp)
 {
     if ( 0 == timestamp ) {
         return string("0000-00-00 00:00:00");
     }
-    struct tm *t = localtime(&timestamp);
+    time_t tt = timestamp;
+    struct tm *t = localtime(&tt);
     ostringstream ss;
 
     // Format: YYYY-MM-DD HH:MM:SS
@@ -72,14 +73,15 @@ timestamp2string(time_t timestamp)
 }
 
 void
-timestamp2string(time_t timestamp, char s[24])
+timestamp2string(kXR_int32 timestamp, char s[24])
 {
     if ( 0 == timestamp ) {
         strcpy(s, "0000-00-00 00:00:00");
         return;
     }
 
-    struct tm *t = localtime(&timestamp);
+    time_t tt = timestamp;
+    struct tm *t = localtime(&tt);
     
     // Format: YYYY-MM-DD HH:MM:SS
     sprintf(s, "%4d-%02d-%02d %02d:%02d:%02d",

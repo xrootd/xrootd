@@ -16,7 +16,7 @@
 #include <iomanip>
 using std::setw;
 
-time_t XrdMonSndCoder::_serverStartTime = 0;
+kXR_int32 XrdMonSndCoder::_serverStartTime = 0;
 
 XrdMonSndCoder::XrdMonSndCoder()
     : _sequenceNo(0),

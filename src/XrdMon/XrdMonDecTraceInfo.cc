@@ -16,7 +16,7 @@
 #include <iomanip>
 #include <sstream>
 
-time_t XrdMonDecTraceInfo::_lastT(0);
+kXR_int32 XrdMonDecTraceInfo::_lastT(0);
 string XrdMonDecTraceInfo::_lastS;
 
 void

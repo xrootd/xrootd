@@ -165,12 +165,12 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(const char* buf, int& pos)
 }
 
 void
-XrdMonDecDictInfo::openFile(time_t t)
+XrdMonDecDictInfo::openFile(kXR_int32 t)
 {
     if ( 0 == _open ) {
         _open = t;
     } else {
-        time_t useThis = t<_open? t : _open;
+        kXR_int32 useThis = t<_open? t : _open;
         cerr << "ERROR: Multiple attempts to open file "
              << *this << ", passed timestamp is "
              << timestamp2string(t) << ", will use " 
@@ -180,12 +180,12 @@ XrdMonDecDictInfo::openFile(time_t t)
 }
 
 void
-XrdMonDecDictInfo::closeFile(kXR_int64 bytesR, kXR_int64 bytesW, time_t t)
+XrdMonDecDictInfo::closeFile(kXR_int64 bytesR, kXR_int64 bytesW, kXR_int32 t)
 {
     if ( 0 == _close ) {
         _close = t;
     } else {
-        time_t useThis = t>_close? t : _close;
+        kXR_int32 useThis = t>_close? t : _close;
         cerr << "ERROR: Multiple attempts to close file "
              << *this << ", passed timestamp is "
              << timestamp2string(t) << ", will use " 
@@ -233,8 +233,8 @@ XrdMonDecDictInfo::stringSize() const
            sizeof(kXR_int16) +                // _pid
            sizeof(kXR_int16) + _host.size() + // _host
            sizeof(kXR_int16) + _path.size() + // _path
-           sizeof(time_t)  +                  // _open
-           sizeof(time_t)  +                  // _close
+           sizeof(kXR_int32)  +                  // _open
+           sizeof(kXR_int32)  +                  // _close
            sizeof(kXR_int64) +                // _noRBytes
            sizeof(kXR_int64);                 // _noWBytes
 }

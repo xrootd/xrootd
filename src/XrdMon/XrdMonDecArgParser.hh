@@ -22,8 +22,8 @@ class XrdMonDecArgParser {
 public:
     static void parseArguments(int argc, char* argv[]);
     static bool   _forceCloseOnly;
-    static time_t _upToTime;
-    static time_t _ignoreIfBefore;
+    static kXR_int32 _upToTime;
+    static kXR_int32 _ignoreIfBefore;
     static string _fPath;
     static string _hostPort; // of the sender - xrd host
     static string _baseDir;

@@ -31,7 +31,7 @@ using std::stringstream;
 XrdMonDecPreProcess::XrdMonDecPreProcess(fstream& theFile, 
                              kXR_int64 fSize, 
                              sequen_t lastSeq,
-                             time_t ignoreIfBefore,
+                             kXR_int32 ignoreIfBefore,
                              vector< pair<packetlen_t, kXR_int64> >& allPackets)
     : _file(theFile),
       _fSize(fSize),
@@ -60,7 +60,7 @@ XrdMonDecPreProcess::operator()()
 void
 XrdMonDecPreProcess::checkFile()
 {
-    time_t xrdStartTime = 0;
+    kXR_int32 xrdStartTime = 0;
     
     enum { RBUFSIZE = 1024*1024 };
     char rBuf[RBUFSIZE];    
@@ -95,7 +95,7 @@ int
 XrdMonDecPreProcess::processOnePacket(const char* buf, 
                                       int bytesLeft, 
                                       kXR_int64 fPos, 
-                                      time_t& xrdStartTime)
+                                      kXR_int32& xrdStartTime)
 {
     XrdMonDecOnePacket packet;
     int noBytesRead = packet.init(buf, bytesLeft, fPos);

@@ -33,7 +33,7 @@ public:
     XrdMonDecPreProcess(fstream& theFile, 
                         kXR_int64 fSize, 
                         sequen_t lastSeq,
-                        time_t ignoreIfBefore,
+                        kXR_int32 ignoreIfBefore,
                         vector< pair<packetlen_t, kXR_int64> >& allPackets);
     void operator()();
     
@@ -46,7 +46,7 @@ private:
     int processOnePacket(const char* buf, 
                          int bytesLeft, 
                          kXR_int64 fPos, 
-                         time_t& xrdStartTime);
+                         kXR_int32& xrdStartTime);
     void reportAndThrowIfTooBad();
 
 private:
@@ -59,7 +59,7 @@ private:
     short _tempBufPos;
     bool _markNextSlotAsSpecial;
 
-    time_t _ignoreIfBefore; // ignore packets that arrived before given time
+    kXR_int32 _ignoreIfBefore; // ignore packets that arrived before given time
     
     vector< pair<packetlen_t, kXR_int64> >& _allPackets;
     

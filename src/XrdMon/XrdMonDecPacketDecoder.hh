@@ -28,7 +28,7 @@ public:
     XrdMonDecPacketDecoder(const char* baseDir,
                            bool saveTraces,
                            int maxTraceLogSize,
-                           time_t upToTime);
+                           kXR_int32 upToTime);
 
     void init(dictid_t min, dictid_t max, const string& senderHP);
     sequen_t lastSeq() const { return _sink.lastSeq(); }
@@ -45,19 +45,19 @@ public:
     void flushRealTimeData() { return _sink.flushRealTimeData(); }
     
 private:
-    typedef pair<time_t, time_t> TimePair; // <beg time, end time>
+    typedef pair<kXR_int32, kXR_int32> TimePair; // <beg time, end time>
 
     struct CalcTime {
-        CalcTime(float f, time_t t, int e)
+        CalcTime(float f, kXR_int32 t, int e)
             : timePerTrace(f), begTimeNextWindow(t), endOffset(e) {}
         float  timePerTrace;
-        time_t begTimeNextWindow;
+        kXR_int32 begTimeNextWindow;
         int    endOffset;
     };
     
     CalcTime& f();
     
-    typedef pair<float, time_t> FloatTime; // <time per trace, beg time next wind>
+    typedef pair<float, kXR_int32> FloatTime; // <time per trace, beg time next wind>
 
     void checkLostPackets(const XrdMonHeader& header);
     
@@ -65,20 +65,20 @@ private:
     void decodeDictPacket(const char* packet, int packetLen);
     void decodeUserPacket(const char* packet, int packetLen);
     TimePair decodeTime(const char* packet);
-    void decodeRWRequest(const char* packet, time_t timestamp);
-    void decodeOpen(const char* packet, time_t timestamp);
-    void decodeClose(const char* packet, time_t timestamp);
-    void decodeDisconnect(const char* packet, time_t timestamp);
+    void decodeRWRequest(const char* packet, kXR_int32 timestamp);
+    void decodeOpen(const char* packet, kXR_int32 timestamp);
+    void decodeClose(const char* packet, kXR_int32 timestamp);
+    void decodeDisconnect(const char* packet, kXR_int32 timestamp);
 
     CalcTime prepareTimestamp(const char* packet, 
                               int& offset, 
                               int len, 
-                              time_t& begTime);
+                              kXR_int32& begTime);
 private:
     XrdMonDecSink _sink;
     bool          _stopNow;
 
-    time_t        _upToTime; // for decoding parts of log file
+    kXR_int32        _upToTime; // for decoding parts of log file
 };
 
 #endif /* XRDMONDECPACKETDECODER_HH */

@@ -200,7 +200,7 @@ XrdMonDecSink::add(dictid_t xrdId, XrdMonDecTraceInfo& trace)
 void
 XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
                                  kXR_int32 sec,
-                                 time_t timestamp)
+                                 kXR_int32 timestamp)
 {
     XrdOucMutexHelper mh; mh.Lock(&_uMutex);
     std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(xrdId);
@@ -216,7 +216,7 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
 }
 
 void
-XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
+XrdMonDecSink::openFile(dictid_t xrdId, kXR_int32 timestamp)
 {
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
@@ -238,7 +238,7 @@ void
 XrdMonDecSink::closeFile(dictid_t xrdId, 
                          kXR_int64 bytesR, 
                          kXR_int64 bytesW, 
-                         time_t timestamp)
+                         kXR_int32 timestamp)
 {
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);

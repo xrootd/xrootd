@@ -33,13 +33,13 @@ using std::setfill;
 using std::setw;
 using std::stringstream;
 
-typedef pair<time_t, time_t> TimePair; // <beg time, end time>
+typedef pair<kXR_int32, kXR_int32> TimePair; // <beg time, end time>
 
 struct CalcTime {
-    CalcTime(float f, time_t t, int e)
+    CalcTime(float f, kXR_int32 t, int e)
         : timePerTrace(f), begTimeNextWindow(t), endOffset(e) {}
     float  timePerTrace;
-    time_t begTimeNextWindow;
+    kXR_int32 begTimeNextWindow;
     int    endOffset;
 };
 
@@ -58,7 +58,7 @@ CalcTime
 prepareTimestamp(const char* packet, 
                  int& offset, 
                  int len, 
-                 time_t& begTime)
+                 kXR_int32& begTime)
 {
     // look for time window
     int x = offset;
@@ -93,7 +93,7 @@ prepareTimestamp(const char* packet,
 }
 
 void
-debugRWRequest(const char* packet, time_t timestamp, kXR_int64 offset)
+debugRWRequest(const char* packet, kXR_int32 timestamp, kXR_int64 offset)
 {
     struct X {
         kXR_int64 tOffset;
@@ -121,7 +121,7 @@ debugRWRequest(const char* packet, time_t timestamp, kXR_int64 offset)
 
 void
 debugOpenClose(const char* packet, 
-               time_t timestamp, 
+               kXR_int32 timestamp, 
                kXR_int64 offset, 
                const char* name)
 {
@@ -176,7 +176,7 @@ debugTracePacket(const char* packet, int len)
     cout << "offset " << setw(5) << HDRLEN
          << ", timepair: {" << t.first << ", " << t.second << "}" << endl;
 
-    time_t begTime = t.second;
+    kXR_int32 begTime = t.second;
     int offset = TRACELEN;
 
     while ( offset < len ) {
@@ -184,7 +184,7 @@ debugTracePacket(const char* packet, int len)
         int elemNo = 0;
         while ( offset<ct.endOffset ) {
             kXR_char infoType = static_cast<kXR_char>(*(packet+offset));
-            time_t timestamp = begTime + (time_t) (elemNo++ * ct.timePerTrace);
+            kXR_int32 timestamp = begTime + (kXR_int32) (elemNo++ * ct.timePerTrace);
             if ( !(infoType & XROOTD_MON_RWREQUESTMASK) ) {
                 cout << "offset " << setw(5) << offset 
                      << " --> XROOTD_MON_RWREQUESTMAST" << endl;

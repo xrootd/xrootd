@@ -89,7 +89,7 @@ XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
 
 void
 XrdMonDecUserInfo::setDisconnectInfo(kXR_int32 sec,
-                                     time_t timestamp)
+                                     kXR_int32 timestamp)
 {
     _sec   = sec;
     _dTime = timestamp;

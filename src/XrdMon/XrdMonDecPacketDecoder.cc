@@ -37,7 +37,7 @@ XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir,
 XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir,
                                                bool saveTraces,
                                                int maxTraceLogSize,
-                                               time_t upToTime)
+                                               kXR_int32 upToTime)
     : _sink(baseDir, 0, saveTraces, maxTraceLogSize),
       _stopNow(false),
       _upToTime(upToTime)
@@ -112,7 +112,7 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
         _stopNow = true;
         return;
     }
-    time_t begTime = t.second;
+    kXR_int32 begTime = t.second;
     int offset = TRACELEN;
 
     //cout << "Decoded time (first) " << t.first << " " << t.second << endl;
@@ -122,7 +122,7 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
         int elemNo = 0;
         while ( offset<ct.endOffset ) {
             kXR_char infoType = static_cast<kXR_char>(*(packet+offset));
-            time_t timestamp = begTime + (time_t) (elemNo++ * ct.timePerTrace);
+            kXR_int32 timestamp = begTime + (kXR_int32) (elemNo++ * ct.timePerTrace);
             if ( !(infoType & XROOTD_MON_RWREQUESTMASK) ) {
                 decodeRWRequest(packet+offset, timestamp);
             } else if ( infoType == XROOTD_MON_OPEN ) {
@@ -181,7 +181,7 @@ XrdMonDecPacketDecoder::decodeTime(const char* packet)
 }
 
 void
-XrdMonDecPacketDecoder::decodeRWRequest(const char* packet, time_t timestamp)
+XrdMonDecPacketDecoder::decodeRWRequest(const char* packet, kXR_int32 timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
@@ -203,7 +203,7 @@ XrdMonDecPacketDecoder::decodeRWRequest(const char* packet, time_t timestamp)
 }
 
 void
-XrdMonDecPacketDecoder::decodeOpen(const char* packet, time_t timestamp)
+XrdMonDecPacketDecoder::decodeOpen(const char* packet, kXR_int32 timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
@@ -213,7 +213,7 @@ XrdMonDecPacketDecoder::decodeOpen(const char* packet, time_t timestamp)
 }
 
 void
-XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
+XrdMonDecPacketDecoder::decodeClose(const char* packet, kXR_int32 timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
@@ -234,7 +234,7 @@ XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
 }
 
 void
-XrdMonDecPacketDecoder::decodeDisconnect(const char* packet, time_t timestamp)
+XrdMonDecPacketDecoder::decodeDisconnect(const char* packet, kXR_int32 timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
@@ -251,7 +251,7 @@ XrdMonDecPacketDecoder::CalcTime
 XrdMonDecPacketDecoder::prepareTimestamp(const char* packet, 
                                          int& offset, 
                                          int len, 
-                                         time_t& begTime)
+                                         kXR_int32& begTime)
 {
     // look for time window
     int x = offset;
