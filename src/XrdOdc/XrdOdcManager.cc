@@ -80,7 +80,7 @@ int XrdOdcManager::Send(char *msg, int mlen)
    if (Active)
       {myData.Lock();
        if (Link)
-          if (!(allok = (Link && Link->Send(msg, mlen) == 0)))
+          if (!(allok = (Link && Link->Send(msg, mlen, 0) == 0)))
              {Active = 0;
               Link->Close();
              }
@@ -101,7 +101,7 @@ int XrdOdcManager::Send(const struct iovec *iov, int iovcnt)
    if (Active)
       {myData.Lock();
        if (Link)
-          if (!(allok = (Link && Link->Send(iov, iovcnt) == 0)))
+          if (!(allok = (Link && Link->Send(iov, iovcnt, 0) == 0)))
              {Active = 0;
               Link->Close();
              }
@@ -119,7 +119,6 @@ int XrdOdcManager::Send(const struct iovec *iov, int iovcnt)
   
 void *XrdOdcManager::Start()
 {
-   XrdOucLink *lp;
    char *msg;
    int   msgid, retc;
 
@@ -129,7 +128,7 @@ void *XrdOdcManager::Start()
 
        // Now simply start receiving messages on the stream
        //
-       while(msg = Receive(msgid)) XrdOdcMsg::Reply(msgid, msg);
+       while((msg = Receive(msgid))) XrdOdcMsg::Reply(msgid, msg);
 
        // Tear down the connection
        //
@@ -166,7 +165,7 @@ void XrdOdcManager::Hookup()
    XrdOucLink *lp;
    int tries = 12, opts = OUC_NODELAY;
 
-// Keep trying to connect to the master
+// Keep trying to connect to the manager
 //
    do {while(!(lp = Network->Connect(Host, Port, opts)))
             {Sleep(dally);
@@ -216,7 +215,7 @@ char *XrdOdcManager::Receive(int &msgid)
    char *lp, *tp, *rest;
    if ((lp=Link->GetLine()) && *lp)
       {DEBUG("Server: Received from " <<Link->Name() <<": " <<lp);
-       if (tp=Link->GetToken(&rest))
+       if ((tp=Link->GetToken(&rest)))
           {errno = 0;
            msgid  = (int)strtol(tp, (char **)NULL, 10);
            if (!errno) return rest;

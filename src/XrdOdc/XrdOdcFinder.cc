@@ -130,12 +130,11 @@ int XrdOdcFinderLCL::Configure(char *cfn)
 {
    const char *epname = "Config";
    XrdOdcConfig config(&OdcEDest, myPort);
-   char buff[128];
    int repsid;
 
 // Set the error dest and simply call the configration object
 //
-   if (config.Configure(cfn)) return 0;
+   if (config.Configure(cfn, "Local")) return 0;
    OLBPath = config.OLBPath;
 
 // Attach shared memory
@@ -164,7 +163,7 @@ int XrdOdcFinderLCL::Configure(char *cfn)
 // Initialize the selection table
 //
    nextent = 0; nument = 0;
-   while(altserv[nument].port = config.portVec[nument])
+   while((altserv[nument].port = config.portVec[nument]))
         {altserv[nument].pid  = 0; altserv[nument].numfd = 0;
          altserv[nument].load = 0; altserv[nument].ok = 0;
          altserv[nument].tics = 0;
@@ -184,9 +183,7 @@ int XrdOdcFinderLCL::Configure(char *cfn)
   
 int XrdOdcFinderLCL::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 {
-   const char *epname = "Locate";
-   int  selent, allok, noresp, retc = 0;
-   char mbuff[1024];
+   int selent;
 
 // Slect the proper port or defulat to ourselves
 //
@@ -194,9 +191,8 @@ int XrdOdcFinderLCL::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 
 // Construct the redirection message
 //
-   sprintf(mbuff, "!try %s:%d", myHost, altserv[selent].port);
-   Resp.setErrInfo(0, mbuff);
-   return -1;
+   Resp.setErrInfo(altserv[selent].port, myHost);
+   return -EAGAIN;
 }
 
 int XrdOdcFinderLCL::LocbyFD()
@@ -308,9 +304,8 @@ void *XrdOdcFinderLCL::InspectLoad()
   
 void *XrdOdcFinderLCL::ReportLoad()
 {
-   const char *epname = "ReportLoad";
    unsigned long tics = odcTICSTART;
-   int load, maxerrs = 3;
+   int load;
    long totcpu;
 
 // Simply calculate load ever interval
@@ -454,8 +449,8 @@ void XrdOdcFinderLCL::probLoad(int probnum, int sent, int sport, pid_t spid)
 //
    switch (probnum)
           {case odcBADPORT:
-                sprintf(buff,"server is using the wrong; port=%d (%d) pid=%d"
-                             "pid=%d", sport, port, spid);
+                sprintf(buff,"server is using the wrong; port=%d (%d) pid=%d",
+                             sport, port, spid);
                 break;
            case odcDEDSRVR:
                 sprintf(buff,"server has died; port=%d pid=%d",sport,spid);
@@ -471,7 +466,7 @@ void XrdOdcFinderLCL::probLoad(int probnum, int sent, int sport, pid_t spid)
                 sprintf(buff,"server activited; port=%d pid=%d",port,spid);
                 break;
            default:
-                sprintf(buff,"unknown server problem; port=%d,$d pid=%d",
+                sprintf(buff,"unknown server problem; port=%d (%d) pid=%d",
                               port,sport,spid);
                 break;
           }
@@ -486,14 +481,13 @@ void XrdOdcFinderLCL::probLoad(int probnum, int sent, int sport, pid_t spid)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOdcFinderRMT::XrdOdcFinderRMT(XrdOucLogger *lp)
-               : XrdOdcFinder(lp, XrdOdcFinder::amRemote)
+XrdOdcFinderRMT::XrdOdcFinderRMT(XrdOucLogger *lp, int isProxy)
+               : XrdOdcFinder(lp, (isProxy ? XrdOdcFinder::amProxy
+                                           : XrdOdcFinder::amRemote))
 {
-     myManagers   = 0;
-     myManCount   = 0;
-     ConWaitMsg   = 0;
-     RepDelayMsg  = 0;
-     SMode        = 0;
+     myManagers  = 0;
+     myManCount  = 0;
+     SMode       = 0;
 }
  
 /******************************************************************************/
@@ -504,10 +498,7 @@ XrdOdcFinderRMT::~XrdOdcFinderRMT()
 {
     XrdOdcManager *mp, *nmp = myManagers;
 
-    while(mp = nmp) {nmp = mp->nextManager(); delete mp;}
-
-    if (ConWaitMsg)  free(ConWaitMsg);
-    if (RepDelayMsg) free(RepDelayMsg);
+    while((mp = nmp)) {nmp = mp->nextManager(); delete mp;}
 }
 
 /******************************************************************************/
@@ -517,24 +508,21 @@ XrdOdcFinderRMT::~XrdOdcFinderRMT()
 int XrdOdcFinderRMT::Configure(char *cfn)
 {
    XrdOdcConfig config(&OdcEDest, 0);
-   char buff[128];
 
 // Set the error dest and simply call the configration object
 //
-   if (config.Configure(cfn)) return 0;
+   if (config.Configure(cfn, (myPersona == XrdOdcFinder::amProxy ?
+                             "Proxy" : "Remote"))) return 0;
 
 // Set configured values and start the managers
 //
    OLBPath    = config.OLBPath;
    RepDelay   = config.RepDelay;
-   sprintf(buff, "!wait %d", config.RepDelay);
-   RepDelayMsg= strdup(buff);
    RepWait    = config.RepWait;
    ConWait    = config.ConWait;
-   sprintf(buff, "!wait %d", config.ConWait);
-   ConWaitMsg = strdup(buff);
-   SMode      = config.SMode;
-   StartManagers(config.ManList);
+   if (myPersona == XrdOdcFinder::amProxy)
+           {SMode = config.SModeP; StartManagers(config.PanList);}
+      else {SMode = config.SMode;  StartManagers(config.ManList);}
 
 // All done
 //
@@ -548,9 +536,7 @@ int XrdOdcFinderRMT::Configure(char *cfn)
 int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd, 
                              char *arg1, char *arg2)
 {
-   const char *epname = "Forward";
-   int  i, mlen;
-   char stype, ptype, mbuff[16];
+   int  i;
    XrdOdcManager *Manp;
    struct iovec xmsg[8];
 
@@ -559,7 +545,7 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
    if (!myManagers)
       {OdcEDest.Emsg("Finder", "Forward() called prior to Configure().");
        Resp.setErrInfo(EPROTO, "Internal error locating file.");
-       return 1;
+       return -EPROTO;
       }
 
 // Select the right manager for this request
@@ -585,8 +571,8 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 
 // Indicate client should retry later
 //
-   Resp.setErrInfo(0, (const char *)RepDelayMsg);
-   return 1;
+   Resp.setErrInfo(RepDelay, (const char *)"");
+   return RepDelay;
 }
   
 /******************************************************************************/
@@ -596,8 +582,8 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 {
    const char *epname = "Locate";
-   int  mlen, noresp;
-   char stype, ptype, mbuff[64];
+   int  val, retc, mlen, noresp = 0;
+   char *colon, *tinfo, *msg, stype, ptype, mbuff[64];
    XrdOdcMsg *mp;
    XrdOdcManager *Manp;
    struct iovec xmsg[3];
@@ -607,7 +593,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
    if (!myManagers)
       {OdcEDest.Emsg("Finder", "Locate() called prior to Configure().");
        Resp.setErrInfo(EPROTO, "Internal error locating file.");
-       return 1;
+       return -EPROTO;
       }
 
 // Compute mode
@@ -619,7 +605,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 
 // Select the right manager for this request
 //
-   if (!(Manp = SelectManager(Resp, (char *)path))) return 1;
+   if (!(Manp = SelectManager(Resp, (char *)path))) return ConWait;
 
 // Construct a message to be sent to the manager
 //
@@ -632,20 +618,44 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 // Send message and simply wait for the reply
 //
    if (!Manp->Send(xmsg, 3) || (noresp = mp->Wait4Reply(RepWait)))
-      Resp.setErrInfo(0, (const char *)RepDelayMsg);
+      {Resp.setErrInfo(RepDelay, ""); 
+       val = retc = RepDelay;
+       tinfo = (char *)" No response from ";
+       msg = Manp->Name();
+      }
+      else {msg = (char *)Resp.getErrText(retc);
+                 if (retc == -EREMOTE)
+                    {tinfo = (char *)" redirected to ";
+                     if (!(colon = index(msg, (int)':'))) val = 0;
+                        else {*colon = '\0';
+                              val = atoi((const char *)(colon+1));
+                             }
+                     Resp.setErrCode(val);
+                    }
+            else if (retc == -EAGAIN)
+                    {tinfo = (char *)" wait ";
+                     if (!(retc = atoi((const char *)msg))) retc = RepDelay;
+                     val = retc;
+                     Resp.setErrInfo(val, "");
+                    }
+            else if (retc == -EINVAL)
+                    {val = 0; tinfo = (char *)" error: ";}
+            else    {sprintf(mbuff, "error %d: ", retc);
+                     tinfo = mbuff;
+                     val = retc;
+                     retc = -EINVAL;
+                    }
+           }
 
-// Debug no responses here
+// Do a trace
 //
-   if (noresp) DEBUG("Finder: No response from " <<Manp->Name());
-
-// Perform trace here
-//
-   TRACE(Redirect, "resp='" <<Resp.getErrText() <<"' path=" <<path);
+   TRACE(Redirect, "user=" <<Resp.getErrUser() <<tinfo <<msg <<' ' <<val
+                           <<" path=" <<path);
 
 // All done
 //
    mp->Recycle();
-   return 1;
+   return retc;
 }
   
 /******************************************************************************/
@@ -655,9 +665,9 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
 {
    const char *epname = "Prepare";
-   char mbuff1[32], mbuff2[32], *notify, *mode;
-   XrdOucTList *tp, *ntp;
-   int allok, i, mint, pathloc, plenloc = 0;
+   char mbuff1[32], mbuff2[32], *mode;
+   XrdOucTList *tp;
+   int allok, mint, pathloc, plenloc = 0;
    XrdOdcManager *Manp, *Womp;
    struct iovec iodata[8];
 
@@ -666,13 +676,13 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
    if (!myManagers)
       {OdcEDest.Emsg("Finder", "Prepare() called prior to Configure().");
        Resp.setErrInfo(EPROTO, "Internal error preparing files.");
-       return 1;
+       return -EPROTO;
       }
 
 // Check for a cancel request
 //
    if (!(tp = pargs.paths))
-      {if (!(Manp = SelectManager(Resp, 0))) return 1;
+      {if (!(Manp = SelectManager(Resp, 0))) return ConWait;
        iodata[0].iov_base = (char *)"0 prepdel ";
        iodata[0].iov_len  = 10;    //1234567890
        iodata[1].iov_base = pargs.reqid;
@@ -680,10 +690,10 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
        iodata[2].iov_base = (char *)"\n ";
        iodata[2].iov_len  = 1;
        if (Manp->Send((const struct iovec *)&iodata, 3)) return 0;
-          else {Resp.setErrInfo(0, (const char *)RepDelayMsg);
+          else {Resp.setErrInfo(RepDelay, (const char *)"");
                 DEBUG("Finder: Failed to send prepare cancel to " <<Manp->Name()
                       <<" reqid=" <<pargs.reqid);
-                return 1;
+                return RepDelay;
                }
       }
 
@@ -720,7 +730,7 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
         {mint = (SMode == ODC_ROUNDROB
                 ? XrdOucReqID::Index(myManCount, tp->text) : 0);
          Womp = Manp = myManTable[mint];
-         do {if (allok = (Manp->isActive())) break;
+         do {if ((allok = (Manp->isActive()))) break;
             } while((Manp = Manp->nextManager()) != Womp);
          if (!allok) {SelectManFail(Resp); break;}
 
@@ -739,14 +749,11 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
 
 // Check if all went well
 //
-   if (tp) {Resp.setErrInfo(0, (const char *)RepDelayMsg);
-            DEBUG("Finder: Failed to send prepare to " <<Manp->Name()
-                           <<" reqid=" <<pargs.reqid);
-           }
-
-// All done (return 0 if ok, 1 otherwise)
-//
-   return tp != 0;
+   if (!tp) return 0;
+   Resp.setErrInfo(RepDelay, (const char *)"");
+   DEBUG("Finder: Failed to send prepare to " <<Manp->Name()
+                  <<" reqid=" <<pargs.reqid);
+   return RepDelay;
 }
 
 /******************************************************************************/
@@ -792,8 +799,8 @@ void XrdOdcFinderRMT::SelectManFail(XrdOucErrInfo &Resp)
        myData.UnLock();
        OdcEDest.Emsg("Finder", "All managers are disfunctional.");
       } else myData.UnLock();
-   Resp.setErrInfo(0, (const char *)ConWaitMsg);
-   TRACE(Redirect, "resp='" <<ConWaitMsg <<"'");
+   Resp.setErrInfo(ConWait, (const char *)"");
+   TRACE(Redirect, "user=" <<Resp.getErrUser() <<" No managers available; wait " <<ConWait);
 }
 
 /******************************************************************************/
@@ -813,7 +820,7 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
    const char *epname = "StartManagers";
    XrdOucTList *tp;
    XrdOdcManager *mp, *firstone = 0;
-   int i = 0, NoGo = 0;
+   int i = 0;
    pthread_t tid;
    char buff[128];
 
@@ -908,11 +915,10 @@ int XrdOdcFinderTRG::Configure(char *cfn)
    const char *epname = "Config";
    XrdOdcConfig config(&OdcEDest, 0);
    pthread_t tid;
-   char buff[128];
 
 // Set the error dest and simply call the configration object
 //
-   if (config.Configure(cfn, 0)) return 0;
+   if (config.Configure(cfn, "Target")) return 0;
    if (!(OLBPath = config.OLBPath))
       {OdcEDest.Emsg("Config", "Unable to determine olb admin path"); return 0;}
 
@@ -958,7 +964,7 @@ void *XrdOdcFinderTRG::Start()
 {
    int   retc;
 
-// First step is to connect to the local slave olb
+// First step is to connect to the local server olb
 //
    while(1)
         {do {Hookup();

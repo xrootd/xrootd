@@ -30,10 +30,11 @@ class XrdOdcConfig
 {
 public:
 
-int           Configure(char *cfn, int lclrmt=1);
+int           Configure(char *cfn, const char *mode);
 
 int           ConWait;      // Seconds to wait for a manager connection
 int           RepWait;      // Seconds to wait for manager replies
+int           RepWaitMS;    // RepWait*1000 for poll()
 int           RepDelay;     // Seconds to delay before retrying manager
 
 XrdOdcPselT   pselType;     // How ports are selected
@@ -44,11 +45,14 @@ int           pselMint;     // Monitoring interval
 char         *OLBPath;      // Path to the local olb for target nodes
 
 XrdOucTList  *ManList;      // List of managers for remote redirection
+XrdOucTList  *PanList;      // List of managers for proxy  redirection
 unsigned char SMode;        // Manager selection mode
+unsigned char SModeP;       // Manager selection mode (proxy)
 
       XrdOdcConfig(XrdOucError *erp, int port=0)
-                  {ConWait = 10; RepWait = 3; RepDelay = 5;
-                   ManList = 0; portVec[0] = 0; SMode = ODC_FAILOVER;
+                  {ConWait = 10; RepWait = 3; RepWaitMS = 3000; RepDelay = 5;
+                   ManList = PanList = 0; portVec[0] = 0;
+                   SMode = SModeP = ODC_FAILOVER;
                    pselSkey = 1312; pselMint = 60;
                    eDest = erp; lclPort = port;
                    OLBPath = 0;

@@ -55,7 +55,7 @@ Notes:
 /*                                  m a i n                                   */
 /******************************************************************************/
   
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    XrdOucLogger eLog;
    XrdOucError  eDest(&eLog, "odctest_");
@@ -65,7 +65,6 @@ main(int argc, char *argv[])
    XrdOucEI        Result;
    int retc, mode;
    char c, *cfn = 0, *lp, *tp;
-   extern char *optarg;
    extern int optind, opterr, optopt;
    void Usage(int);
 

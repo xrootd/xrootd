@@ -23,6 +23,18 @@ class  XrdOucTList;
 struct XrdOdcData;
 struct XrdSfsPrep;
 
+// The following return conventions are use by Forward(), Locate(), & Prepare()
+//
+// Return Val   Resp.errcode          Resp.errtext
+// ---------    -------------------   --------
+// -EREMOTE     port (0 for default)  Host name
+// > 0          Wait time (= retval)  Reason for wait
+// < 0          Error number          Error message
+// = 0          Not applicable        Not applicable (see below)
+//                                    Forward() -> Request forwarded
+//                                    Locate()  -> Redirection does not apply
+//                                    Prepare() -> Request submitted
+
 class XrdOdcFinder
 {
 public:
@@ -39,10 +51,10 @@ virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) = 0;
 
 virtual void   UpdateFD(int num) = 0;
 
-        enum   Persona {amLocal, amRemote, amTarget};
+        enum   Persona {amLocal, amProxy, amRemote, amTarget};
 
                XrdOdcFinder(XrdOucLogger *lp, Persona acting);
-              ~XrdOdcFinder() {}
+virtual       ~XrdOdcFinder() {}
 
 protected:
 
@@ -129,8 +141,8 @@ public:
 
         void   UpdateFD(int numfd) {}
 
-      XrdOdcFinderRMT(XrdOucLogger *lp);
-     ~XrdOdcFinderRMT();
+               XrdOdcFinderRMT(XrdOucLogger *lp, int isProxy=0);
+              ~XrdOdcFinderRMT();
 
 private:
 int            Decode(char **resp);
@@ -143,9 +155,7 @@ XrdOdcManager *myManagers;
 int            myManCount;
 XrdOucMutex    myData;
 int            ConWait;
-char          *ConWaitMsg;      // !wait nnn
 int            RepDelay;
-char          *RepDelayMsg;     // !wait nnn
 int            RepWait;
 unsigned char  SMode;
 };
@@ -175,8 +185,8 @@ public:
 
         void   UpdateFD(int num) {}
 
-      XrdOdcFinderTRG(XrdOucLogger *lp, int isprime, int port);
-     ~XrdOdcFinderTRG();
+               XrdOdcFinderTRG(XrdOucLogger *lp, int isprime, int port);
+              ~XrdOdcFinderTRG();
 
 private:
 

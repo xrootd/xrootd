@@ -46,16 +46,19 @@ const char *XrdOdcConfigCVSID = "$Id$";
   
 XrdOdcConfig::~XrdOdcConfig()
 {
-  XrdOucTList *tp, *tpp = ManList;
+  XrdOucTList *tp, *tpp;
 
-  while(tp = tpp) {tpp = tp->next; delete tp;}
+  tpp = ManList;
+  while((tp = tpp)) {tpp = tp->next; delete tp;}
+  tpp = PanList;
+  while((tp = tpp)) {tpp = tp->next; delete tp;}
 }
 
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdOdcConfig::Configure(char *cfn, int lclrmt)
+int XrdOdcConfig::Configure(char *cfn, const char *mode)
 {
 /*
   Function: Establish configuration at start up time.
@@ -69,23 +72,32 @@ int XrdOdcConfig::Configure(char *cfn, int lclrmt)
 
 // Tell the world we have started
 //
-   eDest->Emsg("Config", "Distributed cache initialization started.");
+   eDest->Emsg("Config", mode, (char *)"redirection initialization started");
 
 // Process the configuration file
 //
    if (!(NoGo = ConfigProc(cfn)))
-      if (lclrmt)
-         {if (lclPort)
-             {if (!portVec[0])
-                 {eDest->Emsg("Config","No ports for balancing specified.");
-                  NoGo=1;
-                 }
-             } else if (!ManList)
-                       {eDest->Emsg("Config", "Cache manager not specified.");
-                        NoGo=1;
-                       }
-         }
+           if (*mode == 'L')
+              {if (!lclPort || !portVec[0])
+                  {eDest->Emsg("Config","No ports for local balancing specified.");
+                   NoGo=1;
+                  }
+              }
+      else if (*mode == 'P')
+              {if (!PanList)
+                  {eDest->Emsg("Config", "Proxy manager not specified.");
+                   NoGo=1;
+                  }
+              }
+      else if (*mode == 'R')
+              {if (!ManList)
+                  {eDest->Emsg("Config", "Remote manager not specified.");
+                   NoGo=1;
+                  }
+              }
+
    if (!OLBPath) OLBPath = strdup("/tmp/.olb/olbd.admin");
+   RepWaitMS = RepWait * 1000;
 
 // All done
 //
@@ -124,18 +136,18 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 
 // Now start reading records until eof.
 //
-   while( var = Config.GetFirstWord())
+   while((var = Config.GetFirstWord()))
         {if (!strncmp(var, ODC_Prefix, ODC_PrefLen))
             {var += ODC_PrefLen;
              NoGo |= ConfigXeq(var, Config);
             }
             else if (!strcmp(var, "olb.adminpath"))
-                    NoGo != xapath(eDest, Config);
+                    NoGo |= xapath(eDest, Config);
         }
 
 // Now check if any errors occured during file i/o
 //
-   if (retc = Config.LastError())
+   if ((retc = Config.LastError()))
       NoGo = eDest->Emsg("Config", retc, "reading config file", ConfigFN);
    Config.Close();
 
@@ -180,7 +192,7 @@ int XrdOdcConfig::ConfigXeq(char *var, XrdOucStream &Config)
              <path>    the path of the named socket to use for admin requests.
              group     allow group access to the path.
 
-   Type: Master only, non-dynamic.
+   Type: Manager only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -225,7 +237,7 @@ int XrdOdcConfig::xapath(XrdOucError *errp, XrdOucStream &Config)
 
              <sec>   number of seconds to wait for a manager connection
 
-   Type: Remote slave only, dynamic.
+   Type: Remote server only, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -250,8 +262,9 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
 
 /* Function: xmang
 
-   Purpose:  To parse the directive: manager [all | any] <host>[+] [<port>]
+   Purpose:  To parse directive: manager [proxy] [all|any] <host>[+] [<port>]
 
+             proxy  This is a proxy service manager not cache space manager.
              all    Distribute requests across all managers.
              any    Choose different manager only when necessary (default).
              <host> The dns name of the host that is the cache manager.
@@ -263,7 +276,7 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
    Notes:   Any number of manager directives can be given. The finder will
             load balance amongst all of them.
 
-   Type: Remote slave only, non-dynamic.
+   Type: Remote server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -273,18 +286,20 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
     struct sockaddr_in InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval = 0;
-    int i, port;
+    int i, port, isProxy = 0, smode = ODC_FAILOVER;
 
     SMode = 0;
     do {if (!(val = Config.GetWord()))
            {errp->Emsg("Config","manager host name not specified"); return 1;}
-        if (!SMode && !strcmp("any", val)) SMode = ODC_FAILOVER;
-             else if (!SMode && !strcmp("all", val)) SMode = ODC_ROUNDROB;
-                     else mval = strdup(val);
-         } while(!mval);
-    if (!SMode) SMode = ODC_FAILOVER;
+             if (!isProxy && !strcmp("proxy", val)) isProxy = 1;
+        else if (!SMode && !strcmp("any", val)) smode = ODC_FAILOVER;
+        else if (!SMode && !strcmp("all", val)) smode = ODC_ROUNDROB;
+        else mval = strdup(val);
+       } while(!mval);
+    if (isProxy) SModeP = smode;
+       else      SMode  = smode;
 
-    if (val = Config.GetWord())
+    if ((val = Config.GetWord()))
        if (isdigit(*val))
            {if (XrdOuca2x::a2i(*errp,"invalid manager port",val,&port,1,65535))
                port = 0;
@@ -315,14 +330,15 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
             errp->Emsg("Config", (const char *)bval,
                        (char *)"-> odc.manager", mval);
            }
-        tp = ManList;
+        tp = (isProxy ? PanList : ManList);
         while(tp) 
              if (strcmp(tp->text, mval) || tp->val != port) tp = tp->next;
                 else {errp->Emsg("Config","Duplicate manager",mval);
                       break;
                      }
         if (tp) break;
-        ManList = new XrdOucTList(mval, port, ManList);
+        if (isProxy) PanList = new XrdOucTList(mval, port, PanList);
+           else      ManList = new XrdOucTList(mval, port, ManList);
        } while(i);
 
     if (bval) free(bval);
@@ -340,7 +356,7 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
 
              <num>   number of msg blocks to keep for re-use
 
-   Type: Slave only, dynamic.
+   Type: Server only, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -369,7 +385,7 @@ int XrdOdcConfig::xmsgk(XrdOucError *errp, XrdOucStream &Config)
 
              <portx> number of a port to balance. There must be at least two.
 
-   Type: Local slave only, dynamic.
+   Type: Local server only, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -381,7 +397,7 @@ int XrdOdcConfig::xpbal(XrdOucError *errp, XrdOucStream &Config)
 
     if (!lclPort) return 0;
 
-    while(val = Config.GetWord())
+    while((val = Config.GetWord()))
          {if (XrdOuca2x::a2i(*errp,"invalid portbal port value",val,&pv,1,65535))
              return 1;
           if (pi >= pimax)
@@ -426,7 +442,7 @@ int XrdOdcConfig::xpbal(XrdOucError *errp, XrdOucStream &Config)
 
    Output: 0 upon success or !0 upon failure.
 
-   Type: Local slave only, dynamic.
+   Type: Local server only, dynamic.
 */
 
 int XrdOdcConfig::xpsel(XrdOucError *Eroute, XrdOucStream &Config)
@@ -434,11 +450,10 @@ int XrdOdcConfig::xpsel(XrdOucError *Eroute, XrdOucStream &Config)
     const char *emsg = "invalid portsel value";
     char *val;
     int  i, ppp, retc;;
-    struct selopts { char * opname; int *oploc; int opval;}
-           Sopts[] =
+    struct selopts {const char *opname; int *oploc; int opval;} Sopts[] =
        {
-       (char *)"key",      &pselSkey,   0,
-       (char *)"int",      &pselMint,   1
+        {"key",      &pselSkey,   0},
+        {"int",      &pselMint,   1}
        };
     int numopts = sizeof(Sopts)/sizeof(struct selopts);
 
@@ -456,7 +471,7 @@ int XrdOdcConfig::xpsel(XrdOucError *Eroute, XrdOucStream &Config)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, Sopts[i].opname))
                   {if (!(val = Config.GetWord()))
-                      {Eroute->Emsg("Config","monitor ",Sopts[i].opname,
+                      {Eroute->Emsg("Config","monitor ",(char *)Sopts[i].opname,
                                    (char *)" argument not specified.");
                        return 1;
                       }
@@ -485,7 +500,7 @@ int XrdOdcConfig::xpsel(XrdOucError *Eroute, XrdOucStream &Config)
              <sec1>  number of seconds to wait for a locate reply
              <sec2>  number of seconds to delay a retry upon failure
 
-   Type: Remote slave only, dynamic.
+   Type: Remote server only, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -493,11 +508,10 @@ int XrdOdcConfig::xpsel(XrdOucError *Eroute, XrdOucStream &Config)
 int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
 {
     char *val;
-    static struct reqsopts { char * opname; int *oploc;}
-           rqopts[] =
+    static struct reqsopts {const char *opname; int *oploc;} rqopts[] =
        {
-       (char *)"delay",    &RepDelay,
-       (char *)"repwait",  &RepWait
+        {"delay",    &RepDelay},
+        {"repwait",  &RepWait}
        };
     int i, ppp, numopts = sizeof(rqopts)/sizeof(struct reqsopts);
 
@@ -517,7 +531,7 @@ int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
                 break;
                }
         if (i >= numopts) errp->Emsg("Config","invalid request option",val);
-       } while(val = Config.GetWord());
+       } while((val = Config.GetWord()));
      return 0;
 }
   
@@ -540,12 +554,12 @@ int XrdOdcConfig::xtrac(XrdOucError *Eroute, XrdOucStream &Config)
   
     extern XrdOucTrace OdcTrace;
     char  *val;
-    static struct traceopts { char * opname; int opval;} tropts[] =
+    static struct traceopts {const char *opname; int opval;} tropts[] =
        {
-       (char *)"all",      TRACE_ALL,
-       (char *)"debug",    TRACE_Debug,
-       (char *)"forward",  TRACE_Forward,
-       (char *)"redirect", TRACE_Redirect
+        {"all",      TRACE_ALL},
+        {"debug",    TRACE_Debug},
+        {"forward",  TRACE_Forward},
+        {"redirect", TRACE_Redirect}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
@@ -553,7 +567,7 @@ int XrdOdcConfig::xtrac(XrdOucError *Eroute, XrdOucStream &Config)
        {Eroute->Emsg("config", "trace option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) trval = 0;
-             else {if (neg = (val[0] == '-' && val[1])) val++;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
                    for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, tropts[i].opname))
                            {if (neg) trval &= ~tropts[i].opval;

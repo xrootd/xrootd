@@ -102,7 +102,6 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
 {
    const char *epname = "Reply";
    XrdOdcMsg *mp;
-   char *rbuff;
    int retc;
 
 // Find the appropriate message
@@ -114,11 +113,22 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
 
 // Determine the error code
 //
-   if (strncmp(msg, "?err", 4)) retc = 0;
-      else {msg += 4;
-            retc = 2;
+        if (!strncmp(msg, "!try", 4))
+           {msg += 5;
+            retc = -EREMOTE;
             while(*msg && (' ' == *msg)) msg++;
            }
+   else if (!strncmp(msg, "!wait", 5))
+           {msg += 6;
+            retc = -EAGAIN;
+            while(*msg && (' ' == *msg)) msg++;
+           }
+   else if (!strncmp(msg, "?err", 4))
+           {msg += 5;
+            retc = -EINVAL;
+            while(*msg && (' ' == *msg)) msg++;
+           }
+   else retc = -EINVAL;
 
 // Make sure the reply is not too long
 //
