@@ -176,8 +176,12 @@ virtual               ~XrdSfsFileSystem() {}
 
 class XrdOucLogger;
 
+extern "C"
+{
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
-                                     XrdOucLogger *Logger=0);
+                                      XrdOucLogger     *Logger,
+                                      const char       *config_fn);
+}
 
 /******************************************************************************/
 /*                               s f s F i l e                                */

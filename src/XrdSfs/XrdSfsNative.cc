@@ -92,12 +92,13 @@ XrdSfsNative::XrdSfsNative(XrdOucError *ep)
 /*                         G e t F i l e S y s t e m                          */
 /******************************************************************************/
   
-XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, XrdOucLogger *lp)
+XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
+                                      XrdOucLogger     *lp)
 {
  static XrdOucError  Eroute(lp, "XrdSfs");
  static XrdSfsNative myFS(&Eroute);
 
- Eroute.Say(0, (char *)"(c) 2003 Stanford University/SLAC "
+ Eroute.Say(0, (char *)"(c) 2005 Stanford University/SLAC "
                        "sfs (Standard File System) v 9.0n");
 
  return &myFS;
