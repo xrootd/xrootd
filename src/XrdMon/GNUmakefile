@@ -79,9 +79,9 @@ TESTPARSER     = $(BINDIR)/testParser
 
 BINARIES       = $(COLLECTOR)  \
                  $(SENDER) $(ADMIN) \
-#               = $(DECODER)    \
-#                 $(DUMPPACKETS) $(DEBUGPACKET) $(CONVTIME) \
-#                 $(TESTPARSER)
+                 $(DECODER)    \
+                 $(DUMPPACKETS) $(DEBUGPACKET) $(CONVTIME) \
+                 $(TESTPARSER)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
