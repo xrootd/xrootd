@@ -47,8 +47,10 @@ use POSIX "sys_wait_h";
 use Fcntl;
 
 $isMPS = substr(($0 =~ m|([^/]*)$|)[0],0,4) eq 'mps_' ;
-if ($isMPS) {use lib '/opt/xrootd/utils'; $SSD = 'mps'; $XFR = 'xfr';}
-   else {use lib '/usr/etc/ooss'; $SSD = 'ooss'; $XFR = 'pftp';}
+if ($isMPS) {use lib '/opt/xrootd/utils'; 
+             $SSD = 'mps'; $XFR = 'xfr';
+            }
+   else     {use lib '/usr/etc/ooss'; $SSD = 'ooss'; $XFR = 'pftp';}
 
 use ooss_MonP;
 use XrdOlbNotify;
@@ -1316,7 +1318,8 @@ my(%Xlate) = (xfrblksz      => 'pftpblksz',
               xfrport       => 'pftpport',
               xfruser       => 'pftpuser',
              );
-my(%Xcept)= ('ooss.cache'   => 1);
+my(%Xcept)= ('ooss.cache'   => 1, 
+              'oss.cache'   => 1);
 
 while( <CONFIG> ) {
    s/#.*$//;						# remove comments

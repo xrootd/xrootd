@@ -78,8 +78,10 @@
 
 $isMPS = substr(($0 =~ m|([^/]*)$|)[0],0,4) eq 'mps_' ;
 $Config{isMPS} = $isMPS;
-if ($isMPS) {use lib '/opt/xrootd/utils'; $SSD = 'mps';}
-   else {use lib '/usr/etc/ooss'; $SSD = 'ooss';}
+if ($isMPS) {use lib '/opt/xrootd/utils'; 
+             $SSD = 'mps';
+            }
+   else     {use lib '/usr/etc/ooss'; $SSD = 'ooss';}
 use ooss_CAlloc;
 use ooss_Lock;
 use Socket;
