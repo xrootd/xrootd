@@ -36,6 +36,7 @@ XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir)
 XrdMonDecRTLogging::~XrdMonDecRTLogging()
 {
     delete [] _buf;
+    _buf = 0;
 }
 
 void
