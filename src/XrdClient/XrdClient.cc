@@ -483,24 +483,28 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
    statFileRequest.stat.dlen = fInitialUrl.File.GetSize();
    
    char fStats[2048];
-   
-   fConnModule->SendGenCommand(&statFileRequest, (const char*)fInitialUrl.File.c_str(),
-                               0, fStats , FALSE, (char *)"Stat");
-   
-   if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
-      Info(XrdClientDebug::kHIDEBUG,
-	   "Stat", "Returned stats=" << fStats);
-   
-   sscanf(fStats, "%ld %Ld %ld %ld",
-	  &fStatInfo.id,
-	  &fStatInfo.size,
-	  &fStatInfo.flags,
-	  &fStatInfo.modtime);
+   memset(fStats, 0, 2048);
 
-   if (stinfo)
-      memcpy(stinfo, &fStatInfo, sizeof(fStatInfo));
+   bool ok = fConnModule->SendGenCommand(&statFileRequest,
+					 (const char*)fInitialUrl.File.c_str(),
+					 0, fStats , FALSE, (char *)"Stat");
+   
+   if (ok) {
+      if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
+	 Info(XrdClientDebug::kHIDEBUG,
+	      "Stat", "Returned stats=" << fStats);
+   
+      sscanf(fStats, "%ld %Ld %ld %ld",
+	     &fStatInfo.id,
+	     &fStatInfo.size,
+	     &fStatInfo.flags,
+	     &fStatInfo.modtime);
 
-   return TRUE;
+      if (stinfo)
+	 memcpy(stinfo, &fStatInfo, sizeof(fStatInfo));
+   }
+
+   return ok;
 }
 
 //_____________________________________________________________________________

@@ -246,12 +246,18 @@ int XrdClientAdmin::Stat(char *fname, long &id, long &size, long &flags, long &m
    statFileRequest.header.dlen = strlen(fname);
 
    char fStats[2048];
+   id = 0;
+   size = 0;
+   flags = 0;
+   modtime = 0;
+   memset(fStats, 0, 2048);
 
    ok = fConnModule->SendGenCommand(&statFileRequest, (const char*)fname,
 				    NULL, fStats , FALSE, (char *)"Stat");
 
 
-   sscanf(fStats, "%ld %ld %ld %ld", &id, &size, &flags, &modtime);
+   if (ok)
+      sscanf(fStats, "%ld %ld %ld %ld", &id, &size, &flags, &modtime);
 
    return ok;
 }
