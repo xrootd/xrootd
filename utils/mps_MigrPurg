@@ -1051,7 +1051,7 @@ sub scan {
          # a minimum data transfer rate, and require the file to be unchanged
          # for at least that long before starting a migration.
          #
-         my($trans_time) = $size/$min_tran_rate;
+         my($trans_time) = defined($opt_O) ? 0 : $size/$min_tran_rate;
          my($migtime) = ($trans_time > $migrate_time) ? $trans_time : $migrate_time;
          if ($migrate_time && (($curtime-$mtime) > $migtime) ) {
             push @migfiles, "$base/$file";
@@ -1323,8 +1323,12 @@ my(%Xcept)= ('ooss.cache'   => 1,
 
 while( <CONFIG> ) {
    s/#.*$//;						# remove comments
-   ($var, $val) = split("\s",$_,2);
-   ($x, $val) = split("\s", $val,2) if $val =~ /^= /; # remove =
+   if (/=/) {                                           # var = val
+      ($var,$val) = /(\S*?)\s*=\s*(.*)/;
+      }
+   else {                                               # var val (no equal sign)
+      ($var,$val) = /(\S*)\s*(.*)/;
+      }
    $var =~ tr/ \t\n//d;					# remove whitespaces
    $val =~ s/^\s*//;					# remove leading whitespaces
    $val =~ s/\s*$//;					# remove trailing whitespaces

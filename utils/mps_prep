@@ -342,8 +342,12 @@ $mtime_cfgfn = (stat("$cfgFN"))[9];
 logit("readConfig: processing file $cfgFN") if $debug >=$DEBUG;    
 while( <CONFIG> ) {
    s/#.*$//;       #remove comments
-   ($var, $val) = split("\s ",$_,2);
-   ($x, $val) = split("\s", $val,2) if $val =~ /^= /; # remove =
+   if (/=/) {                           # var = val
+      ($var,$val) = /(\S*?)\s*=\s*(.*)/;
+      }
+   else {                               # var val (no equal sign)
+      ($var,$val) = /(\S*)\s*(.*)/;
+      }
    $var =~ tr/ \t\n//d;			#remove whitespaces
    $val =~ s/^\s*//;			#remove leading whitespaces
    $val =~ s/\s*$//;			#remove trailing whitespaces
