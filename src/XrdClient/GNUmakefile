@@ -77,14 +77,14 @@ PERLMOD = $(LIBDIR)/XrdClientAdmin.so
 PERLDEVELPATH := $(dir \
                    $(firstword \
                      $(wildcard \
-                      $(addsuffix /CORE/, $(shell perl -e 'print "@INC";')))))
+                      $(addsuffix /CORE/, $(shell perl5.8 -e 'print "@INC";')))))
 
 # flags to be used when compiling swig code
-PERLCCFLAGS := $(shell perl -e 'use Config; print $Config{ccflags};')
+PERLCCFLAGS := $(shell perl5.8 -e 'use Config; print $Config{ccflags};')
 
 PERLINC = -I$(PERLDEVELPATH)
 
-TARGETS = $(LIBRARY) $(TESTBIN) $(XRDCP) $(PERLMOD)
+TARGETS = $(LIBRARY) $(TESTBIN) $(XRDCP)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -100,6 +100,9 @@ include ../GNUmake.options
 
 anything: $(TARGETS)
 	@echo Make XrdClient done.
+
+perlmod: $(TARGETS) $(PERLMOD)
+	@echo Make perlmodule done.
 
 #------------------------------------------------------------------------------#
 #                           D e p e n d e n c i e s                            #
@@ -128,7 +131,7 @@ $(PERLMOD): $(OBJECTS) $(OBJECTC) $(OBJECTPERLMOD) $(LIBDEPS)
 
 $(OBJDIR)/XrdClientAdmin_c_wrap.o:        XrdClientAdmin_c_wrap.c
 	@echo Compiling XrdClientAdmin_c_wrap.c
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) $(PERLINC) $(PERLCCFLAGS) -o $(OBJDIR)/XrdClientAdmin_c_wrap.o XrdClientAdmin_c_wrap.c
+	$(CC) -g -c $(CFLAGS) $(INCLUDE) $(PERLINC) $(PERLCCFLAGS) -o $(OBJDIR)/XrdClientAdmin_c_wrap.o XrdClientAdmin_c_wrap.c
 
 $(OBJDIR)/XrdClientAdmin_c.o:        XrdClientAdmin_c.cc   XrdClientAdmin_c.hh
 	@echo Compiling XrdClientAdmin_c.cc
