@@ -61,6 +61,7 @@ void clientMarshall(ClientRequest* str)
       break;
    case kXR_mkdir:
       // no swap on ASCII fields
+      str->mkdir.mode = htons(str->mkdir.mode);
       break;
    case kXR_mv:
       // no swap on ASCII fields

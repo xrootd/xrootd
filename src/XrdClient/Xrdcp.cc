@@ -161,10 +161,7 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
 	 if (statok && (flags & kXR_isDir)) res = 0;
 
 	 else if ( (!statok || (!(flags & kXR_xset) && !(flags & kXR_other))) &&
-		   ( adm->Mkdir(u.File.c_str(),
-				kXR_ur | kXR_uw,
-				kXR_gw | kXR_gr,
-				kXR_or) ) )
+		   ( adm->Mkdir(u.File.c_str(), 7, 5, 5) ) )
 	    res = 0;
 	 
 
@@ -463,7 +460,7 @@ int main(int argc, char**argv) {
       else {
 	 // source is localfs
 
-	 if (dest.Find((char *)"root://")) {
+	 if (dest.BeginsWith((char *)"root://")) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
