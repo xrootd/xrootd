@@ -66,8 +66,8 @@ XrdOucError  eroute(&myLogger, "acc_");
 /******************************************************************************/
 /*                       O p e r a t i o n   T a b l e                        */
 /******************************************************************************/
-
-struct {const char *opname; Access_Operation oper;} optab[] =
+typedef struct {const char *opname; Access_Operation oper;} optab_t;
+optab_t optab[] =
              {{"?",      AOP_Any},
               {"cm",     AOP_Chmod},
               {"co",     AOP_Chown},
