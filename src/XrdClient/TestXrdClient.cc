@@ -1,5 +1,6 @@
-#include "XrdClient.hh"
+//       $Id$
 
+#include "XrdClient.hh"
 
 int main(int argc, char **argv) {
 

@@ -19,8 +19,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-
-
+//       $Id$
 
 #include "XrdClientUrlInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientMessage                                                           // 
+// XrdClientMessage                                                     // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,6 +11,8 @@
 //  or some kind of error                                               //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+//       $Id$
 
 #include "XrdClientMessage.hh"
 #include "XrdClientProtocol.hh"

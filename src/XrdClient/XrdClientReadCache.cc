@@ -11,6 +11,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//       $Id$
+
 #include "XrdClientReadCache.hh"
 #include "XrdClientMutexLocker.hh"
 #include "XrdClientDebug.hh"

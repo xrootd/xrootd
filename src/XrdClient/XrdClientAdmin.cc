@@ -11,6 +11,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//       $Id$
 
 #include "XrdClientAdmin.hh"
 #include "XrdClientDebug.hh"

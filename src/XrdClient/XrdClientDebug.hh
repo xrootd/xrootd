@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientDebug                                                             // 
+// XrdClientDebug                                                       //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -10,6 +10,8 @@
 // Singleton used to handle the debug level and the log output          //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+//       $Id$
 
 #ifndef XRC_DEBUG_H
 #define XRC_DEBUG_H

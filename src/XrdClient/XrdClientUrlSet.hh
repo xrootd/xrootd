@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientUrlSet                                                            // 
+// XrdClientUrlSet                                                      // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,6 +11,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//       $Id$
 
 #ifndef _XRC_URLSET_H
 #define _XRC_URLSET_H

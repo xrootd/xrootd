@@ -8,6 +8,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//       $Id$
 
 #include "XrdCpMthrQueue.hh"
 #include "XrdClientMutexLocker.hh"

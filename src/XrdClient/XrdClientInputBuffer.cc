@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientInputBuffer                                                       // 
+// XrdClientInputBuffer                                                 //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -13,6 +13,8 @@
 //  Multithread friendly                                                //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+//       $Id$
 
 #include "XrdClientInputBuffer.hh"
 #include "XrdClientMutexLocker.hh"

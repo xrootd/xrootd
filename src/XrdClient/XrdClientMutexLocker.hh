@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientMutexLocker                                                       // 
+// XrdClientMutexLocker                                                 //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,6 +11,8 @@
 //  to a syntactical block enclosed in {}                               //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+//       $Id$
 
 #ifndef XRC_MUTEXLOCKER_H
 #define XRC_MUTEXLOCKER_H

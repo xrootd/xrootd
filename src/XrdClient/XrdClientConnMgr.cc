@@ -17,6 +17,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//       $Id$
+
 #include "XrdClientConnMgr.hh"
 #include "XrdClientDebug.hh"
 #include "XrdClientMessage.hh"

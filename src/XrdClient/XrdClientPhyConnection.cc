@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientPhyConnection                                                     //
+// XrdClientPhyConnection                                               //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
 //  Alvise Dorigo, Fabrizio Furano                                      //
@@ -9,6 +9,8 @@
 // Class handling physical connections to xrootd servers                //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+//       $Id$
 
 #include <time.h>
 #include <string>

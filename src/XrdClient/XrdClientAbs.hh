@@ -11,9 +11,10 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//       $Id$
+
 #ifndef XRD_ABSCLIENTBASE_H
 #define XRD_ABSCLIENTBASE_H
-
 
 #include "XrdClientUnsolMsg.hh"
 

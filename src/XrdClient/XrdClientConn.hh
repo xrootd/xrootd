@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientConn                                                              // 
+// XrdClientConn                                                        //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -10,6 +10,8 @@
 // High level handler of connections to xrootd.                         //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+//       $Id$
 
 #ifndef XRD_CONN_H
 #define XRD_CONN_H

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientReadCache                                                         // 
+// XrdClientReadCache                                                   //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -10,6 +10,8 @@
 // Classes to handle cache reading                                      //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+//       $Id$
 
 #ifndef XRD_READCACHE_H
 #define XRD_READCACHE_H

@@ -11,6 +11,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//       $Id$
+
 #include "XrdClientSock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"

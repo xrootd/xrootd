@@ -11,6 +11,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//       $Id$
+
 #include "XrdClientStringMatcher.hh"
 #include "XrdClientConst.hh"
 

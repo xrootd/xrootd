@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientLogConnection                                                     // 
+// XrdClientLogConnection                                               //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -10,6 +10,8 @@
 // Class implementing logical connections                               //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+//       $Id$
 
 #ifndef XRD_CLOGCONNECTION_H
 #define XRD_CLOGCONNECTION_H
