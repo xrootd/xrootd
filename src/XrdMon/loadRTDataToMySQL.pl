@@ -412,7 +412,7 @@ sub loadStatsLastHour() {
                 $deltaUsers $users_p $deltaUniqueF $uniqueF_p $deltaNonUniqueF $nonUniqueF_p);
     $seqNo = $nMin % 60;
     &runQuery("DELETE FROM statsLastHour WHERE seqNo = $seqNo");
-    ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(*), COUNT(DISTINCT userId) 
+    ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT CONCAT(pId, clientHId)), COUNT(DISTINCT userId) 
                                                 FROM rtOpenedSessions");
 
     ($noUniqueF, $noNonUniqueF) = &runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
