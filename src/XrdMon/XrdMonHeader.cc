@@ -15,12 +15,8 @@
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonHeader.hh"
 #include <netinet/in.h>
-#include <sstream>
 #include <iomanip>
-using std::ostream;
 using std::setw;
-using std::stringstream;
-
 
 void
 XrdMonHeader::decode(const char* packet)
@@ -33,14 +29,14 @@ XrdMonHeader::decode(const char* packet)
         packetType() != PACKET_TYPE_DICT  &&
         packetType() != PACKET_TYPE_ADMIN &&
         packetType() != PACKET_TYPE_USER     ) {
-        stringstream ss(stringstream::out);
-        ss << "Invalid packet type " << packetType();
-        throw XrdMonException(ERR_INVPACKETTYPE, ss.str());
+        char buf[64];
+        sprintf(buf, "Invalid packet type %c", packetType());
+        throw XrdMonException(ERR_INVPACKETTYPE, buf);
     }
     if ( packetLen() < HDRLEN ) {
-        stringstream ss(stringstream::out);
-        ss << "Invalid packet length " << packetLen();
-        throw XrdMonException(ERR_INVPACKETLEN, ss.str());
+        char buf[64];
+        sprintf(buf, "Invalid packet length %d", packetLen());
+        throw XrdMonException(ERR_INVPACKETLEN, buf);
     }
 }
 

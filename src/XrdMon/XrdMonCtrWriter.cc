@@ -26,12 +26,10 @@
 
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 using std::cout;
 using std::endl;
 using std::ios;
 using std::setw;
-using std::stringstream;
 
 string  XrdMonCtrWriter::_baseDir;
 kXR_int64 XrdMonCtrWriter::_maxLogSize(1024*1024*1024); // 1GB
@@ -144,18 +142,21 @@ XrdMonCtrWriter::mkActiveLogNameDirs() const
 string
 XrdMonCtrWriter::logName(LogType t) const
 {
-    stringstream ss(stringstream::out);
-    ss << _baseDir << '/' << _sender.first << '/' << _sender.second << '/';
+    char* buf = new char[_baseDir.size() + 128];    
     if ( t == ACTIVE ) {
-        ss << "active";
+        sprintf(buf, "%s/%s/%d/active.rcv", 
+                _baseDir.c_str(), _sender.first, _sender.second);
     } else if ( t == PERMANENT ) {
-        ss << _timestamp << '_' << _sender.first << ':' << _sender.second;
+        sprintf(buf, "%s/%s/%d/%s_%s:%d.rcv", 
+                _baseDir.c_str(), _sender.first, _sender.second,
+                _timestamp.c_str(), _sender.first, _sender.second);
     } else {
+        delete [] buf;
         throw XrdMonException(ERR_INVALIDARG, "in XrdMonCtrWriter::logName");
     }
-    ss << ".rcv";
-
-    return ss.str();
+    string s(buf);
+    delete [] buf;
+    return s;
 }
 
 void

@@ -19,12 +19,9 @@
 #include "XrdOuc/XrdOucPlatform.hh"
 #include <netinet/in.h>
 #include <stdio.h>
-#include <sstream>
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::ostream;
-using std::stringstream;
 
 XrdMonDecUserInfo::XrdMonDecUserInfo()
     : _myXrdId(0),
@@ -112,6 +109,12 @@ XrdMonDecUserInfo::convert2string() const
             _sec, tBuf, XrdMonSenderInfo::id2Host(_senderId));
 
     return buf;
+}
+
+int
+XrdMonDecUserInfo::mySize()
+{
+    return sizeof(*this) + _user.size() + _cHost.size();
 }
 
 // this goes to real time log file

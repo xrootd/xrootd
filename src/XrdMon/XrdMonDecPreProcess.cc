@@ -114,6 +114,7 @@ XrdMonDecPreProcess::processOnePacket(const char* buf,
         cout << "xrd start time " << xrdStartTime
              << " --> " << timestamp2string(xrdStartTime) << endl;
     } else if ( packet.stod() != xrdStartTime ) {
+        // BTW, FIXME memory leak in stringstream::str()
         stringstream ss(stringstream::out);
         ss << "xrd start time changed " << packet.stod() 
            << ", this is not supported";

@@ -24,12 +24,9 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 using std::cout;
 using std::ios;
 using std::setw;
-using std::streampos;
-using std::stringstream;
 
 // use this switch if you want to brute-close all files in the active dir.
 // Useful to run after the very last log file

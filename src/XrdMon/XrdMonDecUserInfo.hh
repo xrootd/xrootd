@@ -46,7 +46,8 @@ public:
     const char* convert2string() const;
     const char* writeRT2Buffer(TYPE t) const;
     string convert2stringRTDisconnect() const;
-
+    int mySize();
+    
 private:
     int doOne(const char* s, char* buf, int len, char delim) {
         int x = 0;

@@ -22,14 +22,10 @@
 #include <sys/types.h>  /* mkdir  */
 #include <unistd.h>     /* access */
 
-#include <iomanip>
 #include <iostream>
-#include <sstream>
 using std::cout;
 using std::endl;
-using std::setfill;
-using std::setw;
-using std::ostringstream;
+
 
 string
 generateTimestamp()
@@ -39,37 +35,24 @@ generateTimestamp()
     const time_t sec = tv.tv_sec;
     struct tm *t = localtime(&sec);
 
-    ostringstream s;
-    // YYMM_DD_HH::MM::SS.MMM
-    s << setw(2) << setfill('0') << t->tm_year+1900
-      << setw(2) << setfill('0') << t->tm_mon+1
-      << setw(2) << setfill('0') << t->tm_mday      << '_'
-      << setw(2) << setfill('0') << t->tm_hour      << ':' 
-      << setw(2) << setfill('0') << t->tm_min       << ':'
-      << setw(2) << setfill('0') << t->tm_sec       << '.'
-      << setw(3) << setfill('0') << tv.tv_usec/1000;
-
-    return s.str();
+    char buf[24];
+    sprintf(buf, "%02d%02d_%02d_%02d:%02d:%02d.%03d",
+            t->tm_year+1900,
+            t->tm_mon+1,
+            t->tm_mday,
+            t->tm_hour,
+            t->tm_min,
+            t->tm_sec,
+            (int)tv.tv_usec/1000);
+    return string(buf);
 }
 
 string
 timestamp2string(kXR_int32 timestamp)
 {
-    if ( 0 == timestamp ) {
-        return string("0000-00-00 00:00:00");
-    }
-    time_t tt = timestamp;
-    struct tm *t = localtime(&tt);
-    ostringstream ss;
-
-    // Format: YYYY-MM-DD HH:MM:SS
-    ss << setw(4) << setfill('0') << t->tm_year+1900 << '-'
-       << setw(2) << setfill('0') << t->tm_mon+1     << '-'
-       << setw(2) << setfill('0') << t->tm_mday      << ' '
-       << setw(2) << setfill('0') << t->tm_hour      << ':'
-       << setw(2) << setfill('0') << t->tm_min       << ':'
-       << setw(2) << setfill('0') << t->tm_sec;
-    return ss.str();
+    char s[24];
+    timestamp2string(timestamp, s);
+    return string(s);
 }
 
 void
@@ -140,10 +123,10 @@ mkdirIfNecessary(const char* dir)
     for ( int i=size-1 ; i>=0 ; --i ) {
         const char*d = dirs2create[i].c_str();
         if ( 0 != mkdir(d, 0x3FD) ) {
-            ostringstream se;
-            se << "Failed to mkdir " << dir << ". "
-               << "Error '" << strerror (errno) << "'";
-            throw XrdMonException(ERR_NODIR, se.str());
+            char buf[256];
+            sprintf(buf, "Failed to mkdir %s. Error: '%s'", 
+                    dir, strerror (errno));
+            throw XrdMonException(ERR_NODIR, buf);
         }
         cout << "mkdir " << d << " OK" << endl;
     }

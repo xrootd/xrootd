@@ -13,8 +13,6 @@
 #include "XrdMon/XrdMonArgParser.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonException.hh"
-#include <sstream>
-using std::stringstream;
 
 XrdMonArgParser::XrdMonArgParser()
 {}
@@ -45,9 +43,9 @@ XrdMonArgParser::parseArguments(int argc, char* argv[])
             }
         }
         if ( ! claimed ) {
-            stringstream ss(stringstream::out);
-            ss << "Unexpected argument " << argv[curArg];
-            throw XrdMonException(ERR_INVALIDARG, ss.str());
+            string ss("Unexpected argument ");
+            ss += argv[curArg];
+            throw XrdMonException(ERR_INVALIDARG, ss);
         }
     }
 

@@ -18,7 +18,6 @@
 #include "XrdMon/XrdMonUtils.hh"
 
 #include <netinet/in.h>
-#include <sstream>
 #include <sys/time.h> // FIXME - remove when xrootd supports openfile
 #include <iomanip>
 #include <unistd.h>
@@ -28,8 +27,6 @@ using std::endl;
 using std::ios;
 using std::map;
 using std::setw;
-using std::setfill;
-using std::stringstream;
 
 XrdMonDecSink::XrdMonDecSink(const char* baseDir,
                              const char* rtLogDir,
@@ -116,9 +113,9 @@ XrdMonDecSink::addDictId(dictid_t xrdId,
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
     if ( itr != _dCache.end() ) {
-        stringstream se;
-        se << "DictID already in cache " << xrdId;
-        throw XrdMonException(ERR_DICTIDINCACHE, se.str());
+        char buf[256];
+        sprintf(buf, "DictID already in cache %i", xrdId);
+        throw XrdMonException(ERR_DICTIDINCACHE, buf);
     }
     
     XrdMonDecDictInfo* di;
@@ -140,9 +137,9 @@ XrdMonDecSink::addUserId(dictid_t usrId,
     XrdOucMutexHelper mh; mh.Lock(&_uMutex);
     std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(usrId);
     if ( itr != _uCache.end() ) {
-        stringstream se;
-        se << "UserID already in cache " << usrId;
-        throw XrdMonException(ERR_USERIDINCACHE, se.str());
+        char buf[256];
+        sprintf(buf, "UserID already in cache %i", usrId);
+        throw XrdMonException(ERR_USERIDINCACHE, buf);
     }
     
     XrdMonDecUserInfo* ui;
@@ -284,6 +281,7 @@ XrdMonDecSink::flushClosedDicts()
 
     map<dictid_t, XrdMonDecDictInfo*>::iterator itr;
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
+    int totalSizeBefore = 0, sizeDeleted = 0;
     {
         XrdOucMutexHelper mh; mh.Lock(&_dMutex);
         sizeBefore = _dCache.size();
@@ -292,6 +290,7 @@ XrdMonDecSink::flushClosedDicts()
         
         for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
             XrdMonDecDictInfo* di = itr->second;
+            totalSizeBefore += di->mySize();
             if ( di != 0 && di->isClosed() ) {
                 const char* dString = di->convert2string();
                 int strLen = strlen(dString);
@@ -307,6 +306,7 @@ XrdMonDecSink::flushClosedDicts()
                         buf += dString;
                     }
                 }
+                sizeDeleted += di->mySize();
                 curLen += strLen;
                 delete itr->second;
                 forDeletion.push_back(itr->first);
@@ -325,7 +325,8 @@ XrdMonDecSink::flushClosedDicts()
         //cout << "flushed to disk: \n" << buf << endl;
     }
     fD.close();
-    cout << "flushed (d) " << sizeBefore-sizeAfter << ", left " << sizeAfter << endl;
+    cout << "flushed (d) " << sizeBefore-sizeAfter << ", left " << sizeAfter 
+         << ", size before " << totalSizeBefore << ", deleted " << sizeDeleted << endl;
 }
 
 void
@@ -338,6 +339,7 @@ XrdMonDecSink::flushUserCache()
     buf.reserve(BUFSIZE);
     map<dictid_t, XrdMonDecUserInfo*>::iterator itr;
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
+    int totalSizeBefore = 0, sizeDeleted = 0;
     {
         XrdOucMutexHelper mh; mh.Lock(&_uMutex);
         sizeBefore = _uCache.size();
@@ -346,6 +348,7 @@ XrdMonDecSink::flushUserCache()
         
         for ( itr=_uCache.begin() ; itr != _uCache.end() ; ++itr ) {
             XrdMonDecUserInfo* di = itr->second;
+            totalSizeBefore += di->mySize();
             if ( di != 0 && di->readyToBeStored() ) {
                 const char* dString = di->convert2string();
                 int strLen = strlen(dString);
@@ -361,6 +364,7 @@ XrdMonDecSink::flushUserCache()
                         buf + dString;
                     }
                 }
+                sizeDeleted += di->mySize();
                 curLen += strLen;
                 delete itr->second;
                 forDeletion.push_back(itr->first);
@@ -379,7 +383,8 @@ XrdMonDecSink::flushUserCache()
         cout << "flushed to disk: \n" << buf << endl;
     }
     fD.close();
-    cout << "flushed (u) " << sizeBefore-sizeAfter << ", left " << sizeAfter << endl;
+    cout << "flushed (u) " << sizeBefore-sizeAfter << ", left " << sizeAfter
+         << ", size before " << totalSizeBefore << ", deleted " << sizeDeleted << endl;
 }
 
 // used for offline processing of (full monitoring with traces) only
@@ -481,13 +486,14 @@ XrdMonDecSink::checkpoint()
 void
 XrdMonDecSink::openTraceFile(fstream& f)
 {
-    stringstream ss(stringstream::out);
-    ss << _path << "trace"
-       << setw(3) << setfill('0') << _traceLogNumber
-       << ".ascii";
-    string fPath = ss.str();
-    f.open(fPath.c_str(), ios::out | ios::app);
-    cout << "trace log file opened " << fPath << endl;
+    //stringstream ss(stringstream::out);
+    //ss << _path << "trace"
+    //   << setw(3) << setfill('0') << _traceLogNumber
+    //   << ".ascii";
+    //string fPath = ss.str();
+    //f.open(fPath.c_str(), ios::out | ios::app);
+    cout << "trace log file open NOT IMPLEMENTED " << endl;
+    ::abort();
 }
 
 // used for offline processing of (full monitoring with traces) only

@@ -13,8 +13,6 @@
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonArgParser.hh"
-#include <sstream>
-using std::stringstream;
 
 template <typename T, class C>
 XrdMonArgParser::ArgImpl<T, C>::ArgImpl(const char* theSwitch,
@@ -36,14 +34,12 @@ XrdMonArgParser::ArgImpl<T, C>::parseArgs(int argc,
         return 0; // not my switch
     }
     if ( _done ) {
-        stringstream ss(stringstream::out);
-        ss << "Argument " << _switch << " was already set";
-        throw XrdMonException(ERR_INVALIDARG, ss.str());
+        string ss("Argument "); ss += _switch; ss += " was already set";
+        throw XrdMonException(ERR_INVALIDARG, ss);
     }
     if ( argc-curArg < 2 ) {
-        stringstream ss(stringstream::out);
-        ss << "Expected argument after " << _switch;
-        throw XrdMonException(ERR_INVALIDARG, ss.str());
+        string ss("Expected argument after "); ss += _switch;
+        throw XrdMonException(ERR_INVALIDARG, ss);
     }
     
     _value = C::convert(argv[curArg+1]);
@@ -57,9 +53,9 @@ void
 XrdMonArgParser::ArgImpl<T, C>::throwIfRequiredButNotSet()
 {
     if ( _required && ! _done ) {
-        stringstream ss(stringstream::out);
-        ss << "Expected argument \"" << _switch << " <value>\" not found";
-        throw XrdMonException(ERR_INVALIDARG, ss.str());
+        string ss("Expected argument \"");
+        ss += _switch; ss += " <value>\" not found";
+        throw XrdMonException(ERR_INVALIDARG, ss);
     }
 }
 

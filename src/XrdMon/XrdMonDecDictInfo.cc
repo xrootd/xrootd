@@ -19,12 +19,9 @@
 #include "XrdOuc/XrdOucPlatform.hh"
 #include <netinet/in.h>
 #include <stdio.h>
-#include <sstream>
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::ostream;
-using std::stringstream;
 
 XrdMonDecDictInfo::XrdMonDecDictInfo()
     : _myXrdId(0),
@@ -242,6 +239,12 @@ XrdMonDecDictInfo::stringSize() const
            sizeof(kXR_int32)  +                  // _close
            sizeof(kXR_int64) +                // _noRBytes
            sizeof(kXR_int64);                 // _noWBytes
+}
+
+int
+XrdMonDecDictInfo::mySize() const
+{
+    return sizeof(*this) + _user.size() + _cHost.size() + _path.size();
 }
 
 // FIXME: this function needs work - it is for 

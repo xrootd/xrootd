@@ -14,7 +14,6 @@
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include <stdio.h>
 #include <iomanip>
-#include <sstream>
 
 kXR_int32 XrdMonDecTraceInfo::_lastT(0);
 string XrdMonDecTraceInfo::_lastS;

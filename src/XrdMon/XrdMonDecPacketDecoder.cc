@@ -20,11 +20,9 @@
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include <netinet/in.h>
-#include <sstream>
 using std::cerr;
 using std::cout;
 using std::endl;
-using std::stringstream;
 
 // for light decoding in real time
 XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir, 
@@ -98,9 +96,9 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
 {
     // decode first packet - time window
     if ( static_cast<kXR_char>(*packet) != XROOTD_MON_WINDOW ) {
-        stringstream se(stringstream::out);
-        se << "Expected time window packet (1st packet), got " << (int) *packet;
-        throw XrdMonException(ERR_NOTATIMEWINDOW, se.str());
+        char buf[256];
+        sprintf(buf, "Expected time window packet (1st packet), got %i, ", (int)*packet);
+        throw XrdMonException(ERR_NOTATIMEWINDOW, buf);
     }
     TimePair t = decodeTime(packet);
     if ( _upToTime != 0 && _upToTime <= t.first ) {
@@ -128,10 +126,9 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
             } else if ( infoType == XROOTD_MON_DISC ) {
                 decodeDisconnect(packet+offset, timestamp);
             } else {
-                stringstream es(stringstream::out);
-                es << "Unsupported infoType of trace packet: " 
-                   << (int) infoType;
-                throw XrdMonException(ERR_INVALIDINFOTYPE, es.str());
+                char buf[256];
+                sprintf(buf, "Unsupported infoType of trace packet: %i", (int) infoType);
+                throw XrdMonException(ERR_INVALIDINFOTYPE, buf);
             }
             offset += TRACELEN;
         }
@@ -280,12 +277,11 @@ XrdMonDecPacketDecoder::prepareTimestamp(const char* packet,
     // cout << "decoded time " << t.first << " " << t.second << endl;
     
     if ( begTime > t.first ) {
-        stringstream se(stringstream::out);
-        se << "Wrong time: " << begTime 
-           << " > " << t.first << " at offset " << x << ", will fix";
-        cout << se.str() << endl;
+        char buf[256];
+        sprintf(buf, "Wrong time: %d > %d at offset %d, will fix", begTime, t.first, x);
+        cout << buf << endl;
         begTime = t.first;
-        //throw XrdMonException(ERR_INVALIDTIME, se.str());
+        //throw XrdMonException(ERR_INVALIDTIME, buf);
     }
 
     float timePerTrace = ((float)(t.first - begTime)) / noElems;

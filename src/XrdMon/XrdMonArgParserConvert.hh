@@ -12,9 +12,7 @@
 
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonErrors.hh"
-#include <sstream>
 #include <stdlib.h> /* atoi */
-using std::stringstream;
 
 namespace XrdMonArgParserConvert 
 {
@@ -46,9 +44,8 @@ namespace XrdMonArgParserConvert
             if ( 0 == strcasecmp(s, "off") ) {
                 return false;
             }
-            stringstream ss(stringstream::out);
-            ss << "Expected 'on' or 'off', found " << s;
-            throw XrdMonException(ERR_INVALIDARG, ss.str());
+            string ss("Expected 'on' or 'off', found "); ss += s;
+            throw XrdMonException(ERR_INVALIDARG, ss);
             return false;
         }
     };    

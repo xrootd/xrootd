@@ -51,6 +51,8 @@ public:
     void closeFile(kXR_int64 bytesR, kXR_int64 bytesW, kXR_int32 t);
     bool addTrace(const XrdMonDecTraceInfo& trace);
 
+    int mySize() const;
+    
 private:
     int doOne(const char* s, char* buf, int len, char delim) {
         int x = 0;

@@ -20,7 +20,6 @@
 #include <iomanip>
 #include <iostream>
 #include <netinet/in.h>
-#include <sstream>
 #include <unistd.h>
 
 using std::cerr;
@@ -29,9 +28,7 @@ using std::endl;
 using std::fstream;
 using std::ios;
 using std::pair;
-using std::setfill;
 using std::setw;
-using std::stringstream;
 
 typedef pair<kXR_int32, kXR_int32> TimePair; // <beg time, end time>
 

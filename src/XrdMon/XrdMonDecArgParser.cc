@@ -14,9 +14,7 @@
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include <stdio.h>
-#include <sstream>
 #include <unistd.h> /* access */
-using std::stringstream;
 
 bool    XrdMonDecArgParser::_forceCloseOnly(false);
 kXR_int32  XrdMonDecArgParser::_upToTime(0);
@@ -186,20 +184,18 @@ XrdMonDecArgParser::parsePath()
     }
     string strHost(_fPath, beg, mid-beg);
     string strPort(_fPath, mid+1, end-(mid+1));
-    stringstream ssPort(stringstream::in | stringstream::out);
-    ssPort << strPort;
-    int portNr = 0;
-    ssPort >> portNr;
-    if ( portNr < 1 ) {
-        stringstream se;
-        se << "Decoded port number is invalid: " << portNr;
-        throw XrdMonException(ERR_INVALIDARG, se.str());
-    }
-    
-    stringstream ss(stringstream::out);
-    ss << strHost << ':' << portNr;
 
-    return ss.str();
+    int portNr = 0;
+    sscanf(strPort.c_str(), "%d", &portNr);
+    if ( portNr < 1 ) {
+        char buf[256];
+        sprintf(buf, "Decoded port number is invalid: %i", portNr);
+        throw XrdMonException(ERR_INVALIDARG, buf);
+    }
+    strHost += ':';
+    strHost += portNr;
+
+    return strHost;
 }
 
 
