@@ -76,7 +76,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
       Error("XrdClientConn",
 	    "Error resolving this host's domain name." );
 
-   XrdClientString goodDomainsRE = fClientHostDomain + "|127.0.0.1" + "|*localdomain|*infn.it";
+   XrdClientString goodDomainsRE = fClientHostDomain + "|*";
 
    EnvPutString(NAME_REDIRDOMAINALLOW_RE,
 		(char *)goodDomainsRE.c_str());
