@@ -29,7 +29,7 @@ class XrdMonCtrArchiver {
 public:
     XrdMonCtrArchiver(const char* cBaseDir, 
                       const char* dBaseDir,
-                      int64_t maxFileSize);
+                      kXR_int64 maxFileSize);
     ~XrdMonCtrArchiver();
     void operator()();
 

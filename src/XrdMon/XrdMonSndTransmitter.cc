@@ -33,7 +33,7 @@ XrdMonSndTransmitter::XrdMonSndTransmitter()
 {}
 
 int
-XrdMonSndTransmitter::initialize(const char* receiverHost, int16_t receiverPort)
+XrdMonSndTransmitter::initialize(const char* receiverHost, kXR_int16 receiverPort)
 {
     _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     

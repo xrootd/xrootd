@@ -26,7 +26,7 @@ public:
     static const char* hostPort(struct sockaddr_in sAddr) {
         return hostPort(convert2Id(sAddr));
     }
-    static const char* hostPort(uint16_t id) {
+    static const char* hostPort(kXR_unt16 id) {
         if ( id >= _hps.size() ) {
             return "Error: invalid offset!";
         }
@@ -40,7 +40,7 @@ private:
 private:
     // Maps hash of sockaddr_in --> id.
     // Used as offset in various vectors
-    static map<uint64_t, uint16_t> _ids;
+    static map<kXR_int64, kXR_unt16> _ids;
     static vector<char*>           _hps; // <host>:<port>
 };
 

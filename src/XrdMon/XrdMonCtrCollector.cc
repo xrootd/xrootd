@@ -32,13 +32,13 @@ using std::cout;
 void
 printSpeed()
 {
-    static int64_t noP = 0;
+    static kXR_int64 noP = 0;
     static XrdMonTimer t;
     if ( 0 == noP ) {
         t.start();
     }
     ++noP;
-    const int64_t EVERY = 1001;
+    const kXR_int64 EVERY = 1001;
     if ( noP % EVERY == EVERY-1) {
         double elapsed = t.stop();
         cout << noP << " packets received in " << elapsed 
@@ -81,7 +81,7 @@ extern "C" void* receivePackets(void*)
             ::abort();
         }
 #ifdef DEBUG
-        static int32_t packetNo = 0;
+        static kXR_int32 packetNo = 0;
         ++packetNo;
         {
             XrdMonCtrXrdOucMutexHelper mh; mh.Lock(&XrdMonCtrDebug::_mutex);

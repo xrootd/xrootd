@@ -36,15 +36,15 @@ XrdMonSndCoder::XrdMonSndCoder()
 int
 XrdMonSndCoder::prepare2Transfer(const XrdMonSndAdminEntry& ae)
 {
-    int32_t packetSize = HDRLEN + ae.size();
+    kXR_int32 packetSize = HDRLEN + ae.size();
 
     int ret = reinitXrdMonSndPacket(packetSize, PACKET_TYPE_ADMIN);
     if ( 0 != ret ) {
         return ret;
     }
 
-    add_int16_t(ae.command());
-    add_int16_t(ae.arg());
+    add_kXR_int16(ae.command());
+    add_kXR_int16(ae.arg());
 
     return 0;
 }
@@ -52,12 +52,12 @@ XrdMonSndCoder::prepare2Transfer(const XrdMonSndAdminEntry& ae)
 int
 XrdMonSndCoder::prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector)
 {
-    int16_t noElems = vector.size() + 3; // 3: 3 time entries
+    kXR_int16 noElems = vector.size() + 3; // 3: 3 time entries
     if (vector.size() == 0 ) {
         noElems = 0;
     }
     
-    int32_t packetSize = HDRLEN + noElems * TRACEELEMLEN;
+    kXR_int32 packetSize = HDRLEN + noElems * TRACEELEMLEN;
     if ( packetSize > MAXPACKETSIZE ) {
         cerr << "Internal error: cached too many entries: " << noElems
              << ", MAXPACKETSIZE = " << MAXPACKETSIZE;
@@ -70,13 +70,13 @@ XrdMonSndCoder::prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector)
         return ret;
     }
 
-    int16_t middle = noElems/2;
-    int32_t curTime = time(0);
-    for (int16_t i=0 ; i<noElems-3 ; i++ ) {
+    kXR_int16 middle = noElems/2;
+    kXR_int32 curTime = time(0);
+    for (kXR_int16 i=0 ; i<noElems-3 ; i++ ) {
         if (i== 0) { // add time entry
             add_Mark(XROOTD_MON_WINDOW);
-            add_int32_t(curTime); // prev window ended
-            add_int32_t(curTime);   // this window started
+            add_kXR_int32(curTime); // prev window ended
+            add_kXR_int32(curTime);   // this window started
             ++_noTime;
             if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
                 cout << "Adding time window {" << curTime << ", " 
@@ -85,8 +85,8 @@ XrdMonSndCoder::prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector)
         }
         if (i== middle) { // add time entry
             add_Mark(XROOTD_MON_WINDOW);
-            add_int32_t(curTime); // prev window ended
-            add_int32_t(curTime);   // this window started
+            add_kXR_int32(curTime); // prev window ended
+            add_kXR_int32(curTime);   // this window started
             ++_noTime;
             if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
                 cout << "Adding time window {" << curTime << ", " 
@@ -94,13 +94,13 @@ XrdMonSndCoder::prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector)
             }
         }
         const XrdMonSndTraceEntry& de = vector[i];
-        add_int64_t(de.offset());
-        add_int32_t(de.length());
-        add_int32_t(de.id()    );
+        add_kXR_int64(de.offset());
+        add_kXR_int32(de.length());
+        add_kXR_int32(de.id()    );
         if (i==noElems-4) {
             add_Mark(XROOTD_MON_WINDOW);
-            add_int32_t(curTime); // prev window ended
-            add_int32_t(curTime);   // this window started
+            add_kXR_int32(curTime); // prev window ended
+            add_kXR_int32(curTime);   // this window started
             ++_noTime;
             if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
                 cout << "Adding time window {" << curTime << ", " 
@@ -114,12 +114,12 @@ XrdMonSndCoder::prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector)
 }
 
 
-pair<char, uint32_t>
+pair<char, kXR_unt32>
 XrdMonSndCoder::generateBigNumber(const char* descr)
 {
-    int64_t xOrg = 1000000000000 + rand();
+    kXR_int64 xOrg = 1000000000000 + rand();
     char nuToShift = 0;
-    int64_t x = xOrg;
+    kXR_int64 x = xOrg;
     while ( x > 4294967296 ) {
         ++nuToShift;
         x = x >> 1;
@@ -128,15 +128,15 @@ XrdMonSndCoder::generateBigNumber(const char* descr)
          << ", sending " << x << " noShifted " 
          << (int) nuToShift << endl;
 
-    return pair<char, uint32_t>(nuToShift, static_cast<uint32_t>(x));
+    return pair<char, kXR_unt32>(nuToShift, static_cast<kXR_unt32>(x));
 }
 
 int 
-XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
+XrdMonSndCoder::prepare2Transfer(const vector<kXR_int32>& vector)
 {
-    int16_t noElems = vector.size() + 2; // 2: 2 time entries
-    int8_t sizeOfXrdMonSndTraceEntry = sizeof(int64_t)+sizeof(int32_t)+sizeof(int32_t);
-    int32_t packetSize = HDRLEN + noElems * sizeOfXrdMonSndTraceEntry;
+    kXR_int16 noElems = vector.size() + 2; // 2: 2 time entries
+    int8_t sizeOfXrdMonSndTraceEntry = sizeof(kXR_int64)+sizeof(kXR_int32)+sizeof(kXR_int32);
+    kXR_int32 packetSize = HDRLEN + noElems * sizeOfXrdMonSndTraceEntry;
     if ( packetSize > MAXPACKETSIZE ) {
         cerr << "Internal error: cached too many entries: " << noElems
              << ", MAXPACKETSIZE = " << MAXPACKETSIZE;
@@ -149,7 +149,7 @@ XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
         return ret;
     }
 
-    int32_t curTime = time(0);
+    kXR_int32 curTime = time(0);
 
     struct XrdXrootdMonTrace trace;
     memset(&trace, 0, sizeof(XrdXrootdMonTrace));
@@ -165,16 +165,16 @@ XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
              << curTime << "}" << ", elem no 0" << endl;
     }
 
-    for (int16_t i=0 ; i<noElems-2 ; i++ ) {
+    for (kXR_int16 i=0 ; i<noElems-2 ; i++ ) {
         static int largeNr = 0; // from time to time need to send very large nr
-        uint32_t rT, wT;
+        kXR_unt32 rT, wT;
 
         memset(&trace, 0, sizeof(XrdXrootdMonTrace));
         trace.data.arg0.id[0]   = XROOTD_MON_CLOSE;
         if ( ++ largeNr % 11 == 10 ) {
             // generate # bytes read/writen (larger than 2^32, shifted)
-            pair<char, uint32_t> bigR = generateBigNumber("read");
-            pair<char, uint32_t> bigW = generateBigNumber("write");
+            pair<char, kXR_unt32> bigR = generateBigNumber("read");
+            pair<char, kXR_unt32> bigW = generateBigNumber("write");
 
             trace.data.arg0.id[1] = bigR.first;
             trace.data.arg0.id[2] = bigW.first;
@@ -182,8 +182,8 @@ XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
             wT = bigW.second;
         } else {
             // generate # bytes read/writen (smaller than 2^32)
-            rT = (uint32_t) rand();
-            wT = (uint32_t) rand() / 512;
+            rT = (kXR_unt32) rand();
+            wT = (kXR_unt32) rand() / 512;
         }
 
         trace.data.arg0.rTot[1] = htonl(rT);
@@ -218,14 +218,14 @@ XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
 int
 XrdMonSndCoder::prepare2Transfer(const XrdMonSndDictEntry::CompactEntry& ce)
 {
-    int32_t packetSize = HDRLEN + ce.size();
+    kXR_int32 packetSize = HDRLEN + ce.size();
 
     int ret = reinitXrdMonSndPacket(packetSize, PACKET_TYPE_DICT);
     if ( 0 != ret ) {
         return ret;
     }
 
-    add_int32_t(ce.id);
+    add_kXR_int32(ce.id);
     add_string  (ce.others);
 
     ++_noDict;
@@ -251,8 +251,8 @@ XrdMonSndCoder::reinitXrdMonSndPacket(packetlen_t newSize, char packetCode)
     }
     add_int08_t(packetCode);
     add_int08_t(_sequenceNo++);
-    add_uint16_t(newSize);
-    add_int32_t(_serverStartTime);
+    add_kXR_unt16(newSize);
+    add_kXR_int32(_serverStartTime);
 
     return 0;
 }

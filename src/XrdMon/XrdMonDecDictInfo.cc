@@ -107,68 +107,68 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
 XrdMonDecDictInfo::XrdMonDecDictInfo(const char* buf, int& pos)
 {
     char b[256];
-    int16_t v16;
-    int32_t v32;
+    kXR_int16 v16;
+    kXR_int32 v32;
     
-    memcpy(&v32, buf+pos, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(&v32, buf+pos, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
     _myXrdId = ntohl(v32);
 
-    memcpy(&v32, buf+pos, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(&v32, buf+pos, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
     _myUniqueId = ntohl(v32);
 
-    memcpy(&v16, buf+pos, sizeof(int16_t));
-    pos += sizeof(int16_t);
-    int16_t userSize = ntohs(v16);
+    memcpy(&v16, buf+pos, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
+    kXR_int16 userSize = ntohs(v16);
     memcpy(b, buf+pos, userSize);
     pos += userSize;
     *(b+userSize) = '\0';
     _user = b;
     
-    memcpy(&v16, buf+pos, sizeof(int16_t));
-    pos += sizeof(int16_t);
+    memcpy(&v16, buf+pos, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
     _pid = ntohs(v16);
 
-    memcpy(&v16, buf+pos, sizeof(int16_t));
-    pos += sizeof(int16_t);
+    memcpy(&v16, buf+pos, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
     _fd = ntohs(v16);
 
-    memcpy(&v16, buf+pos, sizeof(int16_t));
-    pos += sizeof(int16_t);
-    int16_t hostSize = ntohs(v16);
+    memcpy(&v16, buf+pos, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
+    kXR_int16 hostSize = ntohs(v16);
     memcpy(b, buf+pos, hostSize);
     pos += hostSize;
     *(b+hostSize) = '\0';
     _host = b;
     
-    memcpy(&v16, buf+pos, sizeof(int16_t));
-    pos += sizeof(int16_t);
-    int16_t pathSize = ntohs(v16);
+    memcpy(&v16, buf+pos, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
+    kXR_int16 pathSize = ntohs(v16);
     memcpy(b, buf+pos, pathSize);
     pos += pathSize;
     *(b+pathSize) = '\0';
     _path = b;
 
-    memcpy(&v32, buf+pos, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(&v32, buf+pos, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
     _open = ntohl(v32);
 
-    memcpy(&v32, buf+pos, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(&v32, buf+pos, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
     _close = ntohl(v32);
 
-    memcpy(&v32, buf+pos, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(&v32, buf+pos, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
     _noTraces = ntohl(v32);
 
-    int64_t v64;
-    memcpy(&v64, buf+pos, sizeof(int64_t));
-    pos += sizeof(int64_t);
+    kXR_int64 v64;
+    memcpy(&v64, buf+pos, sizeof(kXR_int64));
+    pos += sizeof(kXR_int64);
     _noRBytes = ntohll(v64);
 
-    memcpy(&v64, buf+pos, sizeof(int64_t));
-    pos += sizeof(int64_t);
+    memcpy(&v64, buf+pos, sizeof(kXR_int64));
+    pos += sizeof(kXR_int64);
     _noWBytes = ntohll(v64);
 
     cout << "JB " << *this << endl;
@@ -190,7 +190,7 @@ XrdMonDecDictInfo::openFile(time_t t)
 }
 
 void
-XrdMonDecDictInfo::closeFile(int64_t bytesR, int64_t bytesW, time_t t)
+XrdMonDecDictInfo::closeFile(kXR_int64 bytesR, kXR_int64 bytesW, time_t t)
 {
     if ( 0 == _close ) {
         _close = t;
@@ -237,76 +237,76 @@ XrdMonDecDictInfo::addTrace(const XrdMonDecTraceInfo& trace)
 int 
 XrdMonDecDictInfo::stringSize() const
 {
-    return sizeof(int32_t) +                // _myXrdId
-           sizeof(int32_t) +                // _myUniqueId
-           sizeof(int16_t) + _user.size() + // _user
-           sizeof(int16_t) +                // _pid
-           sizeof(int16_t) +                // _fd
-           sizeof(int16_t) + _host.size() + // _host
-           sizeof(int16_t) + _path.size() + // _path
+    return sizeof(kXR_int32) +                // _myXrdId
+           sizeof(kXR_int32) +                // _myUniqueId
+           sizeof(kXR_int16) + _user.size() + // _user
+           sizeof(kXR_int16) +                // _pid
+           sizeof(kXR_int16) +                // _fd
+           sizeof(kXR_int16) + _host.size() + // _host
+           sizeof(kXR_int16) + _path.size() + // _path
            sizeof(time_t)  +                // _open
            sizeof(time_t)  +                // _close
-           sizeof(int32_t) +                // _noTraces
-           sizeof(int64_t) +                // _noRBytes
-           sizeof(int64_t);                 // _noWBytes
+           sizeof(kXR_int32) +                // _noTraces
+           sizeof(kXR_int64) +                // _noRBytes
+           sizeof(kXR_int64);                 // _noWBytes
 }
 
 void
 XrdMonDecDictInfo::writeSelf2buf(char* buf, int& pos) const
 {
-    int32_t v32 = htonl(_myXrdId);
-    memcpy(buf+pos, &v32, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    kXR_int32 v32 = htonl(_myXrdId);
+    memcpy(buf+pos, &v32, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
 
     v32 = htonl(_myUniqueId);
-    memcpy(buf+pos, &v32, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(buf+pos, &v32, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
 
-    int16_t v16 = htons(_user.size());
-    memcpy(buf+pos, &v16, sizeof(int16_t));
-    pos += sizeof(int16_t);    
+    kXR_int16 v16 = htons(_user.size());
+    memcpy(buf+pos, &v16, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);    
     memcpy(buf+pos, _user.c_str(), _user.size());
     pos += _user.size();
 
     v16 = htons(_pid);
-    memcpy(buf+pos, &v16, sizeof(int16_t));
-    pos += sizeof(int16_t);
+    memcpy(buf+pos, &v16, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
     
     v16 = htons(_fd);
-    memcpy(buf+pos, &v16, sizeof(int16_t));
-    pos += sizeof(int16_t);
+    memcpy(buf+pos, &v16, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
 
     v16 = htons(_host.size());
-    memcpy(buf+pos, &v16, sizeof(int16_t));
-    pos += sizeof(int16_t);
+    memcpy(buf+pos, &v16, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
     memcpy(buf+pos, _host.c_str(), _host.size());
     pos += _host.size();
     
     v16 = htons(_path.size());
-    memcpy(buf+pos, &v16, sizeof(int16_t));
-    pos += sizeof(int16_t);
+    memcpy(buf+pos, &v16, sizeof(kXR_int16));
+    pos += sizeof(kXR_int16);
     memcpy(buf+pos, _path.c_str(), _path.size());
     pos += _path.size();
     
     v32 = htonl(_open);
-    memcpy(buf+pos, &v32, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(buf+pos, &v32, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
     
     v32 = htonl(_close);
-    memcpy(buf+pos, &v32, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(buf+pos, &v32, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
 
     v32 = htonl(_noTraces);
-    memcpy(buf+pos, &v32, sizeof(int32_t));
-    pos += sizeof(int32_t);
+    memcpy(buf+pos, &v32, sizeof(kXR_int32));
+    pos += sizeof(kXR_int32);
 
-    int64_t v64 = htonll(_noRBytes);
-    memcpy(buf+pos, &v64, sizeof(int64_t));
-    pos += sizeof(int64_t);
+    kXR_int64 v64 = htonll(_noRBytes);
+    memcpy(buf+pos, &v64, sizeof(kXR_int64));
+    pos += sizeof(kXR_int64);
 
     v64 = htonll(_noWBytes);
-    memcpy(buf+pos, &v64, sizeof(int64_t));
-    pos += sizeof(int64_t);
+    memcpy(buf+pos, &v64, sizeof(kXR_int64));
+    pos += sizeof(kXR_int64);
 
     cout<< "JB " << *this << endl;
 }

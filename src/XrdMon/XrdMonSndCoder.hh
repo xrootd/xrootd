@@ -39,7 +39,7 @@ public:
 
     int prepare2Transfer(const XrdMonSndAdminEntry& ae);
     int prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector);
-    int prepare2Transfer(const vector<int32_t>& vector);
+    int prepare2Transfer(const vector<kXR_int32>& vector);
     int prepare2Transfer(const XrdMonSndDictEntry::CompactEntry& ce);
 
     const XrdMonSndPacket& packet() { return _packet; }
@@ -49,7 +49,7 @@ public:
 private:
     char* writeHere() { return _packet.offset(_putOffset); }
     int reinitXrdMonSndPacket(packetlen_t newSize, char packetCode);
-    pair<char, uint32_t> generateBigNumber(const char* descr);
+    pair<char, kXR_unt32> generateBigNumber(const char* descr);
     
     inline void add_int08_t(int8_t value) {
         memcpy(writeHere(), &value, sizeof(int8_t));
@@ -59,50 +59,50 @@ private:
         }
         _putOffset += sizeof(int8_t);
     }
-    inline void add_int16_t(int16_t value) {
-        int16_t v = htons(value);
-        memcpy(writeHere(), &v, sizeof(int16_t));
+    inline void add_kXR_int16(kXR_int16 value) {
+        kXR_int16 v = htons(value);
+        memcpy(writeHere(), &v, sizeof(kXR_int16));
         if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
-            cout << "stored int16_t value " << value 
+            cout << "stored kXR_int16 value " << value 
                  << ", _putOffset " << _putOffset << endl;
         }
-        _putOffset += sizeof(int16_t);
+        _putOffset += sizeof(kXR_int16);
     }
-    inline void add_uint16_t(uint16_t value) {
-        uint16_t v = htons(value);
-        memcpy(writeHere(), &v, sizeof(uint16_t));
+    inline void add_kXR_unt16(kXR_unt16 value) {
+        kXR_unt16 v = htons(value);
+        memcpy(writeHere(), &v, sizeof(kXR_unt16));
         if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
-            cout << "stored uint16_t value " << value 
+            cout << "stored kXR_unt16 value " << value 
                  << ", _putOffset " << _putOffset << endl;
         }
-        _putOffset += sizeof(uint16_t);
+        _putOffset += sizeof(kXR_unt16);
     }
-    inline void add_int32_t(int32_t value) {
-        int32_t v = htonl(value);
-        memcpy(writeHere(), &v, sizeof(int32_t));
+    inline void add_kXR_int32(kXR_int32 value) {
+        kXR_int32 v = htonl(value);
+        memcpy(writeHere(), &v, sizeof(kXR_int32));
         if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
-            cout << "stored int32_t value " << value 
+            cout << "stored kXR_int32 value " << value 
                  << ", _putOffset " << _putOffset << endl;
         }
-        _putOffset += sizeof(int32_t);
+        _putOffset += sizeof(kXR_int32);
     }
-    inline void add_uint32_t(uint32_t value) {
-        uint32_t v = htonl(value);
-        memcpy(writeHere(), &v, sizeof(uint32_t));
+    inline void add_kXR_unt32(kXR_unt32 value) {
+        kXR_unt32 v = htonl(value);
+        memcpy(writeHere(), &v, sizeof(kXR_unt32));
         if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
-            cout << "stored uint32_t value " << value 
+            cout << "stored kXR_unt32 value " << value 
                  << ", _putOffset " << _putOffset << endl;
         }
-        _putOffset += sizeof(uint32_t);
+        _putOffset += sizeof(kXR_unt32);
     }
-    inline void add_int64_t(int64_t value) {
-        int64_t v = htonll(value);
-        memcpy(writeHere(), &v, sizeof(int64_t));
+    inline void add_kXR_int64(kXR_int64 value) {
+        kXR_int64 v = htonll(value);
+        memcpy(writeHere(), &v, sizeof(kXR_int64));
         if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
-            cout << "stored int64_t value " << value 
+            cout << "stored kXR_int64 value " << value 
                  << ", _putOffset " << _putOffset << endl;
         }
-        _putOffset += sizeof(int64_t);
+        _putOffset += sizeof(kXR_int64);
     }
     inline void add_Mark(char mark, int noChars=8) {
         assert(noChars<=8);
@@ -118,7 +118,7 @@ private:
         _putOffset += noChars;
     }
     inline void add_string(const string& s) {
-        int16_t sLen = s.size();
+        kXR_int16 sLen = s.size();
         if ( 0 == sLen ) {
             cerr << "Error in add_string, size 0" << endl;
             return;
@@ -133,17 +133,17 @@ private:
 
 private:
     XrdMonSndPacket  _packet;
-    int32_t _putOffset; // tracks where to write inside packet
+    kXR_int32 _putOffset; // tracks where to write inside packet
     sequen_t _sequenceNo;
 
     static time_t _serverStartTime;
     
     // statistics
-    int32_t _noDict;
-    int32_t _noOpen;
-    int32_t _noClose;
-    int32_t _noTrace;
-    int32_t _noTime;
+    kXR_int32 _noDict;
+    kXR_int32 _noOpen;
+    kXR_int32 _noClose;
+    kXR_int32 _noTrace;
+    kXR_int32 _noTime;
 };
 
 #endif /* XRDMONSNDCODER_HH */

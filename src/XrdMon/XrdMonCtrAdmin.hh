@@ -26,11 +26,11 @@ public:
         return header.packetType() == PACKET_TYPE_ADMIN;
     }
     
-    static void doIt(int16_t command, int16_t arg);
+    static void doIt(kXR_int16 command, kXR_int16 arg);
 
     static void decodeAdminPacket(const char* packet,
-                                  int16_t& command, 
-                                  int16_t& arg);
+                                  kXR_int16& command, 
+                                  kXR_int16& arg);
 };
 
 #endif /* XRDMONCTRADMIN_HH */

@@ -23,7 +23,7 @@ public:
     XrdMonSndTransmitter();
     
     int initialize(const char* receiverHost, 
-                   int16_t receiverPort);
+                   kXR_int16 receiverPort);
     int operator()(const XrdMonSndPacket& packet);
     void shutdown();
 

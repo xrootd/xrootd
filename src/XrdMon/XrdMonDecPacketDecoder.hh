@@ -30,7 +30,7 @@ public:
     void init(dictid_t min, dictid_t max);
     sequen_t lastSeq() const { return _sink.lastSeq(); }
     
-    void operator()(uint16_t senderId,
+    void operator()(kXR_unt16 senderId,
                     const XrdMonHeader& header,
                     const char* packet);
     bool     stopNow() const   { return _stopNow; }

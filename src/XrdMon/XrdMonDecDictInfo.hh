@@ -42,7 +42,7 @@ public:
     void writeSelf2buf(char* buf, int& pos) const;
     
     void openFile(time_t t);
-    void closeFile(int64_t bytesR, int64_t bytesW, time_t t);
+    void closeFile(kXR_int64 bytesR, kXR_int64 bytesW, time_t t);
     bool addTrace(const XrdMonDecTraceInfo& trace);
 
 private:
@@ -64,16 +64,16 @@ private:
     dictid_t _myUniqueId; // unique (across all dictIds for given xrd server)
 
     string  _user;
-    int16_t _pid;
-    int16_t _fd;
+    kXR_int16 _pid;
+    kXR_int16 _fd;
     string  _host;
     string  _path;
     time_t  _open;
     time_t  _close;
     
-    int32_t _noTraces;
-    int64_t _noRBytes;  // no bytes read
-    int64_t _noWBytes;  // no bytes writen
+    kXR_int32 _noTraces;
+    kXR_int64 _noRBytes;  // no bytes read
+    kXR_int64 _noWBytes;  // no bytes writen
     
     friend ostream& operator<<(ostream& o, 
                                const XrdMonDecDictInfo& m);

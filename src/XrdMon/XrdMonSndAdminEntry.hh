@@ -22,13 +22,13 @@ public:
         _command = c_shutdown;
         _arg = 0;
     }
-    int16_t size() const         { return 2*sizeof(int16_t); }
+    kXR_int16 size() const         { return 2*sizeof(kXR_int16); }
     AdminCommand command() const { return _command; }
-    int16_t arg() const          { return _arg; }
+    kXR_int16 arg() const          { return _arg; }
     
 private:
     AdminCommand _command;
-    int16_t _arg;
+    kXR_int16 _arg;
 };
 
 #endif /* ADMINENTRY_HH */

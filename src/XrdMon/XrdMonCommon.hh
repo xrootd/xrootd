@@ -17,15 +17,15 @@
 
 // common settings for UDP transmitter and receiver
 
-const int32_t MAXPACKETSIZE  = 65536; // [bytes], (16 bits for length in hdr)
-const int16_t HDRLEN         =     8; // [bytes]
-const int16_t TRACEELEMLEN   =    16; // [bytes]
+const kXR_int32 MAXPACKETSIZE  = 65536; // [bytes], (16 bits for length in hdr)
+const kXR_int16 HDRLEN         =     8; // [bytes]
+const kXR_int16 TRACEELEMLEN   =    16; // [bytes]
 
-// size for data inside packet. 2*int16_t is used
+// size for data inside packet. 2*kXR_int16 is used
 // by packet type and number of elements
-const int16_t TRACELEN       =    16;
+const kXR_int16 TRACELEN       =    16;
 
-const int16_t PORT           =  9930;
+const kXR_int16 PORT           =  9930;
 
 const char PACKET_TYPE_ADMIN = 'A';
 const char PACKET_TYPE_DICT  = 'd';

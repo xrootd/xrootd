@@ -24,28 +24,28 @@ using std::string;
 class XrdMonSndDictEntry {
 public:
     struct CompactEntry {
-        int32_t id;
+        kXR_int32 id;
         string  others;  // <user>.<pid>:<fd>@<host>\n<path>
-        int16_t size() const {return 4 + others.size();}
+        kXR_int16 size() const {return 4 + others.size();}
     };
     
     XrdMonSndDictEntry(string u, 
-                       int16_t pid,
-                       int16_t fd,
+                       kXR_int16 pid,
+                       kXR_int16 fd,
                        string host,
                        string path,
-                       int32_t id);
+                       kXR_int32 id);
 
     CompactEntry code();
     
 private:
     string  _user;
-    int16_t _pid;
-    int16_t _fd;
+    kXR_int16 _pid;
+    kXR_int16 _fd;
     string  _host;
     string  _path;
 
-    int32_t _myId;
+    kXR_int32 _myId;
 
     friend ostream& operator<<(ostream& o, 
                                const XrdMonSndDictEntry& m);

@@ -9,20 +9,14 @@
 /*****************************************************************************/
 
 // $Id$
-                                                                                                          
-#if defined(sun)
-#include <sys/types.h>
-#endif
-                                                                                                          
-#if defined (__linux__)
-#include <stdint.h>
-#endif
 
-typedef int64_t  offset_t;
-typedef int32_t  length_t;
-typedef int32_t  dictid_t;
-typedef uint8_t  packet_t;
-typedef uint8_t  sequen_t;
-typedef uint16_t packetlen_t;
+#include "XProtocol/XPtypes.hh"
+
+typedef kXR_int64 offset_t;
+typedef kXR_int32 length_t;
+typedef kXR_int32 dictid_t;
+typedef kXR_char  packet_t;
+typedef kXR_char  sequen_t;
+typedef kXR_int16 packetlen_t;
 
 

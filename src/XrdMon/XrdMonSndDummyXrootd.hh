@@ -23,10 +23,10 @@ using std::string;
 
 class XrdMonSndDummyXrootd {
 public:
-    static int16_t NEWUSERFREQUENCY;
-    static int16_t NEWPROCFREQUENCY;
-    static int16_t NEWFILEFREQUENCY;
-    static int16_t MAXHOSTS;
+    static kXR_int16 NEWUSERFREQUENCY;
+    static kXR_int16 NEWPROCFREQUENCY;
+    static kXR_int16 NEWFILEFREQUENCY;
+    static kXR_int16 MAXHOSTS;
     
     XrdMonSndDummyXrootd();
     ~XrdMonSndDummyXrootd();
@@ -34,54 +34,54 @@ public:
     int initialize(const char* pathFile);
     XrdMonSndDictEntry newXrdMonSndDictEntry();
     XrdMonSndTraceEntry newXrdMonSndTraceEntry();
-    int32_t closeOneFile();
-    void closeFiles(vector<int32_t>& closedFiles);
+    kXR_int32 closeOneFile();
+    void closeFiles(vector<kXR_int32>& closedFiles);
     
 private:
     int readPaths(const char* pathFile);
     void createUser();
     void createProcess();
     void createFile();
-    string generateUserName(int16_t uid);
+    string generateUserName(kXR_int16 uid);
     string generateHostName();
     
     struct User {
         struct HostAndPid {
             string name;
-            int16_t pid;
-            vector<int16_t> myFiles; // offsets in _paths vector
-            HostAndPid(string n, int16_t id) 
+            kXR_int16 pid;
+            vector<kXR_int16> myFiles; // offsets in _paths vector
+            HostAndPid(string n, kXR_int16 id) 
                 : name(n), pid(id) {};
         };
 
-        int16_t uid;
+        kXR_int16 uid;
         vector<HostAndPid> myProcesses;
-        User(int16_t id) : uid(id) {}
+        User(kXR_int16 id) : uid(id) {}
     };
 
     vector<User> _users;
 
-    int32_t _noCalls2NewUser;
-    int32_t _noCalls2NewProc;
-    int32_t _noCalls2NewFile;
+    kXR_int32 _noCalls2NewUser;
+    kXR_int32 _noCalls2NewProc;
+    kXR_int32 _noCalls2NewFile;
 
-    int16_t _activeUser;
-    int16_t _activeProcess;
-    int16_t _activeFile;
+    kXR_int16 _activeUser;
+    kXR_int16 _activeProcess;
+    kXR_int16 _activeFile;
     bool    _newFile;
 
     struct PathData {
         string path;
-        int16_t fd;
-        PathData(const char* s, int16_t id) : path(s), fd(id) {}
+        kXR_int16 fd;
+        PathData(const char* s, kXR_int16 id) : path(s), fd(id) {}
     };
 
     // input data to pick from, loaded from ascii file
     // Yes, this might be a lot of memory
     vector<PathData> _paths;
 
-    int32_t _firstAvailId;
-    vector<uint32_t> _noTracesPerDict;
+    kXR_int32 _firstAvailId;
+    vector<kXR_unt32> _noTracesPerDict;
 
     vector<bool> _openFiles; // true: open, false: close
 };

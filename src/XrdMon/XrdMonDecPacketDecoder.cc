@@ -52,7 +52,7 @@ XrdMonDecPacketDecoder::init(dictid_t min, dictid_t max)
 
 // true if up-to-time reached and decoding should stop
 void
-XrdMonDecPacketDecoder::operator()(uint16_t senderId,
+XrdMonDecPacketDecoder::operator()(kXR_unt16 senderId,
                                    const XrdMonHeader& header,
                                    const char* packet)
 {
@@ -125,22 +125,22 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
 void
 XrdMonDecPacketDecoder::decodeDictPacket(const char* packet, int len)
 {
-    int32_t x32;
-    memcpy(&x32, packet, sizeof(int32_t));
+    kXR_int32 x32;
+    memcpy(&x32, packet, sizeof(kXR_int32));
     dictid_t dictId = ntohl(x32);
     
-    _sink.add(dictId, packet+sizeof(int32_t), len-sizeof(int32_t));
+    _sink.add(dictId, packet+sizeof(kXR_int32), len-sizeof(kXR_int32));
 }
 
 XrdMonDecPacketDecoder::TimePair
 XrdMonDecPacketDecoder::decodeTime(const char* packet)
 {
     struct X {
-        int32_t endT;
-        int32_t begT;
+        kXR_int32 endT;
+        kXR_int32 begT;
     } x;
 
-    memcpy(&x, packet+sizeof(int64_t), sizeof(X));
+    memcpy(&x, packet+sizeof(kXR_int64), sizeof(X));
     return TimePair(ntohl(x.endT), ntohl(x.begT));
 }
 
@@ -148,9 +148,9 @@ void
 XrdMonDecPacketDecoder::decodeRWRequest(const char* packet, time_t timestamp)
 {
     struct X {
-        int64_t tOffset;
-        int32_t tLen;
-        int32_t dictId;
+        kXR_int64 tOffset;
+        kXR_int32 tLen;
+        kXR_int32 dictId;
     } x;
     memcpy(&x, packet, sizeof(X));
     x.tOffset = ntohll(x.tOffset);
@@ -173,10 +173,10 @@ XrdMonDecPacketDecoder::decodeRWRequest(const char* packet, time_t timestamp)
 void
 XrdMonDecPacketDecoder::decodeOpen(const char* packet, time_t timestamp)
 {
-    int32_t dictId;
+    kXR_int32 dictId;
     memcpy(&dictId, 
-           packet+sizeof(int64_t)+sizeof(int32_t), 
-           sizeof(int32_t));
+           packet+sizeof(kXR_int64)+sizeof(kXR_int32), 
+           sizeof(kXR_int32));
     dictId = ntohl(dictId);
 
     _sink.openFile(dictId, timestamp);
@@ -187,13 +187,13 @@ XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
-    uint32_t dictId = ntohl(trace.data.arg2.dictid);
-    uint32_t tR    = ntohl(trace.data.arg0.rTot[1]);
-    uint32_t tW    = ntohl(trace.data.arg1.wTot);
+    kXR_unt32 dictId = ntohl(trace.data.arg2.dictid);
+    kXR_unt32 tR    = ntohl(trace.data.arg0.rTot[1]);
+    kXR_unt32 tW    = ntohl(trace.data.arg1.wTot);
     char rShift    = trace.data.arg0.id[1];
     char wShift    = trace.data.arg0.id[2];
-    int64_t realR = tR; realR = realR << rShift;
-    int64_t realW = tW; realW = realW << wShift;
+    kXR_int64 realR = tR; realR = realR << rShift;
+    kXR_int64 realW = tW; realW = realW << wShift;
 
     //cout << "decoded close file, dict " << dictId 
     //     << ", total r " << tR << " shifted " << (int) rShift << ", or " << realR

@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-map<uint64_t, uint16_t> XrdMonCtrSenderInfo::_ids;
+map<kXR_int64, kXR_unt16> XrdMonCtrSenderInfo::_ids;
 vector<char*>           XrdMonCtrSenderInfo::_hps;
 
 int
@@ -26,9 +26,9 @@ XrdMonCtrSenderInfo::convert2Id(struct sockaddr_in sAddr)
 {
     // convert sAddr to myid. If not regiserted yet, 
     // register and also build <hostname>:<port> and register it
-    uint64_t myhash = (sAddr.sin_addr.s_addr << 16) + sAddr.sin_port;
+    kXR_int64 myhash = (sAddr.sin_addr.s_addr << 16) + sAddr.sin_port;
 
-    map<uint64_t, uint16_t>::const_iterator itr = _ids.find(myhash);
+    map<kXR_int64, kXR_unt16>::const_iterator itr = _ids.find(myhash);
     if ( itr != _ids.end() ) {
         return itr->second;
     }

@@ -20,7 +20,7 @@ using std::cout;
 using std::endl;
 
 void
-XrdMonCtrAdmin::doIt(int16_t command, int16_t arg)
+XrdMonCtrAdmin::doIt(kXR_int16 command, kXR_int16 arg)
 {
     switch (command) {
         case c_shutdown: {
@@ -35,16 +35,16 @@ XrdMonCtrAdmin::doIt(int16_t command, int16_t arg)
 
 void
 XrdMonCtrAdmin::decodeAdminPacket(const char* packet,
-                                  int16_t& command,
-                                  int16_t& arg)
+                                  kXR_int16& command,
+                                  kXR_int16& arg)
 {
-    int16_t x16;
+    kXR_int16 x16;
     int8_t offset = HDRLEN;
-    memcpy(&x16, packet+offset, sizeof(int16_t));
-    offset += sizeof(int16_t);
+    memcpy(&x16, packet+offset, sizeof(kXR_int16));
+    offset += sizeof(kXR_int16);
     command = ntohs(x16);
 
-    memcpy(&x16, packet+offset, sizeof(int16_t));
-    offset += sizeof(int16_t);
+    memcpy(&x16, packet+offset, sizeof(kXR_int16));
+    offset += sizeof(kXR_int16);
     arg = ntohs(x16);
 }

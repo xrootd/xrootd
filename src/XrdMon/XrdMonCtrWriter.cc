@@ -34,11 +34,11 @@ using std::setw;
 using std::stringstream;
 
 string  XrdMonCtrWriter::_baseDir;
-int64_t XrdMonCtrWriter::_maxLogSize(1024*1024*1024); // 1GB
+kXR_int64 XrdMonCtrWriter::_maxLogSize(1024*1024*1024); // 1GB
 long    XrdMonCtrWriter::_totalArchived(0);
 
 // never make it < MAXPACKETSIZE
-int32_t XrdMonCtrWriter::_bufferSize(1024*1024);      // 1MB 
+kXR_int32 XrdMonCtrWriter::_bufferSize(1024*1024);      // 1MB 
 
 XrdMonCtrWriter::XrdMonCtrWriter(const char* senderHP)
     : _buffer(0),

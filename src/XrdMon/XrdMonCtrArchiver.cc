@@ -28,7 +28,7 @@ using std::endl;
 
 XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir, 
                                      const char* dBaseDir,
-                                     int64_t maxLogSize)
+                                     kXR_int64 maxLogSize)
     : _decoder(0), 
       _currentTime(0),
       _heartbeat(1) // force taking timestamp first time
@@ -102,13 +102,13 @@ XrdMonCtrArchiver::archivePacket(XrdMonCtrPacket* p)
     header.decode(p->buf);
 
     if ( XrdMonCtrAdmin::isAdminPacket(header) ) {
-        int16_t command = 0, arg = 0;
+        kXR_int16 command = 0, arg = 0;
         XrdMonCtrAdmin::decodeAdminPacket(p->buf, command, arg);
         XrdMonCtrAdmin::doIt(command, arg);
         return;
     }
 
-    uint16_t senderId = XrdMonCtrSenderInfo::convert2Id(p->sender);
+    kXR_unt16 senderId = XrdMonCtrSenderInfo::convert2Id(p->sender);
 
     if ( 0 != _decoder ) {
         _decoder->operator()(senderId, header, p->buf);

@@ -38,14 +38,14 @@ public:
     long lastActivity() const { return _lastActivity; }
 
     static void setBaseDir(const char* dir) { _baseDir    = dir; }
-    static void setMaxLogSize(int64_t size) { _maxLogSize = size;}
+    static void setMaxLogSize(kXR_int64 size) { _maxLogSize = size;}
     static void setBufferSize(int size)     { _bufferSize = size;}
     
 private:
     enum LogType { ACTIVE, PERMANENT };
     
     bool logIsOpen() { return _file.is_open(); }
-    bool logIsFull() { return (int64_t) _file.tellp() >= _maxLogSize; }
+    bool logIsFull() { return (kXR_int64) _file.tellp() >= _maxLogSize; }
     bool bufferIsFull(packetlen_t x) { return _bPos + x > _bufferSize; }
 
     string logName(LogType t) const;
@@ -58,14 +58,14 @@ private:
 
 private:
     static string  _baseDir;
-    static int64_t _maxLogSize;
+    static kXR_int64 _maxLogSize;
     static int     _bufferSize;
     static long    _totalArchived;
     
     string  _timestamp;
     string  _sender;     // <hostid>:<port>
     char*   _buffer;
-    int32_t _bPos;       // position where to write to buffer
+    kXR_int32 _bPos;       // position where to write to buffer
     fstream _file;       // non-published log file
 
     long _lastActivity; // approx time of last activity

@@ -28,7 +28,7 @@ public:
                   int maxTraceLogSize);
     ~XrdMonDecSink();
 
-    void setSenderId(uint16_t id);
+    void setSenderId(kXR_unt16 id);
     
     void init(dictid_t min, dictid_t max);
     sequen_t lastSeq() const { return _lastSeq; }
@@ -38,8 +38,8 @@ public:
     void add(dictid_t xrdId, XrdMonDecTraceInfo& trace);
     void openFile(dictid_t dictId, time_t timestamp);
     void closeFile(dictid_t dictId, 
-                   int64_t bytesR, 
-                   int64_t bytesW, 
+                   kXR_int64 bytesR, 
+                   kXR_int64 bytesW, 
                    time_t timestamp);
 
 private:
@@ -59,21 +59,21 @@ private:
     bool _saveTraces;
     typedef vector<XrdMonDecTraceInfo> TraceVector;
     TraceVector _tCache;
-    uint32_t _tCacheSize;
-    uint16_t _traceLogNumber;  // trace.000.ascii, 001, and so on...
-    int64_t  _maxTraceLogSize; // [in MB]
+    kXR_unt32 _tCacheSize;
+    kXR_unt16 _traceLogNumber;  // trace.000.ascii, 001, and so on...
+    kXR_int64  _maxTraceLogSize; // [in MB]
 
     map<dictid_t, long> _lost; //lost dictIds -> number of lost traces
     
     sequen_t _lastSeq;
     dictid_t _uniqueId; // dictId in mySQL, unique for given xrootd host
 
-    uint16_t _logNameSeqId; // to build unique names for multiple log files 
+    kXR_unt16 _logNameSeqId; // to build unique names for multiple log files 
                             // created by the same process
     string _path;    // <basePath>/<date>_seqId_
     string _jnlPath; // <basePath>/jnl
     
-    uint16_t _senderId; // needed to check if senderHost can be reused
+    kXR_unt16 _senderId; // needed to check if senderHost can be reused
     string   _senderHost;
 };
 

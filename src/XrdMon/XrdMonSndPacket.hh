@@ -24,16 +24,16 @@ public:
     XrdMonSndPacket(const XrdMonSndPacket& p);
     ~XrdMonSndPacket();
     
-    int32_t size() const { return _size; }
+    kXR_int32 size() const { return _size; }
     const char* data() const { return _data; }
 
-    char* offset(int32_t x) { return _data+x; }
+    char* offset(kXR_int32 x) { return _data+x; }
 
     int init(packetlen_t newSize);
     void reset();
 
 private:
-    int32_t _size;
+    kXR_int32 _size;
     char*   _data;
 };
     

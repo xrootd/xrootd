@@ -13,9 +13,9 @@
 #include "XrdMon/XrdMonSndTraceEntry.hh"
 using std::ostream;
 
-XrdMonSndTraceEntry::XrdMonSndTraceEntry(int64_t offset,
-                                         int32_t length,
-                                         int32_t id)
+XrdMonSndTraceEntry::XrdMonSndTraceEntry(kXR_int64 offset,
+                                         kXR_int32 length,
+                                         kXR_int32 id)
     : _offset(offset),
       _length(length),
       _id(id)

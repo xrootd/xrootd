@@ -26,11 +26,11 @@ using std::setw;
 using std::stringstream;
 
 // create new user/process/file every ... calls
-int16_t XrdMonSndDummyXrootd::NEWUSERFREQUENCY = 1;
-int16_t XrdMonSndDummyXrootd::NEWPROCFREQUENCY = 1;
-int16_t XrdMonSndDummyXrootd::NEWFILEFREQUENCY = 1;
+kXR_int16 XrdMonSndDummyXrootd::NEWUSERFREQUENCY = 1;
+kXR_int16 XrdMonSndDummyXrootd::NEWPROCFREQUENCY = 1;
+kXR_int16 XrdMonSndDummyXrootd::NEWFILEFREQUENCY = 1;
 
-int16_t XrdMonSndDummyXrootd::MAXHOSTS         = 20;
+kXR_int16 XrdMonSndDummyXrootd::MAXHOSTS         = 20;
 
 XrdMonSndDummyXrootd::XrdMonSndDummyXrootd()
     : _noCalls2NewUser(1), 
@@ -86,20 +86,20 @@ XrdMonSndTraceEntry
 XrdMonSndDummyXrootd::newXrdMonSndTraceEntry()
 {
     // make sure it is sometimes>2GB
-    int64_t offset = ((uint64_t) rand())*(rand()%512);
-    int32_t length = 16384;
-    int32_t id = (uint32_t) rand() % _firstAvailId; // do this until finds still open file
+    kXR_int64 offset = ((kXR_int64) rand())*(rand()%512);
+    kXR_int32 length = 16384;
+    kXR_int32 id = (kXR_unt32) rand() % _firstAvailId; // do this until finds still open file
 
     XrdMonSndTraceEntry d(offset, length, id);
     ++(_noTracesPerDict[id]);
     return d;
 }
 
-int32_t
+kXR_int32
 XrdMonSndDummyXrootd::closeOneFile()
 {
     while ( 1 ) {
-        int32_t id = (uint32_t) rand() % _firstAvailId;
+        kXR_int32 id = (kXR_unt32) rand() % _firstAvailId;
         if ( _openFiles[id] ) {
             _openFiles[id] = false;
             return id;
@@ -109,9 +109,9 @@ XrdMonSndDummyXrootd::closeOneFile()
 }
 
 void 
-XrdMonSndDummyXrootd::closeFiles(vector<int32_t>& closedFiles)
+XrdMonSndDummyXrootd::closeFiles(vector<kXR_int32>& closedFiles)
 {
-    for (int32_t i=0 ; i<_firstAvailId ; i++) {
+    for (kXR_int32 i=0 ; i<_firstAvailId ; i++) {
         closedFiles.push_back(i);
     }
 }
@@ -125,7 +125,7 @@ XrdMonSndDummyXrootd::readPaths(const char* pathFile)
         return 1;
     }
     
-    int16_t fd = 100;
+    kXR_int16 fd = 100;
     while ( f ) {
         char buffer[256];
         f >> buffer;
@@ -143,7 +143,7 @@ XrdMonSndDummyXrootd::createUser()
     _noCalls2NewProc = 0; // force creation of new process
 
     // generate new user
-    int16_t newid = 1 + (uint16_t) rand() % 5000; // user id range: 0-5000
+    kXR_int16 newid = 1 + (kXR_unt16) rand() % 5000; // user id range: 0-5000
     // check if it already exists
     int i, s = _users.size();
     for ( i=0 ; i<s ; i++ ) {
@@ -174,7 +174,7 @@ XrdMonSndDummyXrootd::createProcess()
     User& user = _users[_activeUser];
     
     // generate new process
-    int16_t newid = 1 + (uint16_t) rand() % 10000; // pid range: 0-10000
+    kXR_int16 newid = 1 + (kXR_unt16) rand() % 10000; // pid range: 0-10000
     string newhost = generateHostName();
     // check if it already exists
     int i, s = user.myProcesses.size();
@@ -205,10 +205,10 @@ XrdMonSndDummyXrootd::createFile()
     User& user = _users[_activeUser];
     vector<User::HostAndPid>& myProcesses = user.myProcesses;
     User::HostAndPid& hp = myProcesses[_activeProcess];
-    vector<int16_t>& myFiles = hp.myFiles;
+    vector<kXR_int16>& myFiles = hp.myFiles;
 
     // open new file
-    int16_t newOffset = (uint16_t) rand() % _paths.size();
+    kXR_int16 newOffset = (kXR_unt16) rand() % _paths.size();
     // check if it is already open
     int i, s = myFiles.size();
     for ( i=0 ; i<s ; i++ ) {
@@ -240,8 +240,8 @@ XrdMonSndDummyXrootd::generateHostName()
     type.push_back("tori");
     type.push_back("bronco");
 
-    uint16_t t = (uint16_t) rand() % 3;
-    uint16_t x = (uint16_t) rand() % MAXHOSTS;
+    kXR_unt16 t = (kXR_unt16) rand() % 3;
+    kXR_unt16 x = (kXR_unt16) rand() % MAXHOSTS;
     stringstream ss(stringstream::out);
     ss << type[t] << setw(4) << setfill('0') << x << ".slac.stanford.edu";
 
@@ -249,7 +249,7 @@ XrdMonSndDummyXrootd::generateHostName()
 }
 
 string
-XrdMonSndDummyXrootd::generateUserName(int16_t uid)
+XrdMonSndDummyXrootd::generateUserName(kXR_int16 uid)
 {
     stringstream ss;
     ss << "a_" << uid << "_User";

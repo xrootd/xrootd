@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     XrdMonCtrDebug::initialize();
 
     // FIXME - when configurable, remove mkdir
-    const int64_t MAXFILESIZE = 1024*1024*1024; // 1GB
+    const kXR_int64 MAXFILESIZE = 1024*1024*1024; // 1GB
 
     const char* BASEDIR         = "./logs";
     const char* COLLECTORLOGDIR = "./logs/collector";

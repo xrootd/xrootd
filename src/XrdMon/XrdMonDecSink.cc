@@ -95,7 +95,7 @@ XrdMonDecSink::~XrdMonDecSink()
 }
 
 void 
-XrdMonDecSink::setSenderId(uint16_t id)
+XrdMonDecSink::setSenderId(kXR_unt16 id)
 {
     if ( id != _senderId ) {
         string hostPort ( XrdMonCtrSenderInfo::hostPort(id) );
@@ -189,8 +189,8 @@ XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
 
 void
 XrdMonDecSink::closeFile(dictid_t xrdId, 
-                         int64_t bytesR, 
-                         int64_t bytesW, 
+                         kXR_int64 bytesR, 
+                         kXR_int64 bytesW, 
                          time_t timestamp)
 {
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
@@ -211,8 +211,8 @@ XrdMonDecSink::loadUniqueIdAndSeq()
         f.read(buf, sizeof(sequen_t)+sizeof(dictid_t));
         f.close();
         memcpy(&_lastSeq, buf, sizeof(sequen_t));
-        int32_t v32;
-        memcpy(&v32, buf+sizeof(sequen_t), sizeof(int32_t));
+        kXR_int32 v32;
+        memcpy(&v32, buf+sizeof(sequen_t), sizeof(kXR_int32));
         _uniqueId = ntohl(v32);
 
         cout << "Loaded from jnl file: "
@@ -313,7 +313,7 @@ XrdMonDecSink::checkpoint()
     // save lastSeq and uniqueId
     memcpy(buf+bufPos, &_lastSeq, sizeof(sequen_t));
     bufPos += sizeof(sequen_t);
-    int32_t v = htonl(_uniqueId);
+    kXR_int32 v = htonl(_uniqueId);
     memcpy(buf+bufPos, &v, sizeof(dictid_t));
     bufPos += sizeof(dictid_t);
     
@@ -362,7 +362,7 @@ XrdMonDecSink::write2TraceFile(fstream& f,
     if ( ! f.is_open() ) {
         openTraceFile(f);
     }
-    int64_t tobeSize = len + f.tellp();
+    kXR_int64 tobeSize = len + f.tellp();
     if (  tobeSize > _maxTraceLogSize*1024*1024 ) {
         f.close();
         ++_traceLogNumber;
@@ -384,7 +384,7 @@ XrdMonDecSink::loadActiveDictInfo()
     fstream f(_jnlPath.c_str(), ios::in);
     f.seekg(0, ios::end);
     int fSize = f.tellg();
-    int pos = sizeof(sequen_t) + sizeof(int32_t);
+    int pos = sizeof(sequen_t) + sizeof(kXR_int32);
     if ( fSize - pos == 0 ) {
         return v; // no active XrdMonDecDictInfo objects
     }

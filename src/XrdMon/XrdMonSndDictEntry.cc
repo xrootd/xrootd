@@ -16,11 +16,11 @@ using std::ostream;
 using std::stringstream;
 
 XrdMonSndDictEntry::XrdMonSndDictEntry(string u, 
-                                       int16_t pid,
-                                       int16_t fd,
+                                       kXR_int16 pid,
+                                       kXR_int16 fd,
                                        string host,
                                        string path,
-                                       int32_t myId)
+                                       kXR_int32 myId)
     : _user(u),
       _pid(pid),
       _fd(fd),

@@ -24,16 +24,16 @@
 #include <sys/time.h>
 
 // known problems with 2 and 4
-//const int64_t NOCALLS = 8640000;   24h worth
-const int64_t NOCALLS = 1000000000;
-const int16_t maxNoXrdMonSndPackets = 50;
+//const kXR_int64 NOCALLS = 8640000;   24h worth
+const kXR_int64 NOCALLS = 1000000000;
+const kXR_int16 maxNoXrdMonSndPackets = 50;
 
 
 void
 doDictionaryXrdMonSndPacket(XrdMonSndDummyXrootd& xrootd, 
                             XrdMonSndCoder& coder,
                             XrdMonSndTransmitter& transmitter,
-                            int64_t& noP)
+                            kXR_int64& noP)
 {
     XrdMonSndDictEntry m = xrootd.newXrdMonSndDictEntry();
     cout << m << endl;
@@ -52,7 +52,7 @@ doTraceXrdMonSndPacket(XrdMonSndDummyXrootd& xrootd,
                        XrdMonSndCoder& coder, 
                        XrdMonSndTransmitter& transmitter,
                        XrdMonSndTraceCache& cache, 
-                       int64_t& noP)
+                       kXR_int64& noP)
 {
     XrdMonSndTraceEntry de = xrootd.newXrdMonSndTraceEntry();
     // add to buffer, perhaps transmit
@@ -73,12 +73,12 @@ void
 closeFiles(XrdMonSndDummyXrootd& xrootd,
            XrdMonSndCoder& coder, 
            XrdMonSndTransmitter& transmitter,
-           int64_t& noP,
+           kXR_int64& noP,
            bool justOne)
 {
-    vector<int32_t> closedFiles;
+    vector<kXR_int32> closedFiles;
     if ( justOne ) {
-        int32_t id = xrootd.closeOneFile();
+        kXR_int32 id = xrootd.closeOneFile();
         closedFiles.push_back(id);
     } else {
         xrootd.closeFiles(closedFiles);
@@ -88,7 +88,7 @@ closeFiles(XrdMonSndDummyXrootd& xrootd,
     int pos = 0;
     unsigned int i;
     while ( pos < s ) {
-        vector<int32_t> v;
+        vector<kXR_int32> v;
         for (i=0 ; i<XrdMonSndTraceCache::NODATAELEMS-2 && pos<s ; ++i, ++pos) {
             v.push_back(closedFiles.back());
             closedFiles.pop_back();
@@ -117,14 +117,14 @@ int main(int argc, char* argv[]) {
     
     const char* inputPathFile = "../others/paths.txt";
 
-    int32_t seed = 12345;
+    kXR_int32 seed = 12345;
 
     srand(seed);
     
     XrdMonSndDummyXrootd::NEWUSERFREQUENCY  =  200;
     XrdMonSndDummyXrootd::NEWPROCFREQUENCY  =   50;
-    int16_t NEWDICTENTRYFREQUENCY =  8000;
-    int16_t calls2NewXrdMonSndDictEntry    =  1;    
+    kXR_int16 NEWDICTENTRYFREQUENCY =  8000;
+    kXR_int16 calls2NewXrdMonSndDictEntry    =  1;    
     
     XrdMonSndDebug::initialize();
 
@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
     XrdMonSndTransmitter transmitter;
 
     assert ( !transmitter.initialize(receiverHost, PORT) );
-    int64_t noP = 0;
+    kXR_int64 noP = 0;
 
     while ( 0 != access("start.txt", F_OK) ) {
         static bool warned = false;
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
     }
 
     // use this loop to test light decoder
-    for ( int64_t i=0 ; i<NOCALLS ; i++ ) {
+    for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
         calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
         doDictionaryXrdMonSndPacket(xrootd, coder, transmitter, noP);
 
@@ -170,7 +170,7 @@ int main(int argc, char* argv[]) {
 
     // use this loop to test full tracing
     /*    
-    for ( int64_t i=0 ; i<NOCALLS ; i++ ) {
+    for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
         if ( ! --calls2NewXrdMonSndDictEntry ) {
             calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
             doDictionaryXrdMonSndPacket(xrootd, coder, transmitter, noP);

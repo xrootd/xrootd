@@ -19,18 +19,18 @@ using std::ostream;
 
 class XrdMonSndTraceEntry {
 public:
-    XrdMonSndTraceEntry(int64_t offset,
-               int32_t  length,
-               int32_t id);
+    XrdMonSndTraceEntry(kXR_int64 offset,
+               kXR_int32  length,
+               kXR_int32 id);
 
-    int64_t offset() const  { return _offset; }
-    int32_t length() const  { return _length; }
-    int32_t id()     const  { return _id;     }
+    kXR_int64 offset() const  { return _offset; }
+    kXR_int32 length() const  { return _length; }
+    kXR_int32 id()     const  { return _id;     }
     
 private:
-    int64_t _offset;
-    int32_t _length;
-    int32_t _id;
+    kXR_int64 _offset;
+    kXR_int32 _length;
+    kXR_int32 _id;
 
     friend ostream& operator<<(ostream& o, 
                                const XrdMonSndTraceEntry& m);
