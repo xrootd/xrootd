@@ -26,6 +26,7 @@ const char *XrdOssAioCVSID = "$Id$";
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 
@@ -311,7 +312,7 @@ void *XrdOssAioWait(void *mySigarg)
 {
 #ifdef _POSIX_ASYNCHRONOUS_IO
    EPNAME("AioWait");
-   int mySignum = int(mySigarg);
+   int mySignum = PTR2INT(mySigarg);
    const char *sigType = (mySignum == OSS_AIO_READ_DONE ? "read" : "write");
    const int  isRead   = (mySignum == OSS_AIO_READ_DONE);
    sigset_t  mySigset;
