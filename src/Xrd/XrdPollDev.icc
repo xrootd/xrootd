@@ -245,7 +245,7 @@ void XrdPollDev::Start(XrdOucSemaphore *syncsem, int &retcode)
        //
        if (write(PollDfd, PollTab, numpolled*sizeof(struct pollfd))
                 != numpolled*sizeof(struct pollfd))
-          XrdLog.Emsg("Poll", errno, (char *)"remove an fd from /dev/poll");
+          XrdLog.Emsg("Poll", errno, "remove an fd from /dev/poll");
 
        // Schedule the polled links
        //
@@ -278,7 +278,7 @@ void XrdPollDev::doRequests(int maxreq)
    while(num2do-- && getRequest())
         {     if (!(lp = XrdLink::fd2link(ReqBuff.fd)))
                  {sprintf(buff, "%d", ReqBuff.fd);
-                  XrdLog.Emsg("Poll","FD",buff,(char *)"does not map to a link");
+                  XrdLog.Emsg("Poll", "FD", buff, "does not map to a link");
                   ptab.events = POLLREMOVE; act = (char *)" remove fd ";
                  }
          else if (ReqBuff.req == PipeData::EnFD)

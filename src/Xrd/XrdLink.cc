@@ -362,7 +362,7 @@ int XrdLink::Peek(char *Buff, int Blen, int timeout)
 //
    if (!(polltab.revents & (POLLIN|POLLRDNORM)))
       {XrdLog.Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
-                           (char *)"polling", ID);
+                           "polling", ID);
        return -1;
       }
 
@@ -425,7 +425,7 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
             {if (retc == 0)
                 {tardyCnt++;
                  if (totlen  && (++stallCnt & 0xff) == 1)
-                    XrdLog.Emsg("Link", ID, (char *)"read timed out");
+                    XrdLog.Emsg("Link", ID, "read timed out");
                  return int(totlen);
                 }
              return XrdLog.Emsg("Link", -errno, "poll", ID);
@@ -435,7 +435,7 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
          //
          if (!(polltab.revents & (POLLIN|POLLRDNORM)))
             {XrdLog.Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
-                                 (char *)"polling", ID);
+                                 "polling", ID);
              return -1;
             }
 
@@ -766,7 +766,7 @@ void XrdLinkScan::idleScan()
         if ((int(lp->isIdle)) < idleTicks) {lp->opMutex.UnLock(); continue;}
         lp->isIdle = 0;
         if (!(lp->Poller) || !(lp->isEnabled))
-           XrdLog.Emsg("LinkScan","Link",lp->ID,(char *)"is disabled and idle.");
+           XrdLog.Emsg("LinkScan","Link",lp->ID,"is disabled and idle.");
            else if (lp->InUse == 1)
                    {lp->Poller->Disable(lp, "idle timeout");
                     tmod++;

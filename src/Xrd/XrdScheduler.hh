@@ -87,7 +87,7 @@ XrdOucMutex            TimerMutex; // Protects scheduler area
 XrdSchedulerPID       *firstPID;
 XrdOucMutex            ReaperMutex;
 
-void hireWorker();
+void hireWorker(int dotrace=1);
 void Monitor();
 void traceExit(pid_t pid, int status);
 static const char *TraceID;

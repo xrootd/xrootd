@@ -192,7 +192,7 @@ pid_t XrdScheduler::Fork(const char *id)
 // Fork
 //
    if ((pid = fork()) < 0)
-      {XrdLog.Emsg("Scheduler",errno,(char *)"fork to handle",(char *)id);
+      {XrdLog.Emsg("Scheduler",errno,"fork to handle",id);
        return pid;
       }
    if (!pid) return pid;
@@ -460,14 +460,15 @@ void XrdScheduler::Start(int numw)
 
 // If we are in agressive mode scheduling, start the minimum threads now
 //
-   if (numw <= 1) hireWorker();
+   if (numw <= 1) hireWorker(0);
       else {if (numw > min_Workers) numw = min_Workers;
-            while(numw--) hireWorker();
+            while(numw--) hireWorker(0);
            }
 
 // Unlock the data area
 //
    SchedMutex.UnLock();
+   TRACE(SCHED, "Starting with " <<num_Workers <<" workers" );
 }
 
 /******************************************************************************/
@@ -546,7 +547,7 @@ void XrdScheduler::TimeSched()
 /*                           h i r e   W o r k e r                            */
 /******************************************************************************/
   
-void XrdScheduler::hireWorker()  // Called with SchedMutex locked!
+void XrdScheduler::hireWorker(int dotrace)  // Called with SchedMutex locked!
 {
    pthread_t tid;
    int retc;
@@ -558,7 +559,7 @@ void XrdScheduler::hireWorker()  // Called with SchedMutex locked!
       XrdLog.Emsg("Scheduler", retc, "create worker thread");
       else {num_Workers++;
             num_TCreate++;
-            TRACE(SCHED, "Now have " <<num_Workers <<" workers" );
+            if (dotrace) TRACE(SCHED, "Now have " <<num_Workers <<" workers" );
            }
 }
  

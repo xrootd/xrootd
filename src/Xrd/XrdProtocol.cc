@@ -116,8 +116,7 @@ int XrdProtocol_Select::Load(const char *lname, const char *pname,
 //
    if (lname)  xp =     getProtocol(lname, pname, parms, pi);
       else     xp = XrdgetProtocol(pname, parms, pi);
-   if (!xp) {XrdLog.Emsg("Protocol","Protocol", (char *)pname,
-                          (char *)"could not be loaded");
+   if (!xp) {XrdLog.Emsg("Protocol","Protocol", pname, "could not be loaded");
              return 0;
             }
 
@@ -175,7 +174,7 @@ void XrdProtocol_Select::Recycle(XrdLink *lp, int ctime, char *reason)
 // Document non-protocol errors
 //
    if (lp && reason)
-      XrdLog.Emsg("Protocol", lp->ID, (char *)"terminated", reason);
+      XrdLog.Emsg("Protocol", lp->ID, "terminated", reason);
 }
 
 /******************************************************************************/
@@ -221,13 +220,11 @@ void *ep;
    if (i >= libcnt)
       {i = libcnt+1;
        if (!(libhndl[i] = dlopen(lname, RTLD_NOW)))
-          {XrdLog.Emsg("Protocol", dlerror(), (char *)"opening shared library",
-                                  (char *)lname);
+          {XrdLog.Emsg("Protocol", dlerror(), "opening shared library", lname);
            return 0;
           }
         if (!(ep = dlsym(libhndl[i], "XrdgetProtocol")))
-          {XrdLog.Emsg("Protocol",dlerror(),(char *)"finding XrdgetProtocol() in",
-                        (char *)lname);
+          {XrdLog.Emsg("Protocol",dlerror(),"finding XrdgetProtocol() in",lname);
            return 0;
           }
        libfunc[i]=(XrdProtocol *(*)(const char*,char*,XrdProtocol_Config*))ep;

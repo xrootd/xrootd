@@ -144,8 +144,7 @@ int XrdPollPoll::Include(XrdLink *lp)
 // Make sure we have enough table entries to add this link
 //
    if (ptnum > maxent)
-      {XrdLog.Emsg("Attach", "Attach", lp->ID,
-                              (char *)"failed; poll table overflow.");
+      {XrdLog.Emsg("Attach","Attach",lp->ID,"failed; poll table overflow.");
        PollMutex.UnLock();
        return 0;
       }
@@ -506,7 +505,7 @@ void XrdPollPoll::LogEvent(int req, int pollfd, int cmdfd)
 
    if (pollfd < 0)
       {sprintf(buff, "poll %d failed; FD %d", PID, cmdfd);
-       XrdLog.Emsg("Poll", opn, buff, (char *)"does not map to a link");
+       XrdLog.Emsg("Poll", opn, buff, "does not map to a link");
        return;
       }
 
