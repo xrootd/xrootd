@@ -899,14 +899,15 @@ XrdOdcFinderTRG::~XrdOdcFinderTRG()
   
 void XrdOdcFinderTRG::Added(const char *path)
 {
-   char *data[3];
-   int   dlen[3];
+   char *data[4];
+   int   dlen[4];
 
 // Set up to notify the olb domain that a file has been removed
 //
    data[0] = (char *)"0 newfn "; dlen[0] = 8;
    data[1] = (char *)path;       dlen[1] = strlen(path);
-   data[2] = 0;                  dlen[2] = 0;
+   data[2] = (char *)"\n";       dlen[2] = 1;
+   data[3] = 0;                  dlen[3] = 0;
 
 // Now send the notification
 //
@@ -952,14 +953,15 @@ int XrdOdcFinderTRG::Configure(char *cfn)
   
 void XrdOdcFinderTRG::Removed(const char *path)
 {
-   char *data[3];
-   int   dlen[3];
+   char *data[4];
+   int   dlen[4];
 
 // Set up to notify the olb domain that a file has been removed
 //
    data[0] = (char *)"0 rmdid "; dlen[0] = 8;
    data[1] = (char *)path;       dlen[1] = strlen(path);
-   data[2] = 0;                  dlen[2] = 0;
+   data[2] = (char *)"\n";       dlen[2] = 1;
+   data[3] = 0;                  dlen[3] = 0;
 
 // Now send the notification
 //
