@@ -109,6 +109,10 @@ int XrdOucCondVar::Wait(int sec)
  struct timespec tval;
  int retc;
 
+// Get the mutex before calculating the time
+//
+   if (relMutex) Lock();
+
 // Simply adjust the time in seconds
 //
    tval.tv_sec  = time(0) + sec;
@@ -116,7 +120,6 @@ int XrdOucCondVar::Wait(int sec)
 
 // Wait for the condition or timeout
 //
-   if (relMutex) Lock();
    retc = pthread_cond_timedwait(&cvar, &cmut, &tval);
    if (relMutex) UnLock();
    return retc == ETIMEDOUT;
@@ -138,6 +141,10 @@ int XrdOucCondVar::WaitMS(int msec)
       else {sec = msec / 1000; msec = msec % 1000;}
    usec = msec * 1000;
 
+// Get the mutex before getting the time
+//
+   if (relMutex) Lock();
+
 // Get current time of day
 //
    gettimeofday(&tnow, 0);
@@ -155,7 +162,6 @@ int XrdOucCondVar::WaitMS(int msec)
 
 // Now wait for the condition or timeout
 //
-   if (relMutex) Lock();
    retc = pthread_cond_timedwait(&cvar, &cmut, &tval);
    if (relMutex) UnLock();
    return retc == ETIMEDOUT;

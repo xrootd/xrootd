@@ -21,7 +21,7 @@ const char *XrdOucEnvCVSID = "$Id$";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOucEnv::XrdOucEnv(const char *vardata, int varlen)
+XrdOucEnv::XrdOucEnv(const char *vardata, int varlen) : env_Hash(8,13)
 {
    char *vdp, varsave, *varname, *varvalu;
 
