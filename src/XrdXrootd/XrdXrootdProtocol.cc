@@ -16,6 +16,7 @@ const char *XrdXrootdProtocolCVSID = "$Id$";
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XProtocol/XProtocol.hh"
+#include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
@@ -51,10 +52,16 @@ int                   XrdXrootdProtocol::Port;
 char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::chkfsV  = 0;
 
-int                   XrdXrootdProtocol::as_maxaspl =  8;   // Max async ops per link
-int                   XrdXrootdProtocol::as_maxasps = 64;   // Max async ops per server
-int                   XrdXrootdProtocol::as_maxbfsz;
-int                   XrdXrootdProtocol::as_aiosize;
+int                   XrdXrootdProtocol::maxBuffsz;
+int                   XrdXrootdProtocol::as_maxperlnk = 8;   // Max ops per link
+int                   XrdXrootdProtocol::as_maxperreq = 8;   // Max ops per request
+int                   XrdXrootdProtocol::as_maxpersrv = 4096;// Max ops per server
+int                   XrdXrootdProtocol::as_segsize   = 65536;
+int                   XrdXrootdProtocol::as_miniosz   = 16384;
+int                   XrdXrootdProtocol::as_maxstalls = 5;
+int                   XrdXrootdProtocol::as_force     = 0;
+int                   XrdXrootdProtocol::as_noaio     = 0;
+int                   XrdXrootdProtocol::as_syncw     = 0;
 
 int                   XrdXrootdProtocol::monMBval = 8192;
 int                   XrdXrootdProtocol::monWWval = 60;
@@ -145,30 +152,6 @@ XrdXrootdProtocol XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
 }
   
 /******************************************************************************/
-/*                                  D o I t                                   */
-/******************************************************************************/
-  
-void XrdXrootdProtocol::DoIt()
-{
-
-// Invoke the appropriate routine for this asynchronous entry
-//
-   (*this.*Resume)();
-
-// Do some statistics (no need to lock these)
-//
-   if (--SI->AsyncNow < 0) SI->AsyncNow=0;
-
-// Dereference the link
-//
-   if (Link) {Link->setRef(-1); Link = 0;}
-
-// Recycle ourselves
-//
-   Recycle();
-}
-  
-/******************************************************************************/
 /*                                 M a t c h                                  */
 /******************************************************************************/
 
@@ -250,7 +233,10 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
 // Check if we are servicing a slow link
 //
    if (Resume)
-      if (myBlen && (rc = getData("data", myBuff, myBlen) != 0)) return rc;
+      if (myBlen && (rc = getData("data", myBuff, myBlen)) != 0) 
+         {if (rc < 0 && myAioReq) myAioReq->Recycle(-1);
+          return rc;
+         }
          else if ((rc = (*this.*Resume)()) != 0) return rc;
                  else {Resume = 0; return 0;}
 
@@ -497,6 +483,7 @@ void XrdXrootdProtocol::Reset()
    myBlast            = 0;
    myOffset           = 0;
    myIOLen            = 0;
+   myStalls           = 0;
    numReads           = 0;
    numReadP           = 0;
    numWrites          = 0;

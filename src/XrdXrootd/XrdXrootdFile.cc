@@ -54,10 +54,12 @@ XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
     struct stat buf;
     int i, tempseq;
 
-    XrdSfsp    = fp;
+    XrdSfsp  = fp;
     FileMode = mode;
     AsyncMode= async;
     ID       = id;
+    readCnt  = 0;
+    writeCnt = 0;
 
 // Assign a unique fileID for this file
 //

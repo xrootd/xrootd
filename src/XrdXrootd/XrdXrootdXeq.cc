@@ -24,6 +24,7 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 #include "XrdSec/XrdSecInterface.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
+#include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
@@ -331,6 +332,7 @@ int XrdXrootdProtocol::do_Login()
 //
    Link->setID((const char *)uname, pid);
    Client.tident = Link->ID;
+   CapVer = Request.login.capver[0];
 
 // Check if this is an admin login
 //
@@ -471,7 +473,8 @@ int XrdXrootdProtocol::do_Open()
    if (opts & kXR_compress)        
            {openopts |= SFS_O_RAWIO;   *op++ = 'c'; compchk = 1;}
    if (opts & kXR_force)              {*op++ = 'f'; doforce = 1;}
-   if (opts & kXR_async)              {*op++ = 'a'; isAsync = '1';}
+   if ((opts & kXR_async || as_force) && !as_noaio)
+                                      {*op++ = 'a'; isAsync = '1';}
    if (opts & kXR_refresh)            {*op++ = 's'; openopts |= SFS_O_RESET;
                                        UPSTATS(Refresh);
                                       }
@@ -786,9 +789,10 @@ int XrdXrootdProtocol::do_Read()
 // If we are in async mode, schedule the read to ocur asynchronously
 //
    if (myFile->AsyncMode)
-      if ( myIOLen < as_aiosize && Link->UseCnt() < as_maxaspl
-         && SchedAsync(&XrdXrootdProtocol::do_ReadAll)) return 0;
-         else SI->AsyncRej++;
+      {if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
+          if ((retc = aio_Read()) != -EAGAIN) return retc;
+       SI->AsyncRej++;
+      }
 
 // Now read all of the data (do pre-reads first)
 //
@@ -805,7 +809,8 @@ int XrdXrootdProtocol::do_Read()
   
 int XrdXrootdProtocol::do_ReadAll()
 {
-   int xframt, Quantum = (myIOLen > as_maxbfsz ? as_maxbfsz : myIOLen);
+   int xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
+   int iolen = myIOLen;
    char *buff;
 
 // Make sure we have a large enough buffer
@@ -825,6 +830,7 @@ int XrdXrootdProtocol::do_ReadAll()
        myOffset += xframt; myIOLen -= xframt;
        if (myIOLen < Quantum) Quantum = myIOLen;
       } while(myIOLen);
+   myFile->readCnt += (iolen - myIOLen); // Somewhat accurate
 
 // Determine why we ended here
 //
@@ -1090,11 +1096,6 @@ int XrdXrootdProtocol::do_Sync()
    if (!FTab || !(fp = FTab->Get(fh.handle)))
       return Response.Send(kXR_FileNotOpen,"sync does not refer to an open file");
 
-// If we are in async mode, serialize the link to make sure any in-flight
-// operations on this handle have completed
-//
-   if (fp->AsyncMode) Link->Serialize();
-
 // Sync the file
 //
    rc = fp->XrdSfsp->sync();
@@ -1113,6 +1114,7 @@ int XrdXrootdProtocol::do_Sync()
   
 int XrdXrootdProtocol::do_Write()
 {
+   int retc;
    XrdXrootdFHandle fh(Request.write.fhandle);
    numWrites++;
 
@@ -1136,8 +1138,18 @@ int XrdXrootdProtocol::do_Write()
    TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
    if (myIOLen <= 0) return Response.Send();
 
+// If we are in async mode, schedule the write to occur asynchronously
+//
+   if (myFile->AsyncMode && !as_syncw)
+      {if (myStalls > as_maxstalls) myStalls--;
+          else if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
+                  if ((retc = aio_Write()) != -EAGAIN) return retc;
+       SI->AsyncRej++;
+      }
+
 // Just to the i/o now
 //
+   myFile->writeCnt += myIOLen; // Optimistically correct
    return do_WriteAll();
 }
   
@@ -1151,7 +1163,7 @@ int XrdXrootdProtocol::do_Write()
   
 int XrdXrootdProtocol::do_WriteAll()
 {
-   int rc, Quantum = (myIOLen > as_maxbfsz ? as_maxbfsz : myIOLen);
+   int rc, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
 
 // Make sure we have a large enough buffer
 //
@@ -1168,6 +1180,7 @@ int XrdXrootdProtocol::do_WriteAll()
             {if (rc > 0) 
                 {Resume = &XrdXrootdProtocol::do_WriteCont;
                  myBlast = Quantum;
+                 myStalls++;
                 }
              return rc;
             }
@@ -1356,38 +1369,6 @@ int XrdXrootdProtocol::rpEmsg(const char *op, char *fn)
    snprintf(buff,sizeof(buff)-1,"%s relative path '%s' is disallowed.",op,fn);
    buff[sizeof(buff)-1] = '\0';
    return Response.Send(kXR_NotAuthorized, buff);
-}
-
-/******************************************************************************/
-/*                            S c h e d A s y n c                             */
-/******************************************************************************/
-  
-int XrdXrootdProtocol::SchedAsync(int (XrdXrootdProtocol::*asyncXeq)())
-{
-   XrdXrootdProtocol *xp;
-
-// Make sure we haven't exceeded the maximum
-//
-   if (SI->AsyncNow >= as_maxasps) return 0;
-
-// Get a new protocol object
-//
-   if (!(xp = XrdXrootdProtocol::ProtStack.Pop())
-   && (!(xp = new XrdXrootdProtocol()))) return 0;
-
-// Set parmeters for the protocol object
-//
-   *xp          = *this;
-   xp->Resume   =  asyncXeq;
-
-// Do the statistics (no need to lock them)
-//
-   if (++SI->AsyncNow > SI->AsyncMax) SI->AsyncMax = SI->AsyncNow;
-
-// Schedule the request
-//
-   Sched->Schedule((XrdJob *)xp);
-   return 1;
 }
  
 /******************************************************************************/

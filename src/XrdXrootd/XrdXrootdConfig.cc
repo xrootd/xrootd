@@ -34,6 +34,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
+#include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
@@ -152,10 +153,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    for ( ; optind < pi->argc; optind++) xexpdo(pi->argv[optind]);
 
-// Initialize remaining async values
+// Pre-initialize some i/o values
 //
-   as_maxbfsz   = pi->BPool->MaxSize();
-   as_aiosize   = as_maxbfsz*2;
+   if (!(as_miniosz = as_segsize/2)) as_miniosz = as_segsize;
+   maxBuffsz = BPool->MaxSize();
 
 // At the moment we don't support multimode
 //
@@ -171,6 +172,11 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
               else NoGo = 0;
    if (NoGo) return 0;
    if (pi->DebugON) XrdXrootdTrace->What = TRACE_ALL;
+
+// Initialiaze for AIO
+//
+   if (!as_noaio) XrdXrootdAioReq::Init(as_segsize, as_maxperreq, as_maxpersrv);
+      else eDest.Emsg("Config", "Asynchronous I/O has been disabled!");
 
 // Initialize the security system if this is wanted
 //
@@ -323,14 +329,27 @@ int XrdXrootdProtocol::ConfigIt(char *parms)
 
 /* Function: xasync
 
-   Purpose:  To parse directive: async [maxpl <maxpl>] [maxps <maxps>]
-                                       [iosz <iosz>]
+   Purpose:  To parse directive: async [limit <aiopl>] [maxsegs <msegs>]
+                                       [maxtot <mtot>] [segsize <segsz>]
+                                       [minsize <iosz>] [maxstalls <cnt>]
+                                       [force] [syncw] [off]
 
-             <maxpl>  maximum number of async ops per link. Default 8.
-             <maxps>  maximum number of async ops per server. Default 64.
+             <aiopl>  maximum number of async ops per link. Default 8.
+             <msegs>  maximum number of async ops per request. Default 8.
+             <mtot>   maximum number of async ops per server. Default is 20%
+                      of maximum connection times aiopl divided by two.
+             <segsz>  The aio segment size. This is the maximum size that data
+                      will be read or written. The defaults to 64K but is
+                      adjusted for each request to minimize latency.
              <iosz>   the minimum number of bytes that must be read or written
-                      to allow async processing to occur (default is 2*maxbsz,
-                      typically 2M).
+                      to allow async processing to occur (default is maxbsz/2
+                      typically 1M).
+             <cnt>    Maximum number of client stalls before synchronous i/o is
+                      used. Async mode is tried after <cnt> requests.
+             force    Uses async i/o for all requests, even when not explicitly
+                      requested (this is compatible with synchronous clients).
+             syncw    Use synchronous i/o for write requests.
+             off      Disables async i/o
 
    Output: 0 upon success or 1 upon failure.
 */
@@ -339,14 +358,21 @@ int XrdXrootdProtocol::xasync(XrdOucTokenizer &Config)
 {
     char *val;
     int  i, ppp;
-    int  V_mapl = -1, V_maps = -1, V_iosz = -1;
+    int  V_force=-1, V_syncw = -1, V_off = -1, V_mstall = -1;
+    int  V_limit=-1, V_msegs=-1, V_mtot=-1, V_minsz=-1, V_segsz=-1;
     long long llp;
     static struct asyncopts {const char *opname; int minv; int *oploc;
                              const char *opmsg;} asopts[] =
        {
-        {"maxpl",      0, &V_mapl, "async maxpl"},
-        {"maxps",      0, &V_maps, "async maxps"},
-        {"iosz",    4096, &V_iosz, "async iosz"}};
+        {"force",     -1, &V_force, ""},
+        {"off",       -1, &V_off,   ""},
+        {"syncw",     -1, &V_syncw, ""},
+        {"limit",      0, &V_limit, "async limit"},
+        {"segsize", 4096, &V_segsz, "async segsize"},
+        {"maxsegs",    0, &V_msegs, "async maxsegs"},
+        {"maxstalls",  0, &V_mstall,"async maxstalls"},
+        {"maxtot",     0, &V_mtot,  "async maxtot"},
+        {"minsize", 4096, &V_minsz, "async minsize"}};
     int numopts = sizeof(asopts)/sizeof(struct asyncopts);
 
     if (!(val = Config.GetToken()))
@@ -355,18 +381,20 @@ int XrdXrootdProtocol::xasync(XrdOucTokenizer &Config)
     while (val)
          {for (i = 0; i < numopts; i++)
               if (!strcmp(val, asopts[i].opname))
-                 {if (!(val = Config.GetToken()))
+                 {if (asopts[i].minv >=  0 && !(val = Config.GetToken()))
                      {eDest.Emsg("Config","async",(char *)asopts[i].opname,
                                 (char *)"value not specified");
                       return 1;
                      }
-                  if (*asopts[i].opname == 'i')
-                     if (XrdOuca2x::a2sz(eDest,asopts[i].opmsg, val, &llp,
-                                       (long long)asopts[i].minv)) return 1;
-                        else *asopts[i].oploc = (int)llp;
-                     else if (XrdOuca2x::a2i(eDest,asopts[i].opmsg, val, &ppp,
-                                            asopts[i].minv)) return 1;
+                       if (asopts[i].minv >  0)
+                          if (XrdOuca2x::a2sz(eDest,asopts[i].opmsg, val, &llp,
+                                         (long long)asopts[i].minv)) return 1;
+                             else *asopts[i].oploc = (int)llp;
+                  else if (asopts[i].minv == 0)
+                          if (XrdOuca2x::a2i(eDest,asopts[i].opmsg,val,&ppp,1))
+                                            return 1;
                              else *asopts[i].oploc = ppp;
+                  else *asopts[i].oploc = 1;
                   break;
                  }
           if (i >= numopts)
@@ -376,17 +404,35 @@ int XrdXrootdProtocol::xasync(XrdOucTokenizer &Config)
 
 // Make sure max values are consistent
 //
-   if (V_mapl > 0 && V_maps > 0 && V_mapl > V_maps)
-           {eDest.Emsg("Config", "async maxpl may not be greater than maxps");
+   if (V_limit > 0 && V_mtot > 0 && V_limit > V_mtot)
+           {eDest.Emsg("Config", "async limit may not be greater than maxtot");
             return 1;
            }
 
+// Calculate the actual segment size
+//
+   if (V_segsz > 0)
+      {i = BPool->Recalc(V_segsz);
+       if (!i) {eDest.Emsg("Config", "async segsize is too large"); return 1;}
+       if (i != V_segsz)
+          {char buff[64];
+           sprintf(buff, "%d readjusted to %d", V_segsz, i);
+           eDest.Emsg("Config", "async segsize", buff);
+           V_segsz = i;
+          }
+      }
+
 // Establish async options
 //
-   if (V_mapl > 0) as_maxaspl = V_mapl;
-   if (V_maps > 0) as_maxasps = V_maps;
-   if (as_maxaspl > as_maxasps) as_maxaspl = as_maxasps;
-   if (V_iosz > 0) as_aiosize = V_iosz;
+   if (V_limit > 0) as_maxperlnk = V_limit;
+   if (V_msegs > 0) as_maxperreq = V_msegs;
+   if (V_mtot  > 0) as_maxpersrv = V_mtot;
+   if (V_minsz > 0) as_miniosz   = V_minsz;
+   if (V_segsz > 0) as_segsize   = V_segsz;
+   if (V_mstall> 0) as_maxstalls = V_mstall;
+   if (V_force > 0) as_force     = 1;
+   if (V_off   > 0) as_noaio     = 1;
+   if (V_syncw > 0) as_syncw     = 1;
 
    return 0;
 }
@@ -507,10 +553,11 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
 
 /* Function: xmon
 
-   Purpose:  Parse directive: monitor [all] [io] [off] [mbuff <sz>] 
+   Purpose:  Parse directive: monitor [all] [file] [io] [off] [mbuff <sz>]
                                       [window <sec>] dest <host:port>
 
          all                enables monitoring for all connections.
+         file               only monitors file close events.
          io                 only monitors I/O requests.
          off                disabled monitoring but leaves config info in place.
          mbuff  <sz>        size of message buffer.
@@ -526,10 +573,13 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
     monMode = XROOTD_MON_SOME;
     while((val = Config.GetToken()))
 
-         {     if (!strcmp("all", val))  monMode = XROOTD_MON_ALL;
-          else if (!strcmp("io",  val)) ;
-          else if (!strcmp("off", val))  monMode = XROOTD_MON_NONE;
-          else if (!strcmp("mbuff", val))
+         {     if (!strcmp("all",  val)) {monMode &= ~XROOTD_MON_SOME;
+                                          monMode |=  XROOTD_MON_ALL;
+                                          }
+          else if (!strcmp("file", val))  monMode |=  XROOTD_MON_FILE;
+          else if (!strcmp("io",   val))  monMode |=  XROOTD_MON_IO;
+          else if (!strcmp("off",  val))  monMode &=  XROOTD_MON_NONE;
+          else if (!strcmp("mbuff",val))
                   {if (!(val = Config.GetToken()))
                       {eDest.Emsg("Config", "monitor mbuff value not specified");
                        return 1;

@@ -33,6 +33,8 @@ char         FileKey[38];       // -> Unique hash name for the file
 char         FileMode;          // 'r' or 'w'
 char         AsyncMode;         // 1 -> if file in async r/w mode
 char        *ID;                // File user
+long long    readCnt;
+long long    writeCnt;
 
 static void Init(XrdXrootdFileLock *lp) {Locker = lp;}
 

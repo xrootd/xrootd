@@ -251,7 +251,7 @@ void XrdXrootdMonitor::Map(const char code, kXR_int32 dictID,
 /*                               s e t M o d e                                */
 /******************************************************************************/
 
-void XrdXrootdMonitor::setMode(int onoff)
+void XrdXrootdMonitor::setMode(int mmode)
 {
    static XrdXrootdMonitor_Tick MonTick;
    time_t Now;
@@ -259,7 +259,9 @@ void XrdXrootdMonitor::setMode(int onoff)
 
    windowMutex.Lock();
    wasEnabled = isEnabled;
-   isEnabled = onoff;
+        if (mmode & XROOTD_MON_ALL)  isEnabled =  1;
+   else if (mmode & XROOTD_MON_SOME) isEnabled = -1;
+   else                              isEnabled =  0;
    if (isEnabled > 0 && !wasEnabled)
       {MonTick.Set(Sched, sizeWindow);
        Now = time(0);

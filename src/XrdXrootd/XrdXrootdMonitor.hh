@@ -27,8 +27,10 @@
 /******************************************************************************/
 
 #define XROOTD_MON_ALL      1
-#define XROOTD_MON_NONE     0
-#define XROOTD_MON_SOME    -1
+#define XROOTD_MON_SOME     2
+#define XROOTD_MON_FILE     4
+#define XROOTD_MON_IO       8
+#define XROOTD_MON_NONE     ~(XROOTD_MON_ALL | XROOTD_MON_SOME)
 
 class XrdScheduler;
   

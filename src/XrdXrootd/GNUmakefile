@@ -13,6 +13,7 @@ BINLIBS = -L$(LIBDIR) -lXrd -lXrdNet -lXrdOuc $(OBJDIR)/XrdSfsNative.o
 #------------------------------------------------------------------------------#
   
 SOURCES = \
+        XrdXrootdAio.cc        \
         XrdXrootdConfig.cc     \
         XrdXrootdFile.cc       \
         XrdXrootdFileLock1.cc \
@@ -22,9 +23,11 @@ SOURCES = \
         XrdXrootdProtocol.cc   \
         XrdXrootdResponse.cc   \
         XrdXrootdStats.cc      \
-        XrdXrootdXeq.cc
+        XrdXrootdXeq.cc        \
+        XrdXrootdXeqAio.cc
   
 OBJECTS = \
+        $(OBJDIR)/XrdXrootdAio.o        \
         $(OBJDIR)/XrdXrootdConfig.o     \
         $(OBJDIR)/XrdXrootdFile.o       \
         $(OBJDIR)/XrdXrootdFileLock1.o \
@@ -34,7 +37,8 @@ OBJECTS = \
         $(OBJDIR)/XrdXrootdProtocol.o   \
         $(OBJDIR)/XrdXrootdResponse.o   \
         $(OBJDIR)/XrdXrootdStats.o      \
-        $(OBJDIR)/XrdXrootdXeq.o
+        $(OBJDIR)/XrdXrootdXeq.o        \
+        $(OBJDIR)/XrdXrootdXeqAio.o
 
 OBJDEPS = \
           $(LIBDIR)/libXrd.a \
@@ -48,12 +52,13 @@ TARGETS  = $(BINDIR)/xrootd
 #                           S e a r c h   P a t h s                           -
 #------------------------------------------------------------------------------#
 
-vpath XrdSfs% ../XrdSfs
-vpath XrdSec% ../XrdSec
-vpath XrdOuc% ../XrdOuc
-vpath XrdNet% ../XrdNet
-vpath Xrd%    ../Xrd
-vpath XP%     ../XProtocol
+vpath XrdSfs%    ../XrdSfs
+vpath XrdSec%    ../XrdSec
+vpath XrdOuc%    ../XrdOuc
+vpath XrdNet%    ../XrdNet
+vpath XrdXrootd% ../XrdXrdXrootd
+vpath Xrd%       ../Xrd
+vpath XP%        ../XProtocol
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -72,11 +77,23 @@ $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TARGETS) 
 	$(ECHO)$(LD) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGETS)
 
+$(OBJDIR)/XrdXrootdAio.o: XrdXrootdAio.hh      XPtypes.hh           \
+                          XrdBuffer.hh         XrdLink.hh           \
+                          XrdScheduler.hh \
+                          XrdOucError.hh       XrdOucPthread.hh     \
+                          XrdSfsAio.hh         XrdSfsInterface.hh   \
+                          XrdXrootdFile.hh     XrdXrootdProtocol.hh \
+                          XrdXrootdResponse.hh XrdXrootdStats.hh    \
+                          XrdXrootdTrace.hh    XrdXrootdAio.cc
+	@echo Compiling XrdXrootdAio.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdAio.o XrdXrootdAio.cc
+
 $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdFileLock.hh XrdXrootdFileLock1.hh \
                              XrdXrootdPrepare.hh  XrdXrootdXPath.hh \
                              XrdXrootdStats.hh    XrdXrootdTrace.hh \
-                             XrdXrootdMonitor.hh  XrdNetDNS.hh \
+                             XrdXrootdMonitor.hh  XrdXrootdAio.hh \
+                             XrdNetDNS.hh \
                              XrdBuffer.hh         XProtocol.hh \
                              XrdOuca2x.hh         XrdOucError.hh  \
                              XrdOucLogger.hh      XrdOucReqID.hh \
@@ -126,7 +143,7 @@ $(OBJDIR)/XrdXrootdProtocol.o: XrdXrootdFile.hh       XrdXrootdFileLock.hh \
                                XrdXrootdFileLock1.hh  XrdXrootdXPath.hh \
                                XrdXrootdProtocol.hh   XrdXrootdResponse.hh \
                                XrdXrootdStats.hh      XrdXrootdTrace.hh    \
-                               XProtocol.hh           \
+                               XrdXrootdAio.hh        XProtocol.hh         \
                                XrdBuffer.hh           XrdLink.hh           \
                                XrdObject.hh           XProtocol.hh \
                                XrdSfsInterface.hh     XrdSecInterface.hh \
@@ -153,6 +170,7 @@ $(OBJDIR)/XrdXrootdXeq.o: XrdXrootdFile.hh      XrdXrootdFileLock.hh  \
                           XrdXrootdTrace.hh     XProtocol.hh       \
                           XrdXrootdPrepare.hh   XrdXrootdXPath.hh  \
                           XrdXrootdMonitor.hh   XrdXrootdMonData.hh \
+                          XrdXrootdAio.hh \
                           XrdBuffer.hh          XrdLink.hh            \
                           XrdSfsInterface.hh    XrdSecInterface.hh \
                           XrdOucError.hh        XrdOucTrace.hh  \
@@ -161,3 +179,12 @@ $(OBJDIR)/XrdXrootdXeq.o: XrdXrootdFile.hh      XrdXrootdFileLock.hh  \
                           XrdOucProg.hh         XrdXrootdXeq.cc
 	@echo Compiling XrdXrootdXeq.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdXeq.o XrdXrootdXeq.cc
+
+$(OBJDIR)/XrdXrootdXeqAio.o: XrdXrootdXeqAio.cc \
+                             XrdBuffer.hh         XrdLink.hh       \
+                             XrdOucError.hh       XrdOucErrInfo.hh \
+                             XrdSfsInterface.hh                    \
+                             XrdXrootdAio.hh      XrdXrootdFile.hh \
+                             XrdXrootdProtocol.hh XrdXrootdTrace.hh
+	@echo Compiling XrdXrootdXeqAio.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdXeqAio.o XrdXrootdXeqAio.cc

@@ -63,11 +63,12 @@ class XrdXrootdXPath;
 
 class XrdXrootdProtocol : public XrdProtocol
 {
+friend class XrdXrootdAioReq;
 public:
 
 static int           Configure(char *parms, XrdProtocol_Config *pi);
 
-       void          DoIt();                // Async: Job->DoIt
+       void          DoIt() {(*this.*Resume)();}
 
        XrdProtocol  *Match(XrdLink *lp);
 
@@ -114,6 +115,12 @@ private:
        int   do_WriteCont();
        int   do_WriteNone();
 
+       int   aio_Error(const char *op, int ecode);
+       int   aio_Read();
+       int   aio_Write();
+       int   aio_WriteAll();
+       int   aio_WriteCont();
+
        void  Assign(const XrdXrootdProtocol &rhs);
        void  Cleanup();
 static int   ConfigFn(char *fn);
@@ -127,7 +134,6 @@ static int   mapMode(int mode);
 static int   rpCheck(char *fn);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
-       int   SchedAsync(int (XrdXrootdProtocol::*asyncXeq)());
 static int   Squash(char *);
 static int   xasync(XrdOucTokenizer &Config);
 static int   xcksum(XrdOucTokenizer &Config);
@@ -167,10 +173,16 @@ static char               *ProgCKT;
 
 // async configuration values
 //
-static int                 as_maxaspl;   // Max async ops per link
-static int                 as_maxasps;   // Max async ops per server
-static int                 as_aiosize;
-static int                 as_maxbfsz;
+static int                 as_maxperlnk; // Max async requests per link
+static int                 as_maxperreq; // Max async ops per request
+static int                 as_maxpersrv; // Max async ops per server
+static int                 as_miniosz;   // Min async request size
+static int                 as_segsize;   // Aio quantum (optimal)
+static int                 as_maxstalls; // Maximum stalls we will tolerate
+static int                 as_force;     // aio to be forced
+static int                 as_noaio;     // aio is disabled
+static int                 as_syncw;     // writes to be synchronous
+static int                 maxBuffsz;    // Maximum buffer size we can have
 
 // Monitor area
 //
@@ -194,9 +206,11 @@ XrdXrootdFileTable        *FTab;
 XrdSecClientName           Client;
 XrdXrootdMonitor          *Monitor;
 char                       Status;
+unsigned char              CapVer;
 
 // Buffer information, used to drive DoIt(), getData(), and (*Resume)()
 //
+XrdXrootdAioReq           *myAioReq;
 char                      *myBuff;
 int                        myBlen;
 int                        myBlast;
@@ -204,6 +218,7 @@ int                       (XrdXrootdProtocol::*Resume)();
 XrdXrootdFile             *myFile;
 long long                  myOffset;
 int                        myIOLen;
+int                        myStalls;
 
 // Buffers to handle client requests
 //

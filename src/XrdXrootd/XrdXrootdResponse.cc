@@ -47,6 +47,8 @@ int XrdXrootdResponse::Push(void *data, int dlen)
     RespIO[2].iov_base = (caddr_t)data;
     RespIO[2].iov_len  = dlen;
 
+    TRACES(RSP, "pushing " <<dlen <<" data bytes");
+
     if (Link->Send(&RespIO[1], 2, sizeof(kXR_int32) + dlen) < 0)
        return Link->setEtext("send failure");
     return 0;
@@ -55,6 +57,7 @@ int XrdXrootdResponse::Push(void *data, int dlen)
 int XrdXrootdResponse::Push()
 {
     static int null = 0;
+    TRACES(RSP, "pushing " <<sizeof(kXR_int32) <<" data bytes");
     if (Link->Send((char *)&null, sizeof(kXR_int32)) < 0)
        return Link->setEtext("send failure");
     return 0;
@@ -85,7 +88,7 @@ int XrdXrootdResponse::Send(const char *msg)
     RespIO[1].iov_base = (caddr_t)msg;
     RespIO[1].iov_len  = strlen(msg)+1;
     Resp.dlen          = static_cast<kXR_int32>(htonl(RespIO[1].iov_len));
-    TRACES(RSP, "sending OK " <<msg);
+    TRACES(RSP, "sending OK: " <<msg);
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + RespIO[1].iov_len) < 0)
        return Link->setEtext("send failure");
@@ -101,7 +104,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, void *data, int dlen)
     RespIO[1].iov_base = (caddr_t)data;
     RespIO[1].iov_len  = dlen;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
-    TRACES(RSP, "sending " <<dlen <<" data bytes; rc=" <<rcode);
+    TRACES(RSP, "sending " <<dlen <<" data bytes; status=" <<rcode);
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
@@ -122,6 +125,8 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, char *data)
     RespIO[2].iov_len  = dlen = strlen(data);
     Resp.dlen          = static_cast<kXR_int32>(htonl((dlen+sizeof(xbuf))));
 
+    TRACES(RSP, "sending " <<dlen <<" data bytes; status=" <<rcode);
+
     if (Link->Send(RespIO, 3, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
     return 0;
@@ -136,7 +141,7 @@ int XrdXrootdResponse::Send(void *data, int dlen)
     RespIO[1].iov_base = (caddr_t)data;
     RespIO[1].iov_len  = dlen;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
-    TRACES(RSP, "sending " <<dlen <<" data bytes; rc=0");
+    TRACES(RSP, "sending " <<dlen <<" data bytes; status=0");
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
@@ -156,7 +161,7 @@ int XrdXrootdResponse::Send(struct iovec *IOResp, int iornum, int iolen)
     IOResp[0].iov_base = RespIO[0].iov_base;
     IOResp[0].iov_len  = RespIO[0].iov_len;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
-    TRACES(RSP, "sending " <<dlen <<" data bytes; rc=0");
+    TRACES(RSP, "sending " <<dlen <<" data bytes; status=0");
 
     if (Link->Send(IOResp, iornum, sizeof(Resp) + dlen) < 0)
        return Link->setEtext("send failure");
