@@ -1,5 +1,7 @@
 #!/usr/local/bin/perl
 #
+#  $Id$
+#
 # ooss_PreStage
 #	-b basedir		base directory for local filesystem
 #	-c config file path

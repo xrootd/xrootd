@@ -46,9 +46,6 @@ typedef off_t offset_t;
 #define GETSERVBYNAME(name, stype, psrv, buff, blen,  rpnt) \
      (getservbyname_r(name, stype, psrv, buff, blen, &rpnt) == 0)
 
-extern "C"
-{extern size_t strlcpy(char *dst, const char *src, size_t size);}
-
 #else
 
 #define STATFS      statvfs
@@ -119,3 +116,9 @@ extern "C"
 #endif
 
 #endif
+
+#ifndef HAS_STRLCPY
+extern "C"
+{extern size_t strlcpy(char *dst, const char *src, size_t size);}
+#endif
+

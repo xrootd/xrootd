@@ -1,4 +1,6 @@
 #
+# $Id$
+#
 # The following is a sample xrootd configuration. The relevant prefixes are:
 #
 # acc    - Access Control

@@ -19,21 +19,6 @@ const char *XrdOucPlatformCVSID = "$Id$";
 
 #ifdef __linux__
 
-extern "C"
-{
-int strlcpy(char *dst, const char *src, size_t sz)
-{
-    int slen = strlen(src);
-    int tlen =sz-1;
-
-    if (slen <= tlen) strcpy(dst, src);
-       else if (tlen > 0) {strncpy(dst, src, tlen); dst[tlen] = '\0';}
-               else if (tlen == 0) dst[0] = '\0';
-
-    return slen;
-}
-}
-
 #ifdef __ICC__
 extern "C"
 {
@@ -49,3 +34,21 @@ unsigned long long Swap_n2hll(unsigned long long x)
 #endif
 
 #endif
+
+#ifndef HAS_STRLCPY
+extern "C"
+{
+int strlcpy(char *dst, const char *src, size_t sz)
+{
+    int slen = strlen(src);
+    int tlen =sz-1;
+
+    if (slen <= tlen) strcpy(dst, src);
+       else if (tlen > 0) {strncpy(dst, src, tlen); dst[tlen] = '\0';}
+               else if (tlen == 0) dst[0] = '\0';
+
+    return slen;
+}
+}
+#endif
+

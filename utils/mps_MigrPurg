@@ -1,5 +1,7 @@
 #!/usr/local/bin/perl
 #
+#  $Id$
+#
 # ooss_MigrPurg
 #	-M			do migrate function
 #	-O			one time only flag for purge

@@ -127,7 +127,7 @@ $(OBJDIR)/XrdOucNList.o: XrdOucNList.cc XrdOucNList.hh XrdOucPthread.hh
 
 $(OBJDIR)/XrdOucPlatform.o: XrdOucPlatform.cc XrdOucPlatform.hh
 	@echo Compiling XrdOucPlatform.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucPlatform.cc -o $(OBJDIR)/XrdOucPlatform.o
+	@$(CC) -c $(CFLAGS) $(CFEXTRA) $(INCLUDE) XrdOucPlatform.cc -o $(OBJDIR)/XrdOucPlatform.o
 
 $(OBJDIR)/XrdOucProg.o: XrdOucProg.cc  XrdOucProg.hh \
                         XrdOucError.hh XrdOucStream.hh XrdOucPthread.hh
@@ -141,7 +141,7 @@ $(OBJDIR)/XrdOucPthread.o: XrdOucPthread.cc XrdOucPthread.hh
 $(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh XrdOucPthread.hh
 	@echo Compiling XrdOucReqID.cc
 	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucReqID.cc -o $(OBJDIR)/XrdOucReqID.o
-                         
+
 $(OBJDIR)/XrdOucSecurity.o: XrdOucSecurity.cc XrdOucSecurity.hh \
                             XrdOucHash.hh XrdOucHash.icc \
                             XrdOucNList.hh XrdOucPthread.hh XrdOucTrace.hh

@@ -1,5 +1,7 @@
 #!/usr/local/bin/perl
 #
+#   $Id$
+#
 # ooss_prep [add|del|list|ll] [reqid [usrid prty func fn [fn...]]]
 #
 # If no parameters are specified, input mode is entered where

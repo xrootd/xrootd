@@ -1,6 +1,8 @@
 #! /bin/sh
 ################################################################################
 #                                                                              #
+#          $Id$
+#
 #                            c o n f i g u r e                                 #
 #                                                                              #
 #  (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   #
@@ -32,6 +34,7 @@ found_hdr=no
 show_pkglist=no
 noact="no"
 nohowto="no"
+strlcpy="noidea"
 
 options="                 \
    enable_krb4            \
@@ -470,6 +473,10 @@ with options, prefix with --with-, enables corresponding support
    krb5-libdir     Kerberos5 support, location of libkrb5
    thread-libdir   Path to libpthread
 
+Advanced options:
+
+   --use-xrd-strlcpy  Force use of the xrd implementation of strlcpy 
+
 Supported Architectures:
 
    Platform        Default      Description
@@ -531,7 +538,7 @@ fi
 #
 ### echo %%% Command line arguments
 #
-notify_ccflv="no"
+nccflv="$ccflv"
 if test $# -gt 0 ; then
    while test ! "x$1" = "x" ; do
       case "$1" in
@@ -547,6 +554,7 @@ if test $# -gt 0 ; then
       #
       --no-create)             noact="yes"           ;;
       --nohowto)               nohowto="yes"         ;;
+      --use-xrd-strlcpy)       strlcpy="local"       ;;
       --with-krb4=*)           krb4dir=$optarg       ; enable_krb4="yes"    ;;
       --with-krb4-incdir=*)    krb4incdir=$optarg    ; enable_krb4="yes"    ;;
       --with-krb4-libdir=*)    krb4libdir=$optarg    ; enable_krb4="yes"    ;;
@@ -554,7 +562,7 @@ if test $# -gt 0 ; then
       --with-krb5-incdir=*)    krb5incdir=$optarg    ; enable_krb5="yes"    ;;
       --with-krb5-libdir=*)    krb5libdir=$optarg    ; enable_krb5="yes"    ;;
       --with-thread-libdir=*)  threadlibdir=$optarg  ; enable_thread="yes"  ;;
-      --ccflavour=*)           ccflv=$optarg         ; notify_ccflv="yes"   ;;
+      --ccflavour=*)           nccflv=$optarg        ;;
       ################################################################
       #
       # Enable/disable to turn on/off third party software linkage and
@@ -599,11 +607,29 @@ if test "x$ccflv" = "xgccx8664" ; then
 fi
 
 # Notify configuration settings
-if test "x$notify_ccflv" = "xyes" ; then
+if test ! "x$nccflv" = "x$ccflv" ; then
    echo "Forcing compiler choice ..."
+   ccflv="$nccflv"
 fi
 echo "Configuring for $arch and compiler $ccflv"
 
+
+######################################################################
+#
+### echo %%% Check for strlcpy
+#
+hasstrlcpy=""
+if test ! "x$strlcpy" = "xlocal"; then
+   message "Checking whether strlcpy declared in /usr/include/string.h"
+   if `grep strlcpy /usr/include/strlcpy.h > /dev/null 2>&1` ; then
+       echo "yes"
+       hasstrlcpy=" -DHAS_STRLCPY"
+   else
+       echo "no: use xrd implementation"
+   fi
+else
+   echo "Using xrd implementation of strlcpy"
+fi
 
 ######################################################################
 #
@@ -1094,6 +1120,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@libkrb4@|$libkrb4|"           \
     -e "s|@inckrb5@|$inckrb5|"           \
     -e "s|@libkrb5@|$libkrb5|"           \
+    -e "s|@hasstrlcpy@|$hasstrlcpy|" \
     < GNUmake.env.tmp > $ENVOUT
 rm -f GNUmake.env.tmp
 

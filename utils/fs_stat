@@ -1,5 +1,7 @@
 #!/usr/local/bin/perl
 
+# $Id$
+
      if (-x '/bin/df')      {$DF = '/bin/df';}
   elsif (-x '/usr/bin/df')  {$DF = '/usr/bin/df';}
   elsif (-x '/usr/sbin/df') {$DF = '/usr/sbin/df';}

@@ -1,3 +1,6 @@
+
+  $Id$
+
 This directory contains start and stop scripts for the olbd and xrootd, as well
 as a monitoring script for the olbd when you wish to use load based balancing.
 

@@ -1,5 +1,6 @@
 #!/usr/local/bin/perl
 
+## $Id$
 ## this script collects the informations on the server activity like:
 ## CPU, network I/O, memory usage ...
 ## modified to get rid of rperf.
