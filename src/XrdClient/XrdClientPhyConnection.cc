@@ -240,6 +240,8 @@ void XrdClientPhyConnection::Disconnect()
 
 //____________________________________________________________________________
 void XrdClientPhyConnection::CheckAutoTerm() {
+   XrdClientMutexLocker l(fMutex);
+
    // Parametric asynchronous stuff
    // If we are going async, we might be willing to term ourself
    if (!IsValid() && EnvGetLong(NAME_GOASYNC) &&
