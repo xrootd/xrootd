@@ -73,7 +73,7 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
 //
    if (remotefs_Old ^ remotefs_New)
       {char buff[PATH_MAX+128];
-       snprintf(buff, sizeof(buff), "renaming %s to ", oldname);
+       snprintf(buff, sizeof(buff), "rename %s to ", oldname);
        return OssEroute.Emsg("XrdOssRename",-XRDOSS_E8011,buff,(char *)newname);
       }
    remotefs = remotefs_Old | remotefs_New;
@@ -172,7 +172,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 // Now make sure the resulting name will fit
 //
    if ((i + strlen(new_path)) >= sizeof(newlnk))
-      {OssEroute.Emsg("XrdOssRenameLink",-ENAMETOOLONG,"converting ",oldlnk);
+      {OssEroute.Emsg("XrdOssRenameLink",-ENAMETOOLONG,"convert",oldlnk);
        return -ENAMETOOLONG;
       }
 
@@ -184,7 +184,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 // Make sure that the target name does not exist
 //
    if (lstat(newlnk, &statbuff))
-      {OssEroute.Emsg("XrdOssRenameLink",-EEXIST,"check new target ", newlnk);
+      {OssEroute.Emsg("XrdOssRenameLink",-EEXIST,"check new target", newlnk);
        return -EEXIST;
       }
 
@@ -192,7 +192,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 //
    if (symlink((const char *)newlnk, (const char *)new_path))
       {rc = errno;
-       OssEroute.Emsg("XrdOssRenameLink", rc," symlink to ", newlnk);
+       OssEroute.Emsg("XrdOssRenameLink", rc," symlink to", newlnk);
        return -rc;
       }
 
@@ -200,7 +200,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 //
    if (rename((const char *)oldlnk, (const char *)newlnk))
       {rc = errno;
-       OssEroute.Emsg("XrdOssRenameLink", rc," renaming ", oldlnk);
+       OssEroute.Emsg("XrdOssRenameLink", rc," rename", oldlnk);
        unlink(new_path);
        return -rc;
       }
@@ -208,7 +208,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 // Now, unlink the source path
 //
    if (unlink((const char *)old_path))
-      OssEroute.Emsg("XrdOssRenameLink", rc," unlinking ", old_path);
+      OssEroute.Emsg("XrdOssRenameLink", rc," unlink", old_path);
 
 // All done
 //

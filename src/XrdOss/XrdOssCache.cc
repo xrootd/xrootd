@@ -236,7 +236,7 @@ void *XrdOssSys::CacheScan(void *carg)
                  || !(fsdp->stat & XrdOssFSData_ADJUSTED))
                      {if (FS_Stat(fsdp->path, &fsbuff))
                          OssEroute.Emsg("XrdOssCacheScan", errno ,
-                                    "stating file system ",(char *)fsdp->path);
+                                    "state file system ",(char *)fsdp->path);
                          else {fsdp->frsz = fsbuff.f_bavail*fsbuff.FS_BLKSZ;
                                fsdp->stat &= ~(XrdOssFSData_REFRESH |
                                                XrdOssFSData_ADJUSTED);

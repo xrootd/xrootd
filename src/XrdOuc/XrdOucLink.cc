@@ -335,7 +335,7 @@ int XrdOucLink::Recv(char *Buff, long Blen)
    IOMutex.UnLock();
 
    if (rlen >= 0) return (int)rlen;
-   eDest->Emsg("Link", errno, "receiving from", Lname);
+   eDest->Emsg("Link", errno, "recieve from", Lname);
    return -1;
 }
 
@@ -384,7 +384,7 @@ int XrdOucLink::OK2Send(int timeout, char *dest)
    if (retc == 0 || !(polltab.revents & (POLLOUT | POLLWRNORM)))
       eDest->Emsg("Link",(dest ? dest : Lname),(char *)"is blocked.");
       else if (retc < 0)
-              eDest->Emsg("Link",errno,"polling",(dest ? dest : Lname));
+              eDest->Emsg("Link",errno,"poll",(dest ? dest : Lname));
               else return 1;
    return 0;
 }
@@ -396,6 +396,6 @@ int XrdOucLink::OK2Send(int timeout, char *dest)
 int XrdOucLink::retErr(int ecode, char *dest)
 {
    IOMutex.UnLock();
-   eDest->Emsg("Link", ecode, "sending to", (dest ? dest : Lname));
+   eDest->Emsg("Link", ecode, "send to", (dest ? dest : Lname));
    return (EWOULDBLOCK == ecode || EAGAIN == ecode ? -2 : -1);
 }

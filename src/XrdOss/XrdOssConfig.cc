@@ -165,7 +165,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
    {char buff[256]; int gwl;
     gwl = strlen(MSSgwPath);
     if (gwl > (int)(sizeof(buff)-16))
-       NoGo = Eroute.Emsg("config", ENAMETOOLONG, "excessive gateway path -",
+       NoGo = Eroute.Emsg("config", ENAMETOOLONG, "use gateway path",
                           MSSgwPath);
        else {sprintf(buff, "%s.%d", MSSgwPath, getpid());
              Duplicate(buff, MSSgwPath);
@@ -176,13 +176,13 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 //
    {struct rlimit rlim;
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
-       Eroute.Emsg("config", errno, "getting resource limits");
+       Eroute.Emsg("config", errno, "get resource limits");
        else Hard_FD_Limit = rlim.rlim_max;
 
     if (FDLimit <= 0) FDLimit = rlim.rlim_cur;
        else {rlim.rlim_cur = FDLimit;
             if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
-               NoGo = Eroute.Emsg("config", errno,"setting FD limit");
+               NoGo = Eroute.Emsg("config", errno,"set FD limit");
             }
     if (FDFence < 0 || FDFence >= FDLimit) FDFence = FDLimit >> 1;
    }
@@ -195,7 +195,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 //
    if ((numt = xfrthreads - xfrtcount) > 0) while(numt--)
       if ((retc = XrdOucThread_Run(&tid, XrdOssxfr, (void *)0))<0)
-         Eroute.Emsg("config", retc, "creating staging thread");
+         Eroute.Emsg("config", retc, "create staging thread");
          else {DEBUG("started staging thread; tid=" <<(unsigned int)tid);
                xfrtcount++;
               }
@@ -203,7 +203,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 // Start up the cache scan thread
 //
    if ((retc = XrdOucThread_Run(&tid, XrdOssCacheScan, (void *)0))<0)
-      Eroute.Emsg("config", retc, "creating cache scan thread");
+      Eroute.Emsg("config", retc, "create cache scan thread");
       else DEBUG("started cache scan thread; tid=" <<(unsigned int)tid);
 
 // Reinitialize the remote list. This must be the last act
@@ -355,7 +355,7 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {Eroute.Emsg("config", errno, "opening config file", ConfigFN);
+      {Eroute.Emsg("config", errno, "open config file", ConfigFN);
        return 1;
       }
    Config.Attach(cfgFD);
@@ -386,7 +386,7 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = Eroute.Emsg("config", retc, "reading config file", ConfigFN);
+      NoGo = Eroute.Emsg("config", retc, "read config file", ConfigFN);
    Config.Close();
 
 // Return final return code
@@ -493,15 +493,15 @@ int XrdOssSys::xalloc(XrdOucStream &Config, XrdOucError &Eroute)
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("config", "alloc minfree not specified"); return 1;}
     if (strcmp(val, "*") &&
-        XrdOuca2x::a2sz(Eroute, "invalid alloc minfree", val, &mina, 0)) return 1;
+        XrdOuca2x::a2sz(Eroute, "alloc minfree", val, &mina, 0)) return 1;
 
     if ((val = Config.GetWord()))
        {if (strcmp(val, "*") &&
-            XrdOuca2x::a2i(Eroute,"invalid alloc headroom",val,&hdrm,0,100)) return 1;
+            XrdOuca2x::a2i(Eroute,"alloc headroom",val,&hdrm,0,100)) return 1;
 
         if ((val = Config.GetWord()))
            {if (strcmp(val, "*") &&
-            XrdOuca2x::a2i(Eroute, "invalid alloc fuzz", val, &fuzz, 0, 100)) return 1;
+            XrdOuca2x::a2i(Eroute, "alloc fuzz", val, &fuzz, 0, 100)) return 1;
            }
        }
 
@@ -557,7 +557,7 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
     i++; strncpy(fn, (const char *)val, i); fn[i] = '\0';
     sfxdir = &fn[i]; pfxdir = &val[i]; pfxln = strlen(pfxdir)-1;
     if (!(DFD = opendir((const char *)fn)))
-       {Eroute.Emsg("config", errno, "opening cache directory", fn); return 1;}
+       {Eroute.Emsg("config", errno, "open cache directory", fn); return 1;}
 
     errno = 0;
     while((dp = readdir(DFD)))
@@ -573,7 +573,7 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
          }
 
     if ((rc = errno))
-       Eroute.Emsg("config", errno, "processing cache directory", fn);
+       Eroute.Emsg("config", errno, "process cache directory", fn);
        else if (!cnum) Eroute.Emsg("config","no cache directories found in ",val);
 
     closedir(DFD);
@@ -585,9 +585,9 @@ int XrdOssSys::xcacheBuild(char *grp, char *fn, XrdOucError &Eroute)
     XrdOssCache_FS *fsp;
     int rc;
     if (!(fsp = new XrdOssCache_FS(rc, (const char *)grp, (const char *)fn)))
-       {Eroute.Emsg("config", ENOMEM, "creating cache", fn); return 0;}
+       {Eroute.Emsg("config", ENOMEM, "create cache", fn); return 0;}
     if (rc)
-       {Eroute.Emsg("config", rc, "creating cache", fn);
+       {Eroute.Emsg("config", rc, "create cache", fn);
         delete fsp;
         return 0;
        }
@@ -642,7 +642,7 @@ int XrdOssSys::xcachescan(XrdOucStream &Config, XrdOucError &Eroute)
 
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("config", "cachescan not specified"); return 1;}
-    if (XrdOuca2x::a2tm(Eroute, "invalid cachescan", val, &cscan, 30)) return 1;
+    if (XrdOuca2x::a2tm(Eroute, "cachescan", val, &cscan, 30)) return 1;
     cscanint = cscan;
     return 0;
 }
@@ -674,11 +674,11 @@ int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdOucError &Eroute)
          {Eroute.Emsg("config", "fdlimit fence not specified"); return 1;}
 
       if (!strcmp(val, "*")) fence = -1;
-         else if (XrdOuca2x::a2i(Eroute,"invalid fdlimit fence",val,&fence,0)) return 1;
+         else if (XrdOuca2x::a2i(Eroute,"fdlimit fence",val,&fence,0)) return 1;
 
       if (!(val = Config.GetWord())) fdmax = -1;
          else if (!strcmp(val, "max")) fdmax = Hard_FD_Limit;
-                 else if (XrdOuca2x::a2i(Eroute, "invalid fdlimit value", val, &fdmax,
+                 else if (XrdOuca2x::a2i(Eroute, "fdlimit value", val, &fdmax,
                               max(fence,XrdOssFDMINLIM))) return -EINVAL;
                          else if (fdmax > Hard_FD_Limit)
                                  {fdmax = Hard_FD_Limit;
@@ -709,7 +709,7 @@ int XrdOssSys::xgwbklg(XrdOucStream &Config, XrdOucError &Eroute)
 
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("config", "gwbacklog not specified"); return 1;}
-    if (XrdOuca2x::a2i(Eroute, "invalid gwbacklog", val, &gwbklg, 0)) return 1;
+    if (XrdOuca2x::a2i(Eroute, "gwbacklog", val, &gwbklg, 0)) return 1;
     gwBacklog = gwbklg;
     return 0;
 }
@@ -733,7 +733,7 @@ int XrdOssSys::xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute)
 
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("config", "maxdbsize value not specified"); return 1;}
-    if (XrdOuca2x::a2sz(Eroute, "invalid maxdbsize", val, &mdbsz, 1024*1024)) return 1;
+    if (XrdOuca2x::a2sz(Eroute, "maxdbsize", val, &mdbsz, 1024*1024)) return 1;
     MaxDBsize = mdbsz;
     return 0;
 }
@@ -879,20 +879,20 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdOucError &Eroute)
       if (!(val = Config.GetWord()))        // <threads>
          {Eroute.Emsg("config", "xfr threads not specified"); return 1;}
 
-      if (strcmp(val, "*") && XrdOuca2x::a2i(Eroute,"invalid xfr threads",val,&thrds,1))
+      if (strcmp(val, "*") && XrdOuca2x::a2i(Eroute,"xfr threads",val,&thrds,1))
          return 1;
 
       if ((val = Config.GetWord()))         // <speed>
          {if (strcmp(val, "*") && 
-              XrdOuca2x::a2sz(Eroute,"invalid xfr speed",val,&speed,1024)) return 1;
+              XrdOuca2x::a2sz(Eroute,"xfr speed",val,&speed,1024)) return 1;
 
           if ((val = Config.GetWord()))     // <ovhd>
              {if (strcmp(val, "*") && 
-                  XrdOuca2x::a2tm(Eroute,"invalid xfr overhead",val,&ovhd,0)) return 1;
+                  XrdOuca2x::a2tm(Eroute,"xfr overhead",val,&ovhd,0)) return 1;
 
               if ((val = Config.GetWord())) // <hold>
                  if (strcmp(val, "*") && 
-                    XrdOuca2x::a2tm(Eroute,"invalid xfr hold",val,&htime,0)) return 1;
+                    XrdOuca2x::a2tm(Eroute,"xfr hold",val,&htime,0)) return 1;
              }
          }
 

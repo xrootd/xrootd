@@ -129,7 +129,7 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {eDest->Emsg("Config", errno, "opening config file", ConfigFN);
+      {eDest->Emsg("Config", errno, "open config file", ConfigFN);
        return 1;
       }
    Config.Attach(cfgFD);
@@ -148,7 +148,7 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = eDest->Emsg("Config", retc, "reading config file", ConfigFN);
+      NoGo = eDest->Emsg("Config", retc, "read config file", ConfigFN);
    Config.Close();
 
 // Return final return code
@@ -250,7 +250,7 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {errp->Emsg("Config", "conwait value not specified."); return 1;}
 
-    if (XrdOuca2x::a2tm(*errp,"invalid conwait value",val,&cw,1)) return 1;
+    if (XrdOuca2x::a2tm(*errp,"conwait value",val,&cw,1)) return 1;
 
     ConWait = cw;
     return 0;
@@ -301,7 +301,7 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
 
     if ((val = Config.GetWord()))
        if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*errp,"invalid manager port",val,&port,1,65535))
+           {if (XrdOuca2x::a2i(*errp,"manager port",val,&port,1,65535))
                port = 0;
            }
            else if (!(port = XrdOucNetwork::findPort(val, "tcp")))
@@ -369,7 +369,7 @@ int XrdOdcConfig::xmsgk(XrdOucError *errp, XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {errp->Emsg("Config", "msgkeep value not specified."); return 1;}
 
-    if (XrdOuca2x::a2i(*errp, "invalid msgkeep value", val, &mk, 60)) return 1;
+    if (XrdOuca2x::a2i(*errp, "msgkeep value", val, &mk, 60)) return 1;
 
     XrdOdcMsg::setKeep(mk);
     return 0;
@@ -398,7 +398,7 @@ int XrdOdcConfig::xpbal(XrdOucError *errp, XrdOucStream &Config)
     if (!lclPort) return 0;
 
     while((val = Config.GetWord()))
-         {if (XrdOuca2x::a2i(*errp,"invalid portbal port value",val,&pv,1,65535))
+         {if (XrdOuca2x::a2i(*errp,"portbal port value",val,&pv,1,65535))
              return 1;
           if (pi >= pimax)
              {errp->Emsg("Config","too many portbal ports specified.");
@@ -525,7 +525,7 @@ int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
                   {errp->Emsg("Config", 
                       "request argument value not specified"); 
                    return 1;}
-                   if (XrdOuca2x::a2i(*errp,"invalid request value",val,&ppp,1))
+                   if (XrdOuca2x::a2i(*errp,"request value",val,&ppp,1))
                    return 1;
                    else *rqopts[i].oploc = ppp;
                 break;

@@ -15,6 +15,7 @@ const char *XrdOucBufferCVSID = "$Id$";
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <malloc.h>
 
 #include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucPlatform.hh"

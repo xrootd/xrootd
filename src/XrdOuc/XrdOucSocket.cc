@@ -118,7 +118,7 @@ int XrdOucSocket::Open(char *path, int port, int flags) {
 
 // Make sure this object is available for a new socket
 //
-   if (SockFD >= 0) return Err(Open, EADDRINUSE, "creating socket for", path);
+   if (SockFD >= 0) return Err(Open, EADDRINUSE, "create socket for", path);
 
 // Save the request flags, sometimes we need to check them from the local copy
 //
@@ -129,9 +129,9 @@ int XrdOucSocket::Open(char *path, int port, int flags) {
 //
    if (port < 0 && path && path[0] == '/')
       {if (strlen(path) >= sizeof(UnixAddr.sun_path))
-          return Err(Open, ENAMETOOLONG, "creating unix socket ", path);
+          return Err(Open, ENAMETOOLONG, "create unix socket ", path);
        if ((SockFD = socket(PF_UNIX, SockType, 0)) < 0)
-          return Err(Open, errno, "creating unix socket ", path);
+          return Err(Open, errno, "create unix socket ", path);
        if (flags & XrdOucSOCKET_SERVER) unlink((const char *)path);
        UnixAddr.sun_family = AF_UNIX;
        strcpy(UnixAddr.sun_path, path);
@@ -139,7 +139,7 @@ int XrdOucSocket::Open(char *path, int port, int flags) {
        SockSize = sizeof(UnixAddr);
       } else {
        if ((SockFD = socket(PF_INET, SockType, 0)) < 0)
-          return Err(Open, errno, "creating inet socket to", path);
+          return Err(Open, errno, "create inet socket to", path);
           if (port < 0)
              if ((port = GetHostAndPort(path,pbuff,sizeof(pbuff))) < 0)
                 {myEC = ErrCode; Close(); ErrCode = myEC; return -1;}
@@ -154,18 +154,18 @@ int XrdOucSocket::Open(char *path, int port, int flags) {
 // Either do a connect or a bind.
 //
    if (flags & XrdOucSOCKET_SERVER)
-      {action = (char *)"binding socket";
+      {action = (char *)"bind socket";
        if ( bind(SockFD, SockAddr, SockSize) ) myEC = errno;
           else {if (port < 0) chmod(path, S_IRWXU);
                 if (SockType == SOCK_STREAM)
                    {if (!(backlog = flags & XrdOucSOCKET_BKLG))
                        backlog = XrdOucSocket_MaxBKLG;
-                    action = (char *)"listening on stream";
+                    action = (char *)"listen on stream";
                     if (listen(SockFD, backlog)) myEC = errno;
                    }
                }
       } else {
-       action = (char *)"connecting socket";
+       action = (char *)"connect socket";
        if (connect(SockFD, SockAddr, SockSize)) myEC = errno;
       }
 
@@ -233,9 +233,9 @@ int XrdOucSocket::GetHostAndPort(char *path, char *buff, int bsz)
     //
     if ((plen = strlen(path))) do {plen--;} while(plen && path[plen] != ':');
     if (!plen) return Err(GetHostAndPort, EINVAL, 
-                          "socket host not specified in", path);
+                          "find socket host in", path);
     if (plen >= bsz) return Err(GetHostAndPort, ENAMETOOLONG, 
-                          "hostname too long in", path);
+                          "use hostname in", path);
     if (path != buff) strncpy(buff, path, plen);
     buff[plen++] = '\0';
 
@@ -244,7 +244,7 @@ int XrdOucSocket::GetHostAndPort(char *path, char *buff, int bsz)
     errno = 0;
     pnum = (int)strtol((const char *)(path+plen), (char **)0, 10);
     if (!pnum && errno) return Err(GetHostAndPort, errno, 
-                                   "invalid port number", &path[plen]);
+                                   "find port number in", &path[plen]);
     return pnum;
 }
 
@@ -269,7 +269,7 @@ int XrdOucSocket::GetHostAddr(char *hostname, struct sockaddr_in &InetAddr)
                                 &hostloc, abuff, sizeof(abuff), hp, &retc)) ok = 0;
                     }
               if (!ok) return Err(GetHostAddr, retc, 
-                                  "obtaining address for", hostname);
+                                  "obtain address for", hostname);
                  else memcpy((char *)&InetAddr.sin_addr, (char *)hostloc.h_addr,
                              hostloc.h_length);
             }

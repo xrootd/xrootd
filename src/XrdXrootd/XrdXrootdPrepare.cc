@@ -85,7 +85,7 @@ int XrdXrootdPrepare::List(XrdXrootdPrepArgs &pargs, char *resp, int resplen)
 //
    if (!pargs.dirP)
       {if (!(pargs.dirP = opendir((const char *)LogDir)))
-          {eDest->Emsg("List", errno, "opening prep log directory", LogDir);
+          {eDest->Emsg("List", errno, "open prep log directory", LogDir);
            return -1;
           }
        if (pargs.reqid) pargs.reqlen = strlen(pargs.reqid);
@@ -116,7 +116,7 @@ int XrdXrootdPrepare::List(XrdXrootdPrepArgs &pargs, char *resp, int resplen)
 // Completed
 //
    if ((rc = errno))
-      eDest->Emsg("List", errno, "reading prep log directory", LogDir);
+      eDest->Emsg("List", errno, "read prep log directory", LogDir);
    closedir(pargs.dirP);
    pargs.dirP = 0;
    return (rc ? -1 : 0);
@@ -149,7 +149,7 @@ void XrdXrootdPrepare::Log(XrdXrootdPrepArgs &pargs)
 // Create the file
 //
     if ((xfd = open(buff, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
-       {eDest->Emsg("Log", errno, "opening prep log file", buff);
+       {eDest->Emsg("Log", errno, "open prep log file", buff);
         return;
        }
 
@@ -165,7 +165,7 @@ void XrdXrootdPrepare::Log(XrdXrootdPrepArgs &pargs)
          do {rc = writev(xfd, (const struct iovec *)iovec, 2);}
              while(rc < 0 && errno == EINTR);
          if (rc < 0)
-            {eDest->Emsg("Log", errno, "writing prep log file", buff);
+            {eDest->Emsg("Log", errno, "write prep log file", buff);
              close(xfd);
              return;
             }
@@ -178,7 +178,7 @@ void XrdXrootdPrepare::Log(XrdXrootdPrepArgs &pargs)
    strcpy(blink, LogDir); 
    strlcpy(blink+LogDirLen, pargs.reqid, sizeof(blink)-1);
    if (symlink((const char *)buff, (const char *)blink))
-      {eDest->Emsg("Log", errno, "creating symlink to prep log file", buff);
+      {eDest->Emsg("Log", errno, "create symlink to prep log file", buff);
        return;
       }
 }
@@ -204,7 +204,7 @@ void XrdXrootdPrepare::Logdel(char *reqid)
 // Read the symlink contents for this request
 //
    if ((rc = readlink((const char *)path, buff, sizeof(buff))) < 0)
-      {if (errno != ENOENT) eDest->Emsg("Logdel",errno,"reading symlink",path);
+      {if (errno != ENOENT) eDest->Emsg("Logdel",errno,"read symlink",path);
        return;
       }
 
@@ -212,10 +212,10 @@ void XrdXrootdPrepare::Logdel(char *reqid)
 //
    buff[rc] = '\0';
    if (unlink((const char *)buff)
-   &&  errno != ENOENT) eDest->Emsg("Logdel",errno,"removing",buff);
+   &&  errno != ENOENT) eDest->Emsg("Logdel",errno,"remove",buff);
       else TRACE(DEBUG, "Logdel removed " <<buff);
    if (unlink((const char *)path)
-   &&  errno != ENOENT) eDest->Emsg("Logdel", errno, "removing", path);
+   &&  errno != ENOENT) eDest->Emsg("Logdel", errno, "remove", path);
       else TRACE(DEBUG, "Logdel removed " <<path);
 }
 
@@ -268,7 +268,7 @@ void XrdXrootdPrepare::Scrub()
 // Open the log directory
 //
    if (!(prepD = opendir((const char *)LogDir)))
-      {eDest->Emsg("Scrub", errno, "opening prep log directory", LogDir);
+      {eDest->Emsg("Scrub", errno, "open prep log directory", LogDir);
        return;
       }
    strcpy(path, (const char *)LogDir);
@@ -292,7 +292,7 @@ void XrdXrootdPrepare::Scrub()
 // All done
 //
    if (errno)
-      eDest->Emsg("List", errno, "reading prep log directory", LogDir);
+      eDest->Emsg("List", errno, "read prep log directory", LogDir);
    closedir(prepD);
 }
  

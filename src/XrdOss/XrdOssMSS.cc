@@ -270,7 +270,7 @@ int XrdOssSys::MSS_Stat(char *path, struct stat *buff)
     // Read in the results.
     //
     if ( !(resp = sfd ->GetLine()))
-       return OssEroute.Emsg("XrdOssMSS_Stat",-XRDOSS_E8012,"processing ",path);
+       return OssEroute.Emsg("XrdOssMSS_Stat",-XRDOSS_E8012,"process ",path);
 
     // Extract data from the response.
     //
@@ -411,7 +411,7 @@ int XrdOssSys::MSS_Init(int Warm) {
 // fork a child to handle all external communications.
 //
    if ( (child = fork()) < 0 )
-      return OssEroute.Emsg("MSS_Init", -errno, "forking process");
+      return OssEroute.Emsg("MSS_Init", -errno, "fork process");
    if (!child) MSS_Gateway();
 
 // On parent, return we are done.
@@ -439,7 +439,7 @@ int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
     // Construct the command that we will use to execute the mss subroutine.
     //
     if ( (cmd_len = MSSgwCmdLen + strlen(cmd) +2) > (int)sizeof(mss_cmd))
-       return OssEroute.Emsg("XrdOssMSS_Xeq", -XRDOSS_E8013, "executing", cmd);
+       return OssEroute.Emsg("XrdOssMSS_Xeq", -XRDOSS_E8013, "execute", cmd);
     sprintf(mss_cmd, "%s %s", MSSgwCmd, cmd);
 
     // Get a connection to the gateway server.
@@ -450,7 +450,7 @@ int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
    //
    if (!(sp = new XrdOucStream(&OssEroute)))
       {Sock.Close();
-       return OssEroute.Emsg("XrdOssMSS_Xeq",-ENOMEM,"creating stream for",mss_cmd);
+       return OssEroute.Emsg("XrdOssMSS_Xeq",-ENOMEM,"create stream for",mss_cmd);
       }
    sp->Attach(Sock.Detach());
 
@@ -471,7 +471,7 @@ int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
        }
     if (retc)
        {if (retc != -okerr)
-           OssEroute.Emsg("XrdOssMSS_Xeq", NegVal(retc), "executing", cmd);
+           OssEroute.Emsg("XrdOssMSS_Xeq", NegVal(retc), "execute", cmd);
         delete sp;
         return NegVal(retc);
        }

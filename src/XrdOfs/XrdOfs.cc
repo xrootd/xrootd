@@ -230,7 +230,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 // Start a thread to periodically scan for idle file handles
 //
    if ((retc = XrdOucThread_Run(&tid, XrdOfsIdleScan, (void *)0)))
-      OfsEroute.Emsg("XrdOfsinit", retc, "creating idle scan thread");
+      OfsEroute.Emsg("XrdOfsinit", retc, "create idle scan thread");
 
 // All done, we can return the callout vector to these routines.
 //
@@ -275,12 +275,12 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 // Verify that this object is not already associated with an open directory
 //
    if (dp) return
-      XrdOfsFS.Emsg(epname, error, EADDRINUSE, "opening directory", dir_path);
+      XrdOfsFS.Emsg(epname, error, EADDRINUSE, "open directory", dir_path);
 
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(dir_path))
-      return XrdOfsFS.Emsg(epname, error, EACCES, "listing", dir_path);
+      return XrdOfsFS.Emsg(epname, error, EACCES, "list", dir_path);
    AUTHORIZE(client,AOP_Readdir,"opening directory",dir_path,error,SFS_ERROR);
 
 // Open the directory and allocate a handle for it
@@ -294,7 +294,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 
 // Encountered an error
 //
-   return XrdOfsFS.Emsg(epname, error, retc, "opening directory", dir_path);
+   return XrdOfsFS.Emsg(epname, error, retc, "open directory", dir_path);
 }
 
 /******************************************************************************/
@@ -327,7 +327,7 @@ const char *XrdOfsDirectory::nextEntry()
 
 // Check if this directory is actually open
 //
-   if (!dp) {XrdOfsFS.Emsg(epname, error, XrdOfsENOTOPEN, "reading directory");
+   if (!dp) {XrdOfsFS.Emsg(epname, error, XrdOfsENOTOPEN, "read directory");
              return (const char *)0;
             }
 
@@ -338,7 +338,7 @@ const char *XrdOfsDirectory::nextEntry()
 // Read the next directory entry
 //
    if ((retc = dp->Readdir(dname, sizeof(dname))) < 0)
-      {XrdOfsFS.Emsg(epname, error, retc, "reading directory", fname);
+      {XrdOfsFS.Emsg(epname, error, retc, "read directory", fname);
        return (const char *)0;
       }
 
@@ -380,7 +380,7 @@ int XrdOfsDirectory::close()
 
 // Check if this directory is actually open
 //
-   if (!dp) {XrdOfsFS.Emsg(epname, error, EBADFD, "closing directory");
+   if (!dp) {XrdOfsFS.Emsg(epname, error, EBADFD, "close directory");
              return SFS_ERROR;
             }
    XTRACE(closedir, fname, "");
@@ -388,7 +388,7 @@ int XrdOfsDirectory::close()
 // Close this directory
 //
     if ((retc = dp->Close()))
-       retc = XrdOfsFS.Emsg(epname, error, retc, "closing", fname);
+       retc = XrdOfsFS.Emsg(epname, error, retc, "close", fname);
        else retc = SFS_OK;
 
 // All done
@@ -451,12 +451,12 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Verify that this object is not already associated with an open file
 //
-   if (oh) return XrdOfsFS.Emsg(epname,error,EADDRINUSE,"opening file",path);
+   if (oh) return XrdOfsFS.Emsg(epname,error,EADDRINUSE,"open file",path);
 
 // Verify that we can use this path
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, error, EACCES, "opening", path);
+      return XrdOfsFS.Emsg(epname, error, EACCES, "open", path);
    error.setErrInfo(0, (char *)"");
 
 // Set the actual open mode
@@ -506,7 +506,7 @@ int XrdOfsFile::open(const char          *path,      // In
        //
        open_flag  = O_RDWR; mp = &XrdOfsOpen_RW;
        if ((retc = XrdOssSS.Create(path, Mode, Open_Env)))
-          return XrdOfsFS.Emsg(epname, error, retc, "creating", path);
+          return XrdOfsFS.Emsg(epname, error, retc, "create", path);
        mp->Lock();
 
       } else {
@@ -528,7 +528,7 @@ int XrdOfsFile::open(const char          *path,      // In
               {retc = (oh->ecode ? oh->ecode : -EPROTO);
                XrdOfsFS.Close(oh); oh = 0;
                if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
-               return XrdOfsFS.Emsg(epname, error, retc, "attaching", path);
+               return XrdOfsFS.Emsg(epname, error, retc, "attach", path);
               }
            if (oh->cxrsz) setCXinfo(open_mode);
            oh->UnLock();
@@ -600,7 +600,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Return an error
 //
-   return XrdOfsFS.Emsg(epname, error, retc, "opening", path);
+   return XrdOfsFS.Emsg(epname, error, retc, "open", path);
 }
 
 /******************************************************************************/
@@ -658,7 +658,7 @@ int            XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "reading", oh->Name());
+      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
 #endif
 
 // Reopen the handle if it has been closed
@@ -672,7 +672,7 @@ int            XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
    retc   = oh->Select().Read((off64_t)offset, (size_t)blen);
    RELEASE(oh);
    if (retc < 0)
-      return XrdOfsFS.Emsg(epname, error, (int)retc, "prereading", oh->Name());
+      return XrdOfsFS.Emsg(epname, error, (int)retc, "preread", oh->Name());
 
 // Return number of bytes read
 //
@@ -709,7 +709,7 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "reading", oh->Name());
+      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
 #endif
 
 // Reopen the handle if it has been closed
@@ -727,7 +727,7 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
                             (off64_t)offset, (size_t)blen)));
    RELEASE(oh);
    if (nbytes < 0)
-      return XrdOfsFS.Emsg(epname, error, (int)nbytes, "reading", oh->Name());
+      return XrdOfsFS.Emsg(epname, error, (int)nbytes, "read", oh->Name());
 
 // Return number of bytes read
 //
@@ -792,7 +792,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "reading", oh->Name());
+      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
 #endif
 
 // Reopen the file handle if it has been closed
@@ -808,7 +808,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
                             (off64_t)offset, (size_t)blen));
    RELEASE(oh);
    if (nbytes < 0)
-      return XrdOfsFS.Emsg(epname, error, (int)nbytes, "writing", oh->Name());
+      return XrdOfsFS.Emsg(epname, error, (int)nbytes, "write", oh->Name());
 
 // Return number of bytes written
 //
@@ -888,7 +888,7 @@ int XrdOfsFile::stat(struct stat     *buf)         // Out
    retc = oh->Select().Fstat(buf);
    RELEASE(oh);
    if (retc)
-      return XrdOfsFS.Emsg(epname,error,retc,"getting state for",oh->Name());
+      return XrdOfsFS.Emsg(epname,error,retc,"get state for",oh->Name());
 
    return SFS_OK;
 }
@@ -933,7 +933,7 @@ int XrdOfsFile::sync()  // In
 //
    if ((retc = oh->Select().Fsync()))
       {LOCK(oh);  oh->flags |= OFS_PENDIO; oh->activ--; UNLOCK(oh);
-       return XrdOfsFS.Emsg(epname, error, retc, "synchronizing", oh->Name());
+       return XrdOfsFS.Emsg(epname, error, retc, "synchronize", oh->Name());
       }
 
 // Unlock the file handle and indicate all went well
@@ -972,7 +972,7 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (flen >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "reading", oh->Name());
+      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
 #endif
 
 // Check if we should reopen this handle
@@ -987,7 +987,7 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
    retc = oh->Select().Ftruncate(flen);
    RELEASE(oh);
    if (retc)
-      return XrdOfsFS.Emsg(epname, error, retc, "truncating", oh->Name());
+      return XrdOfsFS.Emsg(epname, error, retc, "truncate", oh->Name());
 
 // Unlock the file and indicate success
 //
@@ -1061,7 +1061,7 @@ int XrdOfsFile::Unclose()
 // Reopen the file object as needed
 //
    if ((retc = oh->Select().Open(oh->Name(),oh->oflag,(mode_t)0,dummyenv))<0)
-      {XrdOfsFS.Emsg(epname,*new XrdOucErrInfo,retc,"opening",oh->Name());
+      {XrdOfsFS.Emsg(epname,*new XrdOucErrInfo,retc,"open",oh->Name());
        return 0;
       }
 
@@ -1108,7 +1108,7 @@ int XrdOfs::chmod(const char             *path,    // In
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "changing", path);
+      return XrdOfsFS.Emsg(epname, einfo, EACCES, "change", path);
    AUTHORIZE(client,AOP_Chmod,"chmod",path,einfo,SFS_ERROR);
 
 // Find out where we should chmod this file
@@ -1129,7 +1129,7 @@ int XrdOfs::chmod(const char             *path,    // In
 
 // An error occured, return the error info
 //
-   return XrdOfsFS.Emsg(epname, einfo, retc, "changing", path);
+   return XrdOfsFS.Emsg(epname, einfo, retc, "change", path);
 }
 
 /******************************************************************************/
@@ -1167,7 +1167,7 @@ int XrdOfs::exists(const char                *path,        // In
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locating", path);
+      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
    AUTHORIZE(client,AOP_Stat,"locating",path,einfo,SFS_ERROR);
 
 // Find out where we should stat this file
@@ -1192,7 +1192,7 @@ int XrdOfs::exists(const char                *path,        // In
 
 // An error occured, return the error info
 //
-   return XrdOfsFS.Emsg(epname, einfo, retc, "locating", path);
+   return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
 }
 
 /******************************************************************************/
@@ -1230,7 +1230,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "creating", path);
+      return XrdOfsFS.Emsg(epname, einfo, EACCES, "create", path);
    AUTHORIZE(client,AOP_Mkdir,"mkdir",path,einfo,SFS_ERROR);
 
 // Find out where we should remove this file
@@ -1306,7 +1306,7 @@ int XrdOfs::remove(const char              type,    // In
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "removing", path);
+      return XrdOfsFS.Emsg(epname, einfo, EACCES, "remove", path);
    AUTHORIZE(client,AOP_Delete,"removing",path,einfo,SFS_ERROR);
 
 // Find out where we should remove this file
@@ -1321,7 +1321,7 @@ int XrdOfs::remove(const char              type,    // In
 // Perform the actual deletion
 //
     if ((retc = XrdOssSS.Unlink(path)))
-       return XrdOfsFS.Emsg(epname, einfo, retc, "removing", path);
+       return XrdOfsFS.Emsg(epname, einfo, retc, "remove", path);
     if (type == 'f')
        {XrdOfsFS.Detach_Name(path);
         if (Balancer) Balancer->Removed(path);
@@ -1358,9 +1358,9 @@ int XrdOfs::rename(const char             *old_name,  // In
 //
    if (XrdOfsFS.VPlist.NotEmpty())
       {if (XrdOfsFS.VPlist.Find(old_name))
-          return XrdOfsFS.Emsg(epname, einfo, EACCES, "renaming", old_name);
+          return XrdOfsFS.Emsg(epname, einfo, EACCES, "rename", old_name);
        if (XrdOfsFS.VPlist.Find(new_name))
-          return XrdOfsFS.Emsg(epname, einfo, EACCES, "renaming to", new_name);
+          return XrdOfsFS.Emsg(epname, einfo, EACCES, "rename to", new_name);
       }
    AUTHORIZE2(client, einfo, SFS_ERROR,
               AOP_Rename, "renaming",    old_name,
@@ -1379,7 +1379,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 // Perform actual rename operation
 //
    if ((retc = XrdOssSS.Rename(old_name, new_name)))
-      return XrdOfsFS.Emsg(epname, einfo, retc, "renaming", old_name);
+      return XrdOfsFS.Emsg(epname, einfo, retc, "rename", old_name);
    XrdOfsFS.Detach_Name(old_name);
    if (Balancer) Balancer->Removed(old_name);
    return SFS_OK;
@@ -1413,7 +1413,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locating", path);
+      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
    AUTHORIZE(client,AOP_Stat,"locating",path,einfo,SFS_ERROR);
 
 // Find out where we should stat this file
@@ -1425,7 +1425,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Now try to find the file or directory
 //
    if ((retc = XrdOssSS.Stat(path, buf)))
-      return XrdOfsFS.Emsg(epname, einfo, retc, "locating", path);
+      return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
    return SFS_OK;
 }
 
@@ -1458,7 +1458,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locating", path);
+      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
    AUTHORIZE(client,AOP_Stat,"locating",path,einfo,SFS_ERROR);
    mode = (mode_t)-1;
 
@@ -1472,7 +1472,7 @@ int XrdOfs::stat(const char             *path,        // In
 //
    if (!(retc = XrdOssSS.Stat(path, &buf, 1))) mode = buf.st_mode;
       else if (ENOCSI != retc) return XrdOfsFS.Emsg(epname, einfo, retc, 
-                                                    "locating", path);
+                                                    "locate", path);
    return SFS_OK;
 }
 
@@ -1534,7 +1534,7 @@ int XrdOfs::Unopen(XrdOfsHandle *oh)
 //
     if (!(oh->flags & OFS_TCLOSE))
        {if (oh->Select().Close()) retc = XrdOfsFS.Emsg(epname, 
-                             *new XrdOucErrInfo, retc, "closing", oh->Name());
+                             *new XrdOucErrInfo, retc, "close", oh->Name());
            else retc = SFS_OK;
 
         // Unchain this filehandle from the active chain
@@ -1558,16 +1558,16 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
                  const char    *op,     // Operation being performed
                  const char    *target) // The target (e.g., fname)
 {
-   char *etext, buffer[OUC_MAX_ERROR_LEN];
+   char *etext, buffer[OUC_MAX_ERROR_LEN], unkbuff[64];
 
 // Get the reason for the error
 //
-   if (!(etext = OfsEroute.ec2text(ecode))) etext = (char *)"reason unknown";
+   if (!(etext = OfsEroute.ec2text(ecode))) 
+      {sprintf(unkbuff, "reason unknown (%d)", ecode); etext = unkbuff;}
 
 // Format the error message
 //
-    snprintf(buffer,sizeof(buffer),"Error %d (%s) %s %s.", ecode,
-             etext, op, target);
+    snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
 // Print it out if debugging is enabled
 //

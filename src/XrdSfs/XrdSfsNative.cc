@@ -132,7 +132,7 @@ int XrdSfsNativeDirectory::open(const char              *dir_path, // In
 //
      if (dh) return
         XrdSfsNative::Emsg(epname, error, EADDRINUSE, 
-                             "opening directory", dir_path);
+                             "open directory", dir_path);
 
 // Set up values for this directory object
 //
@@ -142,7 +142,7 @@ int XrdSfsNativeDirectory::open(const char              *dir_path, // In
 // Open the directory and get it's id
 //
      if (!(dh = opendir(dir_path))) return
-        XrdSfsNative::Emsg(epname,error,errno,"opening directory",dir_path);
+        XrdSfsNative::Emsg(epname,error,errno,"open directory",dir_path);
 
 // All done
 //
@@ -172,7 +172,7 @@ const char *XrdSfsNativeDirectory::nextEntry()
 // Lock the direcrtory and do any required tracing
 //
    if (!dh) 
-      {XrdSfsNative::Emsg(epname,error,EBADFD,"reading directory",fname);
+      {XrdSfsNative::Emsg(epname,error,EBADFD,"read directory",fname);
        return (const char *)0;
       }
 
@@ -185,7 +185,7 @@ const char *XrdSfsNativeDirectory::nextEntry()
    errno = 0;
    if ((retc = readdir_r(dh, d_pnt, &rp)))
       {if (retc && errno != 0)
-          XrdSfsNative::Emsg(epname,error,retc,"reading directory",fname);
+          XrdSfsNative::Emsg(epname,error,retc,"read directory",fname);
        d_pnt->d_name[0] = '\0';
        return (const char *)0;
       }
@@ -221,7 +221,7 @@ int XrdSfsNativeDirectory::close()
 // Release the handle
 //
     if (dh && closedir(dh))
-       {XrdSfsNative::Emsg(epname, error, errno, "closing directory", fname);
+       {XrdSfsNative::Emsg(epname, error, errno, "close directory", fname);
         return SFS_ERROR;
        }
 
@@ -272,7 +272,7 @@ int XrdSfsNativeFile::open(const char          *path,      // In
 // Verify that this object is not already associated with an open file
 //
    if (oh >= 0)
-      return XrdSfsNative::Emsg(epname,error,EADDRINUSE,"opening file",path);
+      return XrdSfsNative::Emsg(epname,error,EADDRINUSE,"open file",path);
    fname = strdup(path);
 
 // Set the actual open mode
@@ -289,11 +289,11 @@ int XrdSfsNativeFile::open(const char          *path,      // In
 //
    if (open_mode & SFS_O_CREAT)
       {open_flag  = O_RDWR | O_CREAT | O_EXCL;
-       opname = (char *)"creating";
+       opname = (char *)"create";
       } else if (open_mode & SFS_O_TRUNC)
                 {open_flag  = O_RDWR | O_CREAT;
-                 opname = (char *)"truncating";
-                } else opname = (char *)"opening";
+                 opname = (char *)"truncate";
+                } else opname = (char *)"open";
 
 // Open the file.
 //
@@ -323,7 +323,7 @@ int XrdSfsNativeFile::close()
 // Release the handle and return
 //
     if (oh >= 0  && XrdSfsUFS::Close(oh))
-       return XrdSfsNative::Emsg(epname, error, errno, "closing", fname);
+       return XrdSfsNative::Emsg(epname, error, errno, "close", fname);
     oh = -1;
     if (fname) {free(fname); fname = 0;}
     return SFS_OK;
@@ -355,7 +355,7 @@ XrdSfsXferSize XrdSfsNativeFile::read(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return XrdSfsNative::Emsg(epname, error, EFBIG, "reading", fname);
+      return XrdSfsNative::Emsg(epname, error, EFBIG, "read", fname);
 #endif
 
 // Read the actual number of bytes
@@ -364,7 +364,7 @@ XrdSfsXferSize XrdSfsNativeFile::read(XrdSfsFileOffset  offset,    // In
         while(nbytes < 0 && errno == EINTR);
 
    if (nbytes  < 0)
-      return XrdSfsNative::Emsg(epname, error, errno, "reading", fname);
+      return XrdSfsNative::Emsg(epname, error, errno, "read", fname);
 
 // Return number of bytes read
 //
@@ -425,7 +425,7 @@ XrdSfsXferSize XrdSfsNativeFile::write(XrdSfsFileOffset   offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return XrdSfsNative::Emsg(epname, error, EFBIG, "writing", fname);
+      return XrdSfsNative::Emsg(epname, error, EFBIG, "write", fname);
 #endif
 
 // Write the requested bytes
@@ -434,7 +434,7 @@ XrdSfsXferSize XrdSfsNativeFile::write(XrdSfsFileOffset   offset,    // In
         while(nbytes < 0 && errno == EINTR);
 
    if (nbytes  < 0)
-      return XrdSfsNative::Emsg(epname, error, errno, "writing", fname);
+      return XrdSfsNative::Emsg(epname, error, errno, "write", fname);
 
 // Return number of bytes written
 //
@@ -501,7 +501,7 @@ int XrdSfsNativeFile::stat(struct stat     *buf)         // Out
 // Execute the function
 //
    if (XrdSfsUFS::Statfd(oh, buf))
-      return XrdSfsNative::Emsg(epname, error, errno, "stating", fname);
+      return XrdSfsNative::Emsg(epname, error, errno, "state", fname);
 
 // All went well
 //
@@ -526,7 +526,7 @@ int XrdSfsNativeFile::sync()
 // Perform the function
 //
    if (fsync(oh))
-      return XrdSfsNative::Emsg(epname,error,errno,"synchronizing",fname);
+      return XrdSfsNative::Emsg(epname,error,errno,"synchronize",fname);
 
 // All done
 //
@@ -558,13 +558,13 @@ int XrdSfsNativeFile::truncate(XrdSfsFileOffset  flen)  // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (flen >  0x000000007fffffff)
-      return XrdSfsNative::Emsg(epname, error, EFBIG, "truncating", fname);
+      return XrdSfsNative::Emsg(epname, error, EFBIG, "truncate", fname);
 #endif
 
 // Perform the function
 //
    if (ftruncate(oh, flen))
-      return XrdSfsNative::Emsg(epname, error, errno, "truncating", fname);
+      return XrdSfsNative::Emsg(epname, error, errno, "truncate", fname);
 
 // All done
 //
@@ -598,7 +598,7 @@ int XrdSfsNative::chmod(const char             *path,    // In
 // Perform the actual deletion
 //
    if (XrdSfsUFS::Chmod(path, acc_mode) )
-      return XrdSfsNative::Emsg(epname,error,errno,"changing mode on",path);
+      return XrdSfsNative::Emsg(epname,error,errno,"change mode on",path);
 
 // All done
 //
@@ -648,7 +648,7 @@ int XrdSfsNative::exists(const char                *path,        // In
 
 // An error occured, return the error info
 //
-   return XrdSfsNative::Emsg(epname, error, errno, "locating", path);
+   return XrdSfsNative::Emsg(epname, error, errno, "locate", path);
 }
 
 /******************************************************************************/
@@ -681,7 +681,7 @@ int XrdSfsNative::mkdir(const char             *path,    // In
 // Perform the actual deletion
 //
    if (XrdSfsUFS::Mkdir(path, acc_mode) )
-      return XrdSfsNative::Emsg(epname,error,errno,"creating directory",path);
+      return XrdSfsNative::Emsg(epname,error,errno,"create directory",path);
 
 // All done
 //
@@ -710,7 +710,7 @@ int XrdSfsNative::rem(const char             *path,    // In
 // Perform the actual deletion
 //
     if (XrdSfsUFS::Rem(path) )
-       return XrdSfsNative::Emsg(epname, error, errno, "removing", path);
+       return XrdSfsNative::Emsg(epname, error, errno, "remove", path);
 
 // All done
 //
@@ -739,7 +739,7 @@ int XrdSfsNative::remdir(const char             *path,    // In
 // Perform the actual deletion
 //
     if (XrdSfsUFS::Remdir(path) )
-       return XrdSfsNative::Emsg(epname, error, errno, "removing", path);
+       return XrdSfsNative::Emsg(epname, error, errno, "remove", path);
 
 // All done
 //
@@ -770,7 +770,7 @@ int XrdSfsNative::rename(const char             *old_name,  // In
 // Perform actual rename operation
 //
    if (XrdSfsUFS::Rename(old_name, new_name) )
-      return XrdSfsNative::Emsg(epname, error, errno, "renaming", old_name);
+      return XrdSfsNative::Emsg(epname, error, errno, "rename", old_name);
 
 // All done
 //
@@ -801,7 +801,7 @@ int XrdSfsNative::stat(const char              *path,        // In
 // Execute the function
 //
    if (XrdSfsUFS::Statfn(path, buf) )
-      return XrdSfsNative::Emsg(epname, error, errno, "stating", path);
+      return XrdSfsNative::Emsg(epname, error, errno, "state", path);
 
 // All went well
 //
@@ -818,17 +818,17 @@ int XrdSfsNative::Emsg(const char    *pfx,    // Message prefix value
                        const char    *op,     // Operation being performed
                        const char    *target) // The target (e.g., fname)
 {
-    char *etext, buffer[SFS_MAX_ERROR_LEN];
+    char *etext, buffer[SFS_MAX_ERROR_LEN], unkbuff[64];
 
 // Get the reason for the error
 //
    if (ecode < 0) ecode = -ecode;
-   if (!(etext = strerror(ecode))) etext = (char *)"reason unknown";
+   if (!(etext = strerror(ecode)))
+      {sprintf(unkbuff, "reason unknown (%d)", ecode); etext = unkbuff;}
 
 // Format the error message
 //
-    snprintf(buffer,sizeof(buffer),"Error %d (%s) %s %s.", ecode,
-             etext, op, target);
+    snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
 
 // Print it out if debugging is enabled
 //

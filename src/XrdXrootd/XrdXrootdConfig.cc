@@ -255,13 +255,13 @@ int XrdXrootdProtocol::ConfigFn(char *fn)
     char *fbuff;
 
     if ((fd = open(fn, O_RDONLY)) < 0)
-       {eDest.Emsg("Config", errno, "opening", fn); return 1;}
+       {eDest.Emsg("Config", errno, "open", fn); return 1;}
     if (fstat(fd, &buf) < 0)
-       {eDest.Emsg("Config", errno, "getting size of", fn); return 1;}
+       {eDest.Emsg("Config", errno, "get size of", fn); return 1;}
     if (!(fbuff = (char *)malloc(buf.st_size+1)))
-       {eDest.Emsg("Config", errno, "getting buffer for", fn); return 1;}
+       {eDest.Emsg("Config", errno, "get buffer for", fn); return 1;}
     if ((rsz = read(fd, (void *)fbuff, buf.st_size)) < 0)
-       {eDest.Emsg("Config", errno, "reading", fn); return 1;}
+       {eDest.Emsg("Config", errno, "read", fn); return 1;}
     close(fd); fbuff[rsz] = '\0';
     NoGo = (rsz ? ConfigIt(fbuff) : 0);
     free(fbuff);
@@ -520,7 +520,7 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
                       {eDest.Emsg("Config", "monitor mbuff value not specified");
                        return 1;
                       }
-                   if (XrdOuca2x::a2sz(eDest,"invalid monitor mbuff", val,
+                   if (XrdOuca2x::a2sz(eDest,"monitor mbuff", val,
                                              &tempval, 1024, 65536)) return 1;
                     monMBval = static_cast<int>(tempval);
                   }
@@ -529,7 +529,7 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
                     {eDest.Emsg("Config", "monitor window value not specified");
                      return 1;
                     }
-                 if (XrdOuca2x::a2tm(eDest,"invalid monitor window",val,
+                 if (XrdOuca2x::a2tm(eDest,"monitor window",val,
                                            &monWWval,1)) return 1;
                 }
         else if (!strcmp("dest", val))
@@ -578,14 +578,14 @@ int XrdXrootdProtocol::xprep(XrdOucTokenizer &Config)
                     {eDest.Emsg("Config", "prep keep value not specified");
                      return 1;
                     }
-                 if (XrdOuca2x::a2tm(eDest,"invalid prep keep int",val,&keep,1)) return 1;
+                 if (XrdOuca2x::a2tm(eDest,"prep keep int",val,&keep,1)) return 1;
                 }
         else if (!strcmp("scrub", val))
                 {if (!(val = Config.GetToken()))
                     {eDest.Emsg("Config", "prep scrub value not specified");
                      return 1;
                     }
-                 if (XrdOuca2x::a2tm(eDest,"invalid prep scrub",val,&scrub,0)) return 1;
+                 if (XrdOuca2x::a2tm(eDest,"prep scrub",val,&scrub,0)) return 1;
                 }
         else if (!strcmp("logdir", val))
                 {if (!(ldir = Config.GetToken()))
@@ -601,7 +601,7 @@ int XrdXrootdProtocol::xprep(XrdOucTokenizer &Config)
    if (scrub || keep) XrdXrootdPrepare::setParms(scrub, keep);
    if (ldir) 
        if ((rc = XrdXrootdPrepare::setParms(ldir)) < 0)
-          {eDest.Emsg("Config", rc, "processing logdir", ldir);
+          {eDest.Emsg("Config", rc, "process logdir", ldir);
            return 1;
           }
    return 0;

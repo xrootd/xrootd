@@ -12,6 +12,7 @@
 
 const char *XrdOucErrorCVSID = "$Id$";
 
+#include <ctype.h>
 #include <unistd.h>
 #include <errno.h>
 #include <iostream.h>
@@ -25,6 +26,7 @@ const char *XrdOucErrorCVSID = "$Id$";
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 
 /******************************************************************************/
 /*                               d e f i n e s                                */
@@ -72,20 +74,26 @@ int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1, char *txt2)
 {
     struct iovec iov[16];
     int iovpnt = 0;
-    char ebuff[16], *etxt = 0;
+    char ebuff[16], etbuff[80], *etxt = 0;
 
     if (!(etxt = ec2text(ecode)))
-       {snprintf(ebuff, sizeof(ebuff), "Error %d", ecode); etxt = ebuff;}
+       {snprintf(ebuff, sizeof(ebuff), "reason unknown (%d)", ecode); 
+        etxt = ebuff;
+       } else if (isupper(static_cast<int>(*etxt)))
+                 {strlcpy(etbuff, etxt, sizeof(etbuff));
+                  *etbuff = static_cast<char>(tolower(static_cast<int>(*etxt)));
+                  etxt = etbuff;
+                 }
 
                          Set_IOV_Item(0,0);                          //  0
     if (epfx && epfxlen) Set_IOV_Item(epfx, epfxlen);                //  1
     if (esfx           ) Set_IOV_Buff(esfx);                         //  2
-                         Set_IOV_Item(": ", 2);                      //  3
-                         Set_IOV_Buff(etxt);                         //  4
-                         Set_IOV_Item("; ", 2);                      //  5
-                         Set_IOV_Buff(txt1);                         //  6
-                         Set_IOV_Item(" ", 1);                       //  7
-    if (txt2 && txt2[0]) Set_IOV_Buff(txt2);                         //  8
+                         Set_IOV_Item(": Unable to ", 12);           //  3
+                         Set_IOV_Buff(txt1);                         //  4
+                         Set_IOV_Item(" ", 1);                       //  5
+    if (txt2 && txt2[0]) Set_IOV_Buff(txt2);                         //  6
+                         Set_IOV_Item("; ", 2);                      //  7
+                         Set_IOV_Buff(etxt);                         //  8
                          Set_IOV_Item("\n", 1);                      //  9
     Logger->Put(iovpnt, iov);
     Logger->Flush();

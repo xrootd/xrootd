@@ -85,7 +85,7 @@ int XrdAccAuthFile::Changed(const char *dbfn)
 // Get the modification timestamp for this file
 //
    if (stat(authfn, &statbuff))
-      {Eroute->Emsg("AuthFile", errno, "searching for", (char *)authfn);
+      {Eroute->Emsg("AuthFile", errno, "find", (char *)authfn);
        return 0;
       }
 
@@ -259,12 +259,12 @@ int XrdAccAuthFile::Open(XrdOucError &eroute, const char *path)
 // Get the modification timestamp for this file
 //
    if (stat(authfn, &statbuff))
-      return Bail(errno, "while looking up", (char *)authfn);
+      return Bail(errno, "find", (char *)authfn);
 
 // Try to open the authorization file.
 //
    if ( (authFD = open(authfn, O_RDONLY, 0)) < 0)
-      return Bail(errno,"opening authorization file",(char *)authfn);
+      return Bail(errno,"open authorization file",(char *)authfn);
 
 // Copy in all the relevant information
 //
@@ -276,7 +276,7 @@ int XrdAccAuthFile::Open(XrdOucError &eroute, const char *path)
 // Attach the file to the stream
 //
    if (DBfile.Attach(authFD))
-      return Bail(DBfile.LastError(), "initializing stream for",(char *)authfn);
+      return Bail(DBfile.LastError(), "initialize stream for",(char *)authfn);
    return 1;
 }
   

@@ -84,7 +84,7 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 // Do the herald thing
 //
    OssEroute.logger(lp);
-   OssEroute.Emsg("Init", "(c) 2003, Stanford University, oss Version "
+   OssEroute.Emsg("Init", "(c) 2003, Stanford University, oss Version"
                     XRDOSS_VERSION);
 
 // Initialize the subsystems
@@ -103,7 +103,7 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 // Perform remote file initialization.
 //
      if ((retc = MSS_Init(0)))
-        return OssEroute.Emsg("Init",retc,"Remote file initialization failed");
+        return OssEroute.Emsg("Init",retc,"initialize Mass Storage interface");
 
 // All done.
 //
@@ -122,7 +122,7 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 {
     if (concat_fn(LocalRoot, LocalRootLen, oldp, newp))
-       return OssEroute.Emsg("glp", -ENAMETOOLONG, "generating local path ",
+       return OssEroute.Emsg("glp", -ENAMETOOLONG, "generate local path",
                                (char *)oldp);
     return XrdOssOK;
 }
@@ -139,7 +139,7 @@ int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
 {
    if (concat_fn(RemoteRoot, RemoteRootLen, oldp, newp))
-      return OssEroute.Emsg("grp", -ENAMETOOLONG,"generating remote path ",
+      return OssEroute.Emsg("grp", -ENAMETOOLONG,"generate remote path",
                                (char *)oldp);
    return XrdOssOK;
 }
@@ -487,7 +487,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 //
    if ((Oflag & (O_WRONLY | O_RDWR)) && (popts & XrdOssNOTRW))
       if (popts & XrdOssFORCERO) Oflag = O_RDONLY;
-         else return OssEroute.Emsg("XrdOssOpen", -XRDOSS_E8005, "opening r/w ",
+         else return OssEroute.Emsg("XrdOssOpen", -XRDOSS_E8005, "open r/w",
                                       (char *)path);
 
 // If we can open the local copy. If not found, try to stage it in if possible.
@@ -496,7 +496,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    if ( (fd = (int)Open_ufs(local_path, Oflag, Mode, popts))
          == -ENOENT && (popts & XrdOssREMOTE))
       {if (popts & XrdOssNOSTAGE)
-          return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8006," for ",(char *)path);
+          return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8006,"open",(char *)path);
        if ( (retc = XrdOssSS.Stage(path, Env)) ) return retc;
        fd = (int)Open_ufs(local_path, Oflag, Mode, popts & ~XrdOssREMOTE);
       }
@@ -779,7 +779,7 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
     if (myfd >= 0)
        {if (myfd < XrdOssSS.FDFence)
            if ((newfd = fcntl(myfd, F_DUPFD, XrdOssSS.FDFence)) < 0)
-              OssEroute.Emsg("XrdOssOpen_ufs",errno,"reloc FD ",(char *)path);
+              OssEroute.Emsg("XrdOssOpen_ufs",errno,"reloc FD",(char *)path);
               else {close(myfd); myfd = newfd;}
         fcntl(myfd, F_SETFD, FD_CLOEXEC);
 #ifdef XRDOSSCX

@@ -139,7 +139,7 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 //
    if (Cold && !NoGo)
       {if ((retc=XrdOucThread_Run(&reftid,XrdAccConfig_Refresh,(void *)&Eroute)))
-          Eroute.Emsg("ConfigDB",retc,"starting refresh thread.");
+          Eroute.Emsg("ConfigDB",retc,"start refresh thread.");
       }
 
 // All done
@@ -249,7 +249,7 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {Eroute.Emsg("config", errno, "opening config file", (char *)ConfigFN);
+      {Eroute.Emsg("config", errno, "open config file", (char *)ConfigFN);
        return 1;
       }
    Eroute.Emsg("config","Authorization system using configuration in",
@@ -268,7 +268,7 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = Eroute.Emsg("config",-retc,"reading config file",(char *)ConfigFN);
+      NoGo = Eroute.Emsg("config",-retc,"read config file",(char *)ConfigFN);
       else {char buff[12];
             snprintf(buff, sizeof(buff), "%d", recs);
             Eroute.Emsg("config", buff,
@@ -386,7 +386,7 @@ int XrdAccConfig::xart(XrdOucStream &Config, XrdOucError &Eroute)
       val = Config.GetWord();
       if (!val || !val[0])
          {Eroute.Emsg("config","authrefresh value not specified");return 1;}
-      if (XrdOuca2x::a2tm(Eroute,"invalid authrefresh value",val,&reft,60)) 
+      if (XrdOuca2x::a2tm(Eroute,"authrefresh value",val,&reft,60))
          return 1;
       AuthRT = reft;
       return 0;
@@ -437,7 +437,7 @@ int XrdAccConfig::xglt(XrdOucStream &Config, XrdOucError &Eroute)
       val = Config.GetWord();
       if (!val || !val[0])
          {Eroute.Emsg("config","gidlifetime value not specified");return 1;}
-      if (XrdOuca2x::a2tm(Eroute,"invalid gidlifetime value",val,&reft,60)) 
+      if (XrdOuca2x::a2tm(Eroute,"gidlifetime value",val,&reft,60))
          return 1;
       GroupMaster.SetLifetime(reft);
       return 0;
@@ -467,7 +467,7 @@ int XrdAccConfig::xgrt(XrdOucStream &Config, XrdOucError &Eroute)
        {Eroute.Emsg("config","gidretran value not specified"); return 1;}
 
     while (val && val[0])
-      {if (XrdOuca2x::a2i(Eroute, "invalid gid", val, &gid, 0)) return 1;
+      {if (XrdOuca2x::a2i(Eroute, "gid", val, &gid, 0)) return 1;
        if (GroupMaster.Retran((gid_t)gid) < 0)
           {Eroute.Emsg("config", "to many gidretran gid's"); return 1;}
        val = Config.GetWord();

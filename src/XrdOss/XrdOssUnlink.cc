@@ -142,7 +142,7 @@ int XrdOssSys::BreakLink(const char *local_path, struct stat &statbuff)
 //
    if (unlink(lnkbuff) && errno != ENOENT)
       {retc = -errno;
-       OssEroute.Emsg("XrdOssBreakLink",retc,"unlinking symlink target ",lnkbuff);
+       OssEroute.Emsg("XrdOssBreakLink",retc,"unlink symlink target",lnkbuff);
       }
 
 // All done

@@ -143,7 +143,7 @@ void *XrdOdcManager::Start()
 
        // Indicate the problem
        //
-       if (retc) eDest->Emsg("Manager", retc, "receiving msg from", Host);
+       if (retc) eDest->Emsg("Manager", retc, "receive msg from", Host);
           else   eDest->Emsg("Manager", "Disconnected from", Host);
        Sleep(dally);
       } while(1);
@@ -202,7 +202,7 @@ void XrdOdcManager::Sleep(int slpsec)
           rqtp.tv_nsec = lftp.tv_nsec;
          }
 
-   if (retc < 0) eDest->Emsg("Manager", errno, "sleeping");
+   if (retc < 0) eDest->Emsg("Manager", errno, "sleep");
 }
 
 /******************************************************************************/

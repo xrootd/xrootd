@@ -110,7 +110,7 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
 // Create a new request
 //
    if (!(newreq = new XrdOssCache_Req(req.hash, fn)))
-       return OssEroute.Emsg("XrdOssStage",-ENOMEM,"creating req for ",(char *)fn);
+       return OssEroute.Emsg("XrdOssStage",-ENOMEM,"create req for",(char *)fn);
 
 // Add this request to the list of requests
 //
@@ -124,7 +124,7 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
 // Calculate the system priority
 //
    if (!(val = env.Get(OSS_SYSPRTY))) prty = OSS_USE_PRTY;
-      else if (XrdOuca2x::a2i(OssEroute,"invalid system prty",val,&prty,0)
+      else if (XrdOuca2x::a2i(OssEroute,"system prty",val,&prty,0)
            || prty > OSS_MAX_PRTY) return -XRDOSS_E8010;
            else prty = prty << 8;
 
@@ -132,7 +132,7 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
 //
    if (XeqFlags & XrdOssUSRPRTY)
       if ((val = env.Get(OSS_USRPRTY))
-      && (XrdOuca2x::a2i(OssEroute,"invalid user prty",val,&rc,0)
+      && (XrdOuca2x::a2i(OssEroute,"user prty",val,&rc,0)
           || rc > OSS_MAX_PRTY)) return -XRDOSS_E8010;
          else prty |= rc;
 
@@ -290,29 +290,29 @@ int XrdOssSys::GetFile(XrdOssCache_Req *req)
 */
    if ( (procid = fork()) )
       {if (procid < 0) 
-          return OssEroute.Emsg("XrdOssStage",-errno,"stage forking ",
+          return OssEroute.Emsg("XrdOssStage",-errno,"stage fork",
                                   (char *)req->path);
        do {
            do {retc = waitpid(procid, (int *)&estat,0);}
               while(retc<0 && errno == EINTR);
            if (retc < 0) 
-              return OssEroute.Emsg("XrdOssStage", -errno, "stage waiting for ",
+              return OssEroute.Emsg("XrdOssStage", -errno, "stage wait for",
                                       (char *)req->path);
           } while(WIFSTOPPED(estat));
 
        if (WIFSIGNALED(estat))
-          {OssEroute.Emsg("XrdOssStage",WTERMSIG(estat),"stage sigterm ",
+          {OssEroute.Emsg("XrdOssStage",WTERMSIG(estat),"stage sigterm",
                             (char *)req->path);
            return -XRDOSS_E8009;
           }
        if (WIFEXITED(estat))
           {retc = WEXITSTATUS(estat);
-           if (retc) {OssEroute.Emsg("XrdOssStage",retc,"staging ",(char *)req->path);
+           if (retc) {OssEroute.Emsg("XrdOssStage",retc,"stage",(char *)req->path);
                       return -XRDOSS_E8009;
                      }
            return 0;
           }
-     return OssEroute.Emsg("XrdOssStage",-XRDOSS_E8009,"processing ",(char *)req->path);
+     return OssEroute.Emsg("XrdOssStage",-XRDOSS_E8009,"process",(char *)req->path);
       }
 
         /**************************************************************/

@@ -94,7 +94,8 @@ $(OBJDIR)/XrdOucEnv.o: XrdOucEnv.cc XrdOucEnv.hh XrdOucHash.hh
 	@echo Compiling XrdOucEnv.cc
 	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucEnv.cc -o $(OBJDIR)/XrdOucEnv.o
 
-$(OBJDIR)/XrdOucError.o: XrdOucError.cc XrdOucError.hh XrdOucLogger.hh
+$(OBJDIR)/XrdOucError.o: XrdOucError.cc XrdOucError.hh XrdOucLogger.hh \
+                         XrdOucPlatform.hh
 	@echo Compiling XrdOucError.cc
 	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucError.cc -o $(OBJDIR)/XrdOucError.o
 

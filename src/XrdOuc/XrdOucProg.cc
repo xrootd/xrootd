@@ -55,7 +55,7 @@ int XrdOucProg::Run(XrdOucStream *Sp,char *arg1,char *arg2,char *arg3,char *arg4
 // Make sure we don't have too many
 //
    if (j >= maxArgs) 
-      {if (eDest) eDest->Emsg("Run", E2BIG, (char *)"executing", Arg[0]);
+      {if (eDest) eDest->Emsg("Run", E2BIG, (char *)"execute", Arg[0]);
        return -E2BIG;
       }
    Arg[j] = (char *)0;
@@ -64,7 +64,7 @@ int XrdOucProg::Run(XrdOucStream *Sp,char *arg1,char *arg2,char *arg3,char *arg4
 //
    if (Sp->Exec(Arg))
       {rc = Sp->LastError();
-       if (eDest) eDest->Emsg("Run", rc, (char *)"executing", Arg[0]);
+       if (eDest) eDest->Emsg("Run", rc, (char *)"execute", Arg[0]);
        return -rc;
       }
 
@@ -145,7 +145,7 @@ for (j = 0; j < maxArgs-1 && *pp; j++)
 // Make sure we did not overflow the buffer
 //
    if (j == maxArgs-1 && *pp) 
-      {if (errP) errP->Emsg("Run", E2BIG, (char *)"setting up", Arg[0]);
+      {if (errP) errP->Emsg("Run", E2BIG, (char *)"set up", Arg[0]);
        free(ArgBuff); ArgBuff = 0;
        return -E2BIG;
       }
@@ -157,7 +157,7 @@ for (j = 0; j < maxArgs-1 && *pp; j++)
 //
    if (access((const char *)Arg[0], X_OK))
       {int rc = errno;
-       if (errP) errP->Emsg("Run", rc, (char *)"setting up", Arg[0]);
+       if (errP) errP->Emsg("Run", rc, (char *)"set up", Arg[0]);
        free(ArgBuff); ArgBuff = 0;
        return rc;
       }

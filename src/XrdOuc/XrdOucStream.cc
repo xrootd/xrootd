@@ -190,14 +190,14 @@ int XrdOucStream::Exec(char **parm, int inrd)
     //
     if (inrd >= 0)
        {if (pipe(fildes))
-           return Err(Exec, errno, "creating in pipe for", parm[0]);
+           return Err(Exec, errno, "create input pipe for", parm[0]);
            else {Attach(fildes[0]); Child_out = fildes[1];
                  fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
                 }
 
         if (inrd)
            if (pipe(fildes))
-              return Err(Exec, errno, "creating out pipe for", parm[0]);
+              return Err(Exec, errno, "create output pipe for", parm[0]);
               else {FE = fildes[1]; Child_in  = fildes[0];
                     fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
                    }
@@ -209,7 +209,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
        {          close(Child_out);
         if (inrd) close(Child_in );
         if (child < 0)
-           return Err(Exec, errno, "forking request process for ", parm[0]);
+           return Err(Exec, errno, "fork request process for ", parm[0]);
         return 0;
        }
 
@@ -222,7 +222,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
     if (Child_in >= 0)
        {if (inrd)
            if (dup2(Child_in, STDIN_FILENO) < 0)
-              {Err(Exec, errno, "setting up standard in for", parm[0]);
+              {Err(Exec, errno, "set up standard in for", parm[0]);
                exit(255);
               } else if (Child_in != Child_out) close(Child_in);
        }
@@ -231,7 +231,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
     //
     if (Child_out >= 0)
        {if (dup2(Child_out, STDOUT_FILENO) < 0)
-           {Err(Exec, errno, "setting up standard out for", parm[0]);
+           {Err(Exec, errno, "set up standard out for", parm[0]);
             exit(255);
            } else close(Child_out);
        }
@@ -239,7 +239,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
     // Invoke the command never to return
     //
     execv(parm[0], parm);
-    Err(Exec, errno, "executing", parm[0]);
+    Err(Exec, errno, "execute", parm[0]);
     exit(255);
 }
 

@@ -141,10 +141,10 @@ int XrdOdcFinderLCL::Configure(char *cfn)
 //
    if ((repsid = shmget(config.pselSkey, sizeof(XrdOdcData)*maxPORTS,
                         IPC_CREAT | 0744)) < 0)
-      {OdcEDest.Emsg("Config", errno, "doing shmget"); return 0;}
+      {OdcEDest.Emsg("Config", errno, "shmget()"); return 0;}
     repsad = (XrdOdcData *)shmat(repsid, NULL, 0);
     if ((void *)repsad == (void *)-1)
-       {OdcEDest.Emsg("Config", errno, "doing shmat"); repsad = 0; return 0;}
+       {OdcEDest.Emsg("Config", errno, "shmat()"); repsad = 0; return 0;}
     DEBUG("Port balancing shared memory allocated; ID=" <<repsid);
 
 // Set configured values and start the managers
@@ -344,7 +344,7 @@ void XrdOdcFinderLCL::calcLoad(int &load, long &totcpu)
 // Get the cpu used
 //
    if ((nowtod = times(&buff)) < 0)
-      {OdcEDest.Emsg("calcLoad", errno, "getting times()");
+      {OdcEDest.Emsg("calcLoad", errno, "get times()");
        load = 50; totcpu = 1;
        return;
       }
@@ -426,7 +426,7 @@ int XrdOdcFinderLCL::StartMonitor(int Inspect, int tint)
    if (Inspect) retc = XrdOucThread_Run(&tid,XrdOdcInspectLoad,(void *)this);
       else retc = XrdOucThread_Run(&tid,XrdOdcReportLoad,(void *)this);
    if (retc)
-      {OdcEDest.Emsg("Finder", errno, "starting load monitor");
+      {OdcEDest.Emsg("Finder", errno, "start load monitor");
        return repint = 0;
       }
 
@@ -838,7 +838,7 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
             else firstone = mp;
          myManagers = mp;
          if (XrdOucThread_Run(&tid, XrdOdcStartManager, (void *)mp))
-            OdcEDest.Emsg("Config", errno, "starting manager");
+            OdcEDest.Emsg("Config", errno, "start manager");
             else {mp->setTID(tid);
                   DEBUG("Config: Thread " <<(unsigned int)tid <<" manages " <<tp->text);
                  }
@@ -925,7 +925,7 @@ int XrdOdcFinderTRG::Configure(char *cfn)
 // Start a thread to connect with the local olb
 //
    if (XrdOucThread_Run(&tid, XrdOdcStartOlb, (void *)this))
-      OdcEDest.Emsg("Config", errno, "starting olb interface");
+      OdcEDest.Emsg("Config", errno, "start olb interface");
       else DEBUG("Config: olb i/f assigned to thread " <<(unsigned int)tid);
 
 // All done
@@ -1023,7 +1023,7 @@ void XrdOdcFinderTRG::Hookup()
    tries = 0;
    while(Sock.Open(OLBPath) < 0)
         {if (!tries--)
-            {OdcEDest.Emsg("olb",Sock.LastError(),"connecting to olb");
+            {OdcEDest.Emsg("olb",Sock.LastError(),"connect to olb");
              tries = 6;
             }
          XrdOucTimer::Wait(10*1000);

@@ -76,7 +76,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
    while(*pc && *pc != ' ') pc++;
    if (*pc) {*pc = '\0'; pc++;}
    if (access((const char *)pgm, F_OK) || access((const char *)pgm, X_OK))
-      {pi->eDest->Emsg("rootd" ,errno, "finding rootd program", pgm);
+      {pi->eDest->Emsg("rootd" ,errno, "find rootd program", pgm);
        return (XrdProtocol *)0;
       }
 

@@ -112,7 +112,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
            // Try to open the configuration file.
            //
            if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-              return Eroute.Emsg("Config", errno, "opening config file", 
+              return Eroute.Emsg("Config", errno, "open config file",
                                  ConfigFN);
            Config.Attach(cfgFD);
 
@@ -128,7 +128,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
            // Now check if any errors occured during file i/o
            //
            if ((retc = Config.LastError()))
-           NoGo = Eroute.Emsg("Config", -retc, "reading config file",
+           NoGo = Eroute.Emsg("Config", -retc, "read config file",
                               ConfigFN);
            Config.Close();
           }
@@ -393,15 +393,15 @@ int XrdOfs::xfdscan(XrdOucStream &Config, XrdOucError &Eroute)
 
       if (!(val = Config.GetWord()))
          {Eroute.Emsg("Config","fdscan numfiles value not specified");return 1;}
-      if (XrdOuca2x::a2i(Eroute, "invalid fdscan numfiles", val, &numf, 0)) return 1;
+      if (XrdOuca2x::a2i(Eroute, "fdscan numfiles", val, &numf, 0)) return 1;
 
       if (!(val = Config.GetWord()))
          {Eroute.Emsg("Config","fdscan minidle value not specified"); return 1;}
-      if (XrdOuca2x::a2tm(Eroute, "invalid fdscan minidle",val, &minidle,0)) return 1;
+      if (XrdOuca2x::a2tm(Eroute, "fdscan minidle",val, &minidle,0)) return 1;
 
       if (!(val = Config.GetWord()))
          {Eroute.Emsg("Config","fdscan maxidle value not specified"); return 1;}
-      if (XrdOuca2x::a2tm(Eroute,"invalid fdscan maxidle", val, &maxidle, minidle))
+      if (XrdOuca2x::a2tm(Eroute,"fdscan maxidle", val, &maxidle, minidle))
          return 1;
 
       FDOpenMax = numf;
@@ -484,11 +484,11 @@ int XrdOfs::xlocktry(XrdOucStream &Config, XrdOucError &Eroute)
 
       if (!(val = Config.GetWord()))
          {Eroute.Emsg("Config","locktry count not specified"); return 1;}
-      if (XrdOuca2x::a2i(Eroute, "invalid locktry count", val, &numt, 0)) return 1;
+      if (XrdOuca2x::a2i(Eroute, "locktry count", val, &numt, 0)) return 1;
 
       if (!(val = Config.GetWord()))
          {Eroute.Emsg("Config","locktry wait interval not specified");return 1;}
-      if (XrdOuca2x::a2i(Eroute, "invalid locktry wait",val, &mswt,0)) return 1;
+      if (XrdOuca2x::a2i(Eroute, "locktry wait",val, &mswt,0)) return 1;
 
       LockTries = numt;
       LockWait  = mswt;
@@ -515,7 +515,7 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdOucError &Eroute)
 
       if (!(val = Config.GetWord()))
          {Eroute.Emsg("Config","maxdelay value not specified");return 1;}
-      if (XrdOuca2x::a2i(Eroute, "invalid maxdelay", val, &maxd, 30)) return 1;
+      if (XrdOuca2x::a2i(Eroute, "maxdelay", val, &maxd, 30)) return 1;
 
       MaxDelay = maxd;
       return 0;

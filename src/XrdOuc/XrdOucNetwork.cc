@@ -101,17 +101,17 @@ int XrdOucNetwork::Bind(int bindport, const char *contype)
 // Allocate a socket descriptor and set the options
 //
    if ((iofd = socket(PF_INET, PortType, 0)) < 0)
-      return eDest->Emsg("Bind",-errno,contype,(char *)"creating inet socket");
+      return eDest->Emsg("Bind",-errno,contype,(char *)"create inet socket");
    setOpts("bind", iofd, (PortType == SOCK_STREAM ? OUC_NODELAY : 0));
 
 // Attempt to do a bind
 //
-   action = (char *)"binding";
+   action = (char *)"bind";
    InetAddr.sin_family = AF_INET;
    InetAddr.sin_addr.s_addr = INADDR_ANY;
    InetAddr.sin_port = htons(port);
    if (!(retc = bind(iofd, SockAddr, SockSize)) && PortType == SOCK_STREAM)
-      {action = (char *)"listening on";
+      {action = (char *)"listen on";
        retc = listen(iofd, 8);
       }
 
@@ -138,7 +138,7 @@ XrdOucLink *XrdOucNetwork::Connect(char *host, int port, int opts)
 //
    if (!getHostAddr(host, InetAddr))
       {if (!(opts & OUC_NOEMSG))
-          eDest->Emsg("Connect", EHOSTUNREACH, "unable to find", host);
+          eDest->Emsg("Connect", EHOSTUNREACH, "find", host);
        return (XrdOucLink *)0;
       }
    InetAddr[0].sin_port = htons(port);
@@ -147,7 +147,7 @@ XrdOucLink *XrdOucNetwork::Connect(char *host, int port, int opts)
 //
    if ((newfd = socket(PF_INET, SOCK_STREAM, 0)) < 0)
       {if (!(opts & OUC_NOEMSG))
-          eDest->Emsg("Connect", errno, "creating inet socket to", host);
+          eDest->Emsg("Connect", errno, "create inet socket to", host);
        return (XrdOucLink *)0;
       }
 
@@ -161,7 +161,7 @@ XrdOucLink *XrdOucNetwork::Connect(char *host, int port, int opts)
       while(retc < 0 && errno == EINTR);
    if (retc)
       {if (!(opts & OUC_NOEMSG))
-          eDest->Emsg("Connect", errno, "unable to connect to", host);
+          eDest->Emsg("Connect", errno, "connect to", host);
        close(newfd);
        return (XrdOucLink *)0;
       }
@@ -350,7 +350,7 @@ XrdOucLink *XrdOucNetwork::Relay(XrdOucError *errp, int opts, char *dest)
 // Allocate a socket descriptor and set the options
 //
    if ((myiofd = socket(PF_INET, SOCK_DGRAM, 0)) < 0)
-      {if (errp) errp->Emsg("Relay",-errno,(char *)"creating udp socket");
+      {if (errp) errp->Emsg("Relay",-errno,(char *)"create udp socket");
        return (XrdOucLink *)0;
       }
 
@@ -384,12 +384,12 @@ XrdOucLink *XrdOucNetwork::do_Accept(int opts)
       while(newfd < 0 && errno == EINTR);
 
    if (newfd < 0)
-      {eDest->Emsg("Accept", errno, "performing accept."); return 0;}
+      {eDest->Emsg("Accept", errno, "perform accept."); return 0;}
 
 // Authorize by ip address of full (slow) hostname format
 //
    if (Police && !(hname = Police->Authorize(&addr)))
-      {eDest->Emsg("Accept", -EACCES, "accepting connection from",
+      {eDest->Emsg("Accept", -EACCES, "accept connection from",
                      (hname = getHostName(addr)));
        free(hname);
        close(newfd);
@@ -439,7 +439,7 @@ XrdOucLink *XrdOucNetwork::do_Receive(int opts)
       while(dlen < 0 && errno == EINTR);
 
    if (dlen < 0)
-      {eDest->Emsg("Receive", errno, "performing recvmsg."); 
+      {eDest->Emsg("Receive", errno, "perform recvmsg.");
        bp->Recycle();
        return 0;
       }
@@ -448,7 +448,7 @@ XrdOucLink *XrdOucNetwork::do_Receive(int opts)
 //
    if (addr.sin_addr.s_addr == 0x7f000001
    || (Police && !(hname = Police->Authorize(&addr))))
-      {eDest->Emsg("Accept", -EACCES, "accepting connection from",
+      {eDest->Emsg("Accept", -EACCES, "accept connection from",
                     (hname = getHostName(addr)));
        bp->Recycle();
        free(hname);
@@ -506,25 +506,25 @@ int XrdOucNetwork::setOpts(const char *who, int xfd, int opts)
    if (opts & OUC_NOBLOCK) fcntl(xfd, F_SETFD, O_NONBLOCK);
 
    if (rc |= setsockopt(xfd,SOL_SOCKET,SO_REUSEADDR,(const void *)&one,szone))
-      eDest->Emsg(who, errno, "setting REUSEADDR");
+      eDest->Emsg(who, errno, "set REUSEADDR");
 
    liopts.l_onoff = 1; liopts.l_linger = 1;
    if (rc |= setsockopt(xfd,SOL_SOCKET,SO_LINGER,(const void *)&liopts,szlio))
-      eDest->Emsg(who, errno, "setting LINGER");
+      eDest->Emsg(who, errno, "set LINGER");
 
    if ((opts & OUC_KEEPALIVE)
    && (rc |= setsockopt(xfd,SOL_SOCKET,SO_KEEPALIVE,(const void *)&one,szone)))
-      eDest->Emsg(who, errno, "setting KEEPALIVE");
+      eDest->Emsg(who, errno, "set KEEPALIVE");
 
    if ((opts & OUC_NODELAY)
    && setsockopt(xfd, tcpprotid, TCP_NODELAY, (const void *)&one,szone))
-      eDest->Emsg(who, errno, "setting NODELAY");
+      eDest->Emsg(who, errno, "set NODELAY");
 
    if (Windowsz)
       {if (setsockopt(xfd,SOL_SOCKET,SO_SNDBUF,(const void *)&Windowsz,szwb))
-          eDest->Emsg(who, errno, "setting SNDBUF");
+          eDest->Emsg(who, errno, "set SNDBUF");
        if (setsockopt(xfd,SOL_SOCKET,SO_RCVBUF,(const void *)&Windowsz,szwb))
-          eDest->Emsg(who, errno, "setting RCVBUF");
+          eDest->Emsg(who, errno, "set RCVBUF");
       }
    return rc;
 }
