@@ -42,7 +42,6 @@ install -m 644 etc/StartXRD.cf.example $RPM_BUILD_ROOT/opt/xrootd/etc/StartXRD.c
 install -m 755 etc/StopOLB $RPM_BUILD_ROOT/opt/xrootd/etc/StopOLB
 install -m 755 etc/StopXRD $RPM_BUILD_ROOT/opt/xrootd/etc/StopXRD
 install -m 755 etc/XrdOlbMonPerf $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbMonPerf
-install -m 755 etc/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbNotify.pm
 install -m 755 etc/xrootd.cf.example $RPM_BUILD_ROOT/opt/xrootd/etc/xrootd.cf.example
 install -m 644 etc/README $RPM_BUILD_ROOT/opt/xrootd/etc/README
 install -m 755 utils/mps_MigrPurg $RPM_BUILD_ROOT/opt/xrootd/utils/mps_MigrPurg
@@ -54,6 +53,7 @@ install -m 644 utils/ooss_CAlloc.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_CAlloc
 install -m 644 utils/ooss_Lock.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_Lock.pm
 install -m 644 utils/ooss_MonP.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_MonP.pm
 install -m 755 utils/fs_stat $RPM_BUILD_ROOT/opt/xrootd/utils/fs_stat
+install -m 755 utils/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/utils/XrdOlbNotify.pm
 
 
 %clean
@@ -74,7 +74,6 @@ install -m 755 utils/fs_stat $RPM_BUILD_ROOT/opt/xrootd/utils/fs_stat
 /opt/xrootd/etc/StopOLB
 /opt/xrootd/etc/StopXRD
 /opt/xrootd/etc/XrdOlbMonPerf
-/opt/xrootd/etc/XrdOlbNotify.pm
 /opt/xrootd/etc/xrootd.cf.example
 /opt/xrootd/etc/README
 /opt/xrootd/utils/mps_MigrPurg
@@ -86,6 +85,7 @@ install -m 755 utils/fs_stat $RPM_BUILD_ROOT/opt/xrootd/utils/fs_stat
 /opt/xrootd/utils/ooss_Lock.pm
 /opt/xrootd/utils/ooss_MonP.pm
 /opt/xrootd/utils/fs_stat
+/opt/xrootd/utils/XrdOlbNotify.pm
 
 
 %changelog
