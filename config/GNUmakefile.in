@@ -23,6 +23,8 @@ TYPE    = @type@
 RM      = @rmpath@
 LN      = @lnpath@
 
+SUNCACHE= @suncache@
+
 #------------------------------------------------------------------------------#
 #                                  R u l e s                                   #
 #------------------------------------------------------------------------------#
@@ -42,11 +44,14 @@ clean: FORCE
 	   $(RM) -fr bin/arch@dbgsfx@ lib/arch@dbgsfx@;\
 	   $(RM) -fr bin/$(ARCHDIR) lib/$(ARCHDIR) obj/$(ARCHDIR);\
 	   if [ "$(TYPE)" = "sunos" ]; then \
-	      $(RM) -fr obj/$(ARCH)/SunWS_cache;\
-	      $(RM) -fr obj/$(ARCH)/dbg/SunWS_cache;\
+	      $(RM) -fr obj/$(ARCH)$(SUNCACHE);\
+	      $(RM) -fr obj/$(ARCH)/dbg$(SUNCACHE);\
 	   fi;\
 	else \
 	   $(RM) -fr bin lib obj;\
+	   if [ "$(TYPE)" = "sunos" ]; then \
+	      $(RM) -fr obj$(SUNCACHE);\
+	   fi;\
 	fi
 
 distclean: FORCE

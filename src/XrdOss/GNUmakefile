@@ -62,9 +62,11 @@ $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY)
 	$(ECHO)rm -f $(LIBRARY)
 	$(ECHO)ar -rc $(LIBRARY) $(OBJECTS)
-	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	 ar -rc $(LIBRARY) $(OBJDIR)/SunWS_cache/*/*.o; \
-fi
+	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
+	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	      ar -rc $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+	   fi;\
+	fi
 
 $(OBJDIR)/XrdOssApi.o: XrdOss.hh XrdOssApi.hh XrdOssCache.hh XrdOssConfig.hh \
                        XrdOssError.hh XrdOssLock.hh XrdOssTrace.hh \

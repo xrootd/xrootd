@@ -6,7 +6,7 @@
   
 include ../GNUmake.env
 
-LIBPATH = -L$(LIBDIR) -lXrdOuc $(LIBKRB4)
+MORELIBS = -L$(LIBDIR) -lXrdOuc $(LIBKRB4)
 
 LIBDEPS = $(LIBDIR)/libXrdOuc.a
 
@@ -44,7 +44,7 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(LIBDEPS)
 	@echo Creating shared library $(TARGETS) 
-	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(LIBPATH) $(LIBS) -o $(TARGETS)
+	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(TARGETS)
 
 $(OBJDIR)/XrdSecProtocolkrb4.o: XrdSecProtocolkrb4.cc XrdSecInterface.hh \
                                 XrdOucPthread.hh      XrdOucTokenizer.hh \

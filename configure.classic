@@ -37,6 +37,7 @@ nohowto="no"
 strlcpy="noidea"
 seconly="no"
 usearchdirs="yes"
+suncache="/SunWS_cache"
 
 options="                 \
    enable_echo            \
@@ -620,8 +621,27 @@ if test "$arch" = "linuxegcs" ; then
     arch="linux"
 fi
 
-if test "x$platform" = "xsolaris" && test "x$nccflv" = "xgcc" ; then
-   nccflv="sungcc"
+if test "x$platform" = "xsolaris"; then
+   if test "x$nccflv" = "xgcc" ; then
+      nccflv="sungcc"
+   else
+      # CC: starting from version 5.5 the template cache is not used
+      CC -V 2> ccout.tmp
+      ccstring=`cat ccout.tmp`
+      ccver=""
+      for i in $ccstring; do
+         case "$i" in
+           5.*)  ccver="$i" ;;
+         esac
+      done
+      if test ! "x$ccver" = "x"; then
+	ccsub=`echo $ccver | sed -e 's/5.//'`
+      fi
+      if test $ccsub -gt 4; then
+         suncache=""
+      fi
+      rm -f ccout.tmp
+   fi
 fi
 if test "x$platform" = "xlinux" && test "x$chip" = "xx86_64" ; then
    if test "x$nccflv" = "xicc" ; then
@@ -1246,6 +1266,7 @@ sed -e "s|@arch@|$arch|"                   \
     -e "s|@xrdsecplugins@|$xrdsecplugins|" \
     -e "s|@dbgsfx@|$dbgsfx|g"   \
     -e "s|@dbgmsg@|$dbgmsg|g"   \
+    -e "s|@suncache@|$suncache|" \
     < GNUmakefile.tmp > $MAKEOUT
 rm -f GNUmakefile.tmp
 
@@ -1270,6 +1291,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasnameinfo@|$hasnameinfo|" \
     -e "s|@hasstrlcpy@|$hasstrlcpy|" \
     -e "s|@tracedbg@|$tracedbg|" \
+    -e "s|@suncache@|$suncache|" \
     < GNUmake.env.tmp > $ENVOUT
 rm -f GNUmake.env.tmp
 

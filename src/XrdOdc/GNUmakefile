@@ -63,9 +63,11 @@ $(LIBRARY): $(OBJECTA)
 	@echo Creating archive $(LIBRARY) 
 	$(ECHO)rm -f $(LIBRARY)
 	$(ECHO)ar -rc $(LIBRARY) $(OBJECTA)
-	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	 ar -rc $(LIBRARY) $(OBJDIR)/SunWS_cache/*/*.o; \
-fi
+	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
+	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	      ar -rc $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+	   fi;\
+	fi
 
 $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 

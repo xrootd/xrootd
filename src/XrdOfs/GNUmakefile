@@ -57,7 +57,7 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(LIBPATH) $(MORELIBS) $(LIBS)  -o $(LIBRARY)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS)  -o $(LIBRARY)
 
 $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdOfsConfig.hh  XrdOfsHandle.hh    \
