@@ -41,7 +41,7 @@ int      Changed(const char *dbpath);
 
 private:
 
-int  Bail(int retc, const char *txt1, char *txt2=0);
+int  Bail(int retc, const char *txt1, const char *txt2=0);
 char *Copy(char *dp, char *sp, int dplen);
 
 enum DBflags {Noflags=0, inRec=1, isOpen=2, dbError=4}; // Values combined

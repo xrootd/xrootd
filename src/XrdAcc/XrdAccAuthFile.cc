@@ -85,7 +85,7 @@ int XrdAccAuthFile::Changed(const char *dbfn)
 // Get the modification timestamp for this file
 //
    if (stat(authfn, &statbuff))
-      {Eroute->Emsg("AuthFile", errno, "find", (char *)authfn);
+      {Eroute->Emsg("AuthFile", errno, "find", authfn);
        return 0;
       }
 
@@ -258,13 +258,12 @@ int XrdAccAuthFile::Open(XrdOucError &eroute, const char *path)
 
 // Get the modification timestamp for this file
 //
-   if (stat(authfn, &statbuff))
-      return Bail(errno, "find", (char *)authfn);
+   if (stat(authfn, &statbuff)) return Bail(errno, "find", authfn);
 
 // Try to open the authorization file.
 //
    if ( (authFD = open(authfn, O_RDONLY, 0)) < 0)
-      return Bail(errno,"open authorization file",(char *)authfn);
+      return Bail(errno,"open authorization file",authfn);
 
 // Copy in all the relevant information
 //
@@ -276,7 +275,7 @@ int XrdAccAuthFile::Open(XrdOucError &eroute, const char *path)
 // Attach the file to the stream
 //
    if (DBfile.Attach(authFD))
-      return Bail(DBfile.LastError(), "initialize stream for",(char *)authfn);
+      return Bail(DBfile.LastError(), "initialize stream for", authfn);
    return 1;
 }
   
@@ -287,7 +286,7 @@ int XrdAccAuthFile::Open(XrdOucError &eroute, const char *path)
 /*                                  B a i l                                   */
 /******************************************************************************/
   
-int XrdAccAuthFile::Bail(int retc, const char *txt1, char *txt2)
+int XrdAccAuthFile::Bail(int retc, const char *txt1, const char *txt2)
 {
 // This routine is typically used by open and the DBcontext lock must be held
 //

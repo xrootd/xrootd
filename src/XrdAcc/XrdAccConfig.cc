@@ -32,6 +32,7 @@ const char *XrdAccConfigCVSID = "$Id$";
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucLock.hh"
+#include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAccess.hh"
 #include "XrdAcc/XrdAccAudit.hh"
@@ -190,7 +191,7 @@ int XrdAccConfig::ConfigDB(int Warm, XrdOucError &Eroute)
 //
    while((retc = ConfigDBrec(Eroute, tabs))) {NoGo |= retc < 0; anum++;}
    snprintf(buff, sizeof(buff), "%d", anum);
-   Eroute.Emsg("ConfigDB", buff, (char *)" auth entries processed in ", dbpath);
+   Eroute.Emsg("ConfigDB", buff, "auth entries processed in", dbpath);
 
 // All done, close the database and return if we failed
 //
@@ -248,11 +249,10 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {Eroute.Emsg("config", errno, "open config file", (char *)ConfigFN);
+      {Eroute.Emsg("config", errno, "open config file", ConfigFN);
        return 1;
       }
-   Eroute.Emsg("config","Authorization system using configuration in",
-               (char *)ConfigFN);
+   Eroute.Emsg("config","Authorization system using configuration in",ConfigFN);
 
 // Now start reading records until eof.
 //
@@ -267,12 +267,11 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = Eroute.Emsg("config",-retc,"read config file",(char *)ConfigFN);
+      NoGo = Eroute.Emsg("config",-retc,"read config file",ConfigFN);
       else {char buff[12];
             snprintf(buff, sizeof(buff), "%d", recs);
             Eroute.Emsg("config", buff,
-                (char *)" authorization directives processed in ", 
-                (char *)ConfigFN);
+                        "authorization directives processed in", ConfigFN);
            }
    Config.Close();
 
@@ -518,7 +517,7 @@ int XrdAccConfig::ConfigDBrec(XrdOucError &Eroute,
                         User_ID = 'u',
                           No_ID = 0
                     };
-    char *authid, *atype, *path, *privs;
+    char *authid, rtype, *atype, *path, *privs;
     int alluser = 0, anyuser = 0, domname = 0, NoGo = 0;
     DB_RecType rectype;
     XrdOucHash<XrdAccCapability> *hp;
@@ -529,7 +528,8 @@ int XrdAccConfig::ConfigDBrec(XrdOucError &Eroute,
   
    // Prepare the next record in the database
    //
-   if (!(rectype = (DB_RecType)Database->getRec(&authid))) return 0;
+   if (!(rtype = Database->getRec(&authid))) return 0;
+   rectype = (DB_RecType)rtype;
 
    // Set up to handle the particular record
    //
@@ -557,7 +557,8 @@ int XrdAccConfig::ConfigDBrec(XrdOucError &Eroute,
 
    // Check if we have an invalid or unsupported id-type
    //
-   if (!hp) {Eroute.Emsg("ConfigXeq", "Invalid id type -", (char *)rectype);
+   if (!hp) {char badtype[2] = {rtype, '\0'};
+             Eroute.Emsg("ConfigXeq", "Invalid id type -", badtype);
              return -1;
             }
 
