@@ -9,7 +9,8 @@
 //
 // Only char and short are truly portable types
 typedef unsigned char  kXR_char;
-typedef unsigned short kXR_int16;
+typedef short          kXR_int16;
+typedef unsigned short kXR_unt16;
 
 // Signed integer 4 bytes
 //
