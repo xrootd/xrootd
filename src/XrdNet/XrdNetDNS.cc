@@ -18,6 +18,7 @@ const char *XrdNetDNSCVSID = "$Id$";
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
