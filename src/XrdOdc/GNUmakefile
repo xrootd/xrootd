@@ -61,22 +61,22 @@ anything: $(TARGETS)
 
 $(LIBRARY): $(OBJECTA)
 	@echo Creating archive $(LIBRARY) 
-	@rm -f $(LIBRARY)
-	@ar -rc $(LIBRARY) $(OBJECTA)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY)
+	$(ECHO)ar -rc $(LIBRARY) $(OBJECTA)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	 ar -rc $(LIBRARY) $(OBJDIR)/SunWS_cache/*/*.o; \
 fi
 
 $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
-	@$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
                           XrdOuca2x.hh    XrdOucNetwork.hh XrdOucStream.hh \
                           XrdOucTList.hh  \
                           XrdOdcConfig.cc XrdOdcConfDefs.hh
 	@echo Compiling XrdOdcConfig.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcConfig.o XrdOdcConfig.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcConfig.o XrdOdcConfig.cc
 
 $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
                           XrdOdcMsg.hh      XrdOdcTrace.hh  XrdOucNetwork.hh \
@@ -85,23 +85,23 @@ $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
                           XrdOucReqID.hh    XrdOucSocket.hh   XrdOucStream.hh \
                           XrdSfsInterface.hh
 	@echo Compiling XrdOdcFinder.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcFinder.o XrdOdcFinder.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcFinder.o XrdOdcFinder.cc
 
 $(OBJDIR)/XrdOdcManager.o: XrdOdcManager.hh  XrdOdcMsg.hh  XrdOdcTrace.hh \
                            XrdOucError.hh    XrdOucLink.hh XrdOucNetwork.hh \
                            XrdOucPthread.hh \
                            XrdOdcManager.cc
 	@echo Compiling XrdOdcManager.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcManager.o XrdOdcManager.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcManager.o XrdOdcManager.cc
 
 $(OBJDIR)/XrdOdcMsg.o: XrdOdcMsg.hh     XrdOdcTrace.hh  XrdOucErrInfo.hh \
                        XrdOucPthread.hh \
                        XrdOdcMsg.cc
 	@echo Compiling XrdOdcMsg.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcMsg.o XrdOdcMsg.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcMsg.o XrdOdcMsg.cc
 
 $(OBJDIR)/XrdOdcTest.o: XrdOucError.hh   XrdOdcFinder.hh  XrdOucErrInfo.hh \
                         XrdOucLogger.hh  XrdOucStream.hh   \
                         XrdOdcTest.cc
 	@echo Compiling XrdOdcTest.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcTest.o XrdOdcTest.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcTest.o XrdOdcTest.cc

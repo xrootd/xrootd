@@ -60,8 +60,8 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY) 
-	@rm -f $(LIBRARY);
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY);
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	$(CC) -xar -o $(LIBRARY) $(OBJECTS); \
 else \
 	ar -rc $(LIBRARY) $(OBJECTS); \
@@ -71,7 +71,7 @@ $(OBJDIR)/XrdBuffer.o:    XrdBuffer.cc   XrdBuffer.hh     XrdTrace.hh \
                           XrdOucError.hh XrdOucPthread.hh XrdOucTrace.hh \
                           XrdOucTimer.hh
 	@echo Compiling XrdBuffer.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBuffer.o XrdBuffer.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBuffer.o XrdBuffer.cc
 
 $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
                        XrdLink.hh        XrdNetwork.hh     XrdObject.hh  \
@@ -81,7 +81,7 @@ $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
                        XrdOucSecurity.hh XrdOucStream.hh   XrdOucTrace.hh \
                        XrdOucTimer.hh    ../XrdVersion.hh  XrdConfig.cc
 	@echo Compiling XrdConfig.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdConfig.o XrdConfig.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdConfig.o XrdConfig.cc
 
 $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
                        XrdNetwork.hh    XrdObject.hh       XrdObject.icc  \
@@ -89,7 +89,7 @@ $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
                        XrdOucError.hh   XrdOucPlatform.hh  XrdOucPthread.hh \
                        XrdOucTrace.hh   XrdOucTimer.hh     XrdLink.cc
 	@echo Compiling XrdLink.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
 
 $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdNetwork.hh  \
                        XrdPoll.hh      XrdScheduler.hh   XrdTrace.hh    \
@@ -97,7 +97,7 @@ $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdNetwork.hh  \
                        XrdOucTrace.hh    \
                        XrdMain.cc
 	@echo Compiling XrdMain.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdMain.o XrdMain.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdMain.o XrdMain.cc
 
 $(OBJDIR)/XrdNetwork.o: XrdBuffer.hh       XrdLink.hh       XrdNetwork.hh   \
                         XrdTrace.hh  \
@@ -105,33 +105,33 @@ $(OBJDIR)/XrdNetwork.o: XrdBuffer.hh       XrdLink.hh       XrdNetwork.hh   \
                         XrdOucPthread.hh \
                         XrdOucSecurity.hh  XrdOucTrace.hh   XrdNetwork.cc
 	@echo Compiling XrdNetwork.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdNetwork.o XrdNetwork.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdNetwork.o XrdNetwork.cc
 
 $(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh       XrdProtocol.hh   \
                        XrdPoll.cc       XrdPollDev.hh    XrdPollDev.icc \
                        XrdPollPoll.hh   XrdPollDev.icc   XrdTrace.hh     \
                        XrdOucError.hh   XrdOucPthread.hh XrdOucTrace.hh
 	@echo Compiling XrdPoll.cc 
-	@$(CC) -c $(CFLAGS) $(CFDEVPOLL) $(INCLUDE) -o $(OBJDIR)/XrdPoll.o XrdPoll.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFDEVPOLL) $(INCLUDE) -o $(OBJDIR)/XrdPoll.o XrdPoll.cc
 
 $(OBJDIR)/XrdProtocol.o: XrdJob.hh        XrdLink.hh     XrdPoll.hh \
                          XrdProtocol.cc   XrdProtocol.hh XrdTrace.hh \
                          XrdOucError.hh   XrdOucTrace.hh
 	@echo Compiling XrdProtocol.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdProtocol.o XrdProtocol.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdProtocol.o XrdProtocol.cc
 
 $(OBJDIR)/XrdScheduler.o: XrdJob.hh      XrdScheduler.hh   XrdTrace.hh \
                           XrdOucError.hh XrdOucPthread.hh  XrdOucTrace.hh \
                           XrdScheduler.cc
 	@echo Compiling XrdScheduler.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdScheduler.o XrdScheduler.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdScheduler.o XrdScheduler.cc
 
 $(OBJDIR)/XrdStats.o: XrdBuffer.hh     XrdLink.hh     XrdPoll.hh \
                       XrdProtocol.hh   XrdStats.cc    XrdStats.hh \
                       XrdOucPthread.hh ../XrdVersion.hh
 	@echo Compiling XrdStats.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdStats.o XrdStats.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdStats.o XrdStats.cc
 
 $(OBJDIR)/XrdInfo.o: XrdInfo.hh
 	@echo Compiling XrdInfo.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInfo.o XrdInfo.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInfo.o XrdInfo.cc

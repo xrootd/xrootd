@@ -47,11 +47,11 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(LIBDEPS)
 	@echo Creating shared library $(LIBRARY) 
-	@$(CC) $(OBJECTS) $(LFLAGS) -o $(LIBRARY)
+	$(ECHO)$(CC) $(OBJECTS) $(LFLAGS) -o $(LIBRARY)
 
 $(OBJDIR)/XrdRootdProtocol.o: XrdRootdProtocol.hh XrdLink.hh \
                               XrdScheduler.hh     XrdTrace.hh \
                               XrdOucError.hh      XrdOucTrace.hh \
                               XrdRootdProtocol.cc
 	@echo Compiling XrdRootdProtocol.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdRootdProtocol.o XrdRootdProtocol.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdRootdProtocol.o XrdRootdProtocol.cc

@@ -60,9 +60,9 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY)
-	@rm -f $(LIBRARY)
-	@ar -rc $(LIBRARY) $(OBJECTS)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY)
+	$(ECHO)ar -rc $(LIBRARY) $(OBJECTS)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	 ar -rc $(LIBRARY) $(OBJDIR)/SunWS_cache/*/*.o; \
 fi
 
@@ -71,60 +71,60 @@ $(OBJDIR)/XrdOssApi.o: XrdOss.hh XrdOssApi.hh XrdOssCache.hh XrdOssConfig.hh \
                        XrdOucError.hh XrdOucPList.hh XrdOucStream.hh \
                        XrdOucPlatform.hh XrdOssApi.cc
 	@echo Compiling XrdOssApi.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssApi.o XrdOssApi.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssApi.o XrdOssApi.cc
 
 $(OBJDIR)/XrdOssCache.o: XrdOssApi.hh XrdOssCache.hh XrdOssTrace.hh \
                          XrdOucDLlist.hh XrdOucError.hh \
                          XrdOssCache.cc
 	@echo Compiling XrdOssCache.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssCache.o XrdOssCache.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssCache.o XrdOssCache.cc
 
 $(OBJDIR)/XrdOssConfig.o: XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
                           XrdOssLock.hh XrdOssTrace.hh XrdOucError.hh \
                           XrdOssConfig.cc XrdOuca2x.hh
 	@echo Compiling XrdOssConfig.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssConfig.o XrdOssConfig.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssConfig.o XrdOssConfig.cc
 
 $(OBJDIR)/XrdOssCreate.o: XrdOssApi.hh XrdOssConfig.hh  XrdOssError.hh \
                           XrdOssLock.hh XrdOssTrace.hh  XrdOssOpaque.hh \
                           XrdOucEnv.hh  XrdOucError.hh  XrdOuca2x.hh  \
                           XrdOssCreate.cc
 	@echo Compiling XrdOssCreate.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssCreate.o XrdOssCreate.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssCreate.o XrdOssCreate.cc
 
 $(OBJDIR)/XrdOssLock.o:   XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
                           XrdOssLock.hh XrdOucError.hh XrdOucPlatform.hh \
                           XrdOssLock.cc
 	@echo Compiling XrdOssLock.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssLock.o XrdOssLock.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssLock.o XrdOssLock.cc
 
 $(OBJDIR)/XrdOssMSS.o:    XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
                           XrdOssTrace.hh XrdOucError.hh XrdOucSocket.hh \
                           XrdOucStream.hh XrdOucPlatform.hh  XrdOucLogger.hh \
                           XrdOssMSS.cc
 	@echo Compiling XrdOssMSS.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssMSS.o XrdOssMSS.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssMSS.o XrdOssMSS.cc
 
 $(OBJDIR)/XrdOssRename.o: XrdOssApi.hh XrdOssError.hh XrdOssLock.hh \
                           XrdOssTrace.hh \
                           XrdOssRename.cc
 	@echo Compiling XrdOssRename.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssRename.o XrdOssRename.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssRename.o XrdOssRename.cc
 
 $(OBJDIR)/XrdOssStage.o: XrdOssApi.hh XrdOssCache.hh XrdOssError.hh \
                          XrdOssLock.hh  XrdOssOpaque.hh XrdOucEnv.hh \
                          XrdOuca2x.hh XrdOssStage.cc
 	@echo Compiling XrdOssStage.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssStage.o XrdOssStage.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssStage.o XrdOssStage.cc
 
 $(OBJDIR)/XrdOssUnlink.o: XrdOssApi.hh XrdOssError.hh XrdOssLock.hh \
                           XrdOssTrace.hh \
                           XrdOssUnlink.cc
 	@echo Compiling XrdOssUnlink.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssUnlink.o XrdOssUnlink.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssUnlink.o XrdOssUnlink.cc
 
 $(OBJDIR)/XrdOssProxy.o: XrdOssConfig.hh XrdOssError.hh \
 			 XrdOssLock.hh XrdOucError.hh XrdOucPlatform.hh \
 			 XrdOssProxy.cc
 	@echo Compiling XrdOssProxy.cc ...
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssProxy.o XrdOssProxy.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssProxy.o XrdOssProxy.cc

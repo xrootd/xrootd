@@ -38,6 +38,7 @@ strlcpy="noidea"
 seconly="no"
 
 options="                 \
+   enable_echo            \
    enable_krb4            \
    enable_krb5            \
    enable_trace           \
@@ -49,6 +50,7 @@ options="                 \
 #
 for c in $options ; do eval $c="yes" ; done
 
+enable_echo=no
 enable_thread=yes
 
 #
@@ -464,6 +466,7 @@ FIRST argument one of the architecures given at the end of this message.
 To build in debug mode use option '--build=debug' .
 
 enable/disable options, prefix with either --enable- or --disable-
+   echo            Enable/disable echoing of commands during building
    krb4            Kerberos4 support, requires Kerberos libs
    krb5            Kerberos5 support, requires Kerberos libs
    trace           Support for trace statements via the "-d" flag
@@ -608,38 +611,18 @@ fi
 
 #####################################################################
 #
-# Check that we got a potentially valid architecture
+# Re-tune some flags
 #
 if test "$arch" = "linuxegcs" ; then
     arch="linux"
 fi
 
-goodarch="no"
-if `awk '{ print $1 }' $ARCHS | grep "^$arch$" > /dev/null  2>&1` ; then
-   goodarch="yes"
-else
-   echo "Invalid architecture. Try $0 --help"
-   exit 1
+if test "x$platform" = "xsolaris" && test "x$nccflv" = "xgcc" ; then
+   nccflv="sungcc"
 fi
-#
-# Check support status
-#
-support=`grep "$arch" "$ARCHS" 2>/dev/null | awk '{ print $3 }'`
-if test "x$support" = "xno" ; then
-   goodarch="no"
-   echo "Architecture not yet supported. Try $0 --help"
-   exit 1
-fi
-#
-# Exit if we want the all thing but we have support for security
-# modules only  
-#
-if test "x$support" = "xsec" ; then
-   if test "x$seconly" = "xno" ; then
-      goodarch="no"
-      echo "Architecture supported for security modules only."
-      echo "Rerun with option '--build-sec-only'"
-      exit 1
+if test "x$platform" = "xlinux" && test "x$chip" = "xx86_64" ; then
+   if test "x$nccflv" = "xicc" ; then
+      nccflv="iccx8664"
    fi
 fi
 
@@ -647,13 +630,42 @@ if test "x$platform" = "macosx" ; then
    finkdir=`which fink 2>&1 | sed -ne "s/\/bin\/fink//p"`
 fi
 
-# Notify configuration settings
-if test "x$platform" = "xsolaris" && test "x$nccflv" = "xgcc" ; then
-   nccflv="sungcc"
+#
+# Check architecture support status
+#
+support=""
+exec < config/ARCHS
+read line
+while [ ! "x$line" = "x" ]
+do
+   set $line
+   if test "x$1" = "x$arch" && test "x$2" = "x$nccflv" ; then
+      support="$3"
+   fi
+   read line
+done
+#
+goodarch="no"
+if test "x$support" = "x" ; then
+   # No support
+   echo "Invalid architecture. Try $0 --help"
+   exit 1
+else
+   goodarch="yes"
 fi
-if test "x$platform" = "xlinux" && test "x$chip" = "xx86_64" ; then
-   if test "x$nccflv" = "xicc" ; then
-      nccflv="iccx8664"
+#
+if test "x$support" = "xno" ; then
+   # Support foreseen but not yet available
+   goodarch="no"
+   echo "Architecture not yet supported. Try $0 --help"
+   exit 1
+fi
+#
+if test "x$support" = "xsec" ; then
+   if test "x$seconly" = "xno" ; then
+      # support is for security modules only  
+      echo "Architecture supported for security modules only."
+      seconly="yes"
    fi
 fi
 
@@ -703,16 +715,49 @@ fi
 
 ######################################################################
 #
+### echo %%% Check for getnameinfo
+#
+hasnameinfo=""
+message "Checking whether getnameinfo is available"
+if `grep getnameinfo /usr/include/netdb.h > /dev/null 2>&1` ; then
+    echo "yes"
+    hasnameinfo=" -DHAS_NAMEINFO"
+else
+    nitmp=`find /usr/include -name netdb.h`
+    for i in $nitmp ; do
+       if `grep getnameinfo $i > /dev/null 2>&1` ; then
+          echo "yes"
+          incdir=`dirname $i`
+          hasnameinfo=" -DHAS_NAMEINFO -I$incdir"
+          break
+       fi
+    done
+    if test "x$hasnameinfo" = "x"; then
+       echo "no"
+    fi 
+fi
+
+######################################################################
+#
 ### echo %%% Flag for /dev/poll
 #
 hasdevpoll=""
-message "Checking architecture for /dev/poll:"
+message "Checking for /dev/poll support"
 case "$osys:$rele" in
   sunos:6*)       hasdevpoll="-D_DEVPOLL" ; echo "yes" ;;
-  sunos:5.8)      hasdevpoll="-D_DEVPOLL" : echo "yes" ;;
+  sunos:5.8)      hasdevpoll="-D_DEVPOLL" ; echo "yes" ;;
   sunos:5.9)      hasdevpoll="-D_DEVPOLL" ; echo "yes" ;;
   *)                                        echo "no"  ;;
 esac
+
+######################################################################
+#
+### echo %%% Flags steering echoing of command lines
+#
+xrdecho="@"
+if test "x$enable_echo" = "xyes" ; then
+   xrdecho=""
+fi
 
 ######################################################################
 #
@@ -1197,6 +1242,7 @@ echo "done"
 message "Writing $ENVOUT "
 sed -e "s|@arch@|$arch|"                 \
     -e "s|@type@|$type|"                 \
+    -e "s|@xrdecho@|$xrdecho|"           \
     -e "s|@ccflv@|$ccflv|"               \
     -e "s|@threadlib@|$threadlib|"       \
     -e "s|@threadlibdir@|$threadlibdir|" \
@@ -1205,6 +1251,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@inckrb5@|$inckrb5|"           \
     -e "s|@libkrb5@|$libkrb5|"           \
     -e "s|@hasdevpoll@|$hasdevpoll|" \
+    -e "s|@hasnameinfo@|$hasnameinfo|" \
     -e "s|@hasstrlcpy@|$hasstrlcpy|" \
     -e "s|@tracedbg@|$tracedbg|" \
     < GNUmake.env.tmp > $ENVOUT

@@ -74,8 +74,8 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY) 
-	@rm -f $(LIBRARY)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	$(CC) -xar -o $(LIBRARY) $(OBJECTS); \
 	else \
 	ar -rc $(LIBRARY) $(OBJECTS); \
@@ -83,93 +83,93 @@ fi
 
 $(OBJDIR)/XrdOuca2x.o: XrdOuca2x.cc XrdOuca2x.hh XrdOucError.hh
 	@echo Compiling XrdOuca2x.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOuca2x.cc -o $(OBJDIR)/XrdOuca2x.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOuca2x.cc -o $(OBJDIR)/XrdOuca2x.o
 
 $(OBJDIR)/XrdOucBuffer.o: XrdOucBuffer.cc XrdOucBuffer.hh \
                           XrdOucChain.hh  XrdOucPthread.hh
 	@echo Compiling XrdOucBuffer.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucBuffer.cc -o $(OBJDIR)/XrdOucBuffer.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucBuffer.cc -o $(OBJDIR)/XrdOucBuffer.o
 
 $(OBJDIR)/XrdOucEnv.o: XrdOucEnv.cc XrdOucEnv.hh XrdOucHash.hh
 	@echo Compiling XrdOucEnv.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucEnv.cc -o $(OBJDIR)/XrdOucEnv.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucEnv.cc -o $(OBJDIR)/XrdOucEnv.o
 
 $(OBJDIR)/XrdOucError.o: XrdOucError.cc XrdOucError.hh XrdOucLogger.hh \
                          XrdOucPlatform.hh
 	@echo Compiling XrdOucError.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucError.cc -o $(OBJDIR)/XrdOucError.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucError.cc -o $(OBJDIR)/XrdOucError.o
 
 $(OBJDIR)/XrdOucHashVal.o: XrdOucHashVal.cc
 	@echo Compiling XrdOucHashVal.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucHashVal.cc -o $(OBJDIR)/XrdOucHashVal.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucHashVal.cc -o $(OBJDIR)/XrdOucHashVal.o
 
 $(OBJDIR)/XrdOucLink.o: XrdOucLink.cc    XrdOucLink.hh \
                         XrdOucBuffer.hh  XrdOucError.hh  XrdOucLogger.hh \
                         XrdOucNetwork.hh XrdOucStream.hh XrdOucChain.hh \
                         XrdOucPthread.hh
 	@echo Compiling XrdOucLink.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucLink.cc -o $(OBJDIR)/XrdOucLink.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucLink.cc -o $(OBJDIR)/XrdOucLink.o
 
 $(OBJDIR)/XrdOucLogger.o: XrdOucLogger.cc XrdOucLogger.hh \
                           XrdOucTimer.hh  XrdOucPthread.hh
 	@echo Compiling XrdOucLogger.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucLogger.cc -o $(OBJDIR)/XrdOucLogger.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucLogger.cc -o $(OBJDIR)/XrdOucLogger.o
 
 $(OBJDIR)/XrdOucNetwork.o: XrdOucNetwork.cc XrdOucNetwork.hh  XrdOucPthread.hh \
                            XrdOucBuffer.hh  XrdOucError.hh    XrdOucLogger.hh \
                            XrdOucLink.hh    XrdOucPlatform.hh XrdOucSecurity.hh \
                            XrdOucTrace.hh
 	@echo Compiling XrdOucNetwork.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucNetwork.cc -o $(OBJDIR)/XrdOucNetwork.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucNetwork.cc -o $(OBJDIR)/XrdOucNetwork.o
 
 $(OBJDIR)/XrdOucNList.o: XrdOucNList.cc XrdOucNList.hh XrdOucPthread.hh
 	@echo Compiling XrdOucNList.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucNList.cc -o $(OBJDIR)/XrdOucNList.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucNList.cc -o $(OBJDIR)/XrdOucNList.o
 
 $(OBJDIR)/XrdOucPlatform.o: XrdOucPlatform.cc XrdOucPlatform.hh
 	@echo Compiling XrdOucPlatform.cc
-	@$(CC) -c $(CFLAGS) $(CFSTRLCPY) $(INCLUDE) XrdOucPlatform.cc -o $(OBJDIR)/XrdOucPlatform.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFSTRLCPY) $(INCLUDE) XrdOucPlatform.cc -o $(OBJDIR)/XrdOucPlatform.o
 
 $(OBJDIR)/XrdOucProg.o: XrdOucProg.cc  XrdOucProg.hh \
                         XrdOucError.hh XrdOucStream.hh XrdOucPthread.hh
 	@echo Compiling XrdOucProg.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucProg.cc -o $(OBJDIR)/XrdOucProg.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucProg.cc -o $(OBJDIR)/XrdOucProg.o
 
 $(OBJDIR)/XrdOucPthread.o: XrdOucPthread.cc XrdOucPthread.hh 
 	@echo Compiling XrdOucPthread.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucPthread.cc -o $(OBJDIR)/XrdOucPthread.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucPthread.cc -o $(OBJDIR)/XrdOucPthread.o
 
 $(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh XrdOucPthread.hh
 	@echo Compiling XrdOucReqID.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucReqID.cc -o $(OBJDIR)/XrdOucReqID.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucReqID.cc -o $(OBJDIR)/XrdOucReqID.o
 
 $(OBJDIR)/XrdOucSecurity.o: XrdOucSecurity.cc XrdOucSecurity.hh \
                             XrdOucHash.hh XrdOucHash.icc \
                             XrdOucNList.hh XrdOucPthread.hh XrdOucTrace.hh
 	@echo Compiling XrdOucSecurity.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucSecurity.cc -o $(OBJDIR)/XrdOucSecurity.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucSecurity.cc -o $(OBJDIR)/XrdOucSecurity.o
 
 $(OBJDIR)/XrdOucSocket.o: XrdOucSocket.cc XrdOucSocket.hh XrdOucError.hh \
                           XrdOucPlatform.hh
 	@echo Compiling XrdOucSocket.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucSocket.cc -o $(OBJDIR)/XrdOucSocket.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucSocket.cc -o $(OBJDIR)/XrdOucSocket.o
 
 $(OBJDIR)/XrdOucStream.o: XrdOucStream.cc XrdOucStream.hh XrdOucError.hh
 	@echo Compiling XrdOucStream.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucStream.cc -o $(OBJDIR)/XrdOucStream.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucStream.cc -o $(OBJDIR)/XrdOucStream.o
 
 $(OBJDIR)/XrdOucTimer.o: XrdOucTimer.cc XrdOucTimer.hh  
 	@echo Compiling XrdOucTimer.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTimer.cc -o $(OBJDIR)/XrdOucTimer.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTimer.cc -o $(OBJDIR)/XrdOucTimer.o
 
 $(OBJDIR)/XrdOucTokenizer.o: XrdOucTokenizer.cc XrdOucTokenizer.hh  
 	@echo Compiling XrdOucTokenizer.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTokenizer.cc -o $(OBJDIR)/XrdOucTokenizer.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTokenizer.cc -o $(OBJDIR)/XrdOucTokenizer.o
 
 $(OBJDIR)/XrdOucTrace.o: XrdOucError.hh XrdOucTrace.hh XrdOucTrace.cc
 	@echo Compiling XrdOucTrace.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTrace.cc -o $(OBJDIR)/XrdOucTrace.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTrace.cc -o $(OBJDIR)/XrdOucTrace.o
 
 $(OBJDIR)/XrdOucXSLock.o: XrdOucError.hh XrdOucXSLock.hh XrdOucXSLock.cc
 	@echo Compiling XrdOucXSLock.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucXSLock.cc -o $(OBJDIR)/XrdOucXSLock.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucXSLock.cc -o $(OBJDIR)/XrdOucXSLock.o

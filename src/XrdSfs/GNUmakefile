@@ -53,4 +53,4 @@ $(OBJDIR)/XrdSfsNative.o:  XrdSfsInterface.hh XrdSfsNative.hh  XrdSecInterface.h
                            XrdOucError.hh     XrdOucErrInfo.hh XrdOucLogger.hh \
                            XrdSfsNative.cc    ../XrdVersion.hh
 	@echo Compiling XrdSfsNative.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSfsNative.o XrdSfsNative.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSfsNative.o XrdSfsNative.cc

@@ -57,7 +57,7 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
-	@$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(LIBPATH) $(LIBS) $(MORELIBS) -o $(LIBRARY)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(LIBPATH) $(LIBS) $(MORELIBS) -o $(LIBRARY)
 
 $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdOfsConfig.hh  XrdOfsHandle.hh    \
@@ -69,7 +69,7 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdSfsNative.hh  XrdOss.hh             XrdOucTList.hh     \
                      XrdOdcFinder.hh  XrdAccAuthorize.hh    ../XrdVersion.hh
 	@echo Compiling XrdOfs.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfs.o XrdOfs.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfs.o XrdOfs.cc
 
 $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
                            XrdOfs.hh         XrdOfsTrace.hh  \
@@ -78,7 +78,7 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
                            XrdAccAuthorize.hh \
                            XrdOdcFinder.hh
 	@echo Compiling XrdOfsConfig.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsConfig.o XrdOfsConfig.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsConfig.o XrdOfsConfig.cc
 
 $(OBJDIR)/XrdOfsHandle.o:  XrdOfsHandle.cc   XrdOfsHandle.hh \
                            XrdOfs.hh         XrdOfsConfig.hh  XrdOfsTrace.hh  \
@@ -86,4 +86,4 @@ $(OBJDIR)/XrdOfsHandle.o:  XrdOfsHandle.cc   XrdOfsHandle.hh \
                            XrdOucTrace.hh                                     \
                            XrdOdcFinder.hh
 	@echo Compiling XrdOfsHandle.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsHandle.o XrdOfsHandle.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsHandle.o XrdOfsHandle.cc

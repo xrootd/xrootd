@@ -44,10 +44,10 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(LIBDEPS)
 	@echo Creating shared library $(TARGETS) 
-	@$(CC) $(OBJECTS) $(LDSO) $(LIBPATH) $(LIBS) -o $(TARGETS)
+	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(LIBPATH) $(LIBS) -o $(TARGETS)
 
 $(OBJDIR)/XrdSecProtocolkrb5.o: XrdSecProtocolkrb5.cc XrdSecInterface.hh \
                                 XrdOucPthread.hh      XrdOucTokenizer.hh \
                                 XrdOucErrInfo.hh
 	@echo Compiling XrdSecProtocolkrb5.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) $(INCKRB5) -o $(OBJDIR)/XrdSecProtocolkrb5.o XrdSecProtocolkrb5.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $(INCKRB5) -o $(OBJDIR)/XrdSecProtocolkrb5.o XrdSecProtocolkrb5.cc

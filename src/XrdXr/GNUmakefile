@@ -62,20 +62,20 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TESTBIN) ...
-	@$(LD) $(LDOP) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
+	$(ECHO)$(LD) $(LDOP) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
 	@echo Creating shared library $(LIBRARY)
-	@ar r $(LIBRARY) $(XROBJS)
+	$(ECHO)ar r $(LIBRARY) $(XROBJS)
 
 $(OBJDIR)/XrdXrClientWorker.o: XrdXrClientWorker.hh XrdXrClientWorker.cc
 	@echo Compiling XrdXrClientWorker.cc ...
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrClientWorker.o \
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrClientWorker.o \
 	XrdXrClientWorker.cc
 
 $(OBJDIR)/XrdXrClient.o:  XrdXrClient.hh XrdXrClient.cc
 	@echo Compiling XrdXrClient.cc ...
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrClient.o XrdXrClient.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrClient.o XrdXrClient.cc
 
 $(OBJDIR)/XrdXrMain.o: XrdXrClient.hh XrdXrClientWorker.hh \
 	XrdXrClientWorker.cc XrdXrMain.cc
 	@echo Compiling XrdXrMain.cc ...
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrMain.o XrdXrMain.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrMain.o XrdXrMain.cc

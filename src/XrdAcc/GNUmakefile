@@ -63,15 +63,15 @@ anything: $(TARGETS)
 
 $(LIBRARY): $(OBJECTA)
 	@echo Creating archive $(LIBRARY) 
-	@rm -f $(LIBRARY)
-	@ar -rc $(LIBRARY) $(OBJECTA)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(ECHO)rm -f $(LIBRARY)
+	$(ECHO)ar -rc $(LIBRARY) $(OBJECTA)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	 ar -rc $(LIBRARY) $(OBJDIR)/SunWS_cache/*/*.o; \
 fi
 
 $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
-	@$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(OBJDIR)/XrdAccAccess.o: XrdAccAccess.cc     XrdAccAccess.hh \
                           XrdAccCapability.hh XrdAccConfig.hh    XrdAccGroups.hh \
@@ -79,22 +79,22 @@ $(OBJDIR)/XrdAccAccess.o: XrdAccAccess.cc     XrdAccAccess.hh \
                           XrdOucError.hh     XrdOucHash.hh       XrdOucLogger.hh \
                           XrdOucXSLock.hh
 	@echo Compiling XrdAccAccess.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAccess.o XrdAccAccess.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAccess.o XrdAccAccess.cc
 
 $(OBJDIR)/XrdAccAudit.o: XrdAccAudit.cc XrdAccAudit.hh XrdOucError.hh
 	@echo Compiling XrdAccAudit.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAudit.o XrdAccAudit.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAudit.o XrdAccAudit.cc
 
 $(OBJDIR)/XrdAccAuthFile.o: XrdAccAuthFile.hh XrdAccAuthFile.cc \
                             XrdOucError.hh  XrdOucPthread.hh  XrdOucStream.hh \
                             XrdAccAuthDB.hh
 	@echo Compiling XrdAccAuthFile.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAuthFile.o XrdAccAuthFile.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAuthFile.o XrdAccAuthFile.cc
 
 $(OBJDIR)/XrdAccCapability.o: XrdAccCapability.hh XrdAccCapability.cc \
                               XrdAccPrivs.hh
 	@echo Compiling XrdAccCapability.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccCapability.o XrdAccCapability.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccCapability.o XrdAccCapability.cc
 
 $(OBJDIR)/XrdAccConfig.o: XrdAccConfig.hh     XrdAccConfig.cc \
                           XrdAccAccess.hh     XrdAccAudit.hh  XrdAccAuthDB.hh \
@@ -102,16 +102,16 @@ $(OBJDIR)/XrdAccConfig.o: XrdAccConfig.hh     XrdAccConfig.cc \
                           XrdOuca2x.hh        XrdOucError.hh  XrdOucHash.hh \
                           XrdOucPthread.hh    XrdOucStream.hh XrdOucStream.hh
 	@echo Compiling XrdAccConfig.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccConfig.o XrdAccConfig.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccConfig.o XrdAccConfig.cc
 
 $(OBJDIR)/XrdAccGroups.o: XrdAccGroups.hh     XrdAccGroups.cc \
                           XrdAccCapability.hh XrdAccPrivs.hh \
                           XrdOucHash.hh       XrdOucPthread.hh
 	@echo Compiling XrdAccGroups.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccGroups.o XrdAccGroups.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccGroups.o XrdAccGroups.cc
 
 $(OBJDIR)/XrdAccTest.o: XrdAccAuthorize.hh XrdAccConfig.hh XrdAccGroups.hh \
                         XrdAccPrivs.hh     XrdOucStream.hh XrdOucError.hh \
                         XrdOucLogger.hh    XrdAccTest.cc
 	@echo Compiling XrdAccTest.cc 
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccTest.o XrdAccTest.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccTest.o XrdAccTest.cc
