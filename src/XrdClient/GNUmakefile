@@ -135,7 +135,7 @@ $(OBJDIR)/XrdClientAdmin_c_wrap.o:        XrdClientAdmin_c_wrap.c
 
 $(OBJDIR)/XrdClientAdmin_c.o:        XrdClientAdmin_c.cc   XrdClientAdmin_c.hh
 	@echo Compiling XrdClientAdmin_c.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAdmin_c.o XrdClientAdmin_c.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) $(PERLCCFLAGS) -o $(OBJDIR)/XrdClientAdmin_c.o XrdClientAdmin_c.cc
 
 $(OBJDIR)/XrdClientString.o:        XrdClientString.cc     XrdClientString.hh
 	@echo Compiling XrdClientString.cc

@@ -81,6 +81,8 @@ void BuildBoolAnswer(vecBool &vb) {
 // by this wrapper
 XrdClientAdmin *adminst = NULL;
 
+extern "C" {
+
 bool XrdCA_Initialize(const char *url) {
    if (!adminst)
       adminst = new XrdClientAdmin(url);
@@ -226,4 +228,7 @@ char *XrdCA_DirList(const char *dir) {
    strcpy(sharedbuf, lst.c_str());
 
    return sharedbuf;
+}
+
+
 }

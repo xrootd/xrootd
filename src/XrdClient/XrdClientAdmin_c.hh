@@ -36,7 +36,7 @@
 
 #endif
 
-
+extern "C" {
 // Some prototypes to wrap ctor and dtor
 // In this version we support only one instance to be handled
 // by this wrapper. Supporting more than one instance should be no
@@ -59,3 +59,4 @@ bool XrdCA_Rm(const char *file);
 bool XrdCA_Rmdir(const char *path);
 bool XrdCA_Prepare(const char *filepaths, unsigned char opts, unsigned char prty);
 char *XrdCA_DirList(const char *dir);
+}
