@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
+#include <signal.h>
 
 
 //_____________________________________________________________________________
@@ -43,8 +43,7 @@ XrdClient::XrdClient(const char *url) {
 	"Create",
 	"(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
 
-   // Using ROOT mechanism to IGNORE SIGPIPE signal
-   //gSystem->IgnoreSignal(kSigPipe);
+   sigignore(SIGPIPE);
 
    fInitialUrl.TakeUrl(url);
 
@@ -549,8 +548,18 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
    Info(XrdClientDebug::kHIDEBUG,
 	"OpenFileWhenRedirected", "Trying to reopen the same file." );
 
+   kXR_int16 options = fOpenPars.options;
+
+   if (fOpenPars.options & kXR_delete) {
+      Info(XrdClientDebug::kHIDEBUG,
+         "OpenFileWhenRedirected", "Stripping off the delete option." );
+
+      options &= !kXR_delete;
+      options |= kXR_open_updt;
+   }
+
    // After a redirection we must not reinit the TFile ancestor...
-   if ( Open(fOpenPars.mode, fOpenPars.options) ) {
+   if ( Open(fOpenPars.mode, options) ) {
 
       fOpenPars.opened = TRUE;
 

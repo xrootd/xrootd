@@ -148,7 +148,7 @@ int doCp_xrd2xrd(char *src, char *dst) {
 
       xrddest = new XrdClient(dst);
       if (!xrddest->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-			 kXR_delete | kXR_force)) {
+			 kXR_open_updt | kXR_delete | kXR_force)) {
 	 Error("xrdcp", "Error opening remote destination file " << dst);
 	 delete cpnfo.XrdCli;
 	 delete xrddest;
@@ -268,7 +268,7 @@ int doCp_loc2xrd(char *src, char * dst) {
 
    xrddest = new XrdClient(dst);
    if (!xrddest->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-		      kXR_delete | kXR_force)) {
+		      kXR_open_updt | kXR_delete | kXR_force)) {
       Error("xrdcp", "Error opening remote destination file " << dst);
       close(cpnfo.localfile);
       delete xrddest;

@@ -16,13 +16,13 @@
 #ifndef _XRC_CONST_H
 #define _XRC_CONST_H
 
-#define DFLT_CONNECTTIMEOUT     10
+#define DFLT_CONNECTTIMEOUT     60
 #define NAME_CONNECTTIMEOUT     (char *)"ConnectTimeout"
 
 #define DFLT_CONNECTTIMEOUTWAN  60
 #define NAME_CONNECTTIMEOUTWAN  (char *)"ConnectTimeoutWan"
 
-#define DFLT_REQUESTTIMEOUT     2
+#define DFLT_REQUESTTIMEOUT     60
 #define NAME_REQUESTTIMEOUT     (char *)"RequestTimeout"
 
 
