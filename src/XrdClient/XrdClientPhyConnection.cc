@@ -292,7 +292,11 @@ void XrdClientPhyConnection::CheckAutoTerm() {
   }
 
 
-  if (doexit) pthread_exit(0);
+  if (doexit) {
+	UnlockChannel();
+        pthread_exit(0);
+   }
+
 }
 
 
