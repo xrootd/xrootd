@@ -137,7 +137,7 @@ int XrdCpWorkLst::SetDest(const char *url) {
 	       return errno;
       }
       fDest = url;
-      closedir(d);
+      if (d) closedir(d);
 
    }
 

@@ -356,9 +356,13 @@ void smartPrintClientHeader(ClientRequest* hdr)
              "ClientHeader.login.reserved = ",
              (kXR_int32)sizeof(hdr->login.reserved));
 
+      printf("%40s%d\n",
+             "ClientHeader.login.version = ",
+             hdr->login.version);
+
       printf("%40s%d\n", 
              "ClientHeader.login.role = ",
-             (kXR_int32)hdr->login.role);
+             hdr->login.role);
       break;
 
    case kXR_mkdir:
