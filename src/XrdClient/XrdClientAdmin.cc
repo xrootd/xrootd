@@ -34,6 +34,11 @@
 void joinStrings(XrdClientString &buf, vecString vs)
 {
 
+   if (!vs.GetSize()) {
+      buf = "";
+      return;
+   }
+
    if (vs.GetSize() == 1)
       buf = vs[0];
    else {
