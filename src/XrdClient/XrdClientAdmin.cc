@@ -297,16 +297,13 @@ bool XrdClientAdmin::ExistFiles(vecString &vs, vecBool &vb)
    ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
 
    for(int j=0; j <= vs.GetSize()-1; j++) {
-	 bool tmp;
+         bool tmp = TRUE;
 
-	 if( !(*(Info+j) & kXR_other) && !(*(Info+j) & kXR_isDir) ) {
-	    tmp = TRUE;
-	    vb.Push_back(tmp);
-	 } else {
-	    tmp = FALSE;
-	    vb.Push_back(tmp);
-	 }
+         if ( (*(Info+j) & kXR_isDir) || (*(Info+j) & kXR_other) ||
+              (*(Info+j) & kXR_offline) )
+                 tmp = FALSE;
 
+         vb.Push_back(tmp);
       }
 
    return ret;

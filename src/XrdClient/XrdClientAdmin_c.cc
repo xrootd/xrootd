@@ -72,6 +72,7 @@ void BuildBoolAnswer(vecBool &vb) {
       sharedbuf[i] = '0';
       if (vb[i]) sharedbuf[i] = '1';
    }
+   sharedbuf[vb.GetSize()] = '\0';
 
 }
 
