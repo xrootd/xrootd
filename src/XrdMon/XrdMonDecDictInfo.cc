@@ -175,7 +175,10 @@ XrdMonDecDictInfo::openFile(kXR_int32 t)
         cerr << "ERROR: Multiple attempts to open file "
              << *this << ", passed timestamp is "
              << timestamp2string(t) << ", will use " 
-             << timestamp2string(useThis) << endl;
+             << timestamp2string(useThis) 
+             << ", senderId = " << _senderId << endl;
+        XrdMonSenderInfo::printSelf();
+        
         _open = useThis;
     }
 }
