@@ -62,7 +62,7 @@ XrdOlbScheduler::XrdOlbScheduler(XrdOlbWorker *WFunc)
 // Start a time based scheduler
 //
    if ((retc = XrdOucThread_Run(&tid, XrdOlbStartTSched, (void *)this)))
-      XrdOlbSay.Emsg("Scheduler", retc, "creating time scheduler thread");
+      XrdOlbSay.Emsg("Scheduler", retc, "create time scheduler thread");
       else DEBUG("thread " << tid <<" assigned to time schedeuler");
 }
  
@@ -214,7 +214,7 @@ void XrdOlbScheduler::hireWorker()
 // Start a new thread
 //
    if ((retc = XrdOucThread_Run(&tid, XrdOlbStartWorking, (void *)Worker)))
-      XrdOlbSay.Emsg("Scheduler", retc, "creating worker thread");
+      XrdOlbSay.Emsg("Scheduler", retc, "create worker thread");
       else {num_Workers++;
             DEBUG("started worker thread; tid=" <<(unsigned int)tid <<"; num=" <<num_Workers);
            }

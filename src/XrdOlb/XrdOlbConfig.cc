@@ -206,7 +206,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
    int logsync = 86400, NoGo = 0;
    char c, buff[32], *temp, *logfn = 0, *smtype = 0;
    extern char *optarg;
-   extern int optind, opterr, optopt;
+   extern int opterr, optopt;
    static XrdOlbManWorker MWorker;
    static XrdOlbSrvWorker  SWorker;
 
@@ -237,9 +237,8 @@ int XrdOlbConfig::Configure(int argc, char **argv)
        }
      }
 
-// Set the configuration file name. Bail if there is none
+// Bail if no configuration file specified
 //
-   if (optind < argc) ConfigFN = argv[optind];
    if (!ConfigFN && !(ConfigFN = getenv("XrdOlbCONFIGFN")) || !*ConfigFN)
       {XrdOlbSay.Emsg("Config", "Required config file not specified.");
        Usage(1);
@@ -283,10 +282,10 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 //
    {struct rlimit rlim;
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
-       XrdOlbSay.Emsg("Config", errno, "getting resource limits");
+       XrdOlbSay.Emsg("Config", errno, "get resource limits");
        else {rlim.rlim_cur = rlim.rlim_max;
             if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
-               NoGo = XrdOlbSay.Emsg("Config", errno,"setting FD limit");
+               NoGo = XrdOlbSay.Emsg("Config", errno,"set FD limit");
             }
    }
 
@@ -389,7 +388,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
 int XrdOlbConfig::GenLocalPath(const char *oldp, char *newp)
 {
     if (concat_fn(LocalRoot, LocalRLen, oldp, newp))
-       return XrdOlbSay.Emsg("glp", -ENAMETOOLONG, "generating local path ",
+       return XrdOlbSay.Emsg("glp", -ENAMETOOLONG, "generate local path ",
                                (char *)oldp);
     return 0;
 }
@@ -406,7 +405,7 @@ int XrdOlbConfig::GenLocalPath(const char *oldp, char *newp)
 int XrdOlbConfig::GenRemotePath(const char *oldp, char *newp)
 {
    if (concat_fn(RemotRoot, RemotRLen, oldp, newp))
-      return XrdOlbSay.Emsg("grp", -ENAMETOOLONG,"generating remote path ",
+      return XrdOlbSay.Emsg("grp", -ENAMETOOLONG,"generate remote path ",
                                (char *)oldp);
    return 0;
 }
@@ -475,16 +474,16 @@ XrdOucSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
 // Create the directory if it is not already there
 //
    if (stat((const char *)path, &buf))
-      {if (errno != ENOENT) act = (char *)"processing directory";
-          else if (mkdir(path, mode)) act = (char *)"creating path directory";
+      {if (errno != ENOENT) act = (char *)"process directory";
+          else if (mkdir(path, mode)) act = (char *)"create path directory";
                   else if (chmod((const char *)path, mode))
-                          act = (char *)"setting access mode for";
+                          act = (char *)"set access mode for";
       } else
        if ((buf.st_mode & S_IFMT) != S_IFDIR)
-          {errno = ENOTDIR; act = (char *)"processing directory";}
+          {errno = ENOTDIR; act = (char *)"process directory";}
           else if ((buf.st_mode & S_IAMB) != mode
                &&  chmod((const char *)path, mode))
-                  act = (char *)"setting access mode for";
+                  act = (char *)"set access mode for";
 
    if (act) {XrdOlbSay.Emsg("Config", errno, act, path);
              return (XrdOucSocket *)0;
@@ -506,7 +505,7 @@ XrdOucSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
            return (XrdOucSocket *)0;
           }
        if (access((const char *)fnbuff, W_OK))
-          {XrdOlbSay.Emsg("Config", errno, "accessing path", fnbuff);
+          {XrdOlbSay.Emsg("Config", errno, "access path", fnbuff);
            return (XrdOucSocket *)0;
           }
       }
@@ -515,7 +514,7 @@ XrdOucSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
 //
    ASock = new XrdOucSocket(&XrdOlbSay);
    if (ASock->Open(fnbuff, -1, XrdOucSOCKET_SERVER|sflags) < 0)
-      {XrdOlbSay.Emsg("Config",ASock->LastError(),"establishing socket",fnbuff);
+      {XrdOlbSay.Emsg("Config",ASock->LastError(),"establish socket",fnbuff);
        delete ASock;
        return (XrdOucSocket *)0;
       }
@@ -638,7 +637,7 @@ int XrdOlbConfig::ConfigProc()
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {XrdOlbSay.Emsg("Config", errno, "opening config file", ConfigFN);
+      {XrdOlbSay.Emsg("Config", errno, "open config file", ConfigFN);
        return 1;
       }
    Config.Attach(cfgFD);
@@ -659,7 +658,7 @@ int XrdOlbConfig::ConfigProc()
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = XrdOlbSay.Emsg("Config", retc, "reading config file", ConfigFN);
+      NoGo = XrdOlbSay.Emsg("Config", retc, "read config file", ConfigFN);
    Config.Close();
 
 // Return final return code
@@ -683,7 +682,7 @@ int XrdOlbConfig::isExec(XrdOucError *eDest, const char *ptype, char *prog)
 // Make sure the program is executable by us
 //
    if (access((const char *)prog, X_OK))
-      {sprintf(buff, "looking for %s execuatble", ptype);
+      {sprintf(buff, "find %s execuatble", ptype);
        eDest->Emsg("Config", errno, buff, prog);
        *mp = pp;
        return 0;
@@ -708,13 +707,13 @@ int XrdOlbConfig::PidFile()
     snprintf(pidFN, sizeof(pidFN), "%s/olbd.pid", pidPath);
 
     if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
-       xop = (char *)"opening";
+       xop = (char *)"open";
        else {if ((write(xfd, buff, snprintf(buff,sizeof(buff),"%d",getpid())) < 0)
              || (LocalRoot && (write(xfd,(void *)"\n&pfx=",6)  < 0 ||
                                write(xfd,(void *)LocalRoot, LocalRLen) < 0))
              || (AdminPath && (write(xfd,(void *)"\n&ap=", 5)  < 0 ||
                                write(xfd,(void *)AdminPath,strlen(AdminPath)) < 0))
-                ) xop = (char *)"writing";
+                ) xop = (char *)"write";
              close(xfd);
             }
 
@@ -757,7 +756,7 @@ int XrdOlbConfig::setupManager()
 // Create statistical monitoring thread
 //
    if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonPerf, (void *)0)))
-      {XrdOlbSay.Emsg("Config", rc, "creating perf monitor thread");
+      {XrdOlbSay.Emsg("Config", rc, "create perf monitor thread");
        return 1;
       }
    DEBUG("Config: thread " <<(unsigned int)tid <<" assigned to perf monitor");
@@ -767,7 +766,7 @@ int XrdOlbConfig::setupManager()
    RefTurn  = 3*XrdOlbSTMAX*(DiskLinger+1);
    if (RefReset)
       {if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonRefs, (void *)0)))
-          {XrdOlbSay.Emsg("Config", rc, "creating refcount monitor thread");
+          {XrdOlbSay.Emsg("Config", rc, "create refcount monitor thread");
            return 1;
           }
        DEBUG("Config: thread " <<(unsigned int)tid <<" assigned to refcount monitor");
@@ -843,7 +842,7 @@ int XrdOlbConfig::setupServer()
 // Create manager monitoring thread
 //
    if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonPing, (void *)0)))
-      {XrdOlbSay.Emsg("Config", rc, "creating ping monitor thread");
+      {XrdOlbSay.Emsg("Config", rc, "create ping monitor thread");
        return 1;
       }
    DEBUG("Config: thread " <<(unsigned int)tid <<" assigned to ping monitor");
@@ -897,7 +896,7 @@ int XrdOlbConfig::setupServer()
   
 void XrdOlbConfig::Usage(int rc)
 {
-cerr <<"\nUsage: olbd [-d] [-l <fn>] [-m] [-s] [-w] {[-c] <cfn>}" <<endl;
+cerr <<"\nUsage: olbd [-d] [-l <fn>] [-m] [-s] [-w] -c <cfn>" <<endl;
 exit(rc);
 }
   
@@ -907,13 +906,11 @@ exit(rc);
 
 /* Function: xallow
 
-   Purpose:  To parse the directive: allow [host | netgroup] <name>
+   Purpose:  To parse the directive: allow {host | netgroup} <name>
 
              <name> The dns name of the host that is allowed to connect or the
                     netgroup name the host must be a member of. For DNS names,
                     a single asterisk may be specified anywhere in the name.
-                    If neither host nor netgroup is specified, <name> is
-                    assumed to be a hostname.
 
    Type: Manager only, non-dynamic.
 
@@ -923,18 +920,21 @@ exit(rc);
 int XrdOlbConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int ishost = 1;
+    int ishost;
 
     if (!isManager) return 0;
 
     if (!(val = Config.GetWord()))
-       {eDest->Emsg("Config", "allow dns name not specified"); return 1;}
+       {eDest->Emsg("Config", "allow type not specified"); return 1;}
 
-    if (!strcmp(val, "netgroup")) ishost = 0;
+    if (!strcmp(val, "host")) ishost = 1;
+       else if (!strcmp(val, "netgroup")) ishost = 0;
+               else {eDest->Emsg("Config", "invalid allow type -", val);
+                     return 1;
+                    }
 
-    if (!strcmp(val, "host") || !ishost)
-       if (!(val = Config.GetWord()))
-          {eDest->Emsg("Config", "allow target name not specified"); return 1;}
+    if (!(val = Config.GetWord()))
+       {eDest->Emsg("Config", "allow target name not specified"); return 1;}
 
     if (!Police) Police = new XrdOucSecurity();
     if (ishost)  Police->AddHost(val);
@@ -1040,7 +1040,7 @@ int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &Config)
     i++; strncpy(fn, (const char *)val, i); fn[i] = '\0';
     sfxdir = &fn[i]; pfxdir = &val[i]; pfxln = strlen(pfxdir)-1;
     if (!(DFD = opendir((const char *)fn)))
-       {eDest->Emsg("Config", errno, "opening cache directory", fn); return 1;}
+       {eDest->Emsg("Config", errno, "open cache directory", fn); return 1;}
 
     errno = 0; rc = 0;
     while((dir = readdir(DFD)))
@@ -1054,7 +1054,7 @@ int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &Config)
 
     if (errno)
        {if (rc >= 0) 
-           {rc = -1; eDest->Emsg("Config", errno, "processing cache directory", fn);}
+           {rc = -1; eDest->Emsg("Config", errno, "process cache directory", fn);}
        }
        else if (!cnum) eDest->Emsg("config","no cache directories found in ",val);
 
@@ -1067,7 +1067,7 @@ int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
     struct stat buff;
 
     if (stat((const char *)fn, &buff))
-       {if (!chk) eDest->Emsg("Config", errno, "processing cache", fn);
+       {if (!chk) eDest->Emsg("Config", errno, "process cache", fn);
         return -1;
        }
 
@@ -1260,7 +1260,7 @@ int XrdOlbConfig::xfxhld(XrdOucError *eDest, XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "fxhold value not specified."); return 1;}
 
-    if (XrdOuca2x::a2tm(*eDest, "invalid fxhold value", val, &ct, 60)) return 1;
+    if (XrdOuca2x::a2tm(*eDest, "fxhold value", val, &ct, 60)) return 1;
 
     cachelife = ct;
     XrdOlbCache.setLifetime(ct);
@@ -1396,7 +1396,7 @@ int XrdOlbConfig::xperf(XrdOucError *eDest, XrdOucStream &Config)
                     {eDest->Emsg("Config", "perf int value not specified");
                      return 1;
                     }
-                 if (XrdOuca2x::a2tm(*eDest,"invalid perf int",val,&ival,0)) return 1;
+                 if (XrdOuca2x::a2tm(*eDest,"perf int",val,&ival,0)) return 1;
                 }
         else if (!strcmp("key", val))
                 {if (!(val = Config.GetWord()))
@@ -1488,7 +1488,7 @@ int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &Config)
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "ping value not specified"); return 1;}
-    if (XrdOuca2x::a2tm(*eDest, "invalid ping interval",val,&ping,0)) return 1;
+    if (XrdOuca2x::a2tm(*eDest, "ping interval",val,&ping,0)) return 1;
 
 
     while((val = Config.GetWord()))
@@ -1497,14 +1497,14 @@ int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &Config)
                      {eDest->Emsg("Config", "ping log value not specified");
                       return 1;
                      }
-                  if (XrdOuca2x::a2i(*eDest,"invalid ping log",val,&lnum,0)) return 1;
+                  if (XrdOuca2x::a2i(*eDest,"ping log",val,&lnum,0)) return 1;
                  }
          else if (!strcmp("usage", val))
                  {if (!(val = Config.GetWord()))
                     {eDest->Emsg("Config", "ping usage value not specified");
                      return 1;
                     }
-                  if (XrdOuca2x::a2i(*eDest,"invalid ping usage",val,&pnum,1)) return 1;
+                  if (XrdOuca2x::a2i(*eDest,"ping usage",val,&pnum,1)) return 1;
                  }
         }
     AskPerf = pnum;
@@ -1536,7 +1536,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "tcp port not specified"); return 1;}
     if (isdigit(*val))
-       {if (XrdOuca2x::a2i(*eDest,"invalid tcp port",val,&pnum,1,65535)) return 1;}
+       {if (XrdOuca2x::a2i(*eDest,"tcp port",val,&pnum,1,65535)) return 1;}
        else if (!(pnum = XrdOucNetwork::findPort(val, "tcp")))
                {eDest->Emsg("Config", "Unable to find tcp service", val);
                 return 1;
@@ -1545,7 +1545,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
 
     if ((val = Config.GetWord()))
        {if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*eDest,"invalid udp port",val,&pnum,1,65535)) return 1;}
+           {if (XrdOuca2x::a2i(*eDest,"udp port",val,&pnum,1,65535)) return 1;}
            else if (!(pnum = XrdOucNetwork::findPort(val, "udp")))
                    {eDest->Emsg("Config","Unable to find udp service",val);
                     return 1;
@@ -1555,7 +1555,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
 
     if (val && (val = Config.GetWord()))
        {if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*eDest,"invalid server udp port",val,&pnum,1,65535)) return 1;}
+           {if (XrdOuca2x::a2i(*eDest,"server udp port",val,&pnum,1,65535)) return 1;}
            else if (!(pnum = XrdOucNetwork::findPort(val, "udp")))
                    {eDest->Emsg("Config","Unable to find server udp service",val);
                     return 1;
@@ -1602,7 +1602,7 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &Config)
                     {eDest->Emsg("Config", "prep reset value not specified");
                      return 1;
                     }
-                 if (XrdOuca2x::a2i(*eDest,"invalid prep reset int",val,&reset,1)) return 1;
+                 if (XrdOuca2x::a2i(*eDest,"prep reset int",val,&reset,1)) return 1;
                  doset = 1;
                 }
         else if (!strcmp("scrub", val))
@@ -1610,7 +1610,7 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &Config)
                     {eDest->Emsg("Config", "prep scrub value not specified");
                      return 1;
                     }
-                 if (XrdOuca2x::a2tm(*eDest,"invalid prep scrub",val,&scrub,0)) return 1;
+                 if (XrdOuca2x::a2tm(*eDest,"prep scrub",val,&scrub,0)) return 1;
                  doset = 1;
                 }
         else if (!strcmp("ifpgm",  val))
@@ -1740,8 +1740,8 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
                        return 1;
                       }
                    if (scopts[i].maxv < 0)
-                      if (XrdOuca2x::a2tm(*eDest,"invalid sched value", val, &ppp, 0)) return 1;
-                         else if (XrdOuca2x::a2i(*eDest,"invalid sched value", val, &ppp,
+                      if (XrdOuca2x::a2tm(*eDest,"sched value", val, &ppp, 0)) return 1;
+                         else if (XrdOuca2x::a2i(*eDest,"sched value", val, &ppp,
                                          0, scopts[i].maxv)) return 1;
                    *scopts[i].oploc = ppp;
                    break;
@@ -1788,17 +1788,17 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
        {if (!strcmp("linger", val))
            {if (!(val = Config.GetWord()))
                {eDest->Emsg("Config", "linger value not specified"); return 1;}
-            if (XrdOuca2x::a2i(*eDest,"invalid linger",val,&alinger,0))
+            if (XrdOuca2x::a2i(*eDest,"linger",val,&alinger,0))
                return 1;
            }
 
         if (!strcmp("min", val) && !(val = Config.GetWord()))
            {eDest->Emsg("Config", "space minfree not specified"); return 1;}
-        if (XrdOuca2x::a2sz(*eDest,"invalid space minfree",val,&minf,0)) 
+        if (XrdOuca2x::a2sz(*eDest,"space minfree",val,&minf,0))
            return 1;
 
         if ((val = Config.GetWord())
-        && (XrdOuca2x::a2sz(*eDest,"invalid space adjust",val,&adj,0))) return 1;
+        && (XrdOuca2x::a2sz(*eDest,"space adjust",val,&adj,0))) return 1;
            else break;
        }
 
@@ -1856,7 +1856,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
 
     if ((val = Config.GetWord()))
        {if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*eDest,"invalid subscribe port",val,&port,1,65535))
+           {if (XrdOuca2x::a2i(*eDest,"subscribe port",val,&port,1,65535))
                port = 0;
            }
            else if (!(port = XrdOucNetwork::findPort(val, "tcp")))
@@ -1930,10 +1930,10 @@ int XrdOlbConfig::xthreads(XrdOucError *eDest, XrdOucStream &Config)
           if (!strcmp("manager", val)) schedS = 0;
              else if (!strcmp("server", val)) schedM = 0;
 
-          if (XrdOuca2x::a2i(*eDest, "invalid max threads value", val, &maxt, 1))
+          if (XrdOuca2x::a2i(*eDest, "max threads value", val, &maxt, 1))
              return 1;
           if (!(val = Config.GetWord())) mint = maxt;
-             else if (XrdOuca2x::a2i(*eDest, "invalid min threads value", val, &mint, 1))
+             else if (XrdOuca2x::a2i(*eDest, "min threads value", val, &mint, 1))
                      return 1;
                      else val = Config.GetWord();
 

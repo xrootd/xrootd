@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
             {if (!XrdOlbConfig.Manager() && !tp->next)
                 XrdOlbSM.Pander(tp->text, tp->val);
                 else {if (XrdOucThread_Run(&tid,XrdOlbStartPandering,(void *)tp))
-                         {XrdOlbSay.Emsg("oolbd", errno, "starting server");
+                         {XrdOlbSay.Emsg("oolbd", errno, "start server");
                           _exit(1);
                          }
                        DEBUG("Main: Thread " <<(unsigned int)tid <<" pandering to " <<tp->text);

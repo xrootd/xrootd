@@ -311,7 +311,7 @@ void *XrdOlbManager::Login(XrdOucLink *lnkp)
    if ((tp = lnkp->GetToken()) && !strcmp("port", tp))
       {if (!(tp = lnkp->GetToken()))
           return Login_Failed("missing start port value", lnkp);
-       if (XrdOuca2x::a2i(XrdOlbSay,"invalid start port value",tp,&port,0,65535))
+       if (XrdOuca2x::a2i(XrdOlbSay,"start port value",tp,&port,0,65535))
           return Login_Failed("invalid start port value", lnkp);
        tp = lnkp->GetToken();
       }
@@ -360,21 +360,21 @@ void *XrdOlbManager::Login(XrdOucLink *lnkp)
 // The server may include the max amount of free space, if need be, on the start
 //
    if ((tp = lnkp->GetToken())
-   && XrdOuca2x::a2i(XrdOlbSay,"invalid start maxkb value",tp,&fdsk,0))
+   && XrdOuca2x::a2i(XrdOlbSay,"start maxkb value",tp,&fdsk,0))
       return Login_Failed("invalid start maxkb value", lnkp, sp);
       else {sp->DiskTota = sp->DiskFree = fdsk; sp->DiskNums = 1;}
 
 // The server may include the number of file systems, on the start
 //
    if ((tp = lnkp->GetToken())
-   && XrdOuca2x::a2i(XrdOlbSay, "invalid start numfs value",  tp, &numfs, 0))
+   && XrdOuca2x::a2i(XrdOlbSay, "start numfs value",  tp, &numfs, 0))
       return Login_Failed("invalid start numfs value", lnkp, sp);
       else sp->DiskNums = numfs;
 
 // The server may include the total free space in all file systems, on the start
 //
    if ((tp = lnkp->GetToken())
-   && XrdOuca2x::a2i(XrdOlbSay, "invalid start totkb value",  tp, &fdsk, 0))
+   && XrdOuca2x::a2i(XrdOlbSay, "start totkb value",  tp, &fdsk, 0))
       return Login_Failed("invalid start totkb value", lnkp, sp);
       else sp->DiskTota = fdsk;
 
@@ -830,7 +830,7 @@ void XrdOlbManager::Snooze(int slpsec)
           rqtp.tv_nsec = lftp.tv_nsec;
          }
 
-   if (retc < 0) XrdOlbSay.Emsg("Manager", errno, "sleeping");
+   if (retc < 0) XrdOlbSay.Emsg("Manager", errno, "sleep");
 }
 
 /******************************************************************************/

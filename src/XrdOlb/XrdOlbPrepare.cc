@@ -219,7 +219,7 @@ int XrdOlbPrepare::Reset()  // Must be called with PTMutex locked!
               if (!prepSched.isAlive() && !startIF()) return 0;
               if (prepSched.Put((const char **)pdata, (const int *)pdlen))
                  {XrdOlbSay.Emsg("Prepare", prepSched.LastError(),
-                                 (char *)"writing to", prepif);
+                                 (char *)"write to", prepif);
                   prepSched.Drain();
                  }
                  else {PTable.Purge(); ok = 1; NumFiles = 0;
@@ -267,7 +267,7 @@ int XrdOlbPrepare::startIF()  // Must be called with PTMutex locked!
                  if ((eNow - lastemsg) >= 60)
                     {lastemsg = eNow;
                      XrdOlbSay.Emsg("Prepare", prepSched.LastError(),
-                                    (char *)"starting", prepif);
+                                    (char *)"start", prepif);
                     }
                 }
             }

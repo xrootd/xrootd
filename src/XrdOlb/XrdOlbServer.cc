@@ -196,7 +196,7 @@ void XrdOlbServer::Process_Director()
    if (!isOffline)
      {isOffline = 1;
       if ((retc = Link->LastError()))
-         XrdOlbSay.Emsg("Server", retc, "reading request from", Link->Name());
+         XrdOlbSay.Emsg("Server", retc, "read request from", Link->Name());
      }
 }
 
@@ -236,7 +236,7 @@ int XrdOlbServer::Process_Requests(int onlyone)
    if (!isOffline)
       {isOffline = 1;
        if (!onlyone && retc < 0 && Link->LastError())
-          XrdOlbSay.Emsg("Server", Link->LastError(), "reading response from",
+          XrdOlbSay.Emsg("Server", Link->LastError(), "read response from",
                          Link->Name());
       }
 
@@ -278,7 +278,7 @@ int XrdOlbServer::Process_Responses(int onlyone)
    if (!isOffline)
       {isOffline = 1;
        if (!onlyone && retc < 0 && Link->LastError())
-          XrdOlbSay.Emsg("Server", Link->LastError(), "reading response from",
+          XrdOlbSay.Emsg("Server", Link->LastError(), "read response from",
                         Link->Name());
       }
 
@@ -341,11 +341,11 @@ int XrdOlbServer::do_AvKb(char *rid)
 // Process: <id> avkb <fsdsk> <totdsk>
 //
    if (!(tp = Link->GetToken())
-   || XrdOuca2x::a2i(XrdOlbSay, "invalid fs kb value",  tp, &fdsk, 0))
+   || XrdOuca2x::a2i(XrdOlbSay, "fs kb value",  tp, &fdsk, 0))
       return 1;
    DiskTota = DiskFree = fdsk;
    if ((tp = Link->GetToken()))
-      if (XrdOuca2x::a2i(XrdOlbSay, "invalid tot kb value",  tp, &fdsk, 0))
+      if (XrdOuca2x::a2i(XrdOlbSay, "tot kb value",  tp, &fdsk, 0))
          return 1;
          else DiskTota = fdsk;
    return 0;
@@ -403,7 +403,7 @@ int XrdOlbServer::do_Chmod(char *rid, int do4real)
       else if (chmod((const char *)tp, mode)) rc = errno;
               else rc = 0;
    if (rc && rc != ENOENT)
-       XrdOlbSay.Emsg("Server", errno, "changing mode for", tp);
+       XrdOlbSay.Emsg("Server", errno, "change mode for", tp);
        else DEBUG("rc=" <<rc <<" chmod " <<std::oct <<mode <<std::dec <<' ' <<tp);
    return 0;
 }
@@ -480,25 +480,25 @@ int XrdOlbServer::do_Load(char *rid)
 // Process: <id> load <cpu> <io> <load> <mem> <pag> <dsk>
 //
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "invalid cpu value",  tp, &pcpu, 0, 100))
+   if (XrdOuca2x::a2i(XrdOlbSay, "cpu value",  tp, &pcpu, 0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "invalid io value",   tp, &pio,  0, 100))
+   if (XrdOuca2x::a2i(XrdOlbSay, "io value",   tp, &pio,  0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "invalid load value", tp, &pload,0, 100))
+   if (XrdOuca2x::a2i(XrdOlbSay, "load value", tp, &pload,0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "invalid mem value",  tp, &pmem, 0, 100))
+   if (XrdOuca2x::a2i(XrdOlbSay, "mem value",  tp, &pmem, 0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "invalid pag value",  tp, &ppag, 0, 100))
+   if (XrdOuca2x::a2i(XrdOlbSay, "pag value",  tp, &ppag, 0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "invalid fs dsk value",  tp, &fdsk, 0))
+   if (XrdOuca2x::a2i(XrdOlbSay, "fs dsk value",  tp, &fdsk, 0))
       return 1;
    if ((tp = Link->GetToken())
-   && XrdOuca2x::a2i(XrdOlbSay, "invalid tot dsk value",  tp, &tdsk, 0))
+   && XrdOuca2x::a2i(XrdOlbSay, "tot dsk value",  tp, &tdsk, 0))
       return 1;
 
 // Compute actual load value
@@ -580,7 +580,7 @@ int XrdOlbServer::do_Mkdir(char *rid, int do4real)
    if (XrdOlbConfig.ProgMD) rc = XrdOlbConfig.ProgMD->Run(modearg, tp);
       else if (mkdir((const char *)tp, mode)) rc = errno;
               else rc = 0;
-   if (rc) XrdOlbSay.Emsg("Server", rc, "creating directory", tp);
+   if (rc) XrdOlbSay.Emsg("Server", rc, "create directory", tp);
       else DEBUG("rc=" <<rc <<" mkdir " <<std::oct <<mode <<std::dec <<' ' <<tp);
    return 0;
 }
@@ -641,7 +641,7 @@ int XrdOlbServer::do_Mv(char *rid, int do4real)
    if (XrdOlbConfig.ProgMV) rc = XrdOlbConfig.ProgMV->Run(old_lclpath, tp);
       else if (rename((const char *)old_lclpath,(const char *)tp)) rc = errno;
               else rc = 0;
-   if (rc) XrdOlbSay.Emsg("Server", rc, "renaming", old_lclpath);
+   if (rc) XrdOlbSay.Emsg("Server", rc, "rename", old_lclpath);
       else DEBUG("rc=" <<rc <<" mv " <<old_lclpath <<' ' <<tp);
 
    return 0;
@@ -960,7 +960,7 @@ int XrdOlbServer::do_Rm(char *rid, int do4real)
    if (XrdOlbConfig.ProgRM) rc = XrdOlbConfig.ProgRM->Run(tp);
       else if (unlink((const char *)tp)) rc = errno;
               else rc = 0;
-   if (rc && rc != ENOENT) XrdOlbSay.Emsg("Server", rc, "removing", tp);
+   if (rc && rc != ENOENT) XrdOlbSay.Emsg("Server", rc, "remove", tp);
       else {DEBUG("rc=" <<rc <<" rm " <<tp);}
 
    return 0;
@@ -1003,7 +1003,7 @@ int XrdOlbServer::do_Rmdir(char *rid, int do4real)
    if (XrdOlbConfig.ProgRD) rc = XrdOlbConfig.ProgRD->Run(tp);
       else if (rmdir((const char *)tp)) rc = errno;
               else rc = 0;
-   if (rc && errno != ENOENT) XrdOlbSay.Emsg("Server", errno, "removing", tp);
+   if (rc && errno != ENOENT) XrdOlbSay.Emsg("Server", errno, "remove", tp);
       else DEBUG("rc=" <<errno <<" rmdir " <<tp);
 
    return 0;

@@ -164,7 +164,7 @@ int XrdOlbMeter::Monitor(char *pgm, int itv)
 // Make sure the program is executable by us
 //
    if (access((const char *)monpgm, X_OK))
-      {eDest->Emsg("Meter", errno, (char *)"looking for executable", monpgm);
+      {eDest->Emsg("Meter", errno, (char *)"find executable", monpgm);
        return -1;
       }
 

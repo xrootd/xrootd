@@ -153,7 +153,7 @@ void *XrdOlbAdmin::Notes(XrdOucSocket *AnoteSock)
 
 // We should never get here
 //
-   XrdOlbSay.Emsg(epname, rc, "accepting notification");
+   XrdOlbSay.Emsg(epname, rc, "accept notification");
    return (void *)0;
 }
 
@@ -176,10 +176,10 @@ void *XrdOlbAdmin::Start(XrdOucSocket *AdminSock)
 //
    while(1) if ((InSock = AdminSock->Accept()) >= 0)
                {if (XrdOucThread_Run(&tid,XrdOlbLoginAdmin,(void *)&InSock))
-                   {XrdOlbSay.Emsg(epname, errno, "starting admin");
+                   {XrdOlbSay.Emsg(epname, errno, "start admin");
                     close(InSock);
                    }
-               } else XrdOlbSay.Emsg(epname, errno, "accepting connection");
+               } else XrdOlbSay.Emsg(epname, errno, "accept connection");
    return (void *)0;
 }
 
@@ -228,7 +228,7 @@ int XrdOlbAdmin::do_Login()
                      {XrdOlbSay.Emsg("do_Login", "login port not specified");
                       return 0;
                      }
-                  if (XrdOuca2x::a2i(XrdOlbSay,"invalid login port",tp,&Port,0))
+                  if (XrdOuca2x::a2i(XrdOlbSay,"login port",tp,&Port,0))
                      return 0;
                  }
          else    {XrdOlbSay.Emsg("do_Login", "invalid login option -", tp);
