@@ -507,7 +507,11 @@ int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
     while (val)
     do {for (i = 0; i < numopts; i++)
             if (!strcmp(val, rqopts[i].opname))
-               {if (XrdOuca2x::a2i(*errp,"invalid request value",val,&ppp,1))
+               { if (!(val = Config.GetWord()))
+                  {errp->Emsg("Config", 
+                      "request argument value not specified"); 
+                   return 1;}
+                   if (XrdOuca2x::a2i(*errp,"invalid request value",val,&ppp,1))
                    return 1;
                    else *rqopts[i].oploc = ppp;
                 break;
