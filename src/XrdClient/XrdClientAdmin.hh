@@ -20,11 +20,10 @@
 #include "XrdClientAbs.hh"
 #include <string>
 #include "XrdClientConn.hh"
+#include "XrdClientVector.hh"
 
-#include <vector>
-
-typedef std::vector<string> vecString;
-typedef std::vector<bool> vecBool;
+typedef XrdClientVector<string> vecString;
+typedef XrdClientVector<bool> vecBool;
 
 
 class XrdClientAdmin : public XrdClientAbs {
@@ -48,6 +47,7 @@ class XrdClientAdmin : public XrdClientAbs {
    bool DirList(const char *dir, vecString &);
    bool ExistFiles(vecString, vecBool&);
    bool ExistDirs(vecString, vecBool&);
+   bool GetChecksum(kXR_char *path, kXR_char *chksum);
    bool IsFileOnline(vecString, vecBool&);
 
    bool Mv(const char *fileDest, const char *fileSrc);

@@ -17,11 +17,11 @@
 #define XRD_READCACHE_H
 
 #include <pthread.h>
-#include <vector>
 #include <iostream>
 
 #include "XrdClientInputBuffer.hh"
 #include "XrdClientMessage.hh"
+#include "XrdClientVector.hh"
 
 
 
@@ -76,7 +76,7 @@ public:
 // The content of the cache. Not cache blocks, but
 // variable length Items
 //
-typedef vector<XrdClientReadCacheItem *> ItemVect;
+typedef XrdClientVector<XrdClientReadCacheItem *> ItemVect;
 
 class XrdClientReadCache {
 private:

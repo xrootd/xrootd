@@ -116,7 +116,7 @@ void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_
       // Mutual exclusion man!
       XrdClientMutexLocker mtx(fMutex);
 
-      fItems.push_back(itm);
+      fItems.Push_back(itm);
       fTotalByteCount += itm->Size();
       fBytesSubmitted += itm->Size();
    } // if
@@ -130,7 +130,7 @@ bool XrdClientReadCache::GetDataIfPresent(const void *buffer,
 {
    // Copies the requested data from the cache. False if not possible
 
-   ItemVect::iterator it;
+   int it;
    XrdClientMutexLocker mtx(fMutex);
 
    if (PerfCalc)
@@ -139,9 +139,9 @@ bool XrdClientReadCache::GetDataIfPresent(const void *buffer,
    // We search an item containing all the data we need in one shot.
    // A future refinement could try to get the data in small blocks from
    //  multiple items
-   for (it = fItems.begin(); it != fItems.end(); it++)
-      if ((*it) && (*it)->GetInterval(buffer, begin_offs, end_offs)) {
-         (*it)->Touch(GetTimestampTick());
+   for (it = 0; it < fItems.GetSize(); it++)
+      if (fItems[it] && fItems[it]->GetInterval(buffer, begin_offs, end_offs)) {
+         fItems[it]->Touch(GetTimestampTick());
 
          if (PerfCalc) {
             fBytesHit += (end_offs - begin_offs);
@@ -163,15 +163,15 @@ void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
 {
    // To remove all the items contained in the given interval
 
-   ItemVect::iterator it;
+   int it;
    XrdClientMutexLocker mtx(fMutex);
 
-   it = fItems.begin();
-   while (it != fItems.end())
-      if ((*it) && (*it)->ContainedInInterval(begin_offs, end_offs)) {
-         fTotalByteCount -= (*it)->Size();
-         delete *it;
-         it = fItems.erase(it);
+   it = 0;
+   while (it < fItems.GetSize())
+      if (fItems[it] && fItems[it]->ContainedInInterval(begin_offs, end_offs)) {
+         fTotalByteCount -= fItems[it]->Size();
+         delete fItems[it];
+         fItems.Erase(it);
       }
       else it++;
 }
@@ -180,14 +180,14 @@ void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
 void XrdClientReadCache::RemoveItems()
 {
    // To remove all the items
-   ItemVect::iterator it;
+   int it;
    XrdClientMutexLocker mtx(fMutex);
 
-   it = fItems.begin();
+   it = 0;
 
-   while (it != fItems.end()) {
-      delete *it;
-      it = fItems.erase(it);
+   while (it < fItems.GetSize()) {
+      delete fItems[it];
+      fItems.Erase(it);
    }
 
    fTotalByteCount = 0;
@@ -200,28 +200,28 @@ bool XrdClientReadCache::RemoveLRUItem()
 {
    // Finds the LRU item and removes it
 
-   ItemVect::iterator it, lruit;
+   int it, lruit;
    long long minticks = -1;
    XrdClientReadCacheItem *item;
 
    XrdClientMutexLocker mtx(fMutex);
 
-   lruit = fItems.begin();
-   for (it = fItems.begin(); it != fItems.end(); it++) {
-      if (*it) {
-         if ((minticks < 0) || ((*it)->GetTimestampTicks() < minticks)) {
-            minticks = (*it)->GetTimestampTicks();
+   lruit = 0;
+   for (it = 0; it < fItems.GetSize(); it++) {
+      if (fItems[it]) {
+         if ((minticks < 0) || (fItems[it]->GetTimestampTicks() < minticks)) {
+            minticks = fItems[it]->GetTimestampTicks();
             lruit = it;
          }      
       }
    }
 
-   item = *lruit;
+   item = fItems[lruit];
 
    if (minticks >= 0) {
       fTotalByteCount -= item->Size();
       delete item;
-      it = fItems.erase(lruit);
+      fItems.Erase(lruit);
    }
 
    return TRUE;

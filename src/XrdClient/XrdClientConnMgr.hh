@@ -24,11 +24,11 @@
 
 
 
-#include <vector>
 #include <pthread.h>
 #include "XrdClientUnsolMsg.hh"
 #include "XrdClientLogConnection.hh"
 #include "XrdClientMessage.hh"
+#include "XrdClientVector.hh"
 
 #define ConnectionManager XrdClientConnectionMgr::Instance()
 
@@ -40,8 +40,8 @@ extern "C" void * GarbageCollectorThread(void * arg);
 class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler, 
                        XrdClientUnsolMsgSender {
 private:
-   vector <XrdClientLogConnection*> fLogVec;
-   vector <XrdClientPhyConnection*> fPhyVec;
+   XrdClientVector<XrdClientLogConnection*> fLogVec;
+   XrdClientVector<XrdClientPhyConnection*> fPhyVec;
    pthread_mutex_t            fMutex; // mutex used to protect local variables
                                       // of this and TXLogConnection, TXPhyConnection
                                       // classes; not used to protect i/o streams

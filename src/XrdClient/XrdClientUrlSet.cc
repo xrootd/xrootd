@@ -135,7 +135,7 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
    if (fIsValid) {
       ConvertDNSAliases(fUrlArray, listOfMachines, fPathName);
 
-      if (fUrlArray.size() <= 0)
+      if (fUrlArray.GetSize() <= 0)
 	 fIsValid = FALSE;
 
       ShowUrls();
@@ -146,12 +146,12 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
 //_____________________________________________________________________________
 XrdClientUrlSet::~XrdClientUrlSet()
 {
-   fTmpUrlArray.clear();
+   fTmpUrlArray.Clear();
 
-   for( unsigned int i=0; i < fUrlArray.size(); i++)
+   for( int i=0; i < fUrlArray.GetSize(); i++)
       delete fUrlArray[i];
 
-   fUrlArray.clear();
+   fUrlArray.Clear();
 }
 
 //_____________________________________________________________________________
@@ -163,11 +163,9 @@ XrdClientUrlInfo *XrdClientUrlSet::GetNextUrl()
 
    XrdClientUrlInfo *retval;
 
-   if ( !fTmpUrlArray.size() ) Rewind();
+   if ( !fTmpUrlArray.GetSize() ) Rewind();
 
-   retval = fTmpUrlArray.back();
-
-   fTmpUrlArray.pop_back();
+   retval = fTmpUrlArray.Pop_back();
 
    return retval;
 }
@@ -176,10 +174,10 @@ XrdClientUrlInfo *XrdClientUrlSet::GetNextUrl()
 void XrdClientUrlSet::Rewind()
 {
    // Rebuilds tmpUrlArray, i..e the urls that have to be picked
-   fTmpUrlArray.clear();
+   fTmpUrlArray.Clear();
 
-   for(unsigned int i=0; i <= fUrlArray.size()-1; i++)
-      fTmpUrlArray.push_back( fUrlArray[i] );
+   for(int i=0; i <= fUrlArray.GetSize()-1; i++)
+      fTmpUrlArray.Push_back( fUrlArray[i] );
 }
 
 //_____________________________________________________________________________
@@ -188,22 +186,20 @@ XrdClientUrlInfo *XrdClientUrlSet::GetARandomUrl()
    XrdClientUrlInfo *retval;
    int rnd;
 
-   if (!fTmpUrlArray.size()) Rewind();
+   if (!fTmpUrlArray.GetSize()) Rewind();
 
    for (int i=0; i < 10; i++)
 #ifdef __sun
-      rnd = irint(GetRandom() * fTmpUrlArray.size()) % fTmpUrlArray.size();
+      rnd = irint(GetRandom() * fTmpUrlArray.GetSize()) % fTmpUrlArray.GetSize();
 #else
-      rnd = lrint(GetRandom() * fTmpUrlArray.size()) % fTmpUrlArray.size();
+      rnd = lrint(GetRandom() * fTmpUrlArray.GetSize()) % fTmpUrlArray.GetSize();
 #endif
 
    // Returns a random url from the ones that have to be picked
    // When all the urls have been picked, we restart from the full url set
 
-   UrlArray::iterator it = fTmpUrlArray.begin() + rnd;
-
-   retval = *it;
-   fTmpUrlArray.erase(it);
+   retval = fTmpUrlArray[rnd];
+   fTmpUrlArray.Erase(rnd);
 
    return retval;
 }
@@ -214,9 +210,9 @@ void XrdClientUrlSet::ShowUrls()
    // Prints the list of urls
 
    Info(XrdClientDebug::kUSERDEBUG, "ShowUrls",
-	"The converted URLs count is " << fUrlArray.size() );
+	"The converted URLs count is " << fUrlArray.GetSize() );
 
-   for(unsigned int i=0; i < fUrlArray.size(); i++)
+   for(int i=0; i < fUrlArray.GetSize(); i++)
       Info(XrdClientDebug::kUSERDEBUG, "ShowUrls",
 	   "URL n." << i+1 << ": "<< fUrlArray[i]->GetUrl() << "."); 
 
@@ -277,8 +273,8 @@ void XrdClientUrlSet::CheckPort(string &machine)
 void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname, 
                                                     string fname)
 {
-   // Converts a single host[:port] into an array of TUrl
-   // The new Turls are appended to the given UrlArray
+   // Converts a single host[:port] into an array of urls
+   // The new urls are appended to the given UrlArray
 
 
    bool specifiedPort;
@@ -327,7 +323,7 @@ void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname,
       Info(XrdClientDebug::kHIDEBUG, "ConvertSingleDNSAlias",
 	   "Found host " << newurl->Host << " with addr " << newurl->HostAddr);
 
-      urls.push_back( newurl );
+      urls.Push_back( newurl );
 
    }
 

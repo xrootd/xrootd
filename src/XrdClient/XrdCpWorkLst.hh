@@ -13,13 +13,10 @@
 #include "XrdClientAdmin.hh"
 
 
-
-
-
 class XrdCpWorkLst {
 
    vecString fWorkList;
-   vecString::iterator fWorkIt;
+   int fWorkIt;
 
    XrdClientAdmin *xrda_src, *xrda_dst;
 

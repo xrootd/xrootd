@@ -16,15 +16,15 @@
 #ifndef _XRC_URLSET_H
 #define _XRC_URLSET_H
 
-#include <vector>
 #include "XrdClientUrlInfo.hh"
 #include "XrdClientConst.hh"
+#include "XrdClientVector.hh"
 
 using namespace std;
 
 
 
-typedef vector<XrdClientUrlInfo*> UrlArray;
+typedef XrdClientVector<XrdClientUrlInfo*> UrlArray;
 
 
 // Manages a set of XrdClientUrlInfo objects
@@ -55,7 +55,7 @@ class XrdClientUrlSet {
    string GetServers() {
       string s;
 
-      for ( unsigned int i = 0; i < fUrlArray.size(); i++ ) {
+      for ( int i = 0; i < fUrlArray.GetSize(); i++ ) {
 	 s += fUrlArray[i]->Host;
 	 s += "\n";
       }
@@ -74,7 +74,7 @@ class XrdClientUrlSet {
    void ShowUrls();
 
    // Returns the number of urls
-   int Size() { return fUrlArray.size(); }
+   int Size() { return fUrlArray.GetSize(); }
 
    // Returns the pathfile extracted from the CTOR's argument
    string GetFile() { return fPathName; }

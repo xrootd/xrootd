@@ -39,33 +39,49 @@ class XrdClientVector {
       return size;
    }
 
+   void Clear() {
+      if (data) delete []data;
+      Init();
+   }
+
    XrdClientVector() {
       Init();
    }
 
    void Push_back(T& item) {
-      int sz = strlen(str);
       
       if ( !BufRealloc(size+1) ) {
 	 data[size++] = item;
-      return 0;
       }
-      return 1;
+
+   }
+
+   // Removes a single element in position pos
+   T &Erase(unsigned int pos) {
+      T &res = At(pos);
+
+      for (int i=pos+1; i < size; i++)
+	 data[i-1] = data[i];
+
+      size--;
+      BufRealloc(size);
+
+      return res;
    }
 
    T &Pop_back() {
+      return (At(size-1));
       size--;
-      return (At[size]);
-  
    }
 
    T &Pop_front() {
       T &res;
 
       res = At(0);
-
+      for (int i=1; i < size; i++)
+	 data[i-1] = data[i];
       size--;
-      memmove(data, data+1, size * sizeof(T));
+
       return (res);
    }
 
@@ -86,21 +102,29 @@ class XrdClientVector {
 template <class T>
 int XrdClientVector<T>::BufRealloc(int newsize) {
    int sz, blks;
-   void *newdata;
+   T *newdata;
 
-   if (newsize <= 0) return 0;
+   if ((newsize <= 0) || (newsize <= capacity)) return 0;
 
    blks = (newsize) / 256 + 1;
 
    sz = blks * 256;
 
-   newdata = realloc(data, sz*sizeof(T));
+   newdata = new T[sz];
+
 
    if (newdata) {
-      data = (T *)newdata;
+      for (int i = 0; i < size; i++)
+	 newdata[i] = data[i];
+
+      delete []data;
+
+      data = newdata;      
       capacity = sz;
       return 0;
    }
+
+   abort();
 
    return 1;
 }

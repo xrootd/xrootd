@@ -130,12 +130,12 @@ XrdClientConnectionMgr::~XrdClientConnectionMgr()
 {
    // Deletes mutex locks, stops garbage collector thread.
 
-   unsigned int i=0;
+   int i=0;
 
    {
       XrdClientMutexLocker mtx(fMutex);
 
-      for (i = 0; i < fLogVec.size(); i++)
+      for (i = 0; i < fLogVec.GetSize(); i++)
 	 if (fLogVec[i]) Disconnect(i, FALSE);
 
    }
@@ -163,7 +163,7 @@ void XrdClientConnectionMgr::GarbageCollect()
       XrdClientMutexLocker mtx(fMutex);
 
       // We cycle all the physical connections
-      for (unsigned short int i = 0; i < fPhyVec.size(); i++) { 
+      for (int i = 0; i < fPhyVec.GetSize(); i++) { 
    
 	 // If a single physical connection has no linked logical connections,
 	 // then we kill it if its TTL has expired
@@ -226,7 +226,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       // then we use that
       phyfound = FALSE;
 
-      for (unsigned short int i=0; i < fPhyVec.size(); i++) {
+      for (int i=0; i < fPhyVec.GetSize(); i++) {
 	 if ( fPhyVec[i] && fPhyVec[i]->IsValid() &&
 	      fPhyVec[i]->IsPort(RemoteServ.Port) &&
 	      (fPhyVec[i]->IsAddress(RemoteServ.Host) ||
@@ -282,29 +282,29 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound)
-	 fPhyVec.push_back(phyconn);
+	 fPhyVec.Push_back(phyconn);
 
       // Then we push the logical connection into its vector
-      fLogVec.push_back(logconn);
+      fLogVec.Push_back(logconn);
  
       // Its ID is its position inside the vector, we must return it later
-      newid = fLogVec.size()-1;
+      newid = fLogVec.GetSize()-1;
 
       // Now some debug log
       if (DebugLevel() >= XrdClientDebug::kHIDEBUG) {
 	 int logCnt = 0, phyCnt = 0;
 
-	 for (unsigned short int i=0; i < fPhyVec.size(); i++)
+	 for (int i=0; i < fPhyVec.GetSize(); i++)
 	    if (fPhyVec[i])
 	       phyCnt++;
-	 for (unsigned short int i=0; i < fLogVec.size(); i++)
+	 for (int i=0; i < fLogVec.GetSize(); i++)
 	    if (fLogVec[i])
 	       logCnt++;
 
 	 Info(XrdClientDebug::kHIDEBUG,
 	      "Connect",
-	      "LogConn: size:" << fLogVec.size() << " count: " << logCnt <<
-	      "PhyConn: size:" << fPhyVec.size() << " count: " << phyCnt );
+	      "LogConn: size:" << fLogVec.GetSize() << " count: " << logCnt <<
+	      "PhyConn: size:" << fPhyVec.GetSize() << " count: " << phyCnt );
 
       }
 
@@ -326,7 +326,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
       XrdClientMutexLocker mtx(fMutex);
 
       if ((LogConnectionID < 0) ||
-	  (LogConnectionID >= (int)fLogVec.size()) || (!fLogVec[LogConnectionID])) {
+	  (LogConnectionID >= fLogVec.GetSize()) || (!fLogVec[LogConnectionID])) {
 	 Error("Disconnect", "Destroying nonexistent logconn " << LogConnectionID);
 	 return;
       }
@@ -448,7 +448,7 @@ short int XrdClientConnectionMgr::GetPhyConnectionRefCount(XrdClientPhyConnectio
    {
       XrdClientMutexLocker mtx(fMutex);
 
-      for (unsigned short int i = 0; i < fLogVec.size(); i++)
+      for (int i = 0; i < fLogVec.GetSize(); i++)
 	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == PhyConn) ) cnt++;
 
    }
@@ -479,7 +479,7 @@ bool XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *send
    {
       XrdClientMutexLocker mtx(fMutex);
 
-      for (unsigned short int i = 0; i < fLogVec.size(); i++)
+      for (int i = 0; i < fLogVec.GetSize(); i++)
 	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) ) {
 	    fLogVec[i]->ProcessUnsolicitedMsg(sender, unsolmsg);
 	 }

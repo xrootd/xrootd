@@ -34,10 +34,10 @@ using namespace std;
 void joinStrings(string &buf, vecString vs)
 {
    //  string buf;
-   if (vs.size() == 1)
+   if (vs.GetSize() == 1)
       buf = vs[0];
    else {
-      for(unsigned int j=0; j < vs.size(); j++)
+      for(int j=0; j < vs.GetSize(); j++)
 	 {
 	    buf += vs[j];
 	    buf += "\n";
@@ -291,21 +291,21 @@ bool XrdClientAdmin::ExistFiles(vecString vs, vecBool &vb)
    joinStrings(buf, vs);
 
    kXR_char *Info;
-   Info = (kXR_char*) malloc(vs.size()+1);
-   memset((void *)Info, 0, vs.size()+1);
+   Info = (kXR_char*) malloc(vs.GetSize()+1);
+   memset((void *)Info, 0, vs.GetSize()+1);
   
-   ret = this->SysStatX(buf.c_str(), Info, vs.size());
+   ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
 
-   for(unsigned int j=0; j <= vs.size()-1; j++) 
+   for(int j=0; j <= vs.GetSize()-1; j++) 
       {
-	 if( !(*(Info+j) & kXR_other) && !(*(Info+j) & kXR_isDir) )
-	    {
-	       bool tmp = TRUE;
-	       vb.push_back(tmp);
-	    } else {
+	 if( !(*(Info+j) & kXR_other) && !(*(Info+j) & kXR_isDir) ) {
+	    bool tmp = TRUE;
+	    vb.Push_back(tmp);
+	 } else {
 	    bool tmp = FALSE;
-	    vb.push_back(tmp);
+	    vb.Push_back(tmp);
 	 }
+
       }
 
    return ret;
@@ -319,22 +319,22 @@ bool XrdClientAdmin::ExistDirs(vecString vs, vecBool &vb)
    joinStrings(buf, vs);
 
    kXR_char *Info;
-   Info = (kXR_char*) malloc(vs.size()+1);
-   memset((void *)Info, 0, vs.size()+1);
+   Info = (kXR_char*) malloc(vs.GetSize()+1);
+   memset((void *)Info, 0, vs.GetSize()+1);
   
-   ret = this->SysStatX(buf.c_str(), Info, vs.size());
+   ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
   
-   for(unsigned int j=0; j <= vs.size()-1; j++) 
-      {
-	 if( (*(Info+j) & kXR_isDir) )
-	    {
-	       bool tmp = TRUE;
-	       vb.push_back(tmp);
-	    } else {
-	    bool tmp = FALSE;
-	    vb.push_back(tmp);
-	 }
+   for(int j=0; j <= vs.GetSize()-1; j++) {
+      if( (*(Info+j) & kXR_isDir) ) {
+	 bool tmp = TRUE;
+	 vb.Push_back(tmp);
+      } else {
+	 bool tmp = FALSE;
+	 vb.Push_back(tmp);
       }
+
+   }
+
 
    return ret;
 }
@@ -347,21 +347,21 @@ bool XrdClientAdmin::IsFileOnline(vecString vs, vecBool &vb)
    joinStrings(buf, vs);
 
    kXR_char *Info;
-   Info = (kXR_char*) malloc(vs.size()+1);
-   memset((void *)Info, 0, vs.size()+1);
+   Info = (kXR_char*) malloc(vs.GetSize()+1);
+   memset((void *)Info, 0, vs.GetSize()+1);
   
-   ret = this->SysStatX(buf.c_str(), Info, vs.size());
+   ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
   
-   for(unsigned int j=0; j <= vs.size()-1; j++) 
+   for(int j=0; j <= vs.GetSize()-1; j++) 
       {
-	 if( !(*(Info+j) & kXR_offline) )
-	    {
-	       bool tmp = TRUE;
-	       vb.push_back(tmp);
-	    } else {
+	 if( !(*(Info+j) & kXR_offline) ) {
+	    bool tmp = TRUE;
+	    vb.Push_back(tmp);
+	 } else {
 	    bool tmp = FALSE;
-	    vb.push_back(tmp);
+	    vb.Push_back(tmp);
 	 }
+
       }
 
    return ret;
@@ -600,7 +600,6 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
    ret = fConnModule->SendGenCommand(&DirListFileRequest, dir,
 				     (void **)&dl, 0, TRUE, (char *)"DirList");
   
-   cout << endl << dl << endl;
    // Now parse the answer building the entries vector
    if (ret) {
 
@@ -616,7 +615,8 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
 	    entry = (kXR_char *)strdup((char *)startp);
       
 	 if (entry && strlen((char *)entry)) {
-	    entries.push_back((char *)entry);
+	    string e((char *)entry);
+	    entries.Push_back(e);
 	    free(entry);
 	 }
 
@@ -630,4 +630,23 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
    if (dl) free(dl);
    return(ret);
 
+}
+
+
+
+//_____________________________________________________________________________
+bool XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char *chksum)
+{
+   ClientRequest chksumRequest;
+
+   memset( &chksumRequest, 0, sizeof(chksumRequest) );
+
+   fConnModule->SetSID(chksumRequest.header.streamid);
+
+   chksumRequest.query.requestid = kXR_query;
+   chksumRequest.query.infotype = kXR_Qcksum;
+   bool ret = fConnModule->SendGenCommand(&chksumRequest, NULL,
+					  NULL, chksum, FALSE, (char *)"GetChecksum");
+  
+   return ret;
 }

@@ -19,13 +19,13 @@ using namespace std;
 
 
 XrdCpWorkLst::XrdCpWorkLst() {
-   fWorkList.clear();
+   fWorkList.Clear();
    xrda_src = 0;
    xrda_dst = 0;
 }
 
 XrdCpWorkLst::~XrdCpWorkLst() {
-   fWorkList.clear();
+   fWorkList.Clear();
 }
 
 // Sets the source path for the file copy
@@ -49,11 +49,13 @@ int XrdCpWorkLst::SetSrc(const char *url) {
 	    if (flags & kXR_isDir)
 	       BuildWorkList_xrd(url);
 	    else
-	       fWorkList.push_back(url);
+	       fWorkList.Push_back(fSrc);
          
 	 }
-	 else
-	    fWorkList.push_back(url); 
+	 else {
+	    string u(url);
+	    fWorkList.Push_back(u); 
+	 }
 
       }
 
@@ -69,7 +71,7 @@ int XrdCpWorkLst::SetSrc(const char *url) {
 
       if (!d) {
 	 if (errno == ENOTDIR)
-	    fWorkList.push_back(url);
+	    fWorkList.Push_back(fSrc);
 	 else
 	    return errno;
       }
@@ -82,7 +84,7 @@ int XrdCpWorkLst::SetSrc(const char *url) {
 
    }
 
-   fWorkIt = fWorkList.begin();
+   fWorkIt = 0;
    return 0;
 }
 
@@ -149,14 +151,14 @@ int XrdCpWorkLst::SetDest(const char *url) {
 
    }
 
-   fWorkIt = fWorkList.begin();
+   fWorkIt = 0;
    return 0;
 }
 
 // Actually builds the worklist expanding the source of the files
 int XrdCpWorkLst::BuildWorkList_xrd(string url) {
    vecString entries;
-   vecString::iterator it;
+   int it;
    long id, size, flags, modtime;
    string fullpath;
    XrdClientUrlInfo u(url);
@@ -165,8 +167,8 @@ int XrdCpWorkLst::BuildWorkList_xrd(string url) {
    if (!xrda_src->DirList(u.File.c_str(), entries)) return -1;
 
    // Cycle on the content and spot all the files
-   for (it = entries.begin(); it != entries.end(); it++) {
-      fullpath = url + "/" + *it;
+   for (it = 0; it < entries.GetSize(); it++) {
+      fullpath = url + "/" + entries[it];
       XrdClientUrlInfo u(fullpath);
 
       // We must see if it's a dir
@@ -177,7 +179,7 @@ int XrdCpWorkLst::BuildWorkList_xrd(string url) {
 	 BuildWorkList_xrd(fullpath);
       }
       else
-	 fWorkList.push_back(fullpath);
+	 fWorkList.Push_back(fullpath);
       
 
    }
@@ -219,7 +221,7 @@ int XrdCpWorkLst::BuildWorkList_loc(DIR *dir, string path) {
       else
 	 // If it's a file, then add it to the worklist
 	 if (S_ISREG(ftype.st_mode))
-	    fWorkList.push_back(fullpath);
+	    fWorkList.Push_back(fullpath);
 
    }
 
@@ -231,9 +233,9 @@ int XrdCpWorkLst::BuildWorkList_loc(DIR *dir, string path) {
 // Get the next cp job to do
 bool XrdCpWorkLst::GetCpJob(string &src, string &dest) {
 
-   if (fWorkIt == fWorkList.end()) return FALSE;
+   if (fWorkIt >= fWorkList.GetSize()) return FALSE;
 
-   src = *fWorkIt;
+   src = fWorkList[fWorkIt];
    dest = fDest;
 
    if (fDestIsDir) {
