@@ -50,14 +50,14 @@ struct XrdXrootdMonMap
         char               info[1024+256];
        };
   
-const char XROOTD_MON_APPID         = 0xa0;
-const char XROOTD_MON_CLOSE         = 0xc0;
-const char XROOTD_MON_DISC          = 0xd0;
-const char XROOTD_MON_OPEN          = 0x80;
-const char XROOTD_MON_WINDOW        = 0xe0;
+const kXR_char XROOTD_MON_APPID         = 0xa0;
+const kXR_char XROOTD_MON_CLOSE         = 0xc0;
+const kXR_char XROOTD_MON_DISC          = 0xd0;
+const kXR_char XROOTD_MON_OPEN          = 0x80;
+const kXR_char XROOTD_MON_WINDOW        = 0xe0;
 
-const char XROOTD_MON_MAPUSER       = 'u';
-const char XROOTD_MON_MAPPATH       = 'd';
-const char XROOTD_MON_MAPINFO       = 'i';
+const kXR_char XROOTD_MON_MAPUSER       = 'u';
+const kXR_char XROOTD_MON_MAPPATH       = 'd';
+const kXR_char XROOTD_MON_MAPINFO       = 'i';
 
 #endif
