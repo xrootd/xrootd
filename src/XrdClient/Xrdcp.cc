@@ -191,6 +191,10 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
       if (!xrddest->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
 			 kXR_open_updt | kXR_delete | kXR_force)) {
 	 Error("xrdcp", "Error opening remote destination file " << dst);
+
+	 xrddest->Close();
+	 cpnfo.XrdCli->Close();
+
 	 delete cpnfo.XrdCli;
 	 delete xrddest;
 	 cpnfo.XrdCli = 0;
@@ -227,6 +231,9 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
 
    }
 
+   xrddest->Close();
+   cpnfo.XrdCli->Close();
+
    delete xrddest;
    delete cpnfo.XrdCli;
    cpnfo.XrdCli = 0;
@@ -257,6 +264,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	 if (f < 0) {
 	    Error("xrdcp", "Error " << strerror(errno) <<
 		  " creating " << dst);
+
+	    cpnfo.XrdCli->Close();
 	    delete cpnfo.XrdCli;
 	    cpnfo.XrdCli = 0;
 	    return -1;
@@ -297,6 +306,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       close(f);
    }
 
+   cpnfo.XrdCli->Close();
    delete cpnfo.XrdCli;
    cpnfo.XrdCli = 0;
 

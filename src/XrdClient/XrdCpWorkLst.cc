@@ -171,13 +171,13 @@ int XrdCpWorkLst::BuildWorkList_xrd(string url) {
 
       // We must see if it's a dir
       // If a dir is found, do it recursively
-      if ( xrda_dst->Stat((char *)u.File.c_str(), id, size, flags, modtime) &&
+      if ( xrda_src->Stat((char *)u.File.c_str(), id, size, flags, modtime) &&
 	   (flags & kXR_isDir) ) {
 
 	 BuildWorkList_xrd(fullpath);
       }
       else
-	 fWorkList.push_back(*it);
+	 fWorkList.push_back(fullpath);
       
 
    }
