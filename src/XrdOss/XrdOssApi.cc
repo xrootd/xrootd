@@ -719,7 +719,7 @@ ssize_t XrdOssFile::Write(const void *buff, off_t offset, size_t blen)
 
      if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
-     if (XrdOssSS.MaxDBsize && offset+blen > XrdOssSS.MaxDBsize) 
+     if (XrdOssSS.MaxDBsize && (long long)(offset+blen) > XrdOssSS.MaxDBsize) 
         return (ssize_t)-XRDOSS_E8007;
 
      do { retval = pwrite(fd, buff, blen, offset); }
