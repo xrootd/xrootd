@@ -102,6 +102,7 @@ CREATE INDEX paths_skimId_index     USING BTREE ON paths(skimId);
 ##CREATE INDEX paths_path_index ON paths(path(256));
 
 
+# one row per minute, keeps last 60 minutes
 CREATE TABLE IF NOT EXISTS statsLastHour (
   seqNo         TINYINT NOT NULL PRIMARY KEY,
   date          DATETIME,
@@ -113,6 +114,7 @@ CREATE TABLE IF NOT EXISTS statsLastHour (
 CREATE INDEX statsLastHour_date_index USING BTREE ON statsLastHour(date);
 
 
+# one row per hour, keeps last 24 hours
 CREATE TABLE IF NOT EXISTS statsLastDay (
   seqNo         TINYINT NOT NULL PRIMARY KEY,
   date          DATE,
@@ -132,7 +134,8 @@ CREATE TABLE IF NOT EXISTS statsLastDay (
 CREATE INDEX statsLastDay_date_index  USING BTREE ON statsLastDay(date);
 
 
-CREATE TABLE IF NOT EXISTS statsAllMonths (
+# one row per day, keeps last 31 days
+CREATE TABLE IF NOT EXISTS statsLastMonth (
   seqNo         TINYINT NOT NULL PRIMARY KEY,
   date          DATE,
   noJobs        SMALLINT,
@@ -148,7 +151,26 @@ CREATE TABLE IF NOT EXISTS statsAllMonths (
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
-CREATE INDEX statsAllMonth_date_index USING BTREE ON statsAllMonths(date);
+CREATE INDEX statsLastMonth_date_index USING BTREE ON statsLastMonth(date);
+
+
+# one row per month, growing indefinitely
+CREATE TABLE IF NOT EXISTS statsAllMonths (
+  date          DATE,
+  noJobs        SMALLINT,
+  noUsers       SMALLINT,
+  noUniqueF     INT,
+  noNonUniqueF  INT,
+  minJobs       SMALLINT,
+  minUsers      SMALLINT,
+  minUniqueF    INT,
+  minNonUniqueF INT,
+  maxJobs       SMALLINT,
+  maxUsers      SMALLINT,
+  maxUniqueF    INT,
+  maxNonUniqueF INT
+);
+CREATE INDEX statsLastMonth_date_index USING BTREE ON statsLastMonth(date);
 
 
 # reflects changes since last entry, and last update
