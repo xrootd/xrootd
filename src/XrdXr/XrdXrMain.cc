@@ -329,8 +329,8 @@ void doOpen(char *buffer)
   }
 
   if (client->open((kXR_char*) filename.c_str(), 
-		   (kXR_int16) oflags, 
-		   (kXR_int16) mode              ) != 0) {
+		   (kXR_unt16) oflags, 
+		   (kXR_unt16) mode              ) != 0) {
     cerr << "Error: file not opened correctly. " << endl;
   }
 

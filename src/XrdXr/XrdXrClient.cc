@@ -183,8 +183,8 @@ int XrdXrClient::auth(kXR_char        credtype[4],
  * Output: return 0 upon success; -errno otherwise.
  */
 int XrdXrClient::open(kXR_char    *path,
-		      kXR_int16    oflag,
-		      kXR_int16    mode)
+		      kXR_unt16    oflag,
+		      kXR_unt16    mode)
 {
   int            status;
   int            cont     = 1;          // indicates "continue" in while-loop

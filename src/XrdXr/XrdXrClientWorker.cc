@@ -132,7 +132,7 @@ int XrdXrClientWorker::login(kXR_char      *username,
   ClientLoginRequest loginRequest;
 
   memcpy(loginRequest.streamid, getStreamId(), 2);
-  loginRequest.requestid = static_cast<kXR_int16>(htons(kXR_login));
+  loginRequest.requestid = static_cast<kXR_unt16>(htons(kXR_login));
   loginRequest.pid       = static_cast<kXR_int32>(htonl(getpid()));
   memcpy(loginRequest.username, username, sizeof(loginRequest.username));
   loginRequest.role[0]   = role[0];
@@ -182,7 +182,7 @@ int XrdXrClientWorker::login(kXR_char      *username,
     XrEroute.Emsg(epname, "stream ID for login process does not match.");
   }
 
-  kXR_int16 status = ntohs(lrh.status);
+  kXR_unt16 status = ntohs(lrh.status);
   int dlen = ntohl(lrh.dlen);
 
   if (status != kXR_ok) {
@@ -310,7 +310,7 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
   // Initialise the authRequest structure with the respective parameters
   //
   memcpy(authRequest.streamid, getStreamId(), 2);
-  authRequest.requestid          =  static_cast<kXR_int16>(htons(kXR_auth));
+  authRequest.requestid          =  static_cast<kXR_unt16>(htons(kXR_auth));
   authRequest.dlen               =  static_cast<kXR_int32>(htonl(credentials->size));
   memset(authRequest.reserved, 0, 12);
   memcpy(authRequest.credtype, credtype, 4);
@@ -340,7 +340,7 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
     XrEroute.Emsg(epname, "stream ID for authentication process does not match.");
   }
 
-  kXR_int16 status = ntohs(authResponse.status);
+  kXR_unt16 status = ntohs(authResponse.status);
   int dlen = ntohl(authResponse.dlen);
 
   if (status != kXR_ok) {
@@ -389,8 +389,8 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
  * Output: return 0 upon success; -errno otherwise.
  */
 int XrdXrClientWorker::open(kXR_char    *path,
-			    kXR_int16    oflag,
-			    kXR_int16    mode)
+			    kXR_unt16    oflag,
+			    kXR_unt16    mode)
 {
   int                 rc;           // return code
   static const char  *epname = "open";
@@ -401,9 +401,9 @@ int XrdXrClientWorker::open(kXR_char    *path,
   // Initialise the openRequest structure with the respective parameters
   //
   memcpy(openRequest.streamid, getStreamId(), 2);
-  openRequest.requestid = static_cast<kXR_int16>(htons(kXR_open));
-  openRequest.mode      = static_cast<kXR_int16>(htons(mode));
-  openRequest.options   = static_cast<kXR_int16>(htons(oflag));
+  openRequest.requestid = static_cast<kXR_unt16>(htons(kXR_open));
+  openRequest.mode      = static_cast<kXR_unt16>(htons(mode));
+  openRequest.options   = static_cast<kXR_unt16>(htons(oflag));
   openRequest.dlen      = static_cast<kXR_int32>(htonl(strlen((char *)path)));
   memset(openRequest.reserved, 0, 12);
 
@@ -432,7 +432,7 @@ int XrdXrClientWorker::open(kXR_char    *path,
     XrEroute.Emsg(epname, "stream ID for open process does not match.");
   }
 
-  kXR_int16 status = ntohs(openResponse.status);
+  kXR_unt16 status = ntohs(openResponse.status);
   kXR_int32 resplen = ntohl(openResponse.dlen);
 
   // Handle potenial errors
@@ -499,7 +499,7 @@ ssize_t XrdXrClientWorker::read(void       *buffer,
   // Initialise the readRequest structure with the respective parameters
   //
   memcpy(readRequest.streamid, getStreamId(), 2);
-  readRequest.requestid        = static_cast<kXR_int16>(htons(kXR_read));
+  readRequest.requestid        = static_cast<kXR_unt16>(htons(kXR_read));
   memcpy(readRequest.fhandle, fhandle, 4*sizeof(kXR_char));
   readRequest.offset           = static_cast<kXR_int64>(htonll(offset));
   readRequest.rlen             = static_cast<kXR_int32>(htonl(blen));
@@ -515,7 +515,7 @@ ssize_t XrdXrClientWorker::read(void       *buffer,
   // Get ready to receive the server response
   //
   ServerResponseHeader readResponse;
-  kXR_int16            status;
+  kXR_unt16            status;
   ssize_t              received = 0;
   long long            start;
 
@@ -608,7 +608,7 @@ int XrdXrClientWorker::stat(struct stat *buffer,
   // Initialise the statRequest structure with the respective parameters
   //
   memcpy(statRequest.streamid, getStreamId(), 2);
-  statRequest.requestid          = static_cast<kXR_int16>(htons(kXR_stat));
+  statRequest.requestid          = static_cast<kXR_unt16>(htons(kXR_stat));
   statRequest.dlen               = static_cast<kXR_int32>(htonl(strlen((char *)path)));
   memset(statRequest.reserved, 0, 16);
 
@@ -638,7 +638,7 @@ int XrdXrClientWorker::stat(struct stat *buffer,
     rc = -1; // indicate that an error occured
   }
 
-  kXR_int16 status = ntohs(statResponse.status);
+  kXR_unt16 status = ntohs(statResponse.status);
   int dlen = ntohl(statResponse.dlen);
 
   if (status != kXR_ok) {
@@ -702,7 +702,7 @@ int XrdXrClientWorker::close()
   //
   strcpy ((char *) streamId, "9"); // set an arbitrary number 
   memcpy(closeRequest.streamid, streamId, sizeof(closeRequest.streamid));
-  closeRequest.requestid = static_cast<kXR_int16>(htons(kXR_close));
+  closeRequest.requestid = static_cast<kXR_unt16>(htons(kXR_close));
   for (int i=0; i < 4; i++) {closeRequest.fhandle[i] = fhandle[i];}
   for (int i=0; i <12; i++) {closeRequest.reserved[i] = (kXR_char) '\0';}
   closeRequest.dlen = static_cast<kXR_int32>(htonl(0));
@@ -722,7 +722,7 @@ int XrdXrClientWorker::close()
     rc = -1; // indicate that an error occured
   }
 
-  kXR_int16 status = ntohs(closeResponse.status);
+  kXR_unt16 status = ntohs(closeResponse.status);
   int dlen = ntohl(closeResponse.dlen);
 
   if (status != kXR_ok) {
@@ -902,7 +902,7 @@ const char* XrdXrClientWorker::getStreamId()
  * Output: return negative error number
  */
 int XrdXrClientWorker::handleError(kXR_int32      dlen, 
-				   kXR_int16      status,
+				   kXR_unt16      status,
 				   char          *method)
 {
   ServerResponseBody_Error error;

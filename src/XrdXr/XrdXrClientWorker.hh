@@ -93,8 +93,8 @@ public:
    * Output: return 0 upon success; -errno otherwise.
    */
   int open(kXR_char  *path,
-	   kXR_int16  oflag,
-	   kXR_int16  mode);
+	   kXR_unt16  oflag,
+	   kXR_unt16  mode);
 
   /**
    * Read 'blen' bytes from the associated file, placing in 'buff'
@@ -187,7 +187,7 @@ private:
    * Output: return negative error number
    */
   int handleError(kXR_int32      dlen, 
-		  kXR_int16      status,
+		  kXR_unt16      status,
 		  char          *method);
 
   const char* hostname_;         // hostname of the remote xrootd to connect

@@ -104,8 +104,8 @@ public:
    * Output: return 0 upon success; -errno otherwise.
    */
   int open(kXR_char       *path,
-	   kXR_int16       oflag,
-	   kXR_int16       mode);
+	   kXR_unt16       oflag,
+	   kXR_unt16       mode);
 
   /**
    * Read 'blen' bytes from the associated file, placing in 'buff'
@@ -228,8 +228,8 @@ private:
   struct fileinfo {
     kXR_char  *path;
     bool       open;
-    kXR_int16  oflag;
-    kXR_int16  mode;
+    kXR_unt16  oflag;
+    kXR_unt16  mode;
     kXR_char  *username;
     kXR_char   role[1];
     kXR_int32  tlen;
