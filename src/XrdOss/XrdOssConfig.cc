@@ -897,7 +897,7 @@ int XrdOssSys::xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    char *cp, *val;
+    char *val;
     int i, j, V_autolok=-1, V_automap=-1, V_autokeep=-1, V_preld = -1, V_on=-1;
     long long V_max = 0;
 
