@@ -15,4 +15,4 @@ TYPEOPT    = $(TYPEMISC) $(SUNMT) -fast -xarch=v8plus
 TYPEDBG    = $(TYPEMISC) $(SUNMT) -g -xs
 TYPELDSO   = -G
 
-TYPELIBS   =  -lposix4 -lsocket -lnsl $(PTHREAD) -ldl -lCstd
+TYPELIBS   =  -lsunmath -lposix4 -lsocket -lnsl $(PTHREAD) -ldl -lCstd
