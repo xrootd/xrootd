@@ -85,6 +85,10 @@ enum XStatRespFlags {
   kXR_offline = 8
 };
 
+enum XDirlistRequestOption {
+  kXR_online = 1
+};
+
 enum XOpenRequestOption {
   kXR_compress = 1,
   kXR_delete   = 2,
@@ -99,7 +103,8 @@ enum XOpenRequestOption {
 enum XQueryType {
   kXR_QStats = 1,
   kXR_QPrep  = 2,
-  kXR_Qcksum = 3
+  kXR_Qcksum = 3,
+  kXR_Qolbd  = 4
 };
 
 enum XLogonType {
@@ -210,7 +215,8 @@ struct ClientCloseRequest {
 struct ClientDirlistRequest {
   kXR_char  streamid[2];
   kXR_int16 requestid;
-  kXR_char reserved[16];
+  kXR_char reserved[15];
+  kXR_char options[1];
   kXR_int32  dlen;
 };
 struct ClientGetfileRequest {
@@ -226,7 +232,8 @@ struct ClientLoginRequest {
   kXR_int16 requestid;
   kXR_int32 pid;
   kXR_char username[8];
-  kXR_char reserved[3];
+  kXR_char reserved[2];
+  kXR_char version[1];
   kXR_char role[1];
   kXR_int32  dlen;
 };
