@@ -50,9 +50,8 @@ extern XrdOucTrace      *XrdXrootdTrace;
 XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
 {
     static XrdOucMutex seqMutex;
-    static int fileSeq = 0;
     struct stat buf;
-    int i, tempseq;
+    int i;
 
     XrdSfsp  = fp;
     FileMode = mode;

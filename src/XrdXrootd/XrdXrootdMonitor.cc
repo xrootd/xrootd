@@ -331,9 +331,10 @@ time_t XrdXrootdMonitor::Tick()
   
 unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
 {
+  const long long smask = 0x7fffffff00000000LL;
   unsigned char xshift = 0;
 
-  while(xTot & 0x7fffffff00000000) {xTot >> 1; xshift++;}
+  while(xTot & smask) {xTot = xTot >> 1LL; xshift++;}
   xVal = static_cast<unsigned int>(xTot);
 
   return xshift;

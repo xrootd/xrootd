@@ -177,7 +177,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Initialiaze for AIO
 //
    if (!as_noaio) XrdXrootdAioReq::Init(as_segsize, as_maxperreq, as_maxpersrv);
-      else eDest.Emsg("Config", "Asynchronous I/O has been disabled!");
+      else {eDest.Emsg("Config", "Asynchronous I/O has been disabled!");
+            as_noaio = 1;
+           }
 
 // Initialize the security system if this is wanted
 //
