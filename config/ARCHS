@@ -19,6 +19,7 @@ x86_64_linux    gccx8664     for AMD Opteron 64 Linux gcc 3.x, glibc
 alpha_linux     gcc          for Alpha Linux egcs and glibc
 arm_linux       gcc          for ARM Linux egcs and glibc
 ppc_linux       gcc          for PPC Linux egcs and glibc
+macosx          gcc          for MacOSX gcc
 sun4x_6         sunCC        for Solaris 6.x
 sun4x_56        sunCC        for Solaris 5.6 CC 5.0
 sun4x_57        sunCC        for Solaris 5.7 CC 5.0

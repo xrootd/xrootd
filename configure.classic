@@ -382,8 +382,8 @@ guess_architecture () {
       linux:alpha:*)      arch=alpha_linux     ; platform=linux; ccflv=gcc;;
       linux:arm*:*)       arch=arm_linux       ; platform=linux; ccflv=gcc;;
       linux:ppc*:*)       arch=ppc_linux       ; platform=linux; ccflv=gcc;;
-#      darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
-#      darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
+      darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
+      darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
       sunos:*:6*)         arch=sun4x_6         ; platform=solaris; ccflv=sunCC;;
       sunos:*:5.6)        arch=sun4x_56        ; platform=solaris; ccflv=sunCC;;
       sunos:*:5.7)        arch=sun4x_57        ; platform=solaris; ccflv=sunCC;;
