@@ -1,8 +1,8 @@
 #! /bin/sh
 ################################################################################
-#                                                                              #
-#          $Id$
 #
+#          $Id$
+#                                                                              #
 #                            c o n f i g u r e                                 #
 #                                                                              #
 #  (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   #
@@ -621,7 +621,7 @@ echo "Configuring for $arch and compiler $ccflv"
 hasstrlcpy=""
 if test ! "x$strlcpy" = "xlocal"; then
    message "Checking whether strlcpy declared in /usr/include/string.h"
-   if `grep strlcpy /usr/include/strlcpy.h > /dev/null 2>&1` ; then
+   if `grep strlcpy /usr/include/string.h > /dev/null 2>&1` ; then
        echo "yes"
        hasstrlcpy=" -DHAS_STRLCPY"
    else
