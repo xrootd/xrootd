@@ -233,6 +233,8 @@ if ($savepid_fn) {			# only if defined in configuration file
    close(SAVE);
    }
 
+open(SAVOUT,">&STDOUT");
+open(SAVERR,">&STDERR");
 close STDIN;
 close STDERR;
 close STDOUT;
@@ -558,7 +560,7 @@ else {
    if ("$systyp" eq "AIX") {
       ($x, $kbytes, $kfree) = split(' ', $data[1]);
       }
-   elsif ("$systyp" eq "SunOS") {
+   else {
       ($x, $kbytes, $x, $kfree) = split(' ', $data[1]);
       }
    $fsdata{$fsdev} = "$kbytes,$kfree";
@@ -591,6 +593,11 @@ local($pfile);
 local *FAIL;
 get_ctl_fnames($file);
 
+# Re-open STDOUT and STDERR to grab file descriptors 1 and 2 so that
+# the lock file does not use one of these which would be a problem if
+# the process gets killed and something is written to STDERR.
+open(STDOUT,">&SAVOUT");
+open(STDERR,">&SAVERR");
 $DIR_fh  = getlock(">>$dlckFN", $LOCK_EX, $LOCKERR);
 return -1 if !$DIR_fh;
 $LOCK_fh = getlock("+<$lockFN", $LOCK_EX | $LOCK_NB, $LOCKERR);
@@ -1328,6 +1335,7 @@ my(%Xlate) = (xfrblksz      => 'pftpblksz',
               xfrhost       => 'pftphost',
               xfrport       => 'pftpport',
               xfruser       => 'pftpuser',
+              ftpcmd        => 'pftpcmd'
              );
 my(%Xcept)= ('ooss.cache'   => 1, 
               'oss.cache'   => 1);
