@@ -166,7 +166,7 @@ XrdConfig::XrdConfig(void)
    ProtInfo.ConnOptn = -4;     // Num of connections to optimize for (1/4*max)
    ProtInfo.ConnLife = 60*60;  // Time   of connections to optimize for.
    ProtInfo.ConnMax  = -1;     // Max       connections (fd limit)
-   ProtInfo.readWait = 5*1000; // Wait time for data before we reschedule
+   ProtInfo.readWait = 3*1000; // Wait time for data before we reschedule
    ProtInfo.idleWait = 0;      // Seconds connection may remain idle (0=off)
    ProtInfo.DebugON  = 0;      // 1 if started with -d
    ProtInfo.argc     = 0;
