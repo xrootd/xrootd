@@ -91,11 +91,11 @@ int XrdOucLink::Close(int defer)
            else close(FD);
         FD = -1;
        }
-    if (Lname) free(Lname);
     if (!defer)
        {if (Stream)   {delete Stream; Stream = 0;}
         if (recvbuff) {recvbuff->Recycle(); recvbuff = 0;}
         if (sendbuff) {sendbuff->Recycle(); sendbuff = 0;}
+        if (Lname) free(Lname);
        }
     IOMutex.UnLock();
     return 0;
