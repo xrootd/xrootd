@@ -84,7 +84,7 @@ anything: $(TARGETS)
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
 
-$(TARGETS): $(OBJECTS)
+$(LIBRARY): $(OBJECTS)
 	@echo Creating archive $(LIBRARY) 
 	@rm -f $(LIBRARY);
 	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
@@ -95,11 +95,11 @@ fi
 
 $(TESTBIN): $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
-	$(CC) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
+	$(LD) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 	@echo Creating executable $(XRDCP) 
-	$(CC) $(OBJECTC) $(BINLIBS) $(LIBS) -o $(XRDCP)
+	$(LD) $(OBJECTC) $(BINLIBS) $(LIBS) -o $(XRDCP)
 
 $(OBJDIR)/XrdClientAbs.o:        XrdClientAbs.cc              XrdClientAbs.hh\
                                  XrdClientDebug.cc            XrdClientDebug.hh
