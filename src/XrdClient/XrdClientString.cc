@@ -96,7 +96,9 @@ void XrdClientString::EraseFromEnd(int howmany) {
 
 // Returns a substring left inclusive -> right exclusive
 XrdClientString XrdClientString::Substr(int start, int end) {
-   if (end == STR_NPOS) end = size;
+   if ( (end == STR_NPOS) || (end > size) )  end = size;
+
+   if ( (start == STR_NPOS) || (start > size) )  start = size;
 
    char *buf = (char *)malloc(end-start+1);
    strncpy(buf, data+start, end-start);

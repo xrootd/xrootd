@@ -140,6 +140,20 @@ int CreateDestPath_loc(XrdClientString path, bool isdir) {
 	    );
 }
    
+void BuildFullDestFilename(XrdClientString &src, XrdClientString &dest, bool destisdir) {
+   if (destisdir) {
+
+      // We need the filename from the source
+      XrdClientString fn(src);
+      int pos = src.RFind((char *)"/");
+
+      if (pos != STR_NPOS)
+	 fn = src.Substr(pos+1);
+
+      dest += "/";
+      dest += fn;
+   }
+}
 
 int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    // We need the path name without the file
@@ -400,7 +414,7 @@ int main(int argc, char**argv) {
       exit(1);
    }
 
-   DebugSetLevel(0);
+   DebugSetLevel(-1);
    
    for (int i=1; i < argc; i++) {
       if (strstr(argv[i], "-d") == argv[i])
@@ -439,8 +453,10 @@ int main(int argc, char**argv) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
-	    if (!CreateDestPath_xrd(d, isd))
-	       doCp_xrd2xrd(src.c_str(), dest.c_str());
+	    if (!CreateDestPath_xrd(d, isd)) {
+	       BuildFullDestFilename(src, d, isd);
+	       doCp_xrd2xrd(src.c_str(), d.c_str());
+	    }
 	    else
 	       Error("xrdcp", "Error accessing path for " << d);
 	 }
@@ -450,8 +466,10 @@ int main(int argc, char**argv) {
 	    int res;
 	    wklst->GetDest(d, isd);
 	    res = CreateDestPath_loc(d, isd);
-	    if (!res || (errno == EEXIST) || !errno)
-	       doCp_xrd2loc(src.c_str(), dest.c_str());
+	    if (!res || (errno == EEXIST) || !errno) {
+	       BuildFullDestFilename(src, d, isd);
+	       doCp_xrd2loc(src.c_str(), d.c_str());
+	    }
 	    else
 	       Error("xrdcp", "Error " << strerror(errno) <<
 		     " accessing path for " << d);
@@ -464,8 +482,10 @@ int main(int argc, char**argv) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
-	    if (!CreateDestPath_xrd(d, isd))
-	       doCp_loc2xrd(src.c_str(), dest.c_str());
+	    if (!CreateDestPath_xrd(d, isd)) {
+	       BuildFullDestFilename(src, d, isd);
+	       doCp_loc2xrd(src.c_str(), d.c_str());
+	    }
 	    else
 	       Error("xrdcp", "Error accessing path for " << d);
 	 }
