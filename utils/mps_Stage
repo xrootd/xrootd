@@ -23,7 +23,7 @@
 #    a configuration from /usr/etc/ooss/ooss_mps.cf (ooss_Stage) or
 #    /opt/xrootd/etc/xrootd.cf (mps_Stage) is read, if it exists.
 
-# -d turn on debugging (see -dd).
+# -d turn on debugging (see -dv).
 
 # -e eliminate any same named file prior to staging in this file (i.e., replace)
 
@@ -69,7 +69,7 @@
 #    that -v . is forced should -s . be specified.
 
 # -x The transfer command to use (normally, /usr/etc/ooss/pftp_client for
-#    ooss_Stage and /opt/xrootd/utils/xfrcmd for oss_Stage).
+#    ooss_Stage and /opt/xrootd/utils/xfrcmd for mps_Stage).
 #    Specify the command along with %sfn and %tfn to substitute the
 #    source and target filenames in the command line, respectively.
 
@@ -703,6 +703,7 @@ while( <CONFIG> ) {
           if ($Config{scan}) {$Config{scan} .= ':'.$val}
              else {$Config{scan} = $val}
          }
+   elsif ($svar eq 'xfrcmd') {$XfrCmd = $val; $Immed=1;}
    else  {$Config{$dvd} = $val}
 
    # Special processing for cachefs and cache
