@@ -26,6 +26,8 @@ class XrdMonDecTraceInfo;
 
 class XrdMonDecUserInfo {
 public:
+    enum TYPE { CONNECT, DISCONNECT };
+
     XrdMonDecUserInfo();
     XrdMonDecUserInfo(dictid_t id,
                       dictid_t uniqueId,
@@ -40,7 +42,7 @@ public:
     dictid_t uniqueId() const { return _myUniqueId; }
     
     string convert2string() const;
-    string convert2stringRTConnect() const;
+    const char* writeRT2Buffer(TYPE t) const;
     string convert2stringRTDisconnect() const;
 
 private:

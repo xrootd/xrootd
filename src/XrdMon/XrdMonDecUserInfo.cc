@@ -108,26 +108,20 @@ XrdMonDecUserInfo::convert2string() const
 }
 
 // this goes to real time log file
-string
-XrdMonDecUserInfo::convert2stringRTConnect() const
+const char*
+XrdMonDecUserInfo::writeRT2Buffer(TYPE t) const
 {
-    stringstream ss(stringstream::out);
-    ss <<         _myUniqueId
-       << '\t' << _user
-       << '\t' << _pid
-       << '\t' << _host;
-    return ss.str();
-}
-
-// this goes to real time log file
-string
-XrdMonDecUserInfo::convert2stringRTDisconnect() const
-{
-    stringstream ss(stringstream::out);
-    ss <<         _myUniqueId
-       << '\t' << _sec
-       << '\t' << timestamp2string(_dTime);
-    return ss.str();
+    static char buf[512];
+    
+    if ( t == CONNECT ) {
+        sprintf(buf, "c %i\t%s\t%i\t%s\n", 
+                _myUniqueId, _user.c_str(), _pid, _host.c_str());
+    } else {
+        static char b[24];
+        timestamp2string(_dTime, b);
+        sprintf(buf, "d %i\t%i\t%s\n", _myUniqueId, _sec, b);
+    }
+    return buf;
 }
 
 // this is for debugging

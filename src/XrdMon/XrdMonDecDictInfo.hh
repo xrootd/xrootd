@@ -26,6 +26,9 @@ class XrdMonDecTraceInfo;
 
 class XrdMonDecDictInfo {
 public:
+
+    enum TYPE { OPEN, CLOSE };
+    
     XrdMonDecDictInfo();
     XrdMonDecDictInfo(dictid_t id,
                       dictid_t uniqueId,
@@ -39,8 +42,7 @@ public:
     bool isClosed() const   { return 0 != _close; }
     int stringSize() const;
     string convert2string() const;
-    string convert2stringRTOpen() const;
-    string convert2stringRTClose() const;
+    const char* writeRT2Buffer(TYPE t) const;
     void writeSelf2buf(char* buf, int& pos) const;
     
     void openFile(time_t t);

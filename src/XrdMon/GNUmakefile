@@ -33,7 +33,8 @@ OBJECTS_LIB_DEC =                             \
 	$(OBJDIR)/XrdMonDecMainApp.o          \
         $(OBJDIR)/XrdMonDecPacketDecoder.o    \
 	$(OBJDIR)/XrdMonDecPreProcess.o       \
-        $(OBJDIR)/XrdMonDecSink.o             \
+	$(OBJDIR)/XrdMonDecRTLogging.o        \
+	$(OBJDIR)/XrdMonDecSink.o             \
 	$(OBJDIR)/XrdMonDecTraceInfo.o        \
         $(OBJDIR)/XrdMonDecUserInfo.o         \
 

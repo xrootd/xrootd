@@ -307,29 +307,22 @@ XrdMonDecDictInfo::convert2string() const
 }
 
 // this goes to real time log file
-string
-XrdMonDecDictInfo::convert2stringRTOpen() const
+const char*
+XrdMonDecDictInfo::writeRT2Buffer(TYPE t) const
 {
-    stringstream ss(stringstream::out);
-    ss         << _myUniqueId
-       << '\t' << _user
-       << '\t' << _host
-       << '\t' << _path
-       << '\t' << timestamp2string(_open);
-    return ss.str();
-}
-
-// this goes to real time log file
-string
-XrdMonDecDictInfo::convert2stringRTClose() const
-{
-    stringstream ss(stringstream::out);
-    ss         << _myUniqueId
-       << '\t' << _noRBytes
-       << '\t' << _noWBytes
-       << '\t' << timestamp2string(_close);
-
-    return ss.str();
+    static char buf[1024];
+    static char tBuf[24];
+    
+    if ( t == OPEN ) {
+        timestamp2string(_open, tBuf);
+        sprintf(buf, "o %i\t%s\t%s\t%s\t%s\n", 
+                _myUniqueId, _user.c_str(), _host.c_str(), _path.c_str(),tBuf);
+    } else {
+        timestamp2string(_close, tBuf);
+        sprintf(buf, "c %i\t%lld\t%lld\t%s\n", 
+                _myUniqueId, _noRBytes, _noWBytes, tBuf);
+    }
+    return buf;
 }
 
 // this is for debugging

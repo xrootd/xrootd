@@ -10,12 +10,13 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonException.hh"
-#include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonErrors.hh"
-#include "XrdMon/XrdMonSenderInfo.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonDecSink.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
+#include "XrdMon/XrdMonUtils.hh"
+
 #include <netinet/in.h>
 #include <sstream>
 #include <sys/time.h> // FIXME - remove when xrootd supports openfile
@@ -34,7 +35,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
                              const char* rtLogDir,
                              bool saveTraces,
                              int maxTraceLogSize)
-    : _rtOn(rtLogDir != 0),
+    : _rtLogger(0),
       _saveTraces(saveTraces),
       _tCacheSize(32*1024), // 32*1024 * 32 bytes = 1 MB FIXME-configurable?
       _traceLogNumber(0),
@@ -72,9 +73,8 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
         }
     }
 
-    if ( _rtOn ) {
-        _rtLogDir = rtLogDir;
-        _rtLogDir += "/realTimeLogging.txt";
+    if ( 0 != rtLogDir ) {
+        _rtLogger = new XrdMonDecRTLogging(rtLogDir, _senderHost);
     } else {
         loadUniqueIdsAndSeq();
     }
@@ -82,7 +82,8 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
 
 XrdMonDecSink::~XrdMonDecSink()
 {
-    reset();    
+    reset();
+    delete _rtLogger;
 }
 
 void 
@@ -158,9 +159,8 @@ XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
                                                 theString, len);
     cout << "Added userInfo to sink: " << *ui << endl;
 
-    if ( _rtOn ) {
-        XrdOucMutexHelper mh; mh.Lock(&_urtMutex);
-        _rtUCache.push_back(pair<OC, XrdMonDecUserInfo*>(OPEN, ui));
+    if ( 0 != _rtLogger ) {
+        _rtLogger->add(XrdMonDecUserInfo::CONNECT, ui);
     }
 }
 
@@ -210,10 +210,8 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
     }
     itr->second->setDisconnectInfo(sec, timestamp);
     
-    if ( _rtOn ) {
-        XrdOucMutexHelper mh; mh.Lock(&_urtMutex);
-        _rtUCache.push_back(
-          pair<OC, XrdMonDecUserInfo*>(CLOSE, itr->second));
+    if ( 0 != _rtLogger ) {
+        _rtLogger->add(XrdMonDecUserInfo::DISCONNECT, itr->second);
     }    
 }
 
@@ -231,9 +229,8 @@ XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
     cout << "Opening file " << xrdId << endl;
     itr->second->openFile(timestamp);
 
-    if ( _rtOn ) {
-        XrdOucMutexHelper mh; mh.Lock(&_drtMutex);
-        _rtDCache.push_back(pair<OC, XrdMonDecDictInfo*>(OPEN, itr->second));
+    if ( 0 != _rtLogger ) {
+        _rtLogger->add(XrdMonDecDictInfo::OPEN, itr->second);
     }
 }
 
@@ -254,9 +251,8 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
          << bytesR << " w= " << bytesW << endl;
     itr->second->closeFile(bytesR, bytesW, timestamp);
 
-    if ( _rtOn ) {
-        XrdOucMutexHelper mh; mh.Lock(&_drtMutex);
-        _rtDCache.push_back(pair<OC, XrdMonDecDictInfo*>(CLOSE, itr->second));
+    if ( 0 != _rtLogger ) {
+        _rtLogger->add(XrdMonDecDictInfo::CLOSE, itr->second);
     }
 }
 
@@ -571,52 +567,6 @@ XrdMonDecSink::flushHistoryData()
 }
 
 void
-XrdMonDecSink::flushRealTimeData()
-{
-    cout << "Flushing RT data..." << endl;
-    fstream f(_rtLogDir.c_str(), ios::out|ios::app);
-
-    {
-        XrdOucMutexHelper mh; mh.Lock(&_urtMutex);
-        int i, s = _rtUCache.size();
-        for ( i=0 ; i<s ; ++i ) {
-            if ( _rtUCache[i].first == OPEN ) {
-                f << "u " << _rtUCache[i].second->convert2stringRTConnect() 
-                  << '\t'  << _senderHost << endl;
-                cout << "u " << _rtUCache[i].second->convert2stringRTConnect() 
-                     << '\t'  << _senderHost << endl;
-            } else {
-                f << "d " << _rtUCache[i].second->convert2stringRTDisconnect()
-                  << '\t'  << _senderHost << endl;
-                cout <<"d " <<_rtUCache[i].second->convert2stringRTDisconnect()
-                     << '\t'  << _senderHost << endl;
-            }
-        }
-        _rtUCache.clear();
-    }
-    {   
-        XrdOucMutexHelper mh; mh.Lock(&_drtMutex);
-        int i, s = _rtDCache.size();
-        for ( i=0 ; i<s ; ++i ) {
-            if ( _rtDCache[i].first == OPEN ) {
-                f << "o " << _rtDCache[i].second->convert2stringRTOpen() 
-                  << '\t' << _senderHost << endl;
-                cout << "o " << _rtDCache[i].second->convert2stringRTOpen() 
-                     << '\t' << _senderHost << endl;
-            } else {
-                f << "c " << _rtDCache[i].second->convert2stringRTClose()
-                  << '\t' << _senderHost << endl;
-                cout << "c " << _rtDCache[i].second->convert2stringRTClose()
-                     << '\t' << _senderHost << endl;
-            }
-        }
-        _rtDCache.clear();
-    }
-    
-    f.close();
-}
-
-void
 XrdMonDecSink::reset()
 {
     flushClosedDicts();
@@ -624,7 +574,7 @@ XrdMonDecSink::reset()
     reportLostPackets();
     _lost.clear();
     
-    if ( ! _rtOn ) {
+    if ( 0 == _rtLogger ) {
         flushTCache();
         checkpoint();
     }

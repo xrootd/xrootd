@@ -16,6 +16,7 @@
 #include "XrdMon/XrdMonDecDictInfo.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdMon/XrdMonDecUserInfo.hh"
+#include "XrdMon/XrdMonDecRTLogging.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include <algorithm>
 #include <fstream>
@@ -50,8 +51,8 @@ public:
                    kXR_int64 bytesW, 
                    time_t timestamp);
     void flushHistoryData();
-    void flushRealTimeData();
-
+    void flushRealTimeData() { if ( 0 != _rtLogger ) _rtLogger->flush(); }
+    
     void reset();
     
 private:
@@ -75,15 +76,7 @@ private:
     XrdOucMutex    _dMutex;
     XrdOucMutex    _uMutex;
 
-    // specific to real time logging
-    bool _rtOn;
-    string _rtLogDir;
-    enum OC { OPEN, CLOSE };
-    vector< pair<OC, XrdMonDecDictInfo*> > _rtDCache;
-    vector< pair<OC, XrdMonDecUserInfo*> > _rtUCache;
-    XrdOucMutex    _drtMutex;
-    XrdOucMutex    _urtMutex;
-    // end of specific to real time logging
+    XrdMonDecRTLogging* _rtLogger;
 
     bool _saveTraces;
     typedef vector<XrdMonDecTraceInfo> TraceVector;
