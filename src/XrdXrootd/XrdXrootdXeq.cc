@@ -871,12 +871,12 @@ int XrdXrootdProtocol::do_ReadAll()
 // Now read all of the data
 //
    do {if ((xframt = myFile->XrdSfsp->read(myOffset, buff, Quantum)) <= 0) break;
+       myFile->readCnt += xframt;
        if (xframt >= myIOLen) return Response.Send(buff, xframt);
        if (Response.Send(kXR_oksofar, buff, xframt) < 0) return -1;
        myOffset += xframt; myIOLen -= xframt;
        if (myIOLen < Quantum) Quantum = myIOLen;
       } while(myIOLen);
-   myFile->readCnt += (iolen - myIOLen); // Somewhat accurate
 
 // Determine why we ended here
 //
