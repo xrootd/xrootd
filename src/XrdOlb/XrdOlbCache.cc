@@ -127,7 +127,7 @@ int XrdOlbCache::AddFile(char *path, SMask_t mask, int isrw, int dltime)
 {
    XrdOlbPInfo  pinfo;
    XrdOlbCInfo *cinfo;
-   int isnew;
+   int isnew = 0;
 
 // Find if this server can handle the file in r/w mode
 //
@@ -144,7 +144,7 @@ int XrdOlbCache::AddFile(char *path, SMask_t mask, int isrw, int dltime)
    if ((cinfo = PTable.Find(path)))
       {if (dltime > 0) 
           {cinfo->deadline = dltime + time(0);
-           cinfo->rovec = 0; cinfo->rwvec = 0; cinfo->sbvec = 0; isnew = 0;
+           cinfo->rovec = 0; cinfo->rwvec = 0; cinfo->sbvec = 0;
           } else {
            isnew = (cinfo->rovec == 0);
            cinfo->rovec |=  mask; cinfo->sbvec &= ~mask;
@@ -251,7 +251,7 @@ void XrdOlbCache::Bounce(SMask_t smask, char *path)
       } else {
        struct XrdOlbBNCArgs xargs = {smask, path, strlen(path)};
        PTMutex.Lock();
-       PTable.Apply(XrdOlbBounceSome, (void *)&smask);
+       PTable.Apply(XrdOlbBounceSome, (void *)&xargs);
        PTMutex.UnLock();
       }
 }
