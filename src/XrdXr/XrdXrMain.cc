@@ -238,7 +238,7 @@ void doLogin(char *buffer)
   if (client->login((kXR_char*) username.c_str(), 
 		    (kXR_char*) role.c_str()     ) == 0) {
     login = true;
-    client->setMaxWaitTime(10);
+    client->setMaxWaitTime(120); // Was 10
   } else {
     cerr << "Error: login not done correctly. " << endl;
   }
@@ -321,7 +321,7 @@ void doOpen(char *buffer)
     if (client->login((kXR_char*) getpwuid(getuid())->pw_name, 
 		      (kXR_char*) role) == 0) {
       login = true;
-      client->setMaxWaitTime(10);
+      client->setMaxWaitTime(120); // Was 10
     }
     else {
       return; 
@@ -553,7 +553,7 @@ int main(int argc, char *argv[])
       cout << "hostname:port> ";
       login = false;
     }
-    cin.getline(input, len);
+    if (!cin.getline(input, len)) {cout <<endl; break;} // At eof
  
     command = parseInput(input);
 
