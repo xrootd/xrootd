@@ -157,7 +157,7 @@ sub loadCloseSession() {
     # find if there is corresponding open session, if not don't bother
     my ($userId, $pId, $clientHId, $serverHId) = 
 	&runQueryWithRet("SELECT userId, pId, clientHId, serverHId FROM rtOpenedSessions WHERE id = $sessionId");
-    if ( $pId < 1 ) {
+    if ( ! $pId  ) {
 	return;
     }
     #print "received decent data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
@@ -354,7 +354,7 @@ sub printHelp() {
 
 
 sub doInit() {
-    my $lastTime = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour");
+    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour");
     if ( $lastTime ) {
         ($nMin, $lastNoJobs, $lastNoUsers, $lastNoUniqueF, $lastNoNonUniqueF) 
             = &runQueryWithRet("SELECT seqNo, noJobs, noUsers, noUniqueF, noNonUniqueF
@@ -365,7 +365,7 @@ sub doInit() {
         $nMin = $lastNoJobs = $lastNoUsers = $lastNoUniqueF = $lastNoNonUniqueF = 0;
     }
 
-    $lastTime = &runQueryWithRet("SELECT MAX(date) FROM statsLastDay");
+    ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastDay");
     if ( $lastTime ) {
         $nHour = &runQueryWithRet("SELECT seqNo FROM statsLastDay WHERE date = \"$lastTime\"");
         $nHour += 1;
@@ -373,7 +373,7 @@ sub doInit() {
         $nHour = 0;
     }
 
-    $lastTime = &runQueryWithRet("SELECT MAX(date) FROM statsLastMonth");
+    ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastMonth");
     if ( $lastTime ) {
         $nDay = &runQueryWithRet("SELECT seqNo FROM statsLastMonth WHERE date = \"$lastTime\"");
         $nDay += 1;
