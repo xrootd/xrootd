@@ -11,7 +11,7 @@ include ../GNUmake.env
 #-----------------------------------------------------------------------------#
   
 OBJECTS_LIB_COMMON =                          \
-        $(OBJDIR)/XrdMonAPException.o         \
+        $(OBJDIR)/XrdMonException.o           \
         $(OBJDIR)/XrdMonHeader.o              \
         $(OBJDIR)/XrdMonTimer.o               \
         $(OBJDIR)/XrdMonUtils.o
