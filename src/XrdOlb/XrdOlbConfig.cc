@@ -229,6 +229,33 @@ int XrdOlbConfig::Configure(int argc, char **argv)
        }
      }
 
+// Establish pointers to error message handling
+//
+   if (!logfn) XrdOlbSTDERR = 0;
+      else {XrdOlbSTDERR = dup(2);
+            XrdOlbLog.Bind(logfn, logsync);
+           }
+
+// Get the full host name. In theory, we should always get some kind of name.
+//
+   if (!(myName = XrdNetDNS::getHostName()))
+      {XrdOlbSay.Emsg("Config", "Unable to determine host name; "
+                                "execution terminated.");
+       _exit(16);
+      }
+
+// Verify that we have a real name. We've had problems with people setting up
+// bad /etc/hosts files that can cause connection failures if "allow" is used.
+// Otherwise, determine our domain name.
+//
+   if (isdigit(*myName) && (isdigit(*(myName+1)) || *(myName+1) == '.'))
+      {XrdOlbSay.Emsg("Config", myName, "is not the true host name of this machine.");
+       XrdOlbSay.Emsg("Config", "Verify that the '/etc/hosts' file is correct and "
+                                "this machine is registered in DNS.");
+       XrdOlbSay.Emsg("Config", "Execution continues but connection failures may occur.");
+       myDomain = 0;
+      } else myDomain = index(myName, '.');
+
 // Bail if no configuration file specified
 //
    if (!ConfigFN && !(ConfigFN = getenv("XrdOlbCONFIGFN")) || !*ConfigFN)
@@ -257,13 +284,6 @@ int XrdOlbConfig::Configure(int argc, char **argv)
       }
    if (isServer) smtype = (char *)"server";
    if (isServer && isManager) smtype = (char *)"supervisor";
-
-// Establish pointers to error message handling
-//
-   if (!logfn) XrdOlbSTDERR = 0;
-      else {XrdOlbSTDERR = dup(2);
-            XrdOlbLog.Bind(logfn, logsync);
-           }
 
 // Print herald
 //
@@ -569,9 +589,8 @@ void XrdOlbConfig::ConfigDefaults(void)
 
 // Preset all variables with common defaults
 //
-   if (!(myName = XrdNetDNS::getHostName()))
-      {XrdOlbSay.Emsg("Config", "Unable to determine my host name!"); _exit(8);}
-   myDomain = index(myName, '.');
+   myName   = (char *)"localhost"; // Correctly set in Configure()
+   myDomain = 0;
    LUPDelay = 5;
    DRPDelay = 10*60;
    SRVDelay = 90;

@@ -132,13 +132,9 @@ time_t midnite;
   
 XrdConfig::XrdConfig(void)
 {
-   static sockaddr myIPAddr;
-   char *dnp;
 
 // Preset all variables with common defaults
 //
-   myName   = XrdNetDNS::getHostName();
-              XrdNetDNS::getHostAddr(myName, &myIPAddr);
    PortTCP  = 0;
    PortUDP  = 0;
    ConfigFN = 0;
@@ -161,8 +157,6 @@ XrdConfig::XrdConfig(void)
    ProtInfo.Threads = 0;                // Stable -> The thread manager (later)
 
    ProtInfo.Format   = XrdFORMATB;
-   ProtInfo.myName   = myName;
-   ProtInfo.myAddr   = &myIPAddr;
    ProtInfo.ConnOptn = -4;     // Num of connections to optimize for (1/4*max)
    ProtInfo.ConnLife = 60*60;  // Time   of connections to optimize for.
    ProtInfo.ConnMax  = -1;     // Max       connections (fd limit)
@@ -171,16 +165,6 @@ XrdConfig::XrdConfig(void)
    ProtInfo.DebugON  = 0;      // 1 if started with -d
    ProtInfo.argc     = 0;
    ProtInfo.argv     = 0;
-
-// Create Domain name
-//
-   if (!(dnp = myName))
-      {XrdLog.Emsg("Config", "Unable to determine host name; "
-                             "execution terminated.");
-       _exit(16);
-      }
-   while(*dnp && *dnp != '.') dnp++;
-   myDomain = (*dnp == '.' ? dnp : 0);
 }
   
 /******************************************************************************/
@@ -196,6 +180,7 @@ int XrdConfig::Configure(int argc, char **argv)
 
   Output:   0 upon success or !0 otherwise.
 */
+   static sockaddr myIPAddr;
    int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = 0;
    char c, *myProg, buff[512], *temp, *dfltProt, *logfn = 0;
    extern char *optarg;
@@ -254,6 +239,32 @@ int XrdConfig::Configure(int argc, char **argv)
    if (logfn) {XrdLogger.Bind(logfn, 24*60*60);
                new XrdLogWorker();
               }
+
+// Get the full host name. In theory, we should always get some kind of name.
+//
+   if (!(myName = XrdNetDNS::getHostName()))
+      {XrdLog.Emsg("Config", "Unable to determine host name; "
+                             "execution terminated.");
+       _exit(16);
+      }
+
+// Verify that we have a real name. We've had problems with people setting up
+// bad /etc/hosts files that can cause connection failures if "allow" is used.
+// Otherwise, determine our domain name.
+//
+   if (isdigit(*myName) && (isdigit(*(myName+1)) || *(myName+1) == '.'))
+      {XrdLog.Emsg("Config", myName, "is not the true host name of this machine.");
+       XrdLog.Emsg("Config", "Verify that the '/etc/hosts' file is correct and "
+                             "this machine is registered in DNS.");
+       XrdLog.Emsg("Config", "Execution continues but connection failures may occur.");
+       myDomain = 0;
+      } else myDomain = index(myName, '.');
+
+// Get our IP address
+//
+   XrdNetDNS::getHostAddr(myName, &myIPAddr);
+   ProtInfo.myName = myName;
+   ProtInfo.myAddr = &myIPAddr;
 
 // Put out the herald
 //
