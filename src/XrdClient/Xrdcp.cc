@@ -226,12 +226,20 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    XrdClientStatInfo stat;
 
    // Open the input file (xrdc)
-   if (!cpnfo.XrdCli)
+   // If Xrdcli is non-null, the correct src file has already been opened
+   if (!cpnfo.XrdCli) {
       cpnfo.XrdCli = new XrdClient(src);
+      if ( (!cpnfo.XrdCli->Open(0, kXR_async) ||
+	    cpnfo.XrdCli->LastServerResp()->status == kXR_ok) ) {
+	 cerr << "Error opening remote source file " << src << endl;
 
-   if (cpnfo.XrdCli->Open(0, kXR_async)) {
+	 delete cpnfo.XrdCli;
+	 cpnfo.XrdCli = 0;
+	 return 1;
+      }
+   }
 
-      // Open the output file (loc)
+
       cpnfo.XrdCli->Stat(&stat);
       cpnfo.len = stat.size;
 
@@ -283,7 +291,6 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 
       delete cpnfo.XrdCli;
       cpnfo.XrdCli = 0;
-   }
 
    delete *xrddest;
 
@@ -297,9 +304,21 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    XrdClientStatInfo stat;
    int f;
 
+
    // Open the input file (xrdc)
-   if (!cpnfo.XrdCli)
+   // If Xrdcli is non-null, the correct src file has already been opened
+   if (!cpnfo.XrdCli) {
       cpnfo.XrdCli = new XrdClient(src);
+      if ( (!cpnfo.XrdCli->Open(0, kXR_async) ||
+	    cpnfo.XrdCli->LastServerResp()->status == kXR_ok) ) {
+
+	 delete cpnfo.XrdCli;
+	 cpnfo.XrdCli = 0;
+
+	 cerr << "Error opening remote source file " << src << endl;
+	 return 1;
+      }
+   }
 
       // Open the output file (loc)
       cpnfo.XrdCli->Stat(&stat);
