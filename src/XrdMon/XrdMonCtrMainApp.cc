@@ -25,36 +25,41 @@ using std::cout;
 using std::endl;
 using namespace XrdMonArgParserConvert;
 
+const bool      defaultOnlineDecOn   = true;    // online decoding on
+const bool      defaultRTOn          = true;    // real time decoding on
 const char*     defaultCtrLogDir     = "./logs/collector";
 const char*     defaultDecLogDir     = "./logs/decoder";
-const char*     defaultRtLogDir      = "./logs/rt";
-const int       defaultDecFlushDelay = 600;             // [sec]
-const bool      defaultRtOn          = false;           // rt off
+const char*     defaultRTLogDir      = "./logs/rt";
+const int       defaultDecHDFlushDelay = 600;           // [sec]
+const int       defaultDecRTFlushDelay = 5;             // [sec]
 const kXR_int64 defaultMaxCtrLogSize = 1024*1024*1024;  // 1GB
 
 void
 printHelp()
 {
     cout << "\nxrdmonCollector\n"
+         << "    [-onlineDec <on|off>]\n"
+         << "    [-rt <on|off>]\n"
          << "    [-ctrLogDir <path>]\n"
          << "    [-decLogDir <path>]\n"
          << "    [-rtLogDir <path>]\n"
          << "    [-decFlushDelay <value>]\n"
-         << "    [-rt <on|off>]\n"
          << "    [-maxCtrLogSize <value>]\n"
          << "\n"
+         << "-onlineDec <on|off>     Turns on/off online decoding.\n"
+         << "                        Default value is \"" << (defaultOnlineDecOn?"on":"off") << "\".\n"
+         << "-rt <on|off>            Turns on/off real time monitoring. Online decoding has to be\n"
+         << "                        Default value is \"" << (defaultRTOn?"on":"off") << "\".\n"
          << "-ctrLogDir <path>       Directory where collector's log file are stored.\n"
          << "                        Default value is \"" << defaultCtrLogDir << "\".\n"
          << "-decLogDir <path>       Directory where decoder's log file are stored.\n"
          << "                        Default value is \"" << defaultDecLogDir << "\".\n"
          << "-rtLogDir <path>        Directory where real time log file are stored.\n"
-         << "                        Default value is \"" << defaultRtLogDir << "\".\n"
-         << "-decFlushDelay <value>  Value in sec specifying how often data is\n"
-         << "                        flushed to collector's log files.\n"
-         << "                        Default value is \"" << defaultDecFlushDelay << "\".\n"
-         << "-rt <on|off>            Turns on/off real time monitoring.\n"
-         << "                        If it is turned off, rtLogDir value is ignored.\n"
-         << "                        Default value is \"" << (defaultRtOn?"on":"off") << "\".\n"
+         << "                        Default value is \"" << defaultRTLogDir << "\".\n"
+         << "-decHDFlushDelay <value>  Value in sec specifying how often history data is\n"
+         << "                        flushed to collector's log files. History data means\n"
+         << "                        the data corresponding to *closed* sessions and files.\n" 
+         << "                        Default value is \"" << defaultDecHDFlushDelay << "\".\n"
          << "-maxCtrLogSize <value>  Max size of collector's log file.\n"
          << "                        Default value is \"" << defaultMaxCtrLogSize << "\".\n"
          << endl;
@@ -64,26 +69,32 @@ int main(int argc, char* argv[])
 {
     XrdMonCtrDebug::initialize();
 
+    XrdMonArgParser::ArgImpl<bool, ConvertOnOff>
+         arg_onlineDecOn("-onlineDec", defaultOnlineDecOn);
+    XrdMonArgParser::ArgImpl<bool, ConvertOnOff>
+         arg_rtOn       ("-rt", defaultRTOn);
     XrdMonArgParser::ArgImpl<const char*, Convert2String> 
          arg_ctrLogDir  ("-ctrLogDir", defaultCtrLogDir);
     XrdMonArgParser::ArgImpl<const char*, Convert2String> 
          arg_decLogDir  ("-decLogDir", defaultDecLogDir);
     XrdMonArgParser::ArgImpl<const char*, Convert2String>
-         arg_rtLogDir   ("-rtLogDir", defaultRtLogDir);
+         arg_rtLogDir   ("-rtLogDir", defaultRTLogDir);
     XrdMonArgParser::ArgImpl<int, Convert2Int>
-         arg_decFlushDel("-decFlushDelay", defaultDecFlushDelay);
-    XrdMonArgParser::ArgImpl<bool, ConvertOnOff>
-         arg_rtOn       ("-rt", defaultRtOn);
+         arg_decRTFlushDel("-decRTFlushDelay", defaultDecRTFlushDelay);
+    XrdMonArgParser::ArgImpl<int, Convert2Int>
+         arg_decHDFlushDel("-decHDFlushDelay", defaultDecHDFlushDelay);
     XrdMonArgParser::ArgImpl<kXR_int64, Convert2LL> 
         arg_maxFSize   ("-maxCtrLogSize", defaultMaxCtrLogSize);
 
     try {
         XrdMonArgParser argParser;
+        argParser.registerExpectedArg(&arg_onlineDecOn);
+        argParser.registerExpectedArg(&arg_rtOn);
         argParser.registerExpectedArg(&arg_ctrLogDir);
         argParser.registerExpectedArg(&arg_decLogDir);
         argParser.registerExpectedArg(&arg_rtLogDir);
-        argParser.registerExpectedArg(&arg_decFlushDel);
-        argParser.registerExpectedArg(&arg_rtOn);
+        argParser.registerExpectedArg(&arg_decRTFlushDel);
+        argParser.registerExpectedArg(&arg_decHDFlushDel);
         argParser.registerExpectedArg(&arg_maxFSize);
         argParser.parseArguments(argc, argv);
     } catch (XrdMonException& e) {
@@ -91,20 +102,31 @@ int main(int argc, char* argv[])
         printHelp();
         return 1;
     }
-    
-    cout << "ctrLogDir     is " << arg_ctrLogDir.myVal() << endl;
-    cout << "decLogDir     is " << arg_decLogDir.myVal() << endl;
-    cout << "rtLogDir      is " << arg_rtLogDir.myVal()  << endl;
-    cout << "decFlushDelay is " << arg_decFlushDel.myVal() << endl;
-    cout << "rt monitoring is " << (arg_rtOn.myVal()? "on" : "off") << endl;
-    cout << "maxCtrLogSize is " << arg_maxFSize.myVal() << endl;
+    if ( arg_onlineDecOn.myVal() == false && arg_rtOn.myVal() ) {
+        cerr << "\nYou can not turn on rt monitoring if online decoding is off."
+             << endl;
+        printHelp();
+        return 1;
+    }
+
+    cout << "online decoding is " << (arg_onlineDecOn.myVal()?"on":"off")<< '\n'
+         << "rt monitoring   is " << (arg_rtOn.myVal()?"on":"off")<< '\n'
+         << "ctrLogDir       is " << arg_ctrLogDir.myVal() << '\n'
+         << "decLogDir       is " << arg_decLogDir.myVal() << '\n'
+         << "rtLogDir        is " << arg_rtLogDir.myVal()  << '\n'
+         << "decRTFlushDelay is " << arg_decRTFlushDel.myVal() << '\n'
+         << "decHDFlushDelay is " << arg_decHDFlushDel.myVal() << '\n'
+         << "maxCtrLogSize   is " << arg_maxFSize.myVal() << endl;
 
     try {
         mkdirIfNecessary(arg_ctrLogDir.myVal());
-        mkdirIfNecessary(arg_decLogDir.myVal());
-        if ( arg_rtOn.myVal() ) {
-            mkdirIfNecessary(arg_rtLogDir.myVal());
-            XrdMonCtrArchiver::_decFlushDelay = arg_decFlushDel.myVal();
+        XrdMonCtrArchiver::_decHDFlushDelay= arg_decHDFlushDel.myVal();
+        if ( arg_onlineDecOn.myVal() ) {
+            mkdirIfNecessary(arg_decLogDir.myVal());
+            if ( arg_rtOn.myVal() ) {
+                mkdirIfNecessary(arg_rtLogDir.myVal());
+                XrdMonCtrArchiver::_decRTFlushDelay= arg_decRTFlushDel.myVal();
+            }
         }
     } catch (XrdMonException& e) {
         e.printIt();
@@ -125,7 +147,8 @@ int main(int argc, char* argv[])
     XrdMonCtrArchiver archiver(arg_ctrLogDir.myVal(), 
                                arg_decLogDir.myVal(),
                                arg_rtLogDir.myVal(),
-                               arg_maxFSize.myVal(), 
+                               arg_maxFSize.myVal(),
+                               arg_onlineDecOn.myVal(), 
                                arg_rtOn.myVal());
     archiver();
 

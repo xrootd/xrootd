@@ -26,7 +26,8 @@ class XrdMonDecPacketDecoder;
 // Manages heartbeat for writers (writers inactive for 24 hours
 // are closed). It does not interpret data inside packet.
 
-extern "C" void* decFlushHeartBeat(void* arg);
+extern "C" void* decHDFlushHeartBeat(void* arg);
+extern "C" void* decRTFlushHeartBeat(void* arg);
 
 class XrdMonCtrArchiver {
 public:
@@ -34,18 +35,23 @@ public:
                       const char* dBaseDir,
                       const char* rtLogDir,
                       kXR_int64 maxFileSize,
+                      bool onlineDec,
                       bool rtDec);
     ~XrdMonCtrArchiver();
     void operator()();
 
     void reset();
     
-    static int _decFlushDelay; // #sec between flushes of decoded data to disk
+    static int _decHDFlushDelay; // number of sec between flushes of decoded 
+                                 // history data to disk
+    static int _decRTFlushDelay; // number of sec between flushes of decoded 
+                                 // "current" data to disk
 
 private:
     void check4InactiveSenders();
     void archivePacket(XrdMonCtrPacket* p);
-    friend void* decFlushHeartBeat(void* arg);
+    friend void* decHDFlushHeartBeat(void* arg);
+    friend void* decRTFlushHeartBeat(void* arg);
     void deleteWriters();
     
 private:
@@ -56,7 +62,8 @@ private:
     vector<XrdMonCtrWriter*> _writers;
 
     XrdMonDecPacketDecoder* _decoder;
-    pthread_t               _decFlushThread;
+    pthread_t               _decHDFlushThread; // history data
+    pthread_t               _decRTFlushThread; // real time data
 
     long _currentTime;
     int  _heartbeat; // number of packets since the last time check

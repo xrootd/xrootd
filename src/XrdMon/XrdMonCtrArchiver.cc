@@ -26,12 +26,14 @@
 using std::cout;
 using std::endl;
 
-int XrdMonCtrArchiver::_decFlushDelay =  -1;
+int XrdMonCtrArchiver::_decHDFlushDelay = -1;
+int XrdMonCtrArchiver::_decRTFlushDelay = -1;
 
 XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir, 
                                      const char* dBaseDir,
                                      const char* rtLogDir,
                                      kXR_int64 maxLogSize,
+                                     bool onlineDec,
                                      bool rtDec)
     : _decoder(0), 
       _currentTime(0),
@@ -40,15 +42,24 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
     XrdMonCtrWriter::setBaseDir(cBaseDir);
     XrdMonCtrWriter::setMaxLogSize(maxLogSize);
 
-    if ( rtDec ) {
+    if ( onlineDec ) {
         _decoder = new XrdMonDecPacketDecoder(dBaseDir, rtLogDir);
         // BTW, MT-safety inside Sink
-        if ( 0 != pthread_create(&_decFlushThread, 
+        if ( 0 != pthread_create(&_decHDFlushThread, 
                                  0, 
-                                 decFlushHeartBeat,
+                                 decHDFlushHeartBeat,
                                  (void*)_decoder) ) {
             throw XrdMonException(ERR_PTHREADCREATE, 
                                   "Failed to create thread");
+        }
+        if ( 0 != rtDec ) {
+            if ( 0 != pthread_create(&_decRTFlushThread, 
+                                     0, 
+                                     decRTFlushHeartBeat,
+                                     (void*)_decoder) ) {
+                throw XrdMonException(ERR_PTHREADCREATE, 
+                                      "Failed to create thread");
+            }
         }
     }
 }
@@ -82,11 +93,11 @@ XrdMonCtrArchiver::operator()()
 }
 
 // this function runs in a separate thread, wakes up
-// every now and then and triggers data flushing
+// every now and then and triggers "history data" flushing
 extern "C" void*
-decFlushHeartBeat(void* arg)
+decHDFlushHeartBeat(void* arg)
 {
-    if ( XrdMonCtrArchiver::_decFlushDelay == -1 ) {
+    if ( XrdMonCtrArchiver::_decHDFlushDelay == -1 ) {
         return (void*)0; // should never happen
     }
     XrdMonDecPacketDecoder* myDecoder = (XrdMonDecPacketDecoder*) arg;
@@ -95,8 +106,29 @@ decFlushHeartBeat(void* arg)
                               "invalid archiver passed");
     }
     while ( 1 ) {
-        sleep(XrdMonCtrArchiver::_decFlushDelay);
-        myDecoder->flushDataNow();
+        sleep(XrdMonCtrArchiver::_decHDFlushDelay);
+        myDecoder->flushHistoryData();
+    }
+
+    return (void*)0;
+}
+
+// this function runs in a separate thread, wakes up
+// every now and then and triggers "current data" flushing
+extern "C" void*
+decRTFlushHeartBeat(void* arg)
+{
+    if ( XrdMonCtrArchiver::_decRTFlushDelay == -1 ) {
+        return (void*)0; // should never happen
+    }
+    XrdMonDecPacketDecoder* myDecoder = (XrdMonDecPacketDecoder*) arg;
+    if ( 0 == myDecoder ) {
+        throw XrdMonException(ERR_PTHREADCREATE, 
+                              "invalid archiver passed");
+    }
+    while ( 1 ) {
+        sleep(XrdMonCtrArchiver::_decRTFlushDelay);
+        myDecoder->flushRealTimeData();
     }
 
     return (void*)0;

@@ -109,13 +109,24 @@ XrdMonDecUserInfo::convert2string() const
 
 // this goes to real time log file
 string
-XrdMonDecUserInfo::convert2stringRT() const
+XrdMonDecUserInfo::convert2stringRTConnect() const
 {
     stringstream ss(stringstream::out);
-    ss <<        _myUniqueId
-       << ' ' << _user
-     //<< ' ' << _pid
-       << ' ' << _host;
+    ss <<         _myUniqueId
+       << '\t' << _user
+       << '\t' << _pid
+       << '\t' << _host;
+    return ss.str();
+}
+
+// this goes to real time log file
+string
+XrdMonDecUserInfo::convert2stringRTDisconnect() const
+{
+    stringstream ss(stringstream::out);
+    ss <<         _myUniqueId
+       << '\t' << _sec
+       << '\t' << timestamp2string(_dTime);
     return ss.str();
 }
 

@@ -17,11 +17,13 @@
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdMon/XrdMonDecUserInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+#include <algorithm>
 #include <fstream>
 #include <map>
 #include <vector>
 using std::fstream;
 using std::map;
+using std::pair;
 using std::vector;
 
 class XrdMonDecSink {
@@ -47,7 +49,8 @@ public:
                    kXR_int64 bytesR, 
                    kXR_int64 bytesW, 
                    time_t timestamp);
-    void flushDataNow();
+    void flushHistoryData();
+    void flushRealTimeData();
 
     void reset();
     
@@ -72,7 +75,13 @@ private:
     XrdOucMutex    _dMutex;
     XrdOucMutex    _uMutex;
 
-    fstream _rtLogFile;
+    // specific to real time logging
+    bool _rtOn;
+    string _rtLogDir;
+    enum OC { OPEN, CLOSE };
+    vector< pair<OC, XrdMonDecDictInfo*> > _rtDCache;
+    vector< pair<OC, XrdMonDecUserInfo*> > _rtUCache;
+    // end of specific to real time logging
 
     bool _saveTraces;
     typedef vector<XrdMonDecTraceInfo> TraceVector;

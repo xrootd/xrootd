@@ -41,7 +41,8 @@ public:
     
     bool     stopNow() const { return _stopNow; }
 
-    void flushDataNow() { return _sink.flushDataNow(); }
+    void flushHistoryData() { return _sink.flushHistoryData(); }
+    void flushRealTimeData() { return _sink.flushRealTimeData(); }
     
 private:
     typedef pair<time_t, time_t> TimePair; // <beg time, end time>

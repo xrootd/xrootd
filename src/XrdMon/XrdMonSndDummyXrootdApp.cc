@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
         }
     }
     
-    const char* inputPathFile = "../others/paths.txt";
+    const char* inputPathFile = "./paths.txt";
 
     kXR_int32 seed = 12345;
 

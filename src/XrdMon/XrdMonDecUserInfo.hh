@@ -40,7 +40,8 @@ public:
     dictid_t uniqueId() const { return _myUniqueId; }
     
     string convert2string() const;
-    string convert2stringRT() const;
+    string convert2stringRTConnect() const;
+    string convert2stringRTDisconnect() const;
 
 private:
     int doOne(const char* s, char* buf, int len, char delim) {

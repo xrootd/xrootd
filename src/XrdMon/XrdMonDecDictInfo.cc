@@ -308,14 +308,27 @@ XrdMonDecDictInfo::convert2string() const
 
 // this goes to real time log file
 string
-XrdMonDecDictInfo::convert2stringRT() const
+XrdMonDecDictInfo::convert2stringRTOpen() const
 {
     stringstream ss(stringstream::out);
-    ss        << _myUniqueId
-       << ' ' << _user
-       << ' ' << _host
-       << ' ' << _path
-       << ' ' << timestamp2string(_open);
+    ss         << _myUniqueId
+       << '\t' << _user
+       << '\t' << _host
+       << '\t' << _path
+       << '\t' << timestamp2string(_open);
+    return ss.str();
+}
+
+// this goes to real time log file
+string
+XrdMonDecDictInfo::convert2stringRTClose() const
+{
+    stringstream ss(stringstream::out);
+    ss         << _myUniqueId
+       << '\t' << _noRBytes
+       << '\t' << _noWBytes
+       << '\t' << timestamp2string(_close);
+
     return ss.str();
 }
 
