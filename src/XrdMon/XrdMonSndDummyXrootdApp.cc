@@ -26,7 +26,7 @@
 // known problems with 2 and 4
 //const kXR_int64 NOCALLS = 8640000;   24h worth
 const kXR_int64 NOCALLS = 1000000000;
-const kXR_int16 maxNoXrdMonSndPackets = 100;
+const kXR_int16 maxNoXrdMonSndPackets = 50;
 
 
 void
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
     }
 
     // use this loop to test light decoder
-    /*
+    cout << "\n***** sending LIGHT data *****\n" << endl;
     for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
         calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
         doDictionaryXrdMonSndPacket(xrootd, coder, transmitter, noP);
@@ -167,9 +167,10 @@ int main(int argc, char* argv[]) {
             usleep(1);
         }
     }
-    */
 
     // use this loop to test full tracing
+    /*
+    cout << "\n***** sending BULK data *****\n" << endl;
     for ( kXR_int64 i=0 ; i<NOCALLS ; i++ ) {
         if ( ! --calls2NewXrdMonSndDictEntry ) {
             calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
@@ -187,6 +188,7 @@ int main(int argc, char* argv[]) {
             usleep(1);
         }
     }
+    */
 
     if ( XrdMonSndDebug::verbose(XrdMonSndDebug::Sending) ) {
         cout << "Flushing cache" << endl;

@@ -42,7 +42,6 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
       _lastSeq(0xFF),
       _uniqueDictId(1),
       _uniqueUserId(1),
-      _logNameSeqId(0),
       _senderId(65500) // make it invalid, so that _senderHost is initialized
 {
     if ( maxTraceLogSize < 2  ) {
@@ -55,11 +54,11 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     _jnlPath = _path + "/jnl";
     _path += generateTimestamp();
     _path += "_";
-    
-    string fDPath = buildDictFileName();
+    _dictPath = _path + "dict.ascii";
+    _userPath = _path + "user.ascii";
 
-    if ( 0 == access(fDPath.c_str(), F_OK) ) {
-        string s("File "); s += fDPath;
+    if ( 0 == access(_dictPath.c_str(), F_OK) ) {
+        string s("File "); s += _dictPath;
         s += " exists. Move it somewhere else first.";
         throw XrdMonException(ERR_INVALIDARG, s);
     }
@@ -143,6 +142,7 @@ XrdMonDecSink::init(dictid_t min, dictid_t max, const string& senderHP)
 void
 XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
 {
+    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
     if ( itr != _dCache.end() ) {
         stringstream se;
@@ -151,7 +151,8 @@ XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
     }
     
     XrdMonDecDictInfo* di;
-    _dCache[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueDictId++, theString, len);
+    _dCache[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueDictId++, 
+                                                theString, len);
     cout << "Added dictInfo to sink: " << *di << endl;
 
     // FIXME: remove this line when xrootd supports openFile
@@ -161,6 +162,7 @@ XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
 void
 XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
 {
+    XrdOucMutexHelper mh; mh.Lock(&_uMutex);
     std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(usrId);
     if ( itr != _uCache.end() ) {
         stringstream se;
@@ -169,7 +171,8 @@ XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
     }
     
     XrdMonDecUserInfo* ui;
-    _uCache[usrId] = ui = new XrdMonDecUserInfo(usrId, _uniqueUserId++, theString, len);
+    _uCache[usrId] = ui = new XrdMonDecUserInfo(usrId, _uniqueUserId++, 
+                                                theString, len);
     cout << "Added userInfo to sink: " << *ui << endl;
 }
 
@@ -183,6 +186,7 @@ XrdMonDecSink::add(dictid_t xrdId, XrdMonDecTraceInfo& trace)
         noLostTraces = 0;
     }
 
+    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
     if ( itr == _dCache.end() ) {
         registerLostPacket(xrdId, "Add trace");
@@ -196,7 +200,8 @@ XrdMonDecSink::add(dictid_t xrdId, XrdMonDecTraceInfo& trace)
         return; // something wrong with this trace, ignore it
     }
     if ( _saveTraces ) {
-        //cout << "Adding trace to sink (dictid=" << xrdId << ") " << trace << endl;
+        //cout << "Adding trace to sink (dictid=" 
+        //<< xrdId << ") " << trace << endl;
         _tCache.push_back(trace);
         if ( _tCache.size() >= _tCacheSize ) {
             flushTCache();
@@ -209,13 +214,14 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
                                  kXR_int32 sec,
                                  time_t timestamp)
 {
+    XrdOucMutexHelper mh; mh.Lock(&_uMutex);
     std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(xrdId);
     if ( itr == _uCache.end() ) {
         registerLostPacket(xrdId, "User disconnect");
         return;
     }
     itr->second->setDisconnectInfo(sec, timestamp);
-
+    
     if ( _rtLogFile.is_open() ) {
         char timeStr[24];
         timestamp2string(timestamp, timeStr);
@@ -229,11 +235,13 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
 void
 XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
 {
+    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
     if ( itr == _dCache.end() ) {
         registerLostPacket(xrdId, "Open file");
         return;
     }
+
     cout << "Opening file " << xrdId << endl;
     itr->second->openFile(timestamp);
 
@@ -249,12 +257,15 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
                          kXR_int64 bytesW, 
                          time_t timestamp)
 {
+    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
     if ( itr == _dCache.end() ) {
         registerLostPacket(xrdId, "Close file");
         return;
     }
-    cout << "Closing file id= " << xrdId << " r= " << bytesR << " w= " << bytesW << endl;
+
+    cout << "Closing file id= " << xrdId << " r= " 
+         << bytesR << " w= " << bytesW << endl;
     itr->second->closeFile(bytesR, bytesW, timestamp);
 
     if ( _rtLogFile.is_open() ) {
@@ -294,42 +305,93 @@ XrdMonDecSink::loadUniqueIdsAndSeq()
 void
 XrdMonDecSink::flushClosedDicts()
 {
-    string fPath = buildDictFileName();
-
-    fstream fD(fPath.c_str(), ios::out);
+    fstream fD(_dictPath.c_str(), ios::out | ios::app);
     enum { BUFSIZE = 1024*1024 };
     
     char buf[BUFSIZE];
-    int curLen = 0;
     map<dictid_t, XrdMonDecDictInfo*>::iterator itr;
-    for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
-        XrdMonDecDictInfo* di = itr->second;
-        if ( di != 0 && di->isClosed() ) {
-            string dString = di->convert2string();
-            dString += '\t';dString += _senderHost;dString += '\n';
-            int strLen = dString.size();
-            if ( curLen == 0 ) {
-                strcpy(buf, dString.c_str());
-            } else {
-                if ( curLen + strLen >= BUFSIZE ) {
-                    fD.write(buf, curLen);
-                    curLen = 0;
-                    cout << "flushed to disk: \n" << buf << endl;
+    int curLen = 0, sizeBefore = 0, sizeAfter = 0;
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        sizeBefore = _dCache.size();
+        for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
+            XrdMonDecDictInfo* di = itr->second;
+            if ( di != 0 && di->isClosed() ) {
+                string dString = di->convert2string();
+                dString += '\t';dString += _senderHost;dString += '\n';
+                int strLen = dString.size();
+                if ( curLen == 0 ) {
                     strcpy(buf, dString.c_str());
                 } else {
-                    strcat(buf, dString.c_str());
+                    if ( curLen + strLen >= BUFSIZE ) {
+                        fD.write(buf, curLen);
+                        curLen = 0;
+                        //cout << "flushed to disk: \n" << buf << endl;
+                        strcpy(buf, dString.c_str());
+                    } else {
+                        strcat(buf, dString.c_str());
+                    }
                 }
+                curLen += strLen;
+                delete itr->second;
+                _dCache.erase(itr);
             }
-            curLen += strLen;
-            delete itr->second;
-            _dCache.erase(itr);
         }
+        sizeAfter = _dCache.size();
     }
+    
+    if ( curLen > 0 ) {
+        fD.write(buf, curLen);
+        //cout << "flushed to disk: \n" << buf << endl;
+    }
+    fD.close();
+    cout << "flushed (d) " << sizeBefore-sizeAfter << ", left " << sizeAfter << endl;
+}
+
+void
+XrdMonDecSink::flushUserCache()
+{
+    fstream fD(_userPath.c_str(), ios::app);
+    enum { BUFSIZE = 1024*1024 };
+    
+    char buf[BUFSIZE];
+    map<dictid_t, XrdMonDecUserInfo*>::iterator itr;
+    int curLen = 0, sizeBefore = 0, sizeAfter = 0;
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+        sizeBefore = _uCache.size();
+        for ( itr=_uCache.begin() ; itr != _uCache.end() ; ++itr ) {
+            XrdMonDecUserInfo* di = itr->second;
+            if ( di != 0 && di->readyToBeStored() ) {
+                string dString = di->convert2string();
+                dString += '\t';dString += _senderHost;dString += '\n';
+                int strLen = dString.size();
+                if ( curLen == 0 ) {
+                    strcpy(buf, dString.c_str());
+                } else {
+                    if ( curLen + strLen >= BUFSIZE ) {
+                        fD.write(buf, curLen);
+                        curLen = 0;
+                        cout << "flushed to disk: \n" << buf << endl;
+                        strcpy(buf, dString.c_str());
+                    } else {
+                        strcat(buf, dString.c_str());
+                    }
+                }
+                curLen += strLen;
+                delete itr->second;
+                _uCache.erase(itr);
+            }
+        }
+        sizeAfter = _uCache.size();
+    }
+    
     if ( curLen > 0 ) {
         fD.write(buf, curLen);
         cout << "flushed to disk: \n" << buf << endl;
     }
     fD.close();
+    cout << "flushed (u) " << sizeBefore-sizeAfter << ", left " << sizeAfter << endl;
 }
 
 void
@@ -393,17 +455,20 @@ XrdMonDecSink::checkpoint()
     // save all active XrdMonDecDictInfos
     int nr =0;
     map<dictid_t, XrdMonDecDictInfo*>::iterator itr;
-    for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
-        XrdMonDecDictInfo* di = itr->second;
-        if ( di != 0 && ! di->isClosed() ) {
-            ++nr;
-            if ( di->stringSize() + bufPos >= BUFSIZE ) {
-                f.write(buf, bufPos);
-                bufPos = 0;
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
+            XrdMonDecDictInfo* di = itr->second;
+            if ( di != 0 && ! di->isClosed() ) {
+                ++nr;
+                if ( di->stringSize() + bufPos >= BUFSIZE ) {
+                    f.write(buf, bufPos);
+                    bufPos = 0;
+                }
+                di->writeSelf2buf(buf, bufPos); // this will increment bufPos
+                delete itr->second;
+                _dCache.erase(itr);
             }
-            di->writeSelf2buf(buf, bufPos); // this will increment bufPos
-            delete itr->second;
-            _dCache.erase(itr);
         }
     }
     if ( bufPos > 0 ) {
@@ -488,11 +553,10 @@ XrdMonDecSink::registerLostPacket(dictid_t xrdId, const char* descr)
     }
 }
 
-string
-XrdMonDecSink::buildDictFileName()
+void
+XrdMonDecSink::flushDataNow()
 {
-    stringstream ss(stringstream::out);
-    ss << _path << setw(3) << setfill('0') << _logNameSeqId << "_dict.ascii";
-    return ss.str();
+    cout << "Flushing decoded data..." << endl;
+    flushClosedDicts();
+    flushUserCache();
 }
-

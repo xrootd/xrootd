@@ -32,6 +32,7 @@ int main(int argc, char* argv[])
     const char* COLLECTORLOGDIR = "./logs/collector";
     const char* DECODERLOGDIR   = "./logs/decoder";
     const char* RTLOGDIR        = "./logs/rt";
+    const int   DECFLUSHDELAY   =  60; // [sec]
     // end of to-be configurable block
 
     mkdirIfNecessary(BASEDIR);
@@ -39,6 +40,10 @@ int main(int argc, char* argv[])
     mkdirIfNecessary(DECODERLOGDIR);
     mkdirIfNecessary(RTLOGDIR);
 
+    if ( rtDec ) {
+        XrdMonCtrArchiver::_decFlushDelay = DECFLUSHDELAY;
+    }
+    
     // start thread for receiving data
     pthread_t recThread;
     if ( 0 != pthread_create(&recThread, 

@@ -26,6 +26,8 @@
 using std::cout;
 using std::endl;
 
+int XrdMonCtrArchiver::_decFlushDelay =  -1;
+
 XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir, 
                                      const char* dBaseDir,
                                      const char* rtLogDir,
@@ -40,6 +42,14 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
 
     if ( rtDec ) {
         _decoder = new XrdMonDecPacketDecoder(dBaseDir, rtLogDir);
+        // BTW, MT-safety inside Sink
+        if ( 0 != pthread_create(&_decFlushThread, 
+                                 0, 
+                                 decFlushHeartBeat,
+                                 (void*)_decoder) ) {
+            throw XrdMonException(ERR_PTHREADCREATE, 
+                                  "Failed to create thread");
+        }
     }
 }
 
@@ -74,6 +84,27 @@ XrdMonCtrArchiver::operator()()
             e.printItOnce();
         }
     }
+}
+
+// this function runs in a separate thread, wakes up
+// every now and then and triggers data flushing
+void*
+XrdMonCtrArchiver::decFlushHeartBeat(void* arg)
+{
+    if ( _decFlushDelay == -1 ) {
+        return (void*)0; // should never happen
+    }
+    XrdMonDecPacketDecoder* myDecoder = (XrdMonDecPacketDecoder*) arg;
+    if ( 0 == myDecoder ) {
+        throw XrdMonException(ERR_PTHREADCREATE, 
+                              "invalid archiver passed");
+    }
+    while ( 1 ) {
+        sleep(_decFlushDelay);
+        myDecoder->flushDataNow();
+    }
+
+    return (void*)0;
 }
 
 void

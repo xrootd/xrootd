@@ -16,6 +16,7 @@
 #include "XrdMon/XrdMonDecDictInfo.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdMon/XrdMonDecUserInfo.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 #include <fstream>
 #include <map>
 #include <vector>
@@ -47,20 +48,26 @@ public:
                    kXR_int64 bytesW, 
                    time_t timestamp);
 
+    void flushDataNow();
 private:
     void loadUniqueIdsAndSeq();
     vector<XrdMonDecDictInfo*> loadActiveDictInfo();
     void flushClosedDicts();
+    void flushUserCache();
     void flushTCache();
     void checkpoint();
     void openTraceFile(fstream& f);
     void write2TraceFile(fstream& f, const char* buf, int len);
     void registerLostPacket(dictid_t id, const char* descr);
-    string buildDictFileName();
     
 private:
     map<dictid_t, XrdMonDecDictInfo*> _dCache;
     map<dictid_t, XrdMonDecUserInfo*> _uCache;
+    // The mutexes guard access to dCache and uCache respectively.
+    // _dCache and _uCache can be accessed from different threads
+    // (periodic data flushing inside dedicated thread)
+    XrdOucMutex    _dMutex;
+    XrdOucMutex    _uMutex;
 
     fstream _rtLogFile;
 
@@ -77,10 +84,10 @@ private:
     dictid_t _uniqueDictId; // dictId in mySQL, unique for given xrootd host
     dictid_t _uniqueUserId; // userId in mySQL, unique for given xrootd host
 
-    kXR_unt16 _logNameSeqId; // to build unique names for multiple log files 
-                            // created by the same process
     string _path;    // <basePath>/<date>_seqId_
     string _jnlPath; // <basePath>/jnl
+    string _dictPath;// <basePath>/<YYYYMMDD_HH:MM:SS.MMM_dict.ascii
+    string _userPath;// <basePath>/<YYYYMMDD_HH:MM:SS.MMM_user.ascii
     
     kXR_unt16 _senderId; // needed to check if senderHost can be reused
     string   _senderHost;

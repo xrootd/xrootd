@@ -14,6 +14,7 @@
 #define XRDMONCTRARCHIVER_HH
 
 #include "XrdMon/XrdMonTypes.hh"
+#include "pthread.h"
 #include <vector>
 using std::vector;
 
@@ -35,10 +36,14 @@ public:
     ~XrdMonCtrArchiver();
     void operator()();
 
+    static int _decFlushDelay; // #sec between flushes of decoded data to disk
+
 private:
     void check4InactiveSenders();
     void archivePacket(XrdMonCtrPacket* p);
-
+    static void* decFlushHeartBeat(void* arg);
+    
+private:
     enum { TIMESTAMP_FREQ = 10000,   // re-take time every X packets
            MAX_INACTIVITY = 60*60*24 // kill writer if no activity for 24 hours
     };
@@ -46,6 +51,7 @@ private:
     vector<XrdMonCtrWriter*> _writers;
 
     XrdMonDecPacketDecoder* _decoder;
+    pthread_t      _decFlushThread;
 
     long _currentTime;
     int  _heartbeat; // number of packets since the last time check

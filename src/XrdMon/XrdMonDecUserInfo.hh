@@ -32,6 +32,8 @@ public:
                       const char* theString,
                       int len);
 
+    inline bool readyToBeStored() const {return _dTime > 0;}
+    
     void setDisconnectInfo(kXR_int32 sec, time_t timestamp);
     
     dictid_t xrdId() const { return _myXrdId; }
