@@ -26,15 +26,15 @@ struct XrdXrootdMonHeader
        };
 
 struct XrdXrootdMonTrace
-       {union {union {kXR_int64  val;
-                      kXR_char   id[8];
-                      kXR_unt32  rTot[2]; } arg0;
-               union {kXR_int32  buflen;
-                      kXR_int32  Window;
-                      kXR_unt32  wTot;    } arg1;
-               union {kXR_unt32  dictid;
-                      kXR_int32  Window;  } arg2;
-
+       {union {struct {union {kXR_int64  val;
+                              kXR_char   id[8];
+                              kXR_unt32  rTot[2]; } arg0;
+                       union {kXR_int32  buflen;
+                              kXR_int32  Window;
+                              kXR_unt32  wTot;    } arg1;
+                       union {kXR_unt32  dictid;
+                              kXR_int32  Window;  } arg2;
+                      } data;
                kXR_char rec[16];
               };
        };
@@ -50,12 +50,12 @@ struct XrdXrootdMonMap
         char               info[1024+256];
        };
   
-#define XROOTD_MON_APPID  0xa0
-#define XROOTD_MON_CLOSE  0xc0
-#define XROOTD_MON_OPEN   0x80
-#define XROOTD_MON_WINDOW 0xe0
+const char XROOTD_MON_APPID         = 0xa0;
+const char XROOTD_MON_CLOSE         = 0xc0;
+const char XROOTD_MON_OPEN          = 0x80;
+const char XROOTD_MON_WINDOW        = 0xe0;
 
-#define XROOTD_MON_MAPPATH 'd'
-#define XROOTD_MON_MAPINFO 'i'
+const char XROOTD_MON_MAPPATH       = 'd';
+const char XROOTD_MON_MAPINFO       = 'i';
 
 #endif

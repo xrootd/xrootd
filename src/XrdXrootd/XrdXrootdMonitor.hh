@@ -128,8 +128,8 @@ static int                numMonitor;
 void XrdXrootdMonitor::Add_io(kXR_unt32 dictid,kXR_int32 blen,kXR_int64 offset)
      {if (lastWindow != currWindow) Mark();
          else if (nextEnt == lastEnt) Flush();
-      monBuff->info[nextEnt].arg0.val      = offset;
-      monBuff->info[nextEnt].arg1.buflen   = blen;
-      monBuff->info[nextEnt++].arg2.dictid = dictid;
+      monBuff->info[nextEnt].data.arg0.val      = offset;
+      monBuff->info[nextEnt].data.arg1.buflen   = blen;
+      monBuff->info[nextEnt++].data.arg2.dictid = dictid;
      }
 #endif

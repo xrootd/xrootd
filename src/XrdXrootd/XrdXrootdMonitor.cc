@@ -143,10 +143,9 @@ XrdXrootdMonitor::XrdXrootdMonitor()
    if (!(monBuff = (XrdXrootdMonBuff *)memalign(getpagesize(), monBlen)))
       eDest->Emsg("Monitor", "Unable to allocate monitor buffer.");
       else {nextEnt = 1;
-            monBuff->info[0].arg0.id[0] =
-                     static_cast<kXR_char>(XROOTD_MON_WINDOW);
-            monBuff->info[0].arg1.Window  =
-            monBuff->info[0].arg2.Window  = 
+            monBuff->info[0].data.arg0.id[0]   = XROOTD_MON_WINDOW;
+            monBuff->info[0].data.arg1.Window  =
+            monBuff->info[0].data.arg2.Window  = 
                      static_cast<kXR_int32>(ntohl(localWindow));
            }
 }
@@ -225,14 +224,14 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
 //
    if (lastWindow != currWindow) Mark();
       else if (nextEnt == lastEnt) Flush();
-   monBuff->info[nextEnt].arg0.id[0]  = XROOTD_MON_CLOSE;
-   monBuff->info[nextEnt].arg0.id[1] = do_Shift(rTot, rVal);
-   monBuff->info[nextEnt].arg0.rTot[1] =
+   monBuff->info[nextEnt].data.arg0.id[0]    = XROOTD_MON_CLOSE;
+   monBuff->info[nextEnt].data.arg0.id[1]    = do_Shift(rTot, rVal);
+   monBuff->info[nextEnt].data.arg0.rTot[1]  =
                 static_cast<kXR_unt32>(htonl(rVal));
-   monBuff->info[nextEnt].arg0.id[2] = do_Shift(wTot, wVal);
-   monBuff->info[nextEnt].arg1.wTot =
+   monBuff->info[nextEnt].data.arg0.id[2]    = do_Shift(wTot, wVal);
+   monBuff->info[nextEnt].data.arg1.wTot     =
                 static_cast<kXR_unt32>(htonl(wVal));
-   monBuff->info[nextEnt++].arg2.dictid = dictid;
+   monBuff->info[nextEnt++].data.arg2.dictid = dictid;
 
 // Check if we need to duplicate this entry
 //
@@ -414,9 +413,9 @@ void XrdXrootdMonitor::Open(kXR_unt32 dictid)
 
   if (lastWindow != currWindow) Mark();
      else if (nextEnt == lastEnt) Flush();
-  monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_OPEN;
-  monBuff->info[nextEnt].arg1.buflen   = 0;
-  monBuff->info[nextEnt++].arg2.dictid = dictid;
+  monBuff->info[nextEnt].data.arg0.id[0]    = XROOTD_MON_OPEN;
+  monBuff->info[nextEnt].data.arg1.buflen   = 0;
+  monBuff->info[nextEnt++].data.arg2.dictid = dictid;
 
 // Check if we need to duplicate this entry
 //
@@ -533,18 +532,18 @@ void XrdXrootdMonitor::Flush()
 
 // Place the ending timing mark, send off the buffer and reinitialize it
 //
-   monBuff->info[nextEnt].arg0.id[0]   = XROOTD_MON_WINDOW;
-   monBuff->info[nextEnt].arg1.Window  =
-   monBuff->info[nextEnt].arg2.Window  = now;
+   monBuff->info[nextEnt].data.arg0.id[0]   = XROOTD_MON_WINDOW;
+   monBuff->info[nextEnt].data.arg1.Window  =
+   monBuff->info[nextEnt].data.arg2.Window  = now;
 
    if (this != altMon) Send(XROOTD_MON_IO, (void *)monBuff, size);
       else {Send(XROOTD_MON_FILE, (void *)monBuff, size);
             FlushTime = now + autoFlush;
            }
 
-   monBuff->info[      0].arg0.id[0]   = XROOTD_MON_WINDOW;
-   monBuff->info[      0].arg1.Window  =
-   monBuff->info[      0].arg2.Window  = now;
+   monBuff->info[0].data.arg0.id[0]   = XROOTD_MON_WINDOW;
+   monBuff->info[0].data.arg1.Window  =
+   monBuff->info[0].data.arg2.Window  = now;
    nextEnt = 1;
 }
 
@@ -565,14 +564,14 @@ void XrdXrootdMonitor::Mark()
 
 // Now, optimize placing the window mark in the buffer
 //
-   if (monBuff->info[nextEnt-1].arg0.id[0] == XROOTD_MON_WINDOW)
-      monBuff->info[nextEnt-1].arg2.Window = 
+   if (monBuff->info[nextEnt-1].data.arg0.id[0] == XROOTD_MON_WINDOW)
+      monBuff->info[nextEnt-1].data.arg2.Window = 
                static_cast<kXR_int32>(ntohl(localWindow));
       else if (nextEnt+8 > lastEnt) Flush();
-              else {monBuff->info[nextEnt].arg0.id[0]   = XROOTD_MON_WINDOW;
-                    monBuff->info[nextEnt].arg1.Window  =
+              else {monBuff->info[nextEnt].data.arg0.id[0]   = XROOTD_MON_WINDOW;
+                    monBuff->info[nextEnt].data.arg1.Window  =
                              static_cast<kXR_int32>(ntohl(lastWindow));
-                    monBuff->info[nextEnt].arg2.Window  =
+                    monBuff->info[nextEnt].data.arg2.Window  =
                              static_cast<kXR_int32>(ntohl(localWindow));
                     nextEnt++;
                    }
