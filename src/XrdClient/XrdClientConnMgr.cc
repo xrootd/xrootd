@@ -107,6 +107,8 @@ XrdClientConnectionMgr::XrdClientConnectionMgr()
       abort();
    }
 
+   pthread_mutexattr_destroy(&attr);
+
    // Garbage collector thread creation
    if (EnvGetLong(NAME_STARTGARBAGECOLLECTORTHREAD)) {
       int pt_ret;
@@ -270,8 +272,13 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 		 RemoteServ.Host << ":" << RemoteServ.Port <<
 		 " succesfully created.");
 
-      } else 
+      } else {
+	 delete logconn;
+	 delete phyconn;
+	 
          return -1;
+      }
+
    }
 
 

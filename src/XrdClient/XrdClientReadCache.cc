@@ -79,6 +79,8 @@ XrdClientReadCache::XrdClientReadCache()
       abort();
    }
 
+   pthread_mutexattr_destroy(&attr);
+
    fMissRate = 0.0;
    fMissCount = 0;
    fReadsCounter = 0;

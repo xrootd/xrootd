@@ -29,7 +29,7 @@ XrdClientStringMatcher::~XrdClientStringMatcher() {
    free(exp);
 }
 
-
+// Tells if str is matched in the pattern given by expr
 bool XrdClientStringMatcher::SingleMatches(char *expr, char *str) {  
    char *plainexp;
    unsigned int exprlen, plainexplen;
@@ -45,6 +45,9 @@ bool XrdClientStringMatcher::SingleMatches(char *expr, char *str) {
       starend = ((expr[exprlen-1] == '*') && (exprlen > 1));
    }
 
+   if (starbeg && (exprlen == 1))
+      return TRUE;
+
    // Build plainexp by stripping the initial  *
    if (starbeg)
       plainexp = strdup(expr+1);
@@ -57,7 +60,7 @@ bool XrdClientStringMatcher::SingleMatches(char *expr, char *str) {
 
    plainexplen = strlen(plainexp);
 
-
+   // See where the pattern can be found inside the string
    char *p = strstr(str, plainexp);
    if (!p) {
       free(plainexp);

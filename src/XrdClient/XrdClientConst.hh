@@ -52,7 +52,13 @@
 #define DFLT_GOASYNC 1
 #define NAME_GOASYNC            (char *)"GoAsync"
 
-#define  XRD_CLIENT_VERSION (char *)"0.2 beta"
+
+// Printable version
+#define XRD_CLIENT_VERSION      (char *)"0.3"
+// Version and capabilities sent to the server
+#define XRD_CLIENT_CAPVER       kXR_asyncap
+
+
 
 // Defaults for ReadAhead and Cache
 #define DFLT_READCACHESIZE      4000000
@@ -70,6 +76,7 @@
 
 #define TRUE  1
 #define FALSE 0
+
 
 
 #endif

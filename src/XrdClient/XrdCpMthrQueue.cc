@@ -33,6 +33,8 @@ XrdCpMthrQueue::XrdCpMthrQueue() {
       abort();
    }
 
+   pthread_mutexattr_destroy(&attr);
+
    fMsgQue.Clear();
    fTotSize = 0;
 }

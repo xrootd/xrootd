@@ -46,6 +46,8 @@ XrdClientEnv::XrdClientEnv() {
 	 rc = pthread_mutex_init(&fMutex, &attr);
    }
 
+   pthread_mutexattr_destroy(&attr);
+
    if (rc) {
       abort();
    }

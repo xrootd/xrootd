@@ -220,7 +220,7 @@ void XrdClientSock::TryConnect()
    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
 	"Trying to connect to" <<
 	fHost.TcpHost.Host << "(" << fHost.TcpHost.HostAddr << "):" <<
-	fHost.TcpHost.Port);
+	fHost.TcpHost.Port << " Timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT) );
 
 
    // Connect to a remote host yep

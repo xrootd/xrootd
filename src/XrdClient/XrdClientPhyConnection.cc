@@ -80,6 +80,8 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
       abort();
    }
 
+   pthread_mutexattr_destroy(&attr);
+
    // Initialization of lock mutex
    rc = pthread_mutexattr_init(&attr);
    if (rc == 0) {
@@ -92,7 +94,8 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
             "Can't create mutex: out of system resources.");
       abort();
    }
-
+   
+   pthread_mutexattr_destroy(&attr);
 
    Touch();
 

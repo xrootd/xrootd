@@ -235,6 +235,9 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
       do {
 
          XrdClientConn::EThreeStateReadHandler whatToDo;
+
+	 delete xmsg;
+
          xmsg = ReadPartialAnswer(errorType, TotalBlkSize, req, HasToAlloc,
                                   &tmpMoreData, whatToDo);
 
@@ -246,8 +249,11 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
             fMainReadCache->SubmitXMessage(xmsg, req->read.offset,
                                            req->read.offset + xmsg->fHdr.dlen);
 
-         if (whatToDo == kTSRHReturnNullMex)
+         if (whatToDo == kTSRHReturnNullMex) {
+	    delete xmsg;
             return 0;
+	 }
+
          if (whatToDo == kTSRHReturnMex)
             return xmsg;
 	
@@ -700,6 +706,9 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
                free(*tmpMoreData);
                *tmpMoreData = 0;
                what_to_do = kTSRHReturnNullMex;
+
+	       delete Xmsg;
+
                return 0;
             }
             *tmpMoreData = tmp2MoreData;
@@ -1069,6 +1078,7 @@ bool XrdClientConn::DoLogin()
 
    SetSID(reqhdr.header.streamid);
    reqhdr.header.requestid = kXR_login;
+   reqhdr.login.capver = XRD_CLIENT_CAPVER;
    reqhdr.login.pid = getpid();
 
    // Get username from Url
@@ -1194,6 +1204,8 @@ bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString p
      // Retrieve the security protocol context from the xrootd server
      //
      protocol = XrdSecGetProtocol((const struct sockaddr &)netaddr, secToken, 0);
+     // future code will be:
+     //protocol = XrdSecGetProtocol((char *)fUrl.Host.c_str(), (const struct sockaddr &)netaddr, secToken, 0);
      if (!protocol) { 
 
 	Info(XrdClientDebug::kHIDEBUG,

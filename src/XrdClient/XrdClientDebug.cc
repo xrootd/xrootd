@@ -44,6 +44,8 @@ XrdClientDebug::XrdClientDebug() {
 	 rc = pthread_mutex_init(&fMutex, &attr);
    }
 
+   pthread_mutexattr_destroy(&attr);
+
    if (rc) {
       Error("InputBuffer", 
             "Can't create mutex: out of system resources.");

@@ -14,6 +14,8 @@
 #ifndef XRD_CLIVEC_H
 #define XRD_CLIVEC_H
 
+#include <stdlib.h>
+
 template<class T>
 class XrdClientVector {
 

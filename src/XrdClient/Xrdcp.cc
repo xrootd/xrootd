@@ -58,7 +58,7 @@ void *ReaderThread_xrd(void *)
    while ((nr > 0) && (offs < len)) {
       buf = malloc(XRDCP_BLOCKSIZE);
       if (!buf) {
-	 Error("xrdcp", "Out of memory.");
+	 cerr << "Out of memory." << endl;
 	 abort();
       }
 
@@ -104,7 +104,7 @@ void *ReaderThread_loc(void *) {
    while (nr > 0) {
       buf = malloc(XRDCP_BLOCKSIZE);
       if (!buf) {
-	 Error("xrdcp", "Out of memory.");
+	 cerr << "Out of memory." << endl;
 	 abort();
       }
 
@@ -234,7 +234,7 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
    // Open the input file (xrdc)
    cpnfo.XrdCli = new XrdClient(src);
 
-   if (cpnfo.XrdCli->Open(0, 0)) {
+   if (cpnfo.XrdCli->Open(0, kXR_async)) {
 
       // Open the output file (loc)
       cpnfo.XrdCli->Stat(&stat);
@@ -242,8 +242,9 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
 
       xrddest = new XrdClient(dst);
       if (!xrddest->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-			 kXR_open_updt | kXR_delete | kXR_force)) {
-	 Error("xrdcp", "Error opening remote destination file " << dst);
+			 kXR_async | kXR_mkpath |
+			 kXR_open_updt | kXR_new | kXR_force)) {
+	 cerr << "Error opening remote destination file " << dst << endl;
 
 	 xrddest->Close();
 	 cpnfo.XrdCli->Close();
@@ -266,7 +267,7 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
 	    if (len && buf) {
 
 	       if (!xrddest->Write(buf, offs, len)) {
-		  Error("xrdcp", "Error writing to output server.");
+		  cerr << "Error writing to output server." << endl;
 		  break;
 	       }
 
@@ -305,7 +306,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 
    // Open the input file (xrdc)
    cpnfo.XrdCli = new XrdClient(src);
-   if (cpnfo.XrdCli->Open(0, 0)) {
+   if (cpnfo.XrdCli->Open(0, kXR_async)) {
 
       // Open the output file (loc)
       cpnfo.XrdCli->Stat(&stat);
@@ -318,8 +319,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 		      O_CREAT | O_WRONLY | O_TRUNC,
 		      S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);   
 	 if (f < 0) {
-	    Error("xrdcp", "Error " << strerror(errno) <<
-		  " creating " << dst);
+	    cerr << "Error " << strerror(errno) <<
+		  " creating " << dst << endl;
 
 	    cpnfo.XrdCli->Close();
 	    delete cpnfo.XrdCli;
@@ -344,8 +345,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	    if (len && buf) {
 
 	       if (write(f, buf, len) <= 0) {
-		  Error ("xrdcp", "Error " << strerror(errno) <<
-			 " writing to " << dst);
+		  cerr << "Error " << strerror(errno) <<
+			 " writing to " << dst << endl;
 		  break;
 	       }
 
@@ -384,15 +385,16 @@ int doCp_loc2xrd(const char *src, const char * dst) {
    // Open the input file (loc)
    cpnfo.localfile = open(src, O_RDONLY);   
    if (cpnfo.localfile < 0) {
-      Error("xrdcp", "Error " << strerror(errno) << " opening " << src);
+      cerr << "Error " << strerror(errno) << " opening " << src << endl;
       cpnfo.localfile = 0;
       return -1;
    }
 
    xrddest = new XrdClient(dst);
    if (!xrddest->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-		      kXR_open_updt | kXR_delete | kXR_force)) {
-      Error("xrdcp", "Error opening remote destination file " << dst);
+		      kXR_async | kXR_mkpath |
+		      kXR_open_updt | kXR_new | kXR_force)) {
+      cerr << "Error opening remote destination file " << dst << endl;
       close(cpnfo.localfile);
       delete xrddest;
       cpnfo.localfile = 0;
@@ -411,7 +413,7 @@ int doCp_loc2xrd(const char *src, const char * dst) {
 	 if (len && buf) {
 
 	    if (!xrddest->Write(buf, offs, len)) {
-	       Error("xrdcp", "Error writing to output server.");
+	       cerr << "Error writing to output server." << endl;
 	       break;
 	    }
 
@@ -425,7 +427,7 @@ int doCp_loc2xrd(const char *src, const char * dst) {
 	 }
       }
       else {
-	 Error("xrdcp", "Read timeout.");
+	 cerr << "Read timeout." << endl;
 	 break;
       }
 	 
@@ -449,7 +451,7 @@ int main(int argc, char**argv) {
    int newdbglvl = -1;
 
    if (argc < 3) {
-      Error("xrdcp", "usage: xrdcp <source> <dest>");
+      cerr << "usage: xrdcp <source> <dest>" << endl;
       exit(1);
    }
 
@@ -473,12 +475,12 @@ int main(int argc, char**argv) {
    XrdClientString src, dest;
    
    if (wklst->SetSrc(srcpath)) {
-      Error("xrdcp", "Error accessing path/file for " << srcpath);
+      cerr << "Error accessing path/file for " << srcpath << endl;
       exit(1);
    }
 
    if (wklst->SetDest(destpath)) {
-      Error("xrdcp", "Error accessing path/file for " << destpath);
+      cerr << "Error accessing path/file for " << destpath << endl;
       exit(1);
    }
 
@@ -492,12 +494,12 @@ int main(int argc, char**argv) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
-	    if (!CreateDestPath_xrd(d, isd)) {
-	       BuildFullDestFilename(src, d, isd);
-	       doCp_xrd2xrd(src.c_str(), d.c_str());
-	    }
-	    else
-	       Error("xrdcp", "Error accessing path for " << d);
+	    //	    if (!CreateDestPath_xrd(d, isd)) {
+	    BuildFullDestFilename(src, d, isd);
+	    doCp_xrd2xrd(src.c_str(), d.c_str());
+	    //	    }
+	    //	    else
+	    //	       cerr << "Error accessing path for " << d;
 	 }
 	 else {
 	    XrdClientString d;
@@ -510,8 +512,8 @@ int main(int argc, char**argv) {
 	       doCp_xrd2loc(src.c_str(), d.c_str());
 	    }
 	    else
-	       Error("xrdcp", "Error " << strerror(errno) <<
-		     " accessing path for " << d);
+	       cerr << "Error " << strerror(errno) <<
+		     " accessing path for " << d << endl;
 	 }
       }
       else {
@@ -521,15 +523,15 @@ int main(int argc, char**argv) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
-	    if (!CreateDestPath_xrd(d, isd)) {
-	       BuildFullDestFilename(src, d, isd);
-	       doCp_loc2xrd(src.c_str(), d.c_str());
-	    }
-	    else
-	       Error("xrdcp", "Error accessing path for " << d);
+	    //	    if (!CreateDestPath_xrd(d, isd)) {
+	    BuildFullDestFilename(src, d, isd);
+	    doCp_loc2xrd(src.c_str(), d.c_str());
+	    //	    }
+	    //	    else
+	    //	       cerr << "Error accessing path for " << d;
 	 }
 	 else {
-	    Error("xrdcp", "Better to use cp in this case.");
+	    cerr << "Better to use cp in this case." << endl;
 	    exit(2);
 	 }
 

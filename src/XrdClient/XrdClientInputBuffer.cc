@@ -88,6 +88,8 @@ XrdClientInputBuffer::XrdClientInputBuffer() {
       abort();
    }
 
+   pthread_mutexattr_destroy(&attr);
+
    // Initialization of lock mutex
    rc = pthread_mutexattr_init(&attr);
    if (rc == 0) {
@@ -100,6 +102,8 @@ XrdClientInputBuffer::XrdClientInputBuffer() {
             "Can't create mutex: out of system resources.");
       abort();
    }
+
+   pthread_mutexattr_destroy(&attr);
 
    fMsgQue.Clear();
 }
@@ -118,6 +122,15 @@ XrdClientInputBuffer::~XrdClientInputBuffer() {
    {
       XrdClientMutexLocker mtx(fMutex);
 
+
+      // Delete the content of the queue
+      for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
+	 delete fMsgQue[fMsgIter];
+	 fMsgQue[fMsgIter] = 0;
+      }
+
+
+      // Delete all the syncobjs
       fSyncobjRepo.Apply(DeleteHashItem, 0);
 
    }
