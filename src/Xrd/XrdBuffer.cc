@@ -270,8 +270,8 @@ void XrdBuffManager::Set(int maxmem, int minw)
   
 int XrdBuffManager::Stats(char *buff, int blen, int do_sync)
 {
-    static char statfmt[] = "<stats id=\"buff\"><reqs>%ld</reqs>"
-                "<mem>%lld</mem><buffs>%ld</buffs><adj>%ld</adj></stats>";
+    static char statfmt[] = "<stats id=\"buff\"><reqs>%d</reqs>"
+                "<mem>%lld</mem><buffs>%d</buffs><adj>%d</adj></stats>";
     int nlen;
 
 // If only size wanted, return it
