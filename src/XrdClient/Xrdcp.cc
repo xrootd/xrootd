@@ -330,10 +330,10 @@ int main(int argc, char**argv) {
 
    Info(XrdClientDebug::kNODEBUG, "main", XRDCP_VERSION);
 
-   if (strstr(argv[1], "root://") == argv[1]) {
+   if (0 != strstr(argv[1], "root://")) {
       // source is xrootd
 
-      if (strstr(argv[2], "root://") == argv[2])
+      if (0 != strstr(argv[2], "root://"))
 	  doCp_xrd2xrd(argv[1], argv[2]);
       else
 	 doCp_xrd2loc(argv[1], argv[2]);
@@ -341,7 +341,7 @@ int main(int argc, char**argv) {
    else {
       // source is localfs
 
-      if (strstr(argv[2], "root://") == argv[2])
+      if (0 != strstr(argv[2], "root://"))
 	 doCp_loc2xrd(argv[1], argv[2]);
       else {
 	 Error("xrdcp", "Better to use cp in this case.");
