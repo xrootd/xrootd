@@ -61,7 +61,7 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TESTBIN) ...
-	$(ECHO)$(LD) $(LDOP) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
 	@echo Creating archive $(LIBRARY)
 	$(ECHO)ar -rc $(LIBRARY) $(XROBJS)
 	$(ECHO)ranlib $(LIBRARY)
