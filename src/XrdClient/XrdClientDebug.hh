@@ -29,11 +29,15 @@ using namespace std;
 
 #define DebugLevel() XrdClientDebug::Instance()->GetDebugLevel()
 
-#define Info(lvl, where, what) { XrdClientDebug::Instance()->Lock(); XrdClientDebug::Instance()->outs << where << " " << what; \
-      XrdClientDebug::Instance()->TraceStream((short)lvl, XrdClientDebug::Instance()->outs); XrdClientDebug::Instance()->Unlock();}
+#define Info(lvl, where, what) { ostringstream outs;\
+outs << where << " " << what; \
+XrdClientDebug::Instance()->TraceStream((short)lvl, outs);\
+}
                                
-#define Error(where, what) { XrdClientDebug::Instance()->Lock(); XrdClientDebug::Instance()->outs << where << " " << what; \
-      XrdClientDebug::Instance()->TraceStream((short)XrdClientDebug::kNODEBUG, XrdClientDebug::Instance()->outs); XrdClientDebug::Instance()->Unlock();}
+#define Error(where, what) { ostringstream outs;\
+outs << where << " " << what; \
+XrdClientDebug::Instance()->TraceStream((short)XrdClientDebug::kNODEBUG, outs);\
+}
 
 
 class XrdClientDebug {
@@ -74,9 +78,10 @@ class XrdClientDebug {
       s.str("");
    }
 
-   ostringstream outs;  // Declare an output string stream.
+   //   ostringstream outs;  // Declare an output string stream.
 
    inline void TraceString(short DbgLvl, char * s) {
+      XrdClientMutexLocker m(fMutex);
       if (DbgLvl <= GetDebugLevel())
 	 fOucErr->Emsg("", s);
    }
