@@ -36,15 +36,18 @@ create table if not exists closedSessions (
 create table if not exists openedFiles (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   sessionId     INT NOT NULL,
-  filePath      VARCHAR(255) NOT NULL,
-  openT         DATETIME NOT NULL
+  openT         DATETIME NOT NULL,
+  filePath      VARCHAR(255) NOT NULL
 );
 
 create table if not exists closedFiles (
-  fileId        INT NOT NULL,
+  id            INT NOT NULL,
+  sessionId     INT NOT NULL,
+  openT         DATETIME NOT NULL,
   closeT        DATETIME NOT NULL,
   bytesR        BIGINT UNSIGNED NOT NULL,
-  bytesW        BIGINT UNSIGNED NOT NULL
+  bytesW        BIGINT UNSIGNED NOT NULL,
+  filePath      VARCHAR(255) NOT NULL
 );
 
 create table if not exists users (
