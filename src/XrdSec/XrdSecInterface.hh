@@ -137,5 +137,8 @@ extern XrdSecProtocol *XrdSecGetProtocol(const struct sockaddr  &netaddr,
 // When the client is through with a security context, it must call
 // XrdSecDelProtocol() to free up the XrdSecProtocol object.
 //
+extern "C"
+{
 extern void XrdSecDelProtocol(XrdSecProtocol *secobj);
+}
 #endif

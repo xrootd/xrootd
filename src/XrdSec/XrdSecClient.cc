@@ -135,4 +135,7 @@ void XrdSecProtocolDelClient(XrdSecProtocol *pp) {XrdSecDelProtocol(pp);}
 /*                     X r d S e c D e l P r o t o c o l                      */
 /******************************************************************************/
   
+extern "C"
+{
 void XrdSecDelProtocol(XrdSecProtocol *pp) {}
+}
