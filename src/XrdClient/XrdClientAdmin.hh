@@ -22,6 +22,7 @@
 #include "XrdClientConn.hh"
 #include "XrdClientVector.hh"
 
+
 typedef XrdClientVector<XrdClientString> vecString;
 typedef XrdClientVector<bool> vecBool;
 
@@ -46,10 +47,10 @@ class XrdClientAdmin : public XrdClientAbs {
    int Stat(char *fname, long &id, long &size, long &flags, long &modtime);
 
    bool DirList(const char *dir, vecString &);
-   bool ExistFiles(vecString, vecBool&);
-   bool ExistDirs(vecString, vecBool&);
+   bool ExistFiles(vecString&, vecBool&);
+   bool ExistDirs(vecString&, vecBool&);
    bool GetChecksum(kXR_char *path, kXR_char *chksum);
-   bool IsFileOnline(vecString, vecBool&);
+   bool IsFileOnline(vecString&, vecBool&);
 
    bool Mv(const char *fileDest, const char *fileSrc);
    bool Mkdir(const char *dir, int user, int group, int other);

@@ -61,7 +61,7 @@ OBJECTS = \
 	$(OBJDIR)/XrdCpWorkLst.o		\
 	$(OBJDIR)/XrdClientString.o             
 
-OBJECTB = $(OBJDIR)/TestXrdClient.o
+OBJECTB = $(OBJDIR)/TestXrdClient.o $(OBJDIR)/XrdClientAdmin_c.o
 OBJECTC = $(OBJDIR)/Xrdcp.o
 
 OBJECTPERLMOD = $(OBJDIR)/XrdClientAdmin_c.o            \

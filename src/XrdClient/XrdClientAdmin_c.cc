@@ -28,7 +28,7 @@ void SharedBufFree() {
 }
 
 
-// Useful to otkenize an input char * into a vector of root strings
+// Useful to otkenize an input char * into a vector of strings
 vecString *Tokenize(const char *str, char sep) {
    XrdClientString s(str);
 

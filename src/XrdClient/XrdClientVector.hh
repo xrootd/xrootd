@@ -48,6 +48,14 @@ class XrdClientVector {
       Init();
    }
 
+   XrdClientVector(const XrdClientVector &v) {
+      Init();
+      BufRealloc(v.size);
+      size = v.size;
+      for (int i = 0; i < v.size; i++)
+	 data[i] = v.data[i];
+   }
+
    ~XrdClientVector() {
       Clear();
    }

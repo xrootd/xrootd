@@ -284,7 +284,7 @@ bool XrdClientAdmin::SysStatX(const char *paths_list, kXR_char *binInfo, int num
 }
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::ExistFiles(vecString vs, vecBool &vb)
+bool XrdClientAdmin::ExistFiles(vecString &vs, vecBool &vb)
 {
    bool ret;
    XrdClientString buf;
@@ -296,13 +296,14 @@ bool XrdClientAdmin::ExistFiles(vecString vs, vecBool &vb)
   
    ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
 
-   for(int j=0; j <= vs.GetSize()-1; j++) 
-      {
+   for(int j=0; j <= vs.GetSize()-1; j++) {
+	 bool tmp;
+
 	 if( !(*(Info+j) & kXR_other) && !(*(Info+j) & kXR_isDir) ) {
-	    bool tmp = TRUE;
+	    tmp = TRUE;
 	    vb.Push_back(tmp);
 	 } else {
-	    bool tmp = FALSE;
+	    tmp = FALSE;
 	    vb.Push_back(tmp);
 	 }
 
@@ -312,7 +313,7 @@ bool XrdClientAdmin::ExistFiles(vecString vs, vecBool &vb)
 }
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::ExistDirs(vecString vs, vecBool &vb)
+bool XrdClientAdmin::ExistDirs(vecString &vs, vecBool &vb)
 {
    bool ret;
    XrdClientString buf;
@@ -325,11 +326,13 @@ bool XrdClientAdmin::ExistDirs(vecString vs, vecBool &vb)
    ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
   
    for(int j=0; j <= vs.GetSize()-1; j++) {
+      bool tmp;
+
       if( (*(Info+j) & kXR_isDir) ) {
-	 bool tmp = TRUE;
+	 tmp = TRUE;
 	 vb.Push_back(tmp);
       } else {
-	 bool tmp = FALSE;
+	 tmp = FALSE;
 	 vb.Push_back(tmp);
       }
 
@@ -340,7 +343,7 @@ bool XrdClientAdmin::ExistDirs(vecString vs, vecBool &vb)
 }
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::IsFileOnline(vecString vs, vecBool &vb)
+bool XrdClientAdmin::IsFileOnline(vecString &vs, vecBool &vb)
 {
    bool ret;
    XrdClientString buf;
@@ -352,17 +355,18 @@ bool XrdClientAdmin::IsFileOnline(vecString vs, vecBool &vb)
   
    ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
   
-   for(int j=0; j <= vs.GetSize()-1; j++) 
-      {
-	 if( !(*(Info+j) & kXR_offline) ) {
-	    bool tmp = TRUE;
-	    vb.Push_back(tmp);
-	 } else {
-	    bool tmp = FALSE;
-	    vb.Push_back(tmp);
-	 }
+   for(int j=0; j <= vs.GetSize()-1; j++) {
+      bool tmp;
 
+      if( !(*(Info+j) & kXR_offline) ) {
+	 tmp = TRUE;
+	 vb.Push_back(tmp);
+      } else {
+	 tmp = FALSE;
+	 vb.Push_back(tmp);
       }
+      
+   }
 
    return ret;
 }
