@@ -207,7 +207,7 @@ int XrdXrClient::open(kXR_char    *path,
       else                          { redirect++; cont = 1; break; }
 
     case -kXR_wait:
-      if (handleWait(worker->getWaitTime(), epname) > 0) {wait++; break;} 
+      if (handleWait(worker->getWaitTime(), epname) == 0) {wait++; break;} 
       else {mutex.UnLock(); return -kXR_wait;};
 
     case kXR_ok:
@@ -282,7 +282,7 @@ ssize_t XrdXrClient::read(void       *buffer,
       }
 
     case -kXR_wait:
-      if (handleWait(worker->getWaitTime(), epname) > 0) {wait++; break;} 
+      if (handleWait(worker->getWaitTime(), epname) == 0) {wait++; break;} 
       else { return -kXR_wait; }
 
     case kXR_error:        
@@ -329,7 +329,7 @@ int XrdXrClient::stat(struct stat *buffer,
       else                          { redirect++; cont = 1; break; }
 
     case -kXR_wait:
-      if (handleWait(worker->getWaitTime(), epname) > 0) {wait++; break;} 
+      if (handleWait(worker->getWaitTime(), epname) == 0) {wait++; break;} 
       else { return -kXR_wait; }
 
     case kXR_ok:
