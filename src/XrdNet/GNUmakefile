@@ -74,8 +74,7 @@ $(OBJDIR)/XrdNetBuffer.o: XrdNetBuffer.cc XrdNetBuffer.hh \
 	@echo Compiling XrdNetBuffer.cc
 	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetBuffer.cc -o $(OBJDIR)/XrdNetBuffer.o
 
-$(OBJDIR)/XrdNetConnect.o: XrdNetConnect.cc XrdNetConnect.hh \
-                           XrdOucPthread.hh XrdOucTimer.hh
+$(OBJDIR)/XrdNetConnect.o: XrdNetConnect.cc XrdNetConnect.hh
 	@echo Compiling XrdNetConnect.cc
 	@$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetConnect.cc -o $(OBJDIR)/XrdNetConnect.o
 

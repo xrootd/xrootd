@@ -14,8 +14,6 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-
-#include "XrdOuc/XrdOucPthread.hh"
   
 class XrdNetConnect
 {
@@ -30,24 +28,10 @@ static int  Connect(             int       fd,      // Open socket descriptor
                                  int       namelen, // Size of address
                                  int       tsec=-1);// Optional timeout
 
-       void ConnectXeq(); // Internal use only!!
-
 private:
         // Only this class is allowed to create and delete this object
         //
-        XrdNetConnect(int fd, const sockaddr *name, int namelen);
-       ~XrdNetConnect();
-
-void   doConnect();
-
-static XrdOucSemaphore tLimit;
-       XrdOucMutex     cActv;
-       XrdOucCondVar   cDone;
-
-int       myFD;
-sockaddr  myDest;
-int       myDestL;
-int       myRetc;
-pthread_t myTID;
+        XrdNetConnect() {}
+       ~XrdNetConnect() {}
 };
 #endif
