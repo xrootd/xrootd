@@ -100,7 +100,7 @@ $(OBJDIR)/XrdInfo.o: XrdInfo.hh
 $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
                        XrdProtocol.hh   XrdScheduler.hh    XrdTrace.hh  \
                        XrdOucError.hh   XrdOucPlatform.hh  XrdOucPthread.hh \
-                       XrdOucTrace.hh   XrdOucTimer.hh     XrdLink.cc \
+                       XrdOucTrace.hh   XrdLink.cc \
                        XrdNetDNS.hh     XrdNetPeer.hh
 	@echo Compiling XrdLink.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc

@@ -23,7 +23,6 @@ const char *XrdLinkCVSID = "$Id$";
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
-#include "XrdOuc/XrdOucTimer.hh"
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
@@ -220,8 +219,8 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
 /******************************************************************************/
   
 int XrdLink::Close()
-{   int fd, csec, rc = 0;
-    char buff[256], ctbuff[24], *sfxp = ctbuff;
+{   int csec, fd, rc = 0;
+    char buff[256];
 
 // Multiple protocols may be bound to this link. If it is in use, defer the
 // actual close until the use count drops to zero.
@@ -239,20 +238,12 @@ int XrdLink::Close()
 //
    syncStats(&csec);
 
-// Document this close
-//
-   XrdOucTimer::s2hms(csec, ctbuff, sizeof(ctbuff));
-   if (Etext) {snprintf(buff, sizeof(buff), "%s (%s)", ctbuff, Etext);
-               sfxp = buff;
-               free(Etext); Etext = 0;
-              }
-   XrdLog.Emsg("Link",(const char *)ID, (char *)"disconnected after", sfxp);
-
 // Clean this link up
 //
-   if (Protocol) {Protocol->Recycle(); Protocol = 0;}
-   if (ProtoAlt) {ProtoAlt->Recycle(); ProtoAlt = 0;}
+   if (Protocol) {Protocol->Recycle(this, csec, Etext); Protocol = 0;}
+   if (ProtoAlt) {ProtoAlt->Recycle(this, csec, Etext); ProtoAlt = 0;}
    if (udpbuff)  {udpbuff->Recycle();  udpbuff  = 0;}
+   if (Etext) {free(Etext); Etext = 0;}
    InUse    = 0;
 
 // Remove ourselves from the poll table and then from the Link table. We may
@@ -590,10 +581,12 @@ int XrdLink::Setup(int maxfds, int idlewait)
 
 // Create an idle connection scan job
 //
-   if (!(ichk = idlewait/3)) {iticks = 1; ichk = idlewait;}
-      else iticks = 3;
-   XrdLinkScan *ls = new XrdLinkScan(ichk, iticks);
-   XrdSched.Schedule((XrdJob *)ls, ichk+time(0));
+   if (idlewait)
+      {if (!(ichk = idlewait/3)) {iticks = 1; ichk = idlewait;}
+          else iticks = 3;
+       XrdLinkScan *ls = new XrdLinkScan(ichk, iticks);
+       XrdSched.Schedule((XrdJob *)ls, ichk+time(0));
+      }
 
    return 1;
 }

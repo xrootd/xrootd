@@ -92,15 +92,17 @@ public:
 //             to determine if this protocol can handle the link. It must
 //             return a protocol object if it can and NULL (0), otherwise.
 //
-virtual XrdProtocol *Match(XrdLink *lp) = 0;
+virtual XrdProtocol  *Match(XrdLink *lp) = 0;
 
 // Process()   is invoked when a link has data waiting to be read
 //
 virtual int           Process(XrdLink *lp) = 0;
 
-// Recycle()   is invoked when this object is no longer needed
+// Recycle()   is invoked when this object is no longer needed. The method is
+//             passed the number of seconds the protocol was connected to the
+//             link and the reason for the disconnection, if any.
 //
-virtual void          Recycle() = 0;
+virtual void          Recycle(XrdLink *lp=0, int consec=0, char *reason=0) = 0;
 
 // Stats()     is invoked when we need statistics about all instances of the
 //             protocol. If a buffer is supplied, it must return a null 
@@ -158,7 +160,7 @@ XrdProtocol  *Match(XrdLink *lp) {return 0;}
 
 int           Process(XrdLink *lp);
 
-void          Recycle() {}
+void          Recycle(XrdLink *lp, int ctime, char *txt);
 
 int           Stats(char *buff, int blen, int do_sync=0);
 

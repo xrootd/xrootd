@@ -166,6 +166,19 @@ int XrdProtocol_Select::Process(XrdLink *lp)
 }
  
 /******************************************************************************/
+/*                               R e c y c l e                                */
+/******************************************************************************/
+  
+void XrdProtocol_Select::Recycle(XrdLink *lp, int ctime, char *reason)
+{
+
+// Document non-protocol errors
+//
+   if (lp && reason)
+      XrdLog.Emsg("Protocol", lp->ID, (char *)"terminated", reason);
+}
+
+/******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
 

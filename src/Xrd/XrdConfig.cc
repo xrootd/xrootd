@@ -167,7 +167,7 @@ XrdConfig::XrdConfig(void)
    ProtInfo.ConnLife = 60*60;  // Time   of connections to optimize for.
    ProtInfo.ConnMax  = -1;     // Max       connections (fd limit)
    ProtInfo.readWait = 5*1000; // Wait time for data before we reschedule
-   ProtInfo.idleWait = 5400;   // Seconds connection may remain idle
+   ProtInfo.idleWait = 0;      // Seconds connection may remain idle (0=off)
    ProtInfo.DebugON  = 0;      // 1 if started with -d
    ProtInfo.argc     = 0;
    ProtInfo.argv     = 0;
@@ -304,6 +304,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    // Process common items
    //
    TS_Xeq("buffers",       xbuf);
+   TS_Xeq("log",           xlog);
    TS_Xeq("network",       xnet);
    TS_Xeq("sched",         xsched);
    TS_Xeq("trace",         xtrace);
@@ -810,6 +811,49 @@ int XrdConfig::xcon(XrdOucError *eDest, XrdOucStream &Config)
 }
 
 /******************************************************************************/
+/*                                  x l o g                                   */
+/******************************************************************************/
+  
+
+/* Function: xlog
+
+   Purpose:  To parse the directive: log <events>
+
+             <events> the blank separated list of events to log.
+
+   Output: 0 upon success or 1 upon failure.
+*/
+
+int XrdConfig::xlog(XrdOucError *eDest, XrdOucStream &Config)
+{
+    char *val;
+    static struct logopts {const char *opname; int opval;} lgopts[] =
+       {
+        {"all",     -1},
+        {"disc",    OUC_LOG_02},
+        {"login",   OUC_LOG_01}
+       };
+    int i, neg, lgval = -1, numopts = sizeof(lgopts)/sizeof(struct logopts);
+
+    if (!(val = Config.GetWord()))
+       {eDest->Emsg("config", "log option not specified"); return 1;}
+    while (val)
+          {if ((neg = (val[0] == '-' && val[1]))) val++;
+           for (i = 0; i < numopts; i++)
+               {if (!strcmp(val, lgopts[i].opname))
+                   {if (neg) lgval &= ~lgopts[i].opval;
+                       else  lgval |=  lgopts[i].opval;
+                    break;
+                   }
+               }
+           if (i >= numopts) eDest->Emsg("config","invalid log option",val);
+           val = Config.GetWord();
+          }
+    XrdLogger.setLogmask(lgval);
+    return 0;
+}
+
+/******************************************************************************/
 /*                                  x n e t                                   */
 /******************************************************************************/
 
@@ -1033,7 +1077,7 @@ char *XrdConfig::xprotparms(XrdOucError *eDest, XrdOucStream &Config)
        }
 
     if (!eoc)
-       {eDest->Emsg("Config","protocol parameters not trminated with '}'");
+       {eDest->Emsg("Config","protocol parameters not terminated with '}'");
         return 0;
        }
 
@@ -1161,12 +1205,12 @@ int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
     char *val;
     int  i, ppp, rc;
     int  V_read = -1, V_idle = -1;
-    static struct tmoopts { const char *opname; int istime;
+    static struct tmoopts { const char *opname; int istime; int minv;
                             int  *oploc;  const char *etxt;}
            tmopts[] =
        {
-        {"read",       1, &V_read, "timeout read"},
-        {"idle",       1, &V_idle, "timeout idle"}
+        {"read",       1, 1, &V_read, "timeout read"},
+        {"idle",       1, 0, &V_idle, "timeout idle"}
        };
     int numopts = sizeof(tmopts)/sizeof(struct tmoopts);
 
@@ -1182,8 +1226,10 @@ int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
                         return 1;
                        }
                     rc = (tmopts[i].istime ?
-                          XrdOuca2x::a2tm(*eDest,tmopts[i].etxt,val,&ppp,1) :
-                          XrdOuca2x::a2i (*eDest,tmopts[i].etxt,val,&ppp,1));
+                          XrdOuca2x::a2tm(*eDest,tmopts[i].etxt,val,&ppp,
+                                                 tmopts[i].minv) :
+                          XrdOuca2x::a2i (*eDest,tmopts[i].etxt,val,&ppp,
+                                                 tmopts[i].minv));
                     if (rc) return 1;
                     *tmopts[i].oploc = ppp;
                     break;
@@ -1195,8 +1241,8 @@ int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
 
 // Set values and return
 //
-   if (V_read > 0) ProtInfo.readWait = V_read*1000;
-   if (V_idle > 0) ProtInfo.idleWait = V_idle;
+   if (V_read >  0) ProtInfo.readWait = V_read*1000;
+   if (V_idle >= 0) ProtInfo.idleWait = V_idle;
    return 0;
 }
   
