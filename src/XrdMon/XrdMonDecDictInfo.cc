@@ -316,12 +316,12 @@ XrdMonDecDictInfo::writeRT2Buffer(TYPE t, string& senderHost) const
     
     if ( t == OPEN ) {
         timestamp2string(_open, tBuf);
-        sprintf(buf, "o %i\t%s\t%s\t%s\t%s\t%s\n", 
+        sprintf(buf, "o\t%i\t%s\t%s\t%s\t%s\t%s\n", 
                 _myUniqueId, _user.c_str(), _host.c_str(), _path.c_str(),
                 tBuf, senderHost.c_str());
     } else {
         timestamp2string(_close, tBuf);
-        sprintf(buf, "c %i\t%lld\t%lld\t%s\n", 
+        sprintf(buf, "c\t%i\t%lld\t%lld\t%s\n", 
                 _myUniqueId, _noRBytes, _noWBytes, tBuf);
     }
     return buf;

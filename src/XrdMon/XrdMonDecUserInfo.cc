@@ -115,13 +115,13 @@ XrdMonDecUserInfo::writeRT2Buffer(TYPE t, string& senderHost) const
     static char buf[512];
     
     if ( t == CONNECT ) {
-        sprintf(buf, "u %i\t%s\t%i\t%s\t%s\n", 
+        sprintf(buf, "u\t%i\t%s\t%i\t%s\t%s\n", 
                 _myUniqueId, _user.c_str(), _pid, _host.c_str(), 
                 senderHost.c_str());
     } else {
         static char b[24];
         timestamp2string(_dTime, b);
-        sprintf(buf, "d %i\t%i\t%s\n", _myUniqueId, _sec, b);
+        sprintf(buf, "d\t%i\t%i\t%s\n", _myUniqueId, _sec, b);
     }
     return buf;
 }
