@@ -24,6 +24,7 @@ gmake XRD-DEBUGOPT-XRD
 mkdir -p $RPM_BUILD_ROOT/opt/xrootd/bin
 mkdir -p $RPM_BUILD_ROOT/opt/xrootd/lib
 mkdir -p $RPM_BUILD_ROOT/opt/xrootd/etc
+mkdir -p $RPM_BUILD_ROOT/opt/xrootd/utils
 
 install -m 755 bin/XRD-SYSNAME-XRD/xrootd $RPM_BUILD_ROOT/opt/xrootd/bin/xrootd
 install -m 755 bin/XRD-SYSNAME-XRD/olbd $RPM_BUILD_ROOT/opt/xrootd/bin/olbd
@@ -40,7 +41,17 @@ install -m 755 etc/StopOLB $RPM_BUILD_ROOT/opt/xrootd/etc/StopOLB
 install -m 755 etc/StopXRD $RPM_BUILD_ROOT/opt/xrootd/etc/StopXRD
 install -m 755 etc/XrdOlbMonPerf $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbMonPerf
 install -m 755 etc/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbNotify.pm
+install -m 755 etc/xrootd.cf.example $RPM_BUILD_ROOT/opt/xrootd/etc/xrootd.cf.example
 install -m 644 etc/README $RPM_BUILD_ROOT/opt/xrootd/etc/README
+install -m 644 utils/mps_MigrPurg $RPM_BUILD_ROOT/opt/xrootd/utils/mps_MigrPurg
+install -m 644 utils/mps_PreStage $RPM_BUILD_ROOT/opt/xrootd/utils/mps_PreStage
+install -m 644 utils/mps_Stage $RPM_BUILD_ROOT/opt/xrootd/utils/mps_Stage
+install -m 644 utils/mps_Xeq $RPM_BUILD_ROOT/opt/xrootd/utils/mps_Xeq
+install -m 644 utils/mps_prep $RPM_BUILD_ROOT/opt/xrootd/utils/mps_prep
+install -m 644 utils/ooss_CAlloc.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_CAlloc.pm
+install -m 644 utils/ooss_Lock.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_Lock.pm
+install -m 644 utils/ooss_MonP.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_MonP.pm
+
 
 %clean
 
@@ -61,7 +72,17 @@ install -m 644 etc/README $RPM_BUILD_ROOT/opt/xrootd/etc/README
 /opt/xrootd/etc/StopXRD
 /opt/xrootd/etc/XrdOlbMonPerf
 /opt/xrootd/etc/XrdOlbNotify.pm
+/opt/xrootd/etc/xrootd.cf.example
 /opt/xrootd/etc/README
+/opt/xrootd/utils/mps_MigrPurg
+/opt/xrootd/utils/mps_PreStage
+/opt/xrootd/utils/mps_Stage
+/opt/xrootd/utils/mps_Xeq
+/opt/xrootd/utils/mps_prep
+/opt/xrootd/utils/ooss_CAlloc.pm
+/opt/xrootd/utils/ooss_Lock.pm
+/opt/xrootd/utils/ooss_MonP.pm
+
 
 %changelog
 * XRD-CHANGE1-XRD
