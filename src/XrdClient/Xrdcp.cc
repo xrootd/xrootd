@@ -195,7 +195,7 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
        done = (*slash == '\0');
        *slash = '\0';
 
-       statok = adm->Stat(path, id, size, flags, modtime);
+       statok = adm->Stat(path + '/', id, size, flags, modtime);
 
        if (!statok || (!(flags & kXR_xset) && !(flags & kXR_other))) {
 	 Info(XrdClientDebug::kHIDEBUG,
