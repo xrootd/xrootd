@@ -19,35 +19,37 @@
 
 ## current number of unique users:
 SELECT COUNT(DISTINCT userId) 
-FROM   openedSessions;
+FROM   rtOpenedSessions;
 
 
 ## current number of unique opened files
 SELECT COUNT(DISTINCT pathId)
-FROM   openedFiles;
+FROM   rtOpenedFiles;
 
 ## current number of non-unique opened files
 SELECT COUNT(*)
-FROM   openedFiles;
+FROM   rtOpenedFiles;
 
 
 ## current number of unique opened sessions
 SELECT COUNT(DISTINCT CONCAT(pId, clientHId))
-FROM   openedSessions;
+FROM   rtOpenedSessions;
+
+## 
 
 ## current number of non-unique opened sessions
 SELECT COUNT(*)
-FROM   openedSessions;
+FROM   rtOpenedSessions;
 
 
 ## current number of unique active client hosts
 SELECT COUNT(DISTINCT clientHId) as noClients
-FROM   openedSessions;
+FROM   rtOpenedSessions;
 
 
 ## current number of unique active server hosts
 SELECT COUNT(DISTINCT serverHId) as noServers
-FROM   openedSessions;
+FROM   rtOpenedSessions;
 
 
 ###################################################
@@ -65,7 +67,7 @@ FROM   openedSessions;
 ## non-unique closed files per hour
 SELECT DATE_FORMAT(closeT, '%Y-%m-%d %H') AS hour,
        COUNT(*) AS noClosedFiles
-FROM   closedFiles
+FROM   rtClosedFiles
        GROUP BY TIMEDIFF(NOW(),DATE_FORMAT(closeT, '%Y-%m-%d %H'))
        ORDER BY hour;
 
@@ -73,8 +75,8 @@ FROM   closedFiles
 
 ## unique closed sessions per hour
 SELECT DATE_FORMAT(disconnectT, '%Y-%m-%d %H') AS date, 
-       COUNT(TIMEDIFF(NOW(), DATE_FORMAT(disconnectT, '%Y-%m-%d %H'))) AS closedSessions
-FROM   closedSessions
+       COUNT(TIMEDIFF(NOW(), DATE_FORMAT(disconnectT, '%Y-%m-%d %H'))) AS rtClosedSessions
+FROM   rtClosedSessions
        GROUP BY TIMEDIFF(NOW(), DATE_FORMAT(disconnectT, '%Y-%m-%d %H'))
        ORDER BY disconnectT;
 
@@ -99,9 +101,9 @@ FROM   closedSessions
 SELECT userName,
        COUNT(DISTINCT CONCAT(pId, clientHId) ) AS nJobs,
        COUNT(DISTINCT pathId) AS nFiles
-FROM   openedSessions, users, openedFiles 
+FROM   rtOpenedSessions, users, rtOpenedFiles 
 WHERE  userId=users.id AND
-       openedSessions.id=openedFiles.sessionId
+       rtOpenedSessions.id=rtOpenedFiles.sessionId
        GROUP BY userId
        ORDER BY nJobs
        DESC
@@ -111,7 +113,7 @@ WHERE  userId=users.id AND
 ## top 10: number of jobs per user
 SELECT userName, 
        COUNT(DISTINCT CONCAT(pId, clientHId) ) AS nJobs,
-FROM   openedSessions, users
+FROM   rtOpenedSessions, users
 WHERE  userId=users.id 
        GROUP BY userId 
        ORDER BY nJobs 
@@ -122,9 +124,9 @@ WHERE  userId=users.id
 ## top 10: number of files per user
 SELECT userName, 
        COUNT(DISTINCT pathId) AS nFiles 
-FROM   openedSessions, users, openedFiles 
+FROM   rtOpenedSessions, users, rtOpenedFiles 
 WHERE  userId=users.id AND 
-       openedSessions.id=openedFiles.sessionId 
+       rtOpenedSessions.id=rtOpenedFiles.sessionId 
        GROUP BY userId 
        ORDER BY nFiles 
        DESC
@@ -140,7 +142,7 @@ WHERE  userId=users.id AND
 
 ## show all currently active users
 SELECT DISTINCT userName
-FROM   users, openedSessions
+FROM   users, rtOpenedSessions
 WHERE  userId=users.id
 ORDER BY userName;
 
@@ -148,14 +150,14 @@ ORDER BY userName;
 
 ## show all server machines with at least one opened session
 SELECT DISTINCT hostName 
-FROM   hosts, openedSessions 
+FROM   hosts, rtOpenedSessions 
 WHERE  serverHId=hosts.id
 ORDER BY hostName;
 
 
 ## show all currently active client machines
 SELECT DISTINCT hostName 
-FROM   hosts, openedSessions 
+FROM   hosts, rtOpenedSessions 
 WHERE  clientHId=hosts.id
 ORDER BY hostName;
 
@@ -167,7 +169,7 @@ ORDER BY hostName;
 
 ## show all currently opened files 
 SELECT DISTINCT path 
-FROM   paths, openedFiles 
+FROM   paths, rtOpenedFiles 
 WHERE  pathId=paths.id
 ORDER BY path;
 
