@@ -868,9 +868,9 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
    if (!(retc = XrdOlbCache.GetFile(pargs->path, cinfo)) || cinfo.deadline)
       {if (!retc)
           {DEBUG("Searching for " <<pargs->path);
+           XrdOlbCache.AddFile(pargs->path, 0, 0, XrdOlbConfig.LUPDelay);
            XrdOlbSM.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
                            "%s state %s\n", XrdOlbConfig.MsgGID, pargs->path));
-           XrdOlbCache.AddFile(pargs->path, 0, 0, XrdOlbConfig.LUPDelay);
           }
        if (!stage) return 0;
        DEBUG("Rescheduling lookup in " <<XrdOlbConfig.LUPDelay <<" seconds");
@@ -1059,9 +1059,9 @@ int XrdOlbServer::do_Select(char *rid, int reset)
       {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.LUPDelay));
        DEBUG("Lookup delay " <<Name() <<' ' <<XrdOlbConfig.LUPDelay);
        if (!retc || reset)
-          {XrdOlbSM.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
+          {XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
+           XrdOlbSM.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
                              "%s state %s\n", XrdOlbConfig.MsgGID, tp));
-           XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
           }
        return 0;
       }
