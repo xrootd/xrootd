@@ -153,7 +153,7 @@ XrdConfig::XrdConfig(void)
    ProtInfo.Stats   = 0;                // We will fill this in later
    ProtInfo.Trace   = &XrdTrace;        // Stable -> Trace Information
 
-   ProtInfo.Version  = XrdFORMATB;
+   ProtInfo.Format   = XrdFORMATB;
    ProtInfo.myName   = myName;
    ProtInfo.ConnOptn = -4;     // Num of connections to optimize for (1/4*max)
    ProtInfo.ConnLife = 60*60;  // Time   of connections to optimize for.
