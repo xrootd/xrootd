@@ -25,3 +25,8 @@ select count(*) from openedSessions;
 SELECT userName, COUNT(distinct CONCAT(pId, clientHId) ) as nJobs 
 FROM openedSessions, users 
 WHERE userId=users.id GROUP BY userId ORDER BY nJobs DESC LIMIT 10;
+
+## select # files per user
+SELECT userName, COUNT(distinct pathId) as nFiles 
+FROM openedSessions, users, openedFiles 
+WHERE userId=users.id AND openedSessions.id=openedFiles.sessionId GROUP BY userId ORDER BY nFiles DESC LIMIT 10;
