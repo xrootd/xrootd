@@ -6,24 +6,16 @@ Xrdcp is a cp-like tool to copy files:
 - FROM ax xrootd system TO an xrootd system (even the same)
 - FROM a local file system TO an xrootd system
 
-Usage:                                                               
-      xrdcp [-d<debuglevel>] <source> <dest>
-  where:                                    
-      <source> can be:
-               - the path/name of a local file file or directory
-               - the xrootd URL of a file   
+Usage:      
 
-      <dest> can be:
-             - the path/name of the local dest file or directory
-             - the xrootd URL of a file or directory           
-                                                                 
+ xrdcp [-ddebuglevel] <source> <dest> [-DSparmname stringvalue] ... [-DIparmname intvalue]
 
-An xrootd URL is an URL in the form handled by XrdClient, i.e.:
-root://host1[:port1][,host2[:port2]]..[,hostN[:portN]]//filepath
+ where:
+   0 <= debuglevel <= 4
+   parmname     is the name of an internal parameter
+   stringvalue  is a string to be assigned to an internal parameter
+   intvalue     is an int to be assigned to an internal parameter
 
-The debug levels are as follows:
- 0 - the default. Print nothing but the errors.
- 1 - Prints relevant info about the behavior and the situations encountered
- 2 - Prints request and response for every interaction with the server
- 3 - Dump everything
+The values of the internal env parameters usually do not need to be modified.
+For a complete list and their meaning, please refer to README_params
 

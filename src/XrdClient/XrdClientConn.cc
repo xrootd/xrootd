@@ -79,15 +79,19 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
 
    XrdClientString goodDomainsRE = fClientHostDomain + "|*";
 
-   EnvPutString(NAME_REDIRDOMAINALLOW_RE,
-		(char *)goodDomainsRE.c_str());
+   if (EnvGetString(NAME_REDIRDOMAINALLOW_RE) == 0)
+      EnvPutString(NAME_REDIRDOMAINALLOW_RE,
+		   (char *)goodDomainsRE.c_str());
 
-   EnvPutString(NAME_REDIRDOMAINDENY_RE, "<unknown>");
+   if (EnvGetString(NAME_REDIRDOMAINDENY_RE) == 0)
+      EnvPutString(NAME_REDIRDOMAINDENY_RE, "<unknown>");
 
-   EnvPutString(NAME_CONNECTDOMAINALLOW_RE,
-		(char *)goodDomainsRE.c_str());
+   if (EnvGetString(NAME_CONNECTDOMAINALLOW_RE) == 0)
+      EnvPutString(NAME_CONNECTDOMAINALLOW_RE,
+		   (char *)goodDomainsRE.c_str());
 
-   EnvPutString(NAME_CONNECTDOMAINDENY_RE, "<unknown>");
+   if (EnvGetString(NAME_CONNECTDOMAINDENY_RE) == 0)
+      EnvPutString(NAME_CONNECTDOMAINDENY_RE, "<unknown>");
 
 
    fRedirHandler = 0;

@@ -875,18 +875,19 @@ extern "C" {
 XS(_wrap_XrdInitialize) {
     {
         char *arg1 ;
-        int arg2 ;
+        char *arg2 ;
         bool result;
         int argvi = 0;
         dXSARGS;
         
         if ((items < 2) || (items > 2)) {
-            SWIG_croak("Usage: XrdInitialize(url,debuglvl);");
+            SWIG_croak("Usage: XrdInitialize(url,EnvValues);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        arg2 = (int) SvIV(ST(1));
-        result = (bool)XrdInitialize((char const *)arg1,arg2);
+        if (!SvOK((SV*) ST(1))) arg2 = 0;
+        else arg2 = (char *) SvPV(ST(1), PL_na);
+        result = (bool)XrdInitialize((char const *)arg1,(char const *)arg2);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);

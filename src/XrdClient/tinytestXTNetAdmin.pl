@@ -3,7 +3,7 @@
 #  $Id$
 
 use XrdClientAdmin;
-XrdClientAdmin::XrdInitialize("root://localhost/dummy", 2);
+XrdClientAdmin::XrdInitialize("root://localhost/dummy", "DebugLevel 3\nConnectTimeout 60\nRequestTimeout 60");
 
 
 $par = "/tmp/vmware.zip";

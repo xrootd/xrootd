@@ -49,7 +49,7 @@ extern "C" {
    // In this version we support only one instance to be handled
    // by this wrapper. Supporting more than one instance should be no
    // problem.
-   bool XrdInitialize(const char *url, int debuglvl);
+   bool XrdInitialize(const char *url, const char *EnvValues);
    bool XrdTerminate();
 
    // The other functions, slightly modified from the originals

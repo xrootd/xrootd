@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 
 
 
-   XrdInitialize(argv[1], 2);
+   XrdInitialize(argv[1], "DebugLevel 3\nConnectTimeout 5");
    bool ans;
    char *strans;
 

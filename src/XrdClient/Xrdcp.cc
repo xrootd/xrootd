@@ -460,10 +460,9 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
 
 void PrintUsage() {
-   cerr << "usage: xrdcp [-ddebuglevel] <source> <dest> "
+   cerr << "usage: xrdcp <source> <dest> "
       "[-DSparmname stringvalue] ... [-DIparmname intvalue]" << endl << endl;
    cerr << " where:" << endl;
-   cerr << "   0 <= debuglevel <= 4" << endl;
    cerr << "   parmname     is the name of an internal parameter" << endl;
    cerr << "   stringvalue  is a string to be assigned to an internal parameter" << endl;
    cerr << "   intvalue     is an int to be assigned to an internal parameter" << endl;
@@ -472,7 +471,6 @@ void PrintUsage() {
 // Main program
 int main(int argc, char**argv) {
    char *srcpath = 0, *destpath = 0;
-   int newdbglvl = -1;
 
    if (argc < 3) {
       PrintUsage();
@@ -482,6 +480,9 @@ int main(int argc, char**argv) {
    DebugSetLevel(-1);
 
    // We want this tool to be able to copy from/to everywhere
+   // Note that the side effect of these calls here is to initialize the
+   // XrdClient environment.
+   // This is crucial if we want to later override its default values
    EnvPutString( NAME_REDIRDOMAINALLOW_RE, "*" );
    EnvPutString( NAME_CONNECTDOMAINALLOW_RE, "*" );
    EnvPutString( NAME_REDIRDOMAINDENY_RE, "" );
@@ -489,22 +490,26 @@ int main(int argc, char**argv) {
 
    for (int i=1; i < argc; i++) {
 
-      if (strstr(argv[i], "-d") == argv[i]) {
-	 newdbglvl = atoi(argv[i]+2);
-	 continue;
-      }
-
+      
       if ( (strstr(argv[i], "-DS") == argv[i]) &&
-	   (i < argc - 1) ) {
-	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << endl;
+	   (argc > i+2) ) {
+	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1];
 	 EnvPutString( argv[i]+3, argv[++i] );
+	 cerr << " Final value: " << EnvGetString(argv[i]+3) << endl;
 	 continue;
       }
 
       if ( (strstr(argv[i], "-DI") == argv[i]) &&
-	   (i < argc - 1) ) {
+	   (argc > i+2) ) {
 	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << endl;
 	 EnvPutInt( argv[i]+3, atoi(argv[++i]) );
+	 cerr << " Final value: " << EnvGetLong(argv[i]+3) << endl;
+	 continue;
+      }
+
+      // Any other par is ignored
+      if (strstr(argv[i], "-") == argv[i]) {
+	 cerr << "Unknown parameter " << argv[i] << endl;
 	 continue;
       }
 
@@ -520,7 +525,7 @@ int main(int argc, char**argv) {
       exit(1);
    }
 
-   if (newdbglvl >= 0) DebugSetLevel(newdbglvl);
+   DebugSetLevel(EnvGetLong(NAME_DEBUG));
 
    Info(XrdClientDebug::kNODEBUG, "main", XRDCP_VERSION);
 

@@ -86,8 +86,35 @@ XrdClientAdmin *adminst = NULL;
 
 extern "C" {
 
-   bool XrdInitialize(const char *url, int debuglvl) {
-      DebugSetLevel(debuglvl);
+   bool XrdInitialize(const char *url, const char *EnvValues) {
+
+      // The parameters are supplied as a string of tokens
+      // in the following form:
+      //  parm_name parm_value\n
+      //
+      // The code tries to guess if the value is an integer or
+      // a string
+      vecString *env = Tokenize(EnvValues, '\n');
+
+      for (int it = 0; it < env->GetSize(); it++) {
+	 char tok1[256], tok2[256];
+	 long v;
+
+	 if (sscanf((*env)[it].c_str(), "%256s %d", tok1, &v) == 2) {
+	    // It's an integer value
+	    EnvPutInt(tok1, v);
+	    //cout << "Env: " << tok1 << " Val=" << EnvGetLong(tok1) << endl;
+	 }
+	 else {
+	    sscanf((*env)[it].c_str(), "%256s %256s", tok1, tok2);
+	    EnvPutString(tok1, tok2);
+	    //cout << "Env: " << tok1 << " Val=" << EnvGetString(tok1) << endl;
+	 }
+      }
+
+      delete env;
+
+      DebugSetLevel(EnvGetLong(NAME_DEBUG));
 
       if (!adminst)
 	 adminst = new XrdClientAdmin(url);
