@@ -154,7 +154,7 @@ void BuildFullDestFilename(XrdClientString &src, XrdClientString &dest, bool des
 
 int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    // We need the path name without the file
-   bool statok = FALSE, done = FALSE;
+   bool statok = FALSE, done = FALSE, direxists = TRUE;
    long id, size, flags, modtime;
    char *path, *slash;
 
@@ -192,25 +192,31 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
        slash += strspn(slash, "/");
        slash += strcspn(slash, "/");
        
-       done = (*slash == '\0');
-       *slash = '\0';
+       char nextChar = *(slash+1);
+       done = (*slash == '\0' || nextChar == '\0');
+       *(slash+1) = '\0';
 
-       statok = adm->Stat(path + '/', id, size, flags, modtime);
-
-       if (!statok || (!(flags & kXR_xset) && !(flags & kXR_other))) {
+       if (direxists) {
+	 statok = adm->Stat(path, id, size, flags, modtime);
+	 if (!statok || (!(flags & kXR_xset) && !(flags & kXR_other))) {
+	   direxists = FALSE;
+	 }
+       }
+	 
+       if (!direxists) {
 	 Info(XrdClientDebug::kHIDEBUG,
 	      "CreateDestPath__xrd",
 	      "Creating directory " << path);
-
+	 
 	 adm->Mkdir(path, 7, 5, 5);
-
+	 
 // 	 if (! adm->Mkdir(path, 7, 5, 5)) {
 // 	    delete adm;
 // 	    return -1;
 // 	 }
 
        }
-       *slash = '/';
+       *(slash+1) = nextChar;
      }
    }
 
