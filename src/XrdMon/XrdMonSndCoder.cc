@@ -11,6 +11,7 @@
 // $Id$
 
 #include "XrdMon/XrdMonSndCoder.hh"
+#include "XrdXrootd/XrdXrootdMonData.hh"
 #include <sys/time.h>
 #include <iomanip>
 using std::setw;
@@ -149,9 +150,15 @@ XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
     }
 
     int32_t curTime = time(0);
-    add_Mark(XROOTD_MON_WINDOW);
-    add_int32_t(curTime); // prev window ended
-    add_int32_t(curTime);   // this window started
+
+    struct XrdXrootdMonTrace trace;
+    memset(&trace, 0, sizeof(XrdXrootdMonTrace));
+    trace.data.arg0.id[0]  = XROOTD_MON_WINDOW;
+    trace.data.arg1.Window = 
+    trace.data.arg2.Window = htonl(curTime);
+    memcpy(writeHere(), &trace, sizeof(XrdXrootdMonTrace));
+    _putOffset += sizeof(XrdXrootdMonTrace);
+    
     ++_noTime;
     if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
         cout << "Adding time window {" << curTime << ", " 
@@ -161,34 +168,43 @@ XrdMonSndCoder::prepare2Transfer(const vector<int32_t>& vector)
     for (int16_t i=0 ; i<noElems-2 ; i++ ) {
         static int largeNr = 0; // from time to time need to send very large nr
         uint32_t rT, wT;
+
+        memset(&trace, 0, sizeof(XrdXrootdMonTrace));
+        trace.data.arg0.id[0]   = XROOTD_MON_CLOSE;
         if ( ++ largeNr % 11 == 10 ) {
             // generate # bytes read/writen (larger than 2^32, shifted)
             pair<char, uint32_t> bigR = generateBigNumber("read");
             pair<char, uint32_t> bigW = generateBigNumber("write");
 
-            add_Mark(XROOTD_MON_CLOSE, 1);
-            add_Mark(bigR.first, 1);
-            add_Mark(bigW.first, 2);
+            trace.data.arg0.id[1] = bigR.first;
+            trace.data.arg0.id[2] = bigW.first;
             rT = bigR.second;
             wT = bigW.second;
         } else {
             // generate # bytes read/writen (smaller than 2^32)
             rT = (uint32_t) rand();
             wT = (uint32_t) rand() / 512;
-
-            add_Mark(XROOTD_MON_CLOSE, 4);
         }
-        add_uint32_t(rT);
-        add_uint32_t(wT);
-        add_int32_t(vector[i]);
+
+        trace.data.arg0.rTot[1] = htonl(rT);
+        trace.data.arg1.wTot    = htonl(wT);
+        trace.data.arg2.dictid  = htonl(vector[i]);
+        memcpy(writeHere(), &trace, sizeof(XrdXrootdMonTrace));
+        _putOffset += sizeof(XrdXrootdMonTrace);
+
         ++_noClose;
         cout << "closing file, dictid " << vector[i] 
              << ", r=" << rT
              << ", w=" << wT << endl;
     }
-    add_Mark(XROOTD_MON_WINDOW);
-    add_int32_t(curTime); // prev window ended
-    add_int32_t(curTime); // this window started
+
+    memset(&trace, 0, sizeof(XrdXrootdMonTrace));
+    trace.data.arg0.id[0]  = XROOTD_MON_WINDOW;
+    trace.data.arg1.Window = 
+    trace.data.arg2.Window = htonl(curTime);
+    memcpy(writeHere(), &trace, sizeof(XrdXrootdMonTrace));
+    _putOffset += sizeof(XrdXrootdMonTrace);
+
     ++_noTime;
     if ( XrdMonSndDebug::verbose(XrdMonSndDebug::SPacket) ) {
         cout << "Adding time window {" << curTime << ", " 

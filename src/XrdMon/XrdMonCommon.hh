@@ -31,9 +31,9 @@ const char PACKET_TYPE_ADMIN = 'A';
 const char PACKET_TYPE_DICT  = 'd';
 const char PACKET_TYPE_TRACE = 't';
 
-const char XROOTD_MON_CLOSE         = 0xc0;
-const char XROOTD_MON_OPEN          = 0x80;
-const char XROOTD_MON_WINDOW        = 0xe0;
+//const char XROOTD_MON_CLOSE         = 0xc0;
+//const char XROOTD_MON_OPEN          = 0x80;
+//const char XROOTD_MON_WINDOW        = 0xe0;
 const char XROOTD_MON_RWREQUESTMASK = 0x80;
 // why 0x80: anything that is < 0x7f is rwrequest
 // 0x7f = 01111111, so !(x & 10000000), 1000 0000=0x80

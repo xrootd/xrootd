@@ -26,7 +26,7 @@
 // known problems with 2 and 4
 //const int64_t NOCALLS = 8640000;   24h worth
 const int64_t NOCALLS = 1000000000;
-const int16_t maxNoXrdMonSndPackets = 500;
+const int16_t maxNoXrdMonSndPackets = 50;
 
 
 void

@@ -18,6 +18,7 @@
 #include "XrdMon/XrdMonDecPacketDecoder.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdXrootd/XrdXrootdMonData.hh"
 #include <netinet/in.h>
 #include <sstream>
 using std::cerr;
@@ -184,11 +185,20 @@ XrdMonDecPacketDecoder::decodeOpen(const char* packet, time_t timestamp)
 void
 XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
 {
-    int32_t dictId;
-    memcpy(&dictId, 
-           packet+sizeof(int64_t)+sizeof(int32_t), 
-           sizeof(int32_t));
-    dictId = ntohl(dictId);
+    XrdXrootdMonTrace trace;
+    memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
+    uint32_t dictId = ntohl(trace.data.arg2.dictid);
+    uint32_t tR    = ntohl(trace.data.arg0.rTot[1]);
+    uint32_t tW    = ntohl(trace.data.arg1.wTot);
+    char rShift    = trace.data.arg0.id[1];
+    char wShift    = trace.data.arg0.id[2];
+    int64_t realR = tR; realR = realR << rShift;
+    int64_t realW = tW; realW = realW << wShift;
+
+    cout << "decoded close file, dict " << dictId 
+         << ", total r " << tR << " shifted " << (int) rShift << ", or " << realR
+         << ", total w " << tW << " shifted " << (int) wShift << ", or " << realW
+         << endl;
 
     _sink.closeFile(dictId, timestamp);
 }
