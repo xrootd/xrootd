@@ -28,7 +28,6 @@ using std::stringstream;
 // for light decoding in real time
 XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir)
     : _sink(baseDir, false, 2),
-      _lightMode(true),
       _time(0),
       _stopNow(false),
       _upToTime(0)
@@ -39,7 +38,6 @@ XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir,
                                                int maxTraceLogSize,
                                                time_t upToTime)
     : _sink(baseDir, saveTraces, maxTraceLogSize),
-      _lightMode(false),
       _time(0),
       _stopNow(false),
       _upToTime(upToTime)
@@ -69,11 +67,7 @@ XrdMonDecPacketDecoder::operator()(uint16_t senderId,
     }
     
     if ( header.packetType() == PACKET_TYPE_TRACE ) {
-        if ( _lightMode ) {
-            cout << "Warning: Ignoring trace packet (light mode)" << endl;
-        } else {
-            decodeTracePacket(packet, len);
-        }
+        decodeTracePacket(packet, len);
     } else if ( header.packetType() == PACKET_TYPE_DICT ) {
         decodeDictPacket(packet, len);
     } else {

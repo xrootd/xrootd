@@ -73,11 +73,18 @@ void
 closeFiles(XrdMonSndDummyXrootd& xrootd,
            XrdMonSndCoder& coder, 
            XrdMonSndTransmitter& transmitter,
-           int64_t& noP)
+           int64_t& noP,
+           bool justOne)
 {
     vector<int32_t> closedFiles;
-    xrootd.closeFiles(closedFiles);
-
+    if ( justOne ) {
+        int32_t id = xrootd.closeOneFile();
+        closedFiles.push_back(id);
+        cout << "closing file, id " << id << endl;
+    } else {
+        xrootd.closeFiles(closedFiles);
+    }
+    
     int s = closedFiles.size();
     int pos = 0;
     unsigned int i;
@@ -140,7 +147,30 @@ int main(int argc, char* argv[]) {
         }
         sleep(1);
     }
-    
+
+    // use this loop to test light decoder
+    for ( int64_t i=0 ; i<NOCALLS ; i++ ) {
+        calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
+        doDictionaryXrdMonSndPacket(xrootd, coder, transmitter, noP);
+
+        if ( i % 3 ) { // every 3 opens, close one file...
+            closeFiles(xrootd, coder, transmitter, noP, true);
+        }
+
+        if ( noP >= maxNoXrdMonSndPackets-2 ) {
+            break;
+        }
+        if ( 0 == access("stop.txt", F_OK) ) {
+            break;
+        }
+        if ( i%1001 == 1000 ) {
+            usleep(1);
+        }
+    }
+
+
+    // use this loop to test full tracing
+    /*    
     for ( int64_t i=0 ; i<NOCALLS ; i++ ) {
         if ( ! --calls2NewXrdMonSndDictEntry ) {
             calls2NewXrdMonSndDictEntry = NEWDICTENTRYFREQUENCY;
@@ -157,7 +187,7 @@ int main(int argc, char* argv[]) {
         if ( i%1001 == 1000 ) {
             usleep(1);
         }
-    }
+    }*/
 
     if ( XrdMonSndDebug::verbose(XrdMonSndDebug::Sending) ) {
         cout << "Flushing cache" << endl;
@@ -169,7 +199,7 @@ int main(int argc, char* argv[]) {
         noP++;
     }
 
-    closeFiles(xrootd, coder, transmitter, noP);
+    closeFiles(xrootd, coder, transmitter, noP, false);
 
     // set shutdown signal
     //XrdMonSndAdminEntry ae;

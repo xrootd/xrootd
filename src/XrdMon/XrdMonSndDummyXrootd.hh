@@ -34,6 +34,7 @@ public:
     int initialize(const char* pathFile);
     XrdMonSndDictEntry newXrdMonSndDictEntry();
     XrdMonSndTraceEntry newXrdMonSndTraceEntry();
+    int32_t closeOneFile();
     void closeFiles(vector<int32_t>& closedFiles);
     
 private:
@@ -81,6 +82,8 @@ private:
 
     int32_t _firstAvailId;
     vector<uint32_t> _noTracesPerDict;
+
+    vector<bool> _openFiles; // true: open, false: close
 };
 
 #endif /* XRDMONSNDDUMMYXROOTD_HH */

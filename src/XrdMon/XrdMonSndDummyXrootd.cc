@@ -77,20 +77,35 @@ XrdMonSndDummyXrootd::newXrdMonSndDictEntry()
                 pd.path, 
                 _firstAvailId++);
     _noTracesPerDict.push_back(0);
+    _openFiles.push_back(true);
     
     return e;
 }
+
 XrdMonSndTraceEntry
 XrdMonSndDummyXrootd::newXrdMonSndTraceEntry()
 {
     // make sure it is sometimes>2GB
     int64_t offset = ((uint64_t) rand())*(rand()%512);
     int32_t length = 16384;
-    int32_t id = (uint32_t) rand() % _firstAvailId;
+    int32_t id = (uint32_t) rand() % _firstAvailId; // do this until finds still open file
 
     XrdMonSndTraceEntry d(offset, length, id);
     ++(_noTracesPerDict[id]);
     return d;
+}
+
+int32_t
+XrdMonSndDummyXrootd::closeOneFile()
+{
+    while ( 1 ) {
+        int32_t id = (uint32_t) rand() % _firstAvailId;
+        if ( _openFiles[id] ) {
+            _openFiles[id] = false;
+            return id;
+        }
+    }
+    return 0;
 }
 
 void 

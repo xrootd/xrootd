@@ -69,7 +69,6 @@ private:
                               time_t& begTime);
 private:
     XrdMonDecSink _sink;
-    bool          _lightMode;
     time_t        _time; // for verification if xrootd was restarted
     bool          _stopNow;
 
