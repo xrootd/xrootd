@@ -76,7 +76,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
-int XrdXrootdStats::Stats(XrdXrootdResponse &resp, char *opts)
+int XrdXrootdStats::Stats(XrdXrootdResponse &resp, const char *opts)
 {
     int i, xopts = 0;
 

@@ -98,8 +98,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 
 // Put up the banner
 //
-   pi->eDest->Say(0,(char *)"(c) 2004 Stanford University/SLAC XRootd "
-                    "(eXtended Root Daemon).");
+   pi->eDest->Say(0, "(c) 2005 Stanford University/SLAC XRootd.");
 
 // Return the protocol object to be used if static init succeeds
 //
@@ -386,7 +385,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, char *reason)
                     sfxp = buff;
                    } else sfxp = ctbuff;
 
-       eDest.Log(OUC_LOG_02,"Xeq",(const char *)lp->ID,(char *)"disc", sfxp);
+       eDest.Log(OUC_LOG_02,"Xeq",lp->ID,(char *)"disc", sfxp);
       }
 
 // Check if we should monitor disconnects

@@ -23,7 +23,7 @@ inline XrdXrootdXPath *First() {return first;}
 inline XrdXrootdXPath *Next()  {return next;}
 inline char           *Path()  {return path;}
 
-static void            Insert(char *pd)
+static void            Insert(const char *pd)
                              {XrdXrootdXPath *pp = 0, *p = first;
                               XrdXrootdXPath *newp = new XrdXrootdXPath(pd);
                               while(p && newp->pathlen >= p->pathlen)
@@ -44,7 +44,7 @@ inline int             Validate(const char *pd, const int pl=0)
                                 return 0;
                                }
 
-       XrdXrootdXPath(char *pathdata=(char *)"")
+       XrdXrootdXPath(const char *pathdata="")
                      {next = 0;
                       pathlen = strlen(pathdata);
                       path    = strdup(pathdata);

@@ -113,7 +113,7 @@ int XrdXrootdProtocol::do_Auth()
        if (Client->name) 
           eDest.Log(OUC_LOG_01, "Xeq", Link->ID, msg, Client->name);
           else
-          eDest.Log(OUC_LOG_01, "Xeq", Link->ID, msg, (char *)"nobody");
+          eDest.Log(OUC_LOG_01, "Xeq", Link->ID, msg, "nobody");
        return rc;
       }
 
@@ -153,7 +153,7 @@ int XrdXrootdProtocol::do_Chmod()
 
 // Preform the actual function
 //
-   rc = osFS->chmod((const char *)argp->buff, (XrdSfsMode)mode, myError, CRED);
+   rc = osFS->chmod(argp->buff, (XrdSfsMode)mode, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" chmod " <<std::oct <<mode <<std::dec <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
@@ -186,7 +186,7 @@ int XrdXrootdProtocol::do_CKsum()
 // Preform the actual function
 //
    if (ProgCKS->Run(&cks, argp->buff) || !(lp = cks.GetLine()))
-      return Response.Send(kXR_ServerError, (char *)"Checksum failed");
+      return Response.Send(kXR_ServerError, "Checksum failed");
 
 // Send back the checksum
 //
@@ -259,7 +259,7 @@ int XrdXrootdProtocol::do_Dirlist()
 
 // First open the directory
 //
-   if ((rc = dp->open((const char *)argp->buff, CRED)))
+   if ((rc = dp->open(argp->buff, CRED)))
       {rc = fsError(rc, dp->error); delete dp; return rc;}
 
 // Start retreiving each entry and place in a local buffer with a trailing new
@@ -349,7 +349,7 @@ int XrdXrootdProtocol::do_Login()
 
 // Establish the ID for this link
 //
-   Link->setID((const char *)uname, pid);
+   Link->setID(uname, pid);
    CapVer = Request.login.capver[0];
 
 // Check if this is an admin login
@@ -378,15 +378,14 @@ int XrdXrootdProtocol::do_Login()
       {monFILE = XrdXrootdMonitor::monFILE;
        monIO   = XrdXrootdMonitor::monIO;
        if (XrdXrootdMonitor::monUSER)
-          monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER,
-                                        (const char *)Link->ID, 0);
+          monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID, 0);
       }
 
 // Document this login
 //
    if (!(Status & XRD_NEED_AUTH))
       eDest.Log(OUC_LOG_01, "Xeq", Link->ID, (Status & XRD_ADMINUSER
-                            ? (char *)"admin login" : (char *)"login"));
+                            ? "admin login" : "login"));
    return rc;
 }
 
@@ -409,7 +408,7 @@ int XrdXrootdProtocol::do_Mkdir()
 
 // Preform the actual function
 //
-   rc = osFS->mkdir((const char *)argp->buff, (XrdSfsMode)mode, myError, CRED);
+   rc = osFS->mkdir(argp->buff, (XrdSfsMode)mode, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" mkdir " <<std::oct <<mode <<std::dec <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
@@ -450,7 +449,7 @@ int XrdXrootdProtocol::do_Mv()
 
 // Preform the actual function
 //
-   rc = osFS->rename((const char *)oldp, (const char *)newp, myError, CRED);
+   rc = osFS->rename(oldp, newp, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" mv " <<oldp <<' ' <<newp);
    if (SFS_OK == rc) return Response.Send();
 
@@ -512,7 +511,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Check if opaque data has been provided
 //
-   if ((opaque = index((const char *)fn, (int)'?')))
+   if ((opaque = index(fn, int('?'))))
       {*opaque++ = '\0'; if (!*opaque) opaque = 0;}
    if (rpCheck(fn)) return rpEmsg("Opening", fn);
    if (!Squash(fn)) return vpEmsg("Opening", fn);
@@ -527,8 +526,8 @@ int XrdXrootdProtocol::do_Open()
 
 // Open the file
 //
-   if ((rc = fp->open((const char *)fn, (XrdSfsFileOpenMode)openopts,
-                     (mode_t)mode, CRED, (const char *)opaque)))
+   if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
+                     (mode_t)mode, CRED, opaque)))
       {rc = fsError(rc, fp->error); delete fp; return rc;}
 
 // Obtain a hyper file object
@@ -605,8 +604,7 @@ int XrdXrootdProtocol::do_Open()
 // If we are monitoring, send off a path to dictionary mapping
 //
    if (monFILE && Monitor) 
-      {xp->FileID = Monitor->Map(XROOTD_MON_MAPPATH,
-                                (const char *)Link->ID,(const char *)fn);
+      {xp->FileID = Monitor->Map(XROOTD_MON_MAPPATH, Link->ID, fn);
        Monitor->Open(xp->FileID);
       }
 
@@ -776,7 +774,7 @@ int XrdXrootdProtocol::do_Query()
 //
    switch(qopt)
          {case kXR_QStats: return SI->Stats(Response,
-                              (Request.header.dlen ? argp->buff : (char *)"a"));
+                              (Request.header.dlen ? argp->buff : "a"));
           case kXR_Qcksum: return do_CKsum();
           default:         break;
          }
@@ -933,7 +931,7 @@ int XrdXrootdProtocol::do_Rm()
 
 // Preform the actual function
 //
-   rc = osFS->rem((const char *)argp->buff, myError, CRED);
+   rc = osFS->rem(argp->buff, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" rm " <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
@@ -958,7 +956,7 @@ int XrdXrootdProtocol::do_Rmdir()
 
 // Preform the actual function
 //
-   rc = osFS->remdir((const char *)argp->buff, myError, CRED);
+   rc = osFS->remdir(argp->buff, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" rmdir " <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
@@ -989,7 +987,7 @@ int XrdXrootdProtocol::do_Set()
 //
         if (!strcmp("appid", val))
            {while(*rest && *rest == ' ') rest++;
-            eDest.Emsg("Xeq", (const char *)Link->ID, (char *)"appid", rest);
+            eDest.Emsg("Xeq", Link->ID, "appid", rest);
             return Response.Send();
            }
    else if (!strcmp("monitor", val)) return do_Set_Mon(setargs);
@@ -1024,7 +1022,7 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
           {while(*appid && *appid == ' ') appid++;
            if (strlen(appid) > 1024) appid[1024] = '\0';
            if (*appid) myseq = XrdXrootdMonitor::Map(XROOTD_MON_MAPINFO,
-                               (const char *)Link->ID, (const char *)appid);
+                               Link->ID, appid);
           }
        return Response.Send((void *)&myseq, sizeof(myseq));
       }
@@ -1040,8 +1038,7 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
            monIO   =  XrdXrootdMonitor::monIO;
            monFILE =  XrdXrootdMonitor::monFILE;
            if (XrdXrootdMonitor::monUSER && !monUID)
-              monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER,
-                               (const char *)Link->ID, 0);
+              monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID, 0);
           }
        return Response.Send();
       }
@@ -1084,7 +1081,7 @@ int XrdXrootdProtocol::do_Stat()
 
 // Preform the actual function
 //
-   rc = osFS->stat((const char *)argp->buff, &buf, myError, CRED);
+   rc = osFS->stat(argp->buff, &buf, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
    if (rc != SFS_OK) return fsError(rc, myError);
 
@@ -1126,7 +1123,7 @@ int XrdXrootdProtocol::do_Statx()
    while((path = pathlist.GetLine()))
         {if (rpCheck(path)) return rpEmsg("Stating", path);
          if (!Squash(path)) return vpEmsg("Stating", path);
-         rc = osFS->stat((const char *)path, mode, myError, CRED);
+         rc = osFS->stat(path, mode, myError, CRED);
          TRACEP(FS, "rc=" <<rc <<" stat " <<path);
          if (rc != SFS_OK)                   *respinfo = (char)kXR_other;
             else {if (mode == (mode_t)-1)    *respinfo = (char)kXR_offline;
@@ -1355,7 +1352,7 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
    {char buff[32];
     SI->errorCnt++;
     sprintf(buff, "%d", rc);
-    eDest.Emsg("Xeq", "Unknown error code", buff, (char *)eMsg);
+    eDest.Emsg("Xeq", "Unknown error code", buff, eMsg);
     return Response.Send(kXR_ServerError, eMsg);
    }
 }
@@ -1445,7 +1442,7 @@ int XrdXrootdProtocol::rpCheck(char *fn)
 
    if (*fn != '/') return 1;
 
-   while ((cp = index((const char *)fn, '/')))
+   while ((cp = index(fn, '/')))
          {fn = cp+1;
           if (fn[0] == '.' && fn[1] == '.' && fn[2] == '/') return 1;
          }

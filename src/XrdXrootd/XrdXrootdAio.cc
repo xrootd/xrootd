@@ -603,7 +603,7 @@ void XrdXrootdAioReq::Scuttle(const char *opname)
 
 // Log this event. We can't trust much of anything at this point.
 //
-   eDest->Emsg("scuttle",opname,(char *)"failed; link reassigned to",Link->ID);
+   eDest->Emsg("scuttle",opname,"failed; link reassigned to",Link->ID);
 
 // We can just recycle ourselves at this point since we know we are in a
 // transition window where nothing is active w.r.t. this request.
@@ -636,7 +636,7 @@ void XrdXrootdAioReq::sendError(char *tident)
 
 // Please the error message in the log
 //
-   eDest->Emsg("aio", (const char *)tident, mbuff);
+   eDest->Emsg("aio", tident, mbuff);
 
 // Remap the error from the filesystem
 //

@@ -55,7 +55,7 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *eDest,
 // Open the security library
 //
    if (!(libhandle = dlopen(fslib, RTLD_NOW)))
-      {eDest->Emsg("Config",dlerror(),(char *)"opening shared library",fslib);
+      {eDest->Emsg("Config",dlerror(),"opening shared library",fslib);
        return 0;
       }
 
@@ -64,7 +64,7 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *eDest,
    if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdOucLogger *,const char *))
                                   dlsym(libhandle,"XrdSfsGetFileSystem")))
       {eDest->Emsg("Config", dlerror(),
-                   (char *)"finding XrdSfsGetFileSystem() in", fslib);
+                   "finding XrdSfsGetFileSystem() in", fslib);
        return 0;
       }
 
@@ -93,7 +93,7 @@ XrdSecService *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib, char *cfn
 // Open the security library
 //
    if (!(libhandle = dlopen(seclib, RTLD_NOW)))
-      {eDest->Emsg("Config",dlerror(),(char *)"opening shared library",seclib);
+      {eDest->Emsg("Config",dlerror(),"opening shared library",seclib);
        return 0;
       }
 
@@ -102,13 +102,13 @@ XrdSecService *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib, char *cfn
    if (!(ep = (XrdSecService *(*)(XrdOucLogger *, const char *cfn))dlsym(libhandle,
               "XrdSecgetService")))
       {eDest->Emsg("Config", dlerror(),
-                   (char *)"finding XrdSecgetService() in", seclib);
+                   "finding XrdSecgetService() in", seclib);
        return 0;
       }
 
 // Get the server object
 //
-   if (!(CIA = (*ep)(eDest->logger(), (const char *)cfn)))
+   if (!(CIA = (*ep)(eDest->logger(), cfn)))
       {eDest->Emsg("Config", "Unable to create security service object via",seclib);
        return 0;
       }
@@ -122,7 +122,7 @@ XrdSecService *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib, char *cfn
                                             XrdOucErrInfo    *))
                  dlsym(libhandle, "XrdSecGetProtocol")))
       {eDest->Emsg("Config", dlerror(),
-                   (char *)"finding XrdSecGetProtocol() in", seclib);
+                   "finding XrdSecGetProtocol() in", seclib);
        return 0;
       }
 

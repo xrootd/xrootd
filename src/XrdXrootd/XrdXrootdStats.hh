@@ -42,7 +42,7 @@ XrdOucMutex      statsMutex;   // Mutex to serialize updates
 
 int              Stats(char *buff, int blen, int do_sync=0);
 
-int              Stats(XrdXrootdResponse &resp, char *opts);
+int              Stats(XrdXrootdResponse &resp, const char *opts);
 
                  XrdXrootdStats(XrdStats *sp);
                 ~XrdXrootdStats() {}

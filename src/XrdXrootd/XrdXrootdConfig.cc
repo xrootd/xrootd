@@ -145,8 +145,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                  break;
        case 'y': putenv((char *)"XRDREDPROXY=1");
                  break;
-       default:  eDest.Say(0, (char *)"Warning, ignoring invalid option ",
-                           pi->argv[optind-1]);
+       default:  eDest.Say(0,"Warning, ignoring invalid option ",pi->argv[optind-1]);
        }
      }
 
@@ -183,7 +182,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Initialize the security system if this is wanted
 //
-   if (!SecLib) eDest.Say(0, (char *)"XRootd seclib not specified;"
+   if (!SecLib) eDest.Say(0, "XRootd seclib not specified;"
                           " strong authentication disabled");
       else {TRACE(DEBUG, "Loading security library " <<SecLib);
             if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib, pi->ConfigFN)))
@@ -196,9 +195,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (FSLib)
       {TRACE(DEBUG, "Loading filesystem library " <<FSLib);
-       osFS = XrdXrootdloadFileSystem(&eDest, FSLib, (const char *)pi->ConfigFN);
+       osFS = XrdXrootdloadFileSystem(&eDest, FSLib, pi->ConfigFN);
       } else {
-       eDest.Say(0, (char *)"XRootd fslib not specified; using native file system");
+       eDest.Say(0, "XRootd fslib not specified; using native file system");
        osFS = XrdSfsGetFileSystem((XrdSfsFileSystem *)0, eDest.logger());
       }
    if (!osFS)
@@ -239,10 +238,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Check if we are exporting anything
 //
    if (!(xp = XPList.First()))
-      {XPList.Insert((char *)"/tmp");
-       eDest.Say(0, (char *)"Warning, only '/tmp' will be exported.");
+      {XPList.Insert("/tmp");
+       eDest.Say(0, "Warning, only '/tmp' will be exported.");
       } else while(xp)
-                  {eDest.Say(0, (char *)"Exporting ", xp->Path());
+                  {eDest.Say(0, "Exporting ", xp->Path());
                    xp = xp->Next();
                   }
 
@@ -252,8 +251,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Indicate we configured successfully
 //
-   eDest.Say(0, (char *)"XRootd protocol version " XROOTD_VERSION 
-                        " build " XrdVERSION " successfully loaded.");
+   eDest.Say(0, "XRootd protocol version " XROOTD_VERSION
+                " build " XrdVERSION " successfully loaded.");
 
 // Return success
 //
@@ -315,7 +314,7 @@ int XrdXrootdProtocol::ConfigIt(char *parms)
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("trace",         xtrace);
              else if (!ignore) eDest.Say(0,
-                     (char *)"Warning, unknown xrootd directive ",var);
+                     "Warning, unknown xrootd directive ",var);
             }
         }
    return NoGo;
@@ -384,7 +383,7 @@ int XrdXrootdProtocol::xasync(XrdOucTokenizer &Config)
               if (!strcmp(val, asopts[i].opname))
                  {if (asopts[i].minv >=  0 && !(val = Config.GetToken()))
                      {eDest.Emsg("Config","async",(char *)asopts[i].opname,
-                                (char *)"value not specified");
+                                 "value not specified");
                       return 1;
                      }
                        if (asopts[i].minv >  0)
