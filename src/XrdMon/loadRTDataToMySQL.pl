@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/local/bin/perl
 
 use DBI;
 
@@ -16,17 +16,19 @@ use DBI;
 # $Id$
 
 
-if ( @ARGV ne 1 ) {
-    print "Expected arg: <inputFileName>\n";
+if ( @ARGV ne 3 ) {
+    print "Expected arg: <inputFileName> <databaseName> <mySQLUser>\n";
     exit;
 }
 
+my $inFName   = $ARGV[0];
+my $dbName    = $ARGV[1];
+my $mySQLUser = $ARGV[2];
 
-$dbh = DBI->connect('dbi:mysql:rtxrdmon',"becla");
+$dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) or die $DBI::errstr;
 
 
 $nr = 0;
-$inFName = $ARGV[0];
 open inF, "< $inFName" or die "Can't open file $inFName for reading\n";
 while ( $_ = <inF> ) {
     chop;
@@ -35,7 +37,7 @@ while ( $_ = <inF> ) {
     if ( $_ =~ m/^o/ ) { loadOpenFile($_);     }
     if ( $_ =~ m/^c/ ) { loadCloseFile($_);    }
     $nr += 1;
-    if ( $nr % 1001 == 1000 ) {
+    if ( $nr % 10001 == 10000 ) {
 ($Second, $Minute, $Hour, $Day, $Month, $Year, $WeekDay, $DayOfYear, $IsDST) = localtime(time) ; 
 	print "$Hour:$Minute:$Second $nr\n";
     }
@@ -72,7 +74,7 @@ sub loadCloseSession() {
     #print "received decent data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
 
     # remove it from the open session table
-    runQuery("DELETE FROM openedSessions WHERE id = $id;");
+    runQuery("DELETE FROM openedSessions WHERE id = $sessionId;");
 
     # and insert into the closed
     runQuery("INSERT INTO closedSessions (id, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
@@ -91,7 +93,12 @@ sub loadOpenFile() {
 	return; # error: no corresponding session id
     }
 
-    runQuery("INSERT INTO openedFiles (sessionId, openT, filePath) VALUES ($sessionId, \"$openTime\", \"$path\")");
+    my $pathId = findOrInsertPathId($path);
+    if ( ! $pathId ) {
+	return; # error
+    }
+
+    runQuery("INSERT INTO openedFiles (sessionId, pathId, openT) VALUES ($sessionId, $pathId, \"$openTime\")");
 }
 
 sub loadCloseFile() {
@@ -101,8 +108,8 @@ sub loadCloseFile() {
     #print "c=$c, id=$fileId, br=$bytesR, bw=$bytesW, t=$closeT\n";
 
     # find if there is corresponding open file, if not don't bother
-    my ($sessionId, $openT, $filePath) = 
-	runQueryWithRet("SELECT id, openT, filePath FROM openedFiles WHERE id = $fileId");
+    my ($sessionId, $pathId, $openT) = 
+	runQueryWithRet("SELECT id, pathId, openT FROM openedFiles WHERE id = $fileId");
     if ( ! $sessionId ) {
 	return;
     }
@@ -111,7 +118,7 @@ sub loadCloseFile() {
     runQuery("DELETE FROM openedFiles WHERE id = $fileId;");
 
     # and insert into the closed
-    runQuery("INSERT INTO closedFiles (id, openT, closeT, bytesR, bytesW, filePath) VALUES ($sessionId, \"$openT\", \"$closeT\", $bytesR, $bytesW, \"$filePath\");");
+    runQuery("INSERT INTO closedFiles (id, openT, closeT, pathId, bytesR, bytesW) VALUES ($sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
 }
 
 sub findSessionId() {
@@ -133,7 +140,7 @@ sub findOrInsertUserId() {
         return $userId;
     }
     $userId = runQueryWithRet("SELECT id FROM users WHERE userName = \"$userName\"");
-    if ( $ userId ) {
+    if ( $userId ) {
 	#print "Will reuse user id $userId for $userName\n";
     } else {
 	#print "$userName not in mysql yet, inserting...\n";
@@ -165,10 +172,31 @@ sub findOrInsertHostId() {
     return $hostId;
 }
 
+sub findOrInsertPathId() {
+    my ($path) = @_;
+
+    my $pathId = $pathIds{$path};
+    if ( $pathId ) {
+        return $pathId;
+    }
+    $pathId = runQueryWithRet("SELECT id FROM paths WHERE path = \"$path\"");
+    if ( $pathId ) {
+	#print "Will reuse pathId for $path\n";
+    } else {
+	#print "$path not in mysql yet, inserting...\n";
+	runQuery("INSERT INTO paths (path) VALUES (\"$path\");");
+
+	$pathId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+	$pathIds{$path} = $pathId;
+    }
+    return $pathId;
+}
+
+
 sub runQuery() {
     my ($sql) = @_;
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
+    my $sth = $dbh->prepare($sql) or die "Can't prepare statement $DBI::errstr\n";
+    $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
     #print "\n$sql\n";
 }
 
