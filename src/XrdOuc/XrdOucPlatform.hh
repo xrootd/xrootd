@@ -175,4 +175,10 @@ extern "C"
 #   define SOCKLEN_t unsigned int
 #endif
 
+#ifdef _LP64
+#define PTR2INT(x) static_cast<int>((long long)x)
+#else
+#define PTR2INT(x) int(x)
+#endif
+
 #endif  // __XRDOUC_PLATFORM_H__
