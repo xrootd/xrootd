@@ -18,40 +18,41 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-map<kXR_int64, kXR_unt16> XrdMonSenderInfo::_ids;
-vector<char*>             XrdMonSenderInfo::_hps;
+map<kXR_int64, senderid_t> XrdMonSenderInfo::_ids;
+vector<hp_t>               XrdMonSenderInfo::_hps;
 
-int
+senderid_t
 XrdMonSenderInfo::convert2Id(struct sockaddr_in sAddr)
 {
     // convert sAddr to myid. If not regiserted yet, 
     // register and also build <hostname>:<port> and register it
     kXR_int64 myhash = (sAddr.sin_addr.s_addr << 16) + sAddr.sin_port;
 
-    map<kXR_int64, kXR_unt16>::const_iterator itr = _ids.find(myhash);
+    map<kXR_int64, senderid_t>::const_iterator itr = _ids.find(myhash);
     if ( itr != _ids.end() ) {
         return itr->second;
     }
-    int id;
+    senderid_t id;
     id = _ids[myhash] = _hps.size();
-    _hps.push_back( buildName(sAddr) );
+    registerSender(sAddr);
     return id;
 }
 
+
 void
-XrdMonSenderInfo::reset()
+XrdMonSenderInfo::shutdown()
 {
     _ids.clear();
-    
+     
     int i, s = _hps.size();
     for (i=0 ; i<s ; ++i) {
-        delete [] _hps[i];
+        delete [] _hps[i].first;
     }
     _hps.clear();
 }
 
-char*
-XrdMonSenderInfo::buildName(struct sockaddr_in sAddr)
+void
+XrdMonSenderInfo::registerSender(struct sockaddr_in sAddr)
 {
     char hostName[256];
     char servInfo[256];
@@ -68,8 +69,10 @@ XrdMonSenderInfo::buildName(struct sockaddr_in sAddr)
         throw XrdMonException(ERR_INVALIDADDR, "Cannot resolve ip");
     }
 
-    char* n = new char [strlen(hostName) + 8];
-    sprintf(n, "%s:%d", hostName, ntohs(sAddr.sin_port));
-    return n;
+    char* h = new char [strlen(hostName) + 1];
+    strcpy(h, hostName);
+    senderid_t p = ntohs(sAddr.sin_port);
+    
+    _hps.push_back(hp_t(h, p));
 }
 

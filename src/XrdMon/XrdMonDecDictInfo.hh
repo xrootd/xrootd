@@ -33,7 +33,8 @@ public:
     XrdMonDecDictInfo(dictid_t id,
                       dictid_t uniqueId,
                       const char* theString,
-                      int len);
+                      int len,
+                      senderid_t senderId);
     XrdMonDecDictInfo(const char* buf, int& pos);
     
     dictid_t xrdId() const { return _myXrdId; }
@@ -41,8 +42,8 @@ public:
     
     bool isClosed() const   { return 0 != _close; }
     int stringSize() const;
-    string convert2string() const;
-    const char* writeRT2Buffer(TYPE t, string& senderHost) const;
+    const char* convert2string() const;
+    const char* writeRT2Buffer(TYPE t) const;
     void writeSelf2buf(char* buf, int& pos) const;
     
     void openFile(kXR_int32 t);
@@ -69,8 +70,9 @@ private:
 
     string  _user;
     kXR_int16 _pid;
-    string  _host;
+    string  _cHost;  // client host
     string  _path;
+    senderid_t _senderId;
     kXR_int32  _open;
     kXR_int32  _close;
     

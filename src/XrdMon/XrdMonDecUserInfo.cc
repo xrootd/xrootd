@@ -13,6 +13,7 @@
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonDecUserInfo.hh"
 #include "XrdMon/XrdMonErrors.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
@@ -30,7 +31,8 @@ XrdMonDecUserInfo::XrdMonDecUserInfo()
       _myUniqueId(0),
       _user("InvalidUser"),
       _pid(-1),
-      _host("InvalidHost"),
+      _cHost("InvalidHost"),
+      _senderId(XrdMonSenderInfo::INVALID_SENDER_ID),
       _sec(0),
       _dTime(0)
 {}
@@ -38,9 +40,11 @@ XrdMonDecUserInfo::XrdMonDecUserInfo()
 XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
                                      dictid_t uniqueId,
                                      const char* s, 
-                                     int len)
+                                     int len,
+                                     senderid_t senderId)
     : _myXrdId(id),
       _myUniqueId(uniqueId),
+      _senderId(senderId),
       _sec(0),
       _dTime(0)
 {
@@ -82,7 +86,7 @@ XrdMonDecUserInfo::XrdMonDecUserInfo(dictid_t id,
     x2 += x1+1;
     memcpy(buf, s+x2, len-x2);
     *(buf+len-x2) = '\0';
-    _host = buf;
+    _cHost = buf;
 
     delete [] buf;
 }
@@ -96,28 +100,30 @@ XrdMonDecUserInfo::setDisconnectInfo(kXR_int32 sec,
 }
 
 // this goes to ascii file loaded to MySQL
-string
+const char*
 XrdMonDecUserInfo::convert2string() const
 {
-    stringstream ss(stringstream::out);
-    ss <<         _user
-       << '\t' << _pid
-       << '\t' << _host
-       << '\t' << _sec
-       << '\t' << timestamp2string(_dTime);
-    return ss.str();
+    static char buf[512];
+    char tBuf[24];
+    timestamp2string(_dTime, tBuf);
+    
+    sprintf(buf, "%st%i\t%s\t%i\t%s\t%s\n", 
+            _user.c_str(), _pid, _cHost.c_str(), 
+            _sec, tBuf, XrdMonSenderInfo::id2Host(_senderId));
+
+    return buf;
 }
 
 // this goes to real time log file
 const char*
-XrdMonDecUserInfo::writeRT2Buffer(TYPE t, string& senderHost) const
+XrdMonDecUserInfo::writeRT2Buffer(TYPE t) const
 {
     static char buf[512];
     
     if ( t == CONNECT ) {
         sprintf(buf, "u\t%i\t%s\t%i\t%s\t%s\n", 
-                _myUniqueId, _user.c_str(), _pid, _host.c_str(), 
-                senderHost.c_str());
+                _myUniqueId, _user.c_str(), _pid, _cHost.c_str(), 
+                XrdMonSenderInfo::id2Host(_senderId));
     } else {
         static char b[24];
         timestamp2string(_dTime, b);
@@ -134,7 +140,9 @@ operator<<(ostream& o, const XrdMonDecUserInfo& m)
      << ' ' << m._myUniqueId
      << ' ' << m._user
      << ' ' << m._pid
-     << ' ' << m._host;
+     << ' ' << m._cHost
+     << ' ' << m._senderId 
+     << " (" << XrdMonSenderInfo::id2Host(m._senderId) << ")";
       
     return o;
 }

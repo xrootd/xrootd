@@ -29,11 +29,14 @@ class XrdMonHeader;
 
 class XrdMonCtrWriter {
 public:
-    XrdMonCtrWriter(const char* senderHP);
+    XrdMonCtrWriter(senderid_t senderId, kXR_int32 stod);
     ~XrdMonCtrWriter();
     void operator()(const char* packet, 
                     const XrdMonHeader& header, 
                     long currentTime);
+
+    kXR_int32 prevStod() const { return _prevStod; }
+
     void forceClose();
     long lastActivity() const { return _lastActivity; }
 
@@ -43,7 +46,7 @@ public:
     
 private:
     enum LogType { ACTIVE, PERMANENT };
-    
+
     bool logIsOpen() { return _file.is_open(); }
     bool logIsFull() { return (kXR_int64) _file.tellp() >= _maxLogSize; }
     bool bufferIsFull(packetlen_t x) { return _bPos + x > _bufferSize; }
@@ -61,11 +64,13 @@ private:
     static kXR_int64 _maxLogSize;
     static int     _bufferSize;
     static long    _totalArchived;
+
+    kXR_int32 _prevStod; // for checking if xrootd restarted
     
     string  _timestamp;
-    string  _sender;     // <hostid>:<port>
+    hp_t    _sender;     // { hostName, portNr }
     char*   _buffer;
-    kXR_int32 _bPos;       // position where to write to buffer
+    kXR_int32 _bPos;     // position where to write to buffer
     fstream _file;       // non-published log file
 
     long _lastActivity; // approx time of last activity

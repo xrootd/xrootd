@@ -42,8 +42,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
       _maxTraceLogSize(maxTraceLogSize),
       _lastSeq(0xFF),
       _uniqueDictId(1),
-      _uniqueUserId(1),
-      _senderId(65500) // make it invalid, so that _senderHost is initialized
+      _uniqueUserId(1)
 {
     if ( maxTraceLogSize < 2  ) {
         cerr << "Trace log size must be > 2MB" << endl;
@@ -74,7 +73,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     }
 
     if ( 0 != rtLogDir ) {
-        _rtLogger = new XrdMonDecRTLogging(rtLogDir, _senderHost);
+        _rtLogger = new XrdMonDecRTLogging(rtLogDir);
     } else {
         loadUniqueIdsAndSeq();
     }
@@ -84,17 +83,6 @@ XrdMonDecSink::~XrdMonDecSink()
 {
     reset();
     delete _rtLogger;
-}
-
-void 
-XrdMonDecSink::setSenderId(kXR_unt16 id)
-{
-    if ( id != _senderId ) {
-        string hostPort ( XrdMonSenderInfo::hostPort(id) );
-        pair<string, string> hp = breakHostPort(hostPort);
-        _senderHost = hp.first;
-        _senderId = id;
-    }
 }
 
 struct connectDictIdsWithCache : public std::unary_function<XrdMonDecDictInfo*, void> {
@@ -117,13 +105,13 @@ XrdMonDecSink::init(dictid_t min, dictid_t max, const string& senderHP)
     std::for_each(diVector.begin(),
                   diVector.end(),
                   connectDictIdsWithCache(_dCache));
-
-    pair<string, string> hp = breakHostPort(senderHP);
-    _senderHost = hp.first;
 }
 
 void
-XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
+XrdMonDecSink::addDictId(dictid_t xrdId, 
+                         const char* theString, 
+                         int len,
+                         senderid_t senderId)
 {
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
@@ -135,7 +123,7 @@ XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
     
     XrdMonDecDictInfo* di;
     _dCache[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueDictId++, 
-                                                theString, len);
+                                                theString, len, senderId);
     
     cout << "Added dictInfo to sink: " << *di << endl;
 
@@ -144,7 +132,10 @@ XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
 }
 
 void
-XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
+XrdMonDecSink::addUserId(dictid_t usrId, 
+                         const char* theString, 
+                         int len,
+                         senderid_t senderId)
 {
     XrdOucMutexHelper mh; mh.Lock(&_uMutex);
     std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(usrId);
@@ -155,8 +146,9 @@ XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
     }
     
     XrdMonDecUserInfo* ui;
-    _uCache[usrId] = ui = new XrdMonDecUserInfo(usrId, _uniqueUserId++, 
-                                                theString, len);
+    _uCache[usrId] = ui 
+        = new XrdMonDecUserInfo(usrId, _uniqueUserId++, 
+                                theString, len, senderId);
     cout << "Added userInfo to sink: " << *ui << endl;
 
     if ( 0 != _rtLogger ) {
@@ -301,19 +293,18 @@ XrdMonDecSink::flushClosedDicts()
         for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
             XrdMonDecDictInfo* di = itr->second;
             if ( di != 0 && di->isClosed() ) {
-                string dString = di->convert2string();
-                dString += '\t';dString += _senderHost;dString += '\n';
-                int strLen = dString.size();
+                const char* dString = di->convert2string();
+                int strLen = strlen(dString);
                 if ( curLen == 0 ) {
-                    buf = dString.c_str();
+                    buf = dString;
                 } else {
                     if ( curLen + strLen >= BUFSIZE ) {
                         fD.write(buf.c_str(), curLen);
                         curLen = 0;
                         //cout << "flushed to disk: \n" << buf << endl;
-                        buf = dString.c_str();
+                        buf = dString;
                     } else {
-                        buf += dString.c_str();
+                        buf += dString;
                     }
                 }
                 curLen += strLen;
@@ -356,19 +347,18 @@ XrdMonDecSink::flushUserCache()
         for ( itr=_uCache.begin() ; itr != _uCache.end() ; ++itr ) {
             XrdMonDecUserInfo* di = itr->second;
             if ( di != 0 && di->readyToBeStored() ) {
-                string dString = di->convert2string();
-                dString += '\t';dString += _senderHost;dString += '\n';
-                int strLen = dString.size();
+                const char* dString = di->convert2string();
+                int strLen = strlen(dString);
                 if ( curLen == 0 ) {
-                    buf = dString.c_str();
+                    buf = dString;
                 } else {
                     if ( curLen + strLen >= BUFSIZE ) {
                         fD.write(buf.c_str(), curLen);
                         curLen = 0;
                         cout << "flushed to disk: \n" << buf << endl;
-                        buf = dString.c_str();
+                        buf = dString;
                     } else {
-                        buf + dString.c_str();
+                        buf + dString;
                     }
                 }
                 curLen += strLen;

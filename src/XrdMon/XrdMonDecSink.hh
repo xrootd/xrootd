@@ -35,14 +35,18 @@ public:
                   int maxTraceLogSize);
     ~XrdMonDecSink();
 
-    void setSenderId(kXR_unt16 id);
-    
     void init(dictid_t min, dictid_t max, const string& senderHP);
     sequen_t lastSeq() const { return _lastSeq; }
     void setLastSeq(sequen_t seq) { _lastSeq = seq; }
                     
-    void addDictId(dictid_t xrdId, const char* theString, int len);
-    void addUserId(dictid_t xrdId, const char* theString, int len);
+    void addDictId(dictid_t xrdId, 
+                   const char* theString, 
+                   int len,
+                   senderid_t senderId);
+    void addUserId(dictid_t xrdId,
+                   const char* theString,
+                   int len,
+                   senderid_t senderId);
     void add(dictid_t xrdId, XrdMonDecTraceInfo& trace);
     void addUserDisconnect(dictid_t xrdId, kXR_int32 sec, kXR_int32 timestamp);
     void openFile(dictid_t dictId, kXR_int32 timestamp);
@@ -94,10 +98,7 @@ private:
     string _path;    // <basePath>/<date>_seqId_
     string _jnlPath; // <basePath>/jnl
     string _dictPath;// <basePath>/<YYYYMMDD_HH:MM:SS.MMM_dict.ascii
-    string _userPath;// <basePath>/<YYYYMMDD_HH:MM:SS.MMM_user.ascii
-    
-    kXR_unt16 _senderId; // needed to check if senderHost can be reused
-    string   _senderHost;
+    string _userPath;// <basePath>/<YYYYMMDD_HH:MM:SS.MMM_user.ascii    
 };
 
 #endif /* XRDMONDECSINK_HH */

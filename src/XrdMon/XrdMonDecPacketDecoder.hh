@@ -35,7 +35,7 @@ public:
     
     void operator()(const XrdMonHeader& header,
                     const char* packet,
-                    kXR_unt16 senderId=INV_SENDERID);
+                    senderid_t senderId=INV_SENDERID);
 
     void reset();
     
@@ -62,8 +62,12 @@ private:
     void checkLostPackets(const XrdMonHeader& header);
     
     void decodeTracePacket(const char* packet, int packetLen);
-    void decodeDictPacket(const char* packet, int packetLen);
-    void decodeUserPacket(const char* packet, int packetLen);
+    void decodeDictPacket(const char* packet,
+                          int packetLen,
+                          senderid_t senderId);
+    void decodeUserPacket(const char* packet,
+                          int packetLen,
+                          senderid_t senderId);
     TimePair decodeTime(const char* packet);
     void decodeRWRequest(const char* packet, kXR_int32 timestamp);
     void decodeOpen(const char* packet, kXR_int32 timestamp);

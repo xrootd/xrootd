@@ -32,7 +32,8 @@ public:
     XrdMonDecUserInfo(dictid_t id,
                       dictid_t uniqueId,
                       const char* theString,
-                      int len);
+                      int len,
+                      senderid_t senderId);
 
     inline bool readyToBeStored() const {return _dTime > 0;}
     
@@ -41,8 +42,8 @@ public:
     dictid_t xrdId() const { return _myXrdId; }
     dictid_t uniqueId() const { return _myUniqueId; }
     
-    string convert2string() const;
-    const char* writeRT2Buffer(TYPE t, string& senderHost) const;
+    const char* convert2string() const;
+    const char* writeRT2Buffer(TYPE t) const;
     string convert2stringRTDisconnect() const;
 
 private:
@@ -64,11 +65,13 @@ private:
     dictid_t _myUniqueId; // unique (across all dictIds for given xrd server)
 
     string    _user;
-    kXR_int16 _pid;
-    string    _host;
+    kXR_int16 _pid;   // client process id
+    string    _cHost; // client host
 
+    senderid_t _senderId;
+    
     kXR_int32 _sec;   // number of seconds that client was connected
-    kXR_int32    _dTime; // disconnect time
+    kXR_int32 _dTime; // disconnect time
     
     friend ostream& operator<<(ostream& o, const XrdMonDecUserInfo& m);
 };

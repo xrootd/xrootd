@@ -22,9 +22,8 @@ using std::fstream;
 using std::ios;
 
 
-XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir, string& senderHost)
-    : _senderHost(senderHost),
-      _buf(0), 
+XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir)
+    : _buf(0), 
       _bufSize(1024*1024)
 {
     _rtLog = dir;
@@ -44,7 +43,7 @@ XrdMonDecRTLogging::add(XrdMonDecUserInfo::TYPE t, XrdMonDecUserInfo* x)
 {
     XrdOucMutexHelper mh; mh.Lock(&_mutex);
 
-    const char* s = x->writeRT2Buffer(t, _senderHost);
+    const char* s = x->writeRT2Buffer(t);
     if ( static_cast<int>(strlen(_buf) + strlen(s)) >= _bufSize ) {
         flush(false); // false -> don't lock mutex, already locked
     }
@@ -56,7 +55,7 @@ XrdMonDecRTLogging::add(XrdMonDecDictInfo::TYPE t, XrdMonDecDictInfo* x)
 {
     XrdOucMutexHelper mh; mh.Lock(&_mutex);
 
-    const char* s = x->writeRT2Buffer(t, _senderHost);
+    const char* s = x->writeRT2Buffer(t);
     if ( static_cast<int>(strlen(_buf) + strlen(s)) >= _bufSize ) {
         flush(false); // false -> don't lock mutex, already locked
     }

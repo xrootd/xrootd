@@ -13,6 +13,7 @@
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonCommon.hh"
 #include "XrdMon/XrdMonHeader.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonCtrDebug.hh"
 #include "XrdMon/XrdMonErrors.hh"
@@ -39,8 +40,9 @@ long    XrdMonCtrWriter::_totalArchived(0);
 // never make it < MAXPACKETSIZE
 kXR_int32 XrdMonCtrWriter::_bufferSize(1024*1024);      // 1MB 
 
-XrdMonCtrWriter::XrdMonCtrWriter(const char* senderHP)
-    : _buffer(0),
+XrdMonCtrWriter::XrdMonCtrWriter(senderid_t senderId, kXR_int32 stod)
+    : _prevStod(stod),
+      _buffer(0),
       _bPos(0),
       _lastActivity(0)
 {
@@ -48,9 +50,7 @@ XrdMonCtrWriter::XrdMonCtrWriter(const char* senderHP)
 
     _timestamp = generateTimestamp();
     
-    stringstream ss(stringstream::out);
-    ss << senderHP;
-    _sender = ss.str();
+    _sender = XrdMonSenderInfo::id2HostPort(senderId);
 }
 
 XrdMonCtrWriter::~XrdMonCtrWriter()
@@ -80,7 +80,7 @@ XrdMonCtrWriter::operator()(const char* packet,
     // check if there is space in buffer
     // if not, flush to log file
     if ( bufferIsFull(header.packetLen()) ) {
-        //cout << "flushing buffer for " << _sender << endl;
+        //cout << "flushing buffer for " << _sender.first << endl;
         flushBuffer();
     }
 
@@ -91,7 +91,7 @@ XrdMonCtrWriter::operator()(const char* packet,
     if ( XrdMonCtrDebug::verbose(XrdMonCtrDebug::Receiving) ) {
         XrdOucMutexHelper mh; mh.Lock(&XrdMonCtrDebug::_mutex);
         cout << " Archiving packet #" << setw(5) << ++_totalArchived 
-             << " from " << _sender << " " << header << endl;
+             << " from " << _sender.first << " " << header << endl;
     }
 }
 
@@ -130,14 +130,15 @@ XrdMonCtrWriter::flushBuffer()
 void
 XrdMonCtrWriter::mkActiveLogNameDirs() const
 {
-    string ss(_baseDir);
-    ss += '/';    
-    pair<string, string> hp = breakHostPort(_sender);
-    ss += hp.first;
-    mkdirIfNecessary(ss.c_str());
-    ss += '/';
-    ss += hp.second;
-    mkdirIfNecessary(ss.c_str());
+    char* b = new char [_baseDir.size() + 64];
+
+    sprintf (b, "%s/%s", _baseDir.c_str(), _sender.first);
+    mkdirIfNecessary(b);
+
+    sprintf (b, "%s/%s/%d", _baseDir.c_str(), _sender.first, _sender.second);
+    mkdirIfNecessary(b);
+
+    delete [] b;
 }
 
 string
@@ -145,17 +146,18 @@ XrdMonCtrWriter::logName(LogType t) const
 {
     string ss(_baseDir);
     ss += '/';    
-    pair<string, string> hp = breakHostPort(_sender);
-    ss += hp.first;
+    ss += _sender.first;
     ss += '/';
-    ss += hp.second;
+    ss += _sender.second;
     ss += '/';
     if ( t == ACTIVE ) {
         ss += "active";
     } else if ( t == PERMANENT ) {
         ss += _timestamp;
         ss += '_';
-        ss += _sender;
+        ss += _sender.first;
+        ss += ':';
+        ss += _sender.second;
     } else {
         throw XrdMonException(ERR_INVALIDARG, "in XrdMonCtrWriter::logName");
     }
@@ -200,6 +202,6 @@ XrdMonCtrWriter::publish()
 ostream&
 operator<<(ostream& o, const XrdMonCtrWriter& w)
 {
-    o << w._sender;
+    o << w._sender.first << ':' << w._sender.second;
     return o;
 }

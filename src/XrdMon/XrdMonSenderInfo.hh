@@ -21,27 +21,44 @@ using std::map;
 using std::vector;
 
 class XrdMonSenderInfo {
-public:
-    static int convert2Id(struct sockaddr_in sAddr);
-    static const char* hostPort(struct sockaddr_in sAddr) {
-        return hostPort(convert2Id(sAddr));
+public:    
+    enum { INVALID_SENDER_ID = 65535 };
+
+    static senderid_t convert2Id(struct sockaddr_in sAddr);
+    static hp_t addr2HostPort(struct sockaddr_in sAddr) {
+        return id2HostPort(convert2Id(sAddr));
     }
-    static const char* hostPort(kXR_unt16 id) {
+    static hp_t id2HostPort(senderid_t id) {
         if ( id >= _hps.size() ) {
-            return "Error: invalid offset!";
+            return hp_t("Error, invalid offset", 0);
         }
         return _hps[id];
     }
-    static void reset();
+    static const char* id2HostPortStr(senderid_t id) {
+        hp_t hp = id2HostPort(id);
+        static char x[256];
+        sprintf(x, "%s:%d", hp.first, hp.second);
+        return x;
+    }
+    
+    static const char* id2Host(senderid_t id) {
+        if ( id >= _hps.size() ) {
+            return "Error, invalid offset";
+        }
+        return _hps[id].first;
+    }
+    
+    static void shutdown();
     
 private:
-    static char* buildName(struct sockaddr_in sAddr);
+    static void registerSender(struct sockaddr_in sAddr);
 
 private:
     // Maps hash of sockaddr_in --> id.
     // Used as offset in various vectors
-    static map<kXR_int64, kXR_unt16> _ids;
-    static vector<char*>           _hps; // <host>:<port>
+    static map<kXR_int64, senderid_t> _ids;
+
+    static vector<hp_t> _hps; // {host, port}
 };
 
 #endif /* XRDMONSENDERINFO_HH */

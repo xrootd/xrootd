@@ -40,8 +40,6 @@ public:
     ~XrdMonCtrArchiver();
     void operator()();
 
-    void reset();
-    
     static int _decHDFlushDelay; // number of sec between flushes of decoded 
                                  // history data to disk
     static int _decRTFlushDelay; // number of sec between flushes of decoded 
@@ -52,7 +50,6 @@ private:
     void archivePacket(XrdMonCtrPacket* p);
     friend void* decHDFlushHeartBeat(void* arg);
     friend void* decRTFlushHeartBeat(void* arg);
-    void deleteWriters();
     
 private:
     enum { TIMESTAMP_FREQ = 10000,   // re-take time every X packets

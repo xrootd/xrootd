@@ -55,12 +55,8 @@ XrdMonDecPacketDecoder::init(dictid_t min,
 void
 XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
                                    const char* packet,
-                                   kXR_unt16 senderId)
+                                   senderid_t senderId)
 {
-    if ( senderId != INV_SENDERID ) {
-        _sink.setSenderId(senderId);
-    }
-    
     int len = header.packetLen() - HDRLEN;
     cout << "header " << header << endl;
     
@@ -75,11 +71,11 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
             break;
         }
         case PACKET_TYPE_DICT : {
-            decodeDictPacket(packet+HDRLEN, len);
+            decodeDictPacket(packet+HDRLEN, len, senderId);
             break;
         }
         case PACKET_TYPE_USER : {
-            decodeUserPacket(packet+HDRLEN, len);
+            decodeUserPacket(packet+HDRLEN, len, senderId);
             break;
         }
         default: {
@@ -146,24 +142,34 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
 
 // packet should point to data after header
 void
-XrdMonDecPacketDecoder::decodeDictPacket(const char* packet, int len)
+XrdMonDecPacketDecoder::decodeDictPacket(const char* packet, 
+                                         int len, 
+                                         senderid_t senderId)
 {
     kXR_int32 x32;
     memcpy(&x32, packet, sizeof(kXR_int32));
     dictid_t dictId = ntohl(x32);
     
-    _sink.addDictId(dictId, packet+sizeof(kXR_int32), len-sizeof(kXR_int32));
+    _sink.addDictId(dictId, 
+                    packet+sizeof(kXR_int32), 
+                    len-sizeof(kXR_int32),
+                    senderId);
 }
 
 // packet should point to data after header
 void
-XrdMonDecPacketDecoder::decodeUserPacket(const char* packet, int len)
+XrdMonDecPacketDecoder::decodeUserPacket(const char* packet,
+                                         int len,
+                                         senderid_t senderId)
 {
     kXR_int32 x32;
     memcpy(&x32, packet, sizeof(kXR_int32));
     dictid_t dictId = ntohl(x32);
     
-    _sink.addUserId(dictId, packet+sizeof(kXR_int32), len-sizeof(kXR_int32));
+    _sink.addUserId(dictId,
+                    packet+sizeof(kXR_int32),
+                    len-sizeof(kXR_int32),
+                    senderId);
 }
 
 

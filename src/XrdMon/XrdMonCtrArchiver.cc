@@ -67,7 +67,15 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
 XrdMonCtrArchiver::~XrdMonCtrArchiver()
 {
     delete _decoder;
-    deleteWriters();
+
+    // go through all writers and shut them down
+    int i, s = _writers.size();
+    for (i=0 ; i<s ; i++) {
+        delete _writers[i];
+    }
+    _writers.clear();
+
+    XrdMonSenderInfo::shutdown();
 }
 
 void
@@ -84,7 +92,6 @@ XrdMonCtrArchiver::operator()()
             delete p;
         } catch (XrdMonException& e) {
             if ( e.err() == SIG_SHUTDOWNNOW ) {
-                XrdMonSenderInfo::reset();
                 return;
             }
             e.printItOnce();
@@ -148,7 +155,7 @@ XrdMonCtrArchiver::check4InactiveSenders()
         if ( _writers[i]->lastActivity() < allowed ) {
             cout << "No activity for " << MAX_INACTIVITY << " sec., "
                  << "closing all files for sender " 
-                 << XrdMonSenderInfo::hostPort(i) << endl;
+                 << XrdMonSenderInfo::id2HostPortStr(i) << endl;
             _writers[i]->forceClose();
         }
     }
@@ -166,41 +173,31 @@ XrdMonCtrArchiver::archivePacket(XrdMonCtrPacket* p)
         XrdMonCtrAdmin::doIt(command, arg);
         return;
     }
-    if ( header.xrdRestarted() ) {
-        cout << "\n* * * *   XRD RESTARTED   * * * *\n" << endl;
-        XrdMonSenderInfo::reset();        
-        this->reset();
-    }
 
-    kXR_unt16 senderId = XrdMonSenderInfo::convert2Id(p->sender);
+    senderid_t senderId = XrdMonSenderInfo::convert2Id(p->sender);
+
+    XrdMonCtrWriter* w = 0;
+    
+    if ( _writers.size() <= senderId ) {
+        w = new XrdMonCtrWriter(senderId, header.stod());
+        _writers.push_back(w);
+    } else {
+        w = _writers[senderId];
+        if ( w->prevStod() != header.stod() ) {
+            cout << "\n* * * *   XRD RESTARTED for " 
+                 << XrdMonSenderInfo::id2HostPortStr(senderId) 
+                 << ": " << w->prevStod() << " != " << header.stod()
+                 << "    * * * *\n" << endl;
+            delete w;
+            _writers[senderId] = w = 
+                new XrdMonCtrWriter(senderId, header.stod());
+            _decoder->reset();
+        }
+    }
+    
+    w->operator()(p->buf, header, _currentTime);
 
     if ( 0 != _decoder ) {
         _decoder->operator()(header, p->buf, senderId);
-    }
-    
-    if ( _writers.size() <= senderId ) {
-        _writers.push_back(
-            new XrdMonCtrWriter(XrdMonSenderInfo::hostPort(senderId)));
-    }
-    _writers[senderId]->operator()(p->buf, header, _currentTime);
-}
-
-
-
-void
-XrdMonCtrArchiver::reset()
-{
-    _decoder->reset();
-    deleteWriters();
-}
-
-void
-XrdMonCtrArchiver::deleteWriters()
-{
-    // go through all writers and shut them down
-    int i, s = _writers.size();
-    for (i=0 ; i<s ; i++) {
-        delete _writers[i];
-    }
-    _writers.clear();
+    }    
 }

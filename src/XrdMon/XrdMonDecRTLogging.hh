@@ -21,7 +21,7 @@ using std::string;
 
 class XrdMonDecRTLogging {
 public:
-    XrdMonDecRTLogging(const char* dir, string& senderHost);
+    XrdMonDecRTLogging(const char* dir);
     ~XrdMonDecRTLogging();
 
     void add(XrdMonDecUserInfo::TYPE t, XrdMonDecUserInfo* x);
@@ -31,7 +31,6 @@ public:
     
 private:
     string      _rtLog;
-    string&     _senderHost;
     char*       _buf;
     const int   _bufSize; // flush when buffer is full, or when
                           // triggered by external thread

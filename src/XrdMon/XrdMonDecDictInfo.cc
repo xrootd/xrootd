@@ -13,6 +13,7 @@
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonDecDictInfo.hh"
 #include "XrdMon/XrdMonErrors.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
@@ -30,8 +31,9 @@ XrdMonDecDictInfo::XrdMonDecDictInfo()
       _myUniqueId(0),
       _user("InvalidUser"),
       _pid(-1),
-      _host("InvalidHost"),
+      _cHost("InvalidHost"),
       _path("InvalidPath"),
+      _senderId(XrdMonSenderInfo::INVALID_SENDER_ID),
       _open(0),
       _close(0),
       _noRBytes(0),
@@ -41,9 +43,11 @@ XrdMonDecDictInfo::XrdMonDecDictInfo()
 XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
                                      dictid_t uniqueId,
                                      const char* s, 
-                                     int len)
+                                     int len, 
+                                     senderid_t senderId)
     : _myXrdId(id),
       _myUniqueId(uniqueId),
+      _senderId(senderId),
       _open(0),
       _close(0),
       _noRBytes(0),
@@ -91,7 +95,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
         string es("Cannot find "); es+='\n'; es+=" in "; es+=s;
         throw XrdMonException(ERR_INVDICTSTRING, es);
     }
-    _host = buf;
+    _cHost = buf;
 
     x2 += x1+1;
     memcpy(buf, s+x2, len-x2);
@@ -134,7 +138,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(const char* buf, int& pos)
     memcpy(b, buf+pos, hostSize);
     pos += hostSize;
     *(b+hostSize) = '\0';
-    _host = b;
+    _cHost = b;
     
     memcpy(&v16, buf+pos, sizeof(kXR_int16));
     pos += sizeof(kXR_int16);
@@ -231,8 +235,9 @@ XrdMonDecDictInfo::stringSize() const
            sizeof(kXR_int32) +                // _myUniqueId
            sizeof(kXR_int16) + _user.size() + // _user
            sizeof(kXR_int16) +                // _pid
-           sizeof(kXR_int16) + _host.size() + // _host
+           sizeof(kXR_int16) + _cHost.size() + // _cHost
            sizeof(kXR_int16) + _path.size() + // _path
+           sizeof(int)       +                // server host id
            sizeof(kXR_int32)  +                  // _open
            sizeof(kXR_int32)  +                  // _close
            sizeof(kXR_int64) +                // _noRBytes
@@ -262,11 +267,11 @@ XrdMonDecDictInfo::writeSelf2buf(char* buf, int& pos) const
     memcpy(buf+pos, &v16, sizeof(kXR_int16));
     pos += sizeof(kXR_int16);
     
-    v16 = htons(_host.size());
+    v16 = htons(_cHost.size());
     memcpy(buf+pos, &v16, sizeof(kXR_int16));
     pos += sizeof(kXR_int16);
-    memcpy(buf+pos, _host.c_str(), _host.size());
-    pos += _host.size();
+    memcpy(buf+pos, _cHost.c_str(), _cHost.size());
+    pos += _cHost.size();
     
     v16 = htons(_path.size());
     memcpy(buf+pos, &v16, sizeof(kXR_int16));
@@ -292,33 +297,36 @@ XrdMonDecDictInfo::writeSelf2buf(char* buf, int& pos) const
 }
 
 // this goes to ascii file loaded to MySQL
-string
+const char*
 XrdMonDecDictInfo::convert2string() const
 {
-    stringstream ss(stringstream::out);
-    ss <<         _user
-       << '\t' << _pid
-       << '\t' << _host
-       << '\t' << _path
-       << '\t' << timestamp2string(_open)
-       << '\t' << timestamp2string(_close)
-       << '\t' << _noRBytes
-       << '\t' << _noWBytes;
-    return ss.str();
+    static char buf[1024];
+    char tBufO[24];
+    timestamp2string(_open, tBufO);
+
+    char tBufC[24];
+    timestamp2string(_close, tBufC);
+
+    sprintf(buf, "%s\t%i\t%s\t%s\t%s\t%s\t%lld\t%lld\t%s\n", 
+            _user.c_str(), _pid, _cHost.c_str(), _path.c_str(),
+            tBufO, tBufC, _noRBytes, _noWBytes, 
+            XrdMonSenderInfo::id2Host(_senderId));
+
+    return buf;
 }
 
 // this goes to real time log file
 const char*
-XrdMonDecDictInfo::writeRT2Buffer(TYPE t, string& senderHost) const
+XrdMonDecDictInfo::writeRT2Buffer(TYPE t) const
 {
     static char buf[1024];
     static char tBuf[24];
-    
+
     if ( t == OPEN ) {
         timestamp2string(_open, tBuf);
         sprintf(buf, "o\t%i\t%s\t%i\t%s\t%s\t%s\t%s\n", 
-                _myUniqueId, _user.c_str(), _pid, _host.c_str(), _path.c_str(),
-                tBuf, senderHost.c_str());
+              _myUniqueId, _user.c_str(), _pid, _cHost.c_str(), _path.c_str(),
+              tBuf, XrdMonSenderInfo::id2Host(_senderId));
     } else {
         timestamp2string(_close, tBuf);
         sprintf(buf, "c\t%i\t%lld\t%lld\t%s\n", 
@@ -335,8 +343,10 @@ operator<<(ostream& o, const XrdMonDecDictInfo& m)
      << ' ' << m._myUniqueId
      << ' ' << m._user
      << ' ' << m._pid
-     << ' ' << m._host
+     << ' ' << m._cHost
      << ' ' << m._path
+     << ' ' << m._senderId 
+            << " (" << XrdMonSenderInfo::id2Host(m._senderId)<<")"
      << ' ' << timestamp2string(m._open)
      << ' ' << timestamp2string(m._close)
      << ' ' << m._noRBytes

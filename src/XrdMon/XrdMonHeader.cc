@@ -21,7 +21,6 @@ using std::ostream;
 using std::setw;
 using std::stringstream;
 
-kXR_int32 XrdMonHeader::_prevStod = 0;
 
 void
 XrdMonHeader::decode(const char* packet)
@@ -43,17 +42,6 @@ XrdMonHeader::decode(const char* packet)
         ss << "Invalid packet length " << packetLen();
         throw XrdMonException(ERR_INVPACKETLEN, ss.str());
     }
-}
-
-bool
-XrdMonHeader::xrdRestarted() const
-{
-    if ( _header.stod == _prevStod ) {
-        return false;
-    }
-    bool ret = (_prevStod != 0);
-    _prevStod = _header.stod;
-    return ret;
 }
 
 ostream&
