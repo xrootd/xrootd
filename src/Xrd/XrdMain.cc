@@ -126,13 +126,18 @@ void *mainUser(void *parg)
   
 int main(int argc, char *argv[])
 {
+   sigset_t myset;
 
-// Turn off sigpipe before we start any threads
+// Turn off sigpipe and host a variety of others before we start any threads
 //
    signal(SIGPIPE, SIG_IGN);
-   sighold(SIGUSR1);
-   sighold(SIGUSR2);
-   sighold(SIGCHLD);
+   sigemptyset(&myset);
+   sigaddset(&myset, SIGUSR1);
+   sigaddset(&myset, SIGUSR2);
+   sigaddset(&myset, SIGCHLD);
+   sigaddset(&myset, SIGRTMIN);
+   sigaddset(&myset, SIGRTMIN+1);
+   pthread_sigmask(SIG_BLOCK, &myset, NULL);
 
 // Process configuration file
 //
