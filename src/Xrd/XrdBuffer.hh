@@ -1,0 +1,99 @@
+#ifndef __XrdBuffer_H__
+#define __XrdBuffer_H__
+/******************************************************************************/
+/*                                                                            */
+/*                          x r d _ B u f f e r . h                           */
+/*                                                                            */
+/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/******************************************************************************/
+
+//          $Id$ 
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include "XrdOuc/XrdOucPthread.hh"
+
+/******************************************************************************/
+/*                            x r d _ B u f f e r                             */
+/******************************************************************************/
+
+class XrdBuffer
+{
+public:
+
+char *   buff;     // -> buffer
+long     bsize;    // size of this buffer
+
+         XrdBuffer(char *bp, long sz, int ix)
+                      {buff = bp; bsize = sz; bindex = ix; next = 0;}
+
+        ~XrdBuffer() {if (buff) free(buff);}
+
+         friend class XrdBuffManager;
+private:
+
+XrdBuffer *next;
+       int  bindex;
+static int  pagesz;
+};
+  
+/******************************************************************************/
+/*                       x r d _ B u f f M a n a g e r                        */
+/******************************************************************************/
+
+#define XRD_BUCKETS 12
+#define XRD_BUSHIFT 10
+
+// There should be only one instance of this class per buffer pool.
+//
+  
+class XrdBuffManager
+{
+public:
+
+XrdBuffer *Obtain(long bsz);
+
+void        Release(XrdBuffer *bp);
+
+long        MaxSize() {return maxsz;}
+
+void        Reshape();
+
+void        Set(long maxmem=-1, int minw=-1);
+
+int         Stats(char *buff, int blen);
+
+            XrdBuffManager(int minrst=20*60);
+
+           ~XrdBuffManager() {} // The buffmanager is never deleted
+
+private:
+
+const int  slots;
+const int  shift;
+const long pagsz;
+const long maxsz;
+
+struct {XrdBuffer *bnext;
+        int         numbuf;
+        int         numreq;
+       } bucket[XRD_BUCKETS];          // 1K to 1<<(szshift+slots-1)M buffers
+
+int       totreq;
+int       totbuf;
+long long totalo;
+long long maxalo;
+long      maxreqsz;
+int       minrsw;
+int       rsinprog;
+int       totadj;
+
+XrdOucMutex         BuffManager;
+XrdOucSemaphore     Reshaper;
+static const char *TraceID;
+};
+#endif

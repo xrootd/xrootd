@@ -1,0 +1,313 @@
+/******************************************************************************/
+/*                                                                            */
+/*                       x r d _ P o l l D e v . i c c                        */
+/*                                                                            */
+/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/******************************************************************************/
+
+//         $Id$
+
+const char *XrdPollDevCVSID = "cvsid: $Id$";
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/devpoll.h>
+
+#include "XrdOuc/XrdOucError.hh"
+#include "Xrd/XrdLink.hh"
+#include "Xrd/XrdPollPoll.hh"
+#include "Xrd/XrdProtocol.hh"
+
+/******************************************************************************/
+/*                           G l o b a l   D a t a                            */
+/******************************************************************************/
+
+extern XrdOucError    XrdLog;
+
+extern XrdScheduler   XrdScheduler;
+
+extern XrdOucTrace    XrdTrace;
+
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+
+class XrdPoll_End : public XrdProtocol
+{
+public:
+
+void          DoIt() {}
+
+XrdProtocol *Match(XrdLink *lp) {return (XrdProtocol *)0;}
+
+int           Process(XrdLink *lp) {lp->Close(); return -1;}
+
+void          Recycle() {}
+
+int           Stats(char *buff, int blen) {return 0;}
+
+void          syncStats() {}
+
+      XrdPoll_End() : XrdProtocol("link termination") {}
+     ~XrdPoll_End() {}
+};
+  
+/******************************************************************************/
+/*                             n e w P o l l e r                              */
+/******************************************************************************/
+  
+XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
+{
+   int pfd, bytes, alignment, pagsz = getpagesize();
+   struct pollfd *pp;
+
+// Open the /dev/poll driver
+//
+   if ((pfd = open("/dev/poll", O_RDWR)) < 0)
+      {XrdLog.Emsg("Poll", errno, "opening /dev/poll"); return 0;}
+
+// Calculate the size of the poll table and allocate it
+//
+   bytes     = maxfd * sizeof(struct pollfd);
+   alignment = (bytes < pagsz ? 1024 : pagsz);
+   if (!(pp = (struct pollfd *)memalign(alignment, bytes)))
+      {XrdLog.Emsg("Poll", ENOMEM, "creating poll table");
+       close(pfd);
+       return 0;
+      }
+
+// Create new poll object
+//
+   memset((void *)pp, 0, bytes);
+   return (XrdPoll *)new XrdPollDev(pp, maxfd, pfd);
+}
+ 
+/******************************************************************************/
+/*                            D e s t r u c t o r                             */
+/******************************************************************************/
+  
+XrdPollDev::~XrdPollDev()
+{
+   if (PollTab) free(PollTab);
+   if (PollDfd >= 0) close(PollDfd);
+}
+  
+/******************************************************************************/
+/*                               D i s a b l e                                */
+/******************************************************************************/
+
+void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
+{
+   static XrdPoll_End linkend;
+   PipeData cmdbuff;
+   int myerrno = 0;
+
+// Simply return if the link is already disabled
+//
+   if (!lp->isEnabled) return;
+
+// Trace this event
+//
+   TRACEI(POLL, "Poller " <<PID <<" async disabling link " <<lp->FD);
+
+// Send a disable request to the poller thread handling this link
+//
+   cmdbuff.req = PipeData::DiFD;
+   cmdbuff.fd  = lp->FD;
+   PollPipe.Lock();
+   if (write(CmdFD, &cmdbuff, sizeof(cmdbuff)) < 0) myerrno = errno;
+   PollPipe.UnLock();
+
+// Verify that all went well and if termination wanted, terminate the link
+//
+   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disabling link", lp->ID);
+      else {lp->IOSemaphore.Wait();
+            if (etxt)
+               {lp->ProtoAlt = lp->Protocol;
+                lp->Protocol = (XrdProtocol *)&linkend;
+                if (lp->Etext) free(lp->Etext);
+                lp->Etext = strdup(etxt);
+                XrdScheduler.Schedule((XrdJob *)lp);
+                TRACEI(POLL, "Link " <<lp->FD <<" terminating: " <<etxt);
+               }
+           }
+}
+
+/******************************************************************************/
+/*                                E n a b l e                                 */
+/******************************************************************************/
+
+int XrdPollDev::Enable(XrdLink *lp)
+{
+   PipeData cmdbuff;
+   int nogo;
+
+// Simply return if the link is already enabled
+//
+   if (lp->isEnabled) return 1;
+
+// Send an enable request to the poller thread handling this link
+//
+   cmdbuff.req = PipeData::EnFD;
+   cmdbuff.fd  = lp->FD;
+   PollPipe.Lock();
+   nogo = write(CmdFD, &cmdbuff, sizeof(cmdbuff)) != sizeof(cmdbuff);
+   PollPipe.UnLock();
+
+// Verify that all went well
+//
+   if (nogo) XrdLog.Emsg("Poll", errno, "enabling link", lp->ID);
+   return !nogo;
+}
+
+/******************************************************************************/
+/*                               E x c l u d e                                */
+/******************************************************************************/
+  
+void XrdPollDev::Exclude(XrdLink *lp)
+{
+
+// Make sure this link is not enabled
+//
+   if (lp->isEnabled) 
+      {XrdLog.Emsg("Poll", "Detach of enabled link", lp->ID);
+       Disable(lp);
+      }
+}
+
+/******************************************************************************/
+/*                                 S t a r t                                  */
+/******************************************************************************/
+  
+void XrdPollDev::Start(XrdOucSemaphore *syncsem, int &retcode)
+{
+   int i, numpolled, num2sched, AOK = 0;
+   XrdJob *jfirst, *jlast;
+   const short pollOK = POLLIN | POLLRDNORM;
+   struct dvpoll dopoll = {PollTab, PollMax, -1};
+   XrdLink *lp;
+   static XrdPoll_End ProtoEnd;
+
+// If we have a com pipe, add it to our set
+//
+   {struct pollfd ptab = {ReqFD, POLLIN | POLLRDNORM, 0};
+    if (PollDfd < 0) XrdLog.Emsg("Poll", "poll pipe not allocated");
+       else if (write(PollDfd,&ptab,sizeof(struct pollfd))!=sizeof(struct pollfd))
+                XrdLog.Emsg("Poll", errno, "adding pipe to poll set");
+                else AOK = 1;
+   }
+
+// Indicate to the starting thread that all went well
+//
+   retcode = (AOK ? 0 : -1);
+   syncsem->Post();
+   if (!AOK) return;
+
+// Now start dispatching links that are ready
+//
+   do {do {numpolled = ioctl(PollDfd, DP_POLL, &dopoll);}
+          while (numpolled < 0 && errno == EINTR);
+       if (numpolled == 0) continue;
+       if (numpolled <  0)
+          {XrdLog.Emsg("Poll", errno, "polling for events");
+           abort();
+          }
+       numEvents += numpolled;
+
+       // Checkout which links must be dispatched (no need to lock)
+       //
+       jfirst = jlast = 0; num2sched = 0;
+       for (i = 0; i < numpolled; i++)
+           {if (PollTab[i].fd == ReqFD) {doRequests(numpolled); continue;}
+            if (lp = XrdLink::fd2link(PollTab[i].fd))
+               if (!(lp->isEnabled))
+                  XrdLog.Emsg("Poll", "Disabled event occured for", lp->ID);
+                  else {lp->isEnabled = 0;
+                        if (!(PollTab[i].revents & pollOK))
+                           {lp->ProtoAlt = lp->Protocol;
+                            lp->Protocol = (XrdProtocol *)&ProtoEnd;
+                            lp->Etext    = Poll2Text(PollTab[i].revents);
+                           }
+                        lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
+                        if (!jlast) jlast=(XrdJob *)lp;
+                        num2sched++;
+                       } else LogEvent(&PollTab[i]);
+            PollTab[i].events  = POLLREMOVE;
+            PollTab[i].revents = 0;
+           }
+
+       // Disable all of the polled fd's
+       //
+       if (write(PollDfd, PollTab, numpolled*sizeof(struct pollfd))
+                != numpolled*sizeof(struct pollfd))
+          XrdLog.Emsg("Poll", errno, (char *)"writing remove to /dev/poll");
+
+       // Schedule the polled links
+       //
+       if (num2sched == 1) XrdScheduler.Schedule(jfirst);
+          else if (num2sched) XrdScheduler.Schedule(num2sched, jfirst, jlast);
+      } while(1);
+}
+
+/******************************************************************************/
+/*                       P r i v a t e   M e t h o d s                        */
+/******************************************************************************/
+/******************************************************************************/
+/*                            d o R e q u e s t s                             */
+/******************************************************************************/
+
+void XrdPollDev::doRequests(int maxreq)
+{
+   struct pollfd ptab = {0, 0, 0};
+   XrdLink *lp;
+   char buff[16], *act, edval;
+   int rc, num2do;
+
+// To keep ourselves from being swamped, base request read-aheads on the number
+// of pending poll events.
+//
+   num2do = (maxreq < 3 ? -1 : maxreq);
+
+// Now process all poll table manipulation requests
+//
+   while(num2do-- && getRequest())
+        {     if (!(lp = XrdLink::fd2link(ReqBuff.fd)))
+                 {sprintf(buff, "%d", ReqBuff.fd);
+                  XrdLog.Emsg("Poll","FD",buff,(char *)"does not map to a link");
+                  ptab.events = POLLREMOVE; act = (char *)" removed fd ";
+                 }
+         else if (ReqBuff.req == PipeData::EnFD)
+                 {ptab.events = POLLIN | POLLRDNORM; 
+                  act = (char *)" enabled fd ";  edval = (char)1; numEnabled++;
+                 }
+         else if (ReqBuff.req == PipeData::DiFD)
+                 {ptab.events = POLLREMOVE; 
+                  act = (char *)" disabled fd "; edval = (char)0;
+                 }
+         else    {XrdLog.Emsg("Poll", "Received an invalid poll pipe request");
+                  continue;
+                 }
+         ptab.fd = ReqBuff.fd;
+         TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.fd);
+         if (write(PollDfd, &ptab, sizeof(struct pollfd)) != sizeof(struct pollfd))
+            XrdLog.Emsg("Poll", errno, act);
+         if (lp) {lp->isEnabled = edval; lp->IOSemaphore.Post();}
+        }
+}
+  
+/******************************************************************************/
+/*                              L o g E v e n t                               */
+/******************************************************************************/
+  
+void XrdPollDev::LogEvent(struct pollfd *pp)
+{
+   char buff[32];
+   sprintf(buff,"%.4x fd=%d",pp->revents, pp->fd);
+   XrdLog.Emsg("Poll", "Received unexpected event", buff);
+}
