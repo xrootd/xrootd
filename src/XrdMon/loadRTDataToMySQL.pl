@@ -1,7 +1,7 @@
 #!/usr/local/bin/perl
 
 use DBI;
-
+use Fcntl;
 
 ###############################################################################
 #                                                                             #
@@ -16,33 +16,96 @@ use DBI;
 # $Id$
 
 
-if ( @ARGV ne 3 ) {
-    print "Expected arg: <inputFileName> <databaseName> <mySQLUser>\n";
+# take care of arguments
+if ( @ARGV ne 4 ) {
+    print "Expected arg: <inputFileName> <dbName> <mySQLUser> ";
+    print "<updateInterval>\n";
     exit;
 }
-
 my $inFName   = $ARGV[0];
 my $dbName    = $ARGV[1];
 my $mySQLUser = $ARGV[2];
+my $updInt    = $ARGV[3];
 
-$dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) or die $DBI::errstr;
-
-
-$nr = 0;
-open inF, "< $inFName" or die "Can't open file $inFName for reading\n";
-while ( $_ = <inF> ) {
-    chop;
-    if ( $_ =~ m/^u/ ) { loadOpenSession($_);  }
-    if ( $_ =~ m/^d/ ) { loadCloseSession($_); }
-    if ( $_ =~ m/^o/ ) { loadOpenFile($_);     }
-    if ( $_ =~ m/^c/ ) { loadCloseFile($_);    }
-    $nr += 1;
-    if ( $nr % 10001 == 10000 ) {
-($Second, $Minute, $Hour, $Day, $Month, $Year, $WeekDay, $DayOfYear, $IsDST) = localtime(time) ; 
-	print "$Hour:$Minute:$Second $nr\n";
-    }
+#start an infinite loop
+while ( 1 ) {
+    doLoading();
+    sleep($updInt);
 }
-close inF;
+
+
+sub doLoading {
+    $ts = timestamp();
+
+    # connect to the database
+    print "\n$ts Connecting to database...\n";
+    unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+	print "Error while connecting to database. $DBI::errstr\n";
+	return;
+    }
+    # lock the file
+    unless ( $lockF = lockTheFile($inFName) ) {
+	$dbh->disconnect();
+	return;
+    }
+    # open the input file for reading
+    unless ( open $inF, "< $inFName" ) {
+	print "Can't open file $inFName for reading\n";
+	unlockTheFile($lockF);
+	$dbh->disconnect();
+	return;
+    }
+    # read the file, load the data, close the file
+    print "Loading...\n";
+    $nr = 0;
+    while ( $_ = <$inF> ) {
+	chop;
+	if ( $_ =~ m/^u/ ) { loadOpenSession($_);  }
+	if ( $_ =~ m/^d/ ) { loadCloseSession($_); }
+	if ( $_ =~ m/^o/ ) { loadOpenFile($_);     }
+	if ( $_ =~ m/^c/ ) { loadCloseFile($_);    }
+	$nr += 1;
+	if ( $nr % 10001 == 10000 ) {
+            $ts = timestamp();
+	    print "$ts $nr\n";
+	}
+    }
+    close $inF;
+    # make a backup, remove the input file
+    my $backupFName = "$inFName.backup";
+    `touch $backupFName; cat $inFName >> $backupFName; rm $inFName`;
+    # unlock the lock file, and disconnect from db
+    unlockTheFile($lockF);
+    $dbh->disconnect();
+
+    print "All done, processed $nr entries.\n";
+}
+
+# opens the <fName>.lock file for writing & locks it (write lock)
+sub lockTheFile() {
+    my ($fName) = @_;
+
+    $lockFName = "$fName.lock";
+    print "Locking $lockFName...\n";
+    unless ( open($lockF, "> $lockFName") ) {
+	print "Can't open file $inFName 4 writing\n";
+	return;
+    }
+    $lk_parms = pack('sslllll', F_WRLCK, 0, 0, 0, 0, 0, 0);
+    fcntl($lockF, F_SETLKW, $lk_parms) or die "can't fcntl F_SETLKW: $!";
+    return $lockF;
+}
+
+sub unlockTheFile() {
+    my ($fh) = @_;
+    $lk_parms = pack('sslllll', F_UNLCK, 0, 0, 0, 0, 0, 0);
+    fcntl($fh, F_SETLKW, $lk_parms);
+}
+
+sub timestamp() {
+    ($sec, $min, $h, $d, $mn, $y, $wd, $dayOfYear, $IsDST) = localtime(time) ; 
+    return sprintf("%02d:%02d:%02d", $h, $mn, $sec);
+}
 
 sub loadOpenSession() {
     my ($line) = @_;
@@ -84,8 +147,10 @@ sub loadCloseSession() {
 sub loadOpenFile() {
     my ($line) = @_;
 
-    my ($o, $id, $user, $pid, $clientHost, $path, $openTime, $srvHost) = split('\t', $line);
-    #print ("\no=$o, id=$id, user=$user, pid=$pid, ch=$clientHost, p=$path, time=$openTime, srvh=$srvHost\n");
+    my ($o, $id, $user, $pid, $clientHost, $path, $openTime, $srvHost) = 
+	split('\t', $line);
+    #print "\no=$o, id=$id, user=$user, pid=$pid, ch=$clientHost, p=$path, ";
+    #print "time=$openTime, srvh=$srvHost\n";
 
     my $sessionId = findSessionId($user, $pid, $clientHost, $srvHost);
     if ( ! $sessionId ) {
@@ -172,6 +237,7 @@ sub findOrInsertHostId() {
     return $hostId;
 }
 
+
 sub findOrInsertPathId() {
     my ($path) = @_;
 
@@ -195,16 +261,18 @@ sub findOrInsertPathId() {
 
 sub runQuery() {
     my ($sql) = @_;
-    my $sth = $dbh->prepare($sql) or die "Can't prepare statement $DBI::errstr\n";
+    my $sth = $dbh->prepare($sql) 
+        or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
-    #print "\n$sql\n";
+    #print "$sql\n";
 }
+
 
 sub runQueryWithRet() {
     my ($sql) = @_;
     my $sth = $dbh->prepare($sql);
     $sth->execute || die "Failed to exec \"$sql\"";
-    #print "\n$sql\n";
+    #print "$sql\n";
     return $sth->fetchrow_array;
 }
 
