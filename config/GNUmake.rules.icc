@@ -7,7 +7,7 @@
 #------------------------------------------------------------------------------#
 
 TYPECC     = icc
-TYPELD     = icc
+TYPELD     = icpc
 
 TYPEMISC   = -D_ALL_SOURCE -D_REENTRANT -D_GNU_SOURCE -fPIC -rdynamic \
              -ansi -D__linux__ -D__ICC__ -wd1224 $(CFTRACE)
@@ -18,3 +18,15 @@ TYPEDBG    = $(TYPEMISC) -g -O3
 TYPELDSO   = -shared
 
 TYPELIBS   =  -lnsl $(PTHREAD) -lrt -ldl
+
+# Compiler version:
+ICC_MAJOR    := $(shell $(CXX) -v 2>&1 | awk '{ if (NR==1) print $$2 }' | \
+                cut -d'.' -f1)
+ICC_MINOR    := $(shell $(CXX) -v 2>&1 | awk '{ if (NR==1) print $$2 }' | \
+                cut -d'.' -f2)
+
+ifeq ($(ICC_MAJOR),8)
+ifneq ($(ICC_MINOR),0)
+TYPEMISC     += -wd1572
+endif
+endif
