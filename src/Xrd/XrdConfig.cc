@@ -1047,7 +1047,7 @@ char *XrdConfig::xprotparms(XrdOucError *eDest, XrdOucStream &Config)
 /* Function: xsched
 
    Purpose:  To parse directive: sched [mint <mint>] [maxt <maxt>] [avlt <at>]
-                                       [idle <idle>]
+                                       [idle <idle>] [stksz <qnt>]
 
              <mint>   is the minimum number of threads that we need. Once
                       this number of threads is created, it does not decrease.
@@ -1060,6 +1060,7 @@ char *XrdConfig::xprotparms(XrdOucError *eDest, XrdOucStream &Config)
                       above <ft> will be allowed to stick to a connection.
              <idle>   The time (in time spec) between checks for underused
                       threads. Those found will be terminated. Default is 780.
+             <qnt>    The thread stack size in bytes or K, M, or G.
 
    Output: 0 upon success or 1 upon failure.
 */
@@ -1067,11 +1068,13 @@ char *XrdConfig::xprotparms(XrdOucError *eDest, XrdOucStream &Config)
 int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
+    long long lpp;
     int  i, ppp;
     int  V_mint = -1, V_maxt = -1, V_idle = -1, V_avlt = -1;
     static struct schedopts {const char *opname; int minv; int *oploc;
                              const char *opmsg;} scopts[] =
        {
+        {"stksz",      0,       0, "sched stksz"},
         {"mint",       1, &V_mint, "sched mint"},
         {"maxt",       1, &V_maxt, "sched maxt"},
         {"avlt",       1, &V_avlt, "sched avlt"},
@@ -1090,11 +1093,17 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
                                   (char *)"value not specified");
                        return 1;
                       }
-                   if (*scopts[i].opname == 'i')
-                      {if (XrdOuca2x::a2tm(*eDest, scopts[i].opmsg, val, &ppp,
-                                          scopts[i].minv)) return 1;
-                      }
-                      else if (XrdOuca2x::a2i(*eDest, scopts[i].opmsg, val,
+                        if (*scopts[i].opname == 'i')
+                           {if (XrdOuca2x::a2tm(*eDest, scopts[i].opmsg, val,
+                                                &ppp, scopts[i].minv)) return 1;
+                           }
+                   else if (*scopts[i].opname == 's')
+                           {if (XrdOuca2x::a2sz(*eDest, scopts[i].opmsg, val,
+                                                &lpp, scopts[i].minv)) return 1;
+                            XrdOucThread::setStackSize((size_t)lpp);
+                            break;
+                           }
+                   else if (XrdOuca2x::a2i(*eDest, scopts[i].opmsg, val,
                                      &ppp,scopts[i].minv)) return 1;
                    *scopts[i].oploc = ppp;
                    break;

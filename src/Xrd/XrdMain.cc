@@ -122,6 +122,11 @@ int main(int argc, char *argv[])
    sigaddset(&myset, SIGCHLD);
    pthread_sigmask(SIG_BLOCK, &myset, NULL);
 
+// Set the default stack size here
+//
+   if (sizeof(long) > 4) XrdOucThread::setStackSize((size_t)1048576);
+      else               XrdOucThread::setStackSize((size_t)786432);
+
 // Process configuration file
 //
    if (XrdConf.Configure(argc, argv)) _exit(1);

@@ -119,12 +119,12 @@ XrdBuffer *XrdBuffManager::Obtain(int sz)
 
 // Obtain a lock on the bucket array and try to give away an existing buffer
 //
-    BuffManager.Lock();
+    Reshaper.Lock();
     totreq++;
     bucket[bindex].numreq++;
     if ((bp = bucket[bindex].bnext))
        {bucket[bindex].bnext = bp->next; bucket[bindex].numbuf--;}
-    BuffManager.UnLock();
+    Reshaper.UnLock();
 
 // Check if we really allocated a buffer
 //
@@ -141,11 +141,11 @@ XrdBuffer *XrdBuffManager::Obtain(int sz)
 
 // Update statistics
 //
-    BuffManager.Lock();
+    Reshaper.Lock();
     totbuf++;
     if ((totalo += mk) > maxalo && !rsinprog)
-       {rsinprog = 1; Reshaper.Post();}
-    BuffManager.UnLock();
+       {rsinprog = 1; Reshaper.Signal();}
+    Reshaper.UnLock();
     return bp;
 }
  
@@ -184,11 +184,11 @@ void XrdBuffManager::Release(XrdBuffer *bp)
 
 // Obtain a lock on the bucket array and reclaim the buffer
 //
-    BuffManager.Lock();
+    Reshaper.Lock();
     bp->next = bucket[bp->bindex].bnext;
     bucket[bp->bindex].bnext = bp;
     bucket[bindex].numbuf++;
-    BuffManager.UnLock();
+    Reshaper.UnLock();
 }
  
 /******************************************************************************/
@@ -207,13 +207,17 @@ XrdBuffer *bp;
 // This is an endless loop to periodically reshape the buffer pool
 //
 while(1)
-     {Reshaper.Wait();
+     {Reshaper.Lock();
+      while(Reshaper.Wait(minrsw) && totalo <= maxalo)
+           {TRACE(MEM, "Reshaper has " <<(totalo>>10) <<"K; target " <<(memtarget>>10) <<"K");}
       if ((delta = (time(0) - lastshape)) < minrsw) 
-         Timer.Wait((minrsw-delta)*1000);
+         {Reshaper.UnLock();
+          Timer.Wait((minrsw-delta)*1000);
+          Reshaper.Lock();
+         }
 
-      // Get a lock and compute the request profile
+      // We have the lock so compute the request profile
       //
-      BuffManager.Lock();
       if (totreq > slots)
          {requests = (float)totreq;
           buffers  = (float)totbuf;
@@ -223,13 +227,13 @@ while(1)
               }
           totreq = 0; memhave = totalo;
          } else memhave = 0;
-      BuffManager.UnLock();
+      Reshaper.UnLock();
 
       // Reshape the buffer pool to agree with the request profile
       //
       memslot = maxsz; numfreed = 0;
       for (i = slots-1; i >= 0 && memhave > memtarget; i--)
-          {BuffManager.Lock();
+          {Reshaper.Lock();
            while(bucket[i].numbuf > bufprof[i])
                 if ((bp = bucket[i].bnext))
                    {bucket[i].bnext = bp->next;
@@ -237,7 +241,7 @@ while(1)
                     bucket[i].numbuf--; numfreed++;
                     memhave -= memslot; totalo  -= memslot;
                    } else {bucket[i].numbuf = 0; break;}
-           BuffManager.UnLock();
+           Reshaper.UnLock();
            memslot = memslot>>1;
           }
 
@@ -259,10 +263,10 @@ void XrdBuffManager::Set(int maxmem, int minw)
 
 // Obtain a lock and set the values
 //
-   BuffManager.Lock();
+   Reshaper.Lock();
    if (maxmem > 0) maxalo = (long long)maxmem;
    if (minw   > 0) minrsw = minw;
-   BuffManager.UnLock();
+   Reshaper.UnLock();
 }
  
 /******************************************************************************/
@@ -281,8 +285,8 @@ int XrdBuffManager::Stats(char *buff, int blen, int do_sync)
 
 // Return formatted stats
 //
-   if (do_sync) BuffManager.Lock();
+   if (do_sync) Reshaper.Lock();
    nlen = snprintf(buff, blen, statfmt, totreq, totalo, totbuf, totadj);
-   if (do_sync) BuffManager.UnLock();
+   if (do_sync) Reshaper.UnLock();
    return nlen;
 }

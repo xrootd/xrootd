@@ -95,8 +95,7 @@ int       minrsw;
 int       rsinprog;
 int       totadj;
 
-XrdOucMutex         BuffManager;
-XrdOucSemaphore     Reshaper;
+XrdOucCondVar      Reshaper;
 static const char *TraceID;
 };
 #endif
