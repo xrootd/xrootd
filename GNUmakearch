@@ -65,26 +65,4 @@ FileThere () {
           SYSNAME=misc
     fi
 
-  if FileThere d bin; then
-  if FileThere d bin/$SYSNAME; then :
-  else
-      /bin/mkdir -p bin/$SYSNAME
-      /bin/mkdir -p bin/dbg
-  fi
-  fi
-  if FileThere d lib; then
-  if FileThere d lib/$SYSNAME; then :
-  else
-      /bin/mkdir -p lib/$SYSNAME
-      /bin/mkdir -p lib/dbg
-  fi
-  fi
-  if FileThere d obj; then
-  if FileThere d obj/$SYSNAME; then :
-  else
-      /bin/mkdir -p obj/$SYSNAME
-      /bin/mkdir -p obj/$SYSNAME/dbg
-  fi
-  fi
-
   echo $SYSNAME
