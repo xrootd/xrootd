@@ -1,0 +1,65 @@
+Summary: An eXtended Root Daemon (xrootd)
+Name: xrootd
+Version: XRD-MAJORVER-XRD
+Release: XRD-MINORVER-XRD
+Prefix: /opt/xrootd
+URL: http://www.slac.stanford.edu/~abh/xrootd/
+Copyright: SLAC/Stanford University
+Group: Applications/File
+Source: XRD-TARBALL-XRD
+BuildRoot: XRD-BUILDROOT-XRD
+AutoReqProv: no
+
+%description
+The xrootd server provides performant, secure and fault-tolerant access to
+root files. An optional load balancer is also included.
+
+%prep
+%setup -q -n xrootd
+
+%build
+gmake
+
+%install
+mkdir -p $RPM_BUILD_ROOT/opt/xrootd/bin
+mkdir -p $RPM_BUILD_ROOT/opt/xrootd/lib
+mkdir -p $RPM_BUILD_ROOT/opt/xrootd/etc
+
+install -s -m 755 bin/i386_linux24/xrootd $RPM_BUILD_ROOT/opt/xrootd/bin/xrootd
+install -s -m 755 bin/i386_linux24/olbd $RPM_BUILD_ROOT/opt/xrootd/bin/olbd
+install -s -m 755 lib/i386_linux24/libXrdOfs.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdOfs.so
+install -s -m 755 lib/i386_linux24/libXrdRootd.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdRootd.so
+install -s -m 755 lib/i386_linux24/libXrdSec.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSec.so
+install -s -m 755 lib/i386_linux24/libXrdSeckrb4.so $RPM_BUILD_ROOT/opt/xrootd/lib//libXrdSeckrb4.so
+install -s -m 755 lib/i386_linux24/libXrdSeckrb5.so $RPM_BUILD_ROOT/opt/xrootd/lib//libXrdSeckrb5.so
+install -m 755 etc/StartOLB $RPM_BUILD_ROOT/opt/xrootd/etc/StartOLB
+install -m 644 etc/StartOLB.cf $RPM_BUILD_ROOT/opt/xrootd/etc/StartOLB.cf
+install -m 755 etc/StartXRD $RPM_BUILD_ROOT/opt/xrootd/etc/StartXRD
+install -m 644 etc/StartXRD.cf $RPM_BUILD_ROOT/opt/xrootd/etc/StartXRD.cf
+install -m 755 etc/StopOLB $RPM_BUILD_ROOT/opt/xrootd/etc/StopOLB
+install -m 755 etc/StopXRD $RPM_BUILD_ROOT/opt/xrootd/etc/StopXRD
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-, root, root)
+/opt/xrootd/bin/xrootd
+/opt/xrootd/bin/olbd
+/opt/xrootd/lib/libXrdOfs.so
+/opt/xrootd/lib/libXrdRootd.so
+/opt/xrootd/lib/libXrdSec.so
+/opt/xrootd/lib/libXrdSeckrb4.so
+/opt/xrootd/lib/libXrdSeckrb5.so
+/opt/xrootd/etc/StartOLB
+/opt/xrootd/etc/StartOLB.cf
+/opt/xrootd/etc/StartXRD
+/opt/xrootd/etc/StartXRD.cf
+/opt/xrootd/etc/StopOLB
+/opt/xrootd/etc/StopXRD
+
+%changelog
+* XRD-CHANGE1-XRD
+- XRD-CHANGE2-XRD
+
+
