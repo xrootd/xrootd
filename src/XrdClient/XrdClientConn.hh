@@ -76,7 +76,7 @@ public:
    XrdClientUrlInfo      GetCurrentUrl() const { return fUrl; }
 
    XErrorCode      GetOpenError() const { return fOpenError; }
-   XReqErrorType   GoToAnotherServer(XrdClientUrlInfo &newdest);
+   XReqErrorType   GoToAnotherServer(XrdClientUrlInfo newdest);
    bool            IsConnected() const { return fConnected; }
 
    bool            SendGenCommand(ClientRequest *req, 

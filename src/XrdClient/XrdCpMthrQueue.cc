@@ -91,7 +91,7 @@ int XrdCpMthrQueue::GetBuffer(void **buf, int &len) {
 
    if (!res) {
 
-      fCnd.Wait(90);
+      fCnd.Wait(3600);
 
       {
 	 XrdClientMutexLocker mtx(fMutex);

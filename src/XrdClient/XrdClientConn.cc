@@ -1500,7 +1500,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 }
 
 //_____________________________________________________________________________
-XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo &newdest)
+XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo newdest)
 {
    // Re-directs to another server
    

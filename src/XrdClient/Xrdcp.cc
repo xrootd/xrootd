@@ -300,7 +300,10 @@ int doCp_loc2xrd(char *src, char * dst) {
 	    break;
 	 }
       }
-      else break;
+      else {
+	 Error("xrdcp", "Read timeout.");
+	 break;
+      }
 	 
 
    

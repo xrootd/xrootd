@@ -44,11 +44,7 @@ void *SocketReaderThread(void * arg)
 
    thisObj = (XrdClientPhyConnection *)arg;
 
-   while (1) {
-
-      thisObj->BuildMessage(TRUE, TRUE);
-
-   }
+   while (thisObj->BuildMessage(TRUE, TRUE));
 
    pthread_exit(0);
    return 0;
@@ -119,6 +115,7 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 {
    // Connect to remote server
+   XrdClientMutexLocker l(fMutex);
 
    Info(XrdClientDebug::kHIDEBUG,
 	"Connect",
@@ -159,6 +156,7 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 //____________________________________________________________________________
 void XrdClientPhyConnection::StartReader() {
    int pt_ret;
+   XrdClientMutexLocker l(fMutex);
 
    // Start reader thread
 
@@ -193,6 +191,7 @@ bool XrdClientPhyConnection::ReConnect(XrdClientUrlInfo RemoteHost)
 //____________________________________________________________________________
 void XrdClientPhyConnection::Disconnect()
 {
+   XrdClientMutexLocker l(fMutex);
 
    // Parametric asynchronous stuff
    // If we are going async, we have to terminate the reader thread
@@ -280,7 +279,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 	      "Disconnection reported on" <<
 	      fServer.Host << ":" << fServer.Port);
 
-         Disconnect();
+         //Disconnect();
 
       }
 
