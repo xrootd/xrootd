@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS statsAllMonths (
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
-CREATE INDEX statsLastMonth_date_index USING BTREE ON statsLastMonth(date);
+CREATE INDEX statsAllMonths_date_index USING BTREE ON statsAllMonths(date);
 
 
 # reflects changes since last entry, and last update
