@@ -21,7 +21,7 @@
 #include "XrdClient/XrdClientInputBuffer.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientThread.hh"
-#include "XrdClient/XrdClientCond.hh"
+#include "XrdClient/XrdClientSemaphore.hh"
 
 #include <time.h> // for time_t data type
 
@@ -59,7 +59,7 @@ private:
 
    void HandleUnsolicited(XrdClientMessage *m);
 
-   XrdClientCond       fReaderCV;
+   XrdClientSemaphore       fReaderCV;
 
 public:
    ERemoteServer       fServerType;

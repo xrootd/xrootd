@@ -21,7 +21,6 @@ class XrdClientXrdThread : public XrdClientThreadImp {
 
 private:
    pthread_t fThr;
-   XrdClientThreadArgs fArg;
 
 public:
    VoidRtnFunc_t ThreadFunc;
@@ -31,20 +30,23 @@ public:
    };
 
    ~XrdClientXrdThread() {
+      void *r;
+
+      Cancel();
+      Join(&r);
    };
 
    int  Join(void **ret) {
       return pthread_join(fThr, ret);
    };
 
-   int  Run(void *arg, XrdClientThread *obj) {
+   int  Run(void *arg) {
       
 
-      fArg.arg = arg;
-      fArg.threadobj = obj;
+
 
       if (!fThr)
-	 return pthread_create(&fThr, NULL, XrdClientThreadDispatcher, &fArg);
+	 return pthread_create(&fThr, NULL, XrdClientThreadDispatcher, arg);
 
       return -1;
    };

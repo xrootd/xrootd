@@ -9,7 +9,7 @@ extern "C" void * XrdClientThreadDispatcher(void * arg)
    // is to call the actual thread body, passing to it the original arg and
    // a pointer to the thread object which launched it.
 
-   XrdClientThreadArgs *args = (XrdClientThreadArgs *)arg;
+   XrdClientThread::XrdClientThreadArgs *args = (XrdClientThread::XrdClientThreadArgs *)arg;
 
    args->threadobj->SetCancelDeferred();
    args->threadobj->SetCancelOn();

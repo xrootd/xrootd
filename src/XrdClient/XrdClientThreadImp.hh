@@ -28,7 +28,7 @@ extern "C" void * XrdClientThreadDispatcher(void * arg);
 
 class XrdClientThreadImp {
 
-public:
+ public:
    XrdClientThreadImp() { }
    virtual ~XrdClientThreadImp() { }
 
@@ -38,7 +38,7 @@ public:
 
    virtual int  Cancel() = 0;
    virtual int  Detach() = 0;
-   virtual int  Run(void *arg, XrdClientThread *obj) = 0;
+   virtual int  Run(void *arg) = 0;
    virtual int  SetCancelOff() = 0;
    virtual int  SetCancelOn() = 0;
    virtual int  SetCancelAsynchronous() = 0;
@@ -49,10 +49,7 @@ public:
 };
 
 
-struct XrdClientThreadArgs {
-   void *arg;
-   XrdClientThread *threadobj;
-};
+
 
 
 

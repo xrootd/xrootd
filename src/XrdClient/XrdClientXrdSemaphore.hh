@@ -23,7 +23,7 @@ class XrdClientXrdSemaphore : public XrdClientSemaphoreImp {
 private:
    pthread_cond_t fCnd;
    pthread_mutex_t fMtx;
-   int fCnt;
+   int fCnt, fSleeping;
 
 public:
    XrdClientXrdSemaphore(int value) {
@@ -48,6 +48,7 @@ public:
 
 
       fCnt = value;
+      fSleeping = 0;
 
    };
 
@@ -76,7 +77,7 @@ public:
       int rc = 0;
 
       pthread_mutex_lock(&fMtx);
-
+      
       if (fCnt > 0) fCnt--;
       else {
 	 struct timespec t;
@@ -87,6 +88,7 @@ public:
 	 t.tv_sec = now.tv_sec + secs;
 	 t.tv_nsec = now.tv_usec * 1000;
 
+	 fSleeping++;
 	 rc = pthread_cond_timedwait(&fCnd, &fMtx, &t);
 
       }
@@ -102,8 +104,12 @@ public:
 
       pthread_mutex_lock(&fMtx);
 
-      fCnt++;
-      pthread_cond_signal(&fCnd);
+      if (fSleeping > 0) {
+	 pthread_cond_signal(&fCnd);
+	 fSleeping--;
+      }
+      else
+	 fCnt++;
 
       pthread_mutex_unlock(&fMtx);
 

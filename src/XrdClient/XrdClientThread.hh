@@ -28,6 +28,10 @@ class XrdClientThread {
 
 public:
 
+struct XrdClientThreadArgs {
+   void *arg;
+   XrdClientThread *threadobj;
+ } fArg;
    
 
 private:
@@ -53,7 +57,9 @@ public:
    };
 
    int              Run(void *arg = 0) {
-      return fThreadImp->Run(arg, this);
+      fArg.arg = arg;
+      fArg.threadobj = this;
+      return fThreadImp->Run(&fArg);
    };
 
    int              Detach() {

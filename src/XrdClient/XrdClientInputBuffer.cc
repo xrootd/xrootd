@@ -42,11 +42,11 @@ int XrdClientInputBuffer::MsgForStreamidCnt(int streamid)
 }
 
 //________________________________________________________________________
-XrdClientCond *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
+XrdClientSemaphore *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
    // Gets the right sync obj to wait for messages for a given streamid
    // If the semaphore is not available, it creates one.
 
-   XrdClientCond *cnd;
+   XrdClientSemaphore *sem;
 
    {
       XrdClientMutexLocker mtx(fMutex);
@@ -54,16 +54,16 @@ XrdClientCond *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
 
       snprintf(buf, 20, "%d", streamid);
 
-      cnd = fSyncobjRepo.Find(buf);
+      sem = fSyncobjRepo.Find(buf);
 
-      if (!cnd) {
-	 cnd = new XrdClientCond();
+      if (!sem) {
+	 sem = new XrdClientSemaphore();
 
-         fSyncobjRepo.Rep(buf, cnd);
-	 return cnd;
+         fSyncobjRepo.Rep(buf, sem);
+	 return sem;
 
       } else
-         return cnd;
+         return sem;
    }
 
 }
@@ -80,8 +80,8 @@ XrdClientInputBuffer::XrdClientInputBuffer() {
 
 
 //_______________________________________________________________________
-int DeleteHashItem(const char *key, XrdClientCond *cnd, void *Arg) {
-   if (cnd) delete cnd;
+int DeleteHashItem(const char *key, XrdClientSemaphore *sem, void *Arg) {
+   if (sem) delete sem;
 
    // This makes the Apply method delete the entry
    return -1;
@@ -116,7 +116,7 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
 {
    // Put message in the list
   int sz;
-  XrdClientCond *cnd = 0;
+  XrdClientSemaphore *sem = 0;
 
    {
       XrdClientMutexLocker mtx(fMutex);
@@ -124,14 +124,14 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
       fMsgQue.Push_back(m);
       sz = MexSize();
     
-   // Is anybody sleeping ?
-   if (m)
-      cnd = GetSyncObjOrMakeOne( m->HeaderSID() );
+      // Is anybody sleeping ?
+      if (m)
+	 sem = GetSyncObjOrMakeOne( m->HeaderSID() );
 
    }
 
-   if (cnd) {
-      cnd->Signal();
+   if (sem) {
+      sem->Signal();
    }
 
    return sz;
@@ -145,60 +145,29 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
    // If there are no XrdClientMessages for the streamid, it waits for a number
    // of seconds for something to come
 
-   XrdClientCond *cv;
-   XrdClientMessage *res, *m;
+   XrdClientSemaphore *sem = 0;
+   XrdClientMessage *res = 0, *m = 0;
 
-   res = 0;
+   // Find the sem where to wait for a msg
+   sem = GetSyncObjOrMakeOne(streamid);
 
- 
+   sem->TimedWait(secstimeout);
+
    {
+      // Yes, we have to lock the mtx until we finish
       XrdClientMutexLocker mtx(fMutex);
 
-      if (MsgForStreamidCnt(streamid) > 0) {
-
-         // If there are messages to dequeue, we pick the oldest one
-         for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
-            m = fMsgQue[fMsgIter];
-            
-            if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
-               res = fMsgQue[fMsgIter];
-	       fMsgQue.Erase(fMsgIter);
-               if (!m) return 0;
-	       break;
-            }
-         }
-      } 
-   }
-
-   if (!res) {
-
-      // Find the cond where to wait for a msg
-      cv = GetSyncObjOrMakeOne(streamid);
-
-      for (int k = 0; k < secstimeout; k++) {
-
-      cv->TimedWait(1);
-
-      {
-	 // Yes, we have to lock the mtx until we finish
-	 XrdClientMutexLocker mtx(fMutex);
-
-	 // We were awakened. Or the timeout elapsed. The mtx is again locked.
-	 // If there are messages to dequeue, we pick the oldest one
-	 for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
-	    m = fMsgQue[fMsgIter];
-	    if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
-	       res = fMsgQue[fMsgIter];
-	       fMsgQue.Erase(fMsgIter);
-               if (!m) return 0;
-	       break;
-	    }
+      // We were awakened. Or the timeout elapsed. The mtx is again locked.
+      // If there are messages to dequeue, we pick the oldest one
+      for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
+	 m = fMsgQue[fMsgIter];
+	 if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
+	    res = fMsgQue[fMsgIter];
+	    fMsgQue.Erase(fMsgIter);
+	    if (!m) return 0;
+	    break;
 	 }
       }
-
-      if (res) break;
-      } // for
-
    }
 
 

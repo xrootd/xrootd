@@ -22,7 +22,7 @@
 
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientMutexLocker.hh"
-#include "XrdClient/XrdClientCond.hh"
+#include "XrdClient/XrdClientSemaphore.hh"
 
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -39,13 +39,15 @@ private:
 
    XrdClientMutex              fMutex;       // mutex to protect data structures
 
-   XrdOucHash<XrdClientCond>   fSyncobjRepo;
+   XrdOucHash<XrdClientSemaphore>     fSyncobjRepo;
                                              // each streamid counts on a condition
                                              // variable to make the caller wait
                                              // until some data is available
 
 
-   XrdClientCond   *GetSyncObjOrMakeOne(int streamid);
+   XrdClientSemaphore
+                   *GetSyncObjOrMakeOne(int streamid);
+
    int             MsgForStreamidCnt(int streamid);
 
 public:

@@ -12,7 +12,9 @@
 
 #include "XrdClient/XrdClientMutexLocker.hh"
 #include "XrdClient/XrdClientVector.hh"
+#include "XrdClient/XrdClientSemaphore.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+
 using namespace std;
 
 struct XrdCpMessage {
@@ -32,7 +34,7 @@ class XrdCpMthrQueue {
 
    XrdClientMutex                     fMutex;       // mutex to protect data structures
 
-   XrdOucCondVar                      fCnd;         // variable to make the reader wait
+   XrdClientSemaphore                 fReadSem;     // variable to make the reader wait
                                                     // until some data is available
    XrdOucCondVar                      fWriteCnd;    // variable to make the writer wait
                                                     // if the queue is full
