@@ -100,7 +100,7 @@ XrdBuffer *XrdBuffManager::Obtain(long sz)
 
 // Make sure the request is within our limits
 //
-   if (sz > maxsz) return 0;
+   if (sz <= 0 || sz > maxsz) return 0;
 
 // Calculate bucket index
 //

@@ -76,7 +76,7 @@ $(OBJDIR)/XrdBuffer.o:    XrdBuffer.cc   XrdBuffer.hh     XrdTrace.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBuffer.o XrdBuffer.cc
 
 $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
-                       XrdLink.hh        XrdInet.hh        XrdObject.hh  \
+                       XrdLink.hh        XrdInet.hh        \
                        XrdPoll.hh        XrdProtocol.hh    XrdScheduler.hh \
                        XrdStats.hh       XrdTrace.hh       XrdInfo.hh    \
                        XrdOuca2x.hh      XrdOucError.hh    XrdOucLogger.hh   \
@@ -98,7 +98,6 @@ $(OBJDIR)/XrdInfo.o: XrdInfo.hh
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInfo.o XrdInfo.cc
 
 $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
-                       XrdObject.hh     XrdObject.icc  \
                        XrdProtocol.hh   XrdScheduler.hh    XrdTrace.hh  \
                        XrdOucError.hh   XrdOucPlatform.hh  XrdOucPthread.hh \
                        XrdOucTrace.hh   XrdOucTimer.hh     XrdLink.cc \
@@ -116,7 +115,8 @@ $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdInet.hh \
 
 $(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh        XrdProtocol.hh   \
                        XrdPoll.cc       XrdPollDev.hh     XrdPollDev.icc \
-                       XrdPollPoll.hh   XrdPollDev.icc    XrdTrace.hh     \
+                       XrdPollPoll.hh   XrdPollDev.icc    XrdScheduler.hh \
+                       XrdTrace.hh     \
                        XrdOucError.hh   XrdOucPlatform.hh XrdOucPthread.hh \
                        XrdOucTrace.hh
 	@echo Compiling XrdPoll.cc 
@@ -135,7 +135,8 @@ $(OBJDIR)/XrdScheduler.o: XrdJob.hh      XrdScheduler.hh   XrdTrace.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdScheduler.o XrdScheduler.cc
 
 $(OBJDIR)/XrdStats.o: XrdBuffer.hh      XrdLink.hh     XrdPoll.hh \
-                      XrdProtocol.hh    XrdStats.cc    XrdStats.hh \
+                      XrdProtocol.hh    XrdScheduler.hh \
+                      XrdStats.cc       XrdStats.hh \
                       XrdOucPlatform.hh XrdOucPthread.hh ../XrdVersion.hh
 	@echo Compiling XrdStats.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdStats.o XrdStats.cc

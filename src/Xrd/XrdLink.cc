@@ -71,6 +71,8 @@ extern XrdScheduler    XrdSched;
 extern XrdOucTrace     XrdTrace;
 
        XrdLink       **XrdLink::LinkTab;
+       char           *XrdLink::LinkBat;
+       unsigned int    XrdLink::LinkAlloc;
        int             XrdLink::LTLast = -1;
        XrdOucMutex     XrdLink::LTMutex;
 
@@ -86,16 +88,19 @@ extern XrdOucTrace     XrdTrace;
        int             XrdLink::LinkStalls    = 0;
        XrdOucMutex     XrdLink::statsMutex;
 
-XrdObjectQ<XrdLink> XrdLink::LinkStack("LinkOQ", "link anchor");
-
        const char     *XrdLinkScan::TraceID = "LinkScan";
+
+// The following values are defined for LinkBat[]. We assume that FREE is 0
+//
+#define XRDLINK_FREE 0x00
+#define XRDLINK_USED 0x01
+#define XRDLINK_IDLE 0x02
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdLink::XrdLink(const char *ltype) :
-          XrdJob(ltype), LinkLink(this), IOSemaphore(0, "link i/o")
+XrdLink::XrdLink() : XrdJob("connection"), IOSemaphore(0, "link i/o")
 {
   Etext = 0;
   Reset();
@@ -125,7 +130,6 @@ void XrdLink::Reset()
   inQ      = 0;
   BytesOut = BytesIn = 0;
   doPost   = 0;
-  isFree   = 0;
   LockReads= 0;
   KeepFD   = 0;
   udpbuff  = 0;
@@ -144,10 +148,34 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    char *unp, buff[16];
    int bl;
 
-// Get a link object off the stack (if none, allocate a new one)
+// Make sure that the link slot is available
 //
-   if ((lp = LinkStack.Pop())) lp->Reset();
-      else lp = new XrdLink();
+   LTMutex.Lock();
+   if (LinkBat[Peer.fd])
+      {LTMutex.UnLock();
+       XrdLog.Emsg("Link", "attempt to reuse active link");
+       return (XrdLink *)0;
+      }
+
+// Check if we already have a link object in this slot. If not, allocate
+// a quantum of link objects and put them in the table.
+//
+   if (!(lp = LinkTab[Peer.fd]))
+      {unsigned int i;
+       XrdLink **blp, *nlp = new XrdLink[LinkAlloc]();
+       if (!nlp)
+          {LTMutex.UnLock();
+           XrdLog.Emsg("Link", ENOMEM, "create link"); 
+           return (XrdLink *)0;
+          }
+       blp = &LinkTab[Peer.fd/LinkAlloc*LinkAlloc];
+       for (i = 0; i < LinkAlloc; i++, blp++) *blp = &nlp[i];
+       if (Peer.fd > LTLast) LTLast = Peer.fd;
+       lp = LinkTab[Peer.fd];
+      }
+      else lp->Reset();
+   LinkBat[Peer.fd] = XRDLINK_USED;
+   LTMutex.UnLock();
 
 // Establish the instance number of this link. This is will prevent us from
 // sending asynchronous responses to the wrong client when the file descriptor
@@ -177,13 +205,6 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
 //
    lp->LockReads = (0 != (opts & XRDLINK_RDLOCK));
    lp->KeepFD    = (0 != (opts & XRDLINK_NOCLOSE));
-
-// Insert this link into the link table
-//
-   LTMutex.Lock();
-   LinkTab[Peer.fd] = lp;
-   if (Peer.fd > LTLast) LTLast = Peer.fd;
-   LTMutex.UnLock();
 
 // Return the link
 //
@@ -219,8 +240,8 @@ int XrdLink::Close()
    if (FD != -1)
       {if (Poller) {XrdPoll::Detach(this); Poller = 0;}
        LTMutex.Lock();
-       LinkTab[fd] = 0;
-       if (fd == LTLast) while(LTLast-- && !(LinkTab[LTLast])) {};
+       LinkBat[fd] = XRDLINK_FREE;
+       if (fd == LTLast) while(LTLast-- && !(LinkBat[LTLast])) {};
        LTMutex.UnLock();
       }
 
@@ -248,8 +269,6 @@ int XrdLink::Close()
    if (udpbuff)  {udpbuff->Recycle();  udpbuff  = 0;}
    InUse    = 0;
    if (rc) XrdLog.Emsg("Link", rc, "close", ID);
-   if (!isFree) {isFree = 1; LinkStack.Push(&LinkLink);}
-      else XrdLog.Emsg("Link",(const char *)ID, (char *)"dup recycle averted");
    return rc;
 }
 
@@ -289,7 +308,7 @@ int XrdLink::Enable()
   
 XrdLink *XrdLink::nextLink(int &nextFD)
 {
-   XrdLink *lp = 0;
+   XrdLink *lp;
 
 // Lock the link table
 //
@@ -297,7 +316,8 @@ XrdLink *XrdLink::nextLink(int &nextFD)
 
 // Find the next existing link
 //
-   while(nextFD <= LTLast && !(lp = LinkTab[nextFD])) nextFD++;
+   while(nextFD <= LTLast && !LinkBat[nextFD]) nextFD++;
+   lp = (nextFD <= LTLast ? LinkTab[nextFD] : (XrdLink *)0);
 
 // Increase the reference count so that this link does not escape while
 // it is being exported. It's the caller's responsibility to reduce the
@@ -538,13 +558,27 @@ void XrdLink::setID(const char *userid, int procid)
 
 int XrdLink::Setup(int maxfds, int idlewait)
 {
-   int iticks, ichk;
+   int numalloc, iticks, ichk;
+
+// Compute the number of link objects we should allocate at a time. Generally,
+// we like to allocate 8k of them at a time but always as a power of two.
+//
+   numalloc = 8192 / sizeof(XrdLink);
+   LinkAlloc = 1;
+   while((numalloc = numalloc/2)) LinkAlloc = LinkAlloc*2;
+   TRACE(DEBUG, "Allocating " <<LinkAlloc <<" link objects at a time");
 
 // Create the link table
 //
-   if (!(LinkTab = (XrdLink **)malloc(maxfds*sizeof(XrdLink *))))
+   if (!(LinkTab = (XrdLink **)malloc(maxfds*sizeof(XrdLink *)+LinkAlloc)))
       {XrdLog.Emsg("Link", ENOMEM, "create LinkTab"); return 0;}
    memset((void *)LinkTab, 0, maxfds*sizeof(XrdLink *));
+
+// Create the slot status table
+//
+   if (!(LinkBat = (char *)malloc(maxfds*sizeof(char)+LinkAlloc)))
+      {XrdLog.Emsg("Link", ENOMEM, "create LinkBat"); return 0;}
+   memset((void *)LinkBat, XRDLINK_FREE, maxfds*sizeof(char));
 
 // Create an idle connection scan job
 //

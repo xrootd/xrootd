@@ -24,6 +24,7 @@ const char *XrdStatsCVSID = "$Id$";
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdProtocol.hh"
+#include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 

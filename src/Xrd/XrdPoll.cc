@@ -58,14 +58,11 @@ struct XrdPollArg
        };
 
   
-extern "C"
-{
 void *XrdStartPolling(void *parg)
 {
      struct XrdPollArg *PArg = (struct XrdPollArg *)parg;
      PArg->Poller->Start(&(PArg->PollSync), PArg->retcode);
      return (void *)0;
-}
 }
  
 /******************************************************************************/

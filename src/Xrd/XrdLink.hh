@@ -20,7 +20,6 @@
 #include "XrdOuc/XrdOucPthread.hh"
 
 #include "Xrd/XrdJob.hh"
-#include "Xrd/XrdObject.hh"
 #include "Xrd/XrdProtocol.hh"
   
 /******************************************************************************/
@@ -46,8 +45,6 @@ friend class XrdPoll;
 friend class XrdPollPoll;
 friend class XrdPollDev;
 
-static XrdObjectQ<XrdLink> LinkStack;
-
 static XrdLink *Alloc(XrdNetPeer &Peer, int opts=0);
 
 int           Close();
@@ -58,7 +55,15 @@ int           Enable();
 
 int           FDnum() {return FD;}
 
-static XrdLink *fd2link(int fd) {return LinkTab[(fd < 0 ? -fd : fd)];}
+static XrdLink *fd2link(int fd)
+                {if (fd < 0) fd = -fd; return (LinkBat[fd] ? LinkTab[fd] : 0);}
+
+static XrdLink *fd2link(int fd, int inst)
+                {if (fd < 0) fd = -fd; 
+                 if (LinkBat[fd] && LinkTab[fd] 
+                 && LinkTab[fd]->Instance == inst) return LinkTab[fd];
+                 return (XrdLink *)0;
+                }
 
 char         *ID;      // This is referenced a lot
 
@@ -93,20 +98,21 @@ static int    Stats(char *buff, int blen, int do_sync=0);
 
        void   syncStats(int *ctime=0);
 
-XrdProtocol *setProtocol(XrdProtocol *pp);
+XrdProtocol  *setProtocol(XrdProtocol *pp);
 
 int           UseCnt() {return InUse;}
 
-              XrdLink(const char *ltype="connection");
-             ~XrdLink() {}
+              XrdLink();
+             ~XrdLink() {}  // Is never deleted!
 
 private:
 
 void   Reset();
 
-XrdObject<XrdLink>   LinkLink;
 static XrdOucMutex   LTMutex;    // For the LinkTab only LTMutex->IOMutex allowed
 static XrdLink     **LinkTab;
+static char         *LinkBat;
+static unsigned int  LinkAlloc;
 static int           LTLast;
 static const char   *TraceID;
 
@@ -124,7 +130,7 @@ static int          LinkStalls;
        long long        BytesOut;
        int              stallCnt;
        int              tardyCnt;
-static XrdOucMutex   statsMutex;
+static XrdOucMutex  statsMutex;
 
 // Identification section
 //
@@ -152,7 +158,6 @@ char                LockReads;
 char                KeepFD;
 char                isEnabled;
 char                isIdle;
-char                isFree;
 char                inQ;
 };
 #endif

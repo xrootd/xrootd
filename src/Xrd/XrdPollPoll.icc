@@ -23,6 +23,7 @@ const char *XrdPollPollCVSID = "cvsid: $Id$";
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPollPoll.hh"
 #include "Xrd/XrdProtocol.hh"
+#include "Xrd/XrdScheduler.hh"
 
 /******************************************************************************/
 /*                           G l o b a l   D a t a                            */

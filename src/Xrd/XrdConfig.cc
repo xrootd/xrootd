@@ -551,11 +551,6 @@ int XrdConfig::Setup(char *dfltp)
 //
    XrdSched.Start(ProtInfo.ConnOptn/256);
 
-// Establish the optimal operating area for all managed objects
-//
-   XrdLink::LinkStack.Set(&XrdSched, &XrdTrace, TRACE_MEM);
-   XrdLink::LinkStack.Set(ProtInfo.ConnOptn, ProtInfo.ConnLife);
-
 // Setup the link and socket polling infrastructure
 //
    if (!XrdLink::Setup(ProtInfo.ConnMax, ProtInfo.idleWait)
