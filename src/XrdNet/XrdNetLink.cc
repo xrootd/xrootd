@@ -104,26 +104,27 @@ int XrdNetLink::Close(int defer)
     rdMutex.Lock();
     wrMutex.Lock();
 
-// Release the link name
-//
-    if (Lname) {free(Lname); Lname = 0;}
-
 // If we have an open file descriptor and this is not a shared descriptor
 // close it.
 //
     if (FD >= 0)
-       {if (Stream) 
-           if (noclose) Stream->Detach();
-              else      Stream->Close();
-           else if (!noclose)   Close(FD);
+       {if (Stream) Stream->Detach();
+        if (!noclose) close(FD);
         FD = -1;
        }
+
+// If close is not to be defered until a recycle, then delete appendages
+//
     if (!defer)
        {if (Stream)   {delete Stream; Stream = 0;}
         if (Bucket)   {delete Bucket; Bucket = 0;}
         if (recvbuff) {recvbuff->Recycle(); recvbuff = 0;}
         if (sendbuff) {sendbuff->Recycle(); sendbuff = 0;}
+        if (Lname)    {free(Lname); Lname = 0;}
        }
+
+// All done
+//
     wrMutex.UnLock();
     rdMutex.UnLock();
     return 0;
