@@ -360,7 +360,7 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 	       // An open request which fails for an application reason like kxr_wait
 	       // must have its kXR_Refresh bit cleared.
 	       if (req->header.requestid == kXR_open)
-		  req->open.options &= (!kXR_refresh);
+		  req->open.options &= ((kXR_int16)~kXR_refresh);
 	    }
 
 	    if (retry > kXR_maxReqRetry) {
