@@ -1016,7 +1016,7 @@ int XrdOlbServer::do_Select(char *rid, int reset)
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
    char *tp, *amode, ptc, hbuff[512];
-   int retc, needrw, resonly = 0, newfile = 0;
+   int docr, dowt, retc, needrw, resonly = 0, newfile = 0;
    SMask_t amask, smask, pmask;
 
 // Process: <id> select[s] {c | r | w | x] <path>
@@ -1047,30 +1047,40 @@ int XrdOlbServer::do_Select(char *rid, int reset)
        return 0;
       }
 
-// First check if we have seen this file before. If not, broadcast a lookup
-// to all relevant servers. Note that even if the caller wants the file in
-// r/w mode we will ask both r/o and r/w servers for the file. Note that we
-// could have let the client go if we had at least one non-bouncing server
-// in the set. But replicated files are rare, so we just let the client wait.
-// To keep reduce message traffic, we'll just ask newly added or bounced ones.
+// First check if we have seen this file before. If so, get primary selections.
 //
-   retc = XrdOlbCache.GetFile(tp, cinfo);
-   if (!retc || cinfo.deadline || reset || (retc && cinfo.sbvec))
-      {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.LUPDelay));
-       DEBUG("Lookup delay " <<Name() <<' ' <<XrdOlbConfig.LUPDelay);
+   if (!(retc = XrdOlbCache.GetFile(tp, cinfo))) pmask = 0;
+      else pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
+
+// If we didn't find the file, or it's being searched for, or a cache reset
+// is wanted then the client has to wait. The client also has to wait if a
+// bouncing server made it impossible to select a primary server. In any case,
+// we will ask the relevant servers if they have the file. Note that even if
+// the caller wants the file in r/w mode we will ask both r/o and r/w servers 
+// for the file. This complicated section of code allows us to let the client
+// not wait if we have at least one non-bouncing server in the set. However,
+// we will ask bouncing servers to give us an update for this file.
+//
+   dowt = (!retc || cinfo.deadline || reset);
+   docr = (retc && (cinfo.sbvec != 0));
+   if (dowt || docr)
+      {if (dowt || (docr && !pmask))
+          {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.LUPDelay));
+           DEBUG("Lookup delay " <<Name() <<' ' <<XrdOlbConfig.LUPDelay);
+           dowt = 1;
+          }
        if (!retc || reset) XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
           else      XrdOlbCache.DelFile(tp, cinfo.sbvec, XrdOlbConfig.LUPDelay);
        XrdOlbSM.Broadcast((retc ? cinfo.sbvec : pinfo.rovec), buff,
                           snprintf(buff, sizeof(buff)-1,
                           "%s state %s\n", XrdOlbConfig.MsgGID, tp));
-       return 0;
+       if (dowt) return 0;
       }
 
 // Compute the primary and secondary selections:
-// Primary:   Servers who already have the file
-// Secondary: Servers who don't have the file but can stage it in
+// Primary:   Servers who already have the file (computed above)
+// Secondary: Servers who don't have the file but can get it
 //
-   pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
    if (resonly) smask = 0;
       else smask = (newfile ? pinfo.rwvec : amask & pinfo.ssvec); // Alt selection
 
