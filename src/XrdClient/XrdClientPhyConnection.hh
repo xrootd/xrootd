@@ -67,6 +67,8 @@ public:
    ~XrdClientPhyConnection();
 
    XrdClientMessage     *BuildMessage(bool IgnoreTimeouts, bool Enqueue);
+   void                  CheckAutoTerm();
+
    bool           Connect(XrdClientUrlInfo RemoteHost);
    void           Disconnect();
    bool           ExpiredTTL();

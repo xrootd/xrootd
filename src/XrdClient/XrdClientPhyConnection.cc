@@ -46,7 +46,7 @@ extern "C" void *SocketReaderThread(void * arg)
 
    while (1) {
      thisObj->BuildMessage(TRUE, TRUE);
-   
+     thisObj->CheckAutoTerm();
    }
 
    Info(XrdClientDebug::kHIDEBUG,
@@ -205,7 +205,8 @@ void XrdClientPhyConnection::Disconnect()
    // If we are going async, we have to terminate the reader thread
    if (EnvGetLong(NAME_GOASYNC)) {
 
-      if (fReaderthreadrunning) {
+      if (fReaderthreadrunning &&
+	!pthread_equal(pthread_self(), fReaderthreadhandler)) {
 
          Info(XrdClientDebug::kHIDEBUG,
 	      "Disconnect", "Cancelling reader thread.");
@@ -220,10 +221,11 @@ void XrdClientPhyConnection::Disconnect()
 	 Info(XrdClientDebug::kHIDEBUG,
 	      "Disconnect", "Reader thread canceled.");
 
+         fReaderthreadrunning = FALSE;
+         fReaderthreadhandler = 0;
       }
 
-      fReaderthreadrunning = FALSE;
-      fReaderthreadhandler = 0;
+
    }
 
    // Disconnect from remote server
@@ -234,6 +236,22 @@ void XrdClientPhyConnection::Disconnect()
    fSocket = 0;
 
 }
+
+
+//____________________________________________________________________________
+void XrdClientPhyConnection::CheckAutoTerm() {
+   // Parametric asynchronous stuff
+   // If we are going async, we might be willing to term ourself
+   if (!IsValid() && EnvGetLong(NAME_GOASYNC) &&
+        pthread_equal(pthread_self(), fReaderthreadhandler)) {
+
+         Info(XrdClientDebug::kHIDEBUG,
+              "Disconnect", "Self-Cancelling reader thread.");
+
+         pthread_exit(0);
+      }
+}
+
 
 //____________________________________________________________________________
 void XrdClientPhyConnection::Touch()
@@ -348,12 +366,19 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
          // If we have to ignore the socket timeouts, then we have not to
          // feed the queue with them. In this case, the newly created XrdClientMessage
          // has to be freed.
-	 if ( !IgnoreTimeouts || !m->IsError() )
-	    fMsgQ.PutMsg(m);
-	 else {
-            delete m;
-            m = 0;
-	 }
+	 //if ( !IgnoreTimeouts || !m->IsError() )
+
+         if (IgnoreTimeouts) {
+
+            if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_timeout)
+               fMsgQ.PutMsg(m);
+            else {
+               delete m;
+               m = 0;
+            }
+
+         } else
+            fMsgQ.PutMsg(m);
       }
   
    return m;
