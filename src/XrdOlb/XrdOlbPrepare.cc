@@ -65,8 +65,7 @@ int XrdOlbPrepare::Add(XrdOlbPrepArgs &pargs)
 //
    PTMutex.Lock();
    if (!prepif || !prepSched.isAlive())
-      {XrdOlbSay.Emsg("Add", "No prepare manager; prepare", pargs.reqid,
-                             (char *)"ignored.");
+      {XrdOlbSay.Emsg("Add","No prepare manager; prepare",pargs.reqid,"ignored.");
        PTMutex.UnLock();
        return 0;
       }
@@ -119,8 +118,7 @@ int XrdOlbPrepare::Del(char *reqid)
 //
    PTMutex.Lock();
    if (!prepif || !prepSched.isAlive())
-      {XrdOlbSay.Emsg("Del", "No prepare manager; unprepare", reqid,
-                      (char *)"ignored.");
+      {XrdOlbSay.Emsg("Del","No prepare manager; unprepare",reqid,"ignored.");
        PTMutex.UnLock();
        return 0;
       }
@@ -219,7 +217,7 @@ int XrdOlbPrepare::Reset()  // Must be called with PTMutex locked!
               if (!prepSched.isAlive() && !startIF()) return 0;
               if (prepSched.Put((const char **)pdata, (const int *)pdlen))
                  {XrdOlbSay.Emsg("Prepare", prepSched.LastError(),
-                                 (char *)"write to", prepif);
+                                 "write to", prepif);
                   prepSched.Drain();
                  }
                  else {PTable.Purge(); ok = 1; NumFiles = 0;
@@ -268,7 +266,7 @@ int XrdOlbPrepare::startIF()  // Must be called with PTMutex locked!
                  if ((eNow - lastemsg) >= 60)
                     {lastemsg = eNow;
                      XrdOlbSay.Emsg("Prepare", prepSched.LastError(),
-                                    (char *)"start", prepif);
+                                    "start", prepif);
                     }
                 }
             }

@@ -54,8 +54,6 @@ int         AskPing;      // Number of ping requests per AskPerf window
 int         LogPerf;      // AskPerf intervals before logging perf
 
 int         PortTCP;      // TCP Port to listen on
-int         PortUDPm;     // UCP Port to listen on (manager)
-int         PortUDPs;     // UCP Port to listen on (server)
 
 int         P_cpu;        // % CPU Capacity in load factor
 int         P_fuzz;       // %     Capacity to fuzz when comparing
@@ -82,6 +80,7 @@ int          RemotRLen;
 char        *MsgGID;
 int          MsgGIDL;
 char        *myName;
+char        *myDomain;
 XrdOucTList *myManagers;
 
 char        *NoStageFile;
@@ -97,6 +96,7 @@ XrdOlbPList_Anchor PathList;
 XrdOlbMeter       *Meter;
 XrdNetSocket      *AdminSock;
 XrdNetSocket      *AnoteSock;
+XrdNetSocket      *RedirSock;
 
       XrdOlbConfig() {ConfigDefaults();}
      ~XrdOlbConfig();
@@ -104,6 +104,7 @@ XrdNetSocket      *AnoteSock;
 private:
 
 XrdNetSocket *ASocket(char *path, const char *fn, mode_t mode, int isudp=0);
+char *ASPath(char *path, const char *fn, mode_t mode);
 int  concat_fn(const char *prefix, const int   pfxlen,
                const char *path,         char *buffer);
 void ConfigDefaults(void);

@@ -32,8 +32,8 @@ extern XrdOucError   XrdOlbSay;
 /******************************************************************************/
   
 void *XrdOlbStartWorking(void *carg)
-      {XrdOlbWorker *wp = (XrdOlbWorker *)carg;
-       return wp->WorkIt(0);
+      {XrdOlbScheduler *sp = (XrdOlbScheduler *)carg;
+       return sp->WorkIt();
       }
 
 void *XrdOlbStartTSched(void *carg)
@@ -46,16 +46,17 @@ void *XrdOlbStartTSched(void *carg)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOlbScheduler::XrdOlbScheduler(XrdOlbWorker *WFunc)
+XrdOlbScheduler::XrdOlbScheduler()
 {
     int retc;
     pthread_t tid;
 
-    min_Workers =  4;
-    max_Workers = 32;
+    min_Workers = 16;
+    max_Workers = 64;
     num_Workers =  0;
-    Worker      = WFunc;
     TimerQueue  = 0;
+    WorkQueue   = 0;
+    WorkQLast   = 0;
 
 // Start a time based scheduler
 //
@@ -73,44 +74,25 @@ XrdOlbScheduler::~XrdOlbScheduler()
 }
  
 /******************************************************************************/
-/*                               g e t W o r k                                */
-/******************************************************************************/
-  
-XrdNetLink *XrdOlbScheduler::getWork()
-{
-   XrdNetLink *lp;
-
-// Wait for work
-//
-   do {WorkAvail.Wait();
-       SchedMutex.Lock();
-       lp = WorkQueue.Remove();
-       SchedMutex.UnLock();
-      } while(!lp);
-   return lp;
-}
- 
-/******************************************************************************/
 /*                              S c h e d u l e                               */
 /******************************************************************************/
   
-void XrdOlbScheduler::Schedule(XrdNetLink *lp)
+void XrdOlbScheduler::Schedule(XrdOlbJob *jp)
 {
 
 // Check if we have enough workers available
 //
-   SchedMutex.Lock();
-   if (!num_Workers 
-   || (!WorkQueue.isEmpty() && num_Workers < max_Workers)) hireWorker();
+   jp->NextJob = 0;
+   WorkMutex.Lock();
+   if (!num_Workers || (!WorkQueue && num_Workers < max_Workers)) hireWorker();
 
 // Place the request on the queue and broadcast it
 //
-   WorkQueue.Add(&(lp->LinkLink));
+   if (WorkQLast) WorkQLast->NextJob = jp;
+      else        WorkQueue          = jp;
+   WorkQLast = jp;
+   WorkMutex.UnLock();
    WorkAvail.Post();
-
-// Unlock the data area and return
-//
-   SchedMutex.UnLock();
 }
 
 /******************************************************************************/
@@ -152,7 +134,7 @@ void XrdOlbScheduler::setWorkers(int minw, int maxw)
 
 // Lock the data area
 //
-   SchedMutex.Lock();
+   WorkMutex.Lock();
 
 // Set the values
 //
@@ -161,7 +143,7 @@ void XrdOlbScheduler::setWorkers(int minw, int maxw)
 
 // Unlock the data area
 //
-   SchedMutex.UnLock();
+   WorkMutex.UnLock();
 
 // Debug the info
 //
@@ -174,7 +156,6 @@ void XrdOlbScheduler::setWorkers(int minw, int maxw)
   
 void XrdOlbScheduler::TimeSched()
 {
-   EPNAME("TimeSched")
    XrdOlbJob *jp;
    int wtime;
 
@@ -190,10 +171,32 @@ void XrdOlbScheduler::TimeSched()
            jp = TimerQueue;
            TimerQueue = jp->NextJob;
            TimerMutex.UnLock();
-           DEBUG("running " <<jp->Comment);
-           if (jp->DoIt() == 0) delete jp;
+           Schedule(jp);
           }
        } while(1);
+}
+ 
+/******************************************************************************/
+/*                                W o r k I t                                 */
+/******************************************************************************/
+  
+void *XrdOlbScheduler::WorkIt()
+{
+   EPNAME("WorkIt");
+   XrdOlbJob *jp;
+
+// Wait for work
+//
+   do {WorkAvail.Wait();
+       WorkMutex.Lock();
+       if ((jp = WorkQueue))
+          {if (!(WorkQueue = jp->NextJob)) WorkQLast = 0;
+           WorkMutex.UnLock();
+           DEBUG("running " <<jp->Comment);
+           if (jp->DoIt() == 0) delete jp;
+          } else WorkMutex.UnLock();
+      } while(1);
+   return (void *)0;
 }
 
 /******************************************************************************/
@@ -203,6 +206,8 @@ void XrdOlbScheduler::TimeSched()
 /*                           h i r e   W o r k e r                            */
 /******************************************************************************/
   
+// Entered with WorkMutex locked!
+
 void XrdOlbScheduler::hireWorker()
 {
    EPNAME("hireWorker")
@@ -211,7 +216,7 @@ void XrdOlbScheduler::hireWorker()
 
 // Start a new thread
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdOlbStartWorking, (void *)Worker,
+   if ((retc = XrdOucThread::Run(&tid, XrdOlbStartWorking, (void *)this,
                                  0, "Worker")))
       XrdOlbSay.Emsg("Scheduler", retc, "create worker thread");
       else {num_Workers++;

@@ -16,9 +16,11 @@
   
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
+#include "XrdOlb/XrdOlbManList.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdOlbDrop;
+class XrdOlbManList;
 class XrdOlbPrepArgs;
 
 class XrdOlbServer
@@ -26,34 +28,40 @@ class XrdOlbServer
 public:
 friend class XrdOlbManager;
 
-       char   isDisable;
-       char   isOffline;
-       char   isNoStage;
-       char   isSuspend;
-       char   isActive;
-       char   isBound;
+       char  isDisable;    // Set via admin command to temporarily remove server
+       char  isOffline;    // Set when a link failure occurs
+       char  isNoStage;    // Set upon a nostage event
+       char  isSpecial;    // Set when server can be redirected
+       char  isMan;        // Set when server can act as manager
+       char  isSuspend;    // Set upon a suspend event
+       char  isActive;     // Set when server is functioning
+       char  isBound;      // Set when server is in the configuration
+       char  isRW;         // Set when server can write or stage data
+       char  isKnown;      // Set when we have recieved a "state"
 
 inline int   isServer(SMask_t smask) {return (smask & ServMask) != 0;}
-inline int   isServer(char *hn) 
+inline int   isServer(const char *hn)
                       {return Link && !strcmp(Link->Name(), hn);}
 inline int   isServer(unsigned int ipa)
                       {return ipa == IPAddr;}
+inline int   isServer(unsigned int ipa, int port)
+                      {return ipa == IPAddr && port == Port && port;}
 inline char *Name()   {return (myName ? myName : (char *)"?");}
 inline void    Lock() {myMutex.Lock();}
 inline void  UnLock() {myMutex.UnLock();}
 
-       int  Login(int Port, int suspended, int nostaging);
+       int  Login(int Port, int Status);
 
        void Process_Director(void);
-       int  Process_Requests(int onlyone=0);
-       int  Process_Responses(int onlyone=0);
+       int  Process_Requests(void);
+       int  Process_Responses(void);
 
 static int  Resume(XrdOlbPrepArgs *pargs);
 
-       int  Send(char *buff, int blen=0);
+       int  Send(const char *buff, int blen=0);
        int  Send(const struct iovec *iov, int iovcnt);
 
-       void setName(char *hname, int port);
+       void setName(const char *hname, int port);
 
             XrdOlbServer(XrdNetLink *lnkp, int port=0);
            ~XrdOlbServer();
@@ -76,18 +84,22 @@ private:
 static int   do_PrepSel(XrdOlbPrepArgs *pargs, int stage);
        int   do_Rm(char *rid, int do4real);
        int   do_Rmdir(char *rid, int do4real);
-       int   do_Select(char *rid, int reset=0);
+       int   do_RST(char *rid);
+       int   do_Select(char *rid, int refresh=0);
        int   do_Space(char *rid);
-       int   do_State(char *rid, int mustresp);
+       int   do_State(char *rid, int reset);
+       int   do_StateFWD(char *tp, int reset);
        int   do_Stats(char *rid, int wantdata);
        int   do_StNst(char *rid, int Resume);
        int   do_SuRes(char *rid, int Resume);
+       int   do_Try(char *rid);
        int   do_Usage(char *rid);
 static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
        int   isOnline(char *path, int upt=1);
        char *Receive(char *idbuff, int blen);
        int   Reissue(char *rid, const char *op, char *arg1, char *path, char *arg3=0);
 
+static XrdOlbManList myMans;
 XrdOucMutex       myMutex;
 XrdNetLink       *Link;
 unsigned int      IPAddr;
@@ -100,6 +112,7 @@ int        ServID;
 int        Instance;
 int        Port;
 char      *myName;
+char      *Stype;
 
 int        pingpong;     // Keep alive field
 int        newload;
@@ -113,5 +126,16 @@ int        RefA;         // Number of times used for allocation
 int        RefTotA;
 int        RefR;         // Number of times used for redirection
 int        RefTotR;
+
+// The following fields are used to keep the supervisor's load values
+//
+static XrdOucMutex mlMutex;
+static int         xeq_load;
+static int         cpu_load;
+static int         mem_load;
+static int         pag_load;
+static int         net_load;
+static int         dsk_free;
+static int         dsk_tota;
 };
 #endif

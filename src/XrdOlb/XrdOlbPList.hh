@@ -58,7 +58,7 @@ inline XrdOlbPList    *Next() {return next;}
 inline char          *Path() {return pathname;}
 const  char          *PType();
 
-       XrdOlbPList(char *pname=(char *)"", XrdOlbPInfo *pi=0)
+       XrdOlbPList(const char *pname="", XrdOlbPInfo *pi=0)
                  {next     = 0;
                   pathlen  = strlen(pname);
                   pathname = strdup(pname);
@@ -90,17 +90,17 @@ inline void        Empty(XrdOlbPList *newlist=0)
                     UnLock();
                    }
 
-       int         Find(char *pname, XrdOlbPInfo &masks);
+       int         Find(const char *pname, XrdOlbPInfo &masks);
 
 inline XrdOlbPList *First() {return next;}
 
-       SMask_t     Insert(char *pname, XrdOlbPInfo *pinfo);
+       SMask_t     Insert(const char *pname, XrdOlbPInfo *pinfo);
 
 inline int         NotEmpty() {return next != 0;}
 
        void        Remove(SMask_t mask);
 
-const  char       *Type(char *pname);
+const  char       *Type(const char *pname);
 
 inline XrdOlbPList *Zorch(XrdOlbPList *newlist=0)
                    {Lock();

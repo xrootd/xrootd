@@ -22,8 +22,10 @@ const char *XrdOlbManagerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbCache.hh"
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbManager.hh"
+#include "XrdOlb/XrdOlbManList.hh"
 #include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbServer.hh"
+#include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucPthread.hh"
@@ -32,6 +34,8 @@ const char *XrdOlbManagerCVSID = "$Id$";
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
+
+       XrdOlbState     XrdOlbSMon;
 
 extern XrdOlbCache     XrdOlbCache;
 
@@ -42,12 +46,9 @@ extern XrdOucTrace     XrdOlbTrace;
 extern XrdOucError     XrdOlbSay;
 
 extern XrdNetWork     *XrdOlbNetTCPm;
-extern XrdNetWork     *XrdOlbNetUDPm;
 extern XrdNetWork     *XrdOlbNetTCPs;
-extern XrdNetWork     *XrdOlbNetUDPs;
 
-extern XrdOlbScheduler *XrdOlbSchedM;
-extern XrdOlbScheduler *XrdOlbSchedS;
+extern XrdOlbScheduler XrdOlbSched;
 
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */
@@ -65,7 +66,7 @@ public:
           XrdOlbDrop(int sid, int inst) : XrdOlbJob("drop server")
                     {servEnt  = sid;
                      servInst = inst;
-                     XrdOlbSchedM->Schedule((XrdOlbJob *)this,
+                     XrdOlbSched.Schedule((XrdOlbJob *)this,
                                             time(0)+XrdOlbConfig.DRPDelay);
                          }
          ~XrdOlbDrop() {}
@@ -83,7 +84,10 @@ XrdOlbManager::XrdOlbManager()
      memset((void *)ServTab, 0, sizeof(ServTab));
      memset((void *)ServBat, 0, sizeof(ServBat));
      memset((void *)MastTab, 0, sizeof(MastTab));
+     memset((void *)AltMans, (int)' ', sizeof(AltMans));
+     AltMend = AltMans;
      ServCnt =  0;
+     noData  =  1;
      InstNum =  1;
      MTHi    = -1;
      STHi    = -1;
@@ -122,6 +126,8 @@ void XrdOlbManager::Broadcast(SMask_t smask, char *buff, int blen)
    STMutex.UnLock();
 }
 
+/******************************************************************************/
+
 void XrdOlbManager::Broadcast(SMask_t smask, const struct iovec *iod, int iovcnt)
 {
    int i;
@@ -151,6 +157,7 @@ void XrdOlbManager::Broadcast(SMask_t smask, const struct iovec *iod, int iovcnt
   
 void XrdOlbManager::Inform(const char *cmd, int clen, char *arg, int alen)
 {
+   EPNAME("Inform");
    int i, iocnt, eol;
    struct iovec iod[4];
    XrdOlbServer *sp;
@@ -176,21 +183,50 @@ void XrdOlbManager::Inform(const char *cmd, int clen, char *arg, int alen)
 
 // Obtain a lock on the table
 //
-   STMutex.Lock();
+   MTMutex.Lock();
 
-// Run through the table looking for servers to send messages to
+// Run through the table looking for managers to send messages to
 //
    for (i = 0; i <= MTHi; i++)
-       {if ((sp=MastTab[i]) && !sp->isOffline) sp->Lock();
-           else continue;
-        STMutex.UnLock();
-        sp->Send(iod, iocnt);
-        sp->UnLock();
-        STMutex.Lock();
+       {if ((sp=MastTab[i]) && !sp->isOffline) 
+           {sp->Lock();
+            MTMutex.UnLock();
+            DEBUG(sp->Name() <<" " <<cmd <<(arg ? arg : (char *)""));
+            sp->Send(iod, iocnt);
+            sp->UnLock();
+            MTMutex.Lock();
+           }
        }
-   STMutex.UnLock();
+   MTMutex.UnLock();
 }
   
+/******************************************************************************/
+  
+void XrdOlbManager::Inform(SMask_t mmask, const char *cmd, int clen)
+{
+   EPNAME("Inform");
+   XrdOlbServer *sp;
+   int i;
+
+// Obtain a lock on the table
+//
+   MTMutex.Lock();
+
+// Run through the table looking for managers to send messages to
+//
+   for (i = 0; i <= MTHi; i++)
+       {if ((sp=MastTab[i]) && sp->isServer(mmask) && !sp->isOffline) 
+           {sp->Lock();
+            MTMutex.UnLock();
+            DEBUG(sp->Name() <<" " <<cmd);
+            sp->Send(cmd, clen);
+            sp->UnLock();
+            MTMutex.Lock();
+           }
+       }
+   MTMutex.UnLock();
+}
+
 /******************************************************************************/
 /*                           L i s t S e r v e r s                            */
 /******************************************************************************/
@@ -244,16 +280,23 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 {
    EPNAME("Login")
    XrdOlbServer *sp;
-   char *tp;
-   int   fdsk = 0, numfs = 1, addedp = 0, port = 0;
-   int   nostage = 0, suspend = 0;
+   char *tp, *Stype;
+   int   Status = 0, fdsk = 0, numfs = 1, addedp = 0, port = 0, Sport = 0;
    int   servID, servInst;
    SMask_t servset = 0, newmask;
 
 // Handle the login for the server stream.
 //
    if (!(tp = lnkp->GetLine())) return Login_Failed("missing login",lnkp);
-   DEBUG("Manager: from " <<lnkp->Name() <<": " <<tp);
+
+// Check if this is a message request. One such request can be sent ahead of
+// the login to be included in the log (typically the manager's log).
+//
+   if (!strncmp("msg ", tp, 4) && tp[4])
+      {XrdOlbSay.Emsg("Manager",lnkp->Name(), tp+4);
+       if (!(tp = lnkp->GetLine())) return Login_Failed("missing login",lnkp);
+      }
+   DEBUG("from " <<lnkp->Name() <<": " <<tp);
 
 // Get the login command and its argument
 //
@@ -261,21 +304,26 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
    ||  !(tp = lnkp->GetToken()))
       return Login_Failed("first command not login", lnkp);
 
-// Check if this is a director
+// Director Command: login director
 //
    if (!strcmp(tp, "director"))
-      {XrdOlbSay.Emsg("Manager","Director",lnkp->Name(),(char *)"logged in.");
+      {XrdOlbSay.Emsg("Manager","Director",lnkp->Name(),"logged in.");
        sp = new XrdOlbServer(lnkp);
        sp->Process_Director();
-       XrdOlbSay.Emsg("Manager","Director",lnkp->Name(),(char *)"logged out.");
+       XrdOlbSay.Emsg("Manager","Director",lnkp->Name(),"logged out.");
        delete sp;
        return (void *)0;
       }
 
-// Make sure this is really a server
+// Server Command: login server [port <dport>] [nostage] [suspend] [+m:<sport>]
+// Responses:      <id> ping
+//                 <id> try <hostlist>
+// Server Command: addpath <mode> <path>
+//                 start <maxkb> <numfs> <totkb>
 //
    if (strcmp(tp, "server"))
       return Login_Failed("Invalid server type", lnkp);
+   Stype = (char *)"server";
 
 // The server may specify a port number
 //
@@ -290,26 +338,46 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 // The server may specify nostage
 //
    if (tp && !strcmp("nostage", tp))
-      {nostage = 1;
+      {Status |= OLB_noStage;
        tp = lnkp->GetToken();
       }
 
 // The server may specify suspend
 //
    if (tp && !strcmp("suspend", tp))
-      {suspend = 1;
+      {Status |= OLB_Suspend;
+       tp = lnkp->GetToken();
+      }
+
+// The server may specify the version (for self-managed servers)
+//
+   if (tp && *tp == '+')
+      {Status |= OLB_Special;
+       tp++;
+       if (*tp == 'm') 
+          {Status |= OLB_isMan; tp++;
+           Stype = (char *)"Supervisor";
+           if (*tp == ':')
+              if (XrdOuca2x::a2i(XrdOlbSay,"subscription port",tp+1,&Sport,0))
+                 return Login_Failed("invalid subscription port", lnkp);
+           if (!Sport) Sport = XrdOlbConfig.PortTCP;
+          }
       }
 
 // Add the server
 //
-   if (!(sp = AddServer(lnkp, port, nostage, suspend)))
+   if (!(sp = AddServer(lnkp, port, Status, Sport)))
       return Login_Failed(0, lnkp);
    servID = sp->ServID; servInst = sp->Instance;
+
+// Immediately send a ping request to validate the login (phase 1)
+//
+   if (Status & OLB_Special) lnkp->Send("1@0 ping\n", 9);
 
 // At this point, the server will send only addpath commands followed by a start
 //
    while((tp = lnkp->GetLine()))
-        {DEBUG("Manager: from " <<lnkp->Name() <<": " <<tp);
+        {DEBUG("Received from " <<lnkp->Name() <<": " <<tp);
          if (!(tp = lnkp->GetToken())) break;
          if (!strcmp(tp, "start")) break;
          if (strcmp(tp, "addpath"))
@@ -351,24 +419,28 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
    if (!addedp) 
       {XrdOlbPInfo pinfo;
        pinfo.rovec = sp->ServMask;
-       servset = XrdOlbCache.Paths.Insert((char *)"/", &pinfo);
+       servset = XrdOlbCache.Paths.Insert("/", &pinfo);
        XrdOlbCache.Bounce(sp->ServMask);
-       XrdOlbSay.Emsg("Manager","Server",lnkp->Name(),(char *)"defaulted r /");
+       XrdOlbSay.Emsg("Manager",Stype,lnkp->Name(),"defaulted r /");
       }
 
-// Finally set the reference counts for intersecting servers to be the same
+// Finally set the reference counts for intersecting servers to be the same.
+// Additionally, indicate cache refresh will be needed because we have a new
+// server that may have files the we already reported on.
 //
    ResetRef(servset);
+   if (XrdOlbConfig.Manager()) Reset();
 
 // Process responses from the server.
 //
-   tp = sp->isDisable ? (char *)"logged in disabled." : (char *)"logged in.";
-   XrdOlbSay.Emsg("Manager", "Server", sp->Name(), tp);
+   tp = sp->isSuspend ? (char *)"logged in suspended." : (char *)"logged in.";
+   XrdOlbSay.Emsg("Manager", Stype, sp->Name(), tp);
 
-   sp->Process_Responses(0);
+   sp->isDisable = 0;
+   sp->Process_Responses();
 
    tp = sp->isOffline ? (char *)"forced out." : (char *)"logged out.";
-   XrdOlbSay.Emsg("Manager","Server", sp->Name(), tp);
+   XrdOlbSay.Emsg("Manager", Stype, sp->Name(), tp);
 
 // Recycle the server
 //
@@ -431,19 +503,19 @@ void *XrdOlbManager::MonPing()
 // and re-initialize the manager connection.
 //
    do {Snooze(XrdOlbConfig.AskPing*2+13);
-       STMutex.Lock();
-       for (i = 0; i < XrdOlbMTMAX; i++) 
+       MTMutex.Lock();
+       for (i = 0; i < MTHi; i++)
            if ((sp = MastTab[i]))
               {sp->Lock();
                if (sp->isActive) sp->isActive = 0;
                   else {XrdOlbSay.Emsg("Manager", "Manager", sp->Link->Name(),
-                                       (char *)"appears to be dead.");
+                                       "appears to be dead.");
                         sp->isOffline = 1;
-                        sp->Link->Close();
+                        sp->Link->Close(1);
                        }
                sp->UnLock();
               }
-       STMutex.UnLock();
+       MTMutex.UnLock();
       } while(1);
 
 // Keep the compiler happy
@@ -506,8 +578,9 @@ void *XrdOlbManager::Pander(char *manager, int mport)
 {
    XrdOlbServer   *sp;
    XrdNetLink     *lp;
-   int opts = 0, waits = 6, tries = 6;
-   char *reason;
+   XrdOlbManList   myMans;
+   int rc, Status, opts = 0, waits = 6, tries = 6, fails = 0, xport = mport;
+   char manbuff[256], *reason, *manp = manager;
 
 // Keep connecting to our manager. If XWait is present, wait for it to
 // be turned off first; then try to connect.
@@ -519,10 +592,13 @@ void *XrdOlbManager::Pander(char *manager, int mport)
                 }
              Snooze(10);
             }
-       if (!(lp = XrdOlbNetTCPs->Connect(manager, mport, opts)))
+       if (!(lp = XrdOlbNetTCPs->Connect(manp, xport, opts)))
           {if (tries--) opts = XRDNET_NOEMSG;
               else {tries = 6; opts = 0;}
-           Snooze(10);
+           if (!XrdOlbServer::myMans.haveAlts()
+           ||  !(manp=XrdOlbServer::myMans.Next(xport,manbuff,sizeof(manbuff))))
+              {manp = manager; xport = mport; Snooze(10); fails++;}
+              else Snooze(3);
            continue;
           }
        opts = 0; tries = waits = 6;
@@ -532,90 +608,29 @@ void *XrdOlbManager::Pander(char *manager, int mport)
        sp = new XrdOlbServer(lp);
        Add_Manager(sp);
 
-       // Login this server
+       // Login this server. If we are a line manager login suspended
        //
        reason = 0;
-       if (sp->Login(Port, XWait, !XStage)) sp->Process_Requests();
-          else reason = (char *)"login to manager failed";
+       if (XrdOlbConfig.Manager()) Status = OLB_Suspend|OLB_noStage|OLB_isMan;
+          else Status = (XWait ? OLB_Suspend : 0)|(XStage ? 0 : OLB_noStage);
+       if (fails >= 6 && manp == manager) {Status |= OLB_Lost; fails = 0;}
+
+       if (!(rc=sp->Login(Port, Status))) sp->Process_Requests();
+          else if (rc == 1) reason = (char *)"login to manager failed";
 
        // Just try again
        //
-       Remove_Manager((const char *)reason, sp);
+       Remove_Manager(reason, sp);
        delete sp;
+
+       // Cycle on to the next manager if we have one or snooze and try over
+       //
+       if ((manp=XrdOlbServer::myMans.Next(xport,manbuff,sizeof(manbuff))))
+          continue;
        Snooze(15);
+       manp = manager; xport = mport; fails++;
       } while(1);
     return (void *)0;
-}
-
-/******************************************************************************/
-/*                               P r o c e s s                                */
-/******************************************************************************/
-  
-void *XrdOlbManager::Process()
-{
-    EPNAME("Process")
-    int i;
-    char *hnp;
-    XrdOlbServer Server(0);
-
-// Try to some work from the scheduler
-//
-   do {if (!(Server.Link = XrdOlbSchedM->getWork())) continue;
-       hnp = Server.Link->Name();
-
-       // Check if we can get a servid for this server
-       //
-          STMutex.Lock();
-          for (i = 0; i <= STHi; i++)
-              if (ServTab[i] && ServTab[i]->isServer(hnp))
-                 {Server.ServID   = i;
-                  Server.ServMask = i<<1;
-                  Server.Instance = InstNum++;
-                  DEBUG("Process: " <<hnp <<" matched server " <<i);
-                  break;
-                 }
-          STMutex.UnLock();
-
-       // Transfer off to process this appropriately then clean up
-       //
-          Server.isOffline = 0;
-          Server.Process_Responses(1);
-          Server.isOffline = 1;
-          Server.Link->Recycle();
-          Server.Link = 0;
-
-       } while(!XrdOlbSchedM->mustRecycle());
-
-// Document removal
-//
-   return (void *)0;
-}
-
-/******************************************************************************/
-/*                               R e s p o n d                                */
-/******************************************************************************/
-  
-void *XrdOlbManager::Respond()
-{
-    XrdOlbServer Server(0);
-
-// Try to some work from the scheduler
-//
-   do {if (!(Server.Link = XrdOlbSchedS->getWork())) continue;
-
-       // Transfer off to process this appropriately then clean up
-       //
-          Server.isOffline = 0;
-          Server.Process_Requests(1);
-          Server.isOffline = 1;
-          Server.Link->Recycle();
-          Server.Link = 0;
-
-       } while(!XrdOlbSchedS->mustRecycle());
-
-// We should end our run here
-//
-   return (void *)0;
 }
 
 /******************************************************************************/
@@ -646,6 +661,10 @@ void XrdOlbManager::Remove_Server(const char *reason,
    sp->isOffline = 1;
    if (sp->isBound) {sp->isBound = 0; ServCnt--;}
 
+// Compute new state of all servers if we are a reporting manager
+//
+   if (XrdOlbConfig.Manager()) XrdOlbSMon.Calc(-1, sp->isNoStage, sp->isSuspend);
+
 // If this is an immediate drop request, do so now
 //
    if (immed || !XrdOlbConfig.DRPDelay) {Drop_Server(sent, sinst); return;}
@@ -657,13 +676,44 @@ void XrdOlbManager::Remove_Server(const char *reason,
    if (sp->DropJob) sp->DropJob->servInst = sinst;
       else sp->DropJob = new XrdOlbDrop(sent, sinst);
 
-
 // Document removal
 //
-   if (reason) XrdOlbSay.Emsg("Manager", (const char *)sp->Name(),
-                             (char *)"scheduled for removal;", (char *)reason);
+   if (reason) 
+      XrdOlbSay.Emsg("Manager", sp->Name(), "scheduled for removal;", reason);
       else DEBUG("Will remove " <<sp->Name() <<" server " <<sent <<'.' <<sinst);
    STMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                                 R e s e t                                  */
+/******************************************************************************/
+  
+void XrdOlbManager::Reset()
+{
+   EPNAME("Reset");
+   const char *cmd = "rst\n";
+   const int cmdln = 4;
+   XrdOlbServer *sp;
+   int i;
+
+// Obtain a lock on the table
+//
+   MTMutex.Lock();
+
+// Run through the table looking for managers to send a reset request
+//
+   for (i = 0; i <= MTHi; i++)
+       {if ((sp=MastTab[i]) && !sp->isOffline && sp->isKnown)
+           {sp->Lock();
+            sp->isKnown = 0;
+            MTMutex.UnLock();
+            DEBUG("sent to " <<sp->Name());
+            sp->Send(cmd, cmdln);
+            sp->UnLock();
+            MTMutex.Lock();
+           }
+       }
+   MTMutex.UnLock();
 }
 
 /******************************************************************************/
@@ -732,7 +782,7 @@ int XrdOlbManager::SelServer(int needrw, char *path,
            sp->DiskTota -= XrdOlbConfig.DiskAdj;
            if (((sp->DiskFree -= XrdOlbConfig.DiskAdj) < XrdOlbConfig.DiskMin)
            &&   sp->DiskAskdl <= time(0))
-              {sp->Link->Send((char *)"1@0 space\n");
+              {sp->Link->Send("1@0 space\n");
                sp->DiskAskdl = time(0) + XrdOlbConfig.DiskAsk;
               }
           if (iovcnt && iodata) sp->Link->Send(iodata, iovcnt);
@@ -803,24 +853,6 @@ void XrdOlbManager::Stage(int ison, int doinform)
      XStage = ison;
      if (doinform) Inform(cmd, strlen(cmd));
 }
- 
-/******************************************************************************/
-/*                              S t a r t U D P                               */
-/******************************************************************************/
-  
-void *XrdOlbManager::StartUDP(int formanager)
-{
-   XrdNetLink   *lp;
-   XrdNetWork      *net   = (formanager ? XrdOlbNetUDPm : XrdOlbNetUDPs);
-   XrdOlbScheduler *sched = (formanager ? XrdOlbSchedM  : XrdOlbSchedS);
-
-// Start processing incomming udp requests
-//
-   do {if ((lp = net->Accept())) sched->Schedule(lp);
-      } while(1);
-
-   return (void *)0;
-}
 
 /******************************************************************************/
 /*                                 S t a t s                                  */
@@ -849,7 +881,7 @@ int XrdOlbManager::Stats(char *bfr, int bln)
 // Check if actual length wanted
 //
    if (!bfr) return  sizeof(statfmt1) + 256  +
-                    (sizeof(statfmt2) + 20*4 + 256) * XrdOlbSTMAX +
+                    (sizeof(statfmt2) + 20*4 + 256) * STMax +
                      sizeof(statfmt3) + 1;
 
 // Get the statistics
@@ -925,6 +957,7 @@ SMask_t XrdOlbManager::AddPath(XrdOlbServer *sp)
 // Get the path
 //
    if (!(tp = sp->Link->GetToken())) return 0;
+   if (pinfo.rwvec || pinfo.ssvec) sp->isRW = 1;
 
 // For everything matching the path indicate in the cache the server bounced
 //
@@ -947,15 +980,15 @@ int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
 
 // Find available ID for this server
 //
-   STMutex.Lock();
-   for (i = 0; i < XrdOlbMTMAX; i++) if (!MastTab[i]) break;
+   MTMutex.Lock();
+   for (i = 0; i < MTMax; i++) if (!MastTab[i]) break;
 
 // Check if we have too many here
 //
-   if (i > XrdOlbMTMAX)
-      {STMutex.UnLock();
+   if (i > MTMax)
+      {MTMutex.UnLock();
        XrdOlbSay.Emsg("Manager", "Login to", sp->Link->Name(),
-                     (char *)"failed; too many managers");
+                     "failed; too many managers");
        return 0;
       }
 
@@ -970,11 +1003,12 @@ int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
    sp->isNoStage  = 0;
    sp->isSuspend  = 0;
    sp->isActive   = 1;
-   STMutex.UnLock();
+   sp->isMan      = (XrdOlbConfig.Manager() ? 1 : 0);
+   MTMutex.UnLock();
 
 // Document login
 //
-   DEBUG("Manager: Added " <<sp->Name() <<" to config; id=" <<i);
+   DEBUG("Added " <<sp->Name() <<" to manager config; id=" <<i);
    return 1;
 }
 
@@ -982,85 +1016,112 @@ int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
 /*                             A d d S e r v e r                              */
 /******************************************************************************/
   
-XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
-                                       int nostage, int suspend)
+XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port, 
+                                           int Status, int sport)
 {
    EPNAME("AddServer")
     const SMask_t smask_1 = 1;
-    int tmp, i, j = -1, k = -1;
-    char *hnp = lp->Name();
+    int tmp, i, j = -1, k = -1, os = -1;
+    char *act = (char *)"Added ", *hnp = lp->Name();
     unsigned int ipaddr = lp->Addr();
-    XrdOlbServer *sp;
+    XrdOlbServer *bump = 0, *sp = 0;
 
 // Find available ID for this server
 //
    STMutex.Lock();
-   for (i = 0; i < XrdOlbSTMAX; i++)
+   for (i = 0; i < STMax; i++)
        if (ServBat[i])
-          {if (ServBat[i]->isServer(ipaddr)) break;
+          {if (ServBat[i]->isServer(ipaddr, port)) break;
               else if (!ServTab[i] && k < 0) k = i;
+                   else if (os < 0 && (Status & OLB_isMan)
+                        &&  ServTab[i]->isSpecial && !ServTab[i]->isMan) os = i;
           }
           else if (j < 0) j = i;
 
 // Check if server is already logged in or is a relogin
 //
-   if (i < XrdOlbSTMAX)
+   if (i < STMax)
       if (ServTab[i] && ServTab[i]->isBound)
          {STMutex.UnLock();
-          XrdOlbSay.Emsg("Manager", "Server", hnp, (char *)"already logged in.");
+          XrdOlbSay.Emsg("Manager", "Server", hnp, "already logged in.");
           return 0;
-         } else {
-          if (ServBat[i]->Link) {ServBat[i]->Link->Recycle();}
-          ServBat[i]->Link = lp;
-          ServBat[i]->Instance = InstNum++;
-          ServBat[i]->isOffline = 0;
-          ServBat[i]->isBound   = 1;
-          ServBat[i]->isNoStage = nostage;
-          ServBat[i]->isSuspend = suspend;
-          ServTab[i] = ServBat[i];
-          ServCnt++;
-          if (XrdOlbConfig.SUPLevel
-          && (tmp = ServCnt*XrdOlbConfig.SUPLevel/100) > XrdOlbConfig.SUPCount) 
-             XrdOlbConfig.SUPCount=tmp;
-          if (i > STHi) STHi = i;
-          ServTab[i]->setName(lp->Name(), port);
-          DEBUG("Reused ID " <<i <<'.' <<ServBat[i]->Instance <<" for " <<hnp
-                <<"; num=" <<ServCnt <<"; min=" <<XrdOlbConfig.SUPCount);
-          STMutex.UnLock();
-          return ServTab[i];
+         } else { // Rehook server to previous entry
+          sp = ServBat[i];
+          if (sp->Link) sp->Link->Recycle();
+          sp->Link      = lp;
+          sp->isOffline = 0;
+          sp->setName(lp->Name(), port);  // Just in case it changed
+          ServTab[i] = sp;
+          j = i;
+          act = (char *)"Re-added ";
          }
 
 // Reuse an old ID if we must
 //
-   if (j < 0 && k >= 0)
-      {DEBUG("ID " <<k <<" reassigned" <<ServBat[i]->Name() <<" to " <<hnp);
-       delete ServBat[i]; ServBat[i] = 0;
-       j = k;
-      } else if (j < 0)
-                {STMutex.UnLock();
-                 XrdOlbSay.Emsg("Manager", "Login from", hnp,
-                              (char *)"failed; too many servers");
-                 return 0;
-                }
+   if (!sp)
+      {if (j < 0 && k >= 0)
+          {DEBUG("ID " <<k <<" reassigned" <<ServBat[k]->Name() <<" to " <<hnp);
+           delete ServBat[k]; ServBat[k] = 0;
+           j = k;
+          } else if (j < 0)
+                    {if (os >= 0)
+                        {bump = ServTab[os];
+                         ServTab[os] = ServBat[os] = 0;
+                         j = os;
+                        } else {STMutex.UnLock();
+                                if (Status & OLB_Special)
+                                   {sendAList(lp);
+                                    act = (char *)" redirected";
+                                   } else act = (char *)" failed";
+                                DEBUG("Login " <<hnp <<act 
+                                      <<"; too many subscribers");
+                                return 0;
+                               }
+                    }
+       ServTab[j]   = ServBat[j] = sp = new XrdOlbServer(lp, port);
+       sp->ServID   = j;
+       sp->ServMask = smask_1<<j;
+      }
 
 // Assign new server
 //
-   ServTab[j] = ServBat[j] = sp = new XrdOlbServer(lp, port);
+   if (Status & OLB_isMan) setAltMan(j, ipaddr, sport);
    if (j > STHi) STHi = j;
-   sp->ServID   = j;
-   sp->ServMask = smask_1<<j;
-   sp->Instance = InstNum++;
-   sp->isBound  = 1;
+   sp->Instance  = InstNum++;
+   sp->isBound   = 1;
+   sp->isNoStage = (Status & OLB_noStage);
+   sp->isSuspend = (Status & OLB_Suspend);
+   sp->isMan     = (Status & OLB_isMan);
+   sp->isSpecial = (Status & OLB_Special);
+   sp->isDisable = 1;
    ServCnt++;
    if (XrdOlbConfig.SUPLevel
    && (tmp = ServCnt*XrdOlbConfig.SUPLevel/100) > XrdOlbConfig.SUPCount)
       XrdOlbConfig.SUPCount=tmp;
 
+// Check if we should bump someone (deferal avoids extra recovery transactions)
+//
+   if (bump)
+      {bump->Lock();
+       sendAList(bump->Link);
+       DEBUG("ID " <<os <<" bumped " <<bump->Name() <<" for " <<hnp);
+       bump->isOffline = 1;
+       bump->Link->Close(1);
+       bump->UnLock();
+      }
+
 // Document login
 //
-   DEBUG("Manager: Added " <<sp->Name() <<" to config; id=" <<j <<'.' <<
-         sp->Instance <<"; num=" <<ServCnt <<"; min=" <<XrdOlbConfig.SUPCount);
+   DEBUG(act <<sp->Name() <<" to server config; id=" <<j <<'.' <<sp->Instance
+         <<"; num=" <<ServCnt <<"; min=" <<XrdOlbConfig.SUPCount);
+
+// Compute new state of all servers if we are a reporting manager.
+//
+   if (XrdOlbConfig.Manager()) XrdOlbSMon.Calc(1, sp->isNoStage, sp->isSuspend);
    STMutex.UnLock();
+
+// All done, all locks released, return the server
+//
    return sp;
 }
 
@@ -1116,7 +1177,7 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 // Check if the drop has been rescheduled
 //
    if (djp && time(0) < sp->DropTime)
-      {XrdOlbSchedM->Schedule((XrdOlbJob *)djp, sp->DropTime);
+      {XrdOlbSched.Schedule((XrdOlbJob *)djp, sp->DropTime);
        STMutex.UnLock();
        return 1;
       }
@@ -1134,15 +1195,28 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
    sp->DropJob   = 0;
    sp->isBound   = 0;
 
+// Remove server entry from the alternate list
+//
+   if (sp->isMan)
+      {memset((void *)&AltMans[sent*AltSize], (int)' ', AltSize);
+       sent = sp->ServID-1;
+       while(sent >= 0 && ServTab[sent] && !ServTab[sent]->isMan) sent--;
+       if (sent < 0) AltMend = AltMans;
+          else AltMend = AltMans + ((sent+1)*AltSize);
+      }
+
 // Readjust STHi
 //
    if (sent == STHi) while(STHi >= 0 && !ServTab[STHi]) STHi--;
+
+// Recycle the link
+//
    if (sp->Link) {sp->Link->Recycle(); sp->Link = 0;}
-   STMutex.UnLock();
 
 // Document the drop
 //
-   XrdOlbSay.Emsg("Server", hname, (char *)"dropped.");
+   STMutex.UnLock();
+   XrdOlbSay.Emsg("Server", hname, "dropped.");
    return 0;
 }
 
@@ -1155,7 +1229,7 @@ void *XrdOlbManager::Login_Failed(const char *reason,
 {
      if (sp) Remove_Server(reason, sp->ServID, sp->Instance);
         else {if (reason) XrdOlbSay.Emsg("Manager", lp->Name(),
-                                   (char *)"login failed;", (char *)reason);
+                                          "login failed;", reason);
               lp->Recycle();
              }
      return (void *)0;
@@ -1172,7 +1246,7 @@ void XrdOlbManager::Record(char *path, const char *reason)
    static XrdOucMutex mcMutex;
    int mcnt;
 
-   DEBUG("Manager: " <<reason <<path);
+   DEBUG(reason <<path);
    mcMutex.Lock();
    msgcnt++; mcnt = msgcnt;
    mcMutex.UnLock();
@@ -1197,12 +1271,12 @@ void XrdOlbManager::Remove_Manager(const char *reason, XrdOlbServer *sp)
 
 // Obtain a lock on the servtab
 //
-   STMutex.Lock();
+   MTMutex.Lock();
 
 // Make sure this server is the right one
 //
    if (!(sp == MastTab[sent]))
-      {STMutex.UnLock();
+      {MTMutex.UnLock();
        DEBUG("Remove manager " <<sent <<'.' <<sinst <<" failed.");
        return;
       }
@@ -1216,12 +1290,11 @@ void XrdOlbManager::Remove_Manager(const char *reason, XrdOlbServer *sp)
 // Readjust MTHi
 //
    if (sent == MTHi) while(MTHi >= 0 && !MastTab[MTHi]) MTHi--;
-   STMutex.UnLock();
+   MTMutex.UnLock();
 
 // Document removal
 //
-   if (reason) XrdOlbSay.Emsg("Manager", (const char *)sp->Name(),
-                             (char *)"removed;", (char *)reason);
+   if (reason) XrdOlbSay.Emsg("Manager", sp->Name(), "removed;", reason);
 }
 
 /******************************************************************************/
@@ -1243,7 +1316,7 @@ XrdOlbServer *XrdOlbManager::SelbyLoad(SMask_t mask, int &nump, int &delay,
        if ((np = ServTab[i]) && (np->ServMask & mask))
           {nump++;
            if (np->isOffline)                     {numd++; continue;}
-           if (np->isSuspend)                     {nums++; continue;}
+           if (np->isSuspend || sp->isDisable)    {nums++; continue;}
            if (np->myLoad > XrdOlbConfig.MaxLoad) {numo++; continue;}
            if (needspace && (   np->isNoStage
                              || np->DiskTota < XrdOlbConfig.DiskMin
@@ -1287,8 +1360,8 @@ XrdOlbServer *XrdOlbManager::SelbyRef(SMask_t mask, int &nump, int &delay,
    for (i = 0; i <= STHi; i++)
        if ((np = ServTab[i]) && (np->ServMask & mask))
           {nump++;
-           if (np->isOffline) {numd++; continue;}
-           if (np->isSuspend) {nums++; continue;}
+           if (np->isOffline)                   {numd++; continue;}
+           if (np->isSuspend || np->isDisable)  {nums++; continue;}
            if (needspace && (   np->isNoStage
                              || np->DiskTota < XrdOlbConfig.DiskMin
                              || np->DiskFree < XrdOlbConfig.DiskAdj))
@@ -1307,4 +1380,61 @@ XrdOlbServer *XrdOlbManager::SelbyRef(SMask_t mask, int &nump, int &delay,
    sp->Lock();
    delay = 0;
    return sp;
+}
+ 
+/******************************************************************************/
+/*                             s e n d A L i s t                              */
+/******************************************************************************/
+  
+// Single entry at a time, protected by STMutex!
+
+void XrdOlbManager::sendAList(XrdNetLink *lp)
+{
+   static char *AltNext = AltMans;
+   static struct iovec iov[4] = {{(caddr_t)"0 try ", 6}, 
+                                 {0, 0},
+                                 {AltMans, 0},
+                                 {(caddr_t)"\n", 1}};
+// Calculate what to send
+//
+   AltNext = AltNext + AltSize;
+   if (AltNext >= AltMend)
+      {AltNext = AltMans;
+       iov[1].iov_len = 0;
+       iov[2].iov_len = AltMend - AltMans;
+      } else {
+        iov[1].iov_base = (caddr_t)AltNext;
+        iov[1].iov_len  = AltMend - AltNext;
+        iov[2].iov_len  = AltNext - AltMans;
+      }
+
+// Send the list of alternates (rotated once)
+//
+   lp->Send(iov, 4);
+}
+
+/******************************************************************************/
+/*                             s e t A l t M a n                              */
+/******************************************************************************/
+  
+// Single entry at a time, protected by STMutex!
+  
+void XrdOlbManager::setAltMan(int snum, unsigned int ipaddr, int port)
+{
+   char *ap = &AltMans[snum*AltSize];
+   int i;
+
+// Preset the buffer and pre-screen the port number
+//
+   if (!port || (port > 0x0000ffff)) port = Port;
+   memset(ap, int(' '), AltSize);
+
+// Insert the ip address of this server into the list of servers
+//
+   i = XrdNetDNS::IP2String(ipaddr, port, ap, AltSize);
+   ap[i] = ' ';
+
+// Compute new fence
+//
+   if (ap >= AltMend) AltMend = ap + AltSize;
 }

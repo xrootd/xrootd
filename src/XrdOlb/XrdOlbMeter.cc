@@ -118,7 +118,7 @@ long XrdOlbMeter::FreeSpace(long &tot_free)
 // across filesystems.
 //
    while(tlp)
-        {if (!STATFS((const char *)tlp->text, &fsdata))
+        {if (!STATFS(tlp->text, &fsdata))
             {bytes = fsdata.f_bavail * ( fsdata.f_bsize ?
                                          fsdata.f_bsize : FS_BLKFACT);
              if (bytes >= MinFree)
@@ -161,8 +161,8 @@ int XrdOlbMeter::Monitor(char *pgm, int itv)
 
 // Make sure the program is executable by us
 //
-   if (access((const char *)monpgm, X_OK))
-      {eDest->Emsg("Meter", errno, (char *)"find executable", monpgm);
+   if (access(monpgm, X_OK))
+      {eDest->Emsg("Meter", errno, "find executable", monpgm);
        return -1;
       }
 

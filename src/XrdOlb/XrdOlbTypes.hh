@@ -16,10 +16,7 @@ typedef unsigned long long SMask_t;
 
 #define BUFF(x) char buff[x]; buff[x-1] = '\0';
 
-#define XrdOlbMTMAX 16
-#define XrdOlbSTMAX 64
-
 #define XrdOlbMAX_PATH_LEN 1024
 
-#define XrdOlbVERSION "1.0.0"
+#define XrdOlbVERSION "2.0.0"
 #endif

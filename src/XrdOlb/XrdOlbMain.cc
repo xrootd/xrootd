@@ -77,15 +77,13 @@ Notes:
 
        XrdOlbPrepare    XrdOlbPrepQ;
 
-       XrdOlbScheduler *XrdOlbSchedM  = 0;
-       XrdOlbScheduler *XrdOlbSchedS  = 0;
+       XrdOlbScheduler  XrdOlbSched;
 
        XrdOlbManager    XrdOlbSM;
 
        XrdNetWork      *XrdOlbNetTCPm = 0;
-       XrdNetWork      *XrdOlbNetUDPm = 0;
+       XrdNetWork      *XrdOlbNetTCPr = 0;
        XrdNetWork      *XrdOlbNetTCPs = 0;
-       XrdNetWork      *XrdOlbNetUDPs = 0;
 
        XrdNetLink      *XrdOlbRelay = 0;
 
@@ -119,8 +117,14 @@ void *XrdOlbStartPandering(void *carg)
        return XrdOlbSM.Pander(tp->text, tp->val);
       }
 
-void *XrdOlbStartUDP(void *carg)
-      {return XrdOlbSM.StartUDP(*(int *)carg);
+void *XrdOlbStartSupervising(void *carg)
+      {EPNAME("StartSuper");
+       XrdNetLink *newlink;
+       while(1) if ((newlink = XrdOlbNetTCPr->Accept()))
+                   {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
+                    XrdOlbSM.Login(newlink);
+                   }
+       return (void *)0;
       }
 
 /******************************************************************************/
@@ -130,7 +134,6 @@ void *XrdOlbStartUDP(void *carg)
 int main(int argc, char *argv[])
 {
    EPNAME("main")
-   int forManager = 1;
    XrdOucSemaphore SyncUp(0);
    pthread_t       tid;
    XrdNetLink     *newlink;
@@ -161,8 +164,17 @@ int main(int argc, char *argv[])
        SyncUp.Wait();
       }
 
-// Start appropriate subsystems for manager/server operation. At the moment we
-// only support one or the other but we act like we support both.
+// Start the supervisor subsystem
+//
+   if (XrdOlbNetTCPr)
+      {if (XrdOucThread::Run(&tid,XrdOlbStartSupervising, 
+                             (void *)0, 0, "supervisor"))
+          {XrdOlbSay.Emsg("oolbd", errno, "start supervisor");
+           _exit(1);
+          }
+      }
+
+// Start the server subsystem
 //
    if (XrdOlbConfig.Server())
       {tp = XrdOlbConfig.myManagers;
@@ -170,7 +182,7 @@ int main(int argc, char *argv[])
             {if (!XrdOlbConfig.Manager() && !tp->next)
                 XrdOlbSM.Pander(tp->text, tp->val);
                 else {if (XrdOucThread::Run(&tid,XrdOlbStartPandering,(void *)tp,
-                                            0, (const char *)tp->text))
+                                            0, tp->text))
                          {XrdOlbSay.Emsg("oolbd", errno, "start server");
                           _exit(1);
                          }
@@ -182,13 +194,10 @@ int main(int argc, char *argv[])
 // Do manager processing now, simply loop looking for connections
 //
    if (XrdOlbConfig.Manager())
-      {XrdOucThread::Run(&tid, XrdOlbStartUDP, (void *)&forManager, 0,
-                         "UDP traffic manager");
-       while(1) if ((newlink = XrdOlbNetTCPm->Accept()))
-                   {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
-                    XrdOucThread::Run(&tid, XrdOlbLoginServer, (void *)newlink);
-                   }
-      }
+      while(1) if ((newlink = XrdOlbNetTCPm->Accept()))
+                  {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
+                   XrdOucThread::Run(&tid, XrdOlbLoginServer, (void *)newlink);
+                  }
 
 // If we ever get here, just exit
 //

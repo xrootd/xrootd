@@ -42,6 +42,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOlb/XrdOlbManager.hh"
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbScheduler.hh"
+#include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdNet/XrdNetDNS.hh"
@@ -63,7 +64,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 /*                      C o p y r i g h t   S t r i n g                       */
 /******************************************************************************/
   
-#define XrdCPR "(c) 2004 SLAC olbd version " XrdVSTRING
+#define XrdCPR "(c) 2005 SLAC olbd version " XrdVSTRING
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
@@ -77,17 +78,17 @@ extern XrdOlbConfig     XrdOlbConfig;
 
 extern XrdOlbPrepare    XrdOlbPrepQ;
 
+extern XrdOlbState      XrdOlbSMon;
+
 extern XrdOucTrace      XrdOlbTrace;
 
 extern XrdNetLink      *XrdOlbRelay;
 
 extern XrdNetWork      *XrdOlbNetTCPm;
-extern XrdNetWork      *XrdOlbNetUDPm;
+extern XrdNetWork      *XrdOlbNetTCPr;
 extern XrdNetWork      *XrdOlbNetTCPs;
-extern XrdNetWork      *XrdOlbNetUDPs;
 
-extern XrdOlbScheduler *XrdOlbSchedM;
-extern XrdOlbScheduler *XrdOlbSchedS;
+extern XrdOlbScheduler  XrdOlbSched;
 
 extern XrdOlbManager    XrdOlbSM;
 
@@ -105,50 +106,31 @@ void *XrdOlbStartMonPerf(void *carg) { return XrdOlbSM.MonPerf(); }
 
 void *XrdOlbStartMonRefs(void *carg) { return XrdOlbSM.MonRefs(); }
 
+void *XrdOlbStartMonStat(void *carg) { return XrdOlbSMon.Monitor(); }
+
 /******************************************************************************/
 /*                        W o r k e r   C l a s s e s                         */
 /******************************************************************************/
-
-class XrdOlbManWorker : XrdOlbWorker
-{
-public:
-
-void *WorkIt(void *) {return (void *)XrdOlbSM.Process();}
-
-     XrdOlbManWorker() {}
-    ~XrdOlbManWorker() {}
-};
-
-class XrdOlbSrvWorker : XrdOlbWorker
-{
-public:
-
-void *WorkIt(void *) {return (void *)XrdOlbSM.Respond();}
-
-     XrdOlbSrvWorker() {}
-    ~XrdOlbSrvWorker() {}
-
-};
 
 class XrdOlbLogWorker : XrdOlbJob
 {
 public:
 
-      int DoIt() {XrdOlbSay.Emsg("Config", XrdCPR, 
-                            (char *)"executing as", smtype);
+      int DoIt() {XrdOlbSay.Say(0, XrdCPR);
+                  XrdOlbSay.Say(0, mememe, "running.");
                   midnite += 86400;
-                  XrdOlbSchedM->Schedule((XrdOlbJob *)this, midnite);
+                  XrdOlbSched.Schedule((XrdOlbJob *)this, midnite);
                   return 1;
                  }
 
           XrdOlbLogWorker(char *who) : XrdOlbJob("midnight runner")
-                         {smtype = who; 
+                         {mememe = strdup(who);
                           midnite = XrdOucTimer::Midnight() + 86400;
-                          XrdOlbSchedM->Schedule((XrdOlbJob *)this, midnite);
+                          XrdOlbSched.Schedule((XrdOlbJob *)this, midnite);
                          }
          ~XrdOlbLogWorker() {}
 private:
-char  *smtype;
+char  *mememe;
 time_t midnite;
 };
 
@@ -205,12 +187,10 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 
   Output:   0 upon success or !0 otherwise.
 */
-   int logsync = 86400, NoGo = 0;
-   char c, buff[32], *temp, *logfn = 0, *smtype = 0;
+   int logsync = 86400, NoGo = 0, immed = 0;
+   char c, buff[512], *temp, *logfn = 0, *smtype = 0;
    extern char *optarg;
    extern int opterr, optopt;
-   static XrdOlbManWorker MWorker;
-   static XrdOlbSrvWorker  SWorker;
 
 // Prohibit this program from executing as superuser
 //
@@ -231,7 +211,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                  break;
        case 'd': XrdOlbTrace.What = 1;
                  break;
-       case 'i': doWait = 0;
+       case 'i': immed = 1;
                  break;
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
@@ -241,7 +221,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                  break;
        case 's': isServer = 1;
                  break;
-       case 'w': doWait = 1;   // Backward compatability only
+       case 'w': immed = -1;   // Backward compatability only
                  break;
        default:  buff[0] = '-'; buff[1] = optopt; buff[2] = '\0';
                  XrdOlbSay.Emsg("Config", "Invalid option,", buff);
@@ -256,42 +236,40 @@ int XrdOlbConfig::Configure(int argc, char **argv)
        Usage(1);
       }
 
+// Override the wait/nowait from the command line
+//
+   if (immed) doWait = (immed > 0 ? 0 : 1);
+
 // Establish debugging for threads
 //
    if (XrdOlbTrace.What && TRACE_Debug) XrdOucThread::setDebug(&XrdOlbSay);
 
 // Process unsupported configurations
 //
-   if (isManager && isServer)
-      {smtype = (char *)"Manager/Server";
-       XrdOlbSay.Emsg("Config", "Hierarchical manager/server mode not supported");
-       Usage(1);
-      }
    if (!(isManager || isServer))
       {XrdOlbSay.Emsg("Config", "Mode not specified; manager mode assumed");
        isManager = 1;
       } 
    if (isManager) 
-      {if (!smtype) smtype = (char *)"Manager";
-       XrdOlbSchedM = new XrdOlbScheduler((XrdOlbWorker*)&MWorker);
-       XrdOlbJob *jp=(XrdOlbJob *)new XrdOlbCache_Scrubber(&XrdOlbCache,XrdOlbSchedM);
-       XrdOlbSchedM->Schedule(jp, cachelife+time(0));
-       if (!isServer)  XrdOlbSchedS = XrdOlbSchedM;
+      {smtype = (char *)"manager";
+       XrdOlbJob *jp=(XrdOlbJob *)new XrdOlbCache_Scrubber(&XrdOlbCache,&XrdOlbSched);
+       XrdOlbSched.Schedule(jp, cachelife+time(0));
       }
-   if (isServer)  
-      {if (!smtype) smtype = (char *)"Server";
-       XrdOlbSchedS = new XrdOlbScheduler((XrdOlbWorker *)&SWorker);
-       if (!isManager) XrdOlbSchedM = XrdOlbSchedS;
-      }
+   if (isServer) smtype = (char *)"server";
+   if (isServer && isManager) smtype = (char *)"supervisor";
 
 // Establish pointers to error message handling
 //
    if (!logfn) XrdOlbSTDERR = 0;
       else {XrdOlbSTDERR = dup(2);
             XrdOlbLog.Bind(logfn, logsync);
-            new XrdOlbLogWorker(smtype);
            }
-   XrdOlbSay.Emsg("Config",XrdCPR,(char *)"initializing as",smtype);
+
+// Print herald
+//
+   XrdOlbSay.Say(0, XrdCPR);
+   sprintf(buff, "olb@%s initializaing as %s", myName, smtype);
+   XrdOlbSay.Say(0, buff);
 
 // Establish the FD limit
 //
@@ -308,28 +286,22 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 //
    NoGo |= ConfigProc();
 
-// Make sure that we have some ports to work with
+// For managers, make sure that we have a well designated port. If we are a
+// supervisor then force an ephemeral port to be used.
 //
-   if (!PortTCP) temp = (char *)"TCP";
-       else if (!PortUDPm) temp = (char *)"UDP";
-               else temp = 0;
-   if (temp) 
-      {NoGo = 1; XrdOlbSay.Emsg("Config",temp, (char *)"port not specified.");}
-      else if (PortUDPm == PortUDPs && isManager && isServer)
-              {XrdOlbSay.Emsg("Config","Manager and server UDP ports are the same.");
-               NoGo = 1;
-              }
+   if (isManager && !PortTCP)
+      {XrdOlbSay.Emsg("Config","Port not specified."); NoGo = 1;}
+      else if (isServer) PortTCP = 0;
 
-// Setup the admin path
+// Setup the admin path (used in all modes)
 //
-   if (!NoGo) 
-      NoGo = !(AdminSock = ASocket(AdminPath, "olbd.admin", AdminMode));
+   if (!NoGo) NoGo = !(AdminSock = ASocket(AdminPath,
+                      (isManager ? "olbd.nimda" : "olbd.admin"), AdminMode));
 
 // Setup manager or server, as needed
 //
-  if (!NoGo)
-     if (isManager) NoGo = setupManager();
-        else       NoGo = setupServer();
+  if (!NoGo && isManager) NoGo = setupManager();
+  if (!NoGo && isServer)  NoGo = setupServer();
 
 // Set up the generic message id
 //
@@ -338,9 +310,14 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 
 // All done, check for success or failure
 //
-   temp = (NoGo ? (char *)"failed." : (char *)"completed.");
-   XrdOlbSay.Emsg("Config",(const char *)smtype,
-                 (char *)"initialization",temp);
+   temp = (NoGo ? (char *)"initialization failed." 
+                : (char *)"initialization completed.");
+   sprintf(buff, "olb@%s:%d %s ", myName, PortTCP, smtype);
+   XrdOlbSay.Say(0, buff, temp);
+
+// Start the log midnight runner
+//
+   if (!NoGo && !logfn) new XrdOlbLogWorker(buff);
    return NoGo;
 }
 
@@ -404,8 +381,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
 int XrdOlbConfig::GenLocalPath(const char *oldp, char *newp)
 {
     if (concat_fn(LocalRoot, LocalRLen, oldp, newp))
-       return XrdOlbSay.Emsg("glp", -ENAMETOOLONG, "generate local path ",
-                               (char *)oldp);
+       return XrdOlbSay.Emsg("glp", -ENAMETOOLONG, "generate local path ",oldp);
     return 0;
 }
 
@@ -421,8 +397,7 @@ int XrdOlbConfig::GenLocalPath(const char *oldp, char *newp)
 int XrdOlbConfig::GenRemotePath(const char *oldp, char *newp)
 {
    if (concat_fn(RemotRoot, RemotRLen, oldp, newp))
-      return XrdOlbSay.Emsg("grp", -ENAMETOOLONG,"generate remote path ",
-                               (char *)oldp);
+      return XrdOlbSay.Emsg("grp", -ENAMETOOLONG,"generate remote path ",oldp);
    return 0;
 }
 
@@ -438,7 +413,7 @@ int XrdOlbConfig::GenMsgID(char *oldmid, char *buff, int blen)
 // Find the id separator, if none, allow the message to be forwarded only 
 // one additional time (compatability feature)
 //
-   msgnum = strtol((const char *)oldmid, &ep, 10);
+   msgnum = strtol(oldmid, &ep, 10);
    if (*ep != '@') {msgnum = 1; ep = oldmid;}
       else if (msgnum <= 1) return 0;
               else {msgnum--; ep++;}
@@ -458,7 +433,7 @@ int  XrdOlbConfig::inNoStage()
 {
    struct stat buff;
 
-   return (!stat((const char *)NoStageFile, &buff));
+   return (!stat(NoStageFile, &buff));
 }
 
 /******************************************************************************/
@@ -469,7 +444,7 @@ int  XrdOlbConfig::inSuspend()
 {
    struct stat buff;
 
-   return (!stat((const char *)SuspendFile, &buff));
+   return (!stat(SuspendFile, &buff));
 }
   
 /******************************************************************************/
@@ -483,26 +458,55 @@ XrdNetSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
                                     int isudp)
 {
    XrdNetSocket *ASock;
-   int i, sflags = (isudp ? XRDNET_UDPSOCKET : 0);
-   char *act = 0, fnbuff[1024];
+   int sflags = (isudp ? XRDNET_UDPSOCKET : 0);
+   char *fnp;
+
+// Setup the path
+//
+   if (!(fnp = ASPath(path, fn, mode))) return (XrdNetSocket *)0;
+
+// Connect to the path
+//
+   ASock = new XrdNetSocket(&XrdOlbSay);
+   if (ASock->Open(fnp, -1, XRDNET_SERVER|sflags) < 0)
+      {XrdOlbSay.Emsg("Config",ASock->LastError(),"establish socket",fnp);
+       delete ASock;
+       return (XrdNetSocket *)0;
+      }
+
+// Set the mode and return the socket object
+//
+   chmod(fnp, mode); // This may fail on some platforms
+   return ASock;
+}
+
+/******************************************************************************/
+/*                                A S P a t h                                 */
+/******************************************************************************/
+
+char *XrdOlbConfig::ASPath(char *path, const char *fn, mode_t mode)
+{
+   int i;
+   char *act = 0;
    struct stat buf;
+   static char fnbuff[1024];
 
 // Create the directory if it is not already there
 //
-   if (stat((const char *)path, &buf))
+   if (stat(path, &buf))
       {if (errno != ENOENT) act = (char *)"process directory";
           else if (mkdir(path, mode)) act = (char *)"create path directory";
-                  else if (chmod((const char *)path, mode))
+                  else if (chmod(path, mode))
                           act = (char *)"set access mode for";
       } else
        if ((buf.st_mode & S_IFMT) != S_IFDIR)
           {errno = ENOTDIR; act = (char *)"process directory";}
           else if ((buf.st_mode & S_IAMB) != mode
-               &&  chmod((const char *)path, mode))
+               &&  chmod(path, mode))
                   act = (char *)"set access mode for";
 
    if (act) {XrdOlbSay.Emsg("Config", errno, act, path);
-             return (XrdNetSocket *)0;
+             return 0;
             }
 
 // Construct full filename
@@ -514,33 +518,22 @@ XrdNetSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
 
 // Check is we have already created it and whether we can access
 //
-   if (!stat((const char *)fnbuff,&buf))
+   if (!stat(fnbuff,&buf))
       {if ((buf.st_mode & S_IFMT) != S_IFSOCK)
-          {XrdOlbSay.Emsg("Config","Path", fnbuff,
-                                   (char *)"exists but is not a socket");
-           return (XrdNetSocket *)0;
+          {XrdOlbSay.Emsg("Config","Path",fnbuff,"exists but is not a socket");
+           return 0;
           }
-       if (access((const char *)fnbuff, W_OK))
+       if (access(fnbuff, W_OK))
           {XrdOlbSay.Emsg("Config", errno, "access path", fnbuff);
-           return (XrdNetSocket *)0;
+           return 0;
           }
       }
 
-// Connect to the path
+// All set now
 //
-   ASock = new XrdNetSocket(&XrdOlbSay);
-   if (ASock->Open(fnbuff, -1, XRDNET_SERVER|sflags) < 0)
-      {XrdOlbSay.Emsg("Config",ASock->LastError(),"establish socket",fnbuff);
-       delete ASock;
-       return (XrdNetSocket *)0;
-      }
-
-// Set the mode and return the socket object
-//
-   chmod(fnbuff, mode); // This may fail on some platforms
-   return ASock;
+   return fnbuff;
 }
-
+  
 /******************************************************************************/
 /*                             c o n c a t _ f n                              */
 /******************************************************************************/
@@ -574,10 +567,11 @@ int XrdOlbConfig::concat_fn(const char *prefix, // String to prefix oldp
 void XrdOlbConfig::ConfigDefaults(void)
 {
 
-
 // Preset all variables with common defaults
 //
-   myName   = XrdNetDNS::getHostName();
+   if (!(myName = XrdNetDNS::getHostName()))
+      {XrdOlbSay.Emsg("Config", "Unable to determine my host name!"); _exit(8);}
+   myDomain = index(myName, '.');
    LUPDelay = 5;
    DRPDelay = 10*60;
    SRVDelay = 90;
@@ -588,8 +582,6 @@ void XrdOlbConfig::ConfigDefaults(void)
    MaxLoad  = 0x7fffffff;
    MsgTTL   = 7;
    PortTCP  = 0;
-   PortUDPm = 0;
-   PortUDPs = 0;
    P_cpu    = 0;
    P_fuzz   = 20;
    P_io     = 0;
@@ -621,6 +613,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    AdminMode= 0700;
    AdminSock= 0;
    AnoteSock= 0;
+   RedirSock= 0;
    pidPath  = strdup("/tmp");
    Police   = 0;
    monPath  = 0;
@@ -635,7 +628,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    doWait   = 1;
    Disabled = 1;
    RefReset = 60*60;
-   RefTurn  = 3*XrdOlbSTMAX*(DiskLinger+1);
+   RefTurn  = 3*XrdOlbManager::STMax*(DiskLinger+1);
    NoStageFile = 0;
    SuspendFile = 0;
 }
@@ -697,7 +690,7 @@ int XrdOlbConfig::isExec(XrdOucError *eDest, const char *ptype, char *prog)
 
 // Make sure the program is executable by us
 //
-   if (access((const char *)prog, X_OK))
+   if (access(prog, X_OK))
       {sprintf(buff, "find %s execuatble", ptype);
        eDest->Emsg("Config", errno, buff, prog);
        *mp = pp;
@@ -720,7 +713,8 @@ int XrdOlbConfig::PidFile()
     char buff[1024], *xop = 0;
     char pidFN[1200];
 
-    snprintf(pidFN, sizeof(pidFN), "%s/olbd.pid", pidPath);
+    if (isManager) snprintf(pidFN, sizeof(pidFN), "%s/olbd.super.pid", pidPath);
+       else snprintf(pidFN, sizeof(pidFN), "%s/olbd.pid", pidPath);
 
     if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
        xop = (char *)"open";
@@ -733,7 +727,7 @@ int XrdOlbConfig::PidFile()
              close(xfd);
             }
 
-     if (xop) XrdOlbSay.Emsg("Config", errno, (const char *)xop, pidFN);
+     if (xop) XrdOlbSay.Emsg("Config", errno, xop, pidFN);
      return xop != 0;
 }
 
@@ -747,19 +741,32 @@ int XrdOlbConfig::setupManager()
    pthread_t tid;
    int rc;
 
-// Setup TCP network connections now
+// Setup TCP network
 //
    if (!Police)
       XrdOlbSay.Emsg("Config","Warning! All hosts are allowed to connect.");
+   if (!(XrdOlbNetTCPm = new XrdNetWork(&XrdOlbSay, Police)))
+      {XrdOlbSay.Emsg("Config","Unable to create manager network interface.");
+       return 1;
+      } else if (myDomain) XrdOlbNetTCPm->setDomain(myDomain);
 
-   XrdOlbNetTCPm = new XrdNetWork(&XrdOlbSay, Police);
-   if (XrdOlbNetTCPm->Bind(PortTCP, "tcp")) return 1;
-
-
-// Setup UDP network connections now
+// Setup TCP incomming network connections
 //
-   XrdOlbNetUDPm = new XrdNetWork(&XrdOlbSay, Police);
-   if (XrdOlbNetUDPm->Bind(PortUDPm, "udp")) return 1;
+   if (XrdOlbNetTCPm->Bind(PortTCP, "tcp")) return 1;
+   if (!PortTCP) PortTCP = XrdOlbNetTCPm->Port();
+
+// Setup a local connection when in supervisor mode
+//
+   if (isServer)
+      {char *fnp;
+       if (!(fnp = ASPath(AdminPath, "olbd.super", AdminMode))) return 1;
+       if (!(XrdOlbNetTCPr = new XrdNetWork(&XrdOlbSay)))
+          {XrdOlbSay.Emsg("Config","Unable to create supervisor interface.");
+           return 1;
+          }
+       if (myDomain) XrdOlbNetTCPr->setDomain(myDomain);
+       if (XrdOlbNetTCPr->Bind(fnp, "tcp")) return 1;
+      }
 
 // Compute the scheduling policy
 //
@@ -778,7 +785,7 @@ int XrdOlbConfig::setupManager()
 
 // Create reference monitoring thread
 //
-   RefTurn  = 3*XrdOlbSTMAX*(DiskLinger+1);
+   RefTurn  = 3*XrdOlbManager::STMax*(DiskLinger+1);
    if (RefReset)
       {if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonRefs, (void *)0,
                                    0, "Refcount monitor")))
@@ -787,10 +794,18 @@ int XrdOlbConfig::setupManager()
           }
       }
 
+// Create state monitoring thread
+//
+   if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonStat, (void *)0,
+                               0, "State monitor")))
+      {XrdOlbSay.Emsg("Config", rc, "create state monitor thread");
+       return 1;
+      }
+
 // We normally come up disabled to allow data service machines to connect.
 // Scheduler a job to enabled ourselves after the service delay time.
 //
-   XrdOlbSchedM->Schedule((XrdOlbJob *)&StartService, time(0)+SRVDelay);
+   XrdOlbSched.Schedule((XrdOlbJob *)&StartService, time(0)+SRVDelay);
 
 // All done
 //
@@ -817,15 +832,16 @@ int XrdOlbConfig::setupServer()
 //
    if (PidFile()) return 1;
 
-// Setup TCP network
+// Setup TCP outgoing network connections
 //
-   XrdOlbNetTCPs = new XrdNetWork(&XrdOlbSay, 0);
+   if (!(XrdOlbNetTCPs = new XrdNetWork(&XrdOlbSay, 0)))
+      {XrdOlbSay.Emsg("Config","Unable to create server network interface.");
+       return 1;
+      } else if (myDomain) XrdOlbNetTCPs->setDomain(myDomain);
 
-// Setup UDP network for the server
+// Setup a UDP relay for the server
 //
-   XrdOlbNetUDPs = new XrdNetWork(&XrdOlbSay, Police);
-   if (XrdOlbNetUDPs->Bind(PortUDPs, "udp")
-   || !(XrdOlbRelay = XrdOlbNetUDPs->Relay(0, XRDNET_SENDONLY))) return 1;
+   if (!(XrdOlbRelay = XrdOlbNetTCPs->Relay(0, XRDNET_SENDONLY))) return 1;
 
 // If this is a staging server then we better have a disk cache
 //
@@ -856,7 +872,7 @@ int XrdOlbConfig::setupServer()
 // Create manager monitoring thread
 //
    if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonPing, (void *)0,
-                               0, "Pinf monitor")))
+                               0, "Ping monitor")))
       {XrdOlbSay.Emsg("Config", rc, "create ping monitor thread");
        return 1;
       }
@@ -864,15 +880,16 @@ int XrdOlbConfig::setupServer()
 // If this is a staging server then set up the Prepq object
 //
    if (DiskSS) 
-      {XrdOlbPrepQ.setParms(XrdOlbSchedS);
+      {XrdOlbPrepQ.setParms(&XrdOlbSched);
        XrdOlbPrepQ.Reset();
-       XrdOlbSchedS->Schedule((XrdOlbJob *)&XrdOlbPrepQ, pendplife+time(0));
+       XrdOlbSched.Schedule((XrdOlbJob *)&XrdOlbPrepQ, pendplife+time(0));
       }
 
 // Setup notification path
 //
-   if (!(AnoteSock = ASocket(AdminPath, "olbd.notes", AdminMode, 1)))
-      return 1;
+   if (!(AnoteSock = ASocket(AdminPath,
+                             (isManager ? "olbd.seton" : "olbd.notes"),
+                             AdminMode, 1))) return 1;
 
 // Construct the nostage/suspend file path names
 //
@@ -899,8 +916,9 @@ int XrdOlbConfig::setupServer()
        XrdOlbSM.Suspend(0);
       }
 
-// All done
+// Determine whether or not we have data
 //
+   XrdOlbSM.noData = isManager;
    return 0;
 }
 
@@ -989,10 +1007,10 @@ int XrdOlbConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
    if (*pval != '/')
       {eDest->Emsg("Config", "adminpath not absolute"); return 1;}
 
-// Make sure path is not too long
-//
-   if (strlen(pval) > sizeof(USock.sun_path))
-      {eDest->Emsg("Config", "admin path", (char *)pval, (char *)"is too long");
+// Make sure path is not too long (account for "/olbd.admin")
+//                                              12345678901
+   if (strlen(pval) > sizeof(USock.sun_path) - 11)
+      {eDest->Emsg("Config", "admin path", pval, "is too long");
        return 1;
       }
    pval = strdup(pval);
@@ -1051,15 +1069,15 @@ int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &Config)
     if (val[k-1] != '*') return !Fsysadd(eDest, 0, val);
 
     for (i = k-1; i; i--) if (val[i] == '/') break;
-    i++; strncpy(fn, (const char *)val, i); fn[i] = '\0';
+    i++; strncpy(fn, val, i); fn[i] = '\0';
     sfxdir = &fn[i]; pfxdir = &val[i]; pfxln = strlen(pfxdir)-1;
-    if (!(DFD = opendir((const char *)fn)))
+    if (!(DFD = opendir(fn)))
        {eDest->Emsg("Config", errno, "open cache directory", fn); return 1;}
 
     errno = 0; rc = 0;
     while((dir = readdir(DFD)))
          {if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..")
-          || (pfxln && strncmp(dir->d_name, (const char *)pfxdir, pfxln)))
+          || (pfxln && strncmp(dir->d_name, pfxdir, pfxln)))
              continue;
           strcpy(sfxdir, dir->d_name);
           if ((rc = Fsysadd(eDest, 1, fn))  < 0) break;
@@ -1080,7 +1098,7 @@ int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
 {
     struct stat buff;
 
-    if (stat((const char *)fn, &buff))
+    if (stat(fn, &buff))
        {if (!chk) eDest->Emsg("Config", errno, "process cache", fn);
         return -1;
        }
@@ -1145,8 +1163,8 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &Config)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, dyopts[i].opname))
                   {if (!(val = Config.GetWord()))
-                      {eDest->Emsg("Config", "delay ", (char *)dyopts[i].opname,
-                                  (char *)" argument not specified.");
+                      {eDest->Emsg("Config", "delay ", dyopts[i].opname,
+                                   " argument not specified.");
                        return 1;
                       }
                    if (dyopts[i].istime < 0 && !strcmp(val, "*")) ppp = -1;
@@ -1533,11 +1551,9 @@ int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &Config)
 
 /* Function: xport
 
-   Purpose:  To parse the directive: port <tcpnum> [<udpnumM> [<updnnumS>]]
+   Purpose:  To parse the directive: port <tcpnum>
 
              <tcpnum>   number of the tcp port for incomming requests
-             <udpnumM>  number of the udp port for incomming manager requests
-             <udpnumS>  number of the udp port for incomming server  requests
 
    Type: Manager or Server, non-dynamic.
 
@@ -1555,27 +1571,8 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
                {eDest->Emsg("Config", "Unable to find tcp service", val);
                 return 1;
                }
-    PortTCP = PortUDPm = PortUDPs = pnum;
+    PortTCP = pnum;
 
-    if ((val = Config.GetWord()))
-       {if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*eDest,"udp port",val,&pnum,1,65535)) return 1;}
-           else if (!(pnum = XrdNetDNS::getPort(val, "udp")))
-                   {eDest->Emsg("Config","Unable to find udp service",val);
-                    return 1;
-                   }
-        PortUDPm = PortUDPs = pnum;
-       }
-
-    if (val && (val = Config.GetWord()))
-       {if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*eDest,"server udp port",val,&pnum,1,65535)) return 1;}
-           else if (!(pnum = XrdNetDNS::getPort(val, "udp")))
-                   {eDest->Emsg("Config","Unable to find server udp service",val);
-                    return 1;
-                   }
-        PortUDPs = pnum;
-       }
     return 0;
 }
   
@@ -1749,8 +1746,8 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, scopts[i].opname))
                   {if (!(val = Config.GetWord()))
-                      {eDest->Emsg("Config", "sched ", (char *)scopts[i].opname,
-                                  (char *)" argument not specified.");
+                      {eDest->Emsg("Config", "sched ", scopts[i].opname,
+                                   "argument not specified.");
                        return 1;
                       }
                    if (scopts[i].maxv < 0)
@@ -1886,8 +1883,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
     if (mval[i-1] != '+') i = 0;
         else {bval = strdup(mval); mval[i-1] = '\0';
               if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
-                 {eDest->Emsg("Config","Subscribe host", mval,
-                              (char *)"not found"); 
+                 {eDest->Emsg("Config","Subscribe host", mval, "not found");
                   free(bval); free(mval); return 1;
                  }
              }
@@ -1895,8 +1891,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
     do {if (i)
            {i--; free(mval);
             mval = XrdNetDNS::getHostName(InetAddr[i]);
-            eDest->Emsg("Config", (const char *)bval, 
-                        (char *)"-> olb.subscribe", mval);
+            eDest->Emsg("Config", bval, "-> olb.subscribe", mval);
            }
         tp = myManagers;
         while(tp) 
@@ -1919,7 +1914,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
   
 /* Function: xthreads
 
-   Purpose:  To parse the directive: threads [manager| server] <max> <min>
+   Purpose:  To parse the directive: threads <max> [<min>]
 
              <max>  max number of threads used for scheduling
              <min>  max number of threads used for scheduling
@@ -1933,27 +1928,18 @@ int XrdOlbConfig::xthreads(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
     int maxt, mint;
-    XrdOlbScheduler *schedM, *schedS;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "threads not specified"); return 1;}
 
     while(val)
-         {schedM = XrdOlbSchedM;
-          schedS = XrdOlbSchedS;
-          if (!strcmp("manager", val)) schedS = 0;
-             else if (!strcmp("server", val)) schedM = 0;
-
-          if (XrdOuca2x::a2i(*eDest, "max threads value", val, &maxt, 1))
-             return 1;
-          if (!(val = Config.GetWord())) mint = maxt;
-             else if (XrdOuca2x::a2i(*eDest, "min threads value", val, &mint, 1))
-                     return 1;
-                     else val = Config.GetWord();
-
-          if (schedM) schedM->setWorkers(mint, maxt);
-          if (schedS) schedS->setWorkers(mint, maxt);
-         }
+    if (XrdOuca2x::a2i(*eDest, "max threads value", val, &maxt, 1)) return 1;
+    if (!(val = Config.GetWord())) mint = maxt;
+        else if (XrdOuca2x::a2i(*eDest, "min threads value", val, &mint, 1))
+                return 1;
+    if (mint > maxt)
+       {eDest->Emsg("Config", "threads min > max"); return 1;}
+    XrdOlbSched.setWorkers(mint, maxt);
     return 0;
 }
   

@@ -88,7 +88,7 @@ void XrdOlbAdmin::Login(int socknum)
 
 // Document the login
 //
-   XrdOlbSay.Emsg(epname, (const char *)Stype, Sname, (char *)"logged in");
+   XrdOlbSay.Emsg(epname, Stype, Sname, "logged in");
 
 // Start receiving requests on this stream
 //
@@ -105,7 +105,7 @@ void XrdOlbAdmin::Login(int socknum)
 
 // The socket disconnected
 //
-   XrdOlbSay.Emsg("Login",(const char *)Stype, Sname, (char *)"logged out");
+   XrdOlbSay.Emsg("Login", Stype, Sname, "logged out");
 
 // If this is a primary, we must suspend but do not record this event!
 //
@@ -244,7 +244,7 @@ int XrdOlbAdmin::do_Login()
    if (POnline && Ltype == 'p')
       {myMutex.UnLock();
        XrdOlbSay.Emsg("do_Login", "Primary server already logged in; login of", 
-                                   tp, (char *)"rejected.");
+                                   tp, "rejected.");
        return 0;
       }
 

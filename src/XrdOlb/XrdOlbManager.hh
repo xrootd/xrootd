@@ -15,8 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/uio.h>
   
+#include "XrdOlb/XrdOlbManList.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
@@ -53,12 +53,24 @@ int          RefTotA;
 int          RefTotR;
 int          Status;
 
-            XrdOlbSInfo(char *sname, XrdOlbSInfo *np=0)
+            XrdOlbSInfo(const char *sname, XrdOlbSInfo *np=0)
                       {Name = (sname ? strdup(sname) : 0); next=np;}
 
            ~XrdOlbSInfo() {if (Name) free(Name);}
 };
  
+/******************************************************************************/
+/*                          S t a t u s   F l a g s                           */
+/******************************************************************************/
+
+// Flags passed to the AddServer()
+//
+const int OLB_noStage =  1;
+const int OLB_Suspend =  2;
+const int OLB_Special =  4;
+const int OLB_isMan   =  8;
+const int OLB_Lost    = 16;
+  
 /******************************************************************************/
 /*                          o o l b _ M a n a g e r                           */
 /******************************************************************************/
@@ -70,21 +82,26 @@ class XrdOlbManager
 public:
 friend class XrdOlbDrop;
 
-int         ServCnt;
+static const int MTMax = 16;   // Maximum number of Managers
+static const int STMax = 64;   // Maximum number of Servers
+
+int         ServCnt;           // Number of active subscribers
+char        noData;            // Set when we are a manager or supervisor
 
 void        Broadcast(SMask_t smask, char *buff, int blen);
 void        Broadcast(SMask_t smask, const struct iovec *, int iovcnt);
+int         haveManagers() {return MTHi >= 0;};
 void        Inform(const char *cmd, int clen=0, char *arg=0, int alen=0);
+void        Inform(SMask_t mmask, const char *cmd, int clen=0);
 XrdOlbSInfo *ListServers(SMask_t mask=(SMask_t)-1, int opts=0);
 void       *Login(XrdNetLink *lnkp);
 void       *MonPerf(void);
 void       *MonPing(void);
 void       *MonRefs(void);
 void       *Pander(char *manager, int port);
-void       *Process(void);
 void        Remove_Server(const char *reason, int sent, int sinst, int immed=0);
+void        Reset(void);
 void        ResetRef(SMask_t smask);
-void       *Respond(void);
 void        Resume();
 int         SelServer(int pt, char *path, SMask_t pmsk, SMask_t amsk, char *hb,
                       const struct iovec *iodata=0, int iovcnt=0);
@@ -92,7 +109,6 @@ void        setPort(int port) {Port = port;}
 void        Snooze(int slpsec);
 void        Stage(int ison, int doinform=1);
 int         Stats(char *bfr, int bln);
-void       *StartUDP(int formanager);
 void        Suspend(int doinform=1);
 
       XrdOlbManager();
@@ -101,7 +117,7 @@ void        Suspend(int doinform=1);
 private:
 SMask_t       AddPath(XrdOlbServer *sp);
 int           Add_Manager(XrdOlbServer *sp);
-XrdOlbServer *AddServer(XrdNetLink *lp, int port, int nostage, int suspend);
+XrdOlbServer *AddServer(XrdNetLink *lp, int port, int Status, int sport);
 XrdOlbServer *calcDelay(int nump, int numd, int numf, int numo,
                         int nums, int &delay, char **reason);
 int           Drop_Server(int sent, int sinst, XrdOlbDrop *djp=0);
@@ -112,11 +128,18 @@ XrdOlbServer *SelbyLoad(SMask_t mask, int &nump, int &delay,
                         char **reason, int needspace);
 XrdOlbServer *SelbyRef( SMask_t mask, int &nump, int &delay,
                         char **reason, int needspace);
+void          sendAList(XrdNetLink *lp);
+void          setAltMan(int snum, unsigned int ipaddr, int port);
+
+static const  int AltSize = 24;
 
 XrdOucMutex   STMutex;
-XrdOlbServer *ServTab[XrdOlbSTMAX];
-XrdOlbServer *ServBat[XrdOlbSTMAX];
-XrdOlbServer *MastTab[XrdOlbSTMAX];
+XrdOlbServer *ServTab[STMax];
+XrdOlbServer *ServBat[STMax];
+XrdOucMutex   MTMutex;
+XrdOlbServer *MastTab[MTMax];
+char          AltMans[STMax*AltSize]; // ||123.123.123.123:12345|| = 21
+char         *AltMend;
 
 int  MTHi;
 int  STHi;

@@ -42,21 +42,21 @@ XrdOlbPList_Anchor Paths;
 
 // AddFile() returns true if this is the first addition, false otherwise
 //
-int        AddFile(char *path, SMask_t mask, int isrw=-1, int dltime=0);
+int        AddFile(const char *path, SMask_t mask, int isrw=-1, int dltime=0);
 
 // DelFile() returns true if this is the last deletion, false otherwise
 //
-int        DelFile(char *path, SMask_t mask, int dltime=0);
+int        DelFile(const char *path, SMask_t mask, int dltime=0);
 
 // GetFile() returns true if we actually found the file
 //
-int        GetFile(char *path, XrdOlbCInfo &cinfo);
+int        GetFile(const char *path, XrdOlbCInfo &cinfo);
 
 void       Apply(int (*func)(const char *, XrdOlbCInfo *, void *), void *Arg);
 
 void       Bounce(SMask_t mask, char *path=0);
 
-void       Extract(char *pathpfx, XrdOucHash<char> *hashp);
+void       Extract(const char *pathpfx, XrdOucHash<char> *hashp);
 
 void       Reset(int servid);
 

@@ -123,7 +123,7 @@ int XrdOlbScrubScan(const char *key, XrdOlbCInfo *cip, void *xargp)
 /*                               A d d F i l e                                */
 /******************************************************************************/
   
-int XrdOlbCache::AddFile(char *path, SMask_t mask, int isrw, int dltime)
+int XrdOlbCache::AddFile(const char *path, SMask_t mask, int isrw, int dltime)
 {
    XrdOlbPInfo  pinfo;
    XrdOlbCInfo *cinfo;
@@ -170,7 +170,7 @@ int XrdOlbCache::AddFile(char *path, SMask_t mask, int isrw, int dltime)
 /*                               D e l F i l e                                */
 /******************************************************************************/
   
-int XrdOlbCache::DelFile(char *path, SMask_t mask, int dltime)
+int XrdOlbCache::DelFile(const char *path, SMask_t mask, int dltime)
 {
    XrdOlbCInfo *cinfo;
    int gone4good;
@@ -200,7 +200,7 @@ int XrdOlbCache::DelFile(char *path, SMask_t mask, int dltime)
 /*                               G e t F i l e                                */
 /******************************************************************************/
   
-int  XrdOlbCache::GetFile(char *path, XrdOlbCInfo &cinfo)
+int  XrdOlbCache::GetFile(const char *path, XrdOlbCInfo &cinfo)
 {
    XrdOlbCInfo *info;
 
@@ -261,9 +261,9 @@ void XrdOlbCache::Bounce(SMask_t smask, char *path)
 /*                               E x t r a c t                                */
 /******************************************************************************/
 
-void XrdOlbCache::Extract(char *pathpfx, XrdOucHash<char> *hashp)
+void XrdOlbCache::Extract(const char *pathpfx, XrdOucHash<char> *hashp)
 {
-   struct XrdOlbEXTArgs xargs = {hashp, pathpfx, strlen(pathpfx)};
+   struct XrdOlbEXTArgs xargs = {hashp, (char *)pathpfx, strlen(pathpfx)};
 
 // Search the cache for all matching elements and insert them into the new hash
 //

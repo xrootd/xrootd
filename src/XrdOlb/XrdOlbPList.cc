@@ -25,7 +25,7 @@ extern XrdOucTrace XrdOlbTrace;
 /*                                  F i n d                                   */
 /******************************************************************************/
   
-int XrdOlbPList_Anchor::Find(char *pname, XrdOlbPInfo &pinfo)
+int XrdOlbPList_Anchor::Find(const char *pname, XrdOlbPInfo &pinfo)
 {
    int plen = strlen(pname);
 
@@ -50,7 +50,7 @@ int XrdOlbPList_Anchor::Find(char *pname, XrdOlbPInfo &pinfo)
 /*                                I n s e r t                                 */
 /******************************************************************************/
   
-SMask_t XrdOlbPList_Anchor::Insert(char *pname, XrdOlbPInfo *pinfo)
+SMask_t XrdOlbPList_Anchor::Insert(const char *pname, XrdOlbPInfo *pinfo)
 {
    int rc, plen = strlen(pname);
    XrdOlbPList *p, *pp;
@@ -126,7 +126,7 @@ void XrdOlbPList_Anchor::Remove(SMask_t mask)
 /*                                  F i n d                                   */
 /******************************************************************************/
   
-const char *XrdOlbPList_Anchor::Type(char *pname)
+const char *XrdOlbPList_Anchor::Type(const char *pname)
 {
    int isrw = 0, plen = strlen(pname);
 
