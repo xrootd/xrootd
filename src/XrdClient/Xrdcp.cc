@@ -157,8 +157,9 @@ void BuildFullDestFilename(XrdClientString &src, XrdClientString &dest, bool des
 
 int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    // We need the path name without the file
-   bool res = -1, statok = FALSE;
+   bool statok = FALSE, done = FALSE;
    long id, size, flags, modtime;
+   char *path, *slash;
 
    if (url == "-") return 0;
 
@@ -167,22 +168,43 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
 
    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
    if (adm->Connect()) {
-      XrdClientUrlInfo u(url);
+     XrdClientUrlInfo u(url);
+     
+     path = (char *)u.File.c_str();
+     slash = path;
 
-      statok = adm->Stat((char *)u.File.c_str(), id, size, flags, modtime);
+     // FIXME: drop the top level directory as it cannot be stat by the xrootd server
+     slash += strspn(slash, "/");
+     slash += strcspn(slash, "/");
+     
+     statok = adm->Stat((char *)u.File.c_str(), id, size, flags, modtime);
+     
+     // If the path already exists, it's good
+     done = (statok && (flags & kXR_isDir));
 
-	 // If the path already exists, it's good
-	 if (statok && (flags & kXR_isDir)) res = 0;
+     // The idea of slash pointer is taken from the BSD mkdir implementation
+     while (!done) {
+       slash += strspn(slash, "/");
+       slash += strcspn(slash, "/");
+       
+       done = (*slash == '\0');
+       *slash = '\0';
 
-	 else if ( (!statok || (!(flags & kXR_xset) && !(flags & kXR_other))) &&
-		   ( adm->Mkdir(u.File.c_str(), 7, 5, 5) ) )
-	    res = 0;
-	 
+       statok = adm->Stat(path, id, size, flags, modtime);
 
+       if (!statok || (!(flags & kXR_xset) && !(flags & kXR_other))) {
+	 Info(XrdClientDebug::kHIDEBUG,
+	      "CreateDestPath__xrd",
+	      "Creating directory " << path);
+	 if (! adm->Mkdir(path, 7, 5, 5)) {
+	   return -1;
+	 }
+       }
+       *slash = '/';
+     }
    }
-
    delete adm;
-   return res;
+   return 0;
 }
 
 int doCp_xrd2xrd(const char *src, const char *dst) {
