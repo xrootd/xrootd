@@ -14,6 +14,7 @@
 #define XRDMONSNDTRANSMITTER_HH
 
 #include "XrdMon/XrdMonSndPacket.hh"
+#include <netinet/in.h>
 class XrdMonSndTraceCache;
 
 #include <arpa/inet.h>

@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 // struct carries contents of one packet and its sender
 struct XrdMonCtrPacket {
