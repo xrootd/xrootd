@@ -1,0 +1,3 @@
+
+XrdMonCtr - classes related to collector. 
+XrdMonSnd - classes related to sender (simulates xrootd)
