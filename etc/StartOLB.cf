@@ -1,22 +1,63 @@
 #!/bin/sh
+# Change 'mailto' to be the userto whom error mail is to be sent
+#
 mailto="abh"
+
+# Set 'time' to be number of seconds to wait for a required file to appear
+#
 time=60
+
+# Set 'count to be the maximum number of times to wait for a required file
+#
 count=30
-OLBBINBASE=/opt/olbd/bin
-OLBLOGDIR=/var/adm/olbd/logs
-OLBHOMEDIR=/var/adm/olbd/core
-OLBLOGFN=olbdlog
-OLBLOGFILE=$OLBLOGDIR/$OLBLOGFN
-OLBPIDFILE=/tmp/olbd.pid
-OLBPROG=olbd
+
+# Set XRDUSER to be the username to be assumed upon execution
+#
 OLBUSER=`/usr/etc/ooss/ooss_user`
+
+# Set 'XRDBASE' to be the base directory where xrootd files are installed
+#
+OLBBASE=/opt/xrootd
+
+# Set 'OLBVER' to be the default version name. Names of required files are
+# constructed as follows:
+# Executable: $OLBBASE/$OLBVER/bin/$OLBPROG
+# Lib Path:   $OLBBASE/$OLBVER/lib/
+# Config:     $OLBBASE/$OLBVER/etc/$OLBCONFIGFN
+# This prog:  $OLBBASE/$OLBVER/etc/$0
+#
+OLBVER=prod
+
+# Set XRDPROG to be the name of the executable
+#
+OLBPROG=olbd
+
+# Set XRDCONFIG the default config file name.
+#
 
 if [ "$OLBUSER" = "objysrv" ]; then
 OLBCONFIGFN=/usr/etc/ooss/amshpss.cf
 else
-OLBCONFIGFN=/opt/xrootd/etc/xrootd.cf
+OLBCONFIGFN=$OLBBASE/etc/xrootd.cf
 fi
 
+# Set 'OLBHOMEDIR' to be the working directory when olbd is started
+#
+OLBHOMEDIR=/var/adm/olbd/core
+
+# Set 'OLBLOGDIR' to be the directory where log files are placed and
+# Set 'OLBLOGFN'  to be the base log file name.
+#
+OLBLOGDIR=/var/adm/olbd/logs
+OLBLOGFN=olbdlog
+
+# Set 'OLBPIDFILE' to be where the pid file goes (it is check for w-access)
+#
+OLBPIDFILE=/tmp/olbd.pid
+
+# The following code determines whether the olbd will run as a master or
+# run as a slave. Use whatever code is necessary to set the default.
+#
 OLBMODE='-s'
 OLBTYPE='slave'
 RESP=`/usr/local/bin/taylor -q opts | grep '^olbd=.*master'`
@@ -25,19 +66,22 @@ OLBMODE='-m'
 OLBTYPE='master'
 fi
 
-PROGNAM=`echo $0 | /bin/awk '{n=split($0,x,"/"); print x[n]}'`
-PROGRAM=/opt/olbd/etc/$PROGNAM
-
+# The following logic trues to set variables as follows:
+# MYOS    - is the current os name
+# MAXFD   - is the file descriptor limit
+# MYNAME  = is my username
+#
 MYOS=`/bin/uname | /bin/awk '{print $1}'`
 if [ "$MYOS" = "SunOS" ]; then
 MAXFD=`ulimit -H -n`
 MYNAME=`/usr/ucb/whoami`
-FIND=/bin/find
 else
 MAXFD=`ulimit -H -n | /bin/grep files | /bin/awk '{print $3}'`
 if [ "$MAXFD" = "" ]; then
 MAXFD=`ulimit -H -n`
 fi
 MYNAME=`/usr/bin/whoami`
-FIND=/usr/local/bin/find
 fi
+
+############################################
+PROGRAM=`echo $0 | /bin/awk '{n=split($0,x,"/"); print x[n]}'`
