@@ -124,14 +124,17 @@ void XrdOdcMsg::Recycle()
 {
 // Most of the time we are not in the wait queue, do a fast check
 //
-   myData.Lock();
    if (inwaitq) 
-      if ((id && XRDODC_MIDMASK) != XRDODC_OBMSGID) inwaitq = 0;
-         else {int msgid = id;
-               myData.UnLock();
-               XrdOdcMsg::RemFromWaitQ(msgid);
-              }
-   myData.UnLock();
+      {myData.Lock();
+       if (inwaitq)
+          {if ((id && XRDODC_MIDMASK) != XRDODC_OBMSGID) inwaitq = 0;
+              else {int msgid = id;
+                    myData.UnLock();
+                    XrdOdcMsg::RemFromWaitQ(msgid);
+                   }
+          }
+       myData.UnLock();
+      }
 
 // Delete this element if it's an outboard msg object
 //
@@ -198,6 +201,9 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
 /******************************************************************************/
 /*                          R e m F r o m W a i t Q                           */
 /******************************************************************************/
+
+// RemFromWaitQ() returns the msg object with the object locked! The caller
+//                must unlock the object.
   
 XrdOdcMsg *XrdOdcMsg::RemFromWaitQ(int msgid)
 {
@@ -208,13 +214,10 @@ XrdOdcMsg *XrdOdcMsg::RemFromWaitQ(int msgid)
 //
   if ((msgnum = msgid & 0xff) < msgHWM)
      {msgTab[msgnum].myData.Lock();
-      if (msgTab[msgnum].inwaitq && msgTab[msgnum].id == msgid) 
-         {msgTab[msgnum].inwaitq = 0; 
-          msgTab[msgnum].myData.UnLock();
-          return &msgTab[msgnum];
-         }
-      msgTab[msgnum].myData.UnLock();
-      return (XrdOdcMsg *)0;
+      if (!msgTab[msgnum].inwaitq || msgTab[msgnum].id != msgid)
+         return (XrdOdcMsg *)0;
+      msgTab[msgnum].inwaitq = 0;
+      return &msgTab[msgnum];
      }
 
 // Remove the message from the
