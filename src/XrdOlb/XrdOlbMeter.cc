@@ -180,7 +180,7 @@ int XrdOlbMeter::Monitor(char *pgm, int itv)
   
 char *XrdOlbMeter::Report()
 {
-   long totfree;
+   long maxfree, totfree;
 
 // Force restart the monitor program if it hasn't reported within 2 intervals
 //
@@ -189,9 +189,10 @@ char *XrdOlbMeter::Report()
 // Format a usage line
 //
    repMutex.Lock();
+   maxfree = FreeSpace(totfree);
    snprintf(ubuff, sizeof(ubuff), "%ld %ld %ld %ld %ld %ld %ld",
             cpu_load, net_load, xeq_load, mem_load,
-            pag_load, FreeSpace(totfree), totfree);
+            pag_load, maxfree, totfree);
    repMutex.UnLock();
 
 // All done

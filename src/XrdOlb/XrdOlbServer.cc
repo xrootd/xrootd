@@ -1106,13 +1106,14 @@ int XrdOlbServer::do_Select(char *rid, int reset)
 int XrdOlbServer::do_Space(char *rid)
 {
    char respbuff[128];
-   long totfr;
+   long maxfr, totfr;
 
 // Process: <id> space
 // Respond: <id> avkb  <numkb>
 //
+   maxfr = XrdOlbMeter::FreeSpace(totfr);
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                "%s avkb %ld %ld\n",rid,XrdOlbMeter::FreeSpace(totfr),totfr));
+                "%s avkb %ld %ld\n", rid, maxfr, totfr));
 }
   
 /******************************************************************************/
@@ -1246,7 +1247,7 @@ int XrdOlbServer::do_SuRes(char *rid, int Resume)
 int XrdOlbServer::do_Usage(char *rid)
 {
     char respbuff[512];
-    long totfr;
+    long maxfr, totfr;
 
 // Process: <id> usage
 // Respond: <id> load <cpu> <io> <load> <mem> <pag> <dsk>
@@ -1255,9 +1256,9 @@ int XrdOlbServer::do_Usage(char *rid)
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                      "%s load %s\n", rid, XrdOlbConfig.Meter->Report()));
 
+   maxfr = XrdOlbMeter::FreeSpace(totfr);
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                     "%s load 0 0 0 0 0 %ld %ld\n",
-                     rid, XrdOlbMeter::FreeSpace(totfr), totfr));
+                     "%s load 0 0 0 0 0 %ld %ld\n", rid, maxfr, totfr));
 }
 
 /******************************************************************************/

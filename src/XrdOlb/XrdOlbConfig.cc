@@ -179,6 +179,8 @@ public:
 
 #define TS_Set(x,v)    if (!strcmp(x,var)) {v=1; return 0;}
 
+#define TS_unSet(x,v)  if (!strcmp(x,var)) {v=0; return 0;}
+
 #define OLB_Prefix    "olb."
 #define OLB_PrefLen   sizeof(OLB_Prefix)-1
 
@@ -222,12 +224,14 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc, argv, "c:dl:L:msw")) && ((unsigned char)c != 0xff))
+      while ((c=getopt(argc,argv,"c:dil:L:msw")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'c': ConfigFN = optarg;
                  break;
        case 'd': XrdOlbTrace.What = 1;
+                 break;
+       case 'i': doWait = 0;
                  break;
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
@@ -237,7 +241,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                  break;
        case 's': isServer = 1;
                  break;
-       case 'w': doWait = 1;
+       case 'w': doWait = 1;   // Backward compatability only
                  break;
        default:  buff[0] = '-'; buff[1] = optopt; buff[2] = '\0';
                  XrdOlbSay.Emsg("Config", "Invalid option,", buff);
@@ -377,7 +381,8 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
    TS_Xeq("remoteroot",    xrmtrt);  // Server,  non-dynamic
    TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic
-   TS_Set("wait",          doWait);  // Server,  non-dynamic
+   TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
+   TS_unSet("nowait",      doWait);  // Server,  non-dynamic
    }
 
    // No match found, complain.
@@ -627,7 +632,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    ProgMV   = 0;
    ProgRD   = 0;
    ProgRM   = 0;
-   doWait   = 0;
+   doWait   = 1;
    Disabled = 1;
    RefReset = 60*60;
    RefTurn  = 3*XrdOlbSTMAX*(DiskLinger+1);
@@ -905,7 +910,7 @@ int XrdOlbConfig::setupServer()
   
 void XrdOlbConfig::Usage(int rc)
 {
-cerr <<"\nUsage: olbd [-d] [-l <fn>] [-m] [-s] [-w] -c <cfn>" <<endl;
+cerr <<"\nUsage: olbd [-d] [-i] [-l <fn>] [-m] [-s] -c <cfn>" <<endl;
 exit(rc);
 }
   

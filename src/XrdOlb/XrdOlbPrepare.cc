@@ -98,7 +98,7 @@ int XrdOlbPrepare::Add(XrdOlbPrepArgs &pargs)
    pdata[11]= 0;
    pdlen[11]= 0;
    if (!(rc = prepSched.Put((const char **)pdata, (const int *)pdlen)))
-      {PTable.Add(pargs.path, 0, 0, Hash_data_is_key); NumFiles++;}
+      if (!PTable.Add(pargs.path, 0, 0, Hash_data_is_key)) NumFiles++;
 
 // All done
 //
