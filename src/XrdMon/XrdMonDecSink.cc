@@ -159,6 +159,7 @@ XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
     cout << "Added userInfo to sink: " << *ui << endl;
 
     if ( _rtOn ) {
+        XrdOucMutexHelper mh; mh.Lock(&_urtMutex);
         _rtUCache.push_back(pair<OC, XrdMonDecUserInfo*>(OPEN, ui));
     }
 }
@@ -210,6 +211,7 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
     itr->second->setDisconnectInfo(sec, timestamp);
     
     if ( _rtOn ) {
+        XrdOucMutexHelper mh; mh.Lock(&_urtMutex);
         _rtUCache.push_back(
           pair<OC, XrdMonDecUserInfo*>(CLOSE, itr->second));
     }    
@@ -229,6 +231,7 @@ XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
     itr->second->openFile(timestamp);
 
     if ( _rtOn ) {
+        XrdOucMutexHelper mh; mh.Lock(&_drtMutex);
         _rtDCache.push_back(pair<OC, XrdMonDecDictInfo*>(OPEN, itr->second));
     }
 }
@@ -251,6 +254,7 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
     itr->second->closeFile(bytesR, bytesW, timestamp);
 
     if ( _rtOn ) {
+        XrdOucMutexHelper mh; mh.Lock(&_drtMutex);
         _rtDCache.push_back(pair<OC, XrdMonDecDictInfo*>(CLOSE, itr->second));
     }
 }
@@ -558,38 +562,43 @@ XrdMonDecSink::flushRealTimeData()
     cout << "Flushing RT data..." << endl;
     fstream f(_rtLogDir.c_str(), ios::out|ios::ate);
 
-    int i, s = _rtUCache.size();
-    for ( i=0 ; i<s ; ++i ) {
-        if ( _rtUCache[i].first == OPEN ) {
-            f << "u " << _rtUCache[i].second->convert2stringRTConnect() 
-              << '\t'  << _senderHost << endl;
-            cout << "u " << _rtUCache[i].second->convert2stringRTConnect() 
-                 << '\t'  << _senderHost << endl;
-        } else {
-            f << "d " << _rtUCache[i].second->convert2stringRTDisconnect()
-              << '\t'  << _senderHost << endl;
-            cout << "d " << _rtUCache[i].second->convert2stringRTDisconnect()
-                 << '\t'  << _senderHost << endl;
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_urtMutex);
+        int i, s = _rtUCache.size();
+        for ( i=0 ; i<s ; ++i ) {
+            if ( _rtUCache[i].first == OPEN ) {
+                f << "u " << _rtUCache[i].second->convert2stringRTConnect() 
+                  << '\t'  << _senderHost << endl;
+                cout << "u " << _rtUCache[i].second->convert2stringRTConnect() 
+                     << '\t'  << _senderHost << endl;
+            } else {
+                f << "d " << _rtUCache[i].second->convert2stringRTDisconnect()
+                  << '\t'  << _senderHost << endl;
+                cout <<"d " <<_rtUCache[i].second->convert2stringRTDisconnect()
+                     << '\t'  << _senderHost << endl;
+            }
         }
+        _rtUCache.clear();
     }
-    _rtUCache.clear();
+    {   
+        XrdOucMutexHelper mh; mh.Lock(&_drtMutex);
+        int i, s = _rtDCache.size();
+        for ( i=0 ; i<s ; ++i ) {
+            if ( _rtDCache[i].first == OPEN ) {
+                f << "o " << _rtDCache[i].second->convert2stringRTOpen() 
+                  << '\t' << _senderHost << endl;
+                cout << "o " << _rtDCache[i].second->convert2stringRTOpen() 
+                     << '\t' << _senderHost << endl;
+            } else {
+                f << "c " << _rtDCache[i].second->convert2stringRTClose()
+                  << '\t' << _senderHost << endl;
+                cout << "c " << _rtDCache[i].second->convert2stringRTClose()
+                     << '\t' << _senderHost << endl;
+            }
+        }
+        _rtDCache.clear();
+    }
     
-    s = _rtDCache.size();
-    for ( i=0 ; i<s ; ++i ) {
-        if ( _rtDCache[i].first == OPEN ) {
-            f << "o " << _rtDCache[i].second->convert2stringRTOpen() 
-              << '\t' << _senderHost << endl;
-            cout << "o " << _rtDCache[i].second->convert2stringRTOpen() 
-                 << '\t' << _senderHost << endl;
-        } else {
-            f << "c " << _rtDCache[i].second->convert2stringRTClose()
-              << '\t' << _senderHost << endl;
-            cout << "c " << _rtDCache[i].second->convert2stringRTClose()
-                 << '\t' << _senderHost << endl;
-        }
-    }
-    _rtDCache.clear();
-
     f.close();
 }
 
@@ -605,19 +614,23 @@ XrdMonDecSink::reset()
         flushTCache();
         checkpoint();
     }
-
-    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-    std::map<dictid_t, XrdMonDecDictInfo*>::iterator dItr;
-    for ( dItr=_dCache.begin() ; dItr != _dCache.end() ; ++ dItr ) {
-        delete dItr->second;
+    
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        std::map<dictid_t, XrdMonDecDictInfo*>::iterator dItr;
+        for ( dItr=_dCache.begin() ; dItr != _dCache.end() ; ++ dItr ) {
+            delete dItr->second;
+        }
+        _dCache.clear();
     }
-    _dCache.clear();
-
-    std::map<dictid_t, XrdMonDecUserInfo*>::iterator uItr;
-    for ( uItr=_uCache.begin() ; uItr != _uCache.end() ; ++ uItr ) {
-        delete uItr->second;
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+        std::map<dictid_t, XrdMonDecUserInfo*>::iterator uItr;
+        for ( uItr=_uCache.begin() ; uItr != _uCache.end() ; ++ uItr ) {
+            delete uItr->second;
+        }
+        _uCache.clear();
     }
-    _uCache.clear();
 }
 
 void

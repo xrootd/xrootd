@@ -81,6 +81,8 @@ private:
     enum OC { OPEN, CLOSE };
     vector< pair<OC, XrdMonDecDictInfo*> > _rtDCache;
     vector< pair<OC, XrdMonDecUserInfo*> > _rtUCache;
+    XrdOucMutex    _drtMutex;
+    XrdOucMutex    _urtMutex;
     // end of specific to real time logging
 
     bool _saveTraces;
