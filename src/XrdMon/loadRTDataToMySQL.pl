@@ -114,7 +114,7 @@ sub timestamp() {
 sub loadOpenSession() {
     my ($line) = @_;
 
-    ($u, $id, $user, $pid, $clientHost, $srvHost) = split('\t', $line);
+    ($u, $sessionId, $user, $pid, $clientHost, $srvHost) = split('\t', $line);
     #print "u=$u, id=$id, user=$user, pid=$pid, ch=$clientHost, sh=$srvHost\n";
 
     my $userId       = findOrInsertUserId($user);
@@ -122,7 +122,7 @@ sub loadOpenSession() {
     my $serverHostId = findOrInsertHostId($srvHost);
 
     #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
-    runQuery("INSERT INTO openedSessions (userId, pId, clientHId, serverHId) VALUES ($userId, $pid, $clientHostId, $serverHostId)");
+    runQuery("INSERT INTO openedSessions (id, userId, pId, clientHId, serverHId) VALUES ($sessionId, $userId, $pid, $clientHostId, $serverHostId)");
 }
 
 
@@ -131,6 +131,9 @@ sub loadCloseSession() {
 
     ($d, $sessionId, $sec, $timestamp) = split('\t', $line);
     #print "d=$d, sId=$sessionId, sec=$sec, t=$timestamp\n";
+
+
+
 
     # find if there is corresponding open session, if not don't bother
     my ($userId, $pId, $clientHId, $serverHId) = 
@@ -151,7 +154,7 @@ sub loadCloseSession() {
 sub loadOpenFile() {
     my ($line) = @_;
 
-    my ($o, $id, $user, $pid, $clientHost, $path, $openTime, $srvHost) = 
+    my ($o, $fileId, $user, $pid, $clientHost, $path, $openTime, $srvHost) = 
 	split('\t', $line);
     #print "\no=$o, id=$id, user=$user, pid=$pid, ch=$clientHost, p=$path, ";
     #print "time=$openTime, srvh=$srvHost\n";
@@ -167,7 +170,7 @@ sub loadOpenFile() {
 	return; # error
     }
 
-    runQuery("INSERT INTO openedFiles (sessionId, pathId, openT) VALUES ($sessionId, $pathId, \"$openTime\")");
+    runQuery("INSERT INTO openedFiles (id, sessionId, pathId, openT) VALUES ($fileId, $sessionId, $pathId, \"$openTime\")");
 }
 
 sub loadCloseFile() {

@@ -36,7 +36,7 @@ generateTimestamp()
     struct tm *t = localtime(&sec);
 
     char buf[24];
-    sprintf(buf, "%02d%02d_%02d_%02d:%02d:%02d.%03d",
+    sprintf(buf, "%02d%02d%02d_%02d:%02d:%02d.%03d",
             t->tm_year+1900,
             t->tm_mon+1,
             t->tm_mday,

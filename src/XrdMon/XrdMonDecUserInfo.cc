@@ -97,7 +97,7 @@ XrdMonDecUserInfo::setDisconnectInfo(kXR_int32 sec,
     _dTime = timestamp;
 }
 
-// this goes to ascii file loaded to MySQL
+// this goes to history data ascii file
 const char*
 XrdMonDecUserInfo::convert2string() const
 {
@@ -105,7 +105,7 @@ XrdMonDecUserInfo::convert2string() const
     char tBuf[24];
     timestamp2string(_dTime, tBuf);
     
-    sprintf(buf, "%st%i\t%s\t%i\t%s\t%s\n", 
+    sprintf(buf, "%s\t%i\t%s\t%i\t%s\t%s\n", 
             _user.c_str(), _pid, _cHost.c_str(), 
             _sec, tBuf, XrdMonSenderInfo::id2Host(_senderId));
 

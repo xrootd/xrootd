@@ -196,6 +196,15 @@ XrdMonDecDictInfo::closeFile(kXR_int64 bytesR, kXR_int64 bytesW, kXR_int32 t)
              << timestamp2string(useThis) << endl;
         _close = useThis;
     }
+
+    if ( _open > _close ) {
+        cerr << "ERROR: openT>closeT: "
+             << timestamp2string(_open) << "<"
+             << timestamp2string(_close) 
+             << ", will change open to \"close-1\"" << endl;
+        _open = _close-1;
+    }
+
     _noRBytes = bytesR;
     _noWBytes = bytesW;
 }
@@ -302,7 +311,7 @@ XrdMonDecDictInfo::writeSelf2buf(char* buf, int& pos) const
     pos += sizeof(kXR_int64);
 }
 
-// this goes to ascii file loaded to MySQL
+// this goes to history data ascii file
 const char*
 XrdMonDecDictInfo::convert2string() const
 {
