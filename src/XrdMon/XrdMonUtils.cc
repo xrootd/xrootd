@@ -36,7 +36,8 @@ generateTimestamp()
 {
     struct timeval tv;
     gettimeofday(&tv, 0);
-    struct tm *t = localtime(&(tv.tv_sec));
+    const time_t sec = tv.tv_sec;
+    struct tm *t = localtime(&sec);
 
     ostringstream s;
     // YYMM_DD_HH::MM::SS.MMM
