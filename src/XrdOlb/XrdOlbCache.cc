@@ -30,7 +30,8 @@ struct XrdOlbEXTArgs
   
 int XrdOlbClearVec(const char *key, XrdOlbCInfo *cinfo, void *sid)
 {
-    SMask_t smask = 1<<*(int *)sid;
+    const SMask_t smask_1 = 1;  // Avoid compiler promotion errors
+    SMask_t smask = smask_1<<*(int *)sid;
 
 // Clear the vector for this server
 //

@@ -983,6 +983,7 @@ SMask_t XrdOlbManager::AddPath(XrdOlbServer *sp)
 int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
 {
    EPNAME("AddManager")
+   const SMask_t smask_1 = 1;
    int i;
 
 // Find available ID for this server
@@ -1004,7 +1005,7 @@ int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
    MastTab[i] = sp;
    if (i > MTHi) MTHi = i;
    sp->ServID   = i;
-   sp->ServMask = 1<<i;
+   sp->ServMask = smask_1<<i;
    sp->Instance = InstNum++;
    sp->isOffline  = 0;
    sp->isNoStage  = 0;
@@ -1026,6 +1027,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
                                        int nostage, int suspend)
 {
    EPNAME("AddServer")
+    const SMask_t smask_1 = 1;
     int tmp, i, j = -1, k = -1;
     char *hnp = lp->Name();
     unsigned long ipaddr = lp->Addr();
@@ -1087,7 +1089,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
    ServTab[j] = ServBat[j] = sp = new XrdOlbServer(lp, port);
    if (j > STHi) STHi = j;
    sp->ServID   = j;
-   sp->ServMask = 1<<j;
+   sp->ServMask = smask_1<<j;
    sp->Instance = InstNum++;
    sp->isBound  = 1;
    ServCnt++;
