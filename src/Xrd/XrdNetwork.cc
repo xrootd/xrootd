@@ -434,7 +434,7 @@ XrdLink *XrdNetwork::do_Receive(int opts)
       {eDest->Emsg("Accept", -EACCES, "accepting connection from",
                      (hname = getHostName(addr)));
        free(hname);
-       close(newfd);
+       close(iofd);
        return 0;
       } else hname = getHostName(addr);
 
@@ -541,7 +541,6 @@ char *XrdNetwork::Peername(int snum, struct sockaddr_in *sap)
 {
       struct sockaddr_in addr;
       socklen_t addrlen = sizeof(addr);
-      char *hname;
 
 // Get the address on the other side of this socket
 //

@@ -1,22 +1,10 @@
 #              $Id$
 
-#------------------------------------------------------------------------------#
-#                       C o m m o n   V a r i a b l e s                        #
-#------------------------------------------------------------------------------#
-  
-ARCH    = `/bin/uname`
-
-CC      = g++
-
-DBGSFX  =
-
-INCLUDE = -I. -I..
-
-LIBDIR  = ../../lib/$(ARCH)$(DBGSFX)
-
-OBJDIR  = ../../obj/$(ARCH)$(DBGSFX)
-
-TYPE    = `/bin/uname`
+#-----------------------------------------------------------------------------#
+#                            E n v i r o n m e n t                            #
+#-----------------------------------------------------------------------------#
+ 
+include ../GNUmake.env
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -58,90 +46,20 @@ TARGETS = $(LIBRARY)
 vpath XrdOuc% ../XrdOuc
 
 #------------------------------------------------------------------------------#
-#        A r c h i t e c t u r e   S p e c i f i c   V a r i a b l e s         #
-#------------------------------------------------------------------------------#
-
-CFLAGS     =  $(CF64) $(CF32) $(CFOP)
-  
-SUN64      = -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
-SUNMT      = -D_REENTRANT -mt -D_POSIX_PTHREAD_SEMANTICS
-SUNOPT     = -fast -xarch=v8plus -D_DEVPOLL
-SUNDBG     = -g -xs -D_DEVPOLL
-SUN32      = -DSUN $(SUNMT) $(SUNCCT)
-
-LNX64      = -rdynamic -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
-LNXOPT     = -O3
-LNXDBG     = -g -O3
-LNX32      = -D__linux__ -D_ALL_SOURCE -D_REENTRANT -D_GNU_SOURCE \
-             -Wno-deprecated
-
-#------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
 #------------------------------------------------------------------------------#
  
-all:
-	@/bin/mkdir -p $(LIBDIR) $(OBJDIR)
-	@$(MAKE) $(TYPE)all --no-print-directory
-
-debug:
-	@/bin/mkdir -p $(LIBDIR)_dbg $(OBJDIR)_dbg
-	@$(MAKE) $(TYPE)dbg DBGSFX=_dbg --no-print-directory
-
-Linuxall:
-	@$(MAKE) anything --no-print-directory \
-ARCH=$(ARCH) \
-CC=g++    \
-CF64="$(LNX64)" \
-CF32="$(LNX32)" \
-CFOP="$(LNXOPT)" \
-TYPE=Linux
-
-Linuxdbg:
-	@$(MAKE) anything --no-print-directory \
-ARCH=$(ARCH) \
-CC=g++    \
-CF64="$(LNX64)" \
-CF32="$(LNX32)" \
-CFOP="$(LNXDBG)" \
-TYPE=Linux
-
-SunOSall:
-	@$(MAKE) anything \
-ARCH=$(ARCH) \
-CC=CC \
-CF64="$(SUN64)" \
-CF32="$(SUN32)" \
-CFOP="$(SUNOPT)" \
-TYPE=SunOS
-
-SunOSdbg:
-	@$(MAKE) anything \
-ARCH=$(ARCH) \
-CC=CC \
-CF64="$(SUN64)" \
-CF32="$(SUN32)" \
-CFOP="$(SUNDBG)" \
-TYPE=SunOS
+include ../GNUmake.rules
 
 anything: $(TARGETS)
-	@echo Make xrd done.
-
-clean:
-	@$(MAKE) remove             --no-print-directory
-	@$(MAKE) remove DBGSFX=_dbg --no-print-directory
-	@echo Make clean done.
-
-remove: FORCE
-	@rm -f $(OBJECTS) $(TARGETS)
-
-FORCE: ;
+	@echo Make Xrd done.
 
 #------------------------------------------------------------------------------#
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
 
 $(TARGETS): $(OBJECTS)
-	@echo Creating archive $(LIBRARY) ...
+	@echo Creating archive $(LIBRARY) 
 	@rm -f $(LIBRARY);
 	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	$(CC) -xar -o $(LIBRARY) $(OBJECTS); \
@@ -152,7 +70,7 @@ fi
 $(OBJDIR)/XrdBuffer.o:    XrdBuffer.cc   XrdBuffer.hh     XrdTrace.hh \
                           XrdOucError.hh XrdOucPthread.hh XrdOucTrace.hh \
                           XrdOucTimer.hh
-	@echo Compiling XrdBuffer.cc ...
+	@echo Compiling XrdBuffer.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBuffer.o XrdBuffer.cc
 
 $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
@@ -161,8 +79,8 @@ $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
                        XrdStats.hh       XrdTrace.hh       XrdInfo.hh    \
                        XrdOuca2x.hh      XrdOucError.hh    XrdOucLogger.hh   \
                        XrdOucSecurity.hh XrdOucStream.hh   XrdOucTrace.hh \
-                       XrdOucTimer.hh    XrdConfig.cc
-	@echo Compiling XrdConfig.cc ...
+                       XrdOucTimer.hh    ../XrdVersion.hh  XrdConfig.cc
+	@echo Compiling XrdConfig.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdConfig.o XrdConfig.cc
 
 $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
@@ -170,7 +88,7 @@ $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
                        XrdProtocol.hh   XrdScheduler.hh    XrdTrace.hh  \
                        XrdOucError.hh   XrdOucPlatform.hh  XrdOucPthread.hh \
                        XrdOucTrace.hh   XrdOucTimer.hh     XrdLink.cc
-	@echo Compiling XrdLink.cc ...
+	@echo Compiling XrdLink.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
 
 $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdNetwork.hh  \
@@ -178,7 +96,7 @@ $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdNetwork.hh  \
                        XrdOucError.hh  XrdOucLogger.hh   XrdOucPthread.hh \
                        XrdOucTrace.hh    \
                        XrdMain.cc
-	@echo Compiling XrdMain.cc ...
+	@echo Compiling XrdMain.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdMain.o XrdMain.cc
 
 $(OBJDIR)/XrdNetwork.o: XrdBuffer.hh       XrdLink.hh       XrdNetwork.hh   \
@@ -186,34 +104,34 @@ $(OBJDIR)/XrdNetwork.o: XrdBuffer.hh       XrdLink.hh       XrdNetwork.hh   \
                         XrdOucError.hh     XrdOucLogger.hh  XrdOucPlatform.hh \
                         XrdOucPthread.hh \
                         XrdOucSecurity.hh  XrdOucTrace.hh   XrdNetwork.cc
-	@echo Compiling XrdNetwork.cc ...
+	@echo Compiling XrdNetwork.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdNetwork.o XrdNetwork.cc
 
 $(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh       XrdProtocol.hh   \
                        XrdPoll.cc       XrdPollDev.hh    XrdPollDev.icc \
                        XrdPollPoll.hh   XrdPollDev.icc   XrdTrace.hh     \
                        XrdOucError.hh   XrdOucPthread.hh XrdOucTrace.hh
-	@echo Compiling XrdPoll.cc ...
+	@echo Compiling XrdPoll.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPoll.o XrdPoll.cc
 
 $(OBJDIR)/XrdProtocol.o: XrdJob.hh        XrdLink.hh     XrdPoll.hh \
                          XrdProtocol.cc   XrdProtocol.hh XrdTrace.hh \
                          XrdOucError.hh   XrdOucTrace.hh
-	@echo Compiling XrdProtocol.cc ...
+	@echo Compiling XrdProtocol.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdProtocol.o XrdProtocol.cc
 
 $(OBJDIR)/XrdScheduler.o: XrdJob.hh      XrdScheduler.hh   XrdTrace.hh \
                           XrdOucError.hh XrdOucPthread.hh  XrdOucTrace.hh \
                           XrdScheduler.cc
-	@echo Compiling XrdScheduler.cc ...
+	@echo Compiling XrdScheduler.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdScheduler.o XrdScheduler.cc
 
 $(OBJDIR)/XrdStats.o: XrdBuffer.hh     XrdLink.hh     XrdPoll.hh \
                       XrdProtocol.hh   XrdStats.cc    XrdStats.hh \
                       XrdOucPthread.hh ../XrdVersion.hh
-	@echo Compiling XrdStats.cc ...
+	@echo Compiling XrdStats.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdStats.o XrdStats.cc
 
 $(OBJDIR)/XrdInfo.o: XrdInfo.hh
-	@echo Compiling XrdInfo.cc ...
+	@echo Compiling XrdInfo.cc 
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInfo.o XrdInfo.cc

@@ -71,7 +71,7 @@ static const char *TraceID;
   
 extern XrdOucError     XrdLog;
 
-extern XrdScheduler    XrdScheduler;
+extern XrdScheduler    XrdSched;
 
 extern XrdOucTrace     XrdTrace;
 
@@ -100,7 +100,7 @@ XrdObjectQ<XrdLink> XrdLink::LinkStack("LinkOQ", "link anchor");
 /******************************************************************************/
   
 XrdLink::XrdLink(const char *ltype) :
-          LinkLink(this), IOSemaphore(0), XrdJob(ltype)
+          XrdJob(ltype), LinkLink(this), IOSemaphore(0)
 {
   Etext = 0;
   Reset();
@@ -108,8 +108,6 @@ XrdLink::XrdLink(const char *ltype) :
 
 void XrdLink::Reset()
 {
-  int i;
-
   FD    = -1;
   if (Etext) {free(Etext); Etext = 0;}
   Uname[sizeof(Uname)-1] = '@';
@@ -147,7 +145,7 @@ XrdLink *XrdLink::Alloc(int fd, sockaddr_in *ip, char *host, XrdBuffer *bp)
 
 // Get a link object off the stack (if none, allocate a new one)
 //
-   if (lp = LinkStack.Pop()) lp->Reset();
+   if ((lp = LinkStack.Pop())) lp->Reset();
       else lp = new XrdLink();
 
 // Establish the address and connection type of this link
@@ -242,7 +240,7 @@ void XrdLink::DoIt()
 // = 0 -> OK, get next request, if allowed, o/w enable the link
 // > 0 -> Slow link, stop getting requests  and enable the link
 //
-   do {rc = Protocol->Process(this);} while (!rc && XrdScheduler.canStick());
+   do {rc = Protocol->Process(this);} while (!rc && XrdSched.canStick());
 
 // Re-enable the link and cycle back waiting for a new request. Warning, this
 // object may have been deleted upon return. Don't use any object data now.
@@ -409,7 +407,7 @@ int XrdLink::Recv(char *Buff, long Blen, int timeout)
   
 int XrdLink::Send(char *Buff, long Blen)
 {
-   long retc, bytesleft = Blen;
+   long retc = 0, bytesleft = Blen;
 
 // Get a lock
 //
@@ -437,7 +435,7 @@ int XrdLink::Send(char *Buff, long Blen)
   
 int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
 {
-   int i, bytesleft, retc;
+   int i, bytesleft, retc = 0;
 
 // Add up bytes if they were not given to us
 //
@@ -460,7 +458,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
             if (errno == EINTR) continue;
                else break;
          if (retc >= bytesleft) break;
-         if (retc != iov->iov_len)
+         if (retc != (int)iov->iov_len)
             {retc = -1; errno = EBADE; break;}
          iov++; iocnt--; bytesleft -= retc; BytesOut += retc;
         }
@@ -498,7 +496,7 @@ void XrdLink::setID(const char *userid, int procid)
    ulen = strlen(buff);
    sp = buff + ulen - 1;
    bp = &Uname[sizeof(Uname)-1];
-   if (ulen > sizeof(Uname)) ulen = sizeof(Uname);
+   if (ulen > (int)sizeof(Uname)) ulen = sizeof(Uname);
    *bp = '@'; bp--;
    while(ulen--) {*bp = *sp; bp--; sp--;}
    ID = bp+1;
@@ -524,7 +522,7 @@ int XrdLink::Setup(int maxfds, int idlewait)
    if (!(ichk = idlewait/3)) {iticks = 1; ichk = idlewait;}
       else iticks = 3;
    XrdLinkScan *ls = new XrdLinkScan(ichk, iticks);
-   XrdScheduler.Schedule((XrdJob *)ls, ichk+time(0));
+   XrdSched.Schedule((XrdJob *)ls, ichk+time(0));
 
    return 1;
 }
@@ -593,9 +591,9 @@ void XrdLink::setRef(int use)
 
 int XrdLink::Stats(char *buff, int blen)
 {
-   static const char statfmt[] = "<stats id=\"link\"><num>%ld</num>"
-          "<maxn>%ld</maxn><tot>%lld</tot><in>%lld</in><out>%lld</out>"
-          "<ctime>%lld</ctime><tmo>%ld</tmo><stall>%d</stall></stats>";
+   static const char statfmt[] = "<stats id=\"link\"><num>%d</num>"
+          "<maxn>%d</maxn><tot>%lld</tot><in>%lld</in><out>%lld</out>"
+          "<ctime>%lld</ctime><tmo>%d</tmo><stall>%d</stall></stats>";
    int i;
 
 // Check if actual length wanted
@@ -611,8 +609,9 @@ int XrdLink::Stats(char *buff, int blen)
 // Obtain lock on the stats area and format it
 //
    statsMutex.Lock();
-   i = snprintf(buff, blen, statfmt, LinkCount, LinkCountMax, LinkBytesIn,
-                      LinkConTime, LinkBytesOut, LinkTimeOuts, LinkStalls);
+   i = snprintf(buff, blen, statfmt, LinkCount,   LinkCountMax, LinkCountTot,
+                                     LinkBytesIn, LinkBytesOut, LinkConTime,
+                                     LinkTimeOuts,LinkStalls);
    statsMutex.UnLock();
    return i;
 }
@@ -695,5 +694,5 @@ void XrdLinkScan::idleScan()
 
 // Reschedule ourselves
 //
-   XrdScheduler.Schedule((XrdJob *)this, idleCheck+time(0));
+   XrdSched.Schedule((XrdJob *)this, idleCheck+time(0));
 }

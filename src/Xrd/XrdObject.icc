@@ -11,6 +11,7 @@
 //          $Id$
 
 #include "Xrd/XrdScheduler.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 
 /******************************************************************************/
 /*                                  D o I t                                   */
@@ -54,7 +55,7 @@ void XrdObjectQ<T>::DoIt()
 
 // Trace as needed
 //
-   if (Trace->What & TraceON)
+   if (TraceON)
       {Trace->Beg(TraceID);
        cerr <<Comment <<" trim done; " <<Count <<" of " <<oldcnt <<" kept";
        Trace->End();

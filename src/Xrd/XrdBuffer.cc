@@ -52,10 +52,12 @@ const char *XrdBuffManager::TraceID = "BuffManager";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdBuffManager::XrdBuffManager(int minrst) : pagsz(getpagesize()),
-                 slots(XRD_BUCKETS), shift(XRD_BUSHIFT),
-                 maxsz(1<<(XRD_BUSHIFT+XRD_BUCKETS-1)),
-Reshaper(0)
+XrdBuffManager::XrdBuffManager(int minrst) : 
+                   slots(XRD_BUCKETS),
+                   shift(XRD_BUSHIFT),
+                   pagsz(getpagesize()),
+                   maxsz(1<<(XRD_BUSHIFT+XRD_BUCKETS-1)),
+                   Reshaper(0)
 {
    pthread_t tid;
    int rc;
@@ -73,7 +75,7 @@ Reshaper(0)
 
 // Start the reshaper thread
 //
-   if (rc = XrdOucThread_Run(&tid, XrdReshaper, (void *)this))
+   if ((rc = XrdOucThread_Run(&tid, XrdReshaper, (void *)this)))
       XrdLog.Emsg("BuffManager", rc, "creating reshaper thread");
       else {TRACE(MEM, "Buffer Manager reshaper running in thread " <<tid);}
 }
@@ -96,7 +98,7 @@ XrdBuffer *XrdBuffManager::Obtain(long sz)
 // Calculate bucket index
 //
    ik = mk = sz >> shift;
-   while(ik = ik>>1) bindex++;
+   while((ik = ik>>1)) bindex++;
    if ((mk = 1 << (shift+bindex)) < sz) {bindex++; mk = mk << 1;}
    if (bindex >= slots) return 0;    // Should never happen!
 
@@ -105,7 +107,7 @@ XrdBuffer *XrdBuffManager::Obtain(long sz)
     BuffManager.Lock();
     totreq++;
     bucket[bindex].numreq++;
-    if (bp = bucket[bindex].bnext) 
+    if ((bp = bucket[bindex].bnext))
        {bucket[bindex].bnext = bp->next; bucket[bindex].numbuf--;}
     BuffManager.UnLock();
 
@@ -188,14 +190,14 @@ while(1)
       for (i = slots-1; i >= 0 && memhave > memtarget; i--)
           {BuffManager.Lock();
            while(bucket[i].numbuf > bufprof[i])
-                if (bp = bucket[i].bnext)
+                if ((bp = bucket[i].bnext))
                    {bucket[i].bnext = bp->next;
                     delete bp;
                     bucket[i].numbuf--; numfreed++;
                     memhave -= memslot; totalo  -= memslot;
                    } else {bucket[i].numbuf = 0; break;}
            BuffManager.UnLock();
-           memslot>>1;
+           memslot = memslot>>1;
           }
 
        // All done

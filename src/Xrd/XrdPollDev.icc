@@ -30,7 +30,7 @@ const char *XrdPollDevCVSID = "cvsid: $Id$";
 
 extern XrdOucError    XrdLog;
 
-extern XrdScheduler   XrdScheduler;
+extern XrdScheduler   XrdSched;
 
 extern XrdOucTrace    XrdTrace;
 
@@ -133,7 +133,7 @@ void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
                 lp->Protocol = (XrdProtocol *)&linkend;
                 if (lp->Etext) free(lp->Etext);
                 lp->Etext = strdup(etxt);
-                XrdScheduler.Schedule((XrdJob *)lp);
+                XrdSched.Schedule((XrdJob *)lp);
                 TRACEI(POLL, "Link " <<lp->FD <<" terminating: " <<etxt);
                }
            }
@@ -250,8 +250,8 @@ void XrdPollDev::Start(XrdOucSemaphore *syncsem, int &retcode)
 
        // Schedule the polled links
        //
-       if (num2sched == 1) XrdScheduler.Schedule(jfirst);
-          else if (num2sched) XrdScheduler.Schedule(num2sched, jfirst, jlast);
+       if (num2sched == 1) XrdSched.Schedule(jfirst);
+          else if (num2sched) XrdSched.Schedule(num2sched, jfirst, jlast);
       } while(1);
 }
 

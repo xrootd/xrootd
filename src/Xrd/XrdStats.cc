@@ -29,7 +29,7 @@ const char *XrdStatsCVSID = "$Id$";
 
 extern XrdBuffManager    XrdBuffPool;
 
-extern XrdScheduler      XrdScheduler;
+extern XrdScheduler      XrdSched;
 
 /******************************************************************************/
 /*                           C o n s t r c u t o r                            */
@@ -50,11 +50,12 @@ XrdStats::XrdStats(char *hname, int port)
   
 char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 {
+#define XRDSHEAD "<statistics tod=\"%ld\" ver=\"" XrdVSTRING "\">"
+
    static XrdProtocol_Select Protocols;
-   static const char head[] = "<statistics tod=\"%d\" ver=\""
-                                           XrdVERSION "\">";
+   static const char head[] = XRDSHEAD;
    static const char tail[] = "</statistics>";
-   static const int  ovrhed = strlen(head)+16+sizeof(XrdVERSION)+strlen(tail);
+   static const int  ovrhed = strlen(head)+16+sizeof(XrdVSTRING)+strlen(tail);
    char *bp;
    int   bl;
    int   sz;
@@ -65,14 +66,13 @@ char *XrdStats::Stats(int opts)   // statsMutex must be locked!
    if (!(bp = buff))
       {bl = Protocols.Stats(0,0) + ovrhed;
        if (getBuff(bl)) bp = buff;
-          else return (char *)"<statistics tod=\"0\" ver=\""
-                               XrdVERSION "\"></<statistics>";
+          else return (char *)XRDSHEAD "</<statistics>";
       }
    bl = blen;
 
 // Insert the heading
 //
-   sz = sprintf(buff, head, time(0));
+   sz = sprintf(buff, head, static_cast<long>(time(0)));
    bl -= sz; bp += sz;
 
 // Extract out the statistics, as needed
@@ -108,7 +108,7 @@ char *XrdStats::Stats(int opts)   // statsMutex must be locked!
       }
 
    if (opts & XRD_STATS_SCHD)
-      {sz = XrdScheduler.Stats(bp, bl);
+      {sz = XrdSched.Stats(bp, bl);
        bp += sz; bl -= sz;
       }
 
@@ -134,7 +134,7 @@ int XrdStats::getBuff(int xtra)
    blen += XrdLink::Stats(0,0);
    blen += XrdPoll::Stats(0,0);
    blen += ProcStats(0,0);
-   blen += XrdScheduler.Stats(0,0);
+   blen += XrdSched.Stats(0,0);
 
 // Allocate a buffer of this size
 //

@@ -28,7 +28,7 @@ const char *XrdPollPollCVSID = "cvsid: $Id$";
 
 extern XrdOucError    XrdLog;
 
-extern XrdScheduler XrdScheduler;
+extern XrdScheduler   XrdSched;
 
 extern XrdOucTrace    XrdTrace;
  
@@ -71,7 +71,7 @@ void          syncStats() {}
   
 XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
 {
-   int pfd, bytes, alignment, pagsz = getpagesize();
+   int bytes, alignment, pagsz = getpagesize();
    struct pollfd *pp;
 
 // Calculate the size of the poll table and allocate it
@@ -203,7 +203,7 @@ void XrdPollPoll::Disable(XrdLink *lp, const char *etxt)
                 lp->Protocol = (XrdProtocol *)&linkend;
                 if (lp->Etext) free(lp->Etext);
                 lp->Etext = strdup(etxt);
-                XrdScheduler.Schedule((XrdJob *)lp);
+                XrdSched.Schedule((XrdJob *)lp);
                 TRACEI(POLL, "Link " <<lp->FD <<" terminating: " <<etxt);
                }
            }
@@ -289,7 +289,7 @@ void XrdPollPoll::Exclude(XrdLink *lp)
   
 void XrdPollPoll::Start(XrdOucSemaphore *syncsem, int &retcode)
 {
-   int i, numpolled, num2sched, numintable = 0;
+   int numpolled, num2sched, numintable = 0;
    XrdJob *jfirst, *jlast;
    XrdLink *plp, *lp, *nlp;
    XrdPoll_End pollend;
@@ -334,7 +334,7 @@ void XrdPollPoll::Start(XrdOucSemaphore *syncsem, int &retcode)
        PollMutex.Lock();
        plp = 0; nlp = PollQ; jfirst = jlast = 0; num2sched = 0;
        while ((lp = nlp) && numpolled > 0)
-             {if (pollevents = lp->PollEnt->revents)
+             {if ((pollevents = lp->PollEnt->revents))
                  {lp->PollEnt->fd = -lp->PollEnt->fd;
                   if (plp) nlp = plp->Next = lp->Next;
                      else  nlp =     PollQ = lp->Next;
@@ -363,8 +363,8 @@ void XrdPollPoll::Start(XrdOucSemaphore *syncsem, int &retcode)
 
        // Schedule the polled links
        //
-       if (num2sched == 1) XrdScheduler.Schedule(jfirst);
-          else if (num2sched) XrdScheduler.Schedule(num2sched, jfirst, jlast);
+       if (num2sched == 1) XrdSched.Schedule(jfirst);
+          else if (num2sched) XrdSched.Schedule(num2sched, jfirst, jlast);
       } while(1);
 }
 
@@ -391,7 +391,7 @@ void XrdPollPoll::doDetach(struct pollfd *dent)
 //
 #ifdef __CompPollTab__
   if (dent != &PollTab[lastent])
-     {if (lastlp = XrdLink::fd2link(PollTab[lastent].fd))
+     {if ((lastlp = XrdLink::fd2link(PollTab[lastent].fd)))
          {memcpy((void *)dent,(const void *)lastlp->PollEnt,sizeof(struct pollfd));
           lastlp->PollEnt = dent;
          }
@@ -501,9 +501,9 @@ void XrdPollPoll::LogEvent(int req, int pollfd, int cmdfd)
        return;
       }
 
-   if (lp = XrdLink::fd2link(pollfd)) id1 = lp->ID;
+   if ((lp = XrdLink::fd2link(pollfd))) id1 = lp->ID;
       else id1 = (char *)"unknown";
-   if (lp = XrdLink::fd2link(cmdfd))  id2 = lp->ID;
+   if ((lp = XrdLink::fd2link(cmdfd)))  id2 = lp->ID;
       else id2 = (char *)"unknown";
    snprintf(buff, sizeof(buff)-1, 
             "%d poll fd=%d (%s) not equal %s cmd fd=%d (%s).",
@@ -549,13 +549,13 @@ void XrdPollPoll::Restart(int ecode)
 // For any outstanding link here, close the link and detach it
 //
    PollMutex.Lock();
-   while(lp = PollQ)
+   while((lp = PollQ))
         {PollQ = lp->Next;
          lp->PollEnt->fd = -1;
          lp->Protocol->Recycle();
          lp->Protocol = (XrdProtocol *)&pollend;
          lp->Etext = strdup("Unexpected polling error");
-         XrdScheduler.Schedule((XrdJob *)lp);
+         XrdSched.Schedule((XrdJob *)lp);
         }
    PollMutex.UnLock();
 }

@@ -93,7 +93,6 @@ XrdProtocol_Select::~XrdProtocol_Select() {}
 int XrdProtocol_Select::Load(const char *lname, const char *pname,
                               char *parms, XrdProtocol_Config *pi)
 {
-   int retc;
    XrdProtocol *xp;
 
 // Trace this load if so wanted
@@ -133,13 +132,13 @@ int XrdProtocol_Select::Load(const char *lname, const char *pname,
   
 int XrdProtocol_Select::Process(XrdLink *lp)
 {
-     XrdProtocol *pp;
+     XrdProtocol *pp = 0;
      int i;
 
 // We check each protocol we have until we find one that works with this link
 //
    for (i = 0; i < ProtoCnt; i++) 
-       if (pp = Protocol[i]->Match(lp)) break;
+       if ((pp = Protocol[i]->Match(lp))) break;
           else if (!lp->isConnected())  return -1;
    if (!pp) {DISCARD_LINK(lp, "matching protocol not found");}
 

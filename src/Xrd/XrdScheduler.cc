@@ -112,7 +112,7 @@ XrdScheduler::XrdScheduler(int minw, int maxw, int avlw, int maxi)
 
 // Start a time based scheduler
 //
-   if (retc = XrdOucThread_Sys(&tid, XrdStartTSched, (void *)this))
+   if ((retc = XrdOucThread_Sys(&tid, XrdStartTSched, (void *)this)))
       XrdLog.Emsg("Scheduler", retc, "creating time scheduler thread");
       else TRACE(SCHED, "thread " << tid <<" assigned to time schedeuler");
 
@@ -179,7 +179,7 @@ void XrdScheduler::DoIt()
            num_TDestroy += num_kill; // We are the only ones touching this
            SchedMutex.Lock(); num_Workers -= num_kill; SchedMutex.UnLock();
            while(num_kill--)
-                if (fwp = new XrdFireWorker()) Schedule((XrdJob *)fwp);
+                if ((fwp = new XrdFireWorker())) Schedule((XrdJob *)fwp);
           }
       }
 
@@ -219,7 +219,7 @@ pid_t XrdScheduler::Fork(const char *id)
 // Start the reaper thread if it has not started.
 //
    if (!retc)
-      if (retc = XrdOucThread_Run(&tid, XrdStartReaper, (void *)this))
+      if ((retc = XrdOucThread_Run(&tid, XrdStartReaper, (void *)this)))
          {XrdLog.Emsg("Scheduler", retc, "creating reaper thread");
           ReaperStarted = 0;
          } else TRACE(SCHED, "thread " << tid <<" assigned to reaper");
@@ -234,8 +234,7 @@ pid_t XrdScheduler::Fork(const char *id)
 void *XrdScheduler::Reaper()
 {
    sigset_t Sset;
-   int signum, status, retc;
-   char *why;
+   int signum, status;
    pid_t pid;
    XrdSchedulerPID *tp, *ptp, *xtp;
 
@@ -278,7 +277,7 @@ void XrdScheduler::Run()
    do {DispatchMutex.Lock(); idl_Workers++; DispatchMutex.UnLock();
        do {WorkAvail.Wait();
            SchedMutex.Lock();
-           if (jp = WorkFirst) 
+           if ((jp = WorkFirst))
               {if (!(WorkFirst = jp->NextJob)) WorkLast = 0;
                if (num_JobsinQ) num_JobsinQ--;
                   else {XrdLog.Emsg("Scheduler","Job queue count underflow!");
@@ -311,8 +310,6 @@ void XrdScheduler::Run()
   
 void XrdScheduler::Schedule(XrdJob *jp)
 {
-   int dosched;
-
 // Lock down our data area
 //
    SchedMutex.Lock();
@@ -535,7 +532,7 @@ void XrdScheduler::hireWorker()  // Called with SchedMutex locked!
 
 // Start a new thread
 //
-   if (retc = XrdOucThread_Run(&tid, XrdStartWorking, (void *)this))
+   if ((retc = XrdOucThread_Run(&tid, XrdStartWorking, (void *)this)))
       XrdLog.Emsg("Scheduler", retc, "creating worker thread");
       else {num_Workers++;
             num_TCreate++;

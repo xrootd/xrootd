@@ -68,18 +68,18 @@ Where:
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
 
-       XrdConfig          XrdConfig;
+       XrdConfig          XrdConf;
 
        XrdNetwork        *XrdNetTCP = 0;
        XrdNetwork        *XrdNetADM = 0;
 
-       XrdScheduler       XrdScheduler;
+       XrdScheduler       XrdSched;
 
-       XrdOucLogger         XrdLogger;
+       XrdOucLogger       XrdLogger;
 
-       XrdOucError          XrdLog(&XrdLogger, "Xrd");
+       XrdOucError        XrdLog(&XrdLogger, "Xrd");
 
-       XrdOucTrace          XrdTrace(&XrdLog);
+       XrdOucTrace        XrdTrace(&XrdLog);
 
 /******************************************************************************/
 /*                             m a i n A d m i n                              */
@@ -96,10 +96,10 @@ void *mainAdmin(void *parg)
 
 // At this point we should be able to accept new connections
 //
-   while(1) if (newlink = XrdNetADM->Accept())
+   while(1) if ((newlink = XrdNetADM->Accept()))
                {TRACEI(CONN, "admin connection accepted");
                 newlink->setProtocol((XrdProtocol *)&ProtAdmin);
-                XrdScheduler.Schedule((XrdJob *)newlink);
+                XrdSched.Schedule((XrdJob *)newlink);
                }
    return (void *)0;
 }
@@ -120,10 +120,10 @@ void *mainUser(void *parg)
 
 // At this point we should be able to accept new connections
 //
-   while(1) if (newlink = XrdNetTCP->Accept())
+   while(1) if ((newlink = XrdNetTCP->Accept()))
                {TRACEI(CONN, "connection accepted");
                 newlink->setProtocol((XrdProtocol *)&ProtSelect);
-                XrdScheduler.Schedule((XrdJob *)newlink);
+                XrdSched.Schedule((XrdJob *)newlink);
                }
    return (void *)0;
 }
@@ -133,7 +133,7 @@ void *mainUser(void *parg)
 /*                                  m a i n                                   */
 /******************************************************************************/
   
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    char *TraceID = (char *)"Main";
 
@@ -145,14 +145,14 @@ main(int argc, char *argv[])
 
 // Process configuration file
 //
-   if (XrdConfig.Configure(argc, argv)) _exit(1);
+   if (XrdConf.Configure(argc, argv)) _exit(1);
 
 // Start the admin thread if an admin network is defined
 //
    if (XrdNetADM)
       {pthread_t tid;
        int retc;
-        if (retc = XrdOucThread_Sys(&tid,mainAdmin,(void *)0))
+        if ((retc = XrdOucThread_Sys(&tid,mainAdmin,(void *)0)))
            {XrdLog.Emsg("main", retc, "creating admin thread"); _exit(3);}
         TRACE(DEBUG, "thread " << tid <<" assigned to admin handler");
       }
@@ -161,7 +161,7 @@ main(int argc, char *argv[])
 //
       {pthread_t tid;
        int retc;
-        if (retc = XrdOucThread_Sys(&tid,mainUser,(void *)0))
+        if ((retc = XrdOucThread_Sys(&tid,mainUser,(void *)0)))
            {XrdLog.Emsg("main", retc, "creating user thread"); _exit(3);}
         TRACE(DEBUG, "thread " << tid <<" assigned to user handler");
       }

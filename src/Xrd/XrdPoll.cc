@@ -235,7 +235,7 @@ int XrdPoll::Setup(int numfd)
         PArg.Poller = Pollers[i];
         PArg.retcode= 0;
         TRACE(POLL, "Starting poller " <<i);
-        if (retc=XrdOucThread_Sys(&tid,XrdStartPolling,(void *)&PArg))
+        if ((retc=XrdOucThread_Sys(&tid,XrdStartPolling,(void *)&PArg)))
            {XrdLog.Emsg("Poll", retc, "creating poller thread"); return 0;}
         TRACE(POLL, "thread " << tid <<" assigned to poller " <<i);
         Pollers[i]->TID = tid;
@@ -257,8 +257,8 @@ int XrdPoll::Setup(int numfd)
   
 int XrdPoll::Stats(char *buff, int blen)
 {
-   static const char statfmt[] = "<stats id=\"poll\"><att>%ld</att>"
-   "<en>%ld</en><ev>%ld</ev><int>%ld</int></stats>";
+   static const char statfmt[] = "<stats id=\"poll\"><att>%d</att>"
+   "<en>%d</en><ev>%d</ev><int>%d</int></stats>";
    int i, numatt = 0, numen = 0, numev = 0, numint = 0;
    XrdPoll *pp;
 

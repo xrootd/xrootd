@@ -58,13 +58,13 @@ extern XrdConfig         XrdConfig;
 extern XrdNetwork       *XrdNetTCP;
 extern XrdNetwork       *XrdNetADM;
 
-extern XrdScheduler      XrdScheduler;
+extern XrdScheduler      XrdSched;
 
-extern XrdOucError         XrdLog;
+extern XrdOucError       XrdLog;
 
-extern XrdOucLogger        XrdLogger;
+extern XrdOucLogger      XrdLogger;
 
-extern XrdOucTrace         XrdTrace;
+extern XrdOucTrace       XrdTrace;
 
        const char        *XrdConfig::TraceID = "Config";
 
@@ -110,12 +110,12 @@ public:
 
      void DoIt() {XrdLog.Say(0, (char *)XrdBANNER);
                   midnite += 86400;
-                  XrdScheduler.Schedule((XrdJob *)this, midnite);
+                  XrdSched.Schedule((XrdJob *)this, midnite);
                  }
 
           XrdLogWorker() : XrdJob("midnight runner")
                          {midnite = XrdOucTimer::Midnight() + 86400;
-                          XrdScheduler.Schedule((XrdJob *)this, midnite);
+                          XrdSched.Schedule((XrdJob *)this, midnite);
                          }
          ~XrdLogWorker() {}
 private:
@@ -148,7 +148,7 @@ XrdConfig::XrdConfig(void)
    ProtInfo.eDest   = &XrdLog;          // Stable -> Error Message/Logging Handler
    ProtInfo.NetTCP  = 0;                // Stable -> Network Object
    ProtInfo.BPool   = &XrdBuffPool;     // Stable -> Buffer Pool Manager
-   ProtInfo.Sched   = &XrdScheduler;    // Stable -> System Scheduler
+   ProtInfo.Sched   = &XrdSched;        // Stable -> System Scheduler
    ProtInfo.ConfigFN= 0;                // We will fill this in later
    ProtInfo.Stats   = 0;                // We will fill this in later
    ProtInfo.Trace   = &XrdTrace;        // Stable -> Trace Information
@@ -187,7 +187,7 @@ int XrdConfig::Configure(int argc, char **argv)
    int retc, dotrim = 1, NoGo = 0, aP = 1;
    char c, *myProg, buff[128], *temp, *dfltProt, *logfn = 0;
    extern char *optarg;
-   extern int optind, opterr, optopt;
+   extern int optind, opterr;
 
 // Obtain the protocol name we will be using
 //
@@ -240,7 +240,7 @@ int XrdConfig::Configure(int argc, char **argv)
 // Bind the log file if we have one
 //
    if (logfn) {XrdLogger.Bind(logfn, 24*60*60);
-               XrdJob *jp = (XrdJob *)new XrdLogWorker();
+               new XrdLogWorker();
               }
 
 // Put out the herald
@@ -333,7 +333,7 @@ int XrdConfig::ASocket(const char *path, const char *dname, const char *fname,
 
 // Make sure we can fit everything in our buffer
 //
-   if ((plen + dlen + flen + 3) > sizeof(sokpath))
+   if ((plen + dlen + flen + 3) > (int)sizeof(sokpath))
       {XrdLog.Emsg("Config", "admin path", (char *)path, (char *)"too long"); 
        return 1;
       }
@@ -409,7 +409,7 @@ int XrdConfig::ConfigProc()
 
 // Now start reading records until eof.
 //
-   while( var = Config.GetFirstWord())
+   while((var = Config.GetFirstWord()))
         {if (!strncmp(var, XRD_Prefix, XRD_PrefLen))
             {var += XRD_PrefLen;
              NoGo |= ConfigXeq(var, Config);
@@ -418,7 +418,7 @@ int XrdConfig::ConfigProc()
 
 // Now check if any errors occured during file i/o
 //
-   if (retc = Config.LastError())
+   if ((retc = Config.LastError()))
       NoGo = XrdLog.Emsg("Config", retc, "reading config file", ConfigFN);
    Config.Close();
 
@@ -468,7 +468,7 @@ int XrdConfig::setFDL()
 
 // Set the limit to the maximum allowed
 //
-   if (ProtInfo.ConnMax > 0 && ProtInfo.ConnMax < rlim.rlim_max) 
+   if (ProtInfo.ConnMax > 0 && ProtInfo.ConnMax < (int)rlim.rlim_max)
            rlim.rlim_cur = ProtInfo.ConnMax;
       else rlim.rlim_cur = rlim.rlim_max;
    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
@@ -482,11 +482,11 @@ int XrdConfig::setFDL()
 // Establish operating limit
 //
    if (ProtInfo.ConnMax < 0) ProtInfo.ConnMax = rlim.rlim_cur;
-      else if (ProtInfo.ConnMax > rlim.rlim_cur)
-              {sprintf(buff,"%d > system FD limit of %d",
-                       ProtInfo.ConnMax, rlim.rlim_cur);
+      else if (ProtInfo.ConnMax > (int)rlim.rlim_cur)
+              {ProtInfo.ConnMax = rlim.rlim_cur;
+               sprintf(buff,"%d > system FD limit of %d",
+                       ProtInfo.ConnMax, ProtInfo.ConnMax);
                XrdLog.Emsg("Config", "Warning: connection mfd", buff);
-               ProtInfo.ConnMax = rlim.rlim_cur;
               }
 
 // Establish optimization point
@@ -513,12 +513,12 @@ int XrdConfig::setFDL()
 //
    if (setSched)
       {int V_mint, V_maxt, V_avlt, ncb2 = 0, numcon = ProtInfo.ConnOptn;
-       while(numcon = numcon >> 1) ncb2++;
+       while((numcon = numcon >> 1)) ncb2++;
        if (ncb2 == 0) ncb2 = 1;
        if ((V_maxt = ProtInfo.ConnOptn / ncb2) > 1024) V_maxt = 1024;
-       if ((V_mint = V_maxt / ncb2) <= 0)             V_mint = 1;
-       if ((V_avlt = V_maxt /  5) <= 0)               V_avlt = 1;
-       XrdScheduler.setParms(V_mint, V_maxt, V_avlt, -1);
+       if ((V_mint = V_maxt / ncb2) <= 0)              V_mint = 1;
+       if ((V_avlt = V_maxt /  5) <= 0)                V_avlt = 1;
+       XrdSched.setParms(V_mint, V_maxt, V_avlt, -1);
       }
    return 0;
 }
@@ -537,11 +537,11 @@ int XrdConfig::Setup(char *dfltp)
 
 // Start the required number of workers
 //
-   XrdScheduler.Start(ProtInfo.ConnOptn/256);
+   XrdSched.Start(ProtInfo.ConnOptn/256);
 
 // Establish the optimal operating area for all managed objects
 //
-   XrdLink::LinkStack.Set(&XrdScheduler, &XrdTrace, TRACE_MEM);
+   XrdLink::LinkStack.Set(&XrdSched, &XrdTrace, TRACE_MEM);
    XrdLink::LinkStack.Set(ProtInfo.ConnOptn, ProtInfo.ConnLife);
 
 // Setup the link and socket polling infrastructure
@@ -577,7 +577,7 @@ int XrdConfig::Setup(char *dfltp)
 
 // Load the protocols
 //
-   while(cp= Firstcp)
+   while((cp= Firstcp))
         {if(!XrdProtocol_Select::Load((const char *)(cp->libpath),
                                        (const char *)(cp->proname),
                                         cp->parms,    &ProtInfo)) return 1;
@@ -705,7 +705,7 @@ int XrdConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure.
 */
 int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
-{   int pnum = 0;
+{
     int bint = -1;
     long long blim;
     char *val;
@@ -715,7 +715,7 @@ int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
     if (XrdOuca2x::a2sz(*eDest,"invalid buffer limit value",val,&blim,
                        (long long)1024*1024)) return 1;
 
-    if (val = Config.GetWord())
+    if ((val = Config.GetWord()))
        if (XrdOuca2x::a2tm(*eDest,"reshape interval", val, &bint, 300))
           return 1;
 
@@ -742,12 +742,12 @@ int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
 int XrdConfig::xcon(XrdOucError *eDest, XrdOucStream &Config)
 {   int i, n, rc, sgn, aval = -1, dval=60*60, fval = -1;
     char *val;
-    static struct conopts { char *opname; int istime; int *oploc; char *etxt;}
-           cnopts[] =
+    static struct conopts {const char *opname; int istime; 
+                           int *oploc; const char *etxt;} cnopts[] =
        {
-       (char *)"avg",-1, &aval, (char *)"conections avg",
-       (char *)"dur", 1, &dval, (char *)"conections dur",
-       (char *)"mfd", 0, &fval, (char *)"conections mfd",
+        {"avg",-1, &aval, "conections avg"},
+        {"dur", 1, &dval, "conections dur"},
+        {"mfd", 0, &fval, "conections mfd"}
        };
     int numopts = sizeof(cnopts)/sizeof(struct conopts);
 
@@ -758,7 +758,8 @@ int XrdConfig::xcon(XrdOucError *eDest, XrdOucStream &Config)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, cnopts[i].opname))
                   {if (!(val = Config.GetWord()))
-                      {eDest->Emsg("Config", "connections", cnopts[i].opname,
+                      {eDest->Emsg("Config", "connections", 
+                                   (char *)cnopts[i].opname,
                                    (char *)"value not specified");
                        return 1;
                       }
@@ -814,12 +815,12 @@ int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
     char *val;
     int  i, V_keep = 0;
     long long llp;
-    static struct netopts { char *opname; int hasarg;
-                            int  *oploc;  const char *etxt;}
+    static struct netopts {const char *opname; int hasarg;
+                           int  *oploc;  const char *etxt;}
            ntopts[] =
        {
-       (char *)"keepalive",  0, &V_keep,   "option",
-       (char *)"buffsz",     1, &Net_Blen, "network buffsz"
+        {"keepalive",  0, &V_keep,   "option"},
+        {"buffsz",     1, &Net_Blen, "network buffsz"}
        };
     int numopts = sizeof(ntopts)/sizeof(struct netopts);
 
@@ -902,7 +903,7 @@ int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
     if (!(pnum = yport(eDest, "tcp", val))) return 1;
     PortTCP = PortUDP = pnum;
 
-    if (val = Config.GetWord())
+    if ((val = Config.GetWord()))
        {if (!(pnum = yport(eDest, "udp", val))) return 1;
         PortUDP = pnum;
        }
@@ -967,7 +968,7 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
        }
     if (*parms == '\0') parms = 0;
 
-    if (cpp = Firstcp)
+    if ((cpp = Firstcp))
        do {if (!strcmp(proname, cpp->proname))
               {if (cpp->libpath) free(cpp->libpath);
                if (cpp->parms)   free(cpp->parms);
@@ -975,7 +976,7 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
                cpp->parms   = parms;
                return 0;
               }
-          } while(cpp = cpp->Next);
+          } while((cpp = cpp->Next));
 
     cpp = new XrdConfigProt(strdup(proname), lib, parms);
     if (Lastcp) Lastcp->Next = cpp;
@@ -993,7 +994,7 @@ char *XrdConfig::xprotparms(XrdOucError *eDest, XrdOucStream &Config)
     int tlen, eoc = 1, braces = 0, bleft = sizeof(pbuff)-2;
 
     *pbuff = '\0';
-    if (val = Config.GetWord())
+    if ((val = Config.GetWord()))
        {if (*val == '{')
            {val++; eoc = 0; braces = 1;
             if (*val == '\0') val = Config.GetWord();
@@ -1053,13 +1054,13 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
     char *val;
     int  i, ppp;
     int  V_mint = -1, V_maxt = -1, V_idle = -1, V_avlt = -1;
-    static struct schedopts {const char * opname; int minv; int *oploc;
-                             const char * opmsg;} scopts[] =
+    static struct schedopts {const char *opname; int minv; int *oploc;
+                             const char *opmsg;} scopts[] =
        {
-        "mint",       1, &V_mint, "sched mint",
-        "maxt",       1, &V_maxt, "sched maxt",
-        "avlt",       1, &V_avlt, "sched avlt",
-        "idle",      90, &V_idle, "sched idle"
+        {"mint",       1, &V_mint, "sched mint"},
+        {"maxt",       1, &V_maxt, "sched maxt"},
+        {"avlt",       1, &V_avlt, "sched avlt"},
+        {"idle",      90, &V_idle, "sched idle"}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
 
@@ -1118,7 +1119,7 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
 // Establish scheduler options
 //
    if (V_mint > 0 || V_maxt > 0 || V_avlt > 0) setSched = 0;
-   XrdScheduler.setParms(V_mint, V_maxt, V_avlt, V_idle);
+   XrdSched.setParms(V_mint, V_maxt, V_avlt, V_idle);
    return 0;
 }
 
@@ -1144,12 +1145,12 @@ int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
     char *val;
     int  i, ppp, rc;
     int  V_read = -1, V_idle = -1;
-    static struct tmoopts { char *opname; int istime;
+    static struct tmoopts { const char *opname; int istime;
                             int  *oploc;  const char *etxt;}
            tmopts[] =
        {
-       (char *)"read",       1, &V_read, "timeout read",
-       (char *)"idle",       1, &V_idle, "timeout idle"
+        {"read",       1, &V_read, "timeout read"},
+        {"idle",       1, &V_idle, "timeout idle"}
        };
     int numopts = sizeof(tmopts)/sizeof(struct tmoopts);
 
@@ -1200,18 +1201,18 @@ int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
 int XrdConfig::xtrace(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
-    static struct traceopts { char * opname; int opval;} tropts[] =
+    static struct traceopts {const char *opname; int opval;} tropts[] =
        {
-       (char *)"all",      TRACE_ALL,
-       (char *)"off",      TRACE_NONE,
-       (char *)"none",     TRACE_NONE,
-       (char *)"conn",     TRACE_CONN,
-       (char *)"debug",    TRACE_DEBUG,
-       (char *)"mem",      TRACE_MEM,
-       (char *)"net",      TRACE_NET,
-       (char *)"poll",     TRACE_POLL,
-       (char *)"protocol", TRACE_PROT,
-       (char *)"sched",    TRACE_SCHED
+        {"all",      TRACE_ALL},
+        {"off",      TRACE_NONE},
+        {"none",     TRACE_NONE},
+        {"conn",     TRACE_CONN},
+        {"debug",    TRACE_DEBUG},
+        {"mem",      TRACE_MEM},
+        {"net",      TRACE_NET},
+        {"poll",     TRACE_POLL},
+        {"protocol", TRACE_PROT},
+        {"sched",    TRACE_SCHED}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
@@ -1219,7 +1220,7 @@ int XrdConfig::xtrace(XrdOucError *eDest, XrdOucStream &Config)
        {eDest->Emsg("config", "trace option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) trval = 0;
-             else {if (neg = (val[0] == '-' && val[1])) val++;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
                    for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, tropts[i].opname))
                            {if (neg)
