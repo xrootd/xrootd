@@ -89,7 +89,7 @@ krb5_ccache        krb_ccache;
 krb5_creds        *krb_creds;
 krb5_keytab        krb_keytab;
 
-unsigned long      lifetime;    // Client-side only
+unsigned int       lifetime;    // Client-side only
 int                options;
 char              *Principal;
 char              *Parms;
@@ -183,7 +183,7 @@ int XrdSecProtocolkrb5::Init_Client(XrdOucErrInfo *einfo)
 
 // Extract out the ticket lifetime
 //
-   lifetime = (unsigned long)krb_creds->times.endtime;
+   lifetime = (unsigned int)krb_creds->times.endtime;
 
 // All done, return success
 //

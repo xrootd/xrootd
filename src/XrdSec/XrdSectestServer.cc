@@ -72,8 +72,8 @@ char hexbuff[sizeof(C_Block)+8];
 
 int getbintix(uchar *buff, int blen);
 void getargs(int argc, char **argv);
-long  unhex(uchar *ibuff, uchar *obuff, int blen);
-long cvtx(uchar idig, uchar *odig);
+int  unhex(uchar *ibuff, uchar *obuff, int blen);
+int  cvtx(uchar idig, uchar *odig);
 void getline(uchar *buff, int blen);
 char *Ereason( );
 int emsg(int rc,char *msg);
@@ -260,8 +260,8 @@ if (opts.online && opts.bin)
    An error results in a -1 response (including uneven hex digits). The
    input buffer must be terminated with a null.
 */
-long  unhex(uchar *ibuff, uchar *obuff, int blen) {
-long  i=0, j;
+int  unhex(uchar *ibuff, uchar *obuff, int blen) {
+int  i=0, j;
 uchar dig1, dig2;
 
 for (j = 0; j < blen; j++) {
@@ -272,7 +272,7 @@ for (j = 0; j < blen; j++) {
 return -1; /* Buffer overflow */
  }
 
-long cvtx(uchar idig, uchar *odig) {
+int cvtx(uchar idig, uchar *odig) {
 if (idig >= '0' && idig <= '9') {*odig = idig & (uchar)0x0f; return 1;}
 idig = idig | (uchar)0x20; /* Change to lower case. */
 if (idig < 'a' || idig > 'f') return 0;

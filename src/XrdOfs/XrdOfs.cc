@@ -1761,7 +1761,7 @@ int XrdOfsIdleXeq(XrdOfsHandle *op, void *tsecarg)
 #endif
     time_t tsec = (time_t)tsecarg;
     XrdOfsHandleAnchor *anchor = &(op->Anchor());
-    int IdleTime;
+    time_t IdleTime;
     char *act = (char *)" ";
 
  // Ceck if this handle is past the idle deadline, if so, close it. Note

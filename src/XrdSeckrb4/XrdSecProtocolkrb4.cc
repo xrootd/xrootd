@@ -86,7 +86,7 @@ char  iname[INST_SZ+1];
 char  rname[REALM_SZ+1];
 char *Principal;
 
-unsigned long lifetime;    // Client-side only
+unsigned int lifetime;     // Client-side only
 char *keyfile;             // Server-side only
 char *Parms;
 int   Parmsize;
@@ -170,7 +170,7 @@ int XrdSecProtocolkrb4::Init_Client(XrdOucErrInfo *erp)
 
 // Extract out the ticket lifetime
 //
-   lifetime = (unsigned long)krb_cred.lifetime;
+   lifetime = (unsigned int)krb_cred.lifetime;
 
 // All done, return success
 //
@@ -309,7 +309,7 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
    struct auth_dat pid;
    krb_rc rc;
    char *idp;
-   long ipaddr;
+   unsigned int ipaddr;  // Should be 32 bits in all supported data models
 
 // Check if we have any credentials or if no credentials really needed.
 // In either case, use host name as client name
@@ -342,7 +342,7 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
                                    (size_t) katix.length);
 
 // Prepare to check the ip address. This is rather poor since K4 "knows"
-// that IP addresses are longs. Well, by the time IPV6 comes along, K4
+// that IP addresses are 4 bytes. Well, by the time IPV6 comes along, K4
 // will be history (it's almost there now :-).
 //
    if (options & XrdSecNOIPCHK) ipaddr = 0;

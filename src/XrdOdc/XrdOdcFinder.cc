@@ -242,10 +242,9 @@ int XrdOdcFinderLCL::LocbyRR()
 void *XrdOdcFinderLCL::InspectLoad()
 {
    EPNAME("InspectLoad")
-   int i, load, port, sport, sleeptime;
+   int i, load, port, sport, sleeptime, cputime;
    pid_t spid;
-   long cputime;
-   unsigned long stic;
+   unsigned int stic;
    XrdOdcData *dp;
 
 // Calculate sleep time
@@ -305,9 +304,8 @@ void *XrdOdcFinderLCL::InspectLoad()
   
 void *XrdOdcFinderLCL::ReportLoad()
 {
-   unsigned long tics = odcTICSTART;
-   int load;
-   long totcpu;
+   unsigned int tics = odcTICSTART;
+   int load, totcpu;
 
 // Simply calculate load ever interval
 //
@@ -329,7 +327,7 @@ void *XrdOdcFinderLCL::ReportLoad()
 /*                              c a l c L o a d                               */
 /******************************************************************************/
   
-void XrdOdcFinderLCL::calcLoad(int &load, long &totcpu)
+void XrdOdcFinderLCL::calcLoad(int &load, int &totcpu)
 {
    EPNAME("calcLoad")
    static clock_t lastcpu = 0;

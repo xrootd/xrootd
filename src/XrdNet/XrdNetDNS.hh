@@ -103,12 +103,12 @@ static int Host2Dest(char            *InetName,
 //           returned in ipaddr (unless it is zero, in which only a conversion
 //           check is performed). 1 is returned upon success, 0 upon failure.
 //
-static int Host2IP(char          *InetName,
-                   unsigned long *ipaddr=0);
+static int Host2IP(char         *InetName,
+                   unsigned int *ipaddr=0);
 
 // IPAddr() returns the IPV4 version of the address in the address argument
 //
-static unsigned long IPAddr(struct sockaddr *InetAddr);
+static unsigned int IPAddr(struct sockaddr *InetAddr);
 
 // isLoopback() returns true if the address in InetAddr is the loopback address.
 //              This test is used to discover IP address spoofing in UDP packets.

@@ -73,7 +73,7 @@ int           LastError();
 
 // Addr() returns the IPV4 address of the endpoint
 //
-unsigned long Addr() {return XrdNetDNS::IPAddr(&InetAddr);}
+unsigned int Addr() {return XrdNetDNS::IPAddr(&InetAddr);}
 
 // Name() returns the host name of the endpoint
 //
@@ -116,7 +116,7 @@ int           Send(void *buff,     // -> Data to send
 //        additional bytes are not immediately available to receive.
 //        it returns the number of bytes read or -1 if an error occurs.
 //
-int           Recv(char *buff, long blen);
+int           Recv(char *buff, int blen);
 
 // Set() sets the maximum number of XrdNetLink objects that may be kept
 //       for future re-use.

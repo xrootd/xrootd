@@ -78,7 +78,7 @@ XrdAccPrivs XrdAccAccess::Access(const char *atype,
    XrdAccPrivCaps caps;
    XrdAccCapability *cp;
    const int plen  = strlen(path);
-   const int phash = XrdOucHashVal2(path, plen);
+   const long phash = XrdOucHashVal2(path, plen);
    XrdAccAudit_Options audits = (XrdAccAudit_Options)Auditor->Auditing();
    int isuser = (id && *id && *id != '*' || id[2]);
 
@@ -163,7 +163,7 @@ XrdAccPrivs XrdAccAccess::Access(const char *id,
    XrdAccCapability *cp;
    XrdOucHash<XrdAccCapability> *hp;
    const int plen  = strlen(path);
-   const int phash = XrdOucHashVal2(path, plen);
+   const long phash = XrdOucHashVal2(path, plen);
 
 // Select appropriate hash table for the id type
 //
@@ -254,13 +254,13 @@ int XrdAccAccess::Audit(const int accok,
 /******************************************************************************/
   
 void XrdAccAccess::Enable(const char *user, const char *host, 
-                          unsigned long oid)
+                          unsigned int oid)
 {
    char keybuff[uhoKEYLEN];
 
 // Construct the key
 //
-   snprintf(keybuff, sizeof(keybuff)-1, "%lx%s%s", oid, user, host);
+   snprintf(keybuff, sizeof(keybuff)-1, "%8x%s%s", oid, user, host);
    keybuff[uhoKEYLEN-1] = '\0';
 
 // Update the key (new or replacement, works regardless)
@@ -275,13 +275,13 @@ void XrdAccAccess::Enable(const char *user, const char *host,
 /******************************************************************************/
   
 void XrdAccAccess::Disable(const char *user, const char *host, 
-                           unsigned long oid)
+                           unsigned int oid)
 {
    char keybuff[uhoKEYLEN];
 
 // Construct the key
 //
-   snprintf(keybuff, sizeof(keybuff)-1, "%lx%s%s", oid, user, host);
+   snprintf(keybuff, sizeof(keybuff)-1, "%8x%s%s", oid, user, host);
    keybuff[uhoKEYLEN-1] = '\0';
 
 // Delete the key, keeping track of multiple additions
@@ -296,13 +296,13 @@ void XrdAccAccess::Disable(const char *user, const char *host,
 /******************************************************************************/
   
 int XrdAccAccess::isEnabled(const char *user, const char *host,
-                            unsigned long oid)
+                            unsigned int oid)
 {
    char keybuff[uhoKEYLEN], *keydata;
 
 // Construct the key
 //
-   snprintf(keybuff, sizeof(keybuff)-1, "%lx%s%s", oid, user, host);
+   snprintf(keybuff, sizeof(keybuff)-1, "%8x%s%s", oid, user, host);
    keybuff[uhoKEYLEN-1] = '\0';
 
 // Find the key

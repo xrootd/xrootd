@@ -33,7 +33,7 @@ extern XrdOfs XrdOfsFS;
 XrdOfsHandle::XrdOfsHandle(unsigned long          hval,
                            const char            *oname,
                            int                    opn_mode,
-                           long                   opn_time,
+                           time_t                 opn_time,
                            XrdOfsHandleAnchor    *origin,
                            XrdOssDF              *ossdf)
 {
@@ -181,9 +181,9 @@ void XrdOfsHandleAnchor::Detach(const char *path)
 /*                                I n s e r t                                 */
 /******************************************************************************/
   
-unsigned long XrdOfsHandleAnchor::Insert(XrdOfsHandle &item)
+unsigned int XrdOfsHandleAnchor::Insert(XrdOfsHandle &item)
 {
-   unsigned long newpid;
+   unsigned int newpid;
 
 // Lock the anchor, insert the element, and then unlock and return an
 // incremented pathid to the caller.

@@ -18,7 +18,7 @@ class XrdOucErrInfo;
 class XrdSecProtList;
 class XrdSecProtocol;
 
-typedef unsigned long XrdSecPMask_t;
+typedef unsigned int XrdSecPMask_t;
 
 class XrdSecPManager
 {

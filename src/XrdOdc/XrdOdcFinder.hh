@@ -92,7 +92,7 @@ public:
 
 private:
 
-void               calcLoad(int &load, long &cputime);
+void               calcLoad(int &load, int &cputime);
 int                LocbyFD();
 int                LocbyLD();
 int                LocbyRR();

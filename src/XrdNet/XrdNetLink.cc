@@ -193,7 +193,7 @@ void XrdNetLink::Recycle()
 /*                                  R e c v                                   */
 /******************************************************************************/
   
-int XrdNetLink::Recv(char *Buff, long Blen)
+int XrdNetLink::Recv(char *Buff, int Blen)
 {
    ssize_t rlen;
 
@@ -203,7 +203,7 @@ int XrdNetLink::Recv(char *Buff, long Blen)
    do {rlen = read(FD, Buff, Blen);} while(rlen < 0 && errno == EINTR);
    rdMutex.UnLock();
 
-   if (rlen >= 0) return (int)rlen;
+   if (rlen >= 0) return int(rlen);
    eDest->Emsg("Link", errno, "recieve from", Lname);
    return -1;
 }

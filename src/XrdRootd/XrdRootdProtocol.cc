@@ -149,7 +149,7 @@ XrdRootdProtocol::XrdRootdProtocol(XrdProtocol_Config *pi,
 XrdProtocol *XrdRootdProtocol::Match(XrdLink *lp)
 {
      struct handshake
-           {long eight;
+           {int eight;
            } hsdata;
 
      char  *hsbuff = (char *)&hsdata;

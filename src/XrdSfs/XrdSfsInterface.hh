@@ -61,7 +61,7 @@
 typedef long long     XrdSfsFileOffset;
 typedef int           XrdSfsFileOpenMode;
 typedef int           XrdSfsMode;
-typedef long          XrdSfsXferSize;
+typedef int           XrdSfsXferSize;
 
 enum XrdSfsFileExistence 
 {

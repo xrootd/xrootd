@@ -46,7 +46,7 @@ XrdOucMutex    XrdOlbMeter::repMutex;
 XrdOucTList   *XrdOlbMeter::fs_list = 0;
 int            XrdOlbMeter::dsk_calc= 0;
 int            XrdOlbMeter::fs_nums = 0;
-long           XrdOlbMeter::MinFree = 0;
+int            XrdOlbMeter::MinFree = 0;
 long long      XrdOlbMeter::dsk_free= 0;
 long long      XrdOlbMeter::dsk_maxf= 0;
 
@@ -190,7 +190,7 @@ char *XrdOlbMeter::Report()
 //
    repMutex.Lock();
    maxfree = FreeSpace(totfree);
-   snprintf(ubuff, sizeof(ubuff), "%ld %ld %ld %ld %ld %ld %ld",
+   snprintf(ubuff, sizeof(ubuff), "%d %d %d %d %d %ld %ld",
             cpu_load, net_load, xeq_load, mem_load,
             pag_load, maxfree, totfree);
    repMutex.UnLock();
@@ -216,7 +216,7 @@ void *XrdOlbMeter::Run()
         {if (myMeter.Exec(monpgm) == 0)
              while((lp = myMeter.GetLine()))
                   {repMutex.Lock();
-                   i = sscanf(lp, "%ld %ld %ld %ld %ld",
+                   i = sscanf(lp, "%d %d %d %d %d",
                        &xeq_load, &cpu_load, &mem_load, &pag_load, &net_load);
                    rep_tod = time(0);
                    repMutex.UnLock();
@@ -234,7 +234,7 @@ void *XrdOlbMeter::Run()
 /*                              s e t P a r m s                               */
 /******************************************************************************/
 
-void  XrdOlbMeter::setParms(XrdOucTList *tlp, long mfr, int itv)
+void  XrdOlbMeter::setParms(XrdOucTList *tlp, int mfr, int itv)
 {
     XrdOucTList *nlp = tlp;
     fs_list = tlp; 

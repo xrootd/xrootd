@@ -1030,7 +1030,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
     const SMask_t smask_1 = 1;
     int tmp, i, j = -1, k = -1;
     char *hnp = lp->Name();
-    unsigned long ipaddr = lp->Addr();
+    unsigned int ipaddr = lp->Addr();
     XrdOlbServer *sp;
 
 // Find available ID for this server

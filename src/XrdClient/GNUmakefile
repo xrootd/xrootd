@@ -114,11 +114,11 @@ $(LIBRARY): $(OBJECTS)
 
 $(TESTBIN): $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
-	$(ECHO)$(LD) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 	@echo Creating executable $(XRDCP) 
-	$(ECHO)$(LD) $(OBJECTC) $(BINLIBS) $(LIBS) -o $(XRDCP)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(BINLIBS) $(LIBS) -o $(XRDCP)
 
 $(PERLMOD): $(OBJECTS) $(OBJECTC) $(OBJECTPERLMOD) $(LIBDEPS)
 	@echo Creating perl module library $(PERLMOD) 

@@ -41,7 +41,7 @@ int XrdNetDNS::getHostAddr(       char     *InetName,
    struct addrinfo   *rp, *np, *pnp=0;
    struct addrinfo    myhints = {AI_CANONNAME};
 #else
-   u_long addr;
+   unsigned int addr;
    struct hostent hent, *hp;
    char **p, hbuff[1024];
 #endif
@@ -186,7 +186,7 @@ int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
           XrdOucMutexHelper getHNhelper;
    struct sockaddr_in *ip = (sockaddr_in *)&InetAddr;
    struct hostent *hp;
-   unsigned long ipaddr;
+   unsigned int ipaddr;
    char *hname;
 #endif
 
@@ -397,14 +397,14 @@ int XrdNetDNS::Host2Dest(char            *hostname,
 /*                               H o s t 2 I P                                */
 /******************************************************************************/
   
-int XrdNetDNS::Host2IP(char *hname, unsigned long *ipaddr)
+int XrdNetDNS::Host2IP(char *hname, unsigned int *ipaddr)
 {
    struct sockaddr_in InetAddr;
 
 // Convert hostname to an ascii ip address
 //
    if (!getHostAddr(hname, (struct sockaddr &)InetAddr)) return 0;
-   if (ipaddr) memcpy(ipaddr, &InetAddr.sin_addr, sizeof(unsigned long));
+   if (ipaddr) memcpy(ipaddr, &InetAddr.sin_addr, sizeof(unsigned int));
    return 1;
 }
  
@@ -412,8 +412,8 @@ int XrdNetDNS::Host2IP(char *hname, unsigned long *ipaddr)
 /*                                I P A d d r                                 */
 /******************************************************************************/
   
-unsigned long XrdNetDNS::IPAddr(struct sockaddr *InetAddr)
-  {return (unsigned long)(((struct sockaddr_in *)InetAddr)->sin_addr.s_addr);}
+unsigned int XrdNetDNS::IPAddr(struct sockaddr *InetAddr)
+  {return (unsigned int)(((struct sockaddr_in *)InetAddr)->sin_addr.s_addr);}
 
 /******************************************************************************/
 /*                            i s L o o p b a c k                             */

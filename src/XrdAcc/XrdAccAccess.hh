@@ -83,15 +83,15 @@ friend class XrdAccConfig;
 
       void        Enable(const    char *user,
                          const    char *host,
-                         unsigned long  oid);
+                         unsigned int   oid);
 
       void       Disable(const    char *user,
                          const    char *host,
-                         unsigned long  oid);
+                         unsigned int   oid);
 
       int      isEnabled(const    char *user,
                          const    char *host,
-                         unsigned long  oid);
+                         unsigned int   oid);
 
 // SwapTabs() is used by the configuration object to establish new access
 // control tables. It may be called whenever the tables change.

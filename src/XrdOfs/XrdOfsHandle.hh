@@ -60,7 +60,7 @@ public:
 
 unsigned long       Hash() {return hash;}
 const char         *Name() {return name;}
-unsigned long       PHID() {return pathid;}
+unsigned int        PHID() {return pathid;}
 
 void                Lock() {mutex.Lock();}
 int             CondLock() {return mutex.CondLock();}
@@ -76,7 +76,7 @@ XrdOucDLlist<XrdOfsHandle> openList;
 
 unsigned long            hash;         // Hash value for the name
 const    char           *name;
-unsigned long          pathid;         // ID to uniquely distinguish handles
+unsigned int           pathid;         // ID to uniquely distinguish handles
 
 private:
 
@@ -105,7 +105,7 @@ XrdOfsHandle  *Attach(const char *path);
 
 void           Detach(const char *path);
 
-XrdOfsHandle  *Find(unsigned long a1, const char *a2)
+XrdOfsHandle  *Find(unsigned int a1, const char *a2)
                   {extern int XrdOfsHandle_Match(XrdOfsHandle *, void *);
                    return Apply(fullList, XrdOfsHandle_Match, a1, a2);
                   }
@@ -115,9 +115,9 @@ void           Hide(unsigned long a1, const char *a2)
                    Apply(fullList, XrdOfsHandle_Zap, a1, a2);
                   }
 
-unsigned long  Insert(XrdOfsHandle &);
+unsigned int   Insert(XrdOfsHandle &);
 
-     XrdOfsHandleAnchor(const char *type="???", unsigned long pid=0)
+     XrdOfsHandleAnchor(const char *type="???", unsigned int pid=0)
                  {name = type; hash = 0; IdleDeadline = 0; pathid = pid;}
     ~XrdOfsHandleAnchor() {}
 
@@ -156,7 +156,7 @@ int                 oflag;       // Open       flags
 int                 links;       // Number of users for this handle (see note)
 int                 activ;       // Number of active ops
 int                 ecode;       // INPROG error code, if any
-long                optod;       // TOD of last operation
+time_t              optod;       // TOD of last operation
 int                 cxrsz;       // Compression region size
 char                cxid[4];     // Compression Algorithm
 
@@ -180,7 +180,7 @@ void               UnLockAnchor() {anchor->UnLock();}
           XrdOfsHandle(unsigned long        hval,
                        const char          *oname,
                        int                  opn_mode,
-                       long                 opn_time,
+                       time_t               opn_time,
                        XrdOfsHandleAnchor  *origin,
                        XrdOssDF            *oossdf);
 

@@ -31,7 +31,7 @@ static long  FreeSpace(long &totfree);
 
 static int   numFS() {return fs_nums;}
 
-static void  setParms(XrdOucTList *tlp, long mfr, int itv);
+static void  setParms(XrdOucTList *tlp, int mfr, int itv);
 
        XrdOlbMeter(XrdOucError *errp);
       ~XrdOlbMeter();
@@ -43,7 +43,7 @@ static XrdOucMutex    repMutex;
 static XrdOucTList   *fs_list;
 static int            dsk_calc;
 static int            fs_nums;
-static long           MinFree;
+static int            MinFree;
 static long long      dsk_free;
 static long long      dsk_maxf;
 
@@ -54,10 +54,10 @@ char         *monpgm;
 int           monint;
 pthread_t     montid;
 
-unsigned long xeq_load;
-unsigned long cpu_load;
-unsigned long mem_load;
-unsigned long pag_load;
-unsigned long net_load;
+unsigned int  xeq_load;
+unsigned int  cpu_load;
+unsigned int  mem_load;
+unsigned int  pag_load;
+unsigned int  net_load;
 };
 #endif

@@ -411,7 +411,7 @@ int XrdSecProtocolsrvr::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
     char sectoken[4096], *secbuff = sectoken;
     int only = 0, anyprot = 0, noprot = 0;
     int sectlen = sizeof(sectoken)-1;
-    unsigned long PMask = 0;
+    unsigned int PMask = 0;
     *secbuff = '\0';
 
 // Get the template host
@@ -616,7 +616,7 @@ int XrdSecProtocolsrvr::add2token(XrdOucError &Eroute, char *pid,
 {
     int i;
     char *pargs, buff[1024];
-    unsigned long protnum;
+    unsigned int protnum;
 
 // Find the protocol argument string
 //

@@ -37,7 +37,7 @@ friend class XrdOlbManager;
 inline int   isServer(SMask_t smask) {return (smask & ServMask) != 0;}
 inline int   isServer(char *hn) 
                       {return Link && !strcmp(Link->Name(), hn);}
-inline int   isServer(unsigned long ipa)
+inline int   isServer(unsigned int ipa)
                       {return ipa == IPAddr;}
 inline char *Name()   {return (myName ? myName : (char *)"?");}
 inline void    Lock() {myMutex.Lock();}
@@ -92,7 +92,7 @@ static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
 XrdOucHash<char> *PendPaths;
 XrdOucMutex       myMutex;
 XrdNetLink       *Link;
-unsigned long     IPAddr;
+unsigned int      IPAddr;
 XrdOlbServer     *Next;
 time_t            DropTime;
 XrdOlbDrop       *DropJob;

@@ -96,19 +96,19 @@ virtual int         Audit(const int accok,
 //
 virtual void        Enable(const    char *user,
                            const    char *host,
-                           unsigned long  oid) = 0;
+                           unsigned int   oid) = 0;
 
 // Disable() undoes the Enable()for a user/host/object ID triple.
 //
 virtual void       Disable(const    char *user,
                            const    char *host,
-                           unsigned long  oid) = 0;
+                           unsigned int   oid) = 0;
 
 // isEnabled() check whether a user/host/object ID triple is enabled.
 //
 virtual int      isEnabled(const    char *user,
                            const    char *host,
-                           unsigned long  oid) = 0;
+                           unsigned int   oid) = 0;
 
 // Test() check whether the specified operation is permitted. If permitted it
 // returns a non-zero. Otherwise, zero is returned.

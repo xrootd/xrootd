@@ -59,7 +59,7 @@ int             STBlen;
 int             Enforce;
 int             implauth;
 
-int             add2token(XrdOucError &erp, char *, char **, int &, unsigned long &);
+int             add2token(XrdOucError &erp, char *, char **, int &, unsigned int &);
 int             ConfigFile(const char *cfn);
 int             ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute);
 int             ProtBind_Complete(XrdOucError &Eroute);
