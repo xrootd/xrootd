@@ -769,7 +769,7 @@ int XrdOlbManager::SelServer(int needrw, char *path,
        if (isalt)
           {XrdOlbCache.AddFile(path, sp->ServMask, needrw);
            sp->RefA++;
-           TRACE(Stage, "Server " <<hbuff <<" staging " <<path);
+           TRACE(Stage, "Server " <<hbuff <<" bound to " <<path);
            sp->DiskTota -= XrdOlbConfig.DiskAdj;
            if (((sp->DiskFree -= XrdOlbConfig.DiskAdj) < XrdOlbConfig.DiskMin)
            &&   sp->DiskAskdl <= time(0))

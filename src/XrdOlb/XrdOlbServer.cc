@@ -1021,10 +1021,10 @@ int XrdOlbServer::do_Select(char *rid, int reset)
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
    char *tp, *amode, ptc, hbuff[512];
-   int retc, needrw, resonly = 0;
+   int retc, needrw, resonly = 0, newfile = 0;
    SMask_t amask, smask, pmask;
 
-// Process: <id> select[s] {r | w | x] <path>
+// Process: <id> select[s] {c | r | w | x] <path>
 // Reponds: ?err  <msg>
 //          !try  <host>
 //          !wait <sec>
@@ -1036,6 +1036,7 @@ int XrdOlbServer::do_Select(char *rid, int reset)
    switch(*tp)
         {case 'r': needrw = 0; amode = (char *)"read";  break;
          case 'w': needrw = 1; amode = (char *)"write"; break;
+         case 'c': needrw = 1; amode = (char *)"write"; newfile = 1; break;
          case 'x': needrw = 0; amode = (char *)"read";  resonly = 1; break;
          default:  return 1;
         }
@@ -1072,7 +1073,7 @@ int XrdOlbServer::do_Select(char *rid, int reset)
 //
    pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
    if (resonly) smask = 0;
-      else smask = amask & pinfo.ssvec;   // Alternate selection
+      else smask = (newfile ? pinfo.rwvec : amask & pinfo.ssvec); // Alt selection
 
 // Select a server
 //

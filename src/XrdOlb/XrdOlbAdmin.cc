@@ -54,15 +54,12 @@ extern XrdOucError      XrdOlbSay;
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOlbLoginAdmin(void *carg)
       {XrdOlbAdmin *Admin = new XrdOlbAdmin();
        Admin->Login(*(int *)carg);
        delete Admin;
        return (void *)0;
       }
-}
  
 /******************************************************************************/
 /*                                 L o g i n                                  */
@@ -100,6 +97,7 @@ void XrdOlbAdmin::Login(int socknum)
          if ((tp = Stream.GetToken()))
             {     if (!strcmp("resume",   tp)) do_Resume();
              else if (!strcmp("rmdid",    tp)) do_RmDid();
+             else if (!strcmp("newfn",    tp)) do_RmDud();
              else if (!strcmp("suspend",  tp)) do_Suspend();
              else XrdOlbSay.Emsg(epname, "invalid admin request,", tp);
             }
@@ -332,12 +330,12 @@ void XrdOlbAdmin::do_RmDud(int dotrim)
    char *tp;
 
    if (!(tp = Stream.GetToken()))
-      {XrdOlbSay.Emsg(epname,"removed path not specified by",Stype,Sname);
+      {XrdOlbSay.Emsg(epname,"added path not specified by",Stype,Sname);
        return;
       }
 
    if (dotrim && XrdOlbConfig.LocalRLen && !(tp = TrimPath(tp)))
-      {XrdOlbSay.Emsg(epname, "removed path is null as specified by",
+      {XrdOlbSay.Emsg(epname, "added path is null as specified by",
                                   Stype,Sname);
        return;
       }
