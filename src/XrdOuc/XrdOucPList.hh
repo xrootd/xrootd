@@ -14,8 +14,6 @@
 
 #include <strings.h>
 #include <stdlib.h>
-
-#include "XrdOuc/XrdOucPthread.hh"
   
 class XrdOucPList
 {
@@ -53,49 +51,36 @@ class XrdOucPListAnchor : public XrdOucPList
 {
 public:
 
-inline void        Lock() {mutex.Lock();}
-inline void      UnLock() {mutex.UnLock();}
+inline void        Default(int x) {dflts = x;}
 
 inline void        Empty(XrdOucPList *newlist=0)
-                   {Lock();
-                    XrdOucPList *p = next;
+                   {XrdOucPList *p = next;
                     while(p) {next = p->next; delete p; p = next;}
                     next = newlist;
-                    UnLock();
                    }
 
 inline int         Find(const char *pathname)
                    {int plen = strlen(pathname); 
-                    Lock();
                     XrdOucPList *p = next;
                     while(p) {if (p->PathOK(pathname, plen)) break;
                               p=p->next;
                              }
-                    UnLock();
-                    return (p ? p->flags : 0);
+                    return (p ? p->flags : dflts);
                    }
 
 inline XrdOucPList *First() {return next;}
 
 inline void        Insert(XrdOucPList *newitem)
-                   {Lock();
-                    newitem->next = next; next = newitem; 
-                    UnLock();
+                   {newitem->next = next; next = newitem;
                    }
 
 inline int         NotEmpty() {return next != 0;}
 
-                   // Warning: You must manually lock the object before swap
-inline void        Swap(XrdOucPListAnchor &other)
-                       {XrdOucPList *savenext = next;
-                        next = other.First();
-                        other.Zorch(savenext);
-                       }
-
-inline void        Zorch(XrdOucPList *newnext=0) {next = newnext;}
+                   XrdOucPListAnchor() {dflts = 0;}
+                  ~XrdOucPListAnchor() {}
 
 private:
 
-XrdOucMutex         mutex;
+int                dflts;
 };
 #endif

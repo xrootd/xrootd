@@ -38,16 +38,16 @@ public:
 //
 int Feed(const char *data[], const int dlen[]);
 
-int Feed(const char *data, const int dlen)
+int Feed(const char *data, int dlen)
         {const char *myData[2] = {data, 0};
          const int   myDlen[2] = {dlen, 0};
          return Feed(myData, myDlen);
         }
 
-int Feed(const char *data) {return Feed(data, (const int)strlen(data));}
+int Feed(const char *data) {return Feed(data, (int)strlen(data));}
 
 // getStream() returns the stream created by Start(). Use the object to get
-// lines written by te started program.
+// lines written by the started program.
 //
 XrdOucStream *getStream() {return myStream;}
 
