@@ -255,20 +255,18 @@ int XrdLink::Close()
               }
    XrdLog.Emsg("Link",(const char *)ID, (char *)"disconnected after", sfxp);
 
-// Close the file descriptor if it isn't being shared
-//
-   if (FD >= 0)
-      {if (KeepFD) rc = 0;
-          else rc = (close(FD) < 0 ? errno : 0);
-       FD = -1;
-      }
-
 // Clean this link up, we don't need a lock now because no one is using it
 //
    if (Protocol) {Protocol->Recycle(); Protocol = 0;}
    if (ProtoAlt) {ProtoAlt->Recycle(); ProtoAlt = 0;}
    if (udpbuff)  {udpbuff->Recycle();  udpbuff  = 0;}
    InUse    = 0;
+
+// Close the file descriptor if it isn't being shared
+//
+   if (FD >= 0)
+      if (KeepFD) rc = 0;
+         else {fd = FD; FD = -1; rc = (close(fd) < 0 ? errno : 0);}
    if (rc) XrdLog.Emsg("Link", rc, "close", ID);
    return rc;
 }
