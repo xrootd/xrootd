@@ -40,6 +40,15 @@ all:
 	fi
 	@echo Make all done
 
+perlmodule:
+	@$(MAKE) $(XRDCLIENT) XrdClientPerl MAKEXEQ=perlmodule XMSG=Making XDBG=debug --no-print-directory
+	@if [ "x$(ARCHDIR)" != "x" ]; then \
+	    $(RM) -fr bin/arch_dbg lib/arch_dbg;\
+	    $(LN) -s ./$(ARCH)_dbg  bin/arch_dbg;\
+	    $(LN) -s ./$(ARCH)_dbg  lib/arch_dbg;\
+	fi
+	@echo Make perlmodule done
+
 clean: FORCE
 	@$(MAKE) $(TARGETS) MAKEXEQ=clean XMSG=Cleaning --no-print-directory
 	@if [ "x$(ARCHDIR)" != "x" ]; then \
@@ -72,6 +81,11 @@ XrdClient: FORCE
 	@echo $(XMSG) client $(XDBG) component...
 	@cd src/XrdClient;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdClientPerl: FORCE
+	@echo $(XMSG) admin client perl wrapper $(XDBG) component...
+	@cd src/XrdClient;\
+	$(MAKE) perlmod ARCH=$(ARCH) --no-print-directory
 
 XrdOdc: FORCE
 	@echo $(XMSG) odc $(XDBG) component...

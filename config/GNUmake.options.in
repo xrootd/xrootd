@@ -21,6 +21,23 @@ LDSO="$(TYPELDSO)" \
 LIBS="$(TYPELIBS)" \
 TYPE="$(TYPE)"
 
+perlmodule:
+	@/bin/mkdir -p $(BINDIR) $(LIBDIR) $(OBJDIR)
+	@$(MAKE) $(TYPE)perlmodule @dbgopt@ XrdDEBUG=@dbgflg@ --no-print-directory
+
+$(TYPE)perlmodule:
+	@$(MAKE) perlmod --no-print-directory \
+ARCH=$(ARCH) \
+CC="$(TYPECC)"    \
+CF64="$(TYPECF64)" \
+CF32="$(TYPECF32)" \
+CFOP="$(@buildopt@)" \
+LD="$(TYPELD)" \
+LDOP="$(TYPEOPT)" \
+LDSO="$(TYPELDSO)" \
+LIBS="$(TYPELIBS)" \
+TYPE="$(TYPE)"
+
 clean:
 	@$(MAKE) remove             --no-print-directory
 	@$(MAKE) remove DBGSFX=_dbg --no-print-directory
