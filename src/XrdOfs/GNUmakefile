@@ -61,6 +61,7 @@ SUNLDSO    = -KPIC -G
 SUNOPT     = -fast -xarch=v8plus
 SUNDBG     = -g
 SUNCFLAGS  = -DSUNCC $(SUN64) $(SUNMT) $(SUNCCT) $(SUNLDSO)
+SUNLDOP    =
 
 LNX64      = -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 LNXOPT     = -O3
@@ -68,6 +69,7 @@ LNXLDSO    = -fPIC -shared
 LNXDBG     = -g
 LNXCFLAGS  = -D__linux__ -D_ALL_SOURCE $(LNX64) $(LNXLDSO) -D_REENTRANT \
              -D_GNU_SOURCE -Wno-deprecated
+LNXLDOP    = -rdynamic
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -86,6 +88,7 @@ Linuxall:
 ARCH=$(ARCH) \
 CC=g++    \
 CFLAGS="$(LNXCFLAGS) $(LNXOPT)" \
+LFLAGS="$(LNXLDOP)" \
 XLIB="" \
 TYPE=Linux
 
@@ -94,6 +97,7 @@ Linuxdbg:
 ARCH=$(ARCH) \
 CC=g++   \
 CFLAGS="$(LNXCFLAGS) $(LNXDBG)" \
+LFLAGS="$(LNXLDOP)" \
 XLIB="" \
 TYPE=Linux
 
@@ -102,6 +106,7 @@ SunOSall:
 ARCH=$(ARCH) \
 CC=CC \
 CFLAGS="$(SUNCFLAGS) $(SUNOPT)" \
+LFLAGS="$(SUNLDOP)" \
 XLIB="-lCstd" \
 TYPE=SunOS
 
@@ -110,6 +115,7 @@ SunOSdbg:
 ARCH=$(ARCH) \
 CC=CC \
 CFLAGS="$(SUNCFLAGS) $(SUNDBG)" \
+LFLAGS="$(SUNLDOP)" \
 XLIB="-lCstd" \
 TYPE=SunOS
 

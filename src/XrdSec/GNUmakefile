@@ -71,6 +71,8 @@ SUNLDSO    = -KPIC -G
 SUNDBG     = -g
 SUNCFLAGS  = -DSUN $(SUN64) $(SUNMT) $(SUNCCT)
 
+SUNLFLAGS  =
+
 SUNLIBS    =  -lposix4 -lsocket -lnsl -lpthread -ldl
 
 LNX32      = -D__linux__ -D_ALL_SOURCE -D_REENTRANT -D_GNU_SOURCE
@@ -80,6 +82,7 @@ LNXLDSO    = -fPIC -shared
 LNXDBG     = -g
 LNXCFLAGS  = -D__linux__ -D_ALL_SOURCE $(LNX64) -D_REENTRANT -D_GNU_SOURCE \
              -Wno-deprecated
+LNXLFLAGS  = -rdynamic
 LNXLIBS    =  -lnsl -lpthread -lrt -ldl
 
 #------------------------------------------------------------------------------#
@@ -100,6 +103,7 @@ ARCH=$(ARCH) \
 CC=g++    \
 CF32="$(LNX32)" \
 CFLAGS="$(LNXCFLAGS) $(LNXOPT)" \
+LFLAGS="$(LNXLFLAGS)" \
 SFLAGS="$(LNXLDSO)" \
 LIBS="$(LNXLIBS)" \
 TYPE=Linux
@@ -110,6 +114,7 @@ ARCH=$(ARCH) \
 CC=g++    \
 CF32="$(LNX32) $(LNXDBG)" \
 CFLAGS="$(LNXCFLAGS) $(LNXDBG)" \
+LFLAGS="$(LNXLFLAGS)" \
 SFLAGS="$(LNXLDSO)" \
 LIBS="$(LNXLIBS)" \
 TYPE=Linux
@@ -120,6 +125,7 @@ ARCH=$(ARCH) \
 CC=CC \
 CF32="$(SUN32)" \
 CFLAGS="$(SUNCFLAGS) $(SUNOPT)" \
+LFLAGS="$(SUNLFLAGS)" \
 SFLAGS="$(SUNLDSO)" \
 LIBS="$(SUNLIBS)" \
 TYPE=SunOS
@@ -130,6 +136,7 @@ ARCH=$(ARCH) \
 CC=CC \
 CF32="$(SUN32) $(SUNDBG)" \
 CFLAGS="$(SUNCFLAGS)$(SUNDBG)" \
+LFLAGS="$(SUNLFLAGS)" \
 SFLAGS="$(SUNLDSO)" \
 LIBS="$(SUNLIBS)" \
 TYPE=SunOS
@@ -153,7 +160,7 @@ FORCE: ;
 
 $(LIBRARY): $(OBJSLIB) $(LIBDEPS)
 	@echo Creating shared library $(LIBRARY) ...
-	@$(CC) $(CFLAGS) $(OBJSLIB) $(LFLAGS) $(SFLAGS) $(LIBPATH) $(LIBS) -o $(LIBRARY)
+	@$(CC) $(CFLAGS) $(LFLAGS) $(OBJSLIB) $(LFLAGS) $(SFLAGS) $(LIBPATH) $(LIBS) -o $(LIBRARY)
 
 $(TSTBINA): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(TSTBINA) ...
