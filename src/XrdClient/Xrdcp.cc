@@ -143,7 +143,7 @@ int CreateDestPath_loc(XrdClientString path, bool isdir) {
 
 int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    // We need the path name without the file
-   bool res = -1;
+   bool res = -1, statok = FALSE;
    long id, size, flags, modtime;
 
    if (url == "-") return 0;
@@ -155,20 +155,18 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    if (adm->Connect()) {
       XrdClientUrlInfo u(url);
 
-      if ( adm->Stat((char *)u.File.c_str(), id, size, flags, modtime) ) {
+      statok = adm->Stat((char *)u.File.c_str(), id, size, flags, modtime);
 
 	 // If the path already exists, it's good
-	 if (flags & kXR_isDir) res = 0;
+	 if (statok && (flags & kXR_isDir)) res = 0;
 
-	 else if ( !(flags & kXR_xset) && !(flags & kXR_other) &&
+	 else if ( (!statok || (!(flags & kXR_xset) && !(flags & kXR_other))) &&
 		   ( adm->Mkdir(u.File.c_str(),
 				kXR_ur | kXR_uw,
 				kXR_gw | kXR_gr,
 				kXR_or) ) )
 	    res = 0;
 	 
-      }
-      else res = 0;
 
    }
 
