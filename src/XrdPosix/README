@@ -1,0 +1,61 @@
+The XrdPosix package allows you to use your standard POSIX I/O calls and either
+vector the I/O to local files or to xrootd served files. In order to use this
+package you must use the POSIX/Xrootd wrapper. While you need not change any
+filesystem calls, you must include "XrdPosix.hh" and recompile any code that
+uses *any* Unix filesystem calls (see the list below). Additionally, your code
+*must* be compiled for 64 bit file offsets, multi-threading enabled (even if
+you don't use threads), and linked with libXrdPosix.so. For example:
+
+Solaris:
+CC  <your cc files> -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_REENTRANT \
+                    -mt -L<libpath> -lXrdPosix -o <whatever>
+
+Linux:
+g++ <your cc files> -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_REENTRANT \
+                    -L<libpath> -lXrdPosix -o <whatever>
+
+This will: a) Use 64-bit file offsets,
+           b) Enable multithreading, and
+           d) Dynamically link shared library libXrdPosix.so.
+
+When you execute your program, you must set the environmental variable
+LD_LIBRARY_PATH to include the location of libXrdPosix.so and libXrdSec.so.
+
+Normally, all requests will be directed to the Unix filesystem. However, paths
+that are formed as: "root://<server:port>/<path>" or "xroot://<server:port>/<path>"
+will be vectored to the identified xrootd in the url.
+
+You need not use URL syntax (it may not be possible for some applications).
+There are two environmental variables that you can use that will dynamically
+construct the URL for you:
+
+XROOTDSERVER = <servername>:<port>
+XROOTDPATH   = <path1>[:<path2>[: . . . ] ]
+
+Any path whose prefix matches one of the paths in XROOTDPATH will cause the path
+to be converted to an xroot URL and then automatically vectored to xrootd.
+
+How does it work:
+
+The XrdPosix.hh file defines the standard POSIX system calls:
+
+int     close(int fildes);
+off_t   lseek(int fildes, off_t offset, int whence);
+int     fstatint fildes, struct stat *buf);
+int     fsync(int fildes);
+int     open(const char *path, int oflag, ...);
+ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset);
+ssize_t read(int fildes, void *buf, size_t nbyte);
+ssize_t readv(int fildes, const struct iovec *iov, int iovcnt);
+int     stat(const char *path, struct stat *buf);
+ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
+ssize_t write(int fildes, const void *buf, size_t nbyte);
+ssize_t writev(int fildes, const struct iovec *iov, int iovcnt);
+
+using the precompiler to syntactically substitute the corresponding XrdPosix
+function. The main purpose of each function is to select either the Unix version 
+of the function or the xrootd version of the function. The xrootd version of
+each function resides in libXrdPosix.so along with XrdClient code.
+
+Since XrdClient is multi-threaded, all of the Posix simulation methods are
+thread-safe. Therefore, you can use this package in a multi-threaded program.
