@@ -656,6 +656,11 @@ void XrdOlbManager::Remove_Server(const char *reason, int sent, int sinst)
    sp->DropTime = time(0)+XrdOlbConfig.DRPDelay;
    if (sp->DropJob) sp->DropJob->servInst = sinst;
       else sp->DropJob = new XrdOlbDrop(sent, sinst);
+
+// Do a partial drop at this point
+//
+   if (sp->Link) {sp->Link->Recycle(); sp->Link = 0;}
+   sp->isOffline = 1;
    STMutex.UnLock();
 
 // Document removal
@@ -1007,7 +1012,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdOucLink *lp, int port,
 // Check if server is already logged in or is a relogin
 //
    if (i < XrdOlbSTMAX)
-      if (ServTab[i])
+      if (ServTab[i] && !ServTab[i]->isOffline)
          {STMutex.UnLock();
           XrdOlbSay.Emsg("Manager", "Server", hnp, (char *)"already logged in.");
           return 0;
@@ -1137,8 +1142,7 @@ int XrdOlbManager::Drop_Server(int sent, int sinst)
 // Readjust STHi
 //
    if (sent == STHi) while(STHi >= 0 && !ServTab[STHi]) STHi--;
-   sp->Link->Recycle();
-   sp->Link = 0;
+   if (sp->Link) {sp->Link->Recycle(); sp->Link = 0;}
    STMutex.UnLock();
 
 // Document the drop
