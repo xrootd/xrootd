@@ -447,7 +447,7 @@ bool XrdClientConn::CheckResp(struct ServerResponseHeader *resp, const char *met
          if (resp->status != kXR_wait)
             Error(method, "Server [" <<
 		  fUrl.Host << ":" << fUrl.Port <<
-		  "] did not return OK message for"
+		  "] did not return OK message for" <<
 		  " last request.");
 
          return FALSE;
@@ -721,7 +721,7 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
 
 	    Info(XrdClientDebug::kHIDEBUG, "ReadPartialAnswer", 
 		  "Server [" <<
-		  fUrl.Host << ":" << fUrl.Port << "] did not answer OK."
+		  fUrl.Host << ":" << fUrl.Port << "] did not answer OK." <<
 		  " Resp status is [" << convertRespStatusToChar(Xmsg->fHdr.status) <<
 		  "]");
       }
