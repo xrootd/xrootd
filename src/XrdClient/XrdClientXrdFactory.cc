@@ -2,12 +2,11 @@
 //                                                                      //
 // XrdClientXrdFactory                                                  //
 //                                                                      //
-// Author: G. Ganis (CERN, 2005)                                        //
+// Author: F.Furano (INFN, 2005), G. Ganis (CERN, 2005)                 //
 //                                                                      //
 // XRD factory implementation                                           //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
-#include <string.h>
 
 #include "XrdClient/XrdClientXrdFactory.hh"
 #include "XrdClient/XrdClientXrdSock.hh"
@@ -15,6 +14,7 @@
 #include "XrdClient/XrdClientXrdMutex.hh"
 #include "XrdClient/XrdClientXrdCond.hh"
 #include "XrdClient/XrdClientXrdThread.hh"
+#include "XrdClient/XrdClientXrdSemaphore.hh"
 
 extern "C" {
 XrdClientFactory *XrdClientGetFactory()
@@ -69,9 +69,19 @@ XrdClientCondImp *XrdClientXrdFactory::CreateCondImp()
 }
 
 //______________________________________________________________________________
+XrdClientSemaphoreImp *XrdClientXrdFactory::CreateSemaphoreImp(int value)
+{
+   // Return an XRD Cond object
+
+   return new XrdClientXrdSemaphore(value);
+}
+
+//______________________________________________________________________________
 XrdClientThreadImp *XrdClientXrdFactory::CreateThreadImp()
 {
    // Return an XRD Thread object
 
    return new XrdClientXrdThread();
 }
+
+

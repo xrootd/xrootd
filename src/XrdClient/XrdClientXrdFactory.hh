@@ -2,7 +2,7 @@
 //                                                                      //
 // XrdClientXrdFactory                                                  //
 //                                                                      //
-// Author: G. Ganis (CERN, 2005)                                        //
+// Author: F.Furano (INFN, 2005), G. Ganis (CERN, 2005)                 //
 //                                                                      //
 // XRD factory implementation                                           //
 //                                                                      //
@@ -19,6 +19,7 @@ class XrdClientDNSImp;
 class XrdClientMutexImp;
 class XrdClientCondImp;
 class XrdClientThreadImp;
+class XrdClientSemaphoreImp;
 
 class XrdClientXrdFactory : public XrdClientFactory {
 
@@ -36,7 +37,7 @@ public:
    XrdClientMutexImp *CreateMutexImp();
    XrdClientCondImp *CreateCondImp();
    XrdClientThreadImp *CreateThreadImp();
-
+   XrdClientSemaphoreImp *CreateSemaphoreImp(int value);
 };
 
 #endif

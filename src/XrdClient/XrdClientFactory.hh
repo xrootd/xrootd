@@ -2,7 +2,7 @@
 //                                                                      //
 // XrdClientFactory                                                     //
 //                                                                      //
-// Author: G. Ganis (CERN, 2005)                                        //
+// Author: F.Furano (INFN, 2005), G. Ganis (CERN, 2005)                 //
 //                                                                      //
 // Factory for a few object types whose real implementations depend     //
 // on the environment                                                   //
@@ -13,12 +13,12 @@
 #define XRC_FACTORY_H
 
 class XrdClientUrlInfo;
-
 class XrdClientSockImp;
 class XrdClientDNSImp;
 class XrdClientMutexImp;
 class XrdClientCondImp;
 class XrdClientThreadImp;
+class XrdClientSemaphoreImp;
 
 class XrdClientFactory {
 public:
@@ -32,6 +32,7 @@ public:
    virtual XrdClientMutexImp *CreateMutexImp() = 0;
    virtual XrdClientCondImp *CreateCondImp() = 0;
    virtual XrdClientThreadImp *CreateThreadImp() = 0;
+   virtual XrdClientSemaphoreImp *CreateSemaphoreImp(int value) = 0;
 };
 
 extern "C" {
