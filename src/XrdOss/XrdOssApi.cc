@@ -102,7 +102,7 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 
 // Perform remote file initialization.
 //
-     if (retc = MSS_Init(0))
+     if ((retc = MSS_Init(0)))
         return OssEroute.Emsg("Init",retc,"Remote file initialization failed");
 
 // All done.
@@ -166,7 +166,7 @@ int XrdOssSys::Chmod(const char *path, mode_t mode)
 // Generate local path
 //
    if (LocalRootLen)
-      if (retc = GenLocalPath(path, actual_path)) return retc;
+      if ((retc = GenLocalPath(path, actual_path))) return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
 
@@ -198,7 +198,7 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode)
 // Generate local path
 //
    if (LocalRootLen)
-      if (retc = GenLocalPath(path, actual_path)) return retc;
+      if ((retc = GenLocalPath(path, actual_path))) return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
 
@@ -230,7 +230,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 // Generate local path
 //
    if (LocalRootLen)
-      if (retc = GenLocalPath(path, actual_path)) return retc;
+      if ((retc = GenLocalPath(path, actual_path))) return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
 
@@ -243,7 +243,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 // Generate remote path
 //
    if (RemoteRootLen)
-      if (retc = GenRemotePath(path, actual_path)) return retc;
+      if ((retc = GenRemotePath(path, actual_path))) return retc;
          else remote_path = actual_path;
       else remote_path = (char *)path;
 
@@ -310,7 +310,7 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // Return an error if this object is already open
 //
-   if (trfd) return -XRDOSS_E8001;
+   if (isopen) return -XRDOSS_E8001;
 
 // Get the processing flags for this directory
 //
@@ -320,7 +320,7 @@ int XrdOssDir::Opendir(const char *dir_path)
 // Generate local path
 //
    if (XrdOssSS.LocalRootLen)
-      if (retc = XrdOssSS.GenLocalPath(dir_path, actual_path)) return retc;
+      if ((retc = XrdOssSS.GenLocalPath(dir_path, actual_path))) return retc;
          else local_path = actual_path;
       else local_path = (char *)dir_path;
 
@@ -329,14 +329,14 @@ int XrdOssDir::Opendir(const char *dir_path)
    if (!isremote)
       {TRACE(Opendir, "lcl path " <<local_path <<" (" <<dir_path <<")");
        if (!(lclfd = opendir((char *)local_path))) return -errno;
-       trfd = (int)lclfd;
+       isopen = 1;
        return XrdOssOK;
       }
 
 // Generate remote path
 //
    if (XrdOssSS.RemoteRootLen)
-      if (retc = XrdOssSS.GenRemotePath(dir_path, actual_path)) return retc;
+      if ((retc = XrdOssSS.GenRemotePath(dir_path, actual_path))) return retc;
          else remote_path = actual_path;
       else remote_path = (char *)dir_path;
 
@@ -351,14 +351,14 @@ int XrdOssDir::Opendir(const char *dir_path)
        if (stat(local_path, &fstat)
        && (retc = XrdOssSS.MSS_Stat(remote_path, &fstat))) return retc;
        if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
-       trfd = -1;
+       isopen = -1;
        return XrdOssOK;
       }
 
 // This is a remote directory and we must read it. Perform remote open
 //
-   if ((fd = XrdOssSS.MSS_Opendir(remote_path)) < 0) return fd;
-   trfd = fd;
+   if (!(mssfd = XrdOssSS.MSS_Opendir(remote_path, retc))) return retc;
+   isopen = 1;
    return XrdOssOK;
 }
 
@@ -387,7 +387,7 @@ int XrdOssDir::Readdir(char *buff, int blen)
 
 // Check if this object is actually open
 //
-   if (!trfd) return -XRDOSS_E8002;
+   if (!isopen) return -XRDOSS_E8002;
 
 // Simulate the read operation, if need be.
 //
@@ -401,7 +401,7 @@ int XrdOssDir::Readdir(char *buff, int blen)
 //
    if (lclfd)
       {errno = 0;
-       if (rp = readdir(lclfd))
+       if ((rp = readdir(lclfd)))
           {strlcpy(buff, (const char *)rp->d_name, blen);
            return XrdOssOK;
           }
@@ -411,7 +411,7 @@ int XrdOssDir::Readdir(char *buff, int blen)
 
 // Perform a remote read
 //
-   return XrdOssSS.MSS_Readdir(fd, buff, blen);
+   return XrdOssSS.MSS_Readdir(mssfd, buff, blen);
 }
 
 /******************************************************************************/
@@ -431,17 +431,16 @@ int XrdOssDir::Close(void)
 
 // Make sure this object is open
 //
-    if (!trfd) return -XRDOSS_E8002;
+    if (!isopen) return -XRDOSS_E8002;
 
 // Close whichever handle is open
 //
     if (lclfd) {if (!(retc = closedir(lclfd))) lclfd = 0;}
-       else if (trfd > 0) { if (!(retc = XrdOssSS.MSS_Closedir(fd))) fd = -1;}
-               else {retc = 0; fd = -1;}
+       else if (mssfd) { if (!(retc = XrdOssSS.MSS_Closedir(mssfd))) mssfd = 0;}
+               else retc = 0;
 
 // Indicate whether or not we really closed this object
 //
-   if (!retc) trfd = 0;
    return retc;
 }
 
@@ -480,7 +479,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 // Generate local path
 //
    if (XrdOssSS.LocalRootLen)
-      if (retc = XrdOssSS.GenLocalPath(path, actual_path)) return retc;
+      if ((retc = XrdOssSS.GenLocalPath(path, actual_path))) return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
 
@@ -520,8 +519,6 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 */
 int XrdOssFile::Close(void) 
 {
-    int rc;
-
     if (fd < 0) return -XRDOSS_E8004;
     if (close(fd)) return -errno;
 #ifdef XRDOSSCX
@@ -544,10 +541,10 @@ int XrdOssFile::Close(void)
   Output:   Returns zero read upon success and -errno upon failure.
 */
 
-int    XrdOssFile::Read(off_t offset, size_t blen)
+size_t XrdOssFile::Read(off_t offset, size_t blen)
 {
 
-     if (fd < 0) return (int)-XRDOSS_E8004;
+     if (fd < 0) return (size_t)-XRDOSS_E8004;
 
      return 0;  // We haven't implemented this yet!
 }
@@ -750,9 +747,12 @@ int XrdOssFile::Ftruncate(unsigned long long flen) {
 int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
 {
     const char *epname = "Open_ufs";
-    int myfd, newfd, retc, attcx = 0;
+    int myfd, newfd, retc;
     char *ftype = (char *)" path=";
     XrdOssLock ufs_file;
+#ifdef XRDOSSCX
+    int attcx = 0;
+#endif
 
 // Obtain exclusive control over the directory.
 //

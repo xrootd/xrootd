@@ -35,6 +35,7 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucSocket.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -87,7 +88,7 @@ struct XrdOssHandle
 /*                               o p e n d i r                                */
 /******************************************************************************/
   
-int XrdOssSys::MSS_Opendir(char *dir_path) {
+void *XrdOssSys::MSS_Opendir(char *dir_path, int &rc) {
 /*
   Function: Open the directory `path' and prepare for reading.
 
@@ -98,7 +99,6 @@ int XrdOssSys::MSS_Opendir(char *dir_path) {
 */
      const char *epname = "MSS_Opendir";
      char cmdbuff[XrdOssMAX_PATH_LEN+32];
-     int retc;
      struct XrdOssHandle *oh;
      XrdOucStream *sp;
 
@@ -106,7 +106,8 @@ int XrdOssSys::MSS_Opendir(char *dir_path) {
      //
      if (strlen(dir_path) > XrdOssMAX_PATH_LEN)
         {OssEroute.Emsg(epname, "mss path too long - ", dir_path);
-         return -ENAMETOOLONG;
+         rc = -ENAMETOOLONG;
+         return (void *)0;
         }
 
      // Construct the command to get the contents of the directory.
@@ -116,19 +117,20 @@ int XrdOssSys::MSS_Opendir(char *dir_path) {
      // Issue it now to trap any errors but defer reading the result until
      // readdir() is called. This does tie up a process, sigh.
      //
-     if ( (retc = MSS_Xeq(cmdbuff, &sp, ENOENT)) ) return retc;
+     if ( (rc = MSS_Xeq(cmdbuff, &sp, ENOENT)) ) return (void *)0;
 
      // Allocate storage for the handle and return a copy of it.
      //
-     if (!(oh = new XrdOssHandle(XRDOSS_HT_DIR, sp))) {delete sp; return -ENOMEM;}
-     return (int)oh;
+     if (!(oh = new XrdOssHandle(XRDOSS_HT_DIR, sp))) 
+        {delete sp; rc = -ENOMEM; return (void *)0;}
+     return (void *)oh;
 }
 
 /******************************************************************************/
 /*                               r e a d d i r                                */
 /******************************************************************************/
 
-int XrdOssSys::MSS_Readdir(int dir_handle, char * buff, int blen) {
+int XrdOssSys::MSS_Readdir(void *dir_handle, char *buff, int blen) {
 /*
   Function: Read the next entry if directory 'dir_handle'.
 
@@ -155,15 +157,15 @@ int XrdOssSys::MSS_Readdir(int dir_handle, char * buff, int blen) {
     // Read a record from the directory, if possible.
     //
     if (oh->hflag & XRDOSS_HT_EOF) *buff = '\0';
-       else if (resp = oh->sp->GetLine())
-               {if ( (strlen(resp)) >= blen )
+       else if ((resp = oh->sp->GetLine()))
+               {if ( ((int)strlen(resp)) >= blen )
                    {*buff = '\0';
                     return OssEroute.Emsg("XrdOssMSS_Readdir", -EOVERFLOW,
                                             "readdir rmt", resp);
                    }
                    strlcpy(buff, (const char *)resp, blen);
                } else {
-                if (retc = oh->sp->LastError()) return NegVal(retc);
+                if ((retc = oh->sp->LastError())) return NegVal(retc);
                    else {*buff = '\0'; oh->hflag |= XRDOSS_HT_EOF;}
                }
     return XrdOssOK;
@@ -173,7 +175,7 @@ int XrdOssSys::MSS_Readdir(int dir_handle, char * buff, int blen) {
 /*                              c l o s e d i r                               */
 /******************************************************************************/
   
-int XrdOssSys::MSS_Closedir(int dir_handle) {
+int XrdOssSys::MSS_Closedir(void *dir_handle) {
 /*
   Function: Close the directory associated with handle "dir_handle".
 
@@ -209,7 +211,6 @@ int XrdOssSys::MSS_Create(char *path, mode_t file_mode, XrdOucEnv &env)
 {
     const char *epname = "MSS_Create";
     char cmdbuff[XrdOssMAX_PATH_LEN+32];
-    int retc;
 
     // Make sure the path is not too long.
     //
@@ -264,7 +265,7 @@ int XrdOssSys::MSS_Stat(char *path, struct stat *buff)
 
     // issue the command.
     //
-    if (retc = MSS_Xeq(cmdbuff, &sfd, ENOENT)) return retc;
+    if ((retc = MSS_Xeq(cmdbuff, &sfd, ENOENT))) return retc;
 
     // Read in the results.
     //
@@ -391,7 +392,7 @@ int XrdOssSys::MSS_Init(int Warm) {
   Output:   Zero is returned upon success; otherwise an error code is returned.
 */
    const char *epname = "MSS_Init";
-   int retc, child, NoGo = 0;
+   int retc, child;
    struct sockaddr_un USock;
 
 // Tell the world what we are doing (but only do it once)
@@ -402,7 +403,7 @@ int XrdOssSys::MSS_Init(int Warm) {
 // Make sure the socket path exists and is not too long.
 //
    retc = strlen(MSSgwPath);
-   if (!retc || retc > sizeof(USock.sun_path))
+   if (!retc || retc > (int)sizeof(USock.sun_path))
       {OssEroute.Emsg("XrdOssMSS_Init", "gatheway path unspecified or too long.");
        return -1;
       }
@@ -437,7 +438,7 @@ int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
 
     // Construct the command that we will use to execute the mss subroutine.
     //
-    if ( (cmd_len = MSSgwCmdLen + strlen(cmd) +2) > sizeof(mss_cmd))
+    if ( (cmd_len = MSSgwCmdLen + strlen(cmd) +2) > (int)sizeof(mss_cmd))
        return OssEroute.Emsg("XrdOssMSS_Xeq", -XRDOSS_E8013, "executing", cmd);
     sprintf(mss_cmd, "%s %s", MSSgwCmd, cmd);
 
@@ -490,10 +491,17 @@ void XrdOssSys::MSS_Gateway(void) {
      const char *epname = "MSS_Gateway";
      XrdOucStream IOStream(&OssEroute);
      XrdOucSocket IOSock(&OssEroute);
-     int InSock, pidstat;
+     int i, InSock, pidstat;
      char *request;
      pid_t parent = getppid();
      int   timeout = 1000*60*3; // Check for parent every 3 minutes
+
+// We execute in a separate process, so we need to do some things to not
+// interefere with the main process: Close low-end file descriptors and
+// unbind the logfile so that two processes are not trying to rotate it.
+//
+   for (i = 3; i < 64; i++) close(i);
+   OssEroute.logger()->setRotate(0);
 
 // Allocate a socket.
 //
@@ -510,7 +518,7 @@ void XrdOssSys::MSS_Gateway(void) {
 //
    while(1) {if ((InSock = IOSock.Accept(timeout)) >= 0)
                 {IOStream.Attach(InSock);
-                 if (request = IOStream.GetLine()) 
+                 if ((request = IOStream.GetLine()))
                     {DEBUG("received '" <<request <<"'");
                      IOStream.Exec(request,-1);
                     }

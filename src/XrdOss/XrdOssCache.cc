@@ -80,8 +80,10 @@ XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp, STATFS_t &fsbuff)
 /*            X r d O s s C a c h e _ F S   C o n s t r u c t o r             */
 /******************************************************************************/
   
-XrdOssCache_FS::XrdOssCache_FS(const char *fsg, const char *fsp, 
-                             const int inplace)
+XrdOssCache_FS::XrdOssCache_FS(int &retc,
+                               const char *fsg, 
+                                const char *fsp,
+                               const int inplace)
 {
    STATFS_t fsbuff;
    XrdOssCache_FSData *fdp;
@@ -92,11 +94,11 @@ XrdOssCache_FS::XrdOssCache_FS(const char *fsg, const char *fsp,
 //
    group  = strdup(fsg);
    path   = 0;
-   fsdata = (XrdOssCache_FSData *)ENOMEM;
+   retc   = ENOMEM;
 
 // Find the filesystem for this object
 //
-   if (FS_Stat(fsp, &fsbuff)) {fsdata = (XrdOssCache_FSData *)errno; return;}
+   if (FS_Stat(fsp, &fsbuff)) {retc = errno; return;}
 
 // If this is an in-place creation, then we must get the cache lock
 //
@@ -119,6 +121,7 @@ XrdOssCache_FS::XrdOssCache_FS(const char *fsg, const char *fsp,
 //
    path   = strdup(fsp);
    fsdata = fdp;
+   retc   = 0;
 
 // Link this filesystem into the filesystem chain
 //
@@ -141,7 +144,7 @@ XrdOssCache_FS::XrdOssCache_FS(const char *fsg, const char *fsp,
 // Check if this is the first group allocation
 //
    cgp = (inplace ? XrdOssSS.fsgroups : XrdOssSS.xsgroups);
-   while(cgp && strcmp(fsg, cgp->group)) cgp - cgp->next;
+   while(cgp && strcmp(fsg, cgp->group)) cgp = cgp->next;
    if (!cgp && (cgp = new XrdOssCache_Group(fsg, this)))
       if (inplace) {cgp->next = XrdOssSS.fsgroups; XrdOssSS.fsgroups = cgp;}
          else      {cgp->next = XrdOssSS.xsgroups; XrdOssSS.xsgroups = cgp;}
@@ -191,10 +194,10 @@ off_t  XrdOssSys::Adjust(dev_t devid, off_t size)
 void XrdOssSys::List_Cache(char *lname, int self, XrdOucError &Eroute)
 {
      XrdOssCache_FS *fsp;
-     char buff[4096]; int flags;
+     char buff[4096];
 
      CacheContext.Lock();
-     if (fsp = fsfirst) do
+     if ((fsp = fsfirst))do
         {if (self && !(self & fsp->fsdata->stat)) continue;
                 snprintf(buff, sizeof(buff), "%s %s %s",
                          lname, fsp->group, fsp->path);
@@ -259,7 +262,7 @@ void *XrdOssSys::CacheScan(void *carg)
   
 int XrdOssFind_Prty(XrdOssCache_Req *req, void *carg)
 {
-    int prty = (int)carg;
+    int prty = *(int *)carg;
     return (req->prty >= prty);
 }
   

@@ -74,7 +74,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
     const int LKFlags = XrdOssFILE|XrdOssSHR|XrdOssNOWAIT|XrdOssRETIME;
     char  local_path[XrdOssMAX_PATH_LEN+1];
     char remote_path[XrdOssMAX_PATH_LEN+1];
-    int popts, retc, slen, remotefs, datfd;
+    int popts, retc, remotefs, datfd;
     XrdOssLock path_dir, new_file;
 
 // Determine whether we can actually create a file on this server.
@@ -84,7 +84,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
 // Generate the actual local path for this file.
 //
    if (!remotefs) strcpy(local_path, path);
-      else if (retc=XrdOssSS.GenLocalPath(path, local_path)) return retc;
+      else if ((retc=XrdOssSS.GenLocalPath(path, local_path))) return retc;
 
 // If this is a staging filesystem then we have lots more work to do.
 //
@@ -92,7 +92,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
       {
       // Generate the remote path for this file
       //
-         if (retc=XrdOssSS.GenRemotePath(path,remote_path)) return retc;
+         if ((retc=XrdOssSS.GenRemotePath(path,remote_path))) return retc;
 
       // Gain exclusive control over the directory.
       //

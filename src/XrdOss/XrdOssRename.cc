@@ -157,7 +157,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 {
     struct stat statbuff;
     char oldlnk[PATH_MAX+1], newlnk[PATH_MAX+1], *nl, *np;
-    int i, lnklen, rc;
+    int i, lnklen, rc = 0;
 
 // Read the contents of the link
 //

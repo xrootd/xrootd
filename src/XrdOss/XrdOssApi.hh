@@ -37,14 +37,15 @@ int     Readdir(char *buff, int blen);
 
         // Constructor and destructor
         XrdOssDir(const char *tid) 
-                 {lclfd = 0; pflags = 0; ateof = 0; trfd = 0; tident = tid;}
-       ~XrdOssDir() {if (trfd) Close();}
+                 {lclfd=0; mssfd=0; pflags=ateof=isopen=0; tident=tid;}
+       ~XrdOssDir() {if (isopen > 0) Close(); isopen = 0;}
 private:
       DIR  *lclfd;
+      void *mssfd;
 const char *tident;
       int   pflags;
       int   ateof;
-      int   trfd;
+      int   isopen;
 };
   
 /******************************************************************************/
@@ -63,7 +64,7 @@ int     Fsync();
 int     Ftruncate(unsigned long long);
 int     isCompressed(char *cxidp=0);
 int     Open(const char *, int, mode_t, XrdOucEnv &);
-int     Read(               off_t, size_t);
+size_t  Read(               off_t, size_t);
 size_t  Read(       void *, off_t, size_t);
 size_t  ReadRaw(    void *, off_t, size_t);
 size_t  Write(const void *, off_t, size_t);
@@ -112,9 +113,9 @@ void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int resonly=0);
 int       Unlink(const char *);
    
-int       MSS_Opendir(char *);
-int       MSS_Readdir(int, char *buff, int blen);
-int       MSS_Closedir(int);
+void     *MSS_Opendir(char *, int &rc);
+int       MSS_Readdir(void *fd, char *buff, int blen);
+int       MSS_Closedir(void *);
 int       MSS_Create(char *path, mode_t, XrdOucEnv &);
 int       MSS_Stat(char *, struct stat *);
 int       MSS_Unlink(char *);
@@ -122,6 +123,7 @@ int       MSS_Rename(char *, char *);
 
 char     *ConfigFN;       // -> Pointer to the config file name
 int       Hard_FD_Limit;  //    Hard file descriptor limit
+int       MaxTwiddle;     //    Maximum seconds of internal wait
 char     *LocalRoot;      // -> Path prefix for local  filename
 int       LocalRootLen;   //    Corresponding length
 char     *RemoteRoot;     // -> Path prefix for remote filename
@@ -148,7 +150,7 @@ XrdOucPListAnchor RPList;    //    The remote path list
                     fsdata=0; fsfirst=0; fslast=0; fscurr=0; fsgroups=0;
                     xsdata=0; xsfirst=0; xslast=0; xscurr=0; xsgroups=0;
                     pndbytes=0; stgbytes=0; totbytes=0; totreqs=0; badreqs=0;
-                    CompSuffix = 0; CompSuflen = 0;
+                    CompSuffix = 0; CompSuflen = 0; MaxTwiddle = 3;
                     StageQ.pendList.setItem(0);
                     StageQ.fullList.setItem(0);
                     ConfigDefaults();

@@ -160,7 +160,7 @@ int XrdOssLock::Serialize(const char *fn, int lkwant)
 
 // Now lock the file and return the file descriptor.
 //
-    if (rc = XLock(lkwant))
+    if ((rc = XLock(lkwant)))
        {char *mp;
         close(lkfd); lkfd = -1;
         if (rc == EWOULDBLOCK) return -EWOULDBLOCK;
@@ -305,8 +305,8 @@ int XrdOssLock::Build_LKFN(char *buff, int blen, const char *fn, int ftype)
 // Verify that input filename is not too large.
 //
    i = strlen(fn);
-   if (i + (ftype & XrdOssFILE ? sizeof(XrdOssLKSUFFIX) : sizeof(XrdOssLKFNAME)+1)
-      > blen) 
+   if (i + (ftype & XrdOssFILE ? (int)sizeof(XrdOssLKSUFFIX) 
+                               : (int)sizeof(XrdOssLKFNAME)+1) > blen)
       return OssEroute.Emsg("XrdOssBuild_LKFN", -ENAMETOOLONG,
                               "generating lkfname", (char *)fn);
 

@@ -54,7 +54,7 @@ virtual int     Fsync()                                      {return -EISDIR;}
 virtual int     Ftruncate(unsigned long long)                {return -EISDIR;}
 virtual int     isCompressed(char *cxidp=0)                  {return -EISDIR;}
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EISDIR;}
-virtual int     Read(off_t, size_t)                          {return (size_t)-EISDIR;}
+virtual size_t  Read(off_t, size_t)                          {return (size_t)-EISDIR;}
 virtual size_t  Read(void *, off_t, size_t)                  {return (size_t)-EISDIR;}
 virtual size_t  ReadRaw(    void *, off_t, size_t)           {return (size_t)-EISDIR;}
 virtual size_t  Write(const void *, off_t, size_t)           {return (size_t)-EISDIR;}

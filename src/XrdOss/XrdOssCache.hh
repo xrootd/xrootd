@@ -124,7 +124,10 @@ const   char      *group;
 const   char      *path;
 XrdOssCache_FSData *fsdata;
 
-       XrdOssCache_FS(const char *fsg, const char *fsp, const int inplace=0);
+       XrdOssCache_FS(      int  &retc, // Yucky historical output value
+                      const char *fsg,
+                      const char *fsp, 
+                      const int inplace=0);
       ~XrdOssCache_FS() {if (group) free((void *)group);
                         if (path)  free((void *)path);
                        }

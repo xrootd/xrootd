@@ -164,7 +164,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 //
    {char buff[256]; int gwl;
     gwl = strlen(MSSgwPath);
-    if (gwl > sizeof(buff)-16)
+    if (gwl > (int)(sizeof(buff)-16))
        NoGo = Eroute.Emsg("config", ENAMETOOLONG, "excessive gateway path -",
                           MSSgwPath);
        else {sprintf(buff, "%s.%d", MSSgwPath, getpid());
@@ -256,7 +256,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
                                   "%s%s%s"
                                   "%s%s%s%s%s%s%s%s%s"
                                   "oss.trace        %x\n"
-                                  "oss.xfr          %d %d %d %d",
+                                  "oss.xfr          %d %ld %d %d",
              cloc,
              minalloc, ovhalloc, fuzalloc,
              cscanint,
@@ -341,7 +341,7 @@ void XrdOssSys::ConfigDefaults(void)
   
 int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 {
-  char *bp, *var;
+  char *var;
   int  cfgFD, retc, NoGo = XrdOssOK;
   XrdOucStream Config(&Eroute);
 
@@ -362,7 +362,7 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 
 // Now start reading records until eof.
 //
-   while( var = Config.GetFirstWord())
+   while((var = Config.GetFirstWord()))
         {if (!strncmp(var, XRDOSS_Prefix, XRDOSS_PrefLen))
             {var += XRDOSS_PrefLen;
              NoGo |= ConfigXeq(var, Config, Eroute);
@@ -385,7 +385,7 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 
 // Now check if any errors occured during file i/o
 //
-   if (retc = Config.LastError())
+   if ((retc = Config.LastError()))
       NoGo = Eroute.Emsg("config", retc, "reading config file", ConfigFN);
    Config.Close();
 
@@ -448,7 +448,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    do {if ((vlen = strlen(val)) >= blen)
           {Eroute.Emsg("config", "arguments too long for", var); return 1;}
        *bp = ' '; bp++; strcpy(bp, val); bp += vlen;
-       } while(val = Config.GetWord());
+       } while((val = Config.GetWord()));
 
     *bp = '\0'; val = buff+1;
 
@@ -495,11 +495,11 @@ int XrdOssSys::xalloc(XrdOucStream &Config, XrdOucError &Eroute)
     if (strcmp(val, "*") &&
         XrdOuca2x::a2sz(Eroute, "invalid alloc minfree", val, &mina, 0)) return 1;
 
-    if (val = Config.GetWord())
+    if ((val = Config.GetWord()))
        {if (strcmp(val, "*") &&
             XrdOuca2x::a2i(Eroute,"invalid alloc headroom",val,&hdrm,0,100)) return 1;
 
-        if (val = Config.GetWord())
+        if ((val = Config.GetWord()))
            {if (strcmp(val, "*") &&
             XrdOuca2x::a2i(Eroute, "invalid alloc fuzz", val, &fuzz, 0, 100)) return 1;
            }
@@ -543,7 +543,7 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
        {Eroute.Emsg("config", "cache path not specified"); return 1;}
 
     k = strlen(val);
-    if (k >= sizeof(fn)-1 || val[0] != '/' || k < 2)
+    if (k >= (int)(sizeof(fn)-1) || val[0] != '/' || k < 2)
        {Eroute.Emsg("config", "invalid cache path - ", val); return 1;}
 
     if (val[k-1] != '*')
@@ -560,7 +560,7 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
        {Eroute.Emsg("config", errno, "opening cache directory", fn); return 1;}
 
     errno = 0;
-    while(dp = readdir(DFD))
+    while((dp = readdir(DFD)))
          {if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")
           || (pfxln && strncmp(dp->d_name, (const char *)pfxdir, pfxln)))
              continue;
@@ -572,7 +572,7 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
           errno = 0;
          }
 
-    if (rc = errno)
+    if ((rc = errno))
        Eroute.Emsg("config", errno, "processing cache directory", fn);
        else if (!cnum) Eroute.Emsg("config","no cache directories found in ",val);
 
@@ -583,10 +583,11 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
 int XrdOssSys::xcacheBuild(char *grp, char *fn, XrdOucError &Eroute)
 {
     XrdOssCache_FS *fsp;
-    if (!(fsp = new XrdOssCache_FS((const char *)grp, (const char *)fn)))
+    int rc;
+    if (!(fsp = new XrdOssCache_FS(rc, (const char *)grp, (const char *)fn)))
        {Eroute.Emsg("config", ENOMEM, "creating cache", fn); return 0;}
-    if (!(fsp->path))
-       {Eroute.Emsg("config", (int)fsp->fsdata, "creating cache", fn);
+    if (rc)
+       {Eroute.Emsg("config", rc, "creating cache", fn);
         delete fsp;
         return 0;
        }
@@ -610,7 +611,6 @@ int XrdOssSys::xcacheBuild(char *grp, char *fn, XrdOucError &Eroute)
 int XrdOssSys::xcompdct(XrdOucStream &Config, XrdOucError &Eroute)
 {
     char *val;
-    XrdOssCache_FS *fsp;
 
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("config", "compdetect suffix not specified"); return 1;}
@@ -762,22 +762,21 @@ int XrdOssSys::xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute)
 int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute, int rpval)
 {
     char *val, *path;
-    struct Flist *fp;
-    static struct rpathopts { char * opname; int opval;} rpopts[] =
+    static struct rpathopts {const char *opname; int opval;} rpopts[] =
        {
-       (char *)"compchk",    XrdOssCOMPCHK,
-       (char *)"r/o",        XrdOssREADONLY,
-       (char *)"forcero",    XrdOssFORCERO,
-       (char *)"inplace",    XrdOssINPLACE,
-       (char *)"mig",        XrdOssREMOTE,
-       (char *)"migratable", XrdOssREMOTE,
-       (char *)"nostage",    XrdOssNOSTAGE|XrdOssREMOTE,
-       (char *)"nodread",    XrdOssNODREAD,
-       (char *)"nocheck",    XrdOssNOCHECK,
-       (char *)"pruned",     XrdOssPRUNED,
-       (char *)"rcreate",    XrdOssRCREATE|XrdOssREMOTE
+        {"compchk",    XrdOssCOMPCHK},
+        {"r/o",        XrdOssREADONLY},
+        {"forcero",    XrdOssFORCERO},
+        {"inplace",    XrdOssINPLACE},
+        {"mig",        XrdOssREMOTE},
+        {"migratable", XrdOssREMOTE},
+        {"nostage",    XrdOssNOSTAGE|XrdOssREMOTE},
+        {"nodread",    XrdOssNODREAD},
+        {"nocheck",    XrdOssNOCHECK},
+        {"pruned",     XrdOssPRUNED},
+        {"rcreate",    XrdOssRCREATE|XrdOssREMOTE}
        };
-    int i, pl;
+    int i;
     int numopts = sizeof(rpopts)/sizeof(struct rpathopts);
 
 // Get the remote path
@@ -823,12 +822,12 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute, int rpval)
 int XrdOssSys::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
 {
     char *val;
-    static struct traceopts { char * opname; int opval;} tropts[] =
+    static struct traceopts {const char *opname; int opval;} tropts[] =
        {
-       (char *)"all",      TRACE_ALL,
-       (char *)"debug",    TRACE_Debug,
-       (char *)"open",     TRACE_Open,
-       (char *)"opendir",  TRACE_Opendir
+        {"all",      TRACE_ALL},
+        {"debug",    TRACE_Debug},
+        {"open",     TRACE_Open},
+        {"opendir",  TRACE_Opendir}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
@@ -836,7 +835,7 @@ int XrdOssSys::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
        {Eroute.Emsg("config", "trace option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) trval = 0;
-             else {if (neg = (val[0] == '-' && val[1])) val++;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
                    for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, tropts[i].opname))
                            {if (neg) trval &= ~tropts[i].opval;
@@ -877,21 +876,21 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdOucError &Eroute)
     int       ovhd  = XrdOssXFROVHD;
     int       htime = XrdOssXFRHOLD;
 
-      if (!(val = Config.GetWord()))       // <threads>
+      if (!(val = Config.GetWord()))        // <threads>
          {Eroute.Emsg("config", "xfr threads not specified"); return 1;}
 
       if (strcmp(val, "*") && XrdOuca2x::a2i(Eroute,"invalid xfr threads",val,&thrds,1))
          return 1;
 
-      if (val = Config.GetWord())         // <speed>
+      if ((val = Config.GetWord()))         // <speed>
          {if (strcmp(val, "*") && 
               XrdOuca2x::a2sz(Eroute,"invalid xfr speed",val,&speed,1024)) return 1;
 
-          if (val = Config.GetWord())     // <ovhd>
+          if ((val = Config.GetWord()))     // <ovhd>
              {if (strcmp(val, "*") && 
                   XrdOuca2x::a2tm(Eroute,"invalid xfr overhead",val,&ovhd,0)) return 1;
 
-              if (val = Config.GetWord()) // <hold>
+              if ((val = Config.GetWord())) // <hold>
                  if (strcmp(val, "*") && 
                     XrdOuca2x::a2tm(Eroute,"invalid xfr hold",val,&htime,0)) return 1;
              }

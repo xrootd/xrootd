@@ -85,7 +85,7 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
 // doesn't exist or if the window has expired, delete the error element and
 // retry the request. This keeps us from getting into tight loops.
 //
-   if (oldreq = StageQ.fullList.Apply(XrdOssFind_Req, (void *)&req))
+   if ((oldreq = StageQ.fullList.Apply(XrdOssFind_Req, (void *)&req)))
       {if (!(oldreq->flags & XRDOSS_REQ_FAIL)) return CalcTime(oldreq);
        if (oldreq->sigtod > time(0) && HasFile(fn, XRDOSS_FAIL_FILE))
           return -XRDOSS_E8009;
@@ -95,7 +95,7 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
 // Generate remote path
 //
    if (RemoteRootLen)
-      if (rc = GenRemotePath(fn, actual_path)) return rc;
+      if ((rc = GenRemotePath(fn, actual_path))) return rc;
          else remote_path = actual_path;
       else remote_path = (char *)fn;
 
@@ -104,7 +104,7 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
 // is ok, it just means that we'll be off in our time estimate
 //
    CacheAccess.UnLock();
-   if (rc = MSS_Stat(remote_path, &statbuff)) return rc;
+   if ((rc = MSS_Stat(remote_path, &statbuff))) return rc;
    CacheAccess.Lock();
 
 // Create a new request
@@ -138,7 +138,7 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
 
 // Queue the request at the right position and signal an xfr thread
 //
-   if (oldreq = StageQ.pendList.Apply(XrdOssFind_Prty, (void *)prty))
+   if ((oldreq = StageQ.pendList.Apply(XrdOssFind_Prty, (void *)&prty)))
           oldreq->pendList.Insert(&newreq->pendList);
       else StageQ.pendList.Insert(&newreq->pendList);
    ReadyRequest.Post();
@@ -154,7 +154,6 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
   
 void *XrdOssSys::Stage_In(void *carg)
 {
-    const char *epname = "Stage_In";
     XrdOucDLlist<XrdOssCache_Req> *rnode;
     XrdOssCache_Req              *req;
     int rc, alldone = 0;
@@ -214,7 +213,7 @@ void *XrdOssSys::Stage_In(void *carg)
 
       // Check if we should continue or be terminated and unlock the cache
       //
-         if (alldone = (XrdOssSS.xfrthreads < XrdOssSS.xfrtcount)) 
+         if ((alldone = (XrdOssSS.xfrthreads < XrdOssSS.xfrtcount)))
             XrdOssSS.xfrtcount--;
          XrdOssSS.CacheContext.UnLock();
 
@@ -249,7 +248,7 @@ int XrdOssSys::CalcTime(XrdOssCache_Req *req) // CacheContext lock held!
 // Calculate the number of pending bytes being transfered plus 1/2 of the
 // current number of bytes being transfered
 //
-    while (rqp = (rqp->pendList.Next()->Item())) {tbytes += rqp->size; numq++;}
+    while ((rqp=(rqp->pendList.Next()->Item()))) {tbytes += rqp->size; numq++;}
 
 // Calculate when this request should be completed
 //
@@ -273,7 +272,7 @@ int XrdOssSys::GetFile(XrdOssCache_Req *req)
     char *arglist[4];
     extern char **environ;
     pid_t procid;
-    int i, retc;
+    int retc;
 #ifdef AIX
     union wait estat;
 #else
