@@ -75,7 +75,7 @@ typedef off_t offset_t;
 #if defined(__sparc) || __BYTE_ORDER==__BIG_ENDIAN
 
 #ifndef htonll
-#define ntohll _x_
+#define htonll _x_
 #endif
 #ifndef h2nll
 #define h2nll(_x_, _y_) memcpy((void *)&_y_,(const void *)&_x_,sizeof(long long))
