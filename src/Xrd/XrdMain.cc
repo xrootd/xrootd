@@ -166,7 +166,13 @@ int main(int argc, char *argv[])
         TRACE(DEBUG, "thread " << tid <<" assigned to user handler");
       }
 
-// All done with the initial thread
+// All done with the initial thread. However, in some versions of Linux, we
+// will be put into "stealth" mode if the main thread exits. In some versions
+// of Solaris, we will get signal handling anomolies unless the main thread
+// exits. So, we do the platform dependent thing here.
 //
+#ifdef __linux__
+   while(1) {sleep(1440*60);}
+#endif
    pthread_exit(0);
 }
