@@ -223,7 +223,8 @@ int XrdLink::Close()
 {   int fd, csec, rc = 0;
     char buff[256], ctbuff[24], *sfxp = ctbuff;
 
-// Multiple protocols may be bound to this link, figure it out here
+// Multiple protocols may be bound to this link. If it is in use, defer the
+// actual close until the use count drops to zero.
 //
    opMutex.Lock();
    InUse--;
@@ -233,18 +234,6 @@ int XrdLink::Close()
 // Add up the statistic for this link
 //
    syncStats(&csec);
-   opMutex.UnLock();
-
-// Remove ourselves from the poll table and then from the Link table
-//
-   fd = (FD < 0 ? -FD : FD);
-   if (FD != -1)
-      {if (Poller) {XrdPoll::Detach(this); Poller = 0;}
-       LTMutex.Lock();
-       LinkBat[fd] = XRDLINK_FREE;
-       if (fd == LTLast) while(LTLast-- && !(LinkBat[LTLast])) {};
-       LTMutex.UnLock();
-      }
 
 // Document this close
 //
@@ -255,18 +244,35 @@ int XrdLink::Close()
               }
    XrdLog.Emsg("Link",(const char *)ID, (char *)"disconnected after", sfxp);
 
-// Clean this link up, we don't need a lock now because no one is using it
+// Clean this link up
 //
    if (Protocol) {Protocol->Recycle(); Protocol = 0;}
    if (ProtoAlt) {ProtoAlt->Recycle(); ProtoAlt = 0;}
    if (udpbuff)  {udpbuff->Recycle();  udpbuff  = 0;}
    InUse    = 0;
 
-// Close the file descriptor if it isn't being shared
+// Remove ourselves from the poll table and then from the Link table. We may
+// not hold on to the opMutex when we acquire the LTMutex. However, the link
+// table needs to be cleaned up prior to actually closing the socket. So, we
+// do some fancy footwork to prevent multiple closes of this link.
 //
-   if (FD >= 0)
+   fd = (FD < 0 ? -FD : FD);
+   if (FD != -1)
+      {if (Poller) {XrdPoll::Detach(this); Poller = 0;}
+       FD = -1;
+       opMutex.UnLock();
+       LTMutex.Lock();
+       LinkBat[fd] = XRDLINK_FREE;
+       if (fd == LTLast) while(LTLast-- && !(LinkBat[LTLast])) {};
+       LTMutex.UnLock();
+      } else {FD = -1; opMutex.UnLock();}
+
+// Close the file descriptor if it isn't being shared. Do it as the last
+// thing because closes and accepts and not interlocked.
+//
+   if (fd >= 2)
       if (KeepFD) rc = 0;
-         else {fd = FD; FD = -1; rc = (close(fd) < 0 ? errno : 0);}
+         else rc = (close(fd) < 0 ? errno : 0);
    if (rc) XrdLog.Emsg("Link", rc, "close", ID);
    return rc;
 }
@@ -280,7 +286,7 @@ void XrdLink::DoIt()
    int rc;
 
 // The Process() return code tells us what to do:
-// < 0 -> Error, stop getting requests,  do not enable the link
+// < 0 -> Error, stop getting requests, disable close  the link
 // = 0 -> OK, get next request, if allowed, o/w enable the link
 // > 0 -> Slow link, stop getting requests  and enable the link
 //
@@ -290,6 +296,7 @@ void XrdLink::DoIt()
 // object may have been deleted upon return. Don't use any object data now.
 //
    if (rc >= 0) Enable();
+      else Close();
 }
 
 /******************************************************************************/
@@ -523,12 +530,13 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
 /*                              s e t E t e x t                               */
 /******************************************************************************/
 
-void XrdLink::setEtext(const char *text)
+int XrdLink::setEtext(const char *text)
 {
      opMutex.Lock();
      if (Etext) free(Etext);
      Etext = (text ? strdup(text) : 0);
      opMutex.UnLock();
+     return -1;
 }
   
 /******************************************************************************/
@@ -633,19 +641,23 @@ void XrdLink::setRef(int use)
 {
    opMutex.Lock();
    InUse += use;
-   if (InUse < 1)
-      {char *etp = (InUse < 0 ? (char *)"use count underflow" : 0);
-       InUse = 1;
-       opMutex.UnLock();
-       setEtext(etp);
-       Close();
-      }
-   if (InUse == 1 && doPost)
-      {doPost--;
-       IOSemaphore.Post();
-       TRACE(CONN, "setRef posted link fd " <<FD);
-      }
-   opMutex.UnLock();
+
+         if (!InUse)
+            {InUse = 1; opMutex.UnLock(); Close();}
+    else if (InUse == 1 && doPost)
+            {doPost--;
+             IOSemaphore.Post();
+             TRACE(CONN, "setRef posted link fd " <<FD);
+             opMutex.UnLock();
+            }
+    else if (InUse < 1)
+            {char *etp = (InUse < 0 ? (char *)"use count underflow" : 0);
+             InUse = 1;
+             opMutex.UnLock();
+             setEtext(etp);
+             Close();
+            }
+    else opMutex.UnLock();
 }
  
 /******************************************************************************/

@@ -58,7 +58,7 @@ int           FDnum() {return FD;}
 static XrdLink *fd2link(int fd)
                 {if (fd < 0) fd = -fd; return (LinkBat[fd] ? LinkTab[fd] : 0);}
 
-static XrdLink *fd2link(int fd, int inst)
+static XrdLink *fd2link(int fd, unsigned int inst)
                 {if (fd < 0) fd = -fd; 
                  if (LinkBat[fd] && LinkTab[fd] 
                  && LinkTab[fd]->Instance == inst) return LinkTab[fd];
@@ -87,7 +87,7 @@ int           Recv(char *buff, long blen, int timeout);
 int           Send(char *buff, long blen);
 int           Send(const struct iovec *iov, int iocnt, long bytes=0);
 
-void          setEtext(const char *text);
+int           setEtext(const char *text);
 
 void          setID(const char *userid, int procid);
 
