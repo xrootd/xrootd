@@ -211,6 +211,18 @@ CREATE TABLE IF NOT EXISTS topPerfSkims (
   pVolume    INT NOT NULL,
   timePeriod VARCHAR(8) # "hour", "month", "year"
 );
+# compressed info for top performers (top skims) webpage
+CREATE TABLE IF NOT EXISTS topPerfDataTypes (
+  skimName   VARCHAR(24),
+  nJobs      INT NOT NULL,
+  nFiles     INT NOT NULL,
+  nUsers     INT NOT NULL,
+  pJobs      INT NOT NULL,
+  pFiles     INT NOT NULL,
+  pUsers     INT NOT NULL,
+  pVolume    INT NOT NULL,
+  timePeriod VARCHAR(8) # "hour", "month", "year"
+);
 
 
 
