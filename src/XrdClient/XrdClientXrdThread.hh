@@ -21,7 +21,8 @@ class XrdClientXrdThread : public XrdClientThreadImp {
 
 private:
    pthread_t fThr;
-   
+   XrdClientThreadArgs fArg;
+
 public:
    VoidRtnFunc_t ThreadFunc;
 
@@ -37,7 +38,7 @@ public:
    };
 
    int  Run(void *arg, XrdClientThread *obj) {
-      XrdClientThreadArgs fArg;
+      
 
       fArg.arg = arg;
       fArg.threadobj = obj;
