@@ -12,7 +12,9 @@
 
 const char *XrdPollPollCVSID = "cvsid: $Id$";
 
+#ifndef __macos__
 #include <malloc.h>
+#endif
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -375,7 +377,9 @@ void XrdPollPoll::Start(XrdOucSemaphore *syncsem, int &retcode)
 
 void XrdPollPoll::doDetach(struct pollfd *dent)
 {
+#ifdef __CompPollTab__
    XrdLink   *lastlp;
+#endif
    int lastent;
 
 // Get some starting values

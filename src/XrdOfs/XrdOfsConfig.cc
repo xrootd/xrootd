@@ -31,6 +31,7 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
+#include <netinet/in.h>
 #include <sys/param.h>
 
 #include "XrdOfs/XrdOfs.hh"

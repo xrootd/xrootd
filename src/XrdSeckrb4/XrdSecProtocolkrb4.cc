@@ -118,7 +118,7 @@ int XrdSecProtocolkrb4::Init(XrdOucErrInfo *erp, char *p_args)
 // Now, extract the "Principal.instance@realm" from the stream
 //
    if (!p_args) 
-      return Fatal(erp, EPROTO, "krb4 service Principal name not specified.");
+      return Fatal(erp, EINVAL, "krb4 service Principal name not specified.");
    if (get_SIR(erp, p_args, sname, iname, rname) < 0) return -1;
    CLDBG("sname='" <<sname <<"' iname='" <<iname <<"' rname='" <<rname <<"'");
 
@@ -205,26 +205,26 @@ int XrdSecProtocolkrb4::get_SIR(XrdOucErrInfo *erp, const char *sh,
 
     k = strlen(sh);
     if (k > MAX_K_NAME_SZ) 
-       return Fatal(erp, EPROTO, "service name is to long -", sh);
+       return Fatal(erp, EINVAL, "service name is to long -", sh);
 
     for (j = 0; j < k && sh[j] != '@'; j++) {};
     if (j > k) j = k;
        else {if (j == k-1) 
-                return Fatal(erp,EPROTO,"realm name missing after '@' in",sh);
+                return Fatal(erp,EINVAL,"realm name missing after '@' in",sh);
              if (k-j > REALM_SZ) 
-                return Fatal(erp, EPROTO, "realm name is to long in",sh);
+                return Fatal(erp, EINVAL, "realm name is to long in",sh);
             }
 
     for (i = 0; i < j && sh[i] != '.'; i++) {};
     if (i < j) {if (j-i >= INST_SZ) 
-                   return Fatal(erp, EPROTO, "instance is too long in",sh);
+                   return Fatal(erp, EINVAL, "instance is too long in",sh);
                 if (i+1 == j) 
-                   return Fatal(erp,EPROTO,"instance name missing after '.' in",sh);
+                   return Fatal(erp,EINVAL,"instance name missing after '.' in",sh);
                }
 
     if (i == SNAME_SZ) 
-       return Fatal(erp, EPROTO, "service name is too long in", sh);
-    if (!i) return Fatal(erp, EPROTO, "service name not specified.");
+       return Fatal(erp, EINVAL, "service name is too long in", sh);
+    if (!i) return Fatal(erp, EINVAL, "service name not specified.");
 
     strncpy(sbuff, sh, i); sbuff[i] = '\0';
     if ( (h = j - i - 1) <= 0) ibuff[0] = '\0';
@@ -327,7 +327,7 @@ int XrdSecProtocolkrb4::Authenticate(XrdSecCredentials *cred,
        snprintf(emsg, sizeof(emsg),
                 "Authentication protocol id mismatch (%.4s != %.4s).",
                 XrdSecPROTOIDENT,  cred->buffer);
-       Fatal(error, EPROTO, (const char *)emsg);
+       Fatal(error, EINVAL, (const char *)emsg);
        return -1;
       }
 
@@ -437,7 +437,7 @@ XrdSecProtocol *XrdSecProtocolkrb4Object(XrdOucErrInfo *erp,
    if (strcmp(name, XrdSecPROTOIDENT))
       {sprintf(mbuff, "Seckrb4: Protocol name mismatch; %s != %.4s",
                       XrdSecPROTOIDENT, name);
-       if (erp) erp->setErrInfo(EPROTO, mbuff);
+       if (erp) erp->setErrInfo(EINVAL, mbuff);
           else cerr <<mbuff <<endl;
        return (XrdSecProtocol *)0;
       }
@@ -446,7 +446,7 @@ XrdSecProtocol *XrdSecProtocolkrb4Object(XrdOucErrInfo *erp,
 //
    if (parms) strlcpy(parmbuff, parms, sizeof(parmbuff));
       else {char *msg = (char *)"Seckrb4: Kerberos parameters not specified.";
-            if (erp) erp->setErrInfo(EPROTO, msg);
+            if (erp) erp->setErrInfo(EINVAL, msg);
                else cerr <<msg <<endl;
             return (XrdSecProtocol *)0;
            }
@@ -469,7 +469,7 @@ XrdSecProtocol *XrdSecProtocolkrb4Object(XrdOucErrInfo *erp,
 //
    if (!KPrincipal)
       {char *msg = (char *)"Seckrb4: Kerberos Principal not specified.";
-       if (erp) erp->setErrInfo(EPROTO, msg);
+       if (erp) erp->setErrInfo(EINVAL, msg);
           else cerr <<msg <<endl;
        return (XrdSecProtocol *)0;
       }

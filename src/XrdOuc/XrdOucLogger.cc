@@ -21,16 +21,16 @@ const char *XrdOucLoggerCVSID = "$Id$";
 #include <strings.h>
 #include <time.h>
 #include <sys/stat.h>
-#include <sys/stropts.h>
 #include <sys/termios.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#ifndef __macos__
+#include <stropts.h>
+#endif
 
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucTimer.hh"
-
-extern "C" {extern pthread_t XrdOucThread_ID(void);}
  
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -130,11 +130,7 @@ int XrdOucLogger::Time(char *tbuff)
    return snprintf(tbuff, 23, "%02d%02d%02d %02d:%02d:%02d %03d ",
                   tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
                   tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
-#ifdef __linux__
-                  (unsigned int)getpid());
-#else
-                  (unsigned int)XrdOucThread_ID());
-#endif
+                  XrdOucThread::Num());
 }
 
 /******************************************************************************/

@@ -12,8 +12,11 @@
 
 const char *XrdStatsCVSID = "$Id$";
 
+#ifndef __macos__
 #include <malloc.h>
+#endif
 #include <stdio.h>
+#include <sys/time.h>
 #include <sys/resource.h>
   
 #include "XrdVersion.hh"
@@ -22,6 +25,7 @@ const char *XrdStatsCVSID = "$Id$";
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdProtocol.hh"
 #include "Xrd/XrdStats.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
@@ -173,6 +177,7 @@ int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
           "<msgsnd>%ld</msgsnd><msgrcv>%ld</msgrcv>"
           "<nsignals>%ld</nsignals></stats>";
    struct rusage r_usage;
+   long utime_sec, utime_usec, stime_sec, stime_usec;
 
 // Check if actual length wanted
 //
@@ -182,11 +187,17 @@ int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 //
    if (getrusage(RUSAGE_SELF, &r_usage)) return 0;
 
+// Convert fields to correspond to the format we are using
+//
+   utime_sec  = static_cast<long>(r_usage.ru_utime.tv_sec);
+   utime_usec = static_cast<long>(r_usage.ru_utime.tv_usec);
+   stime_sec  = static_cast<long>(r_usage.ru_stime.tv_sec);
+   stime_usec = static_cast<long>(r_usage.ru_stime.tv_usec);
+
 // Format the statistics
 //
    return snprintf(bfr, bln, statfmt, myPid,
-          r_usage.ru_utime.tv_sec, r_usage.ru_utime.tv_usec,
-          r_usage.ru_stime.tv_sec, r_usage.ru_stime.tv_usec,
+          utime_sec, utime_usec, stime_sec, stime_usec,
           r_usage.ru_maxrss, r_usage.ru_majflt, r_usage.ru_nswap,
           r_usage.ru_inblock, r_usage.ru_oublock,
           r_usage.ru_msgsnd, r_usage.ru_msgrcv, r_usage.ru_nsignals);

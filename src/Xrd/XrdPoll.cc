@@ -18,6 +18,7 @@ const char *XrdPollCVSID = "$Id$";
 #include <stdlib.h>
   
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "Xrd/XrdLink.hh"
 #define  TRACELINK lp
@@ -52,7 +53,7 @@ struct XrdPollArg
         int            retcode;
         XrdOucSemaphore PollSync;
 
-        XrdPollArg() : PollSync(0) {}
+        XrdPollArg() : PollSync(0, "poll sync") {}
        ~XrdPollArg()               {}
        };
 
@@ -75,7 +76,8 @@ XrdPoll::XrdPoll()
 {
    int fildes[2];
 
-   TID=numAttached=numEnabled=numEvents=numInterrupts=0;
+   TID=0;
+   numAttached=numEnabled=numEvents=numInterrupts=0;
 
    if (pipe(fildes) == 0)
       {CmdFD = fildes[1]; fcntl(CmdFD, F_SETFD, FD_CLOEXEC);
@@ -235,9 +237,9 @@ int XrdPoll::Setup(int numfd)
         PArg.Poller = Pollers[i];
         PArg.retcode= 0;
         TRACE(POLL, "Starting poller " <<i);
-        if ((retc=XrdOucThread_Sys(&tid,XrdStartPolling,(void *)&PArg)))
+        if ((retc = XrdOucThread::Run(&tid,XrdStartPolling,(void *)&PArg,
+                                      XRDOUCTHREAD_BIND, "Poller")))
            {XrdLog.Emsg("Poll", retc, "create poller thread"); return 0;}
-        TRACE(POLL, "thread " << tid <<" assigned to poller " <<i);
         Pollers[i]->TID = tid;
         PArg.PollSync.Wait();
         if (PArg.retcode)

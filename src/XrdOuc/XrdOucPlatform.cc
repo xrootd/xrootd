@@ -38,10 +38,10 @@ unsigned long long Swap_n2hll(unsigned long long x)
 #ifndef HAS_STRLCPY
 extern "C"
 {
-int strlcpy(char *dst, const char *src, size_t sz)
+size_t strlcpy(char *dst, const char *src, size_t sz)
 {
-    int slen = strlen(src);
-    int tlen =sz-1;
+    size_t slen = strlen(src);
+    size_t tlen =sz-1;
 
     if (slen <= tlen) strcpy(dst, src);
        else if (tlen > 0) {strncpy(dst, src, tlen); dst[tlen] = '\0';}

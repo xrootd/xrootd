@@ -12,6 +12,8 @@
 
 const char *XrdOlbSchedulerCVSID = "$Id$";
   
+#include <sys/types.h>
+
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
@@ -29,8 +31,6 @@ extern XrdOucError   XrdOlbSay;
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOlbStartWorking(void *carg)
       {XrdOlbWorker *wp = (XrdOlbWorker *)carg;
        return wp->WorkIt(0);
@@ -41,7 +41,6 @@ void *XrdOlbStartTSched(void *carg)
        sp->TimeSched();
        return (void *)0;
       }
-}
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -49,7 +48,6 @@ void *XrdOlbStartTSched(void *carg)
   
 XrdOlbScheduler::XrdOlbScheduler(XrdOlbWorker *WFunc)
 {
-   EPNAME("Scheduler")
     int retc;
     pthread_t tid;
 
@@ -61,9 +59,9 @@ XrdOlbScheduler::XrdOlbScheduler(XrdOlbWorker *WFunc)
 
 // Start a time based scheduler
 //
-   if ((retc = XrdOucThread_Run(&tid, XrdOlbStartTSched, (void *)this)))
+   if ((retc = XrdOucThread::Run(&tid, XrdOlbStartTSched, (void *)this,
+                                 0, "Time scheduler")))
       XrdOlbSay.Emsg("Scheduler", retc, "create time scheduler thread");
-      else DEBUG("thread " << tid <<" assigned to time schedeuler");
 }
  
 /******************************************************************************/
@@ -213,9 +211,10 @@ void XrdOlbScheduler::hireWorker()
 
 // Start a new thread
 //
-   if ((retc = XrdOucThread_Run(&tid, XrdOlbStartWorking, (void *)Worker)))
+   if ((retc = XrdOucThread::Run(&tid, XrdOlbStartWorking, (void *)Worker,
+                                 0, "Worker")))
       XrdOlbSay.Emsg("Scheduler", retc, "create worker thread");
       else {num_Workers++;
-            DEBUG("started worker thread; tid=" <<(unsigned int)tid <<"; num=" <<num_Workers);
+            DEBUG("Now have " <<num_Workers <<" workers");
            }
 }

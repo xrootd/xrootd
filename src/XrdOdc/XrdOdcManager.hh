@@ -12,6 +12,7 @@
   
 //          $Id$
 
+#include <stdio.h>
 #include <sys/uio.h>
 
 #include "XrdOuc/XrdOucPthread.hh"

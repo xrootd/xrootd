@@ -172,7 +172,7 @@ const char *XrdSfsNativeDirectory::nextEntry()
 // Lock the direcrtory and do any required tracing
 //
    if (!dh) 
-      {XrdSfsNative::Emsg(epname,error,EBADFD,"read directory",fname);
+      {XrdSfsNative::Emsg(epname,error,EBADF,"read directory",fname);
        return (const char *)0;
       }
 
@@ -360,7 +360,7 @@ XrdSfsXferSize XrdSfsNativeFile::read(XrdSfsFileOffset  offset,    // In
 
 // Read the actual number of bytes
 //
-   do { nbytes = pread(oh, (void *)buff, (size_t)blen, (off64_t)offset); }
+   do { nbytes = pread(oh, (void *)buff, (size_t)blen, (off_t)offset); }
         while(nbytes < 0 && errno == EINTR);
 
    if (nbytes  < 0)
@@ -430,7 +430,7 @@ XrdSfsXferSize XrdSfsNativeFile::write(XrdSfsFileOffset   offset,    // In
 
 // Write the requested bytes
 //
-   do { nbytes = pwrite(oh, (void *)buff, (size_t)blen, (off64_t)offset); }
+   do { nbytes = pwrite(oh, (void *)buff, (size_t)blen, (off_t)offset); }
         while(nbytes < 0 && errno == EINTR);
 
    if (nbytes  < 0)

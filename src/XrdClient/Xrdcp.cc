@@ -40,7 +40,7 @@ struct XrdCpInfo {
 // The body of a thread which reads from the global
 //  XrdClient and keeps the queue filled
 //____________________________________________________________________________
-extern "C" void *ReaderThread_xrd(void *)
+void *ReaderThread_xrd(void *)
 {
 
    Info(XrdClientDebug::kHIDEBUG,
@@ -90,7 +90,7 @@ extern "C" void *ReaderThread_xrd(void *)
 // The body of a thread which reads from the global filehandle
 //  and keeps the queue filled
 //____________________________________________________________________________
-extern "C" void *ReaderThread_loc(void *) {
+void *ReaderThread_loc(void *) {
 
    Info(XrdClientDebug::kHIDEBUG,
 	"ReaderThread_loc",
@@ -207,7 +207,7 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
       }
       
       // Start reader on xrdc
-      XrdOucThread_Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
+      XrdOucThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
 
       int len = 1;
       void *buf;
@@ -285,7 +285,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	 f = STDOUT_FILENO;
 
       // Start reader on xrdc
-      XrdOucThread_Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
+      XrdOucThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
 
       int len = 1;
       void *buf;
@@ -352,7 +352,7 @@ int doCp_loc2xrd(const char *src, const char * dst) {
    }
       
    // Start reader on loc
-   XrdOucThread_Run(&myTID, ReaderThread_loc, (void *)&cpnfo);
+   XrdOucThread::Run(&myTID, ReaderThread_loc, (void *)&cpnfo);
 
    int len = 1;
    void *buf;
@@ -423,7 +423,6 @@ int main(int argc, char**argv) {
 
    XrdCpWorkLst *wklst = new XrdCpWorkLst();
    XrdClientString src, dest;
-
    
    if (wklst->SetSrc(srcpath)) {
       Error("xrdcp", "Error accessing path/file for " << srcpath);

@@ -122,11 +122,8 @@ XrdOucMutex XrdOfsOpen_RW;
 
 // Functions that manage idle file handles
 //
-extern "C"
-{
 void         *XrdOfsIdleScan(void *);
 void          XrdOfsIdleCheck(XrdOfsHandleAnchor &);
-}
 int           XrdOfsIdleXeq(XrdOfsHandle *, void *);
 
 /******************************************************************************/
@@ -230,7 +227,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 // Start a thread to periodically scan for idle file handles
 //
-   if ((retc = XrdOucThread_Run(&tid, XrdOfsIdleScan, (void *)0)))
+   if ((retc = XrdOucThread::Run(&tid, XrdOfsIdleScan, (void *)0)))
       OfsEroute.Emsg("XrdOfsinit", retc, "create idle scan thread");
 
 // All done, we can return the callout vector to these routines.
@@ -381,7 +378,7 @@ int XrdOfsDirectory::close()
 
 // Check if this directory is actually open
 //
-   if (!dp) {XrdOfsFS.Emsg(epname, error, EBADFD, "close directory");
+   if (!dp) {XrdOfsFS.Emsg(epname, error, EBADF, "close directory");
              return SFS_ERROR;
             }
    XTRACE(closedir, fname, "");
@@ -462,7 +459,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Set the actual open mode
 //
-   odc_mode = (open_mode & SFS_O_RESET ? O_SYNC : 0);
+   odc_mode = (open_mode & SFS_O_RESET ? O_EXCL : 0);
    if (open_mode & SFS_O_CREAT) open_mode = SFS_O_CREAT;
       else if (open_mode & SFS_O_TRUNC) open_mode = SFS_O_TRUNC;
 
@@ -526,7 +523,7 @@ int XrdOfsFile::open(const char          *path,      // In
            mp->UnLock();
            oh->Lock();  // links > 1 -> handle cannot be deleted; hp is valid
            if (oh->flags & OFS_INPROG)
-              {retc = (oh->ecode ? oh->ecode : -EPROTO);
+              {retc = (oh->ecode ? oh->ecode : -ENOMSG);
                XrdOfsFS.Close(oh); oh = 0;
                if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
                return XrdOfsFS.Emsg(epname, error, retc, "attach", path);
@@ -670,7 +667,7 @@ int            XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 
 // Now preread the actual number of bytes
 //
-   retc   = oh->Select().Read((off64_t)offset, (size_t)blen);
+   retc   = oh->Select().Read((off_t)offset, (size_t)blen);
    RELEASE(oh);
    if (retc < 0)
       return XrdOfsFS.Emsg(epname, error, (int)retc, "preread", oh->Name());
@@ -723,9 +720,9 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 //
    nbytes = (dorawio ?
             (XrdSfsXferSize)(oh->Select().ReadRaw((void *)buff,
-                            (off64_t)offset, (size_t)blen))
+                            (off_t)offset, (size_t)blen))
           : (XrdSfsXferSize)(oh->Select().Read((void *)buff,
-                            (off64_t)offset, (size_t)blen)));
+                            (off_t)offset, (size_t)blen)));
    RELEASE(oh);
    if (nbytes < 0)
       return XrdOfsFS.Emsg(epname, error, (int)nbytes, "read", oh->Name());
@@ -806,7 +803,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 // Write the requested bytes
 //
    nbytes = (XrdSfsXferSize)(oh->Select().Write((const void *)buff,
-                            (off64_t)offset, (size_t)blen));
+                            (off_t)offset, (size_t)blen));
    RELEASE(oh);
    if (nbytes < 0)
       return XrdOfsFS.Emsg(epname, error, (int)nbytes, "write", oh->Name());
@@ -1472,7 +1469,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Now try to find the file or directory
 //
    if (!(retc = XrdOssSS.Stat(path, &buf, 1))) mode = buf.st_mode;
-      else if (ENOCSI != retc) return XrdOfsFS.Emsg(epname, einfo, retc, 
+      else if (ENOMSG != retc) return XrdOfsFS.Emsg(epname, einfo, retc,
                                                     "locate", path);
    return SFS_OK;
 }
@@ -1703,8 +1700,6 @@ char *XrdOfs::WaitTime(int stime, char *buff, int blen)
 /*                        X r d O f s I d l e S c a n                         */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOfsIdleScan(void *noargs)
 {
    EPNAME("IdleScan")
@@ -1750,14 +1745,11 @@ void *XrdOfsIdleScan(void *noargs)
 //
    return (void *)0;
 }
-}
 
 /******************************************************************************/
 /*                       X r d O f s I d l e C h e c k                        */
 /******************************************************************************/
 
-extern "C"
-{
 void XrdOfsIdleCheck(XrdOfsHandleAnchor &anchor)
 {
    struct timeval tod;
@@ -1779,7 +1771,6 @@ void XrdOfsIdleCheck(XrdOfsHandleAnchor &anchor)
          if (NextTime > XrdOfsFS.FDMinIdle) anchor.IdleDeadline=NextTime+tod.tv_sec;
             else anchor.IdleDeadline = XrdOfsFS.FDMinIdle+tod.tv_sec;
         }
-}
 }
   
 /******************************************************************************/

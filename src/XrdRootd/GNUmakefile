@@ -21,7 +21,7 @@ SOURCES = \
 OBJECTS = \
         $(OBJDIR)/XrdRootdProtocol.o
 
-LIBRARY = $(LIBDIR)/libXrdRootd.so
+LIBRARY = $(LIBDIR)/libXrdRootd.$(TYPESHLIB)
 
 TARGETS = $(LIBRARY)
 

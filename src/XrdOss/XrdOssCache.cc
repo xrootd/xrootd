@@ -170,7 +170,7 @@ off_t  XrdOssSys::Adjust(dev_t devid, off_t size)
 // Search for matching filesystem
 //
    fsdp = fsdata;
-   while(fsdp && fsdp->fsid != devid) fsdp = fsdp->next;
+   while(fsdp && fsdp->fsid != (u_long)devid) fsdp = fsdp->next;
 
 // Process the result
 //

@@ -13,12 +13,14 @@
 const char *XrdXrootdMonitorCVSID = "$Id$";
 
 #include <errno.h>
-#include <malloc.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#ifndef __macos__
+#include <malloc.h>
+#endif
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"

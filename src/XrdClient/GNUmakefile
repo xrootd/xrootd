@@ -115,6 +115,7 @@ $(LIBRARY): $(OBJECTS)
 	$(CC) -xar -o $(LIBRARY) $(OBJECTS); \
 else \
 	ar -rc $(LIBRARY) $(OBJECTS); \
+	ranlib $(LIBRARY); \
 fi
 
 $(TESTBIN): $(OBJECTS) $(OBJECTB) $(LIBDEPS)

@@ -14,12 +14,15 @@ const char *XrdBufferCVSID = "$Id$";
 
 #include <time.h>
 #include <unistd.h>
+#ifndef __macos__
 #include <malloc.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucTimer.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdTrace.hh"
@@ -28,14 +31,11 @@ const char *XrdBufferCVSID = "$Id$";
 /*                     E x t e r n a l   L i n k a g e s                      */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdReshaper(void *pp)
 {
      XrdBuffManager *bmp = (XrdBuffManager *)pp;
      bmp->Reshape();
      return (void *)0;
-}
 }
 
 /******************************************************************************/
@@ -59,7 +59,7 @@ XrdBuffManager::XrdBuffManager(int minrst) :
                    shift(XRD_BUSHIFT),
                    pagsz(getpagesize()),
                    maxsz(1<<(XRD_BUSHIFT+XRD_BUCKETS-1)),
-                   Reshaper(0)
+                   Reshaper(0, "buff reshaper")
 {
    pthread_t tid;
    int rc;
@@ -70,16 +70,21 @@ XrdBuffManager::XrdBuffManager(int minrst) :
    totreq   = 0;
    totalo   = 0;
    totadj   = 0;
-   maxalo   = ((long long)pagsz)/8*((long long)sysconf(_SC_PHYS_PAGES));
+#ifdef _SC_PHYS_PAGES
+   maxalo   = static_cast<long long>(pagsz)/8
+              * static_cast<long long>(sysconf(_SC_PHYS_PAGES));
+#else
+   maxalo = 0x7ffffff;
+#endif
    rsinprog = 0;
    minrsw   = minrst;
    memset((void *)bucket, 0, sizeof(bucket));
 
 // Start the reshaper thread
 //
-   if ((rc = XrdOucThread_Run(&tid, XrdReshaper, (void *)this)))
+   if ((rc = XrdOucThread::Run(&tid, XrdReshaper, (void *)this, 0,
+                          "Buffer Manager reshaper")))
       XrdLog.Emsg("BuffManager", rc, "create reshaper thread");
-      else {TRACE(MEM, "Buffer Manager reshaper running in thread " <<tid);}
 }
 
 /******************************************************************************/

@@ -72,8 +72,6 @@ XrdAccConfig XrdAccConfiguration;
 /*                  o o a c c _ C o n f i g _ R e f r e s h                   */
 /******************************************************************************/
 
-extern "C"
-{
 void *XrdAccConfig_Refresh( void *start_data )
 {
    XrdOucError *Eroute = (XrdOucError *)start_data;
@@ -87,7 +85,6 @@ void *XrdAccConfig_Refresh( void *start_data )
    while(1)
         {nanosleep(&naptime, 0); XrdAccConfiguration.ConfigDB(1, *Eroute);}
    return (void *)0;
-}
 }
 
 /******************************************************************************/
@@ -138,7 +135,7 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 // Start a refresh thread unless this was a refresh thread call
 //
    if (Cold && !NoGo)
-      {if ((retc=XrdOucThread_Run(&reftid,XrdAccConfig_Refresh,(void *)&Eroute)))
+      {if ((retc=XrdOucThread::Run(&reftid,XrdAccConfig_Refresh,(void *)&Eroute)))
           Eroute.Emsg("ConfigDB",retc,"start refresh thread.");
       }
 

@@ -238,7 +238,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 //
    if (!stat(local_path, buff)) return XrdOssOK;
    if (!IsRemote(path)) return -errno;
-   if (resonly) return -ENOCSI;
+   if (resonly) return -ENOMSG;
 
 // Generate remote path
 //

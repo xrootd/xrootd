@@ -15,6 +15,7 @@
 #include "XProtocol/XProtocol.hh"
 #include <strings.h>
 #include "XrdOuc/XrdOucPlatform.hh"
+#include <sys/types.h>
 #include <netinet/in.h> // needed to use htonl/htons byte swap functions
 #include <string.h> // proto for memcpy (wanted by Solaris compiler)
 #include <stdio.h>

@@ -135,14 +135,14 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *p_args)
 //
    if (!p_args)
       {krbContext.UnLock();
-       return Fatal(erp, EPROTO, "krb5 service principal name not specified.");
+       return Fatal(erp, EINVAL, "krb5 service principal name not specified.");
       }
 
 // Now, extract the "principal/instance@realm" from the stream
 //
    if ((rc = krb5_parse_name(krb_context,(const char *)p_args,&krb_principal)))
      {krbContext.UnLock();
-      return Fatal(erp,EPROTO,"Cannot parse service name",krb_etxt(rc));
+      return Fatal(erp,EINVAL,"Cannot parse service name",krb_etxt(rc));
      }
 
 // Establish the correct principal to use
@@ -150,7 +150,7 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *p_args)
    if ((rc = krb5_unparse_name(krb_context,(krb5_const_principal)krb_principal,
                               (char **)&Principal)))
       {krbContext.UnLock();
-       return Fatal(erp, EPROTO,"Unable to unparse principal;",krb_etxt(rc));
+       return Fatal(erp, EINVAL,"Unable to unparse principal;",krb_etxt(rc));
       }
    CLDBG("sname=" <<Principal);
 
@@ -311,7 +311,7 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
        snprintf(emsg, sizeof(emsg),
                 "Authentication protocol id mismatch (%.4s != %.4s).",
                 XrdSecPROTOIDENT,  cred->buffer);
-       Fatal(error, EPROTO, emsg);
+       Fatal(error, EINVAL, emsg);
        return -1;
       }
 
@@ -464,7 +464,7 @@ XrdSecProtocol *XrdSecProtocolkrb5Object(XrdOucErrInfo *erp,
    if (strcmp(name, XrdSecPROTOIDENT))
       {sprintf(mbuff,"Seckrb5: Protocol name mismatch; %s != %.4s",
                XrdSecPROTOIDENT,name);
-       if (erp) erp->setErrInfo(EPROTO, mbuff);
+       if (erp) erp->setErrInfo(EINVAL, mbuff);
           else cerr <<mbuff <<endl;
        return (XrdSecProtocol *)0;
       }
@@ -473,7 +473,7 @@ XrdSecProtocol *XrdSecProtocolkrb5Object(XrdOucErrInfo *erp,
 //
    if (parms) strlcpy(parmbuff, parms, sizeof(parmbuff));
       else {char *msg = (char *)"Seckrb5: Kerberos parameters not specified.";
-            if (erp) erp->setErrInfo(EPROTO, msg);
+            if (erp) erp->setErrInfo(EINVAL, msg);
                else cerr <<msg <<endl;
             return (XrdSecProtocol *)0;
            }
@@ -496,7 +496,7 @@ XrdSecProtocol *XrdSecProtocolkrb5Object(XrdOucErrInfo *erp,
 //
    if (!KPrincipal)
       {char *msg = (char *)"Seckrb5: Kerberos principal not specified.";
-       if (erp) erp->setErrInfo(EPROTO, msg);
+       if (erp) erp->setErrInfo(EINVAL, msg);
           else cerr <<msg <<endl;
        return (XrdSecProtocol *)0;
       }

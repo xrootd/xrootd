@@ -24,7 +24,9 @@ const char *XrdProtocolCVSID = "$Id$";
 #endif
 
 #include <dlfcn.h>
+#ifndef __macos__
 #include <link.h>
+#endif
 
 #include "XrdOuc/XrdOucError.hh"
 #include "Xrd/XrdLink.hh"

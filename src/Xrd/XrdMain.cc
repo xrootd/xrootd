@@ -79,57 +79,45 @@ Where:
 
        XrdOucError        XrdLog(&XrdLogger, "Xrd");
 
+       XrdOucThread      *XrdThread;
+
        XrdOucTrace        XrdTrace(&XrdLog);
 
 /******************************************************************************/
 /*                             m a i n A d m i n                              */
 /******************************************************************************/
   
-extern "C"
-{
 void *mainAdmin(void *parg)
 {
    XrdLink *newlink;
 // static XrdProtocol_Admin  ProtAdmin;
    long ProtAdmin;
-#ifndef NODEBUG
-   char *TraceID = (char *)"Admin";
-#endif
 
 // At this point we should be able to accept new connections
 //
    while(1) if ((newlink = XrdNetADM->Accept()))
-               {TRACEI(CONN, "admin connection accepted");
-                newlink->setProtocol((XrdProtocol *)&ProtAdmin);
+               {newlink->setProtocol((XrdProtocol *)&ProtAdmin);
                 XrdSched.Schedule((XrdJob *)newlink);
                }
    return (void *)0;
-}
 }
 
 /******************************************************************************/
 /*                              m a i n U s e r                               */
 /******************************************************************************/
   
-extern "C"
-{
 void *mainUser(void *parg)
 {
    XrdLink *newlink;
    static XrdProtocol_Select ProtSelect;
-#ifndef NODEBUG
-   char *TraceID = (char *)"User";
-#endif
 
 // At this point we should be able to accept new connections
 //
    while(1) if ((newlink = XrdNetTCP->Accept()))
-               {TRACEI(CONN, "connection accepted");
-                newlink->setProtocol((XrdProtocol *)&ProtSelect);
+               {newlink->setProtocol((XrdProtocol *)&ProtSelect);
                 XrdSched.Schedule((XrdJob *)newlink);
                }
    return (void *)0;
-}
 }
 
 /******************************************************************************/
@@ -138,14 +126,12 @@ void *mainUser(void *parg)
   
 int main(int argc, char *argv[])
 {
-#ifndef NODEBUG
-   char *TraceID = (char *)"Main";
-#endif
 
 // Turn off sigpipe before we start any threads
 //
-   sigignore(SIGPIPE);
-   sigignore(SIGUSR2);
+   signal(SIGPIPE, SIG_IGN);
+   sighold(SIGUSR1);
+   sighold(SIGUSR2);
    sighold(SIGCHLD);
 
 // Process configuration file
@@ -157,18 +143,18 @@ int main(int argc, char *argv[])
    if (XrdNetADM)
       {pthread_t tid;
        int retc;
-        if ((retc = XrdOucThread_Sys(&tid,mainAdmin,(void *)0)))
-           {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
-        TRACE(DEBUG, "thread " << tid <<" assigned to admin handler");
+       if ((retc = XrdOucThread::Run(&tid, mainAdmin, (void *)0,
+                                     XRDOUCTHREAD_BIND, "Admin handler")))
+          {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
       }
 
 // Start the user thread (a foible w.r.t. Solaris unbound threads)
 //
       {pthread_t tid;
        int retc;
-        if ((retc = XrdOucThread_Sys(&tid,mainUser,(void *)0)))
-           {XrdLog.Emsg("main", retc, "create user thread"); _exit(3);}
-        TRACE(DEBUG, "thread " << tid <<" assigned to user handler");
+       if ((retc = XrdOucThread::Run(&tid, mainUser,(void *)0,
+                                     XRDOUCTHREAD_BIND, "User handler")))
+          {XrdLog.Emsg("main", retc, "create user thread"); _exit(3);}
       }
 
 // All done with the initial thread. However, in some versions of Linux, we
@@ -177,7 +163,7 @@ int main(int argc, char *argv[])
 // exits. So, we do the platform dependent thing here.
 //
 #ifdef __linux__
-   while(1) {sleep(1440*60);}
+   while(1) {sleep(1440*999);}
 #endif
    pthread_exit(0);
 }

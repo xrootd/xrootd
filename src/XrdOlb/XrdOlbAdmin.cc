@@ -175,7 +175,7 @@ void *XrdOlbAdmin::Start(XrdNetSocket *AdminSock)
 // Accept connections in an endless loop
 //
    while(1) if ((InSock = AdminSock->Accept()) >= 0)
-               {if (XrdOucThread_Run(&tid,XrdOlbLoginAdmin,(void *)&InSock))
+               {if (XrdOucThread::Run(&tid,XrdOlbLoginAdmin,(void *)&InSock))
                    {XrdOlbSay.Emsg(epname, errno, "start admin");
                     close(InSock);
                    }

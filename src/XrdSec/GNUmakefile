@@ -34,12 +34,13 @@ OBJECTB = \
 
 OBJECTS = $(OBJSLIB) $(OBJECTA) $(OBJECTB)
 
-LIBRARY = $(LIBDIR)/libXrdSec.so
+LIBRARY = $(LIBDIR)/libXrdSec.$(TYPESHLIB)
+LIBARCH = $(LIBDIR)/libXrdSec.a
 
 TSTBINA = $(BINDIR)/testclient
 TSTBINB = $(BINDIR)/testserver
 
-TARGETS = $(LIBRARY) $(TSTBINA) $(TSTBINB)
+TARGETS = $(LIBARCH) $(LIBRARY) $(TSTBINA) $(TSTBINB)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
@@ -60,17 +61,28 @@ anything: $(TARGETS)
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
 
+$(LIBARCH): $(OBJSLIB)
+	@echo Creating archive $(LIBARCH) 
+	$(ECHO)rm -f $(LIBARCH)
+	$(ECHO)ar -rc $(LIBARCH) $(OBJSLIB)
+	$(ECHO)ranlib $(LIBARCH)
+	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
+	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	      ar -rc $(LIBARCH) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+	   fi;\
+	fi
+
 $(LIBRARY): $(OBJSLIB) $(LIBDEPS)
 	@echo Creating shared library $(LIBRARY) 
 	$(ECHO)$(CC) $(OBJSLIB) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
 
 $(TSTBINA): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(TSTBINA) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTA) $(BINLIBS) $(MORELIBS) -lXrdSec $(LIBS) -o $(TSTBINA)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTA) $(BINLIBS) $(MORELIBS) -lXrdSec -lXrdOuc $(LIBS) -o $(TSTBINA)
 
 $(TSTBINB): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TSTBINB) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(MORELIBS) -lXrdSec $(LIBS) -o $(TSTBINB)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(MORELIBS) -lXrdSec -lXrdOuc $(LIBS) -o $(TSTBINB)
 
 $(OBJDIR)/XrdSecClient.o: XrdOucPthread.hh XrdSecPManager.hh XrdSecInterface.hh \
                           XrdOucErrInfo.hh XrdSecClient.cc

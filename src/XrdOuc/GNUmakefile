@@ -75,6 +75,7 @@ $(TARGETS): $(OBJECTS)
 	$(CC) -xar -o $(LIBRARY) $(OBJECTS); \
 	else \
 	ar -rc $(LIBRARY) $(OBJECTS); \
+	ranlib $(LIBRARY); \
 fi
 
 $(OBJDIR)/XrdOuca2x.o: XrdOuca2x.cc XrdOuca2x.hh XrdOucError.hh
@@ -112,7 +113,7 @@ $(OBJDIR)/XrdOucProg.o: XrdOucProg.cc  XrdOucProg.hh \
 	@echo Compiling XrdOucProg.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucProg.cc -o $(OBJDIR)/XrdOucProg.o
 
-$(OBJDIR)/XrdOucPthread.o: XrdOucPthread.cc XrdOucPthread.hh 
+$(OBJDIR)/XrdOucPthread.o: XrdOucPthread.cc XrdOucPthread.hh XrdOucError.hh
 	@echo Compiling XrdOucPthread.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucPthread.cc -o $(OBJDIR)/XrdOucPthread.o
 

@@ -65,8 +65,6 @@ class XrdSchedulerPID
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdStartReaper(void *carg)
       {XrdScheduler *sp = (XrdScheduler *)carg;
        sp->Reaper();
@@ -84,14 +82,14 @@ void *XrdStartWorking(void *carg)
        sp->Run();
        return (void *)0;
       }
-}
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
 XrdScheduler::XrdScheduler(int minw, int maxw, int avlw, int maxi)
-               : XrdJob("underused thread monitor")
+              : XrdJob("underused thread monitor"),
+                WorkAvail(0, "sched work")
 {
     int retc;
     pthread_t tid;
@@ -114,9 +112,9 @@ XrdScheduler::XrdScheduler(int minw, int maxw, int avlw, int maxi)
 
 // Start a time based scheduler
 //
-   if ((retc = XrdOucThread_Sys(&tid, XrdStartTSched, (void *)this)))
+   if ((retc = XrdOucThread::Run(&tid, XrdStartTSched, (void *)this,
+                                 XRDOUCTHREAD_BIND, "Time scheduler")))
       XrdLog.Emsg("Scheduler", retc, "create time scheduler thread");
-      else TRACE(SCHED, "thread " << tid <<" assigned to time schedeuler");
 
 // If we an idle interval, schedule the idle check
 //
@@ -223,10 +221,11 @@ pid_t XrdScheduler::Fork(const char *id)
 // Start the reaper thread if it has not started.
 //
    if (!retc)
-      if ((retc = XrdOucThread_Run(&tid, XrdStartReaper, (void *)this)))
+      if ((retc = XrdOucThread::Run(&tid, XrdStartReaper, (void *)this,
+                                    0, "Process reaper")))
          {XrdLog.Emsg("Scheduler", retc, "create reaper thread");
           ReaperStarted = 0;
-         } else TRACE(SCHED, "thread " << tid <<" assigned to reaper");
+         }
 
    return pid;
 }
@@ -555,11 +554,12 @@ void XrdScheduler::hireWorker()  // Called with SchedMutex locked!
 
 // Start a new thread
 //
-   if ((retc = XrdOucThread_Run(&tid, XrdStartWorking, (void *)this)))
+   if ((retc = XrdOucThread::Run(&tid, XrdStartWorking, (void *)this,
+                                 0, "Worker")))
       XrdLog.Emsg("Scheduler", retc, "create worker thread");
       else {num_Workers++;
             num_TCreate++;
-            TRACE(SCHED, "new worker; tid=" <<tid <<"; num=" <<num_Workers);
+            TRACE(SCHED, "Now have " <<num_Workers <<" workers" );
            }
 }
  

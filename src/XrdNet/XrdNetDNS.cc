@@ -22,9 +22,11 @@ const char *XrdNetDNSCVSID = "$Id$";
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <iostream.h>
 
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdOuc/XrdOucPthread.hh"
   
 /******************************************************************************/
 /*                           g e t H o s t A d d r                            */
@@ -169,31 +171,50 @@ int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
    char mybuff[256];
    int i, rc;
 
-#ifdef HAS_NAMEINFO
+// Some platforms have nameinfo but getnameinfo() is broken. If so, we revert
+// to using the gethostbyaddr().
+//
+#if defined(HAS_NAMEINFO) && !defined(__macos__)
     struct addrinfo   *rp, *np;
     struct addrinfo    myhints = {AI_CANONNAME};
-#else
+#elif defined(HAS_GETHBYXR)
    struct sockaddr_in *ip = (sockaddr_in *)&InetAddr;
    struct hostent hent, *hp;
    char *hname, hbuff[1024];
+#else
+   static XrdOucMutex getHN;
+          XrdOucMutexHelper getHNhelper;
+   struct sockaddr_in *ip = (sockaddr_in *)&InetAddr;
+   struct hostent *hp;
+   unsigned long ipaddr;
+   char *hname;
 #endif
 
 // Make sure we can return something
 //
    if (maxipn < 1) return (errtxt ? setET(errtxt, EINVAL) : 0);
 
-#ifndef HAS_NAMEINFO
+#if !defined(HAS_NAMEINFO) || defined(__macos__)
 
 // Convert it to a host name
 //
    rc = 0;
+#ifdef HAS_GETHBYXR
 #ifdef __sun
    gethostbyaddr_r((const char *)&(ip->sin_addr), sizeof(struct in_addr),
                    AF_INET, &hent, hbuff, sizeof(hbuff),      &rc);
+   hp = &hent;
 #else
    gethostbyaddr_r((const char *)&(ip->sin_addr), sizeof(struct in_addr),
                    AF_INET, &hent, hbuff, sizeof(hbuff), &hp, &rc);
 #endif
+#else
+   memcpy(&ipaddr, &ip->sin_addr, sizeof(ipaddr));
+   getHNhelper.Lock(&getHN);
+   if (!(hp=gethostbyaddr((const char *)&ipaddr, sizeof(InetAddr), AF_INET)))
+      rc = (h_errno ? h_errno : EINVAL);
+#endif
+
    if (rc)
       {hname = (char *)inet_ntop(ip->sin_family,
                                  (const void *)(&ip->sin_addr),
@@ -205,11 +226,11 @@ int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
 
 // Return first result
 //
-   InetName[0] = LowCase(strdup(hent.h_name));
+   InetName[0] = LowCase(strdup(hp->h_name));
 
 // Return additional names
 //
-   hname = *hent.h_aliases;
+   hname = *hp->h_aliases;
    for (i = 1; i < maxipn && hname; i++, hname++)
        InetName[i] = LowCase(strdup(hname));
 #else
@@ -296,25 +317,38 @@ int XrdNetDNS::getPort(const char  *servname,
 /*                            g e t P r o t o I D                             */
 /******************************************************************************/
 
-#define OUC_IPPROTO_TCP 6
+#define NET_IPPROTO_TCP 6
 
 int XrdNetDNS::getProtoID(const char *pname)
 {
+#ifdef HAS_PROTOR
     struct protoent pp;
     char buff[1024];
+#else
+    static XrdOucMutex protomutex;
+    struct protoent *pp;
+    int    protoid;
+#endif
 
 // Note that POSIX did include getprotobyname_r() in the last minute. Many
 // platforms do not document this variant but just about all include it.
 //
 #ifdef __sun
     if (!getprotobyname_r(pname, &pp, buff, sizeof(buff))) 
-       return OUC_IPPROTO_TCP;
+       return NET_IPPROTO_TCP;
+    return pp.p_proto;
+#elif !defined(HAS_PROTOR)
+    protomutex.Lock();
+    if (!(pp = getprotobyname(pname))) protoid = NET_IPPROTO_TCP;
+       else protoid = pp->p_proto;
+    protomutex.UnLock();
+    return protoid;
 #else
     struct protoent *ppp;
     if (getprotobyname_r(pname, &pp, buff, sizeof(buff), &ppp))
-       return OUC_IPPROTO_TCP;
-#endif
+       return NET_IPPROTO_TCP;
     return pp.p_proto;
+#endif
 }
   
 /******************************************************************************/

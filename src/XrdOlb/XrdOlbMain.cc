@@ -99,8 +99,6 @@ Notes:
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOlbLoginServer(void *carg)
       {XrdNetLink *lp = (XrdNetLink *)carg;
        return XrdOlbSM.Login(lp);
@@ -124,7 +122,6 @@ void *XrdOlbStartPandering(void *carg)
 void *XrdOlbStartUDP(void *carg)
       {return XrdOlbSM.StartUDP(*(int *)carg);
       }
-}
 
 /******************************************************************************/
 /*                                  m a i n                                   */
@@ -141,7 +138,7 @@ int main(int argc, char *argv[])
 
 // Turn off sigpipe before we start any threads
 //
-   sigignore(SIGPIPE);
+   signal(SIGPIPE, SIG_IGN);
    sighold(SIGCHLD);
 
 // Process configuration file
@@ -151,17 +148,16 @@ int main(int argc, char *argv[])
 // Start the notification thread if we need to
 //
    if (XrdOlbConfig.AnoteSock)
-      {XrdOucThread_Run(&tid, XrdOlbStartAnote, (void *)XrdOlbConfig.AnoteSock);
-       DEBUG("Main: Thread " <<tid <<" handling notification traffic.");
-      }
+      XrdOucThread::Run(&tid, XrdOlbStartAnote, (void *)XrdOlbConfig.AnoteSock,
+                        0, "Notification handler");
 
 // Start the admin thread if we need to, we will not continue until told
 // to do so by the admin interface.
 //
    if (XrdOlbConfig.AdminSock)
       {XrdOlbAdmin::setSync(&SyncUp);
-       XrdOucThread_Run(&tid, XrdOlbStartAdmin, (void *)XrdOlbConfig.AdminSock);
-       DEBUG("Main: Thread " <<tid <<" handling admin traffic.");
+       XrdOucThread::Run(&tid, XrdOlbStartAdmin, (void *)XrdOlbConfig.AdminSock,
+                         0, "Admin traffic");
        SyncUp.Wait();
       }
 
@@ -173,11 +169,11 @@ int main(int argc, char *argv[])
        while(tp)
             {if (!XrdOlbConfig.Manager() && !tp->next)
                 XrdOlbSM.Pander(tp->text, tp->val);
-                else {if (XrdOucThread_Run(&tid,XrdOlbStartPandering,(void *)tp))
+                else {if (XrdOucThread::Run(&tid,XrdOlbStartPandering,(void *)tp,
+                                            0, (const char *)tp->text))
                          {XrdOlbSay.Emsg("oolbd", errno, "start server");
                           _exit(1);
                          }
-                       DEBUG("Main: Thread " <<(unsigned int)tid <<" pandering to " <<tp->text);
                       }
              tp = tp->next;
             }
@@ -186,11 +182,11 @@ int main(int argc, char *argv[])
 // Do manager processing now, simply loop looking for connections
 //
    if (XrdOlbConfig.Manager())
-      {XrdOucThread_Run(&tid, XrdOlbStartUDP, (void *)&forManager);
-       DEBUG("Main: Thread " <<tid <<" handling manager UDP traffic.");
+      {XrdOucThread::Run(&tid, XrdOlbStartUDP, (void *)&forManager, 0,
+                         "UDP traffic manager");
        while(1) if ((newlink = XrdOlbNetTCPm->Accept()))
                    {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
-                    XrdOucThread_Run(&tid, XrdOlbLoginServer, (void *)newlink);
+                    XrdOucThread::Run(&tid, XrdOlbLoginServer, (void *)newlink);
                    }
       }
 

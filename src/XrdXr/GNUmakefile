@@ -63,7 +63,8 @@ $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TESTBIN) ...
 	$(ECHO)$(LD) $(LDOP) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
 	@echo Creating archive $(LIBRARY)
-	$(ECHO)ar rc $(LIBRARY) $(XROBJS)
+	$(ECHO)ar -rc $(LIBRARY) $(XROBJS)
+	$(ECHO)ranlib $(LIBRARY)
 
 $(OBJDIR)/XrdXrClientWorker.o: XrdXrClientWorker.hh XrdXrClientWorker.cc \
                                XrdXrTrace.hh \

@@ -20,13 +20,14 @@ const char *XrdOucStreamCVSID = "$Id$";
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <stropts.h>
 #include <stdio.h>
 #ifndef __linux__
 #include <sys/conf.h>
 #endif
+#ifndef __macos__
+#include <stropts.h>
+#endif
 #include <sys/stat.h>
-#include <sys/stropts.h>
 #include <sys/termios.h>
 #include <sys/types.h>
 #include <sys/wait.h>

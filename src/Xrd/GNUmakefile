@@ -66,11 +66,12 @@ $(TARGETS): $(OBJECTS)
 	$(CC) -xar -o $(LIBRARY) $(OBJECTS); \
 else \
 	ar -rc $(LIBRARY) $(OBJECTS); \
+	ranlib $(LIBRARY); \
 fi
 
 $(OBJDIR)/XrdBuffer.o:    XrdBuffer.cc   XrdBuffer.hh     XrdTrace.hh \
                           XrdOucError.hh XrdOucPthread.hh XrdOucTrace.hh \
-                          XrdOucTimer.hh
+                          XrdOucPlatform.hh XrdOucTimer.hh
 	@echo Compiling XrdBuffer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBuffer.o XrdBuffer.cc
 
@@ -113,10 +114,11 @@ $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdInet.hh \
 	@echo Compiling XrdMain.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdMain.o XrdMain.cc
 
-$(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh       XrdProtocol.hh   \
-                       XrdPoll.cc       XrdPollDev.hh    XrdPollDev.icc \
-                       XrdPollPoll.hh   XrdPollDev.icc   XrdTrace.hh     \
-                       XrdOucError.hh   XrdOucPthread.hh XrdOucTrace.hh
+$(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh        XrdProtocol.hh   \
+                       XrdPoll.cc       XrdPollDev.hh     XrdPollDev.icc \
+                       XrdPollPoll.hh   XrdPollDev.icc    XrdTrace.hh     \
+                       XrdOucError.hh   XrdOucPlatform.hh XrdOucPthread.hh \
+                       XrdOucTrace.hh
 	@echo Compiling XrdPoll.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFDEVPOLL) $(INCLUDE) -o $(OBJDIR)/XrdPoll.o XrdPoll.cc
 
@@ -132,8 +134,8 @@ $(OBJDIR)/XrdScheduler.o: XrdJob.hh      XrdScheduler.hh   XrdTrace.hh \
 	@echo Compiling XrdScheduler.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdScheduler.o XrdScheduler.cc
 
-$(OBJDIR)/XrdStats.o: XrdBuffer.hh     XrdLink.hh     XrdPoll.hh \
-                      XrdProtocol.hh   XrdStats.cc    XrdStats.hh \
-                      XrdOucPthread.hh ../XrdVersion.hh
+$(OBJDIR)/XrdStats.o: XrdBuffer.hh      XrdLink.hh     XrdPoll.hh \
+                      XrdProtocol.hh    XrdStats.cc    XrdStats.hh \
+                      XrdOucPlatform.hh XrdOucPthread.hh ../XrdVersion.hh
 	@echo Compiling XrdStats.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdStats.o XrdStats.cc

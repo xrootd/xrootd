@@ -24,7 +24,9 @@ const char *XrdSecPManagerCVSID = "$Id$";
 #endif
 
 #include <dlfcn.h>
+#ifndef __macos__
 #include <link.h>
+#endif
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -211,7 +213,7 @@ XrdSecProtocol *XrdSecPManager::Load(XrdOucErrInfo *eMsg,  // In
 // Open the security library
 //
    if (!(libhandle = dlopen(libloc, RTLD_NOW)))
-      {tlist[k++] = dlerror();
+      {tlist[k++] = (char *)dlerror();
        tlist[k++] = (char *)" opening shared library ";
        tlist[k++] = libloc;
        eMsg->setErrInfo(-1, tlist, k);
@@ -222,7 +224,7 @@ XrdSecProtocol *XrdSecPManager::Load(XrdOucErrInfo *eMsg,  // In
 //
    if (!(ep = (XrdSecProtocol *(*)(XrdOucErrInfo *, const char, const char *,
                const char *))dlsym(libhandle, poname)))
-      {tlist[k++] = dlerror();
+      {tlist[k++] = (char *)dlerror();
        tlist[k++] = (char *)" finding ";
        tlist[k++] = poname;
        tlist[k++] = (char *)" in ";

@@ -38,6 +38,7 @@ const char *XrdOssCreateCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 
 /******************************************************************************/
 /*                  E r r o r   R o u t i n g   O b j e c t                   */

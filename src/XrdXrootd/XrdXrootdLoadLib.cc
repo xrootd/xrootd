@@ -24,7 +24,9 @@ const char *XrdXrootdLoadLibCVSID = "$Id$";
 #endif
   
 #include <dlfcn.h>
+#ifndef __macos__
 #include <link.h>
+#endif
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsInterface.hh"

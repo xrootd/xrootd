@@ -59,5 +59,5 @@
 /*                         M i s c e l l a n e o u s                          */
 /******************************************************************************/
   
-#define XrdOfsENOTOPEN EBADFD
+#define XrdOfsENOTOPEN EBADF
 #endif

@@ -20,7 +20,7 @@ SOURCES = \
 OBJECTS = \
         $(OBJDIR)/XrdSecProtocolkrb4.o
 
-TARGETS = $(LIBDIR)/libXrdSeckrb4.so
+TARGETS = $(LIBDIR)/libXrdSeckrb4.$(TYPESHLIB)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #

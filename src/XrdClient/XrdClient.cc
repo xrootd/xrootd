@@ -42,7 +42,7 @@ XrdClient::XrdClient(const char *url) {
 	"Create",
 	"(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
 
-   sigignore(SIGPIPE);
+   signal(SIGPIPE, SIG_IGN);
 
    fInitialUrl.TakeUrl((char *)url);
 

@@ -187,7 +187,7 @@ int  XrdSecProtocolsrvr::Authenticate(XrdSecCredentials  *cred,     // In
 //
    msgv[0] = cred->buffer;
    msgv[1] = (char *)" security protocol is not supported.";
-   einfo->setErrInfo(EUNATCH, msgv, 2);
+   einfo->setErrInfo(EPROTONOSUPPORT, msgv, 2);
    return -1;
 }
 

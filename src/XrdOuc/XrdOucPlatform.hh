@@ -13,12 +13,17 @@
 //        $Id$
 
 #ifdef __linux__
-
 #include <memory.h>
 #include <string.h>
 #include <sys/types.h>
 #include <asm/param.h>
 #include <byteswap.h>
+#endif
+#ifdef __macos__
+#include <sys/types.h>
+#endif
+
+#if defined(__linux__) || defined(__macos__)
 
 #define S_IAMB      0x1FF   /* access mode bits */
 
@@ -29,22 +34,11 @@
 
 #define FS_BLKFACT  4
 
-#define SHMDT_t const void *
-
 #define FLOCK_t struct flock
 
 typedef off_t offset_t;
 
 #define GTZ_NULL (struct timezone *)0
-
-#define GETHOSTBYNAME(hname, rbuff, cbuff, cblen,  rpnt, pretc) \
-     (gethostbyname_r(hname, rbuff, cbuff, cblen, &rpnt, pretc) == 0)
-
-#define GETHOSTBYADDR(haddr,hlen,htype,rbuff,cbuff,cblen, rpnt,pretc) \
-     (gethostbyaddr_r(haddr,hlen,htype,rbuff,cbuff,cblen,&rpnt,pretc) == 0)
-
-#define GETSERVBYNAME(name, stype, psrv, buff, blen,  rpnt) \
-     (getservbyname_r(name, stype, psrv, buff, blen, &rpnt) == 0)
 
 #else
 
@@ -69,6 +63,32 @@ typedef off_t offset_t;
 #define GETSERVBYNAME(name, stype, psrv, buff, blen, rpnt) \
 (rpnt=getservbyname_r(name, stype, psrv, buff, blen))
 
+#endif
+
+#ifdef __linux__
+
+#define SHMDT_t const void *
+
+#define GETHOSTBYNAME(hname, rbuff, cbuff, cblen,  rpnt, pretc) \
+     (gethostbyname_r(hname, rbuff, cbuff, cblen, &rpnt, pretc) == 0)
+
+#define GETHOSTBYADDR(haddr,hlen,htype,rbuff,cbuff,cblen, rpnt,pretc) \
+     (gethostbyaddr_r(haddr,hlen,htype,rbuff,cbuff,cblen,&rpnt,pretc) == 0)
+
+#define GETSERVBYNAME(name, stype, psrv, buff, blen,  rpnt) \
+     (getservbyname_r(name, stype, psrv, buff, blen, &rpnt) == 0)
+
+#endif
+
+// For alternative platforms
+//
+#ifdef __macos__
+#define POLLRDNORM  0
+#define POLLRDBAND  0
+#define POLLWRNORM  0
+#define O_LARGEFILE 0
+#define memalign(pgsz,amt) valloc(amt)
+#define SHMDT_t void *
 #endif
 
 // Only sparc platforms have structure alignment problems w/ optimization
@@ -120,10 +140,6 @@ extern "C"
 {extern size_t strlcpy(char *dst, const char *src, size_t size);}
 #endif
 
-#ifdef __macos__
-#define memalign(pgsz,amt) valloc(amt)
-#endif
-
 //
 // To make socklen_t portable use SOCKLEN_t
 //
@@ -149,7 +165,7 @@ extern "C"
 #   define SOCKLEN_t size_t
 #elif defined(XR__GLIBC) || \
    (defined(__FreeBSD__) && (defined(__alpha) && !defined(__linux))) || \
-   (defined(XR__SUNGCC3) && defined(__arch64__))
+   (defined(XR__SUNGCC3) && defined(__arch64__)) || defined(__macos__)
 #   ifndef SOCKLEN_t
 #      define SOCKLEN_t socklen_t
 #   endif

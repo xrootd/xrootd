@@ -66,9 +66,11 @@ extern XrdOucError       XrdLog;
 
 extern XrdOucLogger      XrdLogger;
 
+extern XrdOucThread     *XrdThread;
+
 extern XrdOucTrace       XrdTrace;
 
-       const char        *XrdConfig::TraceID = "Config";
+       const char       *XrdConfig::TraceID = "Config";
 
 /******************************************************************************/
 /*                               d e f i n e s                                */
@@ -156,6 +158,7 @@ XrdConfig::XrdConfig(void)
    ProtInfo.ConfigFN= 0;                // We will fill this in later
    ProtInfo.Stats   = 0;                // We will fill this in later
    ProtInfo.Trace   = &XrdTrace;        // Stable -> Trace Information
+   ProtInfo.Threads = 0;                // Stable -> The thread manager (later)
 
    ProtInfo.Format   = XrdFORMATB;
    ProtInfo.myName   = myName;
@@ -271,7 +274,11 @@ int XrdConfig::Configure(int argc, char **argv)
        NoGo = ConfigProc();
       }
    if (!NoGo) NoGo = Setup(dfltProt);
-   if (ProtInfo.DebugON) XrdTrace.What = TRACE_ALL;
+   if (ProtInfo.DebugON) 
+      {XrdTrace.What = TRACE_ALL;
+       XrdOucThread::setDebug(&XrdLog);
+      }
+   ProtInfo.Threads = XrdThread;
 
 // All done, close the stream and return the return code.
 //
@@ -1085,9 +1092,10 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
                        return 1;
                       }
                    if (*scopts[i].opname == 'i')
-                      if (XrdOuca2x::a2tm(*eDest, scopts[i].opmsg, val, &ppp,
+                      {if (XrdOuca2x::a2tm(*eDest, scopts[i].opmsg, val, &ppp,
                                           scopts[i].minv)) return 1;
-                         else if (XrdOuca2x::a2i(*eDest, scopts[i].opmsg, val, 
+                      }
+                      else if (XrdOuca2x::a2i(*eDest, scopts[i].opmsg, val,
                                      &ppp,scopts[i].minv)) return 1;
                    *scopts[i].oploc = ppp;
                    break;

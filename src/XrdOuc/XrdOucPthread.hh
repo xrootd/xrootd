@@ -14,37 +14,63 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #ifdef AIX
 #include <sys/sem.h>
 #else
 #include <semaphore.h>
 #endif
 
+#include "XrdOuc/XrdOucError.hh"
+
+/******************************************************************************/
+/*                         X r d O u c C o n d V a r                          */
+/******************************************************************************/
+  
+// XrdOucConVar implements the standard POSIX-compliant condition variable.
+//              Methods correspond to the equivalent pthread condvar functions.
+
 class XrdOucCondVar
 {
 public:
 
-void  Signal()         {pthread_mutex_lock(&cmut);
-                        pthread_cond_signal(&cvar);
-                        pthread_mutex_unlock(&cmut);
-                       }
+inline void  Lock()           {pthread_mutex_lock(&cmut);}
 
-int   Wait(int sec);
-int   WaitMS(int msec);
+inline void  Signal()         {if (relMutex) pthread_mutex_lock(&cmut);
+                               pthread_cond_signal(&cvar);
+                               if (relMutex) pthread_mutex_unlock(&cmut);
+                              }
 
-      XrdOucCondVar() {pthread_cond_init(&cvar, NULL);
+inline void  UnLock()         {pthread_mutex_unlock(&cmut);}
+
+       int   Wait();
+       int   Wait(int sec);
+       int   WaitMS(int msec);
+
+      XrdOucCondVar(      int   relm=1, // 0->Caller will handle lock/unlock
+                    const char *cid=0   // ID string for debugging only
+                   ) {pthread_cond_init(&cvar, NULL);
                       pthread_mutex_init(&cmut, NULL);
+                      relMutex = relm; condID = (cid ? cid : "unk");
                      }
      ~XrdOucCondVar() {pthread_cond_destroy(&cvar);
-                      pthread_mutex_destroy(&cmut);
-                     }
+                       pthread_mutex_destroy(&cmut);
+                      }
 private:
 
 pthread_cond_t  cvar;
 pthread_mutex_t cmut;
-struct timespec tval;
+int             relMutex;
+const char     *condID;
 };
 
+/******************************************************************************/
+/*                           X r d O u c M u t e x                            */
+/******************************************************************************/
+
+// XrdOucMutex implements the standard POSIX mutex. The methods correspond
+//             to the equivalent pthread mutex functions.
+  
 class XrdOucMutex
 {
 public:
@@ -66,6 +92,15 @@ private:
 pthread_mutex_t cs;
 };
 
+/******************************************************************************/
+/*                     X r d O u c M u t e x H e l p e r                      */
+/******************************************************************************/
+
+// XrdOucMutexHelper us ised to implement monitors. Monitors are used to lock
+//                   whole regions of code (e.g., a method) and automatically
+//                   unlock with exiting the region (e.g., return). The
+//                   methods should be self-evident.
+  
 class XrdOucMutexHelper
 {
 public:
@@ -80,11 +115,47 @@ inline void   Lock(XrdOucMutex *Mutex)
 
 inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
 
-            XrdOucMutexHelper() {mtx = 0;}
+            XrdOucMutexHelper(XrdOucMutex *mutex=0)
+                 {if (mutex) Lock(mutex);
+                     else mtx = 0;
+                 }
            ~XrdOucMutexHelper() {if (mtx) UnLock();}
 private:
 XrdOucMutex *mtx;
 };
+
+/******************************************************************************/
+/*                       X r d O u c S e m a p h o r e                        */
+/******************************************************************************/
+
+// XrdOucSemaphore implements the classic counting semaphore. The methods
+//                 should be self-evident. Note that on certain platforms
+//                 semaphores need to be implemented based on condition
+//                 variables since no native implementation is available.
+  
+#ifdef __macos__
+class XrdOucSemaphore
+{
+public:
+
+       int  CondWait();
+
+       void Post();
+
+       void Wait();
+
+  XrdOucSemaphore(int semval=1,const char *cid=0) : semVar(0, cid)
+                                  {semVal = semval; semWait = 0;}
+ ~XrdOucSemaphore() {}
+
+private:
+
+XrdOucCondVar semVar;
+int           semVal;
+int           semWait;
+};
+
+#else
 
 class XrdOucSemaphore
 {
@@ -107,7 +178,8 @@ inline void Wait() {while (sem_wait(&h_semaphore))
                           }
                    }
 
-  XrdOucSemaphore(int semval=1) {if (sem_init(&h_semaphore, 0, semval))
+  XrdOucSemaphore(int semval=1, const char *cid=0)
+                               {if (sem_init(&h_semaphore, 0, semval))
                                    {throw "sem_init() failed";}
                                }
  ~XrdOucSemaphore() {if (sem_destroy(&h_semaphore))
@@ -118,52 +190,66 @@ private:
 
 sem_t h_semaphore;
 };
+#endif
 
-
-extern "C"
-{
-extern int       XrdOucThread_Cancel(pthread_t tid);
-extern int       XrdOucThread_Detach(pthread_t tid);
-extern pthread_t XrdOucThread_ID(void);
-extern int       XrdOucThread_Kill(pthread_t tid);
-extern int XrdOucThread_Run(pthread_t *, void *(*proc)(void *), void *arg);
-extern int XrdOucThread_Sys(pthread_t *, void *(*proc)(void *), void *arg);
-extern int XrdOucThread_Signal(pthread_t tid, int snum);
-extern int XrdOucThread_Start(pthread_t *, void *(*proc)(void *), void *arg);
-extern int XrdOucThread_Wait(pthread_t tid);
-}
-
+/******************************************************************************/
+/*                          X r d O u c T h r e a d                           */
+/******************************************************************************/
+  
 // The C++ standard makes it impossible to link extern "C" methods with C++
 // methods. Thus, making a full thread object is nearly impossible. So, this
-// object merely ties a thread id to a set of methods. One needs to externally
-// call XrdOucThread_Start() or Run() to get a thread id and then assigned it
-// to a thread object.
+// object is used as the thread manager. Since it is static for all intense
+// and purposes, one does not need to create an instance of it.
 //
+
+// Options to Run()
+//
+// BIND creates threads that are bound to a kernel thread.
+//
+#define XRDOUCTHREAD_BIND 0x001
+
+// HOLD creates a thread that needs to be joined to get its ending value.
+//      Otherwise, a detached thread is created.
+//
+#define XRDOUCTHREAD_HOLD 0x002
 
 class XrdOucThread
 {
 public:
 
-void  Attach(pthread_t xid, int isdetached=0)
-               {if (tactive > 1)  XrdOucThread_Detach(tid);
-                tid = xid;
-                tactive = (isdetached ? 1 : 2);
-               }
+static int          Cancel(pthread_t tid) {return pthread_cancel(tid);}
 
-void  Cancel() {if (tactive)     {XrdOucThread_Cancel(tid); tactive = 0;}}
+static int          Detach(pthread_t tid) {return pthread_detach(tid);}
 
-void  Detach() {if (tactive > 1) {XrdOucThread_Detach(tid); tactive = 1;}}
+static pthread_t    ID(void)              {return pthread_self();}
 
-void  Kill()   {if (tactive)     {XrdOucThread_Kill(tid);   tactive = 0;}}
+static int          Kill(pthread_t tid)   {return pthread_cancel(tid);}
 
-void  Signal(int snum) {if (tactive) XrdOucThread_Signal(tid, snum);}
+static unsigned int Num(void)
+                       {if (!initDone) doInit();
+                        return (unsigned int)pthread_getspecific(threadNumkey);
+                       }
 
-int   Wait() {if (tactive > 1) return XrdOucThread_Wait(tid); return -1;}
+static int          Run(pthread_t *, void *(*proc)(void *), void *arg, 
+                        int opts=0, const char *desc = 0);
 
-      XrdOucThread() {tactive = 0;}
-     ~XrdOucThread() {Detach();}
+static void         setDebug(XrdOucError *erp) {eDest = erp;}
 
-pthread_t tid;
-int tactive;
+static void         setStackSize(size_t stsz) {stackSize = stsz;}
+
+static int          Signal(pthread_t tid, int snum)
+                       {return pthread_kill(tid, snum);}
+ 
+static int          Wait(pthread_t tid);
+
+                    XrdOucThread() {}
+                   ~XrdOucThread() {}
+
+private:
+static void          doInit(void);
+static XrdOucError  *eDest;
+static pthread_key_t threadNumkey;
+static size_t        stackSize;
+static int           initDone;
 };
 #endif

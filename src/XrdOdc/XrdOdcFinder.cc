@@ -334,7 +334,11 @@ void XrdOdcFinderLCL::calcLoad(int &load, long &totcpu)
    EPNAME("calcLoad")
    static clock_t lastcpu = 0;
    static clock_t lasttod = 0;
+#ifdef _SC_NPROCESSORS_CONF
    static int     cpu = sysconf(_SC_NPROCESSORS_CONF);
+#else
+   static int     cpu = 1;
+#endif
    static int     tps = sysconf(_SC_CLK_TCK);
    static int     tph = (tps >= 100 ? tps / 100 : 1);
    static int     do60 = 60;
@@ -369,8 +373,6 @@ void XrdOdcFinderLCL::calcLoad(int &load, long &totcpu)
 /*                          S t a r t M o n i t o r                           */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOdcReportLoad(void *carg)
       {XrdOdcFinderLCL *rp = (XrdOdcFinderLCL *)carg;
        return rp->ReportLoad();
@@ -380,7 +382,6 @@ void *XrdOdcInspectLoad(void *carg)
       {XrdOdcFinderLCL *rp = (XrdOdcFinderLCL *)carg;
        return rp->InspectLoad();
       }
-}
 
 int XrdOdcFinderLCL::StartMonitor(int Inspect, int tint)
 {
@@ -424,8 +425,8 @@ int XrdOdcFinderLCL::StartMonitor(int Inspect, int tint)
 // Start the recorder
 //
    repint = tint;
-   if (Inspect) retc = XrdOucThread_Run(&tid,XrdOdcInspectLoad,(void *)this);
-      else retc = XrdOucThread_Run(&tid,XrdOdcReportLoad,(void *)this);
+   if (Inspect) retc = XrdOucThread::Run(&tid,XrdOdcInspectLoad,(void *)this);
+      else retc = XrdOucThread::Run(&tid,XrdOdcReportLoad,(void *)this);
    if (retc)
       {OdcEDest.Emsg("Finder", errno, "start load monitor");
        return repint = 0;
@@ -545,8 +546,8 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 //
    if (!myManagers)
       {OdcEDest.Emsg("Finder", "Forward() called prior to Configure().");
-       Resp.setErrInfo(EPROTO, "Internal error locating file.");
-       return -EPROTO;
+       Resp.setErrInfo(EINVAL, "Internal error locating file.");
+       return -EINVAL;
       }
 
 // Select the right manager for this request
@@ -593,8 +594,8 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 //
    if (!myManagers)
       {OdcEDest.Emsg("Finder", "Locate() called prior to Configure().");
-       Resp.setErrInfo(EPROTO, "Internal error locating file.");
-       return -EPROTO;
+       Resp.setErrInfo(EINVAL, "Internal error locating file.");
+       return -EINVAL;
       }
 
 // Compute mode
@@ -602,7 +603,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
    if (flags & (O_CREAT | O_WRONLY | O_RDWR)) ptype = 'w';
       else if (flags & O_NDELAY) ptype = 'x';
               else ptype = 'r';
-   stype = (flags & O_SYNC ? 's' : ' ');
+   stype = (flags & O_EXCL ? 's' : ' ');
 
 // Select the right manager for this request
 //
@@ -669,15 +670,15 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
    char mbuff1[32], mbuff2[32], *mode;
    XrdOucTList *tp;
    int allok, mint, pathloc, plenloc = 0;
-   XrdOdcManager *Manp, *Womp;
+   XrdOdcManager *Manp = 0, *Womp;
    struct iovec iodata[8];
 
 // Make sure we are configured
 //
    if (!myManagers)
       {OdcEDest.Emsg("Finder", "Prepare() called prior to Configure().");
-       Resp.setErrInfo(EPROTO, "Internal error preparing files.");
-       return -EPROTO;
+       Resp.setErrInfo(EINVAL, "Internal error preparing files.");
+       return -EINVAL;
       }
 
 // Check for a cancel request
@@ -808,17 +809,13 @@ void XrdOdcFinderRMT::SelectManFail(XrdOucErrInfo &Resp)
 /*                         S t a r t M a n a g e r s                          */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOdcStartManager(void *carg)
       {XrdOdcManager *mp = (XrdOdcManager *)carg;
        return mp->Start();
       }
-}
 
 int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
 {
-   EPNAME("StartManagers")
    XrdOucTList *tp;
    XrdOdcManager *mp, *firstone = 0;
    int i = 0;
@@ -838,11 +835,10 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
          if (myManagers) mp->setNext(myManagers);
             else firstone = mp;
          myManagers = mp;
-         if (XrdOucThread_Run(&tid, XrdOdcStartManager, (void *)mp))
+         if (XrdOucThread::Run(&tid, XrdOdcStartManager, (void *)mp,
+                               0, (const char *)tp->text))
             OdcEDest.Emsg("Config", errno, "start manager");
-            else {mp->setTID(tid);
-                  DEBUG("Config: Thread " <<(unsigned int)tid <<" manages " <<tp->text);
-                 }
+            else mp->setTID(tid);
          tp = tp->next; i++;
         }
 
@@ -903,17 +899,13 @@ XrdOdcFinderTRG::~XrdOdcFinderTRG()
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOdcStartOlb(void *carg)
       {XrdOdcFinderTRG *mp = (XrdOdcFinderTRG *)carg;
        return mp->Start();
       }
-}
   
 int XrdOdcFinderTRG::Configure(char *cfn)
 {
-   EPNAME("Config")
    XrdOdcConfig config(&OdcEDest, 0);
    pthread_t tid;
 
@@ -925,9 +917,8 @@ int XrdOdcFinderTRG::Configure(char *cfn)
 
 // Start a thread to connect with the local olb
 //
-   if (XrdOucThread_Run(&tid, XrdOdcStartOlb, (void *)this))
+   if (XrdOucThread::Run(&tid, XrdOdcStartOlb, (void *)this, 0, "olb i/f"))
       OdcEDest.Emsg("Config", errno, "start olb interface");
-      else DEBUG("Config: olb i/f assigned to thread " <<(unsigned int)tid);
 
 // All done
 //

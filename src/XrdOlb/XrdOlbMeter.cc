@@ -19,11 +19,13 @@ const char *XrdOlbMeterCVSID = "$Id$";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/statvfs.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #ifdef __linux__
 #include <sys/vfs.h>
+#elif defined( __macos__)
+#include <sys/param.h>
+#include <sys/mount.h>
 #else
 #include <sys/statvfs.h>
 #endif
@@ -52,13 +54,10 @@ long long      XrdOlbMeter::dsk_maxf= 0;
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOlbMeterRun(void *carg)
       {XrdOlbMeter *mp = (XrdOlbMeter *)carg;
        return mp->Run();
       }
-}
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -86,7 +85,7 @@ XrdOlbMeter::XrdOlbMeter(XrdOucError *errp) : myMeter(errp)
 XrdOlbMeter::~XrdOlbMeter()
 {
    if (monpgm) free(monpgm);
-   if (montid) XrdOucThread_Kill(montid);
+   if (montid) XrdOucThread::Kill(montid);
 }
   
 /******************************************************************************/
@@ -152,7 +151,6 @@ long XrdOlbMeter::FreeSpace(long &tot_free)
   
 int XrdOlbMeter::Monitor(char *pgm, int itv)
 {
-   EPNAME("Monitor")
    char *mp, pp;
 
 // Isolate the program name
@@ -172,8 +170,7 @@ int XrdOlbMeter::Monitor(char *pgm, int itv)
 // Monitor() is a one-time call (otherwise unpredictable results may occur).
 //
    *mp = pp; monint = itv;
-   XrdOucThread_Run(&montid, XrdOlbMeterRun, (void *)this);
-   DEBUG("Thread " <<montid <<" handling perf meter " <<monpgm);
+   XrdOucThread::Run(&montid, XrdOlbMeterRun, (void *)this, 0, "Perf meter");
    return 0;
 }
  

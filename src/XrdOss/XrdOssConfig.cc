@@ -111,14 +111,9 @@ const char *XrdOssErrorText[] =
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-extern "C"
-{
-
 void *XrdOssxfr(void *carg)       {return XrdOssSS.Stage_In(carg);}
 
 void *XrdOssCacheScan(void *carg) {return XrdOssSS.CacheScan(carg);}
-
-}
 
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
@@ -133,7 +128,6 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 
   Output:   0 upon success or !0 otherwise.
 */
-   EPNAME("Configure")
    XrdOucError_Table *ETab = new XrdOucError_Table(XRDOSS_EBASE, XRDOSS_ELAST,
                                                    XrdOssErrorText);
    char *val;
@@ -194,17 +188,15 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 // Start-up the required number of staging threads
 //
    if ((numt = xfrthreads - xfrtcount) > 0) while(numt--)
-      if ((retc = XrdOucThread_Run(&tid, XrdOssxfr, (void *)0))<0)
+      if ((retc = XrdOucThread::Run(&tid, XrdOssxfr, (void *)0, 0, "staging")))
          Eroute.Emsg("config", retc, "create staging thread");
-         else {DEBUG("started staging thread; tid=" <<(unsigned int)tid);
-               xfrtcount++;
-              }
+         else xfrtcount++;
 
 // Start up the cache scan thread
 //
-   if ((retc = XrdOucThread_Run(&tid, XrdOssCacheScan, (void *)0))<0)
+   if ((retc = XrdOucThread::Run(&tid, XrdOssCacheScan, (void *)0,
+                                 0, "cache scan")))
       Eroute.Emsg("config", retc, "create cache scan thread");
-      else DEBUG("started cache scan thread; tid=" <<(unsigned int)tid);
 
 // Reinitialize the remote list. This must be the last act
 //

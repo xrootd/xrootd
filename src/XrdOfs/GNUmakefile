@@ -20,13 +20,13 @@ OBJECTS  = \
         $(OBJDIR)/XrdOfsConfig.o  \
         $(OBJDIR)/XrdOfsHandle.o  
 
-MORELIBS = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdOuc -lXrdXr -lXrdNet
+MORELIBS = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdXr -lXrdNet -lXrdOuc
 
 LIBDEP   = $(LIBDIR)/libXrdAcc.a $(LIBDIR)/libXrdOss.a \
            $(LIBDIR)/libXrdOdc.a $(LIBDIR)/libXrdOuc.a \
            $(LIBDIR)/libXrdXr.a		
 
-LIBRARY  = $(LIBDIR)/libXrdOfs.so
+LIBRARY  = $(LIBDIR)/libXrdOfs.$(TYPESHLIB)
 
 TARGETS  = $(LIBRARY)
 

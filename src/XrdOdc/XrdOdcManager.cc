@@ -65,7 +65,7 @@ XrdOdcManager::~XrdOdcManager()
   if (Link)    Link->Recycle();
   if (Host)    free(Host);
   if (HPfx)    free(HPfx);
-  if (mytid)   XrdOucThread_Kill(mytid);
+  if (mytid)   XrdOucThread::Kill(mytid);
 }
   
 /******************************************************************************/

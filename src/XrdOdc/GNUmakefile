@@ -64,6 +64,7 @@ $(LIBRARY): $(OBJECTA)
 	@echo Creating archive $(LIBRARY) 
 	$(ECHO)rm -f $(LIBRARY)
 	$(ECHO)ar -rc $(LIBRARY) $(OBJECTA)
+	$(ECHO)ranlib $(LIBRARY)
 	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
 	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	      ar -rc $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \

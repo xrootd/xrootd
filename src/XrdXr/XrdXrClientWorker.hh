@@ -202,7 +202,8 @@ private:
   char *tident;                  // used for TRACE messages
   char *sec;                     // security token used for authentication 
 
-  int streamIdBase;              // used to generate a stream id    
+  int  streamIdBase;             // used to generate a stream id
+  char streamIdBuff[2];          // This is silly, but we use chars for now
  
   XrdOucErrInfo *errInfo;        // holds the current error object
   int hostType;                  // data server or load balancer

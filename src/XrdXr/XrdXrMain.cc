@@ -567,7 +567,7 @@ int main(int argc, char *argv[])
   // Turn off sigpipe inorder to avoid a program crash in case the connection
   // to the server is broken and we still send requests
   //
-  sigignore(SIGPIPE);
+  signal(SIGPIPE, SIG_IGN);
 
   do {
     if (login == true && strncmp(hostname, "NULL", 4)) {

@@ -15,6 +15,7 @@ const char *XrdXrClientWorkerCVSID = "$Id$";
 /*                             i n c l u d e s                               */
 /*****************************************************************************/
 
+#include <stdio.h>
 #include <sys/stat.h>
 
 #include "XrdXr/XrdXrClientWorker.hh"
@@ -877,9 +878,8 @@ const char* XrdXrClientWorker::getStreamId()
 
   // Convert the int value into a two char string
   //
-  int a; int b; 
-  char *id = ecvt (streamIdBase, 2, &a, &b);
-  return id;
+  snprintf(streamIdBuff, 2, "%02d", streamIdBase);
+  return (const char *)streamIdBuff;
 } // getStreamId
 
 

@@ -1263,7 +1263,7 @@ int XrdXrootdProtocol::mapError(int rc)
         case ENOBUFS:      return kXR_NoMemory;
         case ENOSPC:       return kXR_NoSpace;
         case ENAMETOOLONG: return kXR_ArgTooLong;
-        case ENONET:       return kXR_noserver;
+        case ENETUNREACH:  return kXR_noserver;
         default:           return kXR_FSError;
        }
 }

@@ -39,6 +39,14 @@
 #define FS_Stat(a,b) statfs(a,b)
 #define FS_BLKSZ f_bsize
 #endif
+#ifdef __macos__
+#include <sys/param.h>
+#include <sys/mount.h>
+#define STATFS_t struct statfs
+#define FS_Stat(a,b) statfs(a,b)
+#define FS_BLKSZ f_bsize
+#endif
+
   
 /******************************************************************************/
 /*                       o o s s _ C a c h e _ L o c k                        */

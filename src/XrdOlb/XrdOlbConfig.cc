@@ -99,14 +99,11 @@ extern XrdOucError      XrdOlbSay;
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-extern "C"
-{
 void *XrdOlbStartMonPing(void *carg) { return XrdOlbSM.MonPing(); }
 
 void *XrdOlbStartMonPerf(void *carg) { return XrdOlbSM.MonPerf(); }
 
 void *XrdOlbStartMonRefs(void *carg) { return XrdOlbSM.MonRefs(); }
-}
 
 /******************************************************************************/
 /*                        W o r k e r   C l a s s e s                         */
@@ -254,6 +251,10 @@ int XrdOlbConfig::Configure(int argc, char **argv)
       {XrdOlbSay.Emsg("Config", "Required config file not specified.");
        Usage(1);
       }
+
+// Establish debugging for threads
+//
+   if (XrdOlbTrace.What && TRACE_Debug) XrdOucThread::setDebug(&XrdOlbSay);
 
 // Process unsupported configurations
 //
@@ -737,7 +738,6 @@ int XrdOlbConfig::PidFile()
   
 int XrdOlbConfig::setupManager()
 {
-   EPNAME("setupManager")
    static XrdOlbStartup StartService;
    pthread_t tid;
    int rc;
@@ -765,21 +765,21 @@ int XrdOlbConfig::setupManager()
 
 // Create statistical monitoring thread
 //
-   if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonPerf, (void *)0)))
+   if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonPerf, (void *)0,
+                               0, "Performance monitor")))
       {XrdOlbSay.Emsg("Config", rc, "create perf monitor thread");
        return 1;
       }
-   DEBUG("Config: thread " <<(unsigned int)tid <<" assigned to perf monitor");
 
 // Create reference monitoring thread
 //
    RefTurn  = 3*XrdOlbSTMAX*(DiskLinger+1);
    if (RefReset)
-      {if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonRefs, (void *)0)))
+      {if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonRefs, (void *)0,
+                                   0, "Refcount monitor")))
           {XrdOlbSay.Emsg("Config", rc, "create refcount monitor thread");
            return 1;
           }
-       DEBUG("Config: thread " <<(unsigned int)tid <<" assigned to refcount monitor");
       }
 
 // We normally come up disabled to allow data service machines to connect.
@@ -798,7 +798,6 @@ int XrdOlbConfig::setupManager()
   
 int XrdOlbConfig::setupServer()
 {
-   EPNAME("setupServer")
    pthread_t tid;
    int rc;
 
@@ -851,11 +850,11 @@ int XrdOlbConfig::setupServer()
 
 // Create manager monitoring thread
 //
-   if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonPing, (void *)0)))
+   if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonPing, (void *)0,
+                               0, "Pinf monitor")))
       {XrdOlbSay.Emsg("Config", rc, "create ping monitor thread");
        return 1;
       }
-   DEBUG("Config: thread " <<(unsigned int)tid <<" assigned to ping monitor");
 
 // If this is a staging server then set up the Prepq object
 //

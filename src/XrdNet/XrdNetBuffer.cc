@@ -15,7 +15,9 @@ const char *XrdNetBufferCVSID = "$Id$";
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#ifndef __macos__
 #include <malloc.h>
+#endif
 
 #include "XrdNet/XrdNetBuffer.hh"
 #include "XrdOuc/XrdOucPlatform.hh"

@@ -63,6 +63,7 @@ $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY)
 	$(ECHO)rm -f $(LIBRARY)
 	$(ECHO)ar -rc $(LIBRARY) $(OBJECTS)
+	$(ECHO)ranlib $(LIBRARY)
 	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
 	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	      ar -rc $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
@@ -91,7 +92,7 @@ $(OBJDIR)/XrdOssConfig.o: XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
 $(OBJDIR)/XrdOssCreate.o: XrdOssApi.hh XrdOssConfig.hh  XrdOssError.hh \
                           XrdOssLock.hh XrdOssTrace.hh  XrdOssOpaque.hh \
                           XrdOucEnv.hh  XrdOucError.hh  XrdOuca2x.hh  \
-                          XrdOssCreate.cc
+                          XrdOucPlatform.hh XrdOssCreate.cc
 	@echo Compiling XrdOssCreate.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssCreate.o XrdOssCreate.cc
 

@@ -95,7 +95,7 @@ XrdObjectQ<XrdLink> XrdLink::LinkStack("LinkOQ", "link anchor");
 /******************************************************************************/
   
 XrdLink::XrdLink(const char *ltype) :
-          XrdJob(ltype), LinkLink(this), IOSemaphore(0)
+          XrdJob(ltype), LinkLink(this), IOSemaphore(0, "link i/o")
 {
   Etext = 0;
   Reset();
@@ -421,7 +421,7 @@ int XrdLink::Recv(char *Buff, long Blen, int timeout)
          //
          do {rlen = recv(FD, Buff, Blen, 0);} while(rlen < 0 && errno == EINTR);
          if (rlen <= 0)
-            {if (!rlen) return -ENODATA;
+            {if (!rlen) return -ENOMSG;
              return XrdLog.Emsg("Link", -errno, "receive from", ID);
             }
          BytesIn += rlen; totlen += rlen; Blen -= rlen; Buff += rlen;
@@ -488,7 +488,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
                else break;
          if (retc >= bytesleft) break;
          if (retc != (int)iov->iov_len)
-            {retc = -1; errno = EBADE; break;}
+            {retc = -1; errno = ECANCELED; break;}
          iov++; iocnt--; bytesleft -= retc; BytesOut += retc;
         }
 

@@ -20,9 +20,11 @@ const char *XrdOucErrorCVSID = "$Id$";
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
-#include <stropts.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#ifndef __macos__
+#include <stropts.h>
+#endif
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
