@@ -19,9 +19,10 @@
 #ifndef XRC_INPUTBUFFER_H
 #define XRC_INPUTBUFFER_H
 
-#include <pthread.h>
+
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientCond.hh"
 
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -36,16 +37,15 @@ private:
    XrdClientVector<XrdClientMessage*> fMsgQue;      // queue for incoming messages
    int                                fMsgIter;     // an iterator on it
 
-   pthread_mutex_t             fMutex;       // mutex to protect data structures
-   pthread_mutex_t             fCndMutex;    // mutex to protect the condition variables
+   XrdClientMutex              fMutex;       // mutex to protect data structures
 
-   XrdOucHash<pthread_cond_t>  fSyncobjRepo;
+   XrdOucHash<XrdClientCond>   fSyncobjRepo;
                                              // each streamid counts on a condition
                                              // variable to make the caller wait
                                              // until some data is available
 
 
-   pthread_cond_t  *GetSyncObjOrMakeOne(int streamid);
+   XrdClientCond   *GetSyncObjOrMakeOne(int streamid);
    int             MsgForStreamidCnt(int streamid);
 
 public:

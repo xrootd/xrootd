@@ -3,22 +3,23 @@
 #-----------------------------------------------------------------------------#
 #                            E n v i r o n m e n t                            #
 #-----------------------------------------------------------------------------#
- 
 include ../GNUmake.env
 
-
-BINLIBS = -L$(LIBDIR) -lXrdClient -lXrdNet -lXrdOuc -lXrdSec
+BINLIBS = -L$(LIBDIR) -lXrdClient -lXrdClientXrd -lXrdNet -lXrdOuc -lXrdSec
 
 LIBDEPS = $(LIBDIR)/libXrdNet.a
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
 #------------------------------------------------------------------------------#
-  
 SOURCES = \
 	XrdClientAbs.cc	                \
 	XrdClient.cc		        \
+	XrdClientDNS.cc	                \
+	XrdClientXrdDNS.cc	        \
 	XrdClientSock.cc	        \
+	XrdClientXrdSock.cc	        \
+	XrdClientXrdFactory.cc	        \
 	XrdClientConn.cc		\
 	XrdClientConnMgr.cc		\
 	XrdClientDebug.cc		\
@@ -43,6 +44,7 @@ OBJECTS = \
 	$(OBJDIR)/XrdClientAbs.o                \
 	$(OBJDIR)/XrdClient.o                   \
 	$(OBJDIR)/XrdClientSock.o               \
+	$(OBJDIR)/XrdClientDNS.o                \
 	$(OBJDIR)/XrdClientConn.o		\
 	$(OBJDIR)/XrdClientConnMgr.o		\
 	$(OBJDIR)/XrdClientDebug.o		\
@@ -59,7 +61,7 @@ OBJECTS = \
 	$(OBJDIR)/XrdClientEnv.o		\
 	$(OBJDIR)/XrdCpMthrQueue.o		\
 	$(OBJDIR)/XrdCpWorkLst.o		\
-	$(OBJDIR)/XrdClientString.o             
+	$(OBJDIR)/XrdClientString.o              
 
 OBJECTB = $(OBJDIR)/TestXrdClient.o $(OBJDIR)/XrdClientAdmin_c.o
 OBJECTC = $(OBJDIR)/Xrdcp.o
@@ -67,7 +69,14 @@ OBJECTC = $(OBJDIR)/Xrdcp.o
 OBJECTPERLMOD = $(OBJDIR)/XrdClientAdmin_c.o            \
                 $(OBJDIR)/XrdClientAdmin_c_wrap.o
 
+OBJECTD = \
+	$(OBJDIR)/XrdClientXrdDNS.o	        \
+	$(OBJDIR)/XrdClientXrdSock.o	        \
+	$(OBJDIR)/XrdClientXrdFactory.o		\
+	$(OBJDIR)/XrdClientThreadImp.o
+
 LIBRARY = $(LIBDIR)/libXrdClient.a
+LIBAUX = $(LIBDIR)/libXrdClientXrd.a
 
 TESTBIN = $(BINDIR)/TestXrdClient
 XRDCP = $(BINDIR)/xrdcp
@@ -77,7 +86,7 @@ PERLMOD = $(LIBDIR)/XrdClientAdmin.so
 endif
 
 
-TARGETS = $(LIBRARY) $(TESTBIN) $(XRDCP)
+TARGETS = $(LIBRARY) $(LIBAUX) $(TESTBIN) $(XRDCP)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -110,6 +119,16 @@ $(LIBRARY): $(OBJECTS)
 	else \
 	   ar -rc $(LIBRARY) $(OBJECTS); \
 	   ranlib $(LIBRARY); \
+	fi
+
+$(LIBAUX): $(OBJECTD)
+	@echo Creating archive $(LIBAUX) 
+	$(ECHO)rm -f $(LIBAUX);
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	   $(CC) -xar -o $(LIBAUX) $(OBJECTD); \
+	else \
+	   ar -rc $(LIBAUX) $(OBJECTD); \
+	   ranlib $(LIBAUX); \
 	fi
 
 $(TESTBIN): $(OBJECTS) $(OBJECTB) $(LIBDEPS)
@@ -178,6 +197,46 @@ $(OBJDIR)/XrdClientSock.o:       XrdClientSock.cc             XrdClientSock.hh\
                                  XrdClientString.hh           XrdClientVector.hh
 	@echo Compiling XrdClientSock.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientSock.o XrdClientSock.cc
+
+$(OBJDIR)/XrdClientXrdSock.o: XrdClientXrdSock.cc XrdClientXrdSock.hh XrdClientSock.hh\
+                                 XrdClientDebug.cc  XrdClientDebug.hh\
+                                 XrdClientConst.hh\
+                                 XrdClientEnv.cc              XrdClientEnv.hh\
+                                 XrdClientString.hh           XrdClientVector.hh
+	@echo Compiling XrdClientXrdSock.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientXrdSock.o XrdClientXrdSock.cc
+
+
+$(OBJDIR)/XrdClientDNS.o:       XrdClientDNS.cc             XrdClientDNS.hh\
+                                 XrdClientDebug.cc            XrdClientDebug.hh\
+                                 XrdClientConst.hh\
+                                 XrdClientEnv.cc              XrdClientEnv.hh\
+                                 XrdClientString.hh           XrdClientVector.hh
+	@echo Compiling XrdClientDNS.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientDNS.o XrdClientDNS.cc
+
+$(OBJDIR)/XrdClientXrdDNS.o: XrdClientXrdDNS.cc XrdClientXrdDNS.hh XrdClientDNS.hh\
+                                 XrdClientDebug.cc  XrdClientDebug.hh\
+                                 XrdClientConst.hh\
+                                 XrdClientEnv.cc              XrdClientEnv.hh\
+                                 XrdClientString.hh           XrdClientVector.hh
+	@echo Compiling XrdClientXrdDNS.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientXrdDNS.o XrdClientXrdDNS.cc
+
+$(OBJDIR)/XrdClientThreadImp.o: XrdClientThreadImp.cc
+	@echo Compiling XrdClientThreadImp.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientThreadImp.o XrdClientThreadImp.cc
+
+$(OBJDIR)/XrdClientXrdFactory.o: XrdClientXrdFactory.cc XrdClientXrdFactory.hh \
+				 XrdClientSock.hh\
+				 XrdClientMutex.hh\
+				 XrdClientCond.hh\
+				 XrdClientDebug.cc  XrdClientDebug.hh\
+				 XrdClientConst.hh\
+				 XrdClientEnv.cc              XrdClientEnv.hh\
+				 XrdClientString.hh           XrdClientVector.hh
+	@echo Compiling XrdClientXrdFactory.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientXrdFactory.o XrdClientXrdFactory.cc
 
 $(OBJDIR)/XrdClientConn.o:       XrdClientConn.cc             XrdClientConn.hh\
                                  XrdClientConnMgr.cc          XrdClientConnMgr.hh\

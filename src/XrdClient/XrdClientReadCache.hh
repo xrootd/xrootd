@@ -16,12 +16,12 @@
 #ifndef XRD_READCACHE_H
 #define XRD_READCACHE_H
 
-#include <pthread.h>
 #include <iostream>
 
 #include "XrdClient/XrdClientInputBuffer.hh"
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientVector.hh"
+#include "XrdClient/XrdClientConst.hh"
 
 #define xrdmin(a, b) (a < b ? a : b)
 
@@ -111,22 +111,22 @@ typedef XrdClientVector<XrdClientReadCacheItem *> ItemVect;
 class XrdClientReadCache {
  private:
 
-   long long      fBytesHit;         // Total number of bytes read with a cache hit
-   long long      fBytesSubmitted;   // Total number of bytes inserted
-   float         fBytesUsefulness;
-   ItemVect      fItems;
-   long long      fMaxCacheSize;
-   long long      fMissCount;        // Counter of the cache misses
-   float         fMissRate;            // Miss rate
-   pthread_mutex_t  fMutex;
-   long long      fReadsCounter;     // Counter of all the attempted reads (hit or miss)
-   long long      fTimestampTickCounter;        // Aging mechanism yuk!
-   long long      fTotalByteCount;
+   long long       fBytesHit;         // Total number of bytes read with a cache hit
+   long long       fBytesSubmitted;   // Total number of bytes inserted
+   float           fBytesUsefulness;
+   ItemVect        fItems;
+   long long       fMaxCacheSize;
+   long long       fMissCount;        // Counter of the cache misses
+   float           fMissRate;            // Miss rate
+   XrdClientMutex  fMutex;
+   long long       fReadsCounter;     // Counter of all the attempted reads (hit or miss)
+   long long       fTimestampTickCounter;        // Aging mechanism yuk!
+   long long       fTotalByteCount;
 
-   long long      GetTimestampTick();
-   bool        MakeFreeSpace(long long bytes);
-   bool        RemoveLRUItem();
-   inline void   UpdatePerfCounters() {
+   long long       GetTimestampTick();
+   bool            MakeFreeSpace(long long bytes);
+   bool            RemoveLRUItem();
+   inline void     UpdatePerfCounters() {
       if (fReadsCounter > 0)
          fMissRate = (float)fMissCount / fReadsCounter;
       if (fBytesSubmitted > 0)
@@ -139,8 +139,15 @@ class XrdClientReadCache {
   
    bool          GetDataIfPresent(const void *buffer, long long begin_offs,
                                   long long end_offs, bool PerfCalc);
-   inline long long GetTotalByteCount() { return fTotalByteCount; }
+
+   inline long long GetTotalByteCount() {
+      XrdClientMutexLocker m(fMutex);
+      return fTotalByteCount;
+   }
+
    inline void     PrintPerfCounters() {
+      XrdClientMutexLocker m(fMutex);
+
       cout << "Caching info: MissRate=" << fMissRate << " MissCount=" << 
 	 fMissCount << " ReadsCounter=" << fReadsCounter << endl;
       cout << "Caching info: BytesUsefulness=" << fBytesUsefulness <<
@@ -152,8 +159,12 @@ class XrdClientReadCache {
 				  long long end_offs);
    void            RemoveItems();
    void            RemoveItems(long long begin_offs, long long end_offs);
+
    // To check if a block dimension will fit into the cache
-   inline bool   WillFit(long long bc) { return (bc < fMaxCacheSize); }
+   inline bool   WillFit(long long bc) {
+      XrdClientMutexLocker m(fMutex);
+      return (bc < fMaxCacheSize);
+   }
 
 };
 

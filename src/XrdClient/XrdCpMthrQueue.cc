@@ -10,31 +10,12 @@
 
 //       $Id$
 
-#include "XrdOuc/XrdOucError.hh"
 #include "XrdClient/XrdCpMthrQueue.hh"
 #include "XrdClient/XrdClientMutexLocker.hh"
 #include "XrdClient/XrdClientDebug.hh"
 
 XrdCpMthrQueue::XrdCpMthrQueue() {
    // Constructor
-   pthread_mutexattr_t attr;
-   int rc;
-
-   // Initialization of lock mutex
-   rc = pthread_mutexattr_init(&attr);
-   if (rc == 0) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (rc == 0)
-	 rc = pthread_mutex_init(&fMutex, &attr);
-   }
-
-   if (rc) {
-      Error("InputBuffer", 
-            "Can't create mutex: out of system resources.");
-      abort();
-   }
-
-   pthread_mutexattr_destroy(&attr);
 
    fMsgQue.Clear();
    fTotSize = 0;
@@ -43,7 +24,7 @@ XrdCpMthrQueue::XrdCpMthrQueue() {
 XrdCpMthrQueue::~XrdCpMthrQueue() {
    // Destructor
 
-   pthread_mutex_destroy(&fMutex);
+
 }
 
 int XrdCpMthrQueue::PutBuffer(void *buf, int len) {
@@ -93,7 +74,7 @@ int XrdCpMthrQueue::GetBuffer(void **buf, int &len) {
 
    if (!res) {
 
-      fCnd.Wait(3600);
+      fCnd.Wait(300);
 
       {
 	 XrdClientMutexLocker mtx(fMutex);

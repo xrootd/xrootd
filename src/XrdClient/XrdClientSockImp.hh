@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientSock                                                        //
+// XrdClientSockImp                                                     //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,31 +11,25 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef XRC_DNS_H
-#define XRC_DNS_H
+#ifndef XRC_SOCKIMP_H
+#define XRC_SOCKIMP_H
 
-#include <XrdClient/XrdClientSockImp.hh>
+class XrdClientString;
 
-class XrdClientUrlInfo;
-
-class XrdClientSock {
-
-private:
-
-   XrdClientSockImp  *fSockImp;
+class XrdClientSockImp {
 
 public:
-   XrdClientSock(XrdClientUrlInfo host, int windowsize = 0);
-   virtual ~XrdClientSock() { if (fSockImp) delete fSockImp; }
+   XrdClientSockImp() {}
+   virtual ~XrdClientSockImp() {}
 
-   int    RecvRaw(void* buffer, int length);
-   int    SendRaw(const void* buffer, int length);
+   virtual int    RecvRaw(void* buffer, int length) = 0;
+   virtual int    SendRaw(const void* buffer, int length) = 0;
 
-   void   TryConnect();
+   virtual void   TryConnect() = 0;
 
-   void   Disconnect();
+   virtual void   Disconnect() = 0;
 
-   bool   IsConnected();
+   virtual bool   IsConnected() = 0;
 };
 
 #endif

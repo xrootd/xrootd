@@ -10,7 +10,7 @@
 
 //       $Id$
 
-#include <pthread.h>
+#include "XrdClient/XrdClientMutexLocker.hh"
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 using namespace std;
@@ -30,7 +30,7 @@ class XrdCpMthrQueue {
    XrdClientVector<XrdCpMessage*>            fMsgQue;      // queue for incoming messages
    int                                       fMsgIter;     // an iterator on it
 
-   pthread_mutex_t                    fMutex;       // mutex to protect data structures
+   XrdClientMutex                     fMutex;       // mutex to protect data structures
 
    XrdOucCondVar                      fCnd;         // variable to make the reader wait
                                                     // until some data is available

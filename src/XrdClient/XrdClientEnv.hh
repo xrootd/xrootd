@@ -34,7 +34,7 @@ class XrdClientEnv {
  private:
 
    XrdOucEnv      *fOucEnv;
-   pthread_mutex_t fMutex;
+   XrdClientMutex fMutex;
    static XrdClientEnv *fgInstance;
 
  protected:

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientSock                                                        //
+// XrdClientXrdSock                                                     //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,31 +11,40 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef XRC_DNS_H
-#define XRC_DNS_H
+
+#ifndef XRC_XRDSOCK_H
+#define XRC_XRDSOCK_H
 
 #include <XrdClient/XrdClientSockImp.hh>
 
-class XrdClientUrlInfo;
+#include <XrdClient/XrdClientUrlInfo.hh>
+#include <XrdClient/XrdClientConst.hh>
 
-class XrdClientSock {
+struct XrdClientSockConnectParms {
+   XrdClientUrlInfo TcpHost;
+   int TcpWindowSize;
+};
+
+class XrdClientXrdSock : public XrdClientSockImp {
 
 private:
 
-   XrdClientSockImp  *fSockImp;
+   XrdClientSockConnectParms fHost;
+   bool                      fConnected;
+   int fSocket;
 
 public:
-   XrdClientSock(XrdClientUrlInfo host, int windowsize = 0);
-   virtual ~XrdClientSock() { if (fSockImp) delete fSockImp; }
+   XrdClientXrdSock(XrdClientUrlInfo Host, int windowsize = 0);
+   virtual ~XrdClientXrdSock();
 
-   int    RecvRaw(void* buffer, int length);
-   int    SendRaw(const void* buffer, int length);
+   int            RecvRaw(void* buffer, int length);
+   int            SendRaw(const void* buffer, int length);
 
-   void   TryConnect();
+   void           TryConnect();
 
-   void   Disconnect();
+   void           Disconnect();
 
-   bool   IsConnected();
+   bool           IsConnected() { return fConnected; };
 };
 
 #endif

@@ -9,8 +9,8 @@
 //
 // Author: Alvise Dorigo, Fabrizio Furano
 
-#include "XrdOuc/XrdOucError.hh"
 #include "XrdClient/XrdClientDebug.hh"
+
 #include "XrdClient/XrdClientMutexLocker.hh"
 XrdClientDebug *XrdClientDebug::fgInstance = 0;
 
@@ -30,27 +30,9 @@ XrdClientDebug* XrdClientDebug::Instance() {
 //_____________________________________________________________________________
 XrdClientDebug::XrdClientDebug() {
    // Constructor
-   int rc;
-   pthread_mutexattr_t attr;
 
    fOucLog = new XrdOucLogger();
    fOucErr = new XrdOucError(fOucLog, "Xrd");
-
-   // Initialization of lock mutex
-   rc = pthread_mutexattr_init(&attr);
-   if (rc == 0) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (rc == 0)
-	 rc = pthread_mutex_init(&fMutex, &attr);
-   }
-
-   pthread_mutexattr_destroy(&attr);
-
-   if (rc) {
-      Error("InputBuffer", 
-            "Can't create mutex: out of system resources.");
-      abort();
-   }
 
    fDbgLevel = EnvGetLong(NAME_DEBUG);
 }
@@ -63,6 +45,7 @@ XrdClientDebug::~XrdClientDebug() {
 
    fOucErr = 0;
    fOucLog = 0;
-   pthread_mutex_destroy(&fMutex);
+
    delete fgInstance;
+   fgInstance = 0;
 }

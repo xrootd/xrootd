@@ -17,21 +17,25 @@
 #ifndef XRC_MUTEXLOCKER_H
 #define XRC_MUTEXLOCKER_H
 
-#include <pthread.h>
+#include "XrdClientMutex.hh"
 
 class XrdClientMutexLocker {
 
 private:
-   pthread_mutex_t fMtx;
+   XrdClientMutex *fMtx;
 
 public:
  
-   inline XrdClientMutexLocker(pthread_mutex_t mutex) { 
-      fMtx = mutex;
-      pthread_mutex_lock(&fMtx);
-   }
+   inline XrdClientMutexLocker(XrdClientMutex &mutex) { 
+      fMtx = &mutex;
+      fMtx->Lock();
+   };
 
-   inline ~XrdClientMutexLocker() { pthread_mutex_unlock(&fMtx); }
+   inline ~XrdClientMutexLocker() { 
+      fMtx->UnLock();
+      fMtx = 0;
+   };
+
 };
 
 

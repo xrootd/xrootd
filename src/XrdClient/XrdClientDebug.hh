@@ -50,14 +50,14 @@ XrdClientDebug::Instance()->TraceStream((short)XrdClientDebug::kNODEBUG, outs);\
 
 class XrdClientDebug {
  private:
-   short           fDbgLevel;
+   short                       fDbgLevel;
 
-   XrdOucLogger   *fOucLog;
-   XrdOucError    *fOucErr;
+   XrdOucLogger                *fOucLog;
+   XrdOucError                 *fOucErr;
 
-   static XrdClientDebug *fgInstance;
+   static XrdClientDebug       *fgInstance;
 
-   pthread_mutex_t                    fMutex;
+   XrdClientMutex              fMutex;
 
  protected:
    XrdClientDebug();
@@ -73,7 +73,7 @@ class XrdClientDebug {
    };
 
    short           GetDebugLevel() {
-//       XrdClientMutexLocker m(fMutex);
+       XrdClientMutexLocker m(fMutex);
        return fDbgLevel;
        }
 
@@ -101,8 +101,8 @@ class XrdClientDebug {
 	 fOucErr->Emsg("", s);
    }
 
-   inline void Lock() { pthread_mutex_lock(&fMutex); }
-   inline void Unlock() { pthread_mutex_unlock(&fMutex); }
+   inline void Lock() { fMutex.Lock(); }
+   inline void Unlock() { fMutex.UnLock(); }
 
 };
 

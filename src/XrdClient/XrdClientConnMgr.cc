@@ -34,29 +34,28 @@
 XrdClientConnectionMgr *XrdClientConnectionMgr::fgInstance = 0;
 
 //_____________________________________________________________________________
-extern "C" void * GarbageCollectorThread(void * arg)
+extern "C" void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 {
    // Function executed in the garbage collector thread
 
    int i;
    XrdClientConnectionMgr *thisObj = (XrdClientConnectionMgr *)arg;
 
-   pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, 0);
-   pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
+   thr->SetCancelDeferred();
+   thr->SetCancelOn();
 
    while (1) {
-      pthread_testcancel();
+      thr->CancelPoint();
 
       thisObj->GarbageCollect();
 
       for (i = 0; i < 10; i++) {
-	 pthread_testcancel();
+	 thr->CancelPoint();
 
          usleep(200);
       }
    }
 
-   pthread_exit(0);
    return 0;
 }
 
@@ -91,34 +90,15 @@ XrdClientConnectionMgr::XrdClientConnectionMgr()
    // Creates a Connection Manager object.
    // Starts the garbage collector thread.
 
-   // Initialization of lock mutex
-   pthread_mutexattr_t attr;
-   int rc;
-
-   // Initialization of lock mutex
-   rc = pthread_mutexattr_init(&attr);
-   if (rc == 0) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (rc == 0)
-	 rc = pthread_mutex_init(&fMutex, &attr);
-   }
-   if (rc) {
-      Error("PhyConnection", 
-            "Can't create mutex: out of system resources.");
-      abort();
-   }
-
-   pthread_mutexattr_destroy(&attr);
-
    // Garbage collector thread creation
    if (EnvGetLong(NAME_STARTGARBAGECOLLECTORTHREAD)) {
-      int pt_ret;
+      fGarbageColl = new XrdClientThread(GarbageCollectorThread);
 
-      pt_ret = pthread_create(&fGarbageColl, NULL, GarbageCollectorThread, this);
-      if (pt_ret)
+      if (!fGarbageColl)
 	 Error("ConnectionMgr",
 	       "Can't create garbage collector thread: out of system resources");
 
+      fGarbageColl->Run(this);
    }
    else
       if(DebugLevel() >= XrdClientDebug::kHIDEBUG)
@@ -143,14 +123,14 @@ XrdClientConnectionMgr::~XrdClientConnectionMgr()
 
    }
 
-   pthread_cancel(fGarbageColl);
-   pthread_join(fGarbageColl, 0);
+   fGarbageColl->Cancel();
+   fGarbageColl->Join(0);
+   delete fGarbageColl;
 
    GarbageCollect();
 
-   pthread_mutex_destroy(&fMutex);
-
    delete(fgInstance);
+   fgInstance = 0;
 }
 
 //_____________________________________________________________________________

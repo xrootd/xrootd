@@ -25,34 +25,36 @@
 
 
 #include <pthread.h>
+#include "XrdClient/XrdClientMutex.hh"
 #include "XrdClient/XrdClientUnsolMsg.hh"
 #include "XrdClient/XrdClientLogConnection.hh"
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientVector.hh"
+#include "XrdClient/XrdClientThread.hh"
 
 #define ConnectionManager XrdClientConnectionMgr::Instance()
 
 
 
 // Ugly prototype to avoid warnings under solaris
-extern "C" void * GarbageCollectorThread(void * arg);
+extern "C" void * GarbageCollectorThread(void * arg, XrdClientThread *thr);
 
 class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler, 
                        XrdClientUnsolMsgSender {
 private:
    XrdClientVector<XrdClientLogConnection*> fLogVec;
    XrdClientVector<XrdClientPhyConnection*> fPhyVec;
-   pthread_mutex_t            fMutex; // mutex used to protect local variables
+   XrdClientMutex             fMutex; // mutex used to protect local variables
                                       // of this and TXLogConnection, TXPhyConnection
                                       // classes; not used to protect i/o streams
 
-   pthread_t                  fGarbageColl;
+   XrdClientThread            *fGarbageColl;
 
 
    static XrdClientConnectionMgr*   fgInstance;
 
    void          GarbageCollect();
-   friend void * GarbageCollectorThread(void *);
+   friend void * GarbageCollectorThread(void *, XrdClientThread *thr);
    bool          ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                        XrdClientMessage *unsolmsg);
 protected:

@@ -20,10 +20,10 @@
 #include "XrdClient/XrdClientUnsolMsg.hh"
 #include "XrdClient/XrdClientInputBuffer.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdClient/XrdClientThread.hh"
+#include "XrdClient/XrdClientCond.hh"
 
 #include <time.h> // for time_t data type
-#include <pthread.h>
 
 enum ELoginState {
    kNo      = 0,
@@ -43,12 +43,12 @@ private:
    XrdClientInputBuffer      fMsgQ;         // The queue used to hold incoming messages
    int                 fRequestTimeout;
   
-   pthread_mutex_t     fRwMutex;     // Lock before using the physical channel 
+   XrdClientMutex      fRwMutex;     // Lock before using the physical channel 
                                       // (for reading and/or writing)
 
-   pthread_mutex_t     fMutex;
+   XrdClientMutex      fMutex;
 
-   pthread_t           fReaderthreadhandler; // The thread which is going to pump
+   XrdClientThread     *fReaderthreadhandler; // The thread which is going to pump
                                              // out the data from the socket
                                              // in the async mode
    bool                fReaderthreadrunning;
@@ -59,7 +59,7 @@ private:
 
    void HandleUnsolicited(XrdClientMessage *m);
 
-   XrdOucCondVar       fReaderCV;
+   XrdClientCond       fReaderCV;
 
 public:
    ERemoteServer       fServerType;
@@ -69,7 +69,7 @@ public:
    ~XrdClientPhyConnection();
 
    XrdClientMessage     *BuildMessage(bool IgnoreTimeouts, bool Enqueue);
-   void                  CheckAutoTerm();
+   bool                  CheckAutoTerm();
 
    bool           Connect(XrdClientUrlInfo RemoteHost);
    void           Disconnect();

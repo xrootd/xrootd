@@ -11,7 +11,9 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdClient/XrdClientUrlSet.hh"
+#include <XrdClient/XrdClientUrlSet.hh>
+#include <XrdClient/XrdClientDNS.hh>
+#include <XrdClient/XrdClientString.hh>
 
 #include <math.h>
 #include <stdio.h>
@@ -19,15 +21,20 @@
 #include <ctype.h>               // needed by isdigit()
 #include <netdb.h>               // needed by getservbyname()
 #include <netinet/in.h>          // needed by ntohs()
+#if 0
+
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
 #include "XrdNet/XrdNetDNS.hh"
+#endif
 
 #include <stdlib.h>
 #include <resolv.h>
+#if 0
 #include <arpa/nameser.h>
+#endif
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -294,7 +301,35 @@ void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, XrdClientString host
       Info(XrdClientDebug::kHIDEBUG, "ConvertSingleDNSAlias","Resolving " <<
 	   tmp.Host);
 
+#if 1
+   // Resol the DNS information
+   XrdClientDNS hdns(tmp.Host.c_str());
+   XrdClientString haddr[10], hname[10];
+   int naddr = hdns.HostAddr(10, haddr, hname);
 
+   // Fill the list
+   XrdClientUrlInfo *newurl = 0;
+   int i = 0;
+   for (; i < naddr; i++ ) {
+
+      // Create a copy of the main urlinfo with the new data
+      newurl = new XrdClientUrlInfo();
+      newurl->TakeUrl(tmp.GetUrl());
+
+      // Address
+      newurl->HostAddr = haddr[i];
+
+      // Name
+      newurl->Host = hname[i];
+
+      // Add to the list
+      urls.Push_back(newurl);
+      
+      // Notify
+      Info(XrdClientDebug::kHIDEBUG, "ConvertSingleDNSAlias",
+	   "Found host " << newurl->Host << " with addr " << newurl->HostAddr);
+   }
+#else
    struct sockaddr_in ip[10];
    char *hosterrmsg;
    XrdClientUrlInfo *newurl;
@@ -326,7 +361,7 @@ void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, XrdClientString host
       urls.Push_back( newurl );
 
    }
-
+#endif
    
 }
 

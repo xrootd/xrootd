@@ -42,11 +42,11 @@ int XrdClientInputBuffer::MsgForStreamidCnt(int streamid)
 }
 
 //________________________________________________________________________
-pthread_cond_t *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
+XrdClientCond *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
    // Gets the right sync obj to wait for messages for a given streamid
    // If the semaphore is not available, it creates one.
 
-   pthread_cond_t *cnd;
+   XrdClientCond *cnd;
 
    {
       XrdClientMutexLocker mtx(fMutex);
@@ -57,8 +57,7 @@ pthread_cond_t *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
       cnd = fSyncobjRepo.Find(buf);
 
       if (!cnd) {
-	 cnd = new pthread_cond_t;
-	 pthread_cond_init(cnd, 0);
+	 cnd = new XrdClientCond();
 
          fSyncobjRepo.Rep(buf, cnd);
 	 return cnd;
@@ -74,36 +73,6 @@ pthread_cond_t *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
 //_______________________________________________________________________
 XrdClientInputBuffer::XrdClientInputBuffer() {
    // Constructor
-   pthread_mutexattr_t attr;
-   int rc;
-
-
-   // Initialization of cnd mutex
-   rc = pthread_mutexattr_init(&attr);
-   rc = pthread_mutex_init(&fCndMutex, &attr);
-
-   if (rc) {
-      Error("InputBuffer", 
-            "Can't create mutex: out of system resources.");
-      abort();
-   }
-
-   pthread_mutexattr_destroy(&attr);
-
-   // Initialization of lock mutex
-   rc = pthread_mutexattr_init(&attr);
-   if (rc == 0) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (rc == 0)
-	 rc = pthread_mutex_init(&fMutex, &attr);
-   }
-   if (rc) {
-      Error("InputBuffer", 
-            "Can't create mutex: out of system resources.");
-      abort();
-   }
-
-   pthread_mutexattr_destroy(&attr);
 
    fMsgQue.Clear();
 }
@@ -111,10 +80,13 @@ XrdClientInputBuffer::XrdClientInputBuffer() {
 
 
 //_______________________________________________________________________
-int DeleteHashItem(const char *key, pthread_cond_t *cnd, void *Arg) {
-   if (cnd) pthread_cond_destroy(cnd);
+int DeleteHashItem(const char *key, XrdClientCond *cnd, void *Arg) {
+   if (cnd) delete cnd;
+
+   // This makes the Apply method delete the entry
    return -1;
 }
+
 XrdClientInputBuffer::~XrdClientInputBuffer() {
    // Destructor
 
@@ -129,6 +101,7 @@ XrdClientInputBuffer::~XrdClientInputBuffer() {
 	 fMsgQue[fMsgIter] = 0;
       }
 
+      fMsgQue.Clear();
 
       // Delete all the syncobjs
       fSyncobjRepo.Apply(DeleteHashItem, 0);
@@ -136,16 +109,14 @@ XrdClientInputBuffer::~XrdClientInputBuffer() {
    }
 
 
-   pthread_mutex_destroy(&fMutex);
 }
 
 //_______________________________________________________________________
 int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
 {
    // Put message in the list
-  //XrdClientMutexLocker cndmtx(fCndMutex);
   int sz;
-  pthread_cond_t *cnd = 0;
+  XrdClientCond *cnd = 0;
 
    {
       XrdClientMutexLocker mtx(fMutex);
@@ -160,9 +131,7 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
    }
 
    if (cnd) {
-      pthread_mutex_lock(&fCndMutex);
-      pthread_cond_signal(cnd);
-      pthread_mutex_unlock(&fCndMutex);
+      cnd->Signal();
    }
 
    return sz;
@@ -176,9 +145,8 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
    // If there are no XrdClientMessages for the streamid, it waits for a number
    // of seconds for something to come
 
-   pthread_cond_t *cv;
+   XrdClientCond *cv;
    XrdClientMessage *res, *m;
-   //XrdClientMutexLocker cndmtx(fCndMutex);
 
    res = 0;
 
@@ -203,21 +171,13 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
    }
 
    if (!res) {
-      time_t now;
-      struct timespec timeout;
 
       // Find the cond where to wait for a msg
       cv = GetSyncObjOrMakeOne(streamid);
 
       for (int k = 0; k < secstimeout; k++) {
-      now = time(0);
-      timeout.tv_sec = now+2;
-      timeout.tv_nsec = 0;
 
-      // Remember, the wait primitive internally unlocks the mutex!
-      pthread_mutex_lock(&fCndMutex);
-      pthread_cond_timedwait(cv, &fCndMutex, &timeout);
-      pthread_mutex_unlock(&fCndMutex);
+      cv->TimedWait(1);
 
       {
 	 // Yes, we have to lock the mtx until we finish

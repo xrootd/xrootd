@@ -24,7 +24,7 @@
 
 
 //____________________________________________________________________________
-extern "C" void *SocketReaderThread(void * arg)
+extern "C" void *SocketReaderThread(void * arg, XrdClientThread *thr)
 {
    // This thread is the base for the async capabilities of TXPhyConnection
    // It repeatedly keeps reading from the socket, while feeding the
@@ -37,9 +37,8 @@ extern "C" void *SocketReaderThread(void * arg)
 	"SocketReaderThread",
 	"Reader Thread starting.");
 
-
-   pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0);
-   pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
+   thr->SetCancelDeferred();
+   thr->SetCancelOn();
 
    thisObj = (XrdClientPhyConnection *)arg;
 
@@ -47,55 +46,22 @@ extern "C" void *SocketReaderThread(void * arg)
 
    while (1) {
      thisObj->BuildMessage(TRUE, TRUE);
-     thisObj->CheckAutoTerm();
+
+     if (thisObj->CheckAutoTerm())
+	break;
    }
 
    Info(XrdClientDebug::kHIDEBUG,
         "SocketReaderThread",
         "Reader Thread exiting.");
 
-
-   pthread_exit(0);
    return 0;
 }
 
 //____________________________________________________________________________
 XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
    // Constructor
-   pthread_mutexattr_t attr;
-   int rc;
-
    fServerType = kUnknown;
-
-   // Initialization of channel mutex
-   rc = pthread_mutexattr_init(&attr);
-   if (rc == 0) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (rc == 0)
-	 rc = pthread_mutex_init(&fRwMutex, &attr);
-   }
-   if (rc) {
-      Error("PhyConnection", 
-            "Can't create mutex: out of system resources.");
-      abort();
-   }
-
-   pthread_mutexattr_destroy(&attr);
-
-   // Initialization of lock mutex
-   rc = pthread_mutexattr_init(&attr);
-   if (rc == 0) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (rc == 0)
-         rc = pthread_mutex_init(&fMutex, &attr);
-   }
-   if (rc) {
-      Error("PhyConnection",
-            "Can't create mutex: out of system resources.");
-      abort();
-   }
-   
-   pthread_mutexattr_destroy(&attr);
 
    Touch();
 
@@ -120,10 +86,7 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
    UnlockChannel();
 
    if (fReaderthreadrunning)
-      pthread_cancel(fReaderthreadhandler);
-
-   pthread_mutex_destroy(&fRwMutex);
-   pthread_mutex_destroy(&fMutex);
+      fReaderthreadhandler->Cancel();
 
 }
 
@@ -171,7 +134,6 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 
 //____________________________________________________________________________
 void XrdClientPhyConnection::StartReader() {
-   int pt_ret;
    bool running;
 
    {
@@ -189,19 +151,21 @@ void XrdClientPhyConnection::StartReader() {
 	   "StartReader", "Starting reader thread...");
 
       // Now we launch  the reader thread
-      pt_ret = pthread_create(&fReaderthreadhandler, NULL, SocketReaderThread, this);
-      if (pt_ret)
+      fReaderthreadhandler = new XrdClientThread(SocketReaderThread);
+      if (!fReaderthreadhandler)
 	 Error("PhyConnection",
 	       "Can't create reader thread: out of system resources");
 
+      fReaderthreadhandler->Run(this);
+      
       do {
           {
              XrdClientMutexLocker l(fMutex);
-	     pthread_detach(fReaderthreadhandler);
+	     fReaderthreadhandler->Detach();
              running = fReaderthreadrunning;
           }
 
-          if (!running) fReaderCV.Wait(100);
+          if (!running) fReaderCV.TimedWait(100);
       } while (!running);
 
 
@@ -269,7 +233,7 @@ void XrdClientPhyConnection::Disconnect()
 
 
 //____________________________________________________________________________
-void XrdClientPhyConnection::CheckAutoTerm() {
+bool XrdClientPhyConnection::CheckAutoTerm() {
    bool doexit = FALSE;
 
   {
@@ -277,8 +241,7 @@ void XrdClientPhyConnection::CheckAutoTerm() {
 
    // Parametric asynchronous stuff
    // If we are going async, we might be willing to term ourself
-   if (!IsValid() && EnvGetLong(NAME_GOASYNC) &&
-        pthread_equal(pthread_self(), fReaderthreadhandler)) {
+   if (!IsValid() && EnvGetLong(NAME_GOASYNC)) {
 
          Info(XrdClientDebug::kHIDEBUG,
               "CheckAutoTerm", "Self-Cancelling reader thread.");
@@ -298,9 +261,10 @@ void XrdClientPhyConnection::CheckAutoTerm() {
 
   if (doexit) {
 	UnlockChannel();
-        pthread_exit(0);
+        return true;
    }
 
+  return false;
 }
 
 
@@ -541,12 +505,12 @@ bool XrdClientPhyConnection::ExpiredTTL()
 void XrdClientPhyConnection::LockChannel()
 {
    // Lock 
-   pthread_mutex_lock(&fRwMutex);
+   fRwMutex.Lock();
 }
 
 //____________________________________________________________________________
 void XrdClientPhyConnection::UnlockChannel()
 {
    // Unlock
-   pthread_mutex_unlock(&fRwMutex);
+   fRwMutex.UnLock();
 }

@@ -35,22 +35,6 @@ XrdClientEnv::XrdClientEnv() {
    // Constructor
    fOucEnv = new XrdOucEnv();
 
-   int rc;
-   pthread_mutexattr_t attr;
-
-   // Initialization of lock mutex
-   rc = pthread_mutexattr_init(&attr);
-   if (rc == 0) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (rc == 0)
-	 rc = pthread_mutex_init(&fMutex, &attr);
-   }
-
-   pthread_mutexattr_destroy(&attr);
-
-   if (rc) {
-      abort();
-   }
 
    PutInt(NAME_CONNECTTIMEOUT, DFLT_CONNECTTIMEOUT);
    PutInt(NAME_CONNECTTIMEOUTWAN, DFLT_CONNECTTIMEOUTWAN);
@@ -72,6 +56,6 @@ XrdClientEnv::~XrdClientEnv() {
    // Destructor
    delete fOucEnv;
    delete fgInstance;
-   pthread_mutex_destroy(&fMutex);
+
    fgInstance = 0;
 }

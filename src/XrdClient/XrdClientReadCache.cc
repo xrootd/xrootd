@@ -62,25 +62,6 @@ XrdClientReadCache::XrdClientReadCache()
    fTimestampTickCounter = 0;
    fTotalByteCount = 0;
 
-   // Initialization of lock mutex
-   pthread_mutexattr_t attr;
-   int rc;
-
-   // Initialization of lock mutex
-   rc = pthread_mutexattr_init(&attr);
-   if (rc == 0) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (rc == 0)
-	 rc = pthread_mutex_init(&fMutex, &attr);
-   }
-   if (rc) {
-      Error("XrdClientReadCache", 
-            "Can't create mutex: out of system resources.");
-      abort();
-   }
-
-   pthread_mutexattr_destroy(&attr);
-
    fMissRate = 0.0;
    fMissCount = 0;
    fReadsCounter = 0;
@@ -98,7 +79,7 @@ XrdClientReadCache::~XrdClientReadCache()
    // Destructor
 
    RemoveItems();
-   pthread_mutex_destroy(&fMutex);
+
 }
 
 //________________________________________________________________________
