@@ -70,10 +70,12 @@ class XrdClientDebug {
        XrdClientMutexLocker m(fMutex);
        return fDbgLevel;
        }
+
    static XrdClientDebug *Instance();
 
    inline void TraceStream(short DbgLvl, ostringstream &s) {
       XrdClientMutexLocker m(fMutex);
+
       if (DbgLvl <= GetDebugLevel())
 	 fOucErr->Emsg("", s.str().c_str() );
 
