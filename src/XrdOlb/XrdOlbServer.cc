@@ -60,7 +60,6 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port)
     ServMask =  0;
     ServID   = -1;
     Instance =  0;
-    Port     =  port;
     isDisable=  0;
     isNoStage=  0;
     isOffline=  (lnkp == 0);
@@ -81,9 +80,10 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port)
     PendPaths=  0;
     pingpong =  0;
     logload  =  XrdOlbConfig.LogPerf;
-    myName   =  0;
     DropTime =  0;
     DropJob  =  0;
+    myName   =  0;
+    Port     =  0; // setName() will set myName and Port!
     setName(lnkp->Name(), port);
 }
 
@@ -324,6 +324,7 @@ void XrdOlbServer::setName(char *hname, int port)
 
    if (!port) myName = strdup(hname);
       else {sprintf(buff, "%s:%d", hname, port); myName = strdup(buff);}
+   Port = port;
 }
 
 /******************************************************************************/
