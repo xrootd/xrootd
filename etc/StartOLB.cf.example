@@ -65,7 +65,7 @@ OLBTYPE='server'
 RESP=`/usr/local/bin/taylor -q opts | grep '^olbd=.*master'`
 if [ $? -eq 0 ]; then
 OLBMODE='-m'
-OLBTYPE='master'
+OLBTYPE='manager'
 fi
 
 #-#-#-#-#-#-#-#-#   E N D   O F   C O N F I G U R A T I O N   #-#-#-#-#-#-#-#-#

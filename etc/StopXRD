@@ -79,7 +79,7 @@ Check(){
 # Pick up options
 #
 while test -n "$1"; do
-     if test -n "'$1'" -a "'$1'" = "'-d'"; then
+     if test -n "'$1'" -a "'$1'" = "'-D'"; then
         set -x
    elif test -n "'$1'" -a "'$1'" = "'-c'"; then
         CONDCHK=1

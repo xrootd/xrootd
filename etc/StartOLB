@@ -12,8 +12,8 @@
 # Where:  -c  specifies the configuration file to be used.
 #         -d  passes the -d option to olbd
 #         -D  turns on internal debugging.
-#         -m  specifies master mode (default in StartOLB.cf)
-#         -s  specifies slave  mode (default in StartOLB.cf)
+#         -m  specifies manager mode (default in StartOLB.cf)
+#         -s  specifies server  mode (default in StartOLB.cf)
 #         -t  types the commands and does not execute them
 #         -v  produces verbose output.
 
@@ -99,7 +99,7 @@ Notify () {
 # Pick up options
 #
 HAVEVER=
-OLBDEBUG=
+OLBOPTS=
 
 while test -n "$1"; do
      isopt=0
@@ -117,22 +117,20 @@ while test -n "$1"; do
         fi
         OLBCONFIGFN=$2
         shift
-   elif [ "$1" = "-d" ]; then
-        OLBDEBUG="-d"
    elif [ "$1" = "-D" ]; then
         set -x
    elif [ "$1" = "-m" ]; then
         OLBMODE="-m"
-        OLBTYPE='master'
+        OLBTYPE='manager'
    elif [ "$1" = "-s" ]; then
         OLBMODE="-s"
-        OLBTYPE='slave'
+        OLBTYPE='server'
    elif [ "$1" = "-t" ]; then
         TEST=echo
    elif [ "$1" = "-v" ]; then
         VERBOSE=1
    else
-        Notify "Invalid option '$1'."
+        OLBOPTS = "$OLBOPTS $1"
      fi
    shift
    done
@@ -213,7 +211,7 @@ $TEST ulimit -c unlimited
 #
 /bin/echo Starting $OLBTYPE OLB ...
 $TEST cd $OLBHOMEDIR
-$TEST $OLBPROG $OLBDEBUG $OLBMODE -l $OLBLOGFILE $OLBCONFIGFN &
+$TEST $OLBPROG $OLBOPTS $OLBMODE -l $OLBLOGFILE $OLBCONFIGFN &
 stat=$?
 
 # Check if we were successful
