@@ -52,12 +52,14 @@ public:
                     {return auditops & ops;}
 
 virtual void    Deny(const char *opname,
+                     const char *tident,
                      const char *atype,
                      const char *id,
                      const char *host,
                      const char *path);
 
 virtual void   Grant(const char *opname,
+                     const char *tident,
                      const char *atype,
                      const char *id,
                      const char *host,

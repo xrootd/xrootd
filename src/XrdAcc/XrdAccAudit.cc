@@ -36,14 +36,15 @@ XrdAccAudit::XrdAccAudit(XrdOucError *erp)
 /******************************************************************************/
   
 void XrdAccAudit::Deny(const char *opname,
+                       const char *tident,
                        const char *atype,
                        const char *id,
                        const char *host,
                        const char *path)
 {if (auditops & audit_deny)
     {char buff[2048];
-     snprintf(buff, sizeof(buff)-1, "deny %s %s@%s %s %s", atype, id, host,
-                    opname, path);
+     snprintf(buff, sizeof(buff)-1, "%s deny %s %s@%s %s %s",
+              (tident ? tident : ""), atype, id, host, opname, path);
      buff[sizeof(buff)-1] = '\0';
      mDest->Emsg("Audit", buff);
     }
@@ -54,14 +55,15 @@ void XrdAccAudit::Deny(const char *opname,
 /******************************************************************************/
   
 void XrdAccAudit::Grant(const char *opname,
-                       const char *atype,
-                       const char *id,
-                       const char *host,
-                       const char *path)
+                        const char *tident,
+                        const char *atype,
+                        const char *id,
+                        const char *host,
+                        const char *path)
 {if (auditops & audit_deny)
     {char buff[2048];
-     snprintf(buff, sizeof(buff)-1, "grant %s %s@%s %s %s", atype, id, host,
-                    opname, path);
+     snprintf(buff, sizeof(buff)-1, "%s grant %s %s@%s %s %s",
+              (tident ? tident : ""), atype, id, host, opname, path);
      buff[sizeof(buff)-1] = '\0';
      mDest->Emsg("Audit", buff);
     }

@@ -15,14 +15,23 @@
 #include "XrdAcc/XrdAccAudit.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdAcc/XrdAccCapability.hh"
+#include "XrdSec/XrdSecEntity.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucXSLock.hh"
 
 /******************************************************************************/
-/*                               D e f i n e s                                */
+/*                        A c c e s s _ I D _ T y p e                         */
 /******************************************************************************/
   
-#define uhoKEYLEN 528
+// The following are supported id types for access() checking
+//
+enum Access_ID_Type   {AID_Group,
+                       AID_Host,
+                       AID_Netgroup,
+                       AID_Set,
+                       AID_Template,
+                       AID_User
+                      };
 
 /******************************************************************************/
 /*                     S e t T a b s   P a r a m e t e r                      */
@@ -68,30 +77,14 @@ public:
 
 friend class XrdAccConfig;
 
-      XrdAccPrivs Access(const char *atype, const char *id, const char *host,
-                         const char *path, const Access_Operation oper);
+      XrdAccPrivs Access(const XrdSecEntity    *Entity,
+                         const char            *path,
+                         const Access_Operation oper);
 
-      XrdAccPrivs Access(const char *id, const Access_ID_Type idtype,
-                         const char *path, const Access_Operation oper);
-
-      int         Audit(const int accok,
-                        const char *atype,
-                        const char *id,
-                        const char *host,
-                        const char *path,
+      int         Audit(const int              accok,
+                        const XrdSecEntity    *Entity,
+                        const char            *path,
                         const Access_Operation oper);
-
-      void        Enable(const    char *user,
-                         const    char *host,
-                         unsigned int   oid);
-
-      void       Disable(const    char *user,
-                         const    char *host,
-                         unsigned int   oid);
-
-      int      isEnabled(const    char *user,
-                         const    char *host,
-                         unsigned int   oid);
 
 // SwapTabs() is used by the configuration object to establish new access
 // control tables. It may be called whenever the tables change.
@@ -105,13 +98,13 @@ void              SwapTabs(struct XrdAccAccess_Tables &newtab);
      ~XrdAccAccess() {} // The access object is never deleted
 
 private:
+
+XrdAccPrivs Access(const char *id, const Access_ID_Type idtype,
+                   const char *path, const Access_Operation oper);
+
 struct XrdAccAccess_Tables Atab;
 
 XrdOucXSLock Access_Context;
-
-XrdOucHash<char> uho_Hash;
-
-XrdOucMutex uhoContext;
 
 XrdAccAudit *Auditor;
 };

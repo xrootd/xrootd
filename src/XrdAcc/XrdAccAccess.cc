@@ -65,10 +65,8 @@ XrdAccAccess::XrdAccAccess(XrdOucError *erp)
 /*                                A c c e s s                                 */
 /******************************************************************************/
   
-XrdAccPrivs XrdAccAccess::Access(const char *atype,
-                                 const char *id,
-                                 const char *host,
-                                 const char *path, 
+XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
+                                 const char            *path,
                                  const Access_Operation oper)
 {
    XrdAccPrivs myprivs;
@@ -80,7 +78,9 @@ XrdAccPrivs XrdAccAccess::Access(const char *atype,
    const int plen  = strlen(path);
    const long phash = XrdOucHashVal2(path, plen);
    XrdAccAudit_Options audits = (XrdAccAudit_Options)Auditor->Auditing();
-   int isuser = (id && *id && *id != '*' || id[2]);
+   const char *id   = (Entity->name ? (const char *)Entity->name : "*");
+   const char *host = (Entity->host ? (const char *)Entity->host : "?");
+   int isuser = (*id && (*id != '*' || id[1]));
 
 // Get a shared context for these potentially long running routines
 //
@@ -147,7 +147,7 @@ XrdAccPrivs XrdAccAccess::Access(const char *atype,
 
 // Call the auditing routine and exit
 //
-   return (XrdAccPrivs)Audit(accok,atype,id,host,path,oper);
+   return (XrdAccPrivs)Audit(accok, Entity, path, oper);
 }
   
 /******************************************************************************/
@@ -214,11 +214,9 @@ XrdAccPrivs XrdAccAccess::Access(const char *id,
 /*                                 A u d i t                                  */
 /******************************************************************************/
   
-int XrdAccAccess::Audit(const int accok,
-                        const char *atype,
-                        const char *id,
-                        const char *host,
-                        const char *path,
+int XrdAccAccess::Audit(const int              accok,
+                        const XrdSecEntity    *Entity,
+                        const char            *path,
                         const Access_Operation oper)
 {
 // Warning! This table must be in 1-to-1 correspondence with Access_Operation
@@ -238,84 +236,25 @@ int XrdAccAccess::Audit(const int accok,
                                     "update"           // 12
                              };
    const char *opname = (oper > AOP_LastOp ? "???" : Opername[oper]);
+   const char *id   = (Entity->name ? (const char *)Entity->name : "*");
+   const char *host = (Entity->host ? (const char *)Entity->host : "?");
+   char atype[XrdSecPROTOIDSIZE+1];
+
+// Get the protocol type in a printable format
+//
+   strncpy(atype, Entity->prot, XrdSecPROTOIDSIZE);
+   atype[XrdSecPROTOIDSIZE] = '\0';
 
 // Route the message appropriately
 //
-    if (accok) Auditor->Grant(opname, atype, id, host, path);
-       else    Auditor->Deny( opname, atype, id, host, path);
+    if (accok) Auditor->Grant(opname, Entity->tident, atype, id, host, path);
+       else    Auditor->Deny( opname, Entity->tident, atype, id, host, path);
 
 // All done, finally
 //
    return accok;
 }
 
-/******************************************************************************/
-/*                                E n a b l e                                 */
-/******************************************************************************/
-  
-void XrdAccAccess::Enable(const char *user, const char *host, 
-                          unsigned int oid)
-{
-   char keybuff[uhoKEYLEN];
-
-// Construct the key
-//
-   snprintf(keybuff, sizeof(keybuff)-1, "%8x%s%s", oid, user, host);
-   keybuff[uhoKEYLEN-1] = '\0';
-
-// Update the key (new or replacement, works regardless)
-//
-   uhoContext.Lock();
-   uho_Hash.Add(keybuff,0,0,(XrdOucHash_Options)(Hash_data_is_key|Hash_count));
-   uhoContext.UnLock();
-}
-
-/******************************************************************************/
-/*                               D i s a b l e                                */
-/******************************************************************************/
-  
-void XrdAccAccess::Disable(const char *user, const char *host, 
-                           unsigned int oid)
-{
-   char keybuff[uhoKEYLEN];
-
-// Construct the key
-//
-   snprintf(keybuff, sizeof(keybuff)-1, "%8x%s%s", oid, user, host);
-   keybuff[uhoKEYLEN-1] = '\0';
-
-// Delete the key, keeping track of multiple additions
-//
-   uhoContext.Lock();
-   uho_Hash.Del(keybuff, Hash_count);
-   uhoContext.UnLock();
-}
-
-/******************************************************************************/
-/*                             i s E n a b l e d                              */
-/******************************************************************************/
-  
-int XrdAccAccess::isEnabled(const char *user, const char *host,
-                            unsigned int oid)
-{
-   char keybuff[uhoKEYLEN], *keydata;
-
-// Construct the key
-//
-   snprintf(keybuff, sizeof(keybuff)-1, "%8x%s%s", oid, user, host);
-   keybuff[uhoKEYLEN-1] = '\0';
-
-// Find the key
-//
-   uhoContext.Lock();
-   keydata = uho_Hash.Find(keybuff);
-   uhoContext.UnLock();
-
-// Return fact whether or not we found the entry
-//
-   return (keydata != 0);
-}
-  
 /******************************************************************************/
 /*                              S w a p T a b s                               */
 /******************************************************************************/

@@ -128,8 +128,8 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 // Process the configuration file and authorization database
 //
    if (!(Authorization = new XrdAccAccess(&Eroute))
-   &&  !(NoGo = ConfigFile(Eroute, cfn))
-   &&  !(NoGo = ConfigDB(0, Eroute)))
+   ||   (NoGo = ConfigFile(Eroute, cfn))
+   ||   (NoGo = ConfigDB(0, Eroute)))
        {if (Authorization) {delete Authorization, Authorization = 0;}
         NoGo = 1;
        }

@@ -47,6 +47,7 @@ TARGETS = $(LIBRARY) $(TESTBIN)
 #------------------------------------------------------------------------------#
 
 vpath XrdOuc% ../XrdOuc
+vpath XrdSec% ../XrdSec
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -80,7 +81,7 @@ $(OBJDIR)/XrdAccAccess.o: XrdAccAccess.cc     XrdAccAccess.hh \
                           XrdAccCapability.hh XrdAccConfig.hh    XrdAccGroups.hh \
                           XrdAccAudit.hh     XrdAccAuthorize.hh  XrdAccPrivs.hh \
                           XrdOucError.hh     XrdOucHash.hh       XrdOucLogger.hh \
-                          XrdOucXSLock.hh
+                          XrdOucXSLock.hh    XrdSecEntity.hh
 	@echo Compiling XrdAccAccess.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAccess.o XrdAccAccess.cc
 
@@ -115,6 +116,6 @@ $(OBJDIR)/XrdAccGroups.o: XrdAccGroups.hh     XrdAccGroups.cc \
 
 $(OBJDIR)/XrdAccTest.o: XrdAccAuthorize.hh XrdAccConfig.hh XrdAccGroups.hh \
                         XrdAccPrivs.hh     XrdOucStream.hh XrdOucError.hh \
-                        XrdOucLogger.hh    XrdAccTest.cc
+                        XrdOucLogger.hh    XrdAccTest.cc   XrdSecEntity.hh
 	@echo Compiling XrdAccTest.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccTest.o XrdAccTest.cc

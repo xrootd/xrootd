@@ -101,13 +101,11 @@ char *ConfigFN = (char *)"./acc.cf";
 
 // Get all of the options.
 //
-   extra = 0;
-   while ((c=getopt(argc,argv,"c:dx")) != (char)EOF)
+   while ((c=getopt(argc,argv,"c:d")) != (char)EOF)
      { switch(c)
        {
        case 'c': ConfigFN = optarg;                  break;
        case 'd': DebugON = 1;                        break;
-       case 'x': extra = 1;                          break;
        default:  Usage("Invalid option.");
        }
      }
@@ -143,12 +141,12 @@ if (!(Authorize = XrdAccAuthorizeObject(&myLogger, ConfigFN)))
 int DoIt(int argpnt, int argc, char **argv)
 {
 char *user, *host, *path, *result, buff[16];
-char *atype = (char *)"krb4";
 Access_Operation cmd2op(char *opname);
 void Usage(const char *);
 Access_Operation optype;
 XrdAccPrivCaps pargs;
 XrdAccPrivs auth;
+XrdSecEntity Entity;
 
 // Make sure user specified
 //
@@ -169,13 +167,17 @@ XrdAccPrivs auth;
 //
    if (argpnt >= argc) Usage("path not specified.");
 
+// Fill out entity
+//
+   strcpy(Entity.prot, "krb4");
+   Entity.name = user;
+   Entity.host = host;
+
 // Process each path, as needed
 //                                                            x
    while(argpnt < argc)
         {path = argv[argpnt++];
-         auth = Authorize->Access((const char *)atype,
-                                  (const char *)user,
-                                  (const char *)host,
+         auth = Authorize->Access((const XrdSecEntity *)&Entity,
                                   (const char *)path,
                                                 optype);
          if (optype != AOP_Any) result=(auth?(char *)"allowed":(char *)"denied");
@@ -184,22 +186,6 @@ XrdAccPrivs auth;
                  }
          cout <<result <<": " <<path <<endl;
         }
-
-// Perform extra test if wanted
-//
-   if (!extra) return 0;
-   Authorize->Enable((const char *)user, (const char *)host, 171717);
-   Authorize->Enable((const char *)user, (const char *)host, 171717);
-   if (Authorize->isEnabled((const char *)user, (const char *)host, 171617))
-      cerr << "testaccess: enable test failed; wrong id is enabled." <<endl;
-   if (!Authorize->isEnabled((const char *)user, (const char *)host, 171717))
-      cerr << "testaccess: enable test 1 failed; id was not enabled." <<endl;
-   Authorize->Disable((const char *)user, (const char *)host, 171717);
-   if (!Authorize->isEnabled((const char *)user, (const char *)host, 171717))
-      cerr << "testaccess: enable test 2 failed; right id is not enabled." <<endl;
-   Authorize->Disable((const char *)user, (const char *)host, 171717);
-   if (Authorize->isEnabled((const char *)user, (const char *)host, 171717))
-      cerr << "testaccess: enable test 3 failed; id was not disabled." <<endl;
 
 return 0;
 }
@@ -255,6 +241,6 @@ char *PrivsConvert(XrdAccPrivCaps &ctab, char *buff, int blen)
   
 void Usage(const char *msg)
      {if (msg) cerr <<"testaccess: " <<msg <<endl;
-      cerr << "testaccess [-c cfn] [-d] [-t] [user host op path [path [. . .]]]" <<endl;
+      cerr << "testaccess [-c cfn] [-d] [user host op path [path [. . .]]]" <<endl;
       exit(1);
      }
