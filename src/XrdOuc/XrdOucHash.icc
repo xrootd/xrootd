@@ -61,7 +61,7 @@ T *XrdOucHash<T>::Add(const char *KeyVal, T *KeyData, const int LifeTime,
            {hip->Update(hip->Count()+1, 
                        (LifeTime || hip->Time() ? LifeTime + time(0) : 0) );}
         if (!(opt & Hash_replace)
-        && (lifetime=hip->Time()) == 0 || lifetime >= time(0)) return hip->Data();
+        && ((lifetime=hip->Time())==0||lifetime>=time(0))) return hip->Data();
         Remove(hent, hip, prevhip);
        } else {
        // Check if we should expand the table
