@@ -8,6 +8,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//         $Id: XrdClientString.cc,v 1.0 2004/11/10 06:24:32 furano Exp 
 
 #include "XrdClientString.hh"
 
@@ -23,9 +24,8 @@ int XrdClientString::BufRealloc(int newsize) {
    if (newsize <= 0) return 0;
 
    blks = (newsize+1) / 256;
-   if (blks == 0) blks = 1;
 
-   sz = blks * 256;
+   sz = (blks+1) * 256;
 
    newdata = realloc(data, sz);
 

@@ -25,6 +25,7 @@
 
 #include <list>
 #include <map>
+#include "XrdClientVector.hh"
 
 using namespace std;
 

@@ -34,7 +34,8 @@ SOURCES = \
 	XrdClientAdmin.cc		\
 	XrdCpMthrQueue.cc		\
 	XrdCpWorkLst.cc                 \
-	XrdClientString.cc
+	XrdClientString.cc              \
+	XrdClientVector.cc
 
   
 OBJECTS = \
