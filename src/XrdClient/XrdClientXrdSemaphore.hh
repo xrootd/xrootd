@@ -29,6 +29,7 @@ public:
    XrdClientXrdSemaphore(int value) {
       int rc;
       
+      
       rc = pthread_cond_init(&fCnd, 0);
 
       if (rc) {
@@ -44,6 +45,10 @@ public:
 	       "Can't create mutex: out of system resources.");
 	 abort();
       }
+
+
+      fCnt = value;
+
    };
 
 
