@@ -153,8 +153,8 @@ T *XrdOucHash<T>::Find(const char *KeyVal, time_t *KeyTime)
 
 // Find the entry (remove it if expired and return nothing)
 //
-   if (hip = hashtable[kent])
-      if ( hip = Search(hip, khash, KeyVal, &phip) )
+   if ((hip = hashtable[kent]))
+      if ((hip = Search(hip, khash, KeyVal, &phip)))
           if ( (lifetime = hip->Time()) && lifetime < time(0) )
             {Remove(kent, hip, phip);
              if (KeyTime) *KeyTime = (time_t)0;

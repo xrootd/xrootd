@@ -31,7 +31,7 @@ void XrdObjectQ<T>::DoIt()
       {
       // Prepare to scan down the queue.
       //
-      if (pp = First) p = pp->Next;
+      if ((pp = First)) p = pp->Next;
          else p = 0;
 
       // Find the first object that's been idle for too long
