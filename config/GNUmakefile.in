@@ -15,7 +15,7 @@ XRDCLIENT = XrdClient XrdPosix
 
 XRDMON    = XrdMon
 
-TARGETS = @targets@ $(XRDCLIENT) $(XRDMON)
+TARGETS = @targets@
 
 ARCH    = @arch@
 ARCHDIR = @archdir@
