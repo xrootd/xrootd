@@ -35,7 +35,7 @@ while ( 1 ) {
 
 
 sub doLoading {
-    $ts = timestamp();
+    my $ts = timestamp();
 
     # connect to the database
     print "\n$ts Connecting to database...\n";
@@ -59,6 +59,7 @@ sub doLoading {
     print "Loading...\n";
     $nr = 0;
     while ( $_ = <$inF> ) {
+	print "processing $_";
 	chop;
 	if ( $_ =~ m/^u/ ) { loadOpenSession($_);  }
 	if ( $_ =~ m/^d/ ) { loadCloseSession($_); }
@@ -70,6 +71,7 @@ sub doLoading {
 	    print "$ts $nr\n";
 	}
     }
+
     close $inF;
     # make a backup, remove the input file
     my $backupFName = "$inFName.backup";
@@ -77,8 +79,8 @@ sub doLoading {
     # unlock the lock file, and disconnect from db
     unlockTheFile($lockF);
     $dbh->disconnect();
-
-    print "All done, processed $nr entries.\n";
+    $ts = timestamp();
+    print "$ts All done, processed $nr entries.\n";
 }
 
 # opens the <fName>.lock file for writing & locks it (write lock)
@@ -103,8 +105,10 @@ sub unlockTheFile() {
 }
 
 sub timestamp() {
-    ($sec, $min, $h, $d, $mn, $y, $wd, $dayOfYear, $IsDST) = localtime(time) ; 
-    return sprintf("%02d:%02d:%02d", $h, $mn, $sec);
+    my $sec  = (localtime)[0];
+    my $min  = (localtime)[1];
+    my $hour = (localtime)[2];
+    return sprintf("%02d:%02d:%02d", $hour, $min, $sec);
 }
 
 sub loadOpenSession() {
@@ -258,22 +262,21 @@ sub findOrInsertPathId() {
     return $pathId;
 }
 
+sub runQueryWithRet() {
+    my ($sql) = @_;
+    my $sth = $dbh->prepare($sql) 
+        or die "Can't prepare statement $DBI::errstr\n";
+    $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
+    print "$sql\n";
+    return $sth->fetchrow_array;
+}
 
 sub runQuery() {
     my ($sql) = @_;
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
-    #print "$sql\n";
-}
-
-
-sub runQueryWithRet() {
-    my ($sql) = @_;
-    my $sth = $dbh->prepare($sql);
-    $sth->execute || die "Failed to exec \"$sql\"";
-    #print "$sql\n";
-    return $sth->fetchrow_array;
+    print "$sql\n";
 }
 
 
