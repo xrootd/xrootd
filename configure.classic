@@ -689,6 +689,7 @@ fi
 #
 if test "x$arch" = "xwin32gcc" ; then
     nccflv="wingcc"
+    type="cygwin"
 fi
 
 #
