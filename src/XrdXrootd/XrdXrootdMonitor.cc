@@ -334,7 +334,7 @@ void XrdXrootdMonitor::Mark()
       else if (nextEnt+8 > lastEnt) Flush();
               else {monBuff->info[nextEnt].offset.id[0] = XROOTD_MON_WINDOW;
                     monBuff->info[nextEnt].arg1.Window  =
-                             static_cast<kXR_int32>(ntohl(lastWindow+sizeWindow));
+                             static_cast<kXR_int32>(ntohl(lastWindow));
                     monBuff->info[nextEnt].arg2.Window  =
                              static_cast<kXR_int32>(ntohl(localWindow));
                     nextEnt++;

@@ -96,7 +96,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 
 // Put up the banner
 //
-   pi->eDest->Say(0,(char *)"(c) 2003 Stanford University/SLAC XRootd "
+   pi->eDest->Say(0,(char *)"(c) 2004 Stanford University/SLAC XRootd "
                     "(eXtended Root Daemon).");
 
 // Return the protocol object to be used if static init succeeds
@@ -124,7 +124,7 @@ XrdXrootdProtocol::XrdXrootdProtocol()
 /*                   A s s i g n m e n t   O p e r a t o r                    */
 /******************************************************************************/
 
-XrdXrootdProtocol &XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
+XrdXrootdProtocol XrdXrootdProtocol::operator =(const XrdXrootdProtocol &rhs)
 {
 // Reset all common fields
 //
@@ -265,26 +265,33 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
    Response.Set(Request.header.streamid);
    TRACEP(REQ, "req=" <<Request.header.requestid <<" dlen=" <<Request.header.dlen);
 
-// If the user is not yet logged in, restrict what the user can do
+// Every request has an associated data length. It better be >= 0 or we won't
+// be able to know how much data to read.
 //
-   if (!Status)
-      switch(Request.header.requestid)
-            {case kXR_login:    return do_Login();
-             case kXR_protocol: return do_Protocol();
-             default:           Response.Send(kXR_InvalidRequest,
-                                "Invalid request; user not logged in");
-                                ABANDON(Link,"protocol sequence error 1");
-                                return -1;
-            }
-      else 
-      switch(Request.header.requestid)   // First, the ones with file handles
-            {case kXR_read:     return do_Read();
-             case kXR_write:    return do_Write();
-             case kXR_sync:     return do_Sync();
-             case kXR_close:    return do_Close();
-             default:           return Process2();
-            }
-   return 0; // We should never get here
+   if (Request.header.dlen < 0)
+      {Response.Send(kXR_ArgInvalid, "Invalid request data length");
+       return Link->setEtext("protocol data length error");
+      }
+
+// Read any argument data at this point, except when the request is a write.
+// The argument may have to be segmented and we're not prepared to do that here.
+//
+   if (Request.header.requestid != kXR_write && Request.header.dlen)
+      {if (!argp || Request.header.dlen+1 > argp->bsize)
+          {if (argp) BPool->Release(argp);
+           if (!(argp = BPool->Obtain(Request.header.dlen+1)))
+              {Response.Send(kXR_ArgTooLong, "Request argument is too long");
+               return 0;
+              }
+          }
+       if ((rc = getData("arg", argp->buff, Request.header.dlen)))
+          {Resume = &XrdXrootdProtocol::Process2; return rc;}
+       argp->buff[Request.header.dlen] = '\0';
+      }
+
+// Continue with request processing at the resume point
+//
+   return Process2();
 }
 
 /******************************************************************************/
@@ -293,47 +300,50 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
   
 int XrdXrootdProtocol::Process2()
 {
-   int rc;
 
-// First select any protocol that does not need an argument
+// If the user is not yet logged in, restrict what the user can do
 //
-   switch(Request.header.requestid)
-         {case kXR_protocol: return do_Protocol();
-          case kXR_ping:     return do_Ping();
+   if (!Status)
+      switch(Request.header.requestid)
+            {case kXR_login:    return do_Login();
+             case kXR_protocol: return do_Protocol();
+             default:           Response.Send(kXR_InvalidRequest,
+                                "Invalid request; user not logged in");
+                                return Link->setEtext("protocol sequence error 1");
+            }
+
+// Help the compiler, select the the high activity requests (the ones with
+// file handles) in a separate switch statement
+//
+   switch(Request.header.requestid)   // First, the ones with file handles
+         {case kXR_read:     return do_Read();
+          case kXR_write:    return do_Write();
+          case kXR_sync:     return do_Sync();
+          case kXR_close:    return do_Close();
           default:           break;
          }
 
-// Get a buffer for this argument
+// Now select the requests that do not need authentication
 //
-   if (!argp || Request.header.dlen+1 > argp->bsize)
-      {if (argp) BPool->Release(argp);
-       if (!(argp = BPool->Obtain(Request.header.dlen+1)))
-          {Response.Send(kXR_ArgTooLong, "Request argument is too long");
-           return 0;
-          }
+   switch(Request.header.requestid)
+         {case kXR_protocol: return do_Protocol();   // dlen ignored
+          case kXR_ping:     return do_Ping();       // dlen ignored
+          default:           break;
+         }
+
+// All remaining requests require an argument. Make sure we have one
+//
+   if (!argp || !Request.header.dlen)
+      {Response.Send(kXR_ArgMissing, "Required argument not present");
+       return 0;
       }
 
-// Read in the remainder of the request and process it
-//
-   if ((rc = getData("arg", argp->buff, Request.header.dlen)))
-      {Resume = &XrdXrootdProtocol::Process3; return rc;}
-   argp->buff[Request.header.dlen] = '\0';
-   return Process3();
-}
-
-/******************************************************************************/
-/*                      p r i v a t e   P r o c e s s 3                       */
-/******************************************************************************/
-  
-int XrdXrootdProtocol::Process3()
-{
 // Force authentication at this point, if need be
 //
    if (Status & XRD_NEED_AUTH)
       if (Request.header.requestid == kXR_auth) return do_Auth();
          else {Response.Send(kXR_InvalidRequest,
-                            "Invalid request; user not logged in");
-               ABANDON(Link,"protocol sequence error 2");
+                             "Invalid request; user not logged in");
                return -1;
               }
 
@@ -461,7 +471,8 @@ int XrdXrootdProtocol::getData(const char *dtype, char *buff, int blen)
 //
    rlen = Link->Recv(buff, blen, readWait);
    if (rlen  < 0)
-      {ABANDON(Link,(rlen == -ENOMSG ? 0 : "link read error")); return -1;}
+      if (rlen == -ENOMSG) return Link->setEtext("link read error");
+         else return -1;
    if (rlen < blen)
       {myBuff = buff+rlen; myBlen = blen-rlen;
        TRACEP(REQ, dtype <<" timeout; read " <<rlen <<" of " <<blen <<" bytes");

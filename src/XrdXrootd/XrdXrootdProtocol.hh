@@ -28,9 +28,9 @@
 /*                               D e f i n e s                                */
 /******************************************************************************/
   
-#define XROOTD_VERSBIN 0x00000220
+#define XROOTD_VERSBIN 0x00000230
 
-#define XROOTD_VERSION "2.2.0"
+#define XROOTD_VERSION "2.3.0"
 
 #define ROOTD_PQ 2012
 
@@ -77,7 +77,7 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Stats(char *buff, int blen, int do_sync=0);
 
-              XrdXrootdProtocol &operator =(const XrdXrootdProtocol &rhs);
+              XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs);
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
 
@@ -123,7 +123,6 @@ static int   ConfigIt(char *parms);
 static int   mapError(int rc);
 static int   mapMode(int mode);
        int   Process2();
-       int   Process3();
        void  Reset();
 static int   rpCheck(char *fn);
        int   rpEmsg(const char *op, char *fn);

@@ -44,13 +44,20 @@ inline void  Set(XrdLink *lp) {Link = lp;}
        void  Set(unsigned char *stream);
 
        XrdXrootdResponse(XrdXrootdResponse &rhs) {Set(rhs.Link);
-                                              Set(&rhs.Resp.streamid[0]);
-                                             }
+                                                  Set(rhs.Resp.streamid);
+                                                 }
+
        XrdXrootdResponse() {Link = 0; *trsid = '\0';
                           RespIO[0].iov_base = (caddr_t)&Resp;
                           RespIO[0].iov_len  = sizeof(Resp);
                          }
       ~XrdXrootdResponse() {}
+
+       XrdXrootdResponse &operator =(const XrdXrootdResponse &rhs)
+                                   {Set(rhs.Link);
+                                    Set((unsigned char *)rhs.Resp.streamid);
+                                    return *this;
+                                   }
 
 private:
 

@@ -34,8 +34,6 @@ const char *XrdXrootdResponse::TraceID = "Response";
 /******************************************************************************/
 
 #define TRACELINK Link
-
-#define DISCARD_LINK(y) (Link->setEtext(y), Link->Close(), -1)
   
 /******************************************************************************/
 /*                                  P u s h                                   */
@@ -50,7 +48,7 @@ int XrdXrootdResponse::Push(void *data, int dlen)
     RespIO[2].iov_len  = dlen;
 
     if (Link->Send(&RespIO[1], 2, sizeof(kXR_int32) + dlen) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
 
@@ -58,7 +56,7 @@ int XrdXrootdResponse::Push()
 {
     static int null = 0;
     if (Link->Send((char *)&null, sizeof(kXR_int32)) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
 
@@ -74,7 +72,7 @@ int XrdXrootdResponse::Send()
     TRACES(RSP, "sending OK");
 
     if (Link->Send((char *)&Resp, sizeof(Resp)) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
 
@@ -90,7 +88,7 @@ int XrdXrootdResponse::Send(const char *msg)
     TRACES(RSP, "sending OK " <<msg);
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + RespIO[1].iov_len) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
 
@@ -106,7 +104,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, void *data, int dlen)
     TRACES(RSP, "sending " <<dlen <<" data bytes; rc=" <<rcode);
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + dlen) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
 
@@ -125,7 +123,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, char *data)
     Resp.dlen          = htonl((kXR_int32)(dlen+sizeof(longbuf)));
 
     if (Link->Send(RespIO, 3, sizeof(Resp) + dlen) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
 
@@ -141,7 +139,7 @@ int XrdXrootdResponse::Send(void *data, int dlen)
     TRACES(RSP, "sending " <<dlen <<" data bytes; rc=0");
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + dlen) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
 
@@ -161,7 +159,7 @@ int XrdXrootdResponse::Send(struct iovec *IOResp, int iornum, int iolen)
     TRACES(RSP, "sending " <<dlen <<" data bytes; rc=0");
 
     if (Link->Send(IOResp, iornum, sizeof(Resp) + dlen) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
 
@@ -182,7 +180,7 @@ int XrdXrootdResponse::Send(XErrorCode ecode, const char *msg)
     TRACES(EMSG, "sending err " <<ecode <<": " <<msg);
 
     if (Link->Send(RespIO, 3, sizeof(Resp) + dlen) < 0)
-       return DISCARD_LINK("send failure");
+       return Link->setEtext("send failure");
     return 0;
 }
  

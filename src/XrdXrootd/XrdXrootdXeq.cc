@@ -371,6 +371,8 @@ int XrdXrootdProtocol::do_Mkdir()
 // Unmarshall the data
 //
    mode = mapMode((int)ntohs(Request.mkdir.mode));
+   if (Request.mkdir.options[0] & static_cast<unsigned char>(kXR_mkdirpath))
+      mode |= SFS_O_MKPTH;
    if (rpCheck(argp->buff)) return rpEmsg("Creating", argp->buff);
    if (!Squash(argp->buff)) return vpEmsg("Creating", argp->buff);
 
@@ -433,7 +435,7 @@ int XrdXrootdProtocol::do_Mv()
 int XrdXrootdProtocol::do_Open()
 {
    long fhandle;
-   int rc, mode, opts, openopts, doforce = 0, compchk = 0;
+   int rc, mode, opts, openopts, mkpath = 0, doforce = 0, compchk = 0;
    char usage, ebuff[2048];
    char *fn = argp->buff, opt[16], *opaque, *op=opt, isAsync = '\0';
    XrdSfsFile *fp;
@@ -456,7 +458,11 @@ int XrdXrootdProtocol::do_Open()
         if (opts & kXR_open_read)  
            {openopts  = SFS_O_RDONLY;  *op++ = 'r'; usage = 'r';}
    else if (opts & kXR_new)         
-           {openopts  = SFS_O_CREAT;   *op++ = 'n';}
+           {openopts  = SFS_O_CREAT;   *op++ = 'n';
+            if (opts & kXR_mkdir)     {*op++ = 'm'; mkpath = 1;
+                                       mode |= SFS_O_MKPTH;
+                                      }
+           }
    else if (opts & kXR_delete)     
            {openopts  = SFS_O_TRUNC;   *op++ = 'd';}
    else if (opts & kXR_open_updt)   
@@ -1237,7 +1243,10 @@ int XrdXrootdProtocol::do_WriteNone()
 /******************************************************************************/
 /*                       U t i l i t y   M e t h o d s                        */
 /******************************************************************************/
-
+/******************************************************************************/
+/*                               f s E r r o r                                */
+/******************************************************************************/
+  
 int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
 {
    int ecode;
@@ -1295,6 +1304,8 @@ int XrdXrootdProtocol::mapError(int rc)
         case ENOSPC:       return kXR_NoSpace;
         case ENAMETOOLONG: return kXR_ArgTooLong;
         case ENETUNREACH:  return kXR_noserver;
+        case ENOTBLK:      return kXR_NotFile;
+        case EISDIR:       return kXR_isDir;
         default:           return kXR_FSError;
        }
 }
@@ -1368,7 +1379,7 @@ int XrdXrootdProtocol::SchedAsync(int (XrdXrootdProtocol::*asyncXeq)())
 
 // Set parmeters for the protocol object
 //
-  *xp           = *this;
+   *xp          = *this;
    xp->Resume   =  asyncXeq;
 
 // Do the statistics (no need to lock them)

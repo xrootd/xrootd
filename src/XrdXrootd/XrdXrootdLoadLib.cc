@@ -130,7 +130,7 @@ XrdSecProtocol *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib, char *cf
 //
    if (!(XrdXrootdSecDelProtocol =
                  (void (*)(XrdSecProtocol *))dlsym(libhandle,
-                                                   "XrdSecGetProtocolClient")))
+                                                   "XrdSecDelProtocol")))
       {eDest->Emsg("Config", dlerror(),
                    (char *)"finding XrdSecDelProtocol() in", seclib);
        return 0;
