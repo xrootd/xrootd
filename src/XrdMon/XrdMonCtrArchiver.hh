@@ -35,6 +35,7 @@ public:
                       const char* dBaseDir,
                       const char* rtLogDir,
                       kXR_int64 maxFileSize,
+                      int ctrBufSize,
                       bool onlineDec,
                       bool rtDec);
     ~XrdMonCtrArchiver();

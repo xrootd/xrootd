@@ -178,6 +178,7 @@ int main(int argc, char* argv[])
                                arg_decLogDir.myVal(),
                                arg_rtLogDir.myVal(),
                                arg_maxFSize.myVal(),
+                               arg_ctrBufSize.myVal(),
                                arg_onlineDecOn.myVal(), 
                                arg_rtOn.myVal());
     archiver();
