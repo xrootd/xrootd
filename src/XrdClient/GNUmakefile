@@ -91,10 +91,11 @@ vpath XrdOuc% ../XrdOuc
  
 include ../GNUmake.options
 
-anything: $(TARGETS) $(PERLMOD)
+anything: $(TARGETS) perlmod
 	@echo Make XrdClient done.
 
 perlmod: $(PERLMOD)
+	$(ECHO)cp *.pm $(LIBDIR)
 	@echo Make perlmodule done.
 
 #------------------------------------------------------------------------------#
