@@ -575,7 +575,7 @@ void XrdXrootdMonitor::Flush()
 // Fill in the header and in the process we will have the current time
 //
    size = (nextEnt+1)*sizeof(XrdXrootdMonTrace)+sizeof(XrdXrootdMonHeader);
-   fillHeader(&monBuff->hdr, 't', size);
+   fillHeader(&monBuff->hdr, XROOTD_MON_MAPTRCE, size);
 
 // Place the ending timing mark, send off the buffer and reinitialize it
 //

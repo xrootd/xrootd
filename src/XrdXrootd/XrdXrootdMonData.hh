@@ -56,8 +56,9 @@ const kXR_char XROOTD_MON_DISC          = 0xd0;
 const kXR_char XROOTD_MON_OPEN          = 0x80;
 const kXR_char XROOTD_MON_WINDOW        = 0xe0;
 
-const kXR_char XROOTD_MON_MAPUSER       = 'u';
 const kXR_char XROOTD_MON_MAPPATH       = 'd';
 const kXR_char XROOTD_MON_MAPINFO       = 'i';
+const kXR_char XROOTD_MON_MAPTRCE       = 't';
+const kXR_char XROOTD_MON_MAPUSER       = 'u';
 
 #endif

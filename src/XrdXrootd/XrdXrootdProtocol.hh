@@ -141,6 +141,7 @@ static int   xexp(XrdOucTokenizer &Config);
 static int   xexpdo(char *path);
 static int   xfsl(XrdOucTokenizer &Config);
 static int   xprep(XrdOucTokenizer &Config);
+static int   xlog(XrdOucTokenizer &Config);
 static int   xmon(XrdOucTokenizer &Config);
 static int   xsecl(XrdOucTokenizer &Config);
 static int   xtrace(XrdOucTokenizer &Config);

@@ -309,6 +309,7 @@ int XrdXrootdProtocol::ConfigIt(char *parms)
              else if TS_Xeq("chksum",        xcksum);
              else if TS_Xeq("export",        xexp);
              else if TS_Xeq("fslib",         xfsl);
+             else if TS_Xeq("log",           xlog);
              else if TS_Xeq("monitor",       xmon);
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("seclib",        xsecl);
@@ -545,6 +546,48 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
    if (FSLib) free(FSLib);
    FSLib = strdup(val);
    return 0;
+}
+
+/******************************************************************************/
+/*                                  x l o g                                   */
+/******************************************************************************/
+
+/* Function: xlog
+
+   Purpose:  To parse the directive: log <events>
+
+             <events> the blank separated list of events to log.
+
+   Output: 0 upon success or 1 upon failure.
+*/
+
+int XrdXrootdProtocol::xlog(XrdOucTokenizer &Config)
+{
+    char *val;
+    static struct logopts {const char *opname; int opval;} lgopts[] =
+       {
+        {"all",     -1},
+        {"disc",    OUC_LOG_02},
+        {"login",   OUC_LOG_01}
+       };
+    int i, neg, lgval = -1, numopts = sizeof(lgopts)/sizeof(struct logopts);
+
+    if (!(val = Config.GetToken()))
+       {eDest.Emsg("config", "log option not specified"); return 1;}
+    while (val)
+          {if ((neg = (val[0] == '-' && val[1]))) val++;
+           for (i = 0; i < numopts; i++)
+               {if (!strcmp(val, lgopts[i].opname))
+                   {if (neg) lgval &= ~lgopts[i].opval;
+                       else  lgval |=  lgopts[i].opval;
+                    break;
+                   }
+               }
+           if (i >= numopts) eDest.Emsg("config","invalid log option",val);
+           val = Config.GetToken();
+          }
+    eDest.setMsgMask(lgval);
+    return 0;
 }
 
 /******************************************************************************/
