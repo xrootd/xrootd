@@ -193,29 +193,29 @@ int XrdPosix_Open(const char *path, int oflag, ...)
 {
    char *myPath, buff[2048];
    va_list ap;
-   mode_t mode;
+   int mode;
 
 // Make sure a path was passed
 //
-   if (!path) {errno = EINVAL; return -1;}
+   if (!path) {errno = EFAULT; return -1;}
 
 // Return the results of an open of a Unix file
 //
    if (!(myPath = XrootPath.URL(path, buff, sizeof(buff))))
       {if (!(oflag & O_CREAT)) return open(path, oflag);
        va_start(ap, oflag);
-       mode = va_arg(ap, mode_t);
+       mode = va_arg(ap, int);
        va_end(ap);
-       return open(path, oflag, mode);
+       return open(path, oflag, (mode_t)mode);
       }
 
 // Return the results of an open of an xrootd file
 //
    if (!(oflag & O_CREAT)) return Xroot.Open(myPath, oflag);
    va_start(ap, oflag);
-   mode = va_arg(ap, mode_t);
+   mode = va_arg(ap, int);
    va_end(ap);
-   return Xroot.Open(myPath, oflag, mode);
+   return Xroot.Open(myPath, oflag, (mode_t)mode);
 }
 
 /******************************************************************************/
@@ -267,7 +267,7 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
 
 // Make sure a path was passed
 //
-   if (!path) {errno = EINVAL; return -1;}
+   if (!path) {errno = EFAULT; return -1;}
 
 // Return the results of an open of a Unix file
 //
