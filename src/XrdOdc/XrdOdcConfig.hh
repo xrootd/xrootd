@@ -30,7 +30,7 @@ class XrdOdcConfig
 {
 public:
 
-int           Configure(char *cfn, const char *mode);
+int           Configure(char *cfn, const char *mode, int isBoth=0);
 
 int           ConWait;      // Seconds to wait for a manager connection
 int           RepWait;      // Seconds to wait for manager replies
@@ -39,11 +39,6 @@ int           RepDelay;     // Seconds to delay before retrying manager
 int           RepNone;      // Max number of consecutive non-responses
 int           msgKeep;      // Max message objects to keep
 
-XrdOdcPselT   pselType;     // How ports are selected
-int           portVec[maxPORTS];  // Port numbers to balance (max of 15)
-int           pselSkey;     // Shared memory key for data recording
-int           pselMint;     // Monitoring interval
-
 char         *OLBPath;      // Path to the local olb for target nodes
 
 XrdOucTList  *ManList;      // List of managers for remote redirection
@@ -51,12 +46,11 @@ XrdOucTList  *PanList;      // List of managers for proxy  redirection
 unsigned char SMode;        // Manager selection mode
 unsigned char SModeP;       // Manager selection mode (proxy)
 
-      XrdOdcConfig(XrdOucError *erp, int port=0)
+      XrdOdcConfig(XrdOucError *erp)
                   {ConWait = 10; RepWait = 6; RepWaitMS = 3000; RepDelay = 5;
-                   ManList = PanList = 0; portVec[0] = 0;
+                   ManList = PanList = 0;
                    SMode = SModeP = ODC_FAILOVER;
-                   pselSkey = 1312; pselMint = 60;
-                   eDest = erp; lclPort = port;
+                   eDest = erp;
                    OLBPath = 0; RepNone = 8; msgKeep = 255;
                   }
      ~XrdOdcConfig();
@@ -68,12 +62,9 @@ int xapath(XrdOucError *eDest, XrdOucStream &Config);
 int xconw(XrdOucError *eDest, XrdOucStream &Config);
 int xmang(XrdOucError *eDest, XrdOucStream &Config);
 int xmsgk(XrdOucError *eDest, XrdOucStream &Config);
-int xpbal(XrdOucError *eDest, XrdOucStream &Config);
-int xpsel(XrdOucError *eDest, XrdOucStream &Config);
 int xreqs(XrdOucError *eDest, XrdOucStream &Config);
 int xtrac(XrdOucError *eDest, XrdOucStream &Config);
 
 XrdOucError   *eDest;
-int            lclPort;
 };
 #endif

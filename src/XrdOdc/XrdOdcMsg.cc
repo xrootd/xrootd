@@ -189,7 +189,7 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
 
 // Reply and return
 //
-   mp->Resp->setErrInfo(retc, (const char *)msg);
+   mp->Resp->setErrInfo(retc, msg);
    mp->Hold.UnLock();
    mp->Hold.Signal();
    return 1;

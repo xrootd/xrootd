@@ -59,7 +59,7 @@ XrdOdcConfig::~XrdOdcConfig()
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdOdcConfig::Configure(char *cfn, const char *mode)
+int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
 {
 /*
   Function: Establish configuration at start up time.
@@ -69,12 +69,12 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode)
   Output:   0 upon success or !0 otherwise.
 */
    extern XrdOucTrace OdcTrace;
-   int NoGo = 0;
-   char *temp;
+   int i, NoGo = 0;
+   char buff[256], *slash, *temp;
 
 // Tell the world we have started
 //
-   eDest->Emsg("Config", mode, (char *)"redirection initialization started");
+   eDest->Emsg("Config", mode, "redirection initialization started");
 
 // Preset tracing options
 //
@@ -83,26 +83,43 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode)
 // Process the configuration file
 //
    if (!(NoGo = ConfigProc(cfn)))
-           if (*mode == 'L')
-              {if (!lclPort || !portVec[0])
-                  {eDest->Emsg("Config","No ports for local balancing specified.");
-                   NoGo=1;
-                  }
-              }
-      else if (*mode == 'P')
+           if (*mode == 'P')
               {if (!PanList)
                   {eDest->Emsg("Config", "Proxy manager not specified.");
                    NoGo=1;
                   }
               }
-      else if (*mode == 'R')
+      else if (*mode == 'R' && !isBoth)
               {if (!ManList)
                   {eDest->Emsg("Config", "Remote manager not specified.");
                    NoGo=1;
                   }
               }
 
-   if (!OLBPath) OLBPath = strdup("/tmp/.olb/olbd.admin");
+// Set proper local socket path
+//
+   if (!OLBPath) OLBPath = strdup("/tmp/.olb/");
+   i = strlen(OLBPath);
+
+// Construct proper olb communications path for a supervisor node
+//
+   if (*mode == 'R' && isBoth)
+      {XrdOucTList *tpl;
+       while((tpl = ManList)) {ManList = tpl->next; delete tpl;}
+       slash = (OLBPath[i-1] == '/' ? (char *)"" : (char *)"/");
+       sprintf(buff, "%s%solbd.super", OLBPath, slash);
+       ManList = new XrdOucTList(buff, -1, 0);
+       SMode = SModeP = ODC_FAILOVER;
+      }
+
+// Construct proper old communication path for a target node
+//
+   temp = (isBoth ? (char *)"nimda" : (char *)"admin");
+   slash = (OLBPath[i-1] == '/' ? (char *)"" : (char *)"/");
+   sprintf(buff, "%s%solbd.%s", OLBPath, slash, temp);
+   free(OLBPath);
+   OLBPath = strdup(buff);
+
    RepWaitMS = RepWait * 1000;
 
 // Initialize the msg queue
@@ -115,7 +132,7 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode)
 // All done
 //
    temp = (NoGo ? (char *)"failed." : (char *)"completed.");
-   eDest->Emsg("Config", mode, (char *)"redirection initialization", temp);
+   eDest->Emsg("Config", mode, "redirection initialization", temp);
    return NoGo;
 }
 
@@ -182,8 +199,6 @@ int XrdOdcConfig::ConfigXeq(char *var, XrdOucStream &Config)
    TS_Xeq("manager",       xmang);
    TS_Xeq("msgkeep",       xmsgk);
    TS_Xeq("olbapath",      xapath);
-   TS_Xeq("portbal",       xpbal);
-   TS_Xeq("portsel",       xpsel);
    TS_Xeq("request",       xreqs);
    TS_Xeq("trace",         xtrac);
 
@@ -200,9 +215,10 @@ int XrdOdcConfig::ConfigXeq(char *var, XrdOucStream &Config)
 
 /* Function: xapath
 
-   Purpose:  To parse the directive: adminpath <path> [ group ]
+   Purpose:  To parse the directive: olbapath <path> [ group ]
 
              <path>    the path of the named socket to use for admin requests.
+                       Only the path may be specified, not the filename.
              group     allow group access to the path.
 
    Type: Manager only, non-dynamic.
@@ -226,9 +242,9 @@ int XrdOdcConfig::xapath(XrdOucError *errp, XrdOucStream &Config)
    if (*pval != '/')
       {errp->Emsg("Config", "olb admin path not absolute"); return 1;}
 
-// Make sure path is not too long
-//
-   if (strlen(pval) > sizeof(USock.sun_path))
+// Make sure path is not too long (account for "/olbd.admin")
+//                                              12345678901
+   if (strlen(pval) > sizeof(USock.sun_path) - 11)
       {errp->Emsg("Config", "olb admin path is too long.");
        return 1;
       }
@@ -275,7 +291,7 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
 
 /* Function: xmang
 
-   Purpose:  To parse directive: manager [proxy] [all|any] <host>[+] [<port>]
+   Purpose:  To parse directive: manager [proxy] [all|any] <host>[+] <port>
 
              proxy  This is a proxy service manager not cache space manager.
              all    Distribute requests across all managers.
@@ -323,16 +339,13 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
                    }
        else errp->Emsg("Config","manager port not specified for",mval);
 
-    if (lclPort) return 0; // Local configs don't need a manager
-
     if (!port) {free(mval); return 1;}
 
     i = strlen(mval);
     if (mval[i-1] != '+') i = 0;
         else {bval = strdup(mval); mval[i-1] = '\0';
               if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
-                 {errp->Emsg("Config","Manager host", mval,
-                             (char *)"not found");
+                 {errp->Emsg("Config","Manager host", mval, "not found");
                   free(bval); free(mval); return 1;
                  }
              }
@@ -340,8 +353,7 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
     do {if (i)
            {i--; free(mval);
             mval = XrdNetDNS::getHostName(InetAddr[i]);
-            errp->Emsg("Config", (const char *)bval,
-                       (char *)"-> odc.manager", mval);
+            errp->Emsg("Config", bval, "-> odc.manager", mval);
            }
         tp = (isProxy ? PanList : ManList);
         while(tp) 
@@ -386,120 +398,6 @@ int XrdOdcConfig::xmsgk(XrdOucError *errp, XrdOucStream &Config)
 
     msgKeep = mk;
     return 0;
-}
-
-/******************************************************************************/
-/*                                 x p b a l                                  */
-/******************************************************************************/
-
-/* Function: xpbal
-
-   Purpose:  To parse the directive: portbal <port1> <port2> [<port3> [...]]
-
-             <portx> number of a port to balance. There must be at least two.
-
-   Type: Local server only, dynamic.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOdcConfig::xpbal(XrdOucError *errp, XrdOucStream &Config)
-{
-    char *val;
-    int pv, xport = 0, pi = 0, pimax = sizeof(portVec)/sizeof(portVec[0]);
-
-    if (!lclPort) return 0;
-
-    while((val = Config.GetWord()))
-         {if (XrdOuca2x::a2i(*errp,"portbal port value",val,&pv,1,65535))
-             return 1;
-          if (pi >= pimax)
-             {errp->Emsg("Config","too many portbal ports specified.");
-              return 1;
-             }
-          portVec[pi++] = pv;
-          if (pv == lclPort) xport = 1;
-         };
-
-    if (pi < 2) {errp->Emsg("Config","portbal needs two or more ports.");
-                 return 1;
-                }
-    if (!xport) {errp->Emsg("Config", "portbal does not include this server.");
-                 return 1;
-                }
-
-    portVec[pi] = 0;
-    return 0;
-}
-  
-/******************************************************************************/
-/*                                 x p s e l                                  */
-/******************************************************************************/
-
-/* Function: xpsel
-
-   Purpose:  To parse the directive: portsel <sched>
-                                             [cpu <cpu>] [int <int>] [key <key>]
-
-             <sched>  is the selection algorithm to be used:
-                      fd - selects port whose server has the least files open
-                      ld - uses a combination of cpu usage and fd
-                      rr - round robin scheduling
-
-             <cpu>    the nummber of cpu's in this configuration. If not
-                      specified, the value comes from variable xrd_NUMCPU.
-                      if not set then the value is assumed to be 1.
-             <int>    The monitoring interval in seconds. The default is 60.
-             <key>    is the shared memory key to be used to hold the data.
-                      The default is 1312.
-
-   Output: 0 upon success or !0 upon failure.
-
-   Type: Local server only, dynamic.
-*/
-
-int XrdOdcConfig::xpsel(XrdOucError *Eroute, XrdOucStream &Config)
-{
-    const char *emsg = "invalid portsel value";
-    char *val;
-    int  i, ppp, retc;;
-    struct selopts {const char *opname; int *oploc; int opval;} Sopts[] =
-       {
-        {"key",      &pselSkey,   0},
-        {"int",      &pselMint,   1}
-       };
-    int numopts = sizeof(Sopts)/sizeof(struct selopts);
-
-    if (!(val = Config.GetWord()))
-       {Eroute->Emsg("Config", "portsel arguments not specified"); return 1;}
-
-         if (!strcmp("fd", val)) pselType = selByFD;
-    else if (!strcmp("ld", val)) pselType = selByLD;
-    else if (!strcmp("rr", val)) pselType = selByRR;
-    else    {Eroute->Emsg("Config", "invalid portsel scheduling -", val);
-             return 1;
-            }
-
-    while (val)
-          {for (i = 0; i < numopts; i++)
-               if (!strcmp(val, Sopts[i].opname))
-                  {if (!(val = Config.GetWord()))
-                      {Eroute->Emsg("Config","monitor ",(char *)Sopts[i].opname,
-                                   (char *)" argument not specified.");
-                       return 1;
-                      }
-                   if (Sopts[i].opval)
-                           retc = XrdOuca2x::a2tm(*Eroute,emsg,val,&ppp,1);
-                      else retc = XrdOuca2x::a2i( *Eroute,emsg,val,&ppp,1);
-                   if (retc) return 1;
-                   *Sopts[i].oploc = ppp;
-                   break;
-                  }
-           if (i >= numopts)
-              Eroute->Emsg("Config", "Warning, invalid portsel option", val);
-           val = Config.GetWord();
-          }
-   return 0;
 }
   
 /******************************************************************************/

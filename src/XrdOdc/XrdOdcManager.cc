@@ -200,7 +200,7 @@ void XrdOdcManager::Hookup()
              if (tries--) opts = XRDNET_NOEMSG;
                 else     {opts = 0; tries = 12;}
             }
-       if (lp->Send((char *)"login director\n") == 0) break;
+       if (lp->Send("login director\n") == 0) break;
        lp->Recycle();
       } while(1);
 

@@ -63,65 +63,6 @@ static char *OLBPath;
 };
 
 /******************************************************************************/
-/*                          L o c a l   F i n d e r                           */
-/******************************************************************************/
-  
-class XrdOdcFinderLCL : public XrdOdcFinder
-{
-public:
-        int    Configure(char *cfn);
-
-        int    Forward(XrdOucErrInfo &Resp, const char *cmd, 
-                       char *arg1=0, char *arg2=0) {return 0;}
-
-        int    Locate(XrdOucErrInfo &Resp, const char *path, int flags);
-
-        int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) {return 0;}
-
-        void   UpdateFD(int numfd)
-                       {myData.Lock(); myFDcnt += numfd; myData.UnLock();}
-
-        void  *InspectLoad(void);
-
-        int    isRedirector() {return nument;}
-
-        void  *ReportLoad(void);
-
-               XrdOdcFinderLCL(XrdOucLogger *lp, int lclport=0);
-              ~XrdOdcFinderLCL();
-
-private:
-
-void               calcLoad(int &load, int &cputime);
-int                LocbyFD();
-int                LocbyLD();
-int                LocbyRR();
-void               probLoad(int probnum, int sent, int sport, pid_t spid);
-int                StartMonitor(int Inspect, int tint);
-
-XrdOucMutex        myData;
-XrdOdcPselT        pselPort;
-char              *myHost;
-int                myPort;
-int                myFDcnt;
-int                repint;
-struct XrdOdcData *repsad;
-struct XrdOdcData *repdata;
-
-int              (XrdOdcFinderLCL::*doLocate)();
-
-struct    OdcData {         int   port;
-                            pid_t pid;
-                            int   ok;
-                            int   numfd;
-                            int   load;
-                   unsigned int   tics;
-                  } altserv[maxPORTS];
-int       nument;
-int       nextent;
-};
-
-/******************************************************************************/
 /*                         R e m o t e   F i n d e r                          */
 /******************************************************************************/
 
@@ -141,7 +82,7 @@ public:
 
         void   UpdateFD(int numfd) {}
 
-               XrdOdcFinderRMT(XrdOucLogger *lp, int isProxy=0);
+               XrdOdcFinderRMT(XrdOucLogger *lp, int istrg=0, int isProxy=0);
               ~XrdOdcFinderRMT();
 
 private:
@@ -158,6 +99,7 @@ int            ConWait;
 int            RepDelay;
 int            RepNone;
 int            RepWait;
+int            isTarget;
 unsigned char  SMode;
 };
 
@@ -188,7 +130,7 @@ public:
 
         void   UpdateFD(int num) {}
 
-               XrdOdcFinderTRG(XrdOucLogger *lp, int isprime, int port);
+               XrdOdcFinderTRG(XrdOucLogger *lp, int isredir, int port);
               ~XrdOdcFinderTRG();
 
 private:
@@ -200,7 +142,7 @@ XrdOucMutex    myData;
 int            myPort;
 char          *OLBPath;
 char          *Login;
-int            Primary;
+int            isRedir;
 int            Active;
 };
 #endif
