@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                                 XrdMonCtrWriter.cc                                 */
+/*                            XrdMonCtrWriter.cc                             */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -10,10 +10,10 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonCommon.hh"
 #include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonCommon.hh"
+#include "XrdMon/XrdMonHeader.hh"
 #include "XrdMon/XrdMonUtils.hh"
-#include "XrdMon/XrdMonCtrAdmin.hh"
 #include "XrdMon/XrdMonCtrDebug.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonCtrMutexLocker.hh"
@@ -63,7 +63,9 @@ XrdMonCtrWriter::~XrdMonCtrWriter()
 }
 
 void
-XrdMonCtrWriter::operator()(const char* packet, long currentTime)
+XrdMonCtrWriter::operator()(const char* packet, 
+                            const XrdMonHeader& header, 
+                            long currentTime)
 {
     _lastActivity = currentTime;
     
@@ -75,15 +77,7 @@ XrdMonCtrWriter::operator()(const char* packet, long currentTime)
                "Unable to allocate buffer - run out of memory");
         }
     }
-    XrdMonHeader header;
-    header.decode(packet);
-    if ( XrdMonCtrAdmin::isAdminPacket(header) ) {
-        int16_t command = 0, arg = 0;
-        XrdMonCtrAdmin::decodeAdminPacket(packet, command, arg);
-        XrdMonCtrAdmin::doIt(command, arg);
-        return;
-    }
-    
+
     // check if there is space in buffer
     // if not, flush to log file
     if ( bufferIsFull(header.packetLen()) ) {

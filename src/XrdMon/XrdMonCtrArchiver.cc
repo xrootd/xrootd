@@ -12,6 +12,7 @@
 
 #include "XrdMon/XrdMonCommon.hh"
 #include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonCtrAdmin.hh"
 #include "XrdMon/XrdMonCtrArchiver.hh"
 #include "XrdMon/XrdMonCtrBuffer.hh"
 #include "XrdMon/XrdMonErrors.hh"
@@ -83,12 +84,22 @@ XrdMonCtrArchiver::check4InactiveSenders()
 void
 XrdMonCtrArchiver::archivePacket(XrdMonCtrPacket* p)
 {
+    XrdMonHeader header;
+    header.decode(p->buf);
+
+    if ( XrdMonCtrAdmin::isAdminPacket(header) ) {
+        int16_t command = 0, arg = 0;
+        XrdMonCtrAdmin::decodeAdminPacket(p->buf, command, arg);
+        XrdMonCtrAdmin::doIt(command, arg);
+        return;
+    }
+
     uint16_t senderId = XrdMonCtrSenderInfo::convert2Id(p->sender);    
 
     if ( _writers.size() <= senderId ) {
         _writers.push_back(
             new XrdMonCtrWriter(XrdMonCtrSenderInfo::hostPort(senderId)));
     }
-    _writers[senderId]->operator()(p->buf, _currentTime);
+    _writers[senderId]->operator()(p->buf, header, _currentTime);
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                                 XrdMonCtrWriter.hh                                 */
+/*                            XrdMonCtrWriter.hh                             */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -20,6 +20,8 @@ using std::fstream;
 using std::ostream;
 using std::string;
 
+class XrdMonHeader;
+
 // Class writes data to a log file.
 // One instance per one xrootd instance.
 // It buffers data in memory to avoid 
@@ -29,7 +31,9 @@ class XrdMonCtrWriter {
 public:
     XrdMonCtrWriter(const char* senderHP);
     ~XrdMonCtrWriter();
-    void operator()(const char* packet, long currentTime);
+    void operator()(const char* packet, 
+                    const XrdMonHeader& header, 
+                    long currentTime);
     void forceClose();
     long lastActivity() const { return _lastActivity; }
 
