@@ -22,10 +22,12 @@ if ( @ARGV ne 4 ) {
     print "<updateInterval>\n";
     exit;
 }
+
 my $inFName   = $ARGV[0];
 my $dbName    = $ARGV[1];
 my $mySQLUser = $ARGV[2];
 my $updInt    = $ARGV[3];
+
 
 $initFlag = 1;
 
@@ -39,10 +41,21 @@ $mCounter  = $mUpdatesFreq;
 $yCounter  = $yUpdatesFreq;
 
 
+my $stopFName = "$inFName.stop";
+my $noSleeps = $updInt/5;
+
 #start an infinite loop
 while ( 1 ) {
     &doLoading();
-    sleep($updInt);
+
+    # sleep in 5 sec intervals, catch "stop" signal in between each sleep
+    for ( $i=0 ; $i<$noSleeps ; $i++) {
+        sleep(5);
+        if ( -e $stopFName ) {
+            unlink $stopFName;
+            exit;
+	}
+    }
 }
 
 
