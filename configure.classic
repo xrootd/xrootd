@@ -398,8 +398,8 @@ guess_architecture () {
       linux:alpha:*)      arch=alpha_linux     ; platform=linux; ccflv=gcc;;
       linux:arm*:*)       arch=arm_linux       ; platform=linux; ccflv=gcc;;
       linux:ppc*:*)       arch=ppc_linux       ; platform=linux; ccflv=gcc;;
-      darwin:power*:7.5*) arch=ppc_darwin_70   ; platform=macosx; ccflv=macos;;
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
+      darwin:power*:7*)   arch=ppc_darwin_70   ; platform=macosx; ccflv=macos;;
       darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
       irix*:sgi*:*)       arch=sgi             ; platform=sgi;    ccflv=sgiCC;;
       sunos:i86pc:*)      arch=sunx86_510      ; platform=solaris; ccflv=sunCCamd;;
@@ -820,6 +820,19 @@ else
     if test "x$hasnameinfo" = "x"; then
        echo "no"
     fi 
+fi
+
+######################################################################
+#
+### echo %%% Check for sigwaitinfo
+#
+hassigwti=""
+message "Checking whether sigwaitinfo declared in /usr/include/signal.h"
+if `grep sigwaitinfo /usr/include/signal.h > /dev/null 2>&1` ; then
+   echo "yes"
+   hassigwti=" -DHAS_SIGWTI"
+   else
+   echo "no"
 fi
 
 ######################################################################
@@ -1436,6 +1449,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@inckrb5@|$inckrb5|"           \
     -e "s|@libkrb5@|$libkrb5|"           \
     -e "s|@hasdevpoll@|$hasdevpoll|" \
+    -e "s|@hassigwti@|$hassigwti|" \
     -e "s|@hasgethbyxr@|$hasgethbyxr|" \
     -e "s|@hasnameinfo@|$hasnameinfo|" \
     -e "s|@hasstrlcpy@|$hasstrlcpy|" \
