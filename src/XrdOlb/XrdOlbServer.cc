@@ -1393,7 +1393,7 @@ int XrdOlbServer::Reissue(char *rid, const char *op,   char *arg1,
 // Find all the servers that might be able to do somthing on this path
 //
    if (!XrdOlbCache.Paths.Find(path, pinfo)
-   || (amask = pinfo.rwvec || pinfo.rovec) == 0)
+   || (amask = pinfo.rwvec | pinfo.rovec) == 0)
       {XrdOlbSay.Emsg("Server",op,(char *)"aborted; no servers handling path",path);
        return 0;
       }
