@@ -229,8 +229,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    // If Xrdcli is non-null, the correct src file has already been opened
    if (!cpnfo.XrdCli) {
       cpnfo.XrdCli = new XrdClient(src);
-      if ( (!cpnfo.XrdCli->Open(0, kXR_async) ||
-	    cpnfo.XrdCli->LastServerResp()->status == kXR_ok) ) {
+      if ( ( !cpnfo.XrdCli->Open(0, kXR_async) ||
+	     (cpnfo.XrdCli->LastServerResp()->status != kXR_ok) ) ) {
 	 cerr << "Error opening remote source file " << src << endl;
 
 	 delete cpnfo.XrdCli;
@@ -309,8 +309,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    // If Xrdcli is non-null, the correct src file has already been opened
    if (!cpnfo.XrdCli) {
       cpnfo.XrdCli = new XrdClient(src);
-      if ( (!cpnfo.XrdCli->Open(0, kXR_async) ||
-	    cpnfo.XrdCli->LastServerResp()->status == kXR_ok) ) {
+      if ( ( !cpnfo.XrdCli->Open(0, kXR_async) ||
+	     (cpnfo.XrdCli->LastServerResp()->status != kXR_ok) ) ) {
 
 	 delete cpnfo.XrdCli;
 	 cpnfo.XrdCli = 0;
@@ -473,7 +473,13 @@ int main(int argc, char**argv) {
    }
 
    DebugSetLevel(-1);
-   
+
+   // We want this tool to be able to copy from/to everywhere
+   EnvPutString( NAME_REDIRDOMAINALLOW_RE, "*" );
+   EnvPutString( NAME_CONNECTDOMAINALLOW_RE, "*" );
+   EnvPutString( NAME_REDIRDOMAINDENY_RE, "" );
+   EnvPutString( NAME_CONNECTDOMAINDENY_RE, "" );
+
    for (int i=1; i < argc; i++) {
       if (strstr(argv[i], "-d") == argv[i])
 	 newdbglvl = atoi(argv[i]+2);
