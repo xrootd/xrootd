@@ -370,7 +370,7 @@ int XrdXrootdProtocol::do_Mkdir()
 
 // Unmarshall the data
 //
-   mode = mapMode((int)ntohs(Request.mkdir.mode));
+   mode = mapMode((int)ntohs(Request.mkdir.mode)) | S_IRWXU;
    if (Request.mkdir.options[0] & static_cast<unsigned char>(kXR_mkdirpath))
       mode |= SFS_O_MKPTH;
    if (rpCheck(argp->buff)) return rpEmsg("Creating", argp->buff);
@@ -454,7 +454,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Map the mode and options
 //
-   mode = mapMode(mode); usage = 'w';
+   mode = mapMode(mode) | S_IRWXU; usage = 'w';
         if (opts & kXR_open_read)  
            {openopts  = SFS_O_RDONLY;  *op++ = 'r'; usage = 'r';}
    else if (opts & kXR_new)         
