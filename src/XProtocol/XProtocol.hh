@@ -181,7 +181,8 @@ enum XErrorCode {
    kXR_ServerError,
    kXR_Unsupported,
    kXR_noserver,
-   kXR_NotFile
+   kXR_NotFile,
+   kXR_isDirectory
 };
 
 
