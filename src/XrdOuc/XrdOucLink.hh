@@ -22,6 +22,10 @@
 #include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
+// Options for SetOpts
+//
+#define OUC_LINK_NOBLOCK 0x0001
+
 // The XrdOucLink class defines the i/o operations on a network link.
 //
 class XrdOucError;
@@ -55,12 +59,17 @@ char         *Name() {return Lname;}
 
 void          Recycle();
 
-int           Send(char *buff, int blen=0);
-int           Send(char *dest, char *buff, int blen=0);
-int           Send(const struct iovec iov[], int iovcnt);
-int           Send(char *dest, const struct iovec iov[], int iovcnt);
+int           Send(char *buff, int blen=0, int tmo=-1);
+int           Send(void *buff, int blen=0, int tmo=-1);
+int           Send(char *dest, char *buff, int blen=0, int tmo=-1);
+int           Send(const struct iovec iov[], int iovcnt, int tmo = -1);
+int           Send(char *dest, const struct iovec iov[], int iovcnt, int tmo=-1);
+
+int           Recv(char *buff, long blen);
 
 void          Set(int maxl);
+
+void          SetOpts(int opts);
 
               XrdOucLink(XrdOucError *erp) : LinkLink(this)
                           {FD = -1; Lname = 0; recvbuff = sendbuff = 0;
@@ -70,7 +79,8 @@ void          Set(int maxl);
 
 private:
 
-int retErr(int ecode);
+int OK2Send(int timeout=0, char *dest=0);
+int retErr(int ecode, char *dest=0);
 
 XrdOucMutex         IOMutex;
 int                 FD;

@@ -39,12 +39,13 @@ int          XrdOucReqID::reqNum = 0;
 XrdOucReqID::XrdOucReqID(int inst)
 {
    char *myHost = XrdOucNetwork::FullHostName();
-   time_t eNow = time((time_t)0);
+   time_t eNow = time(0);
    unsigned long myIP;
    char xbuff[256];
 
    if (!XrdOucNetwork::Host2IP(myHost, &myIP)) myIP = 0;
-   snprintf(xbuff, sizeof(xbuff)-1, "%08x:%04x.%08x:%%d", myIP, inst, eNow);
+   snprintf(xbuff, sizeof(xbuff)-1, "%08lx:%04x.%08lx:%%d", myIP, inst, 
+                                    static_cast<unsigned long>(eNow));
    free(myHost);
    reqFMT = strdup(xbuff);
    reqPFXlen = 13;

@@ -60,7 +60,6 @@ XrdOucSocket::XrdOucSocket(XrdOucError *erobj, int SockFileDesc)
 int XrdOucSocket::Accept(int timeout)
 {
    int retc, ClientSock;
-   char *action;
    struct pollfd sfd[1];
 
    ErrCode = 0;
@@ -76,7 +75,7 @@ int XrdOucSocket::Accept(int timeout)
        if (!sfd[0].revents) return -1;
       }
 
-   do {ClientSock = accept(SockFD, (struct sockaddr *)0, (size_t)0);}
+   do {ClientSock = accept(SockFD, (struct sockaddr *)0, 0);}
       while(ClientSock < 0 && errno == EINTR);
 
    if (ClientSock < 0) {Erq(Accept, errno, "accept rejected");}
@@ -113,8 +112,8 @@ int XrdOucSocket::Open(char *path, int port, int flags) {
     struct sockaddr_in InetAddr;
     struct sockaddr_un UnixAddr;
     struct sockaddr *SockAddr;
-    char *action, abuff[1024], pbuff[1024];
-    int myEC, retc, SockSize, backlog;
+    char *action, pbuff[1024];
+    int myEC, SockSize, backlog;
     int SockType = (flags & XrdOucSOCKET_UDP ? SOCK_DGRAM : SOCK_STREAM);
 
 // Make sure this object is available for a new socket
@@ -232,7 +231,7 @@ int XrdOucSocket::GetHostAndPort(char *path, char *buff, int bsz)
 
     // Extract the host name from the path
     //
-    if (plen = strlen(path)) do {plen--;} while(plen && path[plen] != ':');
+    if ((plen = strlen(path))) do {plen--;} while(plen && path[plen] != ':');
     if (!plen) return Err(GetHostAndPort, EINVAL, 
                           "socket host not specified in", path);
     if (plen >= bsz) return Err(GetHostAndPort, ENAMETOOLONG, 

@@ -12,9 +12,16 @@
 
 const char *XrdOucLinkCVSID = "$Id$";
   
+#include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#ifdef __linux__
+#include <sys/poll.h>
+#else
+#include <poll.h>
+#endif
 
 #include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucError.hh"
@@ -157,17 +164,21 @@ void XrdOucLink::Recycle()
 /*                                  S e n d                                   */
 /******************************************************************************/
   
-int XrdOucLink::Send(char *Buff, int Blen)
+int XrdOucLink::Send(char *Buff, int Blen, int tmo)
 {
    int retc;
 
    if (!Blen && !(Blen = strlen(Buff))) return 0;
    if ('\n' != Buff[Blen-1])
-      {struct iovec iodata[2] = {Buff, Blen, (char *)"\n", 1};
-       return Send((const struct iovec *)iodata, 2);
+      {struct iovec iodata[2] = {{Buff, Blen}, {(char *)"\n", 1}};
+       return Send((const struct iovec *)iodata, 2, tmo);
       }
 
    IOMutex.Lock();
+
+   if (tmo >= 0 && !OK2Send(tmo))
+      {IOMutex.UnLock(); return -2;}
+
    if (Stream)
       do {retc = write(FD, Buff, Blen);}
          while (retc < 0 && errno == EINTR);
@@ -175,54 +186,78 @@ int XrdOucLink::Send(char *Buff, int Blen)
       do {retc = sendto(FD, (void *)Buff, Blen, 0,
                        (struct sockaddr *)&InetAddr, sizeof(InetAddr));}
          while (retc < 0 && errno == EINTR);
+   if (retc < 0) return retErr(errno);
    IOMutex.UnLock();
+   return 0;
+}
 
-   if (retc >= 0) return 0;
-   eDest->Emsg("Link", errno, "sending to", Lname);
-   return -1;
+int XrdOucLink::Send(void *Buff, int Blen, int tmo)
+{
+   int retc;
+
+   IOMutex.Lock();
+
+   if (tmo >= 0 && !OK2Send(tmo))
+      {IOMutex.UnLock(); return -2;}
+
+   if (Stream)
+      do {retc = write(FD, Buff, Blen);}
+         while (retc < 0 && errno == EINTR);
+      else
+      do {retc = sendto(FD, (void *)Buff, Blen, 0,
+                       (struct sockaddr *)&InetAddr, sizeof(InetAddr));}
+         while (retc < 0 && errno == EINTR);
+   if (retc < 0) return retErr(errno);
+   IOMutex.UnLock();
+   return 0; 
 }
   
-int XrdOucLink::Send(char *dest, char *Buff, int Blen)
+int XrdOucLink::Send(char *dest, char *Buff, int Blen, int tmo)
 {
    int retc;
    struct sockaddr_in destip;
 
    if (!Blen && !(Blen = strlen(Buff))) return 0;
    if ('\n' != Buff[Blen-1])
-      {struct iovec iodata[2] = {Buff, Blen, (char *)"\n", 1};
-       return Send(dest, (const struct iovec *)iodata, 2);
+      {struct iovec iodata[2] = {{Buff, Blen}, {(char *)"\n", 1}};
+       return Send(dest, (const struct iovec *)iodata, 2, tmo);
       }
 
    if (!XrdOucNetwork::Host2Dest(dest, destip))
       {eDest->Emsg("Link", (const char *)dest, (char *)"is unreachable");
-       IOMutex.UnLock();
+       return -1;
+      }
+
+   if (Stream)
+      {eDest->Emsg("Link", "Unable to send msg to", dest, 
+                           (char *)"on a stream socket");
        return -1;
       }
 
    IOMutex.Lock();
-   if (Stream)
-      {eDest->Emsg("Link", "Unable to send msg to", dest, 
-                           (char *)"on a stream socket");
-       IOMutex.UnLock();
-       return -1;
-      }
+
+   if (tmo >= 0 && !OK2Send(tmo, dest))
+      {IOMutex.UnLock(); return -2;}
 
    do {retc = sendto(FD, (void *)Buff, Blen, 0,
                     (struct sockaddr *)&destip, sizeof(destip));}
        while (retc < 0 && errno == EINTR);
-   IOMutex.UnLock();
 
-   if (retc >= 0) return 0;
-   eDest->Emsg("Link", errno, "sending to", dest);
-   return -1;
+   if (retc < 0) return retErr(errno, dest);
+   IOMutex.UnLock();
+   return 0;
 }
 
-int XrdOucLink::Send(const struct iovec iov[],  int iovcnt)
+int XrdOucLink::Send(const struct iovec iov[], int iovcnt, int tmo)
 {
    int i, dsz, retc;
    char *bp;
 
    IOMutex.Lock();
+
+   if (tmo >= 0 && !OK2Send(tmo))
+      {IOMutex.UnLock(); return -2;}
+
    if (Stream)
       do {retc = writev(FD, iov, iovcnt);}
          while (retc < 0 && errno == EINTR);
@@ -245,7 +280,7 @@ int XrdOucLink::Send(const struct iovec iov[],  int iovcnt)
    return 0;
 }
 
-int XrdOucLink::Send(char *dest, const struct iovec iov[],  int iovcnt)
+int XrdOucLink::Send(char *dest, const struct iovec iov[], int iovcnt, int tmo)
 {
    int i, dsz, retc;
    char *bp;
@@ -253,17 +288,19 @@ int XrdOucLink::Send(char *dest, const struct iovec iov[],  int iovcnt)
 
    if (!XrdOucNetwork::Host2Dest(dest, destip))
       {eDest->Emsg("Link", (const char *)dest, (char *)"is unreachable");
-       IOMutex.UnLock();
+       return -1;
+      }
+
+   if (Stream)
+      {eDest->Emsg("Link", "Unable to send msg to", dest, 
+                   (char *)"on a stream socket");
        return -1;
       }
 
    IOMutex.Lock();
-   if (Stream)
-      {eDest->Emsg("Link", "Unable to send msg to", dest, 
-                   (char *)"on a stream socket");
-       IOMutex.UnLock();
-       return -1;
-      }
+
+   if (tmo >= 0 && !OK2Send(tmo, dest))
+      {IOMutex.UnLock(); return -2;}
 
    if (!sendbuff && !(sendbuff = XrdOucBuffer::Alloc())) return retErr(ENOMEM);
    dsz = sendbuff->BuffSize(); bp = sendbuff->data;
@@ -277,10 +314,31 @@ int XrdOucLink::Send(char *dest, const struct iovec iov[],  int iovcnt)
                     (struct sockaddr *)&destip, sizeof(destip));}
       while (retc < 0 && errno == EINTR);
 
-   if (retc < 0) return retErr(errno);
+   if (retc < 0) return retErr(errno, dest);
    IOMutex.UnLock();
    return 0;
 }
+
+/******************************************************************************/
+/*                                  R e c v                                   */
+/******************************************************************************/
+  
+int XrdOucLink::Recv(char *Buff, long Blen)
+{
+   ssize_t rlen;
+
+// Note that we will read only as much as is queued. Use Recv() with a
+// timeout to receive as much data as possible.
+//
+   IOMutex.Lock();
+   do {rlen = read(FD, Buff, Blen);} while(rlen < 0 && errno == EINTR);
+   IOMutex.UnLock();
+
+   if (rlen >= 0) return (int)rlen;
+   eDest->Emsg("Link", errno, "receiving from", Lname);
+   return -1;
+}
+
 
 /******************************************************************************/
 /*                                   S e t                                    */
@@ -298,15 +356,46 @@ void XrdOucLink::Set(int maxl)
 }
  
 /******************************************************************************/
+/*                               S e t O p t s                                */
+/******************************************************************************/
+  
+void XrdOucLink::SetOpts(int opts)
+{
+
+// Set options we care about
+//
+   if (opts &OUC_LINK_NOBLOCK) fcntl(FD, F_SETFL, O_NONBLOCK);
+}
+  
+/******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                               O K 2 S e n d                                */
+/******************************************************************************/
+  
+int XrdOucLink::OK2Send(int timeout, char *dest)
+{
+   struct pollfd polltab = {FD, POLLOUT|POLLWRNORM, 0};
+   int retc;
+
+   do {retc = poll(&polltab, 1, timeout);} while(retc < 0 && errno == EINTR);
+
+   if (retc == 0 || !(polltab.revents & (POLLOUT | POLLWRNORM)))
+      eDest->Emsg("Link",(dest ? dest : Lname),(char *)"is blocked.");
+      else if (retc < 0)
+              eDest->Emsg("Link",errno,"polling",(dest ? dest : Lname));
+              else return 1;
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                r e t E r r                                 */
 /******************************************************************************/
   
-int XrdOucLink::retErr(int ecode)
+int XrdOucLink::retErr(int ecode, char *dest)
 {
    IOMutex.UnLock();
-   eDest->Emsg("Link", ecode, "sending to", Lname);
-   return -1;
+   eDest->Emsg("Link", ecode, "sending to", (dest ? dest : Lname));
+   return (EWOULDBLOCK == ecode | EAGAIN == ecode ? -2 : -1);
 }

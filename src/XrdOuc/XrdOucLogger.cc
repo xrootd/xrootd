@@ -36,13 +36,14 @@ extern "C" {extern pthread_t XrdOucThread_ID(void);}
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdOucLogger::XrdOucLogger(int ErrFD)
+XrdOucLogger::XrdOucLogger(int ErrFD, int dorotate)
 {
    ePath = 0;
    eNTC  = 0;
    eInt  = 0;
    eNow  = 0;
    eFD   = ErrFD;
+   doLFR = dorotate;
 
 // Establish message routing
 //
@@ -62,7 +63,7 @@ int XrdOucLogger::Bind(const char *path, int isec)
 
 // Compute time at midnight
 //
-   eNow = time((time_t)0);
+   eNow = time(0);
    eNTC = XrdOucTimer::Midnight(eNow);
 
 // Bind to the logfile as needed
@@ -89,7 +90,7 @@ void XrdOucLogger::Put(int iovcnt, struct iovec *iov)
 
 // Prefix message with time if calle wants it so
 //
-   if (iov[0].iov_base) eNow = time((time_t)0);
+   if (iov[0].iov_base) eNow = time(0);
       else {iov[0].iov_base = tbuff;
             iov[0].iov_len  = (int)Time(tbuff);
            }
@@ -119,7 +120,7 @@ void XrdOucLogger::Put(int iovcnt, struct iovec *iov)
   
 int XrdOucLogger::Time(char *tbuff)
 {
-    eNow = time((time_t)0);
+    eNow = time(0);
     struct tm tNow;
 
 // Format the header
@@ -146,7 +147,8 @@ int XrdOucLogger::Time(char *tbuff)
 int XrdOucLogger::ReBind(int dorename)
 {
    const char seq[] = "0123456789";
-   int i, newfd;
+   unsigned int i;
+   int newfd;
    struct tm nowtime;
    char *bp, buff[1280];
    struct stat bf;
@@ -154,7 +156,7 @@ int XrdOucLogger::ReBind(int dorename)
 // Rename the file to be of the form yyyymmdd corresponding to the date it was
 // opened. We will add a sequence number (.x) if a conflict occurs.
 //
-   if (dorename)
+   if (dorename && doLFR)
       {strcpy(buff, ePath);
        bp = buff+strlen(ePath);
        *bp++ = '.';

@@ -49,7 +49,7 @@ T *XrdOucHash<T>::Add(const char *KeyVal, T *KeyData, const int LifeTime,
     unsigned long khash = XrdOucHashVal(KeyVal);
     int hent;
     time_t lifetime, KeyTime=0;
-    XrdOucHash_Item<T> *hip, *newhip, *oldhip, *prevhip;
+    XrdOucHash_Item<T> *hip, *newhip, *prevhip;
 
     // Compute the hash index and look up the entry. If found, either
     // return an error or delete it because caller wanted it replaced or
@@ -145,7 +145,7 @@ T *XrdOucHash<T>::Find(const char *KeyVal, time_t *KeyTime)
   unsigned long khash = XrdOucHashVal(KeyVal);
   int kent;
   time_t lifetime = 0;
-  XrdOucHash_Item<T> *phip, *hip, *thip;
+  XrdOucHash_Item<T> *phip, *hip;
 
 // Compute position of the hash table entry
 //

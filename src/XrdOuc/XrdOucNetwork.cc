@@ -224,7 +224,6 @@ int XrdOucNetwork::getHostAddr(char               *hostname,
                                struct sockaddr_in  InetAddr[],
                                int                 maxipa)
 {
-    const char *epname = "getHostAddr";
     u_long addr;
     struct hostent hent, *hp = 0;
     char **p, hbuff[1024];
@@ -493,6 +492,7 @@ int XrdOucNetwork::setOpts(const char *who, int xfd, int opts)
    const socklen_t szlio = (socklen_t)sizeof(liopts);
 
    fcntl(xfd, F_SETFD, FD_CLOEXEC);
+   if (opts & OUC_NOBLOCK) fcntl(xfd, F_SETFD, O_NONBLOCK);
 
    if (rc |= setsockopt(xfd,SOL_SOCKET,SO_REUSEADDR,(const void *)&one,szone))
       eDest->Emsg(who, errno, "setting REUSEADDR");
@@ -534,7 +534,6 @@ char *XrdOucNetwork::Peername(int snum, struct sockaddr_in *sap)
 {
       struct sockaddr_in addr;
       socklen_t addrlen = sizeof(addr);
-      char *hname;
 
 // Get the address on the other side of this socket
 //

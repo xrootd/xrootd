@@ -22,6 +22,7 @@
 //
 #define OUC_KEEPALIVE 0x0001
 #define OUC_NODELAY   0x0002
+#define OUC_NOBLOCK   0x0004
 #define OUC_NOEMSG    0x0010
 #define OUC_DEBUG     0x0020
 

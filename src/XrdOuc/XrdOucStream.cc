@@ -118,7 +118,6 @@ int XrdOucStream::Attach(int FileDescriptor, int bsz)
 
 void XrdOucStream::Close(int hold)
 {
-    int retc=0;
 
     // Wait for any associated process on this stream
     //
@@ -185,7 +184,7 @@ int XrdOucStream::Exec(char *cmd, int inrd)
 
 int XrdOucStream::Exec(char **parm, int inrd)
 {
-    int retc, fildes[2], Child_in, Child_out;
+    int fildes[2], Child_in = -1, Child_out = -1;
 
     // Create a pipe
     //
@@ -206,7 +205,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
 
     // Fork a process first so we can pick up the next request.
     //
-    if (child = NewProc)
+    if ((child = NewProc))
        {          close(Child_out);
         if (inrd) close(Child_in );
         if (child < 0)
@@ -395,7 +394,7 @@ char *XrdOucStream::GetWord(int lowcase)
      // If we have a token, return it
      //
      xline = 1;
-     if (wp = GetToken(lowcase)) return wp;
+     if ((wp = GetToken(lowcase))) return wp;
 
      // If no continuation allowed, return a null (but only once)
      //

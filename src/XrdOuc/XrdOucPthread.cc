@@ -42,7 +42,7 @@ int XrdOucThread_Signal(pthread_t tid, int snum)
 
 int XrdOucThread_Start(pthread_t *tid, void *(*proc)(void *), void *arg)
      {int rc;
-      if (rc = pthread_create(tid, NULL, proc, arg)) return rc;
+      if ((rc = pthread_create(tid, NULL, proc, arg))) return rc;
       return 0;
      }
 
@@ -59,14 +59,14 @@ int  XrdOucThread_Sys(pthread_t *tid, void *(*proc)(void *), void *arg)
       pthread_attr_init(&tattr);
       pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
       pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-      if (rc = pthread_create(tid, &tattr, proc, arg)) return rc;
+      if ((rc = pthread_create(tid, &tattr, proc, arg))) return rc;
       return 0;
      }
 
 int XrdOucThread_Wait(pthread_t tid)
     {int retc, *tstat;
-     if (retc = pthread_join(tid, (void **)&tstat)) return retc;
-     return (int)tstat;
+     if ((retc = pthread_join(tid, (void **)&tstat))) return retc;
+     return *tstat;
     }
 }
   

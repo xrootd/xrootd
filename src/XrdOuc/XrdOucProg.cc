@@ -83,11 +83,11 @@ int XrdOucProg::Run(char *arg1,char *arg2,char *arg3,char *arg4)
 
 // Execute the command
 //
-   if (rc = Run(&cmd, arg1, arg2, arg3, arg4)) return rc;
+   if ((rc = Run(&cmd, arg1, arg2, arg3, arg4))) return rc;
 
 // Drain all output
 //
-   while(lp = cmd.GetLine())
+   while((lp = cmd.GetLine()))
         if (eDest && *lp) eDest->Emsg("Run", (const char *)lp);
 
 // Drain the command

@@ -33,7 +33,7 @@ XrdOucNList::XrdOucNList(const char *name, int nval)
 
 // First find the asterisk, if any in the name
 //
-   if (ast = index(nameL, '*'))
+   if ((ast = index(nameL, '*')))
       {namelenL = ast - nameL;
        *ast  = 0;
        nameR = ast+1;
@@ -50,7 +50,6 @@ XrdOucNList::XrdOucNList(const char *name, int nval)
   
 int XrdOucNList::NameOK(const char *pd, const int pl)
 {
-   char *rname;
 
 // Check if exact match wanted
 //

@@ -41,7 +41,7 @@ time_t XrdOucTimer::Midnight(time_t tnow)
 
 // Compute time at midnight
 //
-   if (!tnow) tnow = time((time_t)0);
+   if (!tnow) tnow = time(0);
    localtime_r((const time_t *) &tnow, &midtime);
    midtime.tm_hour = midtime.tm_min = midtime.tm_sec = 0;
    return mktime(&midtime);

@@ -68,7 +68,7 @@ inline int         Find(const char *pathname)
                    {int plen = strlen(pathname); 
                     Lock();
                     XrdOucPList *p = next;
-                    while(p) {if (p->PathOK(pathname, (const int)plen)) break;
+                    while(p) {if (p->PathOK(pathname, plen)) break;
                               p=p->next;
                              }
                     UnLock();

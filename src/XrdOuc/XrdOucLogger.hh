@@ -22,7 +22,7 @@
 class XrdOucLogger
 {
 public:
-         XrdOucLogger(int ErrFD=STDERR_FILENO);
+         XrdOucLogger(int ErrFD=STDERR_FILENO, int xrotate=1);
 
         ~XrdOucLogger() {if (ePath) free(ePath);}
 
@@ -42,6 +42,10 @@ int  originalFD() {return baseFD;}
 // Output data and optionally prefix with date/time
 //
 void Put(int iovcnt, struct iovec *iov);
+
+// Set log file rotation on/off. Used by forked processes.
+//
+void setRotate(int onoff) {doLFR = onoff;}
 
 // Return formated date/time (tbuff must be atleast 24 characters)
 //
@@ -64,6 +68,7 @@ char       Filesfx[8];
 time_t     eNTC;
 int        eInt;
 time_t     eNow;
+int        doLFR;
 
 int    ReBind(int dorename=1);
 };

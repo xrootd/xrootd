@@ -25,7 +25,7 @@ inline XrdOucNList *Next() {return next;}
 
        int         NameOK(const char *pd, const int pl);
 inline int         NameOK(const char *pd)
-                         {return NameOK(pd, (const int)strlen(pd));}
+                         {return NameOK(pd, strlen(pd));}
 
 inline void        Set(int fval) {flags = fval;}
 
@@ -65,7 +65,7 @@ inline XrdOucNList *Find(const char *name)
                    {int nlen = strlen(name);
                     Lock();
                     XrdOucNList *p = next;
-                    while(p) {if (p->NameOK(name, (const int)nlen)) break;
+                    while(p) {if (p->NameOK(name, nlen)) break;
                               p=p->next;
                              }
                     UnLock();

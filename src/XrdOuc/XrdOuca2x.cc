@@ -25,7 +25,7 @@ const char *XrdOuca2xCVSID = "$Id$";
 int XrdOuca2x::a2i(XrdOucError &Eroute, const char *emsg, char *item,
                                              int *val, int minv, int maxv)
 {  int rc;
-   if (rc = a2i(Eroute, emsg, item, val, minv)) return rc;
+   if ((rc = a2i(Eroute, emsg, item, val, minv))) return rc;
    if (*val > maxv) return Eroute.Emsg("a2i", EINVAL, emsg, item);
    return 0;
 }
@@ -50,7 +50,7 @@ int XrdOuca2x::a2i(XrdOucError &Eroute, const char *emsg, char *item,
 long long XrdOuca2x::a2ll(XrdOucError &Eroute, const char *emsg, char *item,
                                 long long *val, long long minv, long long maxv)
 {  int rc;
-   if (rc = a2ll(Eroute, emsg, item, val, minv)) return rc;
+   if ((rc = a2ll(Eroute, emsg, item, val, minv))) return rc;
    if (*val > maxv) return Eroute.Emsg("a2ll", EINVAL, emsg, item);
    return 0;
 }
@@ -75,7 +75,7 @@ long long XrdOuca2x::a2ll(XrdOucError &Eroute, const char *emsg, char *item,
 int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, char *item,
                                               int *val, int minv, int maxv)
 {  int rc, num;
-   if (rc = a2fm(Eroute, emsg, item, &num, minv)) return rc;
+   if ((rc = a2fm(Eroute, emsg, item, &num, minv))) return rc;
    if ((*val | maxv) != maxv) return Eroute.Emsg("a2fm", EINVAL, emsg, item);
 
    *val = 0;
@@ -111,7 +111,7 @@ int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, char *item,
 long long XrdOuca2x::a2sz(XrdOucError &Eroute, const char *emsg, char *item,
                                 long long *val, long long minv, long long maxv)
 {  int rc;
-   if (rc = a2sz(Eroute, emsg, item, val, minv)) return rc;
+   if ((rc = a2sz(Eroute, emsg, item, val, minv))) return rc;
    if (*val > maxv) return Eroute.Emsg("a2sz", EINVAL, emsg, item);
    return 0;
 }
@@ -142,7 +142,7 @@ long long XrdOuca2x::a2sz(XrdOucError &Eroute, const char *emsg, char *item,
 int XrdOuca2x::a2tm(XrdOucError &Eroute, const char *emsg, char *item, int *val,
                           int minv, int maxv)
 {  int rc;
-   if (rc = a2tm(Eroute, emsg, item, val, minv)) return rc;
+   if ((rc = a2tm(Eroute, emsg, item, val, minv))) return rc;
    if (*val > maxv) return Eroute.Emsg("a2tm", EINVAL, emsg, item);
    return 0;
 }

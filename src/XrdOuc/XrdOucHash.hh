@@ -13,6 +13,7 @@
 //          $Id$
  
 #include <sys/types.h>
+#include <string.h>
 #include <time.h>
 
 enum XrdOucHash_Options {Hash_default     = 0x0000,
@@ -31,7 +32,7 @@ int                 Count() {return keycount;}
 
 T                   *Data() {return keydata;}
 
-const unsigned long  Hash() {return keyhash;}
+      unsigned long  Hash() {return keyhash;}
 
 const char          *Key()  {return keyval;}
 

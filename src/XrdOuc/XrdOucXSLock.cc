@@ -22,7 +22,6 @@ const char *XrdOucXSLockCVSID = "$Id$";
   
 XrdOucXSLock::~XrdOucXSLock()
 {
- struct Waiting *np;
 
 // Prevent usage while destroying object but make sure no one else is using it
 //

@@ -73,25 +73,25 @@ public:
 inline int  CondWait()
        {if (sem_trywait( &h_semaphore ))
            if (errno == EBUSY) return 0;
-               else { throw "sem_CondWait() failed", errno;}
+               else { throw "sem_CondWait() failed";}
         return 1;
        }
 
 inline void Post() {if (sem_post(&h_semaphore))
-                       {throw "sem_post() failed", errno;}
+                       {throw "sem_post() failed";}
                    }
 
 inline void Wait() {while (sem_wait(&h_semaphore))
                           {if (EINTR != errno) 
-                              {throw "sem_wait() failed", errno;}
+                              {throw "sem_wait() failed";}
                           }
                    }
 
   XrdOucSemaphore(int semval=1) {if (sem_init(&h_semaphore, 0, semval))
-                                   {throw "sem_init() failed", errno;}
+                                   {throw "sem_init() failed";}
                                }
  ~XrdOucSemaphore() {if (sem_destroy(&h_semaphore))
-                       {throw "sem_destroy() failed", errno;}
+                       {throw "sem_destroy() failed";}
                    }
 
 private:

@@ -18,6 +18,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <asm/param.h>
+#include <byteswap.h>
 
 #define S_IAMB      0x1FF   /* access mode bits */
 
@@ -90,6 +91,15 @@ extern "C"
 #endif
 
 #else
+// Unfortunately, icc does *not* support GNUC's byte swap routines
+#ifdef __ICC__
+#ifndef __bswap_64
+extern "C"
+{extern unsigned long long Swap_n2hll(unsigned long long x);}
+#define __bswap_64(x) Swap_n2hll(x)
+#endif
+#endif
+
 // When we ever return a long long we will have to fix this as well, perhaps.
 #ifndef htonll
 #define htonll(_x_) __bswap_64(_x_)

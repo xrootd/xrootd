@@ -52,6 +52,8 @@ class XrdOucErrInfo
 public:
       void  clear() {ErrInfo.clear();}
 
+      int   setErrCode(const int code)
+               {return ErrInfo.code = code;}
       int   setErrInfo(const int code, const char *message)
                {strlcpy(ErrInfo.message, message, sizeof(ErrInfo.message));
                 return ErrInfo.code = code;
@@ -64,6 +66,8 @@ public:
                     }
                 return ErrInfo.code = code;
                }
+      void  setErrUser(char *user)
+               {ErrUser = user;}
       int   getErrInfo() {return ErrInfo.code;}
       int   getErrInfo(XrdOucEI &errorParm)
                {errorParm = ErrInfo; return ErrInfo.code;}
@@ -71,14 +75,20 @@ const char *getErrText()
                {return (const char *)ErrInfo.message;}
 const char *getErrText(int &ecode)
                {ecode = ErrInfo.code; return (const char *)ErrInfo.message;}
+      char *getErrUser()
+               {return ErrUser;}
 
       XrdOucErrInfo &operator =(const XrdOucErrInfo &rhs)
-               {ErrInfo = rhs.ErrInfo; return *this;}
+               {ErrInfo = rhs.ErrInfo; 
+                ErrUser = rhs.ErrUser;
+                return *this;
+               }
 
-      XrdOucErrInfo() {}
+      XrdOucErrInfo() {ErrUser = (char *)"?";}
 
 protected:
 
 XrdOucEI ErrInfo;
+char    *ErrUser;
 };
 #endif

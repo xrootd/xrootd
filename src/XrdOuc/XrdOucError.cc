@@ -72,8 +72,7 @@ int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1, char *txt2)
 {
     struct iovec iov[16];
     int iovpnt = 0;
-    char ebuff[16], tbuff[24], *etxt = 0;
-    XrdOucError_Table *etp = etab;
+    char ebuff[16], *etxt = 0;
 
     if (!(etxt = ec2text(ecode)))
        {snprintf(ebuff, sizeof(ebuff), "Error %d", ecode); etxt = ebuff;}
@@ -98,7 +97,6 @@ void XrdOucError::Emsg(const char *esfx, const char *txt1, char *txt2, char *txt
 {
     struct iovec iov[16];
     int iovpnt = 0;
-    char tbuff[24];
 
                          Set_IOV_Item(0,0);                          //  0
     if (epfx && epfxlen) Set_IOV_Item(epfx, epfxlen);                //  1
@@ -118,7 +116,6 @@ void XrdOucError::Emsg(const char *esfx, const char *txt1, char *txt2)
 {
     struct iovec iov[8];
     int iovpnt = 0;
-    char tbuff[24];
 
                          Set_IOV_Item(0,0);                          //  0
     if (epfx && epfxlen) Set_IOV_Item(epfx, epfxlen);                //  1
@@ -136,7 +133,6 @@ void XrdOucError::Emsg(const char *esfx, const char *txt1)
 {
     struct iovec iov[8];
     int iovpnt = 0;
-    char tbuff[24];
 
                          Set_IOV_Item(0,0);                          //  0
     if (epfx && epfxlen) Set_IOV_Item(epfx, epfxlen);                //  1
@@ -156,8 +152,6 @@ void XrdOucError::Say(const char *txt1, char *txt2, char *txt3)
 {
     struct iovec iov[5];
     int iovpnt = 0;
-    char *Odata[5];
-    int   Odlen[5];
     if (txt1)            Set_IOV_Buff(txt1)                          //  0
        else              Set_IOV_Item(0,0);
     if (txt2 && txt2[0]) Set_IOV_Buff(txt2);                         //  1

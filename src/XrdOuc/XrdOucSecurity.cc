@@ -102,7 +102,7 @@ char *XrdOucSecurity::Authorize(struct sockaddr_in *addr)
 // Check if we have seen this host before
 //
    okHMutex.Lock();
-   if (hname = OKHosts.Find((const char *)ipname))
+   if ((hname = OKHosts.Find((const char *)ipname)))
       {okHMutex.UnLock(); return strdup(hname);}
 
 // Get the hostname for this IP address
@@ -111,11 +111,11 @@ char *XrdOucSecurity::Authorize(struct sockaddr_in *addr)
 
 // Check if this host is in the the appropriate netgroup, if any
 //
-   if (tlp = NetGroups)
+   if ((tlp = NetGroups))
       do {if (innetgr((const char *)tlp->text, (const char *)hname,
                       (const char *)0,         (const char *)0))
           return hostOK(hname, ipname, "netgroup");
-         } while (tlp = tlp->next);
+         } while ((tlp = tlp->next));
 
 // Plow through the specific host list to see if the host
 //
@@ -166,7 +166,7 @@ char *XrdOucSecurity::hostOK(char *hname, char *ipname, const char *why)
 // be locked upon entry and it will be unlocked upon exit.
 //
    OKHosts.Add((const char *)strdup(ipname), strdup(hname),
-               (const int)lifetime, Hash_dofree);
+               lifetime, Hash_dofree);
    okHMutex.UnLock();
    DEBUG(hname <<" authorized via " <<why);
    return hname;

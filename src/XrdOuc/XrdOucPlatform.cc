@@ -14,6 +14,7 @@ const char *XrdOucPlatformCVSID = "$Id$";
 
 #include <string.h>
 #include <unistd.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 
 #ifdef __linux__
@@ -32,4 +33,19 @@ int strlcpy(char *dst, const char *src, size_t sz)
     return slen;
 }
 }
+
+#ifdef __ICC__
+extern "C"
+{
+unsigned long long Swap_n2hll(unsigned long long x)
+{
+ unsigned long long ret_val;
+
+    *( (unsigned long *)(&ret_val) + 1) = ntohl(*( (unsigned long *)(&x)));
+    *(((unsigned long *)(&ret_val)))    = ntohl(*(((unsigned long *)(&x))+1));
+    return ret_val;
+}
+}
+#endif
+
 #endif
