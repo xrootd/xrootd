@@ -182,9 +182,9 @@ off_t   XrdPosixXrootd::Lseek(int fildes, off_t offset, int whence)
 
 // Set the new offset
 //
-   if (whence & SEEK_SET) curroffset = fp->setOffset(offset);
-      else if (whence & SEEK_CUR) curroffset = fp->addOffset(offset);
-              else if (whence & SEEK_END) 
+   if (whence == SEEK_SET) curroffset = fp->setOffset(offset);
+      else if (whence == SEEK_CUR) curroffset = fp->addOffset(offset);
+              else if (whence == SEEK_END)
                       curroffset = fp->setOffset(fp->stat.size+offset);
                       else {Scuttle(fp, EINVAL);}
 
