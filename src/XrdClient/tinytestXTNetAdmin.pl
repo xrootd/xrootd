@@ -3,15 +3,15 @@
 #  $Id$
 
 use XrdClientAdmin;
-XrdClientAdmin::XrdInitialize("root://bbrprod01.slac.stanford.edu/dummy", 2);
+XrdClientAdmin::XrdInitialize("root://bbrprod01.slac.stanford.edu/dummy", 1);
 
 $par = "/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root";
 $ans = XrdClientAdmin::XrdExistFiles($par);
 print "\nThe answer of XrdClientAdmin::ExistFiles($par) is: \"$ans\" \n\n\n";
 
-$par = "/prod";
-$ans = XrdClientAdmin::XrdExistDirs($par);
-print "\nThe answer of XrdClientAdmin::ExistDirs($par) is: \"$ans\" \n\n\n";
+#$par = "/prod\n";
+#$ans = XrdClientAdmin::XrdExistDirs($par);
+#print "\nThe answer of XrdClientAdmin::ExistDirs($par) is: \"$ans\" \n\n\n";
 
 $par = "/prod\n/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root\n/tmp";
 $ans = XrdClientAdmin::XrdExistFiles($par);

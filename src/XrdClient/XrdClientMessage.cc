@@ -89,7 +89,7 @@ bool XrdClientMessage::CreateData()
          char *tmpPtr = (char *)fData;
 
 	 // Useful to get always 0-terminated strings
-         tmpPtr[fHdr.dlen] = 0;
+         tmpPtr[fHdr.dlen] = '\0';
       }
       if (!fData)
          return FALSE;

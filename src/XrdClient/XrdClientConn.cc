@@ -344,9 +344,12 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 	    resp = CheckResp(&cmdrespMex->fHdr, CmdName);
 	    retry++;
 	    
+
 	    // If the answer was not (or not totally) positive, we must 
             // investigate on the result
 	    if (!resp) {
+	          
+                               
                abortcmd = CheckErrorStatus(cmdrespMex, retry, CmdName);
 
 	       // An open request which fails for an application reason like kxr_wait
@@ -551,7 +554,7 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 	    "Max redirection count reached for request" << CmdName );
       return TRUE;
    }
-  
+ 
    if (mex->HeaderStatus() == kXR_error) {
       // The server declared an error. 
       // In this case it's better to exit, unhandled error
@@ -560,8 +563,10 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 
       body_err = (struct ServerResponseBody_Error *)mex->GetData();
 
+
       if (body_err) {
          // Print out the error information, as received by the server
+
          Error("SendGenCommand",
 	       "Server declared error " << 
                ntohl(body_err->errnum) << ":" <<

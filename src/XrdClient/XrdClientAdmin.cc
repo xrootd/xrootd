@@ -299,7 +299,7 @@ bool XrdClientAdmin::ExistFiles(vecString &vs, vecBool &vb)
   
    ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
 
-   for(int j=0; j <= vs.GetSize()-1; j++) {
+   if (ret) for(int j=0; j <= vs.GetSize()-1; j++) {
          bool tmp = TRUE;
 
          if ( (*(Info+j) & kXR_isDir) || (*(Info+j) & kXR_other) ||
@@ -327,7 +327,7 @@ bool XrdClientAdmin::ExistDirs(vecString &vs, vecBool &vb)
   
    ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
   
-   for(int j=0; j <= vs.GetSize()-1; j++) {
+   if (ret) for(int j=0; j <= vs.GetSize()-1; j++) {
       bool tmp;
 
       if( (*(Info+j) & kXR_isDir) ) {
@@ -357,7 +357,7 @@ bool XrdClientAdmin::IsFileOnline(vecString &vs, vecBool &vb)
   
    ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
   
-   for(int j=0; j <= vs.GetSize()-1; j++) {
+   if (ret) for(int j=0; j <= vs.GetSize()-1; j++) {
       bool tmp;
 
       if( !(*(Info+j) & kXR_offline) ) {
@@ -648,9 +648,10 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
 
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
+long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
 {
    ClientRequest chksumRequest;
+   struct ServerResponseHeader srh;
 
    memset( &chksumRequest, 0, sizeof(chksumRequest) );
 
@@ -661,7 +662,9 @@ bool XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
    chksumRequest.query.dlen = strlen((char *) path);
 
    bool ret = fConnModule->SendGenCommand(&chksumRequest, (const char*) path,
-					  (void **)chksum, NULL, TRUE, (char *)"GetChecksum");
+					  (void **)chksum, NULL, TRUE,
+					  (char *)"GetChecksum", &srh);
   
-   return ret;
+   if (ret) return (srh.dlen);
+   else return 0;
 }

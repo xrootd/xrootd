@@ -240,17 +240,18 @@ extern "C" {
       if (!adminst) return 0;
 
       char *chksum = 0;
+      long chksumlen;
 
       // chksum now is a memory block allocated by the client itself
       // containing the 0-term response data
-      if ( adminst->GetChecksum((kXR_char *)path, (kXR_char **)&chksum) ) {
+      if ( (chksumlen = adminst->GetChecksum((kXR_char *)path, (kXR_char **)&chksum)) ) {
 
 	 // The data has to be copied to the sharedbuf
 	 // to deal with perl parameter passing
-	 long sz = strlen(chksum) + 1;
 
-	 SharedBufRealloc(sz);
-	 strncpy(sharedbuf, chksum, sz);
+	 SharedBufRealloc(chksumlen);
+	 strncpy(sharedbuf, chksum, chksumlen);
+	 sharedbuf[chksumlen] = 0;
 
          free(chksum);
 
