@@ -26,7 +26,7 @@ inline char           *Path()  {return path;}
 static void            Insert(char *pd)
                              {XrdXrootdXPath *pp = 0, *p = first;
                               XrdXrootdXPath *newp = new XrdXrootdXPath(pd);
-                              while(p && newp->pathlen <= p->pathlen)
+                              while(p && newp->pathlen >= p->pathlen)
                                    {pp = p; p = p->next;}
                               newp->next = p;
                               if (pp) pp->next = newp;

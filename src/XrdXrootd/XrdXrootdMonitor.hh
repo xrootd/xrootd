@@ -38,6 +38,7 @@ class XrdScheduler;
 class XrdXrootdMonitor
 {
 public:
+friend class XrdXrootdMonitorDummy; // Avoid stupid gcc warnings
 
 // All values for Add_xx() must be passed in network byte order
 //
