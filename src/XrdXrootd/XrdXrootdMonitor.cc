@@ -36,8 +36,7 @@ XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
 XrdOucError       *XrdXrootdMonitor::eDest      = 0;
 XrdOucLink        *XrdXrootdMonitor::monDest    = 0;
 XrdOucMutex        XrdXrootdMonitor::windowMutex;
-kXR_int32          XrdXrootdMonitor::startTime  =
-                            static_cast<kXR_int32>(htonl((long)time(0)));
+kXR_int32          XrdXrootdMonitor::startTime  = 0;
 int                XrdXrootdMonitor::monBlen    = 0;
 int                XrdXrootdMonitor::lastEnt    = 0;
 int                XrdXrootdMonitor::isEnabled  = 0;
@@ -205,6 +204,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdOucError *errp,
    lastEnt = (msz-sizeof(XrdXrootdMonHeader))/sizeof(XrdXrootdMonTrace);
    monBlen =  (lastEnt*sizeof(XrdXrootdMonTrace))+sizeof(XrdXrootdMonHeader);
    lastEnt--;
+   startTime = static_cast<kXR_int32>(htonl((long)time(0)));
 
 // Get a socket to send the monitor data
 //
