@@ -6,7 +6,7 @@
 
 all:
 	@/bin/mkdir -p $(BINDIR) $(LIBDIR) $(OBJDIR)
-	@$(MAKE) $(TYPE)all @dbgopt@ XrdDEBUG=@dbgflg@ --no-print-directory
+	@@macosx_target_setting@$(MAKE) $(TYPE)all @dbgopt@ XrdDEBUG=@dbgflg@ --no-print-directory
 
 $(TYPE)all:
 	@$(MAKE) anything --no-print-directory \
