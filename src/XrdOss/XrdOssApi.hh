@@ -175,7 +175,7 @@ long long minalloc;          //    Minimum allocation
 int       ovhalloc;          //    Allocation overage
 int       fuzalloc;          //    Allocation fuzz
 int       cscanint;          //    Seconds between cache scans
-long      xfrspeed;          //    Average transfer speed (bytes/second)
+int       xfrspeed;          //    Average transfer speed (bytes/second)
 int       xfrovhd;           //    Minimum seconds to get a file
 int       xfrhold;           //    Second hold limit on failing requests
 int       xfrkeep;           //    Second keep queued requests
@@ -184,8 +184,8 @@ int       xfrtcount;         //    Actual count of threads (used for dtr)
 long long pndbytes;          //    Total bytes to be staged (pending)
 long long stgbytes;          //    Total bytes being staged (active)
 long long totbytes;          //    Total bytes were  staged (active+pending)
-long      totreqs;           //    Total   successful requests
-long      badreqs;           //    Total unsuccessful requests
+int       totreqs;           //    Total   successful requests
+int       badreqs;           //    Total unsuccessful requests
 
 friend class XrdOssCache_FSData;
 friend class XrdOssCache_FS;

@@ -84,7 +84,7 @@ int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
   
 int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
 {
-   static XrdOucReqID ReqID((int)getpid(),(char *)"localhost",
+   static XrdOucReqID ReqID(static_cast<int>(getpid()),(char *)"localhost",
                                           (unsigned long)0xef000001);
    static XrdOucMutex      PTMutex;
    static XrdOucHash<char> PTable;

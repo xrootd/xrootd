@@ -222,7 +222,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
                                   "%s%s%s"
                                   "%s%s%s"
                                   "oss.trace        %x\n"
-                                  "oss.xfr          %d %ld %d %d",
+                                  "oss.xfr          %d %d %d %d",
              cloc,
              minalloc, ovhalloc, fuzalloc,
              cscanint,

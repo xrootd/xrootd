@@ -88,7 +88,7 @@ int                         prty;
           {hash  = xhash; fullList.setItem(this); pendList.setItem(this);
            if (xpath) path  = strdup(xpath);
               else path = 0;
-           flags = 0; sigtod = 0; size = 2<<31; prty = 0;
+           flags=0; sigtod=0; size=static_cast<long long>(2)<<31; prty=0;
           }
      ~XrdOssCache_Req() {if (path) free((void *)path);
                         fullList.Remove();

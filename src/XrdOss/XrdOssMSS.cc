@@ -246,7 +246,7 @@ int XrdOssSys::MSS_Stat(char *path, struct stat *buff)
     char ftype, mtype[10], *resp;
     int retc, xt_nlink;
     long xt_uid, xt_gid, atime, ctime, mtime, xt_blksize, xt_blocks;
-    double xt_size; // Until Solaris 8, sigh.
+    long long xt_size;
     XrdOucStream *sfd;
 
     // Make sure the path is not too long.
@@ -267,22 +267,26 @@ int XrdOssSys::MSS_Stat(char *path, struct stat *buff)
 
     // Extract data from the response.
     //
-    sscanf(resp, "%c %9s %d %ld %ld %ld %ld %ld %lf %ld %ld", &ftype, mtype,
+    sscanf(resp, "%c %9s %d %ld %ld %ld %ld %ld %lld %ld %ld", &ftype, mtype,
            &xt_nlink, &xt_uid, &xt_gid, &atime, &ctime, &mtime,
            &xt_size, &xt_blksize, &xt_blocks);
 
     // Set the stat buffer, appropriately.
     //
     memset( (char *)buff, 0, sizeof(struct stat) );
-    buff->st_nlink = xt_nlink;
-    buff->st_uid   = xt_uid;
-    buff->st_gid   = xt_gid;
-    buff->st_atime = atime;
-    buff->st_ctime = ctime;
-    buff->st_mtime = mtime;
-    buff->st_size  = (off_t)xt_size;
-    buff->st_blksize=xt_blksize;
-    buff->st_blocks =xt_blocks;
+    buff->st_nlink = static_cast<nlink_t>(xt_nlink);
+    buff->st_uid   = static_cast<uid_t>(xt_uid);
+    buff->st_gid   = static_cast<gid_t>(xt_gid);
+    buff->st_atime = static_cast<time_t>(atime);
+    buff->st_ctime = static_cast<time_t>(ctime);
+    buff->st_mtime = static_cast<time_t>(mtime);
+    buff->st_size  = static_cast<off_t>(xt_size);
+    buff->st_blksize=static_cast<long>(xt_blksize);
+#ifdef __macos__
+    buff->st_blocks =                      xt_blocks;
+#else
+    buff->st_blocks =static_cast<blkcnt_t>(xt_blocks);
+#endif
 
     if (ftype == 'd') buff->st_mode |=  S_IFDIR;
        else if (ftype == 'l') buff->st_mode |= S_IFLNK;
