@@ -31,6 +31,7 @@ int            isActive() {return Active;}
 XrdOdcManager *nextManager() {return Next;}
 
 char          *Name() {return Host;}
+char          *NPfx() {return HPfx;}
 
 int            Send(char *msg, int mlen=0);
 int            Send(const struct iovec *iov, int iovcnt);
@@ -55,6 +56,7 @@ XrdOucError   *eDest;
 XrdNetLink    *Link;
 XrdNetWork    *Network;
 char          *Host;
+char          *HPfx;
 int            Port;
 pthread_t      mytid;
 int            dally;

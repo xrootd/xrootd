@@ -33,11 +33,15 @@ extern XrdOucTrace OdcTrace;
   
 XrdOdcManager::XrdOdcManager(XrdOucError *erp, char *host, int port, int cw)
 {
+   char *dot;
 
 // Set error object
 //
    eDest   = erp;
    Host    = strdup(host);
+   if ((dot = index(Host, '.')))
+      {*dot = '\0'; HPfx = strdup(Host); *dot = '.';}
+      else HPfx = strdup(Host);
    Port    = port;
    Link    = 0;
    Active  = 0;
@@ -60,6 +64,7 @@ XrdOdcManager::~XrdOdcManager()
   if (Network) delete Network;
   if (Link)    Link->Recycle();
   if (Host)    free(Host);
+  if (HPfx)    free(HPfx);
   if (mytid)   XrdOucThread_Kill(mytid);
 }
   

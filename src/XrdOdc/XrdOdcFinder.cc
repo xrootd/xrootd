@@ -650,8 +650,8 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 
 // Do a trace
 //
-   TRACE(Redirect, "user=" <<Resp.getErrUser() <<tinfo <<msg <<' ' <<val
-                           <<" path=" <<path);
+   TRACE(Redirect, "user=" <<Resp.getErrUser() <<tinfo <<msg <<':' <<val
+                           <<" by " << Manp->NPfx() <<" path=" <<path);
 
 // All done
 //
