@@ -1070,7 +1070,8 @@ int XrdOlbServer::do_Select(char *rid, int reset)
            dowt = 1;
           }
        if (!retc || reset) XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
-          else      XrdOlbCache.DelFile(tp, cinfo.sbvec, XrdOlbConfig.LUPDelay);
+          else XrdOlbCache.DelFile(tp, cinfo.sbvec,
+                                  (dowt ? XrdOlbConfig.LUPDelay : 0));
        XrdOlbSM.Broadcast((retc ? cinfo.sbvec : pinfo.rovec), buff,
                           snprintf(buff, sizeof(buff)-1,
                           "%s state %s\n", XrdOlbConfig.MsgGID, tp));
