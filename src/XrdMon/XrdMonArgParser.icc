@@ -12,11 +12,12 @@
 
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonException.hh"
+#include "XrdMon/XrdMonArgParser.hh"
 #include <sstream>
 using std::stringstream;
 
 template <typename T, class C>
-XrdMonArgParser::ArgImpl<T, C>::ArgImpl<T, C>(const char* theSwitch,
+XrdMonArgParser::ArgImpl<T, C>::ArgImpl(const char* theSwitch,
                                               T defaultValue,
                                               bool required)
     : _value(defaultValue),
