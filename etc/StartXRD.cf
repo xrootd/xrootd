@@ -1,4 +1,7 @@
 #!/bin/sh
+#
+#  $Id$
+#
 # Change 'mailto' to be the userto whom error mail is to be sent
 #
 mailto="abh"
