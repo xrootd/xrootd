@@ -75,7 +75,7 @@ int XrdOssProxy::Open(const char *path,
   
   // Once the login is done, we can try to open the remote file
   //
-  return client->open((kXR_char*)path, (kXR_int16) oflag, (kXR_int16) mode);
+  return client->open((kXR_char*)path, (kXR_unt16) oflag, (kXR_unt16) mode);
 
 } // Open
 
