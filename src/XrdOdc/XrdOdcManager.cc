@@ -17,9 +17,9 @@ const char *XrdOdcManagerCVSID = "$Id$";
 #include "XrdOdc/XrdOdcTrace.hh"
 
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLink.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+#include "XrdNet/XrdNetLink.hh"
+#include "XrdNet/XrdNetWork.hh"
  
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -42,7 +42,7 @@ XrdOdcManager::XrdOdcManager(XrdOucError *erp, char *host, int port, int cw)
    Link    = 0;
    Active  = 0;
    mytid   = 0;
-   Network = new XrdOucNetwork(eDest, 0, &OdcTrace, TRACE_Debug);
+   Network = new XrdNetWork(eDest, 0);
 
 // Compute dally value
 //
@@ -162,15 +162,15 @@ void *XrdOdcManager::Start()
   
 void XrdOdcManager::Hookup()
 {
-   XrdOucLink *lp;
-   int tries = 12, opts = OUC_NODELAY;
+   XrdNetLink *lp;
+   int tries = 12, opts = 0;
 
 // Keep trying to connect to the manager
 //
    do {while(!(lp = Network->Connect(Host, Port, opts)))
             {Sleep(dally);
-             if (tries--) opts = OUC_NODELAY | OUC_NOEMSG;
-                else     {opts = OUC_NODELAY; tries = 12;}
+             if (tries--) opts = XRDNET_NOEMSG;
+                else     {opts = 0; tries = 12;}
             }
        if (lp->Send((char *)"login director\n") == 0) break;
        lp->Recycle();

@@ -16,6 +16,7 @@ const char *XrdRootdProtocolCVSID = "$Id$";
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <netinet/in.h>
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdRootd/XrdRootdProtocol.hh"

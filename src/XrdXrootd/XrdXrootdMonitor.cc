@@ -17,11 +17,12 @@ const char *XrdXrootdMonitorCVSID = "$Id$";
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 
+#include "XrdNet/XrdNet.hh"
+#include "XrdNet/XrdNetPeer.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLink.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 
 #include "Xrd/XrdScheduler.hh"
@@ -34,7 +35,7 @@ const char *XrdXrootdMonitorCVSID = "$Id$";
   
 XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
 XrdOucError       *XrdXrootdMonitor::eDest      = 0;
-XrdOucLink        *XrdXrootdMonitor::monDest    = 0;
+XrdNetPeer         XrdXrootdMonitor::monDest;
 XrdOucMutex        XrdXrootdMonitor::windowMutex;
 kXR_int32          XrdXrootdMonitor::startTime  = 0;
 int                XrdXrootdMonitor::monBlen    = 0;
@@ -197,6 +198,7 @@ void XrdXrootdMonitor::Flush()
 int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdOucError *errp,
                            char *dest, int msz, int wsz)
 {
+   XrdNet myNetwork(errp, 0);
 
 // Set various statics
 //
@@ -211,7 +213,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdOucError *errp,
 
 // Get a socket to send the monitor data
 //
-   if (!(monDest = XrdOucNetwork::Relay(eDest, OUC_SENDONLY, dest))) return 0;
+   if (!myNetwork.Relay(monDest, dest, XRDNET_SENDONLY)) return 0;
 
 // All done
 //
@@ -348,7 +350,8 @@ int XrdXrootdMonitor::Send(void *buff, int blen)
     int rc;
 
     sendMutex.Lock();
-    rc = monDest->Send(buff, blen);
+    rc = (int)sendto(monDest.fd, buff, blen, 0,
+              (const struct sockaddr *)&monDest.InetAddr, sizeof(sockaddr));
     sendMutex.UnLock();
 
     return rc;

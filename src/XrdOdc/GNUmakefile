@@ -6,9 +6,9 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdOdc -lXrdOuc
+BINLIBS = -L$(LIBDIR) -lXrdOdc -l XrdNet -lXrdOuc
 
-LIBDEPS = $(LIBDIR)/libXrdOdc.a $(LIBDIR)/libXrdOuc.a
+LIBDEPS = $(LIBDIR)/libXrdOdc.a $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -34,7 +34,7 @@ OBJECTS = $(OBJECTA) $(OBJECTB)
 
 LIBRARY = $(LIBDIR)/libXrdOdc.a
 
-TESTBIN = $(BINDIR)/test_odc
+# TESTBIN = $(BINDIR)/test_odc
 
 TARGETS = $(LIBRARY) $(TESTBIN)
 
@@ -42,6 +42,7 @@ TARGETS = $(LIBRARY) $(TESTBIN)
 #                           S e a r c h   P a t h s                            #
 #------------------------------------------------------------------------------#
 
+vpath XrdNet% ../XrdNet
 vpath XrdOdc% ../XrdOdc
 vpath XrdOuc% ../XrdOuc
 vpath XrdSfs% ../XrdSfs
@@ -74,25 +75,26 @@ $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
 $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
-                          XrdOuca2x.hh    XrdOucNetwork.hh XrdOucStream.hh \
-                          XrdOucTList.hh  \
+                          XrdOuca2x.hh    XrdOucStream.hh  XrdOucTList.hh  \
+                          XrdNetWork.hh \
                           XrdOdcConfig.cc XrdOdcConfDefs.hh
 	@echo Compiling XrdOdcConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcConfig.o XrdOdcConfig.cc
 
 $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
-                          XrdOdcMsg.hh      XrdOdcTrace.hh  XrdOucNetwork.hh \
+                          XrdOdcMsg.hh      XrdOdcTrace.hh  \
                           XrdOucPthread.hh  XrdOdcConfDefs.hh XrdOucError.hh \
-                          XrdOucErrInfo.hh  XrdOucPlatform.hh XrdOucTimer.hh \
-                          XrdOucReqID.hh    XrdOucSocket.hh   XrdOucStream.hh \
+                          XrdOucErrInfo.hh  XrdOucPlatform.hh XrdOucPthread.hh \
+                          XrdOucReqID.hh    XrdOucStream.hh   XrdOucTimer.hh \
+                          XrdNetDNS.hh      XrdNetOpts.hh     XrdNetSocket.hh \
                           XrdSfsInterface.hh
 	@echo Compiling XrdOdcFinder.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcFinder.o XrdOdcFinder.cc
 
-$(OBJDIR)/XrdOdcManager.o: XrdOdcManager.hh  XrdOdcMsg.hh  XrdOdcTrace.hh \
-                           XrdOucError.hh    XrdOucLink.hh XrdOucNetwork.hh \
-                           XrdOucPthread.hh \
-                           XrdOdcManager.cc
+$(OBJDIR)/XrdOdcManager.o: XrdOdcManager.hh  XrdOdcManager.cc \
+                           XrdOdcMsg.hh      XrdOdcTrace.hh \
+                           XrdOucError.hh    XrdOucPthread.hh \
+                           XrdNetLink.hh     XrdNetWork.hh
 	@echo Compiling XrdOdcManager.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcManager.o XrdOdcManager.cc
 

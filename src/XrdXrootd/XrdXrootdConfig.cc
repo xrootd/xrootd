@@ -25,6 +25,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdVersion.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
@@ -114,6 +115,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    BPool        = pi->BPool;
    readWait     = pi->readWait;
    Port         = pi->Port;
+
+// Prohibit this program from executing as superuser
+//
+   if (geteuid() == 0)
+      {eDest.Emsg("Config", "Security reasons prohibit xrootd running as "
+                  "superuser; xrootd is terminating.");
+       _exit(8);
+      }
 
 // Process any command line options
 //
@@ -209,7 +218,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Initialize the request ID generation object
 //
-   XrdXrootdReqID = new XrdOucReqID((int)Port);
+   XrdXrootdReqID = new XrdOucReqID((int)Port, pi->myName,
+                                    XrdNetDNS::IPAddr(pi->myAddr));
 
 // Initialize for prepare processing
 //
@@ -254,6 +264,10 @@ int XrdXrootdProtocol::ConfigFn(char *fn)
     int fd, rsz, NoGo;
     char *fbuff;
 
+// Note that the following code is somewhat sloppy in terms of memory use
+// and file descriptors when an error is detected. However, upon errors,
+// this program exits and memory and file descriptor status is immaterial
+//
     if ((fd = open(fn, O_RDONLY)) < 0)
        {eDest.Emsg("Config", errno, "open", fn); return 1;}
     if (fstat(fd, &buf) < 0)

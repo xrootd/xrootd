@@ -37,12 +37,13 @@ const char *XrdOdcFinderCVSID = "$Id$";
 #include "XrdOdc/XrdOdcTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucReqID.hh"
-#include "XrdOuc/XrdOucSocket.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTimer.hh"
+#include "XrdNet/XrdNetDNS.hh"
+#include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetSocket.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 /******************************************************************************/
@@ -173,7 +174,7 @@ int XrdOdcFinderLCL::Configure(char *cfn)
 
 // Start the inspection thread
 //
-   myHost = strdup(XrdOucNetwork::FullHostName(0));
+   myHost = XrdNetDNS::getHostName();
    return StartMonitor(1, config.pselMint);
 }
  
@@ -1007,8 +1008,8 @@ void *XrdOdcFinderTRG::Start()
 void XrdOdcFinderTRG::Hookup()
 {
    struct stat buf;
-   XrdOucSocket Sock(&OdcEDest);
-   int tries = 6;
+   XrdNetSocket Sock(&OdcEDest);
+   int opts = 0, tries = 6;
 
 // Wait for the olb path to be created
 //
@@ -1018,14 +1019,14 @@ void XrdOdcFinderTRG::Hookup()
          XrdOucTimer::Wait(10*1000);
         }
 
-// We can now ty to connect
+// We can now try to connect
 //
    tries = 0;
-   while(Sock.Open(OLBPath) < 0)
+   while(Sock.Open(OLBPath, -1, opts) < 0)
         {if (!tries--)
-            {OdcEDest.Emsg("olb",Sock.LastError(),"connect to olb");
+            {opts = XRDNET_NOEMSG;
              tries = 6;
-            }
+            } else if (!tries) opts = 0;
          XrdOucTimer::Wait(10*1000);
         };
 

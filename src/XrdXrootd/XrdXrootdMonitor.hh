@@ -17,6 +17,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 
+#include "XrdNet/XrdNetPeer.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include "XProtocol/XPtypes.hh"
@@ -29,7 +30,6 @@
 #define XROOTD_MON_NONE     0
 #define XROOTD_MON_SOME    -1
 
-class XrdOucLink;
 class XrdScheduler;
   
 class XrdXrootdMonitor
@@ -57,7 +57,7 @@ inline void              Close(kXR_int32 dictid)
 
        void              Flush();
 
-static int               Init(XrdScheduler *sp, XrdOucError *errp, 
+static int               Init(XrdScheduler *sp, XrdOucError *errp,
                               char *dest, int msz=8192, int wsz=60);
 
        void              Map(const char code, kXR_int32 dictID,
@@ -85,8 +85,8 @@ inline void              do_OC(char opc, kXR_int32 dictid);
 
 static XrdScheduler      *Sched;
 static XrdOucError       *eDest;
-static XrdOucLink        *monDest;
 static XrdOucMutex        windowMutex;
+static XrdNetPeer         monDest;
        XrdXrootdMonBuff  *monBuff;
 static int                monBlen;
        int                nextEnt;

@@ -6,7 +6,7 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrd -lXrdOuc $(OBJDIR)/XrdSfsNative.o
+BINLIBS = -L$(LIBDIR) -lXrd -lXrdNet -lXrdOuc $(OBJDIR)/XrdSfsNative.o
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -38,6 +38,7 @@ OBJECTS = \
 
 OBJDEPS = \
           $(LIBDIR)/libXrd.a \
+          $(LIBDIR)/libXrdNet.a \
           $(LIBDIR)/libXrdOuc.a \
           $(OBJDIR)/XrdSfsNative.o
 
@@ -48,8 +49,9 @@ TARGETS  = $(BINDIR)/xrootd
 #------------------------------------------------------------------------------#
 
 vpath XrdSfs% ../XrdSfs
-vpath XrdOuc% ../XrdOuc
 vpath XrdSec% ../XrdSec
+vpath XrdOuc% ../XrdOuc
+vpath XrdNet% ../XrdNet
 vpath Xrd%    ../Xrd
 vpath XP%     ../XProtocol
 
@@ -74,7 +76,7 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdFileLock.hh XrdXrootdFileLock1.hh \
                              XrdXrootdPrepare.hh  XrdXrootdXPath.hh \
                              XrdXrootdStats.hh    XrdXrootdTrace.hh \
-                             XrdXrootdMonitor.hh \
+                             XrdXrootdMonitor.hh  XrdNetDNS.hh \
                              XrdBuffer.hh         XProtocol.hh \
                              XrdOuca2x.hh         XrdOucError.hh  \
                              XrdOucLogger.hh      XrdOucReqID.hh \
@@ -103,9 +105,9 @@ $(OBJDIR)/XrdXrootdLoadLib.o: XrdSfsInterface.hh XrdSecInterface.hh XrdOucError.
 	@echo Compiling XrdXrootdLoadLib.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdLoadLib.o XrdXrootdLoadLib.cc
 
-$(OBJDIR)/XrdXrootdMonitor.o: XrdOucError.hh      XrdOucLink.hh    \
-                              XrdOucNetwork.hh    XrdOucPthread.hh \
-                              XrdOucPlatform.hh \
+$(OBJDIR)/XrdXrootdMonitor.o: XrdOucError.hh      \
+                              XrdOucPthread.hh    XrdOucPlatform.hh \
+                              XrdNet.hh           XrdNetPeer.hh     \
                               XrdScheduler.hh     XrdJob.hh        \
                               XPtypes.hh          XrdXrootdMonitor.hh \
                               XrdXrootdMonData.hh XrdXrootdMonitor.cc  \

@@ -329,9 +329,11 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 // the incomming host.
 //
    if (!(options & XrdSecNOIPCHK))
-      {ipadd.addrtype = ADDRTYPE_INET;
-       ipadd.length = sizeof(client.hostaddr.sin_addr);
-       ipadd.contents = (krb5_octet *)&client.hostaddr.sin_addr;
+      {struct sockaddr_in *ip = (struct sockaddr_in *)&client.hostaddr;
+      // The above is a hack but K5 does it this way
+       ipadd.addrtype = ADDRTYPE_INET;
+       ipadd.length = sizeof(ip->sin_addr);
+       ipadd.contents = (krb5_octet *)&ip->sin_addr;
        iferror = (char *)"Unable to validate ip address;";
        if (!(rc=krb5_auth_con_init(krb_context, &auth_context)))
              rc=krb5_auth_con_setaddrs(krb_context, auth_context, NULL, &ipadd);

@@ -66,7 +66,7 @@ struct XrdSecClientName
        char   prot[XrdSecPROTOIDSIZE];  // Protocol used
        char   name[256];                // Maximum length name we will support!
        char   host[MAXHOSTNAMELEN];
-       struct sockaddr_in hostaddr;
+       struct sockaddr hostaddr;
        char  *tident;                   // Trace identifier
 
        XrdSecClientName() {prot[0] = name[0] = host[0] = '\0'; tident=0;}

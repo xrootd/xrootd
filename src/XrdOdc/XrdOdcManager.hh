@@ -14,12 +14,12 @@
 
 #include <sys/uio.h>
 
-#include "XrdOuc/XrdOucLink.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdOucError;
 class XrdOucLogger;
-class XrdOucNetwork;
+class XrdNetLink;
+class XrdNetWork;
 
 class XrdOdcManager
 {
@@ -51,9 +51,9 @@ char *Receive(int &msgid);
 
 XrdOdcManager *Next;
 XrdOucMutex    myData;
-XrdOucNetwork *Network;
 XrdOucError   *eDest;
-XrdOucLink    *Link;
+XrdNetLink    *Link;
+XrdNetWork    *Network;
 char          *Host;
 int            Port;
 pthread_t      mytid;

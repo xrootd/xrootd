@@ -18,6 +18,7 @@ const char *XrdOdcConfigCVSID = "$Id$";
 #include <strings.h>
 #include <stdio.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -27,9 +28,9 @@ const char *XrdOdcConfigCVSID = "$Id$";
 #include "XrdOdc/XrdOdcMsg.hh"
 #include "XrdOdc/XrdOdcTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdNet/XrdNetDNS.hh"
 
 /******************************************************************************/
 /*                               d e f i n e s                                */
@@ -283,7 +284,7 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
 
 int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
 {
-    struct sockaddr_in InetAddr[8];
+    struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval = 0;
     int i, port, isProxy = 0, smode = ODC_FAILOVER;
@@ -304,7 +305,7 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
            {if (XrdOuca2x::a2i(*errp,"manager port",val,&port,1,65535))
                port = 0;
            }
-           else if (!(port = XrdOucNetwork::findPort(val, "tcp")))
+           else if (!(port = XrdNetDNS::getPort(val, "tcp")))
                    {errp->Emsg("Config", "unable to find tcp service", val);
                     port = 0;
                    }
@@ -317,7 +318,7 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
     i = strlen(mval);
     if (mval[i-1] != '+') i = 0;
         else {bval = strdup(mval); mval[i-1] = '\0';
-              if (!(i = XrdOucNetwork::getHostAddr(mval, InetAddr, 8)))
+              if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
                  {errp->Emsg("Config","Manager host", mval,
                              (char *)"not found");
                   free(bval); free(mval); return 1;
@@ -326,7 +327,7 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
 
     do {if (i)
            {i--; free(mval);
-            mval = XrdOucNetwork::getHostName(InetAddr[i]);
+            mval = XrdNetDNS::getHostName(InetAddr[i]);
             errp->Emsg("Config", (const char *)bval,
                        (char *)"-> odc.manager", mval);
            }
