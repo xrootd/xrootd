@@ -115,7 +115,7 @@ sub add_queue {
 	return 1;
     }
     my($file) = "$prtyfn.$prty";
-
+    $func = 'wq' if ("$func" eq 'qw'); # temporary hack for xrootd
     # Get lock for this request queue
     $LOCK_fh  = getlock(">>$file.lock", $LOCK_EX, $LOCKERR);
     return if !$LOCK_fh;
