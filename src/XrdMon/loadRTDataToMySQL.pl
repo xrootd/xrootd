@@ -248,9 +248,8 @@ sub findOrInsertHostId() {
 sub findOrInsertPathId() {
     my ($path) = @_;
 
-    my $info = $pathInfo{$path};
-    if ( $info ) {
-        my ($pathId, $skimTypeId, $skimId) = split($info, ' ');
+    my $pathId = $pathIds{$path};
+    if ( $pathId ) {
 	print "from cache: $pathId for $path\n";
         return $pathId;
     }
@@ -272,41 +271,43 @@ sub findOrInsertPathId() {
 	    # find if the skim type has already id, reuse if it does
 	    $skimTypeId = $skimTypes{$skimTypeName};
 	    if ( ! $skimTypeId ) {
-		runQuery("INSERT INTO skimTypes(name) VALUES($skimTypeName) ");
+		runQuery("INSERT INTO skimTypes(name) VALUES(\"$skimTypeName\") ");
 		$skimTypeId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+                $skimTypes{$skimTypeName} = $skimTypeId;
 	    }
 
 	    # find if the skim name has already id, reuse if it does
 	    $skimNameId = $skimNames{$skimName};
 	    if ( ! $skimNameId ) {
-		runQuery("INSERT INTO skimNames(name) VALUES($skimName) ");
+		runQuery("INSERT INTO skimNames(name) VALUES(\"$skimName\") ");
 		$skimNameId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+                $skimNames{$skimName} = $skimNameId;
 	    }
 	}
 
-	runQuery("INSERT INTO paths (path) VALUES (\"$path\");");
+	runQuery("INSERT INTO paths (path, skimTypeId, skimId) VALUES (\"$path\", $skimTypeId, $skimNameId);");
 	$pathId = runQueryWithRet("SELECT LAST_INSERT_ID();");
 
-	$pathInfo{$path} = "$pathId $skimTypeId $skimNameId";
+	$pathIds{$path} = $pathId;
     }
     return $pathId;
 }
 
 sub runQueryWithRet() {
     my ($sql) = @_;
+    #print "$sql\n";
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
-    #print "$sql\n";
     return $sth->fetchrow_array;
 }
 
 sub runQuery() {
     my ($sql) = @_;
+    #print "$sql\n";
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
-    #print "$sql\n";
 }
 
 

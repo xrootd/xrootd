@@ -183,16 +183,14 @@ CREATE TABLE IF NOT EXISTS rtChanges (
 ###########################
 
 
-CREATE TABLE IF NOT EXISTS skimType (
+CREATE TABLE IF NOT EXISTS skimTypes (
   name         VARCHAR(16),
   id           TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY
 );
-INSERT INTO skimType(name, id) VALUES("invalid", 0);
 
 
-CREATE TABLE IF NOT EXISTS skims (
+CREATE TABLE IF NOT EXISTS skimNames (
   name         VARCHAR(32),
   id           TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY
 );
-CREATE INDEX skims_id_index      USING BTREE ON skims(id);
-INSERT INTO skims(name, id) VALUES("invalid", 0);
+CREATE INDEX skims_id_index      USING BTREE ON skimNames(id);
