@@ -10,12 +10,12 @@
 
 # $Id$
 
-drop database if exists rtxrdmon;
+DROP DATABASE IF EXISTS rtxrdmon;
 
-create database if not exists rtxrdmon;
-use rtxrdmon;
+CREATE DATABASE IF NOT EXISTS rtxrdmon;
+USE rtxrdmon;
 
-create table if not exists openedSessions (
+CREATE TABLE IF NOT EXISTS openedSessions (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   userId        INT NOT NULL,
   pId           INT NOT NULL,
@@ -23,7 +23,7 @@ create table if not exists openedSessions (
   serverHId     INT NOT NULL
 );
 
-create table if not exists closedSessions (
+CREATE TABLE IF NOT EXISTS closedSessions (
   sessionId     INT NOT NULL,
   userId        INT NOT NULL,
   pId           INT NOT NULL,
@@ -33,14 +33,14 @@ create table if not exists closedSessions (
   disconnectT   DATETIME NOT NULL
 );
 
-create table if not exists openedFiles (
+CREATE TABLE IF NOT EXISTS openedFiles (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   sessionId     INT NOT NULL,
   openT         DATETIME NOT NULL,
   filePath      VARCHAR(255) NOT NULL
 );
 
-create table if not exists closedFiles (
+CREATE TABLE IF NOT EXISTS closedFiles (
   id            INT NOT NULL,
   sessionId     INT NOT NULL,
   openT         DATETIME NOT NULL,
@@ -50,12 +50,12 @@ create table if not exists closedFiles (
   filePath      VARCHAR(255) NOT NULL
 );
 
-create table if not exists users (
+CREATE TABLE IF NOT EXISTS users (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   userName      VARCHAR(24) NOT NULL
 );
 
-create table if not exists hosts (
+CREATE TABLE IF NOT EXISTS hosts (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   hostName      VARCHAR(64) NOT NULL
 );
