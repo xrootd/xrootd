@@ -26,10 +26,13 @@ typedef unsigned short kXR_int16;
 #endif
 #if defined(XR__INT16)
 typedef long           kXR_int32;
+typedef unsigned long  kXR_unt32;
 #elif defined(XR__INT64)
 typedef int32          kXR_int32;
+typedef unsigned int32 kXR_unt32;
 #else
 typedef int            kXR_int32;
+typedef unsigned int   kXR_unt32;
 #endif
 
 // Signed integer 8 bytes
