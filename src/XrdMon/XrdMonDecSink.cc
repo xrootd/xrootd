@@ -432,7 +432,6 @@ XrdMonDecSink::flushUserCache()
     buf.reserve(BUFSIZE);
 
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
-    int totalSizeBefore = 0, sizeDeleted = 0;
     {
         XrdOucMutexHelper mh; mh.Lock(&_uMutex);
         int i, ucacheSize = _uCache.size();
@@ -449,8 +448,8 @@ XrdMonDecSink::flushUserCache()
         cout << "flushed to disk: \n" << buf << endl;
     }
     fD.close();
-    cout << "flushed (u) " << sizeBefore-sizeAfter << ", left " << sizeAfter
-         << ", size before " << totalSizeBefore << ", deleted " << sizeDeleted << endl;
+    cout << "flushed (u) " << sizeBefore-sizeAfter << ", left " 
+         << sizeAfter << endl;
 }
 
 void
@@ -473,10 +472,9 @@ XrdMonDecSink::flushOneUMap(umap_t* m,
                 if ( curLen + strLen >= BUFSIZE ) {
                     fD.write(buf.c_str(), curLen);
                     curLen = 0;
-                    //cout << "flushed to disk: \n" << buf << endl;
                     buf = dString;
                 } else {
-                    buf + dString;
+                    buf += dString;
                 }
             }
             curLen += strLen;
