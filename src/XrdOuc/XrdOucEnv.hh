@@ -13,21 +13,41 @@
 //         $Id$
 
 #include <stdlib.h>
+#include <strings.h>
 #include "XrdOuc/XrdOucHash.hh"
 
 class XrdOucEnv
 {
 public:
+
+// Env() returns the full environment string and length passed to the
+//       constructor.
+//
 inline char *Env(int &envlen) {envlen = global_len; return global_env;}
 
-       char *Get(char *varname) {return env_Hash.Find(varname);}
+// Get() returns the addresss of teh string associated with the variable
+//       name. If no association exists, zero is returned.
+//
+       char *Get(const char *varname) {return env_Hash.Find(varname);}
 
-       void  Put(char *varname, char *value) 
-                {env_Hash.Rep(varname, value, 0, Hash_dofree);}
+// Put() associates a string value with the a variable name. If one already
+//       exists, it is replaced. The passed value and variable strings are
+//       duplicated (value here, variable by env_Hash).
+//
+       void  Put(const char *varname, const char *value)
+                {env_Hash.Rep((char *)varname, strdup(value), 0, Hash_dofree);}
 
+// Delimit() search for the first occurrence of comma (',') in value and
+//           replaces it with a null byte. It then returns the address of the
+//           remaining string. If no comma was found, it returns zero.
+//
        char *Delimit(char *value);
 
+// Use the constructor to define the initial variable settings. The passed
+// string is duplicated and the copy can be retrieved using Env().
+//
        XrdOucEnv(const char *vardata=0, int vardlen=0);
+
       ~XrdOucEnv() {if (global_env) free((void *)global_env);}
 
 private:
