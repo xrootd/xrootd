@@ -14,6 +14,7 @@
 #define XRDMONSENDERINFO_HH
 
 #include "XrdMon/XrdMonTypes.hh"
+#include <stdio.h>
 #include <netinet/in.h>
 #include <map>
 #include <vector>
