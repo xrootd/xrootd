@@ -21,6 +21,7 @@
 #include "XrdClientDebug.hh"
 #include "XrdClientMessage.hh"
 #include "XrdClientMutexLocker.hh"
+#include "XrdClientEnv.hh"
 
 #ifdef AIX
 #include <sys/sem.h>
@@ -105,7 +106,7 @@ XrdClientConnectionMgr::XrdClientConnectionMgr()
    }
 
    // Garbage collector thread creation
-   if (DFLT_STARTGARBAGECOLLECTORTHREAD) {
+   if (EnvGetLong(NAME_STARTGARBAGECOLLECTORTHREAD)) {
       int pt_ret;
 
       pt_ret = pthread_create(&fGarbageColl, NULL, GarbageCollectorThread, this);
@@ -381,7 +382,7 @@ XrdClientMessage *XrdClientConnectionMgr::ReadMsg(short int LogConnectionID)
    // Parametric asynchronous stuff.
    // If we are going Sync, then we must build the message here,
    // otherwise the messages come directly from the queue
-   if ( !DFLT_GOASYNC ) {
+   if ( !EnvGetLong(NAME_GOASYNC) ) {
 
       // We get a new message directly from the socket.
       // The message gets inserted inside the phyconn queue

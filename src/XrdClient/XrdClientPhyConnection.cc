@@ -16,6 +16,7 @@
 #include "XrdClientPhyConnection.hh"
 #include "XrdClientDebug.hh"
 #include "XrdClientMessage.hh"
+#include "XrdClientEnv.hh"
 
 #include <sys/socket.h>
 
@@ -75,7 +76,7 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
 
    SetLogged(kNo);
 
-   fRequestTimeout = DFLT_REQUESTTIMEOUT;
+   fRequestTimeout = EnvGetLong(NAME_REQUESTTIMEOUT);
 
    UnsolicitedMsgHandler = h;
 
@@ -144,7 +145,7 @@ void XrdClientPhyConnection::StartReader() {
    // Parametric asynchronous stuff.
    // If we are going Sync, then nothing has to be done,
    // otherwise the reader thread must be started
-   if ( !fReaderthreadrunning && DFLT_GOASYNC ) {
+   if ( !fReaderthreadrunning && EnvGetLong(NAME_GOASYNC) ) {
 
       Info(XrdClientDebug::kHIDEBUG,
 	   "StartReader", "Starting reader thread...");
@@ -175,7 +176,7 @@ void XrdClientPhyConnection::Disconnect()
 
    // Parametric asynchronous stuff
    // If we are going async, we have to terminate the reader thread
-   if (DFLT_GOASYNC) {
+   if (EnvGetLong(NAME_GOASYNC)) {
 
       if (fReaderthreadrunning) {
 

@@ -15,6 +15,8 @@
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdClientDebug.hh"
+#include "XrdClientEnv.hh"
+
 #include <sys/poll.h>
 
 //_____________________________________________________________________________
@@ -66,12 +68,12 @@ int XrdClientSock::RecvRaw(void* buffer, int length) {
       do { 
 
          // If too much time has elapsed, then we return an error
-         if ((time(0) - starttime) > DFLT_REQUESTTIMEOUT) {
+         if ((time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT)) {
 
-            if (!DFLT_GOASYNC || (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)) //gEnv
+            if (!EnvGetLong(NAME_GOASYNC) || (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)) //gEnv
                Info(XrdClientDebug::kNODEBUG,
 		    "ClientSock::RecvRaw",
-		    "Request timed out "<< DFLT_REQUESTTIMEOUT << //gEnv
+		    "Request timed out "<< EnvGetLong(NAME_REQUESTTIMEOUT) << //gEnv
 		    "seconds reading " << length << " bytes" <<
 		    " from server " << fHost.TcpHost.Host <<
 		    ":" << fHost.TcpHost.Port);
@@ -142,9 +144,9 @@ int XrdClientSock::SendRaw(const void* buffer, int length)
 
       do {
          // If too much time has elapsed, then we return an error
-         if ( (time(0) - starttime) > DFLT_REQUESTTIMEOUT ) { //gEnv
+         if ( (time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT) ) { //gEnv
 	    Error( "ClientSock::SendRaw",
-		   "Request timed out "<< DFLT_REQUESTTIMEOUT << //gEnv
+		   "Request timed out "<< EnvGetLong(NAME_REQUESTTIMEOUT) << //gEnv
 		   "seconds writing " << length << " bytes" <<
 		   " to server " << fHost.TcpHost.Host <<
 		   ":" << fHost.TcpHost.Port);
@@ -212,7 +214,7 @@ void XrdClientSock::TryConnect()
    // Connect to a remote host yep
    //
    fSocket = s->Open( (char *) fHost.TcpHost.HostAddr.c_str(),
-		      fHost.TcpHost.Port, 0);// DFLT_CONNECTTIMEOUT); //gEnv !!
+		      fHost.TcpHost.Port, EnvGetLong(NAME_CONNECTTIMEOUT));
 
    
    // Check if we really got a connection and the remote host is available

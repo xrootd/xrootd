@@ -16,6 +16,7 @@
 #include "XrdClientDebug.hh"
 #include "XrdClientUrlSet.hh"
 #include "XrdClientConn.hh"
+#include "XrdClientEnv.hh"
 
 #include <string>
 #include <unistd.h>
@@ -31,10 +32,10 @@ XrdClient::XrdClient(const char *url) {
 
    memset(&fStatInfo, 0, sizeof(fStatInfo));
 
-   int CacheSize = DFLT_READCACHESIZE;
+   int CacheSize = EnvGetLong(NAME_READCACHESIZE);
 
    fUseCache = (CacheSize > 0);
-   fReadAheadSize = DFLT_READAHEADSIZE;
+   fReadAheadSize = EnvGetLong(NAME_READAHEADSIZE);
 
    Info(XrdClientDebug::kNODEBUG,
 	"Create",
@@ -46,6 +47,8 @@ XrdClient::XrdClient(const char *url) {
    fInitialUrl.TakeUrl(url);
 
    fConnModule = new XrdClientConn();
+
+
    if (!fConnModule) {
       Error("Create","Object creation failed.");
       abort();
@@ -77,17 +80,7 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
   
 
   // Max number of tries
-  int connectMaxTry = DFLT_FIRSTCONNECTMAXCNT;
-
-// // List of regular expressions to match
-// string allowRE = gEnv->GetValue("XNet.ConnectDomainAllowRE",
-// 				fConnModule->GetClientHostDomain().Data());
-// string denyRE  = gEnv->GetValue("XNet.ConnectDomainDenyRE",
-// 				"<unknown>");o
-
-  // List of regular expressions to match
-  string allowRE = "*slac.stanford.edu|*infn.it|*localdomain|127.0.0.1";
-  string denyRE  = "<unknown>";
+  int connectMaxTry = EnvGetLong(NAME_FIRSTCONNECTMAXCNT);
   
   // Construction of the url set coming from the resolution of the hosts given
   XrdClientUrlSet urlArray(fInitialUrl);
@@ -105,7 +98,9 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
      XrdClientUrlInfo *thisUrl;
      thisUrl = urlArray.GetNextUrl();
 
-     if (fConnModule->CheckHostDomain(thisUrl->Host, allowRE, denyRE)) {
+     if (fConnModule->CheckHostDomain(thisUrl->Host,
+				      EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
+				      EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
 	validDomain = TRUE;
 	break;
      }
@@ -132,7 +127,9 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
      
      if (thisUrl) {
 
-        if (fConnModule->CheckHostDomain(thisUrl->Host, allowRE, denyRE)) {
+        if (fConnModule->CheckHostDomain(thisUrl->Host,
+					 EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
+					 EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
 
 	   Info(XrdClientDebug::kHIDEBUG,
 		"CreateTXNf", "Trying to connect to " <<
@@ -175,9 +172,9 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
      if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
         Info(XrdClientDebug::kUSERDEBUG, "Create",
 	     "Connection attempt failed. Sleeping " <<
-	     DFLT_RECONNECTTIMEOUT << " seconds.");
+	     EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
      
-     sleep(DFLT_RECONNECTTIMEOUT);
+     sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
 
   } //for connect try
 
@@ -574,17 +571,22 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 bool XrdClient::Copy(const char *localpath) {
 
    if (!IsOpen()) {
-      Error("Close", "File not opened.");
+      Error("Copy", "File not opened.");
       return FALSE;
    }
 
    Stat(0);
    int f = open(localpath, O_CREAT | O_RDWR);   
+   if (f < 0) {
+      Error("Copy", "Error opening local file.");
+      return FALSE;
+   }
+
    void *buf = malloc(100000);
    long long offs = 0;
-   int nr;
+   int nr = 1;
 
-   while (offs < fStatInfo.size)
+   while ((nr > 0) && (offs < fStatInfo.size))
       if ( (nr = Read(buf, offs, 100000)) )
 	 offs += write(f, buf, nr);
 	 

@@ -14,6 +14,7 @@
 #include "XrdClientReadCache.hh"
 #include "XrdClientMutexLocker.hh"
 #include "XrdClientDebug.hh"
+#include "XrdClientEnv.hh"
 
 
 //________________________________________________________________________
@@ -84,7 +85,7 @@ XrdClientReadCache::XrdClientReadCache()
    fBytesHit = 0;
    fBytesUsefulness = 0.0;
 
-   fMaxCacheSize = DFLT_READCACHESIZE;
+   fMaxCacheSize = EnvGetLong(NAME_READCACHESIZE);
 }
 
 //________________________________________________________________________

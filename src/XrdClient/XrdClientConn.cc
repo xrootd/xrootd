@@ -23,6 +23,7 @@
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdClientUrlInfo.hh"
 #include "XrdClientStringMatcher.hh"
+#include "XrdClientEnv.hh"
 
 #include <stdio.h>      // needed by printf
 #include <stdlib.h>     // needed by getenv()
@@ -75,16 +76,29 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
    if (fClientHostDomain == "")
       Error("XrdClientConn",
 	    "Error resolving this host's domain name." );
-  
+
+   string goodDomainsRE = fClientHostDomain + "|127.0.0.1" + "|*localdomain";
+
+   EnvPutString(NAME_REDIRDOMAINALLOW_RE,
+		(char *)goodDomainsRE.c_str());
+
+   EnvPutString(NAME_REDIRDOMAINDENY_RE, "<unknown>");
+
+   EnvPutString(NAME_CONNECTDOMAINALLOW_RE,
+		(char *)goodDomainsRE.c_str());
+
+   EnvPutString(NAME_CONNECTDOMAINDENY_RE, "<unknown>");
+
+
    fRedirHandler = 0;
 
    // Init the redirection counter parameters
    fGlobalRedirLastUpdateTimestamp = time(0);
    fGlobalRedirCnt = 0;
-   fMaxGlobalRedirCnt = DFLT_MAXREDIRECTCOUNT;
+   fMaxGlobalRedirCnt = EnvGetLong(NAME_MAXREDIRECTCOUNT);
 
    fMainReadCache = NULL;
-   if (DFLT_READCACHESIZE)
+   if (EnvGetLong(NAME_READCACHESIZE))
       fMainReadCache = new XrdClientReadCache();
 }
 
@@ -385,29 +399,6 @@ bool XrdClientConn::CheckHostDomain(string hostToCheck, string allow, string den
       return FALSE;
    }
 
-//    deny += "|";
-//    while(deny.size() > 0) {
-//       pos = deny.find('|');
-//       if (pos != string::npos) {
-// 	 string tmp(deny);
-
-// 	 tmp.erase(pos);
-// 	 deny.erase(0, pos+1);
-
-// 	 reDeny = tmp;
-
-// 	 // if the domain matches any regexp for the domains to deny --> access denied
-// 	 if (domain.find(reDeny) != string::npos) {
-// 	    Error("CheckHostDomain",
-// 		  "Access denied to the domain of [" << hostToCheck <<
-// 		  "] (expr: [" << tmp << "]).");
-
-// 	    return FALSE;
-// 	 }
-//       }
-//    }
-
-
 
    // Given a list of |-separated regexps for the hosts to ALLOW, 
    // match every entry with domain. If any match is found, grant access.
@@ -420,29 +411,6 @@ bool XrdClientConn::CheckHostDomain(string hostToCheck, string allow, string den
       return TRUE;
    }
 
-
-//    allow += "|";
-//    while(allow.size() > 0) {
-//       pos = allow.find('|');
-//       if (pos != string::npos) {
-// 	 string tmp(allow);
-
-// 	 tmp.erase(pos);
-// 	 allow.erase(0, pos+1);
-
-// 	 reAllow = tmp;
-
-// 	 // if the domain matches any regexp for the domains to allow --> access granted
-// 	 if (domain.find(reAllow) != string::npos) {
-// 	    Info(XrdClientDebug::kHIDEBUG,
-// 		 "CheckHostDomain",
-// 		 "Access granted to the domain of [" << hostToCheck <<
-// 		  "] (expr: [" << tmp << "]).");
-
-// 	    return TRUE;
-// 	 }
-//       }
-//    }
 
    Error("CheckHostDomain",
 	 "Access to domain " << domain <<
@@ -1352,8 +1320,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
     
       // Consider the timeout for the count of the redirections
       // this instance got in the last period of time
-      if ( (time(0) - fGlobalRedirLastUpdateTimestamp) >  DFLT_REDIRCNTTIMEOUT) {
-         // DFLT_REDIRCNTTIMEOUT is defined in XProtocol.hhh
+      if ( (time(0) - fGlobalRedirLastUpdateTimestamp) > EnvGetLong(NAME_REDIRCNTTIMEOUT)) {
          fGlobalRedirCnt = 0;
          fGlobalRedirLastUpdateTimestamp = time(0);
       }
@@ -1443,18 +1410,16 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 	 NewUrl.Port = newport;
 	 NewUrl.SetAddrFromHost();
 
-	 // To be potred!!!!!!!!!!!!!!!!!!!!!!!!
-	 //	 if ( !CheckHostDomain( newhost,
-	 //                                gEnv->GetValue("XNet.RedirDomainAllowRE",
-	 //                                               fClientHostDomain.Data()),
-	 //                                gEnv->GetValue("XNet.RedirDomainDenyRE",
-	 //                                               "<unknown>") ) ) {
-	 //	    Error("HandleServerError",
-	 //		  "Redirection to a server out-of-domain disallowed. Abort.");
-	 //	    gSystem->Abort();
-	 //	 }
-         
-         errorType = GoToAnotherServer(NewUrl);
+
+	 if ( !CheckHostDomain( newhost,
+				EnvGetString(NAME_REDIRDOMAINALLOW_RE),
+				EnvGetString(NAME_REDIRDOMAINDENY_RE) ) ) {
+	    Error("HandleServerError",
+		  "Redirection to a server out-of-domain disallowed. Abort.");
+	    abort();
+	 }
+
+	 errorType = GoToAnotherServer(NewUrl);
       }
       else {
          // Host or port are not valid or empty
@@ -1467,7 +1432,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
     
       // We don't want to flood servers...
       if (errorType == kREDIRCONNECT)
-         sleep(DFLT_RECONNECTTIMEOUT);
+         sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
 
       // We keep trying the connection to the same host (we have only one)
       //  until we are connected, or the max count for

@@ -10,6 +10,7 @@
 // Author: Alvise Dorigo, Fabrizio Furano
 
 #include "XrdClientDebug.hh"
+#include "XrdClientEnv.hh"
 
 XrdClientDebug *XrdClientDebug::fgInstance = 0;
 
@@ -32,7 +33,7 @@ XrdClientDebug::XrdClientDebug() {
    fOucLog = new XrdOucLogger();
    fOucErr = new XrdOucError(fOucLog, "Xrd");
 
-   fDbgLevel = DFLT_DEBUG;
+   fDbgLevel = EnvGetLong(NAME_DEBUG);
 }
 
 //_____________________________________________________________________________
