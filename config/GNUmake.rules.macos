@@ -18,8 +18,6 @@ TYPEDBG    = $(TYPEMISC) -g
 TYPELDSO   = -dynamiclib $(TYPELINK)
 TYPESHLIB  = dylib
 
-MACOSX_DEPLOYMENT_TARGET=10.3
-
 # In MacOSx the threading functions should come libc.
 #TYPELIBS   =  $(PTHREAD) -ldl -lc
 TYPELIBS   =  -ldl -lc
