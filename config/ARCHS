@@ -1,0 +1,28 @@
+FreeBSD5        gcc          for FreeBSD 5.x
+FreeBSD42       gcc          for FreeBSD 4.2
+FreeBSD43       gcc          for FreeBSD 4.3
+FreeBSD44       gcc          for FreeBSD 4.4
+FreeBSD4        gcc          for FreeBSD 4.x
+FreeBSD         gcc          for FreeBSD
+ia64_linux22    icc          for Itanium Linux kernel 2.2.x gcc 2.9x and glibc
+ia64_linux24    icc          for Itanium Linux kernel 2.4.x gcc 2.9x and glibc
+ia64_linux26    icc          for Itanium Linux kernel 2.6.x gcc 2.9x and glibc
+ia64_linux      icc          for Itanium Linux gcc 2.9x and glibc
+i386_linux22    gcc          for Linux kernel 2.2.x gcc 2.9x, gcc 3.x and glibc
+i386_linux24    gcc          for Linux kernel 2.4.x gcc 2.9x, gcc 3.x and glibc
+i386_linux26    gcc          for Linux kernel 2.6.x gcc 2.9x, gcc 3.x and glibc
+i386_linux      gcc          for Linux gcc 2.9x, gcc 3.x and glibc
+x86_64_linux_22 gccx8664     for AMD Opteron 64 Linux kernel 2.2.x gcc 3.x, glibc
+x86_64_linux_24 gccx8664     for AMD Opteron 64 Linux kernel 2.4.x gcc 3.x, glibc
+x86_64_linux_26 gccx8664     for AMD Opteron 64 Linux kernel 2.6.x gcc 3.x, glibc
+x86_64_linux    gccx8664     for AMD Opteron 64 Linux gcc 3.x, glibc
+alpha_linux     gcc          for Alpha Linux egcs and glibc
+arm_linux       gcc          for ARM Linux egcs and glibc
+ppc_linux       gcc          for PPC Linux egcs and glibc
+sun4x_6         sunCC        for Solaris 6.x
+sun4x_56        sunCC        for Solaris 5.6 CC 5.0
+sun4x_57        sunCC        for Solaris 5.7 CC 5.0
+sun4x_58        sunCC        for Solaris 5.8 CC 5.0
+sun4x_59        sunCC        for Solaris 5.9 CC 5.0
+sun4x_5         sunCC        for Solaris 5.x CC 5.0
+sun4x_4         sunCC        for Solaris 4.x
