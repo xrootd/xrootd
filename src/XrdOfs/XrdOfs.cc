@@ -443,7 +443,7 @@ int XrdOfsFile::open(const char          *path,      // In
 // Setup tracing
 //
    tident = client->tident;
-   ZTRACE(open, hex <<open_mode <<"-" <<std::oct <<Mode <<std::dec <<" fn=" <<path);
+   ZTRACE(open, std::hex <<open_mode <<"-" <<std::oct <<Mode <<std::dec <<" fn=" <<path);
 
 // Verify that this object is not already associated with an open file
 //
