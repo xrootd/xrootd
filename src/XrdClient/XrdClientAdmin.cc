@@ -419,23 +419,25 @@ bool XrdClientAdmin::Chmod(const char *file, int user, int group, int other)
    fConnModule->SetSID(chmodFileRequest.header.streamid);
    chmodFileRequest.header.requestid = kXR_chmod;
 
-   if((user  & 4) > 0) 
+   if(user  & 4) 
       chmodFileRequest.chmod.mode |= kXR_ur;
-   if((user  & 2) > 0) 
+   if(user  & 2) 
       chmodFileRequest.chmod.mode |= kXR_uw;
-   if((user  & 1) > 0) 
+   if(user  & 1) 
       chmodFileRequest.chmod.mode |= kXR_ux;
-   if((group & 4) > 0) 
+
+   if(group & 4) 
       chmodFileRequest.chmod.mode |= kXR_gr;
-   if((group & 2) > 0)
+   if(group & 2)
       chmodFileRequest.chmod.mode |= kXR_gw;
-   if((group & 1) > 0)
+   if(group & 1)
       chmodFileRequest.chmod.mode |= kXR_gx;
-   if((other & 4) > 0)
+
+   if(other & 4)
       chmodFileRequest.chmod.mode |= kXR_or;
-   if((other & 2) > 0)
+   if(other & 2)
       chmodFileRequest.chmod.mode |= kXR_ow;
-   if((other & 1) > 0)
+   if(other & 1)
       chmodFileRequest.chmod.mode |= kXR_ox;
 
    chmodFileRequest.header.dlen = strlen(file);
@@ -461,23 +463,25 @@ bool XrdClientAdmin::Mkdir(const char *dir, int user, int group, int other)
    memset(mkdirRequest.mkdir.reserved, 0, 
 	  sizeof(mkdirRequest.mkdir.reserved));
 
-   if(user  & 4 > 0) 
+   if(user  & 4) 
       mkdirRequest.mkdir.mode |= kXR_ur;
-   if(user  & 2 > 0) 
+   if(user  & 2) 
       mkdirRequest.mkdir.mode |= kXR_uw;
-   if(user  & 1 > 0) 
+   if(user  & 1) 
       mkdirRequest.mkdir.mode |= kXR_ux;
-   if(group & 4 > 0) 
+
+   if(group & 4) 
       mkdirRequest.mkdir.mode |= kXR_gr;
-   if(group & 2 > 0)
+   if(group & 2)
       mkdirRequest.mkdir.mode |= kXR_gw;
-   if(group & 1 > 0)
+   if(group & 1)
       mkdirRequest.mkdir.mode |= kXR_gx;
-   if(other & 4 > 0)
+
+   if(other & 4)
       mkdirRequest.mkdir.mode |= kXR_or;
-   if(other & 2 > 0)
+   if(other & 2)
       mkdirRequest.mkdir.mode |= kXR_ow;
-   if(other & 1 > 0)
+   if(other & 1)
       mkdirRequest.mkdir.mode |= kXR_ox;
 
    mkdirRequest.header.dlen = strlen(dir);
