@@ -884,6 +884,35 @@ int XrdOfsFile::write(XrdSfsAio *aiop)
 }
 
 /******************************************************************************/
+/*                               g e t M m a p                                */
+/******************************************************************************/
+
+int XrdOfsFile::getMmap(void **Addr, size_t &Size)         // Out
+/*
+  Function: Return memory mapping for file, if any.
+
+  Output:   Addr        - Address of memory location
+            Size        - Size of the file or zero if not memory mapped.
+            Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+   const char *epname = "getMmap";
+
+// Reopen the handle if it has been closed
+//
+   LOCK(oh);
+   REOPENandHOLD(oh);
+   UNLOCK(oh);
+
+// Perform the function
+//
+   Size = oh->Select().getMmap(Addr);
+   RELEASE(oh);
+
+   return SFS_OK;
+}
+  
+/******************************************************************************/
 /*                                  s t a t                                   */
 /******************************************************************************/
 
@@ -1837,14 +1866,16 @@ int XrdOfsIdleXeq(XrdOfsHandle *op, void *tsecarg)
  // Ceck if this handle is past the idle deadline, if so, close it. Note
  // that we already have the anchor locked so we don't ask for it to be locked.
  // However, we need to lock the file handle which may cause a deadlock. So,
- // we skip processing this handle is we can't get the lock immediately.
+ // we skip processing this handle is we can't get the lock immediately or
+ // if the file has a memory mapping.
  //
     IdleTime = tsec - op->optod;
     if (IdleTime <= XrdOfsFS.FDMaxIdle)
        anchor->IdleDeadline = Max(IdleTime, anchor->IdleDeadline);
        else {if (op->CondLock())
-                {if (!op->activ) XrdOfsFS.Unopen(op);
-                    else act = (char *)" active ";
+                {if (op->activ) act = (char *)" active ";
+                    else if (op->Select().getMmap(0)) act = (char *)" mmaped ";
+                            else XrdOfsFS.Unopen(op);
                  op->UnLock();
                 }
                 else act = (char *)" unlockable ";

@@ -54,6 +54,8 @@ XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
     int i;
 
     XrdSfsp  = fp;
+    mmAddr   = 0;
+    mmSize   = 0;
     FileMode = mode;
     AsyncMode= async;
     ID       = id;

@@ -41,6 +41,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"
+#include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
@@ -63,6 +64,9 @@ XrdOucTrace OssTrace(&OssEroute);
 /******************************************************************************/
   
 XrdOssSys XrdOssSS;
+
+char      XrdOssSys::tryMmap = 0;
+char      XrdOssSys::chkMmap = 0;
 
 /******************************************************************************/
 /*                      o o s s _ S y s   M e t h o d s                       */
@@ -518,7 +522,7 @@ int XrdOssDir::Close(void)
 */
 int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 {
-   int retc, popts;
+   int retc, mopts, popts;
    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
    struct stat buf;
 
@@ -567,6 +571,17 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
                  if (!retc && (buf.st_mode & S_IFDIR)) fd = -EISDIR;
                 }
 
+// See if should memory map this file
+//
+   if (fd >= 0 && XrdOssSS.tryMmap)
+      {mopts = 0;
+       if (popts & XrdOssMKEEP) mopts |= OSSMIO_MPRM;
+       if (popts & XrdOssMLOK)  mopts |= OSSMIO_MLOK;
+       if (popts & XrdOssMMAP)  mopts |= OSSMIO_MMAP;
+       if (XrdOssSS.chkMmap) mopts = XrdOssMio::getOpts(local_path, mopts);
+       if (mopts) mmFile = XrdOssMio::Map(local_path, fd, mopts);
+      } else mmFile = 0;
+
 // Return the result of this open
 //
    return (fd < 0 ? fd : XrdOssOK);
@@ -587,6 +602,7 @@ int XrdOssFile::Close(void)
 {
     if (fd < 0) return -XRDOSS_E8004;
     if (close(fd)) return -errno;
+    if (mmFile) {XrdOssMio::Recycle(mmFile); mmFile = 0;}
 #ifdef XRDOSSCX
     if (cxobj) {delete cxobj; cxobj = 0;}
 #endif
@@ -747,6 +763,27 @@ int XrdOssFile::Fsync(void)
 }
 
 /******************************************************************************/
+/*                               g e t M m a p                                */
+/******************************************************************************/
+  
+/*
+  Function: Indicate whether or not file is memory mapped.
+
+  Input:    addr      - Points to an address which will receive the location
+                        memory where the file is mapped. If the address is
+                        null, true is returned if a mapping exist.
+
+  Output:   Returns the size of the file if it is memory mapped (see above).
+            Otherwise, zero is returned and addr is set to zero.
+*/
+size_t XrdOssFile::getMmap(void **addr)
+{
+   if (mmFile) return (addr ? mmFile->Export(addr) : 1);
+   if (addr) *addr = 0;
+   return 0;
+}
+  
+/******************************************************************************/
 /*                          i s C o m p r e s s e d                           */
 /******************************************************************************/
   
@@ -762,7 +799,6 @@ int XrdOssFile::Fsync(void)
 */
 int XrdOssFile::isCompressed(char *cxidp)
 {
-
     if (cxpgsz)
        {cxidp[0] = cxid[0]; cxidp[1] = cxid[1];
         cxidp[2] = cxid[2]; cxidp[3] = cxid[3];

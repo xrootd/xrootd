@@ -17,6 +17,7 @@ SOURCES = \
         XrdOssConfig.cc \
         XrdOssCreate.cc \
         XrdOssLock.cc   \
+        XrdOssMio.cc    \
         XrdOssMSS.cc    \
         XrdOssRename.cc \
         XrdOssStage.cc  \
@@ -30,6 +31,7 @@ OBJECTS = \
         $(OBJDIR)/XrdOssConfig.o \
         $(OBJDIR)/XrdOssCreate.o \
         $(OBJDIR)/XrdOssLock.o   \
+        $(OBJDIR)/XrdOssMio.o    \
         $(OBJDIR)/XrdOssMSS.o    \
         $(OBJDIR)/XrdOssRename.o \
         $(OBJDIR)/XrdOssStage.o  \
@@ -81,6 +83,7 @@ $(OBJDIR)/XrdOssAio.o: XrdOssAio.cc    XrdOssTrace.hh  XrdOssApi.hh \
 
 $(OBJDIR)/XrdOssApi.o: XrdOss.hh XrdOssApi.hh XrdOssCache.hh XrdOssConfig.hh \
                        XrdOssError.hh  XrdOssLock.hh     XrdOssTrace.hh \
+                       XrdOssMio.hh    XrdOssMioFile.hh \
                        XrdOucError.hh  XrdOucPList.hh    XrdOucPthread.hh \
                        XrdOucStream.hh XrdOucPlatform.hh XrdOssApi.cc \
                        ../XrdVersion.hh
@@ -95,6 +98,7 @@ $(OBJDIR)/XrdOssCache.o: XrdOssApi.hh XrdOssCache.hh XrdOssTrace.hh \
 
 $(OBJDIR)/XrdOssConfig.o: XrdOssApi.hh  XrdOssConfig.hh XrdOssError.hh \
                           XrdOssLock.hh XrdOssTrace.hh XrdOucError.hh \
+                          XrdOssMio.hh \
                           XrdOucProg.hh XrdOssConfig.cc XrdOuca2x.hh
 	@echo Compiling XrdOssConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssConfig.o XrdOssConfig.cc
@@ -111,6 +115,12 @@ $(OBJDIR)/XrdOssLock.o:   XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
                           XrdOssLock.cc
 	@echo Compiling XrdOssLock.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssLock.o XrdOssLock.cc
+
+$(OBJDIR)/XrdOssMio.o:    XrdOssMio.cc   XrdOssMio.hh    XrdOssMioFile.hh \
+                          XrdOssTrace.hh XrdOucError.hh  XrdOucPthread.hh \
+                          XrdOucHash.hh
+	@echo Compiling XrdOssMio.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssMio.o XrdOssMio.cc
 
 $(OBJDIR)/XrdOssMSS.o:    XrdOssApi.hh   XrdOssConfig.hh XrdOssError.hh \
                           XrdOssTrace.hh XrdOucError.hh  XrdOucProg.hh \

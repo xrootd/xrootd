@@ -450,6 +450,7 @@ int XrdXrootdProtocol::do_Open()
    XrdXrootdFile *xp;
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
+   size_t mmSize;
 
 // Keep Statistics
 //
@@ -572,6 +573,11 @@ int XrdXrootdProtocol::do_Open()
                          resplen = sizeof(myResp);
                         }
            }
+
+// Determine if file is memory mapped
+//
+   if (fp->getMmap((void **)&xp->mmAddr, mmSize) == SFS_OK) 
+      xp->mmSize = static_cast<long long>(mmSize);
 
 // If we are monitoring, send off a path to dictionary mapping
 //
@@ -794,6 +800,16 @@ int XrdXrootdProtocol::do_Read()
 //
    if (monIO && Monitor) Monitor->Add_rd(myFile->FileID, Request.read.rlen,
                                          Request.read.offset);
+
+// If this file is memory mapped, short ciruit all the logic and immediately
+// transfer the requested data to minimize latency.
+//
+   if (myFile->mmSize)
+           if (myOffset >= myFile->mmSize) return Response.Send();
+      else if (myOffset+myIOLen <= myFile->mmSize)
+              return Response.Send(myFile->mmAddr+myOffset, myIOLen);
+      else    return Response.Send(myFile->mmAddr+myOffset, 
+                                   myFile->mmSize - myOffset);
 
 // If we are in async mode, schedule the read to ocur asynchronously
 //

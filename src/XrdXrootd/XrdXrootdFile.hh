@@ -28,6 +28,8 @@ class XrdXrootdFile
 public:
 
 XrdSfsFile  *XrdSfsp;           // -> Actual file object
+char        *mmAddr;            // Memory mapped location, if any
+long long    mmSize;            // Memory mapped size or zero
 kXR_unt32    FileID;            // Unique file id used for monitoring
 char         FileKey[38];       // -> Unique hash name for the file
 char         FileMode;          // 'r' or 'w'

@@ -82,6 +82,8 @@
                       O/W only an existence check is performed (implies MIG).
    XrdOssCOMPCHK    - Databases may be compressed, check for it.
    XrdOssMIG        - File migration enabled, create lock files.
+   XrdOssMMAP       - File memory mapping enabled (implies r/o).
+   XrdOssMLOK       - File memory locking enabled (implies mmap).
 */
 #define XrdOssXEQFLAGS   0
 #define XrdOssREADONLY   0x00000001
@@ -98,8 +100,15 @@
 #define XrdOssSTAGE_X    0x00200000
 #define XrdOssMIG        0x00000400
 #define XrdOssMIG_X      0x00400000
+#define XrdOssMMAP       0x00000800
+#define XrdOssMMAP_X     0x00800000
+#define XrdOssMLOK       0x00001000
+#define XrdOssMLOK_X     0x01000000
+#define XrdOssMKEEP      0x00002000
+#define XrdOssMKEEP_X    0x02000000
 #define XrdOssMASK_X     0x7fff
 #define XrdOssMASKSHIFT  16
+#define XrdOssMEMAP      0x00003800
 
 #define XrdOssINPLACE    0x00008000
 #define XrdOssCOMPCHK    0x00004000

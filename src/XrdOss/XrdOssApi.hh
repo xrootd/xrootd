@@ -55,6 +55,7 @@ const char *tident;
 
 class oocx_CXFile;
 class XrdSfsAio;
+class XrdOssMioFile;
   
 class XrdOssFile : public XrdOssDF
 {
@@ -65,6 +66,7 @@ int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
+size_t  getMmap(void **addr);
 int     isCompressed(char *cxidp=0);
 int     Open(const char *, int, mode_t, XrdOucEnv &);
 ssize_t Read(               off_t, size_t);
@@ -77,7 +79,7 @@ int     Write(XrdSfsAio *aiop);
         // Constructor and destructor
         XrdOssFile(const char *tid)
                   {cxobj = 0; rawio = 0; cxpgsz = 0; cxid[0] = '\0';
-                   tident = tid;
+                   mmFile = 0; tident = tid;
                   }
 
        ~XrdOssFile() {if (fd >= 0) Close();}
@@ -87,6 +89,7 @@ int     Open_ufs(const char *, int, int, int);
 
 static int   AioFailure;
 oocx_CXFile *cxobj;
+XrdOssMioFile *mmFile;
 const char  *tident;
 int          rawio;
 int          cxpgsz;
@@ -123,6 +126,9 @@ int       Unlink(const char *);
 
 static int   AioInit();
 static int   AioAllOk;
+
+static char  tryMmap;           // Memory mapped files enabled
+static char  chkMmap;           // Memory mapped files are selective
    
 int       MSS_Closedir(void *);
 int       MSS_Create(char *path, mode_t, XrdOucEnv &);
@@ -161,7 +167,7 @@ XrdOucPListAnchor RPList;    //    The remote path list
                     xsdata=0; xsfirst=0; xslast=0; xscurr=0; xsgroups=0;
                     pndbytes=0; stgbytes=0; totbytes=0; totreqs=0; badreqs=0;
                     CompSuffix = 0; CompSuflen = 0; MaxTwiddle = 3;
-                    StageRealTime = 1;
+                    StageRealTime = 1; tryMmap = 0; chkMmap = 0;
                     StageQ.pendList.setItem(0);
                     StageQ.fullList.setItem(0);
                     ConfigDefaults();
@@ -232,6 +238,7 @@ int                Stage_RT(const char *, XrdOucEnv &);
 off_t  Adjust(dev_t devid, off_t size);
 int    concat_fn(const char *, const int, const char *, char *);
 void   ConfigDefaults(void);
+void   ConfigMio(XrdOucError &Eroute);
 int    ConfigProc(XrdOucError &Eroute);
 int    ConfigStage(XrdOucError &Eroute);
 int    ConfigXeq(char *, XrdOucStream &, XrdOucError &);
@@ -243,6 +250,7 @@ int    xcompdct(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcachescan(XrdOucStream &Config, XrdOucError &Eroute);
 int    xfdlimit(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute);
+int    xmemf(XrdOucStream &Config, XrdOucError &Eroute);
 int    xpath(XrdOucStream &Config, XrdOucError &Eroute);
 int    xtrace(XrdOucStream &Config, XrdOucError &Eroute);
 int    xxfr(XrdOucStream &Config, XrdOucError &Eroute);
