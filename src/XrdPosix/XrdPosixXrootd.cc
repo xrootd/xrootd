@@ -30,8 +30,13 @@ XrdClient *XClient;
 
 long long  Offset() {return currOffset;}
 
-long long  setOffset(long long offs)
+long long  addOffset(long long offs)
                     {currOffset += offs;
+                     return currOffset;
+                    }
+
+long long  setOffset(long long offs)
+                    {currOffset = offs;
                      return currOffset;
                     }
 
@@ -177,8 +182,7 @@ off_t   XrdPosixXrootd::Lseek(int fildes, off_t offset, int whence)
 // Set the new offset
 //
    if (whence & SEEK_SET) curroffset = fp->setOffset(offset);
-      else if (whence & SEEK_CUR) 
-              curroffset = fp->setOffset(fp->Offset()+offset);
+      else if (whence & SEEK_CUR) curroffset = fp->addOffset(offset);
               else if (whence & SEEK_END) 
                       curroffset = fp->setOffset(fp->stat.size+offset);
                       else {Scuttle(fp, EINVAL);}
@@ -350,7 +354,7 @@ ssize_t XrdPosixXrootd::Read(int fildes, void *buf, size_t nbyte)
 
 // All went well
 //
-   fp->setOffset(bytes);
+   fp->addOffset(bytes);
    fp->UnLock();
    return (ssize_t)bytes;
 }
@@ -410,7 +414,7 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
 {
    XrdPosixFile *fp;
-   long long     offs, bytes;
+   long long     offs;
    int           iosz;
 
 // Find the file object
@@ -425,13 +429,12 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
 // Issue the write
 //
    offs = static_cast<long long>(offset);
-   if (!(bytes = fp->XClient->Write(buf, offs, (int)iosz)) )
-      retError(fp);
+   if (!fp->XClient->Write(buf, offs, iosz)) retError(fp);
 
 // All went well
 //
    fp->UnLock();
-   return (ssize_t)bytes;
+   return (ssize_t)iosz;
 }
   
 /******************************************************************************/
@@ -441,7 +444,6 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
 ssize_t XrdPosixXrootd::Write(int fildes, const void *buf, size_t nbyte)
 {
    XrdPosixFile *fp;
-   long long     bytes;
    int           iosz;
 
 // Find the file object
@@ -453,16 +455,15 @@ ssize_t XrdPosixXrootd::Write(int fildes, const void *buf, size_t nbyte)
    if (nbyte > (size_t)0x7fffffff) {Scuttle(fp,EOVERFLOW);}
       else iosz = static_cast<int>(nbyte);
 
-// Issue the read
+// Issue the write
 //
-   if (!(bytes = fp->XClient->Write(buf, fp->Offset(), (int)iosz)) )
-      retError(fp);
+   if (!fp->XClient->Write(buf, fp->Offset(), iosz)) retError(fp);
 
 // All went well
 //
-   fp->setOffset(bytes);
+   fp->addOffset(iosz);
    fp->UnLock();
-   return (ssize_t)bytes;
+   return (ssize_t)iosz;
 }
  
 /******************************************************************************/
@@ -471,15 +472,15 @@ ssize_t XrdPosixXrootd::Write(int fildes, const void *buf, size_t nbyte)
   
 ssize_t XrdPosixXrootd::Writev(int fildes, const struct iovec *iov, int iovcnt)
 {
-   ssize_t bytes, totbytes = 0;
+   ssize_t totbytes = 0;
    int i;
 
 // Return the results of the write for each iov segment
 //
    for (i = 0; i < iovcnt; i++)
-       {if ((bytes=Write(fildes,(void *)iov[i].iov_base,(size_t)iov[i].iov_len))) 
+       {if (!Write(fildes,(void *)iov[i].iov_base,(size_t)iov[i].iov_len))
            return -1;
-        totbytes += bytes;
+        totbytes += iov[i].iov_len;
        }
 
 // All done
@@ -534,7 +535,7 @@ int XrdPosixXrootd::mapError(int rc)
         case kXR_NotFile:       return ENOTBLK;
         case kXR_isDir:         return EISDIR;
         case kXR_FSError:       return ENOSYS;
-        default:                return EPERM;
+        default:                return ECANCELED;
        }
 }
  

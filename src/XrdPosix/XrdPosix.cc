@@ -193,25 +193,29 @@ int XrdPosix_Open(const char *path, int oflag, ...)
 {
    char *myPath, buff[2048];
    va_list ap;
-   mode_t *mode;
+   mode_t mode;
+
+// Make sure a path was passed
+//
+   if (!path) {errno = EINVAL; return -1;}
 
 // Return the results of an open of a Unix file
 //
    if (!(myPath = XrootPath.URL(path, buff, sizeof(buff))))
       {if (!(oflag & O_CREAT)) return open(path, oflag);
        va_start(ap, oflag);
-       mode = va_arg(ap, mode_t *);
+       mode = va_arg(ap, mode_t);
        va_end(ap);
-       return open(path, oflag, *mode);
+       return open(path, oflag, mode);
       }
 
 // Return the results of an open of an xrootd file
 //
    if (!(oflag & O_CREAT)) return Xroot.Open(myPath, oflag);
    va_start(ap, oflag);
-   mode = va_arg(ap, mode_t *);
+   mode = va_arg(ap, mode_t);
    va_end(ap);
-   return Xroot.Open(myPath, oflag, *mode);
+   return Xroot.Open(myPath, oflag, mode);
 }
 
 /******************************************************************************/
@@ -260,6 +264,10 @@ ssize_t XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt)
 int XrdPosix_Stat(const char *path, struct stat *buf)
 {
    char *myPath, buff[2048];
+
+// Make sure a path was passed
+//
+   if (!path) {errno = EINVAL; return -1;}
 
 // Return the results of an open of a Unix file
 //
