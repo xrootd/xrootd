@@ -1,0 +1,15 @@
+#!/usr/local/bin/perl
+
+     if (-x '/bin/df')      {$DF = '/bin/df';}
+  elsif (-x '/usr/bin/df')  {$DF = '/usr/bin/df';}
+  elsif (-x '/usr/sbin/df') {$DF = '/usr/sbin/df';}
+  else {exit(255);}
+
+$path = $ARGV[0];
+@resp = `/bin/df -k $path`;
+exit($?) if ($?);
+
+(@toks) = split(' ', $resp[1]);
+$freespace = $toks[3] * 1024;
+print $freespace, " 0\n";
+exit(0);
