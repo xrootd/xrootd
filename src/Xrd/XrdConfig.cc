@@ -693,10 +693,10 @@ int XrdConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
        {eDest->Emsg("Config", "allow type not specified"); return 1;}
 
     if (!strcmp(val, "host")) ishost = 1;
-       if (!strcmp(val, "netgroup")) ishost = 0;
-          else {eDest->Emsg("Config", "invalid allow type -", val);
-                return 1;
-               }
+       else if (!strcmp(val, "netgroup")) ishost = 0;
+               else {eDest->Emsg("Config", "invalid allow type -", val);
+                     return 1;
+                    }
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "allow target name not specified"); return 1;}
