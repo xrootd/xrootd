@@ -1016,7 +1016,7 @@ int XrdOlbServer::do_Select(char *rid, int reset)
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
    char *tp, *amode, ptc, hbuff[512];
-   int dowt, retc, needrw, resonly = 0, newfile = 0;
+   int dowt = 0, retc, needrw, resonly = 0, newfile = 0;
    SMask_t amask, smask, pmask;
 
 // Process: <id> select[s] {c | r | w | x] <path>
