@@ -100,7 +100,7 @@ extern "C" {
 	 char tok1[256], tok2[256];
 	 long v;
 
-	 if (sscanf((*env)[it].c_str(), "%256s %d", tok1, &v) == 2) {
+	 if (sscanf((*env)[it].c_str(), "%256s %ld", tok1, &v) == 2) {
 	    // It's an integer value
 	    EnvPutInt(tok1, v);
 	    //cout << "Env: " << tok1 << " Val=" << EnvGetLong(tok1) << endl;
