@@ -51,7 +51,7 @@ private:
     vector<XrdMonCtrWriter*> _writers;
 
     XrdMonDecPacketDecoder* _decoder;
-    pthread_t      _decFlushThread;
+    pthread_t               _decFlushThread;
 
     long _currentTime;
     int  _heartbeat; // number of packets since the last time check

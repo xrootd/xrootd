@@ -47,7 +47,6 @@ public:
                    kXR_int64 bytesR, 
                    kXR_int64 bytesW, 
                    time_t timestamp);
-
     void flushDataNow();
 private:
     void loadUniqueIdsAndSeq();

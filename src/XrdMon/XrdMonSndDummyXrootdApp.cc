@@ -209,7 +209,6 @@ int main(int argc, char* argv[]) {
     //transmitter(coder.packet());
 
     transmitter.shutdown();
-
     coder.printStats();
     
     return 0;

@@ -11,15 +11,15 @@
 // $Id$
 
 #include "XrdMon/XrdMonCommon.hh"
-#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonCtrAdmin.hh"
 #include "XrdMon/XrdMonCtrArchiver.hh"
 #include "XrdMon/XrdMonCtrBuffer.hh"
-#include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonCtrPacket.hh"
-#include "XrdMon/XrdMonSenderInfo.hh"
 #include "XrdMon/XrdMonCtrWriter.hh"
 #include "XrdMon/XrdMonDecPacketDecoder.hh"
+#include "XrdMon/XrdMonErrors.hh"
+#include "XrdMon/XrdMonException.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
 #include <sys/time.h>
 
 #include <iostream>

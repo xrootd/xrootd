@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
     const char* COLLECTORLOGDIR = "./logs/collector";
     const char* DECODERLOGDIR   = "./logs/decoder";
     const char* RTLOGDIR        = "./logs/rt";
-    const int   DECFLUSHDELAY   =  60; // [sec]
+    const int   DECFLUSHDELAY   =  60; // [sec] 
     // end of to-be configurable block
 
     mkdirIfNecessary(BASEDIR);

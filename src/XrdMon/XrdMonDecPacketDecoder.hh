@@ -36,7 +36,7 @@ public:
     void operator()(const XrdMonHeader& header,
                     const char* packet,
                     kXR_unt16 senderId=INV_SENDERID);
-    bool     stopNow() const   { return _stopNow; }
+    bool     stopNow() const { return _stopNow; }
 
     void flushDataNow() { return _sink.flushDataNow(); }
     

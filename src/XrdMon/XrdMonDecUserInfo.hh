@@ -68,8 +68,7 @@ private:
     kXR_int32 _sec;   // number of seconds that client was connected
     time_t    _dTime; // disconnect time
     
-    friend ostream& operator<<(ostream& o, 
-                               const XrdMonDecUserInfo& m);
+    friend ostream& operator<<(ostream& o, const XrdMonDecUserInfo& m);
 };
 
 #endif /* XRDMONDECUSERINFO_HH */

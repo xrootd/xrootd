@@ -18,7 +18,7 @@
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include <netinet/in.h>
 #include <sstream>
-#include <sys/time.h> //FIXME - remove when xrootd supports openfile
+#include <sys/time.h> // FIXME - remove when xrootd supports openfile
 #include <iomanip>
 #include <unistd.h>
 using std::cerr;
