@@ -25,10 +25,10 @@
 
 
 #include <pthread.h>
-#include "XrdClientUnsolMsg.hh"
-#include "XrdClientLogConnection.hh"
-#include "XrdClientMessage.hh"
-#include "XrdClientVector.hh"
+#include "XrdClient/XrdClientUnsolMsg.hh"
+#include "XrdClient/XrdClientLogConnection.hh"
+#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientVector.hh"
 
 #define ConnectionManager XrdClientConnectionMgr::Instance()
 

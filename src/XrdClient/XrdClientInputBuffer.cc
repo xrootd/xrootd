@@ -16,9 +16,9 @@
 
 //       $Id$
 
-#include "XrdClientInputBuffer.hh"
-#include "XrdClientMutexLocker.hh"
-#include "XrdClientDebug.hh"
+#include "XrdClient/XrdClientInputBuffer.hh"
+#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientDebug.hh"
 #include <sys/time.h>
 #include <stdio.h>
 

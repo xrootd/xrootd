@@ -17,8 +17,8 @@
 #ifndef XRC_MESSAGE_H
 #define XRC_MESSAGE_H
 
-#include "XrdClientProtocol.hh"
-#include "XrdClientSock.hh"
+#include "XrdClient/XrdClientProtocol.hh"
+#include "XrdClient/XrdClientSock.hh"
 
 class XrdClientPhyConnection;
 

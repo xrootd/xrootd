@@ -40,10 +40,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdClientAbs.hh"
-#include "XrdClientString.hh"
-
-
+#include "XrdClient/XrdClientAbs.hh"
+#include "XrdClient/XrdClientString.hh"
 
 
 struct XrdClientOpenInfo {

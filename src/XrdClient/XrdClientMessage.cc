@@ -14,10 +14,10 @@
 
 //       $Id$
 
-#include "XrdClientMessage.hh"
-#include "XrdClientProtocol.hh"
-#include "XrdClientDebug.hh"
-#include "XrdClientPhyConnection.hh"
+#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientProtocol.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientPhyConnection.hh"
 
 #include <stdlib.h> // for malloc
 #include <string.h> // for memcpy

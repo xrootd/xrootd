@@ -17,10 +17,8 @@
 #define XRD_CLIENTSOCK_H
 
 
-#include "XrdClientUrlInfo.hh"
-#include "XrdClientConst.hh"
-
-
+#include "XrdClient/XrdClientUrlInfo.hh"
+#include "XrdClient/XrdClientConst.hh"
 
 
 struct XrdClientSockConnectParms {

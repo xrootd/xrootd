@@ -18,9 +18,9 @@
 
 #include <iostream>
 #include <sstream>
-#include "XrdClientConst.hh"
-#include "XrdClientMutexLocker.hh"
-#include "XrdClientEnv.hh"
+#include "XrdClient/XrdClientConst.hh"
+#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientEnv.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
 

@@ -11,7 +11,7 @@
 //       $Id$
 
 #include <pthread.h>
-#include "XrdClientVector.hh"
+#include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 using namespace std;
 

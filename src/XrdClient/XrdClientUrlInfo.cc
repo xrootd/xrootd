@@ -13,7 +13,7 @@
 
 //       $Id$
 
-#include "XrdClientUrlInfo.hh"
+#include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include <netinet/in.h>
 #include <arpa/inet.h>

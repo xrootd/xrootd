@@ -8,9 +8,11 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//   $Id$
+
 #include <sys/types.h>
 #include <dirent.h>
-#include "XrdClientAdmin.hh"
+#include "XrdClient/XrdClientAdmin.hh"
 
 
 class XrdCpWorkLst {

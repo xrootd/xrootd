@@ -11,7 +11,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdClientUrlSet.hh"
+#include "XrdClient/XrdClientUrlSet.hh"
 
 #include <math.h>
 #include <stdio.h>
@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "XrdClientDebug.hh"
+#include "XrdClient/XrdClientDebug.hh"
 
 #ifdef __sun
 #include <sunmath.h>

@@ -15,11 +15,11 @@
 #ifndef _XrdClientPhyConnection
 #define _XrdClientPhyConnection
 
-#include "XrdClientSock.hh"
-#include "XrdClientMessage.hh"
-#include "XrdClientUnsolMsg.hh"
-#include "XrdClientInputBuffer.hh"
-#include "XrdClientUrlInfo.hh"
+#include "XrdClient/XrdClientSock.hh"
+#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientUnsolMsg.hh"
+#include "XrdClient/XrdClientInputBuffer.hh"
+#include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 #include <time.h> // for time_t data type

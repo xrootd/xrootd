@@ -31,7 +31,7 @@
 %apply char *OUTPUT { char *ans };
 
 %{
-#include "XrdClientAdmin_c.hh"
+#include "XrdClient/XrdClientAdmin_c.hh"
    %}
 
 #endif

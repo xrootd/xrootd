@@ -20,12 +20,12 @@
 #define XRC_INPUTBUFFER_H
 
 #include <pthread.h>
-#include "XrdClientMessage.hh"
-#include "XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientMutexLocker.hh"
 
-#include "XrdClientVector.hh"
+#include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdClientVector.hh"
+#include "XrdClient/XrdClientVector.hh"
 
 using namespace std;
 

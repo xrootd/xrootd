@@ -17,7 +17,7 @@
 #define XRD_CENV_H
 
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientMutexLocker.hh"
 
 #include <string.h>
 

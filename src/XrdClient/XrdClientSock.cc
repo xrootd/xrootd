@@ -13,11 +13,11 @@
 
 //       $Id$
 
-#include "XrdClientSock.hh"
+#include "XrdClient/XrdClientSock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"
-#include "XrdClientDebug.hh"
-#include "XrdClientEnv.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientEnv.hh"
 
 #include <sys/poll.h>
 

@@ -16,8 +16,8 @@
 #ifndef XRD_ABSCLIENTBASE_H
 #define XRD_ABSCLIENTBASE_H
 
-#include "XrdClientUnsolMsg.hh"
-#include "XrdClientConn.hh"
+#include "XrdClient/XrdClientUnsolMsg.hh"
+#include "XrdClient/XrdClientConn.hh"
 
 class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
  protected:

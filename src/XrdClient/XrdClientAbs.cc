@@ -13,10 +13,10 @@
 
 //         $Id$
 
-#include "XrdClientAbs.hh"
-#include "XrdClientDebug.hh"
-#include "XrdClientString.hh"
-#include "XrdClientEnv.hh"
+#include "XrdClient/XrdClientAbs.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientString.hh"
+#include "XrdClient/XrdClientEnv.hh"
 
 
 //_____________________________________________________________________________

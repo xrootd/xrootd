@@ -10,7 +10,7 @@
 
 //         $Id: XrdClientString.cc,v 1.0 2004/11/10 06:24:32 furano Exp 
 
-#include "XrdClientString.hh"
+#include "XrdClient/XrdClientString.hh"
 
 
 XrdClientString::~XrdClientString() {

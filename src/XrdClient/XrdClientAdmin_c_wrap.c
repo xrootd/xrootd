@@ -847,7 +847,7 @@ SWIGEXPORT(void) SWIG_init (CV *cv, CPerlObj *);
 #endif
 
 
-#include "XrdClientAdmin_c.hh"
+#include "XrdClient/XrdClientAdmin_c.hh"
    
 #ifdef PERL_OBJECT
 #define MAGIC_CLASS _wrap_XrdClientAdmin_var::

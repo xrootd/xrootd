@@ -19,9 +19,9 @@
 #include <pthread.h>
 #include <iostream>
 
-#include "XrdClientInputBuffer.hh"
-#include "XrdClientMessage.hh"
-#include "XrdClientVector.hh"
+#include "XrdClient/XrdClientInputBuffer.hh"
+#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientVector.hh"
 
 
 

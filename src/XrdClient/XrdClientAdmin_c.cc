@@ -9,10 +9,10 @@
 //
 // Author: Alvise Dorigo, Fabrizio Furano
 
-#include "XrdClientAdmin.hh"
-#include "XrdClientDebug.hh"
-#include "XrdClientString.hh"
-#include "XrdClientVector.hh"
+#include "XrdClient/XrdClientAdmin.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientString.hh"
+#include "XrdClient/XrdClientVector.hh"
 
 #include <rpc/types.h>
 

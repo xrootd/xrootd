@@ -16,12 +16,11 @@
 #ifndef _XRC_URLSET_H
 #define _XRC_URLSET_H
 
-#include "XrdClientUrlInfo.hh"
-#include "XrdClientConst.hh"
-#include "XrdClientVector.hh"
+#include "XrdClient/XrdClientUrlInfo.hh"
+#include "XrdClient/XrdClientConst.hh"
+#include "XrdClient/XrdClientVector.hh"
 
 using namespace std;
-
 
 
 typedef XrdClientVector<XrdClientUrlInfo*> UrlArray;

@@ -1,5 +1,7 @@
 #!/usr/local/bin/perl5.8
 
+#  $Id$
+
 use XrdClientAdmin;
 XrdClientAdmin::XrdCA_Initialize("root://kanolb-a/dummy");
 

@@ -13,11 +13,11 @@
 
 //         $Id$
 
-#include "XrdClient.hh"
-#include "XrdClientDebug.hh"
-#include "XrdClientUrlSet.hh"
-#include "XrdClientConn.hh"
-#include "XrdClientEnv.hh"
+#include "XrdClient/XrdClient.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientUrlSet.hh"
+#include "XrdClient/XrdClientConn.hh"
+#include "XrdClient/XrdClientEnv.hh"
 
 #include <stdio.h>
 #include <unistd.h>

@@ -1,9 +1,10 @@
+
+   $Id$
+
 Xrdcp is a cp-like tool to copy files:
 - FROM an xrootd system TO a local file system
 - FROM ax xrootd system TO an xrootd system (even the same)
 - FROM a local file system TO an xrootd system
-
-
 
 Usage:                                                               
       xrdcp [-d<debuglevel>] <source> <dest>

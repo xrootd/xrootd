@@ -17,12 +17,12 @@
 #define XRD_CONN_H
 
 
-#include "XrdClientConst.hh"
+#include "XrdClient/XrdClientConst.hh"
 
 #include "time.h"
-#include "XrdClientMessage.hh"
-#include "XrdClientUrlInfo.hh"
-#include "XrdClientReadCache.hh"
+#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientUrlInfo.hh"
+#include "XrdClient/XrdClientReadCache.hh"
 
 class XrdClientAbs;
 

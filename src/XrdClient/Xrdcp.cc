@@ -10,15 +10,13 @@
 
 //       $Id$
 
-#include "XrdClientUrlInfo.hh"
+#include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"
-#include "XrdClient.hh"
-#include "XrdCpMthrQueue.hh"
-#include "XrdClientDebug.hh"
-#include "XrdCpWorkLst.hh"
-#include "XrdClientEnv.hh"
-
-
+#include "XrdClient/XrdClient.hh"
+#include "XrdClient/XrdCpMthrQueue.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdCpWorkLst.hh"
+#include "XrdClient/XrdClientEnv.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>

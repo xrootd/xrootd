@@ -13,8 +13,8 @@
 
 //       $Id$
 
-#include "XrdClientConst.hh"
-#include "XrdClientEnv.hh"
+#include "XrdClient/XrdClientConst.hh"
+#include "XrdClient/XrdClientEnv.hh"
 
 XrdClientEnv *XrdClientEnv::fgInstance = 0;
 

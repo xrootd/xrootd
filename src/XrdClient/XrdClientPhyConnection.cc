@@ -14,11 +14,11 @@
 
 #include <time.h>
 #include <stdlib.h>
-#include "XrdClientPhyConnection.hh"
-#include "XrdClientDebug.hh"
-#include "XrdClientMessage.hh"
-#include "XrdClientEnv.hh"
-#include "XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientPhyConnection.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientEnv.hh"
+#include "XrdClient/XrdClientMutexLocker.hh"
 
 #include <sys/socket.h>
 

@@ -8,8 +8,9 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//   $Id$
 
-#include "XrdCpWorkLst.hh"
+#include "XrdClient/XrdCpWorkLst.hh"
 #include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>

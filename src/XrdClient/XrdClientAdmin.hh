@@ -17,9 +17,9 @@
 #define XRD_CLIENT_ADMIN_H
 
 
-#include "XrdClientAbs.hh"
-#include "XrdClientString.hh"
-#include "XrdClientVector.hh"
+#include "XrdClient/XrdClientAbs.hh"
+#include "XrdClient/XrdClientString.hh"
+#include "XrdClient/XrdClientVector.hh"
 
 
 typedef XrdClientVector<XrdClientString> vecString;

@@ -17,8 +17,8 @@
 #define XRD_CLOGCONNECTION_H
 
 
-#include "XrdClientUnsolMsg.hh"
-#include "XrdClientPhyConnection.hh"
+#include "XrdClient/XrdClientUnsolMsg.hh"
+#include "XrdClient/XrdClientPhyConnection.hh"
 
 
 class XrdClientLogConnection: public XrdClientAbsUnsolMsgHandler, 

@@ -19,11 +19,11 @@
 
 //       $Id$
 
-#include "XrdClientConnMgr.hh"
-#include "XrdClientDebug.hh"
-#include "XrdClientMessage.hh"
-#include "XrdClientMutexLocker.hh"
-#include "XrdClientEnv.hh"
+#include "XrdClient/XrdClientConnMgr.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientEnv.hh"
 
 #ifdef AIX
 #include <sys/sem.h>

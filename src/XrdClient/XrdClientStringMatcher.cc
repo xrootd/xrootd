@@ -13,8 +13,8 @@
 
 //       $Id$
 
-#include "XrdClientStringMatcher.hh"
-#include "XrdClientConst.hh"
+#include "XrdClient/XrdClientStringMatcher.hh"
+#include "XrdClient/XrdClientConst.hh"
 
 #include <iostream.h>
 

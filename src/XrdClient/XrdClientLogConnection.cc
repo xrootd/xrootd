@@ -13,9 +13,9 @@
 
 //       $Id$
 
-#include "XrdClientLogConnection.hh"
-#include "XrdClientPhyConnection.hh"
-#include "XrdClientDebug.hh"
+#include "XrdClient/XrdClientLogConnection.hh"
+#include "XrdClient/XrdClientPhyConnection.hh"
+#include "XrdClient/XrdClientDebug.hh"
 
 
 

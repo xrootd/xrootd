@@ -11,20 +11,20 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdClientDebug.hh"
+#include "XrdClient/XrdClientDebug.hh"
 
-#include "XrdClientConnMgr.hh"
-#include "XrdClientConn.hh"
-#include "XrdClientPhyConnection.hh"
-#include "XrdClientProtocol.hh"
+#include "XrdClient/XrdClientConnMgr.hh"
+#include "XrdClient/XrdClientConn.hh"
+#include "XrdClient/XrdClientPhyConnection.hh"
+#include "XrdClient/XrdClientProtocol.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdNet/XrdNetDNS.hh"
-#include "XrdClientUrlInfo.hh"
-#include "XrdClientStringMatcher.hh"
-#include "XrdClientEnv.hh"
-#include "XrdClientAbs.hh"
+#include "XrdClient/XrdClientUrlInfo.hh"
+#include "XrdClient/XrdClientStringMatcher.hh"
+#include "XrdClient/XrdClientEnv.hh"
+#include "XrdClient/XrdClientAbs.hh"
 
 #include <stdio.h>      // needed by printf
 #include <stdlib.h>     // needed by getenv()

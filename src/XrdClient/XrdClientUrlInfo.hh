@@ -16,7 +16,7 @@
 #ifndef _XRC_URLINFO_H
 #define _XRC_URLINFO_H
 
-#include "XrdClientString.hh"
+#include "XrdClient/XrdClientString.hh"
 
 // The information an url may contain
 // Plus utilities for parsing and rebuilding an url

@@ -13,10 +13,10 @@
 
 //       $Id$
 
-#include "XrdClientReadCache.hh"
-#include "XrdClientMutexLocker.hh"
-#include "XrdClientDebug.hh"
-#include "XrdClientEnv.hh"
+#include "XrdClient/XrdClientReadCache.hh"
+#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientEnv.hh"
 
 
 //________________________________________________________________________

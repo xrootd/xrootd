@@ -1,7 +1,7 @@
 //       $Id$
 
-#include "XrdClient.hh"
-#include "XrdClientAdmin_c.hh"
+#include "XrdClient/XrdClient.hh"
+#include "XrdClient/XrdClientAdmin_c.hh"
 #include <iostream>
 
 int main(int argc, char **argv) {

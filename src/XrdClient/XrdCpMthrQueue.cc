@@ -10,9 +10,9 @@
 
 //       $Id$
 
-#include "XrdCpMthrQueue.hh"
-#include "XrdClientMutexLocker.hh"
-#include "XrdClientDebug.hh"
+#include "XrdClient/XrdCpMthrQueue.hh"
+#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdClient/XrdClientDebug.hh"
 
 XrdCpMthrQueue::XrdCpMthrQueue() {
    // Constructor

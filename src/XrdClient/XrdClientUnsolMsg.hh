@@ -16,7 +16,7 @@
 #ifndef XRC_UNSOLMSG_H
 #define XRC_UNSOLMSG_H
 
-#include "XrdClientMessage.hh"
+#include "XrdClient/XrdClientMessage.hh"
 
 class XrdClientUnsolMsgSender;
 
