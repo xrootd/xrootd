@@ -583,8 +583,8 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 {
    EPNAME("Locate")
-   int  val, retc, mlen, noresp = 0;
-   char *colon, *tinfo, *msg, stype, ptype, mbuff[64];
+   int  val, retc, mlen;
+   char *colon, *msg, stype, ptype, mbuff[64];
    XrdOdcMsg *mp;
    XrdOdcManager *Manp;
    struct iovec xmsg[3];
@@ -619,41 +619,38 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 
 // Send message and simply wait for the reply
 //
-   if (!Manp->Send(xmsg, 3) || (noresp = mp->Wait4Reply(RepWait)))
+   if (!Manp->Send(xmsg, 3) || (mp->Wait4Reply(RepWait)))
       {Resp.setErrInfo(RepDelay, ""); 
-       val = retc = RepDelay;
-       tinfo = (char *)" No response from ";
-       msg = Manp->Name();
+       retc = RepDelay;
        Manp->whatsUp();
+       TRACE(Redirect, Resp.getErrUser() <<" got no response from "
+                       <<Manp->NPfx() <<" path=" <<path);
       }
       else {msg = (char *)Resp.getErrText(retc);
                  if (retc == -EREMOTE)
-                    {tinfo = (char *)" redirected to ";
-                     if (!(colon = index(msg, (int)':'))) val = 0;
+                    {if (!(colon = index(msg, (int)':'))) val = 0;
                         else {*colon = '\0';
                               val = atoi((const char *)(colon+1));
                              }
                      Resp.setErrCode(val);
+                     TRACE(Redirect, Resp.getErrUser() <<" redirected to " <<msg
+                           <<':' <<val <<" by " << Manp->NPfx() <<" path=" <<path);
                     }
             else if (retc == -EAGAIN)
-                    {tinfo = (char *)" wait ";
-                     if (!(retc = atoi((const char *)msg))) retc = RepDelay;
-                     val = retc;
-                     Resp.setErrInfo(val, "");
+                    {if (!(retc = atoi((const char *)msg))) retc = RepDelay;
+                     Resp.setErrInfo(retc, "");
+                     TRACE(Redirect, Resp.getErrUser() <<" asked to wait "
+                           <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
                     }
             else if (retc == -EINVAL)
-                    {val = 0; tinfo = (char *)" error: ";}
-            else    {sprintf(mbuff, "error %d: ", retc);
-                     tinfo = mbuff;
-                     val = retc;
+                    {TRACE(Redirect, Resp.getErrUser() <<" given error msg '"
+                           <<msg <<"' by " << Manp->NPfx() <<" path=" <<path);
+                    }
+            else    {TRACE(Redirect, Resp.getErrUser() <<" given error "
+                           <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
                      retc = -EINVAL;
                     }
            }
-
-// Do a trace
-//
-   TRACE(Redirect, "user=" <<Resp.getErrUser() <<tinfo <<msg <<':' <<val
-                           <<" by " << Manp->NPfx() <<" path=" <<path);
 
 // All done
 //
