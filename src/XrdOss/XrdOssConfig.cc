@@ -946,8 +946,8 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
                                   break;
                           default: V_on = 0; break;
                          }
+                  val = Config.GetToken();
                  }
-          val = Config.GetToken();
          }
 
 // Set the values
