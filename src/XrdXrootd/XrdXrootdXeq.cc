@@ -1174,9 +1174,7 @@ int XrdXrootdProtocol::do_WriteAll()
             }
          if (myFile->XrdSfsp->write(myOffset, argp->buff, Quantum) < 0)
             {myIOLen  = myIOLen-Quantum;
-             myBlen   = 0;
-             Resume   = &XrdXrootdProtocol::do_WriteNone;
-             return 1;
+             return do_WriteNone();
             }
          myOffset += Quantum; myIOLen -= Quantum;
          if (myIOLen < Quantum) Quantum = myIOLen;
@@ -1203,9 +1201,7 @@ int XrdXrootdProtocol::do_WriteCont()
 //
    if (myFile->XrdSfsp->write(myOffset, argp->buff, myBlast) < 0)
       {myIOLen  = myIOLen-myBlast;
-       myBlen   = 0;
-       Resume   = &XrdXrootdProtocol::do_WriteNone;
-       return 1;
+       return do_WriteNone();
       }
     myOffset += myBlast; myIOLen -= myBlast;
 
@@ -1230,7 +1226,11 @@ int XrdXrootdProtocol::do_WriteNone()
         {rlen = Link->Recv(argp->buff, blen, readWait);
          if (rlen  < 0) return Link->setEtext("link read error");
          myIOLen -= rlen;
-         if (rlen < blen) return 1;
+         if (rlen < blen) 
+            {myBlen   = 0;
+             Resume   = &XrdXrootdProtocol::do_WriteNone;
+             return 1;
+            }
          if (myIOLen < blen) blen = myIOLen;
         }
 
