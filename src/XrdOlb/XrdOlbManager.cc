@@ -1113,7 +1113,8 @@ int XrdOlbManager::Drop_Server(int sent, int sinst)
 // Make sure this server is the right one
 //
    if (!(sp = ServTab[sent]) || sp->Instance != sinst)
-      {STMutex.UnLock();
+      {sp->DropJob = 0; sp->DropTime = 0;
+       STMutex.UnLock();
        DEBUG("Drop server " <<sent <<'.' <<sinst <<" cancelled.");
        return 0;
       }
