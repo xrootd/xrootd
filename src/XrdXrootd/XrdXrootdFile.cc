@@ -50,10 +50,9 @@ extern XrdOucTrace      *XrdXrootdTrace;
 XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
 {
     static XrdOucMutex seqMutex;
-    static long fileSeq = 0;
+    static int fileSeq = 0;
     struct stat buf;
-    long templong;
-    int i;
+    int i, tempseq;
 
     XrdSfsp    = fp;
     FileMode = mode;
@@ -64,9 +63,9 @@ XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
 //
    seqMutex.Lock();
    fileSeq++;
-   templong = htonl(fileSeq);
+   tempseq = htonl(fileSeq);
    seqMutex.UnLock();
-   FileID = static_cast<kXR_int32>(templong);
+   FileID = static_cast<kXR_int32>(tempseq);
 
 // Develop a unique hash for this file
 //
@@ -124,7 +123,7 @@ XrdXrootdFileTable::~XrdXrootdFileTable()
 /*                                   A d d                                    */
 /******************************************************************************/
   
-long XrdXrootdFileTable::Add(XrdXrootdFile *fp)
+int XrdXrootdFileTable::Add(XrdXrootdFile *fp)
 {
    const int allocsz = XRD_FTABSIZE*sizeof(fp);
    XrdXrootdFile **newXTab, **oldXTab;
@@ -167,14 +166,14 @@ long XrdXrootdFileTable::Add(XrdXrootdFile *fp)
    XTfree = XTnum+1;
    XTnum += XRD_FTABSIZE;
    free(oldXTab);
-   return (long)i+XRD_FTABSIZE;
+   return i+XRD_FTABSIZE;
 }
  
 /******************************************************************************/
 /*                                   D e l                                    */
 /******************************************************************************/
   
-void XrdXrootdFileTable::Del(long fnum)
+void XrdXrootdFileTable::Del(int fnum)
 {
    XrdXrootdFile *fp;
 

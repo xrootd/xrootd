@@ -20,23 +20,23 @@ class XrdXrootdResponse;
 class XrdXrootdStats
 {
 public:
-long             Count;        // Stats: Number of matches
-long             errorCnt;     // Stats: Number of errors returned
-long             redirCnt;     // Stats: Number of redirects
-long             stallCnt;     // Stats: Number of stalls
-long             getfCnt;      // Stats: Number of getfiles
-long             putfCnt;      // Stats: Number of putfiles
-long             openCnt;      // Stats: Number of opens
-long             readCnt;      // Stats: Number of reads
-long             prerCnt;      // Stats: Number of reads (pre)
-long             writeCnt;     // Stats: Number of writes
-long             syncCnt;      // Stats: Number of sync
-long             miscCnt;      // Stats: Number of miscellaneous
-long             AsyncNum;     // Stats: Number of async ops
-long             AsyncMax;     // Stats: Number of async max
-long             AsyncRej;     // Stats: Number of async rejected
-long             AsyncNow;     // Stats: Number of async now (not locked)
-long             Refresh;      // Stats: Number of refresh requests
+int              Count;        // Stats: Number of matches
+int              errorCnt;     // Stats: Number of errors returned
+int              redirCnt;     // Stats: Number of redirects
+int              stallCnt;     // Stats: Number of stalls
+int              getfCnt;      // Stats: Number of getfiles
+int              putfCnt;      // Stats: Number of putfiles
+int              openCnt;      // Stats: Number of opens
+int              readCnt;      // Stats: Number of reads
+int              prerCnt;      // Stats: Number of reads (pre)
+int              writeCnt;     // Stats: Number of writes
+int              syncCnt;      // Stats: Number of sync
+int              miscCnt;      // Stats: Number of miscellaneous
+int              AsyncNum;     // Stats: Number of async ops
+int              AsyncMax;     // Stats: Number of async max
+int              AsyncRej;     // Stats: Number of async rejected
+int              AsyncNow;     // Stats: Number of async now (not locked)
+int              Refresh;      // Stats: Number of refresh requests
 
 XrdOucMutex      statsMutex;   // Mutex to serialize updates
 

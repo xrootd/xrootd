@@ -203,7 +203,7 @@ int                        myBlast;
 int                       (XrdXrootdProtocol::*Resume)();
 XrdXrootdFile             *myFile;
 long long                  myOffset;
-long                       myIOLen;
+int                        myIOLen;
 
 // Buffers to handle client requests
 //

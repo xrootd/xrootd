@@ -64,11 +64,11 @@ class XrdXrootdFileTable
 {
 public:
 
-       long           Add(XrdXrootdFile *fp);
+       int            Add(XrdXrootdFile *fp);
 
-       void           Del(long fnum);
+       void           Del(int fnum);
 
-inline XrdXrootdFile *Get(long fnum)
+inline XrdXrootdFile *Get(int fnum)
                          {if (fnum < XRD_FTABSIZE) return FTab[fnum];
                           if (XTab && (fnum-XRD_FTABSIZE)<XTnum)
                              return XTab[fnum-XRD_FTABSIZE];

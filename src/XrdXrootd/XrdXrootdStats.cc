@@ -52,10 +52,10 @@ Refresh  = 0;     // Stats: Number of refresh requests
   
 int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
 {
-   static const char statfmt[] = "<stats id=\"xrootd\"><num>%ld</num>"
-   "<ops><open>%ld</open><rf>%ld</rf><rd>%ld</rd><pr>%ld</pr><wr>%ld</wr>"
-   "<sync>%ld</sync><getf>%ld</getf><putf>%ld</putf><misc>%ld</misc></ops>"
-   "<aio><num>%ld</num><max>%ld</max><rej>%ld</rej></aio></stats>";
+   static const char statfmt[] = "<stats id=\"xrootd\"><num>%d</num>"
+   "<ops><open>%d</open><rf>%d</rf><rd>%d</rd><pr>%d</pr><wr>%d</wr>"
+   "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
+   "<aio><num>%d</num><max>%d</max><rej>%d</rej></aio></stats>";
    int len;
 
 // If no buffer, caller wants the maximum size we will generate

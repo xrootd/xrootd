@@ -285,7 +285,7 @@ int XrdXrootdProtocol::do_Dirlist()
   
 int XrdXrootdProtocol::do_Getfile()
 {
-   long gopts, buffsz;
+   int gopts, buffsz;
 
 // Keep Statistics
 //
@@ -293,8 +293,8 @@ int XrdXrootdProtocol::do_Getfile()
 
 // Unmarshall the data
 //
-   gopts  = (long)ntohl(Request.getfile.options);
-   buffsz = (long)ntohl(Request.getfile.buffsz);
+   gopts  = int(ntohl(Request.getfile.options));
+   buffsz = int(ntohl(Request.getfile.buffsz));
 
    return Response.Send(kXR_Unsupported, "getfile request is not supported");
 }
@@ -434,7 +434,7 @@ int XrdXrootdProtocol::do_Mv()
   
 int XrdXrootdProtocol::do_Open()
 {
-   long fhandle;
+   int fhandle;
    int rc, mode, opts, openopts, mkpath = 0, doforce = 0, compchk = 0;
    char usage, ebuff[2048];
    char *fn = argp->buff, opt[16], *opaque, *op=opt, isAsync = '\0';
@@ -559,7 +559,7 @@ int XrdXrootdProtocol::do_Open()
    if (!compchk) resplen = sizeof(myResp.fhandle);
       else {int cpsize;
             fp->getCXinfo((char *)myResp.cptype, cpsize);
-            if (cpsize) {myResp.cpsize = htonl((long)cpsize);
+            if (cpsize) {myResp.cpsize = static_cast<kXR_int32>(htonl(cpsize));
                          resplen = sizeof(myResp);
                         }
            }
@@ -690,8 +690,8 @@ int XrdXrootdProtocol::do_Prepare()
 int XrdXrootdProtocol::do_Protocol()
 {
     static ServerResponseBody_Protocol Resp
-                 = {htonl((kXR_int32)XROOTD_VERSBIN),
-                    htonl((kXR_int32)kXR_DataServer)};
+                 = {static_cast<kXR_int32>(htonl(XROOTD_VERSBIN)),
+                    static_cast<kXR_int32>(htonl(kXR_DataServer))};
 
 // Keep Statistics
 //
@@ -699,7 +699,7 @@ int XrdXrootdProtocol::do_Protocol()
 
 // Return info
 //
-    if (isRedir) Resp.flags = htonl((kXR_int32)kXR_LBalServer);
+    if (isRedir) Resp.flags = static_cast<kXR_int32>(htonl(kXR_LBalServer));
     return Response.Send((void *)&Resp, sizeof(Resp));
 }
 
@@ -709,7 +709,7 @@ int XrdXrootdProtocol::do_Protocol()
   
 int XrdXrootdProtocol::do_Putfile()
 {
-   long popts, buffsz;
+   int popts, buffsz;
 
 // Keep Statistics
 //
@@ -717,8 +717,8 @@ int XrdXrootdProtocol::do_Putfile()
 
 // Unmarshall the data
 //
-   popts  = (long)ntohl(Request.putfile.options);
-   buffsz = (long)ntohl(Request.putfile.buffsz);
+   popts  = int(ntohl(Request.putfile.options));
+   buffsz = int(ntohl(Request.putfile.buffsz));
 
    return Response.Send(kXR_Unsupported, "putfile request is not supported");
 }
@@ -805,7 +805,7 @@ int XrdXrootdProtocol::do_Read()
   
 int XrdXrootdProtocol::do_ReadAll()
 {
-   long xframt, Quantum = (myIOLen > as_maxbfsz ? as_maxbfsz : myIOLen);
+   int xframt, Quantum = (myIOLen > as_maxbfsz ? as_maxbfsz : myIOLen);
    char *buff;
 
 // Make sure we have a large enough buffer
@@ -1005,7 +1005,7 @@ int XrdXrootdProtocol::do_Stat()
    char xxBuff[256];
    struct stat buf;
    XrdOucErrInfo myError;
-   union {long long uuid; struct {long hi; long lo;} id;} Dev;
+   union {long long uuid; struct {int hi; int lo;} id;} Dev;
 
 // Prescreen the path
 //
@@ -1151,8 +1151,7 @@ int XrdXrootdProtocol::do_Write()
   
 int XrdXrootdProtocol::do_WriteAll()
 {
-   long Quantum = (myIOLen > as_maxbfsz ? as_maxbfsz : myIOLen);
-   int rc;
+   int rc, Quantum = (myIOLen > as_maxbfsz ? as_maxbfsz : myIOLen);
 
 // Make sure we have a large enough buffer
 //

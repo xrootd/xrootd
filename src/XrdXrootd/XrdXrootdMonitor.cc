@@ -170,7 +170,7 @@ XrdXrootdMonitor *XrdXrootdMonitor::Alloc(int force)
 void XrdXrootdMonitor::Flush()
 {
    int       size;
-   kXR_int32 now = static_cast<kXR_int32>(htonl((long)time(0)));
+   kXR_int32 now = static_cast<kXR_int32>(htonl(time(0)));
 
 // Do not flush if the buffer is empty
 //
@@ -211,7 +211,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdOucError *errp,
    lastEnt = (msz-sizeof(XrdXrootdMonHeader))/sizeof(XrdXrootdMonTrace);
    monBlen =  (lastEnt*sizeof(XrdXrootdMonTrace))+sizeof(XrdXrootdMonHeader);
    lastEnt--;
-   startTime = static_cast<kXR_int32>(htonl((long)time(0)));
+   startTime = static_cast<kXR_int32>(htonl(time(0)));
 
 // Get a socket to send the monitor data
 //

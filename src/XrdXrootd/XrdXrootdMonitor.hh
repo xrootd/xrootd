@@ -46,8 +46,9 @@ inline void              Add_rd(kXR_int32 dictid,
 inline void              Add_wr(kXR_int32 dictid, 
                                 kXR_int32 wlen, 
                                 kXR_int64 offset)
-                               {Add_io(dictid, 
-                                      (kXR_int32)htonl(-ntohl(wlen)), offset);
+                               {unsigned int temp = ~ntohl(wlen)+1;
+                                Add_io(dictid,
+                                      (kXR_int32)htonl(temp), offset);
                                }
 
 static XrdXrootdMonitor *Alloc(int force=0);

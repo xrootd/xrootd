@@ -26,8 +26,8 @@ class XrdXrootdFileLockInfo
 {
 public:
 
-long  numReaders;
-long  numWriters;
+int   numReaders;
+int   numWriters;
 
       XrdXrootdFileLockInfo(char mode)
                       {if ('r' == mode) {numReaders = 1; numWriters = 0;}
