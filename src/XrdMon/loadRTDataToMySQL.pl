@@ -563,7 +563,8 @@ sub reloadTopPerfTables() {
 sub runQueries4AllTopPerfTables() {
     my ($theInterval, $theKeyword, $theLimit) = @_;
     &runTopUsersQueries($theInterval, $theKeyword, $theLimit);
-    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit);
+    &runSkimsQueries($theInterval, $theKeyword, $theLimit, "SKIMS");
+    &runSkimsQueries($theInterval, $theKeyword, $theLimit, "TYPES");
    #&runTopFilesQueries($theInterval, $theKeyword, $theLimit);
 }
 
@@ -765,10 +766,27 @@ sub runTopUsersQueries() {
     $sth_dropTable_xx->execute()  or die "Failed to exec \"$sql_dropTable_xx\",  $DBI::errstr";
 }
   
-sub runTopSkimsQueries() {
-    my ($theInterval, $theKeyword, $theLimit) = @_;
+sub runSkimsQueries() {
+    my ($theInterval, $theKeyword, $theLimit, $what) = @_;
 
-    print "updating topPerf SKIMS tables for $theInterval\n";
+    print "updating topPerf $what tables for $theInterval\n";
+
+    my $idInPathTable    = "INVALID";
+    my $nameTable        = "INVALID";
+    my $destinationTable = "INVALID";
+
+    if ( $what eq "SKIMS" ) {
+        $idInPathTable    = "skimId";
+        $nameTable        = "skimNames";
+        $destinationTable = "topPerfSkims";
+    } elsif ( $what eq "TYPES" ) {
+        $idInPathTable    = "typeId";
+        $nameTable        = "fileTypes";
+        $destinationTable = "topPerfTypes";
+    } else {
+        die "Invalid arg, expected SKIMS or TYPES\n";
+    }
+
 
     my $sql_prepTable_nj   = "CREATE TEMPORARY TABLE nj  (sId INT, n INT)";    
     my $sql_prepTable_nf   = "CREATE TEMPORARY TABLE nf  (sId INT, n INT)";
@@ -794,60 +812,60 @@ sub runTopSkimsQueries() {
 
     # now jobs
     my $sql_find_nj = "INSERT INTO nj
-       SELECT skimId,
+       SELECT $idInPathTable,
               COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
        WHERE  os.id = of.sessionId AND
               of.pathId = paths.id
-              GROUP BY skimId";
+              GROUP BY $idInPathTable";
 
     # now files
     my $sql_find_nf = "REPLACE INTO nf 
-       SELECT skimId,
+       SELECT $idInPathTable,
               COUNT(DISTINCT pathId) AS n
        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
        WHERE  os.id = of.sessionId AND
               of.pathId = paths.id
-              GROUP BY skimId";
+              GROUP BY $idInPathTable";
 
     # now users
     my $sql_find_nu = "REPLACE INTO nu 
-       SELECT skimId,
+       SELECT $idInPathTable,
               COUNT(DISTINCT userId) AS n
        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
        WHERE  os.id = of.sessionId AND
               of.pathId = paths.id
-              GROUP BY skimId";
+              GROUP BY $idInPathTable";
 
     # past jobs
     my $sql_find_pj = "REPLACE INTO pj
-       SELECT skimId, 
+       SELECT $idInPathTable, 
               COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
        FROM   rtClosedSessions cs, rtClosedFiles cf, paths
        WHERE  cs.id = cf.sessionId AND
               cf.pathId = paths.id AND
               disconnectT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-              GROUP BY skimId";
+              GROUP BY $idInPathTable";
 
     # past files
         # through opened sessions
     my $sql_find_pf_os = "INSERT INTO tmp
-       SELECT skimId,
+       SELECT $idInPathTable,
               COUNT(DISTINCT pathId) AS n
        FROM   rtOpenedSessions os, rtClosedFiles cf, paths
        WHERE  os.id = cf.sessionId AND
               cf.pathId = paths.id AND
               closeT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-              GROUP BY skimId";
+              GROUP BY $idInPathTable";
         # through closed sessions
     my $sql_find_pf_cs = "INSERT INTO tmp
-       SELECT skimId,
+       SELECT $idInPathTable,
               COUNT(DISTINCT pathId) AS n
        FROM   rtClosedSessions cs, rtClosedFiles cf, paths
        WHERE  cs.id = cf.sessionId AND
               cf.pathId = paths.id AND
               closeT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-              GROUP BY skimId";
+              GROUP BY $idInPathTable";
         # merge result
     my $sql_merge_pf = "INSERT INTO pf
         SELECT sId, SUM(n) 
@@ -856,31 +874,31 @@ sub runTopSkimsQueries() {
 
     # past users
     my $sql_find_pu = "REPLACE INTO pu
-       SELECT skimId, 
+       SELECT $idInPathTable, 
               COUNT(DISTINCT userId) AS n
        FROM   rtClosedSessions cs, rtClosedFiles cf, paths
        WHERE  cs.id = cf.sessionId AND
               cf.pathId = paths.id AND
               disconnectT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-              GROUP BY skimId";
+              GROUP BY $idInPathTable";
 
     # past volume
         # through opened sessions
     my $sql_find_pv_os = "INSERT INTO tmp
-        SELECT skimId, SUM(bytesR)/(1024*1024) AS n
+        SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
         FROM   rtOpenedSessions os, rtClosedFiles cf, paths
         WHERE  os.id = cf.sessionId AND
                cf.pathId = paths.id AND
                closeT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-               GROUP BY skimId";
+               GROUP BY $idInPathTable";
         # through closed sessions
     my $sql_find_pv_cs = "INSERT INTO tmp
-        SELECT skimId, SUM(bytesR)/(1024*1024) AS n
+        SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
         FROM   rtClosedSessions os, rtClosedFiles cf, paths
         WHERE  os.id = cf.sessionId AND
                cf.pathId = paths.id AND
                closeT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-               GROUP BY userId";
+               GROUP BY $idInPathTable";
         # merge result
     my $sql_merge_pv = "INSERT INTO pv
         SELECT sId, SUM(n) 
@@ -898,11 +916,11 @@ sub runTopSkimsQueries() {
 
     ## delete old data
     my $sql_deleteOldData = 
-        "DELETE FROM topPerfSkims WHERE timePeriod LIKE \"$theKeyword\"";
+        "DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"";
 
     ## and finally insert the new data
-    my $sql_insert = "INSERT INTO topPerfSkims
-        SELECT name            AS skimName, 
+    my $sql_insert = "INSERT INTO $destinationTable
+        SELECT name           AS skimName, 
               IFNULL(nf.n, 0) AS nFiles, 
               IFNULL(nj.n, 0) AS nJobs,
               IFNULL(nu.n, 0) AS nUsers,
@@ -911,7 +929,7 @@ sub runTopSkimsQueries() {
               IFNULL(pu.n, 0) AS pUsers, 
               IFNULL(pj.n, 0) AS pJobs, 
               \"$theKeyword\"
-        FROM  skimNames, xx 
+        FROM  $nameTable, xx 
               LEFT OUTER JOIN nj ON xx.sId = nj.sId
               LEFT OUTER JOIN nf ON xx.sId = nf.sId
               LEFT OUTER JOIN nu ON xx.sId = nu.sId
@@ -919,7 +937,7 @@ sub runTopSkimsQueries() {
               LEFT OUTER JOIN pf ON xx.sId = pf.sId
               LEFT OUTER JOIN pu ON xx.sId = pu.sId
               LEFT OUTER JOIN pv ON xx.sId = pv.sId
-       WHERE  xx.sId = skimNames.id";
+       WHERE  xx.sId = $nameTable.id";
 
     ######## prepare ########
     my $sth_prepTable_nj  = $dbh->prepare($sql_prepTable_nj )  or die "\"$sql_prepTable_nj\",   $DBI::errstr\n";

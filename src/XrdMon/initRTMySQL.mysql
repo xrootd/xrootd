@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS topPerfSkims (
   timePeriod VARCHAR(8) # "hour", "month", "year"
 );
 # compressed info for top performers (top skims) webpage
-CREATE TABLE IF NOT EXISTS topPerfDataTypes (
+CREATE TABLE IF NOT EXISTS topPerfTypes (
   skimName   VARCHAR(24),
   nJobs      INT NOT NULL,
   nFiles     INT NOT NULL,
