@@ -27,18 +27,18 @@ my $dbName    = $ARGV[1];
 my $mySQLUser = $ARGV[2];
 my $updInt    = $ARGV[3];
 
-$initFlag = 1
+$initFlag = 1;
  
 
 #start an infinite loop
 while ( 1 ) {
-    doLoading();
+    &doLoading();
     sleep($updInt);
 }
 
 
 sub doLoading {
-    my $ts = timestamp();
+    my $ts = &timestamp();
 
     # connect to the database
     print "\n$ts Connecting to database...\n";
@@ -48,20 +48,20 @@ sub doLoading {
     }
 
     # do initilization in the first connection
-    if ( $initFlag ) { doInit(); }
+    if ( $initFlag ) { &doInit(); }
 
     # lock the file
-    unless ( $lockF = lockTheFile($inFName) ) {
+    unless ( $lockF = &lockTheFile($inFName) ) {
 	$dbh->disconnect();
 	return;
     }
     # set the load time.
-    $loadT = timestamp();
+    $loadT = &timestamp();
 
      # open the input file for reading
     unless ( open $inF, "< $inFName" ) {
 	print "Can't open file $inFName for reading\n";
-	unlockTheFile($lockF);
+	&unlockTheFile($lockF);
 	$dbh->disconnect();
 	return;
     }
@@ -71,29 +71,29 @@ sub doLoading {
     while ( $_ = <$inF> ) {
 	#print "processing $_";
 	chop;
-	if ( $_ =~ m/^u/ ) { loadOpenSession($_);  }
-	if ( $_ =~ m/^d/ ) { loadCloseSession($_); }
-	if ( $_ =~ m/^o/ ) { loadOpenFile($_);     }
-	if ( $_ =~ m/^c/ ) { loadCloseFile($_);    }
+	if ( $_ =~ m/^u/ ) { &loadOpenSession($_);  }
+	if ( $_ =~ m/^d/ ) { &loadCloseSession($_); }
+	if ( $_ =~ m/^o/ ) { &loadOpenFile($_);     }
+	if ( $_ =~ m/^c/ ) { &loadCloseFile($_);    }
 	if ( $nr % 10000 == 0 ) {
-            $ts = timestamp();
+            $ts = &timestamp();
 	    print "$ts $nr\n";
 	}
 	$nr += 1;
     }
 
     # $nMin, $nHour and $nDay start from 0
-    loadStatsLastHour();
+    &loadStatsLastHour();
     if ( $nMin % 60 == 59 ) {
-        loadStatsLastDay();
+        &loadStatsLastDay();
         if ( $nHour % 24 == 23 ) {
-            loadStatsLastMonth();
+            &loadStatsLastMonth();
             $nDay += 1;
-            if ( (localtime)[3] == 1 ) { loadStatsAllMonths(); }
+            if ( (localtime)[3] == 1 ) { &loadStatsAllMonths(); }
         }
         $nHour += 1;
     }
-    $nMin += 1
+    $nMin += 1;
 
 
                                                                                                                                                       
@@ -105,7 +105,7 @@ sub doLoading {
     # unlock the lock file, and disconnect from db
     unlockTheFile($lockF);
     $dbh->disconnect();
-    $ts = timestamp();
+    $ts = &timestamp();
     print "$ts All done, processed $nr entries.\n";
 }
 
@@ -130,17 +130,10 @@ sub unlockTheFile() {
     fcntl($fh, F_SETLKW, $lk_parms);
 }
 
-sub timestamp() {
-    my $sec  = (localtime)[0];
-    my $min  = (localtime)[1];
-    my $hour = (localtime)[2];
-    return sprintf("%02d:%02d:%02d", $hour, $min, $sec);
-}
-
 sub loadOpenSession() {
     my ($line) = @_;
 
-    ($u, $sessionId, $user, $pid, $clientHost, $srvHost) = split('\t', $line);
+    my ($u, $sessionId, $user, $pid, $clientHost, $srvHost) = split('\t', $line);
     #print "u=$u, id=$id, user=$user, pid=$pid, ch=$clientHost, sh=$srvHost\n";
 
     my $userId       = findOrInsertUserId($user);
@@ -148,14 +141,14 @@ sub loadOpenSession() {
     my $serverHostId = findOrInsertHostId($srvHost);
 
     #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
-    runQuery("INSERT INTO rtOpenedSessions (id, userId, pId, clientHId, serverHId) VALUES ($sessionId, $userId, $pid, $clientHostId, $serverHostId)");
+    &runQuery("INSERT INTO rtOpenedSessions (id, userId, pId, clientHId, serverHId) VALUES ($sessionId, $userId, $pid, $clientHostId, $serverHostId)");
 }
 
 
 sub loadCloseSession() {
     my ($line) = @_;
 
-    ($d, $sessionId, $sec, $timestamp) = split('\t', $line);
+    my ($d, $sessionId, $sec, $timestamp) = split('\t', $line);
     #print "d=$d, sId=$sessionId, sec=$sec, t=$timestamp\n";
 
 
@@ -163,17 +156,17 @@ sub loadCloseSession() {
 
     # find if there is corresponding open session, if not don't bother
     my ($userId, $pId, $clientHId, $serverHId) = 
-	runQueryWithRet("SELECT userId, pId, clientHId, serverHId FROM rtOpenedSessions WHERE id = $sessionId");
+	&runQueryWithRet("SELECT userId, pId, clientHId, serverHId FROM rtOpenedSessions WHERE id = $sessionId");
     if ( $pId < 1 ) {
 	return;
     }
     #print "received decent data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
 
     # remove it from the open session table
-    runQuery("DELETE FROM rtOpenedSessions WHERE id = $sessionId;");
+    &runQuery("DELETE FROM rtOpenedSessions WHERE id = $sessionId;");
 
     # and insert into the closed
-    runQuery("INSERT INTO rtClosedSessions (id, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
+    &runQuery("INSERT INTO rtClosedSessions (id, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
 }
 
 
@@ -196,27 +189,27 @@ sub loadOpenFile() {
 	return; # error
     }
 
-    runQuery("INSERT INTO rtOpenedFiles (id, sessionId, pathId, openT) VALUES ($fileId, $sessionId, $pathId, \"$openTime\")");
+    &runQuery("INSERT INTO rtOpenedFiles (id, sessionId, pathId, openT) VALUES ($fileId, $sessionId, $pathId, \"$openTime\")");
 }
 
 sub loadCloseFile() {
     my ($line) = @_;
 
-    ($c, $fileId, $bytesR, $bytesW, $closeT) = split('\t', $line);
+    my ($c, $fileId, $bytesR, $bytesW, $closeT) = split('\t', $line);
     #print "c=$c, id=$fileId, br=$bytesR, bw=$bytesW, t=$closeT\n";
 
     # find if there is corresponding open file, if not don't bother
     my ($sessionId, $pathId, $openT) = 
-	runQueryWithRet("SELECT sessionId, pathId, openT FROM rtOpenedFiles WHERE id = $fileId");
+	&runQueryWithRet("SELECT sessionId, pathId, openT FROM rtOpenedFiles WHERE id = $fileId");
     if ( ! $sessionId ) {
 	return;
     }
 
     # remove it from the open files table
-    runQuery("DELETE FROM rtOpenedFiles WHERE id = $fileId;");
+    &runQuery("DELETE FROM rtOpenedFiles WHERE id = $fileId;");
 
     # and insert into the closed
-    runQuery("INSERT INTO rtClosedFiles (id, sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($fileId, $sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
+    &runQuery("INSERT INTO rtClosedFiles (id, sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($fileId, $sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
 }
 
 sub findSessionId() {
@@ -226,7 +219,7 @@ sub findSessionId() {
     my $clientHostId = findOrInsertHostId($clientHost);
     my $serverHostId = findOrInsertHostId($srvHost);
 
-    return runQueryWithRet("SELECT id FROM rtOpenedSessions WHERE userId=$userId AND pId=$pid AND clientHId=$clientHostId AND serverHId=$serverHostId;");
+    return &runQueryWithRet("SELECT id FROM rtOpenedSessions WHERE userId=$userId AND pId=$pid AND clientHId=$clientHostId AND serverHId=$serverHostId;");
 }
 
 
@@ -237,14 +230,14 @@ sub findOrInsertUserId() {
     if ( $userId ) {
         return $userId;
     }
-    $userId = runQueryWithRet("SELECT id FROM users WHERE userName = \"$userName\"");
+    $userId = &runQueryWithRet("SELECT id FROM users WHERE userName = \"$userName\"");
     if ( $userId ) {
 	#print "Will reuse user id $userId for $userName\n";
     } else {
 	#print "$userName not in mysql yet, inserting...\n";
-	runQuery("INSERT INTO users (userName) VALUES (\"$userName\");");
+	&runQuery("INSERT INTO users (userName) VALUES (\"$userName\");");
 
-	$userId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+	$userId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
     }
     $userIds{$userName} = $userId;
     return $userId;
@@ -257,29 +250,30 @@ sub findOrInsertHostId() {
     if ( $hostId ) {
         return $hostId;
     }
-    $hostId = runQueryWithRet("SELECT id FROM hosts WHERE hostName = \"$hostName\"");
+    $hostId = &runQueryWithRet("SELECT id FROM hosts WHERE hostName = \"$hostName\"");
     if ( $hostId ) {
 	#print "Will reuse hostId $clientHostId for $hostName\n";
     } else {
 	#print "$hostName not in mysql yet, inserting...\n";
-	runQuery("INSERT INTO hosts (hostName) VALUES (\"$hostName\");");
+	&runQuery("INSERT INTO hosts (hostName) VALUES (\"$hostName\");");
 
-	$hostId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+	$hostId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
     }
     $hostIds{$hostName} = $hostId;
     return $hostId;
 }
 
 sub findOrInsertPathId() {
+    use vars qw($pathId $typeId $skimId);
     my ($path) = @_;
                                                                                                       
-    my $pathId = $pathIds{$path};
+    $pathId = $pathIds{$path};
     if ( $pathId ) {
         print "from cache: $pathId for $path\n";
         return $pathId;
     }
-    my($pathId, $typeId, $skimId) =
-        runQueryWithRet("SELECT id, typeId, skimId FROM paths WHERE path = \"$path\"");
+    ($pathId, $typeId, $skimId) =
+        &runQueryWithRet("SELECT id, typeId, skimId FROM paths WHERE path = \"$path\"");
 
     # split path and find file type and skim name
     my @sections = split(/\//, $path);
@@ -297,26 +291,26 @@ sub findOrInsertPathId() {
         # find if the type has already id, reuse if it does
         $typeId = $fileTypes{$typeName};
         if ( ! $typeId ) {
-            $typeId = runQueryWithRet("SELECT id FROM fileTypes WHERE name = \"$typeName\"");
+            $typeId = &runQueryWithRet("SELECT id FROM fileTypes WHERE name = \"$typeName\"");
         }
         if ( ! $typeId ) {
-            runQuery("INSERT INTO fileTypes(name) VALUES(\"$typeName\")");
-            $typeId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+            &runQuery("INSERT INTO fileTypes(name) VALUES(\"$typeName\")");
+            $typeId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
         }
         # if it is skim, deal with the skim type, if not, 0 would do
         if ( $typeName =~ /skims/ ) {
             # find if the skim name has already id, reuse if it does
             $skimId = $skimNames{$skimName};
             if ( ! $skimId ) {
-                $skimId = runQueryWithRet("SELECT id FROM skimNames WHERE name = \"$skimName\"");
+                $skimId = &runQueryWithRet("SELECT id FROM skimNames WHERE name = \"$skimName\"");
             }
             if ( ! $skimId ) {
-                runQuery("INSERT INTO skimNames(name) VALUES(\"$skimName\") ");
-                $skimId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+                &runQuery("INSERT INTO skimNames(name) VALUES(\"$skimName\") ");
+                $skimId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
             }
         }
-        runQuery("INSERT INTO paths (path, typeId, skimId) VALUES (\"$path\", $typeId, $skimId);");
-        $pathId = runQueryWithRet("SELECT LAST_INSERT_ID();");
+        &runQuery("INSERT INTO paths (path, typeId, skimId) VALUES (\"$path\", $typeId, $skimId);");
+        $pathId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
                                                                                                       
     }
     $pathIds{$path} = $pathId;
@@ -332,7 +326,7 @@ sub findOrInsertPathId() {
 
 
 sub runQueryWithRet() {
-    my ($sql) = @_;
+    my $sql = shift @_;
     #print "$sql\n";
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
@@ -360,10 +354,10 @@ sub printHelp() {
 
 
 sub doInit() {
-    my $lastTime = runQueryWithRet("SELECT MAX(date) FROM statsLastHour");
+    my $lastTime = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour");
     if ( $lastTime ) {
         ($nMin, $lastNoJobs, $lastNoUsers, $lastNoUniqueF, $lastNoNonUniqueF) 
-            = runQueryWithRet("SELECT seqNo, noJobs, noUsers, noUniqueF, noNonUniqueF
+            = &runQueryWithRet("SELECT seqNo, noJobs, noUsers, noUniqueF, noNonUniqueF
                                  FROM statsLastHour 
                                 WHERE date = \"$lastTime\"");
         $nMin += 1;
@@ -371,17 +365,17 @@ sub doInit() {
         $nMin = $lastNoJobs = $lastNoUsers = $lastNoUniqueF = $lastNoNonUniqueF = 0;
     }
 
-    $lastTime = runQueryWithRet("SELECT MAX(date) FROM statsLastDay");
+    $lastTime = &runQueryWithRet("SELECT MAX(date) FROM statsLastDay");
     if ( $lastTime ) {
-        $nHour = runQueryWithRet("SELECT seqNo FROM statsLastDay WHERE date = \"$lastTime\"");
+        $nHour = &runQueryWithRet("SELECT seqNo FROM statsLastDay WHERE date = \"$lastTime\"");
         $nHour += 1;
     } else { 
         $nHour = 0;
     }
 
-    $lastTime = runQueryWithRet("SELECT MAX(date) FROM statsLastMonth");
+    $lastTime = &runQueryWithRet("SELECT MAX(date) FROM statsLastMonth");
     if ( $lastTime ) {
-        $nDay = runQueryWithRet("SELECT seqNo FROM statsLastMonth WHERE date = \"$lastTime\"");
+        $nDay = &runQueryWithRet("SELECT seqNo FROM statsLastMonth WHERE date = \"$lastTime\"");
         $nDay += 1;
     } else {
         $nDay = 0;
@@ -402,27 +396,29 @@ sub timestamp() {
 
 
 sub loadStatsLastHour() {
-    my $seqNo = $nMin % 60;
-    runQuery("DELETE FROM statsLastHour WHERE seqNo = $seqNo");
-    my ($noJobs, $noUsers) = runQueryWithRet("SELECT COUNT(*), COUNT(DISTINCT userId) 
+    use vars qw($seqNo $noJobs $noUsers $noUniqueF $noNonUniqueF $deltaJobs $jobs_p 
+                $deltaUsers $users_p $deltaUniqueF $uniqueF_p $deltaNonUniqueF $nonUniqueF_p);
+    $seqNo = $nMin % 60;
+    &runQuery("DELETE FROM statsLastHour WHERE seqNo = $seqNo");
+    ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(*), COUNT(DISTINCT userId) 
                                                 FROM rtOpenedSessions");
 
-    my ($noUniqueF, $noNonUniqueF) = runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
+    ($noUniqueF, $noNonUniqueF) = &runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
                                                         FROM rtOpenedFiles");
-    runQuery("INSERT INTO statsLastHour 
+    &runQuery("INSERT INTO statsLastHour 
                           (seqNo, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
                    VALUES ($seqNo, \"$loadT\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
 
-    runQuery("DELETE FROM rtChanges");
-    my $deltaJobs = $noJobs - $lastNoJobs; 
-    my $jobs_p = $lastNoJobs > 0 ? 100 * $deltaJobs / $lastNoJobs : 9999.9;
-    my $deltaUsers = $noUsers - $lastNoUsers
-    my $users_p = $lastNoUsers > 0 ? 100 * $deltaUsers / $lastNoUsers : 9999.9;
-    my $deltaUniqueF = $noUniqueF - $lastNoUniqueF
-    my $uniqueF_p = $lastNoUniqueF > 0 ? 100 * $deltaUniqueF / $lastNoUniqueF : 9999.9;
-    my $deltaNonUniqueF = $noNonUniqueF - $lastNoNonUniqueF
-    my $nonUniqueF_p = $lastNoNonUniqueF > 0 ? 100 * $deltaNonUniqueF / $lastNoNonUniqueF : 9999.9;
-    runQuery("INSERT INTO rtChanges 
+    &runQuery("DELETE FROM rtChanges");
+    $deltaJobs = $noJobs - $lastNoJobs; 
+    $jobs_p = $lastNoJobs > 0 ? 100 * $deltaJobs / $lastNoJobs : -1;
+    $deltaUsers = $noUsers - $lastNoUsers;
+    $users_p = $lastNoUsers > 0 ? 100 * $deltaUsers / $lastNoUsers : -1;
+    $deltaUniqueF = $noUniqueF - $lastNoUniqueF;
+    $uniqueF_p = $lastNoUniqueF > 0 ? 100 * $deltaUniqueF / $lastNoUniqueF : -1;
+    $deltaNonUniqueF = $noNonUniqueF - $lastNoNonUniqueF;
+    $nonUniqueF_p = $lastNoNonUniqueF > 0 ? 100 * $deltaNonUniqueF / $lastNoNonUniqueF : -1;
+    &runQuery("INSERT INTO rtChanges 
                           (jobs, jobs_p, users, users_p, uniqueF, uniqueF_p, 
                            nonUniqueF, nonUniqueF_p, lastUpdate)
                    VALUES ($deltaJobs, $jobs_p, $deltaUsers, $users_p, $deltaUniqueF, $uniqueF_p, 
@@ -435,17 +431,17 @@ sub loadStatsLastHour() {
 
 sub loadStatsLastDay() {
     my $seqNo = $nHour % 24;
-    runQuery("DELETE FROM statsLastDay WHERE seqNo = $seqNo");
+    &runQuery("DELETE FROM statsLastDay WHERE seqNo = $seqNo");
 
     my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF) 
-      = runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
+      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
                            FROM statsLastHour");
 
-    runQuery("INSERT INTO statsLastDay 
+    &runQuery("INSERT INTO statsLastDay 
                           (seqNo, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
                            minJobs, minUsers, minUniqueF, minNonUniqueF, 
                            maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
@@ -457,17 +453,17 @@ sub loadStatsLastDay() {
 
 sub loadStatsLastMonth() {
     my $seqNo = $nDay % 31;
-    runQuery("DELETE FROM statsLastMonth WHERE seqNo = $seqNo");
+    &runQuery("DELETE FROM statsLastMonth WHERE seqNo = $seqNo");
 
     my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
-      = runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
+      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
                            FROM statsLastHour");
 
-    runQuery("INSERT INTO statsLastMonth 
+    &runQuery("INSERT INTO statsLastMonth 
                           (seqNo, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
                            minJobs, minUsers, minUniqueF, minNonUniqueF, 
                            maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
@@ -485,12 +481,12 @@ sub loadStatsAllMonths() {
     my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF) 
-      = runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
+      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
                            FROM statsLastMonth WHERE MNTH(date) = \"$lastMonth\""); 
 
-    runQuery("INSERT INTO statsAllMonths 
+    &runQuery("INSERT INTO statsAllMonths 
                           (date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
                            minJobs, minUsers, minUniqueF, minNonUniqueF, 
                            maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
