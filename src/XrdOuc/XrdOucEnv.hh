@@ -25,10 +25,15 @@ public:
 //
 inline char *Env(int &envlen) {envlen = global_len; return global_env;}
 
-// Get() returns the addresss of teh string associated with the variable
+// Get() returns the address of the string associated with the variable
 //       name. If no association exists, zero is returned.
 //
        char *Get(const char *varname) {return env_Hash.Find(varname);}
+
+// GetInt() returns a long integer value. If the variable varname is not found
+//           in the hash table, return -999999999.       
+//
+       long  GetInt(const char *varname);
 
 // Put() associates a string value with the a variable name. If one already
 //       exists, it is replaced. The passed value and variable strings are
@@ -36,6 +41,11 @@ inline char *Env(int &envlen) {envlen = global_len; return global_env;}
 //
        void  Put(const char *varname, const char *value)
                 {env_Hash.Rep((char *)varname, strdup(value), 0, Hash_dofree);}
+
+// PutInt() puts a long integer value into the hash. Internally, the value gets
+//          converted into a char*
+//
+       void  PutInt(const char *varname, long value);
 
 // Delimit() search for the first occurrence of comma (',') in value and
 //           replaces it with a null byte. It then returns the address of the

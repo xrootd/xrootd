@@ -13,6 +13,7 @@
 const char *XrdOucEnvCVSID = "$Id$";
 
 #include "string.h"
+#include "stdio.h"
 
 #include "XrdOuc/XrdOucEnv.hh"
   
@@ -65,4 +66,35 @@ char *XrdOucEnv::Delimit(char *value)
      while(*value) if (*value == ',') {*value = '\0'; return ++value;}
                       else value++;
      return (char *)0;
+}
+
+/******************************************************************************/
+/*                                G e t I n t                                 */
+/******************************************************************************/
+
+long XrdOucEnv::GetInt(const char *varname) 
+{
+// Retrieve a char* value from the Hash table and convert it into a long.
+// Return -999999999 if the varname does not exist
+//
+  if (env_Hash.Find(varname) == NULL) {
+    return -999999999;
+  } else {
+    return atol(env_Hash.Find(varname));
+  }
+}
+
+
+/******************************************************************************/
+/*                                P u t I n t                                 */
+/******************************************************************************/
+
+void XrdOucEnv::PutInt(const char *varname, long value) 
+{
+// Convert the long into a char* and the put it into the hash table
+//
+  char *stringValue = (char*) malloc(20);
+  sprintf(stringValue, "%ld", value);
+  env_Hash.Rep(varname, strdup(stringValue), 0, Hash_dofree);
+  free(stringValue);
 }
