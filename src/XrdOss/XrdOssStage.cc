@@ -129,8 +129,8 @@ int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
    pdlen[1] = strlen(idbuff);  // Request ID
    pdata[2] = (char *)" ";
    pdlen[2] = 1;
-   pdata[3] = (char *)"_OSS_"; // User
-   pdlen[3] = 5;
+   pdata[3] = (char *)"-"; // User
+   pdlen[3] = 1;
    pdata[4] = (char *)" ";
    pdlen[4] = 1;
    pdata[5] = (char *)"0";     // Priority
@@ -138,7 +138,7 @@ int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
    pdata[6] = (char *)" ";
    pdlen[6] = 1;
    pdata[7] = (char *)"qw";    // suppress messages, r/w staging
-   pdlen[7] = 1;
+   pdlen[7] = 2;
    pdata[8] = (char *)" ";
    pdlen[8] = 1;
    pdata[9] = (char *)fn;
