@@ -127,7 +127,7 @@ int XrdOucLogger::Time(char *tbuff)
 //
    tbuff[23] = '\0'; // tbuff must be at least 24 bytes long
    localtime_r((const time_t *) &eNow, &tNow);
-   return snprintf(tbuff, 23, "%02d%02d%02d %02d:%02d:%02d %03d ",
+   return snprintf(tbuff, 23, "%02d%02d%02d %02d:%02d:%02d %03ld ",
                   tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
                   tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
                   XrdOucThread::Num());
