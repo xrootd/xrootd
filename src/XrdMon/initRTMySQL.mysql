@@ -44,7 +44,7 @@ CREATE INDEX rtClosedSession_userId_index    USING BTREE ON rtClosedSessions(use
 CREATE INDEX rtClosedSession_pId_index       USING BTREE ON rtClosedSessions(pId);
 CREATE INDEX rtClosedSession_clientHId_index USING BTREE ON rtClosedSessions(clientHId);
 CREATE INDEX rtClosedSession_serverHId_index USING BTREE ON rtClosedSessions(serverHId);
-
+CREATE INDEX rtClosedSession_disconnectT_index USING BTREE ON rtClosedSessions(disconnectT);
 
 
 CREATE TABLE IF NOT EXISTS rtOpenedFiles (
@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS rtClosedFiles (
 CREATE INDEX rtClosedFiles_id_index        USING BTREE ON rtClosedFiles(id);
 CREATE INDEX rtClosedFiles_sessionId_index USING BTREE ON rtClosedFiles(sessionId);
 CREATE INDEX rtClosedFiles_pathId_index    USING BTREE ON rtClosedFiles(pathId);
+CREATE INDEX rtClosedFiles_closeT_index    USING BTREE ON rtClosedFiles(closeT);
 
 
 
