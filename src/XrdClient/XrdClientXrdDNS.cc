@@ -25,10 +25,12 @@ XrdClientXrdDNS::XrdClientXrdDNS(const char *h)
    // Constructor
 
    host = 0;
-   if (h)
-      if (strlen(h))
-         if ((host = new char[strlen(h)]))
+   if (h) {
+      int lh = strlen(h);
+      if (lh > 0)
+         if ((host = new char[lh+1]))
             strcpy(host,h);
+   }
 }
 
 //_____________________________________________________________________________
