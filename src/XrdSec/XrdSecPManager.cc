@@ -59,7 +59,7 @@ XrdSecProtList    *Next;
                 XrdSecProtList(char *pid, XrdSecProtocol *pp)
                       {int i;
                        strncpy(protid, pid, sizeof(protid)-1);
-                       protid[4] = '\0';   protp = pp; Next = 0;
+                       protid[7] = '\0';   protp = pp; Next = 0;
                        protargs = pp->getParms(i);
                       }
                ~XrdSecProtList() {} // ProtList objects never get freed!

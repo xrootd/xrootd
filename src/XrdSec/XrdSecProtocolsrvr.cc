@@ -633,8 +633,10 @@ int XrdSecProtocolsrvr::add2token(XrdOucError &Eroute, char *pid,
 
 // Insert protocol specification (we already checked for an overflow)
 //
-   toklen -= sprintf(*tokbuff, "&P=%s,%s", pid, pargs);
-   pmask |= protnum;
+   i = sprintf(*tokbuff, "&P=%s,%s", pid, pargs);
+   tokeln   -= i;
+   *tokbuff += i;
+   pmask    |= protnum;
    return 0;
 }
   
