@@ -39,6 +39,7 @@ install -m 644 etc/StartXRD.cf.example $RPM_BUILD_ROOT/opt/xrootd/etc/StartXRD.c
 install -m 755 etc/StopOLB $RPM_BUILD_ROOT/opt/xrootd/etc/StopOLB
 install -m 755 etc/StopXRD $RPM_BUILD_ROOT/opt/xrootd/etc/StopXRD
 install -m 755 etc/XrdOlbMonPerf $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbMonPerf
+install -m 755 etc/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbNotify.pm
 install -m 644 etc/README $RPM_BUILD_ROOT/opt/xrootd/etc/README
 
 %clean
@@ -59,6 +60,7 @@ install -m 644 etc/README $RPM_BUILD_ROOT/opt/xrootd/etc/README
 /opt/xrootd/etc/StopOLB
 /opt/xrootd/etc/StopXRD
 /opt/xrootd/etc/XrdOlbMonPerf
+/opt/xrootd/etc/XrdOlbNotify.pm
 /opt/xrootd/etc/README
 
 %changelog
