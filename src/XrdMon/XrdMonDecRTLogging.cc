@@ -26,8 +26,11 @@ XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir, int rtBufSize)
     : _buf(0), 
       _bufSize(rtBufSize)
 {
-    _rtLog = dir;
-    _rtLog += "/realTimeLogging.txt";
+    _rtLog = new char[strlen(dir) + 24];
+    sprintf(_rtLog, "%s/realTimeLogging.txt", dir);
+
+    _rtLogLock = new char [strlen(dir) + 32];
+    sprintf(_rtLogLock, "%s.lock", _rtLog);
 
     _buf = new char [_bufSize];
     strcpy(_buf, "");
@@ -35,8 +38,9 @@ XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir, int rtBufSize)
 
 XrdMonDecRTLogging::~XrdMonDecRTLogging()
 {
+    delete [] _rtLog;
+    delete [] _rtLogLock;
     delete [] _buf;
-    _buf = 0;
 }
 
 void
@@ -66,16 +70,20 @@ XrdMonDecRTLogging::add(XrdMonDecDictInfo::TYPE t, XrdMonDecDictInfo* x)
 void
 XrdMonDecRTLogging::flush(bool lockIt)
 {
+    // get the lock, wait if necessary
     struct flock lock_args;
     bzero(&lock_args, sizeof(lock_args));
 
-    int f = open(_rtLog.c_str(), O_WRONLY|O_CREAT|O_APPEND,S_IRUSR|S_IWUSR);
+    mode_t m = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
 
     cout << "RT locking." << std::flush;
-    // get the lock, wait if necessary
+    int fLock = open(_rtLogLock, O_WRONLY|O_CREAT, m);
     lock_args.l_type = F_WRLCK;
-    fcntl(f, F_SETLKW, &lock_args);    
+    fcntl(fLock, F_SETLKW, &lock_args);    
     cout << "ok." << std::flush;
+
+    // open rt log, write to it, and close it
+    int f = open(_rtLog, O_WRONLY|O_CREAT|O_APPEND,m);
 
     int s = strlen(_buf);
     if ( s > 0 ) {        
@@ -89,10 +97,12 @@ XrdMonDecRTLogging::flush(bool lockIt)
     cout << s;
     close(f);
 
-    // unlocked
+    // unlock
     bzero(&lock_args, sizeof(lock_args));
     lock_args.l_type = F_UNLCK;
-    fcntl(f, F_SETLKW, &lock_args);
+    fcntl(fLock, F_SETLKW, &lock_args);
+    close (fLock);
+    
     cout << ".unlocked" << endl;
 }
 

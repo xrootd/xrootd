@@ -30,7 +30,9 @@ public:
     void flush(bool lockMutex=true);
     
 private:
-    string      _rtLog;
+    char*       _rtLog;
+    char*       _rtLogLock;
+
     char*       _buf;
     const int   _bufSize; // flush when buffer is full, or when
                           // triggered by external thread
