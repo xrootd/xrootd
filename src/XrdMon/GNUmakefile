@@ -48,6 +48,7 @@ OBJECTS_BIN_ADM = $(OBJDIR)/XrdMonSndAdminApp.o
 OBJECTS_BIN_SND = $(OBJDIR)/XrdMonSndDummyXrootdApp.o
 OBJECTS_BIN_DMP = $(OBJDIR)/XrdMonDumpPacketsApp.o
 OBJECTS_BIN_DBP = $(OBJDIR)/XrdMonDebugPacketApp.o
+OBJECTS_BIN_CTM = $(OBJDIR)/XrdMonConvertTimestampApp.o
 
 LIBRARY_OUC    = $(LIBDIR)/libXrdOuc.a
 
@@ -64,8 +65,11 @@ SENDER         = $(BINDIR)/xrdmonDummySender
 ADMIN          = $(BINDIR)/xrdmonAdmin
 DUMPPACKETS    = $(BINDIR)/xrdmonDumpPackets
 DEBUGPACKET    = $(BINDIR)/xrdmonDebugPacket
+CONVTIME       = $(BINDIR)/xrdmonConvertTime
+
 BINARIES       = $(COLLECTOR) $(SENDER) $(ADMIN) \
-                 $(DUMPPACKETS) $(DEBUGPACKET)
+                 $(DUMPPACKETS) $(DEBUGPACKET)   \
+                 $(CONVTIME)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
@@ -146,6 +150,10 @@ $(DUMPPACKETS):	$(OBJECTS_BIN_DMP) $(LIBRARY_DEC) $(LIBRARY_COMMON)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
 $(DEBUGPACKET):	$(OBJECTS_BIN_DBP) $(LIBRARY_DEC) $(LIBRARY_COMMON) 
+	@echo Creating executable $(@F)
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+
+$(CONVTIME):	$(OBJECTS_BIN_CTM) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
