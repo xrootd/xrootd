@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS statsLastHour (
   noUniqueF     INT,
   noNonUniqueF  INT
 );
-CREATE INDEX rtHour_date_index      USING BTREE ON rtHour(date);
+CREATE INDEX statsLastHour_date_index USING BTREE ON statsLastHour(date);
 
 
 CREATE TABLE IF NOT EXISTS statsLastDay (
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS statsLastDay (
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
-CREATE INDEX rtDay_date_index      USING BTREE ON rtDay(date);
+CREATE INDEX statsLastDay_date_index  USING BTREE ON statsLastDay(date);
 
 
 CREATE TABLE IF NOT EXISTS statsAllMonths (
@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS statsAllMonths (
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
-CREATE INDEX rtMonth_date_index     USING BTREE ON rtMonth(date);
+CREATE INDEX statsAllMonth_date_index USING BTREE ON statsAllMonths(date);
 
 
 # reflects changes since last entry, and last update
