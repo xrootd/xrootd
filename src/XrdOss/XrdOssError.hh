@@ -63,6 +63,6 @@
 #define XRDOSS_T8020 "not enough free space to create file"
 #define XRDOSS_T8021 "server-side decompression is disabled"
 #define XRDOSS_T8022 "compressed files may not be open for update"
-#define XRDOSS_T8023 "no response from MSS interface"
-#define XRDOSS_T8024 "invalid response from MSS interface"
+#define XRDOSS_T8023 "no response from mass storage system interface"
+#define XRDOSS_T8024 "invalid response from mass storage system interface"
 #endif
