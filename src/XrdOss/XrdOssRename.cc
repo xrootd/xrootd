@@ -55,7 +55,7 @@ extern XrdOssSys XrdOssSS;
 int XrdOssSys::Rename(const char *oldname, const char *newname)
 {
     EPNAME("Rename")
-    int i, retc2, remotefs_Old, remotefs_New, remotefs, retc = XrdOssOK;
+    int i, retc2, remotefs_Old, remotefs_New, remotefs, ismig, retc = XrdOssOK;
     int old_popts, new_popts;
     XrdOssLock old_file, new_file;
     struct stat statbuff;
@@ -71,12 +71,14 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
 
 // Make sure we are renaming within compatible file systems
 //
-   if (remotefs_Old ^ remotefs_New)
+   if (remotefs_Old ^ remotefs_New
+   || ((old_popts & XrdOssMIG) ^ (new_popts & XrdOssMIG)))
       {char buff[PATH_MAX+128];
        snprintf(buff, sizeof(buff), "rename %s to ", oldname);
        return OssEroute.Emsg("XrdOssRename",-XRDOSS_E8011,buff,(char *)newname);
       }
    remotefs = remotefs_Old | remotefs_New;
+   ismig    = remotefs | (XrdOssMIG & (old_popts | new_popts));
 
 // Construct the filename that we will be dealing with.
 //
@@ -112,12 +114,10 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
                else if (rename(local_path_Old, local_path_New)) retc = -errno;
     DEBUG("lcl rc=" <<retc <<" op=" <<local_path_Old <<" np=" <<local_path_New);
 
-// The rmaining code here is for remote filesystem support
+// For migratable spave, rename all suffix variations of the base file
 //
-   if (remotefs)
+   if (ismig)
       {
-      // Rename all suffix variations of the base file
-      //
          if (remotefs && (!retc || retc == -ENOENT))
             {i = strlen(local_path_Old); lpo = &local_path_Old[i];
              i = strlen(local_path_New); lpn = &local_path_New[i];
@@ -127,9 +127,12 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
                      DEBUG("sfx retc=" <<errno <<" op=" <<local_path_Old);
                  }
             }
+       }
 
-      // Now rename the data file in the remote system if the local rename "worked".
-      //
+// Now rename the data file in the remote system if the local rename "worked".
+//
+   if (remotefs)
+      {
           if (remotefs && (!retc || retc == -ENOENT))
              {if ( (retc2 = MSS_Rename(remote_path_Old, remote_path_New))
                  != -ENOENT) retc = retc2;

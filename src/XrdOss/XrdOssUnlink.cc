@@ -54,7 +54,7 @@ extern XrdOssSys XrdOssSS;
 int XrdOssSys::Unlink(const char *path) 
 {
     EPNAME("Unlink")
-    int i, remotefs, retc2, retc = XrdOssOK;
+    int ismig, i, remotefs, retc2, retc = XrdOssOK;
     XrdOssLock un_file;
     struct stat statbuff;
     char *fnp;
@@ -63,7 +63,8 @@ int XrdOssSys::Unlink(const char *path)
 
 // Determine whether we can actually unlink a file on this server.
 //
-   remotefs = Check_RO(Unlink, i, (char *)path, "deleting ");
+   remotefs = Check_RO(Unlink, ismig, (char *)path, "deleting ");
+   ismig &= (XrdOssREMOTE | XrdOssMIG);
 
 // Build the right local and remote paths.
 //
@@ -87,7 +88,7 @@ int XrdOssSys::Unlink(const char *path)
       if (unlink(local_path)) retc = -errno;
          else {i = strlen(local_path); fnp = &local_path[i];
                Adjust(statbuff.st_dev, statbuff.st_size);
-               if (remotefs) for (i = 0; sfx[i]; i++)
+               if (ismig) for (i = 0; sfx[i]; i++)
                   {strcpy(fnp, sfx[i]);
                    if (unlink(local_path))
                       if (errno == ENOENT) continue;
