@@ -199,8 +199,10 @@ void *XrdOssSys::Stage_In(void *carg)
          XrdOssSS.stgbytes -= req->size;
          if (!rc)
             {if (etime > 1) 
-                XrdOssSS.xfrspeed = ((XrdOssSS.xfrspeed * XrdOssSS.totreqs)
-                                + (req->size / etime)) / (XrdOssSS.totreqs + 1);
+                {XrdOssSS.xfrspeed = ((XrdOssSS.xfrspeed*(XrdOssSS.totreqs+1))
+                                   + (req->size/etime))/(XrdOssSS.totreqs+1);
+                 if (XrdOssSS.xfrspeed < 512000) XrdOssSS.xfrspeed = 512000;
+                }
              XrdOssSS.totreqs++;          // Successful requests
              XrdOssSS.totbytes += req->size;
              delete req;
