@@ -92,8 +92,9 @@ typedef off_t offset_t;
 #endif
 
 // Only sparc platforms have structure alignment problems w/ optimization
-#if defined(__sparc) || __BYTE_ORDER==__BIG_ENDIAN
+// so the h2xxx() variants are used when converting network streams.
 
+#if defined(_BIG_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
 #ifndef htonll
 #define htonll(_x_)  _x_
 #endif
@@ -107,12 +108,11 @@ typedef off_t offset_t;
 #define n2hll(_x_, _y_) memcpy((void *)&_y_,(const void *)&_x_,sizeof(long long))
 #endif
 
-#else
-// Unfortunately, icc does *not* support GNUC's byte swap routines
-#ifdef __ICC__
+#elif defined(_LITTLE_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
+// Use GNU's bswap routines if compiling using g++ o/w use our own.
+#if !defined(__GNUC__)
 #ifndef __bswap_64
-extern "C"
-{extern unsigned long long Swap_n2hll(unsigned long long x);}
+extern unsigned long long Swap_n2hll(unsigned long long x);
 #define __bswap_64(x) Swap_n2hll(x)
 #endif
 #endif
@@ -133,6 +133,8 @@ extern "C"
                         _y_ = ntohll(_y_)
 #endif
 
+#else
+#error Unable to determine target architecture endianness!
 #endif
 
 #ifndef HAS_STRLCPY

@@ -26,9 +26,9 @@ class XrdBuffer
 public:
 
 char *   buff;     // -> buffer
-long     bsize;    // size of this buffer
+int      bsize;    // size of this buffer
 
-         XrdBuffer(char *bp, long sz, int ix)
+         XrdBuffer(char *bp, int sz, int ix)
                       {buff = bp; bsize = sz; bindex = ix; next = 0;}
 
         ~XrdBuffer() {if (buff) free(buff);}
@@ -55,15 +55,15 @@ class XrdBuffManager
 {
 public:
 
-XrdBuffer *Obtain(long bsz);
+XrdBuffer *Obtain(int bsz);
 
 void        Release(XrdBuffer *bp);
 
-long        MaxSize() {return maxsz;}
+int         MaxSize() {return maxsz;}
 
 void        Reshape();
 
-void        Set(long maxmem=-1, int minw=-1);
+void        Set(int maxmem=-1, int minw=-1);
 
 int         Stats(char *buff, int blen, int do_sync=0);
 
@@ -75,8 +75,8 @@ private:
 
 const int  slots;
 const int  shift;
-const long pagsz;
-const long maxsz;
+const int  pagsz;
+const int  maxsz;
 
 struct {XrdBuffer *bnext;
         int         numbuf;
@@ -87,7 +87,7 @@ int       totreq;
 int       totbuf;
 long long totalo;
 long long maxalo;
-long      maxreqsz;
+int       maxreqsz;
 int       minrsw;
 int       rsinprog;
 int       totadj;

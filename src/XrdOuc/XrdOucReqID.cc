@@ -35,13 +35,13 @@ int          XrdOucReqID::reqNum = 0;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOucReqID::XrdOucReqID(int inst, char *myHost, unsigned long myIP)
+XrdOucReqID::XrdOucReqID(int inst, char *myHost, unsigned int myIP)
 {
    time_t eNow = time(0);
    char xbuff[256];
 
-   snprintf(xbuff, sizeof(xbuff)-1, "%08lx:%04x.%08lx:%%d", myIP, inst, 
-                                    static_cast<unsigned long>(eNow));
+   snprintf(xbuff, sizeof(xbuff)-1, "%08x:%04x.%08x:%%d", myIP, inst,
+                                    static_cast<unsigned int>(eNow));
    reqFMT = strdup(xbuff);
    reqPFXlen = 13;
    xbuff[reqPFXlen] = '\0';
@@ -54,7 +54,7 @@ XrdOucReqID::XrdOucReqID(int inst, char *myHost, unsigned long myIP)
  
 int XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
 {
-   long ipaddr, ipport;
+   unsigned int ipaddr, ipport;
    char *cp, *ep, *ip;
 
 // Determine whether this is our host
@@ -68,13 +68,13 @@ int XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
 // Get the IP address of his id
 //
    hport = 0;
-   if (!(cp = index((const char *)reqid, (int)':')) || cp-reqid != 8) return 0;
+   if (!(cp = index((const char *)reqid, int(':'))) || cp-reqid != 8) return 0;
    if (!(ipaddr = strtol((const char *)reqid, &ep, 16)) || ep != cp)  return 0;
 
 // Get the port number
 //
    ep++;
-   if (!(cp = index((const char *)ep, (int)'.'))     || cp-ep != 4) return 0;
+   if (!(cp = index((const char *)ep, int('.')))     || cp-ep != 4) return 0;
    if (!(ipport = strtol((const char *)ep, &cp, 16)) || ep != cp)   return 0;
 
 // Format the address and return the port

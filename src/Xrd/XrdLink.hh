@@ -79,13 +79,13 @@ const char   *Name(sockaddr *ipaddr=0)
 
 static XrdLink *nextLink(int &nextFD);
 
-int           Peek(char *buff, long blen, int timeout=-1);
+int           Peek(char *buff, int blen, int timeout=-1);
 
-int           Recv(char *buff, long blen);
-int           Recv(char *buff, long blen, int timeout);
+int           Recv(char *buff, int blen);
+int           Recv(char *buff, int blen, int timeout);
 
-int           Send(char *buff, long blen);
-int           Send(const struct iovec *iov, int iocnt, long bytes=0);
+int           Send(char *buff, int blen);
+int           Send(const struct iovec *iov, int iocnt, int bytes=0);
 
 int           setEtext(const char *text);
 

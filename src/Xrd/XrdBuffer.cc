@@ -91,10 +91,10 @@ XrdBuffManager::XrdBuffManager(int minrst) :
 /*                                O b t a i n                                 */
 /******************************************************************************/
   
-XrdBuffer *XrdBuffManager::Obtain(long sz)
+XrdBuffer *XrdBuffManager::Obtain(int sz)
 {
    long long ik, mk, pk;
-   long bindex = 0;
+   int bindex = 0;
    XrdBuffer *bp;
    char *memp;
 
@@ -147,7 +147,7 @@ XrdBuffer *XrdBuffManager::Obtain(long sz)
   
 void XrdBuffManager::Release(XrdBuffer *bp)
 {
-   long bindex = bp->bindex;
+   int bindex = bp->bindex;
 
 // Obtain a lock on the bucket array and reclaim the buffer
 //
@@ -220,7 +220,7 @@ while(1)
 /*                                   S e t                                    */
 /******************************************************************************/
   
-void XrdBuffManager::Set(long maxmem, int minw)
+void XrdBuffManager::Set(int maxmem, int minw)
 {
 
 // Obtain a lock and set the values

@@ -17,19 +17,19 @@ const char *XrdOucPlatformCVSID = "$Id$";
 #include <netinet/in.h>
 #include <sys/types.h>
 
-#ifdef __linux__
-
-#ifdef __ICC__
-extern "C"
-{
+#if defined(_LITTLE_ENDIAN) || (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
+#if !defined(__GNUC__)
 unsigned long long Swap_n2hll(unsigned long long x)
 {
  unsigned long long ret_val;
-
+#ifdef _LP64
+    *( (unsigned int  *)(&ret_val) + 1) = ntohl(*( (unsigned int  *)(&x)));
+    *(((unsigned int  *)(&ret_val)))    = ntohl(*(((unsigned int  *)(&x))+1));
+#else
     *( (unsigned long *)(&ret_val) + 1) = ntohl(*( (unsigned long *)(&x)));
     *(((unsigned long *)(&ret_val)))    = ntohl(*(((unsigned long *)(&x))+1));
+#endif
     return ret_val;
-}
 }
 #endif
 

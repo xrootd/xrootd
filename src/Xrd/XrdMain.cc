@@ -91,30 +91,12 @@ void *mainAdmin(void *parg)
 {
    XrdLink *newlink;
 // static XrdProtocol_Admin  ProtAdmin;
-   long ProtAdmin;
+   int ProtAdmin;
 
 // At this point we should be able to accept new connections
 //
    while(1) if ((newlink = XrdNetADM->Accept()))
                {newlink->setProtocol((XrdProtocol *)&ProtAdmin);
-                XrdSched.Schedule((XrdJob *)newlink);
-               }
-   return (void *)0;
-}
-
-/******************************************************************************/
-/*                              m a i n U s e r                               */
-/******************************************************************************/
-  
-void *mainUser(void *parg)
-{
-   XrdLink *newlink;
-   static XrdProtocol_Select ProtSelect;
-
-// At this point we should be able to accept new connections
-//
-   while(1) if ((newlink = XrdNetTCP->Accept()))
-               {newlink->setProtocol((XrdProtocol *)&ProtSelect);
                 XrdSched.Schedule((XrdJob *)newlink);
                }
    return (void *)0;
@@ -127,6 +109,8 @@ void *mainUser(void *parg)
 int main(int argc, char *argv[])
 {
    sigset_t myset;
+   XrdLink *newlink;
+   static XrdProtocol_Select ProtSelect;
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
@@ -155,22 +139,14 @@ int main(int argc, char *argv[])
           {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
       }
 
-// Start the user thread (a foible w.r.t. Solaris unbound threads)
+// At this point we should be able to accept new connections
 //
-      {pthread_t tid;
-       int retc;
-       if ((retc = XrdOucThread::Run(&tid, mainUser,(void *)0,
-                                     XRDOUCTHREAD_BIND, "User handler")))
-          {XrdLog.Emsg("main", retc, "create user thread"); _exit(3);}
-      }
+   while(1) if ((newlink = XrdNetTCP->Accept()))
+               {newlink->setProtocol((XrdProtocol *)&ProtSelect);
+                XrdSched.Schedule((XrdJob *)newlink);
+               }
 
-// All done with the initial thread. However, in some versions of Linux, we
-// will be put into "stealth" mode if the main thread exits. In some versions
-// of Solaris, we will get signal handling anomolies unless the main thread
-// exits. So, we do the platform dependent thing here.
+// We should never get here
 //
-#ifdef __linux__
-   while(1) {sleep(1440*999);}
-#endif
    pthread_exit(0);
 }

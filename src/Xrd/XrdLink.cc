@@ -345,7 +345,7 @@ XrdLink *XrdLink::nextLink(int &nextFD)
 /*                                  P e e k                                   */
 /******************************************************************************/
   
-int XrdLink::Peek(char *Buff, long Blen, int timeout)
+int XrdLink::Peek(char *Buff, int Blen, int timeout)
 {
    XrdOucMutexHelper theMutex;
    struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
@@ -380,7 +380,7 @@ int XrdLink::Peek(char *Buff, long Blen, int timeout)
 
 // Return the result
 //
-   if (mlen >= 0) return (int)mlen;
+   if (mlen >= 0) return int(mlen);
    XrdLog.Emsg("Link", errno, "peek on", ID);
    return -1;
 }
@@ -393,7 +393,7 @@ int XrdLink::Peek(char *Buff, long Blen, int timeout)
 /*                                  R e c v                                   */
 /******************************************************************************/
   
-int XrdLink::Recv(char *Buff, long Blen)
+int XrdLink::Recv(char *Buff, int Blen)
 {
    ssize_t rlen;
 
@@ -405,14 +405,14 @@ int XrdLink::Recv(char *Buff, long Blen)
    do {rlen = read(FD, Buff, Blen);} while(rlen < 0 && errno == EINTR);
    if (LockReads) rdMutex.UnLock();
 
-   if (rlen >= 0) return (int)rlen;
+   if (rlen >= 0) return int(rlen);
    XrdLog.Emsg("Link", errno, "receive from", ID);
    return -1;
 }
 
 /******************************************************************************/
 
-int XrdLink::Recv(char *Buff, long Blen, int timeout)
+int XrdLink::Recv(char *Buff, int Blen, int timeout)
 {
    XrdOucMutexHelper theMutex;
    struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
@@ -433,7 +433,7 @@ int XrdLink::Recv(char *Buff, long Blen, int timeout)
                 {tardyCnt++;
                  if (totlen  && (++stallCnt & 0xff) == 1)
                     XrdLog.Emsg("Link", ID, (char *)"read timed out");
-                 return totlen;
+                 return int(totlen);
                 }
              return XrdLog.Emsg("Link", -errno, "poll", ID);
             }
@@ -457,16 +457,16 @@ int XrdLink::Recv(char *Buff, long Blen, int timeout)
          BytesIn += rlen; totlen += rlen; Blen -= rlen; Buff += rlen;
         }
 
-   return totlen;
+   return int(totlen);
 }
 
 /******************************************************************************/
 /*                                  S e n d                                   */
 /******************************************************************************/
   
-int XrdLink::Send(char *Buff, long Blen)
+int XrdLink::Send(char *Buff, int Blen)
 {
-   long retc = 0, bytesleft = Blen;
+   ssize_t retc = 0, bytesleft = Blen;
 
 // Get a lock
 //
@@ -492,7 +492,7 @@ int XrdLink::Send(char *Buff, long Blen)
 
 /******************************************************************************/
   
-int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
+int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 {
    int i, bytesleft, retc = 0;
 
