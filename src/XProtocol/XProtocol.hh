@@ -245,16 +245,15 @@ struct ClientLoginRequest {
    kXR_int16 requestid;
    kXR_int32 pid;
    kXR_char username[8];
-   kXR_char capver;
-   kXR_char reserved[1];
-   kXR_char version[1];
+   kXR_char reserved[2];
+   kXR_char capver[1];
    kXR_char role[1];
    kXR_int32  dlen;
 };
 struct ClientMkdirRequest {
    kXR_char  streamid[2];
    kXR_int16 requestid;
-   kXR_char options;
+   kXR_char options[1];
    kXR_char reserved[13];
    kXR_int16 mode;
    kXR_int32  dlen;
