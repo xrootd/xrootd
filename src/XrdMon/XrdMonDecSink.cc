@@ -114,9 +114,9 @@ XrdMonDecSink::addDictId(dictid_t xrdId,
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
     if ( itr != _dCache.end() ) {
-        char buf[256];
-        sprintf(buf, "DictID already in cache %i", xrdId);
-        throw XrdMonException(ERR_DICTIDINCACHE, buf);
+        cerr << "Error: dictID " << xrdId << " already in cache." << endl;
+        return;
+        //throw XrdMonException(ERR_DICTIDINCACHE, buf);
     }
     
     XrdMonDecDictInfo* di;
@@ -138,9 +138,9 @@ XrdMonDecSink::addUserId(dictid_t usrId,
     XrdOucMutexHelper mh; mh.Lock(&_uMutex);
     std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(usrId);
     if ( itr != _uCache.end() ) {
-        char buf[256];
-        sprintf(buf, "UserID already in cache %i", usrId);
-        throw XrdMonException(ERR_USERIDINCACHE, buf);
+        cerr << "Error: userID " << usrId << " already in cache." << endl;
+        return;
+        //throw XrdMonException(ERR_USERIDINCACHE, buf);
     }
     
     XrdMonDecUserInfo* ui;
