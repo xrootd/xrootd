@@ -79,7 +79,33 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
 
 XrdMonDecSink::~XrdMonDecSink()
 {
-    resetAll();
+    flushClosedDicts();
+
+    reportLostPackets();
+    _lost.clear();
+    
+    if ( 0 == _rtLogger ) {
+        flushTCache();
+        checkpoint();
+    }    
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        int i, dcacheSize = _dCache.size();
+        for ( i=0; i<dcacheSize ; ++i ) {
+            resetDMap(i);
+            delete _dCache[i];
+            _dCache[i] = 0;
+        }
+    }
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+        int i, ucacheSize = _uCache.size();
+        for ( i=0; i<ucacheSize ; ++i ) {
+            resetUMap(i);
+            delete _uCache[i];
+            _uCache[i] = 0;
+        }
+    }
     delete _rtLogger;
 }
 
@@ -100,9 +126,10 @@ XrdMonDecSink::init(dictid_t min, dictid_t max, const string& senderHP)
     vector<XrdMonDecDictInfo*> diVector = loadActiveDictInfo();
 
     // connect active XrdMonDecDictInfo objects to the cache
-    std::for_each(diVector.begin(),
-                  diVector.end(),
-                  connectDictIdsWithCache(_dCache));
+    //std::for_each(diVector.begin(),
+    //              diVector.end(),
+    //              connectDictIdsWithCache(_dCache));
+    ::abort();
 }
 
 void
@@ -112,15 +139,23 @@ XrdMonDecSink::addDictId(dictid_t xrdId,
                          senderid_t senderId)
 {
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-    std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
-    if ( itr != _dCache.end() ) {
+    dmap_t* dMap = 0;
+    if ( _dCache.size() <= senderId ) {
+        dMap = new dmap_t;
+        _dCache.push_back(dMap);
+    } else {
+        dMap = _dCache[senderId];
+    }
+
+    dmapitr_t itr = dMap->find(xrdId);
+    if ( itr != dMap->end() ) {
         cerr << "Error: dictID " << xrdId << " already in cache." << endl;
         return;
         //throw XrdMonException(ERR_DICTIDINCACHE, buf);
     }
     
     XrdMonDecDictInfo* di;
-    _dCache[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueDictId++, 
+    (*dMap)[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueDictId++, 
                                                 theString, len, senderId);
     
     cout << "Added dictInfo to sink: " << *di << endl;
@@ -136,15 +171,23 @@ XrdMonDecSink::addUserId(dictid_t usrId,
                          senderid_t senderId)
 {
     XrdOucMutexHelper mh; mh.Lock(&_uMutex);
-    std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(usrId);
-    if ( itr != _uCache.end() ) {
+    umap_t* uMap = 0;
+    if ( _uCache.size() <= senderId ) {
+        uMap = new umap_t;
+        _uCache.push_back(uMap);
+    } else {
+        uMap = _uCache[senderId];
+    }
+
+    umapitr_t itr = uMap->find(usrId);
+    if ( itr != uMap->end() ) {
         cerr << "Error: userID " << usrId << " already in cache." << endl;
         return;
         //throw XrdMonException(ERR_USERIDINCACHE, buf);
     }
     
     XrdMonDecUserInfo* ui;
-    _uCache[usrId] = ui 
+    (*uMap)[usrId] = ui 
         = new XrdMonDecUserInfo(usrId, _uniqueUserId++, 
                                 theString, len, senderId);
     cout << "Added userInfo to sink: " << *ui << endl;
@@ -155,7 +198,9 @@ XrdMonDecSink::addUserId(dictid_t usrId,
 }
 
 void
-XrdMonDecSink::add(dictid_t xrdId, XrdMonDecTraceInfo& trace)
+XrdMonDecSink::add(dictid_t xrdId,
+                   XrdMonDecTraceInfo& trace,
+                   senderid_t senderId)
 {
     static long totalNoTraces = 0;
     static long noLostTraces  = 0;
@@ -165,8 +210,16 @@ XrdMonDecSink::add(dictid_t xrdId, XrdMonDecTraceInfo& trace)
     }
 
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-    std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
-    if ( itr == _dCache.end() ) {
+    dmap_t* dMap = 0;
+    if ( _dCache.size() <= senderId ) {
+        dMap = new dmap_t;
+        _dCache.push_back(dMap);
+    } else {
+        dMap = _dCache[senderId];
+    }
+    
+    dmapitr_t itr = dMap->find(xrdId);
+    if ( itr == dMap->end() ) {
         registerLostPacket(xrdId, "Add trace");
         return;
     }
@@ -184,17 +237,29 @@ XrdMonDecSink::add(dictid_t xrdId, XrdMonDecTraceInfo& trace)
         if ( _tCache.size() >= _tCacheSize ) {
             flushTCache();
         }
+        cout << "FIXME: tcache one for all servers now, good enough?" << endl;
+        :: abort();
     }
 }
 
 void
 XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
                                  kXR_int32 sec,
-                                 kXR_int32 timestamp)
+                                 kXR_int32 timestamp,
+                                 senderid_t senderId)
 {
     XrdOucMutexHelper mh; mh.Lock(&_uMutex);
-    std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(xrdId);
-    if ( itr == _uCache.end() ) {
+
+    umap_t* uMap = 0;
+    if ( _uCache.size() <= senderId ) {
+        uMap = new umap_t;
+        _uCache.push_back(uMap);
+    } else {
+        uMap = _uCache[senderId];
+    }
+
+    umapitr_t itr = uMap->find(xrdId);
+    if ( itr == uMap->end() ) {
         registerLostPacket(xrdId, "User disconnect");
         return;
     }
@@ -206,11 +271,21 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
 }
 
 void
-XrdMonDecSink::openFile(dictid_t xrdId, kXR_int32 timestamp)
+XrdMonDecSink::openFile(dictid_t xrdId,
+                        kXR_int32 timestamp,
+                        senderid_t senderId)
 {
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-    std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
-    if ( itr == _dCache.end() ) {
+    dmap_t* dMap = 0;
+    if ( _dCache.size() <= senderId ) {
+        dMap = new dmap_t;
+        _dCache.push_back(dMap);
+    } else {
+        dMap = _dCache[senderId];
+    }
+    
+    dmapitr_t itr = dMap->find(xrdId);
+    if ( itr == dMap->end() ) {
         registerLostPacket(xrdId, "Open file");
         cout << "requested open file " << xrdId << ", xrdId not found" << endl;
         return;
@@ -228,11 +303,20 @@ void
 XrdMonDecSink::closeFile(dictid_t xrdId, 
                          kXR_int64 bytesR, 
                          kXR_int64 bytesW, 
-                         kXR_int32 timestamp)
+                         kXR_int32 timestamp,
+                         senderid_t senderId)
 {
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-    std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
-    if ( itr == _dCache.end() ) {
+    dmap_t* dMap = 0;
+    if ( _dCache.size() <= senderId ) {
+        dMap = new dmap_t;
+        _dCache.push_back(dMap);
+    } else {
+        dMap = _dCache[senderId];
+    }
+    
+    dmapitr_t itr = dMap->find(xrdId);
+    if ( itr == dMap->end() ) {
         registerLostPacket(xrdId, "Close file");
         return;
     }
@@ -280,45 +364,16 @@ XrdMonDecSink::flushClosedDicts()
     string buf;
     buf.reserve(BUFSIZE);
 
-    map<dictid_t, XrdMonDecDictInfo*>::iterator itr;
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
-    int totalSizeBefore = 0, sizeDeleted = 0;
     {
         XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-        sizeBefore = _dCache.size();
-
-        vector<dictid_t> forDeletion;
-        
-        for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
-            XrdMonDecDictInfo* di = itr->second;
-            totalSizeBefore += di->mySize();
-            if ( di != 0 && di->isClosed() ) {
-                const char* dString = di->convert2string();
-                int strLen = strlen(dString);
-                if ( curLen == 0 ) {
-                    buf = dString;
-                } else {
-                    if ( curLen + strLen >= BUFSIZE ) {
-                        fD.write(buf.c_str(), curLen);
-                        curLen = 0;
-                        //cout << "flushed to disk: \n" << buf << endl;
-                        buf = dString;
-                    } else {
-                        buf += dString;
-                    }
-                }
-                sizeDeleted += di->mySize();
-                curLen += strLen;
-                delete itr->second;
-                forDeletion.push_back(itr->first);
-            }
+        int i, dcacheSize = _dCache.size();
+        for ( i=0; i<dcacheSize ; ++i ) {
+            dmap_t* m = _dCache[i];
+            sizeBefore += m->size();
+            flushOneDMap(_dCache[i], curLen, BUFSIZE, buf, fD);
+            sizeAfter += m->size();
         }
-        int s = forDeletion.size();
-        for (int i=0 ; i<s ; ++i) {
-            _dCache.erase(forDeletion[i]);
-        }
-        
-        sizeAfter = _dCache.size();
     }
     
     if ( curLen > 0 ) {
@@ -326,8 +381,45 @@ XrdMonDecSink::flushClosedDicts()
         //cout << "flushed to disk: \n" << buf << endl;
     }
     fD.close();
-    cout << "flushed (d) " << sizeBefore-sizeAfter << ", left " << sizeAfter 
-         << ", size before " << totalSizeBefore << ", deleted " << sizeDeleted << endl;
+    cout << "flushed (d) " << sizeBefore-sizeAfter 
+         << ", left " << sizeAfter << endl;
+}
+
+void
+XrdMonDecSink::flushOneDMap(dmap_t* m,
+                            int& curLen,
+                            const int BUFSIZE, 
+                            string& buf, 
+                            fstream& fD)
+{
+    vector<dictid_t> forDeletion;
+    dmapitr_t itr;
+    for ( itr=m->begin() ; itr != m->end() ; ++itr ) {
+        XrdMonDecDictInfo* di = itr->second;
+        if ( di != 0 && di->isClosed() ) {
+            const char* dString = di->convert2string();
+            int strLen = strlen(dString);
+            if ( curLen == 0 ) {
+                buf = dString;
+            } else {
+                if ( curLen + strLen >= BUFSIZE ) {
+                    fD.write(buf.c_str(), curLen);
+                    curLen = 0;
+                    //cout << "flushed to disk: \n" << buf << endl;
+                    buf = dString;
+                } else {
+                    buf += dString;
+                }
+            }
+            curLen += strLen;
+            delete itr->second;
+            forDeletion.push_back(itr->first);
+        }
+    }
+    int s = forDeletion.size();
+    for (int i=0 ; i<s ; ++i) {
+        m->erase(forDeletion[i]);
+    }
 }
 
 void
@@ -338,45 +430,18 @@ XrdMonDecSink::flushUserCache()
     
     string buf;
     buf.reserve(BUFSIZE);
-    map<dictid_t, XrdMonDecUserInfo*>::iterator itr;
+
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
     int totalSizeBefore = 0, sizeDeleted = 0;
     {
         XrdOucMutexHelper mh; mh.Lock(&_uMutex);
-        sizeBefore = _uCache.size();
-
-        vector <dictid_t> forDeletion;
-        
-        for ( itr=_uCache.begin() ; itr != _uCache.end() ; ++itr ) {
-            XrdMonDecUserInfo* di = itr->second;
-            totalSizeBefore += di->mySize();
-            if ( di != 0 && di->readyToBeStored() ) {
-                const char* dString = di->convert2string();
-                int strLen = strlen(dString);
-                if ( curLen == 0 ) {
-                    buf = dString;
-                } else {
-                    if ( curLen + strLen >= BUFSIZE ) {
-                        fD.write(buf.c_str(), curLen);
-                        curLen = 0;
-                        cout << "flushed to disk: \n" << buf << endl;
-                        buf = dString;
-                    } else {
-                        buf + dString;
-                    }
-                }
-                sizeDeleted += di->mySize();
-                curLen += strLen;
-                delete itr->second;
-                forDeletion.push_back(itr->first);
-            }
-        }
-        int s = forDeletion.size();
-        for (int i=0 ; i<s ; ++i) {
-            _uCache.erase(forDeletion[i]);
-        }
-
-        sizeAfter = _uCache.size();
+        int i, ucacheSize = _uCache.size();
+        for ( i=0 ; i<ucacheSize ; ++i ) {
+            umap_t* m = _uCache[i];
+            sizeBefore += m->size();
+            flushOneUMap(m, curLen, BUFSIZE, buf, fD);
+            sizeAfter += m->size();
+        }        
     }
     
     if ( curLen > 0 ) {
@@ -387,6 +452,44 @@ XrdMonDecSink::flushUserCache()
     cout << "flushed (u) " << sizeBefore-sizeAfter << ", left " << sizeAfter
          << ", size before " << totalSizeBefore << ", deleted " << sizeDeleted << endl;
 }
+
+void
+XrdMonDecSink::flushOneUMap(umap_t* m,
+                            int& curLen,
+                            const int BUFSIZE,
+                            string& buf, 
+                            fstream& fD)
+{
+    vector <dictid_t> forDeletion;
+    umapitr_t itr;
+    for ( itr=m->begin() ; itr != m->end() ; ++itr ) {
+        XrdMonDecUserInfo* di = itr->second;
+        if ( di != 0 && di->readyToBeStored() ) {
+            const char* dString = di->convert2string();
+            int strLen = strlen(dString);
+            if ( curLen == 0 ) {
+                buf = dString;
+            } else {
+                if ( curLen + strLen >= BUFSIZE ) {
+                    fD.write(buf.c_str(), curLen);
+                    curLen = 0;
+                    //cout << "flushed to disk: \n" << buf << endl;
+                    buf = dString;
+                } else {
+                    buf + dString;
+                }
+            }
+            curLen += strLen;
+            delete itr->second;
+            forDeletion.push_back(itr->first);
+        }
+    }
+    int s = forDeletion.size();
+    for (int i=0 ; i<s ; ++i) {
+        m->erase(forDeletion[i]);
+    }
+}
+
 
 // used for offline processing of (full monitoring with traces) only
 void
@@ -431,6 +534,8 @@ XrdMonDecSink::flushTCache()
 void
 XrdMonDecSink::checkpoint()
 {
+    ::abort();
+    /*
     enum { BUFSIZE = 1024*1024 };    
     char buf[BUFSIZE];
     int bufPos = 0;
@@ -481,6 +586,7 @@ XrdMonDecSink::checkpoint()
          << ", uniqueUserId " << _uniqueUserId
          << " and " << nr << " XrdMonDecDictInfo objects." 
          << endl;
+    */
 }
 
 // used for offline processing of (full monitoring with traces) only
@@ -566,73 +672,47 @@ XrdMonDecSink::flushHistoryData()
 }
 
 void
-XrdMonDecSink::resetAll()
-{
-    flushClosedDicts();
-
-    reportLostPackets();
-    _lost.clear();
-    
-    if ( 0 == _rtLogger ) {
-        flushTCache();
-        checkpoint();
-    }
-    
-    {
-        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-        std::map<dictid_t, XrdMonDecDictInfo*>::iterator dItr;
-        for ( dItr=_dCache.begin() ; dItr != _dCache.end() ; ++ dItr ) {
-            delete dItr->second;
-        }
-        _dCache.clear();
-    }
-    {
-        XrdOucMutexHelper mh; mh.Lock(&_uMutex);
-        std::map<dictid_t, XrdMonDecUserInfo*>::iterator uItr;
-        for ( uItr=_uCache.begin() ; uItr != _uCache.end() ; ++ uItr ) {
-            delete uItr->second;
-        }
-        _uCache.clear();
-    }
-}
-
-void
 XrdMonDecSink::reset(senderid_t senderId)
 {
     flushClosedDicts();
-    
+
     {
         XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-        std::map<dictid_t, XrdMonDecDictInfo*>::iterator dItr;
-
-        vector<dictid_t> forDeletion;
-        for ( dItr=_dCache.begin() ; dItr != _dCache.end() ; ++ dItr ) {
-            if ( dItr->second->senderId() == senderId ) {
-                delete dItr->second;
-                forDeletion.push_back(dItr->first);
-            }
-        }
-        int i, s = forDeletion.size();
-        for (i=0 ; i<s ; ++i) {
-            _dCache.erase(forDeletion[i]);
-        }
+        resetDMap(senderId);
     }
+    
     {
         XrdOucMutexHelper mh; mh.Lock(&_uMutex);
-        std::map<dictid_t, XrdMonDecUserInfo*>::iterator uItr;
+        resetUMap(senderId);
+    }    
+}
 
-        vector<dictid_t> forDeletion;
-        for ( uItr=_uCache.begin() ; uItr != _uCache.end() ; ++ uItr ) {
-            if ( uItr->second->senderId() == senderId ) {
-                delete uItr->second;
-                forDeletion.push_back(uItr->first);
-            }
-        }
-        int i, s = forDeletion.size();
-        for (i=0 ; i<s ; ++i) {
-            _uCache.erase(forDeletion[i]);
-        }
+void
+XrdMonDecSink::resetDMap(senderid_t senderId)
+{
+    if ( senderId >= _dCache.size() ) {
+        return;
     }
+    dmap_t* m = _dCache[senderId];
+    dmapitr_t itr;
+    for ( itr=m->begin() ; itr != m->end() ; ++itr ) {
+        delete itr->second;
+    }
+    m->clear();
+}
+
+void
+XrdMonDecSink::resetUMap(senderid_t senderId)
+{
+    if ( senderId >= _uCache.size() ) {
+        return;
+    }    
+    umap_t* m = _uCache[senderId];
+    umapitr_t itr;
+    for ( itr=m->begin() ; itr != m->end() ; ++itr ) {
+        delete itr->second;
+    }
+    m->clear();
 }
 
 void

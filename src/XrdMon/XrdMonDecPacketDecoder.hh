@@ -60,7 +60,9 @@ private:
 
     void checkLostPackets(const XrdMonHeader& header);
     
-    void decodeTracePacket(const char* packet, int packetLen);
+    void decodeTracePacket(const char* packet,
+                           int packetLen,
+                           senderid_t senderId);
     void decodeDictPacket(const char* packet,
                           int packetLen,
                           senderid_t senderId);
@@ -68,10 +70,18 @@ private:
                           int packetLen,
                           senderid_t senderId);
     TimePair decodeTime(const char* packet);
-    void decodeRWRequest(const char* packet, kXR_int32 timestamp);
-    void decodeOpen(const char* packet, kXR_int32 timestamp);
-    void decodeClose(const char* packet, kXR_int32 timestamp);
-    void decodeDisconnect(const char* packet, kXR_int32 timestamp);
+    void decodeRWRequest(const char* packet,
+                         kXR_int32 timestamp,
+                         senderid_t senderId);
+    void decodeOpen(const char* packet,
+                    kXR_int32 timestamp,
+                    senderid_t senderId);
+    void decodeClose(const char* packet,
+                     kXR_int32 timestamp,
+                     senderid_t senderId);
+    void decodeDisconnect(const char* packet,
+                          kXR_int32 timestamp,
+                          senderid_t senderId);
 
     CalcTime prepareTimestamp(const char* packet, 
                               int& offset, 
@@ -81,7 +91,7 @@ private:
     XrdMonDecSink _sink;
     bool          _stopNow;
 
-    kXR_int32        _upToTime; // for decoding parts of log file
+    kXR_int32     _upToTime; // for decoding parts of log file
 };
 
 #endif /* XRDMONDECPACKETDECODER_HH */

@@ -48,20 +48,32 @@ public:
                    const char* theString,
                    int len,
                    senderid_t senderId);
-    void add(dictid_t xrdId, XrdMonDecTraceInfo& trace);
-    void addUserDisconnect(dictid_t xrdId, kXR_int32 sec, kXR_int32 timestamp);
-    void openFile(dictid_t dictId, kXR_int32 timestamp);
+    void add(dictid_t xrdId,
+             XrdMonDecTraceInfo& trace,
+             senderid_t senderId);
+    void addUserDisconnect(dictid_t xrdId,
+                           kXR_int32 sec,
+                           kXR_int32 timestamp,
+                           senderid_t senderId);
+    void openFile(dictid_t dictId,
+                  kXR_int32 timestamp,
+                  senderid_t senderId);
     void closeFile(dictid_t dictId, 
                    kXR_int64 bytesR, 
                    kXR_int64 bytesW, 
-                   kXR_int32 timestamp);
+                   kXR_int32 timestamp,
+                   senderid_t senderId);
     void flushHistoryData();
     void flushRealTimeData() { if ( 0 != _rtLogger ) _rtLogger->flush(); }
     
-    void resetAll();
     void reset(senderid_t senderId);
     
 private:
+    typedef map<dictid_t, XrdMonDecDictInfo*> dmap_t;
+    typedef map<dictid_t, XrdMonDecUserInfo*> umap_t;
+    typedef map<dictid_t, XrdMonDecDictInfo*>::iterator dmapitr_t;
+    typedef map<dictid_t, XrdMonDecUserInfo*>::iterator umapitr_t;
+
     void loadUniqueIdsAndSeq();
     vector<XrdMonDecDictInfo*> loadActiveDictInfo();
     void flushClosedDicts();
@@ -73,9 +85,18 @@ private:
     void registerLostPacket(dictid_t id, const char* descr);
     void reportLostPackets();
     
+    void flushOneDMap(dmap_t* m, int& curLen, const int BUFSIZE, 
+                      string& buf, fstream& fD);
+    void flushOneUMap(umap_t* m, int& curLen, const int BUFSIZE, 
+                      string& buf, fstream& fD);
+
+    void resetDMap(senderid_t senderId);
+    void resetUMap(senderid_t senderId);
+    
 private:
-    map<dictid_t, XrdMonDecDictInfo*> _dCache;
-    map<dictid_t, XrdMonDecUserInfo*> _uCache;
+    // one map for one senderId (one xrootd host)
+    vector< dmap_t* > _dCache;
+    vector< umap_t* > _uCache;
     // The mutexes guard access to dCache and uCache respectively.
     // _dCache and _uCache can be accessed from different threads
     // (periodic data flushing inside dedicated thread)
