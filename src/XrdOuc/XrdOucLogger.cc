@@ -36,7 +36,7 @@ const char *XrdOucLoggerCVSID = "$Id$";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdOucLogger::XrdOucLogger(int ErrFD, int dorotate, int mask)
+XrdOucLogger::XrdOucLogger(int ErrFD, int dorotate)
 {
    ePath = 0;
    eNTC  = 0;
@@ -44,7 +44,6 @@ XrdOucLogger::XrdOucLogger(int ErrFD, int dorotate, int mask)
    eNow  = 0;
    eFD   = ErrFD;
    doLFR = dorotate;
-   logMask = mask;
 
 // Establish message routing
 //

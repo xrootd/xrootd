@@ -121,16 +121,6 @@ void XrdOucError::Emsg(const char *esfx, const char *txt1, char *txt2, char *txt
 }
 
 /******************************************************************************/
-/*                                   L o g                                    */
-/******************************************************************************/
-  
-void XrdOucError::Log(const int mask, const char *esfx, const char *text1,
-                                                 char *text2, char *text3)
-{
-   if (mask & Logger->logMask) Emsg(esfx, text1, text2, text3);
-}
-
-/******************************************************************************/
 /*                                   S a y                                    */
 /******************************************************************************/
   
