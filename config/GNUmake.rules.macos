@@ -12,11 +12,11 @@ TYPEMISC   = -D_REENTRANT -D_GNU_SOURCE -Wall \
              -D__macos__ $(CFTRACE) -O3
 TYPECF32   =
 TYPECF64   = -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
-TYPELINK   = -undefined dynamic_lookup -multiply_defined suppress
+TYPELINK   = -undefined dynamic_lookup -multiply_defined suppress 
 TYPEOPT    = $(TYPEMISC) $(TYPELINK)
 TYPEDBG    = $(TYPEMISC) -g
-TYPELDSO   = -dynamiclib $(TYPELINK)
-TYPESHLIB  = dylib
+TYPELDSO   = $(TYPELINK) -bundle
+TYPESHLIB  = so
 
 # In MacOSx the threading functions should come libc.
 #TYPELIBS   =  $(PTHREAD) -ldl -lc
