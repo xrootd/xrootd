@@ -22,6 +22,7 @@
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPList.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 /******************************************************************************/
@@ -68,8 +69,6 @@ size_t  Read(               off_t, size_t);
 size_t  Read(       void *, off_t, size_t);
 size_t  ReadRaw(    void *, off_t, size_t);
 size_t  Write(const void *, off_t, size_t);
-
-XrdOucPListAnchor RPList;   // The remote path list
  
         // Constructor and destructor
         XrdOssFile(const char *tid)
@@ -102,12 +101,13 @@ int       Chmod(const char *, mode_t mode);
 void     *CacheScan(void *carg);
 int       Configure(const char *, XrdOucError &);
 void      Config_Display(XrdOucError &);
-int       Create(const char *, mode_t, XrdOucEnv &);
+int       Create(const char *, mode_t, XrdOucEnv &, int mkpath=0);
 int       GenLocalPath(const char *, char *);
 int       GenRemotePath(const char *, char *);
 int       Init(XrdOucLogger *, const char *);
 int       IsRemote(const char *path) {return RPList.Find(path) & XrdOssREMOTE;}
-int       Mkdir(const char *, mode_t mode);
+int       Mkdir(const char *, mode_t mode, int mkpath=0);
+int       Mkpath(const char *, mode_t mode);
 int       PathOpts(const char *path) {return (RPList.Find(path) | XeqFlags);}
 int       Remdir(const char *) {return -ENOTSUP;}
 int       Rename(const char *, const char *);
@@ -227,7 +227,7 @@ void   ConfigDefaults(void);
 int    ConfigProc(XrdOucError &Eroute);
 int    ConfigStage(XrdOucError &Eroute);
 int    ConfigXeq(char *, XrdOucStream &, XrdOucError &);
-void   List_Flist(char *, XrdOucPListAnchor &, XrdOucError &);
+void   List_Path(char *, int , XrdOucError &);
 int    xalloc(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcache(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcacheBuild(char *grp, char *fn, XrdOucError &Eroute);
@@ -235,13 +235,12 @@ int    xcompdct(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcachescan(XrdOucStream &Config, XrdOucError &Eroute);
 int    xfdlimit(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute);
-int    xpath(XrdOucStream &Config, XrdOucError &Eroute, int rpval=0);
+int    xpath(XrdOucStream &Config, XrdOucError &Eroute);
 int    xtrace(XrdOucStream &Config, XrdOucError &Eroute);
 int    xxfr(XrdOucStream &Config, XrdOucError &Eroute);
 
 // Mass storage related methods
 //
-int    MSS_Init(int);
 int    tranmode(char *);
 int    MSS_Xeq(XrdOucStream **xfd, int okerr,
                char *cmd, char *arg1=0, char *arg2=0);
@@ -249,8 +248,6 @@ int    MSS_Xeq(XrdOucStream **xfd, int okerr,
 // Other methods
 //
 int    RenameLink(char *old_path, char *new_path);
-
-XrdOucPListAnchor Config_RPList; // Temp area for actual RPList setup
 };
 
 /******************************************************************************/

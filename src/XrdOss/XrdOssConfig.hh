@@ -79,24 +79,35 @@
    XrdOssNOSSDEC    - Do not decompress files on the server.
    XrdOssNOSTAGE    - Do not stage files back in (implies MIG).
    XrdOssRCREATE    - Perform a create function on a remote filesystem.
-                     O/W only an existence check is performed (implies MIG).
+                      O/W only an existence check is performed (implies MIG).
    XrdOssCOMPCHK    - Databases may be compressed, check for it.
+   XrdOssMIG        - File migration enabled, create lock files.
 */
 #define XrdOssXEQFLAGS   0
 #define XrdOssREADONLY   0x00000001
 #define XrdOssFORCERO    0x00000002
+#define XrdOssROW_X      0x00030000
 #define XrdOssNOTRW      0x00000003
 #define XrdOssNODREAD    0x00000004
+#define XrdOssDREAD_X    0x00040000
 #define XrdOssRCREATE    0x00000008
+#define XrdOssRCREATE_X  0x00080000
 #define XrdOssNOCHECK    0x00000010
+#define XrdOssCHECK_X    0x00100000
 #define XrdOssNOSTAGE    0x00000020
-#define XrdOssPRUNED     0x00000040
-#define XrdOssINPLACE    0x00000080
-#define XrdOssCOMPCHK    0x00000100
-#define XrdOssNOSSDEC    0x00000200
-#define XrdOssUSRPRTY    0x00004000
-#define XrdOssREMOTE     0x00008000
-#define XrdOssNEEDMSS    0x10000000
+#define XrdOssSTAGE_X    0x00200000
+#define XrdOssMIG        0x00000400
+#define XrdOssMIG_X      0x00400000
+#define XrdOssMASK_X     0x7fff
+#define XrdOssMASKSHIFT  16
+
+#define XrdOssINPLACE    0x00008000
+#define XrdOssCOMPCHK    0x00004000
+#define XrdOssNOSSDEC    0x00002000
+#define XrdOssUSRPRTY    0x00001000
+
+#define XrdOssROOTDIR    0x10000000
+#define XrdOssREMOTE     0x20000000
 
 /* Set the following:
    XrdOssSCANINT    - Number of seconds between cache scans

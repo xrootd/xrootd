@@ -72,8 +72,9 @@ $(TARGETS): $(OBJECTS)
 
 $(OBJDIR)/XrdOssApi.o: XrdOss.hh XrdOssApi.hh XrdOssCache.hh XrdOssConfig.hh \
                        XrdOssError.hh  XrdOssLock.hh     XrdOssTrace.hh \
-                       XrdOucError.hh  XrdOucPList.hh    \
-                       XrdOucStream.hh XrdOucPlatform.hh XrdOssApi.cc
+                       XrdOucError.hh  XrdOucPList.hh    XrdOucPthread.hh \
+                       XrdOucStream.hh XrdOucPlatform.hh XrdOssApi.cc \
+                       ../XrdVersion.hh
 	@echo Compiling XrdOssApi.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssApi.o XrdOssApi.cc
 

@@ -66,14 +66,17 @@ extern XrdOssSys XrdOssSS;
                           These bits correspond to the standard Unix permission
                           bits (e.g., 744 == "rwxr--r--").
             env         - Environmental information.
+            mkpath      - If true, create directory path if it does not exist.
 
   Output:   Returns XRDOSS_OK upon success; (-errno) otherwise.
 */
-int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
+int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
+                                        int mkpath)
 {
     EPNAME("Create")
     const int LKFlags = XrdOssFILE|XrdOssSHR|XrdOssNOWAIT|XrdOssRETIME;
-    char  local_path[XrdOssMAX_PATH_LEN+1];
+    const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
+    char  local_path[XrdOssMAX_PATH_LEN+1], *p;
     char remote_path[XrdOssMAX_PATH_LEN+1];
     int popts, retc, remotefs, datfd;
     XrdOssLock path_dir, new_file;
@@ -85,6 +88,19 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
 // Generate the actual local path for this file.
 //
    if ((retc=XrdOssSS.GenLocalPath(path, local_path))) return retc;
+
+// If the path is to be created, make sure the path exists at this point
+//
+   if (mkpath && (retc = strlen(local_path)))
+      {if (local_path[retc-1] == '/') local_path[retc-1] = '\0';
+       if ((p = rindex((const char *)local_path, (int)'/')))
+          {struct stat buf;
+           *p = '\0';
+           if (stat((const char *)local_path, &buf) && errno == ENOENT)
+              {*p = '/'; Mkpath(path, AMode);}
+              else *p = '/';
+          }
+      }
 
 // If this is a staging filesystem then we have lots more work to do.
 //
@@ -117,7 +133,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
                      }
       }
 
-// If extended cache is to be used, call out the cache routine
+// Created file in the extended cache or the local name space
 //
    if (fsfirst && !(popts & XrdOssINPLACE))
            datfd = Alloc_Cache((const char *)local_path, access_mode, env);
@@ -131,12 +147,18 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
 // If successful, appropriately manage the locks.
 //
    if (datfd >= 0)
-      {if (remotefs)
+      {if (remotefs || (popts & XrdOssMIG))
           {if ((new_file.Serialize(local_path,LKFlags))
                 >= 0) new_file.UnSerialize(0);
-           path_dir.UnSerialize(0);
+           if (remotefs) path_dir.UnSerialize(0);
           }
        close(datfd);
+      } else {
+       if (datfd == -EEXIST)
+          {struct stat buf;
+           do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
+           if (!retc && (buf.st_mode & S_IFDIR)) datfd = -EISDIR;
+          }
       }
 
 // All done.

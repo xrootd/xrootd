@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                          X r d O s s a p i . c c                           */
+/*                          X r d O s s A p i . c c                           */
 /*                                                                            */
 /* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
@@ -34,6 +34,8 @@ const char *XrdOssApiCVSID = "$Id$";
 #ifdef SUNCC
 #include <sys/vnode.h>
 #endif
+
+#include "XrdVersion.hh"
 
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssConfig.hh"
@@ -84,26 +86,13 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 // Do the herald thing
 //
    OssEroute.logger(lp);
-   OssEroute.Emsg("Init", "(c) 2003, Stanford University, oss Version"
-                    XRDOSS_VERSION);
+   OssEroute.Emsg("Init", "(c) 2004, Stanford University, oss Version "
+                    XrdVSTRING);
 
 // Initialize the subsystems
 //
      if ( (retc=XrdOssSS.Configure(configfn, OssEroute)) ) return retc;
      XrdOssSS.Config_Display(OssEroute);
-
-// Tell the world if we have no remote paths specified
-//
-     if (!XrdOssSS.RPList.First())
-        {OssEroute.Emsg("Init",
-                          "No remote file paths specified; local mode assumed");
-         return XrdOssOK;
-        }
-
-// Perform remote file initialization.
-//
-     if ((retc = MSS_Init(0)))
-        return OssEroute.Emsg("Init",retc,"initialize Mass Storage interface");
 
 // All done.
 //
@@ -184,13 +173,14 @@ int XrdOssSys::Chmod(const char *path, mode_t mode)
 
   Input:    path        - Is the fully qualified name of the new directory.
             mode        - The new mode that the directory is to have.
+            mkpath      - If true, makes the full path.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 
   Notes:    Directories are only created in the local disk cache.
 */
 
-int XrdOssSys::Mkdir(const char *path, mode_t mode)
+int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 {
     char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
     int retc;
@@ -205,7 +195,69 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode)
 // Create the directory only in the loal file system
 //
    if (!mkdir((const char *)local_path, mode)) return XrdOssOK;
+
+// Check if the full path is to be created
+//
+   if (!mkpath || errno != ENOENT) return -errno;
+   if ((retc = Mkpath((const char *)local_path, mode))) return retc;
+   if (!mkdir((const char *)local_path, mode)) return XrdOssOK;
    return -errno;
+}
+
+/******************************************************************************/
+/*                                M k p a t h                                 */
+/******************************************************************************/
+/*
+  Function: Create a directory path
+
+  Input:    path        - Is the fully qualified name of the new path.
+            mode        - The new mode that each new directory is to have.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+
+  Notes:    Directories are only created in the local disk cache.
+*/
+
+int XrdOssSys::Mkpath(const char *path, mode_t mode)
+{
+    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *next_path;
+    struct stat buf;
+    int retc;
+
+// Generate local path (we need to do this to get a r/w copy of the path)
+//
+   if (LocalRootLen)
+      if ((retc = GenLocalPath(path, actual_path))) return retc;
+         else local_path = actual_path+LocalRootLen+1;
+      else if (strlen(path) >= sizeof(actual_path)) return -ENAMETOOLONG;
+              else {strcpy(actual_path, path); local_path = actual_path+1;}
+
+// Trim off the trailing slash so that we make everything but the last component
+//
+   if (!(retc = strlen(local_path))) return -ENOENT;
+   if (local_path[retc-1] == '/') local_path[retc-1] = '\0';
+
+// Typically, the path exists. So, do a quick check before launching into it
+//
+   if (!(next_path = rindex(actual_path, (int)'/'))
+   ||  next_path == actual_path) return XrdOssOK;
+   *next_path = '\0';
+   if (!stat(actual_path, &buf)) return XrdOssOK;
+   *next_path = '/';
+
+// Start creating directories starting with the root
+//
+   while((next_path = index((const char *)local_path, (int)'/')))
+        {*next_path = '\0';
+         if (mkdir((const char *)actual_path, mode) && errno != EEXIST)
+            return -errno;
+         *next_path = '/';
+         local_path = next_path+1;
+        }
+
+// All done
+//
+   return XrdOssOK;
 }
 
 /******************************************************************************/
@@ -468,6 +520,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 {
    int retc, popts;
    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
+   struct stat buf;
 
 // Return an error if this object is already open
 //
@@ -502,6 +555,17 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
        if ( (retc = XrdOssSS.Stage(path, Env)) ) return retc;
        fd = (int)Open_ufs(local_path, Oflag, Mode, popts & ~XrdOssREMOTE);
       }
+
+// This interface supports only regular files. Complain if this is not one.
+//
+   if (fd >= 0)
+      {do {retc = fstat(fd, &buf);} while(retc && errno == EINTR);
+       if (!retc && !(buf.st_mode & S_IFREG))
+          {close(fd); fd = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
+      } else if (fd == -EEXIST)
+                {do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
+                 if (!retc && (buf.st_mode & S_IFDIR)) fd = -EISDIR;
+                }
 
 // Return the result of this open
 //
@@ -741,7 +805,6 @@ int XrdOssFile::Ftruncate(unsigned long long flen) {
 /******************************************************************************/
 /*                     P R I V A T E    S E C T I O N                         */
 /******************************************************************************/
-
 /******************************************************************************/
 /*                      o o s s _ O p e n _ u f s                             */
 /******************************************************************************/

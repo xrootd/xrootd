@@ -361,26 +361,6 @@ int XrdOssSys::MSS_Rename(char *oldname, char *newname) {
 /******************************************************************************/
 /*                     P R I V A T E    S E C T I O N                         */
 /******************************************************************************/
-
-/******************************************************************************/
-/*                              M S S _ I n i t                               */
-/******************************************************************************/
-  
-int XrdOssSys::MSS_Init(int Warm) {
-/*
-  Function: Perform one-time-only initialization at start-up.
-
-  Input:    None.
-
-  Output:   Zero is returned upon success; otherwise an error code is returned.
-*/
-
-// We really have nothing more to do here but put out a message
-//
-   OssEroute.Emsg("MSS_Init", "Mass storage interface initialized.");
-   return 0;
-}
-
 /******************************************************************************/
 /*                               M S S _ X e q                                */
 /******************************************************************************/
