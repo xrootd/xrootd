@@ -128,7 +128,6 @@ int XrdAccAuthFile::Close()
   
 int XrdAccAuthFile::getPP(char **path, char **priv)
 {
-   int i;
    char *pp, *bp;
 
 // If a record has not been read, return end of record (i.e., 0)
@@ -181,7 +180,7 @@ int XrdAccAuthFile::getPP(char **path, char **priv)
 char XrdAccAuthFile::getRec(char **recname)
 {
    char *pp;
-   int idok, i;
+   int idok;
 
 // Do this until we get a vlaid record
 //

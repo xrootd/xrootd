@@ -84,7 +84,7 @@ int XrdAccCapability::Privs(      XrdAccPrivCaps &pathpriv,
                                                     cp->priv.nprivs);
                     return 1;
                    }
-    } while (cp = cp->next);
+    } while ((cp = cp->next));
  return 0;
 }
 

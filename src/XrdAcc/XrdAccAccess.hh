@@ -68,13 +68,13 @@ public:
 
 friend class XrdAccConfig;
 
-const XrdAccPrivs Access(const char *atype, const char *id, const char *host,
+      XrdAccPrivs Access(const char *atype, const char *id, const char *host,
                          const char *path, const Access_Operation oper);
 
-const XrdAccPrivs Access(const char *id, const Access_ID_Type idtype,
+      XrdAccPrivs Access(const char *id, const Access_ID_Type idtype,
                          const char *path, const Access_Operation oper);
 
-const int         Audit(const int accok,
+      int         Audit(const int accok,
                         const char *atype,
                         const char *id,
                         const char *host,
@@ -89,7 +89,7 @@ const int         Audit(const int accok,
                          const    char *host,
                          unsigned long  oid);
 
-const int      isEnabled(const    char *user,
+      int      isEnabled(const    char *user,
                          const    char *host,
                          unsigned long  oid);
 
@@ -98,7 +98,7 @@ const int      isEnabled(const    char *user,
 //
 void              SwapTabs(struct XrdAccAccess_Tables &newtab);
 
-const int Test(const XrdAccPrivs priv, const Access_Operation oper);
+      int Test(const XrdAccPrivs priv, const Access_Operation oper);
 
       XrdAccAccess(XrdOucError *erp);
 

@@ -67,19 +67,19 @@ XrdOucError  eroute(&myLogger, "acc_");
 /*                       O p e r a t i o n   T a b l e                        */
 /******************************************************************************/
 
-struct {char *opname; Access_Operation oper;} optab[] =
-             {(char *)"?",      AOP_Any,
-              (char *)"cm",     AOP_Chmod,
-              (char *)"co",     AOP_Chown,
-              (char *)"cr",     AOP_Create,
-              (char *)"rm",     AOP_Delete,
-              (char *)"lk",     AOP_Lock,
-              (char *)"mk",     AOP_Mkdir,
-              (char *)"mv",     AOP_Rename,
-              (char *)"rd",     AOP_Read,
-              (char *)"ls",     AOP_Readdir,
-              (char *)"st",     AOP_Stat,
-              (char *)"wr",     AOP_Update
+struct {const char *opname; Access_Operation oper;} optab[] =
+             {{"?",      AOP_Any},
+              {"cm",     AOP_Chmod},
+              {"co",     AOP_Chown},
+              {"cr",     AOP_Create},
+              {"rm",     AOP_Delete},
+              {"lk",     AOP_Lock},
+              {"mk",     AOP_Mkdir},
+              {"mv",     AOP_Rename},
+              {"rd",     AOP_Read},
+              {"ls",     AOP_Readdir},
+              {"st",     AOP_Stat},
+              {"wr",     AOP_Update}
              };
 
 int opcnt = sizeof(optab)/sizeof(optab[0]);
@@ -88,7 +88,7 @@ int opcnt = sizeof(optab)/sizeof(optab[0]);
 /*                                  m a i n                                   */
 /******************************************************************************/
   
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 void Usage(const char *);
 char *p2l(XrdAccPrivs priv, char *buff, int blen);
@@ -128,7 +128,7 @@ if (!(Authorize = XrdAccAuthorizeObject(&myLogger, ConfigFN)))
    Command.Attach(0);
    cout << "Waiting for arguments..." <<endl;
    while(Command.GetLine())
-       while(argval[1] = Command.GetToken())
+       while((argval[1] = Command.GetToken()))
             {for (argnum=2;
                   argnum < maxargs && (argval[argnum]=Command.GetToken());
                   argnum++) {}
@@ -149,7 +149,6 @@ void Usage(const char *);
 Access_Operation optype;
 XrdAccPrivCaps pargs;
 XrdAccPrivs auth;
-static int notinit = 1;
 
 // Make sure user specified
 //
@@ -178,7 +177,7 @@ static int notinit = 1;
                                   (const char *)user,
                                   (const char *)host,
                                   (const char *)path,
-                                  (const Access_Operation)optype);
+                                                optype);
          if (optype != AOP_Any) result=(auth?(char *)"allowed":(char *)"denied");
             else {pargs.pprivs = auth; pargs.nprivs = XrdAccPriv_None;
                   result = PrivsConvert(pargs, buff, sizeof(buff));
@@ -228,13 +227,13 @@ char *PrivsConvert(XrdAccPrivCaps &ctab, char *buff, int blen)
      int i=0, j, k=2, bmax = blen-1;
      XrdAccPrivs privs;
      static struct {XrdAccPrivs pcode; char plet;} p2l[] =
-                   {XrdAccPriv_Delete,  'd',
-                    XrdAccPriv_Insert,  'i',
-                    XrdAccPriv_Lock,    'k',
-                    XrdAccPriv_Lookup,  'l',
-                    XrdAccPriv_Rename,  'n',
-                    XrdAccPriv_Read,    'r',
-                    XrdAccPriv_Write,   'w'
+                   {{XrdAccPriv_Delete,  'd'},
+                    {XrdAccPriv_Insert,  'i'},
+                    {XrdAccPriv_Lock,    'k'},
+                    {XrdAccPriv_Lookup,  'l'},
+                    {XrdAccPriv_Rename,  'n'},
+                    {XrdAccPriv_Read,    'r'},
+                    {XrdAccPriv_Write,   'w'}
                    };
      static int p2lnum = sizeof(p2l)/sizeof(p2l[0]);
 

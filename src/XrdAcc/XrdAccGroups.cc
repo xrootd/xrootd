@@ -153,7 +153,7 @@ char *Gtab[NGROUPS_MAX];
 // copy the group cache because the original may be deleted at any time.
 //
    Group_Cache_Context.Lock();
-   if (glist = Group_Cache.Find(user))
+   if ((glist = Group_Cache.Find(user)))
       {if (glist->First()) glist = new XrdAccGroupList(*glist);
           else glist = 0;
        Group_Cache_Context.UnLock();
@@ -175,7 +175,7 @@ char *Gtab[NGROUPS_MAX];
 // listing later. We do this to ensure that the user has at least one group
 // regardless of what the groups file actually says.
 //
-   gtabi = addGroup(user, (const gid_t)pw->pw_gid, 0, Gtab, 0);
+   gtabi = addGroup(user, pw->pw_gid, 0, Gtab, 0);
 
 // Now run through all of the group entries getting the list of user's groups
 // Do this only when Primary_Only is not turned on (i.e., SVR5 semantics)
@@ -183,13 +183,13 @@ char *Gtab[NGROUPS_MAX];
    if (!(options & Primary_Only))
       {
        setgrent() ;
-       while (gr = getgrent())
+       while ((gr = getgrent()))
             {
              if (pw->pw_gid == gr->gr_gid) continue; /*Already have this one.*/
              for (cp = gr->gr_mem; cp && *cp; cp++)
                  if (strcmp(*cp, user) == 0)
-                    gtabi = addGroup(user, (const gid_t)gr->gr_gid,
-                               Dotran((const gid_t)gr->gr_gid,gr->gr_name),
+                    gtabi = addGroup(user, gr->gr_gid,
+                               Dotran(gr->gr_gid,gr->gr_name),
                                      Gtab, gtabi);
             }
        endgrent();
@@ -201,18 +201,18 @@ char *Gtab[NGROUPS_MAX];
 
 // Allocate a new GroupList object
 //
-   glist = new XrdAccGroupList((const int)gtabi, (const char **)Gtab);
+   glist = new XrdAccGroupList(gtabi, (const char **)Gtab);
 
 // Add this user to the group cache to speed things up the next time
 //
    Group_Cache_Context.Lock();
-   Group_Cache.Add(user, glist, (const int)LifeTime);
+   Group_Cache.Add(user, glist, LifeTime);
    Group_Cache_Context.UnLock();
 
 // Return a copy of the group list since the original may be deleted
 //
    if (!gtabi) return (XrdAccGroupList *)0;
-   return new XrdAccGroupList((const int)gtabi, (const char **)Gtab);
+   return new XrdAccGroupList(gtabi, (const char **)Gtab);
 }
  
 /******************************************************************************/
@@ -223,7 +223,6 @@ XrdAccGroupList *XrdAccGroups::NetGroups(const char *user, const char *host)
 {
 XrdAccGroupList *glist;
 int   i, j;
-char **newGtab;
 char uh_key[MAXHOSTNAMELEN+96];
 struct XrdAccGroupArgs GroupTab;
 int XrdAccCheckNetGroup(const char *netgroup, char *key, void *Arg);
@@ -235,7 +234,7 @@ int XrdAccCheckNetGroup(const char *netgroup, char *key, void *Arg);
 // Construct the key for this user
 //
    i = strlen(user); j = strlen(host);
-   if (i+j+2 > sizeof(uh_key)) return (XrdAccGroupList *)0;
+   if (i+j+2 > (int)sizeof(uh_key)) return (XrdAccGroupList *)0;
    strcpy(uh_key, user);
    uh_key[i] = '@';
    strcpy(&uh_key[i+1], host);
@@ -245,7 +244,7 @@ int XrdAccCheckNetGroup(const char *netgroup, char *key, void *Arg);
 // copy the group cache entry because the original may be deleted at any time.
 //
    NetGroup_Cache_Context.Lock();
-   if (glist = NetGroup_Cache.Find(uh_key))
+   if ((glist = NetGroup_Cache.Find(uh_key)))
       {if (glist->First()) glist = new XrdAccGroupList(*glist);
           else glist = 0;
        NetGroup_Cache_Context.UnLock();
@@ -264,19 +263,19 @@ int XrdAccCheckNetGroup(const char *netgroup, char *key, void *Arg);
 
 // Allocate a new GroupList object
 //
-   glist = new XrdAccGroupList((const int)GroupTab.gtabi,
+   glist = new XrdAccGroupList(GroupTab.gtabi,
                            (const char **)GroupTab.Gtab);
 
 // Add this user to the group cache to speed things up the next time
 //
    NetGroup_Cache_Context.Lock();
-   NetGroup_Cache.Add((const char *)uh_key, glist, (const int)LifeTime);
+   NetGroup_Cache.Add((const char *)uh_key, glist, LifeTime);
    NetGroup_Cache_Context.UnLock();
 
 // Return a copy of the group list
 //
    if (!GroupTab.gtabi) return (XrdAccGroupList *)0;
-   return new XrdAccGroupList((const int)GroupTab.gtabi,
+   return new XrdAccGroupList(GroupTab.gtabi,
                           (const char **)GroupTab.Gtab);
 }
 
@@ -306,8 +305,8 @@ void XrdAccGroups::PurgeCache()
   
 int XrdAccGroups::Retran(const gid_t gid)
 {
-    if (gid < 0) retrancnt = 0;
-       else {if (retrancnt > sizeof(retrangid)/sizeof(gid_t)) return -1;
+    if ((int)gid < 0) retrancnt = 0;
+       else {if (retrancnt > (int)(sizeof(retrangid)/sizeof(gid_t))) return -1;
              retrangid[retrancnt++] = gid;
             }
     return 0;

@@ -138,7 +138,7 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 // Start a refresh thread unless this was a refresh thread call
 //
    if (Cold && !NoGo)
-      {if (retc=XrdOucThread_Run(&reftid,XrdAccConfig_Refresh,(void *)&Eroute))
+      {if ((retc=XrdOucThread_Run(&reftid,XrdAccConfig_Refresh,(void *)&Eroute)))
           Eroute.Emsg("ConfigDB",retc,"starting refresh thread.");
       }
 
@@ -162,7 +162,7 @@ int XrdAccConfig::ConfigDB(int Warm, XrdOucError &Eroute)
 
   Output:   0 upon success or !0 otherwise.
 */
-   char *val, buff[12];
+   char buff[12];
    int  retc, anum = 0, NoGo = 0;
    struct XrdAccAccess_Tables tabs;
    XrdOucLock cdb_Lock(&Config_Context);
@@ -189,7 +189,7 @@ int XrdAccConfig::ConfigDB(int Warm, XrdOucError &Eroute)
 
 // Now start processing records until eof.
 //
-   while( retc = ConfigDBrec(Eroute, tabs)) {NoGo |= retc < 0; anum++;}
+   while((retc = ConfigDBrec(Eroute, tabs))) {NoGo |= retc < 0; anum++;}
    snprintf(buff, sizeof(buff), "%d", anum);
    Eroute.Emsg("ConfigDB", buff, (char *)" auth entries processed in ", dbpath);
 
@@ -258,7 +258,7 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 // Now start reading records until eof.
 //
    ConfigDefaults(); Config.Attach(cfgFD); Config.Tabs(0);
-   while( var = Config.GetFirstWord())
+   while((var = Config.GetFirstWord()))
         {if (!strncmp(var, ACC_Prefix, ACC_PrefLen))
             {var += ACC_PrefLen; recs++;
              NoGo |= ConfigXeq(var, Config, Eroute);
@@ -267,7 +267,7 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 
 // Now check if any errors occured during file i/o
 //
-   if (retc = Config.LastError() )
+   if ((retc = Config.LastError()))
       NoGo = Eroute.Emsg("config",-retc,"reading config file",(char *)ConfigFN);
       else {char buff[12];
             snprintf(buff, sizeof(buff), "%d", recs);
@@ -338,10 +338,10 @@ int XrdAccConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute
 
 int XrdAccConfig::xaud(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    static struct auditopts { char * opname; int opval;} audopts[] =
+    static struct auditopts {const char *opname; int opval;} audopts[] =
        {
-       (char *)"deny",     (int)audit_deny,
-       (char *)"grant",    (int)audit_grant
+        {"deny",     (int)audit_deny},
+        {"grant",    (int)audit_grant}
        };
     int i, audval = 0, numopts = sizeof(audopts)/sizeof(struct auditopts);
     char *val;
@@ -468,7 +468,7 @@ int XrdAccConfig::xgrt(XrdOucStream &Config, XrdOucError &Eroute)
 
     while (val && val[0])
       {if (XrdOuca2x::a2i(Eroute, "invalid gid", val, &gid, 0)) return 1;
-       if (GroupMaster.Retran((const gid_t)gid) < 0)
+       if (GroupMaster.Retran((gid_t)gid) < 0)
           {Eroute.Emsg("config", "to many gidretran gid's"); return 1;}
        val = Config.GetWord();
       }
@@ -519,7 +519,7 @@ int XrdAccConfig::ConfigDBrec(XrdOucError &Eroute,
                         User_ID = 'u',
                           No_ID = 0
                     };
-    char *var, *authid, *atype, *path, *privs;
+    char *authid, *atype, *path, *privs;
     int alluser = 0, anyuser = 0, domname = 0, NoGo = 0;
     DB_RecType rectype;
     XrdOucHash<XrdAccCapability> *hp;
@@ -581,7 +581,7 @@ int XrdAccConfig::ConfigDBrec(XrdOucError &Eroute,
              if (!path) continue;      // Skip pathless entries
              NoGo = 1;
              if (*path != '/')
-                {if ( currcap = tabs.T_Hash->Find(path) )
+                {if ((currcap = tabs.T_Hash->Find(path)))
                     currcap = new XrdAccCapability(currcap);
                     else {Eroute.Emsg("ConfigXeq", "Missing template -", path);
                           break;

@@ -65,10 +65,10 @@ public:
 // subsequent tests using Test(). Otherwise, a non-zero value is returned is
 // access is permitted or a zero value is returned is access is to be denied.
 //
-virtual const XrdAccPrivs Access(const char *atype,
-                                 const char *id, const char *host,
-                                 const char *path,
-                                 const Access_Operation oper) = 0;
+virtual XrdAccPrivs Access(const char *atype,
+                           const char *id, const char *host,
+                           const char *path,
+                           const Access_Operation oper) = 0;
 
 // Access() indicates whether or not access allowed for the given operation for
 // a particular id type and path. If AOP_And is specified as the operation,
@@ -77,44 +77,44 @@ virtual const XrdAccPrivs Access(const char *atype,
 // a non-zero value is returned. If access is denied, XrdAccPriv_None (actual 0)
 // is returned. For login acccess, use the previous form of Access().
 //
-virtual const XrdAccPrivs Access(const char *id, 
-                                 const Access_ID_Type idtype,
-                                 const char *path, 
-                                 const Access_Operation oper) = 0;
+virtual XrdAccPrivs Access(const char *id,
+                           const Access_ID_Type idtype,
+                           const char *path,
+                           const Access_Operation oper) = 0;
 
 // Audit() routes an audit message to the appropriate audit exit routine. See
 // XrdAccAudit.h for more information.
 //
-virtual const int         Audit(const int accok,
-                                const char *atype,
-                                const char *id,
-                                const char *host,
-                                const char *path,
-                                const Access_Operation oper) = 0;
+virtual int         Audit(const int accok,
+                          const char *atype,
+                          const char *id,
+                          const char *host,
+                          const char *path,
+                          const Access_Operation oper) = 0;
 
 // Enable() records the fact that a user/host pair is enabled for an object ID.
 //
-virtual       void        Enable(const    char *user,
-                                 const    char *host,
-                                 unsigned long  oid) = 0;
+virtual void        Enable(const    char *user,
+                           const    char *host,
+                           unsigned long  oid) = 0;
 
 // Disable() undoes the Enable()for a user/host/object ID triple.
 //
-virtual       void       Disable(const    char *user,
-                                 const    char *host,
-                                 unsigned long  oid) = 0;
+virtual void       Disable(const    char *user,
+                           const    char *host,
+                           unsigned long  oid) = 0;
 
 // isEnabled() check whether a user/host/object ID triple is enabled.
 //
-virtual const int      isEnabled(const    char *user,
-                                 const    char *host,
-                                 unsigned long  oid) = 0;
+virtual int      isEnabled(const    char *user,
+                           const    char *host,
+                           unsigned long  oid) = 0;
 
 // Test() check whether the specified operation is permitted. If permitted it
 // returns a non-zero. Otherwise, zero is returned.
 //
-virtual const int         Test(const XrdAccPrivs priv, 
-                               const Access_Operation oper) = 0;
+virtual int         Test(const XrdAccPrivs priv,
+                         const Access_Operation oper) = 0;
 
                           XrdAccAuthorize() {}
 

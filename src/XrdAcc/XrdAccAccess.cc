@@ -65,11 +65,11 @@ XrdAccAccess::XrdAccAccess(XrdOucError *erp)
 /*                                A c c e s s                                 */
 /******************************************************************************/
   
-const XrdAccPrivs XrdAccAccess::Access(const char *atype,
-                                       const char *id,
-                                       const char *host,
-                                       const char *path, 
-                                       const Access_Operation oper)
+XrdAccPrivs XrdAccAccess::Access(const char *atype,
+                                 const char *id,
+                                 const char *host,
+                                 const char *path, 
+                                 const Access_Operation oper)
 {
    XrdAccPrivs myprivs;
    char *gname;
@@ -113,8 +113,8 @@ const XrdAccPrivs XrdAccAccess::Access(const char *atype,
 //
    if (isuser && Atab.G_Hash 
    && (glp = XrdAccConfiguration.GroupMaster.Groups(id)))
-      {while(gname = (char *)glp->Next())
-            if (cp = Atab.G_Hash->Find((const char *)gname))
+      {while((gname = (char *)glp->Next()))
+            if ((cp = Atab.G_Hash->Find((const char *)gname)))
                cp->Privs(caps, path, plen, phash);
        delete glp;
       }
@@ -123,8 +123,8 @@ const XrdAccPrivs XrdAccAccess::Access(const char *atype,
 //
    if (Atab.N_Hash && id && host && 
        (glp = XrdAccConfiguration.GroupMaster.NetGroups(id, host)))
-      {while(gname = (char *)glp->Next())
-            if (cp = Atab.N_Hash->Find((const char *)gname))
+      {while((gname = (char *)glp->Next()))
+            if ((cp = Atab.N_Hash->Find((const char *)gname)))
                cp->Privs(caps, path, plen, phash);
        delete glp;
       }
@@ -137,27 +137,27 @@ const XrdAccPrivs XrdAccAccess::Access(const char *atype,
 // Compute composite privileges and see if privs need to be returned
 //
    myprivs = (XrdAccPrivs)(caps.pprivs & ~caps.nprivs);
-   if (!oper) return (const XrdAccPrivs)myprivs;
+   if (!oper) return (XrdAccPrivs)myprivs;
 
 // Check if auditing is enabled or whether we can do a fastaroo test
 //
-   if (!audits) return (const XrdAccPrivs)Test(myprivs, oper);
+   if (!audits) return (XrdAccPrivs)Test(myprivs, oper);
    if ((accok = Test(myprivs, oper)) && !(audits & audit_grant))
-      return (const XrdAccPrivs)accok;
+      return (XrdAccPrivs)accok;
 
 // Call the auditing routine and exit
 //
-   return (const XrdAccPrivs)Audit((const int)accok,atype,id,host,path,oper);
+   return (XrdAccPrivs)Audit(accok,atype,id,host,path,oper);
 }
   
 /******************************************************************************/
 /*                                A c c e s s                                 */
 /******************************************************************************/
   
-const XrdAccPrivs XrdAccAccess::Access(const char *id,
-                                       const Access_ID_Type idtype,
-                                       const char *path,
-                                       const Access_Operation oper)
+XrdAccPrivs XrdAccAccess::Access(const char *id,
+                                 const Access_ID_Type idtype,
+                                 const char *path,
+                                 const Access_Operation oper)
 {
    XrdAccPrivCaps caps;
    XrdAccCapability *cp;
@@ -205,39 +205,39 @@ const XrdAccPrivs XrdAccAccess::Access(const char *id,
 
 // Perform required access check
 //
-   if (oper) return (const XrdAccPrivs)Test(
-                    (const XrdAccPrivs)(caps.pprivs & ~caps.nprivs), oper);
-             return (const XrdAccPrivs)(caps.pprivs & ~caps.nprivs);
+   if (oper) return (XrdAccPrivs)Test(
+                    (XrdAccPrivs)(caps.pprivs & ~caps.nprivs), oper);
+             return (XrdAccPrivs)(caps.pprivs & ~caps.nprivs);
 }
 
 /******************************************************************************/
 /*                                 A u d i t                                  */
 /******************************************************************************/
   
-const int XrdAccAccess::Audit(const int accok,
-                              const char *atype,
-                              const char *id,
-                              const char *host,
-                              const char *path,
-                              const Access_Operation oper)
+int XrdAccAccess::Audit(const int accok,
+                        const char *atype,
+                        const char *id,
+                        const char *host,
+                        const char *path,
+                        const Access_Operation oper)
 {
 // Warning! This table must be in 1-to-1 correspondence with Access_Operation
 //
-   static char *Opername[] = {(char *)"any",             // 0
-                              (char *)"chmod",           // 1
-                              (char *)"chown",           // 2
-                              (char *)"create",          // 3
-                              (char *)"delete",          // 4
-                              (char *)"insert",          // 5
-                              (char *)"lock",            // 6
-                              (char *)"mkdir",           // 7
-                              (char *)"read",            // 8
-                              (char *)"readdir",         // 9
-                              (char *)"rename",          // 10
-                              (char *)"stat",            // 10
-                              (char *)"update"           // 12
+   static const char *Opername[] = {"any",             // 0
+                                    "chmod",           // 1
+                                    "chown",           // 2
+                                    "create",          // 3
+                                    "delete",          // 4
+                                    "insert",          // 5
+                                    "lock",            // 6
+                                    "mkdir",           // 7
+                                    "read",            // 8
+                                    "readdir",         // 9
+                                    "rename",          // 10
+                                    "stat",            // 10
+                                    "update"           // 12
                              };
-   const char *opname = (oper > AOP_LastOp ? (char *)"???" : Opername[oper]);
+   const char *opname = (oper > AOP_LastOp ? "???" : Opername[oper]);
 
 // Route the message appropriately
 //
@@ -295,8 +295,8 @@ void XrdAccAccess::Disable(const char *user, const char *host,
 /*                             i s E n a b l e d                              */
 /******************************************************************************/
   
-const int XrdAccAccess::isEnabled(const char *user, const char *host, 
-                                  unsigned long oid)
+int XrdAccAccess::isEnabled(const char *user, const char *host,
+                            unsigned long oid)
 {
    char keybuff[uhoKEYLEN], *keydata;
 
@@ -356,7 +356,7 @@ void XrdAccAccess::SwapTabs(struct XrdAccAccess_Tables &newtab)
 /*                                  T e s t                                   */
 /******************************************************************************/
 
-const int XrdAccAccess::Test(const XrdAccPrivs priv,const Access_Operation oper)
+int XrdAccAccess::Test(const XrdAccPrivs priv,const Access_Operation oper)
 {
 
 // Warning! This table must be in 1-to-1 correspondence with Access_Operation
@@ -376,5 +376,5 @@ const int XrdAccAccess::Test(const XrdAccPrivs priv,const Access_Operation oper)
                                 XrdAccPriv_Update                // 12
                                };
    if (oper < 0 || oper > AOP_LastOp) return 0;
-   return (const int)(need[oper] & priv) == need[oper];
+   return (int)(need[oper] & priv) == need[oper];
 }
