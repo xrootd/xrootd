@@ -320,6 +320,19 @@ XrdMonDecDictInfo::convert2string() const
     return ss.str();
 }
 
+// this goes to real time log file
+string
+XrdMonDecDictInfo::convert2stringRT() const
+{
+    stringstream ss(stringstream::out);
+    ss << _myUniqueId 
+       << '\t' << _user
+       << '\t' << _host
+       << '\t' << _path
+       << '\t' << timestamp2string(_open);
+    return ss.str();
+}
+
 ostream& 
 operator<<(ostream& o, const XrdMonDecDictInfo& m)
 {

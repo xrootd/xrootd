@@ -196,7 +196,7 @@ XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
     itr->second->openFile(timestamp);
 
     if ( _rtLogFile.is_open() ) {
-        _rtLogFile << "o\t" << itr->second->convert2string() << endl;
+        _rtLogFile << "o\t" << itr->second->convert2stringRT() << endl;
     }
 }
 
