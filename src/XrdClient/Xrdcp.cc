@@ -125,15 +125,26 @@ void *ReaderThread_loc(void *) {
 
 int CreateDestPath_loc(XrdClientString path, bool isdir) {
    // We need the path name without the file
-   if (!isdir)
-      path = path.Substr(0,  path.RFind((char *)"/") );
+   if (!isdir) {
+      int pos = path.RFind((char *)"/");
 
-   return ( mkdir(
-		  path.c_str(),
-		  S_IRUSR | S_IWUSR | S_IXUSR |
-		  S_IRGRP | S_IWGRP | S_IXGRP |
-		  S_IROTH | S_IXOTH)
-	    );
+      if (pos != STR_NPOS)
+	 path = path.Substr(0,  path.RFind((char *)"/") );
+      else path = "";
+
+
+   }
+
+   if (path != "")
+      return ( mkdir(
+		     path.c_str(),
+		     S_IRUSR | S_IWUSR | S_IXUSR |
+		     S_IRGRP | S_IWGRP | S_IXGRP |
+		     S_IROTH | S_IXOTH)
+	       );
+   else
+      return 0;
+
 }
    
 void BuildFullDestFilename(XrdClientString &src, XrdClientString &dest, bool destisdir) {
@@ -224,7 +235,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    pthread_t myTID;
    void *thret;
    XrdClientStatInfo stat;
-
+   int retvalue = 0;
+   
    // Open the input file (xrdc)
    // If Xrdcli is non-null, the correct src file has already been opened
    if (!cpnfo.XrdCli) {
@@ -266,12 +278,14 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       void *buf;
       long long offs = 0;
       // Loop to write until ended or timeout err
-      while (len > 0)
+      while (len > 0) {
+
 	 if ( cpnfo.queue.GetBuffer(&buf, len) ) {
 	    if (len && buf) {
 
 	       if (!(*xrddest)->Write(buf, offs, len)) {
 		  cerr << "Error writing to output server." << endl;
+		  retvalue = 11;
 		  break;
 	       }
 
@@ -284,7 +298,14 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 	       break;
 	    }
 	 }
-	 else break;
+	 else {
+            cerr << "Read timeout." << endl;
+            retvalue = -1;
+            break;
+         }
+
+	 buf = 0;
+      }
 
       pthread_cancel(myTID);
       pthread_join(myTID, &thret);	 
@@ -294,7 +315,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 
    delete *xrddest;
 
-   return 0;
+   return retvalue;
 }
 
 int doCp_xrd2loc(const char *src, const char *dst) {
@@ -303,7 +324,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    void *thret;
    XrdClientStatInfo stat;
    int f;
-
+   int retvalue = 0;
 
    // Open the input file (xrdc)
    // If Xrdcli is non-null, the correct src file has already been opened
@@ -351,7 +372,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       int len = 1;
       void *buf;
       // Loop to write until ended or timeout err
-      while (len > 0)
+      while (len > 0) {
+	      
 	 if ( cpnfo.queue.GetBuffer(&buf, len) ) {
 
 	    if (len && buf) {
@@ -359,6 +381,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	       if (write(f, buf, len) <= 0) {
 		  cerr << "Error " << strerror(errno) <<
 			 " writing to " << dst << endl;
+		  retvalue = 10;
 		  break;
 	       }
 
@@ -370,9 +393,16 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	       break;
 	    }
 	 }
-	 else break;
+	 else {
+            cerr << "Read timeout." << endl;
+            retvalue = -1;
+            break;
+         }
 	 
-   
+	 buf = 0;
+
+      }
+      
       close(f);
 
       pthread_cancel(myTID);
@@ -381,7 +411,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    delete cpnfo.XrdCli;
    cpnfo.XrdCli = 0;
 
-   return 0;
+   return retvalue;
 }
 
 
@@ -390,7 +420,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 // ----------- loc to xrd affair
    pthread_t myTID;
    void * thret;
-   
+   int retvalue = 0;
 
    // Open the input file (loc)
    cpnfo.localfile = open(src, O_RDONLY);   
@@ -429,6 +459,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
 	    if (!(*xrddest)->Write(buf, offs, len)) {
 	       cerr << "Error writing to output server." << endl;
+	       retvalue = 12;
 	       break;
 	    }
 
@@ -443,6 +474,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
       }
       else {
 	 cerr << "Read timeout." << endl;
+	 retvalue = -1;
 	 break;
       }
 	 
@@ -455,7 +487,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    close(cpnfo.localfile);
    cpnfo.localfile = 0;
 
-   return 0;
+   return retvalue;
 }
 
 
@@ -492,7 +524,7 @@ int main(int argc, char**argv) {
 
       
       if ( (strstr(argv[i], "-DS") == argv[i]) &&
-	   (argc > i+2) ) {
+	   (argc >= i+2) ) {
 	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1];
 	 EnvPutString( argv[i]+3, argv[++i] );
 	 cerr << " Final value: " << EnvGetString(argv[i]+3) << endl;
@@ -500,7 +532,7 @@ int main(int argc, char**argv) {
       }
 
       if ( (strstr(argv[i], "-DI") == argv[i]) &&
-	   (argc > i+2) ) {
+	   (argc >= i+2) ) {
 	 cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << endl;
 	 EnvPutInt( argv[i]+3, atoi(argv[++i]) );
 	 cerr << " Final value: " << EnvGetLong(argv[i]+3) << endl;
@@ -508,7 +540,7 @@ int main(int argc, char**argv) {
       }
 
       // Any other par is ignored
-      if (strstr(argv[i], "-") == argv[i]) {
+      if ( (strstr(argv[i], "-") == argv[i]) && (strlen(argv[i]) > 1) ) {
 	 cerr << "Unknown parameter " << argv[i] << endl;
 	 continue;
       }
@@ -550,7 +582,9 @@ int main(int argc, char**argv) {
       exit(1);
    }
 
-   while (wklst->GetCpJob(src, dest)) {
+   int retval = 0;
+   
+   while (!retval && wklst->GetCpJob(src, dest)) {
       Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
 
       if (src.BeginsWith((char *)"root://")) {
@@ -562,7 +596,7 @@ int main(int argc, char**argv) {
 	    wklst->GetDest(d, isd);
 
 	    BuildFullDestFilename(src, d, isd);
-	    doCp_xrd2xrd(&xrddest, src.c_str(), d.c_str());
+	    retval = doCp_xrd2xrd(&xrddest, src.c_str(), d.c_str());
 
 	 }
 	 else {
@@ -573,7 +607,7 @@ int main(int argc, char**argv) {
 	    res = CreateDestPath_loc(d, isd);
 	    if (!res || (errno == EEXIST) || !errno) {
 	       BuildFullDestFilename(src, d, isd);
-	       doCp_xrd2loc(src.c_str(), d.c_str());
+	       retval = doCp_xrd2loc(src.c_str(), d.c_str());
 	    }
 	    else
 	       cerr << "Error " << strerror(errno) <<
@@ -589,7 +623,7 @@ int main(int argc, char**argv) {
 	    wklst->GetDest(d, isd);
 
 	    BuildFullDestFilename(src, d, isd);
-	    doCp_loc2xrd(&xrddest, src.c_str(), d.c_str());
+	    retval = doCp_loc2xrd(&xrddest, src.c_str(), d.c_str());
 
 	 }
 	 else {
@@ -601,5 +635,5 @@ int main(int argc, char**argv) {
 
    }
 
-   return 0;
+   return retval;
 }
