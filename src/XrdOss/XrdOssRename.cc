@@ -117,27 +117,25 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
 // For migratable spave, rename all suffix variations of the base file
 //
    if (ismig)
-      {
-         if (remotefs && (!retc || retc == -ENOENT))
-            {i = strlen(local_path_Old); lpo = &local_path_Old[i];
-             i = strlen(local_path_New); lpn = &local_path_New[i];
-             for (i = 0; sfx[i]; i++)
-                 {strcpy(lpo, sfx[i]); strcpy(lpn, sfx[i]);
-                  if (rename(local_path_Old,local_path_New) && ENOENT == errno)
-                     DEBUG("sfx retc=" <<errno <<" op=" <<local_path_Old);
-                 }
-            }
-       }
+      {if ((!retc || retc == -ENOENT))
+          {i = strlen(local_path_Old); lpo = &local_path_Old[i];
+           i = strlen(local_path_New); lpn = &local_path_New[i];
+           for (i = 0; sfx[i]; i++)
+               {strcpy(lpo, sfx[i]); strcpy(lpn, sfx[i]);
+                if (rename(local_path_Old,local_path_New) && ENOENT != errno)
+                   DEBUG("sfx retc=" <<errno <<" op=" <<local_path_Old);
+               }
+          }
+      }
 
 // Now rename the data file in the remote system if the local rename "worked".
 //
    if (remotefs)
-      {
-          if (remotefs && (!retc || retc == -ENOENT))
-             {if ( (retc2 = MSS_Rename(remote_path_Old, remote_path_New))
-                 != -ENOENT) retc = retc2;
-              DEBUG("rmt rc=" <<retc2 <<" op=" <<remote_path_Old <<" np=" <<remote_path_New);
-             }
+      {if (remotefs && (!retc || retc == -ENOENT))
+          {if ( (retc2 = MSS_Rename(remote_path_Old, remote_path_New))
+              != -ENOENT) retc = retc2;
+           DEBUG("rmt rc=" <<retc2 <<" op=" <<remote_path_Old <<" np=" <<remote_path_New);
+          }
 
       // All done.
       //
