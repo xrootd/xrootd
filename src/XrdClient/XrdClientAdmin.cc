@@ -271,10 +271,6 @@ bool XrdClientAdmin::SysStatX(const char *paths_list, kXR_char *binInfo, int num
    fConnModule->SetSID(statXFileRequest.header.streamid);
    statXFileRequest.header.requestid = kXR_statx;
 
-   // Note that we need to terminate the list with a newline!
-   if (pl[pl.GetSize()-1] != '\n')
-      pl += '\n';
-
    statXFileRequest.stat.dlen = pl.GetSize();
   
    ret = fConnModule->SendGenCommand(&statXFileRequest, pl.c_str(),
@@ -306,6 +302,8 @@ bool XrdClientAdmin::ExistFiles(vecString &vs, vecBool &vb)
          vb.Push_back(tmp);
       }
 
+
+   free(Info);
    return ret;
 }
 

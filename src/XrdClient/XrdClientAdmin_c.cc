@@ -42,7 +42,7 @@ vecString *Tokenize(const char *str, char sep) {
    while( (res) && (it < s.GetSize()) )
       {
 	 //Eat separators
-	 while(s[it] == sep)
+	 while((it < s.GetSize()) && (s[it] == sep))
 	    it++;
 
 	 //Find next token
