@@ -29,6 +29,7 @@ class XrdOss
 public:
 virtual int     Create(const char *, mode_t, XrdOucEnv &)=0;
 virtual int     Init(XrdOucLogger *, const char *)=0;
+virtual int     Remdir(const char *)=0;
 virtual int     Rename(const char *, const char *)=0;
 virtual int     Stat(const char *, struct stat *, int resonly=0)=0;
 virtual int     Unlink(const char *)=0;

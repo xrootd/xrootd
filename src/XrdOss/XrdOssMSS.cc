@@ -37,8 +37,9 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
-#include "XrdOuc/XrdOucSocket.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetSocket.hh"
 
 /******************************************************************************/
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */
@@ -432,7 +433,7 @@ int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
     char mss_cmd[XrdOssMAX_PATH_LEN*2+1024], *resp;
     int retc, cmd_len;
     XrdOucStream *sp;
-    XrdOucSocket Sock(&OssEroute);
+    XrdNetSocket Sock(&OssEroute);
 
     // Close the file if we got a null command buffer.
     //
@@ -493,7 +494,7 @@ void XrdOssSys::MSS_Gateway(void) {
 
      EPNAME("MSS_Gateway")
      XrdOucStream IOStream(&OssEroute);
-     XrdOucSocket IOSock(&OssEroute);
+     XrdNetSocket IOSock(&OssEroute);
      int i, InSock, pidstat;
      char *request;
      pid_t parent = getppid();
@@ -508,8 +509,7 @@ void XrdOssSys::MSS_Gateway(void) {
 
 // Allocate a socket.
 //
-   if (IOSock.Open(MSSgwPath, -1, 
-                   XrdOucSOCKET_SERVER | (XrdOucSOCKET_BKLG & gwBacklog)) < 0)
+   if (IOSock.Open(MSSgwPath,-1,XRDNET_SERVER | (XRDNET_BKLG & gwBacklog)) < 0)
       {OssEroute.Emsg("XrdOssMSS_Gateway", IOSock.LastError(),
                  "creating gateway socket; terminating gateway");
        exit(4);

@@ -107,19 +107,21 @@ int       Init(XrdOucLogger *, const char *);
 int       IsRemote(const char *path) {return RPList.Find(path) & XrdOssREMOTE;}
 int       Mkdir(const char *, mode_t mode);
 int       PathOpts(const char *path) {return (RPList.Find(path) | XeqFlags);}
+int       Remdir(const char *) {return -ENOTSUP;}
 int       Rename(const char *, const char *);
 int       Stage(const char *, XrdOucEnv &);
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int resonly=0);
 int       Unlink(const char *);
    
-void     *MSS_Opendir(char *, int &rc);
-int       MSS_Readdir(void *fd, char *buff, int blen);
 int       MSS_Closedir(void *);
 int       MSS_Create(char *path, mode_t, XrdOucEnv &);
+void     *MSS_Opendir(char *, int &rc);
+int       MSS_Readdir(void *fd, char *buff, int blen);
+int       MSS_Remdir(char *, char *) {return -ENOTSUP;}
+int       MSS_Rename(char *, char *);
 int       MSS_Stat(char *, struct stat *);
 int       MSS_Unlink(char *);
-int       MSS_Rename(char *, char *);
 
 char     *ConfigFN;       // -> Pointer to the config file name
 int       Hard_FD_Limit;  //    Hard file descriptor limit

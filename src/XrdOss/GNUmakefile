@@ -42,6 +42,7 @@ TARGETS = $(LIBRARY)
 #                           S e a r c h   P a t h s                            #
 #------------------------------------------------------------------------------#
 
+vpath XrdNet% ../XrdNet
 vpath XrdOfs% ../XrdOfs
 vpath XrdOuc% ../XrdOuc
 
@@ -100,9 +101,10 @@ $(OBJDIR)/XrdOssLock.o:   XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
 	@echo Compiling XrdOssLock.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssLock.o XrdOssLock.cc
 
-$(OBJDIR)/XrdOssMSS.o:    XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
-                          XrdOssTrace.hh XrdOucError.hh XrdOucSocket.hh \
+$(OBJDIR)/XrdOssMSS.o:    XrdOssApi.hh   XrdOssConfig.hh XrdOssError.hh \
+                          XrdOssTrace.hh XrdOucError.hh \
                           XrdOucStream.hh XrdOucPlatform.hh  XrdOucLogger.hh \
+                          XrdNetOpts.hh   XrdNetSocket.hh \
                           XrdOssMSS.cc
 	@echo Compiling XrdOssMSS.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssMSS.o XrdOssMSS.cc

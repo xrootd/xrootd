@@ -73,12 +73,6 @@
 */
 #define XrdOssMAXDBSIZE 0
 
-/* Set the following to correspond to the command that is to be issued to
-   communicate with the MSS gateway. Note that relative pathnames will not
-   work with the AMS, so the default is somewhat useless.
-*/
-#define XrdOssMSSGWCMD (char *)"./pudc -f -c ./pudc.conf"
-
 /* Set the following to be the path name to be used when creating/connecting
    to the gateway socket port. Make sure it's writable by the process.
 */
