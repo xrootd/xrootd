@@ -26,7 +26,6 @@ OBJECTS_LIB_CTR =                             \
 	$(OBJDIR)/XrdMonCtrWriter.o
 
 OBJECTS_LIB_SND =                             \
-	$(OBJDIR)/XrdMonSndAdminApp.o         \
 	$(OBJDIR)/XrdMonSndCoder.o            \
 	$(OBJDIR)/XrdMonSndDebug.o            \
 	$(OBJDIR)/XrdMonSndDictEntry.o        \
@@ -40,6 +39,9 @@ OBJECTS_LIB_SND =                             \
 OBJECTS_BIN_CTR =                             \
 	$(OBJDIR)/XrdMonCtrMainApp.o
 
+OBJECT_BIN_ADM =                              \
+	$(OBJDIR)/XrdMonSndAdminApp.o
+
 OBJECTS_BIN_SND =                             \
 	$(OBJDIR)/XrdMonSndDummyXrootdApp.o
 
@@ -51,9 +53,10 @@ LIBRARY_SND    = $(LIBDIR)/libXrdMonDummySender.a
 
 LIBRARIES      = $(LIBRARY_COMMON) $(LIBRARY_CTR) $(LIBRARY_SND) 
 
-COLLECTOR      = $(BINDIR)/xrmoncollector
-SENDER         = $(BINDIR)/xrmondummysender
-BINARIES       = $(COLLECTOR) $(SENDER)
+COLLECTOR      = $(BINDIR)/xrdmoncollector
+SENDER         = $(BINDIR)/xrdmondummysender
+ADMIN          = $(BINDIR)/xrdmonadmin
+BINARIES       = $(COLLECTOR) $(SENDER) $(ADMIN)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
@@ -113,6 +116,12 @@ $(COLLECTOR):	$(OBJECTS_BIN_CTR) $(LIBRARY_CTR) $(LIBRARY_OUC) $(LIBRARY_COMMON)
 $(SENDER):	$(OBJECTS_BIN_SND) $(LIBRARY_SND) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+
+$(ADMIN):	$(OBJECTS_BIN_ADM) $(LIBRARY_SND) $(LIBRARY_COMMON) 
+	@echo Creating executable $(@F)
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+
+
 
 $(OBJDIR)/%.o : %.cc
 	@echo Compiling $(<F)
