@@ -41,6 +41,7 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
@@ -50,7 +51,7 @@ const char *XrdOssConfigCVSID = "$Id$";
   
 extern XrdOssSys    XrdOssSS;
 
-extern XrdOucTrace     OssTrace;
+extern XrdOucTrace  OssTrace;
 
 /******************************************************************************/
 /*                            E r r o r   T e x t                             */
@@ -80,7 +81,8 @@ const char *XrdOssErrorText[] =
        XRDOSS_T8021,
        XRDOSS_T8022,
        XRDOSS_T8023,
-       XRDOSS_T8024
+       XRDOSS_T8024,
+       XRDOSS_T8025
       };
 
 /******************************************************************************/
@@ -131,7 +133,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
    XrdOucError_Table *ETab = new XrdOucError_Table(XRDOSS_EBASE, XRDOSS_ELAST,
                                                    XrdOssErrorText);
    char *val;
-   int  retc, numt, NoGo = XrdOssOK;
+   int  retc, NoGo = XrdOssOK;
    pthread_t tid;
 
 // Do the herald thing
@@ -154,18 +156,6 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 //
    NoGo = ConfigProc(Eroute);
 
-// Qualify the gatheway path to make it unique
-//
-   {char buff[256]; int gwl;
-    gwl = strlen(MSSgwPath);
-    if (gwl > (int)(sizeof(buff)-16))
-       NoGo = Eroute.Emsg("config", ENAMETOOLONG, "use gateway path",
-                          MSSgwPath);
-       else {sprintf(buff, "%s.%d", MSSgwPath, getpid());
-             Duplicate(buff, MSSgwPath);
-            }
-   }
-
 // Establish the FD limit
 //
    {struct rlimit rlim;
@@ -185,12 +175,9 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 //
    ReCache();
 
-// Start-up the required number of staging threads
+// Determine how we will handle staging (i.e., the old way or the new way)
 //
-   if ((numt = xfrthreads - xfrtcount) > 0) while(numt--)
-      if ((retc = XrdOucThread::Run(&tid, XrdOssxfr, (void *)0, 0, "staging")))
-         Eroute.Emsg("config", retc, "create staging thread");
-         else xfrtcount++;
+   if (!NoGo && (MSSgwCmd || StageCmd)) NoGo |= ConfigStage(Eroute);
 
 // Start up the cache scan thread
 //
@@ -227,7 +214,6 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
      // Preset some tests
      //
      int HaveMSSgwCmd   = (MSSgwCmd   && MSSgwCmd[0]);
-     int HaveMSSgwPath  = (MSSgwPath  && MSSgwPath[0]);
      int HaveStageCmd   = (StageCmd   && StageCmd[0]);
      int HaveRemoteRoot = (RemoteRoot && RemoteRoot[0]);
      int HaveLocalRoot  = (LocalRoot  && LocalRoot[0]);
@@ -245,7 +231,6 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
                                   "%s%s%s"
                                   "%s%s%s"
                                   "%s%s%s"
-                                  "%s%s%s"
                                   "%s%s%s%s%s%s%s%s%s"
                                   "oss.trace        %x\n"
                                   "oss.xfr          %d %ld %d %d",
@@ -258,7 +243,6 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
              XrdOssConfig_Val(RemoteRoot, remoteroot),
              XrdOssConfig_Val(StageCmd,   stagecmd),
              XrdOssConfig_Val(MSSgwCmd,   mssgwcmd),
-             XrdOssConfig_Val(MSSgwPath,  mssgwpath),
              (XeqFlags & XrdOssCOMPCHK ? "oss.compchk\n" : ""),
              (XeqFlags & XrdOssFORCERO ? "oss.forcero\n" : ""),
              (XeqFlags & XrdOssNOCHECK ? "oss.nocheck\n" : ""),
@@ -280,7 +264,6 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
-
 /******************************************************************************/
 /*                        C o n f i g D e f a u l t s                         */
 /******************************************************************************/
@@ -299,17 +282,13 @@ void XrdOssSys::ConfigDefaults(void)
        RemoteRootLen = strlen(RemoteRoot);
 
    if (Configured && StageCmd) free(StageCmd);
-       StageCmd      = strdup(XrdOssSTAGECMD);
+       StageCmd      = 0;
+       StageRealTime = 1;
 
    if (Configured && MSSgwCmd) free(MSSgwCmd);
        MSSgwCmd      = 0;
-       MSSgwCmdLen   = 0;
-
-   if (Configured && MSSgwPath) free(MSSgwPath);
-       MSSgwPath     = strdup(XrdOssMSSGWPATH);
 
        cscanint      = XrdOssCSCANINT;
-       gwBacklog     = XrdOssGWBACKLOG;
        FDFence       = -1;
        FDLimit       = XrdOssFDLIMIT;
        XeqFlags      = XrdOssXEQFLAGS;
@@ -320,6 +299,7 @@ void XrdOssSys::ConfigDefaults(void)
        xfrspeed      = XrdOssXFRSPEED;
        xfrovhd       = XrdOssXFROVHD;
        xfrhold       = XrdOssXFRHOLD;
+       xfrkeep       = 20*60;
        xfrthreads    = XrdOssXFRTHREADS;
 
    if (ConfigFN) {free(ConfigFN); ConfigFN = 0;}
@@ -368,11 +348,17 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 
 // Make sure we are consistent here
 //
-   if ((!MSSgwCmd || !(MSSgwCmdLen = strlen(MSSgwCmd)))
-   && XeqFlags & (XrdOssNEEDMSS | XrdOssREMOTE))
-      {Eroute.Emsg("config", "MSS interface has been enabled but "
+   if (XeqFlags & (XrdOssNEEDMSS | XrdOssREMOTE))
+      {if (!MSSgwCmd || !*MSSgwCmd)
+          {Eroute.Emsg("config", "MSS interface has been enabled but "
                                  "mssgwcmd not specified.");
-       NoGo = 1;
+           NoGo = 1;
+          }
+       if (!StageCmd || !*StageCmd)
+          {Eroute.Emsg("config", "MSS interface has been enabled but "
+                                 "stagecmd not specified.");
+           NoGo = 1;
+          }
       }
 
 // Now check if any errors occured during file i/o
@@ -386,6 +372,53 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
    return NoGo;
 }
 
+/******************************************************************************/
+/*                           C o n f i g S t a g e                            */
+/******************************************************************************/
+
+int XrdOssSys::ConfigStage(XrdOucError &Eroute)
+{
+   char *tp;
+   int retc, numt;
+   pthread_t tid;
+
+// Allocate a prgram object for the gateway command
+//
+   if (MSSgwCmd)
+      {MSSgwProg = new XrdOucProg(&Eroute);
+       if (MSSgwProg->Setup(MSSgwCmd)) return 1;
+      }
+
+// If there is no stage command, we are done
+//
+   if (!StageCmd) return 0;
+
+// The stage command is interactive if it starts with an | (i.e., pipe in)
+//
+   tp = StageCmd;
+   while(*tp && *tp == ' ') tp++;
+   if (*tp == '|') {StageRealTime = 0; StageCmd = tp+1;}
+
+// Set up a program object for the command
+//
+   StageProg = new XrdOucProg(&Eroute);
+   if (StageProg->Setup(StageCmd)) return 1;
+
+// For old-style real-time staging, create threads to handle the staging
+//
+   if (StageRealTime)
+      {if ((numt = xfrthreads - xfrtcount) > 0) while(numt--)
+           if ((retc = XrdOucThread::Run(&tid,XrdOssxfr,(void *)0,0,"staging")))
+              Eroute.Emsg("config", retc, "create staging thread");
+              else xfrtcount++;
+       return 0;
+      }
+
+// For queue-style staging, start the program that handles the queue
+//
+   return StageProg->Start();
+}
+  
 /******************************************************************************/
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
@@ -415,7 +448,6 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    TS_Xeq("cachescan",     xcachescan);
    TS_Xeq("compdetect",    xcompdct);
    TS_Xeq("fdlimit",       xfdlimit);
-   TS_Xeq("gwbacklog",     xgwbklg);
    TS_Xeq("maxsize",       xmaxdbsz);
    TS_Xeq("path",          xpath);
    TS_Xeq("trace",         xtrace);
@@ -430,7 +462,11 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    //
    TS_String("localroot",  LocalRoot);
    TS_String("remoteroot", RemoteRoot);
-   TS_String("mssgwpath",  MSSgwPath);
+
+   // Accepts options that used to be valid
+   //
+   if (!strcmp("mssgwpath", var)) return 0;
+   if (!strcmp("gwbacklog", var)) return 0;
 
    // We need to suck all the tokens to the end of the line for remaining
    // options. Do so, until we run out of space in the buffer
@@ -681,30 +717,6 @@ int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdOucError &Eroute)
       FDLimit = fdmax;
       return 0;
 }
-
-/******************************************************************************/
-/*                                g w b k l g                                 */
-/******************************************************************************/
-
-/* Function: gwbklg
-
-   Purpose:  To parse the directive: gwbklg <num>
-
-             <num>     maximum backlog allowed for gateway requests.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOssSys::xgwbklg(XrdOucStream &Config, XrdOucError &Eroute)
-{   int gwbklg = 0;
-    char *val;
-
-    if (!(val = Config.GetWord()))
-       {Eroute.Emsg("config", "gwbacklog not specified"); return 1;}
-    if (XrdOuca2x::a2i(Eroute, "gwbacklog", val, &gwbklg, 0)) return 1;
-    gwBacklog = gwbklg;
-    return 0;
-}
   
 /******************************************************************************/
 /*                              x m a x d b s z                               */
@@ -850,8 +862,10 @@ int XrdOssSys::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
   
 /* Function: xxfr
 
-   Purpose:  To parse the directive: xfr <threads> [<speed> [<ovhd> [<hold>]]]
+   Purpose:  To parse the directive: xfr [keep <sec>] 
+                                         [<threads> [<speed> [<ovhd> [<hold>]]]]
 
+             keep      number of seconds to keep queued requests
              <threads> number of threads for staging (* uses default).
              <speed>   average speed in bytes/second (* uses default).
              <ovhd>    minimum seconds of overhead (* uses default).
@@ -867,9 +881,23 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdOucError &Eroute)
     long long speed = XrdOssXFRSPEED;
     int       ovhd  = XrdOssXFROVHD;
     int       htime = XrdOssXFRHOLD;
+    int       ktime;
+    int       haveparm = 0;
 
-      if (!(val = Config.GetWord()))        // <threads>
-         {Eroute.Emsg("config", "xfr threads not specified"); return 1;}
+    while((val = Config.GetWord()))        // <threads> | keep
+         {if (!strcmp("keep", val))
+             {if ((val = Config.GetWord()))     // keep time
+                 if (XrdOuca2x::a2tm(Eroute,"xfr keep",val,&ktime,0)) return 1;
+                    else {xfrkeep=ktime; haveparm=1;}
+             }
+             else break;
+         };
+
+    if (!val)
+       if (haveparm) return 0;
+          else {Eroute.Emsg("config", "xfr parameter not specified");
+                return 1;
+               }
 
       if (strcmp(val, "*") && XrdOuca2x::a2i(Eroute,"xfr threads",val,&thrds,1))
          return 1;

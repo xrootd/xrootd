@@ -63,20 +63,10 @@
 #define XrdOssFDLIMIT     -1
 #define XrdOssFDMINLIM    64
 
-/* Set the following to be the connection queue length when connecting to the
-   gateway. The default is usually the maximum on most systems.
-*/
-#define XrdOssGWBACKLOG 5
-
 /* The MAXDBSIZE value sets the maximum number of bytes a database can have
    (actually applies to the seek limit). A value of zero imposes no limit.
 */
 #define XrdOssMAXDBSIZE 0
-
-/* Set the following to be the path name to be used when creating/connecting
-   to the gateway socket port. Make sure it's writable by the process.
-*/
-#define XrdOssMSSGWPATH (char *)"/tmp/gateway.mss"
 
 /* Set the XrdOssXEQFLAGS to whatever default value needed. Combine:
    XrdOssREADONLY   - All files can only be read. Return an error if
@@ -107,12 +97,6 @@
 #define XrdOssUSRPRTY    0x00004000
 #define XrdOssREMOTE     0x00008000
 #define XrdOssNEEDMSS    0x10000000
-
-/* Set the following to correspond to the command that is to be issued to
-   stage in a remote file to the local filesystem. The command is invoked as:
-            <XrdOssSTAGE_cmd> <remote_filename> <local_filename>
-*/
-#define XrdOssSTAGECMD (char *)"./XrdOssStage"
 
 /* Set the following:
    XrdOssSCANINT    - Number of seconds between cache scans

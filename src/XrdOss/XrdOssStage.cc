@@ -40,6 +40,8 @@ const char *XrdOssStageCVSID = "$Id$";
 #include "XrdOss/XrdOssOpaque.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucProg.hh"
+#include "XrdOuc/XrdOucReqID.hh"
 
 /******************************************************************************/
 /*           G l o b a l   E r r o r   R o u t i n g   O b j e c t            */
@@ -60,10 +62,107 @@ extern XrdOssSys XrdOssSS;
 extern unsigned long XrdOucHashVal(const char *KeyVal);
 
 /******************************************************************************/
+/*              O t h e r   E x t e r n a l   F u n c t i o n s               */
+/******************************************************************************/
+  
+int XrdOssScrubScan(const char *key, char *cip, void *xargp) {return 0;}
+
+/******************************************************************************/
 /*                                 S t a g e                                  */
 /******************************************************************************/
   
 int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
+{
+// Use the appropriate method here: queued staging or real-time staging
+//
+   return (StageRealTime ? Stage_RT(fn, env) : Stage_QT(fn, env));
+}
+
+/******************************************************************************/
+/*                              S t a g e _ Q T                               */
+/******************************************************************************/
+  
+int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
+{
+   static XrdOucReqID ReqID((int)getpid(),(char *)"localhost",(long)0xef000001);
+   static XrdOucMutex      PTMutex;
+   static XrdOucHash<char> PTable;
+   static time_t nextScrub = xfrkeep + time(0);
+   char *Found, idbuff[64], *pdata[12];
+   int rc, pdlen[12];
+   time_t tNow = time(0);
+
+// If there is a fail file and the error occured within the hold time,
+// fail the request. Otherwise, try it again. This avoids tight loops.
+//
+   if ((rc = HasFile(fn, XRDOSS_FAIL_FILE))
+   && xfrhold && (tNow - rc) < xfrhold)  return -XRDOSS_E8009;
+
+// If enough time has gone by between the last scrub, do it now
+//
+   if (nextScrub < tNow) 
+      {PTMutex.Lock(); 
+       if (nextScrub < tNow) 
+          {PTable.Apply(XrdOssScrubScan, (void *)0);
+           nextScrub = xfrkeep + tNow;
+          }
+       PTMutex.UnLock();
+      }
+
+// Check if this file is already being brought in. If so, return calculated
+// wait time for this file.
+//
+   PTMutex.Lock();
+   Found = PTable.Add(fn, 0, xfrkeep, Hash_data_is_key);
+   PTMutex.UnLock();
+   if (Found) return CalcTime();
+
+// Get a unique request id
+//
+   ReqID.ID(idbuff, sizeof(idbuff));
+
+// Create the line to add this request to the queue
+//
+   pdata[0] = (char *)"+ ";
+   pdlen[0] = 2;
+   pdata[1] = idbuff;
+   pdlen[1] = strlen(idbuff);  // Request ID
+   pdata[2] = (char *)" ";
+   pdlen[2] = 1;
+   pdata[3] = (char *)"_OSS_"; // User
+   pdlen[3] = 5;
+   pdata[4] = (char *)" ";
+   pdlen[4] = 1;
+   pdata[5] = (char *)"0";     // Priority
+   pdlen[5] = 1;
+   pdata[6] = (char *)" ";
+   pdlen[6] = 1;
+   pdata[7] = (char *)"qw";    // suppress messages, r/w staging
+   pdlen[7] = 1;
+   pdata[8] = (char *)" ";
+   pdlen[8] = 1;
+   pdata[9] = (char *)fn;
+   pdlen[9] = strlen(fn);
+   pdata[10] = (char *)"\n";
+   pdlen[10] = 1;
+   pdata[11]= 0;
+   pdlen[11]= 0;
+
+// Feed the queue
+//
+   if (StageProg->Feed((const char **)pdata, (const int *)pdlen))
+      return -XRDOSS_E8025;
+
+// All done
+//
+   return CalcTime();
+}
+
+/******************************************************************************/
+/*                              S t a g e _ R T                               */
+/******************************************************************************/
+  
+int XrdOssSys::Stage_RT(const char *fn, XrdOucEnv &env)
 {
     extern int XrdOssFind_Prty(XrdOssCache_Req *req, void *carg);
     XrdOssCache_Req req, *newreq, *oldreq;
@@ -234,6 +333,16 @@ void *XrdOssSys::Stage_In(void *carg)
 /*                              C a l c T i m e                               */
 /******************************************************************************/
   
+int XrdOssSys::CalcTime()
+{
+
+// For queued staging we have no good way to estimate the time, as of yet.
+// So, return 60 seconds. Note that the following code, which is far more
+// elaborate, rarely returns the right estimate anyway.
+//
+   return 60;
+}
+
 int XrdOssSys::CalcTime(XrdOssCache_Req *req) // CacheContext lock held!
 {
     unsigned long long tbytes = req->size + stgbytes/2;
@@ -269,69 +378,25 @@ int XrdOssSys::CalcTime(XrdOssCache_Req *req) // CacheContext lock held!
 
 int XrdOssSys::GetFile(XrdOssCache_Req *req)
 {
-    char rfs_fn[XrdOssMAX_PATH_LEN+1];
-    char lfs_fn[XrdOssMAX_PATH_LEN+1];
-    char *arglist[4];
-    extern char **environ;
-    pid_t procid;
-    int retc;
-#ifdef AIX
-    union wait estat;
-#else
-    int estat;
-#endif
+   char rfs_fn[XrdOssMAX_PATH_LEN+1];
+   char lfs_fn[XrdOssMAX_PATH_LEN+1];
+   int retc;
 
-/* Convert the local filename and generate the corresponding remote name.
-*/
+// Convert the local filename and generate the corresponding remote name.
+//
    if ( (retc =  GenLocalPath(req->path, lfs_fn)) ) return retc;
    if ( (retc = GenRemotePath(req->path, rfs_fn)) ) return retc;
 
-/* Fork to be able to issue a command.
-*/
-   if ( (procid = fork()) )
-      {if (procid < 0) 
-          return OssEroute.Emsg("XrdOssStage",-errno,"stage fork",
-                                  (char *)req->path);
-       do {
-           do {retc = waitpid(procid, (int *)&estat,0);}
-              while(retc<0 && errno == EINTR);
-           if (retc < 0) 
-              return OssEroute.Emsg("XrdOssStage", -errno, "stage wait for",
-                                      (char *)req->path);
-          } while(WIFSTOPPED(estat));
-
-       if (WIFSIGNALED(estat))
-          {OssEroute.Emsg("XrdOssStage",WTERMSIG(estat),"stage sigterm",
-                            (char *)req->path);
-           return -XRDOSS_E8009;
-          }
-       if (WIFEXITED(estat))
-          {retc = WEXITSTATUS(estat);
-           if (retc) {OssEroute.Emsg("XrdOssStage",retc,"stage",(char *)req->path);
-                      return -XRDOSS_E8009;
-                     }
-           return 0;
-          }
-     return OssEroute.Emsg("XrdOssStage",-XRDOSS_E8009,"process",(char *)req->path);
+// Run the command to get the file
+//
+   if ((retc = StageProg->Run(rfs_fn, lfs_fn)))
+      {OssEroute.Emsg("Stage", retc, "stage", (char *)req->path);
+       return -XRDOSS_E8009;
       }
 
-        /**************************************************************/
-        /*                 C h i l d   P r o c e s s                  */
-        /**************************************************************/
-
-/* Free up some file descriptors
-*/
-// for (i = 8; i < XrdOssSS.FDFence; i++) close(i);
-  
-/* Issue the command.
-*/
-   arglist[0] = StageCmd;
-   arglist[1] = rfs_fn;
-   arglist[2] = lfs_fn;
-   arglist[3] = (char *)0;
-   execve(arglist[0], arglist, environ);
-   OssEroute.Emsg("XrdOssStage", errno, arglist[0], (char *)req->path);
-   exit(255);
+// All went well
+//
+   return 0;
 }
 
 /******************************************************************************/
@@ -359,5 +424,6 @@ int XrdOssSys::HasFile(const char *fn, const char *fsfx)
 //
    rc = lstat((const char *)path, &statbuff);
    free(path);
-   return rc == 0;
+   if (rc) return 1;
+   return (int)statbuff.st_ctime;
 }

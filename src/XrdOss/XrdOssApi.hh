@@ -93,6 +93,8 @@ char         cxid[4];
 /*                              o o s s _ S y s                               */
 /******************************************************************************/
   
+class XrdOucProg;
+
 class XrdOssSys : public XrdOss
 {
 public:
@@ -130,12 +132,10 @@ char     *LocalRoot;      // -> Path prefix for local  filename
 int       LocalRootLen;   //    Corresponding length
 char     *RemoteRoot;     // -> Path prefix for remote filename
 int       RemoteRootLen;  //    Corresponding length
+int       StageRealTime;  //    If 1, Invoke stage command on demand
 char     *StageCmd;       // -> Staging command to use
 char     *MSSgwCmd;       // -> MSS Gateway command to use
-int       MSSgwCmdLen;    //    Corresponding length
-char     *MSSgwPath;      // -> Socket path to talk to gateway.
 long long MaxDBsize;      //    Maximum database size
-int       gwBacklog;      //    Socket connection backlog.
 int       FDFence;        //    Smallest file FD number allowed
 int       FDLimit;        //    Largest  file FD number allowed
 int       XeqFlags;       //    General execution flags
@@ -153,6 +153,7 @@ XrdOucPListAnchor RPList;    //    The remote path list
                     xsdata=0; xsfirst=0; xslast=0; xscurr=0; xsgroups=0;
                     pndbytes=0; stgbytes=0; totbytes=0; totreqs=0; badreqs=0;
                     CompSuffix = 0; CompSuflen = 0; MaxTwiddle = 3;
+                    StageRealTime = 1;
                     StageQ.pendList.setItem(0);
                     StageQ.fullList.setItem(0);
                     ConfigDefaults();
@@ -169,6 +170,7 @@ int       cscanint;          //    Seconds between cache scans
 long      xfrspeed;          //    Average transfer speed (bytes/second)
 int       xfrovhd;           //    Minimum seconds to get a file
 int       xfrhold;           //    Second hold limit on failing requests
+int       xfrkeep;           //    Second keep queued requests
 int       xfrthreads;        //    Number of threads for staging
 int       xfrtcount;         //    Actual count of threads (used for dtr)
 long long pndbytes;          //    Total bytes to be staged (pending)
@@ -195,6 +197,8 @@ XrdOssCache_FS     *xscurr;   // -> Curent filesystem (config time only)
 XrdOssCache_Group  *xsgroups; // -> Cache group list  (config time only)
 
 XrdOssCache_Req StageQ;       //    Queue of staging requests
+XrdOucProg     *StageProg;    //    Command or manager than handles staging
+XrdOucProg     *MSSgwProg;    //    Command for MSS meta-data operations
 
 XrdOucMutex     CacheContext;
 XrdOucSemaphore ReadyRequest;
@@ -204,12 +208,16 @@ char **sfx;                  // -> Valid filename suffixes
 int                Alloc_Cache(const char *path, mode_t amode, XrdOucEnv &env);
 int                Alloc_Local(const char *path, mode_t amode, XrdOucEnv &env);
 int                BreakLink(const char *local_path, struct stat &statbuff);
+int                CalcTime();
 int                CalcTime(XrdOssCache_Req *req);
+void               doScrub();
 int                Find(XrdOssCache_Req *req, void *carg);
 int                GetFile(XrdOssCache_Req *req);
 int                HasFile(const char *fn, const char *sfx);
 void               List_Cache(char *lname, int self, XrdOucError &Eroute);
 void               ReCache();
+int                Stage_QT(const char *, XrdOucEnv &);
+int                Stage_RT(const char *, XrdOucEnv &);
 
 // Configuration related methods
 //
@@ -217,6 +225,7 @@ off_t  Adjust(dev_t devid, off_t size);
 int    concat_fn(const char *, const int, const char *, char *);
 void   ConfigDefaults(void);
 int    ConfigProc(XrdOucError &Eroute);
+int    ConfigStage(XrdOucError &Eroute);
 int    ConfigXeq(char *, XrdOucStream &, XrdOucError &);
 void   List_Flist(char *, XrdOucPListAnchor &, XrdOucError &);
 int    xalloc(XrdOucStream &Config, XrdOucError &Eroute);
@@ -225,7 +234,6 @@ int    xcacheBuild(char *grp, char *fn, XrdOucError &Eroute);
 int    xcompdct(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcachescan(XrdOucStream &Config, XrdOucError &Eroute);
 int    xfdlimit(XrdOucStream &Config, XrdOucError &Eroute);
-int    xgwbklg(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute);
 int    xpath(XrdOucStream &Config, XrdOucError &Eroute, int rpval=0);
 int    xtrace(XrdOucStream &Config, XrdOucError &Eroute);
@@ -233,10 +241,10 @@ int    xxfr(XrdOucStream &Config, XrdOucError &Eroute);
 
 // Mass storage related methods
 //
-void   MSS_Gateway(void);
 int    MSS_Init(int);
 int    tranmode(char *);
-int    MSS_Xeq(char *, XrdOucStream **, int);
+int    MSS_Xeq(XrdOucStream **xfd, int okerr,
+               char *cmd, char *arg1=0, char *arg2=0);
 
 // Other methods
 //

@@ -37,6 +37,7 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -99,7 +100,6 @@ void *XrdOssSys::MSS_Opendir(char *dir_path, int &rc) {
             operations. If an error occurs, (-errno) is returned.
 */
      const char *epname = "MSS_Opendir";
-     char cmdbuff[XrdOssMAX_PATH_LEN+32];
      struct XrdOssHandle *oh;
      XrdOucStream *sp;
 
@@ -111,14 +111,11 @@ void *XrdOssSys::MSS_Opendir(char *dir_path, int &rc) {
          return (void *)0;
         }
 
-     // Construct the command to get the contents of the directory.
-     //
-     sprintf(cmdbuff, "%s %s", "dlist", dir_path);
-
      // Issue it now to trap any errors but defer reading the result until
      // readdir() is called. This does tie up a process, sigh.
      //
-     if ( (rc = MSS_Xeq(cmdbuff, &sp, ENOENT)) ) return (void *)0;
+     if ( (rc = MSS_Xeq(&sp, ENOENT, (char *)"dlist", dir_path)))
+        return (void *)0;
 
      // Allocate storage for the handle and return a copy of it.
      //
@@ -211,7 +208,7 @@ int XrdOssSys::MSS_Create(char *path, mode_t file_mode, XrdOucEnv &env)
 */
 {
     const char *epname = "MSS_Create";
-    char cmdbuff[XrdOssMAX_PATH_LEN+32];
+    char myMode[16];
 
     // Make sure the path is not too long.
     //
@@ -222,11 +219,11 @@ int XrdOssSys::MSS_Create(char *path, mode_t file_mode, XrdOucEnv &env)
 
     // Construct the cmd to create the file. We currently don't support cosid.
     //
-    sprintf(cmdbuff, "create %s %o", path, file_mode);
+    sprintf(myMode, "%o", file_mode);
 
     // Create the file in in the mass store system
     //
-    return MSS_Xeq(cmdbuff, 0, 0);
+    return MSS_Xeq(0, 0, (char *)"create", path, myMode);
 }
 
 /******************************************************************************/
@@ -246,7 +243,6 @@ int XrdOssSys::MSS_Create(char *path, mode_t file_mode, XrdOucEnv &env)
 int XrdOssSys::MSS_Stat(char *path, struct stat *buff)
 {
     const char *epname = "MSS_Stat";
-    char cmdbuff[XrdOssMAX_PATH_LEN+32];
     char ftype, mtype[10], *resp;
     int retc, xt_nlink;
     long xt_uid, xt_gid, atime, ctime, mtime, xt_blksize, xt_blocks;
@@ -260,13 +256,9 @@ int XrdOssSys::MSS_Stat(char *path, struct stat *buff)
         return -ENAMETOOLONG;
        }
 
-     // Construct the command to stat the file.
-     //
-     sprintf(cmdbuff, "statx %s", path);
-
     // issue the command.
     //
-    if ((retc = MSS_Xeq(cmdbuff, &sfd, ENOENT))) return retc;
+    if ((retc = MSS_Xeq(&sfd, ENOENT, (char *)"statx", path))) return retc;
 
     // Read in the results.
     //
@@ -325,7 +317,6 @@ int XrdOssSys::tranmode(char *mode) {
 */
 int XrdOssSys::MSS_Unlink(char *path) {
     const char *epname = "MSS_Unlink";
-    char cmdbuff[XrdOssMAX_PATH_LEN+32];
 
     // Make sure the path is not too long.
     //
@@ -334,13 +325,9 @@ int XrdOssSys::MSS_Unlink(char *path) {
         return -ENAMETOOLONG;
        }
 
-    // Construct the command to remove the file.
-    //
-    sprintf(cmdbuff, "rm %s", path);
-
     // Remove the file in Mass Store System.
     //
-    return MSS_Xeq(cmdbuff, 0, ENOENT);
+    return MSS_Xeq(0, ENOENT, (char *)"rm", path);
 }
 
 /******************************************************************************/
@@ -357,7 +344,6 @@ int XrdOssSys::MSS_Unlink(char *path) {
 */
 int XrdOssSys::MSS_Rename(char *oldname, char *newname) {
     const char *epname = "MSS_Rename";
-    char cmdbuff[XrdOssMAX_PATH_LEN*2+32];
 
     // Make sure the path is not too long.
     //
@@ -367,13 +353,9 @@ int XrdOssSys::MSS_Rename(char *oldname, char *newname) {
         return -ENAMETOOLONG;
        }
 
-    // Construct the command to rename the file.
-    //
-    sprintf(cmdbuff, "mv %s %s", oldname, newname);
-
     // Rename the file in Mass Store System
     //
-    return MSS_Xeq(cmdbuff, 0, 0);
+    return MSS_Xeq(0, 0, (char *)"mv", oldname, newname);
 }
 
 /******************************************************************************/
@@ -393,32 +375,8 @@ int XrdOssSys::MSS_Init(int Warm) {
   Output:   Zero is returned upon success; otherwise an error code is returned.
 */
 
-   EPNAME("MSS_Init")
-   int retc, child;
-   struct sockaddr_un USock;
-
-// Tell the world what we are doing (but only do it once)
+// We really have nothing more to do here but put out a message
 //
-   if (Warm) return 0;
-   OssEroute.Emsg("MSS_Init","Mass storage interface initialization started.");
-
-// Make sure the socket path exists and is not too long.
-//
-   retc = strlen(MSSgwPath);
-   if (!retc || retc > (int)sizeof(USock.sun_path))
-      {OssEroute.Emsg("XrdOssMSS_Init", "gatheway path unspecified or too long.");
-       return -1;
-      }
-
-// fork a child to handle all external communications.
-//
-   if ( (child = fork()) < 0 )
-      return OssEroute.Emsg("MSS_Init", -errno, "fork process");
-   if (!child) MSS_Gateway();
-
-// On parent, return we are done.
-//
-   DEBUG("external gateway initiated; process " <<child);
    OssEroute.Emsg("MSS_Init", "Mass storage interface initialized.");
    return 0;
 }
@@ -427,114 +385,48 @@ int XrdOssSys::MSS_Init(int Warm) {
 /*                               M S S _ X e q                                */
 /******************************************************************************/
 
-int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
-
+int XrdOssSys::MSS_Xeq(XrdOucStream **xfd, int okerr, 
+                       char *cmd, char *arg1, char *arg2)
+{
     EPNAME("MSS_Xeq")
-    char mss_cmd[XrdOssMAX_PATH_LEN*2+1024], *resp;
-    int retc, cmd_len;
+    char *resp;
+    int retc;
     XrdOucStream *sp;
-    XrdNetSocket Sock(&OssEroute);
 
-    // Close the file if we got a null command buffer.
-    //
-    if ((!cmd || !cmd[0]) && *xfd) {(*xfd)->Close(); return 0;}
+// If we have no gateway command, return an error
+//
+   if (!MSSgwProg) return MSSgwProg->Run(cmd, arg1, arg2);
 
-    // Construct the command that we will use to execute the mss subroutine.
-    //
-    if ( (cmd_len = MSSgwCmdLen + strlen(cmd) +2) > (int)sizeof(mss_cmd))
-       return OssEroute.Emsg("XrdOssMSS_Xeq", -XRDOSS_E8013, "execute", cmd);
-    sprintf(mss_cmd, "%s %s", MSSgwCmd, cmd);
-
-    // Get a connection to the gateway server.
-    //
-   if (Sock.Open(MSSgwPath) < 0) return NegVal(Sock.LastError());
-
-   // Allocate a stream for this connection.
-   //
+// Allocate a stream for this command
+//
    if (!(sp = new XrdOucStream(&OssEroute)))
-      {Sock.Close();
-       return OssEroute.Emsg("XrdOssMSS_Xeq",-ENOMEM,"create stream for",mss_cmd);
+      return OssEroute.Emsg("XrdOssMSS_Xeq",-ENOMEM,"create stream for",MSSgwCmd);
+
+// Run the command
+//
+   DEBUG("Invoking '" <<MSSgwCmd <<' ' <<cmd <<' ' <<(arg1 ? arg1 : "")
+                      <<' ' <<(arg2 ? arg2 : ""));
+   if ((retc = MSSgwProg->Run(sp, cmd, arg1, arg2)))
+      {delete sp; return NegVal(retc);}
+
+// Read back the first record. The first records must be the return code
+// from the command followed by any output. Make sure that this is the case.
+//
+   if ( !(resp = sp->GetLine()) ) retc = XRDOSS_E8023;
+      else
+      {DEBUG("received '" <<resp <<"'");
+       if (sscanf(resp, "%d", &retc) <= 0) retc = XRDOSS_E8024;
       }
-   sp->Attach(Sock.Detach());
-
-   // Send the command to the gateway.
-   //
-   DEBUG("sending to mss '" <<mss_cmd <<"'");
-   if (sp->Put(mss_cmd, cmd_len) < 0)
-      {retc = sp->LastError(); delete sp; return NegVal(retc);}
-   sp->Flush(); // Make sure it gets there
-
-    // Read back the first record. The first records must be the return code
-    // from the command followed by any output. Make sure that this is the case.
-    //
-    if ( !(resp = sp->GetLine()) ) retc = XRDOSS_E8023;
-       else 
-       {DEBUG("received '" <<resp <<"'");
-        if (sscanf(resp, "%d", &retc) <= 0) retc = XRDOSS_E8024;
-       }
-    if (retc)
-       {if (retc != -okerr)
-           OssEroute.Emsg("XrdOssMSS_Xeq", NegVal(retc), "execute", cmd);
-        delete sp;
-        return NegVal(retc);
-       }
-
-     // If the caller wants the stream pointer; return it. Otherwise close it.
-     //
-     if (xfd) *xfd = sp;
-        else delete sp;
-     return 0;
-}
-
-/******************************************************************************/
-/*                           M S S _ G a t e w a y                            */
-/******************************************************************************/
-  
-void XrdOssSys::MSS_Gateway(void) {
-
-     EPNAME("MSS_Gateway")
-     XrdOucStream IOStream(&OssEroute);
-     XrdNetSocket IOSock(&OssEroute);
-     int i, InSock, pidstat;
-     char *request;
-     pid_t parent = getppid();
-     int   timeout = 1000*60*3; // Check for parent every 3 minutes
-
-// We execute in a separate process, so we need to do some things to not
-// interefere with the main process: Close low-end file descriptors and
-// unbind the logfile so that two processes are not trying to rotate it.
-//
-   for (i = 3; i < 64; i++) close(i);
-   OssEroute.logger()->setRotate(0);
-
-// Allocate a socket.
-//
-   if (IOSock.Open(MSSgwPath,-1,XRDNET_SERVER | (XRDNET_BKLG & gwBacklog)) < 0)
-      {OssEroute.Emsg("XrdOssMSS_Gateway", IOSock.LastError(),
-                 "creating gateway socket; terminating gateway");
-       exit(4);
+   if (retc)
+      {if (retc != -okerr)
+          OssEroute.Emsg("XrdOssMSS_Xeq", NegVal(retc), "execute", cmd);
+       delete sp;
+       return NegVal(retc);
       }
 
-// Now enter an accept loop to process requests. On every successful accept,
-// we attach the socket to a stream, read one line, execute on that stream,
-// and close it on our end, the output will appear on the requestor's side.
+// If the caller wants the stream pointer; return it. Otherwise close it.
 //
-   while(1) {if ((InSock = IOSock.Accept(timeout)) >= 0)
-                {IOStream.Attach(InSock);
-                 if ((request = IOStream.GetLine()))
-                    {DEBUG("received '" <<request <<"'");
-                     IOStream.Exec(request,-1);
-                    }
-                 IOStream.Close(1);                // Close but do not kill
-                 waitpid(-1, &pidstat, WNOHANG);   // Reap any previous child
-                 continue;
-                }
-             if (kill(parent, 0) < 0 && errno == ESRCH)
-                {OssEroute.Emsg("XrdOssMSS_Gateway",
-                            "parent process terminated; terminating gateway");
-                 unlink((const char *)MSSgwPath);
-                 exit(4);
-                }
-             waitpid(-1, &pidstat, WNOHANG);   // Reap any previous child
-            }
+   if (xfd) *xfd = sp;
+      else delete sp;
+   return 0;
 }
