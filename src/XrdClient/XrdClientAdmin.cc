@@ -22,13 +22,13 @@
 
 #include <stdio.h>
 #include <unistd.h>
-
+#include <strings.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 
-using namespace std;
+
 
 //_____________________________________________________________________________
 void joinStrings(XrdClientString &buf, vecString vs)
@@ -608,7 +608,9 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
       while (endp) {
 
 	 if ( (endp = (kXR_char *)strchr((const char*)startp, '\n')) ) {
-	    entry = (kXR_char *)strndup((char *)startp, endp-startp);
+            entry = (kXR_char *)malloc(endp-startp+1);
+            memset((char *)entry, 0, endp-startp+1);
+	    strncpy((char *)entry, (char *)startp, endp-startp);
 	    endp++;
 	 }
 	 else

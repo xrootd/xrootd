@@ -107,11 +107,11 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
    listOfMachines = tmpurl.HostWPort;
 
    // remove trailing "," that would introduce a null host
-   while ( (listOfMachines.EndsWith(",")) || (listOfMachines.EndsWith(" ")) )
+   while ( (listOfMachines.EndsWith((char *)",")) || (listOfMachines.EndsWith((char *)" ")) )
       listOfMachines.EraseFromEnd(1);
 
    // remove leading "," that would introduce a null host
-   while ( listOfMachines.BeginsWith(",") )
+   while ( listOfMachines.BeginsWith((char *)",") )
       listOfMachines.EraseFromStart(1);
 
    Info( XrdClientDebug::kUSERDEBUG, "XrdClientUrlSet", "List of servers to connect to is [" <<
@@ -223,7 +223,7 @@ void XrdClientUrlSet::CheckPort(XrdClientString &machine)
 {
    // Checks the validity of port in the given host[:port]
    // Eventually completes the port if specified in the services file
-   int p = machine.Find(":");
+   int p = machine.Find((char *)":");
 
    if(p == STR_NPOS) {
       // Port not specified
@@ -280,7 +280,7 @@ void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, XrdClientString host
    bool specifiedPort;
    XrdClientString tmpaddr;
   
-   specifiedPort = ( hostname.Find(":") != STR_NPOS );
+   specifiedPort = ( hostname.Find((char *)":") != STR_NPOS );
   
    XrdClientUrlInfo tmp(hostname);
    specifiedPort = tmp.Port > 0;
@@ -342,7 +342,7 @@ void XrdClientUrlSet::ConvertDNSAliases(UrlArray& urls, XrdClientString list, Xr
    lst += ",";
 
    while(lst.GetSize() > 0) {
-      colonPos = lst.Find(",");
+      colonPos = lst.Find((char *)",");
       if ((colonPos != STR_NPOS) && (colonPos <= lst.GetSize())) {
 	 XrdClientString tmp(lst);
 

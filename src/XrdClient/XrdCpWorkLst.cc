@@ -242,7 +242,7 @@ bool XrdCpWorkLst::GetCpJob(XrdClientString &src, XrdClientString &dest) {
 
       // If the dest is a directory name, we must concatenate
       // the actual filename, i.e. the token in src following the last /
-      int slpos = src.RFind("/");
+      int slpos = src.RFind((char *)"/");
 
       if (slpos != STR_NPOS) 
 	 dest += src.Substr(slpos);

@@ -53,7 +53,7 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdCli
 
       host = redirdata->host;
       token = "";
-      if ( (pos = host.Find("?")) != STR_NPOS ) {
+      if ( (pos = host.Find((char *)"?")) != STR_NPOS ) {
          token = host.Substr(pos+1);
          host.EraseFromStart(pos);
       }
@@ -1192,7 +1192,7 @@ bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString p
 
      // Extract the protocol name (identifier)
      XrdClientString protname = "";
-     if (token.Find("&P=") != 0) {
+     if (token.Find((char *)"&P=") != 0) {
         if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
            Info(XrdClientDebug::kHIDEBUG,
 		   "DoAuthentication",
@@ -1201,7 +1201,7 @@ bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString p
         protname = token;
 	protname.EraseFromStart(3);
         //protname.ReplaceAll("&P=","");
-        protname.EraseFromStart(protname.Find(",")+1);
+        protname.EraseFromStart(protname.Find((char *)",")+1);
      }
      
      // Now we add the username and the hostname to the token, because
@@ -1585,7 +1585,7 @@ XrdClientString XrdClientConn::ParseDomainFromHostname(XrdClientString hostname)
    res = hostname;
 
    // Isolate domain
-   pos = res.Find(".");
+   pos = res.Find((char *)".");
 
    if (pos == STR_NPOS)
       res = "";

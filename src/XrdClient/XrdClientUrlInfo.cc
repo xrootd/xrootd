@@ -60,7 +60,7 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString url) {
    if (!u.GetSize()) return;
 
    // Get protocol
-   if ( (p = u.Find("://")) != STR_NPOS) {
+   if ( (p = u.Find((char *)"://")) != STR_NPOS) {
       Proto = u.Substr(0, p);
       u = u.Substr(p+3);
    }
@@ -71,12 +71,12 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString url) {
    }
 
    // Get user/pwd
-   if ( (p = u.Find("@")) != STR_NPOS) {
+   if ( (p = u.Find((char *)"@")) != STR_NPOS) {
       XrdClientString tmp;
       int p2;
 
       tmp = u.Substr(0, p);
-      if ( (p2 = u.Find(":")) != STR_NPOS ) {
+      if ( (p2 = u.Find((char *)":")) != STR_NPOS ) {
 	 User = tmp.Substr(0, p2);
 	 Passwd = tmp.Substr(p2+1, STR_NPOS);
       }
@@ -94,13 +94,13 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString url) {
    }
 
    // Get host:port
-   p = u.Find("/");
+   p = u.Find((char *)"/");
    HostWPort = u.Substr(0, p);
 
    {
       int p2;
 
-      if ( (p2 = HostWPort.Find(":")) != STR_NPOS ) {	 
+      if ( (p2 = HostWPort.Find((char *)":")) != STR_NPOS ) {	 
 	 Host = HostWPort.Substr(0, p2);
 	 Port = atoi(HostWPort.Substr(p2+1, STR_NPOS).c_str());
       }

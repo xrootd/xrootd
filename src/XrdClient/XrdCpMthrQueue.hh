@@ -11,7 +11,7 @@
 //       $Id$
 
 #include <pthread.h>
-#include <list>
+#include "XrdClientVector.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 using namespace std;
 
@@ -27,8 +27,8 @@ struct XrdCpMessage {
 class XrdCpMthrQueue {
  private:
    long                           fTotSize;
-   list<XrdCpMessage*>            fMsgQue;      // queue for incoming messages
-   list<XrdCpMessage*>::iterator  fMsgIter;     // an iterator on it
+   XrdClientVector<XrdCpMessage*>            fMsgQue;      // queue for incoming messages
+   int                                       fMsgIter;     // an iterator on it
 
    pthread_mutex_t                    fMutex;       // mutex to protect data structures
 

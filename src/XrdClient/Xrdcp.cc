@@ -47,8 +47,8 @@ extern "C" void *ReaderThread_xrd(void *)
 	"ReaderThread_xrd",
 	"Reader Thread starting.");
    
-   pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0);
-   pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
+   pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, 0);
+   pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
 
 
    void *buf;
@@ -70,6 +70,10 @@ extern "C" void *ReaderThread_xrd(void *)
 	 offs += nr;
 	 cpnfo.queue.PutBuffer(buf, nr);
       }
+
+      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
+      pthread_testcancel();
+      pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
    }
 
    cpnfo.bread = bread;
@@ -92,7 +96,7 @@ extern "C" void *ReaderThread_loc(void *) {
 	"ReaderThread_loc",
 	"Reader Thread starting.");
 
-   pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0);
+   pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, 0);
    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
 
    void *buf;
@@ -126,7 +130,7 @@ extern "C" void *ReaderThread_loc(void *) {
 int CreateDestPath_loc(XrdClientString path, bool isdir) {
    // We need the path name without the file
    if (!isdir)
-      path = path.Substr(0,  path.RFind("/") );
+      path = path.Substr(0,  path.RFind((char *)"/") );
 
    return ( mkdir(
 		  path.c_str(),
@@ -145,7 +149,7 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    if (url == "-") return 0;
 
    if (!isdir)
-      url = url.Substr(0,  url.RFind("/") );
+      url = url.Substr(0,  url.RFind((char *)"/") );
 
    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
    if (adm->Connect()) {
@@ -175,6 +179,7 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
 int doCp_xrd2xrd(const char *src, const char *dst) {
    // ----------- xrd to xrd affair
    pthread_t myTID;
+   void *thret;
    XrdClientStatInfo stat;
    XrdClient *xrddest = 0;
 
@@ -231,6 +236,9 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
 
    }
 
+   pthread_cancel(myTID);
+   pthread_join(myTID, &thret);
+
    xrddest->Close();
    cpnfo.XrdCli->Close();
 
@@ -244,6 +252,7 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
 int doCp_xrd2loc(const char *src, const char *dst) {
    // ----------- xrd to loc affair
    pthread_t myTID;
+   void *thret;
    XrdClientStatInfo stat;
    int f;
 
@@ -306,6 +315,10 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       close(f);
    }
 
+
+   pthread_cancel(myTID);
+   pthread_join(myTID, &thret);
+
    cpnfo.XrdCli->Close();
    delete cpnfo.XrdCli;
    cpnfo.XrdCli = 0;
@@ -318,6 +331,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 int doCp_loc2xrd(const char *src, const char * dst) {
 // ----------- loc to xrd affair
    pthread_t myTID;
+   void * thret;
    XrdClient *xrddest;
 
    // Open the input file (loc)
@@ -368,8 +382,8 @@ int doCp_loc2xrd(const char *src, const char * dst) {
 	 break;
       }
 	 
-
-   
+   pthread_cancel(myTID);
+   pthread_join(myTID, &thret);
 
    delete xrddest;
    close(cpnfo.localfile);
@@ -425,10 +439,10 @@ int main(int argc, char**argv) {
    while (wklst->GetCpJob(src, dest)) {
       Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
 
-      if (src.BeginsWith("root://")) {
+      if (src.BeginsWith((char *)"root://")) {
 	 // source is xrootd
 
-	 if (dest.BeginsWith("root://")) {
+	 if (dest.BeginsWith((char *)"root://")) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
@@ -453,7 +467,7 @@ int main(int argc, char**argv) {
       else {
 	 // source is localfs
 
-	 if (dest.Find("root://")) {
+	 if (dest.Find((char *)"root://")) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);

@@ -48,6 +48,10 @@ class XrdClientVector {
       Init();
    }
 
+   ~XrdClientVector() {
+      Clear();
+   }
+
    void Push_back(T& item) {
       
       if ( !BufRealloc(size+1) ) {
@@ -74,8 +78,8 @@ class XrdClientVector {
       size--;
    }
 
-   T &Pop_front() {
-      T &res;
+   T Pop_front() {
+      T res;
 
       res = At(0);
       for (int i=1; i < size; i++)

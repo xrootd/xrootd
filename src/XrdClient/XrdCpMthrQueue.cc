@@ -33,7 +33,7 @@ XrdCpMthrQueue::XrdCpMthrQueue() {
       abort();
    }
 
-   fMsgQue.clear();
+   fMsgQue.Clear();
    fTotSize = 0;
 }
 
@@ -63,7 +63,7 @@ int XrdCpMthrQueue::PutBuffer(void *buf, int len) {
    {
       XrdClientMutexLocker mtx(fMutex);
     
-      fMsgQue.push_back(m);
+      fMsgQue.Push_back(m);
       fTotSize += len;
    }
     
@@ -80,11 +80,10 @@ int XrdCpMthrQueue::GetBuffer(void **buf, int &len) {
    {
       XrdClientMutexLocker mtx(fMutex);
       
-      if (fMsgQue.size() > 0) {
+      if (fMsgQue.GetSize() > 0) {
 
          // If there are messages to dequeue, we pick the oldest one
-	 res = fMsgQue.front();
-	 fMsgQue.pop_front();
+	 res = fMsgQue.Pop_front();
 	 if (res) fTotSize -= res->len;
       }
    }
@@ -96,11 +95,10 @@ int XrdCpMthrQueue::GetBuffer(void **buf, int &len) {
       {
 	 XrdClientMutexLocker mtx(fMutex);
 
-      	 if (fMsgQue.size() > 0) {
+      	 if (fMsgQue.GetSize() > 0) {
 
 	    // If there are messages to dequeue, we pick the oldest one
-	    res = fMsgQue.front();
-	    fMsgQue.pop_front();
+	    res = fMsgQue.Pop_front();
 	    if (res) fTotSize -= res->len;
 	 }
       }
