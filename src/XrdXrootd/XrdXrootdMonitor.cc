@@ -176,8 +176,8 @@ void XrdXrootdMonitor::appID(char *id)
 //
    if (lastWindow != currWindow) Mark();
       else if (nextEnt == lastEnt) Flush();
-   monBuff->info[nextEnt].arg0.id[0]  = XROOTD_MON_APPID;
-   strncpy((char *)&monBuff->info[nextEnt].arg0.id[4], id,
+   monBuff->info[nextEnt].rec[0]  = XROOTD_MON_APPID;
+   strncpy((char *)&monBuff->info[nextEnt].rec[4], id,
            sizeof(XrdXrootdMonTrace)-4);
 }
 

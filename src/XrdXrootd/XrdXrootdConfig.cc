@@ -642,8 +642,8 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
 // Set the monitor defaults
 //
    XrdXrootdMonitor::Defaults(monMBval, monWWval, monFlush);
-   if (monDest[0]) monMode[0] |= xmode;
-   if (monDest[1]) monMode[1] |= xmode;
+   if (monDest[0]) monMode[0] |= (monMode[0] ? XROOTD_MON_FILE|xmode : xmode);
+   if (monDest[1]) monMode[1] |= (monMode[1] ? XROOTD_MON_FILE|xmode : xmode);
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
    return 0;
 }

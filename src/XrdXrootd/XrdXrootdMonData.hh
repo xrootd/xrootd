@@ -26,9 +26,17 @@ struct XrdXrootdMonHeader
        };
 
 struct XrdXrootdMonTrace
-       {union {kXR_int64  val;    kXR_char id[8];   kXR_unt32 rTot[2];} arg0;
-        union {kXR_int32  buflen; kXR_int32 Window; kXR_unt32 wTot;   } arg1;
-        union {kXR_unt32  dictid; kXR_int32 Window;                   } arg2;
+       {union {union {kXR_int64  val;
+                      kXR_char   id[8];
+                      kXR_unt32  rTot[2]; } arg0;
+               union {kXR_int32  buflen;
+                      kXR_int32  Window;
+                      kXR_unt32  wTot;    } arg1;
+               union {kXR_unt32  dictid;
+                      kXR_int32  Window;  } arg2;
+
+               kXR_char rec[16];
+              };
        };
 
 struct XrdXrootdMonBuff
