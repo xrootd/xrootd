@@ -148,10 +148,10 @@ int XrdOssLock::Serialize(const char *fn, int lkwant)
    if (lkwant & XrdOssRETIME)
       {struct stat    buf;
        struct utimbuf times;
-       if (!(rc = stat((const char *)fn, &buf)))
+       if (!(rc = stat(fn, &buf)))
           {times.actime =  buf.st_atime;
            times.modtime = buf.st_mtime-63;
-           rc = utime((const char *)lkbuff, (const struct utimbuf *)&times);
+           rc = utime(lkbuff, (const struct utimbuf *)&times);
           }
        if (rc) {rc = errno; close(lkfd); lkfd = -1;
                 return OssEroute.Emsg("XrdOssSerialize",rc,"retime",lkbuff);

@@ -349,7 +349,7 @@ void *XrdOssAioWait(void *mySigarg)
    do {do {numsig = sigwaitinfo((const sigset_t *)&mySigset, &myInfo);}
           while (numsig < 0 && errno == EINTR);
        if (numsig < 0)
-          {OssEroute.Emsg("AioWait",errno,sigType,(char *)"wait for AIO signal");
+          {OssEroute.Emsg("AioWait",errno,sigType,"wait for AIO signal");
            XrdOssSys::AioAllOk = 0;
            break;
           }

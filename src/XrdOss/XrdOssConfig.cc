@@ -456,7 +456,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 //
    if (stgp && !StageCmd)
       {Eroute.Emsg("config","Stageable path", stgp,
-                            (char *)"present but stagecmd not specified.");
+                            "present but stagecmd not specified.");
        NoGo = 1;
       }
       else if (StageCmd && !stgp)
@@ -468,7 +468,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 //
    if (gwp && !MSSgwCmd)
       {Eroute.Emsg("config","MSS path", gwp,
-                            (char *)"present but mssgwcmd not specified.");
+                            "present but mssgwcmd not specified.");
        NoGo = 1;
       }
       else if (MSSgwCmd && !gwp)
@@ -711,18 +711,18 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
        }
 
     for (i = k-1; i; i--) if (val[i] == '/') break;
-    i++; strncpy(fn, (const char *)val, i); fn[i] = '\0';
+    i++; strncpy(fn, val, i); fn[i] = '\0';
     sfxdir = &fn[i]; pfxdir = &val[i]; pfxln = strlen(pfxdir)-1;
-    if (!(DFD = opendir((const char *)fn)))
+    if (!(DFD = opendir(fn)))
        {Eroute.Emsg("config", errno, "open cache directory", fn); return 1;}
 
     errno = 0;
     while((dp = readdir(DFD)))
          {if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")
-          || (pfxln && strncmp(dp->d_name, (const char *)pfxdir, pfxln)))
+          || (pfxln && strncmp(dp->d_name, pfxdir, pfxln)))
              continue;
           strcpy(sfxdir, dp->d_name);
-          if (stat((const char *)fn, &buff)) break;
+          if (stat(fn, &buff)) break;
           if (buff.st_mode & S_IFDIR)
              {val = sfxdir + strlen(sfxdir) - 1;
              if (*val++ != '/') {*val++ = '/'; *val = '\0';}
@@ -744,7 +744,7 @@ int XrdOssSys::xcacheBuild(char *grp, char *fn, XrdOucError &Eroute)
 {
     XrdOssCache_FS *fsp;
     int rc;
-    if (!(fsp = new XrdOssCache_FS(rc, (const char *)grp, (const char *)fn)))
+    if (!(fsp = new XrdOssCache_FS(rc, grp, fn)))
        {Eroute.Emsg("config", ENOMEM, "create cache", fn); return 0;}
     if (rc)
        {Eroute.Emsg("config", rc, "create cache", fn);
@@ -919,8 +919,8 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
           if (i >= numopts)
              Eroute.Emsg("Config", "Warning, invalid memfile option", val);
              else {if (mmopts[i].otyp >  1 && !(val = Config.GetToken()))
-                      {Eroute.Emsg("Config","memfile",(char *)mmopts[i].opname,
-                                 (char *)"value not specified");
+                      {Eroute.Emsg("Config","memfile",mmopts[i].opname,
+                                   "value not specified");
                        return 1;
                       }
                    switch(mmopts[i].otyp)
@@ -1048,7 +1048,7 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
 //
    if ((rpval & XrdOssMEMAP) && !(rpval & XrdOssNOTRW))
       {Eroute.Emsg("config", "warning, file memory mapping forced path", path,
-                             (char *)"to be readonly");
+                             "to be readonly");
        rpval |= XrdOssFORCERO;
       }
    if (rpval & (XrdOssMLOK | XrdOssMKEEP)) rpval |= XrdOssMMAP;

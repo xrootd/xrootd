@@ -90,7 +90,7 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 // Do the herald thing
 //
    OssEroute.logger(lp);
-   OssEroute.Emsg("Init", "(c) 2004, Stanford University, oss Version "
+   OssEroute.Emsg("Init", "(c) 2005, Stanford University, oss Version "
                     XrdVSTRING);
 
 // Initialize the subsystems
@@ -115,8 +115,7 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 {
     if (concat_fn(LocalRoot, LocalRootLen, oldp, newp))
-       return OssEroute.Emsg("glp", -ENAMETOOLONG, "generate local path",
-                               (char *)oldp);
+       return OssEroute.Emsg("glp",-ENAMETOOLONG,"generate local path",oldp);
     return XrdOssOK;
 }
 
@@ -132,8 +131,7 @@ int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
 {
    if (concat_fn(RemoteRoot, RemoteRootLen, oldp, newp))
-      return OssEroute.Emsg("grp", -ENAMETOOLONG,"generate remote path",
-                               (char *)oldp);
+      return OssEroute.Emsg("grp",-ENAMETOOLONG,"generate remote path",oldp);
    return XrdOssOK;
 }
 
@@ -165,7 +163,7 @@ int XrdOssSys::Chmod(const char *path, mode_t mode)
 
 // Change the file only in the local filesystem.
 //
-   if (!chmod((const char *)local_path, mode)) return XrdOssOK;
+   if (!chmod(local_path, mode)) return XrdOssOK;
    return -errno;
 }
 
@@ -198,13 +196,13 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 
 // Create the directory only in the loal file system
 //
-   if (!mkdir((const char *)local_path, mode)) return XrdOssOK;
+   if (!mkdir(local_path, mode)) return XrdOssOK;
 
 // Check if the full path is to be created
 //
    if (!mkpath || errno != ENOENT) return -errno;
-   if ((retc = Mkpath((const char *)local_path, mode))) return retc;
-   if (!mkdir((const char *)local_path, mode)) return XrdOssOK;
+   if ((retc = Mkpath(local_path, mode))) return retc;
+   if (!mkdir(local_path, mode)) return XrdOssOK;
    return -errno;
 }
 
@@ -251,9 +249,9 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
 
 // Start creating directories starting with the root
 //
-   while((next_path = index((const char *)local_path, (int)'/')))
+   while((next_path = index(local_path, int('/'))))
         {*next_path = '\0';
-         if (mkdir((const char *)actual_path, mode) && errno != EEXIST)
+         if (mkdir(actual_path, mode) && errno != EEXIST)
             return -errno;
          *next_path = '/';
          local_path = next_path+1;
@@ -452,7 +450,7 @@ int XrdOssDir::Readdir(char *buff, int blen)
    if (lclfd)
       {errno = 0;
        if ((rp = readdir(lclfd)))
-          {strlcpy(buff, (const char *)rp->d_name, blen);
+          {strlcpy(buff, rp->d_name, blen);
            return XrdOssOK;
           }
        *buff = '\0'; ateof = 1;
@@ -546,8 +544,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 //
    if ((Oflag & (O_WRONLY | O_RDWR)) && (popts & XrdOssNOTRW))
       if (popts & XrdOssFORCERO) Oflag = O_RDONLY;
-         else return OssEroute.Emsg("XrdOssOpen", -XRDOSS_E8005, "open r/w",
-                                      (char *)path);
+         else return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8005,"open r/w",path);
 
 // If we can open the local copy. If not found, try to stage it in if possible.
 // Note that stage will regenerate the right local and remote paths.
@@ -555,7 +552,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    if ( (fd = (int)Open_ufs(local_path, Oflag, Mode, popts))
          == -ENOENT && (popts & XrdOssREMOTE))
       {if (popts & XrdOssNOSTAGE)
-          return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8006,"open",(char *)path);
+          return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8006,"open",path);
        if ( (retc = XrdOssSS.Stage(path, Env)) ) return retc;
        fd = (int)Open_ufs(local_path, Oflag, Mode, popts & ~XrdOssREMOTE);
       }
@@ -882,7 +879,7 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
     if (myfd >= 0)
        {if (myfd < XrdOssSS.FDFence)
            if ((newfd = fcntl(myfd, F_DUPFD, XrdOssSS.FDFence)) < 0)
-              OssEroute.Emsg("XrdOssOpen_ufs",errno,"reloc FD",(char *)path);
+              OssEroute.Emsg("XrdOssOpen_ufs",errno,"reloc FD",path);
               else {close(myfd); myfd = newfd;}
         fcntl(myfd, F_SETFD, FD_CLOEXEC);
 #ifdef XRDOSSCX

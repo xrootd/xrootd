@@ -138,7 +138,7 @@ int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
    pdlen[5] = 1;
    pdata[6] = (char *)" ";
    pdlen[6] = 1;
-   pdata[7] = (char *)"qw";    // suppress messages, r/w staging
+   pdata[7] = (char *)"wq";    // suppress messages, r/w staging
    pdlen[7] = 2;
    pdata[8] = (char *)" ";
    pdlen[8] = 1;
@@ -151,7 +151,7 @@ int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
 
 // Feed the queue
 //
-   if (StageProg->Feed((const char **)pdata, (const int *)pdlen))
+   if (StageProg->Feed((const char **)pdata, pdlen))
       return -XRDOSS_E8025;
 
 // All done
@@ -210,7 +210,7 @@ int XrdOssSys::Stage_RT(const char *fn, XrdOucEnv &env)
 // Create a new request
 //
    if (!(newreq = new XrdOssCache_Req(req.hash, fn)))
-       return OssEroute.Emsg("XrdOssStage",-ENOMEM,"create req for",(char *)fn);
+       return OssEroute.Emsg("XrdOssStage",-ENOMEM,"create req for",fn);
 
 // Add this request to the list of requests
 //
@@ -391,7 +391,7 @@ int XrdOssSys::GetFile(XrdOssCache_Req *req)
 // Run the command to get the file
 //
    if ((retc = StageProg->Run(rfs_fn, lfs_fn)))
-      {OssEroute.Emsg("Stage", retc, "stage", (char *)req->path);
+      {OssEroute.Emsg("Stage", retc, "stage", req->path);
        return -XRDOSS_E8009;
       }
 
@@ -413,7 +413,7 @@ int XrdOssSys::HasFile(const char *fn, const char *fsfx)
 
 // Insert local prefix if one exists
 //
-   if (LocalRootLen) {strcpy(path,(const char *)LocalRoot); pp += LocalRootLen;}
+   if (LocalRootLen) {strcpy(path,LocalRoot); pp += LocalRootLen;}
 
 // Add in the file path and the suffix
 //
@@ -423,7 +423,7 @@ int XrdOssSys::HasFile(const char *fn, const char *fsfx)
 
 // Now check if the file actually exists
 //
-   rc = lstat((const char *)path, &statbuff);
+   rc = lstat(path, &statbuff);
    free(path);
    if (rc) return 1;
    return (int)statbuff.st_ctime;

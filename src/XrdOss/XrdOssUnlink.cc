@@ -63,7 +63,7 @@ int XrdOssSys::Unlink(const char *path)
 
 // Determine whether we can actually unlink a file on this server.
 //
-   remotefs = Check_RO(Unlink, ismig, (char *)path, "deleting ");
+   remotefs = Check_RO(Unlink, ismig, path, "deleting ");
    ismig &= (XrdOssREMOTE | XrdOssMIG);
 
 // Build the right local and remote paths.

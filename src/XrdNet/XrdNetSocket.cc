@@ -205,7 +205,7 @@ int XrdNetSocket::Open(char *inpath, int port, int flags, int windowsz)
           }
        if (!myEC) {PeerName = strdup((path ? path : "?"));
                    if (*path == '/') XrdNetDNS::getHostAddr(0, PeerAddr);
-                      else memcpy((void *)&PeerAddr,&SockAddr,sizeof(PeerAddr));
+                      else memcpy((void *)&PeerAddr,SockAddr,sizeof(PeerAddr));
                   }
       }
 

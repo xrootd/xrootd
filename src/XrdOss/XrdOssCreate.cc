@@ -83,7 +83,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
 
 // Determine whether we can actually create a file on this server.
 //
-   remotefs = Check_RO(Create, popts, (char *)path, "creating ");
+   remotefs = Check_RO(Create, popts, path, "creating ");
 
 // Generate the actual local path for this file.
 //
@@ -93,10 +93,10 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
 //
    if (mkpath && (retc = strlen(local_path)))
       {if (local_path[retc-1] == '/') local_path[retc-1] = '\0';
-       if ((p = rindex((const char *)local_path, (int)'/')))
+       if ((p = rindex(local_path, int('/'))))
           {struct stat buf;
            *p = '\0';
-           if (stat((const char *)local_path, &buf) && errno == ENOENT)
+           if (stat(local_path, &buf) && errno == ENOENT)
               {*p = '/'; Mkpath(path, AMode);}
               else *p = '/';
           }
@@ -136,8 +136,8 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
 // Created file in the extended cache or the local name space
 //
    if (fsfirst && !(popts & XrdOssINPLACE))
-           datfd = Alloc_Cache((const char *)local_path, access_mode, env);
-      else datfd = Alloc_Local((const char *)local_path, access_mode, env);
+           datfd = Alloc_Cache(local_path, access_mode, env);
+      else datfd = Alloc_Local(local_path, access_mode, env);
 
 // Diagnose file creation problems at this point
 //

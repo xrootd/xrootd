@@ -113,7 +113,6 @@ int XrdNet::Bind(int bindport, const char *contype)
 
 // Get correct option settings
 //
-   Portnum = bindport;
    if (*contype != 'u') PortType = SOCK_STREAM;
       else {PortType = SOCK_DGRAM;
             opts |= XRDNET_UDPSOCKET;
@@ -128,6 +127,10 @@ int XrdNet::Bind(int bindport, const char *contype)
 // Success, get the socket number and return
 //
    iofd = mySocket.Detach();
+
+// Obtain port number of generic port being used
+//
+   Portnum = (bindport ? bindport : XrdNetDNS::getPort(iofd));
 
 // For udp sockets, we must allocate a buffer queue object
 //
@@ -149,7 +152,7 @@ int XrdNet::Bind(char *path, const char *contype)
 // Make sure this is a path and not a host name
 //
    if (*path != '/')
-      {eDest->Emsg("Bind", "Invalid bind path -", (char *)path);
+      {eDest->Emsg("Bind", "Invalid bind path -", path);
        return -EINVAL;
       }
 
@@ -210,6 +213,7 @@ int XrdNet::Connect(XrdNetPeer &myPeer,
        char *pn = mySocket.Peername(&sap);
        if (pn) {memcpy((void *)&myPeer.InetAddr, sap, sizeof(myPeer.InetAddr));
                 myPeer.InetName = strdup(pn);
+                if (Domain && !(opts & XRDNET_NODNTRIM)) Trim(myPeer.InetName);
                } else {
                 memset((void *)&myPeer.InetAddr, 0, sizeof(myPeer.InetAddr));
                 myPeer.InetName = strdup("unknown");

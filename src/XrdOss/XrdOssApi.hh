@@ -131,13 +131,13 @@ static char  tryMmap;           // Memory mapped files enabled
 static char  chkMmap;           // Memory mapped files are selective
    
 int       MSS_Closedir(void *);
-int       MSS_Create(char *path, mode_t, XrdOucEnv &);
-void     *MSS_Opendir(char *, int &rc);
+int       MSS_Create(const char *path, mode_t, XrdOucEnv &);
+void     *MSS_Opendir(const char *, int &rc);
 int       MSS_Readdir(void *fd, char *buff, int blen);
-int       MSS_Remdir(char *, char *) {return -ENOTSUP;}
-int       MSS_Rename(char *, char *);
-int       MSS_Stat(char *, struct stat *);
-int       MSS_Unlink(char *);
+int       MSS_Remdir(const char *, const char *) {return -ENOTSUP;}
+int       MSS_Rename(const char *, const char *);
+int       MSS_Stat(const char *, struct stat *);
+int       MSS_Unlink(const char *);
 
 char     *ConfigFN;       // -> Pointer to the config file name
 int       Hard_FD_Limit;  //    Hard file descriptor limit
@@ -259,7 +259,7 @@ int    xxfr(XrdOucStream &Config, XrdOucError &Eroute);
 //
 int    tranmode(char *);
 int    MSS_Xeq(XrdOucStream **xfd, int okerr,
-               char *cmd, char *arg1=0, char *arg2=0);
+               const char *cmd, const char *arg1=0, const char *arg2=0);
 
 // Other methods
 //

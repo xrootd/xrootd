@@ -9,6 +9,8 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
+
+#include <sys/socket.h>
   
 //         $Id$
 
@@ -84,6 +86,12 @@ static int getPort(const char  *servname,
                    const char  *servtype,
                          char **errtxt=0);
 
+// getPort() variant returns the port number associated with the specified
+//           file descriptor. If an error occurs, a negative errno is returned,
+//           and errtxt is set if supplied.
+//
+static int getPort(int fd, char **errtxt=0);
+
 // getProtoID() returns the protocol number associated with the protocol name
 //              passed as a parameter. No failures can occur since TCP is
 //              returned if the protocol cannot be found.
@@ -106,6 +114,12 @@ static int Host2Dest(char            *InetName,
 static int Host2IP(char         *InetName,
                    unsigned int *ipaddr=0);
 
+// IP2String() converts an IPV4 version of the address to ascii dot notation
+//             If port > 0 then the results is <ipaddr>:<port>. The return
+//             value is the number of characters placed in the buffer.
+//
+static int IP2String(unsigned int ipaddr, int port, char *buff, int blen);
+
 // IPAddr() returns the IPV4 version of the address in the address argument
 //
 static unsigned int IPAddr(struct sockaddr *InetAddr);
@@ -114,6 +128,11 @@ static unsigned int IPAddr(struct sockaddr *InetAddr);
 //              This test is used to discover IP address spoofing in UDP packets.
 //
 static int isLoopback(struct sockaddr &InetAddr);
+
+// isMatch() returns true if the HostName matches the host pattern HostPat.
+//           Patterns are formed as {[<pfx>][*][<sfx>] | <name>+}
+//
+static int isMatch(const char *HostNme, char *HostPat);
 
 // Peername() returns the strdupp'd string name (and optionally the address) of 
 //            the host associated with the socket passed as the first parameter. 

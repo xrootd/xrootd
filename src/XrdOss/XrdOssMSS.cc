@@ -90,7 +90,7 @@ struct XrdOssHandle
 /*                               o p e n d i r                                */
 /******************************************************************************/
   
-void *XrdOssSys::MSS_Opendir(char *dir_path, int &rc) {
+void *XrdOssSys::MSS_Opendir(const char *dir_path, int &rc) {
 /*
   Function: Open the directory `path' and prepare for reading.
 
@@ -114,7 +114,7 @@ void *XrdOssSys::MSS_Opendir(char *dir_path, int &rc) {
      // Issue it now to trap any errors but defer reading the result until
      // readdir() is called. This does tie up a process, sigh.
      //
-     if ( (rc = MSS_Xeq(&sp, ENOENT, (char *)"dlist", dir_path)))
+     if ( (rc = MSS_Xeq(&sp, ENOENT, "dlist", dir_path)))
         return (void *)0;
 
      // Allocate storage for the handle and return a copy of it.
@@ -161,7 +161,7 @@ int XrdOssSys::MSS_Readdir(void *dir_handle, char *buff, int blen) {
                     return OssEroute.Emsg("XrdOssMSS_Readdir", -EOVERFLOW,
                                             "readdir rmt", resp);
                    }
-                   strlcpy(buff, (const char *)resp, blen);
+                   strlcpy(buff, resp, blen);
                } else {
                 if ((retc = oh->sp->LastError())) return NegVal(retc);
                    else {*buff = '\0'; oh->hflag |= XRDOSS_HT_EOF;}
@@ -194,7 +194,7 @@ int XrdOssSys::MSS_Closedir(void *dir_handle) {
 /*                                c r e a t e                                 */
 /******************************************************************************/
 
-int XrdOssSys::MSS_Create(char *path, mode_t file_mode, XrdOucEnv &env)
+int XrdOssSys::MSS_Create(const char *path, mode_t file_mode, XrdOucEnv &env)
 /*
   Function: Create a file named `path' with 'file_mode' access mode bits set.
 
@@ -223,7 +223,7 @@ int XrdOssSys::MSS_Create(char *path, mode_t file_mode, XrdOucEnv &env)
 
     // Create the file in in the mass store system
     //
-    return MSS_Xeq(0, 0, (char *)"create", path, myMode);
+    return MSS_Xeq(0, 0, "create", path, myMode);
 }
 
 /******************************************************************************/
@@ -240,7 +240,7 @@ int XrdOssSys::MSS_Create(char *path, mode_t file_mode, XrdOucEnv &env)
   Output:   Returns 0 upon success and -errno upon failure.
 */
 
-int XrdOssSys::MSS_Stat(char *path, struct stat *buff)
+int XrdOssSys::MSS_Stat(const char *path, struct stat *buff)
 {
     const char *epname = "MSS_Stat";
     char ftype, mtype[10], *resp;
@@ -258,7 +258,7 @@ int XrdOssSys::MSS_Stat(char *path, struct stat *buff)
 
     // issue the command.
     //
-    if ((retc = MSS_Xeq(&sfd, ENOENT, (char *)"statx", path))) return retc;
+    if ((retc = MSS_Xeq(&sfd, ENOENT, "statx", path))) return retc;
 
     // Read in the results.
     //
@@ -319,7 +319,7 @@ int XrdOssSys::tranmode(char *mode) {
 
   Output:   Returns 0 upon success and -errno upon failure.
 */
-int XrdOssSys::MSS_Unlink(char *path) {
+int XrdOssSys::MSS_Unlink(const char *path) {
     const char *epname = "MSS_Unlink";
 
     // Make sure the path is not too long.
@@ -331,7 +331,7 @@ int XrdOssSys::MSS_Unlink(char *path) {
 
     // Remove the file in Mass Store System.
     //
-    return MSS_Xeq(0, ENOENT, (char *)"rm", path);
+    return MSS_Xeq(0, ENOENT, "rm", path);
 }
 
 /******************************************************************************/
@@ -346,7 +346,7 @@ int XrdOssSys::MSS_Unlink(char *path) {
 
   Output:   Returns 0 upon success and -errno upon failure.
 */
-int XrdOssSys::MSS_Rename(char *oldname, char *newname) {
+int XrdOssSys::MSS_Rename(const char *oldname, const char *newname) {
     const char *epname = "MSS_Rename";
 
     // Make sure the path is not too long.
@@ -359,7 +359,7 @@ int XrdOssSys::MSS_Rename(char *oldname, char *newname) {
 
     // Rename the file in Mass Store System
     //
-    return MSS_Xeq(0, 0, (char *)"mv", oldname, newname);
+    return MSS_Xeq(0, 0, "mv", oldname, newname);
 }
 
 /******************************************************************************/
@@ -370,7 +370,7 @@ int XrdOssSys::MSS_Rename(char *oldname, char *newname) {
 /******************************************************************************/
 
 int XrdOssSys::MSS_Xeq(XrdOucStream **xfd, int okerr, 
-                       char *cmd, char *arg1, char *arg2)
+                       const char *cmd, const char *arg1, const char *arg2)
 {
     EPNAME("MSS_Xeq")
     char *resp;

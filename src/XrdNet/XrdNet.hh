@@ -75,6 +75,10 @@ int             Relay(XrdNetPeer &Peer,   // Peer object to be initialized
                       int         opts=0  // Optional options as above
                      );
 
+// Port() returns he port number, if any, bound to this network.
+//
+int             Port() {return Portnum;}
+
 // setDefaults() sets the default socket options, and buffer size for UDP
 //               sockets (default is 32k) or window size for TCP sockets
 //               (defaults to OS default).

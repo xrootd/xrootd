@@ -170,6 +170,20 @@ int XrdNetLink::LastError()
 }
 
 /******************************************************************************/
+/*                               O K 2 R e c v                                */
+/******************************************************************************/
+  
+int XrdNetLink::OK2Recv(int timeout)
+{
+   struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
+   int retc;
+
+   do {retc = poll(&polltab, 1, timeout);} while(retc < 0 && errno == EINTR);
+
+   return (retc == 1 && (polltab.revents & (POLLIN | POLLRDNORM)));
+}
+
+/******************************************************************************/
 /*                               R e c y c l e                                */
 /******************************************************************************/
 
@@ -213,14 +227,15 @@ int XrdNetLink::Recv(char *Buff, int Blen)
 /*                                  S e n d                                   */
 /******************************************************************************/
   
-int XrdNetLink::Send(char *Buff, int Blen, int tmo)
+int XrdNetLink::Send(const char *Buff, int Blen, int tmo)
 {
    int retc;
 
    if (!Blen && !(Blen = strlen(Buff))) return 0;
    if ('\n' != Buff[Blen-1])
-      {struct iovec iodata[2] = {{Buff, Blen}, {(char *)"\n", 1}};
-       return Send((const struct iovec *)iodata, 2, tmo);
+      {const struct iovec iodata[2] = {{(char * const)Buff, Blen}, 
+                                       {(char *)"\n", 1}};
+       return Send(iodata, 2, tmo);
       }
 
    wrMutex.Lock();
@@ -240,7 +255,7 @@ int XrdNetLink::Send(char *Buff, int Blen, int tmo)
    return 0;
 }
 
-int XrdNetLink::Send(void *Buff, int Blen, int tmo)
+int XrdNetLink::Send(const void *Buff, int Blen, int tmo)
 {
    int retc;
 
@@ -261,25 +276,25 @@ int XrdNetLink::Send(void *Buff, int Blen, int tmo)
    return 0; 
 }
   
-int XrdNetLink::Send(char *dest, char *Buff, int Blen, int tmo)
+int XrdNetLink::Send(const char *dest, const char *Buff, int Blen, int tmo)
 {
    int retc;
    struct sockaddr destip;
 
    if (!Blen && !(Blen = strlen(Buff))) return 0;
    if ('\n' != Buff[Blen-1])
-      {struct iovec iodata[2] = {{Buff, Blen}, {(char *)"\n", 1}};
-       return Send(dest, (const struct iovec *)iodata, 2, tmo);
+      {const struct iovec iodata[2] = {{(char * const)Buff, Blen}, 
+                                       {(char *)"\n", 1}};
+       return Send(dest, iodata, 2, tmo);
       }
 
-   if (!XrdNetDNS::Host2Dest(dest, destip))
-      {eDest->Emsg("Link", (const char *)dest, (char *)"is unreachable");
+   if (!XrdNetDNS::Host2Dest((char *)dest, destip))
+      {eDest->Emsg("Link", dest, "is unreachable");
        return -1;
       }
 
    if (Stream)
-      {eDest->Emsg("Link", "Unable to send msg to", dest, 
-                           (char *)"on a stream socket");
+      {eDest->Emsg("Link", "Unable to send msg to", dest, "on a stream socket");
        return -1;
       }
 
@@ -329,20 +344,19 @@ int XrdNetLink::Send(const struct iovec iov[], int iovcnt, int tmo)
    return 0;
 }
 
-int XrdNetLink::Send(char *dest, const struct iovec iov[], int iovcnt, int tmo)
+int XrdNetLink::Send(const char *dest,const struct iovec iov[],int iovcnt,int tmo)
 {
    int i, dsz, retc;
    char *bp;
    struct sockaddr destip;
 
-   if (!XrdNetDNS::Host2Dest(dest, destip))
-      {eDest->Emsg("Link", (const char *)dest, (char *)"is unreachable");
+   if (!XrdNetDNS::Host2Dest((char *)dest, destip))
+      {eDest->Emsg("Link", dest, "is unreachable");
        return -1;
       }
 
    if (Stream)
-      {eDest->Emsg("Link", "Unable to send msg to", dest, 
-                   (char *)"on a stream socket");
+      {eDest->Emsg("Link", "Unable to send msg to", dest, "on a stream socket");
        return -1;
       }
 
@@ -402,7 +416,7 @@ void XrdNetLink::SetOpts(int opts)
 /*                               O K 2 S e n d                                */
 /******************************************************************************/
   
-int XrdNetLink::OK2Send(int timeout, char *dest)
+int XrdNetLink::OK2Send(int timeout, const char *dest)
 {
    struct pollfd polltab = {FD, POLLOUT|POLLWRNORM, 0};
    int retc;
@@ -410,7 +424,7 @@ int XrdNetLink::OK2Send(int timeout, char *dest)
    do {retc = poll(&polltab, 1, timeout);} while(retc < 0 && errno == EINTR);
 
    if (retc == 0 || !(polltab.revents & (POLLOUT | POLLWRNORM)))
-      eDest->Emsg("Link",(dest ? dest : Lname),(char *)"is blocked.");
+      eDest->Emsg("Link",(dest ? dest : Lname), "is blocked.");
       else if (retc < 0)
               eDest->Emsg("Link",errno,"poll",(dest ? dest : Lname));
               else return 1;
@@ -421,7 +435,7 @@ int XrdNetLink::OK2Send(int timeout, char *dest)
 /*                                r e t E r r                                 */
 /******************************************************************************/
   
-int XrdNetLink::retErr(int ecode, char *dest)
+int XrdNetLink::retErr(int ecode, const char *dest)
 {
    wrMutex.UnLock();
    eDest->Emsg("Link", ecode, "send to", (dest ? dest : Lname));

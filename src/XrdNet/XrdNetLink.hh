@@ -79,6 +79,10 @@ unsigned int Addr() {return XrdNetDNS::IPAddr(&InetAddr);}
 //
 char         *Name() {return Lname;}
 
+// OK2Recv() returns true if data can be received within tmo, false otherwise.
+//
+int           OK2Recv(int mills);
+
 // Recycle() makes this object available for reuse.
 //
 void          Recycle();
@@ -87,20 +91,20 @@ void          Recycle();
 //        routines. They all add a new-line (\n) character to end the buffer
 //        if it does not exist already.
 //
-int           Send(char *buff,     // -> Data to send
-                   int   blen=0,   // Length. If 0, it's compued via strlen()
-                   int   tmo=-1);  // Millisecond timeout (default is none)
+int           Send(const char *buff,     // -> Data to send
+                         int   blen=0,   // Length. If 0, it's compued via strlen()
+                         int   tmo=-1);  // Millisecond timeout (default is none)
 
-int           Send(char *dest,     // -> Hostname to send UDP datagram
-                   char *buff,     // Remaining parms as above
-                   int   blen=0, 
-                   int   tmo=-1);
+int           Send(const char *dest,     // -> Hostname to send UDP datagram
+                   const char *buff,     // Remaining parms as above
+                         int   blen=0,
+                          int   tmo=-1);
 
 int           Send(const struct iovec iov[], // writev() style plist
                    int iovcnt,               // Number of elements om iov[]
                    int tmo = -1);            // Optional timeout
 
-int           Send(char *dest,               // Hostname to send UDP datagram
+int           Send(const char   *dest,       // Hostname to send UDP datagram
                    const struct iovec iov[], // Remaining parms as above
                    int   iovcnt,
                    int   tmo=-1);
@@ -108,9 +112,9 @@ int           Send(char *dest,               // Hostname to send UDP datagram
 // Send() set of methods that accept a void buffer are byte oriented send
 //        routines. These do not inspect the data at all.
 //
-int           Send(void *buff,     // -> Data to send
-                   int   blen=0,   // Length. If 0, it's compued via strlen()
-                   int   tmo=-1);  // Millisecond timeout (default is none)
+int           Send(const void *buff,     // -> Data to send
+                         int   blen=0,   // Length. If 0, it's compued via strlen()
+                         int   tmo=-1);  // Millisecond timeout (default is none)
 
 // Recv() receives up to blen bytes. It may receive less than that if
 //        additional bytes are not immediately available to receive.
@@ -139,8 +143,8 @@ void          SetOpts(int opts);
 
 private:
 
-int OK2Send(int timeout=0, char *dest=0);
-int retErr(int ecode, char *dest=0);
+int OK2Send(int timeout=0, const char *dest=0);
+int retErr(int ecode, const char *dest=0);
 
 XrdOucMutex         rdMutex;
 XrdOucMutex         wrMutex;

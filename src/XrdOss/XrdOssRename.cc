@@ -66,8 +66,8 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
 
 // Determine whether we can actually rename a file on this server.
 //
-   remotefs_Old = Check_RO(Rename, old_popts, (char *)oldname, "renaming ");
-   remotefs_New = Check_RO(Rename, new_popts, (char *)newname, "renaming to ");
+   remotefs_Old = Check_RO(Rename, old_popts, oldname, "renaming ");
+   remotefs_New = Check_RO(Rename, new_popts, newname, "renaming to ");
 
 // Make sure we are renaming within compatible file systems
 //
@@ -191,7 +191,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 
 // Insert a new link in the target cache
 //
-   if (symlink((const char *)newlnk, (const char *)new_path))
+   if (symlink(newlnk, new_path))
       {rc = errno;
        OssEroute.Emsg("XrdOssRenameLink", rc," symlink to", newlnk);
        return -rc;
@@ -199,7 +199,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 
 // Rename the actual target file
 //
-   if (rename((const char *)oldlnk, (const char *)newlnk))
+   if (rename(oldlnk, newlnk))
       {rc = errno;
        OssEroute.Emsg("XrdOssRenameLink", rc," rename", oldlnk);
        unlink(new_path);
@@ -208,7 +208,7 @@ int XrdOssSys::RenameLink(char *old_path, char *new_path)
 
 // Now, unlink the source path
 //
-   if (unlink((const char *)old_path))
+   if (unlink(old_path))
       OssEroute.Emsg("XrdOssRenameLink", rc," unlink", old_path);
 
 // All done
