@@ -177,7 +177,7 @@ public:
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(eDest, Config);
 
-#define TS_Set(x,v)    if (!strcmp(x,var)) v=1;
+#define TS_Set(x,v)    if (!strcmp(x,var)) {v=1; return 0;}
 
 #define OLB_Prefix    "olb."
 #define OLB_PrefLen   sizeof(OLB_Prefix)-1
