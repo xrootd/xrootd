@@ -1,7 +1,5 @@
 #!/usr/local/bin/perl
 #
-#  $Id$
-#
 # ooss_MigrPurg
 #	-M			do migrate function
 #	-O			one time only flag for purge
@@ -1325,8 +1323,8 @@ my(%Xcept)= ('ooss.cache'   => 1,
 
 while( <CONFIG> ) {
    s/#.*$//;						# remove comments
-   ($var, $val) = split(" ",$_,2);
-   ($x, $val) = split(" ", $val,2) if $val =~ /^= /;	# remove =
+   ($var, $val) = split("\s",$_,2);
+   ($x, $val) = split("\s", $val,2) if $val =~ /^= /; # remove =
    $var =~ tr/ \t\n//d;					# remove whitespaces
    $val =~ s/^\s*//;					# remove leading whitespaces
    $val =~ s/\s*$//;					# remove trailing whitespaces

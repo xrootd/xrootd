@@ -206,7 +206,7 @@ $SIG{TERM} = 'THandler';
            &Emsg("Invalid group name, '$op'.")
                 if (!IsNum($OwnerG) && !defined($OwnerG = getgrnam($OwnerG)));
            if ( ($OwnerG != $)) && ($>) )  # if gid different and not root
-              {my($testfile) = "/tmp/$SSD_Stage.$$";
+              {my($testfile) = "/tmp/" . $SSD . "_Stage.$$";
                open(DUMMY, ">$testfile"); close(DUMMY);
                my($ok) = chown($OwnerU, $OwnerG, $testfile);
                unlink($testfile);
@@ -631,12 +631,12 @@ $Config{debug}     = 0;      # Debug general code
 $Config{dmode}     = 0775;   # Directory create mode
 $Config{group}     = '';     # Group to put file into
 $Config{logerrors} = 1;      # Put error messages into syslog
-$Config{logfn}     = '/var/adm/$SSD/logs/Slog';
+$Config{logfn}     = "/var/adm/$SSD/logs/Slog";
 $Config{logstats}  = 1;      # Put xfr statistics into syslog
 $Config{maxproc}   = 1;      # Maximum number of processes
 $Config{scan}      = '';     # Valid directories (used to control lock files)
 $Config{prestageQ} = "/var/adm/$SSD/PreStageQ/stageRequests.1";
-$Config{prestagePID} = "/tmp/$SSD_prestage.pid";
+$Config{prestagePID} = "/tmp/" . $SSD . "_prestage.pid";
 $Config{pftpblksz} =  2097152;
 $Config{stgctrsfn} =  '';
 $Config{xfrcmd}    = ($isMPS ? '/opt/xrootd/utils/xfrcmd'
@@ -678,8 +678,8 @@ $OK = 1;
 
 while( <CONFIG> ) {
    s/#.*$//;       #remove comments
-   ($var, $val) = split(" ",$_,2);
-   ($x, $val) = split(" ", $val,2) if $val =~ /^= /;	# remove =
+   ($var, $val) = split("\s",$_,2);
+   ($x, $val) = split("\s", $val,2) if $val =~ /^= /; # remove =
    $var =~ tr/ \t\n//d;   #remove whitespaces
    $val =~ s/^\s*//;      #remove leading whitespaces
    $val =~ s/\s*$//;      #remove trailing whitespaces
@@ -703,7 +703,7 @@ while( <CONFIG> ) {
           if ($Config{scan}) {$Config{scan} .= ':'.$val}
              else {$Config{scan} = $val}
          }
-   elsif ($svar eq 'xfrcmd') {$XfrCmd = $val; $Immed=1;}
+   elsif ($svar eq 'xfrcmd') {$Config{xfrcmd} = $val; $XfrCmd = $val; $Immed=1;}
    else  {$Config{$dvd} = $val}
 
    # Special processing for cachefs and cache

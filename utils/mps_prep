@@ -1,6 +1,7 @@
 #!/usr/local/bin/perl
-#
+
 #   $Id$
+
 #
 # ooss_prep [add|del|list|ll] [reqid [usrid prty func fn [fn...]]]
 #
@@ -22,7 +23,7 @@ $CMDls       = '/bin/ls';
 
 $| = 1;                                 # unbuffer STDOUT
 $cfgfn =   ($isMPS ? '/opt/xrootd/etc/xrootd.cf'
-                   : '/usr/etc/ooss/ooss_mps.cf'); # (-r) default configuration file
+                   : '/usr/etc/ooss/ooss_mps.cf'); # (-c) default configuration file
 $cflg = 0;
 $cftag = 'pstg';			# configuration file tag
 $debug = 0;				# (-x) default debug level
@@ -341,8 +342,8 @@ $mtime_cfgfn = (stat("$cfgFN"))[9];
 logit("readConfig: processing file $cfgFN") if $debug >=$DEBUG;    
 while( <CONFIG> ) {
    s/#.*$//;       #remove comments
-   ($var, $val) = split(" ",$_,2);
-   ($x, $val) = split(" ", $val,2) if $val =~ /^= /;	# remove =
+   ($var, $val) = split("\s ",$_,2);
+   ($x, $val) = split("\s", $val,2) if $val =~ /^= /; # remove =
    $var =~ tr/ \t\n//d;			#remove whitespaces
    $val =~ s/^\s*//;			#remove leading whitespaces
    $val =~ s/\s*$//;			#remove trailing whitespaces
