@@ -59,7 +59,7 @@ sub doLoading {
     print "Loading...\n";
     $nr = 0;
     while ( $_ = <$inF> ) {
-	print "processing $_";
+	#print "processing $_";
 	chop;
 	if ( $_ =~ m/^u/ ) { loadOpenSession($_);  }
 	if ( $_ =~ m/^d/ ) { loadCloseSession($_); }
