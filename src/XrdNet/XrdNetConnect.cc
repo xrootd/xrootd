@@ -47,9 +47,9 @@ int XrdNetConnect::Connect(             int       fd,
 // control back and poll for completion for the specified amount of time.
 // Regardless of outcome we will restore the original fd settings.
 //
-   old_flags = fcntl(fd, F_GETFD, 0);
+   old_flags = fcntl(fd, F_GETFL, 0);
    new_flags = old_flags | O_NDELAY | O_NONBLOCK;
-   fcntl(fd, F_SETFD, new_flags);
+   fcntl(fd, F_SETFL, new_flags);
    if (!connect(fd, name, namelen))  myRC = 0;
       else if (EINPROGRESS != errno) myRC = errno;
               else {struct pollfd polltab = {fd, POLLOUT|POLLWRNORM, 0};
