@@ -10,6 +10,7 @@
 
 //       $Id$
 
+#include "XrdOuc/XrdOucError.hh"
 #include "XrdClient/XrdCpMthrQueue.hh"
 #include "XrdClient/XrdClientMutexLocker.hh"
 #include "XrdClient/XrdClientDebug.hh"

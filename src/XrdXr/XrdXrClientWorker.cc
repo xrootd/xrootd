@@ -270,7 +270,7 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
 
   // Retrieve the security protocol context from the xrootd server
   //
-  protocol = XrdXrootdSecGetProtocol((const char *)hostname_, 
+  protocol = XrdXrootdSecGetProtocol(hostname_,
                                      (const struct sockaddr &)netaddr,
                                       secToken, 0);
   if (!protocol) {

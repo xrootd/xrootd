@@ -11,6 +11,7 @@
 //       $Id$
 
 #include "XrdClient/XrdClientUrlInfo.hh"
+#include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdCpMthrQueue.hh"

@@ -23,6 +23,7 @@
 
 #include "XrdXr/XrdXrClientWorker.hh"
 #include "XrdXr/XrdXrTrace.hh"
+#include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucPthread.hh"
