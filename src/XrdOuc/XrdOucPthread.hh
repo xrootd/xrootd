@@ -66,6 +66,26 @@ private:
 pthread_mutex_t cs;
 };
 
+class XrdOucMutexHelper
+{
+public:
+
+inline void   Lock(XrdOucMutex *Mutex)
+                  {if (mtx) 
+                      if (mtx != Mutex) mtx->UnLock();
+                         else return;
+                   Mutex->Lock();
+                   mtx = Mutex;
+                  };
+
+inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
+
+            XrdOucMutexHelper() {mtx = 0;}
+           ~XrdOucMutexHelper() {if (mtx) UnLock();}
+private:
+XrdOucMutex *mtx;
+};
+
 class XrdOucSemaphore
 {
 public:

@@ -44,12 +44,6 @@ const char *XrdOucStreamCVSID = "$Id$";
 #define Erq(p, a, b) Err(p, a, b, (char *)0)
 #define Err(p, a, b, c) (ecode=(Eroute ? Eroute->Emsg(#p, a, b, c) : a), -1)
 
-#ifdef SUNCC
-#define NewProc fork1()
-#else
-#define NewProc fork()
-#endif
-
 /******************************************************************************/
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
 /******************************************************************************/
@@ -95,7 +89,7 @@ int XrdOucStream::Attach(int FileDescriptor, int bsz)
     //
     if (!bsz) buff = 0;
        else if (!(buff = (char *)malloc(bsz+1)))
-               return Erq(Attach, errno, "allocating stream buffer");
+               return Erq(Attach, errno, "allocate stream buffer");
 
     // Initialize the stream
     //
@@ -205,7 +199,7 @@ int XrdOucStream::Exec(char **parm, int inrd)
 
     // Fork a process first so we can pick up the next request.
     //
-    if ((child = NewProc))
+    if ((child = fork()))
        {          close(Child_out);
         if (inrd) close(Child_in );
         if (child < 0)
@@ -292,7 +286,7 @@ char *XrdOucStream::GetLine()
         {do { retc = read(FD, (void *)bp, (size_t)bcnt); }
             while (retc < 0 && errno == EINTR);
 
-         if (retc < 0) {Erq(GetLine, errno, "reading request");
+         if (retc < 0) {Erq(GetLine, errno, "read request");
                         return (char *)0;}
          if (!retc)
             {*bp = '\0';
@@ -318,7 +312,7 @@ char *XrdOucStream::GetLine()
 
 // All done, force an end of record.
 //
-   Erq(GetLine, EMSGSIZE, "record truncated");
+   Erq(GetLine, EMSGSIZE, "read full message");
    buff[bsize-1] = '\0';
    return buff;
 }
@@ -459,7 +453,7 @@ int XrdOucStream::Put(const char *data, const int dlen) {
               while (retc < 0 && errno == EINTR);
           if (retc >= 0) dcnt -= retc;
              else {flags |= XrdOucStream_BUSY;
-                   Erq(Put, errno, "writing to stream");
+                   Erq(Put, errno, "write to stream");
                    flags &= ~XrdOucStream_BUSY;
                    return -1;
                   }
@@ -480,7 +474,7 @@ int XrdOucStream::Put(const char *datavec[], const int dlenvec[]) {
                    while (retc < 0 && errno == EINTR);
                if (retc >= 0) {data += retc; dlen -= retc;}
                   else {flags |= XrdOucStream_BUSY;
-                        Erq(Put, errno, "writing to stream");
+                        Erq(Put, errno, "write to stream");
                         flags &= ~XrdOucStream_BUSY;
                         return -1;
                        }

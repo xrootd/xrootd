@@ -13,6 +13,7 @@
 const char *XrdOuca2xCVSID = "$Id$";
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <errno.h>
 
@@ -24,30 +25,20 @@ const char *XrdOuca2xCVSID = "$Id$";
 
 int XrdOuca2x::a2i(XrdOucError &Eroute, const char *emsg, char *item,
                                              int *val, int minv, int maxv)
-{  int rc;
-   if ((rc = a2i(Eroute, emsg, item, val, minv))) return rc;
-   if (*val > maxv) {Eroute.Emsg("a2i", emsg, item, (char *)"is too large.");
-                     return -1;
-                    }
-   return 0;
-}
-
-int XrdOuca2x::a2i(XrdOucError &Eroute, const char *emsg, char *item,
-                                             int *val, int minv)
 {
     if (!item || !*item)
-       {Eroute.Emsg("a2i", emsg, (char *)"not specified"); return -1;}
+       {Eroute.Emsg("a2x", emsg, (char *)"value not specified"); return -1;}
 
     errno = 0;
     *val  = strtol(item, (char **)NULL, 10);
     if (errno)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is not a number");
+       {Eroute.Emsg("a2x", emsg, item, (char *)"is not a number");
         return -1;
        }
-    if (*val < minv)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is too small");
-        return -1;
-       }
+    if (*val < minv) 
+       return Emsg(Eroute, emsg, item, "may not be less than %d", minv);
+    if (maxv >= 0 && *val > maxv)
+       return Emsg(Eroute, emsg, item, "may not be greater than %d", maxv);
     return 0;
 }
  
@@ -57,30 +48,20 @@ int XrdOuca2x::a2i(XrdOucError &Eroute, const char *emsg, char *item,
 
 long long XrdOuca2x::a2ll(XrdOucError &Eroute, const char *emsg, char *item,
                                 long long *val, long long minv, long long maxv)
-{  int rc;
-   if ((rc = a2ll(Eroute, emsg, item, val, minv))) return rc;
-   if (*val > maxv) {Eroute.Emsg("a2i", emsg, item, (char *)"is too large.");
-                     return -1;
-                    }
-   return 0;
-}
-  
-long long XrdOuca2x::a2ll(XrdOucError &Eroute, const char *emsg, char *item,
-                                long long *val, long long minv)
 {
     if (!item || !*item)
-       {Eroute.Emsg("a2ll", emsg, (char *)"not specified"); return -1;}
+       {Eroute.Emsg("a2x", emsg, (char *)"value not specified"); return -1;}
 
     errno = 0;
     *val  = strtoll(item, (char **)NULL, 10);
     if (errno)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is not a number");
+       {Eroute.Emsg("a2x", emsg, item, (char *)"is not a number");
         return -1;
        }
-    if (*val < minv)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is too small");
-        return -1;
-       }
+    if (*val < minv) 
+       return Emsg(Eroute, emsg, item, "may not be less than %lld", minv);
+    if (maxv >= 0 && *val > maxv)
+       return Emsg(Eroute, emsg, item, "may not be greater than %lld", maxv);
     return 0;
 }
 
@@ -93,7 +74,7 @@ int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, char *item,
 {  int rc, num;
    if ((rc = a2fm(Eroute, emsg, item, &num, minv))) return rc;
    if ((*val | maxv) != maxv) 
-      {Eroute.Emsg("a2i", emsg, item, (char *)"is too inclusive.");
+      {Eroute.Emsg("a2fm", emsg, item, (char *)"is too inclusive.");
        return -1;
       }
 
@@ -114,16 +95,16 @@ int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, char *item,
                                               int *val, int minv)
 {
     if (!item || !*item)
-       {Eroute.Emsg("a2fm", emsg, (char *)"not specified"); return -1;}
+       {Eroute.Emsg("a2x", emsg, (char *)"value not specified"); return -1;}
 
     errno = 0;
     *val  = strtol(item, (char **)NULL, 8);
     if (errno)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is not an octal number");
+       {Eroute.Emsg("a2x", emsg, item, (char *)"is not an octal number");
         return -1;
        }
     if (!(*val & minv))
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is too exclusive");;
+       {Eroute.Emsg("a2x", emsg, item, (char *)"is too exclusive");;
         return -1;
        }
     return 0;
@@ -135,21 +116,11 @@ int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, char *item,
 
 long long XrdOuca2x::a2sz(XrdOucError &Eroute, const char *emsg, char *item,
                                 long long *val, long long minv, long long maxv)
-{  int rc;
-   if ((rc = a2sz(Eroute, emsg, item, val, minv))) return rc;
-   if (*val > maxv) {Eroute.Emsg("a2i", emsg, item, (char *)"is too large.");
-                     return -1;
-                    }
-   return 0;
-}
-  
-long long XrdOuca2x::a2sz(XrdOucError &Eroute, const char *emsg, char *item,
-                                long long *val, long long minv)
 {   int i = strlen(item)-1;
     long long qmult = 1;
 
     if (!item || !*item)
-       {Eroute.Emsg("a2sz", emsg, (char *)"not specified"); return -1;}
+       {Eroute.Emsg("a2x", emsg, (char *)"value not specified"); return -1;}
 
     errno = 0;
     if (item[i] == 'k' || item[i] == 'K') qmult = 1024;
@@ -158,13 +129,13 @@ long long XrdOuca2x::a2sz(XrdOucError &Eroute, const char *emsg, char *item,
     if (qmult > 1) item[i] = '\0';
     *val  = strtoll(item, (char **)NULL, 10) * qmult;
     if (errno)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is not a number");
+       {Eroute.Emsg("a2x", emsg, item, (char *)"is not a number");
         return -1;
        }
-    if (*val < minv)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is too small");
-        return -1;
-       }
+    if (*val < minv) 
+       return Emsg(Eroute, emsg, item, "may not be less than %lld", minv);
+    if (maxv >= 0 && *val > maxv)
+       return Emsg(Eroute, emsg, item, "may not be greater than %lld", maxv);
     return 0;
 }
  
@@ -174,21 +145,11 @@ long long XrdOuca2x::a2sz(XrdOucError &Eroute, const char *emsg, char *item,
 
 int XrdOuca2x::a2tm(XrdOucError &Eroute, const char *emsg, char *item, int *val,
                           int minv, int maxv)
-{  int rc;
-   if ((rc = a2tm(Eroute, emsg, item, val, minv))) return rc;
-   if (*val > maxv) {Eroute.Emsg("a2i", emsg, item, (char *)"is too large.");
-                     return -1;
-                    }
-   return 0;
-}
-  
-int XrdOuca2x::a2tm(XrdOucError &Eroute, const char *emsg, char *item,
-                          int *val, int minv)
 {   int i = strlen(item)-1;
     int qmult = 0;
 
     if (!item || !*item)
-       {Eroute.Emsg("a2tm", emsg, (char *)"not specified"); return -1;}
+       {Eroute.Emsg("a2x", emsg, (char *)"value not specified"); return -1;}
 
     errno = 0;
     if (item[i] == 's' || item[i] == 's') qmult = 1;
@@ -199,12 +160,66 @@ int XrdOuca2x::a2tm(XrdOucError &Eroute, const char *emsg, char *item,
        else qmult = 1;
     *val  = strtoll(item, (char **)NULL, 10) * qmult;
     if (errno)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is not a number");
+       {Eroute.Emsg("a2x", emsg, item, (char *)"is not a number");
         return -1;
        }
-    if (*val < minv)
-       {Eroute.Emsg("a2i", emsg, item, (char *)"is too small");
-        return -1;
-       }
+    if (*val < minv) 
+       return Emsg(Eroute, emsg, item, "may not be less than %d", minv);
+    if (maxv >= 0 && *val > maxv)
+       return Emsg(Eroute, emsg, item, "may not be greater than %d", maxv);
     return 0;
+}
+
+/******************************************************************************/
+/*                                  a 2 v p                                   */
+/******************************************************************************/
+
+int XrdOuca2x::a2vp(XrdOucError &Eroute, const char *emsg, char *item,
+                                             int *val, int minv, int maxv)
+{
+    char *pp;
+
+    if (!item || !*item)
+       {Eroute.Emsg("a2x", emsg, (char *)"value not specified"); return -1;}
+
+    errno = 0;
+    *val  = strtol(item, &pp, 10);
+
+    if (!errno && *pp == '%')
+       {if (*val < 0)
+           {Eroute.Emsg("a2x", emsg, item, (char *)"may not be negative.");
+            return -1;
+           }
+        if (*val > 100)
+           {Eroute.Emsg("a2x", emsg, item, (char *)"may not be greater than 100%.");
+            return -1;
+           }
+           else {*val = -*val; return 0;}
+       }
+
+    if (*val < minv) 
+       return Emsg(Eroute, emsg, item, "may not be less than %d", minv);
+    if (maxv >= 0 && *val > maxv)
+       return Emsg(Eroute, emsg, item, "may not be greater than %d", maxv);
+    return 0;
+}
+
+/******************************************************************************/
+/*                       P r i v a t e   M e t h o d s                        */
+/******************************************************************************/
+  
+int XrdOuca2x::Emsg(XrdOucError &Eroute, const char *etxt1, char *item,
+                                         const char *etxt2, int val)
+{char buff[256];
+ sprintf(buff, etxt2, val);
+ Eroute.Emsg("a2x", etxt1, item, buff);
+ return -1;
+}
+
+long long XrdOuca2x::Emsg(XrdOucError &Eroute, const char *etxt1, char *item,
+                                               const char *etxt2, long long val)
+{char buff[256];
+ sprintf(buff, etxt2, val);
+ Eroute.Emsg("a2x", etxt1, item, buff);
+ return -1;
 }

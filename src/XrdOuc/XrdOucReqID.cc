@@ -20,7 +20,6 @@ const char *XrdOucReqIDCVSID = "$Id$";
 #include <sys/types.h>
   
 #include "XrdOucReqID.hh"
-#include "XrdOucNetwork.hh"
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
@@ -36,17 +35,13 @@ int          XrdOucReqID::reqNum = 0;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOucReqID::XrdOucReqID(int inst)
+XrdOucReqID::XrdOucReqID(int inst, char *myHost, unsigned long myIP)
 {
-   char *myHost = XrdOucNetwork::FullHostName();
    time_t eNow = time(0);
-   unsigned long myIP;
    char xbuff[256];
 
-   if (!XrdOucNetwork::Host2IP(myHost, &myIP)) myIP = 0;
    snprintf(xbuff, sizeof(xbuff)-1, "%08lx:%04x.%08lx:%%d", myIP, inst, 
                                     static_cast<unsigned long>(eNow));
-   free(myHost);
    reqFMT = strdup(xbuff);
    reqPFXlen = 13;
    xbuff[reqPFXlen] = '\0';

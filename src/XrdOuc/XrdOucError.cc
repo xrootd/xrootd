@@ -90,8 +90,8 @@ int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1, char *txt2)
     if (esfx           ) Set_IOV_Buff(esfx);                         //  2
                          Set_IOV_Item(": Unable to ", 12);           //  3
                          Set_IOV_Buff(txt1);                         //  4
-                         Set_IOV_Item(" ", 1);                       //  5
-    if (txt2 && txt2[0]) Set_IOV_Buff(txt2);                         //  6
+    if (txt2 && txt2[0]){Set_IOV_Item(" ", 1);                       //  5
+                         Set_IOV_Buff(txt2); }                       //  6
                          Set_IOV_Item("; ", 2);                      //  7
                          Set_IOV_Buff(etxt);                         //  8
                          Set_IOV_Item("\n", 1);                      //  9
