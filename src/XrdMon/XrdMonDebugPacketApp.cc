@@ -142,7 +142,8 @@ debugDictPacket(const char* packet, int len)
     
     XrdMonDecDictInfo de(dictId, -1, 
                          packet+sizeof(kXR_int32), 
-                         len-sizeof(kXR_int32));
+                         len-sizeof(kXR_int32), 
+                         0);
     cout << "offset " << setw(5) << HDRLEN
          << " --> " << de << endl;
 }
@@ -156,7 +157,8 @@ debugUserPacket(const char* packet, int len)
     
     XrdMonDecUserInfo du(dictId, -1, 
                          packet+sizeof(kXR_int32), 
-                         len-sizeof(kXR_int32));
+                         len-sizeof(kXR_int32),
+                         0);
     cout << "offset " << setw(5) << HDRLEN
          << " --> " << du << endl;
 }
