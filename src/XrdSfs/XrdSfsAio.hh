@@ -52,12 +52,16 @@ virtual void doneWrite() = 0;
 //
 virtual void Recycle() = 0;
 
-             XrdSfsAio()
-                      {sfsAio.aio_sigevent.sigev_value.sival_ptr = (void *)this;
-                       sfsAio.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-                       sfsAio.aio_reqprio = 0;
-                       TIdent = (char *)"";
-                      }
+             XrdSfsAio() {
+#ifdef __macos__
+                         sfsAio.aio_sigevent.sigev_value.sigval_ptr = (void *)this;
+#else
+                         sfsAio.aio_sigevent.sigev_value.sival_ptr  = (void *)this;
+#endif
+                         sfsAio.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
+                         sfsAio.aio_reqprio = 0;
+                         TIdent = (char *)"";
+                        }
 virtual     ~XrdSfsAio() {}
 };
 #endif

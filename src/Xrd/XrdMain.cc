@@ -135,8 +135,10 @@ int main(int argc, char *argv[])
    sigaddset(&myset, SIGUSR1);
    sigaddset(&myset, SIGUSR2);
    sigaddset(&myset, SIGCHLD);
+#ifndef __macos__
    sigaddset(&myset, SIGRTMIN);
    sigaddset(&myset, SIGRTMIN+1);
+#endif
    pthread_sigmask(SIG_BLOCK, &myset, NULL);
 
 // Process configuration file

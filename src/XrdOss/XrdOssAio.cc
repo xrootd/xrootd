@@ -41,8 +41,13 @@ extern XrdOucError OssEroute;
 int   XrdOssFile::AioFailure = 0;
 
 #ifdef _POSIX_ASYNCHRNOUS_IO
+#ifdef __macos__
 #define OSS_AIO_READ_DONE  (SIGRTMIN)
 #define OSS_AIO_WRITE_DONE (SIGRTMIN+1)
+#else
+#define OSS_AIO_READ_DONE  SIGUSR1
+#define OSS_AIO_WRITE_DONE SIGUSR2
+#endif
 #endif
 
 /******************************************************************************/
