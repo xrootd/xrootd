@@ -7,7 +7,7 @@
 # Produced by Andrew Hanushevsky for Stanford University under contract
 #            DE-AC03-76-SFO0515 with the Deprtment of Energy
 
-# Syntax: StartOLB [-c cfile] [-d] [-D] [-m | -s] [-v] [ver]
+# Syntax: StartOLB [-c cfile] [-d] [-D] [-m | -s] [oth] [-v] [ver]
 
 # Where:  -c  specifies the configuration file to be used.
 #         -d  passes the -d option to olbd
@@ -16,6 +16,7 @@
 #         -s  specifies server  mode (default in StartOLB.cf)
 #         -t  types the commands and does not execute them
 #         -v  produces verbose output.
+#         oth Any other single letter options to be passed to the executable.
 
 #        ver  is version number to use. This is the string that is put in
 #             $OLBBASE/<ver>/bin, the default is prod.
@@ -100,6 +101,7 @@ Notify () {
 #
 HAVEVER=
 OLBOPTS=
+OLBPARM=&*
 
 while test -n "$1"; do
      isopt=0
@@ -130,7 +132,7 @@ while test -n "$1"; do
    elif [ "$1" = "-v" ]; then
         VERBOSE=1
    else
-        OLBOPTS = "$OLBOPTS $1"
+        OLBOPTS="$OLBOPTS $1"
      fi
    shift
    done
@@ -153,7 +155,7 @@ while test -n "$1"; do
 #
 if [ $MYNAME = root ]; then
    if [ $OLBUSER != root ]; then
-      $TEST exec /bin/su $OLBUSER -c "$PROGRAM $*"
+      $TEST exec /bin/su $OLBUSER -c "$PROGRAM $OLBPARM"
       fi
    elif [ $MYNAME != $OLBUSER ]; then
         Notify "Attempt to start $OLBUSER OLB as user $MYNAME."

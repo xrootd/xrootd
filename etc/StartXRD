@@ -7,7 +7,7 @@
 # Produced by Andrew Hanushevsky for Stanford University under contract
 #            DE-AC03-76-SFO0515 with the Deprtment of Energy
 
-# Syntax: StartXRD [-c cfile] [-D] [-r] [-s service] [-v] [ver]
+# Syntax: StartXRD [-c cfile] [-D] [-r] [-s service] [oth] [-v] [ver]
 
 # Where:  -c  specifies the configuration file to be used.
 #         -D  turns on script debugging.
@@ -15,6 +15,7 @@
 #             default if an olb master is enabled (see StartXRD.cf)
 #         -s  is the service name whose port number is to be used by xrootd.
 #         -v  produces verbose output.
+#         oth Any other single letter options to be passed to the executable.
 
 #        ver  is version number to use. This is the string that is put in
 #             $XRDBASE/<ver>/bin, the default is prod.
@@ -90,6 +91,7 @@ Notify () {
 #
 XRDOPTIONS=
 HAVEVER=
+XRDPARMS=&*
 
 while test -n "$1"; do
      isopt=0
@@ -160,7 +162,7 @@ while test -n "$1"; do
 if [ $MYNAME = root ]; then
    if [ $XRDUSER != root ]; then
       $TEST export LD_LIBRARY_PATH
-      $TEST exec /bin/su $XRDUSER -c "$PROGRAM $*"
+      $TEST exec /bin/su $XRDUSER -c "$PROGRAM $XRDPARMS"
    fi
    elif [ $MYNAME != $XRDUSER ]; then
         Notify "Attempt to start $XRDUSER XRD as user $MYNAME."
