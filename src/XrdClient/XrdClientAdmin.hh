@@ -41,7 +41,7 @@ class XrdClientAdmin : public XrdClientAbs {
    bool OpenFileWhenRedirected(char *, bool &);
 
    // Some administration functions, see the protocol specs for details
-   bool SysStatX(const char *paths_list, kXR_char *binInfo, int numPath);
+   bool SysStatX(const char *paths_list, kXR_char *binInfo);
    int Stat(char *fname, long &id, long &size, long &flags, long &modtime);
 
    bool DirList(const char *dir, vecString &);

@@ -275,7 +275,7 @@ int XrdClientAdmin::Stat(char *fname, long &id, long &size, long &flags, long &m
 
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::SysStatX(const char *paths_list, kXR_char *binInfo, int numPath)
+bool XrdClientAdmin::SysStatX(const char *paths_list, kXR_char *binInfo)
 {
    XrdClientString pl(paths_list);
    bool ret;
@@ -305,7 +305,7 @@ bool XrdClientAdmin::ExistFiles(vecString &vs, vecBool &vb)
    Info = (kXR_char*) malloc(vs.GetSize()+1);
    memset((void *)Info, 0, vs.GetSize()+1);
   
-   ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
+   ret = this->SysStatX(buf.c_str(), Info);
 
    if (ret) for(int j=0; j <= vs.GetSize()-1; j++) {
          bool tmp = TRUE;
@@ -333,7 +333,7 @@ bool XrdClientAdmin::ExistDirs(vecString &vs, vecBool &vb)
    Info = (kXR_char*) malloc(vs.GetSize()+1);
    memset((void *)Info, 0, vs.GetSize()+1);
   
-   ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
+   ret = this->SysStatX(buf.c_str(), Info);
   
    if (ret) for(int j=0; j <= vs.GetSize()-1; j++) {
       bool tmp;
@@ -348,7 +348,7 @@ bool XrdClientAdmin::ExistDirs(vecString &vs, vecBool &vb)
 
    }
 
-
+   free(Info);
    return ret;
 }
 
@@ -363,7 +363,7 @@ bool XrdClientAdmin::IsFileOnline(vecString &vs, vecBool &vb)
    Info = (kXR_char*) malloc(vs.GetSize()+1);
    memset((void *)Info, 0, vs.GetSize()+1);
   
-   ret = this->SysStatX(buf.c_str(), Info, vs.GetSize());
+   ret = this->SysStatX(buf.c_str(), Info);
   
    if (ret) for(int j=0; j <= vs.GetSize()-1; j++) {
       bool tmp;
@@ -378,6 +378,7 @@ bool XrdClientAdmin::IsFileOnline(vecString &vs, vecBool &vb)
       
    }
 
+   free(Info);
    return ret;
 }
 

@@ -5,6 +5,11 @@
 use XrdClientAdmin;
 XrdClientAdmin::XrdInitialize("root://bbrprod01.slac.stanford.edu/dummy", 1);
 
+
+$par = "/prod\n/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root\n/tmp";
+$ans = XrdClientAdmin::XrdSysStatX($par);
+print "\nThe answer of XrdClientAdmin::SysStatX($par) is: \"$ans\" \n\n\n";
+
 $par = "/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root";
 $ans = XrdClientAdmin::XrdExistFiles($par);
 print "\nThe answer of XrdClientAdmin::ExistFiles($par) is: \"$ans\" \n\n\n";

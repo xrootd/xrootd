@@ -111,11 +111,21 @@ extern "C" {
    //  in order to deal more easily with the perl syntax.
    // Hey these are wrappers!
 
-   bool XrdSysStatX(const char *paths_list, unsigned char *binInfo, int numPath) {
-      if (!adminst) return (adminst);
-  
-      return(adminst->SysStatX(paths_list, binInfo, numPath));
-  
+   char *XrdSysStatX(const char *paths_list) {
+      
+      if (!adminst) return NULL;
+
+      vecString *vs = Tokenize(paths_list, '\n');
+      SharedBufRealloc(vs->GetSize()+1);
+
+      adminst->SysStatX(paths_list, (kXR_char*)sharedbuf);
+
+      // Let's turn the binary output to something readable
+      for (int i = 0; i < vs->GetSize(); i++)
+	 sharedbuf[i] += '0';
+
+      delete vs;
+      return(sharedbuf);
    }
 
 
@@ -129,6 +139,7 @@ extern "C" {
       if (res = adminst->ExistFiles(*vs, vb)) {
 	 BuildBoolAnswer(vb);
       }
+      else SharedBufRealloc(16);
     
       delete vs;
       return(sharedbuf);
@@ -145,7 +156,8 @@ extern "C" {
       if (res = adminst->ExistDirs(*vs, vb)) {
 	 BuildBoolAnswer(vb);
       }
-    
+      else SharedBufRealloc(16);
+
       delete vs;
       return(sharedbuf);
  
@@ -161,6 +173,7 @@ extern "C" {
       if (res = adminst->IsFileOnline(*vs, vb)) {
 	 BuildBoolAnswer(vb);
       }
+      else SharedBufRealloc(16);
     
       delete vs;
       return(sharedbuf);

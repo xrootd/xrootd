@@ -45,8 +45,7 @@ extern "C" {
    bool XrdTerminate();
 
    // The other functions, slightly modified from the originals
-
-   bool XrdSysStatX(const char *paths_list, unsigned char *binInfo, int numPath);
+   char *XrdSysStatX(const char *paths_list);
 
    char *XrdExistFiles(const char *filepaths);
    char *XrdExistDirs(const char *filepaths);

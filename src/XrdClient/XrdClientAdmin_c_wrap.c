@@ -823,8 +823,7 @@ static void _swig_create_magic(CPerlObj *pPerl, SV *sv, const char *name, int (C
 
 /* -------- TYPES TABLE (BEGIN) -------- */
 
-#define  SWIGTYPE_p_unsigned_char swig_types[0] 
-static swig_type_info *swig_types[2];
+static swig_type_info *swig_types[1];
 
 /* -------- TYPES TABLE (END) -------- */
 
@@ -921,27 +920,23 @@ XS(_wrap_XrdTerminate) {
 XS(_wrap_XrdSysStatX) {
     {
         char *arg1 ;
-        unsigned char *arg2 = (unsigned char *) 0 ;
-        int arg3 ;
-        bool result;
+        char *result;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 3) || (items > 3)) {
-            SWIG_croak("Usage: XrdSysStatX(paths_list,binInfo,numPath);");
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: XrdSysStatX(paths_list);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        {
-            if (SWIG_ConvertPtr(ST(1), (void **) &arg2, SWIGTYPE_p_unsigned_char,0) < 0) {
-                SWIG_croak("Type error in argument 2 of XrdSysStatX. Expected _p_unsigned_char");
-            }
-        }
-        arg3 = (int) SvIV(ST(2));
-        result = (bool)XrdSysStatX((char const *)arg1,arg2,arg3);
+        result = (char *)XrdSysStatX((char const *)arg1);
         
         ST(argvi) = sv_newmortal();
-        sv_setiv(ST(argvi++), (IV) result);
+        if (result) {
+            sv_setpv((SV*)ST(argvi++), (char *) result);
+        } else {
+            sv_setsv((SV*)ST(argvi++), &PL_sv_undef);
+        }
         XSRETURN(argvi);
         fail:
         ;
@@ -1256,10 +1251,8 @@ XS(_wrap_XrdGetChecksum) {
 
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
-static swig_type_info _swigt__p_unsigned_char[] = {{"_p_unsigned_char", 0, "unsigned char *", 0, 0, 0, 0},{"_p_unsigned_char", 0, 0, 0, 0, 0, 0},{0, 0, 0, 0, 0, 0, 0}};
 
 static swig_type_info *swig_types_initial[] = {
-_swigt__p_unsigned_char, 
 0
 };
 
