@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdAbsClientBase                                                     // 
+// XrdClientAbs                                                     // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -15,9 +15,9 @@
 #define XRD_ABSCLIENTBASE_H
 
 
-#include "XrdUnsolMsg.hh"
+#include "XrdClientUnsolMsg.hh"
 
-class XrdAbsClientBase: public XrdAbsUnsolicitedMsgHandler {
+class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
 public:
 
   virtual bool OpenFileWhenRedirected(char *newfhandle, 

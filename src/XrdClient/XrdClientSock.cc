@@ -14,11 +14,11 @@
 #include "XrdClientSock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"
-#include "XrdDebug.hh"
+#include "XrdClientDebug.hh"
 #include <sys/poll.h>
 
 //_____________________________________________________________________________
-XrdClientSock::XrdClientSock(XrdUrlInfo Host) {
+XrdClientSock::XrdClientSock(XrdClientUrlInfo Host) {
    fConnected = FALSE;
    fSocket = 0;
 
@@ -68,8 +68,8 @@ int XrdClientSock::RecvRaw(void* buffer, int length) {
          // If too much time has elapsed, then we return an error
          if ((time(0) - starttime) > DFLT_REQUESTTIMEOUT) {
 
-            if (!DFLT_GOASYNC || (DebugLevel() >= XrdDebug::kDUMPDEBUG)) //gEnv
-               Info(XrdDebug::kNODEBUG,
+            if (!DFLT_GOASYNC || (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)) //gEnv
+               Info(XrdClientDebug::kNODEBUG,
 		    "ClientSock::RecvRaw",
 		    "Request timed out "<< DFLT_REQUESTTIMEOUT << //gEnv
 		    "seconds reading " << length << " bytes" <<
@@ -203,7 +203,7 @@ void XrdClientSock::TryConnect()
 
    // Create a connection
    
-   Info(XrdDebug::kHIDEBUG, "ClientSock::TryConnect",
+   Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
 	"Trying to connect to" <<
 	fHost.TcpHost.Host << "(" << fHost.TcpHost.HostAddr << "):" <<
 	fHost.TcpHost.Port);
@@ -219,7 +219,7 @@ void XrdClientSock::TryConnect()
    //
    if (fSocket < 0)  {
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "ClientSock::TryConnect",
 	   "Connection to" <<
 	   fHost.TcpHost.Host << ":" <<

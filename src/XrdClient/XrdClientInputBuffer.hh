@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdInputBuffer                                                       // 
+// XrdClientInputBuffer                                                       // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -18,7 +18,7 @@
 #define XRC_INPUTBUFFER_H
 
 #include <pthread.h>
-#include "XrdMessage.hh"
+#include "XrdClientMessage.hh"
 
 #include <list>
 #include <map>
@@ -27,12 +27,12 @@ using namespace std;
 
 typedef map<int, pthread_cond_t *> StreamidCondition;
 
-class XrdInputBuffer {
+class XrdClientInputBuffer {
 
 private:
 
-   list<XrdMessage*>            fMsgQue;      // queue for incoming messages
-   list<XrdMessage*>::iterator  fMsgIter;     // an iterator on it
+   list<XrdClientMessage*>            fMsgQue;      // queue for incoming messages
+   list<XrdClientMessage*>::iterator  fMsgIter;     // an iterator on it
 
    pthread_mutex_t             fMutex;       // mutex to protect data structures
    pthread_mutex_t             fCndMutex;    // mutex to protect the condition variables
@@ -45,15 +45,15 @@ private:
    int             MsgForStreamidCnt(int streamid);
 
 public:
-   XrdInputBuffer();
-  ~XrdInputBuffer();
+   XrdClientInputBuffer();
+  ~XrdClientInputBuffer();
 
    inline bool     IsMexEmpty() { return (MexSize() == 0); }
    inline bool     IsSemEmpty() { return (SemSize() == 0); }
    inline int      MexSize() { return fMsgQue.size(); }
-   int             PutMsg(XrdMessage *msg);
+   int             PutMsg(XrdClientMessage *msg);
    inline int      SemSize() { return fSyncobjRepo.size(); }
-   XrdMessage      *GetMsg(int streamid, int secstimeout);
+   XrdClientMessage      *GetMsg(int streamid, int secstimeout);
 };
 
 

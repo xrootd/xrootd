@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdReadCache                                                         // 
+// XrdClientReadCache                                                         // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,13 +11,13 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdReadCache.hh"
-#include "XrdMutexLocker.hh"
-#include "XrdDebug.hh"
+#include "XrdClientReadCache.hh"
+#include "XrdClientMutexLocker.hh"
+#include "XrdClientDebug.hh"
 
 
 //________________________________________________________________________
-XrdReadCacheItem::XrdReadCacheItem(const void *buffer, long long begin_offs,
+XrdClientReadCacheItem::XrdClientReadCacheItem(const void *buffer, long long begin_offs,
 				       long long end_offs, long long ticksnow)
 {
    // Constructor
@@ -29,7 +29,7 @@ XrdReadCacheItem::XrdReadCacheItem(const void *buffer, long long begin_offs,
 }
 
 //________________________________________________________________________
-XrdReadCacheItem::~XrdReadCacheItem()
+XrdClientReadCacheItem::~XrdClientReadCacheItem()
 {
    // Destructor
 
@@ -38,21 +38,21 @@ XrdReadCacheItem::~XrdReadCacheItem()
 }
 
 //
-// XrdReadCache
+// XrdClientReadCache
 //
 
 //________________________________________________________________________
-long long XrdReadCache::GetTimestampTick()
+long long XrdClientReadCache::GetTimestampTick()
 {
    // Return timestamp
 
    // Mutual exclusion man!
-   XrdMutexLocker mtx(fMutex);
+   XrdClientMutexLocker mtx(fMutex);
    return ++fTimestampTickCounter;
 }
   
 //________________________________________________________________________
-XrdReadCache::XrdReadCache()
+XrdClientReadCache::XrdClientReadCache()
 {
    // Constructor
 
@@ -71,7 +71,7 @@ XrdReadCache::XrdReadCache()
 	 rc = pthread_mutex_init(&fMutex, &attr);
    }
    if (rc) {
-      Error("XrdReadCache", 
+      Error("XrdClientReadCache", 
             "Can't create mutex: out of system resources.");
       abort();
    }
@@ -84,11 +84,11 @@ XrdReadCache::XrdReadCache()
    fBytesHit = 0;
    fBytesUsefulness = 0.0;
 
-   fMaxCacheSize = TXNETREADCACHE_DFLTSIZE;
+   fMaxCacheSize = DFLT_READCACHESIZE;
 }
 
 //________________________________________________________________________
-XrdReadCache::~XrdReadCache()
+XrdClientReadCache::~XrdClientReadCache()
 {
    // Destructor
 
@@ -97,21 +97,21 @@ XrdReadCache::~XrdReadCache()
 }
 
 //________________________________________________________________________
-void XrdReadCache::SubmitXMessage(XrdMessage *xmsg, long long begin_offs,
+void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_offs,
 				  long long end_offs)
 {
    // To populate the cache of items, newly received
 
-   XrdReadCacheItem *itm;
+   XrdClientReadCacheItem *itm;
 
    // We remove all the blocks contained in the one we are going to put
    RemoveItems(begin_offs, end_offs);
 
    if (MakeFreeSpace(end_offs - begin_offs)) {
-      itm = new XrdReadCacheItem(xmsg->DonateData(), begin_offs, end_offs,
+      itm = new XrdClientReadCacheItem(xmsg->DonateData(), begin_offs, end_offs,
                                    GetTimestampTick());
       // Mutual exclusion man!
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       fItems.push_back(itm);
       fTotalByteCount += itm->Size();
@@ -120,7 +120,7 @@ void XrdReadCache::SubmitXMessage(XrdMessage *xmsg, long long begin_offs,
 }
 
 //________________________________________________________________________
-bool XrdReadCache::GetDataIfPresent(const void *buffer,
+bool XrdClientReadCache::GetDataIfPresent(const void *buffer,
 					    long long begin_offs,
 					    long long end_offs,
 					    bool PerfCalc)
@@ -128,7 +128,7 @@ bool XrdReadCache::GetDataIfPresent(const void *buffer,
    // Copies the requested data from the cache. False if not possible
 
    ItemVect::iterator it;
-   XrdMutexLocker mtx(fMutex);
+   XrdClientMutexLocker mtx(fMutex);
 
    if (PerfCalc)
       fReadsCounter++;
@@ -156,12 +156,12 @@ bool XrdReadCache::GetDataIfPresent(const void *buffer,
 }
 
 //________________________________________________________________________
-void XrdReadCache::RemoveItems(long long begin_offs, long long end_offs)
+void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
 {
    // To remove all the items contained in the given interval
 
    ItemVect::iterator it;
-   XrdMutexLocker mtx(fMutex);
+   XrdClientMutexLocker mtx(fMutex);
 
    it = fItems.begin();
    while (it != fItems.end())
@@ -174,11 +174,11 @@ void XrdReadCache::RemoveItems(long long begin_offs, long long end_offs)
 }
 
 //________________________________________________________________________
-void XrdReadCache::RemoveItems()
+void XrdClientReadCache::RemoveItems()
 {
    // To remove all the items
    ItemVect::iterator it;
-   XrdMutexLocker mtx(fMutex);
+   XrdClientMutexLocker mtx(fMutex);
 
    it = fItems.begin();
 
@@ -193,15 +193,15 @@ void XrdReadCache::RemoveItems()
 
 
 //________________________________________________________________________
-bool XrdReadCache::RemoveLRUItem()
+bool XrdClientReadCache::RemoveLRUItem()
 {
    // Finds the LRU item and removes it
 
    ItemVect::iterator it, lruit;
    long long minticks = -1;
-   XrdReadCacheItem *item;
+   XrdClientReadCacheItem *item;
 
-   XrdMutexLocker mtx(fMutex);
+   XrdClientMutexLocker mtx(fMutex);
 
    lruit = fItems.begin();
    for (it = fItems.begin(); it != fItems.end(); it++) {
@@ -225,14 +225,14 @@ bool XrdReadCache::RemoveLRUItem()
 }
 
 //________________________________________________________________________
-bool XrdReadCache::MakeFreeSpace(long long bytes)
+bool XrdClientReadCache::MakeFreeSpace(long long bytes)
 {
    // False if not possible (requested space exceeds max size!)
 
    if (!WillFit(bytes))
       return FALSE;
 
-   XrdMutexLocker mtx(fMutex);
+   XrdClientMutexLocker mtx(fMutex);
 
    while (fMaxCacheSize - fTotalByteCount < bytes)
       RemoveLRUItem();

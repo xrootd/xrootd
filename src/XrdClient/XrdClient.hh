@@ -38,19 +38,19 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdAbsClientBase.hh"
+#include "XrdClientAbs.hh"
 #include <string>
-#include "XrdConn.hh"
+#include "XrdClientConn.hh"
 
 
 
-struct XrdOpenInfo {
+struct XrdClientOpenInfo {
    bool      opened;
    kXR_int16 mode;
    kXR_int16 options;
 };
 
-struct XrdStatInfo {
+struct XrdClientStatInfo {
    int stated;
    long long size;
    long id;
@@ -58,26 +58,26 @@ struct XrdStatInfo {
    long modtime;
 };
 
-class XrdClient : public XrdAbsClientBase {
+class XrdClient : public XrdClientAbs {
 
 private:
 
-   XrdConn*               fConnModule;
+   XrdClientConn*               fConnModule;
 
    char                   fHandle[4];          // The file handle returned by the server,
                                                // to use for successive requests
 
-   struct XrdOpenInfo     fOpenPars;   // Just a container for the last parameters
+   struct XrdClientOpenInfo     fOpenPars;   // Just a container for the last parameters
                                        // passed to a Open method
 
    bool                   fOpenWithRefresh;
    int                    fReadAheadSize;
 
-   struct XrdStatInfo     fStatInfo;
+   struct XrdClientStatInfo     fStatInfo;
 
    bool                   fUseCache;
 
-   XrdUrlInfo             fInitialUrl;
+   XrdClientUrlInfo             fInitialUrl;
 
    bool         TryOpen(kXR_int16 mode, kXR_int16 options);
    bool         LowOpen(const char *file, kXR_int16 mode, kXR_int16 options,
@@ -89,8 +89,8 @@ public:
    virtual ~XrdClient();
   
    bool         OpenFileWhenRedirected(char *newfhandle, bool &wasopen);
-   bool         ProcessUnsolicitedMsg(XrdUnsolicitedMsgSender *sender,
-                                        XrdMessage *unsolmsg);
+   bool         ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+                                        XrdClientMessage *unsolmsg);
 
    bool         Close();
 
@@ -104,7 +104,7 @@ public:
 
    int         Read(const void *buf, long long offset, int len);
 
-   bool         Stat(struct XrdStatInfo *stinfo);
+   bool         Stat(struct XrdClientStatInfo *stinfo);
 
    bool         Write(const void *buf, long long offset, int len);
 

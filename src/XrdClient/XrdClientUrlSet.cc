@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdUrlSet                                                            // 
+// XrdClientUrlSet                                                            // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,7 +11,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdUrlSet.hh"
+#include "XrdClientUrlSet.hh"
 
 #include <string>
 #include <stdio.h>
@@ -31,12 +31,12 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "XrdDebug.hh"
+#include "XrdClientDebug.hh"
 
 using namespace std;
 
 //_____________________________________________________________________________
-double XrdUrlSet::GetRandom(int i)
+double XrdClientUrlSet::GetRandom(int i)
 {
 //  Machine independent random number generator.
 //  Produces uniformly-distributed floating points between 0 and 1.
@@ -55,7 +55,7 @@ double XrdUrlSet::GetRandom(int i)
 }
 
 //_____________________________________________________________________________
-XrdUrlSet::XrdUrlSet(XrdUrlInfo tmpurl) : fIsValid(TRUE)
+XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
 {
    // A container for multiple urls.
    // It creates an array of multiple urls parsing the argument Urls and
@@ -104,7 +104,7 @@ XrdUrlSet::XrdUrlSet(XrdUrlInfo tmpurl) : fIsValid(TRUE)
    while ( (p == listOfMachines.find(",")) == 0)
       listOfMachines.erase(0,1);
 
-   Info( XrdDebug::kUSERDEBUG, "XrdUrlSet", "List of servers to connect to is [" <<
+   Info( XrdClientDebug::kUSERDEBUG, "XrdClientUrlSet", "List of servers to connect to is [" <<
 	listOfMachines << "]" );
 
    //
@@ -119,7 +119,7 @@ XrdUrlSet::XrdUrlSet(XrdUrlInfo tmpurl) : fIsValid(TRUE)
       return;
    }
 
-   Info(XrdDebug::kHIDEBUG, "XrdUrlSet", "Remote file to open is '" <<
+   Info(XrdClientDebug::kHIDEBUG, "XrdClientUrlSet", "Remote file to open is '" <<
 	fPathName << "'");
  
    if (fIsValid) {
@@ -134,7 +134,7 @@ XrdUrlSet::XrdUrlSet(XrdUrlInfo tmpurl) : fIsValid(TRUE)
 }
 
 //_____________________________________________________________________________
-XrdUrlSet::~XrdUrlSet()
+XrdClientUrlSet::~XrdClientUrlSet()
 {
    fTmpUrlArray.clear();
 
@@ -145,13 +145,13 @@ XrdUrlSet::~XrdUrlSet()
 }
 
 //_____________________________________________________________________________
-XrdUrlInfo *XrdUrlSet::GetNextUrl()
+XrdClientUrlInfo *XrdClientUrlSet::GetNextUrl()
 {
    // Returns the next url object pointer in the array.
    // After the last object is returned, the array is rewind-ed.
    // Now implemented as a pick from the tmpUrlArray queue
 
-   XrdUrlInfo *retval;
+   XrdClientUrlInfo *retval;
 
    if ( !fTmpUrlArray.size() ) Rewind();
 
@@ -163,7 +163,7 @@ XrdUrlInfo *XrdUrlSet::GetNextUrl()
 }
 
 //_____________________________________________________________________________
-void XrdUrlSet::Rewind()
+void XrdClientUrlSet::Rewind()
 {
    // Rebuilds tmpUrlArray, i..e the urls that have to be picked
    fTmpUrlArray.clear();
@@ -173,9 +173,9 @@ void XrdUrlSet::Rewind()
 }
 
 //_____________________________________________________________________________
-XrdUrlInfo *XrdUrlSet::GetARandomUrl()
+XrdClientUrlInfo *XrdClientUrlSet::GetARandomUrl()
 {
-   XrdUrlInfo *retval;
+   XrdClientUrlInfo *retval;
    int rnd;
 
    if (!fTmpUrlArray.size()) Rewind();
@@ -195,21 +195,21 @@ XrdUrlInfo *XrdUrlSet::GetARandomUrl()
 }
 
 //_____________________________________________________________________________
-void XrdUrlSet::ShowUrls()
+void XrdClientUrlSet::ShowUrls()
 {
    // Prints the list of urls
 
-   Info(XrdDebug::kUSERDEBUG, "ShowUrls",
+   Info(XrdClientDebug::kUSERDEBUG, "ShowUrls",
 	"The converted URLs count is " << fUrlArray.size() );
 
    for(unsigned int i=0; i < fUrlArray.size(); i++)
-      Info(XrdDebug::kUSERDEBUG, "ShowUrls",
+      Info(XrdClientDebug::kUSERDEBUG, "ShowUrls",
 	   "URL n." << i+1 << ": "<< fUrlArray[i]->GetUrl() << "."); 
 
 }
 
 //_____________________________________________________________________________
-void XrdUrlSet::CheckPort(string &machine)
+void XrdClientUrlSet::CheckPort(string &machine)
 {
    // Checks the validity of port in the given host[:port]
    // Eventually completes the port if specified in the services file
@@ -218,14 +218,14 @@ void XrdUrlSet::CheckPort(string &machine)
    if(p == string::npos) {
       // Port not specified
 
-      Info(XrdDebug::kHIDEBUG, "CheckPort", 
+      Info(XrdClientDebug::kHIDEBUG, "CheckPort", 
 	   "TCP port not specified for host " << machine <<
 	   ". Trying to get it from /etc/services...");
 
       struct servent *svc = getservbyname("rootd", "tcp");
 
       if(svc <= 0) {
-	 Info(XrdDebug::kHIDEBUG, "CheckPort",
+	 Info(XrdClientDebug::kHIDEBUG, "CheckPort",
 	      "Service rootd not specified in /etc/services;" <<
 	      "using default IANA tcp port 1094");
 
@@ -233,7 +233,7 @@ void XrdUrlSet::CheckPort(string &machine)
 
       } else {
 
-	 Info(XrdDebug::kHIDEBUG, "CheckPort",
+	 Info(XrdClientDebug::kHIDEBUG, "CheckPort",
 	      "Found tcp port " <<  svc->s_port << ".");
 	 
 	 machine += ":";
@@ -260,7 +260,7 @@ void XrdUrlSet::CheckPort(string &machine)
 }
 
 //_____________________________________________________________________________
-void XrdUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname, 
+void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname, 
                                                     string fname)
 {
    // Converts a single host[:port] into an array of TUrl
@@ -272,16 +272,16 @@ void XrdUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname,
   
    specifiedPort = ( hostname.find(':') != string::npos );
   
-   XrdUrlInfo tmp(hostname);
+   XrdClientUrlInfo tmp(hostname);
    specifiedPort = tmp.Port > 0;
 
    if(specifiedPort) {
 
-      Info(XrdDebug::kHIDEBUG, "ConvertSingleDNSAlias","Resolving " <<
+      Info(XrdClientDebug::kHIDEBUG, "ConvertSingleDNSAlias","Resolving " <<
 	   tmp.Host << ":" << tmp.Port);
 
    } else
-      Info(XrdDebug::kHIDEBUG, "ConvertSingleDNSAlias","Resolving " <<
+      Info(XrdClientDebug::kHIDEBUG, "ConvertSingleDNSAlias","Resolving " <<
 	   tmp.Host);
 
 
@@ -297,7 +297,7 @@ void XrdUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname,
       int hn;
 
       // Create a copy of the main urlinfo with the new data
-      XrdUrlInfo *newurl = new XrdUrlInfo(tmp.GetUrl());
+      XrdClientUrlInfo *newurl = new XrdClientUrlInfo(tmp.GetUrl());
 	    
       inet_ntop(ip[i].sin_family, &ip[i].sin_addr, buf, sizeof(buf));
 
@@ -308,7 +308,7 @@ void XrdUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname,
 	 newurl->Host = names[0];
       else newurl->Host = newurl->HostAddr;
       
-      Info(XrdDebug::kHIDEBUG, "ConvertSingleDNSAlias",
+      Info(XrdClientDebug::kHIDEBUG, "ConvertSingleDNSAlias",
 	   "Found host " << newurl->Host << " with addr " << newurl->HostAddr);
 
       urls.push_back( newurl );
@@ -319,7 +319,7 @@ void XrdUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname,
 }
 
 //_____________________________________________________________________________
-void XrdUrlSet::ConvertDNSAliases(UrlArray& urls, string list, string fname)
+void XrdClientUrlSet::ConvertDNSAliases(UrlArray& urls, string list, string fname)
 {
    // Given a list of comma-separated host[:port]
    // every entry is resolved via DNS into its aliases

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdAbsClientBase                                                     // 
+// XrdClientAbs                                                     // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,13 +11,13 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdAbsClientBase.hh"
-#include "XrdDebug.hh"
+#include "XrdClientAbs.hh"
+#include "XrdClientDebug.hh"
 #include <string>
 
 
 //_____________________________________________________________________________
-void XrdAbsClientBase::SetParm(const char *parm, int val) 
+void XrdClientAbs::SetParm(const char *parm, int val) 
 {
    // This method configure TXNetFile's behaviour settings through the 
    // setting of special ROOT env vars via the TEnv facility.
@@ -102,8 +102,8 @@ void XrdAbsClientBase::SetParm(const char *parm, int val)
    parmName = "Root.";
    parmName += parm;
 
-   if (DebugLevel() >= XrdDebug::kUSERDEBUG)
-      Info(XrdDebug::kUSERDEBUG,
+   if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
+      Info(XrdClientDebug::kUSERDEBUG,
 	   "AbsNetCommon::SetParm",
 	   "Setting " << parmName << " to " << val);
 
@@ -111,7 +111,7 @@ void XrdAbsClientBase::SetParm(const char *parm, int val)
 }
 
 //_____________________________________________________________________________
-void XrdAbsClientBase::SetParm(const char *parm, double val) 
+void XrdClientAbs::SetParm(const char *parm, double val) 
 {
    // Setting TXNetFile specific ROOT-env variables (see previous method
    // for details
@@ -120,8 +120,8 @@ void XrdAbsClientBase::SetParm(const char *parm, double val)
    parmName = "Root.";
    parmName += parm;
 
-   if (DebugLevel() >= XrdDebug::kUSERDEBUG)
-      Info(XrdDebug::kUSERDEBUG,
+   if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
+      Info(XrdClientDebug::kUSERDEBUG,
 	   "TXAbsNetCommon::SetParm",
 	   "Setting " << parmName << " to " << val);
 

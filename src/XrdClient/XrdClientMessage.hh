@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdMessage                                                           // 
+// XrdClientMessage                                                           // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -15,12 +15,12 @@
 #ifndef XRC_MESSAGE_H
 #define XRC_MESSAGE_H
 
-#include "XrdXProtocol.hh"
+#include "XrdClientProtocol.hh"
 #include "XrdClientSock.hh"
 
-class XrdPhyConnection;
+class XrdClientPhyConnection;
 
-class XrdMessage {
+class XrdClientMessage {
 
 private:
    bool           fAllocated;
@@ -41,10 +41,10 @@ public:
    };
    ServerResponseHeader fHdr;
 
-   XrdMessage(ServerResponseHeader header);
-   XrdMessage();
+   XrdClientMessage(ServerResponseHeader header);
+   XrdClientMessage();
 
-   ~XrdMessage();
+   ~XrdClientMessage();
 
    bool               CreateData();
    inline int         DataLen() { return fHdr.dlen; }
@@ -58,7 +58,7 @@ public:
    inline bool        IsMarshalled() { return fMarshalled; }
    void               Marshall();
    inline bool        MatchStreamid(short sid) { return (HeaderSID() == sid);}
-   int                ReadRaw(XrdPhyConnection *phy);
+   int                ReadRaw(XrdClientPhyConnection *phy);
    inline void        SetHeaderStatus(kXR_int16 sts) { fHdr.status = sts; }
    inline void        SetMarshalled(bool m) { fMarshalled = m; }
    inline void        SetStatusCode(kXR_int16 status) { fStatusCode = status; }

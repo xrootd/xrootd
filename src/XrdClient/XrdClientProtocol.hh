@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdProtocol                                                          // 
+// XrdClientProtocol                                                    // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,8 +11,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef XRC_XPROTOCOL_H
-#define XRC_XPROTOCOL_H
+#ifndef XRD_CPROTOCOL_H
+#define XRD_CPROTOCOL_H
 
 #include "XProtocol/XProtocol.hh"
 

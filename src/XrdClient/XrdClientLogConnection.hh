@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdLogConnection                                                     // 
+// XrdClientLogConnection                                                     // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,31 +11,31 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef XRC_LOGCONNECTION_H
-#define XRC_LOGCONNECTION_H
+#ifndef XRD_CLOGCONNECTION_H
+#define XRD_CLOGCONNECTION_H
 
 
-#include "XrdUnsolMsg.hh"
-#include "XrdPhyConnection.hh"
+#include "XrdClientUnsolMsg.hh"
+#include "XrdClientPhyConnection.hh"
 
 
-class XrdLogConnection: public XrdAbsUnsolicitedMsgHandler, 
-   XrdUnsolicitedMsgSender {
+class XrdClientLogConnection: public XrdClientAbsUnsolMsgHandler, 
+   XrdClientUnsolMsgSender {
 private:
-   XrdPhyConnection *fPhyConnection;
+   XrdClientPhyConnection *fPhyConnection;
 
 public:
-   XrdLogConnection();
-   virtual ~XrdLogConnection();
+   XrdClientLogConnection();
+   virtual ~XrdClientLogConnection();
 
-   inline XrdPhyConnection *GetPhyConnection() { return fPhyConnection; }
+   inline XrdClientPhyConnection *GetPhyConnection() { return fPhyConnection; }
 
-   bool          ProcessUnsolicitedMsg(XrdUnsolicitedMsgSender *sender,
-                                       XrdMessage *unsolmsg);
+   bool          ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+                                       XrdClientMessage *unsolmsg);
 
    int           ReadRaw(void *buffer, int BufferLength);
 
-   inline void   SetPhyConnection(XrdPhyConnection *PhyConn) 
+   inline void   SetPhyConnection(XrdClientPhyConnection *PhyConn) 
                  { fPhyConnection = PhyConn; }
 
    int           WriteRaw(const void *buffer, int BufferLength);

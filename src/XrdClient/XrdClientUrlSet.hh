@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdUrlSet                                                            // 
+// XrdClientUrlSet                                                            // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -16,21 +16,21 @@
 #define _XRC_URLSET_H
 
 #include <vector>
-#include "XrdUrlInfo.hh"
-#include "XrdConst.hh"
+#include "XrdClientUrlInfo.hh"
+#include "XrdClientConst.hh"
 
 using namespace std;
 
 
 
-typedef vector<XrdUrlInfo*> UrlArray;
+typedef vector<XrdClientUrlInfo*> UrlArray;
 
 
-// Manages a set of XrdUrlInfo objects
+// Manages a set of XrdClientUrlInfo objects
 // Plus
 //  funcs to resolve multiple addresses from the dns
 //  funcs to pick urls sequantially and randomly
-class XrdUrlSet {
+class XrdClientUrlSet {
  private:
    UrlArray fUrlArray, fTmpUrlArray;
    string fPathName;
@@ -47,8 +47,8 @@ class XrdUrlSet {
    void ConvertSingleDNSAlias(UrlArray& urls, string hostname, string fname);
 
  public:
-   XrdUrlSet(XrdUrlInfo);
-   ~XrdUrlSet();
+   XrdClientUrlSet(XrdClientUrlInfo);
+   ~XrdClientUrlSet();
 
    // Returns the final resolved list of servers
    string GetServers() {
@@ -63,11 +63,11 @@ class XrdUrlSet {
    }
 
    // Gets the subsequent Url, the one after the last given
-   XrdUrlInfo *GetNextUrl();
+   XrdClientUrlInfo *GetNextUrl();
 
    // From the remaining urls we pick a random one. Without reinsert.
    //  i.e. while there are not considered urls, never pick an already seen one
-   XrdUrlInfo *GetARandomUrl();
+   XrdClientUrlInfo *GetARandomUrl();
 
    void Rewind();
    void ShowUrls();

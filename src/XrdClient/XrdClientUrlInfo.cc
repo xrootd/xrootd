@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdUrlInfo                                                           // 
+// XrdClientUrlInfo                                                           // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,25 +11,25 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdUrlInfo.hh"
+#include "XrdClientUrlInfo.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
 //_____________________________________________________________________________
-XrdUrlInfo::XrdUrlInfo() {
+XrdClientUrlInfo::XrdClientUrlInfo() {
    Clear();
 }
 
 
 //_____________________________________________________________________________
-XrdUrlInfo::XrdUrlInfo(string url) {
+XrdClientUrlInfo::XrdClientUrlInfo(string url) {
    TakeUrl(url);
 }
 
 //_____________________________________________________________________________
-void XrdUrlInfo::Clear() {
+void XrdClientUrlInfo::Clear() {
    // Set defaults
 
    Proto    = "";
@@ -43,7 +43,7 @@ void XrdUrlInfo::Clear() {
 }
 
 //_____________________________________________________________________________
-void XrdUrlInfo::TakeUrl(string url) {
+void XrdClientUrlInfo::TakeUrl(string url) {
    // Parse url character string and split in its different subcomponents.
    // Use IsValid() to check if URL is legal.
    //
@@ -123,7 +123,7 @@ void XrdUrlInfo::TakeUrl(string url) {
 }
 
 //_____________________________________________________________________________
-string XrdUrlInfo::GetUrl() {
+string XrdClientUrlInfo::GetUrl() {
    string s;
 
    if (Proto != "")
@@ -157,7 +157,7 @@ string XrdUrlInfo::GetUrl() {
    return s;
 }
 
-void XrdUrlInfo::SetAddrFromHost() 
+void XrdClientUrlInfo::SetAddrFromHost() 
 {
    struct sockaddr_in ip[2];
    char buf[255], **errmsg = 0;

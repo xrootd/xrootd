@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdLogConnection                                                     // 
+// XrdClientLogConnection                                                     // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,30 +11,30 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdLogConnection.hh"
-#include "XrdPhyConnection.hh"
-#include "XrdDebug.hh"
+#include "XrdClientLogConnection.hh"
+#include "XrdClientPhyConnection.hh"
+#include "XrdClientDebug.hh"
 
 
 
 //_____________________________________________________________________________
-XrdLogConnection::XrdLogConnection() {
+XrdClientLogConnection::XrdClientLogConnection() {
    // Constructor
 }
 
 //_____________________________________________________________________________
-XrdLogConnection::~XrdLogConnection() {
+XrdClientLogConnection::~XrdClientLogConnection() {
    // Destructor
 }
 
 //_____________________________________________________________________________
-int XrdLogConnection::WriteRaw(const void *buffer, int bufferlength)
+int XrdClientLogConnection::WriteRaw(const void *buffer, int bufferlength)
 {
    // Send over the open physical connection 'bufferlength' bytes located
    // at buffer.
    // Return number of bytes sent.
 
-   Info(XrdDebug::kDUMPDEBUG,
+   Info(XrdClientDebug::kDUMPDEBUG,
 	"WriteRaw",
 	"Writing " << bufferlength << " bytes to physical connection");
   
@@ -42,13 +42,13 @@ int XrdLogConnection::WriteRaw(const void *buffer, int bufferlength)
 }
 
 //_____________________________________________________________________________
-int XrdLogConnection::ReadRaw(void *buffer, int bufferlength)
+int XrdClientLogConnection::ReadRaw(void *buffer, int bufferlength)
 {
    // Receive from the open physical connection 'bufferlength' bytes and 
    // save in buffer.
    // Return number of bytes received.
 
-   Info(XrdDebug::kDUMPDEBUG,
+   Info(XrdClientDebug::kDUMPDEBUG,
 	"ReadRaw",
 	"Reading " << bufferlength << " bytes from physical connection");
 
@@ -58,16 +58,16 @@ int XrdLogConnection::ReadRaw(void *buffer, int bufferlength)
 }
 
 //_____________________________________________________________________________
-bool XrdLogConnection::ProcessUnsolicitedMsg(XrdUnsolicitedMsgSender *sender,
-                                              XrdMessage *unsolmsg)
+bool XrdClientLogConnection::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+                                              XrdClientMessage *unsolmsg)
 {
    // We are here if an unsolicited response comes from the connmgr
-   // The response comes in the form of an XrdMessage *, that must NOT be
+   // The response comes in the form of an XrdClientMessage *, that must NOT be
    // destroyed after processing. It is destroyed by the first sender.
    // Remember that we are in a separate thread, since unsolicited responses
    // are asynchronous by nature.
 
-   Info(XrdDebug::kNODEBUG,
+   Info(XrdClientDebug::kNODEBUG,
 	"ProcessUnsolicitedMsg",
 	"Processing unsolicited response");
 

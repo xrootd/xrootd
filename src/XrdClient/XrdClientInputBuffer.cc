@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdInputBuffer                                                       // 
+// XrdClientInputBuffer                                                       // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -14,20 +14,20 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdInputBuffer.hh"
-#include "XrdMutexLocker.hh"
-#include "XrdDebug.hh"
+#include "XrdClientInputBuffer.hh"
+#include "XrdClientMutexLocker.hh"
+#include "XrdClientDebug.hh"
 #include <sys/time.h>
 
 using namespace std;
 
 //________________________________________________________________________
-int XrdInputBuffer::MsgForStreamidCnt(int streamid)
+int XrdClientInputBuffer::MsgForStreamidCnt(int streamid)
 {
     // Counts the number of messages belonging to the given streamid
 
     int cnt = 0;
-    XrdMessage *m = 0;
+    XrdClientMessage *m = 0;
 
     for (fMsgIter = fMsgQue.begin(); fMsgIter != fMsgQue.end(); ++fMsgIter) {
        m = *fMsgIter;
@@ -39,7 +39,7 @@ int XrdInputBuffer::MsgForStreamidCnt(int streamid)
 }
 
 //________________________________________________________________________
-pthread_cond_t *XrdInputBuffer::GetSyncObjOrMakeOne(int streamid) {
+pthread_cond_t *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
    // Gets the right sync obj to wait for messages for a given streamid
    // If the semaphore is not available, it creates one.
 
@@ -48,7 +48,7 @@ pthread_cond_t *XrdInputBuffer::GetSyncObjOrMakeOne(int streamid) {
    StreamidCondition::iterator iter;
 
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       iter = fSyncobjRepo.find(streamid);
 
@@ -68,7 +68,7 @@ pthread_cond_t *XrdInputBuffer::GetSyncObjOrMakeOne(int streamid) {
 
 
 //_______________________________________________________________________
-XrdInputBuffer::XrdInputBuffer() {
+XrdClientInputBuffer::XrdClientInputBuffer() {
    // Constructor
    pthread_mutexattr_t attr;
    int rc;
@@ -101,7 +101,7 @@ XrdInputBuffer::XrdInputBuffer() {
 }
 
 //_______________________________________________________________________
-XrdInputBuffer::~XrdInputBuffer() {
+XrdClientInputBuffer::~XrdClientInputBuffer() {
    // Destructor
 
    // Delete all the syncobjs
@@ -109,7 +109,7 @@ XrdInputBuffer::~XrdInputBuffer() {
    StreamidCondition::iterator iter;
 
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       for (iter = fSyncobjRepo.begin();
 	   iter != fSyncobjRepo.end();
@@ -129,14 +129,14 @@ XrdInputBuffer::~XrdInputBuffer() {
 }
 
 //_______________________________________________________________________
-int XrdInputBuffer::PutMsg(XrdMessage* m)
+int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
 {
    // Put message in the list
 
    pthread_cond_t *cnd;
 
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
     
       fMsgQue.push_back(m);
    }
@@ -153,20 +153,20 @@ int XrdInputBuffer::PutMsg(XrdMessage* m)
 
 
 //_______________________________________________________________________
-XrdMessage *XrdInputBuffer::GetMsg(int streamid, int secstimeout)
+XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
 {
-   // Gets the first XrdMessage from the queue, given a matching streamid.
-   // If there are no XrdMessages for the streamid, it waits for a number
+   // Gets the first XrdClientMessage from the queue, given a matching streamid.
+   // If there are no XrdClientMessages for the streamid, it waits for a number
    // of seconds for something to come
 
    pthread_cond_t *cv;
-   XrdMessage *res, *m;
+   XrdClientMessage *res, *m;
 
 
    res = 0;
  
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       if (MsgForStreamidCnt(streamid) > 0) {
 
@@ -200,7 +200,7 @@ XrdMessage *XrdInputBuffer::GetMsg(int streamid, int secstimeout)
 
       {
 	 // Yes, we have to lock the mtx until we finish
-	 XrdMutexLocker mtx(fMutex);
+	 XrdClientMutexLocker mtx(fMutex);
 
 	 // We were awakened. Or the timeout elapsed. The mtx is again locked.
 	 // If there are messages to dequeue, we pick the oldest one

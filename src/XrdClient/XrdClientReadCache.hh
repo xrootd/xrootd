@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdReadCache                                                         // 
+// XrdClientReadCache                                                         // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -18,20 +18,20 @@
 #include <vector>
 #include <iostream>
 
-#include "XrdInputBuffer.hh"
-#include "XrdMessage.hh"
+#include "XrdClientInputBuffer.hh"
+#include "XrdClientMessage.hh"
 
 
 
 //
-// XrdReadCacheItem
+// XrdClientReadCacheItem
 //
 // An item is nothing more than an interval of bytes taken from a file.
 // Since a cache object is to be associated to a single instance
 // of TXNetFile, we do not have to keep here any filehandle
 //
 
-class XrdReadCacheItem {
+class XrdClientReadCacheItem {
 private:
    long long        fBeginOffset;
    void             *fData;
@@ -39,9 +39,9 @@ private:
    long             fTimestampTicks; // timestamp updated each time it's referenced
 
 public:
-   XrdReadCacheItem(const void *buffer, long long begin_offs, 
+   XrdClientReadCacheItem(const void *buffer, long long begin_offs, 
                                           long long end_offs, long long ticksnow);
-   ~XrdReadCacheItem();
+   ~XrdClientReadCacheItem();
 
    // Is this obj contained in the given interval (which is going to be inserted) ?
    inline bool   ContainedInInterval(long long begin_offs, long long end_offs) {
@@ -69,14 +69,14 @@ public:
 };
 
 //
-// TXNetReadCacheBody
+// XrdClientReadCache
 //
 // The content of the cache. Not cache blocks, but
 // variable length Items
 //
-typedef vector<XrdReadCacheItem *> ItemVect;
+typedef vector<XrdClientReadCacheItem *> ItemVect;
 
-class XrdReadCache {
+class XrdClientReadCache {
 private:
 
    long long      fBytesHit;         // Total number of bytes read with a cache hit
@@ -102,8 +102,8 @@ private:
    }
 
 public:
-   XrdReadCache();
-   ~XrdReadCache();
+   XrdClientReadCache();
+   ~XrdClientReadCache();
   
    bool          GetDataIfPresent(const void *buffer, long long begin_offs,
                                   long long end_offs, bool PerfCalc);
@@ -116,7 +116,7 @@ public:
               fBytesHit << endl;
    }
 
-   void            SubmitXMessage(XrdMessage *xmsg, long long begin_offs,
+   void            SubmitXMessage(XrdClientMessage *xmsg, long long begin_offs,
                                                  long long end_offs);
    void            RemoveItems();
    void            RemoveItems(long long begin_offs, long long end_offs);

@@ -12,7 +12,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 #include "XrdClientStringMatcher.hh"
-#include "XrdConst.hh"
+#include "XrdClientConst.hh"
 
 #include <iostream.h>
 

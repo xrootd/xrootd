@@ -1,30 +1,26 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdConnMgr                                                           //
+// XrdClientConnMgr                                                     //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
 //  Alvise Dorigo, Fabrizio Furano                                      //
 //          INFN Padova, 2003                                           //
 //                                                                      //
-// The Connection Manager handles socket communications for TXNetFile   //
-// action: connect, disconnect, read, write. It is a static object of   //
-// the TXNetFile class such that within a single application multiple   //
-// TXNetFile objects share the same connection manager.                 //
 // The connection manager maps multiple logical connections on a single //
 // physical connection.                                                 //
 // There is one and only one logical connection per client              //
 // and one and only one physical connection per server:port.            //
 // Thus multiple objects withing a given application share              //
-// the same physical TCP channel to communicate with the server.        //
+// the same physical TCP channel to communicate with a server.          //
 // This reduces the time overhead for socket creation and reduces also  //
 // the server load due to handling many sockets.                        //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdConnMgr.hh"
-#include "XrdDebug.hh"
-#include "XrdMessage.hh"
-#include "XrdMutexLocker.hh"
+#include "XrdClientConnMgr.hh"
+#include "XrdClientDebug.hh"
+#include "XrdClientMessage.hh"
+#include "XrdClientMutexLocker.hh"
 
 #ifdef AIX
 #include <sys/sem.h>
@@ -32,7 +28,7 @@
 #include <semaphore.h>
 #endif
 
-XrdConnectionMgr *XrdConnectionMgr::fgInstance = 0;
+XrdClientConnectionMgr *XrdClientConnectionMgr::fgInstance = 0;
 
 //_____________________________________________________________________________
 extern "C" void * GarbageCollectorThread(void * arg)
@@ -40,7 +36,7 @@ extern "C" void * GarbageCollectorThread(void * arg)
    // Function executed in the garbage collector thread
 
    int i;
-   XrdConnectionMgr *thisObj = (XrdConnectionMgr *)arg;
+   XrdClientConnectionMgr *thisObj = (XrdClientConnectionMgr *)arg;
 
    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, 0);
    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
@@ -62,11 +58,11 @@ extern "C" void * GarbageCollectorThread(void * arg)
 }
 
 //_____________________________________________________________________________
-XrdConnectionMgr* XrdConnectionMgr::Instance() {
+XrdClientConnectionMgr* XrdClientConnectionMgr::Instance() {
    // Create unique instance of the connection manager
 
    if(fgInstance == 0) {
-      fgInstance = new XrdConnectionMgr;
+      fgInstance = new XrdClientConnectionMgr;
 
       if(!fgInstance)
          abort();
@@ -76,7 +72,7 @@ XrdConnectionMgr* XrdConnectionMgr::Instance() {
 }
 
 //_____________________________________________________________________________
-void XrdConnectionMgr::Reset()
+void XrdClientConnectionMgr::Reset()
 {
    // Reset the connection manager
 
@@ -85,9 +81,9 @@ void XrdConnectionMgr::Reset()
 }
 
 //____________________________________________________
-XrdConnectionMgr::XrdConnectionMgr()
+XrdClientConnectionMgr::XrdClientConnectionMgr()
 {
-   // XrdConnectionMgr constructor.
+   // XrdClientConnectionMgr constructor.
    // Creates a Connection Manager object.
    // Starts the garbage collector thread.
 
@@ -119,22 +115,22 @@ XrdConnectionMgr::XrdConnectionMgr()
 
    }
    else
-      if(DebugLevel() >= XrdDebug::kHIDEBUG)
-         Info(XrdDebug::kHIDEBUG,
+      if(DebugLevel() >= XrdClientDebug::kHIDEBUG)
+         Info(XrdClientDebug::kHIDEBUG,
 	      "ConnectionMgr",
               "Explicitly requested not to start the garbage collector"
               " thread. Are you sure?");
 }
 
 //_____________________________________________________________________________
-XrdConnectionMgr::~XrdConnectionMgr()
+XrdClientConnectionMgr::~XrdClientConnectionMgr()
 {
    // Deletes mutex locks, stops garbage collector thread.
 
    unsigned int i=0;
 
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       for (i = 0; i < fLogVec.size(); i++)
 	 if (fLogVec[i]) Disconnect(i, FALSE);
@@ -152,7 +148,7 @@ XrdConnectionMgr::~XrdConnectionMgr()
 }
 
 //_____________________________________________________________________________
-void XrdConnectionMgr::GarbageCollect()
+void XrdClientConnectionMgr::GarbageCollect()
 {
    // Get rid of unused physical connections. 'Unused' means not used for a
    // TTL time from any logical one. The TTL depends on the kind of remote
@@ -161,7 +157,7 @@ void XrdConnectionMgr::GarbageCollect()
 
    // Mutual exclusion on the vectors and other vars
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       // We cycle all the physical connections
       for (unsigned short int i = 0; i < fPhyVec.size(); i++) { 
@@ -171,7 +167,7 @@ void XrdConnectionMgr::GarbageCollect()
 	 if ( fPhyVec[i] && (GetPhyConnectionRefCount(fPhyVec[i]) <= 0) && 
 	      fPhyVec[i]->ExpiredTTL() ) {
       
-	    Info(XrdDebug::kDUMPDEBUG,
+	    Info(XrdClientDebug::kDUMPDEBUG,
 		 "GarbageCollect", "Purging physical connection " << i);
 
 	    // Wait until the physical connection is unlocked (it may be in use by 
@@ -181,7 +177,7 @@ void XrdConnectionMgr::GarbageCollect()
 	    SafeDelete(fPhyVec[i]);
 	    fPhyVec[i] = 0;
       
-	    Info(XrdDebug::kHIDEBUG,
+	    Info(XrdClientDebug::kHIDEBUG,
 		 "GarbageCollect", "Purged physical connection " << i);
 
 	 }
@@ -193,7 +189,7 @@ void XrdConnectionMgr::GarbageCollect()
 }
 
 //_____________________________________________________________________________
-short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
+short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 {
    // Connects to the remote server:
    //  - Looks for an existing physical connection already bound to 
@@ -205,23 +201,23 @@ short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
    //  - Returns the logical connection ID. Every client will use this
    //    ID to deal with the server.
 
-   XrdLogConnection *logconn;
-   XrdPhyConnection *phyconn;
+   XrdClientLogConnection *logconn;
+   XrdClientPhyConnection *phyconn;
    short int  newid;
    bool phyfound;
 
    // First we get a new logical connection object
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"Connect", "Creating a logical connection...");
 
-   logconn = new XrdLogConnection();
+   logconn = new XrdClientLogConnection();
    if (!logconn) {
       Error("Connect", "Object creation failed. Aborting.");
       abort();
    }
 
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       // If we already have a physical connection to that host:port, 
       // then we use that
@@ -245,7 +241,7 @@ short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
 
    if (!phyfound) {
       
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "Connect",
 	   "Physical connection not found. Creating a new one...");
 
@@ -254,7 +250,7 @@ short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
       // While we are trying to connect, the mutex must be unlocked
       // Note that at this point logconn is a pure local instance, so it 
       // does not need to be protected by mutex
-      phyconn = new XrdPhyConnection(this);
+      phyconn = new XrdClientPhyConnection(this);
 
       if (!phyconn) {
 	 Error("Connect", "Object creation failed. Aborting.");
@@ -264,8 +260,8 @@ short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
 
          logconn->SetPhyConnection(phyconn);
 
-         if (DebugLevel() >= XrdDebug::kHIDEBUG)
-            Info(XrdDebug::kHIDEBUG,
+         if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
+            Info(XrdClientDebug::kHIDEBUG,
 		 "Connect",
 		 "New physical connection to server " <<
 		 RemoteServ.Host << ":" << RemoteServ.Port <<
@@ -279,7 +275,7 @@ short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
    // Now, we are connected to the host desired.
    // The physical connection can be old or newly created
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound)
@@ -292,7 +288,7 @@ short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
       newid = fLogVec.size()-1;
 
       // Now some debug log
-      if (DebugLevel() >= XrdDebug::kHIDEBUG) {
+      if (DebugLevel() >= XrdClientDebug::kHIDEBUG) {
 	 int logCnt = 0, phyCnt = 0;
 
 	 for (unsigned short int i=0; i < fPhyVec.size(); i++)
@@ -302,7 +298,7 @@ short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
 	    if (fLogVec[i])
 	       logCnt++;
 
-	 Info(XrdDebug::kHIDEBUG,
+	 Info(XrdClientDebug::kHIDEBUG,
 	      "Connect",
 	      "LogConn: size:" << fLogVec.size() << " count: " << logCnt <<
 	      "PhyConn: size:" << fPhyVec.size() << " count: " << phyCnt );
@@ -316,7 +312,7 @@ short int XrdConnectionMgr::Connect(XrdUrlInfo RemoteServ)
 }
 
 //_____________________________________________________________________________
-void XrdConnectionMgr::Disconnect(short int LogConnectionID, 
+void XrdClientConnectionMgr::Disconnect(short int LogConnectionID, 
                                  bool ForcePhysicalDisc)
 {
    // Deletes a logical connection.
@@ -324,7 +320,7 @@ void XrdConnectionMgr::Disconnect(short int LogConnectionID,
    if (LogConnectionID < 0) return;
 
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       if ((LogConnectionID < 0) ||
 	  (LogConnectionID >= (int)fLogVec.size()) || (!fLogVec[LogConnectionID])) {
@@ -353,12 +349,12 @@ void XrdConnectionMgr::Disconnect(short int LogConnectionID,
 }
 
 //_____________________________________________________________________________
-int XrdConnectionMgr::ReadRaw(short int LogConnectionID, void *buffer, 
+int XrdClientConnectionMgr::ReadRaw(short int LogConnectionID, void *buffer, 
                                int BufferLength)
 {
    // Read BufferLength bytes from the logical connection LogConnectionID
 
-   XrdLogConnection *logconn;
+   XrdClientLogConnection *logconn;
 
    logconn = GetConnection(LogConnectionID);
 
@@ -374,10 +370,10 @@ int XrdConnectionMgr::ReadRaw(short int LogConnectionID, void *buffer,
 }
 
 //_____________________________________________________________________________
-XrdMessage *XrdConnectionMgr::ReadMsg(short int LogConnectionID)
+XrdClientMessage *XrdClientConnectionMgr::ReadMsg(short int LogConnectionID)
 {
-   XrdLogConnection *logconn;
-   XrdMessage *mex;
+   XrdClientLogConnection *logconn;
+   XrdClientMessage *mex;
 
    logconn = GetConnection(LogConnectionID);
 
@@ -405,11 +401,11 @@ XrdMessage *XrdConnectionMgr::ReadMsg(short int LogConnectionID)
 }
 
 //_____________________________________________________________________________
-int XrdConnectionMgr::WriteRaw(short int LogConnectionID, const void *buffer, 
+int XrdClientConnectionMgr::WriteRaw(short int LogConnectionID, const void *buffer, 
                                int BufferLength) {
    // Write BufferLength bytes into the logical connection LogConnectionID
 
-   XrdLogConnection *logconn;
+   XrdClientLogConnection *logconn;
 
    logconn = GetConnection(LogConnectionID);
 
@@ -425,14 +421,14 @@ int XrdConnectionMgr::WriteRaw(short int LogConnectionID, const void *buffer,
 }
 
 //_____________________________________________________________________________
-XrdLogConnection *XrdConnectionMgr::GetConnection(short int LogConnectionID)
+XrdClientLogConnection *XrdClientConnectionMgr::GetConnection(short int LogConnectionID)
 {
    // Return a logical connection object that has LogConnectionID as its ID.
 
-   XrdLogConnection *res;
+   XrdClientLogConnection *res;
 
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
  
       res = fLogVec[LogConnectionID];
    }
@@ -441,13 +437,13 @@ XrdLogConnection *XrdConnectionMgr::GetConnection(short int LogConnectionID)
 }
 
 //_____________________________________________________________________________
-short int XrdConnectionMgr::GetPhyConnectionRefCount(XrdPhyConnection *PhyConn)
+short int XrdClientConnectionMgr::GetPhyConnectionRefCount(XrdClientPhyConnection *PhyConn)
 {
    // Return the number of logical connections bound to the physical one 'PhyConn'
    int cnt = 0;
 
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       for (unsigned short int i = 0; i < fLogVec.size(); i++)
 	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == PhyConn) ) cnt++;
@@ -458,8 +454,8 @@ short int XrdConnectionMgr::GetPhyConnectionRefCount(XrdPhyConnection *PhyConn)
 }
 
 //_____________________________________________________________________________
-bool XrdConnectionMgr::ProcessUnsolicitedMsg(XrdUnsolicitedMsgSender *sender,
-                                             XrdMessage *unsolmsg)
+bool XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+                                             XrdClientMessage *unsolmsg)
 {
    // We are here if an unsolicited response comes from a physical connection
    // The response comes in the form of an TXMessage *, that must NOT be
@@ -467,7 +463,7 @@ bool XrdConnectionMgr::ProcessUnsolicitedMsg(XrdUnsolicitedMsgSender *sender,
    // Remember that we are in a separate thread, since unsolicited responses
    // are asynchronous by nature.
 
-   Info(XrdDebug::kNODEBUG,
+   Info(XrdClientDebug::kNODEBUG,
 	"ConnectionMgr", "Processing unsolicited response");
 
    // Local processing ....
@@ -478,7 +474,7 @@ bool XrdConnectionMgr::ProcessUnsolicitedMsg(XrdUnsolicitedMsgSender *sender,
    // which threw the event
    // So we throw the evt towards each logical connection
    {
-      XrdMutexLocker mtx(fMutex);
+      XrdClientMutexLocker mtx(fMutex);
 
       for (unsigned short int i = 0; i < fLogVec.size(); i++)
 	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) ) {

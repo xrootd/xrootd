@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdDebug                                                             // 
+// XrdClientDebug                                                             // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -17,7 +17,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include "XrdConst.hh"
+#include "XrdClientConst.hh"
 
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
@@ -26,27 +26,27 @@ using namespace std;
 
 
 
-#define DebugLevel() XrdDebug::Instance()->GetDebugLevel()
+#define DebugLevel() XrdClientDebug::Instance()->GetDebugLevel()
 
-#define Info(lvl, where, what) {  XrdDebug::Instance()->outs << where << " " << what; \
-      XrdDebug::Instance()->TraceStream((short)lvl, XrdDebug::Instance()->outs); }
+#define Info(lvl, where, what) {  XrdClientDebug::Instance()->outs << where << " " << what; \
+      XrdClientDebug::Instance()->TraceStream((short)lvl, XrdClientDebug::Instance()->outs); }
                                
-#define Error(where, what) {  XrdDebug::Instance()->outs << where << " " << what; \
-      XrdDebug::Instance()->TraceStream((short)XrdDebug::kNODEBUG, XrdDebug::Instance()->outs); }
+#define Error(where, what) {  XrdClientDebug::Instance()->outs << where << " " << what; \
+      XrdClientDebug::Instance()->TraceStream((short)XrdClientDebug::kNODEBUG, XrdClientDebug::Instance()->outs); }
 
 
-class XrdDebug {
+class XrdClientDebug {
  private:
    short           fDbgLevel;
 
    XrdOucLogger   *fOucLog;
    XrdOucError    *fOucErr;
 
-   static XrdDebug *fgInstance;
+   static XrdClientDebug *fgInstance;
 
  protected:
-   XrdDebug();
-   ~XrdDebug();
+   XrdClientDebug();
+   ~XrdClientDebug();
 
  public:
 
@@ -58,7 +58,7 @@ class XrdDebug {
    };
 
    short           GetDebugLevel() { return fDbgLevel; }
-   static XrdDebug *Instance();
+   static XrdClientDebug *Instance();
 
    inline void TraceStream(short DbgLvl, ostringstream &s) {
       if (DbgLvl <= GetDebugLevel())

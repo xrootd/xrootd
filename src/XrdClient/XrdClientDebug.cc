@@ -9,16 +9,16 @@
 //
 // Author: Alvise Dorigo, Fabrizio Furano
 
-#include "XrdDebug.hh"
+#include "XrdClientDebug.hh"
 
-XrdDebug *XrdDebug::fgInstance = 0;
+XrdClientDebug *XrdClientDebug::fgInstance = 0;
 
 //_____________________________________________________________________________
-XrdDebug* XrdDebug::Instance() {
+XrdClientDebug* XrdClientDebug::Instance() {
    // Create unique instance
 
    if (!fgInstance) {
-      fgInstance = new XrdDebug;
+      fgInstance = new XrdClientDebug;
       if (!fgInstance) {
          abort();
       }
@@ -27,7 +27,7 @@ XrdDebug* XrdDebug::Instance() {
 }
 
 //_____________________________________________________________________________
-XrdDebug::XrdDebug() {
+XrdClientDebug::XrdClientDebug() {
    // Constructor
    fOucLog = new XrdOucLogger();
    fOucErr = new XrdOucError(fOucLog, "Xrd");
@@ -36,7 +36,7 @@ XrdDebug::XrdDebug() {
 }
 
 //_____________________________________________________________________________
-XrdDebug::~XrdDebug() {
+XrdClientDebug::~XrdClientDebug() {
    // Destructor
    SafeDelete(fOucErr);
    SafeDelete(fOucLog);

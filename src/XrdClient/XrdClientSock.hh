@@ -16,8 +16,8 @@
 
 #include "XrdOuc/XrdOucSocket.hh"
 
-#include "XrdUrlInfo.hh"
-#include "XrdConst.hh"
+#include "XrdClientUrlInfo.hh"
+#include "XrdClientConst.hh"
 #include <string>
 
 
@@ -25,8 +25,8 @@
 
 
 
-struct XrdSocketConnectParms {
-   XrdUrlInfo TcpHost;
+struct XrdClientSockConnectParms {
+   XrdClientUrlInfo TcpHost;
    int TcpWindowSize;
 };
 
@@ -34,14 +34,14 @@ class XrdClientSock {
 
 private:
 
-   XrdSocketConnectParms fHost;
+   XrdClientSockConnectParms fHost;
 
    bool fConnected;
 
    int fSocket;
 
 public:
-   XrdClientSock(XrdUrlInfo Host);
+   XrdClientSock(XrdClientUrlInfo Host);
    ~XrdClientSock();
 
    void           Create(string, int, int);

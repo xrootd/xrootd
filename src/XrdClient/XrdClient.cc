@@ -13,9 +13,9 @@
 
 
 #include "XrdClient.hh"
-#include "XrdDebug.hh"
-#include "XrdUrlSet.hh"
-#include "XrdConn.hh"
+#include "XrdClientDebug.hh"
+#include "XrdClientUrlSet.hh"
+#include "XrdClientConn.hh"
 
 #include <string>
 #include <unistd.h>
@@ -31,12 +31,12 @@ XrdClient::XrdClient(const char *url) {
 
    memset(&fStatInfo, 0, sizeof(fStatInfo));
 
-   int CacheSize = TXNETREADCACHE_DFLTSIZE;
+   int CacheSize = DFLT_READCACHESIZE;
 
    fUseCache = (CacheSize > 0);
-   fReadAheadSize = TXNETREADAHEAD_DFLTSIZE;
+   fReadAheadSize = DFLT_READAHEADSIZE;
 
-   Info(XrdDebug::kNODEBUG,
+   Info(XrdClientDebug::kNODEBUG,
 	"Create",
 	"(C) 2004 SLAC XrdClient " << XRD_CLIENT_VERSION);
 
@@ -45,7 +45,7 @@ XrdClient::XrdClient(const char *url) {
 
    fInitialUrl.TakeUrl(url);
 
-   fConnModule = new XrdConn();
+   fConnModule = new XrdClientConn();
    if (!fConnModule) {
       Error("Create","Object creation failed.");
       abort();
@@ -77,7 +77,7 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
   
 
   // Max number of tries
-  int connectMaxTry = DFLT_TRYCONNECTSERVERSLIST;
+  int connectMaxTry = DFLT_FIRSTCONNECTMAXCNT;
 
 // // List of regular expressions to match
 // string allowRE = gEnv->GetValue("XNet.ConnectDomainAllowRE",
@@ -90,7 +90,7 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
   string denyRE  = "<unknown>";
   
   // Construction of the url set coming from the resolution of the hosts given
-  XrdUrlSet urlArray(fInitialUrl);
+  XrdClientUrlSet urlArray(fInitialUrl);
   if (!urlArray.IsValid()) {
      Error("Create", "The URL provided is incorrect.");
      return FALSE;
@@ -102,7 +102,7 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
   bool validDomain = FALSE;
 
   for (int jj=0; jj <=urlArray.Size()-1; jj++) {
-     XrdUrlInfo *thisUrl;
+     XrdClientUrlInfo *thisUrl;
      thisUrl = urlArray.GetNextUrl();
 
      if (fConnModule->CheckHostDomain(thisUrl->Host, allowRE, denyRE)) {
@@ -125,7 +125,7 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
       (connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
        connectTry++) {
 
-     XrdUrlInfo *thisUrl;
+     XrdClientUrlInfo *thisUrl;
      
      // Get an url from the available set
      thisUrl = urlArray.GetARandomUrl();
@@ -134,7 +134,7 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
 
         if (fConnModule->CheckHostDomain(thisUrl->Host, allowRE, denyRE)) {
 
-	   Info(XrdDebug::kHIDEBUG,
+	   Info(XrdClientDebug::kHIDEBUG,
 		"CreateTXNf", "Trying to connect to " <<
 		thisUrl->Host << ":" << thisUrl->Port <<
 		". Connect try " << connectTry+1);
@@ -149,31 +149,31 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
         // Now the have the logical Connection ID, that we can use as streamid for 
         // communications with the server
 
-	   Info(XrdDebug::kHIDEBUG, "CreateTXNf",
+	   Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
 		"The logical connection id is " << fConnModule->GetLogConnID() <<
 		". This will be the streamid for this client");
 
         fConnModule->SetUrl(*thisUrl);
         
-	Info(XrdDebug::kHIDEBUG, "CreateTXNf",
+	Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
 	     "Working url is " << thisUrl->GetUrl());
         
         // after connection deal with server
         if (!fConnModule->GetAccessToSrv())
            Error("CreateTXNf", "Access to server failed")
         else {
-	   Info(XrdDebug::kUSERDEBUG, "Create", "Access to server granted.");
+	   Info(XrdClientDebug::kUSERDEBUG, "Create", "Access to server granted.");
            break;
 	}
      }
      
      // The server denied access. We have to disconnect.
-     Info(XrdDebug::kHIDEBUG, "CreateTXNf", "Disconnecting.");
+     Info(XrdClientDebug::kHIDEBUG, "CreateTXNf", "Disconnecting.");
      
      fConnModule->Disconnect(FALSE);
      
-     if (DebugLevel() >= XrdDebug::kUSERDEBUG)
-        Info(XrdDebug::kUSERDEBUG, "Create",
+     if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
+        Info(XrdClientDebug::kUSERDEBUG, "Create",
 	     "Connection attempt failed. Sleeping " <<
 	     DFLT_RECONNECTTIMEOUT << " seconds.");
      
@@ -191,13 +191,13 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
   // Variable initialization
   // If the server is a new xrootd ( load balancer or data server)
   //
-  if ((fConnModule->GetServerType() != XrdConn::kSTRootd) && 
-      (fConnModule->GetServerType() != XrdConn::kSTNone)) {
+  if ((fConnModule->GetServerType() != XrdClientConn::kSTRootd) && 
+      (fConnModule->GetServerType() != XrdClientConn::kSTNone)) {
      // Now we are connected to a server that didn't redirect us after the 
      // login/auth phase
      // let's continue with the openfile sequence
 
-     Info(XrdDebug::kUSERDEBUG,
+     Info(XrdClientDebug::kUSERDEBUG,
 	  "Create", "Opening the remote file " << fInitialUrl.File); 
 
      if (!TryOpen(mode, options)) {
@@ -209,15 +209,15 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
 
      } else {
 
-	Info(XrdDebug::kUSERDEBUG, "Create", "File opened succesfully.");
+	Info(XrdClientDebug::kUSERDEBUG, "Create", "File opened succesfully.");
 
      }
   } else {
      // the server is an old rootd
-     if (fConnModule->GetServerType() == XrdConn::kSTRootd) {
+     if (fConnModule->GetServerType() == XrdClientConn::kSTRootd) {
         return FALSE;
      }
-     if (fConnModule->GetServerType() == XrdConn::kSTNone) {
+     if (fConnModule->GetServerType() == XrdClientConn::kSTNone) {
         return FALSE;
      }
   }
@@ -242,7 +242,7 @@ int XrdClient::Read(const void *buf, long long offset, int len) {
       fConnModule->GetDataFromCache(buf, offset,
 				    len + offset, TRUE) ) {
 
-     Info(XrdDebug::kHIDEBUG, "Read",
+     Info(XrdClientDebug::kHIDEBUG, "Read",
 	  "Found data in cache. len=" << len <<
 	  " offset=" << offset);
 
@@ -270,7 +270,7 @@ int XrdClient::Read(const void *buf, long long offset, int len) {
   else
      rlen = fReadAheadSize;
 
-     Info(XrdDebug::kHIDEBUG, "ReadBuffer",
+     Info(XrdClientDebug::kHIDEBUG, "ReadBuffer",
 	  "Calling TXNetConn::SendGenCommand to read " <<
 	  readFileRequest.read.rlen <<
 	  " bytes of data at offset " <<
@@ -296,7 +296,7 @@ int XrdClient::Read(const void *buf, long long offset, int len) {
 	   return minlen;
 	}
         else {
-	   Info(XrdDebug::kHIDEBUG,
+	   Info(XrdClientDebug::kHIDEBUG,
 		"ReadBuffer", "Internal cache error");
 	   return 0;
         }
@@ -392,7 +392,7 @@ bool XrdClient::TryOpen(kXR_int16 mode, kXR_int16 options) {
 
       opinfo = "&tried=" + fConnModule->GetCurrentUrl().Host;
 
-      Info(XrdDebug::kUSERDEBUG,
+      Info(XrdClientDebug::kUSERDEBUG,
 	   "Open", "Trying to re-open the file with kXR_refresh opt and "
 	   "opaque info set to " << opinfo);
      
@@ -459,7 +459,7 @@ bool XrdClient::LowOpen(const char *file, kXR_int16 mode, kXR_int16 options,
 }
 
 //_____________________________________________________________________________
-bool XrdClient::Stat(struct XrdStatInfo *stinfo) {
+bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
 
    if (!IsOpen()) {
       Error("Stat", "File not opened.");
@@ -490,8 +490,8 @@ bool XrdClient::Stat(struct XrdStatInfo *stinfo) {
    fConnModule->SendGenCommand(&statFileRequest, (const char*)fInitialUrl.File.c_str(),
                                0, fStats , FALSE, (char *)"SysStat");
    
-   if (DebugLevel() >= XrdDebug::kHIDEBUG)
-      Info(XrdDebug::kHIDEBUG,
+   if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
+      Info(XrdClientDebug::kHIDEBUG,
 	   "Stat", "Returned stats=" << fStats);
    
    sscanf(fStats, "%ld %Ld %ld %ld",
@@ -547,7 +547,7 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 
    fOpenPars.opened = FALSE;
 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"OpenFileWhenRedirected", "Trying to reopen the same file." );
 
    // After a redirection we must not reinit the TFile ancestor...
@@ -555,7 +555,7 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 
       fOpenPars.opened = TRUE;
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "OpenFileWhenRedirected",
 	   "Open successful." );
 
@@ -595,15 +595,15 @@ bool XrdClient::Copy(const char *localpath) {
 }
 
 //_____________________________________________________________________________
-bool XrdClient::ProcessUnsolicitedMsg(XrdUnsolicitedMsgSender *sender,
-                                        XrdMessage *unsolmsg) {
+bool XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+                                        XrdClientMessage *unsolmsg) {
    // We are here if an unsolicited response comes from a logical conn
    // The response comes in the form of an TXMessage *, that must NOT be
    // destroyed after processing. It is destroyed by the first sender.
    // Remember that we are in a separate thread, since unsolicited 
    // responses are asynchronous by nature.
 
-   Info(XrdDebug::kNODEBUG,
+   Info(XrdClientDebug::kNODEBUG,
 	"ProcessUnsolicitedMsg", "Processing unsolicited response");
 
    // Local processing ....

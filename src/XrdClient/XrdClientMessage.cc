@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdMessage                                                           // 
+// XrdClientMessage                                                           // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -12,17 +12,17 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdMessage.hh"
-#include "XrdXProtocol.hh"
-#include "XrdDebug.hh"
-#include "XrdPhyConnection.hh"
+#include "XrdClientMessage.hh"
+#include "XrdClientProtocol.hh"
+#include "XrdClientDebug.hh"
+#include "XrdClientPhyConnection.hh"
 
 #include <stdlib.h> // for malloc
 #include <string.h> // for memcpy
 
 
 //__________________________________________________________________________
-XrdMessage::XrdMessage(struct ServerResponseHeader header)
+XrdClientMessage::XrdClientMessage(struct ServerResponseHeader header)
 {
    // Constructor
 
@@ -31,7 +31,7 @@ XrdMessage::XrdMessage(struct ServerResponseHeader header)
    fData = 0;
    fMarshalled = false;
    if (!CreateData()) {
-      Error("XrdMessage", 
+      Error("XrdClientMessage", 
             "Error allocating " << fHdr.dlen << " bytes.");
       fAllocated = false;
    } else 
@@ -39,7 +39,7 @@ XrdMessage::XrdMessage(struct ServerResponseHeader header)
 }
 
 //__________________________________________________________________________
-XrdMessage::XrdMessage()
+XrdClientMessage::XrdClientMessage()
 {
    // Default constructor
 
@@ -51,7 +51,7 @@ XrdMessage::XrdMessage()
 }
 
 //__________________________________________________________________________
-XrdMessage::~XrdMessage()
+XrdClientMessage::~XrdClientMessage()
 {
    // Destructor
 
@@ -60,7 +60,7 @@ XrdMessage::~XrdMessage()
 }
 
 //__________________________________________________________________________
-void *XrdMessage::DonateData()
+void *XrdClientMessage::DonateData()
 {
    // Unlink the owned data in order to pass them elsewhere
 
@@ -72,7 +72,7 @@ void *XrdMessage::DonateData()
 }
 
 //__________________________________________________________________________
-bool XrdMessage::CreateData()
+bool XrdClientMessage::CreateData()
 {
    // Allocate data
 
@@ -80,7 +80,7 @@ bool XrdMessage::CreateData()
       if (fHdr.dlen) {
          fData = malloc(fHdr.dlen+1);
          if (!fData) {
-            Error("XrdMessage::CreateData","Fatal ERROR *** malloc failed."
+            Error("XrdClientMessage::CreateData","Fatal ERROR *** malloc failed."
                   " Probable system resources exhausted.");
             abort();
          }
@@ -96,7 +96,7 @@ bool XrdMessage::CreateData()
 }
 
 //__________________________________________________________________________
-void XrdMessage::Marshall()
+void XrdClientMessage::Marshall()
 {
    // Marshall, i.e. put in network byte order
 
@@ -107,7 +107,7 @@ void XrdMessage::Marshall()
 }
 
 //__________________________________________________________________________
-void XrdMessage::Unmarshall()
+void XrdClientMessage::Unmarshall()
 {
    // Unmarshall, i.e. from network byte to normal order
 
@@ -118,7 +118,7 @@ void XrdMessage::Unmarshall()
 }
 
 //__________________________________________________________________________
-int XrdMessage::ReadRaw(XrdPhyConnection *phy)
+int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
 {
    // Given a physical connection, we completely build the content
    // of the message, reading it from the socket of a phyconn
@@ -126,8 +126,8 @@ int XrdMessage::ReadRaw(XrdPhyConnection *phy)
    int readres;
    int readLen = sizeof(ServerResponseHeader);
 
-   Info(XrdDebug::kDUMPDEBUG,
-	"XrdMessage::ReadRaw",
+   Info(XrdClientDebug::kDUMPDEBUG,
+	"XrdClientMessage::ReadRaw",
 	"Reading header (" << readLen << " bytes) from socket.");
   
    readres = phy->ReadRaw((void *)&fHdr, readLen);
@@ -137,7 +137,7 @@ int XrdMessage::ReadRaw(XrdPhyConnection *phy)
       if (readres == TXSOCK_ERR_TIMEOUT)
          SetStatusCode(kXrdMSC_timeout);
       else {
-         Error("XrdMessage::ReadRaw",
+         Error("XrdClientMessage::ReadRaw",
 	       "Error reading " << readLen << " bytes.");
          SetStatusCode(kXrdMSC_readerr);
 
@@ -151,13 +151,13 @@ int XrdMessage::ReadRaw(XrdPhyConnection *phy)
 
    if (fHdr.dlen) {
 
-      Info(XrdDebug::kDUMPDEBUG,
-	   "XrdMessage::ReadRaw",
+      Info(XrdClientDebug::kDUMPDEBUG,
+	   "XrdClientMessage::ReadRaw",
 	   "Reading data (" << fHdr.dlen << " bytes) from socket.");
 
       CreateData();
       if (phy->ReadRaw(fData, fHdr.dlen)) {
-         Error("XrdMessage::ReadRaw", "Error reading " << fHdr.dlen << " bytes.");
+         Error("XrdClientMessage::ReadRaw", "Error reading " << fHdr.dlen << " bytes.");
          SetStatusCode(kXrdMSC_readerr);
       }
    }
@@ -165,7 +165,7 @@ int XrdMessage::ReadRaw(XrdPhyConnection *phy)
 }
 
 //___________________________________________________________________________
-void XrdMessage::Int2CharStreamid(kXR_char *charstreamid, short intstreamid)
+void XrdClientMessage::Int2CharStreamid(kXR_char *charstreamid, short intstreamid)
 {
    // Converts a streamid given as an integer to its representation
    // suitable for the streamid inside the messages (i.e. ascii)
@@ -174,7 +174,7 @@ void XrdMessage::Int2CharStreamid(kXR_char *charstreamid, short intstreamid)
 }
 
 //___________________________________________________________________________
-short XrdMessage::CharStreamid2Int(kXR_char *charstreamid)
+short XrdClientMessage::CharStreamid2Int(kXR_char *charstreamid)
 {
    // Converts a streamid given as an integer to its representation
    // suitable for the streamid inside the messages (i.e. ascii)

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdPhyConnection                                                     //
+// XrdClientPhyConnection                                                     //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
 //  Alvise Dorigo, Fabrizio Furano                                      //
@@ -13,9 +13,9 @@
 #include <time.h>
 #include <string>
 #include <stdlib.h>
-#include "XrdPhyConnection.hh"
-#include "XrdDebug.hh"
-#include "XrdMessage.hh"
+#include "XrdClientPhyConnection.hh"
+#include "XrdClientDebug.hh"
+#include "XrdClientMessage.hh"
 
 #include <sys/socket.h>
 
@@ -28,9 +28,9 @@ void *SocketReaderThread(void * arg)
    // MsqQ with a stream of TXMessages containing what's happening
    // at the socket level
 
-   XrdPhyConnection *thisObj;
+   XrdClientPhyConnection *thisObj;
 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"SocketReaderThread",
 	"Reader Thread starting.");
 
@@ -38,7 +38,7 @@ void *SocketReaderThread(void * arg)
    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0);
    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
 
-   thisObj = (XrdPhyConnection *)arg;
+   thisObj = (XrdClientPhyConnection *)arg;
 
    while (1) {
 
@@ -51,7 +51,7 @@ void *SocketReaderThread(void * arg)
 }
 
 //____________________________________________________________________________
-XrdPhyConnection::XrdPhyConnection(XrdAbsUnsolicitedMsgHandler *h) {
+XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
    // Constructor
    pthread_mutexattr_t attr;
    int rc;
@@ -84,7 +84,7 @@ XrdPhyConnection::XrdPhyConnection(XrdAbsUnsolicitedMsgHandler *h) {
 }
 
 //____________________________________________________________________________
-XrdPhyConnection::~XrdPhyConnection()
+XrdClientPhyConnection::~XrdClientPhyConnection()
 {
    // Destructor
 
@@ -95,11 +95,11 @@ XrdPhyConnection::~XrdPhyConnection()
 }
 
 //____________________________________________________________________________
-bool XrdPhyConnection::Connect(XrdUrlInfo RemoteHost)
+bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 {
    // Connect to remote server
 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"Connect",
 	"Connecting to [" << RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
   
@@ -126,7 +126,7 @@ bool XrdPhyConnection::Connect(XrdUrlInfo RemoteHost)
 
    fTTLsec = DATA_TTL;
 
-   Info(XrdDebug::kHIDEBUG, "Connect", "Connected to [" <<
+   Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to [" <<
 	RemoteHost.Host << ":" << RemoteHost.Port << "]");
 
    fServer = RemoteHost;
@@ -136,7 +136,7 @@ bool XrdPhyConnection::Connect(XrdUrlInfo RemoteHost)
 }
 
 //____________________________________________________________________________
-void XrdPhyConnection::StartReader() {
+void XrdClientPhyConnection::StartReader() {
    int pt_ret;
 
    // Start reader thread
@@ -146,7 +146,7 @@ void XrdPhyConnection::StartReader() {
    // otherwise the reader thread must be started
    if ( !fReaderthreadrunning && DFLT_GOASYNC ) {
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "StartReader", "Starting reader thread...");
 
       // Now we launch  the reader thread
@@ -161,7 +161,7 @@ void XrdPhyConnection::StartReader() {
 }
 
 //____________________________________________________________________________
-bool XrdPhyConnection::ReConnect(XrdUrlInfo RemoteHost)
+bool XrdClientPhyConnection::ReConnect(XrdClientUrlInfo RemoteHost)
 {
    // Re-connection attempt
 
@@ -170,7 +170,7 @@ bool XrdPhyConnection::ReConnect(XrdUrlInfo RemoteHost)
 }
 
 //____________________________________________________________________________
-void XrdPhyConnection::Disconnect()
+void XrdClientPhyConnection::Disconnect()
 {
 
    // Parametric asynchronous stuff
@@ -179,17 +179,17 @@ void XrdPhyConnection::Disconnect()
 
       if (fReaderthreadrunning) {
 
-         Info(XrdDebug::kHIDEBUG,
+         Info(XrdClientDebug::kHIDEBUG,
 	      "Disconnect", "Cancelling reader thread.");
 
 	 pthread_cancel(fReaderthreadhandler);
 
-	 Info(XrdDebug::kHIDEBUG,
+	 Info(XrdClientDebug::kHIDEBUG,
 	      "Disconnect", "Waiting for the reader thread termination...");
       
 	 pthread_join(fReaderthreadhandler, 0);
 
-	 Info(XrdDebug::kHIDEBUG,
+	 Info(XrdClientDebug::kHIDEBUG,
 	      "Disconnect", "Reader thread canceled.");
 
       }
@@ -199,7 +199,7 @@ void XrdPhyConnection::Disconnect()
    }
 
    // Disconnect from remote server
-   Info(XrdDebug::kDUMPDEBUG,
+   Info(XrdClientDebug::kDUMPDEBUG,
 	"Disconnect", "Deleting low level socket...");
 
    SafeDelete(fSocket);
@@ -208,13 +208,13 @@ void XrdPhyConnection::Disconnect()
 }
 
 //____________________________________________________________________________
-void XrdPhyConnection::Touch()
+void XrdClientPhyConnection::Touch()
 {
    // Set last-use-time to present time
 
    time_t t = time(0);
 
-   Info(XrdDebug::kDUMPDEBUG,
+   Info(XrdClientDebug::kDUMPDEBUG,
 	"Touch",
 	"Setting last use to current time" << t);
 
@@ -222,7 +222,7 @@ void XrdPhyConnection::Touch()
 }
 
 //____________________________________________________________________________
-int XrdPhyConnection::ReadRaw(void *buf, int len) {
+int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
    // Receive 'len' bytes from the connected server and store them in 'buf'.
    // Return number of bytes received. 
 
@@ -233,7 +233,7 @@ int XrdPhyConnection::ReadRaw(void *buf, int len) {
 
    if (IsValid()) {
 
-      Info(XrdDebug::kDUMPDEBUG,
+      Info(XrdClientDebug::kDUMPDEBUG,
 	   "ReadRaw",
 	   "Reading from " <<
 	   fServer.Host << ":" << fServer.Port);
@@ -243,7 +243,7 @@ int XrdPhyConnection::ReadRaw(void *buf, int len) {
       if (res && (res != TXSOCK_ERR_TIMEOUT) && errno ) {
 	 strerror_r(errno, errbuf, sizeof(buf));
 
-         Info(XrdDebug::kHIDEBUG,
+         Info(XrdClientDebug::kHIDEBUG,
 	      "ReadRaw", "Read error on " <<
 	      fServer.Host << ":" << fServer.Port << ". errno=" << errno <<
 	      ":" << buf );
@@ -254,7 +254,7 @@ int XrdPhyConnection::ReadRaw(void *buf, int len) {
       if ((res && (res != TXSOCK_ERR_TIMEOUT)) ||
           (!fSocket->IsConnected())) {
 
-	 Info(XrdDebug::kHIDEBUG,
+	 Info(XrdClientDebug::kHIDEBUG,
 	      "ReadRaw", 
 	      "Disconnection reported on" <<
 	      fServer.Host << ":" << fServer.Port);
@@ -269,7 +269,7 @@ int XrdPhyConnection::ReadRaw(void *buf, int len) {
    }
    else {
       // Socket already destroyed or disconnected
-      Info(XrdDebug::kUSERDEBUG,
+      Info(XrdClientDebug::kUSERDEBUG,
 	   "ReadRaw", "Socket is disconnected.");
 
       return TXSOCK_ERR;
@@ -278,8 +278,8 @@ int XrdPhyConnection::ReadRaw(void *buf, int len) {
 }
 
 //____________________________________________________________________________
-XrdMessage *XrdPhyConnection::ReadMessage(int streamid) {
-   // Gets a full loaded XrdMessage from this phyconn.
+XrdClientMessage *XrdClientPhyConnection::ReadMessage(int streamid) {
+   // Gets a full loaded XrdClientMessage from this phyconn.
    // May be a pure msg pick from a queue
 
    Touch();
@@ -288,14 +288,14 @@ XrdMessage *XrdPhyConnection::ReadMessage(int streamid) {
  }
 
 //____________________________________________________________________________
-XrdMessage *XrdPhyConnection::BuildMessage(bool IgnoreTimeouts, bool Enqueue)
+XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool Enqueue)
 {
-   // Builds an XrdMessage, and makes it read its header/data from the socket
+   // Builds an XrdClientMessage, and makes it read its header/data from the socket
    // Also put automatically the msg into the queue
 
-   XrdMessage *m;
+   XrdClientMessage *m;
 
-   m = new XrdMessage();
+   m = new XrdClientMessage();
    if (!m) {
       Error("BuildMessage",
 	    "Cannot create a new Message. Aborting.");
@@ -318,7 +318,7 @@ XrdMessage *XrdPhyConnection::BuildMessage(bool IgnoreTimeouts, bool Enqueue)
    else
       if (Enqueue) {
          // If we have to ignore the socket timeouts, then we have not to
-         // feed the queue with them. In this case, the newly created XrdMessage
+         // feed the queue with them. In this case, the newly created XrdClientMessage
          // has to be freed.
 	 if ( !IgnoreTimeouts || !m->IsError() )
 	    fMsgQ.PutMsg(m);
@@ -332,7 +332,7 @@ XrdMessage *XrdPhyConnection::BuildMessage(bool IgnoreTimeouts, bool Enqueue)
 }
 
 //____________________________________________________________________________
-void XrdPhyConnection::HandleUnsolicited(XrdMessage *m)
+void XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *m)
 {
    // Local processing of unsolicited responses is done here
 
@@ -341,7 +341,7 @@ void XrdPhyConnection::HandleUnsolicited(XrdMessage *m)
 
    Touch();
 
-   // Local processing of the unsolicited XrdMessage
+   // Local processing of the unsolicited XrdClientMessage
    attnbody = (struct ServerResponseBody_Attn *)m->GetData();
 
    if (attnbody) {
@@ -349,7 +349,7 @@ void XrdPhyConnection::HandleUnsolicited(XrdMessage *m)
       switch (attnbody->actnum) {
       case kXR_asyncms:
          // A message arrived from the server. Let's print it.
-         Info(XrdDebug::kNODEBUG,
+         Info(XrdClientDebug::kNODEBUG,
 	      "HandleUnsolicited",
               "Message from " <<
 	      fServer.Host << ":" << fServer.Port << ". '" <<
@@ -367,7 +367,7 @@ void XrdPhyConnection::HandleUnsolicited(XrdMessage *m)
 }
 
 //____________________________________________________________________________
-int XrdPhyConnection::WriteRaw(const void *buf, int len)
+int XrdClientPhyConnection::WriteRaw(const void *buf, int len)
 {
    // Send 'len' bytes located at 'buf' to the connected server.
    // Return number of bytes sent. 
@@ -378,17 +378,17 @@ int XrdPhyConnection::WriteRaw(const void *buf, int len)
 
    if (IsValid()) {
 
-      Info(XrdDebug::kDUMPDEBUG,
+      Info(XrdClientDebug::kDUMPDEBUG,
 	   "WriteRaw",
 	   "Writing to" <<
-	   XrdDebug::kDUMPDEBUG);
+	   XrdClientDebug::kDUMPDEBUG);
     
       res = fSocket->SendRaw(buf, len);
 
       if ((res < 0)  && (res != TXSOCK_ERR_TIMEOUT) && errno) {
 	 strerror_r(errno, errbuf, sizeof(buf));
 
-         Info(XrdDebug::kHIDEBUG,
+         Info(XrdClientDebug::kHIDEBUG,
 	      "WriteRaw", "Write error on " <<
 	      fServer.Host << ":" << fServer.Port << ". errno=" << errno <<
 	      ":" << buf );
@@ -398,7 +398,7 @@ int XrdPhyConnection::WriteRaw(const void *buf, int len)
       // If a socket error comes, then we disconnect (and destroy the fSocket)
       if ((res < 0) || (!fSocket->IsConnected())) {
 
-	 Info(XrdDebug::kHIDEBUG,
+	 Info(XrdClientDebug::kHIDEBUG,
 	      "WriteRaw", 
 	      "Disconnection reported on" <<
 	      fServer.Host << ":" << fServer.Port);
@@ -411,7 +411,7 @@ int XrdPhyConnection::WriteRaw(const void *buf, int len)
    }
    else {
       // Socket already destroyed or disconnected
-      Info(XrdDebug::kUSERDEBUG,
+      Info(XrdClientDebug::kUSERDEBUG,
 	   "WriteRaw",
 	   "Socket is disconnected.");
       return TXSOCK_ERR;
@@ -420,21 +420,21 @@ int XrdPhyConnection::WriteRaw(const void *buf, int len)
 
 
 //____________________________________________________________________________
-bool XrdPhyConnection::ExpiredTTL()
+bool XrdClientPhyConnection::ExpiredTTL()
 {
    // Check expiration time
    return( (time(0) - fLastUseTimestamp) > fTTLsec );
 }
 
 //____________________________________________________________________________
-void XrdPhyConnection::LockChannel()
+void XrdClientPhyConnection::LockChannel()
 {
    // Lock 
    pthread_mutex_lock(&fRwMutex);
 }
 
 //____________________________________________________________________________
-void XrdPhyConnection::UnlockChannel()
+void XrdClientPhyConnection::UnlockChannel()
 {
    // Unlock
    pthread_mutex_unlock(&fRwMutex);

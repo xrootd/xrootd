@@ -16,38 +16,38 @@ LIBDEPS = $(LIBDIR)/libXrdNet.a
 #------------------------------------------------------------------------------#
   
 SOURCES = \
-	XrdAbsClientBase.cc	\
+	XrdClientAbs.cc	\
 	XrdClient.cc		\
 	XrdClientSock.cc	\
-	XrdConn.cc		\
-	XrdConnMgr.cc		\
-	XrdDebug.cc		\
-	XrdInputBuffer.cc	\
-	XrdLogConnection.cc	\
-	XrdMessage.cc		\
-	XrdPhyConnection.cc	\
-	XrdReadCache.cc		\
-	XrdUrlInfo.cc		\
-	XrdUrlSet.cc		\
+	XrdClientConn.cc		\
+	XrdClientConnMgr.cc		\
+	XrdClientDebug.cc		\
+	XrdClientInputBuffer.cc	\
+	XrdClientLogConnection.cc	\
+	XrdClientMessage.cc		\
+	XrdClientPhyConnection.cc	\
+	XrdClientReadCache.cc		\
+	XrdClientUrlInfo.cc		\
+	XrdClientUrlSet.cc		\
 	XrdClientStringMatcher.cc\
-	XrdXProtocol.cc
+	XrdClientProtocol.cc
 
   
 OBJECTS = \
-	$(OBJDIR)/XrdAbsClientBase.o	\
+	$(OBJDIR)/XrdClientAbs.o	\
 	$(OBJDIR)/XrdClient.o		\
 	$(OBJDIR)/XrdClientSock.o	\
-	$(OBJDIR)/XrdConn.o		\
-	$(OBJDIR)/XrdConnMgr.o		\
-	$(OBJDIR)/XrdDebug.o		\
-	$(OBJDIR)/XrdInputBuffer.o	\
-	$(OBJDIR)/XrdLogConnection.o	\
-	$(OBJDIR)/XrdMessage.o		\
-	$(OBJDIR)/XrdPhyConnection.o	\
-	$(OBJDIR)/XrdReadCache.o	\
-	$(OBJDIR)/XrdUrlInfo.o		\
-	$(OBJDIR)/XrdUrlSet.o		\
-	$(OBJDIR)/XrdXProtocol.o	\
+	$(OBJDIR)/XrdClientConn.o		\
+	$(OBJDIR)/XrdClientConnMgr.o		\
+	$(OBJDIR)/XrdClientDebug.o		\
+	$(OBJDIR)/XrdClientInputBuffer.o	\
+	$(OBJDIR)/XrdClientLogConnection.o	\
+	$(OBJDIR)/XrdClientMessage.o		\
+	$(OBJDIR)/XrdClientPhyConnection.o	\
+	$(OBJDIR)/XrdClientReadCache.o	\
+	$(OBJDIR)/XrdClientUrlInfo.o		\
+	$(OBJDIR)/XrdClientUrlSet.o		\
+	$(OBJDIR)/XrdClientProtocol.o	\
 	$(OBJDIR)/XrdClientStringMatcher.o
 
 OBJECTB = \
@@ -91,113 +91,112 @@ $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
 	$(CC) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
 
-$(OBJDIR)/XrdAbsClientBase.o:    XrdAbsClientBase.cc    XrdAbsClientBase.hh\
-                                 XrdDebug.cc            XrdDebug.hh
-	@echo Compiling XrdBuffer.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAbsClientBase.o XrdAbsClientBase.cc
+$(OBJDIR)/XrdClientAbs.o:        XrdClientAbs.cc              XrdClientAbs.hh\
+                                 XrdClientDebug.cc            XrdClientDebug.hh
+	@echo Compiling XrdClientAbs.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAbs.o XrdClientAbs.cc
 
-$(OBJDIR)/XrdClient.o:           XrdClient.cc           XrdClient.hh\
-                                 XrdConn.cc             XrdConn.hh\
-                                 XrdConnMgr.cc          XrdConnMgr.hh\
-                                 XrdMessage.cc          XrdMessage.hh\
-                                 XrdPhyConnection.cc    XrdPhyConnection.hh\
-                                 XrdInputBuffer.cc      XrdInputBuffer.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh            XrdReadCache.cc\
-                                 XrdReadCache.hh
+$(OBJDIR)/XrdClient.o:           XrdClient.cc                 XrdClient.hh\
+                                 XrdClientConn.cc             XrdClientConn.hh\
+                                 XrdClientConnMgr.cc          XrdClientConnMgr.hh\
+                                 XrdClientMessage.cc          XrdClientMessage.hh\
+                                 XrdClientPhyConnection.cc    XrdClientPhyConnection.hh\
+                                 XrdClientInputBuffer.cc      XrdClientInputBuffer.hh\
+                                 XrdClientDebug.cc            XrdClientDebug.hh\
+                                 XrdClientConst.hh            XrdClientReadCache.cc\
+                                 XrdClientReadCache.hh
 	@echo Compiling XrdClient.cc
 	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClient.o XrdClient.cc
 
-$(OBJDIR)/XrdClientSock.o:       XrdClientSock.cc       XrdClientSock.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
+$(OBJDIR)/XrdClientSock.o:       XrdClientSock.cc             XrdClientSock.hh\
+                                 XrdClientDebug.cc            XrdClientDebug.hh\
+                                 XrdClientConst.hh
 	@echo Compiling XrdClientSock.cc
 	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientSock.o XrdClientSock.cc
 
-$(OBJDIR)/XrdConn.o:             XrdConn.cc             XrdConn.hh\
-                                 XrdConnMgr.cc          XrdConnMgr.hh\
-                                 XrdMessage.cc          XrdMessage.hh\
-                                 XrdPhyConnection.cc    XrdPhyConnection.hh\
-                                 XrdInputBuffer.cc      XrdInputBuffer.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh            XrdReadCache.cc\
-                                 XrdReadCache.hh        XrdClientStringMatcher.cc\
+$(OBJDIR)/XrdClientConn.o:       XrdClientConn.cc             XrdClientConn.hh\
+                                 XrdClientConnMgr.cc          XrdClientConnMgr.hh\
+                                 XrdClientMessage.cc          XrdClientMessage.hh\
+                                 XrdClientPhyConnection.cc    XrdClientPhyConnection.hh\
+                                 XrdClientInputBuffer.cc      XrdClientInputBuffer.hh\
+                                 XrdClientDebug.cc            XrdClientDebug.hh\
+                                 XrdClientConst.hh            XrdClientReadCache.cc\
+                                 XrdClientReadCache.hh        XrdClientStringMatcher.cc\
                                  XrdClientStringMatcher.hh
 
-	@echo Compiling XrdConn.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdConn.o XrdConn.cc
+	@echo Compiling XrdClientConn.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientConn.o XrdClientConn.cc
 
-$(OBJDIR)/XrdConnMgr.o:          XrdConnMgr.cc          XrdConnMgr.hh\
-                                 XrdMessage.cc          XrdMessage.hh\
-                                 XrdPhyConnection.cc    XrdPhyConnection.hh\
-                                 XrdInputBuffer.cc      XrdInputBuffer.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdConnMgr.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdConnMgr.o XrdConnMgr.cc
+$(OBJDIR)/XrdClientConnMgr.o:    XrdClientConnMgr.cc          XrdClientConnMgr.hh\
+                                 XrdClientMessage.cc          XrdClientMessage.hh\
+                                 XrdClientPhyConnection.cc    XrdClientPhyConnection.hh\
+                                 XrdClientInputBuffer.cc      XrdClientInputBuffer.hh\
+                                 XrdClientDebug.cc            XrdClientDebug.hh\
+                                 XrdClientConst.hh
+	@echo Compiling XrdClientConnMgr.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientConnMgr.o XrdClientConnMgr.cc
 
-$(OBJDIR)/XrdDebug.o:            XrdDebug.cc            XrdDebug.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdDebug.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdDebug.o XrdDebug.cc
+$(OBJDIR)/XrdClientDebug.o:      XrdClientDebug.cc            XrdClientDebug.hh\
+                                 XrdClientConst.hh
+	@echo Compiling XrdClientDebug.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientDebug.o XrdClientDebug.cc
 
-$(OBJDIR)/XrdInputBuffer.o:      XrdInputBuffer.cc      XrdInputBuffer.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdInputBuffer.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInputBuffer.o XrdInputBuffer.cc
+$(OBJDIR)/XrdClientInputBuffer.o:      XrdClientInputBuffer.cc      XrdClientInputBuffer.hh\
+                                       XrdClientDebug.cc            XrdClientDebug.hh\
+                                       XrdClientConst.hh
+	@echo Compiling XrdClientInputBuffer.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientInputBuffer.o XrdClientInputBuffer.cc
 
-$(OBJDIR)/XrdLogConnection.o:    XrdLogConnection.cc    XrdLogConnection.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdLogConnection.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLogConnection.o XrdLogConnection.cc
+$(OBJDIR)/XrdClientLogConnection.o:    XrdClientLogConnection.cc    XrdClientLogConnection.hh\
+                                       XrdClientDebug.cc            XrdClientDebug.hh\
+                                       XrdClientConst.hh
+	@echo Compiling XrdClientLogConnection.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientLogConnection.o XrdClientLogConnection.cc
 
-$(OBJDIR)/XrdMessage.o:          XrdMessage.cc          XrdMessage.hh\
-                                 XrdPhyConnection.cc    XrdPhyConnection.hh\
-                                 XrdInputBuffer.cc      XrdInputBuffer.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdMessage.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdMessage.o XrdMessage.cc
+$(OBJDIR)/XrdClientMessage.o:          XrdClientMessage.cc          XrdClientMessage.hh\
+                                       XrdClientPhyConnection.cc    XrdClientPhyConnection.hh\
+                                       XrdClientInputBuffer.cc      XrdClientInputBuffer.hh\
+                                       XrdClientDebug.cc            XrdClientDebug.hh\
+                                       XrdClientConst.hh
+	@echo Compiling XrdClientMessage.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientMessage.o XrdClientMessage.cc
 
-$(OBJDIR)/XrdPhyConnection.o:    XrdPhyConnection.cc    XrdPhyConnection.hh\
-                                 XrdInputBuffer.cc      XrdInputBuffer.hh\
-                                 XrdClientSock.cc       XrdClientSock.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh            XrdReadCache.cc\
-			 	 XrdReadCache.hh
-	@echo Compiling XrdPhyConnection.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPhyConnection.o XrdPhyConnection.cc
+$(OBJDIR)/XrdClientPhyConnection.o:    XrdClientPhyConnection.cc    XrdClientPhyConnection.hh\
+                                       XrdClientInputBuffer.cc      XrdClientInputBuffer.hh\
+                                       XrdClientSock.cc             XrdClientSock.hh\
+                                       XrdClientDebug.cc            XrdClientDebug.hh\
+                                       XrdClientConst.hh            XrdClientReadCache.cc\
+			 	       XrdClientReadCache.hh
+	@echo Compiling XrdClientPhyConnection.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientPhyConnection.o XrdClientPhyConnection.cc
 
-$(OBJDIR)/XrdReadCache.o:        XrdReadCache.cc        XrdReadCache.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdReadCache.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdReadCache.o XrdReadCache.cc
+$(OBJDIR)/XrdClientReadCache.o:        XrdClientReadCache.cc        XrdClientReadCache.hh\
+                                       XrdClientDebug.cc            XrdClientDebug.hh\
+                                       XrdClientConst.hh
+	@echo Compiling XrdClientReadCache.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientReadCache.o XrdClientReadCache.cc
 
-$(OBJDIR)/XrdUrlInfo.o:          XrdUrlInfo.cc          XrdUrlInfo.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdUrlInfo.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdUrlInfo.o XrdUrlInfo.cc
+$(OBJDIR)/XrdClientUrlInfo.o:          XrdClientUrlInfo.cc          XrdClientUrlInfo.hh\
+                                       XrdClientDebug.cc            XrdClientDebug.hh\
+                                       XrdClientConst.hh
+	@echo Compiling XrdClientUrlInfo.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientUrlInfo.o XrdClientUrlInfo.cc
 
-$(OBJDIR)/XrdUrlSet.o:           XrdUrlSet.cc           XrdUrlSet.hh\
-                                 XrdUrlInfo.cc          XrdUrlInfo.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdUrlSet.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdUrlSet.o XrdUrlSet.cc
+$(OBJDIR)/XrdClientUrlSet.o:           XrdClientUrlSet.cc           XrdClientUrlSet.hh\
+                                       XrdClientUrlInfo.cc          XrdClientUrlInfo.hh\
+                                       XrdClientDebug.cc            XrdClientDebug.hh\
+                                       XrdClientConst.hh
+	@echo Compiling XrdClientUrlSet.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientUrlSet.o XrdClientUrlSet.cc
 
-$(OBJDIR)/XrdXProtocol.o:        XrdXProtocol.cc        XrdXProtocol.hh\
-                                 XrdDebug.cc            XrdDebug.hh\
-                                 XrdConst.hh
-	@echo Compiling XrdXProtocol.cc
-	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXProtocol.o XrdXProtocol.cc
+$(OBJDIR)/XrdClientProtocol.o:        XrdClientProtocol.cc        XrdClientProtocol.hh\
+                                      XrdClientDebug.cc           XrdClientDebug.hh\
+                                      XrdClientConst.hh
+	@echo Compiling XrdClientProtocol.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientProtocol.o XrdClientProtocol.cc
 
 $(OBJDIR)/TestXrdClient.o:       TestXrdClient.cc\
-                                 XrdConst.hh
+                                 XrdClientConst.hh
 	@echo Compiling TestXrdClient.cc
 	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/TestXrdClient.o TestXrdClient.cc
 

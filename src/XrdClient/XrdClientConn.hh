@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdConn                                                              // 
+// XrdClientConn                                                              // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -15,15 +15,15 @@
 #define XRD_CONN_H
 
 
-#include "XrdConst.hh"
+#include "XrdClientConst.hh"
 
 #include "time.h"
-#include "XrdAbsClientBase.hh"
-#include "XrdMessage.hh"
-#include "XrdUrlInfo.hh"
-#include "XrdReadCache.hh"
+#include "XrdClientAbs.hh"
+#include "XrdClientMessage.hh"
+#include "XrdClientUrlInfo.hh"
+#include "XrdClientReadCache.hh"
 
-class XrdConn {
+class XrdClientConn {
 
 public:
    enum ServerType {
@@ -51,8 +51,8 @@ public:
    XErrorCode      fOpenError;	
 
   
-   XrdConn();
-   ~XrdConn();
+   XrdClientConn();
+   ~XrdClientConn();
 
    inline bool     CacheWillFit(long long bytes) {
       if (!fMainReadCache)
@@ -62,7 +62,7 @@ public:
 
    bool            CheckHostDomain(string hostToCheck, string allow, 
                                                          string deny);
-   short           Connect(XrdUrlInfo Host2Conn);
+   short           Connect(XrdClientUrlInfo Host2Conn);
    void            Disconnect(bool ForcePhysicalDisc);
    bool            GetAccessToSrv();
    string          GetClientHostDomain() const { return fClientHostDomain; }
@@ -70,11 +70,11 @@ public:
 				    long long end_offs, bool PerfCalc);
    int             GetLogConnID() const { return fLogConnID; }
 
-   XrdUrlInfo      *GetLBSUrl() const { return fLBSUrl; }
-   XrdUrlInfo      GetCurrentUrl() const { return fUrl; }
+   XrdClientUrlInfo      *GetLBSUrl() const { return fLBSUrl; }
+   XrdClientUrlInfo      GetCurrentUrl() const { return fUrl; }
 
    XErrorCode      GetOpenError() const { return fOpenError; }
-   XReqErrorType   GoToAnotherServer(XrdUrlInfo &newdest);
+   XReqErrorType   GoToAnotherServer(XrdClientUrlInfo &newdest);
    bool            IsConnected() const { return fConnected; }
 
    bool            SendGenCommand(ClientRequest *req, 
@@ -89,10 +89,10 @@ public:
    void             SetConnected(bool conn) { fConnected = conn; }
    void             SetLogConnID(short logconnid) { fLogConnID = logconnid;}
    void             SetOpenError(XErrorCode err) { fOpenError = err; }
-   void             SetRedirHandler(XrdAbsClientBase *rh) { fRedirHandler = rh; }
+   void             SetRedirHandler(XrdClientAbs *rh) { fRedirHandler = rh; }
    void             SetServerType(ServerType type) { fServerType = type; }
    void             SetSID(kXR_char *sid);
-   inline void      SetUrl(XrdUrlInfo thisUrl) { fUrl = thisUrl; }
+   inline void      SetUrl(XrdClientUrlInfo thisUrl) { fUrl = thisUrl; }
 
 private:
 
@@ -101,12 +101,12 @@ private:
    short            fGlobalRedirCnt;    // Number of redirections
    time_t           fGlobalRedirLastUpdateTimestamp; // Timestamp of last redirection
 
-   XrdUrlInfo       *fLBSUrl;            // Needed to save the load balancer url
+   XrdClientUrlInfo       *fLBSUrl;            // Needed to save the load balancer url
    short            fLogConnID;        // Logical connection ID of the current
                                           // TXNetFile object
    short            fMaxGlobalRedirCnt;
-   XrdReadCache     *fMainReadCache;
-   XrdAbsClientBase *fRedirHandler;     // Pointer to a class inheriting from
+   XrdClientReadCache     *fMainReadCache;
+   XrdClientAbs *fRedirHandler;     // Pointer to a class inheriting from
                                          // TXAbsNetCommon providing methods
                                          // to handle the redir at higher level
    string           fRedirInternalToken; // Token returned by the server when
@@ -114,13 +114,13 @@ private:
    long             fServerProto;      // The server protocol
    ServerType       fServerType;       // Server type as returned by doHandShake() 
                                        // (see enum ServerType)
-   XrdUrlInfo       fUrl;
+   XrdClientUrlInfo       fUrl;
 
 
-   bool             CheckErrorStatus(XrdMessage *, short &, char *);
+   bool             CheckErrorStatus(XrdClientMessage *, short &, char *);
    void             CheckPort(int &port);
    bool             CheckResp(struct ServerResponseHeader *resp, const char *method);
-   XrdMessage       *ClientServerCmd(ClientRequest *req, const void *reqMoreData,
+   XrdClientMessage       *ClientServerCmd(ClientRequest *req, const void *reqMoreData,
 				     void **answMoreDataAllocated, void *answMoreData,
 				     bool HasToAlloc);
    bool             DoAuthentication(string usr, string list);
@@ -129,13 +129,13 @@ private:
 
    string           GetDomainToMatch(string hostname);
 
-   ESrvErrorHandlerRetval HandleServerError(XReqErrorType &, XrdMessage *,
+   ESrvErrorHandlerRetval HandleServerError(XReqErrorType &, XrdClientMessage *,
                                             ClientRequest *);
    bool             MatchStreamid(struct ServerResponseHeader *ServerResponse);
 
    string           ParseDomainFromHostname(string hostname);
 
-   XrdMessage       *ReadPartialAnswer(XReqErrorType &, size_t &, 
+   XrdClientMessage       *ReadPartialAnswer(XReqErrorType &, size_t &, 
 				       ClientRequest *, bool, void**,
 				       EThreeStateReadHandler &);
    XReqErrorType    WriteToServer(ClientRequest *, ClientRequest *, 

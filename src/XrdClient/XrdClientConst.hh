@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdConst                                                             //
+// XrdClientConst                                                             //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -18,12 +18,12 @@
 #define DFLT_CONNECTTIMEOUTWAN 2
 #define DFLT_REQUESTTIMEOUT    5
 
-#define DFLT_MAXREDIRECTCOUNT        255
+#define DFLT_MAXREDIRECTCOUNT        10
 #define DFLT_DEBUG                   2
 #define DFLT_RECONNECTTIMEOUT        10
 
-#define REDIRCNTTIMEOUT		     3600
-#define DFLT_TRYCONNECTSERVERSLIST   240
+#define DFLT_REDIRCNTTIMEOUT		     3600
+#define DFLT_FIRSTCONNECTMAXCNT   10
 
 #define TXSOCK_ERR_TIMEOUT	-1
 #define TXSOCK_ERR		-2
@@ -34,11 +34,11 @@
 
 #define DFLT_GOASYNC 1
 
-#define  XRD_CLIENT_VERSION "1.0.0"
+#define  XRD_CLIENT_VERSION "0.1.0alpha"
 
 // Defaults for ReadAhead and Cache
-#define TXNETREADCACHE_DFLTSIZE 3000000
-#define TXNETREADAHEAD_DFLTSIZE 500000
+#define DFLT_READCACHESIZE 3000000
+#define DFLT_READAHEADSIZE 500000
 
 
 #define PROTO "root"

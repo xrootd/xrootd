@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdUnsolMsg                                                          //
+// XrdClientUnsolMsg                                                          //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -14,35 +14,35 @@
 #ifndef XRC_UNSOLMSG_H
 #define XRC_UNSOLMSG_H
 
-#include "XrdMessage.hh"
+#include "XrdClientMessage.hh"
 
-class XrdUnsolicitedMsgSender;
+class XrdClientUnsolMsgSender;
 
 // Handler
 
-class XrdAbsUnsolicitedMsgHandler {
+class XrdClientAbsUnsolMsgHandler {
 public:
   
   // To be called when an unsolicited response arrives from the lower layers
-  virtual bool ProcessUnsolicitedMsg(XrdUnsolicitedMsgSender *sender, 
-                                       XrdMessage *unsolmsg) = 0;
+  virtual bool ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, 
+                                       XrdClientMessage *unsolmsg) = 0;
 
 };
 
 // Sender
 
-class XrdUnsolicitedMsgSender {
+class XrdClientUnsolMsgSender {
 public:
    // The upper level handler for unsolicited responses
-  XrdAbsUnsolicitedMsgHandler *UnsolicitedMsgHandler;
+  XrdClientAbsUnsolMsgHandler *UnsolicitedMsgHandler;
 
-  inline void SendUnsolicitedMsg(XrdUnsolicitedMsgSender *sender, XrdMessage *unsolmsg) {
+  inline void SendUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg) {
     // We simply send the event
     if (UnsolicitedMsgHandler)
       UnsolicitedMsgHandler->ProcessUnsolicitedMsg(sender, unsolmsg);
   }
 
-  inline XrdUnsolicitedMsgSender() { UnsolicitedMsgHandler = 0; }
+  inline XrdClientUnsolMsgSender() { UnsolicitedMsgHandler = 0; }
 };
 
 #endif

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdConn                                                              // 
+// XrdClientConn                                                              // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -11,17 +11,17 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdDebug.hh"
+#include "XrdClientDebug.hh"
 
-#include "XrdConnMgr.hh"
-#include "XrdConn.hh"
-#include "XrdPhyConnection.hh"
-#include "XrdXProtocol.hh"
+#include "XrdClientConnMgr.hh"
+#include "XrdClientConn.hh"
+#include "XrdClientPhyConnection.hh"
+#include "XrdClientProtocol.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdNet/XrdNetDNS.hh"
-#include "XrdUrlInfo.hh"
+#include "XrdClientUrlInfo.hh"
 #include "XrdClientStringMatcher.hh"
 
 #include <stdio.h>      // needed by printf
@@ -35,14 +35,14 @@
 
 
 //_____________________________________________________________________________
-void ParseRedir(XrdMessage* xmsg, int &port, string &host, string &token)
+void ParseRedir(XrdClientMessage* xmsg, int &port, string &host, string &token)
 {
    // Small utility function... we want to parse the content
    // of a redir response from the server.
 
    unsigned int pos;
 
-   // Remember... an instance of XrdMessage automatically 0-terminates the
+   // Remember... an instance of XrdClientMessage automatically 0-terminates the
    // data if present
    struct ServerResponseBody_Redirect* redirdata =
       (struct ServerResponseBody_Redirect*)xmsg->GetData();
@@ -62,7 +62,7 @@ void ParseRedir(XrdMessage* xmsg, int &port, string &host, string &token)
 }
 
 //_____________________________________________________________________________
-XrdConn::XrdConn(): fOpenError((XErrorCode)0), fConnected(FALSE), 
+XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE), 
                         fLBSUrl(0), fUrl("")
 {
    // Constructor
@@ -73,7 +73,7 @@ XrdConn::XrdConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
    fClientHostDomain = GetDomainToMatch(buf);
 
    if (fClientHostDomain == "")
-      Error("XrdConn",
+      Error("XrdClientConn",
 	    "Error resolving this host's domain name." );
   
    fRedirHandler = 0;
@@ -84,12 +84,12 @@ XrdConn::XrdConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
    fMaxGlobalRedirCnt = DFLT_MAXREDIRECTCOUNT;
 
    fMainReadCache = NULL;
-   if (TXNETREADCACHE_DFLTSIZE)
-      fMainReadCache = new XrdReadCache();
+   if (DFLT_READCACHESIZE)
+      fMainReadCache = new XrdClientReadCache();
 }
 
 //_____________________________________________________________________________
-XrdConn::~XrdConn()
+XrdClientConn::~XrdClientConn()
 {
    // Destructor
    if (fMainReadCache)
@@ -99,7 +99,7 @@ XrdConn::~XrdConn()
 }
 
 //_____________________________________________________________________________
-short XrdConn::Connect(XrdUrlInfo Host2Conn)
+short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn)
 {
    // Connect method (called the first time when XrdNetFile is first created, 
    // and used for each redirection). The global static connection manager 
@@ -114,7 +114,7 @@ short XrdConn::Connect(XrdUrlInfo Host2Conn)
 
    logid = ConnectionManager->Connect(Host2Conn);
 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"Connect", "Connect(" << Host2Conn.Host << ", " <<
 	Host2Conn.Port << ") returned " <<
 	logid );
@@ -135,7 +135,7 @@ short XrdConn::Connect(XrdUrlInfo Host2Conn)
 }
 
 //_____________________________________________________________________________
-void XrdConn::Disconnect(bool ForcePhysicalDisc)
+void XrdClientConn::Disconnect(bool ForcePhysicalDisc)
 {
    // Disconnect
 
@@ -144,7 +144,7 @@ void XrdConn::Disconnect(bool ForcePhysicalDisc)
 }
 
 //_____________________________________________________________________________
-XrdMessage *XrdConn::ClientServerCmd(ClientRequest *req, const void *reqMoreData,
+XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void *reqMoreData,
                                       void **answMoreDataAllocated,
                                       void *answMoreData, bool HasToAlloc) 
 {
@@ -177,7 +177,7 @@ XrdMessage *XrdConn::ClientServerCmd(ClientRequest *req, const void *reqMoreData
    void *tmpMoreData;
    XReqErrorType errorType = kOK;
 
-   XrdMessage *xmsg = 0;
+   XrdClientMessage *xmsg = 0;
 
    // In the case of an abort due to errors, better to return
    // a blank struct. Also checks the validity of the pointer.
@@ -197,7 +197,7 @@ XrdMessage *XrdConn::ClientServerCmd(ClientRequest *req, const void *reqMoreData
 
       reqtmp = *req;
 
-      if (DebugLevel() >= XrdDebug::kDUMPDEBUG)
+      if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)
 	 smartPrintClientHeader(&reqtmp);
 
       clientMarshall(&reqtmp);
@@ -218,7 +218,7 @@ XrdMessage *XrdConn::ClientServerCmd(ClientRequest *req, const void *reqMoreData
       // Cycle for the kXR_oksofar i.e. partial answers to be collected
       do {
 
-         XrdConn::EThreeStateReadHandler whatToDo;
+         XrdClientConn::EThreeStateReadHandler whatToDo;
          xmsg = ReadPartialAnswer(errorType, TotalBlkSize, req, HasToAlloc,
                                   &tmpMoreData, whatToDo);
 
@@ -258,7 +258,7 @@ XrdMessage *XrdConn::ClientServerCmd(ClientRequest *req, const void *reqMoreData
 }
 
 //_____________________________________________________________________________
-bool XrdConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
+bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 				 void **answMoreDataAllocated, 
                                  void *answMoreData, bool HasToAlloc,
                                  char *CmdName,
@@ -278,10 +278,10 @@ bool XrdConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 
       // Send the cmd, dealing automatically with redirections and
       // redirections on error
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "SendGenCommand","Calling ClientServerCmd...");
 
-      XrdMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
+      XrdClientMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
                                               answMoreDataAllocated, 
                                               answMoreData, HasToAlloc);
 
@@ -304,7 +304,7 @@ bool XrdConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
          // waiting for the server to come back
          if (!cmdrespMex || cmdrespMex->IsError()) {
 
-	    Info(XrdDebug::kHIDEBUG,
+	    Info(XrdClientDebug::kHIDEBUG,
 		 "SendGenCommand", "Communication error detected with [" <<
 		 fUrl.Host << ":" << fUrl.Port);
 
@@ -350,7 +350,7 @@ bool XrdConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 }
 
 //_____________________________________________________________________________
-bool XrdConn::CheckHostDomain(string hostToCheck, string allow, string deny)
+bool XrdClientConn::CheckHostDomain(string hostToCheck, string allow, string deny)
 {
    // Checks domain matching
 
@@ -360,7 +360,7 @@ bool XrdConn::CheckHostDomain(string hostToCheck, string allow, string deny)
    // Get the domain for the url to check
    domain = GetDomainToMatch(hostToCheck);
 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"CheckHostDomain",
 	"Resolved [" <<
 	hostToCheck << "]'s domain name into [" <<
@@ -434,7 +434,7 @@ bool XrdConn::CheckHostDomain(string hostToCheck, string allow, string deny)
 
 // 	 // if the domain matches any regexp for the domains to allow --> access granted
 // 	 if (domain.find(reAllow) != string::npos) {
-// 	    Info(XrdDebug::kHIDEBUG,
+// 	    Info(XrdClientDebug::kHIDEBUG,
 // 		 "CheckHostDomain",
 // 		 "Access granted to the domain of [" << hostToCheck <<
 // 		  "] (expr: [" << tmp << "]).");
@@ -452,7 +452,7 @@ bool XrdConn::CheckHostDomain(string hostToCheck, string allow, string deny)
 }
 
 //_____________________________________________________________________________
-bool XrdConn::CheckResp(struct ServerResponseHeader *resp, const char *method)
+bool XrdClientConn::CheckResp(struct ServerResponseHeader *resp, const char *method)
 {
    // Checks if the server's response is the ours.
    // If the response's status is "OK" returns TRUE; if the status is "redirect", it 
@@ -485,7 +485,7 @@ bool XrdConn::CheckResp(struct ServerResponseHeader *resp, const char *method)
 }
 
 //_____________________________________________________________________________
-bool XrdConn::MatchStreamid(struct ServerResponseHeader *ServerResponse)
+bool XrdClientConn::MatchStreamid(struct ServerResponseHeader *ServerResponse)
 {
    // Check stream ID matching
 
@@ -498,7 +498,7 @@ bool XrdConn::MatchStreamid(struct ServerResponseHeader *ServerResponse)
 }
 
 //_____________________________________________________________________________
-void XrdConn::SetSID(kXR_char *sid) {
+void XrdClientConn::SetSID(kXR_char *sid) {
    // Set our stream id, to match against that one in the server's response.
 
    memcpy((void *)sid, (const void*)&fLogConnID, 2);
@@ -506,7 +506,7 @@ void XrdConn::SetSID(kXR_char *sid) {
 
 
 //_____________________________________________________________________________
-XReqErrorType XrdConn::WriteToServer(ClientRequest *reqtmp, ClientRequest *req, 
+XReqErrorType XrdClientConn::WriteToServer(ClientRequest *reqtmp, ClientRequest *req, 
 				       const void* reqMoreData, short LogConnID) 
 {
    // Send message to server
@@ -516,7 +516,7 @@ XReqErrorType XrdConn::WriteToServer(ClientRequest *reqtmp, ClientRequest *req,
    // Also note that the lock is removed at the end of the block (Stroustroup 
    // page 365)
    {
-      XrdPhyConnLocker pcl(ConnectionManager->GetConnection(fLogConnID)
+      XrdClientPhyConnLocker pcl(ConnectionManager->GetConnection(fLogConnID)
                                            ->GetPhyConnection());
 
       // Now we write the request to the logical connection through the
@@ -565,7 +565,7 @@ XReqErrorType XrdConn::WriteToServer(ClientRequest *reqtmp, ClientRequest *req,
 }
 
 //_____________________________________________________________________________
-bool XrdConn::CheckErrorStatus(XrdMessage *mex, short &Retry, char *CmdName)
+bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *CmdName)
 {
    // Check error status
 
@@ -607,12 +607,12 @@ bool XrdConn::CheckErrorStatus(XrdMessage *mex, short &Retry, char *CmdName)
       if (body_wait) {
 
             if (mex->DataLen() > 4) 
-               Info(XrdDebug::kUSERDEBUG, "SendGenCommand", "Server [" << 
+               Info(XrdClientDebug::kUSERDEBUG, "SendGenCommand", "Server [" << 
 		    fUrl.Host << ":" << fUrl.Port <<
 		    "] requested " << ntohl(body_wait->seconds) << " seconds"
                     " of wait. Server message is " << body_wait->infomsg)
             else
-               Info(XrdDebug::kUSERDEBUG, "SendGenCommand", "Server [" << 
+               Info(XrdClientDebug::kUSERDEBUG, "SendGenCommand", "Server [" << 
 		    fUrl.Host << ":" << fUrl.Port <<
 		    "] requested " << ntohl(body_wait->seconds) << " seconds"
                     " of wait")
@@ -636,7 +636,7 @@ bool XrdConn::CheckErrorStatus(XrdMessage *mex, short &Retry, char *CmdName)
 }
 
 //_____________________________________________________________________________
-XrdMessage *XrdConn::ReadPartialAnswer(XReqErrorType &errorType,
+XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
                                         size_t &TotalBlkSize, 
                                         ClientRequest *req,  
                                         bool HasToAlloc, void** tmpMoreData,
@@ -645,7 +645,7 @@ XrdMessage *XrdConn::ReadPartialAnswer(XReqErrorType &errorType,
    // Read server answer
 
    int len;
-   XrdMessage *Xmsg = 0;
+   XrdClientMessage *Xmsg = 0;
    void *tmp2MoreData;
 
    // No need to actually read if we are in error...
@@ -653,8 +653,8 @@ XrdMessage *XrdConn::ReadPartialAnswer(XReqErrorType &errorType,
     
       len = sizeof(ServerResponseHeader);
 
-      Info(XrdDebug::kHIDEBUG, "ReadPartialAnswer",
-	   "Reading a XrdMessage from the server [" << 
+      Info(XrdClientDebug::kHIDEBUG, "ReadPartialAnswer",
+	   "Reading a XrdClientMessage from the server [" << 
 	   fUrl.Host << ":" << fUrl.Port << "]...");
     
       // A complete communication failure has to be handled later, but we
@@ -687,7 +687,7 @@ XrdMessage *XrdConn::ReadPartialAnswer(XReqErrorType &errorType,
    }
 
    if (Xmsg != 0)
-      if (DebugLevel() >= XrdDebug::kDUMPDEBUG)
+      if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)
 	 smartPrintServerHeader(&Xmsg->fHdr);
 
    // Now we have all the data. We must copy it back to the buffer where
@@ -731,9 +731,9 @@ XrdMessage *XrdConn::ReadPartialAnswer(XReqErrorType &errorType,
                      Xmsg->GetData(), Xmsg->DataLen());
 	
          // Dump the buffer tmpMoreData
-         if (DebugLevel() >= XrdDebug::kDUMPDEBUG) {
+         if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG) {
 
-            Info (XrdDebug::kDUMPDEBUG, "ReadPartialAnswer","Dumping read data...");
+            Info (XrdClientDebug::kDUMPDEBUG, "ReadPartialAnswer","Dumping read data...");
             for(int jj = 0; jj < Xmsg->DataLen(); jj++) {
                printf("0x%.2x ", *( ((kXR_char *)Xmsg->GetData()) + jj ) );
                if ( !(jj % 10) ) printf("\n");
@@ -743,7 +743,7 @@ XrdMessage *XrdConn::ReadPartialAnswer(XReqErrorType &errorType,
 	
       } else {
 
-	    Info(XrdDebug::kHIDEBUG, "ReadPartialAnswer", 
+	    Info(XrdClientDebug::kHIDEBUG, "ReadPartialAnswer", 
 		  "Server [" <<
 		  fUrl.Host << ":" << fUrl.Port << "] did not answer OK."
 		  " Resp status is [" << convertRespStatusToChar(Xmsg->fHdr.status) <<
@@ -819,7 +819,7 @@ XrdMessage *XrdConn::ReadPartialAnswer(XReqErrorType &errorType,
 
 
 //_____________________________________________________________________________
-bool XrdConn::GetAccessToSrv()
+bool XrdClientConn::GetAccessToSrv()
 {
    // Gets access to the connected server. The login and authorization steps
    // are performed here (calling method DoLogin() that performs loggin-in
@@ -829,7 +829,7 @@ bool XrdConn::GetAccessToSrv()
    // Nothing is visible here, and nothing is visible from the other high
    // level functions.
 
-   XrdLogConnection *logconn = 0;
+   XrdClientLogConnection *logconn = 0;
 
    // Now we are connected and we ask for the kind of the server
    ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->LockChannel();
@@ -841,7 +841,7 @@ bool XrdConn::GetAccessToSrv()
 
    switch (GetServerType()) {
    case kSTError:
-      Info(XrdDebug::kNODEBUG,
+      Info(XrdClientDebug::kNODEBUG,
 	   "GetAccessToSrv",
 	   "HandShake failed with server [" <<
 	   fUrl.Host << ":" << fUrl.Port << "]");
@@ -850,8 +850,8 @@ bool XrdConn::GetAccessToSrv()
 
       return FALSE;
 
-   case XrdConn::kSTNone: 
-      Info(XrdDebug::kNODEBUG,
+   case XrdClientConn::kSTNone: 
+      Info(XrdClientDebug::kNODEBUG,
 	   "GetAccessToSrv", "The server on [" <<
 	   fUrl.Host << ":" << fUrl.Port << "] is unknown");
 
@@ -859,18 +859,18 @@ bool XrdConn::GetAccessToSrv()
 
       return FALSE;
 
-   case XrdConn::kSTRootd: 
+   case XrdClientConn::kSTRootd: 
 
-         Info(XrdDebug::kHIDEBUG,
+         Info(XrdClientDebug::kHIDEBUG,
 	      "GetAccessToSrv","Ok: the server on [" <<
 	   fUrl.Host << ":" << fUrl.Port << "] is a rootd."
 	      " Turning ON back compatibility mode.");
 
       break;
 
-   case XrdConn::kSTBaseXrootd: 
+   case XrdClientConn::kSTBaseXrootd: 
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "GetAccessToSrv", 
 	   "Ok: the server on [" <<
 	   fUrl.Host << ":" << fUrl.Port << "] is an xrootd redirector.");
@@ -880,9 +880,9 @@ bool XrdConn::GetAccessToSrv()
       logconn->GetPhyConnection()->fServerType = kBase;
       break;
 
-   case XrdConn::kSTDataXrootd: 
+   case XrdClientConn::kSTDataXrootd: 
 
-      Info( XrdDebug::kHIDEBUG,
+      Info( XrdClientDebug::kHIDEBUG,
 	    "GetAccessToSrv", 
 	    "Ok, the server on [" <<
 	    fUrl.Host << ":" << fUrl.Port << "] is an xrootd data server.");
@@ -895,12 +895,12 @@ bool XrdConn::GetAccessToSrv()
 
    // Execute a login if connected to a xrootd server. For an old rootd, 
    // TNetFile takes care of the login phase
-   if (GetServerType() != XrdConn::kSTRootd) {
+   if (GetServerType() != XrdClientConn::kSTRootd) {
       if (logconn->GetPhyConnection()->IsLogged() == kNo)
          return DoLogin();
       else {
 
-	 Info( XrdDebug::kHIDEBUG,
+	 Info( XrdClientDebug::kHIDEBUG,
 	       "GetAccessToSrv", "Client already logged-in using this"
 	       " physical channel (server [" <<
 	       fUrl.Host << ":" << fUrl.Port << "]).");
@@ -913,7 +913,7 @@ bool XrdConn::GetAccessToSrv()
 }
 
 //_____________________________________________________________________________
-XrdConn::ServerType XrdConn::DoHandShake(short int log)
+XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
 {
    // Performs initial hand-shake with the server in order to understand which 
    // kind of server is there at the other side and to make the server know who 
@@ -931,7 +931,7 @@ XrdConn::ServerType XrdConn::DoHandShake(short int log)
 
    if (ConnectionManager->GetConnection(log)->GetPhyConnection()->fServerType == kBase) {
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "DoHandShake",
 	   "The physical channel is already bound to a load balancer"
 	   " server [" <<
@@ -939,12 +939,12 @@ XrdConn::ServerType XrdConn::DoHandShake(short int log)
 
       if (!fLBSUrl || (fLBSUrl->Host == "")) {
 
-	 Info(XrdDebug::kHIDEBUG,
+	 Info(XrdClientDebug::kHIDEBUG,
 	      "DoHandShake", "Setting Load Balancer Server Url = " <<
 	      fUrl.GetUrl() );
 
          // Save the url of load balancer server for future uses...
-         fLBSUrl = new XrdUrlInfo(fUrl.GetUrl());
+         fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
          if(!fLBSUrl) {
             Error("DoHandShake","Object creation "
                   " failed. Probable system resources exhausted.");
@@ -955,8 +955,8 @@ XrdConn::ServerType XrdConn::DoHandShake(short int log)
    }
    if (ConnectionManager->GetConnection(log)->GetPhyConnection()->fServerType == kData) {
 
-      if (DebugLevel() >= XrdDebug::kHIDEBUG)
-         Info(XrdDebug::kHIDEBUG,
+      if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
+         Info(XrdClientDebug::kHIDEBUG,
 	      "DoHandShake",
               "The physical channel is already bound to the data server"
               " [" << fUrl.Host << ":" << fUrl.Port << "]. No handshake is needed.");
@@ -968,7 +968,7 @@ XrdConn::ServerType XrdConn::DoHandShake(short int log)
    // kind of server
    len = sizeof(initHS);
 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"DoHandShake",
 	"HandShake step 1: Sending " << len << " bytes to the server [" <<
 	    fUrl.Host << ":" << fUrl.Port << "]");
@@ -986,7 +986,7 @@ XrdConn::ServerType XrdConn::DoHandShake(short int log)
    // Read from server the first 4 bytes
    len = sizeof(type);
 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"DoHandShake",
 	"HandShake step 2: Reading " << len <<
 	" bytes from server [" <<
@@ -1015,7 +1015,7 @@ XrdConn::ServerType XrdConn::DoHandShake(short int log)
    if (type == 0) { // ok, eXtended!
       len = sizeof(xbody);
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "DoHandShake",
 	   "HandShake step 3: Reading " << len << 
 	   " bytes from server [" <<
@@ -1046,17 +1046,17 @@ XrdConn::ServerType XrdConn::DoHandShake(short int log)
          // This is a load balancing server
          if (!fLBSUrl || (fLBSUrl->Host == "")) {
 
-	    Info(XrdDebug::kHIDEBUG, "DoHandShake", "Setting Load Balancer Server Url = " <<
+	    Info(XrdClientDebug::kHIDEBUG, "DoHandShake", "Setting Load Balancer Server Url = " <<
 		 fUrl.GetUrl() );
 
             // Save the url of load balancer server for future uses...
-            fLBSUrl = new XrdUrlInfo(fUrl.GetUrl());
+            fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
             if (!fLBSUrl) {
                Error("DoHandShake","Object creation failed.");
                abort();
             }
          }
-         return XrdConn::kSTBaseXrootd;
+         return XrdClientConn::kSTBaseXrootd;
 
       default:
          // Unknown server type
@@ -1074,7 +1074,7 @@ XrdConn::ServerType XrdConn::DoHandShake(short int log)
 }
 
 //_____________________________________________________________________________
-bool XrdConn::DoLogin() 
+bool XrdClientConn::DoLogin() 
 {
    // This method perform the loggin-in into the server just after the
    // hand-shake. It also calls the DoAuthentication() method
@@ -1108,7 +1108,7 @@ bool XrdConn::DoLogin()
    reqhdr.header.dlen = fRedirInternalToken.size(); 
   
    // We call SendGenCommand, the function devoted to sending commands. 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"DoLogin",
 	"Logging into the server [" << fUrl.Host << ":" << fUrl.Port <<
 	"]. pid=" << reqhdr.login.pid << " uid=" << reqhdr.login.username);
@@ -1129,7 +1129,7 @@ bool XrdConn::DoLogin()
       // Terminate server reply
       plist[reshdr.dlen]=0;
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "DoLogin","server requires authentication");
 
       resp = DoAuthentication(User, plist);
@@ -1147,7 +1147,7 @@ bool XrdConn::DoLogin()
 }
 
 //_____________________________________________________________________________
-bool XrdConn::DoAuthentication(string username, string plist)
+bool XrdClientConn::DoAuthentication(string username, string plist)
 {
   // Negotiate authentication with the remote server. Tries in turn
   // all available protocols proposed by the server (in plist), 
@@ -1156,7 +1156,7 @@ bool XrdConn::DoAuthentication(string username, string plist)
   if (plist == "")
      return TRUE;
 
-  Info(XrdDebug::kHIDEBUG,
+  Info(XrdClientDebug::kHIDEBUG,
        "DoAuthentication", "remote host: " << fUrl.Host <<
        " list of available protocols: " << plist << "-" <<
        plist.size() );
@@ -1190,7 +1190,7 @@ bool XrdConn::DoAuthentication(string username, string plist)
   // Make sure that we got at least one token
   //
   if (plist == "") { 
-     if (DebugLevel() >= XrdDebug::kHIDEBUG)
+     if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
         Error("DoAuthentication", "Protocol list empty");
      return FALSE;
   }
@@ -1214,7 +1214,7 @@ bool XrdConn::DoAuthentication(string username, string plist)
      protocol = XrdSecGetProtocol((const struct sockaddr &)netaddr, secToken, 0);
      if (!protocol) { 
 
-	Info(XrdDebug::kHIDEBUG,
+	Info(XrdClientDebug::kHIDEBUG,
 	     "DoAuthentication", 
 	     "Unable to get protocol object (token: " << token << ").");
         continue;
@@ -1223,8 +1223,8 @@ bool XrdConn::DoAuthentication(string username, string plist)
      // Extract the protocol name (identifier)
      string protname = "";
      if (token.find("&P=") != 0) {
-        if (DebugLevel() >= XrdDebug::kHIDEBUG)
-           Info(XrdDebug::kHIDEBUG,
+        if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
+           Info(XrdClientDebug::kHIDEBUG,
 		   "DoAuthentication",
                    "Unable to get protocol name (token: " << token << ").");
      } else {
@@ -1250,7 +1250,7 @@ bool XrdConn::DoAuthentication(string username, string plist)
      credentials = protocol->getCredentials(&secToken);
      if (!credentials) {
 
-	Info(XrdDebug::kHIDEBUG,
+	Info(XrdClientDebug::kHIDEBUG,
 	     "DoAuthentication", 
 	     "Cannot obtain credentials (token: " << etoken << ")");
 
@@ -1259,7 +1259,7 @@ bool XrdConn::DoAuthentication(string username, string plist)
 
         continue;
      } else
-	Info(XrdDebug::kHIDEBUG,
+	Info(XrdClientDebug::kHIDEBUG,
 	     "DoAuthentication", "cred= " << credentials->buffer <<
 	     " size=" << credentials->size);
 
@@ -1287,7 +1287,7 @@ bool XrdConn::DoAuthentication(string username, string plist)
                               (void **)&srvans, 0, TRUE, 
                               (char *)"XTNetconn::DoAuthentication",&reshdr);
 
-           Info(XrdDebug::kHIDEBUG,
+           Info(XrdClientDebug::kHIDEBUG,
 		"DoAuthenticate", "Server reply: status: " << reshdr.status <<
 		" dlen: " << reshdr.dlen);
      
@@ -1309,7 +1309,7 @@ bool XrdConn::DoAuthentication(string username, string plist)
 
               break;
            } else {
-	      Info(XrdDebug::kHIDEBUG,
+	      Info(XrdClientDebug::kHIDEBUG,
 		   "DoAuthentication", "cred= " << credentials->buffer <<
 		   " size=" << credentials->size);
            }
@@ -1327,8 +1327,8 @@ bool XrdConn::DoAuthentication(string username, string plist)
 }
 
 //_____________________________________________________________________________
-XrdConn::ESrvErrorHandlerRetval
-XrdConn::HandleServerError(XReqErrorType &errorType, XrdMessage *xmsg,
+XrdClientConn::ESrvErrorHandlerRetval
+XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xmsg,
                              ClientRequest *req)
 {
    // Handle errors from server
@@ -1352,8 +1352,8 @@ XrdConn::HandleServerError(XReqErrorType &errorType, XrdMessage *xmsg,
     
       // Consider the timeout for the count of the redirections
       // this instance got in the last period of time
-      if ( (time(0) - fGlobalRedirLastUpdateTimestamp) >  REDIRCNTTIMEOUT) {
-         // REDIRCNTTIMEOUT is defined in XProtocol.hhh
+      if ( (time(0) - fGlobalRedirLastUpdateTimestamp) >  DFLT_REDIRCNTTIMEOUT) {
+         // DFLT_REDIRCNTTIMEOUT is defined in XProtocol.hhh
          fGlobalRedirCnt = 0;
          fGlobalRedirLastUpdateTimestamp = time(0);
       }
@@ -1361,7 +1361,7 @@ XrdConn::HandleServerError(XReqErrorType &errorType, XrdMessage *xmsg,
       // Anyway, let's update the counter, we have just been redirected
       fGlobalRedirCnt++;
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "HandleServerError",
 	   "Redir count=" << fGlobalRedirCnt);
 
@@ -1400,12 +1400,12 @@ XrdConn::HandleServerError(XReqErrorType &errorType, XrdMessage *xmsg,
          // to return to after an error
          if (!fLBSUrl || (fLBSUrl->GetUrl().size() == 0) ) {
 
-	    Info(XrdDebug::kHIDEBUG,
+	    Info(XrdClientDebug::kHIDEBUG,
 		 "HandleServerError", 
 		 "Setting Load Balancer Server Url = " << fUrl.GetUrl() );
 
             // Save the url of load balancer server for future uses...
-            fLBSUrl = new XrdUrlInfo(fUrl.GetUrl());
+            fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
             if (!fLBSUrl) {
                Error("HandleServerError",
                      "Object creation failed.");
@@ -1429,10 +1429,10 @@ XrdConn::HandleServerError(XReqErrorType &errorType, XrdMessage *xmsg,
       CheckPort(newport);
 
       if ((newhost.size() > 0) && newport) {
-	 XrdUrlInfo NewUrl(fUrl.GetUrl());
+	 XrdClientUrlInfo NewUrl(fUrl.GetUrl());
 
-         if (DebugLevel() >= XrdDebug::kUSERDEBUG)
-            Info(XrdDebug::kUSERDEBUG,
+         if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
+            Info(XrdClientDebug::kUSERDEBUG,
 		 "HandleServerError",
                  "Received redirection to [" << newhost << ":" << newport <<
 		 "]. Token=[" << fRedirInternalToken << "].");
@@ -1534,7 +1534,7 @@ XrdConn::HandleServerError(XReqErrorType &errorType, XrdMessage *xmsg,
 }
 
 //_____________________________________________________________________________
-XReqErrorType XrdConn::GoToAnotherServer(XrdUrlInfo &newdest)
+XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo &newdest)
 {
    // Re-directs to another server
    
@@ -1565,7 +1565,7 @@ XReqErrorType XrdConn::GoToAnotherServer(XrdUrlInfo &newdest)
 }
 
 //_____________________________________________________________________________
-string XrdConn::GetDomainToMatch(string hostname) {
+string XrdClientConn::GetDomainToMatch(string hostname) {
    // Return net-domain of host hostname in 's'.
    // If the host is unknown in the DNS world but it's a
    //  valid inet address, then that address is returned, in order
@@ -1582,7 +1582,7 @@ string XrdConn::GetDomainToMatch(string hostname) {
       // The looked up address is valid
       // The hostname domain can still be unknown
      
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "GetDomainToMatch", "GetHostName(" << hostname <<
 	   ") returned name=" << fullname);
 
@@ -1593,20 +1593,20 @@ string XrdConn::GetDomainToMatch(string hostname) {
 
    } else {
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "GetDomainToMatch", "GetHostByName(" << hostname << ") returned a non valid address.");
 
       res = hostname;
    }
 
-   Info(XrdDebug::kHIDEBUG,
+   Info(XrdClientDebug::kHIDEBUG,
 	"GetDomainToMatch", "GetDomain(" << hostname << ") --> " << res);
    
    return res;
 }
 
 //_____________________________________________________________________________
-string XrdConn::ParseDomainFromHostname(string hostname) {
+string XrdClientConn::ParseDomainFromHostname(string hostname) {
 
    string res;
    unsigned int pos;
@@ -1626,23 +1626,23 @@ string XrdConn::ParseDomainFromHostname(string hostname) {
 
 
 //_____________________________________________________________________________
-void XrdConn::CheckPort(int &port) {
+void XrdClientConn::CheckPort(int &port) {
 
    if(port <= 0) {
 
-      Info(XrdDebug::kHIDEBUG,
+      Info(XrdClientDebug::kHIDEBUG,
 	   "checkPort", 
 	   "TCP port not specified. Trying to get it from /etc/services...");
 
       struct servent *S = getservbyname("rootd", "tcp");
       if(!S) {
 
-	    Info(XrdDebug::kHIDEBUG,
+	    Info(XrdClientDebug::kHIDEBUG,
 		 "checkPort", "Service rootd not specified in /etc/services. "
 		 "Using default IANA tcp port 1094");
 	 port = 1094;
       } else {
-	 Info(XrdDebug::kNODEBUG,
+	 Info(XrdClientDebug::kNODEBUG,
 	      "checkPort", "Found tcp port " << ntohs(S->s_port) <<
 	      " in /etc/service");
 
@@ -1654,7 +1654,7 @@ void XrdConn::CheckPort(int &port) {
 
 
 //___________________________________________________________________________
-bool XrdConn::GetDataFromCache(const void *buffer, long long begin_offs,
+bool XrdClientConn::GetDataFromCache(const void *buffer, long long begin_offs,
 				   long long end_offs, bool PerfCalc)
 {
    // Copies the requested data from the cache. False if not possible.

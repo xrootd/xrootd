@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdPhyConnection                                                     //
+// XrdClientPhyConnection                                                     //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
 //  Alvise Dorigo, Fabrizio Furano                                      //
@@ -10,14 +10,14 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef _XrdPhyConnection
-#define _XrdPhyConnection
+#ifndef _XrdClientPhyConnection
+#define _XrdClientPhyConnection
 
 #include "XrdClientSock.hh"
-#include "XrdMessage.hh"
-#include "XrdUnsolMsg.hh"
-#include "XrdInputBuffer.hh"
-#include "XrdUrlInfo.hh"
+#include "XrdClientMessage.hh"
+#include "XrdClientUnsolMsg.hh"
+#include "XrdClientInputBuffer.hh"
+#include "XrdClientUrlInfo.hh"
 #include <string>
 
 #include <time.h> // for time_t data type
@@ -34,11 +34,11 @@ enum ERemoteServer {
    kUnknown = 102
 };
 
-class XrdPhyConnection: public XrdUnsolicitedMsgSender {
+class XrdClientPhyConnection: public XrdClientUnsolMsgSender {
 private:
    time_t              fLastUseTimestamp;
    enum ELoginState    fLogged;       // only 1 login/auth is needed for physical  
-   XrdInputBuffer      fMsgQ;         // The queue used to hold incoming messages
+   XrdClientInputBuffer      fMsgQ;         // The queue used to hold incoming messages
    int                 fRequestTimeout;
   
    pthread_mutex_t     fRwMutex;     // Lock before using the physical channel 
@@ -49,21 +49,21 @@ private:
                                              // in the async mode
    bool                fReaderthreadrunning;
 
-   XrdUrlInfo          fServer;
+   XrdClientUrlInfo          fServer;
 
    XrdClientSock       *fSocket;
 
-   void HandleUnsolicited(XrdMessage *m);
+   void HandleUnsolicited(XrdClientMessage *m);
 
 public:
    ERemoteServer       fServerType;
    long                fTTLsec;
 
-   XrdPhyConnection(XrdAbsUnsolicitedMsgHandler *h);
-   ~XrdPhyConnection();
+   XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h);
+   ~XrdClientPhyConnection();
 
-   XrdMessage     *BuildMessage(bool IgnoreTimeouts, bool Enqueue);
-   bool           Connect(XrdUrlInfo RemoteHost);
+   XrdClientMessage     *BuildMessage(bool IgnoreTimeouts, bool Enqueue);
+   bool           Connect(XrdClientUrlInfo RemoteHost);
    void           Disconnect();
    bool           ExpiredTTL();
    long           GetTTL() { return fTTLsec; }
@@ -78,8 +78,8 @@ public:
    bool           IsValid() const { return (fSocket && fSocket->IsConnected());}
    void           LockChannel();
    int            ReadRaw(void *buffer, int BufferLength);
-   XrdMessage     *ReadMessage(int streamid);
-   bool           ReConnect(XrdUrlInfo RemoteHost);
+   XrdClientMessage     *ReadMessage(int streamid);
+   bool           ReConnect(XrdClientUrlInfo RemoteHost);
    void           SetLogged(ELoginState status) { fLogged = status; }
    inline void    SetTTL(long ttl) { fTTLsec = ttl; }
    void           StartReader();
@@ -93,20 +93,20 @@ public:
 
 
 //
-// Class implementing a trick to automatically unlock an XrdPhyConnection
+// Class implementing a trick to automatically unlock an XrdClientPhyConnection
 //
-class XrdPhyConnLocker {
+class XrdClientPhyConnLocker {
 private:
-   XrdPhyConnection *phyconn;
+   XrdClientPhyConnection *phyconn;
 
 public:
-   XrdPhyConnLocker(XrdPhyConnection *phyc) {
+   XrdClientPhyConnLocker(XrdClientPhyConnection *phyc) {
       // Constructor
       phyconn = phyc;
       phyconn->LockChannel();
    }
 
-   ~XrdPhyConnLocker(){
+   ~XrdClientPhyConnLocker(){
       // Destructor. 
       phyconn->UnlockChannel();
    }

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdUrlInfo                                                           // 
+// XrdClientUrlInfo                                                           // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -25,7 +25,7 @@ using namespace std;
 
 // The information an url may contain
 // Plus utilities for parsing and rebuilding an url
-class XrdUrlInfo {
+class XrdClientUrlInfo {
  public:
    string Proto, Passwd, User, Host, HostAddr, HostWPort, File;
    int Port;
@@ -34,8 +34,8 @@ class XrdUrlInfo {
    void TakeUrl(string url);
    string GetUrl();
 
-   XrdUrlInfo(string url);
-   XrdUrlInfo();
+   XrdClientUrlInfo(string url);
+   XrdClientUrlInfo();
 
    void SetAddrFromHost();
 

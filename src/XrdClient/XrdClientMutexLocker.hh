@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdMutexLocker                                                       // 
+// XrdClientMutexLocker                                                       // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -17,19 +17,19 @@
 
 #include <pthread.h>
 
-class XrdMutexLocker {
+class XrdClientMutexLocker {
 
 private:
    pthread_mutex_t fMtx;
 
 public:
  
-   inline XrdMutexLocker(pthread_mutex_t mutex) { 
+   inline XrdClientMutexLocker(pthread_mutex_t mutex) { 
       fMtx = mutex;
       pthread_mutex_lock(&fMtx);
    }
 
-   inline ~XrdMutexLocker() { pthread_mutex_unlock(&fMtx); }
+   inline ~XrdClientMutexLocker() { pthread_mutex_unlock(&fMtx); }
 };
 
 
