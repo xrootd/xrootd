@@ -122,7 +122,7 @@ sub loadOpenSession() {
     my $serverHostId = findOrInsertHostId($srvHost);
 
     #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
-    runQuery("INSERT INTO openedSessions (id, userId, pId, clientHId, serverHId) VALUES ($sessionId, $userId, $pid, $clientHostId, $serverHostId)");
+    runQuery("INSERT INTO rtOpenedSessions (id, userId, pId, clientHId, serverHId) VALUES ($sessionId, $userId, $pid, $clientHostId, $serverHostId)");
 }
 
 
@@ -137,17 +137,17 @@ sub loadCloseSession() {
 
     # find if there is corresponding open session, if not don't bother
     my ($userId, $pId, $clientHId, $serverHId) = 
-	runQueryWithRet("SELECT userId, pId, clientHId, serverHId FROM openedSessions WHERE id = $sessionId");
+	runQueryWithRet("SELECT userId, pId, clientHId, serverHId FROM rtOpenedSessions WHERE id = $sessionId");
     if ( $pId < 1 ) {
 	return;
     }
     #print "received decent data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
 
     # remove it from the open session table
-    runQuery("DELETE FROM openedSessions WHERE id = $sessionId;");
+    runQuery("DELETE FROM rtOpenedSessions WHERE id = $sessionId;");
 
     # and insert into the closed
-    runQuery("INSERT INTO closedSessions (id, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
+    runQuery("INSERT INTO rtClosedSessions (id, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
 }
 
 
@@ -170,7 +170,7 @@ sub loadOpenFile() {
 	return; # error
     }
 
-    runQuery("INSERT INTO openedFiles (id, sessionId, pathId, openT) VALUES ($fileId, $sessionId, $pathId, \"$openTime\")");
+    runQuery("INSERT INTO rtOpenedFiles (id, sessionId, pathId, openT) VALUES ($fileId, $sessionId, $pathId, \"$openTime\")");
 }
 
 sub loadCloseFile() {
@@ -181,16 +181,16 @@ sub loadCloseFile() {
 
     # find if there is corresponding open file, if not don't bother
     my ($sessionId, $pathId, $openT) = 
-	runQueryWithRet("SELECT sessionId, pathId, openT FROM openedFiles WHERE id = $fileId");
+	runQueryWithRet("SELECT sessionId, pathId, openT FROM rtOpenedFiles WHERE id = $fileId");
     if ( ! $sessionId ) {
 	return;
     }
 
     # remove it from the open files table
-    runQuery("DELETE FROM openedFiles WHERE id = $fileId;");
+    runQuery("DELETE FROM rtOpenedFiles WHERE id = $fileId;");
 
     # and insert into the closed
-    runQuery("INSERT INTO closedFiles (id, sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($fileId, $sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
+    runQuery("INSERT INTO rtClosedFiles (id, sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($fileId, $sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
 }
 
 sub findSessionId() {
@@ -200,7 +200,7 @@ sub findSessionId() {
     my $clientHostId = findOrInsertHostId($clientHost);
     my $serverHostId = findOrInsertHostId($srvHost);
 
-    return runQueryWithRet("SELECT id FROM openedSessions WHERE userId=$userId AND pId=$pid AND clientHId=$clientHostId AND serverHId=$serverHostId;");
+    return runQueryWithRet("SELECT id FROM rtOpenedSessions WHERE userId=$userId AND pId=$pid AND clientHId=$clientHostId AND serverHId=$serverHostId;");
 }
 
 
