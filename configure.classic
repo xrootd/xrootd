@@ -386,6 +386,7 @@ guess_architecture () {
       linux:i*86:2.6*)    arch=i386_linux26    ; platform=linux; ccflv=gcc;;
       linux:i*86:*)       arch=i386_linux      ; platform=linux; ccflv=gcc;;
       linux:u*:2.4*)      arch=i386_linux      ; platform=linux; ccflv=gcc;;
+      linux:u*:2.6*)      arch=i386_linux      ; platform=linux; ccflv=gcc;;
       linux:x86_64:2.2*)  arch=x86_64_linux_22 ; platform=linux; ccflv=gccx8664;;
       linux:x86_64:2.4*)  arch=x86_64_linux_24 ; platform=linux; ccflv=gccx8664;;
       linux:x86_64:2.6*)  arch=x86_64_linux_26 ; platform=linux; ccflv=gccx8664;;
