@@ -20,3 +20,8 @@ select count(distinct pathId) from openedFiles;
 
 ## count current number of opened sessions
 select count(*) from openedSessions;
+
+## select top 10 users with largest #jobs
+SELECT userName, COUNT(distinct CONCAT(pId, clientHId) ) as nJobs 
+FROM openedSessions, users 
+WHERE userId=users.id GROUP BY userId ORDER BY nJobs DESC LIMIT 10;
