@@ -508,7 +508,7 @@ void XrdLink::setEtext(const char *text)
 {
      opMutex.Lock();
      if (Etext) free(Etext);
-     Etext = (Etext ? strdup(text) : 0);
+     Etext = (text ? strdup(text) : 0);
      opMutex.UnLock();
 }
   
