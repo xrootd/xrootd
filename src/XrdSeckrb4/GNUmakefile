@@ -78,8 +78,8 @@ all:
 	@$(MAKE) $(TYPE)all --no-print-directory
 
 debug:
-	@/bin/mkdir -p $(LIBDIR)/dbg $(OBJDIR)/dbg $(BINDIR)/dbg
-	@$(MAKE) $(TYPE)dbg DBGSFX=/dbg
+	@/bin/mkdir -p $(LIBDIR)_dbg $(OBJDIR)_dbg $(BINDIR)_dbg
+	@$(MAKE) $(TYPE)dbg DBGSFX=_dbg
 
 Linuxall:
 	@$(MAKE) anything --no-print-directory \
@@ -126,7 +126,7 @@ anything: $(TARGETS)
 
 clean:
 	@$(MAKE) remove             --no-print-directory
-	@$(MAKE) remove DBGSFX=/dbg --no-print-directory
+	@$(MAKE) remove DBGSFX=_dbg --no-print-directory
 	@echo Make clean done.
 
 remove: FORCE
