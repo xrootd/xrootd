@@ -31,12 +31,18 @@ using namespace std;
 
 #define DebugLevel() XrdClientDebug::Instance()->GetDebugLevel()
 
-#define Info(lvl, where, what) { ostringstream outs;\
+#define Info(lvl, where, what) { \
+XrdClientDebug::Instance()->Lock();\
+if (XrdClientDebug::Instance()->GetDebugLevel() >= lvl) {\
+ostringstream outs;\
 outs << where << " " << what; \
 XrdClientDebug::Instance()->TraceStream((short)lvl, outs);\
+}\
+XrdClientDebug::Instance()->Unlock();\
 }
                                
-#define Error(where, what) { ostringstream outs;\
+#define Error(where, what) { \
+ostringstream outs;\
 outs << where << " " << what; \
 XrdClientDebug::Instance()->TraceStream((short)XrdClientDebug::kNODEBUG, outs);\
 }
