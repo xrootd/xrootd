@@ -95,6 +95,7 @@ XrdPosixFile::XrdPosixFile(int fd, const char *path)
 // Set the FD
 //
    FD = fd;
+   currOffset = 0;
 }
   
 /******************************************************************************/
