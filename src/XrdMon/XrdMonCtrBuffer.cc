@@ -48,6 +48,7 @@ XrdMonCtrBuffer::push_back(XrdMonCtrPacket* p) {
         _tail->next = new Elem(p);
         _tail = _tail->next;
     }
+
     ++_noElems;
     _cond.Signal();
 }
@@ -87,10 +88,10 @@ XrdMonCtrBuffer::printList(const char* txt)
 {
     XrdOucMutexHelper mh; 
     mh.Lock(&XrdMonCtrDebug::_mutex);
-    cout << txt << " #" << _noElems << " h" << _head << " t" << _tail << " ";
+    cout << txt << " #" << _noElems << " h" << (int) _head << " t" << (int) _tail << " ";
     Elem* e = _head;
     while ( e ) {
-        cout << e << ":{" << e->packet << "," << e->next << "} ";
+        cout << e << ":{" << (int) e->packet << ", ->" << (int) e->next << "} ";
         e = e->next;
     }
     cout << endl;
