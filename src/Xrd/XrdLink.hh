@@ -67,6 +67,8 @@ static XrdLink *fd2link(int fd, unsigned int inst)
 
 char         *ID;      // This is referenced a lot
 
+unsigned int  Inst() {return Instance;}
+
 int           isConnected() {return FD >= 0;}
 
 int           isInstance(unsigned int inst)

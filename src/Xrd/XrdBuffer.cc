@@ -61,8 +61,6 @@ XrdBuffManager::XrdBuffManager(int minrst) :
                    maxsz(1<<(XRD_BUSHIFT+XRD_BUCKETS-1)),
                    Reshaper(0, "buff reshaper")
 {
-   pthread_t tid;
-   int rc;
 
 // Clear everything to zero
 //
@@ -79,6 +77,16 @@ XrdBuffManager::XrdBuffManager(int minrst) :
    rsinprog = 0;
    minrsw   = minrst;
    memset((void *)bucket, 0, sizeof(bucket));
+}
+
+/******************************************************************************/
+/*                                  I n i t                                   */
+/******************************************************************************/
+
+void XrdBuffManager::Init()
+{
+   pthread_t tid;
+   int rc;
 
 // Start the reshaper thread
 //
@@ -86,7 +94,7 @@ XrdBuffManager::XrdBuffManager(int minrst) :
                           "Buffer Manager reshaper")))
       XrdLog.Emsg("BuffManager", rc, "create reshaper thread");
 }
-
+  
 /******************************************************************************/
 /*                                O b t a i n                                 */
 /******************************************************************************/
@@ -141,6 +149,31 @@ XrdBuffer *XrdBuffManager::Obtain(int sz)
     return bp;
 }
  
+/******************************************************************************/
+/*                                R e c a l c                                 */
+/******************************************************************************/
+  
+int XrdBuffManager::Recalc(int sz)
+{
+   int ik, mk;
+   int bindex = 0;
+
+// Make sure the request is within our limits
+//
+   if (sz <= 0 || sz > maxsz) return 0;
+
+// Calculate bucket index
+//
+   ik = mk = sz >> shift;
+   while((ik = ik>>1)) bindex++;
+   if ((mk = 1 << (shift+bindex)) < sz) {bindex++; mk = mk << 1;}
+   if (bindex >= slots) return 0;    // Should never happen!
+
+// All done, return the actual size we would have allocated
+//
+   return mk;
+}
+
 /******************************************************************************/
 /*                               R e l e a s e                                */
 /******************************************************************************/

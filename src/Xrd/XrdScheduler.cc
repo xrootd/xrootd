@@ -91,9 +91,6 @@ XrdScheduler::XrdScheduler(int minw, int maxw, int avlw, int maxi)
               : XrdJob("underused thread monitor"),
                 WorkAvail(0, "sched work")
 {
-    int retc;
-    pthread_t tid;
-
     min_Workers =  minw;
     max_Workers =  maxw;
     max_Workidl =  maxi;
@@ -109,16 +106,6 @@ XrdScheduler::XrdScheduler(int minw, int maxw, int avlw, int maxi)
     num_Limited =  0;
     firstPID    =  0;
     WorkFirst = WorkLast = TimerQueue = 0;
-
-// Start a time based scheduler
-//
-   if ((retc = XrdOucThread::Run(&tid, XrdStartTSched, (void *)this,
-                                 XRDOUCTHREAD_BIND, "Time scheduler")))
-      XrdLog.Emsg("Scheduler", retc, "create time scheduler thread");
-
-// If we an idle interval, schedule the idle check
-//
-   if (maxi > 0) Schedule((XrdJob *)this, (time_t)maxi+time(0));
 }
  
 /******************************************************************************/
@@ -454,6 +441,18 @@ void XrdScheduler::setParms(int minw, int maxw, int avlw, int maxi)
   
 void XrdScheduler::Start(int numw)
 {
+    int retc;
+    pthread_t tid;
+
+// Start a time based scheduler
+//
+   if ((retc = XrdOucThread::Run(&tid, XrdStartTSched, (void *)this,
+                                 XRDOUCTHREAD_BIND, "Time scheduler")))
+      XrdLog.Emsg("Scheduler", retc, "create time scheduler thread");
+
+// If we an idle interval, schedule the idle check
+//
+   if (max_Workidl > 0) Schedule((XrdJob *)this, (time_t)max_Workidl+time(0));
 
 // Lock the data area
 //

@@ -54,9 +54,9 @@ class XrdPoll_End : public XrdProtocol
 public:
 void          DoIt() {}
 
-XrdProtocol *Match(XrdLink *lp) {return (XrdProtocol *)0;}
+XrdProtocol  *Match(XrdLink *lp) {return (XrdProtocol *)0;}
 
-int           Process(XrdLink *lp) {lp->Close(); return -1;}
+int           Process(XrdLink *lp) {return -1;}
 
 void          Recycle() {}
 

@@ -547,6 +547,10 @@ int XrdConfig::Setup(char *dfltp)
 //
    if (setFDL()) return 1;
 
+// Initialize the buffer manager
+//
+   XrdBuffPool.Init();
+
 // Start the required number of workers
 //
    XrdSched.Start(ProtInfo.ConnOptn/256);

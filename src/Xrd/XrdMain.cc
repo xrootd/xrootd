@@ -114,15 +114,12 @@ int main(int argc, char *argv[])
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
-   signal(SIGPIPE, SIG_IGN);
+   signal(SIGPIPE, SIG_IGN);  // Solaris optimization
    sigemptyset(&myset);
+   sigaddset(&myset, SIGPIPE);
    sigaddset(&myset, SIGUSR1);
    sigaddset(&myset, SIGUSR2);
    sigaddset(&myset, SIGCHLD);
-#ifndef __macos__
-   sigaddset(&myset, SIGRTMIN);
-   sigaddset(&myset, SIGRTMIN+1);
-#endif
    pthread_sigmask(SIG_BLOCK, &myset, NULL);
 
 // Process configuration file

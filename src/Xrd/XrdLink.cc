@@ -228,7 +228,11 @@ int XrdLink::Close()
 //
    opMutex.Lock();
    InUse--;
-   if (InUse > 0) {opMutex.UnLock(); return 0;}
+   if (InUse > 0) 
+      {opMutex.UnLock();
+       TRACE(DEBUG, "Close " <<ID <<" defered, use count=" <<InUse);
+       return 0;
+      }
    Instance = 0;
 
 // Add up the statistic for this link
@@ -263,7 +267,7 @@ int XrdLink::Close()
        opMutex.UnLock();
        LTMutex.Lock();
        LinkBat[fd] = XRDLINK_FREE;
-       if (fd == LTLast) while(LTLast-- && !(LinkBat[LTLast])) {};
+       if (fd == LTLast) while(LTLast && !(LinkBat[LTLast])) LTLast--;
        LTMutex.UnLock();
       } else {FD = -1; opMutex.UnLock();}
 
@@ -286,7 +290,9 @@ void XrdLink::DoIt()
    int rc;
 
 // The Process() return code tells us what to do:
-// < 0 -> Error, stop getting requests, disable close  the link
+// < 0 -> Stop getting requests, 
+//        -EINPROGRESS leave link disabled but otherwise all is well
+//        -n           Error, disable and close the link
 // = 0 -> OK, get next request, if allowed, o/w enable the link
 // > 0 -> Slow link, stop getting requests  and enable the link
 //
@@ -296,11 +302,12 @@ void XrdLink::DoIt()
             return;
            }
 
-// Re-enable the link and cycle back waiting for a new request. Warning, this
-// object may have been deleted upon return. Don't use any object data now.
+// Either re-enable the link and cycle back waiting for a new request, leave
+// disabled, or terminate the connection. Note that Close() will delete this
+// object so we should not use any object data after calling Close().
 //
    if (rc >= 0) Enable();
-      else Close();
+      else if (rc != -EINPROGRESS) Close();
 }
 
 /******************************************************************************/
@@ -595,9 +602,8 @@ int XrdLink::Setup(int maxfds, int idlewait)
 //
    if (!(ichk = idlewait/3)) {iticks = 1; ichk = idlewait;}
       else iticks = 3;
-// Disable idle link scanning until this gets fixed
-// XrdLinkScan *ls = new XrdLinkScan(ichk, iticks);
-// XrdSched.Schedule((XrdJob *)ls, ichk+time(0));
+   XrdLinkScan *ls = new XrdLinkScan(ichk, iticks);
+   XrdSched.Schedule((XrdJob *)ls, ichk+time(0));
 
    return 1;
 }
@@ -617,6 +623,7 @@ void XrdLink::Serialize()
    if (InUse <= 1) opMutex.UnLock();
       else {doPost++;
             opMutex.UnLock();
+            TRACE(DEBUG, "Waiting for link serialization; use=" <<InUse);
             IOSemaphore.Wait();
            }
 }
@@ -644,6 +651,7 @@ XrdProtocol *XrdLink::setProtocol(XrdProtocol *pp)
 void XrdLink::setRef(int use)
 {
    opMutex.Lock();
+   TRACE(DEBUG,"Setting link ref to " <<InUse <<'+' <<use <<" post=" <<doPost);
    InUse += use;
 
          if (!InUse)
@@ -673,7 +681,7 @@ int XrdLink::Stats(char *buff, int blen, int do_sync)
    static const char statfmt[] = "<stats id=\"link\"><num>%d</num>"
           "<maxn>%d</maxn><tot>%lld</tot><in>%lld</in><out>%lld</out>"
           "<ctime>%lld</ctime><tmo>%d</tmo><stall>%d</stall></stats>";
-   int i;
+   int i, myLTLast;
 
 // Check if actual length wanted
 //
@@ -682,9 +690,10 @@ int XrdLink::Stats(char *buff, int blen, int do_sync)
 // We must synchronize the statistical counters
 //
    if (do_sync)
-      {LTMutex.Lock();
-       for (i = 0; i <= LTLast; i++) if (LinkTab[i]) LinkTab[i]->syncStats();
-       LTMutex.UnLock();
+      {LTMutex.Lock(); myLTLast = LTLast; LTMutex.UnLock();
+       for (i = 0; i <= myLTLast; i++) 
+           if (LinkBat[i] == XRDLINK_USED && LinkTab[i]) 
+              LinkTab[i]->syncStats();
       }
 
 // Obtain lock on the stats area and format it
@@ -750,18 +759,23 @@ void XrdLinkScan::idleScan()
    XrdLink *lp;
    int i, ltlast, lnum = 0, tmo = 0, tmod = 0;
 
-// Scan across all links looking for idle links
+// Get the current link high watermark
 //
    XrdLink::LTMutex.Lock();
    ltlast = XrdLink::LTLast;
+   XrdLink::LTMutex.Lock();
+
+// Scan across all links looking for idle links. Links are never deallocated
+// so we don't need any special kind of lock for these
+//
    for (i = 0; i <= ltlast; i++)
-       {if (!(lp = XrdLink::LinkTab[i])) continue;
+       {if (XrdLink::LinkBat[i] != XRDLINK_USED 
+        || !(lp = XrdLink::LinkTab[i])) continue;
         lnum++;
         lp->opMutex.Lock();
         if (lp->isIdle) tmo++;
         lp->isIdle++;
-        if ((int)(lp->isIdle) < idleTicks) {lp->opMutex.UnLock(); continue;}
-        XrdLink::LTMutex.UnLock();
+        if ((int(lp->isIdle)) < idleTicks) {lp->opMutex.UnLock(); continue;}
         lp->isIdle = 0;
         if (!(lp->Poller) || !(lp->isEnabled))
            XrdLog.Emsg("LinkScan","Link",lp->ID,(char *)"is disabled and idle.");
@@ -770,9 +784,7 @@ void XrdLinkScan::idleScan()
                     tmod++;
                    }
         lp->opMutex.UnLock();
-        XrdLink::LTMutex.Lock();
        }
-   XrdLink::LTMutex.UnLock();
 
 // Trace what we did
 //

@@ -55,7 +55,11 @@ class XrdBuffManager
 {
 public:
 
-XrdBuffer *Obtain(int bsz);
+void        Init();
+
+XrdBuffer  *Obtain(int bsz);
+
+int         Recalc(int bsz);
 
 void        Release(XrdBuffer *bp);
 
