@@ -515,7 +515,7 @@ int XrdConfig::setFDL()
       {int V_mint, V_maxt, V_avlt, ncb2 = 0, numcon = ProtInfo.ConnOptn;
        while(numcon = numcon >> 1) ncb2++;
        if (ncb2 == 0) ncb2 = 1;
-       if ((V_maxt = ProtInfo.ConnOptn / ncb2) > 512) V_maxt = 512;
+       if ((V_maxt = ProtInfo.ConnOptn / ncb2) > 1024) V_maxt = 1024;
        if ((V_mint = V_maxt / ncb2) <= 0)             V_mint = 1;
        if ((V_avlt = V_maxt /  5) <= 0)               V_avlt = 1;
        XrdScheduler.setParms(V_mint, V_maxt, V_avlt, -1);
@@ -1117,7 +1117,7 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
 
 // Establish scheduler options
 //
-   if (V_mint > 0 && V_maxt > 0 && V_avlt > 0) setSched = 0;
+   if (V_mint > 0 || V_maxt > 0 || V_avlt > 0) setSched = 0;
    XrdScheduler.setParms(V_mint, V_maxt, V_avlt, V_idle);
    return 0;
 }
