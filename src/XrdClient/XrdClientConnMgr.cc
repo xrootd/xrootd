@@ -65,6 +65,7 @@ XrdClientConnectionMgr* XrdClientConnectionMgr::Instance() {
    // Create unique instance of the connection manager
 
    if(fgInstance == 0) {
+
       fgInstance = new XrdClientConnectionMgr;
 
       if(!fgInstance)

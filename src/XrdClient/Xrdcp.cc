@@ -403,7 +403,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 
       }
       
-      close(f);
+      int closeres = close(f);
+      if (!retvalue) retvalue = closeres;
 
       pthread_cancel(myTID);
       pthread_join(myTID, &thret);
