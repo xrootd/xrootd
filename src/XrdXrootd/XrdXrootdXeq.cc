@@ -1224,7 +1224,7 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
 //
    if (rc == SFS_REDIRECT)
       {SI->redirCnt++;
-       if (ecode < 0) ecode = -ecode;
+       if (ecode <= 0) ecode = (ecode ? -ecode : Port);
        TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg <<':' <<ecode);
        return Response.Send(kXR_redirect, ecode, (char *)eMsg);
       }
