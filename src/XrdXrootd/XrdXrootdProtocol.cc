@@ -63,11 +63,6 @@ int                   XrdXrootdProtocol::as_force     = 0;
 int                   XrdXrootdProtocol::as_noaio     = 0;
 int                   XrdXrootdProtocol::as_syncw     = 0;
 
-int                   XrdXrootdProtocol::monMBval = 8192;
-int                   XrdXrootdProtocol::monWWval = 60;
-int                   XrdXrootdProtocol::monMode  = 0;
-char                 *XrdXrootdProtocol::monDest  = 0;
-
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
 
 /******************************************************************************/
@@ -441,7 +436,7 @@ void XrdXrootdProtocol::Cleanup()
 
 // Handle Monitor
 //
-   if (Monitor) {delete Monitor; Monitor = 0;}
+   if (Monitor) {Monitor->unAlloc(Monitor); Monitor = 0;}
 }
   
 /******************************************************************************/

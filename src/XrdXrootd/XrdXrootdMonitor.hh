@@ -27,10 +27,10 @@
 /******************************************************************************/
 
 #define XROOTD_MON_ALL      1
-#define XROOTD_MON_SOME     2
-#define XROOTD_MON_FILE     4
-#define XROOTD_MON_IO       8
-#define XROOTD_MON_NONE     ~(XROOTD_MON_ALL | XROOTD_MON_SOME)
+#define XROOTD_MON_FILE     2
+#define XROOTD_MON_IO       4
+#define XROOTD_MON_INFO     8
+#define XROOTD_MON_PATH    (XROOTD_MON_IO | XROOTD_MON_FILE)
 
 class XrdScheduler;
   
@@ -53,48 +53,63 @@ inline void              Add_wr(kXR_unt32 dictid,
                                       (kXR_int32)htonl(temp), offset);
                                }
 
+       void              appID(char *id);
+
 static XrdXrootdMonitor *Alloc(int force=0);
 
        void              Close(kXR_unt32 dictid, long long rTot, long long wTot);
 
-       void              Flush();
+static void              Defaults(char *dest1, int m1, char *dest2, int m2);
+static void              Defaults(int msz, int wsz, int flush);
 
-static int               Init(XrdScheduler *sp, XrdOucError *errp,
-                              char *dest, int msz=8192, int wsz=60);
+       void              Dup(XrdXrootdMonTrace *mrec);
 
-       kXR_unt32         Map(const char code,const char *uname,const char *path);
+static int               Init(XrdScheduler *sp, XrdOucError *errp);
 
-inline void              Open(kXR_unt32 dictid);
+static kXR_unt32         Map(const char code,const char *uname,const char *path);
 
-static void              setMode(int onoff);
+       void              Open(kXR_unt32 dictid);
 
 static time_t            Tick();
 
-static char              monIO;
+static void              unAlloc(XrdXrootdMonitor *monp);
 
+static XrdXrootdMonitor *altMon;
+static char              monIO;
+static char              monINFO;
 static char              monFILE;
 
                          XrdXrootdMonitor();
-                        ~XrdXrootdMonitor(); 
 
 private:
+                        ~XrdXrootdMonitor(); 
 
 inline void              Add_io(kXR_unt32 dictid, kXR_int32 buflen,
                                 kXR_int64 offset);
        unsigned char     do_Shift(long long xTot, unsigned int &xVal);
-       void              fillHeader(XrdXrootdMonHeader *hdr,
+static void              fillHeader(XrdXrootdMonHeader *hdr,
                                     const char id, int size);
+       void              Flush();
        void              Mark();
-       int               Send(void *buff, int size);
+static int               Send(int mmode, void *buff, int size);
+static void              startClock();
 
 static XrdScheduler      *Sched;
 static XrdOucError       *eDest;
 static XrdOucMutex        windowMutex;
-static XrdNetPeer         monDest;
+static int                monFD;
+static char              *Dest1;
+static int                monMode1;
+static struct sockaddr    InetAddr1;
+static char              *Dest2;
+static int                monMode2;
+static struct sockaddr    InetAddr2;
        XrdXrootdMonBuff  *monBuff;
 static int                monBlen;
        int                nextEnt;
 static int                lastEnt;
+static int                autoFlush;
+static int                FlushTime;
 static kXR_int32          startTime;
        kXR_int32          lastWindow;
 static kXR_int32          currWindow;
@@ -115,18 +130,6 @@ void XrdXrootdMonitor::Add_io(kXR_unt32 dictid,kXR_int32 blen,kXR_int64 offset)
          else if (nextEnt == lastEnt) Flush();
       monBuff->info[nextEnt].arg0.val      = offset;
       monBuff->info[nextEnt].arg1.buflen   = blen;
-      monBuff->info[nextEnt++].arg2.dictid = dictid;
-     }
-  
-/******************************************************************************/
-/*                                  O p e n                                   */
-/******************************************************************************/
-  
-void XrdXrootdMonitor::Open(kXR_unt32 dictid)
-     {if (lastWindow != currWindow) Mark();
-         else if (nextEnt == lastEnt) Flush();
-      monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_OPEN;
-      monBuff->info[nextEnt].arg1.buflen   = 0;
       monBuff->info[nextEnt++].arg2.dictid = dictid;
      }
 #endif

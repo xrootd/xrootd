@@ -248,10 +248,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Check if monitoring should be enabled
 //
-   if (monDest && !isRedir)
-      if (!XrdXrootdMonitor::Init(Sched,&eDest,monDest,monMBval,monWWval))
-         return 0;
-         else XrdXrootdMonitor::setMode(monMode);
+   if (!isRedir && !XrdXrootdMonitor::Init(Sched,&eDest)) return 0;
 
 // Indicate we configured successfully
 //
@@ -556,32 +553,39 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
 
 /* Function: xmon
 
-   Purpose:  Parse directive: monitor [all] [files] [io] [off] [mbuff <sz>]
-                                      [window <sec>] dest <host:port>
+   Purpose:  Parse directive: monitor [all] [mbuff <sz>] 
+                                      [flush <sec>] [window <sec>]
+                                      dest [files] [info] [io] <host:port>
 
          all                enables monitoring for all connections.
-         files              only monitors file close events.
-         io                 only monitors I/O requests.
-         off                disabled monitoring but leaves config info in place.
          mbuff  <sz>        size of message buffer.
+         flush  <sec>       time (seconds, M, H) between auto flushes.
          window <sec>       time (seconds, M, H) between timing marks.
-         dest   <host:port> where monitor records are to be sent.
+         dest               specified routing information. Up to two dests
+                            may be specified.
+         files              only monitors file open/close events.
+         info               monitors client appid and info requests.
+         io                 monitors I/O requests, and files open/close events.
+         <host:port>        where monitor records are to be sentvia UDP.
 
    Output: 0 upon success or !0 upon failure. Ignored by master.
 */
 int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
-{   char  *val, *dest;
+{   char  *val, *cp, *monDest[2] = {0, 0};
     long long tempval;
+    int i, monFlush=0, monMBval=0, monWWval=0, xmode=0, monMode[2] = {0, 0};
 
-    monMode = XROOTD_MON_SOME;
     while((val = Config.GetToken()))
 
-         {     if (!strcmp("all",  val)) {monMode &= ~XROOTD_MON_SOME;
-                                          monMode |=  XROOTD_MON_ALL;
-                                          }
-          else if (!strcmp("files",val))  monMode |=  XROOTD_MON_FILE;
-          else if (!strcmp("io",   val))  monMode |=  XROOTD_MON_IO;
-          else if (!strcmp("off",  val))  monMode &=  XROOTD_MON_NONE;
+         {     if (!strcmp("all",  val)) xmode = XROOTD_MON_ALL;
+          else if (!strcmp("flush", val))
+                {if (!(val = Config.GetToken()))
+                    {eDest.Emsg("Config", "monitor flush value not specified");
+                     return 1;
+                    }
+                 if (XrdOuca2x::a2tm(eDest,"monitor flush",val,
+                                           &monFlush,1)) return 1;
+                }
           else if (!strcmp("mbuff",val))
                   {if (!(val = Config.GetToken()))
                       {eDest.Emsg("Config", "monitor mbuff value not specified");
@@ -599,24 +603,48 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
                  if (XrdOuca2x::a2tm(eDest,"monitor window",val,
                                            &monWWval,1)) return 1;
                 }
-          else if (!strcmp("dest", val))
-                  {if (!(dest = Config.GetToken()))
-                      {eDest.Emsg("Config", "monitor dest value not specified");
-                      return 1;
-                      }
-                   if (!(val = index(dest, (int)':')) || !atoi(val+1))
-                      {eDest.Emsg("Config", "monitor dest port missing or invalid");
-                       return 1;
-                      }
-                   if (monDest) free(monDest);
-                   monDest = strdup(dest);
-                  }
-          else eDest.Emsg("Config", "Warning, invalid monitor option", val);
+          else break;
          }
 
-   if (!monDest)
-       {eDest.Emsg("Config", "monitor dest not specified"); return 1;}
+    if (!val) {eDest.Emsg("Config", "monitor dest not specified"); return 1;}
 
+    for (i = 0; i < 2; i++)
+        {if (strcmp("dest", val)) break;
+         while((val = Config.GetToken()))
+                   if (!strcmp("files",val)) monMode[i] |=  XROOTD_MON_FILE;
+              else if (!strcmp("info", val)) monMode[i] |=  XROOTD_MON_INFO;
+              else if (!strcmp("io",   val)) monMode[i] |=  XROOTD_MON_IO;
+              else break;
+          if (!val) {eDest.Emsg("Config","monitor dest value not specified");
+                     return 1;
+                    }
+          if (!(cp = index(val, (int)':')) || !atoi(cp+1))
+             {eDest.Emsg("Config","monitor dest port missing or invalid in",val);
+              return 1;
+             }
+          monDest[i] = strdup(val);
+         if (!(val = Config.GetToken())) break;
+        }
+
+    if (val)
+       if (!strcmp("dest", val))
+          eDest.Emsg("Config", "Warning, a maximum of two dest values allowed.");
+          else eDest.Emsg("Config", "Warning, invalid monitor option", val);
+
+// Make sure dests differ
+//
+   if (monDest[0] && monDest[1] && !strcmp(monDest[0], monDest[1]))
+      {eDest.Emsg("Config", "Warning, monitor dests are identical.");
+       monMode[0] |= monMode[1]; monMode[1] = 0;
+       free(monDest[1]); monDest[1] = 0;
+      }
+
+// Set the monitor defaults
+//
+   XrdXrootdMonitor::Defaults(monMBval, monWWval, monFlush);
+   if (monDest[0]) monMode[0] |= xmode;
+   if (monDest[1]) monMode[1] |= xmode;
+   XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
    return 0;
 }
 

@@ -124,7 +124,7 @@ $(OBJDIR)/XrdXrootdLoadLib.o: XrdSfsInterface.hh XrdSecInterface.hh XrdOucError.
 
 $(OBJDIR)/XrdXrootdMonitor.o: XrdOucError.hh      \
                               XrdOucPthread.hh    XrdOucPlatform.hh \
-                              XrdNet.hh           XrdNetPeer.hh     \
+                              XrdNet.hh           XrdNetPeer.hh     XrdNetDNS.hh \
                               XrdScheduler.hh     XrdJob.hh        \
                               XPtypes.hh          XrdXrootdMonitor.hh \
                               XrdXrootdMonData.hh XrdXrootdMonitor.cc  \

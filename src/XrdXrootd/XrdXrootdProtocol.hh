@@ -184,13 +184,6 @@ static int                 as_noaio;     // aio is disabled
 static int                 as_syncw;     // writes to be synchronous
 static int                 maxBuffsz;    // Maximum buffer size we can have
 
-// Monitor area
-//
-static int                 monMBval;
-static int                 monWWval;
-static int                 monMode;
-static char               *monDest;
-
 // Statistical area
 //
 static XrdXrootdStats     *SI;

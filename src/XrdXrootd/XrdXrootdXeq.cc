@@ -547,7 +547,7 @@ int XrdXrootdProtocol::do_Open()
        return Response.Send(kXR_NoMemory, ebuff);
       }
 
-// Monitor forced opens
+// Document forced opens
 //
    if (doforce)
       {int rdrs, wrtrs;
@@ -964,11 +964,10 @@ int XrdXrootdProtocol::do_Set()
 /*                            d o _ S e t _ M o n                             */
 /******************************************************************************/
 
-// Process: set monitor {off | {files | io | on} [appid] | info [info]}
+// Process: set monitor {off | on} [appid] | info [info]}
 
 int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 {
-  int setIT, setIO = 0, setON = 0, setFL = 0;
   char *val, *appid;
   kXR_unt32 myseq = 0;
 
@@ -977,36 +976,50 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
    if (!(val = setargs.GetToken(&appid)))
       return Response.Send(kXR_ArgMissing,"set monitor argument not specified.");
 
-// Determine if on or off and do appropriate processing
+// For info requests, nothing changes. However, info events must have been
+// enabled for us to record them. Route the information via the static
+// monitor entry, since it knows how to forward the information.
 //
-        if ((setFL = !strcmp(val, "files"))
-        ||  (setIO = !strcmp(val, "io"))
-        ||  (setON = !strcmp(val, "on"))
-        ||  !strcmp(val, "info"))
-           {setIT = setFL | setIO | setON;
-            if (Monitor || (setIT && (Monitor = XrdXrootdMonitor::Alloc(1))))
-               {while(*appid && *appid == ' ') appid++;
-                if (strlen(appid) > 1024) appid[1024] = '\0';
-                if (*appid)
-                   {myseq = Monitor->Map( (setIT ? XROOTD_MON_MAPAPID
-                                                 : XROOTD_MON_MAPINFO),
-                                          (const char *)Link->ID,
-                                          (const char *)appid);
-                    monIO   = (setIO | setON) & XrdXrootdMonitor::monIO;
-                    monFILE =  setIT          & XrdXrootdMonitor::monFILE;
-                   }
-                return Response.Send((void *)&myseq, sizeof(myseq));
-               }
-           }
-   else if (!strcmp(val, "off"))
-           {if (Monitor) {delete Monitor; Monitor = 0;}
-            return Response.Send();
-           }
-   else return Response.Send(kXR_ArgInvalid, "invalid set monitor argument");
+   if (!strcmp(val, "info"))
+      {if (appid && XrdXrootdMonitor::monINFO)
+          {while(*appid && *appid == ' ') appid++;
+           if (strlen(appid) > 1024) appid[1024] = '\0';
+           if (*appid) myseq = XrdXrootdMonitor::Map(XROOTD_MON_MAPINFO,
+                               (const char *)Link->ID, (const char *)appid);
+          }
+       return Response.Send((void *)&myseq, sizeof(myseq));
+      }
 
-// All done
+// Determine if on do appropriate processing
 //
-   return Response.Send(kXR_ArgInvalid, "invalid set parameter");
+   if (!strcmp(val, "on"))
+      {if (Monitor || (Monitor = XrdXrootdMonitor::Alloc(1)))
+          {if (appid && XrdXrootdMonitor::monIO)
+              {while(*appid && *appid == ' ') appid++;
+               if (*appid) Monitor->appID(appid);
+              }
+           monIO   =  XrdXrootdMonitor::monIO;
+           monFILE =  XrdXrootdMonitor::monFILE;
+          }
+       return Response.Send();
+      }
+
+// Determine if off and do appropriate processing
+//
+   if (!strcmp(val, "off"))
+      {if (Monitor)
+          {if (appid && XrdXrootdMonitor::monIO)
+              {while(*appid && *appid == ' ') appid++;
+               if (*appid) Monitor->appID(appid);
+              }
+           Monitor->unAlloc(Monitor); Monitor = 0; monIO = monFILE = 0;
+          }
+       return Response.Send();
+      }
+
+// Improper request
+//
+   return Response.Send(kXR_ArgInvalid, "invalid set monitor argument");
 }
   
 /******************************************************************************/
