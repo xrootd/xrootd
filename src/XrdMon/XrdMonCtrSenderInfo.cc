@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                               XrdMonCtrSenderInfo.cc                               */
+/*                          XrdMonCtrSenderInfo.cc                           */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -19,7 +19,7 @@
 #include <netdb.h>
 
 map<kXR_int64, kXR_unt16> XrdMonCtrSenderInfo::_ids;
-vector<char*>           XrdMonCtrSenderInfo::_hps;
+vector<char*>             XrdMonCtrSenderInfo::_hps;
 
 int
 XrdMonCtrSenderInfo::convert2Id(struct sockaddr_in sAddr)

@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                            XrdMonSndDebug.hh                               */
+/*                            XrdMonSndDebug.hh                              */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
