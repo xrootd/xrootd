@@ -170,11 +170,11 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
           }
        blp = &LinkTab[Peer.fd/LinkAlloc*LinkAlloc];
        for (i = 0; i < LinkAlloc; i++, blp++) *blp = &nlp[i];
-       if (Peer.fd > LTLast) LTLast = Peer.fd;
        lp = LinkTab[Peer.fd];
       }
       else lp->Reset();
    LinkBat[Peer.fd] = XRDLINK_USED;
+   if (Peer.fd > LTLast) LTLast = Peer.fd;
    LTMutex.UnLock();
 
 // Establish the instance number of this link. This is will prevent us from
