@@ -44,11 +44,24 @@ const char      **msg_text;        // Array of message text
 };
   
 /******************************************************************************/
-/*                            o o u c _ E r r o r                             */
+/*                  L o g   M a s k   D e f i n i t i o n s                   */
 /******************************************************************************/
   
-class XrdOucLogger;
+const int OUC_LOG_01 =   1;
+const int OUC_LOG_02 =   2;
+const int OUC_LOG_03 =   4;
+const int OUC_LOG_04 =   8;
+const int OUC_LOG_05 =  16;
+const int OUC_LOG_06 =  32;
+const int OUC_LOG_07 =  64;
+const int OUC_LOG_08 = 128;
 
+/******************************************************************************/
+/*                            o o u c _ E r r o r                             */
+/******************************************************************************/
+
+class XrdOucLogger;
+  
 class XrdOucError
 {
 public:
@@ -82,17 +95,14 @@ static char *ec2text(int ecode);
 //
 int Emsg(const char *esfx, int ecode, const char *text1, char *text2=0);
 
-// <datetime> <epfx><esfx>: <text1><text2><text3>
+// <datetime> <epfx><esfx>: <text1> <text2> <text3>
 //
-void Emsg(const char *esfx, const char *text1, char *text2, char *text3);
+void Emsg(const char *esfx, const char *text1, char *text2=0, char *text3=0);
 
-// <datetime> <epfx><esfx>: <text1> <text2>
+// <datetime> <epfx><esfx>: <text1> <text2> <text3>
 //
-void Emsg(const char *esfx, const char *text1, char *text2);
-
-// <datetime> <epfx><esfx>: <text1>
-//
-void Emsg(const char *esfx, const char *text1);
+void Log(const int mask, const char *esfx, const char *text1,
+                                char *text2=0, char *text3=0);
 
 // logger() sets/returns the logger object for this message message handler.
 //

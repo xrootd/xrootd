@@ -22,7 +22,7 @@
 class XrdOucLogger
 {
 public:
-         XrdOucLogger(int ErrFD=STDERR_FILENO, int xrotate=1);
+         XrdOucLogger(int ErrFD=STDERR_FILENO, int xrotate=1, int Mask = -1);
 
         ~XrdOucLogger() {if (ePath) free(ePath);}
 
@@ -43,6 +43,10 @@ int  originalFD() {return baseFD;}
 //
 void Put(int iovcnt, struct iovec *iov);
 
+// Set the loging mask (only used by clients of this object)
+//
+void setLogmask(int mask) {logMask = mask;}
+
 // Set log file rotation on/off. Used by forked processes.
 //
 void setRotate(int onoff) {doLFR = onoff;}
@@ -56,6 +60,8 @@ int Time(char *tbuff);
 //
 char *traceBeg() {Logger_Mutex.Lock(); Time(TBuff); return TBuff;}
 char  traceEnd() {Logger_Mutex.UnLock(); return '\n';}
+
+int   logMask;
 
 private:
 

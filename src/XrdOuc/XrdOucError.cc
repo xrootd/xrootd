@@ -98,7 +98,6 @@ int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1, char *txt2)
                          Set_IOV_Buff(etxt);                         //  8
                          Set_IOV_Item("\n", 1);                      //  9
     Logger->Put(iovpnt, iov);
-    Logger->Flush();
 
     return ecode;
 }
@@ -119,39 +118,16 @@ void XrdOucError::Emsg(const char *esfx, const char *txt1, char *txt2, char *txt
                          Set_IOV_Buff(txt3);}                        //  8
                          Set_IOV_Item("\n", 1);                      //  9
     Logger->Put(iovpnt, iov);
-    Logger->Flush();
 }
-  
-void XrdOucError::Emsg(const char *esfx, const char *txt1, char *txt2)
-{
-    struct iovec iov[8];
-    int iovpnt = 0;
 
-                         Set_IOV_Item(0,0);                          //  0
-    if (epfx && epfxlen) Set_IOV_Item(epfx, epfxlen);                //  1
-    if (esfx           ) Set_IOV_Buff(esfx);                         //  2
-                         Set_IOV_Item(": ", 2);                      //  3
-                         Set_IOV_Buff(txt1);                         //  4
-                         Set_IOV_Item(" ", 1);                       //  5
-    if (txt2 && txt2[0]) Set_IOV_Buff(txt2);                         //  6
-                         Set_IOV_Item("\n", 1);                      //  7
-    Logger->Put(iovpnt, iov);
-    Logger->Flush();
-}
+/******************************************************************************/
+/*                                   L o g                                    */
+/******************************************************************************/
   
-void XrdOucError::Emsg(const char *esfx, const char *txt1)
+void XrdOucError::Log(const int mask, const char *esfx, const char *text1,
+                                                 char *text2, char *text3)
 {
-    struct iovec iov[8];
-    int iovpnt = 0;
-
-                         Set_IOV_Item(0,0);                          //  0
-    if (epfx && epfxlen) Set_IOV_Item(epfx, epfxlen);                //  1
-    if (esfx           ) Set_IOV_Buff(esfx);                         //  2
-                         Set_IOV_Item(": ", 2);                      //  3
-                         Set_IOV_Buff(txt1);                         //  4
-                         Set_IOV_Item("\n", 1);                      //  5
-    Logger->Put(iovpnt, iov);
-    Logger->Flush();
+   if (mask & Logger->logMask) Emsg(esfx, text1, text2, text3);
 }
 
 /******************************************************************************/
