@@ -56,5 +56,6 @@ sun4x_58        sungcc    all    for Solaris 5.8 with gcc and glibc
 sun4x_59        sungcc    all    for Solaris 5.9 with gcc and glibc
 sun4x_5         sungcc    all    for Solaris 5.x with gcc and glibc
 sun4x_4         sungcc    all    for Solaris 4.x with gcc and glibc
+sunx86_510      sunicc    all    fir Solaris 5.x on i386 platform
 win32           VC++      no     for Win32 with VC++ and gdk based GUI
 win32gcc        wingcc    no     for Win32 with cygwin/gcc
