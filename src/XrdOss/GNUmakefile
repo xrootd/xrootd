@@ -11,6 +11,7 @@ include ../GNUmake.env
 #------------------------------------------------------------------------------#
   
 SOURCES = \
+        XrdOssAio.cc \
         XrdOssApi.cc \
         XrdOssCache.cc \
         XrdOssConfig.cc \
@@ -23,6 +24,7 @@ SOURCES = \
 	XrdOssProxy.cc 
 
 OBJECTS = \
+        $(OBJDIR)/XrdOssAio.o \
         $(OBJDIR)/XrdOssApi.o \
         $(OBJDIR)/XrdOssCache.o \
         $(OBJDIR)/XrdOssConfig.o \
@@ -45,6 +47,7 @@ TARGETS = $(LIBRARY)
 vpath XrdNet% ../XrdNet
 vpath XrdOfs% ../XrdOfs
 vpath XrdOuc% ../XrdOuc
+vpath XrdSfs% ../XrdSfs
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -69,6 +72,11 @@ $(TARGETS): $(OBJECTS)
 	      ar -rc $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
 	   fi;\
 	fi
+
+$(OBJDIR)/XrdOssAio.o: XrdOssTrace.hh  XrdOssApi.hh \
+                       XrdOucError.hh  XrdOucPthread.hh XrdSfsAio.hh
+	@echo Compiling XrdOssAio.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssAio.o XrdOssAio.cc
 
 $(OBJDIR)/XrdOssApi.o: XrdOss.hh XrdOssApi.hh XrdOssCache.hh XrdOssConfig.hh \
                        XrdOssError.hh  XrdOssLock.hh     XrdOssTrace.hh \

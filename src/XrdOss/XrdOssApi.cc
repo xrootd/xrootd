@@ -443,14 +443,6 @@ int XrdOssDir::Readdir(char *buff, int blen)
 //
    if (!isopen) return -XRDOSS_E8002;
 
-// Simulate the read operation, if need be.
-//
-   if (pflags & XrdOssNODREAD)
-      {if (ateof) *buff = '\0';
-          else   {*buff = '.'; ateof = 1;}
-       return XrdOssOK;
-      }
-
 // Perform local reads if this is a local directory
 //
    if (lclfd)
@@ -461,6 +453,14 @@ int XrdOssDir::Readdir(char *buff, int blen)
           }
        *buff = '\0'; ateof = 1;
        return -errno;
+      }
+
+// Simulate the read operation, if need be.
+//
+   if (pflags & XrdOssNODREAD)
+      {if (ateof) *buff = '\0';
+          else   {*buff = '.'; ateof = 1;}
+       return XrdOssOK;
       }
 
 // Perform a remote read

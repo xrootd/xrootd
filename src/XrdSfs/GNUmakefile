@@ -51,6 +51,6 @@ $(TARGETS): $(OBJECTS)
 
 $(OBJDIR)/XrdSfsNative.o:  XrdSfsInterface.hh XrdSfsNative.hh  XrdSecInterface.hh \
                            XrdOucError.hh     XrdOucErrInfo.hh XrdOucLogger.hh \
-                           XrdSfsNative.cc    ../XrdVersion.hh
+                           XrdSfsNative.cc    XrdSfsAio.hh  ../XrdVersion.hh
 	@echo Compiling XrdSfsNative.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSfsNative.o XrdSfsNative.cc

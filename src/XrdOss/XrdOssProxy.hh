@@ -87,13 +87,16 @@ public:
   // Unsupported methods
   //
   size_t  Read(off_t, size_t)                {return 0;}; 
+  int     Read(XrdSfsAio *aiop)              {return -ENOTSUP;}
   int     Opendir(const char*)               {return 0;};
   int     Readdir(char *,int)                {return 0;};
   int     Fsync()                            {return 0;};
-  int     Ftruncate(unsigned long long)      {return 0;};
+  int     Fsync(XrdSfsAio *aiop)             {return -ENOTSUP;}
+  int     Ftruncate(unsigned long long)      {return -ENOTSUP;}
   int     isCompressed(char *cxidp=0)        {return 0;};
-  size_t  ReadRaw(void *, off_t, size_t)     {return 0;};
+  size_t  ReadRaw(void *, off_t, size_t)     {return -ENOTSUP;}
   size_t  Write(const void *, off_t, size_t) {return 0;};
+  int     Write(XrdSfsAio *aiop)             {return -ENOTSUP;}
   int     Handle()                           {return 0;};    
 
 private:

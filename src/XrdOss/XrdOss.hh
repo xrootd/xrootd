@@ -23,6 +23,7 @@
 
 class XrdOucEnv;
 class XrdOucLogger;
+class XrdSfsAio;
   
 class XrdOss
 {
@@ -53,13 +54,16 @@ virtual int     Readdir(char *buff, int blen)                {return -ENOTDIR;}
                 // File oriented methods
 virtual int     Fstat(struct stat *)                         {return -EISDIR;}
 virtual int     Fsync()                                      {return -EISDIR;}
+virtual int     Fsync(XrdSfsAio *aiop)                       {return -EISDIR;}
 virtual int     Ftruncate(unsigned long long)                {return -EISDIR;}
 virtual int     isCompressed(char *cxidp=0)                  {return -EISDIR;}
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EISDIR;}
 virtual size_t  Read(off_t, size_t)                          {return (size_t)-EISDIR;}
 virtual size_t  Read(void *, off_t, size_t)                  {return (size_t)-EISDIR;}
+virtual int     Read(XrdSfsAio *aoip)                        {return (size_t)-EISDIR;}
 virtual size_t  ReadRaw(    void *, off_t, size_t)           {return (size_t)-EISDIR;}
 virtual size_t  Write(const void *, off_t, size_t)           {return (size_t)-EISDIR;}
+virtual int     Write(XrdSfsAio *aiop)                       {return (size_t)-EISDIR;}
 
                 // Methods common to both
 virtual int     Close()=0;

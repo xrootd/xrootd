@@ -29,6 +29,7 @@ const char *XrdSfsNativeCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsNative.hh"
 #include "XrdSec/XrdSecInterface.hh"
 
@@ -49,12 +50,6 @@ const char *XrdSfsNativeCVSID = "$Id$";
 /******************************************************************************/
   
 XrdOucError    *XrdSfsNative::eDest;
-
-XrdSfsAIO      *XrdSfsAIOFirst = 0;
-XrdSfsAIO      *XrdSfsAIOLast  = 0;
-
-XrdOucMutex     XrdSfsAIOMutex;
-XrdOucSemaphore XrdSfsAIOQueue;
 
 /******************************************************************************/
 /*            U n i x   F i l e   S y s t e m   I n t e r f a c e             */
@@ -392,25 +387,16 @@ XrdSfsXferSize XrdSfsNativeFile::read(XrdSfsFileOffset  offset,    // In
 /*                              r e a d   A I O                               */
 /******************************************************************************/
   
-// In native mode, this reverts to synchronous I/O
-//
-int XrdSfsNativeFile::read(XrdSfsAIO *aioparm)
+int XrdSfsNativeFile::read(XrdSfsAio *aiop)
 {
-    if (aioparm->buffer)
-       aioparm->errcode = ((aioparm->result =
-                read(aioparm->offset, aioparm->buffer, aioparm->size)) < 0 ?
-                aioparm->errcode = errno : 0);
-       else {aioparm->result = aioparm->size; aioparm->errcode = 0;}
-    aioparm->next = 0;
 
-    XrdSfsAIOMutex.Lock();
-    if (XrdSfsAIOLast)
-       {XrdSfsAIOLast->next = aioparm; XrdSfsAIOLast = aioparm;}
-       else XrdSfsAIOFirst = XrdSfsAIOLast = aioparm;
-    XrdSfsAIOQueue.Post();
-    XrdSfsAIOMutex.UnLock();
-
-    return 0;
+// Execute this request in a synchronous fashion
+//
+   aiop->Result = this->read((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
+                                       (char *)aiop->sfsAio.aio_buf,
+                               (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
+   aiop->doneRead();
+   return 0;
 }
 
 /******************************************************************************/
@@ -462,42 +448,16 @@ XrdSfsXferSize XrdSfsNativeFile::write(XrdSfsFileOffset   offset,    // In
 /*                             w r i t e   A I O                              */
 /******************************************************************************/
   
-// In native mode, this reverts to synchronous I/O
+int XrdSfsNativeFile::write(XrdSfsAio *aiop)
+{
+
+// Execute this request in a synchronous fashion
 //
-int XrdSfsNativeFile::write(XrdSfsAIO *aioparm)
-{
-    aioparm->errcode = ((aioparm->result =
-             write(aioparm->offset, aioparm->buffer, aioparm->size)) < 0 ?
-             aioparm->errcode = errno : 0);
-    aioparm->next = 0;
-
-    XrdSfsAIOMutex.Lock();
-    if (XrdSfsAIOLast)
-       {XrdSfsAIOLast->next = aioparm; XrdSfsAIOLast = aioparm;}
-       else XrdSfsAIOFirst = XrdSfsAIOLast = aioparm;
-    XrdSfsAIOQueue.Post();
-    XrdSfsAIOMutex.UnLock();
-
-    return 0;
-}
-  
-/******************************************************************************/
-/*                               w a i t a i o                                */
-/******************************************************************************/
-
-XrdSfsAIO *XrdSfsNativeFile::waitaio()
-{
-  XrdSfsAIO *aiop = 0;
-
-  do {XrdSfsAIOQueue.Wait();
-      XrdSfsAIOMutex.Lock();
-      if ((aiop = XrdSfsAIOFirst))
-         if (aiop == XrdSfsAIOLast) XrdSfsAIOFirst = XrdSfsAIOLast = 0;
-            else XrdSfsAIOFirst = aiop->next;
-      XrdSfsAIOMutex.UnLock();
-     } while(!aiop);
-
-  return aiop;
+   aiop->Result = this->write((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
+                                        (char *)aiop->sfsAio.aio_buf,
+                                (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
+   aiop->doneWrite();
+   return 0;
 }
   
 /******************************************************************************/
@@ -548,6 +508,20 @@ int XrdSfsNativeFile::sync()
 // All done
 //
    return SFS_OK;
+}
+
+/******************************************************************************/
+/*                              s y n c   A I O                               */
+/******************************************************************************/
+  
+int XrdSfsNativeFile::sync(XrdSfsAio *aiop)
+{
+
+// Execute this request in a synchronous fashion
+//
+   aiop->Result = this->sync();
+   aiop->doneWrite();
+   return 0;
 }
 
 /******************************************************************************/

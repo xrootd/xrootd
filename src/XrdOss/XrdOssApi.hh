@@ -54,6 +54,7 @@ const char *tident;
 /******************************************************************************/
 
 class oocx_CXFile;
+class XrdSfsAio;
   
 class XrdOssFile : public XrdOssDF
 {
@@ -62,13 +63,16 @@ public:
 int     Close();
 int     Fstat(struct stat *);
 int     Fsync();
+int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
 int     isCompressed(char *cxidp=0);
 int     Open(const char *, int, mode_t, XrdOucEnv &);
 size_t  Read(               off_t, size_t);
 size_t  Read(       void *, off_t, size_t);
+int     Read(XrdSfsAio *aiop);
 size_t  ReadRaw(    void *, off_t, size_t);
 size_t  Write(const void *, off_t, size_t);
+int     Write(XrdSfsAio *aiop);
  
         // Constructor and destructor
         XrdOssFile(const char *tid)
@@ -81,6 +85,7 @@ size_t  Write(const void *, off_t, size_t);
 private:
 int     Open_ufs(const char *, int, int, int);
 
+static int   AioFailure;
 oocx_CXFile *cxobj;
 const char  *tident;
 int          rawio;
@@ -115,6 +120,9 @@ int       Stage(const char *, XrdOucEnv &);
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int resonly=0);
 int       Unlink(const char *);
+
+static int   AioInit();
+static int   AioAllOk;
    
 int       MSS_Closedir(void *);
 int       MSS_Create(char *path, mode_t, XrdOucEnv &);

@@ -355,7 +355,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 
 // A mssgwcmd implies mig and a stagecmd implies stage as defaults
 //
-   dflags = (MSSgwCmd ? XrdOssMIG : XrdOssNOCHECK);
+   dflags = (MSSgwCmd ? XrdOssMIG : XrdOssNOCHECK|XrdOssNODREAD);
    if (!StageCmd) dflags |= XrdOssNOSTAGE;
    XeqFlags = XeqFlags | (dflags & (~(XeqFlags >> XrdOssMASKSHIFT)));
    if (MSSgwCmd && (XeqFlags & XrdOssMIG)) XeqFlags |= XrdOssREMOTE;

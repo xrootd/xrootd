@@ -71,17 +71,6 @@ enum XrdSfsFileExistence
 };
 //------------------------------------------------
 
-struct XrdSfsAIO    // Asychronous I/O Parameters
-{
-       XrdSfsAIO       *next;      // Used for queuing inside and out
-       char            *buffer;    // In (0 for preread action)
-       XrdSfsFileOffset offset;    // In
-       XrdSfsXferSize   size;      // In
-       XrdSfsXferSize   result;    // Out (result of read/write)
-       int              errcode;   // Out (errno  if result < 0)
-};
-//------------------------------------------------
-
 #define Prep_PRTY0 0
 #define Prep_PRTY1 1
 #define Prep_PRTY2 2
@@ -193,6 +182,8 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 /******************************************************************************/
 /*                               s f s F i l e                                */
 /******************************************************************************/
+
+class XrdSfsAio;
   
 class XrdSfsFile
 {
@@ -210,25 +201,25 @@ virtual int            close() = 0;
 virtual const char    *FName() = 0;
 
 virtual int            read(XrdSfsFileOffset   fileOffset,
-                          XrdSfsXferSize       buffer_size) = 0;
+                          XrdSfsXferSize       preread_sz) = 0;
 
 virtual XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
                           char                *buffer,
                           XrdSfsXferSize       buffer_size) = 0;
 
-virtual int            read(XrdSfsAIO *aioparm) = 0;
+virtual int            read(XrdSfsAio *aioparm) = 0;
 
 virtual XrdSfsXferSize write(XrdSfsFileOffset  fileOffset,
                            const char         *buffer,
                            XrdSfsXferSize      buffer_size) = 0;
 
-virtual int            write(XrdSfsAIO *aioparm) = 0;
-
-virtual XrdSfsAIO     *waitaio() = 0;
+virtual int            write(XrdSfsAio *aioparm) = 0;
 
 virtual int            stat(struct stat *buf) = 0;
 
 virtual int            sync() = 0;
+
+virtual int            sync(XrdSfsAio *aiop) = 0;
 
 virtual int            truncate(XrdSfsFileOffset fileOffset) = 0;
 

@@ -61,6 +61,8 @@ struct dirent *d_pnt;
 /*                      X r d S f s N a t i v e F i l e                       */
 /******************************************************************************/
   
+class XrdSfsAio;
+
 class XrdSfsNativeFile : public XrdSfsFile
 {
 public:
@@ -76,23 +78,23 @@ public:
         const char    *FName() {return fname;}
 
         int            read(XrdSfsFileOffset   fileOffset,
-                            XrdSfsXferSize     buffer_size) {return SFS_OK;}
+                            XrdSfsXferSize     preread_sz) {return SFS_OK;}
 
         XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
                             char              *buffer,
                             XrdSfsXferSize     buffer_size);
 
-        int            read(XrdSfsAIO *aioparm);
+        int            read(XrdSfsAio *aioparm);
 
         XrdSfsXferSize write(XrdSfsFileOffset   fileOffset,
                              const char        *buffer,
                              XrdSfsXferSize     buffer_size);
 
-        int            write(XrdSfsAIO *aioparm);
-
-        XrdSfsAIO     *waitaio();
+        int            write(XrdSfsAio *aioparm);
 
         int            sync();
+
+        int            sync(XrdSfsAio *aiop);
 
         int            stat(struct stat *buf);
 
