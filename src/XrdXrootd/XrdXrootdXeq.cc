@@ -91,7 +91,7 @@ int XrdXrootdProtocol::do_Auth()
    cred.size   = Request.dlen;
    cred.buffer = argp->buff;
    if (!(rc = CIA->Authenticate(&cred, &parm, Client, &eMsg)))
-      {rc = Response.Send(); Status |= XRD_AUTHENTICATED;
+      {rc = Response.Send(); Status &= ~XRD_NEED_AUTH;
        eDest.Emsg("Xeq", "User authenticated as", Client.name);
        return rc;
       }
@@ -322,11 +322,11 @@ int XrdXrootdProtocol::do_Login()
    if (CIA)
       {const char *pp=CIA->getParms(i, (const char *)&Client.host);
        if (pp && i ) {rc = Response.Send((void *)pp, i);
-                      Status |= XRD_LOGGEDIN;
+                      Status |= (XRD_LOGGEDIN | XRD_NEED_AUTH);
                      }
-          else {rc = Response.Send(); Status = XRD_AUTHENTICATED;}
+          else {rc = Response.Send(); Status = XRD_LOGGEDIN;}
       }
-      else     {rc = Response.Send(); Status = XRD_AUTHENTICATED;}
+      else     {rc = Response.Send(); Status = XRD_LOGGEDIN;}
 
 
 // Document this login

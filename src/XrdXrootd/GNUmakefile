@@ -8,8 +8,6 @@ ARCH    = `/bin/uname`
 
 CC      = g++
 
-BINSFX  =
-
 DBGSFX  =
 
 INCLUDE = -I. -I..
@@ -104,8 +102,8 @@ all:
 	@$(MAKE) $(TYPE)all --no-print-directory
 
 debug:
-	@/bin/mkdir -p $(BINDIR)/dbg $(LIBDIR)/dbg $(OBJDIR)/dbg
-	@$(MAKE) $(TYPE)dbg DBGSFX=/dbg --no-print-directory
+	@/bin/mkdir -p $(BINDIR)_dbg $(LIBDIR)_dbg $(OBJDIR)_dbg
+	@$(MAKE) $(TYPE)dbg DBGSFX=_dbg --no-print-directory
 
 Linuxall:
 	@$(MAKE) anything --no-print-directory \
@@ -122,7 +120,6 @@ TYPE=Linux
 Linuxdbg:
 	@$(MAKE) anything --no-print-directory \
 ARCH=$(ARCH) \
-BINSFX='.dbg' \
 CC=g++    \
 CF64="$(LNX64)" \
 CF32="$(LNX32)" \
@@ -145,7 +142,6 @@ TYPE=SunOS
 SunOSdbg:
 	@$(MAKE) anything \
 ARCH=$(ARCH) \
-BINSFX='.dbg' \
 CC=CC \
 CF64="$(SUN64)" \
 CF32="$(SUN32)" \
@@ -159,7 +155,7 @@ anything: $(TARGET)
 
 clean:
 	@$(MAKE) remove             --no-print-directory
-	@$(MAKE) remove DBGSFX=/dbg --no-print-directory
+	@$(MAKE) remove DBGSFX=_dbg --no-print-directory
 	@echo Make clean done.
 
 remove: FORCE

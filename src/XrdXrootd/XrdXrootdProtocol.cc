@@ -267,7 +267,7 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
              case kXR_protocol: return do_Protocol();
              default:           Response.Send(kXR_InvalidRequest,
                                 "Invalid request; user not logged in");
-                                ABANDON(Link,"protocol sequence error");
+                                ABANDON(Link,"protocol sequence error 1");
                                 return -1;
             }
       else 
@@ -321,6 +321,16 @@ int XrdXrootdProtocol::Process2()
   
 int XrdXrootdProtocol::Process3()
 {
+// Force authentication at this point, if need be
+//
+   if (Status & XRD_NEED_AUTH)
+      if (Request.requestid == kXR_auth) return do_Auth();
+         else {Response.Send(kXR_InvalidRequest,
+                            "Invalid request; user not logged in");
+               ABANDON(Link,"protocol sequence error 2");
+               return -1;
+              }
+
 // Process items that keep own statistics
 //
    switch(Request.requestid)
@@ -339,7 +349,6 @@ int XrdXrootdProtocol::Process3()
    switch(Request.requestid)
          {case kXR_admin:     if (Status & XRD_ADMINUSER) return do_Admin();
                                  else break;
-          case kXR_auth:      return do_Auth();
           case kXR_chmod:     return do_Chmod();
           case kXR_dirlist:   return do_Dirlist();
           case kXR_mkdir:     return do_Mkdir();

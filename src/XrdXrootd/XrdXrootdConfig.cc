@@ -266,13 +266,13 @@ int XrdXrootdProtocol::ConfigIt(char *parms)
 {
    XrdOucTokenizer Config(parms);
    char *var;
-   int NoGo = 0;
+   int NoGo = 0, ignore;
 
    // Process items
    //
    while(Config.GetLine())
         {if (var = Config.GetToken())
-            {if (!strncmp("xrootd.", var, 7) && var[7]) var += 7;
+            {if (!(ignore = strncmp("xrootd.", var, 7)) && var[7]) var += 7;
                   if TS_Xeq("async",         xasync);
              else if TS_Xeq("chksum",        xcksum);
              else if TS_Xeq("export",        xexp);
@@ -280,7 +280,8 @@ int XrdXrootdProtocol::ConfigIt(char *parms)
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("trace",         xtrace);
-             else eDest.Say(0,(char *)"Warning, unknown xrootd directive ",var);
+             else if (!ignore) eDest.Say(0,
+                     (char *)"Warning, unknown xrootd directive ",var);
             }
         }
    return NoGo;

@@ -35,7 +35,7 @@
 #define ROOTD_PQ 2012
 
 #define XRD_LOGGEDIN       1
-#define XRD_AUTHENTICATED  2
+#define XRD_NEED_AUTH      2
 #define XRD_ADMINUSER      4
 
 #ifndef __GNUC__
