@@ -190,13 +190,26 @@ CREATE TABLE IF NOT EXISTS rtChanges (
 
 # compressed info for top performers (top users) webpage
 CREATE TABLE IF NOT EXISTS topPerfUsers (
-  userName    VARCHAR(24),
-  nFilesNow   INT NOT NULL,
-  nJobsNow    INT NOT NULL,
-  mbRead      BIGINT NOT NULL,
-  nFiles      INT NOT NULL,
-  nJobs       INT NOT NULL,
-  timePeriod  VARCHAR(8) # "hour", "month", "year"
+  userName   VARCHAR(24),
+  nFiles     INT NOT NULL,
+  nJobs      INT NOT NULL,
+  pVolume    INT NOT NULL,
+  pFiles     INT NOT NULL,
+  pJobs      INT NOT NULL,
+  timePeriod VARCHAR(8)    # "hour", "month", "year"
+);
+
+# compressed info for top performers (top skims) webpage
+CREATE TABLE IF NOT EXISTS topPerfSkims (
+  skimName   VARCHAR(24),
+  nJobs      INT NOT NULL,
+  nFiles     INT NOT NULL,
+  nUsers     INT NOT NULL,
+  pJobs      INT NOT NULL,
+  pFiles     INT NOT NULL,
+  pUsers     INT NOT NULL,
+  pVolume    INT NOT NULL,
+  timePeriod VARCHAR(8) # "hour", "month", "year"
 );
 
 
