@@ -134,9 +134,9 @@ while($resp = <CMDFD>) {
   if ( $distrib eq 'RH_WRONG' ) { sleep $monint; }
 
   # what's the CPU utilization ?
-  @respCPU = `vmstat`;
-  chomp $respCPU[2];
-  @resp_vmstat = split('\s+',$respCPU[2]);
+  @respCPU = `vmstat 1 2`;
+  chomp $respCPU[3];
+  @resp_vmstat = split('\s+',$respCPU[3]);
   if ( ($resp_vmstat[$ind_idle] > 100) || ($resp_vmstat[$ind_idle] < 0) ) {
     $cpu = 0;
   } else {
