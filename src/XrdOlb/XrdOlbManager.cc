@@ -748,17 +748,17 @@ int XrdOlbManager::SelServer(int needrw, char *path,
 // Scan for a primary and alternate server (alternates do staging)
 //
    mask = pmask;
+   STMutex.Lock();
    while(pass--)
-        {STMutex.Lock();
-         if (mask)
+        {if (mask)
             {sp = (XrdOlbConfig.sched_RR
                    ? SelbyRef( mask, nump, delay, &reason, isalt)
                    : SelbyLoad(mask, nump, delay, &reason, isalt));
              if (sp || (nump && delay)) break;
             }
-         STMutex.UnLock();
          mask = amask; isalt = 1;
         }
+   STMutex.UnLock();
 
 // Update info
 //
@@ -778,7 +778,6 @@ int XrdOlbManager::SelServer(int needrw, char *path,
           if (iovcnt && iodata) sp->Link->Send(iodata, iovcnt);
           }
        sp->UnLock();
-       STMutex.UnLock();
        return 0;
       }
 
