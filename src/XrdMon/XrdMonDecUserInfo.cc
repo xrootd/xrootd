@@ -94,25 +94,16 @@ XrdMonDecUserInfo::setDisconnectInfo(kXR_int32 sec,
     _dTime = timestamp;
 }
 
-int 
-XrdMonDecUserInfo::stringSize() const
-{
-    return sizeof(kXR_int32) +                // _myXrdId
-           sizeof(kXR_int32) +                // _myUniqueId
-           sizeof(kXR_int16) + _user.size() + // _user
-           sizeof(kXR_int16) +                // _pid
-           sizeof(kXR_int16) + _host.size();  // _host
-}
-
 // this goes to ascii file loaded to MySQL
 string
 XrdMonDecUserInfo::convert2string() const
 {
     stringstream ss(stringstream::out);
-    ss << _myUniqueId 
-       << '\t' << _user
+    ss <<         _user
        << '\t' << _pid
-       << '\t' << _host;
+       << '\t' << _host
+       << '\t' << _sec
+       << '\t' << timestamp2string(_dTime);
     return ss.str();
 }
 
@@ -127,6 +118,7 @@ XrdMonDecUserInfo::convert2stringRT() const
     return ss.str();
 }
 
+// this is for debugging
 ostream& 
 operator<<(ostream& o, const XrdMonDecUserInfo& m)
 {

@@ -33,7 +33,6 @@ XrdMonDecDictInfo::XrdMonDecDictInfo()
       _path("InvalidPath"),
       _open(0),
       _close(0),
-      _noTraces(0),
       _noRBytes(0),
       _noWBytes(0)
 {}
@@ -46,7 +45,6 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
       _myUniqueId(uniqueId),
       _open(0),
       _close(0),
-      _noTraces(0),
       _noRBytes(0),
       _noWBytes(0)
 {
@@ -153,10 +151,6 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(const char* buf, int& pos)
     pos += sizeof(kXR_int32);
     _close = ntohl(v32);
 
-    memcpy(&v32, buf+pos, sizeof(kXR_int32));
-    pos += sizeof(kXR_int32);
-    _noTraces = ntohl(v32);
-
     kXR_int64 v64;
     memcpy(&v64, buf+pos, sizeof(kXR_int64));
     pos += sizeof(kXR_int64);
@@ -219,8 +213,6 @@ XrdMonDecDictInfo::addTrace(const XrdMonDecTraceInfo& trace)
         return false;
     }
     
-    ++_noTraces;
-    
     if ( trace.isRead() ) {
         _noRBytes += trace.length();
     } else {
@@ -229,22 +221,25 @@ XrdMonDecDictInfo::addTrace(const XrdMonDecTraceInfo& trace)
     return true;
 }
 
+// It returns an exact size of the string
+// produced by 'writeSelf2buf()' function.
 int 
 XrdMonDecDictInfo::stringSize() const
-{
+{   
     return sizeof(kXR_int32) +                // _myXrdId
            sizeof(kXR_int32) +                // _myUniqueId
            sizeof(kXR_int16) + _user.size() + // _user
            sizeof(kXR_int16) +                // _pid
            sizeof(kXR_int16) + _host.size() + // _host
            sizeof(kXR_int16) + _path.size() + // _path
-           sizeof(time_t)  +                // _open
-           sizeof(time_t)  +                // _close
-           sizeof(kXR_int32) +                // _noTraces
+           sizeof(time_t)  +                  // _open
+           sizeof(time_t)  +                  // _close
            sizeof(kXR_int64) +                // _noRBytes
            sizeof(kXR_int64);                 // _noWBytes
 }
 
+// FIXME: this function needs work - it is for 
+// journalling for offline processing
 void
 XrdMonDecDictInfo::writeSelf2buf(char* buf, int& pos) const
 {
@@ -286,10 +281,6 @@ XrdMonDecDictInfo::writeSelf2buf(char* buf, int& pos) const
     memcpy(buf+pos, &v32, sizeof(kXR_int32));
     pos += sizeof(kXR_int32);
 
-    v32 = htonl(_noTraces);
-    memcpy(buf+pos, &v32, sizeof(kXR_int32));
-    pos += sizeof(kXR_int32);
-
     kXR_int64 v64 = htonll(_noRBytes);
     memcpy(buf+pos, &v64, sizeof(kXR_int64));
     pos += sizeof(kXR_int64);
@@ -297,8 +288,6 @@ XrdMonDecDictInfo::writeSelf2buf(char* buf, int& pos) const
     v64 = htonll(_noWBytes);
     memcpy(buf+pos, &v64, sizeof(kXR_int64));
     pos += sizeof(kXR_int64);
-
-    cout<< "JB " << *this << endl;
 }
 
 // this goes to ascii file loaded to MySQL
@@ -306,14 +295,12 @@ string
 XrdMonDecDictInfo::convert2string() const
 {
     stringstream ss(stringstream::out);
-    ss << _myUniqueId 
-       << '\t' << _user
+    ss <<         _user
        << '\t' << _pid
        << '\t' << _host
        << '\t' << _path
        << '\t' << timestamp2string(_open)
        << '\t' << timestamp2string(_close)
-       << '\t' << _noTraces
        << '\t' << _noRBytes
        << '\t' << _noWBytes;
     return ss.str();
@@ -331,6 +318,7 @@ XrdMonDecDictInfo::convert2stringRT() const
     return ss.str();
 }
 
+// this is for debugging
 ostream& 
 operator<<(ostream& o, const XrdMonDecDictInfo& m)
 {
@@ -342,7 +330,6 @@ operator<<(ostream& o, const XrdMonDecDictInfo& m)
      << ' ' << m._path
      << ' ' << timestamp2string(m._open)
      << ' ' << timestamp2string(m._close)
-     << ' ' << m._noTraces
      << ' ' << m._noRBytes
      << ' ' << m._noWBytes;
       

@@ -39,7 +39,6 @@ public:
     dictid_t xrdId() const { return _myXrdId; }
     dictid_t uniqueId() const { return _myUniqueId; }
     
-    int stringSize() const;
     string convert2string() const;
     string convert2stringRT() const;
 

@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
         sleep(1);
     }
 
-    bool sendLight = false;
+    bool sendLight = true;
     
     if ( sendLight ) { // use this loop to test light decoder
         cout << "\n***** sending LIGHT data *****\n" << endl;

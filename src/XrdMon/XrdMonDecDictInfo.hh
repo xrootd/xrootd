@@ -71,7 +71,6 @@ private:
     time_t  _open;
     time_t  _close;
     
-    kXR_int32 _noTraces;
     kXR_int64 _noRBytes;  // no bytes read
     kXR_int64 _noWBytes;  // no bytes writen
     
