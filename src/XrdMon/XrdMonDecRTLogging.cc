@@ -13,6 +13,7 @@
 #include "XrdMonDecRTLogging.hh"
 #include <fcntl.h>
 #include <strings.h> /* bcopy */
+#include <sys/stat.h>
 #include <fstream>
 #include <iostream>
 using std::cout;
