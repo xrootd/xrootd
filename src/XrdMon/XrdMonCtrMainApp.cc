@@ -45,7 +45,7 @@ printHelp()
          << "    [-ctrLogDir <path>]\n"
          << "    [-decLogDir <path>]\n"
          << "    [-rtLogDir <path>]\n"
-         << "    [-decFlushDelay <value>]\n"
+         << "    [-decHDFlushDelay <value>]\n"
          << "    [-maxCtrLogSize <value>]\n"
          << "    [-ctrBufSize <value>]\n"
          << "    [-port <portNr>]\n"
