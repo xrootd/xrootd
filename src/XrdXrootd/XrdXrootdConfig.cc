@@ -22,6 +22,9 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "XrdVersion.hh"
+
+#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
@@ -96,7 +99,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern char *optarg;
    extern int optind, opterr, optopt;
    XrdXrootdXPath *xp;
-   char c, buff[1024], Multxrd = 0;
+   char *fsver, c, buff[1024], Multxrd = 0;
    int NoGo;
 
 // Copy out the special info we want to use at top level
@@ -178,6 +181,15 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        return 0;
       }
 
+// Check if the file system version matches our version
+//
+   if (chkfsV)
+      {fsver = (char *)osFS->getVersion();
+       if (strcmp(XrdVERSION, fsver))
+          eDest.Emsg("Config", "Warning! xrootd build version " XrdVERSION
+                               "differs from file system version ", fsver);
+      }
+
 // Create the file lock manager
 //
    Locker = (XrdXrootdFileLock *)new XrdXrootdFileLock1();
@@ -210,7 +222,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Indicate we configured successfully
 //
-   eDest.Say(0, (char *)"XRootd protocol " XROOTD_VERSION " successfully loaded.");
+   eDest.Say(0, (char *)"XRootd protocol version " XROOTD_VERSION 
+                        " build " XrdVERSION " successfully loaded.");
 
 // Return success
 //
@@ -431,8 +444,9 @@ int XrdXrootdProtocol::xexpdo(char *path)
 
 /* Function: xfsl
 
-   Purpose:  To parse the directive: fslib <path>
+   Purpose:  To parse the directive: fslib [?] <path>
 
+             ?         check if fslib build version matches our version
              <path>    the path of the filesystem library to be used.
 
   Output: 0 upon success or !0 upon failure.
@@ -444,7 +458,10 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
 
 // Get the path
 //
-   val = Config.GetToken();
+   chkfsV = 0;
+   if ((val = Config.GetToken()) && *val == '?' && !val[1])
+      {chkfsV = '?'; val = Config.GetToken();}
+
    if (!val || !val[0])
       {eDest.Emsg("Config", "fslib not specified"); return 1;}
 

@@ -12,11 +12,14 @@
   
 //        $Id$
 
+#include "XrdVersion.hh"
+
 #define XrdFORMAT  "2.0.0"
 
 #define XrdFORMATB 0x00000200
 
 #define XrdBANNER "(c) 2004 Stanford University/SLAC xrd (eXtended Request Daemon)"
+#define XrdBANVER "xrd version " XrdVERSION
 
 #define XrdDEFAULTPORT 1094;
 #endif

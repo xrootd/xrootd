@@ -12,9 +12,9 @@ DBGSFX  =
 
 INCLUDE = -I. -I..
 
-LIBDIR  = ../lib/$(ARCH)$(DBGSFX)
+LIBDIR  = ../../lib/$(ARCH)$(DBGSFX)
 
-OBJDIR  = ../obj/$(ARCH)$(DBGSFX)
+OBJDIR  = ../../obj/$(ARCH)$(DBGSFX)
 
 TYPE    = `/bin/uname`
 
@@ -123,6 +123,6 @@ $(TARGETS): $(OBJECTS)
 
 $(OBJDIR)/XrdSfsNative.o:  XrdSfsInterface.hh XrdSfsNative.hh  XrdSecInterface.hh \
                            XrdOucError.hh     XrdOucErrInfo.hh XrdOucLogger.hh \
-                           XrdSfsNative.cc
+                           XrdSfsNative.cc    ../XrdVersion.hh
 	@echo Compiling XrdSfsNative.cc ...
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSfsNative.o XrdSfsNative.cc

@@ -10,11 +10,11 @@ DBGSFX  =
 
 INCLUDE = -I. -I.. -I/afs/slac.stanford.edu/package/krb5/include
 
-BINDIR  = ../bin/$(ARCH)$(DBGSFX)
+BINDIR  = ../../bin/$(ARCH)$(DBGSFX)
 
-LIBDIR  = ../lib/$(ARCH)$(DBGSFX)
+LIBDIR  = ../../lib/$(ARCH)$(DBGSFX)
 
-OBJDIR  = ../obj/$(ARCH)$(DBGSFX)
+OBJDIR  = ../../obj/$(ARCH)$(DBGSFX)
 
 TYPE    = `/bin/uname`
 

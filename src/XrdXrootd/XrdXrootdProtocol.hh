@@ -161,6 +161,7 @@ static char               *SecLib;
 static char               *FSLib;
 static char               *Notify;
 static char                isProxy;
+static char                chkfsV;
 static XrdOucProg         *ProgCKS;
 static char               *ProgCKT;
 

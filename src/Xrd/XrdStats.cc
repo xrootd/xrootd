@@ -16,6 +16,7 @@ const char *XrdStatsCVSID = "$Id$";
 #include <stdio.h>
 #include <sys/resource.h>
   
+#include "XrdVersion.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
@@ -50,8 +51,10 @@ XrdStats::XrdStats(char *hname, int port)
 char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 {
    static XrdProtocol_Select Protocols;
-   static const char head[] = "<statistics tod=\"%d\">";
+   static const char head[] = "<statistics tod=\"%d\" ver=\""
+                                           XrdVERSION "\">";
    static const char tail[] = "</statistics>";
+   static const int  ovrhed = strlen(head)+16+sizeof(XrdVERSION)+strlen(tail);
    char *bp;
    int   bl;
    int   sz;
@@ -60,9 +63,10 @@ char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 // until all components that can provide statistics have been loaded
 //
    if (!(bp = buff))
-      {bl = Protocols.Stats(0,0);
+      {bl = Protocols.Stats(0,0) + ovrhed;
        if (getBuff(bl)) bp = buff;
-          else return (char *)"<statistics tod=\"0\"></<statistics>";
+          else return (char *)"<statistics tod=\"0\" ver=\""
+                               XrdVERSION "\"></<statistics>";
       }
    bl = blen;
 

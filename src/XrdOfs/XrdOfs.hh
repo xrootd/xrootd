@@ -175,6 +175,8 @@ public:
 
         int            getStats(char *buff, int blen) {return 0;}
 
+const   char          *getVersion();
+
         int            prepare(      XrdSfsPrep       &pargs,
                                      XrdOucErrInfo    &out_error,
                                const XrdSecClientName *client = 0);

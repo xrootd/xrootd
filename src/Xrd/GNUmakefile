@@ -12,9 +12,9 @@ DBGSFX  =
 
 INCLUDE = -I. -I..
 
-LIBDIR  = ../lib/$(ARCH)$(DBGSFX)
+LIBDIR  = ../../lib/$(ARCH)$(DBGSFX)
 
-OBJDIR  = ../obj/$(ARCH)$(DBGSFX)
+OBJDIR  = ../../obj/$(ARCH)$(DBGSFX)
 
 TYPE    = `/bin/uname`
 
@@ -210,7 +210,7 @@ $(OBJDIR)/XrdScheduler.o: XrdJob.hh      XrdScheduler.hh   XrdTrace.hh \
 
 $(OBJDIR)/XrdStats.o: XrdBuffer.hh     XrdLink.hh     XrdPoll.hh \
                       XrdProtocol.hh   XrdStats.cc    XrdStats.hh \
-                      XrdOucPthread.hh
+                      XrdOucPthread.hh ../XrdVersion.hh
 	@echo Compiling XrdStats.cc ...
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdStats.o XrdStats.cc
 

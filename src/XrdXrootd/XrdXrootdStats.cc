@@ -89,7 +89,7 @@ int XrdXrootdStats::Stats(XrdXrootdResponse &resp, char *opts)
                  case 'd': xopts |= XRD_STATS_POLL; break;    // d_evice
                  case 'u': xopts |= XRD_STATS_PROC; break;    // u_sage
                  case 'p': xopts |= XRD_STATS_PROT; break;    // p_rotocol
-                 case 's': xopts |= XRD_STATS_SCHD; break;    // x_scheduler
+                 case 's': xopts |= XRD_STATS_SCHD; break;    // s_scheduler
                  default:  break;
                 }
           opts++;

@@ -10,11 +10,11 @@ DBGSFX  =
 
 INCLUDE = -I. -I..
 
-BINDIR  = ../bin/$(ARCH)$(DBGSFX)
+BINDIR  = ../../bin/$(ARCH)$(DBGSFX)
 
-LIBDIR  = ../lib/$(ARCH)$(DBGSFX)
+LIBDIR  = ../../lib/$(ARCH)$(DBGSFX)
 
-OBJDIR  = ../obj/$(ARCH)$(DBGSFX)
+OBJDIR  = ../../obj/$(ARCH)$(DBGSFX)
 
 TYPE    = `/bin/uname`
 

@@ -25,6 +25,7 @@ const char *XrdSfsNativeCVSID = "$Id$";
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include "XrdVersion.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucPthread.hh"
@@ -573,6 +574,7 @@ int XrdSfsNativeFile::truncate(XrdSfsFileOffset  flen)  // In
 /******************************************************************************/
 /*         F i l e   S y s t e m   O b j e c t   I n t e r f a c e s          */
 /******************************************************************************/
+
 /******************************************************************************/
 /*                    C r e a t e   F i l e   O b j e c t                     */
 /******************************************************************************/
@@ -712,6 +714,12 @@ int XrdSfsNative::exists(const char                *path,        // In
 //
    return XrdSfsNative::Emsg(epname, error, errno, "locating", path);
 }
+
+/******************************************************************************/
+/*                            g e t V e r s i o n                             */
+/******************************************************************************/
+
+const char *XrdSfsNative::getVersion() {return XrdVERSION;}
 
 /******************************************************************************/
 /*                                 m k d i r                                  */

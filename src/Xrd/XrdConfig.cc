@@ -109,6 +109,7 @@ class XrdLogWorker : XrdJob
 public:
 
      void DoIt() {XrdLog.Say(0, (char *)XrdBANNER);
+                  XrdLog.Say(0, (char *)XrdBANVER);
                   midnite += 86400;
                   XrdScheduler.Schedule((XrdJob *)this, midnite);
                  }
@@ -246,6 +247,7 @@ int XrdConfig::Configure(int argc, char **argv)
 // Put out the herald
 //
    XrdLog.Say(0, (char *)XrdBANNER);
+   XrdLog.Say(0, (char *)XrdBANVER);
    sprintf(buff, "xrd@%s", myName);
    XrdLog.Say(0, buff,(char *)" initialization started.");
 

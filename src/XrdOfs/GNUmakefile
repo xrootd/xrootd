@@ -10,9 +10,9 @@ DBGSFX  =
 
 INCLUDE = -I. -I..
 
-LIBDIR  = ../lib/$(ARCH)$(DBGSFX)
+LIBDIR  = ../../lib/$(ARCH)$(DBGSFX)
 
-OBJDIR  = ../obj/$(ARCH)$(DBGSFX)
+OBJDIR  = ../../obj/$(ARCH)$(DBGSFX)
 
 LIBS    = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdOuc
 
@@ -142,7 +142,7 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdOucNetwork.hh XrdOucPList.hh        XrdOucPthread.hh   \
                      XrdOucTrace.hh   XrdSecInterface.hh    XrdSfsInterface.hh \
                      XrdSfsNative.hh  XrdOss.hh             XrdOucTList.hh     \
-                     XrdOdcFinder.hh  XrdAccAuthorize.hh
+                     XrdOdcFinder.hh  XrdAccAuthorize.hh    ../XrdVersion.hh
 	@echo Compiling XrdOfs.cc ...
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfs.o XrdOfs.cc
 

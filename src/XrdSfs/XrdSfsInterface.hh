@@ -35,10 +35,6 @@
 /*                               D e f i n e s                                */
 /******************************************************************************/
 
-// Current version of the XrdSfs interfaces
-//
-#define SFS_FILE_SYSTEM_VERSION 1
-
 // Longest filename returned by interface (including trailing null)
 //
 #define SFS_MAX_FILE_NAME_LEN (1024+1)
@@ -117,7 +113,6 @@ struct XrdSecClientName;
 class XrdSfsFileSystem
 {
 public:
-        int       getVersion() {return SFS_FILE_SYSTEM_VERSION;}
 
 // File Functions
 //
@@ -152,6 +147,8 @@ virtual int            fsctl(const int               cmd,
                              const XrdSecClientName *client = 0) = 0;
 
 virtual int            getStats(char *buff, int blen) = 0;
+
+virtual const char    *getVersion() = 0;
 
 virtual int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,

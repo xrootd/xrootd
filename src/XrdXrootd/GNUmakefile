@@ -14,14 +14,14 @@ DBGSFX  =
 
 INCLUDE = -I. -I..
 
-BINDIR  = ../bin/$(ARCH)/
+BINDIR  = ../../bin/$(ARCH)/
 
-BINLIBS = -L../lib/$(ARCH)$(DBGSFX) -lXrd -lXrdOuc \
-          ../obj/$(ARCH)$(DBGSFX)/XrdSfsNative.o
+BINLIBS = -L../../lib/$(ARCH)$(DBGSFX) -lXrd -lXrdOuc \
+          ../../obj/$(ARCH)$(DBGSFX)/XrdSfsNative.o
 
-LIBDIR  = ../lib/$(ARCH)$(DBGSFX)
+LIBDIR  = ../../lib/$(ARCH)$(DBGSFX)
 
-OBJDIR  = ../obj/$(ARCH)$(DBGSFX)
+OBJDIR  = ../../obj/$(ARCH)$(DBGSFX)
 
 TYPE    = `/bin/uname`
 
@@ -52,9 +52,9 @@ OBJECTS = \
         $(OBJDIR)/XrdXrootdXeq.o
 
 OBJDEPS = \
-          ../lib/$(ARCH)$(DBGSFX)/libXrd.a \
-          ../lib/$(ARCH)$(DBGSFX)/libXrdOuc.a \
-          ../obj/$(ARCH)$(DBGSFX)/XrdSfsNative.o
+          ../../lib/$(ARCH)$(DBGSFX)/libXrd.a \
+          ../../lib/$(ARCH)$(DBGSFX)/libXrdOuc.a \
+          ../../obj/$(ARCH)$(DBGSFX)/XrdSfsNative.o
 
 TARGET  = $(BINDIR)/xrootd$(BINSFX)
 
@@ -174,7 +174,8 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdOuca2x.hh         XrdOucError.hh  \
                              XrdOucLogger.hh      XrdOucReqID.hh \
                              XrdOucTokenizer.hh   XrdOucTrace.hh \
-                             XrdOucProg.hh        XrdXrootdConfig.cc
+                             XrdOucProg.hh        XrdXrootdConfig.cc \
+                             ../XrdVersion.hh
 	@echo Compiling XrdXrootdConfig.cc ...
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdConfig.o XrdXrootdConfig.cc
 

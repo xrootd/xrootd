@@ -48,6 +48,7 @@ char                 *XrdXrootdProtocol::Notify = 0;
 int                   XrdXrootdProtocol::readWait;
 int                   XrdXrootdProtocol::Port;
 char                  XrdXrootdProtocol::isProxy = 0;
+char                  XrdXrootdProtocol::chkfsV  = 0;
 
 int                   XrdXrootdProtocol::as_maxaspl =  8;   // Max async ops per link
 int                   XrdXrootdProtocol::as_maxasps = 64;   // Max async ops per server

@@ -43,6 +43,8 @@ const char *XrdOfsCVSID = "$Id$";
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfig.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -211,17 +213,18 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 //
    OfsEroute.SetPrefix("ofs_");
    OfsEroute.logger(lp);
-   OfsEroute.Emsg("Init", "(c) 2003, Stanford University, Ofs Version 1.0");
+   OfsEroute.Emsg("Init", "(c) 2004 Stanford University/SLAC, Ofs Version "
+                          XrdVERSION);
 
 // Initialize the subsystems
 //
    XrdOfsFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
-   if ( XrdOfsFS.Configure(OfsEroute) ) {exit(16);}
+   if ( XrdOfsFS.Configure(OfsEroute) ) return 0;
    XrdOfsFS.Config_Display(OfsEroute);
 
 // Initialize the target storage system
 //
-   if (XrdOssSS.Init(lp, configfn)) {exit(16);}
+   if (XrdOssSS.Init(lp, configfn)) return 0;
 
 // Start a thread to periodically scan for idle file handles
 //
@@ -1208,6 +1211,11 @@ int XrdOfs::exists(const char                *path,        // In
    return XrdOfsFS.Emsg(epname, einfo, retc, "locating", path);
 }
 
+/******************************************************************************/
+/*                            g e t V e r s i o n                             */
+/******************************************************************************/
+  
+const char *XrdOfs::getVersion() {return XrdVERSION;}
 
 /******************************************************************************/
 /*                                 m k d i r                                  */
