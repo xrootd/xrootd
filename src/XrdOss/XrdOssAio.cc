@@ -215,6 +215,15 @@ int XrdOssFile::Write(XrdSfsAio *aiop)
 
 int   XrdOssSys::AioAllOk = 0;
   
+/*
+#if defined( _POSIX_ASYNCHRONOUS_IO) && !defined(HAS_SIGWTI)
+// The folowing is for sigwaitinfo() emulation
+//
+siginfo_t *XrdOssAioInfoR;
+siginfo_t *XrdOssAioInfoW;
+#endif
+*/
+
 /******************************************************************************/
 /*                               A i o I n i t                                */
 /******************************************************************************/
@@ -231,6 +240,37 @@ int XrdOssSys::AioInit()
    extern void *XrdOssAioWait(void *carg);
    pthread_t tid;
    int retc;
+
+#ifndef HAS_SIGWTI
+// For those platforms that do not have sigwaitinfo(), we provide the
+// appropriate emulation using a signal handler. We actually provide for
+// two handlers since we separate reads from writes. To emulate synchronous
+// signals, we prohibit one signal hander from interrupting another one.
+//
+    struct sigaction sa;
+    extern void XrdOssAioRSH(int, siginfo_t *, void *);
+    extern void XrdOssAioWSH(int, siginfo_t *, void *);
+
+    sa.sa_sigaction = XrdOssAioRSH;
+    sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&sa.sa_mask);
+    sigaddset(&sa.sa_mask, OSS_AIO_WRITE_DONE);
+    if (sigaction(OSS_AIO_READ_DONE, &sa, NULL) < 0)
+       {OssEroute.Emsg("AioInit", errno, "creating AIO read signal handler; "
+                                 "AIO support terminated.");
+        return 0;
+       }
+
+    sa.sa_sigaction = XrdOssAioWSH;
+    sa.sa_flags = SA_SIGINFO;
+    sigemptyset(&sa.sa_mask);
+    sigaddset(&sa.sa_mask, OSS_AIO_READ_DONE);
+    if (sigaction(OSS_AIO_WRITE_DONE, &sa, NULL) < 0)
+       {OssEroute.Emsg("AioInit", errno, "creating AIO write signal handler; "
+                                 "AIO support terminated.");
+        return 0;
+       }
+#endif
 
 // The AIO signal handler consists of two thread (one for read and one for
 // write) that synhronously wait for AIO events. We assume, blithely, that
@@ -274,6 +314,9 @@ void *XrdOssAioWait(void *mySigarg)
    XrdSfsAio *aiop;
    int rc, numsig;
    ssize_t retval;
+#ifndef HAS_SIGWTI
+   extern int sigwaitinfo(const sigset_t *set, siginfo_t *info);
+#endif
 
 // Initialize the signal we will be waiting for
 //
@@ -296,7 +339,11 @@ void *XrdOssAioWait(void *mySigarg)
            continue;
           }
 
+#ifdef __macos__
+       aiop = (XrdSfsAio *)myInfo.si_value.sigval_ptr;
+#else
        aiop = (XrdSfsAio *)myInfo.si_value.sival_ptr;
+#endif
 
        while ((rc = aio_error(&aiop->sfsAio)) == EINPROGRESS) {}
        retval = (ssize_t)aio_return(&aiop->sfsAio);
@@ -312,3 +359,79 @@ void *XrdOssAioWait(void *mySigarg)
 #endif
    return (void *)0;
 }
+ 
+#if defined( _POSIX_ASYNCHRONOUS_IO) && !defined(HAS_SIGWTI)
+/******************************************************************************/
+/*                           s i g w a i t i n f o                            */
+/******************************************************************************/
+  
+// Some platforms do not have sigwaitinfo() (e.g., MacOS). We provide for
+// emulation here. It's not as good as the kernel version but it works.
+//
+int sigwaitinfo(const sigset_t *set, siginfo_t *info)
+{
+   extern siginfo_t *XrdOssAioInfoR;
+   extern siginfo_t *XrdOssAioInfoW;
+
+// We will catch one signal at a time. So, the address of siginfo_t can be
+// placed in a global area where the signal handler will find it. We have one
+// two places where this can go.
+//
+   if (sigismember(set, OSS_AIO_READ_DONE)) XrdOssAioInfoR = info;
+      else XrdOssAioInfoW = info;
+
+// Now enable the signal handler by unblocking the signal. It will move the
+// siginfo into the waiting struct and we can return.
+//
+   sigsuspend(set);
+   return info->si_signo;
+}
+ 
+/******************************************************************************/
+/*                          X r d O s s A i o R S H                           */
+/******************************************************************************/
+  
+// XrdOssAioRSH handles AIO read signals. This handler was setup at AIO
+// initialization time but only when this platform does not have sigwaitinfo().
+//
+extern "C"
+{
+void XrdOssAioRSH(int signum, siginfo_t *info, void *ucontext)
+{
+   extern siginfo_t *XrdOssAioInfoR;
+
+// If we received a signal, it must have been for an AIO read and the read
+// signal thread enabled this signal. This means that a valid address exists
+// in the global read info pointer that we can now fill out.
+//
+   XrdOssAioInfoR->si_signo = info->si_signo;
+   XrdOssAioInfoR->si_errno = info->si_errno;
+   XrdOssAioInfoR->si_code  = info->si_code;
+   XrdOssAioInfoR->si_value = info->si_value;
+}
+}
+ 
+/******************************************************************************/
+/*                          X r d O s s A i o W S H                           */
+/******************************************************************************/
+  
+// XrdOssAioRSH handles AIO read signals. This handler was setup at AIO
+// initialization time but only when this platform does not have sigwaitinfo().
+//
+extern "C"
+{
+void XrdOssAioWSH(int signum, siginfo_t *info, void *ucontext)
+{
+   extern siginfo_t *XrdOssAioInfoW;
+
+// If we received a signal, it must have been for an AIO read and the read
+// signal thread enabled this signal. This means that a valid address exists
+// in the global read info pointer that we can now fill out.
+//
+   XrdOssAioInfoW->si_signo = info->si_signo;
+   XrdOssAioInfoW->si_errno = info->si_errno;
+   XrdOssAioInfoW->si_code  = info->si_code;
+   XrdOssAioInfoW->si_value = info->si_value;
+}
+}
+#endif
