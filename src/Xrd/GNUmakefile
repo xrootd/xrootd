@@ -91,7 +91,7 @@ $(OBJDIR)/XrdInet.o:    XrdInet.hh         XrdInet.cc   \
                         XrdOucError.hh     XrdOucLogger.hh  XrdOucTrace.hh \
                         XrdNet.hh          XrdNetOpts.hh    XrdNetPeer.hh
 	@echo Compiling XrdInet.cc
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInet.o XrdInet.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInet.o XrdInet.cc
 
 $(OBJDIR)/XrdInfo.o: XrdInfo.hh
 	@echo Compiling XrdInfo.cc 
