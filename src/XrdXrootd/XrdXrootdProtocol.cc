@@ -471,7 +471,7 @@ int XrdXrootdProtocol::getData(const char *dtype, char *buff, int blen)
 //
    rlen = Link->Recv(buff, blen, readWait);
    if (rlen  < 0)
-      if (rlen == -ENOMSG) return Link->setEtext("link read error");
+      if (rlen != -ENOMSG) return Link->setEtext("link read error");
          else return -1;
    if (rlen < blen)
       {myBuff = buff+rlen; myBlen = blen-rlen;
