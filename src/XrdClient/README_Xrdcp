@@ -18,5 +18,11 @@ Usage:
                                                                  
 
 An xrootd URL is an URL in the form handled by XrdClient, i.e.:
-
 root://host1[:port1][,host2[:port2]]..[,hostN[:portN]]//filepath
+
+The debug levels are as follows:
+ 0 - the default. Print nothing but the errors.
+ 1 - Prints relevant info about the behavior and the situations encountered
+ 2 - Prints request and response for every interaction with the server
+ 3 - Dump everything
+

@@ -232,12 +232,11 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
 	    }
 	 }
 	 else break;
-	 
+
+      pthread_cancel(myTID);
+      pthread_join(myTID, &thret);	 
 
    }
-
-   pthread_cancel(myTID);
-   pthread_join(myTID, &thret);
 
    xrddest->Close();
    cpnfo.XrdCli->Close();
@@ -312,12 +311,12 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	 }
 	 else break;
 	 
+   
       close(f);
+
+      pthread_cancel(myTID);
+      pthread_join(myTID, &thret);
    }
-
-
-   pthread_cancel(myTID);
-   pthread_join(myTID, &thret);
 
    cpnfo.XrdCli->Close();
    delete cpnfo.XrdCli;
