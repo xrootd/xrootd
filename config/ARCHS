@@ -24,6 +24,7 @@ i386_linux24    icc       all    for Linux kernel 2.4.x Intel icc
 i386_linux26    icc       all    for Linux kernel 2.6.x Intel icc
 i386_linux      icc       all    for Linux Intel icc
 i386_rhel30     gcc       all    for Linux kernel 2.4.x Enterprise Release
+i386_linux      gcc       all    for AMD Athlon Linux gcc 3.x, glibc
 x86_64_linux_22 gccx8664  all    for AMD Opteron 64 Linux kernel 2.2.x gcc 3.x, glibc
 x86_64_linux_24 gccx8664  all    for AMD Opteron 64 Linux kernel 2.4.x gcc 3.x, glibc
 x86_64_linux_26 gccx8664  all    for AMD Opteron 64 Linux kernel 2.6.x gcc 3.x, glibc

@@ -378,6 +378,7 @@ guess_architecture () {
       freebsd*:*:*)       arch=FreeBSD         ; platform=fbsd;  ccflv=gcc;;
       hp-ux:ia64:*)       arch=hpuxia64        ; platform=hpux;  ccflv=aCC;;
       hurd*:*:*)          arch=hurddeb         ; platform=linux; ccflv=gcc;;
+      linux:athlon:*)     arch=i386_linux      ; platform=linux; ccflv=gcc;;
       linux:ia64:2.2*)    arch=ia64_linux22    ; platform=linux; ccflv=icc;;
       linux:ia64:2.4*)    arch=ia64_linux24    ; platform=linux; ccflv=icc;;
       linux:ia64:2.6*)    arch=ia64_linux26    ; platform=linux; ccflv=icc;;
