@@ -753,7 +753,7 @@ void XrdLinkScan::idleScan()
 //
    XrdLink::LTMutex.Lock();
    ltlast = XrdLink::LTLast;
-   XrdLink::LTMutex.Lock();
+   XrdLink::LTMutex.UnLock();
 
 // Scan across all links looking for idle links. Links are never deallocated
 // so we don't need any special kind of lock for these
