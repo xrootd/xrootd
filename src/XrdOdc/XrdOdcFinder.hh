@@ -156,6 +156,7 @@ int            myManCount;
 XrdOucMutex    myData;
 int            ConWait;
 int            RepDelay;
+int            RepNone;
 int            RepWait;
 unsigned char  SMode;
 };
@@ -169,6 +170,8 @@ class XrdOucStream;
 class XrdOdcFinderTRG : public XrdOdcFinder
 {
 public:
+        void   Added(const char *path);
+
         int    Configure(char *cfn);
 
         int    Forward(XrdOucErrInfo &Resp, const char *cmd,

@@ -31,7 +31,8 @@ extern XrdOucTrace OdcTrace;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOdcManager::XrdOdcManager(XrdOucError *erp, char *host, int port, int cw)
+XrdOdcManager::XrdOdcManager(XrdOucError *erp, char *host, int port, 
+                             int cw, int nr)
 {
    char *dot;
 
@@ -46,6 +47,8 @@ XrdOdcManager::XrdOdcManager(XrdOucError *erp, char *host, int port, int cw)
    Link    = 0;
    Active  = 0;
    mytid   = 0;
+   Silent  = 0;
+   nrMax   = nr;
    Network = new XrdNetWork(eDest, 0);
 
 // Compute dally value
@@ -159,6 +162,24 @@ void *XrdOdcManager::Start()
 }
 
 /******************************************************************************/
+/*                               w h a t s U p                                */
+/******************************************************************************/
+  
+void XrdOdcManager::whatsUp()
+{
+
+// The olb did not respond. Increase silent count and see if restart is needed
+//
+   myData.Lock();
+   Silent++;
+   if (Silent > nrMax)
+      {Active = 0;
+       if (Link) Link->Close();
+       myData.UnLock();
+      }
+}
+
+/******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
@@ -220,6 +241,7 @@ char *XrdOdcManager::Receive(int &msgid)
    char *lp, *tp, *rest;
    if ((lp=Link->GetLine()) && *lp)
       {DEBUG("Server: Received from " <<Link->Name() <<": " <<lp);
+       Silent = 0;  // Setting Silent w/o lock may cause rare connection bounce
        if ((tp=Link->GetToken(&rest)))
           {errno = 0;
            msgid  = (int)strtol(tp, (char **)NULL, 10);

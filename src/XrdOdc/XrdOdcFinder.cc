@@ -520,6 +520,7 @@ int XrdOdcFinderRMT::Configure(char *cfn)
 //
    OLBPath    = config.OLBPath;
    RepDelay   = config.RepDelay;
+   RepNone    = config.RepNone;
    RepWait    = config.RepWait;
    ConWait    = config.ConWait;
    if (myPersona == XrdOdcFinder::amProxy)
@@ -600,9 +601,10 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 
 // Compute mode
 //
-   if (flags & (O_CREAT | O_WRONLY | O_RDWR)) ptype = 'w';
-      else if (flags & O_NDELAY) ptype = 'x';
-              else ptype = 'r';
+   if (flags & O_CREAT) ptype = 'c';
+      else if (flags & (O_WRONLY | O_RDWR)) ptype = 'w';
+              else if (flags & O_NDELAY) ptype = 'x';
+                      else ptype = 'r';
    stype = (flags & O_EXCL ? 's' : ' ');
 
 // Select the right manager for this request
@@ -624,6 +626,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
        val = retc = RepDelay;
        tinfo = (char *)" No response from ";
        msg = Manp->Name();
+       Manp->whatsUp();
       }
       else {msg = (char *)Resp.getErrText(retc);
                  if (retc == -EREMOTE)
@@ -830,7 +833,7 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
 //
    tp = myManList;
    while(tp && i < XRDODCMAXMAN)
-        {mp = new XrdOdcManager(&OdcEDest, tp->text, tp->val, ConWait);
+        {mp = new XrdOdcManager(&OdcEDest, tp->text, tp->val, ConWait, RepNone);
          myManTable[i] = mp;
          if (myManagers) mp->setNext(myManagers);
             else firstone = mp;
@@ -893,6 +896,29 @@ XrdOdcFinderTRG::~XrdOdcFinderTRG()
 {
   if (OLBp)  delete OLBp;
   if (Login) free(Login);
+}
+  
+/******************************************************************************/
+/*                                 A d d e d                                  */
+/******************************************************************************/
+  
+void XrdOdcFinderTRG::Added(const char *path)
+{
+   char *data[3];
+   int   dlen[3];
+
+// Set up to notify the olb domain that a file has been removed
+//
+   data[0] = (char *)"0 newfn "; dlen[0] = 8;
+   data[1] = (char *)path;       dlen[1] = strlen(path);
+   data[2] = 0;                  dlen[2] = 0;
+
+// Now send the notification
+//
+   myData.Lock();
+   if (Active && OLBp->Put((const char **)data, (const int *)dlen))
+      {OLBp->Close(); Active = 0;}
+   myData.UnLock();
 }
 
 /******************************************************************************/

@@ -43,7 +43,10 @@ void          *Start();
 
 void           setNext(XrdOdcManager *np) {Next = np;}
 
-               XrdOdcManager(XrdOucError *erp, char *host, int port, int cw);
+void           whatsUp();
+
+               XrdOdcManager(XrdOucError *erp, char *host, int port, 
+                             int cw, int nr);
               ~XrdOdcManager();
 
 private:
@@ -62,5 +65,7 @@ int            Port;
 pthread_t      mytid;
 int            dally;
 int            Active;
+int            Silent;
+int            nrMax;
 };
 #endif
