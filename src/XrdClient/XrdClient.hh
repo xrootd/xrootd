@@ -41,7 +41,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 #include "XrdClientAbs.hh"
-#include <string>
+#include "XrdClientString.hh"
 #include "XrdClientConn.hh"
 
 

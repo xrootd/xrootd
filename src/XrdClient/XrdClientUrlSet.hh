@@ -34,26 +34,26 @@ typedef XrdClientVector<XrdClientUrlInfo*> UrlArray;
 class XrdClientUrlSet {
  private:
    UrlArray fUrlArray, fTmpUrlArray;
-   string fPathName;
+   XrdClientString fPathName;
    
    bool fIsValid;
 
    unsigned int fSeed;
    double GetRandom(int seed = 0);
 
-   void CheckPort(string &machine);
+   void CheckPort(XrdClientString &machine);
 
    // Takes a sequence of hostname and resolves it into a vector of UrlInfo
-   void ConvertDNSAliases(UrlArray& urls, string list, string fname);
-   void ConvertSingleDNSAlias(UrlArray& urls, string hostname, string fname);
+   void ConvertDNSAliases(UrlArray& urls, XrdClientString list, XrdClientString fname);
+   void ConvertSingleDNSAlias(UrlArray& urls, XrdClientString hostname, XrdClientString fname);
 
  public:
    XrdClientUrlSet(XrdClientUrlInfo);
    ~XrdClientUrlSet();
 
    // Returns the final resolved list of servers
-   string GetServers() {
-      string s;
+   XrdClientString GetServers() {
+      XrdClientString s;
 
       for ( int i = 0; i < fUrlArray.GetSize(); i++ ) {
 	 s += fUrlArray[i]->Host;
@@ -77,7 +77,7 @@ class XrdClientUrlSet {
    int Size() { return fUrlArray.GetSize(); }
 
    // Returns the pathfile extracted from the CTOR's argument
-   string GetFile() { return fPathName; }
+   XrdClientString GetFile() { return fPathName; }
 
    bool IsValid() { return fIsValid; }    // Return kFALSE if the CTOR's argument is malformed
 

@@ -21,7 +21,7 @@ int XrdClientString::BufRealloc(int newsize) {
    int sz, blks;
    void *newdata;
 
-   if (newsize <= 0) return 0;
+   if (newsize < 0) return 1;
 
    blks = (newsize+1) / 256;
 
@@ -41,25 +41,18 @@ int XrdClientString::BufRealloc(int newsize) {
    return 1;
 }
 
-int XrdClientString::Assign(char *str) {
-   int sz = strlen(str);
 
-   if ( !BufRealloc(sz) ) {
-      size = sz;
-      strcpy(data, str);
-      return 0;
-   }
-   
-   return 1;
 
-}
-
-int XrdClientString::Add(char *str) {
+int XrdClientString::Add(char const *str) {
    int sz = strlen(str);
 
    if ( !BufRealloc(sz+size) ) {
+      if (size)
+	 strcat(data, str);
+      else
+	 strcpy(data, str);
+
       size += sz;
-      strcat(data, str);
       return 0;
    }
    return 1;
@@ -70,19 +63,31 @@ int XrdClientString::Find(char *str, int start) {
    char *p = strstr(data+start, str);
 
    if (p) return (p-data);
-   else return 0;
+   else return STR_NPOS;
+}
+
+int XrdClientString::RFind(char *str, int start) {
+   if (start == STR_NPOS) start = size-1;
+
+   for (int i = start; i >= 0; i--) {
+      int p = Find(str, i);
+      
+      if (p != STR_NPOS) return p;
+   }
+   
+   return STR_NPOS;
+
 }
 
 
-
-void XrdClientString::DeleteFromStart(int howmany) {
+void XrdClientString::EraseFromStart(int howmany) {
    size -= howmany;
    memmove(data, data+howmany, size+1);
       
    BufRealloc(size+1);
 }
 
-void XrdClientString::DeleteFromEnd(int howmany) {
+void XrdClientString::EraseFromEnd(int howmany) {
    size -= howmany;
    BufRealloc(size+1);
 
@@ -90,16 +95,30 @@ void XrdClientString::DeleteFromEnd(int howmany) {
 }
 
 // Returns a substring left inclusive -> right exclusive
-XrdClientString &XrdClientString::Substr(int start, int end) {
+XrdClientString XrdClientString::Substr(int start, int end) {
    if (end == STR_NPOS) end = size;
 
    char *buf = (char *)malloc(end-start+1);
    strncpy(buf, data+start, end-start);
    buf[end-start] = '\0';
       
-   XrdClientString *s = new XrdClientString(buf);
+   XrdClientString s(buf);
       
    free(buf);
       
-   return(*s);
+   return(s);
+}
+
+
+// Operator << is useful to print a string into a stream
+ostream &operator<< (ostream &os, const XrdClientString &obj) {
+   os << ((XrdClientString)obj).c_str();
+   return os;
+}
+
+XrdClientString const operator+(const char *str1, const XrdClientString str2) {
+   XrdClientString res((char *)str1);
+
+   res.Add((XrdClientString &)str2);
+   return res;
 }

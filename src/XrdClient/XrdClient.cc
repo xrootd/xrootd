@@ -20,7 +20,6 @@
 #include "XrdClientEnv.hh"
 
 #include <stdio.h>
-#include <string>
 #include <unistd.h>
 
 #include <sys/types.h>
@@ -45,7 +44,7 @@ XrdClient::XrdClient(const char *url) {
 
    sigignore(SIGPIPE);
 
-   fInitialUrl.TakeUrl(url);
+   fInitialUrl.TakeUrl((char *)url);
 
    fConnModule = new XrdClientConn();
 
@@ -386,7 +385,7 @@ bool XrdClient::TryOpen(kXR_int16 mode, kXR_int16 options) {
    // specifyng the supposed failing server as opaque info
    if (fConnModule->GetLBSUrl() &&
        (fConnModule->GetCurrentUrl().Host != fConnModule->GetLBSUrl()->Host) ) {
-      string opinfo;
+      XrdClientString opinfo;
 
       opinfo = "&tried=" + fConnModule->GetCurrentUrl().Host;
 
@@ -412,7 +411,7 @@ bool XrdClient::LowOpen(const char *file, kXR_int16 mode, kXR_int16 options,
 			char *additionalquery) {
 
    // Low level Open method
-   string finalfilename(file);
+   XrdClientString finalfilename(file);
 
    if (additionalquery)
       finalfilename += additionalquery;
@@ -436,7 +435,7 @@ bool XrdClient::LowOpen(const char *file, kXR_int16 mode, kXR_int16 options,
 
    // Set the length of the data (in this case data describes the path and 
    // file name)
-   openFileRequest.open.dlen = finalfilename.size();
+   openFileRequest.open.dlen = finalfilename.GetSize();
 
    // Send request to server and receive response
    bool resp = fConnModule->SendGenCommand(&openFileRequest,
@@ -481,7 +480,7 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
    memset(statFileRequest.stat.reserved, 0, 
           sizeof(statFileRequest.stat.reserved));
 
-   statFileRequest.stat.dlen = fInitialUrl.File.size();
+   statFileRequest.stat.dlen = fInitialUrl.File.GetSize();
    
    char fStats[2048];
    

@@ -32,16 +32,15 @@
 #include <unistd.h>     // needed by getpid() and getuid()
 #include <string.h>     // needed by memcpy() and strcspn()
 #include <ctype.h>
-#include <string>
 
 
 //_____________________________________________________________________________
-void ParseRedir(XrdClientMessage* xmsg, int &port, string &host, string &token)
+void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdClientString &token)
 {
    // Small utility function... we want to parse the content
    // of a redir response from the server.
 
-   unsigned int pos;
+   int pos;
 
    // Remember... an instance of XrdClientMessage automatically 0-terminates the
    // data if present
@@ -54,9 +53,9 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, string &host, string &token)
 
       host = redirdata->host;
       token = "";
-      if ( (pos = host.find('?')) != string::npos ) {
-         token = host.substr(pos+1, string::npos);
-         host.erase(pos);
+      if ( (pos = host.Find("?")) != STR_NPOS ) {
+         token = host.Substr(pos+1);
+         host.EraseFromStart(pos);
       }
       port = ntohl(redirdata->port);
    }
@@ -77,7 +76,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
       Error("XrdClientConn",
 	    "Error resolving this host's domain name." );
 
-   string goodDomainsRE = fClientHostDomain + "|127.0.0.1" + "|*localdomain|*infn.it";
+   XrdClientString goodDomainsRE = fClientHostDomain + "|127.0.0.1" + "|*localdomain|*infn.it";
 
    EnvPutString(NAME_REDIRDOMAINALLOW_RE,
 		(char *)goodDomainsRE.c_str());
@@ -108,6 +107,8 @@ XrdClientConn::~XrdClientConn()
    // Destructor
    if (fMainReadCache && (DebugLevel() >= XrdClientDebug::kUSERDEBUG))
       fMainReadCache->PrintPerfCounters();
+
+   if (fLBSUrl) delete fLBSUrl;
 
    delete fMainReadCache;
 }
@@ -364,12 +365,12 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 }
 
 //_____________________________________________________________________________
-bool XrdClientConn::CheckHostDomain(string hostToCheck, string allow, string deny)
+bool XrdClientConn::CheckHostDomain(XrdClientString hostToCheck, XrdClientString allow, XrdClientString deny)
 {
    // Checks domain matching
 
-   string domain;
-   string reAllow, reDeny;
+   XrdClientString domain;
+   XrdClientString reAllow, reDeny;
 
    // Get the domain for the url to check
    domain = GetDomainToMatch(hostToCheck);
@@ -381,7 +382,7 @@ bool XrdClientConn::CheckHostDomain(string hostToCheck, string allow, string den
 	domain << "]" );
 
    // If we are unable to get the domain for the url to check --> access denied to it
-   if (!domain.size()) {
+   if (!domain.GetSize()) {
       Error("CheckHostDomain",
             "Error resolving domain name for " << hostToCheck <<
 	    ". Denying access.");
@@ -1059,22 +1060,22 @@ bool XrdClientConn::DoLogin()
    reqhdr.login.pid = getpid();
 
    // Get username from Url
-   string User = fUrl.User;
-   if (!User.size()) {
+   XrdClientString User = fUrl.User;
+   if (!User.GetSize()) {
       // Use local username, if not specified
       struct passwd *u = getpwuid(getuid());
       if (u >= 0)
          User = u->pw_name;
 
    }
-   if (User.size())
+   if (User.GetSize())
       strcpy( (char *)reqhdr.login.username, User.c_str() );
    else
       strcpy( (char *)reqhdr.login.username, "????" );
 
    // set the token with the value provided by a previous 
    // redirection (if any)
-   reqhdr.header.dlen = fRedirInternalToken.size(); 
+   reqhdr.header.dlen = fRedirInternalToken.GetSize(); 
   
    // We call SendGenCommand, the function devoted to sending commands. 
    Info(XrdClientDebug::kHIDEBUG,
@@ -1116,7 +1117,7 @@ bool XrdClientConn::DoLogin()
 }
 
 //_____________________________________________________________________________
-bool XrdClientConn::DoAuthentication(string username, string plist)
+bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString plist)
 {
   // Negotiate authentication with the remote server. Tries in turn
   // all available protocols proposed by the server (in plist), 
@@ -1128,7 +1129,7 @@ bool XrdClientConn::DoAuthentication(string username, string plist)
   Info(XrdClientDebug::kHIDEBUG,
        "DoAuthentication", "remote host: " << fUrl.Host <<
        " list of available protocols: " << plist << "-" <<
-       plist.size() );
+       plist.GetSize() );
  
   // Prepare host/IP information of the remote xrootd. This is required
   // for the authentication.
@@ -1167,16 +1168,16 @@ bool XrdClientConn::DoAuthentication(string username, string plist)
   // Now try in turn the available methods (first preferred)
   //
   bool resp = FALSE;
-  string nxtoken;
-  string tkn;
+  XrdClientString nxtoken;
+  XrdClientString tkn;
   while (!resp) {
 
-     string token = tokzer->GetToken();;
+     XrdClientString token = tokzer->GetToken();;
 
      // Assign the security token that we have received at the login request
      //
      secToken.buffer = (char *)token.c_str();   
-     secToken.size   = token.size();
+     secToken.size   = token.GetSize();
      
      // Retrieve the security protocol context from the xrootd server
      //
@@ -1190,22 +1191,22 @@ bool XrdClientConn::DoAuthentication(string username, string plist)
      }
 
      // Extract the protocol name (identifier)
-     string protname = "";
-     if (token.find("&P=") != 0) {
+     XrdClientString protname = "";
+     if (token.Find("&P=") != 0) {
         if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
            Info(XrdClientDebug::kHIDEBUG,
 		   "DoAuthentication",
                    "Unable to get protocol name (token: " << token << ").");
      } else {
         protname = token;
-	protname.erase(0, 3);
+	protname.EraseFromStart(3);
         //protname.ReplaceAll("&P=","");
-        protname.erase(protname.find(","));
+        protname.EraseFromStart(protname.Find(",")+1);
      }
      
      // Now we add the username and the hostname to the token, because
      // they may be needed to get the credentials
-     secToken.size   = token.size() + username.size() + fUrl.Host.size() + 2;
+     secToken.size   = token.GetSize() + username.GetSize() + fUrl.Host.GetSize() + 2;
      char *etoken    = new char[secToken.size+5];
 
      snprintf(etoken,secToken.size+5,
@@ -1240,7 +1241,7 @@ bool XrdClientConn::DoAuthentication(string username, string plist)
      SetSID(reqhdr.header.streamid);
      reqhdr.header.requestid = kXR_auth;
      memset(reqhdr.auth.reserved, 0, 12);
-     memcpy(reqhdr.auth.credtype, protname.c_str(), protname.size());
+     memcpy(reqhdr.auth.credtype, protname.c_str(), protname.GetSize());
      
      struct ServerResponseHeader reshdr;
      reshdr.status = kXR_authmore;
@@ -1303,8 +1304,8 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
    // Handle errors from server
 
    int newport; 	
-   string newhost; 	
-   string token;
+   XrdClientString newhost; 	
+   XrdClientString token;
   
    // Close the log connection at this point the fLogConnID is no longer valid.
    // On read/write error the physical channel may be not OK, so it's a good
@@ -1347,7 +1348,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
          // the physical connection has been closed;
          // then we must go back to the load balancer
          // if there is any
-         if ( fLBSUrl && (fLBSUrl->GetUrl().size() > 0) ) {
+         if ( fLBSUrl && (fLBSUrl->GetUrl().GetSize() > 0) ) {
             newhost = fLBSUrl->Host;
             newport = fLBSUrl->Port;
          }
@@ -1358,7 +1359,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
                   " with server [" << fUrl.Host << ":" << fUrl.Port <<
 		  "]. Rebouncing here.");
 
-	    if (fUrl.HostAddr.size())  newhost = fUrl.HostAddr;
+	    if (fUrl.HostAddr.GetSize())  newhost = fUrl.HostAddr;
 	    else
 	       newhost = fUrl.Host;
             newport = fUrl.Port;
@@ -1368,7 +1369,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
          // No comm errors, but we got an explicit redir message      
          // If we did not meet a dlb before, we consider this as a dlb
          // to return to after an error
-         if (!fLBSUrl || (fLBSUrl->GetUrl().size() == 0) ) {
+         if (!fLBSUrl || (fLBSUrl->GetUrl().GetSize() == 0) ) {
 
 	    Info(XrdClientDebug::kHIDEBUG,
 		 "HandleServerError", 
@@ -1398,7 +1399,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 
       CheckPort(newport);
 
-      if ((newhost.size() > 0) && newport) {
+      if ((newhost.GetSize() > 0) && newport) {
 	 XrdClientUrlInfo NewUrl(fUrl.GetUrl());
 
          if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
@@ -1533,14 +1534,14 @@ XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo newdest)
 }
 
 //_____________________________________________________________________________
-string XrdClientConn::GetDomainToMatch(string hostname) {
+XrdClientString XrdClientConn::GetDomainToMatch(XrdClientString hostname) {
    // Return net-domain of host hostname in 's'.
    // If the host is unknown in the DNS world but it's a
    //  valid inet address, then that address is returned, in order
    //  to be matched later for access granting
 
    char *fullname;
-   string res;
+   XrdClientString res;
 
    // Let's look up the hostname
    // It may also be a w.x.y.z type address.
@@ -1559,6 +1560,8 @@ string XrdClientConn::GetDomainToMatch(string hostname) {
       if (res == "")
 	 res = hostname;
 
+      free(fullname);
+
    } else {
 
       Info(XrdClientDebug::kHIDEBUG,
@@ -1574,20 +1577,20 @@ string XrdClientConn::GetDomainToMatch(string hostname) {
 }
 
 //_____________________________________________________________________________
-string XrdClientConn::ParseDomainFromHostname(string hostname) {
+XrdClientString XrdClientConn::ParseDomainFromHostname(XrdClientString hostname) {
 
-   string res;
-   unsigned int pos;
+   XrdClientString res;
+   int pos;
 
    res = hostname;
 
    // Isolate domain
-   pos = res.find('.');
+   pos = res.Find(".");
 
-   if (pos == string::npos)
+   if (pos == STR_NPOS)
       res = "";
    else
-      res.erase(0, pos+1);
+      res.EraseFromStart(pos+1);
 
    return res;
 }

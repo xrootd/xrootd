@@ -62,18 +62,18 @@ public:
       return fMainReadCache->WillFit(bytes);
    }
 
-   bool            CheckHostDomain(string hostToCheck, string allow, 
-                                                         string deny);
+   bool            CheckHostDomain(XrdClientString hostToCheck, XrdClientString allow, 
+                                                         XrdClientString deny);
    short           Connect(XrdClientUrlInfo Host2Conn);
    void            Disconnect(bool ForcePhysicalDisc);
    bool            GetAccessToSrv();
-   string          GetClientHostDomain() const { return fClientHostDomain; }
+   XrdClientString GetClientHostDomain() { return fClientHostDomain; }
    bool            GetDataFromCache(const void *buffer, long long begin_offs,
 				    long long end_offs, bool PerfCalc);
    int             GetLogConnID() const { return fLogConnID; }
 
-   XrdClientUrlInfo      *GetLBSUrl() const { return fLBSUrl; }
-   XrdClientUrlInfo      GetCurrentUrl() const { return fUrl; }
+   XrdClientUrlInfo      *GetLBSUrl() { return fLBSUrl; }
+   XrdClientUrlInfo      GetCurrentUrl() { return fUrl; }
 
    XErrorCode      GetOpenError() const { return fOpenError; }
    XReqErrorType   GoToAnotherServer(XrdClientUrlInfo newdest);
@@ -98,7 +98,7 @@ public:
 
 private:
 
-   string           fClientHostDomain; // Save the client's domain name
+   XrdClientString  fClientHostDomain; // Save the client's domain name
    bool             fConnected;
    short            fGlobalRedirCnt;    // Number of redirections
    time_t           fGlobalRedirLastUpdateTimestamp; // Timestamp of last redirection
@@ -111,7 +111,7 @@ private:
    XrdClientAbs *fRedirHandler;     // Pointer to a class inheriting from
                                          // TXAbsNetCommon providing methods
                                          // to handle the redir at higher level
-   string           fRedirInternalToken; // Token returned by the server when
+   XrdClientString  fRedirInternalToken; // Token returned by the server when
                                            // redirecting
    long             fServerProto;      // The server protocol
    ServerType       fServerType;       // Server type as returned by doHandShake() 
@@ -125,17 +125,17 @@ private:
    XrdClientMessage       *ClientServerCmd(ClientRequest *req, const void *reqMoreData,
 				     void **answMoreDataAllocated, void *answMoreData,
 				     bool HasToAlloc);
-   bool             DoAuthentication(string usr, string list);
+   bool             DoAuthentication(XrdClientString usr, XrdClientString list);
    ServerType       DoHandShake(short log);
    bool             DoLogin();
 
-   string           GetDomainToMatch(string hostname);
+   XrdClientString  GetDomainToMatch(XrdClientString hostname);
 
    ESrvErrorHandlerRetval HandleServerError(XReqErrorType &, XrdClientMessage *,
                                             ClientRequest *);
    bool             MatchStreamid(struct ServerResponseHeader *ServerResponse);
 
-   string           ParseDomainFromHostname(string hostname);
+   XrdClientString  ParseDomainFromHostname(XrdClientString hostname);
 
    XrdClientMessage       *ReadPartialAnswer(XReqErrorType &, size_t &, 
 				       ClientRequest *, bool, void**,

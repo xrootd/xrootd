@@ -26,7 +26,7 @@ XrdClientUrlInfo::XrdClientUrlInfo() {
 
 
 //_____________________________________________________________________________
-XrdClientUrlInfo::XrdClientUrlInfo(string url) {
+XrdClientUrlInfo::XrdClientUrlInfo(XrdClientString url) {
    TakeUrl(url);
 }
 
@@ -45,64 +45,64 @@ void XrdClientUrlInfo::Clear() {
 }
 
 //_____________________________________________________________________________
-void XrdClientUrlInfo::TakeUrl(string url) {
+void XrdClientUrlInfo::TakeUrl(XrdClientString url) {
    // Parse url character string and split in its different subcomponents.
    // Use IsValid() to check if URL is legal.
    //
    // url: [proto://][user[:passwd]@]host[:port]/file
    //
 
-   unsigned int p;
-   string u(url);
+   int p;
+   XrdClientString u(url);
 
    Clear();
 
-   if (!u.size()) return;
+   if (!u.GetSize()) return;
 
    // Get protocol
-   if ( (p = u.find("://")) != string::npos) {
-      Proto = u.substr(0, p);
-      u = u.substr(p+3, string::npos);
+   if ( (p = u.Find("://")) != STR_NPOS) {
+      Proto = u.Substr(0, p);
+      u = u.Substr(p+3);
    }
 
-   if (!u.size()) {
+   if (!u.GetSize()) {
       Clear();
       return;
    }
 
    // Get user/pwd
-   if ( (p = u.find("@")) != string::npos) {
-      string tmp;
-      unsigned int p2;
+   if ( (p = u.Find("@")) != STR_NPOS) {
+      XrdClientString tmp;
+      int p2;
 
-      tmp = u.substr(0, p);
-      if ( (p2 = u.find(":")) != string::npos ) {
-	 User = tmp.substr(0, p2);
-	 Passwd = tmp.substr(p2+1, string::npos);
+      tmp = u.Substr(0, p);
+      if ( (p2 = u.Find(":")) != STR_NPOS ) {
+	 User = tmp.Substr(0, p2);
+	 Passwd = tmp.Substr(p2+1, STR_NPOS);
       }
       else
 	 User = tmp;
 
       
-      u = u.substr(p+1, string::npos);
+      u = u.Substr(p+1);
    }
 
-   if (!u.size()) {
+   if (!u.GetSize()) {
       Clear();
       Port = -1;
       return;
    }
 
    // Get host:port
-   p = u.find("/");
-   HostWPort = u.substr(0, p);
+   p = u.Find("/");
+   HostWPort = u.Substr(0, p);
 
    {
-      unsigned int p2;
+      int p2;
 
-      if ( (p2 = HostWPort.find(":")) != string::npos ) {	 
-	 Host = HostWPort.substr(0, p2);
-	 Port = atoi(HostWPort.substr(p2+1, string::npos).c_str());
+      if ( (p2 = HostWPort.Find(":")) != STR_NPOS ) {	 
+	 Host = HostWPort.Substr(0, p2);
+	 Port = atoi(HostWPort.Substr(p2+1, STR_NPOS).c_str());
       }
       else {
 	 Host = HostWPort;
@@ -110,8 +110,8 @@ void XrdClientUrlInfo::TakeUrl(string url) {
       }
 
       
-      if (p != string::npos)
-	 u = u.substr(p+1, string::npos);
+      if (p != STR_NPOS)
+	 u = u.Substr(p+1, STR_NPOS);
       else return;
    }
 
@@ -121,8 +121,8 @@ void XrdClientUrlInfo::TakeUrl(string url) {
 }
 
 //_____________________________________________________________________________
-string XrdClientUrlInfo::GetUrl() {
-   string s;
+XrdClientString XrdClientUrlInfo::GetUrl() {
+   XrdClientString s;
 
    if (Proto != "")
       s = Proto + "://";

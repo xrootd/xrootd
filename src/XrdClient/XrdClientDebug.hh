@@ -17,7 +17,6 @@
 #define XRC_DEBUG_H
 
 #include <iostream>
-#include <string>
 #include <sstream>
 #include "XrdClientConst.hh"
 #include "XrdClientMutexLocker.hh"

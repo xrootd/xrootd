@@ -15,7 +15,8 @@
 
 #include "XrdClientAbs.hh"
 #include "XrdClientDebug.hh"
-#include <string>
+#include "XrdClientString.hh"
+#include "XrdClientEnv.hh"
 
 
 //_____________________________________________________________________________
@@ -100,16 +101,12 @@ void XrdClientAbs::SetParm(const char *parm, int val)
    // XNet.ReadAheadSize    - The size of the read-ahead blocks. 
    //                                  0 for no read-ahead.
 
-   string parmName;
-   parmName = "Root.";
-   parmName += parm;
-
    if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
       Info(XrdClientDebug::kUSERDEBUG,
 	   "AbsNetCommon::SetParm",
-	   "Setting " << parmName << " to " << val);
+	   "Setting " << parm << " to " << val);
 
-   //   gEnv->SetValue(parmName.c_str(), val);
+   EnvPutInt((char *)parm, val);
 }
 
 //_____________________________________________________________________________
@@ -118,15 +115,12 @@ void XrdClientAbs::SetParm(const char *parm, double val)
    // Setting TXNetFile specific ROOT-env variables (see previous method
    // for details
 
-   string parmName;
-   parmName = "Root.";
-   parmName += parm;
-
    if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
       Info(XrdClientDebug::kUSERDEBUG,
 	   "TXAbsNetCommon::SetParm",
-	   "Setting " << parmName << " to " << val);
+	   "Setting " << parm << " to " << val);
 
-   //   gEnv->SetValue(parmName.Data(), val);
+   
+   //EnvPutString(parm, val);
 }
 

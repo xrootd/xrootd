@@ -18,11 +18,11 @@
 
 
 #include "XrdClientAbs.hh"
-#include <string>
+#include "XrdClientString.hh"
 #include "XrdClientConn.hh"
 #include "XrdClientVector.hh"
 
-typedef XrdClientVector<string> vecString;
+typedef XrdClientVector<XrdClientString> vecString;
 typedef XrdClientVector<bool> vecBool;
 
 

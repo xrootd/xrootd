@@ -16,30 +16,26 @@
 #ifndef _XRC_URLINFO_H
 #define _XRC_URLINFO_H
 
-#include <string>
-using namespace std;
-
-
-
+#include "XrdClientString.hh"
 
 // The information an url may contain
 // Plus utilities for parsing and rebuilding an url
 class XrdClientUrlInfo {
  public:
-   string Proto;
-   string Passwd;
-   string User;
-   string Host;
+   XrdClientString Proto;
+   XrdClientString Passwd;
+   XrdClientString User;
+   XrdClientString Host;
    int Port;
-   string HostAddr;
-   string HostWPort;
-   string File;
+   XrdClientString HostAddr;
+   XrdClientString HostWPort;
+   XrdClientString File;
 
    void Clear();
-   void TakeUrl(string url);
-   string GetUrl();
+   void TakeUrl(XrdClientString url);
+   XrdClientString GetUrl();
 
-   XrdClientUrlInfo(string url);
+   XrdClientUrlInfo(XrdClientString url);
    XrdClientUrlInfo();
 
    void SetAddrFromHost();

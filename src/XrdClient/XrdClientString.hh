@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <iostream>
 
+using namespace std;
 
 #define STR_NPOS -1
 
@@ -37,7 +38,7 @@ class XrdClientString {
  public:
 
    // Returns a c string
-   char *c_str() {
+   char const *c_str() {
       return data;
    }
 
@@ -49,21 +50,46 @@ class XrdClientString {
       Init();
       Assign(str);
    }
-   XrdClientString(XrdClientString &str) {
+   XrdClientString(const char *str) {
       Init();
-      Assign(str);
+      Assign((char *)str);
+   }
+   XrdClientString(const XrdClientString &str) {
+      Init();
+      Assign((XrdClientString &)str);
    }
 
    ~XrdClientString();
 
    // Assigns a string to this object
-   int Assign(char *str);
+   int Assign(char *str) {
+      int sz = strlen(str);
+      
+      if ( !BufRealloc(sz) ) {
+	 size = sz;
+	 strcpy(data, str);
+	 return 0;
+      }
+      
+      return 1;
+      
+   }
+
    int Assign(XrdClientString &str) {
-      return Assign(str.c_str());
+      int sz = strlen((char *)str.c_str());
+
+      if ( !BufRealloc(sz) ) {
+	 size = sz;
+	 strcpy(data, str.c_str());
+	 return 0;
+      }
+      
+      return 1;
+      
    }
 
    // Concatenates a string to this object
-   int Add(char *str);
+   int Add(char const *str);
    int Add(XrdClientString &str) {
       return Add(str.c_str());
    }
@@ -85,26 +111,47 @@ class XrdClientString {
       return Find(data, start);
    }
 
+   int RFind(char *str, int start = STR_NPOS);
+   int RFind(XrdClientString &str, int start = STR_NPOS) {
+      return RFind((char *)str.c_str(), start);
+   }
+
    bool BeginsWith(char *str) {
       return ( Find(str) == 0 );
    }
    bool BeginsWith(XrdClientString &str) {
-      return ( Find(str.c_str()) == 0 );
+      return ( Find((char *)str.c_str()) == 0 );
+   }
+
+   bool EndsWith(char *str) {
+      int sz = strlen(str);
+
+      return ( !strcmp(data+size-sz, str) );
+   }
+   bool EndsWith(XrdClientString &str) {
+      return ( EndsWith((char *)str.c_str()) );
    }
 
    // To delete parts of this string
-   void DeleteFromStart(int howmany);
-   void DeleteFromEnd(int howmany);
+   void EraseFromStart(int howmany);
+   void EraseFromEnd(int howmany);
+   void EraseToEnd(int firsttoerase) {
+      EraseFromEnd(size-firsttoerase);
+   }
+
+   int GetSize() {
+      return size;
+   }
 
    // Returns a substring left inclusive -> right exclusive
-   XrdClientString &Substr(int start=0, int end=STR_NPOS);
+   XrdClientString Substr(int start=0, int end=STR_NPOS);
 
    // Assignment operator overloading
-   XrdClientString& operator=(const char *str) {
+   XrdClientString operator=(const char *str) {
       Assign((char *)str);
       return *this;
    }
-   XrdClientString& operator=(XrdClientString &str) {
+   XrdClientString operator=(XrdClientString str) {
       Assign(str);
       return *this;
    }
@@ -114,9 +161,34 @@ class XrdClientString {
       Add((char *)str);
       return *this;
    }
-   XrdClientString& operator+=(XrdClientString &str) {
+   //   XrdClientString& operator+=(XrdClientString &str) {
+   //   Add(str);
+   //   return *this;
+   //}
+   XrdClientString& operator+=(XrdClientString str) {
       Add(str);
       return *this;
+   }
+   XrdClientString& operator+=(int numb) {
+      char buf[20];
+
+      sprintf(buf, "%d", numb);
+      Add(buf);
+      return *this;
+   }
+
+   XrdClientString operator+(const char *str) {
+      XrdClientString res((char *)c_str());
+
+      res.Add((char *)str);
+      return res;
+   }
+   XrdClientString operator+(XrdClientString &str) {
+      XrdClientString res((char *)c_str());
+
+      res.Add(str);
+      return res;
+
    }
 
    // Test for equalness
@@ -126,6 +198,14 @@ class XrdClientString {
    bool operator==(const char *str) {
       return !strcmp(data, (char *)str);
    }
+   // Test for diversity
+   bool operator!=(XrdClientString &str) {
+      return strcmp(data, str.c_str());
+   }
+   bool operator!=(const char *str) {
+      return strcmp(data, (char *)str);
+   }
+
 
    // Char array-like behavior
    char &operator[] (int pos) {
@@ -135,9 +215,8 @@ class XrdClientString {
 };
 
 // Operator << is useful to print a string into a stream
-std::ostream &operator<< (std::ostream &os, XrdClientString &obj) {
-   os << obj.c_str();
-   return os;
-}
+ostream &operator<< (ostream &os, const XrdClientString &obj);
 
+
+XrdClientString const operator+(const char *str1, const XrdClientString str2);
 #endif

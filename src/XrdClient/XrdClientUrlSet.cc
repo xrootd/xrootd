@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientUrlSet                                                            // 
+// XrdClientUrlSet                                                      // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -75,9 +75,9 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
    // (the array is cyclic).
    // Using the method GetARandomUrl() the user can obtain a random TUrl from the array
 
-   unsigned int p;
+
    UrlArray urlArray;
-   string listOfMachines;
+   XrdClientString listOfMachines;
 
    if (!tmpurl.IsValid()) {
       fIsValid = FALSE;
@@ -99,7 +99,7 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
       return;
    }
 
-   if ( tmpurl.HostWPort.empty() ) {
+   if ( tmpurl.HostWPort.GetSize() == 0 ) {
       Error("TXUrl", "Malformed pathfile (HostWPort is invalid)" );
       fIsValid = FALSE;
       return;
@@ -107,12 +107,12 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
    listOfMachines = tmpurl.HostWPort;
 
    // remove trailing "," that would introduce a null host
-   while ( (p = listOfMachines.rfind(",")) == listOfMachines.size()-1 )
-      listOfMachines.erase(p, string::npos);
+   while ( (listOfMachines.EndsWith(",")) || (listOfMachines.EndsWith(" ")) )
+      listOfMachines.EraseFromEnd(1);
 
    // remove leading "," that would introduce a null host
-   while ( (p == listOfMachines.find(",")) == 0)
-      listOfMachines.erase(0,1);
+   while ( listOfMachines.BeginsWith(",") )
+      listOfMachines.EraseFromStart(1);
 
    Info( XrdClientDebug::kUSERDEBUG, "XrdClientUrlSet", "List of servers to connect to is [" <<
 	listOfMachines << "]" );
@@ -123,7 +123,7 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientUrlInfo tmpurl) : fIsValid(TRUE)
    fPathName = tmpurl.File;
 
    // If at this point we have a strange pathfile, then it's bad
-   if ( (fPathName.size() <= 1) || (fPathName == "/") ) {
+   if ( (fPathName.GetSize() <= 1) || (fPathName == "/") ) {
       Error("TXUrl", "Malformed pathfile " << fPathName);
       fIsValid = FALSE;
       return;
@@ -219,13 +219,13 @@ void XrdClientUrlSet::ShowUrls()
 }
 
 //_____________________________________________________________________________
-void XrdClientUrlSet::CheckPort(string &machine)
+void XrdClientUrlSet::CheckPort(XrdClientString &machine)
 {
    // Checks the validity of port in the given host[:port]
    // Eventually completes the port if specified in the services file
-   unsigned int p = machine.find(':');
+   int p = machine.Find(":");
 
-   if(p == string::npos) {
+   if(p == STR_NPOS) {
       // Port not specified
 
       Info(XrdClientDebug::kHIDEBUG, "CheckPort", 
@@ -253,13 +253,13 @@ void XrdClientUrlSet::CheckPort(string &machine)
    } else {
       // The port seems there
 
-      string tmp = machine.substr(p+1, string::npos);
+      XrdClientString tmp = machine.Substr(p+1, STR_NPOS);
 
       if(tmp == "")
 	 Error("checkPort","The specified tcp port is empty for " <<  machine)
       else {
 
-	 for(unsigned int i = 0; i <= tmp.size()-1; i++)
+	 for(int i = 0; i <= tmp.GetSize()-1; i++)
 	    if(!isdigit(tmp[i])) {
 	       Error("checkPort","The specified tcp port is not numeric for " <<
 		     machine);
@@ -270,17 +270,17 @@ void XrdClientUrlSet::CheckPort(string &machine)
 }
 
 //_____________________________________________________________________________
-void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname, 
-                                                    string fname)
+void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, XrdClientString hostname, 
+                                                    XrdClientString fname)
 {
    // Converts a single host[:port] into an array of urls
    // The new urls are appended to the given UrlArray
 
 
    bool specifiedPort;
-   string tmpaddr;
+   XrdClientString tmpaddr;
   
-   specifiedPort = ( hostname.find(':') != string::npos );
+   specifiedPort = ( hostname.Find(":") != STR_NPOS );
   
    XrdClientUrlInfo tmp(hostname);
    specifiedPort = tmp.Port > 0;
@@ -331,23 +331,23 @@ void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname,
 }
 
 //_____________________________________________________________________________
-void XrdClientUrlSet::ConvertDNSAliases(UrlArray& urls, string list, string fname)
+void XrdClientUrlSet::ConvertDNSAliases(UrlArray& urls, XrdClientString list, XrdClientString fname)
 {
    // Given a list of comma-separated host[:port]
    // every entry is resolved via DNS into its aliases
 
-   unsigned int colonPos;
-   string lst(list);
+   int colonPos;
+   XrdClientString lst(list);
 
    lst += ",";
 
-   while(lst.size() > 0) {
-      colonPos = lst.find(',');
-      if ((colonPos != string::npos) && (colonPos <= lst.size())) {
-	 string tmp(lst);
+   while(lst.GetSize() > 0) {
+      colonPos = lst.Find(",");
+      if ((colonPos != STR_NPOS) && (colonPos <= lst.GetSize())) {
+	 XrdClientString tmp(lst);
 
-	 tmp.erase(colonPos, string::npos);
-	 lst.erase(0,colonPos+1);
+	 tmp.EraseToEnd(colonPos);
+	 lst.EraseFromStart(colonPos+1);
 
 	 CheckPort(tmp);
 	 ConvertSingleDNSAlias(urls, tmp, fname);

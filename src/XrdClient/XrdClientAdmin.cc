@@ -19,8 +19,8 @@
 #include "XrdClientConn.hh"
 #include "XrdClientEnv.hh"
 
+
 #include <stdio.h>
-#include <string>
 #include <unistd.h>
 
 #include <sys/types.h>
@@ -31,9 +31,9 @@
 using namespace std;
 
 //_____________________________________________________________________________
-void joinStrings(string &buf, vecString vs)
+void joinStrings(XrdClientString &buf, vecString vs)
 {
-   //  string buf;
+
    if (vs.GetSize() == 1)
       buf = vs[0];
    else {
@@ -43,8 +43,8 @@ void joinStrings(string &buf, vecString vs)
 	    buf += "\n";
 	 }
    }
-   if (buf[buf.size()-1] == '\n')
-      buf.erase(buf.size()-1);
+   if (buf[buf.GetSize()-1] == '\n')
+      buf.EraseFromEnd(1);
 }
 
 
@@ -262,7 +262,7 @@ int XrdClientAdmin::Stat(char *fname, long &id, long &size, long &flags, long &m
 //_____________________________________________________________________________
 bool XrdClientAdmin::SysStatX(const char *paths_list, kXR_char *binInfo, int numPath)
 {
-   string pl(paths_list);
+   XrdClientString pl(paths_list);
    bool ret;
    // asks the server for stat file informations
    ClientRequest statXFileRequest;
@@ -272,10 +272,10 @@ bool XrdClientAdmin::SysStatX(const char *paths_list, kXR_char *binInfo, int num
    statXFileRequest.header.requestid = kXR_statx;
 
    // Note that we need to terminate the list with a newline!
-   if (pl[pl.size()-1] != '\n')
+   if (pl[pl.GetSize()-1] != '\n')
       pl += '\n';
 
-   statXFileRequest.stat.dlen = pl.size();
+   statXFileRequest.stat.dlen = pl.GetSize();
   
    ret = fConnModule->SendGenCommand(&statXFileRequest, pl.c_str(),
 				     NULL, binInfo , FALSE, (char *)"SysStatX");
@@ -287,7 +287,7 @@ bool XrdClientAdmin::SysStatX(const char *paths_list, kXR_char *binInfo, int num
 bool XrdClientAdmin::ExistFiles(vecString vs, vecBool &vb)
 {
    bool ret;
-   string buf;
+   XrdClientString buf;
    joinStrings(buf, vs);
 
    kXR_char *Info;
@@ -315,7 +315,7 @@ bool XrdClientAdmin::ExistFiles(vecString vs, vecBool &vb)
 bool XrdClientAdmin::ExistDirs(vecString vs, vecBool &vb)
 {
    bool ret;
-   string buf;
+   XrdClientString buf;
    joinStrings(buf, vs);
 
    kXR_char *Info;
@@ -343,7 +343,7 @@ bool XrdClientAdmin::ExistDirs(vecString vs, vecBool &vb)
 bool XrdClientAdmin::IsFileOnline(vecString vs, vecBool &vb)
 {
    bool ret;
-   string buf;
+   XrdClientString buf;
    joinStrings(buf, vs);
 
    kXR_char *Info;
@@ -570,9 +570,9 @@ bool XrdClientAdmin::Prepare(vecString vs, kXR_char option, kXR_char prty)
    prepareRequest.prepare.options     = option;
    prepareRequest.prepare.prty        = prty;
 
-   string buf;
+   XrdClientString buf;
    joinStrings(buf, vs);
-   prepareRequest.header.dlen = buf.size();
+   prepareRequest.header.dlen = buf.GetSize();
   
    kXR_char respBuf[1024];
    memset (respBuf, 0, 1024);
@@ -615,7 +615,8 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
 	    entry = (kXR_char *)strdup((char *)startp);
       
 	 if (entry && strlen((char *)entry)) {
-	    string e((char *)entry);
+	    XrdClientString e((char *)entry);
+
 	    entries.Push_back(e);
 	    free(entry);
 	 }

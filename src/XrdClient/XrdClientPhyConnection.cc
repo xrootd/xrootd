@@ -13,7 +13,6 @@
 //       $Id$
 
 #include <time.h>
-#include <string>
 #include <stdlib.h>
 #include "XrdClientPhyConnection.hh"
 #include "XrdClientDebug.hh"

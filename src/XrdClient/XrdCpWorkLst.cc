@@ -53,7 +53,7 @@ int XrdCpWorkLst::SetSrc(const char *url) {
          
 	 }
 	 else {
-	    string u(url);
+	    XrdClientString u(url);
 	    fWorkList.Push_back(u); 
 	 }
 
@@ -156,11 +156,11 @@ int XrdCpWorkLst::SetDest(const char *url) {
 }
 
 // Actually builds the worklist expanding the source of the files
-int XrdCpWorkLst::BuildWorkList_xrd(string url) {
+int XrdCpWorkLst::BuildWorkList_xrd(XrdClientString url) {
    vecString entries;
    int it;
    long id, size, flags, modtime;
-   string fullpath;
+   XrdClientString fullpath;
    XrdClientUrlInfo u(url);
 
    // Invoke the DirList cmd to get the content of the dir
@@ -188,9 +188,9 @@ int XrdCpWorkLst::BuildWorkList_xrd(string url) {
 }
 
 
-int XrdCpWorkLst::BuildWorkList_loc(DIR *dir, string path) {
+int XrdCpWorkLst::BuildWorkList_loc(DIR *dir, XrdClientString path) {
    struct dirent *ent;
-   string fullpath;
+   XrdClientString fullpath;
 
    // Here we already have an usable dir handle
    // Cycle on the content and spot all the files
@@ -231,7 +231,7 @@ int XrdCpWorkLst::BuildWorkList_loc(DIR *dir, string path) {
 
 
 // Get the next cp job to do
-bool XrdCpWorkLst::GetCpJob(string &src, string &dest) {
+bool XrdCpWorkLst::GetCpJob(XrdClientString &src, XrdClientString &dest) {
 
    if (fWorkIt >= fWorkList.GetSize()) return FALSE;
 
@@ -242,10 +242,10 @@ bool XrdCpWorkLst::GetCpJob(string &src, string &dest) {
 
       // If the dest is a directory name, we must concatenate
       // the actual filename, i.e. the token in src following the last /
-      unsigned int slpos = src.rfind("/", src.size());
+      int slpos = src.RFind("/");
 
-      if (slpos != string::npos) 
-	 dest += "/" + src.substr(slpos+1);
+      if (slpos != STR_NPOS) 
+	 dest += src.Substr(slpos);
 	 
    }
 

@@ -123,10 +123,10 @@ extern "C" void *ReaderThread_loc(void *) {
 }
 
 
-int CreateDestPath_loc(string path, bool isdir) {
+int CreateDestPath_loc(XrdClientString path, bool isdir) {
    // We need the path name without the file
    if (!isdir)
-      path = path.substr(0,  path.rfind("/", path.size()) );
+      path = path.Substr(0,  path.RFind("/") );
 
    return ( mkdir(
 		  path.c_str(),
@@ -137,7 +137,7 @@ int CreateDestPath_loc(string path, bool isdir) {
 }
    
 
-int CreateDestPath_xrd(string url, bool isdir) {
+int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    // We need the path name without the file
    bool res = -1;
    long id, size, flags, modtime;
@@ -145,7 +145,7 @@ int CreateDestPath_xrd(string url, bool isdir) {
    if (url == "-") return 0;
 
    if (!isdir)
-      url = url.substr(0,  url.rfind("/", url.size()) );
+      url = url.Substr(0,  url.RFind("/") );
 
    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
    if (adm->Connect()) {
@@ -409,7 +409,7 @@ int main(int argc, char**argv) {
    Info(XrdClientDebug::kNODEBUG, "main", XRDCP_VERSION);
 
    XrdCpWorkLst *wklst = new XrdCpWorkLst();
-   string src, dest;
+   XrdClientString src, dest;
 
    
    if (wklst->SetSrc(srcpath)) {
@@ -425,11 +425,11 @@ int main(int argc, char**argv) {
    while (wklst->GetCpJob(src, dest)) {
       Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
 
-      if (src.find("root://", 0) == 0) {
+      if (src.BeginsWith("root://")) {
 	 // source is xrootd
 
-	 if (dest.find("root://", 0) == 0) {
-	    string d;
+	 if (dest.BeginsWith("root://")) {
+	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
 	    if (!CreateDestPath_xrd(d, isd))
@@ -438,7 +438,7 @@ int main(int argc, char**argv) {
 	       Error("xrdcp", "Error accessing path for " << d);
 	 }
 	 else {
-	    string d;
+	    XrdClientString d;
 	    bool isd;
 	    int res;
 	    wklst->GetDest(d, isd);
@@ -453,8 +453,8 @@ int main(int argc, char**argv) {
       else {
 	 // source is localfs
 
-	 if (dest.find("root://", 0) == 0) {
-	    string d;
+	 if (dest.Find("root://")) {
+	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
 	    if (!CreateDestPath_xrd(d, isd))

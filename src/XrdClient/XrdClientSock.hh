@@ -19,9 +19,6 @@
 
 #include "XrdClientUrlInfo.hh"
 #include "XrdClientConst.hh"
-#include <string>
-
-
 
 
 
@@ -45,7 +42,7 @@ public:
    XrdClientSock(XrdClientUrlInfo Host);
    ~XrdClientSock();
 
-   void           Create(string, int, int);
+   void           Create(XrdClientString, int, int);
 
    int            RecvRaw(void* buffer, int length);
    int            SendRaw(const void* buffer, int length);

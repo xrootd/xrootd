@@ -21,7 +21,6 @@
 #include "XrdClientInputBuffer.hh"
 #include "XrdClientUrlInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"
-#include <string>
 
 #include <time.h> // for time_t data type
 #include <pthread.h>
@@ -79,7 +78,7 @@ public:
 
    void           StartedReader();
 
-   bool           IsAddress(string &addr) {
+   bool           IsAddress(XrdClientString &addr) {
       return ( (fServer.Host == addr) ||
 	       (fServer.HostAddr == addr) );
    }
