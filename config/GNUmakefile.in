@@ -13,7 +13,9 @@ XRDSEC  = XrdOuc XrdSec @xrdsecplugins@
 
 XRDCLIENT = XrdClient XrdPosix
 
-TARGETS = @targets@ $(XRDCLIENT)
+XRDMON    = XrdMon
+
+TARGETS = @targets@ $(XRDCLIENT) $(XRDMON)
 
 ARCH    = @arch@
 ARCHDIR = @archdir@
@@ -160,6 +162,11 @@ XrdXr: FORCE
 XrdXrootd: FORCE
 	@echo $(XMSG) xrootd $(XDBG) component...
 	$(ECHO)cd src/XrdXrootd;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdMon:	FORCE
+	@echo $(XMSG) mon $(XDBG) component...
+	$(ECHO)cd src/XrdMon;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 FORCE: ;
