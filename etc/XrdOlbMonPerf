@@ -10,8 +10,8 @@
 #
 # Usage: XrdOlbMonPerf [-I netintf] [-n netspeed] [-m <shmkey>] [<interval>]
 # WARNING: if you are running this script on a Linux RH7.x server, 
-#          the network metric is disabled as the netstat output is screwed, this info is useless.
-#          no problem for RH9 and RHEL3.
+#          the network metric is disabled as the netstat output is screwed, 
+#          this info is useless. no problem for RH9 and RHEL3.
 
 # get the name of the server + platform
 undef($shmid);
@@ -73,7 +73,8 @@ if ($systype eq 'SunOS') {
 }
 
 # if it is a Linux, retrieve the distrib version.
-# necessary for netstat which does not give the same output on RH 7.x, RH 9, RHEL...
+# necessary for netstat which does not give the same output on RH 7.x, RH 9, 
+# RHEL...
 # netstat usable on RH 9 and RHEL 3 ==> distrib = "RH_OK", else "RH_WRONG"
 if ($systype eq 'Linux') {
   $distrib = "RH_OK";
@@ -98,8 +99,8 @@ foreach $type(@answer) {
   $ind_free++;
 }
 
-# in the netstat output, the number of input and output packets is not in the same
-# columns whether it is a Linux or SunOS platform
+# in the netstat output, the number of input and output packets is not in the 
+# same columns whether it is a Linux or SunOS platform
 if ( $systype eq 'SunOS' ) {
   $ind_net1 = 5;
   $ind_net2 = 7;
@@ -109,7 +110,8 @@ if ( $systype eq 'SunOS' ) {
 }
 $indx_net = 0;
 
-# check the number of network interface on the server and their capability (ethernet or gigabit)
+# check the number of network interface on the server and their 
+# capability (ethernet or gigabit)
 $mtu = 1500;
 if (!$netmax)
    {@com = `netstat -i`;
