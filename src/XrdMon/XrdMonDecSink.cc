@@ -164,7 +164,7 @@ XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
     cout << "Added userInfo to sink: " << *ui << endl;
 
     if ( _rtLogFile.is_open() ) {
-        _rtLogFile << "u " << itr->second->convert2stringRT() 
+        _rtLogFile << "u " << ui->convert2stringRT() 
                    << ' '  << _senderHost << endl;
     }
 }
@@ -218,10 +218,9 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
     if ( _rtLogFile.is_open() ) {
         char timeStr[24];
         timestamp2string(timestamp, timeStr);
-        _rtLogFile << "d " << itr->second->convert2stringRT() 
+        _rtLogFile << "d " << itr->second->uniqueId() 
                    << ' '  << sec 
-                   << ' '  << timeStr 
-                   << ' '  << _senderHost << endl;
+                   << ' '  << timeStr << endl;
     }
 }
 
