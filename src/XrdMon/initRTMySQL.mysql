@@ -1,0 +1,58 @@
+/*****************************************************************************/
+/*                                                                           */
+/*                             initRTMySQL.mysql                             */
+/*                                                                           */
+/* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
+/*                            All Rights Reserved                            */
+/*       Produced by Jacek Becla for Stanford University under contract      */
+/*              DE-AC02-76SF00515 with the Department of Energy              */
+/*****************************************************************************/
+
+# $Id$
+
+drop database if exists rtxrdmon;
+
+create database if not exists rtxrdmon;
+use rtxrdmon;
+
+create table if not exists openedSessions (
+  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  userId        INT NOT NULL,
+  pId           INT NOT NULL,
+  clientHId     INT NOT NULL,
+  serverHId     INT NOT NULL
+);
+
+create table if not exists closedSessions (
+  sessionId     INT NOT NULL,
+  userId        INT NOT NULL,
+  pId           INT NOT NULL,
+  clientHId     INT NOT NULL,
+  serverHId     INT NOT NULL,
+  duration      INT NOT NULL,
+  disconnectT   DATETIME NOT NULL
+);
+
+create table if not exists openedFiles (
+  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  sessionId     INT NOT NULL,
+  filePath      VARCHAR(255) NOT NULL,
+  openT         DATETIME NOT NULL
+);
+
+create table if not exists closedFiles (
+  fileId        INT NOT NULL,
+  closeT        DATETIME NOT NULL,
+  bytesR        BIGINT UNSIGNED NOT NULL,
+  bytesW        BIGINT UNSIGNED NOT NULL
+);
+
+create table if not exists users (
+  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  userName      VARCHAR(24) NOT NULL
+);
+
+create table if not exists hosts (
+  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  hostName      VARCHAR(64) NOT NULL
+);
