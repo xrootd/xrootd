@@ -1,12 +1,12 @@
 #ifndef __XPROTOCOL_H
 #define __XPROTOCOL_H
 
-#ifndef __GNUC__
-#define __attribute__(x)
-#ifdef SUNCC
-#pragma pack(4)
-#endif
-#endif
+//#ifndef __GNUC__
+//#define __attribute__(x)
+//#ifdef SUNCC
+//#pragma pack(4)
+//#endif
+//#endif
 
 #ifdef __CINT__
 #define __attribute__(x)
