@@ -31,6 +31,10 @@
 #define SFS_O_RAWIO   0x02000000         // allow client-side decompression
 #define SFS_O_RESET   0x04000000         // Reset any cached information
 
+// The following flag may be set in the access mode arg for open() & mkdir()
+//
+#define SFS_O_MKPTH   0x08000000         // Make directory path if missing
+
 /******************************************************************************/
 /*                               D e f i n e s                                */
 /******************************************************************************/

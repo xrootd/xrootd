@@ -185,6 +185,8 @@ const   char          *getVersion();
 
 // Common functions
 //
+static  int            Mkpath(const char *path, mode_t mode);
+
 static  int            Emsg(const char *, XrdOucErrInfo&, int, const char *x,
                             const char *y="");
 

@@ -254,10 +254,11 @@ int XrdSfsNativeFile::open(const char          *path,      // In
                         SFS_O_RDWR   - Open file for update
                         SFS_O_CREAT  - Create the file open in RDWR mode
                         SFS_O_TRUNC  - Trunc  the file open in RDWR mode
-            file_mode - The Posix access mode bits to be assigned to the file.
+            Mode      - The Posix access mode bits to be assigned to the file.
                         These bits correspond to the standard Unix permission
-                        bits (e.g., 744 == "rwxr--r--"). This parameter is
-                        ignored unless open_mode = SFS_O_CREAT.
+                        bits (e.g., 744 == "rwxr--r--"). Mode may also conatin
+                        SFS_O_MKPTH is the full path is to be created. The
+                        agument is ignored unless open_mode = SFS_O_CREAT.
             client    - Authentication credentials, if any.
             info      - Opaque information to be used as seen fit.
 
@@ -265,9 +266,11 @@ int XrdSfsNativeFile::open(const char          *path,      // In
 */
 {
    static const char *epname = "open";
+   const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
    char *opname;
    mode_t acc_mode = Mode & S_IAMB;
-   int open_flag = 0;
+   int retc, open_flag = 0;
+   struct stat buf;
 
 // Verify that this object is not already associated with an open file
 //
@@ -290,18 +293,32 @@ int XrdSfsNativeFile::open(const char          *path,      // In
    if (open_mode & SFS_O_CREAT)
       {open_flag  = O_RDWR | O_CREAT | O_EXCL;
        opname = (char *)"create";
+       if ((Mode & SFS_O_MKPTH) && (retc = XrdSfsNative::Mkpath(path, AMode)))
+          return XrdSfsNative::Emsg(epname,error,retc,"create path for",path);
       } else if (open_mode & SFS_O_TRUNC)
-                {open_flag  = O_RDWR | O_CREAT;
+                {open_flag  = O_RDWR | O_CREAT | O_TRUNC;
                  opname = (char *)"truncate";
                 } else opname = (char *)"open";
 
-// Open the file.
+// Open the file and make sure it is a file
 //
-   if ((oh = XrdSfsUFS::Open(path, open_flag, acc_mode)) < 0)
-      return XrdSfsNative::Emsg(epname,error,errno,(const char *)opname,path);
+   if ((oh = XrdSfsUFS::Open(path, open_flag, acc_mode)) >= 0)
+      {do {retc = XrdSfsUFS::Statfd(oh, &buf);} while(retc && errno == EINTR);
+       if (!retc && !(buf.st_mode & S_IFREG))
+          {close(); oh = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
+      } else {
+       oh = -errno;
+       if (errno == EEXIST)
+          {do {retc = XrdSfsUFS::Statfn(path, &buf);}
+              while(retc && errno == EINTR);
+           if (!retc && (buf.st_mode & S_IFDIR)) oh = -EISDIR;
+          }
+      }
 
 // All done.
 //
+   if (oh < 0)
+      return XrdSfsNative::Emsg(epname, error, oh,(const char *)opname, path);
    return SFS_OK;
 }
 
@@ -669,6 +686,8 @@ int XrdSfsNative::mkdir(const char             *path,    // In
   Function: Create a directory entry.
 
   Input:    path      - Is the fully qualified name of the file to be removed.
+            Mode      - Is the POSIX mode setting for the directory. If the
+                        mode contains SFS_O_MKPTH, the full path is created.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
 
@@ -678,6 +697,10 @@ int XrdSfsNative::mkdir(const char             *path,    // In
    static const char *epname = "mkdir";
    mode_t acc_mode = Mode & S_IAMB;
 
+// Create the path if it does not already exist
+//
+   if (Mode & SFS_O_MKPTH) Mkpath(path, acc_mode);
+
 // Perform the actual deletion
 //
    if (XrdSfsUFS::Mkdir(path, acc_mode) )
@@ -686,6 +709,56 @@ int XrdSfsNative::mkdir(const char             *path,    // In
 // All done
 //
     return SFS_OK;
+}
+
+/******************************************************************************/
+/*                                M k p a t h                                 */
+/******************************************************************************/
+/*
+  Function: Create a directory path
+
+  Input:    path        - Is the fully qualified name of the new path.
+            mode        - The new mode that each new directory is to have.
+
+  Output:   Returns 0 upon success and -errno upon failure.
+*/
+
+int XrdSfsNative::Mkpath(const char *path, mode_t mode)
+{
+    char actual_path[SFS_MAX_FILE_NAME_LEN], *local_path, *next_path;
+    unsigned int plen;
+    struct stat buf;
+
+// Extract out the path we should make
+//
+   if (!(plen = strlen(path))) return -ENOENT;
+   if (plen >= sizeof(actual_path)) return -ENAMETOOLONG;
+   strcpy(actual_path, path);
+   if (actual_path[plen-1] == '/') actual_path[plen-1] = '\0';
+
+// Typically, the path exist. So, do a quick check before launching into it
+//
+   if (!(local_path = rindex(actual_path, (int)'/'))
+   ||  local_path == actual_path) return 0;
+   *local_path = '\0';
+   if (!XrdSfsUFS::Statfn(actual_path, &buf)) return 0;
+   *local_path = '/';
+
+// Start creating directories starting with the root. Notice that we will not
+// do anything with the last component. The caller is responsible for that.
+//
+   local_path = actual_path+1;
+   while((next_path = index((const char *)local_path, (int)'/')))
+        {*next_path = '\0';
+         if (XrdSfsUFS::Mkdir((const char *)actual_path,mode) && errno != EEXIST)
+            return -errno;
+         *next_path = '/';
+         local_path = next_path+1;
+        }
+
+// All done
+//
+   return 0;
 }
 
 /******************************************************************************/
