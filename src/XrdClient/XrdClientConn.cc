@@ -1581,8 +1581,18 @@ XrdClientString XrdClientConn::GetDomainToMatch(XrdClientString hostname) {
 
       res = ParseDomainFromHostname(fullname);
 
-      if (res == "")
+      if (res == "") {
+	 Info(XrdClientDebug::kHIDEBUG,
+	   "GetDomainToMatch", "No domain contained in " << fullname);
+
+	 res = ParseDomainFromHostname(hostname);
+      }
+      if (res == "") {
+	 Info(XrdClientDebug::kHIDEBUG,
+	   "GetDomainToMatch", "No domain contained in " << hostname);
+
 	 res = hostname;
+      }
 
       free(fullname);
 
