@@ -146,7 +146,7 @@ bool isRedir(struct ServerResponseHeader *ServerResponse)
 }
 
 //_________________________________________________________________________
-char *convertRequestIdToChar(kXR_int16 requestid)
+char *convertRequestIdToChar(kXR_unt16 requestid)
 {
    // This procedure convert the request code id (an integer defined in
    // XProtocol.hhh) in the ascii label (human readable)
@@ -250,7 +250,7 @@ void PutFilehandleInRequest(ClientRequest* str, char *fHandle)
 }
 
 //___________________________________________________________________________
-char *convertRespStatusToChar(kXR_int16 status)
+char *convertRespStatusToChar(kXR_unt16 status)
 {
    switch( status) {
    case kXR_ok:

@@ -66,7 +66,7 @@ XrdClient::~XrdClient()
 }
 
 //_____________________________________________________________________________
-bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
+bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
   short locallogid;
   
   // But we initialize the internal params...
@@ -364,7 +364,7 @@ bool XrdClient::Sync()
 }
 
 //_____________________________________________________________________________
-bool XrdClient::TryOpen(kXR_int16 mode, kXR_int16 options) {
+bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options) {
    
    // First attempt to open a remote file
    bool lowopenRes = LowOpen(fInitialUrl.File.c_str(), mode, options);
@@ -406,7 +406,7 @@ bool XrdClient::TryOpen(kXR_int16 mode, kXR_int16 options) {
 }
 
 //_____________________________________________________________________________
-bool XrdClient::LowOpen(const char *file, kXR_int16 mode, kXR_int16 options,
+bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 			char *additionalquery) {
 
    // Low level Open method
@@ -550,7 +550,7 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
    Info(XrdClientDebug::kHIDEBUG,
 	"OpenFileWhenRedirected", "Trying to reopen the same file." );
 
-   kXR_int16 options = fOpenPars.options;
+   kXR_unt16 options = fOpenPars.options;
 
    if (fOpenPars.options & kXR_delete) {
       Info(XrdClientDebug::kHIDEBUG,

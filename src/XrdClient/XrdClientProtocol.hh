@@ -25,11 +25,11 @@ void ServerInitHandShake2HostFmt(struct ServerInitHandShake *srh);
 
 bool isRedir(struct ServerResponseHeader *ServerResponse);
 
-char *convertRequestIdToChar(kXR_int16 requestid);
+char *convertRequestIdToChar(kXR_unt16 requestid);
 
 void PutFilehandleInRequest(ClientRequest* str, char *fHandle);
 
-char *convertRespStatusToChar(kXR_int16 status);
+char *convertRespStatusToChar(kXR_unt16 status);
 
 void smartPrintClientHeader(ClientRequest* hdr);
 void smartPrintServerHeader(struct ServerResponseHeader* hdr);

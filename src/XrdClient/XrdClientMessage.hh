@@ -61,9 +61,9 @@ public:
    void               Marshall();
    inline bool        MatchStreamid(short sid) { return (HeaderSID() == sid);}
    int                ReadRaw(XrdClientPhyConnection *phy);
-   inline void        SetHeaderStatus(kXR_int16 sts) { fHdr.status = sts; }
+   inline void        SetHeaderStatus(kXR_unt16 sts) { fHdr.status = sts; }
    inline void        SetMarshalled(bool m) { fMarshalled = m; }
-   inline void        SetStatusCode(kXR_int16 status) { fStatusCode = status; }
+   inline void        SetStatusCode(kXR_unt16 status) { fStatusCode = status; }
    void               Unmarshall();
 
 };

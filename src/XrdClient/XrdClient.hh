@@ -46,8 +46,8 @@
 
 struct XrdClientOpenInfo {
    bool      opened;
-   kXR_int16 mode;
-   kXR_int16 options;
+   kXR_unt16 mode;
+   kXR_unt16 options;
 };
 
 struct XrdClientStatInfo {
@@ -77,8 +77,8 @@ private:
 
    XrdClientUrlInfo         fInitialUrl;
 
-   bool         TryOpen(kXR_int16 mode, kXR_int16 options);
-   bool         LowOpen(const char *file, kXR_int16 mode, kXR_int16 options,
+   bool         TryOpen(kXR_unt16 mode, kXR_unt16 options);
+   bool         LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 			char *additionalquery = 0);
 
 public:
@@ -98,7 +98,7 @@ public:
 
    inline bool  IsOpen() { return fOpenPars.opened; }
 
-   bool         Open(kXR_int16 mode, kXR_int16 options);
+   bool         Open(kXR_unt16 mode, kXR_unt16 options);
 
    int          Read(void *buf, long long offset, int len);
 
