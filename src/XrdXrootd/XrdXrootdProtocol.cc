@@ -91,7 +91,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 // Put up the banner
 //
    pi->eDest->Say(0,(char *)"(c) 2003 Stanford University/SLAC XRootd "
-                    "(eXtended Root Daemon) v " XROOTD_VERSION);
+                    "(eXtended Root Daemon).");
 
 // Return the protocol object to be used if static init succeeds
 //

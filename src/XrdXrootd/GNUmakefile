@@ -81,6 +81,8 @@ SUNDBG     = -g
 SUNCFLAGS  = -DSUN $(SUN64) $(SUNMT) $(SUNCCT)
 SUN32      = -DSUN $(SUNMT) $(SUNCCT)
 
+SUNLDOP    =
+
 SUNLIBS    = -lposix4 -lsocket -lnsl -lpthread -ldl
 
 LNX64      = -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
@@ -88,6 +90,9 @@ LNXOPT     = -O3
 LNXDBG     = -g
 LNX32      = -D__linux__ -D_ALL_SOURCE -D_REENTRANT -D_GNU_SOURCE \
              -Wno-deprecated
+
+LNXLDOP    = -rdynamic
+
 LNXLIBS    =  -lnsl -lpthread -lrt -ldl
 
 #------------------------------------------------------------------------------#
@@ -110,6 +115,7 @@ CF64="$(LNX64)" \
 ARCH=$(ARCH) \
 CF32="$(LNX32)" \
 CFOP="$(LNXOPT)" \
+LFLAGS="$(LNXLDOP)" \
 LIBS="$(LNXLIBS)" \
 TYPE=Linux
 
@@ -121,6 +127,7 @@ CC=g++    \
 CF64="$(LNX64)" \
 CF32="$(LNX32)" \
 CFOP="$(LNXDBG)" \
+LFLAGS="$(LNXLDOP)" \
 LIBS="$(LNXLIBS)" \
 TYPE=Linux
 
@@ -131,6 +138,7 @@ CC=CC \
 CF64="$(SUN64)" \
 CF32="$(SUN32)" \
 CFOP="$(SUNOPT) -DSUNCC" \
+LFLAGS="$(SUNLDOP)" \
 LIBS="$(SUNLIBS)" \
 TYPE=SunOS
 
@@ -142,6 +150,7 @@ CC=CC \
 CF64="$(SUN64)" \
 CF32="$(SUN32)" \
 CFOP="$(SUNDBG) -DSUNCC" \
+LFLAGS="$(SUNLDOP)" \
 LIBS="$(SUNLIBS)" \
 TYPE=SunOS
 
@@ -164,7 +173,7 @@ FORCE: ;
 
 $(TARGET): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TARGET) ...
-	@$(CC) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGET)
+	@$(CC) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGET)
 
 $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdFileLock.hh XrdXrootdFileLock1.hh \

@@ -152,7 +152,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Now process and configuration parameters
 //
-   NoGo = (parms ? ConfigIt(parms) : ConfigFn(pi->ConfigFN));
+   if (parms) NoGo = ConfigIt(parms);
+      else if (pi->ConfigFN) NoGo = ConfigFn(pi->ConfigFN);
+              else NoGo = 0;
    if (NoGo) return 0;
    if (pi->DebugON) XrdXrootdTrace->What = TRACE_ALL;
 
