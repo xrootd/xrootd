@@ -23,7 +23,7 @@
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientVector.hh"
 
-
+#define min(a, b) (a < b ? a : b)
 
 //
 // XrdClientReadCacheItem
