@@ -118,7 +118,7 @@ CREATE INDEX statsLastHour_date_index USING BTREE ON statsLastHour(date);
 # one row per hour, keeps last 24 hours
 CREATE TABLE IF NOT EXISTS statsLastDay (
   seqNo         TINYINT NOT NULL PRIMARY KEY,
-  date          DATE,
+  date          DATETIME,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
@@ -138,7 +138,7 @@ CREATE INDEX statsLastDay_date_index  USING BTREE ON statsLastDay(date);
 # one row per day, keeps last 31 days
 CREATE TABLE IF NOT EXISTS statsLastMonth (
   seqNo         TINYINT NOT NULL PRIMARY KEY,
-  date          DATE,
+  date          DATETIME,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
@@ -157,7 +157,7 @@ CREATE INDEX statsLastMonth_date_index USING BTREE ON statsLastMonth(date);
 
 # one row per month, growing indefinitely
 CREATE TABLE IF NOT EXISTS statsAllMonths (
-  date          DATE,
+  date          DATETIME,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
