@@ -54,8 +54,6 @@ sub loadOpenSession() {
 
     #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
     runQuery("INSERT INTO openedSessions (userId, pId, clientHId, serverHId) VALUES ($userId, $pid, $clientHostId, $serverHostId)");
-
-    runQuery("INSERT INTO hosts (hostName) VALUES (\"$clientHost\")");
 }
 
 
@@ -67,12 +65,11 @@ sub loadCloseSession() {
 
     # find if there is corresponding open session, if not don't bother
     my ($userId, $pId, $clientHId, $serverHId) = 
-	runQuery("SELECT userId, pId, clientHId, serverHId FROM openedSessions WHERE id = $sessionId");
-
+	runQueryWithRet("SELECT userId, pId, clientHId, serverHId FROM openedSessions WHERE id = $sessionId");
     if ( $pId < 1 ) {
 	return;
     }
-    #print "received decend data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
+    #print "received decent data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
 
     # remove it from the open session table
     runQuery("DELETE FROM openedSessions WHERE id = $id;");
