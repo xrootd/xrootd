@@ -36,7 +36,6 @@ OBJECTS_LIB_SND =                             \
 	$(OBJDIR)/XrdMonSndCoder.o            \
 	$(OBJDIR)/XrdMonSndDebug.o            \
 	$(OBJDIR)/XrdMonSndDictEntry.o        \
-	$(OBJDIR)/XrdMonSndDummyXrootdApp.o   \
 	$(OBJDIR)/XrdMonSndDummyXrootd.o      \
 	$(OBJDIR)/XrdMonSndPacket.o           \
 	$(OBJDIR)/XrdMonSndTraceCache.o       \
@@ -46,7 +45,7 @@ OBJECTS_LIB_SND =                             \
 OBJECTS_BIN_CTR =                             \
 	$(OBJDIR)/XrdMonCtrMainApp.o
 
-OBJECT_BIN_ADM =                              \
+OBJECTS_BIN_ADM =                             \
 	$(OBJDIR)/XrdMonSndAdminApp.o
 
 OBJECTS_BIN_SND =                             \
