@@ -55,7 +55,7 @@ XrdOdcMsg *XrdOdcMsg::Alloc(XrdOucErrInfo *erp)
    FreeMsgQ.Lock();
    lclid = nextid = (nextid + XRDODC_MIDINCR) & XRDODC_INCMASK;
    if (nextfree) {mp = nextfree; nextfree = mp->next;}
-      else if (mp = new XrdOdcMsg()) mp->id = XRDODC_OBMSGID;
+      else if ((mp = new XrdOdcMsg())) mp->id = XRDODC_OBMSGID;
               else {FreeMsgQ.UnLock(); return mp;}
    FreeMsgQ.UnLock();
 
