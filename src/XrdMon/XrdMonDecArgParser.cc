@@ -13,6 +13,7 @@
 #include "XrdMonDecArgParser.hh"
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonErrors.hh"
+#include <stdio.h>
 #include <sstream>
 #include <unistd.h> /* access */
 using std::stringstream;

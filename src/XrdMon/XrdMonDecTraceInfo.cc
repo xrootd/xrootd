@@ -12,6 +12,7 @@
 
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
+#include <stdio.h>
 #include <iomanip>
 #include <sstream>
 

@@ -20,6 +20,7 @@
 #include <sstream>
 #include <sys/time.h> // FIXME - remove when xrootd supports openfile
 #include <iomanip>
+#include <algorithm>
 #include <unistd.h>
 using std::cerr;
 using std::cout;
