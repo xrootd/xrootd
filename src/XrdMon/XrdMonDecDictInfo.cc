@@ -33,7 +33,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo()
       _pid(-1),
       _cHost("InvalidHost"),
       _path("InvalidPath"),
-      _senderId(XrdMonSenderInfo::INVALID_SENDER_ID),
+      _senderId(INVALID_SENDER_ID),
       _open(0),
       _close(0),
       _noRBytes(0),

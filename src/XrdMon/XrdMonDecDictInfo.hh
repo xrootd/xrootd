@@ -39,6 +39,7 @@ public:
     
     dictid_t xrdId() const { return _myXrdId; }
     dictid_t uniqueId() const { return _myUniqueId; }
+    senderid_t senderId() const { return _senderId; }
     
     bool isClosed() const   { return 0 != _close; }
     int stringSize() const;

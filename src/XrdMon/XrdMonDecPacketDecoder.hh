@@ -20,8 +20,6 @@ using std::pair;
 
 class XrdMonDecPacketDecoder {
 public:
-    enum { INV_SENDERID = 65500 };
-    
     XrdMonDecPacketDecoder(const char* baseDir, 
                            const char* rtLogDir);
 
@@ -35,9 +33,9 @@ public:
     
     void operator()(const XrdMonHeader& header,
                     const char* packet,
-                    senderid_t senderId=INV_SENDERID);
+                    senderid_t senderId=INVALID_SENDER_ID);
 
-    void reset();
+    void reset(senderid_t senderId);
     
     bool     stopNow() const { return _stopNow; }
 

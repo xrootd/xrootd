@@ -87,9 +87,9 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
 }
 
 void
-XrdMonDecPacketDecoder::reset()
+XrdMonDecPacketDecoder::reset(senderid_t senderId)
 {
-    _sink.reset();
+    _sink.reset(senderId);
 }
 
 // packet should point to data after header

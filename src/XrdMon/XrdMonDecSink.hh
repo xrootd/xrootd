@@ -57,7 +57,8 @@ public:
     void flushHistoryData();
     void flushRealTimeData() { if ( 0 != _rtLogger ) _rtLogger->flush(); }
     
-    void reset();
+    void resetAll();
+    void reset(senderid_t senderId);
     
 private:
     void loadUniqueIdsAndSeq();

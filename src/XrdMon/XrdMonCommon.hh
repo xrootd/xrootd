@@ -41,4 +41,7 @@ enum AdminCommand {
     c_shutdown = 1000
 };
 
+enum {
+    INVALID_SENDER_ID = 65535
+};
 #endif /* XRDMONCOMMON_HH */

@@ -81,7 +81,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
 
 XrdMonDecSink::~XrdMonDecSink()
 {
-    reset();
+    resetAll();
     delete _rtLogger;
 }
 
@@ -559,7 +559,7 @@ XrdMonDecSink::flushHistoryData()
 }
 
 void
-XrdMonDecSink::reset()
+XrdMonDecSink::resetAll()
 {
     flushClosedDicts();
 
@@ -586,6 +586,45 @@ XrdMonDecSink::reset()
             delete uItr->second;
         }
         _uCache.clear();
+    }
+}
+
+void
+XrdMonDecSink::reset(senderid_t senderId)
+{
+    flushClosedDicts();
+    
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        std::map<dictid_t, XrdMonDecDictInfo*>::iterator dItr;
+
+        vector<dictid_t> forDeletion;
+        for ( dItr=_dCache.begin() ; dItr != _dCache.end() ; ++ dItr ) {
+            if ( dItr->second->senderId() == senderId ) {
+                delete dItr->second;
+                forDeletion.push_back(dItr->first);
+            }
+        }
+        int i, s = forDeletion.size();
+        for (i=0 ; i<s ; ++i) {
+            _dCache.erase(forDeletion[i]);
+        }
+    }
+    {
+        XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+        std::map<dictid_t, XrdMonDecUserInfo*>::iterator uItr;
+
+        vector<dictid_t> forDeletion;
+        for ( uItr=_uCache.begin() ; uItr != _uCache.end() ; ++ uItr ) {
+            if ( uItr->second->senderId() == senderId ) {
+                delete uItr->second;
+                forDeletion.push_back(uItr->first);
+            }
+        }
+        int i, s = forDeletion.size();
+        for (i=0 ; i<s ; ++i) {
+            _uCache.erase(forDeletion[i]);
+        }
     }
 }
 

@@ -21,9 +21,7 @@ using std::map;
 using std::vector;
 
 class XrdMonSenderInfo {
-public:    
-    enum { INVALID_SENDER_ID = 65535 };
-
+public:
     static senderid_t convert2Id(struct sockaddr_in sAddr);
     static hp_t addr2HostPort(struct sockaddr_in sAddr) {
         return id2HostPort(convert2Id(sAddr));

@@ -191,7 +191,7 @@ XrdMonCtrArchiver::archivePacket(XrdMonCtrPacket* p)
             delete w;
             _writers[senderId] = w = 
                 new XrdMonCtrWriter(senderId, header.stod());
-            _decoder->reset();
+            _decoder->reset(senderId);
         }
     }
     

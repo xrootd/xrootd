@@ -32,7 +32,7 @@ XrdMonDecUserInfo::XrdMonDecUserInfo()
       _user("InvalidUser"),
       _pid(-1),
       _cHost("InvalidHost"),
-      _senderId(XrdMonSenderInfo::INVALID_SENDER_ID),
+      _senderId(INVALID_SENDER_ID),
       _sec(0),
       _dTime(0)
 {}

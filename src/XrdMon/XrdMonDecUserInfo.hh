@@ -41,6 +41,7 @@ public:
     
     dictid_t xrdId() const { return _myXrdId; }
     dictid_t uniqueId() const { return _myUniqueId; }
+    senderid_t senderId() const { return _senderId; }
     
     const char* convert2string() const;
     const char* writeRT2Buffer(TYPE t) const;

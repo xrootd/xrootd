@@ -26,7 +26,7 @@
 // known problems with 2 and 4
 //const kXR_int64 NOCALLS = 8640000;   24h worth
 const kXR_int64 NOCALLS = 1000000000;
-const kXR_int16 maxNoXrdMonSndPackets = 500;
+const kXR_int16 maxNoXrdMonSndPackets = 5;
 
 
 void
