@@ -72,25 +72,22 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
         }
     }
 
-    loadUniqueIdsAndSeq();
-
     if ( 0 != rtLogDir ) {
         string rtLogName(rtLogDir);
         rtLogName += "/realTimeLogging.txt";
         _rtLogFile.open(rtLogName.c_str(), ios::out|ios::ate);
+    } else {
+        loadUniqueIdsAndSeq();
     }
 }
 
 XrdMonDecSink::~XrdMonDecSink()
 {
     flushClosedDicts();
-    flushTCache();
-    checkpoint();
     
     int size = _lost.size();
     if ( size > 0 ) {
         cout << "Lost " << size << " dictIds {id, #lostTraces}: ";
-
         map<dictid_t, long>::iterator lostItr = _lost.begin();
         while ( lostItr != _lost.end() ) {
             cout << "{"<< lostItr->first << ", " << lostItr->second << "} ";
@@ -100,6 +97,9 @@ XrdMonDecSink::~XrdMonDecSink()
     }
     if ( _rtLogFile.is_open() ) {
         _rtLogFile.close();
+    } else {
+        flushTCache();
+        checkpoint();
     }
 }
 
@@ -394,6 +394,7 @@ XrdMonDecSink::flushUserCache()
     cout << "flushed (u) " << sizeBefore-sizeAfter << ", left " << sizeAfter << endl;
 }
 
+// used for offline processing of (full monitoring with traces) only
 void
 XrdMonDecSink::flushTCache()
 {
@@ -432,6 +433,7 @@ XrdMonDecSink::flushTCache()
     f.close();
 }
 
+// used for offline processing of (full monitoring with traces) only
 void
 XrdMonDecSink::checkpoint()
 {
@@ -482,6 +484,7 @@ XrdMonDecSink::checkpoint()
          << endl;
 }
 
+// used for offline processing of (full monitoring with traces) only
 void
 XrdMonDecSink::openTraceFile(fstream& f)
 {
@@ -494,6 +497,7 @@ XrdMonDecSink::openTraceFile(fstream& f)
     cout << "trace log file opened " << fPath << endl;
 }
 
+// used for offline processing of (full monitoring with traces) only
 void
 XrdMonDecSink::write2TraceFile(fstream& f, 
                                const char* buf,
