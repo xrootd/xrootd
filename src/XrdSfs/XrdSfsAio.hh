@@ -14,7 +14,7 @@
 
 #include <signal.h>
 #include <sys/types.h>
-#ifdef _POSIX_ASYNCHRNOUS_IO
+#ifdef _POSIX_ASYNCHRONOUS_IO
 #include <aio.h>
 #else
 struct aiocb {           // Minimal structure to avoid compiler errors

@@ -731,15 +731,58 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 /*                              r e a d   A I O                               */
 /******************************************************************************/
   
-// For now, this reverts to synchronous I/O
-//
+/*
+  Function: Read `blen' bytes at `offset' into 'buff' and return the actual
+            number of bytes read using asynchronous I/O, if possible.
+
+  Output:   Returns the 0 if successfullt queued, otherwise returns an error.
+            The underlying implementation will convert the request to
+            synchronous I/O is async mode is not possible.
+*/
+
 int XrdOfsFile::read(XrdSfsAio *aiop)
 {
-   aiop->Result = this->read((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
-                                       (char *)aiop->sfsAio.aio_buf,
-                               (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
-   aiop->doneRead();
-   return 0;
+   static const char *epname = "read";
+   int rc;
+
+// Async mode for compressed files is not supported.
+//
+   if (oh && oh->cxrsz)
+      {aiop->Result = this->read((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
+                                           (char *)aiop->sfsAio.aio_buf,
+                                   (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
+       aiop->doneRead();
+       return 0;
+      }
+
+// Perform required tracing
+//
+   FTRACE(aio, "aio " <<aiop->sfsAio.aio_nbytes <<"@"
+               <<aiop->sfsAio.aio_offset);
+
+// Make sure the offset is not too large
+//
+#if _FILE_OFFSET_BITS!=64
+   if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
+      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
+#endif
+
+// Reopen the handle if it has been closed
+//
+   LOCK(oh);
+   REOPENandHOLD(oh);
+   UNLOCK(oh);
+
+// Issue the read. Only true errors are returned here.
+//
+   rc = oh->Select().Read(aiop);
+   RELEASE(oh);
+   if (rc < 0)
+      return XrdOfsFS.Emsg(epname, error, rc, "read", oh->Name());
+
+// All done
+//
+   return SFS_OK;
 }
 
 /******************************************************************************/
@@ -806,11 +849,38 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 //
 int XrdOfsFile::write(XrdSfsAio *aiop)
 {
-   aiop->Result = this->write((XrdSfsFileOffset)aiop->sfsAio.aio_offset,
-                                        (char *)aiop->sfsAio.aio_buf,
-                                (XrdSfsXferSize)aiop->sfsAio.aio_nbytes);
-   aiop->doneWrite();
-   return 0;
+   static const char *epname = "write";
+   int rc;
+
+// Perform any required tracing
+//
+   FTRACE(aio, "aio " <<aiop->sfsAio.aio_nbytes <<"@"
+               <<aiop->sfsAio.aio_offset);
+
+// Make sure the offset is not too large
+//
+#if _FILE_OFFSET_BITS!=64
+   if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
+      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
+#endif
+
+// Reopen the file handle if it has been closed
+//
+   LOCK(oh);
+   REOPENandHOLD(oh);
+   oh->flags |= OFS_PENDIO;
+   UNLOCK(oh);
+
+// Write the requested bytes
+//
+   rc = oh->Select().Write(aiop);
+   RELEASE(oh);
+   if (rc < 0)
+      return XrdOfsFS.Emsg(epname, error, rc, "write", oh->Name());
+
+// All done
+//
+   return SFS_OK;
 }
 
 /******************************************************************************/

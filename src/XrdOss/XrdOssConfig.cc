@@ -172,7 +172,11 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 
 // Configure the MSS interface including staging
 //
-   if (!NoGo) NoGo |= ConfigStage(Eroute);
+   if (!NoGo) NoGo = ConfigStage(Eroute);
+
+// Configure async I/O
+//
+   if (!NoGo) NoGo = !AioInit();
 
 // Start up the cache scan thread
 //

@@ -73,7 +73,7 @@ $(TARGETS): $(OBJECTS)
 	   fi;\
 	fi
 
-$(OBJDIR)/XrdOssAio.o: XrdOssTrace.hh  XrdOssApi.hh \
+$(OBJDIR)/XrdOssAio.o: XrdOssAio.cc    XrdOssTrace.hh  XrdOssApi.hh \
                        XrdOucError.hh  XrdOucPthread.hh XrdSfsAio.hh
 	@echo Compiling XrdOssAio.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssAio.o XrdOssAio.cc

@@ -19,6 +19,7 @@
 #define TRACE_ALL       0x0fff
 #define TRACE_Opendir   0x0001
 #define TRACE_Open      0x0002
+#define TRACE_AIO       0x0004
 #define TRACE_Debug     0x0800
 
 #ifndef NODEBUG

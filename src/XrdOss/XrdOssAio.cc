@@ -12,11 +12,12 @@
 
 const char *XrdOssAioCVSID = "$Id$";
 
-#ifdef _POSIX_ASYNCHRNOUS_IO
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
+#ifdef _POSIX_ASYNCHRONOUS_IO
 #include <aio.h>
 #endif
-#include <signal.h>
-#include <unistd.h>
 
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssTrace.hh"
@@ -34,20 +35,15 @@ const char *XrdOssAioCVSID = "$Id$";
 /******************************************************************************/
   
 extern XrdOucTrace OssTrace;
-#define tident aiop->TIdent;
+#define tident aiop->TIdent
 
 extern XrdOucError OssEroute;
 
 int   XrdOssFile::AioFailure = 0;
 
-#ifdef _POSIX_ASYNCHRNOUS_IO
-#ifdef __macos__
-#define OSS_AIO_READ_DONE  (SIGRTMIN)
-#define OSS_AIO_WRITE_DONE (SIGRTMIN+1)
-#else
+#ifdef _POSIX_ASYNCHRONOUS_IO
 #define OSS_AIO_READ_DONE  SIGUSR1
 #define OSS_AIO_WRITE_DONE SIGUSR2
-#endif
 #endif
 
 /******************************************************************************/
@@ -63,18 +59,19 @@ int   XrdOssFile::AioFailure = 0;
 int XrdOssFile::Fsync(XrdSfsAio *aiop)
 {
 
-#ifdef _POSIX_ASYNCHRNOUS_IO
+#ifdef _POSIX_ASYNCHRONOUS_IO
+   int rc;
 
 // Complete the aio request block and do the operation
 //
    if (XrdOssSys::AioAllOk)
-      {aiop->sfsAio.fildes = fd;
-       aiop->sfsAio.aio_sigevent.sigev_signo  = SIG_AIO_WRITE_DONE;
+      {aiop->sfsAio.aio_fildes = fd;
+       aiop->sfsAio.aio_sigevent.sigev_signo  = OSS_AIO_WRITE_DONE;
        aiop->TIdent = tident;
 
       // Start the operation
       //
-         if (!(rc = aio_fsync(O_SYNC, &aiop->sfsAio)) return 0;
+         if (!(rc = aio_fsync(O_SYNC, &aiop->sfsAio))) return 0;
          if (errno != EAGAIN && errno != ENOSYS) return -errno;
 
       // Aio failed keep track of the problem (msg every 1024 events). Note
@@ -114,18 +111,19 @@ int XrdOssFile::Fsync(XrdSfsAio *aiop)
 int XrdOssFile::Read(XrdSfsAio *aiop)
 {
 
-#ifdef _POSIX_ASYNCHRNOUS_IO
+#ifdef _POSIX_ASYNCHRONOUS_IO
+   int rc;
 
 // Complete the aio request block and do the operation
 //
    if (XrdOssSys::AioAllOk)
-      {aiop->sfsAio.fildes = fd;
-       aiop->sfsAio.aio_sigevent.sigev_signo  = SIG_AIO_READ_DONE;
+      {aiop->sfsAio.aio_fildes = fd;
+       aiop->sfsAio.aio_sigevent.sigev_signo  = OSS_AIO_READ_DONE;
        aiop->TIdent = tident;
 
        // Start the operation
        //
-          if (!(rc = aio_read(&aiop->sfsAio)) return 0;
+          if (!(rc = aio_read(&aiop->sfsAio))) return 0;
           if (errno != EAGAIN && errno != ENOSYS) return -errno;
 
       // Aio failed keep track of the problem (msg every 1024 events). Note
@@ -167,18 +165,19 @@ int XrdOssFile::Read(XrdSfsAio *aiop)
   
 int XrdOssFile::Write(XrdSfsAio *aiop)
 {
-#ifdef _POSIX_ASYNCHRNOUS_IO
+#ifdef _POSIX_ASYNCHRONOUS_IO
+   int rc;
 
 // Complete the aio request block and do the operation
 //
    if (XrdOssSys::AioAllOk)
-      {aiop->sfsAio.fildes = fd;
-       aiop->sfsAio.aio_sigevent.sigev_signo  = SIG_AIO_WRITE_DONE;
+      {aiop->sfsAio.aio_fildes = fd;
+       aiop->sfsAio.aio_sigevent.sigev_signo  = OSS_AIO_WRITE_DONE;
        aiop->TIdent = tident;
 
        // Start the operation
        //
-          if (!(rc = aio_write(&aiop->sfsAio)) return 0;
+          if (!(rc = aio_write(&aiop->sfsAio))) return 0;
           if (errno != EAGAIN && errno != ENOSYS) return -errno;
 
        // Aio failed keep track of the problem (msg every 1024 events). Note
@@ -223,7 +222,7 @@ int   XrdOssSys::AioAllOk = 0;
 
 int XrdOssSys::AioInit()
 {
-#ifdef _POSIX_ASYNCHRNOUS_IO
+#ifdef _POSIX_ASYNCHRONOUS_IO
    EPNAME("AioInit");
    extern void *XrdOssAioWait(void *carg);
    pthread_t tid;
@@ -233,24 +232,25 @@ int XrdOssSys::AioInit()
 // write) that synhronously wait for AIO events. We assume, blithely, that
 // the first two real-time signals have been blocked for all threads.
 //
-   if ((retc = XrdOucThread_Run(&tid, XrdOssAioWait,
+   if ((retc = XrdOucThread::Run(&tid, XrdOssAioWait,
                                 (void *)OSS_AIO_READ_DONE)) < 0)
-      {Eroute.Emsg("AioInit", retc, "creating AIO read signal thread; "
-                                    "AIO support terminated.");
-       DEBUG("started AIO read signal thread; tid=" <<(unsigned int)tid);
-      } else {
-   if ((retc = XrdOucThread_Run(&tid, XrdOssAioWait,
+      OssEroute.Emsg("AioInit", retc, "creating AIO read signal thread; "
+                                 "AIO support terminated.");
+      else {DEBUG("started AIO read signal thread; tid=" <<(unsigned int)tid);
+            if ((retc = XrdOucThread::Run(&tid, XrdOssAioWait,
                                 (void *)OSS_AIO_WRITE_DONE)) < 0)
-      {Eroute.Emsg("AioInit", retc, "creating AIO write signal thread; "
-                                    "AIO support terminated.");
-       DEBUG("started AIO write signal thread; tid=" <<(unsigned int)tid);
-      } else AioAllOK = 1;
+               OssEroute.Emsg("AioInit", retc, "creating AIO write signal thread; "
+                                 "AIO support terminated.");
+               else {DEBUG("started AIO write signal thread; tid=" <<(unsigned int)tid);
+                     AioAllOk = 1;
+                    }
+           }
 
 // All done
 //
    return AioAllOk;
 #else
-   return 0;
+   return 1;
 #endif
 }
 
@@ -258,12 +258,13 @@ int XrdOssSys::AioInit()
 /*                               A i o W a i t                                */
 /******************************************************************************/
   
-void *XrdOssAioWait(int mySignum)
+void *XrdOssAioWait(void *mySigarg)
 {
-#ifdef _POSIX_ASYNCHRNOUS_IO
+#ifdef _POSIX_ASYNCHRONOUS_IO
    EPNAME("AioWait");
+   int mySignum = int(mySigarg);
    const char *sigType = (mySignum == OSS_AIO_READ_DONE ? "read" : "write");
-   const int  isRead   = (mySignum == OSS_AOI_READ_DONE);
+   const int  isRead   = (mySignum == OSS_AIO_READ_DONE);
    sigset_t  mySig;
    siginfo_t myInfo;
    XrdSfsAio *aiop;
@@ -280,30 +281,30 @@ void *XrdOssAioWait(int mySignum)
    do {do {numsig = sigwaitinfo(&mySig, &myInfo);}
           while (numsig < 0 && errno == EINTR);
        if (numsig < 0)
-          {Eroute.Emsg("AioWait", errno, sigType, "wait for AIO signal");
-           XrdOssSys::AioAllOK = 0;
+          {OssEroute.Emsg("AioWait",errno,sigType,(char *)"wait for AIO signal");
+           XrdOssSys::AioAllOk = 0;
            break;
           }
-       if (numsig != mySig || myInfo.si_code != SI_ASYNCIO)
+       if (numsig != mySignum || myInfo.si_code != SI_ASYNCIO)
           {char buff[32];
            sprintf(buff, "%d", numsig);
-           Eroute.Emsg("AioWait", "received unexpected signal", buff);
+           OssEroute.Emsg("AioWait", "received unexpected signal", buff);
            continue;
           }
 
-       aiop = (XrdSfsAio *)signalInfo.si_value.sival_ptr;
+       aiop = (XrdSfsAio *)myInfo.si_value.sival_ptr;
 
-       while ((rc = aio_error(aiop->sfsAio)) == EINPROGRESS);
-       retval = (ssize_t)aio_return(aiop->sfsAio);
+       while ((rc = aio_error(&aiop->sfsAio)) == EINPROGRESS) {}
+       retval = (ssize_t)aio_return(&aiop->sfsAio);
 
-       TRACE(AIO, sigType <<" completed; rc=" <<rc <<" result=" <<result);
+       TRACE(Debug, sigType <<" completed; rc=" <<rc <<" result=" <<retval);
 
        if (retval < 0) aiop->Result = -rc;
           else         aiop->Result = retval;
 
        if (isRead) aiop->doneRead();
           else     aiop->doneWrite();
-      }
+      } while(1);
 #endif
    return (void *)0;
 }
