@@ -283,8 +283,8 @@ int XrdOssSys::GetFile(XrdOssCache_Req *req)
 
 /* Convert the local filename and generate the corresponding remote name.
 */
-   if ( (retc =  GenLocalPath(req->path, rfs_fn)) ) return retc;
-   if ( (retc = GenRemotePath(req->path, lfs_fn)) ) return retc;
+   if ( (retc =  GenLocalPath(req->path, lfs_fn)) ) return retc;
+   if ( (retc = GenRemotePath(req->path, rfs_fn)) ) return retc;
 
 /* Fork to be able to issue a command.
 */
