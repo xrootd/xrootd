@@ -28,6 +28,10 @@
 #include <iostream>
 using std::cout;
 
+namespace XrdMonCtrCollector {
+    int port = DEFAULT_PORT;
+}
+
 void
 printSpeed()
 {
@@ -55,13 +59,14 @@ extern "C" void* receivePackets(void*)
 
     memset((char *) &sAddress, sizeof(sAddress), 0);
     sAddress.sin_family = AF_INET;
-    sAddress.sin_port = htons(PORT);
+    sAddress.sin_port = htons(XrdMonCtrCollector::port);
     sAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if ( -1 == bind(socket_, 
                     (struct sockaddr*)&sAddress, 
                     sizeof(sAddress)) ) {
-        cerr << "Failed to bind, port " << PORT << endl;
+        cerr << "Failed to bind, likely port " 
+             << XrdMonCtrCollector::port << " in use" << endl;
         ::abort();
     }
 

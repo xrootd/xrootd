@@ -12,6 +12,7 @@
 
 #include "XrdMon/XrdMonArgParser.hh"
 #include "XrdMon/XrdMonArgParserConvert.hh"
+#include "XrdMon/XrdMonCommon.hh"
 #include "XrdMon/XrdMonTypes.hh"
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonCtrArchiver.hh"
@@ -47,6 +48,7 @@ printHelp()
          << "    [-decFlushDelay <value>]\n"
          << "    [-maxCtrLogSize <value>]\n"
          << "    [-ctrBufSize <value>]\n"
+         << "    [-port <portNr>]\n"
          << "\n"
          << "-onlineDec <on|off>      Turns on/off online decoding.\n"
          << "                         Default value is \"" << (defaultOnlineDecOn?"on":"off") << "\".\n"
@@ -67,6 +69,9 @@ printHelp()
          << "-ctrBufSize <value>      Size of transient buffer of collected packets. It has to be\n"
          << "                         larger than max page size (64K).\n"
          << "                         Default value is \"" << defaultCtrBufSize << "\".\n"
+         << "-port <portNr>           Port number to be used.\n"
+         << "                         Default valus is \"" << DEFAULT_PORT << "\".\n"
+
          << endl;
 }
 
@@ -92,6 +97,8 @@ int main(int argc, char* argv[])
         arg_maxFSize   ("-maxCtrLogSize", defaultMaxCtrLogSize);
     XrdMonArgParser::ArgImpl<int, Convert2Int> 
         arg_ctrBufSize("-ctrBufSize", defaultCtrBufSize);
+    XrdMonArgParser::ArgImpl<int, Convert2Int> 
+        arg_port("-port", DEFAULT_PORT);
 
     try {
         XrdMonArgParser argParser;
@@ -104,6 +111,7 @@ int main(int argc, char* argv[])
         argParser.registerExpectedArg(&arg_decHDFlushDel);
         argParser.registerExpectedArg(&arg_maxFSize);
         argParser.registerExpectedArg(&arg_ctrBufSize);
+        argParser.registerExpectedArg(&arg_port);
         argParser.parseArguments(argc, argv);
     } catch (XrdMonException& e) {
         e.printIt();
@@ -111,8 +119,8 @@ int main(int argc, char* argv[])
         return 1;
     }
     if ( arg_onlineDecOn.myVal() == false && arg_rtOn.myVal() ) {
-        cerr << "\nError: you can not turn on rt monitoring if online decoding is off."
-             << endl;
+        cerr << "\nError: you can not turn on rt monitoring if"
+             << " online decoding is off." << endl;
         printHelp();
         return 1;
     }
@@ -121,8 +129,13 @@ int main(int argc, char* argv[])
         printHelp();
         return 2;
     }
-
-    cout << "online decoding is " << (arg_onlineDecOn.myVal()?"on":"off")<< '\n'
+    if ( arg_port.myVal() < 1 ) {
+        cerr << "\nError: invalid port number" << endl;
+        printHelp();
+        return 3;
+    }
+    
+    cout << "online decoding is " << (arg_onlineDecOn.myVal()?"on":"off")<<'\n'
          << "rt monitoring   is " << (arg_rtOn.myVal()?"on":"off")<< '\n'
          << "ctrLogDir       is " << arg_ctrLogDir.myVal() << '\n'
          << "decLogDir       is " << arg_decLogDir.myVal() << '\n'
@@ -130,7 +143,9 @@ int main(int argc, char* argv[])
          << "decRTFlushDelay is " << arg_decRTFlushDel.myVal() << '\n'
          << "decHDFlushDelay is " << arg_decHDFlushDel.myVal() << '\n'
          << "maxCtrLogSize   is " << arg_maxFSize.myVal() << '\n'
-         << "ctrBufSize      is " << arg_ctrBufSize.myVal() << endl;
+         << "ctrBufSize      is " << arg_ctrBufSize.myVal() << '\n'
+         << "port            is " << arg_port.myVal()
+         << endl;
 
     try {
         mkdirIfNecessary(arg_ctrLogDir.myVal());
@@ -146,6 +161,7 @@ int main(int argc, char* argv[])
         e.printIt();
         return 2;
     }
+    XrdMonCtrCollector::port = arg_port.myVal();
     
     // start thread for receiving data
     pthread_t recThread;

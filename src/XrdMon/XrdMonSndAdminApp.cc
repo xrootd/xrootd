@@ -10,30 +10,51 @@
 
 // $Id$
 
+#include "XrdMon/XrdMonArgParser.hh"
+#include "XrdMon/XrdMonArgParserConvert.hh"
 #include "XrdMon/XrdMonSndAdminEntry.hh"
 #include "XrdMon/XrdMonSndCoder.hh"
 #include "XrdMon/XrdMonSndTransmitter.hh"
 #include <assert.h>
+using namespace XrdMonArgParserConvert;
+
+void
+printHelp()
+{
+    cout << "\nxrdmonAdmin\n"
+         << "    [-host <hostName>]\n"
+         << "    [-port <portNr>]\n"
+         << "\n"
+         << "-host <hostName>         Name of the receiver's host.\n"
+         << "                         Default value is \"" << DEFAULT_HOST << "\".\n"
+         << "-port <portNr>           Port number of the receiver's host\n"
+         << "                         Default valus is \"" << DEFAULT_PORT << "\".\n"
+         << endl;
+}
 
 int main(int argc, char* argv[])
 {
-    const char* receiverHost = "127.0.0.1";
+    XrdMonArgParser::ArgImpl<const char*, Convert2String>
+        arg_host("-host", DEFAULT_HOST);
+    XrdMonArgParser::ArgImpl<int, Convert2Int> 
+        arg_port("-port", DEFAULT_PORT);
 
-    if ( argc > 1 ) {
-        if ( 0 == strcmp(argv[1], "-host") ) {
-            if ( argc < 3 ) {
-                cerr << "Expected argument after -host" << endl;
-                return 1;
-            }
-            receiverHost = argv[2];
-        }
+    try {
+        XrdMonArgParser argParser;
+        argParser.registerExpectedArg(&arg_host);
+        argParser.registerExpectedArg(&arg_port);
+        argParser.parseArguments(argc, argv);
+    } catch (XrdMonException& e) {
+        e.printIt();
+        printHelp();
+        return 1;
     }
 
     XrdMonSndDebug::initialize();
 
     XrdMonSndCoder coder;
     XrdMonSndTransmitter transmitter;
-    assert ( !transmitter.initialize(receiverHost, PORT) );
+    assert ( !transmitter.initialize(arg_host.myVal(), arg_port.myVal()) );
 
     XrdMonSndAdminEntry ae;
     ae.setShutdown();

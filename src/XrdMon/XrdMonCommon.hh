@@ -25,7 +25,8 @@ const kXR_int16 TRACEELEMLEN   =    16; // [bytes]
 // by packet type and number of elements
 const kXR_int16 TRACELEN       =    16;
 
-const kXR_int16 PORT           =  9930;
+extern const char* DEFAULT_HOST;
+extern const int   DEFAULT_PORT;
 
 const kXR_char PACKET_TYPE_ADMIN = 'A';
 const kXR_char PACKET_TYPE_DICT  = 'd';

@@ -10,6 +10,8 @@
 
 // $Id$
 
+#include "XrdMon/XrdMonArgParser.hh"
+#include "XrdMon/XrdMonArgParserConvert.hh"
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonSndCoder.hh"
 #include "XrdMon/XrdMonSndDebug.hh"
@@ -22,12 +24,26 @@
 #include <assert.h>
 #include <unistd.h>  /* usleep */
 #include <sys/time.h>
+using namespace XrdMonArgParserConvert;
 
 // known problems with 2 and 4
 //const kXR_int64 NOCALLS = 8640000;   24h worth
 const kXR_int64 NOCALLS = 1000000000;
 const kXR_int16 maxNoXrdMonSndPackets = 5;
 
+void
+printHelp()
+{
+    cout << "\nxrdmonDummySender\n"
+         << "    [-host <hostName>]\n"
+         << "    [-port <portNr>]\n"
+         << "\n"
+         << "-host <hostName>         Name of the receiver's host.\n"
+         << "                         Default value is \"" << DEFAULT_HOST << "\".\n"
+         << "-port <portNr>           Port number of the receiver's host\n"
+         << "                         Default valus is \"" << DEFAULT_PORT << "\".\n"
+         << endl;
+}
 
 void
 doDictionaryXrdMonSndPacket(XrdMonSndDummyXrootd& xrootd, 
@@ -101,20 +117,24 @@ closeFiles(XrdMonSndDummyXrootd& xrootd,
 
 // XrdMonSndDummyXrootd - main class
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
+    XrdMonArgParser::ArgImpl<const char*, Convert2String>
+        arg_host("-host", DEFAULT_HOST);
+    XrdMonArgParser::ArgImpl<int, Convert2Int> 
+        arg_port("-port", DEFAULT_PORT);
 
-    const char* receiverHost = "127.0.0.1";
-
-    if ( argc > 1 ) {
-        if ( 0 == strcmp(argv[1], "-host") ) {
-            if ( argc < 3 ) {
-                cerr << "Expected argument after -host" << endl;
-                return 1;
-            }
-            receiverHost = argv[2];
-        }
+    try {
+        XrdMonArgParser argParser;
+        argParser.registerExpectedArg(&arg_host);
+        argParser.registerExpectedArg(&arg_port);
+        argParser.parseArguments(argc, argv);
+    } catch (XrdMonException& e) {
+        e.printIt();
+        printHelp();
+        return 1;
     }
-    
+
     const char* inputPathFile = "./paths.txt";
 
     kXR_int32 seed = 12345;
@@ -135,7 +155,7 @@ int main(int argc, char* argv[]) {
     XrdMonSndCoder coder;
     XrdMonSndTransmitter transmitter;
 
-    assert ( !transmitter.initialize(receiverHost, PORT) );
+    assert ( !transmitter.initialize(arg_host.myVal(), arg_port.myVal()) );
     kXR_int64 noP = 0;
 
     while ( 0 != access("start.txt", F_OK) ) {

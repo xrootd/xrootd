@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                       XrdMonCtrCollectoriver.hh                           */
+/*                              XrdMonCommon.cc                              */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -10,15 +10,7 @@
 
 // $Id$
 
-#ifndef XRDMONCTRCOLLECTOR_HH
-#define XRDMONCTRCOLLECTOR_HH
+#include "XrdMon/XrdMonCommon.hh"
 
-// core function for receiving packets, runs in a dedicated thread
-
-extern "C" void* receivePackets(void*);
-
-namespace XrdMonCtrCollector {
-    extern int port;
-};
-
-#endif /* XRDMONCTRCOLLECTOR_HH */
+const char* DEFAULT_HOST = "127.0.0.1";
+const int   DEFAULT_PORT = 9930;

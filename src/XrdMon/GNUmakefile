@@ -12,6 +12,7 @@ include ../GNUmake.env
 
 OBJECTS_LIB_COMMON =                          \
         $(OBJDIR)/XrdMonArgParser.o           \
+        $(OBJDIR)/XrdMonCommon.o              \
         $(OBJDIR)/XrdMonException.o           \
         $(OBJDIR)/XrdMonHeader.o              \
 	$(OBJDIR)/XrdMonSenderInfo.o          \

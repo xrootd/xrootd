@@ -54,7 +54,7 @@ XrdMonSndTransmitter::initialize(const char* receiverHost, kXR_int16 receiverPor
     } else {
         struct hostent* h = gethostbyname(receiverHost);
         if ( h == NULL ) {
-            cout << "Error, host: " << receiverHost << endl;
+            cout << "Error, invalid host \"" << receiverHost << "\"" << endl;
             return 3;
         }
         memcpy(&(_sAddress.sin_addr.s_addr), h->h_addr, h->h_length);
