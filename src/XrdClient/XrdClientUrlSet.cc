@@ -244,10 +244,10 @@ void XrdClientUrlSet::CheckPort(XrdClientString &machine)
       } else {
 
 	 Info(XrdClientDebug::kHIDEBUG, "CheckPort",
-	      "Found tcp port " <<  svc->s_port << ".");
+	      "Found tcp port " <<  ntohs(svc->s_port) << ".");
 	 
 	 machine += ":";
-	 machine += svc->s_port;
+	 machine += ntohs(svc->s_port);
       }
 
    } else {
