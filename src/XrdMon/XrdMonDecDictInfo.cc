@@ -326,10 +326,10 @@ XrdMonDecDictInfo::convert2stringRT() const
 {
     stringstream ss(stringstream::out);
     ss << _myUniqueId 
-       << '\t' << _user
-       << '\t' << _host
-       << '\t' << _path
-       << '\t' << timestamp2string(_open);
+       << ' ' << _user
+       << ' ' << _host
+       << ' ' << _path
+       << ' ' << timestamp2string(_open);
     return ss.str();
 }
 
