@@ -15,6 +15,7 @@
 
 #include "XrdMon/XrdMonCommon.hh"
 #include "XrdMon/XrdMonTypes.hh"
+#include "XrdXrootd/XrdXrootdMonData.hh"
 
 #include <iostream>
 #include <sys/time.h>
@@ -22,18 +23,15 @@ using std::ostream;
 
 class XrdMonHeader {
 public:
-    packet_t    packetType() const { return _packetType; }
-    sequen_t    seqNo()      const { return _seqNo; }
-    packetlen_t packetLen()  const { return _packetLen; }
-    time_t      time()       const { return _time; }
+    packet_t    packetType() const { return _header.code; }
+    sequen_t    seqNo()      const { return _header.pseq; }
+    packetlen_t packetLen()  const { return _header.plen; }
+    time_t      time()       const { return _header.stod; }
     
     void decode(const char* packet);
 
 private:
-    packet_t    _packetType;
-    sequen_t    _seqNo;
-    packetlen_t _packetLen;
-    time_t      _time;
+    XrdXrootdMonHeader _header;
 
     friend ostream& operator<<(ostream& o, 
                                const XrdMonHeader& header);

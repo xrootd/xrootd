@@ -24,20 +24,20 @@ using std::stringstream;
 void
 XrdMonHeader::decode(const char* packet)
 {
-    memcpy(this, packet, sizeof(XrdMonHeader));
-    _packetLen = ntohs(_packetLen);
-    _time = ntohl(_time);    
+    memcpy(&_header, packet, sizeof(XrdXrootdMonHeader));
+    _header.plen = ntohs(_header.plen);
+    _header.stod = ntohl(_header.stod);
     
-    if (_packetType != PACKET_TYPE_TRACE &&
-        _packetType != PACKET_TYPE_DICT  &&
-        _packetType != PACKET_TYPE_ADMIN   ) {
+    if (packetType() != PACKET_TYPE_TRACE &&
+        packetType() != PACKET_TYPE_DICT  &&
+        packetType() != PACKET_TYPE_ADMIN   ) {
         stringstream ss(stringstream::out);
-        ss << "Invalid packet type " << _packetType;
+        ss << "Invalid packet type " << packetType();
         throw XrdMonException(ERR_INVPACKETTYPE, ss.str());
     }
-    if ( _packetLen < HDRLEN ) {
+    if ( packetLen() < HDRLEN ) {
         stringstream ss(stringstream::out);
-        ss << "Invalid packet length " << _packetLen;
+        ss << "Invalid packet length " << packetLen();
         throw XrdMonException(ERR_INVPACKETLEN, ss.str());
     }
 }
@@ -45,9 +45,9 @@ XrdMonHeader::decode(const char* packet)
 ostream&
 operator<<(ostream& o, const XrdMonHeader& header)
 {
-    o << "seq: "   << setw(3) << (int) header._seqNo 
-      <<", type: " << static_cast<char>(header._packetType)
-      << " len: "  << setw(4) << header._packetLen 
-      << " time: " << header._time;
+    o << "seq: "   << setw(3) << (int) header.seqNo() 
+      <<", type: " << static_cast<char>(header.packetType())
+      << " len: "  << setw(4) << header.packetLen() 
+      << " time: " << header.time();
     return o;
 }
