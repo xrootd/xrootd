@@ -147,7 +147,13 @@ $(LIBRARY_SND): $(OBJECTS_LIB_SND)
 $(COLLECTOR):	$(OBJECTS_BIN_CTR) $(LIBRARY_CTR) $(LIBRARY_OUC) \
 	$(LIBRARY_DEC) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
-	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+		$(CC) -xar -o lib_temp.a $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		$(CC) $(CFLAGS) $(LDOP) lib_temp.a $(LIBS) -o $@ $^; \
+		rm lib_temp.a; \
+	else \
+		$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^; \
+	fi
 
 $(DECODER):	$(OBJECTS_BIN_DEC) $(LIBRARY_DEC) $(LIBRARY_OUC) \
 	$(LIBRARY_COMMON) 
@@ -156,11 +162,23 @@ $(DECODER):	$(OBJECTS_BIN_DEC) $(LIBRARY_DEC) $(LIBRARY_OUC) \
 
 $(SENDER):	$(OBJECTS_BIN_SND) $(LIBRARY_SND) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
-	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -lresolv -o $@ $^
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+		$(CC) -xar -o lib_temp.a $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		$(CC) $(CFLAGS) $(LDOP) lib_temp.a $(LIBS) -lresolv -o $@ $^; \
+		rm lib_temp.a; \
+	else \
+		$(CC) $(CFLAGS) $(LDOP) $(LIBS) -lresolv -o $@ $^; \
+	fi
 
 $(ADMIN):	$(OBJECTS_BIN_ADM) $(LIBRARY_SND) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
-	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -lresolv -o $@ $^
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+		$(CC) -xar -o lib_temp.a $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		$(CC) $(CFLAGS) $(LDOP) lib_temp.a $(LIBS) -lresolv -o $@ $^; \
+		rm lib_temp.a; \
+	else \
+		$(CC) $(CFLAGS) $(LDOP) $(LIBS) -lresolv -o $@ $^; \
+	fi
 
 $(DUMPPACKETS):	$(OBJECTS_BIN_DMP) $(LIBRARY_DEC) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
