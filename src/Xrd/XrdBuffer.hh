@@ -91,7 +91,6 @@ int       totreq;
 int       totbuf;
 long long totalo;
 long long maxalo;
-int       maxreqsz;
 int       minrsw;
 int       rsinprog;
 int       totadj;

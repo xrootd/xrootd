@@ -208,7 +208,8 @@ XrdBuffer *bp;
 //
 while(1)
      {Reshaper.Wait();
-      if ((delta = (time(0) - lastshape)) < minrsw) Timer.Wait(delta*1000);
+      if ((delta = (time(0) - lastshape)) < minrsw) 
+         Timer.Wait((minrsw-delta)*1000);
 
       // Get a lock and compute the request profile
       //
