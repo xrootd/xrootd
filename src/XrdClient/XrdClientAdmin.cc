@@ -642,7 +642,7 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
 
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char *chksum)
+bool XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
 {
    ClientRequest chksumRequest;
 
@@ -653,8 +653,9 @@ bool XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char *chksum)
    chksumRequest.query.requestid = kXR_query;
    chksumRequest.query.infotype = kXR_Qcksum;
    chksumRequest.query.dlen = strlen((char *) path);
+
    bool ret = fConnModule->SendGenCommand(&chksumRequest, (const char*) path,
-					  NULL, chksum, FALSE, (char *)"GetChecksum");
+					  (void **)chksum, NULL, TRUE, (char *)"GetChecksum");
   
    return ret;
 }

@@ -87,7 +87,7 @@ bool XrdClientMessage::CreateData()
             abort();
          }
          char *tmpPtr = (char *)fData;
-         memset((void*)(tmpPtr+fHdr.dlen), 0, 1);
+         memset((void*)(tmpPtr+fHdr.dlen+1), 0, 1);
       }
       if (!fData)
          return FALSE;

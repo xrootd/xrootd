@@ -15,7 +15,7 @@
 #include "XrdClient/XrdClientVector.hh"
 
 #include <rpc/types.h>
-
+#include <stdlib.h>
 
 // We need a reasonable buffer to hold strings to be passed to/from Perl in some cases
 char *sharedbuf;
@@ -26,6 +26,7 @@ void SharedBufRealloc(long size) {
 }
 void SharedBufFree() {
    if (sharedbuf) free(sharedbuf);
+   sharedbuf = 0;
 }
 
 
@@ -238,11 +239,27 @@ extern "C" {
    char *XrdGetChecksum(const char *path) {
       if (!adminst) return 0;
 
-      memset(sharedbuf, 0, sizeof(sharedbuf));
+      char *chksum = 0;
 
-      adminst->GetChecksum((kXR_char *)path, (kXR_char *)sharedbuf);
+      // chksum now is a memory block allocated by the client itself
+      // containing the 0-term response data
+      if ( adminst->GetChecksum((kXR_char *)path, (kXR_char **)&chksum) ) {
 
-      return sharedbuf;
+	 // The data has to be copied to the sharedbuf
+	 // to deal with perl parameter passing
+	 long sz = strlen(chksum) + 1;
+
+	 SharedBufRealloc(sz);
+	 strncpy(sharedbuf, chksum, sz);
+
+         free(chksum);
+
+	 return sharedbuf;
+      }
+      else return 0;
+
    }
 
-}
+
+} // extern c
+
