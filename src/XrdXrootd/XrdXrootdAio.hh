@@ -110,6 +110,8 @@ static void               Init(int iosize, int maxaiopr, int maxaio=-80);
 
 private:
 
+        void               Clear(XrdLink *lnkp);
+
 static  XrdXrootdAioReq   *addBlock();
         void               endRead();
         void               endWrite();
@@ -126,10 +128,10 @@ static  int                QuantumMin; // aio segment size (Quantum/2)
 static  int                Quantum;    // aio segment size
 static  int                QuantumMax; // aio segment size (Quantum*2)
 static  int                maxAioPR;   // aio objects per request (max)
-static  int                maxAioPR2;// aio objects per request (max*2)
+static  int                maxAioPR2;  // aio objects per request (max*2)
 
-        XrdOucMutex        aioMutex; // Locks private data
-        XrdXrootdAioReq   *Next;     // -> Chain pointer
+        XrdOucMutex        aioMutex;  // Locks private data
+        XrdXrootdAioReq   *Next;      // -> Chain pointer
 
         off_t              myOffset;  // Next offset    (used for read's only)
         int                myIOLen;   // Size remaining (read and write end)

@@ -232,11 +232,10 @@ XrdXrootdAioReq *XrdXrootdAioReq::Alloc(XrdXrootdProtocol *prot,
       else arp = addBlock();
    rqMutex.UnLock();
 
-// Make sure we have one
+// Make sure we have one, fully reset it if we do
 //
    if (!arp) return arp;
-   arp->aioFree = arp->aioDone = 0;
-   arp->Link    = prot->Link;
+   arp->Clear(prot->Link);
    if (!numaio) numaio = maxAioPR;
 
 // Compute the number of aio objects should get and the Quantum size we should
@@ -271,11 +270,6 @@ XrdXrootdAioReq *XrdXrootdAioReq::Alloc(XrdXrootdProtocol *prot,
 //
    prot->Link->setRef(1);
    arp->Instance   = prot->Link->Inst();
-   arp->numActive  = 0;
-   arp->respDone   = 0;
-   arp->aioError   = 0;
-   arp->reDrive    = 0;
-   arp->aioTotal   = 0;
    arp->myIOLen    = iolen;  // Amount that is left to send
    arp->myOffset   = prot->myOffset;
    arp->myFile     = prot->myFile;
@@ -349,7 +343,7 @@ void XrdXrootdAioReq::Init(int iosize, int maxaiopr, int maxaio)
 
 // Preallocate a block of AIO request objects AIO I/O objects
 //
-   if ((arp  =               addBlock())) arp->Recycle(0);
+   if ((arp  =               addBlock())) {arp->Clear(0); arp->Recycle(0);}
    if ((aiop = XrdXrootdAio::addBlock())) aiop->Recycle();
 }
 
@@ -487,6 +481,30 @@ XrdXrootdAioReq *XrdXrootdAioReq::addBlock()
       while(--i) {arp->Next = rqFirst; rqFirst = arp; arp++;}
 
    return arp;
+}
+  
+/******************************************************************************/
+/*                                 C l e a r                                  */
+/******************************************************************************/
+
+void XrdXrootdAioReq::Clear(XrdLink *lnkp)
+{
+Next      = 0;
+myOffset  = 0;
+myIOLen   = 0;
+Instance  = 0;
+Instance  = 0;;
+Link      = lnkp;
+myFile    = 0;
+aioDone   = 0;
+aioFree   = 0;
+numActive = 0;
+aioTotal  = 0;
+aioError  = 0;
+aioType   = 0;
+respDone  = 0;
+isLocked  = 0;
+reDrive   = 0;
 }
   
 /******************************************************************************/

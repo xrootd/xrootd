@@ -113,7 +113,7 @@ static int                numMonitor;
 void XrdXrootdMonitor::Add_io(kXR_unt32 dictid,kXR_int32 blen,kXR_int64 offset)
      {if (lastWindow != currWindow) Mark();
          else if (nextEnt == lastEnt) Flush();
-      monBuff->info[nextEnt].offset.val    = offset;
+      monBuff->info[nextEnt].arg0.val      = offset;
       monBuff->info[nextEnt].arg1.buflen   = blen;
       monBuff->info[nextEnt++].arg2.dictid = dictid;
      }
@@ -125,7 +125,7 @@ void XrdXrootdMonitor::Add_io(kXR_unt32 dictid,kXR_int32 blen,kXR_int64 offset)
 void XrdXrootdMonitor::Open(kXR_unt32 dictid)
      {if (lastWindow != currWindow) Mark();
          else if (nextEnt == lastEnt) Flush();
-      monBuff->info[nextEnt].offset.id[0]  = XROOTD_MON_OPEN;
+      monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_OPEN;
       monBuff->info[nextEnt].arg1.buflen   = 0;
       monBuff->info[nextEnt++].arg2.dictid = dictid;
      }

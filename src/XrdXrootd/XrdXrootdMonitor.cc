@@ -103,7 +103,7 @@ XrdXrootdMonitor::XrdXrootdMonitor()
    if (!(monBuff = (XrdXrootdMonBuff *)memalign(getpagesize(), monBlen)))
       eDest->Emsg("Monitor", "Unable to allocate monitor buffer.");
       else {nextEnt = 1;
-            monBuff->info[0].offset.id[0] = 
+            monBuff->info[0].arg0.id[0] =
                      static_cast<kXR_char>(XROOTD_MON_WINDOW);
             monBuff->info[0].arg1.Window  =
             monBuff->info[0].arg2.Window  = 
@@ -177,11 +177,11 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
 //
    if (lastWindow != currWindow) Mark();
       else if (nextEnt == lastEnt) Flush();
-   monBuff->info[nextEnt].offset.id[0]  = XROOTD_MON_CLOSE;
-   monBuff->info[nextEnt].offset.id[1] = do_Shift(rTot, rVal);
-   monBuff->info[nextEnt].offset.rTot[1] =
+   monBuff->info[nextEnt].arg0.id[0]  = XROOTD_MON_CLOSE;
+   monBuff->info[nextEnt].arg0.id[1] = do_Shift(rTot, rVal);
+   monBuff->info[nextEnt].arg0.rTot[1] =
                 static_cast<kXR_unt32>(htonl(rVal));
-   monBuff->info[nextEnt].offset.id[2] = do_Shift(wTot, wVal);
+   monBuff->info[nextEnt].arg0.id[2] = do_Shift(wTot, wVal);
    monBuff->info[nextEnt].arg1.wTot =
                 static_cast<kXR_unt32>(htonl(wVal));
    monBuff->info[nextEnt++].arg2.dictid = dictid;
@@ -207,11 +207,11 @@ void XrdXrootdMonitor::Flush()
 
 // Place the ending timing mark, send off the buffer and reinitialize it
 //
-   monBuff->info[nextEnt].offset.id[0] = XROOTD_MON_WINDOW;
+   monBuff->info[nextEnt].arg0.id[0]   = XROOTD_MON_WINDOW;
    monBuff->info[nextEnt].arg1.Window  =
    monBuff->info[nextEnt].arg2.Window  = now;
    Send((void *)monBuff, size);
-   monBuff->info[      0].offset.id[0] = XROOTD_MON_WINDOW;
+   monBuff->info[      0].arg0.id[0]   = XROOTD_MON_WINDOW;
    monBuff->info[      0].arg1.Window  =
    monBuff->info[      0].arg2.Window  = now;
    nextEnt = 1;
@@ -381,11 +381,11 @@ void XrdXrootdMonitor::Mark()
 
 // Now, optimize placing the window mark in the buffer
 //
-   if (monBuff->info[nextEnt-1].offset.id[0] == XROOTD_MON_WINDOW)
+   if (monBuff->info[nextEnt-1].arg0.id[0] == XROOTD_MON_WINDOW)
       monBuff->info[nextEnt-1].arg2.Window = 
                static_cast<kXR_int32>(ntohl(localWindow));
       else if (nextEnt+8 > lastEnt) Flush();
-              else {monBuff->info[nextEnt].offset.id[0] = XROOTD_MON_WINDOW;
+              else {monBuff->info[nextEnt].arg0.id[0]   = XROOTD_MON_WINDOW;
                     monBuff->info[nextEnt].arg1.Window  =
                              static_cast<kXR_int32>(ntohl(lastWindow));
                     monBuff->info[nextEnt].arg2.Window  =
