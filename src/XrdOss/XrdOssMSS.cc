@@ -463,10 +463,10 @@ int XrdOssSys::MSS_Xeq(char *cmd, XrdOucStream **xfd, int okerr) {
     // Read back the first record. The first records must be the return code
     // from the command followed by any output. Make sure that this is the case.
     //
-    if ( !(resp = sp->GetLine()) ) retc = EPROTO;
+    if ( !(resp = sp->GetLine()) ) retc = XRDOSS_E8023;
        else 
        {DEBUG("received '" <<resp <<"'");
-        if (sscanf(resp, "%d", &retc) <= 0) retc = EPROTO;
+        if (sscanf(resp, "%d", &retc) <= 0) retc = XRDOSS_E8024;
        }
     if (retc)
        {if (retc != -okerr)
@@ -512,7 +512,7 @@ void XrdOssSys::MSS_Gateway(void) {
                 {IOStream.Attach(InSock);
                  if (request = IOStream.GetLine()) 
                     {DEBUG("received '" <<request <<"'");
-                     IOStream.Exec(request);
+                     IOStream.Exec(request,-1);
                     }
                  IOStream.Close(1);                // Close but do not kill
                  waitpid(-1, &pidstat, WNOHANG);   // Reap any previous child

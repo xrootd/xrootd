@@ -36,8 +36,10 @@
 #define XRDOSS_E8020 8020
 #define XRDOSS_E8021 8021
 #define XRDOSS_E8022 8022
+#define XRDOSS_E8023 8023
+#define XRDOSS_E8024 8024
 
-#define XRDOSS_ELAST 8022
+#define XRDOSS_ELAST 8024
   
 #define XRDOSS_T8001 "directory object in use (internal error)"
 #define XRDOSS_T8002 "directory object not open (internal error)"
@@ -61,4 +63,6 @@
 #define XRDOSS_T8020 "not enough free space to create file"
 #define XRDOSS_T8021 "server-side decompression is disabled"
 #define XRDOSS_T8022 "compressed files may not be open for update"
+#define XRDOSS_T8023 "no response from MSS interface"
+#define XRDOSS_T8024 "invalid response from MSS interface"
 #endif

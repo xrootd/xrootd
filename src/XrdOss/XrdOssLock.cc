@@ -137,7 +137,7 @@ int XrdOssLock::Serialize(const char *fn, int lkwant)
     do { lkfd = open(lkbuff, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);}
         while( lkfd < 0 && errno == EINTR);
     if ( lkfd < 0) 
-       {if (ENOENT != (rc = errno));
+       {if (ENOENT != (rc = errno))
            OssEroute.Emsg("XrdOssSerialize",rc,"serially opening ",lkbuff);
         return -rc;
        }

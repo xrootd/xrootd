@@ -78,7 +78,9 @@ const char *XrdOssErrorText[] =
        XRDOSS_T8019,
        XRDOSS_T8020,
        XRDOSS_T8021,
-       XRDOSS_T8022
+       XRDOSS_T8022,
+       XRDOSS_T8023,
+       XRDOSS_T8024
       };
 
 /******************************************************************************/
