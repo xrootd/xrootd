@@ -21,7 +21,7 @@
 struct XrdXrootdMonHeader
        {kXR_char   code;         // 'd' | 'i' | 't' | 'u'
         kXR_char   pseq;         // packet sequence
-        kXR_int16  plen;         // packet length
+        kXR_unt16  plen;         // packet length
         kXR_int32  stod;         // Unix time at Server Start
        };
 

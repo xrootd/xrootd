@@ -157,8 +157,8 @@ XrdProtocol *XrdXrootdProtocol::Match(XrdLink *lp)
         char  *hsbuff = (char *)&hsdata;
 
 static  struct hs_response
-               {kXR_int16 streamid;
-                kXR_int16 status;
+               {kXR_unt16 streamid;
+                kXR_unt16 status;
                 kXR_int32 rlen;
                 kXR_int32 pval;
                 kXR_int32 styp;

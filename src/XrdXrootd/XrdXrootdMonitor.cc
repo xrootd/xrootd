@@ -555,7 +555,7 @@ void XrdXrootdMonitor::fillHeader(XrdXrootdMonHeader *hdr,
 //
    hdr->code = static_cast<kXR_char>(id);
    hdr->pseq = static_cast<kXR_char>(myseq);
-   hdr->plen = static_cast<kXR_int16>(htonl(size));
+   hdr->plen = static_cast<kXR_unt16>(htonl(size));
    hdr->stod = startTime;
 }
   

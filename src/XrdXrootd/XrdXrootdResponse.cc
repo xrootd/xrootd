@@ -70,7 +70,7 @@ int XrdXrootdResponse::Push()
 int XrdXrootdResponse::Send()
 {
 
-    Resp.status = static_cast<kXR_int16>(htons(kXR_ok));
+    Resp.status = static_cast<kXR_unt16>(htons(kXR_ok));
     Resp.dlen   = 0;
     TRACES(RSP, "sending OK");
 
@@ -84,7 +84,7 @@ int XrdXrootdResponse::Send()
 int XrdXrootdResponse::Send(const char *msg)
 {
 
-    Resp.status        = static_cast<kXR_int16>(htons(kXR_ok));
+    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
     RespIO[1].iov_base = (caddr_t)msg;
     RespIO[1].iov_len  = strlen(msg)+1;
     Resp.dlen          = static_cast<kXR_int32>(htonl(RespIO[1].iov_len));
@@ -100,7 +100,7 @@ int XrdXrootdResponse::Send(const char *msg)
 int XrdXrootdResponse::Send(XResponseType rcode, void *data, int dlen)
 {
 
-    Resp.status        = static_cast<kXR_int16>(htons(rcode));
+    Resp.status        = static_cast<kXR_unt16>(htons(rcode));
     RespIO[1].iov_base = (caddr_t)data;
     RespIO[1].iov_len  = dlen;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
@@ -118,7 +118,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, char *data)
     kXR_int32 xbuf = static_cast<kXR_int32>(htonl(info));
     int dlen;
 
-    Resp.status        = static_cast<kXR_int16>(htons(rcode));
+    Resp.status        = static_cast<kXR_unt16>(htons(rcode));
     RespIO[1].iov_base = (caddr_t)(&xbuf);
     RespIO[1].iov_len  = sizeof(xbuf);
     RespIO[2].iov_base = (caddr_t)data;
@@ -137,7 +137,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, char *data)
 int XrdXrootdResponse::Send(void *data, int dlen)
 {
 
-    Resp.status        = static_cast<kXR_int16>(htons(kXR_ok));
+    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
     RespIO[1].iov_base = (caddr_t)data;
     RespIO[1].iov_len  = dlen;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
@@ -157,7 +157,7 @@ int XrdXrootdResponse::Send(struct iovec *IOResp, int iornum, int iolen)
     if (iolen < 0) for (i = 1; i < iornum; i++) dlen += IOResp[i].iov_len;
        else dlen = iolen;
 
-    Resp.status        = static_cast<kXR_int16>(htons(kXR_ok));
+    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
     IOResp[0].iov_base = RespIO[0].iov_base;
     IOResp[0].iov_len  = RespIO[0].iov_len;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
@@ -175,7 +175,7 @@ int XrdXrootdResponse::Send(XErrorCode ecode, const char *msg)
     int dlen;
     kXR_int32 erc = static_cast<kXR_int32>(htonl(ecode));
 
-    Resp.status        = static_cast<kXR_int16>(htons(kXR_error));
+    Resp.status        = static_cast<kXR_unt16>(htons(kXR_error));
     RespIO[1].iov_base = (char *)&erc;
     RespIO[1].iov_len  = sizeof(erc);
     RespIO[2].iov_base = (caddr_t)msg;
