@@ -116,8 +116,8 @@ inline void   Lock(XrdOucMutex *Mutex)
 inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
 
             XrdOucMutexHelper(XrdOucMutex *mutex=0)
-                 {if (mutex) Lock(mutex);
-                     else mtx = 0;
+                 {if (mutex) mutex->Lock();
+                  mtx = mutex;
                  }
            ~XrdOucMutexHelper() {if (mtx) UnLock();}
 private:
