@@ -67,7 +67,7 @@ char         *ID;      // This is referenced a lot
 
 unsigned int  Inst() {return Instance;}
 
-int           isConnected() {return FD >= 0;}
+int           isFlawed() {return Etext != 0;}
 
 int           isInstance(unsigned int inst)
                         {return FD >= 0 && Instance == inst;}

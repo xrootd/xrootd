@@ -40,8 +40,6 @@ const char *XrdRootdProtocol::TraceID = "Rootd: ";
   
 #define MAX_ARGS 128
 
-#define DISCARD_LINK(y) (lp->setEtext(y), lp->Close(), (XrdProtocol *)0)
-
 /******************************************************************************/
 /*                       P r o t o c o l   L o a d e r                        */
 /******************************************************************************/
@@ -159,7 +157,9 @@ XrdProtocol *XrdRootdProtocol::Match(XrdLink *lp)
 // Peek at the first 4 bytes of data
 //
    if ((dlen = lp->Peek(hsbuff, sizeof(hsdata), ReadWait)) != sizeof(hsdata))
-      return DISCARD_LINK("connection timed out");
+      {lp->setEtext("rootd handshake not received");
+       return (XrdProtocol *)0;
+      }
 
 // Verify that this is our protocol
 //
@@ -175,8 +175,9 @@ XrdProtocol *XrdRootdProtocol::Match(XrdLink *lp)
 // Fork a process to handle this protocol
 //
    if ((pid = Scheduler->Fork((const char *)lp->Name())))
-      {if (pid < 0) return DISCARD_LINK("fork failed");
-       return DISCARD_LINK(0);
+      {if (pid < 0) lp->setEtext("rootd fork failed");
+          else lp->setEtext("link transfered");
+       return (XrdProtocol *)0;
       }
 
 // Restablish standard error for the program we will exec

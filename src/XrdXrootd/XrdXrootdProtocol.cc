@@ -77,8 +77,6 @@ XrdObjectQ<XrdXrootdProtocol>
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
   
-#define ABANDON(x,y) (x->setEtext(y), x->Close(), (XrdProtocol *)0)
-
 #define UPSTATS(x) SI->statsMutex.Lock(); SI->x++; SI->statsMutex.UnLock()
 
 /******************************************************************************/
@@ -172,8 +170,9 @@ int dlen;
 // Peek at the first 20 bytes of data
 //
    if ((dlen = lp->Peek(hsbuff,sizeof(hsdata),readWait)) != sizeof(hsdata))
-       if (dlen <= 0) return ABANDON(lp, "connection timed out");
-          else return (XrdProtocol *)0;
+      {if (dlen <= 0) lp->setEtext("handshake not received");
+       return (XrdProtocol *)0;
+      }
 
 // Trace the data
 //
@@ -190,12 +189,16 @@ int dlen;
 //
    if (isRedir) hsresp.styp =  static_cast<kXR_int32>(htonl(kXR_LBalServer));
    if (!lp->Send((char *)&hsresp, sizeof(hsresp)))
-      return ABANDON(lp, "handshake failed");
+      {lp->setEtext("handshake failed");
+       return (XrdProtocol *)0;
+      }
 
 // We can now read all 20 bytes and discard them (no need to wait for it)
 //
    if (lp->Recv(hsbuff, sizeof(hsdata)) != sizeof(hsdata))
-      return ABANDON(lp, "reread failed");
+      {lp->setEtext("reread failed");
+       return (XrdProtocol *)0;
+      }
 
 // Get a protocol object off the stack (if none, allocate a new one)
 //
