@@ -53,7 +53,6 @@ Notes:
 #include <stdio.h>
 #include <sys/param.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOlb/XrdOlbAdmin.hh"
 #include "XrdOlb/XrdOlbCache.hh"
 #include "XrdOlb/XrdOlbConfig.hh"

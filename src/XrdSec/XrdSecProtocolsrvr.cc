@@ -23,7 +23,6 @@ const char *XrdSecProtocolsrvrCVSID = "$Id$";
 #include <stdio.h>
 #include <sys/param.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucLogger.hh"

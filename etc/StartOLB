@@ -1,0 +1,197 @@
+#!/bin/sh
+
+# (C) 2002 by the Board of Trustees of the Leland Stanford, Jr., University
+#                          All Rights Reserved
+# Produced by Andrew Hanushevsky for Stanford University under contract
+#            DE-AC03-76-SFO0515 with the Deprtment of Energy
+
+# Syntax: StartOLB [-c cfile] [-d] [-D] [-m | -s] [-v] [type]
+
+# Where:  -c  specifies the configuration file to be used.
+#         -d  passes the -d option to olbd
+#         -D  turns on internal debugging.
+#         -m  specifies master mode (default in StartOLB.cf)
+#         -s  specifies slave  mode (default in StartOLB.cf)
+#         -t  types the commands and does not execute them
+#         -v  produces verbose output.
+
+#        type is cur (the default), new, or old. The OLB is started from the
+#             directory $OLBBINBASE catenated with the specified type.
+#
+# Set default values
+#
+. $0.cf
+
+VERBOSE=0
+# Set TEST to equal /bin/echo to only display lines to be executed
+#
+TEST=
+
+umask 002
+
+##############################################################################
+#                           s u b r o u t i n e s                            #
+##############################################################################
+
+Debug () {
+    if test $VERBOSE -eq 1; then
+       /bin/echo $1
+    fi
+    }
+  
+MustExist () {
+    Debug "Checking existence of $1 $3 ..."
+    if test ! -${2} $3 ; then
+       Notify "$1 $3 not found."
+    fi
+    }
+
+Writable () {
+    Debug "Checking writability of $1 $2 ..."
+    /usr/local/bin/access w $2
+    if test $? -gt 0 ; then
+       Notify "$1 $2 is not writable by $MYNAME."
+    fi
+    }
+
+Writable2 () {
+    Debug "Checking writability of $1 $2 ..."
+    if test -f $2 ; then
+       /usr/local/bin/access w $2
+       if test $? -gt 0 ; then
+          Notify "$1 $2 is not writable by $MYNAME."
+       fi
+    fi
+    }
+  
+Wait4File () {
+    Debug "Checking file $2 ..."
+    tcnt=$count
+    until test -${1} $2 -o $tcnt -eq 0; do
+          /bin/echo StartOLB: File $2 not found\; waiting $time seconds...
+          /bin/sleep $time
+          tcnt=`/usr/bin/expr $tcnt - 1`
+    done
+    if [ $tcnt -le 0 ]; then
+       Notify "File $2 not found."
+    fi
+    }
+
+Notify () {
+    /bin/echo StartOLB: $1
+exit 4
+    subj="Failed to start OLB on `/usr/bin/hostname`."
+    echo $1 | /usr/ucb/mail -n -s "$subj" $mailto
+    exit 4
+    }
+
+##############################################################################
+#                          m a i n   p r o g r a m                           #
+##############################################################################
+
+# Verify that we are not executing this script as root (if we are, switch)
+#
+if [ $MYNAME = root ]; then
+   if [ $OLBUSER != root ]; then
+      $TEST exec /bin/su $OLBUSER -c "$PROGRAM $*"
+      fi
+   elif [ $MYNAME != $OLBUSER ]; then
+        Notify "Attempt to start $OLBUSER OLB as user $MYNAME."
+   fi
+
+# Pick up options
+#
+OLBBINSFX=
+OLBDEBUG=
+
+while test -n "$1"; do
+     if [ "$1" = "-c" ]; then
+        if [ -z "$2" ]; then
+           Notify "Configuration file not specified."
+        fi
+        if [ ! -r "$2" ]; then
+           Notify "Configuration file '$2' not found."
+        fi
+        OLBCONFIGFN=$2
+        shift
+   elif [ "$1" = "-d" ]; then
+        OLBDEBUG="-d"
+   elif [ "$1" = "-D" ]; then
+        set -x
+   elif [ "$1" = "-m" ]; then
+        OLBMODE="-m"
+        OLBTYPE='master'
+   elif [ "$1" = "-s" ]; then
+        OLBMODE="-s"
+        OLBTYPE='slave'
+   elif [ -z "$OLBBINSFX" -a "$1" = "cur" -o "$1" = "new" -o "$1" = "old" -o "$1" = "dbg" ] ; then
+        OLBBINSFX=$1
+   elif [ "$1" = "-t" ]; then
+        TEST=echo
+   elif [ "$1" = "-v" ]; then
+        VERBOSE=1
+   else
+        Notify "Invalid option '$1'."
+     fi
+   shift
+   done
+
+# Establish location of the OLB executables
+#
+  if [ "$OLBBINSFX" = "" ]; then
+     OLBBINSFX=cur
+  fi
+
+  OLBBINBASE=$OLBBINBASE/$OLBBINSFX
+  OLBPROG=$OLBBINBASE/$OLBPROG
+
+# Verify that all required directories are present
+#
+for FN in $OLBBINBASE $OLBLOGDIR $OLBHOMEDIR
+    do
+    MustExist Directory d $FN
+done
+
+# Verify that all owned directories are writable
+#
+for FN in $OLBLOGDIR $OLBHOMEDIR
+    do
+    Writable Directory $FN
+done
+
+# Verify that we can overwrite the pid file
+#
+Writable2 File $OLBPIDFILE
+  
+# Verify that all required readable files are present
+#
+for FN in $OLBCONFIGFN
+    do
+    Wait4File r $FN
+done
+  
+# Verify that all required executable files are present
+#
+XLIST="$OLBPROG"
+for FN in $XLIST
+    do
+    Wait4File x $FN
+done
+
+# Set appropriate limits
+#
+$TEST ulimit -n $MAXFD
+$TEST ulimit -c unlimited
+
+# Now start the daemon
+#
+/bin/echo Starting $OLBTYPE OLB ...
+$TEST cd $OLBHOMEDIR
+$TEST $OLBPROG $OLBDEBUG $OLBMODE -l $OLBLOGFILE $OLBCONFIGFN &
+stat=$?
+
+# Check if we were successful
+#
+if test $stat -gt 0 ; then
+   Notify "$OLBPROG returned a status of ${stat}."
+   fi

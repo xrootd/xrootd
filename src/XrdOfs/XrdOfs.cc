@@ -2,8 +2,8 @@
 /*                                                                            */
 /*                             X r d O f s . c c                              */
 /*                                                                            */
-/* (C) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*                            All Rights Reserved                             */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*               DE-AC03-76-SFO0515 with the Deprtment of Energy              */
 /******************************************************************************/
@@ -43,7 +43,6 @@ const char *XrdOfsCVSID = "$Id$";
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfig.hh"
 #include "XrdOfs/XrdOfsTrace.hh"

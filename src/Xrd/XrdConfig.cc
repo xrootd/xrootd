@@ -1,10 +1,9 @@
 /******************************************************************************/
 /*                                                                            */
-/*                          x r d _ C o n f i g . C                           */
+/*                          X r d C o n f i g . c c                           */
 /*                                                                            */
-/*                                                                            */
-/* (C) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
 /******************************************************************************/
@@ -39,7 +38,7 @@ const char *XrdConfigCVSID = "$Id$";
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
 #include "Xrd/XrdTrace.hh"
-#include "Xrd/XrdVersion.hh"
+#include "Xrd/XrdInfo.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
@@ -109,8 +108,7 @@ class XrdLogWorker : XrdJob
 {
 public:
 
-     void DoIt() {XrdLog.Say(0, (char *)"(c) 2004 Stanford University/SLAC "
-                              "xrd (eXtended Request Daemon) v " XrdVERSION);
+     void DoIt() {XrdLog.Say(0, (char *)XrdBANNER);
                   midnite += 86400;
                   XrdScheduler.Schedule((XrdJob *)this, midnite);
                  }
@@ -155,7 +153,7 @@ XrdConfig::XrdConfig(void)
    ProtInfo.Stats   = 0;                // We will fill this in later
    ProtInfo.Trace   = &XrdTrace;        // Stable -> Trace Information
 
-   ProtInfo.Version  = XrdVERSBIN;
+   ProtInfo.Version  = XrdFORMATB;
    ProtInfo.myName   = myName;
    ProtInfo.ConnOptn = -4;     // Num of connections to optimize for (1/4*max)
    ProtInfo.ConnLife = 60*60;  // Time   of connections to optimize for.
@@ -247,9 +245,7 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Put out the herald
 //
-   XrdLog.Say(0, (char *)"(c) 2004 Stanford University/SLAC "
-               "xrd (eXtended Request Daemon) v " XrdVERSION);
-
+   XrdLog.Say(0, (char *)XrdBANNER);
    sprintf(buff, "xrd@%s", myName);
    XrdLog.Say(0, buff,(char *)" initialization started.");
 

@@ -23,7 +23,6 @@ const char *XrdOdcConfigCVSID = "$Id$";
 #include <sys/un.h>
 #include <fcntl.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOdc/XrdOdcConfig.hh"
 #include "XrdOdc/XrdOdcMsg.hh"
 #include "XrdOdc/XrdOdcTrace.hh"

@@ -23,7 +23,6 @@ const char *XrdOucNetworkCVSID = "$Id$";
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLink.hh"

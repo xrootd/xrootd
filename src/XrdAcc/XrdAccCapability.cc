@@ -12,8 +12,6 @@
 
 const char *XrdAccCapabilityCVSID = "$Id$";
 
-#include "Experiment/Experiment.hh"
-
 #include "XrdAcc/XrdAccCapability.hh"
 
 /******************************************************************************/

@@ -12,7 +12,6 @@
 
 const char *XrdOfsHandleCVSID = "$Id$";
 
-#include "Experiment/Experiment.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfig.hh"
 #include "XrdOfs/XrdOfsHandle.hh"

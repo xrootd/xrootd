@@ -14,7 +14,6 @@ const char *XrdOucXSLockCVSID = "$Id$";
   
 #include <iostream.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucXSLock.hh"
 
 /******************************************************************************/

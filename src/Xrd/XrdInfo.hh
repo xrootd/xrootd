@@ -1,20 +1,22 @@
-#ifndef __XRD_VERSION_H__
-#define __XRD_VERSION_H__
+#ifndef __XRD_INFO_H__
+#define __XRD_INFO_H__
 /******************************************************************************/
 /*                                                                            */
-/*                         x r d _ V e r s i o n . h                          */
+/*                            X r d I n f o . h h                             */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
 //        $Id$
 
-#define XrdVERSION     "2.0.0"
+#define XrdFORMAT  "2.0.0"
 
-#define XrdVERSBIN     0x00000200
+#define XrdFORMATB 0x00000200
+
+#define XrdBANNER "(c) 2004 Stanford University/SLAC xrd (eXtended Request Daemon)"
 
 #define XrdDEFAULTPORT 1094;
 #endif

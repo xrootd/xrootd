@@ -2,10 +2,10 @@
 #define __XrdProtocol_H__
 /******************************************************************************/
 /*                                                                            */
-/*                        x r d _ P r o t o c o l . h                         */
+/*                        X r d P r o t o c o l . h h                         */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
@@ -46,7 +46,7 @@ XrdOucTrace    *Trace;       // Stable -> Trace Information
 // The following information must be duplicated; it is unstable.
 //
 char            *ConfigFN;     // -> Configuration file
-int              Version;      // Binary version of this server
+int              Format;       // Binary format of this server
 int              Port;         // Port number
 char            *myName;       // Host name
 int              ConnOptn;     // Number of connections to optimize for.

@@ -33,7 +33,6 @@ const char *XrdOssStageCVSID = "$Id$";
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssError.hh"

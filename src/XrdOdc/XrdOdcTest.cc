@@ -45,7 +45,6 @@ Notes:
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOdc/XrdOdcFinder.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"

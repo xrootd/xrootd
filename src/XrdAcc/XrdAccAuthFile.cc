@@ -18,8 +18,6 @@ const char *XrdAccAuthFileCVSID = "$Id$";
 #include <strings.h>
 #include <sys/stat.h>
 
-#include "Experiment/Experiment.hh"
-
 #include "XrdAcc/XrdAccAuthFile.hh"
   
 /******************************************************************************/

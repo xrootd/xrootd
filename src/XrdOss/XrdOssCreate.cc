@@ -29,7 +29,6 @@ const char *XrdOssCreateCVSID = "$Id$";
 #include <sys/vnode.h>
 #endif
 
-#include "Experiment/Experiment.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"

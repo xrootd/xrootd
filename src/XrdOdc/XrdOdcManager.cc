@@ -16,7 +16,6 @@ const char *XrdOdcManagerCVSID = "$Id$";
 #include "XrdOdc/XrdOdcMsg.hh"
 #include "XrdOdc/XrdOdcTrace.hh"
 
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLink.hh"
 #include "XrdOuc/XrdOucNetwork.hh"

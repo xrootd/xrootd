@@ -30,7 +30,6 @@ const char *XrdOlbMeterCVSID = "$Id$";
 #include <sys/statvfs.h>
 #endif
 
-#include "Experiment/Experiment.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbMeter.hh"
 #include "XrdOuc/XrdOucPlatform.hh"

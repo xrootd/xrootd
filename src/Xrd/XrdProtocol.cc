@@ -1,9 +1,9 @@
 /******************************************************************************/
 /*                                                                            */
-/*                        x r d _ P r o t o c o l . C                         */
+/*                        X r d P r o t o c o l . c c                         */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
@@ -25,8 +25,6 @@ const char *XrdProtocolCVSID = "$Id$";
 
 #include <dlfcn.h>
 #include <link.h>
-
-#include "Experiment/Experiment.hh"
 
 #include "XrdOuc/XrdOucError.hh"
 #include "Xrd/XrdLink.hh"
@@ -65,7 +63,7 @@ BPool     = rhs.BPool;
 Sched     = rhs.Sched;
 Trace     = rhs.Trace;
 
-Version   = rhs.Version;
+Format    = rhs.Format;
 Port      = rhs.Port;
 ConnOptn  = rhs.ConnOptn;
 ConnLife  = rhs.ConnLife;

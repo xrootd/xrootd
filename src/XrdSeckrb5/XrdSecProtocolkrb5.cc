@@ -26,7 +26,6 @@ extern "C" {
 #include "com_err.h"
 }
 
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"

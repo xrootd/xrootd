@@ -30,7 +30,6 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include <sys/un.h>
 #include <sys/wait.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"

@@ -12,7 +12,6 @@
 
 const char *XrdOlbSchedulerCVSID = "$Id$";
   
-#include "Experiment/Experiment.hh"
 #include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOucError.hh"

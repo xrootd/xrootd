@@ -7,9 +7,7 @@
 SERVER  = XrdOuc   XrdSfs   XrdAcc XrdSec XrdSeckrb4 XrdSeckrb5 XrdOdc \
           XrdOss   XrdOfs   XrdOlb Xrd    XrdRootd   XrdXrootd
 
-CLIENT  = XTNetFile
-
-TARGETS = $(CLIENT) $(SERVER)
+TARGETS = $(SERVER)
 
 ARCH    = `../../GNUmakearch`
 
@@ -22,10 +20,6 @@ TYPE    = `/bin/uname`
 all:
 	@$(MAKE) $(TARGETS) MAKEXEQ=all XMSG=Making --no-print-directory
 	@echo Make all done
-
-client:
-	@$(MAKE) $(CLIENT) XMSG=Making --no-print-directory
-	@echo Make client done
 
 server:
 	@$(MAKE) $(SERVER) XMSG=Making --no-print-directory

@@ -35,7 +35,6 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include <sys/un.h>
 #include <dirent.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOlb/XrdOlbCache.hh"
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbMeter.hh"

@@ -21,7 +21,6 @@ const char *XrdOssRenameCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"

@@ -1,9 +1,9 @@
 /******************************************************************************/
 /*                                                                            */
-/*                     x r o o t d _ R e s p o n s e . C                      */
+/*                  X r d X r o o t d R e s p o n s e . c c                   */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
@@ -12,8 +12,6 @@
 
 const char *XrdXrootdResponseCVSID = "$Id$";
  
-#include "Experiment/Experiment.hh"
-
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <inttypes.h>

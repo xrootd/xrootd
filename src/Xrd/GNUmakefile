@@ -32,7 +32,7 @@ SOURCES = \
         XrdProtocol.cc    \
         XrdScheduler.cc   \
         XrdStats.cc       \
-        XrdVersion.cc
+        XrdInfo.cc
 
   
 OBJECTS = \
@@ -45,7 +45,7 @@ OBJECTS = \
         $(OBJDIR)/XrdProtocol.o    \
         $(OBJDIR)/XrdScheduler.o   \
         $(OBJDIR)/XrdStats.o       \
-        $(OBJDIR)/XrdVersion.o
+        $(OBJDIR)/XrdInfo.o
 
 LIBRARY = $(LIBDIR)/libXrd.a
 
@@ -158,7 +158,7 @@ $(OBJDIR)/XrdBuffer.o:    XrdBuffer.cc   XrdBuffer.hh     XrdTrace.hh \
 $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
                        XrdLink.hh        XrdNetwork.hh     XrdObject.hh  \
                        XrdPoll.hh        XrdProtocol.hh    XrdScheduler.hh \
-                       XrdStats.hh       XrdTrace.hh       XrdVersion.hh \
+                       XrdStats.hh       XrdTrace.hh       XrdInfo.hh    \
                        XrdOuca2x.hh      XrdOucError.hh    XrdOucLogger.hh   \
                        XrdOucSecurity.hh XrdOucStream.hh   XrdOucTrace.hh \
                        XrdOucTimer.hh    XrdConfig.cc
@@ -214,6 +214,6 @@ $(OBJDIR)/XrdStats.o: XrdBuffer.hh     XrdLink.hh     XrdPoll.hh \
 	@echo Compiling XrdStats.cc ...
 	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdStats.o XrdStats.cc
 
-$(OBJDIR)/XrdVersion.o: XrdVersion.hh
-	@echo Compiling XrdVersion.cc ...
-	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdVersion.o XrdVersion.cc
+$(OBJDIR)/XrdInfo.o: XrdInfo.hh
+	@echo Compiling XrdInfo.cc ...
+	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInfo.o XrdInfo.cc

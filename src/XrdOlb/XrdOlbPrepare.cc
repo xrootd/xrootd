@@ -17,8 +17,6 @@ const char *XrdOlbPrepareCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "Experiment/Experiment.hh"
-
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOucError.hh"

@@ -12,7 +12,6 @@
 
 const char *XrdOlbCacheCVSID = "$Id$";
   
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucLink.hh"
 #include "XrdOlb/XrdOlbCache.hh"
 

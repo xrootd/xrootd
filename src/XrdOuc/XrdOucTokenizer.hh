@@ -2,10 +2,10 @@
 #define __OOUC_TOKENIZER__
 /******************************************************************************/
 /*                                                                            */
-/*                      o o u c _ T o k e n i z e r . h                       */
+/*                    X r d O u c T o k e n i z e r . h h                     */
 /*                                                                            */
-/* (C) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
 /******************************************************************************/

@@ -16,8 +16,6 @@ const char *XrdAccAccessCVSID = "$Id$";
 #include <time.h>
 #include <sys/param.h>
 
-#include "Experiment/Experiment.hh"
-
 #include "XrdAcc/XrdAccAccess.hh"
 #include "XrdAcc/XrdAccCapability.hh"
 #include "XrdAcc/XrdAccConfig.hh"

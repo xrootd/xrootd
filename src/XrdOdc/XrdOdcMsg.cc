@@ -14,7 +14,6 @@ const char *XrdOdcMsgCVSID = "$Id$";
 
 #include <stdlib.h>
   
-#include "Experiment/Experiment.hh"
 #include "XrdOdc/XrdOdcMsg.hh"
 #include "XrdOdc/XrdOdcTrace.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"

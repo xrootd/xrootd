@@ -12,7 +12,6 @@
 
 const char *XrdOlbPListCVSID = "$Id$";
   
-#include "Experiment/Experiment.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbPList.hh"
  

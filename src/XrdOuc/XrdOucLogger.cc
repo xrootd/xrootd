@@ -1,9 +1,9 @@
 /******************************************************************************/
 /*                                                                            */
-/*                         o o u c _ L o g g e r . C                          */
+/*                       X r d O u c L o g g e r . c c                        */
 /*                                                                            */
-/*(C) 2003 by the Board of Trustees of the Leland Stanford, Jr., University   */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/*(c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*Produced by Andrew Hanushevsky for Stanford University under contract       */
 /*           DE-AC03-76-SFO0515 with the Deprtment of Energy                  */
 /******************************************************************************/
@@ -12,8 +12,6 @@
 
 const char *XrdOucLoggerCVSID = "$Id$";
 
-#include "Experiment/Experiment.hh"
- 
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>

@@ -29,7 +29,6 @@ const char *XrdSectestClientCVSID = "$Id$";
 #include <sys/param.h>
 #include <sys/socket.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdSec/XrdSecInterface.hh"
   
 /******************************************************************************/

@@ -16,7 +16,6 @@ const char *XrdOucLinkCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLink.hh"

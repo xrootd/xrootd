@@ -18,7 +18,6 @@ const char *XrdOlbServerCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOlb/XrdOlbCache.hh"
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbManager.hh"

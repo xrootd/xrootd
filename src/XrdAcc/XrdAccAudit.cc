@@ -15,8 +15,6 @@ const char *XrdAccAuditCVSID = "$Id$";
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "Experiment/Experiment.hh"
-
 #include "XrdAcc/XrdAccAudit.hh"
 #include "XrdOuc/XrdOucError.hh"
   

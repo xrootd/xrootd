@@ -37,7 +37,6 @@ const char *XrdAccTestCVSID = "$Id$";
 #include <sys/param.h>
 #include <sys/socket.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"

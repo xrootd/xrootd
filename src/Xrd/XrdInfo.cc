@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                         x r d V e r s i o n . c c                          */
+/*                            X r d I n f o . c c                             */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*      All Rights Reserved. Scroll to end for Terms and Conditions of use    */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
@@ -10,16 +10,16 @@
 
 //          $Id$
 
-const char *XrdVersionCVSID = "$Id$";
+const char *XrdInfoCVSID = "$Id$";
   
-#include "Xrd/XrdVersion.hh"
+#include "Xrd/XrdInfo.hh"
  
 /******************************************************************************/
 /*           L i c e n s e   T e r m   a n d   C o n d i t i o n s            */
 /******************************************************************************/
   
 const char *XrdLicense =
-"Copyright (c) 2003, Board of Trustees of the Leland Stanford, Jr. University.\n"
+"Copyright (c) 2004, Board of Trustees of the Leland Stanford, Jr. University.\n"
 "Produced under contract DE-AC03-76-SF00515 with the US Department of Energy. \n"
 "All rights reserved.                                                         \n"
 "Redistribution and use in source and binary forms, with or without           \n"

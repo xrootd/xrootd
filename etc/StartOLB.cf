@@ -1,0 +1,43 @@
+#!/bin/sh
+mailto="abh"
+time=60
+count=30
+OLBBINBASE=/opt/olbd/bin
+OLBLOGDIR=/var/adm/olbd/logs
+OLBHOMEDIR=/var/adm/olbd/core
+OLBLOGFN=olbdlog
+OLBLOGFILE=$OLBLOGDIR/$OLBLOGFN
+OLBPIDFILE=/tmp/olbd.pid
+OLBPROG=olbd
+OLBUSER=`/usr/etc/ooss/ooss_user`
+
+if [ "$OLBUSER" = "objysrv" ]; then
+OLBCONFIGFN=/usr/etc/ooss/amshpss.cf
+else
+OLBCONFIGFN=/opt/xrootd/etc/xrootd.cf
+fi
+
+OLBMODE='-s'
+OLBTYPE='slave'
+RESP=`/usr/local/bin/taylor -q opts | grep '^olbd=.*master'`
+if [ $? -eq 0 ]; then
+OLBMODE='-m'
+OLBTYPE='master'
+fi
+
+PROGNAM=`echo $0 | /bin/awk '{n=split($0,x,"/"); print x[n]}'`
+PROGRAM=/opt/olbd/etc/$PROGNAM
+
+MYOS=`/bin/uname | /bin/awk '{print $1}'`
+if [ "$MYOS" = "SunOS" ]; then
+MAXFD=`ulimit -H -n`
+MYNAME=`/usr/ucb/whoami`
+FIND=/bin/find
+else
+MAXFD=`ulimit -H -n | /bin/grep files | /bin/awk '{print $3}'`
+if [ "$MAXFD" = "" ]; then
+MAXFD=`ulimit -H -n`
+fi
+MYNAME=`/usr/bin/whoami`
+FIND=/usr/local/bin/find
+fi

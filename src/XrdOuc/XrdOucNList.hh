@@ -2,10 +2,10 @@
 #define __OOUC_NLIST__
 /******************************************************************************/
 /*                                                                            */
-/*                          o o u c _ N L i s t . h                           */
+/*                        X r d O u c N L i s t . h h                         */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/

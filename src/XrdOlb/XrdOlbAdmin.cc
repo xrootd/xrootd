@@ -14,7 +14,6 @@ const char *XrdOlbAdminCVSID = "$Id$";
 
 #include <limits.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOlb/XrdOlbAdmin.hh"
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbManager.hh"

@@ -30,7 +30,6 @@ const char *XrdOdcFinderCVSID = "$Id$";
 #include <sys/un.h>
 #include <sys/wait.h>
   
-#include "Experiment/Experiment.hh"
 #include "XrdOdc/XrdOdcConfig.hh"
 #include "XrdOdc/XrdOdcFinder.hh"
 #include "XrdOdc/XrdOdcManager.hh"

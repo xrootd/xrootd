@@ -14,7 +14,6 @@ const char *XrdOucEnvCVSID = "$Id$";
 
 #include "string.h"
 
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucEnv.hh"
   
 /******************************************************************************/

@@ -1,0 +1,205 @@
+#!/bin/sh
+
+# (C) 2003 by the Board of Trustees of the Leland Stanford, Jr., University
+#                          All Rights Reserved
+# Produced by Andrew Hanushevsky for Stanford University under contract
+#            DE-AC03-76-SFO0515 with the Deprtment of Energy
+
+# Syntax: StartXRD [-c cfile] [-d] [-D] [-n] [-r] [-s service] [-v] [type]
+
+# Where:  -c  specifies the configuration file to be used.
+#         -d  turns on xrootd debugging.
+#         -D  turns on script debugging.
+#         -n  designates this an a non-redirecting xrootd. The option is the
+#             default if an olb master is not enabled (see StartXRD.cf)
+#         -r  designates this an a redirecting xrootd. The option is the
+#             default if an olb master is enabled (see StartXRD.cf)
+#         -s  specifies the service name that the ams is known by. Not all
+#             ams' honor this option (use with discretion).
+#         -v  produces verbose output.
+
+#        type is cur (the default), new, or old. The XRD is started from the
+#             directory $XRDBINBASE catenated with the specified type.
+#
+# Set default values
+#
+. $0.cf
+
+VERBOSE=0
+
+# Change TEST to be /bin/echo to see what will be executed
+#
+TEST=
+
+umask 002
+
+##############################################################################
+#                           s u b r o u t i n e s                            #
+##############################################################################
+
+Debug () {
+    if test $VERBOSE -eq 1; then
+       /bin/echo $1
+    fi
+    }
+  
+MustExist () {
+    Debug "Checking existence of $1 $3 ..."
+    if test ! -${2} $3 ; then
+       Notify "$1 $3 not found."
+    fi
+    }
+
+Writable () {
+    Debug "Checking writability of $1 $2 ..."
+    /usr/local/bin/access w $2
+    if test $? -gt 0 ; then
+       Notify "$1 $2 is not writable by $MYNAME."
+    fi
+    }
+  
+Wait4File () {
+    Debug "Checking file $2 ..."
+    tcnt=$count
+    until test -${1} $2 -o $tcnt -eq 0; do
+          /bin/echo StartXRD: File $2 not found\; waiting $time seconds...
+          /bin/sleep $time
+          tcnt=`/usr/bin/expr $tcnt - 1`
+    done
+    if [ $tcnt -le 0 ]; then
+       Notify "File $2 not found."
+    fi
+    }
+
+Notify () {
+    /bin/echo StartXRD: $1
+exit 4
+    subj="Failed to start XRD on `/usr/bin/hostname`."
+    echo $1 | /usr/ucb/mail -n -s "$subj" $mailto
+    exit 4
+    }
+
+##############################################################################
+#                          m a i n   p r o g r a m                           #
+##############################################################################
+
+# Verify that we are not executing this script as root (if we are, switch)
+#
+if [ $MYNAME = root ]; then
+   if [ $XRDUSER != root ]; then
+      $TEST export LD_LIBRARY_PATH
+      $TEST exec /bin/su $XRDUSER -c "$PROGRAM $*"
+   fi
+   elif [ $MYNAME != $XRDUSER ]; then
+        Notify "Attempt to start $XRDUSER XRD as user $MYNAME."
+fi
+
+# Pick up options
+#
+XRDDIRSFX=
+XRDOPTIONS=
+
+while test -n "$1"; do
+     if [ "$1" = "-c" ]; then
+        if [ -z "$2" ]; then
+           Notify "Configuration file not specified."
+        fi
+        if [ ! -r "$2" ]; then
+           Notify "Configuration file '$2' not found."
+        fi
+        XRDCONFIGFN=$2
+        shift
+   elif [ "$1" = "-d" ]; then
+        XRDOPTIONS="$XRDOPTIONS -d"
+   elif [ "$1" = "-D" ]; then
+        set -x
+   elif [ "$1" = "-r" ]; then
+        XRDMODE='-r'
+        XRDTYPE='redirecting'
+   elif [ "$1" = "-s" ]; then
+        if [ -z "$2" ]; then
+           Notify "Service not specified."
+        fi
+        xrd_XRDALT=`/bin/grep $2 /etc/services | /bin/awk '{split($2,x,"/");print x[1]}'`
+        if [ -z "$xrd_XRDALT" ]; then
+           Notify "Service $2 not found."
+        fi
+        xrd_PORTNUM=$xrd_XRDALT
+        xrd_XRDALT=$2
+        XRDLOGFILE=$XRDLOGDIR/${XRDLOGFN}_$2
+        XRDOPTIONS = "$XRDOPTIONS -p $xrd_PORTNUM"
+        shift
+   elif [ "$1" = "-v" ]; then
+        VERBOSE=1
+   elif [ -z "$XRDDIRSFX" -a "$1" = "cur" -o "$1" = "new" -o "$1" = "old" -o "$1" = "dbg" ] ; then
+        XRDDIRSFX=$1
+   else
+        Notify "Invalid option '$1'."
+     fi
+   shift
+   done
+
+# Establish location of the XRD executable and libraries
+#
+  if [ "$XRDDIRSFX" = "" ]; then
+     XRDDIRSFX=cur
+  fi
+
+  XRDPROG=$XRDBINBASE/$XRDDIRSFX/$XRDPROG
+  XRDLIBBASE=$XRDLIBBASE/$XRDDIRSFX
+
+  if [ -z "$LD_LIBRARY_PATH" ]; then
+     LD_LIBRARY_PATH=$XRDLIBBASE
+     else
+     LD_LIBRARY_PATH=$XRDLIBBASE:$LD_LIBRARY_PATH
+  fi
+
+# Verify that all required directories are present
+#
+for FN in $XRDLIBBASE $XRDLOGDIR $XRDHOMEDIR
+    do
+    MustExist Directory d $FN
+done
+
+# Verify that all owned directories are writable
+#
+for FN in $XRDLOGDIR $XRDHOMEDIR
+    do
+    Writable Directory $FN
+done
+  
+# Verify that all required readable files are present
+#
+for FN in $XRDCONFIGFN
+    do
+    Wait4File r $FN
+done
+  
+# Verify that all required executable files are present
+#
+for FN in $XRDPROG
+    do
+    Wait4File x $FN
+done
+
+# Export required variables
+#
+$TEST export LD_LIBRARY_PATH
+
+# Set appropriate limits
+#
+$TEST ulimit -n $MAXFD
+$TEST ulimit -c unlimited
+
+# Now start the daemon
+#
+/bin/echo Starting $XRDTYPE xrootd ...
+$TEST cd $XRDHOMEDIR
+$TEST $XRDPROG $XRDOPTIONS $XRDMODE -l $XRDLOGFILE -c $XRDCONFIGFN &
+stat=$?
+
+# Check if we were successful
+#
+if test $stat -gt 0 ; then
+   Notify "$XRDPROG returned a status of ${stat}."
+   fi

@@ -31,7 +31,6 @@ const char *XrdSecPManagerCVSID = "$Id$";
 #include <errno.h>
 #include <iostream.h>
   
-#include "Experiment/Experiment.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecPManager.hh"
 #include "XrdSec/XrdSecProtocolhost.hh"

@@ -27,8 +27,6 @@ const char *XrdXrootdPrepareCVSID = "$Id$";
 #define getdents(fd, dirp, cnt) syscall(SYS_getdents, fd, dirp, cnt)
 #endif
 
-#include "Experiment/Experiment.hh"
-
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucTList.hh"

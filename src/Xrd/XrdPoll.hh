@@ -2,10 +2,9 @@
 #define __XRD_POLL_H__
 /******************************************************************************/
 /*                                                                            */
-/*                            x r d _ P o l l . h                             */
+/*                            X r d P o l l . h h                             */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*      All Rights Reserved. See XrdVersion.cc for complete License Terms     */
+/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/

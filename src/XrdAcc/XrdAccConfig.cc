@@ -31,8 +31,6 @@ const char *XrdAccConfigCVSID = "$Id$";
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "Experiment/Experiment.hh"
-
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAccess.hh"

@@ -26,7 +26,6 @@ const char *XrdOucSocketCVSID = "$Id$";
 #include <sys/wait.h>
 #include <netinet/in.h>
 
-#include "Experiment/Experiment.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucSocket.hh"
