@@ -41,16 +41,12 @@ int XrdOucThread_Signal(pthread_t tid, int snum)
     }
 
 int XrdOucThread_Start(pthread_t *tid, void *(*proc)(void *), void *arg)
-     {int rc;
-      if ((rc = pthread_create(tid, NULL, proc, arg))) return rc;
-      return 0;
-     }
+     {return pthread_create(tid, NULL, proc, arg);}
 
 int  XrdOucThread_Run(pthread_t *tid, void *(*proc)(void *), void *arg)
      {int rc;
-      if ((rc = XrdOucThread_Start(tid, proc, arg))
-      ||  (rc = XrdOucThread_Detach(*tid))) return rc;
-      return 0;
+      if ((rc = XrdOucThread_Start(tid, proc, arg))) return rc;
+      return    XrdOucThread_Detach(*tid);
      }
 
 int  XrdOucThread_Sys(pthread_t *tid, void *(*proc)(void *), void *arg)

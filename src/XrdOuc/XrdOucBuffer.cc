@@ -12,10 +12,12 @@
 
 const char *XrdOucBufferCVSID = "$Id$";
 
-#include <malloc.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <stdlib.h>
 
 #include "XrdOuc/XrdOucBuffer.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 
 /******************************************************************************/
 /*                 G l o b a l   I n i t i a l i z a t i o n                  */
@@ -24,8 +26,9 @@ const char *XrdOucBufferCVSID = "$Id$";
 XrdOucMutex               XrdOucBuffer::BuffList;
 XrdOucStack<XrdOucBuffer> XrdOucBuffer::BuffStack;
 int                     XrdOucBuffer::size    = 4096;
-int                     XrdOucBuffer::alignit = (size < getpagesize() ? size :
-                                                        getpagesize());
+int                     XrdOucBuffer::alignit = (size < sysconf(_SC_PAGESIZE)
+                                                      ? size :
+                                                        sysconf(_SC_PAGESIZE));
 int                     XrdOucBuffer::maxbuff = 16;
 int                     XrdOucBuffer::numbuff = 0;
   
@@ -43,7 +46,7 @@ XrdOucBuffer::XrdOucBuffer() : BuffLink(this)
 /******************************************************************************/
 /*                                 A l l o c                                  */
 /******************************************************************************/
-  
+
 XrdOucBuffer *XrdOucBuffer::Alloc()
 {
   XrdOucBuffer *bp;

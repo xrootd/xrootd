@@ -397,5 +397,5 @@ int XrdOucLink::retErr(int ecode, char *dest)
 {
    IOMutex.UnLock();
    eDest->Emsg("Link", ecode, "sending to", (dest ? dest : Lname));
-   return (EWOULDBLOCK == ecode | EAGAIN == ecode ? -2 : -1);
+   return (EWOULDBLOCK == ecode || EAGAIN == ecode ? -2 : -1);
 }

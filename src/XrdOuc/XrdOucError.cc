@@ -19,7 +19,7 @@ const char *XrdOucErrorCVSID = "$Id$";
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/stropts.h>
+#include <stropts.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 
