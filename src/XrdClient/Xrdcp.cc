@@ -62,8 +62,11 @@ void *ReaderThread_xrd(void *)
    void *buf;
    long long offs = 0;
    int nr = 1;
+   long long bread = 0, len = 0;
 
-   while ((nr > 0) && (offs < cpnfo.len)) {
+   len = cpnfo.len;
+
+   while ((nr > 0) && (offs < len)) {
       buf = malloc(XRDCP_BLOCKSIZE);
       if (!buf) {
 	 Error("xrdcp", "Out of memory.");
@@ -71,11 +74,13 @@ void *ReaderThread_xrd(void *)
       }
 
       if ( (nr = cpnfo.XrdCli->Read(buf, offs, XRDCP_BLOCKSIZE)) ) {
-	 cpnfo.bread += nr;
+	 bread += nr;
 	 offs += nr;
 	 cpnfo.queue.PutBuffer(buf, nr);
       }
    }
+
+   cpnfo.bread = bread;
 
    // This ends the transmission... bye bye
    cpnfo.queue.PutBuffer(0, 0);
@@ -101,6 +106,7 @@ void *ReaderThread_loc(void *) {
    void *buf;
    long long offs = 0;
    int nr = 1;
+   long long bread = 0;
 
    while (nr > 0) {
       buf = malloc(XRDCP_BLOCKSIZE);
@@ -110,12 +116,13 @@ void *ReaderThread_loc(void *) {
       }
 
       if ( (nr = read(cpnfo.localfile, buf, XRDCP_BLOCKSIZE)) ) {
-	 cpnfo.bread += nr;
+	 bread += nr;
 	 offs += nr;
 	 cpnfo.queue.PutBuffer(buf, nr);
       }
    }
 
+   cpnfo.bread = bread;
 
    // This ends the transmission... bye bye
    cpnfo.queue.PutBuffer(0, 0);
@@ -193,7 +200,6 @@ int doCp_xrd2loc(char *src, char *dst) {
 
    // Open the input file (xrdc)
    cpnfo.XrdCli = new XrdClient(src);
-
    if (cpnfo.XrdCli->Open(0, 0)) {
 
       // Open the output file (loc)

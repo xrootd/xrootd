@@ -14,7 +14,7 @@
 #ifndef _XRC_CONST_H
 #define _XRC_CONST_H
 
-#define DFLT_CONNECTTIMEOUT     0
+#define DFLT_CONNECTTIMEOUT     10
 #define NAME_CONNECTTIMEOUT     "ConnectTimeout"
 
 #define DFLT_CONNECTTIMEOUTWAN  60
@@ -53,10 +53,10 @@
 #define  XRD_CLIENT_VERSION "0.1.0alpha"
 
 // Defaults for ReadAhead and Cache
-#define DFLT_READCACHESIZE      0
+#define DFLT_READCACHESIZE      4000000
 #define NAME_READCACHESIZE      "ReadCacheSize"
 
-#define DFLT_READAHEADSIZE      0
+#define DFLT_READAHEADSIZE      800000
 #define NAME_READAHEADSIZE      "ReadAheadSize"
 
 #define NAME_REDIRDOMAINALLOW_RE   "RedirDomainAllowRE"

@@ -15,6 +15,7 @@
 #define XRD_CENV_H
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdClientMutexLocker.hh"
 
 #include <string.h>
 
@@ -30,7 +31,7 @@ class XrdClientEnv {
  private:
 
    XrdOucEnv      *fOucEnv;
-
+   pthread_mutex_t fMutex;
    static XrdClientEnv *fgInstance;
 
  protected:
@@ -40,18 +41,30 @@ class XrdClientEnv {
  public:
 
    char *                 Get(char *varname) {
-      return fOucEnv->Get(varname);
+      char *res;
+      XrdClientMutexLocker m(fMutex);
+
+      res = fOucEnv->Get(varname);
+      return res;
    }
 
    long                   GetInt(char *varname) {
-      return fOucEnv->GetInt(varname);
+      long res;
+      XrdClientMutexLocker m(fMutex);
+
+      res = fOucEnv->GetInt(varname);
+      return res;
    }
 
    void                   Put(char *varname, char *value) {
+      XrdClientMutexLocker m(fMutex);
+
       fOucEnv->Put(varname, value);
    }
 
    void  PutInt(char *varname, long value) {
+      XrdClientMutexLocker m(fMutex);
+
       fOucEnv->PutInt(varname, value);
    }
 

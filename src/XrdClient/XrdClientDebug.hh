@@ -18,6 +18,7 @@
 #include <string>
 #include <sstream>
 #include "XrdClientConst.hh"
+#include "XrdClientMutexLocker.hh"
 
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
@@ -28,11 +29,11 @@ using namespace std;
 
 #define DebugLevel() XrdClientDebug::Instance()->GetDebugLevel()
 
-#define Info(lvl, where, what) {  XrdClientDebug::Instance()->outs << where << " " << what; \
-      XrdClientDebug::Instance()->TraceStream((short)lvl, XrdClientDebug::Instance()->outs); }
+#define Info(lvl, where, what) { XrdClientDebug::Instance()->Lock(); XrdClientDebug::Instance()->outs << where << " " << what; \
+      XrdClientDebug::Instance()->TraceStream((short)lvl, XrdClientDebug::Instance()->outs); XrdClientDebug::Instance()->Unlock();}
                                
-#define Error(where, what) {  XrdClientDebug::Instance()->outs << where << " " << what; \
-      XrdClientDebug::Instance()->TraceStream((short)XrdClientDebug::kNODEBUG, XrdClientDebug::Instance()->outs); }
+#define Error(where, what) { XrdClientDebug::Instance()->Lock(); XrdClientDebug::Instance()->outs << where << " " << what; \
+      XrdClientDebug::Instance()->TraceStream((short)XrdClientDebug::kNODEBUG, XrdClientDebug::Instance()->outs); XrdClientDebug::Instance()->Unlock();}
 
 
 class XrdClientDebug {
@@ -43,6 +44,8 @@ class XrdClientDebug {
    XrdOucError    *fOucErr;
 
    static XrdClientDebug *fgInstance;
+
+   pthread_mutex_t                    fMutex;
 
  protected:
    XrdClientDebug();
@@ -57,10 +60,14 @@ class XrdClientDebug {
       kDUMPDEBUG = 3
    };
 
-   short           GetDebugLevel() { return fDbgLevel; }
+   short           GetDebugLevel() {
+       XrdClientMutexLocker m(fMutex);
+       return fDbgLevel;
+       }
    static XrdClientDebug *Instance();
 
    inline void TraceStream(short DbgLvl, ostringstream &s) {
+      XrdClientMutexLocker m(fMutex);
       if (DbgLvl <= GetDebugLevel())
 	 fOucErr->Emsg("", s.str().c_str() );
 
@@ -73,6 +80,9 @@ class XrdClientDebug {
       if (DbgLvl <= GetDebugLevel())
 	 fOucErr->Emsg("", s);
    }
+
+   inline void Lock() { pthread_mutex_lock(&fMutex); }
+   inline void Unlock() { pthread_mutex_unlock(&fMutex); }
 
 };
 

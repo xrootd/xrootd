@@ -19,6 +19,7 @@
 
 #include <pthread.h>
 #include "XrdClientMessage.hh"
+#include "XrdClientMutexLocker.hh"
 
 #include <list>
 #include <map>
@@ -50,9 +51,16 @@ public:
 
    inline bool     IsMexEmpty() { return (MexSize() == 0); }
    inline bool     IsSemEmpty() { return (SemSize() == 0); }
-   inline int      MexSize() { return fMsgQue.size(); }
+   inline int      MexSize() { 
+                       XrdClientMutexLocker mtx(fMutex);
+                       return fMsgQue.size();
+                       }
    int             PutMsg(XrdClientMessage *msg);
-   inline int      SemSize() { return fSyncobjRepo.size(); }
+   inline int      SemSize() {
+                       XrdClientMutexLocker mtx(fMutex);
+                       return fSyncobjRepo.size();
+                       }
+
    XrdClientMessage      *GetMsg(int streamid, int secstimeout);
 };
 

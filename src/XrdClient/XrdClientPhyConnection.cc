@@ -17,6 +17,7 @@
 #include "XrdClientDebug.hh"
 #include "XrdClientMessage.hh"
 #include "XrdClientEnv.hh"
+#include "XrdClientMutexLocker.hh"
 
 #include <sys/socket.h>
 
@@ -59,7 +60,7 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
 
    fServerType = kUnknown;
 
-   // Initialization of lock mutex
+   // Initialization of channel mutex
    rc = pthread_mutexattr_init(&attr);
    if (rc == 0) {
       rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -71,6 +72,20 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
             "Can't create mutex: out of system resources.");
       abort();
    }
+
+   // Initialization of lock mutex
+   rc = pthread_mutexattr_init(&attr);
+   if (rc == 0) {
+      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+      if (rc == 0)
+         rc = pthread_mutex_init(&fMutex, &attr);
+   }
+   if (rc) {
+      Error("PhyConnection",
+            "Can't create mutex: out of system resources.");
+      abort();
+   }
+
 
    Touch();
 
@@ -94,6 +109,7 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
    Disconnect();
 
    pthread_mutex_destroy(&fRwMutex);
+   pthread_mutex_destroy(&fMutex);
 
 }
 
@@ -214,6 +230,7 @@ void XrdClientPhyConnection::Disconnect()
 void XrdClientPhyConnection::Touch()
 {
    // Set last-use-time to present time
+   XrdClientMutexLocker l(fMutex);
 
    time_t t = time(0);
 

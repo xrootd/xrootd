@@ -44,6 +44,8 @@ private:
    pthread_mutex_t     fRwMutex;     // Lock before using the physical channel 
                                       // (for reading and/or writing)
 
+   pthread_mutex_t     fMutex;
+
    pthread_t           fReaderthreadhandler; // The thread which is going to pump
                                              // out the data from the socket
                                              // in the async mode

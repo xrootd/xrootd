@@ -57,7 +57,8 @@ int XrdClientSock::RecvRaw(void* buffer, int length) {
 
    // Init of the pollfd struct
    fds_r.fd     = fSocket;
-   fds_r.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL;
+//   fds_r.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL;
+   fds_r.events = POLLIN;
 
    starttime = time(0);
 

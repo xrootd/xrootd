@@ -133,12 +133,14 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
 {
    // Put message in the list
 
-   pthread_cond_t *cnd;
+  int sz;
+  pthread_cond_t *cnd;
 
    {
       XrdClientMutexLocker mtx(fMutex);
     
       fMsgQue.push_back(m);
+      sz = MexSize();
    }
     
    // Is anybody sleeping ?
@@ -148,7 +150,7 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
    pthread_cond_signal(cnd);
    pthread_mutex_unlock(&fCndMutex);
  
-   return MexSize();
+   return sz;
 }
 
 
