@@ -75,7 +75,7 @@ public:
 
 inline T      *Pop() {XrdObject<T> *Node;
                       QMutex.Lock();
-                      if (Node = First) {First = First->Next; Count--;}
+                      if ((Node = First)) {First = First->Next; Count--;}
                       QMutex.UnLock();
                       if (Node) return Node->Item;
                       return (T *)0;
