@@ -17,6 +17,7 @@
 #include "XrdNet/XrdNetDNS.hh"
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <stdio.h>
 
 //_____________________________________________________________________________
 XrdClientUrlInfo::XrdClientUrlInfo() {
