@@ -34,9 +34,11 @@ umask 002
 
 # Determine where the access command resides
 #
-  if test -x /usr/bin/access; then
+  if   test -x /usr/bin/access; then
      ACCESS=/usr/bin/access
-     else
+  elif test -x /bin/access; then
+     ACCESS=/bin/access
+  else
      ACCESS=/usr/local/bin/access
   fi
 
