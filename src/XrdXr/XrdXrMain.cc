@@ -52,7 +52,6 @@ enum executionValues {
   xr_help,
   xr_test,
   xr_out,
-  xr_logout
 };
 
 bool login = false;    // check if login was successful
@@ -154,7 +153,6 @@ void printHelp()
   cout << "login [<username>] [<role>]" << endl;
   cout << "    <username> is the Unix UID that is used to login " << endl;
   cout << "    <role>     can be either kXR_useruser (default) or kXR_useradmin" << endl;
-  cout << "logout" << endl;
   cout << "open <path> [a|c|...] [<mode>]" << endl;
   cout << "    <path>     is the absolute file path on the remote host " << endl; 
   cout << "    a ...      open flags - see protocol specification for details " << endl;
@@ -246,26 +244,6 @@ void doLogin(char *buffer)
   }
   
 } // doLogin()
-
-/*****************************************************************************/
-/*                            d o L o g o u t                                */
-/*****************************************************************************/
-
-void doLogout()
-{
-  if (login == false) {
-    cerr << "Not logged in to a remote server.\n";
-    return;
-  }
-
-  if (client->logout() == 0) {
-    login = false;
-    delete client;
-  } else {
-    cerr << "Error: logout not done correctly. " << endl;
-  }
-
-} // doLogout
 
 
 /*****************************************************************************/
@@ -504,8 +482,6 @@ int parseInput(char *buffer)
                                                   return xr_help;   }
   if   (strncmp(buffer, "test",     4) == 0)    { doTest();
                                                   return xr_test;   }
-  if   (strncmp(buffer, "logout",   6) == 0)    { doLogout(); 
-                                                  return xr_logout; }
   if   (strncmp(buffer, "outfile",  7) == 0)    { doOutfile(buffer);
                                                   return xr_out;    }
 
