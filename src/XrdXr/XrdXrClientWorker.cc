@@ -100,7 +100,7 @@ int XrdXrClientWorker::login(kXR_char      *username,
 
   // Connect to a remote xrootd using the created link
   //
-  xrootd = new XrdOucNetwork(&XrEroute, 0);
+  xrootd = new XrdNetWork(&XrEroute, 0);
 
   lp = xrootd->Connect((char *) hostname_, port_, 0);
 
@@ -365,7 +365,7 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
 
   TRACE (Auth, "authentication ok.");
   delete credentials; credentials = 0;
-  if (haveCred) { delete credtype; credtype = 0;};
+  if (haveCred) { free(credtype); credtype = 0;};
 
   return 0;
 } // auth
@@ -585,6 +585,7 @@ int XrdXrClientWorker::stat(struct stat *buffer,
   static const char  *epname = "stat";
   ClientStatRequest   statRequest;
   int                 rc;           // return code
+  char               *lasttk;       // For strtok_r()
 
   TRACE(Stat, "Try to get status for file " << path);
 
@@ -643,20 +644,22 @@ int XrdXrClientWorker::stat(struct stat *buffer,
   }
 
   if (dlen) {
-    char* buff = (char*) malloc(dlen*sizeof(kXR_char));
+    //CDJ: pad buffer by 1 for null character
+    char* buff = (char*) malloc((dlen+1)*sizeof(kXR_char));
     rc = lp->Recv(buff, dlen*sizeof(kXR_char));
+    buff[(rc >= 0 ? rc : 0)] = '\0';
 
     // Convert the buffer into the stat structure
     //
     union {long long uuid; struct {long hi; long lo;} id;} Dev;
-    char *temp = strtok(buff, (const char*) " ");
+    char *temp = strtok_r(buff, (const char*) " ", &lasttk);
 
     Dev.uuid = (atoll(temp));
     buffer->st_ino = Dev.id.lo;
     buffer->st_dev = Dev.id.hi;
 
     for (int i = 0; i< 4; i ++) {
-      temp = strtok (NULL, " ,.");
+      temp = strtok_r(NULL, " ,.", &lasttk);
       switch (i) {
       case 0: buffer->st_size = atoll(temp); break;
       case 1: buffer->st_mode = atoll(temp); break;
@@ -760,7 +763,7 @@ XrdXrClientWorker::~XrdXrClientWorker()
   //
   delete xrootd;  xrootd  = 0;
   delete errInfo; errInfo = 0;
-  if (redirect) { delete redirectHost; redirectHost = 0; redirect = 0;};
+  if (redirect) { free(redirectHost); redirectHost = 0; redirect = 0;};
 }
 
 

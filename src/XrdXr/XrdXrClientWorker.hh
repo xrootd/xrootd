@@ -24,10 +24,10 @@
 /*****************************************************************************/
 
 #include "XProtocol/XProtocol.hh"
+#include "XrdNet/XrdNetLink.hh"
+#include "XrdNet/XrdNetWork.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLink.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"    
 
 
@@ -193,8 +193,8 @@ private:
   const char* hostname_;         // hostname of the remote xrootd to connect
   int port_;                     // port number of the remote xrootd
 
-  XrdOucLink *lp;                // object for sending and receiving info
-  XrdOucNetwork *xrootd;         // information about remote host
+  XrdNetLink *lp;                // object for sending and receiving info
+  XrdNetWork *xrootd;            // information about remote host
 
   kXR_char fhandle[4];           // file handle 
   kXR_char *filepath;            // file path of the file that was opened

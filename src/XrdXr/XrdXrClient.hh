@@ -22,8 +22,6 @@
 
 
 #include "XrdXr/XrdXrClientWorker.hh"
-#include "XrdOuc/XrdOucNetwork.hh"    
-#include "XrdOuc/XrdOucLink.hh"
 #include "XrdXr/XrdXrTrace.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XProtocol/XProtocol.hh"

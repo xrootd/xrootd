@@ -5,8 +5,7 @@
 #------------------------------------------------------------------------------#
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdOuc -lXrdSec
-
+BINLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSec
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -26,7 +25,8 @@ OBJECTS = \
         $(OBJDIR)/XrdXrMain.o  
 
 OBJDEPS = \
-          $(LIBDIR)/libXrdOuc.a 
+          $(LIBDIR)/libXrdNet.a \
+          $(LIBDIR)/libXrdOuc.a
 
 LIBRARY = $(LIBDIR)/libXrdXr.a
 
@@ -34,16 +34,16 @@ TESTBIN = $(BINDIR)/xrclient$(BINSFX)
 
 TARGETS = $(LIBRARY) $(TESTBIN)
 
-
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
 #------------------------------------------------------------------------------#
 
-vpath XrdOuc% ../XrdOuc
-vpath XrdSec% ../XrdSec
-vpath Xrd%    ../Xrd
-vpath XP%     ../XProtocol
-vpath XrdXr%  ../XrdXr
+vpath XrdNet%     ../XrdNet
+vpath XrdOuc%     ../XrdOuc
+vpath XrdSec%     ../XrdSec
+vpath XrdXrootd%  ../XrdXrootd
+vpath Xrd%        ../Xrd
+vpath XP%         ../XProtocol
 
 
 #------------------------------------------------------------------------------#
@@ -55,7 +55,6 @@ include ../GNUmake.options
 anything: $(TARGETS)
 	@echo Make XrdXr done.
 
-
 #------------------------------------------------------------------------------#
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
@@ -63,19 +62,31 @@ anything: $(TARGETS)
 $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TESTBIN) ...
 	$(ECHO)$(LD) $(LDOP) $(LFLAGS) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TESTBIN)
-	@echo Creating shared library $(LIBRARY)
+	@echo Creating archive $(LIBRARY)
 	$(ECHO)ar r $(LIBRARY) $(XROBJS)
 
-$(OBJDIR)/XrdXrClientWorker.o: XrdXrClientWorker.hh XrdXrClientWorker.cc
+$(OBJDIR)/XrdXrClientWorker.o: XrdXrClientWorker.hh XrdXrClientWorker.cc \
+                               XrdXrTrace.hh \
+                               XrdNetLink.hh         XrdNetWork.hh \
+                               XrdOucErrInfo.hh      XrdOucError.hh \
+                               XrdOucLogger.hh  \
+                               XrdXrootdProtocol.hh  XProtocol.hh
 	@echo Compiling XrdXrClientWorker.cc ...
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrClientWorker.o \
 	XrdXrClientWorker.cc
 
-$(OBJDIR)/XrdXrClient.o:  XrdXrClient.hh XrdXrClient.cc
+$(OBJDIR)/XrdXrClient.o:  XrdXrClient.hh        XrdXrClient.cc  \
+                          XrdXrClientWorker.hh  XrdXrTrace.hh   \
+                          XrdOucLogger.hh       XrdOucPlatform.hh \
+                          XrdOucPthread.hh \
+                          XrdXrootdProtocol.hh  XProtocol.hh
 	@echo Compiling XrdXrClient.cc ...
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrClient.o XrdXrClient.cc
 
-$(OBJDIR)/XrdXrMain.o: XrdXrClient.hh XrdXrClientWorker.hh \
-	XrdXrClientWorker.cc XrdXrMain.cc
+$(OBJDIR)/XrdXrMain.o: XrdXrClient.hh        XrdXrClientWorker.hh \
+                       XrdXrClientWorker.cc  XrdXrMain.cc  \
+                       XrdXrTrace.hh   \
+                       XrdOucLogger.hh       XrdSecInterface.hh \
+                       XProtocol.hh
 	@echo Compiling XrdXrMain.cc ...
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrMain.o XrdXrMain.cc
