@@ -346,9 +346,15 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 	    
 	    // If the answer was not (or not totally) positive, we must 
             // investigate on the result
-	    if (!resp)
+	    if (!resp) {
                abortcmd = CheckErrorStatus(cmdrespMex, retry, CmdName);
-	    
+
+	       // An open request which fails for an application reason like kxr_wait
+	       // must have its kXR_Refresh bit cleared.
+	       if (req->header.requestid == kXR_open)
+		  req->open.options &= (!kXR_refresh);
+	    }
+
 	    if (retry > kXR_maxReqRetry) {
                Error("SendGenCommand",
                      "Too many errors messages from server."
