@@ -50,7 +50,6 @@ XrdMonDecPacketDecoder::init(dictid_t min, dictid_t max)
 }    
 
 // true if up-to-time reached and decoding should stop
-// Note:packet points to data after header 
 void
 XrdMonDecPacketDecoder::operator()(uint16_t senderId,
                                    const XrdMonHeader& header,
@@ -67,15 +66,16 @@ XrdMonDecPacketDecoder::operator()(uint16_t senderId,
     }
     
     if ( header.packetType() == PACKET_TYPE_TRACE ) {
-        decodeTracePacket(packet, len);
+        decodeTracePacket(packet+HDRLEN, len);
     } else if ( header.packetType() == PACKET_TYPE_DICT ) {
-        decodeDictPacket(packet, len);
+        decodeDictPacket(packet+HDRLEN, len);
     } else {
         cerr << "Unsupported packet type: " << header.packetType() << endl;
     }
     _sink.setLastSeq(header.seqNo());
 }
 
+// packet should point to data after header
 void
 XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
 {
@@ -120,6 +120,7 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
     }
 }
 
+// packet should point to data after header
 void
 XrdMonDecPacketDecoder::decodeDictPacket(const char* packet, int len)
 {
