@@ -492,6 +492,8 @@ bool XrdClientAdmin::Mkdir(const char *dir, int user, int group, int other)
    if(other & 1)
       mkdirRequest.mkdir.mode |= kXR_ox;
 
+   mkdirRequest.mkdir.options[0] = kXR_mkdirpath;
+
    mkdirRequest.header.dlen = strlen(dir);
   
    return (fConnModule->SendGenCommand(&mkdirRequest, dir,
