@@ -580,7 +580,7 @@ int XrdOfsFile::open(const char          *path,      // In
       {mp->UnLock();  // Handle is now locked so allow new opens
        if (XrdOfsFS.Reporter) XrdOfsFS.Reporter->UpdateFD(1);
 
-       if ((retc = fp->Open(path, open_flag, (mode_t)0, Open_Env)))
+       if ((retc = fp->Open(path, open_flag, Mode, Open_Env)))
           {oh->ecode = retc; XrdOfsFS.Close(oh); oh = 0;
            if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
           } else {
