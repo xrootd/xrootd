@@ -31,7 +31,7 @@ struct XrdCpInfo {
    XrdCpMthrQueue               queue;
 } cpnfo;
 
-#define XRDCP_BLOCKSIZE          200000
+#define XRDCP_BLOCKSIZE          DFLT_READAHEADSIZE
 #define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 0.2 beta"
 
 // The body of a thread which reads from the global
@@ -210,11 +210,6 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
 	 
 	 adm->Mkdir(path, 7, 5, 5);
 	 
-// 	 if (! adm->Mkdir(path, 7, 5, 5)) {
-// 	    delete adm;
-// 	    return -1;
-// 	 }
-
        }
        *(slash+1) = nextChar;
      }
@@ -224,15 +219,15 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    return 0;
 }
 
-int doCp_xrd2xrd(const char *src, const char *dst) {
+int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    // ----------- xrd to xrd affair
    pthread_t myTID;
    void *thret;
    XrdClientStatInfo stat;
-   XrdClient *xrddest = 0;
 
    // Open the input file (xrdc)
-   cpnfo.XrdCli = new XrdClient(src);
+   if (!cpnfo.XrdCli)
+      cpnfo.XrdCli = new XrdClient(src);
 
    if (cpnfo.XrdCli->Open(0, kXR_async)) {
 
@@ -240,21 +235,22 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
       cpnfo.XrdCli->Stat(&stat);
       cpnfo.len = stat.size;
 
-      xrddest = new XrdClient(dst);
-      if (!xrddest->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-			 kXR_async | kXR_mkpath |
-			 kXR_open_updt | kXR_new | kXR_force)) {
-	 cerr << "Error opening remote destination file " << dst << endl;
-
-	 xrddest->Close();
-	 cpnfo.XrdCli->Close();
-
-	 delete cpnfo.XrdCli;
-	 delete xrddest;
-	 cpnfo.XrdCli = 0;
-	 return -1;
+      // if xrddest if nonzero, then the file is already opened for writing
+      if (!*xrddest) {
+	 *xrddest = new XrdClient(dst);
+	 if (!(*xrddest)->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
+			     kXR_async | kXR_mkpath |
+			     kXR_open_updt | kXR_new | kXR_force)) {
+	    cerr << "Error opening remote destination file " << dst << endl;
+	    
+	    delete cpnfo.XrdCli;
+	    delete *xrddest;
+	    *xrddest = 0;
+	    cpnfo.XrdCli = 0;
+	    return -1;
+	 }
       }
-      
+
       // Start reader on xrdc
       XrdOucThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
 
@@ -266,7 +262,7 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
 	 if ( cpnfo.queue.GetBuffer(&buf, len) ) {
 	    if (len && buf) {
 
-	       if (!xrddest->Write(buf, offs, len)) {
+	       if (!(*xrddest)->Write(buf, offs, len)) {
 		  cerr << "Error writing to output server." << endl;
 		  break;
 	       }
@@ -285,14 +281,11 @@ int doCp_xrd2xrd(const char *src, const char *dst) {
       pthread_cancel(myTID);
       pthread_join(myTID, &thret);	 
 
-      cpnfo.XrdCli->Close();
       delete cpnfo.XrdCli;
       cpnfo.XrdCli = 0;
    }
 
-   if (xrddest) xrddest->Close();  
-
-   delete xrddest;
+   delete *xrddest;
 
    return 0;
 }
@@ -305,8 +298,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    int f;
 
    // Open the input file (xrdc)
-   cpnfo.XrdCli = new XrdClient(src);
-   if (cpnfo.XrdCli->Open(0, kXR_async)) {
+   if (!cpnfo.XrdCli)
+      cpnfo.XrdCli = new XrdClient(src);
 
       // Open the output file (loc)
       cpnfo.XrdCli->Stat(&stat);
@@ -365,9 +358,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 
       pthread_cancel(myTID);
       pthread_join(myTID, &thret);
-   }
 
-   cpnfo.XrdCli->Close();
    delete cpnfo.XrdCli;
    cpnfo.XrdCli = 0;
 
@@ -376,11 +367,11 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 
 
 
-int doCp_loc2xrd(const char *src, const char * dst) {
+int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 // ----------- loc to xrd affair
    pthread_t myTID;
    void * thret;
-   XrdClient *xrddest;
+   
 
    // Open the input file (loc)
    cpnfo.localfile = open(src, O_RDONLY);   
@@ -390,15 +381,20 @@ int doCp_loc2xrd(const char *src, const char * dst) {
       return -1;
    }
 
-   xrddest = new XrdClient(dst);
-   if (!xrddest->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-		      kXR_async | kXR_mkpath |
-		      kXR_open_updt | kXR_new | kXR_force)) {
-      cerr << "Error opening remote destination file " << dst << endl;
-      close(cpnfo.localfile);
-      delete xrddest;
-      cpnfo.localfile = 0;
-      return -1;
+   // if xrddest if nonzero, then the file is already opened for writing
+   if (!*xrddest) {
+
+      *xrddest = new XrdClient(dst);
+      if (!(*xrddest)->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
+			  kXR_async | kXR_mkpath |
+			  kXR_open_updt | kXR_new | kXR_force)) {
+	 cerr << "Error opening remote destination file " << dst << endl;
+	 close(cpnfo.localfile);
+	 delete *xrddest;
+	 *xrddest = 0;
+	 cpnfo.localfile = 0;
+	 return -1;
+      }
    }
       
    // Start reader on loc
@@ -412,7 +408,7 @@ int doCp_loc2xrd(const char *src, const char * dst) {
       if ( cpnfo.queue.GetBuffer(&buf, len) ) {
 	 if (len && buf) {
 
-	    if (!xrddest->Write(buf, offs, len)) {
+	    if (!(*xrddest)->Write(buf, offs, len)) {
 	       cerr << "Error writing to output server." << endl;
 	       break;
 	    }
@@ -434,7 +430,9 @@ int doCp_loc2xrd(const char *src, const char * dst) {
    pthread_cancel(myTID);
    pthread_join(myTID, &thret);
 
-   delete xrddest;
+   delete *xrddest;
+   *xrddest = 0;
+
    close(cpnfo.localfile);
    cpnfo.localfile = 0;
 
@@ -473,13 +471,21 @@ int main(int argc, char**argv) {
 
    XrdCpWorkLst *wklst = new XrdCpWorkLst();
    XrdClientString src, dest;
-   
-   if (wklst->SetSrc(srcpath)) {
+   XrdClient *xrddest;
+
+   cpnfo.XrdCli = 0;
+  
+   if (wklst->SetSrc(&cpnfo.XrdCli, srcpath)) {
       cerr << "Error accessing path/file for " << srcpath << endl;
       exit(1);
    }
 
-   if (wklst->SetDest(destpath)) {
+   xrddest = 0;
+
+   // From here, we will have:
+   // the knowledge if the dest is a dir name or file name
+   // an open instance of xrdclient if it's a file
+   if (wklst->SetDest(&xrddest, destpath)) {
       cerr << "Error accessing path/file for " << destpath << endl;
       exit(1);
    }
@@ -494,12 +500,10 @@ int main(int argc, char**argv) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
-	    //	    if (!CreateDestPath_xrd(d, isd)) {
+
 	    BuildFullDestFilename(src, d, isd);
-	    doCp_xrd2xrd(src.c_str(), d.c_str());
-	    //	    }
-	    //	    else
-	    //	       cerr << "Error accessing path for " << d;
+	    doCp_xrd2xrd(&xrddest, src.c_str(), d.c_str());
+
 	 }
 	 else {
 	    XrdClientString d;
@@ -523,12 +527,10 @@ int main(int argc, char**argv) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
-	    //	    if (!CreateDestPath_xrd(d, isd)) {
+
 	    BuildFullDestFilename(src, d, isd);
-	    doCp_loc2xrd(src.c_str(), d.c_str());
-	    //	    }
-	    //	    else
-	    //	       cerr << "Error accessing path for " << d;
+	    doCp_loc2xrd(&xrddest, src.c_str(), d.c_str());
+
 	 }
 	 else {
 	    cerr << "Better to use cp in this case." << endl;

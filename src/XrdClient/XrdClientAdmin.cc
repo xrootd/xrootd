@@ -654,7 +654,6 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
 long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
 {
    ClientRequest chksumRequest;
-   struct ServerResponseHeader srh;
 
    memset( &chksumRequest, 0, sizeof(chksumRequest) );
 
@@ -666,8 +665,8 @@ long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
 
    bool ret = fConnModule->SendGenCommand(&chksumRequest, (const char*) path,
 					  (void **)chksum, NULL, TRUE,
-					  (char *)"GetChecksum", &srh);
+					  (char *)"GetChecksum");
   
-   if (ret) return (srh.dlen);
+   if (ret) return (fConnModule->LastServerResp.dlen);
    else return 0;
 }

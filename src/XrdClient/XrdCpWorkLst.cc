@@ -31,41 +31,57 @@ XrdCpWorkLst::~XrdCpWorkLst() {
 
 // Sets the source path for the file copy
 // i.e. expand the given url to the list of the files it involves
-int XrdCpWorkLst::SetSrc(const char *url) {
-   long id, size, flags, modtime;
+int XrdCpWorkLst::SetSrc(XrdClient **srccli, const char *url) {
+   XrdClientUrlInfo u(url);
+   fSrcIsDir = FALSE;
 
    if (strstr(url, "root://") == url) {
       // It's an xrd url
 
-      xrda_src = new XrdClientAdmin(url);
-      if (xrda_src->Connect()) {
-	 XrdClientUrlInfo u(url);
+      fSrc = url;
 
-	 fDestIsDir = FALSE;
+      // We must see if it's a dir
+      if (!*srccli)
+	 (*srccli) = new XrdClient(url);
 
-	 // We must see if it's a dir
-	 if ( xrda_src->Stat((char *)u.File.c_str(), id, size, flags, modtime) ) {
-	    fSrc = url;
+      if ((*srccli)->Open(0, kXR_async) &&
+          ((*srccli)->LastServerResp()->status == kXR_ok)) {
+	 // If the file has been succesfully opened, we use this url
+	 fWorkList.Push_back(fSrc);
+      }
+      else 
+	 if ((*srccli)->LastServerResp()->status == kXR_NotFile) {
 
-	    if (flags & kXR_isDir)
-	       BuildWorkList_xrd(url);
-	    else
-	       fWorkList.Push_back(fSrc);
-         
+	    // So, it's a dir for sure
+	    // Let's process it recursively
+
+	    fSrcIsDir = TRUE;
+
+	    xrda_src = new XrdClientAdmin(url);
+
+	    if (xrda_src->Connect()) {
+
+	       BuildWorkList_xrd(fSrc);
+
+	       delete xrda_src;
+	       xrda_src = 0;    
+	    }
+
 	 }
 	 else {
-	    XrdClientString u(url);
-	    fWorkList.Push_back(u); 
+	    // It was not opened, nor it was a dir.
+	    return 1;
+	    //fWorkList.Push_back(fSrc);
 	 }
 
-      }
+ 
 
-      delete xrda_src;
-      xrda_src = 0;
+
    }
    else {
       // It's a local file or path
       fSrc = url;
+      fSrcIsDir = FALSE;
 
       // We must see if it's a dir
       DIR *d = opendir(url);
@@ -78,6 +94,7 @@ int XrdCpWorkLst::SetSrc(const char *url) {
       }
 
       if (d) {
+	 fSrcIsDir = TRUE;
 	 BuildWorkList_loc(d, url);
 
 	 closedir(d);
@@ -91,8 +108,9 @@ int XrdCpWorkLst::SetSrc(const char *url) {
 
 // Sets the destination of the file copy
 // i.e. decides if it's a directory or file name
-int XrdCpWorkLst::SetDest(const char *url) {
-   long id, size, flags, modtime;
+// It will delete and set to 0 xrddest if it's not a file
+int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url) {
+   int retval = 0;
 
    // Special case: if url terminates with "/" then it's a dir
    if (url[strlen(url)-1] == '/') {
@@ -103,43 +121,76 @@ int XrdCpWorkLst::SetDest(const char *url) {
 
    if (strstr(url, "root://") == url) {
       // It's an xrd url
+
       fDest = url;
 
-      xrda_dst = new XrdClientAdmin(url);
-      if (xrda_dst->Connect()) {
-	 XrdClientUrlInfo u(url);
+      if (fSrcIsDir) {
+	 fDestIsDir = TRUE;
+	 return 0;
+      }
+      else {
 
-	 // We must see if it's a dir
+	 // The source is a single file
 	 fDestIsDir = FALSE;
-	 if ( xrda_dst->Stat((char *)u.File.c_str(), id, size, flags, modtime) ) {
 
-	    if (flags & kXR_isDir)
+	 // let's see if url can be opened as a file (file-to-file copy)
+	 *xrddest = new XrdClient(url);
+
+	 if ( (*xrddest)->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
+			       kXR_async | kXR_mkpath |
+			       kXR_open_updt | kXR_new | kXR_force) &&
+	      ((*xrddest)->LastServerResp()->status == kXR_ok) ) {
+
+	    return 0;
+
+	    //XrdClientUrlInfo u(url);
+
+// 	    // If a file open succeeded, then it's a file good for writing to!
+// 	    fDestIsDir = FALSE;
+
+// 	    // In any case we might have been assigned a destination data server
+// 	    // Better to take this into account instead of the former one
+// 	    if ((*xrddest)->GetCurrentUrl().IsValid()) {
+// 	       XrdClientUrlInfo uu;
+// 	       uu = (*xrddest)->GetCurrentUrl();
+// 	       u.Host = uu.Host;
+// 	       u.Port = uu.Port;
+// 	       fDest = u.GetUrl();
+// 	    }	 
+
+	 } else {
+
+	    // The file open was not successful. Let's see why.
+
+	    if ((*xrddest)->LastServerResp()->status == kXR_NotFile) {
+
+	       // It may be only a dir
 	       fDestIsDir = TRUE;
-      
+	       
+	       // Anyway, it's ok
+	       retval = 0;
+	    }
+	    else
+	       retval = 1;
+	    
+	    // If the file has not been opened for writing,
+	    // there is no need to keep this instance alive.
+	    delete *xrddest;
+	    *xrddest = 0;
+	    
+	    return retval;
 	 }
-
-	 // In any case we might have been assigned a destination data server
-	 // Better to take this into account instead of the former one
-	 if (xrda_dst->GetCurrentUrl().IsValid()) {
-	    XrdClientUrlInfo uu;
-	    uu = xrda_dst->GetCurrentUrl();
-	    u.Host = uu.Host;
-	    u.Port = uu.Port;
-	    fDest = u.GetUrl();
-	 }	 
 
       }
 
-      delete xrda_dst;
-      xrda_dst = 0;
    }
    else {
       // It's a local file or path
-
+      
       if (strcmp(url, "-")) {
 	 // We must see if it's a dir
 	 DIR *d = opendir(url);
-
+	 
 	 fDestIsDir = TRUE;
 	 if (!d) {
 	    if (errno == ENOTDIR)
@@ -152,7 +203,7 @@ int XrdCpWorkLst::SetDest(const char *url) {
 	 }
 	 fDest = url;
 	 if (d) closedir(d);
-
+	 
       }
       else {
 	 // dest is stdout
@@ -161,7 +212,7 @@ int XrdCpWorkLst::SetDest(const char *url) {
       }
 
    }
-
+   
    fWorkIt = 0;
    return 0;
 }

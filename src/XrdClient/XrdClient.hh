@@ -106,7 +106,11 @@ public:
 
    bool         Write(const void *buf, long long offset, int len);
 
-   int          LastErr(const char *err = 0);
+   struct ServerResponseHeader *LastServerResp() {
+      if (fConnModule) return &fConnModule->LastServerResp;
+      else return 0;
+   }
+
 };
 
 #endif

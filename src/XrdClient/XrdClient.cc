@@ -226,8 +226,6 @@ bool XrdClient::Open(kXR_int16 mode, kXR_int16 options) {
 //_____________________________________________________________________________
 int XrdClient::Read(void *buf, long long offset, int len) {
 
-   struct ServerResponseHeader srh;
-
    if (!IsOpen()) {
       Error("Read", "File not opened.");
       return FALSE;
@@ -281,9 +279,10 @@ int XrdClient::Read(void *buf, long long offset, int len) {
      // A side effect of this is to populate the cache with
      //  all the received messages. And avoiding the memcpy.
      if (fConnModule->SendGenCommand(&readFileRequest, 0, 0, 0, FALSE,
-                                     (char *)"ReadBuffer", &srh) ) {
+                                     (char *)"ReadBuffer") ) {
 	int minlen = len;
-	if (minlen > srh.dlen) minlen = srh.dlen;
+	if (minlen > fConnModule->LastServerResp.dlen)
+	   minlen = fConnModule->LastServerResp.dlen;
 
         // The processing of the answers from the server should have
         // populated the cache
@@ -304,9 +303,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
      
      // Without caching
      fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
-				 FALSE, (char *)"ReadBuffer", &srh);
+				 FALSE, (char *)"ReadBuffer");
 
-     return srh.dlen;
+     return fConnModule->LastServerResp.dlen;
   }
 
 }

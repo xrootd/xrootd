@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include "XrdClient/XrdClientAdmin.hh"
+#include "XrdClient/XrdClient.hh"
 
 
 class XrdCpWorkLst {
@@ -23,7 +24,7 @@ class XrdCpWorkLst {
    XrdClientAdmin *xrda_src, *xrda_dst;
 
    XrdClientString fSrc, fDest;
-   bool fDestIsDir;
+   bool fDestIsDir, fSrcIsDir;
 
  public:
    
@@ -31,10 +32,10 @@ class XrdCpWorkLst {
    ~XrdCpWorkLst();
 
    // Sets the source path for the file copy
-   int SetSrc(const char *url);
+   int SetSrc(XrdClient **srccli, const char *url);
 
    // Sets the destination of the file copy
-   int SetDest(const char *url);
+   int SetDest(XrdClient **xrddest, const char *url);
 
    inline void GetDest(XrdClientString &dest, bool& isdir) {
       dest = fDest;

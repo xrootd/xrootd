@@ -283,8 +283,7 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
 bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 				 void **answMoreDataAllocated, 
                                  void *answMoreData, bool HasToAlloc,
-                                 char *CmdName,
-                                 struct ServerResponseHeader *srh) {
+                                 char *CmdName) {
    // SendGenCommand tries to send a single command for a number of times 
 
    short retry = 0;
@@ -308,8 +307,8 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
                                               answMoreData, HasToAlloc);
 
       // Save server response header if requested
-      if (srh && cmdrespMex)
-         memcpy(srh,&cmdrespMex->fHdr,sizeof(struct ServerResponseHeader));
+      if (cmdrespMex)
+         memcpy(&LastServerResp, &cmdrespMex->fHdr,sizeof(struct ServerResponseHeader));
 
       // Check for the redir count limit
       if (fGlobalRedirCnt >= fMaxGlobalRedirCnt) {
@@ -1105,18 +1104,17 @@ bool XrdClientConn::DoLogin()
    ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()
       ->SetLogged(kNo);
 
-   // server response header
-   struct ServerResponseHeader reshdr;
+
    char *plist = 0;
    resp = SendGenCommand(&reqhdr, fRedirInternalToken.c_str(), 
                          (void **)&plist, 0, 
-                         TRUE, (char *)"XTNetconn::doLogin",&reshdr);
+                         TRUE, (char *)"XTNetconn::doLogin");
 
    // Check if we need to authenticate 
-   if (reshdr.dlen && plist) {
+   if (resp && LastServerResp.dlen && plist) {
 
       // Terminate server reply
-      plist[reshdr.dlen]=0;
+      plist[LastServerResp.dlen]=0;
 
       Info(XrdClientDebug::kHIDEBUG,
 	   "DoLogin","server requires authentication");
@@ -1136,8 +1134,7 @@ bool XrdClientConn::DoLogin()
 }
 
 //_____________________________________________________________________________
-bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString plist)
-{
+bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString plist) {
   // Negotiate authentication with the remote server. Tries in turn
   // all available protocols proposed by the server (in plist), 
   // starting from the first.
@@ -1264,25 +1261,24 @@ bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString p
      memset(reqhdr.auth.reserved, 0, 12);
      memcpy(reqhdr.auth.credtype, protname.c_str(), protname.GetSize());
      
-     struct ServerResponseHeader reshdr;
-     reshdr.status = kXR_authmore;
+     LastServerResp.status = kXR_authmore;
      char *srvans = 0;
      
      resp = FALSE;
-     while (reshdr.status == kXR_authmore) {
+     while (LastServerResp.status == kXR_authmore) {
         
         // Length of the credentials buffer
         reqhdr.header.dlen = credentials->size;
         
         resp = SendGenCommand(&reqhdr, credentials->buffer, 
                               (void **)&srvans, 0, TRUE, 
-                              (char *)"XTNetconn::DoAuthentication",&reshdr);
+                              (char *)"XTNetconn::DoAuthentication");
 
-           Info(XrdClientDebug::kHIDEBUG,
-		"DoAuthenticate", "Server reply: status: " << reshdr.status <<
-		" dlen: " << reshdr.dlen);
+	Info(XrdClientDebug::kHIDEBUG,
+	     "DoAuthenticate", "Server reply: status: " << LastServerResp.status <<
+	     " dlen: " << LastServerResp.dlen);
      
-        if (reshdr.status == kXR_authmore) {
+	if (resp && (LastServerResp.status == kXR_authmore)) {
            // We are required to send additional information
            // First assign the security token that we have received
            // at the login request

@@ -80,12 +80,14 @@ public:
    XReqErrorType   GoToAnotherServer(XrdClientUrlInfo newdest);
    bool            IsConnected() const { return fConnected; }
 
+   ServerResponseHeader LastServerResp;
+
    bool            SendGenCommand(ClientRequest *req, 
 				  const void *reqMoreData,       
 				  void **answMoreDataAllocated,
 				  void *answMoreData, bool HasToAlloc,
-				  char *CmdName,
-				  struct ServerResponseHeader *srh = 0);
+				  char *CmdName);
+
    ServerType       GetServerType() const { return fServerType; }
    void             SetClientHostDomain(const char *src) 
                                                 { fClientHostDomain = src; }
@@ -129,6 +131,8 @@ private:
    bool             DoAuthentication(XrdClientString usr, XrdClientString list);
    ServerType       DoHandShake(short log);
    bool             DoLogin();
+
+   
 
    XrdClientString  GetDomainToMatch(XrdClientString hostname);
 
