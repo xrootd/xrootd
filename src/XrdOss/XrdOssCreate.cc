@@ -84,8 +84,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env)
 
 // Generate the actual local path for this file.
 //
-   if (!remotefs) strcpy(local_path, path);
-      else if ((retc=XrdOssSS.GenLocalPath(path, local_path))) return retc;
+   if ((retc=XrdOssSS.GenLocalPath(path, local_path))) return retc;
 
 // If this is a staging filesystem then we have lots more work to do.
 //

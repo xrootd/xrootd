@@ -67,9 +67,8 @@ int XrdOssSys::Unlink(const char *path)
 
 // Build the right local and remote paths.
 //
-   if (!remotefs) strcpy(local_path, path);
-      else if ( (retc = XrdOssSS.GenLocalPath( path,  local_path))
-              ||(retc = XrdOssSS.GenRemotePath(path, remote_path)) ) return retc;
+   if ( (retc = XrdOssSS.GenLocalPath( path,  local_path))
+   ||   (retc = XrdOssSS.GenRemotePath(path, remote_path)) ) return retc;
 
  // Serialize the directory.
  //
