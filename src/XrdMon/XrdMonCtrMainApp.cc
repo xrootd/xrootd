@@ -33,6 +33,7 @@ const char*     defaultRTLogDir      = "./logs/rt";
 const int       defaultDecHDFlushDelay = 600;           // [sec]
 const int       defaultDecRTFlushDelay = 5;             // [sec]
 const kXR_int64 defaultMaxCtrLogSize = 1024*1024*1024;  // 1GB
+const kXR_int32 defaultCtrBufSize    = 64*1024;         // 64 KB
 
 void
 printHelp()
@@ -45,23 +46,27 @@ printHelp()
          << "    [-rtLogDir <path>]\n"
          << "    [-decFlushDelay <value>]\n"
          << "    [-maxCtrLogSize <value>]\n"
+         << "    [-ctrBufSize <value>]\n"
          << "\n"
-         << "-onlineDec <on|off>     Turns on/off online decoding.\n"
-         << "                        Default value is \"" << (defaultOnlineDecOn?"on":"off") << "\".\n"
-         << "-rt <on|off>            Turns on/off real time monitoring. Online decoding has to be\n"
-         << "                        Default value is \"" << (defaultRTOn?"on":"off") << "\".\n"
-         << "-ctrLogDir <path>       Directory where collector's log file are stored.\n"
-         << "                        Default value is \"" << defaultCtrLogDir << "\".\n"
-         << "-decLogDir <path>       Directory where decoder's log file are stored.\n"
-         << "                        Default value is \"" << defaultDecLogDir << "\".\n"
-         << "-rtLogDir <path>        Directory where real time log file are stored.\n"
-         << "                        Default value is \"" << defaultRTLogDir << "\".\n"
-         << "-decHDFlushDelay <value>  Value in sec specifying how often history data is\n"
-         << "                        flushed to collector's log files. History data means\n"
-         << "                        the data corresponding to *closed* sessions and files.\n" 
-         << "                        Default value is \"" << defaultDecHDFlushDelay << "\".\n"
-         << "-maxCtrLogSize <value>  Max size of collector's log file.\n"
-         << "                        Default value is \"" << defaultMaxCtrLogSize << "\".\n"
+         << "-onlineDec <on|off>      Turns on/off online decoding.\n"
+         << "                         Default value is \"" << (defaultOnlineDecOn?"on":"off") << "\".\n"
+         << "-rt <on|off>             Turns on/off real time monitoring. Online decoding has to be\n"
+         << "                         Default value is \"" << (defaultRTOn?"on":"off") << "\".\n"
+         << "-ctrLogDir <path>        Directory where collector's log file are stored.\n"
+         << "                         Default value is \"" << defaultCtrLogDir << "\".\n"
+         << "-decLogDir <path>        Directory where decoder's log file are stored.\n"
+         << "                         Default value is \"" << defaultDecLogDir << "\".\n"
+         << "-rtLogDir <path>         Directory where real time log file are stored.\n"
+         << "                         Default value is \"" << defaultRTLogDir << "\".\n"
+         << "-decHDFlushDelay <value> Value in sec specifying how often history data is\n"
+         << "                         flushed to collector's log files. History data means\n"
+         << "                         the data corresponding to *closed* sessions and files.\n" 
+         << "                         Default value is \"" << defaultDecHDFlushDelay << "\".\n"
+         << "-maxCtrLogSize <value>   Max size of collector's log file.\n"
+         << "                         Default value is \"" << defaultMaxCtrLogSize << "\".\n"
+         << "-ctrBufSize <value>      Size of transient buffer of collected packets. It has to be\n"
+         << "                         larger than max page size (64K).\n"
+         << "                         Default value is \"" << defaultCtrBufSize << "\".\n"
          << endl;
 }
 
@@ -85,6 +90,8 @@ int main(int argc, char* argv[])
          arg_decHDFlushDel("-decHDFlushDelay", defaultDecHDFlushDelay);
     XrdMonArgParser::ArgImpl<kXR_int64, Convert2LL> 
         arg_maxFSize   ("-maxCtrLogSize", defaultMaxCtrLogSize);
+    XrdMonArgParser::ArgImpl<int, Convert2Int> 
+        arg_ctrBufSize("-ctrBufSize", defaultCtrBufSize);
 
     try {
         XrdMonArgParser argParser;
@@ -96,6 +103,7 @@ int main(int argc, char* argv[])
         argParser.registerExpectedArg(&arg_decRTFlushDel);
         argParser.registerExpectedArg(&arg_decHDFlushDel);
         argParser.registerExpectedArg(&arg_maxFSize);
+        argParser.registerExpectedArg(&arg_ctrBufSize);
         argParser.parseArguments(argc, argv);
     } catch (XrdMonException& e) {
         e.printIt();
@@ -103,10 +111,15 @@ int main(int argc, char* argv[])
         return 1;
     }
     if ( arg_onlineDecOn.myVal() == false && arg_rtOn.myVal() ) {
-        cerr << "\nYou can not turn on rt monitoring if online decoding is off."
+        cerr << "\nError: you can not turn on rt monitoring if online decoding is off."
              << endl;
         printHelp();
         return 1;
+    }
+    if ( arg_ctrBufSize.myVal() < 64*1024 ) {
+        cerr << "\nError: collector's buffer size too small" << endl;
+        printHelp();
+        return 2;
     }
 
     cout << "online decoding is " << (arg_onlineDecOn.myVal()?"on":"off")<< '\n'
@@ -116,7 +129,8 @@ int main(int argc, char* argv[])
          << "rtLogDir        is " << arg_rtLogDir.myVal()  << '\n'
          << "decRTFlushDelay is " << arg_decRTFlushDel.myVal() << '\n'
          << "decHDFlushDelay is " << arg_decHDFlushDel.myVal() << '\n'
-         << "maxCtrLogSize   is " << arg_maxFSize.myVal() << endl;
+         << "maxCtrLogSize   is " << arg_maxFSize.myVal() << '\n'
+         << "ctrBufSize      is " << arg_ctrBufSize.myVal() << endl;
 
     try {
         mkdirIfNecessary(arg_ctrLogDir.myVal());
