@@ -90,7 +90,7 @@ int XrdOdcManager::Send(char *msg, int mlen)
        if (Link)
           if (!(allok = (Link && Link->Send(msg, mlen, 0) == 0)))
              {Active = 0;
-              Link->Close();
+              Link->Close(1);
              }
        myData.UnLock();
       }
@@ -111,7 +111,7 @@ int XrdOdcManager::Send(const struct iovec *iov, int iovcnt)
        if (Link)
           if (!(allok = (Link && Link->Send(iov, iovcnt, 0) == 0)))
              {Active = 0;
-              Link->Close();
+              Link->Close(1);
              }
        myData.UnLock();
       }
@@ -141,12 +141,12 @@ void *XrdOdcManager::Start()
        // Tear down the connection
        //
        myData.Lock();
-       Active = 0;
        if (Link)
-          {retc = Link->LastError();
+          {if (((retc = Link->LastError()) == EBADF) && !Active) retc = 0;
            Link->Recycle(); 
            Link = 0;
           } else retc = 0;
+       Active = 0;
        myData.UnLock();
 
        // Indicate the problem
@@ -171,10 +171,12 @@ void XrdOdcManager::whatsUp()
 // The olb did not respond. Increase silent count and see if restart is needed
 //
    myData.Lock();
-   Silent++;
-   if (Silent > nrMax)
-      {Active = 0;
-       if (Link) Link->Close();
+   if (Active)
+      {Silent++;
+       if (Silent > nrMax)
+          {Active = 0; Silent = 0;
+           if (Link) Link->Close(1);
+          }
       }
    myData.UnLock();
 }
@@ -207,6 +209,7 @@ void XrdOdcManager::Hookup()
    myData.Lock();
    Link   = lp;
    Active = 1;
+   Silent = 0;
    myData.UnLock();
 
 // Tell the world
@@ -237,6 +240,11 @@ void XrdOdcManager::Sleep(int slpsec)
   
 char *XrdOdcManager::Receive(int &msgid)
 {
+// This method is always run out of the manager's object thread. Other threads
+// may call methods that initiate a link reset via a deferred close. We will
+// notice that here because the file descriptor will be closed. This will
+// cause us to return an error and precipitate a connection teardown.
+//
    EPNAME("Receive")
    char *lp, *tp, *rest;
    if ((lp=Link->GetLine()) && *lp)

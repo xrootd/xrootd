@@ -68,12 +68,17 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode)
 
   Output:   0 upon success or !0 otherwise.
 */
+   extern XrdOucTrace OdcTrace;
    int NoGo = 0;
    char *temp;
 
 // Tell the world we have started
 //
    eDest->Emsg("Config", mode, (char *)"redirection initialization started");
+
+// Preset tracing options
+//
+   if (getenv("XRDDEBUG")) OdcTrace.What = TRACE_ALL;
 
 // Process the configuration file
 //
@@ -100,10 +105,17 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode)
    if (!OLBPath) OLBPath = strdup("/tmp/.olb/olbd.admin");
    RepWaitMS = RepWait * 1000;
 
+// Initialize the msg queue
+//
+   if (XrdOdcMsg::Init(msgKeep))
+      {eDest->Emsg("Config", ENOMEM, "allocate initial msg objects");
+       NoGo = 1;
+      }
+
 // All done
 //
    temp = (NoGo ? (char *)"failed." : (char *)"completed.");
-   eDest->Emsg("Config", "Distributed cache initialization", temp);
+   eDest->Emsg("Config", mode, (char *)"redirection initialization", temp);
    return NoGo;
 }
 
@@ -372,7 +384,7 @@ int XrdOdcConfig::xmsgk(XrdOucError *errp, XrdOucStream &Config)
 
     if (XrdOuca2x::a2i(*errp, "msgkeep value", val, &mk, 60)) return 1;
 
-    XrdOdcMsg::setKeep(mk);
+    msgKeep = mk;
     return 0;
 }
 
@@ -555,7 +567,6 @@ int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
 
 int XrdOdcConfig::xtrac(XrdOucError *Eroute, XrdOucStream &Config)
 {
-  
     extern XrdOucTrace OdcTrace;
     char  *val;
     static struct traceopts {const char *opname; int opval;} tropts[] =
