@@ -53,6 +53,7 @@ int                   XrdXrootdProtocol::Port;
 char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::chkfsV  = 0;
 
+int                   XrdXrootdProtocol::hcMax        = 28657; // const for now
 int                   XrdXrootdProtocol::maxBuffsz;
 int                   XrdXrootdProtocol::as_maxperlnk = 8;   // Max ops per link
 int                   XrdXrootdProtocol::as_maxperreq = 8;   // Max ops per request
@@ -268,6 +269,7 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
               {Response.Send(kXR_ArgTooLong, "Request argument is too long");
                return 0;
               }
+           hcNow = hcPrev; halfBSize = argp->bsize >> 1;
           }
        if ((rc = getData("arg", argp->buff, Request.header.dlen)))
           {Resume = &XrdXrootdProtocol::Process2; return rc;}
@@ -502,6 +504,9 @@ void XrdXrootdProtocol::Reset()
    numReads           = 0;
    numReadP           = 0;
    numWrites          = 0;
+   hcPrev             =13;
+   hcNext             =21;
+   hcNow              =13;
    Monitor            = 0;
    monUID             = 0;
    monFILE            = 0;

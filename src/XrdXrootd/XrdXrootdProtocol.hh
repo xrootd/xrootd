@@ -126,6 +126,7 @@ private:
 static int   ConfigFn(char *fn);
 static int   ConfigIt(char *parms);
        int   fsError(int rc, XrdOucErrInfo &myError);
+       int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapError(int rc);
 static int   mapMode(int mode);
@@ -216,6 +217,14 @@ XrdXrootdFile             *myFile;
 long long                  myOffset;
 int                        myIOLen;
 int                        myStalls;
+
+// Buffer resize control area
+//
+static int                 hcMax;
+       int                 hcPrev;
+       int                 hcNext;
+       int                 hcNow;
+       int                 halfBSize;
 
 // Buffers to handle client requests
 //

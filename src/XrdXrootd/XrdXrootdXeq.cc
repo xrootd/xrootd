@@ -818,17 +818,15 @@ int XrdXrootdProtocol::do_Read()
   
 int XrdXrootdProtocol::do_ReadAll()
 {
-   int xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
+   int rc, xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
    int iolen = myIOLen;
    char *buff;
 
 // Make sure we have a large enough buffer
 //
-   if (!argp || Quantum > argp->bsize)
-      {if (argp) BPool->Release(argp);
-       if (!(argp = BPool->Obtain(Quantum)))
-          return Response.Send(kXR_NoMemory,"insufficient memory to read file");
-      }
+   if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
+      {if ((rc = getBuff(1, Quantum)) <= 0) return rc;}
+      else if (hcNow < hcNext) hcNow++;
    buff = argp->buff;
 
 // Now read all of the data
@@ -1195,11 +1193,9 @@ int XrdXrootdProtocol::do_WriteAll()
 
 // Make sure we have a large enough buffer
 //
-   if (!argp || Quantum > argp->bsize)
-      {if (argp) BPool->Release(argp);
-       if (!(argp = BPool->Obtain(Quantum)))
-          return Response.Send(kXR_NoMemory,"insufficient memory to write file");
-      }
+   if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
+      {if ((rc = getBuff(0, Quantum)) <= 0) return rc;}
+      else if (hcNow < hcNext) hcNow++;
 
 // Now write all of the data (XrdXrootdProtocol.C defines getData())
 //
@@ -1326,6 +1322,37 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
    }
 }
   
+/******************************************************************************/
+/*                               g e t B u f f                                */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
+{
+
+// Check if we need to really get a new buffer
+//
+   if (!argp || Quantum > argp->bsize) hcNow = hcPrev;
+      else if (Quantum >= halfBSize || hcNow-- > 0) return 1;
+              else if (hcNext >= hcMax) hcNow = hcMax;
+                      else {int tmp = hcPrev;
+                            hcNow   = hcNext;
+                            hcPrev  = hcNext;
+                            hcNext  = tmp+hcNext;
+                           }
+
+// Get a new buffer
+//
+   if (argp) BPool->Release(argp);
+   if ((argp = BPool->Obtain(Quantum))) halfBSize = argp->bsize >> 1;
+      else return Response.Send(kXR_NoMemory, (isRead ?
+                                "insufficient memory to read file" :
+                                "insufficient memory to write file"));
+
+// Success
+//
+   return 1;
+}
+
 /******************************************************************************/
 /*                              m a p E r r o r                               */
 /******************************************************************************/
