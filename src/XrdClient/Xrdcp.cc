@@ -160,13 +160,13 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
 
    if (url == "-") return 0;
 
-   if (!isdir)
-      url = url.Substr(0,  url.RFind((char *)"/") );
+   //   if (!isdir)
+   url = url.Substr(0,  url.RFind((char *)"/")+1 );
 
    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
    if (adm->Connect()) {
      XrdClientUrlInfo u(url);
-     
+
      statok = adm->Stat((char *)u.File.c_str(), id, size, flags, modtime);
 
      // We might have been redirected to a destination server. Better to remember it and use
