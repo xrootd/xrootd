@@ -11,22 +11,55 @@
 // $Id$
 
 ## count current number of users:
-select count(distinct userId) from openedSessions;
+SELECT  count(DISTINCT userId) 
+FROM    openedSessions;
 
 
 ## count current number of opened files
-select count(distinct pathId) from openedFiles;
+SELECT COUNT(DISTINCT pathId)
+FROM   openedFiles;
 
 
 ## count current number of opened sessions
-select count(*) from openedSessions;
+SELECT COUNT(*)
+FROM   openedSessions;
 
-## select top 10 users with largest #jobs
-SELECT userName, COUNT(distinct CONCAT(pId, clientHId) ) as nJobs 
-FROM openedSessions, users 
-WHERE userId=users.id GROUP BY userId ORDER BY nJobs DESC LIMIT 10;
+## select #jobs/user, display top 10
+SELECT userName, 
+       COUNT(DISTINCT CONCAT(pId, clientHId) ) AS nJobs 
+FROM   openedSessions, users 
+WHERE  userId=users.id 
+       GROUP BY userId 
+       ORDER BY nJobs 
+       DESC
+       LIMIT 10;
 
-## select # files per user
-SELECT userName, COUNT(distinct pathId) as nFiles 
-FROM openedSessions, users, openedFiles 
-WHERE userId=users.id AND openedSessions.id=openedFiles.sessionId GROUP BY userId ORDER BY nFiles DESC LIMIT 10;
+
+## select # files per user, display top 10
+SELECT userName, 
+       COUNT(DISTINCT pathId) AS nFiles 
+FROM   openedSessions, users, openedFiles 
+WHERE  userId=users.id AND 
+       openedSessions.id=openedFiles.sessionId 
+       GROUP BY userId 
+       ORDER BY nFiles 
+       DESC
+       LIMIT 10;
+
+
+## select total duration of all the jobs run in given time period
+
+
+
+## select total duration of all the jobs run in given time period
+## for given user
+
+
+## select number of closed files in given time period
+
+
+## select number of closed files in given time period
+## for given user
+
+
+## select aver # sessions in given interval in time period >T1 and <=T2

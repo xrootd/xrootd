@@ -200,7 +200,7 @@ sub findSessionId() {
     my $clientHostId = findOrInsertHostId($clientHost);
     my $serverHostId = findOrInsertHostId($srvHost);
 
-    return runQueryWithRet("SELECT id FROM openedSessions WHERE userId=$userId AND clientHId=$clientHostId AND serverHId=$serverHostId;");
+    return runQueryWithRet("SELECT id FROM openedSessions WHERE userId=$userId AND pId=$pid AND clientHId=$clientHostId AND serverHId=$serverHostId;");
 }
 
 
