@@ -24,7 +24,7 @@
 
 
 //____________________________________________________________________________
-extern "C" void *SocketReaderThread(void * arg, XrdClientThread *thr)
+void *SocketReaderThread(void * arg, XrdClientThread *thr)
 {
    // This thread is the base for the async capabilities of TXPhyConnection
    // It repeatedly keeps reading from the socket, while feeding the

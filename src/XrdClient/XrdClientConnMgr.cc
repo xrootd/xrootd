@@ -34,7 +34,7 @@
 XrdClientConnectionMgr *XrdClientConnectionMgr::fgInstance = 0;
 
 //_____________________________________________________________________________
-extern "C" void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
+void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 {
    // Function executed in the garbage collector thread
 

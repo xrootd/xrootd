@@ -37,7 +37,7 @@
 
 
 // Ugly prototype to avoid warnings under solaris
-extern "C" void * GarbageCollectorThread(void * arg, XrdClientThread *thr);
+//void * GarbageCollectorThread(void * arg, XrdClientThread *thr);
 
 class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler, 
                        XrdClientUnsolMsgSender {
