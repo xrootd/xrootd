@@ -22,9 +22,16 @@ CREATE TABLE IF NOT EXISTS openedSessions (
   clientHId     INT NOT NULL,
   serverHId     INT NOT NULL
 );
+CREATE INDEX openedSession_id_index        USING BTREE ON openedSessions(id);
+CREATE INDEX openedSession_userId_index    USING BTREE ON openedSessions(userId);
+CREATE INDEX openedSession_pId_index       USING BTREE ON openedSessions(pId);
+CREATE INDEX openedSession_clientHId_index USING BTREE ON openedSessions(clientHId);
+CREATE INDEX openedSession_serverHId_index USING BTREE ON openedSessions(serverHId);
+
+
 
 CREATE TABLE IF NOT EXISTS closedSessions (
-  sessionId     INT NOT NULL,
+  id            INT NOT NULL PRIMARY KEY,
   userId        INT NOT NULL,
   pId           INT NOT NULL,
   clientHId     INT NOT NULL,
@@ -32,6 +39,13 @@ CREATE TABLE IF NOT EXISTS closedSessions (
   duration      INT NOT NULL,
   disconnectT   DATETIME NOT NULL
 );
+CREATE INDEX closedSession_id_index        USING BTREE ON closedSessions(id);
+CREATE INDEX closedSession_userId_index    USING BTREE ON closedSessions(userId);
+CREATE INDEX closedSession_pId_index       USING BTREE ON closedSessions(pId);
+CREATE INDEX closedSession_clientHId_index USING BTREE ON closedSessions(clientHId);
+CREATE INDEX closedSession_serverHId_index USING BTREE ON closedSessions(serverHId);
+
+
 
 CREATE TABLE IF NOT EXISTS openedFiles (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -39,9 +53,13 @@ CREATE TABLE IF NOT EXISTS openedFiles (
   openT         DATETIME NOT NULL,
   filePath      VARCHAR(255) NOT NULL
 );
+CREATE INDEX openedFiles_id_index        USING BTREE ON openedFiles(id);
+CREATE INDEX openedFiles_sessionId_index USING BTREE ON openedFiles(sessionId);
+
+
 
 CREATE TABLE IF NOT EXISTS closedFiles (
-  id            INT NOT NULL,
+  id            INT NOT NULL PRIMARY KEY,
   sessionId     INT NOT NULL,
   openT         DATETIME NOT NULL,
   closeT        DATETIME NOT NULL,
@@ -49,13 +67,23 @@ CREATE TABLE IF NOT EXISTS closedFiles (
   bytesW        BIGINT UNSIGNED NOT NULL,
   filePath      VARCHAR(255) NOT NULL
 );
+CREATE INDEX closedFiles_id_index        USING BTREE ON closedFiles(id);
+CREATE INDEX closedFiles_sessionId_index USING BTREE ON closedFiles(sessionId);
+
+
+
 
 CREATE TABLE IF NOT EXISTS users (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   userName      VARCHAR(24) NOT NULL
 );
 
+CREATE INDEX users_id_index USING BTREE ON users(id);
+
+
+
 CREATE TABLE IF NOT EXISTS hosts (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   hostName      VARCHAR(64) NOT NULL
 );
+CREATE INDEX hosts_id_index USING BTREE ON hosts(id);
