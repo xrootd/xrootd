@@ -26,7 +26,7 @@ const char *XrdOlbAdminCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
-#include "XrdOuc/XrdOucSocket.hh"
+#include "XrdNet/XrdNetSocket.hh"
  
 /******************************************************************************/
 /*                     G l o b a l s   &   S t a t i c s                      */
@@ -124,7 +124,7 @@ void XrdOlbAdmin::Login(int socknum)
 /*                                 N o t e s                                  */
 /******************************************************************************/
   
-void *XrdOlbAdmin::Notes(XrdOucSocket *AnoteSock)
+void *XrdOlbAdmin::Notes(XrdNetSocket *AnoteSock)
 {
    const char *epname = "Notes";
    char *request, *tp;
@@ -161,7 +161,7 @@ void *XrdOlbAdmin::Notes(XrdOucSocket *AnoteSock)
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
-void *XrdOlbAdmin::Start(XrdOucSocket *AdminSock)
+void *XrdOlbAdmin::Start(XrdNetSocket *AdminSock)
 {
    const char *epname = "Start";
    int InSock;

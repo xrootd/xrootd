@@ -108,9 +108,9 @@ long XrdOlbMeter::FreeSpace(long &tot_free)
    Now = time(0);
    fsMutex.Lock();
    if ((Now - lastCalc) < dsk_calc)
-      {fsavail = dsk_maxf; tot_free = (long)dsk_free;
+      {fsavail = dsk_maxf; tot_free = static_cast<long>(dsk_free);
        fsMutex.UnLock();
-       return (long)fsavail;
+       return static_cast<long>(fsavail);
       }
    lastCalc = Now;
 
@@ -141,9 +141,9 @@ long XrdOlbMeter::FreeSpace(long &tot_free)
 //
    dsk_maxf = fsavail;
    dsk_free = fstotav;
-   tot_free = (long)fstotav;
+   tot_free = static_cast<long>(fstotav);
    fsMutex.UnLock();
-   return (long)fsavail;
+   return static_cast<long>(fsavail);
 }
 
 /******************************************************************************/

@@ -14,9 +14,9 @@
 
 #include <unistd.h>
   
+#include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucLink.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdOlbDrop;
@@ -56,7 +56,7 @@ static int  Resume(XrdOlbPrepArgs *pargs);
 
        void setName(char *hname, int port);
 
-            XrdOlbServer(XrdOucLink *lnkp, int port=0);
+            XrdOlbServer(XrdNetLink *lnkp, int port=0);
            ~XrdOlbServer();
 
 private:
@@ -91,7 +91,7 @@ static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
 
 XrdOucHash<char> *PendPaths;
 XrdOucMutex       myMutex;
-XrdOucLink       *Link;
+XrdNetLink       *Link;
 unsigned long     IPAddr;
 XrdOlbServer     *Next;
 time_t            DropTime;

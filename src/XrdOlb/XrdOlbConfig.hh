@@ -16,11 +16,11 @@
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucTList.hh"
   
+class XrdNetSecurity;
+class XrdNetSocket;
 class XrdOlbMeter;
 class XrdOucError;
 class XrdOucProg;
-class XrdOucSecurity;
-class XrdOucSocket;
 class XrdOucStream;
 
 class XrdOlbConfig
@@ -95,15 +95,15 @@ XrdOucProg  *ProgRM;      // Server only rm
 
 XrdOlbPList_Anchor PathList;
 XrdOlbMeter       *Meter;
-XrdOucSocket      *AdminSock;
-XrdOucSocket      *AnoteSock;
+XrdNetSocket      *AdminSock;
+XrdNetSocket      *AnoteSock;
 
       XrdOlbConfig() {ConfigDefaults();}
      ~XrdOlbConfig();
 
 private:
 
-XrdOucSocket *ASocket(char *path, const char *fn, mode_t mode, int isudp=0);
+XrdNetSocket *ASocket(char *path, const char *fn, mode_t mode, int isudp=0);
 int  concat_fn(const char *prefix, const int   pfxlen,
                const char *path,         char *buffer);
 void ConfigDefaults(void);
@@ -134,7 +134,7 @@ int  xsubs(XrdOucError *edest, XrdOucStream &Config);
 int  xthreads(XrdOucError *edest, XrdOucStream &Config);
 int  xtrace(XrdOucError *edest, XrdOucStream &Config);
 
-XrdOucSecurity   *Police;
+XrdNetSecurity   *Police;
 XrdOucTList      *monPath;
 char             *AdminPath;
 int               AdminMode;

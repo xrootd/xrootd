@@ -45,7 +45,7 @@ extern XrdOucError    XrdOlbSay;
 
 extern XrdOlbManager  XrdOlbSM;
 
-extern XrdOucLink    *XrdOlbRelay;
+extern XrdNetLink    *XrdOlbRelay;
 
 extern XrdOlbPrepare  XrdOlbPrepQ;
 
@@ -53,7 +53,7 @@ extern XrdOlbPrepare  XrdOlbPrepQ;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOlbServer::XrdOlbServer(XrdOucLink *lnkp, int port)
+XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port)
 {
     Link     =  lnkp;
     IPAddr   =  (lnkp ? lnkp->Addr() : 0);

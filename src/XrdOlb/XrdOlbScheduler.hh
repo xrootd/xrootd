@@ -15,7 +15,7 @@
 #include "XrdOuc/XrdOucChain.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
-class XrdOucLink;
+class XrdNetLink;
 
 /******************************************************************************/
 /*                        C l a s s   o o l b _ J o b                         */
@@ -60,12 +60,12 @@ class XrdOlbScheduler
 {
 public:
 
-XrdOucLink    *getWork();
+XrdNetLink    *getWork();
 
 int           mustRecycle() 
                   {return num_Workers > min_Workers && WorkQueue.isEmpty();}
 
-void          Schedule(XrdOucLink *lp);
+void          Schedule(XrdNetLink *lp);
 
 void          Schedule(XrdOlbJob  *jp, time_t atime);
 
@@ -84,7 +84,7 @@ int          min_Workers; // Min threads we need in reserve
 int          max_Workers; // Max threads we can start
 int          num_Workers; // Number of threads we have
 
-XrdOucQueue<XrdOucLink>   WorkQueue;  // Pending links to be serviced
+XrdOucQueue<XrdNetLink>   WorkQueue;  // Pending links to be serviced
 XrdOucSemaphore          WorkAvail;
 XrdOucMutex              SchedMutex; // Protects private area
 

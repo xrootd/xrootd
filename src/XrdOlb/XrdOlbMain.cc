@@ -61,9 +61,9 @@ Notes:
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLink.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
+#include "XrdNet/XrdNetLink.hh"
+#include "XrdNet/XrdNetWork.hh"
   
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -82,11 +82,12 @@ Notes:
 
        XrdOlbManager    XrdOlbSM;
 
-       XrdOucNetwork   *XrdOlbNetTCP  = 0;
-       XrdOucNetwork   *XrdOlbNetUDPm = 0;
-       XrdOucNetwork   *XrdOlbNetUDPs = 0;
+       XrdNetWork      *XrdOlbNetTCPm = 0;
+       XrdNetWork      *XrdOlbNetUDPm = 0;
+       XrdNetWork      *XrdOlbNetTCPs = 0;
+       XrdNetWork      *XrdOlbNetUDPs = 0;
 
-       XrdOucLink      *XrdOlbRelay = 0;
+       XrdNetLink      *XrdOlbRelay = 0;
 
        XrdOucLogger     XrdOlbLog;
 
@@ -101,18 +102,18 @@ Notes:
 extern "C"
 {
 void *XrdOlbLoginServer(void *carg)
-      {XrdOucLink *lp = (XrdOucLink *)carg;
+      {XrdNetLink *lp = (XrdNetLink *)carg;
        return XrdOlbSM.Login(lp);
       }
 
 void *XrdOlbStartAdmin(void *carg)
       {XrdOlbAdmin Admin;
-       return Admin.Start((XrdOucSocket *)carg);
+       return Admin.Start((XrdNetSocket *)carg);
       }
 
 void *XrdOlbStartAnote(void *carg)
       {XrdOlbAdmin Anote;
-       return Anote.Notes((XrdOucSocket *)carg);
+       return Anote.Notes((XrdNetSocket *)carg);
       }
 
 void *XrdOlbStartPandering(void *carg)
@@ -134,9 +135,9 @@ int main(int argc, char *argv[])
    EPNAME("main")
    int forManager = 1;
    XrdOucSemaphore SyncUp(0);
-   pthread_t    tid;
-   XrdOucLink   *newlink;
-   XrdOucTList  *tp;
+   pthread_t       tid;
+   XrdNetLink     *newlink;
+   XrdOucTList    *tp;
 
 // Turn off sigpipe before we start any threads
 //
@@ -187,7 +188,7 @@ int main(int argc, char *argv[])
    if (XrdOlbConfig.Manager())
       {XrdOucThread_Run(&tid, XrdOlbStartUDP, (void *)&forManager);
        DEBUG("Main: Thread " <<tid <<" handling manager UDP traffic.");
-       while(1) if ((newlink = XrdOlbNetTCP->Accept()))
+       while(1) if ((newlink = XrdOlbNetTCPm->Accept()))
                    {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
                     XrdOucThread_Run(&tid, XrdOlbLoginServer, (void *)newlink);
                    }

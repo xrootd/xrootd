@@ -27,8 +27,8 @@ const char *XrdOlbManagerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+#include "XrdNet/XrdNetWork.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -42,9 +42,10 @@ extern XrdOucTrace     XrdOlbTrace;
 
 extern XrdOucError     XrdOlbSay;
 
-extern XrdOucNetwork  *XrdOlbNetTCP;
-extern XrdOucNetwork  *XrdOlbNetUDPm;
-extern XrdOucNetwork  *XrdOlbNetUDPs;
+extern XrdNetWork     *XrdOlbNetTCPm;
+extern XrdNetWork     *XrdOlbNetUDPm;
+extern XrdNetWork     *XrdOlbNetTCPs;
+extern XrdNetWork     *XrdOlbNetUDPs;
 
 extern XrdOlbScheduler *XrdOlbSchedM;
 extern XrdOlbScheduler *XrdOlbSchedS;
@@ -54,7 +55,7 @@ extern XrdOlbScheduler *XrdOlbSchedS;
 /******************************************************************************/
 
 struct XrdOlbSTArgs
-       {XrdOucLink *lp;
+       {XrdNetLink *lp;
         char       buff[2048];
        };
   
@@ -269,7 +270,7 @@ XrdOlbSInfo *XrdOlbManager::ListServers(SMask_t mask, int opts)
 /*                                 L o g i n                                  */
 /******************************************************************************/
   
-void *XrdOlbManager::Login(XrdOucLink *lnkp)
+void *XrdOlbManager::Login(XrdNetLink *lnkp)
 {
    EPNAME("Login")
    XrdOlbServer *sp;
@@ -544,8 +545,8 @@ void *XrdOlbManager::MonRefs()
   
 void *XrdOlbManager::Pander(char *manager, int mport)
 {
-   XrdOlbServer *sp;
-   XrdOucLink   *lp;
+   XrdOlbServer   *sp;
+   XrdNetLink     *lp;
    int opts = 0, waits = 6, tries = 6;
    char *reason;
 
@@ -553,15 +554,15 @@ void *XrdOlbManager::Pander(char *manager, int mport)
 // be turned off first; then try to connect.
 //
    do {while(XWait)
-            {if (waits--)
+            {if (!waits--)
                 {XrdOlbSay.Emsg("Manager", "Suspend state still active.");
                  waits = 6;
                 }
              Snooze(10);
             }
-       if (!(lp=XrdOlbNetTCP->Connect(manager, mport, opts)))
-          {if (tries--) opts = 0;
-              else {tries = 6; opts = OUC_NOEMSG;}
+       if (!(lp = XrdOlbNetTCPs->Connect(manager, mport, opts)))
+          {if (tries--) opts = XRDNET_NOEMSG;
+              else {tries = 6; opts = 0;}
            Snooze(10);
            continue;
           }
@@ -850,14 +851,13 @@ void XrdOlbManager::Stage(int ison, int doinform)
   
 void *XrdOlbManager::StartUDP(int formanager)
 {
-   XrdOucLink *lp;
-   XrdOucNetwork   *net   = (formanager ? XrdOlbNetUDPm : XrdOlbNetUDPs);
+   XrdNetLink   *lp;
+   XrdNetWork      *net   = (formanager ? XrdOlbNetUDPm : XrdOlbNetUDPs);
    XrdOlbScheduler *sched = (formanager ? XrdOlbSchedM  : XrdOlbSchedS);
 
 // Start processing incomming udp requests
 //
-   do {if (!(lp = net->Accept())) continue;
-       sched->Schedule(lp);
+   do {if ((lp = net->Accept())) sched->Schedule(lp);
       } while(1);
 
    return (void *)0;
@@ -1022,7 +1022,7 @@ int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
 /*                             A d d S e r v e r                              */
 /******************************************************************************/
   
-XrdOlbServer *XrdOlbManager::AddServer(XrdOucLink *lp, int port,
+XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
                                        int nostage, int suspend)
 {
    EPNAME("AddServer")
@@ -1190,7 +1190,7 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 /******************************************************************************/
   
 void *XrdOlbManager::Login_Failed(const char *reason, 
-                                 XrdOucLink *lp, XrdOlbServer *sp)
+                                 XrdNetLink *lp, XrdOlbServer *sp)
 {
      if (sp) Remove_Server(reason, sp->ServID, sp->Instance);
         else {if (reason) XrdOlbSay.Emsg("Manager", lp->Name(),

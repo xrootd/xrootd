@@ -44,15 +44,17 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
+#include "XrdNet/XrdNetDNS.hh"
+#include "XrdNet/XrdNetLink.hh"
+#include "XrdNet/XrdNetWork.hh"
+#include "XrdNet/XrdNetSecurity.hh"
+#include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucNetwork.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPthread.hh"
-#include "XrdOuc/XrdOucSecurity.hh"
-#include "XrdOuc/XrdOucSocket.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTimer.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -77,11 +79,12 @@ extern XrdOlbPrepare    XrdOlbPrepQ;
 
 extern XrdOucTrace      XrdOlbTrace;
 
-extern XrdOucLink      *XrdOlbRelay;
+extern XrdNetLink      *XrdOlbRelay;
 
-extern XrdOucNetwork   *XrdOlbNetTCP;
-extern XrdOucNetwork   *XrdOlbNetUDPm;
-extern XrdOucNetwork   *XrdOlbNetUDPs;
+extern XrdNetWork      *XrdOlbNetTCPm;
+extern XrdNetWork      *XrdOlbNetUDPm;
+extern XrdNetWork      *XrdOlbNetTCPs;
+extern XrdNetWork      *XrdOlbNetUDPs;
 
 extern XrdOlbScheduler *XrdOlbSchedM;
 extern XrdOlbScheduler *XrdOlbSchedS;
@@ -135,7 +138,7 @@ class XrdOlbLogWorker : XrdOlbJob
 public:
 
       int DoIt() {XrdOlbSay.Emsg("Config", XrdCPR, 
-                            (char *)" executing as ", smtype);
+                            (char *)"executing as", smtype);
                   midnite += 86400;
                   XrdOlbSchedM->Schedule((XrdOlbJob *)this, midnite);
                   return 1;
@@ -209,6 +212,14 @@ int XrdOlbConfig::Configure(int argc, char **argv)
    extern int opterr, optopt;
    static XrdOlbManWorker MWorker;
    static XrdOlbSrvWorker  SWorker;
+
+// Prohibit this program from executing as superuser
+//
+   if (geteuid() == 0)
+      {XrdOlbSay.Emsg("Config", "Security reasons prohibit olbd running as "
+                  "superuser; olbd is terminating.");
+       _exit(8);
+      }
 
 // Process the options
 //
@@ -462,11 +473,11 @@ int  XrdOlbConfig::inSuspend()
 /*                               A S o c k e t                                */
 /******************************************************************************/
   
-XrdOucSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode, 
+XrdNetSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode, 
                                     int isudp)
 {
-   XrdOucSocket *ASock;
-   int i, sflags = (isudp ? XrdOucSOCKET_UDP : 0);
+   XrdNetSocket *ASock;
+   int i, sflags = (isudp ? XRDNET_UDPSOCKET : 0);
    char *act = 0, fnbuff[1024];
    struct stat buf;
 
@@ -485,7 +496,7 @@ XrdOucSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
                   act = (char *)"set access mode for";
 
    if (act) {XrdOlbSay.Emsg("Config", errno, act, path);
-             return (XrdOucSocket *)0;
+             return (XrdNetSocket *)0;
             }
 
 // Construct full filename
@@ -501,21 +512,21 @@ XrdOucSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
       {if ((buf.st_mode & S_IFMT) != S_IFSOCK)
           {XrdOlbSay.Emsg("Config","Path", fnbuff,
                                    (char *)"exists but is not a socket");
-           return (XrdOucSocket *)0;
+           return (XrdNetSocket *)0;
           }
        if (access((const char *)fnbuff, W_OK))
           {XrdOlbSay.Emsg("Config", errno, "access path", fnbuff);
-           return (XrdOucSocket *)0;
+           return (XrdNetSocket *)0;
           }
       }
 
 // Connect to the path
 //
-   ASock = new XrdOucSocket(&XrdOlbSay);
-   if (ASock->Open(fnbuff, -1, XrdOucSOCKET_SERVER|sflags) < 0)
+   ASock = new XrdNetSocket(&XrdOlbSay);
+   if (ASock->Open(fnbuff, -1, XRDNET_SERVER|sflags) < 0)
       {XrdOlbSay.Emsg("Config",ASock->LastError(),"establish socket",fnbuff);
        delete ASock;
-       return (XrdOucSocket *)0;
+       return (XrdNetSocket *)0;
       }
 
 // Set the mode and return the socket object
@@ -560,7 +571,7 @@ void XrdOlbConfig::ConfigDefaults(void)
 
 // Preset all variables with common defaults
 //
-   myName   = XrdOucNetwork::FullHostName();
+   myName   = XrdNetDNS::getHostName();
    LUPDelay = 5;
    DRPDelay = 10*60;
    SRVDelay = 90;
@@ -736,13 +747,13 @@ int XrdOlbConfig::setupManager()
    if (!Police)
       XrdOlbSay.Emsg("Config","Warning! All hosts are allowed to connect.");
 
-   XrdOlbNetTCP = new XrdOucNetwork(&XrdOlbSay, Police);
-   if (XrdOlbNetTCP->Bind(PortTCP, "tcp")) return 1;
+   XrdOlbNetTCPm = new XrdNetWork(&XrdOlbSay, Police);
+   if (XrdOlbNetTCPm->Bind(PortTCP, "tcp")) return 1;
 
 
 // Setup UDP network connections now
 //
-   XrdOlbNetUDPm = new XrdOucNetwork(&XrdOlbSay, Police);
+   XrdOlbNetUDPm = new XrdNetWork(&XrdOlbSay, Police);
    if (XrdOlbNetUDPm->Bind(PortUDPm, "udp")) return 1;
 
 // Compute the scheduling policy
@@ -804,13 +815,13 @@ int XrdOlbConfig::setupServer()
 
 // Setup TCP network
 //
-   XrdOlbNetTCP = new XrdOucNetwork(&XrdOlbSay, 0);
+   XrdOlbNetTCPs = new XrdNetWork(&XrdOlbSay, 0);
 
 // Setup UDP network for the server
 //
-   XrdOlbNetUDPs = new XrdOucNetwork(&XrdOlbSay, Police);
+   XrdOlbNetUDPs = new XrdNetWork(&XrdOlbSay, Police);
    if (XrdOlbNetUDPs->Bind(PortUDPs, "udp")
-   || !(XrdOlbRelay = XrdOlbNetUDPs->Relay(&XrdOlbSay))) return 1;
+   || !(XrdOlbRelay = XrdOlbNetUDPs->Relay(0, XRDNET_SENDONLY))) return 1;
 
 // If this is a staging server then we better have a disk cache
 //
@@ -935,7 +946,7 @@ int XrdOlbConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "allow target name not specified"); return 1;}
 
-    if (!Police) Police = new XrdOucSecurity();
+    if (!Police) Police = new XrdNetSecurity();
     if (ishost)  Police->AddHost(val);
        else      Police->AddNetGroup(val);
 
@@ -1536,7 +1547,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
        {eDest->Emsg("Config", "tcp port not specified"); return 1;}
     if (isdigit(*val))
        {if (XrdOuca2x::a2i(*eDest,"tcp port",val,&pnum,1,65535)) return 1;}
-       else if (!(pnum = XrdOucNetwork::findPort(val, "tcp")))
+       else if (!(pnum = XrdNetDNS::getPort(val, "tcp")))
                {eDest->Emsg("Config", "Unable to find tcp service", val);
                 return 1;
                }
@@ -1545,7 +1556,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
     if ((val = Config.GetWord()))
        {if (isdigit(*val))
            {if (XrdOuca2x::a2i(*eDest,"udp port",val,&pnum,1,65535)) return 1;}
-           else if (!(pnum = XrdOucNetwork::findPort(val, "udp")))
+           else if (!(pnum = XrdNetDNS::getPort(val, "udp")))
                    {eDest->Emsg("Config","Unable to find udp service",val);
                     return 1;
                    }
@@ -1555,7 +1566,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
     if (val && (val = Config.GetWord()))
        {if (isdigit(*val))
            {if (XrdOuca2x::a2i(*eDest,"server udp port",val,&pnum,1,65535)) return 1;}
-           else if (!(pnum = XrdOucNetwork::findPort(val, "udp")))
+           else if (!(pnum = XrdNetDNS::getPort(val, "udp")))
                    {eDest->Emsg("Config","Unable to find server udp service",val);
                     return 1;
                    }
@@ -1842,7 +1853,7 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
 
 int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
 {
-    struct sockaddr_in InetAddr[8];
+    struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval;
     int i, port = 0;
@@ -1858,7 +1869,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
            {if (XrdOuca2x::a2i(*eDest,"subscribe port",val,&port,1,65535))
                port = 0;
            }
-           else if (!(port = XrdOucNetwork::findPort(val, "tcp")))
+           else if (!(port = XrdNetDNS::getPort(val, "tcp")))
                    {eDest->Emsg("Config", "unable to find tcp service", val);
                     port = 0;
        }           }
@@ -1870,7 +1881,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
     i = strlen(mval);
     if (mval[i-1] != '+') i = 0;
         else {bval = strdup(mval); mval[i-1] = '\0';
-              if (!(i = XrdOucNetwork::getHostAddr(mval, InetAddr, 8)))
+              if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
                  {eDest->Emsg("Config","Subscribe host", mval,
                               (char *)"not found"); 
                   free(bval); free(mval); return 1;
@@ -1879,7 +1890,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
 
     do {if (i)
            {i--; free(mval);
-            mval = XrdOucNetwork::getHostName(InetAddr[i]);
+            mval = XrdNetDNS::getHostName(InetAddr[i]);
             eDest->Emsg("Config", (const char *)bval, 
                         (char *)"-> olb.subscribe", mval);
            }

@@ -17,7 +17,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
-class XrdOucSocket;
+class XrdNetSocket;
 
 class XrdOlbAdmin
 {
@@ -27,9 +27,9 @@ public:
 
 static void  setSync(XrdOucSemaphore  *sync)  {SyncUp = sync;}
 
-       void *Notes(XrdOucSocket *AdminSock);
+       void *Notes(XrdNetSocket *AdminSock);
 
-       void *Start(XrdOucSocket *AdminSock);
+       void *Start(XrdNetSocket *AdminSock);
 
       XrdOlbAdmin() {Sname = 0; Stype = (char *)"Server"; Primary = 0;}
      ~XrdOlbAdmin() {if (Sname) free(Sname);}

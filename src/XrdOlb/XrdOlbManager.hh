@@ -20,9 +20,9 @@
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
+class XrdNetLink;
 class XrdOlbDrop;
 class XrdOlbServer;
-class XrdOucLink;
 
 // Options for ListServers
 //
@@ -76,7 +76,7 @@ void        Broadcast(SMask_t smask, char *buff, int blen);
 void        Broadcast(SMask_t smask, const struct iovec *, int iovcnt);
 void        Inform(const char *cmd, int clen=0, char *arg=0, int alen=0);
 XrdOlbSInfo *ListServers(SMask_t mask=(SMask_t)-1, int opts=0);
-void       *Login(XrdOucLink *lnkp);
+void       *Login(XrdNetLink *lnkp);
 void       *MonPerf(void);
 void       *MonPing(void);
 void       *MonRefs(void);
@@ -101,11 +101,11 @@ void        Suspend(int doinform=1);
 private:
 SMask_t       AddPath(XrdOlbServer *sp);
 int           Add_Manager(XrdOlbServer *sp);
-XrdOlbServer *AddServer(XrdOucLink *lp, int port, int nostage, int suspend);
+XrdOlbServer *AddServer(XrdNetLink *lp, int port, int nostage, int suspend);
 XrdOlbServer *calcDelay(int nump, int numd, int numf, int numo,
                         int nums, int &delay, char **reason);
 int           Drop_Server(int sent, int sinst, XrdOlbDrop *djp=0);
-void         *Login_Failed(const char *reason, XrdOucLink *lp, XrdOlbServer *sp=0);
+void         *Login_Failed(const char *reason, XrdNetLink *lp, XrdOlbServer *sp=0);
 void          Record(char *path, const char *reason);
 void          Remove_Manager(const char *reason, XrdOlbServer *sp);
 XrdOlbServer *SelbyLoad(SMask_t mask, int &nump, int &delay,

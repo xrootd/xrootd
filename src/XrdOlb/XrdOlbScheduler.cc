@@ -12,10 +12,10 @@
 
 const char *XrdOlbSchedulerCVSID = "$Id$";
   
+#include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLink.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -78,9 +78,9 @@ XrdOlbScheduler::~XrdOlbScheduler()
 /*                               g e t W o r k                                */
 /******************************************************************************/
   
-XrdOucLink *XrdOlbScheduler::getWork()
+XrdNetLink *XrdOlbScheduler::getWork()
 {
-   XrdOucLink *lp;
+   XrdNetLink *lp;
 
 // Wait for work
 //
@@ -96,7 +96,7 @@ XrdOucLink *XrdOlbScheduler::getWork()
 /*                              S c h e d u l e                               */
 /******************************************************************************/
   
-void XrdOlbScheduler::Schedule(XrdOucLink *lp)
+void XrdOlbScheduler::Schedule(XrdNetLink *lp)
 {
 
 // Check if we have enough workers available
