@@ -175,6 +175,8 @@ public:
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(eDest, Config);
 
+#define TS_Set(x,v)    if (!strcmp(x,var)) v=1;
+
 #define OLB_Prefix    "olb."
 #define OLB_PrefLen   sizeof(OLB_Prefix)-1
 
@@ -351,17 +353,18 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    if (!dynamic)
    {
    TS_Xeq("cache",         xcache);  // Server,  non-dynamic
-   TS_Xeq("adminpath",     xapath);  // Any,    non-dynamic
+   TS_Xeq("adminpath",     xapath);  // Any,     non-dynamic
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
    TS_Xeq("fsxeq",         xfsxq);   // Server,  non-dynamic
    TS_Xeq("localroot",     xlclrt);  // Server,  non-dynamic
    TS_Xeq("path",          xpath);   // Server,  non-dynamic
    TS_Xeq("perf",          xperf);   // Server,  non-dynamic
-   TS_Xeq("pidpath",       xpidf);   // Any,    non-dynamic
-   TS_Xeq("port",          xport);   // Any,    non-dynamic
-   TS_Xeq("prep",          xprep);   // Any,    non-dynamic
+   TS_Xeq("pidpath",       xpidf);   // Any,     non-dynamic
+   TS_Xeq("port",          xport);   // Any,     non-dynamic
+   TS_Xeq("prep",          xprep);   // Any,     non-dynamic
    TS_Xeq("remoteroot",    xrmtrt);  // Server,  non-dynamic
    TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic
+   TS_Set("wait",          doWait);  // Server,  non-dynamic
    }
 
    // No match found, complain.
