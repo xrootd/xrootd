@@ -411,13 +411,13 @@ sub loadStatsLastHour() {
 
     &runQuery("DELETE FROM rtChanges");
     $deltaJobs = $noJobs - $lastNoJobs; 
-    $jobs_p = $lastNoJobs > 0 ? 100 * $deltaJobs / $lastNoJobs : -1;
+    $jobs_p = $lastNoJobs > 0 ? &roundoff( 100 * $deltaJobs / $lastNoJobs ) : -1;
     $deltaUsers = $noUsers - $lastNoUsers;
-    $users_p = $lastNoUsers > 0 ? 100 * $deltaUsers / $lastNoUsers : -1;
+    $users_p = $lastNoUsers > 0 ? &roundoff( 100 * $deltaUsers / $lastNoUsers ) : -1;
     $deltaUniqueF = $noUniqueF - $lastNoUniqueF;
-    $uniqueF_p = $lastNoUniqueF > 0 ? 100 * $deltaUniqueF / $lastNoUniqueF : -1;
+    $uniqueF_p = $lastNoUniqueF > 0 ? &roundoff( 100 * $deltaUniqueF / $lastNoUniqueF ) : -1;
     $deltaNonUniqueF = $noNonUniqueF - $lastNoNonUniqueF;
-    $nonUniqueF_p = $lastNoNonUniqueF > 0 ? 100 * $deltaNonUniqueF / $lastNoNonUniqueF : -1;
+    $nonUniqueF_p = $lastNoNonUniqueF > 0 ? &roundoff( 100 * $deltaNonUniqueF / $lastNoNonUniqueF ) : -1;
     &runQuery("INSERT INTO rtChanges 
                           (jobs, jobs_p, users, users_p, uniqueF, uniqueF_p, 
                            nonUniqueF, nonUniqueF_p, lastUpdate)
@@ -495,6 +495,13 @@ sub loadStatsAllMonths() {
                             $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
 }
 
+
+sub roundoff() {
+   my $a = shift;
+   $d = 0;
+   if ( $a < 10 ) {$d = $a < 1 ? 2 : 1;}
+   return sprintf("%.${d}f", $a);
+}
 
 
 
