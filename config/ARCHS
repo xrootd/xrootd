@@ -36,7 +36,7 @@ x86_64_linux_26 iccx8664  all    for AMD Opteron 64 Linux kernel 2.6.x Intel icc
 x86_64_linux    iccx8664  all    for AMD Opteron 64 Linux Intel icc
 alpha_linux     gcc       no     for Alpha Linux egcs and glibc
 arm_linux       gcc       no     for ARM Linux egcs and glibc
-ppc_linux       gcc       no     for PPC Linux egcs and glibc
+ppc_linux       gcc       all    for PPC Linux egcs and glibc
 ppc_darwin_70   macos     all    for MacOSX gcc
 macosx_74       macos     all    for MacOSX gcc
 macosx          macos     all    for MacOSX gcc
