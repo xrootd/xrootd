@@ -38,22 +38,28 @@
 #	(c) 1998, Stanford University/SLAC, William Weeks
 
 $|=1;
-close STDIN;
-close STDERR;
-close STDOUT;
 
 require 'getopts.pl';		# option parsing
 use POSIX "sys_wait_h";
 use Fcntl;
 
 $isMPS = substr(($0 =~ m|([^/]*)$|)[0],0,4) eq 'mps_' ;
-if ($isMPS) {use lib '/opt/xrootd/utils'; 
-             $SSD = 'mps'; $XFR = 'xfr';
-            }
-   else     {use lib '/usr/etc/ooss'; $SSD = 'ooss'; $XFR = 'pftp';}
+$SSD = ($isMPS ? 'mps' : 'ooss');
+$XFR = ($isMPS ? 'xfr' : 'pftp');
 
-use ooss_MonP;
-use XrdOlbNotify;
+# a) We always include the two default locations for 'use' statements.
+# b) If the current working directory is not the location of the program,
+#    we add the path to the program (as intuited by the execution path)
+#    to @INC. The eval() defers this until run-time.
+# c) Finally, we defer all use statements to run-time which is when we
+#    have properly established @INC. Again, eval is used for the deferral.
+#
+use lib '/opt/xrootd/utils';
+use lib '/usr/etc/ooss';
+($ppath) = $0 =~ m:^(\S*)/\S*$:;
+if ($ppath) {eval 'use lib $ppath;';}
+eval 'use XrdOlbNotify'; die "'use XrdOlbNotify' failed: $@\n" if ($@);
+eval 'use ooss_MonP'; die "'use ooss_MonP' failed: $@\n" if ($@); 
 
 # default values for command options
 $absfree = 0;				# (-F) default free byte target is disabled
@@ -117,6 +123,7 @@ $CMDuname    = '/bin/uname';
 
 # Initialize global variables
 $globalfh = 'FILE0000';
+$logfn = '-';
 $myname = ($0 =~ m|([^/]*)$|)[0];
 $num_migr_proc = 0;			# number of active migration processes
 $ppid = $$;				# save parent pid
@@ -143,7 +150,6 @@ $SIG{USR1} = 'wakeup';
 
 # Process parameters
 @saveargs = @ARGV;                      # Save @ARGV for Monitor/Poke
-logit("Starting $myname @ARGV");
 if (! &Getopts('MOPb:c:d:e:F:f:h:ik:L:l:m:p:t:u:w:x:1')) {
    logerr("Missing or invalid argument"); 
    exit 1;
@@ -168,6 +174,7 @@ if (defined($opt_l)) {			# log file name
 if (defined($opt_c)) {			# configuration file path
     $cfgfn = "$opt_c";
    }
+logit("Starting $myname @saveargs");
 readConfig($cfgfn);			# read the config
 
 if (defined($opt_b)) {			# base directory for local file system
@@ -225,6 +232,10 @@ if ($savepid_fn) {			# only if defined in configuration file
    print SAVE "$$\n";
    close(SAVE);
    }
+
+close STDIN;
+close STDERR;
+close STDOUT;
 
 @cachefs = @ufsdirs if !defined(@cachefs);
 

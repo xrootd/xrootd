@@ -110,12 +110,21 @@
 #  -v  - blab about things that are ok as well as problems.
 
 $isMPS = substr(($0 =~ m|([^/]*)$|)[0],0,4) eq 'mps_' ;
-if ($isMPS) {use lib '/opt/xrootd/utils'; 
-             $SSD = 'mps';
-            }
-   else     {use lib '/usr/etc/ooss'; $SSD = 'ooss';}
+$SSD = ($isMPS ? 'mps' : 'ooss');
+
+# a) We always include the two default locations for 'use' statements.
+# b) If the current working directory is not the location of the program,
+#    we add the path to the program (as intuited by the execution path)
+#    to @INC. The eval() defers this until run-time.
+# c) Finally, we defer all use statements to run-time which is when we
+#    have properly established @INC. Again, eval is used for the deferral.
+#
+use lib '/opt/xrootd/utils';
+use lib '/usr/etc/ooss';
+($ppath) = $0 =~ m:^(\S*)/\S*$:;
+if ($ppath) {eval 'use lib $ppath;';}
+eval 'use XrdOlbNotify'; die "'use XrdOlbNotify' failed: $@\n" if ($@);
 use Cwd;
-use XrdOlbNotify;
 require "timelocal.pl";
 
 $STRINGS_CMD = '/usr/bin/strings';

@@ -28,9 +28,21 @@ use POSIX "sys_wait_h";
 use Fcntl;
 
 $isMPS = substr(($0 =~ m|([^/]*)$|)[0],0,4) eq 'mps_' ;
-if ($isMPS) {use lib '/opt/xrootd/utils'; $SSD = 'mps'; $XFR = 'xfr';}
-   else {use lib '/usr/etc/ooss'; $SSD = 'ooss'; $XFR = 'pftp';}
-use ooss_MonP;
+$SSD = ($isMPS ? 'mps' : 'ooss');
+$XFR = ($isMPS ? 'xfr' : 'pftp');
+
+# a) We always include the two default locations for 'use' statements.
+# b) If the current working directory is not the location of the program,
+#    we add the path to the program (as intuited by the execution path)
+#    to @INC. The eval() defers this until run-time.
+# c) Finally, we defer all use statements to run-time which is when we
+#    have properly established @INC. Again, eval is used for the deferral.
+#
+use lib '/opt/xrootd/utils';
+use lib '/usr/etc/ooss';
+($ppath) = $0 =~ m:^(\S*)/\S*$:;
+if ($ppath) {eval 'use lib $ppath;';}
+eval 'use ooss_MonP'; die "'use ooss_MonP' failed: $@\n" if ($@);
 
 # OS-dependent commands
 #
