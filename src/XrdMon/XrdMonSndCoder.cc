@@ -153,9 +153,9 @@ XrdMonSndCoder::prepare2Transfer(const vector<kXR_int32>& vector)
 
     struct XrdXrootdMonTrace trace;
     memset(&trace, 0, sizeof(XrdXrootdMonTrace));
-    trace.data.arg0.id[0]  = XROOTD_MON_WINDOW;
-    trace.data.arg1.Window = 
-    trace.data.arg2.Window = htonl(curTime);
+    trace.arg0.id[0]  = XROOTD_MON_WINDOW;
+    trace.arg1.Window = 
+    trace.arg2.Window = htonl(curTime);
     memcpy(writeHere(), &trace, sizeof(XrdXrootdMonTrace));
     _putOffset += sizeof(XrdXrootdMonTrace);
     
@@ -170,14 +170,14 @@ XrdMonSndCoder::prepare2Transfer(const vector<kXR_int32>& vector)
         kXR_unt32 rT, wT;
 
         memset(&trace, 0, sizeof(XrdXrootdMonTrace));
-        trace.data.arg0.id[0]   = XROOTD_MON_CLOSE;
+        trace.arg0.id[0]   = XROOTD_MON_CLOSE;
         if ( ++ largeNr % 11 == 10 ) {
             // generate # bytes read/writen (larger than 2^32, shifted)
             pair<char, kXR_unt32> bigR = generateBigNumber("read");
             pair<char, kXR_unt32> bigW = generateBigNumber("write");
 
-            trace.data.arg0.id[1] = bigR.first;
-            trace.data.arg0.id[2] = bigW.first;
+            trace.arg0.id[1] = bigR.first;
+            trace.arg0.id[2] = bigW.first;
             rT = bigR.second;
             wT = bigW.second;
         } else {
@@ -186,9 +186,9 @@ XrdMonSndCoder::prepare2Transfer(const vector<kXR_int32>& vector)
             wT = (kXR_unt32) rand() / 512;
         }
 
-        trace.data.arg0.rTot[1] = htonl(rT);
-        trace.data.arg1.wTot    = htonl(wT);
-        trace.data.arg2.dictid  = htonl(vector[i]);
+        trace.arg0.rTot[1] = htonl(rT);
+        trace.arg1.wTot    = htonl(wT);
+        trace.arg2.dictid  = htonl(vector[i]);
         memcpy(writeHere(), &trace, sizeof(XrdXrootdMonTrace));
         _putOffset += sizeof(XrdXrootdMonTrace);
 
@@ -199,9 +199,9 @@ XrdMonSndCoder::prepare2Transfer(const vector<kXR_int32>& vector)
     }
 
     memset(&trace, 0, sizeof(XrdXrootdMonTrace));
-    trace.data.arg0.id[0]  = XROOTD_MON_WINDOW;
-    trace.data.arg1.Window = 
-    trace.data.arg2.Window = htonl(curTime);
+    trace.arg0.id[0]  = XROOTD_MON_WINDOW;
+    trace.arg1.Window = 
+    trace.arg2.Window = htonl(curTime);
     memcpy(writeHere(), &trace, sizeof(XrdXrootdMonTrace));
     _putOffset += sizeof(XrdXrootdMonTrace);
 

@@ -181,9 +181,9 @@ XrdMonDecPacketDecoder::decodeRWRequest(const char* packet, time_t timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
-    kXR_int64 tOffset = ntohll(trace.data.arg0.val);
-    kXR_int32 tLen    = ntohl (trace.data.arg1.buflen);
-    kXR_unt32 dictId  = ntohl (trace.data.arg2.dictid);
+    kXR_int64 tOffset = ntohll(trace.arg0.val);
+    kXR_int32 tLen    = ntohl (trace.arg1.buflen);
+    kXR_unt32 dictId  = ntohl (trace.arg2.dictid);
 
     if ( tOffset < 0 ) {
         throw XrdMonException(ERR_NEGATIVEOFFSET);
@@ -203,7 +203,7 @@ XrdMonDecPacketDecoder::decodeOpen(const char* packet, time_t timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
-    kXR_unt32 dictId = ntohl(trace.data.arg2.dictid);
+    kXR_unt32 dictId = ntohl(trace.arg2.dictid);
 
     _sink.openFile(dictId, timestamp);
 }
@@ -213,11 +213,11 @@ XrdMonDecPacketDecoder::decodeClose(const char* packet, time_t timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
-    kXR_unt32 dictId = ntohl(trace.data.arg2.dictid);
-    kXR_unt32 tR     = ntohl(trace.data.arg0.rTot[1]);
-    kXR_unt32 tW     = ntohl(trace.data.arg1.wTot);
-    char rShift      = trace.data.arg0.id[1];
-    char wShift      = trace.data.arg0.id[2];
+    kXR_unt32 dictId = ntohl(trace.arg2.dictid);
+    kXR_unt32 tR     = ntohl(trace.arg0.rTot[1]);
+    kXR_unt32 tW     = ntohl(trace.arg1.wTot);
+    char rShift      = trace.arg0.id[1];
+    char wShift      = trace.arg0.id[2];
     kXR_int64 realR  = tR; realR = realR << rShift;
     kXR_int64 realW  = tW; realW = realW << wShift;
 
@@ -234,8 +234,8 @@ XrdMonDecPacketDecoder::decodeDisconnect(const char* packet, time_t timestamp)
 {
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
-    kXR_int32 sec    = ntohl(trace.data.arg1.buflen);
-    kXR_unt32 dictId = ntohl(trace.data.arg2.dictid);
+    kXR_int32 sec    = ntohl(trace.arg1.buflen);
+    kXR_unt32 dictId = ntohl(trace.arg2.dictid);
 
     cout << "decoded user disconnect, dict " << dictId
          << ", sec = " << sec << endl;
