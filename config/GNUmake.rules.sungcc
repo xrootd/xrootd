@@ -1,0 +1,18 @@
+#              $Id$
+
+#------------------------------------------------------------------------------#
+#                 R u l e s   f o r   g e n e r i c   g c c                    #
+#------------------------------------------------------------------------------#
+
+TYPECC     = g++
+TYPELD     = g++
+
+TYPEMISC   = -D_ALL_SOURCE -D_REENTRANT -D_GNU_SOURCE -fPIC \
+             -Wall -Wno-deprecated -DSUNGCC $(CFTRACE)
+TYPECF32   =
+TYPECF64   =
+TYPEOPT    = $(TYPEMISC) -O3
+TYPEDBG    = $(TYPEMISC) -g -O3
+TYPELDSO   = -shared
+
+TYPELIBS   =  -lnsl -lsocket $(PTHREAD) -lrt -ldl -lc
