@@ -94,13 +94,6 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 //
    Eroute.Emsg("Config", "File system initialization started.");
 
-// Serialize execution by getting a lock on the VPlist. This only works
-// if there's something in the list. So, we empty the list and put in a
-// dummy entry to force people to obtain a lock on the list.
-//
-   VPlist.Empty(new XrdOucPList((char *)"/"));
-   VPlist.Lock();
-
 // Preset all variables with common defaults
 //
    Options            = 0;
@@ -134,12 +127,6 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
                               ConfigFN);
            Config.Close();
           }
-
-// Reinitialize the valid path list. This must be the last act.
-//
-   VPlist.Swap(VPlist_New);
-   VPlist.UnLock();
-   VPlist_New.Empty();
 
 // Determine whether we should initialize security
 //
@@ -328,7 +315,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
 
     // Process simple directives
     //
-    TS_PList("validpath",   VPlist_New);
+    TS_PList("validpath",   VPlist);
 
     // No match found, complain.
     //
@@ -666,8 +653,6 @@ void XrdOfs::List_VPlist(char *lname,
 {
      XrdOucPList *fp;
 
-     plist.Lock();
      fp = plist.Next();
      while(fp) {Eroute.Say(lname, fp->Path()); fp = fp->Next();}
-     plist.UnLock();
 }

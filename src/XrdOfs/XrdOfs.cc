@@ -422,9 +422,11 @@ int XrdOfsFile::open(const char          *path,      // In
                         SFS_O_RDWR   - Open file for update
                         SFS_O_CREAT  - Create the file open in RW mode
                         SFS_O_TRUNC  - Trunc  the file open in RW mode
-            file_mode - The Posix access mode bits to be assigned to the file.
+            Mode      - The Posix access mode bits to be assigned to the file.
                         These bits correspond to the standard Unix permission
-                        bits (e.g., 744 == "rwxr--r--"). This parameter is
+                        bits (e.g., 744 == "rwxr--r--"). Additionally, Mode
+                        may contain SFS_O_MKPTH to force creation of the full
+                        directory path if it does not exist. This parameter is
                         ignored unless open_mode = SFS_O_CREAT.
             client    - Authentication credentials, if any.
             info      - Opaque information to be used as seen fit.
@@ -435,6 +437,7 @@ int XrdOfsFile::open(const char          *path,      // In
    static const char *epname = "open";
    const char        *hostname = 0;
    int retc, odc_mode, open_flag = 0, port = 0;
+   int mkpath = Mode & SFS_O_MKPTH;
    unsigned long hval = XrdOucHashVal(path);
    XrdOucMutex        *mp;
    XrdOfsHandleAnchor *ap;
@@ -467,7 +470,7 @@ int XrdOfsFile::open(const char          *path,      // In
                        SFS_O_CREAT  | SFS_O_TRUNC))
    {
    case SFS_O_CREAT:  open_flag   = O_EXCL;
-   case SFS_O_TRUNC:  open_flag  |= O_RDWR | O_CREAT;
+   case SFS_O_TRUNC:  open_flag  |= O_RDWR | O_CREAT | O_TRUNC;
                       ap = &XrdOfsOrigin_RW; mp = &XrdOfsOpen_RW;
                       break;
    case SFS_O_RDONLY: open_flag = O_RDONLY;
@@ -492,7 +495,6 @@ int XrdOfsFile::open(const char          *path,      // In
                 odc_mode|(open_flag & ~O_EXCL))))
       return XrdOfsFS.fsError(error, retc);
 
-
 // Create the file if so requested o/w try to attach the file
 //
    if (open_mode & SFS_O_CREAT)
@@ -504,8 +506,9 @@ int XrdOfsFile::open(const char          *path,      // In
        // Create the file
        //
        open_flag  = O_RDWR; mp = &XrdOfsOpen_RW;
-       if ((retc = XrdOssSS.Create(path, Mode, Open_Env)))
+       if ((retc = XrdOssSS.Create(path, Mode & S_IAMB, Open_Env, mkpath)))
           return XrdOfsFS.Emsg(epname, error, retc, "create", path);
+       if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
        mp->Lock();
 
       } else {
@@ -572,7 +575,7 @@ int XrdOfsFile::open(const char          *path,      // In
               }
 
          fp = (XrdOssDF *)new XrdOssProxy(hostname, port);
-         ZTRACE(open, "Use a proxy to open the file.");
+         ZTRACE(open, "Using " <<hostname <<" as a proxy for " <<path);
       }
    }
    else {fp = (XrdOssDF *)new XrdOssFile((const char *)tident);}
@@ -1213,6 +1216,8 @@ int XrdOfs::mkdir(const char             *path,    // In
 
   Input:    path      - Is the fully qualified name of the file to be removed.
             Mode      - Is the POSIX mode value the directory is to have.
+                        Additionally, Mode may contain SFS_O_MKPTH if the
+                        full dircectory path should be created.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
 
@@ -1221,7 +1226,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 {
    static const char *epname = "mkdir";
    mode_t acc_mode = Mode & S_IAMB;
-   int retc;
+   int retc, mkpath = Mode & SFS_O_MKPTH;
    char *tident = client->tident;
    einfo.setErrUser(tident);
    XTRACE(mkdir, path, "");
@@ -1238,15 +1243,16 @@ int XrdOfs::mkdir(const char             *path,    // In
       if (Options & XrdOfsFWDMKDIR)
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
-          return ((retc = Finder->Forward(einfo,"mkdir",buff,(char *)path)) ?
-                  fsError(einfo, retc) : SFS_OK);
+          return ((retc = Finder->Forward(einfo, (mkpath ? "mkpath" : "mkdir"),
+                                  buff,(char *)path)) ? 
+                 fsError(einfo, retc) : SFS_OK);
          }
          else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
                  return fsError(einfo, retc);
 
 // Perform the actual operation
 //
-    if ((retc = XrdOssSS.Mkdir(path, acc_mode)))
+    if ((retc = XrdOssSS.Mkdir(path, acc_mode, mkpath)))
        return XrdOfsFS.Emsg(epname, einfo, retc, "mkdir", path);
     return SFS_OK;
 }
@@ -1380,7 +1386,9 @@ int XrdOfs::rename(const char             *old_name,  // In
    if ((retc = XrdOssSS.Rename(old_name, new_name)))
       return XrdOfsFS.Emsg(epname, einfo, retc, "rename", old_name);
    XrdOfsFS.Detach_Name(old_name);
-   if (Balancer) Balancer->Removed(old_name);
+   if (Balancer) {Balancer->Removed(old_name);
+                  Balancer->Added(new_name);
+                 }
    return SFS_OK;
 }
 

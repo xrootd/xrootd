@@ -251,7 +251,6 @@ XrdOdcFinderTRG  *Balancer;       //    ->Server Balancer Interface
 // found, the request is treated as being invalid (i.e., EACCES).
 //
 XrdOucPListAnchor VPlist;     // -> Valid file list
-XrdOucPListAnchor VPlist_New; // Used during construction
 
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */
