@@ -41,11 +41,10 @@
 #define XrdOfsAUTHORIZE    0x0001
 #define XrdOfsFDNOSHARE    0x0002
 
-#define XrdOfsREDIRLCL     0x0010
 #define XrdOfsREDIROXY     0x0020
 #define XrdOfsREDIRRMT     0x0040
 #define XrdOfsREDIRTRG     0x0080
-#define XrdOfsREDIRECT     0x00F0
+#define XrdOfsREDIRECT     0x00E0
 
 #define XrdOfsFWDALL       0x1F00
 #define XrdOfsFWDCHMOD     0x1000

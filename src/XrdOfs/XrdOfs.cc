@@ -167,7 +167,6 @@ XrdOfs::XrdOfs()
    Authorization = 0;
    Finder        = 0;
    Google        = 0;
-   Reporter      = 0;
    Balancer      = 0;
 
 // Establish our hostname
@@ -270,7 +269,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 
 // Open the directory and allocate a handle for it
 //
-   if (!(dp = new XrdOssDir((const char *)tident))) retc = -ENOMEM;
+   if (!(dp = new XrdOssDir(tident))) retc = -ENOMEM;
       else if (!(retc = dp->Opendir(dir_path)))
               {fname = strdup(dir_path);
                return SFS_OK;
@@ -313,18 +312,18 @@ const char *XrdOfsDirectory::nextEntry()
 // Check if this directory is actually open
 //
    if (!dp) {XrdOfsFS.Emsg(epname, error, XrdOfsENOTOPEN, "read directory");
-             return (const char *)0;
+             return 0;
             }
 
 // Check if we are at EOF (once there we stay there)
 //
-   if (atEOF) return (const char *)0;
+   if (atEOF) return 0;
 
 // Read the next directory entry
 //
    if ((retc = dp->Readdir(dname, sizeof(dname))) < 0)
       {XrdOfsFS.Emsg(epname, error, retc, "read directory", fname);
-       return (const char *)0;
+       return 0;
       }
 
 // Check if we have reached end of file
@@ -333,7 +332,7 @@ const char *XrdOfsDirectory::nextEntry()
       {atEOF = 1;
        error.clear();
        XTRACE(readdir, fname, "<eof>");
-       return (const char *)0;
+       return 0;
       }
 
 // Return the actual entry
@@ -541,7 +540,7 @@ int XrdOfsFile::open(const char          *path,      // In
      
       if (XrdOssSS.Stat(path, &fstat) == 0) {
          ZTRACE(open, "The file is found locally.");
-         fp = (XrdOssDF *)new XrdOssFile((const char *)tident);
+         fp = (XrdOssDF *)new XrdOssFile(tident);
       } else {
          retc = XrdOfsFS.Google->Locate(error, path, odc_mode|open_flag);
       
@@ -563,18 +562,14 @@ int XrdOfsFile::open(const char          *path,      // In
          ZTRACE(open, "Using " <<hostname <<" as a proxy for " <<path);
       }
    }
-   else {fp = (XrdOssDF *)new XrdOssFile((const char *)tident);}
+   else {fp = (XrdOssDF *)new XrdOssFile(tident);}
 
    if ( fp && (oh = new XrdOfsHandle(hval,path,open_flag,tod.tv_sec,ap,fp)) )
       {mp->UnLock();  // Handle is now locked so allow new opens
-       if (XrdOfsFS.Reporter) XrdOfsFS.Reporter->UpdateFD(1);
-
        if ((retc = fp->Open(path, open_flag, Mode, Open_Env)))
           {oh->ecode = retc; XrdOfsFS.Close(oh); oh = 0;
            if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
           } else {
-
-
            if ((oh->cxrsz = fp->isCompressed(oh->cxid))) setCXinfo(open_mode);
            oh->Activate(); oh->UnLock();
            return SFS_OK;
@@ -1103,7 +1098,7 @@ void XrdOfsFile::setCXinfo(XrdSfsFileOpenMode mode)
     if (mode & SFS_O_RAWIO)
        {char cxtype[5], buffer[OUC_MAX_ERROR_LEN];
         dorawio = 1;
-        strncpy(cxtype, (const char *)oh->cxid, sizeof(cxtype)-1);
+        strncpy(cxtype, oh->cxid, sizeof(cxtype)-1);
         cxtype[4] = '\0';
         sprintf(buffer,"!attn C=%s R=%d", cxtype, oh->cxrsz);
         error.setErrInfo(0, buffer);
@@ -1566,10 +1561,6 @@ int XrdOfs::Close(XrdOfsHandle *oh)
    oh->Retire(0);
    oh->UnLockAnchor();
    oh->UnLock();
-
-// Update stats
-//
-   if (Reporter) Reporter->UpdateFD(-1);
 
 // Free up the storage and return
 //

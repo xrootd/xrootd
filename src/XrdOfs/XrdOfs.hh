@@ -249,7 +249,6 @@ private:
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdOdcFinder     *Finder;         //    ->Distrib Cache   Service
 XrdOdcFinder     *Google;         //    ->Remote  Cache   Service
-XrdOdcFinderLCL  *Reporter;       //    ->Server Monitor  Reporter
 XrdOdcFinderTRG  *Balancer;       //    ->Server Balancer Interface
 
 // The following structure defines an anchor for the valid file list. There is
@@ -279,7 +278,6 @@ static  int   fsError(XrdOucErrInfo &myError, int rc);
 int           ConfigRedir(XrdOucError &Eroute);
 int           ConfigXeq(char *var, XrdOucStream &, XrdOucError &);
 const char   *Fname(const char *);
-int           isMe(XrdOucError &, const char *item, char *hval);
 void          List_VPlist(char *, XrdOucPListAnchor &, XrdOucError &);
 char         *WaitTime(int, char *, int);
 int           xfdscan(XrdOucStream &, XrdOucError &);
