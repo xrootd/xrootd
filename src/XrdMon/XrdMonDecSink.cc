@@ -352,6 +352,9 @@ XrdMonDecSink::flushUserCache()
     {
         XrdOucMutexHelper mh; mh.Lock(&_uMutex);
         sizeBefore = _uCache.size();
+
+        vector <dictid_t> forDeletion;
+        
         for ( itr=_uCache.begin() ; itr != _uCache.end() ; ++itr ) {
             XrdMonDecUserInfo* di = itr->second;
             if ( di != 0 && di->readyToBeStored() ) {
@@ -372,9 +375,14 @@ XrdMonDecSink::flushUserCache()
                 }
                 curLen += strLen;
                 delete itr->second;
-                _uCache.erase(itr);
+                forDeletion.push_back(itr->first);
             }
         }
+        int s = forDeletion.size();
+        for (int i=0 ; i<s ; ++i) {
+            _dCache.erase(forDeletion[i]);
+        }
+
         sizeAfter = _uCache.size();
     }
     
@@ -450,6 +458,7 @@ XrdMonDecSink::checkpoint()
     int nr =0;
     map<dictid_t, XrdMonDecDictInfo*>::iterator itr;
     {
+        vector<dictid_t> forDeletion;
         XrdOucMutexHelper mh; mh.Lock(&_dMutex);
         for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
             XrdMonDecDictInfo* di = itr->second;
@@ -461,8 +470,12 @@ XrdMonDecSink::checkpoint()
                 }
                 di->writeSelf2buf(buf, bufPos); // this will increment bufPos
                 delete itr->second;
-                _dCache.erase(itr);
+                forDeletion.push_back(itr->first);
             }
+        }
+        int s = forDeletion.size();
+        for (int i=0 ; i<s ; ++i) {
+            _dCache.erase(forDeletion[i]);
         }
     }
     if ( bufPos > 0 ) {
