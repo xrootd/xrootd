@@ -26,7 +26,6 @@ const char *XrdOlbManagerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdNet/XrdNetWork.hh"
 
@@ -53,11 +52,6 @@ extern XrdOlbScheduler *XrdOlbSchedS;
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */
 /******************************************************************************/
-
-struct XrdOlbSTArgs
-       {XrdNetLink *lp;
-        char       buff[2048];
-       };
   
 class XrdOlbDrop : XrdOlbJob
 {
@@ -79,30 +73,6 @@ public:
 int  servEnt;
 int  servInst;
 };
-
-/******************************************************************************/
-/*                    E x t e r n a l   F u n c t i o n s                     */
-/******************************************************************************/
-
-int XrdOlbStateAll1(const char *key, char *kdata, void *stp)
-{
-    struct XrdOlbSTArgs *stargs = (struct XrdOlbSTArgs *)stp;
-
-    stargs->lp->Send(stargs->buff, 
-                     snprintf(stargs->buff, sizeof(stargs->buff)-1,
-                     "%s state %s\n", XrdOlbConfig.MsgGID, key));
-    return 0;
-}
-
-int XrdOlbStateAll2(const char *key, XrdOlbCInfo *cip, void *stp)
-{
-    struct XrdOlbSTArgs *stargs = (struct XrdOlbSTArgs *)stp;
-
-    stargs->lp->Send(stargs->buff, 
-                     snprintf(stargs->buff, sizeof(stargs->buff)-1,
-                     "%s state %s\n", XrdOlbConfig.MsgGID, key));
-    return 0;
-}
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -336,10 +306,6 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
       return Login_Failed(0, lnkp);
    servID = sp->ServID; servInst = sp->Instance;
 
-// Allocate a pending path hash table
-//
-   sp->PendPaths = new XrdOucHash<char>;
-
 // At this point, the server will send only addpath commands followed by a start
 //
    while((tp = lnkp->GetLine()))
@@ -379,23 +345,16 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
       return Login_Failed("invalid start totkb value", lnkp, sp);
       else sp->DiskTota = fdsk;
 
-// Check if we have any special paths
+// Check if we have any special paths. If none, then we must set the cache for
+// all entries to indicate that the server bounced.
 //
    if (!addedp) 
       {XrdOlbPInfo pinfo;
        pinfo.rovec = sp->ServMask;
        servset = XrdOlbCache.Paths.Insert((char *)"/", &pinfo);
+       XrdOlbCache.Bounce(sp->ServMask);
        XrdOlbSay.Emsg("Manager","Server",lnkp->Name(),(char *)"defaulted r /");
       }
-
-// Ask the server to tell us about all of the files that we know about
-//
-   {struct XrdOlbSTArgs stargs = {lnkp};
-    stargs.buff[sizeof(stargs.buff)-1] = '\0';
-    if (addedp) sp->PendPaths->Apply(XrdOlbStateAll1, (void *)&stargs);
-       else         XrdOlbCache.Apply(XrdOlbStateAll2, (void *)&stargs);
-    delete sp->PendPaths; sp->PendPaths = 0;
-   }
 
 // Finally set the reference counts for intersecting servers to be the same
 //
@@ -967,9 +926,9 @@ SMask_t XrdOlbManager::AddPath(XrdOlbServer *sp)
 //
    if (!(tp = sp->Link->GetToken())) return 0;
 
-// For everything matching the path ask the server if it has it
+// For everything matching the path indicate in the cache the server bounced
 //
-   XrdOlbCache.Extract(tp, sp->PendPaths);
+   XrdOlbCache.Bounce(sp->ServMask, tp);
 
 // Add the path to the known path list
 //

@@ -103,7 +103,7 @@ $(OBJDIR)/XrdOlbMain.o: XrdOlbCache.hh     XrdOlbConfig.hh   XrdOlbManager.hh \
 $(OBJDIR)/XrdOlbManager.o: XrdOlbCache.hh     XrdOlbConfig.hh  XrdOlbManager.hh \
                            XrdOlbScheduler.hh XrdOlbServer.hh  XrdOlbTrace.hh \
                            XrdOlbTypes.hh     XrdOlbManager.cc XrdOuca2x.hh \
-                           XrdOucHash.hh      XrdNetWork.hh    XrdOucPthread.hh
+                           XrdNetWork.hh    XrdOucPthread.hh
 	@echo Compiling XrdOlbManager.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbManager.o XrdOlbManager.cc
 
@@ -134,7 +134,7 @@ $(OBJDIR)/XrdOlbServer.o: XrdOlbServer.hh   XrdOlbServer.cc \
                           XrdOlbManager.hh  XrdOlbMeter.hh  \
                           XrdOlbTrace.hh    XrdOlbTypes.hh  \
                           XrdNetLink.hh     XrdOuca2x.hh \
-                          XrdOucHash.hh     XrdOucPthread.hh \
+                          XrdOucPthread.hh \
                           XrdOucPlatform.hh XrdOucProg.hh   XrdOucStream.hh
 	@echo Compiling XrdOlbServer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbServer.o XrdOlbServer.cc

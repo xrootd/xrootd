@@ -25,6 +25,7 @@
 struct XrdOlbCInfo
        {SMask_t rovec;
         SMask_t rwvec;
+        SMask_t sbvec;
         int deadline;
        };
 
@@ -39,11 +40,21 @@ friend class XrdOlbCache_Scrubber;
 
 XrdOlbPList_Anchor Paths;
 
-void       AddFile(char *path, SMask_t mask, int isrw=-1, int dltime=0);
-void       DelFile(char *path, SMask_t mask);
+// AddFile() returns true if this is the first addition, false otherwise
+//
+int        AddFile(char *path, SMask_t mask, int isrw=-1, int dltime=0);
+
+// DelFile() returns true if this is the last deletion, false otherwise
+//
+int        DelFile(char *path, SMask_t mask, int dltime=0);
+
+// GetFile() returns true if we actually found the file
+//
 int        GetFile(char *path, XrdOlbCInfo &cinfo);
 
 void       Apply(int (*func)(const char *, XrdOlbCInfo *, void *), void *Arg);
+
+void       Bounce(SMask_t mask, char *path=0);
 
 void       Extract(char *pathpfx, XrdOucHash<char> *hashp);
 

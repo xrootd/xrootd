@@ -77,7 +77,6 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port)
     RefTotA  =  0;
     RefR     =  0;
     RefTotR  =  0;
-    PendPaths=  0;
     pingpong =  0;
     logload  =  XrdOlbConfig.LogPerf;
     DropTime =  0;
@@ -109,10 +108,6 @@ XrdOlbServer::~XrdOlbServer()
 //
    if (Link) Link->Recycle(); 
    Link = 0;
-
-// Recycle pending paths (only used during login)
-//
-   if (PendPaths) delete PendPaths;
 
 // Delete other appendages
 //
@@ -1054,16 +1049,20 @@ int XrdOlbServer::do_Select(char *rid, int reset)
 
 // First check if we have seen this file before. If not, broadcast a lookup
 // to all relevant servers. Note that even if the caller wants the file in
-// r/w mode we will ask both r/o and r/w servers for the file.
+// r/w mode we will ask both r/o and r/w servers for the file. Note that we
+// could have let the client go if we had at least one non-bouncing server
+// in the set. But replicated files are rare, so we just let the client wait.
+// To keep reduce message traffic, we'll just ask newly added or bounced ones.
 //
-   if (!(retc = XrdOlbCache.GetFile(tp, cinfo)) || cinfo.deadline || reset)
+   retc = XrdOlbCache.GetFile(tp, cinfo);
+   if (!retc || cinfo.deadline || reset || (retc && cinfo.sbvec))
       {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.LUPDelay));
        DEBUG("Lookup delay " <<Name() <<' ' <<XrdOlbConfig.LUPDelay);
-       if (!retc || reset)
-          {XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
-           XrdOlbSM.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
-                             "%s state %s\n", XrdOlbConfig.MsgGID, tp));
-          }
+       if (!retc || reset) XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
+          else      XrdOlbCache.DelFile(tp, cinfo.sbvec, XrdOlbConfig.LUPDelay);
+       XrdOlbSM.Broadcast((retc ? cinfo.sbvec : pinfo.rovec), buff,
+                          snprintf(buff, sizeof(buff)-1,
+                          "%s state %s\n", XrdOlbConfig.MsgGID, tp));
        return 0;
       }
 

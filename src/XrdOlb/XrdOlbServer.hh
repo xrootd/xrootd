@@ -16,7 +16,6 @@
   
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
-#include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdOlbDrop;
@@ -89,7 +88,6 @@ static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
        char *Receive(char *idbuff, int blen);
        int   Reissue(char *rid, const char *op, char *arg1, char *path, char *arg3=0);
 
-XrdOucHash<char> *PendPaths;
 XrdOucMutex       myMutex;
 XrdNetLink       *Link;
 unsigned int      IPAddr;
