@@ -101,6 +101,19 @@ XrdMonDecSink::~XrdMonDecSink()
         flushTCache();
         checkpoint();
     }
+
+    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+    std::map<dictid_t, XrdMonDecDictInfo*>::iterator dItr;
+    for ( dItr=_dCache.begin() ; dItr != _dCache.end() ; ++ dItr ) {
+        delete dItr->second;
+    }
+    _dCache.clear();
+
+    std::map<dictid_t, XrdMonDecUserInfo*>::iterator uItr;
+    for ( uItr=_uCache.begin() ; uItr != _uCache.end() ; ++ uItr ) {
+        delete uItr->second;
+    }
+    _uCache.clear();
 }
 
 void 
@@ -153,6 +166,7 @@ XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
     XrdMonDecDictInfo* di;
     _dCache[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueDictId++, 
                                                 theString, len);
+    
     cout << "Added dictInfo to sink: " << *di << endl;
 
     // FIXME: remove this line when xrootd supports openFile

@@ -112,7 +112,9 @@ void
 XrdMonSndDummyXrootd::closeFiles(vector<kXR_int32>& closedFiles)
 {
     for (kXR_int32 i=0 ; i<_firstAvailId ; i++) {
-        closedFiles.push_back(i);
+        if ( _openFiles[i] ) {
+            closedFiles.push_back(i);
+        }
     }
 }
 
