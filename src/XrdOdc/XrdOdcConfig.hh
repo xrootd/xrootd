@@ -52,12 +52,12 @@ unsigned char SMode;        // Manager selection mode
 unsigned char SModeP;       // Manager selection mode (proxy)
 
       XrdOdcConfig(XrdOucError *erp, int port=0)
-                  {ConWait = 10; RepWait = 3; RepWaitMS = 3000; RepDelay = 5;
+                  {ConWait = 10; RepWait = 6; RepWaitMS = 3000; RepDelay = 5;
                    ManList = PanList = 0; portVec[0] = 0;
                    SMode = SModeP = ODC_FAILOVER;
                    pselSkey = 1312; pselMint = 60;
                    eDest = erp; lclPort = port;
-                   OLBPath = 0; RepNone = 4; msgKeep = 128;
+                   OLBPath = 0; RepNone = 8; msgKeep = 128;
                   }
      ~XrdOdcConfig();
 
