@@ -46,8 +46,9 @@ static int getHostAddr(       char     *InetName,
 //               host name is specified (or specifiied as 0), the fully
 //               qualified name of this host is returned. The name is returned
 //               as an strdup'd string which must be released using free().
-//               Upon failure, zero is returned and the error text is placed
-//               in errtxt if an address is supplied.
+//               If errtxt is supplied, it is set to zero.
+//               Upon failure, strdup("127.0.0.1") is returned and the error
+//               text is placed in errtxt if an address is supplied.
 //
 static char *getHostName(char *InetName=0,
                          char **errtxt=0);
@@ -55,8 +56,10 @@ static char *getHostName(char *InetName=0,
 // getHostName() returns the primary name of the host associated with the IP
 //               address InetAddr. If a translation is successful, the address
 //               of an strdup'd null terminated name is returned (it must be
-//               released using free()). Otherwise, 0 id returned and the
-//               errnor text is placed in errtxt if an address is supplied.
+//               released using free()) and errtxt, of supplied, is set to 0.
+//               Upon failure, the ascii text version of the address is
+//               returned and the error text is placed in errtxt if an 
+//               address is supplied.
 //
 static char *getHostName(struct sockaddr &InetAddr,
                                 char    **errtxt=0);

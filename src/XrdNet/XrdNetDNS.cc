@@ -133,12 +133,12 @@ char *XrdNetDNS::getHostName(char *InetName, char **errtxt)
 //
    if (InetName) hp = InetName;
       else if (gethostname(myname, sizeof(myname))) 
-              {if (errtxt) setET(errtxt, errno); return (char *)0;}
+              {if (errtxt) setET(errtxt, errno); return strdup("127.0.0.1");}
               else hp = myname;
 
 // Get the address
 //
-   if (!getHostAddr(hp, InetAddr, errtxt)) return 0;
+   if (!getHostAddr(hp, InetAddr, errtxt)) return strdup("127.0.0.1");
 
 // Convert it to a fully qualified host name and return it
 //
@@ -153,7 +153,14 @@ char *XrdNetDNS::getHostName(struct sockaddr &InetAddr, char **errtxt)
 {
      char *result;
      if (getHostName(InetAddr, &result, 1, errtxt)) return result;
-     return(char *)0;
+
+    {char dnbuff[64];
+     unsigned int ipaddr;
+     struct sockaddr_in *ip = (sockaddr_in *)&InetAddr;
+     memcpy(&ipaddr, &ip->sin_addr, sizeof(ipaddr));
+     IP2String(ipaddr, -1, dnbuff, sizeof(dnbuff));
+     return strdup(dnbuff);
+    }
 }
 
 /******************************************************************************/
@@ -167,6 +174,10 @@ int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
 {
    char mybuff[256];
    int i, rc;
+
+// Preset errtxt to zero
+//
+   if (errtxt) *errtxt = 0;
 
 // Some platforms have nameinfo but getnameinfo() is broken. If so, we revert
 // to using the gethostbyaddr().
