@@ -200,8 +200,6 @@ XrdXrootdAio *XrdXrootdAio::addBlock()
    if ((aiop = new XrdXrootdAio[i]()))
       {maxAio -= i;
        while(--i) {aiop->Next = fqFirst; fqFirst = aiop; aiop++;}
-       aiop = fqFirst;
-       fqFirst = aiop->Next;
       }
 
    return aiop;
@@ -486,10 +484,7 @@ XrdXrootdAioReq *XrdXrootdAioReq::addBlock()
    TRACE(DEBUG, "Adding " <<numalloc <<" aioreq objects.");
 
    if ((arp = new XrdXrootdAioReq[numalloc]()))
-      {while(--i) {arp->Next = rqFirst; rqFirst = arp; arp++;}
-       arp = rqFirst;
-       rqFirst = arp->Next;
-      }
+      while(--i) {arp->Next = rqFirst; rqFirst = arp; arp++;}
 
    return arp;
 }
