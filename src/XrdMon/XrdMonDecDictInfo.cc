@@ -1,3 +1,4 @@
+
 /*****************************************************************************/
 /*                                                                           */
 /*                           XrdMonDecDictInfo.cc                            */
@@ -29,7 +30,6 @@ XrdMonDecDictInfo::XrdMonDecDictInfo()
       _myUniqueId(0),
       _user("InvalidUser"),
       _pid(-1),
-      _fd(-1),
       _host("InvalidHost"),
       _path("InvalidPath"),
       _open(0),
@@ -84,7 +84,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
         string es("Cannot find "); es+='@'; es+=" in "; es+=s;
         throw XrdMonException(ERR_INVDICTSTRING, es);
     }
-    _fd = atoi(buf);
+    //kXR_int16 fd = atoi(buf);
 
     x2 += x1+1;
     x1 = doOne(s+x2, buf, len-x2, '\n');
@@ -129,10 +129,6 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(const char* buf, int& pos)
     memcpy(&v16, buf+pos, sizeof(kXR_int16));
     pos += sizeof(kXR_int16);
     _pid = ntohs(v16);
-
-    memcpy(&v16, buf+pos, sizeof(kXR_int16));
-    pos += sizeof(kXR_int16);
-    _fd = ntohs(v16);
 
     memcpy(&v16, buf+pos, sizeof(kXR_int16));
     pos += sizeof(kXR_int16);
@@ -241,7 +237,6 @@ XrdMonDecDictInfo::stringSize() const
            sizeof(kXR_int32) +                // _myUniqueId
            sizeof(kXR_int16) + _user.size() + // _user
            sizeof(kXR_int16) +                // _pid
-           sizeof(kXR_int16) +                // _fd
            sizeof(kXR_int16) + _host.size() + // _host
            sizeof(kXR_int16) + _path.size() + // _path
            sizeof(time_t)  +                // _open
@@ -272,10 +267,6 @@ XrdMonDecDictInfo::writeSelf2buf(char* buf, int& pos) const
     memcpy(buf+pos, &v16, sizeof(kXR_int16));
     pos += sizeof(kXR_int16);
     
-    v16 = htons(_fd);
-    memcpy(buf+pos, &v16, sizeof(kXR_int16));
-    pos += sizeof(kXR_int16);
-
     v16 = htons(_host.size());
     memcpy(buf+pos, &v16, sizeof(kXR_int16));
     pos += sizeof(kXR_int16);
@@ -319,7 +310,6 @@ XrdMonDecDictInfo::convert2string() const
     ss << _myUniqueId 
        << '\t' << _user
        << '\t' << _pid
-       << '\t' << _fd
        << '\t' << _host
        << '\t' << _path
        << '\t' << timestamp2string(_open)
@@ -337,7 +327,6 @@ operator<<(ostream& o, const XrdMonDecDictInfo& m)
      << ' ' << m._myUniqueId
      << ' ' << m._user
      << ' ' << m._pid
-     << ' ' << m._fd
      << ' ' << m._host
      << ' ' << m._path
      << ' ' << timestamp2string(m._open)

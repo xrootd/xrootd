@@ -65,7 +65,6 @@ private:
 
     string  _user;
     kXR_int16 _pid;
-    kXR_int16 _fd;
     string  _host;
     string  _path;
     time_t  _open;
