@@ -76,7 +76,7 @@ class XrdClientReadCacheItem {
 
       long long b = -1, e, l;
 
-      if (begin_offs >= end_offs) return 0;
+      if (!fData || (begin_offs >= end_offs)) return 0;
 
       // Try to set the starting point, if contained in the given interval
       if ( (begin_offs >= fBeginOffset) &&

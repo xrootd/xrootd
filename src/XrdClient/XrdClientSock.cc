@@ -36,8 +36,8 @@ XrdClientSock::XrdClientSock(XrdClientUrlInfo Host) {
 //_____________________________________________________________________________
 XrdClientSock::~XrdClientSock() {
 
-   if ( (fConnected) && (fSocket) )
-      close(fSocket);
+   Disconnect();
+
 
 }
 
@@ -45,9 +45,10 @@ XrdClientSock::~XrdClientSock() {
 
 void XrdClientSock::Disconnect() {
    if ( (fConnected) && (fSocket) ) {
-      close(fSocket);
-      fConnected = FALSE;
+      close(fSocket); fSocket = 0;
    }
+   fConnected = FALSE;
+   
 }
 
 

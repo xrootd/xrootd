@@ -108,12 +108,15 @@ void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_
    // To populate the cache of items, newly received
 
    XrdClientReadCacheItem *itm;
+   const void *buffer = xmsg->DonateData();
+   
+   if (!buffer) return;
 
    // We remove all the blocks contained in the one we are going to put
    RemoveItems(begin_offs, end_offs);
 
    if (MakeFreeSpace(end_offs - begin_offs)) {
-      itm = new XrdClientReadCacheItem(xmsg->DonateData(), begin_offs, end_offs,
+      itm = new XrdClientReadCacheItem(buffer, begin_offs, end_offs,
                                    GetTimestampTick());
       // Mutual exclusion man!
       XrdClientMutexLocker mtx(fMutex);
