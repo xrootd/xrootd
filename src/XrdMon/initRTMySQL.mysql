@@ -102,7 +102,7 @@ CREATE INDEX paths_skimId_index     USING BTREE ON paths(skimId);
 ##CREATE INDEX paths_path_index ON paths(path(256));
 
 
-CREATE TABLE IF NOT EXISTS rtHour (
+CREATE TABLE IF NOT EXISTS statsLastHour (
   seqNo         TINYINT NOT NULL PRIMARY KEY,
   date          DATETIME,
   noJobs        SMALLINT,
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS rtHour (
 CREATE INDEX rtHour_date_index      USING BTREE ON rtHour(date);
 
 
-CREATE TABLE IF NOT EXISTS rtDay (
+CREATE TABLE IF NOT EXISTS statsLastDay (
   seqNo         TINYINT NOT NULL PRIMARY KEY,
   date          DATE,
   noJobs        SMALLINT,
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS rtDay (
 CREATE INDEX rtDay_date_index      USING BTREE ON rtDay(date);
 
 
-CREATE TABLE IF NOT EXISTS rtMonth (
+CREATE TABLE IF NOT EXISTS statsAllMonths (
   seqNo         TINYINT NOT NULL PRIMARY KEY,
   date          DATE,
   noJobs        SMALLINT,
@@ -150,15 +150,6 @@ CREATE TABLE IF NOT EXISTS rtMonth (
 );
 CREATE INDEX rtMonth_date_index     USING BTREE ON rtMonth(date);
 
-
-CREATE TABLE IF NOT EXISTS rtYear (
-  seqNo         TINYINT NOT NULL PRIMARY KEY,
-  date          DATE,
-  noJobs        SMALLINT,
-  noUsers       SMALLINT,
-  noUniqueF     INT,
-  noNonUniqueF  INT
-);
 
 # reflects changes since last entry, and last update
 CREATE TABLE IF NOT EXISTS rtChanges (
