@@ -42,15 +42,16 @@ bool XrdClientStringMatcher::SingleMatches(char *expr, char *str) {
 
    if (exprlen > 0) {
       starbeg = (expr[0] == '*');
-      starend = (expr[exprlen-1] == '*');
+      starend = ((expr[exprlen-1] == '*') && (exprlen > 1));
    }
 
-   // Build plainexp by stripping the initial and trailing *
+   // Build plainexp by stripping the initial  *
    if (starbeg)
       plainexp = strdup(expr+1);
    else
       plainexp = strdup(expr);
 
+   // Now strip the trailing * if there is one
    if (starend)
       plainexp[strlen(plainexp)-1] = '\0';
 

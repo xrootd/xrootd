@@ -87,7 +87,9 @@ bool XrdClientMessage::CreateData()
             abort();
          }
          char *tmpPtr = (char *)fData;
-         memset((void*)(tmpPtr+fHdr.dlen+1), 0, 1);
+
+	 // Useful to get always 0-terminated strings
+         tmpPtr[fHdr.dlen] = 0;
       }
       if (!fData)
          return FALSE;

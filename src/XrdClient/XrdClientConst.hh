@@ -46,7 +46,7 @@
 
 // Maybe we don't want to start the garbage collector
 // But the default must be to start it
-#define DFLT_STARTGARBAGECOLLECTORTHREAD  0
+#define DFLT_STARTGARBAGECOLLECTORTHREAD  1
 #define NAME_STARTGARBAGECOLLECTORTHREAD  (char *)"StartGarbageCollectorThread"
 
 #define DFLT_GOASYNC 1
