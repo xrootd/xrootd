@@ -222,10 +222,18 @@ WHERE  paths.id = of.pathId AND
        LIMIT 5;
 
       
-
-
-
-
+## per data type (SP,PR, SPskims, PRskims)
+SELECT fileTypes.name AS type,
+       COUNT(DISTINCT os.id) AS noJobs,
+       COUNT(DISTINCT of.id) AS noFiles,
+       COUNT(DISTINCT os.userId) AS noUsers
+FROM   paths, fileTypes, rtOpenedSessions os, rtOpenedFiles of
+WHERE  fileTypes.id=paths.skimId AND
+       paths.id = of.pathId AND
+       of.sessionId = os.id
+       GROUP BY skimId
+       ORDER BY noFiles
+       DESC;
 
 
 ###################################################
@@ -271,34 +279,70 @@ ORDER BY path;
 ########## detailed info about one user ###########
 ################################################### 
 
-select user id, then use it in all queries:
+#select user id, then use it in all queries:
 SELECT id FROM users WHERE userName = 'blablabla';
 
 
 current status
 ==============
+
 ## number of opened files
+SELECT COUNT(DISTINCT pathId)
+FROM   rtOpenedSessions os, rtOpenedFiles of, users
+WHERE  of.sessionId=os.id AND
+       os.userId=users.id AND
+       userName='blabla';
 
 
 ## number of opened sessions
+SELECT COUNT(*) 
+FROM   rtOpenedSessions os, users 
+WHERE  os.userId=users.id AND
+       userName='blabla';
 
 
 ## number of client hosts 
+SELECT COUNT(DISTINCT clientHId) 
+FROM   rtOpenedSessions os, users 
+WHERE  os.userId=users.id AND
+       userName='blabla';
+
 
 
 ## list opened files
+SELECT path 
+FROM   rtOpenedSessions os, rtOpenedFiles of, users, paths
+WHERE  paths.id=of.pathId AND
+       of.sessionId=os.id AND
+       os.userId=users.id AND
+       userName='rahmi';
 
 
-## list opened  sessions
-
-
-## list client hosts 
+## list jobs
+SELECT hosts.hostName AS clientHost, 
+       pId
+FROM   rtOpenedSessions os, users, hosts
+WHERE  os.userId=users.id AND
+       userName='blabla' AND
+       os.clientHId=hosts.id
+       ORDER BY clientHost;
 
 
 time window:
 ============
 
-## number of accessed (closed) files
+## number of accessed (closed) files in the past hour
+SELECT @t1+@t2
+FROM   (SELECT @t1:=COUNT(*) 
+        FROM   users, rtClosedFiles cf, rtOpenedSessions os
+        WHERE  users.id=os.userId AND
+               os.id=cf.sessionId) AS X1,
+       (SELECT @t2:=COUNT(*) 
+        FROM   users, rtClosedFiles cf, rtClosedSessions cs
+        WHERE  users.id=cs.userId AND
+               cs.id=cf.sessionId) AS X2;
+
+     
 
 
 ## number of closed sessions
