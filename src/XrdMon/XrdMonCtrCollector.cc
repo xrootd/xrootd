@@ -66,7 +66,7 @@ extern "C" void* receivePackets(void*)
     }
 
     XrdMonCtrBuffer* pb = XrdMonCtrBuffer::instance();
-    cout << "ready to receive data" << endl;
+    cout << "Ready to receive data..." << endl;
     while ( 1 ) {
         XrdMonCtrPacket* packet = new XrdMonCtrPacket(MAXPACKETSIZE);
         socklen_t slen = sizeof(packet->sender);

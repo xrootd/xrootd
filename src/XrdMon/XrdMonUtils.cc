@@ -14,6 +14,8 @@
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonUtils.hh"
 
+#include <errno.h>
+#include <string.h>     /* strerror */
 #include <stdio.h>
 #include <sys/stat.h>   /* mkdir  */
 #include <sys/time.h>
@@ -108,12 +110,39 @@ mkdirIfNecessary(const char* dir)
     if ( 0 == access(dir, F_OK) ) {
         return;
     }
-    int ret = mkdir(dir, 0x3FD);
-    if ( 0 != ret ) {
-        ostringstream se;
-        se << "Failed to mkdir " << dir << ", ret error " << ret;
-        throw XrdMonException(ERR_NODIR, se.str());
+
+    // find non-existing directory in the path, 
+    // then create all missing directories
+    string org(dir);
+    int size = org.size();
+    int pos = 0;
+    vector<string> dirs2create;
+    if ( org[size-1] == '/' ) {
+        org = string(org, 0, size-1); // remove '/' at the end
     }
-    cout << "mkdir " << dir << " OK" << endl;
+    dirs2create.push_back(org);
+    do {
+        pos = org.rfind('/', size-1);
+        if ( pos == -1 ) {
+            break;
+        }
+        org = string(dir, pos);
+        if ( 0 == access(org.c_str(), F_OK) ) {
+            break;
+        }
+        dirs2create.push_back(org);
+    } while ( pos > 0 );
+
+    size = dirs2create.size();
+    for ( int i=size-1 ; i>=0 ; --i ) {
+        const char*d = dirs2create[i].c_str();
+        if ( 0 != mkdir(d, 0x3FD) ) {
+            ostringstream se;
+            se << "Failed to mkdir " << dir << ". "
+               << "Error '" << strerror (errno) << "'";
+            throw XrdMonException(ERR_NODIR, se.str());
+        }
+        cout << "mkdir " << d << " OK" << endl;
+    }
 }
 

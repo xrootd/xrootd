@@ -30,6 +30,14 @@ namespace XrdMonArgParserConvert
         }
     };
 
+    struct Convert2LL {
+        static kXR_int64 convert(const char* s) {
+            kXR_int64 x;
+            sscanf(s, "%lld", &x);
+            return x;
+        }
+    };
+
     struct ConvertOnOff {
         static bool convert(const char* s) {
             if ( 0 == strcasecmp(s, "on") ) {
