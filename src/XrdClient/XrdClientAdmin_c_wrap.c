@@ -874,16 +874,18 @@ extern "C" {
 XS(_wrap_XrdCA_Initialize) {
     {
         char *arg1 ;
+        int arg2 ;
         bool result;
         int argvi = 0;
         dXSARGS;
         
-        if ((items < 1) || (items > 1)) {
-            SWIG_croak("Usage: XrdCA_Initialize(url);");
+        if ((items < 2) || (items > 2)) {
+            SWIG_croak("Usage: XrdCA_Initialize(url,debuglvl);");
         }
         if (!SvOK((SV*) ST(0))) arg1 = 0;
         else arg1 = (char *) SvPV(ST(0), PL_na);
-        result = (bool)XrdCA_Initialize((char const *)arg1);
+        arg2 = (int) SvIV(ST(1));
+        result = (bool)XrdCA_Initialize((char const *)arg1,arg2);
         
         ST(argvi) = sv_newmortal();
         sv_setiv(ST(argvi++), (IV) result);

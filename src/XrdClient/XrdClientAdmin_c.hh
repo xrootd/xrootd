@@ -41,7 +41,7 @@ extern "C" {
    // In this version we support only one instance to be handled
    // by this wrapper. Supporting more than one instance should be no
    // problem.
-   bool XrdCA_Initialize(const char *url);
+   bool XrdCA_Initialize(const char *url, int debuglvl);
    bool XrdCA_Terminate();
 
    // The other functions, slightly modified from the originals
