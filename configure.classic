@@ -364,6 +364,7 @@ guess_architecture () {
     osys=`uname -s | tr '[A-Z]' '[a-z]'`
     chip=`uname -m | tr '[A-Z]' '[a-z]'`
     rele=`uname -r`
+    cput=`uname -p`
     arch="$osys"
     ccflv="gcc"
     echo "Guessing architecture/compiler: "$osys:$chip:$rele
@@ -401,7 +402,8 @@ guess_architecture () {
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
       darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
       irix*:sgi*:*)       arch=sgi             ; platform=sgi;    ccflv=sgiCC;;
-      sunos:i386:*)       arch=sunx86_510      ; platform=solaris; ccflv=sunicc;;
+      sunos:i86pc:*)      arch=sunx86_510      ; platform=solaris; ccflv=sunCCamd;;
+      sunos:i386:*)       arch=sunx86_510      ; platform=solaris; ccflv=sunCC;;
       sunos:*:6*)         arch=sun4x_6         ; platform=solaris; ccflv=sunCC;;
       sunos:*:5.6)        arch=sun4x_56        ; platform=solaris; ccflv=sunCC;;
       sunos:*:5.7)        arch=sun4x_57        ; platform=solaris; ccflv=sunCC;;
