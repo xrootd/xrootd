@@ -858,7 +858,6 @@ int XrdXrootdProtocol::do_Read()
 int XrdXrootdProtocol::do_ReadAll()
 {
    int rc, xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
-   int iolen = myIOLen;
    char *buff;
 
 // Make sure we have a large enough buffer
