@@ -154,3 +154,16 @@ CREATE TABLE IF NOT EXISTS rtAllYears (
   noUniqueF     INT,
   noNonUniqueF  INT
 );
+
+# reflects changes since last entry, and last update
+CREATE TABLE IF NOT EXISTS rtChanges (
+  jobs          SMALLINT,
+  jobs_p        FLOAT,
+  users         SMALLINT,
+  users_p       FLOAT,
+  uniqueF       SMALLINT,
+  uniqueF_p     FLOAT,
+  nonUniqueF    SMALLINT,
+  nonUniqueF_p  FLOAT,
+  lastUpdate    DATETIME
+);

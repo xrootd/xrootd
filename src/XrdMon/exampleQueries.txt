@@ -37,6 +37,9 @@ FROM   rtOpenedSessions;
 
 
 ## change of number of jobs [in #jobs and in %]
+SELECT jobs, jobs_p FROM rtChanges;
+
+
  # 1st query
 SELECT @lastMin:=min, 
        @lastValue:=noJobs
