@@ -25,6 +25,7 @@
 typedef XrdClientVector<XrdClientString> vecString;
 typedef XrdClientVector<bool> vecBool;
 
+void joinStrings(XrdClientString &buf, vecString vs);
 
 class XrdClientAdmin : public XrdClientAbs {
 

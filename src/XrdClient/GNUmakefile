@@ -34,7 +34,9 @@ SOURCES = \
 	XrdClientAdmin.cc		\
 	XrdCpMthrQueue.cc		\
 	XrdCpWorkLst.cc                 \
-	XrdClientString.cc
+	XrdClientString.cc              \
+        XrdClientAdmin_c.cc             \
+        XrdClientAdmin_c_wrap.c
 
   
 OBJECTS = \
@@ -57,17 +59,32 @@ OBJECTS = \
 	$(OBJDIR)/XrdClientEnv.o		\
 	$(OBJDIR)/XrdCpMthrQueue.o		\
 	$(OBJDIR)/XrdCpWorkLst.o		\
-	$(OBJDIR)/XrdClientString.o
+	$(OBJDIR)/XrdClientString.o             
 
 OBJECTB = $(OBJDIR)/TestXrdClient.o
 OBJECTC = $(OBJDIR)/Xrdcp.o
+
+OBJECTPERLMOD = $(OBJDIR)/XrdClientAdmin_c.o            \
+                $(OBJDIR)/XrdClientAdmin_c_wrap.o
 
 LIBRARY = $(LIBDIR)/libXrdClient.a
 
 TESTBIN = $(BINDIR)/TestXrdClient
 XRDCP = $(BINDIR)/xrdcp
+PERLMOD = $(LIBDIR)/XrdClientAdmin.so
 
-TARGETS = $(LIBRARY) $(TESTBIN) $(XRDCP)
+# this is how to take perl development path automatically
+PERLDEVELPATH := $(dir \
+                   $(firstword \
+                     $(wildcard \
+                      $(addsuffix /CORE/, $(shell perl -e 'print "@INC";')))))
+
+# flags to be used when compiling swig code
+PERLCCFLAGS := $(shell perl -e 'use Config; print $Config{ccflags};')
+
+PERLINC = -I$(PERLDEVELPATH)
+
+TARGETS = $(LIBRARY) $(TESTBIN) $(XRDCP) $(PERLMOD)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -105,8 +122,19 @@ $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 	@echo Creating executable $(XRDCP) 
 	@$(LD) $(OBJECTC) $(BINLIBS) $(LIBS) -o $(XRDCP)
 
+$(PERLMOD): $(OBJECTS) $(OBJECTC) $(OBJECTPERLMOD) $(LIBDEPS)
+	@echo Creating perl module library $(PERLMOD) 
+	@$(CC) $(OBJECTC) $(OBJECTPERLMOD) $(BINLIBS) $(LDSO) $(PERLCCFLAGS) $(LIBS) -o $(PERLMOD)
 
-$(OBJDIR)/XrdClientString.o:        XrdClientString.cc
+$(OBJDIR)/XrdClientAdmin_c_wrap.o:        XrdClientAdmin_c_wrap.c
+	@echo Compiling XrdClientAdmin_c_wrap.c
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) $(PERLINC) $(PERLCCFLAGS) -o $(OBJDIR)/XrdClientAdmin_c_wrap.o XrdClientAdmin_c_wrap.c
+
+$(OBJDIR)/XrdClientAdmin_c.o:        XrdClientAdmin_c.cc   XrdClientAdmin_c.hh
+	@echo Compiling XrdClientAdmin_c.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAdmin_c.o XrdClientAdmin_c.cc
+
+$(OBJDIR)/XrdClientString.o:        XrdClientString.cc     XrdClientString.hh
 	@echo Compiling XrdClientString.cc
 	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientString.o XrdClientString.cc
 
