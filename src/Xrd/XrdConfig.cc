@@ -174,7 +174,11 @@ XrdConfig::XrdConfig(void)
 
 // Create Domain name
 //
-   dnp = myName;
+   if (!(dnp = myName))
+      {XrdLog.Emsg("Config", "Unable to determine host name; "
+                             "execution terminated.");
+       _exit(16);
+      }
    while(*dnp && *dnp != '.') dnp++;
    myDomain = (*dnp == '.' ? dnp : 0);
 }
