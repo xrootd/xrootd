@@ -3,14 +3,15 @@
 #-----------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                       #
 #-----------------------------------------------------------------------------#
-  
+
 include ../GNUmake.env
 
 #-----------------------------------------------------------------------------#
 #                             C o m p o n e n t s                             #
 #-----------------------------------------------------------------------------#
-  
+
 OBJECTS_LIB_COMMON =                          \
+        $(OBJDIR)/XrdMonArgParser.o           \
         $(OBJDIR)/XrdMonException.o           \
         $(OBJDIR)/XrdMonHeader.o              \
 	$(OBJDIR)/XrdMonSenderInfo.o          \
@@ -53,6 +54,7 @@ OBJECTS_BIN_SND = $(OBJDIR)/XrdMonSndDummyXrootdApp.o
 OBJECTS_BIN_DMP = $(OBJDIR)/XrdMonDumpPacketsApp.o
 OBJECTS_BIN_DBP = $(OBJDIR)/XrdMonDebugPacketApp.o
 OBJECTS_BIN_CTM = $(OBJDIR)/XrdMonConvertTimestampApp.o
+OBJECTS_BIN_TPR = $(OBJDIR)/testArgParser.o
 
 LIBRARY_OUC    = $(LIBDIR)/libXrdOuc.a
 
@@ -71,9 +73,10 @@ ADMIN          = $(BINDIR)/xrdmonAdmin
 DUMPPACKETS    = $(BINDIR)/xrdmonDumpPackets
 DEBUGPACKET    = $(BINDIR)/xrdmonDebugPacket
 CONVTIME       = $(BINDIR)/xrdmonConvertTime
+TESTPARSER     = $(BINDIR)/testParser
 
 BINARIES       = $(COLLECTOR) $(DECODER) $(SENDER) $(ADMIN) \
-                 $(DUMPPACKETS) $(DEBUGPACKET) $(CONVTIME)
+                 $(DUMPPACKETS) $(DEBUGPACKET) $(CONVTIME) $(TESTPARSER)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
@@ -163,6 +166,10 @@ $(DEBUGPACKET):	$(OBJECTS_BIN_DBP) $(LIBRARY_DEC) $(LIBRARY_COMMON)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
 $(CONVTIME):	$(OBJECTS_BIN_CTM) $(LIBRARY_COMMON) 
+	@echo Creating executable $(@F)
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+
+$(TESTPARSER):	$(OBJECTS_BIN_TPR) $(LIBRARY_COMMON)
 	@echo Creating executable $(@F)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
