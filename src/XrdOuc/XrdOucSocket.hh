@@ -24,6 +24,7 @@
 //
 #define XrdOucSOCKET_SERVER 0x1000
 #define XrdOucSOCKET_UDP    0x0100
+#define XrdOucSOCKET_KEEP   0x0800
 
 // Maximum backlog for incomming connections. The backlog value goes in low
 // order byte and is used only when XrdOucSOKSERVER is specified.

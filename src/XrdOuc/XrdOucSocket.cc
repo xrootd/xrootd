@@ -14,6 +14,7 @@ const char *XrdOucSocketCVSID = "$Id$";
 
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <poll.h>
 #include <stdlib.h>
@@ -132,6 +133,7 @@ int XrdOucSocket::Open(char *path, int port, int flags) {
           return Err(Open, ENAMETOOLONG, "create unix socket ", path);
        if ((SockFD = socket(PF_UNIX, SockType, 0)) < 0)
           return Err(Open, errno, "create unix socket ", path);
+       if (!(flags & XrdOucSOCKET_KEEP)) fcntl(SockFD, F_SETFD, FD_CLOEXEC);
        if (flags & XrdOucSOCKET_SERVER) unlink((const char *)path);
        UnixAddr.sun_family = AF_UNIX;
        strcpy(UnixAddr.sun_path, path);

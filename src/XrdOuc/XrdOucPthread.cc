@@ -50,13 +50,11 @@ int  XrdOucThread_Run(pthread_t *tid, void *(*proc)(void *), void *arg)
      }
 
 int  XrdOucThread_Sys(pthread_t *tid, void *(*proc)(void *), void *arg)
-     {int rc;
-      pthread_attr_t tattr;
+     {pthread_attr_t tattr;
       pthread_attr_init(&tattr);
       pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
       pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-      if ((rc = pthread_create(tid, &tattr, proc, arg))) return rc;
-      return 0;
+      return pthread_create(tid, &tattr, proc, arg);
      }
 
 int XrdOucThread_Wait(pthread_t tid)
