@@ -53,6 +53,7 @@ typedef  krb5_error_code krb_rc;
 class XrdSecProtocolkrb5 : public XrdSecProtocol
 {
 public:
+friend class XrdSecProtocolDummy; // Avoid stupid gcc warnings about destructor
 
         int                Authenticate  (XrdSecCredentials *cred,
                                           XrdSecParameters **parms,

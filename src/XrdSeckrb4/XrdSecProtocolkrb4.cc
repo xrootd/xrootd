@@ -47,6 +47,7 @@ typedef  int krb_rc;
 class XrdSecProtocolkrb4 : public XrdSecProtocol
 {
 public:
+friend class XrdSecProtocolDummy; // Avoid stupid gcc warnings about destructor
 
 
         int                Authenticate  (XrdSecCredentials *cred,
