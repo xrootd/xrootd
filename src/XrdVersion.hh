@@ -1,7 +1,7 @@
 // $Id$
 #ifndef __XRD_VERSION_H__
 #define __XRD_VERSION_H__
-#define XrdVERSION     "20041204-1254"
+#define XrdVERSION     "Unknown"
 #if XrdDEBUG
 #define XrdVSTRING XrdVERSION "_dbg"
 #else
