@@ -12,7 +12,7 @@ AutoReqProv: no
 
 %description
 The xrootd server provides performant, secure and fault-tolerant access to
-root files. An optional load balancer is also included.
+root files. An optional load balancer is also included. 
 
 %prep
 %setup -q -n xrootd
