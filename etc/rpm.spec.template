@@ -45,14 +45,15 @@ install -m 755 etc/XrdOlbMonPerf $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbMonPerf
 install -m 755 etc/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/etc/XrdOlbNotify.pm
 install -m 755 etc/xrootd.cf.example $RPM_BUILD_ROOT/opt/xrootd/etc/xrootd.cf.example
 install -m 644 etc/README $RPM_BUILD_ROOT/opt/xrootd/etc/README
-install -m 644 utils/mps_MigrPurg $RPM_BUILD_ROOT/opt/xrootd/utils/mps_MigrPurg
-install -m 644 utils/mps_PreStage $RPM_BUILD_ROOT/opt/xrootd/utils/mps_PreStage
-install -m 644 utils/mps_Stage $RPM_BUILD_ROOT/opt/xrootd/utils/mps_Stage
-install -m 644 utils/mps_Xeq $RPM_BUILD_ROOT/opt/xrootd/utils/mps_Xeq
-install -m 644 utils/mps_prep $RPM_BUILD_ROOT/opt/xrootd/utils/mps_prep
+install -m 755 utils/mps_MigrPurg $RPM_BUILD_ROOT/opt/xrootd/utils/mps_MigrPurg
+install -m 755 utils/mps_PreStage $RPM_BUILD_ROOT/opt/xrootd/utils/mps_PreStage
+install -m 755 utils/mps_Stage $RPM_BUILD_ROOT/opt/xrootd/utils/mps_Stage
+install -m 755 utils/mps_Xeq $RPM_BUILD_ROOT/opt/xrootd/utils/mps_Xeq
+install -m 755 utils/mps_prep $RPM_BUILD_ROOT/opt/xrootd/utils/mps_prep
 install -m 644 utils/ooss_CAlloc.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_CAlloc.pm
 install -m 644 utils/ooss_Lock.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_Lock.pm
 install -m 644 utils/ooss_MonP.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_MonP.pm
+install -m 755 utils/fs_stat $RPM_BUILD_ROOT/opt/xrootd/utils/fs_stat
 
 
 %clean
