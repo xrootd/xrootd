@@ -49,8 +49,6 @@ private:
 
     long _currentTime;
     int  _heartbeat; // number of packets since the last time check
-
-    bool _rtDec;
 };
 
 #endif /*  XRDMONCTRARCHIVER_HH */

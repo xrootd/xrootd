@@ -33,8 +33,7 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
                                      bool rtDec)
     : _decoder(0), 
       _currentTime(0),
-      _heartbeat(1), // force taking timestamp first time
-      _rtDec(rtDec)
+      _heartbeat(1) // force taking timestamp first time
 {
     XrdMonCtrWriter::setBaseDir(cBaseDir);
     XrdMonCtrWriter::setMaxLogSize(maxLogSize);
