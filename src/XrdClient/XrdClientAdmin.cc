@@ -18,6 +18,7 @@
 #include "XrdClientConn.hh"
 #include "XrdClientEnv.hh"
 
+#include <stdio.h>
 #include <string>
 #include <unistd.h>
 

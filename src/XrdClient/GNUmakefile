@@ -31,7 +31,8 @@ SOURCES = \
 	XrdClientUrlSet.cc		\
 	XrdClientStringMatcher.cc       \
 	XrdClientProtocol.cc            \
-	XrdClientAdmin.cc
+	XrdClientAdmin.cc		\
+	XrdCpMthrQueue.cc
 
   
 OBJECTS = \
@@ -51,16 +52,18 @@ OBJECTS = \
 	$(OBJDIR)/XrdClientProtocol.o           \
 	$(OBJDIR)/XrdClientStringMatcher.o      \
 	$(OBJDIR)/XrdClientAdmin.o              \
-	$(OBJDIR)/XrdClientEnv.o
+	$(OBJDIR)/XrdClientEnv.o		\
+	$(OBJDIR)/XrdCpMthrQueue.o
 
-OBJECTB = \
-        $(OBJDIR)/TestXrdClient.o
+OBJECTB = $(OBJDIR)/TestXrdClient.o
+OBJECTC = $(OBJDIR)/Xrdcp.o
 
 LIBRARY = $(LIBDIR)/libXrdClient.a
 
 TESTBIN = $(BINDIR)/TestXrdClient
+XRDCP = $(BINDIR)/xrdcp
 
-TARGETS = $(LIBRARY) $(TESTBIN)
+TARGETS = $(LIBRARY) $(TESTBIN) $(XRDCP)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -90,9 +93,13 @@ else \
 	ar -rc $(LIBRARY) $(OBJECTS); \
 fi
 
-$(TESTBIN): $(OBJECTB) $(LIBDEPS)
+$(TESTBIN): $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 
 	$(CC) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(TESTBIN)
+
+$(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
+	@echo Creating executable $(XRDCP) 
+	$(CC) $(OBJECTC) $(BINLIBS) $(LIBS) -o $(XRDCP)
 
 $(OBJDIR)/XrdClientAbs.o:        XrdClientAbs.cc              XrdClientAbs.hh\
                                  XrdClientDebug.cc            XrdClientDebug.hh
@@ -223,6 +230,15 @@ $(OBJDIR)/TestXrdClient.o:       TestXrdClient.cc\
                                  XrdClientConst.hh
 	@echo Compiling TestXrdClient.cc
 	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/TestXrdClient.o TestXrdClient.cc
+
+$(OBJDIR)/XrdCpMthrQueue.o:      XrdCpMthrQueue.cc\
+                                 XrdCpMthrQueue.hh
+	@echo Compiling XrdMthrQueue.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCpMthrQueue.o XrdCpMthrQueue.cc
+
+$(OBJDIR)/Xrdcp.o:               Xrdcp.cc
+	@echo Compiling Xrdcp.cc
+	@$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/Xrdcp.o Xrdcp.cc
 
 $(OBJDIR)/XrdClientEnv.o:        XrdClientEnv.cc                  XrdClientEnv.hh
 	@echo Compiling XrdClientEnv.cc

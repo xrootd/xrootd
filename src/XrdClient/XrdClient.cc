@@ -18,6 +18,7 @@
 #include "XrdClientConn.hh"
 #include "XrdClientEnv.hh"
 
+#include <stdio.h>
 #include <string>
 #include <unistd.h>
 
@@ -39,7 +40,7 @@ XrdClient::XrdClient(const char *url) {
 
    Info(XrdClientDebug::kNODEBUG,
 	"Create",
-	"(C) 2004 SLAC XrdClient " << XRD_CLIENT_VERSION);
+	"(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
 
    // Using ROOT mechanism to IGNORE SIGPIPE signal
    //gSystem->IgnoreSignal(kSigPipe);

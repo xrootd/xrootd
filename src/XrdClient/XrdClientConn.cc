@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientConn                                                              // 
+// XrdClientConn                                                        // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -77,7 +77,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
       Error("XrdClientConn",
 	    "Error resolving this host's domain name." );
 
-   string goodDomainsRE = fClientHostDomain + "|127.0.0.1" + "|*localdomain";
+   string goodDomainsRE = fClientHostDomain + "|127.0.0.1" + "|*localdomain|*infn.it";
 
    EnvPutString(NAME_REDIRDOMAINALLOW_RE,
 		(char *)goodDomainsRE.c_str());
@@ -106,7 +106,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
 XrdClientConn::~XrdClientConn()
 {
    // Destructor
-   if (fMainReadCache)
+   if (fMainReadCache && (DebugLevel() >= XrdClientDebug::kUSERDEBUG))
       fMainReadCache->PrintPerfCounters();
 
    SafeDelete(fMainReadCache);
@@ -293,7 +293,7 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
       // Send the cmd, dealing automatically with redirections and
       // redirections on error
       Info(XrdClientDebug::kHIDEBUG,
-	   "SendGenCommand","Calling ClientServerCmd...");
+	   "SendGenCommand","Sending command " << CmdName);
 
       XrdClientMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
                                               answMoreDataAllocated, 
@@ -405,7 +405,7 @@ bool XrdClientConn::CheckHostDomain(string hostToCheck, string allow, string den
 
    XrdClientStringMatcher reallow(allow.c_str());
    if ( reallow.Matches(domain.c_str()) ) {
-      Error("CheckHostDomain",
+      Info(XrdClientDebug::kHIDEBUG, "CheckHostDomain",
 	    "Access granted to the domain of [" << hostToCheck << "].");
       
       return TRUE;
@@ -832,9 +832,11 @@ bool XrdClientConn::GetAccessToSrv()
          Info(XrdClientDebug::kHIDEBUG,
 	      "GetAccessToSrv","Ok: the server on [" <<
 	   fUrl.Host << ":" << fUrl.Port << "] is a rootd."
-	      " Turning ON back compatibility mode.");
+	      " Not supported.");
 
-      break;
+	 ConnectionManager->Disconnect(fLogConnID, TRUE);
+
+	 return FALSE;
 
    case XrdClientConn::kSTBaseXrootd: 
 
@@ -869,8 +871,7 @@ bool XrdClientConn::GetAccessToSrv()
       else {
 
 	 Info( XrdClientDebug::kHIDEBUG,
-	       "GetAccessToSrv", "Client already logged-in using this"
-	       " physical channel (server [" <<
+	       "GetAccessToSrv", "Reusing physical connection to server [" <<
 	       fUrl.Host << ":" << fUrl.Port << "]).");
 
          return TRUE;
@@ -1559,9 +1560,9 @@ string XrdClientConn::GetDomainToMatch(string hostname) {
    } else {
 
       Info(XrdClientDebug::kHIDEBUG,
-	   "GetDomainToMatch", "GetHostByName(" << hostname << ") returned a non valid address.");
+	   "GetDomainToMatch", "GetHostName(" << hostname << ") returned a non valid address.");
 
-      res = hostname;
+      res = ParseDomainFromHostname(hostname);
    }
 
    Info(XrdClientDebug::kHIDEBUG,

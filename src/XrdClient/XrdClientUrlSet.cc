@@ -13,6 +13,7 @@
 
 #include "XrdClientUrlSet.hh"
 
+#include <math.h>
 #include <string>
 #include <stdio.h>
 #include <iostream>
@@ -32,6 +33,10 @@
 #include <unistd.h>
 
 #include "XrdClientDebug.hh"
+
+#ifdef __sun
+#include <sunmath.h>
+#endif
 
 using namespace std;
 
@@ -181,7 +186,11 @@ XrdClientUrlInfo *XrdClientUrlSet::GetARandomUrl()
    if (!fTmpUrlArray.size()) Rewind();
 
    for (int i=0; i < 10; i++)
+#ifdef __sun
+      rnd = irint(GetRandom() * fTmpUrlArray.size()) % fTmpUrlArray.size();
+#else
       rnd = lrint(GetRandom() * fTmpUrlArray.size()) % fTmpUrlArray.size();
+#endif
 
    // Returns a random url from the ones that have to be picked
    // When all the urls have been picked, we restart from the full url set

@@ -14,7 +14,6 @@
 #ifndef XRD_CLIENTSOCK_H
 #define XRD_CLIENTSOCK_H
 
-#include "XrdOuc/XrdOucSocket.hh"
 
 #include "XrdClientUrlInfo.hh"
 #include "XrdClientConst.hh"

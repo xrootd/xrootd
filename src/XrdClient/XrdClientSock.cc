@@ -225,7 +225,7 @@ void XrdClientSock::TryConnect()
 	   "ClientSock::TryConnect",
 	   "Connection to" <<
 	   fHost.TcpHost.Host << ":" <<
-	   fHost.TcpHost.Port << " failed.");
+	   fHost.TcpHost.Port << " failed. (" << fSocket << ")");
 
       return;
    }

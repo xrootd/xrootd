@@ -57,6 +57,8 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
    pthread_mutexattr_t attr;
    int rc;
 
+   fServerType = kUnknown;
+
    // Initialization of lock mutex
    rc = pthread_mutexattr_init(&attr);
    if (rc == 0) {
@@ -242,12 +244,11 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
       res = fSocket->RecvRaw(buf, len);
 
       if (res && (res != TXSOCK_ERR_TIMEOUT) && errno ) {
-	 strerror_r(errno, errbuf, sizeof(buf));
+	 //strerror_r(errno, errbuf, sizeof(buf));
 
          Info(XrdClientDebug::kHIDEBUG,
 	      "ReadRaw", "Read error on " <<
-	      fServer.Host << ":" << fServer.Port << ". errno=" << errno <<
-	      ":" << buf );
+	      fServer.Host << ":" << fServer.Port << ". errno=" << errno );
       }
 
       // If a socket error comes, then we disconnect (and destroy the fSocket)
@@ -387,12 +388,11 @@ int XrdClientPhyConnection::WriteRaw(const void *buf, int len)
       res = fSocket->SendRaw(buf, len);
 
       if ((res < 0)  && (res != TXSOCK_ERR_TIMEOUT) && errno) {
-	 strerror_r(errno, errbuf, sizeof(buf));
+	 //strerror_r(errno, errbuf, sizeof(buf));
 
          Info(XrdClientDebug::kHIDEBUG,
 	      "WriteRaw", "Write error on " <<
-	      fServer.Host << ":" << fServer.Port << ". errno=" << errno <<
-	      ":" << buf );
+	      fServer.Host << ":" << fServer.Port << ". errno=" << errno );
 
       }
 

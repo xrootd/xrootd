@@ -11,6 +11,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+#include <stdio.h>
 #include "XrdClientUrlInfo.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include <netinet/in.h>
