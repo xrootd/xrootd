@@ -848,7 +848,7 @@ SWIGEXPORT(void) SWIG_init (CV *cv, CPerlObj *);
 
 
 #include "XrdClientAdmin_c.hh"
-
+   
 #ifdef PERL_OBJECT
 #define MAGIC_CLASS _wrap_XrdClientAdmin_var::
 class _wrap_XrdClientAdmin_var : public CPerlObj {
@@ -1223,6 +1223,34 @@ XS(_wrap_XrdCA_DirList) {
 }
 
 
+XS(_wrap_XrdCA_GetChecksum) {
+    {
+        char *arg1 ;
+        char *result;
+        int argvi = 0;
+        dXSARGS;
+        
+        if ((items < 1) || (items > 1)) {
+            SWIG_croak("Usage: XrdCA_GetChecksum(path);");
+        }
+        if (!SvOK((SV*) ST(0))) arg1 = 0;
+        else arg1 = (char *) SvPV(ST(0), PL_na);
+        result = (char *)XrdCA_GetChecksum((char const *)arg1);
+        
+        ST(argvi) = sv_newmortal();
+        if (result) {
+            sv_setpv((SV*)ST(argvi++), (char *) result);
+        } else {
+            sv_setsv((SV*)ST(argvi++), &PL_sv_undef);
+        }
+        XSRETURN(argvi);
+        fail:
+        ;
+    }
+    croak(Nullch);
+}
+
+
 
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
@@ -1259,6 +1287,7 @@ static swig_command_info swig_commands[] = {
 {"XrdClientAdminc::XrdCA_Rmdir", _wrap_XrdCA_Rmdir},
 {"XrdClientAdminc::XrdCA_Prepare", _wrap_XrdCA_Prepare},
 {"XrdClientAdminc::XrdCA_DirList", _wrap_XrdCA_DirList},
+{"XrdClientAdminc::XrdCA_GetChecksum", _wrap_XrdCA_GetChecksum},
 {0,0}
 };
 

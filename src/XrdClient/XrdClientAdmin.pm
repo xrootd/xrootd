@@ -58,6 +58,7 @@ package XrdClientAdmin;
 *XrdCA_Rmdir = *XrdClientAdminc::XrdCA_Rmdir;
 *XrdCA_Prepare = *XrdClientAdminc::XrdCA_Prepare;
 *XrdCA_DirList = *XrdClientAdminc::XrdCA_DirList;
+*XrdCA_GetChecksum = *XrdClientAdminc::XrdCA_GetChecksum;
 
 # ------- VARIABLE STUBS --------
 
