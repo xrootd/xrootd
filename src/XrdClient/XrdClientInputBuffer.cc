@@ -143,10 +143,11 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
     
       fMsgQue.push_back(m);
       sz = MexSize();
-   }
     
    // Is anybody sleeping ?
    cnd = GetSyncObjOrMakeOne( m->HeaderSID() );
+
+   }
 
    pthread_mutex_lock(&fCndMutex);
    pthread_cond_signal(cnd);

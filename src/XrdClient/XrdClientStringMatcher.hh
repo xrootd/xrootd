@@ -21,12 +21,12 @@ class XrdClientStringMatcher {
    // The expr to match
    char *exp;
 
-   bool SingleMatches(char *expr, const char *str);
+   bool SingleMatches(char *expr, char *str);
 
  public:
-   XrdClientStringMatcher(const char *expr);
+   XrdClientStringMatcher(char *expr);
    ~XrdClientStringMatcher();
 
-   bool Matches(const char *str);
+   bool Matches(char *str);
 
 };

@@ -14,7 +14,6 @@
 #include "XrdClientUrlSet.hh"
 
 #include <math.h>
-#include <string>
 #include <stdio.h>
 #include <iostream>
 #include <ctype.h>               // needed by isdigit()
@@ -37,6 +36,7 @@
 #ifdef __sun
 #include <sunmath.h>
 #endif
+
 
 using namespace std;
 
@@ -296,17 +296,19 @@ void XrdClientUrlSet::ConvertSingleDNSAlias(UrlArray& urls, string hostname,
 
    struct sockaddr_in ip[10];
    char *hosterrmsg;
+   XrdClientUrlInfo *newurl;
 
    // From the hostname, in x.y.z.w form or the ascii hostname, get the list of addresses
    int numaddr = XrdNetDNS::getHostAddr((char *)tmp.Host.c_str(),
 					(struct sockaddr *)ip, 10, &hosterrmsg);
    for (int i = 0; i < numaddr; i++ ) {
       char buf[255];
-      char *names[10];
+      char *names[100];
       int hn;
 
       // Create a copy of the main urlinfo with the new data
-      XrdClientUrlInfo *newurl = new XrdClientUrlInfo(tmp.GetUrl());
+      newurl = new XrdClientUrlInfo();
+      newurl->TakeUrl(tmp.GetUrl());
 	    
       inet_ntop(ip[i].sin_family, &ip[i].sin_addr, buf, sizeof(buf));
 
@@ -340,7 +342,7 @@ void XrdClientUrlSet::ConvertDNSAliases(UrlArray& urls, string list, string fnam
 
    while(lst.size() > 0) {
       colonPos = lst.find(',');
-      if (colonPos != string::npos) {
+      if ((colonPos != string::npos) && (colonPos <= lst.size())) {
 	 string tmp(lst);
 
 	 tmp.erase(colonPos, string::npos);
@@ -349,6 +351,7 @@ void XrdClientUrlSet::ConvertDNSAliases(UrlArray& urls, string list, string fnam
 	 CheckPort(tmp);
 	 ConvertSingleDNSAlias(urls, tmp, fname);
       }
+	else break;
 
    }
       

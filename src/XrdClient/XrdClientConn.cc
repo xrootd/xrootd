@@ -391,8 +391,8 @@ bool XrdClientConn::CheckHostDomain(string hostToCheck, string allow, string den
 
    // Given a list of |-separated regexps for the hosts to DENY, 
    // match every entry with domain. If any match is found, deny access.
-   XrdClientStringMatcher redeny(deny.c_str());
-   if ( redeny.Matches(domain.c_str()) ) {
+   XrdClientStringMatcher redeny((char *)deny.c_str());
+   if ( redeny.Matches((char *)domain.c_str()) ) {
       Error("CheckHostDomain",
 	    "Access denied to the domain of [" << hostToCheck << "].");
       
@@ -403,8 +403,8 @@ bool XrdClientConn::CheckHostDomain(string hostToCheck, string allow, string den
    // Given a list of |-separated regexps for the hosts to ALLOW, 
    // match every entry with domain. If any match is found, grant access.
 
-   XrdClientStringMatcher reallow(allow.c_str());
-   if ( reallow.Matches(domain.c_str()) ) {
+   XrdClientStringMatcher reallow((char *)allow.c_str());
+   if ( reallow.Matches((char *)domain.c_str()) ) {
       Info(XrdClientDebug::kHIDEBUG, "CheckHostDomain",
 	    "Access granted to the domain of [" << hostToCheck << "].");
       

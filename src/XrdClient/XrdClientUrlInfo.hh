@@ -17,8 +17,6 @@
 #define _XRC_URLINFO_H
 
 #include <string>
-#include <sys/types.h>
-
 using namespace std;
 
 
@@ -28,8 +26,14 @@ using namespace std;
 // Plus utilities for parsing and rebuilding an url
 class XrdClientUrlInfo {
  public:
-   string Proto, Passwd, User, Host, HostAddr, HostWPort, File;
+   string Proto;
+   string Passwd;
+   string User;
+   string Host;
    int Port;
+   string HostAddr;
+   string HostWPort;
+   string File;
 
    void Clear();
    void TakeUrl(string url);
