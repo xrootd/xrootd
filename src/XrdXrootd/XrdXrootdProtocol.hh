@@ -57,6 +57,7 @@ class XrdLink;
 class XrdXrootdFile;
 class XrdXrootdFileLock;
 class XrdXrootdFileTable;
+class XrdXrootdMonitor;
 class XrdXrootdStats;
 class XrdXrootdXPath;
 
@@ -106,6 +107,7 @@ private:
        int   do_Rm();
        int   do_Rmdir();
        int   do_Set();
+       int   do_Set_Mon(XrdOucTokenizer &setargs);
        int   do_Stat();
        int   do_Statx();
        int   do_Sync();
@@ -135,6 +137,7 @@ static int   xexp(XrdOucTokenizer &Config);
 static int   xexpdo(char *path);
 static int   xfsl(XrdOucTokenizer &Config);
 static int   xprep(XrdOucTokenizer &Config);
+static int   xmon(XrdOucTokenizer &Config);
 static int   xsecl(XrdOucTokenizer &Config);
 static int   xtrace(XrdOucTokenizer &Config);
 
@@ -159,7 +162,7 @@ static int                 Port;
 static char               *SecLib;
 static char               *FSLib;
 static char               *Notify;
-static char                isProxy;
+static char                isRedir;
 static char                chkfsV;
 static XrdOucProg         *ProgCKS;
 static char               *ProgCKT;
@@ -170,6 +173,13 @@ static int                 as_maxaspl;   // Max async ops per link
 static int                 as_maxasps;   // Max async ops per server
 static int                 as_aiosize;
 static int                 as_maxbfsz;
+
+// Monitor area
+//
+static int                 monMBval;
+static int                 monWWval;
+static int                 monMode;
+static char               *monDest;
 
 // Statistical area
 //
@@ -184,6 +194,7 @@ XrdLink                   *Link;
 XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
 XrdSecClientName           Client;
+XrdXrootdMonitor          *Monitor;
 char                       Status;
 
 // Buffer information, used to drive DoIt(), getData(), and (*Resume)()

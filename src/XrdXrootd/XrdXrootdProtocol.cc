@@ -19,6 +19,7 @@ const char *XrdXrootdProtocolCVSID = "$Id$";
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
+#include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -47,13 +48,18 @@ char                 *XrdXrootdProtocol::ProgCKT  = 0;
 char                 *XrdXrootdProtocol::Notify = 0;
 int                   XrdXrootdProtocol::readWait;
 int                   XrdXrootdProtocol::Port;
-char                  XrdXrootdProtocol::isProxy = 0;
+char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::chkfsV  = 0;
 
 int                   XrdXrootdProtocol::as_maxaspl =  8;   // Max async ops per link
 int                   XrdXrootdProtocol::as_maxasps = 64;   // Max async ops per server
 int                   XrdXrootdProtocol::as_maxbfsz;
 int                   XrdXrootdProtocol::as_aiosize;
+
+int                   XrdXrootdProtocol::monMBval = 8192;
+int                   XrdXrootdProtocol::monWWval = 60;
+int                   XrdXrootdProtocol::monMode  = 0;
+char                 *XrdXrootdProtocol::monDest  = 0;
 
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
 
@@ -204,7 +210,7 @@ int dlen;
 
 // Respond to this request with the handshake response
 //
-   if (isProxy) hsresp.styp =  htonl((kXR_int32)kXR_LBalServer);
+   if (isRedir) hsresp.styp =  htonl((kXR_int32)kXR_LBalServer);
    if (!lp->Send((char *)&hsresp, sizeof(hsresp)))
       return ABANDON(lp, "handshake failed");
 
@@ -437,6 +443,10 @@ void XrdXrootdProtocol::Cleanup()
    SI->statsMutex.Lock();
    SI->readCnt += numReads; SI->writeCnt += numWrites;
    SI->statsMutex.UnLock();
+
+// Handle Monitor
+//
+   if (Monitor) {delete Monitor; Monitor = 0;}
 }
   
 /******************************************************************************/
@@ -479,4 +489,5 @@ void XrdXrootdProtocol::Reset()
    numReads           = 0;
    numReadP           = 0;
    numWrites          = 0;
+   Monitor            = 0;
 }

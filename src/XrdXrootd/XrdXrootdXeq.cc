@@ -26,6 +26,7 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
+#include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
@@ -194,6 +195,10 @@ int XrdXrootdProtocol::do_Close()
       return Response.Send(kXR_FileNotOpen, 
                           "close does not refer to an open file");
 
+// If we are monitoring, insert a close entry
+//
+   if (Monitor) Monitor->Close(fp->FileID);
+
 // If we are in async mode, serialize the link to make sure any in-flight
 // operations on this handle have completed
 //
@@ -333,6 +338,9 @@ int XrdXrootdProtocol::do_Login()
       }
       else     {rc = Response.Send(); Status = XRD_LOGGEDIN;}
 
+// Allocate a monitoring object, if needed for this connection
+//
+   Monitor = XrdXrootdMonitor::Alloc();
 
 // Document this login
 //
@@ -540,6 +548,11 @@ int XrdXrootdProtocol::do_Open()
                         }
            }
 
+// If we are monitoring, send off a path to dictionary mapping
+//
+   if (Monitor) Monitor->Map(XROOTD_MON_MAPPATH, xp->FileID,
+                             (const char *)Link->ID, (const char *)fn);
+
 // Marshall the file handle (this works on all but alpha platforms)
 //
    memcpy((void *)myResp.fhandle,(const void *)&fhandle,sizeof(myResp.fhandle));
@@ -670,7 +683,7 @@ int XrdXrootdProtocol::do_Protocol()
 
 // Return info
 //
-    if (isProxy) Resp.flags = htonl((kXR_int32)kXR_LBalServer);
+    if (isRedir) Resp.flags = htonl((kXR_int32)kXR_LBalServer);
     return Response.Send((void *)&Resp, sizeof(Resp));
 }
 
@@ -748,6 +761,11 @@ int XrdXrootdProtocol::do_Read()
 //
    TRACEP(FS, "fh=" <<fh.handle <<" read " <<myIOLen <<'@' <<myOffset);
    if (!myIOLen) return Response.Send();
+
+// If we are monitoring, insert a read entry
+//
+   if (Monitor) Monitor->Add_rd(myFile->FileID, Request.read.rlen,
+                                Request.read.offset);
 
 // If we are in async mode, schedule the read to ocur asynchronously
 //
@@ -888,9 +906,77 @@ int XrdXrootdProtocol::do_Rmdir()
   
 int XrdXrootdProtocol::do_Set()
 {
-   return Response.Send(kXR_Unsupported, "set request is not supported");
+   XrdOucTokenizer setargs(argp->buff);
+   char *val, *rest;
+
+// Get the first argument
+//
+   if (!setargs.GetLine() || !(val = setargs.GetToken(&rest)))
+      return Response.Send(kXR_ArgMissing, "set argument not specified.");
+
+// Trace this set
+//
+   TRACEP(DEBUG, "set " <<val <<' ' <<rest);
+
+// Now determine what the user wants to set
+//
+        if (!strcmp("appid", val))
+           {while(*rest && *rest == ' ') rest++;
+            eDest.Emsg("Xeq", (const char *)Link->ID, (char *)"appid", rest);
+            return Response.Send();
+           }
+   else if (!strcmp("monitor", val)) return do_Set_Mon(setargs);
+
+// All done
+//
+   return Response.Send(kXR_ArgInvalid, "invalid set parameter");
 }
 
+/******************************************************************************/
+/*                            d o _ S e t _ M o n                             */
+/******************************************************************************/
+
+// Process: set monitor {off | on [appid]}
+
+int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
+{
+  static XrdOucMutex seqMutex;
+  static int seqnum = 0;
+  char *val, *appid;
+  kXR_int32 myseq;
+
+// Get the first argument
+//
+   if (!(val = setargs.GetToken(&appid)))
+      return Response.Send(kXR_ArgMissing,"set monitor argument not specified.");
+
+// Determine if on or off and do appropriate processing
+//
+        if (!strcmp(val, "on"))
+           {if (Monitor || (Monitor = XrdXrootdMonitor::Alloc(1)))
+               {while(*appid && *appid == ' ') appid++;
+                if (strlen(appid) > 80) appid[80] = '\0';
+                if (*appid)
+                   {seqMutex.Lock(); 
+                    myseq = static_cast<kXR_int32>(htonl(seqnum++));
+                    seqMutex.UnLock();
+                    Monitor->Map(XROOTD_MON_MAPUSER, myseq,
+                             (const char *)Link->ID, (const char *)appid);
+                   }
+                return Response.Send();
+               }
+           }
+   else if (!strcmp(val, "off"))
+           {if (Monitor) {delete Monitor; Monitor = 0;}
+            return Response.Send();
+           }
+   else return Response.Send(kXR_ArgInvalid, "invalid set monitor argument");
+
+// All done
+//
+   return Response.Send(kXR_ArgInvalid, "invalid set parameter");
+}
+  
 /******************************************************************************/
 /*                               d o _ S t a t                                */
 /******************************************************************************/
@@ -1022,6 +1108,11 @@ int XrdXrootdProtocol::do_Write()
 //
    if (!FTab || !(myFile = FTab->Get(fh.handle)))
       return Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
+
+// If we are monitoring, insert a write entry
+//
+   if (Monitor) Monitor->Add_wr(myFile->FileID, Request.write.dlen,
+                                Request.write.offset);
 
 // If zero length write, simply return
 //

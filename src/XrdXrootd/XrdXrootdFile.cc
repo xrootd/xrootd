@@ -12,12 +12,15 @@
 
 const char *XrdXrootdFileCVSID = "$Id$";
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/stat.h>
   
+#include "XrdOuc/XrdOucPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
@@ -44,13 +47,24 @@ extern XrdOucTrace      *XrdXrootdTrace;
   
 XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
 {
-     struct stat buf;
-     int i;
+    static XrdOucMutex seqMutex;
+    static long fileSeq = 0;
+    struct stat buf;
+    long templong;
+    int i;
 
     XrdSfsp    = fp;
     FileMode = mode;
     AsyncMode= async;
     ID       = id;
+
+// Assign a unique fileID for this file
+//
+   seqMutex.Lock();
+   fileSeq++;
+   templong = htonl(fileSeq);
+   seqMutex.UnLock();
+   FileID = static_cast<kXR_int32>(templong);
 
 // Develop a unique hash for this file
 //

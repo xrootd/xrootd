@@ -14,6 +14,8 @@
 
 #include <string.h>
 
+#include "XProtocol/XPtypes.hh"
+
 /******************************************************************************/
 /*                              x r d _ F i l e                               */
 /******************************************************************************/
@@ -26,6 +28,7 @@ class XrdXrootdFile
 public:
 
 XrdSfsFile  *XrdSfsp;           // -> Actual file object
+kXR_int32    FileID;            // Marshalled unique file sequence number
 char         FileKey[38];       // -> Unique hash name for the file
 char         FileMode;          // 'r' or 'w'
 char         AsyncMode;         // 1 -> if file in async r/w mode

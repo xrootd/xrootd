@@ -36,6 +36,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
+#include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
@@ -99,6 +100,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                                                     const char *);
    extern XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *, XrdOucLogger *);
    extern int optind, opterr;
+
    XrdXrootdXPath *xp;
    char *fsver, c, buff[1024], Multxrd = 0;
    int NoGo;
@@ -122,10 +124,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        {
        case 'm': Multxrd = 1;
                  break;
-       case 'r': isProxy = 1;
+       case 'r': isRedir = 1;
                  putenv((char *)"XRDREDIRECT=R");
                  break;
-       case 's': isProxy = 0;
+       case 's': isRedir = 0;
                  putenv((char *)"XRDREDIRECT=L");
                  break;
        case 't': putenv((char *)"XRDRETARGET=1");
@@ -225,6 +227,13 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                    xp = xp->Next();
                   }
 
+// Check if monitoring should be enabled
+//
+   if (monDest && !isRedir)
+      if (!XrdXrootdMonitor::Init(Sched,&eDest,monDest,monMBval,monWWval))
+         return 0;
+         else XrdXrootdMonitor::setMode(monMode);
+
 // Indicate we configured successfully
 //
    eDest.Say(0, (char *)"XRootd protocol version " XROOTD_VERSION 
@@ -280,6 +289,7 @@ int XrdXrootdProtocol::ConfigIt(char *parms)
              else if TS_Xeq("chksum",        xcksum);
              else if TS_Xeq("export",        xexp);
              else if TS_Xeq("fslib",         xfsl);
+             else if TS_Xeq("monitor",       xmon);
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("trace",         xtrace);
@@ -474,6 +484,71 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
 //
    if (FSLib) free(FSLib);
    FSLib = strdup(val);
+   return 0;
+}
+
+/******************************************************************************/
+/*                                  x m o n                                   */
+/******************************************************************************/
+
+/* Function: xmon
+
+   Purpose:  Parse directive: monitor [all] [io] [off] [mbuff <sz>] 
+                                      [window <sec>] dest <host:port>
+
+         all                enables monitoring for all connections.
+         io                 only monitors I/O requests.
+         off                disabled monitoring but leaves config info in place.
+         mbuff  <sz>        size of message buffer.
+         window <sec>       time (seconds, M, H) between timing marks.
+         dest   <host:port> where monitor records are to be sent.
+
+   Output: 0 upon success or !0 upon failure. Ignored by master.
+*/
+int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
+{   char  *val;
+    long long tempval;
+
+    monMode = XROOTD_MON_SOME;
+    while((val = Config.GetToken()))
+
+         {     if (!strcmp("all", val))  monMode = XROOTD_MON_ALL;
+               if (!strcmp("io",  val)) ;
+          else if (!strcmp("off", val))  monMode = XROOTD_MON_NONE;
+          else if (!strcmp("mbuff", val))
+                  {if (!(val = Config.GetToken()))
+                      {eDest.Emsg("Config", "monitor mbuff value not specified");
+                       return 1;
+                      }
+                   if (XrdOuca2x::a2sz(eDest,"invalid monitor mbuff", val,
+                                             &tempval, 1024, 65536)) return 1;
+                    monMBval = static_cast<int>(tempval);
+                  }
+          else if (!strcmp("window", val))
+                {if (!(val = Config.GetToken()))
+                    {eDest.Emsg("Config", "monitor window value not specified");
+                     return 1;
+                    }
+                 if (XrdOuca2x::a2tm(eDest,"invalid monitor window",val,
+                                           &monWWval,1)) return 1;
+                }
+        else if (!strcmp("dest", val))
+                {if (monDest) free(monDest);
+                 if (!(monDest = Config.GetToken()))
+                   {eDest.Emsg("Config", "monitor dest value not specified");
+                    return 1;
+                   }
+                 if (!(val = index(monDest, (int)':')) || !atoi(val+1))
+                   {eDest.Emsg("Config", "monitor dest port missing or invalid");
+                    return 1;
+                   }
+                }
+        else eDest.Emsg("Config", "Warning, invalid monitor option", val);
+       }
+
+   if (!monDest)
+       {eDest.Emsg("Config", "monitor dest not specified"); return 1;}
+
    return 0;
 }
 
