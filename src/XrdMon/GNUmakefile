@@ -47,6 +47,7 @@ OBJECTS_BIN_CTR = $(OBJDIR)/XrdMonCtrMainApp.o
 OBJECTS_BIN_ADM = $(OBJDIR)/XrdMonSndAdminApp.o
 OBJECTS_BIN_SND = $(OBJDIR)/XrdMonSndDummyXrootdApp.o
 OBJECTS_BIN_DMP = $(OBJDIR)/XrdMonDumpPacketsApp.o
+OBJECTS_BIN_DBP = $(OBJDIR)/XrdMonDebugPacketApp.o
 
 LIBRARY_OUC    = $(LIBDIR)/libXrdOuc.a
 
@@ -58,12 +59,13 @@ LIBRARY_SND    = $(LIBDIR)/libXrdMonDummySender.a
 LIBRARIES      = $(LIBRARY_COMMON) $(LIBRARY_CTR) \
                  $(LIBRARY_DEC) $(LIBRARY_SND) 
 
-COLLECTOR      = $(BINDIR)/xrdmoncollector
-SENDER         = $(BINDIR)/xrdmondummysender
-ADMIN          = $(BINDIR)/xrdmonadmin
-DUMPPACKETS    = $(BINDIR)/xrdmondumppackets
+COLLECTOR      = $(BINDIR)/xrdmonCollector
+SENDER         = $(BINDIR)/xrdmonDummySender
+ADMIN          = $(BINDIR)/xrdmonAdmin
+DUMPPACKETS    = $(BINDIR)/xrdmonDumpPackets
+DEBUGPACKET    = $(BINDIR)/xrdmonDebugPacket
 BINARIES       = $(COLLECTOR) $(SENDER) $(ADMIN) \
-                 $(DUMPPACKETS)
+                 $(DUMPPACKETS) $(DEBUGPACKET)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
@@ -140,6 +142,10 @@ $(ADMIN):	$(OBJECTS_BIN_ADM) $(LIBRARY_SND) $(LIBRARY_COMMON)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
 $(DUMPPACKETS):	$(OBJECTS_BIN_DMP) $(LIBRARY_DEC) $(LIBRARY_COMMON) 
+	@echo Creating executable $(@F)
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+
+$(DEBUGPACKET):	$(OBJECTS_BIN_DBP) $(LIBRARY_DEC) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
