@@ -333,10 +333,19 @@ char *XrdOucNetwork::Host2IP(char *hname, unsigned long *ipaddr)
 /*                                 R e l a y                                  */
 /******************************************************************************/
   
-XrdOucLink *XrdOucNetwork::Relay(XrdOucError *errp, int opts)
+XrdOucLink *XrdOucNetwork::Relay(XrdOucError *errp, int opts, char *dest)
 {
    struct sockaddr_in InetAddr;
    int myiofd;
+
+// Get the target address for this relay
+//
+   if (!dest) memset((void *)&InetAddr, 0, sizeof(InetAddr));
+      else if (!Host2Dest(dest, InetAddr))
+              {if (errp) errp->Emsg("Relay","Send target",dest,
+                                            (char *)"does not exist.");
+               return (XrdOucLink *)0;
+              }
 
 // Allocate a socket descriptor and set the options
 //
@@ -348,8 +357,9 @@ XrdOucLink *XrdOucNetwork::Relay(XrdOucError *errp, int opts)
 // Return a link owning this socket
 //
    fcntl(myiofd, F_SETFD, FD_CLOEXEC);
-   memset((void *)&InetAddr, 0, sizeof(InetAddr));
-   return XrdOucLink::Alloc(errp, myiofd, &InetAddr, strdup("relay"));
+   return XrdOucLink::Alloc(errp, myiofd, &InetAddr, 
+                            (dest ? strdup(dest) : strdup("relay")),
+                            (opts & OUC_SENDONLY ? (XrdOucBuffer *)1 : 0));
 }
 
 /******************************************************************************/
@@ -490,6 +500,7 @@ int XrdOucNetwork::setOpts(const char *who, int xfd, int opts)
    const int one = 1;
    const socklen_t szone = (socklen_t)sizeof(one);
    const socklen_t szlio = (socklen_t)sizeof(liopts);
+   const socklen_t szwb  = (socklen_t)sizeof(Windowsz);
 
    fcntl(xfd, F_SETFD, FD_CLOEXEC);
    if (opts & OUC_NOBLOCK) fcntl(xfd, F_SETFD, O_NONBLOCK);
@@ -509,6 +520,12 @@ int XrdOucNetwork::setOpts(const char *who, int xfd, int opts)
    && setsockopt(xfd, tcpprotid, TCP_NODELAY, (const void *)&one,szone))
       eDest->Emsg(who, errno, "setting NODELAY");
 
+   if (Windowsz)
+      {if (setsockopt(xfd,SOL_SOCKET,SO_SNDBUF,(const void *)&Windowsz,szwb))
+          eDest->Emsg(who, errno, "setting SNDBUF");
+       if (setsockopt(xfd,SOL_SOCKET,SO_RCVBUF,(const void *)&Windowsz,szwb))
+          eDest->Emsg(who, errno, "setting RCVBUF");
+      }
    return rc;
 }
   

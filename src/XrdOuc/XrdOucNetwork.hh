@@ -26,6 +26,10 @@
 #define OUC_NOEMSG    0x0010
 #define OUC_DEBUG     0x0020
 
+// Options for relay
+//
+#define OUC_SENDONLY  0X0001
+
 
 // The XrdOucNetwork class defines a generic network where we can define common
 // initial tcp/ip and udp operations.
@@ -61,14 +65,16 @@ static char *Host2IP(char *hname, unsigned long *ipaddr=0);
 static unsigned long IPAddr(struct sockaddr_in *InetAddr)
                 {return (unsigned long)(InetAddr->sin_addr.s_addr);}
 
-static XrdOucLink *Relay(XrdOucError *errp, int opts=0);
+static XrdOucLink *Relay(XrdOucError *errp, int opts=0, char *dest=0);
+
+       void  setWindow(int wsz) {Windowsz = wsz;}
 
 void         unBind() {if (iofd >= 0) {close(iofd); iofd = Portnum = -1;}}
 
              XrdOucNetwork(XrdOucError *erp, XrdOucSecurity *secp=0,
                            XrdOucTrace *trp=0, int tflg=0)
                   {iofd = Portnum = PortType = -1; eDest = erp; 
-                   eTrace = trp; tFlag = tflg;
+                   eTrace = trp; tFlag = tflg; Windowsz = 0;
                    Police = secp;
                   }
             ~XrdOucNetwork() {unBind();}
@@ -82,6 +88,7 @@ int             tFlag;
 int             iofd;
 int             Portnum;
 int             PortType;
+int             Windowsz;
 
 XrdOucLink     *do_Accept(int);
 XrdOucLink     *do_Receive(int);
