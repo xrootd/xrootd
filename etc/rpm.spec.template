@@ -40,7 +40,6 @@ install -m 755 etc/StopOLB $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/etc/StopO
 install -m 755 etc/StopXRD $RPM_BUILD_ROOT/opt/xrootd/XRD-XVERSION-XRD/etc/StopXRD
 
 %clean
-rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-, root, root)
