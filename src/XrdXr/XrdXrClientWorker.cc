@@ -20,6 +20,7 @@ const char *XrdXrClientWorkerCVSID = "$Id$";
 
 #include "XrdXr/XrdXrClientWorker.hh"
 #include "XrdXr/XrdXrTrace.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 
 /*****************************************************************************/
@@ -131,11 +132,11 @@ int XrdXrClientWorker::login(kXR_char      *username,
   ClientLoginRequest loginRequest;
 
   memcpy(loginRequest.streamid, getStreamId(), 2);
-  loginRequest.requestid = htons(kXR_login);
-  loginRequest.pid       = htonl((long) getpid());
+  loginRequest.requestid = static_cast<kXR_int16>(htons(kXR_login));
+  loginRequest.pid       = static_cast<kXR_int32>(htonl(getpid()));
   memcpy(loginRequest.username, username, sizeof(loginRequest.username));
   loginRequest.role[0]   = role[0];
-  loginRequest.dlen      = htonl((long)tlen);
+  loginRequest.dlen      = static_cast<kXR_int32>(htonl(tlen));
 
   if (reserved) { 
     // assign the value only if it is set
@@ -309,8 +310,8 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
   // Initialise the authRequest structure with the respective parameters
   //
   memcpy(authRequest.streamid, getStreamId(), 2);
-  authRequest.requestid          =  htons((kXR_int16)kXR_auth);
-  authRequest.dlen               =  htonl((kXR_int32)credentials->size);
+  authRequest.requestid          =  static_cast<kXR_int16>(htons(kXR_auth));
+  authRequest.dlen               =  static_cast<kXR_int32>(htonl(credentials->size));
   memset(authRequest.reserved, 0, 12);
   memcpy(authRequest.credtype, credtype, 4);
 
@@ -400,10 +401,10 @@ int XrdXrClientWorker::open(kXR_char    *path,
   // Initialise the openRequest structure with the respective parameters
   //
   memcpy(openRequest.streamid, getStreamId(), 2);
-  openRequest.requestid =  htons((kXR_int16)kXR_open);
-  openRequest.mode      =  htons((kXR_int16)mode);
-  openRequest.options   =  htons((kXR_int16)oflag); 
-  openRequest.dlen      =  htonl((kXR_int32)strlen((char *)path));
+  openRequest.requestid = static_cast<kXR_int16>(htons(kXR_open));
+  openRequest.mode      = static_cast<kXR_int16>(htons(mode));
+  openRequest.options   = static_cast<kXR_int16>(htons(oflag));
+  openRequest.dlen      = static_cast<kXR_int32>(htonl(strlen((char *)path)));
   memset(openRequest.reserved, 0, 12);
 
   // Pack the openRequest structure and the variable length path in an
@@ -498,11 +499,11 @@ ssize_t XrdXrClientWorker::read(void       *buffer,
   // Initialise the readRequest structure with the respective parameters
   //
   memcpy(readRequest.streamid, getStreamId(), 2);
-  readRequest.requestid        =  htons((kXR_int16)kXR_read);
+  readRequest.requestid        = static_cast<kXR_int16>(htons(kXR_read));
   memcpy(readRequest.fhandle, fhandle, 4*sizeof(kXR_char));
-  readRequest.offset           =  my_htonll((kXR_int64)offset); 
-  readRequest.rlen             =  htonl((kXR_int32)blen);
-  readRequest.dlen             =  htonl((kXR_int32)0);  // do not allow preread
+  readRequest.offset           = static_cast<kXR_int64>(htonll(offset));
+  readRequest.rlen             = static_cast<kXR_int32>(htonl(blen));
+  readRequest.dlen             = static_cast<kXR_int32>(htonl(0));  // do not allow preread
 
   // All variables are initialised and now send the read request
   //
@@ -607,8 +608,8 @@ int XrdXrClientWorker::stat(struct stat *buffer,
   // Initialise the statRequest structure with the respective parameters
   //
   memcpy(statRequest.streamid, getStreamId(), 2);
-  statRequest.requestid          =  htons((kXR_int16)kXR_stat);
-  statRequest.dlen               =  htonl((kXR_int32)strlen((char *)path));
+  statRequest.requestid          = static_cast<kXR_int16>(htons(kXR_stat));
+  statRequest.dlen               = static_cast<kXR_int32>(htonl(strlen((char *)path)));
   memset(statRequest.reserved, 0, 16);
 
   // Pack the authRequest structure and the variable length cred in an
@@ -652,7 +653,7 @@ int XrdXrClientWorker::stat(struct stat *buffer,
 
     // Convert the buffer into the stat structure
     //
-    union {long long uuid; struct {long hi; long lo;} id;} Dev;
+    union {long long uuid; struct {int hi; int lo;} id;} Dev;
     char *temp = strtok_r(buff, (const char*) " ", &lasttk);
 
     Dev.uuid = (atoll(temp));
@@ -701,10 +702,10 @@ int XrdXrClientWorker::close()
   //
   strcpy ((char *) streamId, "9"); // set an arbitrary number 
   memcpy(closeRequest.streamid, streamId, sizeof(closeRequest.streamid));
-  closeRequest.requestid = (kXR_int16) htons(kXR_close);
+  closeRequest.requestid = static_cast<kXR_int16>(htons(kXR_close));
   for (int i=0; i < 4; i++) {closeRequest.fhandle[i] = fhandle[i];}
   for (int i=0; i <12; i++) {closeRequest.reserved[i] = (kXR_char) '\0';}
-  closeRequest.dlen = (kXR_int32) htonl(0);
+  closeRequest.dlen = static_cast<kXR_int32>(htonl(0));
 
   rc = lp->Send((void *) &closeRequest, sizeof(closeRequest));
 
@@ -789,11 +790,11 @@ int XrdXrClientWorker::initialHandshake()
   // Prepare the initial handshake values for the client
   //
   ClientInitHandShake handshake = {0, 0, 0, 
-                                   static_cast<kXR_int32>(htonl((long)4)),
-                                   static_cast<kXR_int32>(htonl((unsigned long)2012))
+                                   static_cast<kXR_int32>(htonl(4)),
+                                   static_cast<kXR_int32>(htonl(2012))
                                   };
 
-  if (lp->Send((void *) &handshake, (long) sizeof(handshake))) {
+  if (lp->Send((void *) &handshake, int(sizeof(handshake)))) {
     XrEroute.Emsg("login", 
 		  "initial client handshake not sent correctly");
     return -1;
@@ -933,79 +934,3 @@ int XrdXrClientWorker::handleError(kXR_int32      dlen,
 
   return -status;
 } // handleError
-
-
-/*****************************************************************************/
-/*                             m y _ h t o n l l                             */
-/*****************************************************************************/
-
-
-/**
- * Convert a long long from host to network byte order
- */
-unsigned long long my_htonll(unsigned long long x)
-{
- unsigned long long ret_val;
-
- if (isLittleEndian())
-   {*( (unsigned long *)(&ret_val) + 1) =
-      htonl(*(  (unsigned long *)(&x)));
-   *(((unsigned long *)(&ret_val))) =
-     htonl(*( ((unsigned long *)(&x))+1) );
-   } else {
-     *( (unsigned long *)(&ret_val)) =
-       htonl(*(  (unsigned long *)(&x)));
-     *(((unsigned long *)(&ret_val)) + 1) =
-       htonl(*( ((unsigned long *)(&x))+1) );
-   }
- return ret_val;
-} // my_htonll
-
-/*****************************************************************************/
-/*                             m y _ n t o h l l                             */
-/*****************************************************************************/
-
-/**
- * Convert a long long from network to host byte order
- */
-unsigned long long my_ntohll(unsigned long long x)
-{
-  unsigned long long ret_val;
-
-  if (isLittleEndian())
-    {*( (unsigned long *)(&ret_val) + 1) =
-       ntohl(*( (unsigned long *)(&x)));
-    *(((unsigned long *)(&ret_val))) =
-      ntohl(*(((unsigned long *)(&x))+1));
-    } else {
-      *( (unsigned long *)(&ret_val)) =
-	ntohl(*( (unsigned long*)(&x)));
-      *(((unsigned long*)(&ret_val)) + 1) =
-	ntohl(*(((unsigned long*)(&x))+1));
-    }
-  return ret_val;
-} // my_ntohll
-
-
-/*****************************************************************************/
-/*                         i s L i t t l e E n d i a n                       */
-/*****************************************************************************/
-
-
-/** 
- * Check if a value is given in little endian byte order
- */
-bool  isLittleEndian() 
-{
-  // Solaris supports big Endian (big boy)
-  // Linux supports little Endian (little boy)
-
-#if defined(__sparc) || __BYTE_ORD==__BIG_ENDIAN
-  return false;
-#else 
-  return true;
-#endif
-
-} // isLittleEndian
-
-

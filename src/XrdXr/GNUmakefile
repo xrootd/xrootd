@@ -70,7 +70,7 @@ $(OBJDIR)/XrdXrClientWorker.o: XrdXrClientWorker.hh XrdXrClientWorker.cc \
                                XrdXrTrace.hh \
                                XrdNetLink.hh         XrdNetWork.hh \
                                XrdOucErrInfo.hh      XrdOucError.hh \
-                               XrdOucLogger.hh  \
+                               XrdOucLogger.hh       XrdOucPlatform.hh \
                                XrdXrootdProtocol.hh  XProtocol.hh
 	@echo Compiling XrdXrClientWorker.cc ...
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrClientWorker.o \

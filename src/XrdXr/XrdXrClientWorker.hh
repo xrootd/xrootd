@@ -213,13 +213,4 @@ private:
   int redirect;                  // indicates if a redirection occured
 
 };
-
-
-// Helper methods for converting long long 
-//
-unsigned long long my_htonll(unsigned long long x);
-unsigned long long my_ntohll(unsigned long long x);
-bool               isLittleEndian();
-
-
 #endif
