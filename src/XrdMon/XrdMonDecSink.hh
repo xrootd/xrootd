@@ -48,6 +48,9 @@ public:
                    kXR_int64 bytesW, 
                    time_t timestamp);
     void flushDataNow();
+
+    void reset();
+    
 private:
     void loadUniqueIdsAndSeq();
     vector<XrdMonDecDictInfo*> loadActiveDictInfo();
@@ -58,6 +61,7 @@ private:
     void openTraceFile(fstream& f);
     void write2TraceFile(fstream& f, const char* buf, int len);
     void registerLostPacket(dictid_t id, const char* descr);
+    void reportLostPackets();
     
 private:
     map<dictid_t, XrdMonDecDictInfo*> _dCache;

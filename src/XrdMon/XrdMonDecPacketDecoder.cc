@@ -30,7 +30,6 @@ using std::stringstream;
 XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir, 
                                                const char* rtLogDir)
     : _sink(baseDir, rtLogDir, false, 2),
-      _time(0),
       _stopNow(false),
       _upToTime(0)
 {}
@@ -40,7 +39,6 @@ XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir,
                                                int maxTraceLogSize,
                                                time_t upToTime)
     : _sink(baseDir, 0, saveTraces, maxTraceLogSize),
-      _time(0),
       _stopNow(false),
       _upToTime(upToTime)
 {}
@@ -90,6 +88,12 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
     }
     
     _sink.setLastSeq(header.seqNo());
+}
+
+void
+XrdMonDecPacketDecoder::reset()
+{
+    _sink.reset();
 }
 
 // packet should point to data after header
@@ -238,7 +242,7 @@ XrdMonDecPacketDecoder::decodeDisconnect(const char* packet, time_t timestamp)
     kXR_unt32 dictId = ntohl(trace.arg2.dictid);
 
     cout << "decoded user disconnect, dict " << dictId
-         << ", sec = " << sec << endl;
+         << ", sec = " << sec << ", t = " << timestamp << endl;
 
     _sink.addUserDisconnect(dictId, sec, timestamp);
 }

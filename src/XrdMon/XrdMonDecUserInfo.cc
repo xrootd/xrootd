@@ -112,7 +112,8 @@ string
 XrdMonDecUserInfo::convert2stringRT() const
 {
     stringstream ss(stringstream::out);
-    ss << _user
+    ss <<        _myUniqueId
+       << ' ' << _user
      //<< ' ' << _pid
        << ' ' << _host;
     return ss.str();

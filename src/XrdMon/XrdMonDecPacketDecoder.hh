@@ -36,6 +36,9 @@ public:
     void operator()(const XrdMonHeader& header,
                     const char* packet,
                     kXR_unt16 senderId=INV_SENDERID);
+
+    void reset();
+    
     bool     stopNow() const { return _stopNow; }
 
     void flushDataNow() { return _sink.flushDataNow(); }
@@ -72,7 +75,6 @@ private:
                               time_t& begTime);
 private:
     XrdMonDecSink _sink;
-    time_t        _time; // for verification if xrootd was restarted
     bool          _stopNow;
 
     time_t        _upToTime; // for decoding parts of log file

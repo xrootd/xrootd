@@ -39,12 +39,15 @@ XrdMonSenderInfo::convert2Id(struct sockaddr_in sAddr)
 }
 
 void
-XrdMonSenderInfo::destructStatics()
+XrdMonSenderInfo::reset()
 {
+    _ids.clear();
+    
     int i, s = _hps.size();
     for (i=0 ; i<s ; ++i) {
         delete [] _hps[i];
     }
+    _hps.clear();
 }
 
 char*

@@ -311,7 +311,8 @@ string
 XrdMonDecDictInfo::convert2stringRT() const
 {
     stringstream ss(stringstream::out);
-    ss << ' ' << _user
+    ss        << _myUniqueId
+       << ' ' << _user
        << ' ' << _host
        << ' ' << _path
        << ' ' << timestamp2string(_open);

@@ -83,37 +83,11 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
 
 XrdMonDecSink::~XrdMonDecSink()
 {
-    flushClosedDicts();
+    reset();
     
-    int size = _lost.size();
-    if ( size > 0 ) {
-        cout << "Lost " << size << " dictIds {id, #lostTraces}: ";
-        map<dictid_t, long>::iterator lostItr = _lost.begin();
-        while ( lostItr != _lost.end() ) {
-            cout << "{"<< lostItr->first << ", " << lostItr->second << "} ";
-            ++lostItr;
-        }    
-        cout << endl;
-    }
     if ( _rtLogFile.is_open() ) {
         _rtLogFile.close();
-    } else {
-        flushTCache();
-        checkpoint();
     }
-
-    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
-    std::map<dictid_t, XrdMonDecDictInfo*>::iterator dItr;
-    for ( dItr=_dCache.begin() ; dItr != _dCache.end() ; ++ dItr ) {
-        delete dItr->second;
-    }
-    _dCache.clear();
-
-    std::map<dictid_t, XrdMonDecUserInfo*>::iterator uItr;
-    for ( uItr=_uCache.begin() ; uItr != _uCache.end() ; ++ uItr ) {
-        delete uItr->second;
-    }
-    _uCache.clear();
 }
 
 void 
@@ -188,6 +162,11 @@ XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
     _uCache[usrId] = ui = new XrdMonDecUserInfo(usrId, _uniqueUserId++, 
                                                 theString, len);
     cout << "Added userInfo to sink: " << *ui << endl;
+
+    if ( _rtLogFile.is_open() ) {
+        _rtLogFile << "u " << itr->second->convert2stringRT() 
+                   << ' '  << _senderHost << endl;
+    }
 }
 
 void
@@ -239,10 +218,10 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
     if ( _rtLogFile.is_open() ) {
         char timeStr[24];
         timestamp2string(timestamp, timeStr);
-        _rtLogFile << "u " << itr->second->convert2stringRT() 
-                   << ' ' << sec 
-                   << ' ' << timeStr 
-                   << ' ' << _senderHost << endl;
+        _rtLogFile << "d " << itr->second->convert2stringRT() 
+                   << ' '  << sec 
+                   << ' '  << timeStr 
+                   << ' '  << _senderHost << endl;
     }
 }
 
@@ -260,7 +239,7 @@ XrdMonDecSink::openFile(dictid_t xrdId, time_t timestamp)
     itr->second->openFile(timestamp);
 
     if ( _rtLogFile.is_open() ) {
-        _rtLogFile << "o " << xrdId << itr->second->convert2stringRT() 
+        _rtLogFile << "o " << itr->second->convert2stringRT() 
                    << ' ' << _senderHost << endl;
     }
 }
@@ -285,7 +264,7 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
     if ( _rtLogFile.is_open() ) {
         char timeStr[24];
         timestamp2string(timestamp, timeStr);
-        _rtLogFile << "c " << xrdId << ' ' << bytesR 
+        _rtLogFile << "c " << itr->second->uniqueId() << ' ' << bytesR 
                    << ' ' << bytesW << ' ' << timeStr << endl;
     }
 }
@@ -577,4 +556,46 @@ XrdMonDecSink::flushDataNow()
     cout << "Flushing decoded data..." << endl;
     flushClosedDicts();
     flushUserCache();
+}
+
+void
+XrdMonDecSink::reset()
+{
+    flushClosedDicts();
+
+    reportLostPackets();
+    _lost.clear();
+    
+    if ( ! _rtLogFile.is_open() ) {
+        flushTCache();
+        checkpoint();
+    }
+
+    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+    std::map<dictid_t, XrdMonDecDictInfo*>::iterator dItr;
+    for ( dItr=_dCache.begin() ; dItr != _dCache.end() ; ++ dItr ) {
+        delete dItr->second;
+    }
+    _dCache.clear();
+
+    std::map<dictid_t, XrdMonDecUserInfo*>::iterator uItr;
+    for ( uItr=_uCache.begin() ; uItr != _uCache.end() ; ++ uItr ) {
+        delete uItr->second;
+    }
+    _uCache.clear();
+}
+
+void
+XrdMonDecSink::reportLostPackets()
+{
+    int size = _lost.size();
+    if ( size > 0 ) {
+        cout << "Lost " << size << " dictIds {id, #lostTraces}: ";
+        map<dictid_t, long>::iterator lostItr = _lost.begin();
+        while ( lostItr != _lost.end() ) {
+            cout << "{"<< lostItr->first << ", " << lostItr->second << "} ";
+            ++lostItr;
+        }    
+        cout << endl;
+    }
 }

@@ -32,7 +32,7 @@ public:
         }
         return _hps[id];
     }
-    static void destructStatics();
+    static void reset();
     
 private:
     static char* buildName(struct sockaddr_in sAddr);

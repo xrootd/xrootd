@@ -56,12 +56,7 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
 XrdMonCtrArchiver::~XrdMonCtrArchiver()
 {
     delete _decoder;
-    
-    // go through all writers and shut them down
-    int i, s = _writers.size();
-    for (i=0 ; i<s ; i++) {
-        delete _writers[i];
-    }
+    deleteWriters();
 }
 
 void
@@ -78,7 +73,7 @@ XrdMonCtrArchiver::operator()()
             delete p;
         } catch (XrdMonException& e) {
             if ( e.err() == SIG_SHUTDOWNNOW ) {
-                XrdMonSenderInfo::destructStatics();
+                XrdMonSenderInfo::reset();
                 return;
             }
             e.printItOnce();
@@ -139,6 +134,11 @@ XrdMonCtrArchiver::archivePacket(XrdMonCtrPacket* p)
         XrdMonCtrAdmin::doIt(command, arg);
         return;
     }
+    if ( header.xrdRestarted() ) {
+        cout << "\n* * * *   XRD RESTARTED   * * * *\n" << endl;
+        XrdMonSenderInfo::reset();        
+        this->reset();
+    }
 
     kXR_unt16 senderId = XrdMonSenderInfo::convert2Id(p->sender);
 
@@ -153,3 +153,22 @@ XrdMonCtrArchiver::archivePacket(XrdMonCtrPacket* p)
     _writers[senderId]->operator()(p->buf, header, _currentTime);
 }
 
+
+
+void
+XrdMonCtrArchiver::reset()
+{
+    _decoder->reset();
+    deleteWriters();
+}
+
+void
+XrdMonCtrArchiver::deleteWriters()
+{
+    // go through all writers and shut them down
+    int i, s = _writers.size();
+    for (i=0 ; i<s ; i++) {
+        delete _writers[i];
+    }
+    _writers.clear();
+}
