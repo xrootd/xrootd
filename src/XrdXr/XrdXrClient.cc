@@ -19,6 +19,8 @@ const char *XrdXrClientCVSID = "$Id$";
 #include <iostream.h>         
 #include <arpa/inet.h>        // for htonl, htons, ntohl, ntohs
 #include <unistd.h>           // for getpid
+#include <stdlib.h>           // for free
+#include <strings.h>          // for strdup
 
 #include "XrdXr/XrdXrClient.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -42,9 +44,8 @@ XrdXrClient::XrdXrClient(const char* hostname, int port, XrdOucLogger *log)
 {
   // Assign the values needed for the connection to the remote xrootd
   //
-  hostname_ = (char*) hostname; 
-  releaseHost = false;
-
+  hostname_ = strdup(hostname);
+  hostOrig_ = 0;
   port_ = portOrig_ = port;
   XrdXrClient::logger = log;
 
@@ -214,8 +215,7 @@ int XrdXrClient::open(kXR_char    *path,
       // Fill in the fileInfo structure with the correct values
       //
       fileInfo.open = true;
-      fileInfo.path = (kXR_char*) malloc(strlen((char*) path));
-      strncpy((char*) fileInfo.path, (char*) path, strlen((char*) path));
+      fileInfo.path = (kXR_char*) strdup((const char *)path);
       fileInfo.oflag = oflag;
       fileInfo.mode = mode;
       return 0;
@@ -380,9 +380,8 @@ XrdXrClient::~XrdXrClient()
   // delete all pointers
   //
   delete worker;
-  if (releaseHost) {
-    free(hostname_);
-  }
+  free(hostname_);
+  if (hostOrig_) free(hostOrig_);
   
   if (fileInfo.open == true) {
     free (fileInfo.path);
@@ -410,14 +409,13 @@ void XrdXrClient::setHost(char *host)
   // If the current host is a the first redirector, we remember it's name
   // 
   if (hostOrig_ == NULL && (worker->getHostType() == kXR_LBalServer)) {
-    hostOrig_ = hostname_;
+    hostOrig_ = strdup(hostname_);
   }
 
   // Set a new name to be used as the current host
   //
-  hostname_ = (char*) malloc(strlen(host));
-  memcpy(hostname_, host, strlen(host));
-  releaseHost = true;
+  free(hostname_);
+  hostname_ = strdup(host);
   mutex.UnLock();
 } // setHost
 

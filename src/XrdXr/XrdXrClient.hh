@@ -220,7 +220,6 @@ private:
                                  // with a remote xrootd
   static XrdOucLogger *logger;   // global logger
   char *tident;                  // Used for TRACE messages
-  bool releaseHost;              // Used to indicate if we need to free mem for
                                  // host
   int                maxRetry;   // max. retry count 
   int                maxWait;    // max. wait count
