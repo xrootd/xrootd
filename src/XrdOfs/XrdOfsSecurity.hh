@@ -55,9 +55,9 @@
 
 #ifdef __SECURITY__
 #define OOIDENTENV(usr, env) \
-    env.Put(SEC_USER, strdup(usr->name)); \
-    env.Put(SEC_HOST, strdup(usr->host))
+    env.Put(SEC_USER, usr->name); \
+    env.Put(SEC_HOST, usr->host)
 #else
-#define OOIDENTENV(usr, env) env.Put(SEC_HOST, strdup(usr->host))
+#define OOIDENTENV(usr, env) env.Put(SEC_HOST, usr->host)
 #endif
 #endif
