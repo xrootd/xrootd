@@ -117,10 +117,9 @@ debugRWRequest(const char* packet, kXR_int32 timestamp, kXR_int64 offset)
 }
 
 void
-debugOpenClose(const char* packet, 
-               kXR_int32 timestamp, 
-               kXR_int64 offset, 
-               const char* name)
+debugOpen(const char* packet, 
+          kXR_int32 timestamp, 
+          kXR_int64 offset)
 {
     kXR_int32 dictId;
     memcpy(&dictId, 
@@ -129,9 +128,33 @@ debugOpenClose(const char* packet,
     dictId = ntohl(dictId);
 
     cout << "offset " << setw(5) << offset
-         << " --> " << name << " dictId = " << dictId
+         << " --> open " << " dictId = " << dictId
          << ", timestamp = " << timestamp << endl;
 }
+
+void
+debugClose(const char* packet, 
+          kXR_int32 timestamp, 
+          kXR_int64 offset)
+{
+    XrdXrootdMonTrace trace;
+    memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
+    kXR_unt32 dictId = ntohl(trace.arg2.dictid);
+    kXR_unt32 tR     = ntohl(trace.arg0.rTot[1]);
+    kXR_unt32 tW     = ntohl(trace.arg1.wTot);
+    char rShift      = trace.arg0.id[1];
+    char wShift      = trace.arg0.id[2];
+    kXR_int64 realR  = tR; realR = realR << rShift;
+    kXR_int64 realW  = tW; realW = realW << wShift;
+
+    cout << "offset " << setw(5) << offset
+         << " --> close " << " dictId = " << dictId
+         << ", timestamp = " << timestamp 
+         << ", total r " <<tR<< " shifted " << (int) rShift << ", or " << realR
+         << ", total w " <<tW<< " shifted " << (int) wShift << ", or " << realW
+         << endl;
+}
+
 
 void
 debugDictPacket(const char* packet, int len)
@@ -164,6 +187,19 @@ debugUserPacket(const char* packet, int len)
 }
 
 void
+debugDisconnect(const char* packet, int len)
+{
+    XrdXrootdMonTrace trace;
+    memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
+    kXR_int32 sec    = ntohl(trace.arg1.buflen);
+    kXR_unt32 dictId = ntohl(trace.arg2.dictid);
+
+    cout << "offset " << setw(5) << HDRLEN
+         << " --> user disconnect, dict " << dictId
+         << ", sec = " << sec << endl;
+}
+
+void
 debugTracePacket(const char* packet, int len)
 {
     if ( static_cast<kXR_char>(*packet) != XROOTD_MON_WINDOW ) {
@@ -191,13 +227,14 @@ debugTracePacket(const char* packet, int len)
             } else if ( infoType == XROOTD_MON_OPEN ) {
                 cout << "offset " << setw(5) << offset 
                      << " --> XROOTD_MON_OPEN" << endl;
-                debugOpenClose(packet+offset, 
-                               timestamp, offset+HDRLEN, "open");
+                debugOpen(packet+offset, timestamp, offset+HDRLEN);
             } else if ( infoType == XROOTD_MON_CLOSE ) {
                 cout << "offset " << setw(5) << offset 
                      << " --> XROOTD_MON_CLOSE" << endl;
-                debugOpenClose(packet+offset, 
-                               timestamp, offset+HDRLEN, "close");
+                debugClose(packet+offset, timestamp, offset+HDRLEN);
+            } else if ( infoType == XROOTD_MON_DISC ) {
+                debugDisconnect(packet+offset, offset+HDRLEN);
+
             } else {
                 cerr << "Unsupported infoType of trace packet: " 
                      << infoType << endl;
