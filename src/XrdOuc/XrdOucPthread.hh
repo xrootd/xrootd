@@ -225,9 +225,9 @@ static pthread_t    ID(void)              {return pthread_self();}
 
 static int          Kill(pthread_t tid)   {return pthread_cancel(tid);}
 
-static unsigned int Num(void)
+static unsigned long Num(void)
                        {if (!initDone) doInit();
-                        return (unsigned int)pthread_getspecific(threadNumkey);
+                        return (unsigned long)pthread_getspecific(threadNumkey);
                        }
 
 static int          Run(pthread_t *, void *(*proc)(void *), void *arg, 
