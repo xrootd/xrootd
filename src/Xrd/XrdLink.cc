@@ -290,7 +290,11 @@ void XrdLink::DoIt()
 // = 0 -> OK, get next request, if allowed, o/w enable the link
 // > 0 -> Slow link, stop getting requests  and enable the link
 //
-   do {rc = Protocol->Process(this);} while (!rc && XrdSched.canStick());
+   if (Protocol)
+      do {rc = Protocol->Process(this);} while (!rc && XrdSched.canStick());
+      else {XrdLog.Emsg("Link", "Dispatch on closed link", ID);
+            return;
+           }
 
 // Re-enable the link and cycle back waiting for a new request. Warning, this
 // object may have been deleted upon return. Don't use any object data now.
