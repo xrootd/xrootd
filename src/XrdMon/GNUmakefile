@@ -13,6 +13,7 @@ include ../GNUmake.env
 OBJECTS_LIB_COMMON =                          \
         $(OBJDIR)/XrdMonException.o           \
         $(OBJDIR)/XrdMonHeader.o              \
+	$(OBJDIR)/XrdMonSenderInfo.o          \
         $(OBJDIR)/XrdMonTimer.o               \
         $(OBJDIR)/XrdMonUtils.o
 
@@ -22,13 +23,15 @@ OBJECTS_LIB_CTR =                             \
 	$(OBJDIR)/XrdMonCtrBuffer.o           \
 	$(OBJDIR)/XrdMonCtrDebug.o            \
 	$(OBJDIR)/XrdMonCtrCollector.o        \
-	$(OBJDIR)/XrdMonCtrSenderInfo.o       \
 	$(OBJDIR)/XrdMonCtrWriter.o
 
 OBJECTS_LIB_DEC =                             \
 	$(OBJDIR)/XrdMonDecArgParser.o        \
         $(OBJDIR)/XrdMonDecDictInfo.o         \
+	$(OBJDIR)/XrdMonDecOnePacket.o        \
+	$(OBJDIR)/XrdMonDecMainApp.o          \
         $(OBJDIR)/XrdMonDecPacketDecoder.o    \
+	$(OBJDIR)/XrdMonDecPreProcess.o       \
         $(OBJDIR)/XrdMonDecSink.o             \
 	$(OBJDIR)/XrdMonDecTraceInfo.o
 
@@ -44,6 +47,7 @@ OBJECTS_LIB_SND =                             \
 	$(OBJDIR)/XrdMonSndTransmitter.o
 
 OBJECTS_BIN_CTR = $(OBJDIR)/XrdMonCtrMainApp.o
+OBJECTS_BIN_DEC = $(OBJDIR)/XrdMonDecMainApp.o
 OBJECTS_BIN_ADM = $(OBJDIR)/XrdMonSndAdminApp.o
 OBJECTS_BIN_SND = $(OBJDIR)/XrdMonSndDummyXrootdApp.o
 OBJECTS_BIN_DMP = $(OBJDIR)/XrdMonDumpPacketsApp.o
@@ -61,15 +65,15 @@ LIBRARIES      = $(LIBRARY_COMMON) $(LIBRARY_CTR) \
                  $(LIBRARY_DEC) $(LIBRARY_SND) 
 
 COLLECTOR      = $(BINDIR)/xrdmonCollector
+DECODER        = $(BINDIR)/xrdmonDecoder
 SENDER         = $(BINDIR)/xrdmonDummySender
 ADMIN          = $(BINDIR)/xrdmonAdmin
 DUMPPACKETS    = $(BINDIR)/xrdmonDumpPackets
 DEBUGPACKET    = $(BINDIR)/xrdmonDebugPacket
 CONVTIME       = $(BINDIR)/xrdmonConvertTime
 
-BINARIES       = $(COLLECTOR) $(SENDER) $(ADMIN) \
-                 $(DUMPPACKETS) $(DEBUGPACKET)   \
-                 $(CONVTIME)
+BINARIES       = $(COLLECTOR) $(DECODER) $(SENDER) $(ADMIN) \
+                 $(DUMPPACKETS) $(DEBUGPACKET) $(CONVTIME)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
@@ -134,6 +138,11 @@ $(LIBRARY_SND): $(OBJECTS_LIB_SND)
 
 $(COLLECTOR):	$(OBJECTS_BIN_CTR) $(LIBRARY_CTR) $(LIBRARY_OUC) \
 	$(LIBRARY_DEC) $(LIBRARY_COMMON) 
+	@echo Creating executable $(@F)
+	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
+
+$(DECODER):	$(OBJECTS_BIN_DEC) $(LIBRARY_DEC) $(LIBRARY_OUC) \
+	$(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 

@@ -13,7 +13,7 @@
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonErrors.hh"
-#include "XrdMon/XrdMonCtrSenderInfo.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
 #include "XrdMon/XrdMonDecSink.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include <netinet/in.h>
@@ -42,7 +42,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
       _lastSeq(0xFF),
       _uniqueId(1),
       _logNameSeqId(0),
-      _senderId(99999) // make it invalid, so that _senderHost is initialized
+      _senderId(65500) // make it invalid, so that _senderHost is initialized
 {
     if ( maxTraceLogSize < 2  ) {
         cerr << "Trace log size must be > 2MB" << endl;
@@ -107,7 +107,7 @@ void
 XrdMonDecSink::setSenderId(kXR_unt16 id)
 {
     if ( id != _senderId ) {
-        string hostPort ( XrdMonCtrSenderInfo::hostPort(id) );
+        string hostPort ( XrdMonSenderInfo::hostPort(id) );
         pair<string, string> hp = breakHostPort(hostPort);
         _senderHost = hp.first;
         _senderId = id;
@@ -124,15 +124,19 @@ struct connectDictIdsWithCache : public std::unary_function<XrdMonDecDictInfo*, 
 };
 
 void
-XrdMonDecSink::init(dictid_t min, dictid_t max)
+XrdMonDecSink::init(dictid_t min, dictid_t max, const string& senderHP)
 {
-    // read jnl file, create vector<XrdMonDecDictInfo*> of active XrdMonDecDictInfo objects
+    // read jnl file, create vector<XrdMonDecDictInfo*> of active 
+    // XrdMonDecDictInfo objects
     vector<XrdMonDecDictInfo*> diVector = loadActiveDictInfo();
 
     // connect active XrdMonDecDictInfo objects to the cache
     std::for_each(diVector.begin(),
                   diVector.end(),
                   connectDictIdsWithCache(_dCache));
+
+    pair<string, string> hp = breakHostPort(senderHP);
+    _senderHost = hp.first;
 }
 
 void

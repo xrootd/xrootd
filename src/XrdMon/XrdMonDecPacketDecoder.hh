@@ -20,6 +20,8 @@ using std::pair;
 
 class XrdMonDecPacketDecoder {
 public:
+    enum { INV_SENDERID = 65500 };
+    
     XrdMonDecPacketDecoder(const char* baseDir, 
                            const char* rtLogDir);
 
@@ -28,12 +30,12 @@ public:
                            int maxTraceLogSize,
                            time_t upToTime);
 
-    void init(dictid_t min, dictid_t max);
+    void init(dictid_t min, dictid_t max, const string& senderHP);
     sequen_t lastSeq() const { return _sink.lastSeq(); }
     
-    void operator()(kXR_unt16 senderId,
-                    const XrdMonHeader& header,
-                    const char* packet);
+    void operator()(const XrdMonHeader& header,
+                    const char* packet,
+                    kXR_unt16 senderId=INV_SENDERID);
     bool     stopNow() const   { return _stopNow; }
     
 private:

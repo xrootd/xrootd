@@ -21,7 +21,7 @@ bool    XrdMonDecArgParser::_forceCloseOnly(false);
 time_t  XrdMonDecArgParser::_upToTime(0);
 time_t  XrdMonDecArgParser::_ignoreIfBefore(0);
 string  XrdMonDecArgParser::_fPath;
-int64_t XrdMonDecArgParser::_offset2Dump(0);
+kXR_int64 XrdMonDecArgParser::_offset2Dump(0);
 string  XrdMonDecArgParser::_hostPort;
 string  XrdMonDecArgParser::_baseDir("logs/decoder"); // FIXME configurable
 bool    XrdMonDecArgParser::_saveTraces(false);       // FIXME configurable

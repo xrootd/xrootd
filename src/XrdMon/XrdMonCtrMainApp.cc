@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     XrdMonCtrDebug::initialize();
 
     // FIXME this block should really be configurable
-    bool rtDec = false; // real time decoding on by default
+    bool rtDec = true; // real time decoding on by default
     const kXR_int64 MAXFILESIZE = 1024*1024*1024; // 1GB
 
     const char* BASEDIR         = "./logs";

@@ -23,7 +23,7 @@
 // for DEBUG/PRINT_SPEED only
 #include "XrdMon/XrdMonCtrDebug.hh"
 #include "XrdMon/XrdMonCtrMutexLocker.hh"
-#include "XrdMon/XrdMonCtrSenderInfo.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
 
 #include <iomanip>
 #include <iostream>
@@ -87,7 +87,7 @@ extern "C" void* receivePackets(void*)
             XrdMonCtrXrdOucMutexHelper mh; mh.Lock(&XrdMonCtrDebug::_mutex);
             cout << "Received packet no " 
                  << setw(5) << packetNo << " from " 
-                 << XrdMonCtrSenderInfo::hostPort(packet->sender) << endl;
+                 << XrdMonSenderInfo::hostPort(packet->sender) << endl;
         }
 #endif
 

@@ -14,12 +14,13 @@
 #define XRDMONDECSINK_HH
 
 #include "XrdMon/XrdMonDecDictInfo.hh"
+#include "XrdMon/XrdMonDecTraceInfo.hh"
 #include <fstream>
 #include <map>
+#include <vector>
 using std::fstream;
 using std::map;
-
-class XrdMonDecTraceInfo;
+using std::vector;
 
 class XrdMonDecSink {
 public:
@@ -31,7 +32,7 @@ public:
 
     void setSenderId(kXR_unt16 id);
     
-    void init(dictid_t min, dictid_t max);
+    void init(dictid_t min, dictid_t max, const string& senderHP);
     sequen_t lastSeq() const { return _lastSeq; }
     void setLastSeq(sequen_t seq) { _lastSeq = seq; }
                     

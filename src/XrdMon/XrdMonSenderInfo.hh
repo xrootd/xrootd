@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                          XrdMonCtrSenderInfo.hh                           */
+/*                            XrdMonSenderInfo.hh                            */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -10,8 +10,8 @@
 
 // $Id$
 
-#ifndef XRDMONCTRSENDERINFO_HH
-#define XRDMONCTRSENDERINFO_HH
+#ifndef XRDMONSENDERINFO_HH
+#define XRDMONSENDERINFO_HH
 
 #include "XrdMon/XrdMonTypes.hh"
 #include <netinet/in.h>
@@ -20,7 +20,7 @@
 using std::map;
 using std::vector;
 
-class XrdMonCtrSenderInfo {
+class XrdMonSenderInfo {
 public:
     static int convert2Id(struct sockaddr_in sAddr);
     static const char* hostPort(struct sockaddr_in sAddr) {
@@ -44,4 +44,4 @@ private:
     static vector<char*>           _hps; // <host>:<port>
 };
 
-#endif /* XRDMONCTRSENDERINFO_HH */
+#endif /* XRDMONSENDERINFO_HH */

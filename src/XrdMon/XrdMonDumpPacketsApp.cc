@@ -26,7 +26,7 @@ using std::setw;
 using std::stringstream;
 
 void 
-dumpOnePacket(int64_t uniqueId, fstream& _file)
+dumpOnePacket(kXR_int64 uniqueId, fstream& _file)
 {
     // prepare file for writing
     stringstream ss(stringstream::out);
@@ -43,7 +43,7 @@ dumpOnePacket(int64_t uniqueId, fstream& _file)
     XrdMonHeader header;
     header.decode(hBuffer);
     cout << "Dumping packet " << uniqueId << " to " << filePath.c_str() << ", "
-         << "inputfile tellg: " << setw(10) << (int64_t) _file.tellg()-HDRLEN 
+         << "inputfile tellg: " << setw(10) << (kXR_int64) _file.tellg()-HDRLEN 
          << ", header: " << header << endl;
     
     // read packet, dump to file
@@ -64,13 +64,13 @@ int main(int argc, char* argv[])
         fstream _file;
         _file.open(fName, ios::in|ios::binary);
         _file.seekg(0, ios::end);
-        int64_t fSize = _file.tellg();
+        kXR_int64 fSize = _file.tellg();
         _file.seekg(XrdMonDecArgParser::_offset2Dump, ios::beg);
     
         if (XrdMonDecArgParser::_offset2Dump != 0 ) {
             dumpOnePacket(XrdMonDecArgParser::_offset2Dump, _file);
         } else {
-            int64_t packetNo = 0;
+            kXR_int64 packetNo = 0;
             while ( _file.tellg() < fSize ) {
                 dumpOnePacket(++packetNo, _file);
             }

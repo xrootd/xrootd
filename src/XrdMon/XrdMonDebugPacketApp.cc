@@ -46,10 +46,10 @@ TimePair
 decodeTime(const char* packet)
 {
     struct X {
-        int32_t endT;
-        int32_t begT;
+        kXR_int32 endT;
+        kXR_int32 begT;
     } x;
-    memcpy(&x, packet+sizeof(int64_t), sizeof(X));
+    memcpy(&x, packet+sizeof(kXR_int64), sizeof(X));
     return TimePair(ntohl(x.endT), ntohl(x.begT));
 }
 
@@ -92,12 +92,12 @@ prepareTimestamp(const char* packet,
 }
 
 void
-debugRWRequest(const char* packet, time_t timestamp, int64_t offset)
+debugRWRequest(const char* packet, time_t timestamp, kXR_int64 offset)
 {
     struct X {
-        int64_t tOffset;
-        int32_t tLen;
-        int32_t dictId;
+        kXR_int64 tOffset;
+        kXR_int32 tLen;
+        kXR_int32 dictId;
     } x;
     memcpy(&x, packet, sizeof(X));
     x.tOffset = ntohll(x.tOffset);
@@ -121,13 +121,13 @@ debugRWRequest(const char* packet, time_t timestamp, int64_t offset)
 void
 debugOpenClose(const char* packet, 
                time_t timestamp, 
-               int64_t offset, 
+               kXR_int64 offset, 
                const char* name)
 {
-    int32_t dictId;
+    kXR_int32 dictId;
     memcpy(&dictId, 
-           packet+sizeof(int64_t)+sizeof(int32_t), 
-           sizeof(int32_t));
+           packet+sizeof(kXR_int64)+sizeof(kXR_int32), 
+           sizeof(kXR_int32));
     dictId = ntohl(dictId);
 
     cout << "offset " << setw(5) << offset
@@ -138,13 +138,13 @@ debugOpenClose(const char* packet,
 void
 debugDictPacket(const char* packet, int len)
 {
-    int32_t x32;
-    memcpy(&x32, packet, sizeof(int32_t));
+    kXR_int32 x32;
+    memcpy(&x32, packet, sizeof(kXR_int32));
     dictid_t dictId = ntohl(x32);
     
     XrdMonDecDictInfo de(dictId, -1, 
-                         packet+sizeof(int32_t), 
-                         len-sizeof(int32_t));
+                         packet+sizeof(kXR_int32), 
+                         len-sizeof(kXR_int32));
     cout << "offset " << setw(5) << HDRLEN
          << " --> " << de << endl;
 }

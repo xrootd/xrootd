@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                          XrdMonCtrSenderInfo.cc                           */
+/*                            XrdMonSenderInfo.cc                            */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -12,17 +12,17 @@
 
 #include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonErrors.hh"
-#include "XrdMon/XrdMonCtrSenderInfo.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
 
 #include <stdio.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
-map<kXR_int64, kXR_unt16> XrdMonCtrSenderInfo::_ids;
-vector<char*>             XrdMonCtrSenderInfo::_hps;
+map<kXR_int64, kXR_unt16> XrdMonSenderInfo::_ids;
+vector<char*>             XrdMonSenderInfo::_hps;
 
 int
-XrdMonCtrSenderInfo::convert2Id(struct sockaddr_in sAddr)
+XrdMonSenderInfo::convert2Id(struct sockaddr_in sAddr)
 {
     // convert sAddr to myid. If not regiserted yet, 
     // register and also build <hostname>:<port> and register it
@@ -39,7 +39,7 @@ XrdMonCtrSenderInfo::convert2Id(struct sockaddr_in sAddr)
 }
 
 void
-XrdMonCtrSenderInfo::destructStatics()
+XrdMonSenderInfo::destructStatics()
 {
     int i, s = _hps.size();
     for (i=0 ; i<s ; ++i) {
@@ -48,7 +48,7 @@ XrdMonCtrSenderInfo::destructStatics()
 }
 
 char*
-XrdMonCtrSenderInfo::buildName(struct sockaddr_in sAddr)
+XrdMonSenderInfo::buildName(struct sockaddr_in sAddr)
 {
     char hostName[256];
     char servInfo[256];

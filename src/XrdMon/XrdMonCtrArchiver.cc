@@ -17,7 +17,7 @@
 #include "XrdMon/XrdMonCtrBuffer.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonCtrPacket.hh"
-#include "XrdMon/XrdMonCtrSenderInfo.hh"
+#include "XrdMon/XrdMonSenderInfo.hh"
 #include "XrdMon/XrdMonCtrWriter.hh"
 #include "XrdMon/XrdMonDecPacketDecoder.hh"
 #include <sys/time.h>
@@ -69,7 +69,7 @@ XrdMonCtrArchiver::operator()()
             delete p;
         } catch (XrdMonException& e) {
             if ( e.err() == SIG_SHUTDOWNNOW ) {
-                XrdMonCtrSenderInfo::destructStatics();
+                XrdMonSenderInfo::destructStatics();
                 return;
             }
             e.printItOnce();
@@ -91,7 +91,7 @@ XrdMonCtrArchiver::check4InactiveSenders()
         if ( _writers[i]->lastActivity() < allowed ) {
             cout << "No activity for " << MAX_INACTIVITY << " sec., "
                  << "closing all files for sender " 
-                 << XrdMonCtrSenderInfo::hostPort(i) << endl;
+                 << XrdMonSenderInfo::hostPort(i) << endl;
             _writers[i]->forceClose();
         }
     }
@@ -110,15 +110,15 @@ XrdMonCtrArchiver::archivePacket(XrdMonCtrPacket* p)
         return;
     }
 
-    kXR_unt16 senderId = XrdMonCtrSenderInfo::convert2Id(p->sender);
+    kXR_unt16 senderId = XrdMonSenderInfo::convert2Id(p->sender);
 
     if ( 0 != _decoder ) {
-        _decoder->operator()(senderId, header, p->buf);
+        _decoder->operator()(header, p->buf, senderId);
     }
     
     if ( _writers.size() <= senderId ) {
         _writers.push_back(
-            new XrdMonCtrWriter(XrdMonCtrSenderInfo::hostPort(senderId)));
+            new XrdMonCtrWriter(XrdMonSenderInfo::hostPort(senderId)));
     }
     _writers[senderId]->operator()(p->buf, header, _currentTime);
 }

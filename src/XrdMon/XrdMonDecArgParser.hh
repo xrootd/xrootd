@@ -13,6 +13,7 @@
 #ifndef XRDMONDECARGPARSER_HH
 #define XRDMONDECARGPARSER_HH
 
+#include "XProtocol/XPtypes.hh"
 #include <string>
 using std::string;
 #include <sys/time.h>
@@ -30,7 +31,7 @@ public:
     static int    _maxTraceLogSize;
     
     // these below used for dumpPackets app only 
-   static int64_t _offset2Dump;
+   static kXR_int64 _offset2Dump;
     
 private:
     static void convertTime(int nr, char* argv[]);

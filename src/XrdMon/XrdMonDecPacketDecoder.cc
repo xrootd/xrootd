@@ -46,18 +46,22 @@ XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir,
 {}
 
 void
-XrdMonDecPacketDecoder::init(dictid_t min, dictid_t max)
+XrdMonDecPacketDecoder::init(dictid_t min, 
+                             dictid_t max, 
+                             const string& senderHP)
 {
-    _sink.init(min, max);
+    _sink.init(min, max, senderHP);
 }    
 
 // true if up-to-time reached and decoding should stop
 void
-XrdMonDecPacketDecoder::operator()(kXR_unt16 senderId,
-                                   const XrdMonHeader& header,
-                                   const char* packet)
+XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
+                                   const char* packet,
+                                   kXR_unt16 senderId)
 {
-    _sink.setSenderId(senderId);
+    if ( senderId != INV_SENDERID ) {
+        _sink.setSenderId(senderId);
+    }
     
     int len = header.packetLen() - HDRLEN;
     cout << "header " << header << endl;
