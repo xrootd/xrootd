@@ -19,6 +19,8 @@
 /*                             i n c l u d e s                               */
 /*****************************************************************************/
 
+#include <stdlib.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>             // for size_t
 
@@ -32,7 +34,7 @@ class  XrdOssProxy : public XrdOssDF
 public:
 
   XrdOssProxy(const char *hostname, int port)
-             {hostname_ = hostname; port_ = port;}
+             {hostname_ = strdup(hostname); port_ = port;}
 
   /**
    * Open the file 'path' in the mode indicated by 'mode'.
@@ -78,9 +80,9 @@ public:
    */
   int     Close()                  {return client->close();};
 
-  XrdOssProxy() {};
-  XrdOssProxy(const char*) {};
-  ~XrdOssProxy()                   {delete client;};
+  XrdOssProxy() {hostname_ = 0;};
+  XrdOssProxy(const char *) {hostname_ = 0;};
+  ~XrdOssProxy() {if (hostname_) free(hostname_); delete client;};
 
   // Unsupported methods
   //
@@ -96,7 +98,7 @@ public:
 
 private:
   XrdXrClient *client;      // object to access remote file data 
-  const char  *hostname_;   // hostname of the remote xrootd
+  char        *hostname_;   // hostname of the remote xrootd
   int          port_;       // port number of xrootd
  
 };
