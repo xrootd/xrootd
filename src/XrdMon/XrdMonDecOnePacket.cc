@@ -58,7 +58,7 @@ XrdMonDecOnePacket::init(const char* buf, int bytesLeft, kXR_int64 fPos)
     _seq    = header.seqNo();
     _dictId = -1;
     _len    = header.packetLen();
-    _time   = header.time();
+    _stod   = header.stod();
     
     if ( header.packetType() == PACKET_TYPE_DICT ) {
         kXR_int32 x32;

@@ -49,6 +49,6 @@ operator<<(ostream& o, const XrdMonHeader& header)
     o << "seq: "   << setw(3) << (int) header.seqNo() 
       <<", type: " << static_cast<char>(header.packetType())
       << " len: "  << setw(4) << header.packetLen() 
-      << " time: " << header.time();
+      << " time: " << header.stod();
     return o;
 }

@@ -26,7 +26,7 @@ public:
     packet_t    packetType() const { return _header.code; }
     sequen_t    seqNo()      const { return _header.pseq; }
     packetlen_t packetLen()  const { return _header.plen; }
-    time_t      time()       const { return _header.stod; }
+    time_t      stod()       const { return _header.stod; }
     
     void decode(const char* packet);
 

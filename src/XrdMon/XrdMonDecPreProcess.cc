@@ -103,19 +103,19 @@ XrdMonDecPreProcess::processOnePacket(const char* buf,
         return -1;
     }
     
-    if ( packet.time() < _ignoreIfBefore ) {
+    if ( packet.stod() < _ignoreIfBefore ) {
         cout << "Ignoring " << packet 
-             << ", timestamp " << packet.time() << endl;
+             << ", timestamp " << packet.stod() << endl;
         XrdMonDecOnePacket::resetNextNr();
         return noBytesRead;
     }
     if ( packet.myNr() == 0 ) {
-        xrdStartTime = packet.time();
+        xrdStartTime = packet.stod();
         cout << "xrd start time " << xrdStartTime
              << " --> " << timestamp2string(xrdStartTime) << endl;
-    } else if ( packet.time() != xrdStartTime ) {
+    } else if ( packet.stod() != xrdStartTime ) {
         stringstream ss(stringstream::out);
-        ss << "xrd start time changed " << packet.time() 
+        ss << "xrd start time changed " << packet.stod() 
            << ", this is not supported";
         throw XrdMonException(ERR_INTERNALERR, ss.str());
     }   

@@ -36,7 +36,7 @@ public:
     kXR_int16 seq()     const { return _seq;  }
     dictid_t dictId() const { return _dictId; }
     packetlen_t len() const { return _len;  }    
-    time_t time()     const { return _time; }
+    time_t stod()     const { return _stod; }
     
     bool isLost()     const { return _seq == LOST; }
     
@@ -60,7 +60,7 @@ private:
     kXR_int16   _seq;    // seqNo, or info: lost/outoforder/emptyslot
     dictid_t    _dictId; // dict id, or -1
     packetlen_t _len;    // packet size
-    time_t      _time;   // when xrd server was started
+    time_t      _stod;   // when xrd server was started
     
     friend ostream& operator<<(ostream& o, const XrdMonDecOnePacket& p);
 };
