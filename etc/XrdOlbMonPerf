@@ -1,0 +1,82 @@
+#!/usr/local/bin/perl
+
+#Usage: XrdOlbMonPerf [<interval>]
+
+$rperf  = '/afs/slac.stanford.edu/package/perftools/@sys/bin/rperf';
+$rparg  = '-civ';
+$rhost  = `/bin/uname -n`; chomp($rhost);
+$enBps  = 131072000;
+$systype= `/bin/uname`; chomp($systype);
+$Parent = getppid();
+$PID    = 0;
+
+# Get memory for Solaris machines
+#
+  if ($systype eq 'SunOS')
+     {$resp = `/etc/prtconf | grep Memory`;
+      ($TotMem) = $resp =~ /.+:\s*(\d+)/s;
+      $TotMem *= 1024*1024;
+     }
+
+# Get the interval
+#
+  if (!($monint = shift)) {$monint = 60;}
+     else {Log("Invalid interval, '$monint'") if !($monint =~ /^\d+$/);}
+
+# Start up the reprf command
+#
+  Log("Unable to start $rperf; $!")
+      if !defined($PID = open(CMDFD, "$rperf $rparg $rhost $monint |"));
+
+# Discard the first three lines of output
+#
+  for ($i = 0; $i < 3; $i++) {$resp = <CMDFD>;}
+
+# Now just continue getting the input. The columns should be:
+# %cpu            loadavg (nrun) pg pg sw sw  cx  in   i  i  o  o co
+#  us  ni  sy  id   1m   5m  15m in  o in  o  sw  tr  pk er pk er ll
+#   0   1   2   3    4    5    6  7  8  9 10  11  12  13 14 15 16 17
+#
+  $| = 1;
+  while($resp = <CMDFD>)
+       {if (!kill(0, $Parent))
+           {Log("Parent process, $Parent, has disappeared; exiting.");
+            kill(9, $PID);
+            exit(0);
+           }
+        @perf = split(' ', $resp);
+        $idle = int(($perf[3] > 100 ? 0 : 100 - $perf[3]));
+        $load = int($perf[5]*10);
+        $load = 100 if $load > 100;
+        $pgio = int(($perf[7] + $perf[8])/300*100);
+        $pgio = 100 if $pgio > 100;
+        $ipio = int(($perf[13] + $perf[15])*1000/$enBps);
+        $ipio = 100 if $ipio > 100;
+        $mem  = getmload($systype);
+
+        print "$load $idle $mem $pgio $ipio\n";
+       }
+
+sub getmload {my($stype) = @_; my($resp, @rv, $used, $load);
+    if ($stype eq 'Linux')
+       {$resp = `/usr/bin/free`;
+        ($TotMem, $used) = $resp =~ /.*Mem:\s+(\d+)\s+(\d+)/s;
+       } else {
+        $resp = `/bin/vmstat`;
+        @rv = split('\n', $resp);
+        @rv = split(' ', $rv[2], 6);
+        $used = $TotMem - $rv[4]*1024;
+       }
+    return 0 if !$TotMem;
+    $load = int($used/$TotMem*100);
+    return ($load > 100 ? 100 : $load);
+}
+
+sub Log {my($msg, $ret) = @_;
+
+    print STDERR "XrdOlbMonPerf: $msg\n";
+    system('/bin/logger', '-p', 'daemon.notice', "XedOlbMonPerf: $msg");
+    return 0 if $ret;
+    kill(9, $PID) if $PID;
+    exit(1);
+}

@@ -88,7 +88,7 @@ while test -n "$1"; do
 
 # find the process number assigned to the XRD
 #
-  set -- `/bin/ps -e -o pid -o args | /bin/grep '/opt/xrootd/bin/.../xrootd' | /bin/grep -v grep | /bin/awk '{print $1}'`
+  set -- `/bin/ps -e -o pid -o args | /bin/grep /opt/xrootd/ | /bin/grep /bin/xrootd | /bin/grep -v grep | /bin/awk '{print $1}'`
 
   if [ -z "$1" ]; then
      msg="Unable to find XRD process number"

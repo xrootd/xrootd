@@ -78,7 +78,7 @@ while test -n "$1"; do
 
 # find the process number assigned to the OLB
 #
-  set -- `/bin/ps -e -o pid -o args | /bin/grep '/opt/olbd/bin/.../olbd' | /bin/grep -v grep | /bin/awk '{print $1}'`
+  set -- `/bin/ps -e -o pid -o args | /bin/grep /opt/xrootd/ | /bin/grep /bin/olbd | /bin/grep -v grep | /bin/awk '{print $1}'`
 
   if [ -z "$1" ]; then
      Emsg "Unable to find OLB process number; is it running?"
