@@ -31,8 +31,8 @@ const char *XrdConfigCVSID = "$Id$";
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdConfig.hh"
+#include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
-#include "Xrd/XrdNetwork.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdProtocol.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -40,10 +40,12 @@ const char *XrdConfigCVSID = "$Id$";
 #include "Xrd/XrdTrace.hh"
 #include "Xrd/XrdInfo.hh"
 
+#include "XrdNet/XrdNetDNS.hh"
+#include "XrdNet/XrdNetSecurity.hh"
+
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucSecurity.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTimer.hh"
 
@@ -55,8 +57,8 @@ const char *XrdConfigCVSID = "$Id$";
 
 extern XrdConfig         XrdConfig;
 
-extern XrdNetwork       *XrdNetTCP;
-extern XrdNetwork       *XrdNetADM;
+extern XrdInet          *XrdNetTCP;
+extern XrdInet          *XrdNetADM;
 
 extern XrdScheduler      XrdSched;
 
@@ -128,11 +130,13 @@ time_t midnite;
   
 XrdConfig::XrdConfig(void)
 {
+   static sockaddr myIPAddr;
    char *dnp;
 
 // Preset all variables with common defaults
 //
-   myName   = XrdNetwork::FullHostName();
+   myName   = XrdNetDNS::getHostName();
+              XrdNetDNS::getHostAddr(myName, &myIPAddr);
    PortTCP  = 0;
    PortUDP  = 0;
    ConfigFN = 0;
@@ -155,6 +159,7 @@ XrdConfig::XrdConfig(void)
 
    ProtInfo.Format   = XrdFORMATB;
    ProtInfo.myName   = myName;
+   ProtInfo.myAddr   = &myIPAddr;
    ProtInfo.ConnOptn = -4;     // Num of connections to optimize for (1/4*max)
    ProtInfo.ConnLife = 60*60;  // Time   of connections to optimize for.
    ProtInfo.ConnMax  = -1;     // Max       connections (fd limit)
@@ -376,7 +381,7 @@ int XrdConfig::ASocket(const char *path, const char *dname, const char *fname,
 
 // Create an admin network
 //
-   XrdNetADM = new XrdNetwork(&XrdLog);
+   XrdNetADM = new XrdInet(&XrdLog);
    if (myDomain) XrdNetADM->setDomain((const char *)myDomain);
 
 // Bind the netwok to the named socket
@@ -561,12 +566,11 @@ int XrdConfig::Setup(char *dfltp)
 
 // Setup network connections now
 //
-   if (!PortTCP && !(PortTCP = XrdNetwork::findPort(dfltp)))
+   if (!PortTCP && !(PortTCP = XrdNetDNS::getPort(dfltp, "tcp")))
       PortTCP = XrdDEFAULTPORT;
-   ProtInfo.NetTCP = XrdNetTCP = new XrdNetwork(&XrdLog, Police);
+   ProtInfo.NetTCP = XrdNetTCP = new XrdInet(&XrdLog, Police);
    if (XrdNetTCP->Bind(PortTCP, "tcp")) return 1;
-   if (Net_Blen) XrdNetTCP->setWindow(Net_Blen);
-   if (Net_Opts) XrdNetTCP->setOption(Net_Opts);
+   if (Net_Opts | Net_Blen) XrdNetTCP->setDefaults(Net_Opts, Net_Blen);
    if (myDomain) XrdNetTCP->setDomain((const char *)myDomain);
    ProtInfo.Port = PortTCP;
 
@@ -687,7 +691,7 @@ int XrdConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "allow target name not specified"); return 1;}
 
-    if (!Police) Police = new XrdOucSecurity();
+    if (!Police) Police = new XrdNetSecurity();
     if (ishost)  Police->AddHost(val);
        else      Police->AddNetGroup(val);
 
@@ -850,7 +854,7 @@ int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
       val = Config.GetWord();
      }
 
-     Net_Opts = XRDNET_NODELAY | (V_keep ? XRDNET_KEEPALIVE : 0);
+     Net_Opts = (V_keep ? XRDNET_KEEPALIVE : 0);
      return 0;
 }
   
@@ -926,7 +930,7 @@ int XrdConfig::yport(XrdOucError *eDest, const char *ptype, char *val)
 
     if (isdigit(*val))
        {if (XrdOuca2x::a2i(*eDest,(const char *)invp,val,&pnum,1,65535)) return 0;}
-       else if (!(pnum = XrdNetwork::findPort(val, "tcp")))
+       else if (!(pnum = XrdNetDNS::getPort(val, "tcp")))
                {eDest->Emsg("Config", (const char *)invs, val);
                 return 0;
                }
@@ -1002,6 +1006,8 @@ char *XrdConfig::xprotparms(XrdOucError *eDest, XrdOucStream &Config)
            {val++; eoc = 0; braces = 1;
             if (*val == '\0') val = Config.GetWord();
            }
+        eDest->Emsg("Config","Warning! Protocol directive brace notation is "
+                    "deprecated and will not be supported in the next release.");
         do {while(val)
                  {tlen = strlen(val);
                   if (braces && val[tlen-1] == '}')

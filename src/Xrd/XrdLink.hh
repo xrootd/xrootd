@@ -12,7 +12,7 @@
 
 //         $Id$
 
-#include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <time.h>
@@ -23,12 +23,20 @@
 #include "Xrd/XrdObject.hh"
 #include "Xrd/XrdProtocol.hh"
   
-class XrdBuffer;
-class XrdPoll;
+/******************************************************************************/
+/*                       X r d L i n k   O p t i o n s                        */
+/******************************************************************************/
+  
+#define XRDLINK_RDLOCK  0x0001
+#define XRDLINK_NOCLOSE 0x0002
 
 /******************************************************************************/
-/*                        C l a s s   x r d _ L i n k                         */
+/*                      C l a s s   D e f i n i t i o n                       */
 /******************************************************************************/
+  
+class XrdNetBuffer;
+class XrdNetPeer;
+class XrdPoll;
 
 class XrdLink : XrdJob
 {
@@ -40,8 +48,7 @@ friend class XrdPollDev;
 
 static XrdObjectQ<XrdLink> LinkStack;
 
-static XrdLink *Alloc(int fd, sockaddr_in *ip, char *host=0,
-                       XrdBuffer *bp=0);
+static XrdLink *Alloc(XrdNetPeer &Peer, int opts=0);
 
 int           Close();
 
@@ -57,7 +64,7 @@ char         *ID;      // This is referenced a lot
 
 int           isConnected() {return FD >= 0;}
 
-const char   *Name(sockaddr_in *ipaddr=0)
+const char   *Name(sockaddr *ipaddr=0)
                      {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(ipaddr));
                       return (const char *)Lname;
                      }
@@ -121,23 +128,28 @@ static XrdOucMutex   statsMutex;
 
 // Identification section
 //
-struct sockaddr_in  InetAddr;
+struct sockaddr     InetAddr;
 char                Uname[24];  // Uname and Lname must be adjacent!
 char                Lname[232];
 
-XrdOucMutex         IOMutex;
+XrdOucMutex         opMutex;
+XrdOucMutex         rdMutex;
+XrdOucMutex         wrMutex;
 XrdOucSemaphore     IOSemaphore;
 XrdLink            *Next;
-XrdBuffer          *udpbuff;
+XrdNetBuffer       *udpbuff;
 XrdProtocol        *Protocol;
 XrdProtocol        *ProtoAlt;
 XrdPoll            *Poller;
 struct pollfd      *PollEnt;
 char               *Etext;
 int                 FD;
+int                 Instance;
 time_t              conTime;
 int                 InUse;
 int                 doPost;
+char                LockReads;
+char                KeepFD;
 char                isEnabled;
 char                isIdle;
 char                isFree;

@@ -26,9 +26,11 @@
 class XrdOucError;
 class XrdOucTrace;
 class XrdBuffManager;
-class XrdNetwork;
+class XrdInet;
 class XrdScheduler;
 class XrdStats;
+
+struct sockaddr;
 
 class XrdProtocol_Config
 {
@@ -37,7 +39,7 @@ public:
 // The following pointers may be copied; they are stable.
 //
 XrdOucError    *eDest;       // Stable -> Error Message/Logging Handler
-XrdNetwork     *NetTCP;      // Stable -> Network Object
+XrdInet        *NetTCP;      // Stable -> Network Object
 XrdBuffManager *BPool;       // Stable -> Buffer Pool Manager
 XrdScheduler   *Sched;       // Stable -> System Scheduler
 XrdStats       *Stats;       // Stable -> System Statistics
@@ -49,6 +51,7 @@ char            *ConfigFN;     // -> Configuration file
 int              Format;       // Binary format of this server
 int              Port;         // Port number
 char            *myName;       // Host name
+struct sockaddr *myAddr;       // Host address
 int              ConnOptn;     // Number of connections to optimize for.
 int              ConnLife;     // Life   of connections to optimize for.
 int              ConnMax;      // Max       connections

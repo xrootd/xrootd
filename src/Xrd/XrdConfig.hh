@@ -14,7 +14,7 @@
 
 #include "Xrd/XrdProtocol.hh"
 
-class XrdOucSecurity;
+class XrdNetSecurity;
 class XrdOucStream;
 class XrdConfigProt;
 
@@ -54,7 +54,7 @@ int   yport(XrdOucError *edest, const char *ptyp, char *pval);
 static const char  *TraceID;
 
 XrdProtocol_Config  ProtInfo;
-XrdOucSecurity     *Police;
+XrdNetSecurity     *Police;
 char               *myName;
 char               *myDomain;
 char               *AdminPath;

@@ -12,26 +12,21 @@
 
 const char *XrdLinkCVSID = "$Id$";
 
+#include <poll.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-#ifdef __linux__
-#include <sys/poll.h>
-#else
-#include <poll.h>
-#endif
-
-
+#include "XrdNet/XrdNetDNS.hh"
+#include "XrdNet/XrdNetPeer.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucTimer.hh"
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
-#include "Xrd/XrdNetwork.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdScheduler.hh"
 #define  TRACELINK this
@@ -131,14 +126,20 @@ void XrdLink::Reset()
   BytesOut = BytesIn = 0;
   doPost   = 0;
   isFree   = 0;
+  LockReads= 0;
+  KeepFD   = 0;
+  udpbuff  = 0;
+  Instance = 0;
 }
 
 /******************************************************************************/
 /*                                 A l l o c                                  */
 /******************************************************************************/
   
-XrdLink *XrdLink::Alloc(int fd, sockaddr_in *ip, char *host, XrdBuffer *bp)
+XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
 {
+   static XrdOucMutex instMutex;
+   static int         myInstance = 0;
    XrdLink *lp;
    char *unp, buff[16];
    int bl;
@@ -148,23 +149,40 @@ XrdLink *XrdLink::Alloc(int fd, sockaddr_in *ip, char *host, XrdBuffer *bp)
    if ((lp = LinkStack.Pop())) lp->Reset();
       else lp = new XrdLink();
 
+// Establish the instance number of this link. This is will prevent us from
+// sending asynchronous responses to the wrong client when the file descriptor
+// gets reused for connections to the same host.
+//
+   instMutex.Lock();
+   lp->Instance = myInstance++;
+   instMutex.UnLock();
+
 // Establish the address and connection type of this link
 //
-   memcpy((void *)&(lp->InetAddr),(const void *)ip,sizeof(struct sockaddr_in));
-   if (!host) XrdNetwork::getHostName(*ip, lp->Lname, sizeof(lp->Lname));
-      else strlcpy(lp->Lname, host, sizeof(lp->Lname));
-   bl = sprintf(buff, "?:%d", fd);
+   memcpy((void *)&(lp->InetAddr), (const void *)&Peer.InetAddr,
+          sizeof(struct sockaddr));
+   if (Peer.InetName) strlcpy(lp->Lname, Peer.InetName, sizeof(lp->Lname));
+      else {char *host = XrdNetDNS::getHostName(Peer.InetAddr);
+            strlcpy(lp->Lname, host, sizeof(lp->Lname));
+            free(host);
+           }
+   bl = sprintf(buff, "?:%d", Peer.fd);
    unp = lp->Lname - bl - 1;
    strncpy(unp, buff, bl);
    lp->ID = unp;
-   lp->FD = fd;
-   lp->udpbuff = bp;
+   lp->FD = Peer.fd;
+   lp->udpbuff = Peer.InetBuff;
+
+// Set options as needed
+//
+   lp->LockReads = (0 != (opts & XRDLINK_RDLOCK));
+   lp->KeepFD    = (0 != (opts & XRDLINK_NOCLOSE));
 
 // Insert this link into the link table
 //
    LTMutex.Lock();
-   LinkTab[fd] = lp;
-   if (fd > LTLast) LTLast = fd;
+   LinkTab[Peer.fd] = lp;
+   if (Peer.fd > LTLast) LTLast = Peer.fd;
    LTMutex.UnLock();
 
 // Return the link
@@ -186,14 +204,14 @@ int XrdLink::Close()
 
 // Multiple protocols may be bound to this link, figure it out here
 //
-   IOMutex.Lock();
+   opMutex.Lock();
    InUse--;
-   if (InUse > 0) {IOMutex.UnLock(); return 0;}
+   if (InUse > 0) {opMutex.UnLock(); return 0;}
 
 // Add up the statistic for this link
 //
    syncStats(&csec);
-   IOMutex.UnLock();
+   opMutex.UnLock();
 
 // Remove ourselves from the poll table and then from the Link table
 //
@@ -215,11 +233,19 @@ int XrdLink::Close()
               }
    XrdLog.Emsg("Link",(const char *)ID, (char *)"disconnected after", sfxp);
 
+// Close the file descriptor if it isn't being shared
+//
+   if (FD >= 0)
+      {if (KeepFD) rc = 0;
+          else rc = (close(FD) < 0 ? errno : 0);
+       FD = -1;
+      }
+
 // Clean this link up, we don't need a lock now because no one is using it
 //
-   if (FD >= 0)  {rc = (close(FD) < 0 ? errno : 0); FD = -1;}
    if (Protocol) {Protocol->Recycle(); Protocol = 0;}
    if (ProtoAlt) {ProtoAlt->Recycle(); ProtoAlt = 0;}
+   if (udpbuff)  {udpbuff->Recycle();  udpbuff  = 0;}
    InUse    = 0;
    if (rc) XrdLog.Emsg("Link", rc, "close", ID);
    if (!isFree) {isFree = 1; LinkStack.Push(&LinkLink);}
@@ -291,24 +317,28 @@ XrdLink *XrdLink::nextLink(int &nextFD)
   
 int XrdLink::Peek(char *Buff, long Blen, int timeout)
 {
+   XrdOucMutexHelper theMutex;
    struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
    ssize_t mlen;
    int retc;
 
-   IOMutex.Lock();
+// Lock the read mutex if we need to, the helper will unlock it upon exit
+//
+   if (LockReads) theMutex.Lock(&rdMutex);
+
+// Wait until we can actually read something
+//
    isIdle = 0;
    do {retc = poll(&polltab, 1, timeout);} while(retc < 0 && errno == EINTR);
    if (retc != 1)
-      {IOMutex.UnLock();
-       if (retc == 0) return 0;
+      {if (retc == 0) return 0;
        return XrdLog.Emsg("Link", -errno, "poll", ID);
       }
 
 // Verify it is safe to read now
 //
    if (!(polltab.revents & (POLLIN|POLLRDNORM)))
-      {IOMutex.UnLock();
-       XrdLog.Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
+      {XrdLog.Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
                            (char *)"polling", ID);
        return -1;
       }
@@ -317,7 +347,6 @@ int XrdLink::Peek(char *Buff, long Blen, int timeout)
 //
    do {mlen = recv(FD, Buff, Blen, MSG_PEEK);}
       while(mlen < 0 && errno == EINTR);
-   IOMutex.UnLock();
 
 // Return the result
 //
@@ -341,10 +370,10 @@ int XrdLink::Recv(char *Buff, long Blen)
 // Note that we will read only as much as is queued. Use Recv() with a
 // timeout to receive as much data as possible.
 //
-   IOMutex.Lock();
+   if (LockReads) rdMutex.Lock();
    isIdle = 0;
    do {rlen = read(FD, Buff, Blen);} while(rlen < 0 && errno == EINTR);
-   IOMutex.UnLock();
+   if (LockReads) rdMutex.UnLock();
 
    if (rlen >= 0) return (int)rlen;
    XrdLog.Emsg("Link", errno, "receive from", ID);
@@ -355,19 +384,22 @@ int XrdLink::Recv(char *Buff, long Blen)
 
 int XrdLink::Recv(char *Buff, long Blen, int timeout)
 {
+   XrdOucMutexHelper theMutex;
    struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
    ssize_t rlen, totlen = 0;
    int retc;
 
+// Lock the read mutex if we need to, the helper will unlock it upon exit
+//
+   if (LockReads) theMutex.Lock(&rdMutex);
+
 // Wait up to timeout milliseconds for data to arrive
 //
-   IOMutex.Lock();
    isIdle = 0;
    while(Blen > 0)
         {do {retc = poll(&polltab,1,timeout);} while(retc < 0 && errno == EINTR);
          if (retc != 1)
-            {IOMutex.UnLock();
-             if (retc == 0)
+            {if (retc == 0)
                 {tardyCnt++;
                  if (totlen  && (++stallCnt & 0xff) == 1)
                     XrdLog.Emsg("Link", ID, (char *)"read timed out");
@@ -379,8 +411,7 @@ int XrdLink::Recv(char *Buff, long Blen, int timeout)
          // Verify it is safe to read now
          //
          if (!(polltab.revents & (POLLIN|POLLRDNORM)))
-            {IOMutex.UnLock();
-             XrdLog.Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
+            {XrdLog.Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
                                  (char *)"polling", ID);
              return -1;
             }
@@ -390,13 +421,11 @@ int XrdLink::Recv(char *Buff, long Blen, int timeout)
          //
          do {rlen = recv(FD, Buff, Blen, 0);} while(rlen < 0 && errno == EINTR);
          if (rlen <= 0)
-            {IOMutex.UnLock();
-             if (!rlen) return -ENODATA;
+            {if (!rlen) return -ENODATA;
              return XrdLog.Emsg("Link", -errno, "receive from", ID);
             }
          BytesIn += rlen; totlen += rlen; Blen -= rlen; Buff += rlen;
         }
-   IOMutex.UnLock();
 
    return totlen;
 }
@@ -411,7 +440,7 @@ int XrdLink::Send(char *Buff, long Blen)
 
 // Get a lock
 //
-   IOMutex.Lock();
+   wrMutex.Lock();
    isIdle = 0;
 
 // Write the data out
@@ -425,7 +454,7 @@ int XrdLink::Send(char *Buff, long Blen)
 
 // All done
 //
-   IOMutex.UnLock();
+   wrMutex.UnLock();
    if (retc >= 0) return Blen;
    XrdLog.Emsg("Link", errno, "send to", ID);
    return -1;
@@ -444,7 +473,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
 
 // Get a lock
 //
-   IOMutex.Lock();
+   wrMutex.Lock();
    isIdle = 0;
    BytesOut += bytes;
 
@@ -465,7 +494,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
 
 // All done
 //
-   IOMutex.UnLock();
+   wrMutex.UnLock();
    if (retc >= 0) return bytes;
    XrdLog.Emsg("Link", errno, "send to", ID);
    return -1;
@@ -477,10 +506,10 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, long bytes)
 
 void XrdLink::setEtext(const char *text)
 {
-     IOMutex.Lock();
+     opMutex.Lock();
      if (Etext) free(Etext);
      Etext = (Etext ? strdup(text) : 0);
-     IOMutex.UnLock();
+     opMutex.UnLock();
 }
   
 /******************************************************************************/
@@ -539,10 +568,10 @@ void XrdLink::Serialize()
 // link so that we can safely run in psuedo single thread mode for critical
 // functions.
 //
-   IOMutex.Lock();
-   if (InUse <= 1) IOMutex.UnLock();
+   opMutex.Lock();
+   if (InUse <= 1) opMutex.UnLock();
       else {doPost++;
-            IOMutex.UnLock();
+            opMutex.UnLock();
             IOSemaphore.Wait();
            }
 }
@@ -556,10 +585,10 @@ XrdProtocol *XrdLink::setProtocol(XrdProtocol *pp)
 
 // Set new protocol.
 //
-   IOMutex.Lock();
+   opMutex.Lock();
    XrdProtocol *op = Protocol;
    Protocol = pp; 
-   IOMutex.UnLock();
+   opMutex.UnLock();
    return op;
 }
 
@@ -569,12 +598,12 @@ XrdProtocol *XrdLink::setProtocol(XrdProtocol *pp)
   
 void XrdLink::setRef(int use)
 {
-   IOMutex.Lock();
+   opMutex.Lock();
    InUse += use;
    if (InUse < 1)
       {char *etp = (InUse < 0 ? (char *)"use count underflow" : 0);
        InUse = 1;
-       IOMutex.UnLock();
+       opMutex.UnLock();
        setEtext(etp);
        Close();
       }
@@ -583,7 +612,7 @@ void XrdLink::setRef(int use)
        IOSemaphore.Post();
        TRACE(CONN, "setRef posted link fd " <<FD);
       }
-   IOMutex.UnLock();
+   opMutex.UnLock();
 }
  
 /******************************************************************************/
@@ -626,17 +655,22 @@ int XrdLink::Stats(char *buff, int blen, int do_sync)
 void XrdLink::syncStats(int *ctime)
 {
 
-// If this is dynamic, get the IOMutex lock
+// If this is dynamic, get the opMutex lock
 //
-   if (!ctime) IOMutex.Lock();
+   if (!ctime) opMutex.Lock();
 
-// Either the caller has the IOMutex or this is called out of close
+// Either the caller has the opMutex or this is called out of close. In either
+// case, we need to get the read
 //
    statsMutex.Lock();
+   rdMutex.Lock();
    LinkBytesIn  += BytesIn;
-   LinkBytesOut += BytesOut;
    LinkTimeOuts += tardyCnt;
    LinkStalls   += stallCnt;
+   rdMutex.UnLock();
+   wrMutex.Lock();
+   LinkBytesOut += BytesOut;
+   wrMutex.UnLock();
    if (ctime)
       {*ctime = time(0) - conTime;
        LinkConTime += *ctime;
@@ -652,7 +686,7 @@ void XrdLink::syncStats(int *ctime)
 //
    BytesIn = BytesOut = 0;
    tardyCnt = 0;
-   if (!ctime) IOMutex.UnLock();
+   if (!ctime) opMutex.UnLock();
 }
  
 /******************************************************************************/
@@ -674,10 +708,10 @@ void XrdLinkScan::idleScan()
    for (i = 0; i <= ltlast; i++)
        {if (!(lp = XrdLink::LinkTab[i])) continue;
         lnum++;
-        lp->IOMutex.Lock();
+        lp->opMutex.Lock();
         if (lp->isIdle) tmo++;
         lp->isIdle++;
-        if ((int)(lp->isIdle) < idleTicks) {lp->IOMutex.UnLock(); continue;}
+        if ((int)(lp->isIdle) < idleTicks) {lp->opMutex.UnLock(); continue;}
         XrdLink::LTMutex.UnLock();
         lp->isIdle = 0;
         if (!(lp->Poller) || !(lp->isEnabled))
@@ -686,7 +720,7 @@ void XrdLinkScan::idleScan()
                    {lp->Poller->Disable(lp, "idle timeout");
                     tmod++;
                    }
-        lp->IOMutex.UnLock();
+        lp->opMutex.UnLock();
         XrdLink::LTMutex.Lock();
        }
    XrdLink::LTMutex.UnLock();

@@ -13,27 +13,27 @@ include ../GNUmake.env
 SOURCES = \
         XrdBuffer.cc      \
         XrdConfig.cc      \
+        XrdInet.cc        \
+        XrdInfo.cc        \
         XrdLink.cc        \
         XrdMain.cc        \
-        XrdNetwork.cc     \
         XrdPoll.cc        \
         XrdProtocol.cc    \
         XrdScheduler.cc   \
-        XrdStats.cc       \
-        XrdInfo.cc
+        XrdStats.cc
 
   
 OBJECTS = \
         $(OBJDIR)/XrdBuffer.o      \
         $(OBJDIR)/XrdConfig.o      \
+        $(OBJDIR)/XrdInet.o        \
+        $(OBJDIR)/XrdInfo.o        \
         $(OBJDIR)/XrdLink.o        \
         $(OBJDIR)/XrdMain.o        \
-        $(OBJDIR)/XrdNetwork.o     \
         $(OBJDIR)/XrdPoll.o        \
         $(OBJDIR)/XrdProtocol.o    \
         $(OBJDIR)/XrdScheduler.o   \
-        $(OBJDIR)/XrdStats.o       \
-        $(OBJDIR)/XrdInfo.o
+        $(OBJDIR)/XrdStats.o
 
 LIBRARY = $(LIBDIR)/libXrd.a
 
@@ -43,6 +43,7 @@ TARGETS = $(LIBRARY)
 #                           S e a r c h   P a t h s                           -
 #------------------------------------------------------------------------------#
 
+vpath XrdNet% ../XrdNet
 vpath XrdOuc% ../XrdOuc
 
 #------------------------------------------------------------------------------#
@@ -74,38 +75,43 @@ $(OBJDIR)/XrdBuffer.o:    XrdBuffer.cc   XrdBuffer.hh     XrdTrace.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBuffer.o XrdBuffer.cc
 
 $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
-                       XrdLink.hh        XrdNetwork.hh     XrdObject.hh  \
+                       XrdLink.hh        XrdInet.hh        XrdObject.hh  \
                        XrdPoll.hh        XrdProtocol.hh    XrdScheduler.hh \
                        XrdStats.hh       XrdTrace.hh       XrdInfo.hh    \
                        XrdOuca2x.hh      XrdOucError.hh    XrdOucLogger.hh   \
-                       XrdOucSecurity.hh XrdOucStream.hh   XrdOucTrace.hh \
-                       XrdOucTimer.hh    ../XrdVersion.hh  XrdConfig.cc
+                       XrdOucStream.hh   XrdOucTrace.hh    XrdOucTimer.hh \
+                       XrdNetSecurity.hh XrdNetDNS.hh      XrdConfig.cc \
+                       ../XrdVersion.hh
 	@echo Compiling XrdConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdConfig.o XrdConfig.cc
 
+$(OBJDIR)/XrdInet.o:    XrdInet.hh         XrdInet.cc   \
+                        XrdLink.hh         XrdTrace.hh  \
+                        XrdOucError.hh     XrdOucLogger.hh  XrdOucTrace.hh \
+                        XrdNet.hh          XrdNetOpts.hh    XrdNetPeer.hh
+	@echo Compiling XrdInet.cc
+	@$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInet.o XrdInet.cc
+
+$(OBJDIR)/XrdInfo.o: XrdInfo.hh
+	@echo Compiling XrdInfo.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInfo.o XrdInfo.cc
+
 $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
-                       XrdNetwork.hh    XrdObject.hh       XrdObject.icc  \
+                       XrdObject.hh     XrdObject.icc  \
                        XrdProtocol.hh   XrdScheduler.hh    XrdTrace.hh  \
                        XrdOucError.hh   XrdOucPlatform.hh  XrdOucPthread.hh \
-                       XrdOucTrace.hh   XrdOucTimer.hh     XrdLink.cc
+                       XrdOucTrace.hh   XrdOucTimer.hh     XrdLink.cc \
+                       XrdNetDNS.hh     XrdNetPeer.hh
 	@echo Compiling XrdLink.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
 
-$(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdNetwork.hh  \
+$(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdInet.hh \
                        XrdPoll.hh      XrdScheduler.hh   XrdTrace.hh    \
                        XrdOucError.hh  XrdOucLogger.hh   XrdOucPthread.hh \
                        XrdOucTrace.hh    \
                        XrdMain.cc
 	@echo Compiling XrdMain.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdMain.o XrdMain.cc
-
-$(OBJDIR)/XrdNetwork.o: XrdBuffer.hh       XrdLink.hh       XrdNetwork.hh   \
-                        XrdTrace.hh  \
-                        XrdOucError.hh     XrdOucLogger.hh  XrdOucPlatform.hh \
-                        XrdOucPthread.hh \
-                        XrdOucSecurity.hh  XrdOucTrace.hh   XrdNetwork.cc
-	@echo Compiling XrdNetwork.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdNetwork.o XrdNetwork.cc
 
 $(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh       XrdProtocol.hh   \
                        XrdPoll.cc       XrdPollDev.hh    XrdPollDev.icc \
@@ -131,7 +137,3 @@ $(OBJDIR)/XrdStats.o: XrdBuffer.hh     XrdLink.hh     XrdPoll.hh \
                       XrdOucPthread.hh ../XrdVersion.hh
 	@echo Compiling XrdStats.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdStats.o XrdStats.cc
-
-$(OBJDIR)/XrdInfo.o: XrdInfo.hh
-	@echo Compiling XrdInfo.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInfo.o XrdInfo.cc

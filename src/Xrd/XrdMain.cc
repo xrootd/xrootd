@@ -54,8 +54,8 @@ Where:
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdConfig.hh"
+#include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
-#include "Xrd/XrdNetwork.hh"
 #include "Xrd/XrdScheduler.hh"
 #define  TRACELINK newlink
 #include "Xrd/XrdTrace.hh"
@@ -70,8 +70,8 @@ Where:
 
        XrdConfig          XrdConf;
 
-       XrdNetwork        *XrdNetTCP = 0;
-       XrdNetwork        *XrdNetADM = 0;
+       XrdInet           *XrdNetTCP = 0;
+       XrdInet           *XrdNetADM = 0;
 
        XrdScheduler       XrdSched;
 
