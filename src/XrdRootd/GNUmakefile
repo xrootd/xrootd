@@ -6,9 +6,9 @@
   
 include ../GNUmake.env
 
-LFLAGS  = -L$(LIBDIR) -lXrd -lXrdOuc $(LDSO)
+LFLAGS  = -L$(LIBDIR) -lXrdOuc $(LDSO)
 
-LIBDEPS = $(LIBDIR)/libXrd.a $(LIBDIR)/libXrdOuc.a
+LIBDEPS = $(LIBDIR)/libXrdOuc.a
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
