@@ -30,7 +30,7 @@ public:
     }
     static hp_t id2HostPort(senderid_t id) {
         if ( id >= _hps.size() ) {
-            return hp_t("Error, invalid offset", 0);
+            return hp_t((char*) "Error, invalid offset", 0);
         }
         return _hps[id];
     }
