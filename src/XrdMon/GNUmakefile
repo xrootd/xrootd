@@ -33,8 +33,8 @@ OBJECTS_LIB_DEC =                             \
         $(OBJDIR)/XrdMonDecPacketDecoder.o    \
 	$(OBJDIR)/XrdMonDecPreProcess.o       \
         $(OBJDIR)/XrdMonDecSink.o             \
-	$(OBJDIR)/XrdMonDecTraceInfo.o
-
+	$(OBJDIR)/XrdMonDecTraceInfo.o        \
+        $(OBJDIR)/XrdMonDecUserInfo.o         \
 
 OBJECTS_LIB_SND =                             \
 	$(OBJDIR)/XrdMonSndCoder.o            \

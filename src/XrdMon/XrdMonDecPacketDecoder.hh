@@ -59,6 +59,8 @@ private:
                            int packetLen);
     void decodeDictPacket(const char* packet, 
                           int packetLen);
+    void decodeUserPacket(const char* packet, 
+                          int packetLen);
     TimePair decodeTime(const char* packet);
     void decodeRWRequest(const char* packet, 
                          time_t timestamp);

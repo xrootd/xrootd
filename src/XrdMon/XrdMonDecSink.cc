@@ -40,7 +40,8 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
       _traceLogNumber(0),
       _maxTraceLogSize(maxTraceLogSize),
       _lastSeq(0xFF),
-      _uniqueId(1),
+      _uniqueDictId(1),
+      _uniqueUserId(1),
       _logNameSeqId(0),
       _senderId(65500) // make it invalid, so that _senderHost is initialized
 {
@@ -72,7 +73,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
         }
     }
 
-    loadUniqueIdAndSeq();
+    loadUniqueIdsAndSeq();
 
     if ( 0 != rtLogDir ) {
         string rtLogName(rtLogDir);
@@ -140,7 +141,7 @@ XrdMonDecSink::init(dictid_t min, dictid_t max, const string& senderHP)
 }
 
 void
-XrdMonDecSink::add(dictid_t xrdId, const char* theString, int len)
+XrdMonDecSink::addDictId(dictid_t xrdId, const char* theString, int len)
 {
     std::map<dictid_t, XrdMonDecDictInfo*>::iterator itr = _dCache.find(xrdId);
     if ( itr != _dCache.end() ) {
@@ -150,11 +151,29 @@ XrdMonDecSink::add(dictid_t xrdId, const char* theString, int len)
     }
     
     XrdMonDecDictInfo* di;
-    _dCache[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueId++, theString, len);
+    _dCache[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueDictId++, theString, len);
     cout << "Added dictInfo to sink: " << *di << endl;
 
     // FIXME: remove this line when xrootd supports openFile
     // struct timeval tv; gettimeofday(&tv, 0); openFile(xrdId, tv.tv_sec-8640000);
+}
+
+void
+XrdMonDecSink::addUserId(dictid_t usrId, const char* theString, int len)
+{
+    /*std::map<dictid_t, XrdMonDecUserInfo*>::iterator itr = _uCache.find(usrId);
+    if ( itr != _uCache.end() ) {
+        stringstream se;
+        se << "UserID already in cache " << usrId;
+        throw XrdMonException(ERR_USERIDINCACHE, se.str());
+    }
+    
+    XrdMonDecUserInfo* ui;
+    _uCache[usrId] = ui = new XrdMonDecUserInfo(usrId, _uniqueUserId++, theString, len);
+    cout << "Added userInfo to sink: " << *ui << endl;
+    */
+    cout << "requested adding userinfo to sink, usrId " << usrId 
+         << ", string " << theString << endl;
 }
 
 void
@@ -228,21 +247,28 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
 }
 
 void
-XrdMonDecSink::loadUniqueIdAndSeq()
+XrdMonDecSink::loadUniqueIdsAndSeq()
 {
     if ( 0 == access(_jnlPath.c_str(), F_OK) ) {
-        char buf[16];
+        char buf[32];
         fstream f(_jnlPath.c_str(), ios::in);
-        f.read(buf, sizeof(sequen_t)+sizeof(dictid_t));
+        f.read(buf, sizeof(sequen_t)+2*sizeof(dictid_t));
         f.close();
+
         memcpy(&_lastSeq, buf, sizeof(sequen_t));
         kXR_int32 v32;
+
         memcpy(&v32, buf+sizeof(sequen_t), sizeof(kXR_int32));
-        _uniqueId = ntohl(v32);
+        _uniqueDictId = ntohl(v32);
+
+        memcpy(&v32, buf+sizeof(sequen_t)+sizeof(dictid_t), sizeof(kXR_int32));
+        _uniqueUserId = ntohl(v32);
 
         cout << "Loaded from jnl file: "
              << "seq " << (int) _lastSeq
-             << ", uniqueId " << _uniqueId << endl;
+             << ", uniqueDictId " << _uniqueDictId 
+             << ", uniqueUserId " << _uniqueUserId 
+             << endl;
     }
 }
 
@@ -335,10 +361,13 @@ XrdMonDecSink::checkpoint()
     // open jnl file
     fstream f(_jnlPath.c_str(), ios::out);
 
-    // save lastSeq and uniqueId
+    // save lastSeq and uniqueIds
     memcpy(buf+bufPos, &_lastSeq, sizeof(sequen_t));
     bufPos += sizeof(sequen_t);
-    kXR_int32 v = htonl(_uniqueId);
+    kXR_int32 v = htonl(_uniqueDictId);
+    memcpy(buf+bufPos, &v, sizeof(dictid_t));
+    bufPos += sizeof(dictid_t);
+    v = htonl(_uniqueUserId);
     memcpy(buf+bufPos, &v, sizeof(dictid_t));
     bufPos += sizeof(dictid_t);
     
@@ -363,8 +392,10 @@ XrdMonDecSink::checkpoint()
     }
     f.close();
     cout << "Saved in jnl file seq " << (int) _lastSeq
-         << ", uniqueId " << _uniqueId << " and " 
-         << nr << " XrdMonDecDictInfo objects." << endl;
+         << ", uniqueDictId " << _uniqueDictId 
+         << ", uniqueUserId " << _uniqueUserId
+         << " and " << nr << " XrdMonDecDictInfo objects." 
+         << endl;
 }
 
 void

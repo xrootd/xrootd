@@ -15,6 +15,7 @@
 
 #include "XrdMon/XrdMonDecDictInfo.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
+#include "XrdMon/XrdMonDecUserInfo.hh"
 #include <fstream>
 #include <map>
 #include <vector>
@@ -36,7 +37,8 @@ public:
     sequen_t lastSeq() const { return _lastSeq; }
     void setLastSeq(sequen_t seq) { _lastSeq = seq; }
                     
-    void add(dictid_t xrdId, const char* theString, int len);
+    void addDictId(dictid_t xrdId, const char* theString, int len);
+    void addUserId(dictid_t xrdId, const char* theString, int len);
     void add(dictid_t xrdId, XrdMonDecTraceInfo& trace);
     void openFile(dictid_t dictId, time_t timestamp);
     void closeFile(dictid_t dictId, 
@@ -45,7 +47,7 @@ public:
                    time_t timestamp);
 
 private:
-    void loadUniqueIdAndSeq();
+    void loadUniqueIdsAndSeq();
     vector<XrdMonDecDictInfo*> loadActiveDictInfo();
     void flushClosedDicts();
     void flushTCache();
@@ -57,6 +59,7 @@ private:
     
 private:
     map<dictid_t, XrdMonDecDictInfo*> _dCache;
+    map<dictid_t, XrdMonDecUserInfo*> _uCache;
 
     fstream _rtLogFile;
 
@@ -70,7 +73,8 @@ private:
     map<dictid_t, long> _lost; //lost dictIds -> number of lost traces
     
     sequen_t _lastSeq;
-    dictid_t _uniqueId; // dictId in mySQL, unique for given xrootd host
+    dictid_t _uniqueDictId; // dictId in mySQL, unique for given xrootd host
+    dictid_t _uniqueUserId; // userId in mySQL, unique for given xrootd host
 
     kXR_unt16 _logNameSeqId; // to build unique names for multiple log files 
                             // created by the same process

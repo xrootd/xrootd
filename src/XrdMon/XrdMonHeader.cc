@@ -30,7 +30,8 @@ XrdMonHeader::decode(const char* packet)
     
     if (packetType() != PACKET_TYPE_TRACE &&
         packetType() != PACKET_TYPE_DICT  &&
-        packetType() != PACKET_TYPE_ADMIN   ) {
+        packetType() != PACKET_TYPE_ADMIN &&
+        packetType() != PACKET_TYPE_USER     ) {
         stringstream ss(stringstream::out);
         ss << "Invalid packet type " << packetType();
         throw XrdMonException(ERR_INVPACKETTYPE, ss.str());

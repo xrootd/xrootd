@@ -70,14 +70,25 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
         cout << "Warning: Ignoring empty packet" << endl;
         return;
     }
-    
-    if ( header.packetType() == PACKET_TYPE_TRACE ) {
-        decodeTracePacket(packet+HDRLEN, len);
-    } else if ( header.packetType() == PACKET_TYPE_DICT ) {
-        decodeDictPacket(packet+HDRLEN, len);
-    } else {
-        cerr << "Unsupported packet type: " << header.packetType() << endl;
+
+    switch ( header.packetType() ) {
+        case PACKET_TYPE_TRACE : {
+            decodeTracePacket(packet+HDRLEN, len);
+            break;
+        }
+        case PACKET_TYPE_DICT : {
+            decodeDictPacket(packet+HDRLEN, len);
+            break;
+        }
+        case PACKET_TYPE_USER : {
+            decodeUserPacket(packet+HDRLEN, len);
+            break;
+        }
+        default: {
+            cerr << "Unsupported packet type: " << header.packetType() << endl;
+        }
     }
+    
     _sink.setLastSeq(header.seqNo());
 }
 
@@ -135,8 +146,21 @@ XrdMonDecPacketDecoder::decodeDictPacket(const char* packet, int len)
     memcpy(&x32, packet, sizeof(kXR_int32));
     dictid_t dictId = ntohl(x32);
     
-    _sink.add(dictId, packet+sizeof(kXR_int32), len-sizeof(kXR_int32));
+    _sink.addDictId(dictId, packet+sizeof(kXR_int32), len-sizeof(kXR_int32));
 }
+
+// packet should point to data after header
+void
+XrdMonDecPacketDecoder::decodeUserPacket(const char* packet, int len)
+{
+    kXR_int32 x32;
+    memcpy(&x32, packet, sizeof(kXR_int32));
+    dictid_t dictId = ntohl(x32);
+    
+    _sink.addUserId(dictId, packet+sizeof(kXR_int32), len-sizeof(kXR_int32));
+}
+
+
 
 XrdMonDecPacketDecoder::TimePair
 XrdMonDecPacketDecoder::decodeTime(const char* packet)

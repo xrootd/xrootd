@@ -34,9 +34,10 @@ const err_t SIG_SHUTDOWNNOW     = 1999;
 
 // Decoder. Range: 2000-2999
 const err_t ERR_INVDICTSTRING   = 2001;
-const err_t ERR_INVALIDINFOTYPE = 2003;
-const err_t ERR_NEGATIVEOFFSET  = 2004;
-const err_t ERR_DICTIDINCACHE   = 2005;
+const err_t ERR_INVALIDINFOTYPE = 2002;
+const err_t ERR_NEGATIVEOFFSET  = 2003;
+const err_t ERR_DICTIDINCACHE   = 2004;
+const err_t ERR_USERIDINCACHE   = 2005;
 const err_t ERR_NODICTIDINCACHE = 2006;
 const err_t ERR_OUTOFMEMORY     = 2007;
 const err_t ERR_FILENOTCLOSED   = 2009;
