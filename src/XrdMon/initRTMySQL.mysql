@@ -16,7 +16,7 @@ CREATE DATABASE IF NOT EXISTS xrdmon_kan;
 USE xrdmon_kan;
 
 CREATE TABLE IF NOT EXISTS rtOpenedSessions (
-  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id            INT NOT NULL PRIMARY KEY,
   userId        INT NOT NULL,
   pId           INT NOT NULL,
   clientHId     INT NOT NULL,
@@ -48,7 +48,7 @@ CREATE INDEX rtClosedSession_serverHId_index USING BTREE ON rtClosedSessions(ser
 
 
 CREATE TABLE IF NOT EXISTS rtOpenedFiles (
-  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id            INT NOT NULL PRIMARY KEY,
   sessionId     INT NOT NULL,
   pathId        INT NOT NULL,
   openT         DATETIME NOT NULL
@@ -92,30 +92,30 @@ CREATE INDEX hosts_id_index USING BTREE ON hosts(id);
 
 CREATE TABLE IF NOT EXISTS paths (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  skimTypeId    TINYINT NOT NULL,   # BaBar specific
+  typeId        TINYINT NOT NULL,   # BaBar specific
   skimId        TINYINT NOT NULL,   # BaBar specific
   path          VARCHAR(256) NOT NULL
 );
 CREATE INDEX paths_id_index         USING BTREE ON paths(id);
-CREATE INDEX paths_skimTypeId_index USING BTREE ON paths(skimTypeId);
+CREATE INDEX paths_typeId_index     USING BTREE ON paths(typeId);
 CREATE INDEX paths_skimId_index     USING BTREE ON paths(skimId);
 ##CREATE INDEX paths_path_index ON paths(path(256));
 
 
 CREATE TABLE IF NOT EXISTS rtHour (
-  seqNo         TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  min           DATETIME,
+  seqNo         TINYINT NOT NULL PRIMARY KEY,
+  date          DATETIME,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
   noNonUniqueF  INT
 );
-CREATE INDEX rtHour_min_index      USING BTREE ON rtHour(min);
+CREATE INDEX rtHour_date_index      USING BTREE ON rtHour(date);
 
 
 CREATE TABLE IF NOT EXISTS rtDay (
-  seqNo         TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  hour          DATE,
+  seqNo         TINYINT NOT NULL PRIMARY KEY,
+  date          DATE,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
@@ -129,12 +129,12 @@ CREATE TABLE IF NOT EXISTS rtDay (
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
-CREATE INDEX rtDay_hour_index      USING BTREE ON rtDay(hour);
+CREATE INDEX rtDay_date_index      USING BTREE ON rtDay(date);
 
 
 CREATE TABLE IF NOT EXISTS rtMonth (
-  seqNo         TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  day           DATE,
+  seqNo         TINYINT NOT NULL PRIMARY KEY,
+  date          DATE,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
@@ -148,21 +148,12 @@ CREATE TABLE IF NOT EXISTS rtMonth (
   maxUniqueF    INT,
   maxNonUniqueF INT
 );
-CREATE INDEX rtMonth_day_index     USING BTREE ON rtMonth(day);
+CREATE INDEX rtMonth_date_index     USING BTREE ON rtMonth(date);
 
 
 CREATE TABLE IF NOT EXISTS rtYear (
-  seqNo         TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  month         DATE,
-  noJobs        SMALLINT,
-  noUsers       SMALLINT,
-  noUniqueF     INT,
-  noNonUniqueF  INT
-);
-
-
-CREATE TABLE IF NOT EXISTS rtAllYears (
-  year          TINYINT,
+  seqNo         TINYINT NOT NULL PRIMARY KEY,
+  date          DATE,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
@@ -187,7 +178,8 @@ CREATE TABLE IF NOT EXISTS rtChanges (
 ###########################
 
 
-CREATE TABLE IF NOT EXISTS skimTypes (
+# e.g.: SP, PR, SPskims, PRskims
+CREATE TABLE IF NOT EXISTS fileTypes (
   name         VARCHAR(16),
   id           TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY
 );
