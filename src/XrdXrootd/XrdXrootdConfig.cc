@@ -506,14 +506,14 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
    Output: 0 upon success or !0 upon failure. Ignored by master.
 */
 int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
-{   char  *val;
+{   char  *val, *dest;
     long long tempval;
 
     monMode = XROOTD_MON_SOME;
     while((val = Config.GetToken()))
 
          {     if (!strcmp("all", val))  monMode = XROOTD_MON_ALL;
-               if (!strcmp("io",  val)) ;
+          else if (!strcmp("io",  val)) ;
           else if (!strcmp("off", val))  monMode = XROOTD_MON_NONE;
           else if (!strcmp("mbuff", val))
                   {if (!(val = Config.GetToken()))
@@ -532,19 +532,20 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
                  if (XrdOuca2x::a2tm(eDest,"monitor window",val,
                                            &monWWval,1)) return 1;
                 }
-        else if (!strcmp("dest", val))
-                {if (monDest) free(monDest);
-                 if (!(monDest = Config.GetToken()))
-                   {eDest.Emsg("Config", "monitor dest value not specified");
-                    return 1;
-                   }
-                 if (!(val = index(monDest, (int)':')) || !atoi(val+1))
-                   {eDest.Emsg("Config", "monitor dest port missing or invalid");
-                    return 1;
-                   }
-                }
-        else eDest.Emsg("Config", "Warning, invalid monitor option", val);
-       }
+          else if (!strcmp("dest", val))
+                  {if (!(dest = Config.GetToken()))
+                      {eDest.Emsg("Config", "monitor dest value not specified");
+                      return 1;
+                      }
+                   if (!(val = index(dest, (int)':')) || !atoi(val+1))
+                      {eDest.Emsg("Config", "monitor dest port missing or invalid");
+                       return 1;
+                      }
+                   if (monDest) free(monDest);
+                   monDest = strdup(dest);
+                  }
+          else eDest.Emsg("Config", "Warning, invalid monitor option", val);
+         }
 
    if (!monDest)
        {eDest.Emsg("Config", "monitor dest not specified"); return 1;}
