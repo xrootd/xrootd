@@ -19,7 +19,6 @@
 #include "XrdClient/XrdClientProtocol.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientStringMatcher.hh"
@@ -1140,10 +1139,11 @@ bool XrdClientConn::DoLogin()
 
 //_____________________________________________________________________________
 bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString plist) {
-  // Negotiate authentication with the remote server. Tries in turn
-  // all available protocols proposed by the server (in plist), 
-  // starting from the first.
+  // Negotiate authentication with the remote server. The XrdSecgetProtocol()
+  // function tries all available protocols proposed by the server (in plist).
 
+  // if no sectoken here then no need to do security at all
+  //
   if (plist == "")
      return TRUE;
 
@@ -1174,97 +1174,48 @@ bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString p
   XrdSecProtocol    *protocol;
   XrdSecCredentials *credentials;
 
-  // Prepare tokenization
-  //
-  XrdOucTokenizer *tokzer = new XrdOucTokenizer((char *)plist.c_str());
-
-  // Make sure that we got at least one token
-  //
-  if (plist == "") { 
-     if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
-        Error("DoAuthentication", "Protocol list empty");
-     return FALSE;
-  }
-
   // Now try in turn the available methods (first preferred)
   //
   bool resp = FALSE;
-  XrdClientString nxtoken;
-  XrdClientString tkn;
-  while (!resp) {
 
-     XrdClientString token = tokzer->GetToken();;
 
-     // Assign the security token that we have received at the login request
-     //
-     secToken.buffer = (char *)token.c_str();   
-     secToken.size   = token.GetSize();
+  // Assign the security token that we have received at the login request
+  //
+  secToken.buffer = (char *)plist.c_str();
+  secToken.size   = plist.GetSize();
      
-     // Retrieve the security protocol context from the xrootd server
-     //
-     protocol = XrdSecGetProtocol((const struct sockaddr &)netaddr, secToken, 0);
+  // Retrieve the security protocol context from the xrootd server
+  //
+//   protocol = XrdSecGetProtocol((const struct sockaddr &)netaddr, secToken, 0);
      // future code will be:
-     //protocol = XrdSecGetProtocol((char *)fUrl.Host.c_str(), (const struct sockaddr &)netaddr, secToken, 0);
-     if (!protocol) { 
+  protocol = XrdSecGetProtocol((char *)fUrl.Host.c_str(), (const struct sockaddr &)netaddr, secToken, 0);
+  if (!protocol) {
 
 	Info(XrdClientDebug::kHIDEBUG,
 	     "DoAuthentication", 
-	     "Unable to get protocol object (token: " << token << ").");
-        continue;
-     }
-
-     // Extract the protocol name (identifier)
-     XrdClientString protname = "";
-     if (token.Find((char *)"&P=") != 0) {
-        if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
-           Info(XrdClientDebug::kHIDEBUG,
-		   "DoAuthentication",
-                   "Unable to get protocol name (token: " << token << ").");
-     } else {
-        protname = token;
-	protname.EraseFromStart(3);
-        //protname.ReplaceAll("&P=","");
-        protname.EraseFromStart(protname.Find((char *)",")+1);
+	     "Unable to get protocol object.");
+      return FALSE;
      }
      
-     // Now we add the username and the hostname to the token, because
-     // they may be needed to get the credentials
-     secToken.size   = token.GetSize() + username.GetSize() + fUrl.Host.GetSize() + 2;
-     char *etoken    = new char[secToken.size+5];
-
-     snprintf(etoken,secToken.size+5,
-	      "%s,%s,%s",
-	      token.c_str(), username.c_str(), fUrl.Host.c_str());
-
-     secToken.buffer = etoken;
-     
-     // Once we have the protocol, get the credentials
-     //
+  // Once we have the protocol, get the credentials
+  //
      credentials = protocol->getCredentials(&secToken);
      if (!credentials) {
 
 	Info(XrdClientDebug::kHIDEBUG,
 	     "DoAuthentication", 
-	     "Cannot obtain credentials (token: " << etoken << ")");
-
-        if (etoken) 
-           delete[] etoken;
-
-        continue;
+	     "Cannot obtain credentials");
+        return FALSE;
      } else
 	Info(XrdClientDebug::kHIDEBUG,
-	     "DoAuthentication", "cred= " << credentials->buffer <<
-	     " size=" << credentials->size);
-
-     if (etoken)
-        delete[] etoken;
+	     "DoAuthentication", "cred size=" << credentials->size);
      
      // We fill the header struct containing the request for login
      ClientRequest reqhdr;
      SetSID(reqhdr.header.streamid);
      reqhdr.header.requestid = kXR_auth;
-     memset(reqhdr.auth.reserved, 0, 12);
-     memcpy(reqhdr.auth.credtype, protname.c_str(), protname.GetSize());
+     memset(reqhdr.auth.reserved, 0, 16);
+//   memcpy(reqhdr.auth.credtype, protname.c_str(), protname.GetSize());
      
      LastServerResp.status = kXR_authmore;
      char *srvans = 0;
@@ -1311,7 +1262,6 @@ bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString p
         if (srvans)
            delete[] srvans;
      }
-  }
 
   // Return the result of the negotiation
   //
