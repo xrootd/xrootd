@@ -115,8 +115,6 @@ extern "C"
 
 #endif
 
-#endif
-
 #ifndef HAS_STRLCPY
 extern "C"
 {extern size_t strlcpy(char *dst, const char *src, size_t size);}
@@ -125,3 +123,38 @@ extern "C"
 #ifdef __macos__
 #define memalign(pgsz,amt) valloc(amt)
 #endif
+
+//
+// To make socklen_t portable
+//
+#if defined(__sun) && !defined(__linux)
+#   if __GNUC__ >= 3 || __GNUC_MINOR__ >= 90
+#      define XR__SUNGCC3
+#   endif
+#endif
+#if defined(__linux)
+#   include <features.h>
+#   if __GNU_LIBRARY__ == 6
+#      ifndef XR__GLIBC
+#         define XR__GLIBC
+#      endif
+#   endif
+#endif
+#if defined(__MACH__) && defined(__i386__)
+#   define R__GLIBC
+#endif
+#if defined(_AIX) || \
+   (defined(__FreeBSD__) && (!defined(__alpha) || defined(__linux))) || \
+   (defined(XR__SUNGCC3) && !defined(__arch64__))
+#   define socklen_t size_t
+#elif defined(XR__GLIBC) || \
+   (defined(__FreeBSD__) && (defined(__alpha) && !defined(__linux))) || \
+   (defined(XR__SUNGCC3) && defined(__arch64__))
+#   ifndef socklen_t
+#      define socklen_t socklen_t
+#   endif
+#else
+#   define socklen_t int
+#endif
+
+#endif  // __XRDOUC_PLATFORM_H__
