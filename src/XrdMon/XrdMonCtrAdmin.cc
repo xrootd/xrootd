@@ -12,7 +12,7 @@
 
 #include "XrdMon/XrdMonCtrAdmin.hh"
 #include "XrdMon/XrdMonErrors.hh"
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include <netinet/in.h> /* ntohs */
 
 #include <iostream>
@@ -24,11 +24,11 @@ XrdMonCtrAdmin::doIt(kXR_int16 command, kXR_int16 arg)
 {
     switch (command) {
         case c_shutdown: {
-            throw XrdMonAPException(SIG_SHUTDOWNNOW);
+            throw XrdMonException(SIG_SHUTDOWNNOW);
         }
         default: {
             cout << "Invalid admin command: " << command << " ignored" << endl;
-            throw XrdMonAPException(ERR_UNKNOWN);
+            throw XrdMonException(ERR_UNKNOWN);
         }
     }
 }

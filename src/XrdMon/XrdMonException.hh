@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                           XrdMonAPException.hh                            */
+/*                            XrdMonException.hh                             */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -10,8 +10,8 @@
 
 // $Id$
 
-#ifndef XRDMONAPEXCEPTION_HH
-#define XRDMONAPEXCEPTION_HH
+#ifndef XRDMONEXCEPTION_HH
+#define XRDMONEXCEPTION_HH
 
 #include "XrdMon/XrdMonTypes.hh"
 #include <map>
@@ -25,12 +25,12 @@ using std::vector;
 
 typedef int err_t;
 
-class XrdMonAPException {
+class XrdMonException {
 public:
-    XrdMonAPException(err_t err);
-    XrdMonAPException(err_t err,
+    XrdMonException(err_t err);
+    XrdMonException(err_t err,
                       const string& s);
-    XrdMonAPException(err_t err,
+    XrdMonException(err_t err,
                       const char* s);
 
     err_t err() const { return _err; }
@@ -51,4 +51,4 @@ private:
 
 };
 
-#endif /* XRDMONAPEXCEPTION_HH */
+#endif /* XRDMONEXCEPTION_HH */

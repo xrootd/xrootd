@@ -10,7 +10,7 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonCommon.hh"
 #include "XrdMon/XrdMonHeader.hh"
 #include "XrdMon/XrdMonUtils.hh"
@@ -84,7 +84,7 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
     if ( *packet != XROOTD_MON_WINDOW ) {
         stringstream se(stringstream::out);
         se << "Expected time window packet (1st packet), got " << (int) *packet;
-        throw XrdMonAPException(ERR_NOTATIMEWINDOW, se.str());
+        throw XrdMonException(ERR_NOTATIMEWINDOW, se.str());
     }
     TimePair t = decodeTime(packet);
     if ( _upToTime != 0 && _upToTime <= t.first ) {
@@ -112,7 +112,7 @@ XrdMonDecPacketDecoder::decodeTracePacket(const char* packet, int len)
             } else {
                 stringstream es(stringstream::out);
                 es << "Unsupported infoType of trace packet: " << infoType;
-                throw XrdMonAPException(ERR_INVALIDINFOTYPE, es.str());
+                throw XrdMonException(ERR_INVALIDINFOTYPE, es.str());
             }
             offset += TRACELEN;
         }
@@ -158,7 +158,7 @@ XrdMonDecPacketDecoder::decodeRWRequest(const char* packet, time_t timestamp)
     x.dictId = ntohl(x.dictId);
 
     if ( x.tOffset < 0 ) {
-        throw XrdMonAPException(ERR_NEGATIVEOFFSET);
+        throw XrdMonException(ERR_NEGATIVEOFFSET);
     }
     char rwReq = 'r';
     if ( x.tLen<0 ) {
@@ -214,7 +214,7 @@ XrdMonDecPacketDecoder::prepareTimestamp(const char* packet,
     int noElems = 0;
     while ( *(packet+x) != XROOTD_MON_WINDOW ) {
         if ( x >= len ) {
-            throw XrdMonAPException(ERR_NOTATIMEWINDOW, 
+            throw XrdMonException(ERR_NOTATIMEWINDOW, 
                               "Expected time window packet (last packet)");
         }
         x += TRACELEN;
@@ -235,7 +235,7 @@ XrdMonDecPacketDecoder::prepareTimestamp(const char* packet,
            << " > " << t.first << " at offset " << x << ", will fix";
         cout << se.str() << endl;
         begTime = t.first;
-        //throw XrdMonAPException(ERR_INVALIDTIME, se.str());
+        //throw XrdMonException(ERR_INVALIDTIME, se.str());
     }
 
     float timePerTrace = ((float)(t.first - begTime)) / noElems;

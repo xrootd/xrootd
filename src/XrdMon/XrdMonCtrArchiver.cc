@@ -11,7 +11,7 @@
 // $Id$
 
 #include "XrdMon/XrdMonCommon.hh"
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonCtrAdmin.hh"
 #include "XrdMon/XrdMonCtrArchiver.hh"
 #include "XrdMon/XrdMonCtrBuffer.hh"
@@ -65,7 +65,7 @@ XrdMonCtrArchiver::operator()()
             XrdMonCtrPacket* p = pb->pop_front();
             archivePacket(p);
             delete p;
-        } catch (XrdMonAPException& e) {
+        } catch (XrdMonException& e) {
             if ( e.err() == SIG_SHUTDOWNNOW ) {
                 XrdMonCtrSenderInfo::destructStatics();
                 return;

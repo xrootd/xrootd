@@ -10,7 +10,7 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonCommon.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonHeader.hh"
@@ -33,12 +33,12 @@ XrdMonHeader::decode(const char* packet)
         _packetType != PACKET_TYPE_ADMIN   ) {
         stringstream ss(stringstream::out);
         ss << "Invalid packet type " << _packetType;
-        throw XrdMonAPException(ERR_INVPACKETTYPE, ss.str());
+        throw XrdMonException(ERR_INVPACKETTYPE, ss.str());
     }
     if ( _packetLen < HDRLEN ) {
         stringstream ss(stringstream::out);
         ss << "Invalid packet length " << _packetLen;
-        throw XrdMonAPException(ERR_INVPACKETLEN, ss.str());
+        throw XrdMonException(ERR_INVPACKETLEN, ss.str());
     }
 }
 

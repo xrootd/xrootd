@@ -10,7 +10,7 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonUtils.hh"
 
@@ -95,7 +95,7 @@ breakHostPort(const string& hp)
     int colonPos = hp.rfind(':', hp.size());
     if ( colonPos == -1 ) {
         string se("No : in "); se += hp;
-        throw XrdMonAPException(ERR_INVALIDADDR, se);
+        throw XrdMonException(ERR_INVALIDADDR, se);
     }
     string host(hp, 0, colonPos);
     string port(hp, colonPos+1, hp.size()-colonPos-1);
@@ -112,7 +112,7 @@ mkdirIfNecessary(const char* dir)
     if ( 0 != ret ) {
         ostringstream se;
         se << "Failed to mkdir " << dir << ", ret error " << ret;
-        throw XrdMonAPException(ERR_NODIR, se.str());
+        throw XrdMonException(ERR_NODIR, se.str());
     }
     cout << "mkdir " << dir << " OK" << endl;
 }

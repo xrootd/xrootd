@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                           XrdMonAPException.cc                            */
+/*                           XrdMonException.cc                            */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -10,39 +10,39 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include <iostream>
 using std::cerr;
 using std::cout;
 using std::endl;
 
-map<err_t, XrdMonAPException::ErrInfo> XrdMonAPException::_oneTime;
+map<err_t, XrdMonException::ErrInfo> XrdMonException::_oneTime;
 
-XrdMonAPException::XrdMonAPException(err_t err)
+XrdMonException::XrdMonException(err_t err)
     : _err(err)
 {}
 
-XrdMonAPException::XrdMonAPException(err_t err,
+XrdMonException::XrdMonException(err_t err,
                                      const string& s)
     : _err(err),
       _msg(s)
 {}
 
-XrdMonAPException::XrdMonAPException(err_t err,
+XrdMonException::XrdMonException(err_t err,
                                      const char* s)
     : _err(err),
       _msg(s)
 {}
 
 void
-XrdMonAPException::printIt() const
+XrdMonException::printIt() const
 {
     cerr << "Caught exception " << err() 
          << " \"" << msg() << "\"" << endl;
 }
 
 void
-XrdMonAPException::printItOnce() const
+XrdMonException::printItOnce() const
 {
     map<err_t, ErrInfo >::iterator itr = _oneTime.find(err());
     if ( itr != _oneTime.end() ) {

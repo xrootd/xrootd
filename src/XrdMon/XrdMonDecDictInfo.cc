@@ -10,7 +10,7 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonDecDictInfo.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonUtils.hh"
@@ -64,7 +64,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
     if (x1 == -1 ) {
         delete [] buf;
         string es("Cannot find "); es+='.'; es+=" in "; es+=s;
-        throw XrdMonAPException(ERR_INVDICTSTRING, es);
+        throw XrdMonException(ERR_INVDICTSTRING, es);
     }
     _user = buf;
 
@@ -73,7 +73,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
     if ( x1 == -1 ) {
         delete [] buf;
         string es("Cannot find "); es+=':'; es+=" in "; es+=s;
-        throw XrdMonAPException(ERR_INVDICTSTRING, es);
+        throw XrdMonException(ERR_INVDICTSTRING, es);
     }
     _pid = atoi(buf);
 
@@ -82,7 +82,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
     if ( x1 == -1 ) {
         delete [] buf;
         string es("Cannot find "); es+='@'; es+=" in "; es+=s;
-        throw XrdMonAPException(ERR_INVDICTSTRING, es);
+        throw XrdMonException(ERR_INVDICTSTRING, es);
     }
     _fd = atoi(buf);
 
@@ -91,7 +91,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
     if ( x1 == -1 ) {
         delete [] buf;
         string es("Cannot find "); es+='\n'; es+=" in "; es+=s;
-        throw XrdMonAPException(ERR_INVDICTSTRING, es);
+        throw XrdMonException(ERR_INVDICTSTRING, es);
     }
     _host = buf;
 

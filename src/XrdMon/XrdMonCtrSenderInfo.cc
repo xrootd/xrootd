@@ -10,7 +10,7 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonCtrSenderInfo.hh"
 
@@ -62,7 +62,7 @@ XrdMonCtrSenderInfo::buildName(struct sockaddr_in sAddr)
                           servInfo,
                           256,
                           0) ) {
-        throw XrdMonAPException(ERR_INVALIDADDR, "Cannot resolve ip");
+        throw XrdMonException(ERR_INVALIDADDR, "Cannot resolve ip");
     }
 
     char* n = new char [strlen(hostName) + 8];

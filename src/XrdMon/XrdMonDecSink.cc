@@ -10,7 +10,7 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonCtrSenderInfo.hh"
@@ -45,7 +45,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
 {
     if ( maxTraceLogSize < 2  ) {
         cerr << "Trace log size must be > 2MB" << endl;
-        throw XrdMonAPException(ERR_INVALIDARG, "Trace log size must be > 2MB");
+        throw XrdMonException(ERR_INVALIDARG, "Trace log size must be > 2MB");
     }
 
     _path = baseDir;
@@ -59,7 +59,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     if ( 0 == access(fDPath.c_str(), F_OK) ) {
         string s("File "); s += fDPath;
         s += " exists. Move it somewhere else first.";
-        throw XrdMonAPException(ERR_INVALIDARG, s);
+        throw XrdMonException(ERR_INVALIDARG, s);
     }
     if ( _saveTraces ) {
         _tCache.reserve(_tCacheSize+1);
@@ -67,7 +67,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
         if ( 0 == access(fTPath.c_str(), F_OK) ) {
             string s("File "); s += fTPath;
             s += " exists. Move it somewhere else first.";
-            throw XrdMonAPException(ERR_INVALIDARG, s);
+            throw XrdMonException(ERR_INVALIDARG, s);
         }
     }
 
@@ -133,7 +133,7 @@ XrdMonDecSink::add(dictid_t xrdId, const char* theString, int len)
     if ( itr != _dCache.end() ) {
         stringstream se;
         se << "DictID already in cache " << xrdId;
-        throw XrdMonAPException(ERR_DICTIDINCACHE, se.str());
+        throw XrdMonException(ERR_DICTIDINCACHE, se.str());
     }
     
     XrdMonDecDictInfo* di;

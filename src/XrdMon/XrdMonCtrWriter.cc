@@ -10,7 +10,7 @@
 
 // $Id$
 
-#include "XrdMon/XrdMonAPException.hh"
+#include "XrdMon/XrdMonException.hh"
 #include "XrdMon/XrdMonCommon.hh"
 #include "XrdMon/XrdMonHeader.hh"
 #include "XrdMon/XrdMonUtils.hh"
@@ -73,7 +73,7 @@ XrdMonCtrWriter::operator()(const char* packet,
     if ( 0 == _buffer ) {
         _buffer = new char [_bufferSize];
         if ( 0 == _buffer ) {
-            throw XrdMonAPException(ERR_NOMEM,
+            throw XrdMonException(ERR_NOMEM,
                "Unable to allocate buffer - run out of memory");
         }
     }
@@ -158,7 +158,7 @@ XrdMonCtrWriter::logName(LogType t) const
         ss += '_';
         ss += _sender;
     } else {
-        throw XrdMonAPException(ERR_INVALIDARG, "in XrdMonCtrWriter::logName");
+        throw XrdMonException(ERR_INVALIDARG, "in XrdMonCtrWriter::logName");
     }
     ss += ".rcv";
 
@@ -193,7 +193,7 @@ XrdMonCtrWriter::publish()
     if ( 0 != rename(src.c_str(), dest.c_str()) ) {
         string ss("Cannot rename "); ss += src;
         ss += " to "; ss += dest;
-        throw XrdMonAPException(ERR_RENAME, ss);
+        throw XrdMonException(ERR_RENAME, ss);
     }
     _timestamp = generateTimestamp();
 }
