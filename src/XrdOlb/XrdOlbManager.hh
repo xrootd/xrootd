@@ -20,6 +20,7 @@
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
+class XrdOlbDrop;
 class XrdOlbServer;
 class XrdOucLink;
 
@@ -27,6 +28,13 @@ class XrdOucLink;
 //
 #define OLB_LS_BEST   0x0001
 #define OLB_LS_ALL    0x0002
+
+// Status flags
+//
+#define OLB_SERVER_DISABLE 0x0001
+#define OLB_SERVER_NOSTAGE 0x0002
+#define OLB_SERVER_OFFLINE 0x0004
+#define OLB_SERVER_SUSPEND 0x0008
 
 /******************************************************************************/
 /*                            o o l b _ S I n f o                             */
@@ -60,6 +68,7 @@ int          Status;
 class XrdOlbManager
 {
 public:
+friend class XrdOlbDrop;
 
 int         ServCnt;
 
@@ -70,7 +79,7 @@ XrdOlbSInfo *ListServers(SMask_t mask=(SMask_t)-1, int opts=0);
 void       *Login(XrdOucLink *lnkp);
 void       *MonPerf(void);
 void       *MonRefs(void);
-void       *Pander(char *master, int port);
+void       *Pander(char *manager, int port);
 void       *Process(void);
 void        Remove_Server(const char *reason, int sent, int sinst);
 void        ResetRef(SMask_t smask);
@@ -80,22 +89,28 @@ int         SelServer(int pt, char *path, SMask_t pmsk, SMask_t amsk, char *hb,
                       const struct iovec *iodata=0, int iovcnt=0);
 void        setPort(int port) {Port = port;}
 int         Snooze(int slpsec);
+void        Stage(int ison, int doinform=1);
 int         Stats(char *bfr, int bln);
-void       *StartUDP(int formaster);
-void        Suspend();
+void       *StartUDP(int formanager);
+void        Suspend(int doinform=1);
 
       XrdOlbManager();
      ~XrdOlbManager() {} // This object should never be deleted
 
 private:
-SMask_t      AddPath(XrdOlbServer *sp);
-int          Add_Master(XrdOlbServer *sp);
-XrdOlbServer *AddServer(XrdOucLink *lp, int port);
-void        *Login_Failed(const char *reason, XrdOucLink *lp, XrdOlbServer *sp=0);
-void         Record(char *path, const char *reason);
-void         Remove_Master(const char *reason, XrdOlbServer *sp);
-XrdOlbServer *SelbyLoad(SMask_t mask, int &nump, int &numf, int needspace);
-XrdOlbServer *SelbyRef(SMask_t mask,  int &nump, int &numf, int needspace);
+SMask_t       AddPath(XrdOlbServer *sp);
+int           Add_Manager(XrdOlbServer *sp);
+XrdOlbServer *AddServer(XrdOucLink *lp, int port, int nostage, int suspend);
+XrdOlbServer *calcDelay(int nump, int numd, int numf, int numo,
+                        int nums, int &delay, char **reason);
+int           Drop_Server(int sent, int sinst);
+void         *Login_Failed(const char *reason, XrdOucLink *lp, XrdOlbServer *sp=0);
+void          Record(char *path, const char *reason);
+void          Remove_Manager(const char *reason, XrdOlbServer *sp);
+XrdOlbServer *SelbyLoad(SMask_t mask, int &nump, int &delay,
+                        char **reason, int needspace);
+XrdOlbServer *SelbyRef( SMask_t mask, int &nump, int &delay,
+                        char **reason, int needspace);
 
 XrdOucMutex   STMutex;
 XrdOlbServer *ServTab[XrdOlbSTMAX];
@@ -106,6 +121,11 @@ int  MTHi;
 int  STHi;
 int  InstNum;
 int  XWait;
+int  XStage;
 int  Port;
+int  SelAcnt;
+int  SelRcnt;
+int  doReset;
+SMask_t resetMask;
 };
 #endif

@@ -19,19 +19,18 @@
 #include "XrdOuc/XrdOucLink.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
-#define OLB_OFFLINE_DEAD     1
-#define OLB_OFFLINE_DEFER    2
-#define OLB_OFFLINE_DISABLED 4
-
+class XrdOlbDrop;
 class XrdOlbPrepArgs;
 
 class XrdOlbServer
 {
 public:
-
-       int  Offline;
-
 friend class XrdOlbManager;
+
+       char   isDisable;
+       char   isOffline;
+       char   isNoStage;
+       char   isSuspend;
 
 inline int   isServer(SMask_t smask) {return (smask & ServMask) != 0;}
 inline int   isServer(char *hn) 
@@ -42,7 +41,7 @@ inline char *Name()   {return (myName ? myName : (char *)"?");}
 inline void    Lock() {myMutex.Lock();}
 inline void  UnLock() {myMutex.UnLock();}
 
-       int  Login(void);
+       int  Login(int Port, int suspended, int nostaging);
 
        void Process_Director(void);
        int  Process_Requests(int onlyone=0);
@@ -61,6 +60,7 @@ static int  Resume(XrdOlbPrepArgs *pargs);
 private:
        int   do_AvKb(char *rid);
        int   do_Chmod(char *rid, int do4real);
+       int   do_Delay(char *rid);
        int   do_Gone(char *rid);
        int   do_Have(char *rid);
        int   do_Load(char *rid);
@@ -69,9 +69,9 @@ private:
        int   do_Ping(char *rid);
        int   do_Pong(char *rid);
        int   do_Port(char *rid);
-       int   do_PrepAdd(char *rid, int slave=0);
+       int   do_PrepAdd(char *rid, int server=0);
        int   do_PrepAdd4Real(XrdOlbPrepArgs &pargs);
-       int   do_PrepDel(char *rid, int slave=0);
+       int   do_PrepDel(char *rid, int server=0);
 static int   do_PrepSel(XrdOlbPrepArgs *pargs, int stage);
        int   do_Rm(char *rid, int do4real);
        int   do_Rmdir(char *rid, int do4real);
@@ -79,6 +79,7 @@ static int   do_PrepSel(XrdOlbPrepArgs *pargs, int stage);
        int   do_Space(char *rid);
        int   do_State(char *rid, int mustresp);
        int   do_Stats(char *rid, int wantdata);
+       int   do_StNst(char *rid, int Resume);
        int   do_SuRes(char *rid, int Resume);
        int   do_Usage(char *rid);
 static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
@@ -91,6 +92,8 @@ XrdOucMutex       myMutex;
 XrdOucLink       *Link;
 unsigned long     IPAddr;
 XrdOlbServer     *Next;
+time_t            DropTime;
+XrdOlbDrop       *DropJob;
 
 SMask_t    ServMask;
 int        ServID;

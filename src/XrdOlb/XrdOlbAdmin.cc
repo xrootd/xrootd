@@ -12,7 +12,11 @@
 
 const char *XrdOlbAdminCVSID = "$Id$";
 
+#include <fcntl.h>
 #include <limits.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "XrdOlb/XrdOlbAdmin.hh"
 #include "XrdOlb/XrdOlbConfig.hh"
@@ -54,7 +58,7 @@ extern "C"
 {
 void *XrdOlbLoginAdmin(void *carg)
       {XrdOlbAdmin *Admin = new XrdOlbAdmin();
-       Admin->Login((int)carg);
+       Admin->Login(*(int *)carg);
        delete Admin;
        return (void *)0;
       }
@@ -68,7 +72,6 @@ void XrdOlbAdmin::Login(int socknum)
 {
    const char *epname = "Admin_Login";
    char *request, *tp;
-   int OK = 0;
 
 // Attach the socket FD to a stream
 //
@@ -76,7 +79,7 @@ void XrdOlbAdmin::Login(int socknum)
 
 // The first request better be "login"
 //
-   if (request = Stream.GetLine())
+   if ((request = Stream.GetLine()))
       {DEBUG("Initial admin request: '" <<request <<"'");
        if (!(tp = Stream.GetToken()) || strcmp("login", tp) || !do_Login())
           {XrdOlbSay.Emsg(epname, "Invalid admin login sequence");
@@ -92,9 +95,9 @@ void XrdOlbAdmin::Login(int socknum)
 
 // Start receiving requests on this stream
 //
-   while(request = Stream.GetLine())
+   while((request = Stream.GetLine()))
         {DEBUG("received admin request: '" <<request <<"'");
-         if (tp = Stream.GetToken())
+         if ((tp = Stream.GetToken()))
             {     if (!strcmp("resume",   tp)) do_Resume();
              else if (!strcmp("rmdid",    tp)) do_RmDid();
              else if (!strcmp("suspend",  tp)) do_Suspend();
@@ -106,11 +109,11 @@ void XrdOlbAdmin::Login(int socknum)
 //
    XrdOlbSay.Emsg("Login",(const char *)Stype, Sname, (char *)"logged out");
 
-// If this is a primary, we must suspend
+// If this is a primary, we must suspend but do not record this event!
 //
    if (Primary) 
       {myMutex.Lock();
-       do_Suspend();
+       XrdOlbSM.Suspend();
        POnline = 0;
        myMutex.UnLock();
       }
@@ -134,15 +137,17 @@ void *XrdOlbAdmin::Notes(XrdOucSocket *AnoteSock)
 
 // Accept notifications in an endless loop
 //
-   do {while(request = Stream.GetLine())
+   do {while((request = Stream.GetLine()))
             {DEBUG("received notification: '" <<request <<"'");
-             if (tp = Stream.GetToken())
-                {     if (!strcmp("gone", tp))  do_RmDid(1);
-                 else if (!strcmp("have",  tp)) do_RmDud(1);
+             if ((tp = Stream.GetToken()))
+                {     if (!strcmp("gone",    tp)) do_RmDid(1);
+                 else if (!strcmp("have",    tp)) do_RmDud(1);
+                 else if (!strcmp("nostage", tp)) do_NoStage();
+                 else if (!strcmp("stage",   tp)) do_Stage();
                  else XrdOlbSay.Emsg(epname, "invalid notification,", tp);
                 }
             }
-       if (rc = Stream.LastError()) break;
+       if ((rc = Stream.LastError())) break;
        rc = Stream.Detach(); Stream.Attach(rc);
       } while(1);
 
@@ -170,7 +175,7 @@ void *XrdOlbAdmin::Start(XrdOucSocket *AdminSock)
 // Accept connections in an endless loop
 //
    while(1) if ((InSock = AdminSock->Accept()) >= 0)
-               {if (XrdOucThread_Run(&tid,XrdOlbLoginAdmin,(void *)InSock))
+               {if (XrdOucThread_Run(&tid,XrdOlbLoginAdmin,(void *)&InSock))
                    {XrdOlbSay.Emsg(epname, errno, "starting admin");
                     close(InSock);
                    }
@@ -217,7 +222,7 @@ int XrdOlbAdmin::do_Login()
 
 // Get any additional options
 //
-   while(tp = Stream.GetToken())
+   while((tp = Stream.GetToken()))
         {     if (!strcmp(tp, "port"))
                  {if (!(tp = Stream.GetToken()))
                      {XrdOlbSay.Emsg("do_Login", "login port not specified");
@@ -259,10 +264,21 @@ int XrdOlbAdmin::do_Login()
        myMutex.UnLock();
        return 1;
       }
-   do_Resume();
+   XrdOlbSM.Resume();
    myMutex.UnLock();
 
    return 1;
+}
+ 
+/******************************************************************************/
+/*                            d o _ N o S t a g e                             */
+/******************************************************************************/
+  
+void XrdOlbAdmin::do_NoStage()
+{
+   XrdOlbSay.Emsg("do_NoStage", "nostage requested by", Stype, Sname);
+   XrdOlbSM.Stage(0);
+   close(open(XrdOlbConfig.NoStageFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
 }
  
 /******************************************************************************/
@@ -272,6 +288,7 @@ int XrdOlbAdmin::do_Login()
 void XrdOlbAdmin::do_Resume()
 {
    XrdOlbSay.Emsg("do_Resume", "resume requested by", Stype, Sname);
+   unlink(XrdOlbConfig.SuspendFile);
    XrdOlbSM.Resume();
 }
  
@@ -299,7 +316,7 @@ void XrdOlbAdmin::do_RmDid(int dotrim)
 
    XrdOlbPrepQ.Gone(tp);
 
-   DEBUG("Sending masters " <<cmd <<tp);
+   DEBUG("Sending managers " <<cmd <<tp);
    XrdOlbSM.Inform(cmd, cmdl, tp, 0);
 }
  
@@ -325,8 +342,19 @@ void XrdOlbAdmin::do_RmDud(int dotrim)
        return;
       }
 
-   DEBUG("Sending masters " <<cmd <<tp);
+   DEBUG("Sending managers " <<cmd <<tp);
    XrdOlbSM.Inform(cmd, cmdl, tp, 0);
+}
+ 
+/******************************************************************************/
+/*                              d o _ S t a g e                               */
+/******************************************************************************/
+  
+void XrdOlbAdmin::do_Stage()
+{
+   XrdOlbSay.Emsg("do_Stage", "stage requested by", Stype, Sname);
+   XrdOlbSM.Stage(1);
+   unlink(XrdOlbConfig.NoStageFile);
 }
   
 /******************************************************************************/
@@ -337,6 +365,7 @@ void XrdOlbAdmin::do_Suspend()
 {
    XrdOlbSay.Emsg("do_Suspend", "suspend requested by", Stype, Sname);
    XrdOlbSM.Suspend();
+   close(open(XrdOlbConfig.SuspendFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
 }
  
 /******************************************************************************/

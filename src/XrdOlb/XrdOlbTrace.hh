@@ -19,15 +19,21 @@
 #include <iostream.h>
 #include "XrdOuc/XrdOucTrace.hh"
 
-#define TRACE_ALL   0x0000
+#define TRACE_ALL   0x0007
 #define TRACE_Debug 0x0001
+#define TRACE_Stage 0x0002
+#define TRACE_Defer 0x0004
 
-#define DEBUG(y) if (XrdOlbTrace.What) \
-                    {XrdOlbTrace.Beg(0,epname); cerr <<y; XrdOlbTrace.End();}
+#define DEBUG(y) if (XrdOlbTrace.What & TRACE_Debug) TRACEX(y)
+
+#define TRACE(x,y) if (XrdOlbTrace.What & TRACE_ ## x) TRACEX(y)
+
+#define TRACEX(y) {XrdOlbTrace.Beg(0,epname); cerr <<y; XrdOlbTrace.End();}
 
 #else
 
-#define DEBUG(x, y)
+#define DEBUG(y)
+#define TRACE(x, y)
 
 #endif
 #endif

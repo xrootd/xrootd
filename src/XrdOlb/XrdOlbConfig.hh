@@ -32,23 +32,30 @@ int   ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest);
 int   GenLocalPath(const char *oldp, char *newp);
 int   GenRemotePath(const char *oldp, char *newp);
 int   GenMsgID(char *oldmid, char *buff, int blen);
-int   Master() {return isMaster;}
-int   Slave()  {return isSlave;}
+int   inSuspend();
+int   inNoStage();
+int   Manager() {return isManager;}
+int   Server()  {return isServer;}
 
 int         LUPDelay;     // Maximum delay at look-up
+int         DRPDelay;     // Maximum delay for dropping an offline server
+int         SRVDelay;     // Minimum delay at startup
 int         SUPCount;     // Minimum server count
-int         SUPDelay;     // Maximum delay at start-up
+int         SUPLevel;     // Minimum server count as floating percentage
+int         SUPDelay;     // Maximum delay when server count falls below min
+int         SUSDelay;     // Maximum delay when suspended
 int         MaxLoad;      // Maximum load
 int         MaxDelay;     // Maximum load delay
 int         MsgTTL;       // Maximum msg lifetime
-int         RefReset;     // Min seconds between ref count reset
+int         RefReset;     // Min seconds    before a global ref count reset
+int         RefTurn;      // Min references before a global ref count reset
 int         AskPerf;      // Seconds between perf queries
 int         AskPing;      // Number of ping requests per AskPerf window
 int         LogPerf;      // AskPerf intervals before logging perf
 
 int         PortTCP;      // TCP Port to listen on
-int         PortUDPm;     // UCP Port to listen on (master)
-int         PortUDPs;     // UCP Port to listen on (slave )
+int         PortUDPm;     // UCP Port to listen on (manager)
+int         PortUDPs;     // UCP Port to listen on (server)
 
 int         P_cpu;        // % CPU Capacity in load factor
 int         P_fuzz;       // %     Capacity to fuzz when comparing
@@ -57,7 +64,7 @@ int         P_load;       // % MSC Capacity in load factor
 int         P_mem;        // % MEM Capacity in load factor
 int         P_pag;        // % PAG Capacity in load factor
 
-int         DiskLinger;   // Master Only
+int         DiskLinger;   // Manager Only
 int         DiskMin;      // Minimum KB needed of space
 int         DiskAdj;      // KB to deduct from selected space
 int         DiskWT;       // Seconds to defer client while waiting for space
@@ -66,21 +73,25 @@ int         DiskSS;       // This is a staging server
 
 int         sched_RR;     // 1 -> Simply do round robbin scheduling
 int         doWait;       // 1 -> Wait for a data end-point
+int         Disabled;     // 1 -> Delay director requests
 
-char        *LocalRoot;   // Slave Only
+char        *LocalRoot;   // Server Only
 int          LocalRLen;
-char        *RemotRoot;   // Slave Only
+char        *RemotRoot;   // Server Only
 int          RemotRLen;
 char        *MsgGID;
 int          MsgGIDL;
 char        *myName;
-XrdOucTList *myMasters;
+XrdOucTList *myManagers;
 
-XrdOucProg  *ProgCH;      // Slave only chmod
-XrdOucProg  *ProgMD;      // Slave only mkdir
-XrdOucProg  *ProgMV;      // Slave only mv
-XrdOucProg  *ProgRD;      // Slave only rmdir
-XrdOucProg  *ProgRM;      // Slave only rm
+char        *NoStageFile;
+char        *SuspendFile;
+
+XrdOucProg  *ProgCH;      // Server only chmod
+XrdOucProg  *ProgMD;      // Server only mkdir
+XrdOucProg  *ProgMV;      // Server only mv
+XrdOucProg  *ProgRD;      // Server only rmdir
+XrdOucProg  *ProgRM;      // Server only rm
 
 XrdOlbPList_Anchor PathList;
 XrdOlbMeter       *Meter;
@@ -99,8 +110,8 @@ void ConfigDefaults(void);
 int  ConfigProc(void);
 int  isExec(XrdOucError *eDest, const char *ptype, char *prog);
 int  PidFile(void);
-int  setupMaster(void);
-int  setupSlave(void);
+int  setupManager(void);
+int  setupServer(void);
 void Usage(int rc);
 int  xapath(XrdOucError *edest, XrdOucStream &Config);
 int  xallow(XrdOucError *edest, XrdOucStream &Config);
@@ -129,8 +140,8 @@ char             *AdminPath;
 int               AdminMode;
 char             *pidPath;
 char             *ConfigFN;
-int               isMaster;
-int               isSlave;
+int               isManager;
+int               isServer;
 char             *perfpgm;
 int               perfint;
 int               cachelife;

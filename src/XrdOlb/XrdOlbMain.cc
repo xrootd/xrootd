@@ -12,8 +12,8 @@
 
 const char *XrdOlbMainCVSID = "$Id$";
   
-/* This is the distributed cache server. It can work in master scheduling
-   mode (the -m option) or in slave mode (-s) option.
+/* This is the distributed cache server. It can work in manager mode (-m option)
+   or in sserver mode (-s option).
 
    oolbd [options] [configfn]
 
@@ -27,11 +27,11 @@ Where:
 
    -L     How many minutes between log file closes.
 
-   -m     function in master scheduling moede.
+   -m     function in manager scheduling moede.
 
-   -s     Executes in slave mode.
+   -s     Executes in server mode.
 
-   -w     Wait for a data-point connection before connecting to the master.
+   -w     Wait for a data-point connection before connecting to the manager.
 
 Notes:
    1.     The name of config file must either be specified on the command
@@ -82,8 +82,6 @@ Notes:
 
        XrdOlbManager    XrdOlbSM;
 
-       XrdOlbServer    *XrdOlbMasters = 0;
-
        XrdOucNetwork   *XrdOlbNetTCP  = 0;
        XrdOucNetwork   *XrdOlbNetUDPm = 0;
        XrdOucNetwork   *XrdOlbNetUDPs = 0;
@@ -123,8 +121,7 @@ void *XrdOlbStartPandering(void *carg)
       }
 
 void *XrdOlbStartUDP(void *carg)
-      {int formaster = (int)carg;
-       return XrdOlbSM.StartUDP(formaster);
+      {return XrdOlbSM.StartUDP(*(int *)carg);
       }
 }
 
@@ -132,9 +129,10 @@ void *XrdOlbStartUDP(void *carg)
 /*                                  m a i n                                   */
 /******************************************************************************/
   
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    const char *epname = "main";
+   int forManager = 1;
    XrdOucSemaphore SyncUp(0);
    pthread_t    tid;
    XrdOucLink   *newlink;
@@ -166,13 +164,13 @@ main(int argc, char *argv[])
        SyncUp.Wait();
       }
 
-// Start appropriate subsystems for master/slave operation. At the moment we
+// Start appropriate subsystems for manager/server operation. At the moment we
 // only support one or the other but we act like we support both.
 //
-   if (XrdOlbConfig.Slave())
-      {tp = XrdOlbConfig.myMasters;
+   if (XrdOlbConfig.Server())
+      {tp = XrdOlbConfig.myManagers;
        while(tp)
-            {if (!XrdOlbConfig.Master() && !tp->next) 
+            {if (!XrdOlbConfig.Manager() && !tp->next)
                 XrdOlbSM.Pander(tp->text, tp->val);
                 else {if (XrdOucThread_Run(&tid,XrdOlbStartPandering,(void *)tp))
                          {XrdOlbSay.Emsg("oolbd", errno, "starting server");
@@ -184,12 +182,12 @@ main(int argc, char *argv[])
             }
       }
 
-// Do master processing now, simply loop looking for connections
+// Do manager processing now, simply loop looking for connections
 //
-   if (XrdOlbConfig.Master())
-       XrdOucThread_Run(&tid, XrdOlbStartUDP, (void *)1);
-       DEBUG("Main: Thread " <<tid <<" handling master UDP traffic.");
-       while(1) if (newlink = XrdOlbNetTCP->Accept())
+   if (XrdOlbConfig.Manager())
+       XrdOucThread_Run(&tid, XrdOlbStartUDP, (void *)&forManager);
+       DEBUG("Main: Thread " <<tid <<" handling manager UDP traffic.");
+       while(1) if ((newlink = XrdOlbNetTCP->Accept()))
                    {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
                     XrdOucThread_Run(&tid, XrdOlbLoginServer, (void *)newlink);
                    }

@@ -35,6 +35,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include <sys/un.h>
 #include <dirent.h>
 
+#include "../XrdVersion.hh"
 #include "XrdOlb/XrdOlbCache.hh"
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbMeter.hh"
@@ -42,6 +43,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
+#include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
@@ -54,6 +56,12 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTimer.hh"
 #include "XrdOuc/XrdOucTList.hh"
+
+/******************************************************************************/
+/*                      C o p y r i g h t   S t r i n g                       */
+/******************************************************************************/
+  
+#define XrdCPR "(c) 2004 SLAC olbd version " XrdVSTRING
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
@@ -98,25 +106,25 @@ void *XrdOlbStartMonRefs(void *carg) { return XrdOlbSM.MonRefs(); }
 /******************************************************************************/
 /*                        W o r k e r   C l a s s e s                         */
 /******************************************************************************/
-  
-class XrdOlbMasterWorker : XrdOlbWorker
+
+class XrdOlbManWorker : XrdOlbWorker
 {
 public:
 
 void *WorkIt(void *) {return (void *)XrdOlbSM.Process();}
 
-     XrdOlbMasterWorker() {}
-    ~XrdOlbMasterWorker() {}
+     XrdOlbManWorker() {}
+    ~XrdOlbManWorker() {}
 };
 
-class XrdOlbSlaveWorker : XrdOlbWorker
+class XrdOlbSrvWorker : XrdOlbWorker
 {
 public:
 
 void *WorkIt(void *) {return (void *)XrdOlbSM.Respond();}
 
-     XrdOlbSlaveWorker() {}
-    ~XrdOlbSlaveWorker() {}
+     XrdOlbSrvWorker() {}
+    ~XrdOlbSrvWorker() {}
 
 };
 
@@ -124,8 +132,8 @@ class XrdOlbLogWorker : XrdOlbJob
 {
 public:
 
-      int DoIt() {XrdOlbSay.Emsg("Config", "The midnight lamp burns while",
-                                  smtype, (char *)"execution continues.");
+      int DoIt() {XrdOlbSay.Emsg("Config", XrdCPR, 
+                            (char *)" executing as ", smtype);
                   midnite += 86400;
                   XrdOlbSchedM->Schedule((XrdOlbJob *)this, midnite);
                   return 1;
@@ -140,6 +148,23 @@ public:
 private:
 char  *smtype;
 time_t midnite;
+};
+
+/******************************************************************************/
+/*                         S t a r t u p   C l a s s                          */
+/******************************************************************************/
+  
+class XrdOlbStartup : XrdOlbJob
+{
+public:
+
+      int DoIt() {XrdOlbConfig.Disabled = 0;
+                  XrdOlbSay.Emsg("Config", "Service enabled.");
+                  return 1;
+                 }
+
+          XrdOlbStartup() : XrdOlbJob("service startup"){}
+         ~XrdOlbStartup() {}
 };
 
 /******************************************************************************/
@@ -174,12 +199,12 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 
   Output:   0 upon success or !0 otherwise.
 */
-   int logsync = 86400, retc, NoGo = 0;
+   int logsync = 86400, NoGo = 0;
    char c, buff[32], *temp, *logfn = 0, *smtype = 0;
    extern char *optarg;
    extern int optind, opterr, optopt;
-   static XrdOlbMasterWorker MWorker;
-   static XrdOlbSlaveWorker  SWorker;
+   static XrdOlbManWorker MWorker;
+   static XrdOlbSrvWorker  SWorker;
 
 // Process the options
 //
@@ -196,9 +221,9 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                  logfn = strdup(optarg);
                  break;
        case 'L': break; // Here for upward compatability only
-       case 'm': isMaster = 1;
+       case 'm': isManager = 1;
                  break;
-       case 's': isSlave = 1;
+       case 's': isServer = 1;
                  break;
        case 'w': doWait = 1;
                  break;
@@ -218,26 +243,26 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 
 // Process unsupported configurations
 //
-   if (isMaster && isSlave)
-      {smtype = (char *)"Master/Slave";
-       XrdOlbSay.Emsg("Config", "Hierarchical master/slave mode not supported");
+   if (isManager && isServer)
+      {smtype = (char *)"Manager/Server";
+       XrdOlbSay.Emsg("Config", "Hierarchical manager/server mode not supported");
        Usage(1);
       }
-   if (!(isMaster || isSlave))
-      {XrdOlbSay.Emsg("Config", "Mode not specified; master mode assumed");
-       isMaster = 1;
+   if (!(isManager || isServer))
+      {XrdOlbSay.Emsg("Config", "Mode not specified; manager mode assumed");
+       isManager = 1;
       } 
-   if (isMaster) 
-      {if (!smtype) smtype = (char *)"Master";
+   if (isManager) 
+      {if (!smtype) smtype = (char *)"Manager";
        XrdOlbSchedM = new XrdOlbScheduler((XrdOlbWorker*)&MWorker);
        XrdOlbJob *jp=(XrdOlbJob *)new XrdOlbCache_Scrubber(&XrdOlbCache,XrdOlbSchedM);
        XrdOlbSchedM->Schedule(jp, cachelife+time(0));
-       if (!isSlave)  XrdOlbSchedS = XrdOlbSchedM;
+       if (!isServer)  XrdOlbSchedS = XrdOlbSchedM;
       }
-   if (isSlave)  
-      {if (!smtype) smtype = (char *)"Slave";
+   if (isServer)  
+      {if (!smtype) smtype = (char *)"Sserver";
        XrdOlbSchedS = new XrdOlbScheduler((XrdOlbWorker *)&SWorker);
-       if (!isMaster) XrdOlbSchedM = XrdOlbSchedS;
+       if (!isManager) XrdOlbSchedM = XrdOlbSchedS;
       }
 
 // Establish pointers to error message handling
@@ -245,9 +270,9 @@ int XrdOlbConfig::Configure(int argc, char **argv)
    if (!logfn) XrdOlbSTDERR = 0;
       else {XrdOlbSTDERR = dup(2);
             XrdOlbLog.Bind(logfn, logsync);
-            XrdOlbJob *jp = (XrdOlbJob *)new XrdOlbLogWorker(smtype);
+            new XrdOlbLogWorker(smtype);
            }
-   XrdOlbSay.Emsg("Config",(const char *)smtype,(char *)"initialization started.");
+   XrdOlbSay.Emsg("Config",XrdCPR,(char *)" initializing as ",smtype);
 
 // Establish the FD limit
 //
@@ -271,8 +296,8 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                else temp = 0;
    if (temp) 
       {NoGo = 1; XrdOlbSay.Emsg("Config",temp, (char *)"port not specified.");}
-      else if (PortUDPm == PortUDPs && isMaster && isSlave)
-              {XrdOlbSay.Emsg("Config","Master and slave UDP ports are the same.");
+      else if (PortUDPm == PortUDPs && isManager && isServer)
+              {XrdOlbSay.Emsg("Config","Manager and server UDP ports are the same.");
                NoGo = 1;
               }
 
@@ -281,11 +306,11 @@ int XrdOlbConfig::Configure(int argc, char **argv)
    if (!NoGo) 
       NoGo = !(AdminSock = ASocket(AdminPath, "olbd.admin", AdminMode));
 
-// Setup master or slave, as needed
+// Setup manager or server, as needed
 //
   if (!NoGo)
-     if (isMaster) NoGo = setupMaster();
-        else       NoGo = setupSlave();
+     if (isManager) NoGo = setupManager();
+        else       NoGo = setupServer();
 
 // Set up the generic message id
 //
@@ -295,7 +320,8 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 // All done, check for success or failure
 //
    temp = (NoGo ? (char *)"failed." : (char *)"completed.");
-   XrdOlbSay.Emsg("Config",(const char *)smtype,(char *)"initialization",temp);
+   XrdOlbSay.Emsg("Config",(const char *)smtype,
+                 (char *)"initialization",temp);
    return NoGo;
 }
 
@@ -314,28 +340,28 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
 
    // Process items
    //
-   TS_Xeq("delay",         xdelay);  // Master,     dynamic
-   TS_Xeq("fxhold",        xfxhld);  // Master,     dynamic
-   TS_Xeq("ping",          xping);   // Master,     dynamic
-   TS_Xeq("sched",         xsched);  // Master,     dynamic
+   TS_Xeq("delay",         xdelay);  // Manager,     dynamic
+   TS_Xeq("fxhold",        xfxhld);  // Manager,     dynamic
+   TS_Xeq("ping",          xping);   // Manager,     dynamic
+   TS_Xeq("sched",         xsched);  // Manager,     dynamic
    TS_Xeq("space",         xspace);  // Any,        dynamic
    TS_Xeq("threads",       xthreads);// Any,        dynamic
    TS_Xeq("trace",         xtrace);  // Any,        dynamic
 
    if (!dynamic)
    {
-   TS_Xeq("cache",         xcache);  // Slave,  non-dynamic
+   TS_Xeq("cache",         xcache);  // Server,  non-dynamic
    TS_Xeq("adminpath",     xapath);  // Any,    non-dynamic
-   TS_Xeq("allow",         xallow);  // Master, non-dynamic
-   TS_Xeq("fsxeq",         xfsxq);   // Slave,  non-dynamic
-   TS_Xeq("localroot",     xlclrt);  // Slave,  non-dynamic
-   TS_Xeq("path",          xpath);   // Slave,  non-dynamic
-   TS_Xeq("perf",          xperf);   // Slave,  non-dynamic
+   TS_Xeq("allow",         xallow);  // Manager, non-dynamic
+   TS_Xeq("fsxeq",         xfsxq);   // Server,  non-dynamic
+   TS_Xeq("localroot",     xlclrt);  // Server,  non-dynamic
+   TS_Xeq("path",          xpath);   // Server,  non-dynamic
+   TS_Xeq("perf",          xperf);   // Server,  non-dynamic
    TS_Xeq("pidpath",       xpidf);   // Any,    non-dynamic
    TS_Xeq("port",          xport);   // Any,    non-dynamic
    TS_Xeq("prep",          xprep);   // Any,    non-dynamic
-   TS_Xeq("remoteroot",    xrmtrt);  // Slave,  non-dynamic
-   TS_Xeq("subscribe",     xsubs);   // Slave,  non-dynamic
+   TS_Xeq("remoteroot",    xrmtrt);  // Server,  non-dynamic
+   TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic
    }
 
    // No match found, complain.
@@ -404,6 +430,28 @@ int XrdOlbConfig::GenMsgID(char *oldmid, char *buff, int blen)
 }
   
 /******************************************************************************/
+/*                             i n N o S t a g e                              */
+/******************************************************************************/
+
+int  XrdOlbConfig::inNoStage()
+{
+   struct stat buff;
+
+   return (!stat((const char *)NoStageFile, &buff));
+}
+
+/******************************************************************************/
+/*                             i n S u s p e n d                              */
+/******************************************************************************/
+  
+int  XrdOlbConfig::inSuspend()
+{
+   struct stat buff;
+
+   return (!stat((const char *)SuspendFile, &buff));
+}
+  
+/******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
 /******************************************************************************/
@@ -415,7 +463,7 @@ XrdOucSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
 {
    XrdOucSocket *ASock;
    int i, sflags = (isudp ? XrdOucSOCKET_UDP : 0);
-   char *act = 0, *slash, fnbuff[1024];
+   char *act = 0, fnbuff[1024];
    struct stat buf;
 
 // Create the directory if it is not already there
@@ -510,8 +558,12 @@ void XrdOlbConfig::ConfigDefaults(void)
 //
    myName   = XrdOucNetwork::FullHostName();
    LUPDelay = 5;
+   DRPDelay = 10*60;
+   SRVDelay = 90;
    SUPCount = 1;
+   SUPLevel = 80;
    SUPDelay = 15;
+   SUSDelay = 30;
    MaxLoad  = 0x7fffffff;
    MsgTTL   = 7;
    PortTCP  = 0;
@@ -534,17 +586,16 @@ void XrdOlbConfig::ConfigDefaults(void)
    DiskSS   = 0;        // Not a staging server
    ConfigFN = 0;
    sched_RR = 0;
-   isMaster = 0;
-   isSlave  = 0;
+   isManager = 0;
+   isServer  = 0;
    LocalRoot= 0;
    LocalRLen= 0;
    RemotRoot= 0;
    RemotRLen= 0;
-   myMasters= 0;
+   myManagers=0;
    Meter    = 0;
    perfint  = 3*60;
    perfpgm  = 0;
-   RefReset = 60*60;
    AdminPath= strdup("/tmp/.olb");
    AdminMode= 0700;
    AdminSock= 0;
@@ -554,13 +605,18 @@ void XrdOlbConfig::ConfigDefaults(void)
    monPath  = 0;
    cachelife= 8*60*60;
    pendplife=   60*60*24*7;
-   DiskLinger=3;
+   DiskLinger=0;
    ProgCH   = 0;
    ProgMD   = 0;
    ProgMV   = 0;
    ProgRD   = 0;
    ProgRM   = 0;
    doWait   = 0;
+   Disabled = 1;
+   RefReset = 60*60;
+   RefTurn  = 3*XrdOlbSTMAX*(DiskLinger+1);
+   NoStageFile = 0;
+   SuspendFile = 0;
 }
   
 /******************************************************************************/
@@ -583,7 +639,7 @@ int XrdOlbConfig::ConfigProc()
 
 // Now start reading records until eof.
 //
-   while( var = Config.GetFirstWord())
+   while((var = Config.GetFirstWord()))
         {if (!strncmp(var, OLB_Prefix, OLB_PrefLen))
             {var += OLB_PrefLen;
              NoGo |= ConfigXeq(var, Config, 0);
@@ -596,7 +652,7 @@ int XrdOlbConfig::ConfigProc()
 
 // Now check if any errors occured during file i/o
 //
-   if (retc = Config.LastError())
+   if ((retc = Config.LastError()))
       NoGo = XrdOlbSay.Emsg("Config", retc, "reading config file", ConfigFN);
    Config.Close();
 
@@ -612,7 +668,6 @@ int XrdOlbConfig::ConfigProc()
 int XrdOlbConfig::isExec(XrdOucError *eDest, const char *ptype, char *prog)
 {
   char buff[512], pp, *mp = prog;
-  int retc;
 
 // Isolate the program name
 //
@@ -642,7 +697,6 @@ int XrdOlbConfig::PidFile()
 {
     int xfd;
     char buff[1024], *xop = 0;
-    XrdOucTList *tp = myMasters;
     char pidFN[1200];
 
     snprintf(pidFN, sizeof(pidFN), "%s/olbd.pid", pidPath);
@@ -663,12 +717,13 @@ int XrdOlbConfig::PidFile()
 }
 
 /******************************************************************************/
-/*                           s e t u p M a s t e r                            */
+/*                          s e t u p M a n a g e r                           */
 /******************************************************************************/
   
-int XrdOlbConfig::setupMaster()
+int XrdOlbConfig::setupManager()
 {
-   const char *epname = "setupMaster";
+   const char *epname = "setupManager";
+   static XrdOlbStartup StartService;
    pthread_t tid;
    int rc;
 
@@ -695,7 +750,7 @@ int XrdOlbConfig::setupMaster()
 
 // Create statistical monitoring thread
 //
-   if (rc = XrdOucThread_Run(&tid, XrdOlbStartMonPerf, (void *)0))
+   if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonPerf, (void *)0)))
       {XrdOlbSay.Emsg("Config", rc, "creating perf monitor thread");
        return 1;
       }
@@ -703,13 +758,19 @@ int XrdOlbConfig::setupMaster()
 
 // Create reference monitoring thread
 //
+   RefTurn  = 3*XrdOlbSTMAX*(DiskLinger+1);
    if (RefReset)
-      {if (rc = XrdOucThread_Run(&tid, XrdOlbStartMonRefs, (void *)0))
+      {if ((rc = XrdOucThread_Run(&tid, XrdOlbStartMonRefs, (void *)0)))
           {XrdOlbSay.Emsg("Config", rc, "creating refcount monitor thread");
            return 1;
           }
        DEBUG("Config: thread " <<(unsigned int)tid <<" assigned to refcount monitor");
       }
+
+// We normally come up disabled to allow data service machines to connect.
+// Scheduler a job to enabled ourselves after the service delay time.
+//
+   XrdOlbSchedM->Schedule((XrdOlbJob *)&StartService, time(0)+SRVDelay);
 
 // All done
 //
@@ -717,17 +778,16 @@ int XrdOlbConfig::setupMaster()
 }
 
 /******************************************************************************/
-/*                            s e t u p S l a v e                             */
+/*                           s e t u p S e r v e r                            */
 /******************************************************************************/
   
-int XrdOlbConfig::setupSlave()
+int XrdOlbConfig::setupServer()
 {
-   XrdOucTList *tp;
 
-// Make sure we have enough info to be a slave
+// Make sure we have enough info to be a server
 //
-   if (!myMasters)
-      {XrdOlbSay.Emsg("Config", "Master node not specified for slave mode");
+   if (!myManagers)
+      {XrdOlbSay.Emsg("Config", "Manager node not specified for server mode");
        return 1;
       }
 
@@ -739,7 +799,7 @@ int XrdOlbConfig::setupSlave()
 //
    XrdOlbNetTCP = new XrdOucNetwork(&XrdOlbSay, 0);
 
-// Setup UDP network for the slave
+// Setup UDP network for the server
 //
    XrdOlbNetUDPs = new XrdOucNetwork(&XrdOlbSay, Police);
    if (XrdOlbNetUDPs->Bind(PortUDPs, "udp")
@@ -784,6 +844,31 @@ int XrdOlbConfig::setupSlave()
    if (!(AnoteSock = ASocket(AdminPath, "olbd.notes", AdminMode, 1)))
       return 1;
 
+// Construct the nostage/suspend file path names
+//
+  {char fnbuff[1048];
+   int i;
+
+   i = strlen(AdminPath);
+   strcpy(fnbuff, AdminPath);
+   if (AdminPath[i-1] != '/') fnbuff[i++] = '/';
+   strcpy(fnbuff+i, "NOSTAGE");
+   NoStageFile = strdup(fnbuff);
+   strcpy(fnbuff+i, "SUSPEND");
+   SuspendFile = strdup(fnbuff);
+  }
+
+// Determine if we are in nostage and/or suspend state
+//
+   if (inNoStage())
+      {XrdOlbSay.Emsg("Config", "Starting in NOSTAGE state.");
+       XrdOlbSM.Stage(0, 0);
+      }
+   if (inSuspend())
+      {XrdOlbSay.Emsg("Config", "Starting in SUSPEND state.");
+       XrdOlbSM.Suspend(0);
+      }
+
 // All done
 //
    return 0;
@@ -811,7 +896,7 @@ exit(rc);
                     netgroup name the host must be a member of. For DNS names,
                     a single asterisk may be specified anywhere in the name.
 
-   Type: Master only, non-dynamic.
+   Type: Manager only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -821,7 +906,7 @@ int XrdOlbConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
     char *val;
     int ishost = 1;
 
-    if (!isMaster) return 0;
+    if (!isManager) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "allow dns name not specified"); return 1;}
@@ -849,7 +934,7 @@ int XrdOlbConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
 
              <path>    the path of the named socket to use for admin requests.
 
-   Type: Master and Slave, non-dynamic.
+   Type: Manager and Server, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -906,7 +991,7 @@ int XrdOlbConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
              <group>   the cache group (ignored for olbd)
              <path>    the full path of the filesystem the server will handle.
 
-   Type: Slave only, non-dynamic.
+   Type: Server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -918,7 +1003,7 @@ int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &Config)
     struct dirent *dir;
     DIR *DFD;
 
-    if (!isSlave) return 0;
+    if (!isServer) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "cache group not specified"); return 1;}
@@ -927,7 +1012,7 @@ int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &Config)
        {eDest->Emsg("Config", "cache path not specified"); return 1;}
 
     k = strlen(val);
-    if (k >= sizeof(fn)-1 || val[0] != '/' || k < 2)
+    if (k >= (int)(sizeof(fn)-1) || val[0] != '/' || k < 2)
        {eDest->Emsg("Config", "invalid cache path - ", val); return 1;}
 
     if (val[k-1] != '*') return !Fsysadd(eDest, 0, val);
@@ -939,7 +1024,7 @@ int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &Config)
        {eDest->Emsg("Config", errno, "opening cache directory", fn); return 1;}
 
     errno = 0; rc = 0;
-    while(dir = readdir(DFD))
+    while((dir = readdir(DFD)))
          {if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..")
           || (pfxln && strncmp(dir->d_name, (const char *)pfxdir, pfxln)))
              continue;
@@ -980,34 +1065,45 @@ int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
 /* Function: xdelay
 
    Purpose:  To parse the directive: delay [lookup <sec>] [overload <sec>]
-                                           [startup <sec>] [servers <cnt>]
+                                           [startup <sec>] [servers <cnt>[%]]
                                            [full <sec>] [discard <cnt>]
+                                           [suspend <sec>] [drop <sec>]
+                                           [service <sec>]
 
-             <sec>     seconds to delay client while doing lookup, startup,
-                       or when overloaded.
-             <cnt>     minimum servers needed to enforce the delay.
+   discard   <cnt>     maximum number a message may be forwarded.
+   drop      <sec>     seconds to delay a drop of an offline server.
+   full      <sec>     seconds to delay client when no servers have space.
+   lookup    <sec>     seconds to delay client when finding a file.
+   overload  <sec>     seconds to delay client when all servers overloaded.
+   servers   <cnt>     minimum number of servers we need.
+   service   <sec>     seconds to delay client when waiting for servers.
+   startup   <sec>     seconds to delay enabling our service
+   suspend   <sec>     seconds to delay client when all servers suspended.
 
-   Type: Master only, dynamic.
+   Type: Manager only, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &Config)
 {   char *val;
     const char *etxt = "invalid delay option";
-    int  nogo, i, ppp;
-    static struct delayopts { char * opname; int *oploc; int istime;}
+    int  i, ppp, ispercent = 0;
+    static struct delayopts {const char *opname; int *oploc; int istime;}
            dyopts[] =
        {
-       (char *)"discard",  &MsgTTL,   0,
-       (char *)"full",     &DiskWT,  -1,
-       (char *)"lookup",   &LUPDelay, 1,
-       (char *)"overload", &MaxDelay,-1,
-       (char *)"servers",  &SUPCount, 0,
-       (char *)"startup",  &SUPDelay, 1
+        {"discard",  &MsgTTL,   0},
+        {"drop",     &DRPDelay, 1},
+        {"full",     &DiskWT,  -1},
+        {"lookup",   &LUPDelay, 1},
+        {"overload", &MaxDelay,-1},
+        {"servers",  &SUPCount, 0},
+        {"service",  &SUPDelay, 1},
+        {"startup",  &SRVDelay, 1},
+        {"suspend",  &SUSDelay, 1}
        };
     int numopts = sizeof(dyopts)/sizeof(struct delayopts);
 
-    if (!isMaster) return 0;
+    if (!isManager) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "delay arguments not specified"); return 1;}
@@ -1016,16 +1112,25 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &Config)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, dyopts[i].opname))
                   {if (!(val = Config.GetWord()))
-                      {eDest->Emsg("Config", "delay ", dyopts[i].opname,
+                      {eDest->Emsg("Config", "delay ", (char *)dyopts[i].opname,
                                   (char *)" argument not specified.");
                        return 1;
                       }
                    if (dyopts[i].istime < 0 && !strcmp(val, "*")) ppp = -1;
-                      else if (dyopts[i].istime ?
-                               XrdOuca2x::a2i( *eDest,etxt,val,&ppp,1) :
-                               XrdOuca2x::a2tm(*eDest,etxt,val,&ppp,1))
-                              return 1;
-                   *dyopts[i].oploc = ppp;
+                      else if (dyopts[i].istime)
+                              {if (XrdOuca2x::a2tm(*eDest,etxt,val,&ppp,1))
+                                  return 1;
+                              } else {
+                               if (*dyopts[i].opname == 's')
+                                  {ppp = strlen(val); SUPLevel = 0;
+                                   if (val[ppp-1] == '%')
+                                      {ispercent = 1; val[ppp-1] = '\0';}
+                                  }
+                               if (XrdOuca2x::a2i( *eDest,etxt,val,&ppp,1))
+                                  return 1;
+                              }
+                   if (!ispercent) *dyopts[i].oploc = ppp;
+                      else {ispercent = 0; SUPCount = 1; SUPLevel = ppp;}
                    break;
                   }
            if (i >= numopts) 
@@ -1047,27 +1152,27 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &Config)
                        chmod mkdir mv rm rmdir
              <prog>    the program to execute when doing a forwarded fs op.
 
-   Type: Slave only, non-dynamic.
+   Type: Server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
 
 int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &Config)
 {
-    struct xeqopts { char * opname; int doset; XrdOucProg **pgm;} xqopts[] =
+    struct xeqopts {const char *opname; int doset; XrdOucProg **pgm;} xqopts[] =
        {
-       (char *)"chmod",    0, &ProgCH,
-       (char *)"mkdir",    0, &ProgMD,
-       (char *)"mv",       0, &ProgMV,
-       (char *)"rm",       0, &ProgRM,
-       (char *)"rmdir",    0, &ProgRD
+        {"chmod",    0, &ProgCH},
+        {"mkdir",    0, &ProgMD},
+        {"mv",       0, &ProgMV},
+        {"rm",       0, &ProgRM},
+        {"rmdir",    0, &ProgRD}
        };
     int i, xtval = 0, numopts = sizeof(xqopts)/sizeof(struct xeqopts);
     char *val;
 
-// If we are a master, ignore this option
+// If we are a manager, ignore this option
 //
-   if (!isSlave) return 0;
+   if (!isServer) return 0;
 
 // Get the operation types
 //
@@ -1121,7 +1226,7 @@ int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &Config)
 
              <sec>  number of seconds (or M, H, etc) to cache file existence
 
-   Type: Master only, dynamic.
+   Type: Manager only, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1131,7 +1236,7 @@ int XrdOlbConfig::xfxhld(XrdOucError *eDest, XrdOucStream &Config)
     char *val;
     int ct;
 
-    if (!isMaster) return 0;
+    if (!isManager) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "fxhold value not specified."); return 1;}
@@ -1153,7 +1258,7 @@ int XrdOlbConfig::xfxhld(XrdOucError *eDest, XrdOucStream &Config)
 
              <path>    the path that the server will prefix to all local paths.
 
-   Type: Slave only, non-dynamic.
+   Type: Server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1163,9 +1268,9 @@ int XrdOlbConfig::xlclrt(XrdOucError *eDest, XrdOucStream &Config)
     char *val;
     int i;
 
-// If we are a master, ignore this option
+// If we are a manager, ignore this option
 //
-   if (!isSlave) return 0;
+   if (!isServer) return 0;
 
 // Get path type
 //
@@ -1200,7 +1305,7 @@ int XrdOlbConfig::xlclrt(XrdOucError *eDest, XrdOucStream &Config)
 
              <path>    the full path that the server will hanlde. This is
 
-   Type: Slave only, non-dynamic.
+   Type: Server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1211,9 +1316,9 @@ int XrdOlbConfig::xpath(XrdOucError *eDest, XrdOucStream &Config)
     int i = -1;
     XrdOlbPInfo  pmask;
 
-// If we are a master, ignore this option
+// If we are a manager, ignore this option
 //
-   if (!isSlave) return 0;
+   if (!isServer) return 0;
 
 // Get path type
 //
@@ -1254,15 +1359,15 @@ int XrdOlbConfig::xpath(XrdOucError *eDest, XrdOucStream &Config)
          pgm <pgm>     program to start that will write perf values into
                        shared memory. It must be the last option.
 
-   Type: Slave only, non-dynamic.
+   Type: Server only, non-dynamic.
 
-   Output: 0 upon success or !0 upon failure. Ignored by master.
+   Output: 0 upon success or !0 upon failure. Ignored by manager.
 */
 int XrdOlbConfig::xperf(XrdOucError *eDest, XrdOucStream &Config)
 {   int   ival = 3*60;
     char *pgm=0, *val, *rest;
 
-    if (!isSlave) return 0;
+    if (!isServer) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "perf options not specified"); return 1;}
@@ -1293,7 +1398,7 @@ int XrdOlbConfig::xperf(XrdOucError *eDest, XrdOucStream &Config)
                  break;
                 }
         else eDest->Emsg("Config", "Warning, invalid perf option", val);
-       } while(val = Config.GetWord());
+       } while((val = Config.GetWord()));
 
 // Make sure that the perf program is here
 //
@@ -1354,7 +1459,7 @@ int XrdOlbConfig::xpidf(XrdOucError *eDest, XrdOucStream &Config)
              usage     The number of pings between resource usage requests.
                        The default is 10. Zero suppresses usage requests.
 
-   Type: Master only, dynamic.
+   Type: Manager only, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1362,14 +1467,14 @@ int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &Config)
 {   int pnum = AskPerf, lnum = LogPerf, ping;
     char *val;
 
-    if (!isMaster) return 0;
+    if (!isManager) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "ping value not specified"); return 1;}
     if (XrdOuca2x::a2tm(*eDest, "invalid ping interval",val,&ping,0)) return 1;
 
 
-    while(val = Config.GetWord())
+    while((val = Config.GetWord()))
         {     if (!strcmp("log", val))
                  {if (!(val = Config.GetWord()))
                      {eDest->Emsg("Config", "ping log value not specified");
@@ -1400,10 +1505,10 @@ int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &Config)
    Purpose:  To parse the directive: port <tcpnum> [<udpnumM> [<updnnumS>]]
 
              <tcpnum>   number of the tcp port for incomming requests
-             <udpnumM>  number of the udp port for incomming master requests
-             <udpnumS>  number of the udp port for incomming slave  requests
+             <udpnumM>  number of the udp port for incomming manager requests
+             <udpnumS>  number of the udp port for incomming server  requests
 
-   Type: Master or Slave, non-dynamic.
+   Type: Manager or Server, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1421,7 +1526,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
                }
     PortTCP = PortUDPm = PortUDPs = pnum;
 
-    if (val = Config.GetWord())
+    if ((val = Config.GetWord()))
        {if (isdigit(*val))
            {if (XrdOuca2x::a2i(*eDest,"invalid udp port",val,&pnum,1,65535)) return 1;}
            else if (!(pnum = XrdOucNetwork::findPort(val, "udp")))
@@ -1433,9 +1538,9 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
 
     if (val && (val = Config.GetWord()))
        {if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*eDest,"invalid slave udp port",val,&pnum,1,65535)) return 1;}
+           {if (XrdOuca2x::a2i(*eDest,"invalid server udp port",val,&pnum,1,65535)) return 1;}
            else if (!(pnum = XrdOucNetwork::findPort(val, "udp")))
-                   {eDest->Emsg("Config","Unable to find slave udp service",val);
+                   {eDest->Emsg("Config","Unable to find server udp service",val);
                     return 1;
                    }
         PortUDPs = pnum;
@@ -1460,16 +1565,16 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
                        entries. It must be specified as the last option
                        on the line.
 
-   Type: Any, non-dynamic. Note that the Master only need the "batch" option
+   Type: Any, non-dynamic. Note that the Manager only need the "batch" option
          while slacves need the remaining options.
 
-   Output: 0 upon success or !0 upon failure. Ignored by master.
+   Output: 0 upon success or !0 upon failure. Ignored by manager.
 */
 int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &Config)
-{   int   batch = 0, reset=0, scrub=0, echo = 0, doset = 0;
+{   int   reset=0, scrub=0, echo = 0, doset = 0;
     char  *prepif=0, *val, *rest;
 
-    if (!isSlave) return 0;
+    if (!isServer) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "prep options not specified"); return 1;}
@@ -1503,7 +1608,7 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &Config)
                  break;
                 }
         else eDest->Emsg("Config", "Warning, invalid prep option", val);
-       } while(val = Config.GetWord());
+       } while((val = Config.GetWord()));
 
 
 
@@ -1527,7 +1632,7 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &Config)
 
              <path>    the path that the server will prefix to all remote paths.
 
-   Type: Slave only, non-dynamic.
+   Type: Server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1537,9 +1642,9 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &Config)
     char *val;
     int i;
 
-// If we are a master, ignore this option
+// If we are a manager, ignore this option
 //
-   if (!isSlave) return 0;
+   if (!isServer) return 0;
 
 // Get path type
 //
@@ -1581,7 +1686,7 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &Config)
                       not selected. refreset is the minimum number of seconds
                       between reference counter resets.
 
-   Type: Master only, dynamic.
+   Type: Manager only, dynamic.
 
    Output: retc upon success or -EINVAL upon failure.
 */
@@ -1590,21 +1695,21 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
     int  i, ppp;
-    static struct schedopts { char * opname; int maxv; int *oploc;}
+    static struct schedopts {const char *opname; int maxv; int *oploc;}
            scopts[] =
        {
-       (char *)"cpu",      100, &P_cpu,
-       (char *)"fuzz",     100, &P_fuzz,
-       (char *)"io",       100, &P_io,
-       (char *)"runq",     100, &P_load, // Actually load, runq to avoid confusion
-       (char *)"mem",      100, &P_mem,
-       (char *)"pag",      100, &P_pag,
-       (char *)"maxload",  100, &MaxLoad,
-       (char *)"refreset", -1,  &RefReset
+        {"cpu",      100, &P_cpu},
+        {"fuzz",     100, &P_fuzz},
+        {"io",       100, &P_io},
+        {"runq",     100, &P_load}, // Actually load, runq to avoid confusion
+        {"mem",      100, &P_mem},
+        {"pag",      100, &P_pag},
+        {"maxload",  100, &MaxLoad},
+        {"refreset", -1,  &RefReset}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
 
-    if (!isMaster) return 0;
+    if (!isManager) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "sched option not specified"); return 1;}
@@ -1613,12 +1718,12 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, scopts[i].opname))
                   {if (!(val = Config.GetWord()))
-                      {eDest->Emsg("Config", "sched ", scopts[i].opname,
+                      {eDest->Emsg("Config", "sched ", (char *)scopts[i].opname,
                                   (char *)" argument not specified.");
                        return 1;
                       }
                    if (scopts[i].maxv < 0)
-                      if (XrdOuca2x::a2tm(*eDest,"invalid sched value", val, &ppp, 1)) return 1;
+                      if (XrdOuca2x::a2tm(*eDest,"invalid sched value", val, &ppp, 0)) return 1;
                          else if (XrdOuca2x::a2i(*eDest,"invalid sched value", val, &ppp,
                                          0, scopts[i].maxv)) return 1;
                    *scopts[i].oploc = ppp;
@@ -1649,7 +1754,7 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
              <adj> Bytes (or K, M,G) to adjust downwards per selection.
                    The default is 1G.
 
-   Notes:   This is used by the master and the slave.
+   Notes:   This is used by the manager and the server.
 
    Type: All, dynamic.
 
@@ -1662,7 +1767,7 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
     int alinger = -1;
     long long minf = -1, adj = -1;
 
-    while(val = Config.GetWord())
+    while((val = Config.GetWord()))
        {if (!strcmp("linger", val))
            {if (!(val = Config.GetWord()))
                {eDest->Emsg("Config", "linger value not specified"); return 1;}
@@ -1704,17 +1809,17 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
 
    Purpose:  To parse the directive: subscribe <host>[+] [<port>]
 
-             <host> The dns name of the host that is the master of this host.
+             <host> The dns name of the host that is the manager of this host.
                     If the host name ends with a plus, all addresses that are
                     associated with the hosts are subscribed to.
 
              <port> The port number to use for this host. The default comes
                     from the port directive.
 
-   Notes:   Any number of subscribe directives can be given. The slave will
-            subscribe to all of the masters.
+   Notes:   Any number of subscribe directives can be given. The server will
+            subscribe to all of the managers.
 
-   Type: Slave only, non-dynamic.
+   Type: Server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1726,13 +1831,13 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
     char *val, *bval = 0, *mval;
     int i, port = 0;
 
-    if (!isSlave) return 0;
+    if (!isServer) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "subscribe host not specified"); return 1;}
     mval = strdup(val);
 
-    if (val = Config.GetWord())
+    if ((val = Config.GetWord()))
        {if (isdigit(*val))
            {if (XrdOuca2x::a2i(*eDest,"invalid subscribe port",val,&port,1,65535))
                port = 0;
@@ -1762,14 +1867,14 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
             eDest->Emsg("Config", (const char *)bval, 
                         (char *)"-> olb.subscribe", mval);
            }
-        tp = myMasters;
+        tp = myManagers;
         while(tp) 
              if (strcmp(tp->text, mval) || tp->val != port) tp = tp->next;
                 else {eDest->Emsg("Config","Duplicate subscription to",mval);
                       break;
                      }
         if (tp) break;
-        myMasters = new XrdOucTList(mval, port, myMasters);
+        myManagers = new XrdOucTList(mval, port, myManagers);
        } while(i);
 
     if (bval) free(bval);
@@ -1783,7 +1888,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
   
 /* Function: xthreads
 
-   Purpose:  To parse the directive: threads [master | slave] <max> <min>
+   Purpose:  To parse the directive: threads [manager| server] <max> <min>
 
              <max>  max number of threads used for scheduling
              <min>  max number of threads used for scheduling
@@ -1805,8 +1910,8 @@ int XrdOlbConfig::xthreads(XrdOucError *eDest, XrdOucStream &Config)
     while(val)
          {schedM = XrdOlbSchedM;
           schedS = XrdOlbSchedS;
-          if (!strcmp("master", val)) schedS = 0;
-             else if (!strcmp("slave", val)) schedM = 0;
+          if (!strcmp("manager", val)) schedS = 0;
+             else if (!strcmp("server", val)) schedM = 0;
 
           if (XrdOuca2x::a2i(*eDest, "invalid max threads value", val, &maxt, 1))
              return 1;
@@ -1829,7 +1934,7 @@ int XrdOlbConfig::xthreads(XrdOucError *eDest, XrdOucStream &Config)
 
    Purpose:  To parse the directive: trace <options>
 
-   Type: Master or Slave, dynamic.
+   Type: Manager or Server, dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1837,10 +1942,12 @@ int XrdOlbConfig::xthreads(XrdOucError *eDest, XrdOucStream &Config)
 int XrdOlbConfig::xtrace(XrdOucError *eDest, XrdOucStream &Config)
 {
     char  *val;
-    static struct traceopts { char * opname; int opval;} tropts[] =
+    static struct traceopts {const char *opname; int opval;} tropts[] =
        {
-       (char *)"all",      TRACE_ALL,
-       (char *)"debug",    TRACE_Debug,
+        {"all",      TRACE_ALL},
+        {"debug",    TRACE_Debug},
+        {"defer",    TRACE_Defer},
+        {"stage",    TRACE_Stage}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
@@ -1848,7 +1955,7 @@ int XrdOlbConfig::xtrace(XrdOucError *eDest, XrdOucStream &Config)
        {eDest->Emsg("config", "trace option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) trval = 0;
-             else {if (neg = (val[0] == '-' && val[1])) val++;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
                    for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, tropts[i].opname))
                            {if (neg) trval &= ~tropts[i].opval;

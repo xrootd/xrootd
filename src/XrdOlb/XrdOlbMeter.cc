@@ -218,7 +218,7 @@ void *XrdOlbMeter::Run()
 //
    while(1)
         {if (myMeter.Exec(monpgm) == 0)
-             while(lp = myMeter.GetLine())
+             while((lp = myMeter.GetLine()))
                   {repMutex.Lock();
                    i = sscanf(lp, "%ld %ld %ld %ld %ld",
                        &xeq_load, &cpu_load, &mem_load, &pag_load, &net_load);
@@ -245,5 +245,5 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp, long mfr, int itv)
     MinFree = mfr; 
     dsk_calc = itv;
     fs_nums = 0;
-    if (tlp) do {fs_nums++;} while(nlp = nlp->next);
+    if (tlp) do {fs_nums++;} while((nlp = nlp->next));
 }

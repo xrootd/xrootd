@@ -128,7 +128,7 @@ void XrdOlbPList_Anchor::Remove(SMask_t mask)
   
 const char *XrdOlbPList_Anchor::Type(char *pname)
 {
-   int isrw, plen = strlen(pname);
+   int isrw = 0, plen = strlen(pname);
 
 // Lock the anchor and setup for search
 //

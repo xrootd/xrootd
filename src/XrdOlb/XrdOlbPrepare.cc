@@ -210,7 +210,6 @@ int XrdOlbPrepare::setParms(char *ifpgm)
   
 int XrdOlbPrepare::Reset()  // Must be called with PTMutex locked!
 {
-     const char *epname = "Reset";
      char *lp,  *pdata[] = {(char *)"?\n", 0};
      int ok = 0, pdlen[] = {2, 0};
 
@@ -263,7 +262,7 @@ int XrdOlbPrepare::startIF()  // Must be called with PTMutex locked!
         NoGo = 1;
        }
        else {DEBUG("Prepare: Starting " <<prepif);
-             if (NoGo = prepSched.Exec(prepif, 1))
+             if ((NoGo = prepSched.Exec(prepif, 1)))
                 {time_t eNow = time(0);
                  if ((eNow - lastemsg) >= 60)
                     {lastemsg = eNow;

@@ -45,7 +45,7 @@ int             DoIt() {if (!XrdOlbServer::Resume(this)) delete this;
 
                 XrdOlbPrepArgs() : XrdOlbJob("prepare") {Clear();}
 
-XrdOlbPrepArgs &XrdOlbPrepArgs::operator =(const XrdOlbPrepArgs &rhs)
+XrdOlbPrepArgs &operator =(const XrdOlbPrepArgs &rhs)
                    {reqid = rhs.reqid;
                     user  = rhs.user;
                     prty  = rhs.prty;

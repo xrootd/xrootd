@@ -31,7 +31,7 @@ struct XrdOlbEXTArgs
   
 int XrdOlbClearVec(const char *key, XrdOlbCInfo *cinfo, void *sid)
 {
-    SMask_t smask = 1<<(int)sid;
+    SMask_t smask = 1<<*(int *)sid;
 
 // Clear the vector for this server
 //
@@ -50,7 +50,7 @@ int XrdOlbExtractFN(const char *key, XrdOlbCInfo *cip, void *xargp)
 
 // Check for match
 //
-   if (xargs->plen <= strlen(key)
+   if (xargs->plen <= (int)strlen(key)
    &&  !strncmp(key, xargs->ppfx, xargs->plen)) xargs->hp->Add(key, 0);
 
 // All done
@@ -84,7 +84,7 @@ void XrdOlbCache::AddFile(char *path, SMask_t mask, int isrw, int dltime)
 
 // Add/Modify the entry
 //
-   if (cinfo = PTable.Find(path))
+   if ((cinfo = PTable.Find(path)))
       {if (dltime > 0) 
           {cinfo->deadline = dltime;
            cinfo->rovec = 0;
@@ -122,7 +122,7 @@ void XrdOlbCache::DelFile(char *path, SMask_t mask)
 
 // Look up the entry and remove server
 //
-   if (cinfo = PTable.Find(path))
+   if ((cinfo = PTable.Find(path)))
       {cinfo->rovec &= ~mask;
        cinfo->rwvec &= ~mask;
       }
@@ -146,7 +146,7 @@ int  XrdOlbCache::GetFile(char *path, XrdOlbCInfo &cinfo)
 
 // Look up the entry and remove server
 //
-   if (info = PTable.Find(path))
+   if ((info = PTable.Find(path)))
       {cinfo.rovec = info->rovec;
        cinfo.rwvec = info->rwvec;
        if (info->deadline && info->deadline <= time(0))
@@ -193,7 +193,7 @@ void XrdOlbCache::Extract(char *pathpfx, XrdOucHash<char> *hashp)
 void XrdOlbCache::Reset(int servid)
 {
      PTMutex.Lock();
-     PTable.Apply(XrdOlbClearVec, (void *)servid);
+     PTable.Apply(XrdOlbClearVec, (void *)&servid);
      PTMutex.UnLock();
 }
 

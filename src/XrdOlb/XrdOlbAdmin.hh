@@ -37,9 +37,11 @@ static void  setSync(XrdOucSemaphore  *sync)  {SyncUp = sync;}
 private:
 
 int   do_Login();
+void  do_NoStage();
 void  do_Resume();
 void  do_RmDid(int dotrim=0);
 void  do_RmDud(int dotrim=0);
+void  do_Stage();
 void  do_Suspend();
 char *TrimPath(char *path);
 
