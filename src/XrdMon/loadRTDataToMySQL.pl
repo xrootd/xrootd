@@ -255,12 +255,12 @@ sub findOrInsertUserId() {
     if ( $userId ) {
         return $userId;
     }
-    $userId = &runQueryWithRet("SELECT id FROM users WHERE userName = \"$userName\"");
+    $userId = &runQueryWithRet("SELECT id FROM users WHERE name = \"$userName\"");
     if ( $userId ) {
 	#print "Will reuse user id $userId for $userName\n";
     } else {
 	#print "$userName not in mysql yet, inserting...\n";
-	&runQuery("INSERT INTO users (userName) VALUES (\"$userName\");");
+	&runQuery("INSERT INTO users (name) VALUES (\"$userName\");");
 
 	$userId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
     }
@@ -298,7 +298,7 @@ sub findOrInsertPathId() {
         return $pathId;
     }
     ($pathId, $typeId, $skimId) =
-        &runQueryWithRet("SELECT id, typeId, skimId FROM paths WHERE path = \"$path\"");
+        &runQueryWithRet("SELECT id, typeId, skimId FROM paths WHERE name = \"$path\"");
 
     # split path and find file type and skim name
     my @sections = split(/\//, $path);
@@ -334,7 +334,7 @@ sub findOrInsertPathId() {
                 $skimId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
             }
         }
-        &runQuery("INSERT INTO paths (path, typeId, skimId) VALUES (\"$path\", $typeId, $skimId);");
+        &runQuery("INSERT INTO paths (name, typeId, skimId) VALUES (\"$path\", $typeId, $skimId);");
         $pathId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
                                                                                                       
     }
@@ -352,7 +352,7 @@ sub findOrInsertPathId() {
 
 sub runQueryWithRet() {
     my $sql = shift @_;
-    #print "$sql\n";
+    #print "$sql;\n";
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
@@ -361,7 +361,7 @@ sub runQueryWithRet() {
 
 sub runQuery() {
     my ($sql) = @_;
-    #print "$sql\n";
+    #print "$sql;\n";
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
@@ -541,19 +541,19 @@ sub roundoff() {
 sub reloadTopPerfTables() {
     &runQueries4AllTopPerfTables("1 HOUR", "hour", 20);
     if ( $dCounter == $dUpdatesFreq ) {
-	&runQueries4AllTopPerfTables("1 DAY", "day", 20);
+#	&runQueries4AllTopPerfTables("1 DAY", "day", 20);
 	$dCounter = 0;
     } else {
 	$dCounter += 1;
     }
     if ( $mCounter == $mUpdatesFreq ) {
-	&runQueries4AllTopPerfTables("1 MONTH", "month", 20);
+#	&runQueries4AllTopPerfTables("1 MONTH", "month", 20);
 	$mCounter = 0;
     } else {
 	$mCounter += 1;
     }
     if ( $yCounter == $yUpdatesFreq ) {
-	&runQueries4AllTopPerfTables("1 YEAR", "year", 20);
+#	&runQueries4AllTopPerfTables("1 YEAR", "year", 20);
 	$yCounter = 0;
     } else {
 	$yCounter += 1;
@@ -562,211 +562,153 @@ sub reloadTopPerfTables() {
 
 sub runQueries4AllTopPerfTables() {
     my ($theInterval, $theKeyword, $theLimit) = @_;
-    &runTopUsersQueries($theInterval, $theKeyword, $theLimit);
-    &runSkimsQueries($theInterval, $theKeyword, $theLimit, "SKIMS");
-    &runSkimsQueries($theInterval, $theKeyword, $theLimit, "TYPES");
-   #&runTopFilesQueries($theInterval, $theKeyword, $theLimit);
+
+    &runQuery("CREATE TEMPORARY TABLE nj  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE nf  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE nu  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE pj  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE pf  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE pu  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE pv  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE tmp (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
+
+#    &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "USERS");
+#    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "SKIMS");
+#    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "TYPES");
+    &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "FILES");
+
+    &runQuery("DROP TABLE IF EXISTS nj");
+    &runQuery("DROP TABLE IF EXISTS nf");
+    &runQuery("DROP TABLE IF EXISTS nu");
+    &runQuery("DROP TABLE IF EXISTS pj");
+    &runQuery("DROP TABLE IF EXISTS pf");
+    &runQuery("DROP TABLE IF EXISTS pu");
+    &runQuery("DROP TABLE IF EXISTS pv");
+    &runQuery("DROP TABLE IF EXISTS tmp");
+    &runQuery("DROP TABLE IF EXISTS xx");
 }
 
-# nj - now jobs
-# nf - now files
-# pj - past jobs
-# pf - past files
-# vf - past read volume
-sub runTopUsersQueries() {
-    my ($theInterval, $theKeyword, $theLimit) = @_;
+sub runTopUsrFsQueries() {
+    my ($theInterval, $theKeyword, $theLimit, $what) = @_;
 
-    print "updating topPerf USERS tables for $theInterval\n";
+    print "updating topPerf $what tables for $theInterval\n";
 
-    my $sql_prepTable_nj   = "CREATE TEMPORARY TABLE nj  (uId INT, n INT)";    
-    my $sql_prepTable_nf   = "CREATE TEMPORARY TABLE nf  (uId INT, n INT)";
-    my $sql_prepTable_pj   = "CREATE TEMPORARY TABLE pj  (uId INT, n INT)";
-    my $sql_prepTable_pf   = "CREATE TEMPORARY TABLE pf  (uId INT, n INT)";
-    my $sql_prepTable_pv   = "CREATE TEMPORARY TABLE pv  (uId INT, n INT)";
-    my $sql_prepTable_tmp  = "CREATE TEMPORARY TABLE tmp (uId INT, n INT)";
-    my $sql_prepTable_xx   = "CREATE TEMPORARY TABLE xx  (uId INT UNIQUE KEY)";
+    my $idInTable        = "INVALID";
+    my $nameTable        = "INVALID";
+    my $destinationTable = "INVALID";
 
-    my $sql_cleanTable_tmp = "DELETE FROM tmp;";
-
-    my $sql_dropTable_nj   = "DROP TABLE IF EXISTS nj";
-    my $sql_dropTable_nf   = "DROP TABLE IF EXISTS nf";
-    my $sql_dropTable_pj   = "DROP TABLE IF EXISTS pj";
-    my $sql_dropTable_pf   = "DROP TABLE IF EXISTS pf";
-    my $sql_dropTable_pv   = "DROP TABLE IF EXISTS pv";
-    my $sql_dropTable_tmp  = "DROP TABLE IF EXISTS tmp";
-    my $sql_dropTable_xx   = "DROP TABLE IF EXISTS xx";
+    if ( $what eq "USERS" ) {
+        $idInTable        = "userId";
+        $nameTable        = "users";
+        $destinationTable = "topPerfUsers";
+    } elsif ( $what eq "FILES" ) {
+        $idInTable        = "pathId";
+        $nameTable        = "fileTypes";
+        $destinationTable = "topPerfFiles";
+    } else {
+        die "Invalid arg, expected USERS or FILES\n";
+    }
 
     # now jobs
-    my $sql_find_nj = "INSERT INTO nj
-        SELECT userId, COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+    &runQuery("INSERT INTO nj
+        SELECT $idInTable, COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
         FROM   rtOpenedSessions os, rtOpenedFiles of
         WHERE  os.id = of.sessionId
-               GROUP BY userId";
-
+               GROUP BY $idInTable");
     # now files
-    my $sql_find_nf = "INSERT INTO nf 
-        SELECT userId, COUNT(DISTINCT pathId) AS n
+    &runQuery ("INSERT INTO nf 
+        SELECT $idInTable, COUNT(DISTINCT pathId) AS n
         FROM   rtOpenedSessions os, rtOpenedFiles of
         WHERE  os.id = of.sessionId
-               GROUP BY userId";
+               GROUP BY $idInTable");
 
     # past jobs
-    my $sql_find_pj = "INSERT INTO pj
-        SELECT userId, 
-               COUNT(DISTINCT CONCAT(pId, clientHId)) AS n
-        FROM   rtClosedSessions os
-        WHERE  disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY userId";
-
-    # past files
-        # through opened sessions
-    my $sql_find_pf_os = "INSERT INTO tmp
-        SELECT userId, COUNT(DISTINCT pathId) AS n
+    if ( $what eq "USERS" ) {
+        &runQuery("INSERT INTO pj
+            SELECT $idInTable, 
+                   COUNT(DISTINCT CONCAT(pId, clientHId)) AS n
+            FROM   rtClosedSessions
+            WHERE  disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                   GROUP BY $idInTable");
+    } elsif ( $what eq "FILES" ) {
+        &runQuery("INSERT INTO pj
+            SELECT $idInTable, 
+                   COUNT(DISTINCT CONCAT(pId, clientHId)) AS n
+            FROM   rtClosedSessions cs, rtClosedFiles cf
+            WHERE  cs.id = cf.sessionId AND
+                   disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                   GROUP BY $idInTable");
+    }
+    # past files - through opened sessions
+    &runQuery("INSERT INTO tmp
+       SELECT $idInTable, COUNT(DISTINCT pathId) AS n
+       FROM   rtOpenedSessions os, rtClosedFiles cf
+       WHERE  os.id = cf.sessionId AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY $idInTable");
+    # past files - through closed sessions
+    &runQuery("INSERT INTO tmp
+       SELECT $idInTable, COUNT(DISTINCT pathId) AS n
+       FROM   rtClosedSessions cs, rtClosedFiles cf
+       WHERE  cs.id = cf.sessionId AND
+              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+              GROUP BY $idInTable");
+    # past files - merge results
+    &runQuery("INSERT INTO pf SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    # cleanup tmp table
+    &runQuery("DELETE FROM tmp");
+    # past volume - through opened sessions
+    &runQuery("INSERT INTO tmp
+        SELECT $idInTable, SUM(bytesR)/(1024*1024) AS n
         FROM   rtOpenedSessions os, rtClosedFiles cf
         WHERE  os.id = cf.sessionId AND
                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY userId";
-        # through closed sessions
-    my $sql_find_pf_cs = "INSERT INTO tmp
-        SELECT userId, COUNT(DISTINCT pathId) AS n
-        FROM   rtClosedSessions os, rtClosedFiles cf
-        WHERE  os.id = cf.sessionId AND
+               GROUP BY $idInTable");
+    # past volume - through closed sessions
+    &runQuery("INSERT INTO tmp
+        SELECT $idInTable, SUM(bytesR)/(1024*1024) AS n
+        FROM   rtClosedSessions cs, rtClosedFiles cf
+        WHERE  cs.id = cf.sessionId AND
                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY userId";
-        # merge result
-    my $sql_merge_pf = "INSERT INTO pf
-        SELECT uId, SUM(n) 
-        FROM   tmp
-        GROUP BY uId";
-
-    # past volume 
-        # through opened sessions
-    my $sql_find_pv_os = "INSERT INTO tmp
-        SELECT userId, SUM(bytesR)/(1024*1024) AS n
-        FROM   rtOpenedSessions os, rtClosedFiles cf
-        WHERE  os.id = cf.sessionId AND
-               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY userId";
-        # through closed sessions
-    my $sql_find_pv_cs = "INSERT INTO tmp
-        SELECT userId, SUM(bytesR)/(1024*1024) AS n
-        FROM   rtClosedSessions os, rtClosedFiles cf
-        WHERE  os.id = cf.sessionId AND
-               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY userId";
-        # merge result
-    my $sql_merge_pv = "INSERT INTO pv
-        SELECT uId, SUM(n) 
-        FROM   tmp
-        GROUP BY uId";
+               GROUP BY $idInTable");
+    # past volume - merge results
+    &runQuery("INSERT INTO pv SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    # cleanup tmp table
+    &runQuery("DELETE FROM tmp");
 
     ##### now find all names for top X for each sorting 
-    my $sql_insert_nj = "REPLACE INTO xx SELECT uId FROM nj ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_nf = "REPLACE INTO xx SELECT uId FROM nf ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_pj = "REPLACE INTO xx SELECT uId FROM pj ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_pf = "REPLACE INTO xx SELECT uId FROM pf ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_pv = "REPLACE INTO xx SELECT uId FROM pv ORDER BY n DESC LIMIT $theLimit";
+    &runQuery("REPLACE INTO xx SELECT theId FROM nj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pv ORDER BY n DESC LIMIT $theLimit");
+
 
     ## delete old data
-    my $sql_deleteOldData = 
-        "DELETE FROM topPerfUsers  WHERE timePeriod LIKE \"$theKeyword\"";
+    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
 
     ## and finally insert the new data
-    my $sql_insert = "INSERT INTO topPerfUsers
-        SELECT userName, 
+    &runQuery("INSERT INTO $destinationTable
+        SELECT name, 
                IFNULL(nj.n, 0) AS nJobs,
                IFNULL(nf.n, 0) AS nFiles, 
                IFNULL(pj.n, 0) AS pJobs, 
                IFNULL(pf.n, 0) AS pFiles, 
                IFNULL(pv.n, 0) AS pVol, 
                \"$theKeyword\"
-        FROM   users, xx 
-               LEFT OUTER JOIN nj ON xx.uId = nj.uId
-               LEFT OUTER JOIN nf ON xx.uId = nf.uId
-               LEFT OUTER JOIN pj ON xx.uId = pj.uId
-               LEFT OUTER JOIN pf ON xx.uId = pf.uId
-               LEFT OUTER JOIN pv ON xx.uId = pv.uId
-        WHERE  xx.uId = users.id";
-
-    ######## prepare ########
-    my $sth_prepTable_nj  = $dbh->prepare($sql_prepTable_nj )  or die "\"$sql_prepTable_nj\",   $DBI::errstr\n";
-    my $sth_prepTable_nf  = $dbh->prepare($sql_prepTable_nf )  or die "\"$sql_prepTable_nf\",   $DBI::errstr\n";
-    my $sth_prepTable_pj  = $dbh->prepare($sql_prepTable_pj )  or die "\"$sql_prepTable_pj\",   $DBI::errstr\n";
-    my $sth_prepTable_pf  = $dbh->prepare($sql_prepTable_pf )  or die "\"$sql_prepTable_pf\",   $DBI::errstr\n";
-    my $sth_prepTable_pv  = $dbh->prepare($sql_prepTable_pv )  or die "\"$sql_prepTable_pv\",   $DBI::errstr\n";
-    my $sth_prepTable_tmp = $dbh->prepare($sql_prepTable_tmp)  or die "\"$sql_prepTable_tmp\",  $DBI::errstr\n";
-    my $sth_prepTable_xx  = $dbh->prepare($sql_prepTable_xx )  or die "\"$sql_prepTable_xx\",   $DBI::errstr\n";
-
-    my $sth_cleanTable_tmp= $dbh->prepare($sql_cleanTable_tmp) or die "\"$sql_cleanTable_tmp\", $DBI::errstr\n";
-
-    my $sth_dropTable_nj  = $dbh->prepare($sql_dropTable_nj )  or die "\"$sql_dropTable_nj\",   $DBI::errstr\n";
-    my $sth_dropTable_nf  = $dbh->prepare($sql_dropTable_nf )  or die "\"$sql_dropTable_nf\",   $DBI::errstr\n";
-    my $sth_dropTable_pj  = $dbh->prepare($sql_dropTable_pj )  or die "\"$sql_dropTable_pj\",   $DBI::errstr\n";
-    my $sth_dropTable_pf  = $dbh->prepare($sql_dropTable_pf )  or die "\"$sql_dropTable_pf\",   $DBI::errstr\n";
-    my $sth_dropTable_pv  = $dbh->prepare($sql_dropTable_pv )  or die "\"$sql_dropTable_pv\",   $DBI::errstr\n";
-    my $sth_dropTable_tmp = $dbh->prepare($sql_dropTable_tmp)  or die "\"$sql_dropTable_tmp\",  $DBI::errstr\n";
-    my $sth_dropTable_xx  = $dbh->prepare($sql_dropTable_xx )  or die "\"$sql_dropTable_xx\",   $DBI::errstr\n";
-
-    my $sth_find_nj    = $dbh->prepare($sql_find_nj   ) or die "\"$sql_find_nj\",    $DBI::errstr\n";
-    my $sth_find_nf    = $dbh->prepare($sql_find_nf   ) or die "\"$sql_find_nf\",    $DBI::errstr\n";
-    my $sth_find_pj    = $dbh->prepare($sql_find_pj   ) or die "\"$sql_find_pj\",    $DBI::errstr\n";
-    my $sth_find_pf_os = $dbh->prepare($sql_find_pf_os) or die "\"$sql_find_pf_os\", $DBI::errstr\n";
-    my $sth_find_pf_cs = $dbh->prepare($sql_find_pf_cs) or die "\"$sql_find_pf_cs\", $DBI::errstr\n";
-    my $sth_merge_pf   = $dbh->prepare($sql_merge_pf  ) or die "\"$sql_merge_pf\",   $DBI::errstr\n";
-    my $sth_find_pv_os = $dbh->prepare($sql_find_pv_os) or die "\"$sql_find_pv_os\", $DBI::errstr\n";
-    my $sth_find_pv_cs = $dbh->prepare($sql_find_pv_cs) or die "\"$sql_find_pv_cs\", $DBI::errstr\n";
-    my $sth_merge_pv   = $dbh->prepare($sql_merge_pv  ) or die "\"$sql_merge_pv\",   $DBI::errstr\n";
-
-    my $sth_insert_nj  = $dbh->prepare($sql_insert_nj ) or die "\"$sql_insert_nj\",  $DBI::errstr\n";
-    my $sth_insert_nf  = $dbh->prepare($sql_insert_nf ) or die "\"$sql_insert_nf\",  $DBI::errstr\n";
-    my $sth_insert_pj  = $dbh->prepare($sql_insert_pj ) or die "\"$sql_insert_pj\",  $DBI::errstr\n";
-    my $sth_insert_pf  = $dbh->prepare($sql_insert_pf ) or die "\"$sql_insert_pf\",  $DBI::errstr\n";
-    my $sth_insert_pv  = $dbh->prepare($sql_insert_pv ) or die "\"$sql_insert_pv\",  $DBI::errstr\n";
-
-    my $sth_deleteOldData = $dbh->prepare($sql_deleteOldData) or die "\"$sql_deleteOldData\", $DBI::errstr\n";
-    my $sth_insert        = $dbh->prepare($sql_insert)        or die "\"$sql_insert\",        $DBI::errstr\n";
-
-    ######## execute ########
-    $sth_prepTable_nj->execute()  or die "Failed to exec \"$sql_prepTable_nj\",  $DBI::errstr";
-    $sth_prepTable_nf->execute()  or die "Failed to exec \"$sql_prepTable_nf\",  $DBI::errstr";
-    $sth_prepTable_pj->execute()  or die "Failed to exec \"$sql_prepTable_pj\",  $DBI::errstr";
-    $sth_prepTable_pf->execute()  or die "Failed to exec \"$sql_prepTable_pf\",  $DBI::errstr";
-    $sth_prepTable_pv->execute()  or die "Failed to exec \"$sql_prepTable_pv\",  $DBI::errstr";
-    $sth_prepTable_tmp->execute() or die "Failed to exec \"$sql_prepTable_tmp\", $DBI::errstr";
-    $sth_prepTable_xx->execute()  or die "Failed to exec \"$sql_prepTable_xx\",  $DBI::errstr";
-
-
-    $sth_find_nj->execute()        or die "Failed to exec \"$sql_find_nj\",        $DBI::errstr";
-    $sth_find_nf->execute()        or die "Failed to exec \"$sql_find_nf\",        $DBI::errstr";
-    $sth_find_pj->execute()        or die "Failed to exec \"$sql_find_pj\",        $DBI::errstr";
-    $sth_find_pf_os->execute()     or die "Failed to exec \"$sql_find_pf_os\",     $DBI::errstr";
-    $sth_find_pf_cs->execute()     or die "Failed to exec \"$sql_find_pf_cs\",     $DBI::errstr";
-    $sth_merge_pf->execute()       or die "Failed to exec \"$sql_merge_pf\",       $DBI::errstr";
-    $sth_cleanTable_tmp->execute() or die "Failed to exec \"$sql_cleanTable_tmp\", $DBI::errstr";
-    $sth_find_pv_os->execute()     or die "Failed to exec \"$sql_find_pv_os\",     $DBI::errstr";
-    $sth_find_pv_cs->execute()     or die "Failed to exec \"$sql_find_pv_cs\",     $DBI::errstr";
-    $sth_merge_pf->execute()       or die "Failed to exec \"$sql_merge_pf\",       $DBI::errstr";
-    $sth_cleanTable_tmp->execute() or die "Failed to exec \"$sql_cleanTable_tmp\", $DBI::errstr";
-
-    $sth_insert_nj->execute() or die "Failed to exec \"$sql_insert_nj\", $DBI::errstr";
-    $sth_insert_nf->execute() or die "Failed to exec \"$sql_insert_nf\", $DBI::errstr";
-    $sth_insert_pj->execute() or die "Failed to exec \"$sql_insert_pj\", $DBI::errstr";
-    $sth_insert_pf->execute() or die "Failed to exec \"$sql_insert_pf\", $DBI::errstr";
-    $sth_insert_pv->execute() or die "Failed to exec \"$sql_insert_pv\", $DBI::errstr";
-
-    $sth_deleteOldData->execute() or die "Failed to exec \"$sql_deleteOldData\", $DBI::errstr";
-    $sth_insert->execute()        or die "Failed to exec \"$sql_insert\", $DBI::errstr";
-
-    $sth_dropTable_nj->execute()  or die "Failed to exec \"$sql_dropTable_nj\",  $DBI::errstr";
-    $sth_dropTable_nf->execute()  or die "Failed to exec \"$sql_dropTable_nf\",  $DBI::errstr";
-    $sth_dropTable_pj->execute()  or die "Failed to exec \"$sql_dropTable_pj\",  $DBI::errstr";
-    $sth_dropTable_pf->execute()  or die "Failed to exec \"$sql_dropTable_pf\",  $DBI::errstr";
-    $sth_dropTable_pv->execute()  or die "Failed to exec \"$sql_dropTable_pv\",  $DBI::errstr";
-    $sth_dropTable_tmp->execute() or die "Failed to exec \"$sql_dropTable_tmp\", $DBI::errstr";
-    $sth_dropTable_xx->execute()  or die "Failed to exec \"$sql_dropTable_xx\",  $DBI::errstr";
+        FROM   $nameTable, xx 
+               LEFT OUTER JOIN nj ON xx.theId = nj.theId
+               LEFT OUTER JOIN nf ON xx.theId = nf.theId
+               LEFT OUTER JOIN pj ON xx.theId = pj.theId
+               LEFT OUTER JOIN pf ON xx.theId = pf.theId
+               LEFT OUTER JOIN pv ON xx.theId = pv.theId
+        WHERE  xx.theId = $nameTable.id");
 }
+
+
   
-sub runSkimsQueries() {
+sub runTopSkimsQueries() {
     my ($theInterval, $theKeyword, $theLimit, $what) = @_;
 
     print "updating topPerf $what tables for $theInterval\n";
@@ -787,140 +729,111 @@ sub runSkimsQueries() {
         die "Invalid arg, expected SKIMS or TYPES\n";
     }
 
-
-    my $sql_prepTable_nj   = "CREATE TEMPORARY TABLE nj  (sId INT, n INT)";    
-    my $sql_prepTable_nf   = "CREATE TEMPORARY TABLE nf  (sId INT, n INT)";
-    my $sql_prepTable_nu   = "CREATE TEMPORARY TABLE nu  (sId INT, n INT)";
-    my $sql_prepTable_pj   = "CREATE TEMPORARY TABLE pj  (sId INT, n INT)";
-    my $sql_prepTable_pf   = "CREATE TEMPORARY TABLE pf  (sId INT, n INT)";
-    my $sql_prepTable_pv   = "CREATE TEMPORARY TABLE pv  (sId INT, n INT)";
-    my $sql_prepTable_pu   = "CREATE TEMPORARY TABLE pu  (sId INT, n INT)";
-    my $sql_prepTable_tmp  = "CREATE TEMPORARY TABLE tmp (sId INT, n INT)";
-    my $sql_prepTable_xx   = "CREATE TEMPORARY TABLE xx  (sId INT UNIQUE KEY)";
-
-    my $sql_cleanTable_tmp = "DELETE FROM tmp;";
-
-    my $sql_dropTable_nj   = "DROP TABLE IF EXISTS nj";
-    my $sql_dropTable_nf   = "DROP TABLE IF EXISTS nf";
-    my $sql_dropTable_nu   = "DROP TABLE IF EXISTS nu";
-    my $sql_dropTable_pj   = "DROP TABLE IF EXISTS pj";
-    my $sql_dropTable_pf   = "DROP TABLE IF EXISTS pf";
-    my $sql_dropTable_pv   = "DROP TABLE IF EXISTS pv";
-    my $sql_dropTable_pu   = "DROP TABLE IF EXISTS pu";
-    my $sql_dropTable_tmp  = "DROP TABLE IF EXISTS tmp";
-    my $sql_dropTable_xx   = "DROP TABLE IF EXISTS xx";
-
     # now jobs
-    my $sql_find_nj = "INSERT INTO nj
-       SELECT $idInPathTable,
-              COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
-       FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-       WHERE  os.id = of.sessionId AND
-              of.pathId = paths.id
-              GROUP BY $idInPathTable";
+    &runQuery("INSERT INTO nj
+        SELECT $idInPathTable,
+               COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+        WHERE  os.id = of.sessionId AND
+               of.pathId = paths.id
+               GROUP BY $idInPathTable");
 
     # now files
-    my $sql_find_nf = "REPLACE INTO nf 
-       SELECT $idInPathTable,
-              COUNT(DISTINCT pathId) AS n
-       FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-       WHERE  os.id = of.sessionId AND
-              of.pathId = paths.id
-              GROUP BY $idInPathTable";
+    &runQuery("REPLACE INTO nf 
+        SELECT $idInPathTable,
+               COUNT(DISTINCT pathId) AS n
+        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+        WHERE  os.id = of.sessionId AND
+               of.pathId = paths.id
+               GROUP BY $idInPathTable");
 
     # now users
-    my $sql_find_nu = "REPLACE INTO nu 
-       SELECT $idInPathTable,
-              COUNT(DISTINCT userId) AS n
-       FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-       WHERE  os.id = of.sessionId AND
-              of.pathId = paths.id
-              GROUP BY $idInPathTable";
+    &runQuery("REPLACE INTO nu 
+        SELECT $idInPathTable,
+               COUNT(DISTINCT userId) AS n
+        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+        WHERE  os.id = of.sessionId AND
+               of.pathId = paths.id
+               GROUP BY $idInPathTable");
 
     # past jobs
-    my $sql_find_pj = "REPLACE INTO pj
-       SELECT $idInPathTable, 
-              COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
-       FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-       WHERE  cs.id = cf.sessionId AND
-              cf.pathId = paths.id AND
-              disconnectT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-              GROUP BY $idInPathTable";
+    &runQuery("REPLACE INTO pj
+        SELECT $idInPathTable, 
+               COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+        FROM   rtClosedSessions cs, rtClosedFiles cf, paths
+        WHERE  cs.id = cf.sessionId AND
+               cf.pathId = paths.id AND
+               disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+               GROUP BY $idInPathTable");
 
-    # past files
-        # through opened sessions
-    my $sql_find_pf_os = "INSERT INTO tmp
-       SELECT $idInPathTable,
-              COUNT(DISTINCT pathId) AS n
-       FROM   rtOpenedSessions os, rtClosedFiles cf, paths
-       WHERE  os.id = cf.sessionId AND
-              cf.pathId = paths.id AND
-              closeT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-              GROUP BY $idInPathTable";
-        # through closed sessions
-    my $sql_find_pf_cs = "INSERT INTO tmp
-       SELECT $idInPathTable,
-              COUNT(DISTINCT pathId) AS n
-       FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-       WHERE  cs.id = cf.sessionId AND
-              cf.pathId = paths.id AND
-              closeT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-              GROUP BY $idInPathTable";
-        # merge result
-    my $sql_merge_pf = "INSERT INTO pf
-        SELECT sId, SUM(n) 
-        FROM   tmp
-        GROUP BY sId";
-
-    # past users
-    my $sql_find_pu = "REPLACE INTO pu
-       SELECT $idInPathTable, 
-              COUNT(DISTINCT userId) AS n
-       FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-       WHERE  cs.id = cf.sessionId AND
-              cf.pathId = paths.id AND
-              disconnectT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-              GROUP BY $idInPathTable";
-
-    # past volume
-        # through opened sessions
-    my $sql_find_pv_os = "INSERT INTO tmp
-        SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
+    # past files - through opened sessions
+    &runQuery("INSERT INTO tmp
+        SELECT $idInPathTable,
+               COUNT(DISTINCT pathId) AS n
         FROM   rtOpenedSessions os, rtClosedFiles cf, paths
         WHERE  os.id = cf.sessionId AND
                cf.pathId = paths.id AND
-               closeT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-               GROUP BY $idInPathTable";
-        # through closed sessions
-    my $sql_find_pv_cs = "INSERT INTO tmp
-        SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
-        FROM   rtClosedSessions os, rtClosedFiles cf, paths
-        WHERE  os.id = cf.sessionId AND
+               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+               GROUP BY $idInPathTable");
+    # past files - through closed sessions
+    &runQuery("INSERT INTO tmp
+        SELECT $idInPathTable,
+               COUNT(DISTINCT pathId) AS n
+        FROM   rtClosedSessions cs, rtClosedFiles cf, paths
+        WHERE  cs.id = cf.sessionId AND
                cf.pathId = paths.id AND
-               closeT > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-               GROUP BY $idInPathTable";
-        # merge result
-    my $sql_merge_pv = "INSERT INTO pv
-        SELECT sId, SUM(n) 
-        FROM   tmp
-        GROUP BY sId";
+               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+               GROUP BY $idInPathTable");
+    # past files - merge result
+    &runQuery("INSERT INTO pf SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    # cleanup temporary table
+    &runQuery("DELETE FROM tmp");
+    # past users
+    &runQuery("REPLACE INTO pu
+        SELECT $idInPathTable, 
+               COUNT(DISTINCT userId) AS n
+        FROM   rtClosedSessions cs, rtClosedFiles cf, paths
+        WHERE  cs.id = cf.sessionId AND
+               cf.pathId = paths.id AND
+               disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+               GROUP BY $idInPathTable");
+    # past volume - through opened sessions
+    &runQuery("INSERT INTO tmp
+         SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
+         FROM   rtOpenedSessions os, rtClosedFiles cf, paths
+         WHERE  os.id = cf.sessionId AND
+                cf.pathId = paths.id AND
+                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                GROUP BY $idInPathTable");
+    # past volume - through closed sessions
+    &runQuery("INSERT INTO tmp
+         SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
+         FROM   rtClosedSessions os, rtClosedFiles cf, paths
+         WHERE  os.id = cf.sessionId AND
+                cf.pathId = paths.id AND
+                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                GROUP BY $idInPathTable");
+    # past volume - merge result
+    &runQuery("INSERT INTO pv SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    # cleanup temporary table
+    &runQuery("DELETE FROM tmp");
+
 
     ##### now find all names for top X for each sorting 
-    my $sql_insert_nj = "REPLACE INTO xx SELECT sId FROM nj ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_nf = "REPLACE INTO xx SELECT sId FROM nf ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_nu = "REPLACE INTO xx SELECT sId FROM nu ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_pj = "REPLACE INTO xx SELECT sId FROM pj ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_pf = "REPLACE INTO xx SELECT sId FROM pf ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_pu = "REPLACE INTO xx SELECT sId FROM pu ORDER BY n DESC LIMIT $theLimit";
-    my $sql_insert_pv = "REPLACE INTO xx SELECT sId FROM pv ORDER BY n DESC LIMIT $theLimit";
+    &runQuery("REPLACE INTO xx SELECT theId FROM nj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM nu ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pu ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pv ORDER BY n DESC LIMIT $theLimit");
 
     ## delete old data
-    my $sql_deleteOldData = 
-        "DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"";
+    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
 
     ## and finally insert the new data
-    my $sql_insert = "INSERT INTO $destinationTable
-        SELECT name           AS skimName, 
+    &runQuery("INSERT INTO $destinationTable
+        SELECT name,
               IFNULL(nf.n, 0) AS nFiles, 
               IFNULL(nj.n, 0) AS nJobs,
               IFNULL(nu.n, 0) AS nUsers,
@@ -930,105 +843,13 @@ sub runSkimsQueries() {
               IFNULL(pj.n, 0) AS pJobs, 
               \"$theKeyword\"
         FROM  $nameTable, xx 
-              LEFT OUTER JOIN nj ON xx.sId = nj.sId
-              LEFT OUTER JOIN nf ON xx.sId = nf.sId
-              LEFT OUTER JOIN nu ON xx.sId = nu.sId
-              LEFT OUTER JOIN pj ON xx.sId = pj.sId
-              LEFT OUTER JOIN pf ON xx.sId = pf.sId
-              LEFT OUTER JOIN pu ON xx.sId = pu.sId
-              LEFT OUTER JOIN pv ON xx.sId = pv.sId
-       WHERE  xx.sId = $nameTable.id";
-
-    ######## prepare ########
-    my $sth_prepTable_nj  = $dbh->prepare($sql_prepTable_nj )  or die "\"$sql_prepTable_nj\",   $DBI::errstr\n";
-    my $sth_prepTable_nf  = $dbh->prepare($sql_prepTable_nf )  or die "\"$sql_prepTable_nf\",   $DBI::errstr\n";
-    my $sth_prepTable_nu  = $dbh->prepare($sql_prepTable_nu )  or die "\"$sql_prepTable_nu\",   $DBI::errstr\n";
-    my $sth_prepTable_pj  = $dbh->prepare($sql_prepTable_pj )  or die "\"$sql_prepTable_pj\",   $DBI::errstr\n";
-    my $sth_prepTable_pf  = $dbh->prepare($sql_prepTable_pf )  or die "\"$sql_prepTable_pf\",   $DBI::errstr\n";
-    my $sth_prepTable_pu  = $dbh->prepare($sql_prepTable_pu )  or die "\"$sql_prepTable_pu\",   $DBI::errstr\n";
-    my $sth_prepTable_pv  = $dbh->prepare($sql_prepTable_pv )  or die "\"$sql_prepTable_pv\",   $DBI::errstr\n";
-    my $sth_prepTable_tmp = $dbh->prepare($sql_prepTable_tmp)  or die "\"$sql_prepTable_tmp\",  $DBI::errstr\n";
-    my $sth_prepTable_xx  = $dbh->prepare($sql_prepTable_xx )  or die "\"$sql_prepTable_xx\",   $DBI::errstr\n";
-
-    my $sth_cleanTable_tmp= $dbh->prepare($sql_cleanTable_tmp) or die "\"$sql_cleanTable_tmp\", $DBI::errstr\n";
-
-    my $sth_dropTable_nj  = $dbh->prepare($sql_dropTable_nj )  or die "\"$sql_dropTable_nj\",   $DBI::errstr\n";
-    my $sth_dropTable_nf  = $dbh->prepare($sql_dropTable_nf )  or die "\"$sql_dropTable_nf\",   $DBI::errstr\n";
-    my $sth_dropTable_nu  = $dbh->prepare($sql_dropTable_nu )  or die "\"$sql_dropTable_nu\",   $DBI::errstr\n";
-    my $sth_dropTable_pj  = $dbh->prepare($sql_dropTable_pj )  or die "\"$sql_dropTable_pj\",   $DBI::errstr\n";
-    my $sth_dropTable_pf  = $dbh->prepare($sql_dropTable_pf )  or die "\"$sql_dropTable_pf\",   $DBI::errstr\n";
-    my $sth_dropTable_pu  = $dbh->prepare($sql_dropTable_pu )  or die "\"$sql_dropTable_pu\",   $DBI::errstr\n";
-    my $sth_dropTable_pv  = $dbh->prepare($sql_dropTable_pv )  or die "\"$sql_dropTable_pv\",   $DBI::errstr\n";
-    my $sth_dropTable_tmp = $dbh->prepare($sql_dropTable_tmp)  or die "\"$sql_dropTable_tmp\",  $DBI::errstr\n";
-    my $sth_dropTable_xx  = $dbh->prepare($sql_dropTable_xx )  or die "\"$sql_dropTable_xx\",   $DBI::errstr\n";
-
-    my $sth_find_nj    = $dbh->prepare($sql_find_nj   ) or die "\"$sql_find_nj\",    $DBI::errstr\n";
-    my $sth_find_nf    = $dbh->prepare($sql_find_nf   ) or die "\"$sql_find_nf\",    $DBI::errstr\n";
-    my $sth_find_nu    = $dbh->prepare($sql_find_nu   ) or die "\"$sql_find_nu\",    $DBI::errstr\n";
-    my $sth_find_pj    = $dbh->prepare($sql_find_pj   ) or die "\"$sql_find_pj\",    $DBI::errstr\n";
-    my $sth_find_pf_os = $dbh->prepare($sql_find_pf_os) or die "\"$sql_find_pf_os\", $DBI::errstr\n";
-    my $sth_find_pf_cs = $dbh->prepare($sql_find_pf_cs) or die "\"$sql_find_pf_cs\", $DBI::errstr\n";
-    my $sth_merge_pf   = $dbh->prepare($sql_merge_pf  ) or die "\"$sql_merge_pf\",   $DBI::errstr\n";
-    my $sth_find_pu    = $dbh->prepare($sql_find_pu   ) or die "\"$sql_find_pu\",    $DBI::errstr\n";
-    my $sth_find_pv_os = $dbh->prepare($sql_find_pv_os) or die "\"$sql_find_pv_os\", $DBI::errstr\n";
-    my $sth_find_pv_cs = $dbh->prepare($sql_find_pv_cs) or die "\"$sql_find_pv_cs\", $DBI::errstr\n";
-    my $sth_merge_pv   = $dbh->prepare($sql_merge_pv  ) or die "\"$sql_merge_pv\",   $DBI::errstr\n";
-
-    my $sth_insert_nj  = $dbh->prepare($sql_insert_nj ) or die "\"$sql_insert_nj\",  $DBI::errstr\n";
-    my $sth_insert_nf  = $dbh->prepare($sql_insert_nf ) or die "\"$sql_insert_nf\",  $DBI::errstr\n";
-    my $sth_insert_nu  = $dbh->prepare($sql_insert_nf ) or die "\"$sql_insert_nu\",  $DBI::errstr\n";
-    my $sth_insert_pj  = $dbh->prepare($sql_insert_pj ) or die "\"$sql_insert_pj\",  $DBI::errstr\n";
-    my $sth_insert_pf  = $dbh->prepare($sql_insert_pf ) or die "\"$sql_insert_pf\",  $DBI::errstr\n";
-    my $sth_insert_pu  = $dbh->prepare($sql_insert_nf ) or die "\"$sql_insert_pu\",  $DBI::errstr\n";
-    my $sth_insert_pv  = $dbh->prepare($sql_insert_pv ) or die "\"$sql_insert_pv\",  $DBI::errstr\n";
-
-    my $sth_deleteOldData = $dbh->prepare($sql_deleteOldData) or die "\"$sql_deleteOldData\", $DBI::errstr\n";
-    my $sth_insert        = $dbh->prepare($sql_insert)        or die "\"$sql_insert\",        $DBI::errstr\n";
-
-    ######## execute ########
-    $sth_prepTable_nj->execute()  or die "Failed to exec \"$sql_prepTable_nj\",  $DBI::errstr";
-    $sth_prepTable_nf->execute()  or die "Failed to exec \"$sql_prepTable_nf\",  $DBI::errstr";
-    $sth_prepTable_nu->execute()  or die "Failed to exec \"$sql_prepTable_nu\",  $DBI::errstr";
-    $sth_prepTable_pj->execute()  or die "Failed to exec \"$sql_prepTable_pj\",  $DBI::errstr";
-    $sth_prepTable_pf->execute()  or die "Failed to exec \"$sql_prepTable_pf\",  $DBI::errstr";
-    $sth_prepTable_pu->execute()  or die "Failed to exec \"$sql_prepTable_pu\",  $DBI::errstr";
-    $sth_prepTable_pv->execute()  or die "Failed to exec \"$sql_prepTable_pv\",  $DBI::errstr";
-    $sth_prepTable_tmp->execute() or die "Failed to exec \"$sql_prepTable_tmp\", $DBI::errstr";
-    $sth_prepTable_xx->execute()  or die "Failed to exec \"$sql_prepTable_xx\",  $DBI::errstr";
-
-
-    $sth_find_nj->execute()        or die "Failed to exec \"$sql_find_nj\",        $DBI::errstr";
-    $sth_find_nf->execute()        or die "Failed to exec \"$sql_find_nf\",        $DBI::errstr";
-    $sth_find_nu->execute()        or die "Failed to exec \"$sql_find_nu\",        $DBI::errstr";
-    $sth_find_pj->execute()        or die "Failed to exec \"$sql_find_pj\",        $DBI::errstr";
-    $sth_find_pf_os->execute()     or die "Failed to exec \"$sql_find_pf_os\",     $DBI::errstr";
-    $sth_find_pf_cs->execute()     or die "Failed to exec \"$sql_find_pf_cs\",     $DBI::errstr";
-    $sth_merge_pf->execute()       or die "Failed to exec \"$sql_merge_pf\",       $DBI::errstr";
-    $sth_cleanTable_tmp->execute() or die "Failed to exec \"$sql_cleanTable_tmp\", $DBI::errstr";
-    $sth_find_pu->execute()        or die "Failed to exec \"$sql_find_pu\",        $DBI::errstr";
-    $sth_find_pv_os->execute()     or die "Failed to exec \"$sql_find_pv_os\",     $DBI::errstr";
-    $sth_find_pv_cs->execute()     or die "Failed to exec \"$sql_find_pv_cs\",     $DBI::errstr";
-    $sth_merge_pv->execute()       or die "Failed to exec \"$sql_merge_pv\",       $DBI::errstr";
-    $sth_cleanTable_tmp->execute() or die "Failed to exec \"$sql_cleanTable_tmp\", $DBI::errstr";
-
-    $sth_insert_nj->execute() or die "Failed to exec \"$sql_insert_nj\", $DBI::errstr";
-    $sth_insert_nf->execute() or die "Failed to exec \"$sql_insert_nf\", $DBI::errstr";
-    $sth_insert_nu->execute() or die "Failed to exec \"$sql_insert_nu\", $DBI::errstr";
-    $sth_insert_pj->execute() or die "Failed to exec \"$sql_insert_pj\", $DBI::errstr";
-    $sth_insert_pf->execute() or die "Failed to exec \"$sql_insert_pf\", $DBI::errstr";
-    $sth_insert_pu->execute() or die "Failed to exec \"$sql_insert_pu\", $DBI::errstr";
-    $sth_insert_pv->execute() or die "Failed to exec \"$sql_insert_pv\", $DBI::errstr";
-
-    $sth_deleteOldData->execute() or die "Failed to exec \"$sql_deleteOldData\", $DBI::errstr";
-    $sth_insert->execute()        or die "Failed to exec \"$sql_insert\", $DBI::errstr";
-
-    $sth_dropTable_nj->execute()  or die "Failed to exec \"$sql_dropTable_nj\",  $DBI::errstr";
-    $sth_dropTable_nf->execute()  or die "Failed to exec \"$sql_dropTable_nf\",  $DBI::errstr";
-    $sth_dropTable_nu->execute()  or die "Failed to exec \"$sql_dropTable_nu\",  $DBI::errstr";
-    $sth_dropTable_pj->execute()  or die "Failed to exec \"$sql_dropTable_pj\",  $DBI::errstr";
-    $sth_dropTable_pf->execute()  or die "Failed to exec \"$sql_dropTable_pf\",  $DBI::errstr";
-    $sth_dropTable_pu->execute()  or die "Failed to exec \"$sql_dropTable_pu\",  $DBI::errstr";
-    $sth_dropTable_pv->execute()  or die "Failed to exec \"$sql_dropTable_pv\",  $DBI::errstr";
-    $sth_dropTable_tmp->execute() or die "Failed to exec \"$sql_dropTable_tmp\", $DBI::errstr";
-    $sth_dropTable_xx->execute()  or die "Failed to exec \"$sql_dropTable_xx\",  $DBI::errstr";
+              LEFT OUTER JOIN nj ON xx.theId = nj.theId
+              LEFT OUTER JOIN nf ON xx.theId = nf.theId
+              LEFT OUTER JOIN nu ON xx.theId = nu.theId
+              LEFT OUTER JOIN pj ON xx.theId = pj.theId
+              LEFT OUTER JOIN pf ON xx.theId = pf.theId
+              LEFT OUTER JOIN pu ON xx.theId = pu.theId
+              LEFT OUTER JOIN pv ON xx.theId = pv.theId
+       WHERE  xx.theId = $nameTable.id");
 }
+

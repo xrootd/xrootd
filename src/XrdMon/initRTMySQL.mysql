@@ -77,7 +77,7 @@ CREATE INDEX rtClosedFiles_closeT_index    USING BTREE ON rtClosedFiles(closeT);
 
 CREATE TABLE IF NOT EXISTS users (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  userName      VARCHAR(24) NOT NULL
+  name          VARCHAR(24) NOT NULL
 );
 
 CREATE INDEX users_id_index USING BTREE ON users(id);
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS paths (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   typeId        TINYINT NOT NULL,   # BaBar specific
   skimId        TINYINT NOT NULL,   # BaBar specific
-  path          VARCHAR(256) NOT NULL
+  name          VARCHAR(256) NOT NULL
 );
 CREATE INDEX paths_id_index         USING BTREE ON paths(id);
 CREATE INDEX paths_typeId_index     USING BTREE ON paths(typeId);
@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS rtChanges (
 );
 
 
-# compressed info for top performers (top users) webpage
+# compressed info for top performers (top users)
 CREATE TABLE IF NOT EXISTS topPerfUsers (
   userName   VARCHAR(24),
   nFiles     INT NOT NULL,
@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS topPerfUsers (
   timePeriod VARCHAR(8)    # "hour", "month", "year"
 );
 
-# compressed info for top performers (top skims) webpage
+# compressed info for top performers (top skims)
 CREATE TABLE IF NOT EXISTS topPerfSkims (
   skimName   VARCHAR(24),
   nJobs      INT NOT NULL,
@@ -211,7 +211,20 @@ CREATE TABLE IF NOT EXISTS topPerfSkims (
   pVolume    INT NOT NULL,
   timePeriod VARCHAR(8) # "hour", "month", "year"
 );
-# compressed info for top performers (top skims) webpage
+
+# compressed info for top performers (top files)
+CREATE TABLE IF NOT EXISTS topPerfFiles (
+  fileName   VARCHAR(256),
+  nFiles     INT NOT NULL,
+  nJobs      INT NOT NULL,
+  pJobs      INT NOT NULL,
+  pFiles     INT NOT NULL,
+  pVolume    INT NOT NULL,
+  timePeriod VARCHAR(8)    # "hour", "month", "year"
+);
+
+
+# compressed info for top performers (top skims)
 CREATE TABLE IF NOT EXISTS topPerfTypes (
   skimName   VARCHAR(24),
   nJobs      INT NOT NULL,
