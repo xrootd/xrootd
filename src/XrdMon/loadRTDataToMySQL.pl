@@ -563,30 +563,26 @@ sub reloadTopPerfTables() {
 sub runQueries4AllTopPerfTables() {
     my ($theInterval, $theKeyword, $theLimit) = @_;
 
-    &runQuery("CREATE TEMPORARY TABLE nj  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE nf  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE nu  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE pj  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE pf  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE pu  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE pv  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE tmp (theId INT, n INT, INDEX (theId))");
+    @tables    = ("nj", "nf", "nu", "pj", "pf", "pu", "pv", "tmp");
+
+    # create tables
+    foreach $table (@tables) {
+        &runQuery("CREATE TEMPORARY TABLE $table  (theId INT, n INT, INDEX (theId))");
+    }
     &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
 
+    push @tables, "xx";
+
     &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "USERS");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
     &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "SKIMS");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
     &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "TYPES");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
     &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "FILES");
 
-    &runQuery("DROP TABLE IF EXISTS nj");
-    &runQuery("DROP TABLE IF EXISTS nf");
-    &runQuery("DROP TABLE IF EXISTS nu");
-    &runQuery("DROP TABLE IF EXISTS pj");
-    &runQuery("DROP TABLE IF EXISTS pf");
-    &runQuery("DROP TABLE IF EXISTS pu");
-    &runQuery("DROP TABLE IF EXISTS pv");
-    &runQuery("DROP TABLE IF EXISTS tmp");
-    &runQuery("DROP TABLE IF EXISTS xx");
+    # delete tables
+    foreach $table (@tables) { &runQuery("DROP TABLE IF EXISTS $table"); }
 }
 
 sub runTopUsrFsQueries() {
