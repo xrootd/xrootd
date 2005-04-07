@@ -541,19 +541,19 @@ sub roundoff() {
 sub reloadTopPerfTables() {
     &runQueries4AllTopPerfTables("1 HOUR", "hour", 20);
     if ( $dCounter == $dUpdatesFreq ) {
-#	&runQueries4AllTopPerfTables("1 DAY", "day", 20);
+	&runQueries4AllTopPerfTables("1 DAY", "day", 20);
 	$dCounter = 0;
     } else {
 	$dCounter += 1;
     }
     if ( $mCounter == $mUpdatesFreq ) {
-#	&runQueries4AllTopPerfTables("1 MONTH", "month", 20);
+	&runQueries4AllTopPerfTables("1 MONTH", "month", 20);
 	$mCounter = 0;
     } else {
 	$mCounter += 1;
     }
     if ( $yCounter == $yUpdatesFreq ) {
-#	&runQueries4AllTopPerfTables("1 YEAR", "year", 20);
+	&runQueries4AllTopPerfTables("1 YEAR", "year", 20);
 	$yCounter = 0;
     } else {
 	$yCounter += 1;
@@ -573,9 +573,9 @@ sub runQueries4AllTopPerfTables() {
     &runQuery("CREATE TEMPORARY TABLE tmp (theId INT, n INT, INDEX (theId))");
     &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
 
-#    &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "USERS");
-#    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "SKIMS");
-#    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "TYPES");
+    &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "USERS");
+    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "SKIMS");
+    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "TYPES");
     &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "FILES");
 
     &runQuery("DROP TABLE IF EXISTS nj");
@@ -604,7 +604,7 @@ sub runTopUsrFsQueries() {
         $destinationTable = "topPerfUsers";
     } elsif ( $what eq "FILES" ) {
         $idInTable        = "pathId";
-        $nameTable        = "fileTypes";
+        $nameTable        = "paths";
         $destinationTable = "topPerfFiles";
     } else {
         die "Invalid arg, expected USERS or FILES\n";
