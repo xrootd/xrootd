@@ -105,7 +105,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
-   char *fsver, c, buff[1024], Multxrd = 0;
+   char *fsver, *rdf, c, buff[1024], Multxrd = 0;
    int NoGo;
 
 // Copy out the special info we want to use at top level
@@ -135,12 +135,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        {
        case 'm': Multxrd = 1;
                  break;
-       case 'r': isRedir = 1;
-                 putenv((char *)"XRDREDIRECT=R");
+       case 'r': putenv((char *)"XRDREDIRECT=R");
                  break;
-       case 's': isRedir = 0;
-                 putenv((char *)"XRDREDIRECT=L");
-                 break;
+       case 's': break; // Backward compatibility only
        case 't': putenv((char *)"XRDRETARGET=1");
                  break;
        case 'y': putenv((char *)"XRDREDPROXY=1");
@@ -244,6 +241,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                   {eDest.Say(0, "Exporting ", xp->Path());
                    xp = xp->Next();
                   }
+
+// Set the redirect flag if we are a pure redirector
+//
+   isRedir = ((rdf = getenv("XRDREDIRECT")) && !strcmp(rdf, "R"));
 
 // Check if monitoring should be enabled
 //
