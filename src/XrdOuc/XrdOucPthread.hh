@@ -87,10 +87,26 @@ inline void UnLock() {pthread_mutex_unlock(&cs);}
         XrdOucMutex() {pthread_mutex_init(&cs, NULL);}
        ~XrdOucMutex() {pthread_mutex_destroy(&cs);}
 
-private:
+protected:
 
 pthread_mutex_t cs;
 };
+
+/******************************************************************************/
+/*                         X r d O u c R e c M u t e x                        */
+/******************************************************************************/
+
+// XrdOucRecMutex implements the recursive POSIX mutex. The methods correspond
+//             to the equivalent pthread mutex functions.
+  
+class XrdOucRecMutex: public XrdOucMutex
+{
+public:
+
+XrdOucRecMutex();
+
+};
+
 
 /******************************************************************************/
 /*                     X r d O u c M u t e x H e l p e r                      */
@@ -119,6 +135,11 @@ inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
                  {if (mutex) mutex->Lock();
                   mtx = mutex;
                  }
+            XrdOucMutexHelper(XrdOucMutex &mutex) {
+	         mutex.Lock();
+		 mtx = &mutex;
+                 }
+
            ~XrdOucMutexHelper() {if (mtx) UnLock();}
 private:
 XrdOucMutex *mtx;
@@ -220,6 +241,32 @@ public:
 static int          Cancel(pthread_t tid) {return pthread_cancel(tid);}
 
 static int          Detach(pthread_t tid) {return pthread_detach(tid);}
+
+
+static  int  SetCancelOff() {
+      return pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
+ };
+
+static  int  Join(pthread_t tid, void **ret) {
+   return pthread_join(tid, ret);
+ };
+
+static  int  SetCancelOn() {
+      return pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
+ };
+
+static  int  SetCancelAsynchronous() {
+      return pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0);
+ };
+
+static int  SetCancelDeferred() {
+      return pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, 0);
+ };
+
+static void  CancelPoint() {
+      pthread_testcancel();
+ };
+
 
 static pthread_t    ID(void)              {return pthread_self();}
 

@@ -281,3 +281,26 @@ int XrdOucThread::Wait(pthread_t tid)
    if ((retc = pthread_join(tid, (void **)&tstat))) return retc;
    return *tstat;
 }
+
+
+
+/******************************************************************************/
+/*                         X r d O u c R e c M u t e x                        */
+/******************************************************************************/
+
+XrdOucRecMutex::XrdOucRecMutex() {
+
+   int rc;
+   pthread_mutexattr_t attr;
+
+   rc = pthread_mutexattr_init(&attr);
+
+   if (!rc) {
+      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+      if (!rc)
+	 pthread_mutex_init(&cs, &attr);
+   }
+
+   pthread_mutexattr_destroy(&attr);
+
+ }
