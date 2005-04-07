@@ -93,7 +93,7 @@ XrdOucTrace      OfsTrace(&OfsEroute);
 /*                    F i l e   S y s t e m   O b j e c t                     */
 /******************************************************************************/
   
-XrdOfs XrdOfsFS;
+#include "XrdOfs/XrdOfs.icc"
 
 /******************************************************************************/
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */
