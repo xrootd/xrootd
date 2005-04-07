@@ -17,7 +17,7 @@
 //       $Id$
 
 #include "XrdClient/XrdClientInputBuffer.hh"
-#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include <sys/time.h>
 #include <stdio.h>
@@ -42,14 +42,14 @@ int XrdClientInputBuffer::MsgForStreamidCnt(int streamid)
 }
 
 //________________________________________________________________________
-XrdClientSemaphore *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
+XrdOucSemWait *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
    // Gets the right sync obj to wait for messages for a given streamid
    // If the semaphore is not available, it creates one.
 
-   XrdClientSemaphore *sem;
+   XrdOucSemWait *sem;
 
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
       char buf[20];
 
       snprintf(buf, 20, "%d", streamid);
@@ -57,7 +57,7 @@ XrdClientSemaphore *XrdClientInputBuffer::GetSyncObjOrMakeOne(int streamid) {
       sem = fSyncobjRepo.Find(buf);
 
       if (!sem) {
-	 sem = new XrdClientSemaphore();
+	 sem = new XrdOucSemWait(0);
 
          fSyncobjRepo.Rep(buf, sem);
 	 return sem;
@@ -80,7 +80,7 @@ XrdClientInputBuffer::XrdClientInputBuffer() {
 
 
 //_______________________________________________________________________
-int DeleteHashItem(const char *key, XrdClientSemaphore *sem, void *Arg) {
+int DeleteHashItem(const char *key, XrdOucSemWait *sem, void *Arg) {
    if (sem) delete sem;
 
    // This makes the Apply method delete the entry
@@ -92,7 +92,7 @@ XrdClientInputBuffer::~XrdClientInputBuffer() {
 
    // Delete all the syncobjs
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
 
       // Delete the content of the queue
@@ -116,10 +116,10 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
 {
    // Put message in the list
   int sz;
-  XrdClientSemaphore *sem = 0;
+  XrdOucSemWait *sem = 0;
 
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
     
       fMsgQue.Push_back(m);
       sz = MexSize();
@@ -131,7 +131,7 @@ int XrdClientInputBuffer::PutMsg(XrdClientMessage* m)
    }
 
    if (sem) {
-      sem->Signal();
+      sem->Post();
    }
 
    return sz;
@@ -145,17 +145,17 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
    // If there are no XrdClientMessages for the streamid, it waits for a number
    // of seconds for something to come
 
-   XrdClientSemaphore *sem = 0;
+   XrdOucSemWait *sem = 0;
    XrdClientMessage *res = 0, *m = 0;
 
    // Find the sem where to wait for a msg
    sem = GetSyncObjOrMakeOne(streamid);
 
-   sem->TimedWait(secstimeout);
+   sem->Wait(secstimeout);
 
    {
       // Yes, we have to lock the mtx until we finish
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       // We were awakened. Or the timeout elapsed. The mtx is again locked.
       // If there are messages to dequeue, we pick the oldest one

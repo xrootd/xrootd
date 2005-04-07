@@ -18,7 +18,7 @@
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientEnv.hh"
-#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 
 #include <sys/socket.h>
 
@@ -59,7 +59,9 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
 }
 
 //____________________________________________________________________________
-XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h) {
+XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
+   fReaderCV(0) {
+
    // Constructor
    fServerType = kUnknown;
 
@@ -94,7 +96,7 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 {
    // Connect to remote server
-   XrdClientMutexLocker l(fMutex);
+   XrdOucMutexHelper l(fMutex);
 
    Info(XrdClientDebug::kHIDEBUG,
 	"Connect",
@@ -137,7 +139,7 @@ void XrdClientPhyConnection::StartReader() {
    bool running;
 
    {
-      XrdClientMutexLocker l(fMutex);
+      XrdOucMutexHelper l(fMutex);
       running = fReaderthreadrunning;
    }
    // Start reader thread
@@ -160,12 +162,12 @@ void XrdClientPhyConnection::StartReader() {
       
       do {
           {
-             XrdClientMutexLocker l(fMutex);
+             XrdOucMutexHelper l(fMutex);
 	     fReaderthreadhandler->Detach();
              running = fReaderthreadrunning;
           }
 
-          if (!running) fReaderCV.TimedWait(100);
+          if (!running) fReaderCV.Wait(100);
       } while (!running);
 
 
@@ -175,9 +177,9 @@ void XrdClientPhyConnection::StartReader() {
 
 //____________________________________________________________________________
 void XrdClientPhyConnection::StartedReader() {
-   XrdClientMutexLocker l(fMutex);
+   XrdOucMutexHelper l(fMutex);
    fReaderthreadrunning = TRUE;
-   fReaderCV.Signal();
+   fReaderCV.Post();
 }
 
 //____________________________________________________________________________
@@ -192,7 +194,7 @@ bool XrdClientPhyConnection::ReConnect(XrdClientUrlInfo RemoteHost)
 //____________________________________________________________________________
 void XrdClientPhyConnection::Disconnect()
 {
-   XrdClientMutexLocker l(fMutex);
+   XrdOucMutexHelper l(fMutex);
 
    // Parametric asynchronous stuff
    // If we are going async, we have to terminate the reader thread
@@ -237,7 +239,7 @@ bool XrdClientPhyConnection::CheckAutoTerm() {
    bool doexit = FALSE;
 
   {
-   XrdClientMutexLocker l(fMutex);
+   XrdOucMutexHelper l(fMutex);
 
    // Parametric asynchronous stuff
    // If we are going async, we might be willing to term ourself
@@ -272,7 +274,7 @@ bool XrdClientPhyConnection::CheckAutoTerm() {
 void XrdClientPhyConnection::Touch()
 {
    // Set last-use-time to present time
-   XrdClientMutexLocker l(fMutex);
+   XrdOucMutexHelper l(fMutex);
 
    time_t t = time(0);
 

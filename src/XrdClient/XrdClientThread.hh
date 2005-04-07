@@ -2,89 +2,80 @@
 //                                                                      //
 // XrdClientThread                                                      //
 //                                                                      //
-// Author: G. Ganis (CERN, 2005)                                        //
-// Adapted from TThread (root.cern.ch) by R. brun, F. Rademakers        //
+// Author: F.Furano (INFN, 2005)                                        //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
 #ifndef XRC_THREAD_H
 #define XRC_THREAD_H
 
-//////////////////////////////////////////////////////////////////////////
-//                                                                      //
-// XrdClientThread                                                      //
-//                                                                      //
-// This class implements threads. A thread is an execution environment  //
-// much lighter than a process. A single process can have multiple      //
-// threads. The actual work is done via the XrdClientThreadImp class.   //
-//                                                                      //
-//////////////////////////////////////////////////////////////////////////
+#include "XrdOuc/XrdOucPthread.hh"
 
-#include "XrdClient/XrdClientThreadImp.hh"
-#include "XrdClient/XrdClientFactory.hh"
 
+
+void * XrdClientThreadDispatcher(void * arg);
 
 class XrdClientThread {
-
-public:
-
-struct XrdClientThreadArgs {
-   void *arg;
-   XrdClientThread *threadobj;
- } fArg;
-   
-
 private:
-   XrdClientThreadImp   *fThreadImp;      // pointer to thread implementation
+   pthread_t fThr;
+
+   typedef void *(*VoidRtnFunc_t)(void *, XrdClientThread *);
+   VoidRtnFunc_t ThreadFunc;
    friend void *XrdClientThreadDispatcher(void *);
-public:
 
-
+ public:
+   struct XrdClientThreadArgs {
+      void *arg;
+      XrdClientThread *threadobj;
+   } fArg;
    
-
+   
    XrdClientThread(VoidRtnFunc_t fn) {
-      fThreadImp = XrdClientGetFactory()->CreateThreadImp();
-      fThreadImp->ThreadFunc = fn;
+      fThr = 0;
+      ThreadFunc = fn;
    };
 
    virtual ~XrdClientThread() {
-      delete fThreadImp;
+      void *r;
+
+      Cancel();
+      Join(&r);
    };
 
-   // these funcs are to be called only from OUTSIDE the thread loop
-   int              Cancel() {
-      return fThreadImp->Cancel();
+   int Cancel() {
+      return XrdOucThread::Cancel(fThr);
    };
 
-   int              Run(void *arg = 0) {
+   int Run(void *arg = 0) {
       fArg.arg = arg;
       fArg.threadobj = this;
-      return fThreadImp->Run(&fArg);
+      return XrdOucThread::Run(&fThr, XrdClientThreadDispatcher, (void *)&fArg,
+			       XRDOUCTHREAD_HOLD, "");
    };
 
-   int              Detach() {
-      return fThreadImp->Detach();
+   int Detach() {
+      return XrdOucThread::Detach(fThr);
    };
 
-   int              Join(void **ret = 0) {
-      return fThreadImp->Join(ret);
+   int Join(void **ret = 0) {
+      return XrdOucThread::Join(fThr, ret);
    };
 
    // these funcs are to be called only from INSIDE the thread loop
    int     SetCancelOn() {
-      return fThreadImp->SetCancelOn();
+      return XrdOucThread::SetCancelOn();
    };
    int     SetCancelOff() {
-      return fThreadImp->SetCancelOff();
+      return XrdOucThread::SetCancelOff();
    };
    int     SetCancelAsynchronous() {
-      return fThreadImp->SetCancelAsynchronous();
+      return XrdOucThread::SetCancelAsynchronous();
    };
    int     SetCancelDeferred() {
-      return fThreadImp->SetCancelDeferred();
+      return XrdOucThread::SetCancelDeferred();
    };
    void     CancelPoint() {
-      fThreadImp->CancelPoint();
+      XrdOucThread::CancelPoint();
    };
 
 };

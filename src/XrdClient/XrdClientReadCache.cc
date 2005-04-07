@@ -14,7 +14,7 @@
 //       $Id$
 
 #include "XrdClient/XrdClientReadCache.hh"
-#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
@@ -50,7 +50,7 @@ long long XrdClientReadCache::GetTimestampTick()
    // Return timestamp
 
    // Mutual exclusion man!
-   XrdClientMutexLocker mtx(fMutex);
+   XrdOucMutexHelper mtx(fMutex);
    return ++fTimestampTickCounter;
 }
   
@@ -100,7 +100,7 @@ void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_
       itm = new XrdClientReadCacheItem(buffer, begin_offs, end_offs,
                                    GetTimestampTick());
       // Mutual exclusion man!
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       fItems.Push_back(itm);
       fTotalByteCount += itm->Size();
@@ -120,7 +120,7 @@ bool XrdClientReadCache::GetDataIfPresent(const void *buffer,
    long bytesgot = 0;
    bool advancing = true;
 
-   XrdClientMutexLocker mtx(fMutex);
+   XrdOucMutexHelper mtx(fMutex);
 
    if (PerfCalc)
       fReadsCounter++;
@@ -174,7 +174,7 @@ void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
    // To remove all the items contained in the given interval
 
    int it;
-   XrdClientMutexLocker mtx(fMutex);
+   XrdOucMutexHelper mtx(fMutex);
 
    it = 0;
    while (it < fItems.GetSize())
@@ -191,7 +191,7 @@ void XrdClientReadCache::RemoveItems()
 {
    // To remove all the items
    int it;
-   XrdClientMutexLocker mtx(fMutex);
+   XrdOucMutexHelper mtx(fMutex);
 
    it = 0;
 
@@ -214,7 +214,7 @@ bool XrdClientReadCache::RemoveLRUItem()
    long long minticks = -1;
    XrdClientReadCacheItem *item;
 
-   XrdClientMutexLocker mtx(fMutex);
+   XrdOucMutexHelper mtx(fMutex);
 
    lruit = 0;
    for (it = 0; it < fItems.GetSize(); it++) {
@@ -245,7 +245,7 @@ bool XrdClientReadCache::MakeFreeSpace(long long bytes)
    if (!WillFit(bytes))
       return FALSE;
 
-   XrdClientMutexLocker mtx(fMutex);
+   XrdOucMutexHelper mtx(fMutex);
 
    while (fMaxCacheSize - fTotalByteCount < bytes)
       RemoveLRUItem();

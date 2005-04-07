@@ -118,7 +118,7 @@ class XrdClientReadCache {
    long long       fMaxCacheSize;
    long long       fMissCount;        // Counter of the cache misses
    float           fMissRate;            // Miss rate
-   XrdClientMutex  fMutex;
+   XrdOucRecMutex     fMutex;
    long long       fReadsCounter;     // Counter of all the attempted reads (hit or miss)
    long long       fTimestampTickCounter;        // Aging mechanism yuk!
    long long       fTotalByteCount;
@@ -141,12 +141,12 @@ class XrdClientReadCache {
                                   long long end_offs, bool PerfCalc);
 
    inline long long GetTotalByteCount() {
-      XrdClientMutexLocker m(fMutex);
+      XrdOucMutexHelper m(fMutex);
       return fTotalByteCount;
    }
 
    inline void     PrintPerfCounters() {
-      XrdClientMutexLocker m(fMutex);
+      XrdOucMutexHelper m(fMutex);
 
       cout << "Caching info: MissRate=" << fMissRate << " MissCount=" << 
 	 fMissCount << " ReadsCounter=" << fReadsCounter << endl;
@@ -162,7 +162,7 @@ class XrdClientReadCache {
 
    // To check if a block dimension will fit into the cache
    inline bool   WillFit(long long bc) {
-      XrdClientMutexLocker m(fMutex);
+      XrdOucMutexHelper m(fMutex);
       return (bc < fMaxCacheSize);
    }
 

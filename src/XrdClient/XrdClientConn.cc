@@ -330,7 +330,7 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
          if (!cmdrespMex || cmdrespMex->IsError()) {
 
 	    Info(XrdClientDebug::kHIDEBUG,
-		 "SendGenCommand", "Communication error detected with [" <<
+		 "SendGenCommand", "Got (and maybe recovered) an error from " <<
 		 fUrl.Host << ":" << fUrl.Port);
 
             // For the kxr_open request we don't rely on the count limit of other

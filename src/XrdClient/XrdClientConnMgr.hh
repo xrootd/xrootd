@@ -23,9 +23,7 @@
 #define XRC_CONNMGR_H
 
 
-
-#include <pthread.h>
-#include "XrdClient/XrdClientMutex.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientUnsolMsg.hh"
 #include "XrdClient/XrdClientLogConnection.hh"
 #include "XrdClient/XrdClientMessage.hh"
@@ -44,7 +42,7 @@ class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler,
 private:
    XrdClientVector<XrdClientLogConnection*> fLogVec;
    XrdClientVector<XrdClientPhyConnection*> fPhyVec;
-   XrdClientMutex             fMutex; // mutex used to protect local variables
+   XrdOucRecMutex                fMutex; // mutex used to protect local variables
                                       // of this and TXLogConnection, TXPhyConnection
                                       // classes; not used to protect i/o streams
 

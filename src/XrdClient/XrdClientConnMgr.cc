@@ -22,7 +22,7 @@
 #include "XrdClient/XrdClientConnMgr.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientMessage.hh"
-#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
 #ifdef AIX
@@ -116,7 +116,7 @@ XrdClientConnectionMgr::~XrdClientConnectionMgr()
    int i=0;
 
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       for (i = 0; i < fLogVec.GetSize(); i++)
 	 if (fLogVec[i]) Disconnect(i, FALSE);
@@ -143,7 +143,7 @@ void XrdClientConnectionMgr::GarbageCollect()
 
    // Mutual exclusion on the vectors and other vars
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       // We cycle all the physical connections to disconnect the elapsed ones
       for (int i = 0; i < fPhyVec.GetSize(); i++) { 
@@ -224,7 +224,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    }
 
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       // If we already have a physical connection to that host:port, 
       // then we use that
@@ -287,7 +287,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    // Now, we are connected to the host desired.
    // The physical connection can be old or newly created
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound)
@@ -332,7 +332,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
    if (LogConnectionID < 0) return;
 
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       if ((LogConnectionID < 0) ||
 	  (LogConnectionID >= fLogVec.GetSize()) || (!fLogVec[LogConnectionID])) {
@@ -440,7 +440,7 @@ XrdClientLogConnection *XrdClientConnectionMgr::GetConnection(short int LogConne
    XrdClientLogConnection *res;
 
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
  
       res = fLogVec[LogConnectionID];
    }
@@ -455,7 +455,7 @@ short int XrdClientConnectionMgr::GetPhyConnectionRefCount(XrdClientPhyConnectio
    int cnt = 0;
 
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       for (int i = 0; i < fLogVec.GetSize(); i++)
 	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == PhyConn) ) cnt++;
@@ -486,7 +486,7 @@ bool XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *send
    // which threw the event
    // So we throw the evt towards each logical connection
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
 
       for (int i = 0; i < fLogVec.GetSize(); i++)
 	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) ) {

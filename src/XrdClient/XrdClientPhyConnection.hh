@@ -21,7 +21,7 @@
 #include "XrdClient/XrdClientInputBuffer.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientThread.hh"
-#include "XrdClient/XrdClientSemaphore.hh"
+#include "XrdOuc/XrdOucSemWait.hh"
 
 #include <time.h> // for time_t data type
 
@@ -43,10 +43,10 @@ private:
    XrdClientInputBuffer      fMsgQ;         // The queue used to hold incoming messages
    int                 fRequestTimeout;
   
-   XrdClientMutex      fRwMutex;     // Lock before using the physical channel 
+   XrdOucRecMutex         fRwMutex;     // Lock before using the physical channel 
                                       // (for reading and/or writing)
 
-   XrdClientMutex      fMutex;
+   XrdOucRecMutex         fMutex;
 
    XrdClientThread     *fReaderthreadhandler; // The thread which is going to pump
                                              // out the data from the socket
@@ -59,7 +59,7 @@ private:
 
    void HandleUnsolicited(XrdClientMessage *m);
 
-   XrdClientSemaphore       fReaderCV;
+   XrdOucSemWait       fReaderCV;
 
 public:
    ERemoteServer       fServerType;

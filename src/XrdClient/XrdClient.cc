@@ -171,12 +171,16 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
      
      fConnModule->Disconnect(FALSE);
      
-     if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
-        Info(XrdClientDebug::kUSERDEBUG, "Create",
-	     "Connection attempt failed. Sleeping " <<
-	     EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
+     if (connectTry < connectMaxTry-1) {
+
+	if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
+	   Info(XrdClientDebug::kUSERDEBUG, "Create",
+		"Connection attempt failed. Sleeping " <<
+		EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
      
-     sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
+	sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
+
+     }
 
   } //for connect try
 
@@ -391,19 +395,24 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options) {
       opinfo = "&tried=" + fConnModule->GetCurrentUrl().Host;
 
       Info(XrdClientDebug::kUSERDEBUG,
-	   "Open", "Trying to re-open the file with kXR_refresh opt and "
-	   "opaque info set to " << opinfo);
-     
-      if ( !LowOpen(fInitialUrl.File.c_str(), mode, options | kXR_refresh, (char *)opinfo.c_str() ) ) {
+	   "Open", "Back to " << fConnModule->GetLBSUrl()->Host <<
+	   ". Refreshing cache. Opaque info: " << opinfo);
+
+      if ( (fConnModule->GoToAnotherServer(*fConnModule->GetLBSUrl()) == kOK) &&
+	   LowOpen(fInitialUrl.File.c_str(),
+		   mode, options | kXR_refresh,
+		   (char *)opinfo.c_str() ) )
+	 return TRUE;
+      else {
 	      
 	 Error("Open", "Error opening the file.");
 	 return FALSE;
 	 
-      } else
-	 // Open succeded after the refresh; 
-	 return TRUE;
+      }
+
    }
-   else return FALSE;
+
+   return FALSE;
 
 }
 

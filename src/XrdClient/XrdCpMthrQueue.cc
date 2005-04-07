@@ -11,10 +11,10 @@
 //       $Id$
 
 #include "XrdClient/XrdCpMthrQueue.hh"
-#include "XrdClient/XrdClientMutexLocker.hh"
+#include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientDebug.hh"
 
-XrdCpMthrQueue::XrdCpMthrQueue() {
+XrdCpMthrQueue::XrdCpMthrQueue(): fReadSem(0) {
    // Constructor
 
    fMsgQue.Clear();
@@ -32,7 +32,7 @@ int XrdCpMthrQueue::PutBuffer(void *buf, int len) {
    bool wantstowait = FALSE;
 
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
       
       if (fTotSize > CPMTQ_BUFFSIZE) wantstowait = TRUE;
    }
@@ -45,13 +45,13 @@ int XrdCpMthrQueue::PutBuffer(void *buf, int len) {
 
    // Put message in the list
    {
-      XrdClientMutexLocker mtx(fMutex);
+      XrdOucMutexHelper mtx(fMutex);
     
       fMsgQue.Push_back(m);
       fTotSize += len;
    }
     
-   fReadSem.Signal(); 
+   fReadSem.Post(); 
 
    return 0;
 }
@@ -62,8 +62,8 @@ int XrdCpMthrQueue::GetBuffer(void **buf, int &len) {
    res = 0;
  
 
-   if (!fReadSem.TimedWait(300)) {
-	 XrdClientMutexLocker mtx(fMutex);
+   if (!fReadSem.Wait(300)) {
+	 XrdOucMutexHelper mtx(fMutex);
 
       	 if (fMsgQue.GetSize() > 0) {
 

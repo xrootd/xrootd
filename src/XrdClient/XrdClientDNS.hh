@@ -1,30 +1,28 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientDNS                                                         //
+// XrdClientXrdDNS                                                      //
 //                                                                      //
 // Author: G. Ganis (CERN, 2005)                                        //
 //                                                                      //
-// Bridge class to use the appropriate package for DNS services         //
+// Xrd-based implementations of the DNS wrapper                         //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef XRC_DNS_H
-#define XRC_DNS_H
+#ifndef XRC_XRDDNS_H
+#define XRC_XRDDNS_H
 
-#include <XrdClient/XrdClientDNSImp.hh>
+#include <XrdClient/XrdClientString.hh>
 
 class XrdClientDNS {
-
 private:
-
-   XrdClientDNSImp  *fDNSImp;
+   char *host;
 
 public:
    XrdClientDNS(const char *h);
-   virtual ~XrdClientDNS() { if (fDNSImp) delete fDNSImp;}
+   virtual ~XrdClientDNS() { if (host) delete[] host; }
 
    // Get array of addresses assosiated 
-   int HostAddr(int nmx, XrdClientString *haddr = 0, XrdClientString *hnam = 0);
+   int HostAddr(int nmx, XrdClientString *ha, XrdClientString *hn);
 };
 
 #endif

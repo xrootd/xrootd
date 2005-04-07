@@ -11,22 +11,27 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef XRC_DNS_H
-#define XRC_DNS_H
+#ifndef XRC_SOCK_H
+#define XRC_SOCK_H
 
-#include <XrdClient/XrdClientSockImp.hh>
+#include <XrdClient/XrdClientUrlInfo.hh>
 
-class XrdClientUrlInfo;
+struct XrdClientSockConnectParms {
+   XrdClientUrlInfo TcpHost;
+   int TcpWindowSize;
+};
 
 class XrdClientSock {
 
 private:
 
-   XrdClientSockImp  *fSockImp;
+   XrdClientSockConnectParms fHost;
+   bool                      fConnected;
+   int fSocket;
 
 public:
    XrdClientSock(XrdClientUrlInfo host, int windowsize = 0);
-   virtual ~XrdClientSock() { if (fSockImp) delete fSockImp; }
+   virtual ~XrdClientSock();
 
    int    RecvRaw(void* buffer, int length);
    int    SendRaw(const void* buffer, int length);
@@ -35,7 +40,7 @@ public:
 
    void   Disconnect();
 
-   bool   IsConnected();
+   bool   IsConnected() {return fConnected;}
 };
 
 #endif
