@@ -151,6 +151,15 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
        Options &= ~(XrdOfsREDIRECT);
        Options |= i;
       }
+
+// Set the redirect option for upper layers
+//
+   if ((Options & XrdOfsREDIRECT) == XrdOfsREDIRRMT)
+           putenv((char *)"XRDREDIRECT=R");
+      else putenv((char *)"XRDREDIRECT=0");
+
+// Initialize redirection, as needed
+//
    if (Options & XrdOfsREDIRECT) NoGo |= ConfigRedir(Eroute);
 
 // Turn off forwarding if we are not a pure remote redirector
