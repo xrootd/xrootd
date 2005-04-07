@@ -1338,23 +1338,23 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
          }
       
       } else if (isRedir(&xmsg->fHdr)) {
-         // No comm errors, but we got an explicit redir message      
-         // If we did not meet a dlb before, we consider this as a dlb
-         // to return to after an error
-         if (!fLBSUrl || (fLBSUrl->GetUrl().GetSize() == 0) ) {
+//          // No comm errors, but we got an explicit redir message      
+//          // If we did not meet a dlb before, we consider this as a dlb
+//          // to return to after an error
+//          if (!fLBSUrl || (fLBSUrl->GetUrl().GetSize() == 0) ) {
 
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "HandleServerError", 
-		 "Setting Load Balancer Server Url = " << fUrl.GetUrl() );
+// 	    Info(XrdClientDebug::kHIDEBUG,
+// 		 "HandleServerError", 
+// 		 "Setting Load Balancer Server Url = " << fUrl.GetUrl() );
 
-            // Save the url of load balancer server for future uses...
-            fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
-            if (!fLBSUrl) {
-               Error("HandleServerError",
-                     "Object creation failed.");
-               abort();
-            }
-         }
+//             // Save the url of load balancer server for future uses...
+//             fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
+//             if (!fLBSUrl) {
+//                Error("HandleServerError",
+//                      "Object creation failed.");
+//                abort();
+//             }
+//          }
       
          // Extract the info (new host:port) from the response
          newhost = "";
