@@ -192,12 +192,14 @@ CREATE TABLE IF NOT EXISTS rtChanges (
 # compressed info for top performers (top users)
 CREATE TABLE IF NOT EXISTS topPerfUsers (
   userName   VARCHAR(24),
-  nFiles     INT NOT NULL,
   nJobs      INT NOT NULL,
-  pVolume    INT NOT NULL,
-  pFiles     INT NOT NULL,
+  nFiles     INT NOT NULL,
+  nFSize     INT NOT NULL,    # [MB]
   pJobs      INT NOT NULL,
-  timePeriod VARCHAR(8)    # "hour", "month", "year"
+  pFiles     INT NOT NULL,
+  pFSize     INT NOT NULL,    # [MB]
+  pVolume    INT NOT NULL,
+  timePeriod VARCHAR(8)       # "hour", "month", "year"
 );
 
 # compressed info for top performers (top skims)
@@ -205,23 +207,27 @@ CREATE TABLE IF NOT EXISTS topPerfSkims (
   skimName   VARCHAR(24),
   nJobs      INT NOT NULL,
   nFiles     INT NOT NULL,
+  nFSize     INT NOT NULL,    # [MB]
   nUsers     INT NOT NULL,
   pJobs      INT NOT NULL,
   pFiles     INT NOT NULL,
+  pFSize     INT NOT NULL,    # [MB]
   pUsers     INT NOT NULL,
   pVolume    INT NOT NULL,
-  timePeriod VARCHAR(8) # "hour", "month", "year"
+  timePeriod VARCHAR(8)       # "hour", "month", "year"
 );
 
 # compressed info for top performers (top files)
 CREATE TABLE IF NOT EXISTS topPerfFiles (
   fileName   VARCHAR(256),
-  nFiles     INT NOT NULL,
   nJobs      INT NOT NULL,
+  nFiles     INT NOT NULL,
+  nFSize     INT NOT NULL,    # [MB]
   pJobs      INT NOT NULL,
   pFiles     INT NOT NULL,
+  pFSize     INT NOT NULL,    # [MB]
   pVolume    INT NOT NULL,
-  timePeriod VARCHAR(8)    # "hour", "month", "year"
+  timePeriod VARCHAR(8)       # "hour", "month", "year"
 );
 
 
@@ -230,14 +236,15 @@ CREATE TABLE IF NOT EXISTS topPerfTypes (
   skimName   VARCHAR(24),
   nJobs      INT NOT NULL,
   nFiles     INT NOT NULL,
+  nFSize     INT NOT NULL,    # [MB]
   nUsers     INT NOT NULL,
   pJobs      INT NOT NULL,
   pFiles     INT NOT NULL,
+  pFSize     INT NOT NULL,    # [MB]
   pUsers     INT NOT NULL,
   pVolume    INT NOT NULL,
-  timePeriod VARCHAR(8) # "hour", "month", "year"
+  timePeriod VARCHAR(8)       # "hour", "month", "year"
 );
-
 
 
 ###########################

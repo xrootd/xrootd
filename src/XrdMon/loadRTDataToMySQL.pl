@@ -563,15 +563,22 @@ sub reloadTopPerfTables() {
 sub runQueries4AllTopPerfTables() {
     my ($theInterval, $theKeyword, $theLimit) = @_;
 
-    @tables    = ("nj", "nf", "nu", "pj", "pf", "pu", "pv", "tmp");
+    @tables = ("nj","nu", "pj", "pu", "pv");
 
     # create tables
     foreach $table (@tables) {
         &runQuery("CREATE TEMPORARY TABLE $table  (theId INT, n INT, INDEX (theId))");
     }
     &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
-
     push @tables, "xx";
+
+    &runQuery("CREATE TEMPORARY TABLE nf  (theId INT, n INT, s INT, INDEX (theId))");
+    push @tables, "nf";
+    &runQuery("CREATE TEMPORARY TABLE pf  (theId INT, n INT, s INT, INDEX (theId))");
+    push @tables, "pf";
+    &runQuery("CREATE TEMPORARY TABLE tmp  (theId INT, n INT, s INT, INDEX (theId))");
+    push @tables, "tmp";
+
 
     &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "USERS");
     foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
@@ -614,9 +621,12 @@ sub runTopUsrFsQueries() {
                GROUP BY $idInTable");
     # now files
     &runQuery ("INSERT INTO nf 
-        SELECT $idInTable, COUNT(DISTINCT pathId) AS n
-        FROM   rtOpenedSessions os, rtOpenedFiles of
-        WHERE  os.id = of.sessionId
+        SELECT $idInTable, 
+               COUNT(DISTINCT pathId) AS n,
+               SUM(size)/(1024*1024) AS s
+        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+        WHERE  os.id = of.sessionId AND
+               of.pathId = paths.id
                GROUP BY $idInTable");
 
     # past jobs
@@ -638,31 +648,38 @@ sub runTopUsrFsQueries() {
     }
     # past files - through opened sessions
     &runQuery("INSERT INTO tmp
-       SELECT $idInTable, COUNT(DISTINCT pathId) AS n
-       FROM   rtOpenedSessions os, rtClosedFiles cf
+       SELECT $idInTable, 
+              COUNT(DISTINCT pathId) AS n,
+              SUM(size)/(1024*1024) AS s
+       FROM   rtOpenedSessions os, rtClosedFiles cf, paths 
        WHERE  os.id = cf.sessionId AND
+              cf.pathId = paths.id AND
               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
               GROUP BY $idInTable");
     # past files - through closed sessions
     &runQuery("INSERT INTO tmp
-       SELECT $idInTable, COUNT(DISTINCT pathId) AS n
-       FROM   rtClosedSessions cs, rtClosedFiles cf
+       SELECT $idInTable, 
+              COUNT(DISTINCT pathId) AS n,
+              SUM(size)/(1024*1024) AS s
+       FROM   rtClosedSessions cs, rtClosedFiles cf, paths
        WHERE  cs.id = cf.sessionId AND
+              cf.pathId = paths.id AND
               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
               GROUP BY $idInTable");
     # past files - merge results
-    &runQuery("INSERT INTO pf SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    &runQuery("INSERT INTO pf 
+        SELECT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
     # cleanup tmp table
     &runQuery("DELETE FROM tmp");
     # past volume - through opened sessions
-    &runQuery("INSERT INTO tmp
+    &runQuery("INSERT INTO tmp (theId, n)
         SELECT $idInTable, SUM(bytesR)/(1024*1024) AS n
         FROM   rtOpenedSessions os, rtClosedFiles cf
         WHERE  os.id = cf.sessionId AND
                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
                GROUP BY $idInTable");
     # past volume - through closed sessions
-    &runQuery("INSERT INTO tmp
+    &runQuery("INSERT INTO tmp (theId, n)
         SELECT $idInTable, SUM(bytesR)/(1024*1024) AS n
         FROM   rtClosedSessions cs, rtClosedFiles cf
         WHERE  cs.id = cf.sessionId AND
@@ -676,8 +693,10 @@ sub runTopUsrFsQueries() {
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM nj ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY s DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM pj ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY s DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM pv ORDER BY n DESC LIMIT $theLimit");
 
 
@@ -689,8 +708,10 @@ sub runTopUsrFsQueries() {
         SELECT name, 
                IFNULL(nj.n, 0) AS nJobs,
                IFNULL(nf.n, 0) AS nFiles, 
+               IFNULL(nf.s, 0) AS nFSize, 
                IFNULL(pj.n, 0) AS pJobs, 
                IFNULL(pf.n, 0) AS pFiles, 
+               IFNULL(pf.s, 0) AS pFSize, 
                IFNULL(pv.n, 0) AS pVol, 
                \"$theKeyword\"
         FROM   $nameTable, xx 
@@ -737,7 +758,8 @@ sub runTopSkimsQueries() {
     # now files
     &runQuery("REPLACE INTO nf 
         SELECT $idInPathTable,
-               COUNT(DISTINCT pathId) AS n
+               COUNT(DISTINCT pathId) AS n,
+               SUM(size)/(1024*1024)  AS s
         FROM   rtOpenedSessions os, rtOpenedFiles of, paths
         WHERE  os.id = of.sessionId AND
                of.pathId = paths.id
@@ -765,7 +787,8 @@ sub runTopSkimsQueries() {
     # past files - through opened sessions
     &runQuery("INSERT INTO tmp
         SELECT $idInPathTable,
-               COUNT(DISTINCT pathId) AS n
+               COUNT(DISTINCT pathId) AS n,
+               SUM(size)/(1024*1024)  AS s
         FROM   rtOpenedSessions os, rtClosedFiles cf, paths
         WHERE  os.id = cf.sessionId AND
                cf.pathId = paths.id AND
@@ -774,14 +797,16 @@ sub runTopSkimsQueries() {
     # past files - through closed sessions
     &runQuery("INSERT INTO tmp
         SELECT $idInPathTable,
-               COUNT(DISTINCT pathId) AS n
+               COUNT(DISTINCT pathId) AS n,
+               SUM(size)/(1024*1024)  AS s
         FROM   rtClosedSessions cs, rtClosedFiles cf, paths
         WHERE  cs.id = cf.sessionId AND
                cf.pathId = paths.id AND
                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
                GROUP BY $idInPathTable");
     # past files - merge result
-    &runQuery("INSERT INTO pf SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    &runQuery("INSERT INTO pf
+         SELECT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
     # cleanup temporary table
     &runQuery("DELETE FROM tmp");
     # past users
@@ -794,7 +819,7 @@ sub runTopSkimsQueries() {
                disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
                GROUP BY $idInPathTable");
     # past volume - through opened sessions
-    &runQuery("INSERT INTO tmp
+    &runQuery("INSERT INTO tmp (theId, n)
          SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
          FROM   rtOpenedSessions os, rtClosedFiles cf, paths
          WHERE  os.id = cf.sessionId AND
@@ -802,7 +827,7 @@ sub runTopSkimsQueries() {
                 closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
                 GROUP BY $idInPathTable");
     # past volume - through closed sessions
-    &runQuery("INSERT INTO tmp
+    &runQuery("INSERT INTO tmp (theId, n)
          SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
          FROM   rtClosedSessions os, rtClosedFiles cf, paths
          WHERE  os.id = cf.sessionId AND
@@ -818,9 +843,11 @@ sub runTopSkimsQueries() {
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM nj ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY s DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM nu ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM pj ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY s DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM pu ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM pv ORDER BY n DESC LIMIT $theLimit");
 
@@ -830,13 +857,15 @@ sub runTopSkimsQueries() {
     ## and finally insert the new data
     &runQuery("INSERT INTO $destinationTable
         SELECT name,
-              IFNULL(nf.n, 0) AS nFiles, 
               IFNULL(nj.n, 0) AS nJobs,
+              IFNULL(nf.n, 0) AS nFiles, 
+              IFNULL(nf.s, 0) AS nFSize,
               IFNULL(nu.n, 0) AS nUsers,
-              IFNULL(pv.n, 0) AS pVol, 
-              IFNULL(pf.n, 0) AS pFiles, 
+              IFNULL(pj.n, 0) AS pJobs,
+              IFNULL(pf.n, 0) AS pFiles,
+              IFNULL(pf.s, 0) AS pFSize,
               IFNULL(pu.n, 0) AS pUsers, 
-              IFNULL(pj.n, 0) AS pJobs, 
+              IFNULL(pv.n, 0) AS pVol, 
               \"$theKeyword\"
         FROM  $nameTable, xx 
               LEFT OUTER JOIN nj ON xx.theId = nj.theId
