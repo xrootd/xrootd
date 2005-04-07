@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS paths (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   typeId        TINYINT NOT NULL,   # BaBar specific
   skimId        TINYINT NOT NULL,   # BaBar specific
+  size          BIGINT,
   name          VARCHAR(256) NOT NULL
 );
 CREATE INDEX paths_id_index         USING BTREE ON paths(id);
