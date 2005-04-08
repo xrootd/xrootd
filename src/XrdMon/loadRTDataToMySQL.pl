@@ -486,7 +486,7 @@ sub loadStatsLastMonth() {
       = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                           FROM statsLastHour");
+                           FROM statsLastDay");
 
     &runQuery("INSERT INTO statsLastMonth 
                           (seqNo, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
