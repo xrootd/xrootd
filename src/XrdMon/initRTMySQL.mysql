@@ -111,8 +111,17 @@ CREATE TABLE IF NOT EXISTS statsLastHour (
   noJobs        SMALLINT,
   noUsers       SMALLINT,
   noUniqueF     INT,
-  noNonUniqueF  INT
+  noNonUniqueF  INT,
+  minJobs       SMALLINT,
+  minUsers      SMALLINT,
+  minUniqueF    INT,
+  minNonUniqueF INT,
+  maxJobs       SMALLINT,
+  maxUsers      SMALLINT,
+  maxUniqueF    INT,
+  maxNonUniqueF INT
 );
+
 CREATE INDEX statsLastHour_date_index USING BTREE ON statsLastHour(date);
 
 
