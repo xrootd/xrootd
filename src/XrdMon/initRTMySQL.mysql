@@ -197,61 +197,72 @@ CREATE TABLE IF NOT EXISTS rtChanges (
   lastUpdate    DATETIME
 );
 
-
 # compressed info for top performers (top users)
-CREATE TABLE IF NOT EXISTS topPerfUsers (
-  userName   VARCHAR(24),
-  nJobs      INT NOT NULL,
-  nFiles     INT NOT NULL,
-  nFSize     INT NOT NULL,    # [MB]
-  pJobs      INT NOT NULL,
-  pFiles     INT NOT NULL,
-  pFSize     INT NOT NULL,    # [MB]
-  pVolume    INT NOT NULL,
+CREATE TABLE IF NOT EXISTS topPerfUsersNow (
+  theId      INT NOT NULL,    # user Id
+  jobs       INT NOT NULL,
+  files      INT NOT NULL,
+  fSize      INT NOT NULL     # [MB]
+);
+CREATE TABLE IF NOT EXISTS topPerfUsersPast (
+  theId      INT NOT NULL,    # user Id
+  jobs       INT NOT NULL,
+  files      INT NOT NULL,
+  fSize      INT NOT NULL,    # [MB]
+  volume     INT NOT NULL,
   timePeriod VARCHAR(8)       # "hour", "month", "year"
 );
 
 # compressed info for top performers (top skims)
-CREATE TABLE IF NOT EXISTS topPerfSkims (
-  skimName   VARCHAR(24),
-  nJobs      INT NOT NULL,
-  nFiles     INT NOT NULL,
-  nFSize     INT NOT NULL,    # [MB]
-  nUsers     INT NOT NULL,
-  pJobs      INT NOT NULL,
-  pFiles     INT NOT NULL,
-  pFSize     INT NOT NULL,    # [MB]
-  pUsers     INT NOT NULL,
-  pVolume    INT NOT NULL,
+CREATE TABLE IF NOT EXISTS topPerfSkimsNow (
+  theId      INT NOT NULL,    # skim Id
+  jobs       INT NOT NULL,
+  files      INT NOT NULL,
+  fSize      INT NOT NULL,    # [MB]
+  users      INT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS topPerfSkimsPast (
+  theId      INT NOT NULL,    # skim Id
+  jobs       INT NOT NULL,
+  files      INT NOT NULL,
+  fSize      INT NOT NULL,    # [MB]
+  users      INT NOT NULL,
+  volume     INT NOT NULL,
   timePeriod VARCHAR(8)       # "hour", "month", "year"
 );
 
 # compressed info for top performers (top files)
-CREATE TABLE IF NOT EXISTS topPerfFiles (
-  fileName   VARCHAR(256),
-  nJobs      INT NOT NULL,
-  nFiles     INT NOT NULL,
-  nFSize     INT NOT NULL,    # [MB]
-  pJobs      INT NOT NULL,
-  pFiles     INT NOT NULL,
-  pFSize     INT NOT NULL,    # [MB]
-  pVolume    INT NOT NULL,
+CREATE TABLE IF NOT EXISTS topPerfFilesNow (
+  theId      INT NOT NULL,    # path Id
+  jobs       INT NOT NULL,
+  files      INT NOT NULL,
+  fSize      INT NOT NULL     # [MB]
+);
+CREATE TABLE IF NOT EXISTS topPerfFilesPast (
+  theId      INT NOT NULL,    # path Id
+  jobs       INT NOT NULL,
+  files      INT NOT NULL,
+  fSize      INT NOT NULL,    # [MB]
+  volume     INT NOT NULL,
   timePeriod VARCHAR(8)       # "hour", "month", "year"
 );
 
 
 # compressed info for top performers (top skims)
-CREATE TABLE IF NOT EXISTS topPerfTypes (
-  skimName   VARCHAR(24),
-  nJobs      INT NOT NULL,
-  nFiles     INT NOT NULL,
-  nFSize     INT NOT NULL,    # [MB]
-  nUsers     INT NOT NULL,
-  pJobs      INT NOT NULL,
-  pFiles     INT NOT NULL,
-  pFSize     INT NOT NULL,    # [MB]
-  pUsers     INT NOT NULL,
-  pVolume    INT NOT NULL,
+CREATE TABLE IF NOT EXISTS topPerfTypesNow (
+  theId      INT NOT NULL,    # type Id
+  jobs       INT NOT NULL,
+  files      INT NOT NULL,
+  fSize      INT NOT NULL,    # [MB]
+  users      INT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS topPerfTypesPast (
+  theId      INT NOT NULL,    # type Id
+  jobs       INT NOT NULL,
+  files      INT NOT NULL,
+  fSize      INT NOT NULL,    # [MB]
+  users      INT NOT NULL,
+  volume     INT NOT NULL,
   timePeriod VARCHAR(8)       # "hour", "month", "year"
 );
 

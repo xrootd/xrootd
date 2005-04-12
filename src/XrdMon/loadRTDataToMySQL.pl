@@ -361,7 +361,7 @@ sub runQueryWithRet() {
 
 sub runQuery() {
     my ($sql) = @_;
-    #print "$sql;\n";
+    print "$sql;\n";
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
@@ -539,106 +539,96 @@ sub roundoff() {
 
 
 sub reloadTopPerfTables() {
-    &runQueries4AllTopPerfTables("1 HOUR", "hour", 20);
+    # create tables
+    &runQuery("CREATE TEMPORARY TABLE jj  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE ff  (theId INT, n INT, s INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE uu  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE vv  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE tmp (theId INT, n INT, s INT, INDEX (theId))");
+    @tables = ("jj", "ff", "uu", "vv", "xx", "tmp");
+
+    # run queries for past (last hour/day/month/year
+    &runQueries4AllTopPerfTablesPast("1 HOUR", "hour", 20);
     if ( $dCounter == $dUpdatesFreq ) {
-	&runQueries4AllTopPerfTables("1 DAY", "day", 20);
+	&runQueries4AllTopPerfTablesPast("1 DAY", "day", 20);
 	$dCounter = 0;
     } else {
 	$dCounter += 1;
     }
     if ( $mCounter == $mUpdatesFreq ) {
-	&runQueries4AllTopPerfTables("1 MONTH", "month", 20);
+	&runQueries4AllTopPerfTablesPast("1 MONTH", "month", 20);
 	$mCounter = 0;
     } else {
 	$mCounter += 1;
     }
     if ( $yCounter == $yUpdatesFreq ) {
-	&runQueries4AllTopPerfTables("1 YEAR", "year", 20);
+	&runQueries4AllTopPerfTablesPast("1 YEAR", "year", 20);
 	$yCounter = 0;
     } else {
 	$yCounter += 1;
     }
-}
-
-sub runQueries4AllTopPerfTables() {
-    my ($theInterval, $theKeyword, $theLimit) = @_;
-
-    @tables = ("nj","nu", "pj", "pu", "pv");
-
-    # create tables
-    foreach $table (@tables) {
-        &runQuery("CREATE TEMPORARY TABLE $table  (theId INT, n INT, INDEX (theId))");
-    }
-    &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
-    push @tables, "xx";
-
-    &runQuery("CREATE TEMPORARY TABLE nf  (theId INT, n INT, s INT, INDEX (theId))");
-    push @tables, "nf";
-    &runQuery("CREATE TEMPORARY TABLE pf  (theId INT, n INT, s INT, INDEX (theId))");
-    push @tables, "pf";
-    &runQuery("CREATE TEMPORARY TABLE tmp  (theId INT, n INT, s INT, INDEX (theId))");
-    push @tables, "tmp";
-
-
-    &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "USERS");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
-    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "SKIMS");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
-    &runTopSkimsQueries($theInterval, $theKeyword, $theLimit, "TYPES");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
-    &runTopUsrFsQueries($theInterval, $theKeyword, $theLimit, "FILES");
+    # run queries for now
+    &runQueries4AllTopPerfTablesNow(20);
 
     # delete tables
     foreach $table (@tables) { &runQuery("DROP TABLE IF EXISTS $table"); }
 }
 
-sub runTopUsrFsQueries() {
+sub runQueries4AllTopPerfTablesPast() {
+    my ($theInterval, $theKeyword, $theLimit) = @_;
+
+    &runTopUsrFsQueriesPast($theInterval, $theKeyword, $theLimit, "USERS");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    &runTopSkimsQueriesPast($theInterval, $theKeyword, $theLimit, "SKIMS");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    &runTopSkimsQueriesPast($theInterval, $theKeyword, $theLimit, "TYPES");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    &runTopUsrFsQueriesPast($theInterval, $theKeyword, $theLimit, "FILES");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+}
+
+sub runQueries4AllTopPerfTablesNow() {
+    my ($theLimit) = @_;
+
+    &runTopUsrFsQueriesNow($theLimit, "USERS");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    &runTopSkimsQueriesNow($theLimit, "SKIMS");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    &runTopSkimsQueriesNow($theLimit, "TYPES");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    &runTopUsrFsQueriesNow($theLimit, "FILES");
+    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+}
+
+sub runTopUsrFsQueriesPast() {
     my ($theInterval, $theKeyword, $theLimit, $what) = @_;
 
-    print "updating topPerf $what tables for $theInterval\n";
+    print "# updating topPerf $what tables for $theInterval\n";
 
     my $idInTable        = "INVALID";
-    my $nameTable        = "INVALID";
     my $destinationTable = "INVALID";
 
     if ( $what eq "USERS" ) {
         $idInTable        = "userId";
-        $nameTable        = "users";
-        $destinationTable = "topPerfUsers";
+        $destinationTable = "topPerfUsersPast";
     } elsif ( $what eq "FILES" ) {
         $idInTable        = "pathId";
-        $nameTable        = "paths";
-        $destinationTable = "topPerfFiles";
+        $destinationTable = "topPerfFilesPast";
     } else {
         die "Invalid arg, expected USERS or FILES\n";
     }
 
-    # now jobs
-    &runQuery("INSERT INTO nj
-        SELECT $idInTable, COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
-        FROM   rtOpenedSessions os, rtOpenedFiles of
-        WHERE  os.id = of.sessionId
-               GROUP BY $idInTable");
-    # now files
-    &runQuery ("INSERT INTO nf 
-        SELECT $idInTable, 
-               COUNT(DISTINCT pathId) AS n,
-               SUM(size)/(1024*1024) AS s
-        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId AND
-               of.pathId = paths.id
-               GROUP BY $idInTable");
-
     # past jobs
     if ( $what eq "USERS" ) {
-        &runQuery("INSERT INTO pj
+        &runQuery("INSERT INTO jj
             SELECT $idInTable, 
                    COUNT(DISTINCT CONCAT(pId, clientHId)) AS n
             FROM   rtClosedSessions
             WHERE  disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
                    GROUP BY $idInTable");
     } elsif ( $what eq "FILES" ) {
-        &runQuery("INSERT INTO pj
+        &runQuery("INSERT INTO jj
             SELECT $idInTable, 
                    COUNT(DISTINCT CONCAT(pId, clientHId)) AS n
             FROM   rtClosedSessions cs, rtClosedFiles cf
@@ -667,7 +657,7 @@ sub runTopUsrFsQueries() {
               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
               GROUP BY $idInTable");
     # past files - merge results
-    &runQuery("INSERT INTO pf 
+    &runQuery("INSERT INTO ff 
         SELECT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
     # cleanup tmp table
     &runQuery("DELETE FROM tmp");
@@ -686,96 +676,108 @@ sub runTopUsrFsQueries() {
                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
                GROUP BY $idInTable");
     # past volume - merge results
-    &runQuery("INSERT INTO pv SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    &runQuery("INSERT INTO vv SELECT theId, SUM(n) FROM tmp GROUP BY theId");
     # cleanup tmp table
     &runQuery("DELETE FROM tmp");
 
     ##### now find all names for top X for each sorting 
-    &runQuery("REPLACE INTO xx SELECT theId FROM nj ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY s DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pj ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY s DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pv ORDER BY n DESC LIMIT $theLimit");
-
+    &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM vv ORDER BY n DESC LIMIT $theLimit");
 
     ## delete old data
     &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
 
     ## and finally insert the new data
     &runQuery("INSERT INTO $destinationTable
-        SELECT name, 
-               IFNULL(nj.n, 0) AS nJobs,
-               IFNULL(nf.n, 0) AS nFiles, 
-               IFNULL(nf.s, 0) AS nFSize, 
-               IFNULL(pj.n, 0) AS pJobs, 
-               IFNULL(pf.n, 0) AS pFiles, 
-               IFNULL(pf.s, 0) AS pFSize, 
-               IFNULL(pv.n, 0) AS pVol, 
+        SELECT xx.theId, 
+               IFNULL(jj.n, 0) AS jobs, 
+               IFNULL(ff.n, 0) AS files, 
+               IFNULL(ff.s, 0) AS fSize, 
+               IFNULL(vv.n, 0) AS vol, 
                \"$theKeyword\"
-        FROM   $nameTable, xx 
-               LEFT OUTER JOIN nj ON xx.theId = nj.theId
-               LEFT OUTER JOIN nf ON xx.theId = nf.theId
-               LEFT OUTER JOIN pj ON xx.theId = pj.theId
-               LEFT OUTER JOIN pf ON xx.theId = pf.theId
-               LEFT OUTER JOIN pv ON xx.theId = pv.theId
-        WHERE  xx.theId = $nameTable.id");
+        FROM   xx 
+               LEFT OUTER JOIN jj ON xx.theId = jj.theId
+               LEFT OUTER JOIN ff ON xx.theId = ff.theId
+               LEFT OUTER JOIN vv ON xx.theId = vv.theId");
 }
 
 
+sub runTopUsrFsQueriesNow() {
+    my ($theLimit, $what) = @_;
+
+    print "# updating topPerf $what tables for NOW\n";
+
+    my $idInTable        = "INVALID";
+    my $destinationTable = "INVALID";
+
+    if ( $what eq "USERS" ) {
+        $idInTable        = "userId";
+        $destinationTable = "topPerfUsersNow";
+        $pastTable        = "topPerfUsersPast";
+    } elsif ( $what eq "FILES" ) {
+        $idInTable        = "pathId";
+        $destinationTable = "topPerfFilesNow";
+        $pastTable        = "topPerfFilesPast";
+    } else {
+        die "Invalid arg, expected USERS or FILES\n";
+    }
+
+    # now jobs
+    &runQuery("INSERT INTO jj
+        SELECT $idInTable, COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+        FROM   rtOpenedSessions os, rtOpenedFiles of
+        WHERE  os.id = of.sessionId
+               GROUP BY $idInTable");
+    # now files
+    &runQuery ("INSERT INTO ff 
+        SELECT $idInTable, 
+               COUNT(DISTINCT pathId) AS n,
+               SUM(size)/(1024*1024) AS s
+        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+        WHERE  os.id = of.sessionId AND
+               of.pathId = paths.id
+               GROUP BY $idInTable");
+
+    ##### now find all names for top X for each sorting 
+    &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable;");
+    &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
+
+    ## and finally insert the new data
+    &runQuery("INSERT INTO $destinationTable
+        SELECT DISTINCT xx.theId,
+               IFNULL(jj.n, 0) AS jobs,
+               IFNULL(ff.n, 0) AS files, 
+               IFNULL(ff.s, 0) AS fSize
+        FROM   xx 
+               LEFT OUTER JOIN jj ON xx.theId = jj.theId
+               LEFT OUTER JOIN ff ON xx.theId = ff.theId");
+}
+
   
-sub runTopSkimsQueries() {
+sub runTopSkimsQueriesPast() {
     my ($theInterval, $theKeyword, $theLimit, $what) = @_;
 
-    print "updating topPerf $what tables for $theInterval\n";
+    print "# updating topPerf $what tables for $theInterval\n";
 
     my $idInPathTable    = "INVALID";
-    my $nameTable        = "INVALID";
     my $destinationTable = "INVALID";
 
     if ( $what eq "SKIMS" ) {
         $idInPathTable    = "skimId";
-        $nameTable        = "skimNames";
-        $destinationTable = "topPerfSkims";
+        $destinationTable = "topPerfSkimsPast";
     } elsif ( $what eq "TYPES" ) {
         $idInPathTable    = "typeId";
-        $nameTable        = "fileTypes";
-        $destinationTable = "topPerfTypes";
+        $destinationTable = "topPerfTypesPast";
     } else {
         die "Invalid arg, expected SKIMS or TYPES\n";
     }
 
-    # now jobs
-    &runQuery("INSERT INTO nj
-        SELECT $idInPathTable,
-               COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
-        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId AND
-               of.pathId = paths.id
-               GROUP BY $idInPathTable");
-
-    # now files
-    &runQuery("REPLACE INTO nf 
-        SELECT $idInPathTable,
-               COUNT(DISTINCT pathId) AS n,
-               SUM(size)/(1024*1024)  AS s
-        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId AND
-               of.pathId = paths.id
-               GROUP BY $idInPathTable");
-
-    # now users
-    &runQuery("REPLACE INTO nu 
-        SELECT $idInPathTable,
-               COUNT(DISTINCT userId) AS n
-        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId AND
-               of.pathId = paths.id
-               GROUP BY $idInPathTable");
-
     # past jobs
-    &runQuery("REPLACE INTO pj
+    &runQuery("REPLACE INTO jj
         SELECT $idInPathTable, 
                COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
         FROM   rtClosedSessions cs, rtClosedFiles cf, paths
@@ -805,12 +807,12 @@ sub runTopSkimsQueries() {
                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
                GROUP BY $idInPathTable");
     # past files - merge result
-    &runQuery("INSERT INTO pf
+    &runQuery("INSERT INTO ff
          SELECT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
     # cleanup temporary table
     &runQuery("DELETE FROM tmp");
     # past users
-    &runQuery("REPLACE INTO pu
+    &runQuery("REPLACE INTO uu
         SELECT $idInPathTable, 
                COUNT(DISTINCT userId) AS n
         FROM   rtClosedSessions cs, rtClosedFiles cf, paths
@@ -835,46 +837,101 @@ sub runTopSkimsQueries() {
                 closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
                 GROUP BY $idInPathTable");
     # past volume - merge result
-    &runQuery("INSERT INTO pv SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    &runQuery("INSERT INTO vv SELECT theId, SUM(n) FROM tmp GROUP BY theId");
     # cleanup temporary table
     &runQuery("DELETE FROM tmp");
 
 
     ##### now find all names for top X for each sorting 
-    &runQuery("REPLACE INTO xx SELECT theId FROM nj ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM nf ORDER BY s DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM nu ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pj ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pf ORDER BY s DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pu ORDER BY n DESC LIMIT $theLimit");
-    &runQuery("REPLACE INTO xx SELECT theId FROM pv ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM uu ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM vv ORDER BY n DESC LIMIT $theLimit");
 
     ## delete old data
     &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
 
     ## and finally insert the new data
     &runQuery("INSERT INTO $destinationTable
-        SELECT name,
-              IFNULL(nj.n, 0) AS nJobs,
-              IFNULL(nf.n, 0) AS nFiles, 
-              IFNULL(nf.s, 0) AS nFSize,
-              IFNULL(nu.n, 0) AS nUsers,
-              IFNULL(pj.n, 0) AS pJobs,
-              IFNULL(pf.n, 0) AS pFiles,
-              IFNULL(pf.s, 0) AS pFSize,
-              IFNULL(pu.n, 0) AS pUsers, 
-              IFNULL(pv.n, 0) AS pVol, 
-              \"$theKeyword\"
-        FROM  $nameTable, xx 
-              LEFT OUTER JOIN nj ON xx.theId = nj.theId
-              LEFT OUTER JOIN nf ON xx.theId = nf.theId
-              LEFT OUTER JOIN nu ON xx.theId = nu.theId
-              LEFT OUTER JOIN pj ON xx.theId = pj.theId
-              LEFT OUTER JOIN pf ON xx.theId = pf.theId
-              LEFT OUTER JOIN pu ON xx.theId = pu.theId
-              LEFT OUTER JOIN pv ON xx.theId = pv.theId
-       WHERE  xx.theId = $nameTable.id");
+        SELECT xx.theId,
+               IFNULL(jj.n, 0) AS jobs,
+               IFNULL(ff.n, 0) AS files,
+               IFNULL(ff.s, 0) AS fSize,
+               IFNULL(uu.n, 0) AS users, 
+               IFNULL(vv.n, 0) AS vol, 
+               \"$theKeyword\"
+        FROM   xx 
+               LEFT OUTER JOIN jj ON xx.theId = jj.theId
+               LEFT OUTER JOIN ff ON xx.theId = ff.theId
+               LEFT OUTER JOIN uu ON xx.theId = uu.theId
+               LEFT OUTER JOIN vv ON xx.theId = vv.theId");
+}
+sub runTopSkimsQueriesNow() {
+    my ($theLimit, $what) = @_;
+
+    print "# updating topPerf $what tables for NOW\n";
+
+    my $idInPathTable    = "INVALID";
+    my $destinationTable = "INVALID";
+
+    if ( $what eq "SKIMS" ) {
+        $idInPathTable    = "skimId";
+        $destinationTable = "topPerfSkimsNow";
+        $pastTable        = "topPerfSkimsPast";
+    } elsif ( $what eq "TYPES" ) {
+        $idInPathTable    = "typeId";
+        $destinationTable = "topPerfTypesNow";
+        $pastTable        = "topPerfTypesPast";
+    } else {
+        die "Invalid arg, expected SKIMS or TYPES\n";
+    }
+
+    # now jobs
+    &runQuery("INSERT INTO jj
+        SELECT $idInPathTable,
+               COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+        WHERE  os.id = of.sessionId AND
+               of.pathId = paths.id
+               GROUP BY $idInPathTable");
+
+    # now files
+    &runQuery("REPLACE INTO ff 
+        SELECT $idInPathTable,
+               COUNT(DISTINCT pathId) AS n,
+               SUM(size)/(1024*1024)  AS s
+        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+        WHERE  os.id = of.sessionId AND
+               of.pathId = paths.id
+               GROUP BY $idInPathTable");
+
+    # now users
+    &runQuery("REPLACE INTO uu 
+        SELECT $idInPathTable,
+               COUNT(DISTINCT userId) AS n
+        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+        WHERE  os.id = of.sessionId AND
+               of.pathId = paths.id
+               GROUP BY $idInPathTable");
+
+    ##### now find all names for top X for each sorting 
+    &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable;");
+    &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM uu ORDER BY n DESC LIMIT $theLimit");
+
+    ## and finally insert the new data
+    &runQuery("INSERT INTO $destinationTable
+        SELECT DISTINCT xx.theId,
+               IFNULL(jj.n, 0) AS jobs,
+               IFNULL(ff.n, 0) AS files, 
+               IFNULL(ff.s, 0) AS fSize,
+               IFNULL(uu.n, 0) AS users
+        FROM   xx 
+               LEFT OUTER JOIN jj ON xx.theId = jj.theId
+               LEFT OUTER JOIN ff ON xx.theId = ff.theId
+               LEFT OUTER JOIN uu ON xx.theId = uu.theId");
 }
 
