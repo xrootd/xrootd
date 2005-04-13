@@ -145,7 +145,8 @@ $(OBJDIR)/XrdXrootdProtocol.o: XrdXrootdFile.hh       XrdXrootdFileLock.hh \
                                XrdXrootdStats.hh      XrdXrootdTrace.hh    \
                                XrdXrootdAio.hh        XProtocol.hh         \
                                XrdBuffer.hh           XrdLink.hh           \
-                               XrdObject.hh           XProtocol.hh \
+                               XrdObject.hh           XrdObject.icc        \
+                               XProtocol.hh \
                                XrdSfsInterface.hh     XrdSecInterface.hh \
                                XrdOucError.hh         XrdOucPthread.hh   \
                                XrdOucTimer.hh         XrdOucTrace.hh \

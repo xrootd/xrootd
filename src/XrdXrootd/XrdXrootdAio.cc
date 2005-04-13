@@ -247,12 +247,13 @@ XrdXrootdAioReq *XrdXrootdAioReq::Alloc(XrdXrootdProtocol *prot,
    if (iolen < Quantum) 
       {myQuantum = QuantumMin;
        if (!(cntaio = iolen / myQuantum)) cntaio = 1;
+          else if (iolen % myQuantum) cntaio++;
       } else {cntaio = iolen / Quantum;
               if (cntaio <= maxAioPR2) myQuantum = Quantum;
                  else {myQuantum = QuantumMax;
                        cntaio = iolen / myQuantum;
                       }
-              if (iolen % Quantum) cntaio++;
+              if (iolen % myQuantum) cntaio++;
              }
 
 // Get appropriate number of aio objects
@@ -295,10 +296,9 @@ XrdXrootdAio *XrdXrootdAioReq::getAio()
 // want the opposite effect for scaling purposes. So, we use a redrive scheme.
 //
    Lock();
-   if ((aiop = aioFree)) aioFree = aiop->Next;
+   if ((aiop = aioFree)) {aioFree = aiop->Next; aiop->Next = 0;}
       else reDrive = 1;
    UnLock();
-   aiop->Next = 0;
    return aiop;
 }
 
