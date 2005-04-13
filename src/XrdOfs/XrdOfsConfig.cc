@@ -87,7 +87,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
   Output:   0 upon success or !0 otherwise.
 */
    char *val, *var;
-   int  i, j, cfgFD, retc, NoGo = 0;
+   int  i, cfgFD, retc, NoGo = 0;
    XrdOucStream Config(&Eroute);
 
 // Print warm-up message
@@ -135,37 +135,26 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
 // Check if redirection wanted
 //
-   if (getenv("XRDREDIRECT")) i  = XrdOfsREDIRRMT;
-      else i = 0;
+   if ((val = getenv("XRDREDIRECT")))
+      {if (*val == 'R') {i = XrdOfsREDIRRMT; val = (char *)"remote";}
+          else if (*val == 'B') {i = XrdOfsREDIRLCL; val = (char *)"local";}
+               else i = 0;
+      } else i = 0;
    if (getenv("XRDRETARGET")) i |= XrdOfsREDIRTRG;
    if (getenv("XRDREDPROXY")) i |= XrdOfsREDIROXY;
    if (i)
-      {if ((j = Options & XrdOfsREDIRECT) && (i ^ j))
-          {char buff[256];
-           sprintf(buff, "%s%s%s", (i & XrdOfsREDIRRMT ? "remote " : ""),
-                  (i & XrdOfsREDIRTRG ? "target " : ""),
-                  (i & XrdOfsREDIROXY ? "proxyt " : ""));
-           Eroute.Emsg("Config", "Command line redirect options override config "
-                                "file;  redirect", buff, "in effect.");
-          }
-       Options &= ~(XrdOfsREDIRECT);
+      {if ((Options & (XrdOfsREDIRLCL | XrdOfsREDIRRMT))&& !(i & Options))
+          Eroute.Emsg("Config", "Command line redirect options override config "
+                                "file;  redirect", val, (char *)"in effect.");
+       Options &= ~(XrdOfsREDIRLCL | XrdOfsREDIRRMT);
        Options |= i;
       }
+   if (Options & (XrdOfsREDIRECT | XrdOfsREDIROXY)) NoGo |= ConfigRedir(Eroute);
 
-// Set the redirect option for upper layers
+// Turn off forwarding if we are not a remote redirector
 //
-   if ((Options & XrdOfsREDIRECT) == XrdOfsREDIRRMT)
-           putenv((char *)"XRDREDIRECT=R");
-      else putenv((char *)"XRDREDIRECT=0");
-
-// Initialize redirection, as needed
-//
-   if (Options & XrdOfsREDIRECT) NoGo |= ConfigRedir(Eroute);
-
-// Turn off forwarding if we are not a pure remote redirector
-//
-   if (Options & XrdOfsFWDALL && (Options & (XrdOfsREDIRTRG | XrdOfsREDIROXY)))
-      {Eroute.Emsg("Config", "Forwarding turned off; not a pure remote redirector");
+   if (Options & XrdOfsFWDALL && !(Options & XrdOfsREDIRRMT))
+      {Eroute.Emsg("Config", "Forwarding turned off; not a remote redirector");
        Options &= ~(XrdOfsFWDALL);
       }
 
@@ -186,7 +175,8 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
 {
      char buff[8192], fwbuff[256], *bp, *cloc, *rdt, *rdu, *rdp;
 
-          if (Options & XrdOfsREDIRRMT) rdt = (char *)"ofs.redirect remote\n";
+          if (Options & XrdOfsREDIRLCL) rdt = (char *)"ofs.redirect local\n";
+     else if (Options & XrdOfsREDIRRMT) rdt = (char *)"ofs.redirect remote\n";
      else                               rdt = (char *)"";
           if (Options & XrdOfsREDIROXY) rdp = (char *)"ofs.redirect proxy\n";
      else                               rdp = (char *)"";
@@ -234,14 +224,19 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
   
 int XrdOfs::ConfigRedir(XrdOucError &Eroute) 
 {
-   int port;
-   char *pp;
+   EPNAME("ConfigRedir")
+#ifndef NODEBUG
+   const char *tident = "";
+#endif
+   int i, port, isprime = 1;
+   struct sockaddr_in name;
+   XrdOdcFinderLCL *myFinder;
+   SOCKLEN_t nlen = sizeof(name);
 
 // For remote redirection, we simply do a standard config
 //
    if (Options & XrdOfsREDIRRMT)
-      {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),
-                                        (Options & XrdOfsREDIRTRG));
+      {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger());
        if (!Finder->Configure(ConfigFN))
           {delete Finder; Finder = 0; return 1;}
       }
@@ -249,15 +244,27 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
 // For proxy  redirection, we simply do a standard config
 //
    if (Options & XrdOfsREDIROXY)
-      {Google=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(), 0, 1);
+      {Google=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(), 1);
        if (!Google->Configure(ConfigFN))
           {delete Google; Google = 0; return 1;}
       }
 
-// For target redirection find the port number and create the object
+// For local or target redirection we need to know the port number
 //
+//PE   if (Options & (XrdOfsREDIRLCL | XrdOfsREDIRTRG))
+//PE      {i = 3;
+//PE       while(i < 256 && getsockname(i,(struct sockaddr *)&name, &nlen) < 0) i++;
+//PE       if (i >= 256)
+//PE          {Eroute.Emsg("Config", "Unable to determine server's port number.");
+//PE           return 1;
+//PE          }
+//PE       port = ntohs(name.sin_port);
+//PE       DEBUG("Dynamic port identification... port number=" <<port);
+//PE      } else port = -1;
+
    if (Options & XrdOfsREDIRTRG)
-      {if (!(pp=getenv("XRDPORT")) || !(port=strtol(pp, (char **)NULL, 10)))
+      {char *pp;
+       if (!(pp=getenv("XRDPORT")) || !(port=strtol(pp, (char **)NULL, 10)))
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
           }
@@ -266,6 +273,27 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
        if (!Balancer->Configure(ConfigFN)) 
           {delete Balancer; Balancer = 0; return 1;}
       }
+
+// Create a local finder, if need be
+//
+// if (Options & XrdOfsREDIRLCL)
+//    {myFinder = new XrdOdcFinderLCL(Eroute.logger(), port);
+//     if (!myFinder->Configure(ConfigFN)) {delete myFinder; return 1;}
+//
+       // We are either a participator or a redirector, decide which is which
+       //
+//     if (myFinder->isRedirector()) Finder = (XrdOdcFinder *)myFinder;
+//        else isprime = 0;
+//     Reporter = myFinder;
+//    }
+
+// Create a target finder
+//
+// if (Options & XrdOfsREDIRTRG)
+//    {Balancer = new XrdOdcFinderTRG(Eroute.logger(), isprime, port);
+//     if (!Balancer->Configure(ConfigFN))
+//        {delete Balancer; Balancer = 0; return 1;}
+//    }
 
 // All done
 //
@@ -304,6 +332,45 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     // No match found, complain.
     //
     Eroute.Emsg("Config", "Warning, unknown directive", var);
+    return 0;
+}
+
+/******************************************************************************/
+/*                                  i s M e                                   */
+/******************************************************************************/
+  
+int XrdOfs::isMe(XrdOucError &eDest, const char *item, char *hval)
+{
+    struct sockaddr InetAddr[16];
+    char *mval;
+    int i, j, k, retc;
+
+    if (!strcmp(hval, HostName)) return 1;
+
+    if ((mval = index((const char *)hval, (int)'*')))
+       {*mval = '\0'; mval++; 
+        k = strlen(HostName); j = strlen(mval); i = strlen(hval);
+        if ((i+j) > k
+        || strncmp((const char *)HostName,      (const char *)hval,i)
+        || strncmp((const char *)(HostName+k-j),(const char *)mval,j)) return 0;
+        return 1;
+       }
+
+    i = strlen(hval);
+    if (hval[i-1] != '+') i = 0;
+        else {hval[i-1] = '\0';
+              if (!(i = XrdNetDNS::getHostAddr(hval, InetAddr, 16)))
+                 {eDest.Emsg("Config",item, hval, (char *)"not found");
+                  return 0;
+                 }
+             }
+
+    while(i--)
+         {mval = XrdNetDNS::getHostName(InetAddr[i]);
+          retc = !strcmp(mval,HostName) || !strcmp(mval,HostPref);
+          free(mval);
+          if (retc) return 1;
+         }
     return 0;
 }
 
@@ -464,9 +531,11 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdOucError &Eroute)
 
 /* Function: xred
 
-   Purpose:  Parse directive: redirect [proxy|remote|target] [if] [ <hosts> ]
+   Purpose:  Parse directive: redirect [local|proxy|remote|target] 
+                                              [if] [ <hosts> ]
 
-   Args:     proxy    - enables this server for proxy   load balancing
+   Args:     local    - enables this server for dynamic port balancing
+             proxy    - enables this server for proxy   load balancing
              remote   - enables this server for dynamic load balancing
              target   - enables this server as a redirection target
              hosts    - list of hostnames for which this directive applies
@@ -476,24 +545,23 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    EPNAME("xred")
-#ifndef NODEBUG
-   const char *tident = "";
-#endif
     char *val, *mode = (char *)"remote";
-    int ropt = 0;
+    int ropt = 0, topt = 0;
 
     if ((val = Config.GetWord()))
-       {     if (!strcmp("proxy",  val)) {ropt = XrdOfsREDIROXY;
+       {     if (!strcmp("local", val)) {ropt = XrdOfsREDIRLCL;
+                                         mode = (char *)"local";
+                                        }
+        else if (!strcmp("proxy",  val)) {ropt = XrdOfsREDIROXY;
                                           mode = (char *)"proxy";
                                          }
-        else if (!strcmp("remote", val))  ropt = XrdOfsREDIRRMT;
-        else if (!strcmp("target", val)) {ropt = XrdOfsREDIRTRG;
+        else if (!strcmp("remote", val)) ropt = XrdOfsREDIRRMT;
+        else if (!strcmp("target", val)) {topt = XrdOfsREDIRTRG;
                                           mode = (char *)"target";
                                          }
        }
 
-    if (!ropt) ropt = XrdOfsREDIRRMT;
+    if (!ropt && !topt) ropt = XrdOfsREDIRRMT;
        else if (val) val = Config.GetWord();
 
     if (val) {if (!strcmp("if", val) && !(val = Config.GetWord()))
@@ -501,16 +569,19 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
                               "Host name missing after 'if' in redirect", mode);
                   return 1;
                  }
-              while(val && !XrdNetDNS::isMatch(HostName, val))
-                   {DEBUG("'redirect " <<mode <<" if " <<val <<"' != " <<HostName);
+              while(val && !isMe(Eroute, "redirect host", val)) 
                     val = Config.GetWord();
-                   }
-              if (!val) {DEBUG("'redirect " <<mode <<"' ignored.");
+              if (!val) {Eroute.Emsg("Config","redirect", mode,
+                                    (char *)"ignored; not applicable host.");
                          return 0;
                         }
              }
 
-    Options |= ropt;
+    if (ropt)
+       if (ropt & XrdOfsREDIRLCL)
+          Options = (Options & ~(XrdOfsREDIROXY | XrdOfsREDIRRMT)) | ropt;
+          else if (ropt) Options = (Options & ~(XrdOfsREDIRLCL))   | ropt;
+    Options |= topt;
     return 0;
 }
   
