@@ -205,6 +205,7 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    lp->ID = unp;
    lp->FD = Peer.fd;
    lp->udpbuff = Peer.InetBuff;
+   lp->Comment = (const char *)unp;
 
 // Set options as needed
 //

@@ -44,7 +44,7 @@ void XrdObjectQ<T>::DoIt()
       if (pp) while(p)
                    {pp->Next = p->Next; delete p->Item;
                     Count--;
-                    p = (pp = pp->Next ? pp->Next : 0);
+                    p = ((pp = pp->Next) ? pp->Next : 0);
                    }
       }
 
