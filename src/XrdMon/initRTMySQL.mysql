@@ -186,13 +186,13 @@ CREATE TABLE IF NOT EXISTS rtChanges (
 
 # compressed info for top performers (top users)
 CREATE TABLE IF NOT EXISTS topPerfUsersNow (
-  theId      INT NOT NULL PRIMARY KEY,    # user Id
+  theId      INT NOT NULL,    # user Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL     # [MB]
 );
 CREATE TABLE IF NOT EXISTS topPerfUsersPast (
-  theId      INT NOT NULL PRIMARY KEY,    # user Id
+  theId      INT NOT NULL,    # user Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
@@ -202,14 +202,14 @@ CREATE TABLE IF NOT EXISTS topPerfUsersPast (
 
 # compressed info for top performers (top skims)
 CREATE TABLE IF NOT EXISTS topPerfSkimsNow (
-  theId      INT NOT NULL PRIMARY KEY,    # skim Id
+  theId      INT NOT NULL,    # skim Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
   users      INT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS topPerfSkimsPast (
-  theId      INT NOT NULL PRIMARY KEY,    # skim Id
+  theId      INT NOT NULL,    # skim Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
@@ -220,13 +220,13 @@ CREATE TABLE IF NOT EXISTS topPerfSkimsPast (
 
 # compressed info for top performers (top files)
 CREATE TABLE IF NOT EXISTS topPerfFilesNow (
-  theId      INT NOT NULL PRIMARY KEY,    # path Id
+  theId      INT NOT NULL,    # path Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL     # [MB]
 );
 CREATE TABLE IF NOT EXISTS topPerfFilesPast (
-  theId      INT NOT NULL PRIMARY KEY,    # path Id
+  theId      INT NOT NULL,    # path Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
@@ -237,14 +237,14 @@ CREATE TABLE IF NOT EXISTS topPerfFilesPast (
 
 # compressed info for top performers (top skims)
 CREATE TABLE IF NOT EXISTS topPerfTypesNow (
-  theId      INT NOT NULL PRIMARY KEY,    # type Id
+  theId      INT NOT NULL,    # type Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
   users      INT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS topPerfTypesPast (
-  theId      INT NOT NULL PRIMARY KEY,    # type Id
+  theId      INT NOT NULL,    # type Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
