@@ -16,79 +16,69 @@ CREATE DATABASE IF NOT EXISTS xrdmon_kan;
 USE xrdmon_kan;
 
 CREATE TABLE IF NOT EXISTS rtOpenedSessions (
-  id            INT NOT NULL PRIMARY KEY,
-  userId        INT NOT NULL,
-  pId           INT NOT NULL,
-  clientHId     INT NOT NULL,
-  serverHId     INT NOT NULL
+  id            MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY,
+  userId        SMALLINT  UNSIGNED NOT NULL,
+  pId           SMALLINT  UNSIGNED NOT NULL,
+  clientHId     SMALLINT  UNSIGNED NOT NULL,
+  serverHId     SMALLINT  UNSIGNED NOT NULL,
+  INDEX (userId),
+  INDEX (pId),
+  INDEX (clientHId),
+  INDEX (serverHId)
 );
-CREATE INDEX rtOpenedSession_id_index        USING BTREE ON rtOpenedSessions(id);
-CREATE INDEX rtOpenedSession_userId_index    USING BTREE ON rtOpenedSessions(userId);
-CREATE INDEX rtOpenedSession_pId_index       USING BTREE ON rtOpenedSessions(pId);
-CREATE INDEX rtOpenedSession_clientHId_index USING BTREE ON rtOpenedSessions(clientHId);
-CREATE INDEX rtOpenedSession_serverHId_index USING BTREE ON rtOpenedSessions(serverHId);
-
 
 
 CREATE TABLE IF NOT EXISTS rtClosedSessions (
-  id            INT NOT NULL PRIMARY KEY,
-  userId        INT NOT NULL,
-  pId           INT NOT NULL,
-  clientHId     INT NOT NULL,
-  serverHId     INT NOT NULL,
-  duration      INT NOT NULL,
-  disconnectT   DATETIME NOT NULL
+  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
+  userId        SMALLINT  UNSIGNED NOT NULL,
+  pId           SMALLINT  UNSIGNED NOT NULL,
+  clientHId     SMALLINT  UNSIGNED NOT NULL,
+  serverHId     SMALLINT  UNSIGNED NOT NULL,
+  duration      MEDIUMINT UNSIGNED NOT NULL,
+  disconnectT   DATETIME  NOT NULL,
+  INDEX (userId),
+  INDEX (pId),
+  INDEX (clientHId),
+  INDEX (serverHId),
+  INDEX (disconnectT)
 );
-CREATE INDEX rtClosedSession_id_index        USING BTREE ON rtClosedSessions(id);
-CREATE INDEX rtClosedSession_userId_index    USING BTREE ON rtClosedSessions(userId);
-CREATE INDEX rtClosedSession_pId_index       USING BTREE ON rtClosedSessions(pId);
-CREATE INDEX rtClosedSession_clientHId_index USING BTREE ON rtClosedSessions(clientHId);
-CREATE INDEX rtClosedSession_serverHId_index USING BTREE ON rtClosedSessions(serverHId);
-CREATE INDEX rtClosedSession_disconnectT_index USING BTREE ON rtClosedSessions(disconnectT);
 
 
 CREATE TABLE IF NOT EXISTS rtOpenedFiles (
-  id            INT NOT NULL PRIMARY KEY,
-  sessionId     INT NOT NULL,
-  pathId        INT NOT NULL,
-  openT         DATETIME NOT NULL
+  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
+  sessionId     INT       UNSIGNED NOT NULL,
+  pathId        MEDIUMINT UNSIGNED NOT NULL,
+  openT         DATETIME  NOT NULL,
+  INDEX (sessionId),
+  INDEX (pathId),
+  INDEX (openT)
 );
-CREATE INDEX rtOpenedFiles_id_index        USING BTREE ON rtOpenedFiles(id);
-CREATE INDEX rtOpenedFiles_sessionId_index USING BTREE ON rtOpenedFiles(sessionId);
-CREATE INDEX rtOpenedFiles_pathId_index    USING BTREE ON rtOpenedFiles(pathId);
-
 
 
 CREATE TABLE IF NOT EXISTS rtClosedFiles (
-  id            INT NOT NULL PRIMARY KEY,
-  sessionId     INT NOT NULL,
-  pathId	INT NOT NULL,
-  openT         DATETIME NOT NULL,
-  closeT        DATETIME NOT NULL,
-  bytesR        BIGINT UNSIGNED NOT NULL,
-  bytesW        BIGINT UNSIGNED NOT NULL
+  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
+  sessionId     INT       UNSIGNED NOT NULL,
+  pathId	MEDIUMINT UNSIGNED NOT NULL,
+  openT         DATETIME  NOT NULL,
+  closeT        DATETIME  NOT NULL,
+  bytesR        BIGINT    UNSIGNED NOT NULL,
+  bytesW        BIGINT    UNSIGNED NOT NULL,
+  INDEX (sessionId),
+  INDEX (pathId),
+  INDEX (closeT)
 );
-CREATE INDEX rtClosedFiles_id_index        USING BTREE ON rtClosedFiles(id);
-CREATE INDEX rtClosedFiles_sessionId_index USING BTREE ON rtClosedFiles(sessionId);
-CREATE INDEX rtClosedFiles_pathId_index    USING BTREE ON rtClosedFiles(pathId);
-CREATE INDEX rtClosedFiles_closeT_index    USING BTREE ON rtClosedFiles(closeT);
-
 
 
 CREATE TABLE IF NOT EXISTS users (
-  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id            SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(24) NOT NULL
 );
-
-CREATE INDEX users_id_index USING BTREE ON users(id);
-
 
 
 CREATE TABLE IF NOT EXISTS hosts (
   id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   hostName      VARCHAR(64) NOT NULL
 );
-CREATE INDEX hosts_id_index USING BTREE ON hosts(id);
 
 
 CREATE TABLE IF NOT EXISTS paths (
@@ -96,12 +86,10 @@ CREATE TABLE IF NOT EXISTS paths (
   typeId        TINYINT NOT NULL,   # BaBar specific
   skimId        TINYINT NOT NULL,   # BaBar specific
   size          BIGINT,
-  name          VARCHAR(256) NOT NULL
+  name          VARCHAR(256) NOT NULL,
+  INDEX (typeId),
+  INDEX (skimId)
 );
-CREATE INDEX paths_id_index         USING BTREE ON paths(id);
-CREATE INDEX paths_typeId_index     USING BTREE ON paths(typeId);
-CREATE INDEX paths_skimId_index     USING BTREE ON paths(skimId);
-##CREATE INDEX paths_path_index ON paths(path(256));
 
 
 # one row per minute, keeps last 60 minutes
@@ -119,10 +107,9 @@ CREATE TABLE IF NOT EXISTS statsLastHour (
   maxJobs       SMALLINT,
   maxUsers      SMALLINT,
   maxUniqueF    INT,
-  maxNonUniqueF INT
+  maxNonUniqueF INT,
+  INDEX (date)
 );
-
-CREATE INDEX statsLastHour_date_index USING BTREE ON statsLastHour(date);
 
 
 # one row per hour, keeps last 24 hours
@@ -140,9 +127,9 @@ CREATE TABLE IF NOT EXISTS statsLastDay (
   maxJobs       SMALLINT,
   maxUsers      SMALLINT,
   maxUniqueF    INT,
-  maxNonUniqueF INT
+  maxNonUniqueF INT,
+  INDEX (date)
 );
-CREATE INDEX statsLastDay_date_index  USING BTREE ON statsLastDay(date);
 
 
 # one row per day, keeps last 31 days
@@ -160,9 +147,9 @@ CREATE TABLE IF NOT EXISTS statsLastMonth (
   maxJobs       SMALLINT,
   maxUsers      SMALLINT,
   maxUniqueF    INT,
-  maxNonUniqueF INT
+  maxNonUniqueF INT,
+  INDEX (date)
 );
-CREATE INDEX statsLastMonth_date_index USING BTREE ON statsLastMonth(date);
 
 
 # one row per month, growing indefinitely
@@ -179,9 +166,9 @@ CREATE TABLE IF NOT EXISTS statsAllMonths (
   maxJobs       SMALLINT,
   maxUsers      SMALLINT,
   maxUniqueF    INT,
-  maxNonUniqueF INT
+  maxNonUniqueF INT,
+  INDEX (date)
 );
-CREATE INDEX statsAllMonths_date_index USING BTREE ON statsAllMonths(date);
 
 
 # reflects changes since last entry, and last update
@@ -199,13 +186,13 @@ CREATE TABLE IF NOT EXISTS rtChanges (
 
 # compressed info for top performers (top users)
 CREATE TABLE IF NOT EXISTS topPerfUsersNow (
-  theId      INT NOT NULL,    # user Id
+  theId      INT NOT NULL PRIMARY KEY,    # user Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL     # [MB]
 );
 CREATE TABLE IF NOT EXISTS topPerfUsersPast (
-  theId      INT NOT NULL,    # user Id
+  theId      INT NOT NULL PRIMARY KEY,    # user Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
@@ -215,14 +202,14 @@ CREATE TABLE IF NOT EXISTS topPerfUsersPast (
 
 # compressed info for top performers (top skims)
 CREATE TABLE IF NOT EXISTS topPerfSkimsNow (
-  theId      INT NOT NULL,    # skim Id
+  theId      INT NOT NULL PRIMARY KEY,    # skim Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
   users      INT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS topPerfSkimsPast (
-  theId      INT NOT NULL,    # skim Id
+  theId      INT NOT NULL PRIMARY KEY,    # skim Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
@@ -233,13 +220,13 @@ CREATE TABLE IF NOT EXISTS topPerfSkimsPast (
 
 # compressed info for top performers (top files)
 CREATE TABLE IF NOT EXISTS topPerfFilesNow (
-  theId      INT NOT NULL,    # path Id
+  theId      INT NOT NULL PRIMARY KEY,    # path Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL     # [MB]
 );
 CREATE TABLE IF NOT EXISTS topPerfFilesPast (
-  theId      INT NOT NULL,    # path Id
+  theId      INT NOT NULL PRIMARY KEY,    # path Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
@@ -250,14 +237,14 @@ CREATE TABLE IF NOT EXISTS topPerfFilesPast (
 
 # compressed info for top performers (top skims)
 CREATE TABLE IF NOT EXISTS topPerfTypesNow (
-  theId      INT NOT NULL,    # type Id
+  theId      INT NOT NULL PRIMARY KEY,    # type Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
   users      INT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS topPerfTypesPast (
-  theId      INT NOT NULL,    # type Id
+  theId      INT NOT NULL PRIMARY KEY,    # type Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
@@ -283,4 +270,4 @@ CREATE TABLE IF NOT EXISTS skimNames (
   name         VARCHAR(32),
   id           TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY
 );
-CREATE INDEX skims_id_index      USING BTREE ON skimNames(id);
+

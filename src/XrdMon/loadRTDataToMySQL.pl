@@ -658,7 +658,7 @@ sub runTopUsrFsQueriesPast() {
               GROUP BY $idInTable");
     # past files - merge results
     &runQuery("INSERT INTO ff 
-        SELECT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
+        SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
     # cleanup tmp table
     &runQuery("DELETE FROM tmp");
     # past volume - through opened sessions
@@ -676,7 +676,7 @@ sub runTopUsrFsQueriesPast() {
                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
                GROUP BY $idInTable");
     # past volume - merge results
-    &runQuery("INSERT INTO vv SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    &runQuery("INSERT INTO vv SELECT DISTINCT theId, SUM(n) FROM tmp GROUP BY theId");
     # cleanup tmp table
     &runQuery("DELETE FROM tmp");
 
@@ -808,7 +808,7 @@ sub runTopSkimsQueriesPast() {
                GROUP BY $idInPathTable");
     # past files - merge result
     &runQuery("INSERT INTO ff
-         SELECT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
+         SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
     # cleanup temporary table
     &runQuery("DELETE FROM tmp");
     # past users
@@ -837,7 +837,7 @@ sub runTopSkimsQueriesPast() {
                 closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
                 GROUP BY $idInPathTable");
     # past volume - merge result
-    &runQuery("INSERT INTO vv SELECT theId, SUM(n) FROM tmp GROUP BY theId");
+    &runQuery("INSERT INTO vv SELECT DISTINCT theId, SUM(n) FROM tmp GROUP BY theId");
     # cleanup temporary table
     &runQuery("DELETE FROM tmp");
 
