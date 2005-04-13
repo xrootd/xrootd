@@ -118,7 +118,7 @@ $(OBJDIR)/XrdOssLock.o:   XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
 
 $(OBJDIR)/XrdOssMio.o:    XrdOssMio.cc   XrdOssMio.hh    XrdOssMioFile.hh \
                           XrdOssTrace.hh XrdOucError.hh  XrdOucPthread.hh \
-                          XrdOucHash.hh
+                          XrdOucHash.hh  XrdOucHash.icc
 	@echo Compiling XrdOssMio.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssMio.o XrdOssMio.cc
 
@@ -138,7 +138,8 @@ $(OBJDIR)/XrdOssRename.o: XrdOssApi.hh XrdOssError.hh XrdOssLock.hh \
 
 $(OBJDIR)/XrdOssStage.o: XrdOssApi.hh   XrdOssCache.hh  XrdOssError.hh \
                          XrdOssLock.hh  XrdOssOpaque.hh XrdOucEnv.hh \
-                         XrdOuca2x.hh   XrdOucHash.hh   XrdOucPthread.hh \
+                         XrdOuca2x.hh   XrdOucHash.hh   XrdOucHash.icc \
+                         XrdOucPthread.hh \
                          XrdOucProg.hh  XrdOucReqID.hh  XrdOssStage.cc
 	@echo Compiling XrdOssStage.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssStage.o XrdOssStage.cc

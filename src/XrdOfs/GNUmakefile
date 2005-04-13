@@ -64,7 +64,8 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdOfsConfig.hh  XrdOfsHandle.hh    \
                      XrdOfsOpaque.hh  XrdOfsSecurity.hh     XrdOfsTrace.hh     \
                      XrdOuca2x.hh     XrdOucEnv.hh          XrdOucError.hh     \
-                     XrdOucHash.hh    XrdOucLock.hh         XrdOucLogger.hh    \
+                     XrdOucHash.hh    XrdOucHash.icc \
+                     XrdOucLock.hh    XrdOucLogger.hh    \
                      XrdOucPList.hh   XrdOucPthread.hh      XrdOucTrace.hh     \
                      XrdNetDNS.hh     XrdSecEntity.hh       XrdSfsNative.hh    \
                      XrdSfsAio.hh     XrdOss.hh          \

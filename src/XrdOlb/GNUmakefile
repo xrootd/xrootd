@@ -79,7 +79,7 @@ $(OBJDIR)/XrdOlbAdmin.o: XrdOlbAdmin.hh  XrdOlbAdmin.cc \
 
 $(OBJDIR)/XrdOlbCache.o: XrdOlbCache.hh XrdOlbPList.hh XrdOlbScheduler.hh \
                          XrdOlbTypes.hh XrdOlbCache.cc \
-                         XrdOucHash.hh  XrdOucPthread.hh
+                         XrdOucHash.hh  XrdOucHash.icc XrdOucPthread.hh
 	@echo Compiling XrdOlbCache.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbCache.o XrdOlbCache.cc
 
@@ -127,8 +127,9 @@ $(OBJDIR)/XrdOlbPList.o: XrdOlbPList.hh XrdOlbPList.cc XrdOlbTrace.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPList.o XrdOlbPList.cc
 
 $(OBJDIR)/XrdOlbPrepare.o: XrdOlbPrepare.hh XrdOlbPrepare.cc  XrdOucError.hh \
-                         XrdOucHash.hh  XrdOucPthread.hh  XrdOlbScheduler.hh \
-                         XrdOlbServer.hh XrdOucStream.hh
+                           XrdOucHash.hh    XrdOucHash.icc \
+                           XrdOucPthread.hh  XrdOlbScheduler.hh \
+                           XrdOlbServer.hh XrdOucStream.hh
 	@echo Compiling XrdOlbPrepare.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPrepare.o XrdOlbPrepare.cc
 
