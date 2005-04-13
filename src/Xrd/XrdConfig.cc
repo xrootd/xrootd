@@ -112,7 +112,7 @@ class XrdLogWorker : XrdJob
 {
 public:
 
-     void DoIt() {XrdLog.Say(0, (char *)XrdBANNER);
+     void DoIt() {XrdLog.Say(0, XrdBANNER);
                   midnite += 86400;
                   XrdSched.Schedule((XrdJob *)this, midnite);
                  }
@@ -132,13 +132,9 @@ time_t midnite;
   
 XrdConfig::XrdConfig(void)
 {
-   static sockaddr myIPAddr;
-   char *dnp;
 
 // Preset all variables with common defaults
 //
-   myName   = XrdNetDNS::getHostName();
-              XrdNetDNS::getHostAddr(myName, &myIPAddr);
    PortTCP  = 0;
    PortUDP  = 0;
    ConfigFN = 0;
@@ -161,8 +157,6 @@ XrdConfig::XrdConfig(void)
    ProtInfo.Threads = 0;                // Stable -> The thread manager (later)
 
    ProtInfo.Format   = XrdFORMATB;
-   ProtInfo.myName   = myName;
-   ProtInfo.myAddr   = &myIPAddr;
    ProtInfo.ConnOptn = -4;     // Num of connections to optimize for (1/4*max)
    ProtInfo.ConnLife = 60*60;  // Time   of connections to optimize for.
    ProtInfo.ConnMax  = -1;     // Max       connections (fd limit)
@@ -171,16 +165,6 @@ XrdConfig::XrdConfig(void)
    ProtInfo.DebugON  = 0;      // 1 if started with -d
    ProtInfo.argc     = 0;
    ProtInfo.argv     = 0;
-
-// Create Domain name
-//
-   if (!(dnp = myName))
-      {XrdLog.Emsg("Config", "Unable to determine host name; "
-                             "execution terminated.");
-       _exit(16);
-      }
-   while(*dnp && *dnp != '.') dnp++;
-   myDomain = (*dnp == '.' ? dnp : 0);
 }
   
 /******************************************************************************/
@@ -196,8 +180,9 @@ int XrdConfig::Configure(int argc, char **argv)
 
   Output:   0 upon success or !0 otherwise.
 */
-   int retc, dotrim = 1, NoGo = 0, aP = 1;
-   char c, *myProg, buff[128], *temp, *dfltProt, *logfn = 0;
+   static sockaddr myIPAddr;
+   int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = 0;
+   char c, *myProg, buff[512], *temp, *dfltProt, *logfn = 0;
    extern char *optarg;
    extern int optind, opterr;
 
@@ -225,13 +210,13 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
                  break;
-       case 'p': if (!(PortTCP = yport(&XrdLog, "tcp", optarg))) Usage(myProg,1);
+       case 'p': if (!(clPort = yport(&XrdLog, "tcp", optarg))) Usage(myProg,1);
                  break;
        case 'P': dfltProt = optarg; dotrim = 0;
                  break;
        default:  if (index("clpP", (int)(*(argv[optind-1]+1))))
-                    {XrdLog.Emsg("Config", (char *)argv[optind-1],
-                                 (char *)"parameter not specified.");
+                    {XrdLog.Emsg("Config", argv[optind-1],
+                                 "parameter not specified.");
                      Usage(myProg, 1);
                     }
                  argv[aP++] = argv[optind-1];
@@ -255,11 +240,37 @@ int XrdConfig::Configure(int argc, char **argv)
                new XrdLogWorker();
               }
 
+// Get the full host name. In theory, we should always get some kind of name.
+//
+   if (!(myName = XrdNetDNS::getHostName()))
+      {XrdLog.Emsg("Config", "Unable to determine host name; "
+                             "execution terminated.");
+       _exit(16);
+      }
+
+// Verify that we have a real name. We've had problems with people setting up
+// bad /etc/hosts files that can cause connection failures if "allow" is used.
+// Otherwise, determine our domain name.
+//
+   if (isdigit(*myName) && (isdigit(*(myName+1)) || *(myName+1) == '.'))
+      {XrdLog.Emsg("Config", myName, "is not the true host name of this machine.");
+       XrdLog.Emsg("Config", "Verify that the '/etc/hosts' file is correct and "
+                             "this machine is registered in DNS.");
+       XrdLog.Emsg("Config", "Execution continues but connection failures may occur.");
+       myDomain = 0;
+      } else myDomain = index(myName, '.');
+
+// Get our IP address
+//
+   XrdNetDNS::getHostAddr(myName, &myIPAddr);
+   ProtInfo.myName = myName;
+   ProtInfo.myAddr = &myIPAddr;
+
 // Put out the herald
 //
-   XrdLog.Say(0, (char *)XrdBANNER);
+   XrdLog.Say(0, XrdBANNER);
    sprintf(buff, "xrd@%s", myName);
-   XrdLog.Say(0, buff,(char *)" initialization started.");
+   XrdLog.Say(0, buff, " initialization started.");
 
 // Setup the initial required protocol
 //
@@ -273,10 +284,11 @@ int XrdConfig::Configure(int argc, char **argv)
 // Process the configuration file, if one is present
 //
    if (ConfigFN && *ConfigFN)
-      {XrdLog.Say(0,(char *)"Using configuration file ", ConfigFN);
+      {XrdLog.Say(0, "Using configuration file ", ConfigFN);
        ProtInfo.ConfigFN = ConfigFN;
        NoGo = ConfigProc();
       }
+   if (clPort) PortTCP = clPort;
    if (!NoGo) NoGo = Setup(dfltProt);
    if (ProtInfo.DebugON) 
       {XrdTrace.What = TRACE_ALL;
@@ -350,7 +362,7 @@ int XrdConfig::ASocket(const char *path, const char *dname, const char *fname,
 // Make sure we can fit everything in our buffer
 //
    if ((plen + dlen + flen + 3) > (int)sizeof(sokpath))
-      {XrdLog.Emsg("Config", "admin path", (char *)path, (char *)"too long"); 
+      {XrdLog.Emsg("Config", "admin path", path, "too long");
        return 1;
       }
 
@@ -371,17 +383,16 @@ int XrdConfig::ASocket(const char *path, const char *dname, const char *fname,
 //
    if (stat(sokpath, &buf))
       {if (errno != ENOENT)
-          NoGo=XrdLog.Emsg("Config",errno,"process admin path",(char *)path);
+          NoGo=XrdLog.Emsg("Config",errno,"process admin path",path);
           else if (mkdir(sokpath, dmode))
-                  NoGo=XrdLog.Emsg("Config",errno,"create admin path",(char *)path);
+                  NoGo=XrdLog.Emsg("Config",errno,"create admin path",path);
       } else {
        if ((buf.st_mode & S_IFMT) != S_IFDIR)
-          {XrdLog.Emsg("Config", "Admin path", (char *)path,
-                       (char *)"exists but is not a directory"); NoGo = 1;}
-          else if ((buf.st_mode & S_IAMB) != dmode
-               &&  chmod((const char *)sokpath, dmode))
-                  {XrdLog.Emsg("Config",errno,"set access mode for",
-                                (char *)path); NoGo = 1;}
+          {XrdLog.Emsg("Config", "Admin path", path,
+                       "exists but is not a directory"); NoGo = 1;}
+          else if ((buf.st_mode & S_IAMB) != dmode && chmod(sokpath, dmode))
+                  {XrdLog.Emsg("Config",errno,"set access mode for",path); 
+                   NoGo = 1;}
       }
    if (NoGo) return 1;
 
@@ -393,7 +404,7 @@ int XrdConfig::ASocket(const char *path, const char *dname, const char *fname,
 // Create an admin network
 //
    XrdNetADM = new XrdInet(&XrdLog);
-   if (myDomain) XrdNetADM->setDomain((const char *)myDomain);
+   if (myDomain) XrdNetADM->setDomain(myDomain);
 
 // Bind the netwok to the named socket
 //
@@ -464,7 +475,7 @@ int XrdConfig::PidFile(char *dfltp)
              close(xfd);
             }
 
-     if (xop) XrdLog.Emsg("Config", errno, (const char *)xop, newpidFN);
+     if (xop) XrdLog.Emsg("Config", errno, xop, newpidFN);
      return xop != 0;
 }
 
@@ -523,7 +534,7 @@ int XrdConfig::setFDL()
 //
    sprintf(buff, "%d connections; maximum is %d",
                  ProtInfo.ConnOptn, ProtInfo.ConnMax);
-   XrdLog.Say(0,(char *)"Optimizing for ", buff);
+   XrdLog.Say(0, "Optimizing for ", buff);
 
 // Establish scheduler limits now if they have not been already set
 //
@@ -545,6 +556,7 @@ int XrdConfig::setFDL()
   
 int XrdConfig::Setup(char *dfltp)
 {
+   static char portbuff[32];
    XrdConfigProt *cp;
 
 // Establish the FD limit
@@ -564,30 +576,34 @@ int XrdConfig::Setup(char *dfltp)
    if (!XrdLink::Setup(ProtInfo.ConnMax, ProtInfo.idleWait)
    ||  !XrdPoll::Setup(ProtInfo.ConnMax)) return 1;
 
+// Determine correct port number
+//
+   if (PortTCP < 0) PortTCP = 0;
+      else if (!PortTCP && !(PortTCP = XrdNetDNS::getPort(dfltp, "tcp")))
+               PortTCP = XrdDEFAULTPORT;
+
+// Setup network connections now
+//
+   ProtInfo.NetTCP = XrdNetTCP = new XrdInet(&XrdLog, Police);
+   if (XrdNetTCP->Bind(PortTCP, "tcp")) return 1;
+   if (Net_Opts | Net_Blen) XrdNetTCP->setDefaults(Net_Opts, Net_Blen);
+   if (myDomain) XrdNetTCP->setDomain(myDomain);
+
+// Do final port resolution
+//
+   if (!PortTCP) PortTCP = PortUDP = XrdNetTCP->Port();
+   ProtInfo.Port = PortTCP;
+   sprintf(portbuff, "XRDPORT=%d", PortTCP);
+   putenv(portbuff);
+
 // Setup admin connection now
 //
    if (AdminPath)
       {char fname[32];
        snprintf(fname, sizeof(fname)-1, ".admin.%d", PortTCP);
        fname[sizeof(fname)-1] = '\0';
-       if (ASocket((const char *)AdminPath, ".xrd",
-                  (const char *)fname, (mode_t)AdminMode)) return 1;
+       if (ASocket(AdminPath, ".xrd", fname, (mode_t)AdminMode)) return 1;
       }
-
-// Setup network connections now
-//
-   if (!PortTCP && !(PortTCP = XrdNetDNS::getPort(dfltp, "tcp")))
-      PortTCP = XrdDEFAULTPORT;
-   ProtInfo.NetTCP = XrdNetTCP = new XrdInet(&XrdLog, Police);
-   if (XrdNetTCP->Bind(PortTCP, "tcp")) return 1;
-   if (Net_Opts | Net_Blen) XrdNetTCP->setDefaults(Net_Opts, Net_Blen);
-   if (myDomain) XrdNetTCP->setDomain((const char *)myDomain);
-   ProtInfo.Port = PortTCP;
-
-// Setup envvar kludge for port number
-   static char pbuff[32];
-   sprintf(pbuff, "XRDPORT=%d", PortTCP);
-   putenv(pbuff);
 
 // Allocate the statistics object. This is akward since we only know part
 // of the current configuration. The object will figure this out later.
@@ -597,8 +613,7 @@ int XrdConfig::Setup(char *dfltp)
 // Load the protocols
 //
    while((cp= Firstcp))
-        {if(!XrdProtocol_Select::Load((const char *)(cp->libpath),
-                                       (const char *)(cp->proname),
+        {if(!XrdProtocol_Select::Load((cp->libpath), (cp->proname),
                                         cp->parms,    &ProtInfo)) return 1;
          Firstcp = cp->Next;
          delete cp;
@@ -781,8 +796,7 @@ int XrdConfig::xcon(XrdOucError *eDest, XrdOucStream &Config)
                if (!strcmp(val, cnopts[i].opname))
                   {if (!(val = Config.GetWord()))
                       {eDest->Emsg("Config", "connections", 
-                                   (char *)cnopts[i].opname,
-                                   (char *)"value not specified");
+                                   cnopts[i].opname, "value not specified");
                        return 1;
                       }
                    sgn = 1;
@@ -855,7 +869,7 @@ int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
             {if (!ntopts[i].hasarg) llp = 1;
                 else {if (!(val = Config.GetWord()))
                          {eDest->Emsg("Config", "network",
-                              (char *)ntopts[i].opname,(char *)ntopts[i].etxt);
+                              ntopts[i].opname, ntopts[i].etxt);
                           return 1;
                          }
                       if (XrdOuca2x::a2sz(*eDest,ntopts[i].etxt,val,&llp,0))
@@ -909,26 +923,37 @@ int XrdConfig::xpidf(XrdOucError *eDest, XrdOucStream &Config)
 
 /* Function: xport
 
-   Purpose:  To parse the directive: port <tcpnum> [<udpnum>]
+   Purpose:  To parse the directive: port <tcpnum> [if <hostlist>]
 
              <tcpnum>   number of the tcp port for incomming requests
-             <udpnum>   number of the udp port for incomming requests
+             <hostlist> list of applicable host patterns
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
 {   int pnum = 0;
-    char *val;
+    char *val, cport[32];
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "tcp port not specified"); return 1;}
-    if (!(pnum = yport(eDest, "tcp", val))) return 1;
-    PortTCP = PortUDP = pnum;
+    strncpy(cport, val, sizeof(cport)-1); cport[sizeof(cport)-1] = '\0';
 
-    if ((val = Config.GetWord()))
-       {if (!(pnum = yport(eDest, "udp", val))) return 1;
-        PortUDP = pnum;
+    if ((val = Config.GetWord()) && !strcmp("if", val))
+       {if (!(val = Config.GetWord()))
+           {eDest->Emsg("Config","Host name missing after 'if' in port directive.");
+            return 1;
+           }
+        while(val && !XrdNetDNS::isMatch(myName, val))
+             {TRACE(DEBUG,"'port " <<cport <<" if " <<val <<"' != " <<myName);
+              val = Config.GetWord();
+             }
+        if (!val) {TRACE(DEBUG,"'port " <<cport <<"' ignored.");
+                   return 0;
+                  }
        }
+
+    if (!(pnum = yport(eDest, "tcp", cport))) return 1;
+    PortTCP = PortUDP = pnum;
 
     return 0;
 }
@@ -938,15 +963,17 @@ int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
 int XrdConfig::yport(XrdOucError *eDest, const char *ptype, char *val)
 {
     int pnum;
+    if (!strcmp("any", val)) return -1;
+
     char *invp = (*ptype == 't' ? (char *)"tcp port" :
                                   (char *)"udp port" );
     char *invs = (*ptype == 't' ? (char *)"Unable to find tcp service" :
                                   (char *)"Unable to find udp service" );
 
     if (isdigit(*val))
-       {if (XrdOuca2x::a2i(*eDest,(const char *)invp,val,&pnum,1,65535)) return 0;}
+       {if (XrdOuca2x::a2i(*eDest,invp,val,&pnum,1,65535)) return 0;}
        else if (!(pnum = XrdNetDNS::getPort(val, "tcp")))
-               {eDest->Emsg("Config", (const char *)invs, val);
+               {eDest->Emsg("Config", invs, val);
                 return 0;
                }
     return pnum;
@@ -977,7 +1004,7 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
        {eDest->Emsg("Config", "protocol name not specified"); return 1;}
     if (strlen(val) > sizeof(proname)-1)
        {eDest->Emsg("Config", "protocol name is too long"); return 1;}
-    strcpy(proname, (const char *)val);
+    strcpy(proname, val);
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "protocol library not specified"); return 1;}
@@ -1098,8 +1125,8 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, scopts[i].opname))
                   {if (!(val = Config.GetWord()))
-                      {eDest->Emsg("Config", "sched", (char *)scopts[i].opname,
-                                  (char *)"value not specified");
+                      {eDest->Emsg("Config", "sched", scopts[i].opname,
+                                  "value not specified");
                        return 1;
                       }
                         if (*scopts[i].opname == 'i')
@@ -1195,8 +1222,8 @@ int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
           {for (i = 0; i < numopts; i++)
                if (!strcmp(val, tmopts[i].opname))
                    {if (!(val = Config.GetWord()))
-                       {eDest->Emsg("Config","timeout",(char *)tmopts[i].opname,
-                                   (char *)"value not specified");
+                       {eDest->Emsg("Config","timeout", tmopts[i].opname,
+                                   "value not specified");
                         return 1;
                        }
                     rc = (tmopts[i].istime ?
