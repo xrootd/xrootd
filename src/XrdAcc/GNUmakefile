@@ -80,8 +80,8 @@ $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 $(OBJDIR)/XrdAccAccess.o: XrdAccAccess.cc     XrdAccAccess.hh \
                           XrdAccCapability.hh XrdAccConfig.hh    XrdAccGroups.hh \
                           XrdAccAudit.hh     XrdAccAuthorize.hh  XrdAccPrivs.hh \
-                          XrdOucError.hh     XrdOucHash.hh       XrdOucLogger.hh \
-                          XrdOucXSLock.hh    XrdSecEntity.hh
+                          XrdOucError.hh     XrdOucHash.hh       XrdOucHash.icc \
+                          XrdOucLogger.hh    XrdOucXSLock.hh     XrdSecEntity.hh
 	@echo Compiling XrdAccAccess.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAccess.o XrdAccAccess.cc
 
@@ -103,14 +103,15 @@ $(OBJDIR)/XrdAccCapability.o: XrdAccCapability.hh XrdAccCapability.cc \
 $(OBJDIR)/XrdAccConfig.o: XrdAccConfig.hh     XrdAccConfig.cc \
                           XrdAccAccess.hh     XrdAccAudit.hh  XrdAccAuthDB.hh \
                           XrdAccCapability.hh XrdAccGroups.hh XrdOucLock.hh \
-                          XrdOuca2x.hh        XrdOucError.hh  XrdOucHash.hh \
+                          XrdOuca2x.hh        XrdOucError.hh  \
+                          XrdOucHash.hh       XrdOucHash.icc \
                           XrdOucPthread.hh    XrdOucStream.hh XrdOucStream.hh
 	@echo Compiling XrdAccConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccConfig.o XrdAccConfig.cc
 
 $(OBJDIR)/XrdAccGroups.o: XrdAccGroups.hh     XrdAccGroups.cc \
                           XrdAccCapability.hh XrdAccPrivs.hh \
-                          XrdOucHash.hh       XrdOucPthread.hh
+                          XrdOucHash.hh       XrdOucHash.icc  XrdOucPthread.hh
 	@echo Compiling XrdAccGroups.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccGroups.o XrdAccGroups.cc
 
