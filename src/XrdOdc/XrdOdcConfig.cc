@@ -421,11 +421,12 @@ int XrdOdcConfig::xmsgk(XrdOucError *errp, XrdOucStream &Config)
 int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
 {
     char *val;
-    static struct reqsopts {const char *opname; int *oploc;} rqopts[] =
+    static struct reqsopts {const char *opname; int istime; int *oploc;}
+           rqopts[] =
        {
-        {"delay",    &RepDelay},
-        {"noresp",   &RepNone},
-        {"repwait",  &RepWait}
+        {"delay",    1, &RepDelay},
+        {"noresp",   0, &RepNone},
+        {"repwait",  1, &RepWait}
        };
     int i, ppp, numopts = sizeof(rqopts)/sizeof(struct reqsopts);
 
@@ -439,9 +440,11 @@ int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
                   {errp->Emsg("Config", 
                       "request argument value not specified"); 
                    return 1;}
-                   if (XrdOuca2x::a2i(*errp,"request value",val,&ppp,1))
-                   return 1;
-                   else *rqopts[i].oploc = ppp;
+                   if (rqopts[i].istime ?
+                       XrdOuca2x::a2tm(*errp,"request value",val,&ppp,1) :
+                       XrdOuca2x::a2i( *errp,"request value",val,&ppp,1))
+                      return 1;
+                      else *rqopts[i].oploc = ppp;
                 break;
                }
         if (i >= numopts) errp->Emsg("Config","invalid request option",val);

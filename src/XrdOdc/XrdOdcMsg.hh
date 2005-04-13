@@ -26,13 +26,17 @@ inline int       ID() {return id;}
 
 static int       Init(int numalloc);
 
-       void      Recycle();
+       void      Lock() {Hold.Lock();}
+
+       void      Recycle(int islocked=1);
 
 static int       Reply(int msgid, char *reply);
 
+       void      UnLock() {Hold.UnLock();}
+
        int       Wait4Reply(int wtime) {return Hold.Wait(wtime);}
 
-      XrdOdcMsg() {inwaitq = 0; Resp = 0; next = 0;}
+      XrdOdcMsg() : Hold(0) {inwaitq = 0; Resp = 0; next = 0;}
      ~XrdOdcMsg() {}
 
 private:

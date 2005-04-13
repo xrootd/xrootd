@@ -212,6 +212,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 
 // Send message and simply wait for the reply
 //
+   mp->Lock();
    if (!Manp->Send(xmsg, 3) || (mp->Wait4Reply(RepWait)))
       {mp->Recycle();
        Resp.setErrInfo(RepDelay, "");

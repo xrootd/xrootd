@@ -120,21 +120,22 @@ int XrdOdcMsg::Init(int numalloc)
 /*                               R e c y c l e                                */
 /******************************************************************************/
   
-void XrdOdcMsg::Recycle()
+void XrdOdcMsg::Recycle(int islocked)
 {
 // Most of the time we are not in the wait queue, do a fast check
 //
    if (inwaitq) 
-      {Hold.Lock();
+      {if (!islocked) Hold.Lock();
        if (inwaitq)
-          {if ((id && XRDODC_MIDMASK) != XRDODC_OBMSGID) inwaitq = 0;
+          {if ((id && XRDODC_MIDMASK) != XRDODC_OBMSGID) 
+              {inwaitq = 0; Hold.UnLock();}
               else {int msgid = id;
+                    XrdOdcMsg *mp;
                     Hold.UnLock();
-                    XrdOdcMsg::RemFromWaitQ(msgid);
+                    if ((mp=XrdOdcMsg::RemFromWaitQ(msgid))) mp->Hold.UnLock();
                    }
           }
-       Hold.UnLock();
-      }
+      } else if (islocked) Hold.UnLock();
 
 // Delete this element if it's an outboard msg object
 //
@@ -190,8 +191,8 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
 // Reply and return
 //
    mp->Resp->setErrInfo(retc, msg);
-   mp->Hold.UnLock();
    mp->Hold.Signal();
+   mp->Hold.UnLock();
    return 1;
 }
 
