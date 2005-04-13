@@ -361,7 +361,7 @@ sub runQueryWithRet() {
 
 sub runQuery() {
     my ($sql) = @_;
-    print "$sql;\n";
+    #print "$sql;\n";
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
