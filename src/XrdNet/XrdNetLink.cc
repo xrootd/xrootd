@@ -35,6 +35,7 @@ XrdOucMutex             XrdNetLink::LinkList;
 XrdOucStack<XrdNetLink> XrdNetLink::LinkStack;
 int                     XrdNetLink::maxlink = 16;
 int                     XrdNetLink::numlink = 0;
+int                     XrdNetLink::devNull = open("/dev/null", O_RDONLY);
   
 /******************************************************************************/
 /*                                 A l l o c                                  */
@@ -64,6 +65,7 @@ XrdNetLink *XrdNetLink::Alloc(XrdOucError *erp, XrdNetPeer &Peer,
 //
    if (!lp) return lp;
    lp->noclose = (opts & XRDNETLINK_NOCLOSE);
+   lp->isReset = 0;
 
 // Set the buffer pointer for this link
 //
@@ -104,24 +106,20 @@ int XrdNetLink::Close(int defer)
     rdMutex.Lock();
     wrMutex.Lock();
 
-// If we have an open file descriptor and this is not a shared descriptor
-// close it.
-//
-    if (FD >= 0)
-       {if (Stream) Stream->Detach();
-        if (!noclose) close(FD);
-        FD = -1;
-       }
-
-// If close is not to be defered until a recycle, then delete appendages
+// If close is not to be defered until a recycle, then delete appendages and
+// close the file descriptor unless it is being shared. Otherwise, substitute
+// '/dev/null' for the file descriptor target to scuttle future reads & writes.
 //
     if (!defer)
-       {if (Stream)   {delete Stream; Stream = 0;}
+       {if (Stream)   {Stream->Detach(); delete Stream; Stream = 0;}
         if (Bucket)   {delete Bucket; Bucket = 0;}
         if (recvbuff) {recvbuff->Recycle(); recvbuff = 0;}
         if (sendbuff) {sendbuff->Recycle(); sendbuff = 0;}
         if (Lname)    {free(Lname); Lname = 0;}
-       }
+        if (FD >= 0 && !noclose) close(FD);
+        FD = -1;
+       } else if (FD >= 0 && !isReset)
+                 {dup2(devNull, FD); isReset = 1;}
 
 // All done
 //

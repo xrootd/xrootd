@@ -46,7 +46,8 @@ static XrdNetLink *Alloc(XrdOucError   *erp, XrdNetPeer &Peer,
                          XrdNetBufferQ *bq,  int opts=0);
 
 // Closes() closes the link. Specify defer=1 to postpone deallocating
-//          attached objects until the this object is destroyed.
+//          attached objects until the this object is destroyed. You should
+//          use defered close for cross-thread unsynchronized closes.
 //
 int           Close(int defer=0);
 
@@ -151,6 +152,7 @@ XrdOucMutex         wrMutex;
 XrdNetBufferQ      *BuffQ;
 int                 FD;
 int                 noclose;
+int                 isReset;
 struct sockaddr     InetAddr;
 char               *Lname;
 XrdNetBuffer       *recvbuff;  // udp receive buffer
@@ -164,5 +166,6 @@ static XrdOucStack<XrdNetLink> LinkStack;
 static int                     size;
 static int                     maxlink;
 static int                     numlink;
+static int                     devNull;
 };
 #endif
