@@ -31,7 +31,7 @@ static void  setSync(XrdOucSemaphore  *sync)  {SyncUp = sync;}
 
        void *Start(XrdNetSocket *AdminSock);
 
-      XrdOlbAdmin() {Sname = 0; Stype = (char *)"Server"; Primary = 0;}
+      XrdOlbAdmin() {Sname = 0; Stype = "Server"; Primary = 0;}
      ~XrdOlbAdmin() {if (Sname) free(Sname);}
 
 private:
@@ -50,7 +50,7 @@ static XrdOucSemaphore *SyncUp;
 static int              nSync;
 static int              POnline;
        XrdOucStream     Stream;
-       char            *Stype;
+       const char      *Stype;
        char            *Sname;
        int              Primary;
 };

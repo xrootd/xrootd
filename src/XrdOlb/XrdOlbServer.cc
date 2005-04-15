@@ -1473,15 +1473,15 @@ int XrdOlbServer::do_Stats(char *rid, int full)
 //
 int XrdOlbServer::do_StNst(char *rid, int Stage)
 {
-    char *why;
+    const char *why;
 
     if (Stage)
        {if (!isNoStage) return 0;
         isNoStage = 0;
-        if (!isOffline && !isDisable) why = (char *)"staging resumed";
-           else why = isOffline ? (char *)"offlined" : (char *)"disabled";
+        if (!isOffline && !isDisable) why = "staging resumed";
+           else why = isOffline ? "offlined" : "disabled";
        } else if (isNoStage) return 0;
-                 else {why = (char *)"staging suspended"; isNoStage = 1;}
+                 else {why = "staging suspended"; isNoStage = 1;}
 
     if (isMan) XrdOlbSMon.Calc(Stage ? 1 : -1, 0, 0);
 
@@ -1498,15 +1498,15 @@ int XrdOlbServer::do_StNst(char *rid, int Stage)
 //
 int XrdOlbServer::do_SuRes(char *rid, int Resume)
 {
-    char *why;
+    const char *why;
 
     if (Resume) 
        {if (!isSuspend) return 0;
         isSuspend = 0;
-        if (!isOffline && !isDisable) why = (char *)"service resumed";
-           else why = isOffline ? (char *)"offlined" : (char *)"disabled";
+        if (!isOffline && !isDisable) why = "service resumed";
+           else why = isOffline ? "offlined" : "disabled";
        } else if (isSuspend) return 0;
-                 else {why = (char *)"service suspended"; isSuspend = 1;}
+                 else {why = "service suspended"; isSuspend = 1;}
 
     if (isMan) XrdOlbSMon.Calc(Resume ? -1 : 1, 1, 1);
 

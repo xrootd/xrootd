@@ -33,7 +33,7 @@ const char *XrdNetDNSCVSID = "$Id$";
 /*                           g e t H o s t A d d r                            */
 /******************************************************************************/
   
-int XrdNetDNS::getHostAddr(       char     *InetName,
+int XrdNetDNS::getHostAddr(const  char     *InetName,
                            struct sockaddr  InetAddr[],
                                   int       maxipa,
                                   char    **errtxt)
@@ -124,9 +124,10 @@ int XrdNetDNS::getHostAddr(       char     *InetName,
 /*               g e t H o s t N a m e   ( V a r i a n t   1 )                */
 /******************************************************************************/
 
-char *XrdNetDNS::getHostName(char *InetName, char **errtxt)
+char *XrdNetDNS::getHostName(const char *InetName, char **errtxt)
 {
-   char myname[256], *hp;
+   char myname[256];
+   const char *hp;
    struct sockaddr InetAddr;
   
 // Identify ourselves if we don't have a passed hostname
@@ -386,7 +387,7 @@ int XrdNetDNS::getProtoID(const char *pname)
 /*                             H o s t 2 D e s t                              */
 /******************************************************************************/
   
-int XrdNetDNS::Host2Dest(char            *hostname,
+int XrdNetDNS::Host2Dest(const char      *hostname,
                          struct sockaddr &DestAddr,
                          char           **errtxt)
 { char *cp;
@@ -428,7 +429,7 @@ int XrdNetDNS::Host2Dest(char            *hostname,
 /*                               H o s t 2 I P                                */
 /******************************************************************************/
   
-int XrdNetDNS::Host2IP(char *hname, unsigned int *ipaddr)
+int XrdNetDNS::Host2IP(const char *hname, unsigned int *ipaddr)
 {
    struct sockaddr_in InetAddr;
 

@@ -32,12 +32,12 @@ public:
 //                      is placed in errtxt, if an address is supplied.
 //               > 0 -> The number of addresses returned.
 //
-static int getHostAddr(       char     *InetName,
+static int getHostAddr(const  char     *InetName,
                        struct sockaddr &InetAddr,
                               char    **errtxt=0)
                       {return getHostAddr(InetName, &InetAddr, 1, errtxt);}
 
-static int getHostAddr(       char     *InetName,
+static int getHostAddr(const  char     *InetName,
                        struct sockaddr  InetAddr[],
                               int       maxipa=1,
                               char    **errtxt=0);
@@ -50,8 +50,8 @@ static int getHostAddr(       char     *InetName,
 //               Upon failure, strdup("127.0.0.1") is returned and the error
 //               text is placed in errtxt if an address is supplied.
 //
-static char *getHostName(char *InetName=0,
-                         char **errtxt=0);
+static char *getHostName(const char *InetName=0,
+                               char **errtxt=0);
 
 // getHostName() returns the primary name of the host associated with the IP
 //               address InetAddr. If a translation is successful, the address
@@ -106,15 +106,15 @@ static int getProtoID(const char *pname);
 //             1 upon success and 0 upon failure with the reason placed in
 //             errtxt, if as address is supplied.
 //
-static int Host2Dest(char            *InetName,
+static int Host2Dest(const char      *InetName,
                      struct sockaddr &DestAddr,
-                     char           **errtxt=0);
+                           char     **errtxt=0);
 
 // Host2IP() converts a host name passed in InetName to an IPV4 address,
 //           returned in ipaddr (unless it is zero, in which only a conversion
 //           check is performed). 1 is returned upon success, 0 upon failure.
 //
-static int Host2IP(char         *InetName,
+static int Host2IP(const char   *InetName,
                    unsigned int *ipaddr=0);
 
 // IP2String() converts an IPV4 version of the address to ascii dot notation

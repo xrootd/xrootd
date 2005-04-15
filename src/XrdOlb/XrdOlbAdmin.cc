@@ -202,10 +202,10 @@ int XrdOlbAdmin::do_Login()
 
    if (*(tp+1) == '\0')
       switch (*tp)
-             {case 'p': Stype = (char *)"Primary server"; break;
-              case 's': Stype = (char *)"Server";         break;
-              case 'u': Stype = (char *)"Admin";          break;
-              default:  Ltype = 0;                        break;
+             {case 'p': Stype = "Primary server"; break;
+              case 's': Stype = "Server";         break;
+              case 'u': Stype = "Admin";          break;
+              default:  Ltype = 0;                break;
              }
 
    if (!Ltype)
