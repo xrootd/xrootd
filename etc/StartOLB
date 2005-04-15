@@ -28,7 +28,7 @@
 VERBOSE=0
 # Set TEST to equal /bin/echo to only display lines to be executed
 #
-TEST=echo
+TEST=
 
 umask 002
 

@@ -33,7 +33,7 @@ VERBOSE=0
 
 # Change TEST to be /bin/echo to see what will be executed
 #
-TEST=echo
+TEST=
 
 umask 002
 
