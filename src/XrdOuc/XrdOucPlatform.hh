@@ -96,6 +96,7 @@ typedef off_t offset_t;
 
 #if defined(_BIG_ENDIAN) || defined(__IEEE_BIG_ENDIAN) || \
    (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
+#define Xrd_Big_Endian
 #ifndef htonll
 #define htonll(_x_)  _x_
 #endif
@@ -111,6 +112,7 @@ typedef off_t offset_t;
 
 #elif defined(_LITTLE_ENDIAN) || defined(__IEEE_LITTLE_ENDIAN) || \
      (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
+#define Xrd_Little_Endian
 // Use GNU's bswap routines if compiling using g++ o/w use our own.
 #if !defined(__GNUC__)
 #ifndef __bswap_64
