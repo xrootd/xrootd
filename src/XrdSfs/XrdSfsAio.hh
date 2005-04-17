@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #ifdef _POSIX_ASYNCHRONOUS_IO
 #ifdef __macos__
+#include <AvailabilityMacros.h>
 #include <sys/aio.h>
 #else
 #include <aio.h>
@@ -57,7 +58,7 @@ virtual void doneWrite() = 0;
 virtual void Recycle() = 0;
 
              XrdSfsAio() {
-#ifdef __macos__
+#if defined(__macos__) && !defined(MAC_OS_X_VERSION_10_4)
                          sfsAio.aio_sigevent.sigev_value.sigval_ptr = (void *)this;
 #else
                          sfsAio.aio_sigevent.sigev_value.sival_ptr  = (void *)this;

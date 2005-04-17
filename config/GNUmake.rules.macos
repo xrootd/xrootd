@@ -7,6 +7,8 @@
 TYPECC     = g++
 TYPELD     = g++
 
+GCC_MAJOR := $(shell $(CXX) -dumpversion 2>&1 | cut -d'.' -f1)
+
 #TYPEMISC   = -D_POSIX_SOURCE -D_REENTRANT -D_GNU_SOURCE -Wall
 TYPEMISC   = -D_REENTRANT -D_GNU_SOURCE -Wall \
              -D__macos__ $(CFTRACE) -O3
@@ -21,3 +23,7 @@ TYPESHLIB  = so
 # In MacOSx the threading functions should come libc.
 #TYPELIBS   =  $(PTHREAD) -ldl -lc
 TYPELIBS   =  -ldl -lc
+
+ifeq ($(GCC_MAJOR),4)
+TYPEMISC  += -Wno-deprecated
+endif

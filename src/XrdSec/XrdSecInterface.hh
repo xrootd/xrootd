@@ -137,9 +137,9 @@ virtual XrdSecCredentials *getCredentials(XrdSecParameters   *parm=0,
 //              -ENOENT    - Context not innitialized
 //          = 0 Success, outbuff contains a pointer to the encrypted data.
 //
-virtual int     Encrypt(const char    *inbuff,    // Data to be encrypted
-                              int      inlen,     // Length of data in inbuff
-                        XrdSecBuffer **outbuff    // Returns encrypted data
+virtual int     Encrypt(const char    * /*inbuff*/,  // Data to be encrypted
+                              int       /*inlen*/,   // Length of data in inbuff
+                        XrdSecBuffer ** /*outbuff*/  // Returns encrypted data
                              ) {return -ENOTSUP;}
 
 // Decrypt data in inbuff and place it in outbuff.
@@ -147,9 +147,9 @@ virtual int     Encrypt(const char    *inbuff,    // Data to be encrypted
 // Returns: < 0 Failed,the return value is -errno (see Encrypt).
 //          = 0 Success, outbuff contains a pointer to the encrypted data.
 //
-virtual int     Decrypt(const char  *inbuff,    // Data to be decrypted
-                              int    inlen,     // Length of data in inbuff
-                      XrdSecBuffer **outbuff    // Buffer for decrypted data
+virtual int     Decrypt(const char  * /*inbuff*/,   // Data to be decrypted
+                              int     /*inlen*/,    // Length of data in inbuff
+                      XrdSecBuffer ** /*outbuff*/   // Buffer for decrypted data
                               ) {return -ENOTSUP;}
 
 // Sign data in inbuff and place the signiture in outbuff.
@@ -158,9 +158,9 @@ virtual int     Decrypt(const char  *inbuff,    // Data to be decrypted
 //          = 0 Success, the return value is the length of the signature
 //              placed in outbuff.
 //
-virtual int     Sign(const char  *inbuff,    // Data to be signed
-                           int    inlen,     // Length of data in inbuff
-                   XrdSecBuffer **outbuff    // Buffer for the signature
+virtual int     Sign(const char  * /*inbuff*/,   // Data to be signed
+                           int     /*inlen*/,    // Length of data in inbuff
+                   XrdSecBuffer ** /*outbuff*/   // Buffer for the signature
                            ) {return -ENOTSUP;}
 
 // Verify a signature
@@ -169,10 +169,10 @@ virtual int     Sign(const char  *inbuff,    // Data to be signed
 //          = 0 Signature matches the value in inbuff.
 //          > 0 Failed to verify, signature does not match inbuff data.
 //
-virtual int     Verify(const char  *inbuff,    // Data to be decrypted
-                             int    inlen,     // Length of data in inbuff
-                       const char  *sigbuff,   // Buffer for signature
-                             int    siglen)    // Length if signature
+virtual int     Verify(const char  * /*inbuff*/,   // Data to be decrypted
+                             int     /*inlen*/,    // Length of data in inbuff
+                       const char  * /*sigbuff*/,  // Buffer for signature
+                             int     /*siglen*/)   // Length if signature
                       {return -ENOTSUP;}
 
 // Get the current encryption key
@@ -182,14 +182,14 @@ virtual int     Verify(const char  *inbuff,    // Data to be decrypted
 //              size hold the key. If the buffer address is 0, only the 
 //              size of the key is returned.
 //
-virtual int     getKey(char *buff=0, int size=0) {return -ENOTSUP;}
+virtual int     getKey(char * /*buff*/=0, int /*size*/=0) {return -ENOTSUP;}
 
 // Set the current encryption key
 //
 // Returns: < 0 Failed, returned value if -errno (see Encrypt)
 //            0 The new key has been set.
 //
-virtual int     setKey(char *buff, int size) {return -ENOTSUP;}
+virtual int     setKey(char * /*buff*/, int /*size*/) {return -ENOTSUP;}
 
 // DO NOT use C++ delete() on this object. Since the same compiler may not
 // have been used in constructing all shared libraries, you must use the object
