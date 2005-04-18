@@ -439,7 +439,7 @@ sub timestamp() {
 
 sub loadFileSizes() {
     use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
-    $sizeIndex = $_;
+    ($sizeIndex) = @_;
     &runQuery("CREATE TEMPORARY TABLE zerosize  (theId INT AUTO_INCREMENT, name VARCHAR(256), INDEX (theId))"); 
     &runQuery("INSERT INTO zerosize SELECT name FROM paths WHERE size BETWEEN $sizeIndex AND 0");
      
