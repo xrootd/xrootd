@@ -40,14 +40,20 @@ $dCounter  = $dUpdatesFreq;
 $mCounter  = $mUpdatesFreq;
 $yCounter  = $yUpdatesFreq;
 
+$loadFreq1stFail =   60;  # File size Loading frequency for files that have failed once,    every hour.
+$loadFreq2ndFail =  720;  # File size Loading frequency for files that have failed twice,   every 12 hours.
+$loadFreq3rdFail = 1440;  # File size Loading frequency for files that have failed 3 times, every 24 hour.
+
 
 my $stopFName = "$inFName.stop";
 my $noSleeps = $updInt/5;
 
+# Load missing file size info
+&loadFileSizes(-1000);
+ 
 #start an infinite loop
 while ( 1 ) {
     &doLoading();
-
     # sleep in 5 sec intervals, catch "stop" signal in between each sleep
     for ( $i=0 ; $i<$noSleeps ; $i++) {
         sleep(5);
@@ -115,7 +121,18 @@ sub doLoading {
         }
         $nHour += 1;
     }
-    $nMin += 1;                                                                                                                                         
+    $nMin += 1;  
+                                                                                                                                       
+    # load file sizes.
+    if       ( ! ($nMin % $loadFreq3rdFail) ) {
+         &loadFileSizes( -3 );               
+    } elsif ( ! ($nMin % $loadFreq2ndFail) ) {
+         &loadFileSizes( -2 );               
+    } elsif ( ! ($nMin % $loadFreq1stFail) ) {
+         &loadFileSizes( -1 );               
+    } else {
+         &loadFileSizes( 0 ); # every minute
+    }       
 
     close $inF;
     # make a backup, remove the input file
@@ -334,7 +351,7 @@ sub findOrInsertPathId() {
                 $skimId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
             }
         }
-        &runQuery("INSERT INTO paths (name, typeId, skimId) VALUES (\"$path\", $typeId, $skimId);");
+        &runQuery("INSERT INTO paths (name, typeId, skimId, size) VALUES (\"$path\", $typeId, $skimId, 0 );");
         $pathId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
                                                                                                       
     }
@@ -405,6 +422,7 @@ sub doInit() {
     } else {
         $nDay = 0;
     }
+    $bbkListSize = 250;
     $initFlag = 0;
 }
 
@@ -417,6 +435,46 @@ sub timestamp() {
     my $year = (localtime)[5] + 1900;
 
     return sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
+}
+
+sub loadFileSizes() {
+    use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
+    $sizeIndex = $_;
+    &runQuery("CREATE TEMPORARY TABLE zerosize  (theId INT AUTO_INCREMENT, name VARCHAR(256), INDEX (theId))"); 
+    &runQuery("INSERT INTO zerosize SELECT name FROM paths WHERE size BETWEEN $sizeIndex AND 0");
+     
+    $fromId = 1;
+    $toId = $bbkListSize;
+    while () {
+       @files = &runQueryWithRet("SELECT name FROM zerosize WHERE theId BETWEEN $fromId AND $toId"); 
+       last if ( ! @files );
+       open ( BBKINPUT, '>bbkInput' ) or die "Can't open bbkInput file: $!"; 
+       my $index = 0;
+       while ( defined $files[$index] ) {
+           print BBKINPUT "$files[$index]\n";
+           $index++;
+       }
+       @bbkOut = `BbkUser --lfn-file=bbkInput --quiet lfn bytes`;
+       @inBbk = ();
+       while ( @bbkOut ) {
+           $line = shift @bbkOut;
+           chomp $line;
+           ($path, $size) = split (' ', $line);
+           @inBbk = (@inBbk, $path);
+           &runQuery("UPDATE files SET size = $size WHERE name = $path");
+       }
+       # decrement size by 1 for files that failed bbk.
+       foreach $path ( @files ) {
+           if ( ! grep { $_ eq $path } @inBbk ) {
+               &runQuery("UPDATE files SET size = size - 1 WHERE name = $path");
+           }
+       }
+
+       last if ( @files < $bbkListSize );
+       $fromId += $bbkListSize;
+       $toId += $bbkListSize;
+    }
+    &runQuery("DROP TABLE IF EXISTS zerosize");
 }
 
 
