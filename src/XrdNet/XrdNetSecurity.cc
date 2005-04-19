@@ -90,7 +90,8 @@ void XrdNetSecurity::AddNetGroup(char *gname)
 char *XrdNetSecurity::Authorize(struct sockaddr *addr)
 {
    struct sockaddr_in *ip = (struct sockaddr_in *)addr;
-   char ipbuff[64], *hname, *ipname;
+   char ipbuff[64], *hname;
+   const char *ipname;
    XrdNetTextList *tlp;
 
 // Convert IP address to characters (eventually,
@@ -134,7 +135,7 @@ char *XrdNetSecurity::Authorize(struct sockaddr *addr)
 /*                                h o s t O K                                 */
 /******************************************************************************/
   
-char *XrdNetSecurity::hostOK(char *hname, char *ipname, const char *why)
+char *XrdNetSecurity::hostOK(char *hname, const char *ipname, const char *why)
 {
 
 // Add host to valid host table and return true. Note that the okHMutex must

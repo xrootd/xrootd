@@ -60,7 +60,7 @@ int             Bind(      char *path,             // Unix path < |109|
 //           associate specialized versions of XrdNetLink with the connection.
 //
 int             Connect(XrdNetPeer &myPeer,
-                        char *host,        // Destination host or ip address
+                        const char *host,  // Destination host or ip address
                         int   port,        // Port number
                         int   opts=0,      // Options
                         int   timeout=-1   // Second timeout
@@ -71,7 +71,7 @@ int             Connect(XrdNetPeer &myPeer,
 //         and return true (1). Upon failure, it returns false (0).
 //
 int             Relay(XrdNetPeer &Peer,   // Peer object to be initialized
-                      char       *dest,   // Optional destination
+                      const char *dest,   // Optional destination
                       int         opts=0  // Optional options as above
                      );
 

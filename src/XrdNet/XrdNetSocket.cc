@@ -117,13 +117,14 @@ int XrdNetSocket::Detach()
 /*                                  O p e n                                   */
 /******************************************************************************/
   
-int XrdNetSocket::Open(char *inpath, int port, int flags, int windowsz)
+int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
 {
    struct sockaddr_in InetAddr;
    struct sockaddr_un UnixAddr;
    struct sockaddr *SockAddr;
-   char *errtxt = 0, *action = (char *)"configure socket";
-   char *path = (inpath ? inpath : (char *)"");
+   char *errtxt = 0;
+   const char *action = "configure socket";
+   const char *path = (inpath ? inpath : "");
    int myEC, SockSize, backlog;
    int SockType = (flags & XRDNET_UDPSOCKET ? SOCK_DGRAM : SOCK_STREAM);
    const int one = 1;
@@ -187,10 +188,10 @@ int XrdNetSocket::Open(char *inpath, int port, int flags, int windowsz)
 // Either do a connect or a bind.
 //
    if (flags & XRDNET_SERVER)
-      {action = (char *)"bind socket to";
+      {action = "bind socket to";
        if ( bind(SockFD, SockAddr, SockSize) ) myEC = errno;
           else if (SockType == SOCK_STREAM)
-                  {action = (char *)"listen on stream";
+                  {action = "listen on stream";
                    if (!(backlog = flags & XRDNET_BKLG))
                       backlog = XRDNETSOCKET_MAXBKLG;
                    if (listen(SockFD, backlog)) myEC = errno;
@@ -199,7 +200,7 @@ int XrdNetSocket::Open(char *inpath, int port, int flags, int windowsz)
       } else {
        if (SockType == SOCK_STREAM)
           {int tmo = flags & XRDNET_TOUT;
-           action = (char *)"connect socket to";
+           action = "connect socket to";
            if (tmo) myEC = XrdNetConnect::Connect(SockFD,SockAddr,SockSize,tmo);
               else if (connect(SockFD, SockAddr, SockSize)) myEC = errno;
           }
@@ -225,7 +226,7 @@ int XrdNetSocket::Open(char *inpath, int port, int flags, int windowsz)
 /*                              P e e r n a m e                               */
 /******************************************************************************/
   
-char *XrdNetSocket::Peername(struct sockaddr **InetAddr)
+const char *XrdNetSocket::Peername(struct sockaddr **InetAddr)
 {
    char *errtxt;
 

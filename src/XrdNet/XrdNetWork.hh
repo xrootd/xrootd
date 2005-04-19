@@ -42,7 +42,7 @@ XrdNetLink     *Accept(int opts=0,
 //           communications. Upon failure it returns zero. Options are as above.
 //           A second timeout may be specified.
 //
-XrdNetLink     *Connect(char *host,        // Destination host or ip address
+XrdNetLink     *Connect(const char *host,  // Destination host or ip address
                         int   port,        // Port number
                         int   opts=0,      // Options
                         int   timeout=-1   // Second timeout
@@ -53,8 +53,8 @@ XrdNetLink     *Connect(char *host,        // Destination host or ip address
 //         Upon success it returs the address of a XrdNetLink object that
 //         be used to communicate with the dest. Upon failure return zero.
 //
-XrdNetLink     *Relay(char           *dest=0, // Optional destination
-                      int             opts=0  // Optional options as above
+XrdNetLink     *Relay(const char  *dest=0, // Optional destination
+                      int          opts=0  // Optional options as above
                      );
 
 // When creating this object, you must specify the error routing object.

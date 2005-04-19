@@ -190,7 +190,7 @@ int XrdNet::Bind(char *path, const char *contype)
 /******************************************************************************/
 
 int XrdNet::Connect(XrdNetPeer &myPeer,
-                    char *host, int port, int opts, int tmo)
+                    const char *host, int port, int opts, int tmo)
 {
    XrdNetSocket mySocket(opts & XRDNET_NOEMSG ? 0 : eDest);
    struct sockaddr *sap;
@@ -210,7 +210,7 @@ int XrdNet::Connect(XrdNetPeer &myPeer,
       {myPeer.InetName = strdup("n/a");
        memset((void *)&myPeer.InetAddr, 0, sizeof(myPeer.InetAddr));
       } else {
-       char *pn = mySocket.Peername(&sap);
+       const char *pn = mySocket.Peername(&sap);
        if (pn) {memcpy((void *)&myPeer.InetAddr, sap, sizeof(myPeer.InetAddr));
                 myPeer.InetName = strdup(pn);
                 if (Domain && !(opts & XRDNET_NODNTRIM)) Trim(myPeer.InetName);
@@ -227,7 +227,7 @@ int XrdNet::Connect(XrdNetPeer &myPeer,
 /*                                 R e l a y                                  */
 /******************************************************************************/
   
-int XrdNet::Relay(XrdNetPeer &Peer, char *dest, int opts)
+int XrdNet::Relay(XrdNetPeer &Peer, const char *dest, int opts)
 {
    return Connect(Peer, dest, -1, opts | XRDNET_UDPSOCKET);
 }

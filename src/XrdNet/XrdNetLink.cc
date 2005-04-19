@@ -286,7 +286,7 @@ int XrdNetLink::Send(const char *dest, const char *Buff, int Blen, int tmo)
        return Send(dest, iodata, 2, tmo);
       }
 
-   if (!XrdNetDNS::Host2Dest((char *)dest, destip))
+   if (!XrdNetDNS::Host2Dest(dest, destip))
       {eDest->Emsg("Link", dest, "is unreachable");
        return -1;
       }
@@ -348,7 +348,7 @@ int XrdNetLink::Send(const char *dest,const struct iovec iov[],int iovcnt,int tm
    char *bp;
    struct sockaddr destip;
 
-   if (!XrdNetDNS::Host2Dest((char *)dest, destip))
+   if (!XrdNetDNS::Host2Dest(dest, destip))
       {eDest->Emsg("Link", dest, "is unreachable");
        return -1;
       }

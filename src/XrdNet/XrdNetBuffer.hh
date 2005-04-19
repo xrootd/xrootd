@@ -67,7 +67,7 @@ inline int           BuffSize(void) {return BuffQ->BuffSize();}
 
 private:
 
-XrdOucQSItem<XrdNetBuffer> BuffLink;
-XrdNetBufferQ             *BuffQ;
+      XrdOucQSItem<XrdNetBuffer> BuffLink;
+      XrdNetBufferQ             *BuffQ;
 };
 #endif

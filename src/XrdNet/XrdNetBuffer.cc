@@ -55,7 +55,7 @@ XrdNetBufferQ::~XrdNetBufferQ()
 
 XrdNetBuffer *XrdNetBufferQ::Alloc()
 {
-  XrdNetBuffer *bp;
+   XrdNetBuffer *bp;
 
 // Lock the data area
 //
@@ -65,7 +65,7 @@ XrdNetBuffer *XrdNetBufferQ::Alloc()
 //
    if ((bp = BuffStack.Pop())) numbuff--;
       else if ((bp = new XrdNetBuffer(this))
-           &&  !(bp->data = (char *)memalign(alignit, size)))
+           &&  !(bp->data = static_cast<char *>(memalign(alignit, size))))
               {delete bp; bp = 0;}
 
 // Unlock the data area

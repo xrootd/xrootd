@@ -49,7 +49,7 @@ public:
 // then hostname must be of the form hostname:port. Open() will always set
 // the REUSEADDR option when binding to a port number.
 //
-       int  Open(char *path, int port=-1, int flags=0, int sockbuffsz=0);
+       int  Open(const char *path, int port=-1, int flags=0, int sockbuffsz=0);
 
 // Issue accept on the created socket. Upon success return socket FD, upon
 // failure return -1. Use LastError() to obtain reason for failure. Note that
@@ -79,7 +79,7 @@ inline int  LastError() {return ErrCode;}
 // optional address for holding the vided to obtain the hostname for it.
 // The string is strdup'd and is deleted when the socket object is deleted.
 //
-       char *Peername(struct sockaddr **InetAddr=0);
+const char *Peername(struct sockaddr **InetAddr=0);
 
 // Set socket options (see definitions in XrdNetOpts.hh). The defaults
 // defaults are such that each option must be set to override the default

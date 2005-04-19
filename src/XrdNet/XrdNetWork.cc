@@ -59,7 +59,7 @@ XrdNetLink *XrdNetWork::Accept(int opts, int timeout)
 /*                               C o n n e c t                                */
 /******************************************************************************/
 
-XrdNetLink *XrdNetWork::Connect(char *host, int port, int opts, int tmo)
+XrdNetLink *XrdNetWork::Connect(const char *host, int port, int opts, int tmo)
 {
    XrdNetPeer myPeer;
    XrdNetLink *lp;
@@ -82,11 +82,11 @@ XrdNetLink *XrdNetWork::Connect(char *host, int port, int opts, int tmo)
 /*                                 R e l a y                                  */
 /******************************************************************************/
   
-XrdNetLink *XrdNetWork::Relay(char *dest, int opts)
+XrdNetLink *XrdNetWork::Relay(const char *dest, int opts)
 {
-   XrdNetPeer myPeer;
-   XrdNetLink    *lp;
-   int            lnkopts;
+   XrdNetPeer  myPeer;
+   XrdNetLink *lp;
+   int         lnkopts;
 
 // Create a udp socket
 //
@@ -104,7 +104,7 @@ XrdNetLink *XrdNetWork::Relay(char *dest, int opts)
       {close(myPeer.fd);
        if (!(opts & XRDNET_NOEMSG))
           eDest->Emsg("Connect", ENOMEM, "allocate relay to", 
-                     (dest ? dest : (char *)"network"));
+                     (dest ? dest : "network"));
       }
    return lp;
 }

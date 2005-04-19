@@ -40,7 +40,7 @@ void  Trace(XrdOucTrace *et=0) {eTrace = et;}
 
 private:
 
-char *hostOK(char *hname, char *ipname, const char *why);
+char *hostOK(char *hname, const char *ipname, const char *why);
 
 XrdOucNList_Anchor        HostList;
 

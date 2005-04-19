@@ -78,7 +78,7 @@ unsigned int Addr() {return XrdNetDNS::IPAddr(&InetAddr);}
 
 // Name() returns the host name of the endpoint
 //
-char         *Name() {return Lname;}
+const char  *Name() {return Lname;}
 
 // OK2Recv() returns true if data can be received within tmo, false otherwise.
 //
