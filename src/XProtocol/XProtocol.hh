@@ -27,11 +27,13 @@
 // Kind of error inside a XTNetFile's routine (temporary)
 //
 enum XReqErrorType {
-   kGENERICERR = 0,
-   kREAD,
-   kWRITE,
-   kREDIRCONNECT,
-   kOK
+   kGENERICERR = 0,    // Generic error
+   kREAD,              // Error while reading from stream
+   kWRITE,             // Error while writing to stream
+   kREDIRCONNECT,      // Error redirecting to a given host
+   kOK,                // Everything seems ok
+   kNOMORESTREAMS      // No more available stream IDs for
+                       // async processing
 };
 
 //______________________________________________
