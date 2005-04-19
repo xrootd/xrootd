@@ -24,6 +24,7 @@
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdClient/XrdClientSid.hh"
 
 #ifdef AIX
 #include <sys/sem.h>
@@ -196,7 +197,7 @@ void XrdClientConnectionMgr::GarbageCollect()
 }
 
 //_____________________________________________________________________________
-short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
+int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 {
    // Connects to the remote server:
    //  - Looks for an existing physical connection already bound to 
@@ -210,7 +211,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
    XrdClientLogConnection *logconn = 0;
    XrdClientPhyConnection *phyconn = 0;
-   short int  newid;
+   int newid;
    bool phyfound;
 
    // First we get a new logical connection object
@@ -405,7 +406,8 @@ XrdClientMessage *XrdClientConnectionMgr::ReadMsg(short int LogConnectionID)
    }
    else {
       // Now we get the message from the queue, with the timeouts needed
-      mex = logconn->GetPhyConnection()->ReadMessage(LogConnectionID);
+      // Note that the physical connection know about streamids, NOT logconnids !!
+      mex = logconn->GetPhyConnection()->ReadMessage(logconn->Streamid());
    }
 
    // Return the message unmarshalled to ClientServerCmd
@@ -436,16 +438,10 @@ int XrdClientConnectionMgr::WriteRaw(short int LogConnectionID, const void *buff
 XrdClientLogConnection *XrdClientConnectionMgr::GetConnection(short int LogConnectionID)
 {
    // Return a logical connection object that has LogConnectionID as its ID.
-
-   XrdClientLogConnection *res;
-
-   {
-      XrdOucMutexHelper mtx(fMutex);
+   XrdOucMutexHelper mtx(fMutex);
  
-      res = fLogVec[LogConnectionID];
-   }
-  
-   return res;
+   return fLogVec[LogConnectionID];
+
 }
 
 //_____________________________________________________________________________

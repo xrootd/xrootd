@@ -30,8 +30,8 @@ private:
    bool           fMarshalled;
    short          fStatusCode;
 
-   short       CharStreamid2Int(kXR_char *charstreamid);
-   void        Int2CharStreamid(kXR_char *charstreamid, short intstreamid);
+   kXR_unt16       CharStreamid2Int(kXR_char *charstreamid);
+   void            Int2CharStreamid(kXR_char *charstreamid, short intstreamid);
 
 public:
 
@@ -54,7 +54,7 @@ public:
    inline void       *GetData() {return fData;}
    inline int         GetStatusCode() { return fStatusCode;}
    inline int         HeaderStatus() { return fHdr.status; }
-   inline short       HeaderSID() { return CharStreamid2Int(fHdr.streamid); }
+   inline kXR_unt16   HeaderSID() { return CharStreamid2Int(fHdr.streamid); }
    bool               IsAttn() { return (fHdr.status == kXR_attn); }
    inline bool        IsError() { return (fStatusCode != kXrdMSC_ok); };
    inline bool        IsMarshalled() { return fMarshalled; }

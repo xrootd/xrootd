@@ -62,50 +62,67 @@ class XrdClient : public XrdClientAbs {
 
 private:
 
-   char                     fHandle[4];          // The file handle returned by the server,
-                                                 // to use for successive requests
+   char                        fHandle[4];  // The file handle returned by the server,
+                                            // to use for successive requests
 
-   struct XrdClientOpenInfo fOpenPars;   // Just a container for the last parameters
-                                       // passed to a Open method
+   struct XrdClientOpenInfo    fOpenPars;   // Just a container for the last parameters
+                                            // passed to a Open method
 
-   bool                     fOpenWithRefresh;
-   int                      fReadAheadSize;
+   bool                        fOpenWithRefresh;
+   int                         fReadAheadSize;
 
-   struct XrdClientStatInfo fStatInfo;
+   struct XrdClientStatInfo    fStatInfo;
 
-   bool                     fUseCache;
+   bool                        fUseCache;
 
-   XrdClientUrlInfo         fInitialUrl;
+   XrdClientUrlInfo            fInitialUrl;
 
-   bool         TryOpen(kXR_unt16 mode, kXR_unt16 options);
-   bool         LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
-			char *additionalquery = 0);
+   bool                        TryOpen(kXR_unt16 mode,
+				       kXR_unt16 options);
+
+   bool                        LowOpen(const char *file,
+				       kXR_unt16 mode,
+				       kXR_unt16 options,
+				       char *additionalquery = 0);
 
 public:
 
    XrdClient(const char *url);
    virtual ~XrdClient();
   
-   bool         OpenFileWhenRedirected(char *newfhandle, bool &wasopen);
-   bool         ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
-                                        XrdClientMessage *unsolmsg);
+   bool                        OpenFileWhenRedirected(char *newfhandle,
+						      bool &wasopen);
 
-   bool         Close();
+   bool                        ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+						     XrdClientMessage *unsolmsg);
 
-   bool         Sync();
+   bool                        Close();
 
-   bool         Copy(const char *localpath);
+   // Ask the server to flush its cache
+   bool                        Sync();
 
-   inline bool  IsOpen() { return fOpenPars.opened; }
+   // Copy the whole file to the local filesystem. Not very efficient.
+   bool                        Copy(const char *localpath);
 
-   bool         Open(kXR_unt16 mode, kXR_unt16 options);
+   inline bool                 IsOpen() { return fOpenPars.opened; }
 
-   int          Read(void *buf, long long offset, int len);
+   // Open the file. See the xrootd documentation for mode and options
+   bool                        Open(kXR_unt16 mode, kXR_unt16 options);
 
-   bool         Stat(struct XrdClientStatInfo *stinfo);
+   // Read a block of data. If no error occurs, it returns all the requested bytes.
+   int                         Read(void *buf, long long offset, int len);
 
-   bool         Write(const void *buf, long long offset, int len);
+   // Submit an asynchronous read request. Its result will only populate the cache
+   //  (if any!!)
+   XReqErrorType               Read_Async(long long offset, int len);
 
+   // Get stat info about the file
+   bool                        Stat(struct XrdClientStatInfo *stinfo);
+
+   // Write data to the file
+   bool                        Write(const void *buf, long long offset, int len);
+
+   // The last response got from a non-async request
    struct ServerResponseHeader *LastServerResp() {
       if (fConnModule) return &fConnModule->LastServerResp;
       else return 0;

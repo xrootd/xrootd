@@ -84,8 +84,9 @@ class XrdClientVector {
    }
 
    T &Pop_back() {
-      return (At(size-1));
+      T &r( At(size-1) );
       size--;
+      return (r);
    }
 
    T Pop_front() {

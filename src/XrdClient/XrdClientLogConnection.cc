@@ -16,17 +16,22 @@
 #include "XrdClient/XrdClientLogConnection.hh"
 #include "XrdClient/XrdClientPhyConnection.hh"
 #include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientSid.hh"
 
 
 
 //_____________________________________________________________________________
 XrdClientLogConnection::XrdClientLogConnection() {
    // Constructor
+
+   fStreamid = SidManager->GetNewSid();
 }
 
 //_____________________________________________________________________________
 XrdClientLogConnection::~XrdClientLogConnection() {
    // Destructor
+
+   SidManager->ReleaseSid(fStreamid);
 }
 
 //_____________________________________________________________________________
@@ -70,7 +75,7 @@ bool XrdClientLogConnection::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *send
    // are asynchronous by nature.
 
    Info(XrdClientDebug::kNODEBUG,
-	"ProcessUnsolicitedMsg",
+	"LogConnection",
 	"Processing unsolicited response");
 
    // Local processing ....

@@ -181,12 +181,12 @@ void XrdClientMessage::Int2CharStreamid(kXR_char *charstreamid, short intstreami
 }
 
 //___________________________________________________________________________
-short XrdClientMessage::CharStreamid2Int(kXR_char *charstreamid)
+kXR_unt16 XrdClientMessage::CharStreamid2Int(kXR_char *charstreamid)
 {
    // Converts a streamid given as an integer to its representation
    // suitable for the streamid inside the messages (i.e. ascii)
 
-   int res = *((short *)charstreamid);
+   kXR_unt16 res = *((short *)charstreamid);
 
    return res;
 }

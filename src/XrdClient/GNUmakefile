@@ -38,7 +38,8 @@ SOURCES = \
 	XrdCpWorkLst.cc                 \
 	XrdClientString.cc              \
         XrdClientAdmin_c.cc             \
-        XrdClientAdmin_c_wrap.c
+        XrdClientAdmin_c_wrap.c		\
+	XrdClientSid.cc
 
   
 OBJECTS = \
@@ -63,7 +64,8 @@ OBJECTS = \
 	$(OBJDIR)/XrdClientEnv.o		\
 	$(OBJDIR)/XrdCpMthrQueue.o		\
 	$(OBJDIR)/XrdCpWorkLst.o		\
-	$(OBJDIR)/XrdClientString.o              
+	$(OBJDIR)/XrdClientString.o             \
+	$(OBJDIR)/XrdClientSid.o
 
 OBJECTB = $(OBJDIR)/TestXrdClient.o $(OBJDIR)/XrdClientAdmin_c.o
 OBJECTC = $(OBJDIR)/Xrdcp.o
@@ -186,7 +188,9 @@ $(OBJDIR)/XrdClient.o: XrdClient.cc ../XrdClient/XrdClient.hh \
   ../XrdClient/XrdClientEnv.hh ../XrdOuc/XrdOucEnv.hh \
   ../XrdOuc/XrdOucLogger.hh ../XrdClient/XrdClientUrlSet.hh \
   ../XrdClient/XrdClientConnMgr.hh ../XrdClient/XrdClientLogConnection.hh \
-  ../XrdClient/XrdClientPhyConnection.hh ../XrdClient/XrdClientThread.hh
+  ../XrdClient/XrdClientPhyConnection.hh ../XrdClient/XrdClientThread.hh \
+  ../XrdClient/XrdClientSid.hh ../XrdOuc/XrdOucRash.hh \
+  ../XrdOuc/XrdOucRash.icc ../XrdOuc/XrdOucPlatform.hh
 	@echo Compiling XrdClient.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClient.o XrdClient.cc
 
@@ -241,7 +245,9 @@ $(OBJDIR)/XrdClientConn.o: XrdClientConn.cc ../XrdClient/XrdClientDebug.hh \
   ../XrdClient/XrdClientConn.hh ../XrdClient/XrdClientReadCache.hh \
   ../XrdSec/XrdSecInterface.hh ../XrdSec/XrdSecEntity.hh \
   ../XrdNet/XrdNetDNS.hh ../XrdClient/XrdClientStringMatcher.hh \
-  ../XrdClient/XrdClientAbs.hh
+  ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientSid.hh \
+  ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
+  ../XrdOuc/XrdOucPlatform.hh
 	@echo Compiling XrdClientConn.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientConn.o XrdClientConn.cc
 
@@ -297,7 +303,7 @@ $(OBJDIR)/XrdClientLogConnection.o: XrdClientLogConnection.cc \
   ../XrdClient/XrdClientVector.hh ../XrdClient/XrdClientThread.hh \
   ../XrdClient/XrdClientDebug.hh ../XrdClient/XrdClientConst.hh \
   ../XrdClient/XrdClientEnv.hh ../XrdOuc/XrdOucEnv.hh \
-  ../XrdOuc/XrdOucLogger.hh
+  ../XrdOuc/XrdOucLogger.hh ../XrdClient/XrdClientSid.hh
 	@echo Compiling XrdClientLogConnection.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientLogConnection.o XrdClientLogConnection.cc
 
@@ -327,7 +333,9 @@ $(OBJDIR)/XrdClientPhyConnection.o: XrdClientPhyConnection.cc \
   ../XrdOuc/XrdOucHash.icc ../XrdClient/XrdClientVector.hh \
   ../XrdClient/XrdClientThread.hh ../XrdClient/XrdClientDebug.hh \
   ../XrdClient/XrdClientConst.hh ../XrdClient/XrdClientEnv.hh \
-  ../XrdOuc/XrdOucEnv.hh ../XrdOuc/XrdOucLogger.hh
+  ../XrdOuc/XrdOucEnv.hh ../XrdOuc/XrdOucLogger.hh \
+  ../XrdClient/XrdClientSid.hh ../XrdOuc/XrdOucRash.hh \
+  ../XrdOuc/XrdOucRash.icc ../XrdOuc/XrdOucPlatform.hh
 	@echo Compiling XrdClientPhyConnection.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientPhyConnection.o XrdClientPhyConnection.cc
 
@@ -433,3 +441,11 @@ $(OBJDIR)/XrdCpWorkLst.o: XrdCpWorkLst.cc ../XrdClient/XrdCpWorkLst.hh \
   ../XrdClient/XrdClient.hh
 	@echo Compiling XrdCpWorkLst.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCpWorkLst.o XrdCpWorkLst.cc
+
+$(OBJDIR)/XrdClientSid.o: XrdClientSid.cc ../XrdClient/XrdClientSid.hh \
+  ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
+  ../XrdOuc/XrdOucPlatform.hh ../XProtocol/XProtocol.hh \
+  ../XProtocol/XPtypes.hh ../XrdClient/XrdClientVector.hh \
+  ../XrdOuc/XrdOucPthread.hh ../XrdOuc/XrdOucError.hh
+	@echo Compiling XrdClientSid.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientSid.o XrdClientSid.cc

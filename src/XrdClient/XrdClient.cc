@@ -19,6 +19,7 @@
 #include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientConnMgr.hh"
+#include "XrdClient/XrdClientSid.hh"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -138,7 +139,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 		thisUrl->Host << ":" << thisUrl->Port <<
 		". Connect try " << connectTry+1);
 	   
-           locallogid = fConnModule->Connect(*thisUrl);
+           locallogid = fConnModule->Connect(*thisUrl, this);
         }
      }
      
@@ -150,7 +151,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 
 	   Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
 		"The logical connection id is " << fConnModule->GetLogConnID() <<
-		". This will be the streamid for this client");
+		".");
 
         fConnModule->SetUrl(*thisUrl);
         
@@ -636,11 +637,56 @@ bool XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
    // Remember that we are in a separate thread, since unsolicited 
    // responses are asynchronous by nature.
 
-   Info(XrdClientDebug::kNODEBUG,
-	"ProcessUnsolicitedMsg", "Processing unsolicited response");
+   Info(XrdClientDebug::kHIDEBUG,
+	"XrdClient", "Incoming unsolicited response from streamid " <<
+	unsolmsg->HeaderSID() << " father=" <<
+	SidManager->GetSidInfo(unsolmsg->HeaderSID())->fathersid );
 
    // Local processing ....
+
+
+   if ( SidManager->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
+      Info(XrdClientDebug::kHIDEBUG,
+	   "XrdClient", "Processing unsolicited response from streamid " <<
+	   unsolmsg->HeaderSID() << " father=" <<
+	   SidManager->GetSidInfo(unsolmsg->HeaderSID())->fathersid );
+
+   }
+
 
    return TRUE;
 }
 
+XReqErrorType XrdClient::Read_Async(long long offset, int len) {
+
+   if (!IsOpen()) {
+      Error("Read", "File not opened.");
+      return kGENERICERR;
+   }
+
+
+  // Prepare request
+  ClientRequest readFileRequest;
+  memset( &readFileRequest, 0, sizeof(readFileRequest) );
+
+  // No need to initialize the streamid, it will be filled by XrdClientConn
+  readFileRequest.read.requestid = kXR_read;
+  memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
+  readFileRequest.read.offset = offset;
+  readFileRequest.read.rlen = len;
+  readFileRequest.read.dlen = 0;
+
+
+
+  Info(XrdClientDebug::kHIDEBUG, "Read_Async",
+       "Requesting to read " <<
+       readFileRequest.read.rlen <<
+       " bytes of data at offset " <<
+       readFileRequest.read.offset);
+
+     
+
+  return (fConnModule->WriteToServer_Async(&readFileRequest, 0));
+
+
+}

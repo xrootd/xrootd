@@ -19,7 +19,7 @@
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdOuc/XrdOucPthread.hh"
-
+#include "XrdClient/XrdClientSid.hh"
 #include <sys/socket.h>
 
 
@@ -357,6 +357,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
    // Also put automatically the msg into the queue
 
    XrdClientMessage *m;
+   bool parallelsid;
 
    m = new XrdClientMessage();
    if (!m) {
@@ -367,14 +368,20 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 
    m->ReadRaw(this);
 
-   if (m->IsAttn()) {
+   parallelsid = SidManager->GetSidInfo(m->HeaderSID());
+
+   if ( parallelsid || (m->IsAttn()) ) {
 
       // Here we insert the PhyConn-level support for unsolicited responses
       // Some of them will be propagated in some way to the upper levels
-      //  TLogConn, TConnMgr, TXNetConn
+      // The path should be
+      //  here -> XrdClientConnMgr -> all the involved XrdClientLogConnections ->
+      //   -> all the corresponding XrdClient
+
       HandleUnsolicited(m);
 
       // The purpose of this message ends here
+      if (parallelsid) SidManager->ReleaseSid(m->HeaderSID());
       delete m;
       m = 0;
    }
@@ -473,7 +480,7 @@ int XrdClientPhyConnection::WriteRaw(const void *buf, int len)
       }
 
       // If a socket error comes, then we disconnect (and destroy the fSocket)
-      if ((res < 0) || (!fSocket->IsConnected())) {
+      if ((res < 0) || (!fSocket) || (!fSocket->IsConnected())) {
 
 	 Info(XrdClientDebug::kHIDEBUG,
 	      "WriteRaw", 

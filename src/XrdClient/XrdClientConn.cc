@@ -25,6 +25,8 @@
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientAbs.hh"
 
+#include "XrdClient/XrdClientSid.hh"
+
 #include <stdio.h>      // needed by printf
 #include <stdlib.h>     // needed by getenv()
 #include <pwd.h>        // needed by getpwuid()
@@ -94,6 +96,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE),
 
 
    fRedirHandler = 0;
+   fUnsolMsgHandler = 0;
 
    // Init the redirection counter parameters
    fGlobalRedirLastUpdateTimestamp = time(0);
@@ -118,7 +121,8 @@ XrdClientConn::~XrdClientConn()
 }
 
 //_____________________________________________________________________________
-short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn)
+short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn,
+			     XrdClientAbsUnsolMsgHandler *unsolhandler)
 {
    // Connect method (called the first time when XrdNetFile is first created, 
    // and used for each redirection). The global static connection manager 
@@ -130,6 +134,8 @@ short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn)
    // We try to connect to the host. What we get is the logical conn id
    short logid;
    logid = -1;
+   fPrimaryStreamid = 0;
+   fLogConnID = 0;
 
    logid = ConnectionManager->Connect(Host2Conn);
 
@@ -142,14 +148,20 @@ short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn)
       Error("XrdNetFile",
 	    "Error creating logical connection to " << 
 	    Host2Conn.Host << ":" << Host2Conn.Port );
-      SetLogConnID(logid);
+
+      fLogConnID = logid;
       fConnected = FALSE;
       return -1;
    }
 
    fConnected = TRUE;
 
-   SetLogConnID(logid);
+   fLogConnID = logid;
+   fPrimaryStreamid = ConnectionManager->GetConnection(fLogConnID)->Streamid();
+
+   ConnectionManager->GetConnection(fLogConnID)->UnsolicitedMsgHandler = unsolhandler;
+   fUnsolMsgHandler = unsolhandler;
+
    return logid;
 }
 
@@ -158,7 +170,7 @@ void XrdClientConn::Disconnect(bool ForcePhysicalDisc)
 {
    // Disconnect
 
-   ConnectionManager->Disconnect(GetLogConnID(), ForcePhysicalDisc);
+   ConnectionManager->Disconnect(fLogConnID, ForcePhysicalDisc);
    fConnected = FALSE;
 }
 
@@ -189,7 +201,7 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
    // cmd the size is known, while for the kXR_getfile cmd is not.
 
    int len;
-   ClientRequest reqtmp;
+   
 
    size_t TotalBlkSize = 0;
 
@@ -214,14 +226,9 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
       // same as before, not valid anymore
       SetSID(req->header.streamid);
 
-      reqtmp = *req;
 
-      if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)
-	 smartPrintClientHeader(&reqtmp);
 
-      clientMarshall(&reqtmp);
-
-      errorType = WriteToServer(&reqtmp, req, reqMoreData, fLogConnID);
+      errorType = WriteToServer(req, reqMoreData, fLogConnID);
       
       // Read from server the answer
       // Note that the answer can be composed by many reads, in the case that
@@ -475,29 +482,33 @@ bool XrdClientConn::CheckResp(struct ServerResponseHeader *resp, const char *met
 //_____________________________________________________________________________
 bool XrdClientConn::MatchStreamid(struct ServerResponseHeader *ServerResponse)
 {
-   // Check stream ID matching
+   // Check stream ID matching between the given response and
+   // the one contained in the current logical conn
 
-   char sid[2];
-
-   memcpy(sid, &fLogConnID, sizeof(sid));
-
-   // Matches the streamid contained in the server's response with the ours
-   return (memcmp(ServerResponse->streamid, sid, sizeof(sid)) == 0 );
+   return ( memcmp(ServerResponse->streamid,
+		   &fPrimaryStreamid,
+		   sizeof(ServerResponse->streamid)) == 0 );
 }
 
 //_____________________________________________________________________________
 void XrdClientConn::SetSID(kXR_char *sid) {
    // Set our stream id, to match against that one in the server's response.
 
-   memcpy((void *)sid, (const void*)&fLogConnID, 2);
+   memcpy((void *)sid, (const void*)&fPrimaryStreamid, 2);
 }
 
 
 //_____________________________________________________________________________
-XReqErrorType XrdClientConn::WriteToServer(ClientRequest *reqtmp, ClientRequest *req, 
+XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req, 
 				       const void* reqMoreData, short LogConnID) 
 {
    // Send message to server
+   ClientRequest req_netfmt = *req;
+
+   if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)
+      smartPrintClientHeader(req);
+
+   clientMarshall(&req_netfmt);
 
    // Strong mutual exclusion over the physical channel
    {
@@ -509,7 +520,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *reqtmp, ClientRequest 
 
       short len = sizeof(req->header);
 
-      int writeres = ConnectionManager->WriteRaw(LogConnID, reqtmp, len);
+      int writeres = ConnectionManager->WriteRaw(LogConnID, &req_netfmt, len);
       fLastDataBytesSent = req->header.dlen;
   
       // A complete communication failure has to be handled later, but we
@@ -669,7 +680,7 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
          errorType = kREAD;
       }
       else
-         // is not necessary because the Connection Manager unmarshall the mex
+         // is not necessary because the Connection Manager unmarshalls the mex
          Xmsg->Unmarshall(); 
    }
 
@@ -1480,7 +1491,7 @@ XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo newdest)
    // Re-directs to another server
    
    
-   if ( (fLogConnID = Connect( newdest )) == -1) {
+   if ( (fLogConnID = Connect( newdest, fUnsolMsgHandler)) == -1) {
 	  
       // Note: if Connect is unable to work then we are in trouble.
       // It seems that we have been redirected to a non working server
@@ -1502,6 +1513,9 @@ XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo newdest)
             newdest.Host.c_str() << ":" <<  newdest.Port << "]");
       return kREDIRCONNECT;
    }
+
+   fPrimaryStreamid = ConnectionManager->GetConnection(fLogConnID)->Streamid();
+
    return kOK;
 }
 
@@ -1608,8 +1622,7 @@ void XrdClientConn::CheckPort(int &port) {
 
 //___________________________________________________________________________
 bool XrdClientConn::GetDataFromCache(const void *buffer, long long begin_offs,
-				   long long end_offs, bool PerfCalc)
-{
+				   long long end_offs, bool PerfCalc) {
    // Copies the requested data from the cache. False if not possible.
    // Perfcalc = kFALSE forces the call not to impact the perf counters
 
@@ -1620,4 +1633,22 @@ bool XrdClientConn::GetDataFromCache(const void *buffer, long long begin_offs,
 					    begin_offs,
 					    end_offs,
 					    PerfCalc));
+}
+
+//___________________________________________________________________________
+XReqErrorType XrdClientConn::WriteToServer_Async(ClientRequest *req,
+						 const void* reqMoreData) {
+
+
+   // We allocate a new child streamid, linked to this req
+   // Note that the content of the req will be copied. This allows us
+   //  to send N times the same req without destroying it
+   //  if an answer comes before we finish
+   // req is automatically updated with the new streamid
+   if (!SidManager->GetNewSid(fPrimaryStreamid, req))
+      return kNOMORESTREAMS;
+
+   // Send the req to the server
+   return WriteToServer(req, reqMoreData, fLogConnID);
+
 }

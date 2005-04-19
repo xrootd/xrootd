@@ -61,11 +61,19 @@ void *ReaderThread_xrd(void *)
 	 abort();
       }
 
+//       for (int iii = 0; iii < 100000; iii++)
+// 	 // To be removed, just a test!!!!!!
+// 	 if (cpnfo.XrdCli->Read_Async(offs+XRDCP_BLOCKSIZE, 1024) != kOK) break;
+
       if ( (nr = cpnfo.XrdCli->Read(buf, offs, XRDCP_BLOCKSIZE)) ) {
 	 bread += nr;
 	 offs += nr;
 	 cpnfo.queue.PutBuffer(buf, nr);
       }
+
+//       for (int iii = 0; iii < 100000; iii++)
+// 	 // To be removed, just a test!!!!!!
+// 	 if (cpnfo.XrdCli->Read_Async(offs+XRDCP_BLOCKSIZE, 1024) != kOK) break;
 
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
       pthread_testcancel();

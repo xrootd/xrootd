@@ -22,9 +22,12 @@
 
 
 class XrdClientLogConnection: public XrdClientAbsUnsolMsgHandler, 
-   XrdClientUnsolMsgSender {
+   public XrdClientUnsolMsgSender {
 private:
    XrdClientPhyConnection *fPhyConnection;
+
+   // A logical connection has a private streamid
+   kXR_unt16 fStreamid;
 
 public:
    XrdClientLogConnection();
@@ -42,6 +45,9 @@ public:
 
    int           WriteRaw(const void *buffer, int BufferLength);
 
+   inline kXR_unt16 Streamid() {
+      return fStreamid;
+   };
 };
 
 #endif

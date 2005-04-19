@@ -23,28 +23,30 @@ class XrdClientUnsolMsgSender;
 // Handler
 
 class XrdClientAbsUnsolMsgHandler {
-public:
+ public:
   
-  // To be called when an unsolicited response arrives from the lower layers
-  virtual bool ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, 
-                                       XrdClientMessage *unsolmsg) = 0;
+   // To be called when an unsolicited response arrives from the lower layers
+   virtual bool ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, 
+				      XrdClientMessage *unsolmsg) = 0;
 
 };
 
 // Sender
 
 class XrdClientUnsolMsgSender {
-public:
+
+ public:
+
    // The upper level handler for unsolicited responses
-  XrdClientAbsUnsolMsgHandler *UnsolicitedMsgHandler;
+   XrdClientAbsUnsolMsgHandler *UnsolicitedMsgHandler;
 
-  inline void SendUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg) {
-    // We simply send the event
-    if (UnsolicitedMsgHandler)
-      UnsolicitedMsgHandler->ProcessUnsolicitedMsg(sender, unsolmsg);
-  }
+   inline void SendUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg) {
+      // We simply send the event
+      if (UnsolicitedMsgHandler)
+	 UnsolicitedMsgHandler->ProcessUnsolicitedMsg(sender, unsolmsg);
+   }
 
-  inline XrdClientUnsolMsgSender() { UnsolicitedMsgHandler = 0; }
+   inline XrdClientUnsolMsgSender() { UnsolicitedMsgHandler = 0; }
 };
 
 #endif

@@ -152,7 +152,7 @@ bool XrdClientAdmin::Connect() {
 		 thisUrl->Host << ":" << thisUrl->Port <<
 		 ". Connect try " << connectTry+1);
 	   
-	    locallogid = fConnModule->Connect(*thisUrl);
+	    locallogid = fConnModule->Connect(*thisUrl, this);
 	 }
       }
      
@@ -542,12 +542,14 @@ bool XrdClientAdmin::Mv(const char *fileSrc, const char *fileDest)
 bool XrdClientAdmin::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg)
 {
    // We are here if an unsolicited response comes from a logical conn
-   // The response comes in the form of an XMessage *, that must NOT be destroyed after
-   //  processing. It is destroyed by the first sender.
-   // Remember that we are in a separate thread, since unsolicited responses are
-   //  asynchronous by nature.
+   // The response comes in the form of an TXMessage *, that must NOT be
+   // destroyed after processing. It is destroyed by the first sender.
+   // Remember that we are in a separate thread, since unsolicited 
+   // responses are asynchronous by nature.
 
-   Error("ProcessUnsolicitedMsg", "Processing unsolicited response");
+   Info(XrdClientDebug::kNODEBUG,
+	"XrdClientAdmin", "Processing unsolicited response from streamid " <<
+	unsolmsg->HeaderSID() );
 
    // Local processing ....
 

@@ -61,23 +61,27 @@ protected:
 public:
    virtual ~XrdClientConnectionMgr();
 
-   short         Connect(XrdClientUrlInfo RemoteAddress);
+   int           Connect(XrdClientUrlInfo RemoteAddress);
    void          Disconnect(short LogConnectionID, bool ForcePhysicalDisc);
-   XrdClientLogConnection *GetConnection(short LogConnectionID);
+
+   XrdClientLogConnection 
+                 *GetConnection(short LogConnectionID);
+
    short         GetPhyConnectionRefCount(XrdClientPhyConnection *PhyConn);
 
-   XrdClientMessage*   ReadMsg(short LogConnectionID);
+   XrdClientMessage*   
+                 ReadMsg(short LogConnectionID);
 
    int           ReadRaw(short LogConnectionID, void *buffer, int BufferLength);
    int           WriteRaw(short LogConnectionID, const void *buffer, 
                           int BufferLength);
 
    static XrdClientConnectionMgr* Instance();
-   static bool IsAlive() {
-     return (fgInstance);
+   static bool   IsAlive() {
+      return (fgInstance);
    }
 
-   static void              Reset();
+   static void   Reset();
 
 
 };
