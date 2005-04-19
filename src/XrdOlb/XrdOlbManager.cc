@@ -1022,7 +1022,8 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
    EPNAME("AddServer")
     const SMask_t smask_1 = 1;
     int tmp, i, j = -1, k = -1, os = -1;
-    char *act = (char *)"Added ", *hnp = lp->Name();
+    const char *act = "Added ";
+    const char *hnp = lp->Name();
     unsigned int ipaddr = lp->Addr();
     XrdOlbServer *bump = 0, *sp = 0;
 
@@ -1053,7 +1054,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
           sp->setName(lp->Name(), port);  // Just in case it changed
           ServTab[i] = sp;
           j = i;
-          act = (char *)"Re-added ";
+          act = "Re-added ";
          }
 
 // Reuse an old ID if we must
@@ -1071,8 +1072,8 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
                         } else {STMutex.UnLock();
                                 if (Status & OLB_Special)
                                    {sendAList(lp);
-                                    act = (char *)" redirected";
-                                   } else act = (char *)" failed";
+                                    act = " redirected";
+                                   } else act = " failed";
                                 DEBUG("Login " <<hnp <<act 
                                       <<"; too many subscribers");
                                 return 0;
