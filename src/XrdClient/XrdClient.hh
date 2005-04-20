@@ -122,11 +122,6 @@ public:
    // Write data to the file
    bool                        Write(const void *buf, long long offset, int len);
 
-   // The last response got from a non-async request
-   struct ServerResponseHeader *LastServerResp() {
-      if (fConnModule) return &fConnModule->LastServerResp;
-      else return 0;
-   }
 
 };
 
