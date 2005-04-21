@@ -690,49 +690,51 @@ sub runTopUsrFsQueriesPast() {
             SELECT $idInTable, 
                    COUNT(DISTINCT CONCAT(pId, clientHId)) AS n
             FROM   rtClosedSessions cs, rtClosedFiles cf
-            WHERE  cs.id = cf.sessionId AND
-                   disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
-                   GROUP BY $idInTable");
+            WHERE  cs.id = cf.sessionId
+               AND disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+            GROUP BY $idInTable");
     }
-    # past files - through opened sessions
-    &runQuery("INSERT INTO tmp
-       SELECT $idInTable, 
-              COUNT(DISTINCT pathId) AS n,
-              SUM(size)/(1024*1024) AS s
-       FROM   rtOpenedSessions os, rtClosedFiles cf, paths 
-       WHERE  os.id = cf.sessionId AND
-              cf.pathId = paths.id AND
-              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-              GROUP BY $idInTable");
-    # past files - through closed sessions
-    &runQuery("INSERT INTO tmp
-       SELECT $idInTable, 
-              COUNT(DISTINCT pathId) AS n,
-              SUM(size)/(1024*1024) AS s
-       FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-       WHERE  cs.id = cf.sessionId AND
-              cf.pathId = paths.id AND
-              closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-              GROUP BY $idInTable");
-    # past files - merge results
-    &runQuery("INSERT INTO ff 
-        SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
-    # cleanup tmp table
-    &runQuery("DELETE FROM tmp");
+    if ( $what eq "USERS" ) {
+	# past files - through opened sessions
+	&runQuery("INSERT INTO tmp
+           SELECT $idInTable, 
+                  COUNT(DISTINCT pathId) AS n,
+                  SUM(size)/(1024*1024) AS s
+           FROM   rtOpenedSessions os, rtClosedFiles cf, paths 
+           WHERE  os.id = cf.sessionId
+              AND cf.pathId = paths.id
+              AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+           GROUP BY $idInTable");
+        # past files - through closed sessions
+        &runQuery("INSERT INTO tmp
+           SELECT $idInTable, 
+                  COUNT(DISTINCT pathId) AS n,
+                  SUM(size)/(1024*1024) AS s
+           FROM   rtClosedSessions cs, rtClosedFiles cf, paths
+           WHERE  cs.id = cf.sessionId
+              AND cf.pathId = paths.id
+              AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+           GROUP BY $idInTable");
+        # past files - merge results
+        &runQuery("INSERT INTO ff 
+            SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
+        # cleanup tmp table
+        &runQuery("DELETE FROM tmp");
+    }
     # past volume - through opened sessions
     &runQuery("INSERT INTO tmp (theId, n)
         SELECT $idInTable, SUM(bytesR)/(1024*1024) AS n
         FROM   rtOpenedSessions os, rtClosedFiles cf
-        WHERE  os.id = cf.sessionId AND
-               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY $idInTable");
+        WHERE  os.id = cf.sessionId
+           AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+        GROUP BY $idInTable");
     # past volume - through closed sessions
     &runQuery("INSERT INTO tmp (theId, n)
         SELECT $idInTable, SUM(bytesR)/(1024*1024) AS n
         FROM   rtClosedSessions cs, rtClosedFiles cf
-        WHERE  cs.id = cf.sessionId AND
-               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY $idInTable");
+        WHERE  cs.id = cf.sessionId
+           AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+        GROUP BY $idInTable");
     # past volume - merge results
     &runQuery("INSERT INTO vv SELECT DISTINCT theId, SUM(n) FROM tmp GROUP BY theId");
     # cleanup tmp table
@@ -748,17 +750,28 @@ sub runTopUsrFsQueriesPast() {
     &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
 
     ## and finally insert the new data
-    &runQuery("INSERT INTO $destinationTable
-        SELECT xx.theId, 
-               IFNULL(jj.n, 0) AS jobs, 
-               IFNULL(ff.n, 0) AS files, 
-               IFNULL(ff.s, 0) AS fSize, 
-               IFNULL(vv.n, 0) AS vol, 
-               \"$theKeyword\"
-        FROM   xx 
-               LEFT OUTER JOIN jj ON xx.theId = jj.theId
-               LEFT OUTER JOIN ff ON xx.theId = ff.theId
-               LEFT OUTER JOIN vv ON xx.theId = vv.theId");
+    if ( $what eq "USERS" ) {
+        &runQuery("INSERT INTO $destinationTable
+            SELECT xx.theId, 
+                   IFNULL(jj.n, 0) AS jobs, 
+                   IFNULL(ff.n, 0) AS files, 
+                   IFNULL(ff.s, 0) AS fSize, 
+                   IFNULL(vv.n, 0) AS vol, 
+                   \"$theKeyword\"
+            FROM   xx 
+                   LEFT OUTER JOIN jj ON xx.theId = jj.theId
+                   LEFT OUTER JOIN ff ON xx.theId = ff.theId
+                   LEFT OUTER JOIN vv ON xx.theId = vv.theId");
+    } else {
+        &runQuery("INSERT INTO $destinationTable
+            SELECT xx.theId, 
+                   IFNULL(jj.n, 0) AS jobs, 
+                   IFNULL(vv.n, 0) AS vol, 
+                   \"$theKeyword\"
+            FROM   xx 
+                   LEFT OUTER JOIN jj ON xx.theId = jj.theId
+                   LEFT OUTER JOIN vv ON xx.theId = vv.theId");
+    }
 }
 
 
@@ -787,17 +800,18 @@ sub runTopUsrFsQueriesNow() {
         SELECT $idInTable, COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
         FROM   rtOpenedSessions os, rtOpenedFiles of
         WHERE  os.id = of.sessionId
-               GROUP BY $idInTable");
-    # now files
-    &runQuery ("INSERT INTO ff 
-        SELECT $idInTable, 
-               COUNT(DISTINCT pathId) AS n,
-               SUM(size)/(1024*1024) AS s
-        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId AND
-               of.pathId = paths.id
-               GROUP BY $idInTable");
-
+        GROUP BY $idInTable");
+    if ( $what eq "USERS" ) {
+        # now files
+        &runQuery ("INSERT INTO ff 
+            SELECT $idInTable, 
+                   COUNT(DISTINCT pathId) AS n,
+                   SUM(size)/(1024*1024) AS s
+            FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+            WHERE  os.id = of.sessionId
+               AND of.pathId = paths.id
+            GROUP BY $idInTable");
+    }
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable;");
     &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
@@ -805,14 +819,22 @@ sub runTopUsrFsQueriesNow() {
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
 
     ## and finally insert the new data
-    &runQuery("INSERT INTO $destinationTable
-        SELECT DISTINCT xx.theId,
-               IFNULL(jj.n, 0) AS jobs,
-               IFNULL(ff.n, 0) AS files, 
-               IFNULL(ff.s, 0) AS fSize
-        FROM   xx 
-               LEFT OUTER JOIN jj ON xx.theId = jj.theId
-               LEFT OUTER JOIN ff ON xx.theId = ff.theId");
+    if ( $what eq "USERS" ) {
+        &runQuery("INSERT INTO $destinationTable
+            SELECT DISTINCT xx.theId,
+                   IFNULL(jj.n, 0) AS jobs,
+                   IFNULL(ff.n, 0) AS files, 
+                   IFNULL(ff.s, 0) AS fSize
+             FROM  xx 
+                   LEFT OUTER JOIN jj ON xx.theId = jj.theId
+                   LEFT OUTER JOIN ff ON xx.theId = ff.theId");
+    } else {
+        &runQuery("INSERT INTO $destinationTable
+            SELECT DISTINCT xx.theId,
+                   IFNULL(jj.n, 0) AS jobs
+             FROM  xx 
+                   LEFT OUTER JOIN jj ON xx.theId = jj.theId");
+    }
 }
 
   
@@ -839,10 +861,10 @@ sub runTopSkimsQueriesPast() {
         SELECT $idInPathTable, 
                COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
         FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-        WHERE  cs.id = cf.sessionId AND
-               cf.pathId = paths.id AND
-               disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY $idInPathTable");
+        WHERE  cs.id = cf.sessionId
+           AND cf.pathId = paths.id
+           AND disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+        GROUP BY $idInPathTable");
 
     # past files - through opened sessions
     &runQuery("INSERT INTO tmp
@@ -850,20 +872,20 @@ sub runTopSkimsQueriesPast() {
                COUNT(DISTINCT pathId) AS n,
                SUM(size)/(1024*1024)  AS s
         FROM   rtOpenedSessions os, rtClosedFiles cf, paths
-        WHERE  os.id = cf.sessionId AND
-               cf.pathId = paths.id AND
-               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY $idInPathTable");
+        WHERE  os.id = cf.sessionId
+           AND cf.pathId = paths.id
+           AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+        GROUP BY $idInPathTable");
     # past files - through closed sessions
     &runQuery("INSERT INTO tmp
         SELECT $idInPathTable,
                COUNT(DISTINCT pathId) AS n,
                SUM(size)/(1024*1024)  AS s
         FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-        WHERE  cs.id = cf.sessionId AND
-               cf.pathId = paths.id AND
-               closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY $idInPathTable");
+        WHERE  cs.id = cf.sessionId
+           AND cf.pathId = paths.id
+           AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+        GROUP BY $idInPathTable");
     # past files - merge result
     &runQuery("INSERT INTO ff
          SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
@@ -874,26 +896,26 @@ sub runTopSkimsQueriesPast() {
         SELECT $idInPathTable, 
                COUNT(DISTINCT userId) AS n
         FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-        WHERE  cs.id = cf.sessionId AND
-               cf.pathId = paths.id AND
-               disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
-               GROUP BY $idInPathTable");
+        WHERE  cs.id = cf.sessionId
+           AND cf.pathId = paths.id
+           AND disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+        GROUP BY $idInPathTable");
     # past volume - through opened sessions
     &runQuery("INSERT INTO tmp (theId, n)
          SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
          FROM   rtOpenedSessions os, rtClosedFiles cf, paths
-         WHERE  os.id = cf.sessionId AND
-                cf.pathId = paths.id AND
-                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-                GROUP BY $idInPathTable");
+         WHERE  os.id = cf.sessionId
+            AND cf.pathId = paths.id
+            AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+         GROUP BY $idInPathTable");
     # past volume - through closed sessions
     &runQuery("INSERT INTO tmp (theId, n)
          SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
          FROM   rtClosedSessions os, rtClosedFiles cf, paths
-         WHERE  os.id = cf.sessionId AND
-                cf.pathId = paths.id AND
-                closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-                GROUP BY $idInPathTable");
+         WHERE  os.id = cf.sessionId
+            AND cf.pathId = paths.id
+            AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+         GROUP BY $idInPathTable");
     # past volume - merge result
     &runQuery("INSERT INTO vv SELECT DISTINCT theId, SUM(n) FROM tmp GROUP BY theId");
     # cleanup temporary table
@@ -950,9 +972,9 @@ sub runTopSkimsQueriesNow() {
         SELECT $idInPathTable,
                COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
         FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId AND
-               of.pathId = paths.id
-               GROUP BY $idInPathTable");
+        WHERE  os.id = of.sessionId
+           AND of.pathId = paths.id
+        GROUP BY $idInPathTable");
 
     # now files
     &runQuery("REPLACE INTO ff 
@@ -960,18 +982,18 @@ sub runTopSkimsQueriesNow() {
                COUNT(DISTINCT pathId) AS n,
                SUM(size)/(1024*1024)  AS s
         FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId AND
-               of.pathId = paths.id
-               GROUP BY $idInPathTable");
+        WHERE  os.id = of.sessionId
+           AND of.pathId = paths.id
+        GROUP BY $idInPathTable");
 
     # now users
     &runQuery("REPLACE INTO uu 
         SELECT $idInPathTable,
                COUNT(DISTINCT userId) AS n
         FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId AND
-               of.pathId = paths.id
-               GROUP BY $idInPathTable");
+        WHERE  os.id = of.sessionId
+           AND of.pathId = paths.id
+        GROUP BY $idInPathTable");
 
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable;");
