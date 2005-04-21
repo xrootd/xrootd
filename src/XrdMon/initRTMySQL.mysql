@@ -76,16 +76,16 @@ CREATE TABLE IF NOT EXISTS users (
 
 
 CREATE TABLE IF NOT EXISTS hosts (
-  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id            SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   hostName      VARCHAR(64) NOT NULL
 );
 
 
 CREATE TABLE IF NOT EXISTS paths (
-  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id            MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   typeId        TINYINT NOT NULL,   # BaBar specific
   skimId        TINYINT NOT NULL,   # BaBar specific
-  size          BIGINT,
+  size          BIGINT  NOT NULL DEFAULT 0,
   name          VARCHAR(256) NOT NULL,
   INDEX (typeId),
   INDEX (skimId)
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS paths (
 
 # one row per minute, keeps last 60 minutes
 CREATE TABLE IF NOT EXISTS statsLastHour (
-  seqNo         TINYINT NOT NULL PRIMARY KEY,
+  seqNo         TINYINT UNSIGNED NOT NULL PRIMARY KEY,
   date          DATETIME,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS statsLastHour (
 
 # one row per hour, keeps last 24 hours
 CREATE TABLE IF NOT EXISTS statsLastDay (
-  seqNo         TINYINT NOT NULL PRIMARY KEY,
+  seqNo         TINYINT UNSIGNED NOT NULL PRIMARY KEY,
   date          DATETIME,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS statsLastDay (
 
 # one row per day, keeps last 31 days
 CREATE TABLE IF NOT EXISTS statsLastMonth (
-  seqNo         TINYINT NOT NULL PRIMARY KEY,
+  seqNo         TINYINT UNSIGNED NOT NULL PRIMARY KEY,
   date          DATETIME,
   noJobs        SMALLINT,
   noUsers       SMALLINT,
@@ -222,13 +222,11 @@ CREATE TABLE IF NOT EXISTS topPerfSkimsPast (
 CREATE TABLE IF NOT EXISTS topPerfFilesNow (
   theId      INT NOT NULL,    # path Id
   jobs       INT NOT NULL,
-  files      INT NOT NULL,
   fSize      INT NOT NULL     # [MB]
 );
 CREATE TABLE IF NOT EXISTS topPerfFilesPast (
   theId      INT NOT NULL,    # path Id
   jobs       INT NOT NULL,
-  files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
   volume     INT NOT NULL,
   timePeriod VARCHAR(8)       # "hour", "month", "year"
