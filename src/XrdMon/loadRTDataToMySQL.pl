@@ -49,7 +49,7 @@ my $stopFName = "$inFName.stop";
 my $noSleeps = $updInt/5;
 
 # Load missing file size info
-&loadFileSizes(-1000);
+#&loadFileSizes(-1000);
  
 #start an infinite loop
 while ( 1 ) {
@@ -124,15 +124,15 @@ sub doLoading {
     $nMin += 1;  
                                                                                                                                        
     # load file sizes.
-    if       ( ! ($nMin % $loadFreq3rdFail) ) {
-         &loadFileSizes( -3 );               
-    } elsif ( ! ($nMin % $loadFreq2ndFail) ) {
-         &loadFileSizes( -2 );               
-    } elsif ( ! ($nMin % $loadFreq1stFail) ) {
-         &loadFileSizes( -1 );               
-    } else {
-         &loadFileSizes( 0 ); # every minute
-    }       
+#    if       ( ! ($nMin % $loadFreq3rdFail) ) {
+#         &loadFileSizes( -3 );               
+#    } elsif ( ! ($nMin % $loadFreq2ndFail) ) {
+#         &loadFileSizes( -2 );               
+#    } elsif ( ! ($nMin % $loadFreq1stFail) ) {
+#         &loadFileSizes( -1 );               
+#    } else {
+#         &loadFileSizes( 0 ); # every minute
+#    }       
 
     close $inF;
     # make a backup, remove the input file
@@ -183,7 +183,7 @@ sub loadOpenSession() {
     my $serverHostId = findOrInsertHostId($srvHost);
 
     #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
-    &runQuery("INSERT INTO rtOpenedSessions (id, userId, pId, clientHId, serverHId) VALUES ($sessionId, $userId, $pid, $clientHostId, $serverHostId)");
+    &runQuery("INSERT IGNORE INTO rtOpenedSessions (id, userId, pId, clientHId, serverHId) VALUES ($sessionId, $userId, $pid, $clientHostId, $serverHostId)");
 }
 
 
@@ -207,8 +207,8 @@ sub loadCloseSession() {
     # remove it from the open session table
     &runQuery("DELETE FROM rtOpenedSessions WHERE id = $sessionId;");
 
-    # and insert into the closed
-    &runQuery("INSERT INTO rtClosedSessions (id, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
+    # and insert into he closed
+    &runQuery("INSERT IGNORE INTO rtClosedSessions (id, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
 }
 
 
@@ -231,7 +231,7 @@ sub loadOpenFile() {
 	return; # error
     }
 
-    &runQuery("INSERT INTO rtOpenedFiles (id, sessionId, pathId, openT) VALUES ($fileId, $sessionId, $pathId, \"$openTime\")");
+    &runQuery("INSERT IGNORE INTO rtOpenedFiles (id, sessionId, pathId, openT) VALUES ($fileId, $sessionId, $pathId, \"$openTime\")");
 }
 
 sub loadCloseFile() {
@@ -251,7 +251,7 @@ sub loadCloseFile() {
     &runQuery("DELETE FROM rtOpenedFiles WHERE id = $fileId;");
 
     # and insert into the closed
-    &runQuery("INSERT INTO rtClosedFiles (id, sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($fileId, $sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
+    &runQuery("INSERT IGNORE INTO rtClosedFiles (id, sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($fileId, $sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
 }
 
 sub findSessionId() {
@@ -441,7 +441,7 @@ sub loadFileSizes() {
     use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
     ($sizeIndex) = @_;
     &runQuery("CREATE TEMPORARY TABLE zerosize  (theId INT AUTO_INCREMENT, name VARCHAR(256), INDEX (theId))"); 
-    &runQuery("INSERT INTO zerosize SELECT name FROM paths WHERE size BETWEEN $sizeIndex AND 0");
+    &runQuery("INSERT INTO zerosize(name) SELECT name FROM paths WHERE size BETWEEN $sizeIndex AND 0");
      
     $fromId = 1;
     $toId = $bbkListSize;
@@ -492,7 +492,7 @@ sub loadStatsLastHour() {
                           (seqNo, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
                    VALUES ($seqNo, \"$loadT\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
 
-    &runQuery("DELETE FROM rtChanges");
+    &runQuery("TRUNCATE TABLE rtChanges");
     $deltaJobs = $noJobs - $lastNoJobs; 
     $jobs_p = $lastNoJobs > 0 ? &roundoff( 100 * $deltaJobs / $lastNoJobs ) : -1;
     $deltaUsers = $noUsers - $lastNoUsers;
@@ -637,26 +637,26 @@ sub runQueries4AllTopPerfTablesPast() {
     my ($theInterval, $theKeyword, $theLimit) = @_;
 
     &runTopUsrFsQueriesPast($theInterval, $theKeyword, $theLimit, "USERS");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesPast($theInterval, $theKeyword, $theLimit, "SKIMS");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesPast($theInterval, $theKeyword, $theLimit, "TYPES");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopUsrFsQueriesPast($theInterval, $theKeyword, $theLimit, "FILES");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
 }
 
 sub runQueries4AllTopPerfTablesNow() {
     my ($theLimit) = @_;
 
     &runTopUsrFsQueriesNow($theLimit, "USERS");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesNow($theLimit, "SKIMS");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesNow($theLimit, "TYPES");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopUsrFsQueriesNow($theLimit, "FILES");
-    foreach $table (@tables) { &runQuery("DELETE FROM $table"); }
+    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
 }
 
 sub runTopUsrFsQueriesPast() {
@@ -719,7 +719,7 @@ sub runTopUsrFsQueriesPast() {
         &runQuery("INSERT INTO ff 
             SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
         # cleanup tmp table
-        &runQuery("DELETE FROM tmp");
+        &runQuery("TRUNCATE TABLE tmp");
     }
     # past volume - through opened sessions
     &runQuery("INSERT INTO tmp (theId, n)
@@ -738,7 +738,7 @@ sub runTopUsrFsQueriesPast() {
     # past volume - merge results
     &runQuery("INSERT INTO vv SELECT DISTINCT theId, SUM(n) FROM tmp GROUP BY theId");
     # cleanup tmp table
-    &runQuery("DELETE FROM tmp");
+    &runQuery("TRUNCATE TABLE tmp");
 
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
@@ -818,6 +818,8 @@ sub runTopUsrFsQueriesNow() {
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
 
+    &runQuery("TRUNCATE TABLE $destinationTable");
+
     ## and finally insert the new data
     if ( $what eq "USERS" ) {
         &runQuery("INSERT INTO $destinationTable
@@ -890,7 +892,7 @@ sub runTopSkimsQueriesPast() {
     &runQuery("INSERT INTO ff
          SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
     # cleanup temporary table
-    &runQuery("DELETE FROM tmp");
+    &runQuery("TRUNCATE TABLE tmp");
     # past users
     &runQuery("REPLACE INTO uu
         SELECT $idInPathTable, 
@@ -919,7 +921,7 @@ sub runTopSkimsQueriesPast() {
     # past volume - merge result
     &runQuery("INSERT INTO vv SELECT DISTINCT theId, SUM(n) FROM tmp GROUP BY theId");
     # cleanup temporary table
-    &runQuery("DELETE FROM tmp");
+    &runQuery("TRUNCATE TABLE tmp");
 
 
     ##### now find all names for top X for each sorting 
@@ -1001,6 +1003,8 @@ sub runTopSkimsQueriesNow() {
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM uu ORDER BY n DESC LIMIT $theLimit");
+
+    &runQuery("TRUNCATE TABLE $destinationTable");
 
     ## and finally insert the new data
     &runQuery("INSERT INTO $destinationTable
