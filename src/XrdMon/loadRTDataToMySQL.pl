@@ -47,9 +47,6 @@ $loadFreq3rdFail = 1440;  # File size Loading frequency for files that have fail
 
 my $stopFName = "$inFName.stop";
 my $noSleeps = $updInt/5;
-
-# Load missing file size info
-#&loadFileSizes(-1000);
  
 #start an infinite loop
 while ( 1 ) {
@@ -76,7 +73,11 @@ sub doLoading {
     }
 
     # do initilization in the first connection
-    if ( $initFlag ) { &doInit(); }
+    if ( $initFlag ) { 
+         &doInit();
+         # Load missing file size info
+         &loadFileSizes(-1000);
+    }
 
     # lock the file
     unless ( $lockF = &lockTheFile($inFName) ) {
@@ -124,15 +125,15 @@ sub doLoading {
     $nMin += 1;  
                                                                                                                                        
     # load file sizes.
-#    if       ( ! ($nMin % $loadFreq3rdFail) ) {
-#         &loadFileSizes( -3 );               
-#    } elsif ( ! ($nMin % $loadFreq2ndFail) ) {
-#         &loadFileSizes( -2 );               
-#    } elsif ( ! ($nMin % $loadFreq1stFail) ) {
-#         &loadFileSizes( -1 );               
-#    } else {
-#         &loadFileSizes( 0 ); # every minute
-#    }       
+     if       ( ! ($nMin % $loadFreq3rdFail) ) {
+          &loadFileSizes( -3 );               
+     } elsif ( ! ($nMin % $loadFreq2ndFail) ) {
+          &loadFileSizes( -2 );               
+     } elsif ( ! ($nMin % $loadFreq1stFail) ) {
+          &loadFileSizes( -1 );               
+     } else {
+          &loadFileSizes( 0 ); # every minute
+     }       
 
     close $inF;
     # make a backup, remove the input file
