@@ -46,18 +46,26 @@ $loadFreq3rdFail = 1440;  # File size Loading frequency for files that have fail
 
 
 my $stopFName = "$inFName.stop";
-my $noSleeps = $updInt/5;
+$cycleEndTime = time() + $updInt;
  
 #start an infinite loop
 while ( 1 ) {
     &doLoading();
-    # sleep in 5 sec intervals, catch "stop" signal in between each sleep
-    for ( $i=0 ; $i<$noSleeps ; $i++) {
-        sleep(5);
+    # sleep in 5 sec intervals, catch "stop" signal in before each sleep
+    $noSleeps = $timeLeft > 0 ? $timeLeft / 5 : 0;
+    for ( $i=0 ; $i<=$noSleeps ; $i++) {
         if ( -e $stopFName ) {
             unlink $stopFName;
             exit;
 	}
+        sleep 5;
+    }
+    if ( $timeLeft > 0 ) {sleep ( $timeLeft % 5 );}
+    for ($i=0;$cycleEndTime <= time(); $i++) {
+        $cycleEndTime += $updInt;
+        if ( $i > 0 ) { 
+             print "WARNING: update required $i extra unit(s) \n";
+        }
     }
 }
 
@@ -73,11 +81,7 @@ sub doLoading {
     }
 
     # do initilization in the first connection
-    if ( $initFlag ) { 
-         &doInit();
-         # Load missing file size info
-         &loadFileSizes(-1000);
-    }
+    if ( $initFlag ) { &doInit(); }
 
     # lock the file
     unless ( $lockF = &lockTheFile($inFName) ) {
@@ -111,6 +115,13 @@ sub doLoading {
 	$nr += 1;
     }
 
+    close $inF;
+    # make a backup, remove the input file
+    my $backupFName = "$inFName.backup";
+    `touch $backupFName; cat $inFName >> $backupFName; rm $inFName`;
+    # unlock the lock file
+    unlockTheFile($lockF);
+
     # $nMin, $nHour and $nDay start from 0
     &loadStatsLastHour();
     if ( $nMin % 60 == 59 ) {
@@ -124,25 +135,21 @@ sub doLoading {
     }
     $nMin += 1;  
                                                                                                                                        
+    &reloadTopPerfTables();
+
     # load file sizes.
-     if       ( ! ($nMin % $loadFreq3rdFail) ) {
-          &loadFileSizes( -3 );               
+    
+    if       ( ! ($nMin % $loadFreq3rdFail) ) {
+          &loadFileSizes( -3 );
      } elsif ( ! ($nMin % $loadFreq2ndFail) ) {
-          &loadFileSizes( -2 );               
+          &loadFileSizes( -2 );
      } elsif ( ! ($nMin % $loadFreq1stFail) ) {
-          &loadFileSizes( -1 );               
+          &loadFileSizes( -1 );
      } else {
           &loadFileSizes( 0 ); # every minute
-     }       
+     }
 
-    close $inF;
-    # make a backup, remove the input file
-    my $backupFName = "$inFName.backup";
-    `touch $backupFName; cat $inFName >> $backupFName; rm $inFName`;
-    # unlock the lock file
-    unlockTheFile($lockF);
 
-    &reloadTopPerfTables();
 
     # disconnect from db
     $dbh->disconnect();
@@ -424,6 +431,8 @@ sub doInit() {
         $nDay = 0;
     }
     $bbkListSize = 250;
+    $minSizeLoadTime = 5;
+    open( SIZELOG, '>sizeload.log' ) or die "Can't open sizeload.log: $!";
     $initFlag = 0;
 }
 
@@ -439,6 +448,7 @@ sub timestamp() {
 }
 
 sub loadFileSizes() {
+
     use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
     ($sizeIndex) = @_;
     &runQuery("CREATE TEMPORARY TABLE zerosize  (theId INT AUTO_INCREMENT, name VARCHAR(256), INDEX (theId))"); 
@@ -447,8 +457,12 @@ sub loadFileSizes() {
     $fromId = 1;
     $toId = $bbkListSize;
     while () {
+       my $t0 = time();
+       $timeLeft = cycleEndTime - $t0;
+       last if ( $timeLeft < $minSizeLoadTime);
        @files = &runQueryWithRet("SELECT name FROM zerosize WHERE theId BETWEEN $fromId AND $toId"); 
        last if ( ! @files );
+
        open ( BBKINPUT, '>bbkInput' ) or die "Can't open bbkInput file: $!"; 
        my $index = 0;
        while ( defined $files[$index] ) {
@@ -470,7 +484,7 @@ sub loadFileSizes() {
                &runQuery("UPDATE files SET size = size - 1 WHERE name = $path");
            }
        }
-
+       print SIZELOG &timestamp(), "\t", scalar @files, " files updated. Update time = ", time() - $t0, " s \n";
        last if ( @files < $bbkListSize );
        $fromId += $bbkListSize;
        $toId += $bbkListSize;
