@@ -67,6 +67,7 @@ kXR_unt16 XrdClientSid::GetNewSid(kXR_unt16 sid, ClientRequest *req) {
 
       si.fathersid = sid;
       si.outstandingreq = *req;
+      si.reqbyteprogress = 0;
 
       childsidnfo.Add(nsid, si);
    }

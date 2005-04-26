@@ -28,6 +28,7 @@
 struct  SidInfo {
    kXR_unt16 fathersid;
    ClientRequest outstandingreq;
+   long long reqbyteprogress;
 };
 
 #define SidManager XrdClientSid::Instance()

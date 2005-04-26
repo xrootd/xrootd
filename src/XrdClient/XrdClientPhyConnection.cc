@@ -371,6 +371,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
    parallelsid = SidManager->GetSidInfo(m->HeaderSID());
 
    if ( parallelsid || (m->IsAttn()) ) {
+      UnsolRespProcResult res;
 
       // Here we insert the PhyConn-level support for unsolicited responses
       // Some of them will be propagated in some way to the upper levels
@@ -378,10 +379,12 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
       //  here -> XrdClientConnMgr -> all the involved XrdClientLogConnections ->
       //   -> all the corresponding XrdClient
 
-      HandleUnsolicited(m);
+      res = HandleUnsolicited(m);
 
       // The purpose of this message ends here
-      if (parallelsid) SidManager->ReleaseSid(m->HeaderSID());
+      if ( (parallelsid) && (res != kUNSOL_KEEP) )
+	 SidManager->ReleaseSid(m->HeaderSID());
+
       delete m;
       m = 0;
    }
@@ -417,7 +420,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 }
 
 //____________________________________________________________________________
-void XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *m)
+UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *m)
 {
    // Local processing of unsolicited responses is done here
 
@@ -448,7 +451,9 @@ void XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *m)
    // Now we propagate the message to the interested object, if any
    // It could be some sort of upper layer of the architecture
    if (ProcessingToGo)
-      SendUnsolicitedMsg(this, m);
+      return SendUnsolicitedMsg(this, m);
+   else 
+      return kUNSOL_CONTINUE;
 }
 
 //____________________________________________________________________________

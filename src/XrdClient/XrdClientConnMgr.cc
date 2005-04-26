@@ -462,7 +462,7 @@ short int XrdClientConnectionMgr::GetPhyConnectionRefCount(XrdClientPhyConnectio
 }
 
 //_____________________________________________________________________________
-bool XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+UnsolRespProcResult XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                              XrdClientMessage *unsolmsg)
 {
    // We are here if an unsolicited response comes from a physical connection
@@ -473,7 +473,7 @@ bool XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *send
 
    Info(XrdClientDebug::kNODEBUG,
 	"ConnectionMgr", "Processing unsolicited response");
-
+   UnsolRespProcResult res = kUNSOL_CONTINUE;
    // Local processing ....
 
    // Now we propagate the message to the interested objects.
@@ -486,11 +486,13 @@ bool XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *send
 
       for (int i = 0; i < fLogVec.GetSize(); i++)
 	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) ) {
-	    fLogVec[i]->ProcessUnsolicitedMsg(sender, unsolmsg);
+	    res = fLogVec[i]->ProcessUnsolicitedMsg(sender, unsolmsg);
+
+	    if (res != kUNSOL_CONTINUE) break;
 	 }
 
    }
 
 
-   return TRUE;
+   return res;
 }

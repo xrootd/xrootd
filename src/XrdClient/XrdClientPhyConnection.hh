@@ -57,7 +57,7 @@ private:
 
    XrdClientSock       *fSocket;
 
-   void HandleUnsolicited(XrdClientMessage *m);
+   UnsolRespProcResult HandleUnsolicited(XrdClientMessage *m);
 
    XrdOucSemWait       fReaderCV;
 

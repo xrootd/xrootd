@@ -65,8 +65,8 @@ int XrdClientLogConnection::ReadRaw(void *buffer, int bufferlength)
 }
 
 //_____________________________________________________________________________
-bool XrdClientLogConnection::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
-                                              XrdClientMessage *unsolmsg)
+UnsolRespProcResult XrdClientLogConnection::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+								  XrdClientMessage *unsolmsg)
 {
    // We are here if an unsolicited response comes from the connmgr
    // The response comes in the form of an XrdClientMessage *, that must NOT be
@@ -81,6 +81,6 @@ bool XrdClientLogConnection::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *send
    // Local processing ....
 
    // We propagate the event to the obj which registered itself here
-   SendUnsolicitedMsg(sender, unsolmsg);
-   return TRUE;
+   return SendUnsolicitedMsg(sender, unsolmsg);
+
 }

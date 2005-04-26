@@ -64,7 +64,7 @@
 #define DFLT_READCACHESIZE      4000000
 #define NAME_READCACHESIZE      (char *)"ReadCacheSize"
 
-#define DFLT_READAHEADSIZE      800000
+#define DFLT_READAHEADSIZE      1000000
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
 
 #define NAME_REDIRDOMAINALLOW_RE   (char *)"RedirDomainAllowRE"

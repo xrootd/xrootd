@@ -71,10 +71,15 @@ public:
    void                       Disconnect(bool ForcePhysicalDisc);
    bool                       GetAccessToSrv();
    XrdClientString            GetClientHostDomain() { return fClientHostDomain; }
+
    bool                       GetDataFromCache(const void *buffer,
 					       long long begin_offs,
 					       long long end_offs,
 					       bool PerfCalc);
+   bool                       SubmitDataToCache(XrdClientMessage *xmsg,
+					       long long begin_offs,
+						long long end_offs);
+
    int                        GetLogConnID() const { return fLogConnID; }
    kXR_unt16                  GetStreamID() const { return fPrimaryStreamid; }
 

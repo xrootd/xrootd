@@ -53,7 +53,8 @@ private:
 
    void          GarbageCollect();
    friend void * GarbageCollectorThread(void *, XrdClientThread *thr);
-   bool          ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+   UnsolRespProcResult
+                 ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                        XrdClientMessage *unsolmsg);
 protected:
    XrdClientConnectionMgr();

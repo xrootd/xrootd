@@ -24,28 +24,31 @@
 class XrdClientLogConnection: public XrdClientAbsUnsolMsgHandler, 
    public XrdClientUnsolMsgSender {
 private:
-   XrdClientPhyConnection *fPhyConnection;
+   XrdClientPhyConnection            *fPhyConnection;
 
    // A logical connection has a private streamid
-   kXR_unt16 fStreamid;
+   kXR_unt16                         fStreamid;
 
 public:
    XrdClientLogConnection();
    virtual ~XrdClientLogConnection();
 
-   inline XrdClientPhyConnection *GetPhyConnection() { return fPhyConnection; }
+   inline XrdClientPhyConnection     *GetPhyConnection() {
+      return fPhyConnection;
+   }
 
-   bool          ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
-                                       XrdClientMessage *unsolmsg);
+   UnsolRespProcResult               ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+							   XrdClientMessage *unsolmsg);
 
-   int           ReadRaw(void *buffer, int BufferLength);
+   int                               ReadRaw(void *buffer, int BufferLength);
 
-   inline void   SetPhyConnection(XrdClientPhyConnection *PhyConn) 
-                 { fPhyConnection = PhyConn; }
+   inline void                       SetPhyConnection(XrdClientPhyConnection *PhyConn) {
+      fPhyConnection = PhyConn;
+   }
 
-   int           WriteRaw(const void *buffer, int BufferLength);
+   int                               WriteRaw(const void *buffer, int BufferLength);
 
-   inline kXR_unt16 Streamid() {
+   inline kXR_unt16                  Streamid() {
       return fStreamid;
    };
 };

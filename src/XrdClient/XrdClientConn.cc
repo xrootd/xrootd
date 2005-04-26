@@ -1636,6 +1636,20 @@ bool XrdClientConn::GetDataFromCache(const void *buffer, long long begin_offs,
 }
 
 //___________________________________________________________________________
+bool XrdClientConn::SubmitDataToCache(XrdClientMessage *xmsg, long long begin_offs,
+		       long long end_offs) {
+   // Inserts the data part of this message into the cache
+   if (xmsg && fMainReadCache &&
+            ((xmsg->HeaderStatus() == kXR_oksofar) || 
+             (xmsg->HeaderStatus() == kXR_ok)))
+
+      fMainReadCache->SubmitXMessage(xmsg, begin_offs, end_offs);
+
+   return true;
+}
+
+
+//___________________________________________________________________________
 XReqErrorType XrdClientConn::WriteToServer_Async(ClientRequest *req,
 						 const void* reqMoreData) {
 

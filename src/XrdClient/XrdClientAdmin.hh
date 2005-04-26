@@ -58,7 +58,7 @@ class XrdClientAdmin : public XrdClientAbs {
    bool Protocol(kXR_int32 &proto, kXR_int32 &kind);
    bool Prepare(vecString vs, kXR_char opts, kXR_char prty);
 
-   bool ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg);
+   UnsolRespProcResult ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg);
 
 
 };

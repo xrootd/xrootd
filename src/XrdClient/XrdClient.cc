@@ -267,10 +267,20 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
   // Here the read-ahead decision should be done
   // We put into this one, as a trivial read-ahead mechanism
-  if (len > fReadAheadSize)
+  if (EnvGetLong(NAME_GOASYNC)) {
+     // Async mode, i.e. we request (in parallel) the data to populate the cache
+     // while the current request remains unchanged
+     Read_Async(offset + len, fReadAheadSize);
      rlen = len;
-  else
-     rlen = fReadAheadSize;
+  }
+  else {
+     // We are not going async, hence the readahead is performed
+     // by reading a larger block
+     if (len > fReadAheadSize)
+	rlen = len;
+     else
+	rlen = fReadAheadSize;
+  }
 
      Info(XrdClientDebug::kHIDEBUG, "ReadBuffer",
 	  "Calling TXNetConn::SendGenCommand to read " <<
@@ -629,7 +639,7 @@ bool XrdClient::Copy(const char *localpath) {
 }
 
 //_____________________________________________________________________________
-bool XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                         XrdClientMessage *unsolmsg) {
    // We are here if an unsolicited response comes from a logical conn
    // The response comes in the form of an TXMessage *, that must NOT be
@@ -638,7 +648,7 @@ bool XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
    // responses are asynchronous by nature.
 
    Info(XrdClientDebug::kHIDEBUG,
-	"XrdClient", "Incoming unsolicited response from streamid " <<
+	"ProcessUnsolicitedMsg", "Incoming unsolicited response from streamid " <<
 	unsolmsg->HeaderSID() << " father=" <<
 	SidManager->GetSidInfo(unsolmsg->HeaderSID())->fathersid );
 
@@ -646,15 +656,41 @@ bool XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
 
 
    if ( SidManager->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
+      struct SidInfo *si = SidManager->GetSidInfo(unsolmsg->HeaderSID());
+      ClientRequest *req = &(si->outstandingreq);
+
       Info(XrdClientDebug::kHIDEBUG,
-	   "XrdClient", "Processing unsolicited response from streamid " <<
+	   "ProcessUnsolicitedMsg",
+	   "Processing unsolicited response from streamid " <<
 	   unsolmsg->HeaderSID() << " father=" <<
-	   SidManager->GetSidInfo(unsolmsg->HeaderSID())->fathersid );
+	   si->fathersid );
+
+      if ( (req->header.requestid == kXR_read) &&
+	   ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
+             (unsolmsg->HeaderStatus() == kXR_ok) ) ) {
+
+	 long long offs = req->read.offset + si->reqbyteprogress;
+
+	 Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
+	      "Putting data into cache. Offset=" <<
+	      offs <<
+	      " len " <<
+	      unsolmsg->fHdr.dlen);
+
+	 // To compute the end offset of the block we have to take 1 from the size!
+	 fConnModule->SubmitDataToCache(unsolmsg, offs,
+				       offs + unsolmsg->fHdr.dlen - 1);
+
+	 si->reqbyteprogress += unsolmsg->fHdr.dlen;
+
+	 if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
+	 else return kUNSOL_KEEP;
+      }
 
    }
 
 
-   return TRUE;
+   return kUNSOL_CONTINUE;
 }
 
 XReqErrorType XrdClient::Read_Async(long long offset, int len) {

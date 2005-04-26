@@ -539,7 +539,8 @@ bool XrdClientAdmin::Mv(const char *fileSrc, const char *fileDest)
 }
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg)
+UnsolRespProcResult XrdClientAdmin::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+							  XrdClientMessage *unsolmsg)
 {
    // We are here if an unsolicited response comes from a logical conn
    // The response comes in the form of an TXMessage *, that must NOT be
@@ -553,7 +554,7 @@ bool XrdClientAdmin::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdC
 
    // Local processing ....
 
-   return TRUE;
+   return kUNSOL_CONTINUE;
 }
 
 

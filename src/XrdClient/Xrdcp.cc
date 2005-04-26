@@ -30,7 +30,7 @@ struct XrdCpInfo {
    XrdCpMthrQueue               queue;
 } cpnfo;
 
-#define XRDCP_BLOCKSIZE          DFLT_READAHEADSIZE
+#define XRDCP_BLOCKSIZE          (DFLT_READAHEADSIZE/4)
 #define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 0.2 beta"
 
 // The body of a thread which reads from the global
@@ -51,6 +51,7 @@ void *ReaderThread_xrd(void *)
    long long offs = 0;
    int nr = 1;
    long long bread = 0, len = 0;
+   long blksize;
 
    len = cpnfo.len;
 
@@ -61,11 +62,14 @@ void *ReaderThread_xrd(void *)
 	 abort();
       }
 
+      
 //       for (int iii = 0; iii < 100000; iii++)
 // 	 // To be removed, just a test!!!!!!
 // 	 if (cpnfo.XrdCli->Read_Async(offs+XRDCP_BLOCKSIZE, 1024) != kOK) break;
 
-      if ( (nr = cpnfo.XrdCli->Read(buf, offs, XRDCP_BLOCKSIZE)) ) {
+      blksize = xrdmin(XRDCP_BLOCKSIZE, len-offs);
+
+      if ( (nr = cpnfo.XrdCli->Read(buf, offs, blksize)) ) {
 	 bread += nr;
 	 offs += nr;
 	 cpnfo.queue.PutBuffer(buf, nr);

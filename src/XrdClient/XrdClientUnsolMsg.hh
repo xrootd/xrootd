@@ -20,13 +20,20 @@
 
 class XrdClientUnsolMsgSender;
 
+// The processing result for an unsolicited response
+enum UnsolRespProcResult {
+   kUNSOL_CONTINUE = 0, // Dispatching must continue to other interested handlers
+   kUNSOL_KEEP,         // Dispatching ended, but stream still alive (must keep the SID)
+   kUNSOL_DISPOSE       // Dispatching ended, stream no more to be used
+};
+
 // Handler
 
 class XrdClientAbsUnsolMsgHandler {
  public:
   
    // To be called when an unsolicited response arrives from the lower layers
-   virtual bool ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, 
+   virtual UnsolRespProcResult ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, 
 				      XrdClientMessage *unsolmsg) = 0;
 
 };
@@ -40,10 +47,12 @@ class XrdClientUnsolMsgSender {
    // The upper level handler for unsolicited responses
    XrdClientAbsUnsolMsgHandler *UnsolicitedMsgHandler;
 
-   inline void SendUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg) {
+   inline UnsolRespProcResult SendUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg) {
       // We simply send the event
       if (UnsolicitedMsgHandler)
-	 UnsolicitedMsgHandler->ProcessUnsolicitedMsg(sender, unsolmsg);
+	 return (UnsolicitedMsgHandler->ProcessUnsolicitedMsg(sender, unsolmsg));
+
+      return kUNSOL_CONTINUE;
    }
 
    inline XrdClientUnsolMsgSender() { UnsolicitedMsgHandler = 0; }

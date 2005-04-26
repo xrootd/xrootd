@@ -93,7 +93,7 @@ public:
    bool                        OpenFileWhenRedirected(char *newfhandle,
 						      bool &wasopen);
 
-   bool                        ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+   UnsolRespProcResult         ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
 						     XrdClientMessage *unsolmsg);
 
    bool                        Close();
