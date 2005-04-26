@@ -10,10 +10,10 @@
 
 # $Id$
 
-DROP DATABASE IF EXISTS xrdmon_kan;
+DROP DATABASE IF EXISTS xrdmon_test;
 
-CREATE DATABASE IF NOT EXISTS xrdmon_kan;
-USE xrdmon_kan;
+CREATE DATABASE IF NOT EXISTS xrdmon_test;
+USE xrdmon_test;
 
 CREATE TABLE IF NOT EXISTS rtOpenedSessions (
   id            MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY,

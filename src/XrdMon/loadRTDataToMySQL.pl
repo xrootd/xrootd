@@ -458,7 +458,7 @@ sub loadFileSizes() {
     $toId = $bbkListSize;
     while () {
        my $t0 = time();
-       $timeLeft = cycleEndTime - $t0;
+       $timeLeft = $cycleEndTime - $t0;
        last if ( $timeLeft < $minSizeLoadTime);
        @files = &runQueryWithRet("SELECT name FROM zerosize WHERE theId BETWEEN $fromId AND $toId"); 
        last if ( ! @files );
@@ -476,12 +476,12 @@ sub loadFileSizes() {
            chomp $line;
            ($path, $size) = split (' ', $line);
            @inBbk = (@inBbk, $path);
-           &runQuery("UPDATE files SET size = $size WHERE name = $path");
+           &runQuery("UPDATE paths SET size = $size WHERE name = '$path'");
        }
        # decrement size by 1 for files that failed bbk.
        foreach $path ( @files ) {
            if ( ! grep { $_ eq $path } @inBbk ) {
-               &runQuery("UPDATE files SET size = size - 1 WHERE name = $path");
+               &runQuery("UPDATE paths SET size = size - 1 WHERE name = '$path'");
            }
        }
        print SIZELOG &timestamp(), "\t", scalar @files, " files updated. Update time = ", time() - $t0, " s \n";
@@ -780,11 +780,13 @@ sub runTopUsrFsQueriesPast() {
     } else {
         &runQuery("INSERT INTO $destinationTable
             SELECT xx.theId, 
-                   IFNULL(jj.n, 0) AS jobs, 
+                   IFNULL(jj.n, 0) AS jobs,
+                   IFNULL(ff.s, 0) AS fSize,
                    IFNULL(vv.n, 0) AS vol, 
                    \"$theKeyword\"
             FROM   xx 
                    LEFT OUTER JOIN jj ON xx.theId = jj.theId
+                   LEFT OUTER JOIN ff ON xx.theId = ff.theId
                    LEFT OUTER JOIN vv ON xx.theId = vv.theId");
     }
 }
@@ -848,9 +850,11 @@ sub runTopUsrFsQueriesNow() {
     } else {
         &runQuery("INSERT INTO $destinationTable
             SELECT DISTINCT xx.theId,
-                   IFNULL(jj.n, 0) AS jobs
+                   IFNULL(jj.n, 0) AS jobs,
+                   IFNULL(ff.s, 0) AS fSize
              FROM  xx 
-                   LEFT OUTER JOIN jj ON xx.theId = jj.theId");
+                   LEFT OUTER JOIN jj ON xx.theId = jj.theId
+                   LEFT OUTER JOIN ff ON xx.theId = ff.theId");
     }
 }
 
