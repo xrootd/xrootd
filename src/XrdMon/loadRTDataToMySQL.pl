@@ -384,6 +384,19 @@ sub runQueryWithRet() {
     return $sth->fetchrow_array;
 }
 
+sub runQueryRetArray() {
+    my $sql = shift @_;
+    #print "$sql;\n";
+    my $sth = $dbh->prepare($sql) 
+        or die "Can't prepare statement $DBI::errstr\n";
+    $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
+
+    while ( $x = $sth->fetchrow_array ) {
+	push @theArray, $x;
+    };
+    return @theArray;
+}
+
 sub runQuery() {
     my ($sql) = @_;
     #print "$sql;\n";
@@ -432,7 +445,6 @@ sub doInit() {
     }
     $bbkListSize = 250;
     $minSizeLoadTime = 5;
-    open( SIZELOG, '>sizeload.log' ) or die "Can't open sizeload.log: $!";
     $initFlag = 0;
 }
 
@@ -449,6 +461,7 @@ sub timestamp() {
 
 sub loadFileSizes() {
 
+    print "Loading file sizes...";
     use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
     ($sizeIndex) = @_;
     &runQuery("CREATE TEMPORARY TABLE zerosize  (theId INT AUTO_INCREMENT, name VARCHAR(256), INDEX (theId))"); 
@@ -460,7 +473,8 @@ sub loadFileSizes() {
        my $t0 = time();
        $timeLeft = $cycleEndTime - $t0;
        last if ( $timeLeft < $minSizeLoadTime);
-       @files = &runQueryWithRet("SELECT name FROM zerosize WHERE theId BETWEEN $fromId AND $toId"); 
+       @files = &runQueryRetArray("SELECT name FROM zerosize WHERE theId BETWEEN $fromId AND $toId"); 
+
        last if ( ! @files );
 
        open ( BBKINPUT, '>bbkInput' ) or die "Can't open bbkInput file: $!"; 
@@ -484,7 +498,7 @@ sub loadFileSizes() {
                &runQuery("UPDATE paths SET size = size - 1 WHERE name = '$path'");
            }
        }
-       print SIZELOG &timestamp(), "\t", scalar @files, " files updated. Update time = ", time() - $t0, " s \n";
+       print " done ", scalar @files, " files updated. Update time = ", time() - $t0, " s \n";
        last if ( @files < $bbkListSize );
        $fromId += $bbkListSize;
        $toId += $bbkListSize;
