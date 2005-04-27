@@ -20,7 +20,7 @@
 /******************************************************************************/
 
 template<typename K, typename V>
-V *XrdOucRash<K,V>::Add(K KeyVal, V KeyData, time_t LifeTime,
+V *XrdOucRash<K,V>::Add(K KeyVal, V &KeyData, time_t LifeTime,
                        XrdOucRash_Options opt)
 {
     time_t lifetime, KeyTime=0;

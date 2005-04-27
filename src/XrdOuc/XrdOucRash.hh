@@ -54,13 +54,13 @@ void                 Update(int newcount, time_t newtime)
                              if (newtime) keytime = newtime;
                             }
 
-void                 Set(V keyData, time_t newtime)
+void                 Set(V &keyData, time_t newtime)
                             {keydata = keyData;
                              keytime = newtime;
                             }
 
-     XrdOucRash_Item(K                  KeyVal,
-                     V                  KeyData,
+     XrdOucRash_Item(K                  &KeyVal,
+                     V                  &KeyData,
                      time_t             KeyTime)
           {keyval  = KeyVal;
            keydata = KeyData;
@@ -106,7 +106,7 @@ public:
 //       option keeps track of duplicate key entries for Del. Thus the key must
 //       be deleted as many times as it is added before it is physically deleted.
 //
-V           *Add(K KeyVal, V KeyData, time_t LifeTime=0,
+V           *Add(K KeyVal, V &KeyData, time_t LifeTime=0,
                  XrdOucRash_Options opt=Rash_default);
 
 // Del() deletes the item from the table. If it doesn't exist, it returns
@@ -130,7 +130,7 @@ void         Purge();
 
 // Rep() is simply Add() that allows replacement.
 //
-V           *Rep(K KeyVal, V KeyData, const int LifeTime=0,
+V           *Rep(K KeyVal, V &KeyData, const int LifeTime=0,
                  XrdOucRash_Options opt=Rash_default)
                 {return Add(KeyVal, KeyData, LifeTime, 
                            (XrdOucRash_Options)(opt | Rash_replace));}
