@@ -64,11 +64,15 @@ class XrdClientString {
 
    // Assigns a string to this object
    int Assign(char *str) {
-      int sz = strlen(str);
+      int sz = 0;
+
+      if (str)
+	 sz = strlen(str);
       
       if ( !BufRealloc(sz) ) {
 	 size = sz;
-	 strcpy(data, str);
+	 if (str) strcpy(data, str);
+	 else data[0] = 0;
 	 return 0;
       }
       

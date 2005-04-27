@@ -32,10 +32,13 @@ class XrdCpWorkLst {
    ~XrdCpWorkLst();
 
    // Sets the source path for the file copy
-   int SetSrc(XrdClient **srccli, const char *url);
+   int SetSrc(XrdClient **srccli, XrdClientString url,
+	      XrdClientString urlopaquedata, bool do_recurse);
 
    // Sets the destination of the file copy
-   int SetDest(XrdClient **xrddest, const char *url);
+   int SetDest(XrdClient **xrddest, const char *url,
+	       const char *urlopaquedata,
+	       kXR_unt16 xrdopenflags);
 
    inline void GetDest(XrdClientString &dest, bool& isdir) {
       dest = fDest;
@@ -43,7 +46,7 @@ class XrdCpWorkLst {
    }
 
    // Actually builds the worklist
-   int BuildWorkList_xrd(XrdClientString url);
+   int BuildWorkList_xrd(XrdClientString url, XrdClientString opaquedata);
    int BuildWorkList_loc(DIR *dir, XrdClientString pat);
 
    bool GetCpJob(XrdClientString &src, XrdClientString &dest);

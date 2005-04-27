@@ -90,7 +90,11 @@ public:
    XReqErrorType              GoToAnotherServer(XrdClientUrlInfo newdest);
    bool                       IsConnected() const { return fConnected; }
 
-   ServerResponseHeader       LastServerResp;
+   struct ServerResponseHeader
+   LastServerResp;
+
+   struct ServerResponseBody_Error
+   LastServerError;
 
    bool                       SendGenCommand(ClientRequest *req, 
 					     const void *reqMoreData,       

@@ -44,6 +44,8 @@ int XrdClientString::BufRealloc(int newsize) {
 
 
 int XrdClientString::Add(char const *str) {
+   if (!str) return 0;
+
    int sz = strlen(str);
 
    if ( !BufRealloc(sz+size) ) {

@@ -44,6 +44,11 @@ class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
       else return 0;
    }
 
+   struct ServerResponseBody_Error *LastServerError() {
+      if (fConnModule) return &fConnModule->LastServerError;
+      else return 0;
+   }
+
 };
 
 #endif

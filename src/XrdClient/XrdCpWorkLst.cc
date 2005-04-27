@@ -31,18 +31,24 @@ XrdCpWorkLst::~XrdCpWorkLst() {
 
 // Sets the source path for the file copy
 // i.e. expand the given url to the list of the files it involves
-int XrdCpWorkLst::SetSrc(XrdClient **srccli, const char *url) {
-   XrdClientUrlInfo u(url);
+int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdClientString url,
+	      XrdClientString urlopaquedata, bool do_recurse) {
+
+   XrdClientString fullurl(url);
+
+   if (urlopaquedata.GetSize())
+      fullurl = url + "?" + urlopaquedata;
+
    fSrcIsDir = FALSE;
 
-   if (strstr(url, "root://") == url) {
+   if (fullurl.Find("root://") == 0) {
       // It's an xrd url
 
       fSrc = url;
 
       // We must see if it's a dir
       if (!*srccli)
-	 (*srccli) = new XrdClient(url);
+	 (*srccli) = new XrdClient(fullurl.c_str());
 
       if ((*srccli)->Open(0, kXR_async) &&
           ((*srccli)->LastServerResp()->status == kXR_ok)) {
@@ -50,22 +56,23 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, const char *url) {
 	 fWorkList.Push_back(fSrc);
       }
       else 
-	 if ((*srccli)->LastServerResp()->status == kXR_NotFile) {
+	 if ( do_recurse && 
+	      ((*srccli)->LastServerError()->errnum == kXR_isDirectory) ){
 
 	    // So, it's a dir for sure
 	    // Let's process it recursively
 
 	    fSrcIsDir = TRUE;
 
-	    xrda_src = new XrdClientAdmin(url);
+	    xrda_src = new XrdClientAdmin(fullurl.c_str());
 
 	    if (xrda_src->Connect()) {
 
-	       BuildWorkList_xrd(fSrc);
-
-	       delete xrda_src;
-	       xrda_src = 0;    
+	       BuildWorkList_xrd(fSrc, urlopaquedata);
 	    }
+
+	    delete xrda_src;
+	    xrda_src = 0;    
 
 	 }
 	 else {
@@ -84,7 +91,7 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, const char *url) {
       fSrcIsDir = FALSE;
 
       // We must see if it's a dir
-      DIR *d = opendir(url);
+      DIR *d = opendir(url.c_str());
 
       if (!d) {
 	 if (errno == ENOTDIR)
@@ -109,7 +116,9 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, const char *url) {
 // Sets the destination of the file copy
 // i.e. decides if it's a directory or file name
 // It will delete and set to 0 xrddest if it's not a file
-int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url) {
+int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
+	       const char *urlopaquedata,
+	       kXR_unt16 xrdopenflags) {
    int retval = 0;
 
    // Special case: if url terminates with "/" then it's a dir
@@ -132,13 +141,18 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url) {
 
 	 // The source is a single file
 	 fDestIsDir = FALSE;
+	 XrdClientString fullurl(url);
+
+	 if (urlopaquedata) {
+	    fullurl += "?";
+	    fullurl += urlopaquedata;
+	 }
 
 	 // let's see if url can be opened as a file (file-to-file copy)
-	 *xrddest = new XrdClient(url);
+	 *xrddest = new XrdClient(fullurl.c_str());
 
 	 if ( (*xrddest)->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-			       kXR_async | kXR_mkpath |
-			       kXR_open_updt | kXR_new | kXR_force) &&
+			       xrdopenflags) &&
 	      ((*xrddest)->LastServerResp()->status == kXR_ok) ) {
 
 	    return 0;
@@ -162,7 +176,7 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url) {
 
 	    // The file open was not successful. Let's see why.
 
-	    if ((*xrddest)->LastServerResp()->status == kXR_NotFile) {
+	    if ((*xrddest)->LastServerError()->errnum == kXR_isDirectory) {
 
 	       // It may be only a dir
 	       fDestIsDir = TRUE;
@@ -218,7 +232,7 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url) {
 }
 
 // Actually builds the worklist expanding the source of the files
-int XrdCpWorkLst::BuildWorkList_xrd(XrdClientString url) {
+int XrdCpWorkLst::BuildWorkList_xrd(XrdClientString url, XrdClientString opaquedata) {
    vecString entries;
    int it;
    long id, flags, modtime;
@@ -232,6 +246,7 @@ int XrdCpWorkLst::BuildWorkList_xrd(XrdClientString url) {
    // Cycle on the content and spot all the files
    for (it = 0; it < entries.GetSize(); it++) {
       fullpath = url + "/" + entries[it];
+
       XrdClientUrlInfo u(fullpath);
 
       // We must see if it's a dir
@@ -239,7 +254,7 @@ int XrdCpWorkLst::BuildWorkList_xrd(XrdClientString url) {
       if ( xrda_src->Stat((char *)u.File.c_str(), id, size, flags, modtime) &&
 	   (flags & kXR_isDir) ) {
 
-	 BuildWorkList_xrd(fullpath);
+	 BuildWorkList_xrd(fullpath, opaquedata);
       }
       else
 	 fWorkList.Push_back(fullpath);
