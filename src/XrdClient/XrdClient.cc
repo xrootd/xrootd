@@ -700,6 +700,7 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
       return kGENERICERR;
    }
 
+  if (!len) return kOK;
 
   // Prepare request
   ClientRequest readFileRequest;

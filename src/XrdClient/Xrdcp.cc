@@ -127,7 +127,7 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
   
    float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
 			   (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
-   CERR(("| %.02f \% [%.01f Mb/s]\r",100.0*bytesread/size,bytesread/abs_time/1000.0));
+   CERR(("| %.02f %% [%.01f Mb/s]\r",100.0*bytesread/size,bytesread/abs_time/1000.0));
 }
 
 
@@ -255,8 +255,8 @@ void BuildFullDestFilename(XrdClientString &src, XrdClientString &dest, bool des
    if (destisdir) {
       // We need the filename from the source
       XrdClientString fn(src);
-      int endpos = src.Find("?");
-      int pos = (src.Substr(0,src.Find("?"))).RFind((char *)"/");
+      int endpos = src.Find((char *)"?");
+      int pos = (src.Substr(0,src.Find((char *)"?"))).RFind((char *)"/");
 
       if (pos != STR_NPOS)
 	 fn = src.Substr(pos+1, endpos);
