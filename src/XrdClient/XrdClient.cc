@@ -267,7 +267,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
   // Here the read-ahead decision should be done
   // We put into this one, as a trivial read-ahead mechanism
-  if (EnvGetLong(NAME_GOASYNC)) {
+  if (fUseCache && EnvGetLong(NAME_GOASYNC)) {
      // Async mode, i.e. we request (in parallel) the data to populate the cache
      // while the current request remains unchanged
      Read_Async(offset + len, fReadAheadSize);
