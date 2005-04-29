@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS paths (
   typeId        TINYINT NOT NULL,   # BaBar specific
   skimId        TINYINT NOT NULL,   # BaBar specific
   size          BIGINT  NOT NULL DEFAULT 0,
-  name          VARCHAR(256) NOT NULL,
+  name          VARCHAR(255) NOT NULL,
   INDEX (typeId),
   INDEX (skimId)
 );
