@@ -121,7 +121,7 @@ sub doLoading {
     `touch $backupFName; cat $inFName >> $backupFName; rm $inFName`;
     # unlock the lock file
     unlockTheFile($lockF);
-
+    
     # $nMin, $nHour and $nDay start from 0
     &loadStatsLastHour();
     if ( $nMin % 60 == 59 ) {
@@ -385,7 +385,9 @@ sub runQueryWithRet() {
 }
 
 sub runQueryRetArray() {
+    use vars qw(@theArray);
     my $sql = shift @_;
+    @theArray = ();   
     #print "$sql;\n";
     my $sth = $dbh->prepare($sql) 
         or die "Can't prepare statement $DBI::errstr\n";
@@ -464,7 +466,7 @@ sub loadFileSizes() {
     print "Loading file sizes...";
     use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
     ($sizeIndex) = @_;
-    &runQuery("CREATE TEMPORARY TABLE zerosize  (theId INT AUTO_INCREMENT, name VARCHAR(256), INDEX (theId))"); 
+    &runQuery("CREATE TEMPORARY TABLE zerosize  (theId INT AUTO_INCREMENT, name VARCHAR(255), INDEX (theId))");
     &runQuery("INSERT INTO zerosize(name) SELECT name FROM paths WHERE size BETWEEN $sizeIndex AND 0");
      
     $fromId = 1;
@@ -474,7 +476,7 @@ sub loadFileSizes() {
        $timeLeft = $cycleEndTime - $t0;
        last if ( $timeLeft < $minSizeLoadTime);
        @files = &runQueryRetArray("SELECT name FROM zerosize WHERE theId BETWEEN $fromId AND $toId"); 
-
+       #print scalar @files, "\n";
        last if ( ! @files );
 
        open ( BBKINPUT, '>bbkInput' ) or die "Can't open bbkInput file: $!"; 
