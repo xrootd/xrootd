@@ -32,6 +32,7 @@ enum UnsolRespProcResult {
 class XrdClientAbsUnsolMsgHandler {
  public:
   
+   virtual ~XrdClientAbsUnsolMsgHandler() { }
    // To be called when an unsolicited response arrives from the lower layers
    virtual UnsolRespProcResult ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, 
 				      XrdClientMessage *unsolmsg) = 0;
@@ -43,6 +44,8 @@ class XrdClientAbsUnsolMsgHandler {
 class XrdClientUnsolMsgSender {
 
  public:
+
+   virtual ~XrdClientUnsolMsgSender() { }
 
    // The upper level handler for unsolicited responses
    XrdClientAbsUnsolMsgHandler *UnsolicitedMsgHandler;
