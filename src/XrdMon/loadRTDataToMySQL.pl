@@ -466,16 +466,18 @@ sub loadFileSizes() {
     print "Loading file sizes...";
     use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
     ($sizeIndex) = @_;
-    &runQuery("CREATE TEMPORARY TABLE zerosize  (theId INT AUTO_INCREMENT, name VARCHAR(255), INDEX (theId))");
-    &runQuery("INSERT INTO zerosize(name) SELECT name FROM paths WHERE size BETWEEN $sizeIndex AND 0");
+    &runQuery("CREATE TEMPORARY TABLE zerosize  (name VARCHAR(255), id MEDIUMINT UNSIGNED)");
+    &runQuery("INSERT INTO zerosize(name, id) SELECT name, id FROM paths 
+                                              WHERE size BETWEEN $sizeIndex AND 0 
+                                              ORDER BY id 
+                                              LIMIT 7500");
      
-    $fromId = 1;
-    $toId = $bbkListSize;
+    $skip = 0;
     while () {
        my $t0 = time();
        $timeLeft = $cycleEndTime - $t0;
        last if ( $timeLeft < $minSizeLoadTime);
-       @files = &runQueryRetArray("SELECT name FROM zerosize WHERE theId BETWEEN $fromId AND $toId"); 
+       @files = &runQueryRetArray("SELECT name FROM zerosize LIMIT $skip, $bbkListSize "); 
        #print scalar @files, "\n";
        last if ( ! @files );
 
@@ -492,18 +494,19 @@ sub loadFileSizes() {
            chomp $line;
            ($path, $size) = split (' ', $line);
            @inBbk = (@inBbk, $path);
-           &runQuery("UPDATE paths SET size = $size WHERE name = '$path'");
+           my $id = &runQueryWithRet("SELECT id FROM zerosize WHERE name = '$path'");
+           &runQuery("UPDATE paths SET size = $size WHERE id = $id ");
        }
        # decrement size by 1 for files that failed bbk.
        foreach $path ( @files ) {
            if ( ! grep { $_ eq $path } @inBbk ) {
-               &runQuery("UPDATE paths SET size = size - 1 WHERE name = '$path'");
+               my $id = &runQueryWithRet("SELECT id FROM zerosize WHERE name = '$path'");
+               &runQuery("UPDATE paths SET size = size - 1 WHERE id = $id ");
            }
        }
        print " done ", scalar @files, " files updated. Update time = ", time() - $t0, " s \n";
        last if ( @files < $bbkListSize );
-       $fromId += $bbkListSize;
-       $toId += $bbkListSize;
+       $skip += $bbkListSize;
     }
     &runQuery("DROP TABLE IF EXISTS zerosize");
 }
