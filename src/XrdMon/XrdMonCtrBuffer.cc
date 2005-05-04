@@ -88,10 +88,10 @@ XrdMonCtrBuffer::printList(const char* txt)
 {
     XrdOucMutexHelper mh; 
     mh.Lock(&XrdMonCtrDebug::_mutex);
-    cout << txt << " #" << _noElems << " h" << (int) _head << " t" << (int) _tail << " ";
+    cout << txt << " #" << _noElems << " h" << (int *) _head << " t" << (int *) _tail << " ";
     Elem* e = _head;
     while ( e ) {
-        cout << e << ":{" << (int) e->packet << ", ->" << (int) e->next << "} ";
+        cout << e << ":{" << (int *) e->packet << ", ->" << (int *) e->next << "} ";
         e = e->next;
     }
     cout << endl;
