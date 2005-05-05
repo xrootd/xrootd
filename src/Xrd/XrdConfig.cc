@@ -258,7 +258,9 @@ int XrdConfig::Configure(int argc, char **argv)
                              "this machine is registered in DNS.");
        XrdLog.Emsg("Config", "Execution continues but connection failures may occur.");
        myDomain = 0;
-      } else myDomain = index(myName, '.');
+      } else if (!(myDomain = index(myName, '.')))
+                XrdLog.Emsg("Config", "Warning! This hostname,", myName,
+                            ", is registered without a domain qualification.");
 
 // Get our IP address
 //

@@ -241,7 +241,7 @@ void XrdNet::Trim(char *hname)
   int k = strlen(hname);
   char *hnp;
 
-  if (k > Domlen)
+  if (Domlen && k > Domlen)
      {hnp = hname + (k - Domlen);
       if (!strcmp(Domain, hnp)) *hnp = '\0';
      }

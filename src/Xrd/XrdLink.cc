@@ -458,7 +458,7 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
 /*                                  S e n d                                   */
 /******************************************************************************/
   
-int XrdLink::Send(char *Buff, int Blen)
+int XrdLink::Send(const char *Buff, int Blen)
 {
    ssize_t retc = 0, bytesleft = Blen;
 
