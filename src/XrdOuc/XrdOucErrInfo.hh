@@ -19,21 +19,15 @@
 #include "XrdOucPlatform.hh"
 
 /******************************************************************************/
-/*                               D e f i n e s                                */
-/******************************************************************************/
-
-// Maximum number of bytes of error information that can be set
-//
-#define OUC_MAX_ERROR_LEN 1280
-
-/******************************************************************************/
 /*                              X r d O u c E I                               */
 /******************************************************************************/
 
 struct XrdOucEI      // Err information structure
 { 
+ static const size_t Max_Error_Len = 1280;
+
            int  code;
-           char message[OUC_MAX_ERROR_LEN];
+           char message[Max_Error_Len];
 
            void clear() {code = 0; message[0] = '\0';}
 
@@ -52,13 +46,13 @@ class XrdOucErrInfo
 public:
       void  clear() {ErrInfo.clear();}
 
-      int   setErrCode(const int code)
+      int   setErrCode(int code)
                {return ErrInfo.code = code;}
-      int   setErrInfo(const int code, const char *message)
+      int   setErrInfo(int code, const char *message)
                {strlcpy(ErrInfo.message, message, sizeof(ErrInfo.message));
                 return ErrInfo.code = code;
                }
-      int   setErrInfo(const int code, char *txtlist[], int n)
+      int   setErrInfo(int code, const char *txtlist[], int n)
                {int i, j = 0, k = sizeof(ErrInfo.message), l;
                 for (i = 0; i < n && k > 1; i++)
                     {l = strlcpy(&ErrInfo.message[j], txtlist[i], k);
@@ -66,7 +60,7 @@ public:
                     }
                 return ErrInfo.code = code;
                }
-      void  setErrUser(char *user)
+      void  setErrUser(const char *user)
                {ErrUser = user;}
       int   getErrInfo() {return ErrInfo.code;}
       int   getErrInfo(XrdOucEI &errorParm)
@@ -75,7 +69,7 @@ const char *getErrText()
                {return (const char *)ErrInfo.message;}
 const char *getErrText(int &ecode)
                {ecode = ErrInfo.code; return (const char *)ErrInfo.message;}
-      char *getErrUser()
+const char *getErrUser()
                {return ErrUser;}
 
       XrdOucErrInfo &operator =(const XrdOucErrInfo &rhs)
@@ -84,11 +78,11 @@ const char *getErrText(int &ecode)
                 return *this;
                }
 
-      XrdOucErrInfo(char *user=0) {ErrUser = (user ? user : (char *)"?");}
+      XrdOucErrInfo(const char *user=0) {ErrUser = (user ? user : "?");}
 
 protected:
 
-XrdOucEI ErrInfo;
-char    *ErrUser;
+XrdOucEI    ErrInfo;
+const char *ErrUser;
 };
 #endif

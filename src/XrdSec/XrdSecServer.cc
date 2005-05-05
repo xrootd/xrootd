@@ -283,7 +283,7 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
    XrdSecProtBind *bp;
    XrdSecPMask_t pnum;
    XrdSecCredentials myCreds;
-   char *msgv[8];
+   const char *msgv[8];
 
 // If null credentials supplied, default to host protocol otherwise make sure
 // credentials data is actually supplied.
@@ -302,16 +302,16 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
       {if ((pnum = PManager.Find(cred->buffer)))
           {if (bpFirst && (bp = bpFirst->Find(host))
            &&  !(bp->ValidProts & pnum))
-              {msgv[0] = (char *)host;
-               msgv[1] = (char *)" not allowed to authenticate using ";
+              {msgv[0] = host;
+               msgv[1] = " not allowed to authenticate using ";
                msgv[2] = cred->buffer;
-               msgv[3] = (char *)" protocol.";
+               msgv[3] = " protocol.";
                einfo->setErrInfo(EACCES, msgv, 4);
                return 0;
               }
           }
           else {msgv[0] = cred->buffer;
-                msgv[1] = (char *)" security protocol is not supported.";
+                msgv[1] = " security protocol is not supported.";
                 einfo->setErrInfo(EPROTONOSUPPORT, msgv, 2);
                 return 0;
                }

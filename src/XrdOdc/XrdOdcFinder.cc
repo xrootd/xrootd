@@ -128,7 +128,7 @@ int XrdOdcFinderRMT::Configure(char *cfn)
 /******************************************************************************/
 
 int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd, 
-                             char *arg1, char *arg2)
+                             const char *arg1, const char *arg2)
 {
    int  i;
    XrdOdcManager *Manp;
@@ -152,10 +152,10 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
               xmsg[1].iov_base = (char *)cmd;  xmsg[1].iov_len = strlen(cmd);
               i = 2;
    if (arg1) {xmsg[i].iov_base = (char *)" ";  xmsg[i++].iov_len = 1;
-              xmsg[i].iov_base = arg1;         xmsg[i++].iov_len = strlen(arg1);
+              xmsg[i].iov_base = (char *)arg1; xmsg[i++].iov_len = strlen(arg1);
              }
    if (arg2) {xmsg[i].iov_base = (char *)" ";  xmsg[i++].iov_len = 1;
-              xmsg[i].iov_base = arg2;         xmsg[i++].iov_len = strlen(arg2);
+              xmsg[i].iov_base = (char *)arg2; xmsg[i++].iov_len = strlen(arg2);
              }
               xmsg[i].iov_base = (char *)"\n"; xmsg[i++].iov_len = 1;
 

@@ -350,17 +350,17 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
 int XrdSecProtocolkrb5::Fatal(XrdOucErrInfo *erp, int rc, const char *msg,
                              char *KP, int krc)
 {
-   char *msgv[8];
+   const char *msgv[8];
    int k, i = 0;
 
-              msgv[i++] = (char *)"Seckrb5: ";  //0
-              msgv[i++] = (char *)msg;          //1
-   if (krc)  {msgv[i++] = (char *)"; ";         //2
-              msgv[i++] =  krb_etxt(krc);        //3
+              msgv[i++] = "Seckrb5: ";    //0
+              msgv[i++] = msg;            //1
+   if (krc)  {msgv[i++] = "; ";           //2
+              msgv[i++] =  krb_etxt(krc); //3
              }
-   if (KP)   {msgv[i++] = (char *)" (p=";       //4
-              msgv[i++] = KP;                   //5
-              msgv[i++] = (char *)").";         //6
+   if (KP)   {msgv[i++] = " (p=";         //4
+              msgv[i++] = KP;             //5
+              msgv[i++] = ").";           //6
              }
    if (erp) erp->setErrInfo(rc, msgv, i);
       else {for (k = 0; k < i; k++) cerr <<msgv[k];

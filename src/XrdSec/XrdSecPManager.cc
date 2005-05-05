@@ -94,7 +94,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
                                     XrdOucErrInfo  *erp)
 {
    XrdSecProtList *pl;
-   char *msgv[2];
+   const char *msgv[2];
 
 // Find the protocol and get an instance of the protocol object
 //
@@ -106,8 +106,8 @@ XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
 
 // Protocol is not supported
 //
-   msgv[0] = (char *)pname;
-   msgv[1] = (char *)" security protocol is not supported.";
+   msgv[0] = pname;
+   msgv[1] = " security protocol is not supported.";
    erp->setErrInfo(EPROTONOSUPPORT, msgv, 2);
    return 0;
 }
@@ -202,13 +202,14 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
    void *libhandle;
    XrdSecProtocol *(*ep)(PROTPARMS);
    char           *(*ip)(INITPARMS);
-   char *tlist[8], poname[80], libfn[80], libpath[2048], *libloc, *newargs;
+   const char *tlist[8];
+   char  poname[80], libfn[80], libpath[2048], *libloc, *newargs;
    int i, k = 1;
 
 // The "host" protocol is builtin.
 //
    if (!strcmp(pid, "host")) return Add(eMsg,pid,XrdSecProtocolhostObject,0);
-   tlist[0] = (char *)"XrdSec: ";
+   tlist[0] = "XrdSec: ";
 
 // Form library name
 //
@@ -236,8 +237,8 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 // Open the security library
 //
    if (!(libhandle = dlopen(libloc, RTLD_NOW)))
-      {tlist[k++] = (char *)dlerror();
-       tlist[k++] = (char *)" opening shared library ";
+      {tlist[k++] = dlerror();
+       tlist[k++] = " opening shared library ";
        tlist[k++] = libloc;
        eMsg->setErrInfo(-1, tlist, k);
        return 0;
@@ -247,10 +248,10 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 //
    sprintf(poname, "XrdSecProtocol%sObject", pid);
    if (!(ep = (XrdSecProtocol *(*)(PROTPARMS))dlsym(libhandle, poname)))
-      {tlist[k++] = (char *)dlerror();
-       tlist[k++] = (char *)" finding ";
+      {tlist[k++] = dlerror();
+       tlist[k++] = " finding ";
        tlist[k++] = poname;
-       tlist[k++] = (char *)" in ";
+       tlist[k++] = " in ";
        tlist[k++] = libloc;
        eMsg->setErrInfo(-1, tlist, k);
        return 0;
@@ -260,10 +261,10 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 //
    sprintf(poname, "XrdSecProtocol%sInit", pid);
    if (!(ip = (char *(*)(INITPARMS))dlsym(libhandle, poname)))
-      {tlist[k++] = (char *)dlerror();
-       tlist[k++] = (char *)" finding ";
+      {tlist[k++] = dlerror();
+       tlist[k++] = " finding ";
        tlist[k++] = poname;
-       tlist[k++] = (char *)" in ";
+       tlist[k++] = " in ";
        tlist[k++] = libloc;
        eMsg->setErrInfo(-1, tlist, k);
        return 0;

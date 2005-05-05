@@ -41,7 +41,7 @@ public:
 virtual int    Configure(char *cfn) = 0;
 
 virtual int    Forward(XrdOucErrInfo &Resp, const char *cmd, 
-                       char *arg1=0, char *arg2=0) = 0;
+                       const char *arg1=0, const char *arg2=0) = 0;
 
 virtual int    isRemote() {return myPersona == XrdOdcFinder::amRemote;}
 
@@ -74,7 +74,7 @@ public:
         int    Configure(char *cfn);
 
         int    Forward(XrdOucErrInfo &Resp, const char *cmd, 
-                       char *arg1=0, char *arg2=0);
+                       const char *arg1=0, const char *arg2=0);
 
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags);
 
@@ -117,7 +117,7 @@ public:
         int    Configure(char *cfn);
 
         int    Forward(XrdOucErrInfo &Resp, const char *cmd,
-                       char *arg1=0, char *arg2=0) {return 0;}
+                       const char *arg1=0, const char *arg2=0) {return 0;}
 
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags)
                {return 0;}

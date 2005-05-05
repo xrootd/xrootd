@@ -183,9 +183,9 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
 
 // Make sure the reply is not too long
 //
-   if (strlen(msg) >= OUC_MAX_ERROR_LEN)
+   if (strlen(msg) >= XrdOucEI::Max_Error_Len)
       {DEBUG("Msg: Truncated: " <<msg);
-       msg[OUC_MAX_ERROR_LEN-1] = '\0';
+       msg[XrdOucEI::Max_Error_Len-1] = '\0';
       }
 
 // Reply and return
