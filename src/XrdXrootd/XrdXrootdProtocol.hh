@@ -132,7 +132,7 @@ static int   mapError(int rc);
 static int   mapMode(int mode);
        int   Process2();
        void  Reset();
-static int   rpCheck(char *fn);
+static int   rpCheck(char *fn, const char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
 static int   Squash(char *);

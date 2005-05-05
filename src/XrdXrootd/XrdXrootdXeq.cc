@@ -82,7 +82,7 @@ int XrdXrootdProtocol::do_Auth()
     XrdSecCredentials cred;
     XrdSecParameters *parm = 0;
     XrdOucErrInfo     eMsg;
-    char *eText;
+    const char *eText;
     int rc;
 
 // Ignore authenticate requests if security turned off
@@ -96,7 +96,7 @@ int XrdXrootdProtocol::do_Auth()
    if (!AuthProt)
       {Link->Name(&netaddr);
        if (!(AuthProt = CIA->getProtocol(Link->Host(),netaddr,&cred,&eMsg)))
-          {eText = (char *)eMsg.getErrText(rc);
+          {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);
           }
@@ -106,8 +106,8 @@ int XrdXrootdProtocol::do_Auth()
 // Now try to authenticate the client using the current protocol
 //
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
-      {char *msg = (Status & XRD_ADMINUSER ? (char *)"admin login as" 
-                                           : (char *)"login as");
+      {const char *msg = (Status & XRD_ADMINUSER ? "admin login as"
+                                                 : "login as");
        rc = Response.Send(); Status &= ~XRD_NEED_AUTH;
        Client = &AuthProt->Entity;
        if (Client->name) 
@@ -131,7 +131,7 @@ int XrdXrootdProtocol::do_Auth()
 
 // We got an error, bail out
 //
-   eText = (char *)eMsg.getErrText(rc);
+   eText = eMsg.getErrText(rc);
    eDest.Emsg("Xeq", "User authentication failed;", eText);
    return Response.Send(kXR_NotAuthorized, eText);
 }
@@ -143,17 +143,18 @@ int XrdXrootdProtocol::do_Auth()
 int XrdXrootdProtocol::do_Chmod()
 {
    int mode, rc;
+   const char *opaque;
    XrdOucErrInfo myError(Link->ID);
 
 // Unmarshall the data
 //
    mode = mapMode((int)ntohs(Request.chmod.mode));
-   if (rpCheck(argp->buff)) return rpEmsg("Modifying", argp->buff);
-   if (!Squash(argp->buff)) return vpEmsg("Modifying", argp->buff);
+   if (rpCheck(argp->buff, &opaque)) return rpEmsg("Modifying", argp->buff);
+   if (!Squash(argp->buff))          return vpEmsg("Modifying", argp->buff);
 
 // Preform the actual function
 //
-   rc = osFS->chmod(argp->buff, (XrdSfsMode)mode, myError, CRED);
+   rc = osFS->chmod(argp->buff, (XrdSfsMode)mode, myError, CRED, opaque);
    TRACEP(FS, "rc=" <<rc <<" chmod " <<std::oct <<mode <<std::dec <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
@@ -169,6 +170,7 @@ int XrdXrootdProtocol::do_Chmod()
 int XrdXrootdProtocol::do_CKsum()
 {
    struct iovec ckResp[4];
+   const char *opaque;
    char *lp;
    int dlen;
    XrdOucStream cks;
@@ -180,8 +182,8 @@ int XrdXrootdProtocol::do_CKsum()
 
 // Prescreen the path
 //
-   if (rpCheck(argp->buff)) return rpEmsg("Check summing", argp->buff);
-   if (!Squash(argp->buff)) return vpEmsg("Check summing", argp->buff);
+   if (rpCheck(argp->buff, &opaque)) return rpEmsg("Check summing", argp->buff);
+   if (!Squash(argp->buff))          return vpEmsg("Check summing", argp->buff);
 
 // Preform the actual function
 //
@@ -241,13 +243,14 @@ int XrdXrootdProtocol::do_Close()
 int XrdXrootdProtocol::do_Dirlist()
 {
    int bleft, rc = 0, dlen, cnt = 0;
-   char *buff, *dname, ebuff[4096];
+   char *buff, ebuff[4096];
+   const char *opaque, *dname;
    XrdSfsDirectory *dp;
 
 // Prescreen the path
 //
-   if (rpCheck(argp->buff)) return rpEmsg("Listing", argp->buff);
-   if (!Squash(argp->buff)) return vpEmsg("Listing", argp->buff);
+   if (rpCheck(argp->buff, &opaque)) return rpEmsg("Listing", argp->buff);
+   if (!Squash(argp->buff))          return vpEmsg("Listing", argp->buff);
 
 // Get a directory object
 //
@@ -259,7 +262,7 @@ int XrdXrootdProtocol::do_Dirlist()
 
 // First open the directory
 //
-   if ((rc = dp->open(argp->buff, CRED)))
+   if ((rc = dp->open(argp->buff, CRED, opaque)))
       {rc = fsError(rc, dp->error); delete dp; return rc;}
 
 // Start retreiving each entry and place in a local buffer with a trailing new
@@ -271,7 +274,7 @@ int XrdXrootdProtocol::do_Dirlist()
 //
   dname = 0;
   do {buff = ebuff; bleft = sizeof(ebuff);
-      while(dname || (dname = (char *)dp->nextEntry()))
+      while(dname || (dname = dp->nextEntry()))
            {dlen = strlen(dname);
             if (dlen > 2 || dname[0] != '.' || (dlen == 2 && dname[1] != '.'))
                {if ((bleft -= (dlen+1)) < 0) break;
@@ -396,6 +399,7 @@ int XrdXrootdProtocol::do_Login()
 int XrdXrootdProtocol::do_Mkdir()
 {
    int mode, rc;
+   const char *opaque;
    XrdOucErrInfo myError(Link->ID);
 
 // Unmarshall the data
@@ -403,12 +407,12 @@ int XrdXrootdProtocol::do_Mkdir()
    mode = mapMode((int)ntohs(Request.mkdir.mode)) | S_IRWXU;
    if (Request.mkdir.options[0] & static_cast<unsigned char>(kXR_mkdirpath))
       mode |= SFS_O_MKPTH;
-   if (rpCheck(argp->buff)) return rpEmsg("Creating", argp->buff);
-   if (!Squash(argp->buff)) return vpEmsg("Creating", argp->buff);
+   if (rpCheck(argp->buff, &opaque)) return rpEmsg("Creating", argp->buff);
+   if (!Squash(argp->buff))          return vpEmsg("Creating", argp->buff);
 
 // Preform the actual function
 //
-   rc = osFS->mkdir(argp->buff, (XrdSfsMode)mode, myError, CRED);
+   rc = osFS->mkdir(argp->buff, (XrdSfsMode)mode, myError, CRED, opaque);
    TRACEP(FS, "rc=" <<rc <<" mkdir " <<std::oct <<mode <<std::dec <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
@@ -424,6 +428,7 @@ int XrdXrootdProtocol::do_Mkdir()
 int XrdXrootdProtocol::do_Mv()
 {
    int rc;
+   const char *Opaque, *Npaque;
    char *oldp, *newp;
    XrdOucErrInfo myError(Link->ID);
 
@@ -437,10 +442,10 @@ int XrdXrootdProtocol::do_Mv()
 
 // Get rid of relative paths and multiple slashes
 //
-   if (rpCheck(oldp)) return rpEmsg("Renaming", oldp);
-   if (rpCheck(newp)) return rpEmsg("Renaming to", newp);
-   if (!Squash(oldp)) return vpEmsg("Renaming", oldp);
-   if (!Squash(newp)) return vpEmsg("Renaming to", newp);
+   if (rpCheck(oldp, &Opaque)) return rpEmsg("Renaming",    oldp);
+   if (rpCheck(newp, &Npaque)) return rpEmsg("Renaming to", newp);
+   if (!Squash(oldp))          return vpEmsg("Renaming",    oldp);
+   if (!Squash(newp))          return vpEmsg("Renaming to", newp);
 
 // Check if new path actually specified here
 //
@@ -449,7 +454,7 @@ int XrdXrootdProtocol::do_Mv()
 
 // Preform the actual function
 //
-   rc = osFS->rename(oldp, newp, myError, CRED);
+   rc = osFS->rename(oldp, newp, myError, CRED, Opaque, Npaque);
    TRACEP(FS, "rc=" <<rc <<" mv " <<oldp <<' ' <<newp);
    if (SFS_OK == rc) return Response.Send();
 
@@ -466,8 +471,9 @@ int XrdXrootdProtocol::do_Open()
 {
    int fhandle;
    int rc, mode, opts, openopts, mkpath = 0, doforce = 0, compchk = 0;
+   const char *opaque;
    char usage, ebuff[2048];
-   char *fn = argp->buff, opt[16], *opaque, *op=opt, isAsync = '\0';
+   char *fn = argp->buff, opt[16], *op=opt, isAsync = '\0';
    XrdSfsFile *fp;
    XrdXrootdFile *xp;
    struct ServerResponseBody_Open myResp;
@@ -511,10 +517,8 @@ int XrdXrootdProtocol::do_Open()
 
 // Check if opaque data has been provided
 //
-   if ((opaque = index(fn, int('?'))))
-      {*opaque++ = '\0'; if (!*opaque) opaque = 0;}
-   if (rpCheck(fn)) return rpEmsg("Opening", fn);
-   if (!Squash(fn)) return vpEmsg("Opening", fn);
+   if (rpCheck(fn, &opaque)) return rpEmsg("Opening", fn);
+   if (!Squash(fn))          return vpEmsg("Opening", fn);
 
 // Get a file object
 //
@@ -547,10 +551,10 @@ int XrdXrootdProtocol::do_Open()
 // Lock this file
 //
    if ((rc = Locker->Lock(xp, doforce)))
-      {char *who;
-       if (rc > 0) who = (rc > 1 ? (char *)"readers" : (char *)"reader");
+      {const char *who;
+       if (rc > 0) who = (rc > 1 ? "readers" : "reader");
           else {   rc = -rc;
-                   who = (rc > 1 ? (char *)"writers" : (char *)"writer");
+                   who = (rc > 1 ? "writers" : "writer");
                }
        snprintf(ebuff, sizeof(ebuff)-1,
                 "%s file %s is already opened by %d %s; open denied.",
@@ -641,10 +645,11 @@ int XrdXrootdProtocol::do_Ping()
 int XrdXrootdProtocol::do_Prepare()
 {
    int rc, hport, pathnum = 0;
+   const char *opaque;
    char opts, hname[32], reqid[64], nidbuff[512], *path;
    XrdOucErrInfo myError(Link->ID);
    XrdOucTokenizer pathlist(argp->buff);
-   XrdOucTList *pathp = 0;
+   XrdOucTList *pathp = 0, *oinfo = 0;
    XrdXrootdPrepArgs pargs(0, 1);
    XrdSfsPrep fsprep;
 
@@ -662,6 +667,7 @@ int XrdXrootdProtocol::do_Prepare()
 //
    fsprep.reqid   = reqid;
    fsprep.paths   = 0;
+   fsprep.oinfo   = 0;
    fsprep.opts    = Prep_PRTY0;
    fsprep.notify  = 0;
 
@@ -687,9 +693,10 @@ int XrdXrootdProtocol::do_Prepare()
 // Cycle through all of the paths in the list
 //
    while((path = pathlist.GetLine()))
-        {if (rpCheck(path)) return rpEmsg("Preparing", path);
-         if (!Squash(path)) return vpEmsg("Preparing", path);
+        {if (rpCheck(path, &opaque)) return rpEmsg("Preparing", path);
+         if (!Squash(path))          return vpEmsg("Preparing", path);
          pathp = new XrdOucTList(path, pathnum, pathp);
+         oinfo = new XrdOucTList(opaque, 0, oinfo);
          pathnum++;
         }
 
@@ -707,6 +714,7 @@ int XrdXrootdProtocol::do_Prepare()
       }
    if (opts & kXR_wmode) fsprep.opts |= Prep_WMODE;
    fsprep.paths = pathp;
+   fsprep.oinfo = oinfo;
    if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
       return fsError(rc, myError);
 
@@ -878,7 +886,7 @@ int XrdXrootdProtocol::do_ReadAll()
 // Determine why we ended here
 //
    if (xframt == 0) return Response.Send();
-   return Response.Send(kXR_FSError,(char *)myFile->XrdSfsp->error.getErrText());
+   return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
 }
 
 /******************************************************************************/
@@ -922,16 +930,17 @@ int XrdXrootdProtocol::do_ReadNone(int &retc)
 int XrdXrootdProtocol::do_Rm()
 {
    int rc;
+   const char *opaque;
    XrdOucErrInfo myError(Link->ID);
 
 // Prescreen the path
 //
-   if (rpCheck(argp->buff)) return rpEmsg("Removing", argp->buff);
-   if (!Squash(argp->buff)) return vpEmsg("Removing", argp->buff);
+   if (rpCheck(argp->buff, &opaque)) return rpEmsg("Removing", argp->buff);
+   if (!Squash(argp->buff))          return vpEmsg("Removing", argp->buff);
 
 // Preform the actual function
 //
-   rc = osFS->rem(argp->buff, myError, CRED);
+   rc = osFS->rem(argp->buff, myError, CRED, opaque);
    TRACEP(FS, "rc=" <<rc <<" rm " <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
@@ -947,16 +956,17 @@ int XrdXrootdProtocol::do_Rm()
 int XrdXrootdProtocol::do_Rmdir()
 {
    int rc;
+   const char *opaque;
    XrdOucErrInfo myError(Link->ID);
 
 // Prescreen the path
 //
-   if (rpCheck(argp->buff)) return rpEmsg("Removing", argp->buff);
-   if (!Squash(argp->buff)) return vpEmsg("Removing", argp->buff);
+   if (rpCheck(argp->buff, &opaque)) return rpEmsg("Removing", argp->buff);
+   if (!Squash(argp->buff))          return vpEmsg("Removing", argp->buff);
 
 // Preform the actual function
 //
-   rc = osFS->remdir(argp->buff, myError, CRED);
+   rc = osFS->remdir(argp->buff, myError, CRED, opaque);
    TRACEP(FS, "rc=" <<rc <<" rmdir " <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
@@ -1069,6 +1079,7 @@ int XrdXrootdProtocol::do_Stat()
 {
    int len, rc, flags = 0;
    long long fsz;
+   const char *opaque;
    char xxBuff[256];
    struct stat buf;
    XrdOucErrInfo myError(Link->ID);
@@ -1076,12 +1087,12 @@ int XrdXrootdProtocol::do_Stat()
 
 // Prescreen the path
 //
-   if (rpCheck(argp->buff)) return rpEmsg("Stating", argp->buff);
-   if (!Squash(argp->buff)) return vpEmsg("Stating", argp->buff);
+   if (rpCheck(argp->buff, &opaque)) return rpEmsg("Stating", argp->buff);
+   if (!Squash(argp->buff))          return vpEmsg("Stating", argp->buff);
 
 // Preform the actual function
 //
-   rc = osFS->stat(argp->buff, &buf, myError, CRED);
+   rc = osFS->stat(argp->buff, &buf, myError, CRED, opaque);
    TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
    if (rc != SFS_OK) return fsError(rc, myError);
 
@@ -1113,6 +1124,7 @@ int XrdXrootdProtocol::do_Stat()
 int XrdXrootdProtocol::do_Statx()
 {
    int rc;
+   const char *opaque;
    char *path, *respinfo = argp->buff;
    mode_t mode;
    XrdOucErrInfo myError(Link->ID);
@@ -1121,9 +1133,9 @@ int XrdXrootdProtocol::do_Statx()
 // Cycle through all of the paths in the list
 //
    while((path = pathlist.GetLine()))
-        {if (rpCheck(path)) return rpEmsg("Stating", path);
-         if (!Squash(path)) return vpEmsg("Stating", path);
-         rc = osFS->stat(path, mode, myError, CRED);
+        {if (rpCheck(path, &opaque)) return rpEmsg("Stating", path);
+         if (!Squash(path))          return vpEmsg("Stating", path);
+         rc = osFS->stat(path, mode, myError, CRED, opaque);
          TRACEP(FS, "rc=" <<rc <<" stat " <<path);
          if (rc != SFS_OK)                   *respinfo = (char)kXR_other;
             else {if (mode == (mode_t)-1)    *respinfo = (char)kXR_offline;
@@ -1162,7 +1174,7 @@ int XrdXrootdProtocol::do_Sync()
    rc = fp->XrdSfsp->sync();
    TRACEP(FS, "sync rc=" <<rc <<" fh=" <<fh.handle);
    if (SFS_OK != rc)
-      return Response.Send(kXR_FSError,(char *)fp->XrdSfsp->error.getErrText());
+      return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
 
 // Respond that all went well
 //
@@ -1307,7 +1319,7 @@ int XrdXrootdProtocol::do_WriteNone()
 
 // Send our the error message and return
 //
-   return Response.Send(kXR_FSError,(char *)myFile->XrdSfsp->error.getErrText());
+   return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
 }
   
 /******************************************************************************/
@@ -1336,7 +1348,7 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
       {SI->redirCnt++;
        if (ecode <= 0) ecode = (ecode ? -ecode : Port);
        TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg <<':' <<ecode);
-       return Response.Send(kXR_redirect, ecode, (char *)eMsg);
+       return Response.Send(kXR_redirect, ecode, eMsg);
       }
 
 // Process the deferal
@@ -1344,7 +1356,7 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
    if (rc >= SFS_STALL)
       {SI->stallCnt++;
        TRACEI(STALL, Response.ID() <<"stalling client for " <<rc <<" sec");
-       return Response.Send(kXR_wait, rc, (char *)eMsg);
+       return Response.Send(kXR_wait, rc, eMsg);
       }
 
 // Unknown conditions, report it
@@ -1406,7 +1418,7 @@ int XrdXrootdProtocol::mapError(int rc)
         case ENAMETOOLONG: return kXR_ArgTooLong;
         case ENETUNREACH:  return kXR_noserver;
         case ENOTBLK:      return kXR_NotFile;
-        case EISDIR:       return kXR_isDir;
+        case EISDIR:       return kXR_isDirectory;
         default:           return kXR_FSError;
        }
 }
@@ -1436,11 +1448,16 @@ int XrdXrootdProtocol::mapMode(int Mode)
 /*                               r p C h e c k                                */
 /******************************************************************************/
   
-int XrdXrootdProtocol::rpCheck(char *fn)
+int XrdXrootdProtocol::rpCheck(char *fn, const char **opaque)
 {
    char *cp;
 
    if (*fn != '/') return 1;
+
+   if (!(cp = index(fn, '?'))) *opaque = 0;
+      else {*cp = '\0'; *opaque = cp+1;
+            if (!**opaque) *opaque = 0;
+           }
 
    while ((cp = index(fn, '/')))
          {fn = cp+1;

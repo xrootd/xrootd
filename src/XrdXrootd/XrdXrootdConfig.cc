@@ -503,9 +503,11 @@ int XrdXrootdProtocol::xexp(XrdOucTokenizer &Config)
 
 int XrdXrootdProtocol::xexpdo(char *path)
 {
+   const char *opaque;
+
 // Make sure path start with a slash
 //
-   if (rpCheck(path))
+   if (rpCheck(path, &opaque))
       {eDest.Emsg("Config", "non-absolute export path -", path); return 1;}
 
 // Record the path

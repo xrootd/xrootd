@@ -36,7 +36,7 @@ extern  XrdOucTrace  *XrdXrootdTrace;
 
 int XrdXrootdProtocol::aio_Error(const char *op, int ecode)
 {
-   char *etext, buffer[OUC_MAX_ERROR_LEN], unkbuff[64];
+   char *etext, buffer[XrdOucEI::Max_Error_Len], unkbuff[64];
 
 // Get the reason for the error
 //

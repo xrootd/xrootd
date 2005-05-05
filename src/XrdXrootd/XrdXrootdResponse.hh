@@ -38,7 +38,7 @@ const  char *ID() {return (const char *)trsid;}
        int   Send(void *data, int dlen);
        int   Send(struct iovec *, int iovcnt, int iolen=-1);
        int   Send(XResponseType rcode, void *data, int dlen);
-       int   Send(XResponseType rcode, int info, char *data);
+       int   Send(XResponseType rcode, int info, const char *data);
 
 inline void  Set(XrdLink *lp) {Link = lp;}
        void  Set(unsigned char *stream);

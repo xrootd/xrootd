@@ -113,7 +113,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, void *data, int dlen)
 
 /******************************************************************************/
 
-int XrdXrootdResponse::Send(XResponseType rcode, int info, char *data)
+int XrdXrootdResponse::Send(XResponseType rcode, int info, const char *data)
 {
     kXR_int32 xbuf = static_cast<kXR_int32>(htonl(info));
     int dlen;
