@@ -88,7 +88,8 @@ struct XrdSfsPrep  // Prepare parameters
        char            *reqid;     // Request ID
        char            *notify;    // Notification path or 0
        int              opts;      // Prep_xxx
-       XrdOucTList     *paths;
+       XrdOucTList     *paths;     // List of paths
+       XrdOucTList     *oinfo;     // 1-to-1 correspondence of opaque info
 };
 
 /******************************************************************************/
@@ -118,7 +119,8 @@ virtual XrdSfsFile      *newFile(char *user=0) = 0;
 virtual int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecEntity     *client = 0) = 0;
+                             const XrdSecEntity     *client = 0,
+                             const char             *opaque = 0) = 0;
 
 virtual int            fsctl(const int               cmd,
                              const char             *args,
@@ -132,39 +134,47 @@ virtual const char    *getVersion() = 0;
 virtual int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,
-                              const XrdSecEntity        *client = 0) = 0;
+                              const XrdSecEntity        *client = 0,
+                              const char                *opaque = 0) = 0;
 
 virtual int            mkdir(const char             *dirName,
-                                   XrdSfsMode        Mode,
-                                   XrdOucErrInfo    &out_error,
-                             const XrdSecEntity     *client = 0) = 0;
+                                   XrdSfsMode         Mode,
+                                   XrdOucErrInfo     &out_error,
+                             const XrdSecEntity      *client = 0,
+                             const char              *opaque = 0) = 0;
 
-virtual int            prepare(      XrdSfsPrep       &pargs,
-                                     XrdOucErrInfo    &out_error,
-                               const XrdSecEntity     *client = 0) = 0;
+virtual int            prepare(      XrdSfsPrep      &pargs,
+                                     XrdOucErrInfo   &out_error,
+                               const XrdSecEntity    *client = 0) = 0;
 
-virtual int            rem(const char             *path,
-                                 XrdOucErrInfo    &out_error,
-                           const XrdSecEntity     *client = 0) = 0;
+virtual int            rem(const char                *path,
+                                 XrdOucErrInfo       &out_error,
+                           const XrdSecEntity        *client = 0,
+                           const char                *opaque = 0) = 0;
 
 virtual int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecEntity     *client = 0) = 0;
+                              const XrdSecEntity     *client = 0,
+                              const char             *opaque = 0) = 0;
 
 virtual int            rename(const char             *oldFileName,
                               const char             *newFileName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecEntity     *client = 0) = 0;
+                              const XrdSecEntity     *client = 0,
+                              const char             *opaqueO = 0,
+                              const char             *opaqueN = 0) = 0;
 
-virtual int            stat(const char             *Name,
-                                  struct stat      *buf,
-                                  XrdOucErrInfo    &out_error,
-                            const XrdSecEntity     *client = 0) = 0;
+virtual int            stat(const char               *Name,
+                                  struct stat        *buf,
+                                  XrdOucErrInfo      &out_error,
+                            const XrdSecEntity       *client = 0,
+                            const char               *opaque = 0) = 0;
 
-virtual int            stat(const char             *Name,
-                                  mode_t           &mode,
-                                  XrdOucErrInfo    &out_error,
-                            const XrdSecEntity     *client = 0) = 0;
+virtual int            stat(const char               *Name,
+                                  mode_t             &mode,
+                                  XrdOucErrInfo      &out_error,
+                            const XrdSecEntity       *client = 0,
+                            const char               *opaque = 0) = 0;
 
                        XrdSfsFileSystem() {}
 virtual               ~XrdSfsFileSystem() {}
@@ -207,17 +217,17 @@ virtual const char    *FName() = 0;
 virtual int            getMmap(void **Addr, size_t &Size) = 0;
 
 virtual int            read(XrdSfsFileOffset   fileOffset,
-                          XrdSfsXferSize       preread_sz) = 0;
+                            XrdSfsXferSize     preread_sz) = 0;
 
 virtual XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
-                          char                *buffer,
-                          XrdSfsXferSize       buffer_size) = 0;
+                            char              *buffer,
+                            XrdSfsXferSize     buffer_size) = 0;
 
 virtual int            read(XrdSfsAio *aioparm) = 0;
 
 virtual XrdSfsXferSize write(XrdSfsFileOffset  fileOffset,
-                           const char         *buffer,
-                           XrdSfsXferSize      buffer_size) = 0;
+                             const char       *buffer,
+                             XrdSfsXferSize    buffer_size) = 0;
 
 virtual int            write(XrdSfsAio *aioparm) = 0;
 
@@ -231,7 +241,7 @@ virtual int            truncate(XrdSfsFileOffset fileOffset) = 0;
 
 virtual int            getCXinfo(char cxtype[4], int &cxrsz) = 0;
 
-                       XrdSfsFile(char *user=0) {error.setErrUser(user);}
+                       XrdSfsFile(const char *user=0) {error.setErrUser(user);}
 virtual               ~XrdSfsFile() {}
 
 }; // class XrdSfsFile
@@ -246,7 +256,8 @@ public:
         XrdOucErrInfo error;
 
 virtual int         open(const char              *dirName,
-                         const XrdSecEntity      *client = 0) = 0;
+                         const XrdSecEntity      *client = 0,
+                         const char              *opaque = 0) = 0;
 
 virtual const char *nextEntry() = 0;
 
@@ -254,7 +265,7 @@ virtual int         close() = 0;
 
 virtual const char *FName() = 0;
 
-                    XrdSfsDirectory(char *user=0) {error.setErrUser(user);}
+                    XrdSfsDirectory(const char *user=0) {error.setErrUser(user);}
 virtual            ~XrdSfsDirectory() {}
 
 }; // class XrdSfsDirectory

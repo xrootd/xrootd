@@ -30,7 +30,8 @@ class XrdSfsNativeDirectory : public XrdSfsDirectory
 public:
 
         int         open(const char              *dirName,
-                         const XrdSecClientName  *client = 0);
+                         const XrdSecClientName  *client = 0,
+                         const char              *opaque = 0);
 
         const char *nextEntry();
 
@@ -138,12 +139,14 @@ public:
         int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0);
+                             const XrdSecClientName *client = 0,
+                             const char             *opaque = 0);
 
         int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,
-                              const XrdSecClientName    *client = 0);
+                              const XrdSecClientName    *client = 0,
+                              const char                *opaque = 0);
 
         int            fsctl(const int               cmd,
                              const char             *args,
@@ -157,7 +160,8 @@ const   char          *getVersion();
         int            mkdir(const char             *dirName,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0);
+                             const XrdSecClientName *client = 0,
+                             const char             *opaque = 0);
 
         int            prepare(      XrdSfsPrep       &pargs,
                                      XrdOucErrInfo    &out_error,
@@ -165,26 +169,32 @@ const   char          *getVersion();
 
         int            rem(const char             *path,
                                  XrdOucErrInfo    &out_error,
-                           const XrdSecClientName *client = 0);
+                           const XrdSecClientName *client = 0,
+                           const char             *opaque = 0);
 
         int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecClientName *client = 0);
+                              const XrdSecClientName *client = 0,
+                              const char             *opaque = 0);
 
         int            rename(const char             *oldFileName,
                               const char             *newFileName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecClientName *client = 0);
+                              const XrdSecClientName *client = 0,
+                              const char             *opaqueO = 0,
+                              const char             *opaqueN = 0);
 
         int            stat(const char             *Name,
                                   struct stat      *buf,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client = 0);
+                            const XrdSecClientName *client = 0,
+                            const char             *opaque = 0);
 
         int            stat(const char             *Name,
                                   mode_t           &mode,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client = 0)
+                            const XrdSecClientName *client = 0,
+                            const char             *opaque = 0)
                        {struct stat bfr;
                         int rc = stat(Name, &bfr, out_error, client);
                         if (!rc) mode = bfr.st_mode;
@@ -193,7 +203,8 @@ const   char          *getVersion();
 
 // Common functions
 //
-static  int            Mkpath(const char *path, mode_t mode);
+static  int            Mkpath(const char *path, mode_t mode, 
+                              const char *info=0);
 
 static  int            Emsg(const char *, XrdOucErrInfo&, int, const char *x,
                             const char *y="");

@@ -112,12 +112,14 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 /******************************************************************************/
   
 int XrdSfsNativeDirectory::open(const char              *dir_path, // In
-                                const XrdSecClientName  *client)   // In
+                                const XrdSecClientName  *client,   // In
+                                const char              *info)     // In
 /*
   Function: Open the directory `path' and prepare for reading.
 
   Input:    path      - The fully qualified name of the directory to open.
             cred      - Authentication credentials, if any.
+            info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success, otherwise SFS_ERROR.
 */
@@ -289,7 +291,7 @@ int XrdSfsNativeFile::open(const char          *path,      // In
    if (open_mode & SFS_O_CREAT)
       {open_flag  = O_RDWR | O_CREAT | O_EXCL;
        opname = (char *)"create";
-       if ((Mode & SFS_O_MKPTH) && (retc = XrdSfsNative::Mkpath(path, AMode)))
+       if ((Mode & SFS_O_MKPTH) && (retc = XrdSfsNative::Mkpath(path,AMode,info)))
           return XrdSfsNative::Emsg(epname,error,retc,"create path for",path);
       } else if (open_mode & SFS_O_TRUNC)
                 {open_flag  = O_RDWR | O_CREAT | O_TRUNC;
@@ -572,13 +574,15 @@ int XrdSfsNativeFile::truncate(XrdSfsFileOffset  flen)  // In
 int XrdSfsNative::chmod(const char             *path,    // In
                               XrdSfsMode        Mode,    // In
                               XrdOucErrInfo    &error,   // Out
-                        const XrdSecClientName *client)  // In
+                        const XrdSecClientName *client,  // In
+                        const char             *info)    // In
 /*
   Function: Change the mode on a file or directory.
 
   Input:    path      - Is the fully qualified name of the file to be removed.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
+            info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
@@ -603,7 +607,8 @@ int XrdSfsNative::chmod(const char             *path,    // In
 int XrdSfsNative::exists(const char                *path,        // In
                                XrdSfsFileExistence &file_exists, // Out
                                XrdOucErrInfo       &error,       // Out
-                         const XrdSecClientName    *client)      // In
+                         const XrdSecClientName    *client,      // In
+                         const char                *info)        // In
 /*
   Function: Determine if file 'path' actually exists.
 
@@ -615,6 +620,7 @@ int XrdSfsNative::exists(const char                *path,        // In
                           XrdSfsFileExistsIsNo        - neither file nor directory.
             einfo       - Error information object holding the details.
             client      - Authentication credentials, if any.
+            info        - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 
@@ -655,7 +661,8 @@ const char *XrdSfsNative::getVersion() {return XrdVERSION;}
 int XrdSfsNative::mkdir(const char             *path,    // In
                               XrdSfsMode        Mode,    // In
                               XrdOucErrInfo    &error,   // Out
-                        const XrdSecClientName *client)  // In
+                        const XrdSecClientName *client,  // In
+                        const char             *info)    // In
 /*
   Function: Create a directory entry.
 
@@ -664,6 +671,7 @@ int XrdSfsNative::mkdir(const char             *path,    // In
                         mode contains SFS_O_MKPTH, the full path is created.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
+            info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
@@ -673,7 +681,7 @@ int XrdSfsNative::mkdir(const char             *path,    // In
 
 // Create the path if it does not already exist
 //
-   if (Mode & SFS_O_MKPTH) Mkpath(path, acc_mode);
+   if (Mode & SFS_O_MKPTH) Mkpath(path, acc_mode, info);
 
 // Perform the actual deletion
 //
@@ -693,11 +701,12 @@ int XrdSfsNative::mkdir(const char             *path,    // In
 
   Input:    path        - Is the fully qualified name of the new path.
             mode        - The new mode that each new directory is to have.
+            info        - Opaque information, of any.
 
   Output:   Returns 0 upon success and -errno upon failure.
 */
 
-int XrdSfsNative::Mkpath(const char *path, mode_t mode)
+int XrdSfsNative::Mkpath(const char *path, mode_t mode, const char *info)
 {
     char actual_path[SFS_MAX_FILE_NAME_LEN], *local_path, *next_path;
     unsigned int plen;
@@ -741,13 +750,15 @@ int XrdSfsNative::Mkpath(const char *path, mode_t mode)
   
 int XrdSfsNative::rem(const char             *path,    // In
                             XrdOucErrInfo    &error,   // Out
-                      const XrdSecClientName *client)  // In
+                      const XrdSecClientName *client,  // In
+                      const char             *info)    // In
 /*
   Function: Delete a file from the namespace.
 
   Input:    path      - Is the fully qualified name of the file to be removed.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
+            info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
@@ -770,13 +781,15 @@ int XrdSfsNative::rem(const char             *path,    // In
 
 int XrdSfsNative::remdir(const char             *path,    // In
                                XrdOucErrInfo    &error,   // Out
-                         const XrdSecClientName *client)  // In
+                         const XrdSecClientName *client,  // In
+                         const char             *info)    // In
 /*
   Function: Delete a directory from the namespace.
 
   Input:    path      - Is the fully qualified name of the dir to be removed.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
+            info      - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
@@ -800,7 +813,9 @@ int XrdSfsNative::remdir(const char             *path,    // In
 int XrdSfsNative::rename(const char             *old_name,  // In
                          const char             *new_name,  // In
                                XrdOucErrInfo    &error,     //Out
-                         const XrdSecClientName *client)    // In
+                         const XrdSecClientName *client,    // In
+                         const char             *infoO,     // In
+                         const char             *infoN)     // In
 /*
   Function: Renames a file/directory with name 'old_name' to 'new_name'.
 
@@ -808,6 +823,8 @@ int XrdSfsNative::rename(const char             *old_name,  // In
             new_name  - Is the fully qualified name that the file is to have.
             error     - Error information structure, if an error occurs.
             client    - Authentication credentials, if any.
+            info      - old_name opaque information, if any.
+            info      - new_name opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
@@ -831,7 +848,8 @@ int XrdSfsNative::rename(const char             *old_name,  // In
 int XrdSfsNative::stat(const char              *path,        // In
                              struct stat       *buf,         // Out
                              XrdOucErrInfo     &error,       // Out
-                       const XrdSecClientName  *client)      // In
+                       const XrdSecClientName  *client,      // In
+                       const char              *info)        // In
 /*
   Function: Get info on 'path'.
 
@@ -839,6 +857,7 @@ int XrdSfsNative::stat(const char              *path,        // In
             buf         - The stat structiure to hold the results
             error       - Error information object holding the details.
             client      - Authentication credentials, if any.
+            info        - Opaque information, if any.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */

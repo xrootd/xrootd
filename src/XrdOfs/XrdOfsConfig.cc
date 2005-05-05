@@ -86,7 +86,8 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
   Output:   0 upon success or !0 otherwise.
 */
-   char *val, *var;
+   char *var;
+   const char *tmp;
    int  i, j, cfgFD, retc, NoGo = 0;
    XrdOucStream Config(&Eroute);
 
@@ -171,8 +172,8 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
 // All done
 //
-   val = (NoGo ? (char *)"failed." : (char *)"completed.");
-   Eroute.Emsg("Config", "File system initialization",val);
+   tmp = (NoGo ? "failed." : "completed.");
+   Eroute.Emsg("Config", "File system initialization",tmp);
    return NoGo;
 }
 
@@ -184,14 +185,15 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
   
 void XrdOfs::Config_Display(XrdOucError &Eroute)
 {
-     char buff[8192], fwbuff[256], *bp, *cloc, *rdt, *rdu, *rdp;
+     const char *rdt, *rdu, *rdp, *cloc;
+     char buff[8192], fwbuff[256], *bp;
 
-          if (Options & XrdOfsREDIRRMT) rdt = (char *)"ofs.redirect remote\n";
-     else                               rdt = (char *)"";
-          if (Options & XrdOfsREDIROXY) rdp = (char *)"ofs.redirect proxy\n";
-     else                               rdp = (char *)"";
-          if (Options & XrdOfsREDIRTRG) rdu = (char *)"ofs.redirect target\n";
-     else                               rdu = (char *)"";
+          if (Options & XrdOfsREDIRRMT) rdt = "ofs.redirect remote\n";
+     else                               rdt = "";
+          if (Options & XrdOfsREDIROXY) rdp = "ofs.redirect proxy\n";
+     else                               rdp = "";
+          if (Options & XrdOfsREDIRTRG) rdu = "ofs.redirect target\n";
+     else                               rdu = "";
 
      if (!(Options &  XrdOfsFWDALL)) fwbuff[0] = '\0';
         else {bp = fwbuff;
@@ -204,7 +206,7 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
               setBuff("\n", 1);
              }
 
-     if (!ConfigFN || !ConfigFN[0]) cloc = (char *)"Default";
+     if (!ConfigFN || !ConfigFN[0]) cloc = "Default";
         else cloc = ConfigFN;
      snprintf(buff, sizeof(buff), "%s ofs configuration:\n"
                                   "%s"
@@ -480,16 +482,17 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 #ifndef NODEBUG
    const char *tident = "";
 #endif
-    char *val, *mode = (char *)"remote";
+    const char *mode = "remote";
+    char *val;
     int ropt = 0;
 
     if ((val = Config.GetWord()))
        {     if (!strcmp("proxy",  val)) {ropt = XrdOfsREDIROXY;
-                                          mode = (char *)"proxy";
+                                          mode = "proxy";
                                          }
         else if (!strcmp("remote", val))  ropt = XrdOfsREDIRRMT;
         else if (!strcmp("target", val)) {ropt = XrdOfsREDIRTRG;
-                                          mode = (char *)"target";
+                                          mode = "target";
                                          }
        }
 

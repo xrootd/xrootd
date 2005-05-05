@@ -234,12 +234,14 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 /******************************************************************************/
 
 int XrdOfsDirectory::open(const char              *dir_path, // In
-                          const XrdSecEntity      *client)   // In
+                          const XrdSecEntity      *client,   // In
+                          const char              *info)      // In
 /*
   Function: Open the directory `path' and prepare for reading.
 
   Input:    path      - The fully qualified name of the directory to open.
             client    - Authentication credentials, if any.
+            info      - Opaque information to be used as seen fit.
 
   Output:   Returns SFS_OK upon success, otherwise SFS_ERROR.
 
@@ -442,7 +444,7 @@ int XrdOfsFile::open(const char          *path,      // In
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, error, EACCES, "open", path);
-   error.setErrInfo(0, (char *)"");
+   error.setErrInfo(0, "");
 
 // Set the actual open mode
 //
@@ -1096,7 +1098,7 @@ void XrdOfsFile::setCXinfo(XrdSfsFileOpenMode mode)
 {
     EPNAME("setCXinfo")
     if (mode & SFS_O_RAWIO)
-       {char cxtype[5], buffer[OUC_MAX_ERROR_LEN];
+       {char cxtype[5], buffer[XrdOucEI::Max_Error_Len];
         dorawio = 1;
         strncpy(cxtype, oh->cxid, sizeof(cxtype)-1);
         cxtype[4] = '\0';
@@ -1144,20 +1146,22 @@ int XrdOfsFile::Unclose()
 int XrdOfs::chmod(const char             *path,    // In
                         XrdSfsMode        Mode,    // In
                         XrdOucErrInfo    &einfo,   // Out
-                  const XrdSecEntity     *client)  // In
+                  const XrdSecEntity     *client,  // In
+                  const char             *info)    // In
 /*
   Function: Change the mode on a file or directory.
 
   Input:    path      - Is the fully qualified name of the file to be removed.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
+            info      - Opaque information to be used as seen fit.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
    static const char *epname = "chmod";
    mode_t acc_mode = Mode & S_IAMB;
-   char *tident = einfo.getErrUser();
+   const char *tident = einfo.getErrUser();
    int retc;
    XTRACE(chmod, path, "");
 
@@ -1173,7 +1177,7 @@ int XrdOfs::chmod(const char             *path,    // In
       if (Options & XrdOfsFWDCHMOD)
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
-          if ((retc = Finder->Forward(einfo,"chmod",buff,(char *)path)))
+          if ((retc = Finder->Forward(einfo, "chmod", buff, path)))
              return fsError(einfo, retc);
          }
       else if ((retc = Finder->Locate(einfo,path,O_RDWR)))
@@ -1195,7 +1199,8 @@ int XrdOfs::chmod(const char             *path,    // In
 int XrdOfs::exists(const char                *path,        // In
                          XrdSfsFileExistence &file_exists, // Out
                          XrdOucErrInfo       &einfo,       // Out
-                   const XrdSecEntity        *client)      // In
+                   const XrdSecEntity        *client,      // In
+                   const char                *info)        // In
 /*
   Function: Determine if file 'path' actually exists.
 
@@ -1207,6 +1212,7 @@ int XrdOfs::exists(const char                *path,        // In
                           XrdSfsFileExistsIsNo        - neither file nor directory.
             einfo       - Error information object holding the details.
             client      - Authentication credentials, if any.
+            info        - Opaque information to be used as seen fit.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 
@@ -1216,7 +1222,7 @@ int XrdOfs::exists(const char                *path,        // In
    static const char *epname = "exists";
    struct stat fstat;
    int retc;
-   char *tident = einfo.getErrUser();
+   const char *tident = einfo.getErrUser();
    XTRACE(exists, path, "");
 
 // Apply security, as needed
@@ -1263,7 +1269,8 @@ const char *XrdOfs::getVersion() {return XrdVSTRING;}
 int XrdOfs::mkdir(const char             *path,    // In
                         XrdSfsMode        Mode,    // In
                         XrdOucErrInfo    &einfo,   // Out
-                  const XrdSecEntity     *client)  // In
+                  const XrdSecEntity     *client,  // In
+                  const char             *info)    // In
 /*
   Function: Create a directory entry.
 
@@ -1273,6 +1280,7 @@ int XrdOfs::mkdir(const char             *path,    // In
                         full dircectory path should be created.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
+            info      - Opaque information to be used as seen fit.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
@@ -1280,7 +1288,7 @@ int XrdOfs::mkdir(const char             *path,    // In
    static const char *epname = "mkdir";
    mode_t acc_mode = Mode & S_IAMB;
    int retc, mkpath = Mode & SFS_O_MKPTH;
-   char *tident = einfo.getErrUser();
+   const char *tident = einfo.getErrUser();
    XTRACE(mkdir, path, "");
 
 // Apply security, as needed
@@ -1296,8 +1304,7 @@ int XrdOfs::mkdir(const char             *path,    // In
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
           return ((retc = Finder->Forward(einfo, (mkpath ? "mkpath" : "mkdir"),
-                                  buff,(char *)path)) ? 
-                 fsError(einfo, retc) : SFS_OK);
+                                  buff, path)) ? fsError(einfo, retc) : SFS_OK);
          }
          else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
                  return fsError(einfo, retc);
@@ -1343,7 +1350,8 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
 int XrdOfs::remove(const char              type,    // In
                    const char             *path,    // In
                          XrdOucErrInfo    &einfo,   // Out
-                   const XrdSecEntity     *client)  // In
+                   const XrdSecEntity     *client,  // In
+                   const char             *info)    // In
 /*
   Function: Delete a file from the namespace and release it's data storage.
 
@@ -1351,13 +1359,14 @@ int XrdOfs::remove(const char              type,    // In
             path      - Is the fully qualified name of the file to be removed.
             einfo     - Error information object to hold error details.
             client    - Authentication credentials, if any.
+            info      - Opaque information to be used as seen fit.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
    int retc;
    static const char *epname = "remove";
-   char *tident = einfo.getErrUser();
+   const char *tident = einfo.getErrUser();
    XTRACE(remove, path, "");
 
 // Apply security, as needed
@@ -1371,7 +1380,7 @@ int XrdOfs::remove(const char              type,    // In
    if (Finder && Finder->isRemote())
       if (Options & (type == 'd' ? XrdOfsFWDRMDIR : XrdOfsFWDRM))
          return ((retc = Finder->Forward(einfo, (type == 'd' ? "rmdir":"rm"),
-                         (char *)path)) ? fsError(einfo, retc) : SFS_OK);
+                         path)) ? fsError(einfo, retc) : SFS_OK);
          else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
                  return fsError(einfo, retc);
 
@@ -1393,7 +1402,9 @@ int XrdOfs::remove(const char              type,    // In
 int XrdOfs::rename(const char             *old_name,  // In
                    const char             *new_name,  // In
                          XrdOucErrInfo    &einfo,     //Out
-                   const XrdSecEntity     *client)    // In
+                   const XrdSecEntity     *client,    // In
+                   const char             *infoO,     // In
+                   const char             *infoN)     // In
 /*
   Function: Renames a file with name 'old_name' to 'new_name'.
 
@@ -1401,13 +1412,15 @@ int XrdOfs::rename(const char             *old_name,  // In
             new_name  - Is the fully qualified name that the file is to have.
             einfo     - Error information structure, if an error occurs.
             client    - Authentication credentials, if any.
+            infoO     - old_name opaque information to be used as seen fit.
+            infoN     - new_name opaque information to be used as seen fit.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
    static const char *epname = "rename";
    int retc;
-   char *tident = einfo.getErrUser();
+   const char *tident = einfo.getErrUser();
    XTRACE(rename, new_name, "old fn=" <<old_name <<" new ");
 
 // Apply security, as needed
@@ -1426,8 +1439,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 //
    if (Finder && Finder->isRemote())
       if (Options & XrdOfsFWDMV)
-         return ((retc = Finder->Forward(einfo,"mv",(char *)old_name,
-                                                    (char *)new_name))
+         return ((retc = Finder->Forward(einfo,"mv", old_name, new_name))
                 ? fsError(einfo, retc) : SFS_OK);
          else if ((retc = Finder->Locate(einfo,old_name,O_RDWR)))
                  return fsError(einfo, retc);
@@ -1450,7 +1462,8 @@ int XrdOfs::rename(const char             *old_name,  // In
 int XrdOfs::stat(const char             *path,        // In
                        struct stat      *buf,         // Out
                        XrdOucErrInfo    &einfo,       // Out
-                 const XrdSecEntity     *client)      // In
+                 const XrdSecEntity     *client,      // In
+                 const char             *info)        // In
 /*
   Function: Return file status information
 
@@ -1458,13 +1471,14 @@ int XrdOfs::stat(const char             *path,        // In
             buf       - The stat structure to hold the results
             einfo     - Error information structure, if an error occurs.
             client    - Authentication credentials, if any.
+            info      - opaque information to be used as seen fit.
 
   Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
 */
 {
    static const char *epname = "stat";
    int retc;
-   char *tident = einfo.getErrUser();
+   const char *tident = einfo.getErrUser();
    XTRACE(stat, path, "");
 
 // Apply security, as needed
@@ -1491,7 +1505,8 @@ int XrdOfs::stat(const char             *path,        // In
 int XrdOfs::stat(const char             *path,        // In
                        mode_t           &mode,        // Out
                        XrdOucErrInfo    &einfo,       // Out
-                 const XrdSecEntity     *client)      // In
+                 const XrdSecEntity     *client,      // In
+                 const char             *info)        // In
 /*
   Function: Return file status information (resident files only)
 
@@ -1499,6 +1514,7 @@ int XrdOfs::stat(const char             *path,        // In
             mode      - The stat mode entry (faked -- do not trust it)
             einfo     - Error information structure, if an error occurs.
             client    - Authentication credentials, if any.
+            info      - opaque information to be used as seen fit.
 
   Output:   Always returns SFS_ERROR if a delay needs to be imposed. Otherwise,
             SFS_OK is returned and mode is appropriately, if inaccurately, set.
@@ -1508,7 +1524,7 @@ int XrdOfs::stat(const char             *path,        // In
    static const char *epname = "stat";
    struct stat buf;
    int retc;
-   char *tident = einfo.getErrUser();
+   const char *tident = einfo.getErrUser();
    XTRACE(stat, path, "");
 
 // Apply security, as needed
@@ -1611,7 +1627,7 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
                  const char    *op,     // Operation being performed
                  const char    *target) // The target (e.g., fname)
 {
-   char *etext, buffer[OUC_MAX_ERROR_LEN], unkbuff[64];
+   char *etext, buffer[XrdOucEI::Max_Error_Len], unkbuff[64];
 
 // Get the reason for the error
 //
@@ -1690,7 +1706,7 @@ int XrdOfs::Stall(XrdOucErrInfo   &einfo, // Error text & code
                          "estimated time to completion %s";
     EPNAME("Stall")
 #ifndef NODEBUG
-    const char *tident = (char *)"";
+    const char *tident = "";
 #endif
     char Mbuff[2048], Tbuff[32];
 
@@ -1840,7 +1856,7 @@ int XrdOfsIdleXeq(XrdOfsHandle *op, void *tsecarg)
     time_t tsec = (time_t)tsecarg;
     XrdOfsHandleAnchor *anchor = &(op->Anchor());
     time_t IdleTime;
-    char *act = (char *)" ";
+    const char *act = " ";
 
  // Ceck if this handle is past the idle deadline, if so, close it. Note
  // that we already have the anchor locked so we don't ask for it to be locked.
@@ -1852,12 +1868,12 @@ int XrdOfsIdleXeq(XrdOfsHandle *op, void *tsecarg)
     if (IdleTime <= XrdOfsFS.FDMaxIdle)
        anchor->IdleDeadline = Max(IdleTime, anchor->IdleDeadline);
        else {if (op->CondLock())
-                {if (op->activ) act = (char *)" active ";
-                    else if (op->Select().getMmap(0)) act = (char *)" mmaped ";
+                {if (op->activ) act = " active ";
+                    else if (op->Select().getMmap(0)) act = " mmaped ";
                             else XrdOfsFS.Unopen(op);
                  op->UnLock();
                 }
-                else act = (char *)" unlockable ";
+                else act = " unlockable ";
              XTRACE(qscan,op->Name(),"idle=" <<IdleTime <<act <<op->Qname());
             }
     return 0;

@@ -40,7 +40,8 @@ class XrdOfsDirectory : public XrdSfsDirectory
 public:
 
         int         open(const char              *dirName,
-                         const XrdSecEntity      *client);
+                         const XrdSecEntity      *client,
+                         const char              *opaque = 0);
 
         const char *nextEntry();
 
@@ -50,9 +51,9 @@ inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 
 const   char       *FName() {return (const char *)fname;}
 
-                    XrdOfsDirectory(char *user) : XrdSfsDirectory(user)
+                    XrdOfsDirectory(const char *user) : XrdSfsDirectory(user)
                           {dp     = (XrdOssDir *)0;
-                           tident = (user ? user : (char *)"");
+                           tident = (user ? user : "");
                            fname=0; atEOF=0;
                           }
 virtual            ~XrdOfsDirectory() {if (dp) close();}
@@ -60,7 +61,7 @@ virtual            ~XrdOfsDirectory() {if (dp) close();}
 private:
 
 XrdOssDir     *dp;
-char          *tident;
+const char    *tident;
 char          *fname;
 int            atEOF;
 char           dname[MAXNAMLEN];
@@ -111,9 +112,9 @@ public:
 
         int            getCXinfo(char cxtype[4], int &cxrsz);
 
-                       XrdOfsFile(char *user) : XrdSfsFile(user)
+                       XrdOfsFile(const char *user) : XrdSfsFile(user)
                                  {oh = (XrdOfsHandle *)0; dorawio = 0;
-                                  tident = (user ? user : (char *)"");
+                                  tident = (user ? user : "");
                                   gettimeofday(&tod, 0);
                                  }
 
@@ -127,7 +128,7 @@ private:
 XrdOfsHandle  *oh;
 int            dorawio;
 struct timeval tod;
-char          *tident;
+const char    *tident;
 };
 
 /******************************************************************************/
@@ -156,12 +157,14 @@ public:
         int            chmod(const char             *Name,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecEntity     *client);
+                             const XrdSecEntity     *client,
+                             const char             *opaque = 0);
 
         int            exists(const char                *fileName,
                                     XrdSfsFileExistence &exists_flag,
                                     XrdOucErrInfo       &out_error,
-                              const XrdSecEntity        *client);
+                              const XrdSecEntity        *client,
+                              const char                *opaque = 0);
 
         int            fsctl(const int               cmd,
                              const char             *args,
@@ -175,7 +178,8 @@ const   char          *getVersion();
         int            mkdir(const char             *dirName,
                                    XrdSfsMode        Mode,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecEntity     *client);
+                             const XrdSecEntity     *client,
+                             const char             *opaque = 0);
 
         int            prepare(      XrdSfsPrep       &pargs,
                                      XrdOucErrInfo    &out_error,
@@ -183,28 +187,34 @@ const   char          *getVersion();
 
         int            rem(const char             *path,
                                  XrdOucErrInfo    &out_error,
-                           const XrdSecEntity     *client)
-                          {return remove('f', path, out_error, client);}
+                           const XrdSecEntity     *client,
+                           const char             *info = 0)
+                          {return remove('f', path, out_error, client, info);}
 
         int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecEntity     *client)
-                             {return remove('d', dirName, out_error, client);}
+                              const XrdSecEntity     *client,
+                              const char             *info = 0)
+                             {return remove('d',dirName,out_error,client,info);}
 
         int            rename(const char             *oldFileName,
                               const char             *newFileName,
                                     XrdOucErrInfo    &out_error,
-                              const XrdSecEntity     *client);
+                              const XrdSecEntity     *client,
+                              const char             *infoO = 0,
+                               const char            *infoN = 0);
 
         int            stat(const char             *Name,
                                   struct stat      *buf,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecEntity     *client);
+                            const XrdSecEntity     *client,
+                            const char             *opaque = 0);
 
         int            stat(const char             *Name,
                                   mode_t           &mode,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecEntity     *client);
+                            const XrdSecEntity     *client,
+                            const char             *opaque = 0);
 
 // Management functions
 //
@@ -270,7 +280,8 @@ static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
 static  int   fsError(XrdOucErrInfo &myError, int rc);
         void  Detach_Name(const char *);
         int   remove(const char type, const char *path,
-                     XrdOucErrInfo &out_error, const XrdSecEntity     *client);
+                     XrdOucErrInfo &out_error, const XrdSecEntity     *client,
+                     const char *opaque);
         int   Stall(XrdOucErrInfo  &, int, const char *);
 
 // Function used during Configuration
