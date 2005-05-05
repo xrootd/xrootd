@@ -129,6 +129,7 @@ int  xping(XrdOucError *edest, XrdOucStream &Config);
 int  xport(XrdOucError *edest, XrdOucStream &Config);
 int  xprep(XrdOucError *edest, XrdOucStream &Config);
 int  xrmtrt(XrdOucError *edest, XrdOucStream &Config);
+int  xrole(XrdOucError *edest, XrdOucStream &Config);
 int  xsched(XrdOucError *edest, XrdOucStream &Config);
 int  xspace(XrdOucError *edest, XrdOucStream &Config);
 int  xsubs(XrdOucError *edest, XrdOucStream &Config);
@@ -137,6 +138,7 @@ int  xtrace(XrdOucError *edest, XrdOucStream &Config);
 
 XrdNetSecurity   *Police;
 XrdOucTList      *monPath;
+XrdOucTList      *monPathP;
 char             *AdminPath;
 int               AdminMode;
 char             *pidPath;

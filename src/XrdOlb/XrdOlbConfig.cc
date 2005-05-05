@@ -188,7 +188,8 @@ int XrdOlbConfig::Configure(int argc, char **argv)
   Output:   0 upon success or !0 otherwise.
 */
    int logsync = 86400, NoGo = 0, immed = 0;
-   char c, buff[512], *temp, *logfn = 0, *smtype = 0;
+   char c, buff[512], *logfn = 0;
+   const char *temp, *smtype = 0;
    extern char *optarg;
    extern int opterr, optopt;
 
@@ -254,7 +255,9 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                                 "this machine is registered in DNS.");
        XrdOlbSay.Emsg("Config", "Execution continues but connection failures may occur.");
        myDomain = 0;
-      } else myDomain = index(myName, '.');
+      } else if (!(myDomain = index(myName, '.')))
+                XrdOlbSay.Emsg("Config", "Warning! This host,", myName,
+                               ", is registered without a domain qualification.");
 
 // Bail if no configuration file specified
 //
@@ -263,32 +266,10 @@ int XrdOlbConfig::Configure(int argc, char **argv)
        Usage(1);
       }
 
-// Override the wait/nowait from the command line
-//
-   if (immed) doWait = (immed > 0 ? 0 : 1);
-
-// Establish debugging for threads
-//
-   if (XrdOlbTrace.What && TRACE_Debug) XrdOucThread::setDebug(&XrdOlbSay);
-
-// Process unsupported configurations
-//
-   if (!(isManager || isServer))
-      {XrdOlbSay.Emsg("Config", "Mode not specified; manager mode assumed");
-       isManager = 1;
-      } 
-   if (isManager) 
-      {smtype = (char *)"manager";
-       XrdOlbJob *jp=(XrdOlbJob *)new XrdOlbCache_Scrubber(&XrdOlbCache,&XrdOlbSched);
-       XrdOlbSched.Schedule(jp, cachelife+time(0));
-      }
-   if (isServer) smtype = (char *)"server";
-   if (isServer && isManager) smtype = (char *)"supervisor";
-
 // Print herald
 //
    XrdOlbSay.Say(0, XrdCPR);
-   sprintf(buff, "olb@%s initializaing as %s", myName, smtype);
+   sprintf(buff, "olb@%s initialization started.", myName);
    XrdOlbSay.Say(0, buff);
 
 // Establish the FD limit
@@ -306,14 +287,39 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 //
    NoGo |= ConfigProc();
 
+// Override the wait/nowait from the command line
+//
+   if (immed) doWait = (immed > 0 ? 0 : 1);
+
+// Establish debugging for threads
+//
+   if (XrdOlbTrace.What && TRACE_Debug) XrdOucThread::setDebug(&XrdOlbSay);
+
+// Process role configurations
+//
+   if (!(isManager || isServer))
+      {XrdOlbSay.Emsg("Config", "Role not specified; manager role assumed.");
+       isManager = 1;
+      } else {
+       if (isManager < 0) isManager = 1;
+       if (isServer  < 0) isServer  = 1;
+      }
+   if (isManager) 
+      {smtype = "manager";
+       XrdOlbJob *jp=(XrdOlbJob *)new XrdOlbCache_Scrubber(&XrdOlbCache,&XrdOlbSched);
+       XrdOlbSched.Schedule(jp, cachelife+time(0));
+      }
+   if (isServer) smtype = "server";
+   if (isServer && isManager) smtype = "supervisor";
+
 // For managers, make sure that we have a well designated port. If we are a
 // supervisor then force an ephemeral port to be used.
 //
    if (isManager && !PortTCP)
-      {XrdOlbSay.Emsg("Config","Port not specified."); NoGo = 1;}
+      {XrdOlbSay.Emsg("Config","Manager's port not specified."); NoGo = 1;}
       else if (isServer) PortTCP = 0;
 
-// Setup the admin path (used in all modes)
+// Setup the admin path (used in all roles)
 //
    if (!NoGo) NoGo = !(AdminSock = ASocket(AdminPath,
                       (isManager ? "olbd.nimda" : "olbd.admin"), AdminMode));
@@ -330,8 +336,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 
 // All done, check for success or failure
 //
-   temp = (NoGo ? (char *)"initialization failed." 
-                : (char *)"initialization completed.");
+   temp = (NoGo ? "initialization failed." : "initialization completed.");
    sprintf(buff, "olb@%s:%d %s ", myName, PortTCP, smtype);
    XrdOlbSay.Say(0, buff, temp);
 
@@ -377,6 +382,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    TS_Xeq("port",          xport);   // Any,     non-dynamic
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
    TS_Xeq("remoteroot",    xrmtrt);  // Server,  non-dynamic
+   TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
@@ -507,23 +513,22 @@ XrdNetSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
 char *XrdOlbConfig::ASPath(char *path, const char *fn, mode_t mode)
 {
    int i;
-   char *act = 0;
+   const char *act = 0;
    struct stat buf;
    static char fnbuff[1024];
 
 // Create the directory if it is not already there
 //
    if (stat(path, &buf))
-      {if (errno != ENOENT) act = (char *)"process directory";
-          else if (mkdir(path, mode)) act = (char *)"create path directory";
-                  else if (chmod(path, mode))
-                          act = (char *)"set access mode for";
+      {if (errno != ENOENT) act = "process directory";
+          else if (mkdir(path, mode)) act = "create path directory";
+                  else if (chmod(path, mode)) act = "set access mode for";
       } else
        if ((buf.st_mode & S_IFMT) != S_IFDIR)
-          {errno = ENOTDIR; act = (char *)"process directory";}
+          {errno = ENOTDIR; act = "process directory";}
           else if ((buf.st_mode & S_IAMB) != mode
                &&  chmod(path, mode))
-                  act = (char *)"set access mode for";
+                  act = "set access mode for";
 
    if (act) {XrdOlbSay.Emsg("Config", errno, act, path);
              return 0;
@@ -636,6 +641,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    pidPath  = strdup("/tmp");
    Police   = 0;
    monPath  = 0;
+   monPathP = 0;
    cachelife= 8*60*60;
    pendplife=   60*60*24*7;
    DiskLinger=0;
@@ -729,20 +735,20 @@ int XrdOlbConfig::isExec(XrdOucError *eDest, const char *ptype, char *prog)
 int XrdOlbConfig::PidFile()
 {
     int xfd;
-    char buff[1024], *xop = 0;
+    char buff[1024];
     char pidFN[1200];
+    const char *xop = 0;
 
     if (isManager) snprintf(pidFN, sizeof(pidFN), "%s/olbd.super.pid", pidPath);
        else snprintf(pidFN, sizeof(pidFN), "%s/olbd.pid", pidPath);
 
-    if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
-       xop = (char *)"open";
+    if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0) xop = "open";
        else {if ((write(xfd, buff, snprintf(buff,sizeof(buff),"%d",getpid())) < 0)
              || (LocalRoot && (write(xfd,(void *)"\n&pfx=",6)  < 0 ||
                                write(xfd,(void *)LocalRoot, LocalRLen) < 0))
              || (AdminPath && (write(xfd,(void *)"\n&ap=", 5)  < 0 ||
                                write(xfd,(void *)AdminPath,strlen(AdminPath)) < 0))
-                ) xop = (char *)"write";
+                ) xop = "write";
              close(xfd);
             }
 
@@ -774,7 +780,7 @@ int XrdOlbConfig::setupManager()
    if (XrdOlbNetTCPm->Bind(PortTCP, "tcp")) return 1;
    if (!PortTCP) PortTCP = XrdOlbNetTCPm->Port();
 
-// Setup a local connection when in supervisor mode
+// Setup a local connection when in supervisor role
 //
    if (isServer)
       {char *fnp;
@@ -843,7 +849,7 @@ int XrdOlbConfig::setupServer()
 // Make sure we have enough info to be a server
 //
    if (!myManagers)
-      {XrdOlbSay.Emsg("Config", "Manager node not specified for server mode");
+      {XrdOlbSay.Emsg("Config", "Manager node not specified for server role");
        return 1;
       }
 
@@ -864,7 +870,7 @@ int XrdOlbConfig::setupServer()
 
 // If this is a staging server then we better have a disk cache
 //
-   if (DiskSS && !monPath)
+   if (DiskSS && !(monPath || monPathP))
       {XrdOlbSay.Emsg("Config","Staging paths present but no disk cache specified.");
        return 1;
       }
@@ -876,7 +882,7 @@ int XrdOlbConfig::setupServer()
 
 // Setup file system metering
 //
-   XrdOlbMeter::setParms(monPath, DiskMin, DiskAsk);
+   XrdOlbMeter::setParms((monPath ? monPath : monPathP), DiskMin, DiskAsk);
 
 // Set up load metering
 //
@@ -1118,13 +1124,14 @@ int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
     struct stat buff;
 
     if (stat(fn, &buff))
-       {if (!chk) eDest->Emsg("Config", errno, "process cache", fn);
+       {if (!chk) eDest->Emsg("Config", errno, "process r/w path", fn);
         return -1;
        }
 
-    if (chk && !(buff.st_mode & S_IFDIR)) return 0;
+    if ((chk > 0) && !(buff.st_mode & S_IFDIR)) return 0;
 
-    monPath = new XrdOucTList(fn, 0, monPath);
+    if (chk < 0) monPathP = new XrdOucTList(fn, 0, monPathP);
+       else monPath = new XrdOucTList(fn, 0, monPath);
     return 1;
 }
 
@@ -1413,6 +1420,11 @@ int XrdOlbConfig::xpath(XrdOucError *eDest, XrdOucStream &Config)
 // Add the path to the list of paths
 //
    PathList.Insert(path, &pmask);
+
+// If the path is writable, add it to the potential cache list. This list gets
+// used if no cache directives have been specified.
+//
+   if (pmask.rwvec || pmask.ssvec) Fsysadd(eDest, -1, path);
    return 0;
 }
   
@@ -1716,6 +1728,57 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &Config)
    return 0;
 }
 
+/******************************************************************************/
+/*                                 x r o l e                                  */
+/******************************************************************************/
+
+/* Function: xrole
+
+   Purpose:  To parse the directive: role {manager | server | supervisor}
+                                          [if <hostlist>]
+
+             manager    act as a manager (incomming no outgoing).
+             server     act as a server (no incomming only outgoing).
+             supervisor act as a supervisor (incomming and outgoing).
+             <hostlist> apply role only when executing on matching host.
+
+   Type: Server only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &Config)
+{
+    char *val;
+    const char *myrole;
+    int xServ = 0, xMan = 0;
+
+    if (!(val = Config.GetWord()))
+       {eDest->Emsg("Config", "role not specified"); return 1;}
+
+         if (!strcmp("manager",    val)) 
+            {xServ =  0; xMan = -1; myrole = "manager";}
+    else if (!strcmp("server",     val)) 
+            {xServ = -1; xMan =  0; myrole = "server";}
+    else if (!strcmp("supervisor", val)) 
+            {xServ = -1; xMan = -1; myrole = "supervisor";}
+    else {eDest->Emsg("Config", "invalid role -", val); return 1;}
+
+    if ((val = Config.GetWord()) && !strcmp("if", val))
+       {if (!(val = Config.GetWord()))
+           {eDest->Emsg("Config","Host name missing after 'if' in role directive.");
+            return 1;
+           }
+        while(val && !XrdNetDNS::isMatch(myName, val)) val = Config.GetWord();
+        if (!val) return 0;
+       }
+
+    if (isServer > 0 || isManager > 0)
+       eDest->Emsg("Config",myrole,"role over-ridden by command line options.");
+       else {isServer = xServ; isManager = xMan;}
+
+    return 0;
+}
 /******************************************************************************/
 /*                                x s c h e d                                 */
 /******************************************************************************/
