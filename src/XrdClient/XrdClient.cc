@@ -261,7 +261,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	araoffset = xrdmax(fReadAheadLast, offset + len);
 	aralen = xrdmin(rasize,
 			offset + len + rasize -
-			max(offset + len, fReadAheadLast));
+			xrdmax(offset + len, fReadAheadLast));
 
 	if (aralen > 0) {
 	   Read_Async(araoffset, aralen);
