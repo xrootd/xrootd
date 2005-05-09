@@ -40,7 +40,7 @@ extern XrdScheduler      XrdSched;
 /*                           C o n s t r c u t o r                            */
 /******************************************************************************/
   
-XrdStats::XrdStats(char *hname, int port)
+XrdStats::XrdStats(const char *hname, int port)
 {
    myHost = hname;
    myPort = port;
@@ -53,13 +53,15 @@ XrdStats::XrdStats(char *hname, int port)
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
-char *XrdStats::Stats(int opts)   // statsMutex must be locked!
+const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 {
 #define XRDSHEAD "<statistics tod=\"%ld\" ver=\"" XrdVSTRING "\">"
+#define XRDSTAIL "</statistics>"
+#define XRDSNULL "<statistics tod=\"0\" ver=\"" XrdVSTRING "\">" XRDSTAIL
 
    static XrdProtocol_Select Protocols;
    static const char head[] = XRDSHEAD;
-   static const char tail[] = "</statistics>";
+   static const char tail[] = XRDSTAIL;
    static const int  ovrhed = strlen(head)+16+sizeof(XrdVSTRING)+strlen(tail);
    char *bp;
    int   bl, sz, do_sync = opts & XRD_STATS_SYNC;
@@ -70,7 +72,7 @@ char *XrdStats::Stats(int opts)   // statsMutex must be locked!
    if (!(bp = buff))
       {bl = Protocols.Stats(0,0) + ovrhed;
        if (getBuff(bl)) bp = buff;
-          else return (char *)XRDSHEAD "</<statistics>";
+          else return XRDSNULL;
       }
    bl = blen;
 

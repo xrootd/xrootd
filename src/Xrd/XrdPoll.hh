@@ -17,6 +17,7 @@
 #define XRD_NUMPOLLERS 3
 
 class XrdLink;
+class XrdOucSemaphore;
   
 class XrdPoll
 {
@@ -93,10 +94,12 @@ XrdOucMutex   PollPipe;
 struct pollfd PipePoll;
 int           CmdFD;      // FD to send PipeData commands
 int           ReqFD;      // FD to recv PipeData requests
-struct        PipeData {enum cmd {EnFD, DiFD, RmFD};
+struct        PipeData {union {XrdOucSemaphore  *theSem;
+                               struct {int fd;
+                                       int ent;} Arg;
+                              } Parms;
+                        enum cmd {EnFD, DiFD, RmFD, Post};
                         cmd req;
-                        int fd;
-                        int ent;
                        };
               PipeData ReqBuff;
 char         *PipeBuff;

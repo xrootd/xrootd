@@ -118,7 +118,7 @@ void XrdLink::Reset()
   Lname[0] = '?';
   Lname[1] = '\0';
   ID       = &Uname[sizeof(Uname)-2];
-  Comment  = (const char *)ID;
+  Comment  = ID;
   Next     = 0;
   Protocol = 0; 
   ProtoAlt = 0;
@@ -652,7 +652,7 @@ void XrdLink::setRef(int use)
              opMutex.UnLock();
             }
     else if (InUse < 1)
-            {char *etp = (InUse < 0 ? (char *)"use count underflow" : 0);
+            {const char *etp = (InUse < 0 ? "use count underflow" : 0);
              InUse = 1;
              opMutex.UnLock();
              setEtext(etp);

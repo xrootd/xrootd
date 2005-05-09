@@ -71,7 +71,7 @@ XrdLink *XrdInet::Accept(int opts, int timeout)
 /*                               C o n n e c t                                */
 /******************************************************************************/
 
-XrdLink *XrdInet::Connect(char *host, int port, int opts, int tmo)
+XrdLink *XrdInet::Connect(const char *host, int port, int opts, int tmo)
 {
    XrdNetPeer myPeer;
    XrdLink   *lp;

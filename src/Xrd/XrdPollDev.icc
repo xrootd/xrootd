@@ -49,7 +49,7 @@ XrdProtocol  *Match(XrdLink *lp) {return (XrdProtocol *)0;}
 
 int           Process(XrdLink *lp) {return -1;}
 
-void          Recycle(XrdLink *lp, int x, char *y) {}
+void          Recycle(XrdLink *lp, int x, const char *y) {}
 
 int           Stats(char *buff, int blen, int do_sync=0) {return 0;}
 
@@ -104,7 +104,8 @@ XrdPollDev::~XrdPollDev()
 void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
 {
    static XrdPoll_End linkend;
-   PipeData cmdbuff;
+   XrdOucSemaphore mySem(0);
+   PipeData cmdbuff[2];
    int myerrno = 0;
 
 // Simply return if the link is already disabled
@@ -115,10 +116,13 @@ void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
 //
    TRACEI(POLL, "Poller " <<PID <<" async disabling link " <<lp->FD);
 
-// Send a disable request to the poller thread handling this link
+// Send a disable request to the poller thread handling this link. We need to
+// wait until the operation is actually completed before returning.
 //
-   cmdbuff.req = PipeData::DiFD;
-   cmdbuff.fd  = lp->FD;
+   cmdbuff[0].req          = PipeData::DiFD;
+   cmdbuff[0].Parms.Arg.fd = lp->FD;
+   cmdbuff[1].req          = PipeData::Post;
+   cmdbuff[1].Parms.theSem = &mySem;
    PollPipe.Lock();
    if (write(CmdFD, &cmdbuff, sizeof(cmdbuff)) < 0) myerrno = errno;
    PollPipe.UnLock();
@@ -126,7 +130,7 @@ void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
 // Verify that all went well and if termination wanted, terminate the link
 //
    if (myerrno) XrdLog.Emsg("Poll", myerrno, "disable link", lp->ID);
-      else {lp->IOSemaphore.Wait();
+      else {mySem.Wait();
             if (etxt)
                {lp->ProtoAlt = lp->Protocol;
                 lp->Protocol = (XrdProtocol *)&linkend;
@@ -153,8 +157,8 @@ int XrdPollDev::Enable(XrdLink *lp)
 
 // Send an enable request to the poller thread handling this link
 //
-   cmdbuff.req = PipeData::EnFD;
-   cmdbuff.fd  = lp->FD;
+   cmdbuff.req           = PipeData::EnFD;
+   cmdbuff.Parms.Arg.fd  = lp->FD;
    PollPipe.Lock();
    nogo = write(CmdFD, &cmdbuff, sizeof(cmdbuff)) != sizeof(cmdbuff);
    PollPipe.UnLock();
@@ -265,7 +269,8 @@ void XrdPollDev::doRequests(int maxreq)
 {
    struct pollfd ptab = {0, 0, 0};
    XrdLink *lp;
-   char buff[16], *act, edval;
+   const char *act;
+   char buff[16], edval;
    int rc, num2do;
 
 // To keep ourselves from being swamped, base request read-aheads on the number
@@ -276,27 +281,31 @@ void XrdPollDev::doRequests(int maxreq)
 // Now process all poll table manipulation requests
 //
    while(num2do-- && getRequest())
-        {     if (!(lp = XrdLink::fd2link(ReqBuff.fd)))
-                 {sprintf(buff, "%d", ReqBuff.fd);
+        {     if (ReqBuff.req == PipeData::Post)
+                 {ReqBuff.Parms.theSem->Post();
+                  continue;
+                 }
+              if (!(lp = XrdLink::fd2link(ReqBuff.Parms.Arg.fd)))
+                 {sprintf(buff, "%d", ReqBuff.Parms.Arg.fd);
                   XrdLog.Emsg("Poll", "FD", buff, "does not map to a link");
-                  ptab.events = POLLREMOVE; act = (char *)" remove fd ";
+                  ptab.events = POLLREMOVE; act = " remove fd ";
                  }
          else if (ReqBuff.req == PipeData::EnFD)
                  {ptab.events = POLLIN | POLLRDNORM; 
-                  act = (char *)" enable fd ";  edval = (char)1; numEnabled++;
+                  act = " enable fd ";  edval = 0x01; numEnabled++;
                  }
          else if (ReqBuff.req == PipeData::DiFD)
                  {ptab.events = POLLREMOVE; 
-                  act = (char *)" disable fd "; edval = (char)0;
+                  act = " disable fd "; edval = 0x00;
                  }
          else    {XrdLog.Emsg("Poll", "Received an invalid poll pipe request");
                   continue;
                  }
-         ptab.fd = ReqBuff.fd;
-         TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.fd);
+         ptab.fd = ReqBuff.Parms.Arg.fd;
+         TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.Parms.Arg.fd);
          if (write(PollDfd, &ptab, sizeof(struct pollfd)) != sizeof(struct pollfd))
             XrdLog.Emsg("Poll", errno, act);
-         if (lp) {lp->isEnabled = edval; lp->IOSemaphore.Post();}
+         if (lp) lp->isEnabled = edval;
         }
 }
   

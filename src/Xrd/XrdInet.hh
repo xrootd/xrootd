@@ -31,7 +31,7 @@ public:
 
 XrdLink    *Accept(int opts=0, int timeout=-1);
 
-XrdLink    *Connect(char *host, int port, int opts=0, int timeout=-1);
+XrdLink    *Connect(const char *host, int port, int opts=0, int timeout=-1);
 
             XrdInet(XrdOucError *erp, XrdNetSecurity *secp=0)
                       : XrdNet(erp, secp) {}

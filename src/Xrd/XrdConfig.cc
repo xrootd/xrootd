@@ -182,7 +182,8 @@ int XrdConfig::Configure(int argc, char **argv)
 */
    static sockaddr myIPAddr;
    int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = 0;
-   char c, *myProg, buff[512], *temp, *dfltProt, *logfn = 0;
+   const char *temp;
+   char c, *myProg, buff[512], *dfltProt, *logfn = 0;
    extern char *optarg;
    extern int optind, opterr;
 
@@ -300,7 +301,7 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // All done, close the stream and return the return code.
 //
-   temp = (NoGo ? (char *)"failed." : (char *)"completed.");
+   temp = (NoGo ? "failed." : "completed.");
    sprintf(buff, "xrd@%s:%d initialization ", myName, ProtInfo.Port);
    XrdLog.Say(0, buff, temp);
    return NoGo;
@@ -463,17 +464,18 @@ int XrdConfig::ConfigProc()
 int XrdConfig::PidFile(char *dfltp)
 {
     int xfd;
-    char buff[32], *xop = 0;
+    const char *xop;
+    char buff[32];
     char newpidFN[1024];
 
     snprintf(newpidFN, sizeof(newpidFN)-1,"%s/%s:%d.pid",PidPath,dfltp,PortTCP);
     newpidFN[sizeof(newpidFN)-1] = '\0';
 
     if ((xfd = open(newpidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
-       xop = (char *)"open";
+       xop = "open";
        else {snprintf(buff, sizeof(buff), "%d", getpid());
              if (write(xfd, (void *)buff, strlen(buff)) < 0)
-                xop = (char *)"write";
+                xop = "write";
              close(xfd);
             }
 
@@ -962,15 +964,14 @@ int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
 
 /******************************************************************************/
 
-int XrdConfig::yport(XrdOucError *eDest, const char *ptype, char *val)
+int XrdConfig::yport(XrdOucError *eDest, const char *ptype, const char *val)
 {
     int pnum;
     if (!strcmp("any", val)) return -1;
 
-    char *invp = (*ptype == 't' ? (char *)"tcp port" :
-                                  (char *)"udp port" );
-    char *invs = (*ptype == 't' ? (char *)"Unable to find tcp service" :
-                                  (char *)"Unable to find udp service" );
+    const char *invp = (*ptype == 't' ? "tcp port" : "udp port" );
+    const char *invs = (*ptype == 't' ? "Unable to find tcp service" :
+                                        "Unable to find udp service" );
 
     if (isdigit(*val))
        {if (XrdOuca2x::a2i(*eDest,invp,val,&pnum,1,65535)) return 0;}
@@ -1075,6 +1076,8 @@ char *XrdConfig::xprotparms(XrdOucError *eDest, XrdOucStream &Config)
         return 0;
        }
 
+// When we return a null string it will be converted to a null pointer
+//
     return (*pbuff ? strdup(&pbuff[1]) : (char *)"");
 }
 

@@ -568,17 +568,17 @@ void XrdScheduler::hireWorker(int dotrace)  // Called with SchedMutex locked!
 /******************************************************************************/
   
 void XrdScheduler::traceExit(pid_t pid, int status)
-{  char *why;
+{  const char *why;
    int   retc;
 
    if (WIFEXITED(status))
       {retc = WEXITSTATUS(status);
-       why = (char *)" exited with rc=";
+       why = " exited with rc=";
       } else if (WIFSIGNALED(status))
                 {retc = WTERMSIG(status);
-                 why = (char *)" killed with signal ";
+                 why = " killed with signal ";
                 } else {retc = 0;
-                        why = (char *)" changed state ";
+                        why = " changed state ";
                        }
    TRACE(SCHED, "Process " <<pid <<why <<retc);
 }

@@ -32,11 +32,11 @@ public:
 
 void  Lock() {statsMutex.Lock();}       // Call before doing Stats()
 
-char *Stats(int opts);
+const char *Stats(int opts);
 
 void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
 
-      XrdStats(char *hn, int port);
+      XrdStats(const char *hn, int port);
      ~XrdStats() {if (buff) free(buff);}
 
 private:
@@ -47,10 +47,10 @@ int        ProcStats(char *buff, int blen, int dosync=0);
 
 XrdOucMutex statsMutex;
 
-char      *buff;        // Used by all callers
-int        blen;
-char      *myHost;
-int        myPort;
-int        myPid;
+char       *buff;        // Used by all callers
+int         blen;
+const char *myHost;
+int         myPort;
+int         myPid;
 };
 #endif

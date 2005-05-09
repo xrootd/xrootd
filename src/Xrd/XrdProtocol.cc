@@ -168,7 +168,7 @@ int XrdProtocol_Select::Process(XrdLink *lp)
 /*                               R e c y c l e                                */
 /******************************************************************************/
   
-void XrdProtocol_Select::Recycle(XrdLink *lp, int ctime, char *reason)
+void XrdProtocol_Select::Recycle(XrdLink *lp, int ctime, const char *reason)
 {
 
 // Document non-protocol errors

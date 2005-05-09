@@ -76,7 +76,7 @@ XrdBuffManager::XrdBuffManager(int minrst) :
 #endif
    rsinprog = 0;
    minrsw   = minrst;
-   memset((void *)bucket, 0, sizeof(bucket));
+   memset(static_cast<void *>(bucket), 0, sizeof(bucket));
 }
 
 /******************************************************************************/
@@ -90,7 +90,7 @@ void XrdBuffManager::Init()
 
 // Start the reshaper thread
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdReshaper, (void *)this, 0,
+   if ((rc = XrdOucThread::Run(&tid, XrdReshaper, static_cast<void *>(this), 0,
                           "Buffer Manager reshaper")))
       XrdLog.Emsg("BuffManager", rc, "create reshaper thread");
 }
@@ -133,7 +133,7 @@ XrdBuffer *XrdBuffManager::Obtain(int sz)
 // Allocate a chunk of aligned memory
 //
    pk = (mk < pagsz ? mk : pagsz);
-   if (!(memp = (char *)memalign(pk, mk))) return 0;
+   if (!(memp = static_cast<char *>(memalign(pk, mk)))) return 0;
 
 // Wrap the memory with a buffer object
 //

@@ -63,7 +63,7 @@ XrdProtocol  *Match(XrdLink *lp) {return (XrdProtocol *)0;}
 
 int           Process(XrdLink *lp) {return -1;}
 
-void          Recycle(XrdLink *lp, int x, char *y) {}
+void          Recycle(XrdLink *lp, int x, const char *y) {}
 
 int           Stats(char *buff, int blen, int do_sync=0) {return 0;}
 
@@ -174,7 +174,8 @@ int XrdPollPoll::Include(XrdLink *lp)
 void XrdPollPoll::Disable(XrdLink *lp, const char *etxt)
 {
    static XrdPoll_End linkend;
-   PipeData cmdbuff;
+   XrdOucSemaphore mySem(0);
+   PipeData cmdbuff[2];
    int myerrno = 0;
 
 // Check if this link is in the pollQ. If so, remove it.
@@ -189,11 +190,14 @@ void XrdPollPoll::Disable(XrdLink *lp, const char *etxt)
 //
    TRACEI(POLL, "Poller " <<PID <<" async disabling link FD " <<lp->FD);
 
-// Send a disable request to the poller thread handling this link
+// Send a disable request to the poller thread handling this link. We need to
+// wait until the operation is actually completed before returning.
 //
-   cmdbuff.req = PipeData::DiFD;
-   cmdbuff.fd  = lp->FD;
-   cmdbuff.ent = lp->PollEnt - PollTab;
+   cmdbuff[0].req           = PipeData::DiFD;
+   cmdbuff[0].Parms.Arg.fd  = lp->FD;
+   cmdbuff[0].Parms.Arg.ent = lp->PollEnt - PollTab;
+   cmdbuff[1].req           = PipeData::Post;
+   cmdbuff[1].Parms.theSem  = &mySem;
    PollPipe.Lock();
    if (write(CmdFD, &cmdbuff, sizeof(cmdbuff)) < 0) myerrno = errno;
    PollPipe.UnLock();
@@ -201,7 +205,7 @@ void XrdPollPoll::Disable(XrdLink *lp, const char *etxt)
 // Verify that all went well and if termination wanted, terminate the link
 //
    if (myerrno) XrdLog.Emsg("Poll", myerrno, "disable link", lp->ID);
-      else {lp->IOSemaphore.Wait();
+      else {mySem.Wait();
             if (etxt)
                {lp->ProtoAlt = lp->Protocol;
                 lp->Protocol = (XrdProtocol *)&linkend;
@@ -237,9 +241,9 @@ int XrdPollPoll::Enable(XrdLink *lp)
 // Send an enable request to the poller thread handling this link
 //
    TRACEI(POLL, "sending poller " <<PID <<" enable for link " <<lp->FD);
-   cmdbuff.req = PipeData::EnFD;
-   cmdbuff.fd  = lp->FD;
-   cmdbuff.ent = lp->PollEnt - PollTab;
+   cmdbuff.req           = PipeData::EnFD;
+   cmdbuff.Parms.Arg.fd  = lp->FD;
+   cmdbuff.Parms.Arg.ent = lp->PollEnt - PollTab;
    PollPipe.Lock();
    if (write(CmdFD, &cmdbuff, sizeof(cmdbuff)) < 0) myerrno = errno;
    PollPipe.UnLock();
@@ -260,7 +264,8 @@ int XrdPollPoll::Enable(XrdLink *lp)
   
 void XrdPollPoll::Exclude(XrdLink *lp)
 {
-   PipeData cmdbuff;
+   XrdOucSemaphore mySem(0);
+   PipeData cmdbuff[2];
    int myerrno = 0;
 
 // Make sure this link is not enabled
@@ -274,17 +279,19 @@ void XrdPollPoll::Exclude(XrdLink *lp)
 // Send a deatch request to the poller thread handling this link
 //
    TRACEI(POLL, "sending poller " <<PID <<" detach for link " <<lp->FD);
-   cmdbuff.req = PipeData::RmFD;
-   cmdbuff.fd  = lp->FD;
-   cmdbuff.ent = lp->PollEnt - PollTab;
+   cmdbuff[0].req           = PipeData::RmFD;
+   cmdbuff[0].Parms.Arg.fd  = lp->FD;
+   cmdbuff[0].Parms.Arg.ent = lp->PollEnt - PollTab;
+   cmdbuff[1].req           = PipeData::Post;
+   cmdbuff[1].Parms.theSem  = &mySem;
    PollPipe.Lock();
    if (write(CmdFD, &cmdbuff, sizeof(cmdbuff)) < 0) myerrno = errno;
    PollPipe.UnLock();
 
 // Verify that all went well and if termination wanted, terminate the link
 //
-   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disable link", lp->ID);
-      else lp->IOSemaphore.Wait();
+   if (myerrno) XrdLog.Emsg("Poll", myerrno, "detach link", lp->ID);
+      else mySem.Wait();
 }
  
 /******************************************************************************/
@@ -419,7 +426,7 @@ void XrdPollPoll::doDetach(int pti)
 
 void XrdPollPoll::doRequests(int maxreq)
 {
-   char *act;
+   const char *act;
    int pti, ptfd, num2do;
    XrdLink *lp;
 
@@ -431,35 +438,39 @@ void XrdPollPoll::doRequests(int maxreq)
 // Now process all poll table manipulation requests
 //
    while(num2do-- && getRequest())
-        {     pti = ReqBuff.ent;
-              if ((ptfd = abs(PollTab[pti].fd)) != ReqBuff.fd)
-                 {LogEvent(ReqBuff.req, PollTab[pti].fd, ReqBuff.fd); continue;}
+        {     if (ReqBuff.req == PipeData::Post)
+                 {ReqBuff.Parms.theSem->Post();
+                  continue;
+                 }
+              pti = ReqBuff.Parms.Arg.ent;
+              if ((ptfd = abs(PollTab[pti].fd)) != ReqBuff.Parms.Arg.fd)
+                 {LogEvent(ReqBuff.req, PollTab[pti].fd, ReqBuff.Parms.Arg.fd);
+                  continue;
+                 }
               if (!(lp = XrdLink::fd2link(ptfd)))
                  {LogEvent(ReqBuff.req, -1, ptfd); continue;}
               if (ReqBuff.req == PipeData::EnFD)
                  {PollTab[pti].events = POLLIN | POLLRDNORM;
                   PollTab[pti].fd     = ptfd;
                   lp->isEnabled = 1; numEnabled++;
-                  act = (char *)" enabled fd ";
+                  act = " enabled fd ";
                  }
          else if (ReqBuff.req == PipeData::DiFD)
                  {PollTab[pti].fd     = -ptfd;
-                  act = (char *)" disabled fd ";
+                  act = " disabled fd ";
                   lp->isEnabled = 0;
-                  lp->IOSemaphore.Post();
                  }
          else if (ReqBuff.req == PipeData::RmFD)
                  {PollTab[pti].fd     = -1;
                   doDetach(pti);
-                  act = (char *)" detached fd ";
+                  act = " detached fd ";
                   lp->isEnabled = 0;
-                  lp->IOSemaphore.Post();
                  }
          else {XrdLog.Emsg("Poll", "Received an invalid poll pipe request");
                continue;
               }
-         TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.fd <<" entry " <<pti 
-                     <<" now at " <<PollTNum);
+         TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.Parms.Arg.fd
+                     <<" entry " <<pti <<" now at " <<PollTNum);
         }
 }
 
@@ -495,13 +506,14 @@ void XrdPollPoll::dqLink(XrdLink *lp)
   
 void XrdPollPoll::LogEvent(int req, int pollfd, int cmdfd)
 {
-   char buff[4096], *id1, *id2, *opn;
+   const char *opn, *id1, *id2;
+   char buff[4096];
    XrdLink *lp;
 
-        if (ReqBuff.req == PipeData::EnFD)  opn = (char *)"enable";
-   else if (ReqBuff.req == PipeData::DiFD)  opn = (char *)"disable";
-   else if (ReqBuff.req == PipeData::RmFD)  opn = (char *)"detach";
-   else                                     opn = (char *)"???";
+        if (ReqBuff.req == PipeData::EnFD)  opn = "enable";
+   else if (ReqBuff.req == PipeData::DiFD)  opn = "disable";
+   else if (ReqBuff.req == PipeData::RmFD)  opn = "detach";
+   else                                     opn = "???";
 
    if (pollfd < 0)
       {sprintf(buff, "poll %d failed; FD %d", PID, cmdfd);
@@ -510,9 +522,9 @@ void XrdPollPoll::LogEvent(int req, int pollfd, int cmdfd)
       }
 
    if ((lp = XrdLink::fd2link(pollfd))) id1 = lp->ID;
-      else id1 = (char *)"unknown";
+      else id1 = "unknown";
    if ((lp = XrdLink::fd2link(cmdfd)))  id2 = lp->ID;
-      else id2 = (char *)"unknown";
+      else id2 = "unknown";
    snprintf(buff, sizeof(buff)-1, 
             "%d poll fd=%d (%s) not equal %s cmd fd=%d (%s).",
             PID, pollfd, id1, opn, cmdfd, id2);

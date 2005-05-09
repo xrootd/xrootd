@@ -50,7 +50,7 @@ char *xprotparms(XrdOucError *eDest, XrdOucStream &Config);
 int   xsched(XrdOucError *edest, XrdOucStream &Config);
 int   xtrace(XrdOucError *edest, XrdOucStream &Config);
 int   xtmo(XrdOucError *edest, XrdOucStream &Config);
-int   yport(XrdOucError *edest, const char *ptyp, char *pval);
+int   yport(XrdOucError *edest, const char *ptyp, const char *pval);
 
 static const char  *TraceID;
 
