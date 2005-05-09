@@ -390,7 +390,7 @@ int XrdNetDNS::getProtoID(const char *pname)
 int XrdNetDNS::Host2Dest(const char      *hostname,
                          struct sockaddr &DestAddr,
                          char           **errtxt)
-{ char *cp;
+{ char *cp, hbuff[256];
   int port;
   struct sockaddr_in InetAddr;
 
@@ -400,24 +400,21 @@ int XrdNetDNS::Host2Dest(const char      *hostname,
        {if (errtxt) *errtxt = (char *)"port not specified";
         return 0;
        }
-   *cp = '\0';
+   strlcpy(hbuff, hostname, hostname-cp);
 
-// Convert hostname to an ascii ip address
+// Convert hostname to an ip address
 //
-   if (!getHostAddr(hostname, (struct sockaddr &)InetAddr, errtxt))
-      {*cp = ':'; return 0;}
+   if (!getHostAddr(hbuff, (struct sockaddr &)InetAddr, errtxt)) return 0;
 
 // Insert port number in address
 //
    if (!(port = atoi(cp+1)) || port > 0xffff)
       {if (errtxt) *errtxt = (char *)"invalid port number";
-       *cp = ':'; 
        return 0;
       }
 
 // Compose the destination address
 //
-   *cp = ':';
    InetAddr.sin_family = AF_INET;
    InetAddr.sin_port = htons(port);
    memcpy((void *)&DestAddr, (const void *)&InetAddr, sizeof(sockaddr));
