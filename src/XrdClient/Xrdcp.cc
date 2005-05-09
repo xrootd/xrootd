@@ -68,7 +68,7 @@ struct XrdCpInfo {
    XrdCpMthrQueue               queue;
 } cpnfo;
 
-#define XRDCP_BLOCKSIZE          (DFLT_READAHEADSIZE/4)
+#define XRDCP_BLOCKSIZE          (DFLT_READAHEADSIZE)
 #define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 0.2 beta"
 
 ///////////////////////////////////////////////////////////////////////
@@ -703,6 +703,7 @@ int main(int argc, char**argv) {
    EnvPutInt( NAME_RECONNECTTIMEOUT , 15);
    EnvPutInt( NAME_FIRSTCONNECTMAXCNT, 1);
    EnvPutInt( NAME_DEBUG, -1);
+   EnvPutInt( NAME_READAHEADSIZE, 0);
 
    for (int i=1; i < argc; i++) {
 

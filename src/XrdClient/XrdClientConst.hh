@@ -64,7 +64,7 @@
 #define DFLT_READCACHESIZE      4000000
 #define NAME_READCACHESIZE      (char *)"ReadCacheSize"
 
-#define DFLT_READAHEADSIZE      1000000
+#define DFLT_READAHEADSIZE      500000
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
 
 #define NAME_REDIRDOMAINALLOW_RE   (char *)"RedirDomainAllowRE"
@@ -77,7 +77,8 @@
 #define TRUE  1
 #define FALSE 0
 
-
+#define xrdmin(a, b) (a < b ? a : b)
+#define xrdmax(a, b) (a > b ? a : b)
 
 #endif
 

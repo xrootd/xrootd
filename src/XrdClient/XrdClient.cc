@@ -32,13 +32,13 @@
 
 //_____________________________________________________________________________
 XrdClient::XrdClient(const char *url) {
+   fReadAheadLast = 0;
 
    memset(&fStatInfo, 0, sizeof(fStatInfo));
 
    int CacheSize = EnvGetLong(NAME_READCACHESIZE);
 
    fUseCache = (CacheSize > 0);
-   fReadAheadSize = EnvGetLong(NAME_READAHEADSIZE);
 
    if (!XrdClientConnectionMgr::IsAlive())
      Info(XrdClientDebug::kNODEBUG,
@@ -238,6 +238,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
       return FALSE;
    }
 
+   long rasize = EnvGetLong(NAME_READAHEADSIZE);
+
   // If the cache is enabled and gives the data to us
   //  we don't need to ask the server for them
   if( fUseCache &&
@@ -248,8 +250,30 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	  "Found data in cache. len=" << len <<
 	  " offset=" << offset);
 
+     // Are we using async read ahead?
+     if (fUseCache && EnvGetLong(NAME_GOASYNC) && (rasize > 0)) {
+	long long araoffset;
+	long aralen;
+
+	// This is a HIT case. Async readahead will try to put some data
+	// in advance into the cache. The higher the araoffset will be,
+	// the best chances we have not to cause overhead
+	araoffset = xrdmax(fReadAheadLast, offset + len);
+	aralen = xrdmin(rasize,
+			offset + len + rasize -
+			max(offset + len, fReadAheadLast));
+
+	if (aralen > 0) {
+	   Read_Async(araoffset, aralen);
+	   fReadAheadLast = araoffset + aralen;
+	}
+     }
+
      return len;
   }
+
+
+
 
   // Prepare request
   ClientRequest readFileRequest;
@@ -261,32 +285,24 @@ int XrdClient::Read(void *buf, long long offset, int len) {
   readFileRequest.read.rlen = len;
   readFileRequest.read.dlen = 0;
 
+
   // We assume the buffer has been pre-allocated to contain length
   // bytes by the caller of this function
   long long rlen = 0;
 
-  // Here the read-ahead decision should be done
-  // We put into this one, as a trivial read-ahead mechanism
-  if (fUseCache && EnvGetLong(NAME_GOASYNC)) {
-     // Async mode, i.e. we request (in parallel) the data to populate the cache
-     // while the current request remains unchanged
-     Read_Async(offset + len, fReadAheadSize);
-     rlen = len;
-  }
-  else {
-     // We are not going async, hence the readahead is performed
-     // by reading a larger block
-     if (len > fReadAheadSize)
-	rlen = len;
-     else
-	rlen = fReadAheadSize;
-  }
+  // Here the read-ahead decision should be done.
+  // We are in a MISS case, so the read ahead is done the sync way.
 
-     Info(XrdClientDebug::kHIDEBUG, "ReadBuffer",
-	  "Calling TXNetConn::SendGenCommand to read " <<
-	  readFileRequest.read.rlen <<
-	  " bytes of data at offset " <<
-	  readFileRequest.read.offset);
+  // We are not going async, hence the readahead is performed
+  // by reading a larger block
+  if (len > rasize)
+     rlen = len;
+  else
+     rlen = rasize;
+
+  Info(XrdClientDebug::kHIDEBUG, "ReadBuffer",
+       "Sync reading " << rlen << "@" <<
+       readFileRequest.read.offset);
 
   if (fUseCache && fConnModule->CacheWillFit(rlen)) {
 
@@ -301,8 +317,10 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	if (minlen > fConnModule->LastServerResp.dlen)
 	   minlen = fConnModule->LastServerResp.dlen;
 
+	fReadAheadLast = offset + minlen;
+
         // The processing of the answers from the server should have
-        // populated the cache
+        // populated the cache, so we get the formerly requested buffer
         if (minlen && fConnModule->GetDataFromCache(buf, offset,
 					  minlen + offset - 1, FALSE) ) {
 

@@ -23,8 +23,6 @@
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdClient/XrdClientConst.hh"
 
-#define xrdmin(a, b) (a < b ? a : b)
-
 //
 // XrdClientReadCacheItem
 //

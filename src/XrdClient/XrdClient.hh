@@ -69,7 +69,6 @@ private:
                                             // passed to a Open method
 
    bool                        fOpenWithRefresh;
-   int                         fReadAheadSize;
 
    struct XrdClientStatInfo    fStatInfo;
 
@@ -85,6 +84,8 @@ private:
 				       kXR_unt16 options,
 				       char *additionalquery = 0);
 
+   // The first position not read by the last read ahead
+   long long                   fReadAheadLast;
 public:
 
    XrdClient(const char *url);
