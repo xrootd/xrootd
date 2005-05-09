@@ -267,7 +267,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(dir_path))
       return XrdOfsFS.Emsg(epname, error, EACCES, "list", dir_path);
-   AUTHORIZE(client,AOP_Readdir,"opening directory",dir_path,error,SFS_ERROR);
+   AUTHORIZE(client,AOP_Readdir,"open directory",dir_path,error,SFS_ERROR);
 
 // Open the directory and allocate a handle for it
 //
@@ -486,7 +486,7 @@ int XrdOfsFile::open(const char          *path,      // In
    if (open_mode & SFS_O_CREAT)
       {// Apply security, as needed
        //
-       AUTHORIZE(client,AOP_Create,"creating",path,error,SFS_ERROR);
+       AUTHORIZE(client,AOP_Create,"create",path,error,SFS_ERROR);
        OOIDENTENV(client, Open_Env);
 
        // Create the file
@@ -502,7 +502,7 @@ int XrdOfsFile::open(const char          *path,      // In
        // Apply security, as needed
        //
        AUTHORIZE(client, (open_flag == O_RDONLY ? AOP_Read : AOP_Update),
-                         "opening", path, error, SFS_ERROR);
+                         "open", path, error, SFS_ERROR);
        OOIDENTENV(client, Open_Env);
 
        // First try to attach the file
@@ -1229,7 +1229,7 @@ int XrdOfs::exists(const char                *path,        // In
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
-   AUTHORIZE(client,AOP_Stat,"locating",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,AOP_Stat,"locate",path,einfo,SFS_ERROR);
 
 // Find out where we should stat this file
 //
@@ -1331,7 +1331,7 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
 // Run through the paths to make sure client can read each one
 //
    while(tp)
-        {AUTHORIZE(client,AOP_Read,"preparing",tp->text,out_error,SFS_ERROR);
+        {AUTHORIZE(client,AOP_Read,"prepare",tp->text,out_error,SFS_ERROR);
          tp = tp->next;
         }
 
@@ -1373,7 +1373,7 @@ int XrdOfs::remove(const char              type,    // In
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "remove", path);
-   AUTHORIZE(client,AOP_Delete,"removing",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,AOP_Delete,"remove",path,einfo,SFS_ERROR);
 
 // Find out where we should remove this file
 //
@@ -1485,7 +1485,7 @@ int XrdOfs::stat(const char             *path,        // In
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
-   AUTHORIZE(client,AOP_Stat,"locating",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,AOP_Stat,"locate",path,einfo,SFS_ERROR);
 
 // Find out where we should stat this file
 //
@@ -1531,7 +1531,7 @@ int XrdOfs::stat(const char             *path,        // In
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
-   AUTHORIZE(client,AOP_Stat,"locating",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,AOP_Stat,"locate",path,einfo,SFS_ERROR);
    mode = (mode_t)-1;
 
 // Find out where we should stat this file
