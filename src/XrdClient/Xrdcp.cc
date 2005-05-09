@@ -703,7 +703,10 @@ int main(int argc, char**argv) {
    EnvPutInt( NAME_RECONNECTTIMEOUT , 15);
    EnvPutInt( NAME_FIRSTCONNECTMAXCNT, 1);
    EnvPutInt( NAME_DEBUG, -1);
+
+   // Cache and read ahead make no sense for xrdcp
    EnvPutInt( NAME_READAHEADSIZE, 0);
+   EnvPutInt( NAME_READCACHESIZE, 0);
 
    for (int i=1; i < argc; i++) {
 
