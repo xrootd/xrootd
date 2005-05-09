@@ -74,7 +74,7 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Process(XrdLink *lp); //  Sync: Job->Link.DoIt->Process
 
-       void          Recycle(XrdLink *lp, int consec, char *reason);
+       void          Recycle(XrdLink *lp, int consec, const char *reason);
 
        int           Stats(char *buff, int blen, int do_sync=0);
 

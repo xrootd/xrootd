@@ -33,7 +33,7 @@ public:
 
        int           Process(XrdLink *lp) {return -1;}
 
-       void          Recycle(XrdLink *lp, int x, char *y) {}
+       void          Recycle(XrdLink *lp, int x, const char *y) {}
 
        int           Stats(char *buff, int blen, int do_sync);
 

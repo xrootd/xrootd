@@ -373,7 +373,7 @@ int XrdXrootdProtocol::Process2()
 /*                               R e c y c l e                                */
 /******************************************************************************/
   
-void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, char *reason)
+void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 {
    char *sfxp, ctbuff[24], buff[128];
 
