@@ -51,6 +51,7 @@ $cycleEndTime = time() + $updInt;
 #start an infinite loop
 while ( 1 ) {
     &doLoading();
+    print "sleeping ... \n";
     # sleep in 5 sec intervals, catch "stop" signal in before each sleep
     $noSleeps = $timeLeft > 0 ? $timeLeft / 5 : 0;
     for ( $i=0 ; $i<=$noSleeps ; $i++) {
@@ -91,36 +92,45 @@ sub doLoading {
     # set the load time.
     $loadT = &timestamp();
 
-     # open the input file for reading
-    unless ( open $inF, "< $inFName" ) {
+    # open the input file for reading
+    unless ( open INFILE, "< $inFName" ) {
 	print "Can't open file $inFName for reading\n";
 	&unlockTheFile($lockF);
 	$dbh->disconnect();
 	return;
     }
-    # read the file, load the data, close the file
-    print "Loading...\n";
-    $nr = 1;
-    while ( $_ = <$inF> ) {
-	#print "processing $_";
-	chop;
-	if ( $_ =~ m/^u/ ) { &loadOpenSession($_);  }
-	if ( $_ =~ m/^d/ ) { &loadCloseSession($_); }
-	if ( $_ =~ m/^o/ ) { &loadOpenFile($_);     }
-	if ( $_ =~ m/^c/ ) { &loadCloseFile($_);    }
-	if ( $nr % 10000 == 0 ) {
-            $ts = &timestamp();
-	    print "$ts $nr\n";
-	}
-	$nr += 1;
+    # read the file, sort the data, close the file
+    open OFILE, ">/tmp/ofile.txt" or die "can't open ofile.txt for writing: $!";
+    open UFILE, ">/tmp/ufile.txt" or die "can't open ufile.txt for writing: $!";
+    open DFILE, ">/tmp/dfile.txt" or die "can't open dfile.txt for writing: $!";
+    open CFILE, ">/tmp/cfile.txt" or die "can't open cfile.txt for writing: $!";
+    print "Sorting...\n";
+    my $nr = 0;
+    while ( <INFILE> ) {
+        if ( $_ =~ m/^u/ ) { print UFILE $_ ;  }
+        if ( $_ =~ m/^d/ ) { print DFILE $_ ;  }
+        if ( $_ =~ m/^o/ ) { print OFILE $_ ;  }
+        if ( $_ =~ m/^c/ ) { print CFILE $_ ;  }
+        $nr++;
     }
 
-    close $inF;
+    close INFILE;
     # make a backup, remove the input file
     my $backupFName = "$inFName.backup";
     `touch $backupFName; cat $inFName >> $backupFName; rm $inFName`;
     # unlock the lock file
     unlockTheFile($lockF);
+    
+    close OFILE;
+    close UFILE;
+    close DFILE;
+    close CFILE;
+
+    print "Loading...\n";
+    &loadOpenSession();
+    &loadOpenFile();
+    &loadCloseSession();
+    &loadCloseFile();
     
     # $nMin, $nHour and $nDay start from 0
     &loadStatsLastHour();
@@ -181,85 +191,139 @@ sub unlockTheFile() {
 }
 
 sub loadOpenSession() {
-    my ($line) = @_;
+    print "Loading open sessions... \n";
+    my $mysqlIn = "/tmp/mysqlin.u";
+    open INFILE, "</tmp/ufile.txt" or die "can't open ufile.txt for reading: $!";
+    open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
+    my $rows = 0;
+    while ( <INFILE> ) {
+        chomp;
+        my ($u, $sessionId, $user, $pid, $clientHost, $srvHost) = split('\t');
+        #print "u=$u, id=$id, user=$user, pid=$pid, ch=$clientHost, sh=$srvHost\n";
 
-    my ($u, $sessionId, $user, $pid, $clientHost, $srvHost) = split('\t', $line);
-    #print "u=$u, id=$id, user=$user, pid=$pid, ch=$clientHost, sh=$srvHost\n";
+        my $userId       = findOrInsertUserId($user);
+        my $clientHostId = findOrInsertHostId($clientHost);
+        my $serverHostId = findOrInsertHostId($srvHost);
 
-    my $userId       = findOrInsertUserId($user);
-    my $clientHostId = findOrInsertHostId($clientHost);
-    my $serverHostId = findOrInsertHostId($srvHost);
+        #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
+        print MYSQLIN "$sessionId \t  $userId \t $pid \t $clientHostId \t $serverHostId \n";
+        $rows++;
+    }
+    close INFILE;
+    close MYSQLIN;
 
-    #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
-    &runQuery("INSERT IGNORE INTO rtOpenedSessions (id, userId, pId, clientHId, serverHId) VALUES ($sessionId, $userId, $pid, $clientHostId, $serverHostId)");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE rtOpenedSessions");
+    print "... $rows rows loaded \n";
 }
 
 
 sub loadCloseSession() {
-    my ($line) = @_;
+    print "Loading closed sessions... \n";
+    my $mysqlIn = "/tmp/mysqlin.d";
+    open INFILE, "</tmp/dfile.txt" or die "can't open dfile.txt for reading: $!";
+    open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
+    my $rows = 0;
+    while ( <INFILE> ) {
+        chomp;
 
-    my ($d, $sessionId, $sec, $timestamp) = split('\t', $line);
-    #print "d=$d, sId=$sessionId, sec=$sec, t=$timestamp\n";
+        my ($d, $sessionId, $sec, $timestamp) = split('\t');
+        #print "d=$d, sId=$sessionId, sec=$sec, t=$timestamp\n";
 
 
+        # find if there is corresponding open session, if not don't bother
+        my ($userId, $pId, $clientHId, $serverHId) = 
+	   &runQueryWithRet("SELECT userId, pId, clientHId, serverHId FROM rtOpenedSessions WHERE id = $sessionId");
+        next if ( ! $pId  );
 
+        #print "received decent data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
 
-    # find if there is corresponding open session, if not don't bother
-    my ($userId, $pId, $clientHId, $serverHId) = 
-	&runQueryWithRet("SELECT userId, pId, clientHId, serverHId FROM rtOpenedSessions WHERE id = $sessionId");
-    if ( ! $pId  ) {
-	return;
+        # remove it from the open session table
+        &runQuery("DELETE FROM rtOpenedSessions WHERE id = $sessionId");
+
+        # and insert into the closed
+        print MYSQLIN "$sessionId \t $userId \t $pId \t $clientHId \t $serverHId \t $sec \t $timestamp \n";
+        $rows++;
     }
-    #print "received decent data for sId $sessionId: uid=$userId, pid = $pId, cId=$clientHId, sId=$serverHId\n";
+    close INFILE;
+    close MYSQLIN;
 
-    # remove it from the open session table
-    &runQuery("DELETE FROM rtOpenedSessions WHERE id = $sessionId;");
-
-    # and insert into he closed
-    &runQuery("INSERT IGNORE INTO rtClosedSessions (id, userId, pId, clientHId, serverHId, duration, disconnectT) VALUES ($sessionId, $userId, $pId, $clientHId, $serverHId, $sec, \"$timestamp\");");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE rtClosedSessions");
+    print "$rows rows loaded \n";
+        
 }
 
 
 sub loadOpenFile() {
-    my ($line) = @_;
+    print "Loading opened files... \n";
+    my $mysqlIn = "/tmp/mysqlin.o";
+    open INFILE, "</tmp/ofile.txt" or die "can't open ofile.txt for reading: $!";
+    open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
+    my $rows = 0;
+    while ( <INFILE> ) {
+        chomp;
 
-    my ($o, $fileId, $user, $pid, $clientHost, $path, $openTime, $srvHost) = 
-	split('\t', $line);
-    #print "\no=$o, id=$id, user=$user, pid=$pid, ch=$clientHost, p=$path, ";
-    #print "time=$openTime, srvh=$srvHost\n";
+        my ($o, $fileId, $user, $pid, $clientHost, $path, $openTime, $srvHost) = 
+	    split('\t');
+        #print "\no=$o, id=$id, user=$user, pid=$pid, ch=$clientHost, p=$path, ";
+        #print "time=$openTime, srvh=$srvHost\n";
 
-    my $sessionId = findSessionId($user, $pid, $clientHost, $srvHost);
-    if ( ! $sessionId ) {
-	#print "session id not found for $user $pid $clientHost $srvHost\n";
-	return; # error: no corresponding session id
+        my $sessionId = findSessionId($user, $pid, $clientHost, $srvHost);
+        if ( ! $sessionId ) {
+	    #print "session id not found for $user $pid $clientHost $srvHost\n";
+	    next; # error: no corresponding session id
+        }
+
+        my $pathId = findOrInsertPathId($path);
+        #print "$sessionId $pathId \n";
+        if ( ! $pathId ) {
+             print "path id not found for $path \n";
+            next;
+        }
+        
+        print MYSQLIN "$fileId \t $sessionId \t $pathId \t $openTime \n";
+        $rows++;
     }
+    close INFILE;
+    close MYSQLIN;
 
-    my $pathId = findOrInsertPathId($path);
-    if ( ! $pathId ) {
-	return; # error
-    }
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE rtOpenedFiles");
+    print "$rows rows loaded \n";
 
-    &runQuery("INSERT IGNORE INTO rtOpenedFiles (id, sessionId, pathId, openT) VALUES ($fileId, $sessionId, $pathId, \"$openTime\")");
 }
 
 sub loadCloseFile() {
-    my ($line) = @_;
+    print "Loading closed files... \n";
+    my $mysqlIn = "/tmp/mysqlin.c";
+    open INFILE, "</tmp/cfile.txt" or die "can't open cfile.txt for reading: $!";
+    open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
+    my $rows = 0;
+    while ( <INFILE> ) {
+        chomp;
 
-    my ($c, $fileId, $bytesR, $bytesW, $closeT) = split('\t', $line);
-    #print "c=$c, id=$fileId, br=$bytesR, bw=$bytesW, t=$closeT\n";
+        my ($c, $fileId, $bytesR, $bytesW, $closeT) = split('\t');
+        #print "c=$c, id=$fileId, br=$bytesR, bw=$bytesW, t=$closeT\n";
 
-    # find if there is corresponding open file, if not don't bother
-    my ($sessionId, $pathId, $openT) = 
-	&runQueryWithRet("SELECT sessionId, pathId, openT FROM rtOpenedFiles WHERE id = $fileId");
-    if ( ! $sessionId ) {
-	return;
+        # find if there is corresponding open file, if not don't bother
+        my ($sessionId, $pathId, $openT) = 
+	    &runQueryWithRet("SELECT sessionId, pathId, openT FROM rtOpenedFiles WHERE id = $fileId");
+        next if ( ! $sessionId );
+
+        # remove it from the open files table
+        &runQuery("DELETE FROM rtOpenedFiles WHERE id = $fileId");
+
+        # and insert into the closed
+        print MYSQLIN "$fileId \t $sessionId \t $pathId \t  $openT \t  $closeT \t $bytesR \t $bytesW \n";
+        $rows++;
     }
+    close INFILE;
+    close MYSQLIN;
 
-    # remove it from the open files table
-    &runQuery("DELETE FROM rtOpenedFiles WHERE id = $fileId;");
-
-    # and insert into the closed
-    &runQuery("INSERT IGNORE INTO rtClosedFiles (id, sessionId, openT, closeT, pathId, bytesR, bytesW) VALUES ($fileId, $sessionId, \"$openT\", \"$closeT\", $pathId, $bytesR, $bytesW);");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE rtClosedFiles");
+    print "$rows rows loaded \n";
 }
 
 sub findSessionId() {
@@ -269,7 +333,11 @@ sub findSessionId() {
     my $clientHostId = findOrInsertHostId($clientHost);
     my $serverHostId = findOrInsertHostId($srvHost);
 
-    return &runQueryWithRet("SELECT id FROM rtOpenedSessions WHERE userId=$userId AND pId=$pid AND clientHId=$clientHostId AND serverHId=$serverHostId;");
+    return &runQueryWithRet("SELECT id FROM rtOpenedSessions 
+                                       WHERE     userId=$userId 
+                                             AND pId=$pid 
+                                             AND clientHId=$clientHostId 
+                                             AND serverHId=$serverHostId");
 }
 
 
@@ -285,9 +353,9 @@ sub findOrInsertUserId() {
 	#print "Will reuse user id $userId for $userName\n";
     } else {
 	#print "$userName not in mysql yet, inserting...\n";
-	&runQuery("INSERT INTO users (name) VALUES (\"$userName\");");
+	&runQuery("INSERT INTO users (name) VALUES (\"$userName\")");
 
-	$userId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
+	$userId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
     }
     $userIds{$userName} = $userId;
     return $userId;
@@ -305,9 +373,9 @@ sub findOrInsertHostId() {
 	#print "Will reuse hostId $clientHostId for $hostName\n";
     } else {
 	#print "$hostName not in mysql yet, inserting...\n";
-	&runQuery("INSERT INTO hosts (hostName) VALUES (\"$hostName\");");
+	&runQuery("INSERT INTO hosts (hostName) VALUES (\"$hostName\")");
 
-	$hostId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
+	$hostId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
     }
     $hostIds{$hostName} = $hostId;
     return $hostId;
@@ -322,8 +390,10 @@ sub findOrInsertPathId() {
         #print "from cache: $pathId for $path\n";
         return $pathId;
     }
+    my $hashValue = &returnHash("$path");
     ($pathId, $typeId, $skimId) =
-        &runQueryWithRet("SELECT id, typeId, skimId FROM paths WHERE name = \"$path\"");
+        &runQueryWithRet("SELECT id, typeId, skimId FROM paths 
+                          WHERE hash = $hashValue AND name = \"$path\"");
 
     # split path and find file type and skim name
     my @sections = split(/\//, $path);
@@ -345,7 +415,7 @@ sub findOrInsertPathId() {
         }
         if ( ! $typeId ) {
             &runQuery("INSERT INTO fileTypes(name) VALUES(\"$typeName\")");
-            $typeId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
+            $typeId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
         }
         # if it is skim, deal with the skim type, if not, 0 would do
         if ( $typeName =~ /skims/ ) {
@@ -356,11 +426,12 @@ sub findOrInsertPathId() {
             }
             if ( ! $skimId ) {
                 &runQuery("INSERT INTO skimNames(name) VALUES(\"$skimName\") ");
-                $skimId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
+                $skimId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
             }
         }
-        &runQuery("INSERT INTO paths (name, typeId, skimId, size) VALUES (\"$path\", $typeId, $skimId, 0 );");
-        $pathId = &runQueryWithRet("SELECT LAST_INSERT_ID();");
+        &runQuery("INSERT INTO paths (name, typeId, skimId, size, hash) 
+                              VALUES (\"$path\", $typeId, $skimId, 0, $hashValue )");
+        $pathId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
                                                                                                       
     }
     $pathIds{$path} = $pathId;
@@ -445,6 +516,7 @@ sub doInit() {
     } else {
         $nDay = 0;
     }
+    @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
     $bbkListSize = 250;
     $minSizeLoadTime = 5;
     $initFlag = 0;
@@ -461,13 +533,28 @@ sub timestamp() {
     return sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
 }
 
+sub returnHash() {
+   ($_) = @_;
+   my $i = 1;
+   tr/0-9a-zA-Z/0-90-90-90-90-90-90-1/;
+   tr/0-9//cd;
+   my $hashValue = 0;
+   foreach $char ( split / */ ) {
+      $i++;
+      # $primes initialized in doInit()
+      $hashValue += $i * $primes[$char];
+   }
+   return $hashValue;
+}
+
+
 sub loadFileSizes() {
 
-    print "Loading file sizes...";
+    print "Loading file sizes... \n";
     use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
     ($sizeIndex) = @_;
-    &runQuery("CREATE TEMPORARY TABLE zerosize  (name VARCHAR(255), id MEDIUMINT UNSIGNED)");
-    &runQuery("INSERT INTO zerosize(name, id) SELECT name, id FROM paths 
+    &runQuery("CREATE TEMPORARY TABLE zerosize  (name VARCHAR(255), id MEDIUMINT UNSIGNED, hash MEDIUMINT)");
+    &runQuery("INSERT INTO zerosize(name, id, hash) SELECT name, id, hash FROM paths 
                                               WHERE size BETWEEN $sizeIndex AND 0 
                                               ORDER BY id 
                                               LIMIT 7500");
@@ -494,13 +581,17 @@ sub loadFileSizes() {
            chomp $line;
            ($path, $size) = split (' ', $line);
            @inBbk = (@inBbk, $path);
-           my $id = &runQueryWithRet("SELECT id FROM zerosize WHERE name = '$path'");
+           my $hashValue = &returnHash("$path");
+           my $id = &runQueryWithRet("SELECT id FROM zerosize 
+                                      WHERE hash = $hashValue AND name = '$path'");
            &runQuery("UPDATE paths SET size = $size WHERE id = $id ");
        }
        # decrement size by 1 for files that failed bbk.
        foreach $path ( @files ) {
            if ( ! grep { $_ eq $path } @inBbk ) {
-               my $id = &runQueryWithRet("SELECT id FROM zerosize WHERE name = '$path'");
+               my $hashValue = &returnHash("$path");
+               my $id = &runQueryWithRet("SELECT id FROM zerosize 
+                                          WHERE hash = $hashValue AND name = '$path'");
                &runQuery("UPDATE paths SET size = size - 1 WHERE id = $id ");
            }
        }
@@ -517,7 +608,7 @@ sub loadStatsLastHour() {
                 $deltaUsers $users_p $deltaUniqueF $uniqueF_p $deltaNonUniqueF $nonUniqueF_p);
     $seqNo = $nMin % 60;
     &runQuery("DELETE FROM statsLastHour WHERE seqNo = $seqNo");
-    ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT CONCAT(pId, clientHId)), COUNT(DISTINCT userId) 
+    ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT pId, clientHId), COUNT(DISTINCT userId) 
                                                 FROM rtOpenedSessions");
 
     ($noUniqueF, $noNonUniqueF) = &runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
@@ -637,8 +728,7 @@ sub reloadTopPerfTables() {
     &runQuery("CREATE TEMPORARY TABLE uu  (theId INT, n INT, INDEX (theId))");
     &runQuery("CREATE TEMPORARY TABLE vv  (theId INT, n INT, INDEX (theId))");
     &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE tmp (theId INT, n INT, s INT, INDEX (theId))");
-    @tables = ("jj", "ff", "uu", "vv", "xx", "tmp");
+    @tables = ("jj", "ff", "uu", "vv", "xx");
 
     # run queries for past (last hour/day/month/year
     &runQueries4AllTopPerfTablesPast("1 HOUR", "hour", 20);
@@ -715,64 +805,58 @@ sub runTopUsrFsQueriesPast() {
     if ( $what eq "USERS" ) {
         &runQuery("INSERT INTO jj
             SELECT $idInTable, 
-                   COUNT(DISTINCT CONCAT(pId, clientHId)) AS n
+                   COUNT(DISTINCT pId, clientHId) AS n
             FROM   rtClosedSessions
             WHERE  disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
                    GROUP BY $idInTable");
     } elsif ( $what eq "FILES" ) {
         &runQuery("INSERT INTO jj
             SELECT $idInTable, 
-                   COUNT(DISTINCT CONCAT(pId, clientHId)) AS n
+                   COUNT(DISTINCT pId, clientHId) AS n
             FROM   rtClosedSessions cs, rtClosedFiles cf
             WHERE  cs.id = cf.sessionId
                AND disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
             GROUP BY $idInTable");
     }
     if ( $what eq "USERS" ) {
-	# past files - through opened sessions
-	&runQuery("INSERT INTO tmp
-           SELECT $idInTable, 
-                  COUNT(DISTINCT pathId) AS n,
-                  SUM(size)/(1024*1024) AS s
-           FROM   rtOpenedSessions os, rtClosedFiles cf, paths 
-           WHERE  os.id = cf.sessionId
-              AND cf.pathId = paths.id
-              AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-           GROUP BY $idInTable");
-        # past files - through closed sessions
-        &runQuery("INSERT INTO tmp
-           SELECT $idInTable, 
-                  COUNT(DISTINCT pathId) AS n,
-                  SUM(size)/(1024*1024) AS s
-           FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-           WHERE  cs.id = cf.sessionId
-              AND cf.pathId = paths.id
-              AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-           GROUP BY $idInTable");
-        # past files - merge results
-        &runQuery("INSERT INTO ff 
-            SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
-        # cleanup tmp table
-        &runQuery("TRUNCATE TABLE tmp");
+	# past files - through opened & closed sessions
+	&runQuery("INSERT INTO ff           
+           SELECT tmp.$idInTable, 
+                  COUNT(tmp.pathId),
+                  SUM(tmp.size)/(1024*1024)
+           FROM   ( SELECT DISTINCT oc.$idInTable, oc.pathId, oc.size
+                    FROM   ( SELECT $idInTable, pathId, size 
+                             FROM   rtOpenedSessions os, rtClosedFiles cf, paths 
+                             WHERE      os.id = cf.sessionId 
+                                    AND cf.pathId = paths.id 
+                                    AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                             UNION ALL
+                             SELECT $idInTable, pathId, size 
+                             FROM   rtClosedSessions cs, rtClosedFiles cf, paths 
+                             WHERE      cs.id = cf.sessionId 
+                                    AND cf.pathId = paths.id 
+                                    AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                            ) AS oc
+                   ) AS tmp
+           GROUP BY tmp.$idInTable");
+
+
     }
-    # past volume - through opened sessions
-    &runQuery("INSERT INTO tmp (theId, n)
-        SELECT $idInTable, SUM(bytesR)/(1024*1024) AS n
-        FROM   rtOpenedSessions os, rtClosedFiles cf
-        WHERE  os.id = cf.sessionId
-           AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-        GROUP BY $idInTable");
-    # past volume - through closed sessions
-    &runQuery("INSERT INTO tmp (theId, n)
-        SELECT $idInTable, SUM(bytesR)/(1024*1024) AS n
-        FROM   rtClosedSessions cs, rtClosedFiles cf
-        WHERE  cs.id = cf.sessionId
-           AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-        GROUP BY $idInTable");
-    # past volume - merge results
-    &runQuery("INSERT INTO vv SELECT DISTINCT theId, SUM(n) FROM tmp GROUP BY theId");
-    # cleanup tmp table
-    &runQuery("TRUNCATE TABLE tmp");
+    # past volume - through opened & closed sessions
+    &runQuery("INSERT INTO vv
+        SELECT oc.$idInTable, 
+               SUM(oc.bytesR)/(1024*1024)
+        FROM   ( SELECT $idInTable, bytesR
+                 FROM  rtOpenedSessions os, rtClosedFiles cf
+                 WHERE     os.id = cf.sessionId
+                       AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                 UNION ALL
+                 SELECT $idInTable, bytesR
+                 FROM  rtClosedSessions cs, rtClosedFiles cf
+                 WHERE     cs.id = cf.sessionId
+                       AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+               ) AS oc
+       GROUP BY oc.$idInTable");
 
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
@@ -831,25 +915,37 @@ sub runTopUsrFsQueriesNow() {
         die "Invalid arg, expected USERS or FILES\n";
     }
 
-    # now jobs
-    &runQuery("INSERT INTO jj
-        SELECT $idInTable, COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
-        FROM   rtOpenedSessions os, rtOpenedFiles of
-        WHERE  os.id = of.sessionId
-        GROUP BY $idInTable");
     if ( $what eq "USERS" ) {
+        # now jobs
+        &runQuery("INSERT INTO jj
+           SELECT $idInTable, COUNT(DISTINCT pId, clientHId ) AS n
+        FROM   rtOpenedSessions
+        GROUP BY $idInTable");
+
         # now files
         &runQuery ("INSERT INTO ff 
-            SELECT $idInTable, 
-                   COUNT(DISTINCT pathId) AS n,
-                   SUM(size)/(1024*1024) AS s
-            FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-            WHERE  os.id = of.sessionId
-               AND of.pathId = paths.id
-            GROUP BY $idInTable");
+        SELECT tmp.$idInTable, 
+               COUNT(tmp.pathId) AS n,
+               SUM(tmp.size)/(1024*1024) AS s
+        FROM   (SELECT DISTINCT $idInTable, pathId, size
+                FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+                WHERE  os.id = of.sessionId
+                   AND of.pathId = paths.id
+               ) AS tmp
+        GROUP BY tmp.$idInTable");
     }
+    if ( $what eq "FILES" ) {
+        # now jobs
+        &runQuery("INSERT INTO jj
+            SELECT $idInTable, COUNT(DISTINCT pId, clientHId ) AS n
+            FROM   rtOpenedSessions os, rtOpenedFiles of
+            WHERE  os.id = of.sessionId
+            GROUP BY $idInTable");
+
+    }
+
     ##### now find all names for top X for each sorting 
-    &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable;");
+    &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable");
     &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
@@ -899,68 +995,63 @@ sub runTopSkimsQueriesPast() {
     # past jobs
     &runQuery("REPLACE INTO jj
         SELECT $idInPathTable, 
-               COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+               COUNT(DISTINCT pId, clientHId ) AS n
         FROM   rtClosedSessions cs, rtClosedFiles cf, paths
         WHERE  cs.id = cf.sessionId
            AND cf.pathId = paths.id
            AND disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
         GROUP BY $idInPathTable");
 
-    # past files - through opened sessions
-    &runQuery("INSERT INTO tmp
-        SELECT $idInPathTable,
-               COUNT(DISTINCT pathId) AS n,
-               SUM(size)/(1024*1024)  AS s
-        FROM   rtOpenedSessions os, rtClosedFiles cf, paths
-        WHERE  os.id = cf.sessionId
-           AND cf.pathId = paths.id
-           AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-        GROUP BY $idInPathTable");
-    # past files - through closed sessions
-    &runQuery("INSERT INTO tmp
-        SELECT $idInPathTable,
-               COUNT(DISTINCT pathId) AS n,
-               SUM(size)/(1024*1024)  AS s
-        FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-        WHERE  cs.id = cf.sessionId
-           AND cf.pathId = paths.id
-           AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-        GROUP BY $idInPathTable");
-    # past files - merge result
-    &runQuery("INSERT INTO ff
-         SELECT DISTINCT theId, SUM(n), SUM(s) FROM tmp GROUP BY theId");
-    # cleanup temporary table
-    &runQuery("TRUNCATE TABLE tmp");
+    # past files - through opened & closed sessions
+    &runQuery("INSERT INTO ff 
+        SELECT tmp.$idInPathTable,
+               COUNT(tmp.pathId),
+               SUM(tmp.size)/(1024*1024)
+        FROM   ( SELECT DISTINCT oc.$idInPathTable, oc.pathId, oc.size
+               FROM   ( SELECT $idInPathTable, pathId, size
+                        FROM   rtOpenedSessions os, rtClosedFiles cf, paths
+                        WHERE      os.id = cf.sessionId
+                               AND cf.pathId = paths.id
+                               AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                        UNION ALL
+                        SELECT $idInPathTable, pathId, size
+                        FROM   rtClosedSessions cs, rtClosedFiles cf, paths
+                        WHERE      cs.id = cf.sessionId
+                               AND cf.pathId = paths.id
+                               AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                      ) AS oc
+                ) AS tmp
+        GROUP BY tmp.$idInPathTable");
+
+
+
     # past users
     &runQuery("REPLACE INTO uu
         SELECT $idInPathTable, 
                COUNT(DISTINCT userId) AS n
         FROM   rtClosedSessions cs, rtClosedFiles cf, paths
-        WHERE  cs.id = cf.sessionId
-           AND cf.pathId = paths.id
-           AND disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
+        WHERE      cs.id = cf.sessionId
+               AND cf.pathId = paths.id
+               AND disconnectT > DATE_SUB(NOW(), INTERVAL $theInterval)
         GROUP BY $idInPathTable");
-    # past volume - through opened sessions
-    &runQuery("INSERT INTO tmp (theId, n)
-         SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
-         FROM   rtOpenedSessions os, rtClosedFiles cf, paths
-         WHERE  os.id = cf.sessionId
-            AND cf.pathId = paths.id
-            AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-         GROUP BY $idInPathTable");
-    # past volume - through closed sessions
-    &runQuery("INSERT INTO tmp (theId, n)
-         SELECT $idInPathTable, SUM(bytesR)/(1024*1024) AS n
-         FROM   rtClosedSessions os, rtClosedFiles cf, paths
-         WHERE  os.id = cf.sessionId
-            AND cf.pathId = paths.id
-            AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
-         GROUP BY $idInPathTable");
-    # past volume - merge result
-    &runQuery("INSERT INTO vv SELECT DISTINCT theId, SUM(n) FROM tmp GROUP BY theId");
-    # cleanup temporary table
-    &runQuery("TRUNCATE TABLE tmp");
 
+    # past volume - through opened & closed sessions
+    &runQuery("INSERT INTO vv
+         SELECT oc.$idInPathTable, 
+                SUM(oc.bytesR)/(1024*1024)
+         FROM   ( SELECT $idInPathTable, bytesR
+                  FROM   rtOpenedSessions os, rtClosedFiles cf, paths
+                  WHERE     os.id = cf.sessionId
+                        AND cf.pathId = paths.id
+                        AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                  UNION ALL
+                  SELECT $idInPathTable, bytesR
+                  FROM   rtClosedSessions cs, rtClosedFiles cf, paths
+                  WHERE     cs.id = cf.sessionId
+                        AND cf.pathId = paths.id
+                        AND closeT > DATE_SUB(NOW(), INTERVAL $theInterval)
+                ) AS oc
+         GROUP BY oc.$idInPathTable");
 
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
@@ -1010,7 +1101,7 @@ sub runTopSkimsQueriesNow() {
     # now jobs
     &runQuery("INSERT INTO jj
         SELECT $idInPathTable,
-               COUNT(DISTINCT CONCAT(pId, clientHId) ) AS n
+               COUNT(DISTINCT pId, clientHId ) AS n
         FROM   rtOpenedSessions os, rtOpenedFiles of, paths
         WHERE  os.id = of.sessionId
            AND of.pathId = paths.id
@@ -1018,13 +1109,15 @@ sub runTopSkimsQueriesNow() {
 
     # now files
     &runQuery("REPLACE INTO ff 
-        SELECT $idInPathTable,
-               COUNT(DISTINCT pathId) AS n,
-               SUM(size)/(1024*1024)  AS s
-        FROM   rtOpenedSessions os, rtOpenedFiles of, paths
-        WHERE  os.id = of.sessionId
-           AND of.pathId = paths.id
-        GROUP BY $idInPathTable");
+        SELECT tmp.$idInPathTable,
+               COUNT(tmp.pathId) AS n,
+               SUM(tmp.size)/(1024*1024)  AS s
+        FROM   ( SELECT DISTINCT $idInPathTable, pathId, size
+                 FROM   rtOpenedSessions os, rtOpenedFiles of, paths
+                 WHERE  os.id = of.sessionId
+                    AND of.pathId = paths.id
+               ) AS tmp
+        GROUP BY tmp.$idInPathTable");
 
     # now users
     &runQuery("REPLACE INTO uu 
@@ -1036,7 +1129,7 @@ sub runTopSkimsQueriesNow() {
         GROUP BY $idInPathTable");
 
     ##### now find all names for top X for each sorting 
-    &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable;");
+    &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable");
     &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY n DESC LIMIT $theLimit");
     &runQuery("REPLACE INTO xx SELECT theId FROM ff ORDER BY s DESC LIMIT $theLimit");
