@@ -58,7 +58,7 @@ virtual void doneWrite() = 0;
 virtual void Recycle() = 0;
 
              XrdSfsAio() {
-#if defined(__macos__) && !defined(MAC_OS_X_VERSION_10_4)
+#if defined(__macos__)
                          sfsAio.aio_sigevent.sigev_value.sigval_ptr = (void *)this;
 #else
                          sfsAio.aio_sigevent.sigev_value.sival_ptr  = (void *)this;
