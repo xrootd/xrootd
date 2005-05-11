@@ -10,6 +10,8 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
+#include <sys/types.h>
+
 // The following defines substitute our names for the common system names. We
 // would have liked to use wrappers but each platform uses a different mechanism
 // to accomplish this. So, redefinition is the most portable way of doing this.
