@@ -85,6 +85,12 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
    // Destructor
 
    Disconnect();
+
+   if (fSocket) {
+      delete fSocket;
+      fSocket = 0;
+   }
+
    UnlockChannel();
 
    if (fReaderthreadrunning)
@@ -196,41 +202,16 @@ void XrdClientPhyConnection::Disconnect()
 {
    XrdOucMutexHelper l(fMutex);
 
-   // Parametric asynchronous stuff
-   // If we are going async, we have to terminate the reader thread
-   //if (EnvGetLong(NAME_GOASYNC)) {
-
-   //   if (fReaderthreadrunning &&
-   //!pthread_equal(pthread_self(), fReaderthreadhandler)) {
-
-   //      Info(XrdClientDebug::kHIDEBUG,
-	//      "Disconnect", "Cancelling reader thread.");
-
-	 //pthread_cancel(fReaderthreadhandler);
-
-//	 Info(XrdClientDebug::kHIDEBUG,
-//	      "Disconnect", "Waiting for the reader thread termination...");
-      
-	 //pthread_join(fReaderthreadhandler, 0);
-
-//	 Info(XrdClientDebug::kHIDEBUG,
-//	      "Disconnect", "Reader thread canceled.");
-
-         //fReaderthreadrunning = FALSE;
-         //fReaderthreadhandler = 0;
-//      }
-
-
-//   }
-
    // Disconnect from remote server
-//   Info(XrdClientDebug::kHIDEBUG,
-//	"Disconnect", "Deleting low level socket...");
 
-     if (fSocket) fSocket->Disconnect();
-//   delete fSocket;
-//   fSocket = 0;
+   if (fSocket) {
+      Info(XrdClientDebug::kHIDEBUG,
+	   "PhyConnection", "Disconnecting socket...");
+      fSocket->Disconnect();
+   }
 
+   // We do not destroy the socket here. The socket will be destroyed
+   // in CheckAutoTerm or in the ConnMgr
 }
 
 

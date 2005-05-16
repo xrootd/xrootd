@@ -1671,3 +1671,23 @@ XReqErrorType XrdClientConn::WriteToServer_Async(ClientRequest *req,
    return WriteToServer(req, reqMoreData, fLogConnID);
 
 }
+
+
+//_____________________________________________________________________________
+bool XrdClientConn::PanicClose() {
+   ClientRequest closeFileRequest;
+  
+   memset(&closeFileRequest, 0, sizeof(closeFileRequest) );
+
+   SetSID(closeFileRequest.header.streamid);
+
+   closeFileRequest.close.requestid = kXR_close;
+
+   //memcpy(closeFileRequest.close.fhandle, fHandle, sizeof(fHandle) );
+
+   closeFileRequest.close.dlen = 0;
+  
+   WriteToServer(&closeFileRequest, 0, fLogConnID);
+
+   return TRUE;
+}

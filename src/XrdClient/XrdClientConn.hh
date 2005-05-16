@@ -170,6 +170,10 @@ private:
 						ClientRequest *);
    bool                       MatchStreamid(struct ServerResponseHeader *ServerResponse);
 
+   // Sends a close request, without waiting for an answer
+   // useful (?) to be sent just before closing a badly working stream
+   bool                       PanicClose();
+
    XrdClientString            ParseDomainFromHostname(XrdClientString hostname);
 
    XrdClientMessage           *ReadPartialAnswer(XReqErrorType &, size_t &, 
