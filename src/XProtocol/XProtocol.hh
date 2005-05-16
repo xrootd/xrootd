@@ -63,7 +63,8 @@ enum XRequestTypes {
    kXR_write,   // 3019
    kXR_admin,   // 3020
    kXR_prepare, // 3021
-   kXR_statx    // 3022
+   kXR_statx,   // 3022
+   kXR_endsess  // 3023
 };
 
 // OPEN MODE FOR A REMOTE FILE
@@ -87,7 +88,7 @@ enum XMkdirOptions {
 // this is a bitmask
 enum XLoginCapVer {
    kXR_lcvnone = 0,
-   kXR_asyncap = 64
+   kXR_asyncap = 128
 };
 
 enum XStatRespFlags {
@@ -113,7 +114,7 @@ enum XOpenRequestOption {
    kXR_refresh  = 128,
    kXR_mkpath   = 256,
    kXR_open_apnd= 512,
-   kXR_retstat  =1024
+   kXR_retstat  = 1024
 };
 
 enum XQueryType {
@@ -263,7 +264,6 @@ struct ClientMkdirRequest {
    kXR_unt16 mode;
    kXR_int32  dlen;
 };
-
 struct ClientMvRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
