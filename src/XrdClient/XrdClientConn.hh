@@ -148,7 +148,10 @@ private:
    long                       fServerProto;        // The server protocol
    ServerType                 fServerType;         // Server type as returned by doHandShake() 
                                                    // (see enum ServerType)
-   XrdClientUrlInfo           fUrl;
+
+   char                       fSessionID[16];          // The ID of this session got from the login
+
+   XrdClientUrlInfo           fUrl;                // The current URL
 
    bool                       CheckErrorStatus(XrdClientMessage *, short &, char *);
    void                       CheckPort(int &port);

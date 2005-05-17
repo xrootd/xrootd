@@ -64,11 +64,15 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdCli
 }
 
 //_____________________________________________________________________________
-XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(FALSE), 
-                        fLBSUrl(0), fUrl("")
+XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false), 
+				fLBSUrl(0), fUrl("")
 {
    // Constructor
    char buf[255];
+
+
+   for (int i=0; i < 16; i++)
+      fSessionID[i] = 0;
 
    gethostname(buf, sizeof(buf));
 
@@ -901,8 +905,7 @@ bool XrdClientConn::GetAccessToSrv()
       break;
    }
 
-   // Execute a login if connected to a xrootd server. For an old rootd, 
-   // TNetFile takes care of the login phase
+   // Execute a login if connected to a xrootd server
    if (GetServerType() != XrdClientConn::kSTRootd) {
       if (logconn->GetPhyConnection()->IsLogged() == kNo)
          return DoLogin();
@@ -1041,8 +1044,11 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
 
       ServerInitHandShake2HostFmt(&xbody);
 
-      fServerProto = xbody.msgtype;
-    
+      fServerProto = xbody.protover;
+      Info(XrdClientDebug::kHIDEBUG,
+	   "DoHandShake",
+	   "Server protocol version is " << fServerProto);
+
       // check if the eXtended rootd is a data server
       switch (xbody.msgval) {
       case kXR_DataServer:
@@ -1128,26 +1134,82 @@ bool XrdClientConn::DoLogin()
    char *plist = 0;
    resp = SendGenCommand(&reqhdr, fRedirInternalToken.c_str(), 
                          (void **)&plist, 0, 
-                         TRUE, (char *)"XTNetconn::doLogin");
+                         TRUE, (char *)"XrdClientConn::doLogin");
 
-   // Check if we need to authenticate 
+   // plist is the plain response from the server. We need a way to 0-term it.
    if (resp && LastServerResp.dlen && plist) {
-
+      plist = (char *)realloc(plist, LastServerResp.dlen+1);
       // Terminate server reply
       plist[LastServerResp.dlen]=0;
+ 
+      if ((fServerProto >= 0x240) && (LastServerResp.dlen >= 16)) {
+	 // Get the session id
+	 char prevsessid[16];
 
-      Info(XrdClientDebug::kHIDEBUG,
-	   "DoLogin","server requires authentication");
+	 for (int i=0; i < 16; i++)
+	    prevsessid[i] = fSessionID[i];
 
-      resp = DoAuthentication(User, plist);
+	 for (int i=0; i < 16; i++)
+	    fSessionID[i] = plist[i];
+
+	 Info(XrdClientDebug::kHIDEBUG,
+	      "DoLogin","Got Session ID.");
+
+	 // Check if we need to authenticate 
+	 if (LastServerResp.dlen > 16) {
+	    Info(XrdClientDebug::kHIDEBUG,
+		 "DoLogin","server requires authentication");
+
+	    resp = DoAuthentication(User, plist+16);
+	 }
+
+
+	 // We have to kill the previous session, if any
+	 // By sending a kXR_endsess
+	 bool gotsess = false;
+	 for (int i=0; i < 16; i++)
+	    gotsess |= prevsessid[i];
+
+	 if (gotsess) {
+
+	    memset( &reqhdr, 0, sizeof(reqhdr));
+
+	    SetSID(reqhdr.header.streamid);
+	    reqhdr.header.requestid = kXR_endsess;
+
+	    memcpy(reqhdr.endsess.sessid, prevsessid, 16);
+
+	    // terminate session
+	    Info(XrdClientDebug::kHIDEBUG,
+		 "DoLogin","Trying to terminate session.");
+
+	    SendGenCommand(&reqhdr, 0, 0, 0, 
+			   FALSE, (char *)"XrdClientConn::Endsess");
+
+	 }
+
+
+      }
+      else {
+
+	 // Check if we need to authenticate 
+	 Info(XrdClientDebug::kHIDEBUG,
+	      "DoLogin","server requires authentication");
+
+	 resp = DoAuthentication(User, plist);
+      }
+
    }
+
+
 
    // Flag success if everything went ok
    if (resp) 
       ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()
          ->SetLogged(kYes);
+
    if (plist)
-      delete[] plist;
+      free(plist);
 
    return resp;
 

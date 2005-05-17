@@ -133,7 +133,7 @@ void ServerResponseHeader2NetFmt(struct ServerResponseHeader *srh)
 void ServerInitHandShake2HostFmt(struct ServerInitHandShake *srh)
 {
    srh->msglen  = ntohl(srh->msglen);
-   srh->msgtype = ntohl(srh->msgtype);
+   srh->protover = ntohl(srh->protover);
    srh->msgval  = ntohl(srh->msgval);
 }
 
@@ -220,6 +220,9 @@ char *convertRequestIdToChar(kXR_unt16 requestid)
       break;
    case kXR_statx:
       return (char *)"kXR_statx";
+      break;
+   case kXR_endsess:
+      return (char *)"kXR_endsess";
       break;
    default:
       return (char *)"kXR_UNKNOWN";

@@ -482,7 +482,7 @@ struct ClientInitHandShake {
 // The body received after the first handshake's header
 struct ServerInitHandShake {
    kXR_int32 msglen;
-   kXR_int32 msgtype;
+   kXR_int32 protover;
    kXR_int32 msgval;
 };
 
