@@ -758,6 +758,14 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
    lp->Serialize();
    lp->opMutex.Lock();
 
+// If this link is now dead, simply ignore the request. Typically, this
+// indicates a race condition that the server won.
+//
+   if (lp->FD != fdnum || lp->Instance != inst || !(lp->Poller))
+      {lp->opMutex.UnLock();
+       return EPIPE;
+      }
+
 // Verify that the owner of this link is making the request
 //
    if (owner 
