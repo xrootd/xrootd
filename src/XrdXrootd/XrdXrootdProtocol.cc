@@ -351,6 +351,7 @@ int XrdXrootdProtocol::Process2()
                                  else break;
           case kXR_chmod:     return do_Chmod();
           case kXR_dirlist:   return do_Dirlist();
+          case kXR_endsess:   return do_Endsess();
           case kXR_mkdir:     return do_Mkdir();
           case kXR_mv:        return do_Mv();
           case kXR_query:     return do_Query();
