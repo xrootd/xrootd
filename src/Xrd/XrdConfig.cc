@@ -464,7 +464,7 @@ int XrdConfig::ConfigProc()
 int XrdConfig::PidFile(char *dfltp)
 {
     int xfd;
-    const char *xop;
+    const char *xop = 0;
     char buff[32];
     char newpidFN[1024];
 
