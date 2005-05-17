@@ -53,6 +53,15 @@ struct XrdXrootdFHandle
        ~XrdXrootdFHandle() {}
        };
 
+struct XrdXrootdSessID
+       {unsigned long long rsvd;
+        int                FD;
+        unsigned int       Inst;
+
+        XrdXrootdSessID() {rsvd = 0;}
+       ~XrdXrootdSessID() {}
+       };
+
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
@@ -303,6 +312,42 @@ int XrdXrootdProtocol::do_Dirlist()
 }
 
 /******************************************************************************/
+/*                            d o _ E n d s e s s                             */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_Endsess()
+{
+   XrdXrootdSessID *sp, sessID;
+   int rc;
+
+// Keep statistics
+//
+   UPSTATS(miscCnt);
+
+// Extract out the FD and Instance from the session ID
+//
+   sp = (XrdXrootdSessID *)Request.endsess.sessid;
+   memcpy((void *)&sessID.FD,   &sp->FD,   sizeof(sessID.FD));
+   memcpy((void *)&sessID.Inst, &sp->Inst, sizeof(sessID.Inst));
+
+// Trace this request
+//
+   TRACEP(DEBUG, "endsess " <<sessID.FD <<'.' <<sessID.Inst);
+
+// Terminate the indicated session, if possible. This could also be a self-termination.
+//
+   if ((sessID.FD == 0 && sessID.Inst == 0) 
+   ||  !(rc = Link->Terminate(Link, sessID.FD, sessID.Inst))) return -1;
+
+// Return result
+//
+   if (rc == EACCES) return Response.Send(kXR_NotAuthorized, "not session owner");
+   if (rc == ESRCH)  return Response.Send(kXR_NotFound, "session not found");
+   if (rc == EBUSY)  return Response.Send(kXR_InvalidRequest, "session is active");
+   return Response.Send();
+}
+
+/******************************************************************************/
 /*                            d o   G e t f i l e                             */
 /******************************************************************************/
   
@@ -328,7 +373,8 @@ int XrdXrootdProtocol::do_Getfile()
   
 int XrdXrootdProtocol::do_Login()
 {
-   int i, pid, rc;
+   XrdXrootdSessID sessID;
+   int i, pid, rc, sendSID = 0;
    char uname[9];
 
 // Keep Statistics
@@ -355,6 +401,14 @@ int XrdXrootdProtocol::do_Login()
    Link->setID(uname, pid);
    CapVer = Request.login.capver[0];
 
+// Establish the session ID if the client can handle it
+//
+   if (CapVer && kXR_vermask)
+      {sessID.FD   = Link->FDnum();
+       sessID.Inst = Link->Inst();
+       sendSID = 1;
+      }
+
 // Check if this is an admin login
 //
    if (*(Request.login.role) & (kXR_char)kXR_useradmin)
@@ -366,14 +420,26 @@ int XrdXrootdProtocol::do_Login()
 //
    if (CIA)
       {const char *pp=CIA->getParms(i, Link->Name());
-       if (pp && i ) {rc = Response.Send((void *)pp, i);
+       if (pp && i ) {if (!sendSID) rc = Response.Send((void *)pp, i);
+                         else {struct iovec iov[2];
+                               iov[0].iov_base = (char *)&sessID;
+                               iov[0].iov_len  = sizeof(sessID);
+                               iov[1].iov_base = (char *)pp;
+                               iov[1].iov_len  = i;
+                               rc = Response.Send(iov,2,int(i+sizeof(sessID)));
+                              }
                       Status = (XRD_LOGGEDIN | XRD_NEED_AUTH);
                      }
-          else {rc = Response.Send(); Status = XRD_LOGGEDIN;
+          else {rc = (sendSID ? Response.Send((void *)&sessID, sizeof(sessID))
+                              : Response.Send());
+                Status = XRD_LOGGEDIN;
                 if (pp) {Entity.tident = Link->ID; Client = &Entity;}
                }
       }
-      else     {rc = Response.Send(); Status = XRD_LOGGEDIN;}
+      else {rc = (sendSID ? Response.Send((void *)&sessID, sizeof(sessID))
+                          : Response.Send());
+            Status = XRD_LOGGEDIN;
+           }
 
 // Allocate a monitoring object, if needed for this connection
 //

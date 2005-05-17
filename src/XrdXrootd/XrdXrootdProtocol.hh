@@ -90,6 +90,7 @@ private:
        int   do_CKsum();
        int   do_Close();
        int   do_Dirlist();
+       int   do_Endsess();
        int   do_Getfile();
        int   do_Login();
        int   do_Mkdir();
