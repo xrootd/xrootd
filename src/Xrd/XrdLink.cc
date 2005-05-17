@@ -737,6 +737,56 @@ void XrdLink::syncStats(int *ctime)
 }
  
 /******************************************************************************/
+/*                             T e r m i n a t e                              */
+/******************************************************************************/
+  
+int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
+{
+   XrdLink *lp;
+   char buff[1024], *cp;
+
+// Find the correspodning link
+//
+   if (!(lp = fd2link(fdnum, inst))) return ESRCH;
+
+// If this is self termination, then indicate that to the caller
+//
+   if (lp == owner) return 0;
+
+// Serialize the target link
+//
+   lp->Serialize();
+   lp->opMutex.Lock();
+
+// Verify that the owner of this link is making the request
+//
+   if (owner 
+   && (!(cp = index(owner->ID, ':')) 
+      || strncmp(lp->ID, owner->ID, cp-(owner->ID))
+      || strcmp(owner->Lname, lp->Lname)))
+      {lp->opMutex.UnLock();
+       return EACCES;
+      }
+
+// Make sure we can disable this link
+//
+   if (!(lp->Poller) || !(lp->isEnabled) || lp->InUse > 1)
+      {lp->opMutex.UnLock();
+       return EBUSY;
+      }
+
+// We can now disable the link and close it
+//
+   snprintf(buff, sizeof(buff), "ended by %s", ID);
+   buff[sizeof(buff)-1] = '\0';
+   lp->Poller->Disable(lp);
+   lp->opMutex.UnLock();
+   lp->setEtext(buff);
+   lp->Close();
+   return EPIPE;
+}
+
+/******************************************************************************/
 /*                              i d l e S c a n                               */
 /******************************************************************************/
   

@@ -105,6 +105,8 @@ static int    Stats(char *buff, int blen, int do_sync=0);
 
 XrdProtocol  *setProtocol(XrdProtocol *pp);
 
+       int    Terminate(const XrdLink *owner, int fdnum, unsigned int inst);
+
 int           UseCnt() {return InUse;}
 
               XrdLink();
