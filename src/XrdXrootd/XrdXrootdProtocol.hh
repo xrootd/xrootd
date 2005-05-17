@@ -28,9 +28,9 @@
 /*                               D e f i n e s                                */
 /******************************************************************************/
   
-#define XROOTD_VERSBIN 0x00000230
+#define XROOTD_VERSBIN 0x00000240
 
-#define XROOTD_VERSION "2.3.0"
+#define XROOTD_VERSION "2.4.0"
 
 #define ROOTD_PQ 2012
 
