@@ -315,13 +315,6 @@ int XrdXrootdProtocol::Process2()
           default:           break;
          }
 
-// All remaining requests require an argument. Make sure we have one
-//
-   if (!argp || !Request.header.dlen)
-      {Response.Send(kXR_ArgMissing, "Required argument not present");
-       return 0;
-      }
-
 // Force authentication at this point, if need be
 //
    if (Status & XRD_NEED_AUTH)
@@ -330,6 +323,20 @@ int XrdXrootdProtocol::Process2()
                              "Invalid request; user not logged in");
                return -1;
               }
+
+// Process items that don't need arguments
+//
+   switch(Request.header.requestid)
+         {case kXR_endsess:   return do_Endsess();
+          default:            break;
+         }
+
+// All remaining requests require an argument. Make sure we have one
+//
+   if (!argp || !Request.header.dlen)
+      {Response.Send(kXR_ArgMissing, "Required argument not present");
+       return 0;
+      }
 
 // Process items that keep own statistics
 //
@@ -351,7 +358,6 @@ int XrdXrootdProtocol::Process2()
                                  else break;
           case kXR_chmod:     return do_Chmod();
           case kXR_dirlist:   return do_Dirlist();
-          case kXR_endsess:   return do_Endsess();
           case kXR_mkdir:     return do_Mkdir();
           case kXR_mv:        return do_Mv();
           case kXR_query:     return do_Query();

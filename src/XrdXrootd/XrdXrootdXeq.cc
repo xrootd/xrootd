@@ -320,6 +320,10 @@ int XrdXrootdProtocol::do_Endsess()
    XrdXrootdSessID *sp, sessID;
    int rc;
 
+// Update misc stats count
+//
+   UPSTATS(miscCnt);
+
 // Extract out the FD and Instance from the session ID
 //
    sp = (XrdXrootdSessID *)Request.endsess.sessid;
