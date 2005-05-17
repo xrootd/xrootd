@@ -64,7 +64,8 @@ enum XRequestTypes {
    kXR_admin,   // 3020
    kXR_prepare, // 3021
    kXR_statx,   // 3022
-   kXR_endsess  // 3023
+   kXR_endsess, // 3023
+   kXR_bind     // 3024
 };
 
 // OPEN MODE FOR A REMOTE FILE
@@ -88,6 +89,7 @@ enum XMkdirOptions {
 // this is a bitmask
 enum XLoginCapVer {
    kXR_lcvnone = 0,
+   kXR_vermask = 63,
    kXR_asyncap = 128
 };
 
@@ -121,7 +123,8 @@ enum XQueryType {
    kXR_QStats = 1,
    kXR_QPrep  = 2,
    kXR_Qcksum = 3,
-   kXR_Qolbd  = 4
+   kXR_Qolbd  = 4,
+   kXR_Qmaxs  = 5
 };
 
 enum XLogonType {
@@ -217,6 +220,12 @@ struct ClientAuthRequest {
    kXR_char credtype[4];
    kXR_int32  dlen;
 };
+struct ClientBindRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  sessid[16];
+   kXR_int32  dlen;
+};
 struct ClientChmodRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
@@ -236,6 +245,12 @@ struct ClientDirlistRequest {
    kXR_unt16 requestid;
    kXR_char reserved[15];
    kXR_char options[1];
+   kXR_int32  dlen;
+};
+struct ClientEndsessRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  sessid[16];
    kXR_int32  dlen;
 };
 struct ClientGetfileRequest {
@@ -372,9 +387,11 @@ typedef union {
    struct ClientRequestHdr header;
    struct ClientAdminRequest admin;
    struct ClientAuthRequest auth;
+   struct ClientBindRequest bind;
    struct ClientChmodRequest chmod;
    struct ClientCloseRequest close;
    struct ClientDirlistRequest dirlist;
+   struct ClientEndsessRequest endsess;
    struct ClientGetfileRequest getfile;
    struct ClientLoginRequest login;
    struct ClientMkdirRequest mkdir;
