@@ -1317,7 +1317,7 @@ XrdOlbServer *XrdOlbManager::SelbyLoad(SMask_t mask, int &nump, int &delay,
        if ((np = ServTab[i]) && (np->ServMask & mask))
           {nump++;
            if (np->isOffline)                     {numd++; continue;}
-           if (np->isSuspend || sp->isDisable)    {nums++; continue;}
+           if (np->isSuspend || np->isDisable)    {nums++; continue;}
            if (np->myLoad > XrdOlbConfig.MaxLoad) {numo++; continue;}
            if (needspace && (   np->isNoStage
                              || np->DiskTota < XrdOlbConfig.DiskMin
