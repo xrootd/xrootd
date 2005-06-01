@@ -150,7 +150,7 @@ XrdOssMioFile *XrdOssMio::Map(char *path, int fd, int opts)
 
 // Memory map the file
 //
-   if (!(thefile = mmap(0, statb.st_size, PROT_READ, MAP_PRIVATE, fd, 0)))
+   if ((thefile = mmap(0,statb.st_size,PROT_READ,MAP_PRIVATE,fd,0))==MAP_FAILED)
       {OssEroute.Emsg("Mio", errno, "mmap file", path);
        return 0;
       } else {DEBUG("mmap " <<statb.st_size <<" bytes for " <<path);}
