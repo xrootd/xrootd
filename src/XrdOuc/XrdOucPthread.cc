@@ -59,7 +59,7 @@ extern "C"
 void *XrdOucThread_Xeq(void *myargs)
 {
    XrdOucThreadArgs *ap = (XrdOucThreadArgs *)myargs;
-   unsigned int myNum;
+   unsigned long myNum;
    void *retc;
 
 #if   defined(__linux__)
@@ -70,7 +70,7 @@ void *XrdOucThread_Xeq(void *myargs)
    myNum = static_cast<unsigned int>(pthread_mach_thread_np(pthread_self()));
 #else
    static XrdOucMutex   numMutex;
-   static unsigned int  threadNum = 1;
+   static unsigned long threadNum = 1;
    numMutex.Lock(); threadNum++; myNum = threadNum; numMutex.UnLock();
 #endif
 
