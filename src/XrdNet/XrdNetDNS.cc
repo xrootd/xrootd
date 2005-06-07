@@ -391,7 +391,7 @@ int XrdNetDNS::Host2Dest(const char      *hostname,
                          struct sockaddr &DestAddr,
                          char           **errtxt)
 { char *cp, hbuff[256];
-  int port;
+  int port, i;
   struct sockaddr_in InetAddr;
 
 // Find the colon in the host name
@@ -400,7 +400,14 @@ int XrdNetDNS::Host2Dest(const char      *hostname,
        {if (errtxt) *errtxt = (char *)"port not specified";
         return 0;
        }
-   strlcpy(hbuff, hostname, hostname-cp);
+
+// Make sure hostname is not too long
+//
+   if ((i = hostname-cp) >= sizeof(hbuff))
+       {if (errtxt) *errtxt = (char *)"hostname too long";
+        return 0;
+       }
+   strlcpy(hbuff, hostname, i+1);
 
 // Convert hostname to an ip address
 //
