@@ -95,6 +95,7 @@ $dirlock = 'DIR_LOCK';			# directory lock file
 $mailcmd = (-x '/usr/ucb/mail' ? '/usr/ucb/mail'
                                : '/bin/mail');		# default mail command
 $max_migr_proc = 2;			# default max number of concurrent migrations
+$migrctrsfn = '';                       # 
 $min_tran_rate = 2*1024*1024;		# default minimum data transfer rate 
 $pftphost = ($isMPS ? 'mpsmss'  : 'babarmss');			# default machine for pftp
 $pftpport = ($isMPS ? '21'      : '2021');			# default port for pftp
@@ -1018,6 +1019,7 @@ elsif (defined $pid) {		# child
    my($pctb) = sprintf("%.2f", 100 * ($usr+$sys+$cusr+$csys) / $elap);
    my($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksiz, $blks)
             = stat($file);
+   $rc ? update_ctrs(0,0,0,1) : update_ctrs(1,$size,$elap,0);
    my($rate) = sprintf("%dK/sec", $size/$elap/1024); 
    logit("fork_migrate: for $file, exiting, size=$size elap=$elap, pctbsy=$pctb%, $rate, rc=$rc") if $debug >= $PROC;
    if ($func{"$file"} =~ /p/) {		# purge file after migrate
@@ -1417,6 +1419,24 @@ if (!Flock($fh, $LOCK_UN)) {
    }
 close($fh);
 logit("unlock: unlocking file $file") if $debug >= $DEBUG;
+}
+
+#=============================================================================
+sub update_ctrs {
+    my($num,$bytes,$elap,$fail) = @_;
+    return if !$migrctrsfn;
+    my($fh) = getlock(">>$migrctrsfn.lock",$LOCK_EX, $LOCKNOERR);   
+    return if !$fh;
+    open(CTRS,"$migrctrsfn");
+    my($data) = <CTRS>;
+    close(CTRS);
+    open(CTRS,">$migrctrsfn");
+    my($onum,$obytes,$oelap,$ofail) = split(' ',$data);
+    printf(CTRS "%15.0f %15.0f %15.0f %15.0f\n",
+           $onum+$num, $obytes+$bytes, $oelap+$elap, $ofail+$fail);
+    close(CTRS);
+    unlock($fh,"$migrctrsfn.lock");
+    return;
 }
 
 #===================================================================
