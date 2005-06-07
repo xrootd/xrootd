@@ -3,7 +3,7 @@
 #*                                                                            *
 #*                       X r d O l b N o t i f y . p m                        *
 #*                                                                            *
-# (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   *
+# (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University   *
 #                          All Rights Reserved                                *
 # Produced by Andrew Hanushevsky for Stanford University under contract       *
 #            DE-AC03-76-SFO0515 with the Department of Energy                 *
@@ -21,51 +21,64 @@ use Socket;
 #*                              F i l e G o n e                               *
 #******************************************************************************
  
-#Call:   FileGone(paths);
+#Call:   FileGone([iname,]paths);
 
-#Input:  @paths   - an array of paths that are no longer on the server.
+#Input:   iname   - is the instance name. If the instance name starts with a
+#                   slash, it is treated as a path and the olb is unnamed.
+#        @paths   - an array of paths that are no longer on the server.
 #
 #Processing:
-#        The message is sent to the manager OLB's informing them that each file
-#        if no longer available on this server.
+#        The message is sent to the local OLB so that the manager OLB's are
+#        informed that each file is no longer available on this server.
 #
 #Output: None.
   
 sub FileGone {my(@paths) = @_;
-    my($file);
+    my($file, $iname);
+
+# Get the instance name
+#
+$iname = shift(@paths) if substr($paths[0],0,1) ne '/';
 
 # Send a message for each path in the path list
 #
-foreach $file (@paths) {&SendMsg("gone $file");}
+foreach $file (@paths) {&SendMsg($iname, "gone $file");}
 }
 
 #******************************************************************************
 #*                              F i l e H e r e                               *
 #******************************************************************************
  
-#Call:   FileHere(paths);
+#Call:   FileHere([iname,]paths);
 
-#Input:  @paths   - an array of paths that are available on the server.
+#Input:   iname   - is the instance name. If the instance name starts with a
+#                   slash, it is treated as a path and the olb is unnamed.
+#        @paths   - an array of paths that are available on the server.
 #
 #Processing:
-#        The message is sent to the manager OLB's informing them that each file
-#        if now available on this server.
+#        The message is sent to the local OLB so that the manager OLB's are
+#        informed that each file is now available on this server.
 #
 #Output: None.
   
 sub FileHere {my(@paths) = @_;
-    my($file);
+    my($file, $iname);
+
+# Get the instance name
+#
+$iname = shift(@paths) if substr($paths[0],0,1) ne '/';
 
 # Send a message for each path in the path list
 #
-foreach $file (@paths) {&SendMsg("have $file");}
+foreach $file (@paths) {&SendMsg($iname, "have $file");}
 }
 
 #******************************************************************************
 #*                               S e n d M s g                                *
 #******************************************************************************
  
-#Input:  $msg     - message to be sent
+#Input:  $iname   - instance name, if any
+#        $msg     - message to be sent
 #
 #Processing:
 #        The message is sent to the olb udp path indicated in the olbd.pid file
@@ -76,18 +89,18 @@ foreach $file (@paths) {&SendMsg("have $file");}
 #Notes:  1. If an absolute path is given, we check whether the <pid> in the
 #           file is still alive. If it is not, then no messages are sent.
   
-sub SendMsg {my($msg) = @_;
+sub SendMsg {my($iname,$msg) = @_;
 
 # Allocate a socket if we do not have one
 #
-  if (!fileno(OLBSOCK) && !socket(OLBSOCK, PF_UNIX, SOCK_DGRAM, 0))
-     {print STDERR  "OlbNotify: Unable to create socket; $!\n";
-      return 1;
-     }
+  return 1 if !fileno(OLBSOCK) && !getSock($iname);
 
 # Get the target if we don't have it
 #
-  return 1 if (!defined($OLBADDR) || !kill(0, $OLBPID)) && !getConfig();
+  if (!kill(0, $OLBPID))
+     {close(OLBSOCK);
+      return 1 if !getSock($iname);
+     }
 
 # Send the message
 #
@@ -95,7 +108,7 @@ sub SendMsg {my($msg) = @_;
   chomp($msg);
   return 0 if send(OLBSOCK, "$msg\n", 0, $OLBADDR);
   print STDERR "OlbNotify: Unable to send to olb $OLBPID; $!\n" if $DEBUG;
-  return 0;
+  return 1;
 }
 
 #******************************************************************************
@@ -122,15 +135,17 @@ sub setDebug {my($dbg) = @_;
 #*                               g e t S o c k                                *
 #******************************************************************************
   
-sub getSock {my($path);
+sub getSock {my($iname) = @_;
+  my($path);
 
 # Get the path we are to use
 #
-  return 0 if !($path = getConfig());
+  return 0 if !($path = getConfig($iname));
 
 # Create the path we are to use
 #
   $path = "$path/olbd.notes";
+  $path =~ tr:/:/:s;
   $OLBADDR = sockaddr_un($path);
 
 # Create a socket
@@ -146,12 +161,20 @@ sub getSock {my($path);
 #*                             g e t C o n f i g                              *
 #******************************************************************************
  
-sub getConfig {my($fn, @phval, $path, $line);
+sub getConfig {my($iname) = @_;
+  my($fn, @phval, $path, $line, $pp1, $pp2);
+
+# Construct possible pid paths
+#
+  if ($iname eq '')
+     {$pp1 = '/tmp/olbd.pid'; $pp2 = '/var/run/olbd/olbd.pid';}
+     else
+     {$pp1 = "/tmp/$iname/olbd.pid"; $pp2 = "/var/run/olbd/$iname/olbd.pid";}
 
 # We will look for the pid file in one of two locations
 #
-  if (-r '/tmp/olbd.pid') {$fn = '/tmp/olbd.pid';}
-     elsif (-r '/var/run/olbd/olbd.pid') {$fn = '/var/run/olbd/olbd.pid';}
+  if (-r $pp1) {$fn = $pp1;}
+     elsif (-r $pp2) {$fn = $pp2;}
         else {print STDERR "OlbNotify: Unable to find olbd pid file\n" if $DEBUG;
               return '';
              }
@@ -167,8 +190,8 @@ sub getConfig {my($fn, @phval, $path, $line);
     if (kill(0, $OLBPID))
        {foreach $line (@phval) 
            {($path) = $line =~ m/^&ap=(.*)$/; last if $path;}
-        if ($path) {$OLBADDR = sockaddr_un("$path/olbd.notes");}
-           else {print STDERR "OlbNotify: Can't find olb admin path\n" if $DEBUG;}
-       } else   {print STDERR "OlbNotify: olbd process $OLBPID dead\n" if $DEBUG;}
+        if (!$path)
+              {print STDERR "OlbNotify: Can't find olb admin path\n" if $DEBUG;}
+       } else {print STDERR "OlbNotify: olbd process $OLBPID dead\n" if $DEBUG;}
     return $path;
 }
