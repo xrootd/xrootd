@@ -84,9 +84,15 @@ typedef off_t offset_t;
 //
 #ifdef __macos__
 #include <AvailabilityMacros.h>
+#ifndef POLLRDNORM
 #define POLLRDNORM  0
+#endif
+#ifndef POLLRDBAND
 #define POLLRDBAND  0
+#endif
+#ifndef POLLWRNORM
 #define POLLWRNORM  0
+#endif
 #define O_LARGEFILE 0
 #define memalign(pgsz,amt) valloc(amt)
 #define SHMDT_t void *
