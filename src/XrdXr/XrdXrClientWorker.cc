@@ -922,7 +922,8 @@ int XrdXrClientWorker::handleError(kXR_int32      dlen,
   // kXR_redirect assign the respective variables
   //
   switch(status) {
-  case kXR_error:    XrEroute.Emsg(method, error.errmsg); break;
+  case kXR_error:    XrEroute.Emsg(method, error.errmsg);
+                     status       = ntohl(error.errnum);  break;
   case kXR_wait:     waitTime     = ntohl(error.errnum);  break;
   case kXR_redirect: redirectPort = ntohl(error.errnum);  
                      redirectHost = (char*) malloc(rc - 3);

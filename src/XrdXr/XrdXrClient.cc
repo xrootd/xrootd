@@ -133,7 +133,7 @@ int XrdXrClient::logout()
     }
     else {
       XrEroute.Emsg(epname, "Logout failed.");
-      mutex.UnLock(); return -1;
+      mutex.UnLock(); return -ECANCELED;
     }
   }
   mutex.UnLock();
@@ -187,10 +187,10 @@ int XrdXrClient::open(kXR_char    *path,
 		      kXR_unt16    mode)
 {
   int            status;
-  int            cont     = 1;          // indicates "continue" in while-loop
   int            rc;
   int            wait     = 0;          // wait count
   int            redirect = 0;          // redirect count
+  int            cwTime;                // Wait time for client
   static const char  *epname = "open";
 
   // We try to open a remote file. Since we might get redirected to another
@@ -198,18 +198,19 @@ int XrdXrClient::open(kXR_char    *path,
   // information to satisfy the open request and thus sends a "wait". We handle
   // that, too. Both, the number of redirections and the waits are limited.
   //
-  while((cont) && (wait < maxWait) && (redirect < maxRetry)) {
+  while((wait < maxWait) && (redirect < maxRetry)) {
 
     status = worker->open(path, oflag, mode);
 
     switch (status) {
     case -kXR_redirect:
-      if ((rc = reconnect(epname))) { return -rc;  } 
-      else                          { redirect++; cont = 1; break; }
+      if ((rc = reconnect(epname))) { return rc;  }
+      else                          { redirect++; break; }
 
     case -kXR_wait:
-      if (handleWait(worker->getWaitTime(), epname) == 0) {wait++; break;} 
-      else {mutex.UnLock(); return -kXR_wait;};
+      if ((cwTime = handleWait(worker->getWaitTime(), epname)) == 0) 
+         {wait++; break;}
+      else {mutex.UnLock(); return cwTime;};
 
     case kXR_ok:
       // Fill in the fileInfo structure with the correct values
@@ -225,7 +226,11 @@ int XrdXrClient::open(kXR_char    *path,
     }
   } // while
 
-  return 0;
+// If we exited the loop then either we exceeded the wait time or we
+// exceeded the redirection count
+//
+   if (wait >= maxWait) return maxWaitTime;
+   return -EMLINK;
 } // open
 
 /*****************************************************************************/
@@ -250,7 +255,6 @@ ssize_t XrdXrClient::read(void       *buffer,
 			  kXR_int32   blen)
 {
   ssize_t             received = 0;
-  int                 cont     = 1;      // indicates "continue" in while-loop
   int                 rc;
   int                 wait     = 0;      // wait count
   int                 redirect = 0;      // redirect count
@@ -260,36 +264,32 @@ ssize_t XrdXrClient::read(void       *buffer,
   // from a new host in case we get redirected. The "new" read then starts 
   // from the offset relative to what was received before the redirection.
   //
-  while((cont) && (wait < maxWait) && (redirect < maxRetry)) {
+  while((wait < maxWait) && (redirect < maxRetry)) {
 
     received = worker->read((char*) buffer+received, 
 			    offset+received, blen-received);
    
-    switch (received) {
+    if (received < 0) switch (received) {
     case -kXR_redirect:
-      if ((rc = reconnect(epname))) { return -rc; } 
-      else {
-	redirect++; cont = 1;
-	
-	// Open the file again at the new host
-	//
-	rc = open(fileInfo.path, fileInfo.oflag, fileInfo.mode);
-	if (rc) {
-	  XrEroute.Emsg(epname, "Reopen for redirection failed.");
-	  return -rc;
-	}
-	break;
-      }
+      if ((rc = reconnect(epname))) { return rc; }
+      else {redirect++;
+
+            // Open the file again at the new host
+            //
+            rc = open(fileInfo.path, fileInfo.oflag, fileInfo.mode);
+            if (rc) {
+                     XrEroute.Emsg(epname, "Reopen for redirection failed.");
+                     return rc;
+                    }
+            break;
+           }
 
     case -kXR_wait:
       if (handleWait(worker->getWaitTime(), epname) == 0) {wait++; break;} 
-      else { return -kXR_wait; }
-
-    case kXR_error:        
-      return  kXR_error;
+      else { return -EBUSY; }
 
     default:   
-      cont = 0; break;
+      return  mapError(static_cast<int>(received));
     } // switch
   } // while
 
@@ -313,30 +313,29 @@ int XrdXrClient::stat(struct stat *buffer,
 		      kXR_char    *path)
 {
   int            status;
-  int            cont     = 1;          // indicates "continue" in while-loop
   int            rc;
   int            wait     = 0;          // wait count
   int            redirect = 0;          // redirect count
   static const char  *epname = "stat";
 
-  while((cont) && (wait < maxWait) && (redirect < maxRetry)) {
+  while((wait < maxWait) && (redirect < maxRetry)) {
 
     status = worker->stat(buffer, path);
 
     switch (status) {
     case -kXR_redirect:
       if ((rc = reconnect(epname))) { return rc;   } 
-      else                          { redirect++; cont = 1; break; }
+      else                          { redirect++; break; }
 
     case -kXR_wait:
       if (handleWait(worker->getWaitTime(), epname) == 0) {wait++; break;} 
-      else { return -kXR_wait; }
+      else { return -EBUSY; }
 
     case kXR_ok:
       return 0;
       
     default:
-      return status;
+      return mapError(status);
     }
   } // while
 
@@ -354,7 +353,6 @@ int XrdXrClient::stat(struct stat *buffer,
  */
 int XrdXrClient::close() 
 {
-
   mutex.Lock();
 
   // Free the file path in case the file was opened and we stored the path
@@ -365,7 +363,7 @@ int XrdXrClient::close()
   }
 
   mutex.UnLock();
-  return worker->close();
+  return mapError(worker->close());
 } // close
 
 
@@ -457,7 +455,7 @@ int XrdXrClient::reconnect(const char        *epname)
     setHost((char*) "NULL");       // unset the hostname
     setPort(0);                    // unset the port name
     XrEroute.Emsg(epname, "Redirection failed.");
-    return -1;               
+    return -ECANCELED;
   }
 } // reconnect
 
@@ -474,19 +472,48 @@ int XrdXrClient::reconnect(const char        *epname)
  * Input:   waitTime - time to wait as requested by the server
  *          epname   - name of the caller method
  *
- * Output:  0 on success; -4005 if wait time is longer than the max wait time
+ * Output:  0 on success; waittime if wait time is longer than the max wait time
  */
 int XrdXrClient::handleWait(int waitTime, 
 			    const char *epname)
 {
   if (waitTime > maxWaitTime) {
-    XrEroute.Emsg(epname, "Requested wait time is longer than the maximum.");
     TRACE(All, "Need to wait " << waitTime << 
-	  " seconds - longer than max. wait time.");
-    return -4005;
+          " seconds - longer than max. wait time.");
+    return waitTime;
   } else {
     TRACE(All, "Waiting for " << waitTime << " seconds.");
     sleep(waitTime); 
   }
   return 0;
 } // waitTime
+
+/******************************************************************************/
+/*                              m a p E r r o r                               */
+/******************************************************************************/
+  
+int XrdXrClient::mapError(int rc)
+{
+    if (rc < 0) rc = -rc;
+    switch(rc)
+       {case 0:                  return  0;
+        case kXR_ArgInvalid:     return -EINVAL;
+        case kXR_ArgMissing:     return -EINVAL;
+        case kXR_ArgTooLong:     return -ENAMETOOLONG;
+        case kXR_FileLocked:     return -EDEADLOCK;
+        case kXR_FileNotOpen:    return -EBADF;
+        case kXR_FSError:        return -EIO;
+        case kXR_InvalidRequest: return -ESPIPE;
+        case kXR_IOError:        return -EIO;
+        case kXR_NoMemory:       return -ENOMEM;
+        case kXR_NoSpace:        return -ENOSPC;
+        case kXR_NotAuthorized:  return -EACCES;
+        case kXR_NotFound:       return -ENOENT;
+        case kXR_ServerError:    return -ECANCELED;
+        case kXR_Unsupported:    return -ENOTSUP;
+        case kXR_noserver:       return -ENETUNREACH;
+        case kXR_NotFile:        return -ENOTBLK;
+        case kXR_isDirectory:    return -EISDIR;
+        default:                 return -ENOMSG;
+       }
+}

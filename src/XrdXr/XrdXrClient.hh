@@ -208,6 +208,7 @@ private:
    */
   int handleWait(int waitTime, const char *epname);
 
+  int mapError(int rc);
 
   char* hostOrig_;               // hostname of the original xrootd to connect
                                  // i.e. first host that is used  
