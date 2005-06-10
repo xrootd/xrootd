@@ -96,12 +96,16 @@ typedef off_t offset_t;
 #define O_LARGEFILE 0
 #define memalign(pgsz,amt) valloc(amt)
 #define SHMDT_t void *
+#ifndef EDEADLOCK
+#define EDEADLOCK EDEADLK
+#endif
 #endif
 
 // Only sparc platforms have structure alignment problems w/ optimization
 // so the h2xxx() variants are used when converting network streams.
 
-#if defined(_BIG_ENDIAN) || defined(__IEEE_BIG_ENDIAN) || \
+#if defined(_BIG_ENDIAN) || defined(__BIG_ENDIAN__) || \
+   defined(__IEEE_BIG_ENDIAN) || \
    (defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN)
 #define Xrd_Big_Endian
 #ifndef htonll
@@ -117,11 +121,12 @@ typedef off_t offset_t;
 #define n2hll(_x_, _y_) memcpy((void *)&_y_,(const void *)&_x_,sizeof(long long))
 #endif
 
-#elif defined(_LITTLE_ENDIAN) || defined(__IEEE_LITTLE_ENDIAN) || \
+#elif defined(_LITTLE_ENDIAN) || defined(__LITTLE_ENDIAN__) || \
+     defined(__IEEE_LITTLE_ENDIAN) || \
      (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
 #define Xrd_Little_Endian
 // Use GNU's bswap routines if compiling using g++ o/w use our own.
-#if !defined(__GNUC__)
+#if !defined(__GNUC__) || defined(__macos__)
 #ifndef __bswap_64
 extern unsigned long long Swap_n2hll(unsigned long long x);
 #define __bswap_64(x) Swap_n2hll(x)
