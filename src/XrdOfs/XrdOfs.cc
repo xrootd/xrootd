@@ -1629,6 +1629,12 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 {
    char *etext, buffer[XrdOucEI::Max_Error_Len], unkbuff[64];
 
+// If the error is EBUSY then we just need to stall the client. This is
+// a hack in order to provide for proxy support
+//
+    if (ecode < 0) ecode = -ecode;
+    if (ecode == EBUSY) return 5;  // A hack for proxy support
+
 // Get the reason for the error
 //
    if (!(etext = OfsEroute.ec2text(ecode))) 
@@ -1647,7 +1653,6 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 // Place the error message in the error object and return
 //
     einfo.setErrInfo(ecode, buffer);
-
     return SFS_ERROR;
 }
 
