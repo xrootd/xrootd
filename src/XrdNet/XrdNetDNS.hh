@@ -10,6 +10,7 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
+#include <sys/types.h>
 #include <sys/socket.h>
   
 //         $Id$
