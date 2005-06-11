@@ -79,8 +79,10 @@ char        *RemotRoot;   // Server Only
 int          RemotRLen;
 char        *MsgGID;
 int          MsgGIDL;
-char        *myName;
-char        *myDomain;
+const char  *myName;
+const char  *myDomain;
+const char  *myInsName;
+const char  *myInstance;
 XrdOucTList *myManagers;
 
 char        *NoStageFile;
@@ -108,7 +110,7 @@ char *ASPath(char *path, const char *fn, mode_t mode);
 int  concat_fn(const char *prefix, const int   pfxlen,
                const char *path,         char *buffer);
 void ConfigDefaults(void);
-int  ConfigProc(void);
+int  ConfigProc(int getrole=0);
 int  isExec(XrdOucError *eDest, const char *ptype, char *prog);
 int  PidFile(void);
 int  setupManager(void);

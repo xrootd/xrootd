@@ -59,6 +59,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTimer.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 /******************************************************************************/
 /*                      C o p y r i g h t   S t r i n g                       */
@@ -188,7 +189,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
   Output:   0 upon success or !0 otherwise.
 */
    int logsync = 86400, NoGo = 0, immed = 0;
-   char c, buff[512], *logfn = 0;
+   char c, *p, buff[512], *logfn = 0;
    const char *temp, *smtype = 0;
    extern char *optarg;
    extern int opterr, optopt;
@@ -205,7 +206,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c=getopt(argc,argv,"c:dil:L:msw")) && ((unsigned char)c != 0xff))
+      while ((c=getopt(argc,argv,"c:dil:L:mn:sw")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'c': ConfigFN = optarg;
@@ -219,6 +220,8 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                  break;
        case 'L': break; // Here for upward compatability only
        case 'm': isManager = 1;
+                 break;
+       case 'n': myInsName = optarg;
                  break;
        case 's': isServer = 1;
                  break;
@@ -234,6 +237,8 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 //
    if (!logfn) XrdOlbSTDERR = 0;
       else {XrdOlbSTDERR = dup(2);
+            if (!(logfn = XrdOucUtils::subLogfn(XrdOlbSay, myInsName, logfn)))
+                _exit(16);
             XrdOlbLog.Bind(logfn, logsync);
            }
 
@@ -266,11 +271,15 @@ int XrdOlbConfig::Configure(int argc, char **argv)
        Usage(1);
       }
 
+// Establish my instance name
+//
+   sprintf(buff, "%s@%s", (myInsName ? myInsName : "anon"), myName);
+   myInstance = strdup(buff);
+
 // Print herald
 //
    XrdOlbSay.Say(0, XrdCPR);
-   sprintf(buff, "olb@%s initialization started.", myName);
-   XrdOlbSay.Say(0, buff);
+   XrdOlbSay.Say(0, myInstance, " initilization started.");
 
 // Establish the FD limit
 //
@@ -283,9 +292,18 @@ int XrdOlbConfig::Configure(int argc, char **argv)
             }
    }
 
+// If we don't know our role yet then we must find out before processing the
+// config file. This means a double scan, sigh.
+//
+   if (!(isManager || isServer)) 
+      if (!(NoGo |= ConfigProc(1)) && !(isManager || isServer))
+         {XrdOlbSay.Emsg("Config", "Role not specified; manager role assumed.");
+          isManager = -1;
+         }
+
 // Process the configuration file
 //
-   NoGo |= ConfigProc();
+   if (!NoGo) NoGo |= ConfigProc();
 
 // Override the wait/nowait from the command line
 //
@@ -297,13 +315,8 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 
 // Process role configurations
 //
-   if (!(isManager || isServer))
-      {XrdOlbSay.Emsg("Config", "Role not specified; manager role assumed.");
-       isManager = 1;
-      } else {
-       if (isManager < 0) isManager = 1;
-       if (isServer  < 0) isServer  = 1;
-      }
+   if (isManager < 0) isManager = 1;
+   if (isServer  < 0) isServer  = 1;
    if (isManager) 
       {smtype = "manager";
        XrdOlbJob *jp=(XrdOlbJob *)new XrdOlbCache_Scrubber(&XrdOlbCache,&XrdOlbSched);
@@ -315,9 +328,16 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 // For managers, make sure that we have a well designated port. If we are a
 // supervisor then force an ephemeral port to be used.
 //
-   if (isManager && !PortTCP)
-      {XrdOlbSay.Emsg("Config","Manager's port not specified."); NoGo = 1;}
-      else if (isServer) PortTCP = 0;
+   if (!NoGo)
+      if (isManager && !PortTCP)
+         {XrdOlbSay.Emsg("Config","Manager's port not specified."); NoGo = 1;}
+         else if (isServer) PortTCP = 0;
+
+// Establish the path to be used for admin functions
+//
+   p = XrdOucUtils::genPath(AdminPath, myInsName, ".olb");
+   free(AdminPath);
+   AdminPath = p;
 
 // Setup the admin path (used in all roles)
 //
@@ -334,10 +354,18 @@ int XrdOlbConfig::Configure(int argc, char **argv)
    MsgGIDL = sprintf(buff, "%d@0 ", MsgTTL);
    MsgGID  = strdup(buff);
 
+// Create the pid file
+//
+   if (!NoGo) NoGo |= PidFile();
+
+// Finally switch to the appropriate home directory
+//
+   if (!NoGo && myInsName) XrdOucUtils::makeHome(XrdOlbSay, myInsName);
+
 // All done, check for success or failure
 //
+   sprintf(buff, "%s:%d %s ", myInstance, PortTCP, smtype);
    temp = (NoGo ? "initialization failed." : "initialization completed.");
-   sprintf(buff, "olb@%s:%d %s ", myName, PortTCP, smtype);
    XrdOlbSay.Say(0, buff, temp);
 
 // Start the log midnight runner
@@ -512,27 +540,16 @@ XrdNetSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode,
 
 char *XrdOlbConfig::ASPath(char *path, const char *fn, mode_t mode)
 {
-   int i;
-   const char *act = 0;
+   int rc, i;
    struct stat buf;
    static char fnbuff[1024];
 
 // Create the directory if it is not already there
 //
-   if (stat(path, &buf))
-      {if (errno != ENOENT) act = "process directory";
-          else if (mkdir(path, mode)) act = "create path directory";
-                  else if (chmod(path, mode)) act = "set access mode for";
-      } else
-       if ((buf.st_mode & S_IFMT) != S_IFDIR)
-          {errno = ENOTDIR; act = "process directory";}
-          else if ((buf.st_mode & S_IAMB) != mode
-               &&  chmod(path, mode))
-                  act = "set access mode for";
-
-   if (act) {XrdOlbSay.Emsg("Config", errno, act, path);
-             return 0;
-            }
+   if ((rc = XrdOucUtils::makePath(path, mode)))
+      {XrdOlbSay.Emsg("Config", errno, "create admin path", path);
+       return 0;
+      }
 
 // Construct full filename
 //
@@ -629,11 +646,12 @@ void XrdOlbConfig::ConfigDefaults(void)
    LocalRLen= 0;
    RemotRoot= 0;
    RemotRLen= 0;
+   myInsName= 0;
    myManagers=0;
    Meter    = 0;
    perfint  = 3*60;
    perfpgm  = 0;
-   AdminPath= strdup("/tmp/.olb");
+   AdminPath= strdup("/tmp/");
    AdminMode= 0700;
    AdminSock= 0;
    AnoteSock= 0;
@@ -662,11 +680,11 @@ void XrdOlbConfig::ConfigDefaults(void)
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/
   
-int XrdOlbConfig::ConfigProc()
+int XrdOlbConfig::ConfigProc(int getrole)
 {
   char *var;
   int  cfgFD, retc, NoGo = 0;
-  XrdOucStream Config(&XrdOlbSay);
+  XrdOucStream Config(&XrdOlbSay, myInstance);
 
 // Try to open the configuration file.
 //
@@ -678,16 +696,18 @@ int XrdOlbConfig::ConfigProc()
 
 // Now start reading records until eof.
 //
-   while((var = Config.GetFirstWord()))
-        {if (!strncmp(var, OLB_Prefix, OLB_PrefLen))
-            {var += OLB_PrefLen;
-             NoGo |= ConfigXeq(var, Config, 0);
-            } else
-         if (!strcmp(var, "oss.cache") || !strcmp(var, "oss.localroot"))
-            {var += 4;
-             NoGo |= ConfigXeq(var, Config, 0);
-            }
-        }
+   while((var = Config.GetMyFirstWord()))
+        if (getrole)
+           {if (!strcmp("olb.role", var)) NoGo |=  xrole(&XrdOlbSay, Config);}
+           else {if (!strncmp(var, OLB_Prefix, OLB_PrefLen))
+                    {var += OLB_PrefLen;
+                     NoGo |= ConfigXeq(var, Config, 0);
+                    } else
+                 if (!strcmp(var, "oss.cache") || !strcmp(var, "oss.localroot"))
+                    {var += 4;
+                     NoGo |= ConfigXeq(var, Config, 0);
+                    }
+                 }
 
 // Now check if any errors occured during file i/o
 //
@@ -734,13 +754,22 @@ int XrdOlbConfig::isExec(XrdOucError *eDest, const char *ptype, char *prog)
   
 int XrdOlbConfig::PidFile()
 {
-    int xfd;
+    int rc, xfd;
     char buff[1024];
-    char pidFN[1200];
+    char pidFN[1200], *ppath=XrdOucUtils::genPath(pidPath,myInsName);
     const char *xop = 0;
 
-    if (isManager) snprintf(pidFN, sizeof(pidFN), "%s/olbd.super.pid", pidPath);
-       else snprintf(pidFN, sizeof(pidFN), "%s/olbd.pid", pidPath);
+    if ((rc = XrdOucUtils::makePath(ppath, XrdOucUtils::pathMode)))
+       {XrdOlbSay.Emsg("Config", rc, "create pid file path", ppath);
+        free(ppath);
+        return 1;
+       }
+
+         if (isManager && isServer)
+            snprintf(pidFN, sizeof(pidFN), "%s/olbd.super.pid", ppath);
+    else if (isServer)
+            snprintf(pidFN, sizeof(pidFN), "%s/olbd.pid", ppath);
+    else    snprintf(pidFN, sizeof(pidFN), "%s/olbd.mangr.pid", ppath);
 
     if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0) xop = "open";
        else {if ((write(xfd, buff, snprintf(buff,sizeof(buff),"%d",getpid())) < 0)
@@ -853,10 +882,6 @@ int XrdOlbConfig::setupServer()
        return 1;
       }
 
-// Setup the pidfile
-//
-   if (PidFile()) return 1;
-
 // Setup TCP outgoing network connections
 //
    if (!(XrdOlbNetTCPs = new XrdNetWork(&XrdOlbSay, 0)))
@@ -879,6 +904,21 @@ int XrdOlbConfig::setupServer()
 //
    if (MaxDelay < 0) MaxDelay = AskPerf*AskPing+30;
    if (DiskWT   < 0) DiskWT   = AskPerf*AskPing+30;
+
+// If no cache has been specified but paths exist and there is a local root
+// prefix each path in the list with the local root for monitoring purposes
+//
+   if (!monPath && monPathP && LocalRoot)
+      {XrdOucTList *tlp = monPathP;
+       char *pbp, pbuff[2048];
+       strcpy(pbuff, LocalRoot); pbp = pbuff + LocalRLen;
+       while(tlp)
+            {strcpy(pbp, tlp->text);
+             free(tlp->text); 
+             tlp->text = strdup(pbuff);
+             tlp = tlp->next;
+             }
+       }
 
 // Setup file system metering
 //
@@ -953,7 +993,7 @@ int XrdOlbConfig::setupServer()
   
 void XrdOlbConfig::Usage(int rc)
 {
-cerr <<"\nUsage: olbd [-d] [-i] [-l <fn>] [-m] [-s] -c <cfn>" <<endl;
+cerr <<"\nUsage: olbd [-d] [-i] [-l <fn>] [-n <name>] -c <cfn>" <<endl;
 exit(rc);
 }
   
@@ -1582,16 +1622,18 @@ int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &Config)
 
 /* Function: xport
 
-   Purpose:  To parse the directive: port <tcpnum>
+   Purpose:  To parse the directive: port <tcpnum> [if [<hl> [named <nl>]]
 
              <tcpnum>   number of the tcp port for incomming requests
+             <hl>       apply port directive if this hostname is in <hl>
+             <nl>       apply port directive if this netname is in <nl>
 
    Type: Manager or Server, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
-{   int pnum = 0;
+{   int rc, pnum = 0;
     char *val;
 
     if (!(val = Config.GetWord()))
@@ -1602,6 +1644,11 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
                {eDest->Emsg("Config", "Unable to find tcp service", val);
                 return 1;
                }
+
+    if ((val = Config.GetWord()) && !strcmp("if", val))
+       if ((rc = XrdOucUtils::doIf(eDest,Config,"role directive",myName,myInsName)) <= 0)
+          return (rc < 0);
+
     PortTCP = pnum;
 
     return 0;
@@ -1735,12 +1782,13 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &Config)
 /* Function: xrole
 
    Purpose:  To parse the directive: role {manager | server | supervisor}
-                                          [if <hostlist>]
+                                          [if <hostlist> [named <namelist>]]
 
              manager    act as a manager (incomming no outgoing).
              server     act as a server (no incomming only outgoing).
              supervisor act as a supervisor (incomming and outgoing).
              <hostlist> apply role only when executing on matching host.
+             <namelist> apply role only when executing on matching instance.
 
    Type: Server only, non-dynamic.
 
@@ -1751,7 +1799,7 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
     const char *myrole;
-    int xServ = 0, xMan = 0;
+    int rc, xServ = 0, xMan = 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "role not specified"); return 1;}
@@ -1765,13 +1813,8 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &Config)
     else {eDest->Emsg("Config", "invalid role -", val); return 1;}
 
     if ((val = Config.GetWord()) && !strcmp("if", val))
-       {if (!(val = Config.GetWord()))
-           {eDest->Emsg("Config","Host name missing after 'if' in role directive.");
-            return 1;
-           }
-        while(val && !XrdNetDNS::isMatch(myName, val)) val = Config.GetWord();
-        if (!val) return 0;
-       }
+       if ((rc = XrdOucUtils::doIf(eDest,Config,"role directive",myName,myInsName)) <= 0)
+          return (rc < 0);
 
     if (isServer > 0 || isManager > 0)
        eDest->Emsg("Config",myrole,"role over-ridden by command line options.");
@@ -1917,7 +1960,8 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
 
 /* Function: xsubs
 
-   Purpose:  To parse the directive: subscribe <host>[+] [<port>]
+   Purpose:  Parse the directive: subscribe <host>[+] [<port>]
+                                            [if <hlist> [named <nlist>]]
 
              <host> The dns name of the host that is the manager of this host.
                     If the host name ends with a plus, all addresses that are
@@ -1925,6 +1969,10 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
 
              <port> The port number to use for this host. The default comes
                     from the port directive.
+
+            <hlist> Apply directive if this is one of the named hosts.
+
+            <nlist> Apply directive if this is one of the named instances.
 
    Notes:   Any number of subscribe directives can be given. The server will
             subscribe to all of the managers.
@@ -1938,55 +1986,64 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
 {
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
-    char *val, *bval = 0, *mval;
+    char *val, *bval = 0, mbuff[1024];
     int i, port = 0;
 
     if (!isServer) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "subscribe host not specified"); return 1;}
-    mval = strdup(val);
+    strlcpy(mbuff, val, sizeof(mbuff));
 
-    if ((val = Config.GetWord()))
+    if ((val = Config.GetWord()) && strcmp(val, "if"))
        {if (isdigit(*val))
            {if (XrdOuca2x::a2i(*eDest,"subscribe port",val,&port,1,65535))
-               port = 0;
+               return 1;
            }
            else if (!(port = XrdNetDNS::getPort(val, "tcp")))
                    {eDest->Emsg("Config", "unable to find tcp service", val);
-                    port = 0;
+                    return 1;
        }           }
        else if (!(port = PortTCP))
-               eDest->Emsg("Config","subscribe port not specified for",mval);
+               {eDest->Emsg("Config","subscribe port not specified for",mbuff);
+                return 1;
+               }
 
-    if (!port) {free(mval); return 1;}
+    if (val)
+       {if (strcmp(val, "if"))
+           {eDest->Emsg("Config","expecting subscribe 'if' but",val,"found");
+            return 1;
+           }
+        if ((i=XrdOucUtils::doIf(eDest,Config,"subscribe directive",myName,myInsName))<=0)
+           return i < 0;
+       }
 
-    i = strlen(mval);
-    if (mval[i-1] != '+') i = 0;
-        else {bval = strdup(mval); mval[i-1] = '\0';
-              if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
-                 {eDest->Emsg("Config","Subscribe host", mval, "not found");
-                  free(bval); free(mval); return 1;
+    i = strlen(mbuff);
+    if (mbuff[i-1] != '+') i = 0;
+        else {bval = strdup(mbuff); mbuff[i-1] = '\0';
+              if (!(i = XrdNetDNS::getHostAddr(mbuff, InetAddr, 8)))
+                 {eDest->Emsg("Config","Subscribe host", mbuff, "not found");
+                  free(bval); return 1;
                  }
              }
 
     do {if (i)
-           {i--; free(mval);
-            mval = XrdNetDNS::getHostName(InetAddr[i]);
-            eDest->Emsg("Config", bval, "-> olb.subscribe", mval);
+           {char *mp = XrdNetDNS::getHostName(InetAddr[i]);
+            strlcpy(mbuff, mp, sizeof(mbuff)); free(mp);
+            eDest->Emsg("Config", bval, "-> olb.subscribe", mbuff);
+            i--;
            }
         tp = myManagers;
         while(tp) 
-             if (strcmp(tp->text, mval) || tp->val != port) tp = tp->next;
-                else {eDest->Emsg("Config","Duplicate subscription to",mval);
+             if (strcmp(tp->text, mbuff) || tp->val != port) tp = tp->next;
+                else {eDest->Emsg("Config","Duplicate subscription to",mbuff);
                       break;
                      }
         if (tp) break;
-        myManagers = new XrdOucTList(mval, port, myManagers);
+        myManagers = new XrdOucTList(mbuff, port, myManagers);
        } while(i);
 
     if (bval) free(bval);
-    free(mval);
     return tp != 0;
 }
 

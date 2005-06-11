@@ -6,7 +6,7 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc
+BINLIBS = -L$(LIBDIR) -lXrdOuc -lXrdNet -lXrdOuc
 
 LIBDEPS = $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdNet.a
 
@@ -91,7 +91,7 @@ $(OBJDIR)/XrdOlbConfig.o: XrdOlbCache.hh    XrdOlbConfig.hh  XrdOlbManager.hh \
                           XrdOucStream.hh   XrdOucTList.hh   XrdOlbPrepare.hh \
                           XrdOuca2x.hh      XrdOucLogger.hh  XrdOucError.hh \
                           XrdOucPlatform.hh XrdOucProg.hh    XrdOucPthread.hh \
-                          XrdOucTimer.hh    XrdOucTrace.hh   \
+                          XrdOucTimer.hh    XrdOucTrace.hh   XrdOucUtils.hh \
                           ../XrdVersion.hh
 	@echo Compiling XrdOlbConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbConfig.o XrdOlbConfig.cc
