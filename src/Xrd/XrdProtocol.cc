@@ -93,7 +93,7 @@ XrdProtocol_Select::~XrdProtocol_Select() {}
 /******************************************************************************/
 
 int XrdProtocol_Select::Load(const char *lname, const char *pname,
-                              char *parms, XrdProtocol_Config *pi)
+                             char *parms, XrdProtocol_Config *pi)
 {
    XrdProtocol *xp;
 
@@ -201,14 +201,14 @@ int XrdProtocol_Select::Stats(char *buff, int blen, int do_sync)
 /******************************************************************************/
   
 XrdProtocol *XrdProtocol_Select::getProtocol(const char *lname,
-                                               const char *pname,
-                                                     char *parms,
+                                             const char *pname,
+                                                   char *parms,
                                       XrdProtocol_Config *pi)
 {
 static char         *  liblist[XRD_PROTOMAX];
 static void         *  libhndl[XRD_PROTOMAX];
 static XrdProtocol *(*libfunc[XRD_PROTOMAX])(const char *, char *,
-                                              XrdProtocol_Config *);
+                                             XrdProtocol_Config *);
 static int libcnt = 0;
        int i;
 

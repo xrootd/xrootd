@@ -48,6 +48,7 @@ const char *XrdConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTimer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
@@ -113,17 +114,20 @@ class XrdLogWorker : XrdJob
 public:
 
      void DoIt() {XrdLog.Say(0, XrdBANNER);
+                  XrdLog.Say(0, mememe, "running.");
                   midnite += 86400;
                   XrdSched.Schedule((XrdJob *)this, midnite);
                  }
 
-          XrdLogWorker() : XrdJob("midnight runner")
+          XrdLogWorker(char *who) : XrdJob("midnight runner")
                          {midnite = XrdOucTimer::Midnight() + 86400;
+                          mememe = strdup(who);
                           XrdSched.Schedule((XrdJob *)this, midnite);
                          }
          ~XrdLogWorker() {}
 private:
 time_t midnite;
+const char *mememe;
 };
 
 /******************************************************************************/
@@ -138,6 +142,7 @@ XrdConfig::XrdConfig(void)
    PortTCP  = 0;
    PortUDP  = 0;
    ConfigFN = 0;
+   myInsName= "anon";
    PidPath  = strdup("/tmp");
    AdminPath= 0;
    Police   = 0;
@@ -180,10 +185,14 @@ int XrdConfig::Configure(int argc, char **argv)
 
   Output:   0 upon success or !0 otherwise.
 */
+   const char *xrdInst="XRDINSTANCE=";
+   const char *xrdName="XRDNAME=";
+   const char *xrdHost="XRDHOST=";
+
    static sockaddr myIPAddr;
    int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = 0;
    const char *temp;
-   char c, *myProg, buff[512], *dfltProt, *logfn = 0;
+   char c, *Penv, *myProg, buff[512], *dfltProt, *logfn = 0;
    extern char *optarg;
    extern int optind, opterr;
 
@@ -197,7 +206,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"c:dhl:p:P:")) && ((unsigned char)c != 0xff))
+      while ((c = getopt(argc,argv,"c:dhl:n:p:P:")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'c': if (ConfigFN) free(ConfigFN);
@@ -210,6 +219,8 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'h': Usage(myProg, 0);
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
+                 break;
+       case 'n': myInsName = optarg;
                  break;
        case 'p': if (!(clPort = yport(&XrdLog, "tcp", optarg))) Usage(myProg,1);
                  break;
@@ -237,9 +248,11 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Bind the log file if we have one
 //
-   if (logfn) {XrdLogger.Bind(logfn, 24*60*60);
-               new XrdLogWorker();
-              }
+   if (logfn)
+      {if (!(logfn = XrdOucUtils::subLogfn(XrdLog, myInsName, logfn))) _exit(16);
+       XrdLogger.Bind(logfn, 24*60*60);
+       free(logfn);
+      }
 
 // Get the full host name. In theory, we should always get some kind of name.
 //
@@ -268,12 +281,28 @@ int XrdConfig::Configure(int argc, char **argv)
    XrdNetDNS::getHostAddr(myName, &myIPAddr);
    ProtInfo.myName = myName;
    ProtInfo.myAddr = &myIPAddr;
+   ProtInfo.myInst = myInsName;
+
+// Set the Environmental variable to hold the instance name
+// XRDINSTANCE=<instance name>@<host name>
+//
+   sprintf(buff,"%s%s@%s", xrdInst, myInsName, myName);
+   myInstance = strdup(buff);
+   putenv(myInstance);
+   myInstance += strlen(xrdInst);
+   sprintf(buff, "%s%s", xrdHost, myName);
+   Penv = strdup(buff);
+   putenv(Penv);
+   if (myInsName)
+      {sprintf(buff, "%s%s", xrdName, myInsName);
+       Penv = strdup(buff);
+       putenv(Penv);
+      }
 
 // Put out the herald
 //
    XrdLog.Say(0, XrdBANNER);
-   sprintf(buff, "xrd@%s", myName);
-   XrdLog.Say(0, buff, " initialization started.");
+   XrdLog.Say(0, myInstance, " initialization started.");
 
 // Setup the initial required protocol
 //
@@ -299,11 +328,16 @@ int XrdConfig::Configure(int argc, char **argv)
       }
    ProtInfo.Threads = XrdThread;
 
+// If we hae a net name change the working directory
+//
+   if (myInsName) XrdOucUtils::makeHome(XrdLog, myInsName);
+
 // All done, close the stream and return the return code.
 //
-   temp = (NoGo ? "failed." : "completed.");
-   sprintf(buff, "xrd@%s:%d initialization ", myName, ProtInfo.Port);
+   temp = (NoGo ? " initialization failed." : " initialization completed.");
+   sprintf(buff, "%s:%d", myInstance, PortTCP);
    XrdLog.Say(0, buff, temp);
+   if (logfn) new XrdLogWorker(buff);
    return NoGo;
 }
 
@@ -334,7 +368,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
    TS_Xeq("connections",   xcon);
-   TS_Xeq("pidpath",       xpidf);
+   TS_Xeq("pidpath",       xpidf);  // Backward compatability only!
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("timeout",       xtmo);
@@ -353,55 +387,30 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
 /*                               A S o c k e t                                */
 /******************************************************************************/
   
-int XrdConfig::ASocket(const char *path, const char *dname, const char *fname,
-                        mode_t mode)
+int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 {
-   char sokpath[108];
-   int  plen = strlen(path), dlen = strlen(dname), flen = strlen(fname);
-   int NoGo = 0;
-   mode_t dmode;
-   struct stat buf;
+   char xpath[1024], sokpath[108];
+   int  plen = strlen(path), flen = strlen(fname);
+   int rc;
 
 // Make sure we can fit everything in our buffer
 //
-   if ((plen + dlen + flen + 3) > (int)sizeof(sokpath))
+   if ((plen + flen + 3) > (int)sizeof(sokpath))
       {XrdLog.Emsg("Config", "admin path", path, "too long");
        return 1;
       }
 
-// Construct the directory name we will need to create
+// Create the directory path
 //
-   strcpy(sokpath, path);
-   if (sokpath[plen-1] != '/') sokpath[plen++] = '/';
-   strcpy(&sokpath[plen], dname);
-   plen += dlen;
-
-// Establish directory mode for this socket
-//
-   dmode = mode;
-   if (mode & S_IRWXU) dmode |= S_IXUSR;
-   if (mode & S_IRWXG) dmode |= S_IXGRP;
-
-// Create the directory if it is not present
-//
-   if (stat(sokpath, &buf))
-      {if (errno != ENOENT)
-          NoGo=XrdLog.Emsg("Config",errno,"process admin path",path);
-          else if (mkdir(sokpath, dmode))
-                  NoGo=XrdLog.Emsg("Config",errno,"create admin path",path);
-      } else {
-       if ((buf.st_mode & S_IFMT) != S_IFDIR)
-          {XrdLog.Emsg("Config", "Admin path", path,
-                       "exists but is not a directory"); NoGo = 1;}
-          else if ((buf.st_mode & S_IAMB) != dmode && chmod(sokpath, dmode))
-                  {XrdLog.Emsg("Config",errno,"set access mode for",path); 
-                   NoGo = 1;}
-      }
-   if (NoGo) return 1;
+   strcpy(xpath, path);
+   if ((rc = XrdOucUtils::makePath(xpath, mode)))
+       {XrdLog.Emsg("Config", rc, "create admin path", xpath);
+        return 1;
+       }
 
 // Construct the actual socket name
 //
-  sokpath[plen++] = '/';
+  if (sokpath[plen-1] != '/') sokpath[plen++] = '/';
   strcpy(&sokpath[plen], fname);
 
 // Create an admin network
@@ -427,7 +436,7 @@ int XrdConfig::ConfigProc()
 {
   char *var;
   int  cfgFD, retc, NoGo = 0;
-  XrdOucStream Config(&XrdLog);
+  XrdOucStream Config(&XrdLog, myInstance);
 
 // Try to open the configuration file.
 //
@@ -439,7 +448,7 @@ int XrdConfig::ConfigProc()
 
 // Now start reading records until eof.
 //
-   while((var = Config.GetFirstWord()))
+   while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, XRD_Prefix, XRD_PrefLen))
             {var += XRD_PrefLen;
              NoGo |= ConfigXeq(var, Config);
@@ -455,32 +464,6 @@ int XrdConfig::ConfigProc()
 // Return final return code
 //
    return NoGo;
-}
-  
-/******************************************************************************/
-/*                               P i d F i l e                                */
-/******************************************************************************/
-  
-int XrdConfig::PidFile(char *dfltp)
-{
-    int xfd;
-    const char *xop = 0;
-    char buff[32];
-    char newpidFN[1024];
-
-    snprintf(newpidFN, sizeof(newpidFN)-1,"%s/%s:%d.pid",PidPath,dfltp,PortTCP);
-    newpidFN[sizeof(newpidFN)-1] = '\0';
-
-    if ((xfd = open(newpidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
-       xop = "open";
-       else {snprintf(buff, sizeof(buff), "%d", getpid());
-             if (write(xfd, (void *)buff, strlen(buff)) < 0)
-                xop = "write";
-             close(xfd);
-            }
-
-     if (xop) XrdLog.Emsg("Config", errno, xop, newpidFN);
-     return xop != 0;
 }
 
 /******************************************************************************/
@@ -602,12 +585,7 @@ int XrdConfig::Setup(char *dfltp)
 
 // Setup admin connection now
 //
-   if (AdminPath)
-      {char fname[32];
-       snprintf(fname, sizeof(fname)-1, ".admin.%d", PortTCP);
-       fname[sizeof(fname)-1] = '\0';
-       if (ASocket(AdminPath, ".xrd", fname, (mode_t)AdminMode)) return 1;
-      }
+   if (AdminPath && ASocket(AdminPath, "admin", (mode_t)AdminMode)) return 1;
 
 // Allocate the statistics object. This is akward since we only know part
 // of the current configuration. The object will figure this out later.
@@ -617,15 +595,12 @@ int XrdConfig::Setup(char *dfltp)
 // Load the protocols
 //
    while((cp= Firstcp))
-        {if(!XrdProtocol_Select::Load((cp->libpath), (cp->proname),
-                                        cp->parms,    &ProtInfo)) return 1;
+        {if (!XrdProtocol_Select::Load((cp->libpath), (cp->proname), 
+                                       (cp->parms), &ProtInfo))
+            return 1;
          Firstcp = cp->Next;
          delete cp;
         }
-
-// Create the pid file, if need be
-//
-   PidFile(dfltp);
 
 // All done
 //
@@ -640,7 +615,7 @@ void XrdConfig::Usage(char *myProg, int rc)
 {
 
      cerr <<"\nUsage: " <<myProg <<" [-c <cfn>] [-d] [-l <fn>] "
-            "[-p <port>] [-P <prot>] [<prot_options>]" <<endl;
+            "[-n name] [-p <port>] [-P <prot>] [<prot_options>]" <<endl;
      _exit(rc);
 }
 
@@ -656,7 +631,7 @@ void XrdConfig::Usage(char *myProg, int rc)
 
              group     allows group access to the admin path
 
-   Note: A named socket is created <path>/.xrd/.admin.<port>
+   Note: A named socket is created <path>/<name>/.xrd/admin
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -676,6 +651,10 @@ int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
 //
    if (*pval != '/')
       {eDest->Emsg("Config", "adminpath not absolute"); return 1;}
+
+// Generate the path
+//
+   pval = XrdOucUtils::genPath(pval, myInsName, ".xrd");
 
 // Get the optional access rights
 //
@@ -927,15 +906,16 @@ int XrdConfig::xpidf(XrdOucError *eDest, XrdOucStream &Config)
 
 /* Function: xport
 
-   Purpose:  To parse the directive: port <tcpnum> [if <hostlist>]
+   Purpose:  To parse the directive: port <tcpnum> [if [<hlst>] [named <nlst>]]
 
              <tcpnum>   number of the tcp port for incomming requests
-             <hostlist> list of applicable host patterns
+             <hlst>     list of applicable host patterns
+             <nlst>     list of applicable instance names.
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
-{   int pnum = 0;
+{   int rc, pnum = 0;
     char *val, cport[32];
 
     if (!(val = Config.GetWord()))
@@ -943,18 +923,8 @@ int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
     strncpy(cport, val, sizeof(cport)-1); cport[sizeof(cport)-1] = '\0';
 
     if ((val = Config.GetWord()) && !strcmp("if", val))
-       {if (!(val = Config.GetWord()))
-           {eDest->Emsg("Config","Host name missing after 'if' in port directive.");
-            return 1;
-           }
-        while(val && !XrdNetDNS::isMatch(myName, val))
-             {TRACE(DEBUG,"'port " <<cport <<" if " <<val <<"' != " <<myName);
-              val = Config.GetWord();
-             }
-        if (!val) {TRACE(DEBUG,"'port " <<cport <<"' ignored.");
-                   return 0;
-                  }
-       }
+       if ((rc = XrdOucUtils::doIf(eDest,Config, "role directive",
+                              myName, myInsName)) <= 0) return (rc < 0);
 
     if (!(pnum = yport(eDest, "tcp", cport))) return 1;
     PortTCP = PortUDP = pnum;
@@ -988,12 +958,11 @@ int XrdConfig::yport(XrdOucError *eDest, const char *ptype, const char *val)
 
 /* Function: xprot
 
-   Purpose:  To parse the directive: protocol <name> <loc> [<parms>]
+   Purpose:  To parse the directive: protocol <name> <loc> [<parm>]
 
              <name> The name of the protocol (e.g., rootd)
              <loc>  The shared library in which it is located.
-             <parm> The parameters to pass to the protocol when calling
-                    it's Configure() method.
+             <parm> A one line parameter to be passed to the protocol.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1001,7 +970,8 @@ int XrdConfig::yport(XrdOucError *eDest, const char *ptype, const char *val)
 int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
 {
     XrdConfigProt *cpp;
-    char *val, *parms, *lib, proname[17];
+    char *val, *parms, *lib, proname[17], buff[1024];
+    int vlen, bleft = sizeof(buff);
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "protocol name not specified"); return 1;}
@@ -1014,11 +984,16 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
     if (strcmp("*", val)) lib = strdup(val);
        else lib = 0;
 
-    if (!(parms = xprotparms(eDest, Config)))
-       {if (lib) free(lib);
-        return 1;
-       }
-    if (*parms == '\0') parms = 0;
+    parms = buff;
+    while((val = Config.GetWord()))
+         {vlen = strlen(val); bleft -= (vlen+1);
+          if (bleft <= 0)
+             {eDest->Emsg("Config", "Too many parms for protocol", proname);
+              return 1;
+             }
+          *parms = ' '; parms++; strcpy(parms, val); parms += vlen;
+         }
+    if (parms != buff) parms = strdup(buff+1);
 
     if ((cpp = Firstcp))
        do {if (!strcmp(proname, cpp->proname))
@@ -1036,49 +1011,6 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
     Lastcp = cpp;
 
     return 0;
-}
-
-/******************************************************************************/
-
-char *XrdConfig::xprotparms(XrdOucError *eDest, XrdOucStream &Config)
-{
-    char *val, pbuff[4096], *bp = pbuff;
-    int tlen, eoc = 1, braces = 0, bleft = sizeof(pbuff)-2;
-
-    *pbuff = '\0';
-    if ((val = Config.GetWord()))
-       {if (*val == '{')
-           {val++; eoc = 0; braces = 1;
-            if (*val == '\0') val = Config.GetWord();
-           }
-        eDest->Emsg("Config","Warning! Protocol directive brace notation is "
-                    "deprecated and will not be supported in the next release.");
-        do {while(val)
-                 {tlen = strlen(val);
-                  if (braces && val[tlen-1] == '}')
-                     {eoc = 1; tlen--;
-                      val[tlen] = '\0';
-                      if (!tlen) break;
-                     }
-                  if (tlen >= bleft)
-                     {eDest->Emsg("Config","excessive protocol parameters");
-                      return 0;
-                     }
-                  *bp++ = ' '; strcpy(bp, val); bp += tlen; bleft -= tlen;
-                  val = Config.GetWord();
-                 }
-            *bp = (eoc ? '\0' : '\n'); bp++; bleft--;
-           } while(!eoc && (val = Config.GetFirstWord()));
-       }
-
-    if (!eoc)
-       {eDest->Emsg("Config","protocol parameters not terminated with '}'");
-        return 0;
-       }
-
-// When we return a null string it will be converted to a null pointer
-//
-    return (*pbuff ? strdup(&pbuff[1]) : (char *)"");
 }
 
 /******************************************************************************/

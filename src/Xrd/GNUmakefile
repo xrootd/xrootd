@@ -76,7 +76,7 @@ $(OBJDIR)/XrdBuffer.o:    XrdBuffer.cc   XrdBuffer.hh     XrdTrace.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBuffer.o XrdBuffer.cc
 
 $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
-                       XrdLink.hh        XrdInet.hh        \
+                       XrdLink.hh        XrdInet.hh        XrdOucUtils.hh \
                        XrdPoll.hh        XrdProtocol.hh    XrdScheduler.hh \
                        XrdStats.hh       XrdTrace.hh       XrdInfo.hh    \
                        XrdOuca2x.hh      XrdOucError.hh    XrdOucLogger.hh   \

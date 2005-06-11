@@ -52,7 +52,8 @@ XrdOucTrace    *Trace;       // Stable -> Trace Information
 char            *ConfigFN;     // -> Configuration file
 int              Format;       // Binary format of this server
 int              Port;         // Port number
-char            *myName;       // Host name
+const char      *myInst;       // Instance name
+const char      *myName;       // Host name
 struct sockaddr *myAddr;       // Host address
 int              ConnOptn;     // Number of connections to optimize for.
 int              ConnLife;     // Life   of connections to optimize for.
@@ -131,9 +132,8 @@ virtual    ~XrdProtocol() {}
 
 extern "C"
 {
-extern XrdProtocol *XrdgetProtocol(const char *protocol_name,
-                                           char *protocol_parms,
-                            XrdProtocol_Config *pi);
+extern XrdProtocol *XrdgetProtocol(const char *protocol_name, char *parms,
+                                   XrdProtocol_Config *pi);
 }
 
 /******************************************************************************/
@@ -153,8 +153,8 @@ public:
 
 void          DoIt() {}
 
-static int    Load(const char *lname, const char *pname,
-                   char *parms, XrdProtocol_Config *pi);
+static int    Load(const char *lname, const char *pname, char *parms,
+                   XrdProtocol_Config *pi);
 
 XrdProtocol  *Match(XrdLink *lp) {return 0;}
 
@@ -170,7 +170,7 @@ int           Stats(char *buff, int blen, int do_sync=0);
 private:
 
 static XrdProtocol *getProtocol(const char *lname, const char *pname,
-                                 char *parms, XrdProtocol_Config *pi);
+                                char *parms, XrdProtocol_Config *pi);
 
 static char         *ProtName[XRD_PROTOMAX]; // ->Supported protocols
 static XrdProtocol  *Protocol[XRD_PROTOMAX]; // ->Supported protocols

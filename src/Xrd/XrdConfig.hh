@@ -31,9 +31,8 @@ int   ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest=0);
 
 private:
 
-int   ASocket(const char *path,const char *dname,const char *fname,mode_t mode);
+int   ASocket(const char *path, const char *fname, mode_t mode);
 int   ConfigProc(void);
-int   PidFile(char *pname);
 int   setFDL();
 int   Setup(char *dfltp);
 void  Usage(char *mprg, int rc);
@@ -46,7 +45,6 @@ int   xlog(XrdOucError *edest, XrdOucStream &Config);
 int   xpidf(XrdOucError *edest, XrdOucStream &Config);
 int   xport(XrdOucError *edest, XrdOucStream &Config);
 int   xprot(XrdOucError *edest, XrdOucStream &Config);
-char *xprotparms(XrdOucError *eDest, XrdOucStream &Config);
 int   xsched(XrdOucError *edest, XrdOucStream &Config);
 int   xtrace(XrdOucError *edest, XrdOucStream &Config);
 int   xtmo(XrdOucError *edest, XrdOucStream &Config);
@@ -56,10 +54,11 @@ static const char  *TraceID;
 
 XrdProtocol_Config  ProtInfo;
 XrdNetSecurity     *Police;
-char               *myName;
-char               *myDomain;
+const char         *myName;
+const char         *myDomain;
+const char         *myInsName;
+char               *myInstance;
 char               *AdminPath;
-int                 AdminMode;
 char               *ConfigFN;
 char               *PidPath;
 XrdConfigProt      *Firstcp;
@@ -71,5 +70,6 @@ int                 PortTCP;      // TCP Port to listen on
 int                 PortUDP;      // UDP Port to listen on (currently unsupported)
 char                isProxy;
 char                setSched;
+char                AdminMode;
 };
 #endif
