@@ -390,7 +390,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 {
    char *var;
    int  cfgFD, retc, NoGo = 0, recs = 0;
-   XrdOucStream Config(&eDest);
+   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"));
    XrdSecProtParm *pp;
 
 // If there is no config file, return with the defaults sets.
@@ -410,7 +410,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 // Now start reading records until eof.
 //
    Config.Attach(cfgFD); Config.Tabs(0);
-   while((var = Config.GetFirstWord()))
+   while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, SEC_Prefix, SEC_PrefLen))
             {var += SEC_PrefLen; recs++;
              NoGo |= ConfigXeq(var, Config, eDest);

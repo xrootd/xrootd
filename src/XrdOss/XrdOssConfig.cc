@@ -369,7 +369,7 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 {
   char *var;
   int  cfgFD, retc, NoGo = XrdOssOK;
-  XrdOucStream Config(&Eroute);
+  XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
 // If there is no config file, return with the defaults sets.
 //
@@ -388,7 +388,7 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 
 // Now start reading records until eof.
 //
-   while((var = Config.GetFirstWord()))
+   while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, XRDOSS_Prefix, XRDOSS_PrefLen))
             {var += XRDOSS_PrefLen;
              NoGo |= ConfigXeq(var, Config, Eroute);

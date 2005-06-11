@@ -30,6 +30,7 @@ const char *XrdOdcConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdNet/XrdNetDNS.hh"
 
 /******************************************************************************/
@@ -79,6 +80,9 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
 // Preset tracing options
 //
    if (getenv("XRDDEBUG")) OdcTrace.What = TRACE_ALL;
+   myHost = getenv("XRDHOST");
+   myName = getenv("XRDNAME");
+   OLBPath= strdup("/tmp/");
 
 // Process the configuration file
 //
@@ -98,7 +102,9 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
 
 // Set proper local socket path
 //
-   if (!OLBPath) OLBPath = strdup("/tmp/.olb/");
+   temp = XrdOucUtils::genPath(OLBPath, myName, ".olb");
+   free(OLBPath); 
+   OLBPath = temp;
    i = strlen(OLBPath);
 
 // Construct proper olb communications path for a supervisor node
@@ -147,7 +153,7 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 {
   char *var;
   int  cfgFD, retc, NoGo = 0;
-  XrdOucStream Config(eDest);
+  XrdOucStream Config(eDest, getenv("XRDINSTANCE"));
 
 // Make sure we have a config file
 //
@@ -166,7 +172,7 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 
 // Now start reading records until eof.
 //
-   while((var = Config.GetFirstWord()))
+   while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, ODC_Prefix, ODC_PrefLen))
             {var += ODC_PrefLen;
              NoGo |= ConfigXeq(var, Config);
@@ -292,6 +298,7 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
 /* Function: xmang
 
    Purpose:  To parse directive: manager [proxy] [all|any] <host>[+] <port>
+                                         [if <hl> [named <nl>]]
 
              proxy  This is a proxy service manager not cache space manager.
              all    Distribute requests across all managers.
@@ -301,6 +308,8 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
                     associated with the host are treated as managers.
 
              <port> The port number to use for this host.
+             <hl>   Apply manager directive is host is one listed in <hl>
+             <nl>   Apply manager directive is name is one listed in <nl>
 
    Notes:   Any number of manager directives can be given. The finder will
             load balance amongst all of them.
@@ -315,7 +324,7 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval = 0;
-    int i, port, isProxy = 0, smode = ODC_FAILOVER;
+    int rc, i, port, isProxy = 0, smode = ODC_FAILOVER;
 
     SMode = 0;
     do {if (!(val = Config.GetWord()))
@@ -340,6 +349,12 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
        else errp->Emsg("Config","manager port not specified for",mval);
 
     if (!port) {free(mval); return 1;}
+
+    if (myHost && (val = Config.GetWord()) && !strcmp("if", val))
+       if ((rc = XrdOucUtils::doIf(eDest,Config,"role directive",myHost, myName)) <= 0)
+          {free(mval);
+           return (rc < 0);
+          }
 
     i = strlen(mval);
     if (mval[i-1] != '+') i = 0;

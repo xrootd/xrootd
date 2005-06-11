@@ -44,6 +44,7 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdOdc/XrdOdcFinder.hh"
 #include "XrdAcc/XrdAccAuthorize.hh"
@@ -89,7 +90,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
    char *var;
    const char *tmp;
    int  i, j, cfgFD, retc, NoGo = 0;
-   XrdOucStream Config(&Eroute);
+   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
 // Print warm-up message
 //
@@ -114,7 +115,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
            // Now start reading records until eof.
            //
-           while((var = Config.GetFirstWord()))
+           while((var = Config.GetMyFirstWord()))
                 {if (!strncmp(var, OFS_Prefix, OFS_PrefLen))
                     {var += OFS_PrefLen;
                      NoGo |= ConfigXeq(var, Config, Eroute);
@@ -478,13 +479,9 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    EPNAME("xred")
-#ifndef NODEBUG
-   const char *tident = "";
-#endif
     const char *mode = "remote";
     char *val;
-    int ropt = 0;
+    int rc, ropt = 0;
 
     if ((val = Config.GetWord()))
        {     if (!strcmp("proxy",  val)) {ropt = XrdOfsREDIROXY;
@@ -499,19 +496,10 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
     if (!ropt) ropt = XrdOfsREDIRRMT;
        else if (val) val = Config.GetWord();
 
-    if (val) {if (!strcmp("if", val) && !(val = Config.GetWord()))
-                 {Eroute.Emsg("Config",
-                              "Host name missing after 'if' in redirect", mode);
-                  return 1;
-                 }
-              while(val && !XrdNetDNS::isMatch(HostName, val))
-                   {DEBUG("'redirect " <<mode <<" if " <<val <<"' != " <<HostName);
-                    val = Config.GetWord();
-                   }
-              if (!val) {DEBUG("'redirect " <<mode <<"' ignored.");
-                         return 0;
-                        }
-             }
+    if (val && !strcmp("if", val))
+       if ((rc = XrdOucUtils::doIf(&Eroute, Config, "redirect directive",
+                                   getenv("XRDHOST"), getenv("XRDNAME"))) <= 0)
+          return (rc < 0);
 
     Options |= ropt;
     return 0;

@@ -6,9 +6,11 @@
   
 include ../GNUmake.env
 
-MORELIBS = -L$(LIBDIR) -lXrdOuc
+MORELIBS = -L$(LIBDIR) -lXrdOuc -lXrdNet
 
-LIBDEPS = $(LIBDIR)/libXrdOuc.a
+BINLIBS  = -L$(LIBDIR) -lXrdSec -lXrdOuc -lXrdNet
+
+LIBDEPS = $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdNet.a
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -85,11 +87,11 @@ $(LIBRARY): $(OBJSLIB) $(LIBDEPS)
 
 $(TSTBINA): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(TSTBINA) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTA) $(BINLIBS) $(MORELIBS) -lXrdSec -lXrdOuc $(LIBS) -o $(TSTBINA)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTA) $(LIBS) $(BINLIBS) -o $(TSTBINA)
 
 $(TSTBINB): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TSTBINB) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(MORELIBS) -lXrdSec -lXrdOuc $(LIBS) -o $(TSTBINB)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(LIBS) $(BINLIBS) -o $(TSTBINB)
 
 $(OBJDIR)/XrdSecClient.o: XrdOucPthread.hh XrdSecPManager.hh XrdSecInterface.hh \
                           XrdOucErrInfo.hh XrdSecClient.cc   XrdSecEntity.hh

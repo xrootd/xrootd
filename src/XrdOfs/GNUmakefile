@@ -77,7 +77,7 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
 $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
                            XrdOfs.hh         XrdOfsTrace.hh  \
                            XrdOuca2x.hh      XrdOucError.hh   XrdOucStream.hh \
-                           XrdOucTrace.hh    XrdNetDNS.hh   \
+                           XrdOucTrace.hh    XrdOucUtils.hh   XrdNetDNS.hh   \
                            XrdAccAuthorize.hh \
                            XrdOdcFinder.hh
 	@echo Compiling XrdOfsConfig.cc 

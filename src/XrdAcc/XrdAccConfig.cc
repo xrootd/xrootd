@@ -230,7 +230,7 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 */
    char *var;
    int  cfgFD, retc, NoGo = 0, recs = 0;
-   XrdOucStream Config(&Eroute);
+   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
 // If there is no config file, complain
 //
@@ -257,7 +257,7 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 // Now start reading records until eof.
 //
    ConfigDefaults(); Config.Attach(cfgFD); Config.Tabs(0);
-   while((var = Config.GetFirstWord()))
+   while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, ACC_Prefix, ACC_PrefLen))
             {var += ACC_PrefLen; recs++;
              NoGo |= ConfigXeq(var, Config, Eroute);
