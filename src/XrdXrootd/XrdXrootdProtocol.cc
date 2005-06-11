@@ -65,6 +65,7 @@ int                   XrdXrootdProtocol::as_force     = 0;
 int                   XrdXrootdProtocol::as_noaio     = 0;
 int                   XrdXrootdProtocol::as_syncw     = 0;
 
+const char           *XrdXrootdProtocol::myInst  = 0;
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
 
 /******************************************************************************/

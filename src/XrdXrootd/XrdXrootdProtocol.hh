@@ -48,6 +48,7 @@
 
 class XrdOucErrInfo;
 class XrdOucProg;
+class XrdOucStream;
 class XrdOucTokenizer;
 class XrdOucTrace;
 class XrdSfsFileSystem;
@@ -124,8 +125,7 @@ private:
 
        void  Assign(const XrdXrootdProtocol &rhs);
        void  Cleanup();
-static int   ConfigFn(char *fn);
-static int   ConfigIt(char *parms);
+static int   Config(const char *fn);
        int   fsError(int rc, XrdOucErrInfo &myError);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
@@ -137,16 +137,16 @@ static int   rpCheck(char *fn, const char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
 static int   Squash(char *);
-static int   xasync(XrdOucTokenizer &Config);
-static int   xcksum(XrdOucTokenizer &Config);
-static int   xexp(XrdOucTokenizer &Config);
+static int   xasync(XrdOucStream &Config);
+static int   xcksum(XrdOucStream &Config);
+static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path);
-static int   xfsl(XrdOucTokenizer &Config);
-static int   xprep(XrdOucTokenizer &Config);
-static int   xlog(XrdOucTokenizer &Config);
-static int   xmon(XrdOucTokenizer &Config);
-static int   xsecl(XrdOucTokenizer &Config);
-static int   xtrace(XrdOucTokenizer &Config);
+static int   xfsl(XrdOucStream &Config);
+static int   xprep(XrdOucStream &Config);
+static int   xlog(XrdOucStream &Config);
+static int   xmon(XrdOucStream &Config);
+static int   xsecl(XrdOucStream &Config);
+static int   xtrace(XrdOucStream &Config);
 
 static XrdObjectQ<XrdXrootdProtocol> ProtStack;
 XrdObject<XrdXrootdProtocol>         ProtLink;
@@ -160,6 +160,7 @@ static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager
 static XrdOucError           eDest;     // Error message handler
+static const char           *myInst;
 static const char           *TraceID;
 
 // Processing configuration values

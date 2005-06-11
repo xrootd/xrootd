@@ -31,8 +31,9 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -105,8 +106,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
-   char *fsver, *rdf, c, buff[1024], Multxrd = 0;
-   int NoGo;
+   char *fsver, *rdf, c, buff[1024];
 
 // Copy out the special info we want to use at top level
 //
@@ -117,6 +117,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    BPool        = pi->BPool;
    readWait     = pi->readWait;
    Port         = pi->Port;
+   myInst       = pi->myInst;
 
 // Prohibit this program from executing as superuser
 //
@@ -133,7 +134,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
       while ((c=getopt(pi->argc,pi->argv,"mrst")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
-       case 'm': Multxrd = 1;
+       case 'm': break;    // Backward compatibility only
                  break;
        case 'r': putenv((char *)"XRDREDIRECT=R");
                  break;
@@ -155,19 +156,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!(as_miniosz = as_segsize/2)) as_miniosz = as_segsize;
    maxBuffsz = BPool->MaxSize();
 
-// At the moment we don't support multimode
-//
-   if (Multxrd)
-      {eDest.Emsg("Config", "Multiple servers per host unsupported.");
-       return 0;
-      }
-
 // Now process and configuration parameters
 //
-   if (parms) NoGo = ConfigIt(parms);
-      else if (pi->ConfigFN) NoGo = ConfigFn(pi->ConfigFN);
-              else NoGo = 0;
-   if (NoGo) return 0;
+   rdf = (parms && *parms ? parms : pi->ConfigFN);
+   if (rdf && Config(rdf)) return 0;
    if (pi->DebugON) XrdXrootdTrace->What = TRACE_ALL;
 
 // Initialiaze for AIO
@@ -261,63 +253,39 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 }
 
 /******************************************************************************/
-/*                              C o n f i g F n                               */
-/******************************************************************************/
-
-int XrdXrootdProtocol::ConfigFn(char *fn)
-{
-    struct stat buf;
-    int fd, rsz, NoGo;
-    char *fbuff;
-
-// Note that the following code is somewhat sloppy in terms of memory use
-// and file descriptors when an error is detected. However, upon errors,
-// this program exits and memory and file descriptor status is immaterial
-//
-    if ((fd = open(fn, O_RDONLY)) < 0)
-       {eDest.Emsg("Config", errno, "open", fn); return 1;}
-    if (fstat(fd, &buf) < 0)
-       {eDest.Emsg("Config", errno, "get size of", fn); return 1;}
-    if (!(fbuff = (char *)malloc(buf.st_size+1)))
-       {eDest.Emsg("Config", errno, "get buffer for", fn); return 1;}
-    if ((rsz = read(fd, (void *)fbuff, buf.st_size)) < 0)
-       {eDest.Emsg("Config", errno, "read", fn); return 1;}
-    close(fd); fbuff[rsz] = '\0';
-    NoGo = (rsz ? ConfigIt(fbuff) : 0);
-    free(fbuff);
-    return NoGo;
-}
-
-/******************************************************************************/
-/*                              C o n f i g I t                               */
+/*                                C o n f i g                                 */
 /******************************************************************************/
   
 #define TS_Xeq(x,m) (!strcmp(x,var)) NoGo |=  m(Config)
 
-int XrdXrootdProtocol::ConfigIt(char *parms)
+int XrdXrootdProtocol::Config(const char *ConfigFN)
 {
-   XrdOucTokenizer Config(parms);
+   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"));
    char *var;
-   int NoGo = 0, ignore;
+   int cfgFD, NoGo = 0, ignore;
+
+   // Open and attach the config file
+   //
+   if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
+       return eDest.Emsg("Config", errno, "open config file", ConfigFN);
+   Config.Attach(cfgFD);
 
    // Process items
    //
-   while(Config.GetLine())
-        {if ((var = Config.GetToken()))
-            {if (!(ignore = strncmp("xrootd.", var, 7)) && var[7]) var += 7;
-                  if TS_Xeq("async",         xasync);
-             else if TS_Xeq("chksum",        xcksum);
-             else if TS_Xeq("export",        xexp);
-             else if TS_Xeq("fslib",         xfsl);
-             else if TS_Xeq("log",           xlog);
-             else if TS_Xeq("monitor",       xmon);
-             else if TS_Xeq("prep",          xprep);
-             else if TS_Xeq("seclib",        xsecl);
-             else if TS_Xeq("trace",         xtrace);
-             else if (!ignore) eDest.Say(0,
+   while((var = Config.GetMyFirstWord()))
+        {if (!(ignore = strncmp("xrootd.", var, 7)) && var[7]) var += 7;
+              if TS_Xeq("async",         xasync);
+         else if TS_Xeq("chksum",        xcksum);
+         else if TS_Xeq("export",        xexp);
+         else if TS_Xeq("fslib",         xfsl);
+         else if TS_Xeq("log",           xlog);
+         else if TS_Xeq("monitor",       xmon);
+         else if TS_Xeq("prep",          xprep);
+         else if TS_Xeq("seclib",        xsecl);
+         else if TS_Xeq("trace",         xtrace);
+         else if (!ignore) eDest.Say(0,
                      "Warning, unknown xrootd directive ",var);
             }
-        }
    return NoGo;
 }
 
@@ -355,7 +323,7 @@ int XrdXrootdProtocol::ConfigIt(char *parms)
    Output: 0 upon success or 1 upon failure.
 */
 
-int XrdXrootdProtocol::xasync(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 {
     char *val;
     int  i, ppp;
@@ -452,7 +420,7 @@ int XrdXrootdProtocol::xasync(XrdOucTokenizer &Config)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdXrootdProtocol::xcksum(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 {
    char *palg, *prog;
 
@@ -484,7 +452,7 @@ int XrdXrootdProtocol::xcksum(XrdOucTokenizer &Config)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdXrootdProtocol::xexp(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 {
     char *val;
 
@@ -530,7 +498,7 @@ int XrdXrootdProtocol::xexpdo(char *path)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
 {
     char *val;
 
@@ -563,7 +531,7 @@ int XrdXrootdProtocol::xfsl(XrdOucTokenizer &Config)
    Output: 0 upon success or 1 upon failure.
 */
 
-int XrdXrootdProtocol::xlog(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xlog(XrdOucStream &Config)
 {
     char *val;
     static struct logopts {const char *opname; int opval;} lgopts[] =
@@ -616,7 +584,7 @@ int XrdXrootdProtocol::xlog(XrdOucTokenizer &Config)
 
    Output: 0 upon success or !0 upon failure. Ignored by master.
 */
-int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 {   char  *val, *cp, *monDest[2] = {0, 0};
     long long tempval;
     int i, monFlush=0, monMBval=0, monWWval=0, xmode=0, monMode[2] = {0, 0};
@@ -709,9 +677,9 @@ int XrdXrootdProtocol::xmon(XrdOucTokenizer &Config)
 
    Output: 0 upon success or !0 upon failure. Ignored by master.
 */
-int XrdXrootdProtocol::xprep(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xprep(XrdOucStream &Config)
 {   int   rc, keep = 0, scrub=0;
-    char  *ldir=0,*val;
+    char  *ldir=0,*val,buff[1024];
 
     if (!(val = Config.GetToken()))
        {eDest.Emsg("Config", "prep options not specified"); return 1;}
@@ -743,7 +711,9 @@ int XrdXrootdProtocol::xprep(XrdOucTokenizer &Config)
 //
    if (scrub || keep) XrdXrootdPrepare::setParms(scrub, keep);
    if (ldir) 
-       if ((rc = XrdXrootdPrepare::setParms(ldir)) < 0)
+       if ((rc = XrdOucUtils::genPath(buff, sizeof(buff), ldir, myInst)) < 0
+       ||  (rc = XrdOucUtils::makePath(buff, XrdOucUtils::pathMode)) < 0
+       ||  (rc = XrdXrootdPrepare::setParms(buff)) < 0)
           {eDest.Emsg("Config", rc, "process logdir", ldir);
            return 1;
           }
@@ -763,7 +733,7 @@ int XrdXrootdProtocol::xprep(XrdOucTokenizer &Config)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdXrootdProtocol::xsecl(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xsecl(XrdOucStream &Config)
 {
     char *val;
 
@@ -794,7 +764,7 @@ int XrdXrootdProtocol::xsecl(XrdOucTokenizer &Config)
    Output: 0 upon success or 1 upon failure.
 */
 
-int XrdXrootdProtocol::xtrace(XrdOucTokenizer &Config)
+int XrdXrootdProtocol::xtrace(XrdOucStream &Config)
 {
     char *val;
     static struct traceopts {const char *opname; int opval;} tropts[] =
