@@ -25,6 +25,7 @@ SOURCES = \
         XrdOucTimer.cc       \
         XrdOucTokenizer.cc   \
         XrdOucTrace.cc       \
+        XrdOucUtils.cc       \
         XrdOucXSLock.cc
 
   
@@ -43,6 +44,7 @@ OBJECTS = \
         $(OBJDIR)/XrdOucTimer.o        \
         $(OBJDIR)/XrdOucTokenizer.o    \
         $(OBJDIR)/XrdOucTrace.o        \
+        $(OBJDIR)/XrdOucUtils.o        \
         $(OBJDIR)/XrdOucXSLock.o
 
 LIBRARY = $(LIBDIR)/libXrdOuc.a
@@ -121,7 +123,8 @@ $(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh XrdOucPthread.hh
 	@echo Compiling XrdOucReqID.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucReqID.cc -o $(OBJDIR)/XrdOucReqID.o
 
-$(OBJDIR)/XrdOucStream.o: XrdOucStream.cc XrdOucStream.hh XrdOucError.hh
+$(OBJDIR)/XrdOucStream.o: XrdOucStream.cc XrdOucStream.hh XrdOucError.hh \
+                          XrdOucUtils.hh
 	@echo Compiling XrdOucStream.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucStream.cc -o $(OBJDIR)/XrdOucStream.o
 
@@ -136,6 +139,11 @@ $(OBJDIR)/XrdOucTokenizer.o: XrdOucTokenizer.cc XrdOucTokenizer.hh
 $(OBJDIR)/XrdOucTrace.o: XrdOucError.hh XrdOucTrace.hh XrdOucTrace.cc
 	@echo Compiling XrdOucTrace.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTrace.cc -o $(OBJDIR)/XrdOucTrace.o
+
+$(OBJDIR)/XrdOucUtils.o: XrdOucUtils.cc XrdOucUtils.hh \
+                      XrdOucError.hh XrdOucStream.hh XrdNetDNS.hh
+	@echo Compiling XrdOucUtils.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucUtils.cc -o $(OBJDIR)/XrdOucUtils.o
 
 $(OBJDIR)/XrdOucXSLock.o: XrdOucError.hh XrdOucXSLock.hh XrdOucXSLock.cc
 	@echo Compiling XrdOucXSLock.cc

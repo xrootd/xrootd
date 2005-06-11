@@ -33,6 +33,7 @@ const char *XrdOucStreamCVSID = "$Id$";
 #include <sys/wait.h>
 
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 /******************************************************************************/
 /*                         l o c a l   d e f i n e s                          */
@@ -50,8 +51,18 @@ const char *XrdOucStreamCVSID = "$Id$";
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
 /******************************************************************************/
   
-XrdOucStream::XrdOucStream(XrdOucError *erobj)
+XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname)
 {
+
+     if (ifname)
+        {myInst = strdup(ifname);
+         if ((myHost = index(myInst, '@')))
+            {*myHost = '\0';
+             myHost++;
+             myName = (*myInst ? myInst : 0);
+            } else {myHost = myInst; myName = 0;}
+        } else myInst = myHost = myName = 0;
+
      FD     = -1;
      FE     = -1;
      bsize  = 0;
@@ -67,6 +78,8 @@ XrdOucStream::XrdOucStream(XrdOucError *erobj)
      xcont  = 1;
      xline  = 0;
      Eroute = erobj;
+     sawif  = 0;
+     skpel  = 0;
 }
 
 /******************************************************************************/
@@ -105,6 +118,8 @@ int XrdOucStream::Attach(int FileDescriptor, int bsz)
     ecode  = 0;
     xcont  = 1;
     xline  = 0;
+    sawif  = 0;
+    skpel  = 0;
     return  0;
 }
   
@@ -379,6 +394,49 @@ char *XrdOucStream::GetFirstWord(int lowcase)
 }
 
 /******************************************************************************/
+/*                        G e t M y F i r s t W o r d                         */
+/******************************************************************************/
+  
+char *XrdOucStream::GetMyFirstWord(int lowcase)
+{
+   char *var;
+   int   skip2fi = 0;
+
+   if (!myInst) return GetFirstWord(lowcase);
+
+   do {if (!(var = GetFirstWord(lowcase)))
+          {if (sawif)
+              {ecode = EINVAL;
+               if (Eroute) Eroute->Emsg("Stream", "Missing 'fi' for last 'if'.");
+              }
+           return var;
+          }
+
+             if (!strcmp("if",   var)) skpel = doif();
+        else if (!strcmp("else", var))
+                {if (!sawif || sawif == 2)
+                    {if (Eroute)
+                        Eroute->Emsg("Stream", "No preceeding 'if' for 'else'.");
+                        ecode = EINVAL;
+                    } else {
+                     sawif = 2;
+                     if (skpel) skip2fi = 1;
+                    }
+                }
+        else if (!strcmp("fi",   var))
+                {if (sawif) sawif = skpel = skip2fi = 0;
+                    else {if (Eroute)
+                             Eroute->Emsg("Stream", "No preceeding 'if' for 'fi'.");
+                          ecode = EINVAL;
+                         }
+                }
+        else if (!skip2fi) return var;
+       } while (1);
+
+   return 0;
+}
+
+/******************************************************************************/
 /*                               G e t W o r d                                */
 /******************************************************************************/
   
@@ -482,4 +540,66 @@ int XrdOucStream::Put(const char *datavec[], const int dlenvec[]) {
               }
         }
     return 0;
+}
+ 
+/******************************************************************************/
+/*                       P r i v a t e   M e t h o d s                        */
+/******************************************************************************/
+/******************************************************************************/
+/*                                  d o i f                                   */
+/******************************************************************************/
+
+/* Function: doif
+
+   Purpose:  To parse the directive: if [<hlist>] [named <nlist>]
+                                     fi
+
+            <hlist> Apply subsequent directives until the 'fi' if this host
+                    is one of the hosts in the blank separated list. Each
+                    host name may have a single asterisk somewhere in the
+                    name to indicate where arbitrry characters lie.
+
+            <nlist> Apply subsequent directives if this  host instance name
+                    is in the list of blank separated names.
+
+   Notes: 1) At least one of hlist or nlist must be specified.
+          2) If both hlist and nlist are specified; both must be true.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOucStream::doif()
+{
+    char *var;
+    int rc;
+
+// Check if the previous if was properly closed
+//
+   if (sawif)
+      {if (Eroute) Eroute->Emsg("Stream", "Missing 'fi' for last 'if'.");
+       ecode = EINVAL;
+      }
+
+// Check if we should continue
+//
+   sawif = 1; skpel = 0;
+   if ((rc = XrdOucUtils::doIf(Eroute,*this,"if directive",myHost,myName)))
+      {if (rc < 0) ecode = EINVAL;
+       return 1;
+      }
+
+// Skip all lines until we reach a fi or else
+//
+   while((var = GetFirstWord()))
+        {if (!strcmp("fi",   var)) {sawif = 0; break;}
+         if (!strcmp("else", var)) {sawif = 2; break;}
+        }
+
+// Make sure we have a fi
+//
+   if (!var) 
+      {if (Eroute) Eroute->Emsg("Stream", "Missing 'fi' for last 'if'.");
+       ecode = EINVAL;
+      }
+   return 0;
 }

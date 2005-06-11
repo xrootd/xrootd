@@ -32,7 +32,7 @@ static char *PFX() {return reqPFX;}
 
 static int   Index(int KeyMax, const char *KeyVal, int KeyLen=0);
 
-             XrdOucReqID(int instance, char *myhost, unsigned int myaddr);
+             XrdOucReqID(int instance, const char *myhost, unsigned int myaddr);
             ~XrdOucReqID() {} // Statics go away at exit
 
 private:

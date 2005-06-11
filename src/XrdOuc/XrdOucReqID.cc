@@ -35,7 +35,7 @@ int          XrdOucReqID::reqNum = 0;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOucReqID::XrdOucReqID(int inst, char *myHost, unsigned int myIP)
+XrdOucReqID::XrdOucReqID(int inst, const char *myHost, unsigned int myIP)
 {
    time_t eNow = time(0);
    char xbuff[256];

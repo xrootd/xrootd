@@ -14,6 +14,7 @@
 
 #include <sys/types.h>
 #include <signal.h>
+#include <stdlib.h>
 
 #include "XrdOuc/XrdOucError.hh"
 
@@ -25,9 +26,9 @@ public:
 // If you do so, error messages will be writen via the error object. Otherwise,
 // errors will be returned quietly.
 //
-            XrdOucStream(XrdOucError *erobj=0);
+            XrdOucStream(XrdOucError *erobj=0, const char *ifname=0);
 
-           ~XrdOucStream() {Close();}
+           ~XrdOucStream() {Close(); if (myInst) free(myInst);}
 
 // Attach a file descriptor to an existing stream. Any curently associated
 // stream is closed and detached. An optional buffer size can be specified.
@@ -98,6 +99,7 @@ void         RetToken();
 // returned (useful for start afresh after a mid-sentence error).
 //
 char        *GetFirstWord(int lowcase=0);
+char        *GetMyFirstWord(int lowcase=0);
 char        *GetWord(int lowcase=0);
 
 // Indicate wether there is an active program attached to the stream
@@ -135,6 +137,7 @@ void         Tabs(int x=1) {notabs = !x;}
 /******************************************************************************/
   
 private:
+        int   doif();
         int   FD;
         int   FE;
         int   bsize;
@@ -149,6 +152,11 @@ private:
         int   notabs;
         int   xcont;
         int   xline;
-  XrdOucError *Eroute;
+        char *myInst;
+        char *myHost;
+        char *myName;
+ XrdOucError *Eroute;
+        char  sawif;
+        char  skpel;
 };
 #endif
