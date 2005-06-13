@@ -86,13 +86,23 @@ private:
 
    // The first position not read by the last read ahead
    long long                   fReadAheadLast;
+
+protected:
+
+   bool                        OpenFileWhenRedirected(char *newfhandle,
+						      bool &wasopen);
+
+   bool                        CanRedirOnError() {
+     // Can redir away on error if no file is opened
+     // or the file is opened in read mode
+     return ( !fOpenPars.opened || (fOpenPars.opened && (fOpenPars.mode & kXR_open_read)) );
+   }
+
+
 public:
 
    XrdClient(const char *url);
    virtual ~XrdClient();
-  
-   bool                        OpenFileWhenRedirected(char *newfhandle,
-						      bool &wasopen);
 
    UnsolRespProcResult         ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
 						     XrdClientMessage *unsolmsg);

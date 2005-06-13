@@ -83,6 +83,9 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
 XrdClientPhyConnection::~XrdClientPhyConnection()
 {
    // Destructor
+  Info(XrdClientDebug::kHIDEBUG,
+       "XrdClientPhyConnection",
+       "Destroying. [" << fServer.Host << ":" << fServer.Port << "]");
 
    Disconnect();
 
@@ -233,8 +236,8 @@ bool XrdClientPhyConnection::CheckAutoTerm() {
          fReaderthreadrunning = FALSE;
          fReaderthreadhandler = 0;
 
-         delete fSocket;
-         fSocket = 0;
+         //delete fSocket;
+         //fSocket = 0;
 
          doexit = TRUE;
       }

@@ -29,36 +29,75 @@ void joinStrings(XrdClientString &buf, vecString vs);
 
 class XrdClientAdmin : public XrdClientAbs {
 
-   XrdClientUrlInfo             fInitialUrl;
+   XrdClientUrlInfo                fInitialUrl;
+
+ protected:
+
+   bool                            CanRedirOnError() {
+     // We deny any redir on error
+     return false;
+   }
+
+   // To be called after a redirection
+   bool                            OpenFileWhenRedirected(char *, bool &);
 
  public:
    XrdClientAdmin(const char *url);
    virtual ~XrdClientAdmin();
 
-   bool Connect();
-
-   // To be called after a redirection
-   bool OpenFileWhenRedirected(char *, bool &);
+   bool                            Connect();
 
    // Some administration functions, see the protocol specs for details
-   bool SysStatX(const char *paths_list, kXR_char *binInfo);
-   bool Stat(const char *fname, long &id, long long &size, long &flags, long &modtime);
+   bool                            SysStatX(const char *paths_list,
+                                            kXR_char *binInfo);
 
-   bool DirList(const char *dir, vecString &);
-   bool ExistFiles(vecString&, vecBool&);
-   bool ExistDirs(vecString&, vecBool&);
-   long GetChecksum(kXR_char *path, kXR_char **chksum);
-   bool IsFileOnline(vecString&, vecBool&);
+   bool                            Stat(const char *fname,
+                                        long &id,
+                                        long long &size,
+                                        long &flags,
+                                        long &modtime);
 
-   bool Mv(const char *fileSrc, const char *fileDest);
-   bool Mkdir(const char *dir, int user, int group, int other);
-   bool Chmod(const char *file, int user, int group, int other);
-   bool Rm(const char *file);
-   bool Rmdir(const char *path);
-   bool Protocol(kXR_int32 &proto, kXR_int32 &kind);
-   bool Prepare(vecString vs, kXR_char opts, kXR_char prty);
+   bool                            DirList(const char *dir,
+                                           vecString &);
 
-   UnsolRespProcResult ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender, XrdClientMessage *unsolmsg);
+   bool                            ExistFiles(vecString&,
+                                              vecBool&);
+
+   bool                            ExistDirs(vecString&,
+                                             vecBool&);
+
+   long                            GetChecksum(kXR_char *path,
+                                               kXR_char **chksum);
+
+   bool                            IsFileOnline(vecString&,
+                                                vecBool&);
+
+   bool                            Mv(const char *fileSrc,
+                                      const char *fileDest);
+
+   bool                            Mkdir(const char *dir,
+                                         int user,
+                                         int group,
+                                         int other);
+
+   bool                            Chmod(const char *file,
+                                         int user,
+                                         int group,
+                                         int other);
+
+   bool                            Rm(const char *file);
+
+   bool                            Rmdir(const char *path);
+
+   bool                            Protocol(kXR_int32 &proto,
+                                            kXR_int32 &kind);
+
+   bool                            Prepare(vecString vs,
+                                           kXR_char opts,
+                                           kXR_char prty);
+
+   UnsolRespProcResult             ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+                                                         XrdClientMessage *unsolmsg);
 
 
 };

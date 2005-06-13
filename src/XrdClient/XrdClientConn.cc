@@ -70,9 +70,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
    // Constructor
    char buf[255];
 
-
-   for (int i=0; i < 16; i++)
-      fSessionID[i] = 0;
+   ClearSessionID();
 
    gethostname(buf, sizeof(buf));
 
@@ -567,7 +565,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
 //_____________________________________________________________________________
 bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *CmdName)
 {
-   // Check error status
+   // Check error status, returns true if the retrials have to be aborted
 
    if (mex->HeaderStatus() == kXR_redirect) {
       // Too many redirections
@@ -1394,51 +1392,50 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
       if ((errorType == kREAD) || 
           (errorType == kWRITE) || 
           (errorType == kREDIRCONNECT)) {
+	 
+	 bool cangoaway = ( fRedirHandler &&
+			    fRedirHandler->CanRedirOnError() );
+
          // We got some errors in the communication phase
          // the physical connection has been closed;
          // then we must go back to the load balancer
          // if there is any
-         if ( fLBSUrl && (fLBSUrl->GetUrl().GetSize() > 0) ) {
+
+	 // The exception here is that if the file was open in
+	 // write mode, we must rebounce and not go away to other hosts
+	 // To state this, we just asked to our redir handler
+
+         if ( cangoaway && fLBSUrl && (fLBSUrl->GetUrl().GetSize() > 0) ) {
+ 	    // Clear the current session info. Rather simplicistic.
+	    ClearSessionID();
+
             newhost = fLBSUrl->Host;
             newport = fLBSUrl->Port;
          }
          else {
 
             Error("HandleServerError",
-                  "No Load Balancer to contact after a communication error"
+                  "Communication error"
                   " with server [" << fUrl.Host << ":" << fUrl.Port <<
 		  "]. Rebouncing here.");
 
 	    if (fUrl.HostAddr.GetSize())  newhost = fUrl.HostAddr;
 	    else
 	       newhost = fUrl.Host;
+
             newport = fUrl.Port;
          }
       
       } else if (isRedir(&xmsg->fHdr)) {
-//          // No comm errors, but we got an explicit redir message      
-//          // If we did not meet a dlb before, we consider this as a dlb
-//          // to return to after an error
-//          if (!fLBSUrl || (fLBSUrl->GetUrl().GetSize() == 0) ) {
-
-// 	    Info(XrdClientDebug::kHIDEBUG,
-// 		 "HandleServerError", 
-// 		 "Setting Load Balancer Server Url = " << fUrl.GetUrl() );
-
-//             // Save the url of load balancer server for future uses...
-//             fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
-//             if (!fLBSUrl) {
-//                Error("HandleServerError",
-//                      "Object creation failed.");
-//                abort();
-//             }
-//          }
       
          // Extract the info (new host:port) from the response
          newhost = "";
          token   = "";
          newport = 0;
          ParseRedir(xmsg, newport, newhost, token);
+
+	 // Clear the current session info. Rather simplicistic.
+	 ClearSessionID();
       }
     
       // Now we should have the parameters needed for the redir
@@ -1752,4 +1749,12 @@ bool XrdClientConn::PanicClose() {
    WriteToServer(&closeFileRequest, 0, fLogConnID);
 
    return TRUE;
+}
+
+
+void XrdClientConn::ClearSessionID() {
+
+   for (int i=0; i < 16; i++)
+      fSessionID[i] = 0;
+
 }

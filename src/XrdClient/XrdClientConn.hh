@@ -183,6 +183,8 @@ private:
 						 ClientRequest *, bool, void**,
 						 EThreeStateReadHandler &);
 
+   void                       ClearSessionID();
+
    XReqErrorType              WriteToServer(ClientRequest *req, 
 					    const void* reqMoreData,
 					    short LogConnID);

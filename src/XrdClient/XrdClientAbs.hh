@@ -20,12 +20,23 @@
 #include "XrdClient/XrdClientConn.hh"
 
 class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
+
+   // Do NOT abuse of this
+   friend class XrdClientConn;
+
  protected:
    XrdClientConn*           fConnModule;
- public:
 
+   // After a redirection the file must be reopened.
    virtual bool OpenFileWhenRedirected(char *newfhandle, 
 				       bool &wasopen) = 0;
+
+   // In some error circumstances (e.g. when writing)
+   // a redirection on error must be denied
+   virtual bool CanRedirOnError() = 0;
+
+ public:
+
    void SetParm(const char *parm, int val);
    void SetParm(const char *parm, double val);
 

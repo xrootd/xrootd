@@ -53,7 +53,7 @@ void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
       for (i = 0; i < 10; i++) {
 	 thr->CancelPoint();
 
-         usleep(200);
+         usleep(200000);
       }
    }
 
