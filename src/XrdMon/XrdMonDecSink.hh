@@ -74,6 +74,8 @@ private:
     typedef map<dictid_t, XrdMonDecDictInfo*>::iterator dmapitr_t;
     typedef map<dictid_t, XrdMonDecUserInfo*>::iterator umapitr_t;
 
+    void initRT(const char* rtLogDir, int rtBufSize);
+    
     void loadUniqueIdsAndSeq();
     vector<XrdMonDecDictInfo*> loadActiveDictInfo();
     void flushClosedDicts();
@@ -118,10 +120,12 @@ private:
     dictid_t _uniqueDictId; // dictId in mySQL, unique for given xrootd host
     dictid_t _uniqueUserId; // userId in mySQL, unique for given xrootd host
 
-    string _path;    // <basePath>/<date>_seqId_
-    string _jnlPath; // <basePath>/jnl
-    string _dictPath;// <basePath>/<YYYYMMDD_HH:MM:SS.MMM_dict.ascii
-    string _userPath;// <basePath>/<YYYYMMDD_HH:MM:SS.MMM_user.ascii    
+    string _path;        // <basePath>/<date>_seqId_
+    string _jnlPath;     // <basePath>/jnl
+    string _dictPath;    // <basePath>/<YYYYMMDD_HH:MM:SS.MMM_dict.ascii
+    string _userPath;    // <basePath>/<YYYYMMDD_HH:MM:SS.MMM_user.ascii 
+    string _rtFlagPath;  // <rtLogDir>/rtRunning.flag
+    string _rtMaxIdsPath;// <rtLogDir>/rtMax.jnl
 };
 
 #endif /* XRDMONDECSINK_HH */

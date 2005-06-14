@@ -71,7 +71,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     }
 
     if ( 0 != rtLogDir ) {
-        _rtLogger = new XrdMonDecRTLogging(rtLogDir, rtBufSize);
+        initRT(rtLogDir, rtBufSize);
     } else {
         loadUniqueIdsAndSeq();
     }
@@ -107,6 +107,15 @@ XrdMonDecSink::~XrdMonDecSink()
         }
     }
     delete _rtLogger;
+
+    // save ids in jnl file
+    fstream f(_rtMaxIdsPath.c_str(), ios::out);
+    f << "o " << _uniqueDictId << '\n'
+      << "u " << _uniqueUserId << endl;
+    f.close();
+
+    // remove the flag indicating that collector/decoder is running
+    unlink(_rtFlagPath.c_str());
 }
 
 struct connectDictIdsWithCache : public std::unary_function<XrdMonDecDictInfo*, void> {
@@ -130,6 +139,52 @@ XrdMonDecSink::init(dictid_t min, dictid_t max, const string& senderHP)
     //              diVector.end(),
     //              connectDictIdsWithCache(_dCache));
     ::abort();
+}
+
+void
+XrdMonDecSink::initRT(const char* rtLogDir,
+                      int rtBufSize)
+{
+    _rtFlagPath = rtLogDir;
+    _rtFlagPath += "/rtRunning.flag";
+    _rtMaxIdsPath = rtLogDir;
+    _rtMaxIdsPath += "/rtMax.jnl";
+
+    // check if another collector/decoder is not running
+    // or if the old one was closed correctly
+    if( (access(_rtFlagPath.c_str(), F_OK)) != -1 ) {
+        string s("Can't start rtDecoder: either collector is already running, or it has been stopped uncleanly, in which case you need to run cleanup utility first");
+        throw XrdMonException(ERR_UNKNOWN, s);
+    }
+
+    // create the flag indicating that collector/decoder is running
+    fstream f(_rtFlagPath.c_str(), fstream::out);
+    f.close();
+
+    _rtLogger = new XrdMonDecRTLogging(rtLogDir, rtBufSize);
+
+    // read in unique ids from jnl file
+    f.open(_rtMaxIdsPath.c_str());
+    if ( f.is_open() ) {
+        do {
+            char line[64];
+            f.getline(line, 64);
+            char type;
+            int number;
+            sscanf(line, "%c %i", &type, &number);
+            if ( type == 'o' && number > _uniqueDictId + 1 ) {
+                _uniqueDictId = number + 1;
+            }
+            if ( type == 'u' && number > _uniqueUserId + 1 ) {
+                _uniqueUserId = number + 1;
+            }
+        } while ( ! f.eof() );
+        f.close();
+        unlink(_rtMaxIdsPath.c_str());
+        cout << "Updated uniqueIds from jnl file. "
+             << "uniqueDictId: " << _uniqueDictId << ", "
+             << "uniqueUserId: " << _uniqueUserId << endl;
+    }
 }
 
 void

@@ -185,17 +185,22 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // store received packets until admin packet with sigterm arrives
-    XrdMonCtrArchiver archiver(arg_ctrLogDir.myVal(), 
-                               arg_decLogDir.myVal(),
-                               arg_rtLogDir.myVal(),
-                               arg_maxFSize.myVal(),
-                               arg_ctrBufSize.myVal(),
-                               arg_rtBufSize.myVal(),
-                               arg_onlineDecOn.myVal(), 
-                               arg_rtOn.myVal());
-    archiver();
-
+    try {
+        // store received packets until admin packet with sigterm arrives
+        XrdMonCtrArchiver archiver(arg_ctrLogDir.myVal(), 
+                                   arg_decLogDir.myVal(),
+                                   arg_rtLogDir.myVal(),
+                                   arg_maxFSize.myVal(),
+                                   arg_ctrBufSize.myVal(),
+                                   arg_rtBufSize.myVal(),
+                                   arg_onlineDecOn.myVal(), 
+                                   arg_rtOn.myVal());
+        archiver();
+    } catch (XrdMonException& e) {
+        e.printIt();
+        return 2;
+    }
+    
     return 0;
 }
 
