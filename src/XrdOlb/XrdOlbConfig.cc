@@ -2003,7 +2003,9 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
            else if (!(port = XrdNetDNS::getPort(val, "tcp")))
                    {eDest->Emsg("Config", "unable to find tcp service", val);
                     return 1;
-       }           }
+                   }
+       val = Config.GetWord();
+       }
        else if (!(port = PortTCP))
                {eDest->Emsg("Config","subscribe port not specified for",mbuff);
                 return 1;
