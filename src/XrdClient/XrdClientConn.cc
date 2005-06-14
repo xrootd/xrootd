@@ -1512,25 +1512,30 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
    // Here we are. If we had a filehandle then we must
    //  request a new one.
    char localfhandle[4];
-   bool wasopen;
+   bool wasopen, newopenok;
 
-   if (fRedirHandler &&
-      (fRedirHandler->OpenFileWhenRedirected(localfhandle, wasopen) && wasopen)) {
-      // We are here if the file has been opened succesfully
-      // or if it was not open
-      // Tricky thing: now we have a new filehandle, perhaps in
-      // a different server. Then we must correct the filehandle in
-      // the msg we were sending and that we must repeat...
-      PutFilehandleInRequest(req, localfhandle);
-    
-      // Everything should be ok here.
-      // If we have been redirected,then we are connected, logged and reopened
-      // the file. If we had a r/w error (xmsg==0 or xmsg->IsError) we are
-      // OK too. Since we may come from a comm error, then xmsg can be null.
-      if (xmsg && !xmsg->IsError())
-         return kSEHRContinue; // the case of explicit redir
-      else
-         return kSEHRReturnNoMsgToCaller; // the case of recovered error
+   if (fRedirHandler) {
+      newopenok = fRedirHandler->OpenFileWhenRedirected(localfhandle, wasopen);
+      if (newopenok && wasopen) {
+         // We are here if the file has been opened succesfully
+         // or if it was not open
+         // Tricky thing: now we have a new filehandle, perhaps in
+         // a different server. Then we must correct the filehandle in
+         // the msg we were sending and that we must repeat...
+         PutFilehandleInRequest(req, localfhandle);
+         
+         // Everything should be ok here.
+         // If we have been redirected,then we are connected, logged and reopened
+         // the file. If we had a r/w error (xmsg==0 or xmsg->IsError) we are
+         // OK too. Since we may come from a comm error, then xmsg can be null.
+         if (xmsg && !xmsg->IsError())
+            return kSEHRContinue; // the case of explicit redir
+         else
+            return kSEHRReturnNoMsgToCaller; // the case of recovered error
+      }
+
+      if (!newopenok) return kSEHRContinue; // the case of explicit redir
+         
    }
 
    // We are here if we had no fRedirHandler or the reopen failed

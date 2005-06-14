@@ -607,8 +607,8 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
       options &= !kXR_new;
       options |= kXR_open_updt;
    }
-   // After a redirection we must not reinit the TFile ancestor...
-   if ( Open(fOpenPars.mode, options) ) {
+
+   if ( TryOpen(fOpenPars.mode, options) ) {
 
       fOpenPars.opened = TRUE;
 
