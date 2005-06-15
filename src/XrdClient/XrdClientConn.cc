@@ -1159,7 +1159,6 @@ bool XrdClientConn::DoLogin()
                          TRUE, (char *)"XrdClientConn::DoLogin");
 
    // plist is the plain response from the server. We need a way to 0-term it.
-   bool gotsess = FALSE;
    XrdSecProtocol *secp = 0;
    SessionIDInfo *prevsessid = 0;
    XrdClientString sessname;
