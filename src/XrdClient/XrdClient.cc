@@ -65,7 +65,8 @@ XrdClient::~XrdClient()
 {
    // Destructor
    Close();
-   delete fConnModule;
+   if (fConnModule)
+      delete fConnModule;
 }
 
 //_____________________________________________________________________________
@@ -92,38 +93,18 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
      return FALSE;
   }
 
-
-
-  // Check for allowed domains
-  bool validDomain = FALSE;
-
-  for (int jj=0; jj < urlArray.Size(); jj++) {
-     XrdClientUrlInfo *thisUrl;
-     thisUrl = urlArray.GetNextUrl();
-
-     if (fConnModule->CheckHostDomain(thisUrl->Host,
-				      EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
-				      EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
-	validDomain = TRUE;
-	break;
-     }
-  }
-
-  if (!validDomain) {
-     Error("CreateTXNf", "All the specified servers are disallowed. ");
-     return FALSE;
-  }
-
   //
   // Now start the connection phase, picking randomly from UrlArray
   //
   urlArray.Rewind();
   locallogid = -1;
+  int urlstried = 0;
   for (int connectTry = 0;
       (connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
        connectTry++) {
 
      XrdClientUrlInfo *thisUrl;
+     urlstried = (urlstried == urlArray.Size()) ? 0 : urlstried;
      
      // Get an url from the available set
      thisUrl = urlArray.GetARandomUrl();
@@ -140,7 +121,13 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 		". Connect try " << connectTry+1);
 	   
            locallogid = fConnModule->Connect(*thisUrl, this);
+        } else {
+           // Invalid domain: drop the url and move to next, if any
+           urlArray.EraseUrl(thisUrl);
+           continue;
         }
+        // To find out if we have tried the whole URLs set
+        urlstried++;
      }
      
      // We are connected to a host. Let's handshake with it.
@@ -160,7 +147,27 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
         
         // after connection deal with server
         if (!fConnModule->GetAccessToSrv())
-           Error("CreateTXNf", "Access to server failed")
+           
+           if (fConnModule->LastServerError.errnum == kXR_NotAuthorized) {
+              if (urlstried == urlArray.Size()) {
+                 // Authentication error: we tried all the indicated URLs:
+                 // does not make much sense to retry
+                 fConnModule->Disconnect(TRUE);
+                 XrdClientString msg(fConnModule->LastServerError.errmsg);
+                 msg.EraseFromEnd(1);
+                 Error("CreateTXNf", "Authentication failure: " << msg);
+                 break;
+              } else {
+                 XrdClientString msg(fConnModule->LastServerError.errmsg);
+                 msg.EraseFromEnd(1);
+                 Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
+                                                "Authentication failure: " << msg);
+              }
+           } else {
+              Error("CreateTXNf", "Access to server failed: error: " <<
+                         fConnModule->LastServerError.errnum << " (" << 
+                         fConnModule->LastServerError.errmsg << ") - retrying.");
+           }
         else {
 	   Info(XrdClientDebug::kUSERDEBUG, "Create", "Access to server granted.");
            break;
@@ -550,8 +557,8 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
 bool XrdClient::Close() {
 
    if (!IsOpen()) {
-      Error("Close", "File not opened.");
-      return FALSE;
+      Info(XrdClientDebug::kUSERDEBUG, "Close", "File not opened.");
+      return TRUE;
    }
 
    ClientRequest closeFileRequest;
