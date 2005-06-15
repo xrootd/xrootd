@@ -249,7 +249,7 @@ XrdSecServer::XrdSecServer(XrdOucLogger *lp) : eDest(0, "sec_")
   
 const char *XrdSecServer::getParms(int &size, const char *hname)
 {
-   EPNAME("getSecToken")
+   EPNAME("getParms")
    XrdSecProtBind *bp;
 
 // Try to find a specific token binding for a host or return default binding
