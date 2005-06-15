@@ -212,6 +212,22 @@ XrdClientUrlInfo *XrdClientUrlSet::GetARandomUrl()
 }
 
 //_____________________________________________________________________________
+void XrdClientUrlSet::EraseUrl(XrdClientUrlInfo *url)
+{
+   // Eliminates url from the list
+
+   for(int i=0; i < fUrlArray.GetSize(); i++) {
+      if (url == fUrlArray[i]) {
+         fUrlArray.Erase(i);
+         Info(XrdClientDebug::kHIDEBUG, "EraseUrl",
+                                        " url found and dropped from the list");
+         return;
+      }
+   }
+   Info(XrdClientDebug::kHIDEBUG, "EraseUrl", " url NOT found in the list");
+}
+
+//_____________________________________________________________________________
 void XrdClientUrlSet::ShowUrls()
 {
    // Prints the list of urls

@@ -71,6 +71,7 @@ class XrdClientUrlSet {
 
    void Rewind();
    void ShowUrls();
+   void EraseUrl(XrdClientUrlInfo *url);
 
    // Returns the number of urls
    int Size() { return fUrlArray.GetSize(); }
