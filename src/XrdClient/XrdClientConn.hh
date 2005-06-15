@@ -26,6 +26,7 @@
 #include "XrdOuc/XrdOucHash.hh"
 
 class XrdClientAbs;
+class XrdSecProtocol;
 
 class XrdClientConn {
 
@@ -104,6 +105,8 @@ public:
 					     char *CmdName);
 
    ServerType                 GetServerType() const { return fServerType; }
+   int                        GetOpenSockFD() const { return fOpenSockFD; }
+
    void                       SetClientHostDomain(const char *src) { fClientHostDomain = src; }
    void                       SetConnected(bool conn) { fConnected = conn; }
 
@@ -165,6 +168,8 @@ private:
 
    XrdClientUrlInfo           fUrl;                // The current URL
 
+   int                        fOpenSockFD;         // Descriptor of the underlying socket
+
    bool                       CheckErrorStatus(XrdClientMessage *, short &, char *);
    void                       CheckPort(int &port);
    bool                       CheckResp(struct ServerResponseHeader *resp, const char *method);
@@ -173,7 +178,7 @@ private:
 					       void **answMoreDataAllocated,
 					       void *answMoreData,
 					       bool HasToAlloc);
-   bool                       DoAuthentication(XrdClientString usr, XrdClientString list);
+   XrdSecProtocol            *DoAuthentication(char *plist, int plsiz);
    ServerType                 DoHandShake(short log);
    bool                       DoLogin();
 
