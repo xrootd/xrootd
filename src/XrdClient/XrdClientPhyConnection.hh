@@ -36,10 +36,17 @@ enum ERemoteServer {
    kUnknown = 102
 };
 
+class XrdSecProtocol;
+
 class XrdClientPhyConnection: public XrdClientUnsolMsgSender {
+
+friend class XrdClientConn;
+
 private:
    time_t              fLastUseTimestamp;
    enum ELoginState    fLogged;       // only 1 login/auth is needed for physical  
+   XrdSecProtocol     *fSecProtocol;  // authentication protocol
+
    XrdClientInputBuffer      fMsgQ;         // The queue used to hold incoming messages
    int                 fRequestTimeout;
   
@@ -61,6 +68,9 @@ private:
 
    XrdOucSemWait       fReaderCV;
 
+   int            SaveSocket() { return fSocket ? (fSocket->SaveSocket()) : -1; }
+   void           SetSecProtocol(XrdSecProtocol *sp) { fSecProtocol = sp; }
+
 public:
    ERemoteServer       fServerType;
    long                fTTLsec;
@@ -75,6 +85,8 @@ public:
    void           Disconnect();
    bool           ExpiredTTL();
    long           GetTTL() { return fTTLsec; }
+
+   XrdSecProtocol *GetSecProtocol() const { return fSecProtocol; }
 
    void           StartedReader();
 
