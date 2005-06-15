@@ -36,6 +36,12 @@
 #include <ctype.h>
 
 
+
+
+XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
+
+
+
 //_____________________________________________________________________________
 void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdClientString &token)
 {
@@ -69,8 +75,6 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
 {
    // Constructor
    char buf[255];
-
-   ClearSessionID();
 
    gethostname(buf, sizeof(buf));
 
@@ -1141,20 +1145,35 @@ bool XrdClientConn::DoLogin()
       plist[LastServerResp.dlen]=0;
  
       if ((fServerProto >= 0x240) && (LastServerResp.dlen >= 16)) {
-	 // Get the session id
-	 char prevsessid[16];
+	 SessionIDInfo *prevsessid;
+	 XrdClientString sessname;
 
-	 for (int i=0; i < 16; i++)
-	    prevsessid[i] = fSessionID[i];
 
-	 for (int i=0; i < 16; i++)
-	    fSessionID[i] = plist[i];
-
+	 XrdClientString sessdump;
+	 char b[20];
+	 for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
+	   snprintf(b, 20, "%.2x", plist[i]);
+	   sessdump += b;
+	 }
 	 Info(XrdClientDebug::kHIDEBUG,
-	      "DoLogin","Got Session ID.");
+	      "DoLogin","Got session ID: " << sessdump);
+
+	 // Get the previous session id, in order to kill it later
+
+	 char buf[20];
+	 snprintf(buf, 20, "%d", fUrl.Port);
+
+	 sessname = fUrl.HostAddr;
+	 if (sessname.GetSize() == 0)
+	   sessname = fUrl.Host;
+
+	 sessname += ":";
+	 sessname += buf;
+
+         prevsessid = fSessionIDRepo.Find(sessname.c_str());
 
 	 // Check if we need to authenticate 
-	 if (LastServerResp.dlen > 16) {
+	 if (LastServerResp.dlen > int(sizeof(prevsessid->id)) ) {
 	    Info(XrdClientDebug::kHIDEBUG,
 		 "DoLogin","server requires authentication");
 
@@ -1164,27 +1183,52 @@ bool XrdClientConn::DoLogin()
 
 	 // We have to kill the previous session, if any
 	 // By sending a kXR_endsess
-	 bool gotsess = false;
-	 for (int i=0; i < 16; i++)
-	    gotsess |= prevsessid[i];
 
-	 if (gotsess) {
+	 if (prevsessid) {
+ 	    XrdClientString sessdump;
+	    char b[20];
+	    for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
+	      snprintf(b, 20, "%.2x", prevsessid->id[i]);
+	      sessdump += b;
+	    }
+	    Info(XrdClientDebug::kHIDEBUG,
+		 "DoLogin","Found prev session info for " << sessname <<
+		 ": " << sessdump);
 
 	    memset( &reqhdr, 0, sizeof(reqhdr));
 
 	    SetSID(reqhdr.header.streamid);
 	    reqhdr.header.requestid = kXR_endsess;
 
-	    memcpy(reqhdr.endsess.sessid, prevsessid, 16);
+	    memcpy(reqhdr.endsess.sessid, prevsessid->id, sizeof(prevsessid->id));
 
 	    // terminate session
 	    Info(XrdClientDebug::kHIDEBUG,
-		 "DoLogin","Trying to terminate session.");
+		 "DoLogin","Trying to terminate previous session.");
 
 	    SendGenCommand(&reqhdr, 0, 0, 0, 
 			   FALSE, (char *)"XrdClientConn::Endsess");
 
+	    // Now overwrite the previous session info with the new one
+	    for (unsigned int i=0; i < sizeof(prevsessid->id); i++)
+	      prevsessid->id[i] = plist[i];
+
+
+
 	 }
+	 else {
+ 	    Info(XrdClientDebug::kHIDEBUG,
+		 "DoLogin","No prev session info for " << sessname);
+
+	    // No session info? Let's create one.
+       	    SessionIDInfo *newsessid = new SessionIDInfo;
+
+	    for (int i=0; i < int(sizeof(prevsessid->id)); i++)
+	      newsessid->id[i] = plist[i];
+
+	    fSessionIDRepo.Rep(sessname.c_str(), newsessid);
+	 }
+	 
 
 
       }

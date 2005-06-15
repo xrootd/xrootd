@@ -23,6 +23,7 @@
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientReadCache.hh"
+#include "XrdOuc/XrdOucHash.hh"
 
 class XrdClientAbs;
 
@@ -148,6 +149,17 @@ private:
    long                       fServerProto;        // The server protocol
    ServerType                 fServerType;         // Server type as returned by doHandShake() 
                                                    // (see enum ServerType)
+
+   // To keep info about an open session
+   struct                     SessionIDInfo {
+     char id[16];
+   };
+
+   static XrdOucHash<SessionIDInfo>
+                              fSessionIDRepo;      // The reposiry of session IDs, shared.
+                                                   // Association between
+                                                   // <hostname>:<port> and a SessionIDInfo struct
+                  
 
    char                       fSessionID[16];          // The ID of this session got from the login
 
