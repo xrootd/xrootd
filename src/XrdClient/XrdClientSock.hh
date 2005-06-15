@@ -23,11 +23,15 @@ struct XrdClientSockConnectParms {
 
 class XrdClientSock {
 
+friend class XrdClientPhyConnection;
+
 private:
 
    XrdClientSockConnectParms fHost;
    bool                      fConnected;
    int fSocket;
+
+   int    SaveSocket() { int fd = fSocket; fSocket = -1; return fd; }
 
 public:
    XrdClientSock(XrdClientUrlInfo host, int windowsize = 0);
