@@ -39,6 +39,9 @@
 
 class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler, 
                        XrdClientUnsolMsgSender {
+
+friend class XrdClientConn;
+
 private:
    XrdClientVector<XrdClientLogConnection*> fLogVec;
    XrdClientVector<XrdClientPhyConnection*> fPhyVec;
