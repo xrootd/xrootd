@@ -54,8 +54,9 @@ struct XrdXrootdFHandle
        };
 
 struct XrdXrootdSessID
-       {unsigned long long rsvd;
-        int                FD;
+       {unsigned int       rsvd;
+                 int       Pid;
+                 int       FD;
         unsigned int       Inst;
 
         XrdXrootdSessID() {rsvd = 0;}
@@ -327,12 +328,17 @@ int XrdXrootdProtocol::do_Endsess()
 // Extract out the FD and Instance from the session ID
 //
    sp = (XrdXrootdSessID *)Request.endsess.sessid;
+   memcpy((void *)&sessID.Pid,  &sp->Pid,  sizeof(sessID.Pid));
    memcpy((void *)&sessID.FD,   &sp->FD,   sizeof(sessID.FD));
    memcpy((void *)&sessID.Inst, &sp->Inst, sizeof(sessID.Inst));
 
 // Trace this request
 //
-   TRACEP(DEBUG, "endsess " <<sessID.FD <<'.' <<sessID.Inst);
+   TRACEP(DEBUG, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst);
+
+// If this session id does not refer to us, ignore the request
+//
+   if (sessID.Pid != myPID) return Response.Send();
 
 // Terminate the indicated session, if possible. This could also be a self-termination.
 //
@@ -406,6 +412,7 @@ int XrdXrootdProtocol::do_Login()
    if (CapVer && kXR_vermask)
       {sessID.FD   = Link->FDnum();
        sessID.Inst = Link->Inst();
+       sessID.Pid  = myPID;
        sendSID = 1;
       }
 

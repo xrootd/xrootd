@@ -162,6 +162,7 @@ static XrdBuffManager       *BPool;     // Buffer manager
 static XrdOucError           eDest;     // Error message handler
 static const char           *myInst;
 static const char           *TraceID;
+static int                   myPID;
 
 // Processing configuration values
 //

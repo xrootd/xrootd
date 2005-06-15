@@ -67,6 +67,7 @@ int                   XrdXrootdProtocol::as_syncw     = 0;
 
 const char           *XrdXrootdProtocol::myInst  = 0;
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
+int                   XrdXrootdProtocol::myPID = static_cast<int>(getpid());
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
