@@ -45,7 +45,7 @@ typedef unsigned char uchar;
 
 /* Define the execution control structure.
 */
-struct {
+struct myOpts {
   int  debug;            /* 1 -> Enable debugging.                   */
   int  bin;              /* 1 -> Input cred in binary format.        */
   int  xtra;             /* 1 -> Perform null cred test              */
