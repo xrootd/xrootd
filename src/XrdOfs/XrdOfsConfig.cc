@@ -496,11 +496,15 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
     if (!ropt) ropt = XrdOfsREDIRRMT;
        else if (val) val = Config.GetWord();
 
-    if (val && !strcmp("if", val))
-       if ((rc = XrdOucUtils::doIf(&Eroute, Config, "redirect directive",
+    if (val)
+       {if (strcmp("if", val)) 
+           {Config.RetToken();
+            Eroute.Emsg("Config", "Warning! Implied 'if' on redirect is now deprecated.");
+           }
+        if ((rc = XrdOucUtils::doIf(&Eroute, Config, "redirect directive",
                                    getenv("XRDHOST"), getenv("XRDNAME"))) <= 0)
-          return (rc < 0);
-
+           return (rc < 0);
+       }
     Options |= ropt;
     return 0;
 }
