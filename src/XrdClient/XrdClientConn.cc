@@ -35,6 +35,7 @@
 #include <string.h>     // needed by memcpy() and strcspn()
 #include <ctype.h>
 
+#define  SafeDelete(x) { if (x) { delete x; x = 0; } }
 
 
 
@@ -112,6 +113,8 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
    fMainReadCache = NULL;
    if (EnvGetLong(NAME_READCACHESIZE))
       fMainReadCache = new XrdClientReadCache();
+
+   fOpenSockFD = -1;
 }
 
 //_____________________________________________________________________________
@@ -468,7 +471,7 @@ bool XrdClientConn::CheckResp(struct ServerResponseHeader *resp, const char *met
          return FALSE;
       }
 
-      if (resp->status != kXR_ok) {
+      if (resp->status != kXR_ok && resp->status != kXR_authmore) {
          if (resp->status != kXR_wait)
             Error(method, "Server [" <<
 		  fUrl.Host << ":" << fUrl.Port <<
@@ -584,7 +587,7 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 
       struct ServerResponseBody_Error *body_err;
 
-      body_err = (struct ServerResponseBody_Error *)mex->GetData();
+      body_err = (struct ServerResponseBody_Error *)(mex->GetData());
 
 
       if (body_err) {
@@ -599,7 +602,7 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 
 	 // Save the last error received
 	 memcpy(&LastServerError, body_err, sizeof(LastServerError));
-	 LastServerError.errnum = ntohl(LastServerError.errnum);
+	 LastServerError.errnum = fOpenError;
 
       }
       return TRUE;
@@ -841,15 +844,12 @@ bool XrdClientConn::GetAccessToSrv()
    // Nothing is visible here, and nothing is visible from the other high
    // level functions.
 
-   XrdClientLogConnection *logconn = 0;
+   XrdClientLogConnection *logconn = ConnectionManager->GetConnection(fLogConnID);
 
    // Now we are connected and we ask for the kind of the server
    //ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->LockChannel();
    SetServerType(DoHandShake(fLogConnID));
    //ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->UnlockChannel();
-
-   // Now we can start the reader thread in the phyconn, if needed
-   ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->StartReader();
 
    switch (GetServerType()) {
    case kSTError:
@@ -873,6 +873,19 @@ bool XrdClientConn::GetAccessToSrv()
 
    case XrdClientConn::kSTRootd: 
 
+      if (EnvGetLong(NAME_KEEPSOCKOPENIFNOTXRD) == 1) {
+         Info(XrdClientDebug::kHIDEBUG,
+	      "GetAccessToSrv","Ok: the server on [" <<
+              fUrl.Host << ":" << fUrl.Port <<
+              "] is a rootd. Saving socket for later use.");
+         // Get socket descriptor
+         fOpenSockFD = logconn->GetPhyConnection()->SaveSocket();
+         ConnectionManager->Disconnect(fLogConnID, TRUE);
+         ConnectionManager->GarbageCollect();
+	 break;
+
+      } else {
+
          Info(XrdClientDebug::kHIDEBUG,
 	      "GetAccessToSrv","Ok: the server on [" <<
 	   fUrl.Host << ":" << fUrl.Port << "] is a rootd."
@@ -881,6 +894,7 @@ bool XrdClientConn::GetAccessToSrv()
 	 ConnectionManager->Disconnect(fLogConnID, TRUE);
 
 	 return FALSE;
+      }
 
    case XrdClientConn::kSTBaseXrootd: 
 
@@ -889,7 +903,6 @@ bool XrdClientConn::GetAccessToSrv()
 	   "Ok: the server on [" <<
 	   fUrl.Host << ":" << fUrl.Port << "] is an xrootd redirector.");
       
-      logconn = ConnectionManager->GetConnection(fLogConnID);
       logconn->GetPhyConnection()->SetTTL(DLBD_TTL);
       logconn->GetPhyConnection()->fServerType = kBase;
       break;
@@ -901,7 +914,6 @@ bool XrdClientConn::GetAccessToSrv()
 	    "Ok, the server on [" <<
 	    fUrl.Host << ":" << fUrl.Port << "] is an xrootd data server.");
 
-      logconn = ConnectionManager->GetConnection(fLogConnID);
       logconn->GetPhyConnection()->SetTTL(DATA_TTL);        // = DATA_TTL;
       logconn->GetPhyConnection()->fServerType = kData;
       break;
@@ -909,6 +921,10 @@ bool XrdClientConn::GetAccessToSrv()
 
    // Execute a login if connected to a xrootd server
    if (GetServerType() != XrdClientConn::kSTRootd) {
+
+      // Start the reader thread in the phyconn, if needed
+      logconn->GetPhyConnection()->StartReader();
+
       if (logconn->GetPhyConnection()->IsLogged() == kNo)
          return DoLogin();
       else {
@@ -941,7 +957,11 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
    initHS.fourth = (kXR_int32)htonl(4);
    initHS.fifth  = (kXR_int32)htonl(2012);
 
-   if (ConnectionManager->GetConnection(log)->GetPhyConnection()->fServerType == kBase) {
+   // Attach to physical connection
+   XrdClientPhyConnection *phyconn =
+      ConnectionManager->GetConnection(log)->GetPhyConnection();
+
+   if (phyconn && phyconn->fServerType == kBase) {
 
       Info(XrdClientDebug::kHIDEBUG,
 	   "DoHandShake",
@@ -965,7 +985,7 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
       }
       return kSTBaseXrootd;
    }
-   if (ConnectionManager->GetConnection(log)->GetPhyConnection()->fServerType == kData) {
+   if (phyconn && phyconn->fServerType == kData) {
 
       if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
          Info(XrdClientDebug::kHIDEBUG,
@@ -1136,20 +1156,24 @@ bool XrdClientConn::DoLogin()
    char *plist = 0;
    resp = SendGenCommand(&reqhdr, fRedirInternalToken.c_str(), 
                          (void **)&plist, 0, 
-                         TRUE, (char *)"XrdClientConn::doLogin");
+                         TRUE, (char *)"XrdClientConn::DoLogin");
 
    // plist is the plain response from the server. We need a way to 0-term it.
+   bool gotsess = FALSE;
+   XrdSecProtocol *secp = 0;
+   SessionIDInfo *prevsessid = 0;
+   XrdClientString sessname;
+   XrdClientString sessdump;
    if (resp && LastServerResp.dlen && plist) {
+
       plist = (char *)realloc(plist, LastServerResp.dlen+1);
       // Terminate server reply
       plist[LastServerResp.dlen]=0;
- 
+
+      char *pauth = 0;
+      int lenauth = 0; 
       if ((fServerProto >= 0x240) && (LastServerResp.dlen >= 16)) {
-	 SessionIDInfo *prevsessid;
-	 XrdClientString sessname;
 
-
-	 XrdClientString sessdump;
 	 char b[20];
 	 for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
 	   snprintf(b, 20, "%.2x", plist[i]);
@@ -1173,82 +1197,103 @@ bool XrdClientConn::DoLogin()
          prevsessid = fSessionIDRepo.Find(sessname.c_str());
 
 	 // Check if we need to authenticate 
-	 if (LastServerResp.dlen > int(sizeof(prevsessid->id)) ) {
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "DoLogin","server requires authentication");
-
-	    resp = DoAuthentication(User, plist+16);
+	 if (LastServerResp.dlen > 16) {
+	    Info(XrdClientDebug::kHIDEBUG, "DoLogin","server requires authentication");
+            pauth = plist+16;
+            lenauth = LastServerResp.dlen-15; 
 	 }
 
 
-	 // We have to kill the previous session, if any
-	 // By sending a kXR_endsess
+      } else {
+         // We need to authenticate 
+         Info(XrdClientDebug::kHIDEBUG, "DoLogin","server requires authentication");
+         pauth = plist;
+         lenauth = LastServerResp.dlen+1; 
+      }
 
-	 if (prevsessid) {
- 	    XrdClientString sessdump;
-	    char b[20];
-	    for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
-	      snprintf(b, 20, "%.2x", prevsessid->id[i]);
-	      sessdump += b;
-	    }
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "DoLogin","Found prev session info for " << sessname <<
-		 ": " << sessdump);
+      // Run authentication, if needed
+      if (pauth) {
 
-	    memset( &reqhdr, 0, sizeof(reqhdr));
+         char *cenv = 0;
+         //
+         // Set trace level
+         if (EnvGetLong(NAME_DEBUG) > 0) {
+            cenv = new char[18];
+            sprintf(cenv, "XrdSecDEBUG=%ld",EnvGetLong(NAME_DEBUG));
+            putenv(cenv);
+         }
+         //
+         // Set username
+         cenv = new char[User.GetSize()+12];
+         sprintf(cenv, "XrdSecUSER=%s",User.c_str());
+         putenv(cenv);
+         //
+         // Set remote hostname
+         cenv = new char[fUrl.Host.GetSize()+12];
+         sprintf(cenv, "XrdSecHOST=%s",fUrl.Host.c_str());
+         putenv(cenv);
 
-	    SetSID(reqhdr.header.streamid);
-	    reqhdr.header.requestid = kXR_endsess;
+         secp = DoAuthentication(pauth, lenauth);
+         resp = (secp != 0);
+      }
 
-	    memcpy(reqhdr.endsess.sessid, prevsessid->id, sizeof(prevsessid->id));
 
-	    // terminate session
-	    Info(XrdClientDebug::kHIDEBUG,
+      if (prevsessid) {
+	//
+         // We have to kill the previous session, if any
+         // By sending a kXR_endsess
+
+ 	 XrdClientString sessdump;
+	 char b[20];
+	 for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
+	    snprintf(b, 20, "%.2x", prevsessid->id[i]);
+	    sessdump += b;
+	 }
+         Info(XrdClientDebug::kHIDEBUG,
+              "DoLogin","Found prev session info for " << sessname <<
+              ": " << sessdump);
+
+         memset( &reqhdr, 0, sizeof(reqhdr));
+         SetSID(reqhdr.header.streamid);
+         reqhdr.header.requestid = kXR_endsess;
+
+         memcpy(reqhdr.endsess.sessid, prevsessid->id, sizeof(prevsessid->id));
+
+	 // terminate session
+	 Info(XrdClientDebug::kHIDEBUG,
 		 "DoLogin","Trying to terminate previous session.");
 
-	    SendGenCommand(&reqhdr, 0, 0, 0, 
+	 SendGenCommand(&reqhdr, 0, 0, 0, 
 			   FALSE, (char *)"XrdClientConn::Endsess");
 
-	    // Now overwrite the previous session info with the new one
-	    for (unsigned int i=0; i < sizeof(prevsessid->id); i++)
-	      prevsessid->id[i] = plist[i];
+	 // Now overwrite the previous session info with the new one
+	 for (unsigned int i=0; i < sizeof(prevsessid->id); i++)
+	    prevsessid->id[i] = plist[i];
 
 
 
-	 }
-	 else {
- 	    Info(XrdClientDebug::kHIDEBUG,
-		 "DoLogin","No prev session info for " << sessname);
+      } else {
+         Info(XrdClientDebug::kHIDEBUG,
+	      "DoLogin","No prev session info for " << sessname);
 
-	    // No session info? Let's create one.
-       	    SessionIDInfo *newsessid = new SessionIDInfo;
+	 // No session info? Let's create one.
+       	 SessionIDInfo *newsessid = new SessionIDInfo;
 
-	    for (int i=0; i < int(sizeof(prevsessid->id)); i++)
-	      newsessid->id[i] = plist[i];
+	 for (int i=0; i < int(sizeof(prevsessid->id)); i++)
+	    newsessid->id[i] = plist[i];
 
-	    fSessionIDRepo.Rep(sessname.c_str(), newsessid);
-	 }
-	 
-
-
-      }
-      else {
-
-	 // Check if we need to authenticate 
-	 Info(XrdClientDebug::kHIDEBUG,
-	      "DoLogin","server requires authentication");
-
-	 resp = DoAuthentication(User, plist);
+	 fSessionIDRepo.Rep(sessname.c_str(), newsessid);
       }
 
    }
 
-
-
    // Flag success if everything went ok
-   if (resp) 
+   if (resp) {
       ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()
          ->SetLogged(kYes);
+      ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()
+         ->SetSecProtocol(secp);
+   }
 
    if (plist)
       free(plist);
@@ -1258,134 +1303,150 @@ bool XrdClientConn::DoLogin()
 }
 
 //_____________________________________________________________________________
-bool XrdClientConn::DoAuthentication(XrdClientString username, XrdClientString plist) {
-  // Negotiate authentication with the remote server. The XrdSecgetProtocol()
-  // function tries all available protocols proposed by the server (in plist).
+XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
+{
+   // Negotiate authentication with the remote server. Tries in turn
+   // all available protocols proposed by the server (in plist),
+   // starting from the first.
+   XrdSecProtocol *protocol = (XrdSecProtocol *)0;
 
-  // if no sectoken here then no need to do security at all
-  //
-  if (plist == "")
-     return TRUE;
+   if (!plist || plsiz <= 0)
+      return protocol;
 
-  Info(XrdClientDebug::kHIDEBUG,
-       "DoAuthentication", "remote host: " << fUrl.Host <<
-       " list of available protocols: " << plist << "-" <<
-       plist.GetSize() );
- 
-  // Prepare host/IP information of the remote xrootd. This is required
-  // for the authentication.
-  //
-  struct sockaddr_in netaddr;
+   Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+        "host " << fUrl.Host << " sent a list of " << plsiz << " bytes");
+   //
+   // Prepare host/IP information of the remote xrootd. This is required
+   // for the authentication.
+   struct sockaddr_in netaddr;
+   char **hosterrmsg = 0;
+   if (XrdNetDNS::getHostAddr((char *)fUrl.HostAddr.c_str(),
+                                (struct sockaddr &)netaddr, hosterrmsg) <= 0) {
+      Info(XrdClientDebug::kUSERDEBUG, "DoAuthentication",
+           "getHostAddr said '" << *hosterrmsg << "'");
+      return protocol;
+   }
+   netaddr.sin_port   = fUrl.Port;
+   //
+   // Variables for negotiation
+   XrdSecParameters  *secToken = 0;
+   XrdSecCredentials *credentials = 0;
 
-  char **hosterrmsg = 0;
+   //
+   // Now try in turn the available protocols (first preferred)
+   bool resp = FALSE;
+   int lp = 0;
+   char *pp = strstr(plist+lp,"&P=");
+   while (pp && pp <= (plist + plsiz - 3)) {
+      //
+      // The delimitation id next protocol string or the end ...
+      char *pn = pp+3;
+      while (pn <= (plist + plsiz - 3)) {
+         if ((*pn) == '&')
+            if (!strncmp(pn+1,"P=",2)) break;
+         pn++;
+      }
+      pn = (pn > (plist + plsiz - 3)) ? 0 : pn;
+      //
+      // Token length
+      int lpar = (pn) ? ((int)(pn-pp)) : (plsiz - (int)(pp-plist));
+      //
+      // Prepare the parms object
+      char *bpar = (char *)malloc(lpar+1);
+      if (bpar)
+         memcpy(bpar, pp, lpar);
+      bpar[lpar] = 0;
+      XrdSecParameters Parms(bpar,lpar+1);
+      //
+      // Retrieve the security protocol context from the xrootd server
+      if (!(protocol = XrdSecGetProtocol((char *)fUrl.Host.c_str(),
+                                         (const struct sockaddr &)netaddr,
+                                          Parms, 0))) {
+         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+              "unable to get protocol object.");
+         // Set error, in case of need
+         fOpenError = kXR_NotAuthorized;
+	 LastServerError.errnum = fOpenError;
+	 strcpy(LastServerError.errmsg, "unable to get protocol object.");
+         pp = pn;
+         continue;
+      }
+      //
+      // Protocol name
+      XrdClientString protname = protocol->Entity.prot;
+      //
+      // Once we have the protocol, get the credentials
+      credentials = protocol->getCredentials(&Parms);
+      if (!credentials) {
+         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+              "cannot obtain credentials (protocol: "<<protname<<")");
+         // Set error, in case of need
+         fOpenError = kXR_NotAuthorized;
+	 LastServerError.errnum = fOpenError;
+	 strcpy(LastServerError.errmsg, "cannot obtain credentials for protocol: ");
+	 strcat(LastServerError.errmsg, protname.c_str());
+         pp = pn;
+         continue;
+      } else {
+         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+              "credentials size: " << credentials->size);
+      }
+      //
+      // We fill the header struct containing the request for login
+      ClientRequest reqhdr;
+      SetSID(reqhdr.header.streamid);
+      reqhdr.header.requestid = kXR_auth;
+      memset(reqhdr.auth.reserved, 0, 12);
+      memcpy(reqhdr.auth.credtype, protname.c_str(), protname.GetSize());
 
-  int numaddr = XrdNetDNS::getHostAddr((char *)fUrl.HostAddr.c_str(), (struct sockaddr &)netaddr, hosterrmsg);
-  
-  if (!numaddr) {
-     Error("DoAuthentication",
-	   "GetHostAddr said '" << *hosterrmsg << "'");
-     return FALSE;
-  }
+      LastServerResp.status = kXR_authmore;
+      char *srvans = 0;
 
-  netaddr.sin_port   = fUrl.Port;
+      resp = FALSE;
+      while (LastServerResp.status == kXR_authmore) {
+         //
+         // Length of the credentials buffer
+         reqhdr.header.dlen = credentials->size;
+         resp = SendGenCommand(&reqhdr, credentials->buffer,
+                               (void **)&srvans, 0, TRUE,
+                               (char *)"XrdClientConn::DoAuthentication");
+         SafeDelete(credentials);
+         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+              "server reply: status: "<< LastServerResp.status <<
+                    " dlen: "<< LastServerResp.dlen);
 
-  // Variables for negotiation
-  XrdSecParameters   secToken;
-  XrdSecProtocol    *protocol;
-  XrdSecCredentials *credentials;
+         if (LastServerResp.status == kXR_authmore) {
+            //
+            // We are required to send additional information
+            // First assign the security token that we have received
+            // at the login request
+            secToken = new XrdSecParameters(srvans,LastServerResp.dlen);
+            //
+            // then get next part of the credentials
+            credentials = protocol->getCredentials(secToken);
+            SafeDelete(secToken); // nb: srvans is released here
+            srvans = 0;
+            if (!credentials) {
+               Info(XrdClientDebug::kUSERDEBUG, "DoAuthentication",
+                    "cannot obtain credentials");
+               // Set error, in case of need
+               fOpenError = kXR_NotAuthorized;
+	       LastServerError.errnum = fOpenError;
+	       strcpy(LastServerError.errmsg, "cannot obtain credentials");
+               break;
+            } else {
+               Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+                    "credentials size " << credentials->size);
+            }
+         }
+      }
+      // Get next
+      pp = pn;
+   }
 
-  // Now try in turn the available methods (first preferred)
-  //
-  bool resp = FALSE;
-
-
-  // Assign the security token that we have received at the login request
-  //
-  secToken.buffer = (char *)plist.c_str();
-  secToken.size   = plist.GetSize();
-     
-  // Retrieve the security protocol context from the xrootd server
-  //
-//   protocol = XrdSecGetProtocol((const struct sockaddr &)netaddr, secToken, 0);
-     // future code will be:
-  protocol = XrdSecGetProtocol((char *)fUrl.Host.c_str(), (const struct sockaddr &)netaddr, secToken, 0);
-  if (!protocol) {
-
-	Info(XrdClientDebug::kHIDEBUG,
-	     "DoAuthentication", 
-	     "Unable to get protocol object.");
-      return FALSE;
-     }
-     
-  // Once we have the protocol, get the credentials
-  //
-     credentials = protocol->getCredentials(&secToken);
-     if (!credentials) {
-
-	Info(XrdClientDebug::kHIDEBUG,
-	     "DoAuthentication", 
-	     "Cannot obtain credentials");
-        return FALSE;
-     } else
-	Info(XrdClientDebug::kHIDEBUG,
-	     "DoAuthentication", "cred size=" << credentials->size);
-     
-     // We fill the header struct containing the request for login
-     ClientRequest reqhdr;
-     SetSID(reqhdr.header.streamid);
-     reqhdr.header.requestid = kXR_auth;
-     memset(reqhdr.auth.reserved, 0, 16);
-//   memcpy(reqhdr.auth.credtype, protname.c_str(), protname.GetSize());
-     
-     LastServerResp.status = kXR_authmore;
-     char *srvans = 0;
-     
-     resp = FALSE;
-     while (LastServerResp.status == kXR_authmore) {
-        
-        // Length of the credentials buffer
-        reqhdr.header.dlen = credentials->size;
-        
-        resp = SendGenCommand(&reqhdr, credentials->buffer, 
-                              (void **)&srvans, 0, TRUE, 
-                              (char *)"XTNetconn::DoAuthentication");
-
-	Info(XrdClientDebug::kHIDEBUG,
-	     "DoAuthenticate", "Server reply: status: " << LastServerResp.status <<
-	     " dlen: " << LastServerResp.dlen);
-     
-	if (resp && (LastServerResp.status == kXR_authmore)) {
-           // We are required to send additional information
-           // First assign the security token that we have received
-           // at the login request
-           //
-           secToken.buffer = srvans;   
-           secToken.size   = strlen(srvans);
-     
-           // then get next part of the credentials
-           //
-           credentials = protocol->getCredentials(&secToken);
-           if (!credentials) {
-
-                 Error("DoAuthentication", 
-		       "Cannot obtain credentials (token: " << srvans << ")");
-
-              break;
-           } else {
-	      Info(XrdClientDebug::kHIDEBUG,
-		   "DoAuthentication", "cred= " << credentials->buffer <<
-		   " size=" << credentials->size);
-           }
-        }
-
-        // Release buffer allocated for the server reply
-        if (srvans)
-           delete[] srvans;
-     }
-
-  // Return the result of the negotiation
-  //
-  return resp;
+   // Return the result of the negotiation
+   //
+   return protocol;
 }
 
 //_____________________________________________________________________________
