@@ -20,6 +20,7 @@
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientSid.hh"
+#include "XrdSec/XrdSecInterface.hh"
 #include <sys/socket.h>
 
 
@@ -99,6 +100,12 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
    if (fReaderthreadrunning)
       fReaderthreadhandler->Cancel();
 
+   if (fSecProtocol) {
+      // This insures that the right destructor is called
+      // (Do not do C++ delete).
+      fSecProtocol->Delete();
+      fSecProtocol = 0;
+   }
 }
 
 //____________________________________________________________________________
