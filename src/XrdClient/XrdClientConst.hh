@@ -52,6 +52,9 @@
 #define DFLT_GOASYNC 1
 #define NAME_GOASYNC            (char *)"GoAsync"
 
+// keep/dont-keep the socket open (required by optimized rootd fallback)
+#define DFLT_KEEPSOCKOPENIFNOTXRD 0
+#define NAME_KEEPSOCKOPENIFNOTXRD (char *)"KeepSockOpenIfNotXrd"
 
 // Printable version
 #define XRD_CLIENT_VERSION      (char *)"0.3"
