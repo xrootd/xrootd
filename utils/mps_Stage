@@ -542,12 +542,12 @@ sub RemoveFile {my($tfn) = @_; my($Link);
 sub XDirFn {my($fn) = @_; my($i, $dir);
     if ( ($i = rindex($fn, '/')) < 0) {return ('./', $fn)}
        else {$dir = substr($fn, 0, $i+1); $fn = substr($fn, $i+1);}
-    return ( (substr($dir, 0, 1) == '/' ? $dir : './'.$dir), $fn);
+    return ( (substr($dir, 0, 1) eq '/' ? $dir : './'.$dir), $fn);
     }
 
 sub MakePath {my($path) = @_; my(@dirs, $mkpath, $dname);
     @dirs = split('/', $path);
-    $mkpath = '/'.shift(@dirs);    # Base path must exist
+    $mkpath = shift(@dirs);  # start with either "" or "."
     while ($dname = shift(@dirs)) {
           $mkpath .= "/$dname";
           if (!mkdir($mkpath, $Config{dmode}) && $! != 17)
@@ -782,7 +782,7 @@ sub do_prestage {
 	return 1;
     }
     my($exists) = (-s "$mfile") + (-s "$mfile.old");
-    print $fh "$rqstid $notify r $src_fn $uname:$gname:$mode:$sflg\n";
+    print $fh "$rqstid $notify r $trg_fn $uname:$gname:$mode:$sflg\n";
     print $fh "$rqstid $notify * stagein complete\n";
     UnLock($fh);
     UnLock($lockfh);

@@ -27,6 +27,7 @@ use lib '/opt/xrootd/utils';
 use lib '/usr/etc/ooss';
 ($ppath) = $0 =~ m:^(\S*)/\S*$:;
 if ($ppath) {eval 'use lib $ppath;';}
+eval 'use ooss_name2name'; die "'use ooss_name2name' failed: $@\n" if ($@); 
 
 # OS-dependent commands
 #
@@ -136,10 +137,12 @@ sub add_queue {
 	    @temp = <FILE>;
 	    close(FILE);
 	    foreach $fn (@temp) {
+		$fn = none2mss($fn);
 		print $fh "$reqid $usrid $func $fn";
 	    }
 	}
 	else {
+	    $fn = none2mss($fn);
 	    print $fh "$reqid $usrid $func $fn\n";
 	}
     }
@@ -256,6 +259,7 @@ sub do_list_fn {
 			$numfiles++;
 		    }
 		    else {
+			$fn = mss2none($fn);
 			print("$fn\n");
 		    }
 		}

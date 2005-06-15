@@ -43,6 +43,7 @@ use lib '/usr/etc/ooss';
 ($ppath) = $0 =~ m:^(\S*)/\S*$:;
 if ($ppath) {eval 'use lib $ppath;';}
 eval 'use ooss_MonP'; die "'use ooss_MonP' failed: $@\n" if ($@);
+eval 'use ooss_name2name'; die "'use ooss_name2name' failed: $@\n" if ($@); 
 
 # OS-dependent commands
 #
@@ -276,7 +277,8 @@ while (++$retry_cnt <= $max_retry) {
       my($uid,$gid,$mode,$size) = split(/:/, $owner);
       $rflag = "-o $uid:$gid -p $mode -s $size";
       }
-   $cmd = "$pstgcmd $rflag $Lflag $file $file 2>&1";
+   $trgfn = mss2local($file);
+   $cmd = "$pstgcmd $rflag $Lflag $file $trgfn 2>&1";
    logit("do_stagein: Executing: $cmd") if $debug >= $CTL;
    my(@data) = `$cmd`;
    $prc = $? >> 8;
@@ -347,7 +349,7 @@ elsif (defined $pid) {		# child
    my($elap) = $etime-$stime ? $etime-$stime : 1;
    my($pctb) = sprintf("%.2f", 100 * ($usr+$sys+$cusr+$csys) / $elap);
    my($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksiz, $blks)
-            = stat("$file");
+            = stat(mss2local($file));
    my($rate) = sprintf("%dK/sec", $size/$elap/1024); 
    logit("fork_stagein: for $file, exiting, size=$size elap=$elap, pctbsy=$pctb%, $rate, rc=$rc") if $debug >= $PROC;
    `$CMDkill -USR1 $ppid`;			# wakeup parent
