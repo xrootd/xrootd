@@ -164,7 +164,7 @@ XrdMonDecSink::initRT(const char* rtLogDir,
     _rtLogger = new XrdMonDecRTLogging(rtLogDir, rtBufSize);
 
     // read in unique ids from jnl file
-    f.open(_rtMaxIdsPath.c_str());
+    f.open(_rtMaxIdsPath.c_str(), ios::in);
     if ( f.is_open() ) {
         do {
             char line[64];
