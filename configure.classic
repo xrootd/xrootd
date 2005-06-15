@@ -1107,11 +1107,32 @@ if test ! "x$enable_krb4" = "xno" ; then
     if test "x$krb4incdir" = "x" && test ! "x$krb4dir" = "x" ; then
 	krb4incdir=$krb4dir/include
     fi
+
+    # We need the domain name
+    domain=""
+    if test "x$platform" = "xlinux" ; then
+       domain=`dnsdomainname 2> /dev/null`
+    fi
+    if test "x$domain" = "x" ; then
+       domain=`domainname 2> /dev/null`
+    fi
+    case $domain in
+       *.stanford.edu)
+           slackrbinc="/afs/slac.stanford.edu/package/krb5/include"
+           slackrblib="/afs/slac.stanford.edu/package/krb5/lib"
+           ;;
+       *)
+           slackrbinc=""
+           slackrblib=""
+           ;;
+    esac
+
     check_header "kerberosIV/krb.h" "$krb4incdir" \
-            /afs/slac.stanford.edu/package/krb5/include /usr/athena/include \
-	    /usr/local/athena/include /usr/kerberos/include \
-	    /usr/krb5/include /usr/local/kerberos/include \
-	    /usr/include /usr/local/include
+            "$slackrbinc" /usr/local/include /usr/include \
+            /usr/local/athena/include /usr/athena/include \
+            /usr/local/kerberos/include /usr/kerberos/include \
+            /usr/local/krb4/include /usr/krb4/include
+
     if test "x$found_dir" = "x" ; then
 	enable_krb4=no
     else
@@ -1126,9 +1147,10 @@ if test ! "x$enable_krb4" = "xno" ; then
     if test "x$krb4libdir" = "x" && test ! "x$krb4dir" = "x" ; then
 	krb4libdirorg=$krb4dir/lib
     fi
-    krb4libdirs="/afs/slac.stanford.edu/package/krb5/lib /usr/athena/lib \
-                 /usr/local/athena/lib /usr/kerberos/lib \
-                 /usr/krb4/lib /usr/local/kerberos/lib /usr/lib /usr/local/lib"
+    krb4libdirs="$slackrblib /usr/local/lib /usr/lib \
+                 /usr/local/athena/lib /usr/athena/lib \
+                 /usr/local/kerberos/lib /usr/kerberos/lib \
+                 /usr/local/krb4/lib /usr/krb4/lib"
 
     # check whether using MIT krb5
     krb4mit=no
@@ -1216,11 +1238,32 @@ if test ! "x$enable_krb5" = "xno" ; then
     if test "x$krb5incdir" = "x" && test ! "x$krb5dir" = "x" ; then
 	krb5incdir=$krb5dir/include
     fi
+
+
+    # We need the domain name
+    domain=""
+    if test "x$platform" = "xlinux" ; then
+       domain=`dnsdomainname 2> /dev/null`
+    fi
+    if test "x$domain" = "x" ; then
+       domain=`domainname 2> /dev/null`
+    fi
+    case $domain in
+       *.stanford.edu)
+           slackrbinc="/afs/slac.stanford.edu/package/krb5/include"
+           slackrblib="/afs/slac.stanford.edu/package/krb5/lib"
+           ;;
+       *)
+           slackrbinc=""
+           slackrblib=""
+           ;;
+    esac
     check_header "krb5.h" "$krb5incdir" \
-            /afs/slac.stanford.edu/package/krb5/include /usr/athena/include \
-    	    /usr/local/athena/include /usr/kerberos/include \
-    	    /usr/krb5/include /usr/local/kerberos/include \
-    	    /usr/include/et /usr/include /usr/local/include
+            "$slackrbinc" /usr/local/include /usr/include \
+            /usr/local/athena/include /usr/athena/include \
+            /usr/local/kerberos/include /usr/kerberos/include \
+            /usr/local/krb5/include /usr/krb5/include
+
     if test "x$found_dir" = "x" ; then
     	  enable_krb5=no
     else
@@ -1235,9 +1278,10 @@ if test ! "x$enable_krb5" = "xno" ; then
     if test "x$krb5libdir" = "x" && test ! "x$krb5dir" = "x" ; then
 	krb5libdirorg=$krb5dir/lib
     fi
-    krb5libdirs="/afs/slac.stanford.edu/package/krb5/lib /usr/athena/lib \
-                 /usr/local/athena/lib /usr/kerberos/lib \
-                 /usr/krb5/lib /usr/local/kerberos/lib /usr/lib /usr/local/lib"
+    krb5libdirs="$slackrblib /usr/local/lib /usr/lib \
+                 /usr/local/athena/lib /usr/athena/lib \
+                 /usr/local/kerberos/lib /usr/kerberos/lib \
+                 /usr/local/krb5/lib /usr/krb5/lib"
 
     # check whether using MIT krb5
     krb5mit=no
