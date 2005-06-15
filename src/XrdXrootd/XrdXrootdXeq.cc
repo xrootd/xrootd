@@ -429,11 +429,11 @@ int XrdXrootdProtocol::do_Login()
       {const char *pp=CIA->getParms(i, Link->Name());
        if (pp && i ) {if (!sendSID) rc = Response.Send((void *)pp, i);
                          else {struct iovec iov[2];
-                               iov[0].iov_base = (char *)&sessID;
-                               iov[0].iov_len  = sizeof(sessID);
-                               iov[1].iov_base = (char *)pp;
-                               iov[1].iov_len  = i;
-                               rc = Response.Send(iov,2,int(i+sizeof(sessID)));
+                               iov[1].iov_base = (char *)&sessID;
+                               iov[1].iov_len  = sizeof(sessID);
+                               iov[2].iov_base = (char *)pp;
+                               iov[2].iov_len  = i;
+                               rc = Response.Send(iov,3,int(i+sizeof(sessID)));
                               }
                       Status = (XRD_LOGGEDIN | XRD_NEED_AUTH);
                      }
