@@ -142,7 +142,7 @@ XrdConfig::XrdConfig(void)
    PortTCP  = 0;
    PortUDP  = 0;
    ConfigFN = 0;
-   myInsName= "anon";
+   myInsName= 0;
    PidPath  = strdup("/tmp");
    AdminPath= 0;
    Police   = 0;
@@ -281,12 +281,12 @@ int XrdConfig::Configure(int argc, char **argv)
    XrdNetDNS::getHostAddr(myName, &myIPAddr);
    ProtInfo.myName = myName;
    ProtInfo.myAddr = &myIPAddr;
-   ProtInfo.myInst = myInsName;
+   ProtInfo.myInst = (myInsName && *myInsName ? myInsName : "anon");
 
 // Set the Environmental variable to hold the instance name
 // XRDINSTANCE=<instance name>@<host name>
 //
-   sprintf(buff,"%s%s@%s", xrdInst, myInsName, myName);
+   sprintf(buff,"%s%s@%s", xrdInst, ProtInfo.myInst, myName);
    myInstance = strdup(buff);
    putenv(myInstance);
    myInstance += strlen(xrdInst);
@@ -924,7 +924,7 @@ int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
 
     if ((val = Config.GetWord()) && !strcmp("if", val))
        if ((rc = XrdOucUtils::doIf(eDest,Config, "role directive",
-                              myName, myInsName)) <= 0) return (rc < 0);
+                              myName, ProtInfo.myInst)) <= 0) return (rc < 0);
 
     if (!(pnum = yport(eDest, "tcp", cport))) return 1;
     PortTCP = PortUDP = pnum;
