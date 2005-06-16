@@ -517,7 +517,7 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
    // Create an entry with the common name
    unsigned char sn[20] = {0};
    sprintf((char *)sn, "%d", serial);
-   if (!X509_NAME_add_entry_by_txt(psubj, "CN", MBSTRING_ASC,
+   if (!X509_NAME_add_entry_by_txt(psubj, (char *)"CN", MBSTRING_ASC,
                                    sn, -1, -1, 0)) {
       DEBUG("could not add CN - (serial: "<<serial<<", sn: "<<sn<<")"); 
       return -kErrPX_SetAttribute;
@@ -816,7 +816,7 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
    // Create an entry with the common name
    unsigned char sn[20] = {0};
    sprintf((char *)sn, "%d", serial);
-   if (!X509_NAME_add_entry_by_txt(psubj, "CN", MBSTRING_ASC,
+   if (!X509_NAME_add_entry_by_txt(psubj, (char *)"CN", MBSTRING_ASC,
                                    sn, -1, -1, 0)) {
       DEBUG("could not add CN - (serial: "<<serial<<", sn: "<<sn<<")"); 
       return -kErrPX_SetAttribute;
