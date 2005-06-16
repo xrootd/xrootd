@@ -33,7 +33,6 @@ install -m 755 bin/XRD-SYSNAME-XRD/olbd $RPM_BUILD_ROOT/opt/xrootd/bin/olbd
 install -m 755 bin/XRD-SYSNAME-XRD/xrdcp $RPM_BUILD_ROOT/opt/xrootd/bin/xrdcp
 install -m 755 bin/XRD-SYSNAME-XRD/xrdmonCollector $RPM_BUILD_ROOT/opt/xrootd/bin/xrdmonCollector
 install -m 755 bin/XRD-SYSNAME-XRD/xrdmonAdmin $RPM_BUILD_ROOT/opt/xrootd/bin/xrdmonAdmin
-install -m 755 bin/XRD-SYSNAME-XRD/xrdSutPFAdmin $RPM_BUILD_ROOT/opt/xrootd/bin/xrdSutPFAdmin
 install -m 755 lib/XRD-SYSNAME-XRD/XrdClientAdmin.pm $RPM_BUILD_ROOT/opt/xrootd/lib/XrdClientAdmin.pm
 install -m 755 lib/XRD-SYSNAME-XRD/XrdClientAdmin.so $RPM_BUILD_ROOT/opt/xrootd/lib/XrdClientAdmin.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdPosix.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdPosix.so
@@ -75,7 +74,6 @@ install -m 755 utils/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/utils/XrdOlbNoti
 /opt/xrootd/bin/xrdcp
 /opt/xrootd/bin/xrdmonCollector
 /opt/xrootd/bin/xrdmonAdmin
-/opt/xrootd/bin/xrdSutPFAdmin
 /opt/xrootd/lib/XrdClientAdmin.pm
 /opt/xrootd/lib/XrdClientAdmin.so
 /opt/xrootd/lib/libXrdPosix.so
