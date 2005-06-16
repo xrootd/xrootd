@@ -474,7 +474,9 @@ int main( int argc, char **argv )
                               char c = 0;
                               if (uent.buf4.buf) {
                                  c = *(uent.buf4.buf);
-                                 c = (c < 4) ? c++ : 1;
+                                 c++;
+                                 if (c > 4)
+				   c = 1;
                                  *(uent.buf4.buf) = c;
                               } else {
                                  uent.buf4.buf = new char[1];
