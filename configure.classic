@@ -42,10 +42,13 @@ type=`uname -s`
 
 options="                 \
    enable_echo            \
+   enable_gsi             \
    enable_krb4            \
    enable_krb5            \
    enable_mon             \
    enable_perlint         \
+   enable_pwd             \
+   enable_ssl             \
    enable_trace           \
 "
 
@@ -56,8 +59,10 @@ options="                 \
 for c in $options ; do eval $c="yes" ; done
 
 enable_echo=no
+enable_gsi=no
 enable_mon=yes
 enable_perlint=no
+enable_pwd=no
 enable_thread=yes
 
 #
@@ -403,7 +408,7 @@ guess_architecture () {
       linux:ppc*:*)       arch=ppc_linux       ; platform=linux; ccflv=gcc;;
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
       darwin:power*:7*)   arch=ppc_darwin_70   ; platform=macosx; ccflv=macos;;
-      darwin:*:*)         arch=macosx          ; platform=macosx; ccflv=macos;;
+      darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
       irix*:sgi*:*)       arch=sgi             ; platform=sgi;    ccflv=sgiCC;;
       sunos:i86pc:*)      arch=sunx86_510      ; platform=solaris; ccflv=sunCCamd;;
       sunos:i386:*)       arch=sunx86_510      ; platform=solaris; ccflv=sunCC;;
@@ -487,6 +492,7 @@ enable/disable options, prefix with either --enable- or --disable-
    krb5            Kerberos5 support, requires Kerberos libs
    mon             Enable/disable building of monitoring services
    perlint         Enable/disable building of the perl admin interface
+   ssl             SSL encryption support, requires OpenSSL
    trace           Support for trace statements via the "-d" flag
 
 with options, prefix with --with-, enables corresponding support
@@ -498,6 +504,8 @@ with options, prefix with --with-, enables corresponding support
    krb5-incdir     Kerberos5 support, location of krb5.h
    krb5-libdir     Kerberos5 support, location of libkrb5
    perl            Path to the perl executable to be used for the perl module
+   ssl-incdir      OpenSSL support, location of openssl headers
+   ssl-libdir      OpenSSL support, location of libssl
    thread-libdir   Path to libpthread
 
 Advanced options:
@@ -563,6 +571,8 @@ fi
 #
 ### echo %%% Command line arguments
 #
+ssllibdir=""
+sslincdir=""
 nccflv="$ccflv"
 if test $# -gt 0 ; then
    while test ! "x$1" = "x" ; do
@@ -590,6 +600,8 @@ if test $# -gt 0 ; then
       --with-krb5-incdir=*)    krb5incdir=$optarg    ; enable_krb5="yes"    ;;
       --with-krb5-libdir=*)    krb5libdir=$optarg    ; enable_krb5="yes"    ;;
       --with-perl=*)           perlbin=$optarg       ; enable_perlint="yes" ;;
+      --with-ssl-incdir=*)     sslincdir=$optarg     ; enable_ssl="yes"     ;;
+      --with-ssl-libdir=*)     ssllibdir=$optarg     ; enable_ssl="yes"     ;;
       --with-thread-libdir=*)  threadlibdir=$optarg  ; enable_thread="yes"  ;;
       ################################################################
       #
@@ -1082,7 +1094,9 @@ fi
 ######################################################################
 #
 ### Security plugins
-xrdsecplugins=""
+buildsec="no"
+xrdcrypto=""
+xrdsut=""
 
 ######################################################################
 #
@@ -1107,32 +1121,11 @@ if test ! "x$enable_krb4" = "xno" ; then
     if test "x$krb4incdir" = "x" && test ! "x$krb4dir" = "x" ; then
 	krb4incdir=$krb4dir/include
     fi
-
-    # We need the domain name
-    domain=""
-    if test "x$platform" = "xlinux" ; then
-       domain=`dnsdomainname 2> /dev/null`
-    fi
-    if test "x$domain" = "x" ; then
-       domain=`domainname 2> /dev/null`
-    fi
-    case $domain in
-       *.stanford.edu)
-           slackrbinc="/afs/slac.stanford.edu/package/krb5/include"
-           slackrblib="/afs/slac.stanford.edu/package/krb5/lib"
-           ;;
-       *)
-           slackrbinc=""
-           slackrblib=""
-           ;;
-    esac
-
     check_header "kerberosIV/krb.h" "$krb4incdir" \
-            "$slackrbinc" /usr/local/include /usr/include \
-            /usr/local/athena/include /usr/athena/include \
-            /usr/local/kerberos/include /usr/kerberos/include \
-            /usr/local/krb4/include /usr/krb4/include
-
+            /afs/slac.stanford.edu/package/krb5/include /usr/athena/include \
+	    /usr/local/athena/include /usr/kerberos/include \
+	    /usr/krb5/include /usr/local/kerberos/include \
+	    /usr/include /usr/local/include
     if test "x$found_dir" = "x" ; then
 	enable_krb4=no
     else
@@ -1147,10 +1140,9 @@ if test ! "x$enable_krb4" = "xno" ; then
     if test "x$krb4libdir" = "x" && test ! "x$krb4dir" = "x" ; then
 	krb4libdirorg=$krb4dir/lib
     fi
-    krb4libdirs="$slackrblib /usr/local/lib /usr/lib \
-                 /usr/local/athena/lib /usr/athena/lib \
-                 /usr/local/kerberos/lib /usr/kerberos/lib \
-                 /usr/local/krb4/lib /usr/krb4/lib"
+    krb4libdirs="/afs/slac.stanford.edu/package/krb5/lib /usr/athena/lib \
+                 /usr/local/athena/lib /usr/kerberos/lib \
+                 /usr/krb4/lib /usr/local/kerberos/lib /usr/lib /usr/local/lib"
 
     # check whether using MIT krb5
     krb4mit=no
@@ -1214,8 +1206,8 @@ if test ! "x$enable_krb4" = "xno" ; then
         krb4libdir=""
     else
         krb4extracflags="-DR__KRB4"
-        havekrb4="krb4"
-        xrdsecplugins="XrdSeckrb4 $xrdsecplugins"
+        havekrb4="XrdSeckrb4"
+        buildsec="yes"
     fi
 fi
 
@@ -1238,32 +1230,11 @@ if test ! "x$enable_krb5" = "xno" ; then
     if test "x$krb5incdir" = "x" && test ! "x$krb5dir" = "x" ; then
 	krb5incdir=$krb5dir/include
     fi
-
-
-    # We need the domain name
-    domain=""
-    if test "x$platform" = "xlinux" ; then
-       domain=`dnsdomainname 2> /dev/null`
-    fi
-    if test "x$domain" = "x" ; then
-       domain=`domainname 2> /dev/null`
-    fi
-    case $domain in
-       *.stanford.edu)
-           slackrbinc="/afs/slac.stanford.edu/package/krb5/include"
-           slackrblib="/afs/slac.stanford.edu/package/krb5/lib"
-           ;;
-       *)
-           slackrbinc=""
-           slackrblib=""
-           ;;
-    esac
     check_header "krb5.h" "$krb5incdir" \
-            "$slackrbinc" /usr/local/include /usr/include \
-            /usr/local/athena/include /usr/athena/include \
-            /usr/local/kerberos/include /usr/kerberos/include \
-            /usr/local/krb5/include /usr/krb5/include
-
+            /afs/slac.stanford.edu/package/krb5/include /usr/athena/include \
+    	    /usr/local/athena/include /usr/kerberos/include \
+    	    /usr/krb5/include /usr/local/kerberos/include \
+    	    /usr/include/et /usr/include /usr/local/include
     if test "x$found_dir" = "x" ; then
     	  enable_krb5=no
     else
@@ -1278,10 +1249,9 @@ if test ! "x$enable_krb5" = "xno" ; then
     if test "x$krb5libdir" = "x" && test ! "x$krb5dir" = "x" ; then
 	krb5libdirorg=$krb5dir/lib
     fi
-    krb5libdirs="$slackrblib /usr/local/lib /usr/lib \
-                 /usr/local/athena/lib /usr/athena/lib \
-                 /usr/local/kerberos/lib /usr/kerberos/lib \
-                 /usr/local/krb5/lib /usr/krb5/lib"
+    krb5libdirs="/afs/slac.stanford.edu/package/krb5/lib /usr/athena/lib \
+                 /usr/local/athena/lib /usr/kerberos/lib \
+                 /usr/krb5/lib /usr/local/kerberos/lib /usr/lib /usr/local/lib"
 
     # check whether using MIT krb5
     krb5mit=no
@@ -1341,9 +1311,191 @@ if test ! "x$enable_krb5" = "xno" ; then
         krb5libdir=""
     else
         krb5extracflags="-DR__KRB5"
-        havekrb5="krb5"
-        xrdsecplugins="XrdSeckrb5 $xrdsecplugins"
+        havekrb5="XrdSeckrb5"
+        buildsec="yes"
     fi
+fi
+
+######################################################################
+#
+### echo %%% Support for password-based authentication
+#
+#
+pwdextracflags=""
+havepwd=""
+if test ! "x$enable_pwd" = "xno" ; then
+    #
+    message "Enabling password-based authentication module"
+    #
+    buildsec="yes"
+    # plug-in name
+    havepwd="XrdSecpwd"
+    # Security utils needed
+    xrdsut="XrdSut"
+    # Cryptography needed
+    xrdcrypto="XrdCrypto"
+    #
+    echo "done"
+    #
+    # shadow passwords
+    checking_msg "shadow passwords"
+    if test -f "/etc/shadow"; then
+      enable_shadowpw="yes"
+      pwdextracflags="-DR__SHADOWPW "
+      echo "yes"
+    else
+      enable_shadowpw="no"
+      echo "no"
+    fi
+fi
+
+######################################################################
+#
+### echo %%% OpenSSL support - Third party libraries
+#
+# (See www.openssl.org)
+#
+ssllib=""
+sslextracflags=""
+if test ! "x$enable_ssl" = "xno" ; then
+
+    #
+    # Version
+    #
+    check_header "openssl/opensslv.h" "$sslincdir" $SSL $SSL/include \
+               /usr/include /usr/local/include /opt/include $finkdir/include
+    if test "x$found_hdr" = "x" ; then
+       sslincdir=""
+       enable_ssl="no"
+       break
+    fi
+    sslincdir=$found_dir
+    fullincdir=$found_dir
+    verh=$sslincdir/openssl/opensslv.h
+    if test "x$sslincdir" = "xinclude" ; then
+       verh=/usr/include/openssl/opensslv.h
+       fullincdir=/usr/include
+    fi
+    # Get version
+    sslver=`grep OPENSSL_VERSION_NUMBER $verh`
+    set $sslver
+    sslver=$3
+    message "Checking for openssl version"
+    hexver=`echo $sslver | cut -c3-9`
+    decver=`echo "ibase=16;$hexver | bc"`
+    # At leat 0.9.6
+    hexref="0090600"
+    decref=`echo "ibase=16;$hexref | bc"`
+    if [ "$decver" -lt "$decref" ] ; then
+       echo "no: minimal version required is 0.9.6"
+       ssl_incdir=""
+       enable_ssl="no"
+       break
+    else
+       echo "ok"
+    fi
+    #
+    # libraries
+    #
+    ssl_shared="$enable_shared"
+    if test "x$platform" = "xmacosx" ; then
+       ssl_shared=no
+    fi
+    check_library "libssl" "$ssl_shared" "$ssllibdir" \
+        $SSL $SSL/lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
+    if test "x$found_lib" = "x" ; then
+        ssllib=""
+        ssllibdir=""
+        enable_ssl="no"
+        break
+    fi
+    ssllib="$found_lib"
+    ssllibdir="$found_dir"
+    # All libraries in the same directory
+    check_library "libcrypto" "$enable_shared" "$ssllibdir" \
+        $SSL $SSL/lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
+    if test "x$found_lib" = "x" ; then
+        ssllib=""
+        ssllibdir=""
+        enable_ssl="no"
+        break
+    fi
+    if test ! "x$found_dir" = "x$ssllibdir" ; then
+        echo "Found libssl and libcrypto in different paths ... disabling SSL"
+        ssllib=""
+        ssllibdir=""
+        enable_ssl="no"
+        break
+    fi
+    ssllib="$ssllib $found_lib"
+
+    #
+    # header files
+    #
+    incssl="asn1.h asn1_mac.h bio.h dh.h evp.h err.h pem.h \
+            rand.h rsa.h ssl.h x509.h x509v3.h"
+    for i in $incssl ; do
+        check_header "openssl/$i" "" "$fullincdir"
+        if test "x$found_hdr" = "x" ; then
+            sslincdir=""
+            enable_ssl="no"
+            break
+        fi
+    done
+
+    if test "x$enable_ssl" = "xno" ; then
+        ssllib=""
+        ssllibdir=""
+        sslincdir=""
+        sslextracflags=""
+        incssl="INCSSL = "
+        libssl="LIBSSL = "
+    else
+        sslextracflags="-DR__SSL"
+        incssl="INCSSL = -I$sslincdir"
+        libssl="LIBSSL = $ssllibdir $ssllib"
+        xrdsut="XrdSut"
+        xrdcrypto="XrdCrypto"
+    fi
+
+fi
+
+
+######################################################################
+#
+### echo %%% Support for GSI authentication
+#
+#
+gsiextracflags=""
+havegsi=""
+if test ! "x$enable_gsi" = "xno" ; then
+    #
+    message "Enabling GSI authentication module"
+    if test "x$enable_ssl" = "xno" ; then
+       echo "no: GSI authentication requires OpenSSL"
+       enable_gsi="no"
+    else
+       #
+       buildsec="yes"
+       # plug-in name
+       havegsi="XrdSecgsi"
+       # Security utils needed
+       xrdsut="XrdSut"
+       #
+       echo "done"
+    fi
+fi
+
+######################################################################
+#
+### Collect security setup
+xrdsec="XrdSec $xrdsut $xrdcrypto"
+if test "x$buildsec" = "xyes" ; then
+   xrdsec="$xrdsec $havekrb4 $havekrb5 $havepwd $havegsi"
+fi
+cryptlib="CRYPTLIB = -lcrypt"
+if test "x$platform" = "xmacosx" ; then
+   cryptlib=""
 fi
 
 ######################################################################
@@ -1486,7 +1638,7 @@ sed -e "s|@arch@|$arch|"                   \
     -e "s|@type@|$type|"                   \
     -e "s|@rmpath@|$rmpath|"                   \
     -e "s|@lnpath@|$lnpath|"                   \
-    -e "s|@xrdsecplugins@|$xrdsecplugins|" \
+    -e "s|@xrdsec@|$xrdsec|" \
     -e "s|@dbgsfx@|$dbgsfx|g"   \
     -e "s|@dbgmsg@|$dbgmsg|g"   \
     -e "s|@suncache@|$suncache|" \
@@ -1506,10 +1658,14 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@ccflv@|$ccflv|"               \
     -e "s|@threadlib@|$threadlib|"       \
     -e "s|@threadlibdir@|$threadlibdir|" \
+    -e "s|@pwdextracflags@|$pwdextracflags|" \
     -e "s|@inckrb4@|$inckrb4|"           \
     -e "s|@libkrb4@|$libkrb4|"           \
     -e "s|@inckrb5@|$inckrb5|"           \
     -e "s|@libkrb5@|$libkrb5|"           \
+    -e "s|@cryptlib@|$cryptlib|"         \
+    -e "s|@incssl@|$incssl|"           \
+    -e "s|@libssl@|$libssl|"           \
     -e "s|@hasdevpoll@|$hasdevpoll|" \
     -e "s|@hassigwti@|$hassigwti|" \
     -e "s|@hasgethbyxr@|$hasgethbyxr|" \
