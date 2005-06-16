@@ -428,7 +428,7 @@ int XrdXrootdProtocol::do_Login()
    if (CIA)
       {const char *pp=CIA->getParms(i, Link->Name());
        if (pp && i ) {if (!sendSID) rc = Response.Send((void *)pp, i);
-                         else {struct iovec iov[2];
+                         else {struct iovec iov[3];
                                iov[1].iov_base = (char *)&sessID;
                                iov[1].iov_len  = sizeof(sessID);
                                iov[2].iov_base = (char *)pp;
