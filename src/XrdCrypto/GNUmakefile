@@ -139,7 +139,7 @@ $(LIBARCH): $(OBJECTS) $(OBJECTC)
 
 $(LIBRARY): $(OBJECTS) $(OBJECTC) $(LIBUTIL)
 	@echo Creating shared library $(LIBRARY) 
-	$(CC) $(OBJECTS) $(OBJECTC) $(LDSO) $(LIBUTIL) -o $(LIBRARY)
+	$(ECHO)$(CC) $(OBJECTS) $(OBJECTC) $(LDSO) $(LIBUTIL) -o $(LIBRARY)
 
 $(LIBASSL): $(OBJCSSL)
 	@echo Creating archive $(LIBASSL) 
@@ -149,7 +149,7 @@ $(LIBASSL): $(OBJCSSL)
 
 $(LIBCSSL): $(OBJCSSL) $(LIBARCH) $(LIBUTIL)
 	@echo Creating shared library $(LIBCSSL) 
-	$(CC) $(OBJCSSL) $(LDSO) $(LIBSSL) $(LIBARCH) $(LIBUTIL) -o $(LIBCSSL)
+	$(ECHO)$(CC) $(OBJCSSL) $(LDSO) $(LIBSSL) $(LIBARCH) $(LIBUTIL) -o $(LIBCSSL)
 
 $(CRYPTOTEST): $(OBJECTA) $(LIBARCH) $(LIBDEPS)
 	@echo Creating executable $(CRYPTOTEST) 
@@ -160,7 +160,7 @@ $(OBJDIR)/XrdCryptotest.o: XrdCryptotest.cc XrdSutAux.hh XProtocol.hh XrdSutBuck
 			   XrdCryptoMsgDigest.hh XrdCryptoRSA.hh XrdCryptoBasic.hh \
 			   XrdOucString.hh
 	@echo Compiling XrdCryptotest.cc 
-	$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptotest.o XrdCryptotest.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptotest.o XrdCryptotest.cc
 
 $(OBJDIR)/PC1.o: PC1.cc PC1.hh
 	@echo Compiling PC1.cc 
