@@ -22,6 +22,7 @@ SOURCES = \
         XrdOucPthread.cc     \
         XrdOucReqID.cc       \
         XrdOucStream.cc      \
+        XrdOucString.cc      \
         XrdOucTimer.cc       \
         XrdOucTokenizer.cc   \
         XrdOucTrace.cc       \
@@ -41,6 +42,7 @@ OBJECTS = \
         $(OBJDIR)/XrdOucPthread.o      \
         $(OBJDIR)/XrdOucReqID.o        \
         $(OBJDIR)/XrdOucStream.o       \
+        $(OBJDIR)/XrdOucString.o       \
         $(OBJDIR)/XrdOucTimer.o        \
         $(OBJDIR)/XrdOucTokenizer.o    \
         $(OBJDIR)/XrdOucTrace.o        \
@@ -127,6 +129,10 @@ $(OBJDIR)/XrdOucStream.o: XrdOucStream.cc XrdOucStream.hh XrdOucError.hh \
                           XrdOucUtils.hh
 	@echo Compiling XrdOucStream.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucStream.cc -o $(OBJDIR)/XrdOucStream.o
+
+$(OBJDIR)/XrdOucString.o: XrdOucString.cc XrdOucString.hh
+	@echo Compiling XrdOucString.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucString.cc -o $(OBJDIR)/XrdOucString.o
 
 $(OBJDIR)/XrdOucTimer.o: XrdOucTimer.cc XrdOucTimer.hh  
 	@echo Compiling XrdOucTimer.cc
