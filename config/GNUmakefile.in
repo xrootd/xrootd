@@ -6,10 +6,11 @@
 
 # Order in which components must be made
 #
-SERVER  = XrdOuc   XrdNet   XrdSfs   XrdAcc XrdSec @xrdsecplugins@ XrdOdc \
+SERVER  = XrdOuc XrdNet @xrdsec@ \
+          XrdSfs   XrdAcc XrdOdc \
           XrdXr    XrdOss   XrdOfs   XrdOlb Xrd  XrdRootd   XrdXrootd
 
-XRDSEC  = XrdOuc XrdSec @xrdsecplugins@
+XRDSEC  = XrdOuc XrdNet @xrdsec@
 
 XRDCLIENT = XrdClient XrdPosix
 
@@ -89,6 +90,11 @@ XrdClientPerl: FORCE
 	@cd src/XrdClient;\
 	$(MAKE) perlmod ARCH=$(ARCH) --no-print-directory
 
+XrdCrypto: FORCE
+	@echo $(XMSG) crypto $(XDBG) component...
+	$(ECHO)cd src/XrdCrypto;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
 XrdNet: FORCE
 	@echo $(XMSG) ouc $(XDBG) component...
 	@cd src/XrdNet;\
@@ -147,6 +153,21 @@ XrdSeckrb4: FORCE
 XrdSeckrb5: FORCE
 	@echo $(XMSG) seckrb5 $(XDBG) component...
 	$(ECHO)cd src/XrdSeckrb5;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdSecpwd: FORCE
+	@echo $(XMSG) secpwd $(XDBG) component...
+	$(ECHO)cd src/XrdSecpwd;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdSecgsi: FORCE
+	@echo $(XMSG) secgsi $(XDBG) component...
+	$(ECHO)cd src/XrdSecgsi;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdSut: FORCE
+	@echo $(XMSG) sut "(sec utils)" $(XDBG) component...
+	$(ECHO)cd src/XrdSut;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 Xrd: FORCE
