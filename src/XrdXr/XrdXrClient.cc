@@ -52,7 +52,7 @@ XrdXrClient::XrdXrClient(const char* hostname, int port, XrdOucLogger *log)
   fileInfo.open = false;
 
   maxRetry = maxWait = 10;
-  maxWaitTime = 2;
+  maxWaitTime = 3;
  } // Constructor  
 
 /*****************************************************************************/
@@ -222,7 +222,7 @@ int XrdXrClient::open(kXR_char    *path,
       return 0;
       
     default:
-      return status;
+      return mapError(static_cast<int>(status));
     }
   } // while
 
@@ -254,7 +254,7 @@ ssize_t XrdXrClient::read(void       *buffer,
 			  kXR_int64   offset, 
 			  kXR_int32   blen)
 {
-  ssize_t             received = 0;
+  ssize_t        rlen,received = 0;
   int                 rc;
   int                 wait     = 0;      // wait count
   int                 redirect = 0;      // redirect count
@@ -264,12 +264,12 @@ ssize_t XrdXrClient::read(void       *buffer,
   // from a new host in case we get redirected. The "new" read then starts 
   // from the offset relative to what was received before the redirection.
   //
-  while((wait < maxWait) && (redirect < maxRetry)) {
+  while(blen > 0 && (wait < maxWait) && (redirect < maxRetry)) {
 
-    received = worker->read((char*) buffer+received, 
-			    offset+received, blen-received);
+    rlen = worker->read((char*) buffer+received, offset, blen);
    
-    if (received < 0) switch (received) {
+    if (rlen > 0) {received += rlen; offset += rlen; blen -= rlen;}
+       else switch (rlen) {
     case -kXR_redirect:
       if ((rc = reconnect(epname))) { return rc; }
       else {redirect++;
@@ -288,8 +288,9 @@ ssize_t XrdXrClient::read(void       *buffer,
       if (handleWait(worker->getWaitTime(), epname) == 0) {wait++; break;} 
       else { return -EBUSY; }
 
-    default:   
-      return  mapError(static_cast<int>(received));
+    case 0:  return -ETIMEDOUT;
+
+    default: return  mapError(static_cast<int>(rlen));
     } // switch
   } // while
 
@@ -477,7 +478,7 @@ int XrdXrClient::reconnect(const char        *epname)
 int XrdXrClient::handleWait(int waitTime, 
 			    const char *epname)
 {
-  if (waitTime > maxWaitTime) {
+  if (waitTime > maxWait) {
     TRACE(All, "Need to wait " << waitTime << 
           " seconds - longer than max. wait time.");
     return waitTime;

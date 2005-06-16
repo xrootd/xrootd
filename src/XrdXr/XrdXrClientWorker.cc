@@ -589,8 +589,6 @@ int XrdXrClientWorker::stat(struct stat *buffer,
   int                 rc;           // return code
   char               *lasttk;       // For strtok_r()
 
-  TRACE(Stat, "Try to get status for file " << path);
-
   // Check if a optional file path is assigned. If not, we use the default
   // file identified by the file handle. For that case, the file needs to be 
   // open
@@ -604,6 +602,8 @@ int XrdXrClientWorker::stat(struct stat *buffer,
       path = filepath;
     }
   }
+
+  TRACE(Stat, "Try to get status for file " << path);
 
   // Initialise the statRequest structure with the respective parameters
   //
