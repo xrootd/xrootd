@@ -87,14 +87,14 @@ ifeq ($(TYPE),Darwin)
 LIBASSL = $(LIBDIR)/libXrdCryptossl.a
 endif
 
-CRYPTOTEST = $(BINDIR)/XrdCryptotest
+CRYPTOTEST = $(BINDIR)/xrdcryptotest
 
 CRYPTOSSLEXTRACFLAGS = -DOPENSSL_NO_KRB5 -DPERL5
 
 ifneq ($(LIBSSL),)
-TARGETS = $(LIBARCH) $(LIBRARY) $(LIBASSL) $(LIBCSSL) $(CRYPTOTEST)
+TARGETS = $(LIBARCH) $(LIBRARY) $(LIBASSL) $(LIBCSSL)
 else
-TARGETS = $(LIBARCH) $(LIBRARY) $(CRYPTOTEST)
+TARGETS = $(LIBARCH) $(LIBRARY)
 endif
 
 #------------------------------------------------------------------------------#
