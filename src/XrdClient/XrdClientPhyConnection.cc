@@ -78,6 +78,8 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
 
    fReaderthreadhandler = 0;
    fReaderthreadrunning = FALSE;
+
+   fSecProtocol = 0;
 }
 
 //____________________________________________________________________________
