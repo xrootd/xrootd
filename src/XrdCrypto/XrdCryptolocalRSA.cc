@@ -68,6 +68,42 @@ XrdCryptolocalRSA::XrdCryptolocalRSA(const char *pub, int lpub) : XrdCryptoRSA()
    ImportPublic(pub,lpub);
 }
 
+//____________________________________________________________________________
+XrdCryptolocalRSA::XrdCryptolocalRSA(const XrdCryptolocalRSA &r)
+{
+   // Copy Constructor
+   EPNAME("RSA::XrdCryptolocalRSA_copy");
+
+   fPriKey.n.n_len = 0;
+   fPubKey.n.n_len = 0;
+   fPriKey.e.n_len = 0;
+   fPubKey.e.n_len = 0;
+   fPubExport.len = 0;
+   fPubExport.keys = 0;
+
+   // Save Private key
+   rsa_assign(&fPriKey.n, (rsa_NUMBER *)&r.fPriKey.n);
+   rsa_assign(&fPriKey.e, (rsa_NUMBER *)&r.fPriKey.e);
+
+   // Save Public key
+   rsa_assign(&fPubKey.n, (rsa_NUMBER *)&r.fPubKey.n);
+   rsa_assign(&fPubKey.e, (rsa_NUMBER *)&r.fPubKey.e);
+
+   // Export form
+   fPubExport.len = r.fPubExport.len;
+   fPubExport.keys = new char[r.fPubExport.len];
+   if (fPubExport.keys) {
+      memcpy(fPubExport.keys, r.fPubExport.keys, r.fPubExport.len);
+      
+      DEBUG("export pub length: bytes "<< fPubExport.len);
+      DEBUG(fPubExport.keys);
+
+      // Set status
+      status = kComplete;
+   }
+
+}
+
 //_____________________________________________________________________________
 XrdCryptolocalRSA::~XrdCryptolocalRSA()
 {
