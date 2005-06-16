@@ -172,15 +172,14 @@ char *XrdOucUtils::subLogfn(XrdOucError &eDest, const char *inst, char *logfn)
    *sp = '\0';
    strcpy(buff, logfn); 
    strcat(buff, "/");
-   strcat(buff, inst);
-   strcat(buff, "/");
+   if (inst && *inst) {strcat(buff, inst); strcat(buff, "/");}
 
    if ((rc = XrdOucUtils::makePath(buff, lfm)))
       {eDest.Emsg("Config", rc, "create log file path", buff);
        return 0;
       }
 
-   *sp = '/'; strcat(buff, sp);
+   *sp = '/'; strcat(buff, sp+1);
    free(logfn);
    return strdup(buff);
 }
