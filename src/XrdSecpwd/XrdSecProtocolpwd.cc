@@ -3234,8 +3234,10 @@ bool XrdSecProtocolpwd::CheckTimeStamp(XrdSutBuffer *bm, int skew, String &emsg)
 
    // Check inputs
    if (!bm || skew <= 0) { 
-      emsg = "Invalid inputs ("; emsg += (int)bm; emsg += ",";
-      emsg += skew; emsg += ")";
+      if (!bm)
+         emsg = "input buffer undefined ";
+      else
+         emsg = "negative skew: invalid ";
       return 0;
    }
 
