@@ -227,7 +227,6 @@ int XrdSutRndm::GetRndmTag(XrdOucString &rtag)
 unsigned int XrdSutRndm::GetUInt()
 {
    // Static method to return an unsigned int.
-   EPNAME("Rndm::GetUInt");
 
    // Init Random machinery ... if needed
    if (!fgInit) {
