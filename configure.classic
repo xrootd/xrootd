@@ -59,10 +59,8 @@ options="                 \
 for c in $options ; do eval $c="yes" ; done
 
 enable_echo=no
-enable_gsi=no
 enable_mon=yes
 enable_perlint=no
-enable_pwd=no
 enable_thread=yes
 
 #
@@ -488,11 +486,13 @@ To build in debug mode use option '--build=debug' .
 
 enable/disable options, prefix with either --enable- or --disable-
    echo            Enable/disable echoing of commands during building
+   gsi             GSI authentication support, requires OpenSSL
    krb4            Kerberos4 support, requires Kerberos libs
    krb5            Kerberos5 support, requires Kerberos libs
    mon             Enable/disable building of monitoring services
    perlint         Enable/disable building of the perl admin interface
-   ssl             SSL encryption support, requires OpenSSL
+   pwd             Password-based authentication support
+   ssl             Build OpenSSL implementation of crypto interfaces
    trace           Support for trace statements via the "-d" flag
 
 with options, prefix with --with-, enables corresponding support
