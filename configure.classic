@@ -1380,12 +1380,19 @@ if test ! "x$enable_ssl" = "xno" ; then
     sslver=`grep OPENSSL_VERSION_NUMBER $verh`
     set $sslver
     sslver=$3
-    message "Checking for openssl version"
-    hexver=`echo $sslver | cut -c3-9`
-    decver=`echo "ibase=16;$hexver | bc"`
     # At leat 0.9.6
     hexref="0090600"
-    decref=`echo "ibase=16;$hexref | bc"`
+    # For some weird reason solaris does not like the obvious solution
+    if test "x$type" = "xSunOS" ; then
+       hexver=`echo $sslver | cut -c3-9`
+       decver=`echo "ibase=16;$hexver | bc"`
+       decref=`echo "ibase=16;$hexref | bc"`
+    else
+       hexver=`echo $sslver | cut -c3-9`
+       decver=`echo "ibase=16;${hexver}"|bc`
+       decref=`echo "ibase=16;${hexref}"|bc`
+    fi
+    message "Checking for openssl version"
     if [ "$decver" -lt "$decref" ] ; then
        echo "no: minimal version required is 0.9.6"
        ssl_incdir=""
@@ -1398,7 +1405,7 @@ if test ! "x$enable_ssl" = "xno" ; then
     # libraries
     #
     ssl_shared="$enable_shared"
-    if test "x$platform" = "xmacosx" ; then
+    if test "x$type" = "xDarwin" ; then
        ssl_shared=no
     fi
     check_library "libssl" "$ssl_shared" "$ssllibdir" \
