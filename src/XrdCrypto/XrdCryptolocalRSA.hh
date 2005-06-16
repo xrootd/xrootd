@@ -42,6 +42,7 @@ private:
 public:
    XrdCryptolocalRSA(int bits = XrdCryptoMinRSABits, int exp = XrdCryptoDefRSAExp);
    XrdCryptolocalRSA(const char *pub, int lpub = 0);
+   XrdCryptolocalRSA(const XrdCryptolocalRSA &r);
    virtual ~XrdCryptolocalRSA();
 
    // Dump information
