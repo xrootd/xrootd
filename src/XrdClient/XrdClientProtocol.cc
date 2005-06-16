@@ -225,9 +225,9 @@ char *convertRequestIdToChar(kXR_unt16 requestid)
       return (char *)"kXR_endsess";
       break;
    default:
-      return (char *)"kXR_UNKNOWN";
       break;
    }
+   return (char *)"kXR_UNKNOWN";
 }
 
 //___________________________________________________________________________
