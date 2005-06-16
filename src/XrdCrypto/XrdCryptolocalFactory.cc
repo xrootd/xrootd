@@ -230,3 +230,18 @@ XrdCryptoRSA *XrdCryptolocalFactory::RSA(const char *pub, int lpub)
    }
    return (XrdCryptoRSA *)0;
 }
+
+//______________________________________________________________________________
+XrdCryptoRSA *XrdCryptolocalFactory::RSA(const XrdCryptoRSA &r)
+{
+   // Return an instance of a local implementation of XrdCryptoRSA.
+
+   XrdCryptoRSA *rsa = new XrdCryptolocalRSA(*((XrdCryptolocalRSA *)&r));
+   if (rsa) {
+      if (rsa->IsValid())
+         return rsa;
+      else
+         delete rsa;
+   }
+   return (XrdCryptoRSA *)0;
+}

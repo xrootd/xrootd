@@ -49,6 +49,7 @@ public:
    // RSA constructors
    XrdCryptoRSA *RSA(int bits = XrdCryptoDefRSABits, int exp = XrdCryptoDefRSAExp);
    XrdCryptoRSA *RSA(const char *pub, int lpub = 0);
+   XrdCryptoRSA *RSA(const XrdCryptoRSA &r);
 };
 
 #endif
