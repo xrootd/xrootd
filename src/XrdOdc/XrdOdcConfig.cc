@@ -82,6 +82,7 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
    if (getenv("XRDDEBUG")) OdcTrace.What = TRACE_ALL;
    myHost = getenv("XRDHOST");
    myName = getenv("XRDNAME");
+   if (!myName || !*myName) myName = "anon";
    OLBPath= strdup("/tmp/");
 
 // Process the configuration file
@@ -102,7 +103,7 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
 
 // Set proper local socket path
 //
-   temp = XrdOucUtils::genPath(OLBPath, myName, ".olb");
+   temp=XrdOucUtils::genPath(OLBPath,(strcmp("anon",myName)?myName:0), ".olb");
    free(OLBPath); 
    OLBPath = temp;
    i = strlen(OLBPath);

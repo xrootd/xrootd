@@ -41,7 +41,7 @@ int           msgKeep;      // Max message objects to keep
 
 char         *OLBPath;      // Path to the local olb for target nodes
 char         *myHost;
-char         *myName;
+const char   *myName;
 
 XrdOucTList  *ManList;      // List of managers for remote redirection
 XrdOucTList  *PanList;      // List of managers for proxy  redirection
