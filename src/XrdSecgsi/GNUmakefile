@@ -120,7 +120,7 @@ $(OBJDIR)/XrdSecgsitest.o: XrdSecgsitest.cc XrdOucString.hh \
 		XrdCryptosslgsiX509Chain.hh XrdCryptosslgsiAux.hh XrdSecgsiTrace.hh \
 		XrdOucTrace.hh
 	@echo Compiling XrdSecgsitest.cc 
-	$(CC) -c $(CFLAGS) $(GSIEXTRACFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsitest.o XrdSecgsitest.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(GSIEXTRACFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsitest.o XrdSecgsitest.cc
 
 $(OBJDIR)/XrdSecgsiProxy.o: XrdSecgsiProxy.cc XrdOucString.hh \
 		XrdOucError.hh XrdSutAux.hh XProtocol.hh XPtypes.hh XrdCryptoAux.hh \
@@ -129,7 +129,7 @@ $(OBJDIR)/XrdSecgsiProxy.o: XrdSecgsiProxy.cc XrdOucString.hh \
 		XrdCryptosslgsiX509Chain.hh XrdCryptosslgsiAux.hh XrdSecgsiTrace.hh \
 		XrdOucTrace.hh
 	@echo Compiling XrdSecgsiProxy.cc 
-	$(CC) -c $(CFLAGS) $(GSIEXTRACFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsiProxy.o XrdSecgsiProxy.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(GSIEXTRACFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsiProxy.o XrdSecgsiProxy.cc
 
 $(OBJDIR)/XrdSecProtocolgsi.o: XrdSecProtocolgsi.cc XrdOucLogger.hh \
 		XrdOucError.hh XrdOucStream.hh XrdSutCache.hh XPtypes.hh XrdSutPFEntry.hh \
