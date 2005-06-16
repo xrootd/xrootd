@@ -379,7 +379,7 @@ int XrdOssSys::MSS_Xeq(XrdOucStream **xfd, int okerr,
 
 // If we have no gateway command, return an error
 //
-   if (!MSSgwProg) return MSSgwProg->Run(cmd, arg1, arg2);
+   if (!MSSgwProg) return -XRDOSS_E8013;
 
 // Allocate a stream for this command
 //
