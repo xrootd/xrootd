@@ -17,7 +17,6 @@ SOURCES = \
         XrdSutBucket.cc \
 	XrdSutBuckList.cc \
 	XrdSutBuffer.cc \
-	XrdSutPFAdmin.cc \
 	XrdSutPFile.cc \
 	XrdSutPFEntry.cc \
 	XrdSutRndm.cc
@@ -32,15 +31,10 @@ OBJECTS = \
 	$(OBJDIR)/XrdSutPFEntry.o \
 	$(OBJDIR)/XrdSutRndm.o
 
-OBJECTA = \
-        $(OBJDIR)/XrdSutPFAdmin.o
-
 LIBRARY = $(LIBDIR)/libXrdSut.$(TYPESHLIB)
 LIBARCH = $(LIBDIR)/libXrdSut.a
 
-PFADMIN = $(BINDIR)/XrdSutPFAdmin
-
-TARGETS = $(LIBARCH) $(LIBRARY) $(PFADMIN)
+TARGETS = $(LIBARCH) $(LIBRARY)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -77,10 +71,6 @@ $(LIBARCH): $(OBJECTS)
 $(LIBRARY): $(OBJECTS) $(LIBDIR)/libXrdOuc.a
 	@echo Creating shared library $(LIBRARY) 
 	$(ECHO)$(CC) $(OBJECTS) $(LIBDIR)/libXrdOuc.a $(LDSO) -o $(LIBRARY)
-
-$(PFADMIN): $(OBJECTA) $(LIBDEPS)
-	@echo Creating executable $(PFADMIN) 
-	$(ECHO)$(LD) $(OBJECTA) $(LIBDEPS) $(LIBS) -o $(PFADMIN)
 
 $(OBJDIR)/XrdSutPFAdmin.o: XrdSutPFAdmin.cc XrdOucString.hh \
 		XrdSutAux.hh XProtocol.hh XPtypes.hh \
