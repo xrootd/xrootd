@@ -71,11 +71,11 @@ GSIEXTRACFLAGS = $(INCSSL) -DPERL5
 
 LIBRARY = $(LIBDIR)/libXrdSecgsi.$(TYPESHLIB)
 
-SECGSITEST = $(BINDIR)/XrdSecgsitest
+SECGSITEST = $(BINDIR)/xrdsecgsitest
 
 SECGSIPROXY = $(BINDIR)/xrdgsiproxy
 
-TARGETS = $(LIBRARY) $(SECGSITEST) $(SECGSIPROXY)
+TARGETS = $(LIBRARY) $(SECGSIPROXY)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
