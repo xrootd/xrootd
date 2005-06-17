@@ -243,7 +243,6 @@ XrdSecProtocolpwd::XrdSecProtocolpwd(int opts, const char *hname,
       DEBUG("could not create handshake vars object");
    }
 
-  
    // Protocol ID
    strncpy(Entity.prot, XrdSecPROTOIDENT, sizeof(Entity.prot));
 
@@ -802,7 +801,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    int step = 0;
    int nextstep = 0;
    const char *stepstr = 0;
-   int status = 0;
+   kXR_int32 status = 0;
    char *bpub = 0;
    int lpub = 0;
    String CryptList = "";
@@ -816,6 +815,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    XrdSutBuffer *bmai   = 0;  // Main buffer
    // Session status
    pwdStatus_t   SessionSt;
+   memset(&SessionSt,0,sizeof(SessionSt));
 
    // 
    // Unlocks automatically returning
@@ -867,11 +867,13 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
 
    //
    // Get the status bucket, if any
-   if (!(bmai->UnmarshalBucket(kXRS_status,status))) {
-      SessionSt = *((pwdStatus_t *)&status);
+   if ((bck = bmai->GetBucket(kXRS_status))) {
+     memcpy(&SessionSt,bck->buffer,sizeof(pwdStatus_t));
+     SessionSt.options = ntohs(SessionSt.options);
+     bmai->Deactivate(kXRS_status);
    } else {
       SessionSt.ctype = kpCT_normal;
-   }
+   }   
    //
    // Now action depens on the step
    nextstep = kXPC_none;
@@ -991,10 +993,14 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    }
    //
    // Add / Update status
-   status = *((kXR_int32 *)&SessionSt);
-   if (bmai->MarshalBucket(kXRS_status,status) != 0) 
-      return ErrC(ei,bpar,bmai,0,
-              kPWErrMarshal,XrdSutBuckStr(kXRS_status),stepstr);
+   char *bstat = new char[sizeof(pwdStatus_t)];
+   if (bstat) {
+       SessionSt.options = htons(SessionSt.options);
+       memcpy(bstat,&SessionSt,sizeof(pwdStatus_t));
+       if (bmai->AddBucket(bstat,sizeof(pwdStatus_t), kXRS_status) != 0) {
+          DEBUG("problems adding bucket kXRS_status");
+       }
+   }
    //
    // Serialize and encrypt
    if (AddSerialized('c', nextstep, hs->ID,
@@ -1063,7 +1069,6 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    // Local vars 
    int i = 0;
    int kS_rc = kpST_more;
-   int status = kpST_ok;
    int rc = 0;
    int entst = 0;
    int step = 0;
@@ -1118,8 +1123,13 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    }
    //
    // Get handshake status
-   bmai->UnmarshalBucket(kXRS_status,status); 
-   SessionSt = *((pwdStatus_t *)&status);
+   if ((bck = bmai->GetBucket(kXRS_status))) {
+      memcpy(&SessionSt,bck->buffer,sizeof(pwdStatus_t));
+      SessionSt.options = ntohs(SessionSt.options);
+      bmai->Deactivate(kXRS_status);
+   } else {
+      DEBUG("no bucket kXRS_status found in main buffer");
+   }   
    hs->Tty = SessionSt.options & kOptsClntTty;
    //
    // Indicate who we are
@@ -1361,10 +1371,14 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
          }
       //
       // We set some options in the option field of a pwdStatus_t structure
-      status = *((kXR_int32 *)&SessionSt);
-      if (bmai->MarshalBucket(kXRS_status,status) != 0) 
-         return ErrS(hs->ID,ei,bpar,bmai,0, kPWErrMarshal,
-                            XrdSutBuckStr(kXRS_status),stepstr);
+      char *bstat = new char[sizeof(pwdStatus_t)];
+      if (bstat) {
+         SessionSt.options = htons(SessionSt.options);
+         memcpy(bstat,&SessionSt,sizeof(pwdStatus_t));
+         if (bmai->AddBucket(bstat,sizeof(pwdStatus_t), kXRS_status) != 0) {
+            DEBUG("problems adding bucket kXRS_status");
+         }
+      }
       // 
       // Serialize, encrypt and add to the global list
       if (AddSerialized('s', nextstep, hs->ID,
