@@ -16,9 +16,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <openssl/err.h>
 #include <openssl/asn1.h>
 #include <openssl/asn1_mac.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
@@ -423,7 +424,8 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
 
    //
    // Init OpenSSL
-   OpenSSL_add_all_algorithms();
+   OpenSSL_add_all_ciphers();
+   OpenSSL_add_all_digests();
    ERR_load_crypto_strings();
 
    // Use default options, if not specified
