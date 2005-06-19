@@ -635,6 +635,13 @@ void XrdSecProtocolgsi::Delete()
    if (Entity.host) free(Entity.host);
    // Cleanup the handshake variables, if still there
    SafeDelete(hs);
+   // Cleanup any other instance specific to this protocol
+   SafeDelete(sessionKey);    // Session Key (result of the handshake)
+   SafeDelete(bucketKey);     // Bucket with the key in export form
+   SafeDelete(sessionMD);  // Message Digest instance
+   SafeDelete(sessionKsig);   // RSA key to sign
+   SafeDelete(sessionKver);   // RSA key to verify
+
    delete this;
 }
 
@@ -1851,7 +1858,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       emsg = "server certificate contains an invalid key";
       return -1;
    }
-
+ 
    // Deactivate what not needed any longer
    br->Deactivate(kXRS_puk);
    br->Deactivate(kXRS_x509);
