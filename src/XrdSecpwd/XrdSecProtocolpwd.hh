@@ -241,7 +241,7 @@ public:
                  LastStep = 0;
                  Status.ctype = 0; Status.action = 0; Status.options = 0; }
 
-   ~pwdHSVars() { if (Cref) delete Cref; }
+   ~pwdHSVars() { SafeDelete(Cref); SafeDelete(Hcip); }
 };
 
 
