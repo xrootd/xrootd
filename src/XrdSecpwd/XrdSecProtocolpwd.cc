@@ -914,6 +914,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
          if (bpar->UpdateBucket(bpub,lpub,kXRS_puk) != 0)
             return ErrC(ei,bpar,bmai,0, kPWErrAddBucket,
                         XrdSutBuckStr(kXRS_puk),"global",stepstr);
+         SafeDelete(bpub);
          //
          // If we are requiring server verification of puk ownership
          // we are done for this step
