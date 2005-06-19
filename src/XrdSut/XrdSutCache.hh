@@ -30,13 +30,13 @@ private:
    XrdSutPFEntry **cachent; // Pointers to filled entries
    kXR_int32       utime;   // time at which was last updated
    int             lifetime; // lifetime (in secs) of the cache info 
-   XrdOucHash<kXR_int32> *hashtable; // Reflects the file index structure
+   XrdOucHash<kXR_int32> hashtable; // Reflects the file index structure
    kXR_int32       htmtime;   // time at which hash table was last rebuild
    XrdOucString    pfile;   // file name (if loaded from file)
 
 public:
    XrdSutCache() { cachemx = -1; cachesz = 0; cachent = 0; lifetime = 300;
-                   utime = -1; hashtable = 0; htmtime = -1; pfile = "";}
+                   utime = -1; htmtime = -1; pfile = "";}
    virtual ~XrdSutCache();
 
    // Status

@@ -43,7 +43,6 @@ XrdSutCache::~XrdSutCache()
    // Cleanup table
    if (cachent)
       delete[] cachent;
-
 }
 
 //__________________________________________________________________
@@ -105,15 +104,10 @@ XrdSutPFEntry *XrdSutCache::Get(const char *ID, bool *wild)
    }
 
    // Look in the hash first
-   if (hashtable) {
-      kXR_int32 *ie = hashtable->Find(ID);
-      if (ie && *ie >= 0 && *ie < cachesz) {
-         // Return the associated entry
-         return cachent[*ie];
-      }
-   } else {
-      DEBUG("hash table undefined");
-      return (XrdSutPFEntry *)0 ;
+   kXR_int32 *ie = hashtable.Find(ID);
+   if (ie && *ie >= 0 && *ie < cachesz) {
+      // Return the associated entry
+      return cachent[*ie];
    }
 
    // If wild cards allowed search sequentially
@@ -243,15 +237,10 @@ bool XrdSutCache::Remove(const char *ID, int opt)
    if (opt == 1) {
       int pos = -1;
       // Look in the hash first
-      if (hashtable) {
-         kXR_int32 *ie = hashtable->Find(ID);
-         if (*ie >= 0 && *ie < cachesz) {
-            // Return the associated entry
-            pos = *ie;
-         }
-      } else {
-         DEBUG("hash tabel undefined");
-         return 0 ;
+      kXR_int32 *ie = hashtable.Find(ID);
+      if (*ie >= 0 && *ie < cachesz) {
+         // Return the associated entry
+         pos = *ie;
       }
       
       //
@@ -535,16 +524,8 @@ int XrdSutCache::Rehash(bool force)
       return 0;
    }
 
-   // Clean up the hash table or create it
-   if (hashtable)
-      hashtable->Purge();
-   else
-      hashtable = new XrdOucHash<kXR_int32>;
-   // Make sure we have it
-   if (!hashtable) {
-      DEBUG("Out-Of-Memory creating hash table");
-      return -1;
-   }
+   // Clean up the hash table
+   hashtable.Purge();
 
    kXR_int32 i = 0, nht = 0;
    for (; i <= cachemx; i++) {
@@ -552,7 +533,7 @@ int XrdSutCache::Rehash(bool force)
          // Fill the hash table 
          kXR_int32 *key = new kXR_int32(i);
          if (key) {
-            hashtable->Add(cachent[i]->name,key);
+            hashtable.Add(cachent[i]->name,key);
             nht++;
          }
       }
