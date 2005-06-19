@@ -159,7 +159,8 @@ public:
                  RtagOK = 0; Tty = 0; LastStep = 0; }
 
    ~gsiHSVars() { SafeDelete(Cref);
-                  if (Chain) Chain->Cleanup(1); SafeDelete(Chain); }
+                  if (Chain) Chain->Cleanup(1); SafeDelete(Chain);
+                  if (PxyChain) Chain->Cleanup(1); SafeDelete(PxyChain); }
 };
 
 // From a proxy query
