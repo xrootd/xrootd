@@ -55,7 +55,7 @@ static int XrdCryptolocalKDFun(const char *pass, int plen,
    int it = 63254;
    //
    // Extract iteration number from salt, if any
-   char *ibeg = (char *)strchr(salt+1,'$');
+   char *ibeg = (char *)memchr(salt+1,'$',slen-1);
    if (ibeg) {
       char *del = 0;
       int newit = strtol(ibeg+1, &del, 10);
