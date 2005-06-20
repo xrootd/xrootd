@@ -1429,94 +1429,87 @@ char *XrdSecProtocolgsiInit(const char mode,
 
    //
    // Server initialization
-   // 
-   // Duplicate the parms
-   char parmbuff[1024];
-   if (parms) 
+   if (parms) {
+      // 
+      // Duplicate the parms
+      char parmbuff[1024];
       strlcpy(parmbuff, parms, sizeof(parmbuff));
-   else {
-      char *msg = (char *)"parameters not specified.";
-      if (erp) 
-         erp->setErrInfo(EINVAL, msg);
-      else 
-         cerr <<msg <<endl;
-      return (char *)0;
-   }
-   //
-   // The tokenizer
-   XrdOucTokenizer inParms(parmbuff);
-
-   //
-   // Decode parms:
-   // for servers:
-   //              [-d:<debug_level>]
-   //              [-c:[-]ssl[:[-]<CryptoModuleName]]
-   //              [-certdir:<dir_with_CA_info>]
-   //              [-crldir:<dir_with_CRL_info>]
-   //              [-crlext:<default_extension_CRL_files>]
-   //              [-cert:<path_to_server_certificate>]
-   //              [-key:<path_to_server_key>]
-   //              [-cipher:<list_of_supported_ciphers>]
-   //              [-md:<list_of_supported_digests>]
-   //              [-crl:<crl_check_level>]
-   //
-   int debug = -1;
-   String clist = "";
-   String certdir = "";
-   String crldir = "";
-   String crlext = "";
-   String cert = "";
-   String key = "";
-   String cipher = "";
-   String md = "";
-   int crl = 2;
-   char *op = 0;
-   if (inParms.GetLine()) { 
-      while ((op = inParms.GetToken())) {
-         if (!strncmp(op, "-d:",3))
-            debug = atoi(op+3);
-         if (!strncmp(op, "-c:",3))
-            clist = (const char *)(op+3);
-         if (!strncmp(op, "-certdir:",9))
-            certdir = (const char *)(op+9);
-         if (!strncmp(op, "-crldir:",8))
-            crldir = (const char *)(op+8);
-         if (!strncmp(op, "-crlext:",8))
-            crlext = (const char *)(op+8);
-         if (!strncmp(op, "-cert:",6))
-            cert = (const char *)(op+6);
-         if (!strncmp(op, "-key:",5))
-            key = (const char *)(op+5);
-         if (!strncmp(op, "-cipher:",8))
-            cipher = (const char *)(op+8);
-         if (!strncmp(op, "-md:",4))
-            md = (const char *)(op+4);
-         if (!strncmp(op, "-crl:",5))
-            crl = atoi(op+5);
-      }
-   }
+      //
+      // The tokenizer
+      XrdOucTokenizer inParms(parmbuff);
       
-   //
-   // Build the option object
-   opts.debug = debug;
-   opts.mode = 's';
-   opts.crl = crl;
-   if (clist.length() > 0)
-      opts.clist = (char *)clist.c_str();
-   if (certdir.length() > 0)
-      opts.certdir = (char *)certdir.c_str();
-   if (crldir.length() > 0)
-      opts.crldir = (char *)crldir.c_str();
-   if (crlext.length() > 0)
-      opts.crlext = (char *)crlext.c_str();
-   if (cert.length() > 0)
-      opts.cert = (char *)cert.c_str();
-   if (key.length() > 0)
-      opts.key = (char *)key.c_str();
-   if (cipher.length() > 0)
-      opts.cipher = (char *)cipher.c_str();
-   if (md.length() > 0)
-      opts.md = (char *)md.c_str();
+      //
+      // Decode parms:
+      // for servers:
+      //              [-d:<debug_level>]
+      //              [-c:[-]ssl[:[-]<CryptoModuleName]]
+      //              [-certdir:<dir_with_CA_info>]
+      //              [-crldir:<dir_with_CRL_info>]
+      //              [-crlext:<default_extension_CRL_files>]
+      //              [-cert:<path_to_server_certificate>]
+      //              [-key:<path_to_server_key>]
+      //              [-cipher:<list_of_supported_ciphers>]
+      //              [-md:<list_of_supported_digests>]
+      //              [-crl:<crl_check_level>]
+      //
+      int debug = -1;
+      String clist = "";
+      String certdir = "";
+      String crldir = "";
+      String crlext = "";
+      String cert = "";
+      String key = "";
+      String cipher = "";
+      String md = "";
+      int crl = 2;
+      char *op = 0;
+      if (inParms.GetLine()) { 
+         while ((op = inParms.GetToken())) {
+            if (!strncmp(op, "-d:",3))
+               debug = atoi(op+3);
+            if (!strncmp(op, "-c:",3))
+               clist = (const char *)(op+3);
+            if (!strncmp(op, "-certdir:",9))
+               certdir = (const char *)(op+9);
+            if (!strncmp(op, "-crldir:",8))
+               crldir = (const char *)(op+8);
+            if (!strncmp(op, "-crlext:",8))
+               crlext = (const char *)(op+8);
+            if (!strncmp(op, "-cert:",6))
+               cert = (const char *)(op+6);
+            if (!strncmp(op, "-key:",5))
+               key = (const char *)(op+5);
+            if (!strncmp(op, "-cipher:",8))
+               cipher = (const char *)(op+8);
+            if (!strncmp(op, "-md:",4))
+               md = (const char *)(op+4);
+            if (!strncmp(op, "-crl:",5))
+               crl = atoi(op+5);
+         }
+      }
+         
+      //
+      // Build the option object
+      opts.debug = debug;
+      opts.mode = 's';
+      opts.crl = crl;
+      if (clist.length() > 0)
+         opts.clist = (char *)clist.c_str();
+      if (certdir.length() > 0)
+         opts.certdir = (char *)certdir.c_str();
+      if (crldir.length() > 0)
+         opts.crldir = (char *)crldir.c_str();
+      if (crlext.length() > 0)
+         opts.crlext = (char *)crlext.c_str();
+      if (cert.length() > 0)
+         opts.cert = (char *)cert.c_str();
+      if (key.length() > 0)
+         opts.key = (char *)key.c_str();
+      if (cipher.length() > 0)
+         opts.cipher = (char *)cipher.c_str();
+      if (md.length() > 0)
+         opts.md = (char *)md.c_str();
+   }
    //
    // Setup the plug-in with the chosen options
    return XrdSecProtocolgsi::Init(opts,erp);
