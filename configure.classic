@@ -1393,7 +1393,7 @@ if test ! "x$enable_ssl" = "xno" ; then
        decref=`echo "ibase=16;${hexref}"|bc`
     fi
     message "Checking for openssl version"
-    if [ "$decver" -lt "$decref" ] ; then
+    if [ "${decver}" -lt "${decref}" ] ; then
        echo "no: minimal version required is 0.9.6"
        ssl_incdir=""
        enable_ssl="no"
@@ -1418,8 +1418,11 @@ if test ! "x$enable_ssl" = "xno" ; then
     fi
     ssllib="$found_lib"
     ssllibdir="$found_dir"
+    if test ! "x$found_lib" = "x-lssl" && test ! "x$ssl_shared" = "xno" ; then
+        ssl_shared=no
+    fi
     # All libraries in the same directory
-    check_library "libcrypto" "$enable_shared" "$ssllibdir" \
+    check_library "libcrypto" "$ssl_shared" "$ssllibdir" \
         $SSL $SSL/lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
     if test "x$found_lib" = "x" ; then
         ssllib=""
@@ -1427,28 +1430,24 @@ if test ! "x$enable_ssl" = "xno" ; then
         enable_ssl="no"
         break
     fi
-    if test ! "x$found_dir" = "x$ssllibdir" ; then
-        echo "Found libssl and libcrypto in different paths ... disabling SSL"
-        ssllib=""
-        ssllibdir=""
-        enable_ssl="no"
-        break
-    fi
     ssllib="$ssllib $found_lib"
-
     #
     # header files
     #
-    incssl="asn1.h asn1_mac.h bio.h dh.h evp.h err.h pem.h \
-            rand.h rsa.h ssl.h x509.h x509v3.h"
-    for i in $incssl ; do
-        check_header "openssl/$i" "" "$fullincdir"
-        if test "x$found_hdr" = "x" ; then
-            sslincdir=""
-            enable_ssl="no"
-            break
-        fi
-    done
+    if test "x$enable_ssl" = "xyes" ; then
+     
+       incssl="asn1.h asn1_mac.h bio.h dh.h evp.h err.h pem.h \
+               rand.h rsa.h ssl.h x509.h x509v3.h"
+       for i in $incssl ; do
+           check_header "openssl/$i" "" "$fullincdir"
+           if test "x$found_hdr" = "x" ; then
+               sslincdir=""
+               enable_ssl="no"
+               break
+           fi
+       done
+
+    fi
 
     if test "x$enable_ssl" = "xno" ; then
         ssllib=""
