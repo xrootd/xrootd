@@ -98,8 +98,8 @@ XrdOucMutex XrdSecProtocolgsi::gsiContext;
 String XrdSecProtocolgsi::CAdir    = "/etc/grid-security/certificates/";
 String XrdSecProtocolgsi::CRLdir   = "/etc/grid-security/certificates/";
 String XrdSecProtocolgsi::DefCRLext= ".r0";
-String XrdSecProtocolgsi::SrvCert  = "/etc/grid-security/root/rootcert.pem";
-String XrdSecProtocolgsi::SrvKey   = "/etc/grid-security/root/rootkey.pem";
+String XrdSecProtocolgsi::SrvCert  = "/etc/grid-security/xrd/xrdcert.pem";
+String XrdSecProtocolgsi::SrvKey   = "/etc/grid-security/xrd/xrdkey.pem";
 String XrdSecProtocolgsi::UsrProxy = "/tmp/x509up_u";
 String XrdSecProtocolgsi::UsrCert  = "/.globus/usercert.pem";
 String XrdSecProtocolgsi::UsrKey   = "/.globus/userkey.pem";;
@@ -1509,9 +1509,12 @@ char *XrdSecProtocolgsiInit(const char mode,
          opts.cipher = (char *)cipher.c_str();
       if (md.length() > 0)
          opts.md = (char *)md.c_str();
+      //
+      // Setup the plug-in with the chosen options
+      return XrdSecProtocolgsi::Init(opts,erp);
    }
    //
-   // Setup the plug-in with the chosen options
+   // Setup the plug-in with the defaults
    return XrdSecProtocolgsi::Init(opts,erp);
 }}
 
