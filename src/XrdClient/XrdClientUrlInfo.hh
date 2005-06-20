@@ -4,8 +4,8 @@
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
-//  Alvise Dorigo, Fabrizio Furano                                      //
-//          INFN Padova, 2003                                           //
+// Alvise Dorigo, Fabrizio Furano, INFN Padova, 2003                    //
+// Revised by G. Ganis, CERN, June 2005                                 //
 //                                                                      //
 // Class handling information about an url                              //
 //                                                                      //
@@ -18,8 +18,11 @@
 
 #include "XrdClient/XrdClientString.hh"
 
+//
 // The information an url may contain
 // Plus utilities for parsing and rebuilding an url
+//
+
 class XrdClientUrlInfo {
  public:
    XrdClientString Proto;
@@ -30,20 +33,22 @@ class XrdClientUrlInfo {
    XrdClientString HostAddr;
    XrdClientString HostWPort;
    XrdClientString File;
+   XrdClientString Url;
 
    void Clear();
    void TakeUrl(XrdClientString url);
    XrdClientString GetUrl();
 
    XrdClientUrlInfo(XrdClientString url);
+   XrdClientUrlInfo(const XrdClientUrlInfo &url);
    XrdClientUrlInfo();
 
    void SetAddrFromHost();
 
-   inline bool IsValid() {
-      return (Port >= 0);
-   }
+   inline bool IsValid() { return (Port >= 0); }
 
+   XrdClientUrlInfo &operator=(const XrdClientString url);
+   XrdClientUrlInfo &operator=(const XrdClientUrlInfo url);
 };
 
 
