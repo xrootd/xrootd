@@ -65,7 +65,7 @@ XrdClientAdmin::XrdClientAdmin(const char *url) {
 	 "",
 	 "(C) 2004 SLAC XrdClientAdmin " << XRD_CLIENT_VERSION);
 
-   fInitialUrl.TakeUrl(url);
+   fInitialUrl = url;
 
    fConnModule = new XrdClientConn();
 

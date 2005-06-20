@@ -74,7 +74,8 @@ private:
 
    bool                        fUseCache;
 
-   XrdClientUrlInfo            fInitialUrl;
+   XrdClientString             fInitialUrl;
+   XrdClientUrlInfo            fUrl;
 
    bool                        TryOpen(kXR_unt16 mode,
 				       kXR_unt16 options);

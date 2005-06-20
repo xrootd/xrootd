@@ -29,7 +29,7 @@ void joinStrings(XrdClientString &buf, vecString vs);
 
 class XrdClientAdmin : public XrdClientAbs {
 
-   XrdClientUrlInfo                fInitialUrl;
+   XrdClientString                 fInitialUrl;
 
  protected:
 

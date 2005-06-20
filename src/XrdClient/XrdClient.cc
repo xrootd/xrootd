@@ -47,7 +47,7 @@ XrdClient::XrdClient(const char *url) {
 
    signal(SIGPIPE, SIG_IGN);
 
-   fInitialUrl.TakeUrl((char *)url);
+   fInitialUrl = url;
 
    fConnModule = new XrdClientConn();
 
@@ -141,6 +141,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 		".");
 
         fConnModule->SetUrl(*thisUrl);
+        fUrl = *thisUrl;
         
 	Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
 	     "Working url is " << thisUrl->GetUrl());
@@ -209,12 +210,12 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
      // let's continue with the openfile sequence
 
      Info(XrdClientDebug::kUSERDEBUG,
-	  "Create", "Opening the remote file " << fInitialUrl.File); 
+	  "Create", "Opening the remote file " << fUrl.File); 
 
      if (!TryOpen(mode, options)) {
 	Error("Create", "Error opening the file " <<
-	      fInitialUrl.File << " on host " << fInitialUrl.Host << ":" <<
-	      fInitialUrl.Port);
+	      fUrl.File << " on host " << fUrl.Host << ":" <<
+	      fUrl.Port);
 
 	return FALSE;
 
@@ -409,7 +410,7 @@ bool XrdClient::Sync()
 bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options) {
    
    // First attempt to open a remote file
-   bool lowopenRes = LowOpen(fInitialUrl.File.c_str(), mode, options);
+   bool lowopenRes = LowOpen(fUrl.File.c_str(), mode, options);
 
    if (lowopenRes) return TRUE;
 
@@ -435,7 +436,7 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options) {
 	   ". Refreshing cache. Opaque info: " << opinfo);
 
       if ( (fConnModule->GoToAnotherServer(*fConnModule->GetLBSUrl()) == kOK) &&
-	   LowOpen(fInitialUrl.File.c_str(),
+	   LowOpen(fUrl.File.c_str(),
 		   mode, options | kXR_refresh,
 		   (char *)opinfo.c_str() ) )
 	 return TRUE;
@@ -526,13 +527,13 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
    memset(statFileRequest.stat.reserved, 0, 
           sizeof(statFileRequest.stat.reserved));
 
-   statFileRequest.stat.dlen = fInitialUrl.File.GetSize();
+   statFileRequest.stat.dlen = fUrl.File.GetSize();
    
    char fStats[2048];
    memset(fStats, 0, 2048);
 
    bool ok = fConnModule->SendGenCommand(&statFileRequest,
-					 (const char*)fInitialUrl.File.c_str(),
+					 (const char*)fUrl.File.c_str(),
 					 0, fStats , FALSE, (char *)"Stat");
    
    if (ok) {
