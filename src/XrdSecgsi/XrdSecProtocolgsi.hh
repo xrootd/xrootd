@@ -127,7 +127,7 @@ public:
    int    deplen; // [c] depth of signature path for proxies [0] 
    int    bits;   // [c] bits in PKI for proxies [512] 
 
-   gsiOptions() { debug = -1; mode = -1; clist = 0; 
+   gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
                   cipher = 0; md = 0; crl = 1;
                   proxy = 0; valid = 0; deplen = 0; bits = 512;}
