@@ -4,8 +4,8 @@
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
-//  Alvise Dorigo, Fabrizio Furano                                      //
-//          INFN Padova, 2003                                           //
+// Alvise Dorigo, Fabrizio Furano, INFN Padova, 2003                    //
+// Revised by G. Ganis, CERN, June 2005                                 //
 //                                                                      //
 // A container for multiple urls to be resolved through DNS aliases     //
 //                                                                      //
@@ -16,51 +16,42 @@
 #ifndef _XRC_URLSET_H
 #define _XRC_URLSET_H
 
-#include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClientVector.hh"
 
 using namespace std;
 
+class XrdClientString;
+class XrdClientUrlInfo;
 
 typedef XrdClientVector<XrdClientUrlInfo*> UrlArray;
 
+//
+// Manages a set of XrdClientUrlInfo objects and provides a set
+// of utilities to resolve multiple addresses from the dns
+// and to pick urls sequentially and randomly an url
+//
 
-// Manages a set of XrdClientUrlInfo objects
-// Plus
-//  funcs to resolve multiple addresses from the dns
-//  funcs to pick urls sequantially and randomly
 class XrdClientUrlSet {
- private:
-   UrlArray fUrlArray, fTmpUrlArray;
-   XrdClientString fPathName;
+private:
+   UrlArray        fUrlArray;
+   UrlArray        fTmpUrlArray;
+   XrdClientString    fPathName;
    
-   bool fIsValid;
+   bool            fIsValid;
+   unsigned int    fSeed;
 
-   unsigned int fSeed;
-   double GetRandom(int seed = 0);
+   void            CheckPort(int &port);
+   void            ConvertDNSAlias(UrlArray& urls, XrdClientString proto,
+                                   XrdClientString host, XrdClientString file);
+   double          GetRandom(int seed = 0);
 
-   void CheckPort(XrdClientString &machine);
-
-   // Takes a sequence of hostname and resolves it into a vector of UrlInfo
-   void ConvertDNSAliases(UrlArray& urls, XrdClientString list, XrdClientString fname);
-   void ConvertSingleDNSAlias(UrlArray& urls, XrdClientString hostname, XrdClientString fname);
-
- public:
-   XrdClientUrlSet(XrdClientUrlInfo);
+public:
+   XrdClientUrlSet(XrdClientString urls);
    ~XrdClientUrlSet();
 
    // Returns the final resolved list of servers
-   XrdClientString GetServers() {
-      XrdClientString s;
-
-      for ( int i = 0; i < fUrlArray.GetSize(); i++ ) {
-	 s += fUrlArray[i]->Host;
-	 s += "\n";
-      }
-
-      return s;
-   }
+   XrdClientString   GetServers();
 
    // Gets the subsequent Url, the one after the last given
    XrdClientUrlInfo *GetNextUrl();
@@ -69,17 +60,17 @@ class XrdClientUrlSet {
    //  i.e. while there are not considered urls, never pick an already seen one
    XrdClientUrlInfo *GetARandomUrl();
 
-   void Rewind();
-   void ShowUrls();
-   void EraseUrl(XrdClientUrlInfo *url);
+   void              Rewind();
+   void              ShowUrls();
+   void              EraseUrl(XrdClientUrlInfo *url);
 
    // Returns the number of urls
-   int Size() { return fUrlArray.GetSize(); }
+   int               Size() { return fUrlArray.GetSize(); }
 
    // Returns the pathfile extracted from the CTOR's argument
-   XrdClientString GetFile() { return fPathName; }
+   XrdClientString   GetFile() { return fPathName; }
 
-   bool IsValid() { return fIsValid; }    // Return kFALSE if the CTOR's argument is malformed
+   bool              IsValid() { return fIsValid; } // Spot malformations
 
 };
 
