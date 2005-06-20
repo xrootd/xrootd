@@ -209,7 +209,7 @@ public:
    char  *alogfile;     // [c] autologin file [$HOME/.xrd/pwdnetrc]
    char  *srvpuk;       // [c] file with server puks [$HOME/.xrd/pwdsrvpuk]
 
-   pwdOptions() { debug = -1; mode = -1; areg = -1; upwd = -1; alog = -1;
+   pwdOptions() { debug = -1; mode = 's'; areg = -1; upwd = -1; alog = -1;
                   verisrv = -1; vericlnt = -1;
                   syspwd = -1; lifecreds = -1; maxprompts = -1; maxfailures = -1;
                   clist = 0; dir = 0; udir = 0; cpass = 0; alogfile = 0; srvpuk = 0; }
@@ -264,7 +264,6 @@ public:
         virtual ~XrdSecProtocolpwd() {} // Delete() does it all
 
         // Initialization methods
-        static int        Configure(bool server, const char *fn);
         static char      *Init(pwdOptions o, XrdOucErrInfo *erp);
 
         void              Delete();
