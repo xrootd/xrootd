@@ -1493,10 +1493,10 @@ char *XrdSecProtocolpwdInit(const char mode,
 
    //
    // Server initialization
-   char parmbuff[1024];
    if (parms) {
       // 
       // Duplicate the parms
+      char parmbuff[1024];
       strlcpy(parmbuff, parms, sizeof(parmbuff));
       //
       // The tokenizer
@@ -1583,9 +1583,12 @@ char *XrdSecProtocolpwdInit(const char mode,
          opts.clist = (char *)clist.c_str();
       if (cpass.length() > 0)
          opts.cpass = (char *)cpass.c_str();
+      //
+      // Setup the plug-in with the chosen options
+      return XrdSecProtocolpwd::Init(opts,erp);
    }
    //
-   // Setup the plug-in with the chosen options
+   // Setup the plug-in with the defaults
    return XrdSecProtocolpwd::Init(opts,erp);
 }}
 
