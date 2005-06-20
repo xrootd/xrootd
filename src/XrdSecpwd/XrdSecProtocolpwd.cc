@@ -164,7 +164,7 @@ int  XrdSecProtocolpwd::AutoReg     = kpAR_none; // [S] Autoreg mode
 int  XrdSecProtocolpwd::LifeCreds   = 0; // [S] if > 0, time interval of validity for creds
 int  XrdSecProtocolpwd::MaxPrompts  = 3; // [C] Repeating prompt
 int  XrdSecProtocolpwd::MaxFailures = 10;// [S] Max passwd failures before blocking
-int  XrdSecProtocolpwd::AutoLogin   = 1; // [C] do-not-check/check/update autologin info
+int  XrdSecProtocolpwd::AutoLogin   = 0; // [C] do-not-check/check/update autologin info
 int  XrdSecProtocolpwd::TimeSkew    = 300; // [CS] Allowed skew in secs for time stamps 
 //
 // Debug an tracing
@@ -1493,110 +1493,97 @@ char *XrdSecProtocolpwdInit(const char mode,
 
    //
    // Server initialization
-   // 
-   // Duplicate the parms
    char parmbuff[1024];
-   if (parms) 
+   if (parms) {
+      // 
+      // Duplicate the parms
       strlcpy(parmbuff, parms, sizeof(parmbuff));
-   else {
-      char *msg = (char *)"parameters not specified.";
-      if (erp) 
-         erp->setErrInfo(EINVAL, msg);
-      else 
-         cerr <<msg <<endl;
-      return (char *)0;
-   }
-   //
-   // The tokenizer
-   XrdOucTokenizer inParms(parmbuff);
-
-   //
-   // Decode parms:
-   // for servers: [-upwd:<user_pwd_option>]
-   //              [-a:<autoreg_level>]
-   //              [-vc:<client_verification_level>]
-   //              [-dir:<dir_with_pwd_info>]
-   //              [-udir:<sub_dir_with_user_pwd_info>]
-   //              [-c:[-]ssl[:[-]<CryptoModuleName]]
-   //              [-cfg:<alternative_config_file>]
-   //              [-d:<debug_level>]
-   //              [-syspwd]
-   //              [-lf:<credential_lifetime>]
-   //              [-maxfail:<max_number_of_failures>]
-   //
-   // <user_pwd_opt> = 0 (do-not-use), 1 (use), 2 (also-crypt-hash)
-   // <debug_level> = 0 (none), 1 (low), 2 (medium), 3 (high)   [0]
-   // <autoreg_level> = 0 (none), 1 (local users + allowed tags), 2 (all) [0]
-   // <credential_lifetime> = 1d, 5h:10m, ... (see XrdSutAux::ParseTime)
-   // <client_verification_level> = 0 (none), 1 (timestamp), 2 (random tag) [2]
-   //
-   int debug = -1;
-   int areg = -1;
-   int vc = -1;
-   int upw = -1;
-   int syspwd = -1;
-   int lifetime = -1;
-   int maxfail = -1;
-   String dir = "";
-   String udir = "";
-   String clist = "";
-   String cpass = "";
-   String cfg = "";
-   char *op = 0;
-   if (inParms.GetLine()) { 
-      while ((op = inParms.GetToken())) {
-         if (!strncmp(op, "-upwd",5))
-            upw = atoi(op+6);
-         if (!strncmp(op, "-dir",4))
-            dir = (const char *)(op+5);
-         if (!strncmp(op, "-udir",5))
-            udir = (const char *)(op+6);
-         if (!strncmp(op, "-c",2))
-            clist = (const char *)(op+3);
-         if (!strncmp(op, "-cfg",4))
-            cfg = (const char *)(op+5);
-         if (!strncmp(op, "-d",2))
-            debug = atoi(op+3);
-         if (!strncmp(op, "-a",2))
-            areg = atoi(op+3);
-         if (!strncmp(op, "-vc",3))
-            vc = atoi(op+4);
-         if (!strncmp(op, "-syspwd",7))
-            syspwd = 1;
-         if (!strncmp(op, "-lf",3))
-            lifetime = XrdSutParseTime(op+4);
-         if (!strncmp(op, "-maxfail",8))
-            maxfail =  atoi(op+9);
-      }
-      // Check inputs
-      areg = (areg >= 0 && areg <= 2) ? areg : 0;
-      vc = (vc >= 0 && vc <= 2) ? vc : 2;
-   }
-
-
-   //
-   // Read an additional configuration file, if any
-   if (cfg.length() > 0)
-      XrdSecProtocolpwd::Configure(1,cfg.c_str());
+      //
+      // The tokenizer
+      XrdOucTokenizer inParms(parmbuff);
       
-   //
-   // Build the option object
-   opts.debug = debug;
-   opts.mode = 's';
-   opts.areg = areg;
-   opts.vericlnt = vc;
-   opts.upwd = upw;
-   opts.syspwd = syspwd;
-   opts.lifecreds = lifetime;
-   opts.maxfailures = maxfail;
-   if (dir.length() > 0)
-      opts.dir = (char *)dir.c_str();
-   if (udir.length() > 0)
-      opts.udir = (char *)udir.c_str();
-   if (clist.length() > 0)
-      opts.clist = (char *)clist.c_str();
-   if (cpass.length() > 0)
-      opts.cpass = (char *)cpass.c_str();
+      //
+      // Decode parms:
+      // for servers: [-upwd:<user_pwd_option>]
+      //              [-a:<autoreg_level>]
+      //              [-vc:<client_verification_level>]
+      //              [-dir:<dir_with_pwd_info>]
+      //              [-udir:<sub_dir_with_user_pwd_info>]
+      //              [-c:[-]ssl[:[-]<CryptoModuleName]]
+      //              [-cfg:<alternative_config_file>]
+      //              [-d:<debug_level>]
+      //              [-syspwd]
+      //              [-lf:<credential_lifetime>]
+      //              [-maxfail:<max_number_of_failures>]
+      //
+      // <user_pwd_opt> = 0 (do-not-use), 1 (use), 2 (also-crypt-hash)
+      // <debug_level> = 0 (none), 1 (low), 2 (medium), 3 (high)   [0]
+      // <autoreg_level> = 0 (none), 1 (local users + allowed tags), 2 (all) [0]
+      // <credential_lifetime> = 1d, 5h:10m, ... (see XrdSutAux::ParseTime)
+      // <client_verification_level> = 0 (none), 1 (timestamp), 2 (random tag) [2]
+      //
+      int debug = -1;
+      int areg = -1;
+      int vc = -1;
+      int upw = -1;
+      int syspwd = -1;
+      int lifetime = -1;
+      int maxfail = -1;
+      String dir = "";
+      String udir = "";
+      String clist = "";
+      String cpass = "";
+      String cfg = "";
+      char *op = 0;
+      if (inParms.GetLine()) { 
+         while ((op = inParms.GetToken())) {
+            if (!strncmp(op, "-upwd",5))
+               upw = atoi(op+6);
+            if (!strncmp(op, "-dir",4))
+               dir = (const char *)(op+5);
+            if (!strncmp(op, "-udir",5))
+               udir = (const char *)(op+6);
+            if (!strncmp(op, "-c",2))
+               clist = (const char *)(op+3);
+            if (!strncmp(op, "-cfg",4))
+               cfg = (const char *)(op+5);
+            if (!strncmp(op, "-d",2))
+               debug = atoi(op+3);
+            if (!strncmp(op, "-a",2))
+               areg = atoi(op+3);
+            if (!strncmp(op, "-vc",3))
+               vc = atoi(op+4);
+            if (!strncmp(op, "-syspwd",7))
+               syspwd = 1;
+            if (!strncmp(op, "-lf",3))
+               lifetime = XrdSutParseTime(op+4);
+            if (!strncmp(op, "-maxfail",8))
+               maxfail =  atoi(op+9);
+         }
+         // Check inputs
+         areg = (areg >= 0 && areg <= 2) ? areg : 0;
+         vc = (vc >= 0 && vc <= 2) ? vc : 2;
+      }
+         
+      //
+      // Build the option object
+      opts.debug = debug;
+      opts.mode = 's';
+      opts.areg = areg;
+      opts.vericlnt = vc;
+      opts.upwd = upw;
+      opts.syspwd = syspwd;
+      opts.lifecreds = lifetime;
+      opts.maxfailures = maxfail;
+      if (dir.length() > 0)
+         opts.dir = (char *)dir.c_str();
+      if (udir.length() > 0)
+         opts.udir = (char *)udir.c_str();
+      if (clist.length() > 0)
+         opts.clist = (char *)clist.c_str();
+      if (cpass.length() > 0)
+         opts.cpass = (char *)cpass.c_str();
+   }
    //
    // Setup the plug-in with the chosen options
    return XrdSecProtocolpwd::Init(opts,erp);
@@ -2897,122 +2884,6 @@ int XrdSecProtocolpwd::DoubleHash(XrdCryptoFactory *cf, XrdSutBucket *bck,
    bck->SetBuf(thash,nhlen+ltag);
    //
    // We are done
-   return 0;
-}
-
-//______________________________________________________________________  
-int XrdSecProtocolpwd::Configure(bool server, const char *FN)
-{
-   // Read configuration directives whose names start with 'pfx'
-   // from file FN
-   // Return -1 if problems with the file, 0 otherwise
-   EPNAME("Configure");
-
-   int  cfgFD, retc, recs = 0;
-   XrdOucStream Config;
-   //
-   // Open the specified config file, if any
-   String OpenFN;
-   if (FN && strlen(FN) > 0) {
-      OpenFN = FN;
-   } else {
-      // Use default
-      struct passwd *pw = getpwuid(getuid());
-      if (pw) {
-         OpenFN = pw->pw_dir;
-         OpenFN += "/.xrdsecrc";
-      }
-   }
-   if ((cfgFD = open(OpenFN.c_str(), O_RDONLY, 0)) < 0) {
-      if (FN && strlen(FN) > 0)
-         DEBUG("could not open  configurarion file "<<FN<<" (errno: "<<errno<<")");
-      return -1;
-   }
-   //
-   // Define the prefix
-   int ip = server ? 1 : 0;
-   const char *pfx[] = { "secpwd.", "secpwd.srv."};
-   //
-   // Now start reading records until eof.
-   Config.Attach(cfgFD);
-   Config.Tabs(0);
-   int lpfx = strlen(pfx[ip]);
-   String svar = "";
-   char *val = 0;
-   char *var = Config.GetFirstWord();
-   while(var) {
-      svar = var;
-      if (svar.find(pfx[ip]) == 0) {
-         svar.erase(pfx[ip]);
-         val = Config.GetWord();
-         if (!val || !strncmp(val,pfx[ip],lpfx)) {
-            DEBUG(var<<": argument(s) missing - ignore");
-            var = val;
-            goto next;
-         }
-         //
-         // Process directives: common ...
-         if (svar == "debug") {
-            Debug = atoi(val);
-         //
-         // Server directives
-         //
-         } else if (svar == "fileadmin") {
-            // Main File with password information
-            FileAdmin = val;
-         } else if (svar == "maxfailures") {
-            // Max number of failures allowed before disabling
-            MaxFailures = atoi(val);
-         } else if (svar == "maxprompts") {
-            // Max number of times user get password prompt
-            MaxPrompts = atoi(val);
-         } else if (svar == "validity") {
-            // Duration validity of registered credentials
-            LifeCreds = XrdSutParseTime(val);
-         } else if (svar == "cacheTimeSkew") {
-            // Lifetime of cache entries
-            TimeSkew = XrdSutParseTime(val);
-         } else if (svar == "autoreg") {
-            AutoReg = atoi(val);
-         //
-         // Client directives
-         //
-         } else if (svar == "filenetrc") {
-            // Autologin file
-            FileUser = val;
-         } else if (svar == "autologin") {
-            // Switch ON/OFF use of autologin file
-            AutoLogin = atoi(val);
-         } else if (svar == "maxprompts") {
-            // Max number of times user get password prompt
-            MaxPrompts = atoi(val);
-         //
-         // Unknown
-         //
-         } else {
-            DEBUG("unknown directive: "<<var);
-            goto next;
-         }
-         recs++;
-      }
-      // Get next
-   next:
-      var = Config.GetFirstWord();
-   }
-
-   //
-   // Now check if any errors occured during file i/o
-   if ((retc = Config.LastError())) {
-      DEBUG("error reading configuration file: "<<
-             OpenFN.c_str()<<": "<<-retc);
-   } else {
-      char buff[12];
-      snprintf(buff, sizeof(buff), "%d", recs);
-      DEBUG(recs<<" authentication directives processed in "<<OpenFN.c_str());
-   }
-   Config.Close();
-   //
-   // we are done
    return 0;
 }
 
