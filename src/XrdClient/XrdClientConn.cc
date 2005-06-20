@@ -1437,10 +1437,17 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
                Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
                     "credentials size " << credentials->size);
             }
+         } else if (LastServerResp.status == kXR_ok) {
+	   // Success
+            resp = TRUE;
          }
       }
-      // Get next
-      pp = pn;
+      if (!resp)
+         // Get next
+         pp = pn;
+      else
+	// We are done
+         break;
    }
 
    // Return the result of the negotiation
