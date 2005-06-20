@@ -33,6 +33,8 @@ install -m 755 bin/XRD-SYSNAME-XRD/olbd $RPM_BUILD_ROOT/opt/xrootd/bin/olbd
 install -m 755 bin/XRD-SYSNAME-XRD/xrdcp $RPM_BUILD_ROOT/opt/xrootd/bin/xrdcp
 install -m 755 bin/XRD-SYSNAME-XRD/xrdmonCollector $RPM_BUILD_ROOT/opt/xrootd/bin/xrdmonCollector
 install -m 755 bin/XRD-SYSNAME-XRD/xrdmonAdmin $RPM_BUILD_ROOT/opt/xrootd/bin/xrdmonAdmin
+install -m 755 bin/XRD-SYSNAME-XRD/xrdgsiproxy $RPM_BUILD_ROOT/opt/xrootd/bin/xrdgsiproxy
+install -m 755 bin/XRD-SYSNAME-XRD/xrdpwdadmin $RPM_BUILD_ROOT/opt/xrootd/bin/xrdpwdadmin
 install -m 755 lib/XRD-SYSNAME-XRD/XrdClientAdmin.pm $RPM_BUILD_ROOT/opt/xrootd/lib/XrdClientAdmin.pm
 install -m 755 lib/XRD-SYSNAME-XRD/XrdClientAdmin.so $RPM_BUILD_ROOT/opt/xrootd/lib/XrdClientAdmin.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdPosix.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdPosix.so
@@ -44,6 +46,8 @@ install -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb5.so $RPM_BUILD_ROOT/opt/xrootd/l
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdCrypto.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdCrypto.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdCryptossl.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdCryptossl.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdSut.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSut.so
+install -m 755 lib/XRD-SYSNAME-XRD/libXrdSecgsi.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSecgsi.so
+install -m 755 lib/XRD-SYSNAME-XRD/libXrdSecpwd.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSecpwd.so
 install -m 755 etc/StartOLB $RPM_BUILD_ROOT/opt/xrootd/etc/StartOLB
 install -m 644 etc/StartOLB.cf.example $RPM_BUILD_ROOT/opt/xrootd/etc/StartOLB.cf.example
 install -m 755 etc/StartXRD $RPM_BUILD_ROOT/opt/xrootd/etc/StartXRD
@@ -74,6 +78,8 @@ install -m 755 utils/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/utils/XrdOlbNoti
 /opt/xrootd/bin/xrdcp
 /opt/xrootd/bin/xrdmonCollector
 /opt/xrootd/bin/xrdmonAdmin
+/opt/xrootd/bin/xrdgsiproxy
+/opt/xrootd/bin/xrdpwdadmin
 /opt/xrootd/lib/XrdClientAdmin.pm
 /opt/xrootd/lib/XrdClientAdmin.so
 /opt/xrootd/lib/libXrdPosix.so
@@ -85,6 +91,8 @@ install -m 755 utils/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/utils/XrdOlbNoti
 /opt/xrootd/lib/libXrdCrypto.so
 /opt/xrootd/lib/libXrdCryptossl.so
 /opt/xrootd/lib/libXrdSut.so
+/opt/xrootd/lib/libXrdSecgsi.so
+/opt/xrootd/lib/libXrdSecpwd.so
 /opt/xrootd/etc/StartOLB
 /opt/xrootd/etc/StartOLB.cf.example
 /opt/xrootd/etc/StartXRD
