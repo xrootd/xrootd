@@ -6,12 +6,12 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//           $Id$
+
 #ifndef XRC_THREAD_H
 #define XRC_THREAD_H
 
 #include "XrdOuc/XrdOucPthread.hh"
-
-
 
 void * XrdClientThreadDispatcher(void * arg);
 

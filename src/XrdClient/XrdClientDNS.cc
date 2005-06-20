@@ -7,6 +7,9 @@
 // Xrd-based implementations of the DNS wrapper                         //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+const char *XrdClientDNSCVSID = "$Id$";
+
 #include <string.h>
 #include <sys/types.h>
 #include <netinet/in.h>

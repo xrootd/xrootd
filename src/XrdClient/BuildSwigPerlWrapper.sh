@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# $Id$
 
 echo "This works only (and has been tested with) swig 1.3.22"
 

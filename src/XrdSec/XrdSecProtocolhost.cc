@@ -8,6 +8,8 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
+const char *XrdSecProtocolhostCVSID = "$Id$";
+
 #include <strings.h>
 #include <stdlib.h>
 

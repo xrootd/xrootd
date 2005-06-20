@@ -8,6 +8,8 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
+const char *XrdPosixXrootdCVSID = "$Id$";
+
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/time.h>

@@ -8,6 +8,8 @@
 /*              DE-AC02-76SF00515 with the Department of Energy              */
 /*****************************************************************************/
 
+const char *XrdMonCtrBufferCVSID = "$Id$";
+
 #include "XrdMon/XrdMonCtrBuffer.hh"
 #include "XrdMon/XrdMonCtrDebug.hh"
 #include <iomanip>

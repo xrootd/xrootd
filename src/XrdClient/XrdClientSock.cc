@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientXrdSock                                                     //
+// XrdClientSock                                                     //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -10,6 +10,8 @@
 // Client Socket with timeout features using XrdNet                     //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
+
+const char *XrdClientSockCVSID = "$Id$";
 
 #include "XrdClient/XrdClientSock.hh"
 #include "XrdOuc/XrdOucLogger.hh"

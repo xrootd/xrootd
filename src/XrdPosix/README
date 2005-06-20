@@ -1,3 +1,5 @@
+    $Id$
+
 The XrdPosix package allows you to use your standard POSIX I/O calls and either
 vector the I/O to local files or to xrootd served files. In order to use this
 package you must use the POSIX/Xrootd wrapper. While you need not change any

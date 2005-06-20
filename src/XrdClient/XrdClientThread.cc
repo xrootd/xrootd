@@ -1,4 +1,6 @@
 
+const char *XrdClientThreadCVSID = "$Id$";
+
 #include "XrdClient/XrdClientThread.hh"
 
 //_____________________________________________________________________________

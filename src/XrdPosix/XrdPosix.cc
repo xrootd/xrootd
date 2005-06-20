@@ -7,6 +7,8 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
+
+const char *XrdPosixCVSID = "$Id$";
   
 #include <stdarg.h>
 #include <stdlib.h>

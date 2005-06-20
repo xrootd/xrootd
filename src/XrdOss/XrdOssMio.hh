@@ -10,6 +10,8 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
+//           $Id$
+
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPthread.hh"

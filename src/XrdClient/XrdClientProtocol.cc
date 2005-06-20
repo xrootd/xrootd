@@ -11,6 +11,7 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+const char *XrdClientProtocolCVSID = "$Id$";
 
 #include "XProtocol/XProtocol.hh"
 #include <strings.h>

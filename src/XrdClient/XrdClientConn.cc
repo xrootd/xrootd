@@ -11,6 +11,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+const char *XrdClientConnCVSID = "$Id$";
+
 #include "XrdClient/XrdClientDebug.hh"
 
 #include "XrdClient/XrdClientConnMgr.hh"

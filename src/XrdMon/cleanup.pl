@@ -1,5 +1,7 @@
 #!/usr/local/bin/perl -w
 
+# $Id$
+
 if ( @ARGV<1 ) {
     print "Expected argument: rt log directory\n";
     exit;

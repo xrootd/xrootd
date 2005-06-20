@@ -9,9 +9,9 @@
 /* A counting semaphore with timed out wait primitive                         */
 /******************************************************************************/
 
+//           $Id$
 
 #include "XrdOuc/XrdOucPthread.hh"
-
 
 class XrdOucSemWait {
  public:
