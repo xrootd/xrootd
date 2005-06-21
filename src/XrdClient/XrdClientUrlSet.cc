@@ -11,8 +11,6 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-const char *XrdClientUrlSetCVSID = "$Id$";
-
 #include <XrdClient/XrdClientString.hh>
 
 #include <XrdClient/XrdClientUrlSet.hh>
@@ -98,11 +96,11 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
    Info(XrdClientDebug::kHIDEBUG, "XrdClientUrlSet", "parsing: "<<urls);
 
    // Disentangle the protocol, if any
-   int p1 = 0, p2 = STR_NPOS, left = left = urls.GetSize();
+   int p1 = 0, p2 = STR_NPOS, left = urls.GetSize();
    if ((p2 = urls.Find((char *)"://")) != STR_NPOS) {
       proto = urls.Substr(p1, p2);
       p1 = p2 + 3;
-      left -= p1;
+      left = urls.GetSize() - p1;
    }
    Info(XrdClientDebug::kHIDEBUG,"XrdClientUrlSet", "protocol: "<<proto);
 
@@ -110,7 +108,7 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
    if ((p2 = urls.Find((char *)"/",p1)) != STR_NPOS) {
       listOfMachines = urls.Substr(p1, p2);
       p1 = p2+1;
-      left -= p1;
+      left = urls.GetSize() - p1;
    } else {
       listOfMachines = urls.Substr(p1);
       left = 0;
@@ -160,7 +158,7 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
 
    // If at this point we have a strange pathfile, then it's bad
    if ( (fPathName.GetSize() <= 1) || (fPathName == "/") ) {
-      Error("TXUrl", "Malformed pathfile " << fPathName);
+      Error("XrdClientUrlSet", "malformed pathfile " << fPathName);
       fIsValid = FALSE;
       return;
    }
