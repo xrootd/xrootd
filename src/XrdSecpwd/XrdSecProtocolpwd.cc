@@ -1428,7 +1428,12 @@ char *XrdSecProtocolpwdInit(const char mode,
    // parms.
    pwdOptions opts;
    char *rc = (char *)"";
-   
+   char *cenv = 0;
+
+   // Take into account xrootd debug flag
+   cenv = getenv("XRDDEBUG");
+   if (cenv && !strcmp(cenv,"1")) opts.debug = 1;
+
    //
    // Clients first
    if (mode == 'c') {
@@ -1452,11 +1457,9 @@ char *XrdSecProtocolpwdInit(const char mode,
       //
       opts.mode = mode;
       // debug
-      char *cenv = getenv("XrdSecDEBUG");
+      cenv = getenv("XrdSecDEBUG");
       if (cenv)
          if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);  
-      else
-         if ((cenv = getenv("XRDDEBUG"))) opts.debug = 1;
       // server verification
       cenv = getenv("XrdSecPWDVERIFYSRV");
       if (cenv)
@@ -1510,7 +1513,6 @@ char *XrdSecProtocolpwdInit(const char mode,
       //              [-dir:<dir_with_pwd_info>]
       //              [-udir:<sub_dir_with_user_pwd_info>]
       //              [-c:[-]ssl[:[-]<CryptoModuleName]]
-      //              [-cfg:<alternative_config_file>]
       //              [-d:<debug_level>]
       //              [-syspwd]
       //              [-lf:<credential_lifetime>]
@@ -1533,7 +1535,6 @@ char *XrdSecProtocolpwdInit(const char mode,
       String udir = "";
       String clist = "";
       String cpass = "";
-      String cfg = "";
       char *op = 0;
       if (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -1545,8 +1546,6 @@ char *XrdSecProtocolpwdInit(const char mode,
                udir = (const char *)(op+6);
             if (!strncmp(op, "-c",2))
                clist = (const char *)(op+3);
-            if (!strncmp(op, "-cfg",4))
-               cfg = (const char *)(op+5);
             if (!strncmp(op, "-d",2))
                debug = atoi(op+3);
             if (!strncmp(op, "-a",2))
@@ -1567,7 +1566,7 @@ char *XrdSecProtocolpwdInit(const char mode,
          
       //
       // Build the option object
-      opts.debug = debug;
+      opts.debug = (debug > -1) ? debug : opts.debug;
       opts.mode = 's';
       opts.areg = areg;
       opts.vericlnt = vc;
