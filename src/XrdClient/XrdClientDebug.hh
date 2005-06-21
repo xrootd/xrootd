@@ -35,7 +35,7 @@ using namespace std;
 XrdClientDebug::Instance()->Lock();\
 if (XrdClientDebug::Instance()->GetDebugLevel() >= lvl) {\
 ostringstream outs;\
-outs << where << " " << what; \
+outs << where << ": " << what; \
 XrdClientDebug::Instance()->TraceStream((short)lvl, outs);\
 }\
 XrdClientDebug::Instance()->Unlock();\
@@ -43,7 +43,7 @@ XrdClientDebug::Instance()->Unlock();\
                                
 #define Error(where, what) { \
 ostringstream outs;\
-outs << where << " " << what; \
+outs << where << ": " << what; \
 XrdClientDebug::Instance()->TraceStream((short)XrdClientDebug::kNODEBUG, outs);\
 }
 
