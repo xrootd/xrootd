@@ -116,7 +116,10 @@ XrdClientString XrdClientString::Substr(int start, int end) {
 
 // Operator << is useful to print a string into a stream
 ostream &operator<< (ostream &os, const XrdClientString &obj) {
-   os << ((XrdClientString)obj).c_str();
+   if (((XrdClientString)obj).c_str())
+      os << ((XrdClientString)obj).c_str();
+   else
+      os << "";
    return os;
 }
 
