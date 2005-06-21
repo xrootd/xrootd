@@ -257,6 +257,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    // Called once by XrdSecProtocolgsiInit
    EPNAME("Init");
    char *Parms = 0;
+
    //
    // Time stamp of initialization
    int timestamp = (int)time(0);
@@ -429,7 +430,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
             for (; i < ncrypt; i++) {
                if (!(cryptF[i]->SupportedCipher(cip.c_str()))) {
                   // Not supported: drop from the list
-                  PRINT("cipher type not supported ("<<cip<<") - disabling");
+                  DEBUG("cipher type not supported ("<<cip<<") - disabling");
                   from -= cip.length();
                   DefCipher.erase(cip);
                }
@@ -1320,6 +1321,11 @@ char *XrdSecProtocolgsiInit(const char mode,
    // parms.
    gsiOptions opts;
    char *rc = (char *)"";
+   char *cenv = 0;
+
+   // Take into account xrootd debug flag
+   cenv = getenv("XRDDEBUG");
+   if (cenv && !strcmp(cenv,"1")) opts.debug = 1;
    
    //
    // Clients first
@@ -1358,8 +1364,6 @@ char *XrdSecProtocolgsiInit(const char mode,
       char *cenv = getenv("XrdSecDEBUG");
       if (cenv)
          if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);  
-      else
-         if ((cenv = getenv("XRDDEBUG"))) opts.debug = 1;
 
       // directory with CA certificates
       cenv = getenv("XrdSecGSICADIR");
@@ -1437,7 +1441,6 @@ char *XrdSecProtocolgsiInit(const char mode,
       //
       // The tokenizer
       XrdOucTokenizer inParms(parmbuff);
-      
       //
       // Decode parms:
       // for servers:
@@ -1490,7 +1493,7 @@ char *XrdSecProtocolgsiInit(const char mode,
          
       //
       // Build the option object
-      opts.debug = debug;
+      opts.debug = (debug > -1) ? debug : opts.debug;
       opts.mode = 's';
       opts.crl = crl;
       if (clist.length() > 0)
