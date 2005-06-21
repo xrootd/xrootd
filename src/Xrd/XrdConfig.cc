@@ -994,6 +994,7 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
           *parms = ' '; parms++; strcpy(parms, val); parms += vlen;
          }
     if (parms != buff) parms = strdup(buff+1);
+       else parms = 0;
 
     if ((cpp = Firstcp))
        do {if (!strcmp(proname, cpp->proname))
