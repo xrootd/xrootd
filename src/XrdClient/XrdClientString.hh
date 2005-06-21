@@ -81,6 +81,10 @@ class XrdClientString {
    }
 
    int Assign(XrdClientString &str) {
+
+      if (!(str.c_str()))
+         return 0;
+
       int sz = strlen((char *)str.c_str());
 
       if ( !BufRealloc(sz) ) {
@@ -129,6 +133,9 @@ class XrdClientString {
    }
 
    bool EndsWith(char *str) {
+ 
+      if (!str) return 0;
+
       int sz = strlen(str);
 
       return ( !strcmp(data+size-sz, str) );
