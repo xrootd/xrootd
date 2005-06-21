@@ -129,7 +129,7 @@ static const int kOneDay = 86400;
 XrdOucMutex XrdSecProtocolpwd::pwdContext;
 String XrdSecProtocolpwd::FileAdmin= "";
 String XrdSecProtocolpwd::FileUser = "";
-String XrdSecProtocolpwd::FileCrypt= ".xrdpass";
+String XrdSecProtocolpwd::FileCrypt= "/.xrdpass";
 String XrdSecProtocolpwd::FileSrvPuk= "";
 String XrdSecProtocolpwd::SrvID    = "";
 String XrdSecProtocolpwd::SrvEmail = "";
@@ -300,7 +300,6 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
    // Called once by XrdSecProtocolpwdInit
    EPNAME("Init");
    char *Parms = 0;
-
    //
    // Debug an tracing
    Debug = (opt.debug > -1) ? opt.debug : Debug;
@@ -587,6 +586,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
          if (opt.cpass) {
             UserPwd = 2;
             FileCrypt = opt.cpass;
+            if (FileCrypt[0] != '/') FileCrypt.insert('/',0);
          }
       }
 
@@ -610,7 +610,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       if (UserPwd > 0) {
          DEBUG("using private pwd files: $(HOME)"<<FileUser);
          if (UserPwd > 1) {
-            DEBUG("using private crypt-hash files: $(HOME)/"<<FileCrypt);
+            DEBUG("using private crypt-hash files: $(HOME)"<<FileCrypt);
          }
       }
       if (SysPwd > 0) {
@@ -959,6 +959,12 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
 
    case kXPS_credsreq:
       //
+      // If this is not the first time, during the handshake, that
+      // we query credentials, any save buffer must insufficient,
+      // so invalidate it
+      if (hs->Pent)
+         hs->Pent->cnt = 1;
+      //
       // Server requires additional credentials: the status bucket
       // tells us what she wants exactly
       status = SessionSt.ctype;
@@ -1286,8 +1292,13 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             nextstep = kXPS_credsreq;
             kS_rc = kpST_more;
             // request again creds
-            SessionSt.ctype = (hs->Pent->status == kPFE_crypt) ? kpCT_crypt : kpCT_normal;
-            ClntMsg = "insufficient credentials";
+            if (hs->Pent->status == kPFE_crypt) {
+               SessionSt.ctype = kpCT_crypt;
+               ClntMsg = "";
+            } else {
+               SessionSt.ctype = kpCT_normal;
+               ClntMsg = "insufficient credentials";
+            }
          } else {
             // We communicate failure
             kS_rc = kpST_more;
@@ -1433,7 +1444,7 @@ char *XrdSecProtocolpwdInit(const char mode,
    // Take into account xrootd debug flag
    cenv = getenv("XRDDEBUG");
    if (cenv && !strcmp(cenv,"1")) opts.debug = 1;
-
+   
    //
    // Clients first
    if (mode == 'c') {
@@ -1460,6 +1471,7 @@ char *XrdSecProtocolpwdInit(const char mode,
       cenv = getenv("XrdSecDEBUG");
       if (cenv)
          if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);  
+
       // server verification
       cenv = getenv("XrdSecPWDVERIFYSRV");
       if (cenv)
@@ -1538,26 +1550,28 @@ char *XrdSecProtocolpwdInit(const char mode,
       char *op = 0;
       if (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
-            if (!strncmp(op, "-upwd",5))
+            if (!strncmp(op, "-upwd:",6))
                upw = atoi(op+6);
-            if (!strncmp(op, "-dir",4))
+            if (!strncmp(op, "-dir:",5))
                dir = (const char *)(op+5);
-            if (!strncmp(op, "-udir",5))
+            if (!strncmp(op, "-udir:",6))
                udir = (const char *)(op+6);
-            if (!strncmp(op, "-c",2))
+            if (!strncmp(op, "-c:",3))
                clist = (const char *)(op+3);
-            if (!strncmp(op, "-d",2))
+            if (!strncmp(op, "-d:",3))
                debug = atoi(op+3);
-            if (!strncmp(op, "-a",2))
+            if (!strncmp(op, "-a:",3))
                areg = atoi(op+3);
-            if (!strncmp(op, "-vc",3))
+            if (!strncmp(op, "-vc:",4))
                vc = atoi(op+4);
             if (!strncmp(op, "-syspwd",7))
                syspwd = 1;
-            if (!strncmp(op, "-lf",3))
+            if (!strncmp(op, "-lf:",4))
                lifetime = XrdSutParseTime(op+4);
-            if (!strncmp(op, "-maxfail",8))
+            if (!strncmp(op, "-maxfail:",9))
                maxfail =  atoi(op+9);
+            if (!strncmp(op, "-cryptfile:",11))
+               cpass = (const char *)(op+11);
          }
          // Check inputs
          areg = (areg >= 0 && areg <= 2) ? areg : 0;
@@ -1920,7 +1934,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    }
    //
    // Create or Fill entry in cache
-   if (!(hs->Pent = cacheAlog.Add(wTag.c_str()))) {
+   if (!(hs->Pent) && !(hs->Pent = cacheAlog.Add(wTag.c_str()))) {
       DEBUG("Could create new entry in cache");
       return (XrdSutBucket *)0;
    }
@@ -2908,6 +2922,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
    int rc = -1;
    int len = 0, n = 0, fid = -1;
    pwhash = "";
+   DEBUG("analyzing file: "<<fn);
 
    //
    // Get the password structure
