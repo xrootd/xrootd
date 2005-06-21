@@ -129,7 +129,7 @@ static const int kOneDay = 86400;
 XrdOucMutex XrdSecProtocolpwd::pwdContext;
 String XrdSecProtocolpwd::FileAdmin= "";
 String XrdSecProtocolpwd::FileUser = "";
-String XrdSecProtocolpwd::FileCrypt= ".xrootdpass";
+String XrdSecProtocolpwd::FileCrypt= ".xrdpass";
 String XrdSecProtocolpwd::FileSrvPuk= "";
 String XrdSecProtocolpwd::SrvID    = "";
 String XrdSecProtocolpwd::SrvEmail = "";
