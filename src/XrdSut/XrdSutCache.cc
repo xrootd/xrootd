@@ -85,10 +85,8 @@ XrdSutPFEntry *XrdSutCache::Get(const char *ID, bool *wild)
    // with wildcard '*'; *wild = 0 will indicate exact match, 
    // *wild = 1 wild card compatibility match 
    EPNAME("Cache::Get");
-#if 0
-   int dbg =1;
-   while (dbg) ;
-#endif
+
+   TRACE(Dump,"locating entry for ID: "<<ID);
 
    //
    // If ID is undefined, do nothing
@@ -204,7 +202,7 @@ XrdSutPFEntry *XrdSutCache::Add(const char *ID)
    utime = (kXR_int32)time(0);
 
    // Rebuild hash table
-   if (Rehash() != 0) {
+   if (Rehash(1) != 0) {
       DEBUG("problems re-hashing");
       return (XrdSutPFEntry *)0 ;
    }
@@ -533,6 +531,7 @@ int XrdSutCache::Rehash(bool force)
          // Fill the hash table 
          kXR_int32 *key = new kXR_int32(i);
          if (key) {
+            TRACE(Dump, "Adding ID: "<<cachent[i]->name<<"; key: "<<*key);
             hashtable.Add(cachent[i]->name,key);
             nht++;
          }
