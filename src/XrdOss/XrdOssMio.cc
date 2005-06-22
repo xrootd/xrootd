@@ -236,9 +236,9 @@ void *XrdOssMio::preLoad(void *arg)
    char *Bend = Base + mp->Size;
    char  Byte;
 
-// Reference each page until we are done or until the use count drops to one
+// Reference each page until we are done
 //
-   while(Base < Bend && mp->inUse > 1) {Byte = *Base; Base += MM_pagsz;}
+   while(Base < Bend) {Byte = *Base; Base += MM_pagsz;}
 
 // All done
 //
