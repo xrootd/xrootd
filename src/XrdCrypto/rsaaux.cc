@@ -946,7 +946,7 @@ void inv(rsa_NUMBER *d, rsa_NUMBER *phi, rsa_NUMBER *e)
 
 void gen_number(int len, rsa_NUMBER *n)
 {
-	char *hex = "0123456789ABCDEF" ;
+	const char *hex = "0123456789ABCDEF" ;
 	char num[ rsa_MAXLEN*rsa_MAXBIT/4 +1 ];
 	char *p;
 	int i,l;

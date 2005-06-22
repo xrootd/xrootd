@@ -240,8 +240,8 @@ int rsa_decode(char *bufin, int lin, rsa_NUMBER n, rsa_NUMBER e)
  */
 
 
-static char *HEX="0123456789ABCDEF";
-static char *hex="0123456789abcdef";
+static const char *HEX="0123456789ABCDEF";
+static const char *hex="0123456789abcdef";
 
 static rsa_NUMBER bits[9];
 static rsa_NUMBER gint16[16];
