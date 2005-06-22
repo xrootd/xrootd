@@ -54,7 +54,7 @@ XrdClientUrlInfo::XrdClientUrlInfo(const XrdClientUrlInfo &url)
    HostAddr = url.HostAddr;
    Port     = url.Port;
    File     = url.File;
-   Url      = url.Url;
+
 }
 
 //_____________________________________________________________________________
@@ -69,7 +69,7 @@ void XrdClientUrlInfo::Clear() {
    HostAddr = "";
    Port     = -1;
    File     = "/";
-   Url      = "";
+
 }
 
 //______________________________________________________________________________
@@ -95,7 +95,6 @@ XrdClientUrlInfo& XrdClientUrlInfo::operator=(const XrdClientUrlInfo url)
    HostAddr = url.HostAddr;
    Port     = url.Port;
    File     = url.File;
-   Url      = url.Url;
 
    return (*this);
 }
@@ -116,12 +115,9 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString u)
 
    if (u.GetSize() <= 0) return;
 
-   // Save full url
-   Url = u;
-
    // Get protocol
    if ((p2 = u.Find((char *)"://")) != STR_NPOS) {
-      Proto = u.Substr(p1, p2-1);
+      Proto = u.Substr(p1, p2);
       Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "   Proto:   " << Proto);
       // Update start of search range and remaining length
       p1 = p2 + 3;
@@ -185,9 +181,41 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString u)
 XrdClientString XrdClientUrlInfo::GetUrl()
 {
    // Get full url
+   // The fields might have been modified, so the full url
+   // must be reconstructed
 
-   XrdClientString s(Url);
+   XrdClientString s;
+
+   if (Proto != "")
+      s = Proto + "://";
+
+   if (User != "") {
+      s += User;
+
+      if (Passwd != "") {
+         s += ":";
+         s += Passwd;
+      }
+
+      s += "@";
+   }
+
+   s += Host;
+
+   if ( (Host != "") && (Port > 0) ) {
+      char buf[256];
+      sprintf(buf, "%d", Port);
+      s += ":";
+      s += buf;
+   }
+
+   if (File != "") {
+      s += "/";
+      s += File;
+   }
+
    return s;
+
 }
 
 //_____________________________________________________________________________

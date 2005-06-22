@@ -5,9 +5,13 @@
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
 // Alvise Dorigo, Fabrizio Furano, INFN Padova, 2003                    //
-// Revised by G. Ganis, CERN, June 2005                                 //
+// Revised by G. Ganis, CERN,  June 2005                                //
 //                                                                      //
 // Class handling information about an url                              //
+// The purpose of this class is to allow:                               //
+//   - parsing a string url into its components                         //
+//   - reading/writing the single components                            //
+//   - reading the modified full url                                    //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
@@ -33,7 +37,6 @@ class XrdClientUrlInfo {
    XrdClientString HostAddr;
    XrdClientString HostWPort;
    XrdClientString File;
-   XrdClientString Url;
 
    void Clear();
    void TakeUrl(XrdClientString url);

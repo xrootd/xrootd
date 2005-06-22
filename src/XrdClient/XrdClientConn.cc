@@ -148,6 +148,10 @@ short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn,
    fPrimaryStreamid = 0;
    fLogConnID = 0;
 
+   Info(XrdClientDebug::kHIDEBUG,
+	"XrdClientConn", "Trying to connect to " <<
+	Host2Conn.HostAddr << ":" << Host2Conn.Port);
+
    logid = ConnectionManager->Connect(Host2Conn);
 
    Info(XrdClientDebug::kHIDEBUG,
@@ -1532,9 +1536,9 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
                   " with server [" << fUrl.Host << ":" << fUrl.Port <<
 		  "]. Rebouncing here.");
 
-	    if (fUrl.HostAddr.GetSize())  newhost = fUrl.HostAddr;
+	    if (fUrl.Host.GetSize()) newhost = fUrl.Host;
 	    else
-	       newhost = fUrl.Host;
+	       newhost = fUrl.HostAddr;
 
             newport = fUrl.Port;
          }
@@ -1688,7 +1692,7 @@ XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo newdest)
    // Set fUrl to the new data/lb server if the 
    // connection has been succesfull
    //
-   fUrl.TakeUrl(newdest.GetUrl());
+   fUrl = newdest;
 
    if (IsConnected() && !GetAccessToSrv()) {
       Error("GoToAnotherServer", "Error handshaking to [" << 
@@ -1708,15 +1712,16 @@ XrdClientString XrdClientConn::GetDomainToMatch(XrdClientString hostname) {
    //  valid inet address, then that address is returned, in order
    //  to be matched later for access granting
 
-   char *fullname;
+   char *fullname, *err;
    XrdClientString res;
 
    // Let's look up the hostname
    // It may also be a w.x.y.z type address.
-   fullname = XrdNetDNS::getHostName((char *)hostname.c_str(), 0);
+   err = 
+   fullname = XrdNetDNS::getHostName((char *)hostname.c_str(), &err);
    
-   if (fullname) {
-      // The looked up address is valid
+   if ( strcmp(fullname, (char *)"0.0.0.0") ) {
+      // The looked up name seems valid
       // The hostname domain can still be unknown
      
       Info(XrdClientDebug::kHIDEBUG,
@@ -1738,12 +1743,10 @@ XrdClientString XrdClientConn::GetDomainToMatch(XrdClientString hostname) {
 	 res = hostname;
       }
 
-      free(fullname);
-
    } else {
 
       Info(XrdClientDebug::kHIDEBUG,
-	   "GetDomainToMatch", "GetHostName(" << hostname << ") returned a non valid address.");
+	   "GetDomainToMatch", "GetHostName(" << hostname << ") returned a non valid address. errtxt=" << err);
 
       res = ParseDomainFromHostname(hostname);
    }
@@ -1751,6 +1754,9 @@ XrdClientString XrdClientConn::GetDomainToMatch(XrdClientString hostname) {
    Info(XrdClientDebug::kHIDEBUG,
 	"GetDomainToMatch", "GetDomain(" << hostname << ") --> " << res);
    
+
+   if (fullname) free(fullname);
+
    return res;
 }
 

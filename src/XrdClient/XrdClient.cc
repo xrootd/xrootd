@@ -116,7 +116,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 					 EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
 
 	   Info(XrdClientDebug::kHIDEBUG,
-		"CreateTXNf", "Trying to connect to " <<
+		"Open", "Trying to connect to " <<
 		thisUrl->Host << ":" << thisUrl->Port <<
 		". Connect try " << connectTry+1);
 	   
