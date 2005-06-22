@@ -14,6 +14,8 @@ LIBUTIL = $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdOuc.a
 SOURCES = \
         PC1.cc      \
         PC3.cc      \
+        rsalib.c      \
+	rsaaux.c     \
         XrdCryptoAux.cc      \
         XrdCryptoBasic.cc      \
         XrdCryptoCipher.cc      \
@@ -39,13 +41,11 @@ SOURCES = \
         XrdCryptosslgsiX509Chain.cc \
 	XrdCryptotest.cc
 
-CSOURCES = \
-        rsalib.c      \
-	rsaaux.c
-
 OBJECTS = \
         $(OBJDIR)/PC1.o      \
         $(OBJDIR)/PC3.o      \
+        $(OBJDIR)/rsaaux.o      \
+	$(OBJDIR)/rsalib.o    \
         $(OBJDIR)/XrdCryptoAux.o      \
         $(OBJDIR)/XrdCryptoBasic.o      \
         $(OBJDIR)/XrdCryptoCipher.o      \
@@ -71,10 +71,6 @@ OBJCSSL = \
         $(OBJDIR)/XrdCryptosslX509Req.o    \
         $(OBJDIR)/XrdCryptosslgsiAux.o      \
         $(OBJDIR)/XrdCryptosslgsiX509Chain.o
-
-OBJECTC = \
-        $(OBJDIR)/rsaaux.o      \
-	$(OBJDIR)/rsalib.o
 
 OBJECTA = \
         $(OBJDIR)/XrdCryptotest.o
@@ -126,10 +122,10 @@ anything: $(TARGETS)
 #------------------------------------------------------------------------------#
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
-$(LIBARCH): $(OBJECTS) $(OBJECTC)
+$(LIBARCH): $(OBJECTS)
 	@echo Creating archive $(LIBARCH) 
 	$(ECHO)rm -f $(LIBARCH)
-	$(ECHO)ar -rc $(LIBARCH) $(OBJECTS) $(OBJECTC)
+	$(ECHO)ar -rc $(LIBARCH) $(OBJECTS)
 	$(ECHO)ranlib $(LIBARCH)
 	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
 	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
@@ -137,9 +133,9 @@ $(LIBARCH): $(OBJECTS) $(OBJECTC)
 	   fi;\
 	fi
 
-$(LIBRARY): $(OBJECTS) $(OBJECTC) $(LIBUTIL)
+$(LIBRARY): $(OBJECTS) $(LIBUTIL)
 	@echo Creating shared library $(LIBRARY) 
-	$(ECHO)$(CC) $(OBJECTS) $(OBJECTC) $(LDSO) $(LIBUTIL) -o $(LIBRARY)
+	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(LIBUTIL) -o $(LIBRARY)
 
 $(LIBASSL): $(OBJCSSL)
 	@echo Creating archive $(LIBASSL) 
@@ -169,6 +165,14 @@ $(OBJDIR)/PC1.o: PC1.cc PC1.hh
 $(OBJDIR)/PC3.o: PC3.cc PC3.hh
 	@echo Compiling PC3.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/PC3.o PC3.cc
+
+$(OBJDIR)/rsaaux.o: rsaaux.cc rsaaux.hh rsalib.hh
+	@echo Compiling rsaaux.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/rsaaux.o rsaaux.cc
+
+$(OBJDIR)/rsalib.o: rsalib.cc rsalib.hh rsaaux.hh
+	@echo Compiling rsalib.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/rsalib.o rsalib.cc
 
 $(OBJDIR)/XrdCryptoAux.o: XrdCryptoAux.cc XrdOucLogger.hh \
 			  XrdOucPthread.hh XrdOucError.hh \
@@ -275,7 +279,7 @@ $(OBJDIR)/XrdCryptolocalRSA.o: XrdCryptolocalRSA.cc XrdOucString.hh \
 			XPtypes.hh XrdCryptolocalRSA.hh \
 			XrdCryptoRSA.hh XrdSutBucket.hh \
 			XrdCryptoAux.hh XrdCryptoTrace.hh \
-			XrdOucTrace.hh XrdOucError.hh
+			XrdOucTrace.hh XrdOucError.hh rsalib.hh rsaaux.hh
 	@echo Compiling XrdCryptolocalRSA.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptolocalRSA.o XrdCryptolocalRSA.cc
 
@@ -396,11 +400,3 @@ $(OBJDIR)/XrdCryptosslgsiX509Chain.o: XrdCryptosslgsiX509Chain.cc \
 			XrdCryptoTrace.hh XrdOucTrace.hh XrdOucError.hh
 	@echo Compiling XrdCryptosslgsiX509Chain.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptosslgsiX509Chain.o XrdCryptosslgsiX509Chain.cc
-
-$(OBJDIR)/rsalib.o: rsalib.c rsaaux.h rsalib.h
-	@echo Compiling rsalib.c 
-	$(ECHO)$(CCMP) -c $(CCMPFLAGS) $(INCLUDE) -o $(OBJDIR)/rsalib.o rsalib.c
-
-$(OBJDIR)/rsaaux.o: rsaaux.c rsaaux.h rsalib.h
-	@echo Compiling rsaaux.c 
-	$(ECHO)$(CCMP) -c $(CCMPFLAGS) $(INCLUDE) -o $(OBJDIR)/rsaaux.o rsaaux.c
