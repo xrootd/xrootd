@@ -61,6 +61,7 @@ for c in $options ; do eval $c="yes" ; done
 enable_echo=no
 enable_mon=yes
 enable_perlint=no
+enable_ssl=
 enable_thread=yes
 
 #
@@ -1334,6 +1335,10 @@ if test ! "x$enable_pwd" = "xno" ; then
     xrdsut="XrdSut"
     # Cryptography needed
     xrdcrypto="XrdCrypto"
+    # Enable OpenSSL, if not explicitely disabled
+    if test ! "x$enable_ssl" = "xno" ; then
+       enable_ssl="yes"
+    fi
     #
     echo "done"
     #
@@ -1351,13 +1356,42 @@ fi
 
 ######################################################################
 #
+### echo %%% Support for GSI authentication
+#
+#
+gsiextracflags=""
+havegsi=""
+if test ! "x$enable_gsi" = "xno" ; then
+    #
+    message "Enabling GSI authentication module"
+    #
+    buildsec="yes"
+    # plug-in name
+    havegsi="XrdSecgsi"
+    # Security utils needed
+    xrdsut="XrdSut"
+    # Cryptography needed
+    xrdcrypto="XrdCrypto"
+    # Require OpenSSL
+    if test ! "x$enable_ssl" = "xno" ; then
+       enable_ssl="yes"
+       echo "done"
+    else
+       # explicitely disabled: warn
+       echo "no: GSI authentication requires OpenSSL"
+    fi
+    #
+fi
+
+######################################################################
+#
 ### echo %%% OpenSSL support - Third party libraries
 #
 # (See www.openssl.org)
 #
 ssllib=""
 sslextracflags=""
-if test ! "x$enable_ssl" = "xno" ; then
+if test "x$enable_ssl" = "xyes" ; then
 
     #
     # Version
@@ -1456,6 +1490,13 @@ if test ! "x$enable_ssl" = "xno" ; then
         sslextracflags=""
         incssl="INCSSL = "
         libssl="LIBSSL = "
+        # GSI needs OpenSSL
+        echo "Disabling GSI ... (requires OpenSSL)" 
+        havegsi=""
+        if test "x$havepwd" = "x" ; then
+           xrdsut=""
+           xrdcrypto=""
+        fi
     else
         sslextracflags="-DR__SSL"
         incssl="INCSSL = -I$sslincdir"
@@ -1466,31 +1507,6 @@ if test ! "x$enable_ssl" = "xno" ; then
 
 fi
 
-
-######################################################################
-#
-### echo %%% Support for GSI authentication
-#
-#
-gsiextracflags=""
-havegsi=""
-if test ! "x$enable_gsi" = "xno" ; then
-    #
-    message "Enabling GSI authentication module"
-    if test "x$enable_ssl" = "xno" ; then
-       echo "no: GSI authentication requires OpenSSL"
-       enable_gsi="no"
-    else
-       #
-       buildsec="yes"
-       # plug-in name
-       havegsi="XrdSecgsi"
-       # Security utils needed
-       xrdsut="XrdSut"
-       #
-       echo "done"
-    fi
-fi
 
 ######################################################################
 #
