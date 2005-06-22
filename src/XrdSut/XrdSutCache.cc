@@ -680,7 +680,7 @@ int XrdSutCache::Refresh()
          XrdSutPFEntry *cent = Get(ind.name);
 
          // Analyse if there ...
-         if (cent || cent->mtime < ent.mtime) {         
+         if (cent && (cent->mtime < ent.mtime)) {
 
             // Update the cache
             cent->status = ent.status;
