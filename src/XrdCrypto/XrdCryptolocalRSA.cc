@@ -23,9 +23,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-extern "C" {
-#include  "rsalib.h"
-}
+#include  "rsalib.hh"
 
 const int kMAXRSATRIES    = 100;
 const int kPRIMELENGTH    = 20;
