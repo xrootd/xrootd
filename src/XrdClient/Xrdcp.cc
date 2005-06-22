@@ -105,7 +105,7 @@ void print_summary(const char* src, const char* dst, unsigned long long bytesrea
    COUT(("[xrdcp] # Destination Name         : %s\n",xdst.c_str()));
    COUT(("[xrdcp] # Data Copied [bytes]      : %lld\n",bytesread));
    COUT(("[xrdcp] # Realtime [s]             : %f\n",abs_time/1000.0));
-   if (abs_time!=0) {
+   if (abs_time > 0) {
       COUT(("[xrdcp] # Eff.Copy. Rate[Mb/s]     : %f\n",bytesread/abs_time/1000.0));
    }
    //  if (strlen(authzfilename)) {
