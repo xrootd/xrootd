@@ -120,8 +120,8 @@ void *XrdOlbStartPandering(void *carg)
 void *XrdOlbStartSupervising(void *carg)
       {EPNAME("StartSuper");
        XrdNetLink *newlink;
-       while(1) if ((newlink = XrdOlbNetTCPr->Accept()))
-                   {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
+       while(1) if ((newlink = XrdOlbNetTCPr->Accept(XRDNET_NODNTRIM)))
+                   {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Nick());
                     XrdOlbSM.Login(newlink);
                    }
        return (void *)0;
@@ -194,8 +194,8 @@ int main(int argc, char *argv[])
 // Do manager processing now, simply loop looking for connections
 //
    if (XrdOlbConfig.Manager())
-      while(1) if ((newlink = XrdOlbNetTCPm->Accept()))
-                  {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Name());
+      while(1) if ((newlink = XrdOlbNetTCPm->Accept(XRDNET_NODNTRIM)))
+                  {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Nick());
                    XrdOucThread::Run(&tid, XrdOlbLoginServer, (void *)newlink);
                   }
 

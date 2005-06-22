@@ -106,8 +106,9 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port)
     DropTime =  0;
     DropJob  =  0;
     myName   =  0;
-    Port     =  0; // setName() will set myName and Port!
-    setName(lnkp->Name(), port);
+    myNick   =  0;
+    Port     =  0; // setName() will set myName, myNick, and Port!
+    setName(lnkp, port);
     Stype    = (char *)"Server";
 }
 
@@ -137,6 +138,7 @@ XrdOlbServer::~XrdOlbServer()
 // Delete other appendages
 //
    if (myName)    free(myName);
+   if (myNick)    free(myNick);
 
 // All done
 //
@@ -344,7 +346,7 @@ int XrdOlbServer::Process_Responses()
        else if (!strcmp("rst",     tp)) retc = do_RST(id);
        else retc = 1;
        if (retc > 0)
-          XrdOlbSay.Emsg("Server", "invalid response from", myName);
+          XrdOlbSay.Emsg("Server", "invalid response from", myNick);
       } while(retc >= 0 && !isOffline);
 
 // Check for permanent errors
@@ -388,17 +390,23 @@ int  XrdOlbServer::Send(const struct iovec iov[], int iovcnt)
 /*                               s e t N a m e                                */
 /******************************************************************************/
   
-void XrdOlbServer::setName(const char *hname, int port)
+void XrdOlbServer::setName(XrdNetLink *lnkp, int port)
 {
    char buff[512];
+   const char *hname = lnkp->Name();
+   const char *hnick = lnkp->Nick();
 
    if (myName)
-      if (port == Port) return;
+      if (!strcmp(myName, hname) && port == Port) return;
          else free(myName);
 
    if (!port) myName = strdup(hname);
       else {sprintf(buff, "%s:%d", hname, port); myName = strdup(buff);}
    Port = port;
+
+   if (myNick) free(myNick);
+   if (!port) myNick = strdup(hnick);
+      else {sprintf(buff, "%s:%d", hnick, port); myNick = strdup(buff);}
 }
 
 /******************************************************************************/
@@ -1658,13 +1666,13 @@ char *XrdOlbServer::Receive(char *idbuff, int blen)
    if ((lp=Link->GetLine()) && *lp)
       {if (XrdOlbTrace.What & TRACE_Debug
        &&  strcmp("1@0 ping", lp) && strcmp("1@0 pong", lp))
-           TRACEX("from " <<myName <<": " <<lp);
+           TRACEX("from " <<myNick <<": " <<lp);
        isActive = 1;
        if ((tp=Link->GetToken()))
           {strncpy(idbuff, tp, blen-2); idbuff[blen-1] = '\0';
            return Link->GetToken();
           }
-      } else DEBUG("Null line from " <<myName);
+      } else DEBUG("Null line from " <<myNick);
    return 0;
 }
  

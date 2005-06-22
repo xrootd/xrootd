@@ -46,7 +46,8 @@ inline int   isServer(unsigned int ipa)
                       {return ipa == IPAddr;}
 inline int   isServer(unsigned int ipa, int port)
                       {return ipa == IPAddr && port == Port && port;}
-inline char *Name()   {return (myName ? myName : (char *)"?");}
+inline       char *Name()   {return (myName ? myName : (char *)"?");}
+inline const char *Nick()   {return (myNick ? myNick : (char *)"?");}
 inline void    Lock() {myMutex.Lock();}
 inline void  UnLock() {myMutex.UnLock();}
 
@@ -61,7 +62,7 @@ static int  Resume(XrdOlbPrepArgs *pargs);
        int  Send(const char *buff, int blen=0);
        int  Send(const struct iovec *iov, int iovcnt);
 
-       void setName(const char *hname, int port);
+       void setName(XrdNetLink *lnkp, int port);
 
             XrdOlbServer(XrdNetLink *lnkp, int port=0);
            ~XrdOlbServer();
@@ -112,6 +113,7 @@ int        ServID;
 int        Instance;
 int        Port;
 char      *myName;
+char      *myNick;
 char      *Stype;
 
 int        pingpong;     // Keep alive field
