@@ -368,7 +368,7 @@ int rsa_num_sget(rsa_NUMBER *n, char *s)
 {
 #if rsa_MAXINT == ( (1 << rsa_MAXBIT) - 1 )
 	rsa_INT *p;
-	char *hp;
+	const char *hp;
 	int bi,ab,i;
 	long b;
 	int first = 1;
