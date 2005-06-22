@@ -48,7 +48,7 @@ static int getHostAddr(const  char     *InetName,
 //               qualified name of this host is returned. The name is returned
 //               as an strdup'd string which must be released using free().
 //               If errtxt is supplied, it is set to zero.
-//               Upon failure, strdup("127.0.0.1") is returned and the error
+//               Upon failure, strdup("0.0.0.0") is returned and the error
 //               text is placed in errtxt if an address is supplied.
 //
 static char *getHostName(const char *InetName=0,
