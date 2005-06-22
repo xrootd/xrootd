@@ -83,7 +83,7 @@ $(OBJDIR)/XrdNetDNS.o: XrdNetDNS.cc XrdNetDNS.hh XrdOucPlatform.hh XrdOucPthread
 	@echo Compiling XrdNetDNS.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFGETHBYXR) $(CFNAMEINFO) $(CFPROTOR) $(INCLUDE) XrdNetDNS.cc -o $(OBJDIR)/XrdNetDNS.o
 
-$(OBJDIR)/XrdNetLink.o: XrdNetLink.cc XrdNetLink.hh \
+$(OBJDIR)/XrdNetLink.o: XrdNetLink.cc XrdNetLink.hh          XrdNet.hh \
                         XrdNetBuffer.hh   XrdNetDNS.hh       XrdNetPeer.hh \
                         XrdOucChain.hh    XrdOucError.hh     XrdOucPthread.hh \
                         XrdOucPlatform.hh XrdOucStream.hh    XrdOucTokenizer.hh

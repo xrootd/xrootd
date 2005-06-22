@@ -18,6 +18,7 @@ const char *XrdNetLinkCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetBuffer.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetLink.hh"
@@ -41,7 +42,7 @@ int                     XrdNetLink::devNull = open("/dev/null", O_RDONLY);
 /*                                 A l l o c                                  */
 /******************************************************************************/
   
-XrdNetLink *XrdNetLink::Alloc(XrdOucError *erp, XrdNetPeer &Peer, 
+XrdNetLink *XrdNetLink::Alloc(XrdOucError *erp, XrdNet *Net, XrdNetPeer &Peer,
                               XrdNetBufferQ *bq, int opts)
 {
    XrdNetLink *lp;
@@ -86,6 +87,8 @@ XrdNetLink *XrdNetLink::Alloc(XrdOucError *erp, XrdNetPeer &Peer,
                                        sizeof(Peer.InetAddr));
        if (Peer.InetName) lp->Lname = strdup(Peer.InetName);
           else lp->Lname = XrdNetDNS::getHostName(Peer.InetAddr);
+       lp->Sname = strdup(lp->Lname);
+       Net->Trim(lp->Sname);
        lp->FD = Peer.fd;
        }
 

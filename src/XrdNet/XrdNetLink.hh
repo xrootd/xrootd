@@ -31,6 +31,7 @@
 
 // The XrdNetLink class defines the i/o operations on a network link.
 //
+class XrdNet;
 class XrdNetPeer;
 class XrdOucError;
 class XrdOucStream;
@@ -42,7 +43,7 @@ public:
 
 XrdOucQSItem<XrdNetLink> LinkLink;
 
-static XrdNetLink *Alloc(XrdOucError   *erp, XrdNetPeer &Peer,
+static XrdNetLink *Alloc(XrdOucError   *erp, XrdNet *Net, XrdNetPeer &Peer,
                          XrdNetBufferQ *bq,  int opts=0);
 
 // Closes() closes the link. Specify defer=1 to postpone deallocating
@@ -76,9 +77,17 @@ int           LastError();
 //
 unsigned int Addr() {return XrdNetDNS::IPAddr(&InetAddr);}
 
-// Name() returns the host name of the endpoint
+// Moniker() returns the short form of the host name at the endpoint
+//
+const char  *Moniker() {return Sname;}
+
+// Name() returns the full host name of the endpoint
 //
 const char  *Name() {return Lname;}
+
+// Moniker() returns the short form of the host name at the endpoint
+//
+const char  *Nick() {return Sname;}
 
 // OK2Recv() returns true if data can be received within tmo, false otherwise.
 //
@@ -137,7 +146,7 @@ void          SetOpts(int opts);
 // buffer must contain a text datagram suitable for tokenization.
 //
               XrdNetLink(XrdOucError *erp, XrdNetBufferQ *bq) : LinkLink(this)
-                          {FD = -1; Lname = 0; recvbuff = sendbuff = 0;
+                          {FD = -1; Lname = Sname = 0; recvbuff = sendbuff = 0;
                            BuffQ = bq; Stream = 0; Bucket = 0; eDest = erp;
                           }
              ~XrdNetLink() {Close();}
@@ -154,7 +163,8 @@ int                 FD;
 int                 noclose;
 int                 isReset;
 struct sockaddr     InetAddr;
-char               *Lname;
+char               *Lname;     // Long  hostname
+char               *Sname;     // Short hostname (may be the same as Lname)
 XrdNetBuffer       *recvbuff;  // udp receive buffer
 XrdNetBuffer       *sendbuff;  // udp send    buffer
 XrdOucStream       *Stream;    // tcp tokenizer

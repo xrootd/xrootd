@@ -47,7 +47,7 @@ XrdNetLink *XrdNetWork::Accept(int opts, int timeout)
 
 // Return a link object
 //
-   if (!(lp = XrdNetLink::Alloc(eDest, myPeer, BuffQ, lnkopts)))
+   if (!(lp = XrdNetLink::Alloc(eDest,(XrdNet *)this,myPeer,BuffQ,lnkopts)))
       {if (!ismyfd) close(myPeer.fd);
        if (!(opts & XRDNET_NOEMSG))
           eDest->Emsg("Connect",ENOMEM,"accept connection from",myPeer.InetName);
@@ -70,7 +70,7 @@ XrdNetLink *XrdNetWork::Connect(const char *host, int port, int opts, int tmo)
 
 // Return a link object
 //
-   if (!(lp = XrdNetLink::Alloc(eDest, myPeer, BuffQ)))
+   if (!(lp = XrdNetLink::Alloc(eDest, (XrdNet *)this, myPeer, BuffQ)))
       {close(myPeer.fd);
        if (!(opts & XRDNET_NOEMSG))
           eDest->Emsg("Connect", ENOMEM, "connect to", host);
@@ -100,7 +100,7 @@ XrdNetLink *XrdNetWork::Relay(const char *dest, int opts)
 
 // Associate this socket with a link
 //
-   if (!(lp = XrdNetLink::Alloc(eDest, myPeer, BuffQ, lnkopts)))
+   if (!(lp = XrdNetLink::Alloc(eDest, (XrdNet *)this, myPeer, BuffQ, lnkopts)))
       {close(myPeer.fd);
        if (!(opts & XRDNET_NOEMSG))
           eDest->Emsg("Connect", ENOMEM, "allocate relay to", 

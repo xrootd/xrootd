@@ -134,12 +134,12 @@ char *XrdNetDNS::getHostName(const char *InetName, char **errtxt)
 //
    if (InetName) hp = InetName;
       else if (gethostname(myname, sizeof(myname))) 
-              {if (errtxt) setET(errtxt, errno); return strdup("127.0.0.1");}
+              {if (errtxt) setET(errtxt, errno); return strdup("0.0.0.0");}
               else hp = myname;
 
 // Get the address
 //
-   if (!getHostAddr(hp, InetAddr, errtxt)) return strdup("127.0.0.1");
+   if (!getHostAddr(hp, InetAddr, errtxt)) return strdup("0.0.0.0");
 
 // Convert it to a fully qualified host name and return it
 //
