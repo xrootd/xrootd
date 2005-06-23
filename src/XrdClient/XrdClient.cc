@@ -259,7 +259,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	  " offset=" << offset);
 
      // Are we using async read ahead?
-     if (fUseCache && EnvGetLong(NAME_GOASYNC) && (rasize > 0)) {
+     if (fUseCache && EnvGetLong(NAME_GOASYNC) && (rasize > 0) &&
+	 EnvGetLong(NAME_READAHEADTYPE) ) {
 	long long araoffset;
 	long aralen;
 

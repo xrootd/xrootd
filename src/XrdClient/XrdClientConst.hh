@@ -70,6 +70,10 @@
 #define DFLT_READAHEADSIZE      500000
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
 
+// Read ahead style: 0=sync, 1=enable async if possible
+#define DFLT_READAHEADTYPE     0
+#define NAME_READAHEADTYPE     (char *)"ReadAheadType"
+
 #define NAME_REDIRDOMAINALLOW_RE   (char *)"RedirDomainAllowRE"
 #define NAME_REDIRDOMAINDENY_RE    (char *)"RedirDomainDenyRE"
 #define NAME_CONNECTDOMAINALLOW_RE (char *)"ConnectDomainAllowRE"
