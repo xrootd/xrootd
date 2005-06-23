@@ -65,6 +65,7 @@ install -m 755 utils/mps_prep $RPM_BUILD_ROOT/opt/xrootd/utils/mps_prep
 install -m 644 utils/ooss_CAlloc.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_CAlloc.pm
 install -m 644 utils/ooss_Lock.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_Lock.pm
 install -m 644 utils/ooss_MonP.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_MonP.pm
+install -m 644 utils/ooss_name2name.pm $RPM_BUILD_ROOT/opt/xrootd/utils/ooss_name2name.pm
 install -m 755 utils/fs_stat $RPM_BUILD_ROOT/opt/xrootd/utils/fs_stat
 install -m 755 utils/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/utils/XrdOlbNotify.pm
 
@@ -110,6 +111,7 @@ install -m 755 utils/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/utils/XrdOlbNoti
 /opt/xrootd/utils/ooss_CAlloc.pm
 /opt/xrootd/utils/ooss_Lock.pm
 /opt/xrootd/utils/ooss_MonP.pm
+/opt/xrootd/utils/ooss_name2name.pm
 /opt/xrootd/utils/fs_stat
 /opt/xrootd/utils/XrdOlbNotify.pm
 
