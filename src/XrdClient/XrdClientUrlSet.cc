@@ -372,5 +372,10 @@ void XrdClientUrlSet::ConvertDNSAlias(UrlArray& urls, XrdClientString proto,
       // Notify
       Info(XrdClientDebug::kHIDEBUG, "ConvertDNSAlias",
           "found host " << newurl->Host << " with addr " << newurl->HostAddr);
+
+      // Get a copy, if we need to store another 
+      if (i < (naddr-1))
+         newurl = new XrdClientUrlInfo(*newurl);
+
    }
 }
