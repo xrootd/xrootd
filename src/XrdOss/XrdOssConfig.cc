@@ -436,9 +436,9 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
    while(fp) 
         {flags = fp->Flag();
          flags = flags | (dflags & (~(flags >> XrdOssMASKSHIFT)));
-         if (!(flags & XrdOssNOSTAGE)) stgp = fp->Path();
-         if (!(flags & XrdOssNOCHECK) || !(flags & XrdOssNODREAD) ||
-              (flags & XrdOssRCREATE))  gwp = fp->Path();
+         if (!(flags & XrdOssNOSTAGE)) gwp = stgp = fp->Path();
+            else if (!(flags & XrdOssNOCHECK) || !(flags & XrdOssNODREAD) ||
+                    (flags & XrdOssRCREATE))  gwp = fp->Path();
          if (MSSgwCmd && (flags & XrdOssMIG)) flags |= XrdOssREMOTE;
          fp->Set(flags);
          fp = fp->Next();
@@ -447,9 +447,9 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 // Include the defaults if a root directory was not specified
 //
    if (!(XeqFlags & XrdOssROOTDIR))
-      {if (!(XeqFlags & XrdOssNOSTAGE)) stgp = (char *)"/";
-       if (!(XeqFlags & XrdOssNOCHECK) || !(XeqFlags & XrdOssNODREAD) ||
-           (XeqFlags & XrdOssRCREATE))   gwp = (char *)"/";
+      {if (!(XeqFlags & XrdOssNOSTAGE)) gwp = stgp = (char *)"/";
+          else if (!(XeqFlags & XrdOssNOCHECK) || !(XeqFlags & XrdOssNODREAD) ||
+                  (XeqFlags & XrdOssRCREATE))  gwp = (char *)"/";
       }
 
 // Check if we need or don't need the stagecmd
@@ -472,7 +472,8 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
        NoGo = 1;
       }
       else if (MSSgwCmd && !gwp)
-              {Eroute.Emsg("config", "mssgwcmd ignored; no MSS paths present.");
+              {Eroute.Emsg("config", "mssgwcmd ignored; no path has "
+                           "check, dread, rcreate, or stage attributes.");
                free(MSSgwCmd); MSSgwCmd = 0;
               }
 
