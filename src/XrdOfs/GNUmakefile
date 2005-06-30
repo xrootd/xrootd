@@ -13,11 +13,13 @@ include ../GNUmake.env
 SOURCES  = \
         XrdOfs.cc  \
         XrdOfsConfig.cc \
+        XrdOfsEvs.cc    \
         XrdOfsHandle.cc
 
 OBJECTS  = \
         $(OBJDIR)/XrdOfs.o \
         $(OBJDIR)/XrdOfsConfig.o  \
+        $(OBJDIR)/XrdOfsEvs.o     \
         $(OBJDIR)/XrdOfsHandle.o  
 
 MORELIBS = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdXr -lXrdNet -lXrdOuc
@@ -61,7 +63,7 @@ $(TARGETS): $(OBJECTS) $(LIBDEP)
 	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS)  -o $(LIBRARY)
 
 $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
-                     XrdOfsConfig.hh  XrdOfsHandle.hh    \
+                     XrdOfsConfig.hh  XrdOfsHandle.hh       XrdOfsEvs.hh       \
                      XrdOfsOpaque.hh  XrdOfsSecurity.hh     XrdOfsTrace.hh     \
                      XrdOuca2x.hh     XrdOucEnv.hh          XrdOucError.hh     \
                      XrdOucHash.hh    XrdOucHash.icc \
@@ -75,7 +77,7 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfs.o XrdOfs.cc
 
 $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
-                           XrdOfs.hh         XrdOfsTrace.hh  \
+                           XrdOfs.hh         XrdOfsEvs.hh     XrdOfsTrace.hh  \
                            XrdOuca2x.hh      XrdOucError.hh   XrdOucStream.hh \
                            XrdOucTrace.hh    XrdOucUtils.hh   XrdNetDNS.hh   \
                            XrdAccAuthorize.hh \
@@ -83,10 +85,14 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
 	@echo Compiling XrdOfsConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsConfig.o XrdOfsConfig.cc
 
+$(OBJDIR)/XrdOfsEvs.o:  XrdOfsEvs.cc      XrdOfsEvs.hh \
+                        XrdOucPthread.hh  XrdOucProg.hh
+	@echo Compiling XrdOfsEvs.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsEvs.o XrdOfsEvs.cc
+
 $(OBJDIR)/XrdOfsHandle.o:  XrdOfsHandle.cc   XrdOfsHandle.hh \
                            XrdOfs.hh         XrdOfsConfig.hh  XrdOfsTrace.hh  \
                            XrdOuca2x.hh      XrdOucError.hh   XrdOucStream.hh \
-                           XrdOucTrace.hh                                     \
-                           XrdOdcFinder.hh
+                           XrdOucPthread.hh  XrdOucTrace.hh   XrdOdcFinder.hh
 	@echo Compiling XrdOfsHandle.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsHandle.o XrdOfsHandle.cc

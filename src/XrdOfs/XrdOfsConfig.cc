@@ -36,6 +36,7 @@ const char *XrdOfsConfigCVSID = "$Id$";
 
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfig.hh"
+#include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
 #include "XrdNet/XrdNetDNS.hh"
@@ -171,6 +172,10 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
        Options &= ~(XrdOfsFWDALL);
       }
 
+// If we need to send notifications, initialize the interface
+//
+   if (!NoGo && evsObject) NoGo = evsObject->Start(&Eroute);
+
 // All done
 //
    tmp = (NoGo ? "failed." : "completed.");
@@ -188,6 +193,7 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
 {
      const char *rdt, *rdu, *rdp, *cloc;
      char buff[8192], fwbuff[256], *bp;
+     int i;
 
           if (Options & XrdOfsREDIRRMT) rdt = "ofs.redirect remote\n";
      else                               rdt = "";
@@ -224,7 +230,31 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
               (Options & XrdOfsFDNOSHARE ? "ofs.fdnoshare\n" : ""),
               FDOpenMax, FDMinIdle, FDMaxIdle, fwbuff, MaxDelay,
               OfsTrace.What);
+
      Eroute.Say(buff);
+
+     if (evsObject)
+        {bp = buff;
+         setBuff("ofs.notify ", 11);                     //  1234567890
+         if (evsObject->Enabled(XrdOfsEvs::Chmod))  setBuff("chmod ",  6);
+         if (evsObject->Enabled(XrdOfsEvs::Closer)) setBuff("closer ", 7);
+         if (evsObject->Enabled(XrdOfsEvs::Closew)) setBuff("closew ", 7);
+         if (evsObject->Enabled(XrdOfsEvs::Mkdir))  setBuff("mkdir ",  6);
+         if (evsObject->Enabled(XrdOfsEvs::Mv))     setBuff("mv ",     3);
+         if (evsObject->Enabled(XrdOfsEvs::Openr))  setBuff("openr ",  6);
+         if (evsObject->Enabled(XrdOfsEvs::Openw))  setBuff("openw ",  6);
+         if (evsObject->Enabled(XrdOfsEvs::Rm))     setBuff("rm ",     3);
+         if (evsObject->Enabled(XrdOfsEvs::Rmdir))  setBuff("rmdir ",  6);
+         if (evsObject->Enabled(XrdOfsEvs::Fwrite)) setBuff("fwrite ", 7);
+         setBuff("msgs ", 5);
+         i=sprintf(fwbuff,"%d %d ",evsObject->maxSmsg(),evsObject->maxLmsg());
+         setBuff(fwbuff, i);
+         cloc = evsObject->Prog();
+         setBuff("pgm ", 4); setBuff(cloc, strlen(cloc));
+         setBuff("\n", 1);
+         Eroute.Say(buff);
+        }
+
      List_VPlist((char *)"ofs.validpath  ", VPlist, Eroute);
 }
 
@@ -292,6 +322,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("forward",       xforward);
     TS_Xeq("locktry",       xlocktry);
     TS_Xeq("maxdelay",      xmaxd);
+    TS_Xeq("notify",        xnot);
     TS_Xeq("redirect",      xred);
     TS_Xeq("trace",         xtrace);
 
@@ -461,6 +492,93 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdOucError &Eroute)
       return 0;
 }
 
+/******************************************************************************/
+/*                                  x n o t                                   */
+/* Based on code developed by Derek Feichtinger, CERN.                        */
+/******************************************************************************/
+
+/* Function: xnot
+
+   Purpose:  Parse directive: notify <events> [msgs <min> [<max>]] | <prog>
+
+   Args:     <events> - one or more of: all chmod closer closew close mkdir mv
+                                        openr openw open rm rmdir fwrite
+             msgs     - Maximum number of messages to keep and queue. The
+                        <min> if for small messages (default 90) and <max> is
+                        for big messages (default 10).
+             <prog>   - is the program to execute and dynamically feed messages
+                        about the indicated events.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdOfs::xnot(XrdOucStream &Config, XrdOucError &Eroute)
+{
+    static struct notopts {const char *opname; XrdOfsEvs::Event opval;} 
+        noopts[] = {
+        {"all",      XrdOfsEvs::All},
+        {"chmod",    XrdOfsEvs::Chmod},
+        {"close",    XrdOfsEvs::Close},
+        {"closer",   XrdOfsEvs::Closer},
+        {"closew",   XrdOfsEvs::Closew},
+        {"mkdir",    XrdOfsEvs::Mkdir},
+        {"mv",       XrdOfsEvs::Mv},
+        {"open",     XrdOfsEvs::Open},
+        {"openr",    XrdOfsEvs::Openr},
+        {"openw",    XrdOfsEvs::Openw},
+        {"rm",       XrdOfsEvs::Rm},
+        {"rmdir",    XrdOfsEvs::Rmdir},
+        {"fwrite",   XrdOfsEvs::Fwrite}
+       };
+    XrdOfsEvs::Event noval = XrdOfsEvs::None;
+    int numopts = sizeof(noopts)/sizeof(struct notopts);
+    int i, neg, msgL = 90, msgB = 10;
+    char *val;
+
+    if (!(val = Config.GetWord()))
+       {Eroute.Emsg("Config", "notify parameters not specified"); return 1;}
+    while (val && *val != '|')
+         {if (!strcmp(val, "msgs"))
+             {if (!(val = Config.GetWord()))
+                 {Eroute.Emsg("Config", "notify msgs value not specified");
+                  return 1;
+                 }
+              if (XrdOuca2x::a2i(Eroute, "msg count", val, &msgL, 0)) return 1;
+              if (!(val = Config.GetWord())) break;
+              if (isdigit(*val)
+              && XrdOuca2x::a2i(Eroute, "msg count", val, &msgB, 0)) return 1;
+              if (!(val = Config.GetWord())) break;
+              continue;
+             }
+          if ((neg = (val[0] == '-' && val[1]))) val++;
+          for (i = 0; i < numopts; i++)
+              {if (!strcmp(val, noopts[i].opname))
+                  {if (neg) noval = static_cast<XrdOfsEvs::Event>(~noopts[i].opval & noval);
+                      else  noval = static_cast<XrdOfsEvs::Event>(noopts[i].opval|noval);
+                   break;
+                  }
+              }
+          if (i >= numopts)
+             Eroute.Emsg("Config", "invalid notify event -", val);
+          val = Config.GetWord();
+         }
+
+// Check if we have a program here and some events
+//
+   if (!val)   {Eroute.Emsg("Config","notify program not specified");return 1;}
+   if (!noval) {Eroute.Emsg("Config","notify events not specified"); return 1;}
+
+// Create an notification object
+//
+   *val = ' ';
+   Config.RetToken();
+   if (evsObject) delete evsObject;
+   evsObject = new XrdOfsEvs(noval, val, msgL, msgB);
+
+// All done
+//
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                  x r e d                                   */
 /******************************************************************************/

@@ -47,6 +47,7 @@ const char *XrdOfsCVSID = "$Id$";
 
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfig.hh"
+#include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOfs/XrdOfsOpaque.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
@@ -168,6 +169,7 @@ XrdOfs::XrdOfs()
    Finder        = 0;
    Google        = 0;
    Balancer      = 0;
+   evsObject     = 0;
 
 // Establish our hostname
 //
@@ -514,7 +516,7 @@ int XrdOfsFile::open(const char          *path,      // In
            oh->Lock();  // links > 1 -> handle cannot be deleted; hp is valid
            if (oh->flags & OFS_INPROG)
               {retc = (oh->ecode ? oh->ecode : -ENOMSG);
-               XrdOfsFS.Close(oh); oh = 0;
+               XrdOfsFS.Close(oh, tident); oh = 0;
                if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
                return XrdOfsFS.Emsg(epname, error, retc, "attach", path);
               }
@@ -573,7 +575,14 @@ int XrdOfsFile::open(const char          *path,      // In
            if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
           } else {
            if ((oh->cxrsz = fp->isCompressed(oh->cxid))) setCXinfo(open_mode);
-           oh->Activate(); oh->UnLock();
+           oh->Activate(); 
+           if (XrdOfsFS.evsObject)
+              {XrdOfsEvs::Event theEvent = oh->oflag & (O_RDWR | O_WRONLY)
+                            ? XrdOfsEvs::Openw : XrdOfsEvs::Openr;
+               if (XrdOfsFS.evsObject->Enabled(theEvent))
+                   XrdOfsFS.evsObject->Notify(theEvent, tident, oh->Name());
+              }
+           oh->UnLock();
            return SFS_OK;
           }
       } else {
@@ -612,7 +621,7 @@ int XrdOfsFile::close()  // In
 //
     myoh = oh;
     oh = (XrdOfsHandle *)0;
-    if (XrdOfsFS.Close(myoh)) {oh = myoh; return SFS_ERROR;}
+    if (XrdOfsFS.Close(myoh, tident)) {oh = myoh; return SFS_ERROR;}
     return SFS_OK;
 }
 
@@ -800,6 +809,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 {
    static const char *epname = "write";
    XrdSfsXferSize nbytes;
+   int first_write;
 
 // Perform any required tracing
 //
@@ -817,7 +827,16 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
    LOCK(oh);
    REOPENandHOLD(oh);
    oh->flags |= OFS_PENDIO;
+   if (!XrdOfsFS.evsObject) first_write = 0;
+      else if ((first_write = !(oh->flags & OFS_CHANGED)))
+              oh->flags |= OFS_CHANGED;
    UNLOCK(oh);
+
+// Check if we should generate an event
+//
+   if (XrdOfsFS.evsObject && first_write 
+   &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Fwrite))
+       XrdOfsFS.evsObject->Notify(XrdOfsEvs::Fwrite, tident, oh->Name());
 
 // Write the requested bytes
 //
@@ -841,7 +860,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 int XrdOfsFile::write(XrdSfsAio *aiop)
 {
    static const char *epname = "write";
-   int rc;
+   int first_write, rc;
 
 // Perform any required tracing
 //
@@ -860,7 +879,16 @@ int XrdOfsFile::write(XrdSfsAio *aiop)
    LOCK(oh);
    REOPENandHOLD(oh);
    oh->flags |= OFS_PENDIO;
+   if (!XrdOfsFS.evsObject) first_write = 0;
+      else if ((first_write = !(oh->flags & OFS_CHANGED)))
+              oh->flags |= OFS_CHANGED;
    UNLOCK(oh);
+
+// Check if we should generate an event
+//
+   if (XrdOfsFS.evsObject && first_write 
+   &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Fwrite))
+       XrdOfsFS.evsObject->Notify(XrdOfsEvs::Fwrite, tident, oh->Name());
 
 // Write the requested bytes
 //
@@ -1021,7 +1049,7 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 */
 {
    static const char *epname = "trunc";
-   int retc;
+   int first_write, retc;
 
 // Lock the file handle and perform any tracing
 //
@@ -1039,7 +1067,16 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
    LOCK(oh);
    REOPENandHOLD(oh);
    oh->flags |= OFS_PENDIO;
+   if (!XrdOfsFS.evsObject) first_write = 0;
+      else if ((first_write = !(oh->flags & OFS_CHANGED)))
+              oh->flags |= OFS_CHANGED;
    UNLOCK(oh);
+
+// Check if we should generate an event
+//
+   if (XrdOfsFS.evsObject && first_write 
+   &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Fwrite))
+       XrdOfsFS.evsObject->Notify(XrdOfsEvs::Fwrite, tident, oh->Name());
 
 // Perform the function
 //
@@ -1183,6 +1220,14 @@ int XrdOfs::chmod(const char             *path,    // In
       else if ((retc = Finder->Locate(einfo,path,O_RDWR)))
               return fsError(einfo, retc);
 
+// Check if we should generate an event
+//
+   if (evsObject && evsObject->Enabled(XrdOfsEvs::Chmod))
+         {char buff[8];
+          sprintf(buff, "%o", acc_mode);
+          evsObject->Notify(XrdOfsEvs::Chmod, tident, buff, path);
+         }
+
 // Now try to find the file or directory
 //
    if (!(retc = XrdOssSS.Chmod(path, acc_mode))) return SFS_OK;
@@ -1313,6 +1358,15 @@ int XrdOfs::mkdir(const char             *path,    // In
 //
     if ((retc = XrdOssSS.Mkdir(path, acc_mode, mkpath)))
        return XrdOfsFS.Emsg(epname, einfo, retc, "mkdir", path);
+
+// Check if we should generate an event
+//
+   if (evsObject && evsObject->Enabled(XrdOfsEvs::Mkdir))
+         {char buff[8];
+          sprintf(buff, "%o", acc_mode);
+          evsObject->Notify(XrdOfsEvs::Mkdir, tident, buff, path);
+         }
+
     return SFS_OK;
 }
 
@@ -1384,6 +1438,14 @@ int XrdOfs::remove(const char              type,    // In
          else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
                  return fsError(einfo, retc);
 
+// Check if we should generate an event
+//
+   if (evsObject)
+      {XrdOfsEvs::Event theEvent=(type == 'd' ? XrdOfsEvs::Rmdir:XrdOfsEvs::Rm);
+       if (evsObject->Enabled(theEvent))
+          evsObject->Notify(theEvent, tident, path);
+      }
+
 // Perform the actual deletion
 //
     if ((retc = XrdOssSS.Unlink(path)))
@@ -1443,6 +1505,11 @@ int XrdOfs::rename(const char             *old_name,  // In
                 ? fsError(einfo, retc) : SFS_OK);
          else if ((retc = Finder->Locate(einfo,old_name,O_RDWR)))
                  return fsError(einfo, retc);
+
+// Check if we should generate an event
+//
+   if (evsObject && evsObject->Enabled(XrdOfsEvs::Mv))
+      evsObject->Notify(XrdOfsEvs::Mv, tident, old_name, new_name);
 
 // Perform actual rename operation
 //
@@ -1555,7 +1622,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Warning: The caller must have the object but *not* the anchor locked. This
 //          method returns with the object deleted (hence unlocked).
 //
-int XrdOfs::Close(XrdOfsHandle *oh)
+int XrdOfs::Close(XrdOfsHandle *oh, const char *trid)
 {
 
 // If this is a real close, then decrement link count. However, we need to
@@ -1567,6 +1634,15 @@ int XrdOfs::Close(XrdOfsHandle *oh)
 // Return if there are still active links to this object
 //
     if (oh->links) {oh->UnLockAnchor(); oh->UnLock(); return 0;}
+
+// Send notification, if need be
+//
+   if (evsObject && trid)
+      {XrdOfsEvs::Event theEvent = oh->oflag & (O_RDWR | O_WRONLY)
+                                 ? XrdOfsEvs::Closew : XrdOfsEvs::Closer;
+       if (evsObject->Enabled(theEvent))
+          evsObject->Notify(theEvent, trid, oh->Name());
+      }
 
 // Close the file appropriately if it's really open
 //

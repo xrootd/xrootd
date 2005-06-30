@@ -24,6 +24,7 @@
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
+class XrdOfsEvs;
 class XrdOssDir;
 class XrdOucEnv;
 class XrdOucError;
@@ -58,11 +59,12 @@ const   char       *FName() {return (const char *)fname;}
                           }
 virtual            ~XrdOfsDirectory() {if (dp) close();}
 
-private:
-
-XrdOssDir     *dp;
+protected:
 const char    *tident;
 char          *fname;
+
+private:
+XrdOssDir     *dp;
 int            atEOF;
 char           dname[MAXNAMLEN];
 };
@@ -119,6 +121,10 @@ public:
                                  }
 
 virtual               ~XrdOfsFile() {if (oh) close();}
+
+protected:
+const char    *tident;
+
 private:
 
        void         setCXinfo(XrdSfsFileOpenMode mode);
@@ -128,7 +134,6 @@ private:
 XrdOfsHandle  *oh;
 int            dorawio;
 struct timeval tod;
-const char    *tident;
 };
 
 /******************************************************************************/
@@ -218,11 +223,11 @@ const   char          *getVersion();
 
 // Management functions
 //
-        int            Configure(XrdOucError &);
+virtual int            Configure(XrdOucError &);
 
         void           Config_Display(XrdOucError &);
 
-        int            Unopen(XrdOfsHandle *);
+virtual int            Unopen(XrdOfsHandle *);
 
                        XrdOfs();
 virtual               ~XrdOfs() {}  // Too complicate to delete :-)
@@ -251,6 +256,26 @@ char *HostPref;       //    ->Our hostname with domain removed
 char *ConfigFN;       //    ->Configuration filename
 
 /******************************************************************************/
+/*                       P r o t e c t e d   I t e m s                        */
+/******************************************************************************/
+
+protected:
+
+// The following structure defines an anchor for the valid file list. There is
+// one entry in the list for each validpath directive. When a request comes in,
+// the named path is compared with entries in the VFlist. If no prefix match is
+// found, the request is treated as being invalid (i.e., EACCES).
+//
+XrdOucPListAnchor VPlist;     // -> Valid file list
+
+virtual int   ConfigXeq(char *var, XrdOucStream &, XrdOucError &);
+static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
+                   const char *y="");
+static  int   fsError(XrdOucErrInfo &myError, int rc);
+        int   Stall(XrdOucErrInfo  &, int, const char *);
+        char *WaitTime(int, char *, int);
+  
+/******************************************************************************/
 /*                 P r i v a t e   C o n f i g u r a t i o n                  */
 /******************************************************************************/
 
@@ -260,13 +285,7 @@ XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdOdcFinder     *Finder;         //    ->Distrib Cache   Service
 XrdOdcFinder     *Google;         //    ->Remote  Cache   Service
 XrdOdcFinderTRG  *Balancer;       //    ->Server Balancer Interface
-
-// The following structure defines an anchor for the valid file list. There is
-// one entry in the list for each validpath directive. When a request comes in,
-// the named path is compared with entries in the VFlist. If no prefix match is
-// found, the request is treated as being invalid (i.e., EACCES).
-//
-XrdOucPListAnchor VPlist;     // -> Valid file list
+XrdOfsEvs        *evsObject;      //    ->Event Notifier
 
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */
@@ -274,27 +293,22 @@ XrdOucPListAnchor VPlist;     // -> Valid file list
 
 // Common functions
 //
-        int   Close(XrdOfsHandle *);
-static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
-                   const char *y="");
-static  int   fsError(XrdOucErrInfo &myError, int rc);
+        int   Close(XrdOfsHandle *, const char *trid=0);
         void  Detach_Name(const char *);
         int   remove(const char type, const char *path,
                      XrdOucErrInfo &out_error, const XrdSecEntity     *client,
                      const char *opaque);
-        int   Stall(XrdOucErrInfo  &, int, const char *);
 
 // Function used during Configuration
 //
 int           ConfigRedir(XrdOucError &Eroute);
-int           ConfigXeq(char *var, XrdOucStream &, XrdOucError &);
 const char   *Fname(const char *);
 void          List_VPlist(char *, XrdOucPListAnchor &, XrdOucError &);
-char         *WaitTime(int, char *, int);
 int           xfdscan(XrdOucStream &, XrdOucError &);
 int           xforward(XrdOucStream &, XrdOucError &);
 int           xlocktry(XrdOucStream &, XrdOucError &);
 int           xmaxd(XrdOucStream &, XrdOucError &);
+int           xnot(XrdOucStream &, XrdOucError &);
 int           xred(XrdOucStream &, XrdOucError &);
 int           xtrace(XrdOucStream &, XrdOucError &);
 };

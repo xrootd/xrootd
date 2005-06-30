@@ -44,6 +44,7 @@ class XrdOfsHandle_Args
 #define OFS_EOF      0x0002
 #define OFS_INPROG   0x0010
 #define OFS_PENDIO   0x0020
+#define OFS_CHANGED  0x4000
 #define OFS_RETIRED  0x8000
   
 /******************************************************************************/
