@@ -244,6 +244,9 @@ XrdClientUrlInfo *XrdClientUrlSet::GetARandomUrl()
 
    if (!fTmpUrlArray.GetSize()) Rewind();
 
+   // If the urlarray is still empty, just exits
+   if (!fTmpUrlArray.GetSize()) return 0;
+   
    for (int i=0; i < 10; i++)
 #ifdef __sun
       rnd = irint(GetRandom() * fTmpUrlArray.GetSize()) % fTmpUrlArray.GetSize();
