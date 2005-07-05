@@ -89,7 +89,8 @@ CREATE TABLE IF NOT EXISTS paths (
   hash          MEDIUMINT NOT NULL DEFAULT 0,
   name          VARCHAR(255) NOT NULL,
   INDEX (typeId),
-  INDEX (skimId)
+  INDEX (skimId),
+  INDEX (hash)
 );
 
 
