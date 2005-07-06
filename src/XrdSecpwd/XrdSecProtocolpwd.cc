@@ -353,12 +353,21 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       struct stat st;
       if (stat(infodir.c_str(),&st) == -1) {
          if (errno == ENOENT) {
-            DEBUG("infodir non existing: "<<infodir.c_str());
+            if (argdir) {
+               DEBUG("infodir non existing: "<<infodir.c_str());
+            } else {
+               DEBUG("creating infodir: "<<infodir.c_str());
+               if (XrdSutMkdir(infodir.c_str(),0777) != 0) {
+                  DEBUG("cannot create infodir (errno: "<<errno<<")");
+                  infodir = "";
+                  argdir = 0;
+               }
+            }
          } else {
             DEBUG("cannot stat infodir (errno: "<<errno<<")");
+            infodir = "";
+            argdir = 0;
          }
-         infodir = "";
-         argdir = 0;
       }
    }
    DEBUG("using infodir: "<<infodir.c_str());
@@ -467,61 +476,18 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
 
       //
       // List of crypto modules
-      String cryptlist(DefCrypto,0,-1,64);
-      if (opt.clist > 0) {
-         String ctmp = opt.clist;      
-         //
-         // Parse to modify cryptlist accordingly
-         int li = 0;
-         int ls = 0;
-         int lc = ctmp.find('|');
-         lc = (lc == -1) ? ctmp.length() - 1 : lc;
-         while (lc >= ls) {
-            String ncpt = ctmp;
-            ncpt.keep(ls,lc-ls+1);
-            ncpt.erase("|");
-            if (ncpt[0] == '-') {
-               // Remove the module from the list, if there
-               ncpt.erase(0,1);
-               int ip = cryptlist.find(ncpt);
-               if (ip != -1) {
-                  ip += ncpt.length();
-                  if (ip == cryptlist.length() || cryptlist[ip] == '|'
-                                               || cryptlist[ip] == ' ') {
-                     if (cryptlist[ip] == '|')
-                        cryptlist.erase(ip,1);
-                     cryptlist.erase(ncpt);
-                  }
-               }
-            } else {
-               // Add ... keeping the order
-               cryptlist.insert("|",li);
-               cryptlist.insert(ncpt,li);
-               li += (ncpt.length()+1);
-               // Remove doubles
-               cryptlist.erase(ncpt,li);
-            }
-            ls = lc + 1;
-            lc = ctmp.find('|',ls);
-            lc = (lc == -1) ? ctmp.length() - 1 : lc;
-         }
-         // Cleanup "||"
-         cryptlist.replace("||","|");
-      }
+      String cryptlist = (opt.clist > 0) ? opt.clist : DefCrypto;
 
       // 
       // Load crypto modules
       XrdSutPFEntry ent;
       XrdCryptoFactory *cf = 0;
-      if (cryptlist.length()) {
-         int ls = 0;
-         int lc = cryptlist.find('|');
-         lc = (lc == -1) ? cryptlist.length() - 1 : lc;
-         while (lc >= ls) {
-            String ncpt = cryptlist;
-            ncpt.keep(ls,lc-ls+1);
-            ncpt.erase("|");
-            if (ncpt.length() > 0 && ncpt[0] != '-') {
+      String clist = cryptlist;
+      if (clist.length()) {
+         String ncpt = "";
+         int from = 0;
+         while ((from = clist.tokenize(ncpt, from, '|')) != -1) {
+            if (ncpt.length() > 0) {
                // Try loading 
                if ((cf = XrdCryptoFactory::GetCryptoFactory(ncpt.c_str()))) {
                   // Add it to the list
@@ -534,7 +500,6 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                   if (PFAdmin.ReadEntry(ptag.c_str(),ent) <= 0) {
                      PRINT("ref cipher for module "<<ncpt<<" missing: disable");
                      cryptlist.erase(ncpt);
-                     lc = 1;
                   } else {
                      XrdSutBucket bck;
                      bck.SetBuf(ent.buf1.buf,ent.buf1.len);
@@ -542,7 +507,6 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                         PRINT("ref cipher for module "<<ncpt<<
                               " cannot be instantiated : disable");
                         cryptlist.erase(ncpt);
-                        lc = 1;
                      } else {
                         ncrypt++;
                         if (ncrypt >= XrdCryptoMax) {
@@ -556,11 +520,9 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                   PRINT("cannot instantiate crypto factory "<<ncpt);
                }
             }
-            ls = lc + 1;
-            lc = cryptlist.find('|',ls);
-            lc = (lc == -1) ? cryptlist.length() - 1 : lc;
          }
       }
+
       //
       // We need at least one valid crypto module
       if (ncrypt <= 0) {
@@ -1285,6 +1247,8 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
          //
          // Count temporary failures
          (hs->Cref->cnt)++;
+         // Reset expired credentials flag
+         SessionSt.options &= ~kOptsExpCred;
          // Repeat if not too many attempts
          ClntMsg = DefError;
          if (hs->Cref->cnt < MaxPrompts) {
@@ -1548,30 +1512,31 @@ char *XrdSecProtocolpwdInit(const char mode,
       String clist = "";
       String cpass = "";
       char *op = 0;
-      if (inParms.GetLine()) { 
+      while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
-            if (!strncmp(op, "-upwd:",6))
+            if (!strncmp(op, "-upwd:",6)) {
                upw = atoi(op+6);
-            if (!strncmp(op, "-dir:",5))
+            } else if (!strncmp(op, "-dir:",5)) {
                dir = (const char *)(op+5);
-            if (!strncmp(op, "-udir:",6))
+            } else if (!strncmp(op, "-udir:",6)) {
                udir = (const char *)(op+6);
-            if (!strncmp(op, "-c:",3))
+            } else if (!strncmp(op, "-c:",3)) {
                clist = (const char *)(op+3);
-            if (!strncmp(op, "-d:",3))
+            } else if (!strncmp(op, "-d:",3)) {
                debug = atoi(op+3);
-            if (!strncmp(op, "-a:",3))
+            } else if (!strncmp(op, "-a:",3)) {
                areg = atoi(op+3);
-            if (!strncmp(op, "-vc:",4))
+            } else if (!strncmp(op, "-vc:",4)) {
                vc = atoi(op+4);
-            if (!strncmp(op, "-syspwd",7))
+            } else if (!strncmp(op, "-syspwd",7)) {
                syspwd = 1;
-            if (!strncmp(op, "-lf:",4))
+            } else if (!strncmp(op, "-lf:",4)) {
                lifetime = XrdSutParseTime(op+4);
-            if (!strncmp(op, "-maxfail:",9))
+            } else if (!strncmp(op, "-maxfail:",9)) {
                maxfail =  atoi(op+9);
-            if (!strncmp(op, "-cryptfile:",11))
+            } else if (!strncmp(op, "-cryptfile:",11)) {
                cpass = (const char *)(op+11);
+            }
          }
          // Check inputs
          areg = (areg >= 0 && areg <= 2) ? areg : 0;
@@ -1698,12 +1663,8 @@ int XrdSecProtocolpwd::ParseCrypto(XrdSutBuffer *buf)
    hs->CryptoMod = "";
    // Parse list
    if (clist.length()) {
-      int ls = 0;
-      int ld = clist.find('|',1);
-      ld = (ld == -1) ? clist.length() - 1 : ld;
-      while (ld >= ls) {
-         hs->CryptoMod.assign(clist, ls, ld);
-         hs->CryptoMod.erase("|");
+      int from = 0;
+      while ((from = clist.tokenize(hs->CryptoMod, from, '|')) != -1) {
          // Check this module
          if (hs->CryptoMod.length()) {
             // Load the crypto factory
@@ -1731,9 +1692,6 @@ int XrdSecProtocolpwd::ParseCrypto(XrdSutBuffer *buf)
                return 0;
             }
          }
-         ls = ld + 1;
-         ld = clist.find('|',ls);
-         ld = (ld == -1) ? clist.length() - 1 : ld;
       }
    }
 
@@ -1964,11 +1922,9 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
 
    //
    // If the previously cached entry has a second (final) passwd
-   // use it. This is the case of one-time password hashs when the user
-   // has already entered the final one in the auto-login file
-   // This is also the case when the real passwd is required (like in
+   // use it. This is the case when the real passwd is required (like in
    // crypt), we may have it in cache from a previous prompt
-   if (ctype == kpCT_new || ctype == kpCT_crypt) {
+   if (ctype == kpCT_crypt) {
       if (hs->Pent && hs->Pent->buf2.buf) {
          hs->Pent->buf1.SetBuf(hs->Pent->buf2.buf,hs->Pent->buf2.len);
          hs->Pent->buf2.SetBuf();
