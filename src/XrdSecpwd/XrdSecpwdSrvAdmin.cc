@@ -89,6 +89,7 @@ enum kActions {
    kA_update,
    kA_read,
    kA_remove,
+   kA_disable,
    kA_copy,
    kA_trim,
    kA_browse
@@ -99,6 +100,7 @@ const char *gActionsStr[] = {
    "kA_update",
    "kA_read",
    "kA_remove",
+   "kA_disable",
    "kA_copy",
    "kA_trim",
    "kA_browse"
@@ -134,6 +136,7 @@ XrdOucString Email    = "";
 XrdOucString IterNum  = "";
 bool         Backup   = 1;
 bool         Force    = 0;
+bool         Passwd   = 1;
 bool         Change   = 1;
 bool         Random   = 0;
 bool         SavePw   = 1;
@@ -147,11 +150,12 @@ bool         Hash     = 1;
 bool         ChangePuk = 0;
 bool         ChangePwd = 0;
 
-XrdOucString DefCrypto= "ssl|local";
+#define NCRYPTMAX 10 // max number of crypto factories
+
+XrdOucString DefCrypto = "ssl|local";
 XrdOucString CryptList = "";
-XrdOucString CryptArgs = "";
-int          ncrypt   = 0; // number of available crypto factories
-XrdOucString *CryptMod = 0; // .. and their names
+int          ncrypt    = 0; // number of available crypto factories
+XrdOucString CryptMod[NCRYPTMAX] = {""}; // .. and their names
 XrdCryptoCipher **RefCip = 0; // .. and their ciphers
 XrdCryptoFactory  **CF = 0;
 XrdCryptoKDFun_t KDFun = 0;
@@ -215,7 +219,6 @@ int main( int argc, char **argv )
 
    // Set trace options
    XrdSutSetTrace(sutTRACE_Debug);
-   XrdCryptoSetTrace(sutTRACE_Debug);
 
    // Attach to file
    kXR_int32 openmode = (Create) ? kPFEcreate : 0;
@@ -689,8 +692,11 @@ int main( int argc, char **argv )
          if (Mode == kM_netrc) {
             // If just a request for password change not much to do
             if (ChangePwd) {
-               // Update the status
-               ent.status = kPFE_onetime;
+               if (!checkpwd)
+                  break;
+               else
+                  // Update the status
+                  ent.status = kPFE_onetime;
             } else {
                // Reset status and cnt
                if (pwdimp)
@@ -706,14 +712,24 @@ int main( int argc, char **argv )
                }
             }
          } else {
-            // Reset status and cnt
-            ent.status = Change ? kPFE_onetime : kPFE_ok;
+            // Reset cnt
             ent.cnt    = 0;
-            //
-            // Fill with password
-            if (!AddPassword(ent, salt, ranpwd, Random, checkpwd, newpw)) {
-               PRT("Error creating new password: "<<gModesStr[Mode]);
-               break;
+            if (Passwd) {
+               // Set status
+               ent.status = Change ? kPFE_onetime : kPFE_ok;
+               //
+               // Fill with password
+               if (!AddPassword(ent, salt, ranpwd, Random, checkpwd, newpw)) {
+                  PRT("Error creating new password: "<<gModesStr[Mode]);
+                  break;
+               }
+            } else {
+               ent.buf1.SetBuf();
+               ent.buf2.SetBuf();
+               ent.buf3.SetBuf();
+               ent.buf4.SetBuf();
+               // Just enable entry
+               ent.status = kPFE_allowed;
             }
          }
          //
@@ -770,6 +786,12 @@ int main( int argc, char **argv )
 
    case kA_remove:
       //
+      // Ask confirmation, if required
+      prompt = "Removing entry for tag: ";
+      prompt += NameTag;
+      if (!AskConfirm("Do you want to continue?",0,prompt.c_str()))
+         break;
+      //
       // Get number of entries related
       nm = ff.SearchEntries(NameTag.c_str(),0);
       PRT("//-----------------------------------------------------"
@@ -804,7 +826,68 @@ int main( int argc, char **argv )
                                              "--------------------//");
       break;
 
+   case kA_disable:
+      //
+      // Ask confirmation, if required
+      prompt = "Disabling entry for tag: ";
+      prompt += NameTag;
+      if (!AskConfirm("Do you want to continue?",0,prompt.c_str()))
+         break;
+      //
+      // Get number of entries related
+      nm = ff.SearchEntries(NameTag.c_str(),0);
+      PRT("//-----------------------------------------------------"
+                                             "--------------------//");
+      PRT("//");
+      if (nm) {
+         PRT("// Found "<<nm<<" entries for tag '"<<NameTag.c_str()<<
+                     "' in file: "<<ff.Name());
+         //
+         // Book vector for offsets
+         int *ofs = new int[nm];
+         //
+         // Get number of entries related
+         ff.SearchEntries(NameTag.c_str(),0,ofs,nm);
+         //
+         // Read entries now
+         for ( i = 0; i < nm ; i++) {
+            nr = ff.ReadEntry(ofs[i],ent);
+            if (nr > 0) {
+               // Disable entry
+               ent.status = kPFE_disabled;
+               ent.cnt = 0;
+               ent.buf1.SetBuf();
+               ent.buf2.SetBuf();
+               ent.buf3.SetBuf();
+               ent.buf4.SetBuf();
+               // Save (or update) entry
+               ent.mtime = time(0);
+               ff.WriteEntry(ent);
+               PRT("// Entry for tag '"<<ent.name<<
+                   "' disabled");
+            } else {
+               PRT("// Entry for ofs "<<ofs[i]<<
+                     " not found in file: "<<ff.Name());
+            }
+         }
+      } else {
+         PRT("// No entry for tag '"<<NameTag.c_str()<<
+               "' found in file: "<<ff.Name());
+      }
+      PRT("//");
+      PRT("//-----------------------------------------------------"
+                                             "--------------------//");
+      break;
+
    case kA_copy:
+      //
+      // Ask confirmation, if required
+      prompt = "Copying entry for tag: ";
+      prompt += NameTag;
+      prompt += " into tag: ";
+      prompt += CopyTag;
+      if (!AskConfirm("Do you want to continue?",0,prompt.c_str()))
+         break;
       //
       // Ready entry
       if (ff.ReadEntry(NameTag.c_str(),ent) <= 0) {
@@ -814,17 +897,25 @@ int main( int argc, char **argv )
       //
       // Prepare New Entry
       nent = new XrdSutPFEntry(ent);
+      PRT("//-----------------------------------------------------"
+                                             "--------------------//");
+      PRT("//");
       if (nent) {
          nent->SetName(CopyTag.c_str());
          //
          // Write entry
          nent->mtime = time(0);
          ff.WriteEntry(*nent);
+         PRT("// Entry for tag '"<<nent->name<<
+             "' created");
          delete nent;
       } else {
-         PRT("Cannot create new entry: out of memory");
+         PRT("// Cannot create new entry: out of memory");
          break;
       }
+      PRT("//");
+      PRT("//-----------------------------------------------------"
+                                             "--------------------//");
       break;
 
    case kA_trim:
@@ -1066,6 +1157,8 @@ int ParseArguments(int argc, char **argv)
          } else if (CheckOption(opt,"change",ival)) {
             Change = ival;
             changeset = 1;
+         } else if (CheckOption(opt,"passwd",ival)) {
+            Passwd = ival;
          } else if (CheckOption(opt,"backup",ival)) {
             Backup = ival;
          } else if (CheckOption(opt,"random",ival)) {
@@ -1111,7 +1204,7 @@ int ParseArguments(int argc, char **argv)
             --argc;
             ++argv;
             if (argc >= 0 && (*argv && *(argv)[0] != '-')) {
-               CryptArgs = *argv;
+               CryptList = *argv;
             } else {
                PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
                PRT("+ Option '-crypto' requires a list of modules: ignoring    +");
@@ -1184,14 +1277,15 @@ int ParseArguments(int argc, char **argv)
          //
          // Action keyword
          opt = *argv;
-         int iad = -1, iup = -1, ird = -1, irm = -1, icp = -1; 
+         int iad = -1, iup = -1, ird = -1, irm = -1, idi = -1, icp = -1; 
          if (CheckOption(opt,"add",iad) || CheckOption(opt,"update",iup) ||
              CheckOption(opt,"read",ird) || CheckOption(opt,"remove",irm) ||
-             CheckOption(opt,"copy",icp)) {
+             CheckOption(opt,"disable",idi) || CheckOption(opt,"copy",icp)) {
             Action = (Action == kA_undef && iad == 1) ? kA_add : Action;
             Action = (Action == kA_undef && iup == 1) ? kA_update : Action;
             Action = (Action == kA_undef && ird == 1) ? kA_read : Action;
             Action = (Action == kA_undef && irm == 1) ? kA_remove : Action;
+            Action = (Action == kA_undef && idi == 1) ? kA_disable : Action;
             Action = (Action == kA_undef && icp == 1) ? kA_copy : Action;
             --argc;
             ++argv;
@@ -1413,75 +1507,16 @@ void ParseCrypto()
 {
    // Parse crypto information in globals to load relevant factories
 
-   CryptList = "";
-   // 
-   // Check list request modifications
-   if (CryptArgs.length()) {
-      int ls = 0;
-      int lc = CryptList.find('|');
-      lc = (lc == -1) ? CryptList.length() - 1 : lc;
-      while (lc >= ls) {
-         XrdOucString cmod = CryptList;
-         cmod.keep(ls,lc);
-         if (cmod[0] != '-') {
-            // Try loading 
-            if (XrdCryptoFactory::GetCryptoFactory(cmod.c_str())) {
-               // Add it to the list
-               CryptList += cmod;
-               CryptList += '|';
-               ncrypt++;
-            } else {
-               PRT("+ ParseCrypto: cannot instantiate crypto factory "
-                     <<cmod.c_str());
-            }
-         }
-         ls = lc + 1;
-         lc = CryptList.find('|',ls);
-         lc = (lc == -1) ? CryptList.length() - 1 : lc;
-      }
-   }
- 
-   //
-   // Add default modules, if not explicitely unwanted
-   int ls = 0;
-   int lc = DefCrypto.find('|');
-   lc = (lc == -1) ? DefCrypto.length() - 1 : lc;
-   while (lc >= ls) {
-      XrdOucString cmod = DefCrypto;
-      cmod.keep(ls,lc);
-      int ld = CryptArgs.find(cmod);
-      if (ld == -1) {
-         // Try loading 
-         if (XrdCryptoFactory::GetCryptoFactory(cmod.c_str())) {
-            // Add it to the list
-            CryptList += cmod;
-            CryptList += '|';
-            ncrypt++;
-         } else {
-            PRT("+ ParseCrypto: cannot instantiate crypto factory "
-                  <<cmod.c_str());
-         }
-      }
-      ls = lc + 1;
-      lc = DefCrypto.find('|',ls);
-      lc = (lc == -1) ? DefCrypto.length() - 1 : lc;
-   }
+   // Use defaults if no special argument was entered
+   if (CryptList == "")
+      CryptList = DefCrypto;
 
    //
    // Vectorize
-   CryptMod = new XrdOucString[ncrypt];
-   ls = 0;
-   lc = CryptList.find('|');
-   lc = (lc == -1) ? CryptList.length() - 1 : lc;
-   int nc = 0;
-   while (lc >= ls && nc < ncrypt) {
-      CryptMod[nc] = CryptList;
-      CryptMod[nc].keep(ls,lc);
-      CryptMod[nc].erase("|");
-      nc++;
-      ls = lc + 1;
-      lc = CryptList.find('|',ls);
-      lc = (lc == -1) ? CryptList.length() - 1 : lc;
+   int from = 0;
+   while ((from = CryptList.tokenize(CryptMod[ncrypt], from, '|')) != -1
+           && ncrypt < NCRYPTMAX) {
+      ncrypt++;
    } 
    RefCip = new XrdCryptoCipher *[ncrypt];
    CF = new XrdCryptoFactory *[ncrypt];
