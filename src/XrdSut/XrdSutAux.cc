@@ -144,10 +144,13 @@ int XrdSutGetPass(const char *prompt, XrdOucString &passwd)
 
    char *pw = getpass(prompt);
    if (pw) {
-      if (pw[strlen(pw)-1] == '\n')
-         pw[strlen(pw) - 1] = 0;   // get rid of \n
+      // Get rid of special chars, if any
+      int k = 0, i = 0, len = strlen(pw);
+      for (; i<len ; i++)
+         if (pw[i] > 0x20) pw[k++] = pw[i];
+      pw[k] = 0;
       passwd = pw;
-      XrdSutMemSet((volatile void *)pw,0,strlen(pw));
+      XrdSutMemSet((volatile void *)pw,0,len);
    } else {
       DEBUG("error from getpass");
       return -1;
