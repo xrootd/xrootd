@@ -289,8 +289,15 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    //
    // Check existence of CA directory
    struct stat st;
-   if (opt.certdir)
-      CAdir = opt.certdir;
+   if (opt.certdir) {
+      DEBUG("testing CA dir: "<<opt.certdir);
+      String CATmp = opt.certdir;
+      if (XrdSutExpand(CATmp) == 0) {
+         CAdir = CATmp;
+      } else {
+         PRINT("Could not expand: "<<opt.certdir<<": use default");
+      }
+   }
    if (stat(CAdir.c_str(),&st) == -1) {
       if (errno == ENOENT) {
          ErrF(erp,kGSErrError,"CA directory non existing:",CAdir.c_str());
@@ -319,7 +326,12 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    //
    // Check existence of CRL directory
    if (opt.crldir) {
-      CRLdir = opt.crldir;
+      String CRLTmp = opt.crldir;
+      if (XrdSutExpand(CRLTmp) == 0) {
+         CRLdir = CRLTmp;
+      } else {
+         PRINT("Could not expand: "<<opt.crldir<<": use default");
+      }
       if (CRLCheck > 0) {
          if (stat(CRLdir.c_str(),&st) == -1) {
             if (CRLCheck > 1) {
@@ -461,10 +473,22 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
 
       //
       // Load server certificate and key
-      if (opt.cert)
-         SrvCert = opt.cert;
-      if (opt.key)
-         SrvKey = opt.key;
+      if (opt.cert) {
+         String TmpCert = opt.cert;
+         if (XrdSutExpand(TmpCert) == 0) {
+            SrvCert = TmpCert;
+         } else {
+            PRINT("Could not expand: "<<opt.cert<<": use default");
+         }
+      }
+      if (opt.key) {
+         String TmpKey = opt.key;
+         if (XrdSutExpand(TmpKey) == 0) {
+            SrvKey = TmpKey;
+         } else {
+            PRINT("Could not expand: "<<opt.key<<": use default");
+         }
+      }
       //
       // Init cache for certificates (we allow for more instances of
       // the same certificate, one for each different crypto module
@@ -582,21 +606,36 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       //
       // Define user proxy file
       if (opt.proxy) {
-         UsrProxy = opt.proxy;
+         String TmpProxy = opt.proxy;
+         if (XrdSutExpand(TmpProxy) == 0) {
+            UsrProxy = TmpProxy;
+         } else {
+            PRINT("Could not expand: "<<opt.proxy<<": use default");
+         }
       } else {
          if (pw)
             UsrProxy += (int)(pw->pw_uid);
       }
       // Define user certificate file
       if (opt.cert) {
-         UsrCert = opt.cert;
+         String TmpCert = opt.cert;
+         if (XrdSutExpand(TmpCert) == 0) {
+            UsrCert = TmpCert;
+         } else {
+            PRINT("Could not expand: "<<opt.cert<<": use default");
+         }
       } else {
          if (pw)
             UsrCert.insert(pw->pw_dir,0);
       }
       // Define user private key file
       if (opt.key) {
-         UsrKey = opt.key;
+         String TmpKey = opt.key;
+         if (XrdSutExpand(TmpKey) == 0) {
+            UsrKey = TmpKey;
+         } else {
+            PRINT("Could not expand: "<<opt.key<<": use default");
+         }
       } else {
          if (pw)
             UsrKey.insert(pw->pw_dir,0);
@@ -1466,28 +1505,29 @@ char *XrdSecProtocolgsiInit(const char mode,
       String md = "";
       int crl = 2;
       char *op = 0;
-      if (inParms.GetLine()) { 
+      while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
-            if (!strncmp(op, "-d:",3))
+            if (!strncmp(op, "-d:",3)) {
                debug = atoi(op+3);
-            if (!strncmp(op, "-c:",3))
+            } else if (!strncmp(op, "-c:",3)) {
                clist = (const char *)(op+3);
-            if (!strncmp(op, "-certdir:",9))
+            } else if (!strncmp(op, "-certdir:",9)) {
                certdir = (const char *)(op+9);
-            if (!strncmp(op, "-crldir:",8))
+            } else if (!strncmp(op, "-crldir:",8)) {
                crldir = (const char *)(op+8);
-            if (!strncmp(op, "-crlext:",8))
+            } else if (!strncmp(op, "-crlext:",8)) {
                crlext = (const char *)(op+8);
-            if (!strncmp(op, "-cert:",6))
+            } else if (!strncmp(op, "-cert:",6)) {
                cert = (const char *)(op+6);
-            if (!strncmp(op, "-key:",5))
+            } else if (!strncmp(op, "-key:",5)) {
                key = (const char *)(op+5);
-            if (!strncmp(op, "-cipher:",8))
+            } else if (!strncmp(op, "-cipher:",8)) {
                cipher = (const char *)(op+8);
-            if (!strncmp(op, "-md:",4))
+            } else if (!strncmp(op, "-md:",4)) {
                md = (const char *)(op+4);
-            if (!strncmp(op, "-crl:",5))
+            } else if (!strncmp(op, "-crl:",5)) {
                crl = atoi(op+5);
+            }
          }
       }
          
