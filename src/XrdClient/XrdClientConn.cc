@@ -366,8 +366,29 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 		     ". Aborting command.");
 
                abortcmd = TRUE;
-            } else
-               abortcmd = FALSE;
+            } else {
+
+	       // Here we are connected, but we could not have a filehandle for
+	       // various reasons. The server may have denied it to us.
+	       // So, if we were requesting things that needed a filehandle,
+	       // and the file seems not open, then abort the request
+	       if ( (LastServerResp.status != kXR_ok) && 
+		    ( (req->header.requestid == kXR_read) ||
+		      (req->header.requestid == kXR_write) ||
+		      (req->header.requestid == kXR_sync) ||
+		      (req->header.requestid == kXR_close) ) ) {
+
+		  Info(XrdClientDebug::kHIDEBUG,
+		       "SendGenCommand", "Recovery failure detected. Aborting request." <<
+		       fUrl.Host << ":" << fUrl.Port);
+
+		  abortcmd = TRUE;
+
+	       }
+	       else
+		  abortcmd = FALSE;
+
+	    }
          } else {
 
 	    // We are here if we got an answer for the command, so
