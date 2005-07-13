@@ -61,6 +61,7 @@ class XrdXrootdFileTable;
 class XrdXrootdMonitor;
 class XrdXrootdStats;
 class XrdXrootdXPath;
+class XrdXrootdAioReq;
 
 class XrdXrootdProtocol : public XrdProtocol
 {
