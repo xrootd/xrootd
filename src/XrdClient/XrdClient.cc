@@ -771,6 +771,7 @@ bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasiz
    newoffs = offs / rasize * rasize;
    newlen = ((len+rasize/2) / rasize * rasize);
 
+
    newoffs = xrdmax(0, newoffs);
    newlen = xrdmax(rasize, newlen);
 
