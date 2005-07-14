@@ -64,10 +64,10 @@
 #define XRD_CLIENT_CAPVER       ((kXR_char)kXR_asyncap | XRD_CLIENT_CURRENTVER)
 
 // Defaults for ReadAhead and Cache
-#define DFLT_READCACHESIZE      4000000
+#define DFLT_READCACHESIZE      15728640
 #define NAME_READCACHESIZE      (char *)"ReadCacheSize"
 
-#define DFLT_READAHEADSIZE      500000
+#define DFLT_READAHEADSIZE      262144
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
 
 // Read ahead style: 0=sync, 1=enable async if possible

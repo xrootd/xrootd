@@ -88,6 +88,7 @@ private:
    // The first position not read by the last read ahead
    long long                   fReadAheadLast;
 
+   bool                        TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize);
 protected:
 
    virtual bool                OpenFileWhenRedirected(char *newfhandle,

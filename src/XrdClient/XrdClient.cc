@@ -246,7 +246,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
       return FALSE;
    }
 
-   long rasize = EnvGetLong(NAME_READAHEADSIZE);
+  kXR_int32 rasize = EnvGetLong(NAME_READAHEADSIZE);
 
   // If the cache is enabled and gives the data to us
   //  we don't need to ask the server for them
@@ -261,8 +261,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
      // Are we using async read ahead?
      if (fUseCache && EnvGetLong(NAME_GOASYNC) && (rasize > 0) &&
 	 EnvGetLong(NAME_READAHEADTYPE) ) {
-	long long araoffset;
-	long aralen;
+	kXR_int64 araoffset;
+	kXR_int32 aralen;
 
 	// This is a HIT case. Async readahead will try to put some data
 	// in advance into the cache. The higher the araoffset will be,
@@ -273,6 +273,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 			xrdmax(offset + len, fReadAheadLast));
 
 	if (aralen > 0) {
+           TrimReadRequest(araoffset, aralen, rasize);
 	   Read_Async(araoffset, aralen);
 	   fReadAheadLast = araoffset + aralen;
 	}
@@ -297,7 +298,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
   // We assume the buffer has been pre-allocated to contain length
   // bytes by the caller of this function
-  long long rlen = 0;
+  kXR_int32 rlen = 0;
 
   // Here the read-ahead decision should be done.
   // We are in a MISS case, so the read ahead is done the sync way.
@@ -306,14 +307,18 @@ int XrdClient::Read(void *buf, long long offset, int len) {
   // by reading a larger block
   if (len > rasize)
      rlen = len;
-  else
+  else {
+//     rlen = xrdmax(len, rasize * 3 / 2);
+//     rlen += rasize  / 3;
+//     readFileRequest.read.offset -= rasize / 3;
      rlen = rasize;
+  }
 
   Info(XrdClientDebug::kHIDEBUG, "ReadBuffer",
        "Sync reading " << rlen << "@" <<
        readFileRequest.read.offset);
 
-  if (fUseCache && fConnModule->CacheWillFit(rlen)) {
+  if (fUseCache && TrimReadRequest(readFileRequest.read.offset, rlen, rasize)) {
 
      readFileRequest.read.rlen = rlen;
 
@@ -754,3 +759,29 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 
 
 }
+
+
+bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize) {
+
+   kXR_int64 newoffs;
+   kXR_int32 newlen;
+
+   if (!fUseCache ) return false;
+
+   newoffs = offs / rasize * rasize;
+   newlen = ((len+rasize/2) / rasize * rasize);
+
+   newoffs = xrdmax(0, newoffs);
+   newlen = xrdmax(rasize, newlen);
+
+   if (fConnModule->CacheWillFit(newlen)) {
+      offs = newoffs;
+      len = newlen;
+      return true;
+   }
+
+   return false;
+
+}
+
+
