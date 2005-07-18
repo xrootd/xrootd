@@ -403,7 +403,7 @@ int XrdNetDNS::Host2Dest(const char      *hostname,
 
 // Make sure hostname is not too long
 //
-   if ((i = hostname-cp) >= static_cast<int>(sizeof(hbuff)))
+   if ((i = cp-hostname) >= static_cast<int>(sizeof(hbuff)))
        {if (errtxt) *errtxt = (char *)"hostname too long";
         return 0;
        }
