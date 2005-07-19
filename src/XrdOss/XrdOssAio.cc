@@ -54,8 +54,13 @@ extern XrdOucError OssEroute;
 int   XrdOssFile::AioFailure = 0;
 
 #ifdef _POSIX_ASYNCHRONOUS_IO
+#ifdef SIGRTMIN
+const int OSS_AIO_READ_DONE  = SIGRTMIN+7;
+const int OSS_AIO_WRITE_DONE = SIGRTMIN+8;
+#else
 #define OSS_AIO_READ_DONE  SIGUSR1
 #define OSS_AIO_WRITE_DONE SIGUSR2
+#endif
 #endif
 
 /******************************************************************************/
@@ -124,6 +129,7 @@ int XrdOssFile::Read(XrdSfsAio *aiop)
 {
 
 #ifdef _POSIX_ASYNCHRONOUS_IO
+   EPNAME("AioRead");
    int rc;
 
 // Complete the aio request block and do the operation
@@ -132,6 +138,9 @@ int XrdOssFile::Read(XrdSfsAio *aiop)
       {aiop->sfsAio.aio_fildes = fd;
        aiop->sfsAio.aio_sigevent.sigev_signo  = OSS_AIO_READ_DONE;
        aiop->TIdent = tident;
+       TRACE(Debug,  "Read " <<aiop->sfsAio.aio_nbytes <<'@'
+                             <<aiop->sfsAio.aio_offset <<" started; aiocb="
+                             <<std::hex <<aiop <<std::dec);
 
        // Start the operation
        //
@@ -149,10 +158,9 @@ int XrdOssFile::Read(XrdSfsAio *aiop)
 
 // Execute this request in a synchronous fashion
 //
-   if ((aiop->Result = this->Read((void *)aiop->sfsAio.aio_buf,
-                                   (off_t)aiop->sfsAio.aio_offset,
-                                  (size_t)aiop->sfsAio.aio_nbytes)) < 0)
-      aiop->Result = -errno;
+   aiop->Result = this->Read((void *)aiop->sfsAio.aio_buf,
+                              (off_t)aiop->sfsAio.aio_offset,
+                             (size_t)aiop->sfsAio.aio_nbytes);
 
 // Simple call the read completion routine and return as if all went well
 //
@@ -178,6 +186,7 @@ int XrdOssFile::Read(XrdSfsAio *aiop)
 int XrdOssFile::Write(XrdSfsAio *aiop)
 {
 #ifdef _POSIX_ASYNCHRONOUS_IO
+   EPNAME("AioWrite");
    int rc;
 
 // Complete the aio request block and do the operation
@@ -186,6 +195,9 @@ int XrdOssFile::Write(XrdSfsAio *aiop)
       {aiop->sfsAio.aio_fildes = fd;
        aiop->sfsAio.aio_sigevent.sigev_signo  = OSS_AIO_WRITE_DONE;
        aiop->TIdent = tident;
+       TRACE(Debug, "Write " <<aiop->sfsAio.aio_nbytes <<'@'
+                             <<aiop->sfsAio.aio_offset <<" started; aiocb="
+                             <<std::hex <<aiop <<std::dec);
 
        // Start the operation
        //
@@ -203,10 +215,9 @@ int XrdOssFile::Write(XrdSfsAio *aiop)
 
 // Execute this request in a synchronous fashion
 //
-   if ((aiop->Result = this->Write((const void *)aiop->sfsAio.aio_buf,
-                                          (off_t)aiop->sfsAio.aio_offset,
-                                         (size_t)aiop->sfsAio.aio_nbytes)) < 0)
-      aiop->Result = -errno;
+   aiop->Result = this->Write((const void *)aiop->sfsAio.aio_buf,
+                                     (off_t)aiop->sfsAio.aio_offset,
+                                    (size_t)aiop->sfsAio.aio_nbytes);
 
 // Simply call the write completion routine and return as if all went well
 //
@@ -369,7 +380,8 @@ void *XrdOssAioWait(void *mySigarg)
        while ((rc = aio_error(&aiop->sfsAio)) == EINPROGRESS) {}
        retval = (ssize_t)aio_return(&aiop->sfsAio);
 
-       TRACE(Debug, sigType <<" completed; rc=" <<rc <<" result=" <<retval);
+       TRACE(Debug, sigType <<" completed; rc=" <<rc <<" result=" <<retval
+                    <<" aiocb=" <<std::hex <<aiop <<std::dec);
 
        if (retval < 0) aiop->Result = -rc;
           else         aiop->Result = retval;
