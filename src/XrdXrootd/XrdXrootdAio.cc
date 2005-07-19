@@ -269,7 +269,7 @@ XrdXrootdAioReq *XrdXrootdAioReq::Alloc(XrdXrootdProtocol *prot,
 
 // Complete the request information
 //
-   prot->Link->setRef(1);
+   if (iotype != 'w') prot->Link->setRef(1);
    arp->Instance   = prot->Link->Inst();
    arp->myIOLen    = iolen;  // Amount that is left to send
    arp->myOffset   = prot->myOffset;
@@ -420,7 +420,7 @@ void XrdXrootdAioReq::Recycle(int dref, XrdXrootdAio *oldp)
 
 // If we have a link and it should be derefernced, do so now
 //
-   if (Link && dref) Link->setRef(-1);
+   if (Link && dref && aioType != 'w') Link->setRef(-1);
 
 // If this object is locked; remove the lock (caller must have obatined it)
 //
@@ -493,7 +493,6 @@ Next      = 0;
 myOffset  = 0;
 myIOLen   = 0;
 Instance  = 0;
-Instance  = 0;;
 Link      = lnkp;
 myFile    = 0;
 aioDone   = 0;
@@ -523,7 +522,6 @@ void XrdXrootdAioReq::endRead()
 //
    Lock();
    numActive--;
-// TRACE(DEBUG, "endRead; numActive=" <<numActive);
 
 // Do a sanity check. The link should not have changed hands but stranger
 // things have happened.

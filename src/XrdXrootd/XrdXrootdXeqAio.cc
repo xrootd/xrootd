@@ -187,8 +187,8 @@ int XrdXrootdProtocol::aio_WriteAll()
             }
 /*5*/    aiop->sfsAio.aio_nbytes = Quantum;
          aiop->sfsAio.aio_offset = myOffset;
-         if ((rc = myAioReq->Write(aiop))) return aio_Error("write", rc);
          myIOLen  -= Quantum; myOffset += Quantum;
+         if ((rc = myAioReq->Write(aiop))) return aio_Error("write", rc);
          }
 
 // We have completed

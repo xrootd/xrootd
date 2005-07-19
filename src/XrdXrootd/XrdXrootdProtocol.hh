@@ -226,6 +226,7 @@ XrdXrootdFile             *myFile;
 long long                  myOffset;
 int                        myIOLen;
 int                        myStalls;
+int                        myLastRC;
 
 // Buffer resize control area
 //
