@@ -376,8 +376,8 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
         return;
     }
 
-    cout << "Closing file id= " << xrdId << " r= " 
-         << bytesR << " w= " << bytesW << endl;
+    //cout << "Closing file id= " << xrdId << " r= " 
+    //     << bytesR << " w= " << bytesW << endl;
     itr->second->closeFile(bytesR, bytesW, timestamp);
 
     if ( 0 != _rtLogger ) {
