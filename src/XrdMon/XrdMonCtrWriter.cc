@@ -88,8 +88,8 @@ XrdMonCtrWriter::operator()(const char* packet,
 
     if ( XrdMonCtrDebug::verbose(XrdMonCtrDebug::Receiving) ) {
         XrdOucMutexHelper mh; mh.Lock(&XrdMonCtrDebug::_mutex);
-        cout << " Archiving packet #" << setw(5) << ++_totalArchived 
-             << " from " << _sender.first << " " << header << endl;
+        //cout << " Archiving packet #" << setw(5) << ++_totalArchived 
+        //     << " from " << _sender.first << " " << header << endl;
     }
 }
 

@@ -213,7 +213,7 @@ XrdMonDecSink::addDictId(dictid_t xrdId,
     (*dMap)[xrdId] = di = new XrdMonDecDictInfo(xrdId, _uniqueDictId++, 
                                                 theString, len, senderId);
     
-    cout << "Added dictInfo to sink: " << *di << endl;
+    // cout << "Added dictInfo to sink: " << *di << endl;
 
     // FIXME: remove this line when xrootd supports openFile
     // struct timeval tv; gettimeofday(&tv, 0); openFile(xrdId, tv.tv_sec-8640000);
@@ -245,7 +245,7 @@ XrdMonDecSink::addUserId(dictid_t usrId,
     (*uMap)[usrId] = ui 
         = new XrdMonDecUserInfo(usrId, _uniqueUserId++, 
                                 theString, len, senderId);
-    cout << "Added userInfo to sink: " << *ui << endl;
+    // cout << "Added userInfo to sink: " << *ui << endl;
 
     if ( 0 != _rtLogger ) {
         _rtLogger->add(XrdMonDecUserInfo::CONNECT, ui);

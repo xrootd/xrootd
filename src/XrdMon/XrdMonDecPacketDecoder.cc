@@ -58,7 +58,7 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
                                    senderid_t senderId)
 {
     int len = header.packetLen() - HDRLEN;
-    cout << "header " << header << endl;
+    //cout << "header " << header << endl;
     
     if ( len < 1 ) {
         cout << "Warning: Ignoring empty packet" << endl;
