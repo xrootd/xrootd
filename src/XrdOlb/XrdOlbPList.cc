@@ -67,7 +67,7 @@ SMask_t XrdOlbPList_Anchor::Insert(const char *pname, XrdOlbPInfo *pinfo)
 //
    rc = 1;
    while(p && p->pathlen >= plen)
-        {if (p->pathlen == plen && (rc = strcmp(p->pathname,pname)) >= 0) break;
+        {if (p->pathlen == plen && !(rc = strcmp(p->pathname,pname))) break;
          pp = p; 
           p = p->next;
         }
@@ -80,7 +80,7 @@ SMask_t XrdOlbPList_Anchor::Insert(const char *pname, XrdOlbPInfo *pinfo)
                 { p->next = pp->next;
                  pp->next = p;
                 } else {
-                  p->next = 0;
+                  p->next = next;
                      next = p;
                 }
            }

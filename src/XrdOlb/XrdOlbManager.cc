@@ -205,8 +205,21 @@ void XrdOlbManager::Inform(const char *cmd, int clen, char *arg, int alen)
 void XrdOlbManager::Inform(SMask_t mmask, const char *cmd, int clen)
 {
    EPNAME("Inform");
+   int i, iocnt;
+   struct iovec iod[4];
    XrdOlbServer *sp;
-   int i;
+
+// Set up i/o vector
+//
+   iod[0].iov_base = XrdOlbConfig.MsgGID; 
+   iod[0].iov_len  = XrdOlbConfig.MsgGIDL;
+   iod[1].iov_base = (char *)cmd;
+   iod[1].iov_len  = (clen ? clen : strlen(cmd));
+   if (*(cmd+iod[1].iov_len-1) == '\n') iocnt = 2;
+      else {iod[2].iov_base = (char *)"\n";
+            iod[2].iov_len  = 1;
+            iocnt = 3;
+           }
 
 // Obtain a lock on the table
 //
@@ -219,7 +232,7 @@ void XrdOlbManager::Inform(SMask_t mmask, const char *cmd, int clen)
            {sp->Lock();
             MTMutex.UnLock();
             DEBUG(sp->Nick() <<" " <<cmd);
-            sp->Send(cmd, clen);
+            sp->Send(iod, iocnt);
             sp->UnLock();
             MTMutex.Lock();
            }
