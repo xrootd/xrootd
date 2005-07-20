@@ -259,8 +259,11 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	  " offset=" << offset);
 
      // Are we using async read ahead?
-     if (fUseCache && EnvGetLong(NAME_GOASYNC) && (rasize > 0) &&
-	 EnvGetLong(NAME_READAHEADTYPE) ) {
+     if ( (EnvGetLong(NAME_READAHEADTYPE)) &&
+	  fUseCache &&
+	  (EnvGetLong(NAME_GOASYNC)) &&
+	  (rasize > 0) ) {
+
 	kXR_int64 araoffset;
 	kXR_int32 aralen;
 
@@ -772,7 +775,7 @@ bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasiz
    //newoffs = xrdmax(0, newoffs);
    
    newlen = (offs + len - newoffs);
-   newlen = ((newlen+rasize/2) / rasize * rasize);
+   newlen = ((newlen / rasize + 1) * rasize);
 
 
    newlen = xrdmax(rasize, newlen);
