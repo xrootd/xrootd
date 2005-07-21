@@ -240,6 +240,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 
 //_____________________________________________________________________________
 int XrdClient::Read(void *buf, long long offset, int len) {
+   long long lastvalidoffs = -1;
 
    if (!IsOpen()) {
       Error("Read", "File not opened.");
@@ -252,7 +253,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
   //  we don't need to ask the server for them
   if( fUseCache &&
       fConnModule->GetDataFromCache(buf, offset,
-				    len + offset - 1, TRUE) ) {
+				    len + offset - 1, TRUE, lastvalidoffs) ) {
 
      Info(XrdClientDebug::kHIDEBUG, "Read",
 	  "Found data in cache. len=" << len <<
@@ -276,7 +277,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 			xrdmax(offset + len, fReadAheadLast));
 
 	if (aralen > 0) {
-           TrimReadRequest(araoffset, aralen, rasize);
+           TrimReadRequest(araoffset, aralen, rasize, lastvalidoffs);
 	   Read_Async(araoffset, aralen);
 	   fReadAheadLast = araoffset + aralen;
 	}
@@ -308,20 +309,20 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
   // We are not going async, hence the readahead is performed
   // by reading a larger block
-  if (len > rasize)
+//  if (len > rasize)
      rlen = len;
-  else {
+//  else {
 //     rlen = xrdmax(len, rasize * 3 / 2);
 //     rlen += rasize  / 3;
 //     readFileRequest.read.offset -= rasize / 3;
-     rlen = rasize;
-  }
+//     rlen = rasize;
+//  }
 
   Info(XrdClientDebug::kHIDEBUG, "ReadBuffer",
        "Sync reading " << rlen << "@" <<
        readFileRequest.read.offset);
 
-  if (fUseCache && TrimReadRequest(readFileRequest.read.offset, rlen, rasize)) {
+  if (fUseCache && TrimReadRequest(readFileRequest.read.offset, rlen, rasize, lastvalidoffs)) {
 
      readFileRequest.read.rlen = rlen;
 
@@ -339,13 +340,17 @@ int XrdClient::Read(void *buf, long long offset, int len) {
         // The processing of the answers from the server should have
         // populated the cache, so we get the formerly requested buffer
         if (minlen && fConnModule->GetDataFromCache(buf, offset,
-					  minlen + offset - 1, FALSE) ) {
+					  minlen + offset - 1, FALSE, lastvalidoffs) ) {
 
 	   return minlen;
 	}
         else {
-	   Info(XrdClientDebug::kHIDEBUG,
-		"ReadBuffer", "Internal cache error");
+
+           Error("ReadBuffer", "Internal cache error. Original req: " <<
+		len << "@" << offset << ". Final req: " <<
+		readFileRequest.read.rlen << "@" <<
+		readFileRequest.read.offset );
+
 	   return 0;
         }
      } else 
@@ -764,18 +769,20 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 }
 
 
-bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize) {
+bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize, kXR_int64 lastvalidoffs) {
 
    kXR_int64 newoffs;
-   kXR_int32 newlen;
+   kXR_int32 newlen, minlen, blksz;
 
    if (!fUseCache ) return false;
 
-   newoffs = offs / rasize * rasize;
-   //newoffs = xrdmax(0, newoffs);
-   
-   newlen = (offs + len - newoffs);
-   newlen = ((newlen / rasize + 1) * rasize);
+   blksz = max(rasize, 16384);
+
+   newoffs = offs / blksz * blksz;
+   newoffs = max(newoffs, lastvalidoffs+1);
+
+   minlen = (offs + len - newoffs);
+   newlen = ((minlen / blksz + 1) * blksz);
 
 
    newlen = xrdmax(rasize, newlen);

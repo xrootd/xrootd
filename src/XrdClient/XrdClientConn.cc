@@ -1831,17 +1831,19 @@ void XrdClientConn::CheckPort(int &port) {
 
 //___________________________________________________________________________
 bool XrdClientConn::GetDataFromCache(const void *buffer, long long begin_offs,
-				   long long end_offs, bool PerfCalc) {
+				   long long end_offs, bool PerfCalc,
+                                   long long &lasttakenbyte) {
+
    // Copies the requested data from the cache. False if not possible.
    // Perfcalc = kFALSE forces the call not to impact the perf counters
 
    if (!fMainReadCache)
       return FALSE;
 
-   return (fMainReadCache->GetDataIfPresent(buffer,
-					    begin_offs,
-					    end_offs,
-					    PerfCalc));
+   return ( fMainReadCache->GetDataIfPresent(buffer,
+	 				     begin_offs,
+					     end_offs,
+					     PerfCalc, lasttakenbyte) );
 }
 
 //___________________________________________________________________________

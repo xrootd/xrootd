@@ -112,7 +112,8 @@ void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_
 bool XrdClientReadCache::GetDataIfPresent(const void *buffer,
 					    long long begin_offs,
 					    long long end_offs,
-					    bool PerfCalc)
+					    bool PerfCalc, 
+                                            long long &lasttakenbyte)
 {
    // Copies the requested data from the cache. False if not possible
 
@@ -164,6 +165,9 @@ bool XrdClientReadCache::GetDataIfPresent(const void *buffer,
       fMissCount++;
       UpdatePerfCounters();
    }
+
+   if (bytesgot > 0)
+      lasttakenbyte = begin_offs+bytesgot-1;
 
    return FALSE;
 }

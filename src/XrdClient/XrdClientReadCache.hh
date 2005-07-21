@@ -46,7 +46,7 @@ class XrdClientReadCacheItem {
 
    // Is this obj contained in the given interval (which is going to be inserted) ?
    inline bool   ContainedInInterval(long long begin_offs, long long end_offs) {
-      return ( (end_offs > begin_offs) &&
+      return ( (end_offs >= begin_offs) &&
                (fBeginOffset >= begin_offs) &&
                (fEndOffset <= end_offs) );
    }
@@ -74,11 +74,11 @@ class XrdClientReadCacheItem {
 
       long long b = -1, e, l;
 
-      if (!fData || (begin_offs >= end_offs)) return 0;
+      if (!fData || (begin_offs > end_offs)) return 0;
 
       // Try to set the starting point, if contained in the given interval
       if ( (begin_offs >= fBeginOffset) &&
-	   (begin_offs < fEndOffset) )
+	   (begin_offs <= fEndOffset) )
 	 b = begin_offs;
 
       if (b < 0) return 0;
@@ -136,7 +136,7 @@ class XrdClientReadCache {
    ~XrdClientReadCache();
   
    bool          GetDataIfPresent(const void *buffer, long long begin_offs,
-                                  long long end_offs, bool PerfCalc);
+                                  long long end_offs, bool PerfCalc, long long &lasttakenbyte);
 
    inline long long GetTotalByteCount() {
       XrdOucMutexHelper m(fMutex);
