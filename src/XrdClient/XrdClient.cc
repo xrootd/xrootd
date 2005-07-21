@@ -776,10 +776,10 @@ bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasiz
 
    if (!fUseCache ) return false;
 
-   blksz = max(rasize, 16384);
+   blksz = xrdmax(rasize, 16384);
 
    newoffs = offs / blksz * blksz;
-   newoffs = max(newoffs, lastvalidoffs+1);
+   newoffs = xrdmax(newoffs, lastvalidoffs+1);
 
    minlen = (offs + len - newoffs);
    newlen = ((minlen / blksz + 1) * blksz);
