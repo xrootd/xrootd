@@ -209,7 +209,7 @@ int XrdOfsEvs::Start(XrdOucError *eobj)
 XrdOfsEvsMsg *XrdOfsEvs::getMsg(int bigmsg)
 {
    XrdOfsEvsMsg *tp;
-   int msz;
+   int msz = 0;
 
 // Lock the free queue
 //
