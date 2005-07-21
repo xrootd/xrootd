@@ -117,7 +117,7 @@ class XrdClientString {
    // Returns the position of the first occurrence of str
    int Find(char *str, int start=0);
    int Find(XrdClientString &str, int start=0) {
-      return Find(data, start);
+      return Find((char *)str.c_str(), start);
    }
 
    int RFind(char *str, int start = STR_NPOS);
