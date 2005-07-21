@@ -199,9 +199,9 @@ inline void Wait() {while (sem_wait(&h_semaphore))
                           }
                    }
 
-  XrdOucSemaphore(int semval=1, const char *cid=0)
+  XrdOucSemaphore(int semval=1, const char * =0)
                                {if (sem_init(&h_semaphore, 0, semval))
-                                   {throw "sem_init() failed";}
+				   {throw "sem_init() failed";}
                                }
  ~XrdOucSemaphore() {if (sem_destroy(&h_semaphore))
                        {throw "sem_destroy() failed";}
