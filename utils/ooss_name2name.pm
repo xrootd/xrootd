@@ -6,6 +6,8 @@
 #            DE-AC03-76-SFO0515 with the Department of Energy                 *
 #******************************************************************************
 
+#  $Id$
+
 # Generate file name for local and mss systems
 
 *ooss_name2name::basedir = *basedir;     # Use caller's basedir
