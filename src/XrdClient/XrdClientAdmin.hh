@@ -99,7 +99,8 @@ class XrdClientAdmin : public XrdClientAbs {
    UnsolRespProcResult             ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                                          XrdClientMessage *unsolmsg);
 
-
+   // Hook to the open connection (needed by TXNetSystem)
+   XrdClientConn              *GetClientConn() const { return fConnModule; }
 };
 
 #endif
