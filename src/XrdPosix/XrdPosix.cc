@@ -150,6 +150,15 @@ int XrdPosix_Close(int fildes)
 }
 
 /******************************************************************************/
+/*                     X r d P o s i x _ C l o s e d i r                      */
+/******************************************************************************/
+
+int XrdPosix_Closedir(DIR *dirp)
+{
+   return (Xroot.isXrootdDir(dirp) ? Xroot.Closedir(dirp) : closedir(dirp));
+}
+
+/******************************************************************************/
 /*                        X r d P o s i x _ L s e e k                         */
 /******************************************************************************/
   
@@ -188,6 +197,29 @@ int XrdPosix_Fsync(int fildes)
 }
 
 /******************************************************************************/
+/*                        X r d P o s i x _ M k d i r                         */
+/******************************************************************************/
+
+int XrdPosix_Mkdir(const char *path, mode_t mode)
+{
+   char *myPath, buff[2048];
+
+// Make sure a path was passed
+//
+   if (!path) {errno = EFAULT; return -1;}
+
+// Return the results of a mkdir of a Unix file system
+//
+   if (!(myPath = XrootPath.URL(path, buff, sizeof(buff)))) {
+     return mkdir(path, mode);
+   }
+
+// Return the results of an mkdir of an xrootd file system
+//
+   return Xroot.Mkdir(path, mode);
+}
+
+/******************************************************************************/
 /*                         X r d P o s i x _ O p e n                          */
 /******************************************************************************/
   
@@ -219,6 +251,30 @@ int XrdPosix_Open(const char *path, int oflag, ...)
    va_end(ap);
    return Xroot.Open(myPath, oflag, (mode_t)mode);
 }
+
+/******************************************************************************/
+/*                       X r d P o s i x _ O p e n d i r                      */
+/******************************************************************************/
+
+DIR* XrdPosix_Opendir(const char *path)
+{
+   char *myPath, buff[2048];
+
+// Make sure a path was passed
+//
+   if (!path) {errno = EFAULT; return 0;}
+   
+// Unix opendir
+//
+   if (!(myPath = XrootPath.URL(path, buff, sizeof(buff)))) {
+     return opendir(path);
+   }
+
+// Xrootd opendir
+//
+   return Xroot.Opendir(path);
+}
+
 
 /******************************************************************************/
 /*                         X r d P o s i x _ R e a d                          */
@@ -260,6 +316,74 @@ ssize_t XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt)
 }
 
 /******************************************************************************/
+/*                      X r d P o s i x _ R e a d d i r                       */
+/******************************************************************************/
+
+struct dirent* XrdPosix_Readdir(DIR *dirp)
+{
+// Return result of readdir
+//
+   return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir(dirp) : readdir(dirp));
+}
+
+/******************************************************************************/
+/*                    X r d P o s i x _ R e a d d i r _ r                     */
+/******************************************************************************/
+
+int XrdPosix_Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
+{
+// Return result of readdir
+//
+   return (Xroot.isXrootdDir(dirp) ? 
+	   Xroot.Readdir_r(dirp,entry,result) : readdir_r(dirp,entry,result));
+}
+
+/******************************************************************************/
+/*                    X r d P o s i x _ R e w i n d d i r                     */
+/******************************************************************************/
+
+void XrdPosix_Rewinddir(DIR *dirp)
+{
+// Return result of rewind
+//
+   return (Xroot.isXrootdDir(dirp) ? Xroot.Rewinddir(dirp) : rewinddir(dirp));
+}
+
+/******************************************************************************/
+/*                        X r d P o s i x _ R m d i r                         */
+/******************************************************************************/
+
+int XrdPosix_Rmdir(const char *path)
+{
+   char *myPath, buff[2048];
+
+// Make sure a path was passed
+//
+   if (!path) {errno = EFAULT; return -1;}
+
+// Return the results of a mkdir of a Unix file system
+//
+   if (!(myPath = XrootPath.URL(path, buff, sizeof(buff)))) {
+     return rmdir(path);
+   }
+
+// Return the results of an mkdir of an xrootd file system
+//
+   return Xroot.Rmdir(path);
+}
+
+/******************************************************************************/
+/*                      X r d P o s i x _ T e l l d i r                       */
+/******************************************************************************/
+
+void XrdPosix_Seekdir(DIR *dirp, long loc)
+{
+// Call seekdir
+//
+   (Xroot.isXrootdDir(dirp) ? Xroot.Seekdir(dirp, loc) : seekdir(dirp, loc));
+}
+
+/******************************************************************************/
 /*                         X r d P o s i x _ S t a t                          */
 /******************************************************************************/
   
@@ -276,6 +400,43 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
    return (!(myPath = XrootPath.URL(path, buff, sizeof(buff)))
              ? stat(path, buf) : Xroot.Stat(myPath, buf));
 }
+
+
+/******************************************************************************/
+/*                      X r d P o s i x _ T e l l d i r                       */
+/******************************************************************************/
+
+long XrdPosix_Telldir(DIR *dirp)
+{
+// Return result of telldir
+//
+   return (Xroot.isXrootdDir(dirp) ? Xroot.Telldir(dirp) : telldir(dirp));
+}
+
+
+/******************************************************************************/
+/*                      X r d P o s i x _ U n l i n k                         */
+/******************************************************************************/
+
+int XrdPosix_Unlink(const char *path)
+{   
+   char *myPath, buff[2048];
+
+// Make sure a path was passed
+//
+   if (!path) {errno = EFAULT; return -1;}
+
+// Return the result of a unlink of a Unix file
+//
+   if (!(myPath = XrootPath.URL(path, buff, sizeof(buff)))) {
+     return unlink(path);
+   }
+
+// Return the results of an unlink of an xrootd file
+//
+   return Xroot.Unlink(path);
+}
+
 
 /******************************************************************************/
 /*                        X r d P o s i x _ W r i t e                         */

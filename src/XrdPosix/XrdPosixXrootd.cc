@@ -17,6 +17,10 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include <sys/resource.h>
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdClient/XrdClientAdmin.hh"
+#include "XrdClient/XrdClientUrlSet.hh"
+#include "XrdClient/XrdClientString.hh"
+#include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdPosixXrootd.hh"
 
@@ -58,6 +62,40 @@ XrdOucMutex myMutex;
 long long   currOffset;
 };
 
+
+typedef XrdClientVector<XrdClientString> vecString;
+typedef XrdClientVector<bool> vecBool;
+
+
+class XrdPosixDir {
+
+private:
+  XrdOucMutex myMutex;
+  int fdirno;  
+  char *fpath;
+  vecString fentries;
+  long fentry;
+
+public:
+  XrdPosixDir(int dirno, const char *path);
+  ~XrdPosixDir();
+
+  void             Lock()   { myMutex.Lock(); }
+  void             UnLock() { myMutex.UnLock(); }
+  int              dirNo()  { return fdirno; }
+  long             getOffset() { return fentry; }
+  void             setOffset(long offset) { fentry = offset; }
+  long             getEntries() { return fentries.GetSize(); }
+  const char*      nextEntry();
+  void             rewind() { fentry = -1; fentries.Clear();}
+
+  XrdClientAdmin *XAdmin;
+  dirent myDirent;
+  
+};
+
+
+
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
 /******************************************************************************/
@@ -73,11 +111,15 @@ long long   currOffset;
 
 XrdOucMutex    XrdPosixXrootd::myMutex;
 XrdPosixFile **XrdPosixXrootd::myFiles  =  0;
+XrdPosixDir  **XrdPosixXrootd::myDirs   =  0;
 int            XrdPosixXrootd::highFD   = -1;
 int            XrdPosixXrootd::lastFD   = -1;
+int            XrdPosixXrootd::highDir  = -1;
+int            XrdPosixXrootd::lastDir  = -1;
 const int      XrdPosixXrootd::FDMask   = 0x0000ffff;
 const int      XrdPosixXrootd::FDOffs   = 0x00010000;
 const int      XrdPosixXrootd::FDLeft   = 0x7fff0000;
+
   
 /******************************************************************************/
 /*                          X r d P o s i x F i l e                           */
@@ -110,10 +152,68 @@ XrdPosixFile::~XrdPosixFile()
 }
 
 /******************************************************************************/
+/*                           X r d P o s i x D i r                            */
+/******************************************************************************/
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdPosixXrootd::XrdPosixXrootd(int fdnum)
+XrdPosixDir::XrdPosixDir(int dirno, const char *path)
+{
+  if (!(XAdmin = new XrdClientAdmin(path))) return;
+  if (!XAdmin->Connect()) return;
+
+  fentry = -1;     // indicates that the directory content is not valid
+  fentries.Clear();
+  fdirno = dirno;
+
+// Get the path of the url 
+//
+  XrdClientString str(path);
+  XrdClientUrlSet url(str);
+  XrdClientString dir = url.GetFile();
+
+  fpath = (char*)malloc(strlen(dir.c_str())+1);
+  strcpy(fpath, dir.c_str());
+}
+
+/******************************************************************************/
+/*                            D e s t r u c t o r                             */
+/******************************************************************************/
+XrdPosixDir::~XrdPosixDir()
+{
+  if (XAdmin) delete XAdmin;
+}
+
+/******************************************************************************/
+/*                            n e x t E n t r y                               */
+/******************************************************************************/
+const char* XrdPosixDir::nextEntry()
+{
+// Object is already / must be locked at this point
+// Read directory if we haven't done that yet
+//
+   if (fentry<0) {
+      bool ok = XAdmin->DirList(fpath,fentries);
+      if (ok) fentry = 0;
+      else return 0;
+   }
+// Check if dir is empty or all entries have been read
+//
+   if ((fentries.GetSize()==0) || (fentry>=fentries.GetSize())) return 0;
+
+   return (fentries[fentry++]).c_str();
+}
+
+
+/******************************************************************************/
+/*                         X r d P o s i x X r o o t d                        */
+/******************************************************************************/
+/******************************************************************************/
+/*                           C o n s t r u c t o r                            */
+/******************************************************************************/
+
+XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 {
    struct rlimit rlim;
    int isize;
@@ -129,6 +229,16 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum)
    if (!(myFiles = (XrdPosixFile **)malloc(isize))) lastFD = -1;
       else {memset((void *)myFiles, isize, 0); lastFD = fdnum;}
 
+// Allocate table for DIR descriptors
+//
+   if (dirnum > 32768) dirnum = 32768;
+   isize = dirnum * sizeof(XrdPosixDir *);
+   if (!(myDirs = (XrdPosixDir **)malloc(isize))) lastDir = -1;
+   else {
+     memset((void *)myDirs, isize, 0);
+     lastDir = dirnum;
+   }
+   
 // For now, turn off the read-ahead cache
 //
    EnvPutInt(NAME_READCACHESIZE, 0);
@@ -146,6 +256,12 @@ XrdPosixXrootd::~XrdPosixXrootd()
       {for (i = 0; i <= highFD; i++) if (myFiles[i]) delete myFiles[i];
        free(myFiles);
       }
+
+   if (myDirs) {
+     for (i = 0; i <= highDir; i++)
+       if (myDirs[i]) delete myDirs[i];
+     free(myDirs);
+   }
 }
  
 /******************************************************************************/
@@ -166,6 +282,24 @@ int     XrdPosixXrootd::Close(int fildes)
    fp->UnLock();
    myMutex.UnLock();
    delete fp;
+   return 0;
+}
+
+/******************************************************************************/
+/*                              C l o s e d i r                               */
+/******************************************************************************/
+
+int XrdPosixXrootd::Closedir(DIR *dirp)
+{
+   XrdPosixDir *XrdDirp = findDIR(dirp,1);
+   if (!XrdDirp) return -1;
+
+// Deallocate the directory
+//
+   myDirs[XrdDirp->dirNo()] = 0;
+   XrdDirp->UnLock();
+   myMutex.UnLock();
+   if (XrdDirp) delete XrdDirp;
    return 0;
 }
   
@@ -243,6 +377,27 @@ int     XrdPosixXrootd::Fsync(int fildes)
    return 0;
 }
 
+
+/******************************************************************************/
+/*                                 M k d i r                                  */
+/******************************************************************************/
+
+int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
+{
+  XrdClientAdmin *admin = new XrdClientAdmin(path);
+  if (!admin) return -1;
+
+  if (!admin->Connect()) return -1;
+
+  XrdClientString str(path);
+  XrdClientUrlSet url(str);
+  bool ret = admin->Mkdir(url.GetFile().c_str(), 
+			  mode && S_IRWXU, 
+			  mode && S_IRWXG, 
+			  mode && S_IRWXO);
+  return (ret ? 0 : -1);
+}
+
 /******************************************************************************/
 /*                                  O p e n                                   */
 /******************************************************************************/
@@ -300,6 +455,30 @@ int     XrdPosixXrootd::Open(const char *path, int oflags, int mode)
 //
    return fd | FDOffs;
 }
+
+
+/******************************************************************************/
+/*                                  O p e n                                   */
+/******************************************************************************/
+  
+DIR* XrdPosixXrootd::Opendir(const char *path)
+{
+   XrdPosixDir *dirp;
+   int dir;
+
+// Allocate a new directory structure
+//
+   myMutex.Lock();
+   for (dir = 0; dir < lastDir; dir++) if (!myDirs[dir]) break;
+   if (dir > lastDir || !(dirp = new XrdPosixDir(dir, path)))
+      {errno = EMFILE; myMutex.UnLock(); return 0;}
+   myDirs[dir] = dirp;
+   if (dir > highDir) highDir = dir;
+   myMutex.UnLock();
+
+   return (DIR*)dirp;
+}
+
 
 /******************************************************************************/
 /*                                 P r e a d                                  */
@@ -385,6 +564,106 @@ ssize_t XrdPosixXrootd::Readv(int fildes, const struct iovec *iov, int iovcnt)
 }
 
 /******************************************************************************/
+/*                                R e a d d i r                               */
+/******************************************************************************/
+
+struct dirent* XrdPosixXrootd::Readdir(DIR *dirp)
+{
+// Returns the next directory entry
+//
+   XrdPosixDir *XrdDirp = findDIR(dirp);
+   if (!XrdDirp) { errno = EBADF; return 0; }
+
+   const char* ch = XrdDirp->nextEntry();
+
+   if (ch) {
+      long maxname = pathconf("./",_PC_NAME_MAX);
+      if (maxname==-1) maxname = 255;
+      strncpy (XrdDirp->myDirent.d_name, ch, maxname+1);
+   }
+
+   XrdDirp->UnLock();
+   return (ch ? &(XrdDirp->myDirent) : 0);
+}
+
+/******************************************************************************/
+/*                              R e a d d i r _ r                             */
+/******************************************************************************/
+
+int XrdPosixXrootd::Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
+{
+// Thread safe verison of readdir
+//
+   XrdPosixDir *XrdDirp = findDIR(dirp);
+   if (!XrdDirp) { errno = EBADF; return -1; }
+
+   const char* ch = XrdDirp->nextEntry();
+
+   if (ch) {
+      long maxname = pathconf("./",_PC_NAME_MAX);
+      if (maxname==-1) maxname = 255;
+      strncpy (entry->d_name, ch, maxname+1);
+      *result = entry;
+   }
+   else *result = 0;
+
+   XrdDirp->UnLock();
+   return (ch ? 0 : -1);
+}
+
+/******************************************************************************/
+/*                            R e w i n d d i r                               */
+/******************************************************************************/
+
+void XrdPosixXrootd::Rewinddir(DIR *dirp)
+{
+// Updates and rewinds directory
+//
+   XrdPosixDir *XrdDirp = findDIR(dirp);
+   if (!XrdDirp) return;
+
+   XrdDirp->rewind();
+   XrdDirp->UnLock();
+}
+
+/******************************************************************************/
+/*                                 R m d i r                                  */
+/******************************************************************************/
+
+int XrdPosixXrootd::Rmdir(const char *path)
+{
+  XrdClientAdmin *admin = new XrdClientAdmin(path);
+  if (!admin) return -1;
+
+  if (!admin->Connect()) return -1;
+
+  XrdClientString str(path);
+  XrdClientUrlSet url(str);
+  bool ret = admin->Rmdir(url.GetFile().c_str());
+
+  return (ret ? 0 : -1);
+}
+
+/******************************************************************************/
+/*                                S e e k d i r                               */
+/******************************************************************************/
+
+void XrdPosixXrootd::Seekdir(DIR *dirp, long loc)
+{
+// Sets the current directory position
+//
+   XrdPosixDir *XrdDirp = findDIR(dirp);
+   if (!XrdDirp) return;
+   
+   if (XrdDirp->getOffset()<0) XrdDirp->nextEntry();  // read the directory
+   if (loc >= XrdDirp->getEntries()) loc = XrdDirp->getEntries()-1;
+   else if (loc<0) loc = 0;
+
+   XrdDirp->setOffset(loc);
+   XrdDirp->UnLock();
+}
+
+/******************************************************************************/
 /*                                  S t a t                                   */
 /******************************************************************************/
   
@@ -439,7 +718,43 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
    fp->UnLock();
    return (ssize_t)iosz;
 }
-  
+
+/******************************************************************************/
+/*                                T e l l d i r                               */
+/******************************************************************************/
+
+long XrdPosixXrootd::Telldir(DIR *dirp)
+{
+// Tells the current directory location
+//
+   XrdPosixDir *XrdDirp = findDIR(dirp);
+   if (!XrdDirp) return -1;
+
+   long pos;
+   if (XrdDirp->getOffset()<0) pos = 0;  // dir is open but not read yet
+   else pos = XrdDirp->getOffset();
+   XrdDirp->UnLock();
+   return pos;
+}
+
+/******************************************************************************/
+/*                                 U n l i n k                                */
+/******************************************************************************/
+
+int XrdPosixXrootd::Unlink(const char *path)
+{
+  XrdClientAdmin *admin = new XrdClientAdmin(path);
+  if (!admin) return -1;
+
+  if (!admin->Connect()) return -1;
+
+  XrdClientString str(path);
+  XrdClientUrlSet url(str);
+
+  return admin->Rm(url.GetFile().c_str()) ? 0 : -1;
+}
+
+
 /******************************************************************************/
 /*                                 W r i t e                                  */
 /******************************************************************************/
@@ -492,6 +807,19 @@ ssize_t XrdPosixXrootd::Writev(int fildes, const struct iovec *iov, int iovcnt)
 }
   
 /******************************************************************************/
+/*                             i s X r o o t d D i r                          */
+/******************************************************************************/
+bool XrdPosixXrootd::isXrootdDir(DIR *dirp)
+{
+   if (!dirp) return false;
+
+   for (int i = 0; i <= highDir; i++) 
+     if (((XrdPosixDir*)dirp)==myDirs[i]) return true;
+
+   return false;
+}
+
+/******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
@@ -519,6 +847,30 @@ XrdPosixFile *XrdPosixXrootd::findFP(int fildes, int glk)
    fp->Lock();
    if (!glk) myMutex.UnLock();
    return fp;
+}
+
+/******************************************************************************/
+/*                                f i n d D I R                               */
+/******************************************************************************/
+XrdPosixDir *XrdPosixXrootd::findDIR(DIR *dirp, int glk)
+{
+   if (!dirp) { errno = EBADF; return 0; }
+
+// Check if this is really an open directory
+//
+   XrdPosixDir *XrdDirp = (XrdPosixDir*)dirp;
+   myMutex.Lock();
+   if (!(myDirs[XrdDirp->dirNo()]==XrdDirp)) {
+      myMutex.UnLock();
+      errno = EBADF;
+      return 0;
+   }
+
+// Lock the object and unlock the global lock unless it is to be held
+//
+   XrdDirp->Lock();
+   if (!glk) myMutex.UnLock();
+   return XrdDirp;
 }
  
 /******************************************************************************/
@@ -560,3 +912,4 @@ int XrdPosixXrootd::mapFlags(int flags)
 
    return newflags;
 }
+

@@ -42,15 +42,25 @@ How does it work:
 The XrdPosix.hh file defines the standard POSIX system calls:
 
 int     close(int fildes);
+int     closedir(DIR *dirp);
 off_t   lseek(int fildes, off_t offset, int whence);
-int     fstatint fildes, struct stat *buf);
+int     fstat(int fildes, struct stat *buf);
 int     fsync(int fildes);
+int     mkdir(const char *path, mode_t mode);
 int     open(const char *path, int oflag, ...);
+DIR*    opendir(const char *path);
 ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset);
 ssize_t read(int fildes, void *buf, size_t nbyte);
 ssize_t readv(int fildes, const struct iovec *iov, int iovcnt);
+struct dirent readdir(DIR *dirp);
+int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+void    rewinddir(DIR *dirp);
+int     rmdir(const char *path);
+void    seekdir(DIR *dirp, long loc);
 int     stat(const char *path, struct stat *buf);
 ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
+int     telldir(DIR *dirp);
+int     unlink(const char *path);
 ssize_t write(int fildes, const void *buf, size_t nbyte);
 ssize_t writev(int fildes, const struct iovec *iov, int iovcnt);
 

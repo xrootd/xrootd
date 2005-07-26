@@ -18,7 +18,10 @@
 // would have liked to use wrappers but each platform uses a different mechanism
 // to accomplish this. So, redefinition is the most portable way of doing this.
 //
+
 #define close(a)         XrdPosix_Close(a)
+
+#define closedir(a)      XrdPosix_Closedir(a)
 
 #define lseek(a,b,c)     XrdPosix_Lseek(a,b,c)
 
@@ -26,7 +29,11 @@
 
 #define fsync(a)         XrdPosix_Fsync(a)
 
+#define mkdir(a,b)       XrdPosix_Mkdir(a,b)
+
 #define open             XrdPosix_Open
+
+#define opendir(a)       XrdPosix_Opendir(a)
   
 #define pread(a,b,c,d)   XrdPosix_Pread(a,b,c,d)
 
@@ -34,9 +41,23 @@
   
 #define readv(a,b,c)     XrdPosix_Readv(a,b,c)
 
+#define readdir(a)       XrdPosix_Readdir(a)
+
+#define readdir_r(a,b,c) XrdPosix_Readdir_r(a,b,c)
+
+#define rewinddir(a)     XrdPosix_Rewinddir(a)
+
+#define rmdir(a)         XrdPosix_Rmdir(a)
+
+#define seekdir(a,b)     XrdPosix_Seekdir(a,b)
+
 #define stat(a,b)        XrdPosix_Stat(a,b)
 
 #define pwrite(a,b,c,d)  XrdPosix_Pwrite(a,b,c,d)
+
+#define telldir(a)       XrdPosix_Telldir(a)
+
+#define unlink(a)        XrdPosix_Unlink(a)
 
 #define write(a,b,c)     XrdPosix_Write(a,b,c)
 
@@ -46,13 +67,19 @@
 //
 extern int     XrdPosix_Close(int fildes);
 
+extern int     XrdPosix_Closedir(DIR *dirp);
+
 extern off_t   XrdPosix_Lseek(int fildes, off_t offset, int whence);
 
 extern int     XrdPosix_Fstat(int fildes, struct stat *buf);
 
 extern int     XrdPosix_Fsync(int fildes);
 
+extern int     XrdPosix_Mkdir(const char *path, mode_t mode);
+
 extern int     XrdPosix_Open(const char *path, int oflag, ...);
+
+extern DIR*    XrdPosix_Opendir(const char *path);
   
 extern ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off_t offset);
 
@@ -60,11 +87,26 @@ extern ssize_t XrdPosix_Read(int fildes, void *buf, size_t nbyte);
   
 extern ssize_t XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt);
 
+extern struct dirent* XrdPosix_Readdir(DIR *dirp);
+
+extern int     XrdPosix_Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+
+extern void    XrdPosix_Rewinddir(DIR *dirp);
+
+extern int     XrdPosix_Rmdir(const char *path);
+
+extern void    XrdPosix_Seekdir(DIR *dirp, long loc);
+
 extern int     XrdPosix_Stat(const char *path, struct stat *buf);
 
 extern ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
 
+extern long    XrdPosix_Telldir(DIR *dirp);
+
+extern int     XrdPosix_Unlink(const char *path);
+
 extern ssize_t XrdPosix_Write(int fildes, const void *buf, size_t nbyte);
 
 extern ssize_t XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt);
+
 #endif

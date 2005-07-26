@@ -14,6 +14,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/uio.h>
@@ -23,12 +24,17 @@
 const int XrdPosixFD = 65536;
 
 class XrdPosixFile;
+class XrdPosixDir;
 
 class XrdPosixXrootd
 {
 public:
 
+// POSIX methods
+//
 static int     Close(int fildes);
+
+static int     Closedir(DIR *dirp);
 
 static off_t   Lseek(int fildes, off_t offset, int whence);
 
@@ -36,7 +42,11 @@ static int     Fstat(int fildes, struct stat *buf);
 
 static int     Fsync(int fildes);
 
+static int     Mkdir(const char *path, mode_t mode);
+
 static int     Open(const char *path, int oflag, int mode=0);
+
+static DIR*    Opendir(const char *path);
   
 static ssize_t Pread(int fildes, void *buf, size_t nbyte, off_t offset);
   
@@ -44,9 +54,23 @@ static ssize_t Read(int fildes, void *buf, size_t nbyte);
 
 static ssize_t Readv(int fildes, const struct iovec *iov, int iovcnt);
 
+static struct dirent* Readdir(DIR *dirp);
+
+static int     Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+
+static void    Rewinddir(DIR *dirp);
+
+static int     Rmdir(const char *path);
+
+static void    Seekdir(DIR *dirp, long loc);
+
 static int     Stat(const char *path, struct stat *buf);
 
 static ssize_t Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
+
+static long    Telldir(DIR *dirp);
+
+static int     Unlink(const char *path);
 
 static ssize_t Write(int fildes, const void *buf, size_t nbyte);
 
@@ -54,12 +78,17 @@ static ssize_t Write(int fildes, void *buf, size_t nbyte, off_t offset);
 
 static ssize_t Writev(int fildes, const struct iovec *iov, int iovcnt);
 
-               XrdPosixXrootd(int maxfd=64);
-              ~XrdPosixXrootd();
+// Some non POSIX methods
+//
+static bool    isXrootdDir(DIR *dirp);
+
+               XrdPosixXrootd(int maxfd=64, int maxdir=64);
+               ~XrdPosixXrootd();
 
 private:
 
 static XrdPosixFile         *findFP(int fildes, int glk=0);
+static XrdPosixDir          *findDIR(DIR *dirp, int glk=0);
 static int                   mapError(int rc);
 static int                   mapFlags(int flags);
 
@@ -68,7 +97,10 @@ static const  int     FDMask;
 static const  int     FDOffs;
 static const  int     FDLeft;
 static XrdPosixFile **myFiles;
+static XrdPosixDir  **myDirs;
 static int            lastFD;
 static int            highFD;
+static int            lastDir;
+static int            highDir;
 };
 #endif
