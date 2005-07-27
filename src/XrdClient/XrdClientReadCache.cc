@@ -152,8 +152,11 @@ bool XrdClientReadCache::GetDataIfPresent(const void *buffer,
 	       UpdatePerfCounters();
 	    }
 
-	    if (bytesgot >= end_offs - begin_offs + 1)
+	    if (bytesgot >= end_offs - begin_offs + 1) {
+	       lasttakenbyte = begin_offs+bytesgot-1;
 	       return TRUE;
+	    }
+
 	 }
 
       }

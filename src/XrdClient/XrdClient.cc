@@ -335,24 +335,23 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	if (minlen > fConnModule->LastServerResp.dlen)
 	   minlen = fConnModule->LastServerResp.dlen;
 
-	fReadAheadLast = offset + minlen;
+	fReadAheadLast = readFileRequest.read.offset + minlen;
 
         // The processing of the answers from the server should have
         // populated the cache, so we get the formerly requested buffer
-        if (minlen && fConnModule->GetDataFromCache(buf, offset,
-					  minlen + offset - 1, FALSE, lastvalidoffs) ) {
+	// up to the point where the cache has data
+	lastvalidoffs = -1;
+	fConnModule->GetDataFromCache(buf, offset,
+				      len + offset - 1,
+				      FALSE, lastvalidoffs);
 
-	   return minlen;
-	}
-        else {
+	// There are no bytes to read. Could be a request over eof.
+	if (lastvalidoffs < offset) return 0;
 
-           Error("ReadBuffer", "Internal cache error. Original req: " <<
-		len << "@" << offset << ". Final req: " <<
-		readFileRequest.read.rlen << "@" <<
-		readFileRequest.read.offset );
+	// Return the number of bytes read, not necessarily the number of bytes that
+	// have been requested
+	return (lastvalidoffs - offset + 1);
 
-	   return 0;
-        }
      } else 
         return 0;
     
