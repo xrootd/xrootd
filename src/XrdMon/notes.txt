@@ -1,0 +1,173 @@
+/*****************************************************************************/
+/*                                                                           */
+/*                                 notes.txt                                 */
+/*                                                                           */
+/* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
+/*                            All Rights Reserved                            */
+/*       Produced by Jacek Becla for Stanford University under contract      */
+/*              DE-AC02-76SF00515 with the Department of Energy              */
+/*****************************************************************************/
+  
+// $Id$
+
+
+
+todo multi-site related:
+========================
+- commit changes in singleLog
+- install singleLog for RAL data
+- decide how to divide incoming data: new file per minute? once per day?
+- clean up code responsible for calling things with different 
+  frequency (statsLast..., topPerf..., *_Last* cleanup)
+- add code for cleaning up *_Last* tables, see below
+- add full support for AllSites
+- correctly handle different time zones 
+- check if lastWeek fully supported everywhere
+- split loader into "loading data" and "preparing summaries for web"
+
+
+others todo:
+=============
+- fix problem with loader dieing because of bbk, see workdir/loader*.log
+
+- data is not loaded if loader dies (see potential solution below)
+
+- deal with 2 bookkeeping dbs
+
+- load data from Tofigh's static tables
+
+- add support for 'cycles' - different reprocessing cycles
+
+- add support for total size of each skim
+
+- why are we getting references to non-slac sites via bookkeeping?
+
+- if result is long (eg hosts for bbrskim) on webpage split into chunks
+
+- need to add automatic backup
+  mysqldump --skip-opt --lock-all-tables --extended-insert xrdmon_kan > x.out
+
+- would be nice to automatically generate email if monitoring down
+
+- if gap (loader down, say 24h) stats table should be cleaned...
+
+- need more than 30 points for month-plot to smoothen the line
+
+- need to automatically add table for each new year
+
+- add collect/show statistics of xrd server restarts
+
+- make xrdmon babar independent
+   - skims: generic filter
+   - what about file sizes?
+
+- there is no way to list _all_ things, only _active_
+
+- listing jobs for given user: maybe show start/stop time?
+
+
+
+
+
+How to do the migration
+=======================
+
+ 1) move loader_new to loader and commit changes
+ 2) commit changes in XrdWebMon
+ 3) rename tables in patch scripts
+ 4) stop loader
+ 5) backup whole xrdmon_kan database to ascii  (~2 min)
+
+ 6) install sorry page
+ 7) reinstall mysql
+ 8) add permissions for reader
+ 8) restore xrdmon_kan database (~14 min)
+ 9) run patch scripts  (0, 4, 4, 0 min)
+10) run loader
+11) deploy new XrdWebMon
+
+
+
+
+how to avoid loosing data if loader dies?
+=========================================
+assuming we are loading data from rt file "x":
+
+  1) lock x.lock
+  2) open x for reading
+  3) read x and write to x_ofile.txt, x_ufile.txt, x_dfile.txt x_cfile.txt
+  4) close x
+  5) make backup of x (append x to x.backup)
+  6) remove x
+  7) unlock x.lock
+  8) load x_ofile.txt into database, remove it
+  9) load x_ufile.txt into database, remove it
+10) load x_dfile.txt into database, remove it
+11) load x_cfile.txt into database, remove it
+
+if during startup we find x_*file.txt, load them to db
+
+
+
+cleaning up _Last* tables
+==========================
+
+SELECT @tzTo  := timezone from sites where name='SLAC';
+SELECT @tzFrom:= timezone from sites where name='RAL';
+SELECT @nowT  := CONVERT_TZ(NOW(), @tzFrom, @tzTo);
+
+DELETE FROM RAL_closedSessions_LastHour  WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 HOUR);
+DELETE FROM RAL_closedSessions_LastDay   WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 DAY);
+DELETE FROM RAL_closedSessions_LastWeek  WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 WEEK);
+DELETE FROM RAL_closedSessions_LastMonth WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 MONTH);
+DELETE FROM RAL_closedSessions_LastYear  WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 YEAR);
+
+DELETE FROM RAL_closedFiles_LastHour     WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 HOUR);
+DELETE FROM RAL_closedFiles_LastDay      WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 DAY);
+DELETE FROM RAL_closedFiles_LastWeek     WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 WEEK);
+DELETE FROM RAL_closedFiles_LastMonth    WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 MONTH);
+DELETE FROM RAL_closedFiles_LastYear     WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 YEAR);
+
+
+
+
+
+
+changes in jsp related to multiple sites
+========================================
+
+   - index.jsp: need to plot data for all sites
+   - index.jsp: need to add data for each site
+      - such that adding new site easy...
+   - how to deal with showing integrated view for all sites?
+      - plots - easy
+      - topPerf - can be done: generate in loader extra table
+
+ - what about showing integrated view for users
+    - try to merge
+    - show user@site
+
+plots:
+
+now:
+ select date, noJobs from ${selectedSqlDateTable} ORDER BY date;
+new:
+ select date, noJobs from ${selectedSqlDateTable} WHERE siteId = ? ORDER BY date;
+
+and for total:
+ select date, SUM(noJobs) from ${selectedSqlDateTable} WHERE siteId = ? GROUP BY date, ORDER BY date;
+
+topPerf:
+ - have extra topPerf* tables with siteId, put all data from topPerf* for all sites, sort...
+be careful with GROUP BY: e.g. for skims don't group by siteId...
+
+
+
+
+Sizes
+======
+
+ - closedSessions: ~110 MB/month + index: 55MB/month
+ - closedFiles:    ~120 MB/month + index: ~100MB/month
+ - so total ~400MB/month --> 5GB/year
+ - tar.gz one month: 350MB
