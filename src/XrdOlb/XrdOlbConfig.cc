@@ -2029,11 +2029,12 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
                  }
              }
 
-    do {if (i)
+    do {if (i--)
            {char *mp = XrdNetDNS::getHostName(InetAddr[i]);
             strlcpy(mbuff, mp, sizeof(mbuff)); free(mp);
             eDest->Emsg("Config", bval, "-> olb.subscribe", mbuff);
-            i--;
+            if (isdigit(*mbuff))
+               eDest->Emsg("Config", "Warning! Unable to reverse lookup", mbuff);
            }
         tp = myManagers;
         while(tp) 
