@@ -2029,8 +2029,10 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &Config)
                  }
              }
 
-    do {if (i--)
-           {char *mp = XrdNetDNS::getHostName(InetAddr[i]);
+    do {if (i)
+           {char *mp;
+            i--; //Greg had it right
+            mp = XrdNetDNS::getHostName(InetAddr[i]);
             strlcpy(mbuff, mp, sizeof(mbuff)); free(mp);
             eDest->Emsg("Config", bval, "-> olb.subscribe", mbuff);
             if (isdigit(*mbuff))
