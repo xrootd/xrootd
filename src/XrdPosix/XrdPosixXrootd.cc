@@ -227,7 +227,7 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 // Allocate an initial table of 64 fd-type pointers
 //
    if (!(myFiles = (XrdPosixFile **)malloc(isize))) lastFD = -1;
-      else {memset((void *)myFiles, isize, 0); lastFD = fdnum;}
+      else {memset((void *)myFiles, 0, isize); lastFD = fdnum;}
 
 // Allocate table for DIR descriptors
 //
@@ -235,7 +235,7 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
    isize = dirnum * sizeof(XrdPosixDir *);
    if (!(myDirs = (XrdPosixDir **)malloc(isize))) lastDir = -1;
    else {
-     memset((void *)myDirs, isize, 0);
+     memset((void *)myDirs, 0, isize);
      lastDir = dirnum;
    }
    
