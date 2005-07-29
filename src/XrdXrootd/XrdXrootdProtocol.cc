@@ -52,6 +52,9 @@ int                   XrdXrootdProtocol::readWait;
 int                   XrdXrootdProtocol::Port;
 char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::chkfsV  = 0;
+char                 *XrdXrootdProtocol::AdminPath= strdup("/tmp/");
+int                   XrdXrootdProtocol::AdminMode= 0700;
+XrdNetSocket         *XrdXrootdProtocol::AdminSock= 0;
 
 int                   XrdXrootdProtocol::hcMax        = 28657; // const for now
 int                   XrdXrootdProtocol::maxBuffsz;

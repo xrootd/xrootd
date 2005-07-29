@@ -26,6 +26,8 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdNet/XrdNetDNS.hh"
+#include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
@@ -35,6 +37,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include "XrdXrootd/XrdXrootdAdmin.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
@@ -56,16 +59,12 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 
    xrootd [options]
 
-   options: [<xopt>] [-m] [-r] [-s] [-t] [-y] [path]
+   options: [<xopt>] [-r] [-t] [-y] [path]
 
 Where:
    xopt   are xrd specified options that are screened out.
 
-   -m     More than one xrootd will run on this host.
-
    -r     This is a redirecting server.
-
-   -s     This server should port balance.
 
    -t     This server is a redirection target.
 
@@ -106,7 +105,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
-   char *fsver, *rdf, c, buff[1024];
+   char *p, *fsver, *rdf, c, buff[1024];
 
 // Copy out the special info we want to use at top level
 //
@@ -242,6 +241,18 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (!isRedir && !XrdXrootdMonitor::Init(Sched,&eDest)) return 0;
 
+// Establish the path to be used for admin functions
+//
+   p = XrdOucUtils::genPath(AdminPath, 
+                           (strcmp(myInst,"anon") ? myInst : 0), ".xrootd");
+   free(AdminPath);
+   AdminPath = p;
+
+// Setup the admin path (used in all roles)
+//
+   if (!(AdminSock = ASocket(AdminPath,"xrootd.admin",AdminMode))
+   ||  !XrdXrootdAdmin::Init(&eDest, AdminSock)) return 0;
+
 // Indicate we configured successfully
 //
    eDest.Say(0, "XRootd protocol version " XROOTD_VERSION
@@ -274,7 +285,8 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
    //
    while((var = Config.GetMyFirstWord()))
         {if (!(ignore = strncmp("xrootd.", var, 7)) && var[7]) var += 7;
-              if TS_Xeq("async",         xasync);
+              if TS_Xeq("adminpath",     xapath);
+         else if TS_Xeq("async",         xasync);
          else if TS_Xeq("chksum",        xcksum);
          else if TS_Xeq("export",        xexp);
          else if TS_Xeq("fslib",         xfsl);
@@ -292,6 +304,134 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
+/******************************************************************************/
+/*                               A S o c k e t                                */
+/******************************************************************************/
+  
+XrdNetSocket *XrdXrootdProtocol::ASocket(char *path, const char *fn, 
+                                         mode_t mode, int isudp)
+{
+   XrdNetSocket *ASock;
+   int sflags = (isudp ? XRDNET_UDPSOCKET : 0);
+   char *fnp;
+
+// Setup the path
+//
+   if (!(fnp = ASPath(path, fn, mode))) return (XrdNetSocket *)0;
+
+// Connect to the path
+//
+   ASock = new XrdNetSocket(&eDest);
+   if (ASock->Open(fnp, -1, XRDNET_SERVER|sflags) < 0)
+      {eDest.Emsg("Config",ASock->LastError(),"establish socket",fnp);
+       delete ASock;
+       return (XrdNetSocket *)0;
+      }
+
+// Set the mode and return the socket object
+//
+   chmod(fnp, mode); // This may fail on some platforms
+   return ASock;
+}
+
+/******************************************************************************/
+/*                                A S P a t h                                 */
+/******************************************************************************/
+
+char *XrdXrootdProtocol::ASPath(char *path, const char *fn, mode_t mode)
+{
+   int rc, i;
+   struct stat buf;
+   static char fnbuff[1024];
+
+// Create the directory if it is not already there
+//
+   if ((rc = XrdOucUtils::makePath(path, mode)))
+      {eDest.Emsg("Config", errno, "create admin path", path);
+       return 0;
+      }
+
+// Construct full filename
+//
+   i = strlen(path);
+   strcpy(fnbuff, path);
+   if (path[i-1] != '/') fnbuff[i++] = '/';
+   strcpy(fnbuff+i, fn);
+
+// Check is we have already created it and whether we can access
+//
+   if (!stat(fnbuff,&buf))
+      {if ((buf.st_mode & S_IFMT) != S_IFSOCK)
+          {eDest.Emsg("Config","Path",fnbuff,"exists but is not a socket");
+           return 0;
+          }
+       if (access(fnbuff, W_OK))
+          {eDest.Emsg("Config", errno, "access path", fnbuff);
+           return 0;
+          }
+      }
+
+// All set now
+//
+   return fnbuff;
+}
+
+/******************************************************************************/
+/*                                x a p a t h                                 */
+/******************************************************************************/
+
+/* Function: xapath
+
+   Purpose:  To parse the directive: adminpath <path>
+
+             <path>    the path of the named socket to use for admin requests.
+
+   Type: Manager and Server, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xapath(XrdOucStream &Config)
+{
+    char *pval, *val;
+    mode_t mode = S_IRWXU;
+    struct sockaddr_un USock;
+
+// Get the path
+//
+   pval = Config.GetWord();
+   if (!pval || !pval[0])
+      {eDest.Emsg("Config", "adminpath not specified"); return 1;}
+
+// Make sure it's an absolute path
+//
+   if (*pval != '/')
+      {eDest.Emsg("Config", "adminpath not absolute"); return 1;}
+
+// Make sure path is not too long (account for "/xrootd.admin")
+//                                              1234567890123
+   if (strlen(pval) > sizeof(USock.sun_path) - 13)
+      {eDest.Emsg("Config", "admin path", pval, "is too long");
+       return 1;
+      }
+   pval = strdup(pval);
+
+// Get the optional access rights
+//
+   if ((val = Config.GetWord()) && val[0])
+      if (!strcmp("group", val)) mode |= S_IRWXG;
+         else {eDest.Emsg("Config", "invalid admin path modifier -", val);
+               free(pval); return 1;
+              }
+
+// Record the path
+//
+   if (AdminPath) free(AdminPath);
+   AdminPath = pval;
+   AdminMode = mode;
+   return 0;
+}
+
 /******************************************************************************/
 /*                                x a s y n c                                 */
 /******************************************************************************/

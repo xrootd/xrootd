@@ -13,6 +13,7 @@ BINLIBS = -L$(LIBDIR) -lXrd -lXrdNet -lXrdOuc $(OBJDIR)/XrdSfsNative.o
 #------------------------------------------------------------------------------#
   
 SOURCES = \
+        XrdXrootdAdmin.cc      \
         XrdXrootdAio.cc        \
         XrdXrootdConfig.cc     \
         XrdXrootdFile.cc       \
@@ -27,6 +28,7 @@ SOURCES = \
         XrdXrootdXeqAio.cc
   
 OBJECTS = \
+        $(OBJDIR)/XrdXrootdAdmin.o      \
         $(OBJDIR)/XrdXrootdAio.o        \
         $(OBJDIR)/XrdXrootdConfig.o     \
         $(OBJDIR)/XrdXrootdFile.o       \
@@ -77,6 +79,16 @@ $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TARGETS) 
 	$(ECHO)$(LD) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGETS)
 
+$(OBJDIR)/XrdXrootdAdmin.o: XrdXrootdAdmin.hh      XrdXrootdAdmin.cc \
+                            XrdXrootdTrace.hh \
+                            XPtypes.hh             XProtocol.hh \
+                            XrdLink.hh             XrdNetSocket.hh \
+                            XrdOucError.hh         XrdLinkMatch.hh \
+                            XrdOucPlatform.hh      XrdOucPthread.hh \
+                            XrdOucStream.hh
+	@echo Compiling XrdXrootdAdmin.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdAdmin.o XrdXrootdAdmin.cc
+
 $(OBJDIR)/XrdXrootdAio.o: XrdXrootdAio.hh      XPtypes.hh           \
                           XrdBuffer.hh         XrdLink.hh           \
                           XrdScheduler.hh \
@@ -93,7 +105,8 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdPrepare.hh  XrdXrootdXPath.hh \
                              XrdXrootdStats.hh    XrdXrootdTrace.hh \
                              XrdXrootdMonitor.hh  XrdXrootdAio.hh \
-                             XrdNetDNS.hh \
+                             XrdXrootdAdmin.hh \
+                             XrdNetDNS.hh         XrdNetSocket.hh  XrdNetOpts.hh \
                              XrdBuffer.hh         XProtocol.hh \
                              XrdOuca2x.hh         XrdOucError.hh  \
                              XrdOucLogger.hh      XrdOucReqID.hh \

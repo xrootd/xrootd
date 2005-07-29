@@ -46,6 +46,7 @@
 /*                   x r d _ P r o t o c o l _ X R o o t d                    */
 /******************************************************************************/
 
+class XrdNetSocket;
 class XrdOucErrInfo;
 class XrdOucProg;
 class XrdOucStream;
@@ -124,6 +125,8 @@ private:
        int   aio_WriteAll();
        int   aio_WriteCont();
 
+static XrdNetSocket *ASocket(char *path, const char *fn, mode_t mode, int isudp=0);
+static char *ASPath(char *path, const char *fn, mode_t mode);
        void  Assign(const XrdXrootdProtocol &rhs);
        void  Cleanup();
 static int   Config(const char *fn);
@@ -138,6 +141,7 @@ static int   rpCheck(char *fn, const char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
 static int   Squash(char *);
+static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
 static int   xexp(XrdOucStream &Config);
@@ -164,6 +168,12 @@ static XrdOucError           eDest;     // Error message handler
 static const char           *myInst;
 static const char           *TraceID;
 static int                   myPID;
+
+// Admin control area
+//
+static XrdNetSocket         *AdminSock;
+static char                 *AdminPath;
+static int                   AdminMode;
 
 // Processing configuration values
 //
