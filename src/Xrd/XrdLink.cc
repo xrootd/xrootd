@@ -198,6 +198,7 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
             free(host);
            }
    lp->HostName = strdup(lp->Lname);
+   lp->HNlen = strlen(lp->HostName);
    XrdNetTCP->Trim(lp->Lname);
    bl = sprintf(buff, "?:%d", Peer.fd);
    unp = lp->Lname - bl - 1;
@@ -307,32 +308,88 @@ void XrdLink::DoIt()
 }
   
 /******************************************************************************/
-/*                              n e x t L i n k                               */
+/*                                  F i n d                                   */
 /******************************************************************************/
 
-XrdLink *XrdLink::nextLink(int &nextFD)
+// Warning: curr must be set to a value of 0 or less on the initial call and
+//          not touched therafter unless a null pointer is returned. When an
+//          actual link object pointer is returned, it's refcount is increased.
+//          The count is automatically decreased on the next call to Find().
+//
+XrdLink *XrdLink::Find(int &curr, XrdLinkMatch *who)
 {
    XrdLink *lp;
+   const int MaxSeek = 16;
+   int i, myINS, seeklim = MaxSeek;
 
-// Lock the link table
+// Do initialization
 //
    LTMutex.Lock();
+   if (curr >= 0 && LinkTab[curr]) LinkTab[curr]->setRef(-1);
+      else curr = -1;
 
-// Find the next existing link
+// Find next matching link. Since this may take some time, we periodically
+// release the LTMutex lock which drives up overhead but will still allow
+// other critical operations to occur.
 //
-   while(nextFD <= LTLast && !LinkBat[nextFD]) nextFD++;
-   lp = (nextFD <= LTLast ? LinkTab[nextFD] : (XrdLink *)0);
+   for (i = curr+1; i <= LTLast; i++)
+       {if ((lp = LinkTab[i]) && LinkBat[i] && lp->HostName)
+           if (!who 
+           ||   who->Match(lp->ID,lp->Lname-lp->ID-1,lp->HostName,lp->HNlen))
+              {myINS = lp->Instance;
+               LTMutex.UnLock();
+               lp->setRef(1);
+               curr = i;
+               if (myINS == lp->Instance) return lp;
+               LTMutex.Lock();
+              }
+        if (!seeklim--) {LTMutex.UnLock(); seeklim = MaxSeek; LTMutex.Lock();}
+       }
 
-// Increase the reference count so that this link does not escape while
-// it is being exported. It's the caller's responsibility to reduce the
-// reference count when the caller is through with the link
+// Done scanning the table
 //
-   if (lp) lp->setRef(1);
+    LTMutex.UnLock();
+    curr = -1;
+    return 0;
+}
 
-// Unlock the table and return the link pointer
+/******************************************************************************/
+/*                               g e t N a m e                                */
+/******************************************************************************/
+
+// Warning: curr must be set to a value of 0 or less on the initial call and
+//          not touched therafter unless null is returned. Returns the length
+//          the name in nbuf.
 //
+int XrdLink::getName(int &curr, char *nbuf, int nbsz, XrdLinkMatch *who)
+{
+   XrdLink *lp;
+   const int MaxSeek = 16;
+   int i, mylen, seeklim = MaxSeek;
+
+// Find next matching link. Since this may take some time, we periodically
+// release the LTMutex lock which drives up overhead but will still allow
+// other critical operations to occur.
+//
+   LTMutex.Lock();
+   for (i = curr+1; i <= LTLast; i++)
+       {if ((lp = LinkTab[i]) && LinkBat[i] && lp->HostName)
+           if (!who 
+           ||   who->Match(lp->ID,lp->Lname-lp->ID-1,lp->HostName,lp->HNlen))
+              {if (nbsz > 0) 
+                  if ((mylen = strlcpy(nbuf,lp->ID,nbsz)) > nbsz) mylen = nbsz;
+               LTMutex.UnLock();
+               curr = i;
+               return mylen;
+              }
+        if (!seeklim--) {LTMutex.UnLock(); seeklim = MaxSeek; LTMutex.Lock();}
+       }
    LTMutex.UnLock();
-   return lp;
+
+// Done scanning the table
+//
+   curr = -1;
+   return 0;
 }
 
 /******************************************************************************/
@@ -378,10 +435,6 @@ int XrdLink::Peek(char *Buff, int Blen, int timeout)
    XrdLog.Emsg("Link", errno, "peek on", ID);
    return -1;
 }
-  
-/******************************************************************************/
-/*                               P r o c e s s                                */
-/******************************************************************************/
   
 /******************************************************************************/
 /*                                  R e c v                                   */

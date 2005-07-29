@@ -16,6 +16,7 @@ SOURCES = \
         XrdInet.cc        \
         XrdInfo.cc        \
         XrdLink.cc        \
+        XrdLinkMatch.cc   \
         XrdMain.cc        \
         XrdPoll.cc        \
         XrdProtocol.cc    \
@@ -29,6 +30,7 @@ OBJECTS = \
         $(OBJDIR)/XrdInet.o        \
         $(OBJDIR)/XrdInfo.o        \
         $(OBJDIR)/XrdLink.o        \
+        $(OBJDIR)/XrdLinkMatch.o   \
         $(OBJDIR)/XrdMain.o        \
         $(OBJDIR)/XrdPoll.o        \
         $(OBJDIR)/XrdProtocol.o    \
@@ -100,10 +102,14 @@ $(OBJDIR)/XrdInfo.o: XrdInfo.hh
 $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
                        XrdProtocol.hh   XrdScheduler.hh    XrdTrace.hh  \
                        XrdOucError.hh   XrdOucPlatform.hh  XrdOucPthread.hh \
-                       XrdOucTrace.hh   XrdLink.cc \
+                       XrdOucTrace.hh   XrdLinkMatch.hh    XrdLink.cc \
                        XrdNetDNS.hh     XrdNetPeer.hh
 	@echo Compiling XrdLink.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
+
+$(OBJDIR)/XrdLinkMatch.o: XrdLinkMatch.cc XrdLinkMatch.hh
+	@echo Compiling XrdLinkMatch.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdLinkMatch.cc -o $(OBJDIR)/XrdLinkMatch.o
 
 $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdInet.hh \
                        XrdPoll.hh      XrdScheduler.hh   XrdTrace.hh    \

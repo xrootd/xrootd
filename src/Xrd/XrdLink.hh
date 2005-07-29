@@ -20,6 +20,7 @@
 #include "XrdOuc/XrdOucPthread.hh"
 
 #include "Xrd/XrdJob.hh"
+#include "Xrd/XrdLinkMatch.hh"
 #include "Xrd/XrdProtocol.hh"
   
 /******************************************************************************/
@@ -63,6 +64,10 @@ static XrdLink *fd2link(int fd, unsigned int inst)
                  return (XrdLink *)0;
                 }
 
+static XrdLink *Find(int &curr, XrdLinkMatch *who=0);
+
+static int    getName(int &curr, char *bname, int blen, XrdLinkMatch *who=0);
+
 char         *ID;      // This is referenced a lot
 
 unsigned int  Inst() {return Instance;}
@@ -78,8 +83,6 @@ const char   *Name(sockaddr *ipaddr=0)
                      }
 
 const char   *Host() {return (const char *)HostName;}
-
-static XrdLink *nextLink(int &nextFD);
 
 int           Peek(char *buff, int blen, int timeout=-1);
 
@@ -145,6 +148,7 @@ struct sockaddr     InetAddr;
 char                Uname[24];  // Uname and Lname must be adjacent!
 char                Lname[232];
 char               *HostName;
+int                 HNlen;
 
 XrdOucMutex         opMutex;
 XrdOucMutex         rdMutex;
