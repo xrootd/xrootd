@@ -373,7 +373,7 @@ char *XrdOucStream::GetToken(char **rest, int lowcase)
      // Skip to the first non-blank character.
      //
      while (*token && *token == ' ') token ++;
-     *rest = token;
+     if (rest) *rest = token;
 
 
      // All done.
