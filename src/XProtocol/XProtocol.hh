@@ -161,12 +161,13 @@ enum XResponseType {
 
 enum XActionCode {
    kXR_asyncab = 5000,
-   kXR_asyndi,
+   kXR_asyncdi,
    kXR_asyncms,
    kXR_asyncrd,
    kXR_asyncwt,
    kXR_asyncav,
-   kXR_asynunav
+   kXR_asynunav,
+   kXR_asyncgo
 };
 
 //_______________________________________________
