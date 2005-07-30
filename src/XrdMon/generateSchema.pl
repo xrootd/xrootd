@@ -155,6 +155,17 @@ CREATE TABLE IF NOT EXISTS rtChanges (
   lastUpdate    DATETIME
 );
 
+CREATE TABLE IF NOT EXISTS paths (
+  id            MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  typeId        TINYINT NOT NULL,   # BaBar specific
+  skimId        TINYINT NOT NULL,   # BaBar specific
+  size          BIGINT  NOT NULL DEFAULT 0,
+  hash          MEDIUMINT NOT NULL DEFAULT 0,
+  name          VARCHAR(255) NOT NULL,
+  INDEX (typeId),
+  INDEX (skimId),
+  INDEX (hash)
+);
 
 # BaBar specific!
 # e.g.: SP, PR, SPskims, PRskims
@@ -442,18 +453,6 @@ CREATE TABLE IF NOT EXISTS ${site}_users (
 CREATE TABLE IF NOT EXISTS ${site}_hosts (
   id            SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   hostName      VARCHAR(64) NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_paths (
-  id            MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  typeId        TINYINT NOT NULL,   # BaBar specific
-  skimId        TINYINT NOT NULL,   # BaBar specific
-  size          BIGINT  NOT NULL DEFAULT 0,
-  hash          MEDIUMINT NOT NULL DEFAULT 0,
-  name          VARCHAR(255) NOT NULL,
-  INDEX (typeId),
-  INDEX (skimId),
-  INDEX (hash)
 );
 
 ";

@@ -65,9 +65,9 @@ others todo:
 
 - listing jobs for given user: maybe show start/stop time?
 
+- don't store any temporary files in /tmp
 
-
-
+- extract functions common for loader and prepareStats
 
 How to do the migration
 =======================
