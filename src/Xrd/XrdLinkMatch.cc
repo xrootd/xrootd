@@ -10,7 +10,10 @@
 
 //         $Id$
 
+#include <string.h>
+
 #include "Xrd/XrdLinkMatch.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
  
 /******************************************************************************/
 /*                                 M a t c h                                  */

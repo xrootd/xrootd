@@ -320,7 +320,8 @@ XrdLink *XrdLink::Find(int &curr, XrdLinkMatch *who)
 {
    XrdLink *lp;
    const int MaxSeek = 16;
-   int i, myINS, seeklim = MaxSeek;
+   unsigned int myINS;
+   int i, seeklim = MaxSeek;
 
 // Do initialization
 //
@@ -365,7 +366,7 @@ int XrdLink::getName(int &curr, char *nbuf, int nbsz, XrdLinkMatch *who)
 {
    XrdLink *lp;
    const int MaxSeek = 16;
-   int i, mylen, seeklim = MaxSeek;
+   int i, ulen = 0, seeklim = MaxSeek;
 
 // Find next matching link. Since this may take some time, we periodically
 // release the LTMutex lock which drives up overhead but will still allow
@@ -376,11 +377,17 @@ int XrdLink::getName(int &curr, char *nbuf, int nbsz, XrdLinkMatch *who)
        {if ((lp = LinkTab[i]) && LinkBat[i] && lp->HostName)
            if (!who 
            ||   who->Match(lp->ID,lp->Lname-lp->ID-1,lp->HostName,lp->HNlen))
-              {if (nbsz > 0) 
-                  if ((mylen = strlcpy(nbuf,lp->ID,nbsz)) > nbsz) mylen = nbsz;
+              {if (nbsz > 0)
+                  {ulen = (lp->Lname - lp->ID);
+                   if ((ulen + lp->HNlen) >= nbsz) ulen = 0;
+                      else {strncpy(nbuf, lp->ID, ulen);
+                            strcpy(nbuf+ulen, lp->HostName);
+                            ulen += lp->HNlen;
+                           }
+                  }
                LTMutex.UnLock();
                curr = i;
-               return mylen;
+               return ulen;
               }
         if (!seeklim--) {LTMutex.UnLock(); seeklim = MaxSeek; LTMutex.Lock();}
        }

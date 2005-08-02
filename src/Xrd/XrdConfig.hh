@@ -42,7 +42,6 @@ int   xbuf(XrdOucError *edest, XrdOucStream &Config);
 int   xcon(XrdOucError *edest, XrdOucStream &Config);
 int   xnet(XrdOucError *edest, XrdOucStream &Config);
 int   xlog(XrdOucError *edest, XrdOucStream &Config);
-int   xpidf(XrdOucError *edest, XrdOucStream &Config);
 int   xport(XrdOucError *edest, XrdOucStream &Config);
 int   xprot(XrdOucError *edest, XrdOucStream &Config);
 int   xsched(XrdOucError *edest, XrdOucStream &Config);
@@ -68,8 +67,8 @@ int                 Net_Opts;
 
 int                 PortTCP;      // TCP Port to listen on
 int                 PortUDP;      // UDP Port to listen on (currently unsupported)
+int                 AdminMode;
 char                isProxy;
 char                setSched;
-char                AdminMode;
 };
 #endif

@@ -143,8 +143,8 @@ XrdConfig::XrdConfig(void)
    PortUDP  = 0;
    ConfigFN = 0;
    myInsName= 0;
-   PidPath  = strdup("/tmp");
-   AdminPath= 0;
+   AdminPath= strdup("/tmp");
+   AdminMode= 0700;
    Police   = 0;
    Net_Blen = 0;
    Net_Opts = 0;
@@ -160,6 +160,8 @@ XrdConfig::XrdConfig(void)
    ProtInfo.Stats   = 0;                // We will fill this in later
    ProtInfo.Trace   = &XrdTrace;        // Stable -> Trace Information
    ProtInfo.Threads = 0;                // Stable -> The thread manager (later)
+   ProtInfo.AdmPath = AdminPath;        // Stable -> The admin path
+   ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
 
    ProtInfo.Format   = XrdFORMATB;
    ProtInfo.ConnOptn = -4;     // Num of connections to optimize for (1/4*max)
@@ -368,7 +370,6 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
    TS_Xeq("connections",   xcon);
-   TS_Xeq("pidpath",       xpidf);  // Backward compatability only!
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("timeout",       xtmo);
@@ -408,6 +409,10 @@ int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
         return 1;
        }
 
+// *!*!* At this point we do not yet support the admin path for xrd.
+// sp we comment out all of the following code.
+
+/*
 // Construct the actual socket name
 //
   if (sokpath[plen-1] != '/') sokpath[plen++] = '/';
@@ -425,6 +430,7 @@ int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 // Set the mode and return
 //
    chmod(sokpath, mode); // This may fail on some platforms
+*/
    return 0;
 }
 
@@ -545,6 +551,7 @@ int XrdConfig::Setup(char *dfltp)
 {
    static char portbuff[32];
    XrdConfigProt *cp;
+   char *p;
 
 // Establish the FD limit
 //
@@ -583,9 +590,17 @@ int XrdConfig::Setup(char *dfltp)
    sprintf(portbuff, "XRDPORT=%d", PortTCP);
    putenv(portbuff);
 
+// Modify the AdminPath to account for any instance name. Note that there is
+// a negligible memory leak under ceratin path combinations. Not enough to
+// warrant a lot of logic to get around.
+//
+   if (myInsName) ProtInfo.AdmPath = XrdOucUtils::genPath(AdminPath,myInsName);
+   p = XrdOucUtils::genPath(AdminPath, myInsName, ".xrd");
+   AdminPath = p;
+
 // Setup admin connection now
 //
-   if (AdminPath && ASocket(AdminPath, "admin", (mode_t)AdminMode)) return 1;
+   if (ASocket(AdminPath, "admin", (mode_t)AdminMode)) return 1;
 
 // Allocate the statistics object. This is akward since we only know part
 // of the current configuration. The object will figure this out later.
@@ -652,10 +667,6 @@ int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
    if (*pval != '/')
       {eDest->Emsg("Config", "adminpath not absolute"); return 1;}
 
-// Generate the path
-//
-   pval = XrdOucUtils::genPath(pval, myInsName, ".xrd");
-
 // Get the optional access rights
 //
    if ((val = Config.GetWord()) && val[0])
@@ -668,7 +679,7 @@ int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
 //
    if (AdminPath) free(AdminPath);
    AdminPath = strdup(pval);
-   AdminMode = mode;
+   AdminMode = ProtInfo.AdmMode = mode;
    return 0;
 }
   
@@ -868,36 +879,6 @@ int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
 
      Net_Opts = (V_keep ? XRDNET_KEEPALIVE : 0);
      return 0;
-}
-  
-/******************************************************************************/
-/*                                 x p i d f                                  */
-/******************************************************************************/
-
-/* Function: xpidf
-
-   Purpose:  To parse the directive: pidpath <path>
-
-             <path>    the path where the pid file is to be created.
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdConfig::xpidf(XrdOucError *eDest, XrdOucStream &Config)
-{
-    char *val;
-
-// Get the path
-//
-   val = Config.GetWord();
-   if (!val || !val[0])
-      {eDest->Emsg("Config", "pidpath not specified"); return 1;}
-
-// Record the path
-//
-   if (PidPath) free(PidPath);
-   PidPath = strdup(val);
-   return 0;
 }
   
 /******************************************************************************/

@@ -107,7 +107,7 @@ $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
 	@echo Compiling XrdLink.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
 
-$(OBJDIR)/XrdLinkMatch.o: XrdLinkMatch.cc XrdLinkMatch.hh
+$(OBJDIR)/XrdLinkMatch.o: XrdLinkMatch.cc XrdLinkMatch.hh XrdOucPlatform.hh
 	@echo Compiling XrdLinkMatch.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdLinkMatch.cc -o $(OBJDIR)/XrdLinkMatch.o
 

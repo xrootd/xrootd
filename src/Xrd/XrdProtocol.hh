@@ -52,6 +52,8 @@ XrdOucTrace    *Trace;       // Stable -> Trace Information
 char            *ConfigFN;     // -> Configuration file
 int              Format;       // Binary format of this server
 int              Port;         // Port number
+const char      *AdmPath;      // Admin path
+int              AdmMode;      // Admin path mode
 const char      *myInst;       // Instance name
 const char      *myName;       // Host name
 struct sockaddr *myAddr;       // Host address
