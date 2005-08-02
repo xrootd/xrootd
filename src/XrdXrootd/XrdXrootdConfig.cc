@@ -21,6 +21,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/un.h>
 
 #include "XrdVersion.hh"
 
@@ -105,7 +106,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
-   char *p, *fsver, *rdf, c, buff[1024];
+   char *adminp, *fsver, *rdf, c, buff[1024];
 
 // Copy out the special info we want to use at top level
 //
@@ -241,16 +242,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (!isRedir && !XrdXrootdMonitor::Init(Sched,&eDest)) return 0;
 
-// Establish the path to be used for admin functions
+// Establish the path to be used for admin functions. We will loose this
+// storage upon an error but we don't care because we'll just exit.
 //
-   p = XrdOucUtils::genPath(AdminPath, 
-                           (strcmp(myInst,"anon") ? myInst : 0), ".xrootd");
-   free(AdminPath);
-   AdminPath = p;
+   adminp = XrdOucUtils::genPath(pi->AdmPath, 0, ".xrootd");
 
-// Setup the admin path (used in all roles)
+// Setup the admin path (used in all roles).
 //
-   if (!(AdminSock = ASocket(AdminPath,"xrootd.admin",AdminMode))
+   if (!(AdminSock = ASocket(adminp, "admin", pi->AdmMode))
    ||  !XrdXrootdAdmin::Init(&eDest, AdminSock)) return 0;
 
 // Indicate we configured successfully
@@ -260,6 +259,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Return success
 //
+   free(adminp);
    return 1;
 }
 
@@ -285,8 +285,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
    //
    while((var = Config.GetMyFirstWord()))
         {if (!(ignore = strncmp("xrootd.", var, 7)) && var[7]) var += 7;
-              if TS_Xeq("adminpath",     xapath);
-         else if TS_Xeq("async",         xasync);
+              if TS_Xeq("async",         xasync);
          else if TS_Xeq("chksum",        xcksum);
          else if TS_Xeq("export",        xexp);
          else if TS_Xeq("fslib",         xfsl);
@@ -374,62 +373,6 @@ char *XrdXrootdProtocol::ASPath(char *path, const char *fn, mode_t mode)
 // All set now
 //
    return fnbuff;
-}
-
-/******************************************************************************/
-/*                                x a p a t h                                 */
-/******************************************************************************/
-
-/* Function: xapath
-
-   Purpose:  To parse the directive: adminpath <path>
-
-             <path>    the path of the named socket to use for admin requests.
-
-   Type: Manager and Server, non-dynamic.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdXrootdProtocol::xapath(XrdOucStream &Config)
-{
-    char *pval, *val;
-    mode_t mode = S_IRWXU;
-    struct sockaddr_un USock;
-
-// Get the path
-//
-   pval = Config.GetWord();
-   if (!pval || !pval[0])
-      {eDest.Emsg("Config", "adminpath not specified"); return 1;}
-
-// Make sure it's an absolute path
-//
-   if (*pval != '/')
-      {eDest.Emsg("Config", "adminpath not absolute"); return 1;}
-
-// Make sure path is not too long (account for "/xrootd.admin")
-//                                              1234567890123
-   if (strlen(pval) > sizeof(USock.sun_path) - 13)
-      {eDest.Emsg("Config", "admin path", pval, "is too long");
-       return 1;
-      }
-   pval = strdup(pval);
-
-// Get the optional access rights
-//
-   if ((val = Config.GetWord()) && val[0])
-      if (!strcmp("group", val)) mode |= S_IRWXG;
-         else {eDest.Emsg("Config", "invalid admin path modifier -", val);
-               free(pval); return 1;
-              }
-
-// Record the path
-//
-   if (AdminPath) free(AdminPath);
-   AdminPath = pval;
-   AdminMode = mode;
-   return 0;
 }
 
 /******************************************************************************/

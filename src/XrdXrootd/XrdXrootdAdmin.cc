@@ -16,14 +16,17 @@ const char *XrdXrootdAdminCVSID = "$Id$";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 
+#include "XrdVersion.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdXrootd/XrdXrootdAdmin.hh"
+#include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
  
 /******************************************************************************/
@@ -76,23 +79,28 @@ void XrdXrootdAdmin::Login(int socknum)
 {
    const char *epname = "Admin";
    char *request, *tp;
-   int rc;
 
 // Attach the socket FD to a stream
 //
    Stream.SetEroute(eDest);
    Stream.AttachIO(socknum, socknum);
 
-// The first request better be "login"
+// Get the first request
 //
-   if ((request = Stream.GetLine()))
-      {if (!(tp = Stream.GetToken()) || strcmp("login", tp) || !do_Login())
-          {eDest->Emsg(epname, "Invalid admin login sequence");
-           return;
-          }
-       } else {eDest->Emsg(epname, "No admin login specified");
-               return;
-              }
+   if (!(request = Stream.GetLine()))
+      {eDest->Emsg(epname, "No admin login specified");
+       return;
+      }
+
+// The first request better be: <reqid> login <name>
+//
+   if (getreqID()
+   || !(tp = Stream.GetToken())
+   || strcmp("login", tp)
+   || do_Login())
+      {eDest->Emsg(epname, "Invalid admin login sequence");
+       return;
+      }
 
 // Document the login and go process the stream
 //
@@ -197,7 +205,9 @@ int XrdXrootdAdmin::do_Disc()
   
 int XrdXrootdAdmin::do_Login()
 {
-   char *tp;
+   const char *fmt="<resp id=\"%s\"><rc>0</rc><v>" XROOTD_VERSION "</v></resp>\n";
+   char *tp, buff[1024];
+   int blen;
 
 // Process: login <name>
 //
@@ -206,9 +216,11 @@ int XrdXrootdAdmin::do_Login()
        return 0;
       } else strlcpy(TraceID, tp, sizeof(TraceID));
 
- // All done
+// Provide good response
 //
-   return 1;
+   blen = snprintf(buff, sizeof(buff)-1, fmt, reqID);
+   buff[sizeof(buff)-1] = '\0';
+   return Stream.Put(buff, blen);
 }
  
 /******************************************************************************/
@@ -218,7 +230,6 @@ int XrdXrootdAdmin::do_Login()
 int XrdXrootdAdmin::do_Lsc()
 {
    const char *fmt1 = "<resp id=\"%s\"><rc>0</rc><conn>";
-   static int fmt1len = strlen(fmt1);
    const char *fmt2 = "</conn></resp>\n";
    static int fmt2len = strlen(fmt2);
    char buff[1024];
@@ -318,7 +329,8 @@ int XrdXrootdAdmin::do_Red()
 // Copy out host
 //
    *pn = '\0';
-   if ((hlen = strlcpy(myMsg.buff,tp,sizeof(myMsg.buff))) >= sizeof(myMsg.buff))
+   hlen = strlcpy(myMsg.buff,tp,sizeof(myMsg.buff));
+   if (static_cast<size_t>(hlen) >= sizeof(myMsg.buff))
       return sendErr(8, "redirect", "destination host too long.");
 
 // Copy out the token
@@ -406,7 +418,7 @@ int XrdXrootdAdmin::sendErr(int rc, const char *act, const char *msg)
   
 int XrdXrootdAdmin::sendOK(int sent)
 {
-   const char *fmt = "<resp id=\"%s\"><rc>0</rc><sent>%d</sent></resp>\n";
+   const char *fmt = "<resp id=\"%s\"><rc>0</rc><num>%d</num></resp>\n";
    char buff[1024];
    int blen;
 

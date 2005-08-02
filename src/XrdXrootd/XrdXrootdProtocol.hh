@@ -28,9 +28,9 @@
 /*                               D e f i n e s                                */
 /******************************************************************************/
   
-#define XROOTD_VERSBIN 0x00000240
+#define XROOTD_VERSBIN 0x00000245
 
-#define XROOTD_VERSION "2.4.0"
+#define XROOTD_VERSION "2.4.5"
 
 #define ROOTD_PQ 2012
 
@@ -172,8 +172,6 @@ static int                   myPID;
 // Admin control area
 //
 static XrdNetSocket         *AdminSock;
-static char                 *AdminPath;
-static int                   AdminMode;
 
 // Processing configuration values
 //

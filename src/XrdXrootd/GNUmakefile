@@ -80,7 +80,7 @@ $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	$(ECHO)$(LD) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGETS)
 
 $(OBJDIR)/XrdXrootdAdmin.o: XrdXrootdAdmin.hh      XrdXrootdAdmin.cc \
-                            XrdXrootdTrace.hh \
+                            XrdXrootdTrace.hh      XrdXrootdProtocol.hh \
                             XPtypes.hh             XProtocol.hh \
                             XrdLink.hh             XrdNetSocket.hh \
                             XrdOucError.hh         XrdLinkMatch.hh \
@@ -105,7 +105,7 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdPrepare.hh  XrdXrootdXPath.hh \
                              XrdXrootdStats.hh    XrdXrootdTrace.hh \
                              XrdXrootdMonitor.hh  XrdXrootdAio.hh \
-                             XrdXrootdAdmin.hh \
+                             XrdXrootdAdmin.hh    XrdProtocol.hh \
                              XrdNetDNS.hh         XrdNetSocket.hh  XrdNetOpts.hh \
                              XrdBuffer.hh         XProtocol.hh \
                              XrdOuca2x.hh         XrdOucError.hh  \
