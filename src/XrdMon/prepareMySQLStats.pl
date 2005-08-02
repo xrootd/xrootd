@@ -15,39 +15,49 @@ use DBI;
 # $Id$
 
 
-$initFlag  = 1;
-$updInt    = 60;     # update interval
 $dbName    = 'xrdmon_new'; # FIXME
 $mySQLUser = 'becla';      # FIXME
 
-# prepare counters for updating top performers tables
-                      # update data for top perf 1 hour  period every  1 min
-$dUpdatesFreq =   30; # update data for top perf 1 day   period every 30 min
-$wUpdatesFreq =  185; # update data for top perf 1 week  period every  3+ hours
-$mUpdatesFreq = 1452; # update data for top perf 1 month period every 24+ hours
-$yUpdatesFreq = 4327; # update data for top perf 1 year  period every  3+ days
-$dCounter  = $dUpdatesFreq;
-$wCounter  = $wUpdatesFreq;
-$mCounter  = $mUpdatesFreq;
-$yCounter  = $yUpdatesFreq;
 
-$loadFreq1stFail =   60;  # File size Loading frequency for files that have failed once,    every hour.
-$loadFreq2ndFail =  720;  # File size Loading frequency for files that have failed twice,   every 12 hours.
-$loadFreq3rdFail = 1440;  # File size Loading frequency for files that have failed 3 times, every 24 hour.
-
-
-$cycleEndTime = time() + $updInt;
+# connect to the database
+unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+    print "Error while connecting to database. $DBI::errstr\n";
+    exit;
+}
 
 &doInitialization();
  
 #start an infinite loop
 while ( 1 ) {
-    &doUpdate();
+    my $loadTime = &timestamp();
+    print "Current time is $loadTime. Doing HOUR update (every minute)\n";
 
-    my $sec2Sleep = 60 - (localtime)[0];
+    my $sec   = (localtime)[0];
+    my $min   = (localtime)[1];
+    my $hour  = (localtime)[2];
+    my $day   = (localtime)[3];
+
+    foreach $siteName (@siteNames) {
+	&prepareStats4OneSite($siteName, 
+			      $loadTime,
+			      $sec,
+			      $min,
+			      $hour, 
+			      $day);
+    }
+
+    # wake up every minute at HH:MM:30
+    my $sec2Sleep = 90 - $sec;
+    if ( $sec < 30 ) {
+	$sec2Sleep -= 60;
+    }
+        
     print "sleeping $sec2Sleep sec... \n";
     sleep $sec2Sleep;
 }
+
+# never reached to be honest
+$dbh->disconnect();
 
 ###############################################################################
 ###############################################################################
@@ -57,12 +67,7 @@ sub doInitialization() {
 
     @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
 
-    # do the necessary one-time initialization
-    unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
-	print "Error while connecting to database. $DBI::errstr\n";
-	return;
-    }
-
+    # find all sites
     @siteNames = &runQueryRetArray("SELECT name FROM sites");
     foreach $siteName (@siteNames) {
 	$siteIds{$siteName} = &runQueryWithRet("SELECT id 
@@ -70,6 +75,13 @@ sub doInitialization() {
                                                 WHERE name = \"$siteName\"");
     }
 
+    # cleanup old entries
+    &runQuery("DELETE FROM statsLastHour  WHERE date < DATE_SUB(NOW(), INTERVAL  1 HOUR)");
+    &runQuery("DELETE FROM statsLastDay   WHERE date < DATE_SUB(NOW(), INTERVAL  24 HOUR)");
+    &runQuery("DELETE FROM statsLastWeek  WHERE date < DATE_SUB(NOW(), INTERVAL 168 HOUR)");
+    &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB(NOW(), INTERVAL 30  DAY)");
+
+    # find most recent stats
     my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour");
     if ( $lastTime ) {
         ($nMin, $lastNoJobs, $lastNoUsers, $lastNoUniqueF, $lastNoNonUniqueF) =
@@ -109,96 +121,98 @@ sub doInitialization() {
     } else {
         $nDay = 0;
     }
+
+    # create temporary tables for topPerformers
+    &runQuery("CREATE TEMPORARY TABLE jj  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE ff  (theId INT, n INT, s INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE uu  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE vv  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
+    @topPerfTables = ("jj", "ff", "uu", "vv", "xx");
+
+    # some other stuff
     $bbkListSize = 250;
     $minSizeLoadTime = 5;
-    $initFlag = 0;
-
-    $dbh->disconnect();
 }
 
 
-
-sub doUpdate {
-    my $ts = &timestamp();
-
-    # connect to the database
-    print "\n$ts Connecting to database...\n";
-    unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
-	print "Error while connecting to database. $DBI::errstr\n";
-	return;
-    }
-
-    # set the load time.
-    my $loadTime = &timestamp();
-
-    # $nMin, $nHour, $nwDay and $nDay start from 0
-    my $loadLastHour  = 1;    # always load "last hour"
-    my $loadLastDay   = 0;
-    my $loadLastWeek  = 0;
-    my $loadLastMonth = 0;
-    my $loadAllMonths = 0;
-
-    if ( $nMin % 60 == 59 ) {
-        $loadLastDay = 1;
-	if ( $nWDay % 7 == 6 ) {
-	    $loadLastWeek = 1;
-	    $nWDay += 1;
-	}
-        if ( $nHour % 24 == 23 ) {
-	    $loadLastMonth = 1;
-            $nDay += 1;
-            if ( (localtime)[3] == 1 ) {
-		$loadAllMonths = 1;
-	    }
-        }
-        $nHour += 1;
-    }
-    $nMin += 1;
-
-    foreach $siteName (@siteNames) {
-	updateOneSite($siteName, 
-		      $loadTime,
-		      $loadLastHour,
-		      $loadLastDay,
-		      $loadLastWeek,
-		      $loadLastMonth,
-		      $loadAllMonths
-		      );
-    }
-
-    # disconnect from db
-    $dbh->disconnect();
-
-    $ts = &timestamp();
-    print "$ts All done.\n";
-
-}
-
-sub updateOneSite() {
-    my ($siteName, $loadTime, 
-        $loadLastHour, $loadLastDay, 
-        $loadLastWeek, $loadLastMonth, $loadAllMonths) = @_;
+sub prepareStats4OneSite() {
+    my ($siteName, $loadTime, $sec, $min, $hour, $day) = @_;
 
     print "Updating data for --> $siteName <--\n";
 
-    if ( $loadLastHour  == 1 ) { &loadStatsLastHour($siteName, $loadTime)  };
-    if ( $loadLastDay   == 1 ) { &loadStatsLastDay($siteName, $loadTime)   };
-    if ( $loadLastWeek  == 1 ) { &loadStatsLastWeek($siteName, $loadTime)  };
-    if ( $loadLastMonth == 1 ) { &loadStatsLastMonth($siteName, $loadTime) };
-    if ( $loadAllMonths == 1 ) { &loadStatsAllMonths($siteName, $loadTime) };
+    # every min at HH:MM:30
+    &loadStatsLastHour($siteName, $loadTime, $min % 60);
+    &loadTopPerfPast("Hour", 20, $siteName);
 
-    &reloadTopPerfTables($siteName);
+
+    if ( $min == 0 || $min == 15 || $min == 30 || $min == 45 ) {
+	# every 15 min at HH:00:30, HH:15:30, HH:30:30, HH:45:30
+	&loadStatsLastDay($siteName, $loadTime, $hour*4+$min/15);
+	&loadTopPerfPast("Day", 20, $siteName);
+    }
+
+    if ( $min == 5 ) {
+	# every hour at HH:05:30
+        my $seqId = &nextSeqIdForWeek();
+	&loadStatsLastWeek($siteName, $loadTime, $seqId);
+	&loadTopPerfPast("Week", 20, $siteName);
+    }
+
+    if ( $min == 20 ) {
+	if ( $hour == 0 || $hour == 6 || $hour == 12 || $hour == 18 ) {
+	    # every 6 hours at 00:20:30, 06:20:30, 12:20:30, 18:20:30
+	    &loadStatsLastMonth($siteName, $loadTime);
+	    &loadTopPerfPast("Month", 20, $siteName, $day*4+$hour/6);
+
+	}
+	if ( $hour == 23 ) {
+	    # every 24 hours at 23:22:30
+	    &loadStatsAllMonths($siteName, $loadTime);
+	    &loadTopPerfPast("Year", 20, $siteName);
+	}
+    }
+
+    # top Perf - "now"
+    &loadTopPerfNow(20, $siteName);
+
+    # truncate temporary tables tables
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE $table"); }
 
     # load file sizes
-    if       ( ! ($nMin % $loadFreq3rdFail) ) {
-        &loadFileSizes( $siteName, -3 );
-    } elsif ( ! ($nMin % $loadFreq2ndFail) ) {
-        &loadFileSizes( $siteName, -2 );
-    } elsif ( ! ($nMin % $loadFreq1stFail) ) {
+    if ( $min == 37 ) {
+	if ( $hour == 23 ) {
+             # every 24 hours at 23:37:30
+	    &loadFileSizes( $siteName, -3 );
+	}
+	if ( $hour == 11 || $hour == 23 ) {
+            # every 12 hours at 11:37:30 and 23:37:30
+	    &loadFileSizes( $siteName, -2 );
+	}
+        # every hour at HH:37:30
         &loadFileSizes( $siteName, -1 );
-    } else {
-        &loadFileSizes( $siteName, 0 ); # every minute
     }
+    # every min at HH:MM:30
+    &loadFileSizes( $siteName, 0 );
+}
+
+sub nextSeqIdForWeek() {
+    # find last sequence id
+    my $lastSeq = runQueryWitRet("SELET seqNo 
+                                  FROM statsLastDay
+                                  ORDER BY date
+                                  LIMIT 1");
+    # find time difference between now and last stat
+    my $hDif = runQueryWithRet("SELECT HOUR(TIMEDIFF(now(), date))
+                                FROM   statsLastDay
+                                WHERE  seqNo = $lastSeq");
+    my $mDif = runQueryWithRet("SELECT MINUTE(TIMEDIFF(now(), date))
+                                FROM   statsLastDay
+                                WHERE  seqNo = $lastSeq");
+    if ( $mDif > 55 ) {
+	$hDif++;
+    }
+    return ( $lastSeq + $hDif ) % 168;
 }
 
 sub runQueryWithRet() {
@@ -234,31 +248,36 @@ sub runQuery() {
 }
 
 sub timestamp() {
-    my $sec  = (localtime)[0];
-    my $min  = (localtime)[1];
-    my $hour = (localtime)[2];
-    my $day  = (localtime)[3];
-    my $month  = (localtime)[4] + 1;
-    my $year = (localtime)[5] + 1900;
+    my $sec   = (localtime)[0];
+    my $min   = (localtime)[1];
+    my $hour  = (localtime)[2];
+    my $day   = (localtime)[3];
+    my $month = (localtime)[4] + 1;
+    my $year  = (localtime)[5] + 1900;
 
     return sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
 }
 
 sub loadFileSizes() {
-
+    my ($siteName, $sizeIndex) = @_;
     print "Loading file sizes... \n";
     use vars qw($sizeIndex $fromId $toId $path $size @files @inBbk);
-    my ($siteName, $sizeIndex) = @_;
-    &runQuery("CREATE TEMPORARY TABLE zerosize  (name VARCHAR(255), id MEDIUMINT UNSIGNED, hash MEDIUMINT)");
-    &runQuery("INSERT INTO zerosize(name, id, hash) SELECT name, id, hash FROM paths 
-                                              WHERE size BETWEEN $sizeIndex AND 0 
-                                              ORDER BY id 
-                                              LIMIT 7500");
+    &runQuery("CREATE TEMPORARY TABLE zerosize  
+               (name VARCHAR(255), id MEDIUMINT UNSIGNED, hash MEDIUMINT)");
+    &runQuery("INSERT INTO zerosize(name, id, hash)
+                      SELECT name, id, hash FROM paths 
+                      WHERE  size BETWEEN $sizeIndex AND 0 
+                      ORDER BY id 
+                      LIMIT 7500");
      
     $skip = 0;
     while () {
-       my $t0 = time();
-       $timeLeft = $cycleEndTime - $t0;
+	my $t0 = time();
+	my $sec = (localtime)[0];
+	my $timeLeft = 90-$sec;
+	if ( $sec < 30 ) {
+	    $timeLeft -= 60;
+	}
        last if ( $timeLeft < $minSizeLoadTime);
        @files = &runQueryRetArray("SELECT name FROM zerosize LIMIT $skip, $bbkListSize "); 
        #print scalar @files, "\n";
@@ -302,21 +321,20 @@ sub loadFileSizes() {
     &runQuery("DROP TABLE IF EXISTS zerosize");
 }
 
-
 sub loadStatsLastHour() {
-    my ($siteName, $loadTime) = @_;
+    my ($siteName, $loadTime, $seqNo) = @_;
 
     use vars qw($seqNo $noJobs $noUsers $noUniqueF $noNonUniqueF $deltaJobs $jobs_p 
                 $deltaUsers $users_p $deltaUniqueF $uniqueF_p $deltaNonUniqueF $nonUniqueF_p);
-    $seqNo = $nMin % 60;
+
     my $siteId = $siteIds{$siteName};
 
     &runQuery("DELETE FROM statsLastHour WHERE seqNo = $seqNo AND siteId = $siteId");
     ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT pId, clientHId), COUNT(DISTINCT userId) 
-                                                FROM ${siteName}_openedSessions");
+                                            FROM ${siteName}_openedSessions");
 
     ($noUniqueF, $noNonUniqueF) = &runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
-                                                        FROM ${siteName}_openedFiles");
+                                                    FROM ${siteName}_openedFiles");
     &runQuery("INSERT INTO statsLastHour 
               (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
               VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
@@ -342,9 +360,8 @@ sub loadStatsLastHour() {
 }
 
 sub loadStatsLastDay() {
-    my ($siteName, $loadTime) = @_;
+    my ($siteName, $loadTime, $seqNo) = @_;
 
-    my $seqNo = $nHour % 24;
     my $siteId = $siteIds{$siteName};
 
     &runQuery("DELETE FROM statsLastDay WHERE seqNo = $seqNo AND siteId = $siteId");
@@ -353,9 +370,9 @@ sub loadStatsLastDay() {
         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF) 
       = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                           FROM statsLastHour WHERE siteId = $siteId");
+                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
+                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
+                          FROM statsLastHour WHERE siteId = $siteId");
 
     &runQuery("INSERT INTO statsLastDay 
                           (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
@@ -367,9 +384,8 @@ sub loadStatsLastDay() {
 }
 
 sub loadStatsLastWeek() {
-    my ($siteName, $loadTime) = @_;
-    print "called loadStatsLastWeek\n";
-    my $seqNo = $nWDay % 7;
+    my ($siteName, $loadTime, $seqNo) = @_;
+
     my $siteId = $siteIds{$siteName};
 
     &runQuery("DELETE FROM statsLastWeek WHERE seqNo = $seqNo AND siteId = $siteId");
@@ -434,7 +450,7 @@ sub loadStatsAllMonths() {
                                  MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
                                  MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
                           FROM   statsLastMonth
-                          WHERE  MNTH(date) = \"$lastMonth\"
+                          WHERE  MONTH(date) = \"$lastMonth\"
                             AND  siteId = $siteId"); 
 
     &runQuery("INSERT INTO statsAllMonths 
@@ -464,75 +480,30 @@ sub roundoff() {
 ### everything below is for loading top perf tables ###
 #######################################################
 
-
-sub reloadTopPerfTables() {
-    my ($siteName) = @_;
-
-    # create tables
-    &runQuery("CREATE TEMPORARY TABLE jj  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE ff  (theId INT, n INT, s INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE uu  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE vv  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
-    @tables = ("jj", "ff", "uu", "vv", "xx");
-
-    # run queries for past (last hour/day/week/month/year
-    &runQueries4AllTopPerfTablesPast("Hour", 20, $siteName);
-    if ( $dCounter == $dUpdatesFreq ) {
-	&runQueries4AllTopPerfTablesPast("Day", 20, $siteName);
-	$dCounter = 0;
-    } else {
-	$dCounter += 1;
-    }
-    if ( $wCounter == $wUpdatesFreq ) {
-	&runQueries4AllTopPerfTablesPast("Week", 20, $siteName);
-	$wCounter = 0;
-    } else {
-	$wCounter += 1;
-    }
-    if ( $mCounter == $mUpdatesFreq ) {
-	&runQueries4AllTopPerfTablesPast("Month", 20, $siteName);
-	$mCounter = 0;
-    } else {
-	$mCounter += 1;
-    }
-    if ( $yCounter == $yUpdatesFreq ) {
-	&runQueries4AllTopPerfTablesPast("Year", 20, $siteName);
-	$yCounter = 0;
-    } else {
-	$yCounter += 1;
-    }
-    # run queries for now
-    &runQueries4AllTopPerfTablesNow(20, $siteName);
-
-    # delete tables
-    foreach $table (@tables) { &runQuery("DROP TABLE IF EXISTS $table"); }
-}
-
-sub runQueries4AllTopPerfTablesPast() {
+sub loadTopPerfPast() {
     my ($theKeyword, $theLimit, $siteName) = @_;
 
     &runTopUsrFsQueriesPast($theKeyword, $theLimit, "USERS", $siteName);
-    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesPast($theKeyword, $theLimit, "SKIMS", $siteName);
-    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesPast($theKeyword, $theLimit, "TYPES", $siteName);
-    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopUsrFsQueriesPast($theKeyword, $theLimit, "FILES", $siteName);
-    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
 }
 
-sub runQueries4AllTopPerfTablesNow() {
+sub loadTopPerfNow() {
     my ($theLimit, $siteName) = @_;
 
     &runTopUsrFsQueriesNow($theLimit, "USERS", $siteName);
-    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesNow($theLimit, "SKIMS", $siteName);
-    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesNow($theLimit, "TYPES", $siteName);
-    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopUsrFsQueriesNow($theLimit, "FILES", $siteName);
-    foreach $table (@tables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
 }
 
 sub runTopUsrFsQueriesPast() {

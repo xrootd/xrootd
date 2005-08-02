@@ -171,3 +171,24 @@ Sizes
  - closedFiles:    ~120 MB/month + index: ~100MB/month
  - so total ~400MB/month --> 5GB/year
  - tar.gz one month: 350MB
+
+
+
+update frequency
+================
+
+
+Last     freq       #points
+----------------------------
+HOUR     1 min        60
+DAY     15 min        96
+WEEK     1 hour      168
+MONTH    6 hours     120
+YEAR    24 hours     365
+
+When:
+HOUR:  every time we have 30 sec
+DAY:   every time we have 0, 15, 30, 45 min
+WEEK:  every time we have 7 min
+MONTH: every time we have 0h22m, 6h22m, 12h22m, 18h22m
+YEAR:  every time we have 23h22m
