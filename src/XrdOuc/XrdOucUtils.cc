@@ -79,10 +79,8 @@ char *XrdOucUtils::genPath(const char *p_path, const char *inst,
    char buff[2048];
    int i = strlcpy(buff, p_path, sizeof(buff));
 
-   if (inst)
-      {if (buff[i-1] != '/') buff[i++] = '/';
-       strcpy(buff+i, inst); strcat(buff, "/");
-      }
+   if (buff[i-1] != '/') {buff[i++] = '/'; buff[i] = '\0';}
+   if (inst) {strcpy(buff+i, inst); strcat(buff, "/");}
    if (s_path) strcat(buff, s_path);
 
    i = strlen(buff);
