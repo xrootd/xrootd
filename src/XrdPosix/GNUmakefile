@@ -51,11 +51,12 @@ $(TARGETS): $(OBJECTP) $(OBJECTS) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
 	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
 
-$(OBJDIR)/XrdPosix.o:  XrdPosix.cc XrdPosix.hh XrdPosixXrootd.hh
+$(OBJDIR)/XrdPosix.o:  XrdPosix.cc XrdPosix.hh XrdPosixXrootd.hh  \
+                       XrdPosixExtern.hh
 	@echo Compiling XrdPosix.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosix.o XrdPosix.cc
 
 $(OBJDIR)/XrdPosixXrootd.o:  XrdPosixXrootd.cc   XrdPosixXrootd.hh \
-                             XrdClient.hh
+                             XrdClient.hh        XrdPosixExtern.hh
 	@echo Compiling XrdPosixXrootd.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixXrootd.o XrdPosixXrootd.cc

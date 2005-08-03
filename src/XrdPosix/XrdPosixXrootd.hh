@@ -1,5 +1,5 @@
-#ifndef __XRDPOSIX_H__
-#define __XRDPOSIX_H__
+#ifndef __XRDPOSIXXROOTD_H__
+#define __XRDPOSIXXROOTD_H__
 /******************************************************************************/
 /*                                                                            */
 /*                        X r d P o s i x X r o o t d                         */
@@ -8,6 +8,7 @@
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
   
 //           $Id$

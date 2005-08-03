@@ -8,11 +8,10 @@
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
   
 //           $Id$
-
-#include <sys/types.h>
 
 // The following defines substitute our names for the common system names. We
 // would have liked to use wrappers but each platform uses a different mechanism
@@ -65,48 +64,6 @@
 
 // Now define the external interfaces (not C++ but OS compatabile)
 //
-extern int     XrdPosix_Close(int fildes);
-
-extern int     XrdPosix_Closedir(DIR *dirp);
-
-extern off_t   XrdPosix_Lseek(int fildes, off_t offset, int whence);
-
-extern int     XrdPosix_Fstat(int fildes, struct stat *buf);
-
-extern int     XrdPosix_Fsync(int fildes);
-
-extern int     XrdPosix_Mkdir(const char *path, mode_t mode);
-
-extern int     XrdPosix_Open(const char *path, int oflag, ...);
-
-extern DIR*    XrdPosix_Opendir(const char *path);
-  
-extern ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off_t offset);
-
-extern ssize_t XrdPosix_Read(int fildes, void *buf, size_t nbyte);
-  
-extern ssize_t XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt);
-
-extern struct dirent* XrdPosix_Readdir(DIR *dirp);
-
-extern int     XrdPosix_Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
-
-extern void    XrdPosix_Rewinddir(DIR *dirp);
-
-extern int     XrdPosix_Rmdir(const char *path);
-
-extern void    XrdPosix_Seekdir(DIR *dirp, long loc);
-
-extern int     XrdPosix_Stat(const char *path, struct stat *buf);
-
-extern ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
-
-extern long    XrdPosix_Telldir(DIR *dirp);
-
-extern int     XrdPosix_Unlink(const char *path);
-
-extern ssize_t XrdPosix_Write(int fildes, const void *buf, size_t nbyte);
-
-extern ssize_t XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt);
+#include "XrdPosix/XrdPosixExtern.hh"
 
 #endif
