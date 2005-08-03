@@ -28,6 +28,12 @@ todo multi-site related:
 
 others todo:
 =============
+- change to GMT
+
+- add support for file size via xrootd
+
+- add version number to rt log file
+
 - fix problem with loader dieing because of bbk, see workdir/loader*.log
 
 - data is not loaded if loader dies (see potential solution below)
