@@ -162,8 +162,8 @@ sub prepareStats4OneSite() {
     if ( $min == 20 ) {
 	if ( $hour == 0 || $hour == 6 || $hour == 12 || $hour == 18 ) {
 	    # every 6 hours at 00:20:30, 06:20:30, 12:20:30, 18:20:30
-	    &loadStatsLastMonth($siteName, $loadTime);
-	    &loadTopPerfPast("Month", 20, $siteName, $day*4+$hour/6);
+	    &loadStatsLastMonth($siteName, $loadTime, $day*4+$hour/6);
+	    &loadTopPerfPast("Month", 20, $siteName);
 
 	}
 	if ( $hour == 23 ) {
@@ -198,9 +198,9 @@ sub prepareStats4OneSite() {
 
 sub nextSeqIdForWeek() {
     # find last sequence id
-    my $lastSeq = runQueryWitRet("SELET seqNo 
+    my $lastSeq = runQueryWitRet("SELECT seqNo 
                                   FROM statsLastDay
-                                  ORDER BY date
+                                  ORDER BY date DESC
                                   LIMIT 1");
     # find time difference between now and last stat
     my $hDif = runQueryWithRet("SELECT HOUR(TIMEDIFF(now(), date))
@@ -364,6 +364,7 @@ sub loadStatsLastDay() {
 
     my $siteId = $siteIds{$siteName};
 
+    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastDay WHERE siteId = $siteId");    
     &runQuery("DELETE FROM statsLastDay WHERE seqNo = $seqNo AND siteId = $siteId");
 
     my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
@@ -372,7 +373,8 @@ sub loadStatsLastDay() {
       = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
                                  MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
                                  MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                          FROM statsLastHour WHERE siteId = $siteId");
+                            FROM statsLastHour WHERE siteId = $siteId       AND
+                                                       date > \"$lastTime\"    ");
 
     &runQuery("INSERT INTO statsLastDay 
                           (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
@@ -388,15 +390,17 @@ sub loadStatsLastWeek() {
 
     my $siteId = $siteIds{$siteName};
 
+    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastWeek WHERE siteId = $siteId");    
     &runQuery("DELETE FROM statsLastWeek WHERE seqNo = $seqNo AND siteId = $siteId");
 
     my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF) 
       = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                           FROM statsLastDay WHERE siteId = $siteId");
+                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
+                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
+                            FROM statsLastDay WHERE siteId = $siteId        AND
+                                                      date > \"$lastTime\"    ");
 
     &runQuery("INSERT INTO statsLastWeek 
                           (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
@@ -409,20 +413,21 @@ sub loadStatsLastWeek() {
 }
 
 sub loadStatsLastMonth() {
-    my ($siteName, $loadTime) = @_;
+    my ($siteName, $loadTime, $seqNo) = @_;
 
-    my $seqNo = $nDay % 31;
     my $siteId = $siteIds{$siteName};
 
+    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastMonth WHERE siteId = $siteId");    
     &runQuery("DELETE FROM statsLastMonth WHERE seqNo = $seqNo AND siteId = $siteId");
 
     my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
       = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                           FROM statsLastDay WHERE siteId = $siteId");
+                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
+                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
+                            FROM statsLastDay WHERE siteId = $siteId        AND
+                                                      date > \"$lastTime\"    ");
 
     &runQuery("INSERT INTO statsLastMonth 
                           (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
@@ -439,25 +444,20 @@ sub loadStatsAllMonths() {
 
     my $siteId = $siteIds{$siteName};
 
-    # note that (localtime)[4] returns month in the range 0 - 11 and normally should be
-    # increased by 1 to show the current month.
-    $lastMonth = (localtime)[4];
-
     my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF) 
       = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
                                  MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
                                  MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                          FROM   statsLastMonth
-                          WHERE  MONTH(date) = \"$lastMonth\"
-                            AND  siteId = $siteId"); 
+                          FROM   statsLastDay
+                          WHERE  siteId = $siteId"); 
 
     &runQuery("INSERT INTO statsAllMonths 
                           (siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
                            minJobs, minUsers, minUniqueF, minNonUniqueF, 
                            maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
-                VALUES ($siteId, \"$loadTime\", $noJobs, $noUsers,
+                    VALUES ($siteId, \"$loadTime\", $noJobs, $noUsers,
                             $noUniqueF, $noNonUniqueF, 
                             $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
                             $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
