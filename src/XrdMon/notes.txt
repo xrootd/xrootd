@@ -14,21 +14,22 @@
 
 todo multi-site related:
 ========================
-- commit changes in singleLog
+- change singleLog: add file locking, create new file is current disappears
+  (removed by loader)
+- how to package slacmsg, XrdWebMon...?
+
 - install singleLog for RAL data
 - decide how to divide incoming data: new file per minute? once per day?
-- clean up code responsible for calling things with different 
-  frequency (statsLast..., topPerf..., *_Last* cleanup)
 - add code for cleaning up *_Last* tables, see below
 - add full support for AllSites
 - correctly handle different time zones 
 - check if lastWeek fully supported everywhere
-- split loader into "loading data" and "preparing summaries for web"
 
 
 others todo:
 =============
-- change to GMT
+- change to GMT, last update query should return #min passed since last
+  update as well
 
 - add support for file size via xrootd
 
@@ -74,6 +75,8 @@ others todo:
 - don't store any temporary files in /tmp
 
 - extract functions common for loader and prepareStats
+
+- write documentation, url with tz=XXX etc...
 
 How to do the migration
 =======================
