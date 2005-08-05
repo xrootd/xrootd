@@ -38,6 +38,13 @@ const char XROOTD_MON_RWREQUESTMASK = 0x80;
 // why 0x80: anything that is < 0x7f is rwrequest
 // 0x7f = 01111111, so !(x & 10000000), 1000 0000=0x80
 
+
+// increment this each time a protocol changes.
+// 1 = (the code without XRDMON_VERSION).
+// 2 = change API: extended to include file size information
+//     sent from xrootd
+const kXR_int16 XRDMON_VERSION = 2;
+
 enum AdminCommand {
     c_shutdown = 1000
 };

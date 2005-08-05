@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                           XrdMonDecRTLogging.hh                           */
+/*                          XrdMonBufferedOutput.hh                          */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -10,28 +10,25 @@
 
 // $Id$
 
-#ifndef XRDMONDECRTLOGGING_HH
-#define XRDMONDECRTLOGGING_HH
+#ifndef XRDMONBUFFEREDOUTPUT_HH
+#define XRDMONBUFFEREDOUTPUT_HH
 
-#include "XrdMon/XrdMonDecDictInfo.hh"
-#include "XrdMon/XrdMonDecUserInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include <string>
 using std::string;
 
-class XrdMonDecRTLogging {
+class XrdMonBufferedOutput {
 public:
-    XrdMonDecRTLogging(const char* dir, int rtBufSize);
-    ~XrdMonDecRTLogging();
+    XrdMonBufferedOutput(const char* outFileName,
+                         int rtBufSize);
+    ~XrdMonBufferedOutput();
 
-    void add(XrdMonDecUserInfo::TYPE t, XrdMonDecUserInfo* x);
-    void add(XrdMonDecDictInfo::TYPE t, XrdMonDecDictInfo* x);
-
+    void add(const char* s);
     void flush(bool lockMutex=true);
     
 private:
-    char*       _rtLog;
-    char*       _rtLogLock;
+    char*       _fName;
+    char*       _fNameLock;
 
     char*       _buf;
     const int   _bufSize; // flush when buffer is full, or when
@@ -39,4 +36,4 @@ private:
     XrdOucMutex _mutex;
 };
 
-#endif /* XRDMONDECRTLOGGING_HH */
+#endif /* XRDMONBUFFEREDOUTPUT_HH */

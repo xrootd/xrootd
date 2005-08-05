@@ -106,6 +106,7 @@ XrdMonDecSink::~XrdMonDecSink()
             _uCache[i] = 0;
         }
     }
+    _rtLogger.flush();
     delete _rtLogger;
 
     // save ids in jnl file
@@ -161,7 +162,9 @@ XrdMonDecSink::initRT(const char* rtLogDir,
     fstream f(_rtFlagPath.c_str(), fstream::out);
     f.close();
 
-    _rtLogger = new XrdMonDecRTLogging(rtLogDir, rtBufSize);
+    char rtLogName [strlen(rtLogDir) + 32];
+    sprintf(rtLogName, "%s/rtLog_ver%03d.txt", rtLogDir, XRDMON_VERSION);
+    _rtLogger = new XrdMonBufferedOutput(rtLogName, rtBufSize);
 
     // read in unique ids from jnl file
     f.open(_rtMaxIdsPath.c_str(), ios::in);
@@ -248,7 +251,7 @@ XrdMonDecSink::addUserId(dictid_t usrId,
     // cout << "Added userInfo to sink: " << *ui << endl;
 
     if ( 0 != _rtLogger ) {
-        _rtLogger->add(XrdMonDecUserInfo::CONNECT, ui);
+        _rtLogger->add( ui->writeRT2Buffer(XrdMonDecUserInfo::CONNECT) );
     }
 }
 
@@ -321,7 +324,7 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
     itr->second->setDisconnectInfo(sec, timestamp);
     
     if ( 0 != _rtLogger ) {
-        _rtLogger->add(XrdMonDecUserInfo::DISCONNECT, itr->second);
+        _rtLogger->add( itr->second->writeRT2Buffer(XrdMonDecUserInfo::DISCONNECT) );
     }    
 }
 
@@ -350,7 +353,7 @@ XrdMonDecSink::openFile(dictid_t xrdId,
     itr->second->openFile(timestamp);
 
     if ( 0 != _rtLogger ) {
-        _rtLogger->add(XrdMonDecDictInfo::OPEN, itr->second);
+        _rtLogger->add( itr->second->writeRT2Buffer(XrdMonDecDictInfo::OPEN) );
     }
 }
 
@@ -381,7 +384,7 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
     itr->second->closeFile(bytesR, bytesW, timestamp);
 
     if ( 0 != _rtLogger ) {
-        _rtLogger->add(XrdMonDecDictInfo::CLOSE, itr->second);
+        _rtLogger->add(itr->second->writeRT2Buffer(XrdMonDecDictInfo::CLOSE));
     }
 }
 

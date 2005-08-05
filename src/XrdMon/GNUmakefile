@@ -34,7 +34,7 @@ OBJECTS_LIB_DEC =                             \
 	$(OBJDIR)/XrdMonDecMainApp.o          \
         $(OBJDIR)/XrdMonDecPacketDecoder.o    \
 	$(OBJDIR)/XrdMonDecPreProcess.o       \
-	$(OBJDIR)/XrdMonDecRTLogging.o        \
+	$(OBJDIR)/XrdMonBufferedOutput.o      \
 	$(OBJDIR)/XrdMonDecSink.o             \
 	$(OBJDIR)/XrdMonDecTraceInfo.o        \
         $(OBJDIR)/XrdMonDecUserInfo.o         \
@@ -78,7 +78,7 @@ CONVTIME       = $(BINDIR)/xrdmonConvertTime
 TESTPARSER     = $(BINDIR)/testParser
 
 BINARIES       = $(COLLECTOR) $(ADMIN) \
-#                 $(SENDER) $(DECODER)    \
+                 $(SENDER) $(DECODER)    \
 #                 $(DUMPPACKETS) $(DEBUGPACKET) \
 #                 $(CONVTIME) $(TESTPARSER)
 

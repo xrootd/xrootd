@@ -16,7 +16,7 @@
 #include "XrdMon/XrdMonDecDictInfo.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdMon/XrdMonDecUserInfo.hh"
-#include "XrdMon/XrdMonDecRTLogging.hh"
+#include "XrdMon/XrdMonBufferedOutput.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include <algorithm>
 #include <fstream>
@@ -105,7 +105,7 @@ private:
     XrdOucMutex    _dMutex;
     XrdOucMutex    _uMutex;
 
-    XrdMonDecRTLogging* _rtLogger;
+    XrdMonBufferedOutput* _rtLogger;
 
     bool _saveTraces;
     typedef vector<XrdMonDecTraceInfo> TraceVector;

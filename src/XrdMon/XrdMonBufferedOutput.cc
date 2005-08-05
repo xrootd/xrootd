@@ -1,6 +1,6 @@
 /*****************************************************************************/
 /*                                                                           */
-/*                           XrdMonDecRTLogging.cc                           */
+/*                          XrdMonBufferedOutput.cc                          */
 /*                                                                           */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University */
 /*                            All Rights Reserved                            */
@@ -10,7 +10,7 @@
 
 // $Id$
 
-#include "XrdMonDecRTLogging.hh"
+#include "XrdMonBufferedOutput.hh"
 #include <fcntl.h>
 #include <strings.h> /* bcopy */
 #include <sys/stat.h>
@@ -23,33 +23,34 @@ using std::fstream;
 using std::ios;
 
 
-XrdMonDecRTLogging::XrdMonDecRTLogging(const char* dir, int rtBufSize)
+XrdMonBufferedOutput::XrdMonBufferedOutput(const char* outFileName,
+                                           int rtBufSize)
+                                       
     : _buf(0), 
       _bufSize(rtBufSize)
 {
-    _rtLog = new char[strlen(dir) + 24];
-    sprintf(_rtLog, "%s/realTimeLogging.txt", dir);
+    _fName = new char[strlen(outFileName)];
+    strcpy(_fName, outFileName);
 
-    _rtLogLock = new char [strlen(dir) + 32];
-    sprintf(_rtLogLock, "%s.lock", _rtLog);
+    _fNameLock = new char [strlen(outFileName) + 8];
+    sprintf(_fNameLock, "%s.lock", _fName);
 
     _buf = new char [_bufSize];
     strcpy(_buf, "");
 }
 
-XrdMonDecRTLogging::~XrdMonDecRTLogging()
+XrdMonBufferedOutput::~XrdMonBufferedOutput()
 {
-    delete [] _rtLog;
-    delete [] _rtLogLock;
+    delete [] _fName;
+    delete [] _fNameLock;
     delete [] _buf;
 }
 
 void
-XrdMonDecRTLogging::add(XrdMonDecUserInfo::TYPE t, XrdMonDecUserInfo* x)
+XrdMonBufferedOutput::add(const char* s)
 {
     XrdOucMutexHelper mh; mh.Lock(&_mutex);
 
-    const char* s = x->writeRT2Buffer(t);
     if ( static_cast<int>(strlen(_buf) + strlen(s)) >= _bufSize ) {
         flush(false); // false -> don't lock mutex, already locked
     }
@@ -57,19 +58,7 @@ XrdMonDecRTLogging::add(XrdMonDecUserInfo::TYPE t, XrdMonDecUserInfo* x)
 }
 
 void
-XrdMonDecRTLogging::add(XrdMonDecDictInfo::TYPE t, XrdMonDecDictInfo* x)
-{
-    XrdOucMutexHelper mh; mh.Lock(&_mutex);
-
-    const char* s = x->writeRT2Buffer(t);
-    if ( static_cast<int>(strlen(_buf) + strlen(s)) >= _bufSize ) {
-        flush(false); // false -> don't lock mutex, already locked
-    }
-    strcat(_buf, s);
-}
-
-void
-XrdMonDecRTLogging::flush(bool lockIt)
+XrdMonBufferedOutput::flush(bool lockIt)
 {
     // get the lock, wait if necessary
     struct flock lock_args;
@@ -78,13 +67,13 @@ XrdMonDecRTLogging::flush(bool lockIt)
     mode_t m = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
 
     cout << "RT locking." << std::flush;
-    int fLock = open(_rtLogLock, O_WRONLY|O_CREAT, m);
+    int fLock = open(_fNameLock, O_WRONLY|O_CREAT, m);
     lock_args.l_type = F_WRLCK;
     fcntl(fLock, F_SETLKW, &lock_args);    
     cout << "ok." << std::flush;
 
     // open rt log, write to it, and close it
-    int f = open(_rtLog, O_WRONLY|O_CREAT|O_APPEND,m);
+    int f = open(_fName, O_WRONLY|O_CREAT|O_APPEND,m);
 
     int s = strlen(_buf);
     if ( s > 0 ) {        
