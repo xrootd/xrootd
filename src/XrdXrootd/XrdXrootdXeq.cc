@@ -544,14 +544,17 @@ int XrdXrootdProtocol::do_Open()
 {
    int fhandle;
    int rc, mode, opts, openopts, mkpath = 0, doforce = 0, compchk = 0;
+   int retStat = 0;
    const char *opaque;
    char usage, ebuff[2048];
    char *fn = argp->buff, opt[16], *op=opt, isAsync = '\0';
    XrdSfsFile *fp;
    XrdXrootdFile *xp;
+   struct stat statbuf;
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
    size_t mmSize;
+   struct iovec IOResp[3];  // Note that IOResp[0] is completed by Response
 
 // Keep Statistics
 //
@@ -586,6 +589,7 @@ int XrdXrootdProtocol::do_Open()
    if (opts & kXR_refresh)            {*op++ = 's'; openopts |= SFS_O_RESET;
                                        UPSTATS(Refresh);
                                       }
+   if (opts & kXR_retstat)            {*op++ = 't'; retStat = 1;}
    *op = '\0';
 
 // Check if opaque data has been provided
@@ -665,7 +669,11 @@ int XrdXrootdProtocol::do_Open()
 
 // Determine if file is compressed
 //
-   if (!compchk) resplen = sizeof(myResp.fhandle);
+   if (!compchk) 
+      {resplen = sizeof(myResp.fhandle);
+       myResp.cpsize = 0;
+       myResp.cptype[0] = '\0';
+      }
       else {int cpsize;
             fp->getCXinfo((char *)myResp.cptype, cpsize);
             if (cpsize) {myResp.cpsize = static_cast<kXR_int32>(htonl(cpsize));
@@ -678,21 +686,36 @@ int XrdXrootdProtocol::do_Open()
    if (fp->getMmap((void **)&xp->mmAddr, mmSize) == SFS_OK) 
       xp->mmSize = static_cast<long long>(mmSize);
 
+// Determine file size of we will need to send it back
+//
+   if (retStat)
+      {if (!fp->stat(&statbuf)) retStat = do_StatGen(statbuf, ebuff);
+          else {statbuf.st_size = 1; 
+                strcpy(ebuff, "0 1 0 0"); 
+                retStat = strlen(ebuff)+1;
+               }
+       IOResp[1].iov_base = (char *)&myResp; IOResp[1].iov_len = sizeof(myResp);
+       IOResp[2].iov_base =         ebuff;   IOResp[2].iov_len = retStat;
+       resplen = sizeof(myResp) + retStat;
+      }
+
 // If we are monitoring, send off a path to dictionary mapping
 //
    if (monFILE && Monitor) 
       {xp->FileID = Monitor->Map(XROOTD_MON_MAPPATH, Link->ID, fn);
-       Monitor->Open(xp->FileID);
+       if (!retStat && fp->stat(&statbuf)) statbuf.st_size = 0;
+       Monitor->Open(xp->FileID, statbuf.st_size);
       }
 
-// Marshall the file handle (this works on all but alpha platforms)
+// Insert the file handle
 //
    memcpy((void *)myResp.fhandle,(const void *)&fhandle,sizeof(myResp.fhandle));
 
 // Respond
 //
    TRACEP(FS, "open " <<opt <<' ' <<fn <<" fh=" <<fhandle);
-   return Response.Send((void *)&myResp, resplen);
+   if (retStat)   Response.Send(IOResp, 3, resplen);
+           return Response.Send((void *)&myResp, resplen);
 }
 
 /******************************************************************************/
@@ -1150,13 +1173,11 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
   
 int XrdXrootdProtocol::do_Stat()
 {
-   int len, rc, flags = 0;
-   long long fsz;
+   int rc;
    const char *opaque;
    char xxBuff[256];
    struct stat buf;
    XrdOucErrInfo myError(Link->ID);
-   union {long long uuid; struct {int hi; int lo;} id;} Dev;
 
 // Prescreen the path
 //
@@ -1168,6 +1189,18 @@ int XrdXrootdProtocol::do_Stat()
    rc = osFS->stat(argp->buff, &buf, myError, CRED, opaque);
    TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
    if (rc != SFS_OK) return fsError(rc, myError);
+   return Response.Send(xxBuff, do_StatGen(buf, xxBuff));
+}
+
+/******************************************************************************/
+/*                            d o _ S t a t G e n                             */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_StatGen(struct stat &buf, char *xxBuff)
+{
+   union {long long uuid; struct {int hi; int lo;} id;} Dev;
+   long long fsz;
+   int flags = 0;
 
 // Compute the unique id
 //
@@ -1180,18 +1213,15 @@ int XrdXrootdProtocol::do_Stat()
    if (S_ISDIR(buf.st_mode))                        flags |= kXR_isDir;
       else if (!S_ISREG(buf.st_mode))               flags |= kXR_other;
    if (!Dev.uuid)                                   flags |= kXR_offline;
-   fsz = (long long)buf.st_size;
+   fsz = static_cast<long long>(buf.st_size);
 
 // Format the results and return them
 //
-   len = sprintf(xxBuff,"%lld %lld %d %ld",Dev.uuid,fsz,flags,buf.st_mtime)+1;
-   return Response.Send(xxBuff, len);
+   return sprintf(xxBuff,"%lld %lld %d %ld",Dev.uuid,fsz,flags,buf.st_mtime)+1;
 }
 
 /******************************************************************************/
-/*                                                                            */
 /*                              d o _ S t a t x                               */
-/*                                                                            */
 /******************************************************************************/
   
 int XrdXrootdProtocol::do_Statx()

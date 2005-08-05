@@ -72,7 +72,7 @@ static int               Init(XrdScheduler *sp, XrdOucError *errp);
 
 static kXR_unt32         Map(const char code,const char *uname,const char *path);
 
-       void              Open(kXR_unt32 dictid);
+       void              Open(kXR_unt32 dictid, off_t fsize);
 
 static time_t            Tick();
 

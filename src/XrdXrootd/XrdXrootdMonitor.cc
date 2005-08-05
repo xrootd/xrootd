@@ -450,13 +450,13 @@ kXR_unt32 XrdXrootdMonitor::Map(const char code,
 /*                                  O p e n                                   */
 /******************************************************************************/
   
-void XrdXrootdMonitor::Open(kXR_unt32 dictid)
+void XrdXrootdMonitor::Open(kXR_unt32 dictid, off_t fsize)
 {
   XrdXrootdMonitorLock mLock(this);
 
   if (lastWindow != currWindow) Mark();
      else if (nextEnt == lastEnt) Flush();
-  monBuff->info[nextEnt].arg0.rTot[0]  = 0;
+  h2nll(fsize, monBuff->info[nextEnt].arg0.val);
   monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_OPEN;
   monBuff->info[nextEnt].arg1.buflen   = 0;
   monBuff->info[nextEnt++].arg2.dictid = dictid;

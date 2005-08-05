@@ -112,6 +112,7 @@ private:
        int   do_Set();
        int   do_Set_Mon(XrdOucTokenizer &setargs);
        int   do_Stat();
+       int   do_StatGen(struct stat &buf, char *xxBuff);
        int   do_Statx();
        int   do_Sync();
        int   do_Write();
