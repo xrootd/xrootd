@@ -20,7 +20,7 @@ using std::string;
 class XrdMonBufferedOutput {
 public:
     XrdMonBufferedOutput(const char* outFileName,
-                         int rtBufSize);
+                         int bufSize);
     ~XrdMonBufferedOutput();
 
     void add(const char* s);

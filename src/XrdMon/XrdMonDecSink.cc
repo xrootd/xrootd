@@ -106,7 +106,7 @@ XrdMonDecSink::~XrdMonDecSink()
             _uCache[i] = 0;
         }
     }
-    _rtLogger.flush();
+    _rtLogger->flush();
     delete _rtLogger;
 
     // save ids in jnl file

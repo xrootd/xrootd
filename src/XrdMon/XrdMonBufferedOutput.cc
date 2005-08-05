@@ -24,10 +24,10 @@ using std::ios;
 
 
 XrdMonBufferedOutput::XrdMonBufferedOutput(const char* outFileName,
-                                           int rtBufSize)
+                                           int bufSize)
                                        
     : _buf(0), 
-      _bufSize(rtBufSize)
+      _bufSize(bufSize)
 {
     _fName = new char[strlen(outFileName)];
     strcpy(_fName, outFileName);
@@ -72,20 +72,20 @@ XrdMonBufferedOutput::flush(bool lockIt)
     fcntl(fLock, F_SETLKW, &lock_args);    
     cout << "ok." << std::flush;
 
-    // open rt log, write to it, and close it
-    int f = open(_fName, O_WRONLY|O_CREAT|O_APPEND,m);
-
     int s = strlen(_buf);
     if ( s > 0 ) {        
         XrdOucMutexHelper mh;
         if ( lockIt ) {
             mh.Lock(&_mutex);
         }
+        // open rt log, write to it, and close it
+        int f = open(_fName, O_WRONLY|O_CREAT|O_APPEND,m);
         write(f, _buf, strlen(_buf));
+        close(f);
+        // clear buffer
         strcpy(_buf, "");
     }
     cout << s;
-    close(f);
 
     // unlock
     bzero(&lock_args, sizeof(lock_args));

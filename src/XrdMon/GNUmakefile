@@ -56,6 +56,7 @@ OBJECTS_BIN_SND = $(OBJDIR)/XrdMonSndDummyXrootdApp.o
 OBJECTS_BIN_DMP = $(OBJDIR)/XrdMonDumpPacketsApp.o
 OBJECTS_BIN_DBP = $(OBJDIR)/XrdMonDebugPacketApp.o
 OBJECTS_BIN_CTM = $(OBJDIR)/XrdMonConvertTimestampApp.o
+OBJECTS_BIN_C2F = $(OBJDIR)/XrdMonCout2FileApp.o
 OBJECTS_BIN_TPR = $(OBJDIR)/testArgParser.o
 
 LIBRARY_OUC    = $(LIBDIR)/libXrdOuc.a
@@ -76,8 +77,9 @@ DUMPPACKETS    = $(BINDIR)/xrdmonDumpPackets
 DEBUGPACKET    = $(BINDIR)/xrdmonDebugPacket
 CONVTIME       = $(BINDIR)/xrdmonConvertTime
 TESTPARSER     = $(BINDIR)/testParser
+COUT2FILE      = $(BINDIR)/xrdmonCout2file
 
-BINARIES       = $(COLLECTOR) $(ADMIN) \
+BINARIES       = $(COLLECTOR) $(ADMIN) $(COUT2FILE) \
                  $(SENDER) $(DECODER)    \
 #                 $(DUMPPACKETS) $(DEBUGPACKET) \
 #                 $(CONVTIME) $(TESTPARSER)
@@ -170,6 +172,16 @@ $(SENDER):	$(OBJECTS_BIN_SND) $(LIBRARY_SND) $(LIBRARY_COMMON)
 	fi
 
 $(ADMIN):	$(OBJECTS_BIN_ADM) $(LIBRARY_SND) $(LIBRARY_COMMON) 
+	@echo Creating executable $(@F)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+		$(CC) -xar -o lib_temp.a $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		$(CC) $(CFLAGS) $(LDOP) lib_temp.a $(LIBS) -lresolv -o $@ $^; \
+		rm lib_temp.a; \
+	else \
+		$(CC) $(CFLAGS) $(LDOP) $(LIBS) -lresolv -o $@ $^; \
+	fi
+
+$(COUT2FILE):	$(OBJECTS_BIN_C2F) $(LIBRARY_DEC) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
 	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 		$(CC) -xar -o lib_temp.a $(OBJDIR)$(SUNCACHE)/*/*.o; \
