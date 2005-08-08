@@ -18,7 +18,7 @@
 #include "XrdMon/XrdMonBufferedOutput.hh"
 #include "XProtocol/XPtypes.hh"
 #include <unistd.h> /* access */
-
+#include <assert.h>
 #include <iostream>
 using namespace std;
 

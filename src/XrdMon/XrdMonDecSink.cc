@@ -162,10 +162,11 @@ XrdMonDecSink::initRT(const char* rtLogDir,
     fstream f(_rtFlagPath.c_str(), fstream::out);
     f.close();
 
-    char rtLogName [strlen(rtLogDir) + 32];
+    char* rtLogName = new char [strlen(rtLogDir) + 32];
     sprintf(rtLogName, "%s/rtLog_ver%03d.txt", rtLogDir, XRDMON_VERSION);
     _rtLogger = new XrdMonBufferedOutput(rtLogName, rtBufSize);
-
+    delete [] rtLogName;
+    
     // read in unique ids from jnl file
     f.open(_rtMaxIdsPath.c_str(), ios::in);
     if ( f.is_open() ) {
