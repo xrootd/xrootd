@@ -198,15 +198,15 @@ sub prepareStats4OneSite() {
 
 sub nextSeqIdForWeek() {
     # find last sequence id
-    my $lastSeq = runQueryWitRet("SELECT seqNo 
+    my $lastSeq = &runQueryWitRet("SELECT seqNo 
                                   FROM statsLastDay
                                   ORDER BY date DESC
                                   LIMIT 1");
     # find time difference between now and last stat
-    my $hDif = runQueryWithRet("SELECT HOUR(TIMEDIFF(now(), date))
+    my $hDif = &runQueryWithRet("SELECT HOUR(TIMEDIFF(now(), date))
                                 FROM   statsLastDay
                                 WHERE  seqNo = $lastSeq");
-    my $mDif = runQueryWithRet("SELECT MINUTE(TIMEDIFF(now(), date))
+    my $mDif = &runQueryWithRet("SELECT MINUTE(TIMEDIFF(now(), date))
                                 FROM   statsLastDay
                                 WHERE  seqNo = $lastSeq");
     if ( $mDif > 55 ) {
