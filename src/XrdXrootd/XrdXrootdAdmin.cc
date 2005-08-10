@@ -143,7 +143,7 @@ int XrdXrootdAdmin::do_Abort()
 
 // Handle: abort <target> [msg]
 //
-   if ((rc = getTarget("abort", &msg))) return rc;
+   if ((rc = getTarget("abort", &msg))) return 0;
 
 // Get optional message
 //
@@ -165,7 +165,7 @@ int XrdXrootdAdmin::do_Cont()
 
 // Handle: cont <target>
 //
-   if ((rc = getTarget("cont"))) return rc;
+   if ((rc = getTarget("cont"))) return 0;
 
 // Send off the unsolicited response
 //
@@ -184,7 +184,7 @@ int XrdXrootdAdmin::do_Disc()
 
 // Handle: disc <target> <wsec> <msec>
 //
-   if ((rc = getTarget("abort"))) return rc;
+   if ((rc = getTarget("disc"))) return 0;
 
 // Make sure times are specified
 //
@@ -239,9 +239,9 @@ int XrdXrootdAdmin::do_Lsc()
 
 // Handle: list <target>
 //
-   if ((rc = getTarget("list"))) return rc;
+   if ((rc = getTarget("list"))) return 0;
 
-// Send teh header of teh response
+// Send the header of the response
 //
    i = sprintf(buff, fmt1, reqID);
    if (Stream.Put(buff, i)) return -1;
@@ -264,12 +264,11 @@ int XrdXrootdAdmin::do_Msg()
 
 // Handle: msg <target> [msg]
 //
-   if ((rc = getTarget("msg", &msg))) return rc;
+   if ((rc = getTarget("msg", &msg))) return 0;
 
 // Get optional message
 //
    msg = getMsg(msg, mlen);
-
 // Send off the unsolicited response
 //
    if (msg) return sendResp("msg", kXR_asyncms, msg, mlen);
@@ -288,7 +287,7 @@ int XrdXrootdAdmin::do_Pause()
 
 // Handle: pause <target> <wsec>
 //
-   if ((rc = getTarget("pause"))) return rc;
+   if ((rc = getTarget("pause"))) return 0;
 
 // Make sure time is specified
 //
@@ -298,7 +297,7 @@ int XrdXrootdAdmin::do_Pause()
 // Send off the unsolicited response
 //
    msg = htonl(msg);
-   return sendResp("disc", kXR_asyncwt, (const char *)&msg, sizeof(msg));
+   return sendResp("pause", kXR_asyncwt, (const char *)&msg, sizeof(msg));
 }
 
 /******************************************************************************/
@@ -313,7 +312,7 @@ int XrdXrootdAdmin::do_Red()
 
 // Handle: redirect <target> <host>:<port>[?token]
 //
-   if ((rc = getTarget("redirect", 0))) return rc;
+   if ((rc = getTarget("redirect", 0))) return 0;
 
 // Get the redirect target
 //
@@ -383,6 +382,7 @@ int XrdXrootdAdmin::getreqID()
 /******************************************************************************/
 /*                             g e t T a r g e t                              */
 /******************************************************************************/
+/* Returns 0 if a target was found, otherwise -1 */
   
 int XrdXrootdAdmin::getTarget(const char *act, char **rest)
 {
@@ -390,9 +390,12 @@ int XrdXrootdAdmin::getTarget(const char *act, char **rest)
 
 // Get the target
 //
-   if (!(tp = Stream.GetToken(rest)))
-      return sendErr(8, act, "target not specified.");
+   if (!(tp = Stream.GetToken(rest))) 
+      {sendErr(8, act, "target not specified.");
+       return -1;
+      }
    Target.Set(tp);
+
    return 0;
 }
  
