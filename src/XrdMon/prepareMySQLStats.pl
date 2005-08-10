@@ -37,6 +37,8 @@ while ( 1 ) {
     my $hour  = (localtime)[2];
     my $day   = (localtime)[3];
 
+    &runQuery("TRUNCATE TABLE rtChanges");
+
     foreach $siteName (@siteNames) {
 	&prepareStats4OneSite($siteName, 
 			      $loadTime,
@@ -339,7 +341,6 @@ sub loadStatsLastHour() {
               (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
               VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
 
-    &runQuery("TRUNCATE TABLE rtChanges");
     $deltaJobs = $noJobs - $lastNoJobs; 
     $jobs_p = $lastNoJobs > 0 ? &roundoff( 100 * $deltaJobs / $lastNoJobs ) : -1;
     $deltaUsers = $noUsers - $lastNoUsers;
