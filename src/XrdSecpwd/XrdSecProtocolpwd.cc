@@ -476,7 +476,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
 
       //
       // List of crypto modules
-      String cryptlist = (opt.clist > 0) ? opt.clist : DefCrypto;
+      String cryptlist = opt.clist ? (const char *)(opt.clist) : DefCrypto;
 
       // 
       // Load crypto modules
@@ -2439,7 +2439,8 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       char *ptag = new char[host.length()+srvid.length()+10];
       if (ptag) {
          sprintf(ptag,"%s:%s_%d",host.c_str(),srvid.c_str(),hs->CF->ID());
-         XrdSutPFEntry *ent = cacheSrvPuk.Get((const char *)ptag);
+         bool wild = 0;
+         XrdSutPFEntry *ent = cacheSrvPuk.Get((const char *)ptag, &wild);
          if (ent) {
             // Initialize cipher
             SafeDelete(hs->Hcip);
