@@ -160,7 +160,7 @@ public:
 
    ~gsiHSVars() { SafeDelete(Cref);
                   if (Chain) Chain->Cleanup(1); SafeDelete(Chain);
-                  if (PxyChain) Chain->Cleanup(1); SafeDelete(PxyChain); }
+                  if (PxyChain) PxyChain->Cleanup(1); SafeDelete(PxyChain); }
 };
 
 // From a proxy query
