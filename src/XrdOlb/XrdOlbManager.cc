@@ -86,6 +86,7 @@ XrdOlbManager::XrdOlbManager()
      memset((void *)MastTab, 0, sizeof(MastTab));
      memset((void *)AltMans, (int)' ', sizeof(AltMans));
      AltMend = AltMans;
+     AltMent = -1;
      ServCnt =  0;
      noData  =  1;
      InstNum =  1;
@@ -293,7 +294,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 {
    EPNAME("Login")
    XrdOlbServer *sp;
-   char *tp, *Stype;
+   char *tp, *Stype, *theSID;
    int   Status = 0, fdsk = 0, numfs = 1, addedp = 0, port = 0, Sport = 0;
    int   servID, servInst;
    SMask_t servset = 0, newmask;
@@ -329,6 +330,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
       }
 
 // Server Command: login server [port <dport>] [nostage] [suspend] [+m:<sport>]
+//                              [=<sid>]
 // Responses:      <id> ping
 //                 <id> try <hostlist>
 // Server Command: addpath <mode> <path>
@@ -375,11 +377,18 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
                  return Login_Failed("invalid subscription port", lnkp);
            if (!Sport) Sport = XrdOlbConfig.PortTCP;
           }
+       tp = lnkp->GetToken();
       }
+
+// Server may specify a stable unique identifier relative to hostname
+// Note: If additional parms we must copy the sid to a local buffer
+//
+   if (tp && *tp == '=') theSID = tp+1;
+      else theSID = 0;
 
 // Add the server
 //
-   if (!(sp = AddServer(lnkp, port, Status, Sport)))
+   if (!(sp = AddServer(lnkp, port, Status, Sport, theSID)))
       return Login_Failed(0, lnkp);
    servID = sp->ServID; servInst = sp->Instance;
 
@@ -589,6 +598,7 @@ void *XrdOlbManager::MonRefs()
   
 void *XrdOlbManager::Pander(char *manager, int mport)
 {
+   EPNAME("Pander");
    XrdOlbServer   *sp;
    XrdNetLink     *lp;
    XrdOlbManList   myMans;
@@ -605,6 +615,7 @@ void *XrdOlbManager::Pander(char *manager, int mport)
                 }
              Snooze(10);
             }
+       DEBUG("Trying to connect to " <<manp <<':' <<xport);
        if (!(lp = XrdOlbNetTCPs->Connect(manp, xport, opts)))
           {if (tries--) opts = XRDNET_NOEMSG;
               else {tries = 6; opts = 0;}
@@ -704,8 +715,8 @@ void XrdOlbManager::Remove_Server(const char *reason,
 void XrdOlbManager::Reset()
 {
    EPNAME("Reset");
-   const char *cmd = "rst\n";
-   const int cmdln = 4;
+   const char *cmd = "0 rst\n";
+   const int cmdln = 6;
    XrdOlbServer *sp;
    int i;
 
@@ -1030,7 +1041,7 @@ int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
 /******************************************************************************/
   
 XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port, 
-                                           int Status, int sport)
+                                           int Status, int sport, char *theSID)
 {
    EPNAME("AddServer")
     const SMask_t smask_1 = 1;
@@ -1045,10 +1056,10 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
    STMutex.Lock();
    for (i = 0; i < STMax; i++)
        if (ServBat[i])
-          {if (ServBat[i]->isServer(ipaddr, port)) break;
+          {if (ServBat[i]->isServer(ipaddr, port, theSID)) break;
               else if (!ServTab[i] && k < 0) k = i;
                    else if (os < 0 && (Status & OLB_isMan)
-                        &&  ServTab[i]->isSpecial && !ServTab[i]->isMan) os = i;
+                        &&  ServBat[i]->isSpecial && !ServBat[i]->isMan) os = i;
           }
           else if (j < 0) j = i;
 
@@ -1092,7 +1103,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
                                 return 0;
                                }
                     }
-       ServTab[j]   = ServBat[j] = sp = new XrdOlbServer(lp, port);
+       ServTab[j]   = ServBat[j] = sp = new XrdOlbServer(lp, port, theSID);
        sp->ServID   = j;
        sp->ServMask = smask_1<<j;
       }
@@ -1209,14 +1220,17 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
    sp->DropJob   = 0;
    sp->isBound   = 0;
 
-// Remove server entry from the alternate list
+// Remove server entry from the alternate list and readjust the end pointer.
 //
    if (sp->isMan)
       {memset((void *)&AltMans[sent*AltSize], (int)' ', AltSize);
-       sent = sp->ServID-1;
-       while(sent >= 0 && ServTab[sent] && !ServTab[sent]->isMan) sent--;
-       if (sent < 0) AltMend = AltMans;
-          else AltMend = AltMans + ((sent+1)*AltSize);
+       if (sent == AltMent)
+          {AltMent--;
+           while(AltMent >= 0 &&  ServTab[AltMent]
+                              && !ServTab[AltMent]->isMan) AltMent--;
+           if (AltMent < 0) AltMend = AltMans;
+              else AltMend = AltMans + ((AltMent+1)*AltSize);
+          }
       }
 
 // Readjust STHi
@@ -1450,5 +1464,5 @@ void XrdOlbManager::setAltMan(int snum, unsigned int ipaddr, int port)
 
 // Compute new fence
 //
-   if (ap >= AltMend) AltMend = ap + AltSize;
+   if (ap >= AltMend) {AltMend = ap + AltSize; AltMent = snum;}
 }

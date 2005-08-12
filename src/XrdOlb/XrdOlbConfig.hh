@@ -83,6 +83,7 @@ const char  *myName;
 const char  *myDomain;
 const char  *myInsName;
 const char  *myInstance;
+const char  *mySID;
 XrdOucTList *myManagers;
 
 char        *NoStageFile;

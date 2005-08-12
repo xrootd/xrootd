@@ -83,7 +83,7 @@ public:
 friend class XrdOlbDrop;
 
 static const int MTMax = 16;   // Maximum number of Managers
-static const int STMax = 64;   // Maximum number of Servers
+static const int STMax = 64;   // Maximum number of Subscribers
 
 int         ServCnt;           // Number of active subscribers
 char        noData;            // Set when we are a manager or supervisor
@@ -117,7 +117,8 @@ void        Suspend(int doinform=1);
 private:
 SMask_t       AddPath(XrdOlbServer *sp);
 int           Add_Manager(XrdOlbServer *sp);
-XrdOlbServer *AddServer(XrdNetLink *lp, int port, int Status, int sport);
+XrdOlbServer *AddServer(XrdNetLink *lp, int port, int Status, 
+                                        int sport, char *sid);
 XrdOlbServer *calcDelay(int nump, int numd, int numf, int numo,
                         int nums, int &delay, char **reason);
 int           Drop_Server(int sent, int sinst, XrdOlbDrop *djp=0);
@@ -140,6 +141,7 @@ XrdOucMutex   MTMutex;
 XrdOlbServer *MastTab[MTMax];
 char          AltMans[STMax*AltSize]; // ||123.123.123.123:12345|| = 21
 char         *AltMend;
+int           AltMent;
 
 int  MTHi;
 int  STHi;

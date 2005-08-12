@@ -74,7 +74,7 @@ int         XrdOlbServer::dsk_tota = 0;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port)
+XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
 {
     Link     =  lnkp;
     IPAddr   =  (lnkp ? lnkp->Addr() : 0);
@@ -110,6 +110,7 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port)
     Port     =  0; // setName() will set myName, myNick, and Port!
     setName(lnkp, port);
     Stype    = (char *)"Server";
+    mySID    = strdup(sid ? sid : "?");
 }
 
 /******************************************************************************/
@@ -139,6 +140,7 @@ XrdOlbServer::~XrdOlbServer()
 //
    if (myName)    free(myName);
    if (myNick)    free(myNick);
+   if (mySID)     free(mySID);
 
 // All done
 //
@@ -164,11 +166,11 @@ int XrdOlbServer::Login(int dataPort, int Status)
 //
    if (dataPort) sprintf(pbuff, "port %d", dataPort);
       else *pbuff = '\0';
-   sprintf(buff, "login server %s %s %s +%c:%d\n", pbuff,
+   sprintf(buff, "login server %s %s %s +%c:%d =%s\n", pbuff,
                  (Status & OLB_noStage ? "nostage" : ""),
                  (Status & OLB_Suspend ? "suspend" : ""),
                  (Status & OLB_isMan   ? 'm'       : 's'), 
-                 XrdOlbConfig.PortTCP);
+                 XrdOlbConfig.PortTCP, XrdOlbConfig.mySID);
    if (Link->Send(buff) < 0) return -1;
 
 // If this is a new manager, it will send us a ping or try response at this

@@ -344,6 +344,14 @@ int XrdOlbConfig::Configure(int argc, char **argv)
    if (!NoGo) NoGo = !(AdminSock = ASocket(AdminPath,
                       (isManager ? "olbd.nimda" : "olbd.admin"), AdminMode));
 
+// Develop a stable unique identifier for this olbd independent of the port
+//
+   if (!NoGo)
+      {char sidbuf[1024];
+       sprintf(sidbuf, "%s%c", AdminPath, (isManager ? 'm' : 's'));
+       mySID = strdup(sidbuf);
+      }
+
 // Setup manager or server, as needed
 //
   if (!NoGo && isManager) NoGo = setupManager();
@@ -648,6 +656,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    RemotRLen= 0;
    myInsName= 0;
    myManagers=0;
+   mySID    = 0;
    Meter    = 0;
    perfint  = 3*60;
    perfpgm  = 0;

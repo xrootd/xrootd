@@ -12,6 +12,7 @@
 
 //         $Id$
 
+#include <string.h>
 #include <unistd.h>
   
 #include "XrdNet/XrdNetLink.hh"
@@ -46,6 +47,10 @@ inline int   isServer(unsigned int ipa)
                       {return ipa == IPAddr;}
 inline int   isServer(unsigned int ipa, int port)
                       {return ipa == IPAddr && port == Port && port;}
+inline int   isServer(unsigned int ipa, int port, char *sid)
+                      {if (sid) return ipa == IPAddr && !strcmp(mySID, sid);
+                                return ipa == IPAddr && port == Port && port;
+                      }
 inline       char *Name()   {return (myName ? myName : (char *)"?");}
 inline const char *Nick()   {return (myNick ? myNick : (char *)"?");}
 inline void    Lock() {myMutex.Lock();}
@@ -64,7 +69,7 @@ static int  Resume(XrdOlbPrepArgs *pargs);
 
        void setName(XrdNetLink *lnkp, int port);
 
-            XrdOlbServer(XrdNetLink *lnkp, int port=0);
+            XrdOlbServer(XrdNetLink *lnkp, int port=0, char *sid=0);
            ~XrdOlbServer();
 
 private:
@@ -112,6 +117,7 @@ SMask_t    ServMask;
 int        ServID;
 int        Instance;
 int        Port;
+char      *mySID;
 char      *myName;
 char      *myNick;
 char      *Stype;
