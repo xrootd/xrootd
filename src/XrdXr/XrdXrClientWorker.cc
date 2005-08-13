@@ -254,7 +254,7 @@ int XrdXrClientWorker::auth(kXR_char        credtype[4],
   struct sockaddr netaddr;
   char *etext;
 
-  if (XrdNetDNS::getHostAddr((char *)hostname_, netaddr, &etext))
+  if (!XrdNetDNS::getHostAddr((char *)hostname_, netaddr, &etext))
      {XrEroute.Emsg(epname, "Unable to get host address;", etext);
       return -1;
      }
