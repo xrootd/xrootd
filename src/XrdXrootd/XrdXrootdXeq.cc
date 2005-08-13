@@ -239,6 +239,7 @@ int XrdXrootdProtocol::do_Close()
 // Delete the file from the file table; this will unlock/close the file
 //
    FTab->Del(fh.handle);
+   numFiles--;
 
 // Respond that all went well
 //
@@ -710,6 +711,7 @@ int XrdXrootdProtocol::do_Open()
 // Insert the file handle
 //
    memcpy((void *)myResp.fhandle,(const void *)&fhandle,sizeof(myResp.fhandle));
+   numFiles++;
 
 // Respond
 //

@@ -66,6 +66,7 @@ class XrdXrootdAioReq;
 
 class XrdXrootdProtocol : public XrdProtocol
 {
+friend class XrdXrootdAdmin;
 friend class XrdXrootdAioReq;
 public:
 
@@ -202,9 +203,15 @@ static int                 maxBuffsz;    // Maximum buffer size we can have
 // Statistical area
 //
 static XrdXrootdStats     *SI;
-int                        numReads;
-int                        numReadP;
-int                        numWrites;
+int                        numReads;     // Count
+int                        numReadP;     // Count
+int                        numWrites;    // Count
+int                        numFiles;     // Count
+
+int                        cumReads;     // Count less numReads
+int                        cumReadP;     // Count less numReadP
+int                        cumWrites;    // Count less numWrites
+long long                  totReadP;     // Bytes
 
 // Data local to each protocol/link combination
 //

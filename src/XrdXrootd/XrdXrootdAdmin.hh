@@ -39,6 +39,7 @@ int   do_Cont();
 int   do_Disc();
 int   do_Login();
 int   do_Lsc();
+int   do_Lsd();
 int   do_Msg();
 int   do_Pause();
 int   do_Red();

@@ -239,7 +239,7 @@ int XrdXrootdAdmin::do_Lsc()
 
 // Handle: list <target>
 //
-   if ((rc = getTarget("list"))) return 0;
+   if ((rc = getTarget("lsc"))) return 0;
 
 // Send the header of the response
 //
@@ -251,6 +251,88 @@ int XrdXrootdAdmin::do_Lsc()
    while((mlen[0] = XrdLink::getName(curr, buff, sizeof(buff), &Target)))
         if (Stream.Put(mdat, mlen)) return -1;
    return Stream.Put(fmt2, fmt2len);
+}
+
+/******************************************************************************/
+/*                                d o _ L s d                                 */
+/******************************************************************************/
+  
+int XrdXrootdAdmin::do_Lsd()
+{
+   const char *fmt1 = "<resp id=\"%s\"><rc>0</rc>";
+   const char *fmt2 = "<c r=\"%c\" t=\"%lld\" v=\"%d\" m=\"%s\">";
+   const char *fmt2a= "<io u=\"%d\"><nf>%d</nf><pr>%lld<n>%d></n></pr>"
+                      "<rd>%lld<n>%d></n></rd><wr>%lld<n>%d</n></wr>"
+                      "<ns>%d</ns><nt>%d</nt></io>";
+   const char *fmt3 = "<auth p=\"%s\"><n>";
+   const char *fmt3e= "</r></auth>";
+   const char *fmt4 = "</resp>\n";
+   static int fmt3elen= strlen(fmt3e);
+   static int fmt4len = strlen(fmt4);
+   char ctyp, monit[3], *mm, cname[1024], buff[100];
+   char aprot[XrdSecPROTOIDSIZE+2], abuff[32], iobuff[256];
+   const char *mdat[24]= {buff, cname, iobuff};
+         int   mlen[24]= {0};
+   long long conn, inBytes, outBytes;
+   int i, rc, cver, inuse, stalls, tardies, curr = -1;
+   XrdLink *lp;
+   XrdProtocol *xp;
+   XrdXrootdProtocol *pp;
+
+// Handle: list <target>
+//
+   if ((rc = getTarget("lsd"))) return 0;
+
+// Send the header of the response
+//
+   i = sprintf(buff, fmt1, reqID);
+   if (Stream.Put(buff, i)) return -1;
+
+// Return back matching client list
+//
+   while((lp = XrdLink::Find(curr, &Target)))
+         if ((xp = lp->getProtocol())
+         &&  (pp = dynamic_cast<XrdXrootdProtocol *>(xp)))
+            {cver = int(pp->CapVer);
+             ctyp = (pp->Status & XRD_ADMINUSER ? 'a' : 'u');
+             conn = static_cast<long long>(lp->timeCon());
+             mm = monit;
+             if (pp->monFILE) *mm++ = 'f';
+             if (pp->monIO  ) *mm++ = 'i';
+             *mm = '\0';
+             inuse = lp->getIOStats(inBytes, outBytes, stalls, tardies);
+             mlen[0] = sprintf(buff, fmt2, ctyp, conn, cver, monit);
+             mlen[1] = lp->Client(cname, sizeof(cname));
+             mlen[2] = sprintf(iobuff, fmt2a,inuse-1,pp->numFiles,pp->totReadP,
+                               (pp->cumReadP + pp->numReadP),
+                               inBytes, (pp->cumReads + pp->numReads),
+                               outBytes,(pp->cumWrites+ pp->numWrites),
+                               stalls, tardies);
+             i = 3;
+             if ((pp->Client) && pp->Client != &(pp->Entity))
+                {strncpy(aprot, pp->Client->prot, XrdSecPROTOIDSIZE);
+                 aprot[XrdSecPROTOIDSIZE] = '\0';
+                 mdat[i]  = abuff;
+                 mlen[i++]= sprintf(abuff, fmt3, aprot);
+                 i = 1;
+                 if (pp->Client->name && (mlen[i] = strlen(pp->Client->name)))
+                    mdat[i++] = pp->Client->name;
+                 mdat[i] = "</n><h>"; mlen[i++] = 7;
+                 if (pp->Client->host && (mlen[i] = strlen(pp->Client->host)))
+                    mdat[i++] = pp->Client->host;
+                 mdat[i] = "</h><o>"; mlen[i++] = 7;
+                 if (pp->Client->host && (mlen[i] = strlen(pp->Client->vorg)))
+                    mdat[i++] = pp->Client->vorg;
+                 mdat[i] = "</o><r>"; mlen[i++] = 7;
+                 if (pp->Client->role && (mlen[i] = strlen(pp->Client->role)))
+                    mdat[i++] = pp->Client->role;
+                 mdat[i] = fmt3e; mlen[i++] = fmt3elen;
+               }
+             mdat[i] = "</c>"; mlen[i++] = 4;
+             mdat[i] = 0;      mlen[i] = 0;
+             if (Stream.Put(mdat, mlen)) {lp->setRef(-1); return -1;}
+            }
+   return Stream.Put(fmt4, fmt4len);
 }
 
 /******************************************************************************/
@@ -513,6 +595,7 @@ void XrdXrootdAdmin::Xeq()
              else if (!strcmp("cont",     tp)) rc = do_Cont();
              else if (!strcmp("disc",     tp)) rc = do_Disc();
              else if (!strcmp("lsc",      tp)) rc = do_Lsc();
+             else if (!strcmp("lsd",      tp)) rc = do_Lsd();
              else if (!strcmp("msg",      tp)) rc = do_Msg();
              else if (!strcmp("pause",    tp)) rc = do_Pause();
              else if (!strcmp("redirect", tp)) rc = do_Red();

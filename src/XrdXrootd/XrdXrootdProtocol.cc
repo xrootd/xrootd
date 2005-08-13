@@ -426,11 +426,11 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
    if (do_sync)
       {SI->statsMutex.Lock();
        SI->readCnt += numReads;
-       numReads = 0;
+       cumReads += numReads; numReads  = 0;
        SI->prerCnt += numReadP;
-       numReadP = 0;
+       cumReadP += numReadP; numReadP = 0;
        SI->writeCnt += numWrites;
-       numWrites = 0;
+       cumWrites+= numWrites;numWrites = 0;
        SI->statsMutex.UnLock();
       }
 
@@ -516,6 +516,11 @@ void XrdXrootdProtocol::Reset()
    numReads           = 0;
    numReadP           = 0;
    numWrites          = 0;
+   numFiles           = 0;
+   cumReads           = 0;
+   cumReadP           = 0;
+   cumWrites          = 0;
+   totReadP           = 0;
    hcPrev             =13;
    hcNext             =21;
    hcNow              =13;
