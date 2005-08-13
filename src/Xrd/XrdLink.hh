@@ -48,6 +48,8 @@ friend class XrdPollDev;
 
 static XrdLink *Alloc(XrdNetPeer &Peer, int opts=0);
 
+int           Client(char *buff, int blen);
+
 int           Close();
 
 void          DoIt();
@@ -66,7 +68,18 @@ static XrdLink *fd2link(int fd, unsigned int inst)
 
 static XrdLink *Find(int &curr, XrdLinkMatch *who=0);
 
+       int    getIOStats(long long &inbytes, long long &outbytes,
+                              int  &numstall,     int  &numtardy)
+                        { inbytes = BytesIn + BytesInTot;
+                         outbytes = BytesOut+BytesOutTot;
+                         numstall = stallCnt + stallCntTot;
+                         numtardy = tardyCnt + tardyCntTot;
+                         return InUse;
+                        }
+
 static int    getName(int &curr, char *bname, int blen, XrdLinkMatch *who=0);
+
+XrdProtocol  *getProtocol() {return Protocol;} // opmutex must be locked
 
 char         *ID;      // This is referenced a lot
 
@@ -110,6 +123,8 @@ XrdProtocol  *setProtocol(XrdProtocol *pp);
 
        int    Terminate(const XrdLink *owner, int fdnum, unsigned int inst);
 
+time_t        timeCon() {return conTime;}
+
 int           UseCnt() {return InUse;}
 
               XrdLink();
@@ -137,9 +152,13 @@ static int          LinkCountMax;
 static int          LinkTimeOuts;
 static int          LinkStalls;
        long long        BytesIn;
+       long long        BytesInTot;
        long long        BytesOut;
+       long long        BytesOutTot;
        int              stallCnt;
+       int              stallCntTot;
        int              tardyCnt;
+       int              tardyCntTot;
 static XrdOucMutex  statsMutex;
 
 // Identification section

@@ -123,15 +123,15 @@ void XrdLink::Reset()
   Protocol = 0; 
   ProtoAlt = 0;
   conTime  = time(0);
-  stallCnt = 0;
-  tardyCnt = 0;
+  stallCnt = stallCntTot = 0;
+  tardyCnt = tardyCntTot = 0;
   InUse    = 1;
   Poller   = 0; 
   PollEnt  = 0;
   isEnabled= 0;
   isIdle   = 0;
   inQ      = 0;
-  BytesOut = BytesIn = 0;
+  BytesOut = BytesIn = BytesOutTot = BytesInTot = 0;
   doPost   = 0;
   LockReads= 0;
   KeepFD   = 0;
@@ -222,6 +222,26 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    return lp;
 }
   
+/******************************************************************************/
+/*                                C l i e n t                                 */
+/******************************************************************************/
+  
+int XrdLink::Client(char *nbuf, int nbsz)
+{
+   int ulen;
+
+// Generate full client name
+//
+   if (nbsz <= 0) return 0;
+   ulen = (Lname - ID);
+   if ((ulen + HNlen) >= nbsz) ulen = 0;
+      else {strncpy(nbuf, ID, ulen);
+            strcpy(nbuf+ulen, HostName);
+            ulen += HNlen;
+           }
+   return ulen;
+}
+
 /******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/
@@ -377,14 +397,7 @@ int XrdLink::getName(int &curr, char *nbuf, int nbsz, XrdLinkMatch *who)
        {if ((lp = LinkTab[i]) && LinkBat[i] && lp->HostName)
            if (!who 
            ||   who->Match(lp->ID,lp->Lname-lp->ID-1,lp->HostName,lp->HNlen))
-              {if (nbsz > 0)
-                  {ulen = (lp->Lname - lp->ID);
-                   if ((ulen + lp->HNlen) >= nbsz) ulen = 0;
-                      else {strncpy(nbuf, lp->ID, ulen);
-                            strcpy(nbuf+ulen, lp->HostName);
-                            ulen += lp->HNlen;
-                           }
-                  }
+              {ulen = lp->Client(nbuf, nbsz);
                LTMutex.UnLock();
                curr = i;
                return ulen;
@@ -771,12 +784,12 @@ void XrdLink::syncStats(int *ctime)
 //
    statsMutex.Lock();
    rdMutex.Lock();
-   LinkBytesIn  += BytesIn;
-   LinkTimeOuts += tardyCnt;
-   LinkStalls   += stallCnt;
+   LinkBytesIn  += BytesIn; BytesInTot   += BytesIn;   BytesIn = 0;
+   LinkTimeOuts += tardyCnt; tardyCntTot += tardyCnt; tardyCnt = 0;
+   LinkStalls   += stallCnt; stallCntTot += stallCnt; stallCnt = 0;
    rdMutex.UnLock();
    wrMutex.Lock();
-   LinkBytesOut += BytesOut;
+   LinkBytesOut += BytesOut; BytesOutTot += BytesOut;BytesOut = 0;
    wrMutex.UnLock();
    if (ctime)
       {*ctime = time(0) - conTime;
@@ -791,8 +804,6 @@ void XrdLink::syncStats(int *ctime)
 
 // Clear our local counters
 //
-   BytesIn = BytesOut = 0;
-   tardyCnt = 0;
    if (!ctime) opMutex.UnLock();
 }
  
