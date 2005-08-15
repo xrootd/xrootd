@@ -14,12 +14,7 @@
 
 todo multi-site related:
 ========================
-- change singleLog: add file locking, create new file is current disappears
-  (removed by loader)
-- how to package slacmsg, XrdWebMon...?
-
 - install singleLog for RAL data
-- decide how to divide incoming data: new file per minute? once per day?
 - add code for cleaning up *_Last* tables, see below
 - add full support for AllSites
 - correctly handle different time zones 
@@ -32,8 +27,6 @@ others todo:
   update as well
 
 - add support for file size via xrootd
-
-- add version number to rt log file
 
 - fix problem with loader dieing because of bbk, see workdir/loader*.log
 
@@ -56,10 +49,6 @@ others todo:
 
 - would be nice to automatically generate email if monitoring down
 
-- if gap (loader down, say 24h) stats table should be cleaned...
-
-- need more than 30 points for month-plot to smoothen the line
-
 - need to automatically add table for each new year
 
 - add collect/show statistics of xrd server restarts
@@ -78,22 +67,30 @@ others todo:
 
 - write documentation, url with tz=XXX etc...
 
+- rewrite (?) and package slacmsg
+
+- add code to prevent starting multiple loaders with the same database
+ 
+- add code to allow adding new site without taking down loader
+ 
+- link with xrootd homepage
+
+
+
 How to do the migration
 =======================
 
- 1) move loader_new to loader and commit changes
- 2) commit changes in XrdWebMon
- 3) rename tables in patch scripts
- 4) stop loader
- 5) backup whole xrdmon_kan database to ascii  (~2 min)
+ 1) rename tables in patch scripts
+ 2) stop loader
+ 3) backup whole xrdmon_kan database to ascii  (~2 min)
 
- 6) install sorry page
- 7) reinstall mysql
- 8) add permissions for reader
- 8) restore xrdmon_kan database (~14 min)
- 9) run patch scripts  (0, 4, 4, 0 min)
-10) run loader
-11) deploy new XrdWebMon
+ 4) install sorry page
+ 5) reinstall mysql
+ 6) add permissions for reader
+ 7) restore xrdmon_kan database (~14 min)
+ 8) run patch scripts  (0, 4, 4, 0 min)
+ 9) run loader
+10) deploy new XrdWebMon
 
 
 
