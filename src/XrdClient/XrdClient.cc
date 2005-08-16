@@ -692,42 +692,69 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
    // Local processing ....
 
+   if (unsolmsg->IsAttn()) {
+      struct ServerResponseBody_Attn *attnbody;
 
-   if ( SidManager->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
-      struct SidInfo *si = SidManager->GetSidInfo(unsolmsg->HeaderSID());
-      ClientRequest *req = &(si->outstandingreq);
+      attnbody = (struct ServerResponseBody_Attn *)unsolmsg->GetData();
 
-      Info(XrdClientDebug::kHIDEBUG,
-	   "ProcessUnsolicitedMsg",
-	   "Processing unsolicited response from streamid " <<
-	   unsolmsg->HeaderSID() << " father=" <<
-	   si->fathersid );
+      // "True" async resp is processed here
+      switch (attnbody->actnum) {
+      case kXR_asyncrd:
+	 struct ServerResponseBody_Attn_asyncrd *rd;
+	 rd = (struct ServerResponseBody_Attn_asyncrd *)unsolmsg->GetData();
 
-      if ( (req->header.requestid == kXR_read) &&
-	   ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
-             (unsolmsg->HeaderStatus() == kXR_ok) ) ) {
+	 // Explicit redirection request
+	 if (strlen(rd->host) > 0) {
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "ProcessUnsolicitedMsg", "Requested redir to " << rd->host <<
+		 ":" << ntohl(rd->port));
 
-	 long long offs = req->read.offset + si->reqbyteprogress;
+	    fConnModule->SetRequestedDestHost(rd->host, ntohl(rd->port));
+	 }
 
-	 Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
-	      "Putting data into cache. Offset=" <<
-	      offs <<
-	      " len " <<
-	      unsolmsg->fHdr.dlen);
-
-	 // To compute the end offset of the block we have to take 1 from the size!
-	 fConnModule->SubmitDataToCache(unsolmsg, offs,
-				       offs + unsolmsg->fHdr.dlen - 1);
-
-	 si->reqbyteprogress += unsolmsg->fHdr.dlen;
-
-	 if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
-	 else return kUNSOL_KEEP;
+	 // Other objects may be interested in this async resp
+	 return kUNSOL_CONTINUE;
+	 break;
       }
 
    }
-
-
+   else
+      // Let's see if we are receiving the response to an async read request
+      if ( SidManager->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
+	 struct SidInfo *si = SidManager->GetSidInfo(unsolmsg->HeaderSID());
+	 ClientRequest *req = &(si->outstandingreq);
+	 
+	 Info(XrdClientDebug::kHIDEBUG,
+	      "ProcessUnsolicitedMsg",
+	      "Processing unsolicited response from streamid " <<
+	      unsolmsg->HeaderSID() << " father=" <<
+	      si->fathersid );
+	 
+	 if ( (req->header.requestid == kXR_read) &&
+	      ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
+		(unsolmsg->HeaderStatus() == kXR_ok) ) ) {
+	    
+	    long long offs = req->read.offset + si->reqbyteprogress;
+	    
+	    Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
+		 "Putting data into cache. Offset=" <<
+		 offs <<
+		 " len " <<
+		 unsolmsg->fHdr.dlen);
+	    
+	    // To compute the end offset of the block we have to take 1 from the size!
+	    fConnModule->SubmitDataToCache(unsolmsg, offs,
+					   offs + unsolmsg->fHdr.dlen - 1);
+	    
+	    si->reqbyteprogress += unsolmsg->fHdr.dlen;
+	    
+	    if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
+	    else return kUNSOL_KEEP;
+	 }
+	 
+      }
+   
+   
    return kUNSOL_CONTINUE;
 }
 

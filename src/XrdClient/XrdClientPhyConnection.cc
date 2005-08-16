@@ -426,7 +426,7 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
 
    Touch();
 
-   // Local processing of the unsolicited XrdClientMessage
+   // Local pre-processing of the unsolicited XrdClientMessage
    attnbody = (struct ServerResponseBody_Attn *)m->GetData();
 
    if (attnbody) {
@@ -448,8 +448,23 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
 
    // Now we propagate the message to the interested object, if any
    // It could be some sort of upper layer of the architecture
-   if (ProcessingToGo)
-      return SendUnsolicitedMsg(this, m);
+   if (ProcessingToGo) {
+      UnsolRespProcResult retval;
+
+      retval = SendUnsolicitedMsg(this, m);
+
+      // Request post-processing
+      switch (attnbody->actnum) {
+      case kXR_asyncrd:
+	 // After having set all the belonging object, we disconnect.
+	 // The next comands will redirect-on-error where we want
+
+	 Disconnect();
+	 break;
+      }
+
+      return retval;
+   }
    else 
       return kUNSOL_CONTINUE;
 }

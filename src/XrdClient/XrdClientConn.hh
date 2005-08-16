@@ -113,6 +113,14 @@ public:
 
    void                       SetOpenError(XErrorCode err) { fOpenError = err; }
    void                       SetRedirHandler(XrdClientAbs *rh) { fRedirHandler = rh; }
+
+   void                       SetRequestedDestHost(char *newh, kXR_int32 port) {
+      fREQUrl = fUrl;
+      fREQUrl.Host = newh;
+      fREQUrl.Port = port;
+      fREQUrl.SetAddrFromHost();
+   }
+
    void                       SetServerType(ServerType type) { fServerType = type; }
    void                       SetSID(kXR_char *sid);
    inline void                SetUrl(XrdClientUrlInfo thisUrl) { fUrl = thisUrl; }
@@ -149,6 +157,8 @@ private:
 
    XrdClientString            fRedirInternalToken; // Token returned by the server when
                                                    // redirecting
+
+   XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
 
    long                       fServerProto;        // The server protocol
    ServerType                 fServerType;         // Server type as returned by doHandShake() 

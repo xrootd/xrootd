@@ -79,6 +79,8 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
    // Constructor
    char buf[255];
 
+   fREQUrl.Clear();
+
    gethostname(buf, sizeof(buf));
 
    fClientHostDomain = GetDomainToMatch(buf);
@@ -1535,27 +1537,39 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 	 // write mode, we must rebounce and not go away to other hosts
 	 // To state this, we just asked to our redir handler
 
-         if ( cangoaway && fLBSUrl && (fLBSUrl->GetUrl().GetSize() > 0) ) {
- 	    // Clear the current session info. Rather simplicistic.
+	 if ( (fREQUrl.Host.GetSize() > 0) ) {
+	    // If this client was explicitly told to redirect somewhere...
 	    ClearSessionID();
+	    newhost = fREQUrl.Host;
+	    newport = fREQUrl.Port;
 
-            newhost = fLBSUrl->Host;
-            newport = fLBSUrl->Port;
-         }
-         else {
-
-            Error("HandleServerError",
-                  "Communication error"
-                  " with server [" << fUrl.Host << ":" << fUrl.Port <<
-		  "]. Rebouncing here.");
-
-	    if (fUrl.Host.GetSize()) newhost = fUrl.Host;
-	    else
-	       newhost = fUrl.HostAddr;
-
-            newport = fUrl.Port;
-         }
-      
+	    // An unsuccessful connection to the dest host will make the
+	    //  client go to the LB
+	    fREQUrl.Clear();
+	 }
+	 else
+	    if ( cangoaway && fLBSUrl && (fLBSUrl->GetUrl().GetSize() > 0) ) {
+	       // "Normal" error... we go to the LB if any
+	       // Clear the current session info. Rather simplicistic.
+	       ClearSessionID();
+	       
+	       newhost = fLBSUrl->Host;
+	       newport = fLBSUrl->Port;
+	    }
+	    else {
+	       
+	       Error("HandleServerError",
+		     "Communication error"
+		     " with server [" << fUrl.Host << ":" << fUrl.Port <<
+		     "]. Rebouncing here.");
+	       
+	       if (fUrl.Host.GetSize()) newhost = fUrl.Host;
+	       else
+		  newhost = fUrl.HostAddr;
+	       
+	       newport = fUrl.Port;
+	    }
+	 
       } else if (isRedir(&xmsg->fHdr)) {
       
          // Extract the info (new host:port) from the response
