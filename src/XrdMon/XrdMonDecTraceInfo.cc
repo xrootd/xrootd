@@ -14,6 +14,7 @@
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include <stdio.h>
 #include <iomanip>
+#include <assert.h>
 
 kXR_int32 XrdMonDecTraceInfo::_lastT(0);
 string XrdMonDecTraceInfo::_lastS;
@@ -24,6 +25,7 @@ XrdMonDecTraceInfo::convertToString(char s[256])
     if ( _timestamp != _lastT ) {
         XrdMonDecTraceInfo::_lastT = _timestamp;
         XrdMonDecTraceInfo::_lastS = timestamp2string(_timestamp);
+        assert(0); // FIXME: use correct time zone
     }
     sprintf(s, "%lld\t%d\t%c\t%s\t%d\n", (long long)_offset, 
             _length, _rwReq, _lastS.c_str(), _uniqueId);
@@ -33,6 +35,7 @@ ostream& operator<<(ostream& o, const XrdMonDecTraceInfo& ti) {
     if ( ti._timestamp != XrdMonDecTraceInfo::_lastT ) {
         XrdMonDecTraceInfo::_lastT = ti._timestamp;
         XrdMonDecTraceInfo::_lastS = timestamp2string(ti._timestamp);
+        assert(0); // FIXME: use correct time zone
     }
 
     o << ti._offset << '\t'

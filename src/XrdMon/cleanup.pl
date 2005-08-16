@@ -14,10 +14,10 @@ if ( ! -e $rtDir ) {
     exit;
 }
 
-$o1 = `grep '^o' $rtDir/realTimeLogging.txt        | tail -1 | awk '{ print \$2 }'`;
-$o2 = `grep '^o' $rtDir/realTimeLogging.txt.backup | tail -1 | awk '{ print \$2 }'`;
-$u1 = `grep '^u' $rtDir/realTimeLogging.txt        | tail -1 | awk '{ print \$2 }'`;
-$u2 = `grep '^u' $rtDir/realTimeLogging.txt.backup | tail -1 | awk '{ print \$2 }'`;
+$o1 = `grep '^o' $rtDir/rtLog_ver002.txt        | tail -1 | awk '{ print \$2 }'`;
+$o2 = `grep '^o' $rtDir/rtLog_ver002.txt.backup | tail -1 | awk '{ print \$2 }'`;
+$u1 = `grep '^u' $rtDir/rtLog_ver002.txt        | tail -1 | awk '{ print \$2 }'`;
+$u2 = `grep '^u' $rtDir/rtLog_ver002.txt.backup | tail -1 | awk '{ print \$2 }'`;
 
 chop($o1);chop($o2);chop($u1);chop($u2);
 

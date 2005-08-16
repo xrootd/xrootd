@@ -57,7 +57,8 @@ public:
                            senderid_t senderId);
     void openFile(dictid_t dictId,
                   kXR_int32 timestamp,
-                  senderid_t senderId);
+                  senderid_t senderId,
+                  kXR_int64 fSize);
     void closeFile(dictid_t dictId, 
                    kXR_int64 bytesR, 
                    kXR_int64 bytesW, 

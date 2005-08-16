@@ -103,7 +103,7 @@ XrdMonDecUserInfo::convert2string() const
 {
     static char buf[512];
     char tBuf[24];
-    timestamp2string(_dTime, tBuf);
+    timestamp2string(_dTime, tBuf, GMT);
     
     sprintf(buf, "%s\t%i\t%s\t%i\t%s\t%s\n", 
             _user.c_str(), _pid, _cHost.c_str(), 
@@ -130,7 +130,7 @@ XrdMonDecUserInfo::writeRT2Buffer(TYPE t) const
                 XrdMonSenderInfo::id2Host(_senderId));
     } else {
         static char b[24];
-        timestamp2string(_dTime, b);
+        timestamp2string(_dTime, b, GMT);
         sprintf(buf, "d\t%i\t%i\t%s\n", _myUniqueId, _sec, b);
     }
     return buf;

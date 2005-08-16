@@ -41,8 +41,9 @@ const char XROOTD_MON_RWREQUESTMASK = 0x80;
 
 // increment this each time a protocol changes.
 // 1 = (the code without XRDMON_VERSION).
-// 2 = change API: extended to include file size information
-//     sent from xrootd
+// 2 = changed API: extended to include file size information
+//     sent from xrootd. Also, all timestamps in GMT instead
+//     of localtime
 const kXR_int16 XRDMON_VERSION = 2;
 
 enum AdminCommand {

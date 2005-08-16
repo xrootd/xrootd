@@ -33,6 +33,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo()
       _senderId(INVALID_SENDER_ID),
       _open(0),
       _close(0),
+      _fSize(0),
       _noRBytes(0),
       _noWBytes(0)
 {}
@@ -47,6 +48,7 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(dictid_t id,
       _senderId(senderId),
       _open(0),
       _close(0),
+      _fSize(0),
       _noRBytes(0),
       _noWBytes(0)
 {
@@ -163,10 +165,11 @@ XrdMonDecDictInfo::XrdMonDecDictInfo(const char* buf, int& pos)
     _noWBytes = ntohll(v64);
 
     cout << "JB " << *this << endl;
+    cout << "warning: need to take care of fSize" << endl;
 }
 
 void
-XrdMonDecDictInfo::openFile(kXR_int32 t)
+XrdMonDecDictInfo::openFile(kXR_int32 t, kXR_int64 fSize)
 {
     if ( 0 == _open ) {
         _open = t;
@@ -181,6 +184,7 @@ XrdMonDecDictInfo::openFile(kXR_int32 t)
         
         _open = useThis;
     }
+    _fSize = fSize;
 }
 
 void
@@ -317,14 +321,14 @@ XrdMonDecDictInfo::convert2string() const
 {
     static char buf[1024];
     char tBufO[24];
-    timestamp2string(_open, tBufO);
+    timestamp2string(_open, tBufO, GMT);
 
     char tBufC[24];
-    timestamp2string(_close, tBufC);
+    timestamp2string(_close, tBufC, GMT);
 
-    sprintf(buf, "%s\t%i\t%s\t%s\t%s\t%s\t%lld\t%lld\t%s\n", 
+    sprintf(buf, "%s\t%i\t%s\t%s\t%s\t%s\t%lld\t%lld\t%lld\t%s\n", 
             _user.c_str(), _pid, _cHost.c_str(), _path.c_str(),
-            tBufO, tBufC, _noRBytes, _noWBytes, 
+            tBufO, tBufC, _fSize, _noRBytes, _noWBytes, 
             XrdMonSenderInfo::id2Host(_senderId));
 
     return buf;
@@ -332,21 +336,28 @@ XrdMonDecDictInfo::convert2string() const
 
 // this goes to real time log file
 const char*
-XrdMonDecDictInfo::writeRT2Buffer(TYPE t) const
+XrdMonDecDictInfo::writeRT2BufferOpenFile(kXR_int64 fSize) const
 {
     static char buf[1024];
     static char tBuf[24];
 
-    if ( t == OPEN ) {
-        timestamp2string(_open, tBuf);
-        sprintf(buf, "o\t%i\t%s\t%i\t%s\t%s\t%s\t%s\n", 
-              _myUniqueId, _user.c_str(), _pid, _cHost.c_str(), _path.c_str(),
-              tBuf, XrdMonSenderInfo::id2Host(_senderId));
-    } else {
-        timestamp2string(_close, tBuf);
-        sprintf(buf, "c\t%i\t%lld\t%lld\t%s\n", 
-                _myUniqueId, _noRBytes, _noWBytes, tBuf);
-    }
+    timestamp2string(_open, tBuf, GMT);
+    sprintf(buf, "o\t%i\t%s\t%i\t%s\t%s\t%s\t%lld\t%s\n", 
+            _myUniqueId, _user.c_str(), _pid, _cHost.c_str(), _path.c_str(),
+            tBuf, _fSize, XrdMonSenderInfo::id2Host(_senderId));
+    return buf;
+}
+
+// this goes to real time log file
+const char*
+XrdMonDecDictInfo::writeRT2BufferCloseFile() const
+{
+    static char buf[1024];
+    static char tBuf[24];
+
+    timestamp2string(_close, tBuf, GMT);
+    sprintf(buf, "c\t%i\t%lld\t%lld\t%s\n", 
+            _myUniqueId, _noRBytes, _noWBytes, tBuf);
     return buf;
 }
 
@@ -364,6 +375,7 @@ operator<<(ostream& o, const XrdMonDecDictInfo& m)
             << " (" << XrdMonSenderInfo::id2Host(m._senderId)<<")"
      << ' ' << timestamp2string(m._open)
      << ' ' << timestamp2string(m._close)
+     << ' ' << m._fSize
      << ' ' << m._noRBytes
      << ' ' << m._noWBytes;
       

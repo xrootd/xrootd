@@ -332,7 +332,8 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
 void
 XrdMonDecSink::openFile(dictid_t xrdId,
                         kXR_int32 timestamp,
-                        senderid_t senderId)
+                        senderid_t senderId,
+                        kXR_int64 fSize)
 {
     XrdOucMutexHelper mh; mh.Lock(&_dMutex);
     dmap_t* dMap = 0;
@@ -351,10 +352,10 @@ XrdMonDecSink::openFile(dictid_t xrdId,
     }
 
     cout << "Opening file " << xrdId << endl;
-    itr->second->openFile(timestamp);
+    itr->second->openFile(timestamp, fSize);
 
     if ( 0 != _rtLogger ) {
-        _rtLogger->add( itr->second->writeRT2Buffer(XrdMonDecDictInfo::OPEN) );
+        _rtLogger->add( itr->second->writeRT2BufferOpenFile(fSize) );
     }
 }
 
@@ -385,7 +386,7 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
     itr->second->closeFile(bytesR, bytesW, timestamp);
 
     if ( 0 != _rtLogger ) {
-        _rtLogger->add(itr->second->writeRT2Buffer(XrdMonDecDictInfo::CLOSE));
+        _rtLogger->add(itr->second->writeRT2BufferCloseFile());
     }
 }
 

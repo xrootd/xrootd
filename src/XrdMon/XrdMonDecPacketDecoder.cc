@@ -219,8 +219,16 @@ XrdMonDecPacketDecoder::decodeOpen(const char* packet,
     XrdXrootdMonTrace trace;
     memcpy(&trace, packet, sizeof(XrdXrootdMonTrace));
     kXR_unt32 dictId = ntohl(trace.arg2.dictid);
-
-    _sink.openFile(dictId, timestamp, senderId);
+    // mask needed to hide id[0] value which is stored
+    // in the top most byte
+    kXR_int64 maskHBO = 0x00ffffffffffffffl;
+    kXR_int64 maskNBO = 0;
+    h2nll(maskHBO, maskNBO);
+    kXR_int64 maskedVal = trace.arg0.val & maskNBO;
+    kXR_int64 fSize = 0;
+    n2hll(maskedVal, fSize);
+    
+    _sink.openFile(dictId, timestamp, senderId, fSize);
 }
 
 void

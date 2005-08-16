@@ -44,10 +44,11 @@ public:
     bool isClosed() const   { return 0 != _close; }
     int stringSize() const;
     const char* convert2string() const;
-    const char* writeRT2Buffer(TYPE t) const;
+    const char* writeRT2BufferOpenFile(kXR_int64 fSize) const;
+    const char* writeRT2BufferCloseFile() const;
     void writeSelf2buf(char* buf, int& pos) const;
     
-    void openFile(kXR_int32 t);
+    void openFile(kXR_int32 t, kXR_int64 fSize);
     void closeFile(kXR_int64 bytesR, kXR_int64 bytesW, kXR_int32 t);
     bool addTrace(const XrdMonDecTraceInfo& trace);
 
@@ -78,7 +79,8 @@ private:
     senderid_t _senderId;
     kXR_int32  _open;
     kXR_int32  _close;
-    
+
+    kXR_int64 _fSize;
     kXR_int64 _noRBytes;  // no bytes read
     kXR_int64 _noWBytes;  // no bytes writen
     

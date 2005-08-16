@@ -29,7 +29,7 @@ XrdMonBufferedOutput::XrdMonBufferedOutput(const char* outFileName,
     : _buf(0), 
       _bufSize(bufSize)
 {
-    _fName = new char[strlen(outFileName)];
+    _fName = new char[strlen(outFileName)+1];
     strcpy(_fName, outFileName);
 
     _fNameLock = new char [strlen(outFileName) + 8];
