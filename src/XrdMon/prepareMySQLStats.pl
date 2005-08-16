@@ -4,7 +4,7 @@ use DBI;
 
 ###############################################################################
 #                                                                             #
-#                            loadRTDataToMySQL.pl                             #
+#                             prepareMySQLStats.pl                            #
 #                                                                             #
 #  (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  #
 #                             All Rights Reserved                             #
@@ -15,8 +15,30 @@ use DBI;
 # $Id$
 
 
-$dbName    = 'xrdmon_new'; # FIXME
-$mySQLUser = 'becla';      # FIXME
+# take care of arguments
+if ( @ARGV!=1 ) {
+    print "Expected argument <configFile>\n";
+    exit;
+}
+$confFile = $ARGV[0];
+unless ( open INFILE, "< $confFile" ) {
+    print "Can't open file $confFile\n";
+    exit;
+}
+while ( $_ = <INFILE> ) {
+    chomp();
+    my ($token, $v1) = split(/ /, $_);
+    if ( $token =~ "dbName:" ) {
+        $dbName = $v1;
+    } elsif ( $token =~ "MySQLUser:" ) {
+        $mySQLUser = $v1;
+    } else {
+        print "Invalid entry: \"$_\"\n";
+        close INFILE;
+        exit;
+    }
+}
+close INFILE;
 
 
 # connect to the database
@@ -26,27 +48,41 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
 }
 
 &doInitialization();
+
+$dbh->disconnect();
+
  
 #start an infinite loop
 while ( 1 ) {
+
+# connect to the database
+unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+    print "Error while connecting to database. $DBI::errstr\n";
+    exit;
+}
+
     my $loadTime = &timestamp();
     print "Current time is $loadTime. Doing HOUR update (every minute)\n";
 
-    my $sec   = (localtime)[0];
-    my $min   = (localtime)[1];
-    my $hour  = (localtime)[2];
-    my $day   = (localtime)[3];
-
-    &runQuery("TRUNCATE TABLE rtChanges");
-
+    $loadTime = &gmtimestamp();
+    my $sec   = (gmtime)[0];
+    my $min   = (gmtime)[1];
+    my $hour  = (gmtime)[2];
+    my $day   = (gmtime)[3];
+    my $wday  = (gmtime)[6];
+    my $yday  = (gmtime)[7];
     foreach $siteName (@siteNames) {
 	&prepareStats4OneSite($siteName, 
 			      $loadTime,
 			      $sec,
 			      $min,
-			      $hour, 
-			      $day);
+			      $hour,
+			      $day,
+ 			      $wday,
+			      $yday);
     }
+
+$dbh->disconnect();
 
     # wake up every minute at HH:MM:30
     my $sec2Sleep = 90 - $sec;
@@ -56,10 +92,14 @@ while ( 1 ) {
         
     print "sleeping $sec2Sleep sec... \n";
     sleep $sec2Sleep;
+
+    if ( -e $stopFName ) {
+	unlink $stopFName;
+	exit;
+    }
+
 }
 
-# never reached to be honest
-$dbh->disconnect();
 
 ###############################################################################
 ###############################################################################
@@ -67,6 +107,7 @@ $dbh->disconnect();
 
 sub doInitialization() {
 
+    $stopFName = "$confFile.stop";
     @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
 
     # find all sites
@@ -82,47 +123,8 @@ sub doInitialization() {
     &runQuery("DELETE FROM statsLastDay   WHERE date < DATE_SUB(NOW(), INTERVAL  24 HOUR)");
     &runQuery("DELETE FROM statsLastWeek  WHERE date < DATE_SUB(NOW(), INTERVAL 168 HOUR)");
     &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB(NOW(), INTERVAL 30  DAY)");
+    &runQuery("DELETE FROM statsLastYear  WHERE date < DATE_SUB(NOW(), INTERVAL 365 DAY)");
 
-    # find most recent stats
-    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour");
-    if ( $lastTime ) {
-        ($nMin, $lastNoJobs, $lastNoUsers, $lastNoUniqueF, $lastNoNonUniqueF) =
-          &runQueryWithRet("SELECT seqNo,noJobs,noUsers,noUniqueF,noNonUniqueF
-                            FROM   statsLastHour 
-                            WHERE  date = \"$lastTime\"");
-        $nMin += 1;
-    } else { 
-        $nMin=$lastNoJobs=$lastNoUsers=$lastNoUniqueF=$lastNoNonUniqueF=0;
-    }
-
-    ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastDay");
-    if ( $lastTime ) {
-        $nHour = &runQueryWithRet("SELECT seqNo 
-                                   FROM statsLastDay
-                                   WHERE date = \"$lastTime\"");
-        $nHour += 1;
-    } else { 
-        $nHour = 0;
-    }
-    ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastWeek");
-    if ( $lastTime ) {
-        $nWDay = &runQueryWithRet("SELECT seqNo 
-                                   FROM statsLastWeek 
-                                   WHERE date = \"$lastTime\"");
-        $nWDay += 1;
-    } else { 
-        $nWDay = 0;
-    }
-
-    ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastMonth");
-    if ( $lastTime ) {
-        $nDay = &runQueryWithRet("SELECT seqNo 
-                                  FROM statsLastMonth 
-                                  WHERE date = \"$lastTime\"");
-        $nDay += 1;
-    } else {
-        $nDay = 0;
-    }
 
     # create temporary tables for topPerformers
     &runQuery("CREATE TEMPORARY TABLE jj  (theId INT, n INT, INDEX (theId))");
@@ -139,39 +141,62 @@ sub doInitialization() {
 
 
 sub prepareStats4OneSite() {
-    my ($siteName, $loadTime, $sec, $min, $hour, $day) = @_;
+    my ($siteName, $loadTime, $sec, $min, $hour, $day, $wday, $yday) = @_;
 
     print "Updating data for --> $siteName <--\n";
 
     # every min at HH:MM:30
+    &runQuery("DELETE FROM ${siteName}_closedSessions_LastHour  
+                     WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL  1 HOUR)");
+    &runQuery("DELETE FROM ${siteName}_closedFiles_LastHour     
+                     WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL  1 HOUR)");
     &loadStatsLastHour($siteName, $loadTime, $min % 60);
     &loadTopPerfPast("Hour", 20, $siteName);
 
 
     if ( $min == 0 || $min == 15 || $min == 30 || $min == 45 ) {
 	# every 15 min at HH:00:30, HH:15:30, HH:30:30, HH:45:30
-	&loadStatsLastDay($siteName, $loadTime, $hour*4+$min/15);
+        &runQuery("DELETE FROM ${siteName}_closedSessions_LastDay  
+                         WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL  1 DAY)");
+        &runQuery("DELETE FROM ${siteName}_closedFiles_LastDay     
+                         WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL  1 DAY)");
+	&loadStatsLastPeriod($siteName, statsLastHour, statsLastDay, $loadTime, $hour*4+$min/15);
 	&loadTopPerfPast("Day", 20, $siteName);
     }
 
     if ( $min == 5 ) {
 	# every hour at HH:05:30
-        my $seqId = &nextSeqIdForWeek();
-	&loadStatsLastWeek($siteName, $loadTime, $seqId);
+        &runQuery("DELETE FROM ${siteName}_closedSessions_LastWeek  
+                         WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL  7 DAY)");
+        &runQuery("DELETE FROM ${siteName}_closedFiles_LastWeek     
+                         WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL  7 DAY)");
+	&loadStatsLastPeriod($siteName, statsLastHour, statsLastWeek, $loadTime, $wday*24+$hour);
 	&loadTopPerfPast("Week", 20, $siteName);
     }
 
     if ( $min == 20 ) {
 	if ( $hour == 0 || $hour == 6 || $hour == 12 || $hour == 18 ) {
 	    # every 6 hours at 00:20:30, 06:20:30, 12:20:30, 18:20:30
-	    &loadStatsLastMonth($siteName, $loadTime, $day*4+$hour/6);
+            &runQuery("DELETE FROM ${siteName}_closedSessions_LastMonth  
+                             WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL 30 DAY)");
+            &runQuery("DELETE FROM ${siteName}_closedFiles_LastMonth     
+                             WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL 30 DAY)");
+	    &loadStatsLastPeriod($siteName, statsLastDay, statsLastMonth, $loadTime, $day*4+$hour/6);
 	    &loadTopPerfPast("Month", 20, $siteName);
 
 	}
 	if ( $hour == 23 ) {
-	    # every 24 hours at 23:22:30
-	    &loadStatsAllMonths($siteName, $loadTime);
+	    # every 24 hours at 23:20:30
+            &runQuery("DELETE FROM ${siteName}_closedSessions_LastYear  
+                             WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL 365 DAY)");
+            &runQuery("DELETE FROM ${siteName}_closedFiles_LastYear     
+                             WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL 365 DAY)");
+	    &loadStatsLastPeriod($siteName, statsLastDay, statsLastYear $loadTime, $yday);
 	    &loadTopPerfPast("Year", 20, $siteName);
+	}
+        if ( $hour == 1 && $wday == 1 ) {
+            # every Sunday at 01:20:30
+            &loadStatsAllYears($siteName, $loadTime);
 	}
     }
 
@@ -196,25 +221,6 @@ sub prepareStats4OneSite() {
     }
     # every min at HH:MM:30
     &loadFileSizes( $siteName, 0 );
-}
-
-sub nextSeqIdForWeek() {
-    # find last sequence id
-    my $lastSeq = &runQueryWitRet("SELECT seqNo 
-                                  FROM statsLastDay
-                                  ORDER BY date DESC
-                                  LIMIT 1");
-    # find time difference between now and last stat
-    my $hDif = &runQueryWithRet("SELECT HOUR(TIMEDIFF(now(), date))
-                                FROM   statsLastDay
-                                WHERE  seqNo = $lastSeq");
-    my $mDif = &runQueryWithRet("SELECT MINUTE(TIMEDIFF(now(), date))
-                                FROM   statsLastDay
-                                WHERE  seqNo = $lastSeq");
-    if ( $mDif > 55 ) {
-	$hDif++;
-    }
-    return ( $lastSeq + $hDif ) % 168;
 }
 
 sub runQueryWithRet() {
@@ -250,15 +256,35 @@ sub runQuery() {
 }
 
 sub timestamp() {
-    my $sec   = (localtime)[0];
-    my $min   = (localtime)[1];
-    my $hour  = (localtime)[2];
-    my $day   = (localtime)[3];
-    my $month = (localtime)[4] + 1;
-    my $year  = (localtime)[5] + 1900;
+    my $t      = time();
+    my @localt = localtime($t);
+    my $sec    = $localt[0];
+    my $min    = $localt[1];
+    my $hour   = $localt[2];
+    my $day    = $localt[3];
+    my $month  = $localt[4] + 1;
+    my $year   = $localt[5] + 1900;
 
-    return sprintf("%04d-%02d-%02d %02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
+    return sprintf("%04d-%02d-%02d %02d:%02d:%02d",
+                   $year, $month, $day, $hour, $min, $sec);
 }
+
+
+sub gmtimestamp() {
+    my $t     = time();
+    my @gmt   = gmtime($t);
+    my $sec   = $gmt[0];
+    my $min   = $gmt[1];
+    my $hour  = $gmt[2];
+    my $day   = $gmt[3];
+    my $month = $gmt[4] + 1;
+    my $year  = $gmt[5] + 1900;
+
+    return sprintf("%04d-%02d-%02d %02d:%02d:%02d", 
+                   $year, $month, $day, $hour, $min, $sec);
+}
+
+
 
 sub loadFileSizes() {
     my ($siteName, $sizeIndex) = @_;
@@ -291,7 +317,9 @@ sub loadFileSizes() {
            print BBKINPUT "$files[$index]\n";
            $index++;
        }
-       @bbkOut = `BbkUser --lfn-file=bbkInput --quiet lfn bytes`;
+       @bbkOut   = `BbkUser --lfn-file=bbkInput --quiet                 lfn bytes`;
+       @bbkOut18 = `BbkUser --lfn-file=bbkInput --quiet --dbname=bbkr18 lfn bytes`;
+       @bbkOut   = (@bbkOut, @bbkOut18);
        @inBbk = ();
        while ( @bbkOut ) {
            $line = shift @bbkOut;
@@ -341,6 +369,7 @@ sub loadStatsLastHour() {
               (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
               VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
 
+    &runQuery("TRUNCATE TABLE rtChanges");
     $deltaJobs = $noJobs - $lastNoJobs; 
     $jobs_p = $lastNoJobs > 0 ? &roundoff( 100 * $deltaJobs / $lastNoJobs ) : -1;
     $deltaUsers = $noUsers - $lastNoUsers;
@@ -360,87 +389,8 @@ sub loadStatsLastHour() {
     $lastNoNonUniqueF = $noNonUniqueF;
 }
 
-sub loadStatsLastDay() {
-    my ($siteName, $loadTime, $seqNo) = @_;
 
-    my $siteId = $siteIds{$siteName};
-
-    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastDay WHERE siteId = $siteId");    
-    &runQuery("DELETE FROM statsLastDay WHERE seqNo = $seqNo AND siteId = $siteId");
-
-    my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
-        $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-        $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF) 
-      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                            FROM statsLastHour WHERE siteId = $siteId       AND
-                                                       date > \"$lastTime\"    ");
-
-    &runQuery("INSERT INTO statsLastDay 
-                          (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
-                           minJobs, minUsers, minUniqueF, minNonUniqueF, 
-                           maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
-                   VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
-                           $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-                           $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
-}
-
-sub loadStatsLastWeek() {
-    my ($siteName, $loadTime, $seqNo) = @_;
-
-    my $siteId = $siteIds{$siteName};
-
-    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastWeek WHERE siteId = $siteId");    
-    &runQuery("DELETE FROM statsLastWeek WHERE seqNo = $seqNo AND siteId = $siteId");
-
-    my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
-        $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-        $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF) 
-      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                            FROM statsLastDay WHERE siteId = $siteId        AND
-                                                      date > \"$lastTime\"    ");
-
-    &runQuery("INSERT INTO statsLastWeek 
-                          (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
-                           minJobs, minUsers, minUniqueF, minNonUniqueF, 
-                           maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
-                   VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers,
-                           $noUniqueF, $noNonUniqueF, 
-                           $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-                           $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
-}
-
-sub loadStatsLastMonth() {
-    my ($siteName, $loadTime, $seqNo) = @_;
-
-    my $siteId = $siteIds{$siteName};
-
-    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastMonth WHERE siteId = $siteId");    
-    &runQuery("DELETE FROM statsLastMonth WHERE seqNo = $seqNo AND siteId = $siteId");
-
-    my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
-        $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-        $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
-      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                            FROM statsLastDay WHERE siteId = $siteId        AND
-                                                      date > \"$lastTime\"    ");
-
-    &runQuery("INSERT INTO statsLastMonth 
-                          (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
-                           minJobs, minUsers, minUniqueF, minNonUniqueF, 
-                           maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
-                    VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers,
-                            $noUniqueF, $noNonUniqueF, 
-                            $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-                            $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
-}
-
-sub loadStatsAllMonths() {
+sub loadStatsAllYears() {
     my ($siteName, $loadTime) = @_;
 
     my $siteId = $siteIds{$siteName};
@@ -451,10 +401,10 @@ sub loadStatsAllMonths() {
       = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
                                  MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
                                  MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                          FROM   statsLastDay
+                          FROM   statsLastWeek
                           WHERE  siteId = $siteId"); 
 
-    &runQuery("INSERT INTO statsAllMonths 
+    &runQuery("INSERT INTO statsAllYears
                           (siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
                            minJobs, minUsers, minUniqueF, minNonUniqueF, 
                            maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
@@ -464,6 +414,32 @@ sub loadStatsAllMonths() {
                             $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
 }
 
+sub loadStatsLastPeriod() {
+    my ($siteName, $sourceTable, $targetTable, $loadTime, $seqNo) = @_;
+
+    my $siteId = $siteIds{$siteName};
+
+    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM $targetTable WHERE siteId = $siteId");    
+    &runQuery("DELETE FROM $targetTable WHERE seqNo = $seqNo AND siteId = $siteId");
+
+    my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
+        $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
+        $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
+      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
+                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
+                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
+                            FROM $sourceTable WHERE siteId = $siteId        AND
+                                                      date > \"$lastTime\"    ");
+
+    &runQuery("INSERT INTO $targetTable
+                          (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
+                           minJobs, minUsers, minUniqueF, minNonUniqueF, 
+                           maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
+                    VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers,
+                            $noUniqueF, $noNonUniqueF, 
+                            $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
+                            $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
+}
 
 sub roundoff() {
    my $a = shift;
