@@ -24,10 +24,9 @@
 using namespace std;
 
 
-
 #define EnvGetLong(x) XrdClientEnv::Instance()->GetInt(x)
 #define EnvGetString(x) XrdClientEnv::Instance()->Get(x)
-#define EnvPutString(name, val) XrdClientEnv::Instance()->Put(name, strdup(val))
+#define EnvPutString(name, val) XrdClientEnv::Instance()->Put(name, val)
 #define EnvPutInt(name, val) XrdClientEnv::Instance()->PutInt(name, val)
 
 class XrdClientEnv {
@@ -43,15 +42,15 @@ class XrdClientEnv {
 
  public:
 
-   char *                 Get(char *varname) {
-      char *res;
+   const char *          Get(const char *varname) {
+      const char *res;
       XrdOucMutexHelper m(fMutex);
 
       res = fOucEnv->Get(varname);
       return res;
    }
 
-   long                   GetInt(char *varname) {
+   long                   GetInt(const char *varname) {
       long res;
       XrdOucMutexHelper m(fMutex);
 
@@ -59,13 +58,13 @@ class XrdClientEnv {
       return res;
    }
 
-   void                   Put(char *varname, char *value) {
+   void                   Put(const char *varname, const char *value) {
       XrdOucMutexHelper m(fMutex);
 
       fOucEnv->Put(varname, value);
    }
 
-   void  PutInt(char *varname, long value) {
+   void  PutInt(const char *varname, long value) {
       XrdOucMutexHelper m(fMutex);
 
       fOucEnv->PutInt(varname, value);

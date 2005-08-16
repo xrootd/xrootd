@@ -13,6 +13,11 @@
 
 const char *XrdClientSockCVSID = "$Id$";
 
+#include <memory>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <assert.h>
 #include "XrdClient/XrdClientSock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -37,9 +42,7 @@ XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize)
 XrdClientSock::~XrdClientSock()
 {
    // Destructor
-
-   if (fConnected && fSocket )
-      close(fSocket);
+   Disconnect();
 }
 
 //_____________________________________________________________________________
@@ -47,8 +50,8 @@ void XrdClientSock::Disconnect()
 {
    // Close the connection
 
-   if ( (fConnected) && (fSocket) ) {
-      close(fSocket);
+   if (fConnected && fSocket >= 0) {
+      ::close(fSocket);
       fConnected = FALSE;
       fSocket = -1;
    }
@@ -60,7 +63,7 @@ int XrdClientSock::RecvRaw(void* buffer, int length)
    // Read bytes following carefully the timeout rules
    struct pollfd fds_r;
    time_t starttime;
-   int bytesread = 0, n = 0;
+   int bytesread = 0;
    int pollRet;
 
    // We cycle reading data.
@@ -70,6 +73,11 @@ int XrdClientSock::RecvRaw(void* buffer, int length)
    // The connection is closed by the other peer
 
    // Init of the pollfd struct
+   if (fSocket < 0) {
+       Error("XrdClientSock::RecvRaw", "socket fd is " << fSocket);
+       return TXSOCK_ERR;
+   }
+
    fds_r.fd     = fSocket;
 //   fds_r.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL;
    fds_r.events = POLLIN;
@@ -110,12 +118,23 @@ int XrdClientSock::RecvRaw(void* buffer, int length)
       // If we are here, pollRet is > 0 why?
       //  Because the timeout and the poll error are handled inside the previous loop
 
+      if (fSocket < 0) {
+         Error("XrdClientSock::RecvRaw", "since we entered RecvRaw, socket "
+	       "file descriptor has changed to " << fSocket);
+         return TXSOCK_ERR;
+      }
+
       // First of all, we check if there is something to read
       if (fds_r.revents & (POLLIN | POLLPRI)) {
-	 n = read(fSocket, (char *)buffer + bytesread, length - bytesread);
+	 int n = read(fSocket, static_cast<char *>(buffer) + bytesread,
+	 	      length - bytesread);
 
-	 // If we reda nothing, the connection has been closed by the other
-	 if (!n) return (TXSOCK_ERR);
+	 // If we read nothing, the connection has been closed by the other side
+	 if (n <= 0) {
+	    Error("XrdClientSock::RecvRaw", "Error reading from socket: " <<
+	       ::strerror(errno));
+	    return TXSOCK_ERR;
+	 }
 
 	 bytesread += n;
       }
@@ -144,7 +163,7 @@ int XrdClientSock::SendRaw(const void* buffer, int length)
    // (writes will not hang)
    struct pollfd fds_w;
    time_t starttime;
-   int byteswritten = 0, n = 0;
+   int byteswritten = 0;
    int pollRet;
 
    // Init of the pollfd structs. If fSocket is not valid... we can do this anyway
@@ -185,10 +204,15 @@ int XrdClientSock::SendRaw(const void* buffer, int length)
 
       // First of all, we check if we are allowed to write
       if (fds_w.revents & POLLOUT) {
-	 n = write(fSocket, (char *)buffer + byteswritten, length - byteswritten);
+	 int n = write(fSocket, static_cast<const char *>(buffer) + byteswritten,
+		       length - byteswritten);
 
 	 // If we wrote nothing, the connection has been closed by the other
-	 if (!n) return (TXSOCK_ERR);
+	 if (n <= 0) {
+	    Error("ClientSock::SendRaw", "Error writing to a socket: " <<
+	    	::strerror(errno));
+	    return (TXSOCK_ERR);
+	 }
 
 	 byteswritten += n;
       }
@@ -214,25 +238,26 @@ int XrdClientSock::SendRaw(const void* buffer, int length)
 //_____________________________________________________________________________
 void XrdClientSock::TryConnect()
 {
-   // Try connection
+   // Already connected - we are done.
+   //
+   if (fConnected) {
+   	assert(fSocket >= 0);
+	return;
+   }
 
-   if (fConnected) return;
+   std::auto_ptr<XrdNetSocket> s(new XrdNetSocket());
 
-   XrdNetSocket *s = new XrdNetSocket();
-
-   // Create a connection
-   
+   // Log the attempt
+   //
    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
 	"Trying to connect to" <<
 	fHost.TcpHost.Host << "(" << fHost.TcpHost.HostAddr << "):" <<
 	fHost.TcpHost.Port << " Timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT) );
 
-
-   // Connect to a remote host yep
+   // Connect to a remote host
    //
-   fSocket = s->Open( (char *) fHost.TcpHost.HostAddr.c_str(),
+   fSocket = s->Open( fHost.TcpHost.HostAddr.c_str(),
 		      fHost.TcpHost.Port, EnvGetLong(NAME_CONNECTTIMEOUT));
-
    
    // Check if we really got a connection and the remote host is available
    //
@@ -243,13 +268,12 @@ void XrdClientSock::TryConnect()
 	   "Connection to" <<
 	   fHost.TcpHost.Host << ":" <<
 	   fHost.TcpHost.Port << " failed. (" << fSocket << ")");
-
-      return;
-   }
-   else {
+   } else {
       fConnected = TRUE;
-      fSocket = s->Detach();
+      int detachedFD = s->Detach();
+      if (fSocket != detachedFD) {
+         Error("ClientSock::TryConnect", "Socket detach returned "
+	    << detachedFD << " but expected " << fSocket);
+      }
    }
-
-   delete s;
 }

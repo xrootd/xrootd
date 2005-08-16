@@ -688,8 +688,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
    Info(XrdClientDebug::kHIDEBUG,
 	"ProcessUnsolicitedMsg", "Incoming unsolicited response from streamid " <<
-	unsolmsg->HeaderSID() << " father=" <<
-	SidManager->GetSidInfo(unsolmsg->HeaderSID())->fathersid );
+	unsolmsg->HeaderSID() );
 
    // Local processing ....
 

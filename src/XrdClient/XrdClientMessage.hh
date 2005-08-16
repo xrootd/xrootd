@@ -19,6 +19,7 @@
 
 #include "XrdClient/XrdClientProtocol.hh"
 #include "XrdClient/XrdClientSock.hh"
+#include <netinet/in.h>
 
 class XrdClientPhyConnection;
 
@@ -49,14 +50,21 @@ public:
    ~XrdClientMessage();
 
    bool               CreateData();
+
    inline int         DataLen() { return fHdr.dlen; }
+
    void              *DonateData();
    inline void       *GetData() {return fData;}
-   inline int         GetStatusCode() { return fStatusCode;}
+   inline int         GetStatusCode() { return fStatusCode; }
+
    inline int         HeaderStatus() { return fHdr.status; }
+
    inline kXR_unt16   HeaderSID() { return CharStreamid2Int(fHdr.streamid); }
-   bool               IsAttn() { return (fHdr.status == kXR_attn); }
+
+   bool               IsAttn() { return (HeaderStatus() == kXR_attn); }
+
    inline bool        IsError() { return (fStatusCode != kXrdMSC_ok); };
+
    inline bool        IsMarshalled() { return fMarshalled; }
    void               Marshall();
    inline bool        MatchStreamid(short sid) { return (HeaderSID() == sid);}

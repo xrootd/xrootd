@@ -19,7 +19,7 @@
 #include <iostream.h>
 
 
-XrdClientStringMatcher::XrdClientStringMatcher(char *expr) {
+XrdClientStringMatcher::XrdClientStringMatcher(const char *expr) {
 
    exp = strdup(expr);
 
@@ -30,7 +30,7 @@ XrdClientStringMatcher::~XrdClientStringMatcher() {
 }
 
 // Tells if str is matched in the pattern given by expr
-bool XrdClientStringMatcher::SingleMatches(char *expr, char *str) {  
+bool XrdClientStringMatcher::SingleMatches(const char *expr, const char *str) {
    char *plainexp;
    unsigned int exprlen, plainexplen;
    bool starbeg, starend;
@@ -100,7 +100,7 @@ bool XrdClientStringMatcher::SingleMatches(char *expr, char *str) {
 }
 
 
-bool XrdClientStringMatcher::Matches(char *str) {
+bool XrdClientStringMatcher::Matches(const char *str) {
    char *p1, *p2;
 
    p1 = exp;
@@ -133,4 +133,3 @@ bool XrdClientStringMatcher::Matches(char *str) {
   
    return FALSE;
 }
-

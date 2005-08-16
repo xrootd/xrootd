@@ -90,19 +90,16 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
    XrdClientString goodDomainsRE = fClientHostDomain + "|*";
 
    if (EnvGetString(NAME_REDIRDOMAINALLOW_RE) == 0)
-      EnvPutString(NAME_REDIRDOMAINALLOW_RE,
-		   (char *)goodDomainsRE.c_str());
+      EnvPutString(NAME_REDIRDOMAINALLOW_RE, goodDomainsRE.c_str());
 
    if (EnvGetString(NAME_REDIRDOMAINDENY_RE) == 0)
       EnvPutString(NAME_REDIRDOMAINDENY_RE, "<unknown>");
 
    if (EnvGetString(NAME_CONNECTDOMAINALLOW_RE) == 0)
-      EnvPutString(NAME_CONNECTDOMAINALLOW_RE,
-		   (char *)goodDomainsRE.c_str());
+      EnvPutString(NAME_CONNECTDOMAINALLOW_RE, goodDomainsRE.c_str());
 
    if (EnvGetString(NAME_CONNECTDOMAINDENY_RE) == 0)
       EnvPutString(NAME_CONNECTDOMAINDENY_RE, "<unknown>");
-
 
    fRedirHandler = 0;
    fUnsolMsgHandler = 0;
@@ -240,8 +237,6 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
       // ID might have changed, while in the header to write it remained the 
       // same as before, not valid anymore
       SetSID(req->header.streamid);
-
-
 
       errorType = WriteToServer(req, reqMoreData, fLogConnID);
       
@@ -454,8 +449,8 @@ bool XrdClientConn::CheckHostDomain(XrdClientString hostToCheck, XrdClientString
 
    // Given a list of |-separated regexps for the hosts to DENY, 
    // match every entry with domain. If any match is found, deny access.
-   XrdClientStringMatcher redeny((char *)deny.c_str());
-   if ( redeny.Matches((char *)domain.c_str()) ) {
+   XrdClientStringMatcher redeny(deny.c_str());
+   if ( redeny.Matches(domain.c_str()) ) {
       Error("CheckHostDomain",
 	    "Access denied to the domain of [" << hostToCheck << "].");
       
@@ -466,8 +461,8 @@ bool XrdClientConn::CheckHostDomain(XrdClientString hostToCheck, XrdClientString
    // Given a list of |-separated regexps for the hosts to ALLOW, 
    // match every entry with domain. If any match is found, grant access.
 
-   XrdClientStringMatcher reallow((char *)allow.c_str());
-   if ( reallow.Matches((char *)domain.c_str()) ) {
+   XrdClientStringMatcher reallow(allow.c_str());
+   if ( reallow.Matches(domain.c_str()) ) {
       Info(XrdClientDebug::kHIDEBUG, "CheckHostDomain",
 	    "Access granted to the domain of [" << hostToCheck << "].");
       
@@ -703,10 +698,7 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
       // the communication at low level.
       Xmsg = ConnectionManager->ReadMsg(fLogConnID);
 
-      if(Xmsg)
-         fLastDataBytesRecv = Xmsg->DataLen();
-      else 
-         fLastDataBytesRecv = 0;
+      fLastDataBytesRecv = Xmsg ? Xmsg->DataLen() : 0;
 
       if ( !Xmsg || (Xmsg->IsError()) ) {
          Error("ReadPartialAnswer", "Error reading msg from connmgr"
@@ -716,7 +708,7 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
          if (HasToAlloc) {
             if (*tmpMoreData)
                free(*tmpMoreData);
-            *tmpMoreData = 0;
+	    *tmpMoreData = 0;
          }
          errorType = kREAD;
       }
@@ -864,7 +856,7 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
 bool XrdClientConn::GetAccessToSrv()
 {
    // Gets access to the connected server. The login and authorization steps
-   // are performed here (calling method DoLogin() that performs loggin-in
+   // are performed here (calling method DoLogin() that performs logging-in
    // and calls DoAuthentication() ).
    // If the server redirects us, this is gently handled by the general
    // functions devoted to the handling of the server's responses.

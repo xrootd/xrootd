@@ -13,6 +13,7 @@
 
 //       $Id$
 
+#include <iostream>
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
@@ -24,6 +25,7 @@ XrdClientEnv *XrdClientEnv::Instance() {
    if (!fgInstance) {
       fgInstance = new XrdClientEnv;
       if (!fgInstance) {
+	 std::cerr << "XrdClientEnv::Instance: fatal - couldn't create XrdClientEnv" << std::endl;
          abort();
       }
    }
@@ -34,7 +36,6 @@ XrdClientEnv *XrdClientEnv::Instance() {
 XrdClientEnv::XrdClientEnv() {
    // Constructor
    fOucEnv = new XrdOucEnv();
-
 
    PutInt(NAME_CONNECTTIMEOUT, DFLT_CONNECTTIMEOUT);
    PutInt(NAME_CONNECTTIMEOUTWAN, DFLT_CONNECTTIMEOUTWAN);
@@ -49,7 +50,6 @@ XrdClientEnv::XrdClientEnv() {
    PutInt(NAME_READCACHESIZE, DFLT_READCACHESIZE);
    PutInt(NAME_READAHEADSIZE, DFLT_READAHEADSIZE);
    PutInt(NAME_READAHEADTYPE, DFLT_READAHEADTYPE);
-
 }
 
 //_____________________________________________________________________________

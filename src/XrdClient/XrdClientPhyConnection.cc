@@ -172,23 +172,27 @@ void XrdClientPhyConnection::StartReader() {
 
       // Now we launch  the reader thread
       fReaderthreadhandler = new XrdClientThread(SocketReaderThread);
-      if (!fReaderthreadhandler)
+      if (!fReaderthreadhandler) {
 	 Error("PhyConnection",
 	       "Can't create reader thread: out of system resources");
+// HELP: what do we do here
+         std::exit(-1);
+      }
 
       fReaderthreadhandler->Run(this);
+      if (fReaderthreadhandler->Detach())
+      {
+	 Error("PhyConnection", "Thread detach failed");
+	 return;
+      }
       
-      do {
-          {
-             XrdOucMutexHelper l(fMutex);
-	     fReaderthreadhandler->Detach();
-             running = fReaderthreadrunning;
-          }
-
-          if (!running) fReaderCV.Wait(100);
-      } while (!running);
-
-
+      // sleep until the detached thread starts running, which hopefully
+      // is not forever.
+      int maxRetries = 10;
+      while (--maxRetries >= 0 && !fReaderthreadrunning)
+      {
+	 fReaderCV.Wait(100);
+      }
    }
 }
 
@@ -426,7 +430,8 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
    attnbody = (struct ServerResponseBody_Attn *)m->GetData();
 
    if (attnbody) {
-    
+      attnbody->actnum = ntohl(attnbody->actnum);
+
       switch (attnbody->actnum) {
       case kXR_asyncms:
          // A message arrived from the server. Let's print it.
