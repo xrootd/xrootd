@@ -21,7 +21,7 @@ if ( @ARGV ne 1 ) {
 my $dbName = $ARGV[0];
 
 @sites     = ("SLAC"  , "RAL"   );
-@timezones = ("-08:00", "+00:00");
+@timezones = ("PST8PDT", "WET");
 
 
 print "
@@ -35,7 +35,9 @@ USE $dbName;
 CREATE TABLE IF NOT EXISTS sites (
   id            TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(32),
-  timezone      CHAR(6)
+  timezone      VARCHAR(64),
+  backupInt     VARCHAR(19) DEFAULT '1 DAY',
+  backupTime    DATETIME
 );
 
 # one row per minute, keeps last 60 minutes
@@ -43,114 +45,49 @@ CREATE TABLE IF NOT EXISTS statsLastHour (
   seqNo         TINYINT UNSIGNED NOT NULL,
   siteId        TINYINT UNSIGNED NOT NULL,
   date          DATETIME,
-  noJobs        SMALLINT,
-  noUsers       SMALLINT,
+  noJobs        MEDIUMINT UNSIGNED,
+  noUsers       MEDIUMINT UNSIGNED,
   noUniqueF     INT,
   noNonUniqueF  INT,
-  minJobs       SMALLINT,
-  minUsers      SMALLINT,
+  minJobs       MEDIUMINT UNSIGNED,
+  minUsers      MEDIUMINT UNSIGNED,
   minUniqueF    INT,
   minNonUniqueF INT,
-  maxJobs       SMALLINT,
-  maxUsers      SMALLINT,
+  maxJobs       MEDIUMINT UNSIGNED,
+  maxUsers      MEDIUMINT UNSIGNED,
   maxUniqueF    INT,
   maxNonUniqueF INT,
   PRIMARY KEY (seqNo, siteId),
   INDEX (date)
 );
 
-# one row per hour, keeps last 24 hours
-CREATE TABLE IF NOT EXISTS statsLastDay (
-  seqNo         TINYINT UNSIGNED NOT NULL,
-  siteId        TINYINT UNSIGNED NOT NULL,
-  date          DATETIME,
-  noJobs        SMALLINT,
-  noUsers       SMALLINT,
-  noUniqueF     INT,
-  noNonUniqueF  INT,
-  minJobs       SMALLINT,
-  minUsers      SMALLINT,
-  minUniqueF    INT,
-  minNonUniqueF INT,
-  maxJobs       SMALLINT,
-  maxUsers      SMALLINT,
-  maxUniqueF    INT,
-  maxNonUniqueF INT,
-  PRIMARY KEY (seqNo, siteId),
-  INDEX (date)
-);
+# one row every 15 minutes, keeps last 24 hours
+CREATE TABLE IF NOT EXISTS statsLastDay LIKE statsLastHour;
 
-# one row per day, keeps last 7 days
-CREATE TABLE IF NOT EXISTS statsLastWeek (
-  seqNo         TINYINT UNSIGNED NOT NULL,
-  siteId        TINYINT UNSIGNED NOT NULL,
-  date          DATETIME,
-  noJobs        SMALLINT,
-  noUsers       SMALLINT,
-  noUniqueF     INT,
-  noNonUniqueF  INT,
-  minJobs       SMALLINT,
-  minUsers      SMALLINT,
-  minUniqueF    INT,
-  minNonUniqueF INT,
-  maxJobs       SMALLINT,
-  maxUsers      SMALLINT,
-  maxUniqueF    INT,
-  maxNonUniqueF INT,
-  PRIMARY KEY (seqNo, siteId),
-  INDEX (date)
-);
+# one row per hour, keeps last 7 days
+CREATE TABLE IF NOT EXISTS statsLastWeek LIKE statsLastHour;
 
-# one row per day, keeps last 31 days
-CREATE TABLE IF NOT EXISTS statsLastMonth (
-  seqNo         TINYINT UNSIGNED NOT NULL,
-  siteId        TINYINT UNSIGNED NOT NULL,
-  date          DATETIME,
-  noJobs        SMALLINT,
-  noUsers       SMALLINT,
-  noUniqueF     INT,
-  noNonUniqueF  INT,
-  minJobs       SMALLINT,
-  minUsers      SMALLINT,
-  minUniqueF    INT,
-  minNonUniqueF INT,
-  maxJobs       SMALLINT,
-  maxUsers      SMALLINT,
-  maxUniqueF    INT,
-  maxNonUniqueF INT,
-  PRIMARY KEY (seqNo, siteId),
-  INDEX (date)
-);
+# one row every 6 hours, keeps last 30 days
+CREATE TABLE IF NOT EXISTS statsLastMonth LIKE statsLastHour;
 
-# one row per month, growing indefinitely
-CREATE TABLE IF NOT EXISTS statsAllMonths (
-  siteId        TINYINT UNSIGNED NOT NULL,
-  date          DATETIME,
-  noJobs        SMALLINT,
-  noUsers       SMALLINT,
-  noUniqueF     INT,
-  noNonUniqueF  INT,
-  minJobs       SMALLINT,
-  minUsers      SMALLINT,
-  minUniqueF    INT,
-  minNonUniqueF INT,
-  maxJobs       SMALLINT,
-  maxUsers      SMALLINT,
-  maxUniqueF    INT,
-  maxNonUniqueF INT,
-  INDEX (date)
-);
+# one row per day, LAST 365 dsys
+CREATE TABLE IF NOT EXISTS statsLastYear  LIKE statsLastHour;
+
+# one row per week, growing indefinitely
+CREATE TABLE IF NOT EXISTS statsAllYears  LIKE statsLastHour;
+ALTER TABLE statsAllYears DROP PRIMARY KEY;
+ALTER TABLE statsAllYears DROP COLUMN seqNo;
 
 # reflects changes since last entry, and last update
 CREATE TABLE IF NOT EXISTS rtChanges (
   siteId        TINYINT UNSIGNED NOT NULL,
-  jobs          SMALLINT,
+  jobs          MEDIUMINT UNSIGNED,
   jobs_p        FLOAT,
-  users         SMALLINT,
+  users         MEDIUMINT UNSIGNED,
   users_p       FLOAT,
-  uniqueF       SMALLINT,
+  uniqueF       MEDIUMINT UNSIGNED,
   uniqueF_p     FLOAT,
-  nonUniqueF    SMALLINT,
+  nonUniqueF    MEDIUMINT UNSIGNED,
   nonUniqueF_p  FLOAT,
   lastUpdate    DATETIME
 );
@@ -186,6 +123,7 @@ CREATE TABLE IF NOT EXISTS skimNames (
 foreach $site (@sites) {
     print "
 
+
 ################ ${site} ################
 
 CREATE TABLE IF NOT EXISTS ${site}_openedSessions (
@@ -200,7 +138,7 @@ CREATE TABLE IF NOT EXISTS ${site}_openedSessions (
   INDEX (serverHId)
 );
 
-CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastHour (
+CREATE TABLE IF NOT EXISTS ${site}_closedSessions (
   id            INT       UNSIGNED NOT NULL PRIMARY KEY,
   userId        SMALLINT  UNSIGNED NOT NULL,
   pId           SMALLINT  UNSIGNED NOT NULL,
@@ -215,80 +153,11 @@ CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastHour (
   INDEX (disconnectT)
 );
 
-CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastDay (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  userId        SMALLINT  UNSIGNED NOT NULL,
-  pId           SMALLINT  UNSIGNED NOT NULL,
-  clientHId     SMALLINT  UNSIGNED NOT NULL,
-  serverHId     SMALLINT  UNSIGNED NOT NULL,
-  duration      MEDIUMINT UNSIGNED NOT NULL,
-  disconnectT   DATETIME  NOT NULL,
-  INDEX (userId),
-  INDEX (pId),
-  INDEX (clientHId),
-  INDEX (serverHId),
-  INDEX (disconnectT)
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastWeek (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  userId        SMALLINT  UNSIGNED NOT NULL,
-  pId           SMALLINT  UNSIGNED NOT NULL,
-  clientHId     SMALLINT  UNSIGNED NOT NULL,
-  serverHId     SMALLINT  UNSIGNED NOT NULL,
-  duration      MEDIUMINT UNSIGNED NOT NULL,
-  disconnectT   DATETIME  NOT NULL,
-  INDEX (userId),
-  INDEX (pId),
-  INDEX (clientHId),
-  INDEX (serverHId),
-  INDEX (disconnectT)
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastMonth (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  userId        SMALLINT  UNSIGNED NOT NULL,
-  pId           SMALLINT  UNSIGNED NOT NULL,
-  clientHId     SMALLINT  UNSIGNED NOT NULL,
-  serverHId     SMALLINT  UNSIGNED NOT NULL,
-  duration      MEDIUMINT UNSIGNED NOT NULL,
-  disconnectT   DATETIME  NOT NULL,
-  INDEX (userId),
-  INDEX (pId),
-  INDEX (clientHId),
-  INDEX (serverHId),
-  INDEX (disconnectT)
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastYear (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  userId        SMALLINT  UNSIGNED NOT NULL,
-  pId           SMALLINT  UNSIGNED NOT NULL,
-  clientHId     SMALLINT  UNSIGNED NOT NULL,
-  serverHId     SMALLINT  UNSIGNED NOT NULL,
-  duration      MEDIUMINT UNSIGNED NOT NULL,
-  disconnectT   DATETIME  NOT NULL,
-  INDEX (userId),
-  INDEX (pId),
-  INDEX (clientHId),
-  INDEX (serverHId),
-  INDEX (disconnectT)
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_closedSessions_2005 (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  userId        SMALLINT  UNSIGNED NOT NULL,
-  pId           SMALLINT  UNSIGNED NOT NULL,
-  clientHId     SMALLINT  UNSIGNED NOT NULL,
-  serverHId     SMALLINT  UNSIGNED NOT NULL,
-  duration      MEDIUMINT UNSIGNED NOT NULL,
-  disconnectT   DATETIME  NOT NULL,
-  INDEX (userId),
-  INDEX (pId),
-  INDEX (clientHId),
-  INDEX (serverHId),
-  INDEX (disconnectT)
-);
+CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastHour  LIKE ${site}_closedSessions;
+CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastDay   LIKE ${site}_closedSessions;
+CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastWeek  LIKE ${site}_closedSessions;
+CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastMonth LIKE ${site}_closedSessions;
+CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastYear  LIKE ${site}_closedSessions;
 
 CREATE TABLE IF NOT EXISTS ${site}_openedFiles (
   id            INT       UNSIGNED NOT NULL PRIMARY KEY,
@@ -300,7 +169,7 @@ CREATE TABLE IF NOT EXISTS ${site}_openedFiles (
   INDEX (openT)
 );
 
-CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastHour (
+CREATE TABLE IF NOT EXISTS ${site}_closedFiles (
   id            INT       UNSIGNED NOT NULL PRIMARY KEY,
   sessionId     INT       UNSIGNED NOT NULL,
   pathId	MEDIUMINT UNSIGNED NOT NULL,
@@ -313,71 +182,11 @@ CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastHour (
   INDEX (closeT)
 );
 
-CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastDay (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  sessionId     INT       UNSIGNED NOT NULL,
-  pathId	MEDIUMINT UNSIGNED NOT NULL,
-  openT         DATETIME  NOT NULL,
-  closeT        DATETIME  NOT NULL,
-  bytesR        BIGINT    UNSIGNED NOT NULL,
-  bytesW        BIGINT    UNSIGNED NOT NULL,
-  INDEX (sessionId),
-  INDEX (pathId),
-  INDEX (closeT)
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastWeek (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  sessionId     INT       UNSIGNED NOT NULL,
-  pathId	MEDIUMINT UNSIGNED NOT NULL,
-  openT         DATETIME  NOT NULL,
-  closeT        DATETIME  NOT NULL,
-  bytesR        BIGINT    UNSIGNED NOT NULL,
-  bytesW        BIGINT    UNSIGNED NOT NULL,
-  INDEX (sessionId),
-  INDEX (pathId),
-  INDEX (closeT)
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastMonth (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  sessionId     INT       UNSIGNED NOT NULL,
-  pathId	MEDIUMINT UNSIGNED NOT NULL,
-  openT         DATETIME  NOT NULL,
-  closeT        DATETIME  NOT NULL,
-  bytesR        BIGINT    UNSIGNED NOT NULL,
-  bytesW        BIGINT    UNSIGNED NOT NULL,
-  INDEX (sessionId),
-  INDEX (pathId),
-  INDEX (closeT)
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastYear (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  sessionId     INT       UNSIGNED NOT NULL,
-  pathId	MEDIUMINT UNSIGNED NOT NULL,
-  openT         DATETIME  NOT NULL,
-  closeT        DATETIME  NOT NULL,
-  bytesR        BIGINT    UNSIGNED NOT NULL,
-  bytesW        BIGINT    UNSIGNED NOT NULL,
-  INDEX (sessionId),
-  INDEX (pathId),
-  INDEX (closeT)
-);
-
-CREATE TABLE IF NOT EXISTS ${site}_closedFiles_2005 (
-  id            INT       UNSIGNED NOT NULL PRIMARY KEY,
-  sessionId     INT       UNSIGNED NOT NULL,
-  pathId	MEDIUMINT UNSIGNED NOT NULL,
-  openT         DATETIME  NOT NULL,
-  closeT        DATETIME  NOT NULL,
-  bytesR        BIGINT    UNSIGNED NOT NULL,
-  bytesW        BIGINT    UNSIGNED NOT NULL,
-  INDEX (sessionId),
-  INDEX (pathId),
-  INDEX (closeT)
-);
-
+CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastHour  LIKE ${site}_closedFiles;
+CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastDay   LIKE ${site}_closedFiles;
+CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastWeek  LIKE ${site}_closedFiles;
+CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastMonth LIKE ${site}_closedFiles;
+CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastYear  LIKE ${site}_closedFiles;
 
 # compressed info for top performers (top users)
 CREATE TABLE IF NOT EXISTS ${site}_topPerfUsersNow (
