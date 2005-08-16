@@ -469,6 +469,12 @@ struct ServerResponseBody_Attn {
    char parms[4096]; // Should be sufficient for every use
 };
 
+struct ServerResponseBody_Attn_asyncrd {
+   kXR_int32 actnum;
+   kXR_int32 port;
+   char host[4092];
+};
+
 void ServerResponseHeader2NetFmt(struct ServerResponseHeader *srh);
 
 // The fields to be sent as initial handshake
