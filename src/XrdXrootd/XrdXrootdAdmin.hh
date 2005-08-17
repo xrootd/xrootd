@@ -13,6 +13,7 @@
 //         $Id$
 
 #include <stdlib.h>
+#include <netinet/in.h>
 
 #include "Xrd/XrdLinkMatch.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -61,7 +62,7 @@ struct usr {kXR_unt16   pad;
             kXR_unt16   atn;
             kXR_int32   len;
             kXR_int32   act;
-            usr() {pad = 0; atn = kXR_attn;}
+            usr() {pad = 0; atn = htons(kXR_attn);}
            ~usr() {}
            }            usResp;
        char             TraceID[24];
