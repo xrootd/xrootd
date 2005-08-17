@@ -67,7 +67,14 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
 
 @siteNames = &runQueryRetArray("SELECT name FROM sites");
 foreach $siteName (@siteNames) {
-    $siteInputFiles{$siteName} = "$baseDir/$siteName.ascii";
+    if ( -l $baseDir/$siteName.ascii ) {
+        $siteInputFiles{$siteName} = readlink "$baseDir/$siteName.ascii";
+    } elsif ( -e $baseDir/$siteName.ascii ) {
+        $siteInputFiles{$siteName} = "$baseDir/$siteName.ascii";
+    } else {
+        print "Need to supply input file or link to it for site $siteName\n";
+        exit
+    }
     ($siteIds{$siteName}, $backupInts{$siteName}) = &runQueryWithRet("SELECT id, backupInt 
                                             FROM sites 
                                             WHERE name = \"$siteName\"");
@@ -199,13 +206,13 @@ sub loadOneSite() {
         } else {
              $backupFile = $backupFiles{$siteName}
         }
-        `touch $backupFile; cat $inFN >> $backupFile; mv $inFN $jrnlDir/$siteName/$inFN`;
+        `touch $backupFile; cat $inFN >> $backupFile; mv $inFN $jrnlDir/$siteName/$siteName.ascii`;
 
         # unlock the lock file
         unlockTheFile($lockF);
     }    
 
-    $inFN  = $jrnlDir/$siteName/$inFN;
+    $inFN  = $jrnlDir/$siteName/$siteName.ascii;
     # open the input file for reading
     unless ( open INFILE, "< $inFN" ) {
 	print "Can't open file $inFN for reading\n";
