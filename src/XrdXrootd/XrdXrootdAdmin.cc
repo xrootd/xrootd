@@ -261,9 +261,9 @@ int XrdXrootdAdmin::do_Lsd()
 {
    const char *fmt1 = "<resp id=\"%s\"><rc>0</rc>";
    const char *fmt2 = "<c r=\"%c\" t=\"%lld\" v=\"%d\" m=\"%s\">";
-   const char *fmt2a= "<io u=\"%d\"><nf>%d</nf><pr>%lld<n>%d></n></pr>"
-                      "<rd>%lld<n>%d></n></rd><wr>%lld<n>%d</n></wr>"
-                      "<ns>%d</ns><nt>%d</nt></io>";
+   const char *fmt2a= "<io u=\"%d\"><nf>%d</nf><p>%lld<n>%d></n></p>"
+                      "<i>%lld<n>%d></n></i><o>%lld<n>%d</n></o>"
+                      "<s>%d</s><t>%d</t></io>";
    const char *fmt3 = "<auth p=\"%s\"><n>";
    const char *fmt3e= "</r></auth>";
    const char *fmt4 = "</resp>\n";
@@ -305,8 +305,8 @@ int XrdXrootdAdmin::do_Lsd()
              mlen[1] = lp->Client(cname, sizeof(cname));
              mlen[2] = sprintf(iobuff, fmt2a,inuse-1,pp->numFiles,pp->totReadP,
                                (pp->cumReadP + pp->numReadP),
-                               inBytes, (pp->cumReads + pp->numReads),
-                               outBytes,(pp->cumWrites+ pp->numWrites),
+                               inBytes, (pp->cumWrites+ pp->numWrites),
+                               outBytes,(pp->cumReads + pp->numReads),
                                stalls, tardies);
              i = 3;
              if ((pp->Client) && pp->Client != &(pp->Entity))
