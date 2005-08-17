@@ -61,7 +61,7 @@ bool XrdClientStringMatcher::SingleMatches(const char *expr, const char *str) {
    plainexplen = strlen(plainexp);
 
    // See where the pattern can be found inside the string
-   char *p = strstr(str, plainexp);
+   const char *p = strstr(str, plainexp);
    if (!p) {
       free(plainexp);
       return FALSE;
