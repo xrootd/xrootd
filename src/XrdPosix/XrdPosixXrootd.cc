@@ -6,7 +6,6 @@
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
-/* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
   
 const char *XrdPosixXrootdCVSID = "$Id$";
@@ -130,17 +129,12 @@ const int      XrdPosixXrootd::FDLeft   = 0x7fff0000;
 /******************************************************************************/
 
 XrdPosixFile::XrdPosixFile(int fd, const char *path)
+             : FD(fd),
+               currOffset(0)
 {
-
 // Allocate a new client object
 //
-   if (!(XClient = new XrdClient(path)))
-      {stat.size = 0; return;}
-
-// Set the FD
-//
-   FD = fd;
-   currOffset = 0;
+   if (!(XClient = new XrdClient(path))) stat.size = 0;
 }
   
 /******************************************************************************/
@@ -525,6 +519,7 @@ ssize_t XrdPosixXrootd::Read(int fildes, void *buf, size_t nbyte)
 //
    if (!(fp = findFP(fildes))) return -1;
 
+
 // Make sure the size is not too large
 //
    if (nbyte > (size_t)0x7fffffff) {Scuttle(fp,EOVERFLOW);}
@@ -532,7 +527,7 @@ ssize_t XrdPosixXrootd::Read(int fildes, void *buf, size_t nbyte)
 
 // Issue the read
 //
-   if (!(bytes = fp->XClient->Read(buf, fp->Offset(), (int)iosz)) )
+   if (!(bytes = fp->XClient->Read(buf, fp->Offset(), iosz)) )
       retError(fp);
 
 // All went well

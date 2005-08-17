@@ -6,7 +6,6 @@
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
-/* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
 
 const char *XrdPosixCVSID = "$Id$";
@@ -42,7 +41,9 @@ struct xpath {struct xpath *next;
                      int    plen;
 
                      xpath(struct xpath *cur, char *p)
-                          {next = cur, path = strdup(p); plen = strlen(p);}
+                          : next(cur),
+                            path(strdup(p)),
+                            plen(strlen(p)) {}
                     ~xpath() {if (path) free(path);}
              };
 
@@ -57,20 +58,22 @@ int           xrdlen;
 /******************************************************************************/
 
 XrdPosixXrootPath::XrdPosixXrootPath()
+    : xplist(0),
+      xrdlen(0)
 {
-   char *plist, *colon;
+   char *plist, *base, *colon;
 
    if (!(xrootd = getenv("XROOTDSERVER")) || !*xrootd) xrootd = 0;
       else xrdlen = strlen(xrootd);
-   xplist = 0;
 
    if (!(plist = getenv("XROOTDPATH")) || !*plist) return;
-   plist = strdup(plist);
+   base = plist = strdup(plist);
 
-   do {if ((colon = index((const char *)plist, (int)':'))) *colon = '\0';
+   do {if ((colon = index(plist, (int)':'))) *colon = '\0';
        if (colon != plist) xplist = new struct xpath(xplist, plist);
        plist = colon+1;
       } while(colon);
+   free(base);
 }
 
 /******************************************************************************/
@@ -336,7 +339,7 @@ int XrdPosix_Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 // Return result of readdir
 //
    return (Xroot.isXrootdDir(dirp) ? 
-	   Xroot.Readdir_r(dirp,entry,result) : readdir_r(dirp,entry,result));
+           Xroot.Readdir_r(dirp,entry,result) : readdir_r(dirp,entry,result));
 }
 
 /******************************************************************************/
