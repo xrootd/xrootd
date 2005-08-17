@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS sites (
 
 # one row per minute, keeps last 60 minutes
 CREATE TABLE IF NOT EXISTS statsLastHour (
-  seqNo         TINYINT UNSIGNED NOT NULL,
+  seqNo         SMALLINT UNSIGNED NOT NULL,
   siteId        TINYINT UNSIGNED NOT NULL,
   date          DATETIME,
   noJobs        MEDIUMINT UNSIGNED,
