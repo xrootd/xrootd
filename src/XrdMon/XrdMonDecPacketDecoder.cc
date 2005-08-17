@@ -221,7 +221,7 @@ XrdMonDecPacketDecoder::decodeOpen(const char* packet,
     kXR_unt32 dictId = ntohl(trace.arg2.dictid);
     // mask needed to hide id[0] value which is stored
     // in the top most byte
-    kXR_int64 maskHBO = 0x00ffffffffffffffl;
+    kXR_int64 maskHBO = sizeof(kXR_int64)==4 ? 0x00ffffff : 0x00ffffffffffffffl;
     kXR_int64 maskNBO = 0;
     h2nll(maskHBO, maskNBO);
     kXR_int64 maskedVal = trace.arg0.val & maskNBO;
