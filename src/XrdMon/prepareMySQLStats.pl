@@ -65,12 +65,13 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
     print "Current time is $loadTime. Doing HOUR update (every minute)\n";
 
     $loadTime = &gmtimestamp();
-    my $sec   = (gmtime)[0];
-    my $min   = (gmtime)[1];
-    my $hour  = (gmtime)[2];
-    my $day   = (gmtime)[3];
-    my $wday  = (gmtime)[6];
-    my $yday  = (gmtime)[7];
+    my @gmt   = gmtime($t);
+    my $sec   = $gmt[0];
+    my $min   = $gmt[1];
+    my $hour  = $gmt[2];
+    my $day   = $gmt[3];
+    my $wday  = $gmt[6];
+    my $yday  = $gmt[7];
     foreach $siteName (@siteNames) {
 	&prepareStats4OneSite($siteName, 
 			      $loadTime,

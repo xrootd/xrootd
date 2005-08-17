@@ -33,8 +33,8 @@ while ( $_ = <INFILE> ) {
 	$dbName = $v1;
     } elsif ( $token =~ "MySQLUser:" ) {
 	$mySQLUser = $v1;
-    } elsif ( $token =~ "baseDir:" ) {
-	$baseDir = $v1;
+    } elsif ( $token =~ "inputDir:" ) {
+	$inputDir = $v1;
     } elsif ( $token =~ "jrnlDir:" ) {
 	$jrnlDir = $v1;
     } elsif ( $token =~ "backupDir:" ) {
@@ -51,7 +51,6 @@ close INFILE;
 
 # do the necessary one-time initialization
 
-$jrnlDir = $jrnlDir/jrnl_$dbName;
 if ( ! -d $jrnlDir ) { 
     mkdir $jrnlDir;
 }
@@ -67,7 +66,7 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
 
 @siteNames = &runQueryRetArray("SELECT name FROM sites");
 foreach $siteName (@siteNames) {
-    my $inFN = "$baseDir/$siteName.ascii";
+    my $inFN = "$inputDir/$siteName.ascii";
     if ( -l $inFN ) {
         $siteInputFiles{$siteName} = readlink $inFN;
     } elsif ( -e  $inFN ) {
