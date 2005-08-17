@@ -78,11 +78,11 @@ foreach $siteName (@siteNames) {
     ($siteIds{$siteName}, $backupInts{$siteName}) = &runQueryWithRet("SELECT id, backupInt 
                                             FROM sites 
                                             WHERE name = \"$siteName\"");
-    if ( ! -d $jnlDir/$siteName ) { 
-        mkdir $jnlDir/$siteName;
+    if ( ! -d "$jnlDir/$siteName" ) { 
+        mkdir "$jnlDir/$siteName";
     }
-    if ( ! -d $backupDir/$siteName ) { 
-        mkdir $backupDir/$siteName;
+    if ( ! -d "$backupDir/$siteName" ) { 
+        mkdir "$backupDir/$siteName";
     }
 }
 
@@ -192,13 +192,13 @@ sub loadOneSite() {
             return 0;
         }
         # make a backup of the input file and move it to jrnl directory
-        $nextBackup = &runQueryWithRet("SELECT DATE_ADD(backupTime, INTERVAL 'backupInt')
-                                          FROM sites
-                                         WHERE site = $siteName");
+        $nextBackup = &runQueryWithRet("SELECT DATE_ADD(backupTime, INTERVAL $backupInt)
+                                        FROM sites
+                                        WHERE name = '$siteName'");
         if ( $loadTime ge $nextBackup ) {
-             &runQuery("UPDATE site
-                           SET backupTime = \"$nextBackup\"
-                         WHERE site = $siteName");
+             &runQuery("UPDATE sites
+                        SET backupTime = \"$nextBackup\"
+                        WHERE name = '$siteName'");
                            
              ($bkupdate, $bkuptime) = split / /, "$loadTime";
              $backupFile = "$backupDir/$siteName/${siteName}-${bkupdate}-${bkuptime}-GMT.backup";
