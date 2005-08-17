@@ -31,9 +31,10 @@ char  *Lookup(int mnum)
                              ? 0 : msg_text[mnum - base_msgnum]);
              }
        XrdOucError_Table(int base, int last, const char **text)
-                  {base_msgnum = base; last_msgnum = last; msg_text = text;
-                   next = 0;
-                  }
+                        : next(0),
+                          base_msgnum(base),
+                          last_msgnum(last),
+                          msg_text(text) {}
       ~XrdOucError_Table() {}
 
 private:
@@ -66,8 +67,11 @@ class XrdOucError
 {
 public:
          XrdOucError(XrdOucLogger *lp, const char *ErrPrefix="oouc")
-                   {SetPrefix(ErrPrefix); Logger=lp; msgMask = -1;
-                   }
+                    : epfx(0),
+                      epfxlen(0),
+                      msgMask(-1),
+                      Logger(lp)
+                    { SetPrefix(ErrPrefix); }
 
         ~XrdOucError() {}
 
@@ -103,10 +107,10 @@ void Emsg(const char *esfx, const char *text1,
 
 // <datetime> <epfx><esfx>: <text1> <text2> <text3>
 //
-inline void Log(const int mask, const char *esfx, 
-                                const char *text1,
-                                const char *text2=0,
-                                const char *text3=0)
+inline void Log(int mask, const char *esfx, 
+                          const char *text1,
+                          const char *text2=0,
+                          const char *text3=0)
                {if (mask & msgMask) Emsg(esfx, text1, text2, text3);}
 
 // logger() sets/returns the logger object for this message message handler.
@@ -128,9 +132,9 @@ void setMsgMask(int mask) {msgMask = mask;}
 // SetPrefix() dynamically changes the error prefix
 //
 inline const char *SetPrefix(const char *prefix)
-                        {char *oldpfx = (char *)epfx;
+                        {const char *oldpfx = epfx;
                          epfx = prefix; epfxlen = strlen(epfx);
-                         return (const char *)oldpfx;
+                         return oldpfx;
                         }
 
 // TBeg() is used to start a trace on ostream cerr. The TEnd() ends the trace.

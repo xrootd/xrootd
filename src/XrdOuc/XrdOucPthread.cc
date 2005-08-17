@@ -74,7 +74,7 @@ void *XrdOucThread_Xeq(void *myargs)
    numMutex.Lock(); threadNum++; myNum = threadNum; numMutex.UnLock();
 #endif
 
-   pthread_setspecific(ap->numKey, (const void *)myNum);
+   pthread_setspecific(ap->numKey, reinterpret_cast<const void *>(myNum));
    if (ap->eDest && ap->tDesc)
       ap->eDest->Emsg("Xeq", ap->tDesc, "thread started");
    retc = ap->proc(ap->arg);
@@ -268,7 +268,8 @@ int XrdOucThread::Run(pthread_t *tid, void *(*proc)(void *), void *arg,
       pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
    if (stackSize)
        pthread_attr_setstacksize(&tattr, stackSize);
-   return pthread_create(tid, &tattr, XrdOucThread_Xeq, (void *)myargs);
+   return pthread_create(tid, &tattr, XrdOucThread_Xeq,
+   			 static_cast<void *>(myargs));
 }
 
 /******************************************************************************/
@@ -278,7 +279,7 @@ int XrdOucThread::Run(pthread_t *tid, void *(*proc)(void *), void *arg,
 int XrdOucThread::Wait(pthread_t tid)
 {
    int retc, *tstat;
-   if ((retc = pthread_join(tid, (void **)&tstat))) return retc;
+   if ((retc = pthread_join(tid, reinterpret_cast<void **>(&tstat)))) return retc;
    return *tstat;
 }
 
