@@ -70,11 +70,10 @@ foreach $siteName (@siteNames) {
     my $inFN = "$inputDir/$siteName.ascii";
     if ( -l $inFN ) {
         $link = readlink $inFN;
-        $ch1 = substr $link, 0, 1;
-        if ( $ch1 =~ "." ) {
-             $siteInputFiles{$siteName} = "$inputDir/$link";
-        } else {
+        if ( $link =~ "^/" ) {
              $siteInputFiles{$siteName} = $link;
+        } else {
+             $siteInputFiles{$siteName} = "$inputDir/$link";
         }
         if ( ! -e $siteInputFiles{$siteName} ) {
              print "Input file $siteInputFiles{$siteName} does not exist \n";
