@@ -51,7 +51,6 @@ close INFILE;
 
 # do the necessary one-time initialization
 
-$jrnlDir = $jrnlDir;
 if ( ! -d $jrnlDir ) { 
     mkdir $jrnlDir;
 }
@@ -70,7 +69,6 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
 foreach $siteName (@siteNames) {
     my $inFN = "$inputDir/$siteName.ascii";
     if ( -l $inFN ) {
-        $siteInputFiles{$siteName} = readlink $inFN;
         $link = readlink $inFN;
         $ch1 = substr $link, 0, 1;
         if ( $ch1 =~ "." ) {
@@ -79,7 +77,7 @@ foreach $siteName (@siteNames) {
              $siteInputFiles{$siteName} = $link;
         }
         if ( ! -e $siteInputFiles{$siteName} ) {
-             print "Input file$siteInputFiles{$siteName} does not exist \n";
+             print "Input file $siteInputFiles{$siteName} does not exist \n";
              exit;
         }
     } elsif ( -e  $inFN ) {
