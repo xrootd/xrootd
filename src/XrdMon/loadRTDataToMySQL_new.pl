@@ -33,10 +33,10 @@ while ( $_ = <INFILE> ) {
 	$dbName = $v1;
     } elsif ( $token =~ "MySQLUser:" ) {
 	$mySQLUser = $v1;
-    } elsif ( $token =~ "inputDir:" ) {
-	$inputDir = $v1;
-    } elsif ( $token =~ "jnlDir:" ) {
-	$jnlDir = $v1;
+    } elsif ( $token =~ "baseDir:" ) {
+	$baseDir = $v1;
+    } elsif ( $token =~ "jrnlDir:" ) {
+	$jrnlDir = $v1;
     } elsif ( $token =~ "backupDir:" ) {
 	$backupDir = $v1;
     } elsif ( $token =~ "backupInt:" ) {
@@ -51,8 +51,9 @@ close INFILE;
 
 # do the necessary one-time initialization
 
-if ( ! -d $jnlDir ) { 
-    mkdir $jnlDir;
+$jrnlDir = $jrnlDir/jrnl_$dbName;
+if ( ! -d $jrnlDir ) { 
+    mkdir $jrnlDir;
 }
 
 if ( ! -d $backupDir ) {
@@ -66,7 +67,7 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
 
 @siteNames = &runQueryRetArray("SELECT name FROM sites");
 foreach $siteName (@siteNames) {
-    my $inFN = "$inputDir/$siteName.ascii";
+    my $inFN = "$baseDir/$siteName.ascii";
     if ( -l $inFN ) {
         $siteInputFiles{$siteName} = readlink $inFN;
     } elsif ( -e  $inFN ) {
@@ -78,11 +79,11 @@ foreach $siteName (@siteNames) {
     ($siteIds{$siteName}, $backupInts{$siteName}) = &runQueryWithRet("SELECT id, backupInt 
                                             FROM sites 
                                             WHERE name = \"$siteName\"");
-    if ( ! -d "$jnlDir/$siteName" ) { 
-        mkdir "$jnlDir/$siteName";
+    if ( ! -d $jrnlDir/$siteName ) { 
+        mkdir $jrnlDir/$siteName;
     }
-    if ( ! -d "$backupDir/$siteName" ) { 
-        mkdir "$backupDir/$siteName";
+    if ( ! -d $backupDir/$siteName ) { 
+        mkdir $backupDir/$siteName;
     }
 }
 
@@ -123,21 +124,21 @@ sub recover {
     # recover data for each site
     my $nr = 0;
     foreach $siteName (@siteNames) {
-        my $inFN = "$jnlDir/$siteName/$siteName.ascii";
+        my $inFN = "$jrnlDir/$siteName/$siteName.ascii";
         # recover u/o/d/c files BUT NOT if inout file exists in jrnl directory
         # since they will be remade when doLoading is first called
         if ( ! -e $inFN ) {
              print "Checking for pending u/o/d/c files for $siteName \n";
-             if ( -e  "$jnlDir/$siteName/ufile.ascii" ) {
+             if ( -e  "$jrnlDir/$siteName/ufile.ascii" ) {
                 &loadOpenSession($siteName);
              }
-             if ( -e  "$jnlDir/$siteName/ofile.ascii" ) {
+             if ( -e  "$jrnlDir/$siteName/ofile.ascii" ) {
                 &loadOpenFile($siteName);
              }
-             if ( -e  "$jnlDir/$siteName/dfile.ascii" ) {
+             if ( -e  "$jrnlDir/$siteName/dfile.ascii" ) {
                 &loadCloseSession($siteName);
              }
-             if ( -e  "$jnlDir/$siteName/cfile.ascii" ) {
+             if ( -e  "$jrnlDir/$siteName/cfile.ascii" ) {
                 &loadCloseFile($siteName);
              }
          }
@@ -181,7 +182,7 @@ sub loadOneSite() {
     my $backupInt = $backupInts{$siteName};
 
     # use the input file only if there is none in jrnl directory after a crash
-    if ( ! -e "$jnlDir/$siteName/$siteName.ascii" ) {
+    if ( ! -e "$jrnlDir/$siteName/$siteName.ascii" ) {
 
         if ( ! -e $inFN ) {
             print "File $inFN does not exist\n";
@@ -192,13 +193,13 @@ sub loadOneSite() {
             return 0;
         }
         # make a backup of the input file and move it to jrnl directory
-        $nextBackup = &runQueryWithRet("SELECT DATE_ADD(backupTime, INTERVAL $backupInt)
-                                        FROM sites
-                                        WHERE name = '$siteName'");
+        $nextBackup = &runQueryWithRet("SELECT DATE_ADD(backupTime, INTERVAL 'backupInt')
+                                          FROM sites
+                                         WHERE site = $siteName");
         if ( $loadTime ge $nextBackup ) {
-             &runQuery("UPDATE sites
-                        SET backupTime = \"$nextBackup\"
-                        WHERE name = '$siteName'");
+             &runQuery("UPDATE site
+                           SET backupTime = \"$nextBackup\"
+                         WHERE site = $siteName");
                            
              ($bkupdate, $bkuptime) = split / /, "$loadTime";
              $backupFile = "$backupDir/$siteName/${siteName}-${bkupdate}-${bkuptime}-GMT.backup";
@@ -206,23 +207,23 @@ sub loadOneSite() {
         } else {
              $backupFile = $backupFiles{$siteName}
         }
-        `touch $backupFile; cat $inFN >> $backupFile; mv $inFN $jnlDir/$siteName/$siteName.ascii`;
+        `touch $backupFile; cat $inFN >> $backupFile; mv $inFN $jrnlDir/$siteName/$siteName.ascii`;
 
         # unlock the lock file
         unlockTheFile($lockF);
     }    
 
-    $inFN  = "$jnlDir/$siteName/$siteName.ascii";
+    $inFN  = "$jrnlDir/$siteName/$siteName.ascii";
     # open the input file for reading
     unless ( open INFILE, "< $inFN" ) {
 	print "Can't open file $inFN for reading\n";
 	return 0;
     }
     # read the file, sort the data, close the file
-    open OFILE, ">$jnlDir/$siteName/ofile.ascii" or die "can't open ofile.ascii for write: $!";
-    open UFILE, ">$jnlDir/$siteName/ufile.ascii" or die "can't open ufile.ascii for write: $!";
-    open DFILE, ">$jnlDir/$siteName/dfile.ascii" or die "can't open dfile.ascii for write: $!";
-    open CFILE, ">$jnlDir/$siteName/cfile.ascii" or die "can't open cfile.ascii for write: $!";
+    open OFILE, ">$jrnlDir/$siteName/ofile.ascii" or die "can't open ofile.ascii for write: $!";
+    open UFILE, ">$jrnlDir/$siteName/ufile.ascii" or die "can't open ufile.ascii for write: $!";
+    open DFILE, ">$jrnlDir/$siteName/dfile.ascii" or die "can't open dfile.ascii for write: $!";
+    open CFILE, ">$jrnlDir/$siteName/cfile.ascii" or die "can't open cfile.ascii for write: $!";
     print "Sorting...\n";
     my $nr = 0;
     while ( <INFILE> ) {
@@ -275,8 +276,8 @@ sub loadOpenSession() {
     my ($siteName) = @_;
 
     print "Loading open sessions...\n";
-    my $mysqlIn = "$jnlDir/$siteName/mysqlin.u";
-    my $inFile = "$jnlDir/$siteName/ufile.ascii";
+    my $mysqlIn = "$jrnlDir/$siteName/mysqlin.u";
+    my $inFile = "$jrnlDir/$siteName/ufile.ascii";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
     my $rows = 0;
@@ -305,8 +306,8 @@ sub loadCloseSession() {
     my ($siteName) = @_;
 
     print "Loading closed sessions... \n";
-    my $mysqlIn = "$jnlDir/$siteName/mysqlin.d";
-    my $inFile = "$jnlDir/$siteName/dfile.ascii";
+    my $mysqlIn = "$jrnlDir/$siteName/mysqlin.d";
+    my $inFile = "$jrnlDir/$siteName/dfile.ascii";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
     my $rows = 0;
@@ -375,8 +376,8 @@ sub loadOpenFile() {
     my ($siteName) = @_;
 
     print "Loading opened files...\n";
-    my $mysqlIn = "$jnlDir/$siteName/mysqlin.o";
-    my $inFile = "$jnlDir/$siteName/ofile.ascii";
+    my $mysqlIn = "$jrnlDir/$siteName/mysqlin.o";
+    my $inFile = "$jrnlDir/$siteName/ofile.ascii";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
     my $rows = 0;
@@ -424,8 +425,8 @@ sub loadCloseFile() {
     my ($siteName) = @_;
 
     print "Loading closed files... \n";
-    my $mysqlIn = "$jnlDir/$siteName/mysqlin.c";
-    my $inFile = "$jnlDir/$siteName/cfile.ascii";
+    my $mysqlIn = "$jrnlDir/$siteName/mysqlin.c";
+    my $inFile = "$jrnlDir/$siteName/cfile.ascii";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
     my $rows = 0;
