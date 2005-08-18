@@ -65,26 +65,45 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
     return;
 }
 
+
 @siteNames = &runQueryRetArray("SELECT name FROM sites");
 foreach $siteName (@siteNames) {
     my $inFN = "$inputDir/$siteName.ascii";
     if ( -l $inFN ) {
         $siteInputFiles{$siteName} = readlink $inFN;
+        $link = readlink $inFN;
+        $ch1 = substr $link, 0, 1;
+        if ( $ch1 =~ "." ) {
+             $siteInputFiles{$siteName} = "$inputDir/$link";
+        } else {
+             $siteInputFiles{$siteName} = $link;
+        }
+        if ( ! -e $siteInputFiles{$siteName} ) {
+             print "Input file$siteInputFiles{$siteName} does not exist \n";
+             exit;
+        }
     } elsif ( -e  $inFN ) {
         $siteInputFiles{$siteName} = $inFN;
     } else {
         print "Need to supply input file or link to it for site $siteName\n";
         exit;
     }
-    ($siteIds{$siteName}, $backupInts{$siteName}) = &runQueryWithRet("SELECT id, backupInt 
-                                            FROM sites 
+    ($siteIds{$siteName}, $backupInts{$siteName}, $backupTime) = 
+                         &runQueryWithRet("SELECT id, backupInt, backupTime
+                                             FROM sites 
                                             WHERE name = \"$siteName\"");
+   
     if ( ! -d "$jrnlDir/$siteName" ) { 
         mkdir "$jrnlDir/$siteName";
     }
     if ( ! -d "$backupDir/$siteName" ) { 
         mkdir "$backupDir/$siteName";
     }
+
+    ($bkupdate, $bkuptime) = split / /, "$backupTime";
+    $backupFile = "$backupDir/$siteName/${siteName}-${bkupdate}-${bkuptime}-GMT.backup";
+    $backupFiles{$siteName} = $backupFile
+
 }
 
 $dbh->disconnect();
@@ -184,8 +203,8 @@ sub loadOneSite() {
     # use the input file only if there is none in jrnl directory after a crash
     if ( ! -e "$jrnlDir/$siteName/$siteName.ascii" ) {
 
-        if ( ! -e $inFN ) {
-            print "File $inFN does not exist\n";
+        if ( ! -e $inFN || -z $inFN  ) {
+            print "File $inFN does not exist or is empty \n";
        	    return 0;
         }
         # lock the file
@@ -198,7 +217,7 @@ sub loadOneSite() {
                                         WHERE name = '$siteName'");
         if ( $loadTime ge $nextBackup ) {
              &runQuery("UPDATE sites
-                        SET backupTime = \"$nextBackup\"
+                        SET backupTime = \"$loadTime\"
                         WHERE name = '$siteName'");
                            
              ($bkupdate, $bkuptime) = split / /, "$loadTime";
@@ -299,6 +318,7 @@ sub loadOpenSession() {
     &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
                INTO TABLE ${siteName}_openedSessions");
     print "... $rows rows loaded \n";
+    `rm $mysqlIn $inFile`;
 }
 
 
@@ -369,6 +389,7 @@ sub loadCloseSession() {
 #              INTO TABLE ${siteName}_closedSessions_LastYear ");
 
     print "$rows rows loaded \n";
+    `rm $mysqlIn $inFile`;
 }
 
 
@@ -418,6 +439,7 @@ sub loadOpenFile() {
 #   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
 #              INTO TABLE ${siteName}_openedFiles");
     print "$rows rows loaded \n";
+    `rm $mysqlIn $inFile`;
 
 }
 
@@ -488,6 +510,7 @@ sub loadCloseFile() {
 #   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
 #              INTO TABLE ${siteName}_closedFiles_LastYear");
     print "$rows rows loaded \n";
+    `rm $mysqlIn $inFile`;
 }
 
 sub findSessionId() {
