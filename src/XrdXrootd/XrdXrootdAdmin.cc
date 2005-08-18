@@ -261,8 +261,8 @@ int XrdXrootdAdmin::do_Lsd()
 {
    const char *fmt1 = "<resp id=\"%s\"><rc>0</rc>";
    const char *fmt2 = "<c r=\"%c\" t=\"%lld\" v=\"%d\" m=\"%s\">";
-   const char *fmt2a= "<io u=\"%d\"><nf>%d</nf><p>%lld<n>%d></n></p>"
-                      "<i>%lld<n>%d></n></i><o>%lld<n>%d</n></o>"
+   const char *fmt2a= "<io u=\"%d\"><nf>%d</nf><p>%lld<n>%d</n></p>"
+                      "<i>%lld<n>%d</n></i><o>%lld<n>%d</n></o>"
                       "<s>%d</s><t>%d</t></io>";
    const char *fmt3 = "<auth p=\"%s\"><n>";
    const char *fmt3e= "</r></auth>";
