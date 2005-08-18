@@ -34,7 +34,7 @@ while ( $_ = <INFILE> ) {
     } elsif ( $token =~ "MySQLUser:" ) {
 	$mySQLUser = $v1;
     } elsif ( $token =~ "inputDir:" ) {
-	$baseDir = $v1;
+	$inputDir = $v1;
     } elsif ( $token =~ "jrnlDir:" ) {
 	$jrnlDir = $v1;
     } elsif ( $token =~ "backupDir:" ) {
@@ -51,7 +51,7 @@ close INFILE;
 
 # do the necessary one-time initialization
 
-$jrnlDir = $jrnlDir/jrnl_$dbName;
+$jrnlDir = $jrnlDir;
 if ( ! -d $jrnlDir ) { 
     mkdir $jrnlDir;
 }
@@ -67,7 +67,7 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
 
 @siteNames = &runQueryRetArray("SELECT name FROM sites");
 foreach $siteName (@siteNames) {
-    my $inFN = "$baseDir/$siteName.ascii";
+    my $inFN = "$inputDir/$siteName.ascii";
     if ( -l $inFN ) {
         $siteInputFiles{$siteName} = readlink $inFN;
     } elsif ( -e  $inFN ) {
@@ -79,11 +79,11 @@ foreach $siteName (@siteNames) {
     ($siteIds{$siteName}, $backupInts{$siteName}) = &runQueryWithRet("SELECT id, backupInt 
                                             FROM sites 
                                             WHERE name = \"$siteName\"");
-    if ( ! -d $jrnlDir/$siteName ) { 
-        mkdir $jrnlDir/$siteName;
+    if ( ! -d "$jrnlDir/$siteName" ) { 
+        mkdir "$jrnlDir/$siteName";
     }
-    if ( ! -d $backupDir/$siteName ) { 
-        mkdir $backupDir/$siteName;
+    if ( ! -d "$backupDir/$siteName" ) { 
+        mkdir "$backupDir/$siteName";
     }
 }
 
@@ -193,13 +193,13 @@ sub loadOneSite() {
             return 0;
         }
         # make a backup of the input file and move it to jrnl directory
-        $nextBackup = &runQueryWithRet("SELECT DATE_ADD(backupTime, INTERVAL 'backupInt')
-                                          FROM sites
-                                         WHERE site = $siteName");
+        $nextBackup = &runQueryWithRet("SELECT DATE_ADD(backupTime, INTERVAL $backupInt)
+                                        FROM sites
+                                        WHERE name = '$siteName'");
         if ( $loadTime ge $nextBackup ) {
-             &runQuery("UPDATE site
-                           SET backupTime = \"$nextBackup\"
-                         WHERE site = $siteName");
+             &runQuery("UPDATE sites
+                        SET backupTime = \"$nextBackup\"
+                        WHERE name = '$siteName'");
                            
              ($bkupdate, $bkuptime) = split / /, "$loadTime";
              $backupFile = "$backupDir/$siteName/${siteName}-${bkupdate}-${bkuptime}-GMT.backup";
