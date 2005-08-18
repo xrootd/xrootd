@@ -55,23 +55,32 @@ $dbh->disconnect();
 #start an infinite loop
 while ( 1 ) {
 
-# connect to the database
-unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
-    print "Error while connecting to database. $DBI::errstr\n";
-    exit;
-}
+    # connect to the database
+    unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+	print "Error while connecting to database. $DBI::errstr\n";
+	exit;
+    }
 
     my $loadTime = &timestamp();
     print "Current time is $loadTime. Doing HOUR update (every minute)\n";
 
     $loadTime = &gmtimestamp();
-    my @gmt   = gmtime($t);
+    my @gmt   = gmtime(time());
     my $sec   = $gmt[0];
     my $min   = $gmt[1];
     my $hour  = $gmt[2];
     my $day   = $gmt[3];
     my $wday  = $gmt[6];
     my $yday  = $gmt[7];
+
+    # create temporary tables for topPerformers
+    &runQuery("CREATE TEMPORARY TABLE jj  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE ff  (theId INT, n INT, s INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE uu  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE vv  (theId INT, n INT, INDEX (theId))");
+    &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
+    @topPerfTables = ("jj", "ff", "uu", "vv", "xx");
+
     foreach $siteName (@siteNames) {
 	&prepareStats4OneSite($siteName, 
 			      $loadTime,
@@ -83,7 +92,7 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
 			      $yday);
     }
 
-$dbh->disconnect();
+    $dbh->disconnect();
 
     # wake up every minute at HH:MM:30
     my $sec2Sleep = 90 - $sec;
@@ -126,14 +135,15 @@ sub doInitialization() {
     &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB(NOW(), INTERVAL 30  DAY)");
     &runQuery("DELETE FROM statsLastYear  WHERE date < DATE_SUB(NOW(), INTERVAL 365 DAY)");
 
-
-    # create temporary tables for topPerformers
-    &runQuery("CREATE TEMPORARY TABLE jj  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE ff  (theId INT, n INT, s INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE uu  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE vv  (theId INT, n INT, INDEX (theId))");
-    &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
-    @topPerfTables = ("jj", "ff", "uu", "vv", "xx");
+    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour");
+    if ( $lastTime ) {
+	($lastNoJobs, $lastNoUsers, $lastNoUniqueF, $lastNoNonUniqueF) =
+	    &runQueryWithRet("SELECT noJobs,noUsers,noUniqueF,noNonUniqueF
+                              FROM   statsLastHour 
+                              WHERE  date = \"$lastTime\"");
+    } else { 
+         $lastNoJobs=$lastNoUsers=$lastNoUniqueF=$lastNoNonUniqueF=0;
+    }
 
     # some other stuff
     $bbkListSize = 250;
@@ -257,8 +267,7 @@ sub runQuery() {
 }
 
 sub timestamp() {
-    my $t      = time();
-    my @localt = localtime($t);
+    my @localt = localtime(time());
     my $sec    = $localt[0];
     my $min    = $localt[1];
     my $hour   = $localt[2];
@@ -272,8 +281,7 @@ sub timestamp() {
 
 
 sub gmtimestamp() {
-    my $t     = time();
-    my @gmt   = gmtime($t);
+    my @gmt   = gmtime(time());
     my $sec   = $gmt[0];
     my $min   = $gmt[1];
     my $hour  = $gmt[2];

@@ -340,7 +340,7 @@ sub loadCloseSession() {
 ##################################################################### TEMPORARY CODE
     &runQuery("CREATE TEMPORARY TABLE closedSessions LIKE SLAC_closedSessions");
     &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" INTO TABLE closedSessions");
-    &runQuery("UPDATE TABLE closedSessions SET disconnectT = CONVERT_TZ(disconnectT, \"$timeZones{$siteName}\", \"GMT\") ");
+    &runQuery("UPDATE closedSessions SET disconnectT = CONVERT_TZ(disconnectT, \"$timeZones{$siteName}\", \"GMT\") ");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastHour 
                     SELECT * FROM closedSessions                      ");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastDay
@@ -409,7 +409,7 @@ sub loadOpenFile() {
 ##################################################################### TEMPORARY CODE
     &runQuery("CREATE TEMPORARY TABLE openedFiles LIKE SLAC_openedFiles");
     &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" INTO TABLE openedFiles");
-    &runQuery("UPDATE TABLE openedFiles SET openT = CONVERT_TZ(openT, \"$timeZones{$siteName}\", \"GMT\") ");
+    &runQuery("UPDATE openedFiles SET openT = CONVERT_TZ(openT, \"$timeZones{$siteName}\", \"GMT\") ");
     &runQuery("INSERT IGNORE INTO ${siteName}_openedFiles
                     SELECT * FROM openedFiles                      ");
     &runQuery("DROP TABLE IF EXISTS openedFiles                    ");
@@ -457,8 +457,8 @@ sub loadCloseFile() {
 ##################################################################### TEMPORARY CODE
     &runQuery("CREATE TEMPORARY TABLE closedFiles LIKE SLAC_closedFiles");
     &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" INTO TABLE closedFiles");
-    &runQuery("UPDATE TABLE closedFiles SET openT  = CONVERT_TZ( openT, \"$timeZones{$siteName}\", \"GMT\") ");
-    &runQuery("UPDATE TABLE closedFiles SET closeT = CONVERT_TZ(closeT, \"$timeZones{$siteName}\", \"GMT\") ");
+    &runQuery("UPDATE closedFiles SET openT  = CONVERT_TZ( openT, \"$timeZones{$siteName}\", \"GMT\") ");
+    &runQuery("UPDATE closedFiles SET closeT = CONVERT_TZ(closeT, \"$timeZones{$siteName}\", \"GMT\") ");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles
                     SELECT * FROM closedFiles                      ");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastHour
@@ -651,8 +651,7 @@ sub runQuery() {
 }
 
 sub timestamp() {
-    my $t      = time();
-    my @localt = localtime($t);
+    my @localt = localtime(time());
     my $sec    = $localt[0];
     my $min    = $localt[1];
     my $hour   = $localt[2];
@@ -666,8 +665,7 @@ sub timestamp() {
 
 
 sub gmtimestamp() {
-    my $t     = time();
-    my @gmt   = gmtime($t);
+    my @gmt   = gmtime(time());
     my $sec   = $gmt[0];
     my $min   = $gmt[1];
     my $hour  = $gmt[2];
