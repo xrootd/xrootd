@@ -424,6 +424,9 @@ sub loadStatsAllYears() {
 }
 
 sub loadStatsLastPeriod() {
+    use vars qw($noJobs,  $noUsers,  $noUniqueF,  $noNonUniqueF,   
+                $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
+                $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF);
     my ($siteName, $sourceTable, $targetTable, $loadTime, $seqNo) = @_;
 
     my $siteId = $siteIds{$siteName};
@@ -431,14 +434,27 @@ sub loadStatsLastPeriod() {
     my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM $targetTable WHERE siteId = $siteId");    
     &runQuery("DELETE FROM $targetTable WHERE seqNo = $seqNo AND siteId = $siteId");
 
-    my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
-        $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-        $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
-      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                            FROM $sourceTable WHERE siteId = $siteId        AND
-                                                      date > \"$lastTime\"    ");
+    if ( $lastTime ) {
+        ($noJobs,  $noUsers,  $noUniqueF,  $noNonUniqueF, 
+         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
+         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
+        = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
+                                   MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
+                                   MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
+                              FROM $sourceTable 
+                             WHERE siteId = $siteId        AND
+                                     date > \"$lastTime\"     ");
+    } else {
+        ($noJobs,  $noUsers,  $noUniqueF,  $noNonUniqueF, 
+         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
+         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
+        = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
+                                   MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
+                                   MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
+                              FROM $sourceTable 
+                             WHERE siteId = $siteId ");
+    }
+
 
     &runQuery("INSERT INTO $targetTable
                           (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
