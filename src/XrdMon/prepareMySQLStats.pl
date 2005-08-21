@@ -116,17 +116,9 @@ while ( 1 ) {
 ###############################################################################
 
 sub doInitialization() {
-
+    use vars qw($lastTime  $siteId);
     $stopFName = "$confFile.stop";
     @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
-
-    # find all sites
-    @siteNames = &runQueryRetArray("SELECT name FROM sites");
-    foreach $siteName (@siteNames) {
-	$siteIds{$siteName} = &runQueryWithRet("SELECT id 
-                                                FROM sites 
-                                                WHERE name = \"$siteName\"");
-    }
 
     # cleanup old entries
     &runQuery("DELETE FROM statsLastHour  WHERE date < DATE_SUB(NOW(), INTERVAL  1 HOUR)");
@@ -135,14 +127,28 @@ sub doInitialization() {
     &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB(NOW(), INTERVAL 30  DAY)");
     &runQuery("DELETE FROM statsLastYear  WHERE date < DATE_SUB(NOW(), INTERVAL 365 DAY)");
 
-    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour");
-    if ( $lastTime ) {
-	($lastNoJobs, $lastNoUsers, $lastNoUniqueF, $lastNoNonUniqueF) =
-	    &runQueryWithRet("SELECT noJobs,noUsers,noUniqueF,noNonUniqueF
+
+    # find all sites
+    @siteNames = &runQueryRetArray("SELECT name FROM sites");
+    foreach $siteName (@siteNames) {
+	$siteId = &runQueryWithRet("SELECT id 
+                                      FROM sites 
+                                     WHERE name = \"$siteName\"");
+        $siteIds{$siteName} = $siteId;
+
+        $lastTime = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour
+                                       WHERE siteId = $siteId ");
+        if ( $lastTime ) {
+	     ($lastNoJobs[$siteId],    $lastNoUsers[$siteId], 
+              $lastNoUniqueF[$siteId], $lastNoNonUniqueF[$siteId]) 
+	      = &runQueryWithRet("SELECT noJobs,noUsers,noUniqueF,noNonUniqueF
                               FROM   statsLastHour 
-                              WHERE  date = \"$lastTime\"");
-    } else { 
-         $lastNoJobs=$lastNoUsers=$lastNoUniqueF=$lastNoNonUniqueF=0;
+                              WHERE  date   = \"$lastTime\"  AND
+                                     siteId = $siteId           ");
+        } else { 
+              $lastNoJobs[$siteId]=$lastNoUsers[$siteId]=0;
+              $lastNoUniqueF[$siteId]=$lastNoNonUniqueF[$siteId]=0;
+        }
     }
 
     # some other stuff
@@ -368,34 +374,35 @@ sub loadStatsLastHour() {
 
     my $siteId = $siteIds{$siteName};
 
-    &runQuery("DELETE FROM statsLastHour WHERE seqNo = $seqNo AND siteId = $siteId");
+    &runQuery("DELETE FROM statsLastHour WHERE seqNo = $seqNo   AND 
+                                              siteId = $siteId     ");
     ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT pId, clientHId), COUNT(DISTINCT userId) 
-                                            FROM ${siteName}_openedSessions");
+                                              FROM ${siteName}_openedSessions");
 
     ($noUniqueF, $noNonUniqueF) = &runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
-                                                    FROM ${siteName}_openedFiles");
+                                                      FROM ${siteName}_openedFiles");
     &runQuery("INSERT INTO statsLastHour 
-              (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
-              VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
+                      (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
+               VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
 
-    &runQuery("TRUNCATE TABLE rtChanges");
-    $deltaJobs = $noJobs - $lastNoJobs; 
-    $jobs_p = $lastNoJobs > 0 ? &roundoff( 100 * $deltaJobs / $lastNoJobs ) : -1;
-    $deltaUsers = $noUsers - $lastNoUsers;
-    $users_p = $lastNoUsers > 0 ? &roundoff( 100 * $deltaUsers / $lastNoUsers ) : -1;
-    $deltaUniqueF = $noUniqueF - $lastNoUniqueF;
-    $uniqueF_p = $lastNoUniqueF > 0 ? &roundoff( 100 * $deltaUniqueF / $lastNoUniqueF ) : -1;
-    $deltaNonUniqueF = $noNonUniqueF - $lastNoNonUniqueF;
-    $nonUniqueF_p = $lastNoNonUniqueF > 0 ? &roundoff( 100 * $deltaNonUniqueF / $lastNoNonUniqueF ) : -1;
+    &runQuery("DELETE FROM rtChanges WHERE siteId = $siteId");
+    $deltaJobs = $noJobs - $lastNoJobs[$siteId]; 
+    $jobs_p = $lastNoJobs[$siteId] > 0 ? &roundoff( 100 * $deltaJobs / $lastNoJobs[$siteId] ) : -1;
+    $deltaUsers = $noUsers - $lastNoUsers[$siteId];
+    $users_p = $lastNoUsers[$siteId] > 0 ? &roundoff( 100 * $deltaUsers / $lastNoUsers[$siteId] ) : -1;
+    $deltaUniqueF = $noUniqueF - $lastNoUniqueF[$siteId];
+    $uniqueF_p = $lastNoUniqueF[$siteId] > 0 ? &roundoff( 100 * $deltaUniqueF / $lastNoUniqueF[$siteId] ) : -1;
+    $deltaNonUniqueF = $noNonUniqueF - $lastNoNonUniqueF[$siteId];
+    $nonUniqueF_p = $lastNoNonUniqueF[$siteId] > 0 ? &roundoff( 100 * $deltaNonUniqueF / $lastNoNonUniqueF[$siteId] ) : -1;
     &runQuery("INSERT INTO rtChanges 
-                          (siteId, jobs, jobs_p, users, users_p, uniqueF, uniqueF_p, 
-                           nonUniqueF, nonUniqueF_p, lastUpdate)
-                   VALUES ($siteId, $deltaJobs, $jobs_p, $deltaUsers, $users_p, $deltaUniqueF,
-                           $uniqueF_p, $deltaNonUniqueF, $nonUniqueF_p, \"$loadTime\")");
-    $lastNoJobs = $noJobs;
-    $lastNoUsers = $noUsers;
-    $lastNoUniqueF = $noUniqueF;
-    $lastNoNonUniqueF = $noNonUniqueF;
+                           (siteId, jobs, jobs_p, users, users_p, uniqueF, uniqueF_p, 
+                            nonUniqueF, nonUniqueF_p, lastUpdate)
+                    VALUES ($siteId, $deltaJobs, $jobs_p, $deltaUsers, $users_p, $deltaUniqueF,
+                            $uniqueF_p, $deltaNonUniqueF, $nonUniqueF_p, \"$loadTime\")");
+    $lastNoJobs[$siteId]       = $noJobs;
+    $lastNoUsers[$siteId]      = $noUsers;
+    $lastNoUniqueF[$siteId]    = $noUniqueF;
+    $lastNoNonUniqueF[$siteId] = $noNonUniqueF;
 }
 
 
@@ -424,9 +431,9 @@ sub loadStatsAllYears() {
 }
 
 sub loadStatsLastPeriod() {
-    use vars qw($noJobs,  $noUsers,  $noUniqueF,  $noNonUniqueF,   
-                $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-                $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF);
+    use vars qw($noJobs   $noUsers   $noUniqueF   $noNonUniqueF    
+                $minJobs  $minUsers  $minUniqueF  $minNonUniqueF  
+                $maxJobs  $maxUsers  $maxUniqueF  $maxNonUniqueF);
     my ($siteName, $sourceTable, $targetTable, $loadTime, $seqNo) = @_;
 
     my $siteId = $siteIds{$siteName};
