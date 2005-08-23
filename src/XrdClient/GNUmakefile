@@ -78,7 +78,7 @@ LIBRARY = $(LIBDIR)/libXrdClient.a
 
 TESTBIN = $(BINDIR)/TestXrdClient $(BINDIR)/TestXrdClient_read
 XRDCP = $(BINDIR)/xrdcp
-XRDCLI = $(BINDIR)/xrdcli
+XRDCLI = $(BINDIR)/xrd
 
 PERLMOD =
 ifneq ($(PERLINC),)

@@ -46,7 +46,7 @@ class XrdClientString {
    // Various constructors
    XrdClientString() {
       Init();
-      Assign("");
+      Assign((char *)"");
    }
    XrdClientString(char *str) {
       Init();

@@ -258,7 +258,7 @@ int main(int argc, char**argv) {
 
 	 // Quite trivial directory processing
 	 if (!strcmp(parmname, "..")) {
-	    int pos = currentpath.RFind("/");
+	    int pos = currentpath.RFind((char *)"/");
 
 	    if (pos != STR_NPOS)
 	       currentpath.EraseToEnd(pos);
