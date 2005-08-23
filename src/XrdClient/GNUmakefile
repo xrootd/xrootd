@@ -70,7 +70,7 @@ OBJECTS = \
 OBJECTB = $(OBJDIR)/TestXrdClient.o $(OBJDIR)/XrdClientAdmin_c.o
 OBJECTC = $(OBJDIR)/Xrdcp.o
 OBJECTD = $(OBJDIR)/TestXrdClient_read.o
-
+OBJECT_CLI = $(OBJDIR)/XrdCommandLine.o
 OBJECTPERLMOD = $(OBJDIR)/XrdClientAdmin_c.o            \
                 $(OBJDIR)/XrdClientAdmin_c_wrap.o
 
@@ -78,13 +78,15 @@ LIBRARY = $(LIBDIR)/libXrdClient.a
 
 TESTBIN = $(BINDIR)/TestXrdClient $(BINDIR)/TestXrdClient_read
 XRDCP = $(BINDIR)/xrdcp
+XRDCLI = $(BINDIR)/xrdcli
+
 PERLMOD =
 ifneq ($(PERLINC),)
 PERLMOD = $(LIBDIR)/XrdClientAdmin.so
 endif
 
 
-TARGETS = $(LIBRARY) $(LIBAUX) $(TESTBIN) $(XRDCP)
+TARGETS = $(LIBRARY) $(LIBAUX) $(TESTBIN) $(XRDCP) $(XRDCLI)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -133,6 +135,10 @@ $(BINDIR)/TestXrdClient: $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 	@echo Creating executable $(XRDCP) 
 	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(BINLIBS) $(LIBS) -o $(XRDCP)
+
+$(XRDCLI): $(OBJECTS) $(OBJECT_CLI) $(LIBDEPS)
+	@echo Creating executable $(XRDCLI) 
+	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(BINLIBS) $(LIBS) -o $(XRDCLI)
 
 $(PERLMOD): $(OBJECTS) $(OBJECTC) $(OBJECTPERLMOD) $(LIBDEPS)
 	@echo Creating perl module library $(PERLMOD) 
@@ -438,6 +444,23 @@ $(OBJDIR)/Xrdcp.o: Xrdcp.cc ../XrdClient/XrdClientUrlInfo.hh \
   ../XrdClient/XrdCpWorkLst.hh ../XrdClient/XrdClientAdmin.hh
 	@echo Compiling Xrdcp.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/Xrdcp.o Xrdcp.cc
+
+$(OBJDIR)/XrdCommandLine.o: XrdCommandLine.cc ../XrdClient/XrdClientUrlInfo.hh \
+  ../XrdClient/XrdClientString.hh ../XrdOuc/XrdOucPthread.hh \
+  ../XrdOuc/XrdOucError.hh ../XrdClient/XrdClient.hh \
+  ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientUnsolMsg.hh \
+  ../XrdClient/XrdClientMessage.hh ../XrdClient/XrdClientProtocol.hh \
+  ../XProtocol/XProtocol.hh ../XProtocol/XPtypes.hh \
+  ../XrdClient/XrdClientSock.hh ../XrdClient/XrdClientConn.hh \
+  ../XrdClient/XrdClientConst.hh ../XrdClient/XrdClientReadCache.hh \
+  ../XrdClient/XrdClientInputBuffer.hh ../XrdOuc/XrdOucSemWait.hh \
+  ../XrdOuc/XrdOucHash.hh ../XrdOuc/XrdOucHash.icc \
+  ../XrdClient/XrdClientVector.hh  \
+  ../XrdClient/XrdClientDebug.hh ../XrdClient/XrdClientEnv.hh \
+  ../XrdOuc/XrdOucEnv.hh ../XrdOuc/XrdOucLogger.hh \
+  ../XrdClient/XrdClientAdmin.hh
+	@echo Compiling XrdCommandLine.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCommandLine.o XrdCommandLine.cc
 
 $(OBJDIR)/XrdClientEnv.o: XrdClientEnv.cc ../XrdClient/XrdClientConst.hh \
   ../XrdClient/XrdClientEnv.hh ../XrdOuc/XrdOucEnv.hh \
