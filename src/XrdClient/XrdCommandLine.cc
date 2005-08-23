@@ -249,7 +249,7 @@ int main(int argc, char**argv) {
       
       // -------------------------- cd ---------------------------
       if (!strcmp(cmd, "cd")) {
-	 char *parmname = tkzer.GetToken(0, 1);
+	 char *parmname = tkzer.GetToken(0, 0);
 
 	 if (!parmname || !strlen(parmname)) {
 	    cout << "A directory name is needed." << endl << endl;
@@ -277,7 +277,7 @@ int main(int argc, char**argv) {
 
       // -------------------------- envputint ---------------------------
       if (!strcmp(cmd, "envputint")) {
-	 char *parmname = tkzer.GetToken(0, 1),
+	 char *parmname = tkzer.GetToken(0, 0),
 	    *val = tkzer.GetToken(0, 1);
 
 	 if (!parmname || !val) {
@@ -292,7 +292,7 @@ int main(int argc, char**argv) {
 
       // -------------------------- envputstring ---------------------------
       if (!strcmp(cmd, "envputstring")) {
-	 char *parmname = tkzer.GetToken(0, 1),
+	 char *parmname = tkzer.GetToken(0, 0),
 	    *val = tkzer.GetToken(0, 1);
 
 	 if (!parmname || !val) {
@@ -357,7 +357,7 @@ int main(int argc, char**argv) {
 	    continue;
 	 }
 
-	 char *dirname = tkzer.GetToken(0, 1);
+	 char *dirname = tkzer.GetToken(0, 0);
 	 XrdClientString path;
 
 	 if (dirname)
