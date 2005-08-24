@@ -145,7 +145,7 @@ void PrintHelp() {
       "  tells if the specified file is online." << endl <<
       " mv <filename1> <filename2>" << endl <<
       "  moves filename1 to filename2 locally to the same server." << endl <<
-      " mkdir <dirname>" << endl <<
+      " mkdir <dirname> [user] [group] [other]" << endl <<
       "  creates a directory." << endl <<
       " chmod <fileordirname> <user> <group> <other>" << endl <<
       "  modifies file permissions." << endl <<
@@ -158,7 +158,8 @@ void PrintHelp() {
       " cat <filename> [xrdcp parameters]" << endl <<
       "  outputs a file on standard output using xrdcp. <filename> can be a root:// URL." << endl <<
       " cp <fileordirname> <fileordirname> [xrdcp parameters]" << endl <<
-      "  copies a file using xrdcp. <fileordirname> can be root:// URLs." << endl <<
+      "  copies a file using xrdcp. <fileordirname> are always relative to the" << endl <<
+      "  current remote path. Also, they can be root:// URLs specifying any other host." << endl <<
       endl <<
       "For further information, please read the xrootd protocol documentation." << endl <<
       endl;
