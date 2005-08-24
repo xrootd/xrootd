@@ -80,7 +80,7 @@ ALTER TABLE statsAllYears DROP COLUMN seqNo;
 
 # reflects changes since last entry, and last update
 CREATE TABLE IF NOT EXISTS rtChanges (
-  siteId        TINYINT UNSIGNED NOT NULL,
+  siteId        TINYINT UNSIGNED NOT NULL PRIMARY KEY,
   jobs          MEDIUMINT UNSIGNED,
   jobs_p        FLOAT,
   users         MEDIUMINT UNSIGNED,
