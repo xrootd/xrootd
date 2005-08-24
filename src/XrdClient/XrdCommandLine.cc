@@ -115,6 +115,7 @@ void PrintPrompt() {
 void PrintHelp() {
 
    cout << endl <<
+      XRDCLI_VERSION << endl << endl <<
       "List of available commands:" << endl <<
       " cd <dir name>" << endl <<
       "  changes the current directory" << endl <<
@@ -126,12 +127,40 @@ void PrintHelp() {
       " help" << endl <<
       "  this help screen." << endl <<
       " exit" << endl <<
-      "  exits from the program." << endl << endl <<
+      "  exits from the program." << endl <<
       " connect [hostname[:port]]" << endl <<
       "  connects to the specified host." << endl <<
       " dirlist [dirname]" << endl <<
-      "  gets the requested directory listing." << endl;
-
+      "  gets the requested directory listing." << endl <<
+      " stat [fileordirname]" << endl <<
+      "  gets info about the given file or directory path." << endl <<
+      " existfile <filename>" << endl <<
+      "  tells if the specified file exists." << endl <<
+      " existdir <dirname>" << endl <<
+      "  tells if the specified directory exists." << endl <<
+      " getchecksum <filename>" << endl <<
+      "  gets the checksum for the specified file." << endl <<
+      " isfileonline <filename>" << endl <<
+      "  tells if the specified file is online." << endl <<
+      " mv <filename1> <filename2>" << endl <<
+      "  moves filename1 to filename2 locally to the same server." << endl <<
+      " mkdir <dirname>" << endl <<
+      "  creates a directory." << endl <<
+      " chmod <fileordirname> <user> <group> <other>" << endl <<
+      "  modifies file permissions." << endl <<
+      " rm <filename>" << endl <<
+      "  removes a file." << endl <<
+      " rmdir <dirname>" << endl <<
+      "  removes a directory." << endl <<
+      " prepare <filename>" << endl <<
+      "  stages a file in." << endl <<
+      " cat <filename> [xrdcp parameters]" << endl <<
+      "  outputs a file on standard output using xrdcp. <filename> can be a root:// URL." << endl <<
+      " cp <fileordirname> <fileordirname> [xrdcp parameters]" << endl <<
+      "  copies a file using xrdcp. <fileordirname> can be root:// URLs." << endl <<
+      endl <<
+      "For further information, please read the xrootd protocol documentation." << endl <<
+      endl;
 
    cout << endl;
 }
@@ -219,7 +248,7 @@ int main(int argc, char**argv) {
 
    DebugSetLevel(EnvGetLong(NAME_DEBUG));
 
-   cout << endl << "Welcome to the xrootd command line interface." << endl <<
+   cout << XRDCLI_VERSION << endl << "Welcome to the xrootd command line interface." << endl <<
       "Type 'help' for a list of available commands." << endl;
 
 
@@ -360,8 +389,12 @@ int main(int argc, char**argv) {
 	 char *dirname = tkzer.GetToken(0, 0);
 	 XrdClientString path;
 
-	 if (dirname)
-	    path = currentpath + "/" + dirname;
+	 if (dirname) {
+	    if (dirname[0] == '/')
+	       path = dirname;
+	    else
+	       path = currentpath + "/" + dirname;
+	 }
 	 else path = currentpath;
 
 	 // Now try to issue the request
@@ -374,6 +407,438 @@ int main(int argc, char**argv) {
       
 	 for (int i = 0; i < vs.GetSize(); i++)
 	    cout << vs[i] << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- stat ---------------------------
+      if (!strcmp(cmd, "stat")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdClientString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else pathname = currentpath;
+
+	 // Now try to issue the request
+	 long id, flags, modtime;
+	 long long size;
+	 genadmin->Stat(pathname.c_str(), id, size, flags, modtime);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+      
+	 cout << "Id: " << id << " Size: " << size << " Flags: " << flags << " Modtime: " << modtime << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- ExistFile ---------------------------
+      if (!strcmp(cmd, "existfile")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdClientString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else pathname = currentpath;
+
+	 // Now try to issue the request
+	 vecBool vb;
+	 vecString vs;
+	 vs.Push_back(pathname);
+	 genadmin->ExistFiles(vs, vb);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+      
+	 if (vb[0])
+	    cout << "The file exists." << endl;
+	 else
+	    cout << "File not found." << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- ExistDir ---------------------------
+      if (!strcmp(cmd, "existdir")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdClientString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else pathname = currentpath;
+
+	 // Now try to issue the request
+	 vecBool vb;
+	 vecString vs;
+	 vs.Push_back(pathname);
+	 genadmin->ExistDirs(vs, vb);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+      
+	 if (vb[0])
+	    cout << "The directory exists." << endl;
+	 else
+	    cout << "Directory not found." << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+
+      // -------------------------- getchecksum ---------------------------
+      if (!strcmp(cmd, "getchecksum")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdClientString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 };
+
+	 // Now try to issue the request
+	 kXR_char *ans;
+
+	 genadmin->GetChecksum((kXR_char *)pathname.c_str(), &ans);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+
+	 cout << "Checksum: " << ans << endl;
+	 cout << endl;
+
+	 free(ans);
+
+	 continue;
+      }
+
+      // -------------------------- isfileonline ---------------------------
+      if (!strcmp(cmd, "isfileonline")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdClientString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	  else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+	 // Now try to issue the request
+	 vecBool vb;
+	 vecString vs;
+	 vs.Push_back(pathname);
+	 genadmin->IsFileOnline(vs, vb);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+      
+	 if (vb[0])
+	    cout << "The file is online." << endl;
+	 else
+	    cout << "The file is not online." << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- mv ---------------------------
+      if (!strcmp(cmd, "mv")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname1 = tkzer.GetToken(0, 0);
+	 char *fname2 = tkzer.GetToken(0, 0);
+	 XrdClientString pathname1, pathname2;
+
+	 if (fname1) {
+	    if (fname1[0] == '/')
+	       pathname1 = fname1;
+	    else
+	       pathname1 = currentpath + "/" + fname1;
+	 }
+	 else {
+	    cout << "Two parameters are mandatory." << endl;
+	    continue;
+	 }
+	 if (fname2) {
+	    if (fname2[0] == '/')
+	       pathname2 = fname2;
+	    else
+	       pathname2 = currentpath + "/" + fname2;
+	 }
+	 else {
+	    cout << "Two parameters are mandatory." << endl;
+	    continue;
+	 }
+
+	 // Now try to issue the request
+	 genadmin->Mv(pathname1.c_str(), pathname2.c_str());
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- mkdir ---------------------------
+      if (!strcmp(cmd, "mkdir")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname1 = tkzer.GetToken(0, 0);
+	 char *userc = tkzer.GetToken(0, 0);
+	 char *groupc = tkzer.GetToken(0, 0);
+	 char *otherc = tkzer.GetToken(0, 0);
+
+	 int user, group, other;
+	 if (userc) user = atoi(userc);
+	 if (groupc) group = atoi(groupc);
+	 if (otherc) other = atoi(otherc);
+
+	 XrdClientString pathname1;
+
+	 if (fname1) {
+	    if (fname1[0] == '/')
+	       pathname1 = fname1;
+	    else
+	       pathname1 = currentpath + "/" + fname1;
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+
+	 // Now try to issue the request
+	 genadmin->Mkdir(pathname1.c_str(), user, group, other);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- chmod ---------------------------
+      if (!strcmp(cmd, "chmod")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname1 = tkzer.GetToken(0, 0);
+	 char *userc = tkzer.GetToken(0, 0);
+	 char *groupc = tkzer.GetToken(0, 0);
+	 char *otherc = tkzer.GetToken(0, 0);
+
+	 int user = 0, group = 0, other = 0;
+	 if (userc) user = atoi(userc);
+	 if (groupc) group = atoi(groupc);
+	 if (otherc) other = atoi(otherc);
+
+	 XrdClientString pathname1;
+
+	 if (fname1) {
+	    if (fname1[0] == '/')
+	       pathname1 = fname1;
+	    else
+	       pathname1 = currentpath + "/" + fname1;
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+
+	 // Now try to issue the request
+	 genadmin->Chmod(pathname1.c_str(), user, group, other);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+
+	 cout << endl;
+	 continue;
+      }
+
+
+      // -------------------------- rm ---------------------------
+      if (!strcmp(cmd, "rm")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdClientString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+	 // Now try to issue the request
+	 genadmin->Rm(pathname.c_str());
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- rmdir ---------------------------
+      if (!strcmp(cmd, "rmdir")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdClientString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+	 // Now try to issue the request
+	 genadmin->Rmdir(pathname.c_str());
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+
+	 cout << endl;
+	 continue;
+      }
+
+
+      // -------------------------- prepare ---------------------------
+      if (!strcmp(cmd, "prepare")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname1 = tkzer.GetToken(0, 0);
+	 char *optsc = tkzer.GetToken(0, 0);
+	 char *prioc = tkzer.GetToken(0, 0);
+
+	 int opts, prio;
+	 if (optsc) opts = atoi(optsc);
+	 if (prioc) prio = atoi(prioc);
+
+	 XrdClientString pathname1;
+
+	 if (fname1) {
+	    if (fname1[0] == '/')
+	       pathname1 = fname1;
+	    else
+	       pathname1 = currentpath + "/" + fname1;
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+
+	 // Now try to issue the request
+	 vecString vs;
+	 vs.Push_back(pathname1);
+	 genadmin->Prepare(vs, (kXR_char)opts, (kXR_char)prio);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
 
 	 cout << endl;
 	 continue;
