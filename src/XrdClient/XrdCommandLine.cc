@@ -1,10 +1,11 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// xrdcp                                                                //
+// XrdCommandLine                                                       //
 //                                                                      //
-// Author: Fabrizio Furano (INFN Padova, 2004)                          //
+// Author: Fabrizio Furano (INFN Padova, 2005)                          //
 //                                                                      //
-// A cp-like command line tool for xrootd environments                  //
+// A command line tool for xrootd environments. The executable normally //
+// is named xrd.                                                        //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
@@ -253,8 +254,18 @@ int main(int argc, char**argv) {
 
 
 
-   if (initialhost)
-      genadmin = new XrdClientAdmin(initialhost);
+   if (initialhost) {
+      XrdClientString s = "root://";
+      s += initialhost;
+      s += "//dummy";
+      genadmin = new XrdClientAdmin(s.c_str());
+
+      // Then connect
+      if (!genadmin->Connect()) {
+	 delete genadmin;
+	 genadmin = 0;
+      }
+   }
 
    while(1) {
       char linebuf[4096];
@@ -839,6 +850,146 @@ int main(int argc, char**argv) {
 	 // Now check the answer
 	 if (!CheckAnswer(genadmin))
 	    continue;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- cat ---------------------------
+      if (!strcmp(cmd, "cat")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname1 = tkzer.GetToken(0, 0);
+	 char *tk;
+	 XrdClientString pars;
+
+	 while (tk = tkzer.GetToken(0, 0)) {
+	    pars += " ";
+	    pars += tk;
+	 }
+
+	 XrdClientString pathname1;
+
+	 if (fname1) {
+
+	    if (strstr(fname1, "root://") == fname1)
+	       pathname1 = fname1;
+	    else
+	       if (fname1[0] == '/') {
+		  pathname1 = "root://" + genadmin->GetCurrentUrl().HostWPort;
+		  pathname1 += "/";
+		  pathname1 += fname1;
+	       }
+	       else {
+		  pathname1 = "root://" + genadmin->GetCurrentUrl().HostWPort;
+		  pathname1 += "/";
+		  pathname1 += currentpath;
+		  pathname1 += "/";
+		  pathname1 += fname1;
+	       }
+
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+	 XrdClientString cmd;
+
+	 cmd = "xrdcp -s ";
+	 cmd += pathname1;
+	 cmd += pars;
+	 cmd += " -";
+
+	 int rt = system(cmd.c_str());
+
+	 cout << "cat returned " << rt << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- cp ---------------------------
+      if (!strcmp(cmd, "cp")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname1 = tkzer.GetToken(0, 0);
+	 char *fname2 = tkzer.GetToken(0, 0);
+	 char *tk;
+	 XrdClientString pars;
+
+	 while (tk = tkzer.GetToken(0, 0)) {
+	    pars += " ";
+	    pars += tk;
+	 }
+
+	 XrdClientString pathname1, pathname2;
+
+	 if (fname1) {
+
+	    if (strstr(fname1, "root://") == fname1)
+	       pathname1 = fname1;
+	    else
+	       if (fname1[0] == '/') {
+		  pathname1 = "root://" + genadmin->GetCurrentUrl().HostWPort;
+		  pathname1 += "/";
+		  pathname1 += fname1;
+	       }
+	       else {
+		  pathname1 = "root://" + genadmin->GetCurrentUrl().HostWPort;
+		  pathname1 += "/";
+		  pathname1 += currentpath;
+		  pathname1 += "/";
+		  pathname1 += fname1;
+	       }
+
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+	 if (fname2) {
+
+	    if (strstr(fname2, "root://") == fname2)
+	       pathname2 = fname2;
+	    else
+	       if (fname2[0] == '/') {
+		  pathname2 = "root://" + genadmin->GetCurrentUrl().HostWPort;
+		  pathname2 += "/";
+		  pathname2 += fname2;
+	       }
+	       else {
+		  pathname2 = "root://" + genadmin->GetCurrentUrl().HostWPort;
+		  pathname2 += "/";
+		  pathname2 += currentpath;
+		  pathname2 += "/";
+		  pathname2 += fname2;
+	       }
+
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+	 XrdClientString cmd;
+
+	 cmd = "xrdcp ";
+	 cmd += pathname1;
+	 cmd += " ";
+	 cmd += pathname2 + pars;
+
+	 int rt = system(cmd.c_str());
+
+	 cout << "cp returned " << rt << endl;
 
 	 cout << endl;
 	 continue;
