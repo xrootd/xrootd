@@ -125,11 +125,12 @@ sub doInitialization() {
     @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
 
     # cleanup old entries
-    &runQuery("DELETE FROM statsLastHour  WHERE date < DATE_SUB(NOW(), INTERVAL  1 HOUR)");
-    &runQuery("DELETE FROM statsLastDay   WHERE date < DATE_SUB(NOW(), INTERVAL  24 HOUR)");
-    &runQuery("DELETE FROM statsLastWeek  WHERE date < DATE_SUB(NOW(), INTERVAL 168 HOUR)");
-    &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB(NOW(), INTERVAL 30  DAY)");
-    &runQuery("DELETE FROM statsLastYear  WHERE date < DATE_SUB(NOW(), INTERVAL 365 DAY)");
+    $GMTnow = &gmtimestamp();
+    &runQuery("DELETE FROM statsLastHour  WHERE date < DATE_SUB($GMTnow, INTERVAL  1 HOUR)");
+    &runQuery("DELETE FROM statsLastDay   WHERE date < DATE_SUB($GMTnow, INTERVAL  24 HOUR)");
+    &runQuery("DELETE FROM statsLastWeek  WHERE date < DATE_SUB($GMTnow, INTERVAL 168 HOUR)");
+    &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB($GMTnow, INTERVAL 30  DAY)");
+    &runQuery("DELETE FROM statsLastYear  WHERE date < DATE_SUB($GMTnow, INTERVAL 365 DAY)");
 
 
     # find all sites
@@ -168,9 +169,9 @@ sub prepareStats4OneSite() {
 
     # every min at HH:MM:30
     &runQuery("DELETE FROM ${siteName}_closedSessions_LastHour  
-                     WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL  1 HOUR)");
+                     WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR)");
     &runQuery("DELETE FROM ${siteName}_closedFiles_LastHour     
-                     WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL  1 HOUR)");
+                     WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR)");
     &loadStatsLastHour($siteName, $loadTime, $min % 60);
     &loadTopPerfPast("Hour", 20, $siteName);
 
@@ -178,20 +179,20 @@ sub prepareStats4OneSite() {
     if ( $min == 0 || $min == 15 || $min == 30 || $min == 45 ) {
 	# every 15 min at HH:00:30, HH:15:30, HH:30:30, HH:45:30
         &runQuery("DELETE FROM ${siteName}_closedSessions_LastDay  
-                         WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL  1 DAY)");
+                         WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastDay     
-                         WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL  1 DAY)");
-	&loadStatsLastPeriod($siteName, statsLastHour, statsLastDay, $loadTime, $hour*4+$min/15);
+                         WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
+	&loadStatsLastPeriod($siteName, statsLastHour, statsLastDay, $loadTime, $hour*4+$min/15, 1);
 	&loadTopPerfPast("Day", 20, $siteName);
     }
 
     if ( $min == 5 ) {
 	# every hour at HH:05:30
         &runQuery("DELETE FROM ${siteName}_closedSessions_LastWeek  
-                         WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL  7 DAY)");
+                         WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastWeek     
-                         WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL  7 DAY)");
-	&loadStatsLastPeriod($siteName, statsLastHour, statsLastWeek, $loadTime, $wday*24+$hour);
+                         WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
+	&loadStatsLastPeriod($siteName, statsLastHour, statsLastWeek, $loadTime, $wday*24+$hour, 7);
 	&loadTopPerfPast("Week", 20, $siteName);
     }
 
@@ -199,20 +200,20 @@ sub prepareStats4OneSite() {
 	if ( $hour == 0 || $hour == 6 || $hour == 12 || $hour == 18 ) {
 	    # every 6 hours at 00:20:30, 06:20:30, 12:20:30, 18:20:30
             &runQuery("DELETE FROM ${siteName}_closedSessions_LastMonth  
-                             WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL 30 DAY)");
+                             WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 30 DAY)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastMonth     
-                             WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL 30 DAY)");
-	    &loadStatsLastPeriod($siteName, statsLastDay, statsLastMonth, $loadTime, $day*4+$hour/6);
+                             WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 30 DAY)");
+	    &loadStatsLastPeriod($siteName, statsLastDay, statsLastMonth, $loadTime, $day*4+$hour/6, 30);
 	    &loadTopPerfPast("Month", 20, $siteName);
 
 	}
 	if ( $hour == 23 ) {
 	    # every 24 hours at 23:20:30
             &runQuery("DELETE FROM ${siteName}_closedSessions_LastYear  
-                             WHERE disconnectT < DATE_SUB(\"loadTime\", INTERVAL 365 DAY)");
+                             WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 365 DAY)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastYear     
-                             WHERE      closeT < DATE_SUB(\"loadTime\", INTERVAL 365 DAY)");
-	    &loadStatsLastPeriod($siteName, statsLastDay, statsLastYear $loadTime, $yday);
+                             WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 365 DAY)");
+	    &loadStatsLastPeriod($siteName, statsLastDay, statsLastYear $loadTime, $yday, 365);
 	    &loadTopPerfPast("Year", 20, $siteName);
 	}
         if ( $hour == 1 && $wday == 1 ) {
@@ -378,8 +379,8 @@ sub loadStatsLastHour() {
 
     my $siteId = $siteIds{$siteName};
 
-    &runQuery("DELETE FROM statsLastHour WHERE seqNo = $seqNo   AND 
-                                              siteId = $siteId     ");
+    &runQuery("DELETE FROM statsLastHour WHERE date < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR) AND
+                                               siteId = $siteId     ");
     ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT pId, clientHId), COUNT(DISTINCT userId) 
                                               FROM ${siteName}_openedSessions");
 
@@ -437,12 +438,13 @@ sub loadStatsLastPeriod() {
     use vars qw($noJobs   $noUsers   $noUniqueF   $noNonUniqueF    
                 $minJobs  $minUsers  $minUniqueF  $minNonUniqueF  
                 $maxJobs  $maxUsers  $maxUniqueF  $maxNonUniqueF);
-    my ($siteName, $sourceTable, $targetTable, $loadTime, $seqNo) = @_;
+    my ($siteName, $sourceTable, $targetTable, $loadTime, $seqNo, $tableInt) = @_;
 
     my $siteId = $siteIds{$siteName};
 
     my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM $targetTable WHERE siteId = $siteId");    
-    &runQuery("DELETE FROM $targetTable WHERE seqNo = $seqNo AND siteId = $siteId");
+    &runQuery("DELETE FROM $targetTable WHERE date < DATE_SUB(\"$loadTime\", INTERVAL $tableInt DAY )  AND 
+                                              siteId = $siteId");
 
     if ( $lastTime ) {
         ($noJobs,  $noUsers,  $noUniqueF,  $noNonUniqueF, 
@@ -495,102 +497,81 @@ sub roundoff() {
 sub loadTopPerfPast() {
     my ($theKeyword, $theLimit, $siteName) = @_;
 
-    &runTopUsrFsQueriesPast($theKeyword, $theLimit, "USERS", $siteName);
+    &runTopUsersQueriesPast($theKeyword, $theLimit, $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesPast($theKeyword, $theLimit, "SKIMS", $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesPast($theKeyword, $theLimit, "TYPES", $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
-    &runTopUsrFsQueriesPast($theKeyword, $theLimit, "FILES", $siteName);
+    &runTopFilesQueriesPast($theKeyword, $theLimit, $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
 }
 
 sub loadTopPerfNow() {
     my ($theLimit, $siteName) = @_;
 
-    &runTopUsrFsQueriesNow($theLimit, "USERS", $siteName);
+    &runTopUsersQueriesNow($theLimit, $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesNow($theLimit, "SKIMS", $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesNow($theLimit, "TYPES", $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
-    &runTopUsrFsQueriesNow($theLimit, "FILES", $siteName);
+    &runTopFilesQueriesNow($theLimit, $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
 }
 
-sub runTopUsrFsQueriesPast() {
-    my ($theKeyword, $theLimit, $what, $siteName) = @_;
+sub runTopUsersQueriesPast() {
+    my ($theKeyword, $theLimit, $siteName) = @_;
 
     print "# updating topPerf $what tables for $theKeyword\n";
 
-    my $idInTable        = "INVALID";
-    my $destinationTable = "INVALID";
-
-    if ( $what eq "USERS" ) {
-        $idInTable        = "userId";
-        $destinationTable = "${siteName}_topPerfUsersPast";
-    } elsif ( $what eq "FILES" ) {
-        $idInTable        = "pathId";
-        $destinationTable = "${siteName}_topPerfFilesPast";
-    } else {
-        die "Invalid arg, expected USERS or FILES\n";
-    }
+    $destinationTable = "${siteName}_topPerfUsersPast";
 
     # past jobs
-    if ( $what eq "USERS" ) {
-        &runQuery("INSERT INTO jj
-            SELECT $idInTable, 
-                   COUNT(DISTINCT pId, clientHId) AS n
-            FROM   ${siteName}_closedSessions_Last$theKeyword
-            GROUP BY $idInTable");
-    } elsif ( $what eq "FILES" ) {
-        &runQuery("INSERT INTO jj
-            SELECT $idInTable, 
-                   COUNT(DISTINCT pId, clientHId) AS n
-            FROM   ${siteName}_closedSessions_Last$theKeyword cs,
-                   ${siteName}_closedFiles_Last$theKeyword cf
-            WHERE  cs.id = cf.sessionId
-            GROUP BY $idInTable");
-    }
-    if ( $what eq "USERS" ) {
-	# past files - through opened & closed sessions
-	&runQuery("INSERT INTO ff           
-           SELECT tmp.$idInTable, 
-                  COUNT(tmp.pathId),
-                  SUM(tmp.size)/(1024*1024)
-           FROM   ( SELECT DISTINCT oc.$idInTable, oc.pathId, oc.size
-                    FROM   ( SELECT $idInTable, pathId, size 
-                             FROM   ${siteName}_openedSessions os,
-                                    ${siteName}_closedFiles_Last$theKeyword cf,
-                                    paths p
-                             WHERE  os.id = cf.sessionId 
-                                AND cf.pathId = p.id 
-                             UNION ALL
-                             SELECT $idInTable, pathId, size 
-                             FROM   ${siteName}_closedSessions_Last$theKeyword cs,
-                                    ${siteName}_closedFiles_Last$theKeyword cf,
-                                    paths p
-                             WHERE  cs.id = cf.sessionId 
-                                AND cf.pathId = p.id 
-                            ) AS oc
-                   ) AS tmp
-           GROUP BY tmp.$idInTable");
-    }
+    &runQuery("INSERT INTO jj
+         SELECT userId, 
+                COUNT(DISTINCT pId, clientHId) AS n
+           FROM ${siteName}_closedSessions_Last$theKeyword
+       GROUP BY userId");
+
+    # past files - through opened & closed sessions
+    &runQuery("INSERT INTO ff           
+        SELECT tmp.userId, 
+               COUNT(tmp.pathId),
+               SUM(tmp.size)/(1024*1024)
+          FROM ( SELECT DISTINCT oc.userId, oc.pathId, oc.size
+                   FROM ( SELECT userId, pathId, size 
+                           FROM  ${siteName}_openedSessions os,
+                                 ${siteName}_closedFiles_Last$theKeyword cf,
+                                 paths p
+                          WHERE  os.id = cf.sessionId     AND
+                                 cf.pathId = p.id 
+                      UNION ALL
+                         SELECT  userId, pathId, size 
+                           FROM  ${siteName}_closedSessions_Last$theKeyword cs,
+                                 ${siteName}_closedFiles_Last$theKeyword cf,
+                                 paths p
+                          WHERE  cs.id = cf.sessionId    AND 
+                                 cf.pathId = p.id 
+                         )   AS  oc
+                )   AS tmp
+       GROUP BY tmp.userId");
+
     # past volume - through opened & closed sessions
     &runQuery("INSERT INTO vv
-        SELECT oc.$idInTable, 
+        SELECT oc.userId, 
                SUM(oc.bytesR)/(1024*1024)
-        FROM   ( SELECT $idInTable, bytesR
-                 FROM   ${siteName}_openedSessions os,
-                        ${siteName}_closedFiles_Last$theKeyword cf
-                 WHERE  os.id = cf.sessionId
-                 UNION ALL
-                 SELECT $idInTable, bytesR
-                 FROM   ${siteName}_closedSessions_Last$theKeyword cs,
-                        ${siteName}_closedFiles_Last$theKeyword cf
-                 WHERE cs.id = cf.sessionId
-               ) AS oc
-       GROUP BY oc.$idInTable");
+          FROM ( SELECT  userId, bytesR
+                   FROM  ${siteName}_openedSessions os,
+                         ${siteName}_closedFiles_Last$theKeyword cf
+                  WHERE  os.id = cf.sessionId
+              UNION ALL
+                 SELECT  userId, bytesR
+                   FROM  ${siteName}_closedSessions_Last$theKeyword cs,
+                         ${siteName}_closedFiles_Last$theKeyword cf
+                  WHERE  cs.id = cf.sessionId
+               )     AS  oc
+      GROUP BY oc.userId");
 
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
@@ -602,84 +583,87 @@ sub runTopUsrFsQueriesPast() {
     &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
 
     ## and finally insert the new data
-    if ( $what eq "USERS" ) {
-        &runQuery("INSERT INTO $destinationTable
-            SELECT xx.theId, 
-                   IFNULL(jj.n, 0) AS jobs, 
-                   IFNULL(ff.n, 0) AS files, 
-                   IFNULL(ff.s, 0) AS fSize, 
-                   IFNULL(vv.n, 0) AS vol, 
-                   \"$theKeyword\"
-            FROM   xx 
-                   LEFT OUTER JOIN jj ON xx.theId = jj.theId
-                   LEFT OUTER JOIN ff ON xx.theId = ff.theId
-                   LEFT OUTER JOIN vv ON xx.theId = vv.theId");
-    } else {
+    &runQuery("INSERT INTO $destinationTable
+               SELECT xx.theId, 
+                      IFNULL(jj.n, 0) AS jobs, 
+                      IFNULL(ff.n, 0) AS files, 
+                      IFNULL(ff.s, 0) AS fSize, 
+                      IFNULL(vv.n, 0) AS vol, 
+                      \"$theKeyword\"
+                 FROM xx 
+                      LEFT OUTER JOIN jj ON xx.theId = jj.theId
+                      LEFT OUTER JOIN ff ON xx.theId = ff.theId
+                      LEFT OUTER JOIN vv ON xx.theId = vv.theId");
+}
+
+sub runTopFilesQueriesPast() {
+    my ($theKeyword, $theLimit, $siteName) = @_;
+
+    print "# updating topPerf $what tables for $theKeyword\n";
+
+    $destinationTable = "${siteName}_topPerfFilesPast";
+
+    # past jobs
+    &runQuery("INSERT INTO jj
+            SELECT pathId, 
+                   COUNT(DISTINCT pId, clientHId) AS n
+              FROM ${siteName}_closedSessions_Last$theKeyword cs,
+                   ${siteName}_closedFiles_Last$theKeyword cf
+             WHERE cs.id = cf.sessionId
+          GROUP BY pathId");
+
+    # past volume 
+    &runQuery("INSERT INTO vv
+        SELECT pathId, 
+               SUM(bytesR)/(1024*1024)
+          FROM ${siteName}_closedFiles_Last$theKeyword
+      GROUP BY pathId");
+
+    ##### now find all names for top X for each sorting 
+    &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
+    &runQuery("REPLACE INTO xx SELECT theId FROM vv ORDER BY n DESC LIMIT $theLimit");
+
+    ## delete old data
+    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
+
+    ## and finally insert the new data
         &runQuery("INSERT INTO $destinationTable
             SELECT xx.theId, 
                    IFNULL(jj.n, 0) AS jobs,
-                   IFNULL(ff.s, 0) AS fSize,
                    IFNULL(vv.n, 0) AS vol, 
                    \"$theKeyword\"
             FROM   xx 
                    LEFT OUTER JOIN jj ON xx.theId = jj.theId
-                   LEFT OUTER JOIN ff ON xx.theId = ff.theId
                    LEFT OUTER JOIN vv ON xx.theId = vv.theId");
-    }
 }
 
-
-sub runTopUsrFsQueriesNow() {
+sub runTopUsersQueriesNow() {
     my ($theLimit, $what, $siteName) = @_;
 
-    print "# updating topPerf $what tables for NOW\n";
+    print "# updating topPerf USERS tables for NOW\n";
 
-    my $idInTable        = "INVALID";
-    my $destinationTable = "INVALID";
+    $destinationTable = "${siteName}_topPerfUsersNow";
+    $pastTable        = "${siteName}_topPerfUsersPast";
 
-    if ( $what eq "USERS" ) {
-        $idInTable        = "userId";
-        $destinationTable = "${siteName}_topPerfUsersNow";
-        $pastTable        = "${siteName}_topPerfUsersPast";
-    } elsif ( $what eq "FILES" ) {
-        $idInTable        = "pathId";
-        $destinationTable = "${siteName}_topPerfFilesNow";
-        $pastTable        = "${siteName}_topPerfFilesPast";
-    } else {
-        die "Invalid arg, expected USERS or FILES\n";
-    }
+    # now jobs
+    &runQuery("INSERT INTO jj
+          SELECT  userId, COUNT(DISTINCT pId, clientHId ) AS n
+            FROM  ${siteName}_openedSessions
+        GROUP BY  userId");
 
-    if ( $what eq "USERS" ) {
-        # now jobs
-        &runQuery("INSERT INTO jj
-           SELECT $idInTable, COUNT(DISTINCT pId, clientHId ) AS n
-        FROM   ${siteName}_openedSessions
-        GROUP BY $idInTable");
-
-        # now files
-        &runQuery ("INSERT INTO ff 
-        SELECT tmp.$idInTable, 
-               COUNT(tmp.pathId) AS n,
-               SUM(tmp.size)/(1024*1024) AS s
-        FROM   (SELECT DISTINCT $idInTable, pathId, size
-                FROM   ${siteName}_openedSessions os,
-                       ${siteName}_openedFiles of,
-                       paths p
-                WHERE  os.id = of.sessionId
-                   AND of.pathId = p.id
-               ) AS tmp
-        GROUP BY tmp.$idInTable");
-    }
-    if ( $what eq "FILES" ) {
-        # now jobs
-        &runQuery("INSERT INTO jj
-            SELECT $idInTable, COUNT(DISTINCT pId, clientHId ) AS n
-            FROM   ${siteName}_openedSessions os,
-                   ${siteName}_openedFiles of
-            WHERE  os.id = of.sessionId
-            GROUP BY $idInTable");
-
-    }
+    # now files
+    &runQuery ("INSERT INTO ff 
+          SELECT  tmp.userId, 
+                  COUNT(tmp.pathId) AS n,
+                  SUM(tmp.size)/(1024*1024) AS s
+            FROM  (SELECT DISTINCT userId, pathId, size
+                     FROM  ${siteName}_openedSessions os,
+                           ${siteName}_openedFiles of,
+                           paths p
+                    WHERE  os.id = of.sessionId     AND
+                           of.pathId = p.id
+                  )    AS  tmp
+        GROUP BY  tmp.userId");
 
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable");
@@ -690,24 +674,45 @@ sub runTopUsrFsQueriesNow() {
     &runQuery("TRUNCATE TABLE $destinationTable");
 
     ## and finally insert the new data
-    if ( $what eq "USERS" ) {
-        &runQuery("INSERT INTO $destinationTable
-            SELECT DISTINCT xx.theId,
-                   IFNULL(jj.n, 0) AS jobs,
-                   IFNULL(ff.n, 0) AS files, 
-                   IFNULL(ff.s, 0) AS fSize
-             FROM  xx 
-                   LEFT OUTER JOIN jj ON xx.theId = jj.theId
-                   LEFT OUTER JOIN ff ON xx.theId = ff.theId");
-    } else {
-        &runQuery("INSERT INTO $destinationTable
-            SELECT DISTINCT xx.theId,
-                   IFNULL(jj.n, 0) AS jobs,
-                   IFNULL(ff.s, 0) AS fSize
-             FROM  xx 
-                   LEFT OUTER JOIN jj ON xx.theId = jj.theId
-                   LEFT OUTER JOIN ff ON xx.theId = ff.theId");
-    }
+    &runQuery("INSERT INTO $destinationTable
+          SELECT  DISTINCT xx.theId,
+                  IFNULL(jj.n, 0) AS jobs,
+                  IFNULL(ff.n, 0) AS files, 
+                  IFNULL(ff.s, 0) AS fSize
+            FROM  xx 
+                  LEFT OUTER JOIN jj ON xx.theId = jj.theId
+                  LEFT OUTER JOIN ff ON xx.theId = ff.theId");
+}
+
+sub runTopFilesQueriesNow() {
+    my ($theLimit, $what, $siteName) = @_;
+
+    print "# updating topPerf FILES tables for NOW\n";
+
+    $destinationTable = "${siteName}_topPerfFilesNow";
+    $pastTable        = "${siteName}_topPerfFilesPast";
+
+    # now jobs
+    &runQuery("INSERT INTO jj
+          SELECT pathId, COUNT(DISTINCT pId, clientHId ) AS n
+           FROM  ${siteName}_openedSessions os,
+                 ${siteName}_openedFiles of
+          WHERE  os.id = of.sessionId
+       GROUP BY  pathId");
+
+
+    ##### now find all names for top X for each sorting 
+    &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable");
+    &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
+
+    &runQuery("TRUNCATE TABLE $destinationTable");
+
+    ## and finally insert the new data
+    &runQuery("INSERT INTO $destinationTable
+          SELECT  DISTINCT xx.theId,
+                  IFNULL(jj.n, 0) AS jobs,
+            FROM  xx 
+                  LEFT OUTER JOIN jj ON xx.theId = jj.theId");
 }
 
   
@@ -736,65 +741,42 @@ sub runTopSkimsQueriesPast() {
         FROM   ${siteName}_closedSessions_Last$theKeyword cs,
                ${siteName}_closedFiles_Last$theKeyword cf,
                paths p
-        WHERE  cs.id = cf.sessionId
-           AND cf.pathId = p.id
+        WHERE  cs.id = cf.sessionId   AND 
+               cf.pathId = p.id
         GROUP BY $idInPathTable");
 
-    # past files - through opened & closed sessions
+    # past files
     &runQuery("INSERT INTO ff 
         SELECT tmp.$idInPathTable,
                COUNT(tmp.pathId),
                SUM(tmp.size)/(1024*1024)
-        FROM   ( SELECT DISTINCT oc.$idInPathTable, oc.pathId, oc.size
-               FROM   ( SELECT $idInPathTable, pathId, size
-                        FROM   ${siteName}_openedSessions os,
-                               ${siteName}_closedFiles_Last$theKeyword cf,
-                               paths p
-                        WHERE  os.id = cf.sessionId
-                           AND cf.pathId = p.id
-                        UNION ALL
-                        SELECT $idInPathTable, pathId, size
-                        FROM   ${siteName}_closedSessions_Last$theKeyword cs,
-                               ${siteName}_closedFiles_Last$theKeyword cf,
-                               paths p
-                        WHERE  cs.id = cf.sessionId
-                           AND cf.pathId = p.id
-                      ) AS oc
-                ) AS tmp
-        GROUP BY tmp.$idInPathTable");
-
+          FROM ( SELECT DISTINCT $idInPathTable, pathId, size
+                   FROM ${siteName}_closedFiles_Last$theKeyword cf,
+                        paths p
+                  WHERE cf.pathId = p.id
+               )     AS tmp
+      GROUP BY tmp.$idInPathTable");
 
 
     # past users
     &runQuery("REPLACE INTO uu
-        SELECT $idInPathTable, 
+       SELECT  $idInPathTable, 
                COUNT(DISTINCT userId) AS n
-        FROM   ${siteName}_closedSessions_Last$theKeyword cs,
+         FROM  ${siteName}_closedSessions_Last$theKeyword cs,
                ${siteName}_closedFiles_Last$theKeyword cf,
                paths p
-        WHERE  cs.id = cf.sessionId
-          AND cf.pathId = p.id
-        GROUP BY $idInPathTable");
+        WHERE  cs.id = cf.sessionId   AND
+               cf.pathId = p.id
+     GROUP BY  $idInPathTable");
 
     # past volume - through opened & closed sessions
     &runQuery("INSERT INTO vv
-         SELECT oc.$idInPathTable, 
+         SELECT $idInPathTable, 
                 SUM(oc.bytesR)/(1024*1024)
-         FROM   ( SELECT $idInPathTable, bytesR
-                  FROM   ${siteName}_openedSessions os,
-                         ${siteName}_closedFiles_Last$theKeyword cf,
-                         paths p
-                  WHERE  os.id = cf.sessionId
-                    AND cf.pathId = p.id
-                  UNION ALL
-                  SELECT $idInPathTable, bytesR
-                  FROM   ${siteName}_closedSessions_Last$theKeyword cs,
-                         ${siteName}_closedFiles_Last$theKeyword cf,
-                         paths p
-                  WHERE  cs.id = cf.sessionId
-                     AND cf.pathId = p.id
-                ) AS oc
-         GROUP BY oc.$idInPathTable");
+           FROM ${siteName}_closedFiles_Last$theKeyword cf,
+                paths p
+          WHERE cf.pathId = p.id
+       GROUP BY $idInPathTable");
 
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM jj ORDER BY n DESC LIMIT $theLimit");
@@ -857,25 +839,23 @@ sub runTopSkimsQueriesNow() {
         SELECT tmp.$idInPathTable,
                COUNT(tmp.pathId) AS n,
                SUM(tmp.size)/(1024*1024)  AS s
-        FROM   ( SELECT DISTINCT $idInPathTable, pathId, size
-                 FROM   ${siteName}_openedSessions os,
-                        ${siteName}_openedFiles of,
-                        paths p
-                 WHERE  os.id = of.sessionId
-                    AND of.pathId = p.id
-               ) AS tmp
-        GROUP BY tmp.$idInPathTable");
+          FROM ( SELECT  DISTINCT $idInPathTable, pathId, size
+                   FROM  ${siteName}_openedFiles of,
+                         paths p
+                  WHERE  of.pathId = p.id
+               )     AS  tmp
+      GROUP BY tmp.$idInPathTable");
 
     # now users
     &runQuery("REPLACE INTO uu 
         SELECT $idInPathTable,
                COUNT(DISTINCT userId) AS n
-        FROM   ${siteName}_openedSessions os,
+          FROM ${siteName}_openedSessions os,
                ${siteName}_openedFiles of,
                paths p
-        WHERE  os.id = of.sessionId
+         WHERE os.id = of.sessionId
            AND of.pathId = p.id
-        GROUP BY $idInPathTable");
+      GROUP BY $idInPathTable");
 
     ##### now find all names for top X for each sorting 
     &runQuery("REPLACE INTO xx SELECT theId FROM $pastTable");
