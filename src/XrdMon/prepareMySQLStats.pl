@@ -126,11 +126,11 @@ sub doInitialization() {
 
     # cleanup old entries
     $GMTnow = &gmtimestamp();
-    &runQuery("DELETE FROM statsLastHour  WHERE date < DATE_SUB($GMTnow, INTERVAL  1 HOUR)");
-    &runQuery("DELETE FROM statsLastDay   WHERE date < DATE_SUB($GMTnow, INTERVAL  24 HOUR)");
-    &runQuery("DELETE FROM statsLastWeek  WHERE date < DATE_SUB($GMTnow, INTERVAL 168 HOUR)");
-    &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB($GMTnow, INTERVAL 30  DAY)");
-    &runQuery("DELETE FROM statsLastYear  WHERE date < DATE_SUB($GMTnow, INTERVAL 365 DAY)");
+    &runQuery("DELETE FROM statsLastHour  WHERE date < DATE_SUB('$GMTnow', INTERVAL  1 HOUR)");
+    &runQuery("DELETE FROM statsLastDay   WHERE date < DATE_SUB('$GMTnow', INTERVAL  24 HOUR)");
+    &runQuery("DELETE FROM statsLastWeek  WHERE date < DATE_SUB('$GMTnow', INTERVAL 168 HOUR)");
+    &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB('$GMTnow', INTERVAL 30  DAY)");
+    &runQuery("DELETE FROM statsLastYear  WHERE date < DATE_SUB('$GMTnow', INTERVAL 365 DAY)");
 
 
     # find all sites
