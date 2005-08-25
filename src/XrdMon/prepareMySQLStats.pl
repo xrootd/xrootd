@@ -25,6 +25,8 @@ unless ( open INFILE, "< $confFile" ) {
     print "Can't open file $confFile\n";
     exit;
 }
+
+$mysqlSocket = '/tmp/mysql.sock';
 while ( $_ = <INFILE> ) {
     chomp();
     my ($token, $v1) = split(/ /, $_);
@@ -32,6 +34,8 @@ while ( $_ = <INFILE> ) {
         $dbName = $v1;
     } elsif ( $token =~ "MySQLUser:" ) {
         $mySQLUser = $v1;
+    } elsif ( $token =~ "MySQLSocket:" ) {
+        $mysqlSocket = $v1;
     } else {
         print "Invalid entry: \"$_\"\n";
         close INFILE;
@@ -42,7 +46,7 @@ close INFILE;
 
 
 # connect to the database
-unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQLUser) ) {
     print "Error while connecting to database. $DBI::errstr\n";
     exit;
 }
@@ -56,7 +60,7 @@ $dbh->disconnect();
 while ( 1 ) {
 
     # connect to the database
-    unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+    unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQLUser) ) {
 	print "Error while connecting to database. $DBI::errstr\n";
 	exit;
     }
@@ -385,7 +389,6 @@ sub loadStatsLastHour() {
                       (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
                VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
 
-    &runQuery("DELETE FROM rtChanges WHERE siteId = $siteId");
     $deltaJobs = $noJobs - $lastNoJobs[$siteId]; 
     $jobs_p = $lastNoJobs[$siteId] > 0 ? &roundoff( 100 * $deltaJobs / $lastNoJobs[$siteId] ) : -1;
     $deltaUsers = $noUsers - $lastNoUsers[$siteId];
@@ -394,7 +397,7 @@ sub loadStatsLastHour() {
     $uniqueF_p = $lastNoUniqueF[$siteId] > 0 ? &roundoff( 100 * $deltaUniqueF / $lastNoUniqueF[$siteId] ) : -1;
     $deltaNonUniqueF = $noNonUniqueF - $lastNoNonUniqueF[$siteId];
     $nonUniqueF_p = $lastNoNonUniqueF[$siteId] > 0 ? &roundoff( 100 * $deltaNonUniqueF / $lastNoNonUniqueF[$siteId] ) : -1;
-    &runQuery("INSERT INTO rtChanges 
+    &runQuery("REPLACE INTO rtChanges 
                            (siteId, jobs, jobs_p, users, users_p, uniqueF, uniqueF_p, 
                             nonUniqueF, nonUniqueF_p, lastUpdate)
                     VALUES ($siteId, $deltaJobs, $jobs_p, $deltaUsers, $users_p, $deltaUniqueF,

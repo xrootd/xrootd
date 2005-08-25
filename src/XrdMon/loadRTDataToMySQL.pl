@@ -26,6 +26,7 @@ unless ( open INFILE, "< $confFile" ) {
     print "Can't open file $confFile\n";
     exit;
 }
+$mysqlSocket = '/tmp/mysql.sock';
 while ( $_ = <INFILE> ) {
     chomp();
     my ($token, $v1, $v2) = split(/ /, $_);
@@ -41,6 +42,8 @@ while ( $_ = <INFILE> ) {
 	$backupDir = $v1;
     } elsif ( $token =~ "backupInt:" ) {
         $backupInts{$v1} = $v2;
+    } elsif ( $token =~ "MySQLSocket:" ) {
+        $mysqlSocket = $v1;
     } else {
 	print "Invalid entry: \"$_\"\n";
         close INFILE;
@@ -59,7 +62,7 @@ if ( ! -d $backupDir ) {
     mkdir $backupDir;
 }
 
-unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQLUser) ) {
     print "Error while connecting to database. $DBI::errstr\n";
     return;
 }
@@ -132,7 +135,7 @@ sub recover {
 
     # connect to the database
     print "\n$ts Connecting to database...\n";
-    unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+    unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQLUser) ) {
 	print "Error while connecting to database. $DBI::errstr\n";
 	return;
     }
@@ -167,7 +170,7 @@ sub doLoading {
 
     # connect to the database
     print "\n$ts Connecting to database...\n";
-    unless ( $dbh = DBI->connect("dbi:mysql:$dbName",$mySQLUser) ) {
+    unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQLUser) ) {
 	print "Error while connecting to database. $DBI::errstr\n";
 	return;
     }
