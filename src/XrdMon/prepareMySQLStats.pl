@@ -523,7 +523,7 @@ sub loadTopPerfNow() {
 sub runTopUsersQueriesPast() {
     my ($theKeyword, $theLimit, $siteName) = @_;
 
-    print "# updating topPerf $what tables for $theKeyword\n";
+    print "# updating topPerf USERS tables for $theKeyword\n";
 
     $destinationTable = "${siteName}_topPerfUsersPast";
 
@@ -599,7 +599,7 @@ sub runTopUsersQueriesPast() {
 sub runTopFilesQueriesPast() {
     my ($theKeyword, $theLimit, $siteName) = @_;
 
-    print "# updating topPerf $what tables for $theKeyword\n";
+    print "# updating topPerf FILES tables for $theKeyword\n";
 
     $destinationTable = "${siteName}_topPerfFilesPast";
 
@@ -638,7 +638,7 @@ sub runTopFilesQueriesPast() {
 }
 
 sub runTopUsersQueriesNow() {
-    my ($theLimit, $what, $siteName) = @_;
+    my ($theLimit, $siteName) = @_;
 
     print "# updating topPerf USERS tables for NOW\n";
 
@@ -685,7 +685,7 @@ sub runTopUsersQueriesNow() {
 }
 
 sub runTopFilesQueriesNow() {
-    my ($theLimit, $what, $siteName) = @_;
+    my ($theLimit, $siteName) = @_;
 
     print "# updating topPerf FILES tables for NOW\n";
 
@@ -710,7 +710,7 @@ sub runTopFilesQueriesNow() {
     ## and finally insert the new data
     &runQuery("INSERT INTO $destinationTable
           SELECT  DISTINCT xx.theId,
-                  IFNULL(jj.n, 0) AS jobs,
+                  IFNULL(jj.n, 0) AS jobs
             FROM  xx 
                   LEFT OUTER JOIN jj ON xx.theId = jj.theId");
 }
@@ -772,7 +772,7 @@ sub runTopSkimsQueriesPast() {
     # past volume - through opened & closed sessions
     &runQuery("INSERT INTO vv
          SELECT $idInPathTable, 
-                SUM(oc.bytesR)/(1024*1024)
+                SUM(bytesR/(1024*1024))
            FROM ${siteName}_closedFiles_Last$theKeyword cf,
                 paths p
           WHERE cf.pathId = p.id

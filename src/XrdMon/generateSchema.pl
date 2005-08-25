@@ -225,13 +225,11 @@ CREATE TABLE IF NOT EXISTS ${site}_topPerfSkimsPast (
 # compressed info for top performers (top files)
 CREATE TABLE IF NOT EXISTS ${site}_topPerfFilesNow (
   theId      INT NOT NULL,    # path Id
-  jobs       INT NOT NULL,
-  fSize      INT NOT NULL     # [MB]
+  jobs       INT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ${site}_topPerfFilesPast (
   theId      INT NOT NULL,    # path Id
   jobs       INT NOT NULL,
-  fSize      INT NOT NULL,    # [MB]
   volume     INT NOT NULL,
   timePeriod CHAR(6)          # \"hour\", \"week\", \"month\", \"year\"
 );
