@@ -672,7 +672,7 @@ int main(int argc, char**argv) {
 	 char *groupc = tkzer.GetToken(0, 0);
 	 char *otherc = tkzer.GetToken(0, 0);
 
-	 int user, group, other;
+	 int user = 0, group = 0, other = 0;
 	 if (userc) user = atoi(userc);
 	 if (groupc) group = atoi(groupc);
 	 if (otherc) other = atoi(otherc);
@@ -825,7 +825,7 @@ int main(int argc, char**argv) {
 	 char *optsc = tkzer.GetToken(0, 0);
 	 char *prioc = tkzer.GetToken(0, 0);
 
-	 int opts, prio;
+	 int opts = 0, prio = 0;
 	 if (optsc) opts = atoi(optsc);
 	 if (prioc) prio = atoi(prioc);
 
