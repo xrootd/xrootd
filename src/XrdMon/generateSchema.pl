@@ -175,8 +175,8 @@ CREATE TABLE IF NOT EXISTS ${site}_closedFiles (
   pathId	MEDIUMINT UNSIGNED NOT NULL,
   openT         DATETIME  NOT NULL,
   closeT        DATETIME  NOT NULL,
-  bytesR        BIGINT    UNSIGNED NOT NULL,
-  bytesW        BIGINT    UNSIGNED NOT NULL,
+  bytesR        BIGINT    NOT NULL,
+  bytesW        BIGINT    NOT NULL,
   INDEX (sessionId),
   INDEX (pathId),
   INDEX (closeT)
