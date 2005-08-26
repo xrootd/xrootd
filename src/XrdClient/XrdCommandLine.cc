@@ -868,7 +868,7 @@ int main(int argc, char**argv) {
 	 char *tk;
 	 XrdClientString pars;
 
-	 while (tk = tkzer.GetToken(0, 0)) {
+	 while ((tk = tkzer.GetToken(0, 0))) {
 	    pars += " ";
 	    pars += tk;
 	 }
@@ -927,7 +927,7 @@ int main(int argc, char**argv) {
 	 char *tk;
 	 XrdClientString pars;
 
-	 while (tk = tkzer.GetToken(0, 0)) {
+	 while ((tk = tkzer.GetToken(0, 0))) {
 	    pars += " ";
 	    pars += tk;
 	 }
