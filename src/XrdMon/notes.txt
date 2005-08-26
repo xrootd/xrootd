@@ -11,36 +11,25 @@
 // $Id$
 
 
+need to clean up never closed sessions (by looking at session id of closed sessions)
 
-todo multi-site related:
-========================
-- install singleLog for RAL data
-- add code for cleaning up *_Last* tables, see below
-- add full support for AllSites
-- correctly handle different time zones 
-- check if lastWeek fully supported everywhere
+- need to record xrootd restarts and close some entries accordingly
 
+- add code for rebuilding stats from scratch (stored procedure)
 
-others todo:
-=============
-- change to GMT, last update query should return #min passed since last
-  update as well
+- add support for AllSites
+   - also add support for user@site and combined view for same userid at different sites
+
+- "last update" query should return #min passed since last update
+
 
 - add support for file size via xrootd
-
-- fix problem with loader dieing because of bbk, see workdir/loader*.log
-
-- data is not loaded if loader dies (see potential solution below)
-
-- deal with 2 bookkeeping dbs
 
 - load data from Tofigh's static tables
 
 - add support for 'cycles' - different reprocessing cycles
 
 - add support for total size of each skim
-
-- why are we getting references to non-slac sites via bookkeeping?
 
 - if result is long (eg hosts for bbrskim) on webpage split into chunks
 
@@ -61,8 +50,6 @@ others todo:
 
 - listing jobs for given user: maybe show start/stop time?
 
-- don't store any temporary files in /tmp
-
 - extract functions common for loader and prepareStats
 
 - write documentation, url with tz=XXX etc...
@@ -77,97 +64,12 @@ others todo:
 
 
 
-How to do the migration
-=======================
+Add page with common queries:
+============================
 
- 1) rename tables in patch scripts
- 2) stop loader
- 3) backup whole xrdmon_kan database to ascii  (~2 min)
-
- 4) install sorry page
- 5) reinstall mysql
- 6) add permissions for reader
- 7) restore xrdmon_kan database (~14 min)
- 8) run patch scripts  (0, 4, 4, 0 min)
- 9) run loader
-10) deploy new XrdWebMon
-
-
-
-
-how to avoid loosing data if loader dies?
-=========================================
-assuming we are loading data from rt file "x":
-
-  1) lock x.lock
-  2) open x for reading
-  3) read x and write to x_ofile.txt, x_ufile.txt, x_dfile.txt x_cfile.txt
-  4) close x
-  5) make backup of x (append x to x.backup)
-  6) remove x
-  7) unlock x.lock
-  8) load x_ofile.txt into database, remove it
-  9) load x_ufile.txt into database, remove it
-10) load x_dfile.txt into database, remove it
-11) load x_cfile.txt into database, remove it
-
-if during startup we find x_*file.txt, load them to db
-
-
-
-cleaning up _Last* tables
-==========================
-
-SELECT @tzTo  := timezone from sites where name='SLAC';
-SELECT @tzFrom:= timezone from sites where name='RAL';
-SELECT @nowT  := CONVERT_TZ(NOW(), @tzFrom, @tzTo);
-
-DELETE FROM RAL_closedSessions_LastHour  WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 HOUR);
-DELETE FROM RAL_closedSessions_LastDay   WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 DAY);
-DELETE FROM RAL_closedSessions_LastWeek  WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 WEEK);
-DELETE FROM RAL_closedSessions_LastMonth WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 MONTH);
-DELETE FROM RAL_closedSessions_LastYear  WHERE disconnectT < DATE_SUB(@nowT, INTERVAL 1 YEAR);
-
-DELETE FROM RAL_closedFiles_LastHour     WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 HOUR);
-DELETE FROM RAL_closedFiles_LastDay      WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 DAY);
-DELETE FROM RAL_closedFiles_LastWeek     WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 WEEK);
-DELETE FROM RAL_closedFiles_LastMonth    WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 MONTH);
-DELETE FROM RAL_closedFiles_LastYear     WHERE closeT      < DATE_SUB(@nowT, INTERVAL 1 YEAR);
-
-
-
-
-
-
-changes in jsp related to multiple sites
-========================================
-
-   - index.jsp: need to plot data for all sites
-   - index.jsp: need to add data for each site
-      - such that adding new site easy...
-   - how to deal with showing integrated view for all sites?
-      - plots - easy
-      - topPerf - can be done: generate in loader extra table
-
- - what about showing integrated view for users
-    - try to merge
-    - show user@site
-
-plots:
-
-now:
- select date, noJobs from ${selectedSqlDateTable} ORDER BY date;
-new:
- select date, noJobs from ${selectedSqlDateTable} WHERE siteId = ? ORDER BY date;
-
-and for total:
- select date, SUM(noJobs) from ${selectedSqlDateTable} WHERE siteId = ? GROUP BY date, ORDER BY date;
-
-topPerf:
- - have extra topPerf* tables with siteId, put all data from topPerf* for all sites, sort...
-be careful with GROUP BY: e.g. for skims don't group by siteId...
-
-
+Find sessions with duration over 2 weeks
+insert into x select * from SLAC_closedSessions where duration > (60*60*24*14) GROUP BY pId;
+select DISTINCT u.name AS userName, h.hostName AS clientName, pId, SLAC_hosts.hostName AS serverName, duration, disconnectT from x, SLAC_users u, SLAC_hosts h LEFT JOIN SLAC_hosts ON SLAC_hosts.id=serverHid WHERE x.userId = u.id AND x.clientHid=h.id order by duration desc;
 
 
 Sizes
@@ -182,7 +84,6 @@ Sizes
 
 update frequency
 ================
-
 
 Last     freq       #points
 ----------------------------
