@@ -221,6 +221,12 @@ sub prepareStats4OneSite() {
             &loadStatsAllYears($siteName, $loadTime);
 	}
     }
+    if ( $min == 40 ) {
+        if ( $hour == 11 || $hour == 23 ) {
+            # every 12 hours at 11:40:30, 23:40:30 
+            &closeOpenedFiles($siteName, $loadTime);
+	}
+    }
 
     # top Perf - "now"
     &loadTopPerfNow(20, $siteName);
@@ -374,7 +380,7 @@ sub loadFileSizes() {
 sub loadStatsLastHour() {
     my ($siteName, $loadTime, $seqNo) = @_;
 
-    use vars qw($seqNo $noJobs $noUsers $noUniqueF $noNonUniqueF $deltaJobs $jobs_p 
+    use vars qw($noJobs $noUsers $noUniqueF $noNonUniqueF $deltaJobs $jobs_p 
                 $deltaUsers $users_p $deltaUniqueF $uniqueF_p $deltaNonUniqueF $nonUniqueF_p);
 
     my $siteId = $siteIds{$siteName};
@@ -386,7 +392,7 @@ sub loadStatsLastHour() {
 
     ($noUniqueF, $noNonUniqueF) = &runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
                                                       FROM ${siteName}_openedFiles");
-    &runQuery("INSERT INTO statsLastHour 
+    &runQuery("REPLACE INTO statsLastHour 
                       (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
                VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
 
@@ -468,7 +474,7 @@ sub loadStatsLastPeriod() {
     }
 
 
-    &runQuery("INSERT INTO $targetTable
+    &runQuery("REPLACE INTO $targetTable
                           (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
                            minJobs, minUsers, minUniqueF, minNonUniqueF, 
                            maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
@@ -486,8 +492,46 @@ sub roundoff() {
 }
 
 
+# closes opened files corresponding to closed sessions
+sub closeOpenedFiles() {
+    my ($siteName, $GMTnow) = @_;
 
+    print "Closing opened files for closed sessions\n";
+    &runQuery("CREATE TEMPORARY TABLE xcf like SLAC_closedFiles");
 
+    # give it an extra hour: sometimes closeFile
+    # info may arrive after the closeSession info
+    &runQuery("INSERT INTO xcf
+                 SELECT of.id,
+                        of.sessionId,
+                        of.pathId,
+                        of.openT,
+                        cs.disconnectT,
+                        -1,
+                        -1
+                 FROM   ${siteName}_openedFiles of,
+                        ${siteName}_closedSessions cs
+                 WHERE  sessionId = cs.id
+                    AND disconnectT < DATE_SUB('$GMTnow', INTERVAL 1 HOUR)");
+
+    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles
+                 SELECT * FROM xcf");
+    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastYear
+                 SELECT * FROM xcf");
+    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastMonth
+                 SELECT * FROM xcf WHERE openT > DATE_SUB('$GMTnow', INTERVAL 1 MONTH)");
+    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastWeek
+                 SELECT * FROM xcf WHERE openT > DATE_SUB('$GMTnow', INTERVAL 1 WEEK)");
+    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastDay
+                 SELECT * FROM xcf WHERE openT > DATE_SUB('$GMTnow', INTERVAL 1 DAY)");
+
+    &runQuery("DELETE FROM  ${siteName}_openedFiles
+               USING ${siteName}_openedFiles, xcf
+               WHERE ${siteName}_openedFiles.id = xcf.id");
+    my $noDone = &runQueryWithRet("SELECT COUNT(*) FROM xcf");
+    &runQuery("DROP TABLE xcf");
+    print "Forced close $noDone files\n";
+}
 
 
 #######################################################
