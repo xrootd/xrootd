@@ -182,7 +182,7 @@ sub prepareStats4OneSite() {
                          WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastDay     
                          WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
-	&loadStatsLastPeriod($siteName, statsLastHour, statsLastDay, $loadTime, $hour*4+$min/15, 1);
+	&loadStatsLastPeriod($siteName, "statsLastHour", "statsLastDay", $loadTime, $hour*4+$min/15, 1);
 	&loadTopPerfPast("Day", 20, $siteName);
     }
 
@@ -192,7 +192,7 @@ sub prepareStats4OneSite() {
                          WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastWeek     
                          WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
-	&loadStatsLastPeriod($siteName, statsLastHour, statsLastWeek, $loadTime, $wday*24+$hour, 7);
+	&loadStatsLastPeriod($siteName, "statsLastHour", "statsLastWeek", $loadTime, $wday*24+$hour, 7);
 	&loadTopPerfPast("Week", 20, $siteName);
     }
 
@@ -203,7 +203,7 @@ sub prepareStats4OneSite() {
                              WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 30 DAY)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastMonth     
                              WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 30 DAY)");
-	    &loadStatsLastPeriod($siteName, statsLastDay, statsLastMonth, $loadTime, $day*4+$hour/6, 30);
+	    &loadStatsLastPeriod($siteName, "statsLastDay", "statsLastMonth", $loadTime, $day*4+$hour/6, 30);
 	    &loadTopPerfPast("Month", 20, $siteName);
 
 	}
@@ -213,7 +213,7 @@ sub prepareStats4OneSite() {
                              WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 365 DAY)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastYear     
                              WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 365 DAY)");
-	    &loadStatsLastPeriod($siteName, statsLastDay, statsLastYear $loadTime, $yday, 365);
+	    &loadStatsLastPeriod($siteName, "statsLastDay", "statsLastYear", $loadTime, $yday, 365);
 	    &loadTopPerfPast("Year", 20, $siteName);
 	}
         if ( $hour == 1 && $wday == 1 ) {
