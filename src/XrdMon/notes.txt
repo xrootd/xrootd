@@ -62,7 +62,7 @@ need to clean up never closed sessions (by looking at session id of closed sessi
  
 - link with xrootd homepage
 
-
+- if now is > then days range, need to update days range
 
 Add page with common queries:
 ============================
@@ -71,6 +71,18 @@ Find sessions with duration over 2 weeks
 insert into x select * from SLAC_closedSessions where duration > (60*60*24*14) GROUP BY pId;
 select DISTINCT u.name AS userName, h.hostName AS clientName, pId, SLAC_hosts.hostName AS serverName, duration, disconnectT from x, SLAC_users u, SLAC_hosts h LEFT JOIN SLAC_hosts ON SLAC_hosts.id=serverHid WHERE x.userId = u.id AND x.clientHid=h.id order by duration desc;
 
+
+
+compress output:
+# updating topPerf USERS tables for Hour
+# updating topPerf SKIMS tables for Hour
+# updating topPerf TYPES tables for Hour
+# updating topPerf FILES tables for Hour
+# updating topPerf USERS tables for NOW
+# updating topPerf SKIMS tables for NOW
+# updating topPerf TYPES tables for NOW
+# updating topPerf FILES tables for NOW
+into one line if possible
 
 Sizes
 ======

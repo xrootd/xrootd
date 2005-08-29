@@ -66,7 +66,7 @@ while ( 1 ) {
     }
 
     my $loadTime = &timestamp();
-    print "Current time is $loadTime. Doing HOUR update (every minute)\n";
+    print "$loadTime\n";
 
     $loadTime = &gmtimestamp();
     my @gmt   = gmtime(time());
@@ -165,7 +165,8 @@ sub doInitialization() {
 sub prepareStats4OneSite() {
     my ($siteName, $loadTime, $sec, $min, $hour, $day, $wday, $yday) = @_;
 
-    print "Updating data for --> $siteName <--\n";
+    print "--> $siteName <--\n";
+
 
     # every min at HH:MM:30
     &runQuery("DELETE FROM ${siteName}_closedSessions_LastHour  
@@ -178,6 +179,7 @@ sub prepareStats4OneSite() {
 
     if ( $min == 0 || $min == 15 || $min == 30 || $min == 45 ) {
 	# every 15 min at HH:00:30, HH:15:30, HH:30:30, HH:45:30
+        &closeOpenedFiles($siteName, $loadTime);
         &runQuery("DELETE FROM ${siteName}_closedSessions_LastDay  
                          WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastDay     
@@ -219,12 +221,6 @@ sub prepareStats4OneSite() {
         if ( $hour == 1 && $wday == 1 ) {
             # every Sunday at 01:20:30
             &loadStatsAllYears($siteName, $loadTime);
-	}
-    }
-    if ( $min == 40 ) {
-        if ( $hour == 11 || $hour == 23 ) {
-            # every 12 hours at 11:40:30, 23:40:30 
-            &closeOpenedFiles($siteName, $loadTime);
 	}
     }
 
@@ -370,7 +366,7 @@ sub loadFileSizes() {
 	       }
            }
        }
-       print " done ", scalar @files, " files updated. Update time = ", time() - $t0, " s \n";
+       print "Done ", scalar @files, " files updated. Update time = ", time() - $t0, " s \n";
        last if ( @files < $bbkListSize );
        $skip += $bbkListSize;
     }
@@ -496,11 +492,12 @@ sub roundoff() {
 sub closeOpenedFiles() {
     my ($siteName, $GMTnow) = @_;
 
-    print "Closing opened files for closed sessions\n";
+    &printNow("Closing open files...");
     &runQuery("CREATE TEMPORARY TABLE xcf like SLAC_closedFiles");
 
     # give it an extra hour: sometimes closeFile
     # info may arrive after the closeSession info
+    # timeout on xrootd server is ~ 1min, so 10 min should suffice
     &runQuery("INSERT INTO xcf
                  SELECT of.id,
                         of.sessionId,
@@ -512,7 +509,7 @@ sub closeOpenedFiles() {
                  FROM   ${siteName}_openedFiles of,
                         ${siteName}_closedSessions cs
                  WHERE  sessionId = cs.id
-                    AND disconnectT < DATE_SUB('$GMTnow', INTERVAL 1 HOUR)");
+                    AND disconnectT < DATE_SUB('$GMTnow', INTERVAL 10 MINUTE)");
 
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles
                  SELECT * FROM xcf");
@@ -530,7 +527,7 @@ sub closeOpenedFiles() {
                WHERE ${siteName}_openedFiles.id = xcf.id");
     my $noDone = &runQueryWithRet("SELECT COUNT(*) FROM xcf");
     &runQuery("DROP TABLE xcf");
-    print "Forced close $noDone files\n";
+    print " $noDone closed\n";
 }
 
 
@@ -567,7 +564,8 @@ sub loadTopPerfNow() {
 sub runTopUsersQueriesPast() {
     my ($theKeyword, $theLimit, $siteName) = @_;
 
-    print "# updating topPerf USERS tables for $theKeyword\n";
+    my $oneChar = substr($theKeyword, 0, 1);
+    &printNow("$theKeyword: U ");
 
     $destinationTable = "${siteName}_topPerfUsersPast";
 
@@ -643,7 +641,8 @@ sub runTopUsersQueriesPast() {
 sub runTopFilesQueriesPast() {
     my ($theKeyword, $theLimit, $siteName) = @_;
 
-    print "# updating topPerf FILES tables for $theKeyword\n";
+    my $oneChar = substr($theKeyword, 0, 1);
+    &printNow("F \n");
 
     $destinationTable = "${siteName}_topPerfFilesPast";
 
@@ -684,7 +683,7 @@ sub runTopFilesQueriesPast() {
 sub runTopUsersQueriesNow() {
     my ($theLimit, $siteName) = @_;
 
-    print "# updating topPerf USERS tables for NOW\n";
+    &printNow("Now: U ");
 
     $destinationTable = "${siteName}_topPerfUsersNow";
     $pastTable        = "${siteName}_topPerfUsersPast";
@@ -731,7 +730,7 @@ sub runTopUsersQueriesNow() {
 sub runTopFilesQueriesNow() {
     my ($theLimit, $siteName) = @_;
 
-    print "# updating topPerf FILES tables for NOW\n";
+    &printNow("F\n");
 
     $destinationTable = "${siteName}_topPerfFilesNow";
     $pastTable        = "${siteName}_topPerfFilesPast";
@@ -763,7 +762,9 @@ sub runTopFilesQueriesNow() {
 sub runTopSkimsQueriesPast() {
     my ($theKeyword, $theLimit, $what, $siteName) = @_;
 
-    print "# updating topPerf $what tables for $theKeyword\n";
+    my $oneCharW = substr($what, 0, 1);
+    my $oneCharT = substr($theKeyword, 0, 1);
+    &printNow("$oneCharW ");
 
     my $idInPathTable    = "INVALID";
     my $destinationTable = "INVALID";
@@ -850,7 +851,8 @@ sub runTopSkimsQueriesPast() {
 sub runTopSkimsQueriesNow() {
     my ($theLimit, $what, $siteName) = @_;
 
-    print "# updating topPerf $what tables for NOW\n";
+    my $oneCharW = substr($what, 0, 1);
+    &printNow("$oneCharW ");
 
     my $idInPathTable    = "INVALID";
     my $destinationTable = "INVALID";
@@ -935,4 +937,12 @@ sub returnHash() {
         $hashValue += $i * $primes[$char];
     }
     return $hashValue;
+}
+
+sub printNow() {
+    my ($x) = @_;
+    my $prev = $|;
+    $| = 1;
+    print $x;
+    $| = $prev;
 }
