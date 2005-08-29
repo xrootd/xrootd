@@ -167,7 +167,6 @@ sub prepareStats4OneSite() {
 
     print "--> $siteName <--\n";
 
-
     # every min at HH:MM:30
     &runQuery("DELETE FROM ${siteName}_closedSessions_LastHour  
                      WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR)");
@@ -175,7 +174,6 @@ sub prepareStats4OneSite() {
                      WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR)");
     &loadStatsLastHour($siteName, $loadTime, $min % 60);
     &loadTopPerfPast("Hour", 20, $siteName);
-
 
     if ( $min == 0 || $min == 15 || $min == 30 || $min == 45 ) {
 	# every 15 min at HH:00:30, HH:15:30, HH:30:30, HH:45:30
@@ -217,6 +215,10 @@ sub prepareStats4OneSite() {
                              WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 365 DAY)");
 	    &loadStatsLastPeriod($siteName, "statsLastDay", "statsLastYear", $loadTime, $yday, 365);
 	    &loadTopPerfPast("Year", 20, $siteName);
+	}
+        if ( $hour == 22 ) {
+            # every 24 hours at 22:20:30
+	    &closeOpenedSessions($siteName, $loadTime);
 	}
         if ( $hour == 1 && $wday == 1 ) {
             # every Sunday at 01:20:30
@@ -527,6 +529,52 @@ sub closeOpenedFiles() {
                WHERE ${siteName}_openedFiles.id = xcf.id");
     my $noDone = &runQueryWithRet("SELECT COUNT(*) FROM xcf");
     &runQuery("DROP TABLE xcf");
+    print " $noDone closed\n";
+}
+
+# closes opened sessions which were opened for longer than x days
+# It does it by looking at id of first closed session which was
+# opened x days ago
+sub closeOpenedSessions() {
+    my ($siteName, $GMTnow) = @_;
+
+    # be careful when changing this number, depending on the value:
+    # 1) different input closedSessions table might be needed in
+    #    "insert into x" query
+    # 2) you might need to add the sesssions to more table, e.g.
+    #    into closedSessions_LastMonth
+    $cutOff = 70; # [days]
+
+    &printNow("Closing open sessions...");
+
+    &runQuery("CREATE TEMPORARY TABLE x (id INT UNSIGNED PRIMARY KEY, openT DATETIME)");
+
+    &runQuery("INSERT INTO x 
+                 SELECT id, SUBTIME(disconnectT, SEC_TO_TIME(duration)) as openT
+                 FROM   ${siteName}_closedSessions_LastYear
+                 HAVING openT < DATE_SUB('$GMTnow', INTERVAL $cutOff DAY)");
+
+    &runQuery("SELECT \@theMaxId := MAX(id) FROM x");
+    &runQuery("SELECT \@theOpenT := openT FROM x where id = \@theMaxId");
+
+    &runQuery("DROP TABLE x");
+
+    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions
+                 SELECT id, userId, pId, clientHId, serverHId, -1, \@theOpenT
+                 FROM   ${siteName}_openedSessions
+                 WHERE id < \@theMaxId");
+
+    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastYear
+                 SELECT id, userId, pId, clientHId, serverHId, -1, \@theOpenT
+                 FROM ${siteName}_openedSessions
+                 WHERE id < \@theMaxId");
+
+    my $noDone = &runQueryWithRet("SELECT COUNT(*) 
+                                   FROM ${siteName}_openedSessions
+                                   WHERE id < \@theMaxId");
+
+    &runQuery("DELETE FROM ${siteName}_openedSessions WHERE id < \@theMaxId");
+
     print " $noDone closed\n";
 }
 

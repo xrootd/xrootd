@@ -127,7 +127,7 @@ foreach $site (@sites) {
 ################ ${site} ################
 
 CREATE TABLE IF NOT EXISTS ${site}_openedSessions (
-  id            MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY,
+  id            INT UNSIGNED NOT NULL PRIMARY KEY,
   userId        SMALLINT  UNSIGNED NOT NULL,
   pId           SMALLINT  UNSIGNED NOT NULL,
   clientHId     SMALLINT  UNSIGNED NOT NULL,
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS ${site}_closedSessions (
   pId           SMALLINT  UNSIGNED NOT NULL,
   clientHId     SMALLINT  UNSIGNED NOT NULL,
   serverHId     SMALLINT  UNSIGNED NOT NULL,
-  duration      MEDIUMINT UNSIGNED NOT NULL,
+  duration      MEDIUMINT NOT NULL,
   disconnectT   DATETIME  NOT NULL,
   INDEX (userId),
   INDEX (pId),
