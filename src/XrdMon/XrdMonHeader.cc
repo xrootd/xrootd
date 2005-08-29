@@ -19,6 +19,16 @@
 #include <iomanip>
 using std::setw;
 
+kXR_int32 XrdMonHeader::_prevStod = 0;
+
+bool
+XrdMonHeader::stodChanged() const
+{
+    bool ret = ( _prevStod != stod() );
+    _prevStod = stod();
+    return ret;
+}
+
 void
 XrdMonHeader::decode(const char* packet)
 {

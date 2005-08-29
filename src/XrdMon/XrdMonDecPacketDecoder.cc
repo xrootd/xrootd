@@ -82,7 +82,9 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
             cerr << "Unsupported packet type: " << header.packetType() << endl;
         }
     }
-    
+    if ( header.stodChanged() ) {
+        _sink.registerXrdRestart(header.stod(), senderId);
+    }
     _sink.setLastSeq(header.seqNo());
 }
 

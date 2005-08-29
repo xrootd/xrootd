@@ -23,15 +23,19 @@ using std::ostream;
 
 class XrdMonHeader {
 public:
-    packet_t    packetType() const { return _header.code; }
-    sequen_t    seqNo()      const { return _header.pseq; }
-    packetlen_t packetLen()  const { return _header.plen; }
-    kXR_int32   stod()       const { return _header.stod; }
+    packet_t    packetType()  const { return _header.code; }
+    sequen_t    seqNo()       const { return _header.pseq; }
+    packetlen_t packetLen()   const { return _header.plen; }
+    kXR_int32   stod()        const { return _header.stod; }
+    bool        stodChanged() const;
+    
     void decode(const char* packet);
 
 private:
     XrdXrootdMonHeader _header;
 
+    static kXR_int32   _prevStod;
+    
     friend ostream& operator<<(ostream& o, 
                                const XrdMonHeader& header);
 };

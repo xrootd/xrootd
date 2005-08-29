@@ -54,7 +54,9 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     _path += "_";
     _dictPath = _path + "dict.ascii";
     _userPath = _path + "user.ascii";
-
+    _xrdRestartLog = baseDir;
+    _xrdRestartLog += "/xrdRestarts.ascii";
+    
     if ( 0 == access(_dictPath.c_str(), F_OK) ) {
         string s("File "); s += _dictPath;
         s += " exists. Move it somewhere else first.";
@@ -787,3 +789,22 @@ XrdMonDecSink::reportLostPackets()
         cout << endl;
     }
 }
+
+void
+XrdMonDecSink::registerXrdRestart(kXR_int32 stod, senderid_t senderId)
+{
+    char t[24];
+    timestamp2string(stod, t, GMT);
+    const char* h = XrdMonSenderInfo::id2Host(senderId);
+
+    if ( 0 != _rtLogger ) {
+        char buf[512];
+        sprintf(buf, "r\t%s\t%s\n", h, t);
+        _rtLogger->add(buf);
+    }
+
+    fstream f(_xrdRestartLog.c_str(), ios::out | ios::app);
+    f << h << '\t' << t << endl;
+    f.close();
+}
+

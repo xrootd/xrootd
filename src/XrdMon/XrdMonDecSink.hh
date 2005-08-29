@@ -38,6 +38,8 @@ public:
 
     void init(dictid_t min, dictid_t max, const string& senderHP);
     sequen_t lastSeq() const { return _lastSeq; }
+    void registerXrdRestart(kXR_int32 stod, senderid_t senderId);
+    
     void setLastSeq(sequen_t seq) { _lastSeq = seq; }
                     
     void addDictId(dictid_t xrdId, 
@@ -127,6 +129,7 @@ private:
     string _userPath;    // <basePath>/<YYYYMMDD_HH:MM:SS.MMM_user.ascii 
     string _rtFlagPath;  // <rtLogDir>/rtRunning.flag
     string _rtMaxIdsPath;// <rtLogDir>/rtMax.jnl
+    string _xrdRestartLog;// <basePath>/xrdRestarts.ascii
 };
 
 #endif /* XRDMONDECSINK_HH */
