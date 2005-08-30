@@ -413,7 +413,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 	    }
 	 }
 	 else {
-            cerr << "Read timeout." << endl;
+	    cerr << endl << endl << "Critical read timeout. Unable to read data from the source." << endl;
             retvalue = -1;
             break;
          }
@@ -429,11 +429,13 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 	print_summary(src,dst,bytesread);
       }
 
-      pthread_cancel(myTID);
-      pthread_join(myTID, &thret);	 
+      if (retvalue >= 0) {
+	 pthread_cancel(myTID);
+	 pthread_join(myTID, &thret);	 
 
-      delete cpnfo.XrdCli;
-      cpnfo.XrdCli = 0;
+	 delete cpnfo.XrdCli;
+	 cpnfo.XrdCli = 0;
+      }
 
    delete *xrddest;
 
@@ -527,7 +529,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	 }
       }
       else {
-	 cerr << "Read timeout." << endl;
+	 cerr << endl << endl << "Critical read timeout. Unable to read data from the source." << endl;
 	 retvalue = -1;
 	 break;
       }
@@ -547,11 +549,14 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    int closeres = close(f);
    if (!retvalue) retvalue = closeres;
 
-   pthread_cancel(myTID);
-   pthread_join(myTID, &thret);
+   if (retvalue >= 0) {
 
-   delete cpnfo.XrdCli;
-   cpnfo.XrdCli = 0;
+      pthread_cancel(myTID);
+      pthread_join(myTID, &thret);
+
+      delete cpnfo.XrdCli;
+      cpnfo.XrdCli = 0;
+   }
 
    return retvalue;
 }
@@ -633,7 +638,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	 }
       }
       else {
-	 cerr << "Read timeout." << endl;
+	 cerr << endl << endl << "Critical read timeout. Unable to read data from the source." << endl;
 	 retvalue = -1;
 	 break;
       }

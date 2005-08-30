@@ -61,8 +61,8 @@ int XrdCpMthrQueue::GetBuffer(void **buf, int &len) {
 
    res = 0;
  
-
-   if (!fReadSem.Wait(300)) {
+   // If there is no data for one hour, then give up with an error
+   if (!fReadSem.Wait(3600)) {
 	 XrdOucMutexHelper mtx(fMutex);
 
       	 if (fMsgQue.GetSize() > 0) {
