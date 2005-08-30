@@ -65,6 +65,10 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
         return;
     }
 
+    if ( header.stodChanged() ) {
+        _sink.registerXrdRestart(header.stod(), senderId);
+    }
+
     switch ( header.packetType() ) {
         case PACKET_TYPE_TRACE : {
             decodeTracePacket(packet+HDRLEN, len, senderId);
@@ -81,9 +85,6 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
         default: {
             cerr << "Unsupported packet type: " << header.packetType() << endl;
         }
-    }
-    if ( header.stodChanged() ) {
-        _sink.registerXrdRestart(header.stod(), senderId);
     }
     _sink.setLastSeq(header.seqNo());
 }
