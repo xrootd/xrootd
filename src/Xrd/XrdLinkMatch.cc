@@ -25,7 +25,7 @@ int XrdLinkMatch::Match(const char *uname, int unlen,
 
 // Check if we should try to match the username
 //
-   if (Unamelen && (Unamelen > unlen || strncmp(uname,Uname,Unamelen))) return 0;
+   if (Unamelen && (Unamelen > unlen+1 || strncmp(uname,Uname,Unamelen))) return 0;
 
 // Check if we should match the full host name
 //
@@ -68,7 +68,9 @@ void XrdLinkMatch::Set(const char *target)
    if (!(HnameL = index(Uname, '@')))
       {if ((Unamelen = strlen(Uname)))
           if (Uname[Unamelen-1] == '*') Unamelen--;
-             else Uname[Unamelen++] = '.';
+             else if (index(Uname, ':')) Uname[Unamelen++] = '@';
+                     else if (index(Uname, '.')) Uname[Unamelen++] = ':';
+                          else Uname[Unamelen++] = '.';
        HnameR = 0;
        return;
       }
@@ -78,7 +80,9 @@ void XrdLinkMatch::Set(const char *target)
    *HnameL++ = '\0';
    if ((Unamelen = strlen(Uname)))
       if (Uname[Unamelen-1] == '*') Unamelen--;
-         else Uname[Unamelen++] = '.';
+         else if (index(Uname, ':')) Uname[Unamelen++] = '@';
+                 else if (index(Uname, '.')) Uname[Unamelen++] = ':';
+                      else Uname[Unamelen++] = '.';
 
 // The post string may have an asterisk.
 //
