@@ -41,6 +41,11 @@ inline void  Signal()         {if (relMutex) pthread_mutex_lock(&cmut);
                                if (relMutex) pthread_mutex_unlock(&cmut);
                               }
 
+inline void  Broadcast()      {if (relMutex) pthread_mutex_lock(&cmut);
+                               pthread_cond_broadcast(&cvar);
+                               if (relMutex) pthread_mutex_unlock(&cmut);
+                              }
+
 inline void  UnLock()         {pthread_mutex_unlock(&cmut);}
 
        int   Wait();
