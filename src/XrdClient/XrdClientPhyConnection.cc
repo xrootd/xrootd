@@ -451,6 +451,8 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
               "******* Abort request received ******* Server: " <<
 	      fServer.Host << ":" << fServer.Port << ". Msg: '" <<
               attnbody->parms << "'");
+	 
+	 exit(255);
 
          ProcessingToGo = FALSE;
          break;
