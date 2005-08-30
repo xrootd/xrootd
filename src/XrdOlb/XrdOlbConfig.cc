@@ -1885,9 +1885,11 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
                        return 1;
                       }
                    if (scopts[i].maxv < 0)
-                      if (XrdOuca2x::a2tm(*eDest,"sched value", val, &ppp, 0)) return 1;
-                         else if (XrdOuca2x::a2i(*eDest,"sched value", val, &ppp,
-                                         0, scopts[i].maxv)) return 1;
+                      {if (XrdOuca2x::a2tm(*eDest,"sched value", val, &ppp, 0)) 
+                          return 1;
+                      }
+                      else if (XrdOuca2x::a2i(*eDest,"sched value", val, &ppp,
+                                              0, scopts[i].maxv)) return 1;
                    *scopts[i].oploc = ppp;
                    break;
                   }
