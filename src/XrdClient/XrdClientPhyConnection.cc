@@ -443,6 +443,17 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
 
          ProcessingToGo = FALSE;
          break;
+
+      case kXR_asyncab:
+	 // The server requested to abort the execution!!!!
+         Info(XrdClientDebug::kNODEBUG,
+	      "HandleUnsolicited",
+              "******* Abort request received ******* Server: " <<
+	      fServer.Host << ":" << fServer.Port << ". Msg: '" <<
+              attnbody->parms << "'");
+
+         ProcessingToGo = FALSE;
+         break;
       }
    }
 
@@ -455,15 +466,26 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
 
       // Request post-processing
       switch (attnbody->actnum) {
+
       case kXR_asyncrd:
 	 // After having set all the belonging object, we disconnect.
-	 // The next comands will redirect-on-error where we want
+	 // The next commands will redirect-on-error where we want
 
 	 Disconnect();
 	 break;
-      }
+      
+      case kXR_asyncdi:
+	 // After having set all the belonging object, we disconnect.
+	 // The next connection attempt will behave as requested,
+	 // i.e. waiting some time before reconnecting
+
+	 Disconnect();
+	 break;
+
+      } // switch
 
       return retval;
+
    }
    else 
       return kUNSOL_CONTINUE;

@@ -138,6 +138,24 @@ public:
       fREQWait->UnLock();
    }
 
+   // Puts this instance in connect-pause state for wsec seconds.
+   // Any future connection attempt will not happen before wsec
+   //  and the first one will be towards the given host
+   void                       SetREQDelayedConnectState(kXR_int32 wsec) {
+      // Lock mutex
+      fREQConnectWait->Lock();
+
+      if (wsec > 0)
+	 fREQConnectWaitTimeLimit = time(0) + wsec;
+      else {
+	 fREQConnectWaitTimeLimit = 0;
+	 fREQConnectWait->Broadcast();
+      }
+
+      // UnLock mutex
+      fREQConnectWait->UnLock();
+   }
+
    void                       SetServerType(ServerType type) { fServerType = type; }
    void                       SetSID(kXR_char *sid);
    inline void                SetUrl(XrdClientUrlInfo thisUrl) { fUrl = thisUrl; }
@@ -178,6 +196,8 @@ private:
    XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
    time_t                     fREQWaitTimeLimit;   // For explicitly requested pause state
    XrdOucCondVar              *fREQWait;           // For explicitly requested pause state
+   time_t                     fREQConnectWaitTimeLimit;   // For explicitly requested delayed reconnect
+   XrdOucCondVar              *fREQConnectWait;           // For explicitly requested delayed reconnect
 
    long                       fServerProto;        // The server protocol
    ServerType                 fServerType;         // Server type as returned by doHandShake() 
@@ -203,6 +223,7 @@ private:
    bool                       CheckErrorStatus(XrdClientMessage *, short &, char *);
    void                       CheckPort(int &port);
    void                       CheckREQPauseState();
+   void                       CheckREQConnectWaitState();
    bool                       CheckResp(struct ServerResponseHeader *resp, const char *method);
    XrdClientMessage           *ClientServerCmd(ClientRequest *req,
 					       const void *reqMoreData,

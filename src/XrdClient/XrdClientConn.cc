@@ -74,12 +74,14 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdCli
 
 //_____________________________________________________________________________
 XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false), 
-				fLBSUrl(0), fREQWaitTimeLimit(0), fUrl("") {
+				fLBSUrl(0), fREQWaitTimeLimit(0),
+				fREQConnectWaitTimeLimit(0), fUrl("") {
    // Constructor
    char buf[255];
 
    fREQUrl.Clear();
    fREQWait = new XrdOucCondVar(0);
+   fREQConnectWait = new XrdOucCondVar(0);
 
    gethostname(buf, sizeof(buf));
 
@@ -132,15 +134,18 @@ XrdClientConn::~XrdClientConn()
 
    delete fREQWait;
    fREQWait = 0;
+
+   delete fREQConnectWait;
+   fREQConnectWait = 0;
 }
 
 //_____________________________________________________________________________
 short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn,
 			     XrdClientAbsUnsolMsgHandler *unsolhandler)
 {
-   // Connect method (called the first time when XrdNetFile is first created, 
+   // Connect method (called the first time when XrdClient is first created, 
    // and used for each redirection). The global static connection manager 
-   // object is firstly created here. If another XrdNetFile object is created
+   // object is firstly created here. If another XrdClient object is created
    // inside the same application this connection manager will be used and
    // no new one will be created.
    // No login/authentication are performed at this stage.
@@ -150,6 +155,8 @@ short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn,
    logid = -1;
    fPrimaryStreamid = 0;
    fLogConnID = 0;
+
+   CheckREQConnectWaitState();
 
    Info(XrdClientDebug::kHIDEBUG,
 	"XrdClientConn", "Trying to connect to " <<
@@ -1949,4 +1956,30 @@ void XrdClientConn::CheckREQPauseState() {
    
    // Unlock mutex
    fREQWait->UnLock();
+}
+
+
+void XrdClientConn::CheckREQConnectWaitState() {
+   // This client might have been paused. In this case the calling thread
+   // is put to sleep into a condvar until the desired time arrives.
+   // The caller can be awakened by signalling the condvar. But, if the
+   // requested wake up time did not elapse, the caller has to sleep again.
+   
+   time_t timenow;
+   
+   // Lock mutex
+   fREQConnectWait->Lock();
+   
+   // Check condition
+   while (1) {
+      timenow = time(0);
+      
+      if (timenow < fREQConnectWaitTimeLimit)
+	 // If still to wait... wait
+	 fREQConnectWait->Wait(fREQConnectWaitTimeLimit - timenow);
+      else break;
+   }
+   
+   // Unlock mutex
+   fREQConnectWait->UnLock();
 }

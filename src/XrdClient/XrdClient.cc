@@ -700,6 +700,25 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
       // "True" async resp is processed here
       switch (attnbody->actnum) {
 
+      case kXR_asyncdi:
+	 // Disconnection + delayed reconnection request
+
+	 struct ServerResponseBody_Attn_asyncdi *di;
+	 di = (struct ServerResponseBody_Attn_asyncdi *)unsolmsg->GetData();
+
+	 // Explicit redirection request
+	 if (di) {
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "ProcessUnsolicitedMsg", "Requested Disconnection + Reconnect in " <<
+		 ntohl(di->wsec) << " seconds.");
+
+	    fConnModule->SetRequestedDestHost((char *)fUrl.Host.c_str(), fUrl.Port);
+	    fConnModule->SetREQDelayedConnectState(ntohl(di->wsec));
+	 }
+
+	 // Other objects may be interested in this async resp
+	 return kUNSOL_CONTINUE;
+	 break;
 	 
       case kXR_asyncrd:
 	 // Redirection request
@@ -728,10 +747,10 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
 	 if (wt) {
 	    Info(XrdClientDebug::kUSERDEBUG,
-		 "ProcessUnsolicitedMsg", "Pausing client for " << wt->wsec <<
+		 "ProcessUnsolicitedMsg", "Pausing client for " << ntohl(wt->wsec) <<
 		 " seconds.");
 
-	    fConnModule->SetREQPauseState(wt->wsec);
+	    fConnModule->SetREQPauseState(ntohl(wt->wsec));
 	 }
 
 	 // Other objects may be interested in this async resp
