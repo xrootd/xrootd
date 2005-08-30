@@ -74,12 +74,12 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdCli
 
 //_____________________________________________________________________________
 XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false), 
-				fLBSUrl(0), fUrl("")
-{
+				fLBSUrl(0), fREQWaitTimeLimit(0), fUrl("") {
    // Constructor
    char buf[255];
 
    fREQUrl.Clear();
+   fREQWait = new XrdOucCondVar(0);
 
    gethostname(buf, sizeof(buf));
 
@@ -128,6 +128,10 @@ XrdClientConn::~XrdClientConn()
    if (fLBSUrl) delete fLBSUrl;
 
    delete fMainReadCache;
+   fMainReadCache = 0;
+
+   delete fREQWait;
+   fREQWait = 0;
 }
 
 //_____________________________________________________________________________
@@ -231,6 +235,12 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
    // Cycle for redirections...
    do {
 
+
+      
+
+
+
+
       // Send to the server the request
       len = sizeof(ClientRequest);
 
@@ -320,10 +330,14 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
    while (!abortcmd && !resp) {
       abortcmd = FALSE;
 
+      // This client might have been paused
+      CheckREQPauseState();
+
       // Send the cmd, dealing automatically with redirections and
       // redirections on error
       Info(XrdClientDebug::kHIDEBUG,
 	   "SendGenCommand","Sending command " << CmdName);
+
 
       XrdClientMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
                                               answMoreDataAllocated, 
@@ -1910,4 +1924,29 @@ void XrdClientConn::ClearSessionID() {
    for (int i=0; i < 16; i++)
       fSessionID[i] = 0;
 
+}
+
+void XrdClientConn::CheckREQPauseState() {
+   // This client might have been paused. In this case the calling thread
+   // is put to sleep into a condvar until the desired time arrives.
+   // The caller can be awakened by signalling the condvar. But, if the
+   // requested wake up time did not elapse, the caller has to sleep again.
+   
+   time_t timenow;
+   
+   // Lock mutex
+   fREQWait->Lock();
+   
+   // Check condition
+   while (1) {
+      timenow = time(0);
+      
+      if (timenow < fREQWaitTimeLimit)
+	 // If still to wait... wait
+	 fREQWait->Wait(fREQWaitTimeLimit - timenow);
+      else break;
+   }
+   
+   // Unlock mutex
+   fREQWait->UnLock();
 }

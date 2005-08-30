@@ -121,6 +121,23 @@ public:
       fREQUrl.SetAddrFromHost();
    }
 
+   // Puts this instance in pause state for wsec seconds.
+   // A value <= 0 revokes immediately the pause state
+   void                       SetREQPauseState(kXR_int32 wsec) {
+      // Lock mutex
+      fREQWait->Lock();
+
+      if (wsec > 0)
+	 fREQWaitTimeLimit = time(0) + wsec;
+      else {
+	 fREQWaitTimeLimit = 0;
+	 fREQWait->Broadcast();
+      }
+
+      // UnLock mutex
+      fREQWait->UnLock();
+   }
+
    void                       SetServerType(ServerType type) { fServerType = type; }
    void                       SetSID(kXR_char *sid);
    inline void                SetUrl(XrdClientUrlInfo thisUrl) { fUrl = thisUrl; }
@@ -159,6 +176,8 @@ private:
                                                    // redirecting
 
    XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
+   time_t                     fREQWaitTimeLimit;   // For explicitly requested pause state
+   XrdOucCondVar              *fREQWait;           // For explicitly requested pause state
 
    long                       fServerProto;        // The server protocol
    ServerType                 fServerType;         // Server type as returned by doHandShake() 
@@ -183,6 +202,7 @@ private:
 
    bool                       CheckErrorStatus(XrdClientMessage *, short &, char *);
    void                       CheckPort(int &port);
+   void                       CheckREQPauseState();
    bool                       CheckResp(struct ServerResponseHeader *resp, const char *method);
    XrdClientMessage           *ClientServerCmd(ClientRequest *req,
 					       const void *reqMoreData,

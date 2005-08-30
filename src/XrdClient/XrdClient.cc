@@ -699,12 +699,16 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
       // "True" async resp is processed here
       switch (attnbody->actnum) {
+
+	 
       case kXR_asyncrd:
+	 // Redirection request
+
 	 struct ServerResponseBody_Attn_asyncrd *rd;
 	 rd = (struct ServerResponseBody_Attn_asyncrd *)unsolmsg->GetData();
 
 	 // Explicit redirection request
-	 if (strlen(rd->host) > 0) {
+	 if (rd && (strlen(rd->host) > 0)) {
 	    Info(XrdClientDebug::kUSERDEBUG,
 		 "ProcessUnsolicitedMsg", "Requested redir to " << rd->host <<
 		 ":" << ntohl(rd->port));
@@ -715,7 +719,39 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 	 // Other objects may be interested in this async resp
 	 return kUNSOL_CONTINUE;
 	 break;
-      }
+
+      case kXR_asyncwt:
+	 // Puts the client in wait state
+
+	 struct ServerResponseBody_Attn_asyncwt *wt;
+	 wt = (struct ServerResponseBody_Attn_asyncwt *)unsolmsg->GetData();
+
+	 if (wt) {
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "ProcessUnsolicitedMsg", "Pausing client for " << wt->wsec <<
+		 " seconds.");
+
+	    fConnModule->SetREQPauseState(wt->wsec);
+	 }
+
+	 // Other objects may be interested in this async resp
+	 return kUNSOL_CONTINUE;
+	 break;
+
+      case kXR_asyncgo:
+	 // Resumes from pause state
+
+	 Info(XrdClientDebug::kUSERDEBUG,
+	      "ProcessUnsolicitedMsg", "Resuming from pause.");
+
+	    fConnModule->SetREQPauseState(0);
+
+	 // Other objects may be interested in this async resp
+	 return kUNSOL_CONTINUE;
+	 break;
+
+      } // switch
+
 
    }
    else
