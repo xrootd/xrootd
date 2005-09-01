@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
     XrdMonCtrDebug::initialize();
 
     if ( argc == 2 && !strcmp(argv[1], "-ver") ) {
-        cout << "r\t" << setw(3) << setfill('0') << XRDMON_VERSION << endl;
+        cout << "v\t" << setw(3) << setfill('0') << XRDMON_VERSION << endl;
         return 0;
     }
          
