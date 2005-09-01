@@ -20,10 +20,13 @@
 #include "XrdMon/XrdMonCtrCollector.hh"
 #include "XProtocol/XPtypes.hh"
 
+#include <iomanip>
 #include <iostream>
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::setfill;
+using std::setw;
 using namespace XrdMonArgParserConvert;
 
 const bool      defaultOnlineDecOn   = true;    // online decoding on
@@ -36,6 +39,7 @@ const int       defaultDecRTFlushDelay = 5;             // [sec]
 const kXR_int64 defaultMaxCtrLogSize = 1024*1024*1024;  // 1GB
 const kXR_int32 defaultCtrBufSize    = 64*1024;         // 64 KB
 const int       defaultRTBufSize     = 128*1024;        // 128 KB
+const bool      defaultVerInLogName  = true;
 
 void
 printHelp()
@@ -50,7 +54,9 @@ printHelp()
          << "    [-maxCtrLogSize <value>]\n"
          << "    [-ctrBufSize <value>]\n"
          << "    [-rtBufSize <value>]\n"
+         << "    [-verInRTLogName <on|off>\n"
          << "    [-port <portNr>]\n"
+         << "    [-ver]\n"
          << "    [-help]\n"
          << "\n"
          << "-onlineDec <on|off>      Turns on/off online decoding.\n"
@@ -77,9 +83,12 @@ printHelp()
          << "                         Default value is \"" << defaultCtrBufSize << "\".\n"
          << "-rtBufSize <size>        Size of transient buffer of collected real time data.\n"
          << "                         Default value is \"" << defaultRTBufSize << "\".\n"
+         << "-verInRTLogName <on|off> Include version number in real time log file name.\n"
+         << "                         Defaut value is \""  << defaultVerInLogName << "\".\n"
          << "-port <portNr>           Port number to be used.\n"
          << "                         Default valus is \"" << DEFAULT_PORT << "\".\n"
-
+         << "-ver                     Reports version and exits. Don't specify any other\n"
+         << "                         option with this one.\n"
          << endl;
 }
 
@@ -87,6 +96,11 @@ int main(int argc, char* argv[])
 {
     XrdMonCtrDebug::initialize();
 
+    if ( argc == 2 && !strcmp(argv[1], "-ver") ) {
+        cout << "r\t" << setw(3) << setfill('0') << XRDMON_VERSION << endl;
+        return 0;
+    }
+         
     XrdMonArgParser::ArgImpl<bool, ConvertOnOff>
          arg_onlineDecOn("-onlineDec", defaultOnlineDecOn);
     XrdMonArgParser::ArgImpl<bool, ConvertOnOff>
@@ -105,6 +119,8 @@ int main(int argc, char* argv[])
         arg_maxFSize   ("-maxCtrLogSize", defaultMaxCtrLogSize);
     XrdMonArgParser::ArgImpl<int, Convert2Int> 
         arg_ctrBufSize("-ctrBufSize", defaultCtrBufSize);
+    XrdMonArgParser::ArgImpl<bool, ConvertOnOff> 
+        arg_verInRTLogName("-verInRTLogName", defaultVerInLogName);
     XrdMonArgParser::ArgImpl<int, Convert2Int> 
         arg_port("-port", DEFAULT_PORT);
     XrdMonArgParser::ArgImpl<int, Convert2Int> 
@@ -121,6 +137,7 @@ int main(int argc, char* argv[])
         argParser.registerExpectedArg(&arg_decHDFlushDel);
         argParser.registerExpectedArg(&arg_maxFSize);
         argParser.registerExpectedArg(&arg_ctrBufSize);
+        argParser.registerExpectedArg(&arg_verInRTLogName);
         argParser.registerExpectedArg(&arg_port);
         argParser.registerExpectedArg(&arg_rtBufSize);
         argParser.parseArguments(argc, argv);
@@ -146,17 +163,18 @@ int main(int argc, char* argv[])
         return 3;
     }
     
-    cout << "online decoding is " << (arg_onlineDecOn.myVal()?"on":"off")<<'\n'
-         << "rt monitoring   is " << (arg_rtOn.myVal()?"on":"off")<< '\n'
-         << "ctrLogDir       is " << arg_ctrLogDir.myVal() << '\n'
-         << "decLogDir       is " << arg_decLogDir.myVal() << '\n'
-         << "rtLogDir        is " << arg_rtLogDir.myVal()  << '\n'
-         << "decRTFlushDelay is " << arg_decRTFlushDel.myVal() << '\n'
-         << "decHDFlushDelay is " << arg_decHDFlushDel.myVal() << '\n'
-         << "maxCtrLogSize   is " << arg_maxFSize.myVal() << '\n'
-         << "ctrBufSize      is " << arg_ctrBufSize.myVal() << '\n'
-         << "rtBufSize       is " << arg_rtBufSize.myVal() << '\n'
-         << "port            is " << arg_port.myVal()
+    cout << "online decoding  is " << (arg_onlineDecOn.myVal()?"on":"off") <<'\n'
+         << "rt monitoring    is " << (arg_rtOn.myVal()?"on":"off") << '\n'
+         << "ctrLogDir        is " << arg_ctrLogDir.myVal() << '\n'
+         << "decLogDir        is " << arg_decLogDir.myVal() << '\n'
+         << "rtLogDir         is " << arg_rtLogDir.myVal()  << '\n'
+         << "decRTFlushDelay  is " << arg_decRTFlushDel.myVal() << '\n'
+         << "decHDFlushDelay  is " << arg_decHDFlushDel.myVal() << '\n'
+         << "maxCtrLogSize    is " << arg_maxFSize.myVal() << '\n'
+         << "ctrBufSize       is " << arg_ctrBufSize.myVal() << '\n'
+         << "rtBufSize        is " << arg_rtBufSize.myVal() << '\n'
+         << "verNoInRTLogName is " << (arg_verInRTLogName.myVal()?"on":"off") << '\n'
+         << "port             is " << arg_port.myVal()
          << endl;
 
     try {
@@ -194,7 +212,8 @@ int main(int argc, char* argv[])
                                    arg_ctrBufSize.myVal(),
                                    arg_rtBufSize.myVal(),
                                    arg_onlineDecOn.myVal(), 
-                                   arg_rtOn.myVal());
+                                   arg_rtOn.myVal(),
+                                   arg_verInRTLogName.myVal());
         archiver();
     } catch (XrdMonException& e) {
         e.printIt();

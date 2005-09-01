@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
     const char* fName = argv[1];
     const kXR_int32 bufSize = 128*1024; // Make it configurable?
 
-    XrdMonBufferedOutput bOut(fName, bufSize);
+    XrdMonBufferedOutput bOut(fName, (const char*) 0, bufSize);
 
     pthread_t flushThread;
     if ( 0 != pthread_create(&flushThread,

@@ -32,7 +32,8 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
                              const char* rtLogDir,
                              int rtBufSize,
                              bool saveTraces,
-                             int maxTraceLogSize)
+                             int maxTraceLogSize,
+                             bool verInRTLogName)
     : _rtLogger(0),
       _saveTraces(saveTraces),
       _tCacheSize(32*1024), // 32*1024 * 32 bytes = 1 MB FIXME-configurable?
@@ -73,7 +74,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     }
 
     if ( 0 != rtLogDir ) {
-        initRT(rtLogDir, rtBufSize);
+        initRT(rtLogDir, rtBufSize, verInRTLogName);
     } else {
         loadUniqueIdsAndSeq();
     }
@@ -146,7 +147,8 @@ XrdMonDecSink::init(dictid_t min, dictid_t max, const string& senderHP)
 
 void
 XrdMonDecSink::initRT(const char* rtLogDir,
-                      int rtBufSize)
+                      int rtBufSize,
+                      bool verInRTLogName)
 {
     _rtFlagPath = rtLogDir;
     _rtFlagPath += "/rtRunning.flag";
@@ -165,9 +167,16 @@ XrdMonDecSink::initRT(const char* rtLogDir,
     f.close();
 
     char* rtLogName = new char [strlen(rtLogDir) + 32];
-    sprintf(rtLogName, "%s/rtLog_ver%03d.txt", rtLogDir, XRDMON_VERSION);
-    _rtLogger = new XrdMonBufferedOutput(rtLogName, rtBufSize);
+    if ( verInRTLogName ) {
+        sprintf(rtLogName, "%s/rtLog_ver%03d.txt", rtLogDir, XRDMON_VERSION);
+    } else {
+        sprintf(rtLogName, "%s/rtLog_verXXX.txt", rtLogDir);
+    }
+    char* rtLogNLock = new char [strlen(rtLogName)];
+    sprintf(rtLogNLock, "%s/rtLog.lock", rtLogDir);
+    _rtLogger = new XrdMonBufferedOutput(rtLogName, rtLogNLock, rtBufSize);
     delete [] rtLogName;
+    delete [] rtLogNLock;
     
     // read in unique ids from jnl file
     f.open(_rtMaxIdsPath.c_str(), ios::in);

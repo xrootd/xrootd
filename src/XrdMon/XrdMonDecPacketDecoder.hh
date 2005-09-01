@@ -22,7 +22,8 @@ class XrdMonDecPacketDecoder {
 public:
     XrdMonDecPacketDecoder(const char* baseDir, 
                            const char* rtLogDir,
-                           int rtBufSize);
+                           int rtBufSize,
+                           bool verInRTLogName);
 
     XrdMonDecPacketDecoder(const char* baseDir,
                            bool saveTraces,

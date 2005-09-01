@@ -20,6 +20,7 @@ using std::string;
 class XrdMonBufferedOutput {
 public:
     XrdMonBufferedOutput(const char* outFileName,
+                         const char* lockFileName,
                          int bufSize);
     ~XrdMonBufferedOutput();
 

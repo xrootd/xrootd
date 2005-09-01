@@ -24,6 +24,7 @@ using std::ios;
 
 
 XrdMonBufferedOutput::XrdMonBufferedOutput(const char* outFileName,
+                                           const char* lockFileName,
                                            int bufSize)
                                        
     : _buf(0), 
@@ -32,9 +33,14 @@ XrdMonBufferedOutput::XrdMonBufferedOutput(const char* outFileName,
     _fName = new char[strlen(outFileName)+1];
     strcpy(_fName, outFileName);
 
-    _fNameLock = new char [strlen(outFileName) + 8];
-    sprintf(_fNameLock, "%s.lock", _fName);
-
+    if ( lockFileName == 0 ) {
+        _fNameLock = new char [strlen(outFileName)+8];
+        sprintf(_fNameLock, "%s.lock", outFileName);
+    } else {
+        _fNameLock = new char [strlen(lockFileName)+1];
+        sprintf(_fNameLock, lockFileName);
+    }
+    
     _buf = new char [_bufSize];
     strcpy(_buf, "");
 }
