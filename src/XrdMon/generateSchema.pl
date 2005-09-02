@@ -104,6 +104,13 @@ CREATE TABLE IF NOT EXISTS paths (
   INDEX (hash)
 );
 
+CREATE TABLE IF NOT EXISTS xrdRestarts (
+  hostId        SMALLINT UNSIGNED NOT NULL,
+  siteId        TINYINT UNSIGNED NOT NULL,
+  startT        DATETIME,
+  PRIMARY KEY (siteId, hostId, startT)
+);
+
 # BaBar specific!
 # e.g.: SP, PR, SPskims, PRskims
 CREATE TABLE IF NOT EXISTS fileTypes (

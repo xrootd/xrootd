@@ -160,6 +160,9 @@ sub recover {
              if ( -e  "$jrnlDir/$siteName/cfile.ascii" ) {
                 &loadCloseFile($siteName);
              }
+             if ( -e  "$jrnlDir/$siteName/rfile.ascii" ) {
+                &loadXrdRestarts($siteName);
+             }
          }
      }
 }           
@@ -243,13 +246,15 @@ sub loadOneSite() {
     open UFILE, ">$jrnlDir/$siteName/ufile.ascii" or die "can't open ufile.ascii for write: $!";
     open DFILE, ">$jrnlDir/$siteName/dfile.ascii" or die "can't open dfile.ascii for write: $!";
     open CFILE, ">$jrnlDir/$siteName/cfile.ascii" or die "can't open cfile.ascii for write: $!";
+    open RFILE, ">$jrnlDir/$siteName/rfile.ascii" or die "can't open rfile.ascii for write: $!";
     print "Sorting...\n";
     my $nr = 0;
     while ( <INFILE> ) {
-        if ( $_ =~ m/^u/ ) { print UFILE $_; }
-        if ( $_ =~ m/^d/ ) { print DFILE $_; }
-        if ( $_ =~ m/^o/ ) { print OFILE $_; }
-        if ( $_ =~ m/^c/ ) { print CFILE $_; }
+        if    ( $_ =~ m/^u/ ) { print UFILE $_; }
+        elsif ( $_ =~ m/^d/ ) { print DFILE $_; }
+        elsif ( $_ =~ m/^o/ ) { print OFILE $_; }
+        elsif ( $_ =~ m/^c/ ) { print CFILE $_; }
+        elsif ( $_ =~ m/^r/ ) { print RFILE $_; }
         $nr++;
     }
 
@@ -260,12 +265,14 @@ sub loadOneSite() {
     close UFILE;
     close DFILE;
     close CFILE;
+    close RFILE;
 
     print "Loading...\n";
     &loadOpenSession($siteName);
     &loadOpenFile($siteName);
     &loadCloseSession($siteName);
     &loadCloseFile($siteName);
+    &loadXrdRestarts($siteName);
     
     return $nr;
 }
@@ -639,6 +646,33 @@ sub findOrInsertPathId() {
         $skimNames{$skimName} = $skimId;
     }
     return $pathId;
+}
+
+sub loadXrdRestarts() {
+    my ($siteName) = @_;
+
+    my $siteId = $siteIds{$siteName};
+
+    my $inFile = "$jrnlDir/$siteName/rfile.ascii";
+    if ( !open INFILE, "<$inFile" ) {
+        return;
+    }
+    while ( <INFILE> ) {
+        chomp;
+        my ($r, $hostName, $timestamp) = split('\t');
+
+        my $hostId = $hostIds{$hostName};
+        if ( ! $hostId ) {
+            $hostId = &runQueryWithRet("SELECT id
+                                        FROM ${siteName}_hosts
+                                        WHERE hostName = \"$hostName\"");
+	}
+        if ( ! $hostId ) {
+	    return;
+	}
+        &runQuery("INSERT IGNORE INTO xrdRestarts(hostId, siteId, startT)
+                   VALUES ($hostId, $siteId, '$timestamp')");
+    }
 }
 
 sub runQueryWithRet() {
