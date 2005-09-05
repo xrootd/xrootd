@@ -24,11 +24,11 @@ static XrdOdcMsg *Alloc(XrdOucErrInfo *erp);
 
 inline int       ID() {return id;}
 
-static int       Init(int numalloc);
+static int       Init();
 
        void      Lock() {Hold.Lock();}
 
-       void      Recycle(int islocked=1);
+       void      Recycle();
 
 static int       Reply(int msgid, char *reply);
 
@@ -43,15 +43,10 @@ private:
 static XrdOdcMsg   *RemFromWaitQ(int msgid);
 
 static int          nextid;
-static int          msgHWM;
 
 static XrdOdcMsg   *msgTab;
 static XrdOdcMsg   *nextfree;
 static XrdOucMutex  FreeMsgQ;
-
-static XrdOdcMsg   *nextwait;
-static XrdOdcMsg   *lastwait;
-static XrdOucMutex  MsgWaitQ;
 
 XrdOdcMsg          *next;
 XrdOucCondVar       Hold;

@@ -23,28 +23,25 @@ const char *XrdOdcMsgCVSID = "$Id$";
 /******************************************************************************/
   
 int         XrdOdcMsg::nextid   =  0;
-int         XrdOdcMsg::msgHWM   =  0;
 
 XrdOdcMsg  *XrdOdcMsg::msgTab   =  0;
 XrdOdcMsg  *XrdOdcMsg::nextfree =  0;
-XrdOdcMsg  *XrdOdcMsg::nextwait =  0;
-XrdOdcMsg  *XrdOdcMsg::lastwait =  0;
 
-XrdOucMutex XrdOdcMsg::MsgWaitQ;
 XrdOucMutex XrdOdcMsg::FreeMsgQ;
 
 extern XrdOucTrace OdcTrace;
 
-#define XRDODC_OBMSGID 255
-#define XRDODC_MIDMASK 255
-#define XRDODC_MAXMSGS 255
-#define XRDODC_MIDINCR 256
-#define XRDODC_INCMASK 0x0fffff00
+#define XRDODC_MIDMASK 1023
+#define XRDODC_MAXMSGS 1024
+#define XRDODC_MIDINCR 1024
+#define XRDODC_INCMASK 0x3ffffc00
  
 /******************************************************************************/
 /*                                 A l l o c                                  */
 /******************************************************************************/
   
+// Returns the message object locked!
+
 XrdOdcMsg *XrdOdcMsg::Alloc(XrdOucErrInfo *erp)
 {
    XrdOdcMsg *mp;
@@ -53,28 +50,18 @@ XrdOdcMsg *XrdOdcMsg::Alloc(XrdOucErrInfo *erp)
 // Allocate a message object
 //
    FreeMsgQ.Lock();
-   lclid = nextid = (nextid + XRDODC_MIDINCR) & XRDODC_INCMASK;
    if (nextfree) {mp = nextfree; nextfree = mp->next;}
-      else if ((mp = new XrdOdcMsg())) mp->id = XRDODC_OBMSGID;
-              else {FreeMsgQ.UnLock(); return mp;}
+      else {FreeMsgQ.UnLock(); return (XrdOdcMsg *)0;}
+   lclid = nextid = (nextid + XRDODC_MIDINCR) & XRDODC_INCMASK;
    FreeMsgQ.UnLock();
 
 // Initialize it
 //
+   mp->Hold.Lock();
    mp->id      = (mp->id & XRDODC_MIDMASK) | lclid;
    mp->Resp    = erp;
    mp->next    = 0;
    mp->inwaitq = 1;
-
-// Place the message on the waiting queue if this is an outboard msg
-//
-   if ((mp->id & XRDODC_MIDMASK) == XRDODC_OBMSGID)
-      {MsgWaitQ.Lock();
-       if (lastwait) lastwait->next = mp;
-          else       nextwait       = mp;
-       lastwait = mp;
-       MsgWaitQ.UnLock();
-      }
 
 // Return the message object
 //
@@ -85,30 +72,20 @@ XrdOdcMsg *XrdOdcMsg::Alloc(XrdOucErrInfo *erp)
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdOdcMsg::Init(int numalloc)
+int XrdOdcMsg::Init()
 {
-   EPNAME("Init");
-   const int numppage = 4096/sizeof(XrdOdcMsg);
    int i;
    XrdOdcMsg *msgp;
 
-// Compute the number of initial msg objects. These can be addressed directly
-// by msgid (0 to 254) and will never be freed.
+// Allocate the fixed number of msg blocks. These will never be freed!
 //
-   while (numalloc < numppage) numalloc += numppage;
-   if (numalloc > XRDODC_MAXMSGS) numalloc = XRDODC_MAXMSGS;
-   DEBUG("Msg: Creating " <<numalloc <<" msg objects");
-
-// Allocate the fixed number of msg blocks
-//
-   if (!(msgp = new XrdOdcMsg[numalloc]())) return 1;
+   if (!(msgp = new XrdOdcMsg[XRDODC_MAXMSGS]())) return 1;
    msgTab = &msgp[0];
-   msgHWM = numalloc;
-   nextid = numalloc;
+   nextid = XRDODC_MAXMSGS;
 
 // Place all of the msg blocks on the free list
 //
-  for (i = 0; i < numalloc; i++)
+  for (i = 0; i < XRDODC_MAXMSGS; i++)
      {msgp->next = nextfree; nextfree = msgp; msgp->id = i; msgp++;}
 
 // All done
@@ -120,28 +97,24 @@ int XrdOdcMsg::Init(int numalloc)
 /*                               R e c y c l e                                */
 /******************************************************************************/
   
-void XrdOdcMsg::Recycle(int islocked)
-{
-// Most of the time we are not in the wait queue, do a fast check
-//
-   if (inwaitq) 
-      {if (!islocked) Hold.Lock();
-       if (inwaitq)
-          {if ((id && XRDODC_MIDMASK) != XRDODC_OBMSGID) 
-              {inwaitq = 0; Hold.UnLock();}
-              else {int msgid = id;
-                    XrdOdcMsg *mp;
-                    Hold.UnLock();
-                    if ((mp=XrdOdcMsg::RemFromWaitQ(msgid))) mp->Hold.UnLock();
-                   }
-          }
-      } else if (islocked) Hold.UnLock();
+// Message object lock *must* be held by the caller upon entry!
 
-// Delete this element if it's an outboard msg object
+void XrdOdcMsg::Recycle()
+{
+   static XrdOucErrInfo dummyResp;
+
+// Remove this from he wait queue and substitute a safe resp object. We do
+// this because a reply may be pending and will post when we release the lock
+//
+   inwaitq = 0; 
+   Resp = &dummyResp;
+   Hold.UnLock();
+
+// Place message object on re-usable queue
 //
    FreeMsgQ.Lock();
-      if ((id & XRDODC_MIDMASK) == XRDODC_OBMSGID) delete this;
-         else {next = nextfree; nextfree = this; Resp = 0;}
+   next = nextfree; 
+   nextfree = this; 
    FreeMsgQ.UnLock();
 }
 
@@ -208,34 +181,14 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
   
 XrdOdcMsg *XrdOdcMsg::RemFromWaitQ(int msgid)
 {
-   XrdOdcMsg *pp = 0, *mp = 0;
    int msgnum;
 
-// If this is a inboard msg object, we can locate it immediately
+// Locate the message object (the low order bits index it)
 //
-  if ((msgnum = msgid & 0xff) < msgHWM)
-     {msgTab[msgnum].Hold.Lock();
-      if (!msgTab[msgnum].inwaitq || msgTab[msgnum].id != msgid)
-         {msgTab[msgnum].Hold.UnLock(); return (XrdOdcMsg *)0;}
-      msgTab[msgnum].inwaitq = 0;
-      return &msgTab[msgnum];
-     }
-
-// Remove the message from the
-//
-   MsgWaitQ.Lock();
-   mp = nextwait;
-   while (mp && mp->id != msgid) {pp = mp; mp = mp->next;}
-   if (mp) {if (pp)
-               {if (mp == lastwait) lastwait = pp;
-                pp->next = mp->next;
-               } else {
-                if (mp == lastwait) nextwait = lastwait = 0;
-                   else nextwait = mp->next;
-               }
-            mp->Hold.Lock();
-            mp->inwaitq = 0;
-           }
-   MsgWaitQ.UnLock();
-   return mp;
+  msgnum = msgid & XRDODC_MIDMASK;
+  msgTab[msgnum].Hold.Lock();
+  if (!msgTab[msgnum].inwaitq || msgTab[msgnum].id != msgid)
+     {msgTab[msgnum].Hold.UnLock(); return (XrdOdcMsg *)0;}
+  msgTab[msgnum].inwaitq = 0;
+  return &msgTab[msgnum];
 }

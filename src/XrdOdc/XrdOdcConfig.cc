@@ -131,7 +131,7 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
 
 // Initialize the msg queue
 //
-   if (XrdOdcMsg::Init(msgKeep))
+   if (XrdOdcMsg::Init())
       {eDest->Emsg("Config", ENOMEM, "allocate initial msg objects");
        NoGo = 1;
       }
@@ -204,10 +204,13 @@ int XrdOdcConfig::ConfigXeq(char *var, XrdOucStream &Config)
    //
    TS_Xeq("conwait",       xconw);
    TS_Xeq("manager",       xmang);
-   TS_Xeq("msgkeep",       xmsgk);
    TS_Xeq("olbapath",      xapath);
    TS_Xeq("request",       xreqs);
    TS_Xeq("trace",         xtrac);
+
+   // Directives for backward comapatibility
+   //
+   if (!strcmp(var, "msgkeep")) return 0;
 
    // No match found, complain.
    //
@@ -385,35 +388,6 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
     if (bval) free(bval);
     free(mval);
     return tp != 0;
-}
-
-/******************************************************************************/
-/*                                 x m s g k                                  */
-/******************************************************************************/
-
-/* Function: xmsgk
-
-   Purpose:  To parse the directive: msgkeep <num>
-
-             <num>   number of msg blocks to keep for re-use
-
-   Type: Server only, dynamic.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOdcConfig::xmsgk(XrdOucError *errp, XrdOucStream &Config)
-{
-    char *val;
-    int mk;
-
-    if (!(val = Config.GetWord()))
-       {errp->Emsg("Config", "msgkeep value not specified."); return 1;}
-
-    if (XrdOuca2x::a2i(*errp, "msgkeep value", val, &mk, 60)) return 1;
-
-    msgKeep = mk;
-    return 0;
 }
   
 /******************************************************************************/

@@ -202,17 +202,24 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 //
    if (!(Manp = SelectManager(Resp, (char *)path))) return ConWait;
 
+// Allocate a message object. There is only a fixed number of these and if
+// all of them are in use, th client has to wait to prevent over-runs.
+//
+   if (!(mp = XrdOdcMsg::Alloc(&Resp)))
+      {Resp.setErrInfo(RepDelay, "");
+       TRACE(Redirect, Resp.getErrUser() <<" no more msg objects; path=" <<path);
+       return RepDelay;
+      }
+
 // Construct a message to be sent to the manager
 //
-   mp = XrdOdcMsg::Alloc(&Resp);
    mlen = sprintf(mbuff, "%d select%c %c ", mp->ID(), stype, ptype);
    xmsg[0].iov_base = mbuff;        xmsg[0].iov_len = mlen;
    xmsg[1].iov_base = (char *)path; xmsg[1].iov_len = strlen(path);
    xmsg[2].iov_base = (char *)"\n"; xmsg[2].iov_len = 1;
 
-// Send message and simply wait for the reply
+// Send message and simply wait for the reply (msg object is locked via Alloc)
 //
-   mp->Lock();
    if (!Manp->Send(xmsg, 3) || (mp->Wait4Reply(RepWait)))
       {mp->Recycle();
        Resp.setErrInfo(RepDelay, "");

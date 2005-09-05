@@ -37,7 +37,6 @@ int           RepWait;      // Seconds to wait for manager replies
 int           RepWaitMS;    // RepWait*1000 for poll()
 int           RepDelay;     // Seconds to delay before retrying manager
 int           RepNone;      // Max number of consecutive non-responses
-int           msgKeep;      // Max message objects to keep
 
 char         *OLBPath;      // Path to the local olb for target nodes
 char         *myHost;
@@ -53,7 +52,7 @@ unsigned char SModeP;       // Manager selection mode (proxy)
                    ManList = PanList = 0;
                    SMode = SModeP = ODC_FAILOVER;
                    eDest = erp;
-                   OLBPath = 0; RepNone = 8; msgKeep = 255;
+                   OLBPath = 0; RepNone = 8;
                   }
      ~XrdOdcConfig();
 
@@ -63,7 +62,6 @@ int ConfigXeq(char *var, XrdOucStream &Config);
 int xapath(XrdOucError *eDest, XrdOucStream &Config);
 int xconw(XrdOucError *eDest, XrdOucStream &Config);
 int xmang(XrdOucError *eDest, XrdOucStream &Config);
-int xmsgk(XrdOucError *eDest, XrdOucStream &Config);
 int xreqs(XrdOucError *eDest, XrdOucStream &Config);
 int xtrac(XrdOucError *eDest, XrdOucStream &Config);
 
