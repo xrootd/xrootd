@@ -133,6 +133,8 @@ $ppid = $$;				# save parent pid
 chop($systyp = `$CMDuname`);		# used for processing df command
 chop($host = `$CMDhostname`);
 
+$CMDdf .= ' -P' if $systyp eq 'Linux';
+
 $ERR   = 0;				# set debug levels
 $CTL   = 1;
 $FILE  = 2;

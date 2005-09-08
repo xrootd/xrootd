@@ -2,9 +2,13 @@
 
 # $Id$
 
-     if (-x '/bin/df')      {$DF = '/bin/df';}
-  elsif (-x '/usr/bin/df')  {$DF = '/usr/bin/df';}
-  elsif (-x '/usr/sbin/df') {$DF = '/usr/sbin/df';}
+$CMDuname    = '/bin/uname';
+chop($systyp = `$CMDuname`);  # used for processing df command
+$DFop = ($systyp eq 'Linux' ? '-P' : '');
+
+     if (-x '/bin/df')      {$DF = "/bin/df $DFop";}
+  elsif (-x '/usr/bin/df')  {$DF = "/usr/bin/df $DFop";}
+  elsif (-x '/usr/sbin/df') {$DF = "/usr/sbin/df $DFop";}
   else {exit(255);}
 
 $path = $ARGV[0];
