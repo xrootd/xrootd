@@ -79,6 +79,7 @@ LIBRARY = $(LIBDIR)/libXrdClient.a
 TESTBIN = $(BINDIR)/TestXrdClient $(BINDIR)/TestXrdClient_read
 XRDCP = $(BINDIR)/xrdcp
 XRDCLI = $(BINDIR)/xrd
+XRDADMIN = $(BINDIR)/xrdadmin
 
 PERLMOD =
 ifneq ($(PERLINC),)
@@ -86,7 +87,7 @@ PERLMOD = $(LIBDIR)/XrdClientAdmin.so
 endif
 
 
-TARGETS = $(LIBRARY) $(LIBAUX) $(TESTBIN) $(XRDCP) $(XRDCLI)
+TARGETS = $(LIBRARY) $(LIBAUX) $(TESTBIN) $(XRDCP) $(XRDCLI) $(XRDADMIN)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -139,6 +140,11 @@ $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 $(XRDCLI): $(OBJECTS) $(OBJECT_CLI) $(LIBDEPS)
 	@echo Creating executable $(XRDCLI) 
 	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(BINLIBS) $(LIBS) -o $(XRDCLI)
+
+$(XRDADMIN): $(OBJECTS)
+	@echo Creating executable $(XRDADMIN) 
+	$(ECHO)sed -e "s|#!/usr/bin/perl|#!$(PERLBIN)|" < xrdadmin > $(XRDADMIN)
+	$(ECHO)chmod a+x $(XRDADMIN)
 
 $(PERLMOD): $(OBJECTS) $(OBJECTC) $(OBJECTPERLMOD) $(LIBDEPS)
 	@echo Creating perl module library $(PERLMOD) 

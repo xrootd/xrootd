@@ -1696,6 +1696,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasprotor@|$hasprotor|" \
     -e "s|@tracedbg@|$tracedbg|" \
     -e "s|@suncache@|$suncache|" \
+    -e "s|@perlbin@|$perlbin|" \
     -e "s|@perlincdir@|$perlincdir|" \
     -e "s|@perlccflags@|$perlccflags|" \
     < GNUmake.env.tmp > $ENVOUT
