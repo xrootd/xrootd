@@ -78,8 +78,8 @@ int XrdOucProg::Feed(const char *data[], const int dlen[])
 int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
                                       const char *arg3, const char *arg4)
 {
-   const int maxArgs = sizeof(Arg)/sizeof(Arg[0]);
-   char *myArgs[maxArgs];
+   const int maxArgs = sizeof(Arg)/sizeof(Arg[0])+4;
+   char *myArgs[maxArgs+1];
    int rc, j = numArgs;
 
 // If we have no program, return an error
@@ -95,10 +95,10 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
 
 // Append additional arguments as needed
 //
-   if (arg1 && j < maxArgs) Arg[j++] = (char *)arg1;
-   if (arg2 && j < maxArgs) Arg[j++] = (char *)arg2;
-   if (arg3 && j < maxArgs) Arg[j++] = (char *)arg3;
-   if (arg4 && j < maxArgs) Arg[j++] = (char *)arg4;
+   if (arg1 && j < maxArgs) myArgs[j++] = (char *)arg1;
+   if (arg2 && j < maxArgs) myArgs[j++] = (char *)arg2;
+   if (arg3 && j < maxArgs) myArgs[j++] = (char *)arg3;
+   if (arg4 && j < maxArgs) myArgs[j++] = (char *)arg4;
 
 // Make sure we don't have too many
 //
@@ -106,11 +106,11 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
       {if (eDest) eDest->Emsg("Run", E2BIG, "execute", Arg[0]);
        return -E2BIG;
       }
-   Arg[j] = (char *)0;
+   myArgs[j] = (char *)0;
 
 // Execute the command
 //
-   if (Sp->Exec(Arg, 1))
+   if (Sp->Exec(myArgs, 1))
       {rc = Sp->LastError();
        if (eDest) eDest->Emsg("Run", rc, "execute", Arg[0]);
        return -rc;
