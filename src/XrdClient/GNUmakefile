@@ -141,10 +141,12 @@ $(XRDCLI): $(OBJECTS) $(OBJECT_CLI) $(LIBDEPS)
 	@echo Creating executable $(XRDCLI) 
 	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(BINLIBS) $(LIBS) -o $(XRDCLI)
 
-$(XRDADMIN): $(OBJECTS)
-	@echo Creating executable $(XRDADMIN) 
-	$(ECHO)sed -e "s|#!/usr/bin/perl|#!$(PERLBIN)|" < xrdadmin > $(XRDADMIN)
-	$(ECHO)chmod a+x $(XRDADMIN)
+$(XRDADMIN): $(PERLMOD)
+	$(ECHO)if [ "$(PERLBIN)" != "" ]; then \
+		echo Creating executable $(XRDADMIN); \
+		sed -e "s|#!/usr/bin/perl|#!$(PERLBIN)|" < xrdadmin > $(XRDADMIN); \
+		chmod a+x $(XRDADMIN); \
+	fi;
 
 $(PERLMOD): $(OBJECTS) $(OBJECTC) $(OBJECTPERLMOD) $(LIBDEPS)
 	@echo Creating perl module library $(PERLMOD) 
