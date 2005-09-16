@@ -54,9 +54,9 @@ extern XrdOucError OssEroute;
 int   XrdOssFile::AioFailure = 0;
 
 #ifdef _POSIX_ASYNCHRONOUS_IO
-#ifdef SIGRTMIN
-const int OSS_AIO_READ_DONE  = SIGRTMIN+7;
-const int OSS_AIO_WRITE_DONE = SIGRTMIN+8;
+#ifdef SIGRTMAX
+const int OSS_AIO_READ_DONE  = SIGRTMAX-1;
+const int OSS_AIO_WRITE_DONE = SIGRTMAX;
 #else
 #define OSS_AIO_READ_DONE  SIGUSR1
 #define OSS_AIO_WRITE_DONE SIGUSR2

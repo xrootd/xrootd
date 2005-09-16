@@ -119,9 +119,9 @@ int main(int argc, char *argv[])
    sigaddset(&myset, SIGPIPE);
    sigaddset(&myset, SIGUSR1);
    sigaddset(&myset, SIGUSR2);
-#ifdef SIGRTMIN
-   sigaddset(&myset, SIGRTMIN+7);
-   sigaddset(&myset, SIGRTMIN+8);
+#ifdef SIGRTMAX
+   sigaddset(&myset, SIGRTMAX);
+   sigaddset(&myset, SIGRTMAX-1);
 #endif
    sigaddset(&myset, SIGCHLD);
    pthread_sigmask(SIG_BLOCK, &myset, NULL);
