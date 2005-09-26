@@ -65,7 +65,7 @@ XrdMonDecPreProcess::checkFile()
     enum { RBUFSIZE = 1024*1024 };
     char rBuf[RBUFSIZE];    
 
-    while ( _file.tellg() < _fSize ) {
+    while ( _fSize > _file.tellg() ) {
         // fill buffer
         kXR_int64 fPos = _file.tellg(); // tellg of this read buffer
 
