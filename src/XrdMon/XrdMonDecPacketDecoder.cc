@@ -66,7 +66,7 @@ XrdMonDecPacketDecoder::operator()(const XrdMonHeader& header,
         return;
     }
 
-    if ( header.stodChanged() ) {
+    if ( header.stodChanged(senderId) ) {
         _sink.registerXrdRestart(header.stod(), senderId);
     }
 

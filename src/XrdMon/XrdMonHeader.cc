@@ -19,13 +19,20 @@
 #include <iomanip>
 using std::setw;
 
-kXR_int32 XrdMonHeader::_prevStod = 0;
+vector<kXR_int32> XrdMonHeader::_prevStod;
 
 bool
-XrdMonHeader::stodChanged() const
+XrdMonHeader::stodChanged(senderid_t senderId) const
 {
-    bool ret = ( _prevStod != stod() );
-    _prevStod = stod();
+    bool ret = true;
+    if (  _prevStod.size() > senderId ) {
+        ret = ( _prevStod[senderId] != stod() );
+        if ( ret ) {
+            _prevStod[senderId] = stod();
+        }
+    } else {
+        _prevStod.push_back(stod());
+    }
     return ret;
 }
 

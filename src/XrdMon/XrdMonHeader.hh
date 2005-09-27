@@ -19,7 +19,9 @@
 
 #include <iostream>
 #include <sys/time.h>
+#include <vector>
 using std::ostream;
+using std::vector;
 
 class XrdMonHeader {
 public:
@@ -27,14 +29,14 @@ public:
     sequen_t    seqNo()       const { return _header.pseq; }
     packetlen_t packetLen()   const { return _header.plen; }
     kXR_int32   stod()        const { return _header.stod; }
-    bool        stodChanged() const;
+    bool        stodChanged(senderid_t senderId) const;
     
     void decode(const char* packet);
 
 private:
     XrdXrootdMonHeader _header;
 
-    static kXR_int32   _prevStod;
+    static vector<kXR_int32> _prevStod; // prevStod for each senderId
     
     friend ostream& operator<<(ostream& o, 
                                const XrdMonHeader& header);
