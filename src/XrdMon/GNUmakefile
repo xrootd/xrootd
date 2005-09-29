@@ -53,6 +53,7 @@ OBJECTS_BIN_CTR = $(OBJDIR)/XrdMonCtrMainApp.o
 OBJECTS_BIN_DEC = $(OBJDIR)/XrdMonDecMainApp.o
 OBJECTS_BIN_ADM = $(OBJDIR)/XrdMonSndAdminApp.o
 OBJECTS_BIN_SND = $(OBJDIR)/XrdMonSndDummyXrootdApp.o
+OBJECTS_BIN_FSD = $(OBJDIR)/XrdMonSndFileSenderApp.o
 OBJECTS_BIN_DMP = $(OBJDIR)/XrdMonDumpPacketsApp.o
 OBJECTS_BIN_DBP = $(OBJDIR)/XrdMonDebugPacketApp.o
 OBJECTS_BIN_CTM = $(OBJDIR)/XrdMonConvertTimestampApp.o
@@ -72,6 +73,7 @@ LIBRARIES      = $(LIBRARY_COMMON) $(LIBRARY_CTR) \
 COLLECTOR      = $(BINDIR)/xrdmonCollector
 DECODER        = $(BINDIR)/xrdmonDecoder
 SENDER         = $(BINDIR)/xrdmonDummySender
+FSENDER        = $(BINDIR)/xrdmonFileSender
 ADMIN          = $(BINDIR)/xrdmonAdmin
 DUMPPACKETS    = $(BINDIR)/xrdmonDumpPackets
 DEBUGPACKET    = $(BINDIR)/xrdmonDebugPacket
@@ -79,10 +81,16 @@ CONVTIME       = $(BINDIR)/xrdmonConvertTime
 TESTPARSER     = $(BINDIR)/testParser
 COUT2FILE      = $(BINDIR)/xrdmonCout2file
 
-BINARIES       = $(COLLECTOR) $(ADMIN) $(COUT2FILE) \
-                 $(SENDER) $(DECODER)    \
-#                 $(DUMPPACKETS) $(DEBUGPACKET) \
-#                 $(CONVTIME) $(TESTPARSER)
+BINARIES       = $(COLLECTOR)        \
+                 $(ADMIN)            \
+#                 $(COUT2FILE)       \
+#                 $(SENDER)          \
+#                 $(FSENDER)         \
+#                 $(DECODER)         \
+#                 $(DUMPPACKETS)     \
+#                 $(DEBUGPACKET)     \
+#                 $(CONVTIME)        \
+#                 $(TESTPARSER)
 
 TARGETS        = $(LIBRARIES) $(BINARIES)
 
@@ -162,6 +170,16 @@ $(DECODER):	$(OBJECTS_BIN_DEC) $(LIBRARY_DEC) $(LIBRARY_OUC) \
 	$(ECHO)$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^
 
 $(SENDER):	$(OBJECTS_BIN_SND) $(LIBRARY_SND) $(LIBRARY_COMMON) 
+	@echo Creating executable $(@F)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+		$(CC) -xar -o lib_temp.a $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		$(CC) $(CFLAGS) $(LDOP) lib_temp.a $(LIBS) -lresolv -o $@ $^; \
+		rm lib_temp.a; \
+	else \
+		$(CC) $(CFLAGS) $(LDOP) $(LIBS) -lresolv -o $@ $^; \
+	fi
+
+$(FSENDER):	$(OBJECTS_BIN_FSD) $(LIBRARY_SND) $(LIBRARY_COMMON) 
 	@echo Creating executable $(@F)
 	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 		$(CC) -xar -o lib_temp.a $(OBJDIR)$(SUNCACHE)/*/*.o; \
