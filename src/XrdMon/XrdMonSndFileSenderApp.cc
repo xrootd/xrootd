@@ -39,7 +39,8 @@ using namespace XrdMonArgParserConvert;
 //const kXR_int64 NOCALLS = 8640000;   24h worth
 const kXR_int64 NOCALLS = 1000000000;
 const kXR_int16 maxNoXrdMonSndPackets = 5;
-const char*     DEFAULT_FILE = "/tmp/active/rcv";
+const char*     DEFAULT_FILE  = "/tmp/active/rcv";
+const kXR_int16 DEFAULT_SLEEP = 0;
 
 void
 printHelp()
@@ -54,6 +55,8 @@ printHelp()
          << "                         Default valus is \"" << DEFAULT_PORT << "\".\n"
          << "-inputFile <fileName>    Input file name (with path or without).\n"
          << "                         Default value is \"" << DEFAULT_FILE << "\".\n"
+         << "-sleep <value>           number of miliseconds to sleep between each packet.\n"
+         << "                         Default value is \"" << DEFAULT_SLEEP << "\".\n"
          << endl;
 }
 
@@ -67,12 +70,15 @@ int main(int argc, char* argv[])
         arg_port("-port", DEFAULT_PORT);
     XrdMonArgParser::ArgImpl<const char*, Convert2String>
         arg_file("-inputFile", "/tmp/active.rcv");
+    XrdMonArgParser::ArgImpl<int, Convert2Int> 
+        arg_sleep("-sleep", DEFAULT_SLEEP);
 
     try {
         XrdMonArgParser argParser;
         argParser.registerExpectedArg(&arg_host);
         argParser.registerExpectedArg(&arg_port);
         argParser.registerExpectedArg(&arg_file);
+        argParser.registerExpectedArg(&arg_sleep);
         argParser.parseArguments(argc, argv);
     } catch (XrdMonException& e) {
         e.printIt();
@@ -85,6 +91,8 @@ int main(int argc, char* argv[])
         cerr << "Invalid input file name \"" << inFName << "\"" << endl;
         return 2;
     }
+
+    kXR_int16 msecSleep = arg_sleep.myVal();
 
     XrdMonSndDebug::initialize();
 
@@ -100,7 +108,7 @@ int main(int argc, char* argv[])
 
     int uniqueId = 0;
     
-    while ( _file.tellg() < fSize ) {
+    while ( _file && _file.tellg() < fSize ) {
         // read header
         char hBuffer[HDRLEN];
         _file.read(hBuffer, HDRLEN);
@@ -121,6 +129,8 @@ int main(int argc, char* argv[])
         bcopy(packetData,  packet.offset(HDRLEN), header.packetLen()-HDRLEN);
 
         transmitter(packet);
+
+        usleep(msecSleep);
     }
     
     transmitter.shutdown();
