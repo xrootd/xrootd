@@ -96,6 +96,10 @@ class XrdClientAdmin : public XrdClientAbs {
                                            kXR_char opts,
                                            kXR_char prty);
 
+   // Gives ONE location of a particular file... if present
+   bool                            Locate(kXR_char *pathfile,
+		                          XrdClientUrlInfo &urlinfo);
+	   
    UnsolRespProcResult             ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                                          XrdClientMessage *unsolmsg);
 

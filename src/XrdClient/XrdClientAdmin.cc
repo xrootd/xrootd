@@ -683,3 +683,17 @@ long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
    if (ret) return (fConnModule->LastServerResp.dlen);
    else return 0;
 }
+
+//_____________________________________________________________________________
+bool XrdClientAdmin::Locate(kXR_char *pathfile, XrdClientUrlInfo &urlinfo)
+{
+   long id, flags, modtime;
+   long long size;
+   
+   bool ret = Stat((const char *)pathfile, id, size, flags, modtime);
+   urlinfo = GetCurrentUrl();
+
+   return ret;
+
+}
+
