@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS sites (
   timezone      VARCHAR(64),
   backupInt     VARCHAR(19) DEFAULT '1 DAY',
   backupTime    DATETIME
-);
+) MAX_ROWS=255;
 
 # one row per minute, keeps last 60 minutes
 CREATE TABLE IF NOT EXISTS statsLastHour (
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS statsLastHour (
   maxNonUniqueF INT,
   PRIMARY KEY (seqNo, siteId),
   INDEX (date)
-);
+) MAX_ROWS=65535;
 
 # one row every 15 minutes, keeps last 24 hours
 CREATE TABLE IF NOT EXISTS statsLastDay LIKE statsLastHour;
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS rtChanges (
   nonUniqueF    MEDIUMINT UNSIGNED,
   nonUniqueF_p  FLOAT,
   lastUpdate    DATETIME
-);
+) MAX_ROWS=255;
 
 CREATE TABLE IF NOT EXISTS paths (
   id            MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -102,27 +102,27 @@ CREATE TABLE IF NOT EXISTS paths (
   INDEX (typeId),
   INDEX (skimId),
   INDEX (hash)
-);
+) MAX_ROWS=4294967296;
 
 CREATE TABLE IF NOT EXISTS xrdRestarts (
   hostId        SMALLINT UNSIGNED NOT NULL,
   siteId        TINYINT UNSIGNED NOT NULL,
   startT        DATETIME,
   PRIMARY KEY (siteId, hostId, startT)
-);
+) MAX_ROWS=65535;
 
 # BaBar specific!
 # e.g.: SP, PR, SPskims, PRskims
 CREATE TABLE IF NOT EXISTS fileTypes (
   name         VARCHAR(16),
   id           TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-);
+) MAX_ROWS=255;
 
 # BaBar specific!
 CREATE TABLE IF NOT EXISTS skimNames (
   name         VARCHAR(32),
   id           SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY
-);
+) MAX_ROWS=65535;
 
 ";
 
@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS ${site}_openedSessions (
   INDEX (pId),
   INDEX (clientHId),
   INDEX (serverHId)
-);
+) MAX_ROWS=16777215;
 
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions (
   id            INT       UNSIGNED NOT NULL PRIMARY KEY,
@@ -158,13 +158,18 @@ CREATE TABLE IF NOT EXISTS ${site}_closedSessions (
   INDEX (clientHId),
   INDEX (serverHId),
   INDEX (disconnectT)
-);
+) MAX_ROWS=1099511627776;
 
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastHour  LIKE ${site}_closedSessions;
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastDay   LIKE ${site}_closedSessions;
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastWeek  LIKE ${site}_closedSessions;
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastMonth LIKE ${site}_closedSessions;
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastYear  LIKE ${site}_closedSessions;
+
+ALTER TABLE ${site}_closedSessions_LastHour   MAX_ROWS=65535;
+ALTER TABLE ${site}_closedSessions_LastDay    MAX_ROWS=16777215;
+ALTER TABLE ${site}_closedSessions_LastWeek   MAX_ROWS=16777215;
+ALTER TABLE ${site}_closedSessions_LastMonth  MAX_ROWS=4294967296;
 
 CREATE TABLE IF NOT EXISTS ${site}_openedFiles (
   id            INT       UNSIGNED NOT NULL PRIMARY KEY,
@@ -174,7 +179,7 @@ CREATE TABLE IF NOT EXISTS ${site}_openedFiles (
   INDEX (sessionId),
   INDEX (pathId),
   INDEX (openT)
-);
+) MAX_ROWS=16777215;
 
 CREATE TABLE IF NOT EXISTS ${site}_closedFiles (
   id            INT       UNSIGNED NOT NULL PRIMARY KEY,
@@ -187,7 +192,7 @@ CREATE TABLE IF NOT EXISTS ${site}_closedFiles (
   INDEX (sessionId),
   INDEX (pathId),
   INDEX (closeT)
-);
+) MAX_ROWS=1099511627776;
 
 CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastHour  LIKE ${site}_closedFiles;
 CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastDay   LIKE ${site}_closedFiles;
@@ -195,13 +200,18 @@ CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastWeek  LIKE ${site}_closedFile
 CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastMonth LIKE ${site}_closedFiles;
 CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastYear  LIKE ${site}_closedFiles;
 
+ALTER TABLE  ${site}_closedFiles_LastHour  MAX_ROWS=65535;
+ALTER TABLE  ${site}_closedFiles_LastDay   MAX_ROWS=16777215;
+ALTER TABLE  ${site}_closedFiles_LastWeek  MAX_ROWS=16777215;
+ALTER TABLE  ${site}_closedFiles_LastMonth MAX_ROWS=4294967296;
+
 # compressed info for top performers (top users)
 CREATE TABLE IF NOT EXISTS ${site}_topPerfUsersNow (
   theId      INT NOT NULL,    # user Id
   jobs       INT NOT NULL,
   files      INT NOT NULL,
   fSize      INT NOT NULL     # [MB]
-);
+) MAX_ROWS=65535;
 CREATE TABLE IF NOT EXISTS ${site}_topPerfUsersPast (
   theId      INT NOT NULL,    # user Id
   jobs       INT NOT NULL,
@@ -209,7 +219,7 @@ CREATE TABLE IF NOT EXISTS ${site}_topPerfUsersPast (
   fSize      INT NOT NULL,    # [MB]
   volume     INT NOT NULL,
   timePeriod CHAR(6)          # \"hour\", \"week\", \"month\", \"year\"
-);
+) MAX_ROWS=65535;
 
 # compressed info for top performers (top skims)
 CREATE TABLE IF NOT EXISTS ${site}_topPerfSkimsNow (
@@ -218,7 +228,7 @@ CREATE TABLE IF NOT EXISTS ${site}_topPerfSkimsNow (
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
   users      INT NOT NULL
-);
+) MAX_ROWS=65535;
 CREATE TABLE IF NOT EXISTS ${site}_topPerfSkimsPast (
   theId      INT NOT NULL,    # skim Id
   jobs       INT NOT NULL,
@@ -227,19 +237,19 @@ CREATE TABLE IF NOT EXISTS ${site}_topPerfSkimsPast (
   users      INT NOT NULL,
   volume     INT NOT NULL,
   timePeriod CHAR(6)          # \"hour\", \"week\", \"month\", \"year\"
-);
+) MAX_ROWS=65535;
 
 # compressed info for top performers (top files)
 CREATE TABLE IF NOT EXISTS ${site}_topPerfFilesNow (
   theId      INT NOT NULL,    # path Id
   jobs       INT NOT NULL
-);
+) MAX_ROWS=65535;
 CREATE TABLE IF NOT EXISTS ${site}_topPerfFilesPast (
   theId      INT NOT NULL,    # path Id
   jobs       INT NOT NULL,
   volume     INT NOT NULL,
   timePeriod CHAR(6)          # \"hour\", \"week\", \"month\", \"year\"
-);
+) MAX_ROWS=65535;
 
 # compressed info for top performers (top skims)
 CREATE TABLE IF NOT EXISTS ${site}_topPerfTypesNow (
@@ -248,7 +258,7 @@ CREATE TABLE IF NOT EXISTS ${site}_topPerfTypesNow (
   files      INT NOT NULL,
   fSize      INT NOT NULL,    # [MB]
   users      INT NOT NULL
-);
+) MAX_ROWS=65535;
 CREATE TABLE IF NOT EXISTS ${site}_topPerfTypesPast (
   theId      INT NOT NULL,    # type Id
   jobs       INT NOT NULL,
@@ -257,17 +267,17 @@ CREATE TABLE IF NOT EXISTS ${site}_topPerfTypesPast (
   users      INT NOT NULL,
   volume     INT NOT NULL,
   timePeriod CHAR(6)          # \"hour\", \"week\", \"month\", \"year\"
-);
+) MAX_ROWS=65535;
 
 CREATE TABLE IF NOT EXISTS ${site}_users (
   id            SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(24) NOT NULL
-);
+) MAX_ROWS=65535;
 
 CREATE TABLE IF NOT EXISTS ${site}_hosts (
   id            SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   hostName      VARCHAR(64) NOT NULL
-);
+) MAX_ROWS=65535;
 
 ";
 } ### end of site-specific tables ###
