@@ -1411,9 +1411,18 @@ if test "x$enable_ssl" = "xyes" ; then
        fullincdir=/usr/include
     fi
     # Get version
-    sslver=`grep OPENSSL_VERSION_NUMBER $verh`
-    set $sslver
-    sslver=$3
+    if test "x$enable_ssl" = "xyes" ; then
+       sslver=`grep OPENSSL_VERSION_NUMBER $verh`
+       if test $? -eq 0 ; then
+          set $sslver
+          sslver=$3
+       else
+          sslver=unknown
+       fi
+    else
+       sslver=unknown
+    fi
+
     # At leat 0.9.6
     hexref="0090600"
     # For some weird reason solaris does not like the obvious solution
@@ -1518,6 +1527,9 @@ fi
 cryptlib="CRYPTLIB = -lcrypt"
 if test "x$platform" = "xmacosx" ; then
    cryptlib=""
+fi
+if test "x$arch" = "xsunx86_510" ; then
+   cryptlib="CRYPTLIB = -lcryptoutil"
 fi
 
 ######################################################################
