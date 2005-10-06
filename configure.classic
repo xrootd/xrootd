@@ -3,12 +3,19 @@
 #
 #          $Id$
 #                                                                              #
-#                            c o n f i g u r e                                 #
+#                     c o n f i g u r e . c l a s s i c                        #
+#                       (previously called configure)                          #
 #                                                                              #
 #  (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   #
 #        All Rights Reserved. See XrdInfo.cc for complete License Terms        #
 #    Produced by Andrew Hanushevsky for Stanford University under contract     #
 #               DE-AC03-76-SFO0515 with the Department of Energy               #
+#                                                                              #
+# Oct 6, 2005                                                                  #
+# The name of this script has been changed to configure.classic to avoid       #
+# interferences with the new build system based on autotools. The change has   #
+# done directly in the CVS repository so the history of the file did not get   #
+# lost. (D. Feichtinger, G. Ganis)                                             #
 #                                                                              #
 ################################################################################
 #                                                                              #
