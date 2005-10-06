@@ -244,7 +244,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
    if (!IsOpen()) {
       Error("Read", "File not opened.");
-      return FALSE;
+      return 0;
    }
 
   kXR_int32 rasize = EnvGetLong(NAME_READAHEADSIZE);
