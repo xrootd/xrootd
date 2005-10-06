@@ -1,0 +1,133 @@
+Installation Instructions for xrootd
+====================================
+
+
+I) Basic compilation and installation
+II) Tested systems
+III) How to use standard GNU autotools configure scripts
+     (e.g how to obtain several different compilations
+     with different options from the same sources)
+
+
+
+Basic compilation and installation:
+===================================
+
+./configure --prefix=install_directory [other options]
+make
+(make check)            builds test programs
+make install
+
+Note: You don't need the autotools for building this package.
+Only if changes in a Makefile.am template or in the configure.ac
+files are made, autotools need to be run to generate the updated
+configure and Makefiles.
+
+If a build error is encountered on your system, please notify the
+maintainers and send the config.log file that has been generated
+in the top directory.
+
+if doxygen is available on your system, you can generate documentation
+by executing
+
+make doc
+
+
+Configure options for subsystems:
+---------------------------------
+
+The --enable-FEATURE flags turn on building of an optional subsystem.
+The location of libraries and header files needed for some of the
+subsystems can be specified with the --with-FEATURE-lib=PATH arguments.
+Try "./configure --list for a list of options.
+
+
+Results of configure's tests:
+-----------------------------
+You can look up what configure found (and what your original arguments were)
+in the config.log file.
+The generated config.status file is a shell script that will produce the exact 
+same configuration as the one you just configured.
+
+
+II) Tested systems:
+===================
+
+CPU        OS                       Compiler      system's target string
+                                                  (as found by configure)
+------------------------------------------------------------------------
+i686       RH 7.3                   gcc-2.96      i686-pc-linux-gnu
+i686 (P4)  SL CERN Release 3.0.5    gcc-3.2.3     i686-pc-linux-gnu
+i686 (AMD) RH EL3                   gcc-3.2.3     i686-pc-linux-gnu
+i686       2.6.11-gentoo-r8         gcc-3.3.5     i686-pc-linux-gnu
+i686       debian SID (unstable)    gcc-3.3.6     i686-pc-linux-gnu
+i686       slackware                gcc-3.3.6     i686-pc-linux-gnu
+i686       RH 7.3                   icc-8.0       i686-pc-linux-gnu
+IA-64      SL CERN Release 3.0.5    gcc-3.2.3     ia64-unknown-linux-gnu
+amd64      SL CERN Release 3        gcc-3.2.3     x86_64-unknown-linux-gnu
+powerpc    darwin7.9.0              gcc-3.3       powerpc-apple-darwin7.9.0
+sparc      Solaris 9 (SunOS)        Sun CC++ 5.5  sparc-sun-solaris2.9
+sparc      Solaris 9 (SunOS)        Forte 7       sparc-sun-solaris2.9     NOT OK
+sparc      Solaris 9 (SunOS)        gcc           sparc-sun-solaris2.9     NOT OK
+
+Note:
+      - Solaris/Forte 7 has problems due to template cache issues and libtool
+      - Solaris/gcc     has problems due to tested gcc installation missing
+                        some C99 functions (lrint)
+
+
+How to use standard GNU autotools configure scripts
+===================================================
+
+- How to select the compiler
+
+  by default configure will try to use the GNU compiler, if
+  it can locate it on your system (except for Solaris). 
+  You can specify a different compiler by setting the relevant
+  variables on the configure line:
+
+  ./configure CXXFLAGS="-g" CC=cc CXX=CC
+
+  configure will test the compiler for its functionality and
+  select the appropriate options.
+
+
+- How to pass additional flags to the compiler/linker
+  
+  configure will honour settings in your environment. A list
+  of the most important variables you get by running
+
+  ./configure --help
+
+  However, it is better to set the initial values for these
+  variables from the configure line, e.g.
+
+  ./configure --prefix="/opt/install" CFLAGS="-g" CXXFLAGS="-g"
+
+  This line adds the -g flag for the C and C++ compilers.
+
+  Note, that GNU make also allows you to pass values for these
+  variables at build time using the same syntax:
+
+  gmake CFLAGS="-g" CXXFLAGS="-g"
+
+- How to make multiple builds with different options from the
+  same sources (typically: optimized and debug builds):
+
+  create a directory for every build. From inside this directory run
+  the configure of the original source directory. The makefile
+  structure will then be created under that directory.  This can also
+  be used for having a number executables for different architectures
+  which all refer to the same source directory.
+
+- further information
+
+  The most extensive information is found in the info pages for
+  Automake and Autoconf on your system.
+  The best book to understand and learn autotools is the autobook
+  which can also be found online at
+  http://sources.redhat.com/autobook/autobook/autobook_toc.html
+
+
+8/15/2005 Derek Feichtinger
+

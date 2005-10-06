@@ -1,0 +1,110 @@
+INSTRUCTIONS FOR PACKAGE MAINTAINERS
+====================================
+
+I) Overview
+II) Creating the configure script and the Makefiles
+III) Information concerning the created Makefiles
+IV) Producing a distribution tarball
+
+
+
+I) Overview
+===========
+
+This package build is based on the GNU autotools. It uses
+autmake, autoconf, and libtool.
+
+The best documentation for these tools can be found in the
+"autobook" (online at
+http://sources.redhat.com/autobook/autobook/autobook_toc.html)
+
+The following is just a short instructions manual.
+
+Autoconf: creates the configure script from the configure.ac
+          rules file. Offers a number of portable macros for testing a
+          system's properties.
+          Running configure will make substitutions in the
+          Makefile templates (Makefile.in) to generate the
+          finale Makefiles.
+
+Automake: used to create standardized Makefile templates
+          (Makefile.in files) from simple rules files
+          (Makefile.am files). These rules files are
+          quite easy to write and modify.
+
+libtool:  used to generate libraries. Allows running the built
+          programs from within the build directories as well as
+          in the final destination directories without worrying
+          about library path settings.
+
+
+II) Creating the configure script and the Makefiles
+===================================================
+
+In order to produce the configure script and Makefile.in templates
+the following steps need to be performed:
+
+Change to the packages top directory, where the configure.ac file
+is located.
+ 
+1. aclocal
+2. automake -a
+(3. If ltmain.sh is not installed, run "libtoolize --force")
+4. autoconf
+
+Now you can run configure and make.
+
+Notes to these steps:
+1. "aclocal" scans the configure.ac file and imports macros
+   needed by automake into the aclocal.m4 file.
+2. "automake -a" creates the Makefile.in files from the
+   Makefile.am files. The -a flag will install a number of
+   helper files like 'config.guess'.
+3. Usually the libtool file 'ltmain.sh' should have been installed
+   by the previous step. If not, run the "libtoolize --force"
+   command.
+4. "autoconf" will create the configure file itself. The rules file
+   configure.ac contains a number of macros (documentation is best
+   found in the Autoconf info pages) and shell code.
+
+
+III) Information concerning the created Makefiles
+=================================================
+
+Automake does a good job in tracking dependencies, even though
+the standard structure uses a "recursive make" concept across
+subdirectories. The makefiles which are produced have a
+number of standard targets (clean, install, check, dist,distclean).
+Also, they allow overriding of standard variabes like CFLAGS.
+
+"make install" will install the files foreseen in the Makefile.am
+files into a tree below the $prefix directory that was chosen at
+configure time.
+Even at "make install" time, the destination can be modified:
+
+make --prefix=/usr/local
+make DESTDIR=/somedir install 
+
+In this example files will end up in /somedir/usr/local
+
+
+IV) Producing a distribution tarball
+=====================================
+
+Producing a distribution tarball is as easy as typing
+
+make dist
+
+A tarball containing all the files needed for the build and any
+extra files specified in the Makefile.am templates will be created.
+It is named in the standard GNU manner. The name and version number
+are taken from the AC_INIT(name,version,bug-mail-address) line in
+the configure.ac file.
+
+make distcheck
+
+This command will create the tarball and then directly run a test
+build on it.
+
+
+8/15/2005 Derek Feichtinger
