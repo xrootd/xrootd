@@ -486,7 +486,6 @@ sub loadCloseFile() {
 ##################################################################### TEMPORARY CODE
     &runQuery("CREATE TEMPORARY TABLE closedFiles LIKE SLAC_closedFiles");
     &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" INTO TABLE closedFiles");
-    &runQuery("UPDATE closedFiles SET openT  = CONVERT_TZ( openT, \"$timeZones{$siteName}\", \"GMT\") ");
     &runQuery("UPDATE closedFiles SET closeT = CONVERT_TZ(closeT, \"$timeZones{$siteName}\", \"GMT\") ");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles
                     SELECT * FROM closedFiles                      ");
