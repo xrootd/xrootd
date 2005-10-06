@@ -4,7 +4,7 @@
 #------------------------------------------------------------------------------#
 include ../GNUmake.env
 
-BINLIBS = $(CRYPTLIB) $(LIBDEPS)
+BINLIBS  = $(CRYPTLIB) -L$(LIBDIR) -lXrdCrypto -lXrdSut -lXrdOuc
 
 LIBDEPS = $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdOuc.a
 
@@ -67,7 +67,7 @@ $(LIBRARY): $(OBJECTS) $(LIBDEPS)
 
 $(SRVADMIN): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SRVADMIN) 
-	$(ECHO)$(LD) $(OBJECTA) $(BINLIBS) $(LIBS) -o $(SRVADMIN)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTA) $(BINLIBS) $(LIBS) -o $(SRVADMIN)
 
 $(OBJDIR)/XrdSecpwdSrvAdmin.o: XrdSecpwdSrvAdmin.cc \
 		XrdOucString.hh XrdSutAux.hh XProtocol.hh XPtypes.hh \
