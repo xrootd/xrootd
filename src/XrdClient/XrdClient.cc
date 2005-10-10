@@ -33,8 +33,10 @@
 //_____________________________________________________________________________
 XrdClient::XrdClient(const char *url) {
    fReadAheadLast = 0;
+   fOpenProgCnd = new XrdOucCondVar(1);
 
    memset(&fStatInfo, 0, sizeof(fStatInfo));
+   memset(&fOpenPars, 0, sizeof(fOpenPars));
 
    int CacheSize = EnvGetLong(NAME_READCACHESIZE);
 
@@ -70,14 +72,62 @@ XrdClient::~XrdClient()
 }
 
 //_____________________________________________________________________________
-bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
+bool XrdClient::IsOpen_wait() {
+   bool res;
+
+   if (!fOpenProgCnd) return false;
+
+   fOpenProgCnd->Lock();
+
+   if (fOpenPars.inprogress) {
+      fOpenProgCnd->Wait();
+      if (fOpenerTh) {
+         delete fOpenerTh;
+         fOpenerTh = 0;
+      }
+   }
+   res = fOpenPars.opened;
+   fOpenProgCnd->UnLock();
+
+   return res;
+};
+
+//_____________________________________________________________________________
+void XrdClient::TerminateOpenAttempt() {
+  fOpenProgCnd->Lock();
+
+  fOpenPars.inprogress = false;
+  fOpenProgCnd->Broadcast();
+
+  fOpenProgCnd->UnLock();
+}
+
+//_____________________________________________________________________________
+bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
   short locallogid;
   
+  // If an open is already in progress, then wait
+  // This should never happen, but if it happens, bad things will occur
+  // without this check
+  fOpenProgCnd->Lock();
+
+  if (fOpenPars.inprogress)
+     fOpenProgCnd->Wait();
+
+  fOpenPars.inprogress = true;
+
+  fOpenProgCnd->UnLock();
+
   // But we initialize the internal params...
   fOpenPars.opened = FALSE;  
   fOpenPars.options = options;
-  fOpenPars.mode = mode;
-  
+  fOpenPars.mode = mode;  
+
+
+  if (doitparallel) {
+     fOpenerTh = new XrdClientThread(FileOpenerThread);
+     return true;
+  }
 
   // Now we try to set up the first connection
   // We cycle through the list of urls given in fInitialUrl
@@ -90,6 +140,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
   XrdClientUrlSet urlArray(fInitialUrl);
   if (!urlArray.IsValid()) {
      Error("Create", "The URL provided is incorrect.");
+     TerminateOpenAttempt();
      return FALSE;
   }
 
@@ -195,6 +246,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 
 
   if (!fConnModule->IsConnected()) {
+     TerminateOpenAttempt();
      return FALSE;
   }
 
@@ -217,6 +269,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 	      fUrl.File << " on host " << fUrl.Host << ":" <<
 	      fUrl.Port);
 
+        TerminateOpenAttempt();
 	return FALSE;
 
      } else {
@@ -224,16 +277,20 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 	Info(XrdClientDebug::kUSERDEBUG, "Create", "File opened succesfully.");
 
      }
+
   } else {
      // the server is an old rootd
      if (fConnModule->GetServerType() == XrdClientConn::kSTRootd) {
+        TerminateOpenAttempt();
         return FALSE;
      }
      if (fConnModule->GetServerType() == XrdClientConn::kSTNone) {
+        TerminateOpenAttempt();
         return FALSE;
      }
   }
 
+  TerminateOpenAttempt();
   return TRUE;
 
 }
@@ -242,7 +299,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options) {
 int XrdClient::Read(void *buf, long long offset, int len) {
    long long lastvalidoffs = -1;
 
-   if (!IsOpen()) {
+   if (!IsOpen_wait()) {
       Error("Read", "File not opened.");
       return 0;
    }
@@ -369,7 +426,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 //_____________________________________________________________________________
 bool XrdClient::Write(const void *buf, long long offset, int len) {
 
-   if (!IsOpen()) {
+   if (!IsOpen_wait()) {
       Error("WriteBuffer", "File not opened.");
       return FALSE;
    }
@@ -396,7 +453,7 @@ bool XrdClient::Sync()
    // Flushes un-written data
 
  
-   if (!IsOpen()) {
+   if (!IsOpen_wait()) {
       Error("Sync", "File not opened.");
       return FALSE;
    }
@@ -518,7 +575,7 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 //_____________________________________________________________________________
 bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
 
-   if (!IsOpen()) {
+   if (!IsOpen_wait()) {
       Error("Stat", "File not opened.");
       return FALSE;
    }
@@ -570,7 +627,7 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
 //_____________________________________________________________________________
 bool XrdClient::Close() {
 
-   if (!IsOpen()) {
+   if (!IsOpen_wait()) {
       Info(XrdClientDebug::kUSERDEBUG, "Close", "File not opened.");
       return TRUE;
    }
@@ -651,7 +708,7 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 //_____________________________________________________________________________
 bool XrdClient::Copy(const char *localpath) {
 
-   if (!IsOpen()) {
+   if (!IsOpen_wait()) {
       Error("Copy", "File not opened.");
       return FALSE;
    }
@@ -815,7 +872,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
 XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 
-   if (!IsOpen()) {
+   if (!IsOpen_wait()) {
       Error("Read", "File not opened.");
       return kGENERICERR;
    }
@@ -878,3 +935,16 @@ bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasiz
 }
 
 
+//_____________________________________________________________________________
+// Calls the Open func in order to parallelize the Open requests
+void *FileOpenerThread(void *arg, XrdClientThread *thr) {
+   // Function executed in the garbage collector thread
+   XrdClient *thisObj = (XrdClient *)arg;
+
+   thr->SetCancelDeferred();
+   thr->SetCancelOn();
+
+   thisObj->Open(thisObj->fOpenPars.mode, thisObj->fOpenPars.options, false);
+
+   return 0;
+}

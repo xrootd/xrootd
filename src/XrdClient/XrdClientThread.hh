@@ -2,6 +2,7 @@
 //                                                                      //
 // XrdClientThread                                                      //
 //                                                                      //
+// An user friendly thread wrapper                                      //
 // Author: F.Furano (INFN, 2005)                                        //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////

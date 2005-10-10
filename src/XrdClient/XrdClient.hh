@@ -42,9 +42,11 @@
 
 #include "XrdClient/XrdClientAbs.hh"
 #include "XrdClient/XrdClientString.hh"
+#include "XrdClient/XrdClientThread.hh"
 
 
 struct XrdClientOpenInfo {
+   bool      inprogress;
    bool      opened;
    kXR_unt16 mode;
    kXR_unt16 options;
@@ -59,6 +61,7 @@ struct XrdClientStatInfo {
 };
 
 class XrdClient : public XrdClientAbs {
+   friend void *FileOpenerThread(void*, XrdClientThread*);
 
 private:
 
@@ -67,6 +70,13 @@ private:
 
    struct XrdClientOpenInfo    fOpenPars;   // Just a container for the last parameters
                                             // passed to a Open method
+
+   // The open request can be in progress. Further requests must be delayed until
+   //  finished.
+   XrdOucCondVar              *fOpenProgCnd;
+
+   // Used to open a file in parallel
+   XrdClientThread            *fOpenerTh;
 
    bool                        fOpenWithRefresh;
 
@@ -87,6 +97,8 @@ private:
 
    // The first position not read by the last read ahead
    long long                   fReadAheadLast;
+
+   void                        TerminateOpenAttempt();
 
    bool                        TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize, kXR_int64 lastvalidoffs);
 protected:
@@ -117,10 +129,16 @@ public:
    // Copy the whole file to the local filesystem. Not very efficient.
    bool                        Copy(const char *localpath);
 
+   // Quickly tells if the file is open
    inline bool                 IsOpen() { return fOpenPars.opened; }
 
+   // Tells if the file is open, waiting for the completion of the parallel open
+   bool                        IsOpen_wait();
+
    // Open the file. See the xrootd documentation for mode and options
-   bool                        Open(kXR_unt16 mode, kXR_unt16 options);
+   // If parallel, then the open is done by a separate thread, and
+   // all the operations are delayed until the open has finished
+   bool                        Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel=true);
 
    // Read a block of data. If no error occurs, it returns all the requested bytes.
    int                         Read(void *buf, long long offset, int len);
