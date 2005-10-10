@@ -37,6 +37,10 @@ class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
 
  public:
 
+   virtual bool IsOpen_wait() {
+     return true;
+   };
+
    void SetParm(const char *parm, int val);
    void SetParm(const char *parm, double val);
 
@@ -51,6 +55,7 @@ class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
 
    // The last response got from a non-async request
    struct ServerResponseHeader *LastServerResp() {
+     IsOpen_wait();
       if (fConnModule) return &fConnModule->LastServerResp;
       else return 0;
    }

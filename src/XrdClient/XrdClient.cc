@@ -33,7 +33,7 @@
 //_____________________________________________________________________________
 XrdClient::XrdClient(const char *url) {
    fReadAheadLast = 0;
-   fOpenProgCnd = new XrdOucCondVar(1);
+   fOpenProgCnd = new XrdOucCondVar(0);
 
    memset(&fStatInfo, 0, sizeof(fStatInfo));
    memset(&fOpenPars, 0, sizeof(fOpenPars));
@@ -109,14 +109,14 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
   // If an open is already in progress, then wait
   // This should never happen, but if it happens, bad things will occur
   // without this check
-  fOpenProgCnd->Lock();
+  //fOpenProgCnd->Lock();
 
-  if (fOpenPars.inprogress)
-     fOpenProgCnd->Wait();
+  //if (fOpenPars.inprogress)
+  //   fOpenProgCnd->Wait();
 
   fOpenPars.inprogress = true;
 
-  fOpenProgCnd->UnLock();
+  //fOpenProgCnd->UnLock();
 
   // But we initialize the internal params...
   fOpenPars.opened = FALSE;  
@@ -126,6 +126,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
   if (doitparallel) {
      fOpenerTh = new XrdClientThread(FileOpenerThread);
+     fOpenerTh->Run(this);
      return true;
   }
 

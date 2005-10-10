@@ -32,7 +32,7 @@
 #define DFLT_DEBUG              0
 #define NAME_DEBUG              (char *)"DebugLevel"
 
-#define DFLT_RECONNECTTIMEOUT   10
+#define DFLT_RECONNECTTIMEOUT   20
 #define NAME_RECONNECTTIMEOUT   (char *)"ReconnectTimeout"
 
 #define DFLT_REDIRCNTTIMEOUT	3600
@@ -64,7 +64,7 @@
 #define XRD_CLIENT_CAPVER       ((kXR_char)kXR_asyncap | XRD_CLIENT_CURRENTVER)
 
 // Defaults for ReadAhead and Cache
-#define DFLT_READCACHESIZE      15728640
+#define DFLT_READCACHESIZE      (3*1024*1024)
 #define NAME_READCACHESIZE      (char *)"ReadCacheSize"
 
 #define DFLT_READAHEADSIZE      262144
