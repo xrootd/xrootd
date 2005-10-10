@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <strings.h>
 #include <sstream>
 using std::cerr;
 using std::cout;
@@ -108,7 +109,7 @@ int main(int argc, char* argv[])
 
     int uniqueId = 0;
     
-    while ( _file && _file.tellg() < fSize ) {
+    while ( _file && fSize > _file.tellg() ) {
         // read header
         char hBuffer[HDRLEN];
         _file.read(hBuffer, HDRLEN);

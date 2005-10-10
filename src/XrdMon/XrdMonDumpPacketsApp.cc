@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
             dumpOnePacket(XrdMonDecArgParser::_offset2Dump, _file);
         } else {
             kXR_int64 packetNo = 0;
-            while ( _file.tellg() < fSize ) {
+            while ( fSize > _file.tellg() ) {
                 dumpOnePacket(++packetNo, _file);
             }
         }
