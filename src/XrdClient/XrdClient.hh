@@ -43,7 +43,7 @@
 #include "XrdClient/XrdClientAbs.hh"
 #include "XrdClient/XrdClientString.hh"
 #include "XrdClient/XrdClientThread.hh"
-
+#include "XrdOuc/XrdOucSemWait.hh"
 
 struct XrdClientOpenInfo {
    bool      inprogress;
@@ -77,6 +77,9 @@ private:
 
    // Used to open a file in parallel
    XrdClientThread            *fOpenerTh;
+
+   // Used to limit the maximum number of concurrent opens
+   static XrdOucSemaphore      fConcOpenSem;
 
    bool                        fOpenWithRefresh;
 

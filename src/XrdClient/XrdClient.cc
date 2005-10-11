@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <signal.h>
 
+XrdOucSemaphore     XrdClient::fConcOpenSem(DFLT_MAXCONCURRENTOPENS);
 
 //_____________________________________________________________________________
 XrdClient::XrdClient(const char *url) {
@@ -65,8 +66,29 @@ XrdClient::XrdClient(const char *url) {
 //_____________________________________________________________________________
 XrdClient::~XrdClient()
 {
-   // Destructor
+   // Terminate the opener thread
+
+   fOpenProgCnd->Lock();
+
+   if (fOpenPars.inprogress) {
+
+      if (fOpenerTh) {
+  	 fOpenerTh->Cancel();
+	 fOpenerTh->Join();
+      }
+
+   }
+
+   if (fOpenerTh) {
+      delete fOpenerTh;
+      fOpenerTh = 0;
+   }
+
+   fOpenProgCnd->UnLock();
+
+
    Close();
+
    if (fConnModule)
       delete fConnModule;
 }
@@ -98,7 +120,7 @@ void XrdClient::TerminateOpenAttempt() {
 
   fOpenPars.inprogress = false;
   fOpenProgCnd->Broadcast();
-
+  fConcOpenSem.Post();
   fOpenProgCnd->UnLock();
 }
 
@@ -106,17 +128,7 @@ void XrdClient::TerminateOpenAttempt() {
 bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
   short locallogid;
   
-  // If an open is already in progress, then wait
-  // This should never happen, but if it happens, bad things will occur
-  // without this check
-  //fOpenProgCnd->Lock();
-
-  //if (fOpenPars.inprogress)
-  //   fOpenProgCnd->Wait();
-
   fOpenPars.inprogress = true;
-
-  //fOpenProgCnd->UnLock();
 
   // But we initialize the internal params...
   fOpenPars.opened = FALSE;  
@@ -125,6 +137,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
 
   if (doitparallel) {
+     fConcOpenSem.Wait();
      fOpenerTh = new XrdClientThread(FileOpenerThread);
      fOpenerTh->Run(this);
      return true;

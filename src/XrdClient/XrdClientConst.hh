@@ -81,6 +81,9 @@
 
 #define PROTO (char *)"root"
 
+// The max number of threads spawned to do parallel opens
+#define DFLT_MAXCONCURRENTOPENS    500
+
 #define TRUE  1
 #define FALSE 0
 
