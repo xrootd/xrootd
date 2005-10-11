@@ -10,7 +10,7 @@
 
 noinst_LTLIBRARIES = libXrdClient.la
 
-bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read
+bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd
 
 xrootdclientincdir = $(includedir)/xrootd/XrdClient
 xrootdclientinc_HEADERS = XrdClient.hh XrdClientAbs.hh XrdClientString.hh
@@ -56,6 +56,9 @@ clientlibs =  libXrdClient.la \
 
 xrdcp_SOURCES = Xrdcp.cc
 xrdcp_LDADD = $(clientlibs)
+
+xrd_SOURCES = XrdCommandLine.cc
+xrd_LDADD = $(clientlibs)
 
 TestXrdClient_SOURCES = XrdClientAdmin_c.cc XrdClientAdmin_c.hh \
                         TestXrdClient.cc
