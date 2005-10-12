@@ -94,7 +94,8 @@ static ASN1_OBJECT *OBJ_txt2obj_fix(const char *s, int no_name)
 	a2d_ASN1_OBJECT(p,i,s,-1);
 	
 	p=buf;
-	op=d2i_ASN1_OBJECT(NULL,&p,j); // not op=d2i_ASN1_OBJECT(NULL,&p,i)
+	// not op=d2i_ASN1_OBJECT(0, &p, i) (C.H. Christensen, Oct 12, 2005)
+	op = d2i_ASN1_OBJECT(0, const_cast<const unsigned char**>(&p), j);
 	OPENSSL_free(buf);
 	return op;
 	}
@@ -151,7 +152,7 @@ void gsiProxyPolicy_free(gsiProxyPolicy_t *pol)
 // in the policy.
 //___________________________________________________________________________
 gsiProxyPolicy_t *d2i_gsiProxyPolicy(gsiProxyPolicy_t **pol,
-                                     unsigned char **pp, long length)
+                                     const unsigned char **pp, long length)
 {
    // Get the policy object from buffer at pp, of length bytes.
 
@@ -255,7 +256,7 @@ void gsiProxyCertInfo_free(gsiProxyCertInfo_t *pci)
 // gsiProxyCertInfo_t object.
 //___________________________________________________________________________
 gsiProxyCertInfo_t *d2i_gsiProxyCertInfo(gsiProxyCertInfo_t **pci,
-                                         unsigned char **pp, long length)
+                                         const unsigned char **pp, long length)
 {
    // Get the proxy certificate info object from length bytes at pp.
 
@@ -343,7 +344,8 @@ bool XrdSslgsiProxyCertInfo(const void *extdata, int &pathlen, bool *haspolicy)
 
    // Now extract the path length constraint, if any
    unsigned char *p = ext->value->data;
-   gsiProxyCertInfo_t *pci = d2i_gsiProxyCertInfo(0, &p, ext->value->length);
+   gsiProxyCertInfo_t *pci =
+      d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), ext->value->length);
    if (!pci) {
       return 0;
    }
@@ -384,7 +386,8 @@ void XrdSslgsiSetPathLenConstraint(void *extdata, int pathlen)
 
    // Now extract the path length constraint, if any
    unsigned char *p = ext->value->data;
-   gsiProxyCertInfo_t *pci = d2i_gsiProxyCertInfo(0, &p, ext->value->length);
+   gsiProxyCertInfo_t *pci =
+      d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), ext->value->length);
    if (!pci)
       return;
 
@@ -848,8 +851,8 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
       OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xpiext), 1);
       if (!strcmp(s, gsiProxyCertInfo_OID)) {
          unsigned char *p = xpiext->value->data;
-         gsiProxyCertInfo_t *inpci = d2i_gsiProxyCertInfo(0, &p,
-                                                          xpiext->value->length);
+         gsiProxyCertInfo_t *inpci =
+            d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), xpiext->value->length);
          if (inpci && 
              inpci->proxyCertPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->proxyCertPathLengthConstraint);
@@ -1071,8 +1074,8 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
          OBJ_obj2txt(s, sizeof(s), obj, 1);
       if (!strcmp(s, gsiProxyCertInfo_OID)) {
          unsigned char *p = xpiext->value->data;
-         gsiProxyCertInfo_t *inpci = d2i_gsiProxyCertInfo(0, &p,
-                                                          xpiext->value->length);
+         gsiProxyCertInfo_t *inpci =
+            d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), xpiext->value->length);
          if (inpci && 
              inpci->proxyCertPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->proxyCertPathLengthConstraint);
@@ -1107,7 +1110,8 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    // Get the content
    int reqdepthlen = -1;
    unsigned char *p = xriext->value->data;
-   gsiProxyCertInfo_t *reqpci = d2i_gsiProxyCertInfo(0, &p, xriext->value->length);
+   gsiProxyCertInfo_t *reqpci =
+      d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), xriext->value->length);
    if (reqpci &&
        reqpci->proxyCertPathLengthConstraint)
       reqdepthlen = ASN1_INTEGER_get(reqpci->proxyCertPathLengthConstraint);
