@@ -128,20 +128,10 @@ void XrdClient::TerminateOpenAttempt() {
 bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
   short locallogid;
   
-  fOpenPars.inprogress = true;
-
   // But we initialize the internal params...
   fOpenPars.opened = FALSE;  
   fOpenPars.options = options;
   fOpenPars.mode = mode;  
-
-
-  if (doitparallel) {
-     fConcOpenSem.Wait();
-     fOpenerTh = new XrdClientThread(FileOpenerThread);
-     fOpenerTh->Run(this);
-     return true;
-  }
 
   // Now we try to set up the first connection
   // We cycle through the list of urls given in fInitialUrl
@@ -154,7 +144,6 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
   XrdClientUrlSet urlArray(fInitialUrl);
   if (!urlArray.IsValid()) {
      Error("Create", "The URL provided is incorrect.");
-     TerminateOpenAttempt();
      return FALSE;
   }
 
@@ -260,7 +249,6 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
 
   if (!fConnModule->IsConnected()) {
-     TerminateOpenAttempt();
      return FALSE;
   }
 
@@ -278,33 +266,33 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
      Info(XrdClientDebug::kUSERDEBUG,
 	  "Create", "Opening the remote file " << fUrl.File); 
 
-     if (!TryOpen(mode, options)) {
+     if (!TryOpen(mode, options, doitparallel)) {
 	Error("Create", "Error opening the file " <<
 	      fUrl.File << " on host " << fUrl.Host << ":" <<
 	      fUrl.Port);
 
-        TerminateOpenAttempt();
 	return FALSE;
 
      } else {
 
-	Info(XrdClientDebug::kUSERDEBUG, "Create", "File opened succesfully.");
+	if (doitparallel) {
+	   Info(XrdClientDebug::kUSERDEBUG, "Create", "File open in progress.");
+	}
+	else
+	   Info(XrdClientDebug::kUSERDEBUG, "Create", "File opened succesfully.");
 
      }
 
   } else {
      // the server is an old rootd
      if (fConnModule->GetServerType() == XrdClientConn::kSTRootd) {
-        TerminateOpenAttempt();
         return FALSE;
      }
      if (fConnModule->GetServerType() == XrdClientConn::kSTNone) {
-        TerminateOpenAttempt();
         return FALSE;
      }
   }
 
-  TerminateOpenAttempt();
   return TRUE;
 
 }
@@ -491,20 +479,34 @@ bool XrdClient::Sync()
 }
 
 //_____________________________________________________________________________
-bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options) {
+bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
    
+   fOpenPars.inprogress = true;
+
+  if (doitparallel) {
+     fConcOpenSem.Wait();
+     fOpenerTh = new XrdClientThread(FileOpenerThread);
+     fOpenerTh->Run(this);
+     return true;
+  }
+
    // First attempt to open a remote file
    bool lowopenRes = LowOpen(fUrl.File.c_str(), mode, options);
 
-   if (lowopenRes) return TRUE;
+   if (lowopenRes) {
+      TerminateOpenAttempt();
+      return TRUE;
+   }
 
    // If the open request failed for the error "file not found" proceed, 
    // otherwise return FALSE
-   if (fConnModule->GetOpenError() != kXR_NotFound)
+   if (fConnModule->GetOpenError() != kXR_NotFound) {
+      TerminateOpenAttempt();
       return FALSE;
+   }
 
 
-   // If connected to a host saying "File not Found" then...
+   // If connected to a host saying "File not Found" or similar then...
 
    // If we are currently connected to a host which is different
    // from the one we formerly connected, then we resend the request
@@ -522,17 +524,21 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options) {
       if ( (fConnModule->GoToAnotherServer(*fConnModule->GetLBSUrl()) == kOK) &&
 	   LowOpen(fUrl.File.c_str(),
 		   mode, options | kXR_refresh,
-		   (char *)opinfo.c_str() ) )
+		   (char *)opinfo.c_str() ) ) {
+	 TerminateOpenAttempt();
 	 return TRUE;
+      }
       else {
 	      
 	 Error("Open", "Error opening the file.");
+	 TerminateOpenAttempt();
 	 return FALSE;
 	 
       }
 
    }
 
+   TerminateOpenAttempt();
    return FALSE;
 
 }
@@ -700,7 +706,7 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
       options |= kXR_open_updt;
    }
 
-   if ( TryOpen(fOpenPars.mode, options) ) {
+   if ( TryOpen(fOpenPars.mode, options, false) ) {
 
       fOpenPars.opened = TRUE;
 
@@ -958,7 +964,8 @@ void *FileOpenerThread(void *arg, XrdClientThread *thr) {
    thr->SetCancelDeferred();
    thr->SetCancelOn();
 
-   thisObj->Open(thisObj->fOpenPars.mode, thisObj->fOpenPars.options, false);
+   thisObj->TryOpen(thisObj->fOpenPars.mode, thisObj->fOpenPars.options, false);
 
+   thr->Detach();
    return 0;
 }

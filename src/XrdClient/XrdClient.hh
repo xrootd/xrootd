@@ -91,7 +91,8 @@ private:
    XrdClientUrlInfo            fUrl;
 
    bool                        TryOpen(kXR_unt16 mode,
-				       kXR_unt16 options);
+				       kXR_unt16 options,
+				       bool doitparallel);
 
    bool                        LowOpen(const char *file,
 				       kXR_unt16 mode,
