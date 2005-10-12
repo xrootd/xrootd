@@ -213,15 +213,12 @@ bool XrdClientAdmin::Connect() {
 
      
    } else {
-      // the server is an old rootd
-      if (fConnModule->GetServerType() == XrdClientConn::kSTRootd) {
+      // We close the connection only if we do not know the server type.
+      // In the rootd case the connection may be re-used later.
+      if (fConnModule->GetServerType() == XrdClientConn::kSTNone)
 	 fConnModule->Disconnect(TRUE);
-	 return FALSE;
-      }
-      if (fConnModule->GetServerType() == XrdClientConn::kSTNone) {
-	 fConnModule->Disconnect(TRUE);
-	 return FALSE;
-      }
+
+      return FALSE;
    }
 
    return TRUE;
