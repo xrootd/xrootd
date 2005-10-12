@@ -531,7 +531,8 @@ bool XrdCryptosslX509::IsCA()
 
    // Analyse the structure
    unsigned char *p = ext->value->data;
-   BASIC_CONSTRAINTS *bc = d2i_BASIC_CONSTRAINTS(0, &p, ext->value->length);
+   BASIC_CONSTRAINTS *bc =
+      d2i_BASIC_CONSTRAINTS(0, const_cast<const unsigned char**>(&p), ext->value->length);
 
    // CA?
    bool isca = (bc->ca != 0);
