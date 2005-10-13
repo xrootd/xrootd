@@ -2,6 +2,7 @@
 #include "XrdClient/XrdClientEnv.hh"
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 int main(int argc, char **argv) {
    void *buf;
@@ -9,9 +10,10 @@ int main(int argc, char **argv) {
       cout <<
 	 "This program gets from the standard input a sequence of" << endl <<
 	 " <length> <offset>             (one for each line, with <length> less than 16M)" << endl <<
-	 " and performs the corresponding read requests towards the given xrootd URL." << endl <<
+	 " and performs the corresponding read requests towards the given xrootd URL or to ALL" << endl <<
+	 " the xrootd URLS contained in the given file." << endl <<
 	 endl <<
-	 "Usage: TestXrdClient_read <xrootd url> <rasize> <cachesize> <debuglevel>" << 
+	 "Usage: TestXrdClient_read <xrootd url or file name> <rasize> <cachesize> <debuglevel>" << 
 	 endl << endl <<
 	 " Where:" << endl <<
 	 "  <xrootd url> is the xrootd URL of a remote file " << endl <<
@@ -28,24 +30,70 @@ int main(int argc, char **argv) {
    EnvPutInt( NAME_DEBUG, atol(argv[4]));
 
    buf = malloc(16*1024*1024);
-       	  
-   XrdClient *cli = new XrdClient(argv[1]);
-   EnvPutInt( NAME_READAHEADTYPE, 0);
-   cli->Open(0, 0);
+   
+   // Check if we have a file or a root:// url
+   bool isrooturl = (strstr(argv[1], "root://"));
 
-   while (!cin.eof()) {
-      int sz;
-      long long offs;
-      int retval;
+   if (isrooturl) {
+     XrdClient *cli = new XrdClient(argv[1]);
+     EnvPutInt( NAME_READAHEADTYPE, 0);
+     cli->Open(0, 0);
 
-      cin >> sz >> offs;
+     while (!cin.eof()) {
+       int sz;
+       long long offs;
+       int retval;
+       
+       cin >> sz >> offs;
+       
+       retval = cli->Read(buf, offs, sz);
+       
+       cout << endl << "Read returned " << retval << endl;
+       
+       if (retval <= 0) exit(1);
+       
+     }
+   }
+   else {
+     vector<XrdClient *> xrdcvec;
+     ifstream filez(argv[1]);
 
-      retval = cli->Read(buf, offs, sz);
+     // Open all the files (in parallel man!)
+     while (!filez.eof()) {
+       string s;
+       XrdClient * cli;
 
-      cout << endl << "Read returned " << retval << endl;
+       filez >> s;
+       if (s != "") {
+	 cli = new XrdClient(s.c_str());
+	 if (cli->Open(0, 0)) {
+	   cout << "--- Open of " << s << " in progress." << endl;
+	   xrdcvec.push_back(cli);
+	 }
+	 else delete cli;
+       }
+     }
 
-      if (retval <= 0) exit(1);
 
+     // Now fire the read trace to all the instances
+     while (!cin.eof()) {
+       int sz;
+       long long offs;
+       int retval;
+       
+       cin >> sz >> offs;
+    
+       for(int i = 0; i < xrdcvec.size(); i++)
+	 retval = xrdcvec[i]->Read(buf, offs, sz);
+       
+       cout << endl << "Last Read (of " << xrdcvec.size() << ") returned " << retval << endl;
+       
+       if (retval <= 0) exit(1);
+       
+     }
+
+     for(int i = 0; i < xrdcvec.size(); i++) delete xrdcvec[i];
+     xrdcvec.clear();
    }
   
 
