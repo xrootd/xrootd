@@ -344,7 +344,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
 
    //
    // Form library name
-   snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s.so", factoryid);
+   snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto.so");
    libfn[sizeof(libfn)-1] = '\0';
 
    //
@@ -363,8 +363,32 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    //
    // Get the factory object creator
    if (!(efact = (XrdCryptoFactory *(*)())dlsym(libhandle, factobjname))) {
-      DEBUG("problems finding crypto factory object creator " << factobjname);
-      return 0;
+
+      //
+      // Try also specific library name
+      snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s.so", factoryid);
+      libfn[sizeof(libfn)-1] = '\0';
+      
+      //
+      // Determine path
+      libloc = libfn;
+      DEBUG("loading " <<factoryid <<" crypto factory object from " <<libloc);
+      
+      //
+      // Try opening the crypto module
+      if (!(libhandle = dlopen(libloc, RTLD_NOW))) {
+         DEBUG("problems opening shared library " << libloc
+                << "(error: "<< dlerror() << ")");
+         return 0;
+      }
+
+
+      //
+      // Get the factory object creator
+      if (!(efact = (XrdCryptoFactory *(*)())dlsym(libhandle, factobjname))) {
+         DEBUG("problems finding crypto factory object creator " << factobjname);
+         return 0;
+      }
    }
 
    //
