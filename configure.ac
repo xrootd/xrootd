@@ -307,7 +307,7 @@ if test x"$enable_openssl" != xno ; then
 
   LDFLAGS="$OPENSSL_LIBDIR $LDFLAGS"
   AC_CHECK_LIB([ssl],[SSL_library_init],
-               [],[ssltests=failed]
+               [!],[ssltests=failed]
               )
 
   if test x"$ssltests" != xok ; then
