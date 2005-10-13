@@ -282,6 +282,12 @@ if test x"$enable_openssl" != xno ; then
     AC_SUBST(SSLCXXFLAGS,[-DPERL5])
   fi
 
+  # note: -DR__SSL_GE_098 allows to deal with some differences in ANS1 macros
+  # introduced in version 0.9.8
+  if test 0"$vernum" -ge 908 ; then
+    AC_DEFINE(R__SSL_GE_098)
+  fi
+
   AC_ARG_WITH(openssl-libdir,
             [  --with-openssl-libdir=PATH    dir containing openssl library (libssl.*)],
             [

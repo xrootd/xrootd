@@ -1432,23 +1432,30 @@ if test "x$enable_ssl" = "xyes" ; then
 
     # At leat 0.9.6
     hexref="0090600"
+    hexref98="0090800"
     # For some weird reason solaris does not like the obvious solution
     if test "x$type" = "xSunOS" ; then
        hexver=`echo $sslver | cut -c3-9`
        decver=`echo "ibase=16;$hexver | bc"`
        decref=`echo "ibase=16;$hexref | bc"`
+       decref98=`echo "ibase=16;$hexref98 | bc"`
     else
        hexver=`echo $sslver | cut -c3-9`
        decver=`echo "ibase=16;${hexver}"|bc`
        decref=`echo "ibase=16;${hexref}"|bc`
+       decref98=`echo "ibase=16;${hexref98}"|bc`
     fi
     message "Checking for openssl version"
+    openssl98="no"
     if [ "${decver}" -lt "${decref}" ] ; then
        echo "no: minimal version required is 0.9.6"
        ssl_incdir=""
        enable_ssl="no"
        break
     else
+       if [ "${decver}" -ge "${decref98}" ] ; then
+          openssl98="yes"
+       fi
        echo "ok"
     fi
     #
@@ -1515,6 +1522,9 @@ if test "x$enable_ssl" = "xyes" ; then
         fi
     else
         sslextracflags="-DR__SSL"
+        if test "x$openssl98" = "xyes" ; then
+           sslextracflags="$sslextracflags -DR__SSL_GE_098"
+        fi
         incssl="INCSSL = -I$sslincdir"
         libssl="LIBSSL = $ssllibdir $ssllib"
         xrdsut="XrdSut"
