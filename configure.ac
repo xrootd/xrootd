@@ -266,9 +266,10 @@ if test x"$enable_openssl" != xno ; then
   # test openssl version
   verstr=`expr  x"$OPENSSL_VERSION_TEXT" : '.*\([[0-9]].[[0-9]].[[0-9]][[a-z]]\)'`
   AC_MSG_NOTICE([OpenSSL version : $verstr])
-  vermajor=`expr x"$OPENSSL_VERSION_TEXT" : '.*\([[0-9]]\).[[0-9]].[[0-9]]'`
-  verminor=`expr x"$OPENSSL_VERSION_TEXT" : '.*[[0-9]]\.\([[0-9]]\)\.[[0-9]]'`
-  verrelease=`expr x"$OPENSSL_VERSION_TEXT" : '.*[[0-9]]\.[[0-9]]\.\([[0-9]]\)'`
+
+  vermajor=`expr x"$verstr" : '.*\([[0-9]]\).[[0-9]].[[0-9]]'`
+  verminor=`expr x"$verstr" : '.*[[0-9]]\.\([[0-9]]\)\.[[0-9]]'`
+  verrelease=`expr x"$verstr" : '.*[[0-9]]\.[[0-9]]\.\([[0-9]]\)'`
   vernum=`expr 10000 \* 0"$vermajor" + 100 \* 0"$verminor" + 0"$verrelease"`
   if test 0"$vernum" -lt 906 ; then
     AC_MSG_WARN([OpenSSL >= 0.9.6 required (found: $OPENSSL_VERSION_TEXT)
