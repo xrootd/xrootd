@@ -25,4 +25,4 @@ libXrdAcc_la_LIBADD = ../XrdOuc/libXrdOuc.la \
                       ../XrdNet/libXrdNet.la
 
 XrdAccTest_SOURCES = XrdAccTest.cc XrdAccAuthorize.hh
-XrdAccTest_LDADD = libXrdAcc.la
+XrdAccTest_LDADD = libXrdAcc.la ../XrdOuc/libXrdOuc.la ../XrdNet/libXrdNet.la
