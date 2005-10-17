@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastWeek  LIKE ${site}_closedS
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastMonth LIKE ${site}_closedSessions;
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions_LastYear  LIKE ${site}_closedSessions;
 
-ALTER TABLE ${site}_closedSessions_LastHour   MAX_ROWS=65535;
+ALTER TABLE ${site}_closedSessions_LastHour   MAX_ROWS=16777215;
 ALTER TABLE ${site}_closedSessions_LastDay    MAX_ROWS=16777215;
 ALTER TABLE ${site}_closedSessions_LastWeek   MAX_ROWS=16777215;
 ALTER TABLE ${site}_closedSessions_LastMonth  MAX_ROWS=4294967296;
@@ -200,7 +200,7 @@ CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastWeek  LIKE ${site}_closedFile
 CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastMonth LIKE ${site}_closedFiles;
 CREATE TABLE IF NOT EXISTS ${site}_closedFiles_LastYear  LIKE ${site}_closedFiles;
 
-ALTER TABLE  ${site}_closedFiles_LastHour  MAX_ROWS=65535;
+ALTER TABLE  ${site}_closedFiles_LastHour  MAX_ROWS=16777215;
 ALTER TABLE  ${site}_closedFiles_LastDay   MAX_ROWS=16777215;
 ALTER TABLE  ${site}_closedFiles_LastWeek  MAX_ROWS=16777215;
 ALTER TABLE  ${site}_closedFiles_LastMonth MAX_ROWS=4294967296;
