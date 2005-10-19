@@ -8,7 +8,7 @@
 ##   Produced by Andrew Hanushevsky for Stanford University under contract
 ##              DE-AC03-76-SFO0515 with the Department of Energy
 ##
-## configure.ac autotools configuration file
+## configure.ac autotools configuration file for xrootd
 ## Author: Derek Feichtinger <derek.feichtinger@cern.ch>
 ## Initial version: 1.8.2005
 ##
@@ -25,10 +25,10 @@ AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 # routine below
 
 # extra directories for standard search path for header files
-extra_inc_path=""
+extra_inc_path_default="/usr/kerberos/include /afs/slac.stanford.edu/package/krb5/include "
 
 # extra directories for standard search path for libraries
-extra_lib_path=""
+extra_lib_path_default="/usr/kerberos/lib /afs/slac.stanford.edu/package/krb5/lib"
 
 # preference for compilers
 CC_PREFERENCE="gcc cc"
@@ -59,8 +59,6 @@ case "$target_os" in
      # TODO: check why two different macros are used for this
      AC_DEFINE(__linux__)
      AC_DEFINE(__linux)
-     extra_inc_path="$extra_inc_path /usr/kerberos/include"
-     extra_lib_path="$extra_lib_path /usr/kerberos/lib"
      ;;
    solaris*)
      TARGET_OS=solaris
@@ -68,8 +66,8 @@ case "$target_os" in
      CC_PREFERENCE="cc gcc"
      CXX_PREFERENCE="CC g++"
      DFLT_OPT="-O2"
-     extra_inc_path="$extra_inc_path /usr/local/include"
-     extra_lib_path="$extra_lib_path /usr/local/lib"
+     extra_inc_path_default="$extra_inc_path_default /usr/local/include"
+     extra_lib_path_default="$extra_lib_path_default /usr/local/lib"
      ;;
    *)
      AC_MSG_WARN([untested operating system])
@@ -84,10 +82,23 @@ case "$target_cpu" in
      ;;
 esac
 
+###########################################################
+# only carry on the paths which really exist on this system
+for name in $extra_inc_path_default ; do
+   if test -d "$name"; then
+      extra_inc_path="$extra_inc_path $name"
+   fi
+done
+for name in $extra_lib_path_default ; do
+   if test -d "$name"; then
+      extra_lib_path="$extra_lib_path $name"
+   fi
+done
 
 ACX_WITH_BASEDIR
 extra_inc_path="$acx_base_incdir $extra_inc_path"
 extra_lib_path="$acx_base_libdir $extra_lib_path"
+
 
 ############################################################
 # set some variables according to what has been found so far
@@ -120,6 +131,10 @@ for dir in $extra_lib_path ; do
       LDFLAGS="$LDFLAGS -L$dir"
    fi
 done
+
+AC_MSG_NOTICE([my CPPFLAGS... $CPPFLAGS])
+AC_MSG_NOTICE([my LDFLAGS... $LDFLAGS])
+
 ############################################################
 
 
@@ -308,7 +323,7 @@ if test x"$enable_openssl" != xno ; then
 
   LDFLAGS="$OPENSSL_LIBDIR $LDFLAGS"
   AC_CHECK_LIB([ssl],[SSL_library_init],
-               [:],[ssltests=failed]
+               [:],[ssltests=failed],[-lcrypto]
               )
 
   if test x"$ssltests" != xok ; then
@@ -483,13 +498,14 @@ AC_SUBST(LIBPTHREAD)
 AC_CHECK_LIB([rt],[aio_fsync],
              [AC_SUBST(LIBRT,[-lrt])])
 
+##  ---- DISABLED FOR NOW ----
 ## check for the MonALISA client cpp library
-AC_CHECK_LIB([apmoncpp],[main],
-             [:],
-             [have_apmon=xno
-              AC_MSG_WARN([libapmoncpp not found. I Will not build xrdmoncp!])
-             ])
-AM_CONDITIONAL(ENABLE_APMON, test x"$have_apmon" != xno)
+##AC_CHECK_LIB([apmoncpp],[main],
+##             [:],
+##             [have_apmon=xno
+##              AC_MSG_WARN([libapmoncpp not found. I Will not build xrdmoncp!])
+##             ])
+##AM_CONDITIONAL(ENABLE_APMON, test x"$have_apmon" != xno)
 
 #################################################################
 # Checks for header files.
