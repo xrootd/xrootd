@@ -8,12 +8,18 @@
 ## Checked in by $Author$
 #######################################################################
 
-noinst_LTLIBRARIES = libXrdClient.la
+lib_LTLIBRARIES = libXrdClient.la
 
 bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd
 
 xrootdclientincdir = $(includedir)/xrootd/XrdClient
-xrootdclientinc_HEADERS = XrdClient.hh XrdClientAbs.hh XrdClientString.hh
+xrootdclientinc_HEADERS = \
+               XrdClientString.hh XrdClientVector.hh XrdClientAdmin.hh \
+               XrdClientAbs.hh XrdClientUnsolMsg.hh XrdClientMessage.hh \
+               XrdClientProtocol.hh XrdClientSock.hh XrdClientUrlInfo.hh \
+               XrdClientConn.hh XrdClientConst.hh XrdClientReadCache.hh \
+               XrdClientInputBuffer.hh XrdClientEnv.hh XrdClientThread.hh
+
 
 INCLUDES = -I$(top_srcdir)/src
 
@@ -73,7 +79,7 @@ if ENABLE_PERLINT
 XrdClientAdmin_c_wrap.cc:
 	cp XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc
 
-lib_LTLIBRARIES = libXrdClientAdmin.la
+lib_LTLIBRARIES += libXrdClientAdmin.la
 libXrdClientAdmin_la_SOURCES = XrdClientAdmin_c.cc \
                                XrdClientAdmin_c_wrap.cc
 

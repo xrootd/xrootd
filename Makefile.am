@@ -35,6 +35,15 @@ doc:
 endif
 
 
+################################################################
+## Here we define general includes (not specific to any module)
+xrootdincdir = $(includedir)/xrootd
+
+xrootdinc_HEADERS = src/XrdVersion.hh
+
+xrootdprotocolincdir = $(includedir)/xrootd/XProtocol
+
+xrootdprotocolinc_HEADERS = src/XProtocol/XProtocol.hh src/XProtocol/XPtypes.hh
 
 
 ################################################################
