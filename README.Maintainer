@@ -67,6 +67,9 @@ Notes to these steps:
    configure.ac contains a number of macros (documentation is best
    found in the Autoconf info pages) and shell code.
 
+The simple script "bootstrap.sh" is provided to automatize the 
+four steps. 
+
 
 III) Information concerning the created Makefiles
 =================================================
@@ -107,4 +110,4 @@ This command will create the tarball and then directly run a test
 build on it.
 
 
-8/15/2005 Derek Feichtinger
+8/19/2005 Derek Feichtinger
