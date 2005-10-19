@@ -47,9 +47,9 @@ the following steps need to be performed:
 Change to the packages top directory, where the configure.ac file
 is located.
  
-1. aclocal
-2. automake -a
-(3. If ltmain.sh is not installed, run "libtoolize --force")
+1. libtoolize
+2. aclocal
+3. automake -a
 4. autoconf
 
 Now you can run configure and make.
