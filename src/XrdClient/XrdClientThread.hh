@@ -37,10 +37,8 @@ private:
    };
 
    virtual ~XrdClientThread() {
-      void *r;
 
-      Cancel();
-      Join(&r);
+//      Cancel();
    };
 
    int Cancel() {

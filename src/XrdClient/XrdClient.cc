@@ -29,11 +29,12 @@
 #include <fcntl.h>
 #include <signal.h>
 
-XrdOucSemaphore     XrdClient::fConcOpenSem(DFLT_MAXCONCURRENTOPENS);
+XrdOucSemWait     XrdClient::fConcOpenSem(DFLT_MAXCONCURRENTOPENS);
 
 //_____________________________________________________________________________
 XrdClient::XrdClient(const char *url) {
    fReadAheadLast = 0;
+   fOpenerTh = 0;
    fOpenProgCnd = new XrdOucCondVar(0);
 
    memset(&fStatInfo, 0, sizeof(fStatInfo));
@@ -69,15 +70,6 @@ XrdClient::~XrdClient()
    // Terminate the opener thread
 
    fOpenProgCnd->Lock();
-
-   if (fOpenPars.inprogress) {
-
-      if (fOpenerTh) {
-  	 fOpenerTh->Cancel();
-	 fOpenerTh->Join();
-      }
-
-   }
 
    if (fOpenerTh) {
       delete fOpenerTh;
@@ -120,8 +112,9 @@ void XrdClient::TerminateOpenAttempt() {
 
   fOpenPars.inprogress = false;
   fOpenProgCnd->Broadcast();
-  fConcOpenSem.Post();
   fOpenProgCnd->UnLock();
+
+  fConcOpenSem.Post();
 }
 
 //_____________________________________________________________________________
@@ -487,6 +480,11 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
      fConcOpenSem.Wait();
      fOpenerTh = new XrdClientThread(FileOpenerThread);
      fOpenerTh->Run(this);
+     if (fOpenerTh->Detach())
+      {
+         Error("XrdClient", "Thread detach failed");
+      }
+
      return true;
   }
 
@@ -966,6 +964,5 @@ void *FileOpenerThread(void *arg, XrdClientThread *thr) {
 
    thisObj->TryOpen(thisObj->fOpenPars.mode, thisObj->fOpenPars.options, false);
 
-   thr->Detach();
    return 0;
 }

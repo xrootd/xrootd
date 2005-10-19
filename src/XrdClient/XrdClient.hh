@@ -79,7 +79,7 @@ private:
    XrdClientThread            *fOpenerTh;
 
    // Used to limit the maximum number of concurrent opens
-   static XrdOucSemaphore      fConcOpenSem;
+   static XrdOucSemWait        fConcOpenSem;
 
    bool                        fOpenWithRefresh;
 

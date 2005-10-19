@@ -40,18 +40,23 @@ int main(int argc, char **argv) {
      cli->Open(0, 0);
 
      while (!cin.eof()) {
-       int sz;
-       long long offs;
-       int retval;
+       int sz = 0;
+       long long offs = 0;
+       int retval = 0;
        
        cin >> sz >> offs;
+
+       if (offs || sz) {
+          retval = cli->Read(buf, offs, sz);
+          cout << endl << "---Read returned " << retval << endl;
+       }
+       else break;
        
-       retval = cli->Read(buf, offs, sz);
        
-       cout << endl << "Read returned " << retval << endl;
-       
-       if (retval <= 0) exit(1);
-       
+       if (retval <= 0) {
+          cout << "------ A read failed" << endl << endl;
+          exit(1);
+       }
      }
    }
    else {
@@ -74,30 +79,49 @@ int main(int argc, char **argv) {
        }
      }
 
-
+     filez.close();
+     cout << "--- All the open requests have been submitted" << endl;
+     
      // Now fire the read trace to all the instances
      while (!cin.eof()) {
-       int sz;
-       long long offs;
-       int retval;
+       int sz = 0;
+       long long offs = 0;
+       int retval = 0;
        
        cin >> sz >> offs;
     
-       for(int i = 0; i < xrdcvec.size(); i++)
-	 retval = xrdcvec[i]->Read(buf, offs, sz);
+       if (offs || sz) {
+          for(int i = 0; i < xrdcvec.size(); i++) {
+             retval = xrdcvec[i]->Read(buf, offs, sz);
+             if (retval <= 0) {
+                cout << "------ A read failed:" << xrdcvec[i]->GetCurrentUrl().GetUrl() << endl << endl;
+             }
+          }
+       }
+       else break;
        
        cout << endl << "Last Read (of " << xrdcvec.size() << ") returned " << retval << endl;
        
-       if (retval <= 0) exit(1);
        
      }
 
+     cout << "--- Closing all instances" << endl;
+     for(int i = 0; i < xrdcvec.size(); i++) xrdcvec[i]->Close();
+    
+     sleep(10);
+ 
+     cout << "--- Deleting all instances" << endl;
      for(int i = 0; i < xrdcvec.size(); i++) delete xrdcvec[i];
+     
+     cout << "--- Clearing pointer vector" << endl; 
      xrdcvec.clear();
    }
   
 
+   cout << "--- Freeing buffer" << endl;
    free(buf);
+
+   cout << "--- bye bye" << endl;
    return 0;
 
 }
