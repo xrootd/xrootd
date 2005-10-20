@@ -13,7 +13,7 @@ noinst_LTLIBRARIES = libXrdMonCommon.la \
                      libXrdMonCollector.la \
                      libXrdMonDummySender.la
 
-noinst_PROGRAMS = \
+bin_PROGRAMS = \
 	   xrdmonCollector \
 	   xrdmonAdmin
 
