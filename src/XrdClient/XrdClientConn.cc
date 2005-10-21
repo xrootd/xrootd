@@ -79,6 +79,11 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
    // Constructor
    char buf[255];
 
+   memset(&LastServerResp, 0, sizeof(LastServerResp));
+   memset(&LastServerError, 0, sizeof(LastServerError));
+   LastServerResp.status = kXR_noResponsesYet;
+   LastServerError.errnum = kXR_noErrorYet;
+
    fREQUrl.Clear();
    fREQWait = new XrdOucCondVar(0);
    fREQConnectWait = new XrdOucCondVar(0);

@@ -115,6 +115,8 @@ void XrdClient::TerminateOpenAttempt() {
   fOpenProgCnd->UnLock();
 
   fConcOpenSem.Post();
+
+//  cout << "Mytest " << time(0) << " File: " << fUrl.File << " - Open finished." << endl;
 }
 
 //_____________________________________________________________________________
@@ -474,23 +476,48 @@ bool XrdClient::Sync()
 //_____________________________________________________________________________
 bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
    
+   int thrst = 0;
+
    fOpenPars.inprogress = true;
 
   if (doitparallel) {
-     fConcOpenSem.Wait();
-     fOpenerTh = new XrdClientThread(FileOpenerThread);
-     fOpenerTh->Run(this);
-     if (fOpenerTh->Detach())
-      {
-         Error("XrdClient", "Thread detach failed");
-      }
 
-     return true;
+     for (int i = 0; i < DFLT_MAXCONCURRENTOPENS; i++) {
+
+        fConcOpenSem.Wait();
+        fOpenerTh = new XrdClientThread(FileOpenerThread);
+
+        thrst = fOpenerTh->Run(this);     
+        if (!thrst) {
+           // The thread start seems OK. This open will go in parallel
+
+           if (fOpenerTh->Detach())
+              Error("XrdClient", "Thread detach failed. Low system resources?");
+
+           return true;
+        }
+
+        // Note: the Post() here is intentionally missing.
+
+        Error("XrdClient", "Parallel open thread start failed. Low system"
+              " resources? Res=" << thrst << " Count=" << i);
+        delete fOpenerTh;
+        fOpenerTh = 0;
+
+     }
+
+     // If we are here it seems that this machine cannot start open threads at all
+     // In this desperate situation we try to go sync anyway.
+     for (int i = 0; i < DFLT_MAXCONCURRENTOPENS; i++) fConcOpenSem.Post();
+
+     Error("XrdClient", "All the parallel open thread start attempts failed."
+           " Desperate situation. Going sync.");
+     
+     doitparallel = false;
   }
 
    // First attempt to open a remote file
    bool lowopenRes = LowOpen(fUrl.File.c_str(), mode, options);
-
    if (lowopenRes) {
       TerminateOpenAttempt();
       return TRUE;

@@ -94,10 +94,10 @@ public:
    bool                       IsConnected() const { return fConnected; }
 
    struct ServerResponseHeader
-   LastServerResp;
+                              LastServerResp;
 
    struct ServerResponseBody_Error
-   LastServerError;
+                              LastServerError;
 
    bool                       SendGenCommand(ClientRequest *req, 
 					     const void *reqMoreData,       

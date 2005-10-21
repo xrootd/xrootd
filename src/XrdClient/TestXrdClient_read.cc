@@ -62,6 +62,8 @@ int main(int argc, char **argv) {
    else {
      vector<XrdClient *> xrdcvec;
      ifstream filez(argv[1]);
+     int i = 0;
+     XrdClientUrlInfo u;
 
      // Open all the files (in parallel man!)
      while (!filez.eof()) {
@@ -71,17 +73,24 @@ int main(int argc, char **argv) {
        filez >> s;
        if (s != "") {
 	 cli = new XrdClient(s.c_str());
+         u.TakeUrl(s.c_str());
+
+         cout << "Mytest " << time(0) << " File: " << u.File << " - Opening." << endl;
 	 if (cli->Open(0, 0)) {
 	   cout << "--- Open of " << s << " in progress." << endl;
 	   xrdcvec.push_back(cli);
 	 }
 	 else delete cli;
        }
+
+       i++;
      }
 
      filez.close();
      cout << "--- All the open requests have been submitted" << endl;
      
+     i = 0;
+
      // Now fire the read trace to all the instances
      while (!cin.eof()) {
        int sz = 0;
@@ -91,8 +100,10 @@ int main(int argc, char **argv) {
        cin >> sz >> offs;
     
        if (offs || sz) {
+          cout << "-----<<<<<< Trying to read " << sz << "@" << offs << endl;
           for(int i = 0; i < xrdcvec.size(); i++) {
              retval = xrdcvec[i]->Read(buf, offs, sz);
+             cout << "Mytest " << time(0) << " File: " << xrdcvec[i]->GetCurrentUrl().File << " - Finished read " << sz << "@" << offs << endl;
              if (retval <= 0) {
                 cout << "------ A read failed:" << xrdcvec[i]->GetCurrentUrl().GetUrl() << endl << endl;
              }
@@ -102,14 +113,15 @@ int main(int argc, char **argv) {
        
        cout << endl << "Last Read (of " << xrdcvec.size() << ") returned " << retval << endl;
        
-       
+       i++;
      }
 
      cout << "--- Closing all instances" << endl;
-     for(int i = 0; i < xrdcvec.size(); i++) xrdcvec[i]->Close();
+     for(int i = 0; i < xrdcvec.size(); i++) {
+        xrdcvec[i]->Close();
+        cout << "Mytest " << time(0) << " File: " << xrdcvec[i]->GetCurrentUrl().File << " - Closed." << endl;
+     }
     
-     sleep(10);
- 
      cout << "--- Deleting all instances" << endl;
      for(int i = 0; i < xrdcvec.size(); i++) delete xrdcvec[i];
      
