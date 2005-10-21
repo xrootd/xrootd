@@ -152,7 +152,8 @@ enum XResponseType {
    kXR_authmore,
    kXR_error,
    kXR_redirect,
-   kXR_wait
+   kXR_wait,
+   kXR_noResponsesYet = 10000
 };
 
 //_______________________________________________
@@ -191,7 +192,8 @@ enum XErrorCode {
    kXR_Unsupported,
    kXR_noserver,
    kXR_NotFile,
-   kXR_isDirectory
+   kXR_isDirectory,
+   kXR_noErrorYet = 10000
 };
 
 
