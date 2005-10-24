@@ -116,7 +116,7 @@ void XrdClient::TerminateOpenAttempt() {
 
   fConcOpenSem.Post();
 
-//  cout << "Mytest " << time(0) << " File: " << fUrl.File << " - Open finished." << endl;
+  //cout << "Mytest " << time(0) << " File: " << fUrl.File << " - Open finished." << endl;
 }
 
 //_____________________________________________________________________________

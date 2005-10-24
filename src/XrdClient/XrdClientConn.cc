@@ -651,7 +651,7 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
          fOpenError = (XErrorCode)ntohl(body_err->errnum);
 
 	 // Save the last error received
-	 memcpy(&LastServerError, body_err, sizeof(LastServerError));
+	 memcpy(&LastServerError, body_err, mex->DataLen());
 	 LastServerError.errnum = fOpenError;
 
       }
