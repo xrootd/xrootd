@@ -277,7 +277,7 @@ int ParseArguments(int argc, char **argv)
             --argc;
             ++argv;
             if (argc >= 0 && (*argv && *(argv)[0] != '-')) {
-               EEcert = *argv;
+               EEkey = *argv;
             } else {
                PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
                PRT("+ Option '-key' requires a key file name: ignoring         +");
