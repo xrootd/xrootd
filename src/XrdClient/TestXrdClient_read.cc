@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
     
        if (offs || sz) {
           cout << "-----<<<<<< Trying to read " << sz << "@" << offs << endl;
-          for(int i = 0; i < xrdcvec.size(); i++) {
+          for(int i = 0; i < (int) xrdcvec.size(); i++) {
              retval = xrdcvec[i]->Read(buf, offs, sz);
              cout << "Mytest " << time(0) << " File: " << xrdcvec[i]->GetCurrentUrl().File << " - Finished read " << sz << "@" << offs << endl;
              if (retval <= 0) {
@@ -117,13 +117,13 @@ int main(int argc, char **argv) {
      }
 
      cout << "--- Closing all instances" << endl;
-     for(int i = 0; i < xrdcvec.size(); i++) {
+     for(int i = 0; i < (int) xrdcvec.size(); i++) {
         xrdcvec[i]->Close();
         cout << "Mytest " << time(0) << " File: " << xrdcvec[i]->GetCurrentUrl().File << " - Closed." << endl;
      }
     
      cout << "--- Deleting all instances" << endl;
-     for(int i = 0; i < xrdcvec.size(); i++) delete xrdcvec[i];
+     for(int i = 0; i < (int) xrdcvec.size(); i++) delete xrdcvec[i];
      
      cout << "--- Clearing pointer vector" << endl; 
      xrdcvec.clear();
