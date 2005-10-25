@@ -16,11 +16,15 @@ INCLUDES = -I$(top_srcdir)/src
 
 libXrdSecpwd_la_SOURCES = \
         XrdSecProtocolpwd.cc XrdSecProtocolpwd.hh XrdSecpwdPlatform.hh
+libXrdSecpwd_la_LIBADD = ../XrdCrypto/libXrdCrypto.la \
+                      ../XrdSut/libXrdSut.la \
+                      ../XrdOuc/libXrdOuc.la \
+		      $(CRYPTLIB) $(OPENSSL_LIBDIR) -ldl -lcrypto
 
 xrdpwdadmin_SOURCES = XrdSecpwdSrvAdmin.cc
 xrdpwdadmin_LDADD =   ../XrdCrypto/libXrdCrypto.la \
-                      ../XrdNet/libXrdNet.la \
+                      ../XrdNet/libXrdSut.la \
                       ../XrdOuc/libXrdOuc.la \
-		      $(OPENSSL_LIBDIR) -ldl -lcrypto
+		      $(CRYPTLIB) $(OPENSSL_LIBDIR) -ldl -lcrypto
 xrdpwdadmin_LDFLAGS = -static
 
