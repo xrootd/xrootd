@@ -33,7 +33,7 @@ private:
    bool                      fConnected;
    int fSocket;
 
-   int    SaveSocket() { int fd = fSocket; fSocket = -1; return fd; }
+   int    SaveSocket() { int fd = fSocket; fSocket = -1;  fConnected = 0; return fd; }
 
 public:
    XrdClientSock(XrdClientUrlInfo host, int windowsize = 0);
