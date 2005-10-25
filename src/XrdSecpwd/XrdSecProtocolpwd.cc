@@ -1736,6 +1736,7 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       SafeDelete(tmps);
 
    } else {
+#ifndef DONT_HAVE_CRYPT
       // Crypt-like: get the pwhash
       String passwd(creds->buffer,creds->size+1);
       passwd.reset(0,creds->size,creds->size);
@@ -1745,6 +1746,10 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       if (!strncmp(pass_crypt, hs->Pent->buf1.buf, hs->Pent->buf1.len + 1) != 0)
          match = 1;
       return match;
+#else
+      DEBUG("Crypt-like passwords (via crypt(...)) not supported");
+      match = 0;
+#endif
    }
 
    // We are done
