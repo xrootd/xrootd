@@ -8,7 +8,7 @@
 ## Checked in by $Author$
 #######################################################################
 
-lib_LTLIBRARIES = libXrdClient.la
+XrdClientLib = libXrdClient.la
 
 bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd
 
@@ -79,10 +79,12 @@ if ENABLE_PERLINT
 XrdClientAdmin_c_wrap.cc:
 	cp XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc
 
-lib_LTLIBRARIES += libXrdClientAdmin.la
+XrdClientAdminLib = libXrdClientAdmin.la
 libXrdClientAdmin_la_SOURCES = XrdClientAdmin_c.cc \
                                XrdClientAdmin_c_wrap.cc
 
 libXrdClientAdmin_la_CXXFLAGS = $(PERL_CCOPTS)
 endif
+
+lib_LTLIBRARIES = $(XrdClientLib) $(XrdClientAdminLib)
 
