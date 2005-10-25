@@ -191,6 +191,11 @@ if test x"$enable_pwd" = xyes ; then
    if test -f "/etc/shadow"; then
      AC_DEFINE(R__SHADOWPW)
    fi
+   AC_CHECK_LIB(crypt,[crypt],
+                 [AC_SUBST(CRYPTLIB,[-lcrypt])],
+		 [AC_DEFINE(DONT_HAVE_CRYPT)
+		  AC_MSG_WARN([disabling support for crypt-like passwords])
+		 ],[])
 fi
 
 ####################################################################
@@ -295,6 +300,7 @@ if test x"$enable_openssl" != xno ; then
   # note: -DPERL5 is needed for resolving a clash between unistd.h and
   # openssl/des.h regarding the crypt function on some older systems (e.g. RH7.3)
   if test 0"$vernum" -lt 907 ; then
+    AC_DEFINE(R__SSL_096)
     AC_SUBST(SSLCXXFLAGS,[-DPERL5])
   fi
 
