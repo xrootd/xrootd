@@ -579,7 +579,7 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
       return -kErrPX_NoResources;
    }
    // Set extension name.
-#if 0
+#ifndef R__SSL_096
    // We do not use directly OBJ_txt2obj because that is not working
    // with all OpenSSL 0.9.6 versions
    ASN1_OBJECT *obj = OBJ_nid2obj(OBJ_create(gsiProxyCertInfo_OID,
