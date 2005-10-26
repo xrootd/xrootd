@@ -916,7 +916,7 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
       return -kErrPX_Error;
    }
    // Set extension name.
-#if 0
+#ifndef R__SSL_096
    // We do not use directly OBJ_txt2obj because that is not working
    // with all OpenSSL 0.9.6 versions
    ASN1_OBJECT *obj = OBJ_nid2obj(OBJ_create(gsiProxyCertInfo_OID,
@@ -1190,7 +1190,7 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       return -kErrPX_Error;
    }
    // Set extension name.
-#if 0
+#ifndef R__SSL_096
    // We do not use directly OBJ_txt2obj because that is not working
    // with all OpenSSL 0.9.6 versions
    ASN1_OBJECT *obj = OBJ_nid2obj(OBJ_create(gsiProxyCertInfo_OID,
