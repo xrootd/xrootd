@@ -1431,23 +1431,15 @@ if test "x$enable_ssl" = "xyes" ; then
     fi
 
     # At leat 0.9.6
-    hexref="0090600"
-    hexref97="0090700"
-    hexref98="0090800"
-    # For some weird reason solaris does not like the obvious solution
-    if test "x$type" = "xSunOS" ; then
-       hexver=`echo $sslver | cut -c3-9`
-       decver=`echo "ibase=16;$hexver | bc"`
-       decref=`echo "ibase=16;$hexref | bc"`
-       decref97=`echo "ibase=16;$hexref97 | bc"`
-       decref98=`echo "ibase=16;$hexref98 | bc"`
-    else
-       hexver=`echo $sslver | cut -c3-9`
-       decver=`echo "ibase=16;${hexver}"|bc`
-       decref=`echo "ibase=16;${hexref}"|bc`
-       decref97=`echo "ibase=16;${hexref97}"|bc`
-       decref98=`echo "ibase=16;${hexref98}"|bc`
-    fi
+
+    decref="0090600"
+    decref97="0090700"
+    decref98="0090800"
+
+    tmpver=`echo $sslver | cut -c3-8`
+    decver=`expr 10 \* 0"$tmpver"`
+
+    echo "OpenSSL version: $sslver ($decver)"
     message "Checking for openssl version"
     openssl96="no"
     openssl98="no"
