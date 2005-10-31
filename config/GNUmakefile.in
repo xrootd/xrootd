@@ -4,6 +4,11 @@
 #                             C o m p o n e n t s                              #
 #------------------------------------------------------------------------------#
 
+# Tell GNU make >=3.79 not to run the top level in parallel since
+# inter sub-makefile dependencies are not correct. Should use flat Makefile.
+# (F. Rademakers, 31 Oct 2005)
+.NOTPARALLEL:
+
 # Order in which components must be made
 #
 SERVER  = XrdOuc XrdNet @xrdsec@ \
