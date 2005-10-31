@@ -15,6 +15,12 @@
 ## Checked in by $Author$
 ################################################################################
 
+# Tell GNU make >=3.79 not to run the top level in parallel since
+# inter sub-makefile dependencies are not correct.
+# To be fixed using a flat Makefile.
+# (F. Rademakers, 31 Oct 2005)
+.NOTPARALLEL:
+
 AUTOMAKE_OPTIONS = foreign 1.6
 
 SUBDIRS = src
