@@ -13,16 +13,14 @@
   
 //           $Id$
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <dirent.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <sys/uio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "XrdOuc/XrdOucPthread.hh"
 
-const int XrdPosixFD = 65536;
+const int XrdPosixFD = 16384;
 
 class XrdPosixFile;
 class XrdPosixDir;
@@ -81,16 +79,30 @@ static ssize_t Writev(int fildes, const struct iovec *iov, int iovcnt);
 
 // Some non POSIX methods
 //
+static int     Access(const char *path, int amode);
+
 static bool    isXrootdDir(DIR *dirp);
 
+static int     mapError(int rc);
+
+static void    setDebug(int val);
+
+static void    setEnv(const char *var, const char *val);
+
+static void    setEnv(const char *var, int val);
+
+static int     Debug;
+
                XrdPosixXrootd(int maxfd=64, int maxdir=64);
-               ~XrdPosixXrootd();
+              ~XrdPosixXrootd();
 
 private:
 
+static int                   Fault(XrdPosixFile *fp, int complete=1);
 static XrdPosixFile         *findFP(int fildes, int glk=0);
 static XrdPosixDir          *findDIR(DIR *dirp, int glk=0);
-static int                   mapError(int rc);
+static void                  initStat(struct stat *buf);
+static void                  initXdev(dev_t &st_dev, dev_t &st_rdev);
 static int                   mapFlags(int flags);
 
 static XrdOucMutex    myMutex;

@@ -13,11 +13,10 @@
   
 //           $Id$
 
+#include <dirent.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 // Define the external interfaces (not C++ but OS compatabile). These
 // externs are included by XrdPosix.hh to complete the macro definitions.
@@ -66,5 +65,9 @@ extern int     XrdPosix_Unlink(const char *path);
 extern ssize_t XrdPosix_Write(int fildes, const void *buf, size_t nbyte);
 
 extern ssize_t XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt);
+
+// The following is for use for wrapper classeses
+//
+extern int     XrdPosix_isMyPath(const char *path);
 
 #endif
