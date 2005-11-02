@@ -278,8 +278,13 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
 
 int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 {
+     const int ro_Mode = ~(S_IWUSR | S_IWGRP | S_IWOTH);
     char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *remote_path;
-    int retc;
+    int popts, retc;
+
+// Construct the processing options for this path
+//
+   popts = XrdOssSS.PathOpts(path);
 
 // Generate local path
 //
@@ -290,7 +295,10 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 
 // Stat the file in the local filesystem first.
 //
-   if (!stat(local_path, buff)) return XrdOssOK;
+   if (!stat(local_path, buff)) 
+      {if (popts & XrdOssNOTRW) buff->st_mode &= ro_Mode;
+       return XrdOssOK;
+      }
    if (!IsRemote(path)) return -errno;
    if (resonly) return -ENOMSG;
 
@@ -303,7 +311,9 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 
 // Now stat the file in the remote system (it doesn't exist locally)
 //
-   return MSS_Stat(remote_path, buff);
+   if ((retc = MSS_Stat(remote_path, buff))) return retc;
+   if (popts & XrdOssNOTRW) buff->st_mode &= ro_Mode;
+   return XrdOssOK;
 }
 
 /******************************************************************************/
