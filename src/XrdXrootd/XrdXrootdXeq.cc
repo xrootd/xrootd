@@ -1200,6 +1200,11 @@ int XrdXrootdProtocol::do_Stat()
   
 int XrdXrootdProtocol::do_StatGen(struct stat &buf, char *xxBuff)
 {
+   const mode_t isReadable = (S_IRUSR | S_IRGRP | S_IROTH);
+   const mode_t isWritable = (S_IWUSR | S_IWGRP | S_IWOTH);
+   const mode_t isExecable = (S_IXUSR | S_IXGRP | S_IXOTH);
+   static uid_t myuid = getuid();
+   static gid_t mygid = getgid();
    union {long long uuid; struct {int hi; int lo;} id;} Dev;
    long long fsz;
    int flags = 0;
@@ -1209,12 +1214,32 @@ int XrdXrootdProtocol::do_StatGen(struct stat &buf, char *xxBuff)
    Dev.id.lo = buf.st_ino;
    Dev.id.hi = buf.st_dev;
 
-// Compute the flag settings
+// Compute correct setting of the readable flag
 //
-   if (buf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) flags |= kXR_xset;
-   if (S_ISDIR(buf.st_mode))                        flags |= kXR_isDir;
-      else if (!S_ISREG(buf.st_mode))               flags |= kXR_other;
-   if (!Dev.uuid)                                   flags |= kXR_offline;
+   if (buf.st_mode & isReadable
+   &&((buf.st_mode & S_IRUSR && myuid == buf.st_uid)
+   || (buf.st_mode & S_IRGRP && mygid == buf.st_gid)
+   ||  buf.st_mode & S_IROTH)) flags |= kXR_readable;
+
+// Compute correct setting of the writable flag
+//
+   if (buf.st_mode & isWritable
+   &&((buf.st_mode & S_IWUSR && myuid == buf.st_uid)
+   || (buf.st_mode & S_IWGRP && mygid == buf.st_gid)
+   ||  buf.st_mode & S_IWOTH)) flags |= kXR_writable;
+
+// Compute correct setting of the execable flag
+//
+   if (buf.st_mode & isExecable
+   &&((buf.st_mode & S_IXUSR && myuid == buf.st_uid)
+   || (buf.st_mode & S_IXGRP && mygid == buf.st_gid)
+   ||  buf.st_mode & S_IXOTH)) flags |= kXR_xset;
+
+// Compute the other flag settings
+//
+   if (S_ISDIR(buf.st_mode))           flags |= kXR_isDir;
+      else if (!S_ISREG(buf.st_mode))  flags |= kXR_other;
+   if (!Dev.uuid)                      flags |= kXR_offline;
    fsz = static_cast<long long>(buf.st_size);
 
 // Format the results and return them
