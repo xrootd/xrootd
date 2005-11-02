@@ -824,7 +824,8 @@ int main(int argc, char**argv) {
    while (!retval && wklst->GetCpJob(src, dest)) {
       Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
 
-      if (src.BeginsWith((char *)"root://")) {
+      if ( (src.BeginsWith((char *)"root://")) ||
+           (src.BeginsWith((char *)"xroot://")) ) {
 	 // source is xrootd
 
 	 if (srcopaque) {
@@ -832,7 +833,8 @@ int main(int argc, char**argv) {
 	    src += srcopaque;
 	 }
 
-	 if (dest.BeginsWith((char *)"root://")) {
+	 if ( (dest.BeginsWith((char *)"root://")) ||
+              (dest.BeginsWith((char *)"xroot://")) ) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
@@ -865,7 +867,8 @@ int main(int argc, char**argv) {
       else {
 	 // source is localfs
 
-	 if (dest.BeginsWith((char *)"root://")) {
+	 if ( (dest.BeginsWith((char *)"root://")) ||
+              (dest.BeginsWith((char *)"xroot://")) ) {
 	    XrdClientString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);

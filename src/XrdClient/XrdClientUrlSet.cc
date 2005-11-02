@@ -135,8 +135,8 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
    // We assume the protol is "root://", because this 
    // must be the protocol for
    //
-   if ( proto != "root" ) {
-      Error("XrdClientUrlSet", "This is not a root protocol." );
+   if ( (proto != "xroot") && ( proto != "root" ) ) {
+      Error("XrdClientUrlSet", "This is not a root or xroot protocol." );
       fIsValid = FALSE;
       return;
    }

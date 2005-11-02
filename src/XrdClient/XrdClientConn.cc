@@ -318,7 +318,7 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
    }
 
    // We might have collected multiple partial response also in a given mem block
-   if (xmsg)
+   if (xmsg && (xmsg->HeaderStatus() == kXR_ok) && TotalBlkSize)
       xmsg->fHdr.dlen = TotalBlkSize;
 
    return xmsg;

@@ -41,7 +41,8 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdClientString url,
 
    fSrcIsDir = FALSE;
 
-   if (fullurl.Find((char *)"root://") == 0) {
+   if ( (fullurl.Find((char *)"root://") == 0) ||
+        (fullurl.Find((char *)"xroot://") == 0) ) {
       // It's an xrd url
 
       fSrc = url;
@@ -128,7 +129,8 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
       return 0;
    }
 
-   if (strstr(url, "root://") == url) {
+   if ( (strstr(url, "root://") == url) ||
+        (strstr(url, "xroot://") == url) ) {
       // It's an xrd url
 
       fDest = url;
