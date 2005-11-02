@@ -98,7 +98,9 @@ enum XStatRespFlags {
    kXR_xset    = 1,
    kXR_isDir   = 2,
    kXR_other   = 4,
-   kXR_offline = 8
+   kXR_offline = 8,
+   kXR_readable=16,
+   kXR_writable=32
 };
 
 enum XDirlistRequestOption {
