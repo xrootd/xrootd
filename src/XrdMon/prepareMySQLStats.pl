@@ -15,7 +15,8 @@ use DBI;
 # $Id$
 
 
-# take care of arguments
+use vars qw( @gmt $sec $min $hour $wday $sec2Sleep $loadTime);
+## take care of arguments
 if ( @ARGV!=1 ) {
     print "Expected argument <configFile>\n";
     exit;
@@ -25,6 +26,9 @@ unless ( open INFILE, "< $confFile" ) {
     print "Can't open file $confFile\n";
     exit;
 }
+
+my $stopFName = "$confFile.stop";
+$inhibitFSize =  "$confFile.inhibitFSize";
 
 $mysqlSocket = '/tmp/mysql.sock';
 while ( $_ = <INFILE> ) {
@@ -53,29 +57,66 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQ
 
 &doInitialization();
 
-$dbh->disconnect();
-
- 
 #start an infinite loop
 while ( 1 ) {
-
-    # connect to the database
-    unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQLUser) ) {
-	print "Error while connecting to database. $DBI::errstr\n";
-	exit;
+    # wake up every minute at HH:MM:30
+    @gmt   = gmtime(time());
+    $sec   = $gmt[0];
+    $sec2Sleep = 90 - $sec;
+    if ( $sec <= 30 ) {
+        $sec2Sleep -= 60;
     }
-
-    my $loadTime = &timestamp();
+    if ( $sec2Sleep < 60 ) {
+         print "sleeping $sec2Sleep sec... \n";
+         sleep $sec2Sleep;
+    }
+ 
+    $loadTime = &timestamp();
     print "$loadTime\n";
 
     $loadTime = &gmtimestamp();
-    my @gmt   = gmtime(time());
-    my $sec   = $gmt[0];
-    my $min   = $gmt[1];
-    my $hour  = $gmt[2];
-    my $day   = $gmt[3];
-    my $wday  = $gmt[6];
-    my $yday  = $gmt[7];
+    @gmt   = gmtime(time());
+    $sec   = $gmt[0];
+    $min   = $gmt[1];
+    $hour  = $gmt[2];
+#   $day   = $gmt[3];
+    $wday  = $gmt[6];
+#   $yday  = $gmt[7];
+
+    foreach $siteName (@siteNames) {
+        $dbUpdates{$siteName} = &runQueryWithRet("SELECT dbUpdate 
+                                                    FROM sites 
+                                                   WHERE name = '$siteName' ");
+	&prepareStats4OneSite($siteName, 
+			      $loadTime,
+			      $min,
+			      $hour,
+ 			      $wday);
+    }
+
+    if ( -e $stopFName ) {
+	unlink $stopFName;
+	exit;
+    }
+}
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+sub doInitialization() {
+    my $theTime = &timestamp();
+    print "Initialization started  $theTime \n";
+    use vars qw($lastTime  $siteId $period);
+    @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
+    @periods = ( 'Hour', 'Day', 'Week', 'Month', 'Year');
+    %sourcePeriods = ('Week' => 'Day' , 'Month' => 'Week' , 'Year' => 'Month' , 'AllYears' => 'Year' );
+    %intervals  = ('Hour' => 1        , 'Day' => 15       , 'Week' => 1      , 'Month' => 6      , 'Year' => 1     );
+    %timeUnits  = ('Hour' => 'MINUTE' , 'Day' => 'MINUTE' , 'Week' => 'HOUR' , 'Month' => 'HOUR' , 'Year' => 'DAY' );
+    %seconds    = ('MINUTE' => 60 , 'HOUR' => 3600 , 'DAY' => 86400 );
+    %firstDates = ( 'SLAC' => '2005-06-13 00:00:00',
+                     'RAL' => '2005-08-24 20:00:00' );
 
     # create temporary tables for topPerformers
     &runQuery("CREATE TEMPORARY TABLE jj  (theId INT, n INT, INDEX (theId))");
@@ -85,62 +126,43 @@ while ( 1 ) {
     &runQuery("CREATE TEMPORARY TABLE xx  (theId INT UNIQUE KEY, INDEX (theId))");
     @topPerfTables = ("jj", "ff", "uu", "vv", "xx");
 
-    foreach $siteName (@siteNames) {
-	&prepareStats4OneSite($siteName, 
-			      $loadTime,
-			      $sec,
-			      $min,
-			      $hour,
-			      $day,
- 			      $wday,
-			      $yday);
-    }
+    # create temporary tables for stats
+    &runQuery("CREATE TEMPORARY TABLE times (begT DATETIME NOT NULL, endT DATETIME NOT NULL,
+                                            INDEX (begT), INDEX(endT) )");
+    &runQuery("CREATE TEMPORARY TABLE id_times ( theId MEDIUMINT UNSIGNED NOT NULL,
+                                            begT DATETIME NOT NULL, endT DATETIME NOT NULL,
+                                            INDEX(theId), INDEX (begT), INDEX(endT) )");
 
-    $dbh->disconnect();
-
-    # wake up every minute at HH:MM:30
-    my $sec2Sleep = 90 - $sec;
-    if ( $sec < 30 ) {
-	$sec2Sleep -= 60;
-    }
-        
-    print "sleeping $sec2Sleep sec... \n";
-    sleep $sec2Sleep;
-
-    if ( -e $stopFName ) {
-	unlink $stopFName;
-	exit;
-    }
-
-}
-
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-sub doInitialization() {
-    use vars qw($lastTime  $siteId);
-    $stopFName = "$confFile.stop";
-    @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
 
     # cleanup old entries
     $GMTnow = &gmtimestamp();
-    &runQuery("DELETE FROM statsLastHour  WHERE date < DATE_SUB('$GMTnow', INTERVAL  1 HOUR)");
-    &runQuery("DELETE FROM statsLastDay   WHERE date < DATE_SUB('$GMTnow', INTERVAL  24 HOUR)");
-    &runQuery("DELETE FROM statsLastWeek  WHERE date < DATE_SUB('$GMTnow', INTERVAL 168 HOUR)");
-    &runQuery("DELETE FROM statsLastMonth WHERE date < DATE_SUB('$GMTnow', INTERVAL 30  DAY)");
-    &runQuery("DELETE FROM statsLastYear  WHERE date < DATE_SUB('$GMTnow', INTERVAL 365 DAY)");
+    &runQuery("DELETE FROM statsLastHour  WHERE date <= DATE_SUB('$GMTnow', INTERVAL 1 HOUR)");
+    &runQuery("DELETE FROM statsLastDay   WHERE date <= DATE_SUB('$GMTnow', INTERVAL 1 DAY)");
+    &runQuery("DELETE FROM statsLastWeek  WHERE date <= DATE_SUB('$GMTnow', INTERVAL 1 WEEK)");
+    &runQuery("DELETE FROM statsLastMonth WHERE date <= DATE_SUB('$GMTnow', INTERVAL 1 MONTH)");
+    &runQuery("DELETE FROM statsLastYear  WHERE date <= DATE_SUB('$GMTnow', INTERVAL 1 YEAR)");
 
 
     # find all sites
     @siteNames = &runQueryRetArray("SELECT name FROM sites");
+    # fill in missing points in statsLast tables
     foreach $siteName (@siteNames) {
 	$siteId = &runQueryWithRet("SELECT id 
                                       FROM sites 
                                      WHERE name = \"$siteName\"");
         $siteIds{$siteName} = $siteId;
+        $dbUpdates{$siteName} = &runQueryWithRet("SELECT dbUpdate 
+                                                    FROM sites 
+                                                   WHERE name = '$siteName' ");
 
+        # fill out missing bins in stats tables
+        foreach $period ( @periods ) {
+            next if ( $period eq "Hour" );
+            &fillStatsMissingBins($siteName, $period, $GMTnow);
+        }
+        &fillStatsAllYearsMissingBins($siteName, $GMTnow);
+      
+        # initialize lastNo values
         $lastTime = &runQueryWithRet("SELECT MAX(date) FROM statsLastHour
                                        WHERE siteId = $siteId ");
         if ( $lastTime ) {
@@ -159,94 +181,113 @@ sub doInitialization() {
     # some other stuff
     $bbkListSize = 250;
     $minSizeLoadTime = 5;
+    $theTime = &timestamp();
+    print "Initialization ended  $theTime \n";
 }
 
 
 sub prepareStats4OneSite() {
-    my ($siteName, $loadTime, $sec, $min, $hour, $day, $wday, $yday) = @_;
+    my ($siteName, $loadTime, $min, $hour, $wday) = @_;
 
     print "--> $siteName <--\n";
 
-    # every min at HH:MM:30
+    # every min at HH:MM:00
     &runQuery("DELETE FROM ${siteName}_closedSessions_LastHour  
                      WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR)");
     &runQuery("DELETE FROM ${siteName}_closedFiles_LastHour     
                      WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR)");
     &loadStatsLastHour($siteName, $loadTime, $min % 60);
-    &loadTopPerfPast("Hour", 20, $siteName);
+    &loadTopPerfPast("Hour", 20, $siteName, $loadTime);
 
-    if ( $min == 0 || $min == 15 || $min == 30 || $min == 45 ) {
-	# every 15 min at HH:00:30, HH:15:30, HH:30:30, HH:45:30
+    if ( $min == 5 || $min == 20 || $min == 35 || $min == 50 ) {
+        # with 5 minutes delay:
+	# every 15 min at HH:00:00, HH:15:00, HH:00:00, HH:45:00
         &closeOpenedFiles($siteName, $loadTime);
         &runQuery("DELETE FROM ${siteName}_closedSessions_LastDay  
                          WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastDay     
                          WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
-	&loadStatsLastPeriod($siteName, "statsLastHour", "statsLastDay", $loadTime, $hour*4+$min/15, 1);
-	&loadTopPerfPast("Day", 20, $siteName);
+	&loadStatsLastPeriod($siteName, $loadTime, "DAY", "HOUR");
+        #                                          period cfPeriod
+	&loadTopPerfPast("Day", 20, $siteName, $loadTime);
     }
 
-    if ( $min == 5 ) {
-	# every hour at HH:05:30
+    if ( $min == 10) {
+        # with 10 minutes delay:
+	# every hour at HH:00:00
         &runQuery("DELETE FROM ${siteName}_closedSessions_LastWeek  
                          WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastWeek     
                          WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
-	&loadStatsLastPeriod($siteName, "statsLastHour", "statsLastWeek", $loadTime, $wday*24+$hour, 7);
-	&loadTopPerfPast("Week", 20, $siteName);
+	&loadStatsLastPeriod($siteName, $loadTime, "WEEK", "DAY");
+        #                                          period cfPeriod
+	&loadTopPerfPast("Week", 20, $siteName, $loadTime);
     }
 
-    if ( $min == 20 ) {
+    if ( $min == 15 ) {
+        # with 15 minutes delay:
 	if ( $hour == 0 || $hour == 6 || $hour == 12 || $hour == 18 ) {
-	    # every 6 hours at 00:20:30, 06:20:30, 12:20:30, 18:20:30
+	    # every 6 hours at 00:00:00, 06:00:00, 12:20:00, 18:00:00 GMT
             &runQuery("DELETE FROM ${siteName}_closedSessions_LastMonth  
-                             WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 30 DAY)");
+                             WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 1 MONTH)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastMonth     
-                             WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 30 DAY)");
-	    &loadStatsLastPeriod($siteName, "statsLastDay", "statsLastMonth", $loadTime, $day*4+$hour/6, 30);
-	    &loadTopPerfPast("Month", 20, $siteName);
+                             WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 1 MONTH)");
+	    &loadStatsLastPeriod($siteName, $loadTime, "MONTH", "DAY");
+        #                                               period cfPeriod
+	    &loadTopPerfPast("Month", 20, $siteName, $loadTime);
+            &fillStatsMissingBins($siteName,"Day",$loadTime);
 
 	}
-	if ( $hour == 23 ) {
-	    # every 24 hours at 23:20:30
+    }
+    if ( $min == 20 ) {
+	if ( $hour == 0 ) {
+            # with 20 minutes delay:
+	    # every 24 hours at 00:00:00 GMT
             &runQuery("DELETE FROM ${siteName}_closedSessions_LastYear  
-                             WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 365 DAY)");
+                             WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 1 YEAR)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastYear     
-                             WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 365 DAY)");
-	    &loadStatsLastPeriod($siteName, "statsLastDay", "statsLastYear", $loadTime, $yday, 365);
-	    &loadTopPerfPast("Year", 20, $siteName);
+                             WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 1 YEAR)");
+	    &loadStatsLastPeriod($siteName, $loadTime, "YEAR", "WEEK");
+        #                                               period cfPeriod
+	    &loadTopPerfPast("Year", 20, $siteName, $loadTime);
+            &fillStatsMissingBins($siteName,"Week",$loadTime);
+            &fillStatsMissingBins($siteName,"Month",$loadTime);
 	}
-        if ( $hour == 22 ) {
-            # every 24 hours at 22:20:30
+        if ( $hour == 5 ) {
+            # every 24 hours at 05:20:00 GMT
 	    &closeOpenedSessions($siteName, $loadTime);
 	}
-        if ( $hour == 1 && $wday == 1 ) {
-            # every Sunday at 01:20:30
+        if ( $hour == 0 && $wday == 0 ) {
+            # with 20 minutes delay:
+            # every Sunday at 00:00:00 GMT
             &loadStatsAllYears($siteName, $loadTime);
+            &fillStatsMissingBins($siteName,"Year",$loadTime);
 	}
     }
 
     # top Perf - "now"
     &loadTopPerfNow(20, $siteName);
 
-    # truncate temporary tables tables
+    # truncate temporary tables
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE $table"); }
 
     # load file sizes
-    if ( $min == 37 ) {
-	if ( $hour == 23 ) {
-             # every 24 hours at 23:37:30
-	    &loadFileSizes( $siteName, -3 );
-	}
-	if ( $hour == 11 || $hour == 23 ) {
-            # every 12 hours at 11:37:30 and 23:37:30
-	    &loadFileSizes( $siteName, -2 );
-	}
-        # every hour at HH:37:30
-        &loadFileSizes( $siteName, -1 );
+    if ( ! -e $inhibitFSize ) {
+        if ( $min == 37 ) {
+             if ( $hour == 6 ) {
+                  # every 24 hours at 06:37:00 GMT
+	         &loadFileSizes( $siteName, -3 );
+	     }
+	     if ( $hour == 18 || $hour == 6 ) {
+                 # every 12 hours at 18:37:00 and 06:37:00 GMT
+	         &loadFileSizes( $siteName, -2 );
+	     }
+             # every hour at HH:37:00
+             &loadFileSizes( $siteName, -1 );
+         }
+         # every min at HH:MM:00
+         &loadFileSizes( $siteName, 0 );
     }
-    # every min at HH:MM:30
-    &loadFileSizes( $siteName, 0 );
 }
 
 sub runQueryWithRet() {
@@ -381,11 +422,12 @@ sub loadStatsLastHour() {
     use vars qw($noJobs $noUsers $noUniqueF $noNonUniqueF $deltaJobs $jobs_p 
                 $deltaUsers $users_p $deltaUniqueF $uniqueF_p $deltaNonUniqueF $nonUniqueF_p);
 
+    if ( &getLastInsertTime($loadTime, "Hour") gt $dbUpdates{$siteName} ) {return;}
     my $siteId = $siteIds{$siteName};
-
+    
     &runQuery("DELETE FROM statsLastHour WHERE date < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR) AND
                                                siteId = $siteId     ");
-    ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT pId, clientHId), COUNT(DISTINCT userId) 
+    ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT jobId), COUNT(DISTINCT userId) 
                                               FROM ${siteName}_openedSessions");
 
     ($noUniqueF, $noNonUniqueF) = &runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
@@ -416,70 +458,56 @@ sub loadStatsLastHour() {
 
 sub loadStatsAllYears() {
     my ($siteName, $loadTime) = @_;
+    if ( &getLastInsertTime($loadTime, "AllYears") gt $dbUpdates{$siteName} ) {return;}
 
     my $siteId = $siteIds{$siteName};
-
-    my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF, 
-        $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-        $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF) 
-      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                 MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                 MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
+    my ($noJobs, $noUsers, $noUniqueF, $noNonUniqueF) 
+      = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF) 
                           FROM   statsLastWeek
                           WHERE  siteId = $siteId"); 
 
     &runQuery("INSERT INTO statsAllYears
-                          (siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
-                           minJobs, minUsers, minUniqueF, minNonUniqueF, 
-                           maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
+                          (siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
                     VALUES ($siteId, \"$loadTime\", $noJobs, $noUsers,
-                            $noUniqueF, $noNonUniqueF, 
-                            $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-                            $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
+                            $noUniqueF, $noNonUniqueF)");
 }
 
 sub loadStatsLastPeriod() {
-    use vars qw($noJobs   $noUsers   $noUniqueF   $noNonUniqueF    
-                $minJobs  $minUsers  $minUniqueF  $minNonUniqueF  
-                $maxJobs  $maxUsers  $maxUniqueF  $maxNonUniqueF);
-    my ($siteName, $sourceTable, $targetTable, $loadTime, $seqNo, $tableInt) = @_;
-
+    use vars qw($noJobs   $noUsers   $noUniqueF   $noNonUniqueF $nSeqs);
+    my ($siteName, $loadTime, $period, $cfPeriod) = @_;
     my $siteId = $siteIds{$siteName};
+    my $interval = $intervals{$period};
+    my $timeUnit = $timeUnits{$period};
 
-    my ($lastTime) = &runQueryWithRet("SELECT MAX(date) FROM $targetTable WHERE siteId = $siteId");    
-    &runQuery("DELETE FROM $targetTable WHERE date < DATE_SUB(\"$loadTime\", INTERVAL $tableInt DAY )  AND 
-                                              siteId = $siteId");
-
-    if ( $lastTime ) {
-        ($noJobs,  $noUsers,  $noUniqueF,  $noNonUniqueF, 
-         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
-        = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                   MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                   MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                              FROM $sourceTable 
-                             WHERE siteId = $siteId        AND
-                                     date > \"$lastTime\"     ");
+    my $t2 = &getLastInsertTime($loadTime, $period);
+    if ( $t2 gt $dbUpdates{$siteName} ) {return;}
+    my $t1 = &runQueryWithRet("SELECT DATE_SUB('$t2', INTERVAL $interval $timeUnit)");
+    if ( $period eq "Day" ) { 
+        # use long method for Day       
+        $avNumJobs = &avNumJobsInTimeInterval($t1, $t2, $intervalSec, $siteName);
+        $avNumUsers = &avNumUsersInTimeInterval($t1, $t2, $intervalSec, $siteName);
+        $avNumUniqueFiles = &avNumUniqueFilesInTimeInterval($t1, $t2, $intervalSec, $siteName, $cfPeriod);
+        $avNumNonUniqueFiles = &avNumNonUniqueFilesInTimeInterval($t1, $t2, $intervalSec, $siteName, $cfPeriod);
     } else {
-        ($noJobs,  $noUsers,  $noUniqueF,  $noNonUniqueF, 
-         $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-         $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)
-        = &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF), 
-                                   MIN(noJobs), MIN(noUsers), MIN(noUniqueF), MIN(noNonUniqueF), 
-                                   MAX(noJobs), MAX(noUsers), MAX(noUniqueF), MAX(noNonUniqueF)  
-                              FROM $sourceTable 
-                             WHERE siteId = $siteId ");
+        # use long method for all but Day       
+        $nSeqs = &runQueryWithRet("SELECT FLOOR(TIMESTAMPDIFF(MINUTE,'$t1','$t2',)/15)");
+        if ( $nSeqs < &runQueryWithRet("SELECT COUNT(*)
+                                                FROM statsLastDay
+                                               WHERE siteId = $siteId  AND
+                                                date >  '$t1'     AND
+                                                date <= '$t2'         ") ) {
+             &fillStatsMissingBins($siteName,"Day",$loadTime);
+        }
+        ($avNumJobs, $avNumUsers, $avNumUniqueFiles, $avNumNonUniqueFiles) =
+              &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF)
+                                  FROM statsLastDay
+                                 WHERE siteId = $siteId  AND
+                                       date >  '$t1'      AND
+                                       date <= '$t2'         ");
     }
-
-
-    &runQuery("REPLACE INTO $targetTable
-                          (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF, 
-                           minJobs, minUsers, minUniqueF, minNonUniqueF, 
-                           maxJobs, maxUsers, maxUniqueF, maxNonUniqueF) 
-                    VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers,
-                            $noUniqueF, $noNonUniqueF, 
-                            $minJobs, $minUsers, $minUniqueF, $minNonUniqueF, 
-                            $maxJobs, $maxUsers, $maxUniqueF, $maxNonUniqueF)");
+    $seqNo = &timeToSeqNo( $t2, $period );
+    &runQuery("REPLACE INTO statsLast$period
+                VALUES ($seqNo, $siteId, '$t2', $avNumJobs, $avNumUsers, $avNumUniqueFiles, $avNumNonUniqueFiles)");
 }
 
 sub roundoff() {
@@ -510,31 +538,37 @@ sub closeOpenedFiles() {
                         -1
                  FROM   ${siteName}_openedFiles of,
                         ${siteName}_closedSessions cs
-                 WHERE  sessionId = cs.id
-                    AND disconnectT < DATE_SUB('$GMTnow', INTERVAL 10 MINUTE)");
+                 WHERE  sessionId = cs.id    AND
+                        disconnectT < DATE_SUB('$GMTnow', INTERVAL 10 MINUTE)");
 
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles
                  SELECT * FROM xcf");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastYear
-                 SELECT * FROM xcf");
+                 SELECT * FROM xcf WHERE closeT > DATE_SUB('$GMTnow', INTERVAL 12 MONTH)");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastMonth
-                 SELECT * FROM xcf WHERE openT > DATE_SUB('$GMTnow', INTERVAL 1 MONTH)");
+                 SELECT * FROM xcf WHERE closeT > DATE_SUB('$GMTnow', INTERVAL 1 MONTH)");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastWeek
-                 SELECT * FROM xcf WHERE openT > DATE_SUB('$GMTnow', INTERVAL 1 WEEK)");
+                 SELECT * FROM xcf WHERE closeT > DATE_SUB('$GMTnow', INTERVAL 1 WEEK)");
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastDay
-                 SELECT * FROM xcf WHERE openT > DATE_SUB('$GMTnow', INTERVAL 1 DAY)");
+                 SELECT * FROM xcf WHERE closeT > DATE_SUB('$GMTnow', INTERVAL 1 DAY)");
 
-    &runQuery("DELETE FROM  ${siteName}_openedFiles
-               USING ${siteName}_openedFiles, xcf
-               WHERE ${siteName}_openedFiles.id = xcf.id");
-    my $noDone = &runQueryWithRet("SELECT COUNT(*) FROM xcf");
+    my $noDone =&runQueryWithRet("DELETE FROM  ${siteName}_openedFiles
+                                   USING ${siteName}_openedFiles, xcf
+                                   WHERE ${siteName}_openedFiles.id = xcf.id");
     &runQuery("DROP TABLE xcf");
     print " $noDone closed\n";
 }
 
 # closes opened sessions which were opened for longer than x days
-# It does it by looking at id of first closed session which was
-# opened x days ago
+# It does it by looking at id of last closed session which was
+# opened more than x days ago. If the session has closed files
+# with it the duration is the maximum time span that the files
+# were open and the disconnect time is the closeT of the last 
+# file closed. Otherwise the duration is zero and the disconnect
+# time is the start time of the closed session with the largest
+# session id that is before the one being closed.
+# Set status to F if force-closed.
+
 sub closeOpenedSessions() {
     my ($siteName, $GMTnow) = @_;
 
@@ -547,34 +581,67 @@ sub closeOpenedSessions() {
 
     &printNow("Closing open sessions...");
 
-    &runQuery("CREATE TEMPORARY TABLE x (id INT UNSIGNED PRIMARY KEY, openT DATETIME)");
-
-    &runQuery("INSERT INTO x 
-                 SELECT id, SUBTIME(disconnectT, SEC_TO_TIME(duration)) as openT
-                 FROM   ${siteName}_closedSessions_LastYear
-                 HAVING openT < DATE_SUB('$GMTnow', INTERVAL $cutOff DAY)");
-
-    &runQuery("SELECT \@theMaxId := MAX(id) FROM x");
-    &runQuery("SELECT \@theOpenT := openT FROM x where id = \@theMaxId");
-
-    &runQuery("DROP TABLE x");
+    my $maxId = &runQueryWithRet("SELECT   id
+                                    FROM   ${siteName}_closedSessions_LastYear
+                                   WHERE   DATE_SUB(disconnectT, INTERVAL duration SECOND)
+                                           < DATE_SUB('$GMTnow', INTERVAL $cutOff DAY)
+                                ORDER BY   id DESC
+                                   LIMIT   1");
 
     &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions
-                 SELECT id, userId, pId, clientHId, serverHId, -1, \@theOpenT
-                 FROM   ${siteName}_openedSessions
-                 WHERE id < \@theMaxId");
+                 SELECT os.id, jobId, userId, pId, clientHId, serverHId,
+                        IFNULL(TIMESTAMPDIFF(SECOND,
+                                             CAST(LEAST(IFNULL(MIN(cf.openT),'3'),
+                                                        IFNULL(MIN(of.openT),'3') ) AS DATETIME),
+                                             GREATEST(IFNULL(MAX(cf.closeT),'2'),
+                                                      IFNULL(MAX(of.openT), '2') )       ), -1),
+                        CAST(GREATEST(IFNULL(MAX(cf.closeT),'2'),
+                                      IFNULL(MAX(of.openT), '2')  )
+                             AS DATETIME) AS dT,
+                        'F'
+                 FROM            ${siteName}_openedSessions os
+                        LEFT JOIN
+                                 ${siteName}_closedFiles_LastYear cf
+                        ON       os.id = cf.sessionId
+                        LEFT JOIN
+                                 ${siteName}_openedFiles of
+                        ON       os.id = of.sessionId
+                 WHERE 	os.id < $maxId
+              GROUP BY  os.id");
 
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastYear
-                 SELECT id, userId, pId, clientHId, serverHId, -1, \@theOpenT
-                 FROM ${siteName}_openedSessions
-                 WHERE id < \@theMaxId");
+    # now correct disconnectT for those without open or closed files  
+    &runQuery("CREATE TEMPORARY TABLE IF NOT EXISTS f 
+                     ( id            INT UNSIGNED NOT NULL PRIMARY KEY,
+                       disconnectT   DATETIME                          )");
+    &runQuery("INSERT INTO f (id)
+                            SELECT id 
+                              FROM ${siteName}_closedSessions 
+                             WHERE status LIKE 'F'     AND
+                                   disconnectT = 0 ");
+    &runQuery("CREATE TEMPORARY TABLE cs_times ( id INT UNSIGNED NOT NULL PRIMARY KEY,
+                                                 duration MEDIUMINT NOT NULL,
+                                                 disconnectT   DATETIME  NOT NULL)");
+                                                                                               
+    # make a smaller temporary table
+    &runQuery("INSERT INTO  cs_times
+                            SELECT id, duration, disconnectT
+                              FROM ${siteName}_closedSessions cs,
+                             WHERE id < $maxId               AND
+                                   cs.status = 'N'       ");   
 
-    my $noDone = &runQueryWithRet("SELECT COUNT(*) 
-                                   FROM ${siteName}_openedSessions
-                                   WHERE id < \@theMaxId");
-
-    &runQuery("DELETE FROM ${siteName}_openedSessions WHERE id < \@theMaxId");
-
+    &runQuery("UPDATE f
+                  SET disconnectT = (SELECT  DATE_SUB(disconnectT, INTERVAL duration SECOND)
+                                       FROM  cs_times cs
+                                      WHERE  cs.id < f.id
+                                   ORDER BY  cs.id DESC
+                                      LIMIT  1 )");
+    &runQuery("UPDATE ${siteName}_closedSessions cs, f 
+                  SET cs.disconnectT = f.disconnectT
+                WHERE f.id = cs.id");
+                                      
+    &runQuery("DROP TABLE IF EXISTS f");
+    &runQuery("DROP TABLE IF EXISTS cs_times");
+    my $noDone = &runQueryWithRet("DELETE FROM ${siteName}_openedSessions WHERE id < $maxId");
     print " $noDone closed\n";
 }
 
@@ -584,9 +651,9 @@ sub closeOpenedSessions() {
 #######################################################
 
 sub loadTopPerfPast() {
-    my ($theKeyword, $theLimit, $siteName) = @_;
+    my ($theKeyword, $theLimit, $siteName, $loadTime) = @_;
 
-    &runTopUsersQueriesPast($theKeyword, $theLimit, $siteName);
+    &runTopUsersQueriesPast($theKeyword, $theLimit, $siteName, $loadTime);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
     &runTopSkimsQueriesPast($theKeyword, $theLimit, "SKIMS", $siteName);
     foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
@@ -610,7 +677,7 @@ sub loadTopPerfNow() {
 }
 
 sub runTopUsersQueriesPast() {
-    my ($theKeyword, $theLimit, $siteName) = @_;
+    my ($theKeyword, $theLimit, $siteName, $loadTime) = @_;
 
     my $oneChar = substr($theKeyword, 0, 1);
     &printNow("$theKeyword: U ");
@@ -620,8 +687,10 @@ sub runTopUsersQueriesPast() {
     # past jobs
     &runQuery("INSERT INTO jj
          SELECT userId, 
-                COUNT(DISTINCT pId, clientHId) AS n
-           FROM ${siteName}_closedSessions_Last$theKeyword
+                COUNT(jobId) AS n
+           FROM ${siteName}_jobs
+          WHERE noOpenSessions = 0    AND
+                endT > DATE_SUB('$loadTime', INTERVAL 1 $theKeyword)
        GROUP BY userId");
 
     # past files - through opened & closed sessions
@@ -696,12 +765,19 @@ sub runTopFilesQueriesPast() {
 
     # past jobs
     &runQuery("INSERT INTO jj
-            SELECT pathId, 
-                   COUNT(DISTINCT pId, clientHId) AS n
-              FROM ${siteName}_closedSessions_Last$theKeyword cs,
-                   ${siteName}_closedFiles_Last$theKeyword cf
-             WHERE cs.id = cf.sessionId
-          GROUP BY pathId");
+            SELECT DISTINCT oc.pathId, COUNT(DISTINCT oc.jobId) AS n
+              FROM (SELECT pathId, jobId
+                      FROM ${siteName}_closedSessions_Last$theKeyword cs,
+                           ${siteName}_closedFiles_Last$theKeyword cf
+                     WHERE cs.id = cf.sessionId     
+                 UNION ALL
+                    SELECT pathId, jobId
+                      FROM ${siteName}_openedSessions os,
+                           ${siteName}_closedFiles_Last$theKeyword cf
+                     WHERE os.id = cf.sessionId
+                   )    AS oc
+                   
+          GROUP BY oc.pathId");
 
     # past volume 
     &runQuery("INSERT INTO vv
@@ -738,7 +814,7 @@ sub runTopUsersQueriesNow() {
 
     # now jobs
     &runQuery("INSERT INTO jj
-          SELECT  userId, COUNT(DISTINCT pId, clientHId ) AS n
+          SELECT  userId, COUNT(DISTINCT jobId ) AS n
             FROM  ${siteName}_openedSessions
         GROUP BY  userId");
 
@@ -785,7 +861,7 @@ sub runTopFilesQueriesNow() {
 
     # now jobs
     &runQuery("INSERT INTO jj
-          SELECT pathId, COUNT(DISTINCT pId, clientHId ) AS n
+          SELECT pathId, COUNT(jobId ) AS n
            FROM  ${siteName}_openedSessions os,
                  ${siteName}_openedFiles of
           WHERE  os.id = of.sessionId
@@ -829,14 +905,23 @@ sub runTopSkimsQueriesPast() {
 
     # past jobs
     &runQuery("REPLACE INTO jj
-        SELECT $idInPathTable, 
-               COUNT(DISTINCT pId, clientHId ) AS n
-        FROM   ${siteName}_closedSessions_Last$theKeyword cs,
-               ${siteName}_closedFiles_Last$theKeyword cf,
-               paths p
-        WHERE  cs.id = cf.sessionId   AND 
-               cf.pathId = p.id
-        GROUP BY $idInPathTable");
+        SELECT oc.theId,  
+               COUNT(DISTINCT oc.jobId ) AS n
+        FROM   (SELECT $idInPathTable AS theId, jobId
+                  FROM ${siteName}_closedSessions_Last$theKeyword cs,
+                       ${siteName}_closedFiles_Last$theKeyword cf,
+                       paths p
+                 WHERE cs.id = cf.sessionId   AND
+                       cf.pathId = p.id 
+             UNION ALL
+                SELECT $idInPathTable AS theId, jobId
+                  FROM ${siteName}_openedSessions os,
+                      ${siteName}_closedFiles_Last$theKeyword cf,
+                       paths p
+                 WHERE os.id = cf.sessionId   AND
+                       cf.pathId = p.id
+               ) AS oc
+     GROUP BY oc.theId");
 
     # past files
     &runQuery("INSERT INTO ff 
@@ -920,13 +1005,13 @@ sub runTopSkimsQueriesNow() {
     # now jobs
     &runQuery("INSERT INTO jj
         SELECT $idInPathTable,
-               COUNT(DISTINCT pId, clientHId ) AS n
+               COUNT(DISTINCT jobId ) AS n
         FROM   ${siteName}_openedSessions os,
                ${siteName}_openedFiles of,
                paths p
-        WHERE  os.id = of.sessionId
-           AND of.pathId = p.id
-        GROUP BY $idInPathTable");
+        WHERE  os.id = of.sessionId     AND
+               of.pathId = p.id
+      GROUP BY $idInPathTable");
 
     # now files
     &runQuery("REPLACE INTO ff 
@@ -994,3 +1079,405 @@ sub printNow() {
     print $x;
     $| = $prev;
 }
+
+sub timeToSeqNo() {
+    my ($t2, $period) = @_;
+
+    if ( $period eq 'Hour' ) {
+        return (&runQueryWithRet("SELECT MINUTE('$t2') % 60"));
+    } elsif ( $period eq 'Day' ) {
+        return (&runQueryWithRet("SELECT HOUR('$t2')*4+FLOOR(MINUTE('$t2')/15)"));
+    } elsif ( $period eq 'Week' ) {
+        return (&runQueryWithRet("SELECT ((WEEKDAY('$t2')+1)%7)*24+HOUR('$t2')"));
+    } elsif ( $period eq 'Month' ) {
+        return (&runQueryWithRet("SELECT (DAY('$t2')-1)*4+FLOOR(HOUR('$t2')/6)"));
+    } elsif ( $period eq 'Year' ) {
+        return (&runQueryWithRet("SELECT DAYOFYEAR('$t2')"));
+    }
+}
+
+sub getLastInsertTime() {
+    # calculates the nearest allowed insert time to reference (snapshot or load) time.
+    use vars qw($sec $min $hour $day $lastInsertTime);
+    my ($referenceTime, $period) = @_;
+
+    # zero the second for all periods
+    $sec = &runQueryWithRet("SELECT SECOND('$referenceTime')");
+    $lastInsertTime = &runQueryWithRet("SELECT DATE_SUB('$referenceTime', INTERVAL $sec SECOND)");
+
+    if ( $period eq "Hour" ) {return($lastInsertTime);}
+
+    # zero the minute for everything but "Day" where it is every 15 minutes
+    $min = &runQueryWithRet("SELECT MINUTE('$lastInsertTime')");
+
+    if ( $period eq "Day" ) { 
+         $min = $min % 15;
+         return( &runQueryWithRet("SELECT DATE_SUB('$lastInsertTime', INTERVAL $min MINUTE)"));
+    }
+
+    $lastInsertTime = &runQueryWithRet("SELECT DATE_SUB('$lastInsertTime', INTERVAL $min MINUTE)");
+    if ( $period eq "Week" ) {return($lastInsertTime);}
+
+    # zero the hour for "Year" and "AllYears" and every 6 hours for "Month"
+    if ( $period eq "Month" ) {
+         $hour = &runQueryWithRet("SELECT HOUR('$lastInsertTime') % 6");
+         return( &runQueryWithRet("SELECT DATE_SUB('$lastInsertTime', INTERVAL $hour HOUR)"));
+    } 
+
+    $hour = &runQueryWithRet("SELECT HOUR('$lastInsertTime')");
+    if ( $period eq "Year" ) {
+    return( &runQueryWithRet("SELECT DATE_SUB('$lastInsertTime', INTERVAL $hour HOUR)"));
+    }
+    
+    
+    # zero the day for "AllYears"
+    if ( $period eq "AllYears" ) {
+         $lastInsertTime = &runQueryWithRet("SELECT DATE_SUB('$lastInsertTime', INTERVAL $hour HOUR)");
+         $day = &runQueryWithRet("SELECT WEEKDAY('$lastInsertTime')+1 ");
+         return( &runQueryWithRet("SELECT DATE_SUB('$lastInsertTime', INTERVAL $day DAY)"));
+    }
+}
+
+
+sub fillStatsAllYearsMissingBins() {
+    use vars qw( $sourceTabTmin $firstInsertTime $avNumJobs $avNumUsers $avNumUniqueFiles $avNumNonUniqueFiles $seqNo);
+    my ($siteName, $loadTime) = @_; 
+    my $siteId = $siteIds{$siteName};
+
+    # find the number of seq for this period and return if all are there
+    my $lastInsertTime = &getLastInsertTime($loadTime, "AllYears");
+    my $firstInsertTime = &getLastInsertTime($firstDates{$siteName}, "AllYears" );
+    my $nSeqs = &runQueryWithRet("SELECT FLOOR(TIMESTAMPDIFF(WEEK,'$firstInsertTime','$lastInsertTime'))");
+    if ( &runQueryWithRet("SELECT COUNT(*)
+                             FROM statsAllYears
+                            WHERE siteId = $siteId")
+         == $nSeqs ) { return;}
+
+    my $intervalSec = 7 * 86400;
+
+    $sourceTabTmin = &runQueryWithRet("SELECT MIN(date) FROM statsLastYear WHERE siteId = $siteId");
+                                          
+    my $t2 = $firstInsertTime;
+    my $t1 = &runQueryWithRet("SELECT DATE_SUB('$t2', INTERVAL 1 WEEK)");
+    
+    # use full tables to get older statistics
+    while ( $t2 le $dbUpdates{$siteName} ) {
+        if ( ! &runQueryWithRet("SELECT date 
+                                   FROM statsAllYears 
+                                  WHERE siteId = $siteId AND
+                                          date = '$t2' ") ) {
+        
+            if ( $t2 lt $sourceTabTmin ) {
+                # use full tables to get older statistics
+                $avNumJobs = &avNumJobsInTimeInterval($t1, $t2, $intervalSec, $siteName);
+                $avNumUsers = &avNumUsersInTimeInterval($t1, $t2, $intervalSec, $siteName);
+                $avNumUniqueFiles = &avNumUniqueFilesInTimeInterval($t1, $t2, $intervalSec, $siteName, "All");
+                $avNumNonUniqueFiles = &avNumNonUniqueFilesInTimeInterval($t1, $t2, $intervalSec, $siteName, "All");
+            } else {
+                # use stats table from previous period
+                ($avNumJobs, $avNumUsers, $avNumUniqueFiles, $avNumNonUniqueFiles) =
+                  &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF)
+                                      FROM statsLastYear
+                                     WHERE siteId = $siteId  AND
+                                           date >  '$t1'      AND
+                                           date <= '$t2'         ");
+            }
+            &runQuery("INSERT INTO statsAllYears
+                            VALUES ($siteId, '$t2', $avNumJobs, $avNumUsers, $avNumUniqueFiles, $avNumNonUniqueFiles)");
+        }
+        $t1 = $t2;
+        $t2 = &runQueryWithRet("SELECT DATE_ADD('$t2', INTERVAL 1 WEEK)");
+    }
+
+}
+ 
+sub fillStatsMissingBins() {
+    use vars qw($sourceTable $firstInsertTime $avNumJobs $avNumUsers $avNumUniqueFiles $avNumNonUniqueFiles $seqNo);
+    my ($siteName, $period, $loadTime) = @_; 
+    my $siteId = $siteIds{$siteName};
+
+    my $interval = $intervals{$period};
+    my $timeUnit = $timeUnits{$period};
+    
+    # find the number of seq for this period and return if all are there
+    my $lastInsertTime = &getLastInsertTime($loadTime, $period);
+    my $firstInsertTime = &runQueryWithRet("SELECT DATE_SUB('$lastInsertTime', INTERVAL 1 $period)");
+    my $nSeqs = &runQueryWithRet("SELECT FLOOR(TIMESTAMPDIFF($timeUnit,'$firstInsertTime','$lastInsertTime')/$interval)");
+    if ( &runQueryWithRet("SELECT COUNT(*)
+                             FROM statsLast$period
+                            WHERE siteId = $siteId")
+         == $nSeqs ) { return;}
+
+    my $intervalSec = $interval * $seconds{$timeUnit};
+
+    if ( $period eq "Day" ) {
+        $sourceTabTmin = "";
+    } else {
+        $sourceTable = "statsLast$sourcePeriods{$period}";
+        $sourceTabTmin = &runQueryWithRet("SELECT MIN(date) FROM $sourceTable WHERE siteId = $siteId");
+    }
+                                          
+
+    my $t2 = $firstInsertTime;
+    my $t1 = &runQueryWithRet("SELECT DATE_SUB('$t2', INTERVAL $interval $timeUnit)");
+    
+    # use full tables to get older statistics
+    while ( $t2 le $dbUpdates{$siteName} ) {
+        $seqNo = &timeToSeqNo( $t2, $period );
+        if ( ! &runQueryWithRet("SELECT date FROM statsLast$period WHERE siteId = $siteId AND seqNo = $seqNo") ) {
+
+            if ( $period eq "Day" or $t2 lt $sourceTabTmin ) {
+                # use full tables to get older statistics
+                $avNumJobs = &avNumJobsInTimeInterval($t1, $t2, $intervalSec, $siteName);
+                $avNumUsers = &avNumUsersInTimeInterval($t1, $t2, $intervalSec, $siteName);
+                $avNumUniqueFiles = &avNumUniqueFilesInTimeInterval($t1, $t2, $intervalSec, $siteName, $period);
+                $avNumNonUniqueFiles = &avNumNonUniqueFilesInTimeInterval($t1, $t2, $intervalSec, $siteName, $period);
+            } else {
+                # use stats table from previous period
+                ($avNumJobs, $avNumUsers, $avNumUniqueFiles, $avNumNonUniqueFiles) =
+                  &runQueryWithRet("SELECT AVG(noJobs), AVG(noUsers), AVG(noUniqueF), AVG(noNonUniqueF)
+                                      FROM $sourceTable
+                                     WHERE siteId = $siteId  AND
+                                           date >  '$t1'      AND
+                                           date <= '$t2'         ");
+            }
+            &runQuery("REPLACE INTO statsLast$period
+                            VALUES ($seqNo, $siteId, '$t2', $avNumJobs, $avNumUsers, $avNumUniqueFiles, $avNumNonUniqueFiles)");
+        }
+        $t1 = $t2;
+        $t2 = &runQueryWithRet("SELECT DATE_ADD('$t2', INTERVAL $interval $timeUnit)");
+    }
+}
+       
+sub avNumJobsInTimeInterval() {
+    my ($t1, $t2, $interval, $siteName) = @_;
+
+    if ( $t2 lt $firstDates{$siteName} ) {return(0);}
+    print "sub avNumJobsInTimeInterval: $t1, $t2, $interval, $siteName \n";
+
+    &runQuery("INSERT INTO times
+                     SELECT GREATEST('$t1', beginT), LEAST('$t2', endT)
+                       FROM ${siteName}_jobs
+                      WHERE beginT < '$t2'         AND
+                            endT   > '$t1'         AND
+                            noOpenSessions = 0             ");
+    print "Query 1 finished \n";
+    &runQuery("INSERT INTO times
+                     SELECT GREATEST('$t1', beginT), '$t2'
+                       FROM ${siteName}_jobs
+                      WHERE beginT < '$t2'         AND
+                            noOpenSessions > 0             ");
+
+    print "Query 2 finished \n";
+    my $sumT = $interval *
+               &runQueryWithRet("SELECT IFNULL(COUNT(*),0)
+                                   FROM times
+                                  WHERE begT = '$t1'  AND
+                                        endT = '$t2'     ");
+
+    $sumT += &runQueryWithRet("SELECT IFNULL(SUM(TIMESTAMPDIFF(SECOND,begT,endT)),0)
+                                 FROM times
+                                WHERE begT > '$t1'         OR
+                                      endT <  '$t2'              ");
+    &runQuery("TRUNCATE TABLE times");
+
+    return (int ($sumT / $interval + .5 ));
+}
+
+
+sub avNumUsersInTimeInterval() {
+    my ($t1, $t2, $interval, $siteName) = @_;
+
+    if ( $t2 lt $firstDates{$siteName} ) {return(0);}
+    print "sub avNumUsersInTimeInterval:$t1, $t2, $interval, $siteName \n";
+
+    &runQuery("INSERT INTO id_times
+                     SELECT userId, GREATEST('$t1', beginT), LEAST('$t2', endT)
+                       FROM ${siteName}_jobs
+                      WHERE beginT < '$t2'         AND
+                            endT   > '$t1'         AND
+                            noOpenSessions = 0             ");
+    print "Query 1 finished \n";
+
+    &runQuery("INSERT INTO id_times
+                     SELECT userId, GREATEST('$t1', beginT), '$t2'
+                       FROM ${siteName}_jobs
+                      WHERE beginT < '$t2'         AND
+                             noOpenSessions > 0             ");
+
+    print "Query 2 finished \n";
+
+    # find the user list in the time interval
+    @userIds = &runQueryRetArray("SELECT DISTINCT theId
+                                    FROM id_times           ");
+
+
+    foreach $userId ( @userIds ) {
+        my @beginTs = &runQueryRetArray("SELECT begT
+                                           FROM id_times
+                                          WHERE theId = $userId
+                                       ORDER BY begT           ");
+
+        my @endTs = &runQueryRetArray("SELECT endT
+                                         FROM id_times
+                                        WHERE theId = $userId
+                                     ORDER BY begT           ");
+
+        my $nJobs = @beginTs;
+        my $beginT = $beginTs[0];
+        my $endT   = $endTs[0];
+        if ( $nJobs == 1 or $endTs[0] eq $t2 ) {
+             &runQuery("INSERT INTO times
+                             VALUES ('$beginT', '$endT') ");
+             next;
+        }
+
+        my $n = 1;
+        while ( $n < $nJobs ) {
+            if ( $beginTs[$n] le $endT ) {
+                 $endT = $endTs[$n];
+            } else {
+                 &runQuery("INSERT INTO times
+                                 VALUES ('$beginT', '$endT') ");
+                 $beginT = $beginTs[$n];
+                 $endT   = $endTs[$n];
+            }
+            if ( $endT eq $t2 or $n = $nJobs - 1) {
+                 &runQuery("INSERT INTO times
+                                 VALUES ('$beginT', '$endT') ");
+                 last;
+            }
+            $n++;
+        }
+    }
+    print "Query 3 finished \n";
+
+    $sumT = &runQueryWithRet("SELECT IFNULL(SUM(TIMESTAMPDIFF(SECOND,begT,endT)), 0)
+                                FROM times" );
+    &runQuery("TRUNCATE TABLE id_times");
+    &runQuery("TRUNCATE TABLE times");
+
+    return (int ($sumT / $interval + .5 ));
+}
+
+
+sub avNumNonUniqueFilesInTimeInterval() {
+    use vars qw( $closedFiles );
+    my ($t1, $t2, $interval, $siteName, $cfPeriod) = @_;
+    if ( $cfPeriod eq "All" ) { 
+         $closedFiles = "${siteName}_closedFiles";
+    } else {
+         $closedFiles = "${siteName}_closedFiles_Last$cfPeriod";
+    }
+    if ( $t2 lt $firstDates{$siteName} ) {return(0);}
+    print "sub avNumNonUniqueFilesInTimeInterval: $t1, $t2, $interval, $siteName \n";
+
+    &runQuery("INSERT INTO times
+                     SELECT GREATEST('$t1', openT), LEAST('$t2', closeT)
+                       FROM $closedFiles
+                      WHERE openT  < '$t2'         AND
+                            closeT > '$t1'             ");
+    print "Query 1 finished \n";
+
+    &runQuery("INSERT INTO times
+                     SELECT GREATEST('$t1', openT), '$t2'
+                       FROM ${siteName}_openedFiles
+                      WHERE openT < '$t2'         ");
+    print "Query 2 finished \n";
+
+    my $sumT = $interval *
+               &runQueryWithRet("SELECT IFNULL(COUNT(*),0)
+                                   FROM times
+                                  WHERE begT = '$t1'  AND
+                                        endT = '$t2'     ");
+
+    $sumT += &runQueryWithRet("SELECT IFNULL(SUM(TIMESTAMPDIFF(SECOND,begT,endT)),0)
+                                 FROM times
+                                WHERE begT > '$t1'         OR
+                                      endT <  '$t2'              ");
+    &runQuery("TRUNCATE TABLE times");
+
+    return (int ($sumT / $interval + .5 ));
+}
+
+
+sub avNumUniqueFilesInTimeInterval() {
+    use vars qw( $closedFiles );
+    my ($t1, $t2, $interval, $siteName, $cfPeriod) = @_;
+    if ( $cfPeriod eq "All" ) { 
+         $closedFiles = "${siteName}_closedFiles";
+    } else {
+         $closedFiles = "${siteName}_closedFiles_Last$cfPeriod";
+    }
+
+    if ( $t2 lt $firstDates{$siteName} ) {return(0);}
+    print "sub avNumUniqueFilesInTimeInterval: $t1, $t2, $interval, $siteName \n";
+
+    &runQuery("INSERT INTO id_times
+                     SELECT pathId, GREATEST('$t1', openT), LEAST('$t2', closeT)
+                       FROM $closedFiles
+                      WHERE openT  < '$t2'         AND
+                            closeT > '$t1'             ");
+    print "Query 1 finished \n";
+
+    &runQuery("INSERT INTO id_times
+                     SELECT pathId, GREATEST('$t1', openT), '$t2'
+                       FROM ${siteName}_openedFiles
+                      WHERE openT < '$t2'              ");
+    print "Query 2 finished \n";
+
+
+    # find the file list in the time interval
+    @pathIds = &runQueryRetArray("SELECT DISTINCT theId
+                                    FROM id_times          ");
+
+
+
+    foreach $pathId ( @pathIds ) {
+        my @openTs =  &runQueryRetArray("SELECT begT
+                                           FROM id_times
+                                          WHERE theId = $pathId
+                                       ORDER BY begT           ");
+
+        my @closeTs = &runQueryRetArray("SELECT endT
+                                           FROM id_times
+                                          WHERE theId = $pathId
+                                       ORDER BY begT           ");
+
+        my $nFiles = @openTs;
+        my $openT  = $openTs[0];
+        my $closeT = $closeTs[0];
+        if ( $nFiles == 1 or $closeTs[0] eq $t2 ) {
+             &runQuery("INSERT INTO times
+                             VALUES ('$openT', '$closeT') ");
+             next;
+        }
+
+        my $n = 1;
+        while ( $n < $nFiles ) {
+            if ( $openTs[$n] le $closeT ) {
+                 $closeT = $closeTs[$n];
+            } else {
+                 &runQuery("INSERT INTO times
+                                 VALUES ('$openT', '$closeT') ");
+                 $openT  = $openTs[$n];
+                 $closeT = $closeTs[$n];
+            }
+            if ( $closeT eq $t2 or $n = $nFiles - 1) {
+                 &runQuery("INSERT INTO times
+                                 VALUES ('$openT', '$closeT') ");
+                 last;
+            }
+            $n++;
+        }
+    }
+    print "Query 3 finished \n";
+
+    $sumT = &runQueryWithRet("SELECT IFNULL(SUM(TIMESTAMPDIFF(SECOND,begT,endT)), 0)
+                                FROM times" );
+    &runQuery("TRUNCATE TABLE id_times");
+    &runQuery("TRUNCATE TABLE times");
+
+    return (int ($sumT / $interval + .5 ));
+}
+
