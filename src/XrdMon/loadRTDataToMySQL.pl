@@ -524,7 +524,7 @@ sub loadOpenFile() {
 }
 
 sub loadCloseFile() {
-    my ($siteName) = @_;
+    my ($siteName, $version) = @_;
 
     my $inFile = "$jrnlDir/$siteName/cfile-V${version}.ascii";
     if ( -z $inFile ) {return;}
