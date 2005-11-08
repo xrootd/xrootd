@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS sites (
   name          VARCHAR(32),
   timezone      VARCHAR(64),
   backupInt     VARCHAR(19) DEFAULT '1 DAY',
-  backupTime    DATETIME
+  backupTime    DATETIME,
+  dbUpdate      DATETIME,
+  version       TINYINT NOT NULL
 ) MAX_ROWS=255;
 
 # one row per minute, keeps last 60 minutes
@@ -49,14 +51,6 @@ CREATE TABLE IF NOT EXISTS statsLastHour (
   noUsers       MEDIUMINT UNSIGNED,
   noUniqueF     INT,
   noNonUniqueF  INT,
-  minJobs       MEDIUMINT UNSIGNED,
-  minUsers      MEDIUMINT UNSIGNED,
-  minUniqueF    INT,
-  minNonUniqueF INT,
-  maxJobs       MEDIUMINT UNSIGNED,
-  maxUsers      MEDIUMINT UNSIGNED,
-  maxUniqueF    INT,
-  maxNonUniqueF INT,
   PRIMARY KEY (seqNo, siteId),
   INDEX (date)
 ) MAX_ROWS=65535;
@@ -132,9 +126,21 @@ foreach $site (@sites) {
 
 
 ################ ${site} ################
+CREATE TABLE IF NOT EXISTS ${site}_jobs (
+  jobId          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  userId         SMALLINT  UNSIGNED NOT NULL,
+  pId            SMALLINT  UNSIGNED NOT NULL,
+  clientHId      SMALLINT  UNSIGNED NOT NULL,
+  noOpenSessions SMALLINT  UNSIGNED NOT NULL,
+  beginT         DATETIME NOT NULL,
+  endT           DATETIME NOT NULL,
+  INDEX ( userId, pId,  clientHId )
+) MAX_ROWS=16777215;
+                                                                           
 
 CREATE TABLE IF NOT EXISTS ${site}_openedSessions (
   id            INT UNSIGNED NOT NULL PRIMARY KEY,
+  jobId         INT       UNSIGNED NOT NULL,
   userId        SMALLINT  UNSIGNED NOT NULL,
   pId           SMALLINT  UNSIGNED NOT NULL,
   clientHId     SMALLINT  UNSIGNED NOT NULL,
@@ -147,12 +153,14 @@ CREATE TABLE IF NOT EXISTS ${site}_openedSessions (
 
 CREATE TABLE IF NOT EXISTS ${site}_closedSessions (
   id            INT       UNSIGNED NOT NULL PRIMARY KEY,
+  jobId         INT       UNSIGNED NOT NULL,
   userId        SMALLINT  UNSIGNED NOT NULL,
   pId           SMALLINT  UNSIGNED NOT NULL,
   clientHId     SMALLINT  UNSIGNED NOT NULL,
   serverHId     SMALLINT  UNSIGNED NOT NULL,
   duration      MEDIUMINT NOT NULL,
   disconnectT   DATETIME  NOT NULL,
+  status        CHAR(1)   NOT NULL DEFAULT 'N',
   INDEX (userId),
   INDEX (pId),
   INDEX (clientHId),
