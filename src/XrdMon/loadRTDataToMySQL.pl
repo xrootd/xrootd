@@ -120,6 +120,7 @@ my $stopFName = "$confFile.stop";
 
 # and run the main never-ending loop
 while ( 1 ) {
+    my $minSec1 = (localtime)[1]*60+(localtime)[0];
     my $sec2Sleep = 60 - (localtime)[0];
     if ( $sec2Sleep < 60 ) {
         print "sleeping $sec2Sleep sec... \n";
@@ -131,6 +132,11 @@ while ( 1 ) {
     if ( -e $stopFName ) {
 	unlink $stopFName;
 	exit;
+    }
+
+    my $minSec2 = (localtime)[1]*60+(localtime)[0];
+    if ( $minSec2 == $minSec1 ) {
+        sleep(2);
     }
 }
 
