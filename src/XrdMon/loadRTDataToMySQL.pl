@@ -27,6 +27,8 @@ unless ( open INFILE, "< $confFile" ) {
     exit;
 }
 $mysqlSocket = '/tmp/mysql.sock';
+$maxIdleTime = 900; # 15 min
+
 while ( $_ = <INFILE> ) {
     chomp();
     my ($token, $v1, $v2) = split(/ /, $_);
@@ -44,6 +46,8 @@ while ( $_ = <INFILE> ) {
         $backupInts{$v1} = $v2;
     } elsif ( $token =~ "MySQLSocket:" ) {
         $mysqlSocket = $v1;
+    } elsif ( $token =~ "maxIdleTime:" ) {
+	$maxIdleTime = $v1;
     } else {
 	print "Invalid entry: \"$_\"\n";
         close INFILE;
@@ -111,15 +115,18 @@ $dbh->disconnect();
 my $stopFName = "$confFile.stop";
 @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
 %timeZones = ( "SLAC", "PST8PDT", "RAL", "WET");
+
 &recover();
 
 # and run the main never-ending loop
 while ( 1 ) {
-    &doLoading();
-
     my $sec2Sleep = 60 - (localtime)[0];
-    print "sleeping $sec2Sleep sec... \n";
-    sleep $sec2Sleep; 
+    if ( $sec2Sleep < 60 ) {
+        print "sleeping $sec2Sleep sec... \n";
+        sleep $sec2Sleep;
+    } 
+
+    &doLoading();
 
     if ( -e $stopFName ) {
 	unlink $stopFName;
@@ -132,7 +139,14 @@ while ( 1 ) {
 ###############################################################################
 sub recover {
     my $ts = &timestamp();
+    my $sec2Sleep = 60 - (localtime)[0];
+    if ( $sec2Sleep < 60 ) {
+        print "sleeping $sec2Sleep sec... \n";
+        sleep $sec2Sleep;
+    } 
 
+    $loadTime = &gmtimestamp();
+    
     # connect to the database
     print "\n$ts Connecting to database...\n";
     unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQLUser) ) {
@@ -144,26 +158,34 @@ sub recover {
     my $nr = 0;
     foreach $siteName (@siteNames) {
         my $inFN = "$jrnlDir/$siteName/$siteName.ascii";
-        # recover u/o/d/c files BUT NOT if inout file exists in jrnl directory
+        # recover u/o/d/c/r files BUT NOT if inout file exists in jrnl directory
         # since they will be remade when doLoading is first called
         if ( ! -e $inFN ) {
-             print "Checking for pending u/o/d/c files for $siteName \n";
-             if ( -e  "$jrnlDir/$siteName/ufile.ascii" ) {
-                &loadOpenSession($siteName);
-             }
-             if ( -e  "$jrnlDir/$siteName/ofile.ascii" ) {
-                &loadOpenFile($siteName);
-             }
-             if ( -e  "$jrnlDir/$siteName/dfile.ascii" ) {
-                &loadCloseSession($siteName);
-             }
-             if ( -e  "$jrnlDir/$siteName/cfile.ascii" ) {
-                &loadCloseFile($siteName);
-             }
-             if ( -e  "$jrnlDir/$siteName/rfile.ascii" ) {
-                &loadXrdRestarts($siteName);
+             my $version = &runQueryWithRet("SELECT version
+                                               FROM sites
+                                              WHERE name = '$siteName' ");
+             foreach $v ( 1 .. $version ) {
+                 print "Checking for pending u/o/d/c/r files for $siteName version $v \n";
+                 if ( -e  "$jrnlDir/$siteName/ufile-V${v}.ascii" ) {
+                    &loadOpenSession($siteName, $loadTime, $v);
+                 }
+                 if ( -e  "$jrnlDir/$siteName/ofile-V${v}.ascii" ) {
+                    &loadOpenFile($siteName, $v);
+                 }
+                 if ( -e  "$jrnlDir/$siteName/cfile-V${v}.ascii" ) {
+                    &loadCloseFile($siteName, $v);
+                 }
+                 if ( -e  "$jrnlDir/$siteName/dfile-V${v}.ascii" ) {
+                    &loadCloseSession($siteName, $v);
+                 }
+                 if ( -e  "$jrnlDir/$siteName/rfile-V${v}.ascii" ) {
+                    &loadXrdRestarts($siteName, $v);
+                 }
              }
          }
+         &runQuery("UPDATE sites 
+                       SET dbUpdate = '$loadTime'
+                     WHERE name = '$siteName' ");
      }
 }           
              
@@ -241,42 +263,70 @@ sub loadOneSite() {
 	print "Can't open file $inFN for reading\n";
 	return 0;
     }
+    $version = &runQueryWithRet("SELECT version
+                                   FROM sites
+                                  WHERE name = '$siteName' ");
     # read the file, sort the data, close the file
-    open OFILE, ">$jrnlDir/$siteName/ofile.ascii" or die "can't open ofile.ascii for write: $!";
-    open UFILE, ">$jrnlDir/$siteName/ufile.ascii" or die "can't open ufile.ascii for write: $!";
-    open DFILE, ">$jrnlDir/$siteName/dfile.ascii" or die "can't open dfile.ascii for write: $!";
-    open CFILE, ">$jrnlDir/$siteName/cfile.ascii" or die "can't open cfile.ascii for write: $!";
-    open RFILE, ">$jrnlDir/$siteName/rfile.ascii" or die "can't open rfile.ascii for write: $!";
+    &openInputFiles($siteName, $version );
     print "Sorting...\n";
     my $nr = 0;
+    my @versions = ($version);
     while ( <INFILE> ) {
-        if    ( $_ =~ m/^u/ ) { print UFILE $_; }
+        if    ( $_ =~ m/^o/ ) { print OFILE $_; }
+        elsif ( $_ =~ m/^u/ ) { print UFILE $_; }
         elsif ( $_ =~ m/^d/ ) { print DFILE $_; }
-        elsif ( $_ =~ m/^o/ ) { print OFILE $_; }
         elsif ( $_ =~ m/^c/ ) { print CFILE $_; }
         elsif ( $_ =~ m/^r/ ) { print RFILE $_; }
+        elsif ( $_ =~ m/^v/ ) {
+            my ($v, $newVersion) =  split('\t');
+            next if ( $newVersion == $version ); 
+            $version = $newVersion;
+            @versions = (@versions, $version);
+            &runQuery("UPDATE sites
+                          SET version = $version
+                        WHERE name = '$siteName' ");
+            &closeInputFiles();
+            &openInputFiles($siteName, $version );
+        }
         $nr++;
     }
 
     close INFILE;
     `rm $inFN`;
-    
+
+    &closeInputFiles();
+
+    print "Loading...\n";
+    foreach $version ( @versions ) {
+        &loadOpenSession($siteName, $loadTime, $version);
+        &loadOpenFile($siteName, $version);
+        &loadCloseFile($siteName, $version);
+        &loadCloseSession($siteName, $version);
+        &loadXrdRestarts($siteName, $version);
+    }
+    # record loadTime in sites table
+    &runQuery("UPDATE sites 
+                  SET dbUpdate = '$loadTime'
+                WHERE name = '$siteName' ");
+    return $nr;
+}
+
+sub openInputFiles() {
+    my ($siteName, $version) = @_;
+    open OFILE, ">$jrnlDir/$siteName/ofile-V${version}.ascii" or die "can't open ofile.ascii for write: $!";
+    open UFILE, ">$jrnlDir/$siteName/ufile-V${version}.ascii" or die "can't open ufile.ascii for write: $!";
+    open DFILE, ">$jrnlDir/$siteName/dfile-V${version}.ascii" or die "can't open dfile.ascii for write: $!";
+    open CFILE, ">$jrnlDir/$siteName/cfile-V${version}.ascii" or die "can't open cfile.ascii for write: $!";
+    open RFILE, ">$jrnlDir/$siteName/rfile-V${version}.ascii" or die "can't open rfile.ascii for write: $!";
+}
+
+sub closeInputFiles() {
     close OFILE;
     close UFILE;
     close DFILE;
     close CFILE;
     close RFILE;
-
-    print "Loading...\n";
-    &loadOpenSession($siteName);
-    &loadOpenFile($siteName);
-    &loadCloseSession($siteName);
-    &loadCloseFile($siteName);
-    &loadXrdRestarts($siteName);
-    
-    return $nr;
-}
-
+}   
 # opens the <fName>.lock file for writing & locks it (write lock)
 sub lockTheFile() {
     my ($fName) = @_;
@@ -299,11 +349,12 @@ sub unlockTheFile() {
 }
 
 sub loadOpenSession() {
-    my ($siteName) = @_;
-
-    print "Loading open sessions...\n";
+    my ($siteName, $loadTime, $version) = @_;
+    my $inFile = "$jrnlDir/$siteName/ufile-V${version}.ascii";
+    if ( -z $inFile ) {return;}
+    print "Loading open sessions version $version...\n";
     my $mysqlIn = "$jrnlDir/$siteName/mysqlin.u";
-    my $inFile = "$jrnlDir/$siteName/ufile.ascii";
+    
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
     my $rows = 0;
@@ -313,9 +364,26 @@ sub loadOpenSession() {
         my $userId       = findOrInsertUserId($user, $siteName);
         my $clientHostId = findOrInsertHostId($clientHost, $siteName);
         my $serverHostId = findOrInsertHostId($srvHost, $siteName);
-
-        #print "uid=$userId, chid=$clientHostId, shd=$serverHostId\n";
-        print MYSQLIN "$sessionId \t  $userId \t $pid \t ";
+        my $jobId        = &runQueryWithRet("SELECT jobId 
+                                               FROM ${siteName}_jobs
+                                              WHERE userId    = $userId        AND
+                                                    pId       = $pid           AND
+                                                    clientHId = $clientHostId  AND
+                                                    ( noOpenSessions > 0         OR
+                                                      '$loadTime' <= DATE_ADD(endT, INTERVAL $maxIdleTime SECOND) )
+                                           ORDER BY jobId DESC
+                                              LIMIT 1     ");
+        if ( $jobId ) {
+            &runQuery("UPDATE ${siteName}_jobs   SET noOpenSessions = noOpenSessions + 1,
+                                                     beginT         = LEAST( '$loadTime', beginT)
+                                               WHERE      jobId = $jobId");
+        } else {
+            &runQuery("INSERT INTO ${siteName}_jobs ( userId,  pId,  clientHId, noOpenSessions, beginT,     endT    ) 
+                            VALUES                  ($userId, $pid, $clientHostId,      1    , '$loadTime', '$loadTime')");
+            $jobId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
+        }
+        #print "uid=$userId, chid=$clientHostId, shd=$serverHostId, jobId\n";
+        print MYSQLIN "$sessionId \t  $jobId \t $userId \t $pid \t ";
         print MYSQLIN "$clientHostId \t $serverHostId \n";
         $rows++;
     }
@@ -330,11 +398,13 @@ sub loadOpenSession() {
 
 
 sub loadCloseSession() {
-    my ($siteName) = @_;
+    my ($siteName, $version) = @_;
 
-    print "Loading closed sessions... \n";
+    my $inFile = "$jrnlDir/$siteName/dfile-V${version}.ascii";
+    if ( -z $inFile ) {return;}
+
+    print "Loading closed sessions version $version... \n";
     my $mysqlIn = "$jrnlDir/$siteName/mysqlin.d";
-    my $inFile = "$jrnlDir/$siteName/dfile.ascii";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
     my $rows = 0;
@@ -346,105 +416,102 @@ sub loadCloseSession() {
 
 
         # find if there is corresponding open session, if not don't bother
-        my ($userId, $pId, $clientHId, $serverHId) = 
-	   &runQueryWithRet("SELECT userId, pId, clientHId, serverHId 
+        my ($jobId, $userId, $pId, $clientHId, $serverHId) = 
+	   &runQueryWithRet("SELECT jobId, userId, pId, clientHId, serverHId 
                              FROM ${siteName}_openedSessions
                              WHERE id = $sessionId");
         next if ( ! $pId  );
-
+        # update jobs table
+        if ( $version == 1 ) {
+            $timestamp = &runQueryWithRet("SELECT CONVERT_TZ('$timestamp', '$timeZones{$siteName}', 'GMT') ");
+        }
+        &runQuery("UPDATE ${siteName}_jobs  SET noOpenSessions = noOpenSessions - 1, 
+                                                beginT = LEAST(beginT, DATE_SUB('$timestamp', INTERVAL $sec SECOND)),
+                                                endT   = GREATEST(endT, '$timestamp')
+                                          WHERE jobId  = $jobId");
+        
         # remove it from the open session table
         &runQuery("DELETE FROM ${siteName}_openedSessions 
                    WHERE id = $sessionId");
 
         # and insert into the closed
-        print MYSQLIN "$sessionId \t $userId \t $pId \t ";
+        print MYSQLIN "$sessionId \t $jobId \t $userId \t $pId \t ";
         print MYSQLIN "$clientHId \t $serverHId \t $sec \t $timestamp \n";
         $rows++;
     }
     close INFILE;
     close MYSQLIN;
 
-##################################################################### TEMPORARY CODE
-    &runQuery("CREATE TEMPORARY TABLE closedSessions LIKE SLAC_closedSessions");
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" INTO TABLE closedSessions");
-    &runQuery("UPDATE closedSessions SET disconnectT = CONVERT_TZ(disconnectT, \"$timeZones{$siteName}\", \"GMT\") ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastHour 
-                    SELECT * FROM closedSessions                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastDay
-                    SELECT * FROM closedSessions                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastWeek
-                    SELECT * FROM closedSessions                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastMonth
-                    SELECT * FROM closedSessions                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions_LastYear
-                    SELECT * FROM closedSessions                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions
-                    SELECT * FROM closedSessions                      ");
-    &runQuery("DROP TABLE IF EXISTS closedSessions                    ");
-##################################################################### TEMPORARY CODE
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE
-#              INTO TABLE ${siteName}_closedSessions          ");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedSessions_LastHour ");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedSessions_LastDay  ");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedSessions_LastWeek ");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedSessions_LastMonth");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedSessions_LastYear ");
-
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
+               INTO TABLE ${siteName}_closedSessions          ");
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
+               INTO TABLE ${siteName}_closedSessions_LastHour ");
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
+               INTO TABLE ${siteName}_closedSessions_LastDay  ");
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
+               INTO TABLE ${siteName}_closedSessions_LastWeek ");
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
+               INTO TABLE ${siteName}_closedSessions_LastMonth");
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
+               INTO TABLE ${siteName}_closedSessions_LastYear ");
+    
     print "$rows rows loaded \n";
     `rm $mysqlIn $inFile`;
 }
 
 
 sub loadOpenFile() {
-    my ($siteName) = @_;
+    my ($siteName, $version) = @_;
+    use vars qw($o $fileId $user $pid $clientHost $path $openT $size $srvHost);
 
-    print "Loading opened files...\n";
+    my $inFile = "$jrnlDir/$siteName/ofile-V${version}.ascii";
+    if ( -z $inFile ) {return;}
+
+    print "Loading opened files version $version...\n";
     my $mysqlIn = "$jrnlDir/$siteName/mysqlin.o";
-    my $inFile = "$jrnlDir/$siteName/ofile.ascii";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
     my $rows = 0;
     while ( <INFILE> ) {
         chomp;
-
-        my ($o,$fileId,$user,$pid,$clientHost,$path,$openTime,$srvHost) = 
-	    split('\t');
-
-        my $sessionId = 
-	    findSessionId($user,$pid,$clientHost,$srvHost,$siteName);
-        if ( ! $sessionId ) {
-	    next; # error: no corresponding session id
+ 
+        if ( $version == 1 ) {
+            ($o,$fileId,$user,$pid,$clientHost,$path,$openT,$srvHost) = split('\t');
+            $size = 0;
+        } else {
+            ($o,$fileId,$user,$pid,$clientHost,$path,$openT,$size,$srvHost) = split('\t');
         }
 
-        my $pathId = findOrInsertPathId($path);
+        my $sessionId = &findSessionId($user,$pid,$clientHost,$srvHost,$siteName);
+        next if ( ! $sessionId ); # error: no corresponding session id
+
+        my $jobId = &runQueryWithRet("SELECT jobId
+                                       FROM ${siteName}_openedSessions
+                                      WHERE id = $sessionId ");
+        if ( $version == 1 ) {
+            $openT = &runQueryWithRet("SELECT CONVERT_TZ('$openT', '$timeZones{$siteName}', 'GMT') ");
+        }
+        
+        &runQuery("UPDATE ${siteName}_jobs   
+                      SET beginT = LEAST( '$openT', beginT)
+                    WHERE jobId = $jobId");
+        
+        my $pathId = &findOrInsertPathId($path, $size);
         #print "$sessionId $pathId \n";
         if ( ! $pathId ) {
              print "path id not found for $path \n";
             next;
         }
         
-        print MYSQLIN "$fileId \t $sessionId \t $pathId \t $openTime \n";
+        print MYSQLIN "$fileId \t $sessionId \t $pathId \t $openT \n";
         $rows++;
     }
     close INFILE;
     close MYSQLIN;
 
-##################################################################### TEMPORARY CODE
-    &runQuery("CREATE TEMPORARY TABLE openedFiles LIKE SLAC_openedFiles");
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" INTO TABLE openedFiles");
-    &runQuery("UPDATE openedFiles SET openT = CONVERT_TZ(openT, \"$timeZones{$siteName}\", \"GMT\") ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_openedFiles
-                    SELECT * FROM openedFiles                      ");
-    &runQuery("DROP TABLE IF EXISTS openedFiles                    ");
-##################################################################### TEMPORARY CODE
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
+               INTO TABLE ${siteName}_openedFiles");
 
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_openedFiles");
     print "$rows rows loaded \n";
     `rm $mysqlIn $inFile`;
 
@@ -453,9 +520,11 @@ sub loadOpenFile() {
 sub loadCloseFile() {
     my ($siteName) = @_;
 
-    print "Loading closed files... \n";
+    my $inFile = "$jrnlDir/$siteName/cfile-V${version}.ascii";
+    if ( -z $inFile ) {return;}
+
+    print "Loading closed files version $version ... \n";
     my $mysqlIn = "$jrnlDir/$siteName/mysqlin.c";
-    my $inFile = "$jrnlDir/$siteName/cfile.ascii";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
     my $rows = 0;
@@ -471,6 +540,22 @@ sub loadCloseFile() {
                               FROM ${siteName}_openedFiles
                               WHERE id = $fileId");
         next if ( ! $sessionId );
+        my $jobId = &runQueryWithRet("SELECT jobId
+                                       FROM ${siteName}_openedSessions
+                                      WHERE id = $sessionId ");
+        if ( ! $jobId ) {
+             $jobId = &runQueryWithRet("SELECT jobId
+                                          FROM ${siteName}_closedSessions
+                                         WHERE id = $sessionId ");
+        }
+        if ( $version == 1 ) {
+            $closeT = &runQueryWithRet("SELECT CONVERT_TZ('$closeT', '$timeZones{$siteName}', 'GMT') ");
+        }
+
+        &runQuery("UPDATE ${siteName}_jobs   
+                      SET endT = GREATEST( '$closeT', endT)
+                    WHERE jobId = $jobId");
+        
 
         # remove it from the open files table
         &runQuery("DELETE FROM ${siteName}_openedFiles WHERE id = $fileId");
@@ -483,38 +568,19 @@ sub loadCloseFile() {
     close INFILE;
     close MYSQLIN;
 
-##################################################################### TEMPORARY CODE
-    &runQuery("CREATE TEMPORARY TABLE closedFiles LIKE SLAC_closedFiles");
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" INTO TABLE closedFiles");
-    &runQuery("UPDATE closedFiles SET closeT = CONVERT_TZ(closeT, \"$timeZones{$siteName}\", \"GMT\") ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles
-                    SELECT * FROM closedFiles                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastHour
-                    SELECT * FROM closedFiles                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastDay
-                    SELECT * FROM closedFiles                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastWeek
-                    SELECT * FROM closedFiles                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastMonth
-                    SELECT * FROM closedFiles                      ");
-    &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastYear
-                    SELECT * FROM closedFiles                      ");
-
-    &runQuery("DROP TABLE IF EXISTS closedFiles                    ");
-##################################################################### TEMPORARY CODE
-
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE
-#              INTO TABLE ${siteName}_closedFiles         ");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedFiles_LastHour");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedFiles_LastDay");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedFiles_LastWeek");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedFiles_LastMonth");
-#   &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-#              INTO TABLE ${siteName}_closedFiles_LastYear");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE
+               INTO TABLE ${siteName}_closedFiles         ");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE ${siteName}_closedFiles_LastHour");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE ${siteName}_closedFiles_LastDay");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE ${siteName}_closedFiles_LastWeek");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE ${siteName}_closedFiles_LastMonth");
+    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+               INTO TABLE ${siteName}_closedFiles_LastYear");
+    
     print "$rows rows loaded \n";
     `rm $mysqlIn $inFile`;
 }
@@ -527,10 +593,10 @@ sub findSessionId() {
     my $serverHostId = findOrInsertHostId($srvHost, $siteName);
 
     return &runQueryWithRet("SELECT id FROM ${siteName}_openedSessions 
-                                       WHERE     userId=$userId 
-                                             AND pId=$pid 
-                                             AND clientHId=$clientHostId 
-                                             AND serverHId=$serverHostId");
+                                       WHERE userId=$userId          AND
+                                             pId=$pid                AND
+                                             clientHId=$clientHostId AND
+                                             serverHId=$serverHostId      ");
 }
 
 
@@ -581,7 +647,7 @@ sub findOrInsertHostId() {
 }
 
 sub findOrInsertPathId() {
-    my ($path) = @_;
+    my ($path, $size) = @_;
 
     use vars qw($pathId $typeId $skimId);
 
@@ -634,7 +700,7 @@ sub findOrInsertPathId() {
             }
         }
         &runQuery("INSERT INTO paths (name,typeId,skimId,size,hash)
-                   VALUES (\"$path\", $typeId, $skimId, 0, $hashValue )");
+                   VALUES (\"$path\", $typeId, $skimId, $size, $hashValue )");
         $pathId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
     }
     $pathIds{$path} = $pathId;
@@ -648,11 +714,13 @@ sub findOrInsertPathId() {
 }
 
 sub loadXrdRestarts() {
-    my ($siteName) = @_;
+    my ($siteName, $version) = @_;
 
     my $siteId = $siteIds{$siteName};
 
-    my $inFile = "$jrnlDir/$siteName/rfile.ascii";
+    my $inFile = "$jrnlDir/$siteName/rfile-V$version}.ascii";
+    if ( -z $inFile ) {return;}
+
     if ( !open INFILE, "<$inFile" ) {
         return;
     }
