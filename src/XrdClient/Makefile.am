@@ -13,7 +13,7 @@ XrdClientLib = libXrdClient.la
 bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd
 
 xrootdclientincdir = $(includedir)/xrootd/XrdClient
-xrootdclientinc_HEADERS = \
+xrootdclientinc_HEADERS = XrdClient.hh \
                XrdClientString.hh XrdClientVector.hh XrdClientAdmin.hh \
                XrdClientAbs.hh XrdClientUnsolMsg.hh XrdClientMessage.hh \
                XrdClientProtocol.hh XrdClientSock.hh XrdClientUrlInfo.hh \
