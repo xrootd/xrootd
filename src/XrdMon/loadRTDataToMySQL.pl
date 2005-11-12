@@ -298,7 +298,7 @@ sub loadOneSite() {
     }
 
     close INFILE;
-    `rm $inFN`;
+    `rm -f $inFN`;
 
     &closeInputFiles();
 
@@ -399,7 +399,7 @@ sub loadOpenSession() {
     &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
                INTO TABLE ${siteName}_openedSessions");
     print "... $rows rows loaded \n";
-    `rm $mysqlIn $inFile`;
+    `rm -f $mysqlIn $inFile`;
 }
 
 
@@ -462,7 +462,7 @@ sub loadCloseSession() {
                INTO TABLE ${siteName}_closedSessions_LastYear ");
     
     print "$rows rows loaded \n";
-    `rm $mysqlIn $inFile`;
+    `rm -f $mysqlIn $inFile`;
 }
 
 
@@ -519,7 +519,7 @@ sub loadOpenFile() {
                INTO TABLE ${siteName}_openedFiles");
 
     print "$rows rows loaded \n";
-    `rm $mysqlIn $inFile`;
+    `rm -f $mysqlIn $inFile`;
 
 }
 
@@ -588,7 +588,7 @@ sub loadCloseFile() {
                INTO TABLE ${siteName}_closedFiles_LastYear");
     
     print "$rows rows loaded \n";
-    `rm $mysqlIn $inFile`;
+    `rm -f $mysqlIn $inFile`;
 }
 
 sub findSessionId() {
