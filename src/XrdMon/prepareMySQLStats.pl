@@ -29,6 +29,7 @@ unless ( open INFILE, "< $confFile" ) {
 
 my $stopFName = "$confFile.stop";
 $inhibitFSize =  "$confFile.inhibitFSize";
+$workDir = "/u1/xrdmon/xrdmon_kan_perl/workdir";
 
 $mysqlSocket = '/tmp/mysql.sock';
 while ( $_ = <INFILE> ) {
@@ -97,6 +98,10 @@ while ( 1 ) {
     if ( -e $stopFName ) {
 	unlink $stopFName;
 	exit;
+    }
+    # make sure the loop takes at least 2 s
+    if ( $loadTime eq &gmtimestamp() ) {
+        sleep 2;
     }
 }
 
@@ -207,7 +212,7 @@ sub prepareStats4OneSite() {
                          WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastDay     
                          WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
-	&loadStatsLastPeriod($siteName, $loadTime, "DAY", "HOUR");
+	&loadStatsLastPeriod($siteName, $loadTime, "Day", "Hour");
         #                                          period cfPeriod
 	&loadTopPerfPast("Day", 20, $siteName, $loadTime);
     }
@@ -219,7 +224,7 @@ sub prepareStats4OneSite() {
                          WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastWeek     
                          WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
-	&loadStatsLastPeriod($siteName, $loadTime, "WEEK", "DAY");
+	&loadStatsLastPeriod($siteName, $loadTime, "Week", "Day");
         #                                          period cfPeriod
 	&loadTopPerfPast("Week", 20, $siteName, $loadTime);
     }
@@ -232,7 +237,7 @@ sub prepareStats4OneSite() {
                              WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 1 MONTH)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastMonth     
                              WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 1 MONTH)");
-	    &loadStatsLastPeriod($siteName, $loadTime, "MONTH", "DAY");
+	    &loadStatsLastPeriod($siteName, $loadTime, "Month", "Day");
         #                                               period cfPeriod
 	    &loadTopPerfPast("Month", 20, $siteName, $loadTime);
             &fillStatsMissingBins($siteName,"Day",$loadTime);
@@ -247,7 +252,7 @@ sub prepareStats4OneSite() {
                              WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 1 YEAR)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastYear     
                              WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 1 YEAR)");
-	    &loadStatsLastPeriod($siteName, $loadTime, "YEAR", "WEEK");
+	    &loadStatsLastPeriod($siteName, $loadTime, "Year", "Week");
         #                                               period cfPeriod
 	    &loadTopPerfPast("Year", 20, $siteName, $loadTime);
             &fillStatsMissingBins($siteName,"Week",$loadTime);
@@ -322,6 +327,13 @@ sub runQuery() {
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
 }
 
+sub runQueryRetNum() {
+    my $sql = shift @_;
+#    print "$sql;\n";
+    my $num = $dbh-> do ($sql) or die "Failed to exec \"$sql\", $DBI::errstr";
+    return $num;
+}
+
 sub timestamp() {
     my @localt = localtime(time());
     my $sec    = $localt[0];
@@ -363,6 +375,7 @@ sub loadFileSizes() {
                       ORDER BY id 
                       LIMIT 7500");
      
+    my $bbkInput = "$workDir/bbkInput";
     $skip = 0;
     while () {
 	my $t0 = time();
@@ -376,14 +389,14 @@ sub loadFileSizes() {
        #print scalar @files, "\n";
        last if ( ! @files );
 
-       open ( BBKINPUT, '>bbkInput' ) or die "Can't open bbkInput file: $!"; 
+       open ( BBKINPUT, ">$bbkInput" ) or die "Can't open bbkInput file: $!"; 
        my $index = 0;
        while ( defined $files[$index] ) {
            print BBKINPUT "$files[$index]\n";
            $index++;
        }
-       @bbkOut   = `BbkUser --lfn-file=bbkInput --quiet                 lfn bytes`;
-       @bbkOut18 = `BbkUser --lfn-file=bbkInput --quiet --dbname=bbkr18 lfn bytes`;
+       @bbkOut   = `BbkUser --lfn-file=$bbkInput --quiet                 lfn bytes`;
+       @bbkOut18 = `BbkUser --lfn-file=$bbkInput --quiet --dbname=bbkr18 lfn bytes`;
        @bbkOut   = (@bbkOut, @bbkOut18);
        @inBbk = ();
        while ( @bbkOut ) {
@@ -478,6 +491,7 @@ sub loadStatsLastPeriod() {
     my $siteId = $siteIds{$siteName};
     my $interval = $intervals{$period};
     my $timeUnit = $timeUnits{$period};
+    my $intervalSec = $interval * $seconds{$timeUnit};
 
     my $t2 = &getLastInsertTime($loadTime, $period);
     if ( $t2 gt $dbUpdates{$siteName} ) {return;}
@@ -490,7 +504,7 @@ sub loadStatsLastPeriod() {
         $avNumNonUniqueFiles = &avNumNonUniqueFilesInTimeInterval($t1, $t2, $intervalSec, $siteName, $cfPeriod);
     } else {
         # use long method for all but Day       
-        $nSeqs = &runQueryWithRet("SELECT FLOOR(TIMESTAMPDIFF(MINUTE,'$t1','$t2',)/15)");
+        $nSeqs = &runQueryWithRet("SELECT FLOOR(TIMESTAMPDIFF(MINUTE,'$t1','$t2')/15)");
         if ( $nSeqs < &runQueryWithRet("SELECT COUNT(*)
                                                 FROM statsLastDay
                                                WHERE siteId = $siteId  AND
@@ -552,9 +566,9 @@ sub closeOpenedFiles() {
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_LastDay
                  SELECT * FROM xcf WHERE closeT > DATE_SUB('$GMTnow', INTERVAL 1 DAY)");
 
-    my $noDone =&runQueryWithRet("DELETE FROM  ${siteName}_openedFiles
-                                   USING ${siteName}_openedFiles, xcf
-                                   WHERE ${siteName}_openedFiles.id = xcf.id");
+    my $noDone =&runQueryRetNum("DELETE FROM  ${siteName}_openedFiles
+                                  USING ${siteName}_openedFiles, xcf
+                                  WHERE ${siteName}_openedFiles.id = xcf.id");
     &runQuery("DROP TABLE xcf");
     print " $noDone closed\n";
 }
@@ -625,7 +639,7 @@ sub closeOpenedSessions() {
     # make a smaller temporary table
     &runQuery("INSERT INTO  cs_times
                             SELECT id, duration, disconnectT
-                              FROM ${siteName}_closedSessions cs,
+                              FROM ${siteName}_closedSessions cs 
                              WHERE id < $maxId               AND
                                    cs.status = 'N'       ");   
 
@@ -641,7 +655,7 @@ sub closeOpenedSessions() {
                                       
     &runQuery("DROP TABLE IF EXISTS f");
     &runQuery("DROP TABLE IF EXISTS cs_times");
-    my $noDone = &runQueryWithRet("DELETE FROM ${siteName}_openedSessions WHERE id < $maxId");
+    my $noDone = &runQueryRetNum("DELETE FROM ${siteName}_openedSessions WHERE id < $maxId");
     print " $noDone closed\n";
 }
 
