@@ -7,6 +7,9 @@
 ## Version info: $Id$
 ## Checked in by $Author$
 #######################################################################
+xrootdsecincdir = $(includedir)/xrootd/XrdSec
+
+xrootdsecinc_HEADERS = XrdSecInterface.hh XrdSecEntity.hh
 
 lib_LTLIBRARIES = libXrdSec.la
 
