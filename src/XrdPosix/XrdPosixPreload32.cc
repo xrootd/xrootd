@@ -45,7 +45,7 @@ extern XrdPosixStream  streamX;
   
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
-  const long long LLMask = 0xffffffff00000000L;
+  const long long LLMask = 0xffffffff00000000LL;
 
   if ((dent64->d_ino    & LLMask)
   ||  (dent64->d_off    & LLMask)) {errno = EOVERFLOW; return EOVERFLOW;}
@@ -63,7 +63,7 @@ int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 
 int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 {
-  const long long LLMask = 0xffffffff00000000L;
+  const long long LLMask = 0xffffffff00000000LL;
   const      int  INTMax = 0x7fffffff;
 
   if (buf64.st_size   & LLMask)
