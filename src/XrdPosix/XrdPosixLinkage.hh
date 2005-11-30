@@ -29,6 +29,11 @@
 //#else
 #define UNIX_PFX
 //#endif
+
+#ifdef __macos__
+#define off64_t int64_t
+#define ELIBACC ESHLIBVERS
+#endif
   
 #define Symb_Access UNIX_PFX "access"
 #define Retv_Access int
@@ -228,6 +233,8 @@
   
 class XrdPosixLinkage
 {public:
+      int              Init(int x) {return (Done ? 0 : Resolve());}
+
       Retv_Access      (*Access)(Args_Access);
       Retv_Close       (*Close)(Args_Close);
       Retv_Closedir    (*Closedir)(Args_Closedir);
@@ -270,8 +277,12 @@ class XrdPosixLinkage
 
       int              Load_Error(const char *epname, int retv=-1);
 
-      XrdPosixLinkage();
+      XrdPosixLinkage() {Init(1);}
      ~XrdPosixLinkage() {}
+
+private:
+int Done;
+int Resolve();
 };
 
 /******************************************************************************/
@@ -359,6 +370,8 @@ class XrdPosixLinkage
   
 class XrdPosixRootVec
 {public:
+      int                  Init(int x) {return (Done ? 0 : Resolve());}
+
       XRD_Retv_Access      (*Access)(XRD_Args_Access);
       XRD_Retv_Close       (*Close)(XRD_Args_Close);
       XRD_Retv_Closedir    (*Closedir)(XRD_Args_Closedir);
@@ -385,8 +398,12 @@ class XrdPosixRootVec
       XRD_Retv_Writev      (*Writev)(XRD_Args_Writev);
       XRD_Retv_isMyPath    (*isMyPath)(XRD_Args_isMyPath);
 
-      XrdPosixRootVec();
+      XrdPosixRootVec() {Init(1);}
      ~XrdPosixRootVec() {}
+
+private:
+int Done;
+int Resolve();
 };
 // Warning! This class is meant to be defined as a static object.
 #endif

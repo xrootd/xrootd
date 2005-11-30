@@ -88,7 +88,7 @@ XrdPosixXrootPath::XrdPosixXrootPath()
           {if (!(subs = index(colon, (int)'='))) subs = 0;
               else if (*(subs+1) == '/') {*subs = '\0'; subs++;}
                       else if (*(subs+1)) aOK = 0;
-                              else {*subs = '\0'; subs = "";}
+                              else {*subs = '\0'; subs = (char*)"";}
           } else aOK = 0;
 
        if (aOK)

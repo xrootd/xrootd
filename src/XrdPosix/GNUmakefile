@@ -26,14 +26,11 @@ OBJECTS  = \
         $(OBJDIR)/XrdPosixXrootd.o
 
 OBJECTT = \
-        $(OBJDIR)/XrdPosixLinkage.o  \
         $(OBJDIR)/XrdPosixPreload.o  \
         $(OBJDIR)/XrdPosixPreload32.o \
         $(OBJDIR)/XrdPosixStream.o
 
 MORELIBS = -L$(LIBDIR) -lXrdClient -lXrdNet -lXrdOuc -lXrdSec
-
-MORELIBT = -L$(LIBDIR) -lXrdPosix
 
 LIBDEP   = $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdNet.a \
@@ -68,8 +65,10 @@ anything: $(TARGETS)
 $(TARGETS): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
 	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
+# MacOSx does not support linking against shared libraries so include
+# all of the objects in the preload library (yech).
 	@echo Creating shared library $(LIBPLDR)
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(LDSO) $(MORELIBT)         -o $(LIBPLDR)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
 
 $(OBJDIR)/XrdPosix.o:  XrdPosix.cc XrdPosix.hh XrdPosixXrootd.hh  \
                        XrdPosixExtern.hh XrdPosixLinkage.hh XrdOucTokenizer.hh
@@ -90,7 +89,7 @@ $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
                                 XrdPosixExtern.hh      XrdPosixStream.hh \
                                 XrdPosixXrootd.hh
 	@echo Compiling XrdPosiXPreload32.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
+	$(ECHO)$(CC) -c $(CFLAGS32) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
 
 $(OBJDIR)/XrdPosixStream.o:  XrdPosixStream.cc   XrdPosixStream.hh \
                              XrdOucPthread.hh    XrdPosixLinkage.hh \

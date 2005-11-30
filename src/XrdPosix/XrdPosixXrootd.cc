@@ -18,6 +18,11 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
+
+#ifdef __macos__
+#include <sys/uio.h>
+#endif
+
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientAdmin.hh"
@@ -234,6 +239,7 @@ XrdPosixDir::~XrdPosixDir()
 dirent *XrdPosixDir::nextEntry(dirent *dp)
 {
    const char *cp;
+   const int dirhdrln = sizeof(struct dirent) - sizeof(dp->d_name) + 1;
    int reclen;
 
 // Object is already / must be locked at this point
@@ -253,14 +259,21 @@ dirent *XrdPosixDir::nextEntry(dirent *dp)
 // Create a directory entry
 //
    if (!dp) dp = myDirent;
-   dp->d_ino = fentry;
-   dp->d_off = fentry*maxname;
-   cp = (fentries[fentry++]).c_str();
+   cp = (fentries[fentry]).c_str();
    reclen = strlen(cp);
    if (reclen > maxname) reclen = maxname;
-   dp->d_reclen = reclen;
+#ifdef __macos__
+   dp->d_fileno = fentry;
+   dp->d_type   = DT_UNKNOWN;
+   dp->d_namlen = reclen;
+#else
+   dp->d_ino    = fentry;
+   dp->d_off    = fentry*maxname;
+#endif
+   dp->d_reclen = reclen + dirhdrln;
    strncpy(dp->d_name, cp, reclen);
    dp->d_name[reclen] = '\0';
+   fentry++;
    return dp;
 }
 
@@ -327,6 +340,11 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 //
    if ((cvar = getenv("XRDPOSIX_DEBUG")) && *cvar)
       {Debug = atoi(cvar); setEnv(NAME_DEBUG, Debug);}
+
+// Establish cache size
+//
+   if ((cvar = getenv("XRDPOSIX_RCSZ")) && *cvar)
+      {isize = atoi(cvar); setEnv(NAME_READCACHESIZE, isize);}
 }
  
 /******************************************************************************/
@@ -587,7 +605,7 @@ int     XrdPosixXrootd::Open(const char *path, int oflags, int mode)
   
 DIR* XrdPosixXrootd::Opendir(const char *path)
 {
-   XrdPosixDir *dirp;
+   XrdPosixDir *dirp = 0; // Avoid MacOS compiler warning
    int rc, dir;
 
 // Allocate a new directory structure

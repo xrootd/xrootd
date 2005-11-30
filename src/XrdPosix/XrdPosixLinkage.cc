@@ -44,6 +44,8 @@
 /******************************************************************************/
   
 XrdPosixLinkage Xunix;
+
+XrdPosixRootVec xinuX;
  
 /******************************************************************************/
 /*          U n r e s o l v e d   R e f e r e n c e   L i n k a g e           */
@@ -132,7 +134,7 @@ XrdPosixLinkage Xunix;
 /*           X r d P o s i x L i n k a g e   C o n s t r u c t o r            */
 /******************************************************************************/
   
-XrdPosixLinkage::XrdPosixLinkage()
+int XrdPosixLinkage::Resolve()
 {
   LOOKUP_UNIX(Access)
   LOOKUP_UNIX(Close)
@@ -174,6 +176,8 @@ XrdPosixLinkage::XrdPosixLinkage()
   LOOKUP_UNIX(Unlink)
   LOOKUP_UNIX(Write)
   LOOKUP_UNIX(Writev)
+  Done = 1;
+  return 1;
 }
 
 /******************************************************************************/
@@ -203,7 +207,7 @@ int XrdPosixLinkage::Load_Error(const char *epname, int retv)
 /*           X r d P o s i x R o o t V e c   C o n s t r u c t o r            */
 /******************************************************************************/
   
-XrdPosixRootVec::XrdPosixRootVec()
+int XrdPosixRootVec::Resolve()
 {
   LOOKUP_XROOT(Access)
   LOOKUP_XROOT(Close)
@@ -230,4 +234,6 @@ XrdPosixRootVec::XrdPosixRootVec()
   LOOKUP_XROOT(Write)
   LOOKUP_XROOT(Writev)
   LOOKUP_XROOT(isMyPath)
+  Done = 1;
+  return 1;
 }
