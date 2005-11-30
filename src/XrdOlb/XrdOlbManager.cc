@@ -786,8 +786,8 @@ int XrdOlbManager::SelServer(int needrw, char *path,
    while(pass--)
         {if (mask)
             {sp = (XrdOlbConfig.sched_RR
-                   ? SelbyRef( mask, nump, delay, &reason, isalt)
-                   : SelbyLoad(mask, nump, delay, &reason, isalt));
+                   ? SelbyRef( mask, nump, delay, &reason, isalt||needrw)
+                   : SelbyLoad(mask, nump, delay, &reason, isalt||needrw));
              if (sp || (nump && delay)) break;
             }
          mask = amask; isalt = 1;
@@ -799,10 +799,14 @@ int XrdOlbManager::SelServer(int needrw, char *path,
    if (sp)
       {strcpy(hbuff, sp->Name());
        sp->RefR++;
-       if (isalt)
-          {XrdOlbCache.AddFile(path, sp->ServMask, needrw);
+       if (isalt || needrw > 1)
+          {if (isalt)
+              {XrdOlbCache.AddFile(path, sp->ServMask, needrw);
+               TRACE(Stage, "Server " <<hbuff <<" staging " <<path);
+              } else {
+               TRACE(Stage, "Server " <<hbuff <<" creating " <<path);
+              }
            sp->RefA++;
-           TRACE(Stage, "Server " <<hbuff <<" bound to " <<path);
            sp->DiskTota -= XrdOlbConfig.DiskAdj;
            if (((sp->DiskFree -= XrdOlbConfig.DiskAdj) < XrdOlbConfig.DiskMin)
            &&   sp->DiskAskdl <= time(0))

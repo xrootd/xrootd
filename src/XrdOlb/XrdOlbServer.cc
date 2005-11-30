@@ -1232,7 +1232,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    switch(*tp)
         {case 'r': needrw = 0; amode = (char *)"read";  break;
          case 'w': needrw = 1; amode = (char *)"write"; break;
-         case 'c': needrw = 1; amode = (char *)"write"; newfile = 1; break;
+         case 'c': needrw = 2; amode = (char *)"write"; newfile = 1; break;
          case 'x': needrw = 0; amode = (char *)"read";  resonly = 1; break;
          default:  return 1;
         }
