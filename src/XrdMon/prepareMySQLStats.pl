@@ -505,7 +505,7 @@ sub loadStatsLastPeriod() {
     } else {
         # use long method for all but Day       
         $nSeqs = &runQueryWithRet("SELECT FLOOR(TIMESTAMPDIFF(MINUTE,'$t1','$t2')/15)");
-        if ( $nSeqs < &runQueryWithRet("SELECT COUNT(*)
+        if ( $nSeqs > &runQueryWithRet("SELECT COUNT(*)
                                                 FROM statsLastDay
                                                WHERE siteId = $siteId  AND
                                                 date >  '$t1'     AND
