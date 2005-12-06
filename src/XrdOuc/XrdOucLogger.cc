@@ -120,17 +120,20 @@ void XrdOucLogger::Put(int iovcnt, struct iovec *iov)
   
 int XrdOucLogger::Time(char *tbuff)
 {
+    const int minblen = 24;
     eNow = time(0);
     struct tm tNow;
+    int i;
 
 // Format the header
 //
-   tbuff[23] = '\0'; // tbuff must be at least 24 bytes long
+   tbuff[minblen-1] = '\0'; // tbuff must be at least 24 bytes long
    localtime_r((const time_t *) &eNow, &tNow);
-   return snprintf(tbuff, 23, "%02d%02d%02d %02d:%02d:%02d %03ld ",
+   i =    snprintf(tbuff, minblen, "%02d%02d%02d %02d:%02d:%02d %03ld ",
                   tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
                   tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
                   XrdOucThread::Num());
+   return (i >= minblen ? minblen-1 : i);
 }
 
 /******************************************************************************/
