@@ -15,6 +15,7 @@ const char *XrdOlbManagerCVSID = "$Id$";
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -1332,8 +1333,6 @@ void XrdOlbManager::Remove_Manager(const char *reason, XrdOlbServer *sp)
 /******************************************************************************/
 /*                             S e l b y L o a d                              */
 /******************************************************************************/
-
-#define Abs(a) (a < 0 ? -a : a)
   
 XrdOlbServer *XrdOlbManager::SelbyLoad(SMask_t mask, int &nump, int &delay,
                                        char **reason, int needspace)
@@ -1355,7 +1354,7 @@ XrdOlbServer *XrdOlbManager::SelbyLoad(SMask_t mask, int &nump, int &delay,
                              || np->DiskFree < XrdOlbConfig.DiskAdj))
               {numf++; continue;}
            if (!sp) sp = np;
-              else if (Abs(sp->myLoad - np->myLoad)
+              else if (abs(sp->myLoad - np->myLoad)
                           <= XrdOlbConfig.P_fuzz)
                       {if (needspace)
                           {if (sp->RefA > (np->RefA+XrdOlbConfig.DiskLinger))
