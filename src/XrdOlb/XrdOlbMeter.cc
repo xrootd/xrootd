@@ -97,6 +97,7 @@ long XrdOlbMeter::FreeSpace(long &tot_free)
      EPNAME("FreeSpace")
      static XrdOucMutex fsMutex;
      static int Now, lastCalc = 0;
+     long fsbsize;
      long long bytes, fsavail = 0, fstotav = 0;
      XrdOucTList *tlp = fs_list;
      STATFS_BUFF fsdata;
@@ -115,12 +116,16 @@ long XrdOlbMeter::FreeSpace(long &tot_free)
 
 // For each file system, do a statvfs() or equivalent. We define free space
 // as the largest amount available in one filesystem since we can't allocate
-// across filesystems.
+// across filesystems. The correct filesystem blocksize is very OS specific
 //
    while(tlp)
         {if (!STATFS(tlp->text, &fsdata))
-            {bytes = fsdata.f_bavail * ( fsdata.f_bsize ?
-                                         fsdata.f_bsize : FS_BLKFACT);
+#ifdef __macos__
+            {fsbsize = fsdata.f_bsize;
+#else
+            {fsbsize = (fsdata.f_frsize ? fsdata.f_frsize : fsdata.f_bsize);
+#endif
+             bytes = fsdata.f_bavail * ( fsbsize ?  fsbsize : FS_BLKFACT);
              if (bytes >= MinFree)
                 {fstotav += bytes/1024;
                  if (bytes > fsavail) fsavail = bytes;
