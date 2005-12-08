@@ -16,8 +16,7 @@
 #ifndef XRC_UNSOLMSG_H
 #define XRC_UNSOLMSG_H
 
-#include "XrdClient/XrdClientMessage.hh"
-
+class XrdClientMessage;
 class XrdClientUnsolMsgSender;
 
 // The processing result for an unsolicited response
