@@ -30,6 +30,18 @@ XrdClientUrlInfo::XrdClientUrlInfo()
 }
 
 //_____________________________________________________________________________
+XrdClientUrlInfo::XrdClientUrlInfo(const char *url)
+{
+   // Constructor from a string specifying an url or multiple urls in the
+   // form:
+   //         [proto://][user1@]host1:port1[,[user2@]host2:port2, ... ,
+   //                   [userN@]hostN:portN]]/pathfile
+
+   Clear();
+   TakeUrl(XrdClientString(url));
+}
+
+//_____________________________________________________________________________
 XrdClientUrlInfo::XrdClientUrlInfo(const XrdClientString url)
 {
    // Constructor from a string specifying an url or multiple urls in the
@@ -130,10 +142,12 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString u)
 
    // Store the whole "[user[:passwd]@]host:port" thing in HostWPort
    if ((p2 = u.Find((char *)"/",p1)) != STR_NPOS) {
-      HostWPort = u.Substr(p1, p2);
-      // Update start of search range and remaining length
-      p1 = p2+1;
-      left -= p1;
+      if (p2 > p1) {
+         HostWPort = u.Substr(p1, p2);
+         // Update start of search range and remaining length
+         p1 = p2+1;
+         left -= p1;
+      }
    } else {
       HostWPort = u.Substr(p1);
       left = 0;
