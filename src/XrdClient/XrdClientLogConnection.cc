@@ -74,9 +74,8 @@ UnsolRespProcResult XrdClientLogConnection::ProcessUnsolicitedMsg(XrdClientUnsol
    // Remember that we are in a separate thread, since unsolicited responses
    // are asynchronous by nature.
 
-   Info(XrdClientDebug::kNODEBUG,
-	"LogConnection",
-	"Processing unsolicited response");
+   Info(XrdClientDebug::kDUMPDEBUG, "LogConnection",
+        "Processing unsolicited response (ID:"<<unsolmsg->HeaderSID()<<")");
 
    // Local processing ....
 
