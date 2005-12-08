@@ -42,6 +42,7 @@ class XrdClientUrlInfo {
    void TakeUrl(XrdClientString url);
    XrdClientString GetUrl();
 
+   XrdClientUrlInfo(const char *url);
    XrdClientUrlInfo(const XrdClientString url);
    XrdClientUrlInfo(const XrdClientUrlInfo &url);
    XrdClientUrlInfo();
