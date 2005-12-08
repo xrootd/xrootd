@@ -1932,36 +1932,41 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
     long long minf = -1, adj = -1;
 
     while((val = Config.GetWord()))
-       {if (!strcmp("linger", val))
-           {if (!(val = Config.GetWord()))
-               {eDest->Emsg("Config", "linger value not specified"); return 1;}
-            if (XrdOuca2x::a2i(*eDest,"linger",val,&alinger,0))
-               return 1;
-           }
-
-        if (!strcmp("min", val) && !(val = Config.GetWord()))
-           {eDest->Emsg("Config", "space minfree not specified"); return 1;}
-        if (XrdOuca2x::a2sz(*eDest,"space minfree",val,&minf,0))
-           return 1;
-
-        if ((val = Config.GetWord())
-        && (XrdOuca2x::a2sz(*eDest,"space adjust",val,&adj,0))) return 1;
-           else break;
-       }
-
+      {if (!strcmp("linger", val))
+        {if (!(val = Config.GetWord()))
+          {eDest->Emsg("Config", "linger value not specified"); return 1;}
+        if (XrdOuca2x::a2i(*eDest,"linger",val,&alinger,0))
+          return 1;
+        }
+      else 
+        {if (isdigit(*val) || (!strcmp("min", val) && (val = Config.GetWord())) )
+          {if (XrdOuca2x::a2sz(*eDest,"space minfree",val,&minf,0))
+            return 1;
+          if ((val = Config.GetWord()))
+            {if (isdigit(*val))
+              {if (XrdOuca2x::a2sz(*eDest,"space adjust",val,&adj,0)) 
+                return 1;
+              }
+            else Config.RetToken();           
+            } 
+          }
+        else {eDest->Emsg("Config", "space min format error"); return 1;}
+        }
+      }
+    
     if (alinger >= 0) DiskLinger = alinger;
-
+    
     if (minf < 0 && adj < 0)
-       {eDest->Emsg("Config", "no space values specified"); return 1;}
+        {eDest->Emsg("Config", "no space values specified"); return 1;}
 
     if (minf >= 0)
-      {minf = minf / 1024;
-       DiskMin = (minf >> 31 ? 0x7fffffff : minf) / 1024;
-       if (adj >= 0)
-          {adj = adj / 1204;
-           DiskAdj = (adj >> 31 ? 0x7fffffff : adj) / 1024;
-          }
-      }
+        {minf = minf / 1024;
+        DiskMin = (minf >> 31 ? 0x7fffffff : minf);
+        if (adj >= 0)
+            {adj = adj / 1024;
+            DiskAdj = (adj >> 31 ? 0x7fffffff : adj);
+            }
+        }
     return 0;
 }
   
