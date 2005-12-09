@@ -11,7 +11,12 @@
 ## Note: XrdObject.hh XrdObject.icc seem not to be used anywhere
 EXTRA_DIST = XrdObject.hh XrdObject.icc
 
-noinst_LTLIBRARIES = libXrd.la
+xrootdxrdincdir = $(includedir)/xrootd/Xrd
+
+xrootdxrdinc_HEADERS = XrdLink.hh XrdBuffer.hh XrdScheduler.hh XrdProtocol.hh \
+                       XrdObject.hh XrdJob.hh XrdLinkMatch.hh XrdObject.icc
+
+lib_LTLIBRARIES = libXrd.la
 
 INCLUDES = -I$(top_srcdir)/src
 
