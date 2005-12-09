@@ -136,13 +136,13 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
   
    readres = phy->ReadRaw((void *)&fHdr, readLen);
 
-   if (readres) {
+   if (readres < 0) {
 
       if (readres == TXSOCK_ERR_TIMEOUT)
          SetStatusCode(kXrdMSC_timeout);
       else {
          Error("XrdClientMessage::ReadRaw",
-	       "Error reading " << readLen << " bytes.");
+	       "Error reading header (" << readLen << " bytes)");
          SetStatusCode(kXrdMSC_readerr);
 
       }
@@ -153,6 +153,9 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
    SetMarshalled(TRUE);
    Unmarshall();
 
+   Info(XrdClientDebug::kDUMPDEBUG,
+        "XrdClientMessage::ReadRaw"," sid: "<<HeaderSID()<<", IsAttn: "<<IsAttn());
+
    if (fHdr.dlen) {
 
       Info(XrdClientDebug::kDUMPDEBUG,
@@ -160,8 +163,9 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
 	   "Reading data (" << fHdr.dlen << " bytes) from socket.");
 
       CreateData();
-      if (phy->ReadRaw(fData, fHdr.dlen)) {
-         Error("XrdClientMessage::ReadRaw", "Error reading " << fHdr.dlen << " bytes.");
+      if (phy->ReadRaw(fData, fHdr.dlen) < 0) {
+         Error("XrdClientMessage::ReadRaw",
+               "Error reading data (" << fHdr.dlen << " bytes)");
          free( DonateData() );
 
          SetStatusCode(kXrdMSC_readerr);
