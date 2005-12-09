@@ -29,6 +29,12 @@ const char *XrdClientConnCVSID = "$Id$";
 
 #include "XrdClient/XrdClientSid.hh"
 
+// Dynamic libs
+#include <dlfcn.h>
+#ifndef __macos__
+#include <link.h>
+#endif
+
 #include <stdio.h>      // needed by printf
 #include <stdlib.h>     // needed by getenv()
 #include <pwd.h>        // needed by getpwuid()
@@ -40,10 +46,14 @@ const char *XrdClientConnCVSID = "$Id$";
 #define  SafeDelete(x) { if (x) { delete x; x = 0; } }
 
 
+// Security handle
+typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *, const struct sockaddr &,
+                                           const XrdSecParameters &, XrdOucErrInfo *);
 
 XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
 
-
+// Instance of the Connection Manager
+XrdClientConnectionMgr *XrdClientConn::fgConnectionMgr = 0;
 
 //_____________________________________________________________________________
 void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdClientString &token)
@@ -123,6 +133,14 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
       fMainReadCache = new XrdClientReadCache();
 
    fOpenSockFD = -1;
+
+   // Init connection manager (only once)
+   if (!fgConnectionMgr) {
+      if (!(fgConnectionMgr = new XrdClientConnectionMgr())) {
+         Error("XrdClientConn::XrdClientConn", "initializing connection manager");
+      }
+   }
+
 }
 
 //_____________________________________________________________________________
@@ -521,15 +539,10 @@ bool XrdClientConn::CheckResp(struct ServerResponseHeader *resp, const char *met
          return FALSE;
       }
 
-      if (resp->status != kXR_ok && resp->status != kXR_authmore) {
-         if (resp->status != kXR_wait)
-            Error(method, "Server [" <<
-		  fUrl.Host << ":" << fUrl.Port <<
-		  "] did not return OK message for" <<
-		  " last request.");
-
+      if (resp->status != kXR_ok && resp->status != kXR_authmore)
+         // Error message is notified in CheckErrorStatus
          return FALSE;
-      }
+
       return TRUE;
 
    } else {
@@ -584,7 +597,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
   
       // A complete communication failure has to be handled later, but we
       // don't have to abort what we are doing
-      if (writeres) {
+      if (writeres < 0) {
          Error("WriteToServer",
 	       "Error sending " << len << " bytes in the header part"
                " to server [" <<
@@ -604,7 +617,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
     
          // A complete communication failure has to be handled later, but we
          //  don't have to abort what we are doing
-         if (writeres) {
+         if (writeres < 0) {
             Error("WriteToServer", 
 	       "Error sending " << req->header.dlen << " bytes in the data part"
                " to server [" <<
@@ -643,12 +656,12 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
       if (body_err) {
          // Print out the error information, as received by the server
 
-         Error("SendGenCommand",
-	       "Server declared error " << 
-               ntohl(body_err->errnum) << ":" <<
-	       (const char*)body_err->errmsg);
-
          fOpenError = (XErrorCode)ntohl(body_err->errnum);
+         int dbglvl = (fOpenError == kXR_NotFound) ? XrdClientDebug::kUSERDEBUG
+                                                   : XrdClientDebug::kNODEBUG ;
+ 
+         Info(dbglvl, "SendGenCommand", "Server declared: " <<
+             (const char*)body_err->errmsg << "(error code: " << fOpenError << ")");
 
 	 // Save the last error received
 	 memcpy(&LastServerError, body_err, mex->DataLen());
@@ -1054,7 +1067,7 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
 
    writeres = ConnectionManager->WriteRaw(log, &initHS, len);
 
-   if (writeres) {
+   if (writeres < 0) {
       Error("DoHandShake", "Error sending " << len <<
 	    " bytes to the server  [" <<
 	    fUrl.Host << ":" << fUrl.Port << "]");
@@ -1078,7 +1091,7 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
    readres = ConnectionManager->ReadRaw(log, &type, 
 					len); // Reads 4(2+2) bytes
                
-   if (readres) {
+   if (readres < 0) {
       Error("DoHandShake", "Error reading " << len <<
 	    " bytes from server [" <<
 	    fUrl.Host << ":" << fUrl.Port << "].");
@@ -1103,7 +1116,7 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
       readres = ConnectionManager->ReadRaw(log, &xbody, 
 					   len); // Read 12(4+4+4) bytes
 
-      if (readres) {
+      if (readres < 0) {
          Error("DoHandShake", "Error reading " << len << 
 	       " bytes from server [" <<
 	       fUrl.Host << ":" << fUrl.Port << "].");
@@ -1354,6 +1367,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    // Negotiate authentication with the remote server. Tries in turn
    // all available protocols proposed by the server (in plist),
    // starting from the first.
+   static XrdSecGetProt_t getp = 0;
    XrdSecProtocol *protocol = (XrdSecProtocol *)0;
 
    if (!plist || plsiz <= 0)
@@ -1403,11 +1417,36 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
          memcpy(bpar, pp, lpar);
       bpar[lpar] = 0;
       XrdSecParameters Parms(bpar,lpar+1);
+
+      // We need to load the protocol getter the first time we are here
+      if (!getp) {
+         // Open the security library
+         void *lh = 0;
+         if (!(lh = dlopen("libXrdSec.so", RTLD_NOW))) {
+            Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+                                           "unable to load libXrdSec.so");
+            // Set error, in case of need
+            fOpenError = kXR_NotAuthorized;
+	    LastServerError.errnum = fOpenError;
+	    strcpy(LastServerError.errmsg, "unable to load libXrdSec.so");
+            return protocol;
+         }
+
+         // Get the client protocol getter
+         if (!(getp = (XrdSecGetProt_t) dlsym(lh, "XrdSecGetProtocol"))) {
+            Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+                                           "unable to load XrdSecGetProtocol()");
+            // Set error, in case of need
+            fOpenError = kXR_NotAuthorized;
+	    LastServerError.errnum = fOpenError;
+	    strcpy(LastServerError.errmsg, "unable to load XrdSecGetProtocol()");
+            return protocol;
+         }
+      }
       //
       // Retrieve the security protocol context from the xrootd server
-      if (!(protocol = XrdSecGetProtocol((char *)fUrl.Host.c_str(),
-                                         (const struct sockaddr &)netaddr,
-                                          Parms, 0))) {
+      if (!(protocol = (*getp)((char *)fUrl.Host.c_str(),
+                               (const struct sockaddr &)netaddr, Parms, 0))) {
          Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
               "unable to get protocol object.");
          // Set error, in case of need
@@ -1417,6 +1456,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
          pp = pn;
          continue;
       }
+
       //
       // Protocol name
       XrdClientString protname = protocol->Entity.prot;
@@ -1440,8 +1480,6 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
       //
       // We fill the header struct containing the request for login
       ClientRequest reqhdr;
-      SetSID(reqhdr.header.streamid);
-      reqhdr.header.requestid = kXR_auth;
       memset(reqhdr.auth.reserved, 0, 12);
       memcpy(reqhdr.auth.credtype, protname.c_str(), protname.GetSize());
 
@@ -1453,6 +1491,8 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
          //
          // Length of the credentials buffer
          reqhdr.header.dlen = credentials->size;
+         SetSID(reqhdr.header.streamid);
+         reqhdr.header.requestid = kXR_auth;
          resp = SendGenCommand(&reqhdr, credentials->buffer,
                                (void **)&srvans, 0, TRUE,
                                (char *)"XrdClientConn::DoAuthentication");
