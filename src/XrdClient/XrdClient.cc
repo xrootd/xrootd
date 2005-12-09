@@ -44,7 +44,7 @@ XrdClient::XrdClient(const char *url) {
 
    fUseCache = (CacheSize > 0);
 
-   if (!XrdClientConnectionMgr::IsAlive())
+   if (!ConnectionManager)
      Info(XrdClientDebug::kNODEBUG,
 	  "Create",
 	  "(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);

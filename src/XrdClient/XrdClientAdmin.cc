@@ -60,7 +60,7 @@ void joinStrings(XrdClientString &buf, vecString vs)
 //_____________________________________________________________________________
 XrdClientAdmin::XrdClientAdmin(const char *url) {
 
-  if (!XrdClientConnectionMgr::IsAlive())
+  if (!ConnectionManager)
     Info(XrdClientDebug::kNODEBUG,
 	 "",
 	 "(C) 2004 SLAC XrdClientAdmin " << XRD_CLIENT_VERSION);
