@@ -14,8 +14,6 @@ LIBUTIL = $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdOuc.a
 SOURCES = \
         PC1.cc      \
         PC3.cc      \
-        rsalib.c      \
-	rsaaux.c     \
         XrdCryptoAux.cc      \
         XrdCryptoBasic.cc      \
         XrdCryptoCipher.cc      \
@@ -28,7 +26,6 @@ SOURCES = \
         XrdCryptoX509Req.cc \
         XrdCryptolocalCipher.cc  \
 	XrdCryptolocalFactory.cc \
-        XrdCryptolocalRSA.cc \
         XrdCryptosslAux.cc         \
         XrdCryptosslCipher.cc         \
         XrdCryptosslMsgDigest.cc      \
@@ -44,8 +41,6 @@ SOURCES = \
 OBJECTS = \
         $(OBJDIR)/PC1.o      \
         $(OBJDIR)/PC3.o      \
-        $(OBJDIR)/rsaaux.o      \
-	$(OBJDIR)/rsalib.o    \
         $(OBJDIR)/XrdCryptoAux.o      \
         $(OBJDIR)/XrdCryptoBasic.o      \
         $(OBJDIR)/XrdCryptoCipher.o      \
@@ -58,7 +53,6 @@ OBJECTS = \
         $(OBJDIR)/XrdCryptoX509Req.o  \
 	$(OBJDIR)/XrdCryptolocalCipher.o \
 	$(OBJDIR)/XrdCryptolocalFactory.o \
-	$(OBJDIR)/XrdCryptolocalRSA.o
 
 OBJCSSL = \
         $(OBJDIR)/XrdCryptosslAux.o         \
@@ -166,14 +160,6 @@ $(OBJDIR)/PC3.o: PC3.cc PC3.hh
 	@echo Compiling PC3.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/PC3.o PC3.cc
 
-$(OBJDIR)/rsaaux.o: rsaaux.cc rsaaux.hh rsalib.hh
-	@echo Compiling rsaaux.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/rsaaux.o rsaaux.cc
-
-$(OBJDIR)/rsalib.o: rsalib.cc rsalib.hh rsaaux.hh
-	@echo Compiling rsalib.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/rsalib.o rsalib.cc
-
 $(OBJDIR)/XrdCryptoAux.o: XrdCryptoAux.cc XrdOucLogger.hh \
 			  XrdOucPthread.hh XrdOucError.hh \
 			  XrdCryptoAux.hh XProtocol.hh XPtypes.hh \
@@ -267,21 +253,12 @@ $(OBJDIR)/XrdCryptolocalFactory.o: XrdCryptolocalFactory.cc \
 			XrdSutAux.hh XProtocol.hh \
 			XPtypes.hh XrdCryptoBasic.hh \
 			XrdCryptolocalFactory.hh XrdCryptoFactory.hh \
-			XrdCryptoAux.hh XrdCryptolocalRSA.hh \
+			XrdCryptoAux.hh  \
 			XrdCryptoRSA.hh XrdOucString.hh \
-			rsadef.h XrdCryptoTrace.hh \
+			XrdCryptoTrace.hh \
 			XrdOucTrace.hh XrdOucError.hh
 	@echo Compiling XrdCryptolocalFactory.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptolocalFactory.o XrdCryptolocalFactory.cc
-
-$(OBJDIR)/XrdCryptolocalRSA.o: XrdCryptolocalRSA.cc XrdOucString.hh \
-			XrdSutRndm.hh XrdSutAux.hh XProtocol.hh \
-			XPtypes.hh XrdCryptolocalRSA.hh \
-			XrdCryptoRSA.hh XrdSutBucket.hh \
-			XrdCryptoAux.hh XrdCryptoTrace.hh \
-			XrdOucTrace.hh XrdOucError.hh rsalib.hh rsaaux.hh
-	@echo Compiling XrdCryptolocalRSA.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptolocalRSA.o XrdCryptolocalRSA.cc
 
 $(OBJDIR)/XrdCryptosslAux.o: XrdCryptosslAux.cc XrdCryptoX509Chain.hh \
 			XrdSutBucket.hh XrdSutAux.hh \

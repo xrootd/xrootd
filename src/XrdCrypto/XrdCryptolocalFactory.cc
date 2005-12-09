@@ -18,7 +18,6 @@
 #include <XrdCrypto/PC1.hh>
 #include <XrdCrypto/XrdCryptolocalCipher.hh>
 #include <XrdCrypto/XrdCryptolocalFactory.hh>
-#include <XrdCrypto/XrdCryptolocalRSA.hh>
 #include <XrdCrypto/XrdCryptoTrace.hh>
 
 #include <string.h>
@@ -206,13 +205,7 @@ XrdCryptoRSA *XrdCryptolocalFactory::RSA(int bits, int exp)
 {
    // Return an instance of a local implementation of XrdCryptoRSA.
 
-   XrdCryptoRSA *rsa = new XrdCryptolocalRSA(bits,exp);
-   if (rsa) {
-      if (rsa->IsValid())
-         return rsa;
-      else
-         delete rsa;
-   }
+   ABSTRACTMETHOD("XrdCryptoFactory::RSA");
    return (XrdCryptoRSA *)0;
 }
 
@@ -221,13 +214,7 @@ XrdCryptoRSA *XrdCryptolocalFactory::RSA(const char *pub, int lpub)
 {
    // Return an instance of a local implementation of XrdCryptoRSA.
 
-   XrdCryptoRSA *rsa = new XrdCryptolocalRSA(pub,lpub);
-   if (rsa) {
-      if (rsa->IsValid())
-         return rsa;
-      else
-         delete rsa;
-   }
+   ABSTRACTMETHOD("XrdCryptoFactory::RSA");
    return (XrdCryptoRSA *)0;
 }
 
@@ -236,12 +223,6 @@ XrdCryptoRSA *XrdCryptolocalFactory::RSA(const XrdCryptoRSA &r)
 {
    // Return an instance of a local implementation of XrdCryptoRSA.
 
-   XrdCryptoRSA *rsa = new XrdCryptolocalRSA(*((XrdCryptolocalRSA *)&r));
-   if (rsa) {
-      if (rsa->IsValid())
-         return rsa;
-      else
-         delete rsa;
-   }
+   ABSTRACTMETHOD("XrdCryptoFactory::RSA");
    return (XrdCryptoRSA *)0;
 }

@@ -40,8 +40,6 @@ libXrdSSLutil_la_CXXFLAGS = $(SSLCXXFLAGS)
 libXrdCrypto_la_SOURCES = \
         PC1.cc PC1.hh    \
         PC3.cc PC3.hh    \
-        rsalib.cc rsalib.hh   \
-        rsaaux.cc rsaaux.hh rsadef.h  \
         XrdCryptoAux.cc XrdCryptoAux.hh XrdCryptoTrace.hh    \
         XrdCryptoBasic.cc XrdCryptoBasic.hh     \
         XrdCryptoCipher.cc XrdCryptoCipher.hh     \
@@ -53,8 +51,7 @@ libXrdCrypto_la_SOURCES = \
         XrdCryptoX509Crl.cc XrdCryptoX509Crl.hh \
         XrdCryptoX509Req.cc XrdCryptoX509Req.hh \
         XrdCryptolocalCipher.cc XrdCryptolocalCipher.hh \
-        XrdCryptolocalFactory.cc XrdCryptolocalFactory.hh \
-        XrdCryptolocalRSA.cc XrdCryptolocalRSA.hh
+        XrdCryptolocalFactory.cc XrdCryptolocalFactory.hh
 libXrdCrypto_la_LIBADD = libXrdSSLutil.la \
                          ../XrdOuc/libXrdOuc.la \
                          ../XrdNet/libXrdNet.la
