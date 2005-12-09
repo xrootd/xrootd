@@ -133,7 +133,7 @@ String XrdSecProtocolpwd::FileCrypt= "/.xrdpass";
 String XrdSecProtocolpwd::FileSrvPuk= "";
 String XrdSecProtocolpwd::SrvID    = "";
 String XrdSecProtocolpwd::SrvEmail = "";
-String XrdSecProtocolpwd::DefCrypto= "ssl|local";
+String XrdSecProtocolpwd::DefCrypto= "ssl";
 String XrdSecProtocolpwd::DefError = "insufficient credentials - contact ";
 XrdSutPFile XrdSecProtocolpwd::PFAdmin(0);   // Admin file (server)
 XrdSutPFile XrdSecProtocolpwd::PFAlog(0);   // Autologin file (client)
@@ -876,7 +876,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
          if (bpar->UpdateBucket(bpub,lpub,kXRS_puk) != 0)
             return ErrC(ei,bpar,bmai,0, kPWErrAddBucket,
                         XrdSutBuckStr(kXRS_puk),"global",stepstr);
-         SafeDelete(bpub);
+         SafeDelArray(bpub);
          //
          // If we are requiring server verification of puk ownership
          // we are done for this step
@@ -1183,7 +1183,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             } else 
                return ErrS(hs->ID,ei,bpar,bmai,0, kPWErrError,
                                              "out-of-memory",stepstr);
-            SafeDelete(bpub); // bpid is taken by the bucket
+            SafeDelArray(bpub); // bpid is taken by the bucket
          }
       }
       // client should now go through a complete login
@@ -2131,6 +2131,14 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
                   }
                }
             }
+         } else {
+            // Fill entry
+            bad = 0;
+            status = hs->Pent->status;
+            hs->Pent->mtime = hs->TimeStamp;
+            if (status == kPFE_crypt)
+               cmsg = FileCrypt;
+            return 0;
          }
       }
    }
@@ -2461,7 +2469,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
             // Autoreg is the only alternative at this point ...
             emsg = "server puk not found in cache - tag: ";
             emsg += ptag;
-         }            
+         }
          SafeDelArray(ptag);
       } else 
          emsg = "could not allocate buffer for server puk tag";
