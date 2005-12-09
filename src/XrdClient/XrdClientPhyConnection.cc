@@ -111,15 +111,17 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 }
 
 //____________________________________________________________________________
-bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
+bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
 {
    // Connect to remote server
    XrdOucMutexHelper l(fMutex);
 
-   Info(XrdClientDebug::kHIDEBUG,
-	"Connect",
-	"Connecting to [" << RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
-  
+   if (isUnix) {
+      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connecting to " << RemoteHost.File);
+   } else {
+      Info(XrdClientDebug::kHIDEBUG,
+      "Connect", "Connecting to [" << RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
+   } 
    fSocket = new XrdClientSock(RemoteHost);
 
    if(!fSocket) {
@@ -127,13 +129,15 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
       abort();
    }
 
-   fSocket->TryConnect();
+   fSocket->TryConnect(isUnix);
 
    if (!fSocket->IsConnected()) {
-      Error("Connect", 
-            "can't open connection to [" <<
-	    RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
-
+      if (isUnix) {
+         Error("Connect", "can't open UNIX connection to " << RemoteHost.File);
+      } else {
+         Error("Connect", "can't open connection to [" <<
+               RemoteHost.Host << ":" << RemoteHost.Port << "]");
+      }
       Disconnect();
 
       return FALSE;
@@ -143,8 +147,12 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 
    fTTLsec = DATA_TTL;
 
-   Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to [" <<
-	RemoteHost.Host << ":" << RemoteHost.Port << "]");
+   if (isUnix) {
+      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to " << RemoteHost.File);
+   } else {
+      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to [" <<
+           RemoteHost.Host << ":" << RemoteHost.Port << "]");
+   }
 
    fServer = RemoteHost;
    fReaderthreadrunning = FALSE;
@@ -307,7 +315,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 
       res = fSocket->RecvRaw(buf, len);
 
-      if (res && (res != TXSOCK_ERR_TIMEOUT) && errno ) {
+      if ((res < 0) && (res != TXSOCK_ERR_TIMEOUT) && errno ) {
 	 //strerror_r(errno, errbuf, sizeof(buf));
 
          Info(XrdClientDebug::kHIDEBUG,
@@ -317,7 +325,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 
       // If a socket error comes, then we disconnect
       // but we have not to disconnect in the case of a timeout
-      if ((res && (res != TXSOCK_ERR_TIMEOUT)) ||
+      if (((res < 0) && (res != TXSOCK_ERR_TIMEOUT)) ||
           (!fSocket->IsConnected())) {
 
 	 Info(XrdClientDebug::kHIDEBUG,
@@ -382,6 +390,10 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
       //  here -> XrdClientConnMgr -> all the involved XrdClientLogConnections ->
       //   -> all the corresponding XrdClient
 
+      Info(XrdClientDebug::kDUMPDEBUG,
+          "BuildMessage"," propagating unsol id "<<m->HeaderSID());
+
+
       res = HandleUnsolicited(m);
 
       // The purpose of this message ends here
@@ -405,12 +417,19 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
             if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_timeout) {
                //waserror = m->IsError();
 
+            Info(XrdClientDebug::kDUMPDEBUG,
+                 "BuildMessage"," posting id "<<m->HeaderSID());
+
                fMsgQ.PutMsg(m);
 
                //if (waserror)
                //   for (int kk=0; kk < 10; kk++) fMsgQ.PutMsg(0);
             }
             else {
+
+            Info(XrdClientDebug::kDUMPDEBUG,
+                 "BuildMessage"," deleting id "<<m->HeaderSID());
+
                delete m;
                m = 0;
             }
@@ -473,25 +492,26 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
       retval = SendUnsolicitedMsg(this, m);
 
       // Request post-processing
-      switch (attnbody->actnum) {
+      if (attnbody) {
+         switch (attnbody->actnum) {
 
-      case kXR_asyncrd:
-	 // After having set all the belonging object, we disconnect.
-	 // The next commands will redirect-on-error where we want
+         case kXR_asyncrd:
+	    // After having set all the belonging object, we disconnect.
+	    // The next commands will redirect-on-error where we want
 
-	 Disconnect();
-	 break;
+	    Disconnect();
+	    break;
       
-      case kXR_asyncdi:
-	 // After having set all the belonging object, we disconnect.
-	 // The next connection attempt will behave as requested,
-	 // i.e. waiting some time before reconnecting
+         case kXR_asyncdi:
+	    // After having set all the belonging object, we disconnect.
+	    // The next connection attempt will behave as requested,
+	    // i.e. waiting some time before reconnecting
 
-	 Disconnect();
-	 break;
+            Disconnect();
+	    break;
 
-      } // switch
-
+         } // switch
+      }
       return retval;
 
    }
