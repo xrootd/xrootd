@@ -40,8 +40,6 @@ class XrdSecProtocol;
 
 class XrdClientPhyConnection: public XrdClientUnsolMsgSender {
 
-friend class XrdClientConn;
-
 private:
    time_t              fLastUseTimestamp;
    enum ELoginState    fLogged;       // only 1 login/auth is needed for physical  
@@ -49,7 +47,7 @@ private:
 
    XrdClientInputBuffer      fMsgQ;         // The queue used to hold incoming messages
    int                 fRequestTimeout;
-  
+
    XrdOucRecMutex         fRwMutex;     // Lock before using the physical channel 
                                       // (for reading and/or writing)
 
@@ -68,9 +66,6 @@ private:
 
    XrdOucSemWait       fReaderCV;
 
-   int            SaveSocket() { return fSocket ? (fSocket->SaveSocket()) : -1; }
-   void           SetSecProtocol(XrdSecProtocol *sp) { fSecProtocol = sp; }
-
 public:
    ERemoteServer       fServerType;
    long                fTTLsec;
@@ -81,12 +76,16 @@ public:
    XrdClientMessage     *BuildMessage(bool IgnoreTimeouts, bool Enqueue);
    bool                  CheckAutoTerm();
 
-   bool           Connect(XrdClientUrlInfo RemoteHost);
+   bool           Connect(XrdClientUrlInfo RemoteHost, bool isUnix = 0);
    void           Disconnect();
    bool           ExpiredTTL();
    long           GetTTL() { return fTTLsec; }
 
    XrdSecProtocol *GetSecProtocol() const { return fSecProtocol; }
+   int            GetSocket() { return fSocket ? fSocket->fSocket : -1; }
+
+   int            SaveSocket() { return fSocket ? (fSocket->SaveSocket()) : -1; }
+   void           SetSecProtocol(XrdSecProtocol *sp) { fSecProtocol = sp; }
 
    void           StartedReader();
 
