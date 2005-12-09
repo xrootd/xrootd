@@ -20,10 +20,13 @@
 #include "XrdClient/XrdClientConst.hh"
 
 #include "time.h"
+#include "XrdClient/XrdClientConnMgr.hh"
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientReadCache.hh"
 #include "XrdOuc/XrdOucHash.hh"
+
+#define ConnectionManager XrdClientConn::GetConnectionMgr()
 
 class XrdClientAbs;
 class XrdSecProtocol;
@@ -166,6 +169,8 @@ public:
    // Its answer will be caught asynchronously
    XReqErrorType              WriteToServer_Async(ClientRequest *req, 
 						  const void* reqMoreData);
+   static XrdClientConnectionMgr *GetConnectionMgr()
+                              { return fgConnectionMgr;} //Instance of the conn manager
 
 private:
    // The handler which first tried to connect somewhere
@@ -219,6 +224,7 @@ private:
    XrdClientUrlInfo           fUrl;                // The current URL
 
    int                        fOpenSockFD;         // Descriptor of the underlying socket
+   static XrdClientConnectionMgr *fgConnectionMgr; //Instance of the Connection Manager
 
    bool                       CheckErrorStatus(XrdClientMessage *, short &, char *);
    void                       CheckPort(int &port);
