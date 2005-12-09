@@ -42,7 +42,7 @@ public:
    int    RecvRaw(void* buffer, int length);
    int    SendRaw(const void* buffer, int length);
 
-   void   TryConnect();
+   void   TryConnect(bool isUnix = 0);
 
    void   Disconnect();
 
