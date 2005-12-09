@@ -55,7 +55,6 @@ libXrdClient_la_LIBADD = $(LIBSUNMATH)
 ##        XrdClientXrdDNS.cc              
 
 clientlibs =  libXrdClient.la \
-              ../XrdSec/libXrdSec.la \
               ../XrdOuc/libXrdOuc.la \
               ../XrdNet/libXrdNet.la \
               -ldl
