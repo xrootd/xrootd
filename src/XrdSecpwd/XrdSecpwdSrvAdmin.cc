@@ -152,7 +152,7 @@ bool         ChangePwd = 0;
 
 #define NCRYPTMAX 10 // max number of crypto factories
 
-XrdOucString DefCrypto = "ssl|local";
+XrdOucString DefCrypto = "ssl";
 XrdOucString CryptList = "";
 int          ncrypt    = 0; // number of available crypto factories
 XrdOucString CryptMod[NCRYPTMAX] = {""}; // .. and their names
@@ -1057,7 +1057,7 @@ void Menu(int opt)
      PRT("+      (normally ssl and local); use '-' in front to avoid +");
      PRT("+      avoid creating a entry for a module; one entry is   +");
      PRT("+      for each module with effective tag of the form      +");
-     PRT("+      name_<cryptoID> [default list: ssl|local]           +");
+     PRT("+      name_<cryptoID> [default list: ssl]                 +");
      PRT("+                 [default: create backup]                 +");
    }
 

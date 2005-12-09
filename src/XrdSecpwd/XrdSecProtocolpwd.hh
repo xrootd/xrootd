@@ -202,7 +202,7 @@ public:
    int    lifecreds;    // [s] lifetime in seconds of credentials
    int    maxprompts;   // [c] max number of empty prompts
    int    maxfailures;  // [s] max passwd failures before blocking
-   char  *clist;        // [s] list of crypto modules ["ssl|local" ]
+   char  *clist;        // [s] list of crypto modules ["ssl" ]
    char  *dir;          // [s] directory with admin pwd files [$HOME/.xrd]
    char  *udir;         // [s] users's sub-directory with pwd files [$HOME/.xrd]
    char  *cpass;        // [s] users's crypt hash pwd file [$HOME/.xrootdpass]
