@@ -32,8 +32,6 @@
 #include <semaphore.h>
 #endif
 
-XrdClientConnectionMgr *XrdClientConnectionMgr::fgInstance = 0;
-
 //_____________________________________________________________________________
 void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 {
@@ -61,31 +59,7 @@ void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 }
 
 //_____________________________________________________________________________
-XrdClientConnectionMgr* XrdClientConnectionMgr::Instance() {
-   // Create unique instance of the connection manager
-
-   if(fgInstance == 0) {
-
-      fgInstance = new XrdClientConnectionMgr;
-
-      if(!fgInstance)
-         abort();
-
-   }
-   return fgInstance;
-}
-
-//_____________________________________________________________________________
-void XrdClientConnectionMgr::Reset()
-{
-   // Reset the connection manager
-
-   delete fgInstance;
-   fgInstance = 0;
-}
-
-//____________________________________________________
-XrdClientConnectionMgr::XrdClientConnectionMgr()
+XrdClientConnectionMgr::XrdClientConnectionMgr() : fGarbageColl(0)
 {
    // XrdClientConnectionMgr constructor.
    // Creates a Connection Manager object.
@@ -124,14 +98,13 @@ XrdClientConnectionMgr::~XrdClientConnectionMgr()
 
    }
 
-   fGarbageColl->Cancel();
-   fGarbageColl->Join(0);
-   delete fGarbageColl;
+   if (fGarbageColl) {
+      fGarbageColl->Cancel();
+      fGarbageColl->Join(0);
+      delete fGarbageColl;
+   }
 
    GarbageCollect();
-
-   delete(fgInstance);
-   fgInstance = 0;
 }
 
 //_____________________________________________________________________________
@@ -471,8 +444,8 @@ UnsolRespProcResult XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsol
    // Remember that we are in a separate thread, since unsolicited responses
    // are asynchronous by nature.
 
-   Info(XrdClientDebug::kNODEBUG,
-	"ConnectionMgr", "Processing unsolicited response");
+   Info(XrdClientDebug::kDUMPDEBUG, "ConnectionMgr",
+       "Processing unsolicited response (ID:"<<unsolmsg->HeaderSID()<<")");
    UnsolRespProcResult res = kUNSOL_CONTINUE;
    // Local processing ....
 
@@ -485,12 +458,12 @@ UnsolRespProcResult XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsol
       XrdOucMutexHelper mtx(fMutex);
 
       for (int i = 0; i < fLogVec.GetSize(); i++)
-	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) ) {
+	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) &&
+            (unsolmsg->MatchStreamid(fLogVec[i]->Streamid()))) {
 	    res = fLogVec[i]->ProcessUnsolicitedMsg(sender, unsolmsg);
 
 	    if (res != kUNSOL_CONTINUE) break;
 	 }
-
    }
 
 

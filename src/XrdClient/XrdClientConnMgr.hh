@@ -30,7 +30,6 @@
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdClient/XrdClientThread.hh"
 
-#define ConnectionManager XrdClientConnectionMgr::Instance()
 
 
 
@@ -39,8 +38,6 @@
 
 class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler, 
                        XrdClientUnsolMsgSender {
-
-friend class XrdClientConn;
 
 private:
    XrdClientVector<XrdClientLogConnection*> fLogVec;
@@ -51,22 +48,19 @@ private:
 
    XrdClientThread            *fGarbageColl;
 
-
-   static XrdClientConnectionMgr*   fgInstance;
-
-   void          GarbageCollect();
    friend void * GarbageCollectorThread(void *, XrdClientThread *thr);
    UnsolRespProcResult
                  ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                        XrdClientMessage *unsolmsg);
-protected:
+public:
    XrdClientConnectionMgr();
 
-public:
    virtual ~XrdClientConnectionMgr();
 
    int           Connect(XrdClientUrlInfo RemoteAddress);
    void          Disconnect(short LogConnectionID, bool ForcePhysicalDisc);
+
+   void          GarbageCollect();
 
    XrdClientLogConnection 
                  *GetConnection(short LogConnectionID);
@@ -79,14 +73,6 @@ public:
    int           ReadRaw(short LogConnectionID, void *buffer, int BufferLength);
    int           WriteRaw(short LogConnectionID, const void *buffer, 
                           int BufferLength);
-
-   static XrdClientConnectionMgr* Instance();
-   static bool   IsAlive() {
-      return (fgInstance);
-   }
-
-   static void   Reset();
-
 
 };
 
