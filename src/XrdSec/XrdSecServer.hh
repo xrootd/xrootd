@@ -42,9 +42,10 @@ int                     Configure(const char *cfn);
 
 private:
 
+static XrdSecPManager  PManager;
+
 XrdOucError     eDest;
 XrdOucTrace    *SecTrace;
-XrdSecPManager  PManager;
 XrdSecProtBind *bpFirst;
 XrdSecProtBind *bpLast;
 XrdSecProtBind *bpDefault;

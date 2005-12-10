@@ -1,4 +1,4 @@
-/******************************************************************************/
+/***************************************************************************/
 /*                                                                            */
 /*                       X r d S e c S e r v e r . c c                        */
 /*                                                                            */
@@ -220,10 +220,10 @@ int XrdSecProtParm::Insert(char oct)
 /******************************************************************************/
 /*                          X r d S e c S e r v e r                           */
 /******************************************************************************/
+XrdSecPManager XrdSecServer::PManager;
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-  
 XrdSecServer::XrdSecServer(XrdOucLogger *lp) : eDest(0, "sec_")
 {
 
@@ -612,8 +612,11 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdOucError &Eroute)
 //
    if (strlen(val) > XrdSecPROTOIDSIZE)
       {Eroute.Emsg("Config","protocol id too long - ", val); return 1;}
+
    if (PManager.Find(val))
-      {Eroute.Emsg("Config","protocol",val,"previously defined."); return 1;}
+      {Eroute.Emsg("Config","protocol",val,"previously defined.");
+       strcpy(pid, val);
+       return add2token(Eroute, pid, &STBuff, STBlen, mymask);}
 
 // The builtin host protocol does not accept any parameters. Additionally, the
 // host protocol negates any other protocols we may have in the default set.
@@ -686,10 +689,12 @@ int XrdSecServer::xpparm(XrdOucStream &Config, XrdOucError &Eroute)
 //
    if (strlen(val) > XrdSecPROTOIDSIZE)
       {Eroute.Emsg("Config","protocol id too long - ", val); return 1;}
+
    if (PManager.Find(val))
       {Eroute.Emsg("Config","protparm protocol",val,"already defined.");
-       return 1;
+       return 0;
       }
+
    strcpy(pid, val);
 
 // Make sure we have at least one parameter here
@@ -855,14 +860,14 @@ extern "C"
 {
 XrdSecService *XrdSecgetService(XrdOucLogger *lp, const char *cfn)
 {
-   static XrdSecServer SecServer(lp);
+   XrdSecServer *SecServer = new XrdSecServer(lp);
 
 // Configure the server object
 //
-   if (SecServer.Configure(cfn)) return 0;
+   if (SecServer->Configure(cfn)) return 0;
 
 // Return the server object
 //
-   return (XrdSecService *)&SecServer;
+   return (XrdSecService *)SecServer;
 }
 }
