@@ -30,6 +30,17 @@ const char *XrdClientConnCVSID = "$Id$";
 #include "XrdClient/XrdClientSid.hh"
 
 // Dynamic libs
+// Bypass Solaris ELF madness
+//
+#if (defined(SUNCC) || defined(SUN))
+#include <sys/isa_defs.h>
+#if defined(_ILP32) && (_FILE_OFFSET_BITS != 32)
+#undef  _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 32
+#undef  _LARGEFILE_SOURCE
+#endif
+#endif
+
 #include <dlfcn.h>
 #ifndef __macos__
 #include <link.h>
