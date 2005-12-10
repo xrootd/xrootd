@@ -272,7 +272,7 @@ int        lstat64(         const char *path, struct stat64 *buf)
    return xinuX.Lstat(path, (struct stat *)buf);
 }
 
-#if defined __GNUC__ && __GNUC__ >= 2
+#if defined __GNUC__ && __GNUC__ >= 2 && !defined(__ICC__) && !defined(__x86_64__)
 int        lstat64(         const char *path, struct stat64 *buf)
 {
    static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
