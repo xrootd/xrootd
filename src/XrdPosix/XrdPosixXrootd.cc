@@ -18,10 +18,7 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-
-#ifdef __macos__
 #include <sys/uio.h>
-#endif
 
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
