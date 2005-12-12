@@ -120,7 +120,7 @@ long XrdOlbMeter::FreeSpace(long &tot_free)
 //
    while(tlp)
         {if (!STATFS(tlp->text, &fsdata))
-#ifdef __macos__
+#if defined(__macos__) || !defined(_STATFS_F_FRSIZE)
             {fsbsize = fsdata.f_bsize;
 #else
             {fsbsize = (fsdata.f_frsize ? fsdata.f_frsize : fsdata.f_bsize);
