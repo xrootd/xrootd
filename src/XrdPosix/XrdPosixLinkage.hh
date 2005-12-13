@@ -233,7 +233,7 @@
   
 class XrdPosixLinkage
 {public:
-      int              Init(int x) {return (Done ? 0 : Resolve());}
+      int              Init(int *x) {return (Done ? 0 : Resolve());}
 
       Retv_Access      (*Access)(Args_Access);
       Retv_Close       (*Close)(Args_Close);
@@ -277,7 +277,7 @@ class XrdPosixLinkage
 
       int              Load_Error(const char *epname, int retv=-1);
 
-      XrdPosixLinkage() {Init(1);}
+      XrdPosixLinkage() {Init(0);}
      ~XrdPosixLinkage() {}
 
 private:
@@ -370,7 +370,7 @@ int Resolve();
   
 class XrdPosixRootVec
 {public:
-      int                  Init(int x) {return (Done ? 0 : Resolve());}
+      int                  Init(int *x) {return (Done ? 0 : Resolve());}
 
       XRD_Retv_Access      (*Access)(XRD_Args_Access);
       XRD_Retv_Close       (*Close)(XRD_Args_Close);
@@ -398,7 +398,7 @@ class XrdPosixRootVec
       XRD_Retv_Writev      (*Writev)(XRD_Args_Writev);
       XRD_Retv_isMyPath    (*isMyPath)(XRD_Args_isMyPath);
 
-      XrdPosixRootVec() {Init(1);}
+      XrdPosixRootVec() {Init(0);}
      ~XrdPosixRootVec() {}
 
 private:

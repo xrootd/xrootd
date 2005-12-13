@@ -108,7 +108,7 @@ extern "C"
 {
 int     creat(const char *path, mode_t mode)
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
    return xinuX.Open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
@@ -123,7 +123,7 @@ extern "C"
 {
 FILE  *fopen(const char *path, const char *mode)
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
    return xinuX.isMyPath(path)
           ? streamX.Fopen(path, mode)
@@ -144,7 +144,7 @@ int  __fxstat(int ver, int fildes, struct stat *buf)
 int     fstat(         int fildes, struct stat *buf)
 #endif
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #ifdef __macos__
    return (fildes < XrdPosixFD) ? Xunix.Fstat(fildes, buf)
                                 : xinuX.Fstat(fildes, buf);
@@ -175,7 +175,7 @@ extern "C"
 {
 off_t   lseek(int fildes, off_t offset, int whence)
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
    return (fildes >= XrdPosixFD)
           ? xinuX.Lseek(fildes, offset, whence)
@@ -197,7 +197,7 @@ int     __xlstat(int ver, const char *path, struct stat *buf)
 int        lstat(         const char *path, struct stat *buf)
 #endif
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #ifdef __macos__
    return (!xinuX.isMyPath(path) ? Xunix.Lstat(path, buf)
                                  : xinuX.Stat(path, buf));
@@ -228,7 +228,7 @@ extern "C"
 {
 int     open(const char *path, int oflag, ...)
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
    va_list ap;
    int mode;
 
@@ -249,7 +249,7 @@ extern "C"
 {
 ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
    return (fildes >= XrdPosixFD)
           ? xinuX.Pread(fildes, buf, nbyte, offset)
@@ -267,7 +267,7 @@ extern "C"
 {
 struct dirent* readdir(DIR *dirp)
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
    struct dirent *dent;
 
    if (!(dent = xinuX.Readdir(dirp))) return 0;
@@ -290,7 +290,7 @@ extern "C"
 {
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #ifdef __macos__
    return xinuX.Readdir_r(dirp, entry, result);
 #else
@@ -326,7 +326,7 @@ int     __xstat(int ver, const char *path, struct stat *buf)
 int        stat(         const char *path, struct stat *buf)
 #endif
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #ifdef __macos__
    return (!xinuX.isMyPath(path) ? Xunix.Stat(path, buf)
                                  : xinuX.Stat(path, buf));
@@ -356,7 +356,7 @@ extern "C"
 {
 ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
 {
-   static int init1 = xinuX.Init(init1), init2 = Xunix.Init(init2);
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
    return (fildes >= XrdPosixFD)
           ? xinuX.Pwrite(fildes, buf, nbyte, offset)
