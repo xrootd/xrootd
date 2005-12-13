@@ -56,8 +56,6 @@ const char *XrdConfigCVSID = "$Id$";
 
        XrdBuffManager    XrdBuffPool;
 
-extern XrdConfig         XrdConfig;
-
 extern XrdInet          *XrdNetTCP;
 extern XrdInet          *XrdNetADM;
 
