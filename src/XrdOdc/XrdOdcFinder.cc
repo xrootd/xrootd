@@ -269,8 +269,8 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
    EPNAME("Prepare")
    char mbuff1[32], mbuff2[32], *mode;
    XrdOucTList *tp;
-   int allok, mint, pathloc, plenloc = 0;
-   XrdOdcManager *Manp = 0, *Womp;
+   int pathloc, plenloc = 0;
+   XrdOdcManager *Manp = 0;
    struct iovec iodata[8];
 
 // Make sure we are configured
@@ -289,7 +289,7 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
        iodata[0].iov_len  = 10;    //1234567890
        iodata[1].iov_base = pargs.reqid;
        iodata[1].iov_len  = strlen(pargs.reqid);
-       iodata[2].iov_base = (char *)"\n ";
+       iodata[2].iov_base = (char *)"\n";
        iodata[2].iov_len  = 1;
        if (Manp->Send((const struct iovec *)&iodata, 3)) return 0;
           else {Resp.setErrInfo(RepDelay, "");
@@ -329,13 +329,7 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
 // Distribute out paths to the various managers
 //
    while(tp)
-        {mint = (SMode == ODC_ROUNDROB
-                ? XrdOucReqID::Index(myManCount, tp->text) : 0);
-         Womp = Manp = myManTable[mint];
-         do {if ((allok = (Manp->isActive()))) break;
-            } while((Manp = Manp->nextManager()) != Womp);
-         if (!allok) {SelectManFail(Resp); break;}
-
+        {if (!(Manp = SelectManager(Resp, tp->text))) break;
          iodata[pathloc].iov_base = tp->text;
          iodata[pathloc].iov_len  = strlen(tp->text);
          if (plenloc) iodata[plenloc].iov_len = 
