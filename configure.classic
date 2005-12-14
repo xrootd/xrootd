@@ -57,6 +57,7 @@ options="                 \
    enable_pwd             \
    enable_ssl             \
    enable_trace           \
+   enable_javaint
 "
 
 #
@@ -70,6 +71,7 @@ enable_mon=yes
 enable_perlint=no
 enable_ssl=
 enable_thread=yes
+enable_javaint=no
 
 #
 # ./configure arguments and defaults set via supported env vars
@@ -495,6 +497,7 @@ To build in debug mode use option '--build=debug' .
 enable/disable options, prefix with either --enable- or --disable-
    echo            Enable/disable echoing of commands during building
    gsi             GSI authentication support, requires OpenSSL
+   javaint         support for the Java Native Interface for XrdClientAdmin
    krb4            Kerberos4 support, requires Kerberos libs
    krb5            Kerberos5 support, requires Kerberos libs
    mon             Enable/disable building of monitoring services
@@ -502,9 +505,10 @@ enable/disable options, prefix with either --enable- or --disable-
    pwd             Password-based authentication support
    ssl             Build OpenSSL implementation of crypto interfaces
    trace           Support for trace statements via the "-d" flag
-
+   
 with options, prefix with --with-, enables corresponding support
 
+   java            Path to the Java SDK to be used for the java interface
    krb4            KerberosIV support, location of Kerberos distribution
    krb4-incdir     KerberosIV support, location of kerberosIV/krb.h
    krb4-libdir     KerberosIV support, location of libkrb4
@@ -515,6 +519,7 @@ with options, prefix with --with-, enables corresponding support
    ssl-incdir      OpenSSL support, location of openssl headers
    ssl-libdir      OpenSSL support, location of libssl
    thread-libdir   Path to libpthread
+   
 
 Advanced options:
 
@@ -601,6 +606,7 @@ if test $# -gt 0 ; then
       --no-create)             noact="yes"           ;;
       --nohowto)               nohowto="yes"         ;;
       --use-xrd-strlcpy)       strlcpy="local"       ;;
+      --with-java=*)           javadir=$optarg       ; enable_javaint="yes" ;;
       --with-krb4=*)           krb4dir=$optarg       ; enable_krb4="yes"    ;;
       --with-krb4-incdir=*)    krb4incdir=$optarg    ; enable_krb4="yes"    ;;
       --with-krb4-libdir=*)    krb4libdir=$optarg    ; enable_krb4="yes"    ;;
@@ -896,6 +902,7 @@ if test "x$enable_echo" = "xyes" ; then
 fi
 
 
+
 ######################################################################
 #
 ### echo %%% Check PERL stuff
@@ -979,6 +986,69 @@ if test "x$enable_perlint" = "xyes" ; then
 
 fi
 
+######################################################################
+#
+### echo %%% Check JAVA stuff into javacbin, javadir, javainc
+#
+
+if test "x$enable_javaint" = "xyes" ; then
+   message "Checking for javac"
+   if test "x$javadir" = "x" || test ! -f $javadir ; then
+      javacbin=`which javac`
+      if test "x$javacbin" = "x" ; then
+         enable_javaint="no"
+         echo "no"
+      else
+         echo "yes ... $javacbin"
+      fi
+   else
+      javacbin="$javadir/bin/javac"
+      echo "yes ... using given $javacbin"
+
+   fi
+fi
+
+if test "x$enable_javaint" = "xyes" ; then
+
+   # Check version
+   message "Checking for java version"
+   # Get major number
+   $javacbin -version 2> /tmp/java_msg.tmp
+
+   java_major=`cat /tmp/java_msg.tmp | grep "javac 1" \
+               | sed -n "s/javac //p" | cut -d . -f 2`
+
+   rm -f /tmp/java_msg.tmp
+
+   # require java versions >= 1.5
+   if [ "$java_major" -lt 5 ] ; then
+      echo "1.$java_major: not OK (needs >= 1.5: re-run with --with-java=<java_1.5_location>)"
+      enable_javaint="no"
+      javadir=""
+   else
+      echo "1.$java_major: OK"
+      javadir=`echo $javacbin | rev | cut -d / -f 3- | rev`
+      javadir="$javadir/"
+      echo "The java SDK is supposed to be $javadir"
+   fi
+fi
+
+if test "x$enable_javaint" = "xyes" ; then
+
+    # Check for the presence of include files needed
+   
+    inclist="jni.h"
+
+    javainc="$javadir/include/"
+    if test -f "$javainc/jni.h"; then
+       echo "Found java includes in $javainc"
+    else
+       javainc=""
+       enable_javaint="no"
+    fi
+
+
+fi
 
 
 ######################################################################
@@ -1767,6 +1837,9 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@tracedbg@|$tracedbg|" \
     -e "s|@suncache@|$suncache|" \
     -e "s|@perlbin@|$perlbin|" \
+    -e "s|@javacbin@|$javacbin|" \
+    -e "s|@javadir@|$javadir|" \
+    -e "s|@javainc@|$javainc|" \
     -e "s|@perlincdir@|$perlincdir|" \
     -e "s|@perlccflags@|$perlccflags|" \
     < GNUmake.env.tmp > $ENVOUT
