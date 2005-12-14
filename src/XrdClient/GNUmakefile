@@ -70,11 +70,21 @@ OBJECTS = \
 OBJECTB = $(OBJDIR)/TestXrdClient.o $(OBJDIR)/XrdClientAdmin_c.o
 OBJECTC = $(OBJDIR)/Xrdcp.o
 OBJECTD = $(OBJDIR)/TestXrdClient_read.o
+OBJECT_JNI = $(OBJDIR)/XrdClientAdminJNI.o
+
 OBJECT_CLI = $(OBJDIR)/XrdCommandLine.o
 OBJECTPERLMOD = $(OBJDIR)/XrdClientAdmin_c.o            \
                 $(OBJDIR)/XrdClientAdmin_c_wrap.o
 
 LIBRARY = $(LIBDIR)/libXrdClient.a
+
+LIBRARY_JNI =
+CLASS_JNI =
+ifneq ($(JAVAINC),)
+LIBRARY_JNI = $(LIBDIR)/libXrdClientJNI.$(TYPESHLIB)
+CLASS_JNI = $(LIBDIR)/libXrdClientJNI
+CLASS_JNI_TARGET = $(LIBDIR)/libXrdClientJNI.class
+endif
 
 TESTBIN = $(BINDIR)/TestXrdClient $(BINDIR)/TestXrdClient_read
 XRDCP = $(BINDIR)/xrdcp
@@ -87,7 +97,8 @@ PERLMOD = $(LIBDIR)/XrdClientAdmin.so
 endif
 
 
-TARGETS = $(LIBRARY) $(LIBAUX) $(TESTBIN) $(XRDCP) $(XRDCLI) $(XRDADMIN)
+TARGETS = $(LIBRARY) $(LIBAUX) $(TESTBIN) $(XRDCP) $(XRDCLI) $(XRDADMIN) \
+	  $(LIBRARY_JNI) $(CLASS_JNI_TARGET)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -122,6 +133,14 @@ $(LIBRARY): $(OBJECTS)
 	   ranlib $(LIBRARY); \
 	fi
 
+$(LIBRARY_JNI): $(OBJECTS_JNI)
+	@echo Creating shared library $(LIBRARY_JNI) 
+	$(ECHO)rm -f $(LIBRARY_JNI);
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS_JNI) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY_JNI)
+
+$(CLASS_JNI_TARGET): $(LIBRARY_JNI)
+	@echo Creating JNI class file $(CLASS_JNI_TARGET)
+	$(ECHO)$(JAVACBIN) -d $(LIBDIR) XrdClientAdminJNI.java
 
 $(BINDIR)/TestXrdClient_read: $(OBJECTS) $(OBJECTD) $(LIBDEPS)
 	@echo Creating executable $(BINDIR)/TestXrdClient_read 
@@ -504,3 +523,19 @@ $(OBJDIR)/XrdClientSid.o: XrdClientSid.cc ../XrdClient/XrdClientSid.hh \
   ../XrdOuc/XrdOucPthread.hh ../XrdOuc/XrdOucError.hh
 	@echo Compiling XrdClientSid.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientSid.o XrdClientSid.cc
+
+$(OBJDIR)/XrdClientAdmin.o: XrdClientAdmin.cc ../XrdClient/XrdClientAdmin.hh \
+  ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientUnsolMsg.hh \
+  ../XrdClient/XrdClientMessage.hh ../XrdClient/XrdClientProtocol.hh \
+  ../XProtocol/XProtocol.hh ../XProtocol/XPtypes.hh \
+  ../XrdClient/XrdClientSock.hh ../XrdClient/XrdClientUrlInfo.hh \
+  ../XrdClient/XrdClientString.hh ../XrdClient/XrdClientConn.hh \
+  ../XrdClient/XrdClientConst.hh ../XrdClient/XrdClientReadCache.hh \
+  ../XrdClient/XrdClientInputBuffer.hh ../XrdOuc/XrdOucPthread.hh \
+  ../XrdOuc/XrdOucError.hh ../XrdOuc/XrdOucSemWait.hh \
+  ../XrdOuc/XrdOucHash.hh ../XrdOuc/XrdOucHash.icc \
+  ../XrdClient/XrdClientVector.hh ../XrdClient/XrdClientDebug.hh \
+  ../XrdClient/XrdClientEnv.hh ../XrdOuc/XrdOucEnv.hh \
+  ../XrdOuc/XrdOucLogger.hh ../XrdClient/XrdClientUrlSet.hh \
+  ../XrdClient/XrdClientConnMgr.hh ../XrdClient/XrdClientLogConnection.hh \
+  ../XrdClient/XrdClientPhyConnection.hh ../XrdClient/XrdClientThread.hh
