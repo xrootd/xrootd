@@ -155,6 +155,7 @@ enum XResponseType {
    kXR_error,
    kXR_redirect,
    kXR_wait,
+   kXR_waitresp,
    kXR_noResponsesYet = 10000
 };
 
@@ -170,7 +171,8 @@ enum XActionCode {
    kXR_asyncwt,
    kXR_asyncav,
    kXR_asynunav,
-   kXR_asyncgo
+   kXR_asyncgo,
+   kXR_asynresp
 };
 
 //_______________________________________________
@@ -477,6 +479,12 @@ struct ServerResponseBody_Attn_asyncrd {
    kXR_int32 actnum;
    kXR_int32 port;
    char host[4092];
+};
+
+struct ServerResponseBody_Attn_asynresp {
+   kXR_int32            actnum;
+   kXR_char             reserved[4];
+   ServerResponseHeader resp;
 };
 
 struct ServerResponseBody_Attn_asyncwt {
