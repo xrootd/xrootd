@@ -95,7 +95,9 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdCli
 
 //_____________________________________________________________________________
 XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false), 
-				fLBSUrl(0), fREQWaitTimeLimit(0),
+				fLBSUrl(0), 
+				fREQWaitRespData(0),
+				fREQWaitTimeLimit(0),
 				fREQConnectWaitTimeLimit(0), fUrl("") {
    // Constructor
    char buf[255];
@@ -108,6 +110,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
    fREQUrl.Clear();
    fREQWait = new XrdOucCondVar(0);
    fREQConnectWait = new XrdOucCondVar(0);
+   fREQWaitResp = new XrdOucCondVar(0);
 
    gethostname(buf, sizeof(buf));
 
@@ -171,6 +174,9 @@ XrdClientConn::~XrdClientConn()
 
    delete fREQConnectWait;
    fREQConnectWait = 0;
+
+   delete fREQWaitResp;
+   fREQWaitResp = 0;
 }
 
 //_____________________________________________________________________________
@@ -452,14 +458,55 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 	    // If the answer was not (or not totally) positive, we must 
             // investigate on the result
 	    if (!resp) {
-	          
-                               
-               abortcmd = CheckErrorStatus(cmdrespMex, retry, CmdName);
+	      
+                            
+	       // this could be a delayed response. A Strange hybrid. Not a quark.
+ 	       if (cmdrespMex->fHdr.status == kXR_waitresp) {
+		  // Let's sleep!
+		  kXR_int32 *maxwait = (kXR_int32 *)cmdrespMex->GetData();
+		  kXR_int32 mw;
+		  mw = ntohl(*maxwait);
 
-	       // An open request which fails for an application reason like kxr_wait
-	       // must have its kXR_Refresh bit cleared.
-	       if (req->header.requestid == kXR_open)
-		  req->open.options &= ((kXR_unt16)~kXR_refresh);
+		  if (!WaitResp(mw)) {
+		    // we did not time out, so the response is here
+		  
+		    memcpy(&LastServerResp, fREQWaitRespData + sizeof(struct ServerResponseHeader) + 4,
+			   sizeof(struct ServerResponseHeader));
+		  
+		   
+		    // Let's fake a regular answer
+		    if (HasToAlloc) {
+		      *answMoreDataAllocated = malloc(LastServerResp.dlen);
+		      memcpy(*answMoreDataAllocated,
+			     fREQWaitRespData + 2*sizeof(struct ServerResponseHeader) + 4,
+			     LastServerResp.dlen);
+		    }
+		    else {
+
+		      memcpy(answMoreData,
+			     fREQWaitRespData + 2*sizeof(struct ServerResponseHeader) + 4,
+			     LastServerResp.dlen);
+
+		    }
+
+		    free( fREQWaitRespData);
+		    fREQWaitRespData = 0;
+
+		    abortcmd = false;
+		    resp = true;
+		  }
+
+
+	       }
+	       else {
+
+		 abortcmd = CheckErrorStatus(cmdrespMex, retry, CmdName);
+
+		 // An open request which fails for an application reason like kxr_wait
+		 // must have its kXR_Refresh bit cleared.
+		 if (req->header.requestid == kXR_open)
+		   req->open.options &= ((kXR_unt16)~kXR_refresh);
+	       }
 	    }
 
 	    if (retry > kXR_maxReqRetry) {
@@ -550,7 +597,7 @@ bool XrdClientConn::CheckResp(struct ServerResponseHeader *resp, const char *met
          return FALSE;
       }
 
-      if (resp->status != kXR_ok && resp->status != kXR_authmore)
+      if ((resp->status != kXR_ok) && (resp->status != kXR_authmore))
          // Error message is notified in CheckErrorStatus
          return FALSE;
 
@@ -663,15 +710,12 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 
       body_err = (struct ServerResponseBody_Error *)(mex->GetData());
 
-
       if (body_err) {
          // Print out the error information, as received by the server
 
          fOpenError = (XErrorCode)ntohl(body_err->errnum);
-         int dbglvl = (fOpenError == kXR_NotFound) ? XrdClientDebug::kUSERDEBUG
-                                                   : XrdClientDebug::kNODEBUG ;
  
-         Info(dbglvl, "SendGenCommand", "Server declared: " <<
+         Info(XrdClientDebug::kNODEBUG, "SendGenCommand", "Server declared: " <<
              (const char*)body_err->errmsg << "(error code: " << fOpenError << ")");
 
 	 // Save the last error received
@@ -2038,4 +2082,53 @@ void XrdClientConn::CheckREQConnectWaitState() {
    
    // Unlock mutex
    fREQConnectWait->UnLock();
+}
+
+
+bool XrdClientConn::WaitResp(int secsmax) {
+   // This client might have been paused to wait for a delayed response.
+   // In this case the calling thread
+   // is put to sleep into a condvar until the timeout or the response arrives.
+
+   // Returns true on timeout.
+
+   int rc;
+
+   // Lock mutex
+   fREQWaitResp->Lock();
+
+   fREQWaitRespData = 0;
+
+   // If still to wait... wait
+   rc = fREQWaitResp->Wait(secsmax);
+   
+   // Unlock mutex
+   fREQWaitResp->UnLock();
+
+   return rc;
+}
+
+
+
+UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
+   // A client on the current physical conn might be in a "wait for response" state
+   // Here we process a potential response
+
+   // If the msg streamid matched ours then continue
+   if ( !MatchStreamid(&(unsolmsg->fHdr)) ) return kUNSOL_CONTINUE;
+
+   fREQWaitResp->Lock(); 
+
+   // Strip the data from the message and save it. It's the response we are waiting for.
+   // Note that it will contain also the data!
+   fREQWaitRespData = (ServerResponseHeader *)unsolmsg->DonateData();
+
+   // Signal the waiting condvar. Waiting is no more needed
+   // Note: the message's data will be freed by the waiting process!
+   fREQWaitResp->Signal();
+
+   fREQWaitResp->UnLock();
+
+   // The message is to be destroyed, its data has been saved
+   return kUNSOL_DISPOSE;
 }

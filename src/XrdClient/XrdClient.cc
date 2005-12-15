@@ -871,9 +871,18 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 	 return kUNSOL_CONTINUE;
 	 break;
 
+      case kXR_asynresp:
+	// A response to a request which got a kXR_waitresp as a response
+	
+	// We pass it direcly to the connmodule for processing
+	// The processing will tell if the streamid matched or not,
+	// in order to stop further processing
+	return fConnModule->ProcessAsynResp(unsolmsg);
+	break;
+
       } // switch
 
-
+      
    }
    else
       // Let's see if we are receiving the response to an async read request

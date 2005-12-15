@@ -102,6 +102,8 @@ public:
    struct ServerResponseBody_Error
                               LastServerError;
 
+   UnsolRespProcResult        ProcessAsynResp(XrdClientMessage *unsolmsg);
+
    bool                       SendGenCommand(ClientRequest *req, 
 					     const void *reqMoreData,       
 					     void **answMoreDataAllocated,
@@ -198,6 +200,9 @@ private:
    XrdClientString            fRedirInternalToken; // Token returned by the server when
                                                    // redirecting
 
+   XrdOucCondVar              *fREQWaitResp;           // For explicitly requested delayed async responses
+   ServerResponseHeader *     fREQWaitRespData;        // For explicitly requested delayed async responses
+
    XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
    time_t                     fREQWaitTimeLimit;   // For explicitly requested pause state
    XrdOucCondVar              *fREQWait;           // For explicitly requested pause state
@@ -264,7 +269,7 @@ private:
 					    const void* reqMoreData,
 					    short LogConnID);
 
-
+     bool                       WaitResp(int secsmax);
 };
 
 

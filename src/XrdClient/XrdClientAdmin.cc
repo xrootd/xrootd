@@ -550,6 +550,99 @@ UnsolRespProcResult XrdClientAdmin::ProcessUnsolicitedMsg(XrdClientUnsolMsgSende
 	unsolmsg->HeaderSID() );
 
    // Local processing ....
+   if (unsolmsg->IsAttn()) {
+      struct ServerResponseBody_Attn *attnbody;
+
+      attnbody = (struct ServerResponseBody_Attn *)unsolmsg->GetData();
+
+      // "True" async resp is processed here
+      switch (attnbody->actnum) {
+
+      case kXR_asyncdi:
+	 // Disconnection + delayed reconnection request
+
+	 struct ServerResponseBody_Attn_asyncdi *di;
+	 di = (struct ServerResponseBody_Attn_asyncdi *)unsolmsg->GetData();
+
+	 // Explicit redirection request
+	 if (di) {
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "ProcessUnsolicitedMsg", "Requested Disconnection + Reconnect in " <<
+		 ntohl(di->wsec) << " seconds.");
+
+	    fConnModule->SetRequestedDestHost((char *)(fConnModule->GetCurrentUrl().Host.c_str()),
+					      fConnModule->GetCurrentUrl().Port);
+	    fConnModule->SetREQDelayedConnectState(ntohl(di->wsec));
+	 }
+
+	 // Other objects may be interested in this async resp
+	 return kUNSOL_CONTINUE;
+	 break;
+	 
+      case kXR_asyncrd:
+	 // Redirection request
+
+	 struct ServerResponseBody_Attn_asyncrd *rd;
+	 rd = (struct ServerResponseBody_Attn_asyncrd *)unsolmsg->GetData();
+
+	 // Explicit redirection request
+	 if (rd && (strlen(rd->host) > 0)) {
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "ProcessUnsolicitedMsg", "Requested redir to " << rd->host <<
+		 ":" << ntohl(rd->port));
+
+	    fConnModule->SetRequestedDestHost(rd->host, ntohl(rd->port));
+	 }
+
+	 // Other objects may be interested in this async resp
+	 return kUNSOL_CONTINUE;
+	 break;
+
+      case kXR_asyncwt:
+	 // Puts the client in wait state
+
+	 struct ServerResponseBody_Attn_asyncwt *wt;
+	 wt = (struct ServerResponseBody_Attn_asyncwt *)unsolmsg->GetData();
+
+	 if (wt) {
+	    Info(XrdClientDebug::kUSERDEBUG,
+		 "ProcessUnsolicitedMsg", "Pausing client for " << ntohl(wt->wsec) <<
+		 " seconds.");
+
+	    fConnModule->SetREQPauseState(ntohl(wt->wsec));
+	 }
+
+	 // Other objects may be interested in this async resp
+	 return kUNSOL_CONTINUE;
+	 break;
+
+      case kXR_asyncgo:
+	 // Resumes from pause state
+
+	 Info(XrdClientDebug::kUSERDEBUG,
+	      "ProcessUnsolicitedMsg", "Resuming from pause.");
+
+	    fConnModule->SetREQPauseState(0);
+
+	 // Other objects may be interested in this async resp
+	 return kUNSOL_CONTINUE;
+	 break;
+
+      case kXR_asynresp:
+	// A response to a request which got a kXR_waitresp as a response
+	
+	// We pass it direcly to the connmodule for processing
+	// The processing will tell if the streamid matched or not,
+	// in order to stop further processing
+	return fConnModule->ProcessAsynResp(unsolmsg);
+	break;
+
+      } // switch
+
+      
+   }
+
+
 
    return kUNSOL_CONTINUE;
 }
