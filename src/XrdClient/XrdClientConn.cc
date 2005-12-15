@@ -2092,15 +2092,17 @@ bool XrdClientConn::WaitResp(int secsmax) {
 
    // Returns true on timeout.
 
-   int rc;
+   int rc = false;
 
    // Lock mutex
    fREQWaitResp->Lock();
 
-   fREQWaitRespData = 0;
+   // We don't have to wait if the info already arrived
+   if (!fREQWaitRespData) {
 
-   // If still to wait... wait
-   rc = fREQWaitResp->Wait(secsmax);
+       // If still to wait... wait
+       rc = fREQWaitResp->Wait(secsmax);
+   }
    
    // Unlock mutex
    fREQWaitResp->UnLock();
