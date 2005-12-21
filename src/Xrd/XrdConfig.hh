@@ -35,6 +35,7 @@ int   ASocket(const char *path, const char *fname, mode_t mode);
 int   ConfigProc(void);
 int   setFDL();
 int   Setup(char *dfltp);
+void  UnderCover(void);
 void  Usage(char *mprg, int rc);
 int   xallow(XrdOucError *edest, XrdOucStream &Config);
 int   xapath(XrdOucError *edest, XrdOucStream &Config);

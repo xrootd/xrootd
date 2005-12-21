@@ -190,7 +190,7 @@ int XrdConfig::Configure(int argc, char **argv)
    const char *xrdHost="XRDHOST=";
 
    static sockaddr myIPAddr;
-   int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = 0;
+   int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = 0, optbg = 0;
    const char *temp;
    char c, *Penv, *myProg, buff[512], *dfltProt, *logfn = 0;
    extern char *optarg;
@@ -206,9 +206,11 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"c:dhl:n:p:P:")) && ((unsigned char)c != 0xff))
+      while ((c = getopt(argc,argv,"bc:dhl:n:p:P:")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
+       case 'b': optbg = 1;
+                 break;
        case 'c': if (ConfigFN) free(ConfigFN);
                  ConfigFN = strdup(optarg);
                  break;
@@ -245,6 +247,14 @@ int XrdConfig::Configure(int argc, char **argv)
        ProtInfo.argc = aP;
       } else ProtInfo.argc = argc;
    ProtInfo.argv = argv;
+
+// Resolve background/foreground issues
+//
+   if (optbg)
+      {if (!logfn) XrdLog.Emsg("Config", "Warning! No log file specified; "
+                               "-b will disable all logging!");
+       UnderCover();
+      }
 
 // Bind the log file if we have one
 //
@@ -621,13 +631,55 @@ int XrdConfig::Setup(char *dfltp)
 }
 
 /******************************************************************************/
+/*                            U n d e r C o v e r                             */
+/******************************************************************************/
+  
+void XrdConfig::UnderCover()
+{
+   pid_t mypid;
+   int myfd;
+
+// Fork to that we are not tied to a shell
+//
+   if ((mypid = fork()) < 0)
+      {XrdLog.Emsg("Config", errno, "fork process 1 for backgrounding");
+       return;
+      }
+      else if (mypid) _exit(0);
+
+// Become the process group leader
+//
+   if (setsid() < 0)
+      {XrdLog.Emsg("Config", errno, "doing setsid() for backgrounding");
+       return;
+      }
+
+// Fork to that we are cannot get a controlling terminal
+//
+   if ((mypid = fork()) < 0)
+      {XrdLog.Emsg("Config", errno, "fork process 2 for backgrounding");
+       return;
+      }
+      else if (mypid) _exit(0);
+
+// Switch stdin, stdout, and stderr to /dev/null (we can't use /dev/console
+// unless we are root which is unlikely).
+//
+   if ((myfd = open("/dev/null", O_RDWR)) < 0)
+      {XrdLog.Emsg("Config", errno, "open /dev/null for backgrounding");
+       return;
+      }
+   dup2(myfd, 0); dup2(myfd, 1); dup2(myfd, 2);
+}
+
+/******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
   
 void XrdConfig::Usage(char *myProg, int rc)
 {
 
-     cerr <<"\nUsage: " <<myProg <<" [-c <cfn>] [-d] [-l <fn>] "
+     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-l <fn>] "
             "[-n name] [-p <port>] [-P <prot>] [<prot_options>]" <<endl;
      _exit(rc);
 }
