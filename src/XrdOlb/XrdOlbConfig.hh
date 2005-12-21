@@ -62,11 +62,11 @@ int         P_load;       // % MSC Capacity in load factor
 int         P_mem;        // % MEM Capacity in load factor
 int         P_pag;        // % PAG Capacity in load factor
 
+long long   DiskMin;      // Minimum KB needed of space in a partition
+long long   DiskHWM;      // Minimum KB needed of space to requalify
 int         DiskLinger;   // Manager Only
-int         DiskMin;      // Minimum KB needed of space
-int         DiskAdj;      // KB to deduct from selected space
+int         DiskAsk;      // Seconds between disk space reclaculations
 int         DiskWT;       // Seconds to defer client while waiting for space
-int         DiskAsk;      // Seconds between disk inquiries
 int         DiskSS;       // This is a staging server
 
 int         sched_RR;     // 1 -> Simply do round robin scheduling
@@ -102,7 +102,7 @@ XrdNetSocket      *AnoteSock;
 XrdNetSocket      *RedirSock;
 
       XrdOlbConfig() {ConfigDefaults();}
-     ~XrdOlbConfig();
+     ~XrdOlbConfig() {}
 
 private:
 
@@ -116,6 +116,7 @@ int  isExec(XrdOucError *eDest, const char *ptype, char *prog);
 int  PidFile(void);
 int  setupManager(void);
 int  setupServer(void);
+void UnderCover(void);
 void Usage(int rc);
 int  xapath(XrdOucError *edest, XrdOucStream &Config);
 int  xallow(XrdOucError *edest, XrdOucStream &Config);
@@ -140,8 +141,8 @@ int  xthreads(XrdOucError *edest, XrdOucStream &Config);
 int  xtrace(XrdOucError *edest, XrdOucStream &Config);
 
 XrdNetSecurity   *Police;
-XrdOucTList      *monPath;
-XrdOucTList      *monPathP;
+XrdOucTList      *monPath;     // cache directive paths
+XrdOucTList      *monPathP;    // path  directive paths (w or s only)
 char             *AdminPath;
 int               AdminMode;
 char             *pidPath;

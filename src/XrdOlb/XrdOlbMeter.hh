@@ -16,36 +16,53 @@
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
+
+class XrdOlbMeterFS;
   
 class XrdOlbMeter
 {
 public:
 
-static long  FreeSpace(long &totfree);
+int   calcLoad(int pcpu, int pio, int pload, int pmem, int ppag);
 
-       int   Monitor(char *pgm, int itv);
+long  FreeSpace(long &totfree);
 
-       char *Report();
+int   isOn() {return Running;}
 
-       void *Run();
+int   Monitor(char *pgm, int itv);
 
-static int   numFS() {return fs_nums;}
+char *Report();
 
-static void  setParms(XrdOucTList *tlp, int mfr, int itv);
+void *Run();
 
-       XrdOlbMeter(XrdOucError *errp);
+void *RunFS();
+
+int   numFS() {return fs_nums;}
+
+void  setParms(XrdOucTList *tlp);
+
+       XrdOlbMeter();
       ~XrdOlbMeter();
 
 private:
-       XrdOucError   *eDest;
-       XrdOucStream   myMeter;
-static XrdOucMutex    repMutex;
-static XrdOucTList   *fs_list;
-static int            dsk_calc;
-static int            fs_nums;
-static int            MinFree;
-static long long      dsk_free;
-static long long      dsk_maxf;
+      void calcSpace();
+      void informLoad(void);
+      int  isDup(struct stat &buf, XrdOlbMeterFS *baseFS);
+const char Scale(long long inval, long &outval);
+      void SpaceMsg(int why);
+
+XrdOucStream  myMeter;
+XrdOucMutex   cfsMutex;
+XrdOucMutex   repMutex;
+XrdOucTList  *fs_list;
+long long     MinFree;
+long long     HWMFree;
+long long     dsk_free;
+long long     dsk_maxf;
+int           dsk_calc;
+int           fs_nums;
+int           noSpace;
+int           Running;
 
 char          ubuff[64];
 time_t        rep_tod;

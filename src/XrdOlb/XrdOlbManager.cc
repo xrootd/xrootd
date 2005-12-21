@@ -94,7 +94,7 @@ XrdOlbManager::XrdOlbManager()
      MTHi    = -1;
      STHi    = -1;
      XWait   = 0;
-     XStage  = 1;
+     XnoStage= 0;
      SelAcnt = 0;
      SelRcnt = 0;
      doReset = 0;
@@ -637,7 +637,7 @@ void *XrdOlbManager::Pander(char *manager, int mport)
        //
        reason = 0;
        if (XrdOlbConfig.Manager()) Status = OLB_Suspend|OLB_noStage|OLB_isMan;
-          else Status = (XWait ? OLB_Suspend : 0)|(XStage ? 0 : OLB_noStage);
+          else Status = (XWait ? OLB_Suspend : 0)|(XnoStage ? OLB_noStage : 0);
        if (fails >= 6 && manp == manager) {Status |= OLB_Lost; fails = 0;}
 
        if (!(rc=sp->Login(Port, Status))) sp->Process_Requests();
@@ -803,18 +803,12 @@ int XrdOlbManager::SelServer(int needrw, char *path,
        if (isalt || needrw > 1)
           {if (isalt)
               {XrdOlbCache.AddFile(path, sp->ServMask, needrw);
+               if (iovcnt && iodata) sp->Link->Send(iodata, iovcnt);
                TRACE(Stage, "Server " <<hbuff <<" staging " <<path);
               } else {
                TRACE(Stage, "Server " <<hbuff <<" creating " <<path);
               }
-           sp->RefA++;
-           sp->DiskTota -= XrdOlbConfig.DiskAdj;
-           if (((sp->DiskFree -= XrdOlbConfig.DiskAdj) < XrdOlbConfig.DiskMin)
-           &&   sp->DiskAskdl <= time(0))
-              {sp->Link->Send("1@0 space\n");
-               sp->DiskAskdl = time(0) + XrdOlbConfig.DiskAsk;
-              }
-          if (iovcnt && iodata) sp->Link->Send(iodata, iovcnt);
+          sp->RefA++;
           }
        sp->UnLock();
        return 0;
@@ -872,15 +866,37 @@ void XrdOlbManager::Snooze(int slpsec)
 }
 
 /******************************************************************************/
+/*                                 S p a c e                                  */
+/******************************************************************************/
+  
+void XrdOlbManager::Space(int none, int doinform)
+{
+     const char *cmd = (none ? "nostage" : "stage");
+     int PStage;
+
+     XXMutex.Lock();
+     PStage = XnoStage;
+     if (none) {XnoStage |=  OLB_SERVER_NOSPACE; PStage = !PStage;}
+        else    XnoStage &= ~OLB_SERVER_NOSPACE;
+     if (doinform && PStage) Inform(cmd, strlen(cmd));
+     XXMutex.UnLock();
+}
+
+/******************************************************************************/
 /*                                 S t a g e                                  */
 /******************************************************************************/
   
 void XrdOlbManager::Stage(int ison, int doinform)
 {
-     char *cmd = (ison ? (char *)"stage" : (char *)"nostage");
+     const char *cmd = (ison ? "stage" : "nostage");
+     int PStage;
 
-     XStage = ison;
-     if (doinform) Inform(cmd, strlen(cmd));
+     XXMutex.Lock();
+     PStage = XnoStage;
+     if (ison)  XnoStage &= ~OLB_SERVER_NOSTAGE;
+        else   {XnoStage |=  OLB_SERVER_NOSTAGE; PStage = !PStage;}
+     if (doinform && PStage) Inform(cmd, strlen(cmd));
+     XXMutex.UnLock();
 }
 
 /******************************************************************************/
@@ -1350,8 +1366,7 @@ XrdOlbServer *XrdOlbManager::SelbyLoad(SMask_t mask, int &nump, int &delay,
            if (np->isSuspend || np->isDisable)    {nums++; continue;}
            if (np->myLoad > XrdOlbConfig.MaxLoad) {numo++; continue;}
            if (needspace && (   np->isNoStage
-                             || np->DiskTota < XrdOlbConfig.DiskMin
-                             || np->DiskFree < XrdOlbConfig.DiskAdj))
+                             || np->DiskFree < XrdOlbConfig.DiskMin))
               {numf++; continue;}
            if (!sp) sp = np;
               else if (abs(sp->myLoad - np->myLoad)
@@ -1394,8 +1409,7 @@ XrdOlbServer *XrdOlbManager::SelbyRef(SMask_t mask, int &nump, int &delay,
            if (np->isOffline)                   {numd++; continue;}
            if (np->isSuspend || np->isDisable)  {nums++; continue;}
            if (needspace && (   np->isNoStage
-                             || np->DiskTota < XrdOlbConfig.DiskMin
-                             || np->DiskFree < XrdOlbConfig.DiskAdj))
+                             || np->DiskFree < XrdOlbConfig.DiskMin))
               {numf++; continue;}
            if (!sp) sp = np;
               else if (needspace)

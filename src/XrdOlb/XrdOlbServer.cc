@@ -42,6 +42,8 @@ extern XrdOlbCache    XrdOlbCache;
 
 extern XrdOlbConfig   XrdOlbConfig;
 
+extern XrdOlbMeter    XrdOlbTop;
+
 extern XrdOucTrace    XrdOlbTrace;
 
 extern XrdOucError    XrdOlbSay;
@@ -94,7 +96,6 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     DiskFree =  0;
     DiskNums =  0;
     DiskTota =  0;
-    DiskAskdl=  0;
     newload  =  1;
     Next     =  0;
     RefA     =  0;
@@ -203,10 +204,10 @@ int XrdOlbServer::Login(int dataPort, int Status)
    if (XrdOlbConfig.Manager()) 
       {if (Link->Send("start 0 1 0\n") < 0) return -1;
       } else {
-       maxfr = XrdOlbMeter::FreeSpace(totfr);
+       maxfr = XrdOlbTop.FreeSpace(totfr);
        if (Link->Send(buff, snprintf(buff, sizeof(buff)-1,
                       "start %ld %d %ld\n",
-                      maxfr, XrdOlbMeter::numFS(), totfr)) < 0) return -1;
+                      maxfr, XrdOlbTop.numFS(), totfr)) < 0) return -1;
       }
 
 // Document the login
@@ -625,11 +626,7 @@ int XrdOlbServer::do_Load(char *rid)
 
 // Compute actual load value
 //
-   myLoad = (XrdOlbConfig.P_cpu  * pcpu /100)
-          + (XrdOlbConfig.P_io   * pio  /100)
-          + (XrdOlbConfig.P_load * pload/100)
-          + (XrdOlbConfig.P_mem  * pmem /100)
-          + (XrdOlbConfig.P_pag  * ppag /100);
+   myLoad = XrdOlbTop.calcLoad(pcpu, pio, pload, pmem, ppag);
    DiskFree = fdsk;
    DiskTota = (tdsk >= 0 ? tdsk : fdsk);
    newload = 1;
@@ -1020,7 +1017,7 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
 
 // First check if we have seen this file before. If not, broadcast a lookup
 // to all relevant servers. Note that even if the caller wants the file in
-// r/w mode we will ask both r/o and r/w servers for the file.
+// r/o mode we will ask both r/o and r/w servers for the file.
 //
    if (!(retc = XrdOlbCache.GetFile(pargs->path, cinfo)) 
    ||  cinfo.deadline || (cinfo.sbvec != 0))
@@ -1334,7 +1331,7 @@ int XrdOlbServer::do_Space(char *rid)
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                         "%s avkb %d %d\n", rid, dsk_free, dsk_tota));
 
-   maxfr = XrdOlbMeter::FreeSpace(totfr);
+   maxfr = XrdOlbTop.FreeSpace(totfr);
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                 "%s avkb %ld %ld\n", rid, maxfr, totfr));
 }
@@ -1572,11 +1569,11 @@ int XrdOlbServer::do_Usage(char *rid)
                         cpu_load, net_load, xeq_load, mem_load, pag_load,
                         dsk_free, dsk_tota));
 
-   if (XrdOlbConfig.Meter)
+   if (XrdOlbTop.isOn())
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                     "%s load %s\n", rid, XrdOlbConfig.Meter->Report()));
+                     "%s load %s\n", rid, XrdOlbTop.Report()));
 
-   maxfr = XrdOlbMeter::FreeSpace(totfr);
+   maxfr = XrdOlbTop.FreeSpace(totfr);
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                      "%s load 0 0 0 0 0 %ld %ld\n", rid, maxfr, totfr));
 }

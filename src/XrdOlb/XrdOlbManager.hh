@@ -35,6 +35,7 @@ class XrdOlbServer;
 #define OLB_SERVER_NOSTAGE 0x0002
 #define OLB_SERVER_OFFLINE 0x0004
 #define OLB_SERVER_SUSPEND 0x0008
+#define OLB_SERVER_NOSPACE 0x0020
 
 /******************************************************************************/
 /*                            o o l b _ S I n f o                             */
@@ -107,6 +108,7 @@ int         SelServer(int pt, char *path, SMask_t pmsk, SMask_t amsk, char *hb,
                       const struct iovec *iodata=0, int iovcnt=0);
 void        setPort(int port) {Port = port;}
 void        Snooze(int slpsec);
+void        Space(int none, int doinform=1);
 void        Stage(int ison, int doinform=1);
 int         Stats(char *bfr, int bln);
 void        Suspend(int doinform=1);
@@ -134,6 +136,7 @@ void          setAltMan(int snum, unsigned int ipaddr, int port);
 
 static const  int AltSize = 24;
 
+XrdOucMutex   XXMutex;
 XrdOucMutex   STMutex;
 XrdOlbServer *ServTab[STMax];
 XrdOlbServer *ServBat[STMax];
@@ -147,7 +150,7 @@ int  MTHi;
 int  STHi;
 int  InstNum;
 int  XWait;
-int  XStage;
+int  XnoStage;
 int  Port;
 int  SelAcnt;
 int  SelRcnt;

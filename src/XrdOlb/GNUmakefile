@@ -116,7 +116,8 @@ $(OBJDIR)/XrdOlbManList.o: XrdOlbManList.cc   XrdOlbManList.hh \
 	@echo Compiling XrdOlbManList.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbManList.o XrdOlbManList.cc
 
-$(OBJDIR)/XrdOlbMeter.o: XrdOlbMeter.hh XrdOlbMeter.cc    XrdOucPthread.hh \
+$(OBJDIR)/XrdOlbMeter.o: XrdOlbMeter.hh XrdOlbMeter.cc    XrdOlbManager.hh \
+                         XrdOlbConfig.hh XrdOucPthread.hh \
                          XrdOucError.hh XrdOucPlatform.hh XrdOucTList.hh
 	@echo Compiling XrdOlbMeter.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbMeter.o XrdOlbMeter.cc

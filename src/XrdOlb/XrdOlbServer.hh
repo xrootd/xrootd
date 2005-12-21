@@ -128,7 +128,6 @@ int        logload;
 int        DiskFree;     // Largest free KB
 int        DiskNums;     // Number of file systems
 int        DiskTota;     // Total free KB across all file systems
-int        DiskAskdl;    // Deadline for asking about disk usage
 int        myLoad;       // Overall load
 int        RefA;         // Number of times used for allocation
 int        RefTotA;

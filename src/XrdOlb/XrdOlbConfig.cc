@@ -70,6 +70,8 @@ const char *XrdOlbConfigCVSID = "$Id$";
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
 /******************************************************************************/
+
+       XrdOlbMeter      XrdOlbTop;
   
 extern int              XrdOlbSTDERR;
 
@@ -168,14 +170,6 @@ public:
 #define OLB_PrefLen   sizeof(OLB_Prefix)-1
 
 /******************************************************************************/
-/*                            D e s t r u c t o r                             */
-/******************************************************************************/
-  
-XrdOlbConfig::~XrdOlbConfig()
-{     if (Meter) delete Meter;
-}
-
-/******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
@@ -188,7 +182,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 
   Output:   0 upon success or !0 otherwise.
 */
-   int logsync = 86400, NoGo = 0, immed = 0;
+   int logsync = 86400, NoGo = 0, immed = 0, optbg = 0;
    char c, *p, buff[512], *logfn = 0;
    const char *temp, *smtype = 0;
    extern char *optarg;
@@ -206,9 +200,11 @@ int XrdOlbConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c=getopt(argc,argv,"c:dil:L:mn:sw")) && ((unsigned char)c != 0xff))
+      while ((c=getopt(argc,argv,"bc:dil:L:mn:sw")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
+       case 'b': optbg = 1;
+                 break;
        case 'c': ConfigFN = optarg;
                  break;
        case 'd': XrdOlbTrace.What = 1;
@@ -232,6 +228,14 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                  Usage(1);
        }
      }
+
+// Resolve background/foreground issues
+//
+   if (optbg) 
+      {if (!logfn) XrdOlbSay.Emsg("Config", "Warning! No log file specified; "
+                                  "-b will disable all logging!");
+       UnderCover();
+      }
 
 // Establish pointers to error message handling
 //
@@ -400,7 +404,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    TS_Xeq("delay",         xdelay);  // Manager,     dynamic
    TS_Xeq("fxhold",        xfxhld);  // Manager,     dynamic
    TS_Xeq("ping",          xping);   // Manager,     dynamic
-   TS_Xeq("sched",         xsched);  // Manager,     dynamic
+   TS_Xeq("sched",         xsched);  // Any,         dynamic
    TS_Xeq("space",         xspace);  // Any,        dynamic
    TS_Xeq("threads",       xthreads);// Any,        dynamic
    TS_Xeq("trace",         xtrace);  // Any,        dynamic
@@ -637,15 +641,15 @@ void XrdOlbConfig::ConfigDefaults(void)
    P_load   = 0;
    P_mem    = 0;
    P_pag    = 0;
-   AskPerf  = 10;       // Every 10 pings
-   AskPing  = 60;       // Every  1 minute
+   AskPerf  = 10;            // Every 10 pings
+   AskPing  = 60;            // Every  1 minute
    MaxDelay = -1;
-   LogPerf  = 10;       // Every 10 usage requests
-   DiskMin  = 10485760; // 10GB / 1024
-   DiskAdj  = 1048576;  //  1GB / 1024
-   DiskWT   = 0;        // Do not defer when out of space
-   DiskAsk  = 60;       // Don't ask more often than 30 seconds
-   DiskSS   = 0;        // Not a staging server
+   LogPerf  = 10;            // Every 10 usage requests
+   DiskMin  = 10737418240LL; // 10GB (Minimum partition space)
+   DiskHWM  = 11811160064LL; // 11GB (High Water Mark - server use only)
+   DiskAsk  = 12;            // 15 Seconds between space calibrations.
+   DiskWT   = 0;             // Do not defer when out of space
+   DiskSS   = 0;             // Not a staging server
    ConfigFN = 0;
    sched_RR = 0;
    isManager = 0;
@@ -657,7 +661,6 @@ void XrdOlbConfig::ConfigDefaults(void)
    myInsName= 0;
    myManagers=0;
    mySID    = 0;
-   Meter    = 0;
    perfint  = 3*60;
    perfpgm  = 0;
    AdminPath= strdup("/tmp/");
@@ -931,17 +934,9 @@ int XrdOlbConfig::setupServer()
 
 // Setup file system metering
 //
-   XrdOlbMeter::setParms((monPath ? monPath : monPathP), DiskMin, DiskAsk);
-
-// Set up load metering
-//
-   if (perfpgm)
-      {Meter = new XrdOlbMeter(&XrdOlbSay);
-       if (Meter->Monitor(perfpgm, perfint))
-          {delete Meter; Meter = 0;
-           XrdOlbSay.Emsg("Config","Load based scheduling disabled.");
-          }
-      }
+   XrdOlbTop.setParms(monPath ? monPath : monPathP);
+   if (perfpgm && XrdOlbTop.Monitor(perfpgm, perfint))
+      XrdOlbSay.Emsg("Config","Load based scheduling disabled.");
 
 // Create manager monitoring thread
 //
@@ -997,12 +992,54 @@ int XrdOlbConfig::setupServer()
 }
 
 /******************************************************************************/
+/*                            U n d e r C o v e r                             */
+/******************************************************************************/
+  
+void XrdOlbConfig::UnderCover()
+{
+   pid_t mypid;
+   int myfd;
+
+// Fork to that we are not tied to a shell
+//
+   if ((mypid = fork()) < 0)
+      {XrdOlbSay.Emsg("Config", errno, "fork process 1 for backgrounding");
+       return;
+      }
+      else if (mypid) _exit(0);
+
+// Become the process group leader
+//
+   if (setsid() < 0)
+      {XrdOlbSay.Emsg("Config", errno, "doing setsid() for backgrounding");
+       return;
+      }
+
+// Fork to that we are cannot get a controlling terminal
+//
+   if ((mypid = fork()) < 0)
+      {XrdOlbSay.Emsg("Config", errno, "fork process 2 for backgrounding");
+       return;
+      }
+      else if (mypid) _exit(0);
+
+// Switch stdin, stdout, and stderr to /dev/null (we can't use /dev/console
+// unless we are root which is unlikley)
+//
+   if ((myfd = open("/dev/null", O_RDWR)) < 0)
+      {XrdOlbSay.Emsg("Config", errno, "open /dev/null for backgrounding");
+       return;
+      }
+   dup2(myfd, 0); dup2(myfd, 1); dup2(myfd, 2);
+}
+
+/******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
   
 void XrdOlbConfig::Usage(int rc)
 {
-cerr <<"\nUsage: olbd [-d] [-i] [-l <fn>] [-n <name>] -c <cfn>" <<endl;
+cerr <<"\nUsage: olbd [-b] [-d] [-i] [-l <fn>] [-n <name>] -c <cfn>" <<endl;
 exit(rc);
 }
   
@@ -1848,7 +1885,7 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &Config)
                       not selected. refreset is the minimum number of seconds
                       between reference counter resets.
 
-   Type: Manager only, dynamic.
+   Type: Any, dynamic.
 
    Output: retc upon success or -EINVAL upon failure.
 */
@@ -1870,8 +1907,6 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
         {"refreset", -1,  &RefReset}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
-
-    if (!isManager) return 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "sched option not specified"); return 1;}
@@ -1907,16 +1942,21 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
 
 /* Function: xspace
 
-   Purpose:  To parse the directive: space [linger <num>] [[min] <min> [<adj>]]
+   Purpose:  To parse the directive: space [linger <num>] [[min] <min> [<hwm>]]
+                                           [recalc <sec>]
 
              <num> Maximum number of times a server may be reselected without
                    a break. The default is 0.
 
-             <min> Minimum free space need in bytes (or K, M, G).
+             <min> Minimum free space need in bytes (or K, M, G) in a partition.
                    The default is 10G.
 
-             <adj> Bytes (or K, M,G) to adjust downwards per selection.
-                   The default is 1G.
+             <hwm> Bytes (or K, M,G) of free space needed when bytes falls below
+                   <min> to requalify a server for selection.
+                   The default is 11G.
+
+             <sec> Number of seconds that must elapse before a disk free space
+                   calculation will occur.
 
    Notes:   This is used by the manager and the server.
 
@@ -1928,45 +1968,45 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
 int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int alinger = -1;
-    long long minf = -1, adj = -1;
+    int alinger = -1, arecalc = -1;
+    long long minf = -1, hwm = -1;
 
     while((val = Config.GetWord()))
-      {if (!strcmp("linger", val))
-        {if (!(val = Config.GetWord()))
-          {eDest->Emsg("Config", "linger value not specified"); return 1;}
-        if (XrdOuca2x::a2i(*eDest,"linger",val,&alinger,0))
-          return 1;
-        }
-      else 
-        {if (isdigit(*val) || (!strcmp("min", val) && (val = Config.GetWord())) )
-          {if (XrdOuca2x::a2sz(*eDest,"space minfree",val,&minf,0))
-            return 1;
-          if ((val = Config.GetWord()))
-            {if (isdigit(*val))
-              {if (XrdOuca2x::a2sz(*eDest,"space adjust",val,&adj,0)) 
-                return 1;
+      {    if (!strcmp("linger", val))
+              {if (!(val = Config.GetWord()))
+                  {eDest->Emsg("Config", "linger value not specified"); return 1;}
+               if (XrdOuca2x::a2i(*eDest,"linger",val,&alinger,0)) return 1;
               }
-            else Config.RetToken();           
-            } 
-          }
-        else {eDest->Emsg("Config", "space min format error"); return 1;}
-        }
-      }
+      else if (!strcmp("recalc", val))
+              {if (!(val = Config.GetWord()))
+                  {eDest->Emsg("Config", "recalc value not specified"); return 1;}
+               if (XrdOuca2x::a2i(*eDest,"recalc",val,&arecalc,1)) return 1;
+              }
+      else if (isdigit(*val) || (!strcmp("min", val) && (val = Config.GetWord())) )
+              {if (XrdOuca2x::a2sz(*eDest,"space minfree",val,&minf,0)) return 1;
+               if ((val = Config.GetWord()))
+                  {if (isdigit(*val))
+                       {if (XrdOuca2x::a2sz(*eDest,"space high watermark",
+                                            val,&hwm,0)) return 1;
+                       }
+                      else Config.RetToken();
+                  } else break;
+              }
+       else {eDest->Emsg("Config", "invalid space parameters"); return 1;}
+       }
     
+    if (alinger < 0 && arecalc < 0 && minf < 0)
+       {eDest->Emsg("Config", "no space values specified"); return 1;}
+
     if (alinger >= 0) DiskLinger = alinger;
-    
-    if (minf < 0 && adj < 0)
-        {eDest->Emsg("Config", "no space values specified"); return 1;}
+    if (arecalc >= 0) DiskAsk    = arecalc;
 
     if (minf >= 0)
-        {minf = minf / 1024;
-        DiskMin = (minf >> 31 ? 0x7fffffff : minf);
-        if (adj >= 0)
-            {adj = adj / 1024;
-            DiskAdj = (adj >> 31 ? 0x7fffffff : adj);
-            }
-        }
+       {if (hwm < 0) DiskHWM = minf+1073741824;
+           else if (hwm < minf) DiskHWM = minf + hwm;
+                   else DiskHWM = hwm;
+        DiskMin = minf;
+       }
     return 0;
 }
   
