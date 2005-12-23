@@ -81,9 +81,9 @@ LIBRARY = $(LIBDIR)/libXrdClient.a
 LIBRARY_JNI =
 CLASS_JNI =
 ifneq ($(JAVAINC),)
-LIBRARY_JNI = $(LIBDIR)/libXrdClientJNI.$(TYPESHLIB)
-CLASS_JNI = $(LIBDIR)/libXrdClientJNI
-CLASS_JNI_TARGET = $(LIBDIR)/libXrdClientJNI.class
+LIBRARY_JNI = $(LIBDIR)/libXrdClientAdminJNI.$(TYPESHLIB)
+CLASS_JNI = XrdClientAdminJNI
+CLASS_JNI_TARGET = $(LIBDIR)/XrdClientAdminJNI.class
 endif
 
 TESTBIN = $(BINDIR)/TestXrdClient $(BINDIR)/TestXrdClient_read
@@ -133,14 +133,14 @@ $(LIBRARY): $(OBJECTS)
 	   ranlib $(LIBRARY); \
 	fi
 
-$(LIBRARY_JNI): $(OBJECTS_JNI)
+$(LIBRARY_JNI): $(OBJECT_JNI)
 	@echo Creating shared library $(LIBRARY_JNI) 
 	$(ECHO)rm -f $(LIBRARY_JNI);
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS_JNI) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY_JNI)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECT_JNI) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY_JNI)
 
-$(CLASS_JNI_TARGET): $(LIBRARY_JNI)
+$(CLASS_JNI_TARGET): $(CLASS_JNI).java
 	@echo Creating JNI class file $(CLASS_JNI_TARGET)
-	$(ECHO)$(JAVACBIN) -d $(LIBDIR) XrdClientAdminJNI.java
+	$(ECHO)$(JAVACBIN) -d $(LIBDIR) $(CLASS_JNI).java
 
 $(BINDIR)/TestXrdClient_read: $(OBJECTS) $(OBJECTD) $(LIBDEPS)
 	@echo Creating executable $(BINDIR)/TestXrdClient_read 
@@ -254,6 +254,24 @@ $(OBJDIR)/XrdClientAdmin.o: XrdClientAdmin.cc ../XrdClient/XrdClientAdmin.hh \
 	@echo Compiling XrdClientAdmin.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAdmin.o XrdClientAdmin.cc
 
+$(OBJDIR)/XrdClientAdminJNI.o: XrdClientAdminJNI.cc ../XrdClient/XrdClientAdmin.hh \
+  ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientUnsolMsg.hh \
+  ../XrdClient/XrdClientMessage.hh ../XrdClient/XrdClientProtocol.hh \
+  ../XProtocol/XProtocol.hh ../XProtocol/XPtypes.hh \
+  ../XrdClient/XrdClientSock.hh ../XrdClient/XrdClientUrlInfo.hh \
+  ../XrdClient/XrdClientString.hh ../XrdClient/XrdClientConn.hh \
+  ../XrdClient/XrdClientConst.hh ../XrdClient/XrdClientReadCache.hh \
+  ../XrdClient/XrdClientInputBuffer.hh ../XrdOuc/XrdOucPthread.hh \
+  ../XrdOuc/XrdOucError.hh ../XrdOuc/XrdOucSemWait.hh \
+  ../XrdOuc/XrdOucHash.hh ../XrdOuc/XrdOucHash.icc \
+  ../XrdClient/XrdClientVector.hh ../XrdClient/XrdClientDebug.hh \
+  ../XrdClient/XrdClientEnv.hh ../XrdOuc/XrdOucEnv.hh \
+  ../XrdOuc/XrdOucLogger.hh ../XrdClient/XrdClientUrlSet.hh \
+  ../XrdClient/XrdClientConnMgr.hh ../XrdClient/XrdClientLogConnection.hh \
+  ../XrdClient/XrdClientPhyConnection.hh ../XrdClient/XrdClientThread.hh
+	@echo Compiling XrdClientAdminJNI.cc Java include path=$(JAVAINC)
+	$(ECHO)$(CC) -g -c -I $(JAVAINC) -I $(JAVAINC)/linux  $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAdminJNI.o XrdClientAdminJNI.cc
+						    
 $(OBJDIR)/XrdClientSock.o: XrdClientSock.cc ../XrdClient/XrdClientSock.hh \
   ../XrdClient/XrdClientUrlInfo.hh ../XrdClient/XrdClientString.hh \
   ../XrdOuc/XrdOucLogger.hh ../XrdOuc/XrdOucPthread.hh \
