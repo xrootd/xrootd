@@ -237,7 +237,7 @@ void XrdOucHash<T>::Expand()
 
     // Compute new expansion threshold
     //
-    hashmax = (newsize * hashload)/100;
+    hashmax = static_cast<int>((static_cast<long long>(newsize)*hashload)/100);
 }
 
 /******************************************************************************/
