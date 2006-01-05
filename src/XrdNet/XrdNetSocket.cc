@@ -16,6 +16,7 @@ const char *XrdNetSocketCVSID = "$Id$";
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <netinet/in.h>
@@ -122,17 +123,22 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
    struct sockaddr_in InetAddr;
    struct sockaddr_un UnixAddr;
    struct sockaddr *SockAddr;
-   char *errtxt = 0;
+   char *errtxt = 0, pbuff[128];
    const char *action = "configure socket";
    const char *path = (inpath ? inpath : "");
+   const char *epath= (inpath ? inpath : pbuff);
    int myEC, SockSize, backlog;
    int SockType = (flags & XRDNET_UDPSOCKET ? SOCK_DGRAM : SOCK_STREAM);
    const int one = 1;
    const SOCKLEN_t szone = (SOCKLEN_t)sizeof(one);
 
+// Supply actual port number in error messages
+//
+   if (!inpath) sprintf(pbuff, "port %d", port);
+
 // Make sure this object is available for a new socket
 //
-   if (SockFD >= 0) return Err(Open, EBUSY, "create socket for", path);
+   if (SockFD >= 0) return Err(Open, EBUSY, "create socket for", epath);
 
 // Save the request flags, sometimes we need to check them from the local copy
 //
@@ -147,9 +153,9 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
 //
    if (port < 0 && *path == '/')
       {if (strlen(path) >= sizeof(UnixAddr.sun_path))
-          return Err(Open, ENAMETOOLONG, "create unix socket ", path);
+          return Err(Open, ENAMETOOLONG, "create unix socket ", epath);
        if ((SockFD = socket(PF_UNIX, SockType, 0)) < 0)
-          return Err(Open, errno, "create unix socket ", path);
+          return Err(Open, errno, "create unix socket ", epath);
        UnixAddr.sun_family = AF_UNIX;
        strcpy(UnixAddr.sun_path, path);
        SockAddr = (struct sockaddr *)&UnixAddr;
@@ -157,7 +163,7 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
        if (flags & XRDNET_SERVER) unlink((const char *)path);
       } else {
        if ((SockFD = socket(PF_INET, SockType, 0)) < 0)
-          return Err(Open, errno, "create inet socket to", path);
+          return Err(Open, errno, "create inet socket to", epath);
        if (port < 0 && *path)
                      XrdNetDNS::Host2Dest(inpath,(sockaddr &)InetAddr,&errtxt);
              else   {XrdNetDNS::getHostAddr(path,(sockaddr &)InetAddr,&errtxt);
@@ -165,7 +171,7 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
                     }
           if (errtxt)
              {if(eroute) eroute->Emsg("Open", "Unable to obtain address for",
-                                      path, errtxt);
+                                     epath, errtxt);
               Close();
               ErrCode = EHOSTUNREACH;
               return -1;
@@ -216,7 +222,7 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
       {Close(); 
        ErrCode = myEC;
        if (!(flags & XRDNET_NOEMSG) && eroute)
-          eroute->Emsg("Open", ErrCode, action, path);
+          eroute->Emsg("Open", ErrCode, action, epath);
        return -1;
       }
    return SockFD;
