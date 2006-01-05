@@ -16,9 +16,11 @@ const char *XrdMainCVSID = "$Id$";
 
    xrootd [options]
 
-   options: [-c <fname>] [-d] [-h] [-l <fname>] [-p <port>] [<oth>]
+   options: [-b] [-c <fname>] [-d] [-h] [-l <fname>] [-p <port>] [<oth>]
 
 Where:
+   -b     forces background execution.
+
    -c     specifies the configuration file. This may also come from the
           XrdCONFIGFN environmental variable.
 
@@ -70,7 +72,8 @@ Where:
 
        XrdConfig          XrdConf;
 
-       XrdInet           *XrdNetTCP = 0;
+extern int                XrdNetTCPlep;   // Defined by config
+extern XrdInet           *XrdNetTCP[];    // Defined by config
        XrdInet           *XrdNetADM = 0;
 
        XrdScheduler       XrdSched;
@@ -82,6 +85,23 @@ Where:
        XrdOucThread      *XrdThread;
 
        XrdOucTrace        XrdTrace(&XrdLog);
+
+/******************************************************************************/
+/*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
+/******************************************************************************/
+  
+void *mainAccept(void *parg)
+{  XrdInet *myNet = (XrdInet *)parg;
+   XrdProtocol_Select ProtSelect(myNet->Port());
+   XrdLink *newlink;
+
+   while(1) if ((newlink = myNet->Accept(XRDNET_NODNTRIM)))
+               {newlink->setProtocol((XrdProtocol *)&ProtSelect);
+                XrdSched.Schedule((XrdJob *)newlink);
+               }
+
+   return (void *)0;
+}
 
 /******************************************************************************/
 /*                             m a i n A d m i n                              */
@@ -109,8 +129,9 @@ void *mainAdmin(void *parg)
 int main(int argc, char *argv[])
 {
    sigset_t myset;
-   XrdLink *newlink;
-   static XrdProtocol_Select ProtSelect;
+   pthread_t tid;
+   char buff[128];
+   int i, retc;
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
@@ -137,20 +158,28 @@ int main(int argc, char *argv[])
 
 // Start the admin thread if an admin network is defined
 //
-   if (XrdNetADM)
-      {pthread_t tid;
-       int retc;
-       if ((retc = XrdOucThread::Run(&tid, mainAdmin, (void *)0,
-                                     XRDOUCTHREAD_BIND, "Admin handler")))
-          {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
-      }
+   if (XrdNetADM && (retc = XrdOucThread::Run(&tid, mainAdmin, (void *)0,
+                            XRDOUCTHREAD_BIND, "Admin handler")))
+      {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
 
-// At this point we should be able to accept new connections
+// At this point we should be able to accept new connections. Spawn a
+// thread for each network except the first. The main thread will handle
+// that network as some implementations require a main active thread.
 //
-   while(1) if ((newlink = XrdNetTCP->Accept(XRDNET_NODNTRIM)))
-               {newlink->setProtocol((XrdProtocol *)&ProtSelect);
-                XrdSched.Schedule((XrdJob *)newlink);
-               }
+   for (i = 1; i <= XrdNetTCPlep; i++)
+       {sprintf(buff, "Port %d handler", XrdNetTCP[i]->Port());
+        if ((retc = XrdOucThread::Run(&tid, mainAccept,
+                                     (void *)XrdNetTCP[i],
+                                     XRDOUCTHREAD_BIND, strdup(buff))))
+           {sprintf(buff, "create port %d handler", XrdNetTCP[i]->Port());
+            XrdLog.Emsg("main", retc, buff);
+            _exit(3);
+           }
+       }
+
+// Finally, start accepting connections on the main port
+//
+   mainAccept((void *)XrdNetTCP[0]);
 
 // We should never get here
 //

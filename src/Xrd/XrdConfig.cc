@@ -56,7 +56,8 @@ const char *XrdConfigCVSID = "$Id$";
 
        XrdBuffManager    XrdBuffPool;
 
-extern XrdInet          *XrdNetTCP;
+       int               XrdNetTCPlep = -1;
+       XrdInet          *XrdNetTCP[XRD_PROTOMAX] = {0};
 extern XrdInet          *XrdNetADM;
 
 extern XrdScheduler      XrdSched;
@@ -96,9 +97,10 @@ XrdConfigProt *Next;
 char           *proname;
 char           *libpath;
 char           *parms;
+int             port;
 
-                XrdConfigProt(char *pn, char *ln, char *pp)
-                    {Next = 0; proname = pn; libpath = ln; parms = pp;
+                XrdConfigProt(char *pn, char *ln, char *pp, int np=0)
+                    {Next = 0; proname = pn; libpath = ln; parms = pp; port=np;
                     }
                ~XrdConfigProt()
                     {free(proname);
@@ -584,20 +586,6 @@ int XrdConfig::Setup(char *dfltp)
       else if (!PortTCP && !(PortTCP = XrdNetDNS::getPort(dfltp, "tcp")))
                PortTCP = XrdDEFAULTPORT;
 
-// Setup network connections now
-//
-   ProtInfo.NetTCP = XrdNetTCP = new XrdInet(&XrdLog, Police);
-   if (XrdNetTCP->Bind(PortTCP, "tcp")) return 1;
-   if (Net_Opts | Net_Blen) XrdNetTCP->setDefaults(Net_Opts, Net_Blen);
-   if (myDomain) XrdNetTCP->setDomain(myDomain);
-
-// Do final port resolution
-//
-   if (!PortTCP) PortTCP = PortUDP = XrdNetTCP->Port();
-   ProtInfo.Port = PortTCP;
-   sprintf(portbuff, "XRDPORT=%d", PortTCP);
-   putenv(portbuff);
-
 // Modify the AdminPath to account for any instance name. Note that there is
 // a negligible memory leak under ceratin path combinations. Not enough to
 // warrant a lot of logic to get around.
@@ -612,18 +600,40 @@ int XrdConfig::Setup(char *dfltp)
 
 // Allocate the statistics object. This is akward since we only know part
 // of the current configuration. The object will figure this out later.
+// The only nasty is that we might not know the true port number now.
 //
-   ProtInfo.Stats = new XrdStats(ProtInfo.myName, ProtInfo.Port);
+   ProtInfo.Stats = new XrdStats(ProtInfo.myName, PortTCP);
 
-// Load the protocols
+// Load the protocols. For each new protocol port number, create a new
+// network object to handle the port dependent communications part.
 //
+   ProtInfo.Port = -17;
    while((cp= Firstcp))
-        {if (!XrdProtocol_Select::Load((cp->libpath), (cp->proname), 
-                                       (cp->parms), &ProtInfo))
-            return 1;
+        {if (cp->port != ProtInfo.Port)
+            {if (cp->port < 0)        cp->port = 0;       // port=any
+                else if (!(cp->port)) cp->port = PortTCP; // port=default
+             XrdNetTCP[++XrdNetTCPlep] = new XrdInet(&XrdLog, Police);
+             if (XrdNetTCP[XrdNetTCPlep]->Bind(cp->port, "tcp")) return 1;
+             if (Net_Opts | Net_Blen) 
+                XrdNetTCP[XrdNetTCPlep]->setDefaults(Net_Opts, Net_Blen);
+             if (myDomain) XrdNetTCP[XrdNetTCPlep]->setDomain(myDomain);
+             ProtInfo.Port   = XrdNetTCP[XrdNetTCPlep]->Port();
+             ProtInfo.NetTCP = XrdNetTCP[XrdNetTCPlep];
+             sprintf(portbuff, "XRDPORT=%d", ProtInfo.Port);
+             putenv(portbuff);
+            }
+         if (!XrdProtocol_Select::Load(cp->libpath, cp->proname,
+                                       cp->parms, &ProtInfo)) return 1;
          Firstcp = cp->Next;
          delete cp;
         }
+
+// Leave the env port number to be the first used port number. This may
+// or may not be the same as the default port number.
+//
+   ProtInfo.Port = XrdNetTCP[0]->Port();
+   sprintf(portbuff, "XRDPORT=%d", ProtInfo.Port);
+   putenv(portbuff);
 
 // All done
 //
@@ -989,9 +999,10 @@ int XrdConfig::yport(XrdOucError *eDest, const char *ptype, const char *val)
 
 /* Function: xprot
 
-   Purpose:  To parse the directive: protocol <name> <loc> [<parm>]
+   Purpose:  To parse the directive: protocol <name>[:<port>] <loc> [<parm>]
 
              <name> The name of the protocol (e.g., rootd)
+             <port> Port binding for the protocol, if not the default.
              <loc>  The shared library in which it is located.
              <parm> A one line parameter to be passed to the protocol.
 
@@ -1001,8 +1012,8 @@ int XrdConfig::yport(XrdOucError *eDest, const char *ptype, const char *val)
 int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
 {
     XrdConfigProt *cpp;
-    char *val, *parms, *lib, proname[17], buff[1024];
-    int vlen, bleft = sizeof(buff);
+    char *val, *parms, *lib, proname[64], buff[1024];
+    int vlen, bleft = sizeof(buff), portnum = 0;
 
     if (!(val = Config.GetWord()))
        {eDest->Emsg("Config", "protocol name not specified"); return 1;}
@@ -1027,6 +1038,10 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
     if (parms != buff) parms = strdup(buff+1);
        else parms = 0;
 
+    if ((val = index(proname, ':')))
+       if (!(portnum = yport(&XrdLog, "tcp", val+1))) return 1;
+          else *val = '\0';
+
     if ((cpp = Firstcp))
        do {if (!strcmp(proname, cpp->proname))
               {if (cpp->libpath) free(cpp->libpath);
@@ -1037,7 +1052,7 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
               }
           } while((cpp = cpp->Next));
 
-    cpp = new XrdConfigProt(strdup(proname), lib, parms);
+    cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum);
     if (Lastcp) Lastcp->Next = cpp;
        else    Firstcp = cpp;
     Lastcp = cpp;

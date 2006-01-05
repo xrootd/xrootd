@@ -166,7 +166,7 @@ void          Recycle(XrdLink *lp, int ctime, const char *txt);
 
 int           Stats(char *buff, int blen, int do_sync=0);
 
-              XrdProtocol_Select();
+              XrdProtocol_Select(int port=0);
              ~XrdProtocol_Select();
 
 private:
@@ -174,8 +174,11 @@ private:
 static XrdProtocol *getProtocol(const char *lname, const char *pname,
                                 char *parms, XrdProtocol_Config *pi);
 
-static char         *ProtName[XRD_PROTOMAX]; // ->Supported protocols
-static XrdProtocol  *Protocol[XRD_PROTOMAX]; // ->Supported protocols
-static int           ProtoCnt;               // Number in table (at least 1)
+static char         *ProtName[XRD_PROTOMAX];   // ->Supported protocol names
+static XrdProtocol  *Protocol[XRD_PROTOMAX];   // ->Supported protocol objects
+static int           ProtPort[XRD_PROTOMAX];   // ->Supported protocol ports
+static int           ProtoCnt;                 // Number in table (at least 1)
+
+       int           myPort;
 };
 #endif

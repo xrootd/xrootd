@@ -43,9 +43,10 @@ extern XrdOucError XrdLog;
 extern XrdOucTrace XrdTrace;
 
 XrdProtocol *XrdProtocol_Select::Protocol[XRD_PROTOMAX] = {0};
-char         *XrdProtocol_Select::ProtName[XRD_PROTOMAX] = {0};
+char        *XrdProtocol_Select::ProtName[XRD_PROTOMAX] = {0};
+int          XrdProtocol_Select::ProtPort[XRD_PROTOMAX] = {0};
 
-int           XrdProtocol_Select::ProtoCnt = 0;
+int          XrdProtocol_Select::ProtoCnt = 0;
   
 /******************************************************************************/
 /*                         L o c a l   D e f i n e s                          */
@@ -83,8 +84,8 @@ DebugON   = rhs.DebugON;
 /*            C o n s t r u c t o r   a n d   D e s t r u c t o r             */
 /******************************************************************************/
   
- XrdProtocol_Select::XrdProtocol_Select() : 
-                      XrdProtocol("protocol selection") {}
+ XrdProtocol_Select::XrdProtocol_Select(int port) :
+                     XrdProtocol("protocol selection") {myPort = port;}
 
 XrdProtocol_Select::~XrdProtocol_Select() {}
  
@@ -96,6 +97,7 @@ int XrdProtocol_Select::Load(const char *lname, const char *pname,
                              char *parms, XrdProtocol_Config *pi)
 {
    XrdProtocol *xp;
+   int i, j, port = pi->Port;
 
 // Trace this load if so wanted
 //
@@ -114,16 +116,27 @@ int XrdProtocol_Select::Load(const char *lname, const char *pname,
 
 // Obtain an instance of this protocol
 //
-   if (lname)  xp =     getProtocol(lname, pname, parms, pi);
+   if (lname)  xp =    getProtocol(lname, pname, parms, pi);
       else     xp = XrdgetProtocol(pname, parms, pi);
    if (!xp) {XrdLog.Emsg("Protocol","Protocol", pname, "could not be loaded");
              return 0;
             }
 
+// Find a port associated slot in the table
+//
+   for (i = ProtoCnt-1; i >= 0; i++) if (port == ProtPort[i]) break;
+   for (j = ProtoCnt-1; j > i; j--)
+       {ProtName[j] = ProtName[j+1];
+        ProtPort[j] = ProtPort[j+1];
+        Protocol[j] = Protocol[j+1];
+       }
+
 // Add protocol to our table of protocols
 //
-   ProtName[ProtoCnt]   = strdup(pname);
-   Protocol[ProtoCnt++] = xp;
+   ProtName[j+1] = strdup(pname);
+   ProtPort[j+1] = port;
+   Protocol[j+1] = xp;
+   ProtoCnt++;
    return 1;
 }
   
@@ -139,7 +152,7 @@ int XrdProtocol_Select::Process(XrdLink *lp)
 // We check each protocol we have until we find one that works with this link
 //
    for (i = 0; i < ProtoCnt; i++) 
-       if ((pp = Protocol[i]->Match(lp))) break;
+       if (myPort == ProtPort[i] && (pp = Protocol[i]->Match(lp))) break;
           else if (lp->isFlawed()) {lp->Close(); return -1;}
    if (!pp) {DISCARD_LINK(lp, "matching protocol not found");}
 
@@ -218,8 +231,7 @@ void *ep;
 //
    for (i = 0; i < libcnt; i++) if (!strcmp(lname, liblist[i])) break;
    if (i >= libcnt)
-      {i = libcnt+1;
-       if (!(libhndl[i] = dlopen(lname, RTLD_NOW)))
+      {if (!(libhndl[i] = dlopen(lname, RTLD_NOW)))
           {XrdLog.Emsg("Protocol", dlerror(), "opening shared library", lname);
            return 0;
           }
@@ -229,7 +241,7 @@ void *ep;
           }
        libfunc[i]=(XrdProtocol *(*)(const char*,char*,XrdProtocol_Config*))ep;
        liblist[i] = strdup(lname);
-       libcnt = i;
+       libcnt++;
       }
 
 // Obtain an instance of the protocol object and return it
