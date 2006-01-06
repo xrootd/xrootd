@@ -22,6 +22,7 @@ const char *XrdConfigCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <iostream.h>
+#include <pwd.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/param.h>
@@ -195,6 +196,8 @@ int XrdConfig::Configure(int argc, char **argv)
    int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = 0, optbg = 0;
    const char *temp;
    char c, *Penv, *myProg, buff[512], *dfltProt, *logfn = 0;
+   uid_t myUid;
+   gid_t myGid;
    extern char *optarg;
    extern int optind, opterr;
 
@@ -208,7 +211,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"bc:dhl:n:p:P:")) && ((unsigned char)c != 0xff))
+      while ((c = getopt(argc,argv,"bc:dhl:n:p:P:R:")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'b': optbg = 1;
@@ -230,6 +233,8 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'P': dfltProt = optarg; dotrim = 0;
                  break;
+       case 'R': if (!(getUG(optarg, myUid, myGid))) Usage(myProg, 1);
+                 break;
        default:  if (index("clpP", (int)(*(argv[optind-1]+1))))
                     {XrdLog.Emsg("Config", argv[optind-1],
                                  "parameter not specified.");
@@ -240,6 +245,13 @@ int XrdConfig::Configure(int argc, char **argv)
                     argv[aP++] = argv[optind++];
        }
      }
+
+// Drop into non-privileged state if so requested
+//
+   if (myGid && setegid(myGid))
+      {XrdLog.Emsg("Config", errno, "set effective gid"); exit(17);}
+   if (myUid && seteuid(myUid))
+      {XrdLog.Emsg("Config", errno, "set effective uid"); exit(17);}
 
 // Pass over any parameters
 //
@@ -480,6 +492,40 @@ int XrdConfig::ConfigProc()
 // Return final return code
 //
    return NoGo;
+}
+
+/******************************************************************************/
+/*                                 g e t U G                                  */
+/******************************************************************************/
+  
+int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
+{
+   struct passwd *pp;
+
+// Get the userid entry
+//
+   if (!(*parm))
+      {XrdLog.Emsg("Config", "-R user not specified."); return 0;}
+
+   if (isdigit(*parm))
+      {if (!(newUid = atol(parm)))
+          {XrdLog.Emsg("Config", "-R", parm, "is invalid"); return 0;}
+       pp = getpwuid(newUid);
+      }
+      else pp = getpwnam(parm);
+
+// Make sure it is valid and acceptable
+//
+   if (!pp) 
+      {XrdLog.Emsg("Config", errno, "retrieve -R user password entry");
+       return 0;
+      }
+   if (!(newUid = pp->pw_uid))
+      {XrdLog.Emsg("Config", "-R", parm, "is still unacceptably a superuser!");
+       return 0;
+      }
+   newGid = pp->pw_gid;
+   return 1;
 }
 
 /******************************************************************************/
