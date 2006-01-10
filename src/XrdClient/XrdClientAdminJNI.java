@@ -37,10 +37,10 @@ public class XrdClientAdminJNI {
 
 
 
-    public XrdClientAdminJNI(String hostname) { firsturl = hostname; };
+    public XrdClientAdminJNI(String hostname) { firsturl = "xroot://"+hostname+"//dummy"; };
 
     public static void main(String args[]) {
-	XrdClientAdminJNI a = new XrdClientAdminJNI("xroot://kanolb-a.slac.stanford.edu//dummy");
+	XrdClientAdminJNI a = new XrdClientAdminJNI("kanolb-a.slac.stanford.edu");
 	String newhost = "";
 	boolean r = a.locate("pippo.root", newhost);
 	System.out.println("Locate Result: " + r + " host: '" + newhost + "'");

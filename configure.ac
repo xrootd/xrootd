@@ -208,8 +208,9 @@ AC_ARG_WITH(krb4-incdir,
             [  --with-krb4-incdir=PATH     KerberosIV support, location of kerberosIV/krb.h],
             [if test ! -f "$withval"/kerberosIV/krb.h ; then
                 AC_MSG_ERROR([Could not locate kerberosIV/krb.h in $withval])
-             fi]
+             fi
 	    KRB4_INCDIR="-I$withval"
+            ]
            )
 AC_SUBST(KRB4_INCDIR)
 
@@ -284,12 +285,12 @@ if test x"$enable_openssl" != xno ; then
   AC_SUBST(OPENSSL_INCDIR)
 
   # test openssl version
-  verstr=`expr  x"$OPENSSL_VERSION_TEXT" : '.*\([[0-9]].[[0-9]].[[0-9]][[a-z]]\)'`
+  verstr=`expr  x"$OPENSSL_VERSION_TEXT" : '.*\([[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*[[a-z]]*\)'`
   AC_MSG_NOTICE([OpenSSL version : $verstr])
 
-  vermajor=`expr x"$verstr" : '.*\([[0-9]]\).[[0-9]].[[0-9]]'`
-  verminor=`expr x"$verstr" : '.*[[0-9]]\.\([[0-9]]\)\.[[0-9]]'`
-  verrelease=`expr x"$verstr" : '.*[[0-9]]\.[[0-9]]\.\([[0-9]]\)'`
+  vermajor=`expr x"$verstr" : '.*\([[0-9]][[0-9]]*\).[[0-9]][[0-9]]*.[[0-9]][[0-9]]*'`
+  verminor=`expr x"$verstr" : '.*[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*'`
+  verrelease=`expr x"$verstr" : '.*[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)'`
   vernum=`expr 10000 \* 0"$vermajor" + 100 \* 0"$verminor" + 0"$verrelease"`
   if test 0"$vernum" -lt 906 ; then
     AC_MSG_WARN([OpenSSL >= 0.9.6 required (found: $OPENSSL_VERSION_TEXT)
@@ -403,6 +404,50 @@ if test x"$enable_perlint" = xyes ; then
 fi
 
 #################################################################
+# JAVA interface option
+AC_ARG_ENABLE(javaint,
+              [  --enable-javaint      build java interface [[default=no]] ],
+              [],[enable_javaint=no])
+AM_CONDITIONAL(ENABLE_JAVAINT, test x"$enable_javaint" = xyes)
+MY_JAVA_HOME=$JAVA_HOME
+JAVA_CLASSPATH="\$(libdir)"
+AC_ARG_WITH(java-home,
+	      [  --with-java-home=PATH  JAVA_HOME path],
+              MY_JAVA_HOME=$withval)
+AC_ARG_WITH(java-classpath,
+	      [  --with-java-classpath=PATH  path where to install java .class files],
+              JAVA_CLASSPATH=$withval)
+
+if test x"$enable_javaint" = xyes; then
+   if test ! -d "${MY_JAVA_HOME}/include"; then
+      AC_MSG_ERROR([java include folder not found: ${MY_JAVA_HOME}/include.
+   Disable javaint or use correct --with-java-home directive])
+   fi
+   JAVA_INCDIR="-I${MY_JAVA_HOME}/include -I${MY_JAVA_HOME}/include/linux"
+   AC_MSG_NOTICE([java include settings: $JAVA_INCDIR])
+   JAVA="$MY_JAVA_HOME"/bin/java
+   JAVAC="$MY_JAVA_HOME"/bin/javac
+   if test ! -x "$JAVA" ; then
+      AC_MSG_ERROR([java executable not found at $JAVA])
+   fi
+   if test ! -x "$JAVAC" ; then
+      AC_MSG_ERROR([java compiler not found at $JAVAC])
+   fi
+   javaverstr=`$JAVA -version 2>&1`
+   javaverstr=`expr x"$javaverstr" : '.*\([[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*[[a-z]]*\)'`
+   javavermajor=`expr x"$javaverstr" : '.*\([[0-9]][[0-9]]*\).[[0-9]][[0-9]]*.[[0-9]][[0-9]]*'`
+   javaverminor=`expr x"$javaverstr" : '.*[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*'`
+   javaverrelease=`expr x"$javaverstr" : '.*[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*[[a-z]]*\)'`
+   javavernum=`expr 10000 \* 0"$javavermajor" + 100 \* 0"$javaverminor" + 0"$javaverrelease"`
+   AC_MSG_NOTICE([java version is $javaverstr ($javavernum)])
+   if test "$javavernum" -lt 10500; then
+      AC_MSG_ERROR([java version > 1.5 needed])
+   fi 
+fi
+AC_SUBST(JAVA_INCDIR)
+AC_SUBST(JAVAC)
+AC_SUBST(JAVA_CLASSPATH)
+#################################################################
 # Catalog token authorization mechanism
 AC_ARG_ENABLE(tokenauthz,
         [  --enable-tokenauthz      enable building of catalog token authorization Ofs [[default=no]] ],
@@ -453,7 +498,7 @@ if test `expr x"$target_os" : 'xsolaris'` -gt 7 ; then
    fi
 fi
 
-dnl Disable libtool 1.5 support for languages we don't use
+dnl Disable libtool 1.5 support for languages we don't use (this is a HACK!)
 define([AC_LIBTOOL_LANG_F77_CONFIG], [:])dnl
 define([AC_LIBTOOL_LANG_GCJ_CONFIG], [:])dnl
 
