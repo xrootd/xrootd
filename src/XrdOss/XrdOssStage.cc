@@ -425,6 +425,6 @@ int XrdOssSys::HasFile(const char *fn, const char *fsfx)
 //
    rc = lstat(path, &statbuff);
    free(path);
-   if (rc) return 1;
+   if (rc) return 0;
    return (int)statbuff.st_ctime;
 }
