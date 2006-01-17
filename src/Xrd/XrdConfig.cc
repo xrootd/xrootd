@@ -196,8 +196,8 @@ int XrdConfig::Configure(int argc, char **argv)
    int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = 0, optbg = 0;
    const char *temp;
    char c, *Penv, *myProg, buff[512], *dfltProt, *logfn = 0;
-   uid_t myUid;
-   gid_t myGid;
+   uid_t myUid = 0;
+   gid_t myGid = 0;
    extern char *optarg;
    extern int optind, opterr;
 
