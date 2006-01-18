@@ -60,9 +60,9 @@ XrdPosixRootVec xinuX;
       Retv_Fclose      Xrd_U_Fclose(Args_Fclose)
                          {return (Retv_Fclose)Xunix.Load_Error("fclose");}
       Retv_Fopen       Xrd_U_Fopen(Args_Fopen) 
-                         {return (Retv_Fopen)Xunix.Load_Error("fopen");}
+                         {Xunix.Load_Error("fopen"); return (Retv_Fopen)0;}
       Retv_Fopen64     Xrd_U_Fopen64(Args_Fopen64)
-                         {return (Retv_Fopen64)Xunix.Load_Error("fopen");}
+                         {Xunix.Load_Error("fopen"); return (Retv_Fopen64)0;}
       Retv_Fstat       Xrd_U_Fstat(Args_Fstat) 
                          {return (Retv_Fstat)Xunix.Load_Error("fstat");}
       Retv_Fstat64     Xrd_U_Fstat64(Args_Fstat64)
@@ -90,7 +90,7 @@ XrdPosixRootVec xinuX;
       Retv_Open64      Xrd_U_Open64(Args_Open64)
                          {return (Retv_Open64)Xunix.Load_Error("open");}
       Retv_Opendir     Xrd_U_Opendir(Args_Opendir) 
-                         {return (Retv_Opendir)Xunix.Load_Error("opendir",0);}
+                         {Xunix.Load_Error("opendir"); return (Retv_Opendir)0;}
       Retv_Pread       Xrd_U_Pread(Args_Pread)
                          {return (Retv_Pread)Xunix.Load_Error("pread");}
       Retv_Pread64     Xrd_U_Pread64(Args_Pread64)
@@ -100,9 +100,9 @@ XrdPosixRootVec xinuX;
       Retv_Readv       Xrd_U_Readv(Args_Readv) 
                          {return (Retv_Readv)Xunix.Load_Error("readv");}
       Retv_Readdir     Xrd_U_Readdir(Args_Readdir) 
-                         {return (Retv_Readdir)Xunix.Load_Error("readdir",0);}
+                         {Xunix.Load_Error("readdir"); return (Retv_Readdir)0;}
       Retv_Readdir64   Xrd_U_Readdir64(Args_Readdir64)
-                         {return (Retv_Readdir64)Xunix.Load_Error("readdir",0);}
+                         {Xunix.Load_Error("readdir");return (Retv_Readdir64)0;}
       Retv_Readdir_r   Xrd_U_Readdir_r(Args_Readdir_r) 
                          {return (Retv_Readdir_r)Xunix.Load_Error("readdir_r", ELIBACC);}
       Retv_Readdir64_r Xrd_U_Readdir64_r(Args_Readdir64_r)

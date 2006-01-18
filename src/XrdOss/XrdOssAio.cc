@@ -294,12 +294,12 @@ int XrdOssSys::AioInit()
 // the first two real-time signals have been blocked for all threads.
 //
    if ((retc = XrdOucThread::Run(&tid, XrdOssAioWait,
-                                (void *)OSS_AIO_READ_DONE)) < 0)
+                                (void *)(&OSS_AIO_READ_DONE))) < 0)
       OssEroute.Emsg("AioInit", retc, "creating AIO read signal thread; "
                                  "AIO support terminated.");
       else {DEBUG("started AIO read signal thread; tid=" <<(unsigned int)tid);
             if ((retc = XrdOucThread::Run(&tid, XrdOssAioWait,
-                                (void *)OSS_AIO_WRITE_DONE)) < 0)
+                                (void *)(&OSS_AIO_WRITE_DONE))) < 0)
                OssEroute.Emsg("AioInit", retc, "creating AIO write signal thread; "
                                  "AIO support terminated.");
                else {DEBUG("started AIO write signal thread; tid=" <<(unsigned int)tid);
@@ -323,7 +323,7 @@ void *XrdOssAioWait(void *mySigarg)
 {
 #ifdef _POSIX_ASYNCHRONOUS_IO
    EPNAME("AioWait");
-   int mySignum = PTR2INT(mySigarg);
+   int mySignum = *((int *)mySigarg);
    const char *sigType = (mySignum == OSS_AIO_READ_DONE ? "read" : "write");
    const int  isRead   = (mySignum == OSS_AIO_READ_DONE);
    sigset_t  mySigset;
