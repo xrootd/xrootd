@@ -14,8 +14,10 @@ EXTRA_DIST = XrdOucRash.hh XrdOucRash.icc
 xrootdoucincdir = $(includedir)/xrootd/XrdOuc
 
 xrootdoucinc_HEADERS = XrdOucChain.hh XrdOucDLlist.hh XrdOucEnv.hh XrdOucErrInfo.hh \
-                       XrdOucError.hh XrdOucHash.hh XrdOucLock.hh XrdOucLogger.hh \
-                       XrdOucNList.hh XrdOucPList.hh XrdOucPlatform.hh XrdOucProg.hh \
+                       XrdOucError.hh XrdOucName2Name.hh XrdOucHash.hh XrdOucLock.hh \
+                       XrdOucLogger.hh \
+                       XrdOucNList.hh XrdOucPList.hh XrdOucPlatform.hh XrdOucPlugin.hh \
+                       XrdOucProg.hh \
                        XrdOucPthread.hh XrdOucRash.hh XrdOucReqID.hh XrdOucSemWait.hh \
                        XrdOucStream.hh XrdOucString.hh XrdOucTList.hh XrdOucTimer.hh \
                        XrdOucTokenizer.hh XrdOucTrace.hh XrdOucUtils.hh XrdOucXSLock.hh \
@@ -29,10 +31,12 @@ libXrdOuc_la_SOURCES = \
         XrdOuca2x.cc XrdOuca2x.hh        \
         XrdOucEnv.cc XrdOucEnv.hh XrdOucHash.hh       \
         XrdOucError.cc XrdOucError.hh      \
+        XrdOucName2Name.cc XrdOucName2Name.hh \
         XrdOucHashVal.cc     \
         XrdOucLogger.cc XrdOucLogger.hh     \
         XrdOucNList.cc XrdOucNList.hh      \
-        XrdOucPlatform.cc XrdOucPlatform.hh   \
+        XrdOucPlatform.cc XrdOucPlatform.hh \
+        XrdOucPlugin.cc XrdOucPlugin.hh \
         XrdOucProg.cc XrdOucProg.hh       \
         XrdOucPthread.cc XrdOucPthread.hh    \
         XrdOucReqID.cc XrdOucReqID.hh      \
