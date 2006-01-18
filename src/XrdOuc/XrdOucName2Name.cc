@@ -14,6 +14,7 @@
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucPlatform.hh"
 
 class XrdOucN2N : public XrdOucName2Name
 {

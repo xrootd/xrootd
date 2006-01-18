@@ -109,7 +109,7 @@ $(OBJDIR)/XrdOucLogger.o: XrdOucLogger.cc XrdOucLogger.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucLogger.cc -o $(OBJDIR)/XrdOucLogger.o
 
 $(OBJDIR)/XrdOucName2Name.o: XrdOucName2Name.cc XrdOucName2Name.hh \
-                             XrdOucError.hh
+                             XrdOucError.hh XrdOucPlatform.hh
 	@echo Compiling XrdOucName2Name.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucName2Name.cc -o $(OBJDIR)/XrdOucName2Name.o
 
