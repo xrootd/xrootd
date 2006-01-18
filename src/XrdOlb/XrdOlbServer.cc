@@ -28,6 +28,7 @@ const char *XrdOlbServerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -485,8 +486,8 @@ int XrdOlbServer::do_Chmod(char *rid, int do4real)
 
 // Generate the true local path
 //
-   if (XrdOlbConfig.LocalRLen)
-      if (XrdOlbConfig.GenLocalPath(tp, lclpath)) return 0;
+   if (XrdOlbConfig.lcl_N2N)
+      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else tp = lclpath;
 
 // Attempt to change the mode
@@ -721,8 +722,8 @@ int XrdOlbServer::do_Mkdir(char *rid, int do4real)
 
 // Generate the true local path
 //
-   if (XrdOlbConfig.LocalRLen)
-      if (XrdOlbConfig.GenLocalPath(tp, lclpath)) return 0;
+   if (XrdOlbConfig.lcl_N2N)
+      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else tp = lclpath;
 
 // Attempt to create the directory
@@ -761,8 +762,8 @@ int XrdOlbServer::do_Mv(char *rid, int do4real)
 
 // Generate proper old path name
 //
-   if (do4real && XrdOlbConfig.LocalRLen)
-      {if (XrdOlbConfig.GenLocalPath(tp, old_lclpath))
+   if (do4real && XrdOlbConfig.lcl_N2N)
+      {if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,old_lclpath,sizeof(old_lclpath))) 
           return 0;
       }
       else if (strlcpy(old_lclpath,tp,sizeof(old_lclpath)) > XrdOlbMAX_PATH_LEN)
@@ -785,8 +786,9 @@ int XrdOlbServer::do_Mv(char *rid, int do4real)
 
 // Generate the true local path for new name
 //
-   if (XrdOlbConfig.LocalRLen)
-      if (XrdOlbConfig.GenLocalPath(tp, new_lclpath)) return 0;
+   if (XrdOlbConfig.lcl_N2N)
+      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,new_lclpath,sizeof(new_lclpath))) 
+         return 0;
          else tp = new_lclpath;
 
 // Attempt to rename the file
@@ -921,8 +923,9 @@ int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs &pargs)
 // Generate the true local path
 //
    oldpath = pargs.path;
-   if (XrdOlbConfig.LocalRLen)
-      if (XrdOlbConfig.GenLocalPath(pargs.path,lclpath)) return 0;
+   if (XrdOlbConfig.lcl_N2N)
+      if (XrdOlbConfig.lcl_N2N->lfn2pfn(oldpath,lclpath,sizeof(lclpath))) 
+         return 0;
          else pargs.path = lclpath;
 
 // Check if this file is not online, prepare it
@@ -1118,8 +1121,8 @@ int XrdOlbServer::do_Rm(char *rid, int do4real)
 
 // Generate the true local path for name
 //
-   if (XrdOlbConfig.LocalRLen)
-      if (XrdOlbConfig.GenLocalPath(tp, lclpath)) return 0;
+   if (XrdOlbConfig.lcl_N2N)
+      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else tp = lclpath;
 
 // Attempt to remove the file
@@ -1164,8 +1167,8 @@ int XrdOlbServer::do_Rmdir(char *rid, int do4real)
 
 // Generate the true local path for name
 //
-   if (XrdOlbConfig.LocalRLen)
-      if (XrdOlbConfig.GenLocalPath(tp, lclpath)) return 0;
+   if (XrdOlbConfig.lcl_N2N)
+      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else tp = lclpath;
 
 // Attempt to remove the directory
@@ -1363,8 +1366,8 @@ int XrdOlbServer::do_State(char *rid,int reset)
 
 // Generate the true local path
 //
-   if (XrdOlbConfig.LocalRLen)
-      if (XrdOlbConfig.GenLocalPath(tp, lclpath)) return 0;
+   if (XrdOlbConfig.lcl_N2N)
+      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else pp = lclpath;
       else pp = tp;
 

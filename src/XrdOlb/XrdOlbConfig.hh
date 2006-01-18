@@ -20,6 +20,7 @@ class XrdNetSecurity;
 class XrdNetSocket;
 class XrdOlbMeter;
 class XrdOucError;
+class XrdOucName2Name;
 class XrdOucProg;
 class XrdOucStream;
 
@@ -30,7 +31,6 @@ public:
 int   Configure(int argc, char **argv);
 int   ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest);
 int   GenLocalPath(const char *oldp, char *newp);
-int   GenRemotePath(const char *oldp, char *newp);
 int   GenMsgID(char *oldmid, char *buff, int blen);
 int   inSuspend();
 int   inNoStage();
@@ -73,10 +73,11 @@ int         sched_RR;     // 1 -> Simply do round robin scheduling
 int         doWait;       // 1 -> Wait for a data end-point
 int         Disabled;     // 1 -> Delay director requests
 
+XrdOucName2Name *lcl_N2N; // Server Only
+
+char        *N2N_Lib;     // Server Only
+char        *N2N_Parms;   // Server Only
 char        *LocalRoot;   // Server Only
-int          LocalRLen;
-char        *RemotRoot;   // Server Only
-int          RemotRLen;
 char        *MsgGID;
 int          MsgGIDL;
 const char  *myName;
@@ -108,9 +109,8 @@ private:
 
 XrdNetSocket *ASocket(char *path, const char *fn, mode_t mode, int isudp=0);
 char *ASPath(char *path, const char *fn, mode_t mode);
-int  concat_fn(const char *prefix, const int   pfxlen,
-               const char *path,         char *buffer);
 void ConfigDefaults(void);
+int  ConfigN2N(void);
 int  ConfigProc(int getrole=0);
 int  isExec(XrdOucError *eDest, const char *ptype, char *prog);
 int  PidFile(void);
@@ -126,13 +126,13 @@ int  xdelay(XrdOucError *edest, XrdOucStream &Config);
 int  xfsxq(XrdOucError *edest, XrdOucStream &Config);
 int  xfxhld(XrdOucError *edest, XrdOucStream &Config);
 int  xlclrt(XrdOucError *edest, XrdOucStream &Config);
+int  xnml(XrdOucError *edest, XrdOucStream &Config);
 int  xpath(XrdOucError *edest, XrdOucStream &Config);
 int  xperf(XrdOucError *edest, XrdOucStream &Config);
 int  xpidf(XrdOucError *edest, XrdOucStream &Config);
 int  xping(XrdOucError *edest, XrdOucStream &Config);
 int  xport(XrdOucError *edest, XrdOucStream &Config);
 int  xprep(XrdOucError *edest, XrdOucStream &Config);
-int  xrmtrt(XrdOucError *edest, XrdOucStream &Config);
 int  xrole(XrdOucError *edest, XrdOucStream &Config);
 int  xsched(XrdOucError *edest, XrdOucStream &Config);
 int  xspace(XrdOucError *edest, XrdOucStream &Config);

@@ -3,7 +3,7 @@
 /*                        X r d O s s S t a g e . c c                         */
 /*                                                                            */
 /*                                                                            */
-/* (C) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (C) 2006 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
@@ -40,6 +40,7 @@ const char *XrdOssStageCVSID = "$Id$";
 #include "XrdOss/XrdOssOpaque.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 
@@ -194,8 +195,9 @@ int XrdOssSys::Stage_RT(const char *fn, XrdOucEnv &env)
 
 // Generate remote path
 //
-   if (RemoteRootLen)
-      if ((rc = GenRemotePath(fn, actual_path))) return rc;
+   if (rmt_N2N)
+      if ((rc = rmt_N2N->lfn2rfn(fn, actual_path, sizeof(actual_path)))) 
+         return rc;
          else remote_path = actual_path;
       else remote_path = (char *)fn;
 
@@ -404,27 +406,25 @@ int XrdOssSys::GetFile(XrdOssCache_Req *req)
 /*                               H a s F i l e                                */
 /******************************************************************************/
   
-int XrdOssSys::HasFile(const char *fn, const char *fsfx)
+time_t XrdOssSys::HasFile(const char *fn, const char *fsfx)
 {
     struct stat statbuff;
-    int rc, fnlen = strlen(fn);
-    char *path = (char *)malloc(LocalRootLen + fnlen + strlen(fsfx) + 1);
+    int fnlen;
+    char path[XrdOssMAX_PATH_LEN+1];
     char *pp = path;
 
-// Insert local prefix if one exists
+// Copy the path with possible conversion
 //
-   if (LocalRootLen) {strcpy(path,LocalRoot); pp += LocalRootLen;}
+   if (GenLocalPath(fn, path)) return 0;
 
-// Add in the file path and the suffix
+// Add the suffix
 //
-   strcpy(pp, fn);
+   fnlen = strlen(path);
+   if ((fnlen + strlen(fsfx)) >= sizeof(path)) return 0;
    pp += fnlen;
    strcpy(pp, fsfx);
 
 // Now check if the file actually exists
 //
-   rc = lstat(path, &statbuff);
-   free(path);
-   if (rc) return 0;
-   return (int)statbuff.st_ctime;
+   return (lstat(path, &statbuff) ? 0 : statbuff.st_ctime);
 }

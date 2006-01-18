@@ -47,16 +47,6 @@
 */
 #define XrdOssCONFIGFN (char *)""
 
-/* Set the root path to be whatever it needs to be in the local file system.
-   The path prefixes the local path to the file.
-*/
-#define XrdOssLOCALROOT (char *)""
-
-/* Set the root path to be whatever it needs to be in the remote file system.
-   The root path prefixes the local path to the file.
-*/
-#define XrdOssREMOTEROOT (char *)""
-
 // Set the following value to establish the ulimit for FD numbers. Zero
 // sets it to whatever the current hard limit is. Negative leaves it alone.
 //

@@ -25,6 +25,7 @@ const char *XrdOlbAdminCVSID = "$Id$";
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdNet/XrdNetSocket.hh"
  
@@ -299,23 +300,24 @@ void XrdOlbAdmin::do_RmDid(int dotrim)
    const char *epname = "do_RmDid";
    const char *cmd = "gone ";
    const int   cmdl= strlen(cmd);
-   char *tp;
+   char  *tp, apath[XrdOlbMAX_PATH_LEN];
+   int   rc;
 
    if (!(tp = Stream.GetToken()))
       {XrdOlbSay.Emsg(epname,"removed path not specified by",Stype,Sname);
        return;
       }
 
-   if (dotrim && XrdOlbConfig.LocalRLen && !(tp = TrimPath(tp)))
-      {XrdOlbSay.Emsg(epname, "removed path is null as specified by",
-                                  Stype,Sname);
+   if (dotrim && XrdOlbConfig.lcl_N2N 
+   && (rc = XrdOlbConfig.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
+      {XrdOlbSay.Emsg(epname, rc, "determine lfn for removed path", tp);
        return;
       }
 
    XrdOlbPrepQ.Gone(tp);
 
-   DEBUG("Sending managers " <<cmd <<tp);
-   XrdOlbSM.Inform(cmd, cmdl, tp, 0);
+   DEBUG("Sending managers " <<cmd <<apath);
+   XrdOlbSM.Inform(cmd, cmdl, apath, 0);
 }
  
 /******************************************************************************/
@@ -327,21 +329,22 @@ void XrdOlbAdmin::do_RmDud(int dotrim)
    const char *epname = "do_RmDud";
    const char *cmd = "have ? ";
    const int   cmdl= strlen(cmd);
-   char *tp;
+   char *tp, apath[XrdOlbMAX_PATH_LEN];
+   int   rc;
 
    if (!(tp = Stream.GetToken()))
       {XrdOlbSay.Emsg(epname,"added path not specified by",Stype,Sname);
        return;
       }
 
-   if (dotrim && XrdOlbConfig.LocalRLen && !(tp = TrimPath(tp)))
-      {XrdOlbSay.Emsg(epname, "added path is null as specified by",
-                                  Stype,Sname);
+   if (dotrim && XrdOlbConfig.lcl_N2N 
+   && (rc = XrdOlbConfig.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
+      {XrdOlbSay.Emsg(epname, rc, "determine lfn for added path", tp);
        return;
       }
 
-   DEBUG("Sending managers " <<cmd <<tp);
-   XrdOlbSM.Inform(cmd, cmdl, tp, 0);
+   DEBUG("Sending managers " <<cmd <<apath);
+   XrdOlbSM.Inform(cmd, cmdl, apath, 0);
 }
  
 /******************************************************************************/
@@ -364,16 +367,4 @@ void XrdOlbAdmin::do_Suspend()
    XrdOlbSay.Emsg("do_Suspend", "suspend requested by", Stype, Sname);
    XrdOlbSM.Suspend();
    close(open(XrdOlbConfig.SuspendFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
-}
- 
-/******************************************************************************/
-/*                              T r i m P a t h                               */
-/******************************************************************************/
-  
-char *XrdOlbAdmin::TrimPath(char *path)
-{
-  if (strncmp(path, XrdOlbConfig.LocalRoot,XrdOlbConfig.LocalRLen)) return path;
-  if (path[XrdOlbConfig.LocalRLen] != '/')
-      return (path[XrdOlbConfig.LocalRLen] ? path : (char *)0);
-  return path+XrdOlbConfig.LocalRLen;
 }

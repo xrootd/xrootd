@@ -42,6 +42,8 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucPlugin.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -216,6 +218,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
      int HaveStageCmd   = (StageCmd   && StageCmd[0]);
      int HaveRemoteRoot = (RemoteRoot && RemoteRoot[0]);
      int HaveLocalRoot  = (LocalRoot  && LocalRoot[0]);
+     int HaveN2N_Lib    = (N2N_Lib != 0);
 
      if (!ConfigFN || !ConfigFN[0]) cloc = (char *)"Default";
         else cloc = ConfigFN;
@@ -230,6 +233,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
                                   "%s%s%s"
                                   "%s%s%s"
                                   "%s%s%s"
+                                  "%s%s%s"
                                   "oss.trace        %x\n"
                                   "oss.xfr          %d %d %d %d",
              cloc,
@@ -237,6 +241,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
              cscanint,
              (CompSuffix ? CompSuffix : "*"),
              FDFence, FDLimit, MaxDBsize,
+             XrdOssConfig_Val(N2N_Lib,    namelib),
              XrdOssConfig_Val(LocalRoot,  localroot),
              XrdOssConfig_Val(RemoteRoot, remoteroot),
              XrdOssConfig_Val(StageCmd,   stagecmd),
@@ -270,12 +275,10 @@ void XrdOssSys::ConfigDefaults(void)
 // Preset all variables with common defaults
 //
    if (Configured && LocalRoot) free(LocalRoot);
-       LocalRoot     = strdup(XrdOssLOCALROOT);
-       LocalRootLen  = strlen(LocalRoot);
+       LocalRoot     = 0;
 
    if (Configured && RemoteRoot) free(RemoteRoot);
-       RemoteRoot    = strdup(XrdOssREMOTEROOT);
-       RemoteRootLen = strlen(RemoteRoot);
+       RemoteRoot    = 0;
 
    if (Configured && StageCmd) free(StageCmd);
        StageCmd      = 0;
@@ -362,6 +365,44 @@ void XrdOssSys::ConfigMio(XrdOucError &Eroute)
 }
   
 /******************************************************************************/
+/*                             C o n f i g N 2 N                              */
+/******************************************************************************/
+
+int XrdOssSys::ConfigN2N(XrdOucError &Eroute)
+{
+   XrdOucPlugin    *myLib;
+   XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
+
+// If we have no library path then use the default method (this will always
+// succeed).
+//
+   if (!N2N_Lib)
+      {the_N2N = XrdOucgetName2Name(&Eroute, ConfigFN, "", LocalRoot, RemoteRoot);
+       if (LocalRoot)  lcl_N2N = the_N2N;
+       if (RemoteRoot) rmt_N2N = the_N2N;
+       return 0;
+      }
+
+// Create a pluin object (we will throw this away without deletion because
+// the library must stay open but we never want to reference it again).
+//
+   if (!(myLib = new XrdOucPlugin(&Eroute, N2N_Lib))) return 1;
+
+// Now get the entry point of the object creator
+//
+   ep = (XrdOucName2Name *(*)(XrdOucgetName2NameArgs))(myLib->getPlugin("XrdOucgetName2Name"));
+   if (!ep) return 1;
+
+
+// Get the Object now
+//
+   lcl_N2N = rmt_N2N = the_N2N = ep(&Eroute, ConfigFN, 
+                                   (N2N_Parms ? "" : N2N_Parms),
+                                   LocalRoot, RemoteRoot);
+   return lcl_N2N == 0;
+}
+  
+/******************************************************************************/
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/
   
@@ -397,8 +438,7 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 
 // All done scanning the file, set dependent parameters.
 //
-   RemoteRootLen = strlen(RemoteRoot);
-   LocalRootLen  = strlen(LocalRoot);
+   if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute);
 
 // Now check if any errors occured during file i/o
 //
@@ -579,6 +619,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    TS_Xeq("fdlimit",       xfdlimit);
    TS_Xeq("maxsize",       xmaxdbsz);
    TS_Xeq("memfile",       xmemf);
+   TS_Xeq("namelib",       xnml);
    TS_Xeq("path",          xpath);
    TS_Xeq("trace",         xtrace);
    TS_Xeq("xfr",           xxfr);
@@ -620,7 +661,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    Eroute.Emsg("config", "Warning, unknown directive", var);
    return 0;
 }
-
+  
 /******************************************************************************/
 /*                                x a l l o c                                 */
 /******************************************************************************/
@@ -955,6 +996,42 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
 //
    XrdOssMio::Set(V_on, V_preld, V_autolok, V_automap, V_autokeep);
    XrdOssMio::Set(V_max);
+   return 0;
+}
+
+/******************************************************************************/
+/*                                  x n m l                                   */
+/******************************************************************************/
+
+/* Function: xnml
+
+   Purpose:  To parse the directive: namelib <path> [<parms>]
+
+             <path>    the path of the filesystem library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOssSys::xnml(XrdOucStream &Config, XrdOucError &Eroute)
+{
+    char *val, *parms;
+
+// Get the path
+//
+   if (!(val = Config.GetToken(&parms)) || !val[0])
+      {Eroute.Emsg("Config", "namelib not specified"); return 1;}
+
+// Record the path
+//
+   if (N2N_Lib) free(N2N_Lib);
+   N2N_Lib = strdup(val);
+
+// Record any parms
+//
+   if (N2N_Parms) free(N2N_Parms);
+   if (!parms) N2N_Parms = 0;
+      else {while (*parms == ' ') parms++; N2N_Parms = strdup(parms);}
    return 0;
 }
 

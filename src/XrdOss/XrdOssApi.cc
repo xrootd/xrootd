@@ -2,7 +2,7 @@
 /*                                                                            */
 /*                          X r d O s s A p i . c c                           */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2006 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
@@ -44,6 +44,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 
 #ifdef XRDOSSCX
@@ -114,9 +115,10 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 */
 int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 {
-    if (concat_fn(LocalRoot, LocalRootLen, oldp, newp))
-       return OssEroute.Emsg("glp",-ENAMETOOLONG,"generate local path",oldp);
-    return XrdOssOK;
+    if (lcl_N2N) return -(lcl_N2N->lfn2pfn(oldp, newp, XrdOssMAX_PATH_LEN));
+    if (strlen(oldp) >= XrdOssMAX_PATH_LEN) return -ENAMETOOLONG;
+    strcpy(newp, oldp);
+    return 0;
 }
 
 /******************************************************************************/
@@ -130,9 +132,10 @@ int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 */
 int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
 {
-   if (concat_fn(RemoteRoot, RemoteRootLen, oldp, newp))
-      return OssEroute.Emsg("grp",-ENAMETOOLONG,"generate remote path",oldp);
-   return XrdOssOK;
+    if (rmt_N2N) return -(rmt_N2N->lfn2pfn(oldp, newp, XrdOssMAX_PATH_LEN));
+    if (strlen(oldp) >= XrdOssMAX_PATH_LEN) return -ENAMETOOLONG;
+    strcpy(newp, oldp);
+    return 0;
 }
 
 /******************************************************************************/
@@ -156,8 +159,9 @@ int XrdOssSys::Chmod(const char *path, mode_t mode)
 
 // Generate local path
 //
-   if (LocalRootLen)
-      if ((retc = GenLocalPath(path, actual_path))) return retc;
+   if (lcl_N2N)
+      if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path)))) 
+         return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
 
@@ -189,8 +193,9 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 
 // Generate local path
 //
-   if (LocalRootLen)
-      if ((retc = GenLocalPath(path, actual_path))) return retc;
+   if (lcl_N2N)
+      if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path)))) 
+         return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
 
@@ -222,39 +227,35 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 
 int XrdOssSys::Mkpath(const char *path, mode_t mode)
 {
-    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *next_path;
+    char local_path[XrdOssMAX_PATH_LEN+1], *next_path;
     struct stat buf;
     int retc;
 
 // Generate local path (we need to do this to get a r/w copy of the path)
 //
-   if (LocalRootLen)
-      if ((retc = GenLocalPath(path, actual_path))) return retc;
-         else local_path = actual_path+LocalRootLen+1;
-      else if (strlen(path) >= sizeof(actual_path)) return -ENAMETOOLONG;
-              else {strcpy(actual_path, path); local_path = actual_path+1;}
+   if ((retc = GenLocalPath(path, local_path))) return retc;
 
 // Trim off the trailing slash so that we make everything but the last component
 //
    if (!(retc = strlen(local_path))) return -ENOENT;
-   if (local_path[retc-1] == '/') local_path[retc-1] = '\0';
+   while(retc && local_path[retc-1] == '/') 
+        {retc--; local_path[retc] = '\0';}
 
 // Typically, the path exists. So, do a quick check before launching into it
 //
-   if (!(next_path = rindex(actual_path, (int)'/'))
-   ||  next_path == actual_path) return XrdOssOK;
+   if (!(next_path = rindex(local_path, (int)'/'))
+   ||  next_path == local_path) return XrdOssOK;
    *next_path = '\0';
-   if (!stat(actual_path, &buf)) return XrdOssOK;
+   if (!stat(local_path, &buf)) return XrdOssOK;
    *next_path = '/';
 
 // Start creating directories starting with the root
 //
-   while((next_path = index(local_path, int('/'))))
+   next_path = local_path;
+   while((next_path = index(next_path+1, int('/'))))
         {*next_path = '\0';
-         if (mkdir(actual_path, mode) && errno != EEXIST)
-            return -errno;
+         if (mkdir(local_path, mode) && errno != EEXIST) return -errno;
          *next_path = '/';
-         local_path = next_path+1;
         }
 
 // All done
@@ -288,8 +289,9 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 
 // Generate local path
 //
-   if (LocalRootLen)
-      if ((retc = GenLocalPath(path, actual_path))) return retc;
+   if (lcl_N2N)
+      if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path)))) 
+         return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
 
@@ -304,8 +306,9 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 
 // Generate remote path
 //
-   if (RemoteRootLen)
-      if ((retc = GenRemotePath(path, actual_path))) return retc;
+   if (rmt_N2N)
+      if ((retc = rmt_N2N->lfn2pfn(path, actual_path, sizeof(actual_path))))
+         return retc;
          else remote_path = actual_path;
       else remote_path = (char *)path;
 
@@ -319,42 +322,9 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
-
-/******************************************************************************/
-/*                             c o n c a t _ f n                              */
-/******************************************************************************/
-  
-int XrdOssSys::concat_fn(const char *prefix, // String to prefix oldp
-                        const int   pfxlen, // Length of prefix string
-                        const char *path,   // String to suffix prefix
-                        char *buffer)       // Resulting buffer
-{
-   int add_slash = 1;
-   
-/* Count the slashes
-*/
-   if (*path == '/') add_slash--;
-   if ( pfxlen && prefix[pfxlen-1] == '/') add_slash--;
-   
-/* Verify that filename is not too large.
-*/
-   if( strlen(path) + add_slash + pfxlen > XrdOssMAX_PATH_LEN ) return -1;
-
-/* Create the file name
-*/
-   strcpy(buffer, prefix);
-   if( add_slash==1 ) buffer[pfxlen] = '/';
-   strcpy(buffer + pfxlen + add_slash, path);
-
-/* All done.
-*/
-   return XrdOssOK;
-}
-
 /******************************************************************************/
 /*                      o o s s _ D i r   M e t h o d s                       */
 /******************************************************************************/
-  
 /******************************************************************************/
 /*                               o p e n d i r                                */
 /******************************************************************************/
@@ -385,8 +355,9 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // Generate local path
 //
-   if (XrdOssSS.LocalRootLen)
-      if ((retc = XrdOssSS.GenLocalPath(dir_path, actual_path))) return retc;
+   if (XrdOssSS.lcl_N2N)
+      if ((retc = XrdOssSS.lcl_N2N->lfn2pfn(dir_path, actual_path, sizeof(actual_path))))
+         return retc;
          else local_path = actual_path;
       else local_path = (char *)dir_path;
 
@@ -401,8 +372,9 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // Generate remote path
 //
-   if (XrdOssSS.RemoteRootLen)
-      if ((retc = XrdOssSS.GenRemotePath(dir_path, actual_path))) return retc;
+   if (XrdOssSS.rmt_N2N)
+      if ((retc = XrdOssSS.rmt_N2N->lfn2pfn(dir_path, actual_path, sizeof(actual_path))))
+         return retc;
          else remote_path = actual_path;
       else remote_path = (char *)dir_path;
 
@@ -545,8 +517,9 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Generate local path
 //
-   if (XrdOssSS.LocalRootLen)
-      if ((retc = XrdOssSS.GenLocalPath(path, actual_path))) return retc;
+   if (XrdOssSS.lcl_N2N)
+      if ((retc = XrdOssSS.lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path))))
+         return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
 

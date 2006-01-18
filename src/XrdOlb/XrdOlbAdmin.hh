@@ -43,7 +43,6 @@ void  do_RmDid(int dotrim=0);
 void  do_RmDud(int dotrim=0);
 void  do_Stage();
 void  do_Suspend();
-char *TrimPath(char *path);
 
 static XrdOucMutex      myMutex;
 static XrdOucSemaphore *SyncUp;

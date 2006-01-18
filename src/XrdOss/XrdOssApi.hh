@@ -100,6 +100,7 @@ char         cxid[4];
 /*                              o o s s _ S y s                               */
 /******************************************************************************/
   
+class XrdOucName2Name;
 class XrdOucProg;
 
 class XrdOssSys : public XrdOss
@@ -143,9 +144,7 @@ char     *ConfigFN;       // -> Pointer to the config file name
 int       Hard_FD_Limit;  //    Hard file descriptor limit
 int       MaxTwiddle;     //    Maximum seconds of internal wait
 char     *LocalRoot;      // -> Path prefix for local  filename
-int       LocalRootLen;   //    Corresponding length
 char     *RemoteRoot;     // -> Path prefix for remote filename
-int       RemoteRootLen;  //    Corresponding length
 int       StageRealTime;  //    If 1, Invoke stage command on demand
 char     *StageCmd;       // -> Staging command to use
 char     *MSSgwCmd;       // -> MSS Gateway command to use
@@ -159,6 +158,11 @@ char     *CompSuffix;     // -> Compressed file suffix or null for autodetect
 int       CompSuflen;     //    Length of suffix
 int       Configured;     //    0 at start 1 ever after
 
+char             *N2N_Lib;   // -> Name2Name Library Path
+char             *N2N_Parms; // -> Name2Name Object Parameters
+XrdOucName2Name  *lcl_N2N;   // -> File mapper for local  files
+XrdOucName2Name  *rmt_N2N;   // -> File mapper for remote files
+XrdOucName2Name  *the_N2N;   // -> File mapper object
 XrdOucPListAnchor RPList;    //    The remote path list
    
         XrdOssSys() {static char *syssfx[] = {XRDOSS_SFX_LIST, 0};
@@ -168,6 +172,7 @@ XrdOucPListAnchor RPList;    //    The remote path list
                     pndbytes=0; stgbytes=0; totbytes=0; totreqs=0; badreqs=0;
                     CompSuffix = 0; CompSuflen = 0; MaxTwiddle = 3;
                     StageRealTime = 1; tryMmap = 0; chkMmap = 0;
+                    lcl_N2N = rmt_N2N = the_N2N = 0; N2N_Lib = N2N_Parms = 0;
                     StageQ.pendList.setItem(0);
                     StageQ.fullList.setItem(0);
                     ConfigDefaults();
@@ -227,7 +232,7 @@ int                CalcTime(XrdOssCache_Req *req);
 void               doScrub();
 int                Find(XrdOssCache_Req *req, void *carg);
 int                GetFile(XrdOssCache_Req *req);
-int                HasFile(const char *fn, const char *sfx);
+time_t             HasFile(const char *fn, const char *sfx);
 void               List_Cache(char *lname, int self, XrdOucError &Eroute);
 void               ReCache();
 int                Stage_QT(const char *, XrdOucEnv &);
@@ -236,9 +241,9 @@ int                Stage_RT(const char *, XrdOucEnv &);
 // Configuration related methods
 //
 off_t  Adjust(dev_t devid, off_t size);
-int    concat_fn(const char *, const int, const char *, char *);
 void   ConfigDefaults(void);
 void   ConfigMio(XrdOucError &Eroute);
+int    ConfigN2N(XrdOucError &Eroute);
 int    ConfigProc(XrdOucError &Eroute);
 int    ConfigStage(XrdOucError &Eroute);
 int    ConfigXeq(char *, XrdOucStream &, XrdOucError &);
@@ -251,6 +256,7 @@ int    xcachescan(XrdOucStream &Config, XrdOucError &Eroute);
 int    xfdlimit(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmemf(XrdOucStream &Config, XrdOucError &Eroute);
+int    xnml(XrdOucStream &Config, XrdOucError &Eroute);
 int    xpath(XrdOucStream &Config, XrdOucError &Eroute);
 int    xtrace(XrdOucStream &Config, XrdOucError &Eroute);
 int    xxfr(XrdOucStream &Config, XrdOucError &Eroute);

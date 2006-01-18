@@ -73,7 +73,8 @@ $(BINARY): $(OBJECTS) $(LIBDEPS)
 $(OBJDIR)/XrdOlbAdmin.o: XrdOlbAdmin.hh  XrdOlbAdmin.cc \
                          XrdOlbConfig.hh XrdOlbManager.hh  XrdOlbPrepare.hh \
                          XrdOucError.hh  XrdNetSocket.hh   XrdOucPthread.hh \
-                         XrdOuca2x.hh    XrdOucPlatform.hh XrdOucTrace.hh
+                         XrdOuca2x.hh    XrdOucPlatform.hh XrdOucTrace.hh   \
+                         XrdOucName2Name.hh
 	@echo Compiling XrdOlbAdmin.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbAdmin.o XrdOlbAdmin.cc
 
@@ -92,6 +93,7 @@ $(OBJDIR)/XrdOlbConfig.o: XrdOlbCache.hh    XrdOlbConfig.hh  XrdOlbManager.hh \
                           XrdOuca2x.hh      XrdOucLogger.hh  XrdOucError.hh \
                           XrdOucPlatform.hh XrdOucProg.hh    XrdOucPthread.hh \
                           XrdOucTimer.hh    XrdOucTrace.hh   XrdOucUtils.hh \
+                          XrdOucName2Name.hh XrdOucPlugin.hh \
                           ../XrdVersion.hh
 	@echo Compiling XrdOlbConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbConfig.o XrdOlbConfig.cc
@@ -144,7 +146,7 @@ $(OBJDIR)/XrdOlbServer.o: XrdOlbServer.hh   XrdOlbServer.cc \
                           XrdOlbManager.hh  XrdOlbMeter.hh  XrdOlbState.hh \
                           XrdOlbTrace.hh    XrdOlbTypes.hh  \
                           XrdNetLink.hh     XrdOuca2x.hh \
-                          XrdOucPthread.hh \
+                          XrdOucPthread.hh  XrdOucName2Name.hh \
                           XrdOucPlatform.hh XrdOucProg.hh   XrdOucStream.hh
 	@echo Compiling XrdOlbServer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbServer.o XrdOlbServer.cc

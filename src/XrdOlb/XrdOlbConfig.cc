@@ -53,7 +53,9 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdOuc/XrdOucPlugin.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -416,12 +418,12 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
    TS_Xeq("fsxeq",         xfsxq);   // Server,  non-dynamic
    TS_Xeq("localroot",     xlclrt);  // Server,  non-dynamic
+   TS_Xeq("namelib",       xnml);    // Server,  non-dynamic
    TS_Xeq("path",          xpath);   // Server,  non-dynamic
    TS_Xeq("perf",          xperf);   // Server,  non-dynamic
    TS_Xeq("pidpath",       xpidf);   // Any,     non-dynamic
    TS_Xeq("port",          xport);   // Any,     non-dynamic
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
-   TS_Xeq("remoteroot",    xrmtrt);  // Server,  non-dynamic
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
@@ -446,25 +448,10 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
 */
 int XrdOlbConfig::GenLocalPath(const char *oldp, char *newp)
 {
-    if (concat_fn(LocalRoot, LocalRLen, oldp, newp))
-       return XrdOlbSay.Emsg("glp", -ENAMETOOLONG, "generate local path ",oldp);
+    if (lcl_N2N) return -(lcl_N2N->lfn2pfn(oldp, newp, XrdOlbMAX_PATH_LEN));
+    if (strlen(oldp) >= XrdOlbMAX_PATH_LEN) return -ENAMETOOLONG;
+    strcpy(newp, oldp);
     return 0;
-}
-
-/******************************************************************************/
-/*                         G e n R e m o t e P a t h                          */
-/******************************************************************************/
-  
-/* GenRemotePath() generates the path that a file will have in the remote file
-   system. The decision is made based on the user-given path (typically what 
-   the user thinks is the local file system path). The output buffer where the 
-   new path is placed must be at least XrdOlbMAX_PATH_LEN bytes long.
-*/
-int XrdOlbConfig::GenRemotePath(const char *oldp, char *newp)
-{
-   if (concat_fn(RemotRoot, RemotRLen, oldp, newp))
-      return XrdOlbSay.Emsg("grp", -ENAMETOOLONG,"generate remote path ",oldp);
-   return 0;
 }
 
 /******************************************************************************/
@@ -587,32 +574,6 @@ char *XrdOlbConfig::ASPath(char *path, const char *fn, mode_t mode)
 //
    return fnbuff;
 }
-  
-/******************************************************************************/
-/*                             c o n c a t _ f n                              */
-/******************************************************************************/
-  
-int XrdOlbConfig::concat_fn(const char *prefix, // String to prefix oldp
-                            const int   pfxlen, // Length of prefix string
-                            const char *path,   // String to suffix prefix
-                            char *buffer)       // Resulting buffer
-{
-   int add_slash = (*path != '/');
-   
-/* Verify that filename is not too large.
-*/
-   if( strlen(path) + add_slash + pfxlen > XrdOlbMAX_PATH_LEN ) return -1;
-
-/* Create the file name
-*/
-   strcpy(buffer, prefix);
-   if( add_slash==1 ) buffer[pfxlen] = '/';
-   strcpy(buffer + pfxlen + add_slash, path);
-
-/* All done.
-*/
-   return 0;
-}
 
 /******************************************************************************/
 /*                        C o n f i g D e f a u l t s                         */
@@ -652,12 +613,12 @@ void XrdOlbConfig::ConfigDefaults(void)
    DiskSS   = 0;             // Not a staging server
    ConfigFN = 0;
    sched_RR = 0;
-   isManager = 0;
-   isServer  = 0;
+   isManager= 0;
+   isServer = 0;
+   N2N_Lib  = 0;
+   N2N_Parms= 0;
+   lcl_N2N  = 0;
    LocalRoot= 0;
-   LocalRLen= 0;
-   RemotRoot= 0;
-   RemotRLen= 0;
    myInsName= 0;
    myManagers=0;
    mySID    = 0;
@@ -688,6 +649,40 @@ void XrdOlbConfig::ConfigDefaults(void)
    SuspendFile = 0;
 }
   
+  
+/******************************************************************************/
+/*                             C o n f i g N 2 N                              */
+/******************************************************************************/
+
+int XrdOlbConfig::ConfigN2N()
+{
+   XrdOucPlugin    *myLib;
+   XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
+
+// If we have no library path then use the default method (this will always
+// succeed).
+//
+   if (!N2N_Lib && LocalRoot)
+      {lcl_N2N = XrdOucgetName2Name(&XrdOlbSay, ConfigFN, "", LocalRoot, 0);
+       return 0;
+      }
+
+// Create a pluin object (we will throw this away without deletion because
+// the library must stay open but we never want to reference it again).
+//
+   if (!(myLib = new XrdOucPlugin(&XrdOlbSay, N2N_Lib))) return 1;
+
+// Now get the entry point of the object creator
+//
+   ep = (XrdOucName2Name *(*)(XrdOucgetName2NameArgs))(myLib->getPlugin("XrdOucgetName2Name"));
+   if (!ep) return 1;
+
+// Get the Object now
+//
+   lcl_N2N = ep(&XrdOlbSay,ConfigFN,(N2N_Parms ? "" : N2N_Parms),LocalRoot,0);
+   return lcl_N2N == 0;
+}
+
 /******************************************************************************/
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/
@@ -715,7 +710,9 @@ int XrdOlbConfig::ConfigProc(int getrole)
                     {var += OLB_PrefLen;
                      NoGo |= ConfigXeq(var, Config, 0);
                     } else
-                 if (!strcmp(var, "oss.cache") || !strcmp(var, "oss.localroot"))
+                 if (!strcmp(var, "oss.cache") 
+                 ||  !strcmp(var, "oss.localroot")
+                 ||  !strcmp(var, "oss.namelib"))
                     {var += 4;
                      NoGo |= ConfigXeq(var, Config, 0);
                     }
@@ -786,7 +783,7 @@ int XrdOlbConfig::PidFile()
     if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0) xop = "open";
        else {if ((write(xfd, buff, snprintf(buff,sizeof(buff),"%d",getpid())) < 0)
              || (LocalRoot && (write(xfd,(void *)"\n&pfx=",6)  < 0 ||
-                               write(xfd,(void *)LocalRoot, LocalRLen) < 0))
+                               write(xfd,(void *)LocalRoot,strlen(LocalRoot)) < 0))
              || (AdminPath && (write(xfd,(void *)"\n&ap=", 5)  < 0 ||
                                write(xfd,(void *)AdminPath,strlen(AdminPath)) < 0))
                 ) xop = "write";
@@ -894,6 +891,10 @@ int XrdOlbConfig::setupServer()
        return 1;
       }
 
+// If we need a name library, load it now
+//
+   if ((N2N_Lib || LocalRoot) && ConfigN2N()) return 1;
+
 // Setup TCP outgoing network connections
 //
    if (!(XrdOlbNetTCPs = new XrdNetWork(&XrdOlbSay, 0)))
@@ -917,19 +918,20 @@ int XrdOlbConfig::setupServer()
    if (MaxDelay < 0) MaxDelay = AskPerf*AskPing+30;
    if (DiskWT   < 0) DiskWT   = AskPerf*AskPing+30;
 
-// If no cache has been specified but paths exist and there is a local root
-// prefix each path in the list with the local root for monitoring purposes
+// If no cache has been specified but paths exist get the pfn for each path
+// in the list for monitoring purposes
 //
-   if (!monPath && monPathP && LocalRoot)
+   if (!monPath && monPathP && lcl_N2N)
       {XrdOucTList *tlp = monPathP;
-       char *pbp, pbuff[2048];
-       strcpy(pbuff, LocalRoot); pbp = pbuff + LocalRLen;
+       char pbuff[2048];
        while(tlp)
-            {strcpy(pbp, tlp->text);
-             free(tlp->text); 
-             tlp->text = strdup(pbuff);
+            {if ((rc = lcl_N2N->lfn2pfn(tlp->text, pbuff, sizeof(pbuff))))
+                XrdOlbSay.Emsg("Config",rc,"determine pfn for lfn",tlp->text);
+                else {free(tlp->text);
+                      tlp->text = strdup(pbuff);
+                     }
              tlp = tlp->next;
-             }
+            }
        }
 
 // Setup file system metering
@@ -1453,8 +1455,43 @@ int XrdOlbConfig::xlclrt(XrdOucError *eDest, XrdOucStream &Config)
    if (i)
       {if (LocalRoot) free(LocalRoot);
        LocalRoot = strdup(val);
-       LocalRLen = strlen(val);
       }
+   return 0;
+}
+
+/******************************************************************************/
+/*                                  x n m l                                   */
+/******************************************************************************/
+
+/* Function: xnml
+
+   Purpose:  To parse the directive: namelib <path> [<parms>]
+
+             <path>    the path of the filesystem library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOlbConfig::xnml(XrdOucError *eDest, XrdOucStream &Config)
+{
+    char *val, *parms;
+
+// Get the path
+//
+   if (!(val = Config.GetToken(&parms)) || !val[0])
+      {eDest->Emsg("Config", "namelib not specified"); return 1;}
+
+// Record the path
+//
+   if (N2N_Lib) free(N2N_Lib);
+   N2N_Lib = strdup(val);
+
+// Record any parms
+//
+   if (N2N_Parms) free(N2N_Parms);
+   if (!parms) N2N_Parms = 0;
+      else {while (*parms == ' ') parms++; N2N_Parms = strdup(parms);}
    return 0;
 }
 
@@ -1771,53 +1808,6 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &Config)
    if (prepif) 
       if (!isExec(eDest, "prep", prepif)) return 1;
          else return XrdOlbPrepQ.setParms(prepif);
-   return 0;
-}
-
-/******************************************************************************/
-/*                                x r m t r t                                 */
-/******************************************************************************/
-
-/* Function: xpath
-
-   Purpose:  To parse the directive: remoteroot <path>
-
-             <path>    the path that the server will prefix to all remote paths.
-
-   Type: Server only, non-dynamic.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &Config)
-{
-    char *val;
-    int i;
-
-// If we are a manager, ignore this option
-//
-   if (!isServer) return 0;
-
-// Get path type
-//
-   val = Config.GetWord();
-   if (!val || !val[0])
-      {eDest->Emsg("Config", "remoteroot path not specified"); return 1;}
-   if (*val != '/')
-      {eDest->Emsg("Config", "remoteroot path not absolute"); return 1;}
-
-// Cleanup the path
-//
-   i = strlen(val)-1;
-   while (i && val[i] == '/') val[i--] = '\0';
-
-// Assign new path prefix
-//
-   if (i)
-      {if (RemotRoot) free(RemotRoot);
-       RemotRoot = strdup(val);
-       RemotRLen = strlen(val);
-      }
    return 0;
 }
 

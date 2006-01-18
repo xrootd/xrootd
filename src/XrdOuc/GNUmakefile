@@ -16,8 +16,10 @@ SOURCES = \
         XrdOucError.cc       \
         XrdOucHashVal.cc     \
         XrdOucLogger.cc      \
+        XrdOucName2Name.cc   \
         XrdOucNList.cc       \
         XrdOucPlatform.cc    \
+        XrdOucPlugin.cc      \
         XrdOucProg.cc        \
         XrdOucPthread.cc     \
         XrdOucReqID.cc       \
@@ -36,8 +38,10 @@ OBJECTS = \
         $(OBJDIR)/XrdOucHashVal.o      \
         $(OBJDIR)/XrdOucEnv.o          \
         $(OBJDIR)/XrdOucLogger.o       \
+        $(OBJDIR)/XrdOucName2Name.o    \
         $(OBJDIR)/XrdOucNList.o        \
         $(OBJDIR)/XrdOucPlatform.o     \
+        $(OBJDIR)/XrdOucPlugin.o       \
         $(OBJDIR)/XrdOucProg.o         \
         $(OBJDIR)/XrdOucPthread.o      \
         $(OBJDIR)/XrdOucReqID.o        \
@@ -104,6 +108,11 @@ $(OBJDIR)/XrdOucLogger.o: XrdOucLogger.cc XrdOucLogger.hh \
 	@echo Compiling XrdOucLogger.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucLogger.cc -o $(OBJDIR)/XrdOucLogger.o
 
+$(OBJDIR)/XrdOucName2Name.o: XrdOucName2Name.cc XrdOucName2Name.hh \
+                             XrdOucError.hh
+	@echo Compiling XrdOucName2Name.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucName2Name.cc -o $(OBJDIR)/XrdOucName2Name.o
+
 $(OBJDIR)/XrdOucNList.o: XrdOucNList.cc XrdOucNList.hh XrdOucPthread.hh
 	@echo Compiling XrdOucNList.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucNList.cc -o $(OBJDIR)/XrdOucNList.o
@@ -111,6 +120,10 @@ $(OBJDIR)/XrdOucNList.o: XrdOucNList.cc XrdOucNList.hh XrdOucPthread.hh
 $(OBJDIR)/XrdOucPlatform.o: XrdOucPlatform.cc XrdOucPlatform.hh
 	@echo Compiling XrdOucPlatform.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFSTRLCPY) $(INCLUDE) XrdOucPlatform.cc -o $(OBJDIR)/XrdOucPlatform.o
+
+$(OBJDIR)/XrdOucPlugin.o: XrdOucPlugin.cc XrdOucPlugin.hh  XrdOucError.hh
+	@echo Compiling XrdOucPlugin.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFSTRLCPY) $(INCLUDE) XrdOucPlugin.cc -o $(OBJDIR)/XrdOucPlugin.o
 
 $(OBJDIR)/XrdOucProg.o: XrdOucProg.cc  XrdOucProg.hh \
                         XrdOucError.hh XrdOucStream.hh XrdOucPthread.hh
