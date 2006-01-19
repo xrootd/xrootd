@@ -442,14 +442,9 @@ int XrdSutBuffer::Serialized(char **buffer, char opt)
 
    //
    // Allocate the buffer
-#if 1
    *buffer = (opt == 'n') ? (new char[blen]) : (char *)malloc(blen);
    if (!(*buffer))
       return -1;
-#else
-   if (!(*buffer = new char[blen]))
-      return -1;
-#endif
    char *tbuf = *buffer;
    int cur = 0;
 

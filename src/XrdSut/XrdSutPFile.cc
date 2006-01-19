@@ -330,36 +330,6 @@ kXR_int32 XrdSutPFile::Open(kXR_int32 opt, bool *wasopen,
    if (!nam)
       fFd = -1;
    kXR_int32 fd = -1;
-#if 0
-   kXR_int32 mode = 0;
-   switch (opt) {
-      case 2:
-         //
-         // Forcing truncation 
-         mode |= O_TRUNC ;
-      case 1:
-         //
-         // Read / Write
-         mode |= O_RDWR ;
-         if (newfile)
-            mode |= O_CREAT ;
-         break;
-      case 0:
-         //
-         // Read only
-         mode = O_RDONLY ;
-         break;
-      default:
-         //
-         // Unknown option
-         return Err(kPFErrBadOp,"Open",copt.c_str());
-   }
-
-   // Open file
-   fd = open(fnam,mode);
-   if (fd <= -1)
-      return Err(kPFErrFileOpen,"Open",fnam);
-#else
    //
    // If we have to create a new file and the file name ends with
    // 'XXXXXX', make it temporary with mkstemp
@@ -403,7 +373,6 @@ kXR_int32 XrdSutPFile::Open(kXR_int32 opt, bool *wasopen,
       if (fd <= -1)
          return Err(kPFErrFileOpen,"Open",fnam);
    }
-#endif
    //
    // This file should be readable/writable by the owner only
    if (newfile) {
@@ -412,16 +381,6 @@ kXR_int32 XrdSutPFile::Open(kXR_int32 opt, bool *wasopen,
       fchmod(fd,createmode);
    }
 
-   //
-#if 0
-   // Finally lock it if open in write mode
-   if (opt > 0) {
-      if (lockf(fd, F_LOCK, (off_t) 0) == -1) {
-         close(fd);
-         return Err(kPFErrLocking,"Open",fnam);
-      }
-   }
-#else
    //
    // Shared or exclusive lock of the whole file
    int lockmode = (opt > 0) ? (F_WRLCK | F_RDLCK) : F_RDLCK;
@@ -459,7 +418,6 @@ kXR_int32 XrdSutPFile::Open(kXR_int32 opt, bool *wasopen,
          return Err(kPFErrLocking,"Open",fnam,(const char *)&fd);
       }
    }
-#endif
 
    // Ok, we got the file open and locked
    if (!nam)

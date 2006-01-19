@@ -357,33 +357,22 @@ int XrdSutExpand(XrdOucString &path)
    if (path[0] == '~') {
       struct passwd *pw = 0;
       XrdOucString unam;
-      XrdOucString sdir = path;
-      // absolute path, expand home dir
-      if (path[1] == '/') {
-         sdir.erase(0,1);
-         // local user
-         pw = getpwuid(getuid());
-         if (!pw) {
-            DEBUG("cannot pwnam information for local user ");
-            return -errno;
-         } else {
-            unam = pw->pw_name;
-         }
-      } else {
-         sdir.erase(0,unam.find('/'));
-         // Get username
-         XrdOucString unam = path;
-         // Truncate at first '/', if any
-         unam.erase(unam.find('/'));
-         // Remove initial '~'
-         unam.erase(0,1);
-         // Get user info
+      XrdOucString sdir(path);
+      int iu = path.find('/');
+      if (iu != STR_NPOS) {
+         if (iu > 1)
+            unam.assign(path, 1, iu-1);
+         sdir.erase(0, iu);
+      } else
+         sdir = '/';
+      if (unam.length() > 0)
          pw = getpwnam(unam.c_str());
-         if (!pw) {
-            DEBUG("cannot pwnam information for user "
-                  <<unam.c_str());
-            return -errno;
-         }
+      else
+         pw = getpwuid(getuid());
+      if (!pw) {
+         DEBUG("cannot pwnam information for local user "<<
+               ((unam.length() > 0) ? unam : XrdOucString("")));
+         return -errno;
       }
       if (pw) {
          sdir.insert(pw->pw_dir,0);
