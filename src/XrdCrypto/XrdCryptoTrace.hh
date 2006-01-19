@@ -35,13 +35,6 @@
 
 #endif
 
-#if 0
-//
-// For Abstract methods
-#define ABSTRACTMETHOD(x) {cryptoTrace->Beg("");
-                           cerr <<"Method "<<x<<" must be overridden!" <<endl;
-                           cryptoTrace->End();}
-#endif
 //
 // For error logging and tracing
 extern XrdOucTrace *cryptoTrace;

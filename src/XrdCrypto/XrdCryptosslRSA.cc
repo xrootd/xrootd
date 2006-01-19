@@ -280,9 +280,6 @@ int XrdCryptosslRSA::ExportPublic(char *out, int)
    char *pend = strstr(out,"-----END RSA PUBLIC KEY-----");
    if (pend)
       sbuf = (int)(pend - out) + strlen("-----END RSA PUBLIC KEY-----");
-#if 0
-   out[sbuf] = 0;
-#endif
    DEBUG("("<<sbuf<<" bytes) "<< endl <<out);
    BIO_free(bkey);
 

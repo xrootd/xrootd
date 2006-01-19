@@ -201,7 +201,6 @@ XrdCryptolocalCipher::XrdCryptolocalCipher(int bits, char *pub,
    // the operations
    if (valid && pub) {
 
-#if 1
       // Convert back from hex
       char *tpub = new char[strlen(pub)/2+2];
       int tlen = 0;
@@ -210,10 +209,6 @@ XrdCryptolocalCipher::XrdCryptolocalCipher(int bits, char *pub,
 
       uchar *ktmp = new uchar[kPC3KEYLEN];   
       if (PC3DiPukExp((uchar *)tpub, bpriv, ktmp) == 0) {
-#else
-      uchar *ktmp = new uchar[kPC3KEYLEN];   
-      if (PC3DiPukExp((uchar *)pub, bpriv, ktmp) == 0) {
-#endif
          // Store the key
          SetBuffer(kPC3KEYLEN,(char *)ktmp);
          // Set also the key type (should be "PC1")
@@ -264,7 +259,6 @@ bool XrdCryptolocalCipher::Finalize(char *pub, int lpub, const char *t)
    lpub = kPC3SLEN;   
    if (valid && bpriv && pub) {
 
-#if 1
       // Convert back from hex
       char *tpub = new char[strlen(pub)/2+2];
       int tlen = 0;
@@ -273,10 +267,6 @@ bool XrdCryptolocalCipher::Finalize(char *pub, int lpub, const char *t)
 
       uchar *ktmp = new uchar[kPC3KEYLEN];   
       if (PC3DiPukExp((uchar *)tpub, bpriv, ktmp) == 0) {
-#else
-      uchar *ktmp = new uchar[kPC3KEYLEN];   
-      if (PC3DiPukExp((uchar *)pub, bpriv, ktmp) == 0) {
-#endif
          // Store the key
          SetBuffer(kPC3KEYLEN,(char *)ktmp);
          // Set also the key type (should be "PC1")
@@ -311,21 +301,12 @@ char *XrdCryptolocalCipher::Public(int &lpub)
    // lpub, must be deleted by the caller.
 
    if (bpub) {
-#if 0
-      char *pub = new char[kPC3SLEN-1];
-      if (pub) {
-         lpub = kPC3SLEN-1;
-         memcpy(pub,bpub,lpub);
-         return pub;
-      }
-#else
       char *pub = new char[2*(kPC3SLEN-1)+1];
       if (pub) {
          XrdSutToHex((const char *)bpub, kPC3SLEN-1, pub);;
          lpub = 2*(kPC3SLEN-1);
          return pub;
       }
-#endif
    }
 
    // Not available

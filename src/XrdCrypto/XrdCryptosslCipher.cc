@@ -233,12 +233,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(XrdSutBucket *bck)
          if (buf) {
             memcpy(buf,bp+cur,lbuf);
             // Set the buffer
-#if 0
-            SetBuffer(lbuf,buf);
-            delete[] buf;
-#else
             UseBuffer(lbuf,buf);
-#endif
             if (cipher && lbuf != EVP_CIPHER_key_length(cipher))
                deflength = 0;
          } else
@@ -408,9 +403,6 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
             }
             BIO_free(biop);
          }
-#if 0
-         if (bnpub) BN_free(bnpub);
-#endif
       }
       //
       // If a valid key has been computed, set the cipher
@@ -559,9 +551,6 @@ bool XrdCryptosslCipher::Finalize(char *pub, int lpub, const char *t)
                  DH_compute_key((unsigned char *)ktmp,bnpub,fDH)) > 0)
                valid = 1;
          }
-#if 0
-         if (bnpub) BN_free(bnpub);
-#endif
       }
       //
       // If a valid key has been computed, set the cipher

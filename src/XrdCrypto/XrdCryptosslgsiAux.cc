@@ -1030,12 +1030,6 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    // Extract serial number
    XrdOucString sserial(rsbj,rsbj.rfind("/CN=")+4);
    unsigned int serial = (unsigned int)(strtol(sserial.c_str(), 0, 10));
-#if 0
-   if (errno == ERANGE) {
-      DEBUG("problems converting serial number");
-      return -kErrPX_BadSerial;
-   }
-#endif
    //
    // Create new proxy cert
    X509 *xpo = X509_new();
