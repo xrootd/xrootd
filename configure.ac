@@ -25,10 +25,10 @@ AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 # routine below
 
 # extra directories for standard search path for header files
-extra_inc_path_default="/usr/kerberos/include /afs/slac.stanford.edu/package/krb5/include "
+extra_inc_path_default=" "
 
 # extra directories for standard search path for libraries
-extra_lib_path_default="/usr/kerberos/lib /afs/slac.stanford.edu/package/krb5/lib"
+extra_lib_path_default=" "
 
 # preference for compilers
 CC_PREFERENCE="gcc cc"
@@ -79,6 +79,35 @@ case "$target_cpu" in
      AC_DEFINE(__i386__)
      ;;
    *)
+     ;;
+esac
+
+###########################################################
+# At SLAC the Kerberos libs and includes are under AFS; 
+# people there want some automatic tool to pick them up, but
+# having the paths hardcoded in the search lists may hang
+# configure in other places if access to SLAC AFS is down.
+# So we include them only for nodes in the domain '.stanford.edu'.
+domain=""
+case "$target_os" in
+   linux*)
+     domain=`dnsdomainname 2> /dev/null`
+     ;;
+   *)
+     domain=`domainname 2> /dev/null`
+     ;;
+esac
+if test "x$domain" = "x" ; then
+   domain=`domainname 2> /dev/null`
+fi
+extra_inc_path_default="$extra_inc_path_default /usr/kerberos/include"
+extra_lib_path_default="$extra_lib_path_default /usr/kerberos/lib"
+case $domain in
+  *.stanford.edu)
+     extra_inc_path_default="$extra_inc_path_default /afs/slac.stanford.edu/package/krb5/include "
+     extra_lib_path_default="$extra_lib_path_default /afs/slac.stanford.edu/package/krb5/lib"
+     ;;
+  *)
      ;;
 esac
 
