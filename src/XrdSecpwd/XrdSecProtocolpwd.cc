@@ -364,7 +364,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                }
             }
          } else {
-            DEBUG("cannot stat infodir (errno: "<<errno<<")");
+            DEBUG("cannot stat infodir "<<infodir<<" (errno: "<<errno<<")");
             infodir = "";
             argdir = 0;
          }
