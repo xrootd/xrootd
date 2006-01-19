@@ -1127,9 +1127,10 @@ void XrdOucString::setblksize(int bs)
 int XrdOucString::tokenize(XrdOucString &tok, int from, char del)
 {
    // Search for tokens delimited by 'del' (def ':') in string s; search starts
-   // from 'from' and the token is returned in 'tok'. Return next position   
-   // after the delimiter, or -1; in the latter case tok is filled with
-   // the portion of string from the last delimiter, if not empty.
+   // from 'from' and the token is returned in 'tok'.
+   // Returns -1 when there are no more tokens to be analyzed; the length of the
+   // last valid token, if there are no more delimiters after 'from'; the next
+   // position after the delimiter, when there are left delimiters in the string.
    //
    // This method allows to loop over tokens in this way:
    //
