@@ -20,7 +20,7 @@ class XrdNetDNS
 public:
 
 // Note: Most methods allow the reason for failure to be returned via an errtxt
-//       argument. The string returned in errtxt is stiatic and must neither be
+//       argument. The string returned in errtxt is static and must neither be
 //       modified not freed.
 
 // getHostAddr() translates an host name or an ascii host ip address to the
@@ -41,6 +41,24 @@ static int getHostAddr(const  char     *InetName,
 static int getHostAddr(const  char     *InetName,
                        struct sockaddr  InetAddr[],
                               int       maxipa=1,
+                              char    **errtxt=0);
+
+// getAddrName() finds addresses and names associated with an host name or
+//               an ascii host ip address. The host name or address must be
+//               registered in the DNS for the translation to be successful.
+//               Upon success a list of addresses and names up to maxipa is
+//               returned in the arrays haddr and hname. The arrays must be
+//               previously allocated by the caller for at least maxipa
+//               'char *'. The returned char arrays are allocated inside and
+//               must be freed by the caller. The return values are:
+//                 0 -> Host name could not be translated, the error text
+//                      is placed in errtxt, if an address is supplied.
+//               > 0 -> The number of addresses returned.
+//
+static int getAddrName(const  char     *InetName,
+                              int       maxipa,
+                              char    **haddr,
+                              char    **hname,
                               char    **errtxt=0);
 
 // getHostName() returns the fully qualified name of a host. If no partial

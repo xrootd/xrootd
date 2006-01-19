@@ -120,6 +120,53 @@ int XrdNetDNS::getHostAddr(const  char     *InetName,
    return i;
 }
  
+  
+/******************************************************************************/
+/*                           g e t A d d r N a m e                            */
+/******************************************************************************/
+  
+int XrdNetDNS::getAddrName(const char *InetName,
+                           int maxipa, char **Addr, char **Name,
+                           char    **errtxt)
+{
+
+// Host or address and output arrays must be defined
+//
+   if (!InetName || !Addr || !Name) return 0;
+
+// Max 10 addresses and names
+//
+   maxipa = (maxipa > 1 && maxipa < 10) ? maxipa : 1;
+
+// Number of addresses
+   struct sockaddr_in ip[10];
+   int n = XrdNetDNS::getHostAddr(InetName,(struct sockaddr *)ip, maxipa, errtxt);
+
+   // Fill address / name strings, if required
+   int i = 0;
+   for (; i < n; i++ ) {
+ 
+      // The address
+      char buf[255];
+      inet_ntop(ip[i].sin_family, &ip[i].sin_addr, buf, sizeof(buf));
+      Addr[i] = strdup(buf);
+
+      // The name
+      char *names[1] = {0};
+      int hn = getHostName((struct sockaddr &)ip[i], names, 1, errtxt);
+      if (hn)
+         Name[i] = strdup(names[0]);
+      else
+         Name[i] = strdup(Addr[i]);
+
+      // Cleanup
+      if (names[0]) free(names[0]);
+   }
+
+   // We are done
+   return n;
+}
+
 /******************************************************************************/
 /*               g e t H o s t N a m e   ( V a r i a n t   1 )                */
 /******************************************************************************/
