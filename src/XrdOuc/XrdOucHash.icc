@@ -103,6 +103,7 @@ T *XrdOucHash<T>::Apply(int (*func)(const char *, T *, void *), void *Arg)
                    {delete hip;
                     if (prevhip) prevhip->SetNext(nexthip);
                        else hashtable[i] = nexthip;
+                    hashnum--;
                    }
                    else prevhip = hip;
                 hip = nexthip;
@@ -188,6 +189,7 @@ void XrdOucHash<T>::Purge()
                 hip = nexthip;
                }
          }
+     hashnum = 0;
 }
   
 /******************************************************************************/
