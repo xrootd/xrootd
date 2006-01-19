@@ -68,6 +68,9 @@
 /*      - find first occurence of XrdOucString s starting from position start */
 /*        in forward direction; returns STR_NPOS if nothing is found          */
 /*                                                                            */
+/*     int           rfind(const char c, int start = STR_NPOS)                */
+/*      - find first occurence of char c starting from position start in      */
+/*        backward direction; returns STR_NPOS if nothing is found.           */
 /*     int           rfind(const char *s, int start = STR_NPOS)               */
 /*      - find first occurence of string s starting from position start in    */
 /*        backward direction; returns STR_NPOS if nothing is found;           */
@@ -162,7 +165,7 @@
 /*      - erase size bytes starting at start                                  */
 /*     int           erase(const char *s, int from = 0, int to = -1)          */
 /*      - erase occurences of string s within position 'from' and position    */
-/*        'to' (inclusive), e.g if strored string is "aabbccefccddgg", then   */
+/*        'to' (inclusive), e.g if stored string is "aabbccefccddgg", then    */
 /*        erase("cc",0,9) will result in string "aabbefccddgg".               */
 /*     int           erase(XrdOucString s, int from = 0, int to = -1)         */
 /*      - erase occurences of s.c_str() within position 'from' and position   */
@@ -179,6 +182,10 @@
 /*                                                                            */
 /*     void          hardreset()                                              */
 /*      - memset to 0 the len meaningful bytes of the buffer.                 */
+/*                                                                            */
+/*     int           tokenize(XrdOucString &tok, int from, char del)          */
+/*      - search for tokens delimited by 'del' (def ':') in string s; search  */
+/*        starts from 'from' and the token is returned in 'tok'.              */
 /*                                                                            */
 /*  4. Assignement operators                                                  */
 /*     XrdOucString &operator=(const int i)                                   */
@@ -255,6 +262,8 @@ public:
    int           find(const char c, int start = 0, bool forward = 1);
    int           find(const char *s, int start = 0);
    int           find(XrdOucString s, int start = 0);
+   int           rfind(const char c, int start = STR_NPOS)
+                                             { return find(c, start, 0); }
    int           rfind(const char *s, int start = STR_NPOS);
    int           rfind(XrdOucString s, int start = STR_NPOS);
    bool          beginswith(char c) { return (find(c) == 0); }
@@ -282,13 +291,14 @@ public:
    void          insert(const char c, int start = -1);
    void          insert(const char *s, int start = -1, int lmx = 0);
    void          insert(const XrdOucString s, int start = -1);
-   int           replace(const char *s1, const char *s2, int from = 0, int to = -1);
+   int           replace(const char *s1, const char *s2,
+                                         int from = 0, int to = -1);
    int           replace(const XrdOucString s1, const XrdOucString s2,
-                                                         int from = 0, int to = -1);
+                                                int from = 0, int to = -1);
    int           replace(const XrdOucString s1, const char *s2,
-                                                         int from = 0, int to = -1);
+                                                int from = 0, int to = -1);
    int           replace(const char *s1, const XrdOucString s2,
-                                                         int from = 0, int to = -1);
+                                                int from = 0, int to = -1);
    int           erase(int start = 0, int size = 0);
    int           erase(const char *s, int from = 0, int to = -1);
    int           erase(XrdOucString s, int from = 0, int to = -1);
@@ -297,7 +307,7 @@ public:
    void          lower(int pos, int size = 0);
    void          upper(int pos, int size = 0);
    void          reset(const char c, int j = 0, int k = -1);
-   void          hardreset();                                         
+   void          hardreset();
 
    // Assignement operators
    XrdOucString &operator=(const int i);
