@@ -261,7 +261,7 @@ offset_t   llseek(int fildes, offset_t offset, int whence)
 
 extern "C"
 {
-#if defined __GNUC__ && __GNUC__ >= 2
+#if defined __linux__ && __GNUC__ && __GNUC__ >= 2
 int     __lxstat64(int ver, const char *path, struct stat64 *buf)
 #else
 int        lstat64(         const char *path, struct stat64 *buf)
@@ -271,15 +271,6 @@ int        lstat64(         const char *path, struct stat64 *buf)
 
    return xinuX.Lstat(path, (struct stat *)buf);
 }
-
-#if defined __GNUC__ && __GNUC__ >= 2 && !defined(__ICC__) && !defined(__x86_64__)
-int        lstat64(         const char *path, struct stat64 *buf)
-{
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-
-   return xinuX.Lstat(path, (struct stat *)buf);
-}
-#endif
 }
 
 /******************************************************************************/
@@ -455,7 +446,7 @@ void    seekdir(DIR *dirp, long loc)
 
 extern "C"
 {
-#if defined __GNUC__ && __GNUC__ >= 2
+#if defined __linux__ && __GNUC__ && __GNUC__ >= 2
 int     __xstat64(int ver, const char *path, struct stat64 *buf)
 #else
 int        stat64(         const char *path, struct stat64 *buf)

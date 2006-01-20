@@ -191,7 +191,7 @@ off_t   lseek(int fildes, off_t offset, int whence)
 #if !defined(_LP64)
 extern "C"
 {
-#if defined __GNUC__ && __GNUC__ >= 2
+#if defined __GNUC__ && __GNUC__ >= 2 && defined(__linux__)
 int     __xlstat(int ver, const char *path, struct stat *buf)
 #else
 int        lstat(         const char *path, struct stat *buf)
