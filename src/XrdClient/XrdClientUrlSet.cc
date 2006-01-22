@@ -13,11 +13,9 @@
 
 const char *XrdClientUrlSetCVSID = "$Id$";
 
-#include <XrdClient/XrdClientString.hh>
-
 #include <XrdClient/XrdClientUrlSet.hh>
-#include <XrdClient/XrdClientDNS.hh>
 #include "XrdClient/XrdClientUrlInfo.hh"
+#include <XrdNet/XrdNetDNS.hh>
 
 #include <math.h>
 #include <stdio.h>
@@ -42,10 +40,10 @@ using namespace std;
 
 
 //_____________________________________________________________________________
-XrdClientString XrdClientUrlSet::GetServers()
+XrdOucString XrdClientUrlSet::GetServers()
 {
    // Returns the final resolved list of servers
-   XrdClientString s;
+   XrdOucString s;
 
    for ( int i = 0; i < fUrlArray.GetSize(); i++ ) {
       s += fUrlArray[i]->Host;
@@ -75,7 +73,7 @@ double XrdClientUrlSet::GetRandom(int i)
 }
 
 //_____________________________________________________________________________
-XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
+XrdClientUrlSet::XrdClientUrlSet(XrdOucString urls) : fIsValid(TRUE)
 {
    // A container for multiple urls.
    // It creates an array of multiple urls parsing the argument 'urls' and
@@ -92,32 +90,32 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
    // XrdClientUrlInfo from the array.
    //
    UrlArray urlArray;
-   XrdClientString listOfMachines;
-   XrdClientString proto;
-   XrdClientString file;
+   XrdOucString listOfMachines;
+   XrdOucString proto;
+   XrdOucString file;
    Info(XrdClientDebug::kHIDEBUG, "XrdClientUrlSet", "parsing: "<<urls);
 
    // Disentangle the protocol, if any
-   int p1 = 0, p2 = STR_NPOS, left = urls.GetSize();
-   if ((p2 = urls.Find((char *)"://")) != STR_NPOS) {
-      proto = urls.Substr(p1, p2);
+   int p1 = 0, p2 = STR_NPOS, left = urls.length();
+   if ((p2 = urls.find("://")) != STR_NPOS) {
+      proto.assign(urls, p1, p2-1);
       p1 = p2 + 3;
-      left = urls.GetSize() - p1;
+      left = urls.length() - p1;
    }
    Info(XrdClientDebug::kHIDEBUG,"XrdClientUrlSet", "protocol: "<<proto);
 
    // Locate the list of machines in the input string
-   if ((p2 = urls.Find((char *)"/",p1)) != STR_NPOS) {
-      listOfMachines = urls.Substr(p1, p2);
+   if ((p2 = urls.find('/', p1)) != STR_NPOS) {
+      listOfMachines.assign(urls, p1, p2-1);
       p1 = p2+1;
-      left = urls.GetSize() - p1;
+      left = urls.length() - p1;
    } else {
-      listOfMachines = urls.Substr(p1);
+      listOfMachines.assign(urls, p1);
       left = 0;
    }
 
    // Nothing to do, if an empty list was found
-   if (listOfMachines.GetSize() <= 0) {
+   if (listOfMachines.length() <= 0) {
       Error("XrdClientUrlSet", "list of hosts, ports is empty" );
       fIsValid = FALSE;
       return;
@@ -125,9 +123,9 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
 
    // Get pathfile
    if (left > 0)
-     file = urls.Substr(p1);
+     file.assign(urls, p1);
    Info(XrdClientDebug::kHIDEBUG,"XrdClientUrlSet", "file: "<<file);
-  
+
    // Init of the random number generator
    fSeed = getpid();
 
@@ -136,19 +134,18 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
    // must be the protocol for
    //
    if ( (proto != "xroot") && ( proto != "root" ) ) {
-      Error("XrdClientUrlSet", "This is not a root or xroot protocol." );
+      Error("XrdClientUrlSet", "This is not a root or xroot protocol: "<<proto );
       fIsValid = FALSE;
       return;
    }
 
    // remove trailing "," that would introduce a null host
-   while ((listOfMachines.EndsWith((char *)",")) ||
-          (listOfMachines.EndsWith((char *)" ")))
-      listOfMachines.EraseFromEnd(1);
+   while ((listOfMachines.endswith(',')) || (listOfMachines.endswith(' ')))
+      listOfMachines.erasefromend(1);
 
    // remove leading "," that would introduce a null host
-   while (listOfMachines.BeginsWith((char *)","))
-      listOfMachines.EraseFromStart(1);
+   while (listOfMachines.beginswith(','))
+      listOfMachines.erasefromstart(1);
 
    Info(XrdClientDebug::kHIDEBUG,"XrdClientUrlSet",
         "list of [host:port] : "<<listOfMachines);
@@ -159,7 +156,7 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
    fPathName = file;
 
    // If at this point we have a strange pathfile, then it's bad
-   if ( (fPathName.GetSize() <= 1) || (fPathName == "/") ) {
+   if ( (fPathName.length() <= 1) || (fPathName == "/") ) {
       Error("XrdClientUrlSet", "malformed pathfile " << fPathName);
       fIsValid = FALSE;
       return;
@@ -171,26 +168,17 @@ XrdClientUrlSet::XrdClientUrlSet(XrdClientString urls) : fIsValid(TRUE)
    if (fIsValid) {
       //
       // Parse list
-      XrdClientString entity;
-      int from = 0, to = 0;
-      bool over = FALSE;
-      while (!over) {
-         // Find next token
-         to = listOfMachines.Find((char *)",", from);
-         // Update loop control
-         over = (to == STR_NPOS) ? TRUE : over;
-         // Get substring
-         entity = listOfMachines.Substr(from, to);
+      XrdOucString entity;
+      int from = 0;
+      while ((from = listOfMachines.tokenize(entity, from, ',')) != STR_NPOS) {
          // Convert to UrlInfo format
          Info(XrdClientDebug::kDUMPDEBUG,"XrdClientUrlSet",
                                          "parsing entity: "<<entity);
          ConvertDNSAlias(fUrlArray, proto, entity, file);
-         // Go to next
-         from = to + 1;
       }
 
       if (fUrlArray.GetSize() <= 0)
-	 fIsValid = FALSE;
+         fIsValid = FALSE;
 
       if (XrdClientDebug::Instance()->GetDebugLevel() >=
           XrdClientDebug::kUSERDEBUG)
@@ -326,14 +314,14 @@ void XrdClientUrlSet::CheckPort(int &port)
 }
 
 //_____________________________________________________________________________
-void XrdClientUrlSet::ConvertDNSAlias(UrlArray& urls, XrdClientString proto, 
-                                      XrdClientString host, XrdClientString file)
+void XrdClientUrlSet::ConvertDNSAlias(UrlArray& urls, XrdOucString proto, 
+                                      XrdOucString host, XrdOucString file)
 {
    // Create an XrdClientUrlInfo from protocol 'proto', remote host 'host',
    // file 'file' and add it to the array, after having resolved the DNS
    // information.
    bool hasPort;
-   XrdClientString tmpaddr;
+   XrdOucString tmpaddr;
   
    XrdClientUrlInfo *newurl = new XrdClientUrlInfo(host);
    hasPort = (newurl->Port > 0);
@@ -349,19 +337,18 @@ void XrdClientUrlSet::ConvertDNSAlias(UrlArray& urls, XrdClientString proto,
    CheckPort(newurl->Port);
 
    // Resolv the DNS information
-   XrdClientDNS hdns(newurl->Host.c_str());
-   XrdClientString haddr[10], hname[10];
-   int naddr = hdns.HostAddr(10, haddr, hname);
+   char *haddr[10] = {0}, *hname[10] = {0};
+   int naddr = XrdNetDNS::getAddrName(newurl->Host.c_str(), 10, haddr, hname);
 
    // Fill the list
    int i = 0;
    for (; i < naddr; i++ ) {
 
       // Address
-      newurl->HostAddr = haddr[i];
+      newurl->HostAddr = (const char *) haddr[i];
 
       // Name
-      newurl->Host = hname[i];
+      newurl->Host = (const char *) hname[i];
 
       // Protocol
       newurl->Proto = proto;
@@ -380,5 +367,8 @@ void XrdClientUrlSet::ConvertDNSAlias(UrlArray& urls, XrdClientString proto,
       if (i < (naddr-1))
          newurl = new XrdClientUrlInfo(*newurl);
 
+      // Cleanup 
+      if (haddr[i]) free(haddr[i]);
+      if (hname[i]) free(hname[i]);
    }
 }
