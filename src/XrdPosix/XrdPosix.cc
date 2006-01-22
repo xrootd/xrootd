@@ -74,8 +74,8 @@ XrdPosixXrootPath::XrdPosixXrootPath()
       pBase(0)
 {
    XrdOucTokenizer thePaths(0);
-   char *plist, *colon, *subs, *lp, *tp;
-   int aOK;
+   char *plist = 0, *colon = 0, *subs = 0, *lp = 0, *tp = 0;
+   int aOK = 0;
 
    if (!(plist = getenv("XROOTD_VMP")) || !*plist) return;
    pBase = strdup(plist);
