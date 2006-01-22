@@ -41,7 +41,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 #include "XrdClient/XrdClientAbs.hh"
-#include "XrdClient/XrdClientString.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdClient/XrdClientThread.hh"
 #include "XrdOuc/XrdOucSemWait.hh"
 
@@ -87,7 +87,7 @@ private:
 
    bool                        fUseCache;
 
-   XrdClientString             fInitialUrl;
+   XrdOucString                fInitialUrl;
    XrdClientUrlInfo            fUrl;
 
    bool                        TryOpen(kXR_unt16 mode,

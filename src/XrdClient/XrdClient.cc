@@ -138,7 +138,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
   // Construction of the url set coming from the resolution of the hosts given
   XrdClientUrlSet urlArray(fInitialUrl);
   if (!urlArray.IsValid()) {
-     Error("Create", "The URL provided is incorrect.");
+     Error("Open", "The URL provided is incorrect.");
      return FALSE;
   }
 
@@ -152,48 +152,53 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
       (connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
        connectTry++) {
 
-     XrdClientUrlInfo *thisUrl;
+     XrdClientUrlInfo *thisUrl = 0;
      urlstried = (urlstried == urlArray.Size()) ? 0 : urlstried;
-     
-     // Get an url from the available set
-     thisUrl = urlArray.GetARandomUrl();
-     
-     if (thisUrl) {
 
-        if (fConnModule->CheckHostDomain(thisUrl->Host,
-					 EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
-					 EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
+     bool nogoodurl = TRUE;
+     while (urlArray.Size() > 0) {
 
-	   Info(XrdClientDebug::kHIDEBUG,
-		"Open", "Trying to connect to " <<
-		thisUrl->Host << ":" << thisUrl->Port <<
-		". Connect try " << connectTry+1);
-	   
-           locallogid = fConnModule->Connect(*thisUrl, this);
-        } else {
-           // Invalid domain: drop the url and move to next, if any
-           urlArray.EraseUrl(thisUrl);
-           continue;
+       // Get an url from the available set
+       if ((thisUrl = urlArray.GetARandomUrl())) {
+
+          if (fConnModule->CheckHostDomain(thisUrl->Host,
+                                           EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
+                                           EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
+             nogoodurl = FALSE;
+
+             Info(XrdClientDebug::kHIDEBUG, "Open", "Trying to connect to " <<
+                  thisUrl->Host << ":" << thisUrl->Port << ". Connect try " <<
+                  connectTry+1);
+             locallogid = fConnModule->Connect(*thisUrl, this);
+             // To find out if we have tried the whole URLs set
+             urlstried++;
+             break;
+          } else {
+             // Invalid domain: drop the url and move to next, if any
+             urlArray.EraseUrl(thisUrl);
+             continue;
+          }
         }
-        // To find out if we have tried the whole URLs set
-        urlstried++;
      }
-     
+     if (nogoodurl) {
+        Error("Open", "Access denied to all URL domains requested");
+        break;
+     }
+
      // We are connected to a host. Let's handshake with it.
      if (fConnModule->IsConnected()) {
 
         // Now the have the logical Connection ID, that we can use as streamid for 
         // communications with the server
 
-	   Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
+	   Info(XrdClientDebug::kHIDEBUG, "Open",
 		"The logical connection id is " << fConnModule->GetLogConnID() <<
 		".");
 
         fConnModule->SetUrl(*thisUrl);
         fUrl = *thisUrl;
         
-	Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
-	     "Working url is " << thisUrl->GetUrl());
+	Info(XrdClientDebug::kHIDEBUG, "Open", "Working url is " << thisUrl->GetUrl());
         
         // after connection deal with server
         if (!fConnModule->GetAccessToSrv())
@@ -203,36 +208,36 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
                  // Authentication error: we tried all the indicated URLs:
                  // does not make much sense to retry
                  fConnModule->Disconnect(TRUE);
-                 XrdClientString msg(fConnModule->LastServerError.errmsg);
-                 msg.EraseFromEnd(1);
-                 Error("CreateTXNf", "Authentication failure: " << msg);
+                 XrdOucString msg(fConnModule->LastServerError.errmsg);
+                 msg.erasefromend(1);
+                 Error("Open", "Authentication failure: " << msg);
                  break;
               } else {
-                 XrdClientString msg(fConnModule->LastServerError.errmsg);
-                 msg.EraseFromEnd(1);
-                 Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
+                 XrdOucString msg(fConnModule->LastServerError.errmsg);
+                 msg.erasefromend(1);
+                 Info(XrdClientDebug::kHIDEBUG, "Open",
                                                 "Authentication failure: " << msg);
               }
            } else {
-              Error("CreateTXNf", "Access to server failed: error: " <<
+              Error("Open", "Access to server failed: error: " <<
                          fConnModule->LastServerError.errnum << " (" << 
                          fConnModule->LastServerError.errmsg << ") - retrying.");
            }
         else {
-	   Info(XrdClientDebug::kUSERDEBUG, "Create", "Access to server granted.");
+	   Info(XrdClientDebug::kUSERDEBUG, "Open", "Access to server granted.");
            break;
 	}
      }
      
      // The server denied access. We have to disconnect.
-     Info(XrdClientDebug::kHIDEBUG, "CreateTXNf", "Disconnecting.");
+     Info(XrdClientDebug::kHIDEBUG, "Open", "Disconnecting.");
      
      fConnModule->Disconnect(FALSE);
      
      if (connectTry < connectMaxTry-1) {
 
 	if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
-	   Info(XrdClientDebug::kUSERDEBUG, "Create",
+	   Info(XrdClientDebug::kUSERDEBUG, "Open",
 		"Connection attempt failed. Sleeping " <<
 		EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
      
@@ -259,10 +264,10 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
      // let's continue with the openfile sequence
 
      Info(XrdClientDebug::kUSERDEBUG,
-	  "Create", "Opening the remote file " << fUrl.File); 
+	  "Open", "Opening the remote file " << fUrl.File); 
 
      if (!TryOpen(mode, options, doitparallel)) {
-	Error("Create", "Error opening the file " <<
+	Error("Open", "Error opening the file " <<
 	      fUrl.File << " on host " << fUrl.Host << ":" <<
 	      fUrl.Port);
 
@@ -271,10 +276,10 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
      } else {
 
 	if (doitparallel) {
-	   Info(XrdClientDebug::kUSERDEBUG, "Create", "File open in progress.");
+	   Info(XrdClientDebug::kUSERDEBUG, "Open", "File open in progress.");
 	}
 	else
-	   Info(XrdClientDebug::kUSERDEBUG, "Create", "File opened succesfully.");
+	   Info(XrdClientDebug::kUSERDEBUG, "Open", "File opened succesfully.");
 
      }
 
@@ -538,27 +543,25 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
    // specifyng the supposed failing server as opaque info
    if (fConnModule->GetLBSUrl() &&
        (fConnModule->GetCurrentUrl().Host != fConnModule->GetLBSUrl()->Host) ) {
-      XrdClientString opinfo;
+      XrdOucString opinfo;
 
       opinfo = "&tried=" + fConnModule->GetCurrentUrl().Host;
 
       Info(XrdClientDebug::kUSERDEBUG,
-	   "Open", "Back to " << fConnModule->GetLBSUrl()->Host <<
-	   ". Refreshing cache. Opaque info: " << opinfo);
+           "Open", "Back to " << fConnModule->GetLBSUrl()->Host <<
+           ". Refreshing cache. Opaque info: " << opinfo);
 
       if ( (fConnModule->GoToAnotherServer(*fConnModule->GetLBSUrl()) == kOK) &&
-	   LowOpen(fUrl.File.c_str(),
-		   mode, options | kXR_refresh,
-		   (char *)opinfo.c_str() ) ) {
-	 TerminateOpenAttempt();
+            LowOpen(fUrl.File.c_str(), mode, options | kXR_refresh,
+                    (char *)opinfo.c_str() ) ) {
+         TerminateOpenAttempt();
 	 return TRUE;
       }
       else {
-	      
-	 Error("Open", "Error opening the file.");
-	 TerminateOpenAttempt();
-	 return FALSE;
-	 
+
+         Error("Open", "Error opening the file.");
+         TerminateOpenAttempt();
+         return FALSE;
       }
 
    }
@@ -573,7 +576,7 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 			char *additionalquery) {
 
    // Low level Open method
-   XrdClientString finalfilename(file);
+   XrdOucString finalfilename(file);
 
    if (additionalquery)
       finalfilename += additionalquery;
@@ -582,11 +585,11 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
    ClientRequest openFileRequest;
 
    struct ServerResponseBody_Open openresp;
-  
+
    memset(&openFileRequest, 0, sizeof(openFileRequest));
 
    fConnModule->SetSID(openFileRequest.header.streamid);
-  
+
    openFileRequest.header.requestid = kXR_open;
 
    // Now set the options field basing on user's requests
@@ -597,7 +600,7 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 
    // Set the length of the data (in this case data describes the path and 
    // file name)
-   openFileRequest.open.dlen = finalfilename.GetSize();
+   openFileRequest.open.dlen = finalfilename.length();
 
    // Send request to server and receive response
    bool resp = fConnModule->SendGenCommand(&openFileRequest,
@@ -642,7 +645,7 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
    memset(statFileRequest.stat.reserved, 0, 
           sizeof(statFileRequest.stat.reserved));
 
-   statFileRequest.stat.dlen = fUrl.File.GetSize();
+   statFileRequest.stat.dlen = fUrl.File.length();
    
    char fStats[2048];
    memset(fStats, 0, 2048);
