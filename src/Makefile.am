@@ -51,7 +51,8 @@ endif
 
 #######################################################################
 
-SUBDIRS = XrdOuc \
+SUBDIRS = XrdSys \
+          XrdOuc \
           XrdNet \
           XrdSec \
           $(XRDSUT) \
