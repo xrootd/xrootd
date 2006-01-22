@@ -18,10 +18,10 @@
 
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClientVector.hh"
+#include "XrdOuc/XrdOucString.hh"
 
 using namespace std;
 
-class XrdClientString;
 class XrdClientUrlInfo;
 
 typedef XrdClientVector<XrdClientUrlInfo*> UrlArray;
@@ -36,22 +36,22 @@ class XrdClientUrlSet {
 private:
    UrlArray        fUrlArray;
    UrlArray        fTmpUrlArray;
-   XrdClientString    fPathName;
-   
+   XrdOucString    fPathName;
+
    bool            fIsValid;
    unsigned int    fSeed;
 
    void            CheckPort(int &port);
-   void            ConvertDNSAlias(UrlArray& urls, XrdClientString proto,
-                                   XrdClientString host, XrdClientString file);
+   void            ConvertDNSAlias(UrlArray& urls, XrdOucString proto,
+                                   XrdOucString host, XrdOucString file);
    double          GetRandom(int seed = 0);
 
 public:
-   XrdClientUrlSet(XrdClientString urls);
+   XrdClientUrlSet(XrdOucString urls);
    ~XrdClientUrlSet();
 
    // Returns the final resolved list of servers
-   XrdClientString   GetServers();
+   XrdOucString   GetServers();
 
    // Gets the subsequent Url, the one after the last given
    XrdClientUrlInfo *GetNextUrl();
@@ -68,7 +68,7 @@ public:
    int               Size() { return fUrlArray.GetSize(); }
 
    // Returns the pathfile extracted from the CTOR's argument
-   XrdClientString   GetFile() { return fPathName; }
+   XrdOucString      GetFile() { return fPathName; }
 
    bool              IsValid() { return fIsValid; } // Spot malformations
 
