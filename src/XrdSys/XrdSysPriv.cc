@@ -36,6 +36,8 @@
 extern "C" {
    int seteuid(int euid);
    int setegid(int egid);
+   int geteuid();
+   int getegid();
 }
 #endif
 
@@ -43,6 +45,8 @@ extern "C" {
 extern "C" {
    int seteuid(uid_t euid);
    int setegid(gid_t egid);
+   uid_t geteuid();
+   gid_t getegid();
 }
 #endif
 
@@ -61,6 +65,21 @@ static int setresuid(uid_t r, uid_t e, uid_t)
       return -1;
    return seteuid(e);
 }
+
+static int getresgid(gid_t *r, gid_t *e, gid_t *)
+{
+  *r = getgid();
+  *e = getegid();
+  return 0;
+}
+
+static int getresuid(uid_t *r, uid_t *e, uid_t *)
+{
+  *r = getuid();
+  *e = geteuid();
+  return 0;
+}
+
 #else
 #if (defined(__linux) || \
     (defined(__CYGWIN__) && defined(__GNUC__))) && !defined(linux)
@@ -70,6 +89,8 @@ static int setresuid(uid_t r, uid_t e, uid_t)
 extern "C" {
    int setresgid(gid_t r, gid_t e, gid_t s);
    int setresuid(uid_t r, uid_t e, uid_t s);
+   int getresgid(gid_t *r, gid_t *e, gid_t *s);
+   int getresuid(uid_t *r, uid_t *e, uid_t *s);
 }
 #endif
 #endif
