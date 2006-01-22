@@ -11,10 +11,10 @@
 //   $Id$
 
 #include <sys/types.h>
-#include <dirent.h>
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClient.hh"
 
+class XrdSysDir;
 
 class XrdCpWorkLst {
 
@@ -23,7 +23,7 @@ class XrdCpWorkLst {
 
    XrdClientAdmin *xrda_src, *xrda_dst;
 
-   XrdClientString fSrc, fDest;
+   XrdOucString fSrc, fDest;
    bool fDestIsDir, fSrcIsDir;
 
  public:
@@ -32,23 +32,29 @@ class XrdCpWorkLst {
    ~XrdCpWorkLst();
 
    // Sets the source path for the file copy
-   int SetSrc(XrdClient **srccli, XrdClientString url,
-	      XrdClientString urlopaquedata, bool do_recurse);
+   int SetSrc(XrdClient **srccli, XrdOucString url,
+	      XrdOucString urlopaquedata, bool do_recurse);
 
    // Sets the destination of the file copy
    int SetDest(XrdClient **xrddest, const char *url,
 	       const char *urlopaquedata,
 	       kXR_unt16 xrdopenflags);
 
-   inline void GetDest(XrdClientString &dest, bool& isdir) {
+   inline void GetDest(XrdOucString &dest, bool& isdir) {
       dest = fDest;
       isdir = fDestIsDir;
    }
 
-   // Actually builds the worklist
-   int BuildWorkList_xrd(XrdClientString url, XrdClientString opaquedata);
-   int BuildWorkList_loc(DIR *dir, XrdClientString pat);
+   inline void GetSrc(XrdOucString &src, bool& isdir) {
+      src = fSrc;
+      isdir = fSrcIsDir;
+   }
 
-   bool GetCpJob(XrdClientString &src, XrdClientString &dest);
+
+   // Actually builds the worklist
+   int BuildWorkList_xrd(XrdOucString url, XrdOucString opaquedata);
+   int BuildWorkList_loc(XrdSysDir *dir, XrdOucString pat);
+
+   bool GetCpJob(XrdOucString &src, XrdOucString &dest);
    
 };

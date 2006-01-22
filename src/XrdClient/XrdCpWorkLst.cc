@@ -11,6 +11,8 @@
 //   $Id$
 
 #include "XrdClient/XrdCpWorkLst.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysDir.hh"
 #include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
@@ -31,18 +33,17 @@ XrdCpWorkLst::~XrdCpWorkLst() {
 
 // Sets the source path for the file copy
 // i.e. expand the given url to the list of the files it involves
-int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdClientString url,
-	      XrdClientString urlopaquedata, bool do_recurse) {
+int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
+	      XrdOucString urlopaquedata, bool do_recurse) {
 
-   XrdClientString fullurl(url);
+   XrdOucString fullurl(url);
 
-   if (urlopaquedata.GetSize())
+   if (urlopaquedata.length())
       fullurl = url + "?" + urlopaquedata;
 
    fSrcIsDir = FALSE;
 
-   if ( (fullurl.Find((char *)"root://") == 0) ||
-        (fullurl.Find((char *)"xroot://") == 0) ) {
+   if (fullurl.beginswith("root://") || fullurl.beginswith("xroot://") ) {
       // It's an xrd url
 
       fSrc = url;
@@ -92,22 +93,16 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdClientString url,
       fSrcIsDir = FALSE;
 
       // We must see if it's a dir
-      DIR *d = opendir(url.c_str());
-
-      if (!d) {
-	 if (errno == ENOTDIR)
-	    fWorkList.Push_back(fSrc);
-	 else
-	    return errno;
+      XrdSysDir d(url.c_str());
+      if (!d.isValid()) {
+         if (d.lastError() == ENOTDIR)
+            fWorkList.Push_back(fSrc);
+         else
+            return d.lastError();
+      } else {
+         fSrcIsDir = TRUE;
+         BuildWorkList_loc(&d, url);
       }
-
-      if (d) {
-	 fSrcIsDir = TRUE;
-	 BuildWorkList_loc(d, url);
-
-	 closedir(d);
-      }
-
    }
 
    fWorkIt = 0;
@@ -137,13 +132,17 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
 
       if (fSrcIsDir) {
 	 fDestIsDir = TRUE;
+         // Make sure fDest ends with a '/' to avoid problems in 
+         // path formation later on
+         if (!fDest.endswith('/'))
+            fDest += '/';
 	 return 0;
       }
       else {
 
 	 // The source is a single file
 	 fDestIsDir = FALSE;
-	 XrdClientString fullurl(url);
+	 XrdOucString fullurl(url);
 
 	 if (urlopaquedata) {
 	    fullurl += "?";
@@ -180,9 +179,14 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
 
 	    if ((*xrddest)->LastServerError()->errnum == kXR_isDirectory) {
 
-	       // It may be only a dir
-	       fDestIsDir = TRUE;
-	       
+               // It may be only a dir
+               fDestIsDir = TRUE;
+
+               // Make sure fDest ends with a '/' to avoid problems in 
+               // path formation later on
+               if (!fDest.endswith('/'))
+                  fDest += '/';
+
 	       // Anyway, it's ok
 	       retval = 0;
 	    }
@@ -204,22 +208,25 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
       // It's a local file or path
       
       if (strcmp(url, "-")) {
-	 // We must see if it's a dir
-	 DIR *d = opendir(url);
-	 
-	 fDestIsDir = TRUE;
-	 if (!d) {
-	    if (errno == ENOTDIR)
-	       fDestIsDir = FALSE;
-	    else
-	       if (errno == ENOENT)
-		  fDestIsDir = FALSE;
-	       else
-		  return errno;
-	 }
-	 fDest = url;
-	 if (d) closedir(d);
-	 
+
+         fDestIsDir = TRUE;
+         // We must see if it's a dir
+         struct stat st;
+         if (lstat(url, &st) == 0) {
+            if (!S_ISDIR(st.st_mode))
+               fDestIsDir = FALSE;
+         } else {
+            if (errno == ENOENT)
+               fDestIsDir = FALSE;
+            else
+               return errno;
+         }
+         fDest = url;
+         // Make sure fDest ends with a '/' to avoid problems in 
+         // path formation later on
+         if (fDestIsDir && !fDest.endswith('/'))
+            fDest += '/';
+	 return 0;
       }
       else {
 	 // dest is stdout
@@ -234,12 +241,12 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
 }
 
 // Actually builds the worklist expanding the source of the files
-int XrdCpWorkLst::BuildWorkList_xrd(XrdClientString url, XrdClientString opaquedata) {
+int XrdCpWorkLst::BuildWorkList_xrd(XrdOucString url, XrdOucString opaquedata) {
    vecString entries;
    int it;
    long id, flags, modtime;
    long long size;
-   XrdClientString fullpath;
+   XrdOucString fullpath;
    XrdClientUrlInfo u(url);
 
    // Invoke the DirList cmd to get the content of the dir
@@ -268,50 +275,45 @@ int XrdCpWorkLst::BuildWorkList_xrd(XrdClientString url, XrdClientString opaqued
 }
 
 
-int XrdCpWorkLst::BuildWorkList_loc(DIR *dir, XrdClientString path) {
-   struct dirent *ent;
-   XrdClientString fullpath;
+int XrdCpWorkLst::BuildWorkList_loc(XrdSysDir *dir, XrdOucString path)
+{
+
+   char *ent = 0;
+   XrdOucString fullpath;
 
    // Here we already have an usable dir handle
    // Cycle on the content and spot all the files
-   while ( (ent = readdir(dir)) ) {
-      struct stat ftype;
+   while (dir && (ent = dir->nextEntry())) {
 
-      if ( !strcmp(ent->d_name, ".") ||
-	   !strcmp(ent->d_name, "..") )
-	 continue;
+      if (!strcmp(ent, ".") || !strcmp(ent, ".."))
+         continue;
 
       // Assemble full path name.
-      fullpath = path + "/" + ent->d_name;
+      fullpath = path + "/" + ent;
 
       // Get info for the entry
+      struct stat ftype;
       if ( lstat(fullpath.c_str(), &ftype) < 0 )
-	 continue;
-      
+         continue;
+
       // If it's a dir, then proceed recursively
-      if (S_ISDIR (ftype.st_mode)) {
-	 DIR *d = opendir(fullpath.c_str());
+      if (S_ISDIR(ftype.st_mode)) {
+         XrdSysDir d(fullpath.c_str());
 
-	 if (d) {
-	    BuildWorkList_loc(d, fullpath);
-
-	    closedir(d);
-	 }
-      }
-      else
-	 // If it's a file, then add it to the worklist
-	 if (S_ISREG(ftype.st_mode))
-	    fWorkList.Push_back(fullpath);
-
+         if (d.isValid())
+            BuildWorkList_loc(&d, fullpath);
+      } else
+         // If it's a file, then add it to the worklist
+         if (S_ISREG(ftype.st_mode))
+            fWorkList.Push_back(fullpath);
    }
 
    return 0;
-
 }
 
 
 // Get the next cp job to do
-bool XrdCpWorkLst::GetCpJob(XrdClientString &src, XrdClientString &dest) {
+bool XrdCpWorkLst::GetCpJob(XrdOucString &src, XrdOucString &dest) {
 
    if (fWorkIt >= fWorkList.GetSize()) return FALSE;
 
@@ -322,11 +324,10 @@ bool XrdCpWorkLst::GetCpJob(XrdClientString &src, XrdClientString &dest) {
 
       // If the dest is a directory name, we must concatenate
       // the actual filename, i.e. the token in src following the last /
-      int slpos = src.RFind((char *)"/");
+      int slpos = src.rfind('/');
 
-      if (slpos != STR_NPOS) 
-	 dest += src.Substr(slpos);
-	 
+      if (slpos != STR_NPOS)
+         dest += XrdOucString(src, slpos);
    }
 
    fWorkIt++;
