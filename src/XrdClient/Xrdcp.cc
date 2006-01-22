@@ -94,12 +94,12 @@ void print_summary(const char* src, const char* dst, unsigned long long bytesrea
    float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
 			   (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
 
-   XrdClientString xsrc(src);
-   XrdClientString xdst(dst);
 
-   xsrc = xsrc.Substr(0,  xsrc.RFind((char *)"?") );
-   xdst = xdst.Substr(0,  xdst.RFind((char *)"?") );
-  
+   XrdOucString xsrc(src);
+   XrdOucString xdst(dst);
+   xsrc.erase(xsrc.rfind('?'));
+   xdst.erase(xdst.rfind('?'));
+
    COUT(("[xrdcp] #################################################################\n"));
    COUT(("[xrdcp] # Source Name              : %s\n",xsrc.c_str()));
    COUT(("[xrdcp] # Destination Name         : %s\n",xdst.c_str()));
@@ -227,13 +227,13 @@ void *ReaderThread_loc(void *) {
 }
 
 
-int CreateDestPath_loc(XrdClientString path, bool isdir) {
+int CreateDestPath_loc(XrdOucString path, bool isdir) {
    // We need the path name without the file
    if (!isdir) {
-      int pos = path.RFind((char *)"/");
+      int pos = path.rfind('/');
 
       if (pos != STR_NPOS)
-	 path = path.Substr(0,  path.RFind((char *)"/") );
+	 path.erase(pos);
       else path = "";
 
 
@@ -251,22 +251,19 @@ int CreateDestPath_loc(XrdClientString path, bool isdir) {
 
 }
    
-void BuildFullDestFilename(XrdClientString &src, XrdClientString &dest, bool destisdir) {
+void BuildFullDestFilename(XrdOucString &src, XrdOucString &dest, bool destisdir) {
    if (destisdir) {
       // We need the filename from the source
-      XrdClientString fn(src);
-      int endpos = src.Find((char *)"?");
-      int pos = (src.Substr(0,src.Find((char *)"?"))).RFind((char *)"/");
-
-      if (pos != STR_NPOS)
-	 fn = src.Substr(pos+1, endpos);
-
-      dest += "/";
+      XrdOucString fn(src);
+      fn.erase(fn.find('?'));
+      int lsl = fn.rfind('/');
+      if (lsl != STR_NPOS)
+         fn.erase(0, lsl+1);
       dest += fn;
    }
 }
 
-int CreateDestPath_xrd(XrdClientString url, bool isdir) {
+int CreateDestPath_xrd(XrdOucString url, bool isdir) {
    // We need the path name without the file
    bool statok = FALSE, done = FALSE, direxists = TRUE;
    long id, flags, modtime;
@@ -276,7 +273,7 @@ int CreateDestPath_xrd(XrdClientString url, bool isdir) {
    if (url == "-") return 0;
 
    //   if (!isdir)
-   url = url.Substr(0,  url.RFind((char *)"/")+1 );
+   url.erase(url.rfind('/') + 1);
 
    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
    if (adm->Connect()) {
@@ -669,7 +666,8 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
 void PrintUsage() {
    cerr << "usage: xrdcp <source> <dest> "
-     "[-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force]" << endl;
+     "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force]" << endl;
+   cerr << " -d lvl :         debug level: 1 (low), 2 (medium), 3 (high)" << endl;
    cerr << " -s     :         silent mode, no summary output, no progress bar" << endl;
    cerr << " -np    :         no progress bar" << endl;
    cerr << " -v     :         display summary output" << endl <<endl;
@@ -775,6 +773,17 @@ int main(int argc, char**argv) {
 	 continue;
       }
 
+      if ( (strstr(argv[i], "-d") == argv[i]) &&
+           (argc >= i+2) ) {
+         int dbglvl = atoi(argv[i+1]);
+         if (dbglvl > 0) {
+            EnvPutInt( NAME_DEBUG, dbglvl);
+            cerr << "Setting debug level " <<  EnvGetLong(NAME_DEBUG)<< endl;
+         }
+         i++;
+         continue;
+      }
+
       // Any other par is ignored
       if ( (strstr(argv[i], "-") == argv[i]) && (strlen(argv[i]) > 1) ) {
 	 cerr << "Unknown parameter " << argv[i] << endl;
@@ -799,7 +808,7 @@ int main(int argc, char**argv) {
    Info(XrdClientDebug::kNODEBUG, "main", XRDCP_VERSION);
 
    XrdCpWorkLst *wklst = new XrdCpWorkLst();
-   XrdClientString src, dest;
+   XrdOucString src, dest;
    XrdClient *xrddest;
 
    cpnfo.XrdCli = 0;
@@ -820,12 +829,10 @@ int main(int argc, char**argv) {
    }
 
    int retval = 0;
-   
    while (!retval && wklst->GetCpJob(src, dest)) {
       Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
 
-      if ( (src.BeginsWith((char *)"root://")) ||
-           (src.BeginsWith((char *)"xroot://")) ) {
+      if ( (src.beginswith("root://")) || (src.beginswith("xroot://")) ) {
 	 // source is xrootd
 
 	 if (srcopaque) {
@@ -833,9 +840,8 @@ int main(int argc, char**argv) {
 	    src += srcopaque;
 	 }
 
-	 if ( (dest.BeginsWith((char *)"root://")) ||
-              (dest.BeginsWith((char *)"xroot://")) ) {
-	    XrdClientString d;
+	 if ( (dest.beginswith("root://")) || (dest.beginswith("xroot://")) ) {
+	    XrdOucString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
 
@@ -850,7 +856,7 @@ int main(int argc, char**argv) {
 
 	 }
 	 else {
-	    XrdClientString d;
+	    XrdOucString d;
 	    bool isd;
 	    int res;
 	    wklst->GetDest(d, isd);
@@ -867,9 +873,8 @@ int main(int argc, char**argv) {
       else {
 	 // source is localfs
 
-	 if ( (dest.BeginsWith((char *)"root://")) ||
-              (dest.BeginsWith((char *)"xroot://")) ) {
-	    XrdClientString d;
+	 if ( (dest.beginswith("root://")) || (dest.beginswith("xroot://")) ) {
+	    XrdOucString d;
 	    bool isd;
 	    wklst->GetDest(d, isd);
 
@@ -884,13 +889,12 @@ int main(int argc, char**argv) {
 
 	 }
 	 else {
-	    cerr << "Better to use cp in this case." << endl;
+	    cerr << "Better to use cp in this case. (dest: "<<dest<<")" << endl;
 	    exit(2);
 	 }
 
       }
 
    }
-
    return retval;
 }
