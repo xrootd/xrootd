@@ -15,7 +15,6 @@
 
 #include "XrdClient/XrdClientAbs.hh"
 #include "XrdClient/XrdClientDebug.hh"
-#include "XrdClient/XrdClientString.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
 

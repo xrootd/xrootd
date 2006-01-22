@@ -89,7 +89,7 @@ public:
 
    void           StartedReader();
 
-   bool           IsAddress(XrdClientString &addr) {
+   bool           IsAddress(const XrdOucString &addr) {
       return ( (fServer.Host == addr) ||
 	       (fServer.HostAddr == addr) );
    }
