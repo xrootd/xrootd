@@ -73,9 +73,9 @@ void print_summary(const char* del) {
   float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
 			      (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
 
-  XrdClientString xdel(del);
+  XrdOucString xdel(del);
 
-  xdel = xdel.Substr(0,  xdel.RFind((char *)"?") );
+  xdel.erase(xdel.rfind('?'));
   
   COUT(("[xrootd] #################################################################\n"));
   COUT(("[xrootd] # Deletion Name            : %s\n",xdel.c_str()));
@@ -217,26 +217,26 @@ int main(int argc, char**argv) {
        exit(1);
      }
 
-     XrdClientString delsrc(delpath);
+     XrdOucString delsrc(delpath);
      gettimeofday(&abs_start_time,&tz);
      
      if (authz) {
        // append the authz information to all root: protocol names
-       if (delsrc.BeginsWith((char *)"root://")) {
-	 if (delsrc.Find("?") != STR_NPOS) {
-	   delsrc.Add("&authz=");
+       if (delsrc.beginswith("root://")) {
+	 if (delsrc.find('?') != STR_NPOS) {
+	   delsrc += "&authz=";
 	 } else {
-	   delsrc.Add("?&authz=");
+	   delsrc += "?&authz=";
 	 }
-	 delsrc.Add(authz);
+	 delsrc += (const char *)authz;
        }
      }
      
-     if (delsrc.BeginsWith((char *)"root://")) {
+     if (delsrc.beginswith("root://")) {
        long id, flags, modtime;
        long long size;
        
-       XrdClientString url(delsrc.c_str());
+       XrdOucString url(delsrc);
        XrdClientUrlInfo u(url);
        
        XrdClientAdmin* client = new XrdClientAdmin(url.c_str());

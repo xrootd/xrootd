@@ -24,9 +24,9 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientUrlSet.hh"
-#include "XrdClient/XrdClientString.hh"
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdPosixXrootd.hh"
 
 /******************************************************************************/
@@ -133,7 +133,7 @@ long long   currOffset;
 };
 
 
-typedef XrdClientVector<XrdClientString> vecString;
+typedef XrdClientVector<XrdOucString> vecString;
 typedef XrdClientVector<bool> vecBool;
 
 /******************************************************************************/
@@ -208,9 +208,9 @@ XrdPosixDir::XrdPosixDir(int dirno, const char *path) : XAdmin(path)
 
 // Get the path of the url 
 //
-   XrdClientString str(path);
+   XrdOucString str(path);
    XrdClientUrlSet url(str);
-   XrdClientString dir = url.GetFile();
+   XrdOucString dir = url.GetFile();
    fpath = strdup(dir.c_str());
 
 // Allocate a local dirent. Note that we get additional padding because on
@@ -381,7 +381,7 @@ int XrdPosixXrootd::Access(const char *path, int amode)
 
 // Extract out path from the url
 //
-   XrdClientString str(path);
+   XrdOucString str(path);
    XrdClientUrlSet url(str);
 
 // Open the file first
@@ -528,7 +528,7 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
   XrdPosixAdminNew admin(path);
 
   if (admin.isOK())
-     {XrdClientString str(path);
+     {XrdOucString str(path);
       XrdClientUrlSet url(str);
       if (admin.Admin.Mkdir(url.GetFile().c_str(), mode && S_IRWXU,
                                   mode && S_IRWXG, mode && S_IRWXO)) return 0;
@@ -776,7 +776,7 @@ int XrdPosixXrootd::Rmdir(const char *path)
   XrdPosixAdminNew admin(path);
 
   if (admin.isOK())
-     {XrdClientString str(path);
+     {XrdOucString str(path);
       XrdClientUrlSet url(str);
       if (admin.Admin.Rmdir(url.GetFile().c_str())) return 0;
       return admin.Fault();
@@ -819,7 +819,7 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 
 // Extract out path from the url
 //
-   XrdClientString str(path);
+   XrdOucString str(path);
    XrdClientUrlSet url(str);
 
 // Open the file first
@@ -896,7 +896,7 @@ int XrdPosixXrootd::Unlink(const char *path)
   XrdPosixAdminNew admin(path);
 
   if (admin.isOK())
-     {XrdClientString str(path);
+     {XrdOucString str(path);
       XrdClientUrlSet url(str);
       if (admin.Admin.Rm(url.GetFile().c_str())) return 0;
       return admin.Fault();

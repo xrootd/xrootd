@@ -3,7 +3,7 @@
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssProxy.hh"
-#include "XrdClient/XrdClientString.hh"
+#include "XrdOuc/XrdOucString.hh"
 #define WITHTHREADS
 #include "TTokenAuthz.h"
 #include <sys/time.h>
