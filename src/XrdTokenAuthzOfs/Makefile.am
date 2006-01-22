@@ -57,6 +57,7 @@ xrm_LDADD = $(XROOTD_SRCDIR)/src/XrdClient/libXrdClient.la \
             $(XROOTD_SRCDIR)/src/XrdSec/libXrdSec.la \
             $(XROOTD_SRCDIR)/src/XrdOuc/libXrdOuc.la \
             $(XROOTD_SRCDIR)/src/XrdNet/libXrdNet.la \
+            $(XROOTD_SRCDIR)/src/XrdSys/libXrdSys.la \
             -ldl
 else
 libXrdTokenAuthzOfs_la_LIBADD = $(XROOTD_LIBDIR)/libXrdAcc.a \
@@ -69,6 +70,7 @@ xrm_LDADD = -L$(XROOTD_LIBDIR) -lXrdClient \
             -lXrdSec \
             $(XROOTD_LIBDIR)/libXrdOuc.a \
             $(XROOTD_LIBDIR)/libXrdNet.a \
+            $(XROOTD_LIBDIR)/libXrdSys.a \
             -ldl
 endif
 
