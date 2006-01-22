@@ -20,7 +20,7 @@
 #ifndef _XRC_URLINFO_H
 #define _XRC_URLINFO_H
 
-#include "XrdClient/XrdClientString.hh"
+#include "XrdOuc/XrdOucString.hh"
 
 //
 // The information an url may contain
@@ -29,21 +29,21 @@
 
 class XrdClientUrlInfo {
  public:
-   XrdClientString Proto;
-   XrdClientString Passwd;
-   XrdClientString User;
-   XrdClientString Host;
+   XrdOucString Proto;
+   XrdOucString Passwd;
+   XrdOucString User;
+   XrdOucString Host;
    int Port;
-   XrdClientString HostAddr;
-   XrdClientString HostWPort;
-   XrdClientString File;
+   XrdOucString HostAddr;
+   XrdOucString HostWPort;
+   XrdOucString File;
 
    void Clear();
-   void TakeUrl(XrdClientString url);
-   XrdClientString GetUrl();
+   void TakeUrl(XrdOucString url);
+   XrdOucString GetUrl();
 
    XrdClientUrlInfo(const char *url);
-   XrdClientUrlInfo(const XrdClientString url);
+   XrdClientUrlInfo(const XrdOucString &url);
    XrdClientUrlInfo(const XrdClientUrlInfo &url);
    XrdClientUrlInfo();
 
@@ -51,8 +51,8 @@ class XrdClientUrlInfo {
 
    inline bool IsValid() { return (Port >= 0); }
 
-   XrdClientUrlInfo &operator=(const XrdClientString url);
-   XrdClientUrlInfo &operator=(const XrdClientUrlInfo url);
+   XrdClientUrlInfo &operator=(const XrdOucString &url);
+   XrdClientUrlInfo &operator=(const XrdClientUrlInfo &url);
 };
 
 

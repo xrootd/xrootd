@@ -38,11 +38,11 @@ XrdClientUrlInfo::XrdClientUrlInfo(const char *url)
    //                   [userN@]hostN:portN]]/pathfile
 
    Clear();
-   TakeUrl(XrdClientString(url));
+   TakeUrl(XrdOucString(url));
 }
 
 //_____________________________________________________________________________
-XrdClientUrlInfo::XrdClientUrlInfo(const XrdClientString url)
+XrdClientUrlInfo::XrdClientUrlInfo(const XrdOucString &url)
 {
    // Constructor from a string specifying an url or multiple urls in the
    // form:
@@ -85,7 +85,7 @@ void XrdClientUrlInfo::Clear() {
 }
 
 //______________________________________________________________________________
-XrdClientUrlInfo& XrdClientUrlInfo::operator=(const XrdClientString url)
+XrdClientUrlInfo& XrdClientUrlInfo::operator=(const XrdOucString &url)
 {
    // Assign url to local url.
 
@@ -95,7 +95,7 @@ XrdClientUrlInfo& XrdClientUrlInfo::operator=(const XrdClientString url)
 }
 
 //______________________________________________________________________________
-XrdClientUrlInfo& XrdClientUrlInfo::operator=(const XrdClientUrlInfo url)
+XrdClientUrlInfo& XrdClientUrlInfo::operator=(const XrdClientUrlInfo &url)
 {
    // Assign url to local url.
 
@@ -112,24 +112,24 @@ XrdClientUrlInfo& XrdClientUrlInfo::operator=(const XrdClientUrlInfo url)
 }
 
 //_____________________________________________________________________________
-void XrdClientUrlInfo::TakeUrl(XrdClientString u)
+void XrdClientUrlInfo::TakeUrl(XrdOucString u)
 {
    // Parse url character string and split in its different subcomponents.
    // Use IsValid() to check if URL is legal.
    // Url format:
    //             [proto://][user[:passwd]@]host:port/pathfile
    //
-   int p1 = 0, p2 = STR_NPOS, p3 = STR_NPOS, left = u.GetSize();
+   int p1 = 0, p2 = STR_NPOS, p3 = STR_NPOS, left = u.length();
 
    Clear();
 
    Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "parsing url: " << u);
 
-   if (u.GetSize() <= 0) return;
+   if (u.length() <= 0) return;
 
    // Get protocol
-   if ((p2 = u.Find((char *)"://")) != STR_NPOS) {
-      Proto = u.Substr(p1, p2);
+   if ((p2 = u.find("://")) != STR_NPOS) {
+      Proto.assign(u, p1, p2-1);
       Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "   Proto:   " << Proto);
       // Update start of search range and remaining length
       p1 = p2 + 3;
@@ -141,37 +141,37 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString u)
    }
 
    // Store the whole "[user[:passwd]@]host:port" thing in HostWPort
-   if ((p2 = u.Find((char *)"/",p1)) != STR_NPOS) {
+   if ((p2 = u.find('/', p1)) != STR_NPOS) {
       if (p2 > p1) {
-         HostWPort = u.Substr(p1, p2);
+         HostWPort.assign(u, p1, p2-1);
          // Update start of search range and remaining length
          p1 = p2+1;
          left -= p1;
       }
    } else {
-      HostWPort = u.Substr(p1);
+      HostWPort.assign(u, p1);
       left = 0;
    }
    Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "   HostWPort:   " << HostWPort);
 
    // Get pathfile
    if (left > 0)
-     File = u.Substr(p1);
+     File.assign(u, p1);
    Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "   File:   " << File);
 
    //
    // Resolve username, passwd, host and port.
    p1 = 0;
-   left = HostWPort.GetSize();
+   left = HostWPort.length();
    // Get user/pwd
-   if ((p2 = HostWPort.Find((char *)"@",p1)) != STR_NPOS) {
-      p3 = HostWPort.Find((char *)":",p1);
+   if ((p2 = HostWPort.find('@', p1)) != STR_NPOS) {
+      p3 = HostWPort.find(':', p1);
       if (p3 != STR_NPOS && p3 < p2) {
-         User = HostWPort.Substr(p1,p3);
-         Passwd = HostWPort.Substr(p3+1,p2);
+         User.assign(HostWPort, p1, p3-1);
+         Passwd.assign(HostWPort, p3+1, p2-1);
          Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "   Passwd: " << Passwd);
       } else {
-         User = HostWPort.Substr(p1,p2);
+         User.assign(HostWPort, p1, p2-1);
       }
       Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "   User:   " << User);
       // Update start of search range and remaining length
@@ -180,11 +180,11 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString u)
    }
 
    // Get host:port
-   if ((p2 = HostWPort.Find((char *)":",p1)) != STR_NPOS ) {	 
-      Host = HostWPort.Substr(p1, p2);
+   if ((p2 = HostWPort.find(':', p1)) != STR_NPOS ) {	 
+      Host.assign(HostWPort, p1, p2-1);
       Port = strtol((HostWPort.c_str())+p2+1, (char **)0, 10);
    } else {
-      Host = HostWPort.Substr(p1);
+      Host.assign(HostWPort, p1);
       Port = 0;
    }
    Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "   Host:   " << Host);
@@ -192,13 +192,13 @@ void XrdClientUrlInfo::TakeUrl(XrdClientString u)
 }
 
 //_____________________________________________________________________________
-XrdClientString XrdClientUrlInfo::GetUrl()
+XrdOucString XrdClientUrlInfo::GetUrl()
 {
    // Get full url
    // The fields might have been modified, so the full url
    // must be reconstructed
 
-   XrdClientString s;
+   XrdOucString s;
 
    if (Proto != "")
       s = Proto + "://";
