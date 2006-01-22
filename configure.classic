@@ -881,6 +881,22 @@ fi
 
 ######################################################################
 #
+### echo %%% check for setresuid and setresgid
+#
+hassetresuid=""
+case $platform in
+    linux)
+        message "Checking whether setresuid declared in /usr/include/unistd.h"
+        if `grep setresuid /usr/include/unistd.h > /dev/null 2>&1` ; then
+            hassetresuid="-DHAS_SETRESUID"
+            echo "yes"
+        else
+            echo "no"
+        fi ;;
+esac
+
+######################################################################
+#
 ### echo %%% Flag for /dev/poll
 #
 hasdevpoll=""
@@ -1830,6 +1846,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@sslextracflags@|$sslextracflags|" \
     -e "s|@hasdevpoll@|$hasdevpoll|" \
     -e "s|@hassigwti@|$hassigwti|" \
+    -e "s|@hassetresuid@|$hassetresuid|" \
     -e "s|@hasgethbyxr@|$hasgethbyxr|" \
     -e "s|@hasnameinfo@|$hasnameinfo|" \
     -e "s|@hasstrlcpy@|$hasstrlcpy|" \
