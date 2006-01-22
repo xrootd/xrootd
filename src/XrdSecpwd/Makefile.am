@@ -19,12 +19,14 @@ libXrdSecpwd_la_SOURCES = \
 libXrdSecpwd_la_LIBADD = ../XrdCrypto/libXrdCrypto.la \
                       ../XrdSut/libXrdSut.la \
                       ../XrdOuc/libXrdOuc.la \
+                      ../XrdSys/libXrdSys.la \
 		      $(CRYPTLIB) $(OPENSSL_LIBDIR) -ldl -lcrypto
 
 xrdpwdadmin_SOURCES = XrdSecpwdSrvAdmin.cc
 xrdpwdadmin_LDADD =   ../XrdCrypto/libXrdCrypto.la \
                       ../XrdSut/libXrdSut.la \
                       ../XrdOuc/libXrdOuc.la \
+                      ../XrdSys/libXrdSys.la \
 		      $(CRYPTLIB) $(OPENSSL_LIBDIR) -ldl -lcrypto
 xrdpwdadmin_LDFLAGS = -static
 
