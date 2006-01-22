@@ -68,14 +68,14 @@ public:
       return fMainReadCache->WillFit(bytes);
    }
 
-   bool                       CheckHostDomain(XrdClientString hostToCheck,
-					      XrdClientString allow, 
-					      XrdClientString deny);
+   bool                       CheckHostDomain(XrdOucString hostToCheck,
+					      XrdOucString allow, 
+					      XrdOucString deny);
    short                      Connect(XrdClientUrlInfo Host2Conn,
 				      XrdClientAbsUnsolMsgHandler *unsolhandler);
    void                       Disconnect(bool ForcePhysicalDisc);
    bool                       GetAccessToSrv();
-   XrdClientString            GetClientHostDomain() { return fClientHostDomain; }
+   XrdOucString               GetClientHostDomain() { return fClientHostDomain; }
 
    bool                       GetDataFromCache(const void *buffer,
 					       long long begin_offs,
@@ -178,7 +178,7 @@ private:
    // The handler which first tried to connect somewhere
    XrdClientAbsUnsolMsgHandler *fUnsolMsgHandler;
 
-   XrdClientString            fClientHostDomain; // Save the client's domain name
+   XrdOucString               fClientHostDomain; // Save the client's domain name
    bool                       fConnected;
    short                      fGlobalRedirCnt;    // Number of redirections
    time_t                     fGlobalRedirLastUpdateTimestamp; // Timestamp of last redirection
@@ -197,7 +197,7 @@ private:
                                                    // XrdClientAbs providing methods
                                                    // to handle a redir at higher level
 
-   XrdClientString            fRedirInternalToken; // Token returned by the server when
+   XrdOucString               fRedirInternalToken; // Token returned by the server when
                                                    // redirecting
 
    XrdOucCondVar              *fREQWaitResp;           // For explicitly requested delayed async responses
@@ -222,7 +222,6 @@ private:
                               fSessionIDRepo;      // The reposiry of session IDs, shared.
                                                    // Association between
                                                    // <hostname>:<port> and a SessionIDInfo struct
-                  
 
    char                       fSessionID[16];          // The ID of this session got from the login
 
@@ -244,10 +243,9 @@ private:
    XrdSecProtocol            *DoAuthentication(char *plist, int plsiz);
    ServerType                 DoHandShake(short log);
    bool                       DoLogin();
+   bool                       DomainMatcher(XrdOucString dom, XrdOucString domlist);
 
-   
-
-   XrdClientString            GetDomainToMatch(XrdClientString hostname);
+   XrdOucString               GetDomainToMatch(XrdOucString hostname);
 
    ESrvErrorHandlerRetval     HandleServerError(XReqErrorType &, XrdClientMessage *,
 						ClientRequest *);
@@ -257,7 +255,7 @@ private:
    // useful (?) to be sent just before closing a badly working stream
    bool                       PanicClose();
 
-   XrdClientString            ParseDomainFromHostname(XrdClientString hostname);
+   XrdOucString               ParseDomainFromHostname(XrdOucString hostname);
 
    XrdClientMessage           *ReadPartialAnswer(XReqErrorType &, size_t &, 
 						 ClientRequest *, bool, void**,

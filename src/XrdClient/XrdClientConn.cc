@@ -23,7 +23,6 @@ const char *XrdClientConnCVSID = "$Id$";
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdClient/XrdClientStringMatcher.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientAbs.hh"
 
@@ -67,7 +66,7 @@ XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
 XrdClientConnectionMgr *XrdClientConn::fgConnectionMgr = 0;
 
 //_____________________________________________________________________________
-void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdClientString &token)
+void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucString &token)
 {
    // Small utility function... we want to parse the content
    // of a redir response from the server.
@@ -85,9 +84,9 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdClientString &host, XrdCli
 
       host = redirdata->host;
       token = "";
-      if ( (pos = host.Find((char *)"?")) != STR_NPOS ) {
-         token = host.Substr(pos+1);
-         host.EraseFromStart(pos);
+      if ( (pos = host.find('?')) != STR_NPOS ) {
+         token.assign(host,pos+1);
+         host.erasefromstart(pos);
       }
       port = ntohl(redirdata->port);
    }
@@ -120,7 +119,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
       Error("XrdClientConn",
 	    "Error resolving this host's domain name." );
 
-   XrdClientString goodDomainsRE = fClientHostDomain + "|*";
+   XrdOucString goodDomainsRE = fClientHostDomain + "|*";
 
    if (EnvGetString(NAME_REDIRDOMAINALLOW_RE) == 0)
       EnvPutString(NAME_REDIRDOMAINALLOW_RE, goodDomainsRE.c_str());
@@ -526,12 +525,12 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 }
 
 //_____________________________________________________________________________
-bool XrdClientConn::CheckHostDomain(XrdClientString hostToCheck, XrdClientString allow, XrdClientString deny)
+bool XrdClientConn::CheckHostDomain(XrdOucString hostToCheck, XrdOucString allow, XrdOucString deny)
 {
    // Checks domain matching
 
-   XrdClientString domain;
-   XrdClientString reAllow, reDeny;
+   XrdOucString domain;
+   XrdOucString reAllow, reDeny;
 
    // Get the domain for the url to check
    domain = GetDomainToMatch(hostToCheck);
@@ -543,7 +542,7 @@ bool XrdClientConn::CheckHostDomain(XrdClientString hostToCheck, XrdClientString
 	domain << "]" );
 
    // If we are unable to get the domain for the url to check --> access denied to it
-   if (!domain.GetSize()) {
+   if (domain.length() <= 0) {
       Error("CheckHostDomain",
             "Error resolving domain name for " << hostToCheck <<
 	    ". Denying access.");
@@ -551,32 +550,63 @@ bool XrdClientConn::CheckHostDomain(XrdClientString hostToCheck, XrdClientString
       return FALSE;
    }
 
-   // Given a list of |-separated regexps for the hosts to DENY, 
+   // Given a list of |-separated regexps for the hosts to DENY,
    // match every entry with domain. If any match is found, deny access.
-   XrdClientStringMatcher redeny(deny.c_str());
-   if ( redeny.Matches(domain.c_str()) ) {
+   if (DomainMatcher(domain, deny) ) {
       Error("CheckHostDomain",
-	    "Access denied to the domain of [" << hostToCheck << "].");
-      
+            "Access denied to the domain of [" << hostToCheck << "].");
       return FALSE;
    }
 
-
-   // Given a list of |-separated regexps for the hosts to ALLOW, 
+   // Given a list of |-separated regexps for the hosts to ALLOW,
    // match every entry with domain. If any match is found, grant access.
-
-   XrdClientStringMatcher reallow(allow.c_str());
-   if ( reallow.Matches(domain.c_str()) ) {
+   if (DomainMatcher(domain, allow) ) {
       Info(XrdClientDebug::kHIDEBUG, "CheckHostDomain",
-	    "Access granted to the domain of [" << hostToCheck << "].");
-      
+           "Access granted to the domain of [" << hostToCheck << "].");
       return TRUE;
    }
 
+   Error("CheckHostDomain", "Access to domain " << domain <<
+         " is not allowed nor denied: deny.");
 
-   Error("CheckHostDomain",
-	 "Access to domain " << domain <<
-	 " is not allowed nor denied. Not Allowed.");
+   return FALSE;
+}
+
+//___________________________________________________________________________
+bool XrdClientConn::DomainMatcher(XrdOucString dom, XrdOucString domlist)
+{
+   // Check matching of domain 'dom' in list 'domlist'.
+   // Items in list are separated by '|' and can contain the wild
+   // cards '*', e.g.
+   //
+   //   domlist.c_str() = "cern.ch|*.stanford.edu|slac.*.edu"
+   //
+   // The domain to match is a FQDN host or domain name, e.g.
+   //
+   //   dom.c_str() = "flora02.slac.stanford.edu"
+   //
+
+   Info(XrdClientDebug::kHIDEBUG, "DomainMatcher",
+        "search for '"<<dom<<"' in '"<<domlist<<"'");
+   //
+   // Parse domlist
+   if (domlist.length() > 0) {
+      XrdOucString domain;
+      int nm = 0, from = 0;
+      while ((from = domlist.tokenize(domain, from, '|')) != STR_NPOS) {
+         Info(XrdClientDebug::kDUMPDEBUG, "DomainMatcher",
+                                          "checking domain: "<<domain);
+         nm = dom.matches(domain.c_str());
+         if (nm > 0) {
+            Info(XrdClientDebug::kHIDEBUG, "DomainMatcher",
+                 "domain: "<<domain<<" matches '"<<dom
+                          <<"' (matching chars: "<<nm<<")");
+            return TRUE;
+         }
+      }
+   }
+   Info(XrdClientDebug::kHIDEBUG, "DomainMatcher",
+        "no domain matching '"<<dom<<"' found in '"<<domlist<<"'");
 
    return FALSE;
 }
@@ -1241,22 +1271,21 @@ bool XrdClientConn::DoLogin()
    reqhdr.login.pid = getpid();
 
    // Get username from Url
-   XrdClientString User = fUrl.User;
-   if (!User.GetSize()) {
+   XrdOucString User = fUrl.User;
+   if (User.length() <= 0) {
       // Use local username, if not specified
       struct passwd *u = getpwuid(getuid());
       if (u >= 0)
          User = u->pw_name;
-
    }
-   if (User.GetSize())
+   if (User.length() > 0)
       strcpy( (char *)reqhdr.login.username, User.c_str() );
    else
       strcpy( (char *)reqhdr.login.username, "????" );
 
    // set the token with the value provided by a previous 
    // redirection (if any)
-   reqhdr.header.dlen = fRedirInternalToken.GetSize(); 
+   reqhdr.header.dlen = fRedirInternalToken.length(); 
   
    // We call SendGenCommand, the function devoted to sending commands. 
    Info(XrdClientDebug::kHIDEBUG,
@@ -1276,8 +1305,8 @@ bool XrdClientConn::DoLogin()
    // plist is the plain response from the server. We need a way to 0-term it.
    XrdSecProtocol *secp = 0;
    SessionIDInfo *prevsessid = 0;
-   XrdClientString sessname;
-   XrdClientString sessdump;
+   XrdOucString sessname;
+   XrdOucString sessdump;
    if (resp && LastServerResp.dlen && plist) {
 
       plist = (char *)realloc(plist, LastServerResp.dlen+1);
@@ -1302,7 +1331,7 @@ bool XrdClientConn::DoLogin()
 	 snprintf(buf, 20, "%d", fUrl.Port);
 
 	 sessname = fUrl.HostAddr;
-	 if (sessname.GetSize() == 0)
+	 if (sessname.length() <= 0)
 	   sessname = fUrl.Host;
 
 	 sessname += ":";
@@ -1338,12 +1367,12 @@ bool XrdClientConn::DoLogin()
          }
          //
          // Set username
-         cenv = new char[User.GetSize()+12];
+         cenv = new char[User.length()+12];
          sprintf(cenv, "XrdSecUSER=%s",User.c_str());
          putenv(cenv);
          //
          // Set remote hostname
-         cenv = new char[fUrl.Host.GetSize()+12];
+         cenv = new char[fUrl.Host.length()+12];
          sprintf(cenv, "XrdSecHOST=%s",fUrl.Host.c_str());
          putenv(cenv);
 
@@ -1357,7 +1386,7 @@ bool XrdClientConn::DoLogin()
          // We have to kill the previous session, if any
          // By sending a kXR_endsess
 
- 	 XrdClientString sessdump;
+ 	 XrdOucString sessdump;
 	 char b[20];
 	 for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
 	    snprintf(b, 20, "%.2x", prevsessid->id[i]);
@@ -1514,7 +1543,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 
       //
       // Protocol name
-      XrdClientString protname = protocol->Entity.prot;
+      XrdOucString protname = protocol->Entity.prot;
       //
       // Once we have the protocol, get the credentials
       credentials = protocol->getCredentials(&Parms);
@@ -1536,7 +1565,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
       // We fill the header struct containing the request for login
       ClientRequest reqhdr;
       memset(reqhdr.auth.reserved, 0, 12);
-      memcpy(reqhdr.auth.credtype, protname.c_str(), protname.GetSize());
+      memcpy(reqhdr.auth.credtype, protname.c_str(), protname.length());
 
       LastServerResp.status = kXR_authmore;
       char *srvans = 0;
@@ -1605,8 +1634,8 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
    // Handle errors from server
 
    int newport; 	
-   XrdClientString newhost; 	
-   XrdClientString token;
+   XrdOucString newhost; 	
+   XrdOucString token;
   
    // Close the log connection at this point the fLogConnID is no longer valid.
    // On read/write error the physical channel may be not OK, so it's a good
@@ -1658,7 +1687,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 	 // write mode, we must rebounce and not go away to other hosts
 	 // To state this, we just asked to our redir handler
 
-	 if ( (fREQUrl.Host.GetSize() > 0) ) {
+	 if ( (fREQUrl.Host.length() > 0) ) {
 	    // If this client was explicitly told to redirect somewhere...
 	    ClearSessionID();
 	    newhost = fREQUrl.Host;
@@ -1669,7 +1698,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 	    fREQUrl.Clear();
 	 }
 	 else
-	    if ( cangoaway && fLBSUrl && (fLBSUrl->GetUrl().GetSize() > 0) ) {
+	    if ( cangoaway && fLBSUrl && (fLBSUrl->GetUrl().length() > 0) ) {
 	       // "Normal" error... we go to the LB if any
 	       // Clear the current session info. Rather simplicistic.
 	       ClearSessionID();
@@ -1684,7 +1713,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 		     " with server [" << fUrl.Host << ":" << fUrl.Port <<
 		     "]. Rebouncing here.");
 	       
-	       if (fUrl.Host.GetSize()) newhost = fUrl.Host;
+	       if (fUrl.Host.length()) newhost = fUrl.Host;
 	       else
 		  newhost = fUrl.HostAddr;
 	       
@@ -1711,7 +1740,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 
       CheckPort(newport);
 
-      if ((newhost.GetSize() > 0) && newport) {
+      if ((newhost.length() > 0) && newport) {
 	 XrdClientUrlInfo NewUrl(fUrl.GetUrl());
 
          if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
@@ -1854,14 +1883,14 @@ XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo newdest)
 }
 
 //_____________________________________________________________________________
-XrdClientString XrdClientConn::GetDomainToMatch(XrdClientString hostname) {
+XrdOucString XrdClientConn::GetDomainToMatch(XrdOucString hostname) {
    // Return net-domain of host hostname in 's'.
    // If the host is unknown in the DNS world but it's a
    //  valid inet address, then that address is returned, in order
    //  to be matched later for access granting
 
    char *fullname, *err;
-   XrdClientString res;
+   XrdOucString res;
 
    // Let's look up the hostname
    // It may also be a w.x.y.z type address.
@@ -1909,20 +1938,20 @@ XrdClientString XrdClientConn::GetDomainToMatch(XrdClientString hostname) {
 }
 
 //_____________________________________________________________________________
-XrdClientString XrdClientConn::ParseDomainFromHostname(XrdClientString hostname) {
+XrdOucString XrdClientConn::ParseDomainFromHostname(XrdOucString hostname) {
 
-   XrdClientString res;
+   XrdOucString res;
    int pos;
 
    res = hostname;
 
    // Isolate domain
-   pos = res.Find((char *)".");
+   pos = res.find('.');
 
    if (pos == STR_NPOS)
       res = "";
    else
-      res.EraseFromStart(pos+1);
+      res.erasefromstart(pos+1);
 
    return res;
 }
