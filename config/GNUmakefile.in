@@ -11,11 +11,11 @@
 
 # Order in which components must be made
 #
-SERVER  = XrdOuc XrdNet @xrdsec@ \
+SERVER  = XrdSys XrdOuc XrdNet @xrdsec@ \
           XrdSfs   XrdAcc XrdOdc \
           XrdXr    XrdOss   XrdOfs   XrdOlb Xrd  XrdRootd   XrdXrootd
 
-XRDSEC  = XrdOuc XrdNet @xrdsec@
+XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
 
 XRDCLIENT = XrdClient XrdPosix
 
@@ -138,6 +138,11 @@ XrdPosix: FORCE
 XrdSfs: FORCE
 	@echo $(XMSG) sfs $(XDBG) component...
 	$(ECHO)cd src/XrdSfs;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdSys: FORCE
+	@echo $(XMSG) sys $(XDBG) component...
+	$(ECHO)cd src/XrdSys;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdRootd: FORCE
