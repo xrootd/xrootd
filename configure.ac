@@ -667,6 +667,15 @@ AC_CHECK_FUNC(sigwaitinfo,[AC_DEFINE(HAS_SIGWTI)],
                    ])
                 ])
 
+# On linux we need to check if setresuid prototype is defined
+case "$target_os" in
+   linux*)
+      AC_CHECK_FUNCS(setresuid,
+                     AC_DEFINE(HAS_SETRESUID)
+                    )
+      ;;
+esac
+
 ###########################################
 # Kerberos 4 checks
 krb4tests=ok
@@ -725,6 +734,7 @@ CXXFLAGS="$CXXFLAGS -D_REENTRANT"
 
 AC_OUTPUT(Makefile
           src/Makefile
+          src/XrdSys/Makefile
           src/XrdOuc/Makefile
           src/XrdNet/Makefile
           src/XrdSec/Makefile
