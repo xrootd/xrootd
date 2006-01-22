@@ -11,8 +11,8 @@
 
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientDebug.hh"
-#include "XrdClient/XrdClientString.hh"
 #include "XrdClient/XrdClientVector.hh"
+#include "XrdOuc/XrdOucString.hh"
 
 #include <rpc/types.h>
 #include <stdlib.h>
@@ -31,38 +31,18 @@ void SharedBufFree() {
 
 
 // Useful to otkenize an input char * into a vector of strings
-vecString *Tokenize(const char *str, char sep) {
-   XrdClientString s(str);
-
-   int it = 0;
-   int itTokenEnd = 0;
-
+vecString *Tokenize(const char *str, char sep)
+{
+   XrdOucString s(str);
+   // Container for the resulting tokens
    vecString *res = new vecString;
-
-   XrdClientString sl;
-
-   while( (res) && (it < s.GetSize()) )
-      {
-	 //Eat separators
-	 while((it < s.GetSize()) && (s[it] == sep))
-	    it++;
-
-	 //Find next token
-	 itTokenEnd = it;
-	 if (itTokenEnd < s.GetSize())
-	    do {
-	       itTokenEnd++;
-	    } while((itTokenEnd < s.GetSize()) && (s[itTokenEnd] != sep));
-
-	 //Append token to result
-	 if(it < itTokenEnd) {
-	    sl = s.Substr(it, itTokenEnd);
-	    res->Push_back(sl);
-	 }
-
-	 it = itTokenEnd;
-      }
-
+   // Tokenize
+   XrdOucString sl;
+   int from = 0;
+   while ((from = s.tokenize(sl, from, sep))) {
+      if (sl.length() > 0)
+         res->Push_back(sl);
+   }
    return res;
 }
 
@@ -261,7 +241,7 @@ extern "C" {
 
    char *XrdDirList(const char *dir) {
       vecString entries;
-      XrdClientString lst;
+      XrdOucString lst;
 
       if (!adminst) return 0;
 
@@ -269,7 +249,7 @@ extern "C" {
 
       joinStrings(lst, entries);
 
-      SharedBufRealloc(lst.GetSize()+1);
+      SharedBufRealloc(lst.length()+1);
       strcpy(sharedbuf, lst.c_str());
 
       return sharedbuf;

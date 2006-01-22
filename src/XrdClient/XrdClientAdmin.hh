@@ -18,18 +18,18 @@
 
 
 #include "XrdClient/XrdClientAbs.hh"
-#include "XrdClient/XrdClientString.hh"
 #include "XrdClient/XrdClientVector.hh"
+#include "XrdOuc/XrdOucString.hh"
 
 
-typedef XrdClientVector<XrdClientString> vecString;
+typedef XrdClientVector<XrdOucString> vecString;
 typedef XrdClientVector<bool> vecBool;
 
-void joinStrings(XrdClientString &buf, vecString vs);
+void joinStrings(XrdOucString &buf, vecString vs);
 
 class XrdClientAdmin : public XrdClientAbs {
 
-   XrdClientString                 fInitialUrl;
+   XrdOucString                    fInitialUrl;
 
  protected:
 

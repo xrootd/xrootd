@@ -82,7 +82,7 @@ char *initialhost;
 
 XrdClient *genclient = 0;
 XrdClientAdmin *genadmin = 0;
-XrdClientString currentpath;
+XrdOucString currentpath;
 
 ///////////////////////
 
@@ -256,7 +256,7 @@ int main(int argc, char**argv) {
 
 
    if (initialhost) {
-      XrdClientString s = "root://";
+      XrdOucString s = "root://";
       s += initialhost;
       s += "//dummy";
       genadmin = new XrdClientAdmin(s.c_str());
@@ -299,10 +299,10 @@ int main(int argc, char**argv) {
 
 	 // Quite trivial directory processing
 	 if (!strcmp(parmname, "..")) {
-	    int pos = currentpath.RFind((char *)"/");
+	    int pos = currentpath.rfind('/');
 
 	    if (pos != STR_NPOS)
-	       currentpath.EraseToEnd(pos);
+	       currentpath.erase(pos);
 
 	    continue;
 	 }
@@ -375,7 +375,7 @@ int main(int argc, char**argv) {
 
 	 // Init the instance
 	 if (genadmin) delete genadmin;
-	 XrdClientString h(host);
+	 XrdOucString h(host);
 	 h  = "root://" + h;
 	 h += "//dummy";
 
@@ -399,7 +399,7 @@ int main(int argc, char**argv) {
 	 }
 
 	 char *dirname = tkzer.GetToken(0, 0);
-	 XrdClientString path;
+	 XrdOucString path;
 
 	 if (dirname) {
 	    if (dirname[0] == '/')
@@ -433,7 +433,7 @@ int main(int argc, char**argv) {
 	 }
 
 	 char *fname = tkzer.GetToken(0, 0);
-	 XrdClientString pathname;
+	 XrdOucString pathname;
 
 	 if (fname) {
 	    if (fname[0] == '/')
@@ -467,7 +467,7 @@ int main(int argc, char**argv) {
 	 }
 
 	 char *fname = tkzer.GetToken(0, 0);
-	 XrdClientString pathname;
+	 XrdOucString pathname;
 
 	 if (fname) {
 	    if (fname[0] == '/')
@@ -505,7 +505,7 @@ int main(int argc, char**argv) {
 	 }
 
 	 char *fname = tkzer.GetToken(0, 0);
-	 XrdClientString pathname;
+	 XrdOucString pathname;
 
 	 if (fname) {
 	    if (fname[0] == '/')
@@ -544,7 +544,7 @@ int main(int argc, char**argv) {
 	 }
 
 	 char *fname = tkzer.GetToken(0, 0);
-	 XrdClientString pathname;
+	 XrdOucString pathname;
 
 	 if (fname) {
 	    if (fname[0] == '/')
@@ -583,7 +583,7 @@ int main(int argc, char**argv) {
 	 }
 
 	 char *fname = tkzer.GetToken(0, 0);
-	 XrdClientString pathname;
+	 XrdOucString pathname;
 
 	 if (fname) {
 	    if (fname[0] == '/')
@@ -625,7 +625,7 @@ int main(int argc, char**argv) {
 
 	 char *fname1 = tkzer.GetToken(0, 0);
 	 char *fname2 = tkzer.GetToken(0, 0);
-	 XrdClientString pathname1, pathname2;
+	 XrdOucString pathname1, pathname2;
 
 	 if (fname1) {
 	    if (fname1[0] == '/')
@@ -677,7 +677,7 @@ int main(int argc, char**argv) {
 	 if (groupc) group = atoi(groupc);
 	 if (otherc) other = atoi(otherc);
 
-	 XrdClientString pathname1;
+	 XrdOucString pathname1;
 
 	 if (fname1) {
 	    if (fname1[0] == '/')
@@ -720,7 +720,7 @@ int main(int argc, char**argv) {
 	 if (groupc) group = atoi(groupc);
 	 if (otherc) other = atoi(otherc);
 
-	 XrdClientString pathname1;
+	 XrdOucString pathname1;
 
 	 if (fname1) {
 	    if (fname1[0] == '/')
@@ -755,7 +755,7 @@ int main(int argc, char**argv) {
 	 }
 
 	 char *fname = tkzer.GetToken(0, 0);
-	 XrdClientString pathname;
+	 XrdOucString pathname;
 
 	 if (fname) {
 	    if (fname[0] == '/')
@@ -788,7 +788,7 @@ int main(int argc, char**argv) {
 	 }
 
 	 char *fname = tkzer.GetToken(0, 0);
-	 XrdClientString pathname;
+	 XrdOucString pathname;
 
 	 if (fname) {
 	    if (fname[0] == '/')
@@ -829,7 +829,7 @@ int main(int argc, char**argv) {
 	 if (optsc) opts = atoi(optsc);
 	 if (prioc) prio = atoi(prioc);
 
-	 XrdClientString pathname1;
+	 XrdOucString pathname1;
 
 	 if (fname1) {
 	    if (fname1[0] == '/')
@@ -866,14 +866,14 @@ int main(int argc, char**argv) {
 
 	 char *fname1 = tkzer.GetToken(0, 0);
 	 char *tk;
-	 XrdClientString pars;
+	 XrdOucString pars;
 
 	 while ((tk = tkzer.GetToken(0, 0))) {
 	    pars += " ";
 	    pars += tk;
 	 }
 
-	 XrdClientString pathname1;
+	 XrdOucString pathname1;
 
 	 if (fname1) {
 
@@ -899,7 +899,7 @@ int main(int argc, char**argv) {
 	    continue;
 	 }
 
-	 XrdClientString cmd;
+	 XrdOucString cmd;
 
 	 cmd = "xrdcp -s ";
 	 cmd += pathname1;
@@ -925,14 +925,14 @@ int main(int argc, char**argv) {
 	 char *fname1 = tkzer.GetToken(0, 0);
 	 char *fname2 = tkzer.GetToken(0, 0);
 	 char *tk;
-	 XrdClientString pars;
+	 XrdOucString pars;
 
 	 while ((tk = tkzer.GetToken(0, 0))) {
 	    pars += " ";
 	    pars += tk;
 	 }
 
-	 XrdClientString pathname1, pathname2;
+	 XrdOucString pathname1, pathname2;
 
 	 if (fname1) {
 
@@ -981,7 +981,7 @@ int main(int argc, char**argv) {
 	    continue;
 	 }
 
-	 XrdClientString cmd;
+	 XrdOucString cmd;
 
 	 cmd = "xrdcp ";
 	 cmd += pathname1;
