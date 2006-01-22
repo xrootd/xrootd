@@ -33,7 +33,7 @@ endif
 lib_LTLIBRARIES = libXrdClient.la $(BUILDPERL) $(BUILDJAVA)
 
 xrootdclientinc_HEADERS = XrdClient.hh \
-               XrdClientString.hh XrdClientVector.hh XrdClientAdmin.hh \
+               XrdClientVector.hh XrdClientAdmin.hh \
                XrdClientAbs.hh XrdClientUnsolMsg.hh XrdClientMessage.hh \
                XrdClientProtocol.hh XrdClientSock.hh XrdClientUrlInfo.hh \
                XrdClientConn.hh XrdClientConst.hh XrdClientReadCache.hh \
@@ -49,7 +49,6 @@ libXrdClient_la_SOURCES = \
         XrdClientConn.cc XrdClientConn.hh               \
         XrdClientConnMgr.cc XrdClientConnMgr.hh XrdClientUnsolMsg.hh           \
         XrdClientDebug.cc XrdClientDebug.hh              \
-        XrdClientDNS.cc XrdClientDNS.hh                \
         XrdClientInputBuffer.cc XrdClientInputBuffer.hh        \
         XrdClientLogConnection.cc XrdClientLogConnection.hh      \
         XrdClientMessage.cc XrdClientMessage.hh XrdClientProtocol.hh          \
@@ -57,25 +56,19 @@ libXrdClient_la_SOURCES = \
         XrdClientReadCache.cc XrdClientReadCache.hh          \
         XrdClientUrlInfo.cc XrdClientUrlInfo.hh            \
         XrdClientUrlSet.cc XrdClientUrlSet.hh             \
-        XrdClientStringMatcher.cc XrdClientStringMatcher.hh      \
         XrdClientThread.cc XrdClientThread.hh             \
         XrdClientProtocol.cc            \
         XrdClientAdmin.cc XrdClientAdmin.hh XrdClientVector.hh             \
         XrdClientEnv.cc XrdClientEnv.hh XrdClientConst.hh                \
         XrdCpMthrQueue.cc  XrdCpMthrQueue.hh             \
         XrdCpWorkLst.cc XrdCpWorkLst.hh                \
-        XrdClientString.cc XrdClientString.hh             \
         XrdClientSid.cc XrdClientSid.hh
 libXrdClient_la_LIBADD = $(LIBSUNMATH)
-
-##  misdeclarations in original Makefile:
-##        XrdClientXrdSock.cc             \
-##        XrdClientXrdFactory.cc          \
-##        XrdClientXrdDNS.cc              
 
 clientlibs =  libXrdClient.la \
               ../XrdOuc/libXrdOuc.la \
               ../XrdNet/libXrdNet.la \
+              ../XrdSys/libXrdSys.la \
               -ldl
 
 xrdcp_SOURCES = Xrdcp.cc
