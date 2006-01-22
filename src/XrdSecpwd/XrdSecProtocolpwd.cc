@@ -28,6 +28,8 @@
 #include <XrdOuc/XrdOucError.hh>
 #include <XrdOuc/XrdOucStream.hh>
 
+#include <XrdSys/XrdSysPriv.hh>
+
 #include <XrdSut/XrdSutCache.hh>
 
 #include <XrdSecpwd/XrdSecProtocolpwd.hh>
@@ -2054,6 +2056,8 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
    // Check that info about the defined user is available
    EPNAME("QueryUser");
 
+   DEBUG("Enter: " << hs->User);
+
    // Check inputs
    if (hs->User.length() <= 0 || !hs->CF || !hs->Cref) {
       DEBUG("Invalid inputs ("<<hs->User.length()<<","<<hs->CF<<","<<hs->Cref<<")");
@@ -2086,8 +2090,8 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
             if (UserPwd > 1) {
                // Try special crypt like file
                File.replace(FileUser,FileCrypt);
-               if ((rcst = stat(File.c_str(),&st)) == 0)
-                  fcrypt = 1;
+               fcrypt = 1;
+               rcst = 0;
             }
          }
          mtime = (rcst == 0) ? st.st_mtime : mtime;
@@ -2904,78 +2908,73 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
    //
    // Check the user specific file first, if requested
    if (fn.length() > 0) {
-      // target and actual uid
+
+      // target uid
       int uid = pw->pw_uid;
-      int ouid = getuid();
-      // Temporary change to target user ID to avoid NFS squashing problems
-      if (ouid == 0) {
-         // set access control list from /etc/initgroup
-         if (initgroups(pw->pw_name, pw->pw_gid) == -1)
-            DEBUG("can't initgroups for uid "<<uid<<" (errno:"<<errno<<")");
-         // set uid and gid
-         if (setresgid(pw->pw_gid, pw->pw_gid, 0) == -1)
-            DEBUG("can't setgid for gid "<<pw->pw_gid<<" (errno:"<< errno<<")");
-         if (setresuid(pw->pw_uid, pw->pw_uid, 0) == -1)
-            DEBUG("can't setuid for uid "<<uid<<" (errno:"<<errno<<")");
+
+      // Acquire the privileges, if needed
+      XrdSysPrivGuard priv(uid);
+      bool go = priv.Valid();
+      if (!go) {
+         DEBUG("problems acquiring temporarly identity: "<<hs->User);
       }
-      // The file now
-      String fpw(pw->pw_dir,strlen(pw->pw_dir)+fn.length()+5);
-      fpw += ("/"+fn);
-      DEBUG("checking file "<<fpw<<" for user "<<hs->User);
+
+      // The file
+      String fpw(pw->pw_dir, strlen(pw->pw_dir) + fn.length() + 5);
+      if (go) {
+         fpw += ("/" + fn);
+         DEBUG("checking file "<<fpw<<" for user "<<hs->User);
+      }
+
       // Check first the permissions: should be 0600
       struct stat st;
-      if (stat(fpw.c_str(), &st) == -1) {
+      if (go && stat(fpw.c_str(), &st) == -1) {
          if (errno != ENOENT) {
             DEBUG("cannot stat password file "<<fpw<<" (errno:"<<errno<<")");
             rc = -1;
-            goto back;
          } else {
             DEBUG("file "<<fpw<<" does not exist");
             rc = 0;
-            goto back;
          }
+         go = 0;
       }
-      if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
-          (st.st_mode & (S_IWGRP | S_IWOTH)) != 0) {
+      if (go &&
+         (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
+          (st.st_mode & (S_IWGRP | S_IWOTH | S_IRGRP | S_IROTH)) != 0)) {
          DEBUG("pass file "<<fpw<<": wrong permissions "<<
-               (st.st_mode & 0777) << " (should be 0644)");
+               (st.st_mode & 0777) << " (should be 0600)");
          rc = -2;
-         goto back;
+         go = 0;
       }
+
       // Open the file
-      if ((fid = open(fpw.c_str(), O_RDONLY)) == -1) {
+      if (go && (fid = open(fpw.c_str(), O_RDONLY)) == -1) {
          DEBUG("cannot open file "<<fpw<<" (errno:"<<errno<<")");
          rc = -1;
-         goto back;
+         go = 0;
       }
+
       // Read password-hash
       char pass[128];
-      if ((n = read(fid, pass, sizeof(pass)-1)) <= 0) {
+      if (go && (n = read(fid, pass, sizeof(pass)-1)) <= 0) {
          close(fid);
          DEBUG("cannot read file "<<fpw<<" (errno:"<<errno<<")");
          rc = -1;
-         goto back;
+         go = 0;
       }
-      close(fid);
+      if (fid > -1)
+         close(fid);
+
       // Get rid of special trailing chars 
-      len = n;
-      while (len-- && (pass[len] == '\n' || pass[len] == 32))
-         pass[len] = 0;
-      // Null-terminate
-      pass[++len] = 0;
-      rc = len;
-      // Prepare for output
-      pwhash = pass;
-      
- back:
-      //
-      // Change back uid's
-      if (ouid == 0) {
-         // set uid and gid
-         if (setresgid(0, 0, 0) == -1)
-            DEBUG("can't re-setgid for gid 0 (errno:"<<errno<<")");
-         if (setresuid(0, 0, 0) == -1)
-            DEBUG("can't re-setuid for uid 0 (errno:"<<errno<<")");
+      if (go) {
+         len = n;
+         while (len-- && (pass[len] == '\n' || pass[len] == 32))
+            pass[len] = 0;
+         // Null-terminate
+         pass[++len] = 0;
+         rc = len;
+         // Prepare for output
+         pwhash = pass;
       }
    }
    //
@@ -2985,12 +2984,20 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
    //
    // If not, we check the system files
 #ifdef R__SHADOWPW
-   struct spwd *spw = 0;
-   // System V Rel 4 style shadow passwords
-   if ((spw = getspnam(hs->User.c_str())) == 0) {
-      DEBUG("shadow passwd not accessible for user "<<hs->User);
-   } else
-      pwhash = spw->sp_pwdp;
+   {  // Acquire the privileges; needs to be 'superuser' to access the
+      // shadow password file
+      XrdSysPrivGuard priv(0);
+      if (priv.Valid()) {
+         struct spwd *spw = 0;
+         // System V Rel 4 style shadow passwords
+         if ((spw = getspnam(hs->User.c_str())) == 0) {
+            DEBUG("shadow passwd not accessible to this application");
+         } else
+            pwhash = spw->sp_pwdp;
+      } else {
+         DEBUG("problems acquiring temporarly superuser privileges");
+      }
+   }
 #else
    pwhash = pw->pw_passwd;
 #endif
@@ -3002,7 +3009,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
    }
    //
    // This is send back to the client to locate autologin info
-   fn = "system";   
+   fn = "system";
 
    // We are done
    return rc;
