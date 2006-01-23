@@ -33,11 +33,13 @@ endif
 lib_LTLIBRARIES = libXrdClient.la $(BUILDPERL) $(BUILDJAVA)
 
 xrootdclientinc_HEADERS = XrdClient.hh \
-               XrdClientVector.hh XrdClientAdmin.hh \
+               XrdClientVector.hh XrdClientAdmin.hh XrdClientConnMgr.hh \
                XrdClientAbs.hh XrdClientUnsolMsg.hh XrdClientMessage.hh \
                XrdClientProtocol.hh XrdClientSock.hh XrdClientUrlInfo.hh \
                XrdClientConn.hh XrdClientConst.hh XrdClientReadCache.hh \
-               XrdClientInputBuffer.hh XrdClientEnv.hh XrdClientThread.hh
+               XrdClientInputBuffer.hh XrdClientEnv.hh XrdClientThread.hh \
+               XrdClientPhyConnection.hh XrdClientLogConnection.hh \
+               XrdClientDebug.hh
 
 #############################################################################
 # Build rules
