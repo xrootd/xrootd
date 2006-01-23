@@ -124,11 +124,11 @@ int XrdProtocol_Select::Load(const char *lname, const char *pname,
 
 // Find a port associated slot in the table
 //
-   for (i = ProtoCnt-1; i >= 0; i++) if (port == ProtPort[i]) break;
+   for (i = ProtoCnt-1; i >= 0; i--) if (port == ProtPort[i]) break;
    for (j = ProtoCnt-1; j > i; j--)
-       {ProtName[j] = ProtName[j+1];
-        ProtPort[j] = ProtPort[j+1];
-        Protocol[j] = Protocol[j+1];
+       {ProtName[j+1] = ProtName[j];
+        ProtPort[j+1] = ProtPort[j];
+        Protocol[j+1] = Protocol[j];
        }
 
 // Add protocol to our table of protocols
