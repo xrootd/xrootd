@@ -158,7 +158,7 @@ void          DoIt() {}
 static int    Load(const char *lname, const char *pname, char *parms,
                    XrdProtocol_Config *pi);
 
-XrdProtocol  *Match(XrdLink *lp) {return 0;}
+XrdProtocol  *Match(XrdLink *) {return 0;}
 
 int           Process(XrdLink *lp);
 
