@@ -7,7 +7,7 @@
 TYPECC     = g++
 TYPELD     = g++
 
-TYPEMISC   = -D_ALL_SOURCE -D_REENTRANT -D_GNU_SOURCE -fPIC \
+TYPEMISC   = -D_ALL_SOURCE -D_REENTRANT -D__solaris__ -D_GNU_SOURCE -fPIC \
              -Wall -Wno-deprecated -DSUNGCC $(CFTRACE)
 TYPECF32   =
 TYPECF64   =

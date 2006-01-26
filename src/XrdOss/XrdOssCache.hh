@@ -21,7 +21,7 @@
 /*              O S   D e p e n d e n t   D e f i n i t i o n s               */
 /******************************************************************************/
 
-#if defined(SUNCC) || defined(SUNGCC)
+#ifdef __solaris__
 #include <sys/statvfs.h>
 #define STATFS_t struct statvfs
 #define FS_Stat(a,b) statvfs(a,b)

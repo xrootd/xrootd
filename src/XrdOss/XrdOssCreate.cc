@@ -25,7 +25,7 @@ const char *XrdOssCreateCVSID = "$Id$";
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#if defined(SUNCC) || defined(AIX)
+#if defined(__solaris__) || defined(AIX)
 #include <sys/vnode.h>
 #endif
 

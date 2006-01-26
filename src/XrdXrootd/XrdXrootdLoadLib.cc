@@ -14,7 +14,7 @@ const char *XrdXrootdLoadLibCVSID = "$Id$";
 
 // Bypass Solaris ELF madness
 //
-#if (defined(SUNCC) || defined(SUN)) 
+#ifdef __solaris__
 #include <sys/isa_defs.h>
 #if defined(_ILP32) && (_FILE_OFFSET_BITS != 32)
 #undef  _FILE_OFFSET_BITS

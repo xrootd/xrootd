@@ -31,7 +31,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef SUNCC
+#ifdef __solaris__
 #include <sys/vnode.h>
 #endif
 

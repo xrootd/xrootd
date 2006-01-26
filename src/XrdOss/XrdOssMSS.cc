@@ -20,7 +20,7 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include <signal.h>
 #include <stdio.h>
 #include <time.h>
-#if defined(AIX) || defined(SUNCC)
+#if defined(AIX) || defined(__solaris__)
 #include <sys/vnode.h>
 #include <sys/mode.h>
 #endif
