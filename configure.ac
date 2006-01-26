@@ -58,11 +58,10 @@ case "$target_os" in
    linux*)
      # TODO: check why two different macros are used for this
      AC_DEFINE(__linux__)
-     AC_DEFINE(__linux)
      ;;
    solaris*)
      TARGET_OS=solaris
-     AC_DEFINE(__sun)
+     AC_DEFINE(__solaris__)
      CC_PREFERENCE="cc gcc"
      CXX_PREFERENCE="CC g++"
      DFLT_OPT="-O2"
