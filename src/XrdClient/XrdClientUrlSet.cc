@@ -31,7 +31,7 @@ const char *XrdClientUrlSetCVSID = "$Id$";
 
 #include "XrdClient/XrdClientDebug.hh"
 
-#ifdef __sun
+#ifdef __solaris__
 #include <sunmath.h>
 #endif
 
@@ -236,7 +236,7 @@ XrdClientUrlInfo *XrdClientUrlSet::GetARandomUrl()
    if (!fTmpUrlArray.GetSize()) return 0;
    
    for (int i=0; i < 10; i++)
-#ifdef __sun
+#ifdef __solaris__
       rnd = irint(GetRandom() * fTmpUrlArray.GetSize()) % fTmpUrlArray.GetSize();
 #else
       rnd = lrint(GetRandom() * fTmpUrlArray.GetSize()) % fTmpUrlArray.GetSize();

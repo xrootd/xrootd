@@ -64,7 +64,7 @@ void *XrdOucThread_Xeq(void *myargs)
 
 #if   defined(__linux__)
    myNum = static_cast<unsigned int>(getpid());
-#elif defined(__sun)
+#elif defined(__solaris__)
    myNum = static_cast<unsigned int>(pthread_self());
 #elif defined(__macos__)
    myNum = static_cast<unsigned int>(pthread_mach_thread_np(pthread_self()));

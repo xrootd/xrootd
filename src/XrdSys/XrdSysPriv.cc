@@ -81,7 +81,7 @@ static int getresuid(uid_t *r, uid_t *e, uid_t *)
 }
 
 #else
-#if (defined(__linux) || \
+#if (defined(__linux__) || \
     (defined(__CYGWIN__) && defined(__GNUC__))) && !defined(linux)
 #   define linux
 #endif

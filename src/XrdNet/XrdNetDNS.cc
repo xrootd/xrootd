@@ -65,14 +65,14 @@ int XrdNetDNS::getHostAddr(const  char     *InetName,
    rc = 0;
 #ifndef HAS_NAMEINFO
     if (!isdigit((int)*InetName))
-#ifdef __sun
+#ifdef __solaris__
        gethostbyname_r(InetName, &hent, hbuff, sizeof(hbuff), &rc);
 #else
        gethostbyname_r(InetName, &hent, hbuff, sizeof(hbuff), &hp, &rc);
 #endif
        else if ((int)(addr = inet_addr(InetName)) == -1)
                return (errtxt ? setET(errtxt, EINVAL) : 0);
-#ifdef __sun
+#ifdef __solaris__
                else gethostbyaddr_r(&addr,sizeof(addr), AF_INET, &hent,
                                     hbuff, sizeof(hbuff),      &rc);
 #else
@@ -261,7 +261,7 @@ int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
 //
    rc = 0;
 #ifdef HAS_GETHBYXR
-#ifdef __sun
+#ifdef __solaris__
    gethostbyaddr_r(&(ip->sin_addr), sizeof(struct in_addr),
                    AF_INET, &hent, hbuff, sizeof(hbuff),      &rc);
    hp = &hent;
@@ -352,7 +352,7 @@ int XrdNetDNS::getPort(const char  *servname,
 // Try to find minimum port number
 //
 #ifndef HAS_NAMEINFO
-#ifdef __sun
+#ifdef __solaris__
    if (   !getservbyname_r(servname,servtype,&sent,sbuff,sizeof(sbuff)))
       return (errtxt ? setET(errtxt, errno) : 0);
 #else
@@ -412,7 +412,7 @@ int XrdNetDNS::getProtoID(const char *pname)
 // Note that POSIX did include getprotobyname_r() in the last minute. Many
 // platforms do not document this variant but just about all include it.
 //
-#ifdef __sun
+#ifdef __solaris__
     if (!getprotobyname_r(pname, &pp, buff, sizeof(buff))) 
        return NET_IPPROTO_TCP;
     return pp.p_proto;

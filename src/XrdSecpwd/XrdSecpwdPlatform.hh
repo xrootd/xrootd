@@ -14,7 +14,7 @@
 //
 // crypt
 //
-#if defined(__sun)
+#if defined(__solaris__)
 #include <crypt.h>
 #endif
 #if defined(__osf__) || defined(__sgi) || defined(__macos__)
@@ -26,7 +26,7 @@ extern "C" char *crypt(const char *, const char *);
 //
 #include <grp.h>
 // For shadow passwords
-#if defined(__sun)
+#if defined(__solaris__)
 #ifndef R__SHADOWPW
 #define R__SHADOWPW
 #endif

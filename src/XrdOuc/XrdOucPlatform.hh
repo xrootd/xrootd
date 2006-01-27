@@ -161,12 +161,12 @@ extern "C"
 //
 // To make socklen_t portable use SOCKLEN_t
 //
-#if defined(__sun) && !defined(__linux)
+#if defined(__solaris__) && !defined(__linux__)
 #   if __GNUC__ >= 3 || __GNUC_MINOR__ >= 90
 #      define XR__SUNGCC3
 #   endif
 #endif
-#if defined(__linux)
+#if defined(__linux__)
 #   include <features.h>
 #   if __GNU_LIBRARY__ == 6
 #      ifndef XR__GLIBC
@@ -178,11 +178,11 @@ extern "C"
 #   define R__GLIBC
 #endif
 #if defined(_AIX) || \
-   (defined(__FreeBSD__) && (!defined(__alpha) || defined(__linux))) || \
+   (defined(__FreeBSD__) && (!defined(__alpha) || defined(__linux__))) || \
    (defined(XR__SUNGCC3) && !defined(__arch64__))
 #   define SOCKLEN_t size_t
 #elif defined(XR__GLIBC) || \
-   (defined(__FreeBSD__) && (defined(__alpha) && !defined(__linux))) || \
+   (defined(__FreeBSD__) && (defined(__alpha) && !defined(__linux__))) || \
    (defined(XR__SUNGCC3) && defined(__arch64__)) || defined(__macos__)
 #   ifndef SOCKLEN_t
 #      define SOCKLEN_t socklen_t
