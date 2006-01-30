@@ -380,7 +380,6 @@ guess_architecture () {
     osys=`uname -s | tr '[A-Z]' '[a-z]'`
     chip=`uname -m | tr '[A-Z]' '[a-z]'`
     rele=`uname -r`
-    cput=`uname -p`
     arch="$osys"
     ccflv="gcc"
     echo "Guessing architecture/compiler: "$osys:$chip:$rele
@@ -417,7 +416,7 @@ guess_architecture () {
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
       darwin:power*:7*)   arch=ppc_darwin_70   ; platform=macosx; ccflv=macos;;
       darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
-      darwin:*86*:*)      arch=macosx          ; platform=macosx; ccflv=macos;; 
+      darwin:*86*:*)      arch=macosx          ; platform=macosx; ccflv=macos;;
       irix*:sgi*:*)       arch=sgi             ; platform=sgi;    ccflv=sgiCC;;
       sunos:i86pc:*)      arch=sunx86_510      ; platform=solaris; ccflv=sunCCamd;;
       sunos:i386:*)       arch=sunx86_510      ; platform=solaris; ccflv=sunCC;;
@@ -1570,15 +1569,15 @@ if test "x$enable_ssl" = "xyes" ; then
     message "Checking for openssl version"
     openssl96="no"
     openssl98="no"
-    if [ "${decver}" -lt "${decref}" ] ; then
+    if [ $decver -lt $decref ] ; then
        echo "no: minimal version required is 0.9.6"
        ssl_incdir=""
        enable_ssl="no"
        break
     else
-       if [ "${decver}" -ge "${decref98}" ] ; then
+       if [ $decver -ge $decref98 ] ; then
           openssl98="yes"
-       elif [ "${decver}" -lt "${decref97}" ] ; then
+       elif [ $decver -lt $decref97 ] ; then
           openssl96="yes"
        fi
        echo "ok"
