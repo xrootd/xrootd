@@ -20,10 +20,13 @@
 #include "XProtocol/XProtocol.hh"
 
 class XrdNetSocket;
+class XrdXrootdJob;
 
 class XrdXrootdAdmin
 {
 public:
+
+static void  addJob(const char *jname, XrdXrootdJob *jp);
 
 static int   Init(XrdOucError *erp, XrdNetSocket *asock);
 
@@ -36,10 +39,13 @@ static int   Init(XrdOucError *erp, XrdNetSocket *asock);
 
 private:
 int   do_Abort();
+int   do_Cj();
 int   do_Cont();
 int   do_Disc();
 int   do_Login();
 int   do_Lsc();
+int   do_Lsj();
+int   do_Lsj_Xeq(XrdXrootdJob *jp);
 int   do_Lsd();
 int   do_Msg();
 int   do_Pause();
@@ -53,6 +59,13 @@ int   sendResp(const char *act, XActionCode anum);
 int   sendResp(const char *act, XActionCode anum,
                const char *msg, int mlen);
 void  Xeq();
+
+struct JobTable {struct JobTable *Next;
+                 char            *Jname;
+                 XrdXrootdJob    *Job;
+                };
+
+static JobTable        *JobList;
 
 static XrdOucError     *eDest;
        XrdOucStream     Stream;

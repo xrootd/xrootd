@@ -25,7 +25,9 @@ const char *XrdXrootdAdminCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+#include "XrdOuc/XrdOucTList.hh"
 #include "XrdXrootd/XrdXrootdAdmin.hh"
+#include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
  
@@ -36,6 +38,8 @@ const char *XrdXrootdAdminCVSID = "$Id$";
 extern XrdOucTrace     *XrdXrootdTrace;
 
        XrdOucError     *XrdXrootdAdmin::eDest;
+
+       XrdXrootdAdmin::JobTable        *XrdXrootdAdmin::JobList = 0;
   
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -53,6 +57,20 @@ void *XrdXrootdLoginAdmin(void *carg)
        return (void *)0;
       }
  
+/******************************************************************************/
+/*                                a d d J o b                                 */
+/******************************************************************************/
+
+void XrdXrootdAdmin::addJob(const char *jname, XrdXrootdJob *jp)
+{
+     JobTable *jTabp = new JobTable();
+
+     jTabp->Jname = strdup(jname);
+     jTabp->Job   = jp;
+     jTabp->Next  = JobList;
+     JobList      = jTabp;
+}
+  
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
@@ -153,6 +171,61 @@ int XrdXrootdAdmin::do_Abort()
 //
    if (msg) return sendResp("abort", kXR_asyncab, msg, mlen);
             return sendResp("abort", kXR_asyncab);
+}
+
+/******************************************************************************/
+/*                                 d o _ C j                                  */
+/******************************************************************************/
+  
+int XrdXrootdAdmin::do_Cj()
+{
+   const char *fmt1 = "<resp id=\"%s\"><rc>0</rc>";
+   const char *fmt2 = "<num>%d</num></resp>\n";
+   char *tp, buff[1024];
+   XrdXrootdJob *jobp;
+   JobTable *jTabp;
+   int i, rc;
+
+// The next token needs to be job type
+//
+   if (!(tp = Stream.GetToken()))
+      {sendErr(8, "lsj", "job type not specified.");
+       return -1;
+      }
+
+// Run through the list of valid job types
+//
+   jTabp = JobList;
+   while(jTabp && strcmp(tp, jTabp->Jname)) jTabp = jTabp->Next;
+
+// See if we have a real job list here
+//
+   if (jTabp) jobp = jTabp->Job;
+      else if (!strcmp(tp, "*")) jobp = 0;
+              else {sendErr(8, "lsj", "invalid job type specified.");
+                    return -1;
+                   }
+
+// Get optional key
+//
+   tp = Stream.GetToken();
+
+// Send the header of the response
+//
+   i = sprintf(buff, fmt1, reqID);
+   if (Stream.Put(buff, i)) return -1;
+
+// Cancel the jobs
+//
+   if (jobp) rc = jobp->Cancel(tp);
+      else {jTabp = JobList; rc = 0;
+            while(jTabp) {rc += jTabp->Job->Cancel(tp); jTabp = jTabp->Next;}
+           }
+
+// Now print the end-framing
+//
+   i = sprintf(buff, fmt2, rc);
+   return Stream.Put(buff, i);
 }
  
 /******************************************************************************/
@@ -334,7 +407,76 @@ int XrdXrootdAdmin::do_Lsd()
             }
    return Stream.Put(fmt4, fmt4len);
 }
+ 
+/******************************************************************************/
+/*                                d o _ L s j                                 */
+/******************************************************************************/
 
+int XrdXrootdAdmin::do_Lsj()
+{
+   const char *fmt1 = "<resp id=\"%s\"><rc>0</rc>";
+   const char *fmt2 = "</resp>\n";
+   static int fmt2len = strlen(fmt2);
+   char *tp, buff[1024];
+   XrdXrootdJob *jobp;
+   JobTable *jTabp;
+   int i, rc = 0;
+
+// The next token needs to be job type
+//
+   if (!(tp = Stream.GetToken()))
+      {sendErr(8, "lsj", "job type not specified.");
+       return -1;
+      }
+
+// Run through the list of valid job types
+//
+   jTabp = JobList;
+   while(jTabp && strcmp(tp, jTabp->Jname)) jTabp = jTabp->Next;
+
+// See if we have a real job list here
+//
+   if (jTabp) jobp = jTabp->Job;
+      else if (!strcmp(tp, "*")) jobp = 0;
+              else {sendErr(8, "lsj", "invalid job type specified.");
+                    return -1;
+                   }
+
+// Send the header of the response
+//
+   i = sprintf(buff, fmt1, reqID);
+   if (Stream.Put(buff, i)) return -1;
+
+// List the jobs
+//
+   if (jobp) rc = do_Lsj_Xeq(jobp);
+      else {jTabp = JobList;
+            while(jTabp && !(rc = do_Lsj_Xeq(jTabp->Job))) jTabp = jTabp->Next;
+           }
+
+// Now print the end-framing
+//
+   return (rc ? rc : Stream.Put(fmt2, fmt2len));
+}
+
+/******************************************************************************/
+/*                            d o _ L s j _ X e q                             */
+/******************************************************************************/
+
+int XrdXrootdAdmin::do_Lsj_Xeq(XrdXrootdJob *jp)
+{
+    XrdOucTList *tp, *tpprev;
+    int rc = 0;
+
+    if ((tp = jp->List()))
+       while(tp && !(rc = Stream.Put(tp->text, tp->val)))
+            {tpprev = tp; tp = tp->next; delete tpprev;}
+
+    while(tp) {tpprev = tp; tp = tp->next; delete tpprev;}
+
+    return rc;
+}
+  
 /******************************************************************************/
 /*                                d o _ M s g                                 */
 /******************************************************************************/
@@ -592,10 +734,12 @@ void XrdXrootdAdmin::Xeq()
          if ((rc = getreqID())) continue;
          if ((tp = Stream.GetToken()))
             {     if (!strcmp("abort",    tp)) rc = do_Abort();
+             else if (!strcmp("cj",       tp)) rc = do_Cj();
              else if (!strcmp("cont",     tp)) rc = do_Cont();
              else if (!strcmp("disc",     tp)) rc = do_Disc();
              else if (!strcmp("lsc",      tp)) rc = do_Lsc();
              else if (!strcmp("lsd",      tp)) rc = do_Lsd();
+             else if (!strcmp("lsj",      tp)) rc = do_Lsj();
              else if (!strcmp("msg",      tp)) rc = do_Msg();
              else if (!strcmp("pause",    tp)) rc = do_Pause();
              else if (!strcmp("redirect", tp)) rc = do_Red();

@@ -48,7 +48,6 @@
 
 class XrdNetSocket;
 class XrdOucErrInfo;
-class XrdOucProg;
 class XrdOucStream;
 class XrdOucTokenizer;
 class XrdOucTrace;
@@ -59,6 +58,7 @@ class XrdLink;
 class XrdXrootdFile;
 class XrdXrootdFileLock;
 class XrdXrootdFileTable;
+class XrdXrootdJob;
 class XrdXrootdMonitor;
 class XrdXrootdStats;
 class XrdXrootdXPath;
@@ -91,7 +91,7 @@ private:
        int   do_Admin();
        int   do_Auth();
        int   do_Chmod();
-       int   do_CKsum();
+       int   do_CKsum(int canit);
        int   do_Close();
        int   do_Dirlist();
        int   do_Endsess();
@@ -184,8 +184,8 @@ static char               *FSLib;
 static char               *Notify;
 static char                isRedir;
 static char                chkfsV;
-static XrdOucProg         *ProgCKS;
-static char               *ProgCKT;
+static XrdXrootdJob       *JobCKS;
+static char               *JobCKT;
 
 // async configuration values
 //

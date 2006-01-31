@@ -44,8 +44,8 @@ XrdScheduler         *XrdXrootdProtocol::Sched;
 XrdBuffManager       *XrdXrootdProtocol::BPool;
 XrdOucError           XrdXrootdProtocol::eDest(0, "Xrootd");
 XrdXrootdStats       *XrdXrootdProtocol::SI;
-XrdOucProg           *XrdXrootdProtocol::ProgCKS  = 0;
-char                 *XrdXrootdProtocol::ProgCKT  = 0;
+XrdXrootdJob         *XrdXrootdProtocol::JobCKS   = 0;
+char                 *XrdXrootdProtocol::JobCKT   = 0;
 
 char                 *XrdXrootdProtocol::Notify = 0;
 int                   XrdXrootdProtocol::readWait;

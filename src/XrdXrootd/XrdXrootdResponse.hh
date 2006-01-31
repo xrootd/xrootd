@@ -17,6 +17,7 @@
 #include <sys/uio.h>
   
 #include "XProtocol/XProtocol.hh"
+#include "XProtocol/XPtypes.hh"
 
 /******************************************************************************/
 /*                       x r o o t d _ R e s p o n s e                        */
@@ -41,7 +42,12 @@ const  char *ID() {return (const char *)trsid;}
        int   Send(XResponseType rcode, int info, const char *data);
 
 inline void  Set(XrdLink *lp) {Link = lp;}
-       void  Set(unsigned char *stream);
+       void  Set(kXR_char *stream);
+
+       XrdLink *theLink()               {return Link;}
+       void     StreamID(kXR_char *sid) {sid[0] = Resp.streamid[0];
+                                         sid[1] = Resp.streamid[1];
+                                        }
 
        XrdXrootdResponse(XrdXrootdResponse &rhs) {Set(rhs.Link);
                                                   Set(rhs.Resp.streamid);

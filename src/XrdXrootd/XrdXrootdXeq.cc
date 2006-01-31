@@ -16,7 +16,6 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
-#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -27,6 +26,7 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
+#include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -177,17 +177,14 @@ int XrdXrootdProtocol::do_Chmod()
 /*                              d o _ C K s u m                               */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_CKsum()
+int XrdXrootdProtocol::do_CKsum(int canit)
 {
-   struct iovec ckResp[4];
    const char *opaque;
-   char *lp;
-   int dlen;
-   XrdOucStream cks;
+   char *args[3];
 
 // Check if we support this operation
 //
-   if (!ProgCKS)
+   if (!JobCKS)
       return Response.Send(kXR_Unsupported, "query chksum is not supported");
 
 // Prescreen the path
@@ -195,17 +192,23 @@ int XrdXrootdProtocol::do_CKsum()
    if (rpCheck(argp->buff, &opaque)) return rpEmsg("Check summing", argp->buff);
    if (!Squash(argp->buff))          return vpEmsg("Check summing", argp->buff);
 
+// If this is a cancel request, do it now
+//
+   if (canit)
+      {JobCKS->Cancel(argp->buff, &Response);
+       return Response.Send();
+      }
+
+// Construct the argument list
+//
+   args[0] = JobCKT;
+   args[1] = argp->buff;
+   args[2] = 0;
+
 // Preform the actual function
 //
-   if (ProgCKS->Run(&cks, argp->buff) || !(lp = cks.GetLine()))
-      return Response.Send(kXR_ServerError, "Checksum failed");
-
-// Send back the checksum
-//
-   ckResp[1].iov_base = ProgCKT;     dlen  = ckResp[1].iov_len = strlen(ProgCKT);
-   ckResp[2].iov_base = (char *)" "; dlen += ckResp[2].iov_len = 1;
-   ckResp[3].iov_base = lp;          dlen += ckResp[3].iov_len = strlen(lp);
-   return Response.Send(ckResp, 4, dlen);
+   return JobCKS->Schedule(argp->buff, (const char **)args, &Response,
+                  ((CapVer && kXR_vermask) >= kXR_ver002 ? 0 : JOB_Sync));
 }
 
 /******************************************************************************/
@@ -408,7 +411,7 @@ int XrdXrootdProtocol::do_Login()
    Link->setID(uname, pid);
    CapVer = Request.login.capver[0];
 
-// Establish the session ID if the client can handle it
+// Establish the session ID if the client can handle it (protocol version > 0)
 //
    if (CapVer && kXR_vermask)
       {sessID.FD   = Link->FDnum();
@@ -881,8 +884,9 @@ int XrdXrootdProtocol::do_Query()
    switch(qopt)
          {case kXR_QStats: return SI->Stats(Response,
                               (Request.header.dlen ? argp->buff : "a"));
-          case kXR_Qcksum: return do_CKsum();
-          default:         break;
+          case kXR_Qcksum:  return do_CKsum(0);
+          case kXR_Qckscan: return do_CKsum(1);
+          default:          break;
          }
 
 // Whatever we have, it's not valid

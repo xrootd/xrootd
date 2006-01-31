@@ -18,6 +18,7 @@ SOURCES = \
         XrdXrootdConfig.cc     \
         XrdXrootdFile.cc       \
         XrdXrootdFileLock1.cc \
+        XrdXrootdJob.cc     \
         XrdXrootdLoadLib.cc \
         XrdXrootdMonitor.cc   \
         XrdXrootdPrepare.cc   \
@@ -33,6 +34,7 @@ OBJECTS = \
         $(OBJDIR)/XrdXrootdConfig.o     \
         $(OBJDIR)/XrdXrootdFile.o       \
         $(OBJDIR)/XrdXrootdFileLock1.o \
+        $(OBJDIR)/XrdXrootdJob.o     \
         $(OBJDIR)/XrdXrootdLoadLib.o \
         $(OBJDIR)/XrdXrootdMonitor.o \
         $(OBJDIR)/XrdXrootdPrepare.o \
@@ -81,11 +83,12 @@ $(TARGETS): $(OBJECTS) $(OBJDEPS)
 
 $(OBJDIR)/XrdXrootdAdmin.o: XrdXrootdAdmin.hh      XrdXrootdAdmin.cc \
                             XrdXrootdTrace.hh      XrdXrootdProtocol.hh \
+                            XrdXrootdJob.hh \
                             XPtypes.hh             XProtocol.hh \
                             XrdLink.hh             XrdNetSocket.hh \
                             XrdOucError.hh         XrdLinkMatch.hh \
                             XrdOucPlatform.hh      XrdOucPthread.hh \
-                            XrdOucStream.hh
+                            XrdOucStream.hh        XrdOucTList.hh
 	@echo Compiling XrdXrootdAdmin.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdAdmin.o XrdXrootdAdmin.cc
 
@@ -106,6 +109,7 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdStats.hh    XrdXrootdTrace.hh \
                              XrdXrootdMonitor.hh  XrdXrootdAio.hh \
                              XrdXrootdAdmin.hh    XrdProtocol.hh \
+                             XrdXrootdJob.hh \
                              XrdNetDNS.hh         XrdNetSocket.hh  XrdNetOpts.hh \
                              XrdBuffer.hh         XProtocol.hh \
                              XrdOuca2x.hh         XrdOucError.hh  \
@@ -129,6 +133,16 @@ $(OBJDIR)/XrdXrootdFileLock1.o: XrdXrootdFile.hh XrdXrootdFileLock1.hh \
                                  XrdXrootdFileLock1.cc
 	@echo Compiling XrdXrootdFileLock1.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdFileLock1.o XrdXrootdFileLock1.cc
+
+$(OBJDIR)/XrdXrootdJob.o:    XrdXrootdJob.hh        XrdXrootdJob.cc \
+                             XrdLink.hh             XrdScheduler.hh \
+                             XrdOucProg.hh          XrdOucPthread.hh \
+                             XrdOucPlatform.hh      XrdOucStream.hh \
+                             XrdOucTable.hh         XrdOucTList.hh \
+                             XrdXrootdResponse.hh   XrdXrootdTrace.hh \
+                             XProtocol.hh           XPtypes.hh
+	@echo Compiling XrdXrootdJob.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdJob.o XrdXrootdJob.cc
 
 $(OBJDIR)/XrdXrootdLoadLib.o: XrdSfsInterface.hh XrdSecInterface.hh XrdOucError.hh \
                               XrdXrootdLoadLib.cc
@@ -191,7 +205,7 @@ $(OBJDIR)/XrdXrootdXeq.o: XrdXrootdFile.hh      XrdXrootdFileLock.hh  \
                           XrdOucError.hh        XrdOucTrace.hh  \
                           XrdOucPlatform.hh     XrdOucTList.hh \
                           XrdOucReqID.hh        XrdOucStream.hh \
-                          XrdOucProg.hh         XrdXrootdXeq.cc
+                          XrdXrootdJob.hh       XrdXrootdXeq.cc
 	@echo Compiling XrdXrootdXeq.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdXeq.o XrdXrootdXeq.cc
 

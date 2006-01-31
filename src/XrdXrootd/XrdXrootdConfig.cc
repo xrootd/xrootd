@@ -43,6 +43,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
+#include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -241,6 +242,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Check if monitoring should be enabled
 //
    if (!isRedir && !XrdXrootdMonitor::Init(Sched,&eDest)) return 0;
+
+// Add all jobs that we can run to the admin object
+//
+   if (JobCKS) XrdXrootdAdmin::addJob("chksum", JobCKS);
 
 // Establish the path to be used for admin functions. We will loose this
 // storage upon an error but we don't care because we'll just exit.
@@ -495,8 +500,9 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 
 /* Function: xcksum
 
-   Purpose:  To parse the directive: chksum <type> <path>
+   Purpose:  To parse the directive: chksum [max <n>] <type> <path>
 
+             max       maximum number of simultaneous jobs
              <type>    algorithm of checksum (e.g., md5)
              <path>    the path of the program performing the checksum
 
@@ -505,21 +511,38 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 
 int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 {
+   static XrdOucProg *theProg = 0;
    char *palg, *prog;
+   int jmax = 4;
 
 // Get the algorithm name and the program implementing it
 //
-   if (!(palg = Config.GetToken(&prog)))
+   while ((palg = Config.GetToken(&prog)) && *palg != '/')
+         {if (strcmp(palg, "max")) break;
+          if (!(palg = Config.GetToken()))
+             {eDest.Emsg("Config", "chksum max not specified"); return 1;}
+          if (XrdOuca2x::a2i(eDest, "chksum max", palg, &jmax, 1)) return 1;
+         }
+
+// Verify we have an algoritm
+//
+   if (*palg == '/')
       {eDest.Emsg("Config", "chksum algorithm not specified"); return 1;}
+
+// Verify that we have a program
+//
    if (!prog || *prog == '\0')
       {eDest.Emsg("Config", "chksum program not specified"); return 1;}
 
-// Set up the program
+// Set up the program and job
 //
-   if (ProgCKT) free(ProgCKT);
-   ProgCKT = strdup(palg);
-   if (!ProgCKS) ProgCKS = new XrdOucProg(0);
-   return ProgCKS->Setup(prog, &eDest);
+   if (JobCKT) free(JobCKT);
+   JobCKT = strdup(palg);
+   if (!theProg) theProg = new XrdOucProg(0);
+   if (theProg->Setup(prog, &eDest)) return 1;
+   if (JobCKS) delete JobCKS;
+   JobCKS = new XrdXrootdJob(Sched, theProg, "chksum", jmax);
+   return 0;
 }
   
 /******************************************************************************/
