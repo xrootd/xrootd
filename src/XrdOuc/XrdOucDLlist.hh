@@ -18,6 +18,7 @@ class XrdOucDLlist
 public:
 
          XrdOucDLlist(T *itemval=0) {prev=this; next=this; item=itemval;}
+        ~XrdOucDLlist() {if (prev != next) Remove();}
 
 // Apply() applies the specified function to every item in the list. Apply()
 //         is pointer-safe in that the current node pointers may be changed

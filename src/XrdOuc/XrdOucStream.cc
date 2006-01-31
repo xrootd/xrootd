@@ -158,9 +158,9 @@ int XrdOucStream::Drain()
 {
     int Status = 0, retc;
 
-    // Drain any outstanding processes.
+    // Drain any outstanding processes (i.e., kill the process group)
     //
-    if (child) {kill(child, 9);
+    if (child) {kill(-child, 9);
                 do {retc = waitpid(child, &Status, 0);}
                     while(retc > 0 || (retc == -1 && errno == EINTR));
                 child = 0;
@@ -214,13 +214,15 @@ int XrdOucStream::Exec(char **parm, int inrd)
                    }
        } else {Child_out = FD; Child_in = FE;}
 
-    // Fork a process first so we can pick up the next request.
+    // Fork a process first so we can pick up the next request. We also
+    // set the process group in case the chi;d hasn't been able to do so.
     //
     if ((child = fork()))
        {          close(Child_out);
         if (inrd) close(Child_in );
         if (child < 0)
            return Err(Exec, errno, "fork request process for", parm[0]);
+        setpgid(child, child);
         return 0;
        }
 
@@ -247,8 +249,10 @@ int XrdOucStream::Exec(char **parm, int inrd)
            } else close(Child_out);
        }
 
-    // Invoke the command never to return
+    // Set our process group (the parent should have done this by now) then
+    // invoke the command never to return
     //
+    setpgid(0,0);
     execv(parm[0], parm);
     Erp(Exec, errno, "execute", parm[0]);
     exit(255);
