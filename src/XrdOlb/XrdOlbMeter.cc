@@ -393,7 +393,7 @@ int XrdOlbMeter::isDup(struct stat &buf, XrdOlbMeterFS *baseFS)
 void XrdOlbMeter::calcSpace()
 {
    EPNAME("calcSpace")
-   long fsbsize;
+   long long fsbsize;
    long long bytes, fsavail = 0, fstotav = 0;
    XrdOucTList *tlp = fs_list;
    STATFS_BUFF fsdata;
