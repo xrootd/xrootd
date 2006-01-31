@@ -1562,8 +1562,12 @@ if test "x$enable_ssl" = "xyes" ; then
     decref97="0090700"
     decref98="0090800"
 
-    tmpver=`echo $sslver | cut -c3-8`
-    decver=`expr 10 \* 0"$tmpver"`
+    if [ $sslver -eq 'unknown' ] ; then
+       decver=0
+    else
+       tmpver=`echo $sslver | cut -c3-8`
+       decver=`expr 10 \* 0"$tmpver"`
+    fi
 
     echo "OpenSSL version: $sslver ($decver)"
     message "Checking for openssl version"
