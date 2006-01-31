@@ -93,6 +93,14 @@ enum XLoginCapVer {
    kXR_asyncap = 128
 };
 
+// this is a single number that goes into capver as the version
+//
+enum XLoginVersion {
+   kXR_ver000 = 0,  // Old clients predating history
+   kXR_ver001 = 1,  // Generally implemented 2005 protocol
+   kXR_ver002 = 2   // Same as 1 but adds asyncresp recognition
+};
+
 enum XStatRespFlags {
    kXR_file    = 0,
    kXR_xset    = 1,
@@ -126,7 +134,8 @@ enum XQueryType {
    kXR_QPrep  = 2,
    kXR_Qcksum = 3,
    kXR_Qolbd  = 4,
-   kXR_Qmaxs  = 5
+   kXR_Qmaxs  = 5,
+   kXR_Qckscan= 6
 };
 
 enum XLogonType {
@@ -197,6 +206,7 @@ enum XErrorCode {
    kXR_noserver,
    kXR_NotFile,
    kXR_isDirectory,
+   kXR_Cancelled,
    kXR_noErrorYet = 10000
 };
 
