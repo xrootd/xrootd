@@ -21,8 +21,8 @@ libXrdAcc_la_SOURCES = \
         XrdAccCapability.cc XrdAccCapability.hh \
         XrdAccConfig.cc XrdAccConfig.hh XrdAccAuthDB.hh    \
         XrdAccGroups.cc XrdAccGroups.hh XrdAccPrivs.hh
-libXrdAcc_la_LIBADD = ../XrdOuc/libXrdOuc.la \
-                      ../XrdNet/libXrdNet.la
+#libXrdAcc_la_LIBADD = ../XrdOuc/libXrdOuc.la 
+#\                     ../XrdNet/libXrdNet.la
 
 XrdAccTest_SOURCES = XrdAccTest.cc XrdAccAuthorize.hh
 XrdAccTest_LDADD = libXrdAcc.la ../XrdOuc/libXrdOuc.la ../XrdNet/libXrdNet.la
