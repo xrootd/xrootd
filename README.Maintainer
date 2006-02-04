@@ -47,22 +47,21 @@ the following steps need to be performed:
 Change to the packages top directory, where the configure.ac file
 is located.
  
-1. libtoolize
+1. libtoolize --copy --force
 2. aclocal
-3. automake -a
+3. automake -acf
 4. autoconf
 
 Now you can run configure and make.
 
 Notes to these steps:
-1. "aclocal" scans the configure.ac file and imports macros
+1. libtoolize installs the macros needed to build GNU libtool, a
+   tool to portably build libraries.
+2. "aclocal" scans the configure.ac file and imports macros
    needed by automake into the aclocal.m4 file.
-2. "automake -a" creates the Makefile.in files from the
+3. "automake -a" creates the Makefile.in files from the
    Makefile.am files. The -a flag will install a number of
    helper files like 'config.guess'.
-3. Usually the libtool file 'ltmain.sh' should have been installed
-   by the previous step. If not, run the "libtoolize --force"
-   command.
 4. "autoconf" will create the configure file itself. The rules file
    configure.ac contains a number of macros (documentation is best
    found in the Autoconf info pages) and shell code.
@@ -74,7 +73,7 @@ four steps.
 III) Information concerning the created Makefiles
 =================================================
 
-Automake does a good job in tracking dependencies, even though
+Automake does a good job of tracking dependencies, even though
 the standard structure uses a "recursive make" concept across
 subdirectories. The makefiles which are produced have a
 number of standard targets (clean, install, check, dist,distclean).
@@ -89,6 +88,7 @@ make --prefix=/usr/local
 make DESTDIR=/somedir install 
 
 In this example files will end up in /somedir/usr/local
+(this is typically used in rpm builds where DESTDIR is a staging dir)
 
 
 IV) Producing a distribution tarball
@@ -110,4 +110,5 @@ This command will create the tarball and then directly run a test
 build on it.
 
 
-8/19/2005 Derek Feichtinger
+01/04/2006 Derek Feichtinger
+
