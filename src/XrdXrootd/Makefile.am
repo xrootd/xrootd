@@ -22,6 +22,7 @@ xrootd_SOURCES = \
         XrdXrootdConfig.cc XrdXrootdXPath.hh   \
         XrdXrootdFile.cc XrdXrootdFile.hh XrdXrootdFileLock.hh      \
         XrdXrootdFileLock1.cc XrdXrootdFileLock1.hh \
+        XrdXrootdJob.cc XrdXrootdJob.hh \
         XrdXrootdLoadLib.cc \
         XrdXrootdMonitor.cc XrdXrootdMonitor.hh XrdXrootdMonData.hh \
         XrdXrootdPrepare.cc XrdXrootdPrepare.hh  \
