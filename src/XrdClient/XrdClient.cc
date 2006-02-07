@@ -578,6 +578,11 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
    // Low level Open method
    XrdOucString finalfilename(file);
 
+   if (fConnModule->fRedirOpaque.length() > 0) {
+       finalfilename += "?";
+       finalfilename += fConnModule->fRedirOpaque;
+   }
+
    if (additionalquery)
       finalfilename += additionalquery;
 
