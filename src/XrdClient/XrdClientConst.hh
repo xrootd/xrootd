@@ -57,7 +57,7 @@
 #define NAME_KEEPSOCKOPENIFNOTXRD (char *)"KeepSockOpenIfNotXrd"
 
 // Printable version
-#define XRD_CLIENT_VERSION      (char *)"0.3"
+#define XRD_CLIENT_VERSION      (char *)"kXR_ver002+kXR_asyncap"
 
 // Version and capabilities sent to the server
 #define XRD_CLIENT_CURRENTVER   (kXR_ver002)

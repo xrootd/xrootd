@@ -66,7 +66,7 @@ XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
 XrdClientConnectionMgr *XrdClientConn::fgConnectionMgr = 0;
 
 //_____________________________________________________________________________
-void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucString &token)
+void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucString &opaque, XrdOucString &token)
 {
    // Small utility function... we want to parse the content
    // of a redir response from the server.
@@ -84,9 +84,17 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucStr
 
       host = redirdata->host;
       token = "";
+      opaque = "";
+
       if ( (pos = host.find('?')) != STR_NPOS ) {
-         token.assign(host,pos+1);
-         host.erasefromstart(pos);
+         opaque.assign(host,pos+1);
+	 host.erasefromend(pos);
+
+	 if ( (pos = opaque.find('?')) != STR_NPOS ) {
+	     token.assign(host,pos+1);
+	     opaque.erasefromend(pos);
+	 }
+
       }
       port = ntohl(redirdata->port);
    }
@@ -1635,7 +1643,6 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 
    int newport; 	
    XrdOucString newhost; 	
-   XrdOucString token;
   
    // Close the log connection at this point the fLogConnID is no longer valid.
    // On read/write error the physical channel may be not OK, so it's a good
@@ -1669,7 +1676,6 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
     
       newhost = "";
       newport = 0;
-      token = "";
     
       if ((errorType == kREAD) || 
           (errorType == kWRITE) || 
@@ -1724,19 +1730,16 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
       
          // Extract the info (new host:port) from the response
          newhost = "";
-         token   = "";
          newport = 0;
-         ParseRedir(xmsg, newport, newhost, token);
+
+	 // An explicit redir overwrites token and opaque info
+         ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
 
 	 // Clear the current session info. Rather simplicistic.
 	 ClearSessionID();
       }
     
       // Now we should have the parameters needed for the redir
-      // a member class 'internalToken' is needed because the host that 
-      // answers with a kXR_redirect
-      // message also provides a token that must be passed to the new host...
-      fRedirInternalToken = token;
 
       CheckPort(newport);
 
@@ -1747,7 +1750,8 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
             Info(XrdClientDebug::kUSERDEBUG,
 		 "HandleServerError",
                  "Received redirection to [" << newhost << ":" << newport <<
-		 "]. Token=[" << fRedirInternalToken << "].");
+		 "]. Token=[" << fRedirInternalToken << "]" <<
+		 "]. Opaque=[" << fRedirOpaque << "].");
 
          errorType = kOK;
 
@@ -1770,7 +1774,8 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
          // Host or port are not valid or empty
          Error("HandleServerError", 
                "Received redirection to [" << newhost << ":" << newport <<
-	       "]. Token=[" << fRedirInternalToken << "]. No server to go...");
+	       "]. Token=[" << fRedirInternalToken << "]" <<
+		 "]. Opaque=[" << fRedirOpaque << "]. No server to go...");
 
          errorType = kREDIRCONNECT;
       }

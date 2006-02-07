@@ -58,7 +58,9 @@ public:
    int                        fLastDataBytesSent;
    XErrorCode                 fOpenError;	
 
-  
+   XrdOucString               fRedirOpaque;        // Opaque info returned by the server when
+
+                                                   // redirecting. To be used in the next opens
    XrdClientConn();
    ~XrdClientConn();
 
@@ -198,7 +200,7 @@ private:
                                                    // to handle a redir at higher level
 
    XrdOucString               fRedirInternalToken; // Token returned by the server when
-                                                   // redirecting
+                                                   // redirecting. To be used in the next logins
 
    XrdOucCondVar              *fREQWaitResp;           // For explicitly requested delayed async responses
    ServerResponseHeader *     fREQWaitRespData;        // For explicitly requested delayed async responses
