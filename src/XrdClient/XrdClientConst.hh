@@ -60,7 +60,7 @@
 #define XRD_CLIENT_VERSION      (char *)"0.3"
 
 // Version and capabilities sent to the server
-#define XRD_CLIENT_CURRENTVER   1
+#define XRD_CLIENT_CURRENTVER   (kXR_ver002)
 #define XRD_CLIENT_CAPVER       ((kXR_char)kXR_asyncap | XRD_CLIENT_CURRENTVER)
 
 // Defaults for ReadAhead and Cache
