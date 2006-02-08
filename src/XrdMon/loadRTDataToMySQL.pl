@@ -74,6 +74,7 @@ unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQ
 
 @siteNames = &runQueryRetArray("SELECT name FROM sites");
 foreach $siteName (@siteNames) {
+    next if ( -e "$jrnlDir/$siteName/inhibitLoading" );
     my $inFN = "$inputDir/$siteName.ascii";
     if ( -l $inFN ) {
         $link = readlink $inFN;
@@ -112,15 +113,15 @@ foreach $siteName (@siteNames) {
 
 $dbh->disconnect();
 
-my $stopFName = "$confFile.stop";
+$stopFName = "$confFile.stop";
 @primes = (101, 127, 157, 181, 199, 223, 239, 251, 271, 307);
 %timeZones = ( "SLAC", "PST8PDT", "RAL", "WET");
-
+@periods = ( 'Hour', 'Day', 'Week', 'Month', 'Year');
+ 
 &recover();
 
 # and run the main never-ending loop
 while ( 1 ) {
-    my $minSec1 = (localtime)[1]*60+(localtime)[0];
     my $sec2Sleep = 60 - (localtime)[0];
     if ( $sec2Sleep < 60 ) {
         print "sleeping $sec2Sleep sec... \n";
@@ -133,25 +134,14 @@ while ( 1 ) {
 	unlink $stopFName;
 	exit;
     }
-
-    my $minSec2 = (localtime)[1]*60+(localtime)[0];
-    if ( $minSec2 == $minSec1 ) {
-        sleep(2);
-    }
 }
-
+ 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 sub recover {
+    use vars qw($version $loadTime $nTotalLoaded $loadedSomething);
     my $ts = &timestamp();
-    my $sec2Sleep = 60 - (localtime)[0];
-    if ( $sec2Sleep < 60 ) {
-        print "sleeping $sec2Sleep sec... \n";
-        sleep $sec2Sleep;
-    } 
-
-    $loadTime = &gmtimestamp();
     
     # connect to the database
     print "\n$ts Connecting to database...\n";
@@ -163,39 +153,177 @@ sub recover {
     # recover data for each site
     my $nr = 0;
     foreach $siteName (@siteNames) {
+        next if ( -e "$jrnlDir/$siteName/inhibitLoading" );
         my $inFN = "$jrnlDir/$siteName/$siteName.ascii";
+        ($version, $loadTime) = &runQueryWithRet("SELECT version, DATE_ADD(dbUpdate, INTERVAL 1 MINUTE) 
+                                                    FROM sites
+                                                   WHERE name = '$siteName' ");
         # recover u/o/d/c/r files BUT NOT if inout file exists in jrnl directory
         # since they will be remade when doLoading is first called
+        $loadedSomething = 0;
         if ( ! -e $inFN ) {
-             my $version = &runQueryWithRet("SELECT version
-                                               FROM sites
-                                              WHERE name = '$siteName' ");
              foreach $v ( 1 .. $version ) {
                  print "Checking for pending u/o/d/c/r files for $siteName version $v \n";
                  if ( -e  "$jrnlDir/$siteName/ufile-V${v}.ascii" ) {
                     &loadOpenSession($siteName, $loadTime, $v);
+                    $loadedSomething = 1;
                  }
                  if ( -e  "$jrnlDir/$siteName/ofile-V${v}.ascii" ) {
                     &loadOpenFile($siteName, $v);
+                    $loadedSomething = 1;
                  }
                  if ( -e  "$jrnlDir/$siteName/cfile-V${v}.ascii" ) {
-                    &loadCloseFile($siteName, $v);
+                    &loadCloseFile($siteName, $v, 1);
+                    $loadedSomething = 1;
                  }
                  if ( -e  "$jrnlDir/$siteName/dfile-V${v}.ascii" ) {
-                    &loadCloseSession($siteName, $v);
+                    &loadCloseSession($siteName, $v, 1);
                  }
+                    $loadedSomething = 1;
                  if ( -e  "$jrnlDir/$siteName/rfile-V${v}.ascii" ) {
                     &loadXrdRestarts($siteName, $v);
+                    $loadedSomething = 1;
                  }
              }
+         } else {
+             $nr += &loadOneSite($siteName, $loadTime);
+             $loadedSomething = 1;
+         }    
+         if ( $loadedSomething ) {
+             &runQuery("UPDATE sites 
+                           SET dbUpdate = '$loadTime'
+                         WHERE name = '$siteName' ");
          }
-         &runQuery("UPDATE sites 
-                       SET dbUpdate = '$loadTime'
-                     WHERE name = '$siteName' ");
-     }
-}           
-             
+         # backup the backlog file
+         my $gmts = &gmtimestamp();
+         &backupOneSite($siteName, $gmts);
 
+         # load the backlog.
+         $backlogFile = "$jrnlDir/$siteName/backlog.ascii";
+
+         if ( ! -e $inFN or -z $inFN ) {
+             return;
+         } else {
+            `mv $inFN $backlogFile`;
+         }
+
+         $fileStartTime = &getFileStartTime($siteName, $backlogFile);
+         $fileEndTime = &getFileEndTime($siteName, $backlogFile);
+         if ( ! $fileEndTime) {
+              print "No end time found for $backlogFile in last 500 lines \n";
+              exit;
+         }
+         # number of minutes covered by backlog file
+         $nMin = &runQueryWithRet("SELECT TIMESTAMPDIFF(MINUTE,'$fileStartTime', '$fileEndTime')");
+         if ( $nMin < 0 ) { 
+             $nMin = -$nMin;
+         } elsif ( $nMin == 0 ) { 
+             $nMin = 1;
+         }
+         $nRecord = `cat $backlogFile|wc -l`;
+         $nRecPerMin = int($nRecord / $nMin) + 1;
+         print "nRecord $nRecord nMin $nMin  nRecPerMin $nRecPerMin \n";
+         $loadTime = $fileStartTime;
+         $nr = 0;
+         $nTotalLoaded = 0;
+         unless ( open BKLOGFILE, "< $backlogFile" ) {
+             print "Can't open file $backlogFile for reading \n";
+             exit;
+         }
+         while ( <BKLOGFILE> ) {
+             if ( $nr == 0 ) {
+                 unless ( open INFILE, "> $inFN" ) {
+                     print "Can't open file $inFN for writing \n";
+                     exit;
+                 }
+             }
+             print INFILE $_;
+             $nr++;
+             if ( $nr == $nRecPerMin ) {
+                 close INFILE;
+                 # load time is the time coresponding to last record which is assumed to be 1 min
+                 # after the begin time.
+                 $fileStartTime = &getFileStartTime($siteName, $inFN);
+                 if ( $fileStartTime ) {
+                      $loadTime = &runQueryWithRet("SELECT DATE_ADD('$fileStartTime', INTERVAL 1 MINUTE)");
+                 } else {
+                      # use the load time from last $inFN.
+                      $loadTime = &runQueryWithRet("SELECT DATE_ADD('$loadTime', INTERVAL 1 MINUTE)");
+                 }
+                 &loadOneSite($siteName, $loadTime);
+                 $nTotalLoaded += $nr;
+                 print "Total loaded: $nTotalLoaded \n";
+                 $nr = 0;
+             }
+         }
+         close BKLOGFILE;
+         if ( $nr > 0 ) {
+             &loadOneSite($siteName, $fileEndTime);
+         }
+         $ts = &timestamp();
+         print "$ts All done for $backlogFile.\n";
+         `rm -f $backlogFile`;
+print "removed  $backlogFile \n";
+         if ( -e $stopFName ) {
+              unlink $stopFName;
+              exit;
+         }
+
+     }
+     $dbh->disconnect();
+
+}           
+sub getFileStartTime() {
+    use vars qw(@line $startT);
+    my ($siteName, $file) = @_;
+    unless ( open INPUT, "< $file" ) {
+        print "Can't open file $file for reading \n";
+        exit;
+    }
+    while ( <INPUT> ) {
+        @line = split('\t');
+        if    ( $_ =~ m/^o/ ) { $startT = $line[6];}
+        elsif ( $_ =~ m/^d/ ) { $startT = $line[3];}
+        elsif ( $_ =~ m/^c/ ) { $startT = $line[4];}
+        else {next;}
+        last;
+    }
+    close INPUT;
+    $startT = &localToGMT($siteName, $startT);
+    return($startT);
+}
+sub getFileEndTime() {
+    use vars qw(@line $EndT);
+    my ($siteName, $file) = @_;
+    my $tmpFile = "$jrnlDir/$siteName/tmpFile";
+    `tail -500 $file > $tmpFile`;
+    unless ( open INPUT, "< $tmpFile" ) {
+        print "Can't open file $tmpFile for reading \n";
+        exit;
+    }
+    while ( <INPUT> ) {
+        @line = split('\t');
+        if    ( $_ =~ m/^o/ ) { $endT = $line[6];}
+        elsif ( $_ =~ m/^d/ ) { $endT = $line[3];}
+        elsif ( $_ =~ m/^c/ ) { $endT = $line[4];}
+        else {next;}
+    }
+    close INPUT;
+    `rm -f $tmpFile`;
+    $endT = &localToGMT($siteName, $endT);
+    return($endT);
+}
+sub localToGMT() {
+    my ($siteName, $localTime) = @_;
+    $version = &runQueryWithRet("SELECT version
+                                   FROM sites
+                                  WHERE name = '$siteName' ");
+    if ( $version > 1 ) {
+        return($localTime);
+    } else {
+        return(&runQueryWithRet("SELECT CONVERT_TZ('$localTime', '$timeZones{$siteName}', 'GMT') ") );
+    }
+}
 sub doLoading {
     my $ts = &timestamp();
 
@@ -210,6 +338,8 @@ sub doLoading {
     my $gmts = &gmtimestamp();
     my $nr = 0;
     foreach $siteName (@siteNames) {
+        next if ( -e "$jrnlDir/$siteName/inhibitLoading" );
+        &backupOneSite($siteName, $gmts);
 	$nr += loadOneSite($siteName, $gmts);
     }
 
@@ -219,51 +349,53 @@ sub doLoading {
     $ts = &timestamp();
     print "$ts All done, processed $nr entries.\n";
 
+    # make sure the loop takes at least 2 s
+    if ( $gmts eq &gmtimestamp() ) {
+        sleep 2;
+    }
+
 }
-
-sub loadOneSite() {
-    use vars qw($nextBackup);
+sub backupOneSite() {
     my ($siteName, $loadTime) = @_;
-
-    print "Loading for --> $siteName <--\n";
-
     my $inFN   = $siteInputFiles{$siteName};
     my $siteId = $siteIds{$siteName};
     my $backupInt = $backupInts{$siteName};
 
-    # use the input file only if there is none in jrnl directory after a crash
-    if ( ! -e "$jrnlDir/$siteName/$siteName.ascii" ) {
-
-        if ( ! -e $inFN || -z $inFN  ) {
-            print "File $inFN does not exist or is empty \n";
-       	    return 0;
-        }
-        # lock the file
-        unless ( $lockF = &lockTheFile($inFN) ) {
-            return 0;
-        }
-        # make a backup of the input file and move it to jrnl directory
-        $nextBackup = &runQueryWithRet("SELECT DATE_ADD(backupTime, INTERVAL $backupInt)
-                                        FROM sites
+    if ( ! -e $inFN || -z $inFN  ) {
+        print "File $inFN does not exist or is empty \n";
+       	return 0;
+    }
+    # lock the file
+    unless ( $lockF = &lockTheFile($inFN) ) {
+        return 0;
+    }
+    # make a backup of the input file and move it to jrnl directory
+    my $nextBackup = &runQueryWithRet("SELECT DATE_ADD(backupTime, INTERVAL $backupInt)
+                                         FROM sites
                                         WHERE name = '$siteName'");
-        if ( $loadTime ge $nextBackup ) {
-             &runQuery("UPDATE sites
-                        SET backupTime = \"$loadTime\"
-                        WHERE name = '$siteName'");
+    if ( $loadTime ge $nextBackup ) {
+         &runQuery("UPDATE sites
+                    SET backupTime = \"$loadTime\"
+                    WHERE name = '$siteName'");
                            
-             ($bkupdate, $bkuptime) = split / /, "$loadTime";
-             $backupFile = "$backupDir/$siteName/${siteName}-${bkupdate}-${bkuptime}-GMT.backup";
-             $backupFiles{$siteName} = $backupFile
-        } else {
-             $backupFile = $backupFiles{$siteName}
-        }
-        `touch $backupFile; cat $inFN >> $backupFile; mv $inFN $jrnlDir/$siteName/$siteName.ascii`;
+         ($bkupdate, $bkuptime) = split / /, "$loadTime";
+         $backupFile = "$backupDir/$siteName/${siteName}-${bkupdate}-${bkuptime}-GMT.backup";
+         $backupFiles{$siteName} = $backupFile
+    } else {
+         $backupFile = $backupFiles{$siteName}
+    }
+    `touch $backupFile; cat $inFN >> $backupFile; mv $inFN $jrnlDir/$siteName/$siteName.ascii`;
 
-        # unlock the lock file
-        unlockTheFile($lockF);
-    }    
+    # unlock the lock file
+    unlockTheFile($lockF);
+}
+sub loadOneSite() {
+    my ($siteName, $loadTime) = @_;
 
-    $inFN  = "$jrnlDir/$siteName/$siteName.ascii";
+    print "Loading for --> $siteName <--\n";
+
+    my $siteId = $siteIds{$siteName};
+    my $inFN  = "$jrnlDir/$siteName/$siteName.ascii";
     # open the input file for reading
     unless ( open INFILE, "< $inFN" ) {
 	print "Can't open file $inFN for reading\n";
@@ -304,10 +436,11 @@ sub loadOneSite() {
 
     print "Loading...\n";
     foreach $version ( @versions ) {
+        &makeUniqueFiles($siteName, $version);
         &loadOpenSession($siteName, $loadTime, $version);
         &loadOpenFile($siteName, $version);
-        &loadCloseFile($siteName, $version);
-        &loadCloseSession($siteName, $version);
+        &loadCloseFile($siteName, $version, 1);
+        &loadCloseSession($siteName, $version, 1);
         &loadXrdRestarts($siteName, $version);
     }
     # record loadTime in sites table
@@ -316,7 +449,6 @@ sub loadOneSite() {
                 WHERE name = '$siteName' ");
     return $nr;
 }
-
 sub openInputFiles() {
     my ($siteName, $version) = @_;
     open OFILE, ">$jrnlDir/$siteName/ofile-V${version}.ascii" or die "can't open ofile.ascii for write: $!";
@@ -333,6 +465,16 @@ sub closeInputFiles() {
     close CFILE;
     close RFILE;
 }   
+sub makeUniqueFiles() {
+    use vars qw($file $type);
+    my ($siteName, $version) = @_;
+    my $tmpFile = "$jrnlDir/$siteName/tmp";
+    foreach $type ( 'ofile', 'ufile', 'dfile', 'cfile' ) {
+       $file = "$jrnlDir/$siteName/${type}-V${version}.ascii";
+       next if ( -z $file);
+       `sort -u +1 -2 $file > $tmpFile; mv $tmpFile $file`;
+    }
+}
 # opens the <fName>.lock file for writing & locks it (write lock)
 sub lockTheFile() {
     my ($fName) = @_;
@@ -347,18 +489,17 @@ sub lockTheFile() {
     fcntl($lockF, F_SETLKW, $lk_parms) or die "can't fcntl F_SETLKW: $!";
     return $lockF;
 }
-
 sub unlockTheFile() {
     my ($fh) = @_;
     my $lk_parms = pack('sslllll', F_UNLCK, 0, 0, 0, 0, 0, 0);
     fcntl($fh, F_SETLKW, $lk_parms);
 }
-
 sub loadOpenSession() {
+    use vars qw($u  $sessionId  $user  $pid  $clientHost  $srvHost  $connectT);
     my ($siteName, $loadTime, $version) = @_;
     my $inFile = "$jrnlDir/$siteName/ufile-V${version}.ascii";
     if ( -z $inFile ) {return;}
-    print "Loading open sessions version $version...\n";
+    &printNow( "Loading open sessions version $version... ");
     my $mysqlIn = "$jrnlDir/$siteName/mysqlin.u";
     
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
@@ -366,7 +507,12 @@ sub loadOpenSession() {
     my $rows = 0;
     while ( <INFILE> ) {
         chomp;
-        my ($u, $sessionId, $user, $pid, $clientHost, $srvHost) = split('\t');
+        if ( $version <= 2 ) {
+            ($u, $sessionId, $user, $pid, $clientHost, $srvHost) = split('\t');
+            $connectT = $loadTime;
+        } else {
+            ($u, $sessionId, $user, $pid, $clientHost, $srvHost, $connectT) = split('\t');
+        }
         my $userId       = findOrInsertUserId($user, $siteName);
         my $clientHostId = findOrInsertHostId($clientHost, $siteName);
         my $serverHostId = findOrInsertHostId($srvHost, $siteName);
@@ -376,21 +522,21 @@ sub loadOpenSession() {
                                                     pId       = $pid           AND
                                                     clientHId = $clientHostId  AND
                                                     ( noOpenSessions > 0         OR
-                                                      '$loadTime' <= DATE_ADD(endT, INTERVAL $maxIdleTime SECOND) )
+                                                      '$connectT' <= DATE_ADD(endT, INTERVAL $maxIdleTime SECOND) )
                                            ORDER BY jobId DESC
                                               LIMIT 1     ");
         if ( $jobId ) {
             &runQuery("UPDATE ${siteName}_jobs   SET noOpenSessions = noOpenSessions + 1,
-                                                     beginT         = LEAST( '$loadTime', beginT)
+                                                     beginT         = LEAST( '$connectT', beginT)
                                                WHERE      jobId = $jobId");
         } else {
-            &runQuery("INSERT INTO ${siteName}_jobs ( userId,  pId,  clientHId, noOpenSessions, beginT,     endT    ) 
-                            VALUES                  ($userId, $pid, $clientHostId,      1    , '$loadTime', '$loadTime')");
+            &runQuery("INSERT IGNORE INTO ${siteName}_jobs ( userId,  pId,  clientHId, noOpenSessions, beginT,     endT    ) 
+                            VALUES                  ($userId, $pid, $clientHostId,      1    , '$connectT', '$connectT')");
             $jobId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
         }
         #print "uid=$userId, chid=$clientHostId, shd=$serverHostId, jobId\n";
         print MYSQLIN "$sessionId \t  $jobId \t $userId \t $pid \t ";
-        print MYSQLIN "$clientHostId \t $serverHostId \n";
+        print MYSQLIN "$clientHostId \t $serverHostId \t $connectT \n";
         $rows++;
     }
     close INFILE;
@@ -398,18 +544,17 @@ sub loadOpenSession() {
 
     &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
                INTO TABLE ${siteName}_openedSessions");
-    print "... $rows rows loaded \n";
+    print "$rows rows loaded \n";
     `rm -f $mysqlIn $inFile`;
 }
 
-
 sub loadCloseSession() {
-    my ($siteName, $version) = @_;
+    my ($siteName, $version, $loadLastTables) = @_;
 
     my $inFile = "$jrnlDir/$siteName/dfile-V${version}.ascii";
     if ( -z $inFile ) {return;}
 
-    print "Loading closed sessions version $version... \n";
+    &printNow( "Loading closed sessions version $version... ");
     my $mysqlIn = "$jrnlDir/$siteName/mysqlin.d";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
@@ -450,16 +595,12 @@ sub loadCloseSession() {
 
     &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
                INTO TABLE ${siteName}_closedSessions          ");
-    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
-               INTO TABLE ${siteName}_closedSessions_LastHour ");
-    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
-               INTO TABLE ${siteName}_closedSessions_LastDay  ");
-    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
-               INTO TABLE ${siteName}_closedSessions_LastWeek ");
-    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
-               INTO TABLE ${siteName}_closedSessions_LastMonth");
-    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
-               INTO TABLE ${siteName}_closedSessions_LastYear ");
+    if ( $loadLastTables ) {
+        foreach $period ( @periods ) {
+            &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
+                       INTO TABLE ${siteName}_closedSessions_Last$period ");
+        }
+    }
     
     print "$rows rows loaded \n";
     `rm -f $mysqlIn $inFile`;
@@ -473,7 +614,7 @@ sub loadOpenFile() {
     my $inFile = "$jrnlDir/$siteName/ofile-V${version}.ascii";
     if ( -z $inFile ) {return;}
 
-    print "Loading opened files version $version...\n";
+    &printNow( "Loading opened files version $version... ");
     my $mysqlIn = "$jrnlDir/$siteName/mysqlin.o";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
@@ -524,12 +665,12 @@ sub loadOpenFile() {
 }
 
 sub loadCloseFile() {
-    my ($siteName, $version) = @_;
+    my ($siteName, $loadLastTables) = @_;
 
     my $inFile = "$jrnlDir/$siteName/cfile-V${version}.ascii";
     if ( -z $inFile ) {return;}
 
-    print "Loading closed files version $version ... \n";
+    &printNow( "Loading closed files version $version ... ");
     my $mysqlIn = "$jrnlDir/$siteName/mysqlin.c";
     open INFILE, "<$inFile" or die "can't open $inFile for read: $!";
     open MYSQLIN, ">$mysqlIn" or die "can't open $mysqlIn for writing: $!";
@@ -576,17 +717,13 @@ sub loadCloseFile() {
 
     &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE
                INTO TABLE ${siteName}_closedFiles         ");
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-               INTO TABLE ${siteName}_closedFiles_LastHour");
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-               INTO TABLE ${siteName}_closedFiles_LastDay");
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-               INTO TABLE ${siteName}_closedFiles_LastWeek");
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-               INTO TABLE ${siteName}_closedFiles_LastMonth");
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
-               INTO TABLE ${siteName}_closedFiles_LastYear");
-    
+    if ( $loadLastTables ) {
+        foreach $period ( @periods ) {
+            &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE
+                       INTO TABLE ${siteName}_closedFiles_Last$period");
+        }
+    }
+
     print "$rows rows loaded \n";
     `rm -f $mysqlIn $inFile`;
 }
@@ -605,7 +742,6 @@ sub findSessionId() {
                                              serverHId=$serverHostId      ");
 }
 
-
 sub findOrInsertUserId() {
     my ($userName, $siteName) = @_;
 
@@ -619,8 +755,8 @@ sub findOrInsertUserId() {
     if ( $userId ) {
 	#print "Will reuse user id $userId for $userName\n";
     } else {
-	#print "$userName not in mysql yet, inserting...\n";
-	&runQuery("INSERT INTO ${siteName}_users (name)
+	#print "$userName not in mysql yet, inserting... \n";
+	&runQuery("INSERT IGNORE INTO ${siteName}_users (name)
                    VALUES (\"$userName\")");
 
 	$userId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
@@ -651,7 +787,6 @@ sub findOrInsertHostId() {
     $hostIds{$hostName} = $hostId;
     return $hostId;
 }
-
 sub findOrInsertPathId() {
     my ($path, $size) = @_;
 
@@ -718,15 +853,16 @@ sub findOrInsertPathId() {
     }
     return $pathId;
 }
-
 sub loadXrdRestarts() {
     my ($siteName, $version) = @_;
 
     my $siteId = $siteIds{$siteName};
 
     my $inFile = "$jrnlDir/$siteName/rfile-V$version}.ascii";
-    if ( -z $inFile ) {return;}
-
+    if ( -z $inFile ) {
+        `rm -f $inFile`;
+        return;
+    }
     if ( !open INFILE, "<$inFile" ) {
         return;
     }
@@ -746,6 +882,7 @@ sub loadXrdRestarts() {
         &runQuery("INSERT IGNORE INTO xrdRestarts(hostId, siteId, startT)
                    VALUES ($hostId, $siteId, '$timestamp')");
     }
+    `rm -f $inFile`;
 }
 
 sub runQueryWithRet() {
@@ -756,7 +893,6 @@ sub runQueryWithRet() {
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
     return $sth->fetchrow_array;
 }
-
 sub runQueryRetArray() {
     use vars qw(@theArray);
     my $sql = shift @_;
@@ -779,7 +915,6 @@ sub runQuery() {
         or die "Can't prepare statement $DBI::errstr\n";
     $sth->execute or die "Failed to exec \"$sql\", $DBI::errstr";
 }
-
 sub timestamp() {
     my @localt = localtime(time());
     my $sec    = $localt[0];
@@ -793,7 +928,6 @@ sub timestamp() {
                    $year, $month, $day, $hour, $min, $sec);
 }
 
-
 sub gmtimestamp() {
     my @gmt   = gmtime(time());
     my $sec   = $gmt[0];
@@ -806,7 +940,6 @@ sub gmtimestamp() {
     return sprintf("%04d-%02d-%02d %02d:%02d:%02d", 
                    $year, $month, $day, $hour, $min, $sec);
 }
-
 sub returnHash() {
     ($_) = @_;
     my $i = 1;
@@ -820,3 +953,11 @@ sub returnHash() {
     }
     return $hashValue;
 }
+sub printNow() {
+    my ($x) = @_;
+    my $prev = $|;
+    $| = 1;
+    print $x;
+    $| = $prev;
+}
+
