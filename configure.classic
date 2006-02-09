@@ -1543,6 +1543,7 @@ if test "x$enable_ssl" = "xyes" ; then
        verh=/usr/include/openssl/opensslv.h
        fullincdir=/usr/include
     fi
+
     # Get version
     if test "x$enable_ssl" = "xyes" ; then
        sslver=`grep OPENSSL_VERSION_NUMBER $verh`
@@ -1562,7 +1563,7 @@ if test "x$enable_ssl" = "xyes" ; then
     decref97="0090700"
     decref98="0090800"
 
-    if [ $sslver -eq 'unknown' ] ; then
+    if [ $sslver = 'unknown' ] ; then
        decver=0
     else
        tmpver=`echo $sslver | cut -c3-8`
