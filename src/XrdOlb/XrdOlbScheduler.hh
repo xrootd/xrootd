@@ -49,6 +49,8 @@ void          Schedule(XrdOlbJob *jp, time_t atime);
 
 void          setWorkers(int minw, int maxw);
 
+int           Start(void);
+
 void          TimeSched();
 
 void         *WorkIt();

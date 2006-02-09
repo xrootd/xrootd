@@ -48,21 +48,12 @@ void *XrdOlbStartTSched(void *carg)
   
 XrdOlbScheduler::XrdOlbScheduler()
 {
-    int retc;
-    pthread_t tid;
-
     min_Workers = 16;
     max_Workers = 64;
     num_Workers =  0;
     TimerQueue  = 0;
     WorkQueue   = 0;
     WorkQLast   = 0;
-
-// Start a time based scheduler
-//
-   if ((retc = XrdOucThread::Run(&tid, XrdOlbStartTSched, (void *)this,
-                                 0, "Time scheduler")))
-      XrdOlbSay.Emsg("Scheduler", retc, "create time scheduler thread");
 }
  
 /******************************************************************************/
@@ -148,6 +139,31 @@ void XrdOlbScheduler::setWorkers(int minw, int maxw)
 // Debug the info
 //
    DEBUG("New min_Workers=" <<minw <<" max_Workers=" <<maxw);
+}
+
+/******************************************************************************/
+/*                                 S t a r t                                  */
+/******************************************************************************/
+  
+int XrdOlbScheduler::Start()
+{
+   EPNAME("Start")
+   pthread_t tid;
+   int retc;
+
+// Start a time based scheduler
+//
+   if ((retc = XrdOucThread::Run(&tid, XrdOlbStartTSched, (void *)this,
+                                 0, "Time scheduler")))
+      XrdOlbSay.Emsg("Scheduler", retc, "create time scheduler thread");
+
+// Do some debugging
+//
+   DEBUG("time scheduler; tid=" <<tid);
+
+// All done
+//
+   return retc;
 }
 
 /******************************************************************************/

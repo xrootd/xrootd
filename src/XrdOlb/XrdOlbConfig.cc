@@ -248,6 +248,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
             XrdOlbLog.Bind(logfn, logsync);
            }
 
+
 // Get the full host name. In theory, we should always get some kind of name.
 //
    if (!(myName = XrdNetDNS::getHostName()))
@@ -297,6 +298,10 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                NoGo = XrdOlbSay.Emsg("Config", errno,"set FD limit");
             }
    }
+
+// Start the scheduler now
+//
+   if (XrdOlbSched.Start()) _exit(16);
 
 // If we don't know our role yet then we must find out before processing the
 // config file. This means a double scan, sigh.
