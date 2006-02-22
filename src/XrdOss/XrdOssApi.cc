@@ -132,7 +132,7 @@ int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 */
 int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
 {
-    if (rmt_N2N) return -(rmt_N2N->lfn2pfn(oldp, newp, XrdOssMAX_PATH_LEN));
+    if (rmt_N2N) return -(rmt_N2N->lfn2rfn(oldp, newp, XrdOssMAX_PATH_LEN));
     if (strlen(oldp) >= XrdOssMAX_PATH_LEN) return -ENAMETOOLONG;
     strcpy(newp, oldp);
     return 0;
