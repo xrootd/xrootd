@@ -178,9 +178,11 @@ int XrdOucLogger::ReBind(int dorename)
 //
    if (eInt > 0) while(eNTC <= eNow) eNTC += eInt;
 
-// Open the file for output
+// Open the file for output. Note that we can still leak a file descriptor
+// if a thread forks a process before we are able to do the fcntl(), sigh.
 //
    if ((newfd = open(ePath,O_WRONLY|O_APPEND|O_CREAT,0644)) < 0) return -errno;
+   fcntl(newfd, F_SETFD, FD_CLOEXEC);
 
 // Now set the file descriptor to be the same as the error FD. This will
 // close the previously opened file, if any.

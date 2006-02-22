@@ -197,20 +197,20 @@ int XrdOucStream::Exec(char **parm, int inrd)
 {
     int fildes[2], Child_in = -1, Child_out = -1;
 
-    // Create a pipe
+    // Create a pipe. Minimize file descriptor leaks.
     //
     if (inrd >= 0)
        {if (pipe(fildes))
            return Err(Exec, errno, "create input pipe for", parm[0]);
-           else {Attach(fildes[0]); Child_out = fildes[1];
-                 fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
+           else {fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
+                 Attach(fildes[0]); Child_out = fildes[1];
                 }
 
         if (inrd)
            if (pipe(fildes))
               return Err(Exec, errno, "create output pipe for", parm[0]);
-              else {FE = fildes[1]; Child_in  = fildes[0];
-                    fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
+              else {fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
+                    FE = fildes[1]; Child_in  = fildes[0];
                    }
        } else {Child_out = FD; Child_in = FE;}
 
