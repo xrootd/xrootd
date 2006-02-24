@@ -11,13 +11,13 @@
 
 # Order in which components must be made
 #
-SERVER  = XrdSys XrdOuc XrdNet @xrdsec@ \
+XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
+
+SERVER  = $(XRDSEC) \
           XrdSfs   XrdAcc XrdOdc \
           XrdXr    XrdOss   XrdOfs   XrdOlb Xrd  XrdRootd   XrdXrootd
 
-XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
-
-XRDCLIENT = XrdClient XrdPosix
+XRDCLIENT = $(XRDSEC) XrdClient XrdPosix
 
 XRDMON    = XrdMon
 
