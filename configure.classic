@@ -42,6 +42,7 @@ show_pkglist=no
 noact="no"
 nohowto="no"
 strlcpy="noidea"
+clientonly="no"
 seconly="no"
 usearchdirs="yes"
 suncache="/SunWS_cache"
@@ -523,9 +524,10 @@ with options, prefix with --with-, enables corresponding support
 
 Advanced options:
 
-   --no-arch-subdirs  Do not use architecture dependent names for bin/lib paths
-   --build-sec-only   Build only security modules
-   --use-xrd-strlcpy  Force use of the xrd implementation of strlcpy 
+   --no-arch-subdirs   Do not use architecture dependent names for bin/lib paths
+   --build-client-only Build only the client related stuff
+   --build-sec-only    Build only security modules
+   --use-xrd-strlcpy   Force use of the xrd implementation of strlcpy 
 
 Supported Architectures:
 
@@ -601,6 +603,7 @@ if test $# -gt 0 ; then
       # With options to specifiy third part software
       #
       --no-arch-subdirs)       usearchdirs="no"      ;;
+      --build-client-only)     clientonly="yes"      ;;
       --build-sec-only)        seconly="yes"         ;;
       --ccflavour=*)           nccflv=$optarg        ;;
       --no-create)             noact="yes"           ;;
@@ -751,6 +754,10 @@ fi
 #
 if test "x$support" = "xsec" ; then
    if test "x$seconly" = "xno" ; then
+      # support is for client modules only  
+      echo "Architecture supported for client modules only."
+      clientonly="yes"
+   elif test "x$seconly" = "xyes" ; then
       # support is for security modules only  
       echo "Architecture supported for security modules only."
       seconly="yes"
@@ -779,6 +786,10 @@ fi
 
 # Which targets to build
 targets="\$(SERVER) \$(XRDCLIENT) "
+if test "x$clientonly" = "xyes" ; then
+   echo "Building only client ..."
+   targets="\$(XRDCLIENT)"
+fi
 if test "x$seconly" = "xyes" ; then
    echo "Building only security modules..."
    targets="\$(XRDSEC)"
