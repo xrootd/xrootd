@@ -1045,7 +1045,12 @@ if test "x$enable_javaint" = "xyes" ; then
    java_major=`cat /tmp/java_msg.tmp | grep "javac 1" \
                | sed -n "s/javac //p" | cut -d . -f 2`
 
+
    rm -f /tmp/java_msg.tmp
+   if test "x$java_major" = "x" ; then
+      java_major="5"
+      echo "Unable to determine the version of the local Java JDK. (needs >= 1.5: re-run with --with-java=<java_1.5_location>). Continuing anyway. Good luck."
+   fi
 
    # require java versions >= 1.5
    if [ "$java_major" -lt 5 ] ; then
@@ -1054,9 +1059,15 @@ if test "x$enable_javaint" = "xyes" ; then
       javadir=""
    else
       echo "1.$java_major: OK"
-      javadir=`echo $javacbin | rev | cut -d / -f 3- | rev`
-      javadir="$javadir/"
-      echo "The java SDK is supposed to be $javadir"
+      if test "x$javadir" = "x" ; then
+         echo "Trying to guess the java SDK location..."
+         javadir=`echo $javacbin | rev | cut -d / -f 3- | rev`
+         javadir="$javadir/"
+         echo "The java SDK has been guessed to be $javadir"
+      else
+         echo "The java SDK is supposed to be $javadir"
+      fi
+   
    fi
 fi
 
@@ -1070,6 +1081,7 @@ if test "x$enable_javaint" = "xyes" ; then
     if test -f "$javainc/jni.h"; then
        echo "Found java includes in $javainc"
     else
+       echo "Unable to find java includes in $javainc"
        javainc=""
        enable_javaint="no"
     fi

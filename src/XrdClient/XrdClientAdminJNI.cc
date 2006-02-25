@@ -20,10 +20,10 @@ extern "C" JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_locate(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject )(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -49,7 +49,7 @@ extern "C" JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_locate(JNIEnv *env,
    if (r)
       hostname = env->NewStringUTF(finalloc.Host.c_str());
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 }
 
 extern "C" JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_stat(JNIEnv *env,
@@ -69,10 +69,10 @@ extern "C" JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_stat(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -104,7 +104,7 @@ extern "C" JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_stat(JNIEnv *env,
       modtime = mymodtime;
    }
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 
 }
@@ -126,10 +126,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_chmod(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -151,7 +151,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_chmod(JNIEnv *env,
    delete xrda;
 
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 }
 
@@ -173,10 +173,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_dirlist(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -200,7 +200,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_dirlist(JNIEnv *env,
 
    if (r && vs.GetSize()) {
       // If the request went good, we copy the results to the java env
-      result = env->NewObjectArray( vs.GetSize(), env->FindClass("java/lang/String"),
+      result = (jobjectArray)env->NewObjectArray( vs.GetSize(), env->FindClass("java/lang/String"),
          env->NewStringUTF("") );
 
       for(int i = 0; i < vs.GetSize(); i++)
@@ -208,7 +208,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_dirlist(JNIEnv *env,
             result, i, env->NewStringUTF(vs[i].c_str()) );
    }
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 }
 
@@ -227,10 +227,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_existfiles(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -272,13 +272,13 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_existfiles(JNIEnv *env,
       for(int i = 0; i < vb.GetSize(); i++) {
          jb = vb[i];
          env->SetObjectArrayElement(
-            xstfilez, i, (jobject )jb );
+            xstfilez, i, (jobject)(new jboolean(jb)) );
       }
 
 
    }
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 }
 
@@ -298,10 +298,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_existdirs(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -343,13 +343,13 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_existdirs(JNIEnv *env,
       for(int i = 0; i < vb.GetSize(); i++) {
          jb = vb[i];
          env->SetObjectArrayElement(
-            xstdirz, i, (jobject )jb );
+            xstdirz, i, (jobject )(new jboolean(jb)) );
       }
 
 
    }
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 }
 
@@ -367,10 +367,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_getchecksum(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -399,7 +399,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_getchecksum(JNIEnv *env,
       delete chksumbuf;
    }
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 }
 
@@ -419,10 +419,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_isfileonline(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -463,12 +463,12 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_isfileonline(JNIEnv *env,
       for(int i = 0; i < vb.GetSize(); i++) {
          jb = vb[i];
          env->SetObjectArrayElement(
-            flzonline, i, (jobject )jb );
+            flzonline, i, (jobject )(new jboolean(jb)) );
       }
 
    }
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 }
 
@@ -489,10 +489,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_mv(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -515,7 +515,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_mv(JNIEnv *env,
 
    delete xrda;
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 
 
@@ -538,10 +538,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_mkdir(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -563,7 +563,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_mkdir(JNIEnv *env,
    delete xrda;
 
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 
 
@@ -589,10 +589,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_rm(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -614,7 +614,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_rm(JNIEnv *env,
    delete xrda;
 
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 
 
@@ -636,10 +636,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_rmdir(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -661,7 +661,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_rmdir(JNIEnv *env,
    delete xrda;
 
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 
 }
@@ -682,10 +682,10 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_prepare(JNIEnv *env,
 
    fid = env->GetFieldID(cls, "firsturl", "Ljava/lang/String;");
    if (fid == 0) {
-      return (_jobject *)(new jboolean(false));
+      return (jobject)(new jboolean(false));
    }
 
-   jstr = (_jstring*)env->GetObjectField(jobj, fid);
+   jstr = (jstring)env->GetObjectField(jobj, fid);
    const char *fu = env->GetStringUTFChars(jstr, 0);
 
    printf("firsturl: %s\n", fu);
@@ -718,7 +718,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_prepare(JNIEnv *env,
 
    delete xrda;
 
-   return (_jobject *)(new jboolean(r));
+   return (jobject)(new jboolean(r));
 
 }
 
