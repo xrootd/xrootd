@@ -1,7 +1,7 @@
 #include "XrdClientAdminJNI.h"
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientEnv.hh"
-
+#include "XrdOuc/XrdOucString.hh"
 
 #define DBGLVL 3
 #define SETDEBUG EnvPutInt("DebugLevel", DBGLVL);
@@ -243,7 +243,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_existfiles(JNIEnv *env,
    for (int i = 0; i < env->GetArrayLength(filez); i++) {
       jstring jstr;
       const char *str;
-      XrdClientString s;
+      XrdOucString s;
 
       jstr = (jstring)env->GetObjectArrayElement(filez, i);
       str = env->GetStringUTFChars(jstr, 0);
@@ -314,7 +314,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_existdirs(JNIEnv *env,
    for (int i = 0; i < env->GetArrayLength(dirz); i++) {
       jstring jstr;
       const char *str;
-      XrdClientString s;
+      XrdOucString s;
 
       jstr = (jstring)env->GetObjectArrayElement(dirz, i);
       str = env->GetStringUTFChars(jstr, 0);
@@ -435,7 +435,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_isfileonline(JNIEnv *env,
    for (int i = 0; i < env->GetArrayLength(filez); i++) {
       jstring jstr;
       const char *str;
-      XrdClientString s;
+      XrdOucString s;
 
       jstr = (jstring)env->GetObjectArrayElement(filez, i);
       str = env->GetStringUTFChars(jstr, 0);
@@ -698,7 +698,7 @@ JNIEXPORT jobject JNICALL Java_XrdClientAdminJNI_prepare(JNIEnv *env,
    for (int i = 0; i < env->GetArrayLength(filez); i++) {
       jstring jstr;
       const char *str;
-      XrdClientString s;
+      XrdOucString s;
 
       jstr = (jstring)env->GetObjectArrayElement(filez, i);
       str = env->GetStringUTFChars(jstr, 0);
