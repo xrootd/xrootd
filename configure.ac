@@ -502,10 +502,10 @@ AC_ARG_WITH(tkauthz-lib,
 AC_SUBST(TKAUTHZ_LIB)
 
 # if we configure from this top level configure, we are always using the autotools build
-AM_CONDITIONAL(XROOTD_AUTOBUILD, test 1 = 1)
+#AM_CONDITIONAL(XROOTD_AUTOBUILD, test 1 = 1)
 
 # and therefore the srcdir for xrootd is "../.."
-AC_SUBST(XROOTD_SRCDIR,[../..])
+#AC_SUBST(XROOTD_SRCDIR,[../..])
 
 #################################################################
 # where to install the utility scripts

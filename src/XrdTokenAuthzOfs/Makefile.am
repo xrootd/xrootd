@@ -13,7 +13,7 @@
 lib_LTLIBRARIES = libXrdTokenAuthzOfs.la
 bin_PROGRAMS = xrm
 
-INCLUDES = -I$(XROOTD_SRCDIR)/src $(AXMLR_INC) $(SENV_INC) $(TKAUTHZ_INC)
+INCLUDES = -I$(top_srcdir)/src $(AXMLR_INC) $(SENV_INC) $(TKAUTHZ_INC)
 
 ###############################################
 # sources of the original XrdOfs implementation
@@ -29,7 +29,7 @@ OFSSOURCES = \
 #       2) the XrdSfsGetFileSystem via which the main executable
 #          calls the dynamic module must exist only once
 $(OFSSOURCES) :
-	cp $(XROOTD_SRCDIR)/src/XrdOfs/$@ .
+	cp $(top_srcdir)/src/XrdOfs/$@ .
 	sed -e 's/XrdOfs\/XrdOfs.icc/XrdTokenAuthzOfs.icc/' \
             -e 's/XrdOfs\/XrdOfs.hh/XrdTokenAuthzOfs.hh/' \
             -e 's/XrdSfsGetFileSystem/XrdSfsGetFileSystemINACTIVE/' \
@@ -46,34 +46,18 @@ nodist_libXrdTokenAuthzOfs_la_SOURCES = $(OFSSOURCES)
 xrm_SOURCES = xrm.cc
 
 
-if XROOTD_AUTOBUILD
-libXrdTokenAuthzOfs_la_LIBADD = $(XROOTD_SRCDIR)/src/XrdAcc/libXrdAcc.la \
-                         $(XROOTD_SRCDIR)/src/XrdOss/libXrdOss.la \
-                         $(XROOTD_SRCDIR)/src/XrdOdc/libXrdOdc.la \
-                         $(XROOTD_SRCDIR)/src/XrdXr/libXrdXr.la \
+libXrdTokenAuthzOfs_la_LIBADD = $(top_builddir)/src/XrdAcc/libXrdAcc.la \
+                         $(top_builddir)/src/XrdOss/libXrdOss.la \
+                         $(top_builddir)/src/XrdOdc/libXrdOdc.la \
+                         $(top_builddir)/src/XrdXr/libXrdXr.la \
                          $(TKAUTHZ_LIB) -lTokenAuthz 
 
-xrm_LDADD = $(XROOTD_SRCDIR)/src/XrdClient/libXrdClient.la \
-            $(XROOTD_SRCDIR)/src/XrdSec/libXrdSec.la \
-            $(XROOTD_SRCDIR)/src/XrdOuc/libXrdOuc.la \
-            $(XROOTD_SRCDIR)/src/XrdNet/libXrdNet.la \
-            $(XROOTD_SRCDIR)/src/XrdSys/libXrdSys.la \
+xrm_LDADD = $(top_builddir)/src/XrdClient/libXrdClient.la \
+            $(top_builddir)/src/XrdSec/libXrdSec.la \
+            $(top_builddir)/src/XrdOuc/libXrdOuc.la \
+            $(top_builddir)/src/XrdNet/libXrdNet.la \
+            $(top_builddir)/src/XrdSys/libXrdSys.la \
             -ldl
-else
-libXrdTokenAuthzOfs_la_LIBADD = $(XROOTD_LIBDIR)/libXrdAcc.a \
-                         $(XROOTD_LIBDIR)/libXrdOss.a \
-                         $(XROOTD_LIBDIR)/libXrdOdc.a \
-                         $(XROOTD_LIBDIR)/libXrdXr.a \
-                         $(TKAUTHZ_LIB) -lTokenAuthz 
-
-xrm_LDADD = -L$(XROOTD_LIBDIR) -lXrdClient \
-            -lXrdSec \
-            $(XROOTD_LIBDIR)/libXrdOuc.a \
-            $(XROOTD_LIBDIR)/libXrdNet.a \
-            $(XROOTD_LIBDIR)/libXrdSys.a \
-            -ldl
-endif
-
 
 
 CLEANFILES = $(OFSSOURCES)
