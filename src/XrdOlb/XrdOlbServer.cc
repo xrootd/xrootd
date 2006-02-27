@@ -25,6 +25,7 @@ const char *XrdOlbServerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbManList.hh"
 #include "XrdOlb/XrdOlbMeter.hh"
 #include "XrdOlb/XrdOlbPrepare.hh"
+#include "XrdOlb/XrdOlbRRQ.hh"
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
@@ -79,11 +80,13 @@ int         XrdOlbServer::dsk_tota = 0;
   
 XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
 {
+    static XrdOucMutex iMutex;
+    static int         iNum = 1;
+
     Link     =  lnkp;
     IPAddr   =  (lnkp ? lnkp->Addr() : 0);
     ServMask =  0;
     ServID   = -1;
-    Instance =  0;
     isDisable=  0;
     isNoStage=  0;
     isOffline=  (lnkp == 0);
@@ -113,6 +116,14 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     setName(lnkp, port);
     Stype    = (char *)"Server";
     mySID    = strdup(sid ? sid : "?");
+
+    iMutex.Lock();
+    Instance =  iNum++;
+    iMutex.UnLock();
+    Info.Rinst = Instance;
+
+    redr_iov[1].iov_base = (char *)" !try ";
+    redr_iov[1].iov_len  = 6;
 }
 
 /******************************************************************************/
@@ -1217,7 +1228,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
    char *tp, *amode, ptc, hbuff[512];
-   int dowt = 0, retc, needrw, resonly = 0, newfile = 0;
+   int n, dowt = 0, retc, needrw, resonly = 0, newfile = 0;
    SMask_t amask, smask, pmask;
 
 // Process: <id> select[s] {c | r | w | x] <path>
@@ -1248,32 +1259,40 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
        return 0;
       }
 
+// Insert the request ID into the RRQ info structure in case we need to wait
+//
+   strcpy(Info.ID, rid);  // Gauranteed to fit
+
 // First check if we have seen this file before. If so, get primary selections.
 //
    if (refresh) {retc = 0; pmask = 0;}
-      else if (!(retc = XrdOlbCache.GetFile(tp, cinfo))) pmask = 0;
+      else if (!(retc = XrdOlbCache.GetFile(tp,cinfo,needrw,&Info))) pmask = 0;
               else pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
 
 // We didn't find the file or a refresh is wanted (easy case). Client must wait.
 //
    if (!retc)
-      {XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
+      {XrdOlbCache.AddFile(tp, 0, needrw, XrdOlbConfig.LUPDelay, &Info);
        XrdOlbSM.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
                           "%s stat%c %s\n", XrdOlbConfig.MsgGID,
                           (refresh ? 'f' : 'e'), tp));
+       if (Info.Key) return 0; // Placed in pending state
        dowt = 1;
       } else
 
 // File was found but either a query is in progress (client must wait)
-// or we have a server bounce (client waits if not alternative is available).
+// or we have a server bounce (client waits if no alternative is available).
+// Unfortunately, fast redirects are bypassed when servers bounce.
 //
       {if (cinfo.sbvec != 0)         // Bouncing server
-          {XrdOlbCache.DelFile(tp, cinfo.sbvec, XrdOlbConfig.LUPDelay);
+          {dowt = (pmask == 0);
+           XrdOlbCache.DelFile(tp, cinfo.sbvec, XrdOlbConfig.LUPDelay);
            XrdOlbSM.Broadcast(cinfo.sbvec,buff,snprintf(buff,sizeof(buff)-1,
                               "%s state %s\n", XrdOlbConfig.MsgGID, tp));
-           dowt = (pmask == 0);
           }
-       if (cinfo.deadline) dowt = 1; // Query in progress
+       if (cinfo.deadline) 
+          if (Info.Key) return 0; // Placed in pending queue
+             else dowt = 1;       // Query  in progress, full wait
       }
 
 // If the client has to wait now, delay the client and return
@@ -1295,20 +1314,31 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 //
    if (!(pmask | smask)) retc = -1;
       else if (!(retc = XrdOlbSM.SelServer(needrw, tp, pmask, smask, hbuff)))
-              {Link->Send(buff,sprintf(buff, "%s !try %s\n", rid, hbuff));
-               DEBUG("Redirect " <<Name() <<" -> " <<hbuff <<" for " <<tp);
+              {DEBUG("Redirect " <<Name() <<" -> " <<hbuff <<" for " <<tp);
+               redr_iov[0].iov_base = rid;   redr_iov[0].iov_len = strlen(rid);
+               n = strlen(hbuff); hbuff[n] = '\n';
+               redr_iov[2].iov_base = hbuff; redr_iov[2].iov_len = n+1;
+               Link->Send(redr_iov, redr_iov_cnt);
                return 0;
               }
 
-// We failed and must delay or terminate the request
+// We failed and must delay or terminate the request. If the request needs to
+// be delayed because there are not enough servers then we must delete the
+// cache line to force a cache refresh when we get enough servers.
 //
    if (retc > 0)
       {Link->Send(buff, sprintf(buff, "%s !wait %d\n", rid, retc));
        DEBUG("Select delay " <<Name() <<' ' <<retc);
       } else {
-       Link->Send(buff, snprintf(buff, sizeof(buff)-1,
-             "%s ?err No servers are available to %s the file.\n", rid, amode));
-       DEBUG("No servers available to " <<ptc <<' ' <<tp);
+       if (XrdOlbSM.ServCnt < XrdOlbConfig.SUPCount)
+          {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.SUPDelay));
+           XrdOlbCache.DelCache(tp);
+           TRACE(Defer, "client defered; insufficient servers for " <<tp);
+          }
+          else {Link->Send(buff, snprintf(buff, sizeof(buff)-1,
+                "%s ?err No servers are available to %s the file.\n",rid,amode));
+                DEBUG("No servers available to " <<ptc <<' ' <<tp);
+               }
       }
 
 // All done

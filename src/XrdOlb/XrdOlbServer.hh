@@ -14,10 +14,12 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <sys/uio.h>
   
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOlb/XrdOlbManList.hh"
+#include "XrdOlb/XrdOlbRRQ.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdOlbDrop;
@@ -39,6 +41,8 @@ friend class XrdOlbManager;
        char  isBound;      // Set when server is in the configuration
        char  isRW;         // Set when server can write or stage data
        char  isKnown;      // Set when we have recieved a "state"
+
+inline int   Inst() {return Instance;}
 
 inline int   isServer(SMask_t smask) {return (smask & ServMask) != 0;}
 inline int   isServer(const char *hn)
@@ -112,6 +116,7 @@ unsigned int      IPAddr;
 XrdOlbServer     *Next;
 time_t            DropTime;
 XrdOlbDrop       *DropJob;
+XrdOlbRRQInfo     Info;
 
 SMask_t    ServMask;
 int        ServID;
@@ -121,6 +126,9 @@ char      *mySID;
 char      *myName;
 char      *myNick;
 char      *Stype;
+
+static     const int     redr_iov_cnt = 3;
+           struct iovec  redr_iov[redr_iov_cnt];
 
 int        pingpong;     // Keep alive field
 int        newload;

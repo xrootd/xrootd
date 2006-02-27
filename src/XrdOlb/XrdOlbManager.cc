@@ -24,6 +24,7 @@ const char *XrdOlbManagerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbManager.hh"
 #include "XrdOlb/XrdOlbManList.hh"
+#include "XrdOlb/XrdOlbRTable.hh"
 #include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbState.hh"
@@ -90,7 +91,6 @@ XrdOlbManager::XrdOlbManager()
      AltMent = -1;
      ServCnt =  0;
      noData  =  1;
-     InstNum =  1;
      MTHi    = -1;
      STHi    = -1;
      XWait   = 0;
@@ -294,10 +294,11 @@ XrdOlbSInfo *XrdOlbManager::ListServers(SMask_t mask, int opts)
 void *XrdOlbManager::Login(XrdNetLink *lnkp)
 {
    EPNAME("Login")
+   extern XrdOlbRTable RTable;
    XrdOlbServer *sp;
    char *tp, *Stype, *theSID;
    int   Status = 0, fdsk = 0, numfs = 1, addedp = 0, port = 0, Sport = 0;
-   int   servID, servInst;
+   int   servID, servInst, Rslot;
    SMask_t servset = 0, newmask;
 
 // Handle the login for the server stream.
@@ -322,10 +323,17 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 // Director Command: login director
 //
    if (!strcmp(tp, "director"))
-      {XrdOlbSay.Emsg("Manager","Director",lnkp->Nick(),"logged in.");
-       sp = new XrdOlbServer(lnkp);
-       sp->Process_Director();
-       XrdOlbSay.Emsg("Manager","Director",lnkp->Nick(),"logged out.");
+      {sp = new XrdOlbServer(lnkp);
+      if (!(Rslot = RTable.Add(sp)))
+         XrdOlbSay.Emsg("Manager","Director", lnkp->Nick(),
+                                  "login failed; too many directors.");
+         else {XrdOlbSay.Emsg("Manager","Director",lnkp->Nick(),"logged in.");
+               DEBUG("Director " <<lnkp->Nick() <<" assigned slot " <<Rslot <<'.'<<sp->Instance);
+               sp->Info.Rnum = Rslot;
+               sp->Process_Director();
+               XrdOlbSay.Emsg("Manager","Director",lnkp->Nick(),"logged out.");
+              }
+       if (Rslot) RTable.Del(sp);
        delete sp;
        return (void *)0;
       }
@@ -773,13 +781,6 @@ int XrdOlbManager::SelServer(int needrw, char *path,
     SMask_t mask;
     XrdOlbServer *sp = 0;
 
-// Check if we have enough servers to do a selection
-//
-   if (ServCnt < XrdOlbConfig.SUPCount) 
-      {TRACE(Defer, "client defered; not enough servers for " <<path);
-       return XrdOlbConfig.SUPDelay;
-      }
-
 // Scan for a primary and alternate server (alternates do staging)
 //
    mask = pmask;
@@ -789,7 +790,7 @@ int XrdOlbManager::SelServer(int needrw, char *path,
             {sp = (XrdOlbConfig.sched_RR
                    ? SelbyRef( mask, nump, delay, &reason, isalt||needrw)
                    : SelbyLoad(mask, nump, delay, &reason, isalt||needrw));
-             if (sp || (nump && delay)) break;
+             if (sp || (nump && delay) || ServCnt < XrdOlbConfig.SUPCount) break;
             }
          mask = amask; isalt = 1;
         }
@@ -821,10 +822,56 @@ int XrdOlbManager::SelServer(int needrw, char *path,
        return delay;
       }
 
+// At this point we know that we don't have enough servers
+//
+   TRACE(Defer, "client defered; not enough servers for " <<path);
+   return XrdOlbConfig.SUPDelay;
+
 // Return failure, waits are not allowed (at this point we would bounce the
 // client to a proxy server if we had that implemented)
 //
-   return -1;
+// return -1;
+}
+/******************************************************************************/
+  
+int XrdOlbManager::SelServer(int isrw, SMask_t pmask, char *hbuff)
+{
+   static const SMask_t smLow = 255;
+   XrdOlbServer *sp = 0;
+   SMask_t tmask;
+   int Snum = 0;
+
+// Compute the a single server number that is contained in the mask
+//
+   if (!pmask) return 0;
+   do {if (!(tmask = pmask & smLow)) Snum += 8;
+         else {while((tmask = tmask>>1)) Snum++; break;}
+      } while((pmask = pmask >> 8));
+
+// See if the server passes muster
+//
+   STMutex.Lock();
+   if ((sp = ServTab[Snum]))
+      {if (sp->isOffline || sp->isSuspend || sp->isDisable)            sp = 0;
+          else if (!XrdOlbConfig.sched_RR
+               && (sp->myLoad > XrdOlbConfig.MaxLoad))                 sp = 0;
+       if (sp)
+          if (isrw)
+             if (sp->isNoStage || sp->DiskFree < XrdOlbConfig.DiskMin) sp = 0;
+                else {SelAcnt++; sp->Lock();}
+            else     {SelRcnt++; sp->Lock();}
+      }
+   STMutex.UnLock();
+
+// At this point either we have a server or we do not
+//
+   if (sp)
+      {strcpy(hbuff, sp->Name());
+       sp->RefR++;
+       sp->UnLock();
+       return 1;
+      }
+   return 0;
 }
 
 /******************************************************************************/
@@ -1043,7 +1090,6 @@ int XrdOlbManager::Add_Manager(XrdOlbServer *sp)
    if (i > MTHi) MTHi = i;
    sp->ServID   = i;
    sp->ServMask = smask_1<<i;
-   sp->Instance = InstNum++;
    sp->isOffline  = 0;
    sp->isNoStage  = 0;
    sp->isSuspend  = 0;
@@ -1096,6 +1142,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
           if (sp->Link) sp->Link->Recycle();
           sp->Link      = lp;
           sp->isOffline = 0;
+          sp->Instance++;
           sp->setName(lp, port);  // Just in case it changed
           ServTab[i] = sp;
           j = i;
@@ -1133,7 +1180,6 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
 //
    if (Status & OLB_isMan) setAltMan(j, ipaddr, sport);
    if (j > STHi) STHi = j;
-   sp->Instance  = InstNum++;
    sp->isBound   = 1;
    sp->isNoStage = (Status & OLB_noStage);
    sp->isSuspend = (Status & OLB_Suspend);

@@ -38,6 +38,7 @@ int   Manager() {return isManager;}
 int   Server()  {return isServer;}
 
 int         LUPDelay;     // Maximum delay at look-up
+int         LUPHold;      // Maximum hold  at look-up (in millisconds)
 int         DRPDelay;     // Maximum delay for dropping an offline server
 int         SRVDelay;     // Minimum delay at startup
 int         SUPCount;     // Minimum server count

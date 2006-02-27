@@ -15,7 +15,7 @@ const char *XrdOlbMainCVSID = "$Id$";
 /* This is the distributed cache server. It can work in manager mode (-m option)
    or in sserver mode (-s option).
 
-   oolbd [options] [configfn]
+   olbd [options] [configfn]
 
    options: [-d] [-l <fname>] [-L <sec>] [-m] [-s] [-w]
 
@@ -121,7 +121,7 @@ void *XrdOlbStartSupervising(void *carg)
       {EPNAME("StartSuper");
        XrdNetLink *newlink;
        while(1) if ((newlink = XrdOlbNetTCPr->Accept(XRDNET_NODNTRIM)))
-                   {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Nick());
+                   {DEBUG("olbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Nick());
                     XrdOlbSM.Login(newlink);
                    }
        return (void *)0;
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
    if (XrdOlbNetTCPr)
       {if (XrdOucThread::Run(&tid,XrdOlbStartSupervising, 
                              (void *)0, 0, "supervisor"))
-          {XrdOlbSay.Emsg("oolbd", errno, "start supervisor");
+          {XrdOlbSay.Emsg("olbd", errno, "start supervisor");
            _exit(1);
           }
       }
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
                 XrdOlbSM.Pander(tp->text, tp->val);
                 else {if (XrdOucThread::Run(&tid,XrdOlbStartPandering,(void *)tp,
                                             0, tp->text))
-                         {XrdOlbSay.Emsg("oolbd", errno, "start server");
+                         {XrdOlbSay.Emsg("olbd", errno, "start server");
                           _exit(1);
                          }
                       }
@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 //
    if (XrdOlbConfig.Manager())
       while(1) if ((newlink = XrdOlbNetTCPm->Accept(XRDNET_NODNTRIM)))
-                  {DEBUG("oolbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Nick());
+                  {DEBUG("olbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Nick());
                    XrdOucThread::Run(&tid, XrdOlbLoginServer, (void *)newlink);
                   }
 

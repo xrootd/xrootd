@@ -106,6 +106,7 @@ void        ResetRef(SMask_t smask);
 void        Resume();
 int         SelServer(int pt, char *path, SMask_t pmsk, SMask_t amsk, char *hb,
                       const struct iovec *iodata=0, int iovcnt=0);
+int         SelServer(int isrw, SMask_t pmask, char *hbuff);
 void        setPort(int port) {Port = port;}
 void        Snooze(int slpsec);
 void        Space(int none, int doinform=1);
@@ -148,7 +149,6 @@ int           AltMent;
 
 int  MTHi;
 int  STHi;
-int  InstNum;
 int  XWait;
 int  XnoStage;
 int  Port;

@@ -23,15 +23,22 @@
 /******************************************************************************/
   
 struct XrdOlbCInfo
-       {SMask_t rovec;
-        SMask_t rwvec;
-        SMask_t sbvec;
-        int deadline;
+       {SMask_t rovec;    // Servers offering R/O access
+        SMask_t rwvec;    // Servers offering R/W access
+        SMask_t sbvec;    // Servers that are suspect
+        int     deadline;
+        short   roPend;   // Redirectors waiting for R/O response
+        short   rwPend;   // Redirectors waiting for R/W response
+
+        XrdOlbCInfo() {roPend = rwPend = 0;}
+       ~XrdOlbCInfo();
        };
 
 /******************************************************************************/
 /*                      C l a s s   o o l b _ C a c h e                       */
 /******************************************************************************/
+
+class XrdOlbRRQInfo;
   
 class XrdOlbCache
 {
@@ -42,7 +49,12 @@ XrdOlbPList_Anchor Paths;
 
 // AddFile() returns true if this is the first addition, false otherwise
 //
-int        AddFile(const char *path, SMask_t mask, int isrw=-1, int dltime=0);
+int        AddFile(const char *path, SMask_t mask, int isrw=-1, 
+                   int dltime=0, XrdOlbRRQInfo *Info=0);
+
+// DelCache() deletes a specific cache line
+//
+void       DelCache(const char *path);
 
 // DelFile() returns true if this is the last deletion, false otherwise
 //
@@ -50,7 +62,8 @@ int        DelFile(const char *path, SMask_t mask, int dltime=0);
 
 // GetFile() returns true if we actually found the file
 //
-int        GetFile(const char *path, XrdOlbCInfo &cinfo);
+int        GetFile(const char *path, XrdOlbCInfo &cinfo,
+                   int isrw=0, XrdOlbRRQInfo *Info=0);
 
 void       Apply(int (*func)(const char *, XrdOlbCInfo *, void *), void *Arg);
 
@@ -69,9 +82,11 @@ void       setLifetime(int lsec) {LifeTime = lsec;}
 
 private:
 
-XrdOucMutex            PTMutex;
+void                    Add2Q(XrdOlbRRQInfo *Info, XrdOlbCInfo *cp, int isrw);
+void                    Dispatch(XrdOlbCInfo *cinfo, short roQ, short rwQ);
+XrdOucMutex             PTMutex;
 XrdOucHash<XrdOlbCInfo> PTable;
-int                   LifeTime;
+int                     LifeTime;
 };
  
 /******************************************************************************/

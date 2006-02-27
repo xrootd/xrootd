@@ -13,6 +13,7 @@
 const char *XrdOlbCacheCVSID = "$Id$";
   
 #include "XrdOlb/XrdOlbCache.hh"
+#include "XrdOlb/XrdOlbRRQ.hh"
 
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */
@@ -123,7 +124,11 @@ int XrdOlbScrubScan(const char *key, XrdOlbCInfo *cip, void *xargp)
 /*                               A d d F i l e                                */
 /******************************************************************************/
   
-int XrdOlbCache::AddFile(const char *path, SMask_t mask, int isrw, int dltime)
+int XrdOlbCache::AddFile(const char    *path,
+                         SMask_t        mask,
+                         int            isrw,
+                         int            dltime,
+                         XrdOlbRRQInfo *Info)
 {
    XrdOlbPInfo  pinfo;
    XrdOlbCInfo *cinfo;
@@ -145,11 +150,19 @@ int XrdOlbCache::AddFile(const char *path, SMask_t mask, int isrw, int dltime)
       {if (dltime > 0) 
           {cinfo->deadline = dltime + time(0);
            cinfo->rovec = 0; cinfo->rwvec = 0; cinfo->sbvec = 0;
+           if (Info) Add2Q(Info, cinfo, isrw);
           } else {
            isnew = (cinfo->rovec == 0);
            cinfo->rovec |=  mask; cinfo->sbvec &= ~mask;
-           if (isrw) cinfo->rwvec |=  mask;
-              else   cinfo->rwvec &= ~mask;
+           if (isrw) {cinfo->rwvec |=  mask;
+                      cinfo->deadline = 0;
+                      if (cinfo->roPend || cinfo->rwPend)
+                         Dispatch(cinfo, cinfo->roPend, cinfo->rwPend);
+                     }
+              else   {cinfo->rwvec &= ~mask;
+                      if (!cinfo->rwPend) cinfo->deadline = 0;
+                      if (cinfo->roPend) Dispatch(cinfo, cinfo->roPend, 0);
+                     }
           }
       } else if (dltime)
                 {cinfo = new XrdOlbCInfo();
@@ -158,6 +171,7 @@ int XrdOlbCache::AddFile(const char *path, SMask_t mask, int isrw, int dltime)
                     else   cinfo->rwvec = 0;
                  if (dltime > 0) cinfo->deadline = dltime + time(0);
                  PTable.Add(path, cinfo, LifeTime);
+                 if (Info) Add2Q(Info, cinfo, isrw);
                 }
 
 // All done
@@ -167,10 +181,32 @@ int XrdOlbCache::AddFile(const char *path, SMask_t mask, int isrw, int dltime)
 }
   
 /******************************************************************************/
+/*                              D e l C a c h e                               */
+/******************************************************************************/
+
+void XrdOlbCache::DelCache(const char *path)
+{
+
+// Lock the hash table
+//
+   PTMutex.Lock();
+
+// Delete the cache line
+//
+   PTable.Del(path);
+
+// All done
+//
+   PTMutex.UnLock();
+}
+  
+/******************************************************************************/
 /*                               D e l F i l e                                */
 /******************************************************************************/
   
-int XrdOlbCache::DelFile(const char *path, SMask_t mask, int dltime)
+int XrdOlbCache::DelFile(const char    *path,
+                         SMask_t        mask,
+                         int            dltime)
 {
    XrdOlbCInfo *cinfo;
    int gone4good;
@@ -200,7 +236,10 @@ int XrdOlbCache::DelFile(const char *path, SMask_t mask, int dltime)
 /*                               G e t F i l e                                */
 /******************************************************************************/
   
-int  XrdOlbCache::GetFile(const char *path, XrdOlbCInfo &cinfo)
+int  XrdOlbCache::GetFile(const char    *path,
+                          XrdOlbCInfo   &cinfo,
+                          int            isrw,
+                          XrdOlbRRQInfo *Info)
 {
    XrdOlbCInfo *info;
 
@@ -216,6 +255,7 @@ int  XrdOlbCache::GetFile(const char *path, XrdOlbCInfo &cinfo)
        cinfo.sbvec = info->sbvec;
        if (info->deadline && info->deadline <= time(0))
           info->deadline = 0;
+          else if (Info && info->deadline && !info->sbvec) Add2Q(Info,info,isrw);
        cinfo.deadline = info->deadline;
       }
 
@@ -292,4 +332,54 @@ void XrdOlbCache::Scrub()
      PTMutex.Lock();
      PTable.Apply(XrdOlbScrubScan, (void *)0);
      PTMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                       P r i v a t e   M e t h o d s                        */
+/******************************************************************************/
+/******************************************************************************/
+/*                                 A d d 2 Q                                  */
+/******************************************************************************/
+  
+void XrdOlbCache::Add2Q(XrdOlbRRQInfo *Info, XrdOlbCInfo *cp, int isrw)
+{
+   extern XrdOlbRRQ RRQ;
+   short Slot = (isrw ? cp->rwPend : cp->roPend);
+
+// Add the request to the appropriate pending queue
+//
+   Info->Key = cp;
+   Info->isRW= isrw;
+   if (!(Slot = RRQ.Add(Slot, Info))) Info->Key = 0;
+      else if (isrw) cp->rwPend = Slot;
+               else  cp->roPend = Slot;
+}
+
+/******************************************************************************/
+/*                              D i s p a t c h                               */
+/******************************************************************************/
+  
+void XrdOlbCache::Dispatch(XrdOlbCInfo *cinfo, short roQ, short rwQ)
+{
+   extern XrdOlbRRQ RRQ;
+
+// Dispach the waiting elements
+//
+   if (roQ) {RRQ.Ready(roQ, cinfo, cinfo->rovec | cinfo->rwvec);
+             cinfo->roPend = 0;
+            }
+   if (rwQ) {RRQ.Ready(rwQ, cinfo,                cinfo->rwvec);
+             cinfo->rwPend = 0;
+            }
+}
+
+/******************************************************************************/
+/*                X r d O l b C I n f o   D e s t r u c t o r                 */
+/******************************************************************************/
+  
+XrdOlbCInfo::~XrdOlbCInfo()
+{
+   extern XrdOlbRRQ RRQ;
+   if (roPend) RRQ.Del(roPend, this);
+   if (rwPend) RRQ.Del(rwPend, this);
 }

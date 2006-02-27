@@ -24,6 +24,8 @@ SOURCES = \
         XrdOlbMeter.cc     \
         XrdOlbPList.cc     \
         XrdOlbPrepare.cc   \
+        XrdOlbRRQ.cc       \
+        XrdOlbRTable.cc    \
         XrdOlbScheduler.cc \
         XrdOlbServer.cc    \
         XrdOlbState.cc
@@ -38,6 +40,8 @@ OBJECTS = \
         $(OBJDIR)/XrdOlbMeter.o     \
         $(OBJDIR)/XrdOlbPList.o     \
         $(OBJDIR)/XrdOlbPrepare.o   \
+        $(OBJDIR)/XrdOlbRRQ.o       \
+        $(OBJDIR)/XrdOlbRTable.o    \
         $(OBJDIR)/XrdOlbScheduler.o \
         $(OBJDIR)/XrdOlbServer.o    \
         $(OBJDIR)/XrdOlbState.o
@@ -79,7 +83,7 @@ $(OBJDIR)/XrdOlbAdmin.o: XrdOlbAdmin.hh  XrdOlbAdmin.cc \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbAdmin.o XrdOlbAdmin.cc
 
 $(OBJDIR)/XrdOlbCache.o: XrdOlbCache.hh XrdOlbPList.hh XrdOlbScheduler.hh \
-                         XrdOlbTypes.hh XrdOlbCache.cc \
+                         XrdOlbRRQ.hh   XrdOlbTypes.hh XrdOlbCache.cc \
                          XrdOucHash.hh  XrdOucHash.icc XrdOucPthread.hh
 	@echo Compiling XrdOlbCache.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbCache.o XrdOlbCache.cc
@@ -87,6 +91,7 @@ $(OBJDIR)/XrdOlbCache.o: XrdOlbCache.hh XrdOlbPList.hh XrdOlbScheduler.hh \
 $(OBJDIR)/XrdOlbConfig.o: XrdOlbCache.hh    XrdOlbConfig.hh  XrdOlbManager.hh \
                           XrdOlbMeter.hh    XrdOlbPList.hh   XrdOlbScheduler.hh \
                           XrdOlbTrace.hh    XrdOlbTypes.hh   XrdOlbConfig.cc \
+                          XrdOlbRRQ.hh \
                           XrdNetDNS.hh      XrdNetLink.hh    XrdNetSecurity.hh \
                           XrdNetSocket.hh   XrdNetWork.hh \
                           XrdOucStream.hh   XrdOucTList.hh   XrdOlbPrepare.hh \
@@ -107,6 +112,7 @@ $(OBJDIR)/XrdOlbMain.o: XrdOlbCache.hh     XrdOlbConfig.hh   XrdOlbManager.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbMain.o XrdOlbMain.cc
 
 $(OBJDIR)/XrdOlbManager.o: XrdOlbCache.hh     XrdOlbConfig.hh  XrdOlbManager.hh \
+                           XrdOlbRTable.hh \
                            XrdOlbScheduler.hh XrdOlbServer.hh  XrdOlbTrace.hh \
                            XrdOlbTypes.hh     XrdOlbManager.cc XrdOuca2x.hh \
                            XrdNetWork.hh      XrdOucPthread.hh XrdOlbState.hh
@@ -136,6 +142,19 @@ $(OBJDIR)/XrdOlbPrepare.o: XrdOlbPrepare.hh XrdOlbPrepare.cc  XrdOucError.hh \
 	@echo Compiling XrdOlbPrepare.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPrepare.o XrdOlbPrepare.cc
 
+$(OBJDIR)/XrdOlbRRQ.o: XrdOlbRRQ.hh     XrdOlbRRQ.cc   \
+                       XrdOucDLlist.hh  XrdOucError.hh  XrdOucPthread.hh \
+                       XrdOucTimer.hh \
+                       XrdOlbManager.hh XrdOlbRTable.hh XrdOlbServer.hh \
+                       XrdOlbTrace.hh
+	@echo Compiling XrdOlbRRQ.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbRRQ.o XrdOlbRRQ.cc
+
+$(OBJDIR)/XrdOlbRTable.o: XrdOlbRTable.hh     XrdOlbRTable.cc   \
+                          XrdOucPthread.hh    XrdOlbServer.hh
+	@echo Compiling XrdOlbRTable.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbRTable.o XrdOlbRTable.cc
+
 $(OBJDIR)/XrdOlbScheduler.o: XrdOlbScheduler.hh XrdOlbScheduler.cc XrdOlbTrace.hh \
                              XrdOucError.hh   XrdOucPthread.hh
 	@echo Compiling XrdOlbScheduler.cc 
@@ -144,7 +163,7 @@ $(OBJDIR)/XrdOlbScheduler.o: XrdOlbScheduler.hh XrdOlbScheduler.cc XrdOlbTrace.h
 $(OBJDIR)/XrdOlbServer.o: XrdOlbServer.hh   XrdOlbServer.cc \
                           XrdOlbCache.hh    XrdOlbConfig.hh \
                           XrdOlbManager.hh  XrdOlbMeter.hh  XrdOlbState.hh \
-                          XrdOlbTrace.hh    XrdOlbTypes.hh  \
+                          XrdOlbRRQ.hh      XrdOlbTrace.hh  XrdOlbTypes.hh  \
                           XrdNetLink.hh     XrdOuca2x.hh \
                           XrdOucPthread.hh  XrdOucName2Name.hh \
                           XrdOucPlatform.hh XrdOucProg.hh   XrdOucStream.hh

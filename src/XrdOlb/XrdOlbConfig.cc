@@ -41,6 +41,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOlb/XrdOlbMeter.hh"
 #include "XrdOlb/XrdOlbManager.hh"
 #include "XrdOlb/XrdOlbPrepare.hh"
+#include "XrdOlb/XrdOlbRRQ.hh"
 #include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
@@ -209,7 +210,7 @@ int XrdOlbConfig::Configure(int argc, char **argv)
                  break;
        case 'c': ConfigFN = optarg;
                  break;
-       case 'd': XrdOlbTrace.What = 1;
+       case 'd': XrdOlbTrace.What = TRACE_ALL;
                  break;
        case 'i': immed = 1;
                  break;
@@ -592,6 +593,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    myName   = (char *)"localhost"; // Correctly set in Configure()
    myDomain = 0;
    LUPDelay = 5;
+   LUPHold  = 133;
    DRPDelay = 10*60;
    SRVDelay = 90;
    SUPCount = 1;
@@ -805,6 +807,7 @@ int XrdOlbConfig::PidFile()
   
 int XrdOlbConfig::setupManager()
 {
+   extern XrdOlbRRQ RRQ;
    static XrdOlbStartup StartService;
    pthread_t tid;
    int rc;
@@ -869,6 +872,10 @@ int XrdOlbConfig::setupManager()
       {XrdOlbSay.Emsg("Config", rc, "create state monitor thread");
        return 1;
       }
+
+// Initialize the fast redirect queue
+//
+   RRQ.Init(LUPHold, LUPDelay);
 
 // We normally come up disabled to allow data service machines to connect.
 // Scheduler a job to enabled ourselves after the service delay time.
@@ -1238,11 +1245,12 @@ int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
                                            [startup <sec>] [servers <cnt>[%]]
                                            [full <sec>] [discard <cnt>]
                                            [suspend <sec>] [drop <sec>]
-                                           [service <sec>]
+                                           [service <sec>] [hold <msec>]
 
    discard   <cnt>     maximum number a message may be forwarded.
    drop      <sec>     seconds to delay a drop of an offline server.
    full      <sec>     seconds to delay client when no servers have space.
+   hold      <msec>    millseconds to optimistically hold requests.
    lookup    <sec>     seconds to delay client when finding a file.
    overload  <sec>     seconds to delay client when all servers overloaded.
    servers   <cnt>     minimum number of servers we need.
@@ -1264,6 +1272,7 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &Config)
         {"discard",  &MsgTTL,   0},
         {"drop",     &DRPDelay, 1},
         {"full",     &DiskWT,  -1},
+        {"hold",     &LUPHold,  0},
         {"lookup",   &LUPDelay, 1},
         {"overload", &MaxDelay,-1},
         {"servers",  &SUPCount, 0},
