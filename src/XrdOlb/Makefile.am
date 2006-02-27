@@ -22,6 +22,8 @@ olbd_SOURCES = \
         XrdOlbMeter.cc XrdOlbMeter.hh    \
         XrdOlbPList.cc XrdOlbPList.hh    \
         XrdOlbPrepare.cc XrdOlbPrepare.hh  \
+        XrdOlbRRQ.cc XrdOlbRRQ.hh \
+        XrdOlbRTable.cc XrdOlbRTable.hh \
         XrdOlbScheduler.cc XrdOlbScheduler.hh \
         XrdOlbServer.cc XrdOlbServer.hh   \
         XrdOlbState.cc XrdOlbState.hh

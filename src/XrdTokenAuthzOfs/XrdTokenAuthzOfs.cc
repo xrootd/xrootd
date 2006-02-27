@@ -403,23 +403,16 @@ XrdTokenAuthzOfs::stat(const char             *Name,
 int
 XrdTokenAuthzOfs::rem(const char             *path,
 	              XrdOucErrInfo          &out_error,
-	              const XrdSecClientName *client){
+		      const XrdSecEntity     *client,
+		      const char             *opaque) {
+
   static const char *epname = "rem";
   std::string url(path);
   std::string filename("");
   const char *tident = out_error.getErrUser();
   TAuthzXMLreader* authz=0;
-  const char *opaque =0;
 
-  // filter into filename + opaque file info
-  int qmark = url.find("?",0);
-  if (qmark == string::npos) {
-    filename+=path;
-  } else {
-    opaque = url.c_str()+qmark+1;
-    std::string newfilename(url.substr(0,qmark));
-    filename = newfilename;
-  }
+  filename = path;
 
   ZTRACE(remove,"lfn    = " << filename);
 

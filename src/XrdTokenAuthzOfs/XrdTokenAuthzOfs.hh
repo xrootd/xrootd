@@ -132,8 +132,10 @@ public:
                                const XrdSecClientName *client = 0) {return XrdOfs::prepare(pargs,out_error,client);}
 
         int            rem(const char             *path,
-                                 XrdOucErrInfo    &out_error,
-                           const XrdSecClientName *client = 0);
+		                 XrdOucErrInfo    &out_error,
+		           const XrdSecEntity     *client,
+		           const char             *info = 0);
+
 
         int            remdir(const char             *dirName,
                                     XrdOucErrInfo    &out_error,
