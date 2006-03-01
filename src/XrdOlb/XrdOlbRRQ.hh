@@ -85,8 +85,8 @@ void *Respond();
 
 void *TimeOut();
 
-      XrdOlbRRQ() : isWaiting(0), isReady(0), myClock(0),
-                    Tslice(133),   Tdelay(5) {}
+      XrdOlbRRQ() : isWaiting(0), isReady(0), Tslice(133),
+                    Tdelay(5),    myClock(0) {}
      ~XrdOlbRRQ() {}
 
 private:
