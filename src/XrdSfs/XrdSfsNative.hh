@@ -80,7 +80,7 @@ public:
 
         const char    *FName() {return fname;}
 
-        int            getMmap(void **Addr, size_t &Size)
+        int            getMmap(void **Addr, off_t &Size)
                               {if (Addr) Addr = 0; Size = 0; return SFS_OK;}
 
         int            read(XrdSfsFileOffset   fileOffset,

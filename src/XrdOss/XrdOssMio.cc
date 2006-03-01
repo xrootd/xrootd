@@ -252,7 +252,7 @@ void *XrdOssMio::preLoad(void *arg)
   
 // Reclaim() can only be called if the caller has the MM_Mutex lock!
 //
-int XrdOssMio::Reclaim(size_t amount)
+int XrdOssMio::Reclaim(off_t amount)
 {
    EPNAME("MioReclaim");
    XrdOssMioFile *mp;

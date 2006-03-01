@@ -46,7 +46,7 @@ static void           Set(int V_off, int V_preld,  int V_chklok,
 static void           Set(long long V_max);
 
 private:
-static int  Reclaim(size_t amount);
+static int  Reclaim(off_t amount);
 static int  Reclaim(XrdOssMioFile *mp);
 
 static XrdOucHash<XrdOssMioFile> MM_Hash;

@@ -20,7 +20,7 @@ class XrdOssMioFile
 public:
 friend class XrdOssMio;
 
-size_t Export(void **Addr) {*Addr = Base; return Size;}
+off_t Export(void **Addr) {*Addr = Base; return Size;}
 
        XrdOssMioFile(char *hname)
                     {strcpy(HashName, hname); 
@@ -36,7 +36,7 @@ ino_t          Ino;
 int            Status;
 int            inUse;
 void          *Base;
-size_t         Size;
+off_t          Size;
 char           HashName[64];
 };
 #endif

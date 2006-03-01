@@ -557,7 +557,7 @@ int XrdXrootdProtocol::do_Open()
    struct stat statbuf;
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
-   size_t mmSize;
+   off_t mmSize;
    struct iovec IOResp[3];  // Note that IOResp[0] is completed by Response
 
 // Keep Statistics

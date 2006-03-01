@@ -87,7 +87,7 @@ public:
 
         const char  *FName() {return (oh ? oh->Name() : "?");}
 
-        int          getMmap(void **Addr, size_t &Size);
+        int          getMmap(void **Addr, off_t &Size);
 
         int            read(XrdSfsFileOffset   fileOffset,   // Preread only
                             XrdSfsXferSize     amount);

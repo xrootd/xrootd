@@ -756,7 +756,7 @@ int XrdOssFile::Fsync(void)
   Output:   Returns the size of the file if it is memory mapped (see above).
             Otherwise, zero is returned and addr is set to zero.
 */
-size_t XrdOssFile::getMmap(void **addr)
+off_t XrdOssFile::getMmap(void **addr)
 {
    if (mmFile) return (addr ? mmFile->Export(addr) : 1);
    if (addr) *addr = 0;

@@ -906,7 +906,7 @@ int XrdOfsFile::write(XrdSfsAio *aiop)
 /*                               g e t M m a p                                */
 /******************************************************************************/
 
-int XrdOfsFile::getMmap(void **Addr, size_t &Size)         // Out
+int XrdOfsFile::getMmap(void **Addr, off_t &Size)         // Out
 /*
   Function: Return memory mapping for file, if any.
 

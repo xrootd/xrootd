@@ -66,7 +66,7 @@ int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
-size_t  getMmap(void **addr);
+off_t   getMmap(void **addr);
 int     isCompressed(char *cxidp=0);
 int     Open(const char *, int, mode_t, XrdOucEnv &);
 ssize_t Read(               off_t, size_t);

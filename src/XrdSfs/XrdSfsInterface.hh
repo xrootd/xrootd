@@ -214,7 +214,7 @@ virtual int            close() = 0;
 
 virtual const char    *FName() = 0;
 
-virtual int            getMmap(void **Addr, size_t &Size) = 0;
+virtual int            getMmap(void **Addr, off_t &Size) = 0;
 
 virtual int            read(XrdSfsFileOffset   fileOffset,
                             XrdSfsXferSize     preread_sz) = 0;
