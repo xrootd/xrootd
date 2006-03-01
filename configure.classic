@@ -467,7 +467,6 @@ else
   ac_n= ac_c='\c' ac_t=
 fi
 
-
 ######################################################################
 #
 ### echo %%% Help function
@@ -504,6 +503,7 @@ enable/disable options, prefix with either --enable- or --disable-
    mon             Enable/disable building of monitoring services
    perlint         Enable/disable building of the perl admin interface
    pwd             Password-based authentication support
+   sec             Sets gsi krb4 krb5 pwd and ssl together
    ssl             Build OpenSSL implementation of crypto interfaces
    trace           Support for trace statements via the "-d" flag
    
@@ -627,27 +627,43 @@ if test $# -gt 0 ; then
       #
       --enable-*)
 	f=`echo $1 | sed -e 's/--//' -e 's/-/_/'`
-	eval $f=yes
-	for c in $options ; do
-	   if test "x$c" = "x$f" ; then
-	      f=""
-	   fi
-	done
-	if test "x$f" != "x" ; then
-	   echo "Invalid option '$1'. Try $0 --help" ; exit 1 ;
-	fi
+if test "x$f" = "xenable_sec" ; then
+   enable_gsi=yes
+   enable_krb4=yes
+   enable_krb5=yes
+   enable_pwd=yes
+   enable_ssl=yes
+   else
+   eval $f=yes
+   for c in $options ; do
+       if test "x$c" = "x$f" ; then
+          f=""
+       fi
+   done
+   if test "x$f" != "x" ; then
+      echo "Invalid option '$1'. Try $0 --help" ; exit 1 ;
+   fi
+fi
 	;;
       --disable-*)
 	f=`echo $1 | sed -e 's/--disable/enable/' -e 's/-/_/'`
-	eval $f=no
-	for c in $options ; do
-	   if test "x$c" = "x$f" ; then
-	      f=""
-	   fi
-	done
-	if test "x$f" != "x" ; then
-	   echo "Invalid option '$1'. Try $0 --help" ; exit 1 ;
-	fi
+if test "x$f" = "xenable_sec" ; then
+   enable_gsi=no
+   enable_krb4=no
+   enable_krb5=no
+   enable_pwd=no
+   enable_ssl=no
+   else
+   eval $f=no
+   for c in $options ; do
+       if test "x$c" = "x$f" ; then
+          f=""
+       fi
+   done
+   if test "x$f" != "x" ; then
+      echo "Invalid option '$1'. Try $0 --help" ; exit 1 ;
+   fi
+fi
 	;;
       ################################################################
       #
