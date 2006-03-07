@@ -18,7 +18,7 @@ root files. An optional load balancer is also included.
 %setup -q -n xrootd
 
 %build
-./configure.classic --enable-perlint --with-perl=/usr/local/bin/perl5.8 XRD-DEBUGOPT-XRD
+./configure.classic XRD-DEBUGOPT-XRD
 gmake clean
 gmake
 
