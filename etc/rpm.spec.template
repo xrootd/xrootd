@@ -41,7 +41,6 @@ install -m 755 lib/XRD-SYSNAME-XRD/libXrdPosix.so $RPM_BUILD_ROOT/opt/xrootd/lib
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdOfs.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdOfs.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdRootd.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdRootd.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdSec.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSec.so
-install -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb4.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSeckrb4.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb5.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSeckrb5.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdCrypto.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdCrypto.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdCryptossl.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdCryptossl.so
@@ -87,7 +86,6 @@ install -m 755 utils/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/utils/XrdOlbNoti
 /opt/xrootd/lib/libXrdOfs.so
 /opt/xrootd/lib/libXrdRootd.so
 /opt/xrootd/lib/libXrdSec.so
-/opt/xrootd/lib/libXrdSeckrb4.so
 /opt/xrootd/lib/libXrdSeckrb5.so
 /opt/xrootd/lib/libXrdCrypto.so
 /opt/xrootd/lib/libXrdCryptossl.so
