@@ -16,6 +16,7 @@
 
 #include <rpc/types.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 // We need a reasonable buffer to hold strings to be passed to/from Perl in some cases
 char *sharedbuf;

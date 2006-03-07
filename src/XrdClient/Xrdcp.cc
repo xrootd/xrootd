@@ -24,6 +24,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 extern "C" {
    /////////////////////////////////////////////////////////////////////

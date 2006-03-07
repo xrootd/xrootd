@@ -20,6 +20,7 @@ const char *XrdOlbRRQCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucTimer.hh"
+#include <stdio.h>
 
 // Note: Debugging statements have been commented out. This is time critical
 //       code and debugging may only be enabled in standalone testing as the
