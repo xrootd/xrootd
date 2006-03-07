@@ -96,7 +96,7 @@ foreach $siteName (@siteNames) {
     ($siteIds{$siteName}, $backupInts{$siteName}, $backupTime) = 
                          &runQueryWithRet("SELECT id, backupInt, backupTime
                                              FROM sites 
-                                            WHERE name = \"$siteName\"");
+                                            WHERE name = '$siteName'");
    
     if ( ! -d "$jrnlDir/$siteName" ) { 
         mkdir "$jrnlDir/$siteName";
@@ -128,12 +128,23 @@ while ( 1 ) {
         sleep $sec2Sleep;
     } 
 
+    my @localt = localtime(time());
+    my $minSec1 = $localt[1]*60 + $localt[0];
+
     &doLoading();
 
     if ( -e $stopFName ) {
 	unlink $stopFName;
 	exit;
     }
+
+    # ensure that time before and after loading aren't the same.
+    @localt = localtime(time());
+    my $minSec2 = $localt[1]*60 + $localt[0];
+    if ( $minSec2 == $minSec1 ) {
+        sleep(2);
+    }
+    
 }
  
 ###############################################################################
@@ -257,6 +268,7 @@ sub recover {
              }
          }
          close BKLOGFILE;
+         # laod the last chunk when it is less than $nRecPerMin.
          if ( $nr > 0 ) {
              &loadOneSite($siteName, $fileEndTime);
          }
@@ -349,11 +361,6 @@ sub doLoading {
     $ts = &timestamp();
     print "$ts All done, processed $nr entries.\n";
 
-    # make sure the loop takes at least 2 s
-    if ( $gmts eq &gmtimestamp() ) {
-        sleep 2;
-    }
-
 }
 sub backupOneSite() {
     my ($siteName, $loadTime) = @_;
@@ -375,7 +382,7 @@ sub backupOneSite() {
                                         WHERE name = '$siteName'");
     if ( $loadTime ge $nextBackup ) {
          &runQuery("UPDATE sites
-                    SET backupTime = \"$loadTime\"
+                    SET backupTime = '$loadTime'
                     WHERE name = '$siteName'");
                            
          ($bkupdate, $bkuptime) = split / /, "$loadTime";
@@ -542,7 +549,7 @@ sub loadOpenSession() {
     close INFILE;
     close MYSQLIN;
 
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE 
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE 
                INTO TABLE ${siteName}_openedSessions");
     print "$rows rows loaded \n";
     `rm -f $mysqlIn $inFile`;
@@ -695,6 +702,10 @@ sub loadCloseFile() {
                                           FROM ${siteName}_closedSessions
                                          WHERE id = $sessionId ");
         }
+        if ( ! $jobId ) {
+            print "pathId $pathId with sessionId  $sessionId has no entries in open or closed sessions \n";
+            next;
+        }
         if ( $version == 1 ) {
             $closeT = &runQueryWithRet("SELECT CONVERT_TZ('$closeT', '$timeZones{$siteName}', 'GMT') ");
         }
@@ -715,11 +726,11 @@ sub loadCloseFile() {
     close INFILE;
     close MYSQLIN;
 
-    &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
                INTO TABLE ${siteName}_closedFiles         ");
     if ( $loadLastTables ) {
         foreach $period ( @periods ) {
-            &runQuery("LOAD DATA LOCAL INFILE \"$mysqlIn\" IGNORE
+            &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
                        INTO TABLE ${siteName}_closedFiles_Last$period");
         }
     }
@@ -751,13 +762,13 @@ sub findOrInsertUserId() {
     }
     $userId = &runQueryWithRet("SELECT id 
                                 FROM ${siteName}_users
-                                WHERE name = \"$userName\"");
+                                WHERE name = '$userName'");
     if ( $userId ) {
 	#print "Will reuse user id $userId for $userName\n";
     } else {
 	#print "$userName not in mysql yet, inserting... \n";
 	&runQuery("INSERT IGNORE INTO ${siteName}_users (name)
-                   VALUES (\"$userName\")");
+                   VALUES ('$userName')");
 
 	$userId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
     }
@@ -774,13 +785,13 @@ sub findOrInsertHostId() {
     }
     $hostId = &runQueryWithRet("SELECT id
                                 FROM ${siteName}_hosts
-                                WHERE hostName = \"$hostName\"");
+                                WHERE hostName = '$hostName'");
     if ( $hostId ) {
 	#print "Will reuse hostId $clientHostId for $hostName\n";
     } else {
 	#print "$hostName not in mysql yet, inserting...\n";
 	&runQuery("INSERT INTO ${siteName}_hosts (hostName)
-                   VALUES (\"$hostName\")");
+                   VALUES ('$hostName')");
 
 	$hostId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
     }
@@ -800,7 +811,7 @@ sub findOrInsertPathId() {
     my $hashValue = &returnHash("$path");
     ($pathId, $typeId, $skimId) =
         &runQueryWithRet("SELECT id, typeId, skimId FROM paths 
-                          WHERE hash = $hashValue AND name = \"$path\"");
+                          WHERE hash = $hashValue AND name = '$path'");
 
     # split path and find file type and skim name
     my @sections = split(/\//, $path);
@@ -820,10 +831,10 @@ sub findOrInsertPathId() {
         if ( ! $typeId ) {
             $typeId = &runQueryWithRet("SELECT id
                                         FROM fileTypes
-                                        WHERE name = \"$typeName\"");
+                                        WHERE name = '$typeName'");
         }
         if ( ! $typeId ) {
-            &runQuery("INSERT INTO fileTypes(name) VALUES(\"$typeName\")");
+            &runQuery("INSERT INTO fileTypes(name) VALUES('$typeName')");
             $typeId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
         }
         # if it is skim, deal with the skim type, if not, 0 would do
@@ -833,15 +844,15 @@ sub findOrInsertPathId() {
             if ( ! $skimId ) {
                 $skimId = &runQueryWithRet("SELECT id
                                             FROM skimNames
-                                            WHERE name = \"$skimName\"");
+                                            WHERE name = '$skimName'");
             }
             if ( ! $skimId ) {
-                &runQuery("INSERT INTO skimNames(name) VALUES(\"$skimName\")");
+                &runQuery("INSERT INTO skimNames(name) VALUES('$skimName')");
                 $skimId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
             }
         }
         &runQuery("INSERT INTO paths (name,typeId,skimId,size,hash)
-                   VALUES (\"$path\", $typeId, $skimId, $size, $hashValue )");
+                   VALUES ('$path', $typeId, $skimId, $size, $hashValue )");
         $pathId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
     }
     $pathIds{$path} = $pathId;
@@ -858,7 +869,7 @@ sub loadXrdRestarts() {
 
     my $siteId = $siteIds{$siteName};
 
-    my $inFile = "$jrnlDir/$siteName/rfile-V$version}.ascii";
+    my $inFile = "$jrnlDir/$siteName/rfile-V${version}.ascii";
     if ( -z $inFile ) {
         `rm -f $inFile`;
         return;
@@ -874,7 +885,7 @@ sub loadXrdRestarts() {
         if ( ! $hostId ) {
             $hostId = &runQueryWithRet("SELECT id
                                         FROM ${siteName}_hosts
-                                        WHERE hostName = \"$hostName\"");
+                                        WHERE hostName = '$hostName'");
 	}
         if ( ! $hostId ) {
 	    return;
