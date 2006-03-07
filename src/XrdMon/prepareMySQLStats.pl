@@ -154,7 +154,7 @@ sub doInitialization() {
     foreach $siteName (@siteNames) {
 	$siteId = &runQueryWithRet("SELECT id 
                                       FROM sites 
-                                     WHERE name = \"$siteName\"");
+                                     WHERE name = '$siteName'");
         $siteIds{$siteName} = $siteId;
         $dbUpdates{$siteName} = &runQueryWithRet("SELECT dbUpdate 
                                                     FROM sites 
@@ -175,7 +175,7 @@ sub doInitialization() {
               $lastNoUniqueF[$siteId], $lastNoNonUniqueF[$siteId]) 
 	      = &runQueryWithRet("SELECT noJobs,noUsers,noUniqueF,noNonUniqueF
                               FROM   statsLastHour 
-                              WHERE  date   = \"$lastTime\"  AND
+                              WHERE  date   = '$lastTime'  AND
                                      siteId = $siteId           ");
         } else { 
               $lastNoJobs[$siteId]=$lastNoUsers[$siteId]=0;
@@ -196,9 +196,9 @@ sub prepareStats4OneSite() {
 
     # every min at HH:MM:00
     &runQuery("DELETE FROM ${siteName}_closedSessions_LastHour  
-                     WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR)");
+                     WHERE disconnectT < DATE_SUB('$loadTime', INTERVAL  1 HOUR)");
     &runQuery("DELETE FROM ${siteName}_closedFiles_LastHour     
-                     WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR)");
+                     WHERE      closeT < DATE_SUB('$loadTime', INTERVAL  1 HOUR)");
     &loadStatsLastHour($siteName, $loadTime, $min % 60);
     &loadTopPerfPast("Hour", 20, $siteName, $loadTime);
 
@@ -207,9 +207,9 @@ sub prepareStats4OneSite() {
 	# every 15 min at HH:00:00, HH:15:00, HH:00:00, HH:45:00
         &closeOpenedFiles($siteName, $loadTime, 1);
         &runQuery("DELETE FROM ${siteName}_closedSessions_LastDay  
-                         WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
+                         WHERE disconnectT < DATE_SUB('$loadTime', INTERVAL  1 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastDay     
-                         WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  1 DAY)");
+                         WHERE      closeT < DATE_SUB('$loadTime', INTERVAL  1 DAY)");
 	&loadStatsLastPeriod($siteName, $loadTime, "Day", "Hour");
         #                                          period cfPeriod
 	&loadTopPerfPast("Day", 20, $siteName, $loadTime);
@@ -219,9 +219,9 @@ sub prepareStats4OneSite() {
         # with 10 minutes delay:
 	# every hour at HH:00:00
         &runQuery("DELETE FROM ${siteName}_closedSessions_LastWeek  
-                         WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
+                         WHERE disconnectT < DATE_SUB('$loadTime', INTERVAL  7 DAY)");
         &runQuery("DELETE FROM ${siteName}_closedFiles_LastWeek     
-                         WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL  7 DAY)");
+                         WHERE      closeT < DATE_SUB('$loadTime', INTERVAL  7 DAY)");
         &closeIdleSessions($siteName, $loadTime, 1);
 	&loadStatsLastPeriod($siteName, $loadTime, "Week", "Day");
         #                                          period cfPeriod
@@ -233,9 +233,9 @@ sub prepareStats4OneSite() {
 	if ( $hour == 0 || $hour == 6 || $hour == 12 || $hour == 18 ) {
 	    # every 6 hours at 00:00:00, 06:00:00, 12:20:00, 18:00:00 GMT
             &runQuery("DELETE FROM ${siteName}_closedSessions_LastMonth  
-                             WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 1 MONTH)");
+                             WHERE disconnectT < DATE_SUB('$loadTime', INTERVAL 1 MONTH)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastMonth     
-                             WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 1 MONTH)");
+                             WHERE      closeT < DATE_SUB('$loadTime', INTERVAL 1 MONTH)");
 	    &loadStatsLastPeriod($siteName, $loadTime, "Month", "Day");
         #                                               period cfPeriod
 	    &loadTopPerfPast("Month", 20, $siteName, $loadTime);
@@ -248,9 +248,9 @@ sub prepareStats4OneSite() {
             # with 20 minutes delay:
 	    # every 24 hours at 00:00:00 GMT
             &runQuery("DELETE FROM ${siteName}_closedSessions_LastYear  
-                             WHERE disconnectT < DATE_SUB(\"$loadTime\", INTERVAL 1 YEAR)");
+                             WHERE disconnectT < DATE_SUB('$loadTime', INTERVAL 1 YEAR)");
             &runQuery("DELETE FROM ${siteName}_closedFiles_LastYear     
-                             WHERE      closeT < DATE_SUB(\"$loadTime\", INTERVAL 1 YEAR)");
+                             WHERE      closeT < DATE_SUB('$loadTime', INTERVAL 1 YEAR)");
 	    &loadStatsLastPeriod($siteName, $loadTime, "Year", "Week");
         #                                               period cfPeriod
 	    &loadTopPerfPast("Year", 20, $siteName, $loadTime);
@@ -273,7 +273,7 @@ sub prepareStats4OneSite() {
     &loadTopPerfNow(20, $siteName);
 
     # truncate temporary tables
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
 
     # load file sizes
     if ( ! -e $inhibitFSize ) {
@@ -429,7 +429,7 @@ sub loadStatsLastHour() {
     if ( &getLastInsertTime($loadTime, "Hour") gt $dbUpdates{$siteName} ) {return;}
     my $siteId = $siteIds{$siteName};
     
-    &runQuery("DELETE FROM statsLastHour WHERE date < DATE_SUB(\"$loadTime\", INTERVAL  1 HOUR) AND
+    &runQuery("DELETE FROM statsLastHour WHERE date < DATE_SUB('$loadTime', INTERVAL  1 HOUR) AND
                                                siteId = $siteId     ");
     ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT jobId), COUNT(DISTINCT userId) 
                                               FROM ${siteName}_openedSessions");
@@ -438,7 +438,7 @@ sub loadStatsLastHour() {
                                                       FROM ${siteName}_openedFiles");
     &runQuery("REPLACE INTO statsLastHour 
                       (seqNo, siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
-               VALUES ($seqNo, $siteId, \"$loadTime\", $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
+               VALUES ($seqNo, $siteId, '$loadTime', $noJobs, $noUsers, $noUniqueF, $noNonUniqueF)");
 
     $deltaJobs = $noJobs - $lastNoJobs[$siteId]; 
     $jobs_p = $lastNoJobs[$siteId] > 0 ? &roundoff( 100 * $deltaJobs / $lastNoJobs[$siteId] ) : -1;
@@ -452,7 +452,7 @@ sub loadStatsLastHour() {
                            (siteId, jobs, jobs_p, users, users_p, uniqueF, uniqueF_p, 
                             nonUniqueF, nonUniqueF_p, lastUpdate)
                     VALUES ($siteId, $deltaJobs, $jobs_p, $deltaUsers, $users_p, $deltaUniqueF,
-                            $uniqueF_p, $deltaNonUniqueF, $nonUniqueF_p, \"$loadTime\")");
+                            $uniqueF_p, $deltaNonUniqueF, $nonUniqueF_p, '$loadTime')");
     $lastNoJobs[$siteId]       = $noJobs;
     $lastNoUsers[$siteId]      = $noUsers;
     $lastNoUniqueF[$siteId]    = $noUniqueF;
@@ -471,7 +471,7 @@ sub loadStatsAllYears() {
     if ( $noJobs ) {
         &runQuery("INSERT IGNORE INTO statsAllYears
                               (siteId, date, noJobs, noUsers, noUniqueF, noNonUniqueF) 
-                        VALUES ($siteId, \"$loadTime\", $noJobs, $noUsers,
+                        VALUES ($siteId, '$loadTime', $noJobs, $noUsers,
                                 $noUniqueF, $noNonUniqueF)");
     }
 }
@@ -734,25 +734,25 @@ sub loadTopPerfPast() {
     my ($theKeyword, $theLimit, $siteName, $loadTime) = @_;
 
     &runTopUsersQueriesPast($theKeyword, $theLimit, $siteName, $loadTime);
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
     &runTopSkimsQueriesPast($theKeyword, $theLimit, "SKIMS", $siteName);
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
     &runTopSkimsQueriesPast($theKeyword, $theLimit, "TYPES", $siteName);
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
     &runTopFilesQueriesPast($theKeyword, $theLimit, $siteName);
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
 }
 sub loadTopPerfNow() {
     my ($theLimit, $siteName) = @_;
 
     &runTopUsersQueriesNow($theLimit, $siteName);
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
     &runTopSkimsQueriesNow($theLimit, "SKIMS", $siteName);
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
     &runTopSkimsQueriesNow($theLimit, "TYPES", $siteName);
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
     &runTopFilesQueriesNow($theLimit, $siteName);
-    foreach $table (@topPerfTables) { &runQuery("TRUNCATE TABLE $table"); }
+    foreach $table (@topPerfTables) { &runQuery("DELETE FROM $table"); }
 }
 sub runTopUsersQueriesPast() {
     my ($theKeyword, $theLimit, $siteName, $loadTime) = @_;
@@ -817,7 +817,7 @@ sub runTopUsersQueriesPast() {
     &runQuery("REPLACE INTO xx SELECT theId FROM vv ORDER BY n DESC LIMIT $theLimit");
 
     ## delete old data
-    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
+    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE '$theKeyword'");
 
     ## and finally insert the new data
     &runQuery("INSERT INTO $destinationTable
@@ -826,7 +826,7 @@ sub runTopUsersQueriesPast() {
                       IFNULL(ff.n, 0) AS files, 
                       IFNULL(ff.s, 0) AS fSize, 
                       IFNULL(vv.n, 0) AS vol, 
-                      \"$theKeyword\"
+                      '$theKeyword'
                  FROM xx 
                       LEFT OUTER JOIN jj ON xx.theId = jj.theId
                       LEFT OUTER JOIN ff ON xx.theId = ff.theId
@@ -869,14 +869,14 @@ sub runTopFilesQueriesPast() {
     &runQuery("REPLACE INTO xx SELECT theId FROM vv ORDER BY n DESC LIMIT $theLimit");
 
     ## delete old data
-    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
+    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE '$theKeyword'");
 
     ## and finally insert the new data
         &runQuery("INSERT INTO $destinationTable
             SELECT xx.theId, 
                    IFNULL(jj.n, 0) AS jobs,
                    IFNULL(vv.n, 0) AS vol, 
-                   \"$theKeyword\"
+                   '$theKeyword'
             FROM   xx 
                    LEFT OUTER JOIN jj ON xx.theId = jj.theId
                    LEFT OUTER JOIN vv ON xx.theId = vv.theId");
@@ -1039,7 +1039,7 @@ sub runTopSkimsQueriesPast() {
     &runQuery("REPLACE INTO xx SELECT theId FROM vv ORDER BY n DESC LIMIT $theLimit");
 
     ## delete old data
-    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE \"$theKeyword\"");
+    &runQuery("DELETE FROM $destinationTable WHERE timePeriod LIKE '$theKeyword'");
 
     ## and finally insert the new data
     &runQuery("INSERT INTO $destinationTable
@@ -1049,7 +1049,7 @@ sub runTopSkimsQueriesPast() {
                IFNULL(ff.s, 0) AS fSize,
                IFNULL(uu.n, 0) AS users, 
                IFNULL(vv.n, 0) AS vol, 
-               \"$theKeyword\"
+               '$theKeyword'
         FROM   xx 
                LEFT OUTER JOIN jj ON xx.theId = jj.theId
                LEFT OUTER JOIN ff ON xx.theId = ff.theId
