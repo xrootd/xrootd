@@ -53,7 +53,7 @@ public:
 
         const char    *FName() {return XrdOfsFile::FName();}
 
-        int            getMmap(void **Addr, size_t &Size){return XrdOfsFile::getMmap(Addr,Size);}
+        int            getMmap(void **Addr, off_t &Size){return XrdOfsFile::getMmap(Addr,Size);}
 
         int            read(XrdSfsFileOffset   fileOffset,
  	                    XrdSfsXferSize     preread_sz) {return XrdOfsFile::read(fileOffset,preread_sz);}
