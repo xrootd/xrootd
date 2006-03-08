@@ -102,9 +102,12 @@ uninstall-local:
 	rm -f $(javaclassdir)/xrootdadmin/XrdClientAdminJNI.class
 endif
 
-if ENABLE_PERLINT
+
+# needed outside the ENABLE_PERLINT clause, because of "make dist" target
 XrdClientAdmin_c_wrap.cc:
 	cp XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc
+
+if ENABLE_PERLINT
 
 libXrdClientAdmin_la_SOURCES = XrdClientAdmin_c.cc \
                                XrdClientAdmin_c_wrap.cc
