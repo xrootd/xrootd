@@ -19,7 +19,8 @@ INCLUDES = -I$(top_srcdir)/src
 
 libXrdPosix_la_SOURCES = \
         XrdPosix.cc  \
-        XrdPosixXrootd.cc XrdPosixXrootd.hh
+        XrdPosixLinkage.cc \
+        XrdPosixXrootd.cc
 
 libXrdPosix_la_LIBADD = ../XrdClient/libXrdClient.la \
                         ../XrdSec/libXrdSec.la \
