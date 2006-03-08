@@ -66,3 +66,42 @@ int XrdOucNList::NameOK(const char *pd, const int pl)
    if (namelenR > pl) return 0;
    return !strcmp((pd + pl - namelenR), nameR);
 }
+
+/******************************************************************************/
+/*                               R e p l a c e                                */
+/******************************************************************************/
+  
+void XrdOucNList_Anchor::Replace(const char *name, int nval)
+{
+   XrdOucNList *xp = new XrdOucNList(name, nval);
+   XrdOucNList *np, *pp = 0;
+
+// Lock ourselves
+//
+   Lock();
+   np = next;
+
+// Find the matching item or the place to insert the item
+//
+   while(np && np->namelenL >= xp->namelenL)
+        {if (np->namelenL == xp->namelenL
+         &&  np->namelenR == xp->namelenR
+         && (np->nameL && xp->nameL && !strcmp(np->nameL, xp->nameL))
+         && (np->nameR && xp->nameR && !strcmp(np->nameR, xp->nameR)))
+            {np->Set(nval);
+             UnLock();
+             delete xp;
+             return;
+            }
+          pp = np; np = np->next;
+         }
+
+// Must insert a new item
+//
+   if (pp) {xp->next = np; pp->next = xp;}
+      else {xp->next = next;   next = xp;}
+
+// All done
+//
+   UnLock();
+}
