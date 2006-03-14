@@ -40,7 +40,7 @@ vecString *Tokenize(const char *str, char sep)
    // Tokenize
    XrdOucString sl;
    int from = 0;
-   while ((from = s.tokenize(sl, from, sep))) {
+   while ((from = s.tokenize(sl, from, sep)) != STR_NPOS) {
       if (sl.length() > 0)
          res->Push_back(sl);
    }
