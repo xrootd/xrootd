@@ -477,20 +477,22 @@ int XrdXrootdJob::Cancel(const char *jkey, XrdXrootdResponse *resp)
 //
    if (jkey)
       {if ((jp = JobTable.Find(jkey)))
-          if (resp) {jp->delClient(resp);
-                     if (!jp->numClients) CleanUp(jp);
-                    }
-              else  CleanUp(jp);
+          {numcaned = 1;
+           if (resp) {jp->delClient(resp);
+                      if (!jp->numClients) CleanUp(jp);
+                     }
+               else  CleanUp(jp);
+          }
        myMutex.UnLock();
-       return 1;
+       return numcaned;
       }
 
 // Delete multiple jobs
 //
    while((jNum = JobTable.Next(jNext)) >= 0)
+        {jp = JobTable.Item(jNum);
          if (resp)
-            {jp = JobTable.Item(jNum);
-             i = jp->numClients;
+            {i = jp->numClients;
              jp->delClient(resp);
              if (i != jp->numClients) numcaned++;
              if (!jp->numClients) CleanUp(jp);
@@ -498,6 +500,7 @@ int XrdXrootdJob::Cancel(const char *jkey, XrdXrootdResponse *resp)
              CleanUp(jp);
              numcaned++;
             }
+        }
 
 // All done
 //
@@ -614,16 +617,19 @@ int XrdXrootdJob::Schedule(const char         *jkey,
   
 void XrdXrootdJob::CleanUp(XrdXrootdJob2Do *jp)
 {
+   int theStatus = jp->Status;
 
-// Now we have to be careful. If the job is waiting schedule it for
-// cancellation. If it's active then kill the associated process. The
-// thread waiting for the result will see the cancellation.
+// Now we have to be careful. If the job is waiting or completed schedule 
+// it for cancellation. If it's active then kill the associated process. The
+// thread waiting for the result will see the cancellation. Otherwise, it
+// already has been cancelled and is in the scheduled queue.
 //
-        if (jp->Status == XrdXrootdJob2Do::Job_Waiting) 
-           Sched->Schedule((XrdJob *)jp);
-   else if (jp->Status == XrdXrootdJob2Do::Job_Active)  
-           jp->jobStream.Drain();
    jp->Status = XrdXrootdJob2Do::Job_Cancel;
+        if (theStatus == XrdXrootdJob2Do::Job_Waiting
+        ||  theStatus == XrdXrootdJob2Do::Job_Done)
+           Sched->Schedule((XrdJob *)jp);
+   else if (theStatus == XrdXrootdJob2Do::Job_Active)
+           jp->jobStream.Drain();
 }
 
 /******************************************************************************/

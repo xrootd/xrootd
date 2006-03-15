@@ -208,7 +208,7 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 // Preform the actual function
 //
    return JobCKS->Schedule(argp->buff, (const char **)args, &Response,
-                  ((CapVer && kXR_vermask) >= kXR_ver002 ? 0 : JOB_Sync));
+                  ((CapVer & kXR_vermask) >= kXR_ver002 ? 0 : JOB_Sync));
 }
 
 /******************************************************************************/

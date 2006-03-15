@@ -189,7 +189,7 @@ int XrdXrootdAdmin::do_Cj()
 // The next token needs to be job type
 //
    if (!(tp = Stream.GetToken()))
-      {sendErr(8, "lsj", "job type not specified.");
+      {sendErr(8, "cj", "job type not specified.");
        return -1;
       }
 
@@ -202,7 +202,7 @@ int XrdXrootdAdmin::do_Cj()
 //
    if (jTabp) jobp = jTabp->Job;
       else if (!strcmp(tp, "*")) jobp = 0;
-              else {sendErr(8, "lsj", "invalid job type specified.");
+              else {sendErr(8, "cj", "invalid job type specified.");
                     return -1;
                    }
 
