@@ -613,8 +613,8 @@ void XrdOlbConfig::ConfigDefaults(void)
    AskPing  = 60;            // Every  1 minute
    MaxDelay = -1;
    LogPerf  = 10;            // Every 10 usage requests
-   DiskMin  = 10737418240LL; // 10GB (Minimum partition space)
-   DiskHWM  = 11811160064LL; // 11GB (High Water Mark - server use only)
+   DiskMin  = 10737418240LL / 1024; // 10GB (Minimum partition space) in KB 
+   DiskHWM  = 11811160064LL / 1024 ; // 11GB (High Water Mark - server use only) in KB
    DiskAsk  = 12;            // 15 Seconds between space calibrations.
    DiskWT   = 0;             // Do not defer when out of space
    DiskSS   = 0;             // Not a staging server
@@ -2009,7 +2009,8 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &Config)
        {if (hwm < 0) DiskHWM = minf+1073741824;
            else if (hwm < minf) DiskHWM = minf + hwm;
                    else DiskHWM = hwm;
-        DiskMin = minf;
+        DiskMin = minf / 1024;
+        DiskHWM /= 1024;
        }
     return 0;
 }

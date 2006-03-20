@@ -290,11 +290,11 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
     struct stat buf;
     int rc;
 
-// Set values (as units of kilobytes)
-//
+// Set values (disk space values are in kilobytes)
+// 
     fs_list = tlp; 
-    MinFree = XrdOlbConfig.DiskMin/1024;
-    HWMFree = XrdOlbConfig.DiskHWM/1024;
+    MinFree = XrdOlbConfig.DiskMin;
+    HWMFree = XrdOlbConfig.DiskHWM;
     dsk_calc = (XrdOlbConfig.DiskAsk < 5 ? 5 : XrdOlbConfig.DiskAsk);
 
 // Calculate number of filesystems without duplication
