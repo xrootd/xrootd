@@ -308,16 +308,16 @@ void XrdOlbAdmin::do_RmDid(int dotrim)
        return;
       }
 
-   if (dotrim && XrdOlbConfig.lcl_N2N 
-   && (rc = XrdOlbConfig.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
-      {XrdOlbSay.Emsg(epname, rc, "determine lfn for removed path", tp);
-       return;
-      }
-
    XrdOlbPrepQ.Gone(tp);
 
-   DEBUG("Sending managers " <<cmd <<apath);
-   XrdOlbSM.Inform(cmd, cmdl, apath, 0);
+   if (dotrim && XrdOlbConfig.lcl_N2N)
+      if ((rc = XrdOlbConfig.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
+         {XrdOlbSay.Emsg(epname, rc, "determine lfn for removed path", tp);
+          return;
+         } else tp = apath;
+
+   DEBUG("Sending managers " <<cmd <<tp);
+   XrdOlbSM.Inform(cmd, cmdl, tp, 0);
 }
  
 /******************************************************************************/
@@ -337,14 +337,14 @@ void XrdOlbAdmin::do_RmDud(int dotrim)
        return;
       }
 
-   if (dotrim && XrdOlbConfig.lcl_N2N 
-   && (rc = XrdOlbConfig.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
-      {XrdOlbSay.Emsg(epname, rc, "determine lfn for added path", tp);
-       return;
-      }
+   if (dotrim && XrdOlbConfig.lcl_N2N)
+      if ((rc = XrdOlbConfig.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
+         {XrdOlbSay.Emsg(epname, rc, "determine lfn for added path", tp);
+          return;
+         } else tp = apath;
 
-   DEBUG("Sending managers " <<cmd <<apath);
-   XrdOlbSM.Inform(cmd, cmdl, apath, 0);
+   DEBUG("Sending managers " <<cmd <<tp);
+   XrdOlbSM.Inform(cmd, cmdl, tp, 0);
 }
  
 /******************************************************************************/
