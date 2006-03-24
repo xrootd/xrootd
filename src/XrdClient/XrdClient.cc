@@ -40,6 +40,9 @@ XrdClient::XrdClient(const char *url) {
    memset(&fStatInfo, 0, sizeof(fStatInfo));
    memset(&fOpenPars, 0, sizeof(fOpenPars));
 
+   // Pick-up the latest setting of the debug level
+   DebugSetLevel(EnvGetLong(NAME_DEBUG));
+
    int CacheSize = EnvGetLong(NAME_READCACHESIZE);
 
    fUseCache = (CacheSize > 0);
