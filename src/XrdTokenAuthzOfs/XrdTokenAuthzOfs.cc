@@ -242,10 +242,9 @@ int
 XrdTokenAuthzOfs::stat(const char             *Name,
 		      struct stat             *buf,
 		       XrdOucErrInfo          &out_error,
-		       const XrdSecClientName *client,
-		       const char             *opaque){
+		       const XrdSecEntity     *client,
+		       const char             *opaque) {
   static const char *epname = "stat";
-  //  const char* opaque=0;
   TAuthzXMLreader* authz=0;
   const char *tident = out_error.getErrUser();
 
@@ -323,8 +322,8 @@ int
 XrdTokenAuthzOfs::stat(const char             *Name,
 		       mode_t                 &mode,
 		       XrdOucErrInfo          &out_error,
-                       const XrdSecClientName *client,
-		       const char             *opaque){
+		       const XrdSecEntity     *client,
+		       const char             *opaque) {
   static const char *epname = "stat";
 
   TAuthzXMLreader* authz=0;

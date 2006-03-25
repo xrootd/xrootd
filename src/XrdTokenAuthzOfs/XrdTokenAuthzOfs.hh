@@ -149,14 +149,14 @@ public:
         int            stat(const char             *Name,
                                   struct stat      *buf,
                                   XrdOucErrInfo    &out_error,
-                            const XrdSecClientName *client = 0,
-                            const char             *info = 0);
+			    const XrdSecEntity     *client,
+                            const char             *opaque = 0);
 
         int            stat(const char             *Name,
                                   mode_t           &mode,
                                   XrdOucErrInfo    &out_error,
-			    const XrdSecClientName *client = 0,
-                            const char             *info = 0);
+			    const XrdSecEntity     *client,
+                            const char             *opaque = 0);
 
 };
 #endif
