@@ -32,6 +32,21 @@
 XrdOucSemWait     XrdClient::fConcOpenSem(DFLT_MAXCONCURRENTOPENS);
 
 //_____________________________________________________________________________
+// Calls the Open func in order to parallelize the Open requests
+//
+void *FileOpenerThread(void *arg, XrdClientThread *thr) {
+   // Function executed in the garbage collector thread
+   XrdClient *thisObj = (XrdClient *)arg;
+
+   thr->SetCancelDeferred();
+   thr->SetCancelOn();
+
+   thisObj->TryOpen(thisObj->fOpenPars.mode, thisObj->fOpenPars.options, false);
+
+   return 0;
+}
+
+//_____________________________________________________________________________
 XrdClient::XrdClient(const char *url) {
    fReadAheadLast = 0;
    fOpenerTh = 0;
@@ -997,19 +1012,4 @@ bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasiz
 
    return false;
 
-}
-
-
-//_____________________________________________________________________________
-// Calls the Open func in order to parallelize the Open requests
-void *FileOpenerThread(void *arg, XrdClientThread *thr) {
-   // Function executed in the garbage collector thread
-   XrdClient *thisObj = (XrdClient *)arg;
-
-   thr->SetCancelDeferred();
-   thr->SetCancelOn();
-
-   thisObj->TryOpen(thisObj->fOpenPars.mode, thisObj->fOpenPars.options, false);
-
-   return 0;
 }
