@@ -272,10 +272,6 @@ public:
 
 private:
 
-   // Time measurements
-   static clock_t          tt[10][100];
-   static int              ntt[10];
-
    // Static members initialized at startup
    static XrdOucMutex      pwdContext;
    static String           FileAdmin;
