@@ -20,7 +20,7 @@ SOURCES = \
         XrdSecClient.cc        \
         XrdSecPManager.cc      \
         XrdSecProtocolhost.cc  \
-        XrdSecServer.vv        \
+        XrdSecServer.cc        \
         XrdSectestClient.cc    \
         XrdSectestServer.cc    \
   
