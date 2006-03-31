@@ -49,7 +49,7 @@ XrdClientEnv::XrdClientEnv() {
    PutInt(NAME_GOASYNC, DFLT_GOASYNC);
    PutInt(NAME_READCACHESIZE, DFLT_READCACHESIZE);
    PutInt(NAME_READAHEADSIZE, DFLT_READAHEADSIZE);
-   PutInt(NAME_READAHEADTYPE, DFLT_READAHEADTYPE);
+
 }
 
 //_____________________________________________________________________________

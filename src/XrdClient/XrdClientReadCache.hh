@@ -2,12 +2,9 @@
 //                                                                      //
 // XrdClientReadCache                                                   //
 //                                                                      //
-// Author: Fabrizio Furano (INFN Padova, 2004)                          //
-// Adapted from TXNetFile (root.cern.ch) originally done by             //
-//  Alvise Dorigo, Fabrizio Furano                                      //
-//          INFN Padova, 2003                                           //
+// Author: Fabrizio Furano (INFN Padova, 2006)                          //
 //                                                                      //
-// Classes to handle cache reading                                      //
+// Classes to handle cache reading and cache placeholders               //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
@@ -33,69 +30,82 @@
 //
 
 class XrdClientReadCacheItem {
- private:
-   long long        fBeginOffset;    // Offset of the first byte of data
-   void             *fData;
-   long long        fEndOffset;      // Offset of the last byte of data
-   long             fTimestampTicks; // timestamp updated each time it's referenced
+private:
+    // A placeholder block is a "fake block" used to mark outstanding data
+    bool             fIsPlaceholder;  
 
- public:
-   XrdClientReadCacheItem(const void *buffer, long long begin_offs, 
-			  long long end_offs, long long ticksnow);
-   ~XrdClientReadCacheItem();
+    long long        fBeginOffset;    // Offset of the first byte of data
+    void             *fData;
+    long long        fEndOffset;      // Offset of the last byte of data
+    long             fTimestampTicks; // timestamp updated each time it's referenced
 
-   // Is this obj contained in the given interval (which is going to be inserted) ?
-   inline bool   ContainedInInterval(long long begin_offs, long long end_offs) {
-      return ( (end_offs >= begin_offs) &&
-               (fBeginOffset >= begin_offs) &&
-               (fEndOffset <= end_offs) );
-   }
+public:
+    XrdClientReadCacheItem(const void *buffer, long long begin_offs, 
+			   long long end_offs, long long ticksnow,
+			   bool placeholder=false);
+    ~XrdClientReadCacheItem();
 
-   // Does this obj contain the given interval (which is going to be requested) ?
-   inline bool   ContainsInterval(long long begin_offs, long long end_offs) {
-      return ( (end_offs > begin_offs) &&
-               (fBeginOffset <= begin_offs) && (fEndOffset >= end_offs) );
-   }
+    inline long long BeginOffset() { return fBeginOffset; }
+    inline long long EndOffset() { return fEndOffset; }
 
-   // Get the requested interval, if possible
-   inline bool   GetInterval(const void *buffer, long long begin_offs, 
-			     long long end_offs) {
-      if (!ContainsInterval(begin_offs, end_offs))
-         return FALSE;
-      memcpy((void *)buffer, ((char *)fData)+(begin_offs - fBeginOffset),
-	     end_offs - begin_offs + 1);
-      return TRUE;
-   }
+    // Is this obj contained in the given interval (which is going to be inserted) ?
+    inline bool   ContainedInInterval(long long begin_offs, long long end_offs) {
+	return ( (end_offs >= begin_offs) &&
+		 (fBeginOffset >= begin_offs) &&
+		 (fEndOffset <= end_offs) );
+    }
 
-   // Get as many bytes as possible, starting from the beginning of the given
-   // interval
-   inline long   GetPartialInterval(const void *buffer, long long begin_offs,
-				    long long end_offs) {
+    // Does this obj contain the given interval (which is going to be requested) ?
+    inline bool   ContainsInterval(long long begin_offs, long long end_offs) {
+	return ( (end_offs > begin_offs) &&
+		 (fBeginOffset <= begin_offs) && (fEndOffset >= end_offs) );
+    }
 
-      long long b = -1, e, l;
+    // Get the requested interval, if possible
+    inline bool   GetInterval(const void *buffer, long long begin_offs, 
+			      long long end_offs) {
+	if (!ContainsInterval(begin_offs, end_offs))
+	    return FALSE;
+	memcpy((void *)buffer, ((char *)fData)+(begin_offs - fBeginOffset),
+	       end_offs - begin_offs + 1);
+	return TRUE;
+    }
 
-      if (!fData || (begin_offs > end_offs)) return 0;
+    // Get as many bytes as possible, starting from the beginning of the given
+    // interval
+    inline long   GetPartialInterval(const void *buffer, long long begin_offs,
+				     long long end_offs) {
 
-      // Try to set the starting point, if contained in the given interval
-      if ( (begin_offs >= fBeginOffset) &&
-	   (begin_offs <= fEndOffset) )
-	 b = begin_offs;
+	long long b = -1, e, l;
 
-      if (b < 0) return 0;
+	if (begin_offs > end_offs) return 0;
 
-      // The starting point is in the interval. Let's get the minimum endpoint
-      e = xrdmin(end_offs, fEndOffset);
+	// Try to set the starting point, if contained in the given interval
+	if ( (begin_offs >= fBeginOffset) &&
+	     (begin_offs <= fEndOffset) )
+	    b = begin_offs;
 
-      l = e - b + 1;
+	if (b < 0) return 0;
 
-      memcpy((void *)buffer, ((char *)fData)+(b - fBeginOffset), l);
+	// The starting point is in the interval. Let's get the minimum endpoint
+	e = xrdmin(end_offs, fEndOffset);
 
-      return l;
-   }
+	l = e - b + 1;
 
-   inline long long GetTimestampTicks() { return(fTimestampTicks); }
-   long Size() { return (fEndOffset - fBeginOffset - 1); }
-   inline void     Touch(long long ticksnow) { fTimestampTicks = ticksnow; }
+	if (buffer && fData)
+	    memcpy((void *)buffer, ((char *)fData)+(b - fBeginOffset), l);
+
+	return l;
+    }
+
+    inline long long GetTimestampTicks() { return(fTimestampTicks); }
+
+    inline bool IsPlaceholder() { return fIsPlaceholder; }
+
+    long Size() { return (fEndOffset - fBeginOffset - 1); }
+
+    inline void     Touch(long long ticksnow) { fTimestampTicks = ticksnow; }
+
 };
 
 //
@@ -106,63 +116,77 @@ class XrdClientReadCacheItem {
 //
 typedef XrdClientVector<XrdClientReadCacheItem *> ItemVect;
 
+// A cache interval, extremes included
+struct XrdClientCacheInterval {
+    long long beginoffs;
+    long long endoffs;
+};
+
+typedef XrdClientVector<XrdClientCacheInterval> XrdClientIntvList;
+
 class XrdClientReadCache {
- private:
+private:
 
-   long long       fBytesHit;         // Total number of bytes read with a cache hit
-   long long       fBytesSubmitted;   // Total number of bytes inserted
-   float           fBytesUsefulness;
-   ItemVect        fItems;
-   long long       fMaxCacheSize;
-   long long       fMissCount;        // Counter of the cache misses
-   float           fMissRate;            // Miss rate
-   XrdOucRecMutex     fMutex;
-   long long       fReadsCounter;     // Counter of all the attempted reads (hit or miss)
-   long long       fTimestampTickCounter;        // Aging mechanism yuk!
-   long long       fTotalByteCount;
+    long long       fBytesHit;         // Total number of bytes read with a cache hit
+    long long       fBytesSubmitted;   // Total number of bytes inserted
+    float           fBytesUsefulness;
+    ItemVect        fItems;
+    long long       fMaxCacheSize;
+    long long       fMissCount;        // Counter of the cache misses
+    float           fMissRate;            // Miss rate
+    XrdOucRecMutex     fMutex;
+    long long       fReadsCounter;     // Counter of all the attempted reads (hit or miss)
+    long long       fTimestampTickCounter;        // Aging mechanism yuk!
+    long long       fTotalByteCount;
 
-   long long       GetTimestampTick();
-   bool            MakeFreeSpace(long long bytes);
-   bool            RemoveLRUItem();
-   inline void     UpdatePerfCounters() {
-      if (fReadsCounter > 0)
-         fMissRate = (float)fMissCount / fReadsCounter;
-      if (fBytesSubmitted > 0)
-         fBytesUsefulness = (float)fBytesHit / fBytesSubmitted;
-   }
+    long long       GetTimestampTick();
+    bool            MakeFreeSpace(long long bytes);
+    bool            RemoveLRUItem();
+    inline void     UpdatePerfCounters() {
+	if (fReadsCounter > 0)
+	    fMissRate = (float)fMissCount / fReadsCounter;
+	if (fBytesSubmitted > 0)
+	    fBytesUsefulness = (float)fBytesHit / fBytesSubmitted;
+    }
 
- public:
-   XrdClientReadCache();
-   ~XrdClientReadCache();
+public:
+    XrdClientReadCache();
+    ~XrdClientReadCache();
   
-   bool          GetDataIfPresent(const void *buffer, long long begin_offs,
-                                  long long end_offs, bool PerfCalc, long long &lasttakenbyte);
+    long          GetDataIfPresent(const void *buffer, long long begin_offs,
+				   long long end_offs, bool PerfCalc,
+				   XrdClientIntvList &missingblks, long &outstandingblks);
 
-   inline long long GetTotalByteCount() {
-      XrdOucMutexHelper m(fMutex);
-      return fTotalByteCount;
-   }
+    inline long long GetTotalByteCount() {
+	XrdOucMutexHelper m(fMutex);
+	return fTotalByteCount;
+    }
 
-   inline void     PrintPerfCounters() {
-      XrdOucMutexHelper m(fMutex);
+    void PutPlaceholder(long long begin_offs, long long end_offs);
 
-      cout << "Caching info: MissRate=" << fMissRate << " MissCount=" << 
-	 fMissCount << " ReadsCounter=" << fReadsCounter << endl;
-      cout << "Caching info: BytesUsefulness=" << fBytesUsefulness <<
-	 " BytesSubmitted=" << fBytesSubmitted << " BytesHit=" << 
-	 fBytesHit << endl;
-   }
+    inline void     PrintPerfCounters() {
+	XrdOucMutexHelper m(fMutex);
 
-   void            SubmitXMessage(XrdClientMessage *xmsg, long long begin_offs,
-				  long long end_offs);
-   void            RemoveItems();
-   void            RemoveItems(long long begin_offs, long long end_offs);
+	cout << "Caching info: MissRate=" << fMissRate << " MissCount=" << 
+	    fMissCount << " ReadsCounter=" << fReadsCounter << endl;
+	cout << "Caching info: BytesUsefulness=" << fBytesUsefulness <<
+	    " BytesSubmitted=" << fBytesSubmitted << " BytesHit=" << 
+	    fBytesHit << endl;
+    }
 
-   // To check if a block dimension will fit into the cache
-   inline bool   WillFit(long long bc) {
-      XrdOucMutexHelper m(fMutex);
-      return (bc < fMaxCacheSize);
-   }
+
+    void            PrintCache();
+
+    void            SubmitXMessage(XrdClientMessage *xmsg, long long begin_offs,
+				   long long end_offs);
+    void            RemoveItems();
+    void            RemoveItems(long long begin_offs, long long end_offs);
+
+    // To check if a block dimension will fit into the cache
+    inline bool   WillFit(long long bc) {
+	XrdOucMutexHelper m(fMutex);
+	return (bc < fMaxCacheSize);
+    }
 
 };
 

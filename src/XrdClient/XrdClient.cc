@@ -46,452 +46,518 @@ void *FileOpenerThread(void *arg, XrdClientThread *thr) {
    return 0;
 }
 
+
 //_____________________________________________________________________________
 XrdClient::XrdClient(const char *url) {
-   fReadAheadLast = 0;
-   fOpenerTh = 0;
-   fOpenProgCnd = new XrdOucCondVar(0);
+    fReadAheadLast = 0;
+    fOpenerTh = 0;
+    fOpenProgCnd = new XrdOucCondVar(0);
+    fReadWaitData = new XrdOucCondVar(0);
 
-   memset(&fStatInfo, 0, sizeof(fStatInfo));
-   memset(&fOpenPars, 0, sizeof(fOpenPars));
+    memset(&fStatInfo, 0, sizeof(fStatInfo));
+    memset(&fOpenPars, 0, sizeof(fOpenPars));
 
    // Pick-up the latest setting of the debug level
    DebugSetLevel(EnvGetLong(NAME_DEBUG));
 
    int CacheSize = EnvGetLong(NAME_READCACHESIZE);
 
-   fUseCache = (CacheSize > 0);
+    fUseCache = (CacheSize > 0);
 
-   if (!ConnectionManager)
-     Info(XrdClientDebug::kNODEBUG,
-	  "Create",
-	  "(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
+    if (!ConnectionManager)
+	Info(XrdClientDebug::kNODEBUG,
+	     "Create",
+	     "(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
 
-   signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN);
 
-   fInitialUrl = url;
+    fInitialUrl = url;
 
-   fConnModule = new XrdClientConn();
+    fConnModule = new XrdClientConn();
 
 
-   if (!fConnModule) {
-      Error("Create","Object creation failed.");
-      abort();
-   }
+    if (!fConnModule) {
+	Error("Create","Object creation failed.");
+	abort();
+    }
 
-   fConnModule->SetRedirHandler(this);
+    fConnModule->SetRedirHandler(this);
 }
 
 //_____________________________________________________________________________
 XrdClient::~XrdClient()
 {
-   // Terminate the opener thread
+    // Terminate the opener thread
 
-   fOpenProgCnd->Lock();
+    fOpenProgCnd->Lock();
 
-   if (fOpenerTh) {
-      delete fOpenerTh;
-      fOpenerTh = 0;
-   }
+    if (fOpenerTh) {
+	delete fOpenerTh;
+	fOpenerTh = 0;
+    }
 
-   fOpenProgCnd->UnLock();
+    fOpenProgCnd->UnLock();
 
 
-   Close();
+    Close();
 
-   if (fConnModule)
-      delete fConnModule;
+    if (fConnModule)
+	delete fConnModule;
+
+    delete fReadWaitData;
+    delete fOpenProgCnd;
 }
 
 //_____________________________________________________________________________
 bool XrdClient::IsOpen_wait() {
-   bool res;
+    bool res;
 
-   if (!fOpenProgCnd) return false;
+    if (!fOpenProgCnd) return false;
 
-   fOpenProgCnd->Lock();
+    fOpenProgCnd->Lock();
 
-   if (fOpenPars.inprogress) {
-      fOpenProgCnd->Wait();
-      if (fOpenerTh) {
-         delete fOpenerTh;
-         fOpenerTh = 0;
-      }
-   }
-   res = fOpenPars.opened;
-   fOpenProgCnd->UnLock();
+    if (fOpenPars.inprogress) {
+	fOpenProgCnd->Wait();
+	if (fOpenerTh) {
+	    delete fOpenerTh;
+	    fOpenerTh = 0;
+	}
+    }
+    res = fOpenPars.opened;
+    fOpenProgCnd->UnLock();
 
-   return res;
+    return res;
 };
 
 //_____________________________________________________________________________
 void XrdClient::TerminateOpenAttempt() {
-  fOpenProgCnd->Lock();
+    fOpenProgCnd->Lock();
 
-  fOpenPars.inprogress = false;
-  fOpenProgCnd->Broadcast();
-  fOpenProgCnd->UnLock();
+    fOpenPars.inprogress = false;
+    fOpenProgCnd->Broadcast();
+    fOpenProgCnd->UnLock();
 
-  fConcOpenSem.Post();
+    fConcOpenSem.Post();
 
-  //cout << "Mytest " << time(0) << " File: " << fUrl.File << " - Open finished." << endl;
+    //cout << "Mytest " << time(0) << " File: " << fUrl.File << " - Open finished." << endl;
 }
 
 //_____________________________________________________________________________
 bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
-  short locallogid;
+    short locallogid;
   
-  // But we initialize the internal params...
-  fOpenPars.opened = FALSE;  
-  fOpenPars.options = options;
-  fOpenPars.mode = mode;  
+    // But we initialize the internal params...
+    fOpenPars.opened = FALSE;  
+    fOpenPars.options = options;
+    fOpenPars.mode = mode;  
 
-  // Now we try to set up the first connection
-  // We cycle through the list of urls given in fInitialUrl
+    // Now we try to set up the first connection
+    // We cycle through the list of urls given in fInitialUrl
   
 
-  // Max number of tries
-  int connectMaxTry = EnvGetLong(NAME_FIRSTCONNECTMAXCNT);
+    // Max number of tries
+    int connectMaxTry = EnvGetLong(NAME_FIRSTCONNECTMAXCNT);
   
-  // Construction of the url set coming from the resolution of the hosts given
-  XrdClientUrlSet urlArray(fInitialUrl);
-  if (!urlArray.IsValid()) {
-     Error("Open", "The URL provided is incorrect.");
-     return FALSE;
-  }
-
-  //
-  // Now start the connection phase, picking randomly from UrlArray
-  //
-  urlArray.Rewind();
-  locallogid = -1;
-  int urlstried = 0;
-  for (int connectTry = 0;
-      (connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
-       connectTry++) {
-
-     XrdClientUrlInfo *thisUrl = 0;
-     urlstried = (urlstried == urlArray.Size()) ? 0 : urlstried;
-
-     bool nogoodurl = TRUE;
-     while (urlArray.Size() > 0) {
-
-       // Get an url from the available set
-       if ((thisUrl = urlArray.GetARandomUrl())) {
-
-          if (fConnModule->CheckHostDomain(thisUrl->Host,
-                                           EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
-                                           EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
-             nogoodurl = FALSE;
-
-             Info(XrdClientDebug::kHIDEBUG, "Open", "Trying to connect to " <<
-                  thisUrl->Host << ":" << thisUrl->Port << ". Connect try " <<
-                  connectTry+1);
-             locallogid = fConnModule->Connect(*thisUrl, this);
-             // To find out if we have tried the whole URLs set
-             urlstried++;
-             break;
-          } else {
-             // Invalid domain: drop the url and move to next, if any
-             urlArray.EraseUrl(thisUrl);
-             continue;
-          }
-        }
-     }
-     if (nogoodurl) {
-        Error("Open", "Access denied to all URL domains requested");
-        break;
-     }
-
-     // We are connected to a host. Let's handshake with it.
-     if (fConnModule->IsConnected()) {
-
-        // Now the have the logical Connection ID, that we can use as streamid for 
-        // communications with the server
-
-	   Info(XrdClientDebug::kHIDEBUG, "Open",
-		"The logical connection id is " << fConnModule->GetLogConnID() <<
-		".");
-
-        fConnModule->SetUrl(*thisUrl);
-        fUrl = *thisUrl;
-        
-	Info(XrdClientDebug::kHIDEBUG, "Open", "Working url is " << thisUrl->GetUrl());
-        
-        // after connection deal with server
-        if (!fConnModule->GetAccessToSrv())
-           
-           if (fConnModule->LastServerError.errnum == kXR_NotAuthorized) {
-              if (urlstried == urlArray.Size()) {
-                 // Authentication error: we tried all the indicated URLs:
-                 // does not make much sense to retry
-                 fConnModule->Disconnect(TRUE);
-                 XrdOucString msg(fConnModule->LastServerError.errmsg);
-                 msg.erasefromend(1);
-                 Error("Open", "Authentication failure: " << msg);
-                 break;
-              } else {
-                 XrdOucString msg(fConnModule->LastServerError.errmsg);
-                 msg.erasefromend(1);
-                 Info(XrdClientDebug::kHIDEBUG, "Open",
-                                                "Authentication failure: " << msg);
-              }
-           } else {
-              Error("Open", "Access to server failed: error: " <<
-                         fConnModule->LastServerError.errnum << " (" << 
-                         fConnModule->LastServerError.errmsg << ") - retrying.");
-           }
-        else {
-	   Info(XrdClientDebug::kUSERDEBUG, "Open", "Access to server granted.");
-           break;
-	}
-     }
-     
-     // The server denied access. We have to disconnect.
-     Info(XrdClientDebug::kHIDEBUG, "Open", "Disconnecting.");
-     
-     fConnModule->Disconnect(FALSE);
-     
-     if (connectTry < connectMaxTry-1) {
-
-	if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
-	   Info(XrdClientDebug::kUSERDEBUG, "Open",
-		"Connection attempt failed. Sleeping " <<
-		EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
-     
-	sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
-
-     }
-
-  } //for connect try
-
-
-  if (!fConnModule->IsConnected()) {
-     return FALSE;
-  }
-
-  
-  //
-  // Variable initialization
-  // If the server is a new xrootd ( load balancer or data server)
-  //
-  if ((fConnModule->GetServerType() != XrdClientConn::kSTRootd) && 
-      (fConnModule->GetServerType() != XrdClientConn::kSTNone)) {
-     // Now we are connected to a server that didn't redirect us after the 
-     // login/auth phase
-     // let's continue with the openfile sequence
-
-     Info(XrdClientDebug::kUSERDEBUG,
-	  "Open", "Opening the remote file " << fUrl.File); 
-
-     if (!TryOpen(mode, options, doitparallel)) {
-	Error("Open", "Error opening the file " <<
-	      fUrl.File << " on host " << fUrl.Host << ":" <<
-	      fUrl.Port);
-
+    // Construction of the url set coming from the resolution of the hosts given
+    XrdClientUrlSet urlArray(fInitialUrl);
+    if (!urlArray.IsValid()) {
+	Error("Open", "The URL provided is incorrect.");
 	return FALSE;
+    }
 
-     } else {
+    //
+    // Now start the connection phase, picking randomly from UrlArray
+    //
+    urlArray.Rewind();
+    locallogid = -1;
+    int urlstried = 0;
+    for (int connectTry = 0;
+	 (connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
+	 connectTry++) {
 
-	if (doitparallel) {
-	   Info(XrdClientDebug::kUSERDEBUG, "Open", "File open in progress.");
+	XrdClientUrlInfo *thisUrl = 0;
+	urlstried = (urlstried == urlArray.Size()) ? 0 : urlstried;
+
+	bool nogoodurl = TRUE;
+	while (urlArray.Size() > 0) {
+
+	    // Get an url from the available set
+	    if ((thisUrl = urlArray.GetARandomUrl())) {
+
+		if (fConnModule->CheckHostDomain(thisUrl->Host,
+						 EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
+						 EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
+		    nogoodurl = FALSE;
+
+		    Info(XrdClientDebug::kHIDEBUG, "Open", "Trying to connect to " <<
+			 thisUrl->Host << ":" << thisUrl->Port << ". Connect try " <<
+			 connectTry+1);
+		    locallogid = fConnModule->Connect(*thisUrl, this);
+		    // To find out if we have tried the whole URLs set
+		    urlstried++;
+		    break;
+		} else {
+		    // Invalid domain: drop the url and move to next, if any
+		    urlArray.EraseUrl(thisUrl);
+		    continue;
+		}
+	    }
 	}
-	else
-	   Info(XrdClientDebug::kUSERDEBUG, "Open", "File opened succesfully.");
+	if (nogoodurl) {
+	    Error("Open", "Access denied to all URL domains requested");
+	    break;
+	}
 
-     }
+	// We are connected to a host. Let's handshake with it.
+	if (fConnModule->IsConnected()) {
 
-  } else {
-     // the server is an old rootd
-     if (fConnModule->GetServerType() == XrdClientConn::kSTRootd) {
-        return FALSE;
-     }
-     if (fConnModule->GetServerType() == XrdClientConn::kSTNone) {
-        return FALSE;
-     }
-  }
+	    // Now the have the logical Connection ID, that we can use as streamid for 
+	    // communications with the server
 
-  return TRUE;
+	    Info(XrdClientDebug::kHIDEBUG, "Open",
+		 "The logical connection id is " << fConnModule->GetLogConnID() <<
+		 ".");
+
+	    fConnModule->SetUrl(*thisUrl);
+	    fUrl = *thisUrl;
+        
+	    Info(XrdClientDebug::kHIDEBUG, "Open", "Working url is " << thisUrl->GetUrl());
+        
+	    // after connection deal with server
+	    if (!fConnModule->GetAccessToSrv())
+           
+		if (fConnModule->LastServerError.errnum == kXR_NotAuthorized) {
+		    if (urlstried == urlArray.Size()) {
+			// Authentication error: we tried all the indicated URLs:
+			// does not make much sense to retry
+			fConnModule->Disconnect(TRUE);
+			XrdOucString msg(fConnModule->LastServerError.errmsg);
+			msg.erasefromend(1);
+			Error("Open", "Authentication failure: " << msg);
+			break;
+		    } else {
+			XrdOucString msg(fConnModule->LastServerError.errmsg);
+			msg.erasefromend(1);
+			Info(XrdClientDebug::kHIDEBUG, "Open",
+			     "Authentication failure: " << msg);
+		    }
+		} else {
+		    Error("Open", "Access to server failed: error: " <<
+			  fConnModule->LastServerError.errnum << " (" << 
+			  fConnModule->LastServerError.errmsg << ") - retrying.");
+		}
+	    else {
+		Info(XrdClientDebug::kUSERDEBUG, "Open", "Access to server granted.");
+		break;
+	    }
+	}
+     
+	// The server denied access. We have to disconnect.
+	Info(XrdClientDebug::kHIDEBUG, "Open", "Disconnecting.");
+     
+	fConnModule->Disconnect(FALSE);
+     
+	if (connectTry < connectMaxTry-1) {
+
+	    if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
+		Info(XrdClientDebug::kUSERDEBUG, "Open",
+		     "Connection attempt failed. Sleeping " <<
+		     EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
+     
+	    sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
+
+	}
+
+    } //for connect try
+
+
+    if (!fConnModule->IsConnected()) {
+	return FALSE;
+    }
+
+  
+    //
+    // Variable initialization
+    // If the server is a new xrootd ( load balancer or data server)
+    //
+    if ((fConnModule->GetServerType() != XrdClientConn::kSTRootd) && 
+	(fConnModule->GetServerType() != XrdClientConn::kSTNone)) {
+	// Now we are connected to a server that didn't redirect us after the 
+	// login/auth phase
+	// let's continue with the openfile sequence
+
+	Info(XrdClientDebug::kUSERDEBUG,
+	     "Open", "Opening the remote file " << fUrl.File); 
+
+	if (!TryOpen(mode, options, doitparallel)) {
+	    Error("Open", "Error opening the file " <<
+		  fUrl.File << " on host " << fUrl.Host << ":" <<
+		  fUrl.Port);
+
+	    return FALSE;
+
+	} else {
+
+	    if (doitparallel) {
+		Info(XrdClientDebug::kUSERDEBUG, "Open", "File open in progress.");
+	    }
+	    else
+		Info(XrdClientDebug::kUSERDEBUG, "Open", "File opened succesfully.");
+
+	}
+
+    } else {
+	// the server is an old rootd
+	if (fConnModule->GetServerType() == XrdClientConn::kSTRootd) {
+	    return FALSE;
+	}
+	if (fConnModule->GetServerType() == XrdClientConn::kSTNone) {
+	    return FALSE;
+	}
+    }
+
+    return TRUE;
 
 }
 
 //_____________________________________________________________________________
 int XrdClient::Read(void *buf, long long offset, int len) {
-   long long lastvalidoffs = -1;
+    XrdClientIntvList cacheholes;
+    long blkstowait;
 
-   if (!IsOpen_wait()) {
-      Error("Read", "File not opened.");
-      return 0;
-   }
+    Info( XrdClientDebug::kHIDEBUG, "Read",
+	  "Read(offs=" << offset <<
+	  ", len=" << len << ")" );
 
-  kXR_int32 rasize = EnvGetLong(NAME_READAHEADSIZE);
+    if (!IsOpen_wait()) {
+	Error("Read", "File not opened.");
+	return 0;
+    }
 
-  // If the cache is enabled and gives the data to us
-  //  we don't need to ask the server for them
-  if( fUseCache &&
-      fConnModule->GetDataFromCache(buf, offset,
-				    len + offset - 1, TRUE, lastvalidoffs) ) {
+    if (!fUseCache) {
+	// Without caching
 
-     Info(XrdClientDebug::kHIDEBUG, "Read",
-	  "Found data in cache. len=" << len <<
-	  " offset=" << offset);
+	// Prepare a request header 
+	ClientRequest readFileRequest;
+	memset( &readFileRequest, 0, sizeof(readFileRequest) );
+	fConnModule->SetSID(readFileRequest.header.streamid);
+	readFileRequest.read.requestid = kXR_read;
+	memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
+	readFileRequest.read.offset = offset;
+	readFileRequest.read.rlen = len;
+	readFileRequest.read.dlen = 0;
 
-     // Are we using async read ahead?
-     if ( (EnvGetLong(NAME_READAHEADTYPE)) &&
-	  fUseCache &&
-	  (EnvGetLong(NAME_GOASYNC)) &&
-	  (rasize > 0) ) {
+	fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
+				    FALSE, (char *)"ReadBuffer");
 
-	kXR_int64 araoffset;
-	kXR_int32 aralen;
+	return fConnModule->LastServerResp.dlen;
+    }
 
-	// This is a HIT case. Async readahead will try to put some data
-	// in advance into the cache. The higher the araoffset will be,
-	// the best chances we have not to cause overhead
-	araoffset = xrdmax(fReadAheadLast, offset + len);
-	aralen = xrdmin(rasize,
-			offset + len + rasize -
-			xrdmax(offset + len, fReadAheadLast));
 
-	if (aralen > 0) {
-           TrimReadRequest(araoffset, aralen, rasize, lastvalidoffs);
-	   Read_Async(araoffset, aralen);
-	   fReadAheadLast = araoffset + aralen;
+    // Ok, from now on we are sure that we have to deal with the cache
+    struct XrdClientStatInfo stinfo;
+    Stat(&stinfo);
+    len = xrdmax(0, xrdmin(len, stinfo.size - offset));
+
+    kXR_int32 rasize = EnvGetLong(NAME_READAHEADSIZE);
+
+    // we cycle until we get all the needed data
+    do {
+
+	cacheholes.Clear();
+	blkstowait = 0;
+	long bytesgot = 0;
+
+	bytesgot = fConnModule->GetDataFromCache(buf, offset,
+						 len + offset - 1,
+						 true,
+						 cacheholes, blkstowait);
+
+	Info(XrdClientDebug::kHIDEBUG, "Read",
+	     "Cache response: got " << bytesgot << " bytes. Holes= " <<
+	     cacheholes.GetSize() << " Outstanding= " << blkstowait);
+
+	// If the cache gives the data to us
+	//  we don't need to ask the server for them... in principle!
+	if( bytesgot >= len ) {
+
+	    // The cache gave us all the requested data
+
+	    Info(XrdClientDebug::kHIDEBUG, "Read",
+		 "Found data in cache. len=" << len <<
+		 " offset=" << offset);
+
+	    // Are we using read ahead?
+	    if ( EnvGetLong(NAME_GOASYNC) &&
+		 // We read ahead only if the last byte we got is near (or over) to the last byte read
+		 // in advance.
+		 (fReadAheadLast - (offset+len) < rasize) &&
+		 (rasize > 0) ) {
+
+		kXR_int64 araoffset;
+		kXR_int32 aralen;
+
+		// This is a HIT case. Async readahead will try to put some data
+		// in advance into the cache. The higher the araoffset will be,
+		// the best chances we have not to cause overhead
+		araoffset = xrdmax(fReadAheadLast, offset + len);
+		aralen = xrdmin(rasize,
+				offset + len + rasize -
+				xrdmax(offset + len, fReadAheadLast));
+
+		if (aralen > 0) {
+		    TrimReadRequest(araoffset, aralen, rasize);
+		    fReadAheadLast = araoffset + aralen;
+		    Read_Async(araoffset, aralen);
+		}
+	    }
+
+	    return len;
 	}
-     }
-
-     return len;
-  }
 
 
 
+	
 
-  // Prepare request
-  ClientRequest readFileRequest;
-  memset( &readFileRequest, 0, sizeof(readFileRequest) );
-  fConnModule->SetSID(readFileRequest.header.streamid);
-  readFileRequest.read.requestid = kXR_read;
-  memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
-  readFileRequest.read.offset = offset;
-  readFileRequest.read.rlen = len;
-  readFileRequest.read.dlen = 0;
+	// We are here if the cache did not give all the data to us
+	// We should have a list of blocks to request
+	for (int i = 0; i < cacheholes.GetSize(); i++) {
+	    kXR_int64 offs;
+	    kXR_int32 len;
+	    
+	    offs = cacheholes[i].beginoffs;
+	    len = cacheholes[i].endoffs - offs;
 
 
-  // We assume the buffer has been pre-allocated to contain length
-  // bytes by the caller of this function
-  kXR_int32 rlen = 0;
+	    Info( XrdClientDebug::kHIDEBUG, "Read",
+		  "Hole in the cache: offs=" << offs <<
+		  ", len=" << len );
+	    
+	    Read_Async(offs, len);
+	}
+	
+	
+	// Are we using read ahead?
+	if ( EnvGetLong(NAME_GOASYNC) &&
+	     // We read ahead only if the last byte we got is near (or over) to the last byte read
+	     // in advance.
+	     (fReadAheadLast - (offset+len) < rasize) &&
+	     (rasize > 0) ) {
 
-  // Here the read-ahead decision should be done.
-  // We are in a MISS case, so the read ahead is done the sync way.
+	    kXR_int64 araoffset;
+	    kXR_int32 aralen;
 
-  // We are not going async, hence the readahead is performed
-  // by reading a larger block
-//  if (len > rasize)
-     rlen = len;
-//  else {
-//     rlen = xrdmax(len, rasize * 3 / 2);
-//     rlen += rasize  / 3;
-//     readFileRequest.read.offset -= rasize / 3;
-//     rlen = rasize;
-//  }
+	    // This is a HIT case. Async readahead will try to put some data
+	    // in advance into the cache. The higher the araoffset will be,
+	    // the best chances we have not to cause overhead
+	    araoffset = xrdmax(fReadAheadLast, offset + len);
+	    aralen = xrdmin(rasize,
+			    offset + len + rasize -
+			    xrdmax(offset + len, fReadAheadLast));
 
-  Info(XrdClientDebug::kHIDEBUG, "ReadBuffer",
-       "Sync reading " << rlen << "@" <<
-       readFileRequest.read.offset);
+	    if (aralen > 0) {
+		TrimReadRequest(araoffset, aralen, rasize);
+		fReadAheadLast = araoffset + aralen;
+		Read_Async(araoffset, aralen);
+	    }
+	}
 
-  if (fUseCache && TrimReadRequest(readFileRequest.read.offset, rlen, rasize, lastvalidoffs)) {
+	// If we got nothing from the cache let's do it sync and exit!
+	if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
 
-     readFileRequest.read.rlen = rlen;
+	    Info( XrdClientDebug::kHIDEBUG, "Read",
+		  "Read(offs=" << offset <<
+		  ", len=" << len << "). Going sync." );
 
-     // We are not interested in getting the data here.
-     // A side effect of this is to populate the cache with
-     //  all the received messages. And avoiding the memcpy.
-     if (fConnModule->SendGenCommand(&readFileRequest, 0, 0, 0, FALSE,
-                                     (char *)"ReadBuffer") ) {
-	int minlen = len;
-	if (minlen > fConnModule->LastServerResp.dlen)
-	   minlen = fConnModule->LastServerResp.dlen;
+	    // Prepare a request header 
+	    ClientRequest readFileRequest;
+	    memset( &readFileRequest, 0, sizeof(readFileRequest) );
+	    fConnModule->SetSID(readFileRequest.header.streamid);
+	    readFileRequest.read.requestid = kXR_read;
+	    memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
+	    readFileRequest.read.offset = offset;
+	    readFileRequest.read.rlen = len;
+	    readFileRequest.read.dlen = 0;
 
-	fReadAheadLast = readFileRequest.read.offset + minlen;
+	    fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
+					FALSE, (char *)"ReadBuffer");
 
-        // The processing of the answers from the server should have
-        // populated the cache, so we get the formerly requested buffer
-	// up to the point where the cache has data
-	lastvalidoffs = -1;
-	fConnModule->GetDataFromCache(buf, offset,
-				      len + offset - 1,
-				      FALSE, lastvalidoffs);
+	    return fConnModule->LastServerResp.dlen;
+	}
 
-	// There are no bytes to read. Could be a request over eof.
-	if (lastvalidoffs < offset) return 0;
+	// Now it's time to sleep
+	// This thread will be awakened when new data will arrive
+	if ((blkstowait > 0)|| cacheholes.GetSize()) {
+	    Info( XrdClientDebug::kHIDEBUG, "Read",
+		  "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
 
-	// Return the number of bytes read, not necessarily the number of bytes that
-	// have been requested
-	return (lastvalidoffs - offset + 1);
+	    fReadWaitData->Lock();
 
-     } else 
-        return 0;
+	    if (fReadWaitData->Wait(10))
+		Info( XrdClientDebug::kUSERDEBUG, "Read",
+		  "Timeout waiting outstanding blocks. Retrying!" );
+
+	    fReadWaitData->UnLock();
+
+	}
+	
+	
+
+    } while ((blkstowait > 0) || cacheholes.GetSize());
+
     
-  } else {
-     
-     // Without caching
-     fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
-				 FALSE, (char *)"ReadBuffer");
-
-     return fConnModule->LastServerResp.dlen;
-  }
-
+    return len;
 }
 
 //_____________________________________________________________________________
 bool XrdClient::Write(const void *buf, long long offset, int len) {
 
-   if (!IsOpen_wait()) {
-      Error("WriteBuffer", "File not opened.");
-      return FALSE;
-   }
+    if (!IsOpen_wait()) {
+	Error("WriteBuffer", "File not opened.");
+	return FALSE;
+    }
 
 
-   // Prepare request
-   ClientRequest writeFileRequest;
-   memset( &writeFileRequest, 0, sizeof(writeFileRequest) );
-   fConnModule->SetSID(writeFileRequest.header.streamid);
-   writeFileRequest.write.requestid = kXR_write;
-   memcpy( writeFileRequest.write.fhandle, fHandle, sizeof(fHandle) );
-   writeFileRequest.write.offset = offset;
-   writeFileRequest.write.dlen = len;
+    // Prepare request
+    ClientRequest writeFileRequest;
+    memset( &writeFileRequest, 0, sizeof(writeFileRequest) );
+    fConnModule->SetSID(writeFileRequest.header.streamid);
+    writeFileRequest.write.requestid = kXR_write;
+    memcpy( writeFileRequest.write.fhandle, fHandle, sizeof(fHandle) );
+    writeFileRequest.write.offset = offset;
+    writeFileRequest.write.dlen = len;
    
    
-   return fConnModule->SendGenCommand(&writeFileRequest, buf, 0, 0,
-				      FALSE, (char *)"Write");
+    return fConnModule->SendGenCommand(&writeFileRequest, buf, 0, 0,
+				       FALSE, (char *)"Write");
 }
 
 
 //_____________________________________________________________________________
 bool XrdClient::Sync()
 {
-   // Flushes un-written data
+    // Flushes un-written data
 
  
-   if (!IsOpen_wait()) {
-      Error("Sync", "File not opened.");
-      return FALSE;
-   }
+    if (!IsOpen_wait()) {
+	Error("Sync", "File not opened.");
+	return FALSE;
+    }
 
 
-   // Prepare request
-   ClientRequest flushFileRequest;
-   memset( &flushFileRequest, 0, sizeof(flushFileRequest) );
+    // Prepare request
+    ClientRequest flushFileRequest;
+    memset( &flushFileRequest, 0, sizeof(flushFileRequest) );
 
-   fConnModule->SetSID(flushFileRequest.header.streamid);
+    fConnModule->SetSID(flushFileRequest.header.streamid);
 
-   flushFileRequest.sync.requestid = kXR_sync;
+    flushFileRequest.sync.requestid = kXR_sync;
 
-   memcpy(flushFileRequest.sync.fhandle, fHandle, sizeof(fHandle));
+    memcpy(flushFileRequest.sync.fhandle, fHandle, sizeof(fHandle));
 
-   flushFileRequest.sync.dlen = 0;
+    flushFileRequest.sync.dlen = 0;
 
-   return fConnModule->SendGenCommand(&flushFileRequest, 0, 0, 0, 
+    return fConnModule->SendGenCommand(&flushFileRequest, 0, 0, 0, 
                                        FALSE, (char *)"Sync");
   
 }
@@ -499,93 +565,93 @@ bool XrdClient::Sync()
 //_____________________________________________________________________________
 bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
    
-   int thrst = 0;
+    int thrst = 0;
 
-   fOpenPars.inprogress = true;
+    fOpenPars.inprogress = true;
 
-  if (doitparallel) {
+    if (doitparallel) {
 
-     for (int i = 0; i < DFLT_MAXCONCURRENTOPENS; i++) {
+	for (int i = 0; i < DFLT_MAXCONCURRENTOPENS; i++) {
 
-        fConcOpenSem.Wait();
-        fOpenerTh = new XrdClientThread(FileOpenerThread);
+	    fConcOpenSem.Wait();
+	    fOpenerTh = new XrdClientThread(FileOpenerThread);
 
-        thrst = fOpenerTh->Run(this);     
-        if (!thrst) {
-           // The thread start seems OK. This open will go in parallel
+	    thrst = fOpenerTh->Run(this);     
+	    if (!thrst) {
+		// The thread start seems OK. This open will go in parallel
 
-           if (fOpenerTh->Detach())
-              Error("XrdClient", "Thread detach failed. Low system resources?");
+		if (fOpenerTh->Detach())
+		    Error("XrdClient", "Thread detach failed. Low system resources?");
 
-           return true;
-        }
+		return true;
+	    }
 
-        // Note: the Post() here is intentionally missing.
+	    // Note: the Post() here is intentionally missing.
 
-        Error("XrdClient", "Parallel open thread start failed. Low system"
-              " resources? Res=" << thrst << " Count=" << i);
-        delete fOpenerTh;
-        fOpenerTh = 0;
+	    Error("XrdClient", "Parallel open thread start failed. Low system"
+		  " resources? Res=" << thrst << " Count=" << i);
+	    delete fOpenerTh;
+	    fOpenerTh = 0;
 
-     }
+	}
 
-     // If we are here it seems that this machine cannot start open threads at all
-     // In this desperate situation we try to go sync anyway.
-     for (int i = 0; i < DFLT_MAXCONCURRENTOPENS; i++) fConcOpenSem.Post();
+	// If we are here it seems that this machine cannot start open threads at all
+	// In this desperate situation we try to go sync anyway.
+	for (int i = 0; i < DFLT_MAXCONCURRENTOPENS; i++) fConcOpenSem.Post();
 
-     Error("XrdClient", "All the parallel open thread start attempts failed."
-           " Desperate situation. Going sync.");
+	Error("XrdClient", "All the parallel open thread start attempts failed."
+	      " Desperate situation. Going sync.");
      
-     doitparallel = false;
-  }
+	doitparallel = false;
+    }
 
-   // First attempt to open a remote file
-   bool lowopenRes = LowOpen(fUrl.File.c_str(), mode, options);
-   if (lowopenRes) {
-      TerminateOpenAttempt();
-      return TRUE;
-   }
+    // First attempt to open a remote file
+    bool lowopenRes = LowOpen(fUrl.File.c_str(), mode, options);
+    if (lowopenRes) {
+	TerminateOpenAttempt();
+	return TRUE;
+    }
 
-   // If the open request failed for the error "file not found" proceed, 
-   // otherwise return FALSE
-   if (fConnModule->GetOpenError() != kXR_NotFound) {
-      TerminateOpenAttempt();
-      return FALSE;
-   }
+    // If the open request failed for the error "file not found" proceed, 
+    // otherwise return FALSE
+    if (fConnModule->GetOpenError() != kXR_NotFound) {
+	TerminateOpenAttempt();
+	return FALSE;
+    }
 
 
-   // If connected to a host saying "File not Found" or similar then...
+    // If connected to a host saying "File not Found" or similar then...
 
-   // If we are currently connected to a host which is different
-   // from the one we formerly connected, then we resend the request
-   // specifyng the supposed failing server as opaque info
-   if (fConnModule->GetLBSUrl() &&
-       (fConnModule->GetCurrentUrl().Host != fConnModule->GetLBSUrl()->Host) ) {
-      XrdOucString opinfo;
+    // If we are currently connected to a host which is different
+    // from the one we formerly connected, then we resend the request
+    // specifyng the supposed failing server as opaque info
+    if (fConnModule->GetLBSUrl() &&
+	(fConnModule->GetCurrentUrl().Host != fConnModule->GetLBSUrl()->Host) ) {
+	XrdOucString opinfo;
 
-      opinfo = "&tried=" + fConnModule->GetCurrentUrl().Host;
+	opinfo = "&tried=" + fConnModule->GetCurrentUrl().Host;
 
-      Info(XrdClientDebug::kUSERDEBUG,
-           "Open", "Back to " << fConnModule->GetLBSUrl()->Host <<
-           ". Refreshing cache. Opaque info: " << opinfo);
+	Info(XrdClientDebug::kUSERDEBUG,
+	     "Open", "Back to " << fConnModule->GetLBSUrl()->Host <<
+	     ". Refreshing cache. Opaque info: " << opinfo);
 
-      if ( (fConnModule->GoToAnotherServer(*fConnModule->GetLBSUrl()) == kOK) &&
-            LowOpen(fUrl.File.c_str(), mode, options | kXR_refresh,
-                    (char *)opinfo.c_str() ) ) {
-         TerminateOpenAttempt();
-	 return TRUE;
-      }
-      else {
+	if ( (fConnModule->GoToAnotherServer(*fConnModule->GetLBSUrl()) == kOK) &&
+	     LowOpen(fUrl.File.c_str(), mode, options | kXR_refresh,
+		     (char *)opinfo.c_str() ) ) {
+	    TerminateOpenAttempt();
+	    return TRUE;
+	}
+	else {
 
-         Error("Open", "Error opening the file.");
-         TerminateOpenAttempt();
-         return FALSE;
-      }
+	    Error("Open", "Error opening the file.");
+	    TerminateOpenAttempt();
+	    return FALSE;
+	}
 
-   }
+    }
 
-   TerminateOpenAttempt();
-   return FALSE;
+    TerminateOpenAttempt();
+    return FALSE;
 
 }
 
@@ -593,423 +659,443 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 			char *additionalquery) {
 
-   // Low level Open method
-   XrdOucString finalfilename(file);
+    // Low level Open method
+    XrdOucString finalfilename(file);
 
-   if (fConnModule->fRedirOpaque.length() > 0) {
-       finalfilename += "?";
-       finalfilename += fConnModule->fRedirOpaque;
-   }
+    if (fConnModule->fRedirOpaque.length() > 0) {
+	finalfilename += "?";
+	finalfilename += fConnModule->fRedirOpaque;
+    }
 
-   if (additionalquery)
-      finalfilename += additionalquery;
+    if (additionalquery)
+	finalfilename += additionalquery;
 
-   // Send a kXR_open request in order to open the remote file
-   ClientRequest openFileRequest;
+    // Send a kXR_open request in order to open the remote file
+    ClientRequest openFileRequest;
 
-   struct ServerResponseBody_Open openresp;
+    struct ServerResponseBody_Open openresp;
 
-   memset(&openFileRequest, 0, sizeof(openFileRequest));
+    memset(&openFileRequest, 0, sizeof(openFileRequest));
 
-   fConnModule->SetSID(openFileRequest.header.streamid);
+    fConnModule->SetSID(openFileRequest.header.streamid);
 
-   openFileRequest.header.requestid = kXR_open;
+    openFileRequest.header.requestid = kXR_open;
 
-   // Now set the options field basing on user's requests
-   openFileRequest.open.options = options;
+    // Now set the options field basing on user's requests
+    openFileRequest.open.options = options;
 
-   // Set the open mode field
-   openFileRequest.open.mode = mode;
+    // Set the open mode field
+    openFileRequest.open.mode = mode;
 
-   // Set the length of the data (in this case data describes the path and 
-   // file name)
-   openFileRequest.open.dlen = finalfilename.length();
+    // Set the length of the data (in this case data describes the path and 
+    // file name)
+    openFileRequest.open.dlen = finalfilename.length();
 
-   // Send request to server and receive response
-   bool resp = fConnModule->SendGenCommand(&openFileRequest,
-					   (const void *)finalfilename.c_str(),
-					   0, &openresp, FALSE, (char *)"Open");
+    // Send request to server and receive response
+    bool resp = fConnModule->SendGenCommand(&openFileRequest,
+					    (const void *)finalfilename.c_str(),
+					    0, &openresp, FALSE, (char *)"Open");
 
-   if (resp) {
-      // Get the file handle to use for future read/write...
-      memcpy( fHandle, openresp.fhandle, sizeof(fHandle) );
+    if (resp) {
+	// Get the file handle to use for future read/write...
+	memcpy( fHandle, openresp.fhandle, sizeof(fHandle) );
 
-      fOpenPars.opened = TRUE;
-      fOpenPars.options = options;
-      fOpenPars.mode = mode;
+	fOpenPars.opened = TRUE;
+	fOpenPars.options = options;
+	fOpenPars.mode = mode;
     
-   }
+    }
 
-   return fOpenPars.opened;
+    return fOpenPars.opened;
 }
 
 //_____________________________________________________________________________
 bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
 
-   if (!IsOpen_wait()) {
-      Error("Stat", "File not opened.");
-      return FALSE;
-   }
+    if (!IsOpen_wait()) {
+	Error("Stat", "File not opened.");
+	return FALSE;
+    }
 
-   if (fStatInfo.stated) {
-      if (stinfo)
-	 memcpy(stinfo, &fStatInfo, sizeof(fStatInfo));
-      return TRUE;
-   }
+    if (fStatInfo.stated) {
+	if (stinfo)
+	    memcpy(stinfo, &fStatInfo, sizeof(fStatInfo));
+	return TRUE;
+    }
    
-   // asks the server for stat file informations
-   ClientRequest statFileRequest;
+    // asks the server for stat file informations
+    ClientRequest statFileRequest;
    
-   memset(&statFileRequest, 0, sizeof(ClientRequest));
+    memset(&statFileRequest, 0, sizeof(ClientRequest));
    
-   fConnModule->SetSID(statFileRequest.header.streamid);
+    fConnModule->SetSID(statFileRequest.header.streamid);
    
-   statFileRequest.stat.requestid = kXR_stat;
-   memset(statFileRequest.stat.reserved, 0, 
-          sizeof(statFileRequest.stat.reserved));
+    statFileRequest.stat.requestid = kXR_stat;
+    memset(statFileRequest.stat.reserved, 0, 
+	   sizeof(statFileRequest.stat.reserved));
 
-   statFileRequest.stat.dlen = fUrl.File.length();
+    statFileRequest.stat.dlen = fUrl.File.length();
    
-   char fStats[2048];
-   memset(fStats, 0, 2048);
+    char fStats[2048];
+    memset(fStats, 0, 2048);
 
-   bool ok = fConnModule->SendGenCommand(&statFileRequest,
-					 (const char*)fUrl.File.c_str(),
-					 0, fStats , FALSE, (char *)"Stat");
+    bool ok = fConnModule->SendGenCommand(&statFileRequest,
+					  (const char*)fUrl.File.c_str(),
+					  0, fStats , FALSE, (char *)"Stat");
    
-   if (ok) {
+    if (ok) {
 
-      Info(XrdClientDebug::kHIDEBUG,
-	   "Stat", "Returned stats=" << fStats);
+	Info(XrdClientDebug::kHIDEBUG,
+	     "Stat", "Returned stats=" << fStats);
    
-      sscanf(fStats, "%ld %lld %ld %ld",
-	     &fStatInfo.id,
-	     &fStatInfo.size,
-	     &fStatInfo.flags,
-	     &fStatInfo.modtime);
+	sscanf(fStats, "%ld %lld %ld %ld",
+	       &fStatInfo.id,
+	       &fStatInfo.size,
+	       &fStatInfo.flags,
+	       &fStatInfo.modtime);
 
-      if (stinfo)
-	 memcpy(stinfo, &fStatInfo, sizeof(fStatInfo));
-   }
+	if (stinfo)
+	    memcpy(stinfo, &fStatInfo, sizeof(fStatInfo));
 
-   return ok;
+	fStatInfo.stated = true;
+    }
+
+    return ok;
 }
 
 //_____________________________________________________________________________
 bool XrdClient::Close() {
 
-   if (!IsOpen_wait()) {
-      Info(XrdClientDebug::kUSERDEBUG, "Close", "File not opened.");
-      return TRUE;
-   }
+    if (!IsOpen_wait()) {
+	Info(XrdClientDebug::kUSERDEBUG, "Close", "File not opened.");
+	return TRUE;
+    }
 
-   ClientRequest closeFileRequest;
+    ClientRequest closeFileRequest;
   
-   memset(&closeFileRequest, 0, sizeof(closeFileRequest) );
+    memset(&closeFileRequest, 0, sizeof(closeFileRequest) );
 
-   fConnModule->SetSID(closeFileRequest.header.streamid);
+    fConnModule->SetSID(closeFileRequest.header.streamid);
 
-   closeFileRequest.close.requestid = kXR_close;
-   memcpy(closeFileRequest.close.fhandle, fHandle, sizeof(fHandle) );
-   closeFileRequest.close.dlen = 0;
+    closeFileRequest.close.requestid = kXR_close;
+    memcpy(closeFileRequest.close.fhandle, fHandle, sizeof(fHandle) );
+    closeFileRequest.close.dlen = 0;
   
-   fConnModule->SendGenCommand(&closeFileRequest, 0,
-			       0, 0, FALSE, (char *)"Close");
+    fConnModule->SendGenCommand(&closeFileRequest, 0,
+				0, 0, FALSE, (char *)"Close");
   
-   // No file is opened for now
-   fOpenPars.opened = FALSE;
+    // No file is opened for now
+    fOpenPars.opened = FALSE;
 
-   return TRUE;
+    return TRUE;
 }
 
 
 //_____________________________________________________________________________
 bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 {
-   // Called by the comm module when it needs to reopen a file
-   // after a redir
+    // Called by the comm module when it needs to reopen a file
+    // after a redir
 
-   wasopen = fOpenPars.opened;
+    wasopen = fOpenPars.opened;
 
-   if (!fOpenPars.opened)
-      return TRUE;
+    if (!fOpenPars.opened)
+	return TRUE;
 
-   fOpenPars.opened = FALSE;
+    fOpenPars.opened = FALSE;
 
-   Info(XrdClientDebug::kHIDEBUG,
-	"OpenFileWhenRedirected", "Trying to reopen the same file." );
+    Info(XrdClientDebug::kHIDEBUG,
+	 "OpenFileWhenRedirected", "Trying to reopen the same file." );
 
-   kXR_unt16 options = fOpenPars.options;
+    kXR_unt16 options = fOpenPars.options;
 
-   if (fOpenPars.options & kXR_delete) {
-      Info(XrdClientDebug::kHIDEBUG,
-         "OpenFileWhenRedirected", "Stripping off the 'delete' option." );
+    if (fOpenPars.options & kXR_delete) {
+	Info(XrdClientDebug::kHIDEBUG,
+	     "OpenFileWhenRedirected", "Stripping off the 'delete' option." );
 
-      options &= !kXR_delete;
-      options |= kXR_open_updt;
-   }
+	options &= !kXR_delete;
+	options |= kXR_open_updt;
+    }
 
-   if (fOpenPars.options & kXR_new) {
-      Info(XrdClientDebug::kHIDEBUG,
-         "OpenFileWhenRedirected", "Stripping off the 'new' option." );
+    if (fOpenPars.options & kXR_new) {
+	Info(XrdClientDebug::kHIDEBUG,
+	     "OpenFileWhenRedirected", "Stripping off the 'new' option." );
 
-      options &= !kXR_new;
-      options |= kXR_open_updt;
-   }
+	options &= !kXR_new;
+	options |= kXR_open_updt;
+    }
 
-   if ( TryOpen(fOpenPars.mode, options, false) ) {
+    if ( TryOpen(fOpenPars.mode, options, false) ) {
 
-      fOpenPars.opened = TRUE;
+	fOpenPars.opened = TRUE;
 
-      Info(XrdClientDebug::kHIDEBUG,
-	   "OpenFileWhenRedirected",
-	   "Open successful." );
+	Info(XrdClientDebug::kHIDEBUG,
+	     "OpenFileWhenRedirected",
+	     "Open successful." );
 
-      memcpy(newfhandle, fHandle, sizeof(fHandle));
+	memcpy(newfhandle, fHandle, sizeof(fHandle));
 
-      return TRUE;
-   } else {
-      Error("OpenFileWhenRedirected", 
-	    "New redir destination server refuses to open the file.");
+	return TRUE;
+    } else {
+	Error("OpenFileWhenRedirected", 
+	      "New redir destination server refuses to open the file.");
       
-      return FALSE;
-   }
+	return FALSE;
+    }
 }
 
 //_____________________________________________________________________________
 bool XrdClient::Copy(const char *localpath) {
 
-   if (!IsOpen_wait()) {
-      Error("Copy", "File not opened.");
-      return FALSE;
-   }
+    if (!IsOpen_wait()) {
+	Error("Copy", "File not opened.");
+	return FALSE;
+    }
 
-   Stat(0);
-   int f = open(localpath, O_CREAT | O_RDWR);   
-   if (f < 0) {
-      Error("Copy", "Error opening local file.");
-      return FALSE;
-   }
+    Stat(0);
+    int f = open(localpath, O_CREAT | O_RDWR);   
+    if (f < 0) {
+	Error("Copy", "Error opening local file.");
+	return FALSE;
+    }
 
-   void *buf = malloc(100000);
-   long long offs = 0;
-   int nr = 1;
+    void *buf = malloc(100000);
+    long long offs = 0;
+    int nr = 1;
 
-   while ((nr > 0) && (offs < fStatInfo.size))
-      if ( (nr = Read(buf, offs, 100000)) )
-	 offs += write(f, buf, nr);
+    while ((nr > 0) && (offs < fStatInfo.size))
+	if ( (nr = Read(buf, offs, 100000)) )
+	    offs += write(f, buf, nr);
 	 
-   close(f);
-   free(buf);
+    close(f);
+    free(buf);
    
-   return TRUE;
+    return TRUE;
 }
 
 //_____________________________________________________________________________
 UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
-                                        XrdClientMessage *unsolmsg) {
-   // We are here if an unsolicited response comes from a logical conn
-   // The response comes in the form of an TXMessage *, that must NOT be
-   // destroyed after processing. It is destroyed by the first sender.
-   // Remember that we are in a separate thread, since unsolicited 
-   // responses are asynchronous by nature.
+						     XrdClientMessage *unsolmsg) {
+    // We are here if an unsolicited response comes from a logical conn
+    // The response comes in the form of an TXMessage *, that must NOT be
+    // destroyed after processing. It is destroyed by the first sender.
+    // Remember that we are in a separate thread, since unsolicited 
+    // responses are asynchronous by nature.
 
-   Info(XrdClientDebug::kHIDEBUG,
-	"ProcessUnsolicitedMsg", "Incoming unsolicited response from streamid " <<
-	unsolmsg->HeaderSID() );
+    Info(XrdClientDebug::kHIDEBUG,
+	 "ProcessUnsolicitedMsg", "Incoming unsolicited response from streamid " <<
+	 unsolmsg->HeaderSID() );
 
-   // Local processing ....
+    // Local processing ....
 
-   if (unsolmsg->IsAttn()) {
-      struct ServerResponseBody_Attn *attnbody;
+    if (unsolmsg->IsAttn()) {
+	struct ServerResponseBody_Attn *attnbody;
 
-      attnbody = (struct ServerResponseBody_Attn *)unsolmsg->GetData();
+	attnbody = (struct ServerResponseBody_Attn *)unsolmsg->GetData();
 
-      // "True" async resp is processed here
-      switch (attnbody->actnum) {
+	// "True" async resp is processed here
+	switch (attnbody->actnum) {
 
-      case kXR_asyncdi:
-	 // Disconnection + delayed reconnection request
+	case kXR_asyncdi:
+	    // Disconnection + delayed reconnection request
 
-	 struct ServerResponseBody_Attn_asyncdi *di;
-	 di = (struct ServerResponseBody_Attn_asyncdi *)unsolmsg->GetData();
+	    struct ServerResponseBody_Attn_asyncdi *di;
+	    di = (struct ServerResponseBody_Attn_asyncdi *)unsolmsg->GetData();
 
-	 // Explicit redirection request
-	 if (di) {
-	    Info(XrdClientDebug::kUSERDEBUG,
-		 "ProcessUnsolicitedMsg", "Requested Disconnection + Reconnect in " <<
-		 ntohl(di->wsec) << " seconds.");
+	    // Explicit redirection request
+	    if (di) {
+		Info(XrdClientDebug::kUSERDEBUG,
+		     "ProcessUnsolicitedMsg", "Requested Disconnection + Reconnect in " <<
+		     ntohl(di->wsec) << " seconds.");
 
-	    fConnModule->SetRequestedDestHost((char *)fUrl.Host.c_str(), fUrl.Port);
-	    fConnModule->SetREQDelayedConnectState(ntohl(di->wsec));
-	 }
+		fConnModule->SetRequestedDestHost((char *)fUrl.Host.c_str(), fUrl.Port);
+		fConnModule->SetREQDelayedConnectState(ntohl(di->wsec));
+	    }
 
-	 // Other objects may be interested in this async resp
-	 return kUNSOL_CONTINUE;
-	 break;
+	    // Other objects may be interested in this async resp
+	    return kUNSOL_CONTINUE;
+	    break;
 	 
-      case kXR_asyncrd:
-	 // Redirection request
+	case kXR_asyncrd:
+	    // Redirection request
 
-	 struct ServerResponseBody_Attn_asyncrd *rd;
-	 rd = (struct ServerResponseBody_Attn_asyncrd *)unsolmsg->GetData();
+	    struct ServerResponseBody_Attn_asyncrd *rd;
+	    rd = (struct ServerResponseBody_Attn_asyncrd *)unsolmsg->GetData();
 
-	 // Explicit redirection request
-	 if (rd && (strlen(rd->host) > 0)) {
+	    // Explicit redirection request
+	    if (rd && (strlen(rd->host) > 0)) {
+		Info(XrdClientDebug::kUSERDEBUG,
+		     "ProcessUnsolicitedMsg", "Requested redir to " << rd->host <<
+		     ":" << ntohl(rd->port));
+
+		fConnModule->SetRequestedDestHost(rd->host, ntohl(rd->port));
+	    }
+
+	    // Other objects may be interested in this async resp
+	    return kUNSOL_CONTINUE;
+	    break;
+
+	case kXR_asyncwt:
+	    // Puts the client in wait state
+
+	    struct ServerResponseBody_Attn_asyncwt *wt;
+	    wt = (struct ServerResponseBody_Attn_asyncwt *)unsolmsg->GetData();
+
+	    if (wt) {
+		Info(XrdClientDebug::kUSERDEBUG,
+		     "ProcessUnsolicitedMsg", "Pausing client for " << ntohl(wt->wsec) <<
+		     " seconds.");
+
+		fConnModule->SetREQPauseState(ntohl(wt->wsec));
+	    }
+
+	    // Other objects may be interested in this async resp
+	    return kUNSOL_CONTINUE;
+	    break;
+
+	case kXR_asyncgo:
+	    // Resumes from pause state
+
 	    Info(XrdClientDebug::kUSERDEBUG,
-		 "ProcessUnsolicitedMsg", "Requested redir to " << rd->host <<
-		 ":" << ntohl(rd->port));
-
-	    fConnModule->SetRequestedDestHost(rd->host, ntohl(rd->port));
-	 }
-
-	 // Other objects may be interested in this async resp
-	 return kUNSOL_CONTINUE;
-	 break;
-
-      case kXR_asyncwt:
-	 // Puts the client in wait state
-
-	 struct ServerResponseBody_Attn_asyncwt *wt;
-	 wt = (struct ServerResponseBody_Attn_asyncwt *)unsolmsg->GetData();
-
-	 if (wt) {
-	    Info(XrdClientDebug::kUSERDEBUG,
-		 "ProcessUnsolicitedMsg", "Pausing client for " << ntohl(wt->wsec) <<
-		 " seconds.");
-
-	    fConnModule->SetREQPauseState(ntohl(wt->wsec));
-	 }
-
-	 // Other objects may be interested in this async resp
-	 return kUNSOL_CONTINUE;
-	 break;
-
-      case kXR_asyncgo:
-	 // Resumes from pause state
-
-	 Info(XrdClientDebug::kUSERDEBUG,
-	      "ProcessUnsolicitedMsg", "Resuming from pause.");
+		 "ProcessUnsolicitedMsg", "Resuming from pause.");
 
 	    fConnModule->SetREQPauseState(0);
 
-	 // Other objects may be interested in this async resp
-	 return kUNSOL_CONTINUE;
-	 break;
+	    // Other objects may be interested in this async resp
+	    return kUNSOL_CONTINUE;
+	    break;
 
-      case kXR_asynresp:
-	// A response to a request which got a kXR_waitresp as a response
+	case kXR_asynresp:
+	    // A response to a request which got a kXR_waitresp as a response
 	
-	// We pass it direcly to the connmodule for processing
-	// The processing will tell if the streamid matched or not,
-	// in order to stop further processing
-	return fConnModule->ProcessAsynResp(unsolmsg);
-	break;
+	    // We pass it direcly to the connmodule for processing
+	    // The processing will tell if the streamid matched or not,
+	    // in order to stop further processing
+	    return fConnModule->ProcessAsynResp(unsolmsg);
+	    break;
 
-      } // switch
+	} // switch
 
       
-   }
-   else
-      // Let's see if we are receiving the response to an async read request
-      if ( SidManager->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
-	 struct SidInfo *si = SidManager->GetSidInfo(unsolmsg->HeaderSID());
-	 ClientRequest *req = &(si->outstandingreq);
+    }
+    else
+	// Let's see if we are receiving the response to an async read request
+	if ( SidManager->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
+	    struct SidInfo *si = SidManager->GetSidInfo(unsolmsg->HeaderSID());
+	    ClientRequest *req = &(si->outstandingreq);
 	 
-	 Info(XrdClientDebug::kHIDEBUG,
-	      "ProcessUnsolicitedMsg",
-	      "Processing unsolicited response from streamid " <<
-	      unsolmsg->HeaderSID() << " father=" <<
-	      si->fathersid );
+	    Info(XrdClientDebug::kHIDEBUG,
+		 "ProcessUnsolicitedMsg",
+		 "Processing unsolicited response from streamid " <<
+		 unsolmsg->HeaderSID() << " father=" <<
+		 si->fathersid );
 	 
-	 if ( (req->header.requestid == kXR_read) &&
-	      ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
-		(unsolmsg->HeaderStatus() == kXR_ok) ) ) {
+	    if ( (req->header.requestid == kXR_read) &&
+		 ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
+		   (unsolmsg->HeaderStatus() == kXR_ok) ) ) {
 	    
-	    long long offs = req->read.offset + si->reqbyteprogress;
+		long long offs = req->read.offset + si->reqbyteprogress;
 	    
-	    Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
-		 "Putting data into cache. Offset=" <<
-		 offs <<
-		 " len " <<
-		 unsolmsg->fHdr.dlen);
+		Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
+		     "Putting data into cache. Offset=" <<
+		     offs <<
+		     " len " <<
+		     unsolmsg->fHdr.dlen);
+
+		fReadWaitData->Lock();
+
+		// To compute the end offset of the block we have to take 1 from the size!
+		fConnModule->SubmitDataToCache(unsolmsg, offs,
+					       offs + unsolmsg->fHdr.dlen - 1);
+
+		fReadWaitData->Broadcast();
+		fReadWaitData->UnLock();
+
+		si->reqbyteprogress += unsolmsg->fHdr.dlen;
 	    
-	    // To compute the end offset of the block we have to take 1 from the size!
-	    fConnModule->SubmitDataToCache(unsolmsg, offs,
-					   offs + unsolmsg->fHdr.dlen - 1);
-	    
-	    si->reqbyteprogress += unsolmsg->fHdr.dlen;
-	    
-	    if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
-	    else return kUNSOL_KEEP;
-	 }
+		if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
+		else return kUNSOL_KEEP;
+	    }
 	 
-      }
+	}
    
    
-   return kUNSOL_CONTINUE;
+    return kUNSOL_CONTINUE;
 }
 
 XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 
-   if (!IsOpen_wait()) {
-      Error("Read", "File not opened.");
-      return kGENERICERR;
-   }
+    if (!IsOpen_wait()) {
+	Error("Read", "File not opened.");
+	return kGENERICERR;
+    }
 
-  if (!len) return kOK;
+    if (!len) return kOK;
 
-  // Prepare request
-  ClientRequest readFileRequest;
-  memset( &readFileRequest, 0, sizeof(readFileRequest) );
+    if (fUseCache)
+	fConnModule->SubmitPlaceholderToCache(offset, offset+len-1);
 
-  // No need to initialize the streamid, it will be filled by XrdClientConn
-  readFileRequest.read.requestid = kXR_read;
-  memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
-  readFileRequest.read.offset = offset;
-  readFileRequest.read.rlen = len;
-  readFileRequest.read.dlen = 0;
+    // Prepare request
+    ClientRequest readFileRequest;
+    memset( &readFileRequest, 0, sizeof(readFileRequest) );
+
+    // No need to initialize the streamid, it will be filled by XrdClientConn
+    readFileRequest.read.requestid = kXR_read;
+    memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
+    readFileRequest.read.offset = offset;
+    readFileRequest.read.rlen = len;
+    readFileRequest.read.dlen = 0;
 
 
 
-  Info(XrdClientDebug::kHIDEBUG, "Read_Async",
-       "Requesting to read " <<
-       readFileRequest.read.rlen <<
-       " bytes of data at offset " <<
-       readFileRequest.read.offset);
+    Info(XrdClientDebug::kHIDEBUG, "Read_Async",
+	 "Requesting to read " <<
+	 readFileRequest.read.rlen <<
+	 " bytes of data at offset " <<
+	 readFileRequest.read.offset);
 
      
 
-  return (fConnModule->WriteToServer_Async(&readFileRequest, 0));
+    return (fConnModule->WriteToServer_Async(&readFileRequest, 0));
 
 
 }
 
 
-bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize, kXR_int64 lastvalidoffs) {
+bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize) {
 
-   kXR_int64 newoffs;
-   kXR_int32 newlen, minlen, blksz;
+    kXR_int64 newoffs;
+    kXR_int32 newlen, minlen, blksz;
 
-   if (!fUseCache ) return false;
+    if (!fUseCache ) return false;
 
-   blksz = xrdmax(rasize, 16384);
+    blksz = xrdmax(rasize, 16384);
 
-   newoffs = offs / blksz * blksz;
-   newoffs = xrdmax(newoffs, lastvalidoffs+1);
+    newoffs = offs / blksz * blksz;
 
-   minlen = (offs + len - newoffs);
-   newlen = ((minlen / blksz + 1) * blksz);
+    minlen = (offs + len - newoffs);
+    newlen = ((minlen / blksz + 1) * blksz);
 
 
-   newlen = xrdmax(rasize, newlen);
+    newlen = xrdmax(rasize, newlen);
 
-   if (fConnModule->CacheWillFit(newlen)) {
-      offs = newoffs;
-      len = newlen;
-      return true;
-   }
+    if (fConnModule->CacheWillFit(newlen)) {
+	offs = newoffs;
+	len = newlen;
+	return true;
+    }
 
-   return false;
+    return false;
 
 }
+
+//_____________________________________________________________________________
+// Sleeps on a condvar which is signalled when a new async block arrives
+void XrdClient::WaitForNewAsyncData() {
+
+   fReadWaitData->Lock();
+   fReadWaitData->Wait();
+   fReadWaitData->UnLock();
+
+}
+

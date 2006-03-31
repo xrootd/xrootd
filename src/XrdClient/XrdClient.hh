@@ -46,119 +46,124 @@
 #include "XrdOuc/XrdOucSemWait.hh"
 
 struct XrdClientOpenInfo {
-   bool      inprogress;
-   bool      opened;
-   kXR_unt16 mode;
-   kXR_unt16 options;
+    bool      inprogress;
+    bool      opened;
+    kXR_unt16 mode;
+    kXR_unt16 options;
 };
 
 struct XrdClientStatInfo {
-   int stated;
-   long long size;
-   long id;
-   long flags;
-   long modtime;
+    int stated;
+    long long size;
+    long id;
+    long flags;
+    long modtime;
 };
 
 class XrdClient : public XrdClientAbs {
-   friend void *FileOpenerThread(void*, XrdClientThread*);
+    friend void *FileOpenerThread(void*, XrdClientThread*);
 
 private:
 
-   char                        fHandle[4];  // The file handle returned by the server,
-                                            // to use for successive requests
+    char                        fHandle[4];  // The file handle returned by the server,
+    // to use for successive requests
 
-   struct XrdClientOpenInfo    fOpenPars;   // Just a container for the last parameters
-                                            // passed to a Open method
+    struct XrdClientOpenInfo    fOpenPars;   // Just a container for the last parameters
+    // passed to a Open method
 
-   // The open request can be in progress. Further requests must be delayed until
-   //  finished.
-   XrdOucCondVar              *fOpenProgCnd;
+    // The open request can be in progress. Further requests must be delayed until
+    //  finished.
+    XrdOucCondVar              *fOpenProgCnd;
 
-   // Used to open a file in parallel
-   XrdClientThread            *fOpenerTh;
+    // Used to open a file in parallel
+    XrdClientThread            *fOpenerTh;
 
-   // Used to limit the maximum number of concurrent opens
-   static XrdOucSemWait        fConcOpenSem;
+    // Used to limit the maximum number of concurrent opens
+    static XrdOucSemWait        fConcOpenSem;
 
-   bool                        fOpenWithRefresh;
+    bool                        fOpenWithRefresh;
 
-   struct XrdClientStatInfo    fStatInfo;
+    XrdOucCondVar              *fReadWaitData;  // Used to wait for outstanding data   
 
-   bool                        fUseCache;
+    struct XrdClientStatInfo    fStatInfo;
 
-   XrdOucString                fInitialUrl;
-   XrdClientUrlInfo            fUrl;
+    bool                        fUseCache;
 
-   bool                        TryOpen(kXR_unt16 mode,
-				       kXR_unt16 options,
-				       bool doitparallel);
+    XrdOucString                fInitialUrl;
+    XrdClientUrlInfo            fUrl;
 
-   bool                        LowOpen(const char *file,
-				       kXR_unt16 mode,
-				       kXR_unt16 options,
-				       char *additionalquery = 0);
+    bool                        TryOpen(kXR_unt16 mode,
+					kXR_unt16 options,
+					bool doitparallel);
 
-   // The first position not read by the last read ahead
-   long long                   fReadAheadLast;
+    bool                        LowOpen(const char *file,
+					kXR_unt16 mode,
+					kXR_unt16 options,
+					char *additionalquery = 0);
 
-   void                        TerminateOpenAttempt();
+    // The first position not read by the last read ahead
+    long long                   fReadAheadLast;
 
-   bool                        TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize, kXR_int64 lastvalidoffs);
+    void                        TerminateOpenAttempt();
+
+    bool                        TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize);
+
+    void                        WaitForNewAsyncData();
+
 protected:
 
-   virtual bool                OpenFileWhenRedirected(char *newfhandle,
-						      bool &wasopen);
+    virtual bool                OpenFileWhenRedirected(char *newfhandle,
+						       bool &wasopen);
 
-   virtual bool                CanRedirOnError() {
-     // Can redir away on error if no file is opened
-     // or the file is opened in read mode
-     return ( !fOpenPars.opened || (fOpenPars.opened && (fOpenPars.options & kXR_open_read)) );
-   }
+    virtual bool                CanRedirOnError() {
+	// Can redir away on error if no file is opened
+	// or the file is opened in read mode
+	return ( !fOpenPars.opened || (fOpenPars.opened && (fOpenPars.options & kXR_open_read)) );
+    }
 
 
 public:
 
-   XrdClient(const char *url);
-   virtual ~XrdClient();
+    XrdClient(const char *url);
+    virtual ~XrdClient();
 
-   UnsolRespProcResult         ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
-						     XrdClientMessage *unsolmsg);
+    UnsolRespProcResult         ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
+						      XrdClientMessage *unsolmsg);
 
-   bool                        Close();
+    bool                        Close();
 
-   // Ask the server to flush its cache
-   bool                        Sync();
+    // Ask the server to flush its cache
+    bool                        Sync();
 
-   // Copy the whole file to the local filesystem. Not very efficient.
-   bool                        Copy(const char *localpath);
+    // Copy the whole file to the local filesystem. Not very efficient.
+    bool                        Copy(const char *localpath);
 
-   // Quickly tells if the file is open
-   inline bool                 IsOpen() { return fOpenPars.opened; }
+    // Quickly tells if the file is open
+    inline bool                 IsOpen() { return fOpenPars.opened; }
 
-   // Tells if the file is open, waiting for the completion of the parallel open
-   bool                        IsOpen_wait();
+    // Tells if the file is open, waiting for the completion of the parallel open
+    bool                        IsOpen_wait();
 
-   // Open the file. See the xrootd documentation for mode and options
-   // If parallel, then the open is done by a separate thread, and
-   // all the operations are delayed until the open has finished
-   bool                        Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel=true);
+    // Open the file. See the xrootd documentation for mode and options
+    // If parallel, then the open is done by a separate thread, and
+    // all the operations are delayed until the open has finished
+    bool                        Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel=true);
 
-   // Read a block of data. If no error occurs, it returns all the requested bytes.
-   int                         Read(void *buf, long long offset, int len);
+    // Read a block of data. If no error occurs, it returns all the requested bytes.
+    int                         Read(void *buf, long long offset, int len);
 
-   // Submit an asynchronous read request. Its result will only populate the cache
-   //  (if any!!)
-   XReqErrorType               Read_Async(long long offset, int len);
+    // Submit an asynchronous read request. Its result will only populate the cache
+    //  (if any!!)
+    XReqErrorType               Read_Async(long long offset, int len);
 
-   // Get stat info about the file
-   bool                        Stat(struct XrdClientStatInfo *stinfo);
+    // Get stat info about the file
+    bool                        Stat(struct XrdClientStatInfo *stinfo);
 
-   // Write data to the file
-   bool                        Write(const void *buf, long long offset, int len);
+    // Write data to the file
+    bool                        Write(const void *buf, long long offset, int len);
 
-   // Hook to the open connection (needed by TXNetFile)
-   XrdClientConn              *GetClientConn() const { return fConnModule; }
+    // Hook to the open connection (needed by TXNetFile)
+    XrdClientConn              *GetClientConn() const { return fConnModule; }
 
 };
 

@@ -458,8 +458,7 @@ UnsolRespProcResult XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsol
       XrdOucMutexHelper mtx(fMutex);
 
       for (int i = 0; i < fLogVec.GetSize(); i++)
-	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) &&
-            (unsolmsg->MatchStreamid(fLogVec[i]->Streamid()))) {
+	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) ) {
 	    res = fLogVec[i]->ProcessUnsolicitedMsg(sender, unsolmsg);
 
 	    if (res != kUNSOL_CONTINUE) break;

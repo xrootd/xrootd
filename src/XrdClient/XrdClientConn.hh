@@ -34,242 +34,250 @@ class XrdSecProtocol;
 class XrdClientConn {
 
 public:
-   enum ServerType {
-      kSTError      = -1,  // Some error occurred: server type undetermined 
-      kSTNone       = 0,   // Remote server type un-recognized
-      kSTRootd      = 1,   // Remote server type: old rootd server
-      kSTBaseXrootd = 2,   // Remote server type: xrootd dynamic load balancer
-      kSTDataXrootd = 3    // Remote server type: xrootd data server
-   }; 
-   enum ESrvErrorHandlerRetval {
-      kSEHRReturnMsgToCaller   = 0,
-      kSEHRBreakLoop           = 1,
-      kSEHRContinue            = 2,
-      kSEHRReturnNoMsgToCaller = 3,
-      kSEHRRedirLimitReached   = 4
-   };
-   enum EThreeStateReadHandler {
-      kTSRHReturnMex     = 0,
-      kTSRHReturnNullMex = 1,
-      kTSRHContinue      = 2
-   };
+    enum ServerType {
+	kSTError      = -1,  // Some error occurred: server type undetermined 
+	kSTNone       = 0,   // Remote server type un-recognized
+	kSTRootd      = 1,   // Remote server type: old rootd server
+	kSTBaseXrootd = 2,   // Remote server type: xrootd dynamic load balancer
+	kSTDataXrootd = 3    // Remote server type: xrootd data server
+    }; 
+    enum ESrvErrorHandlerRetval {
+	kSEHRReturnMsgToCaller   = 0,
+	kSEHRBreakLoop           = 1,
+	kSEHRContinue            = 2,
+	kSEHRReturnNoMsgToCaller = 3,
+	kSEHRRedirLimitReached   = 4
+    };
+    enum EThreeStateReadHandler {
+	kTSRHReturnMex     = 0,
+	kTSRHReturnNullMex = 1,
+	kTSRHContinue      = 2
+    };
 
-   int                        fLastDataBytesRecv;
-   int                        fLastDataBytesSent;
-   XErrorCode                 fOpenError;	
+    int                        fLastDataBytesRecv;
+    int                        fLastDataBytesSent;
+    XErrorCode                 fOpenError;	
 
-   XrdOucString               fRedirOpaque;        // Opaque info returned by the server when
+    XrdOucString               fRedirOpaque;        // Opaque info returned by the server when
 
-                                                   // redirecting. To be used in the next opens
-   XrdClientConn();
-   ~XrdClientConn();
+    // redirecting. To be used in the next opens
+    XrdClientConn();
+    ~XrdClientConn();
 
-   inline bool                CacheWillFit(long long bytes) {
-      if (!fMainReadCache)
-	 return FALSE;
-      return fMainReadCache->WillFit(bytes);
-   }
+    inline bool                CacheWillFit(long long bytes) {
+	if (!fMainReadCache)
+	    return FALSE;
+	return fMainReadCache->WillFit(bytes);
+    }
 
-   bool                       CheckHostDomain(XrdOucString hostToCheck,
-					      XrdOucString allow, 
-					      XrdOucString deny);
-   short                      Connect(XrdClientUrlInfo Host2Conn,
-				      XrdClientAbsUnsolMsgHandler *unsolhandler);
-   void                       Disconnect(bool ForcePhysicalDisc);
-   bool                       GetAccessToSrv();
-   XrdOucString               GetClientHostDomain() { return fClientHostDomain; }
+    bool                       CheckHostDomain(XrdOucString hostToCheck,
+					       XrdOucString allow, 
+					       XrdOucString deny);
+    short                      Connect(XrdClientUrlInfo Host2Conn,
+				       XrdClientAbsUnsolMsgHandler *unsolhandler);
+    void                       Disconnect(bool ForcePhysicalDisc);
+    bool                       GetAccessToSrv();
+    XrdOucString               GetClientHostDomain() { return fClientHostDomain; }
 
-   bool                       GetDataFromCache(const void *buffer,
-					       long long begin_offs,
-					       long long end_offs,
-					       bool PerfCalc,
-                                               long long &lasttakenbyte );
-   bool                       SubmitDataToCache(XrdClientMessage *xmsg,
-					       long long begin_offs,
-					       long long end_offs);
+    long                       GetDataFromCache(const void *buffer,
+						long long begin_offs,
+						long long end_offs,
+						bool PerfCalc,
+						XrdClientIntvList &missingblks,
+						long &outstandingblks );
 
-   int                        GetLogConnID() const { return fLogConnID; }
-   kXR_unt16                  GetStreamID() const { return fPrimaryStreamid; }
+    bool                       SubmitDataToCache(XrdClientMessage *xmsg,
+						 long long begin_offs,
+						 long long end_offs);
 
-   inline XrdClientUrlInfo    *GetLBSUrl() { return fLBSUrl; }
-   inline XrdClientUrlInfo    GetCurrentUrl() { return fUrl; }
+    void                       SubmitPlaceholderToCache(long long begin_offs,
+							long long end_offs) {
+	if (fMainReadCache)
+	    fMainReadCache->PutPlaceholder(begin_offs, end_offs);
+    }
 
-   XErrorCode                 GetOpenError() const { return fOpenError; }
-   XReqErrorType              GoToAnotherServer(XrdClientUrlInfo newdest);
-   bool                       IsConnected() const { return fConnected; }
+    int                        GetLogConnID() const { return fLogConnID; }
+    kXR_unt16                  GetStreamID() const { return fPrimaryStreamid; }
 
-   struct ServerResponseHeader
-                              LastServerResp;
+    inline XrdClientUrlInfo    *GetLBSUrl() { return fLBSUrl; }
+    inline XrdClientUrlInfo    GetCurrentUrl() { return fUrl; }
 
-   struct ServerResponseBody_Error
-                              LastServerError;
+    XErrorCode                 GetOpenError() const { return fOpenError; }
+    XReqErrorType              GoToAnotherServer(XrdClientUrlInfo newdest);
+    bool                       IsConnected() const { return fConnected; }
 
-   UnsolRespProcResult        ProcessAsynResp(XrdClientMessage *unsolmsg);
+    struct ServerResponseHeader
+    LastServerResp;
 
-   bool                       SendGenCommand(ClientRequest *req, 
-					     const void *reqMoreData,       
-					     void **answMoreDataAllocated,
-					     void *answMoreData, bool HasToAlloc,
-					     char *CmdName);
+    struct ServerResponseBody_Error
+    LastServerError;
 
-   ServerType                 GetServerType() const { return fServerType; }
-   int                        GetOpenSockFD() const { return fOpenSockFD; }
+    UnsolRespProcResult        ProcessAsynResp(XrdClientMessage *unsolmsg);
 
-   void                       SetClientHostDomain(const char *src) { fClientHostDomain = src; }
-   void                       SetConnected(bool conn) { fConnected = conn; }
+    bool                       SendGenCommand(ClientRequest *req, 
+					      const void *reqMoreData,       
+					      void **answMoreDataAllocated,
+					      void *answMoreData, bool HasToAlloc,
+					      char *CmdName);
 
-   void                       SetOpenError(XErrorCode err) { fOpenError = err; }
-   void                       SetRedirHandler(XrdClientAbs *rh) { fRedirHandler = rh; }
+    ServerType                 GetServerType() const { return fServerType; }
+    int                        GetOpenSockFD() const { return fOpenSockFD; }
 
-   void                       SetRequestedDestHost(char *newh, kXR_int32 port) {
-      fREQUrl = fUrl;
-      fREQUrl.Host = newh;
-      fREQUrl.Port = port;
-      fREQUrl.SetAddrFromHost();
-   }
+    void                       SetClientHostDomain(const char *src) { fClientHostDomain = src; }
+    void                       SetConnected(bool conn) { fConnected = conn; }
 
-   // Puts this instance in pause state for wsec seconds.
-   // A value <= 0 revokes immediately the pause state
-   void                       SetREQPauseState(kXR_int32 wsec) {
-      // Lock mutex
-      fREQWait->Lock();
+    void                       SetOpenError(XErrorCode err) { fOpenError = err; }
+    void                       SetRedirHandler(XrdClientAbs *rh) { fRedirHandler = rh; }
 
-      if (wsec > 0)
-	 fREQWaitTimeLimit = time(0) + wsec;
-      else {
-	 fREQWaitTimeLimit = 0;
-	 fREQWait->Broadcast();
-      }
+    void                       SetRequestedDestHost(char *newh, kXR_int32 port) {
+	fREQUrl = fUrl;
+	fREQUrl.Host = newh;
+	fREQUrl.Port = port;
+	fREQUrl.SetAddrFromHost();
+    }
 
-      // UnLock mutex
-      fREQWait->UnLock();
-   }
+    // Puts this instance in pause state for wsec seconds.
+    // A value <= 0 revokes immediately the pause state
+    void                       SetREQPauseState(kXR_int32 wsec) {
+	// Lock mutex
+	fREQWait->Lock();
 
-   // Puts this instance in connect-pause state for wsec seconds.
-   // Any future connection attempt will not happen before wsec
-   //  and the first one will be towards the given host
-   void                       SetREQDelayedConnectState(kXR_int32 wsec) {
-      // Lock mutex
-      fREQConnectWait->Lock();
+	if (wsec > 0)
+	    fREQWaitTimeLimit = time(0) + wsec;
+	else {
+	    fREQWaitTimeLimit = 0;
+	    fREQWait->Broadcast();
+	}
 
-      if (wsec > 0)
-	 fREQConnectWaitTimeLimit = time(0) + wsec;
-      else {
-	 fREQConnectWaitTimeLimit = 0;
-	 fREQConnectWait->Broadcast();
-      }
+	// UnLock mutex
+	fREQWait->UnLock();
+    }
 
-      // UnLock mutex
-      fREQConnectWait->UnLock();
-   }
+    // Puts this instance in connect-pause state for wsec seconds.
+    // Any future connection attempt will not happen before wsec
+    //  and the first one will be towards the given host
+    void                       SetREQDelayedConnectState(kXR_int32 wsec) {
+	// Lock mutex
+	fREQConnectWait->Lock();
 
-   void                       SetServerType(ServerType type) { fServerType = type; }
-   void                       SetSID(kXR_char *sid);
-   inline void                SetUrl(XrdClientUrlInfo thisUrl) { fUrl = thisUrl; }
+	if (wsec > 0)
+	    fREQConnectWaitTimeLimit = time(0) + wsec;
+	else {
+	    fREQConnectWaitTimeLimit = 0;
+	    fREQConnectWait->Broadcast();
+	}
+
+	// UnLock mutex
+	fREQConnectWait->UnLock();
+    }
+
+    void                       SetServerType(ServerType type) { fServerType = type; }
+    void                       SetSID(kXR_char *sid);
+    inline void                SetUrl(XrdClientUrlInfo thisUrl) { fUrl = thisUrl; }
 
 
-   // Sends the request to the server, through logconn with ID LogConnID
-   // The request is sent with a streamid 'child' of the current one, then marked as pending
-   // Its answer will be caught asynchronously
-   XReqErrorType              WriteToServer_Async(ClientRequest *req, 
-						  const void* reqMoreData);
-   static XrdClientConnectionMgr *GetConnectionMgr()
-                              { return fgConnectionMgr;} //Instance of the conn manager
+    // Sends the request to the server, through logconn with ID LogConnID
+    // The request is sent with a streamid 'child' of the current one, then marked as pending
+    // Its answer will be caught asynchronously
+    XReqErrorType              WriteToServer_Async(ClientRequest *req, 
+						   const void* reqMoreData);
+    static XrdClientConnectionMgr *GetConnectionMgr()
+    { return fgConnectionMgr;} //Instance of the conn manager
 
 private:
-   // The handler which first tried to connect somewhere
-   XrdClientAbsUnsolMsgHandler *fUnsolMsgHandler;
+    // The handler which first tried to connect somewhere
+    XrdClientAbsUnsolMsgHandler *fUnsolMsgHandler;
 
-   XrdOucString               fClientHostDomain; // Save the client's domain name
-   bool                       fConnected;
-   short                      fGlobalRedirCnt;    // Number of redirections
-   time_t                     fGlobalRedirLastUpdateTimestamp; // Timestamp of last redirection
+    XrdOucString               fClientHostDomain; // Save the client's domain name
+    bool                       fConnected;
+    short                      fGlobalRedirCnt;    // Number of redirections
+    time_t                     fGlobalRedirLastUpdateTimestamp; // Timestamp of last redirection
 
-   XrdClientUrlInfo           *fLBSUrl;            // Needed to save the load balancer url
+    XrdClientUrlInfo           *fLBSUrl;            // Needed to save the load balancer url
 
-   int                        fLogConnID;        // Logical connection ID used
-   kXR_unt16                  fPrimaryStreamid;  // Streamid used for normal communication
-                                                 // NB it's a copy of the one contained in
-                                                 // the logconn
+    int                        fLogConnID;        // Logical connection ID used
+    kXR_unt16                  fPrimaryStreamid;  // Streamid used for normal communication
+    // NB it's a copy of the one contained in
+    // the logconn
 
-   short                      fMaxGlobalRedirCnt;
-   XrdClientReadCache         *fMainReadCache;
+    short                      fMaxGlobalRedirCnt;
+    XrdClientReadCache         *fMainReadCache;
 
-   XrdClientAbs               *fRedirHandler;      // Pointer to a class inheriting from
-                                                   // XrdClientAbs providing methods
-                                                   // to handle a redir at higher level
+    XrdClientAbs               *fRedirHandler;      // Pointer to a class inheriting from
+    // XrdClientAbs providing methods
+    // to handle a redir at higher level
 
-   XrdOucString               fRedirInternalToken; // Token returned by the server when
-                                                   // redirecting. To be used in the next logins
+    XrdOucString               fRedirInternalToken; // Token returned by the server when
+    // redirecting. To be used in the next logins
 
-   XrdOucCondVar              *fREQWaitResp;           // For explicitly requested delayed async responses
-   ServerResponseHeader *     fREQWaitRespData;        // For explicitly requested delayed async responses
+    XrdOucCondVar              *fREQWaitResp;           // For explicitly requested delayed async responses
+    ServerResponseHeader *     fREQWaitRespData;        // For explicitly requested delayed async responses
 
-   XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
-   time_t                     fREQWaitTimeLimit;   // For explicitly requested pause state
-   XrdOucCondVar              *fREQWait;           // For explicitly requested pause state
-   time_t                     fREQConnectWaitTimeLimit;   // For explicitly requested delayed reconnect
-   XrdOucCondVar              *fREQConnectWait;           // For explicitly requested delayed reconnect
+    XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
+    time_t                     fREQWaitTimeLimit;   // For explicitly requested pause state
+    XrdOucCondVar              *fREQWait;           // For explicitly requested pause state
+    time_t                     fREQConnectWaitTimeLimit;   // For explicitly requested delayed reconnect
+    XrdOucCondVar              *fREQConnectWait;           // For explicitly requested delayed reconnect
 
-   long                       fServerProto;        // The server protocol
-   ServerType                 fServerType;         // Server type as returned by doHandShake() 
-                                                   // (see enum ServerType)
+    long                       fServerProto;        // The server protocol
+    ServerType                 fServerType;         // Server type as returned by doHandShake() 
+    // (see enum ServerType)
 
-   // To keep info about an open session
-   struct                     SessionIDInfo {
-     char id[16];
-   };
+    // To keep info about an open session
+    struct                     SessionIDInfo {
+	char id[16];
+    };
 
-   static XrdOucHash<SessionIDInfo>
-                              fSessionIDRepo;      // The reposiry of session IDs, shared.
-                                                   // Association between
-                                                   // <hostname>:<port> and a SessionIDInfo struct
+    static XrdOucHash<SessionIDInfo>
+    fSessionIDRepo;      // The reposiry of session IDs, shared.
+    // Association between
+    // <hostname>:<port> and a SessionIDInfo struct
 
-   char                       fSessionID[16];          // The ID of this session got from the login
+    char                       fSessionID[16];          // The ID of this session got from the login
 
-   XrdClientUrlInfo           fUrl;                // The current URL
+    XrdClientUrlInfo           fUrl;                // The current URL
 
-   int                        fOpenSockFD;         // Descriptor of the underlying socket
-   static XrdClientConnectionMgr *fgConnectionMgr; //Instance of the Connection Manager
+    int                        fOpenSockFD;         // Descriptor of the underlying socket
+    static XrdClientConnectionMgr *fgConnectionMgr; //Instance of the Connection Manager
 
-   bool                       CheckErrorStatus(XrdClientMessage *, short &, char *);
-   void                       CheckPort(int &port);
-   void                       CheckREQPauseState();
-   void                       CheckREQConnectWaitState();
-   bool                       CheckResp(struct ServerResponseHeader *resp, const char *method);
-   XrdClientMessage           *ClientServerCmd(ClientRequest *req,
-					       const void *reqMoreData,
-					       void **answMoreDataAllocated,
-					       void *answMoreData,
-					       bool HasToAlloc);
-   XrdSecProtocol            *DoAuthentication(char *plist, int plsiz);
-   ServerType                 DoHandShake(short log);
-   bool                       DoLogin();
-   bool                       DomainMatcher(XrdOucString dom, XrdOucString domlist);
+    bool                       CheckErrorStatus(XrdClientMessage *, short &, char *);
+    void                       CheckPort(int &port);
+    void                       CheckREQPauseState();
+    void                       CheckREQConnectWaitState();
+    bool                       CheckResp(struct ServerResponseHeader *resp, const char *method);
+    XrdClientMessage           *ClientServerCmd(ClientRequest *req,
+						const void *reqMoreData,
+						void **answMoreDataAllocated,
+						void *answMoreData,
+						bool HasToAlloc);
+    XrdSecProtocol            *DoAuthentication(char *plist, int plsiz);
+    ServerType                 DoHandShake(short log);
+    bool                       DoLogin();
+    bool                       DomainMatcher(XrdOucString dom, XrdOucString domlist);
 
-   XrdOucString               GetDomainToMatch(XrdOucString hostname);
+    XrdOucString               GetDomainToMatch(XrdOucString hostname);
 
-   ESrvErrorHandlerRetval     HandleServerError(XReqErrorType &, XrdClientMessage *,
-						ClientRequest *);
-   bool                       MatchStreamid(struct ServerResponseHeader *ServerResponse);
+    ESrvErrorHandlerRetval     HandleServerError(XReqErrorType &, XrdClientMessage *,
+						 ClientRequest *);
+    bool                       MatchStreamid(struct ServerResponseHeader *ServerResponse);
 
-   // Sends a close request, without waiting for an answer
-   // useful (?) to be sent just before closing a badly working stream
-   bool                       PanicClose();
+    // Sends a close request, without waiting for an answer
+    // useful (?) to be sent just before closing a badly working stream
+    bool                       PanicClose();
 
-   XrdOucString               ParseDomainFromHostname(XrdOucString hostname);
+    XrdOucString               ParseDomainFromHostname(XrdOucString hostname);
 
-   XrdClientMessage           *ReadPartialAnswer(XReqErrorType &, size_t &, 
-						 ClientRequest *, bool, void**,
-						 EThreeStateReadHandler &);
+    XrdClientMessage           *ReadPartialAnswer(XReqErrorType &, size_t &, 
+						  ClientRequest *, bool, void**,
+						  EThreeStateReadHandler &);
 
-   void                       ClearSessionID();
+    void                       ClearSessionID();
 
-   XReqErrorType              WriteToServer(ClientRequest *req, 
-					    const void* reqMoreData,
-					    short LogConnID);
+    XReqErrorType              WriteToServer(ClientRequest *req, 
+					     const void* reqMoreData,
+					     short LogConnID);
 
-     bool                       WaitResp(int secsmax);
+    bool                       WaitResp(int secsmax);
 };
 
 

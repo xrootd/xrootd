@@ -67,12 +67,11 @@
 #define DFLT_READCACHESIZE      (3*1024*1024)
 #define NAME_READCACHESIZE      (char *)"ReadCacheSize"
 
-#define DFLT_READAHEADSIZE      262144
-#define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
+#define DFLT_READCACHEBLK       (262144)
+#define NAME_READCACHEBLK       (char *)"ReadCacheBlk"
 
-// Read ahead style: 0=sync, 1=enable async if possible
-#define DFLT_READAHEADTYPE     0
-#define NAME_READAHEADTYPE     (char *)"ReadAheadType"
+#define DFLT_READAHEADSIZE      (DFLT_READCACHEBLK * 2)
+#define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
 
 #define NAME_REDIRDOMAINALLOW_RE   (char *)"RedirDomainAllowRE"
 #define NAME_REDIRDOMAINDENY_RE    (char *)"RedirDomainDenyRE"

@@ -1991,11 +1991,11 @@ void XrdClientConn::CheckPort(int &port) {
 
 
 //___________________________________________________________________________
-bool XrdClientConn::GetDataFromCache(const void *buffer, long long begin_offs,
+long XrdClientConn::GetDataFromCache(const void *buffer, long long begin_offs,
 				   long long end_offs, bool PerfCalc,
-                                   long long &lasttakenbyte) {
+                                   XrdClientIntvList &missingblks, long &outstandingblks) {
 
-   // Copies the requested data from the cache. False if not possible.
+   // Copies the requested data from the cache. Returns the number of bytes got
    // Perfcalc = kFALSE forces the call not to impact the perf counters
 
    if (!fMainReadCache)
@@ -2004,7 +2004,8 @@ bool XrdClientConn::GetDataFromCache(const void *buffer, long long begin_offs,
    return ( fMainReadCache->GetDataIfPresent(buffer,
 	 				     begin_offs,
 					     end_offs,
-					     PerfCalc, lasttakenbyte) );
+					     PerfCalc,
+					     missingblks, outstandingblks) );
 }
 
 //___________________________________________________________________________
@@ -2019,6 +2020,9 @@ bool XrdClientConn::SubmitDataToCache(XrdClientMessage *xmsg, long long begin_of
 
    return true;
 }
+
+void                       SubmitPlaceholderToCache(long long begin_offs,
+							long long end_offs);
 
 
 //___________________________________________________________________________

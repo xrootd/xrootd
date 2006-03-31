@@ -20,128 +20,148 @@ template<class T>
 class XrdClientVector {
 
 
- private:
-   T *data;
+private:
+    T *data;
 
-   // Remember that the unit is sizeof(T)
-   int size;
-   int capacity;
+    // Remember that the unit is sizeof(T)
+    int size;
+    int capacity;
 
-   int BufRealloc(int newsize);
+    int BufRealloc(int newsize);
 
-   inline void Init() {
-      data = 0;
-      size = 0;
-      capacity = 0;
-   }
+    inline void Init() {
+	data = 0;
+	size = 0;
+	capacity = 0;
+    }
 
- public:
+public:
 
-   int GetSize() {
-      return size;
-   }
+    int GetSize() {
+	return size;
+    }
 
-   void Clear() {
-      if (data) delete []data;
-      Init();
-   }
+    void Clear() {
+	if (data) delete []data;
+	Init();
+    }
 
-   XrdClientVector() {
-      Init();
-   }
+    XrdClientVector() {
+	Init();
+    }
 
-   XrdClientVector(const XrdClientVector &v) {
-      Init();
-      BufRealloc(v.size);
-      size = v.size;
-      for (int i = 0; i < v.size; i++)
-	 data[i] = v.data[i];
-   }
+    XrdClientVector(const XrdClientVector &v) {
+	Init();
+	BufRealloc(v.size);
+	size = v.size;
+	for (int i = 0; i < v.size; i++)
+	    data[i] = v.data[i];
+    }
 
-   ~XrdClientVector() {
-      Clear();
-   }
+    ~XrdClientVector() {
+	Clear();
+    }
 
-   void Push_back(T& item) {
+    void Push_back(T& item) {
       
-      if ( !BufRealloc(size+1) ) {
-	 data[size++] = item;
-      }
+	if ( !BufRealloc(size+1) ) {
+	    data[size++] = item;
+	}
 
-   }
+    }
 
-   // Removes a single element in position pos
-   T &Erase(unsigned int pos) {
-      T &res = At(pos);
+    // Inserts an item in the given position
+    void Insert(T& item, int pos) {
+      
+	if (pos >= size) {
+	    Push_back(item);
+	    return;
+	}
 
-      for (int i=pos+1; i < size; i++)
-	 data[i-1] = data[i];
+	if ( !BufRealloc(size+1) ) {
 
-      size--;
-      BufRealloc(size);
+	    for (int i=size-1; i >= pos; i--)
+		data[i+1] = data[i];
 
-      return res;
-   }
+	    size++;
 
-   T &Pop_back() {
-      T &r( At(size-1) );
-      size--;
-      return (r);
-   }
+	    data[pos] = item;
+	}
 
-   T Pop_front() {
-      T res;
+    }
 
-      res = At(0);
-      for (int i=1; i < size; i++)
-	 data[i-1] = data[i];
-      size--;
+    // Removes a single element in position pos
+    T &Erase(unsigned int pos) {
+	T &res = At(pos);
 
-      return (res);
-   }
+	for (int i=pos+1; i < size; i++)
+	    data[i-1] = data[i];
+
+	size--;
+	BufRealloc(size);
+
+	return res;
+    }
+
+    T &Pop_back() {
+	T &r( At(size-1) );
+	size--;
+	return (r);
+    }
+
+    T Pop_front() {
+	T res;
+
+	res = At(0);
+	for (int i=1; i < size; i++)
+	    data[i-1] = data[i];
+	size--;
+
+	return (res);
+    }
 
 
-   // Bounded array like access
-   T &At(int pos) {
-      if ( (pos >= 0) && (pos < size) )
-	 return data[pos];
-      else
-	 abort();
-   }
-   T &operator[] (int pos) {
-      return At(pos);
-   }
+    // Bounded array like access
+    T &At(int pos) {
+	if ( (pos >= 0) && (pos < size) )
+	    return data[pos];
+	else
+	    abort();
+    }
+    T &operator[] (int pos) {
+	return At(pos);
+    }
 
 };
 
 template <class T>
 int XrdClientVector<T>::BufRealloc(int newsize) {
-   int sz, blks;
-   T *newdata;
+    int sz, blks;
+    T *newdata;
 
-   if ((newsize <= 0) || (newsize <= capacity)) return 0;
+    if ((newsize <= 0) || (newsize <= capacity)) return 0;
 
-   blks = (newsize) / 256 + 1;
+    blks = (newsize) / 256 + 1;
 
-   sz = blks * 256;
+    sz = blks * 256;
 
-   newdata = new T[sz];
+    newdata = new T[sz];
 
 
-   if (newdata) {
-      for (int i = 0; i < size; i++)
-	 newdata[i] = data[i];
+    if (newdata) {
+	for (int i = 0; i < size; i++)
+	    newdata[i] = data[i];
 
-      delete []data;
+	delete []data;
 
-      data = newdata;      
-      capacity = sz;
-      return 0;
-   }
+	data = newdata;      
+	capacity = sz;
+	return 0;
+    }
 
-   abort();
+    abort();
 
-   return 1;
+    return 1;
 }
 
 

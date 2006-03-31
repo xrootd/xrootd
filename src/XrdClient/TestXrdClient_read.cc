@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
 
    if (isrooturl) {
      XrdClient *cli = new XrdClient(argv[1]);
-     EnvPutInt( NAME_READAHEADTYPE, 0);
+
      cli->Open(0, 0);
 
      while (!cin.eof()) {
