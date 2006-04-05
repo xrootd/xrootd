@@ -49,10 +49,11 @@
 
 // Return Values for Integer Returning XrdSfs Interface
 //
-#define SFS_STALL         1 // Return code -> Seconds to stall client
-#define SFS_OK            0 // Return code -> All is well
-#define SFS_ERROR        -1 // Return code -> Error occurred
-#define SFS_REDIRECT   -256 // Return code -> Port number to redirect to
+#define SFS_STALL         1 // ErrInfo code -> Seconds to stall client
+#define SFS_OK            0 // ErrInfo code -> All is well
+#define SFS_ERROR        -1 // ErrInfo code -> Error occurred
+#define SFS_REDIRECT   -256 // ErrInfo code -> Port number to redirect to
+#define SFS_STARTED    -512 // ErrInfo code -> Estimated seconds to completion
 
 /******************************************************************************/
 /*                 S t r u c t u r e s   &   T y p e d e f s                  */
@@ -95,15 +96,56 @@ struct XrdSfsPrep  // Prepare parameters
 /******************************************************************************/
 /*                      A b s t r a c t   C l a s s e s                       */
 /******************************************************************************/
-/******************************************************************************/
-/*                     s f s F i l e S y s t e m D e s c                      */
-/******************************************************************************/
 
-class  XrdOucTList;
 class  XrdSfsFile;
 class  XrdSfsDirectory;
+class  XrdOucTList;
 class  XrdSecEntity;
 
+/******************************************************************************/
+/*                        X r d S f s C a l l B a c k                         */
+/******************************************************************************/
+  
+// The XrdSfsCallBack object is used to handle long running functions. The
+// appropriate method is invoked when the corresponding method returns an
+// SFS_STARTED. Only those functions listed below may return this error.
+// The method only returns the error if the call back object was set in the
+// XrdOucErrInfo object. The callback occurs when the originally requested 
+// function completes. EInfo holds error information, if any. Result holds 
+// the return value. The Varg points to values as indiacted below.
+//
+class XrdSfsCallBack : public XrdOucEICB
+{
+public:
+
+// Callbacks are only supported for the following set of functions
+//
+enum CBFunc {is_chmod,  is_mkdir,  is_openfile, is_opendir, is_rem,
+             is_remdir, is_rename, is_statbuff, is_statmode};
+
+virtual XrdOucEICB *Alloc() = 0;
+
+// Varg = 0               if chmod(), mkdir(), rem(), remdir(), rename()
+// Varg = XrdSfsFile      if open() file
+// Varg = XrdSfsDirectory if open() directory
+// Varg = struct stat     if stat() with buffer
+// Varg = mode_t          if stat() with mode
+//
+virtual void        Done(int            cbfunc,
+                         XrdOucEI      &EInfo,
+                         int           &Result,
+                         void          *Varg=0) = 0;
+
+virtual void        Recycle() = 0;
+
+                    XrdSfsCallBack() {}
+virtual            ~XrdSfsCallBack() {}
+};
+
+/******************************************************************************/
+/*                      X r d S f s F i l e S y s t e m                       */
+/******************************************************************************/
+  
 class XrdSfsFileSystem
 {
 public:
@@ -178,6 +220,8 @@ virtual int            stat(const char               *Name,
 
                        XrdSfsFileSystem() {}
 virtual               ~XrdSfsFileSystem() {}
+
+protected:
 };
 
 /******************************************************************************/
@@ -194,7 +238,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 }
 
 /******************************************************************************/
-/*                               s f s F i l e                                */
+/*                            X r d S f s F i l e                             */
 /******************************************************************************/
 
 class XrdSfsAio;
@@ -247,7 +291,7 @@ virtual               ~XrdSfsFile() {}
 }; // class XrdSfsFile
 
 /******************************************************************************/
-/*                          s f s D i r e c t o r y                           */
+/*                       X r d S f s D i r e c t o r y                        */
 /******************************************************************************/
   
 class XrdSfsDirectory
