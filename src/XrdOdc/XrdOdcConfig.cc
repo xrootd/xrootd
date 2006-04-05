@@ -355,7 +355,8 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
     if (!port) {free(mval); return 1;}
 
     if (myHost && (val = Config.GetWord()) && !strcmp("if", val))
-       if ((rc = XrdOucUtils::doIf(eDest,Config,"role directive",myHost, myName)) <= 0)
+       if ((rc = XrdOucUtils::doIf(eDest,Config,"role directive",myHost, myName,
+                                   getenv("XRDPROG"))) <= 0)
           {free(mval);
            return (rc < 0);
           }

@@ -620,7 +620,8 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
             Eroute.Emsg("Config", "Warning! Implied 'if' on redirect is now deprecated.");
            }
         if ((rc = XrdOucUtils::doIf(&Eroute, Config, "redirect directive",
-                                   getenv("XRDHOST"), getenv("XRDNAME"))) <= 0)
+                                   getenv("XRDHOST"), getenv("XRDNAME"),
+                                   getenv("XRDPROG"))) <= 0)
            return (rc < 0);
        }
     Options |= ropt;
