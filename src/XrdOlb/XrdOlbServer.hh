@@ -73,6 +73,8 @@ static int  Resume(XrdOlbPrepArgs *pargs);
 
        void setName(XrdNetLink *lnkp, int port);
 
+static void setRelay(XrdNetLink *rlyp) {Relay = rlyp;}
+
             XrdOlbServer(XrdNetLink *lnkp, int port=0, char *sid=0);
            ~XrdOlbServer();
 
@@ -110,6 +112,7 @@ static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
        int   Reissue(char *rid, const char *op, char *arg1, char *path, char *arg3=0);
 
 static XrdOlbManList myMans;
+static XrdNetLink   *Relay;
 XrdOucMutex       myMutex;
 XrdNetLink       *Link;
 unsigned int      IPAddr;

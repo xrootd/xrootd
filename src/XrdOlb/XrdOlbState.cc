@@ -12,15 +12,17 @@
 
 #include "XrdOlb/XrdOlbManager.hh"
 #include "XrdOlb/XrdOlbState.hh"
+
+using namespace XrdOlb;
  
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-
-extern XrdOlbManager XrdOlbSM;
   
 #define OLB_ALL_SUSPEND 1
 #define OLB_ALL_NOSTAGE 2
+
+XrdOlbState XrdOlb::OlbState;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -49,7 +51,7 @@ void XrdOlbState::Calc(int how, int nostg, int susp)
    myMutex.Lock();
    if (!nostg) numStaging += how;
    if ( susp)  numSuspend += how;
-   newState = (numSuspend == XrdOlbSM.ServCnt ? OLB_ALL_SUSPEND : 0) |
+   newState = (numSuspend == Manager.ServCnt ? OLB_ALL_SUSPEND : 0) |
               (numStaging ? 0 : OLB_ALL_NOSTAGE);
 
 // If any changes are noted then we must notify all our managers
@@ -77,9 +79,9 @@ void *XrdOlbState::Monitor()
    do {mySemaphore.Wait();
        myMutex.Lock();
        if (Changes & OLB_ALL_SUSPEND) 
-          XrdOlbSM.Inform((curState & OLB_ALL_SUSPEND ? "suspend\n":"resume\n"));
+          Manager.Inform((curState & OLB_ALL_SUSPEND ? "suspend\n":"resume\n"));
        if (Changes & OLB_ALL_NOSTAGE) 
-          XrdOlbSM.Inform((curState & OLB_ALL_NOSTAGE ? "nostage\n":"stage\n"));
+          Manager.Inform((curState & OLB_ALL_NOSTAGE ? "nostage\n":"stage\n"));
        Changes = 0;
        myMutex.UnLock();
       } while(1);
@@ -107,9 +109,9 @@ void XrdOlbState::Sync(SMask_t mmask, int oldnos, int oldsus)
 //
    myMutex.Lock();
    if ((oldChanges = oldState ^ curState))
-      {if (oldChanges & OLB_ALL_SUSPEND) XrdOlbSM.Inform(mmask,
+      {if (oldChanges & OLB_ALL_SUSPEND) Manager.Inform(mmask,
           (curState & OLB_ALL_SUSPEND ? "suspend\n" : "resume\n"));
-       if (oldChanges & OLB_ALL_NOSTAGE) XrdOlbSM.Inform(mmask,
+       if (oldChanges & OLB_ALL_NOSTAGE) Manager.Inform(mmask,
           (curState & OLB_ALL_NOSTAGE ? "nostage\n" : "stage\n"));
       }
    myMutex.UnLock();

@@ -12,7 +12,8 @@
 
 //         $Id$
   
-#include "XrdOlb/XrdOlbScheduler.hh"
+#include "Xrd/XrdJob.hh"
+#include "Xrd/XrdScheduler.hh"
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPthread.hh"
@@ -24,7 +25,7 @@
 
 class XrdOlbServer;
 
-class XrdOlbPrepArgs : public XrdOlbJob
+class XrdOlbPrepArgs : public XrdJob
 {
 public:
 
@@ -39,11 +40,9 @@ int             iovn;
 void            Clear() {reqid = user = prty = mode = path = 0;
                          iovp = 0; iovn = 0;}
 
-int             DoIt() {if (!XrdOlbServer::Resume(this)) delete this;
-                        return 0;
-                       }
+void            DoIt() {if (!XrdOlbServer::Resume(this)) delete this;}
 
-                XrdOlbPrepArgs() : XrdOlbJob("prepare") {Clear();}
+                XrdOlbPrepArgs() : XrdJob("prepare") {Clear();}
 
 XrdOlbPrepArgs &operator =(const XrdOlbPrepArgs &rhs)
                    {reqid = rhs.reqid;
@@ -69,7 +68,7 @@ XrdOlbPrepArgs &operator =(const XrdOlbPrepArgs &rhs)
 /*                   C l a s s   X r d O l b P r e p a r e                    */
 /******************************************************************************/
 
-class XrdOlbPrepare : public XrdOlbJob
+class XrdOlbPrepare : public XrdJob
 {
 public:
 
@@ -81,10 +80,9 @@ int        Exists(char *path);
 
 void       Gone(char *path);
 
-int        DoIt() {Scrub();
+void       DoIt() {Scrub();
                    if (prepif) 
-                      SchedP->Schedule((XrdOlbJob *)this, scrubtime+time(0));
-                   return 1;
+                      SchedP->Schedule((XrdJob *)this, scrubtime+time(0));
                   }
 
 int        Pending() {return NumFiles;}
@@ -95,7 +93,7 @@ int        setParms(int rcnt, int stime, int deco=0);
 
 int        setParms(char *ifpgm);
 
-int        setParms(XrdOlbScheduler *sp) {SchedP = sp; return 0;}
+int        setParms(XrdScheduler *sp) {SchedP = sp; return 0;}
 
            XrdOlbPrepare();
           ~XrdOlbPrepare() {}   // Never gets deleted
@@ -108,7 +106,7 @@ int        startIF();
 XrdOucMutex           PTMutex;
 XrdOucHash<char>      PTable;
 XrdOucStream          prepSched;
-XrdOlbScheduler      *SchedP;
+XrdScheduler         *SchedP;
 time_t                lastemsg;
 pid_t                 preppid;
 int                   NumFiles;
@@ -118,4 +116,9 @@ int                   scrub2rst;
 int                   scrubtime;
 char                 *prepif;
 };
+
+namespace XrdOlb
+{
+extern    XrdOlbPrepare PrepQ;
+}
 #endif

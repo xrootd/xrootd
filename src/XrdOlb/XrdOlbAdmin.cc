@@ -28,28 +28,17 @@ const char *XrdOlbAdminCVSID = "$Id$";
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdNet/XrdNetSocket.hh"
+
+using namespace XrdOlb;
  
 /******************************************************************************/
 /*                     G l o b a l s   &   S t a t i c s                      */
 /******************************************************************************/
 
-extern int              XrdOlbSTDERR;
-
-extern XrdOlbConfig     XrdOlbConfig;
-
-extern XrdOlbPrepare    XrdOlbPrepQ;
-
-extern XrdOucTrace      XrdOlbTrace;
-
-extern XrdOlbManager    XrdOlbSM;
-
-extern XrdOucError      XrdOlbSay;
-
        XrdOucMutex      XrdOlbAdmin::myMutex;
        XrdOucSemaphore *XrdOlbAdmin::SyncUp = 0;
        int              XrdOlbAdmin::nSync  = 0;
        int              XrdOlbAdmin::POnline= 0;
-  
 
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -80,16 +69,16 @@ void XrdOlbAdmin::Login(int socknum)
    if ((request = Stream.GetLine()))
       {DEBUG("Initial admin request: '" <<request <<"'");
        if (!(tp = Stream.GetToken()) || strcmp("login", tp) || !do_Login())
-          {XrdOlbSay.Emsg(epname, "Invalid admin login sequence");
+          {Say.Emsg(epname, "Invalid admin login sequence");
            return;
           }
-       } else {XrdOlbSay.Emsg(epname, "No admin login specified");
+       } else {Say.Emsg(epname, "No admin login specified");
                return;
               }
 
 // Document the login
 //
-   XrdOlbSay.Emsg(epname, Stype, Sname, "logged in");
+   Say.Emsg(epname, Stype, Sname, "logged in");
 
 // Start receiving requests on this stream
 //
@@ -100,19 +89,19 @@ void XrdOlbAdmin::Login(int socknum)
              else if (!strcmp("rmdid",    tp)) do_RmDid();
              else if (!strcmp("newfn",    tp)) do_RmDud();
              else if (!strcmp("suspend",  tp)) do_Suspend();
-             else XrdOlbSay.Emsg(epname, "invalid admin request,", tp);
+             else Say.Emsg(epname, "invalid admin request,", tp);
             }
         }
 
 // The socket disconnected
 //
-   XrdOlbSay.Emsg("Login", Stype, Sname, "logged out");
+   Say.Emsg("Login", Stype, Sname, "logged out");
 
 // If this is a primary, we must suspend but do not record this event!
 //
    if (Primary) 
       {myMutex.Lock();
-       XrdOlbSM.Suspend();
+       Manager.Suspend();
        POnline = 0;
        myMutex.UnLock();
       }
@@ -143,7 +132,7 @@ void *XrdOlbAdmin::Notes(XrdNetSocket *AnoteSock)
                  else if (!strcmp("have",    tp)) do_RmDud(1);
                  else if (!strcmp("nostage", tp)) do_NoStage();
                  else if (!strcmp("stage",   tp)) do_Stage();
-                 else XrdOlbSay.Emsg(epname, "invalid notification,", tp);
+                 else Say.Emsg(epname, "invalid notification,", tp);
                 }
             }
        if ((rc = Stream.LastError())) break;
@@ -152,7 +141,7 @@ void *XrdOlbAdmin::Notes(XrdNetSocket *AnoteSock)
 
 // We should never get here
 //
-   XrdOlbSay.Emsg(epname, rc, "accept notification");
+   Say.Emsg(epname, rc, "accept notification");
    return (void *)0;
 }
 
@@ -168,17 +157,17 @@ void *XrdOlbAdmin::Start(XrdNetSocket *AdminSock)
 
 // If we are in independent mode then let the caller continue
 //
-   if (!XrdOlbConfig.doWait || !XrdOlbConfig.Server()) {SyncUp->Post(); nSync = 1;}
-      else XrdOlbSay.Emsg(epname, "Waiting for primary server to login.");
+   if (!Config.doWait || !Config.asServer()) {SyncUp->Post(); nSync = 1;}
+      else Say.Emsg(epname, "Waiting for primary server to login.");
 
 // Accept connections in an endless loop
 //
    while(1) if ((InSock = AdminSock->Accept()) >= 0)
                {if (XrdOucThread::Run(&tid,XrdOlbLoginAdmin,(void *)&InSock))
-                   {XrdOlbSay.Emsg(epname, errno, "start admin");
+                   {Say.Emsg(epname, errno, "start admin");
                     close(InSock);
                    }
-               } else XrdOlbSay.Emsg(epname, errno, "accept connection");
+               } else Say.Emsg(epname, errno, "accept connection");
    return (void *)0;
 }
 
@@ -197,7 +186,7 @@ int XrdOlbAdmin::do_Login()
 // Process: login {p | s | u} <name> [port <port>]
 //
    if (!(tp = Stream.GetToken()))
-      {XrdOlbSay.Emsg("do_Login", "login type not specified");
+      {Say.Emsg("do_Login", "login type not specified");
        return 0;
       }
 
@@ -210,12 +199,12 @@ int XrdOlbAdmin::do_Login()
              }
 
    if (!Ltype)
-      {XrdOlbSay.Emsg("do_Login", "Invalid login type,", tp);
+      {Say.Emsg("do_Login", "Invalid login type,", tp);
        return 0;
       } else Ltype = *tp;
 
    if (!(tp = Stream.GetToken()))
-      {XrdOlbSay.Emsg("do_Login", "login name not specified");
+      {Say.Emsg("do_Login", "login name not specified");
        return 0;
       } else Sname = strdup(tp);
 
@@ -224,13 +213,13 @@ int XrdOlbAdmin::do_Login()
    while((tp = Stream.GetToken()))
         {     if (!strcmp(tp, "port"))
                  {if (!(tp = Stream.GetToken()))
-                     {XrdOlbSay.Emsg("do_Login", "login port not specified");
+                     {Say.Emsg("do_Login", "login port not specified");
                       return 0;
                      }
-                  if (XrdOuca2x::a2i(XrdOlbSay,"login port",tp,&Port,0))
+                  if (XrdOuca2x::a2i(Say,"login port",tp,&Port,0))
                      return 0;
                  }
-         else    {XrdOlbSay.Emsg("do_Login", "invalid login option -", tp);
+         else    {Say.Emsg("do_Login", "invalid login option -", tp);
                   return 0;
                  }
         }
@@ -244,7 +233,7 @@ int XrdOlbAdmin::do_Login()
    myMutex.Lock();
    if (POnline && Ltype == 'p')
       {myMutex.UnLock();
-       XrdOlbSay.Emsg("do_Login", "Primary server already logged in; login of", 
+       Say.Emsg("do_Login", "Primary server already logged in; login of", 
                                    tp, "rejected.");
        return 0;
       }
@@ -253,7 +242,7 @@ int XrdOlbAdmin::do_Login()
 //
    Primary = 1;
    POnline = 1;
-   if (XrdOlbConfig.doWait) XrdOlbSM.setPort(Port);
+   if (Config.doWait) Manager.setPort(Port);
 
 // Check if this is the first primary login and resume if we must
 //
@@ -263,7 +252,7 @@ int XrdOlbAdmin::do_Login()
        myMutex.UnLock();
        return 1;
       }
-   XrdOlbSM.Resume();
+   Manager.Resume();
    myMutex.UnLock();
 
    return 1;
@@ -275,9 +264,9 @@ int XrdOlbAdmin::do_Login()
   
 void XrdOlbAdmin::do_NoStage()
 {
-   XrdOlbSay.Emsg("do_NoStage", "nostage requested by", Stype, Sname);
-   XrdOlbSM.Stage(0);
-   close(open(XrdOlbConfig.NoStageFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
+   Say.Emsg("do_NoStage", "nostage requested by", Stype, Sname);
+   Manager.Stage(0);
+   close(open(Config.NoStageFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
 }
  
 /******************************************************************************/
@@ -286,9 +275,9 @@ void XrdOlbAdmin::do_NoStage()
   
 void XrdOlbAdmin::do_Resume()
 {
-   XrdOlbSay.Emsg("do_Resume", "resume requested by", Stype, Sname);
-   unlink(XrdOlbConfig.SuspendFile);
-   XrdOlbSM.Resume();
+   Say.Emsg("do_Resume", "resume requested by", Stype, Sname);
+   unlink(Config.SuspendFile);
+   Manager.Resume();
 }
  
 /******************************************************************************/
@@ -304,20 +293,19 @@ void XrdOlbAdmin::do_RmDid(int dotrim)
    int   rc;
 
    if (!(tp = Stream.GetToken()))
-      {XrdOlbSay.Emsg(epname,"removed path not specified by",Stype,Sname);
+      {Say.Emsg(epname,"removed path not specified by",Stype,Sname);
        return;
       }
 
-   XrdOlbPrepQ.Gone(tp);
-
-   if (dotrim && XrdOlbConfig.lcl_N2N)
-      if ((rc = XrdOlbConfig.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
-         {XrdOlbSay.Emsg(epname, rc, "determine lfn for removed path", tp);
+   PrepQ.Gone(tp);
+   if (dotrim && Config.lcl_N2N)
+      if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
+         {Say.Emsg(epname, rc, "determine lfn for removed path", tp);
           return;
          } else tp = apath;
 
    DEBUG("Sending managers " <<cmd <<tp);
-   XrdOlbSM.Inform(cmd, cmdl, tp, 0);
+   Manager.Inform(cmd, cmdl, tp, 0);
 }
  
 /******************************************************************************/
@@ -333,18 +321,18 @@ void XrdOlbAdmin::do_RmDud(int dotrim)
    int   rc;
 
    if (!(tp = Stream.GetToken()))
-      {XrdOlbSay.Emsg(epname,"added path not specified by",Stype,Sname);
+      {Say.Emsg(epname,"added path not specified by",Stype,Sname);
        return;
       }
 
-   if (dotrim && XrdOlbConfig.lcl_N2N)
-      if ((rc = XrdOlbConfig.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
-         {XrdOlbSay.Emsg(epname, rc, "determine lfn for added path", tp);
+   if (dotrim && Config.lcl_N2N)
+      if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
+         {Say.Emsg(epname, rc, "determine lfn for added path", tp);
           return;
          } else tp = apath;
 
    DEBUG("Sending managers " <<cmd <<tp);
-   XrdOlbSM.Inform(cmd, cmdl, tp, 0);
+   Manager.Inform(cmd, cmdl, tp, 0);
 }
  
 /******************************************************************************/
@@ -353,9 +341,9 @@ void XrdOlbAdmin::do_RmDud(int dotrim)
   
 void XrdOlbAdmin::do_Stage()
 {
-   XrdOlbSay.Emsg("do_Stage", "stage requested by", Stype, Sname);
-   XrdOlbSM.Stage(1);
-   unlink(XrdOlbConfig.NoStageFile);
+   Say.Emsg("do_Stage", "stage requested by", Stype, Sname);
+   Manager.Stage(1);
+   unlink(Config.NoStageFile);
 }
   
 /******************************************************************************/
@@ -364,7 +352,7 @@ void XrdOlbAdmin::do_Stage()
   
 void XrdOlbAdmin::do_Suspend()
 {
-   XrdOlbSay.Emsg("do_Suspend", "suspend requested by", Stype, Sname);
-   XrdOlbSM.Suspend();
-   close(open(XrdOlbConfig.SuspendFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
+   Say.Emsg("do_Suspend", "suspend requested by", Stype, Sname);
+   Manager.Suspend();
+   close(open(Config.SuspendFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
 }

@@ -21,6 +21,7 @@
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdNetLink;
+class XrdNetWork;
 class XrdOlbDrop;
 class XrdOlbServer;
 
@@ -107,6 +108,7 @@ void        Resume();
 int         SelServer(int pt, char *path, SMask_t pmsk, SMask_t amsk, char *hb,
                       const struct iovec *iodata=0, int iovcnt=0);
 int         SelServer(int isrw, SMask_t pmask, char *hbuff);
+void        setNet(XrdNetWork *net) {NetTCPs = net;}
 void        setPort(int port) {Port = port;}
 void        Snooze(int slpsec);
 void        Space(int none, int doinform=1);
@@ -143,6 +145,7 @@ XrdOlbServer *ServTab[STMax];
 XrdOlbServer *ServBat[STMax];
 XrdOucMutex   MTMutex;
 XrdOlbServer *MastTab[MTMax];
+XrdNetWork   *NetTCPs;
 char          AltMans[STMax*AltSize]; // ||123.123.123.123:12345|| = 21
 char         *AltMend;
 int           AltMent;
@@ -157,4 +160,9 @@ int  SelRcnt;
 int  doReset;
 SMask_t resetMask;
 };
+
+namespace XrdOlb
+{
+extern    XrdOlbManager Manager;
+}
 #endif

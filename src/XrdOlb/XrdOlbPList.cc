@@ -12,14 +12,7 @@
 
 const char *XrdOlbPListCVSID = "$Id$";
   
-#include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbPList.hh"
- 
-/******************************************************************************/
-/*                               G l o b a l s                                */
-/******************************************************************************/
-  
-extern XrdOucTrace XrdOlbTrace;
 
 /******************************************************************************/
 /*                                  F i n d                                   */
@@ -98,7 +91,6 @@ SMask_t XrdOlbPList_Anchor::Insert(const char *pname, XrdOlbPInfo *pinfo)
   
 void XrdOlbPList_Anchor::Remove(SMask_t mask)
 {
-    EPNAME("Remove")
     SMask_t zmask = ~mask;
     XrdOlbPList *pp = next, *prevp = 0;
 
@@ -110,8 +102,7 @@ void XrdOlbPList_Anchor::Remove(SMask_t mask)
 //
    while(pp)
         {if (!pp->pathmask.And(zmask))
-            {DEBUG("PList: Removed " <<pp->pathname);
-             if (prevp) {prevp->next = pp->next; delete pp; pp = prevp->next;}
+            {if (prevp) {prevp->next = pp->next; delete pp; pp = prevp->next;}
                 else    {       next = pp->next; delete pp; pp = next;}
             }
             else {prevp = pp; pp = pp->next;}

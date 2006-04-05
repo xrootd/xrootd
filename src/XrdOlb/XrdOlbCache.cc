@@ -12,8 +12,12 @@
 
 const char *XrdOlbCacheCVSID = "$Id$";
   
+#include <sys/types.h>
+
 #include "XrdOlb/XrdOlbCache.hh"
 #include "XrdOlb/XrdOlbRRQ.hh"
+
+using namespace XrdOlb;
 
 /******************************************************************************/
 /*                      L o c a l   S t r u c t u r e s                       */
@@ -30,6 +34,12 @@ struct XrdOlbEXTArgs
         char             *ppfx;
         int               plen;
        };
+
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
+XrdOlbCache XrdOlb::Cache;
 
 /******************************************************************************/
 /*                    E x t e r n a l   F u n c t i o n s                     */
@@ -343,7 +353,6 @@ void XrdOlbCache::Scrub()
   
 void XrdOlbCache::Add2Q(XrdOlbRRQInfo *Info, XrdOlbCInfo *cp, int isrw)
 {
-   extern XrdOlbRRQ RRQ;
    short Slot = (isrw ? cp->rwPend : cp->roPend);
 
 // Add the request to the appropriate pending queue
@@ -361,7 +370,6 @@ void XrdOlbCache::Add2Q(XrdOlbRRQInfo *Info, XrdOlbCInfo *cp, int isrw)
   
 void XrdOlbCache::Dispatch(XrdOlbCInfo *cinfo, short roQ, short rwQ)
 {
-   extern XrdOlbRRQ RRQ;
 
 // Dispach the waiting elements
 //
@@ -379,7 +387,6 @@ void XrdOlbCache::Dispatch(XrdOlbCInfo *cinfo, short roQ, short rwQ)
   
 XrdOlbCInfo::~XrdOlbCInfo()
 {
-   extern XrdOlbRRQ RRQ;
    if (roPend) RRQ.Del(roPend, this);
    if (rwPend) RRQ.Del(rwPend, this);
 }

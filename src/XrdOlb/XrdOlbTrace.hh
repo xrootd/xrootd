@@ -12,6 +12,7 @@
 
 //         $Id$
 
+#include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
 #define TRACE_ALL   0x0007
@@ -24,11 +25,11 @@
 #include <iostream.h>
 #include "XrdOuc/XrdOucTrace.hh"
 
-#define DEBUG(y) if (XrdOlbTrace.What & TRACE_Debug) TRACEX(y)
+#define DEBUG(y) if (Trace.What & TRACE_Debug) TRACEX(y)
 
-#define TRACE(x,y) if (XrdOlbTrace.What & TRACE_ ## x) TRACEX(y)
+#define TRACE(x,y) if (Trace.What & TRACE_ ## x) TRACEX(y)
 
-#define TRACEX(y) {XrdOlbTrace.Beg(0,epname); cerr <<y; XrdOlbTrace.End();}
+#define TRACEX(y) {Trace.Beg(0,epname); cerr <<y; Trace.End();}
 
 #define EPNAME(x) const char *epname = x;
 
@@ -39,4 +40,10 @@
 #define EPNAME(x)
 
 #endif
+
+namespace XrdOlb
+{
+extern    XrdOucError Say;
+extern    XrdOucTrace Trace;
+}
 #endif

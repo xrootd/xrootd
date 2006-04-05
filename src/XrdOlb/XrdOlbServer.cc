@@ -18,6 +18,8 @@ const char *XrdOlbServerCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "Xrd/XrdJob.hh"
+#include "Xrd/XrdScheduler.hh"
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbCache.hh"
 #include "XrdOlb/XrdOlbConfig.hh"
@@ -36,29 +38,15 @@ const char *XrdOlbServerCVSID = "$Id$";
 
 #include "XrdOuc/XrdOuca2x.hh"
 
+using namespace XrdOlb;
+
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
-  
-extern XrdOlbCache    XrdOlbCache;
-
-extern XrdOlbConfig   XrdOlbConfig;
-
-extern XrdOlbMeter    XrdOlbTop;
-
-extern XrdOucTrace    XrdOlbTrace;
-
-extern XrdOucError    XrdOlbSay;
-
-extern XrdOlbManager  XrdOlbSM;
-
-extern XrdOlbState    XrdOlbSMon;
-
-extern XrdNetLink    *XrdOlbRelay;
-
-extern XrdOlbPrepare  XrdOlbPrepQ;
 
        XrdOlbManList  XrdOlbServer::myMans;
+
+       XrdNetLink    *XrdOlbServer::Relay = 0;
 
 /******************************************************************************/
 /*                        S t a t i c   O b j e c t s                         */
@@ -107,7 +95,7 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     RefR     =  0;
     RefTotR  =  0;
     pingpong =  0;
-    logload  =  XrdOlbConfig.LogPerf;
+    logload  =  Config.LogPerf;
     DropTime =  0;
     DropJob  =  0;
     myName   =  0;
@@ -139,8 +127,8 @@ XrdOlbServer::~XrdOlbServer()
 // If we are still an attached server, remove ourselves
 //
    if (ServMask)
-      {XrdOlbCache.Paths.Remove(ServMask);
-       XrdOlbCache.Reset(ServID);
+      {Cache.Paths.Remove(ServMask);
+       Cache.Reset(ServID);
       }
    isOffline = 1;
 
@@ -166,7 +154,7 @@ XrdOlbServer::~XrdOlbServer()
   
 int XrdOlbServer::Login(int dataPort, int Status)
 {
-   XrdOlbPList *plp = XrdOlbConfig.PathList.First();
+   XrdOlbPList *plp = Config.PathList.First();
    long totfr, maxfr;
    char pbuff[16], buff[1280];
 
@@ -183,7 +171,7 @@ int XrdOlbServer::Login(int dataPort, int Status)
                  (Status & OLB_noStage ? "nostage" : ""),
                  (Status & OLB_Suspend ? "suspend" : ""),
                  (Status & OLB_isMan   ? 'm'       : 's'), 
-                 XrdOlbConfig.PortTCP, XrdOlbConfig.mySID);
+                 Config.PortTCP, Config.mySID);
    if (Link->Send(buff) < 0) return -1;
 
 // If this is a new manager, it will send us a ping or try response at this
@@ -196,7 +184,7 @@ int XrdOlbServer::Login(int dataPort, int Status)
              {unsigned int ipaddr = Link->Addr();
               myMans.Del(ipaddr);
               while((tp = Link->GetToken()))
-                   myMans.Add(ipaddr, tp, XrdOlbConfig.PortTCP);
+                   myMans.Add(ipaddr, tp, Config.PortTCP);
               return 2;
              }
       }
@@ -213,18 +201,18 @@ int XrdOlbServer::Login(int dataPort, int Status)
 // Now issue a start. For supervisors use zero-knowledge info. A usage
 // report will be automatically sent the moment we get some free space.
 //
-   if (XrdOlbConfig.Manager()) 
+   if (Config.asManager())
       {if (Link->Send("start 0 1 0\n") < 0) return -1;
       } else {
-       maxfr = XrdOlbTop.FreeSpace(totfr);
+       maxfr = Meter.FreeSpace(totfr);
        if (Link->Send(buff, snprintf(buff, sizeof(buff)-1,
                       "start %ld %d %ld\n",
-                      maxfr, XrdOlbTop.numFS(), totfr)) < 0) return -1;
+                      maxfr, Meter.numFS(), totfr)) < 0) return -1;
       }
 
 // Document the login
 //
-   XrdOlbSay.Emsg("Server", "Logged into", Link->Name());
+   Say.Emsg("Server", "Logged into", Link->Name());
    return 0;
 }
 
@@ -241,7 +229,7 @@ void XrdOlbServer::Process_Director()
 // The command sequence is <id> <command> <args>
 //
    do {     if (!(tp = Receive(id, sizeof(id)))) retc = -1;
-       else if (XrdOlbConfig.Disabled) retc = do_Delay(id);
+       else if (Config.Disabled)       retc = do_Delay(id);
        else if (!strcmp("select", tp)) retc = do_Select(id);
        else if (!strcmp("selects",tp)) retc = do_Select(id, 1);
        else if (!strcmp("prepadd",tp)) retc = do_PrepAdd(id);
@@ -255,7 +243,7 @@ void XrdOlbServer::Process_Director()
        else if (!strcmp("rmdir",  tp)) retc = do_Rmdir(id, 0);
        else retc = 1;
        if (retc > 0)
-          XrdOlbSay.Emsg("Director", "invalid request from", Link->Name());
+          Say.Emsg("Director", "invalid request from", Link->Name());
       } while(retc >= 0);
 
 // If we got here, then the server connection was closed
@@ -263,7 +251,7 @@ void XrdOlbServer::Process_Director()
    if (!isOffline)
      {isOffline = 1;
       if ((retc = Link->LastError()))
-         XrdOlbSay.Emsg("Server", retc, "read request from", Link->Name());
+         Say.Emsg("Server", retc, "read request from", Link->Name());
      }
 }
 
@@ -281,7 +269,7 @@ int XrdOlbServer::Process_Requests()
 
 // If we are a line manager then we must synchronize our state with our manager
 //
-   if (XrdOlbConfig.Manager()) XrdOlbSMon.Sync(ServMask,1,1);
+   if (Config.asManager()) OlbState.Sync(ServMask,1,1);
 
 // Simply keep reading all requests until the link closes
 //
@@ -301,7 +289,7 @@ int XrdOlbServer::Process_Requests()
        else if (!strcmp("try",    tp)) retc = do_Try(id);
        else retc = 1;
        if (retc > 0)
-          XrdOlbSay.Emsg("Server", "invalid request from", Link->Name());
+          Say.Emsg("Server", "invalid request from", Link->Name());
       } while(retc >= 0 && !isOffline);
 
 // Check for permanent errors
@@ -309,7 +297,7 @@ int XrdOlbServer::Process_Requests()
    if (!isOffline)
       {isOffline = 1;
        if (retc < 0 && Link->LastError())
-          XrdOlbSay.Emsg("Server", Link->LastError(), "read response from",
+          Say.Emsg("Server", Link->LastError(), "read response from",
                          Link->Name());
       }
 
@@ -332,13 +320,13 @@ int XrdOlbServer::Process_Responses()
 
 // For newly logged in servers, we need to sync the free space stats
 //
-   if (XrdOlbConfig.Manager())
+   if (Config.asManager())
       {mlMutex.Lock();
        if (isRW && DiskFree > dsk_free)
           {retc = dsk_free; dsk_free = DiskFree; dsk_tota = DiskTota;
            if (!retc)
               {char respbuff[128];
-               XrdOlbSM.Inform("avkb", 4,
+               Manager.Inform("avkb", 4,
                                respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                                " %d %d\n", dsk_free, dsk_tota));
               }
@@ -361,7 +349,7 @@ int XrdOlbServer::Process_Responses()
        else if (!strcmp("rst",     tp)) retc = do_RST(id);
        else retc = 1;
        if (retc > 0)
-          XrdOlbSay.Emsg("Server", "invalid response from", myNick);
+          Say.Emsg("Server", "invalid response from", myNick);
       } while(retc >= 0 && !isOffline);
 
 // Check for permanent errors
@@ -369,7 +357,7 @@ int XrdOlbServer::Process_Responses()
    if (!isOffline)
       {isOffline = 1;
        if (retc < 0 && Link->LastError())
-          XrdOlbSay.Emsg("Server", Link->LastError(), "read response from",
+          Say.Emsg("Server", Link->LastError(), "read response from",
                         Link->Name());
       }
 
@@ -442,11 +430,11 @@ int XrdOlbServer::do_AvKb(char *rid)
 // Process: <id> avkb <fsdsk> <totdsk>
 //
    if (!(tp = Link->GetToken())
-   || XrdOuca2x::a2i(XrdOlbSay, "fs kb value",  tp, &fdsk, 0))
+   || XrdOuca2x::a2i(Say, "fs kb value",  tp, &fdsk, 0))
       return 1;
    DiskTota = DiskFree = fdsk;
    if ((tp = Link->GetToken()))
-      if (XrdOuca2x::a2i(XrdOlbSay, "tot kb value",  tp, &fdsk, 0))
+      if (XrdOuca2x::a2i(Say, "tot kb value",  tp, &fdsk, 0))
          return 1;
          else DiskTota = fdsk;
    return 0;
@@ -471,43 +459,43 @@ int XrdOlbServer::do_Chmod(char *rid, int do4real)
 //
    if (!(tp = Link->GetToken())
    || strlcpy(modearg, tp, sizeof(modearg)) >= sizeof(modearg))
-      {XrdOlbSay.Emsg("Server", "Mode too long in chmod", tp);
+      {Say.Emsg("Server", "Mode too long in chmod", tp);
        return 0;
       }
 
 // Get the target name
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "chmod path not specified");
+      {Say.Emsg("Server", "chmod path not specified");
        return 0;
       }
 
 // If are a manager then broadcast the request to every server that might
 // might be able to do this operation, then check if we should do it as well.
 //
-   if (XrdOlbSM.ServCnt) Reissue(rid, "chmod ", modearg, tp);
-   if (XrdOlbSM.noData) return 0;
+   if (Manager.ServCnt) Reissue(rid, "chmod ", modearg, tp);
+   if (Manager.noData) return 0;
 
 // Convert the mode
 //
    if (!(mode = strtol(modearg, 0, 8)))
-      {XrdOlbSay.Emsg("Server", "Invalid mode in chmod", modearg, tp);
+      {Say.Emsg("Server", "Invalid mode in chmod", modearg, tp);
        return 0;
       }
 
 // Generate the true local path
 //
-   if (XrdOlbConfig.lcl_N2N)
-      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else tp = lclpath;
 
 // Attempt to change the mode
 //
-   if (XrdOlbConfig.ProgCH) rc = XrdOlbConfig.ProgCH->Run(modearg, tp);
+   if (Config.ProgCH) rc = Config.ProgCH->Run(modearg, tp);
       else if (chmod(tp, mode)) rc = errno;
               else rc = 0;
    if (rc && rc != ENOENT)
-       XrdOlbSay.Emsg("Server", errno, "change mode for", tp);
+       Say.Emsg("Server", errno, "change mode for", tp);
        else DEBUG("rc=" <<rc <<" chmod " <<std::oct <<mode <<std::dec <<' ' <<tp);
    return 0;
 }
@@ -520,7 +508,7 @@ int XrdOlbServer::do_Delay(char *rid)
 {   char respbuff[64];
 
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                               "%s !wait %d\n", rid, XrdOlbConfig.SUPDelay));
+                               "%s !wait %d\n", rid, Config.SUPDelay));
 }
 /******************************************************************************/
 /* MANAGER:                      d o _ G o n e                                */
@@ -541,17 +529,17 @@ int XrdOlbServer::do_Gone(char *rid)
 // Update path information (we are not sure we should delete this from the
 // prep queue is we are functioning both manager and server, sugh -- we'll see)
 //
-   if (Instance) newgone = XrdOlbCache.DelFile(tp, ServMask);
-      else XrdOlbSay.Emsg("Server", "gone request ignored from", Name());
-   if (XrdOlbConfig.DiskSS) XrdOlbPrepQ.Gone(tp);
+   if (Instance) newgone = Cache.DelFile(tp, ServMask);
+      else Say.Emsg("Server", "gone request ignored from", Name());
+   if (Config.DiskSS) PrepQ.Gone(tp);
 
 // If we have no managers and we still have the file or never had it, return
 //
-   if (!XrdOlbSM.haveManagers() || !newgone) return 0;
+   if (!Manager.haveManagers() || !newgone) return 0;
 
 // Back-propogate the gone to all of our managers
 //
-   XrdOlbSM.Inform("gone ", 5, tp);
+   Manager.Inform("gone ", 5, tp);
 
 // All done
 //
@@ -580,21 +568,21 @@ int XrdOlbServer::do_Have(char *rid)
 
 // Update path information
 //
-   if (Instance) isnew = XrdOlbCache.AddFile(tp, ServMask, isrw);
-      else {XrdOlbSay.Emsg("Server", "have request ignored from", Name());
+   if (Instance) isnew = Cache.AddFile(tp, ServMask, isrw);
+      else {Say.Emsg("Server", "have request ignored from", Name());
             return 0;
            }
 
 // Return if we have no managers or we already informed the managers
 //
-   if (!XrdOlbSM.haveManagers() || !isnew) return 0;
+   if (!Manager.haveManagers() || !isnew) return 0;
 
 // Back-propogate the have to all of our managers
 //
    if (!isrw) cmd = (char *)"have r ";
       else if (isrw < 0) cmd = (char *)"have ? ";
               else cmd = (char *)"have w ";
-   XrdOlbSM.Inform(cmd, 7, tp);
+   Manager.Inform(cmd, 7, tp);
 
 // All done
 //
@@ -615,30 +603,30 @@ int XrdOlbServer::do_Load(char *rid)
 // Process: <id> load <cpu> <io> <load> <mem> <pag> <dsk>
 //
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "cpu value",  tp, &pcpu, 0, 100))
+   if (XrdOuca2x::a2i(Say, "cpu value",  tp, &pcpu, 0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "io value",   tp, &pio,  0, 100))
+   if (XrdOuca2x::a2i(Say, "io value",   tp, &pio,  0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "load value", tp, &pload,0, 100))
+   if (XrdOuca2x::a2i(Say, "load value", tp, &pload,0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "mem value",  tp, &pmem, 0, 100))
+   if (XrdOuca2x::a2i(Say, "mem value",  tp, &pmem, 0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "pag value",  tp, &ppag, 0, 100))
+   if (XrdOuca2x::a2i(Say, "pag value",  tp, &ppag, 0, 100))
       return 1;
    if (!(tp = Link->GetToken())) return 1;
-   if (XrdOuca2x::a2i(XrdOlbSay, "fs dsk value",  tp, &fdsk, 0))
+   if (XrdOuca2x::a2i(Say, "fs dsk value",  tp, &fdsk, 0))
       return 1;
    if ((tp = Link->GetToken())
-   && XrdOuca2x::a2i(XrdOlbSay, "tot dsk value",  tp, &tdsk, 0))
+   && XrdOuca2x::a2i(Say, "tot dsk value",  tp, &tdsk, 0))
       return 1;
 
 // Compute actual load value
 //
-   myLoad = XrdOlbTop.calcLoad(pcpu, pio, pload, pmem, ppag);
+   myLoad = Meter.calcLoad(pcpu, pio, pload, pmem, ppag);
    DiskFree = fdsk;
    DiskTota = (tdsk >= 0 ? tdsk : fdsk);
    newload = 1;
@@ -647,7 +635,7 @@ int XrdOlbServer::do_Load(char *rid)
 // an overall load to report when asked. If we get free space, then we
 // must report that now so that we can be selected for allocation.
 //
-   if (XrdOlbConfig.Manager())
+   if (Config.asManager())
       {mlMutex.Lock();
        temp = cpu_load + cpu_load/2;
        cpu_load = (cpu_load + (pcpu > temp ? temp : pcpu ))/2;
@@ -663,7 +651,7 @@ int XrdOlbServer::do_Load(char *rid)
           {temp = dsk_free; dsk_free = DiskFree; dsk_tota = DiskTota;
            if (!temp)   
               {char respbuff[128];
-               XrdOlbSM.Inform("avkb", 4,
+               Manager.Inform("avkb", 4,
                                respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                                " %d %d\n", dsk_free, dsk_tota));
               }
@@ -673,7 +661,7 @@ int XrdOlbServer::do_Load(char *rid)
 
 // Report new load if need be
 //
-   if (!XrdOlbConfig.LogPerf || logload--) return 0;
+   if (!Config.LogPerf || logload--) return 0;
 
 // Log it now
 //
@@ -681,8 +669,8 @@ int XrdOlbServer::do_Load(char *rid)
     snprintf(buff, sizeof(buff)-1,
             "load=%d; cpu=%d i/o=%d inq=%d mem=%d pag=%d dsk=%d tot=%d",
             myLoad, pcpu, pio, pload, pmem, ppag, fdsk, tdsk);
-    XrdOlbSay.Emsg("Server", Name(), buff);
-    if ((logload = XrdOlbConfig.LogPerf)) logload--;
+    Say.Emsg("Server", Name(), buff);
+    if ((logload = Config.LogPerf)) logload--;
    }
 
    return 0;
@@ -707,42 +695,42 @@ int XrdOlbServer::do_Mkdir(char *rid, int do4real)
 //
    if (!(tp = Link->GetToken())
    || strlcpy(modearg, tp, sizeof(modearg)) >= sizeof(modearg))
-      {XrdOlbSay.Emsg("Server", "Mode too long in mkdir", tp);
+      {Say.Emsg("Server", "Mode too long in mkdir", tp);
        return 0;
       }
 
 // Get the directory name
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "mkdir directory not specified");
+      {Say.Emsg("Server", "mkdir directory not specified");
        return 0;
       }
 
 // If we have subsscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (XrdOlbSM.ServCnt) Reissue(rid, "mkdir ", modearg, tp);
-   if (XrdOlbSM.noData) return 0;
+   if (Manager.ServCnt) Reissue(rid, "mkdir ", modearg, tp);
+   if (Manager.noData) return 0;
 
 // Convert the mode
 //
    if (!(mode = strtol(modearg, 0, 8)))
-      {XrdOlbSay.Emsg("Server", "Invalid mode in mkdir", modearg, tp);
+      {Say.Emsg("Server", "Invalid mode in mkdir", modearg, tp);
        return 0;
       }
 
 // Generate the true local path
 //
-   if (XrdOlbConfig.lcl_N2N)
-      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else tp = lclpath;
 
 // Attempt to create the directory
 //
-   if (XrdOlbConfig.ProgMD) rc = XrdOlbConfig.ProgMD->Run(modearg, tp);
+   if (Config.ProgMD) rc = Config.ProgMD->Run(modearg, tp);
       else if (mkdir(tp, mode)) rc = errno;
               else rc = 0;
-   if (rc) XrdOlbSay.Emsg("Server", rc, "create directory", tp);
+   if (rc) Say.Emsg("Server", rc, "create directory", tp);
       else DEBUG("rc=" <<rc <<" mkdir " <<std::oct <<mode <<std::dec <<' ' <<tp);
    return 0;
 }
@@ -767,47 +755,47 @@ int XrdOlbServer::do_Mv(char *rid, int do4real)
 // Get the old name
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "mv old path not specified");
+      {Say.Emsg("Server", "mv old path not specified");
        return 0;
       }
 
 // Generate proper old path name
 //
-   if (do4real && XrdOlbConfig.lcl_N2N)
-      {if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,old_lclpath,sizeof(old_lclpath))) 
+   if (do4real && Config.lcl_N2N)
+      {if (Config.lcl_N2N->lfn2pfn(tp,old_lclpath,sizeof(old_lclpath))) 
           return 0;
       }
       else if (strlcpy(old_lclpath,tp,sizeof(old_lclpath)) > XrdOlbMAX_PATH_LEN)
-              {XrdOlbSay.Emsg("Server", "mv old path too long", tp);
+              {Say.Emsg("Server", "mv old path too long", tp);
                return 0;
               }
 
 // Get the new name
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "mv new path not specified");
+      {Say.Emsg("Server", "mv new path not specified");
        return 0;
       }
 
 // If we have subscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (XrdOlbSM.ServCnt) Reissue(rid, "mv ", 0, old_lclpath, tp);
-   if (XrdOlbSM.noData) return 0;
+   if (Manager.ServCnt) Reissue(rid, "mv ", 0, old_lclpath, tp);
+   if (Manager.noData) return 0;
 
 // Generate the true local path for new name
 //
-   if (XrdOlbConfig.lcl_N2N)
-      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,new_lclpath,sizeof(new_lclpath))) 
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(tp,new_lclpath,sizeof(new_lclpath))) 
          return 0;
          else tp = new_lclpath;
 
 // Attempt to rename the file
 //
-   if (XrdOlbConfig.ProgMV) rc = XrdOlbConfig.ProgMV->Run(old_lclpath, tp);
+   if (Config.ProgMV) rc = Config.ProgMV->Run(old_lclpath, tp);
       else if (rename(old_lclpath, tp)) rc = errno;
               else rc = 0;
-   if (rc) XrdOlbSay.Emsg("Server", rc, "rename", old_lclpath);
+   if (rc) Say.Emsg("Server", rc, "rename", old_lclpath);
       else DEBUG("rc=" <<rc <<" mv " <<old_lclpath <<' ' <<tp);
 
    return 0;
@@ -846,7 +834,7 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
 // Get the request id
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "no prep request id from", Name());
+      {Say.Emsg("Server", "no prep request id from", Name());
        return 1;
       }
    pargs.reqid = strdup(tp);
@@ -854,7 +842,7 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
 // Get userid
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "no prep user from", Name());
+      {Say.Emsg("Server", "no prep user from", Name());
        return 1;
       }
    pargs.user = strdup(tp);
@@ -862,7 +850,7 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
 // Get priority
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "no prep prty from", Name());
+      {Say.Emsg("Server", "no prep prty from", Name());
        return 1;
       }
    pargs.prty = strdup(tp);
@@ -870,7 +858,7 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
 // Get mode
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "no prep mode from", Name());
+      {Say.Emsg("Server", "no prep mode from", Name());
        return 1;
       }
    pargs.mode = strdup(tp);
@@ -878,7 +866,7 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
 // Get path
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "no prep path from", Name());
+      {Say.Emsg("Server", "no prep path from", Name());
        return 1;
       }
    pargs.path = strdup(tp);
@@ -898,8 +886,8 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
 // Create prepare message to be used when a server is selected:
 // <mid> prepadd <reqid> <usr> <prty> <mode> <path>\n
 //
-   iovp[ 0].iov_base = XrdOlbConfig.MsgGID; 
-   iovp[ 0].iov_len  = XrdOlbConfig.MsgGIDL;
+   iovp[ 0].iov_base = Config.MsgGID; 
+   iovp[ 0].iov_len  = Config.MsgGIDL;
    iovp[ 1].iov_base = (char *)"prepadd "; iovp[ 1].iov_len  = 8;
    iovp[ 2].iov_base = pargs.reqid;  iovp[ 2].iov_len  = strlen(pargs.reqid);
    iovp[ 3].iov_base = (char *)" ";  iovp[ 3].iov_len  = 1;
@@ -934,8 +922,8 @@ int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs &pargs)
 // Generate the true local path
 //
    oldpath = pargs.path;
-   if (XrdOlbConfig.lcl_N2N)
-      if (XrdOlbConfig.lcl_N2N->lfn2pfn(oldpath,lclpath,sizeof(lclpath))) 
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(oldpath,lclpath,sizeof(lclpath))) 
          return 0;
          else pargs.path = lclpath;
 
@@ -944,10 +932,10 @@ int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs &pargs)
    if (!isOnline(pargs.path))
       {DEBUG("Preparing " <<pargs.reqid <<' ' <<pargs.user <<' ' <<pargs.prty
                           <<' ' <<pargs.mode <<' ' <<pargs.path);
-       if (!XrdOlbConfig.DiskSS)
-          XrdOlbSay.Emsg("Server", "staging disallowed; ignoring prep",
+       if (!Config.DiskSS)
+          Say.Emsg("Server", "staging disallowed; ignoring prep",
                           pargs.user, pargs.reqid);
-          else XrdOlbPrepQ.Add(pargs);
+          else PrepQ.Add(pargs);
        pargs.path = oldpath;
        return 0;
       }
@@ -977,16 +965,16 @@ int XrdOlbServer::do_PrepDel(char *rid, int server)
 // Get the request id
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "no prepcan request id from", Name());
+      {Say.Emsg("Server", "no prepcan request id from", Name());
        return 1;
       }
 
 // If this is a server call, do it for real
 //
    if (server)
-      {if (!XrdOlbConfig.DiskSS) {DEBUG("Ignoring cancel prepare " <<tp);}
+      {if (!Config.DiskSS) {DEBUG("Ignoring cancel prepare " <<tp);}
           else {DEBUG("Canceling prepare " <<tp);
-                XrdOlbPrepQ.Del(tp);
+                PrepQ.Del(tp);
                }
        return 0;
       }
@@ -995,8 +983,8 @@ int XrdOlbServer::do_PrepDel(char *rid, int server)
 // subscribers about this cancellation.
 //
   DEBUG("Canceling prepare " <<tp);
-  XrdOlbSM.Broadcast(amask, buff, snprintf(buff, sizeof(buff)-1,
-                     "%s prepdel %s\n", XrdOlbConfig.MsgGID, tp));
+  Manager.Broadcast(amask, buff, snprintf(buff, sizeof(buff)-1,
+                     "%s prepdel %s\n", Config.MsgGID, tp));
   return 0;
 }
   
@@ -1007,7 +995,6 @@ int XrdOlbServer::do_PrepDel(char *rid, int server)
 int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is static!!
 {
    EPNAME("do_PrepSel")
-   extern XrdOlbScheduler XrdOlbSched;
    BUFF(2048);
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
@@ -1023,7 +1010,7 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
 
 // Find out who serves this path
 //
-   if (!XrdOlbCache.Paths.Find(pargs->path, pinfo)
+   if (!Cache.Paths.Find(pargs->path, pinfo)
    || (amask = (needrw ? pinfo.rwvec : pinfo.rovec)) == 0)
       {DEBUG("Path find failed for " <<pargs->reqid <<' ' <<ptc <<' ' <<pargs->path);
        return Inform("unavail", pargs);
@@ -1033,23 +1020,23 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
 // to all relevant servers. Note that even if the caller wants the file in
 // r/o mode we will ask both r/o and r/w servers for the file.
 //
-   if (!(retc = XrdOlbCache.GetFile(pargs->path, cinfo)) 
+   if (!(retc = Cache.GetFile(pargs->path, cinfo))
    ||  cinfo.deadline || (cinfo.sbvec != 0))
       {if (!retc)
           {DEBUG("Searching for " <<pargs->path);
-           XrdOlbCache.AddFile(pargs->path, 0, 0, XrdOlbConfig.LUPDelay);
-           XrdOlbSM.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
-                           "%s state %s\n", XrdOlbConfig.MsgGID, pargs->path));
+           Cache.AddFile(pargs->path, 0, 0, Config.LUPDelay);
+           Manager.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
+                           "%s state %s\n", Config.MsgGID, pargs->path));
           } else {
            if (cinfo.sbvec != 0)         // Bouncing server
-              {XrdOlbCache.DelFile(pargs->path,cinfo.sbvec,XrdOlbConfig.LUPDelay);
-               XrdOlbSM.Broadcast(cinfo.sbvec, buff, snprintf(buff,sizeof(buff)-1,
-                                "%s state %s\n",XrdOlbConfig.MsgGID,pargs->path));
+              {Cache.DelFile(pargs->path,cinfo.sbvec,Config.LUPDelay);
+               Manager.Broadcast(cinfo.sbvec, buff, snprintf(buff,sizeof(buff)-1,
+                                "%s state %s\n",Config.MsgGID,pargs->path));
               }
           }
        if (!stage) return 0;
-       DEBUG("Rescheduling lookup in " <<XrdOlbConfig.LUPDelay <<" seconds");
-       XrdOlbSched.Schedule((XrdOlbJob *)pargs,XrdOlbConfig.LUPDelay+time(0));
+       DEBUG("Rescheduling lookup in " <<Config.LUPDelay <<" seconds");
+       Sched->Schedule((XrdJob *)pargs, Config.LUPDelay+time(0));
        return 1;
       }
 
@@ -1063,7 +1050,7 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
 // Select a server
 //
    if (!(pmask | smask)) retc = -1;
-      else if (!(retc = XrdOlbSM.SelServer(needrw, pargs->path, pmask, smask, 
+      else if (!(retc = Manager.SelServer(needrw, pargs->path, pmask, smask, 
                         hbuff, pargs->iovp,pargs->iovn)))
               {DEBUG(hbuff <<" prepared " <<pargs->reqid <<' ' <<pargs->path);
                return 0;
@@ -1072,7 +1059,7 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
 // We failed check if we should reschedule this
 //
    if (retc > 0)
-      {XrdOlbSched.Schedule((XrdOlbJob *)pargs, retc+time(0));
+      {Sched->Schedule((XrdJob *)pargs, retc+time(0));
        DEBUG("Prepare delayed " <<retc <<" seconds");
        return 1;
       }
@@ -1120,28 +1107,28 @@ int XrdOlbServer::do_Rm(char *rid, int do4real)
 // Get the path
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "rm path not specified");
+      {Say.Emsg("Server", "rm path not specified");
        return 0;
       }
 
 // If we have subscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (XrdOlbSM.ServCnt) Reissue(rid, "rm ", 0, tp);
-   if (XrdOlbSM.noData) return 0;
+   if (Manager.ServCnt) Reissue(rid, "rm ", 0, tp);
+   if (Manager.noData) return 0;
 
 // Generate the true local path for name
 //
-   if (XrdOlbConfig.lcl_N2N)
-      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else tp = lclpath;
 
 // Attempt to remove the file
 //
-   if (XrdOlbConfig.ProgRM) rc = XrdOlbConfig.ProgRM->Run(tp);
+   if (Config.ProgRM) rc = Config.ProgRM->Run(tp);
       else if (unlink(tp)) rc = errno;
               else rc = 0;
-   if (rc && rc != ENOENT) XrdOlbSay.Emsg("Server", rc, "remove", tp);
+   if (rc && rc != ENOENT) Say.Emsg("Server", rc, "remove", tp);
       else {DEBUG("rc=" <<rc <<" rm " <<tp);}
 
    return 0;
@@ -1166,28 +1153,28 @@ int XrdOlbServer::do_Rmdir(char *rid, int do4real)
 // Get the path
 //
    if (!(tp = Link->GetToken()))
-      {XrdOlbSay.Emsg("Server", "rmdir path not specified");
+      {Say.Emsg("Server", "rmdir path not specified");
        return 0;
       }
 
 // If we have subscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (XrdOlbSM.ServCnt) Reissue(rid, "rmdir ", 0, tp);
-   if (XrdOlbSM.noData) return 0;
+   if (Manager.ServCnt) Reissue(rid, "rmdir ", 0, tp);
+   if (Manager.noData) return 0;
 
 // Generate the true local path for name
 //
-   if (XrdOlbConfig.lcl_N2N)
-      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else tp = lclpath;
 
 // Attempt to remove the directory
 //
-   if (XrdOlbConfig.ProgRD) rc = XrdOlbConfig.ProgRD->Run(tp);
+   if (Config.ProgRD) rc = Config.ProgRD->Run(tp);
       else if (rmdir(tp)) rc = errno;
               else rc = 0;
-   if (rc && errno != ENOENT) XrdOlbSay.Emsg("Server", errno, "remove", tp);
+   if (rc && errno != ENOENT) Say.Emsg("Server", errno, "remove", tp);
       else DEBUG("rc=" <<errno <<" rmdir " <<tp);
 
    return 0;
@@ -1206,11 +1193,11 @@ int XrdOlbServer::do_RST(char *rid)
 
 // First propagate the RST to our managers
 //
-   XrdOlbSM.Reset();
+   Manager.Reset();
 
 // Now invalidate our cache lines
 //
-   XrdOlbCache.Bounce(ServMask);
+   Cache.Bounce(ServMask);
    return 0;
 }
   
@@ -1251,7 +1238,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 
 // Find out who serves this path
 //
-   if (!XrdOlbCache.Paths.Find(tp, pinfo)
+   if (!Cache.Paths.Find(tp, pinfo)
    || (amask = (needrw ? pinfo.rwvec : pinfo.rovec)) == 0)
       {Link->Send(buff, snprintf(buff, sizeof(buff)-1,
              "%s ?err No servers have %s access to the file", rid, amode));
@@ -1266,15 +1253,15 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 // First check if we have seen this file before. If so, get primary selections.
 //
    if (refresh) {retc = 0; pmask = 0;}
-      else if (!(retc = XrdOlbCache.GetFile(tp,cinfo,needrw,&Info))) pmask = 0;
+      else if (!(retc = Cache.GetFile(tp,cinfo,needrw,&Info))) pmask = 0;
               else pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
 
 // We didn't find the file or a refresh is wanted (easy case). Client must wait.
 //
    if (!retc)
-      {XrdOlbCache.AddFile(tp, 0, needrw, XrdOlbConfig.LUPDelay, &Info);
-       XrdOlbSM.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
-                          "%s stat%c %s\n", XrdOlbConfig.MsgGID,
+      {Cache.AddFile(tp, 0, needrw, Config.LUPDelay, &Info);
+       Manager.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
+                          "%s stat%c %s\n", Config.MsgGID,
                           (refresh ? 'f' : 'e'), tp));
        if (Info.Key) return 0; // Placed in pending state
        dowt = 1;
@@ -1286,9 +1273,9 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 //
       {if (cinfo.sbvec != 0)         // Bouncing server
           {dowt = (pmask == 0);
-           XrdOlbCache.DelFile(tp, cinfo.sbvec, XrdOlbConfig.LUPDelay);
-           XrdOlbSM.Broadcast(cinfo.sbvec,buff,snprintf(buff,sizeof(buff)-1,
-                              "%s state %s\n", XrdOlbConfig.MsgGID, tp));
+           Cache.DelFile(tp, cinfo.sbvec, Config.LUPDelay);
+           Manager.Broadcast(cinfo.sbvec,buff,snprintf(buff,sizeof(buff)-1,
+                              "%s state %s\n", Config.MsgGID, tp));
           }
        if (cinfo.deadline) 
           if (Info.Key) return 0; // Placed in pending queue
@@ -1298,8 +1285,8 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 // If the client has to wait now, delay the client and return
 //
    if (dowt)
-      {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.LUPDelay));
-       DEBUG("Lookup delay " <<Name() <<' ' <<XrdOlbConfig.LUPDelay);
+      {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,Config.LUPDelay));
+       DEBUG("Lookup delay " <<Name() <<' ' <<Config.LUPDelay);
        return 0;
       }
 
@@ -1313,7 +1300,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 // Select a server
 //
    if (!(pmask | smask)) retc = -1;
-      else if (!(retc = XrdOlbSM.SelServer(needrw, tp, pmask, smask, hbuff)))
+      else if (!(retc = Manager.SelServer(needrw, tp, pmask, smask, hbuff)))
               {DEBUG("Redirect " <<Name() <<" -> " <<hbuff <<" for " <<tp);
                redr_iov[0].iov_base = rid;   redr_iov[0].iov_len = strlen(rid);
                n = strlen(hbuff); hbuff[n] = '\n';
@@ -1330,9 +1317,9 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
       {Link->Send(buff, sprintf(buff, "%s !wait %d\n", rid, retc));
        DEBUG("Select delay " <<Name() <<' ' <<retc);
       } else {
-       if (XrdOlbSM.ServCnt < XrdOlbConfig.SUPCount)
-          {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,XrdOlbConfig.SUPDelay));
-           XrdOlbCache.DelCache(tp);
+       if (Manager.ServCnt < Config.SUPCount)
+          {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,Config.SUPDelay));
+           Cache.DelCache(tp);
            TRACE(Defer, "client defered; insufficient servers for " <<tp);
           }
           else {Link->Send(buff, snprintf(buff, sizeof(buff)-1,
@@ -1360,11 +1347,11 @@ int XrdOlbServer::do_Space(char *rid)
 // Process: <id> space
 // Respond: <id> avkb  <numkb>
 //
-   if (XrdOlbConfig.Manager())
+   if (Config.asManager())
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                         "%s avkb %d %d\n", rid, dsk_free, dsk_tota));
 
-   maxfr = XrdOlbTop.FreeSpace(totfr);
+   maxfr = Meter.FreeSpace(totfr);
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                 "%s avkb %ld %ld\n", rid, maxfr, totfr));
 }
@@ -1391,13 +1378,13 @@ int XrdOlbServer::do_State(char *rid,int reset)
 //
    if (isMan && do_StateFWD(tp, reset))
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-             "%s have %s %s\n", rid, XrdOlbConfig.PathList.Type(tp), tp));
-   if (XrdOlbSM.noData) return 0;
+             "%s have %s %s\n", rid, Config.PathList.Type(tp), tp));
+   if (Manager.noData) return 0;
 
 // Generate the true local path
 //
-   if (XrdOlbConfig.lcl_N2N)
-      if (XrdOlbConfig.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
          else pp = lclpath;
       else pp = tp;
 
@@ -1405,7 +1392,7 @@ int XrdOlbServer::do_State(char *rid,int reset)
 //
    if (isOnline(pp, 0))
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-             "%s have %s %s\n", rid, XrdOlbConfig.PathList.Type(tp), tp));
+             "%s have %s %s\n", rid, Config.PathList.Type(tp), tp));
    return 0;
 }
   
@@ -1424,7 +1411,7 @@ int XrdOlbServer::do_StateFWD(char *tp, int reset)
 
 // Find out who serves this path
 //
-   if (!XrdOlbCache.Paths.Find(tp, pinfo) || pinfo.rovec == 0)
+   if (!Cache.Paths.Find(tp, pinfo) || pinfo.rovec == 0)
       {DEBUG("Path find failed for state " <<tp);
        return 0;
       }
@@ -1432,7 +1419,7 @@ int XrdOlbServer::do_StateFWD(char *tp, int reset)
 // First check if we have seen this file before. If so, get primary selections.
 //
    if (reset) retc = 0;
-      else if ((retc = XrdOlbCache.GetFile(tp, cinfo))) pmask = cinfo.rovec;
+      else if ((retc = Cache.GetFile(tp, cinfo))) pmask = cinfo.rovec;
 
 // If we didn't find the file, or it's being searched for, then return failure.
 // Otherwise, we will ask the relevant servers if they have the file. We return
@@ -1440,12 +1427,11 @@ int XrdOlbServer::do_StateFWD(char *tp, int reset)
    dowt = (!retc || cinfo.deadline);
    docr = (retc && (cinfo.sbvec != 0));
    if (dowt || docr)
-      {if (!retc) XrdOlbCache.AddFile(tp, 0, 0, XrdOlbConfig.LUPDelay);
-          else XrdOlbCache.DelFile(tp, cinfo.sbvec,
-                                  (dowt ? XrdOlbConfig.LUPDelay : 0));
-       XrdOlbSM.Broadcast((retc ? cinfo.sbvec : pinfo.rovec), buff,
+      {if (!retc) Cache.AddFile(tp, 0, 0, Config.LUPDelay);
+          else Cache.DelFile(tp, cinfo.sbvec, (dowt ? Config.LUPDelay : 0));
+       Manager.Broadcast((retc ? cinfo.sbvec : pinfo.rovec), buff,
                           snprintf(buff, sizeof(buff)-1,
-                          "%s stat%c %s\n", XrdOlbConfig.MsgGID, 
+                          "%s stat%c %s\n", Config.MsgGID, 
                           (reset ? 'f' : 'e'), tp));
       }
 
@@ -1474,7 +1460,7 @@ int XrdOlbServer::do_Stats(char *rid, int full)
 //
    StatsData.Lock();
    if (!statsz || !statbuff)
-      {statsz    = XrdOlbSM.Stats(0,0);
+      {statsz    = Manager.Stats(0,0);
        statbuff = (char *)malloc(statsz);
       }
 
@@ -1491,7 +1477,7 @@ int XrdOlbServer::do_Stats(char *rid, int full)
 //
    tNow = time(0);
    if (statlast+9 >= tNow)
-      {statln = XrdOlbSM.Stats(statbuff, statsz); statlast = tNow;}
+      {statln = Manager.Stats(statbuff, statsz); statlast = tNow;}
 
 // Send response
 //
@@ -1523,9 +1509,9 @@ int XrdOlbServer::do_StNst(char *rid, int Stage)
        } else if (isNoStage) return 0;
                  else {why = "staging suspended"; isNoStage = 1;}
 
-    if (isMan) XrdOlbSMon.Calc(Stage ? 1 : -1, 0, 0);
+    if (isMan) OlbState.Calc(Stage ? 1 : -1, 0, 0);
 
-    XrdOlbSay.Emsg("Server", Name(), why);
+    Say.Emsg("Server", Name(), why);
     return 0;
 }
   
@@ -1548,9 +1534,9 @@ int XrdOlbServer::do_SuRes(char *rid, int Resume)
        } else if (isSuspend) return 0;
                  else {why = "service suspended"; isSuspend = 1;}
 
-    if (isMan) XrdOlbSMon.Calc(Resume ? -1 : 1, 1, 1);
+    if (isMan) OlbState.Calc(Resume ? -1 : 1, 1, 1);
 
-    XrdOlbSay.Emsg("Server", Name(), why);
+    Say.Emsg("Server", Name(), why);
     return 0;
 }
 
@@ -1573,7 +1559,7 @@ int XrdOlbServer::do_Try(char *rid)
 // Add all the alternates to our alternate list
 //
    while((tp = Link->GetToken()))
-         myMans.Add(ipaddr, tp, XrdOlbConfig.PortTCP);
+         myMans.Add(ipaddr, tp, Config.PortTCP);
 
 // Close the link and reurn an error
 //
@@ -1596,17 +1582,17 @@ int XrdOlbServer::do_Usage(char *rid)
 // Process: <id> usage
 // Respond: <id> load <cpu> <io> <load> <mem> <pag> <dskfree> <dsktot>
 //
-   if (XrdOlbConfig.Manager())
+   if (Config.asManager())
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                         "%s load %d %d %d %d %d %d %d\n", rid,
                         cpu_load, net_load, xeq_load, mem_load, pag_load,
                         dsk_free, dsk_tota));
 
-   if (XrdOlbTop.isOn())
+   if (Meter.isOn())
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                     "%s load %s\n", rid, XrdOlbTop.Report()));
+                     "%s load %s\n", rid, Meter.Report()));
 
-   maxfr = XrdOlbTop.FreeSpace(totfr);
+   maxfr = Meter.FreeSpace(totfr);
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                      "%s load 0 0 0 0 0 %ld %ld\n", rid, maxfr, totfr));
 }
@@ -1625,7 +1611,7 @@ int XrdOlbServer::Inform(const char *cmd, XrdOlbPrepArgs *pargs)
 //
    if (!index(pargs->mode, (int)'n')
    ||  strcmp("udp://", pargs->mode)
-   ||  !XrdOlbRelay)
+   ||  !Relay)
       {DEBUG(cmd <<' ' <<pargs->reqid <<" not sent to " <<pargs->user);
        return 0;
       }
@@ -1651,7 +1637,7 @@ int XrdOlbServer::Inform(const char *cmd, XrdOlbPrepArgs *pargs)
 
 // Send the message and return
 //
-   XrdOlbRelay->Send(mdest, (const struct iovec *)&iodata, 8);
+   Relay->Send(mdest, (const struct iovec *)&iodata, 8);
    return 0;
 }
 
@@ -1667,7 +1653,7 @@ int XrdOlbServer::isOnline(char *path, int upt)
 // Do a stat
 //
    if (stat(path, &buf))
-      if (XrdOlbConfig.DiskSS && XrdOlbPrepQ.Exists(path)) return 1;
+      if (Config.DiskSS && PrepQ.Exists(path)) return 1;
          else return 0;
 
 // Make sure we are doing a state on a file
@@ -1683,7 +1669,7 @@ int XrdOlbServer::isOnline(char *path, int upt)
 
 // Indicate possible problem
 //
-   XrdOlbSay.Emsg("Server", Link->Name(), "stated a non-file,", path);
+   Say.Emsg("Server", Link->Name(), "stated a non-file,", path);
    return 0;
 }
 
@@ -1696,7 +1682,7 @@ char *XrdOlbServer::Receive(char *idbuff, int blen)
    EPNAME("Receive")
    char *lp, *tp;
    if ((lp=Link->GetLine()) && *lp)
-      {if (XrdOlbTrace.What & TRACE_Debug
+      {if (Trace.What & TRACE_Debug
        &&  strcmp("1@0 ping", lp) && strcmp("1@0 pong", lp))
            TRACEX("from " <<myNick <<": " <<lp);
        isActive = 1;
@@ -1723,8 +1709,8 @@ int XrdOlbServer::Reissue(char *rid, const char *op,   char *arg1,
 
 // Check if we can really reissue the command
 //
-   if (!(iod[0].iov_len = XrdOlbConfig.GenMsgID(rid, newmid, sizeof(newmid))))
-      {XrdOlbSay.Emsg("Server", "msg TTL exceeded for", op, path);
+   if (!(iod[0].iov_len = Config.GenMsgID(rid, newmid, sizeof(newmid))))
+      {Say.Emsg("Server", "msg TTL exceeded for", op, path);
        return 0;
       }
    iod[0].iov_base = newmid;
@@ -1732,9 +1718,9 @@ int XrdOlbServer::Reissue(char *rid, const char *op,   char *arg1,
   
 // Find all the servers that might be able to do somthing on this path
 //
-   if (!XrdOlbCache.Paths.Find(path, pinfo)
+   if (!Cache.Paths.Find(path, pinfo)
    || (amask = pinfo.rwvec | pinfo.rovec) == 0)
-      {XrdOlbSay.Emsg("Server",op,"aborted; no servers handling path",path);
+      {Say.Emsg("Server",op,"aborted; no servers handling path",path);
        return 0;
       }
 
@@ -1755,6 +1741,6 @@ int XrdOlbServer::Reissue(char *rid, const char *op,   char *arg1,
 
 // Now send off the message
 //
-   XrdOlbSM.Broadcast(amask, iod, iocnt);
+   Manager.Broadcast(amask, iod, iocnt);
    return 0;
 }

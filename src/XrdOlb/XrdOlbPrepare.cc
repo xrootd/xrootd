@@ -22,13 +22,13 @@ const char *XrdOlbPrepareCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
+using namespace XrdOlb;
+
 /******************************************************************************/
-/*                    E x t e r n a l   F u n c t i o n s                     */
+/*          G l o b a l s   &   E x t e r n a l   F u n c t i o n s           */
 /******************************************************************************/
 
-extern XrdOucError  XrdOlbSay;
-  
-extern XrdOucTrace  XrdOlbTrace;
+    XrdOlbPrepare XrdOlb::PrepQ;
 
 int XrdOlbScrubScan(const char *key, char *cip, void *xargp)
 {
@@ -41,8 +41,8 @@ int XrdOlbScrubScan(const char *key, char *cip, void *xargp)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOlbPrepare::XrdOlbPrepare() : XrdOlbJob("File cache scrubber"),
-                                 prepSched(&XrdOlbSay)
+XrdOlbPrepare::XrdOlbPrepare() : XrdJob("File cache scrubber"),
+                                 prepSched(&Say)
 {prepif  = 0;
  preppid = 0;
  resetcnt = scrub2rst = 3;
@@ -65,7 +65,7 @@ int XrdOlbPrepare::Add(XrdOlbPrepArgs &pargs)
 //
    PTMutex.Lock();
    if (!prepif || !prepSched.isAlive())
-      {XrdOlbSay.Emsg("Add","No prepare manager; prepare",pargs.reqid,"ignored.");
+      {Say.Emsg("Add","No prepare manager; prepare",pargs.reqid,"ignored.");
        PTMutex.UnLock();
        return 0;
       }
@@ -118,7 +118,7 @@ int XrdOlbPrepare::Del(char *reqid)
 //
    PTMutex.Lock();
    if (!prepif || !prepSched.isAlive())
-      {XrdOlbSay.Emsg("Del","No prepare manager; unprepare",reqid,"ignored.");
+      {Say.Emsg("Del","No prepare manager; unprepare",reqid,"ignored.");
        PTMutex.UnLock();
        return 0;
       }
@@ -212,11 +212,11 @@ int XrdOlbPrepare::Reset()  // Must be called with PTMutex locked!
      int ok = 0, pdlen[] = {2, 0};
 
      if (!prepif)
-        XrdOlbSay.Emsg("Reset", "Prepare program not specified; prepare disabled.");
+        Say.Emsg("Reset", "Prepare program not specified; prepare disabled.");
         else {scrub2rst = resetcnt;
               if (!prepSched.isAlive() && !startIF()) return 0;
               if (prepSched.Put((const char **)pdata, (const int *)pdlen))
-                 {XrdOlbSay.Emsg("Prepare", prepSched.LastError(),
+                 {Say.Emsg("Prepare", prepSched.LastError(),
                                  "write to", prepif);
                   prepSched.Drain();
                  }
@@ -225,7 +225,7 @@ int XrdOlbPrepare::Reset()  // Must be called with PTMutex locked!
                             {PTable.Add(lp, 0, 0, Hash_data_is_key);
                              NumFiles++;
                              if (doEcho) 
-                                XrdOlbSay.Emsg("Reset","Prepare pending for",lp);
+                                Say.Emsg("Reset","Prepare pending for",lp);
                             }
                       }
              }
@@ -257,7 +257,7 @@ int XrdOlbPrepare::startIF()  // Must be called with PTMutex locked!
     int NoGo = 0;
 
     if (!prepif)
-       {XrdOlbSay.Emsg("startIF","Prepare program not specified; prepare disabled.");
+       {Say.Emsg("startIF","Prepare program not specified; prepare disabled.");
         NoGo = 1;
        }
        else {DEBUG("Prepare: Starting " <<prepif);
@@ -265,7 +265,7 @@ int XrdOlbPrepare::startIF()  // Must be called with PTMutex locked!
                 {time_t eNow = time(0);
                  if ((eNow - lastemsg) >= 60)
                     {lastemsg = eNow;
-                     XrdOlbSay.Emsg("Prepare", prepSched.LastError(),
+                     Say.Emsg("Prepare", prepSched.LastError(),
                                     "start", prepif);
                     }
                 }

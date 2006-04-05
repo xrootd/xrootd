@@ -22,6 +22,8 @@ const char *XrdOlbRRQCVSID = "$Id$";
 #include "XrdOuc/XrdOucTimer.hh"
 #include <stdio.h>
 
+using namespace XrdOlb;
+
 // Note: Debugging statements have been commented out. This is time critical
 //       code and debugging may only be enabled in standalone testing as the
 //       delays introduced by DEBUG() will usually cause timeout failures.
@@ -30,13 +32,7 @@ const char *XrdOlbRRQCVSID = "$Id$";
 /*       G l o b a l   O b j e c t s   &   S t a t i c   M e m b e r s        */
 /******************************************************************************/
   
-         XrdOlbRRQ      RRQ;
-
-  extern XrdOucError    XrdOlbSay;
-
-  extern XrdOlbManager  XrdOlbSM;
-
-//extern XrdOucTrace    XrdOlbTrace;
+XrdOlbRRQ             XrdOlb::RRQ;
 
 XrdOucMutex           XrdOlbRRQSlot::myMutex;
 XrdOlbRRQSlot        *XrdOlbRRQSlot::freeSlot = 0;
@@ -114,7 +110,7 @@ int XrdOlbRRQ::Init(int Tint, int Tdly)
 //
    if ((rc = XrdOucThread::Run(&tid, XrdOlbRRQ_StartRespond, (void *)0,
                                0, "Request Responder")))
-      {XrdOlbSay.Emsg("Config", rc, "create request responder thread");
+      {Say.Emsg("Config", rc, "create request responder thread");
        return 1;
       }
 
@@ -122,7 +118,7 @@ int XrdOlbRRQ::Init(int Tint, int Tdly)
 //
    if ((rc = XrdOucThread::Run(&tid, XrdOlbRRQ_StartTimeOut, (void *)0,
                                0, "Request Timeout")))
-      {XrdOlbSay.Emsg("Config", rc, "create request timeout thread");
+      {Say.Emsg("Config", rc, "create request timeout thread");
        return 1;
       }
 
@@ -175,7 +171,6 @@ void XrdOlbRRQ::Ready(int Snum, const void *Key, SMask_t mask)
 void *XrdOlbRRQ::Respond()
 {
 // EPNAME("RRQ Respond");
-   extern XrdOlbManager XrdOlbSM;
    XrdOlbRRQSlot *sp, *cp;
    int i, doredir;
 
@@ -192,7 +187,7 @@ void *XrdOlbRRQ::Respond()
                sp->Expire = 0;
                myMutex.UnLock();
                if ((doredir = (sp->Arg &&
-                               XrdOlbSM.SelServer(sp->Info.isRW,sp->Arg,hostbuff))))
+                               Manager.SelServer(sp->Info.isRW,sp->Arg,hostbuff))))
                  {i = strlen(hostbuff);
                   hostbuff[i] = '\n';
                   redr_iov[2].iov_len = i+1;
@@ -219,7 +214,6 @@ void *XrdOlbRRQ::Respond()
 void XrdOlbRRQ::sendResponse(XrdOlbRRQInfo *Info, int doredir)
 {
 // EPNAME("sendResponse");
-   extern XrdOlbRTable RTable;
    XrdOlbServer *sp;
 
 // Find the redirector and send the message

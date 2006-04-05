@@ -77,4 +77,9 @@ unsigned int  mem_load;
 unsigned int  pag_load;
 unsigned int  net_load;
 };
+
+namespace XrdOlb
+{
+extern    XrdOlbMeter Meter;
+}
 #endif

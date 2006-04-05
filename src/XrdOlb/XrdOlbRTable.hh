@@ -43,4 +43,9 @@ XrdOucMutex   myMutex;
 XrdOlbServer *Rtable[maxRD];
 int           Hwm;
 };
+
+namespace XrdOlb
+{
+extern    XrdOlbRTable RTable;
+}
 #endif

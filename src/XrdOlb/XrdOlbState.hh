@@ -38,4 +38,9 @@ int             numStaging;
 int             curState;
 int             Changes;
 };
+
+namespace XrdOlb
+{
+extern    XrdOlbState OlbState;
+}
 #endif

@@ -12,8 +12,9 @@
 
 //         $Id$
   
+#include "Xrd/XrdJob.hh"
+#include "Xrd/XrdScheduler.hh"
 #include "XrdOlb/XrdOlbPList.hh"
-#include "XrdOlb/XrdOlbScheduler.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPthread.hh"
@@ -93,22 +94,26 @@ int                     LifeTime;
 /*             C l a s s   o o l b _ C a c h e _ S c r u b b e r              */
 /******************************************************************************/
   
-class XrdOlbCache_Scrubber : public XrdOlbJob
+class XrdOlbCache_Scrubber : public XrdJob
 {
 public:
 
-int   DoIt() {CacheP->Scrub(); 
-              SchedP->Schedule((XrdOlbJob *)this, CacheP->LifeTime+time(0));
-              return 1;
+void  DoIt() {CacheP->Scrub();
+              SchedP->Schedule((XrdJob *)this, CacheP->LifeTime+time(0));
              }
-      XrdOlbCache_Scrubber(XrdOlbCache *cp, XrdOlbScheduler *sp)
-                        : XrdOlbJob("File cache scrubber")
+      XrdOlbCache_Scrubber(XrdOlbCache *cp, XrdScheduler *sp)
+                        : XrdJob("File cache scrubber")
                 {CacheP = cp; SchedP = sp;}
      ~XrdOlbCache_Scrubber() {}
 
 private:
 
-XrdOlbScheduler *SchedP;
+XrdScheduler    *SchedP;
 XrdOlbCache     *CacheP;
 };
+
+namespace XrdOlb
+{
+extern    XrdOlbCache Cache;
+}
 #endif

@@ -12,30 +12,34 @@
 
 //         $Id$
 
+#include "Xrd/XrdJob.hh"
 #include "XrdOlb/XrdOlbPList.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucTList.hh"
   
+class XrdScheduler;
 class XrdNetSecurity;
 class XrdNetSocket;
-class XrdOlbMeter;
+class XrdNetWork;
 class XrdOucError;
 class XrdOucName2Name;
 class XrdOucProg;
 class XrdOucStream;
 
-class XrdOlbConfig
+class XrdOlbConfig : public XrdJob
 {
 public:
 
-int   Configure(int argc, char **argv);
-int   ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest);
+int   Configure1(int argc, char **argv, char *cfn);
+int   Configure2();
+int   ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest);
+void  DoIt();
 int   GenLocalPath(const char *oldp, char *newp);
 int   GenMsgID(char *oldmid, char *buff, int blen);
 int   inSuspend();
 int   inNoStage();
-int   Manager() {return isManager;}
-int   Server()  {return isServer;}
+int   asManager() {return isManager;}
+int   asServer()  {return isServer;}
 
 int         LUPDelay;     // Maximum delay at look-up
 int         LUPHold;      // Maximum hold  at look-up (in millisconds)
@@ -81,6 +85,7 @@ char        *N2N_Parms;   // Server Only
 char        *LocalRoot;   // Server Only
 char        *MsgGID;
 int          MsgGIDL;
+const char  *myProg;
 const char  *myName;
 const char  *myDomain;
 const char  *myInsName;
@@ -98,12 +103,12 @@ XrdOucProg  *ProgRD;      // Server only rmdir
 XrdOucProg  *ProgRM;      // Server only rm
 
 XrdOlbPList_Anchor PathList;
-XrdOlbMeter       *Meter;
 XrdNetSocket      *AdminSock;
 XrdNetSocket      *AnoteSock;
 XrdNetSocket      *RedirSock;
+XrdNetSecurity    *Police;
 
-      XrdOlbConfig() {ConfigDefaults();}
+      XrdOlbConfig() : XrdJob("olbd startup") {ConfigDefaults();}
      ~XrdOlbConfig() {}
 
 private:
@@ -117,31 +122,29 @@ int  isExec(XrdOucError *eDest, const char *ptype, char *prog);
 int  PidFile(void);
 int  setupManager(void);
 int  setupServer(void);
-void UnderCover(void);
 void Usage(int rc);
-int  xapath(XrdOucError *edest, XrdOucStream &Config);
-int  xallow(XrdOucError *edest, XrdOucStream &Config);
-int  xcache(XrdOucError *edest, XrdOucStream &Config);
+int  xapath(XrdOucError *edest, XrdOucStream &CFile);
+int  xallow(XrdOucError *edest, XrdOucStream &CFile);
+int  xcache(XrdOucError *edest, XrdOucStream &CFile);
 int  Fsysadd(XrdOucError *edest, int chk, char *fn);
-int  xdelay(XrdOucError *edest, XrdOucStream &Config);
-int  xfsxq(XrdOucError *edest, XrdOucStream &Config);
-int  xfxhld(XrdOucError *edest, XrdOucStream &Config);
-int  xlclrt(XrdOucError *edest, XrdOucStream &Config);
-int  xnml(XrdOucError *edest, XrdOucStream &Config);
-int  xpath(XrdOucError *edest, XrdOucStream &Config);
-int  xperf(XrdOucError *edest, XrdOucStream &Config);
-int  xpidf(XrdOucError *edest, XrdOucStream &Config);
-int  xping(XrdOucError *edest, XrdOucStream &Config);
-int  xport(XrdOucError *edest, XrdOucStream &Config);
-int  xprep(XrdOucError *edest, XrdOucStream &Config);
-int  xrole(XrdOucError *edest, XrdOucStream &Config);
-int  xsched(XrdOucError *edest, XrdOucStream &Config);
-int  xspace(XrdOucError *edest, XrdOucStream &Config);
-int  xsubs(XrdOucError *edest, XrdOucStream &Config);
-int  xthreads(XrdOucError *edest, XrdOucStream &Config);
-int  xtrace(XrdOucError *edest, XrdOucStream &Config);
+int  xdelay(XrdOucError *edest, XrdOucStream &CFile);
+int  xfsxq(XrdOucError *edest, XrdOucStream &CFile);
+int  xfxhld(XrdOucError *edest, XrdOucStream &CFile);
+int  xlclrt(XrdOucError *edest, XrdOucStream &CFile);
+int  xnml(XrdOucError *edest, XrdOucStream &CFile);
+int  xpath(XrdOucError *edest, XrdOucStream &CFile);
+int  xperf(XrdOucError *edest, XrdOucStream &CFile);
+int  xpidf(XrdOucError *edest, XrdOucStream &CFile);
+int  xping(XrdOucError *edest, XrdOucStream &CFile);
+int  xport(XrdOucError *edest, XrdOucStream &CFile);
+int  xprep(XrdOucError *edest, XrdOucStream &CFile);
+int  xrole(XrdOucError *edest, XrdOucStream &CFile);
+int  xsched(XrdOucError *edest, XrdOucStream &CFile);
+int  xspace(XrdOucError *edest, XrdOucStream &CFile);
+int  xsubs(XrdOucError *edest, XrdOucStream &CFile);
+int  xtrace(XrdOucError *edest, XrdOucStream &CFile);
 
-XrdNetSecurity   *Police;
+XrdNetWork       *NetTCPr;     // Network for supervisors
 XrdOucTList      *monPath;     // cache directive paths
 XrdOucTList      *monPathP;    // path  directive paths (w or s only)
 char             *AdminPath;
@@ -155,4 +158,10 @@ int               perfint;
 int               cachelife;
 int               pendplife;
 };
+
+namespace XrdOlb
+{
+extern    XrdScheduler *Sched;
+extern    XrdOlbConfig  Config;
+}
 #endif

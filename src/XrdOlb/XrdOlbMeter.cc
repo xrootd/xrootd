@@ -37,19 +37,14 @@ const char *XrdOlbMeterCVSID = "$Id$";
 #include "XrdOlb/XrdOlbMeter.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+
+using namespace XrdOlb;
  
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-  
-extern XrdOlbConfig  XrdOlbConfig;
- 
-extern XrdOucError   XrdOlbSay;
 
-extern XrdOlbManager XrdOlbSM;
-
-extern XrdOucTrace   XrdOlbTrace;
-
+       XrdOlbMeter   XrdOlb::Meter;
 
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -86,7 +81,7 @@ ino_t          Inum;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdOlbMeter::XrdOlbMeter() : myMeter(&XrdOlbSay)
+XrdOlbMeter::XrdOlbMeter() : myMeter(&Say)
 {
     Running  = 0;
     fs_list  = 0;
@@ -125,11 +120,11 @@ XrdOlbMeter::~XrdOlbMeter()
 
 int XrdOlbMeter::calcLoad(int pcpu, int pio, int pload, int pmem, int ppag)
 {
-   return   (XrdOlbConfig.P_cpu  * pcpu /100)
-          + (XrdOlbConfig.P_io   * pio  /100)
-          + (XrdOlbConfig.P_load * pload/100)
-          + (XrdOlbConfig.P_mem  * pmem /100)
-          + (XrdOlbConfig.P_pag  * ppag /100);
+   return   (Config.P_cpu  * pcpu /100)
+          + (Config.P_io   * pio  /100)
+          + (Config.P_load * pload/100)
+          + (Config.P_mem  * pmem /100)
+          + (Config.P_pag  * ppag /100);
 }
 
 /******************************************************************************/
@@ -175,7 +170,7 @@ int XrdOlbMeter::Monitor(char *pgm, int itv)
 // Make sure the program is executable by us
 //
    if (access(monpgm, X_OK))
-      {XrdOlbSay.Emsg("Meter", errno, "find executable", monpgm);
+      {Say.Emsg("Meter", errno, "find executable", monpgm);
        return -1;
       }
 
@@ -239,14 +234,14 @@ void *XrdOlbMeter::Run()
                    if (prevLoad >= 0)
                       {prevLoad = prevLoad - myLoad;
                        if (prevLoad < 0) prevLoad = -prevLoad;
-                       if (prevLoad > XrdOlbConfig.P_fuzz) informLoad();
+                       if (prevLoad > Config.P_fuzz) informLoad();
                       }
                    prevLoad = myLoad;
                   }
-         if (lp) XrdOlbSay.Emsg("Meter","Perf monitor returned invalid output:",lp);
-            else XrdOlbSay.Emsg("Meter","Perf monitor died.");
+         if (lp) Say.Emsg("Meter","Perf monitor returned invalid output:",lp);
+            else Say.Emsg("Meter","Perf monitor died.");
          nanosleep(&rqtp, 0);
-         XrdOlbSay.Emsg("Meter", "Restarting monitor:", monpgm);
+         Say.Emsg("Meter", "Restarting monitor:", monpgm);
         }
    return (void *)0;
 }
@@ -268,7 +263,7 @@ void *XrdOlbMeter::RunFS()
          if (noSpace != noNewSpace)
             {SpaceMsg(noNewSpace);
              noSpace = noNewSpace;
-             XrdOlbSM.Space(noSpace);
+             Manager.Space(noSpace);
             }
             else if (noSpace && !nowlim) SpaceMsg(noNewSpace);
          nowlim = (nowlim ? nowlim-1 : mlim);
@@ -293,9 +288,9 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
 // Set values (disk space values are in kilobytes)
 // 
     fs_list = tlp; 
-    MinFree = XrdOlbConfig.DiskMin;
-    HWMFree = XrdOlbConfig.DiskHWM;
-    dsk_calc = (XrdOlbConfig.DiskAsk < 5 ? 5 : XrdOlbConfig.DiskAsk);
+    MinFree = Config.DiskMin;
+    HWMFree = Config.DiskHWM;
+    dsk_calc = (Config.DiskAsk < 5 ? 5 : Config.DiskAsk);
 
 // Calculate number of filesystems without duplication
 //
@@ -305,7 +300,7 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
            {XrdOucTList *xlp = nlp->next;
             const char *fault = (rc ? "Missing filesystem '"
                                     : "Duplicate filesystem '");
-            XrdOlbSay.Emsg("Meter", fault, nlp->text, "' skipped for free space.");
+            Say.Emsg("Meter", fault, nlp->text, "' skipped for free space.");
             if (plp) plp->next = xlp;
                else  fs_list   = xlp;
             delete nlp;
@@ -318,12 +313,12 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
 //
    if (!fs_nums) 
       {noSpace = 1;
-       XrdOlbSM.Space(1,0);
-       XrdOlbSay.Emsg("Meter", "Warning! No writable filesystems found; "
+       Manager.Space(1,0);
+       Say.Emsg("Meter", "Warning! No writable filesystems found; "
                             "write access and staging prohibited.");
       } else {
        calcSpace();
-       if ((noSpace = (dsk_maxf < MinFree))) XrdOlbSM.Space(1,0);
+       if ((noSpace = (dsk_maxf < MinFree))) Manager.Space(1,0);
        XrdOucThread::Run(&monFStid,XrdOlbMeterRunFS,(void *)this,0,"FS meter");
       }
 
@@ -338,10 +333,10 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
        sfx2 = Scale(dsk_free, totfree);
        sprintf(buff,"Found %d filesystem(s); %ld%c total bytes free; %ld%c available",
                     fs_nums, totfree, sfx2, maxfree, sfx1);
-       XrdOlbSay.Emsg("Meter", buff);
+       Say.Emsg("Meter", buff);
        if (noSpace)
           {sprintf(buff, "%lldK minimum", MinFree);
-           XrdOlbSay.Emsg("Meter", "Warning! Available space <", buff);
+           Say.Emsg("Meter", "Warning! Available space <", buff);
           }
       }
 }
@@ -364,7 +359,7 @@ void XrdOlbMeter::informLoad()
                 cpu_load, net_load, xeq_load, mem_load,
                 pag_load, maxfree, totfree);
 
-   XrdOlbSM.Inform(mybuff, i);
+   Manager.Inform(mybuff, i);
 }
 
 /******************************************************************************/
@@ -458,5 +453,5 @@ void XrdOlbMeter::SpaceMsg(int why)
       else 
       sprintf(buff, "  Sufficient space; %lldK available > %lldK high watermak",
                     dsk_maxf, HWMFree);
-      XrdOlbSay.Emsg("Meter", buff);
+      Say.Emsg("Meter", buff);
 }

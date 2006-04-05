@@ -110,4 +110,9 @@ static   const int                   wait_iov_cnt = 2;
          int                         Tdelay;
 unsigned int                         myClock;
 };
+
+namespace XrdOlb
+{
+extern    XrdOlbRRQ RRQ;
+}
 #endif
