@@ -693,7 +693,7 @@ int XrdXrootdProtocol::do_Open()
 // Determine file size of we will need to send it back
 //
    if (retStat)
-      {if (!fp->stat(&statbuf)) retStat = do_StatGen(statbuf, ebuff);
+      {if (!fp->stat(&statbuf)) retStat = StatGen(statbuf, ebuff);
           else {statbuf.st_size = 1; 
                 strcpy(ebuff, "0 1 0 0"); 
                 retStat = strlen(ebuff)+1;
@@ -1195,60 +1195,7 @@ int XrdXrootdProtocol::do_Stat()
    rc = osFS->stat(argp->buff, &buf, myError, CRED, opaque);
    TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
    if (rc != SFS_OK) return fsError(rc, myError);
-   return Response.Send(xxBuff, do_StatGen(buf, xxBuff));
-}
-
-/******************************************************************************/
-/*                            d o _ S t a t G e n                             */
-/******************************************************************************/
-  
-int XrdXrootdProtocol::do_StatGen(struct stat &buf, char *xxBuff)
-{
-   const mode_t isReadable = (S_IRUSR | S_IRGRP | S_IROTH);
-   const mode_t isWritable = (S_IWUSR | S_IWGRP | S_IWOTH);
-   const mode_t isExecable = (S_IXUSR | S_IXGRP | S_IXOTH);
-   static uid_t myuid = getuid();
-   static gid_t mygid = getgid();
-   union {long long uuid; struct {int hi; int lo;} id;} Dev;
-   long long fsz;
-   int flags = 0;
-
-// Compute the unique id
-//
-   Dev.id.lo = buf.st_ino;
-   Dev.id.hi = buf.st_dev;
-
-// Compute correct setting of the readable flag
-//
-   if (buf.st_mode & isReadable
-   &&((buf.st_mode & S_IRUSR && myuid == buf.st_uid)
-   || (buf.st_mode & S_IRGRP && mygid == buf.st_gid)
-   ||  buf.st_mode & S_IROTH)) flags |= kXR_readable;
-
-// Compute correct setting of the writable flag
-//
-   if (buf.st_mode & isWritable
-   &&((buf.st_mode & S_IWUSR && myuid == buf.st_uid)
-   || (buf.st_mode & S_IWGRP && mygid == buf.st_gid)
-   ||  buf.st_mode & S_IWOTH)) flags |= kXR_writable;
-
-// Compute correct setting of the execable flag
-//
-   if (buf.st_mode & isExecable
-   &&((buf.st_mode & S_IXUSR && myuid == buf.st_uid)
-   || (buf.st_mode & S_IXGRP && mygid == buf.st_gid)
-   ||  buf.st_mode & S_IXOTH)) flags |= kXR_xset;
-
-// Compute the other flag settings
-//
-   if (S_ISDIR(buf.st_mode))           flags |= kXR_isDir;
-      else if (!S_ISREG(buf.st_mode))  flags |= kXR_other;
-   if (!Dev.uuid)                      flags |= kXR_offline;
-   fsz = static_cast<long long>(buf.st_size);
-
-// Format the results and return them
-//
-   return sprintf(xxBuff,"%lld %lld %d %ld",Dev.uuid,fsz,flags,buf.st_mtime)+1;
+   return Response.Send(xxBuff, StatGen(buf, xxBuff));
 }
 
 /******************************************************************************/
@@ -1647,6 +1594,59 @@ int XrdXrootdProtocol::Squash(char *fn)
    *ofn = '\0';
 
    return XPList.Validate(fn, ofn-fn);
+}
+
+/******************************************************************************/
+/*                              S t a t e G e n                               */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff)
+{
+   const mode_t isReadable = (S_IRUSR | S_IRGRP | S_IROTH);
+   const mode_t isWritable = (S_IWUSR | S_IWGRP | S_IWOTH);
+   const mode_t isExecable = (S_IXUSR | S_IXGRP | S_IXOTH);
+   static uid_t myuid = getuid();
+   static gid_t mygid = getgid();
+   union {long long uuid; struct {int hi; int lo;} id;} Dev;
+   long long fsz;
+   int flags = 0;
+
+// Compute the unique id
+//
+   Dev.id.lo = buf.st_ino;
+   Dev.id.hi = buf.st_dev;
+
+// Compute correct setting of the readable flag
+//
+   if (buf.st_mode & isReadable
+   &&((buf.st_mode & S_IRUSR && myuid == buf.st_uid)
+   || (buf.st_mode & S_IRGRP && mygid == buf.st_gid)
+   ||  buf.st_mode & S_IROTH)) flags |= kXR_readable;
+
+// Compute correct setting of the writable flag
+//
+   if (buf.st_mode & isWritable
+   &&((buf.st_mode & S_IWUSR && myuid == buf.st_uid)
+   || (buf.st_mode & S_IWGRP && mygid == buf.st_gid)
+   ||  buf.st_mode & S_IWOTH)) flags |= kXR_writable;
+
+// Compute correct setting of the execable flag
+//
+   if (buf.st_mode & isExecable
+   &&((buf.st_mode & S_IXUSR && myuid == buf.st_uid)
+   || (buf.st_mode & S_IXGRP && mygid == buf.st_gid)
+   ||  buf.st_mode & S_IXOTH)) flags |= kXR_xset;
+
+// Compute the other flag settings
+//
+   if (S_ISDIR(buf.st_mode))           flags |= kXR_isDir;
+      else if (!S_ISREG(buf.st_mode))  flags |= kXR_other;
+   if (!Dev.uuid)                      flags |= kXR_offline;
+   fsz = static_cast<long long>(buf.st_size);
+
+// Format the results and return them
+//
+   return sprintf(xxBuff,"%lld %lld %d %ld",Dev.uuid,fsz,flags,buf.st_mtime)+1;
 }
   
 /******************************************************************************/

@@ -82,6 +82,9 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Stats(char *buff, int blen, int do_sync=0);
 
+static int           mapError(int rc);
+static int           StatGen(struct stat &buf, char *xxBuff);
+
               XrdXrootdProtocol operator =(const XrdXrootdProtocol &rhs);
               XrdXrootdProtocol();
              ~XrdXrootdProtocol() {Cleanup();}
@@ -113,7 +116,6 @@ private:
        int   do_Set();
        int   do_Set_Mon(XrdOucTokenizer &setargs);
        int   do_Stat();
-       int   do_StatGen(struct stat &buf, char *xxBuff);
        int   do_Statx();
        int   do_Sync();
        int   do_Write();
@@ -135,7 +137,6 @@ static int   Config(const char *fn);
        int   fsError(int rc, XrdOucErrInfo &myError);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
-static int   mapError(int rc);
 static int   mapMode(int mode);
        int   Process2();
        void  Reset();
