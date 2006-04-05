@@ -360,6 +360,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
     len = xrdmax(0, xrdmin(len, stinfo.size - offset));
 
     kXR_int32 rasize = EnvGetLong(NAME_READAHEADSIZE);
+    bool retrysync = false;
 
     // we cycle until we get all the needed data
     do {
@@ -368,25 +369,78 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	blkstowait = 0;
 	long bytesgot = 0;
 
-	bytesgot = fConnModule->GetDataFromCache(buf, offset,
-						 len + offset - 1,
-						 true,
-						 cacheholes, blkstowait);
+	if (!retrysync) {
 
-	Info(XrdClientDebug::kHIDEBUG, "Read",
-	     "Cache response: got " << bytesgot << " bytes. Holes= " <<
-	     cacheholes.GetSize() << " Outstanding= " << blkstowait);
 
-	// If the cache gives the data to us
-	//  we don't need to ask the server for them... in principle!
-	if( bytesgot >= len ) {
-
-	    // The cache gave us all the requested data
+	    bytesgot = fConnModule->GetDataFromCache(buf, offset,
+						     len + offset - 1,
+						     true,
+						     cacheholes, blkstowait);
 
 	    Info(XrdClientDebug::kHIDEBUG, "Read",
-		 "Found data in cache. len=" << len <<
-		 " offset=" << offset);
+		 "Cache response: got " << bytesgot << " bytes. Holes= " <<
+		 cacheholes.GetSize() << " Outstanding= " << blkstowait);
 
+	    // If the cache gives the data to us
+	    //  we don't need to ask the server for them... in principle!
+	    if( bytesgot >= len ) {
+
+		// The cache gave us all the requested data
+
+		Info(XrdClientDebug::kHIDEBUG, "Read",
+		     "Found data in cache. len=" << len <<
+		     " offset=" << offset);
+
+		// Are we using read ahead?
+		if ( EnvGetLong(NAME_GOASYNC) &&
+		     // We read ahead only if the last byte we got is near (or over) to the last byte read
+		     // in advance.
+		     (fReadAheadLast - (offset+len) < rasize) &&
+		     (rasize > 0) ) {
+
+		    kXR_int64 araoffset;
+		    kXR_int32 aralen;
+
+		    // This is a HIT case. Async readahead will try to put some data
+		    // in advance into the cache. The higher the araoffset will be,
+		    // the best chances we have not to cause overhead
+		    araoffset = xrdmax(fReadAheadLast, offset + len);
+		    aralen = xrdmin(rasize,
+				    offset + len + rasize -
+				    xrdmax(offset + len, fReadAheadLast));
+
+		    if (aralen > 0) {
+			TrimReadRequest(araoffset, aralen, rasize);
+			fReadAheadLast = araoffset + aralen;
+			Read_Async(araoffset, aralen);
+		    }
+		}
+
+		return len;
+	    }
+
+
+
+	
+
+	    // We are here if the cache did not give all the data to us
+	    // We should have a list of blocks to request
+	    for (int i = 0; i < cacheholes.GetSize(); i++) {
+		kXR_int64 offs;
+		kXR_int32 len;
+	    
+		offs = cacheholes[i].beginoffs;
+		len = cacheholes[i].endoffs - offs;
+
+
+		Info( XrdClientDebug::kHIDEBUG, "Read",
+		      "Hole in the cache: offs=" << offs <<
+		      ", len=" << len );
+	    
+		Read_Async(offs, len);
+	    }
+	
+	
 	    // Are we using read ahead?
 	    if ( EnvGetLong(NAME_GOASYNC) &&
 		 // We read ahead only if the last byte we got is near (or over) to the last byte read
@@ -412,58 +466,12 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		}
 	    }
 
-	    return len;
-	}
-
-
-
-	
-
-	// We are here if the cache did not give all the data to us
-	// We should have a list of blocks to request
-	for (int i = 0; i < cacheholes.GetSize(); i++) {
-	    kXR_int64 offs;
-	    kXR_int32 len;
-	    
-	    offs = cacheholes[i].beginoffs;
-	    len = cacheholes[i].endoffs - offs;
-
-
-	    Info( XrdClientDebug::kHIDEBUG, "Read",
-		  "Hole in the cache: offs=" << offs <<
-		  ", len=" << len );
-	    
-	    Read_Async(offs, len);
-	}
-	
-	
-	// Are we using read ahead?
-	if ( EnvGetLong(NAME_GOASYNC) &&
-	     // We read ahead only if the last byte we got is near (or over) to the last byte read
-	     // in advance.
-	     (fReadAheadLast - (offset+len) < rasize) &&
-	     (rasize > 0) ) {
-
-	    kXR_int64 araoffset;
-	    kXR_int32 aralen;
-
-	    // This is a HIT case. Async readahead will try to put some data
-	    // in advance into the cache. The higher the araoffset will be,
-	    // the best chances we have not to cause overhead
-	    araoffset = xrdmax(fReadAheadLast, offset + len);
-	    aralen = xrdmin(rasize,
-			    offset + len + rasize -
-			    xrdmax(offset + len, fReadAheadLast));
-
-	    if (aralen > 0) {
-		TrimReadRequest(araoffset, aralen, rasize);
-		fReadAheadLast = araoffset + aralen;
-		Read_Async(araoffset, aralen);
-	    }
 	}
 
 	// If we got nothing from the cache let's do it sync and exit!
-	if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
+	if (retrysync || (!bytesgot && !blkstowait && !cacheholes.GetSize())) {
+
+	    retrysync = false;
 
 	    Info( XrdClientDebug::kHIDEBUG, "Read",
 		  "Read(offs=" << offset <<
@@ -493,9 +501,13 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
 	    fReadWaitData->Lock();
 
-	    if (fReadWaitData->Wait(10))
+	    if (fReadWaitData->Wait(10)) {
+
 		Info( XrdClientDebug::kUSERDEBUG, "Read",
-		  "Timeout waiting outstanding blocks. Retrying!" );
+		  "Timeout waiting outstanding blocks. Retrying sync!" );
+		
+		retrysync = true;
+	    }
 
 	    fReadWaitData->UnLock();
 
