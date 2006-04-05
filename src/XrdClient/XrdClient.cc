@@ -109,6 +109,21 @@ XrdClient::~XrdClient()
 }
 
 //_____________________________________________________________________________
+bool XrdClient::IsOpen_inprogress()
+{
+   // Non blocking access to the 'inprogress' flag
+   bool res;
+
+   if (!fOpenProgCnd) return false;
+
+   fOpenProgCnd->Lock();
+   res = fOpenPars.inprogress;
+   fOpenProgCnd->UnLock();
+
+   return res;
+};
+
+//_____________________________________________________________________________
 bool XrdClient::IsOpen_wait() {
     bool res;
 

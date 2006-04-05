@@ -141,6 +141,9 @@ public:
     // Quickly tells if the file is open
     inline bool                 IsOpen() { return fOpenPars.opened; }
 
+    // Tells if the file opening is in progress
+    bool                        IsOpen_inprogress();
+
     // Tells if the file is open, waiting for the completion of the parallel open
     bool                        IsOpen_wait();
 
