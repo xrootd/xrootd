@@ -129,6 +129,36 @@ char *XrdNetSecurity::Authorize(struct sockaddr *addr)
 }
 
 /******************************************************************************/
+/*                                 M e r g e                                  */
+/******************************************************************************/
+  
+void XrdNetSecurity::Merge(XrdNetSecurity *srcp)
+{
+   XrdOucNList    *np;
+   XrdNetTextList *sp, *tp;
+
+// First merge in all of the host entries
+//
+   while((np = srcp->HostList.Pop())) HostList.Replace(np);
+
+// Next merge the netgroup list
+//
+   while((sp = srcp->NetGroups))
+        {tp = NetGroups; srcp->NetGroups = sp->next;
+         while(tp) if (!strcmp(tp->text, sp->text)) break;
+                      else tp = tp->next;
+         if (tp) delete sp;
+            else {sp->next  = NetGroups;
+                  NetGroups = sp;
+                 }
+        }
+
+// Delete the remnants of the source object
+//
+   delete srcp;
+}
+
+/******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/

@@ -33,6 +33,8 @@ void  AddNetGroup(char *hname);
 
 char *Authorize(struct sockaddr *addr);
 
+void  Merge(XrdNetSecurity *srcp);  // Deletes srcp
+
 void  Trace(XrdOucTrace *et=0) {eTrace = et;}
 
      XrdNetSecurity() {NetGroups = 0; eTrace = 0; lifetime = 8*60*60;}

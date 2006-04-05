@@ -79,6 +79,12 @@ int             Relay(XrdNetPeer &Peer,   // Peer object to be initialized
 //
 int             Port() {return Portnum;}
 
+// Secure() adds the given NetSecurity object to the existing security
+//          constraints. The supplied object is ultimately deleted in the
+//          process and cannot be referenced.
+//
+void            Secure(XrdNetSecurity *secp);
+
 // setDefaults() sets the default socket options, and buffer size for UDP
 //               sockets (default is 32k) or window size for TCP sockets
 //               (defaults to OS default).
@@ -98,7 +104,7 @@ void            setDomain(const char *dname)
 
 // Trim() trims off the domain name in hname (it's modified).
 //
-void           Trim(char *hname);
+void            Trim(char *hname);
 
 // unbind()    Destroys the association between this object and whatever
 //             communications medium it was previously bound to.

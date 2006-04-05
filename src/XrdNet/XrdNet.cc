@@ -233,6 +233,20 @@ int XrdNet::Relay(XrdNetPeer &Peer, const char *dest, int opts)
 }
   
 /******************************************************************************/
+/*                                S e c u r e                                 */
+/******************************************************************************/
+  
+void XrdNet::Secure(XrdNetSecurity *secp)
+{
+
+// If we don't have a Police object then use the one supplied. Otherwise
+// merge the supplied object into the existing object.
+//
+   if (Police) Police->Merge(secp);
+      else     Police = secp;
+}
+
+/******************************************************************************/
 /*                                  T r i m                                   */
 /******************************************************************************/
   
