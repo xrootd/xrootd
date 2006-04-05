@@ -15,7 +15,7 @@ XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
 
 SERVER  = $(XRDSEC) \
           XrdSfs   XrdAcc XrdOdc \
-          XrdXr    XrdOss   XrdOfs   XrdOlb Xrd  XrdRootd   XrdXrootd
+          XrdXr    XrdOss   XrdOfs   Xrd XrdOlb  XrdRootd   XrdXrootd
 
 XRDCLIENT = $(XRDSEC) XrdClient XrdPosix
 
