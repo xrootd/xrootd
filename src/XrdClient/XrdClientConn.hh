@@ -211,7 +211,8 @@ private:
     // redirecting. To be used in the next logins
 
     XrdOucCondVar              *fREQWaitResp;           // For explicitly requested delayed async responses
-    ServerResponseHeader *     fREQWaitRespData;        // For explicitly requested delayed async responses
+    ServerResponseBody_Attn_asynresp *
+                               fREQWaitRespData;        // For explicitly requested delayed async responses
 
     XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
     time_t                     fREQWaitTimeLimit;   // For explicitly requested pause state

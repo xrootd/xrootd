@@ -477,7 +477,7 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 		  if (!WaitResp(mw)) {
 		    // we did not time out, so the response is here
 		  
-		    memcpy(&LastServerResp, fREQWaitRespData + sizeof(struct ServerResponseHeader) + 4,
+		    memcpy(&LastServerResp, &fREQWaitRespData->resphdr,
 			   sizeof(struct ServerResponseHeader));
 		  
 		   
@@ -485,13 +485,13 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 		    if (HasToAlloc) {
 		      *answMoreDataAllocated = malloc(LastServerResp.dlen);
 		      memcpy(*answMoreDataAllocated,
-			     fREQWaitRespData + 2*sizeof(struct ServerResponseHeader) + 4,
+			     &fREQWaitRespData->respdata,
 			     LastServerResp.dlen);
 		    }
 		    else {
 
 		      memcpy(answMoreData,
-			     fREQWaitRespData + 2*sizeof(struct ServerResponseHeader) + 4,
+			     &fREQWaitRespData->respdata,
 			     LastServerResp.dlen);
 
 		    }
@@ -653,6 +653,7 @@ bool XrdClientConn::MatchStreamid(struct ServerResponseHeader *ServerResponse)
    // Check stream ID matching between the given response and
    // the one contained in the current logical conn
 
+    
    return ( memcmp(ServerResponse->streamid,
 		   &fPrimaryStreamid,
 		   sizeof(ServerResponse->streamid)) == 0 );
@@ -913,9 +914,9 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
 
 	    Info(XrdClientDebug::kHIDEBUG, "ReadPartialAnswer", 
 		  "Server [" <<
-		  fUrl.Host << ":" << fUrl.Port << "] did not answer OK." <<
-		  " Resp status is [" << convertRespStatusToChar(Xmsg->fHdr.status) <<
-		  "]");
+		  fUrl.Host << ":" << fUrl.Port << "] answered [" <<
+		 convertRespStatusToChar(Xmsg->fHdr.status) <<
+		 "] (" << Xmsg->fHdr.status << ")");
       }
    } // End of DATA reading
   
@@ -2132,14 +2133,24 @@ bool XrdClientConn::WaitResp(int secsmax) {
 
    int rc = false;
 
+
+   
+
+
    // Lock mutex
    fREQWaitResp->Lock();
 
    // We don't have to wait if the info already arrived
    if (!fREQWaitRespData) {
 
+       Info(XrdClientDebug::kHIDEBUG,
+	"WaitResp", "Waiting response for " << secsmax << " secs." );
+
        // If still to wait... wait
        rc = fREQWaitResp->Wait(secsmax);
+
+       Info(XrdClientDebug::kHIDEBUG,
+	    "ProcessAsynResp", "Signal or timeout elapsed. Data=" << fREQWaitRespData );
    }
    
    // Unlock mutex
@@ -2154,14 +2165,26 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
    // A client on the current physical conn might be in a "wait for response" state
    // Here we process a potential response
 
-   // If the msg streamid matched ours then continue
-   if ( !MatchStreamid(&(unsolmsg->fHdr)) ) return kUNSOL_CONTINUE;
+    ServerResponseBody_Attn_asynresp *ar;
+    ar = (ServerResponseBody_Attn_asynresp *)unsolmsg->GetData();
+
+    
+
+    // If the msg streamid matched ours then continue
+    if ( !MatchStreamid(&ar->resphdr) ) return kUNSOL_CONTINUE;
+
+    Info(XrdClientDebug::kHIDEBUG,
+	 "ProcessAsynResp", "Streamid matched." );
 
    fREQWaitResp->Lock(); 
 
    // Strip the data from the message and save it. It's the response we are waiting for.
    // Note that it will contain also the data!
-   fREQWaitRespData = (ServerResponseHeader *)unsolmsg->DonateData();
+   fREQWaitRespData = ar;
+   unsolmsg->DonateData(); // The data blk is released from the orig message
+
+   clientUnmarshall(&fREQWaitRespData->resphdr);
+   smartPrintServerHeader(&fREQWaitRespData->resphdr);
 
    // Signal the waiting condvar. Waiting is no more needed
    // Note: the message's data will be freed by the waiting process!

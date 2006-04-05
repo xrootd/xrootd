@@ -339,6 +339,22 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 
       Touch();
 
+      // Let's dump the received bytes
+      if ((res > 0) && (DebugLevel() > XrdClientDebug::kDUMPDEBUG)) {
+	  XrdOucString s = "   ";
+	  char b[256]; 
+
+	  for (int i = 0; i < xrdmin(res, 256); i++) {
+	      sprintf(b, "%.2x ", *((unsigned char *)buf + i));
+	      s += b;
+	      if (!((i + 1) % 16)) s += "\n   ";
+	  }
+
+	  Info(XrdClientDebug::kHIDEBUG,
+	       "ReadRaw", "Read " << res <<  "bytes. Dump:" << endl << s );
+
+      }
+
       return res;
    }
    else {
@@ -391,7 +407,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
       //   -> all the corresponding XrdClient
 
       Info(XrdClientDebug::kDUMPDEBUG,
-          "BuildMessage"," propagating unsol id "<<m->HeaderSID());
+          "BuildMessage"," propagating unsol id " << m->HeaderSID());
 
 
       res = HandleUnsolicited(m);
@@ -454,7 +470,7 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
    // Local pre-processing of the unsolicited XrdClientMessage
    attnbody = (struct ServerResponseBody_Attn *)m->GetData();
 
-   if (attnbody) {
+   if (attnbody && (m->IsAttn())) {
       attnbody->actnum = ntohl(attnbody->actnum);
 
       switch (attnbody->actnum) {
@@ -492,7 +508,7 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
       retval = SendUnsolicitedMsg(this, m);
 
       // Request post-processing
-      if (attnbody) {
+      if (attnbody && (m->IsAttn())) {
          switch (attnbody->actnum) {
 
          case kXR_asyncrd:

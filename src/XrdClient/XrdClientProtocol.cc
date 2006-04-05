@@ -280,6 +280,9 @@ char *convertRespStatusToChar(kXR_unt16 status)
    case kXR_wait:
       return (char *)"kXR_wait";
       break;
+   case kXR_waitresp:
+       return (char *)"kXR_waitresp";
+       break;
    default:
       return (char *)"kXR_UNKNOWN";
       break;

@@ -1,9 +1,9 @@
-#!/usr/local/bin/perl5.8
+#!/usr/bin/perl
 
 #  $Id$
 
 use XrdClientAdmin;
-XrdClientAdmin::XrdInitialize("root://localhost/dummy", "DebugLevel 3\nConnectTimeout 60\nRequestTimeout 60");
+XrdClientAdmin::XrdInitialize("root://localhost/dummy", "DebugLevel 4\nConnectTimeout 60\nRequestTimeout 60");
 
 
 $par = "/tmp/vmware.zip";
@@ -34,7 +34,7 @@ $par = "/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02
 $ans = XrdClientAdmin::XrdIsFileOnline("$par");
 print "\nThe answer of XrdClientAdmin::IsFileOnline($par) is: \"$ans\" \n\n\n";
 
-$par = "/prod/store/PRskims/R14/16.0.1a/AllEvents/23/AllEvents_2301.01.root";
+$par = "/tmp/grossofile.dat";
 $ans = XrdClientAdmin::XrdGetChecksum("$par");
 print "\nThe answer of XrdClientAdmin::GetChecksum($par) is: \"$ans\" \n\n\n";
 
