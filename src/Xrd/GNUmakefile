@@ -19,6 +19,7 @@ SOURCES = \
         XrdLinkMatch.cc   \
         XrdMain.cc        \
         XrdPoll.cc        \
+        XrdProtLoad.cc    \
         XrdProtocol.cc    \
         XrdScheduler.cc   \
         XrdStats.cc
@@ -33,6 +34,7 @@ OBJECTS = \
         $(OBJDIR)/XrdLinkMatch.o   \
         $(OBJDIR)/XrdMain.o        \
         $(OBJDIR)/XrdPoll.o        \
+        $(OBJDIR)/XrdProtLoad.o    \
         $(OBJDIR)/XrdProtocol.o    \
         $(OBJDIR)/XrdScheduler.o   \
         $(OBJDIR)/XrdStats.o
@@ -79,7 +81,7 @@ $(OBJDIR)/XrdBuffer.o:    XrdBuffer.cc   XrdBuffer.hh     XrdTrace.hh \
 
 $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
                        XrdLink.hh        XrdInet.hh        XrdOucUtils.hh \
-                       XrdPoll.hh        XrdProtocol.hh    XrdScheduler.hh \
+                       XrdPoll.hh        XrdProtLoad.hh    XrdScheduler.hh \
                        XrdStats.hh       XrdTrace.hh       XrdInfo.hh    \
                        XrdOuca2x.hh      XrdOucError.hh    XrdOucLogger.hh   \
                        XrdOucStream.hh   XrdOucTrace.hh    XrdOucTimer.hh \
@@ -114,7 +116,7 @@ $(OBJDIR)/XrdLinkMatch.o: XrdLinkMatch.cc XrdLinkMatch.hh XrdOucPlatform.hh
 $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdInet.hh \
                        XrdPoll.hh      XrdScheduler.hh   XrdTrace.hh    \
                        XrdOucError.hh  XrdOucLogger.hh   XrdOucPthread.hh \
-                       XrdOucTrace.hh    \
+                       XrdOucTrace.hh  XrdProtLoad.hh \
                        XrdMain.cc
 	@echo Compiling XrdMain.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdMain.o XrdMain.cc
@@ -128,9 +130,14 @@ $(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh        XrdProtocol.hh   \
 	@echo Compiling XrdPoll.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFDEVPOLL) $(INCLUDE) -o $(OBJDIR)/XrdPoll.o XrdPoll.cc
 
-$(OBJDIR)/XrdProtocol.o: XrdJob.hh        XrdLink.hh     XrdPoll.hh \
-                         XrdProtocol.cc   XrdProtocol.hh XrdTrace.hh \
-                         XrdOucError.hh   XrdOucTrace.hh
+$(OBJDIR)/XrdProtLoad.o: XrdJob.hh        XrdLink.hh     XrdPoll.hh \
+                         XrdProtLoad.cc   XrdProtLoad.hh \
+                         XrdProtocol.hh   XrdTrace.hh \
+                         XrdOucError.hh   XrdOucPlugin.hh XrdOucTrace.hh
+	@echo Compiling XrdProtLoad.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdProtLoad.o XrdProtLoad.cc
+
+$(OBJDIR)/XrdProtocol.o: XrdJob.hh        XrdProtocol.cc   XrdProtocol.hh
 	@echo Compiling XrdProtocol.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdProtocol.o XrdProtocol.cc
 
@@ -141,7 +148,7 @@ $(OBJDIR)/XrdScheduler.o: XrdJob.hh      XrdScheduler.hh   XrdTrace.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdScheduler.o XrdScheduler.cc
 
 $(OBJDIR)/XrdStats.o: XrdBuffer.hh      XrdLink.hh     XrdPoll.hh \
-                      XrdProtocol.hh    XrdScheduler.hh \
+                      XrdProtLoad.hh    XrdProtocol.hh XrdScheduler.hh \
                       XrdStats.cc       XrdStats.hh \
                       XrdOucPlatform.hh XrdOucPthread.hh ../XrdVersion.hh
 	@echo Compiling XrdStats.cc 

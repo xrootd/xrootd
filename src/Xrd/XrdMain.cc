@@ -58,6 +58,7 @@ Where:
 #include "Xrd/XrdConfig.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 #define  TRACELINK newlink
 #include "Xrd/XrdTrace.hh"
@@ -92,7 +93,7 @@ extern XrdInet           *XrdNetTCP[];    // Defined by config
   
 void *mainAccept(void *parg)
 {  XrdInet *myNet = (XrdInet *)parg;
-   XrdProtocol_Select ProtSelect(myNet->Port());
+   XrdProtLoad ProtSelect(myNet->Port());
    XrdLink *newlink;
 
    while(1) if ((newlink = myNet->Accept(XRDNET_NODNTRIM)))

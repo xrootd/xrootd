@@ -23,7 +23,7 @@ const char *XrdStatsCVSID = "$Id$";
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
-#include "Xrd/XrdProtocol.hh"
+#include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
 #include "XrdOuc/XrdOucPlatform.hh"
@@ -59,7 +59,7 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 #define XRDSTAIL "</statistics>"
 #define XRDSNULL "<statistics tod=\"0\" ver=\"" XrdVSTRING "\">" XRDSTAIL
 
-   static XrdProtocol_Select Protocols;
+   static XrdProtLoad Protocols;
    static const char head[] = XRDSHEAD;
    static const char tail[] = XRDSTAIL;
    static const int  ovrhed = strlen(head)+16+sizeof(XrdVSTRING)+strlen(tail);

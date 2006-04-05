@@ -37,7 +37,7 @@ int   getUG(char *parm, uid_t &theUid, gid_t &theGid);
 int   setFDL();
 int   Setup(char *dfltp);
 void  UnderCover(void);
-void  Usage(char *mprg, int rc);
+void  Usage(int rc);
 int   xallow(XrdOucError *edest, XrdOucStream &Config);
 int   xapath(XrdOucError *edest, XrdOucStream &Config);
 int   xbuf(XrdOucError *edest, XrdOucStream &Config);
@@ -55,6 +55,7 @@ static const char  *TraceID;
 
 XrdProtocol_Config  ProtInfo;
 XrdNetSecurity     *Police;
+const char         *myProg;
 const char         *myName;
 const char         *myDomain;
 const char         *myInsName;

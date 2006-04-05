@@ -15,13 +15,13 @@
 #include "Xrd/XrdJob.hh"
  
 /******************************************************************************/
-/*                   x r d _ P r o t o c o l _ C o n f i g                    */
+/*                    X r d P r o t o c o l _ C o n f i g                     */
 /******************************************************************************/
   
-// The following class is passed to the XrdgetProtocol() reutine to properly
-// configure the protocol. This object is not stable and the protocol must
-// copyu out any values it desires to keep. It may copy the whole object using
-// the supplied copy constructor.
+// The following class is passed to the XrdgetProtocol() and XrdgetProtocolPort()
+// functions to properly configure the protocol. This object is not stable and 
+// the protocol must copy out any values it desires to keep. It may copy the 
+// whole object using the supplied copy constructor.
 
 class XrdOucError;
 class XrdOucThread;
@@ -40,10 +40,10 @@ public:
 // The following pointers may be copied; they are stable.
 //
 XrdOucError    *eDest;       // Stable -> Error Message/Logging Handler
-XrdInet        *NetTCP;      // Stable -> Network Object
+XrdInet        *NetTCP;      // Stable -> Network Object    (@ XrdgetProtocol)
 XrdBuffManager *BPool;       // Stable -> Buffer Pool Manager
 XrdScheduler   *Sched;       // Stable -> System Scheduler
-XrdStats       *Stats;       // Stable -> System Statistics
+XrdStats       *Stats;       // Stable -> System Statistics (@ XrdgetProtocol)
 XrdOucThread   *Threads;     // Stable -> The thread manager
 XrdOucTrace    *Trace;       // Stable -> Trace Information
 
@@ -56,6 +56,7 @@ const char      *AdmPath;      // Admin path
 int              AdmMode;      // Admin path mode
 const char      *myInst;       // Instance name
 const char      *myName;       // Host name
+const char      *myProg;       // Program name
 struct sockaddr *myAddr;       // Host address
 int              ConnOptn;     // Number of connections to optimize for.
 int              ConnLife;     // Life   of connections to optimize for.
@@ -72,7 +73,7 @@ char             DebugON;      // True if started with -d option
 };
 
 /******************************************************************************/
-/*                          x r d _ P r o t o c o l                           */
+/*                           X r d P r o t o c o l                            */
 /******************************************************************************/
 
 // This class is used by the Link object to process the input stream on a link.
@@ -81,7 +82,7 @@ char             DebugON;      // True if started with -d option
 // protocols. Indeed, startup and shutdown are handled by specialized protocols.
 
 // System configuration obtains an instance of a protocol by calling
-// getProtocol(const char *protname), which may exist in a shared library.
+// XrdgetProtocol(), which must exist in the shared library.
 // This instance is used as the base pointer for Alloc(), Configure(), and
 // Match(). Unfortuantely, they cannot be static given the silly C++ rules.
 
@@ -124,12 +125,14 @@ virtual    ~XrdProtocol() {}
 };
 
 /******************************************************************************/
-/*                       x r d _ g e t P r o t o c o l                        */
+/*                        X r d g e t P r o t o c o l                         */
 /******************************************************************************/
   
 // This extern "C" function is called to obtain an instance of a particular
-// protocol. This allows protocols to live outside of XRootd (i.e., to be
-// loaded at run-time).
+// protocol. This allows protocols to live outside of the protocol driver
+// (i.e., to be loaded at run-time). The call is made after the call to
+// XrdgetProtocolPort(). Note that the network object (NetTCP) is now defined.
+// If a null pointer is returned, failure is indicated and we bail.
 //
 
 extern "C"
@@ -137,48 +140,40 @@ extern "C"
 extern XrdProtocol *XrdgetProtocol(const char *protocol_name, char *parms,
                                    XrdProtocol_Config *pi);
 }
-
+  
 /******************************************************************************/
-/*                   x r d _ P r o t o c o l _ S e l e c t                    */
+/*                    X r d g e t P r o t o c o l P o r t                     */
 /******************************************************************************/
   
-// We also include one non-abstract class to allow for the selection of the
-// appropriate link protocol. This class is used by XRootd to initiate
-// protocol selection for a link.
+// This extern "C" function is called to obtain the actual port number to be
+// used by the protocol. The default port number is noted in XrdProtocol_Config
+// Port. It has one of the fllowing values:
+// <0 -> No port was specified.
+// =0 -> An erbitrary port will be assigned.
+// >0 -> This port number was specified.
+
+// XrdgetProtoclPort() must return:
+// <0 -> Failure is indicated and we terminate
+// =0 -> Use an arbitrary port (even if this equals Port)
+// >0 -> The returned port number must be used (even if it equals Port)
+//
+// When we finally call XrdgetProtocol(), the actual port number is indicated
+// in Port and the network object is defined in NetTCP and bound to the port.
+
+// Final Caveats: 1.  The network object (NetTCP) is not defined until
+//                    XrdgetProtocol() is called.
+
+//                2.  The statistics object (Stats) is not defined until
+//                    XrdgetProtocol() is called.
+
+//                3.  When the protocol is loaded from a shared library, you need
+//                    need not define XrdgetProtocolPort() if the standard port
+//                    determination scheme is sufficient.
 //
 
-#define XRD_PROTOMAX 8
-
-class XrdProtocol_Select : public XrdProtocol
+extern "C"
 {
-public:
-
-void          DoIt() {}
-
-static int    Load(const char *lname, const char *pname, char *parms,
-                   XrdProtocol_Config *pi);
-
-XrdProtocol  *Match(XrdLink *) {return 0;}
-
-int           Process(XrdLink *lp);
-
-void          Recycle(XrdLink *lp, int ctime, const char *txt);
-
-int           Stats(char *buff, int blen, int do_sync=0);
-
-              XrdProtocol_Select(int port=0);
-             ~XrdProtocol_Select();
-
-private:
-
-static XrdProtocol *getProtocol(const char *lname, const char *pname,
-                                char *parms, XrdProtocol_Config *pi);
-
-static char         *ProtName[XRD_PROTOMAX];   // ->Supported protocol names
-static XrdProtocol  *Protocol[XRD_PROTOMAX];   // ->Supported protocol objects
-static int           ProtPort[XRD_PROTOMAX];   // ->Supported protocol ports
-static int           ProtoCnt;                 // Number in table (at least 1)
-
-       int           myPort;
-};
+extern int XrdgetProtocolPort(const char *protocol_name, char *parms,
+                              XrdProtocol_Config *pi);
+}
 #endif
