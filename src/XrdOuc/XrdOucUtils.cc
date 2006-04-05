@@ -22,15 +22,21 @@
 /*                                  d o I f                                   */
 /******************************************************************************/
   
-// doIf() parses "if [<hostlist>] [named <namelist>]" returning 1 if true
-// (i.e., this machine is one of the named hosts in hostlist and is named
-// by one of the names in namelist). Return -1 (negative truth) if an error
-// occured. Otherwise, returns false (0). Either hostlist, namelist, or both
-// must be specified.
+// doIf() parses "if [<hostlist>] [<altopt> [&& <altop> [ ... ]]]"
+// altop: [exec <pgmlist> [&& named <namelist>]] | [named <namelist>]
+
+// Returning 1 if true (i.e., this machine is one of the named hosts in hostlist 
+// and is running one of the programs pgmlist and named by one of the names in 
+// namelist).
+// Return -1 (negative truth) if an error occured.
+// Otherwise, returns false (0). Some combination of hostlist, pgm, and 
+// namelist, must be specified.
 
 int XrdOucUtils::doIf(XrdOucError *eDest, XrdOucStream &Config,
-                      const char *what, const char *hname, const char *nname)
+                      const char *what,  const char *hname,
+                      const char *nname, const char *pname)
 {
+   static const char *brk[] = {"exec", "named", 0};
    char *val;
    int hostok;
 
@@ -43,12 +49,44 @@ int XrdOucUtils::doIf(XrdOucError *eDest, XrdOucStream &Config,
 
 // Check if we are one of the listed hosts
 //
-   if (strcmp(val, "named"))
+   if (!is1of(val, brk))
       {do {hostok = XrdNetDNS::isMatch(hname, val);
            val = Config.GetWord();
-          } while(!hostok && val && strcmp(val, "named"));
-       if (hostok) while(val && strcmp(val, "named")) val = Config.GetWord();
+          } while(!hostok && val && !is1of(val, brk));
+       if (hostok) while(val && !is1of(val, brk)) val = Config.GetWord();
        if (!val) return hostok;
+      }
+
+// Check if we need to compare program names (we are here only if we either
+// passed the hostlist test or there was no hostlist present)
+//
+   if (!strcmp(val, "exec"))
+      {if (!(val = Config.GetWord()) || !strcmp(val, "&&"))
+          {if (eDest)
+              eDest->Emsg("Config","Program name missing after 'if exec' in",what);
+              return -1;
+          }
+
+       // Check if we are one of the programs.
+       //
+       if (!pname) return 0;
+       while(val && strcmp(val, pname))
+            if (!strcmp(val, "&&")) return 0;
+               else  val = Config.GetWord();
+       if (!val) return 0;
+       while(val && strcmp(val, "&&")) val = Config.GetWord();
+       if (!val) return 1;
+
+       if (!(val = Config.GetWord()))
+          {if (eDest)
+              eDest->Emsg("Config","Keyword missing after '&&' in",what);
+              return -1;
+          }
+       if (strcmp(val, "named"))
+          {if (eDest)
+              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
+              return -1;
+          }
       }
 
 // Check if we need to compare net names (we are here only if we either
@@ -69,6 +107,7 @@ int XrdOucUtils::doIf(XrdOucError *eDest, XrdOucStream &Config,
 //
    return (val != 0);
 }
+
 /******************************************************************************/
 /*                               g e n P a t h                                */
 /******************************************************************************/
@@ -105,6 +144,18 @@ int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psf
          strcpy(&buff[i], psfx);
         }
     return 0;
+}
+
+/******************************************************************************/
+/*                                 i s 1 o f                                  */
+/******************************************************************************/
+  
+int XrdOucUtils::is1of(char *val, const char **clist)
+{
+   int i = 0;
+   while(clist[i]) if (!strcmp(val, clist[i])) return 1;
+                      else i++;
+   return 0;
 }
 
 /******************************************************************************/

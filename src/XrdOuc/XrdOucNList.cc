@@ -74,6 +74,13 @@ int XrdOucNList::NameOK(const char *pd, const int pl)
 void XrdOucNList_Anchor::Replace(const char *name, int nval)
 {
    XrdOucNList *xp = new XrdOucNList(name, nval);
+
+   Replace(xp);
+}
+
+
+void XrdOucNList_Anchor::Replace(XrdOucNList *xp)
+{
    XrdOucNList *np, *pp = 0;
 
 // Lock ourselves
@@ -88,7 +95,7 @@ void XrdOucNList_Anchor::Replace(const char *name, int nval)
          &&  np->namelenR == xp->namelenR
          && (np->nameL && xp->nameL && !strcmp(np->nameL, xp->nameL))
          && (np->nameR && xp->nameR && !strcmp(np->nameR, xp->nameR)))
-            {np->Set(nval);
+            {np->Set(xp->flags);
              UnLock();
              delete xp;
              return;

@@ -27,14 +27,49 @@ struct XrdOucEI      // Err information structure
  static const size_t Max_Error_Len = 1280;
 
            int  code;
+           char user[64];
            char message[Max_Error_Len];
 
-           void clear() {code = 0; message[0] = '\0';}
+           void clear() {code = 0; message[0] = '\0'; user[0] = '\0';}
 
            XrdOucEI &operator =(const XrdOucEI &rhs)
-               {code = rhs.code; strcpy(message, rhs.message); return *this;}
+               {code = rhs.code;
+                strcpy(user,    rhs.user);
+                strcpy(message, rhs.message); 
+                return *this;
+               }
+           XrdOucEI(const char *usr)
+               {clear();
+                if (usr) strlcpy(user, usr, sizeof(user));
+               }
+};
 
-           XrdOucEI() {clear();}
+/******************************************************************************/
+/*                            X r d O u c E I C B                             */
+/******************************************************************************/
+
+class XrdOucEICB
+{
+public:
+
+// Alloc() obtains a usuable XrdOucEICB object
+//
+virtual XrdOucEICB *Alloc() = 0;
+
+// Done() is invoked when the requested operation completes. The operation code
+//        is object specific (see XrdSfsInterface for an example). Variable
+//        Result holds the value that would have been returned by the original
+//        function. It may be modified to relay information back.
+//
+virtual void        Done(int       Oper,    // In: Operation code
+                         XrdOucEI &EInfo,   // In: Error information
+                         int      &Result,  //I/O: Function result
+                         void     *Varg)=0; // In: Function specific data
+
+// Recycle() is called when the object is no longer needed
+//
+                    XrdOucEICB() {}
+virtual            ~XrdOucEICB() {}
 };
 
 /******************************************************************************/
@@ -46,6 +81,7 @@ class XrdOucErrInfo
 public:
       void  clear() {ErrInfo.clear();}
 
+      void  setErrCB(XrdOucEICB *cb) {ErrCB = cb;}
       int   setErrCode(int code)
                {return ErrInfo.code = code;}
       int   setErrInfo(int code, const char *message)
@@ -61,7 +97,9 @@ public:
                 return ErrInfo.code = code;
                }
       void  setErrUser(const char *user)
-               {ErrUser = user;}
+               {strlcpy(ErrInfo.user, user, sizeof(ErrInfo.user));}
+
+XrdOucEICB *getErrCB() {return ErrCB;}
       int   getErrInfo() {return ErrInfo.code;}
       int   getErrInfo(XrdOucEI &errorParm)
                {errorParm = ErrInfo; return ErrInfo.code;}
@@ -70,19 +108,20 @@ const char *getErrText()
 const char *getErrText(int &ecode)
                {ecode = ErrInfo.code; return (const char *)ErrInfo.message;}
 const char *getErrUser()
-               {return ErrUser;}
+               {return (const char *)ErrInfo.user;}
 
       XrdOucErrInfo &operator =(const XrdOucErrInfo &rhs)
                {ErrInfo = rhs.ErrInfo; 
-                ErrUser = rhs.ErrUser;
+                ErrCB   = rhs.ErrCB;
                 return *this;
                }
 
-      XrdOucErrInfo(const char *user=0) {ErrUser = (user ? user : "?");}
+      XrdOucErrInfo(const char *user=0, XrdOucEICB *cb=0) : ErrInfo(user)
+                   {ErrCB = cb;}
 
 protected:
 
 XrdOucEI    ErrInfo;
-const char *ErrUser;
+XrdOucEICB *ErrCB;
 };
 #endif

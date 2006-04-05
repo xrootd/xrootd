@@ -18,7 +18,7 @@ class XrdOucPlugin
 {
 public:
 
-void *getPlugin(const char *pname);
+void *getPlugin(const char *pname, int errok=0);
 
       XrdOucPlugin(XrdOucError *erp, const char *path)
                   {eDest = erp; libPath = path; libHandle = 0;}

@@ -25,11 +25,14 @@ public:
 static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 
 static int   doIf(XrdOucError *eDest, XrdOucStream &Config,
-                  const char *what, const char *hname, const char *nname);
+                  const char *what, const char *hname, 
+                                    const char *nname, const char *pname);
  
 static char *genPath(const char *path, const char *inst, const char *psfx=0);
 
 static int   genPath(char *buff, int blen, const char *path, const char *psfx=0);
+
+static int   is1of(char *val, const char **clist);
 
 static void  makeHome(XrdOucError &eDest, const char *inst);
 

@@ -155,6 +155,7 @@ private:
         char *myInst;
         char *myHost;
         char *myName;
+        char *myExec;
  XrdOucError *Eroute;
         char  sawif;
         char  skpel;

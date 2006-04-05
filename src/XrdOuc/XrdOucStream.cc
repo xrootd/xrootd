@@ -53,15 +53,19 @@ const char *XrdOucStreamCVSID = "$Id$";
   
 XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname)
 {
-
+ char *cp;
      if (ifname)
         {myInst = strdup(ifname);
-         if ((myHost = index(myInst, '@')))
+         if (!(cp = index(myInst, ' '))) {cp = myInst; myExec = 0;}
+            else {*cp = '\0'; cp++;
+                  myExec = (*myInst ? myInst : 0);
+                 }
+         if ((myHost = index(cp, '@')))
             {*myHost = '\0';
              myHost++;
-             myName = (*myInst ? myInst : 0);
-            } else {myHost = myInst; myName = 0;}
-        } else myInst = myHost = myName = 0;
+             myName = (*cp ? cp : 0);
+            } else {myHost = cp; myName = 0;}
+        } else myInst = myHost = myName = myExec = 0;
 
      FD     = -1;
      FE     = -1;
@@ -555,7 +559,7 @@ int XrdOucStream::Put(const char *datavec[], const int dlenvec[]) {
 
 /* Function: doif
 
-   Purpose:  To parse the directive: if [<hlist>] [named <nlist>]
+   Purpose:  To parse the directive: if [<hlist>] [exec <pgm>] [named <nlist>]
                                      fi
 
             <hlist> Apply subsequent directives until the 'fi' if this host
@@ -563,11 +567,13 @@ int XrdOucStream::Put(const char *datavec[], const int dlenvec[]) {
                     host name may have a single asterisk somewhere in the
                     name to indicate where arbitrry characters lie.
 
+            <pgm>   Apply subsequent directives if this program is named <pgm>.
+
             <nlist> Apply subsequent directives if this  host instance name
                     is in the list of blank separated names.
 
-   Notes: 1) At least one of hlist or nlist must be specified.
-          2) If both hlist and nlist are specified; both must be true.
+   Notes: 1) At least one of hlist, pgm, or nlist must be specified.
+          2) The combination of hlist, pgm, nlist must all be true.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -587,7 +593,7 @@ int XrdOucStream::doif()
 // Check if we should continue
 //
    sawif = 1; skpel = 0;
-   if ((rc = XrdOucUtils::doIf(Eroute,*this,"if directive",myHost,myName)))
+   if ((rc = XrdOucUtils::doIf(Eroute,*this,"if directive",myHost,myName,myExec)))
       {if (rc < 0) ecode = EINVAL;
        return 1;
       }

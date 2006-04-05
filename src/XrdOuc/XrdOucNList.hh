@@ -82,7 +82,17 @@ inline void        Insert(XrdOucNList *newitem)
 
 inline int         NotEmpty() {return next != 0;}
 
+inline XrdOucNList *Pop()
+                   {XrdOucNList *np;
+                    Lock();
+                    if ((np = next)) next = np->next;
+                    UnLock();
+                    return np;
+                   }
+
        void        Replace(const char *name, int nval);
+
+       void        Replace(XrdOucNList *item);
 
                    // Warning: You must manually lock the object before swap
 inline void        Swap(XrdOucNList_Anchor &other)

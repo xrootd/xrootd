@@ -49,7 +49,7 @@ XrdOucPlugin::~XrdOucPlugin()
 /*                             g e t P l u g i n                              */
 /******************************************************************************/
   
-void *XrdOucPlugin::getPlugin(const char *pname)
+void *XrdOucPlugin::getPlugin(const char *pname, int errok)
 {
    void *ep;
 
@@ -62,7 +62,7 @@ void *XrdOucPlugin::getPlugin(const char *pname)
 
 // Get the plugin object creator
 //
-   if (!(ep = dlsym(libHandle, pname)))
+   if (!(ep = dlsym(libHandle, pname)) && !errok)
       {char buff[1024];
        printf(buff, "Unable to find %s in", pname);
        eDest->Emsg("getPlugin", buff, libPath, dlerror());
