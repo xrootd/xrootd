@@ -1126,3 +1126,20 @@ void XrdClient::WaitForNewAsyncData() {
 
 }
 
+//_____________________________________________________________________________
+bool XrdClient::UseCache(bool u)
+{
+  // Set use of cache flag after checking if the requested value make sense.
+  // Returns the previous value to allow quick toggling of the flag.
+
+  bool r = fUseCache;
+
+  if (!u) {
+    fUseCache = FALSE;
+  } else {
+    if (EnvGetLong(NAME_READCACHESIZE) > 0)
+      fUseCache = TRUE;
+  }
+  // Return the previous setting
+  return r;
+}
