@@ -17,7 +17,7 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20051004.1010x4,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20060406cvs,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 ###############################################################

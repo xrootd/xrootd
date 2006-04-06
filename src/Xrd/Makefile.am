@@ -15,7 +15,7 @@ xrootdxrdincdir = $(includedir)/xrootd/Xrd
 
 xrootdxrdinc_HEADERS = XrdLink.hh XrdBuffer.hh XrdScheduler.hh XrdProtocol.hh \
                        XrdObject.hh XrdJob.hh XrdLinkMatch.hh XrdObject.icc \
-                       XrdPoll.hh
+                       XrdPoll.hh XrdProtLoad.hh
 
 lib_LTLIBRARIES = libXrd.la
 
@@ -31,6 +31,7 @@ libXrd_la_SOURCES = \
         XrdMain.cc        \
         XrdPoll.cc XrdPollDev.hh XrdPollPoll.hh XrdPoll.hh XrdPollPoll.icc XrdPollDev.icc   \
         XrdProtocol.cc XrdProtocol.hh   \
+        XrdProtLoad.cc XrdProtLoad.hh \
         XrdScheduler.cc XrdScheduler.hh XrdJob.hh  \
         XrdStats.cc XrdStats.hh \
                     XrdTrace.hh
