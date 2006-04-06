@@ -493,6 +493,7 @@ struct ServerResponseBody_Attn_asyncrd {
 
 struct ServerResponseBody_Attn_asynresp {
    kXR_int32            actnum;
+   char reserved[4];
    ServerResponseHeader resphdr;
    char respdata[4096];
 };
