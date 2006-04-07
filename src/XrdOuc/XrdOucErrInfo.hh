@@ -26,62 +26,35 @@ struct XrdOucEI      // Err information structure
 { 
  static const size_t Max_Error_Len = 1280;
 
-           int  code;
-           char user[64];
-           char message[Max_Error_Len];
+const      char *user;
+           int   code;
+           char  message[Max_Error_Len];
 
-           void clear() {code = 0; message[0] = '\0'; user[0] = '\0';}
+           void clear(const char *usr=0) 
+                     {code=0; message[0]='\0'; user = (usr ? usr : "?");}
 
            XrdOucEI &operator =(const XrdOucEI &rhs)
                {code = rhs.code;
-                strcpy(user,    rhs.user);
+                user = rhs.user;
                 strcpy(message, rhs.message); 
                 return *this;
                }
-           XrdOucEI(const char *usr)
-               {clear();
-                if (usr) strlcpy(user, usr, sizeof(user));
-               }
-};
-
-/******************************************************************************/
-/*                            X r d O u c E I C B                             */
-/******************************************************************************/
-
-class XrdOucEICB
-{
-public:
-
-// Alloc() obtains a usuable XrdOucEICB object
-//
-virtual XrdOucEICB *Alloc() = 0;
-
-// Done() is invoked when the requested operation completes. The operation code
-//        is object specific (see XrdSfsInterface for an example). Variable
-//        Result holds the value that would have been returned by the original
-//        function. It may be modified to relay information back.
-//
-virtual void        Done(int       Oper,    // In: Operation code
-                         XrdOucEI &EInfo,   // In: Error information
-                         int      &Result,  //I/O: Function result
-                         void     *Varg)=0; // In: Function specific data
-
-// Recycle() is called when the object is no longer needed
-//
-                    XrdOucEICB() {}
-virtual            ~XrdOucEICB() {}
+           XrdOucEI(const char *usr) {clear(usr);}
 };
 
 /******************************************************************************/
 /*                         X r d O u c E r r I n f o                          */
 /******************************************************************************/
+
+class XrdOucEICB;
   
 class XrdOucErrInfo
 {
 public:
       void  clear() {ErrInfo.clear();}
 
-      void  setErrCB(XrdOucEICB *cb) {ErrCB = cb;}
+      void  setErrCB(XrdOucEICB *cb, unsigned long long cbarg=0)
+                    {ErrCB = cb; ErrCBarg = cbarg;}
       int   setErrCode(int code)
                {return ErrInfo.code = code;}
       int   setErrInfo(int code, const char *message)
@@ -96,10 +69,10 @@ public:
                     }
                 return ErrInfo.code = code;
                }
-      void  setErrUser(const char *user)
-               {strlcpy(ErrInfo.user, user, sizeof(ErrInfo.user));}
+      void  setErrUser(const char *user) {ErrInfo.user = (user ? user : "?");}
 
-XrdOucEICB *getErrCB() {return ErrCB;}
+XrdOucEICB *getErrCB(unsigned long long &cbarg) 
+                    {cbarg = ErrCBarg; return ErrCB;}
       int   getErrInfo() {return ErrInfo.code;}
       int   getErrInfo(XrdOucEI &errorParm)
                {errorParm = ErrInfo; return ErrInfo.code;}
@@ -108,20 +81,43 @@ const char *getErrText()
 const char *getErrText(int &ecode)
                {ecode = ErrInfo.code; return (const char *)ErrInfo.message;}
 const char *getErrUser()
-               {return (const char *)ErrInfo.user;}
+               {return ErrInfo.user;}
 
       XrdOucErrInfo &operator =(const XrdOucErrInfo &rhs)
                {ErrInfo = rhs.ErrInfo; 
                 ErrCB   = rhs.ErrCB;
+                ErrCBarg= rhs.ErrCBarg;
                 return *this;
                }
 
-      XrdOucErrInfo(const char *user=0, XrdOucEICB *cb=0) : ErrInfo(user)
-                   {ErrCB = cb;}
+      XrdOucErrInfo(const char *user=0,XrdOucEICB *cb=0,unsigned long long ca=0)
+                   : ErrInfo(user) {ErrCB = cb; ErrCBarg = ca;}
 
 protected:
 
-XrdOucEI    ErrInfo;
-XrdOucEICB *ErrCB;
+XrdOucEI           ErrInfo;
+XrdOucEICB        *ErrCB;
+unsigned long long ErrCBarg;
+};
+
+/******************************************************************************/
+/*                            X r d O u c E I C B                             */
+/******************************************************************************/
+
+class XrdOucEICB
+{
+public:
+
+// Done() is invoked when the requested operation completes. Arguments are:
+//        Result - the original function's result (may be changed).
+//        eInfo  - Associated error information. The callback function must
+//                 manually delete this object when it is through! While icky
+//                 this allows callback functions to be asynchronous.
+//
+virtual void        Done(int           &Result,   //I/O: Function result
+                         XrdOucErrInfo *eInfo)=0; // In: Error Info
+
+                    XrdOucEICB() {}
+virtual            ~XrdOucEICB() {}
 };
 #endif
