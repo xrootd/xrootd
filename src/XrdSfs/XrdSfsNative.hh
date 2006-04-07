@@ -129,10 +129,10 @@ public:
 // Object Allocation Functions
 //
         XrdSfsDirectory *newDir(char *user=0)
-                        {return (XrdSfsDirectory *)new XrdSfsNativeDirectory;}
+                        {return (XrdSfsDirectory *)new XrdSfsNativeDirectory(user);}
 
         XrdSfsFile      *newFile(char *user=0)
-                        {return      (XrdSfsFile *)new XrdSfsNativeFile;}
+                        {return      (XrdSfsFile *)new XrdSfsNativeFile(user);}
 
 // Other Functions
 //

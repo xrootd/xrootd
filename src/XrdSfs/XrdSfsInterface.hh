@@ -103,46 +103,6 @@ class  XrdOucTList;
 class  XrdSecEntity;
 
 /******************************************************************************/
-/*                        X r d S f s C a l l B a c k                         */
-/******************************************************************************/
-  
-// The XrdSfsCallBack object is used to handle long running functions. The
-// appropriate method is invoked when the corresponding method returns an
-// SFS_STARTED. Only those functions listed below may return this error.
-// The method only returns the error if the call back object was set in the
-// XrdOucErrInfo object. The callback occurs when the originally requested 
-// function completes. EInfo holds error information, if any. Result holds 
-// the return value. The Varg points to values as indiacted below.
-//
-class XrdSfsCallBack : public XrdOucEICB
-{
-public:
-
-// Callbacks are only supported for the following set of functions
-//
-enum CBFunc {is_chmod,  is_mkdir,  is_openfile, is_opendir, is_rem,
-             is_remdir, is_rename, is_statbuff, is_statmode};
-
-virtual XrdOucEICB *Alloc() = 0;
-
-// Varg = 0               if chmod(), mkdir(), rem(), remdir(), rename()
-// Varg = XrdSfsFile      if open() file
-// Varg = XrdSfsDirectory if open() directory
-// Varg = struct stat     if stat() with buffer
-// Varg = mode_t          if stat() with mode
-//
-virtual void        Done(int            cbfunc,
-                         XrdOucEI      &EInfo,
-                         int           &Result,
-                         void          *Varg=0) = 0;
-
-virtual void        Recycle() = 0;
-
-                    XrdSfsCallBack() {}
-virtual            ~XrdSfsCallBack() {}
-};
-
-/******************************************************************************/
 /*                      X r d S f s F i l e S y s t e m                       */
 /******************************************************************************/
   
