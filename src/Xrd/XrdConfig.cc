@@ -684,6 +684,7 @@ int XrdConfig::Setup(char *dfltp)
              ProtInfo.NetTCP = XrdNetTCP[XrdNetTCPlep];
              sprintf(portbuff, "XRDPORT=%d", ProtInfo.Port);
              putenv(portbuff);
+             lastPort = cp->port;
             }
          if (!XrdProtLoad::Load(cp->libpath,cp->proname,cp->parms,&ProtInfo))
             return 1;
@@ -1116,10 +1117,12 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
               }
           } while((cpp = cpp->Next));
 
-    cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum);
-    if (Lastcp) Lastcp->Next = cpp;
-       else    Firstcp = cpp;
-    Lastcp = cpp;
+    if (lib)
+       {cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum);
+        if (Lastcp) Lastcp->Next = cpp;
+           else    Firstcp = cpp;
+        Lastcp = cpp;
+       }
 
     return 0;
 }
