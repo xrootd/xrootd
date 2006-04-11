@@ -535,7 +535,7 @@ bool XrdCryptosslCipher::Finalize(char *pub, int lpub, const char *t)
       // Extract string with bignumber
       BIGNUM *bnpub = 0;
       char *pb = strstr(pub,"---BPUB---");
-      char *pe = strstr(pub,"---EPUB---");
+      char *pe = strstr(pub,"---EPUB--");
       if (pb && pe) {
          lpub = (int)(pb-pub);
          pb += 10;
