@@ -98,6 +98,7 @@ XrdOucMutex XrdSecProtocolgsi::gsiContext;
 String XrdSecProtocolgsi::CAdir    = "/etc/grid-security/certificates/";
 String XrdSecProtocolgsi::CRLdir   = "/etc/grid-security/certificates/";
 String XrdSecProtocolgsi::DefCRLext= ".r0";
+String XrdSecProtocolgsi::GMAPFile = "/etc/grid-security/grid-mapfile";
 String XrdSecProtocolgsi::SrvCert  = "/etc/grid-security/xrd/xrdcert.pem";
 String XrdSecProtocolgsi::SrvKey   = "/etc/grid-security/xrd/xrdkey.pem";
 String XrdSecProtocolgsi::UsrProxy = "/tmp/x509up_u";
@@ -107,6 +108,7 @@ String XrdSecProtocolgsi::PxyValid = "12:00";
 int    XrdSecProtocolgsi::DepLength= 0;
 int    XrdSecProtocolgsi::DefBits  = 512;
 int    XrdSecProtocolgsi::CRLCheck = 1;
+int    XrdSecProtocolgsi::GMAPOpt  = 1;
 String XrdSecProtocolgsi::DefCrypto= "ssl";
 String XrdSecProtocolgsi::DefCipher= "aes-128-cbc:bf-cbc:des-ede3-cbc";
 String XrdSecProtocolgsi::DefMD    = "sha1:md5";
@@ -123,6 +125,7 @@ XrdCryptoCipher *XrdSecProtocolgsi::refcip[XrdCryptoMax] = {0};    // ref for se
 XrdSutCache XrdSecProtocolgsi::cacheCA;   // CA info
 XrdSutCache XrdSecProtocolgsi::cacheCert; // Server certificates info
 XrdSutCache XrdSecProtocolgsi::cachePxy;  // Client proxies
+XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
 //
 // Running options / settings
 int  XrdSecProtocolgsi::Debug       = 0; // [CS] Debug level
@@ -171,6 +174,38 @@ static const char *ServerStepStr(int ksrv)
       return gsiServerSteps[ksrv];
 }
 
+
+/******************************************************************************/
+/*       D u m p  o f   H a n d s h a k e   v a r i a b l e s                 */
+/******************************************************************************/
+
+//_____________________________________________________________________________
+void gsiHSVars::Dump(XrdSecProtocolgsi *p)
+{
+   // Dump content
+   EPNAME("HSVars::Dump");
+
+   PRINT("----------------------------------------------------------------");
+   PRINT("protocol instance:   "<<p);
+   PRINT("this:                "<<this);
+   PRINT(" ");
+   PRINT("Time stamp:          "<<TimeStamp);
+   PRINT("Crypto mod:          "<<CryptoMod);
+   PRINT("Remote version:      "<<RemVers);
+   PRINT("Ref cipher:          "<<Rcip);
+   PRINT("Bucket for exp cert: "<<Cbck);
+   PRINT("Handshake ID:        "<<ID);
+   PRINT("Cache reference:     "<<Cref);
+   PRINT("Relevant file entry: "<<Pent);
+   PRINT("Chain pointer:       "<<Chain);
+   PRINT("CRL pointer:         "<<Crl);
+   PRINT("Proxy chain:         "<<PxyChain);
+   PRINT("Rndm tag checked:    "<<RtagOK);
+   PRINT("TTY status:          "<<Tty);
+   PRINT("Last step:           "<<LastStep);
+   PRINT("----------------------------------------------------------------");
+}
+
 /******************************************************************************/
 /*       P r o t o c o l   I n i t i a l i z a t i o n   M e t h o d s        */
 /******************************************************************************/
@@ -197,12 +232,14 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
       hs->ID = "";              // Handshake ID (dummy for clients)
       hs->Cref = 0;             // Cache reference
       hs->Pent = 0;             // Pointer to relevant file entry
+      hs->Chain = 0;         // Pointer to Reference Chain
       hs->Chain = 0;            // Chain to be eventually verified
       hs->Crl = 0;              // Pointer to CRL, if required
       hs->PxyChain = 0;         // Proxy Chain on clients
       hs->RtagOK = 0;           // Rndm tag checked / not checked
       hs->Tty = (isatty(0) == 0 || isatty(1) == 0) ? 0 : 1;
       hs->LastStep = 0;         // Step required at previous iteration
+
    } else {
       DEBUG("could not create handshake vars object");
    }
@@ -562,6 +599,56 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       if (QTRACE(Authen)) { cacheCert.Dump(); }
 
       DEBUG("CA list: "<<certcalist);
+
+      //
+      // GRID map check option
+      //
+      //    0   do not use (DN will be used as identifier)
+      //    1   use if available
+      //    2   require
+      const char *cogmap[] = { "do-not-use", "use-if-available", "require" };
+      if (opt.ogmap >= 0 && opt.ogmap <= 2)
+         GMAPOpt = opt.ogmap;
+      DEBUG("grid map file option: "<<cogmap[GMAPOpt]);
+
+      //
+      // Check existence of GRID map file
+      if (opt.gridmap) {
+         String GMAPTmp = opt.gridmap;
+         if (XrdSutExpand(GMAPTmp) == 0) {
+            GMAPFile = GMAPTmp;
+         } else {
+            PRINT("Could not expand: "<<opt.gridmap<<": use default");
+         }
+      }
+      if (GMAPOpt > 0) {
+         if (access(GMAPFile.c_str(),R_OK) != 0) {
+            if (GMAPOpt > 1) {
+               if (errno == ENOENT) {
+                  ErrF(erp,kGSErrError,"Grid map file non existing:",GMAPFile.c_str());
+                  PRINT(erp->getErrText());
+               } else {
+                  ErrF(erp,kGSErrError,"'access' error on grid map file:",GMAPFile.c_str());
+                  PRINT(erp->getErrText());
+               }
+               return Parms;
+            } else {
+               DEBUG("Grid map file: "<<GMAPFile<<" cannot be 'access'ed: do not use");
+               GMAPOpt = 0;
+            }
+         }
+      }
+      if (GMAPOpt > 0) {
+         DEBUG("using grid map file: "<<GMAPFile);
+         //
+         // Init cache for gridmap entries
+         if (LoadGMAP(timestamp) != 0) {
+            ErrF(erp,kGSErrError,"problems initializing cache for gridmap entries");
+            PRINT(erp->getErrText());
+            return Parms;
+         }
+         if (QTRACE(Authen)) { cacheGMAP.Dump(); }
+      }
       //
       // Parms in the form:
       //     &P=gsi,v:<version>,c:<cryptomod>,ca:<list_of_srv_cert_ca>
@@ -672,7 +759,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
 void XrdSecProtocolgsi::Delete()
 {
    // Deletes the protocol
-   if (Entity.host) free(Entity.host);
+   SafeFree(Entity.host);
    // Cleanup the handshake variables, if still there
    SafeDelete(hs);
    // Cleanup any other instance specific to this protocol
@@ -722,7 +809,7 @@ int XrdSecProtocolgsi::Encrypt(const char *inbuf,  // Data to be encrypted
    // Encrypt
    int len = sessionKey->Encrypt(inbuf, inlen, buf);
    if (len <= 0) {
-      free(buf);
+      SafeFree(buf);
       return -EINVAL;
    }
 
@@ -761,7 +848,7 @@ int XrdSecProtocolgsi::Decrypt(const char *inbuf,  // Data to be decrypted
    // Decrypt
    int len = sessionKey->Decrypt(inbuf, inlen, buf);
    if (len <= 0) {
-      free(buf);
+      SafeFree(buf);
       return -EINVAL;
    }
 
@@ -812,7 +899,7 @@ int XrdSecProtocolgsi::Sign(const char  *inbuf,   // Data to be signed
                                          sessionMD->Length(),
                                          buf, lmax);
    if (len <= 0) {
-      free(buf);
+      SafeFree(buf);
       return -EINVAL;
    }
 
@@ -1027,9 +1114,6 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    XrdSutBuffer *bpar   = 0;  // Global buffer
    XrdSutBuffer *bmai   = 0;  // Main buffer
 
-   // 
-   // Unlocks automatically returning
-   XrdOucMutexHelper gsiGuard(&gsiContext);
    //
    // Decode received buffer
    if (!(bpar = new XrdSutBuffer((const char *)parm->buffer,parm->size)))
@@ -1113,6 +1197,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    default:
       return ErrC(ei,bpar,bmai,0, kGSErrBadOpt,stepstr);
    }
+
    //
    // Serialize and encrypt
    if (AddSerialized('c', nextstep, hs->ID,
@@ -1173,7 +1258,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
 
    // Handshake vars conatiner must be initialized at this point
    if (!hs)
-      return ErrS(hs->ID,ei,0,0,0,kGSErrError,
+      return ErrS(Entity.tident,ei,0,0,0,kGSErrError,
                   "handshake var container missing",
                   "protocol initialization problems");
 
@@ -1182,7 +1267,8 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
 
    //
    // ID of this handshaking
-   hs->ID = Entity.tident;
+   if (hs->ID.length() <= 0)
+      hs->ID = Entity.tident;
    DEBUG("handshaking ID: " << hs->ID);
 
    // Local vars 
@@ -1203,9 +1289,6 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    XrdSutBuffer    *bpar = 0;  // Global buffer
    XrdSutBuffer    *bmai = 0;  // Main buffer
 
-   //
-   // Unlocks automatically returning
-   XrdOucMutexHelper gsiGuard(&gsiContext);
    //
    // Decode received buffer
    if (!(bpar = new XrdSutBuffer((const char *)cred->buffer,cred->size)))
@@ -1280,14 +1363,35 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       //
       // Client sent its own credentials: their are checked in
       // ParseServerInput, so if we are here they are OK
-      // Nothing more to do, except setting the client DN
-      if (hs->Chain->EECname()) {
-         Entity.name = strdup(hs->Chain->EECname());
-      } else {
-         DEBUG("WARNING: DN missing: corruption? ");
-      }
-
       kS_rc = kgST_ok;
+
+      // Nothing more to do, except setting the client name
+      if (GMAPOpt > 0) {
+         // Get name from gridmap
+         char *name = QueryGMAP(hs->Chain->EECname(), hs->TimeStamp);
+         if (!name) {
+            // Grid map lookup failure
+            if (GMAPOpt == 2) {
+               // It was required, so we fail
+               kS_rc = kgST_error;
+               PRINT("ERROR: grid map required, but lookup failed - failure");
+            } else {
+               DEBUG("WARNING: grid map lookup failed - use DN as name");
+            }
+         } else {
+            DEBUG("grid map lookup successful: name is '"<<name<<"'");
+            Entity.name = strdup(name);
+         }
+      }
+      // If not set, use DN
+      if (!Entity.name || (strlen(Entity.name) <= 0)) {
+         // No grid map: set the client DN as name
+         if (hs->Chain->EECname()) {
+            Entity.name = strdup(hs->Chain->EECname());
+         } else {
+            DEBUG("WARNING: DN missing: corruption? ");
+         }
+      }
       nextstep = kXGS_none;
       break;
 
@@ -1458,13 +1562,13 @@ char *XrdSecProtocolgsiInit(const char mode,
       rc = XrdSecProtocolgsi::Init(opts,erp);
 
       // Some cleanup
-      if (opts.certdir) free(opts.certdir);
-      if (opts.crldir) free(opts.crldir);
-      if (opts.crlext) free(opts.crlext);
-      if (opts.cert) free(opts.cert);
-      if (opts.key) free(opts.key);
-      if (opts.proxy) free(opts.proxy);
-      if (opts.valid) free(opts.valid);
+      SafeFree(opts.certdir);
+      SafeFree(opts.crldir);
+      SafeFree(opts.crlext);
+      SafeFree(opts.cert);
+      SafeFree(opts.key);
+      SafeFree(opts.proxy);
+      SafeFree(opts.valid);
 
       // We are done
       return rc;
@@ -1493,6 +1597,8 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-cipher:<list_of_supported_ciphers>]
       //              [-md:<list_of_supported_digests>]
       //              [-crl:<crl_check_level>]
+      //              [-gridmap:<grid_map_file>]
+      //              [-gmapopt:<grid_map_check_option>]
       //
       int debug = -1;
       String clist = "";
@@ -1503,7 +1609,9 @@ char *XrdSecProtocolgsiInit(const char mode,
       String key = "";
       String cipher = "";
       String md = "";
+      String gridmap = "";
       int crl = 2;
+      int ogmap = 1;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -1527,15 +1635,20 @@ char *XrdSecProtocolgsiInit(const char mode,
                md = (const char *)(op+4);
             } else if (!strncmp(op, "-crl:",5)) {
                crl = atoi(op+5);
+            } else if (!strncmp(op, "-gmapopt:",9)) {
+               ogmap = atoi(op+9);
+            } else if (!strncmp(op, "-gridmap:",9)) {
+               gridmap = (const char *)(op+9);
             }
          }
       }
-         
+
       //
       // Build the option object
       opts.debug = (debug > -1) ? debug : opts.debug;
       opts.mode = 's';
       opts.crl = crl;
+      opts.ogmap = ogmap;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)
@@ -1552,6 +1665,8 @@ char *XrdSecProtocolgsiInit(const char mode,
          opts.cipher = (char *)cipher.c_str();
       if (md.length() > 0)
          opts.md = (char *)md.c_str();
+      if (gridmap.length() > 0)
+         opts.gridmap = (char *)gridmap.c_str();
       //
       // Setup the plug-in with the chosen options
       return XrdSecProtocolgsi::Init(opts,erp);
@@ -1775,6 +1890,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       // Parse the list loading the first we can
       if (ParseCAlist(srvca) != 0) {
          emsg = "unknown CA: cannot verify server certificate";
+         hs->Chain = 0;
          return -1;
       }
       //
@@ -1786,6 +1902,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       if (QueryProxy(1, &cachePxy, "Proxy:0",
                      sessionCF, hs->TimeStamp, &pi, &po) != 0) {
          emsg = "error getting user proxies";
+         hs->Chain = 0;
          return -1;
       }
       // Save the result
@@ -1793,6 +1910,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       hs->Cbck = po.cbck;
       if (!(sessionKsig = sessionCF->RSA(*(po.ksig)))) {
          emsg = "could not get a copy of the signing key:";
+         hs->Chain = 0;
          return -1;
       }
       //
@@ -1803,6 +1921,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    // make sure the cache is still there
    if (!hs->Cref) {
       emsg = "cache entry not found";
+      hs->Chain = 0;
       return -1;
    }
    //
@@ -1812,6 +1931,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       emsg = "cache entry expired";
       // Remove: should not be checked a second time
       SafeDelete(hs->Cref);
+      hs->Chain = 0;
       return -1;
    }
    //
@@ -1844,6 +1964,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Extract server public part for session cipher
    if (!(bck = br->GetBucket(kXRS_puk))) {
       emsg = "server public part for session cipher missing";
+      hs->Chain = 0;
       return -1;
    }
    //
@@ -1859,6 +1980,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Extract server certificate
    if (!(bck = br->GetBucket(kXRS_x509))) {
       emsg = "server certificate missing";
+      hs->Chain = 0;
       return -1;
    }
    //
@@ -1969,6 +2091,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    //
    // Get the step
    int step = br->GetStep();
+
    //
    // Extract the main buffer 
    if (!(bckm = br->GetBucket(kXRS_main))) {
@@ -2075,6 +2198,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       // Parse the list
       if (DefCipher.find(cip) == -1) {
          cmsg = "unsupported cipher chosen by the client";
+         hs->Chain = 0;
          return -1;
       }
       // Deactivate the bucket
@@ -2093,17 +2217,20 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       // Prepare cipher agreement: make sure we have the reference cipher
       if (!hs->Rcip) {
          cmsg = "reference cipher missing";
+         hs->Chain = 0;
          return -1;
       }
       // Prepare cipher agreement: get a copy of the reference cipher
       if (!(sessionKey = sessionCF->Cipher(*(hs->Rcip)))) {
          cmsg = "cannot get reference cipher";
+         hs->Chain = 0;
          return -1;
       }
       //
       // Instantiate the session cipher 
       if (!(sessionKey->Finalize(bck->buffer,bck->size,cip.c_str()))) {
          cmsg = "cannot finalize session cipher";
+         hs->Chain = 0;
          return -1;
       }
       //
@@ -2116,6 +2243,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    if (sessionKey) {
       if (!(sessionKey->Decrypt(*bckm))) {
          cmsg = "error decrypting main buffer with session cipher";
+         hs->Chain = 0;
          return -1;
       }
    }
@@ -2123,6 +2251,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Deserialize main buffer
    if (!((*bm) = new XrdSutBuffer(bckm->buffer,bckm->size))) {
       cmsg = "error deserializing main buffer";
+      hs->Chain = 0;
       return -1;
    }
    //
@@ -2141,6 +2270,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Get cache entry 
    if (!hs->Cref) {
       cmsg = "session cache has gone";
+      hs->Chain = 0;
       return -1;
    }
    //
@@ -2149,6 +2279,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    if (hs->Cref->mtime < reftime) {
       cmsg = "cache entry expired";
       SafeDelete(hs->Cref);
+      hs->Chain = 0;
       return -1;
    }
 
@@ -2157,6 +2288,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    if (!(bck = (*bm)->GetBucket(kXRS_x509))) {
       cmsg = "client certificate missing";
       SafeDelete(hs->Cref);
+      hs->Chain = 0;
       return -1;
    }
    //
@@ -2933,7 +3065,6 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
                continue;
             }
          }
-         
          // Parse the proxy file
          int nci = (*ParseFile)(pi->out, po->chain);
          if (nci < 2) {
@@ -3011,4 +3142,122 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       return -1;
    }
    return 0;
+}
+
+//__________________________________________________________________________
+int XrdSecProtocolgsi::LoadGMAP(int now)
+{
+   // Load cache for gridmap entries with current content of the gridmap file.
+   // The cache content is loaded only if the file was modified since last
+   // access.
+   // Returns 0 if successful, -1 if somethign went wrong
+   EPNAME("LoadGMAP");
+
+   // Time of last check
+   static int lastCheck = -1;
+
+   // We need a file to load
+   if (GMAPFile.length() <= 0)
+      return 0;
+
+   // Get info about last time of modification
+   struct stat st;
+   if (stat(GMAPFile.c_str(), &st) != 0) {
+      PRINT("error 'stat'-ing file "<<GMAPFile);
+      return -1;
+   }
+
+   // Check against current time
+   if (lastCheck > st.st_mtime)
+      // Nothing to do
+      return 0;
+
+   // Init or reset the cache
+   if (cacheGMAP.Empty()) {
+      if (cacheGMAP.Init(100) != 0) {
+         PRINT("error initializing cache");
+         return -1;
+      }
+   } else {
+      if (cacheGMAP.Reset() != 0) {
+         PRINT("error resetting cache");
+         return -1;
+      }
+   }
+
+   // Open the file
+   FILE *fm = fopen(GMAPFile.c_str(),"r");
+   if (!fm) {
+      PRINT("error opening file "<<GMAPFile);
+      return -1;
+   }
+
+   // Read entries now
+   char line[2048] = {0};
+   while (fgets(line,sizeof(line),fm)) {
+      // Skip comment line
+      if (line[0] == '#') continue;
+      // Get rid of \n
+      if (line[strlen(line)-1] == '\n')
+         line[strlen(line)-1] = 0;
+      // Extract DN
+      char *p0 = (line[0] == '"') ? &line[1] : &line[0];
+      int l0 = 0;
+      while (p0[l0] != '"')
+          l0++;
+      String udn(p0, l0);
+      p0 = (p0 + l0 + 1);
+      while (*p0 == ' ')
+          p0++;
+
+      // Extract username
+      String usr(p0);
+
+      // Notify
+      DEBUG("Found: udn: "<<udn<<", usr: "<<usr);
+
+      // Ok: save it into the cache
+      XrdSutPFEntry *cent = cacheGMAP.Add(udn.c_str());
+      if (cent) {
+         cent->status = kPFE_ok;
+         cent->cnt = 0;
+         cent->mtime = now; // creation time
+         // Add username
+         SafeFree(cent->buf1.buf);
+         cent->buf1.buf = strdup(usr.c_str());
+         cent->buf1.len = usr.length();
+      }
+   }
+   fclose(fm);
+
+   // Rehash cache
+   cacheGMAP.Rehash(1);
+
+   // Save the time
+   lastCheck = now;
+
+   // We are done
+   return 0;
+}
+
+//__________________________________________________________________________
+char *XrdSecProtocolgsi::QueryGMAP(const char *dn, int now)
+{
+   // Lookup for 'dn' in the grid mapfile and return the associated username
+   // or 0. The cache is refreshed if the grid map file has been modified
+   // since last check
+   EPNAME("QueryGMAP");
+
+   if (LoadGMAP(now) != 0) {
+      DEBUG("error loading/ refreshing grid map file");
+      return (char *)0;
+   }
+
+   // Lookup for 'dn' in the cache
+   XrdSutPFEntry *cent = cacheGMAP.Get(dn);
+   if (cent)
+      return (char *)(cent->buf1.buf);
+
+   // Nothing found
+   return (char *)0;
 }

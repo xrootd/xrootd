@@ -35,7 +35,7 @@ typedef XrdCryptosslgsiX509Chain X509Chain;
   
 #define XrdSecPROTOIDENT    "gsi"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
-#define XrdSecgsiVERSION    10000
+#define XrdSecgsiVERSION    10100
 #define XrdSecNOIPCHK       0x0001
 #define XrdSecDEBUG         0x1000
 #define XrdCryptoMax        10
@@ -103,6 +103,7 @@ enum kgsiErrors {
 
 #define SafeDelete(x) { if (x) delete x ; x = 0; }
 #define SafeDelArray(x) { if (x) delete [] x ; x = 0; }
+#define SafeFree(x) { if (x) free(x) ; x = 0; }
 
 //
 // This a small class to set the relevant options in one go
@@ -126,14 +127,18 @@ public:
    char  *valid;  // [c] proxy validity  [12:00]
    int    deplen; // [c] depth of signature path for proxies [0] 
    int    bits;   // [c] bits in PKI for proxies [512] 
+   char  *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
+   int    ogmap;  // [s] gridmap file checking option 
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
                   cipher = 0; md = 0; crl = 1;
-                  proxy = 0; valid = 0; deplen = 0; bits = 512;}
+                  proxy = 0; valid = 0; deplen = 0; bits = 512;
+                  gridmap = 0; ogmap = 1;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
 };
 
+class XrdSecProtocolgsi;
 class gsiHSVars {
 public:
    int               Iter;          // iteration number
@@ -159,8 +164,13 @@ public:
                  RtagOK = 0; Tty = 0; LastStep = 0; }
 
    ~gsiHSVars() { SafeDelete(Cref);
-                  if (Chain) Chain->Cleanup(1); SafeDelete(Chain);
-                  if (PxyChain) PxyChain->Cleanup(1); SafeDelete(PxyChain); }
+                  if (Chain)
+                     Chain->Cleanup(1);
+                  SafeDelete(Chain);
+                  if (PxyChain)
+                     PxyChain->Cleanup(1);
+                  SafeDelete(PxyChain); }
+   void Dump(XrdSecProtocolgsi *p = 0);
 };
 
 // From a proxy query
@@ -240,6 +250,8 @@ private:
    static String           DefCipher;
    static String           DefMD;
    static String           DefError;
+   static String           GMAPFile;
+   static int              GMAPOpt;
    //
    // Crypto related info
    static int              ncrypt;                  // Number of factories
@@ -252,6 +264,7 @@ private:
    static XrdSutCache      cacheCA;   // Info about trusted CA's
    static XrdSutCache      cacheCert; // Cache for available server certs
    static XrdSutCache      cachePxy;  // Cache for client proxies
+   static XrdSutCache      cacheGMAP; // Cache for gridmap entries
    //
    // Running options / settings
    static int              Debug;          // [CS] Debug level
@@ -322,4 +335,7 @@ private:
    int            AddSerialized(char opt, kXR_int32 step, String ID, 
                                 XrdSutBuffer *bls, XrdSutBuffer *buf,
                                 kXR_int32 type, XrdCryptoCipher *cip);
+   // Grid map cache handling
+   static int     LoadGMAP(int now); // Init or refresh the cache
+   static char   *QueryGMAP(const char *dn, int now); //Lookup info for DN
 };
