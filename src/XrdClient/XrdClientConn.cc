@@ -167,6 +167,11 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
 //_____________________________________________________________________________
 XrdClientConn::~XrdClientConn()
 {
+
+
+   // Disconnect underlying logical connection
+   Disconnect(FALSE);
+
    // Destructor
    if (fMainReadCache && (DebugLevel() >= XrdClientDebug::kUSERDEBUG))
       fMainReadCache->PrintPerfCounters();
