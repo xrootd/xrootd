@@ -91,7 +91,7 @@ int           isInstance(unsigned int inst)
                         {return FD >= 0 && Instance == inst;}
 
 const char   *Name(sockaddr *ipaddr=0)
-                     {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(ipaddr));
+                     {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(sockaddr));
                       return (const char *)Lname;
                      }
 
