@@ -229,13 +229,9 @@ int XrdOlbProtocol::Process(XrdLink *lp)
    netPeer.InetName = 0;
    if (!np) {lp->setEtext("NetLink allocation failure"); return -1;}
 
-// Now process the login
+// Now process the login (link is recycled internally -- this is historical)
 //
    Manager.Login(np);
-
-// When we return, the connection is basically dead.
-//
-   np->Recycle();
 
 // All done indicate the connection is dead
 //

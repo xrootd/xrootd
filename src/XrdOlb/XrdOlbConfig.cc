@@ -170,7 +170,7 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 
 // Process the options
 //
-   opterr = 0;
+   opterr = 0; optind = 1;
    if (argc > 1 && '-' == *argv[1]) 
       while ((c=getopt(argc,argv,"imsw")) && ((unsigned char)c != 0xff))
      { switch(c)
