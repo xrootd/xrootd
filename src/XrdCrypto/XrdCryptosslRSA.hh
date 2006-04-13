@@ -30,6 +30,8 @@ class XrdCryptosslRSA : public XrdCryptoRSA
 {
 private:
    EVP_PKEY *fEVP;     // The key pair
+   int       publen;   // Length of export public key
+   int       prilen;   // Length of export private key
 
 public:
    XrdCryptosslRSA(int bits = XrdCryptoMinRSABits, int exp = XrdCryptoDefRSAExp);
@@ -47,10 +49,13 @@ public:
    // Output lengths
    int GetOutlen(int lin);   // Length of encrypted buffers
    int GetPublen();          // Length of export public key
+   int GetPrilen();          // Length of export private key
 
    // Import / Export methods
    int ImportPublic(const char *in, int lin);
    int ExportPublic(char *out, int lout);
+   int ImportPrivate(const char *in, int lin);
+   int ExportPrivate(char *out, int lout);
 
    // Encryption / Decryption methods
    int EncryptPrivate(const char *in, int lin, char *out, int lout);

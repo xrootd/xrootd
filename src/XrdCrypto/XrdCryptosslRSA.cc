@@ -34,6 +34,9 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
    // exponent `pubex` (default 65537).
    EPNAME("RSA::XrdCryptosslRSA");
 
+   publen = -1;
+   prilen = -1;
+
    // Create container, first
    if (!(fEVP = EVP_PKEY_new())) {
       DEBUG("cannot allocate new public key container");
@@ -77,6 +80,8 @@ XrdCryptosslRSA::XrdCryptosslRSA(const char *pub, int lpub)
    // bytes.
 
    fEVP = 0;
+   publen = -1;
+   prilen = -1;
 
    // Import key
    ImportPublic(pub,lpub);
@@ -89,6 +94,9 @@ XrdCryptosslRSA::XrdCryptosslRSA(EVP_PKEY *key, bool check)
    EPNAME("RSA::XrdCryptosslRSA_key");
 
    fEVP = 0;
+   publen = -1;
+   prilen = -1;
+
    // Create container, first
    if (!key) {
       DEBUG("no input key");
@@ -120,6 +128,9 @@ XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r)
    EPNAME("RSA::XrdCryptosslRSA_copy");
 
    fEVP = 0;
+   publen = -1;
+   prilen = -1;
+
    if (!r.fEVP) {
       DEBUG("input key is empty");
       return;
@@ -193,6 +204,8 @@ int XrdCryptosslRSA::ImportPublic(const char *pub, int lpub)
    if (fEVP)
       EVP_PKEY_free(fEVP);
    fEVP = 0;
+   publen = -1;
+   prilen = -1;
 
    // Temporary key
    EVP_PKEY *keytmp = 0;
@@ -211,6 +224,38 @@ int XrdCryptosslRSA::ImportPublic(const char *pub, int lpub)
       fEVP = keytmp;
       // Update status
       status = kPublic;
+      return 0;
+   }
+   return -1;
+}
+
+//_____________________________________________________________________________
+int XrdCryptosslRSA::ImportPrivate(const char *pri, int lpri)
+{
+   // Import a private key
+   // Fill the private part importing from string representation (pub) to
+   // internal representation.
+   // If lpub>0 use the first lpub bytes; otherwise use strlen(pub)
+   // bytes.
+   // Return 0 in case of success, -1 in case of failure
+
+   if (!fEVP)
+      return -1;
+   prilen = -1;
+
+   // Bio for exporting the pub key
+   BIO *bpri = BIO_new(BIO_s_mem());
+
+   // Check length
+   lpri = (lpri <= 0) ? strlen(pri) : lpri;
+
+   // Write key from private export to BIO
+   BIO_write(bpri,(void *)pri,lpri);
+
+   // Read private key from BIO
+   if (PEM_read_bio_PrivateKey(bpri, &fEVP, 0, 0)) {
+      // Update status
+      status = kComplete;
       return 0;
    }
    return -1;
@@ -243,16 +288,25 @@ void XrdCryptosslRSA::Dump()
 int XrdCryptosslRSA::GetPublen()
 {
    // Minimu length of export format of public key 
-   
-   int l = 2*RSA_size(fEVP->pkey.rsa) + strlen("-----BEGIN RSA PUBLIC KEY-----")
-                            + strlen("-----END RSA PUBLIC KEY-----");
-   return (l+10);
+
+   if (publen < 0) {
+      // Bio for exporting the pub key
+      BIO *bkey = BIO_new(BIO_s_mem());
+      // Write public key to BIO
+      PEM_write_bio_PUBKEY(bkey,fEVP);
+      // data length
+      char *cbio = 0;
+      publen = (int) BIO_get_mem_data(bkey, &cbio);
+      BIO_free(bkey);
+   }
+   return publen;
 }
 //_____________________________________________________________________________
 int XrdCryptosslRSA::ExportPublic(char *out, int)
 {
-   // Export the public key into buffer out, allocated by the caller
-   // for at least GetPublen()+1 bytes.
+   // Export the public key into buffer out. The length of the buffer should be
+   // at least GetPublen()+1 bytes. If out=0 the buffer is m-allocated internally
+   // and should be freed by the caller.
    // Return 0 in case of success, -1 in case of failure
    EPNAME("RSA::ExportPublic");
 
@@ -262,9 +316,68 @@ int XrdCryptosslRSA::ExportPublic(char *out, int)
       return -1;
    }
 
-   // Make sure we got a buffer where to write
+   // Bio for exporting the pub key
+   BIO *bkey = BIO_new(BIO_s_mem());
+
+   // Write public key to BIO
+   PEM_write_bio_PUBKEY(bkey,fEVP);
+
+   // data length
+   char *cbio = 0;
+   int lbio = (int) BIO_get_mem_data(bkey, &cbio);
+   if (lbio <= 0 || !cbio) {
+      DEBUG("problems attaching to BIO content");
+      return -1;
+   }
+
+   // Check output buffer
    if (!out) {
-      DEBUG("output buffer undefined");
+      out = (char *) malloc(lbio+1);
+      if (!out) {
+         DEBUG("problems allocating output buffer");
+         return -1;
+      }
+   }
+   // Read key from BIO to buf
+   memcpy(out, cbio, lbio);
+   // Null terminate
+   out[lbio] = 0;
+   DEBUG("("<<lbio<<" bytes) "<< endl <<out);
+   BIO_free(bkey);
+
+   return 0;
+}
+
+//_____________________________________________________________________________
+int XrdCryptosslRSA::GetPrilen()
+{
+   // Minimu length of export format of private key 
+
+   if (prilen < 0) {
+      // Bio for exporting the private key
+      BIO *bkey = BIO_new(BIO_s_mem());
+      // Write public key to BIO
+      PEM_write_bio_PrivateKey(bkey,fEVP,0,0,0,0,0);
+      // data length
+      char *cbio = 0;
+      prilen = (int) BIO_get_mem_data(bkey, &cbio);
+      BIO_free(bkey);
+   }
+   return prilen;
+}
+
+//_____________________________________________________________________________
+int XrdCryptosslRSA::ExportPrivate(char *out, int)
+{
+   // Export the private key into buffer out. The length of the buffer should be
+   // at least GetPrilen()+1 bytes. If out=0 the buffer is m-allocated internally
+   // and should be freed by the caller.
+   // Return 0 in case of success, -1 in case of failure
+   EPNAME("RSA::ExportPrivate");
+
+   // Make sure we have a valid key
+   if (!IsValid()) {
+      DEBUG("key not valid");
       return -1;
    }
 
@@ -272,15 +385,29 @@ int XrdCryptosslRSA::ExportPublic(char *out, int)
    BIO *bkey = BIO_new(BIO_s_mem());
 
    // Write public key to BIO
-   PEM_write_bio_PUBKEY(bkey,fEVP);
+   PEM_write_bio_PrivateKey(bkey,fEVP,0,0,0,0,0);
 
+   // data length
+   char *cbio = 0;
+   int lbio = (int) BIO_get_mem_data(bkey, &cbio);
+   if (lbio <= 0 || !cbio) {
+      DEBUG("problems attaching to BIO content");
+      return -1;
+   }
+
+   // Check output buffer
+   if (!out) {
+      out = (char *) malloc(lbio+1);
+      if (!out) {
+         DEBUG("problems allocating output buffer");
+         return -1;
+      }
+   }
    // Read key from BIO to buf
-   kXR_int32 sbuf = GetPublen()+1;
-   BIO_read(bkey,(void *)out,sbuf);
-   char *pend = strstr(out,"-----END RSA PUBLIC KEY-----");
-   if (pend)
-      sbuf = (int)(pend - out) + strlen("-----END RSA PUBLIC KEY-----");
-   DEBUG("("<<sbuf<<" bytes) "<< endl <<out);
+   memcpy(out, cbio, lbio);
+   // Null terminate
+   out[lbio] = 0;
+   DEBUG("("<<lbio<<" bytes) "<< endl <<out);
    BIO_free(bkey);
 
    return 0;
