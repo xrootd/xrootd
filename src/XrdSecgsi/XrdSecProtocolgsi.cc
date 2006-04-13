@@ -86,7 +86,11 @@ static const char *gGSErrStr[] = {
 };
 
 // Masks for options
-static const short kOptsServer  = 0x0001;
+static const short kOptsDlgPxy  = 0x0001; //Ask for a delegated proxy
+static const short kOptsFwdPxy  = 0x0002; //Forward local proxy
+static const short kOptsSigReq  = 0x0004; //Accept to sign delegated proxy
+static const short kOptsSrvReq  = 0x0008; //Server request for delegated proxy
+static const short kOptsPxFile  = 0x0010; //Save delegated proxies in file
 // One day in secs
 static const int kOneDay = 86400; 
 
@@ -113,6 +117,7 @@ String XrdSecProtocolgsi::DefCrypto= "ssl";
 String XrdSecProtocolgsi::DefCipher= "aes-128-cbc:bf-cbc:des-ede3-cbc";
 String XrdSecProtocolgsi::DefMD    = "sha1:md5";
 String XrdSecProtocolgsi::DefError = "invalid credentials ";
+int    XrdSecProtocolgsi::PxyReqOpts = 0;
 //
 // Crypto related info
 int  XrdSecProtocolgsi::ncrypt    = 0;                 // Number of factories
@@ -201,8 +206,8 @@ void gsiHSVars::Dump(XrdSecProtocolgsi *p)
    PRINT("CRL pointer:         "<<Crl);
    PRINT("Proxy chain:         "<<PxyChain);
    PRINT("Rndm tag checked:    "<<RtagOK);
-   PRINT("TTY status:          "<<Tty);
    PRINT("Last step:           "<<LastStep);
+   PRINT("Options:             "<<(int *)Options);
    PRINT("----------------------------------------------------------------");
 }
 
@@ -225,21 +230,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
       // Update time stamp
       hs->TimeStamp = time(0);
       // Local handshake variables
-      hs->CryptoMod = "";       // crypto module in use
-      hs->RemVers = -1;         // Version run by remote counterpart
-      hs->Rcip = 0;             // reference cipher
-      hs->Cbck = 0;             // Bucket with the certificate in export form
-      hs->ID = "";              // Handshake ID (dummy for clients)
-      hs->Cref = 0;             // Cache reference
-      hs->Pent = 0;             // Pointer to relevant file entry
-      hs->Chain = 0;         // Pointer to Reference Chain
-      hs->Chain = 0;            // Chain to be eventually verified
-      hs->Crl = 0;              // Pointer to CRL, if required
-      hs->PxyChain = 0;         // Proxy Chain on clients
-      hs->RtagOK = 0;           // Rndm tag checked / not checked
       hs->Tty = (isatty(0) == 0 || isatty(1) == 0) ? 0 : 1;
-      hs->LastStep = 0;         // Step required at previous iteration
-
    } else {
       DEBUG("could not create handshake vars object");
    }
@@ -263,6 +254,8 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    sessionMD = 0;
    sessionKsig = 0;
    sessionKver = 0;
+   sessionKver = 0;
+   proxyChain = 0;
 
    //
    // Notify, if required
@@ -650,6 +643,15 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          if (QTRACE(Authen)) { cacheGMAP.Dump(); }
       }
       //
+      // Request for delegated proxies
+      if (opt.dlgpxy == 1 || opt.dlgpxy == 3)
+         PxyReqOpts |= kOptsSrvReq;
+      if (opt.dlgpxy == 2 || opt.dlgpxy == 3)
+         PxyReqOpts |= kOptsPxFile;
+      // Some notification
+      DEBUG("Delegated proxies options: "<<(int *)PxyReqOpts);
+
+      //
       // Parms in the form:
       //     &P=gsi,v:<version>,c:<cryptomod>,ca:<list_of_srv_cert_ca>
       Parms = new char[cryptlist.length()+3+12+certcalist.length()+5];
@@ -737,6 +739,14 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       if (opt.bits > DefBits)
          DefBits = opt.bits;
       //
+      // Delegate proxy options
+      if (opt.dlgpxy == 1)
+         PxyReqOpts |= kOptsDlgPxy;
+      if (opt.dlgpxy == 2)
+         PxyReqOpts |= kOptsFwdPxy;
+      if (opt.sigpxy > 0 || opt.dlgpxy == 1)
+         PxyReqOpts |= kOptsSigReq;
+      //
       // Notify
       DEBUG("using certificate file:         "<<UsrCert);
       DEBUG("using private key file:         "<<UsrKey);
@@ -765,9 +775,10 @@ void XrdSecProtocolgsi::Delete()
    // Cleanup any other instance specific to this protocol
    SafeDelete(sessionKey);    // Session Key (result of the handshake)
    SafeDelete(bucketKey);     // Bucket with the key in export form
-   SafeDelete(sessionMD);  // Message Digest instance
+   SafeDelete(sessionMD);     // Message Digest instance
    SafeDelete(sessionKsig);   // RSA key to sign
    SafeDelete(sessionKver);   // RSA key to verify
+   SafeDelete(proxyChain);    // Chain with delegated proxies
 
    delete this;
 }
@@ -880,10 +891,10 @@ int XrdSecProtocolgsi::Sign(const char  *inbuf,   // Data to be signed
    // And something to sign
    if (!inbuf || inlen <= 0 || !outbuf)
       return -EINVAL;
-   
+
    // Reset digest
    sessionMD->Reset(0);
-   
+
    // Calculate digest
    sessionMD->Update(inbuf, inlen);
    sessionMD->Final();
@@ -932,10 +943,10 @@ int XrdSecProtocolgsi::Verify(const char  *inbuf,   // Data to be verified
    // And something to verify
    if (!inbuf || inlen <= 0 || !sigbuf || siglen <= 0)
       return -EINVAL;
-   
+
    // Reset digest
    sessionMD->Reset(0);
-   
+
    // Calculate digest
    sessionMD->Update(inbuf, inlen);
    sessionMD->Final();
@@ -989,7 +1000,6 @@ int XrdSecProtocolgsi::getKey(char *kbuf, int klen)
       if (!sessionKey)
          // Invalid call
          return -ENOENT;
-      
       // Create bucket
       bucketKey = sessionKey->AsBucket();
    }
@@ -999,7 +1009,7 @@ int XrdSecProtocolgsi::getKey(char *kbuf, int klen)
       // If are asked only the size, we are done
       if (kbuf == 0)
          return bucketKey->size;
-   
+
       // Check the size of the buffer
       if (klen < bucketKey->size)
          // Too small
@@ -1124,7 +1134,11 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       return ErrC(ei,bpar,bmai,0,kGSErrBadProtocol,stepstr);
    //
    // The step indicates what we are supposed to do
-   step = (bpar->GetStep()) ? bpar->GetStep() : kXGS_init;
+   if (!(step = bpar->GetStep())) {
+      // The first, fake, step
+      step = kXGS_init;
+      bpar->SetStep(step);
+   }
    stepstr = ServerStepStr(step);
    // Dump, if requested
    if (QTRACE(Authen)) {
@@ -1167,6 +1181,14 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
             return ErrC(ei,bpar,bmai,0, kGSErrCreateBucket,
                         XrdSutBuckStr(kXRS_issuer_hash),stepstr);
       //
+      // Add bucket with our delegate proxy options
+      if (hs->RemVers >= 10100) {
+         if (bpar->MarshalBucket(kXRS_clnt_opts,(kXR_int32)(hs->Options)) != 0)
+         return ErrC(ei,bpar,bmai,0, kGSErrCreateBucket,
+                XrdSutBuckStr(kXRS_clnt_opts),"global",stepstr);
+      }
+
+      //
       nextstep = kXGC_certreq;
       break;
 
@@ -1192,6 +1214,19 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       bmai->AddBucket(hs->Cbck);
       //
       nextstep = kXGC_cert;
+      break;
+
+   case kXGS_pxyreq:
+      //
+      // If something went wrong, send explanation
+      if (Emsg.length() > 0) {
+         if (bmai->AddBucket(Emsg,kXRS_message) != 0)
+            return ErrC(ei,bpar,bmai,0, kGSErrCreateBucket,
+                        XrdSutBuckStr(kXRS_message),stepstr);
+      }
+      //
+      // The relevant buckets should already be in the buffers
+      nextstep = kXGC_sigpxy;
       break;
 
    default:
@@ -1314,6 +1349,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    //
    // Version
    DEBUG("version run by client: "<< hs->RemVers);
+   DEBUG("options req by client: "<< (int *) hs->Options);
    //
    // Dump, if requested
    if (QTRACE(Authen)) {
@@ -1364,8 +1400,9 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       // Client sent its own credentials: their are checked in
       // ParseServerInput, so if we are here they are OK
       kS_rc = kgST_ok;
+      nextstep = kXGS_none;
 
-      // Nothing more to do, except setting the client name
+      // we set the client name
       if (GMAPOpt > 0) {
          // Get name from gridmap
          char *name = QueryGMAP(hs->Chain->EECname(), hs->TimeStamp);
@@ -1375,6 +1412,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                // It was required, so we fail
                kS_rc = kgST_error;
                PRINT("ERROR: grid map required, but lookup failed - failure");
+               break;
             } else {
                DEBUG("WARNING: grid map lookup failed - use DN as name");
             }
@@ -1392,7 +1430,27 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             DEBUG("WARNING: DN missing: corruption? ");
          }
       }
+
+      if (hs->RemVers >= 10100) {
+         if (hs->PxyChain) {
+            // The client is going to send over info for delegation
+            kS_rc = kgST_more;
+            nextstep = kXGS_pxyreq;
+         }
+      }
+
+      break;
+
+   case kXGC_sigpxy:
+      //
+      // Nothing to do after this
+      kS_rc = kgST_ok;
       nextstep = kXGS_none;
+      //
+      // If something went wrong, print explanation
+      if (ClntMsg.length() > 0) {
+         PRINT(ClntMsg);
+      }
       break;
 
    default:
@@ -1406,7 +1464,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          if (bmai->AddBucket(ClntMsg,kXRS_message) != 0) {
             DEBUG("problems adding bucket with message for client");
          }
-      // 
+      //
       // Serialize, encrypt and add to the global list
       if (AddSerialized('s', nextstep, hs->ID,
                         bpar, bmai, kXRS_main, sessionKey) != 0) {
@@ -1451,7 +1509,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l p w d I n i t                     */
 /******************************************************************************/
-  
+
 extern "C"
 {
 char *XrdSecProtocolgsiInit(const char mode,
@@ -1469,7 +1527,7 @@ char *XrdSecProtocolgsiInit(const char mode,
    // Take into account xrootd debug flag
    cenv = getenv("XRDDEBUG");
    if (cenv && !strcmp(cenv,"1")) opts.debug = 1;
-   
+
    //
    // Clients first
    if (mode == 'c') {
@@ -1501,6 +1559,13 @@ char *XrdSecProtocolgsiInit(const char mode,
       //             "XrdSecGSICRLCHECK"     CRL check level: 0 don't care,
       //                                     1 use if available, 2 require,
       //                                     3 require non-expired CRL [2] 
+      //             "XrdSecGSIDELEGPROXY"   Forwarding of credentials option:
+      //                                     0 none; 1 sign request created
+      //                                     by server; 2 forward local proxy
+      //                                     (include private key) [0]
+      //             "XrdSecGSISIGNPROXY"    permission to sign requests
+      //                                     0 no, 1 yes [1]
+
       //
       opts.mode = mode;
       // debug
@@ -1557,6 +1622,17 @@ char *XrdSecProtocolgsiInit(const char mode,
       cenv = getenv("XrdSecGSICRLCHECK");
       if (cenv)
          opts.crl = atoi(cenv);
+
+      // Delegate proxy
+      cenv = getenv("XrdSecGSIDELEGPROXY");
+      if (cenv)
+         opts.dlgpxy = atoi(cenv);
+
+      // Sign delegate proxy requests
+      cenv = getenv("XrdSecGSISIGNPROXY");
+      if (cenv)
+         opts.sigpxy = atoi(cenv);
+
       //
       // Setup the object with the chosen options
       rc = XrdSecProtocolgsi::Init(opts,erp);
@@ -1577,7 +1653,7 @@ char *XrdSecProtocolgsiInit(const char mode,
    //
    // Server initialization
    if (parms) {
-      // 
+      //
       // Duplicate the parms
       char parmbuff[1024];
       strlcpy(parmbuff, parms, sizeof(parmbuff));
@@ -1599,6 +1675,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-crl:<crl_check_level>]
       //              [-gridmap:<grid_map_file>]
       //              [-gmapopt:<grid_map_check_option>]
+      //              [-dlgpxy:<proxy_req_option>]
       //
       int debug = -1;
       String clist = "";
@@ -1612,6 +1689,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       String gridmap = "";
       int crl = 2;
       int ogmap = 1;
+      int dlgpxy = 0;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -1639,6 +1717,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                ogmap = atoi(op+9);
             } else if (!strncmp(op, "-gridmap:",9)) {
                gridmap = (const char *)(op+9);
+            } else if (!strncmp(op, "-dlgpxy:",8)) {
+               dlgpxy = atoi(op+8);
             }
          }
       }
@@ -1649,6 +1729,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.mode = 's';
       opts.crl = crl;
       opts.ogmap = ogmap;
+      opts.dlgpxy = dlgpxy;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)
@@ -1680,7 +1761,7 @@ char *XrdSecProtocolgsiInit(const char mode,
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l p w d O b j e c t                 */
 /******************************************************************************/
-  
+
 extern "C"
 {
 XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
@@ -1709,7 +1790,7 @@ XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
    return prot;
 }}
 
- 
+
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
@@ -1778,7 +1859,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    }
    //
    // Add random tag to the cache and update timestamp
-   hs->Cref->buf1.SetBuf(brt->buffer,brt->size);      
+   hs->Cref->buf1.SetBuf(brt->buffer,brt->size);
    hs->Cref->mtime = (kXR_int32)hs->TimeStamp;
    //
    // Now serialize the buffer ...
@@ -1796,7 +1877,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
       }
       //
       // Add the bucket to the list
-      bls->AddBucket(bck);      
+      bls->AddBucket(bck);
    } else {
       bck->Update(bser,nser);
    }
@@ -1815,7 +1896,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
 
 //_________________________________________________________________________
 int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
-                                        String &emsg)
+                                        String &cmsg)
 {
    // Parse received buffer b,
    // Result used to fill the handshake local variables
@@ -1824,99 +1905,147 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Space for pointer to main buffer must be already allocated
    if (!br || !bm) {
       DEBUG("invalid inputs ("<<br<<","<<bm<<")");
-      emsg = "invalid inputs";
+      cmsg = "invalid inputs";
       return -1;
    }
 
    //
    // Get the step
+   int step = br->GetStep();
+
+   // Do the right action
+   switch (step) {
+      case kXGS_init:
+         // Process message
+         if (ClientDoInit(br, bm, cmsg) != 0)
+            return -1;
+         break;
+      case kXGS_cert:
+         // Process message
+         if (ClientDoCert(br, bm, cmsg) != 0)
+            return -1;
+         break;
+      case kXGS_pxyreq:
+         // Process message
+         if (ClientDoPxyreq(br, bm, cmsg) != 0)
+            return -1;
+         break;
+      default:
+         cmsg = "protocol error: unknown action: "; cmsg += step;
+         return -1;
+         break;
+   }
+
+   // We are done
+   return 0;
+}
+
+//_________________________________________________________________________
+int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
+                                    String &emsg)
+{
+   // Client side: process a kXGS_init message.
+   // Return 0 on success, -1 on error. If the case, a message is returned
+   // in cmsg.
+   EPNAME("ClientDoInit");
+
+   //
+   // Create the main buffer as a copy of the buffer received
+   if (!((*bm) = new XrdSutBuffer(br->GetProtocol(),br->GetOptions()))) {
+      emsg = "error instantiating main buffer";
+      return -1;
+   }
+   //
+   // Extract server version from options
+   String opts = br->GetOptions();
+   int ii = opts.find("v:");
+   if (ii >= 0) {
+      String sver(opts,ii+2);
+      sver.erase(sver.find(','));
+      hs->RemVers = atoi(sver.c_str());
+   } else {
+      hs->RemVers = Version;
+      emsg = "server version information not found in options:"
+             " assume same as local";
+   }
+   //
+   // Create cache
+   if (!(hs->Cref = new XrdSutPFEntry("c"))) {
+      emsg = "error creating cache";
+      return -1;
+   }
+   //
+   // Save server version in cache
+   hs->Cref->status = hs->RemVers;
+   //
+   // Set options
+   hs->Options = PxyReqOpts;
+   //
+   // Extract list of crypto modules 
+   String clist;
+   ii = opts.find("c:");
+   if (ii >= 0) {
+      clist.assign(opts, ii+2);
+      clist.erase(clist.find(','));
+   } else {
+      DEBUG("Crypto list missing: protocol error? (use defaults)");
+      clist = DefCrypto;
+   }
+   // Parse the list loading the first we can
+   if (ParseCrypto(clist) != 0) {
+      emsg = "cannot find / load crypto requested modules :";
+      emsg += clist;
+      return -1;
+   }
+   //
+   // Extract server certificate CA hashes
+   String srvca;
+   ii = opts.find("ca:");
+   if (ii >= 0) {
+      srvca.assign(opts, ii+3);
+      srvca.erase(srvca.find(','));
+   }
+   // Parse the list loading the first we can
+   if (ParseCAlist(srvca) != 0) {
+      emsg = "unknown CA: cannot verify server certificate";
+      hs->Chain = 0;
+      return -1;
+   }
+   //
+   // Load / Attach-to user proxies
+   ProxyIn_t pi = {UsrCert.c_str(), UsrKey.c_str(), CAdir.c_str(),
+                   UsrProxy.c_str(), PxyValid.c_str(),
+                   DepLength, DefBits};
+   ProxyOut_t po = {hs->PxyChain, sessionKsig, hs->Cbck };
+   if (QueryProxy(1, &cachePxy, "Proxy:0",
+                  sessionCF, hs->TimeStamp, &pi, &po) != 0) {
+      emsg = "error getting user proxies";
+      hs->Chain = 0;
+      return -1;
+   }
+   // Save the result
+   hs->PxyChain = po.chain;
+   hs->Cbck = po.cbck;
+   if (!(sessionKsig = sessionCF->RSA(*(po.ksig)))) {
+      emsg = "could not get a copy of the signing key:";
+      hs->Chain = 0;
+      return -1;
+   }
+   //
+   // And we are done;
+   return 0;
+}
+
+//_________________________________________________________________________
+int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
+                                    String &emsg)
+{
+   // Client side: process a kXGS_cert message.
+   // Return 0 on success, -1 on error. If the case, a message is returned
+   // in cmsg.
+   EPNAME("ClientDoCert");
    XrdSutBucket *bck = 0;
 
-   // If first call, not much to do
-   if (!br->GetNBuckets()) {
-      //
-      // Create the main buffer as a copy of the buffer received
-      if (!((*bm) = new XrdSutBuffer(br->GetProtocol(),br->GetOptions()))) {
-         emsg = "error instantiating main buffer";
-         return -1;
-      }
-      //
-      // Extract server version from options
-      String opts = br->GetOptions();
-      int ii = opts.find("v:");
-      if (ii >= 0) {
-         String sver(opts,ii+2);
-         sver.erase(sver.find(','));
-         hs->RemVers = atoi(sver.c_str());
-      } else {
-         hs->RemVers = Version;
-         emsg = "server version information not found in options:"
-                " assume same as local";
-      }
-      //
-      // Create cache
-      if (!(hs->Cref = new XrdSutPFEntry("c"))) {
-         emsg = "error creating cache";
-         return -1;
-      }
-      //
-      // Save server version in cache
-      hs->Cref->status = hs->RemVers;
-      //
-      // Extract list of crypto modules 
-      String clist;
-      ii = opts.find("c:");
-      if (ii >= 0) {
-         clist.assign(opts, ii+2);
-         clist.erase(clist.find(','));
-      } else {
-         DEBUG("Crypto list missing: protocol error? (use defaults)");
-         clist = DefCrypto;
-      }
-      // Parse the list loading the first we can
-      if (ParseCrypto(clist) != 0) {
-         emsg = "cannot find / load crypto requested modules :";
-         emsg += clist;
-         return -1;
-      }
-      //
-      // Extract server certificate CA hashes
-      String srvca;
-      ii = opts.find("ca:");
-      if (ii >= 0) {
-         srvca.assign(opts, ii+3);
-         srvca.erase(srvca.find(','));
-      }
-      // Parse the list loading the first we can
-      if (ParseCAlist(srvca) != 0) {
-         emsg = "unknown CA: cannot verify server certificate";
-         hs->Chain = 0;
-         return -1;
-      }
-      //
-      // Load / Attach-to user proxies
-      ProxyIn_t pi = {UsrCert.c_str(), UsrKey.c_str(), CAdir.c_str(),
-                      UsrProxy.c_str(), PxyValid.c_str(),
-                      DepLength, DefBits};
-      ProxyOut_t po = {hs->PxyChain, sessionKsig, hs->Cbck };
-      if (QueryProxy(1, &cachePxy, "Proxy:0",
-                     sessionCF, hs->TimeStamp, &pi, &po) != 0) {
-         emsg = "error getting user proxies";
-         hs->Chain = 0;
-         return -1;
-      }
-      // Save the result
-      hs->PxyChain = po.chain;
-      hs->Cbck = po.cbck;
-      if (!(sessionKsig = sessionCF->RSA(*(po.ksig)))) {
-         emsg = "could not get a copy of the signing key:";
-         hs->Chain = 0;
-         return -1;
-      }
-      //
-      // And we are done;
-      return 0;
-   }
    //
    // make sure the cache is still there
    if (!hs->Cref) {
@@ -2019,7 +2148,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       emsg = "server certificate contains an invalid key";
       return -1;
    }
- 
+
    // Deactivate what not needed any longer
    br->Deactivate(kXRS_puk);
    br->Deactivate(kXRS_x509);
@@ -2066,8 +2195,110 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       return -1;
    }
 
-   // We are done
+   //
+   // And we are done;
    return 0;
+}
+
+//_________________________________________________________________________
+int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
+                                      String &emsg)
+{
+   // Client side: process a kXGS_pxyreq message.
+   // Return 0 on success, -1 on error. If the case, a message is returned
+   // in cmsg.
+   XrdSutBucket *bck = 0;
+
+   //
+   // Extract the main buffer (it contains the random challenge
+   // and will contain our credentials encrypted)
+   XrdSutBucket *bckm = 0;
+   if (!(bckm = br->GetBucket(kXRS_main))) {
+      emsg = "main buffer missing";
+      return -1;
+   }
+   //
+   // Decrypt the main buffer with the session cipher, if available
+   if (sessionKey) {
+      if (!(sessionKey->Decrypt(*bckm))) {
+         emsg = "error decrypting main buffer with session cipher";
+         return -1;
+      }
+   }
+
+   //
+   // Deserialize main buffer
+   if (!((*bm) = new XrdSutBuffer(bckm->buffer,bckm->size))) {
+      emsg = "error deserializing main buffer";
+      return -1;
+   }
+
+   //
+   // Check if we are ready to proces this
+   if ((hs->Options & kOptsFwdPxy)) {
+      // We have to send the private key of our proxy
+      XrdCryptoX509 *pxy = 0;
+      XrdCryptoRSA *kpxy = 0;
+      if (!(hs->PxyChain) ||
+          !(pxy = hs->PxyChain->End()) || !(kpxy = pxy->PKI())) {
+         emsg = "local proxy info missing or corrupted";
+         return 0;
+      }
+      // Send back the signed request as bucket
+      String pri;
+      if (kpxy->ExportPrivate(pri) != 0) {
+         emsg = "problems exporting private key";
+         return 0;
+      }
+      // Add it to the main list
+      if ((*bm)->AddBucket(pri, kXRS_x509) != 0) {
+         emsg = "problem adding bucket with private key to main buffer";
+         return 0;
+      }
+   } else {
+      // Proxy request: check if we are allowed to sign it
+      if (!(hs->Options & kOptsSigReq)) {
+         emsg = "Not allowed to sign proxy requests";
+         return 0;
+      }
+      // Get the request
+      if (!(bck = (*bm)->GetBucket(kXRS_x509_req))) {
+         emsg = "bucket with proxy request missing";
+         return 0;
+      }
+      XrdCryptoX509Req *req = sessionCF->X509Req(bck);
+      if (!req) {
+         emsg = "could not resolve proxy request";
+         return 0;
+      }
+      // Get our proxy and its private key
+      XrdCryptoX509 *pxy = 0;
+      XrdCryptoRSA *kpxy = 0;
+      if (!(hs->PxyChain) ||
+          !(pxy = hs->PxyChain->End()) || !(kpxy = pxy->PKI())) {
+         emsg = "local proxy info missing or corrupted";
+         return 0;
+      }
+      // Sign the request
+      XrdCryptoX509 *npxy = 0;
+      if (XrdSslgsiX509SignProxyReq(pxy, kpxy, req, &npxy) != 0) {
+         emsg = "problems signing the request";
+         return 0;
+      }
+      // Send back the signed request as bucket
+      if ((bck = npxy->Export())) {
+         // Add it to the main list
+         if ((*bm)->AddBucket(bck) != 0) {
+            emsg = "problem adding signed request to main buffer";
+            return 0;
+         }
+      }
+   }
+
+   //
+   // And we are done;
+   return 0;
+
 }
 
 //_________________________________________________________________________
@@ -2086,11 +2317,48 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       cmsg = "invalid inputs";
       return -1;
    }
-   XrdSutBucket *bck = 0;
-   XrdSutBucket *bckm = 0;
+
    //
    // Get the step
    int step = br->GetStep();
+
+   // Do the right action
+   switch (step) {
+      case kXGC_certreq:
+         // Process message
+         if (ServerDoCertreq(br, bm, cmsg) != 0)
+            return -1;
+         break;
+      case kXGC_cert:
+         // Process message
+         if (ServerDoCert(br, bm, cmsg) != 0)
+            return -1;
+         break;
+      case kXGC_sigpxy:
+         // Process message
+         if (ServerDoSigpxy(br, bm, cmsg) != 0)
+            return -1;
+         break;
+      default:
+         cmsg = "protocol error: unknown action: "; cmsg += step;
+         return -1;
+         break;
+   }
+
+   //
+   // We are done
+   return 0;
+}
+
+//_________________________________________________________________________
+int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
+                                       String &cmsg)
+{
+   // Server side: process a kXGC_certreq message.
+   // Return 0 on success, -1 on error. If the case, a message is returned
+   // in cmsg.
+   XrdSutBucket *bck = 0;
+   XrdSutBucket *bckm = 0;
 
    //
    // Extract the main buffer 
@@ -2099,97 +2367,122 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       return -1;
    }
    //
-   // The first iteration we just need to check if we can verify
-   // the client identity
-   if (step == kXGC_certreq) {
-      //
-      // Extract bucket with crypto module
-      if (!(bck = br->GetBucket(kXRS_cryptomod))) {
-         cmsg = "crypto module specification missing";
-         return -1;
-      }
-      String cmod;
-      bck->ToString(cmod);
-      // Parse the list loading the first we can
-      if (ParseCrypto(cmod) != 0) {
-         cmsg = "cannot find / load crypto requested module :";
-         cmsg += cmod;
-         return -1;
-      }
-      //
-      // Get version run by client, if there
-      if (br->UnmarshalBucket(kXRS_version,hs->RemVers) != 0) {
-         hs->RemVers = Version;
-         cmsg = "client version information not found in options:"
-                " assume same as local";
-      } else {
-         br->Deactivate(kXRS_version);
-      }
-      //
-      // Extract bucket with client issuer hash
-      if (!(bck = br->GetBucket(kXRS_issuer_hash))) {
-         cmsg = "client issuer hash missing";
-         return -1;
-      }
-      String cahash;
-      bck->ToString(cahash);
-      //
-      // Check if we know it
-      if (ParseCAlist(cahash) != 0) {
-         cmsg = "unknown CA: cannot verify client credentials";
-         return -1;
-      }
-      // Find our certificate in cache
-      XrdSutPFEntry *cent = 0;
-      if (!(cent = cacheCert.Get(sessionCF->Name()))) {
-         cmsg = "cannot find certificate: corruption?";
-         return -1;
-      }
-      // Check validity and run renewal for proxies or fail
-      if (cent->mtime < hs->TimeStamp) {
-         if (cent->status == kPFE_special) {
-            // Try init proxies
-            ProxyIn_t pi = {SrvCert.c_str(), SrvKey.c_str(), CAdir.c_str(),
-                            UsrProxy.c_str(), PxyValid.c_str(), 0, 512};
-            X509Chain *ch = 0;
-            XrdCryptoRSA *k = 0;
-            XrdSutBucket *b = 0;
-            ProxyOut_t po = {ch, k, b };
-            if (QueryProxy(0, &cacheCert, sessionCF->Name(),
-                           sessionCF, hs->TimeStamp, &pi, &po) != 0) {
-               cmsg = "proxy expired and cannot be renewed";
-               return -1;
-            }
-         } else {
-            cmsg = "certificate has expired - go and get a new one";
+   // Extract bucket with crypto module
+   if (!(bck = br->GetBucket(kXRS_cryptomod))) {
+      cmsg = "crypto module specification missing";
+      return -1;
+   }
+   String cmod;
+   bck->ToString(cmod);
+   // Parse the list loading the first we can
+   if (ParseCrypto(cmod) != 0) {
+      cmsg = "cannot find / load crypto requested module :";
+      cmsg += cmod;
+      return -1;
+   }
+   //
+   // Get version run by client, if there
+   if (br->UnmarshalBucket(kXRS_version,hs->RemVers) != 0) {
+      hs->RemVers = Version;
+      cmsg = "client version information not found in options:"
+             " assume same as local";
+   } else {
+      br->Deactivate(kXRS_version);
+   }
+   //
+   // Extract bucket with client issuer hash
+   if (!(bck = br->GetBucket(kXRS_issuer_hash))) {
+      cmsg = "client issuer hash missing";
+      return -1;
+   }
+   String cahash;
+   bck->ToString(cahash);
+   //
+   // Check if we know it
+   if (ParseCAlist(cahash) != 0) {
+      cmsg = "unknown CA: cannot verify client credentials";
+      return -1;
+   }
+   // Find our certificate in cache
+   XrdSutPFEntry *cent = 0;
+   if (!(cent = cacheCert.Get(sessionCF->Name()))) {
+      cmsg = "cannot find certificate: corruption?";
+      return -1;
+   }
+   // Check validity and run renewal for proxies or fail
+   if (cent->mtime < hs->TimeStamp) {
+      if (cent->status == kPFE_special) {
+         // Try init proxies
+         ProxyIn_t pi = {SrvCert.c_str(), SrvKey.c_str(), CAdir.c_str(),
+                         UsrProxy.c_str(), PxyValid.c_str(), 0, 512};
+         X509Chain *ch = 0;
+         XrdCryptoRSA *k = 0;
+         XrdSutBucket *b = 0;
+         ProxyOut_t po = {ch, k, b };
+         if (QueryProxy(0, &cacheCert, sessionCF->Name(),
+                        sessionCF, hs->TimeStamp, &pi, &po) != 0) {
+            cmsg = "proxy expired and cannot be renewed";
             return -1;
          }
-      }
-
-
-      // Fill some relevant handshake variables
-      sessionKsig = sessionCF->RSA(*((XrdCryptoRSA *)(cent->buf2.buf)));
-      hs->Cbck = (XrdSutBucket *)(cent->buf3.buf);
-
-      // Create a handshake cache 
-      if (!(hs->Cref = new XrdSutPFEntry(hs->ID.c_str()))) {
-         cmsg = "cannot create cache entry";
+      } else {
+         cmsg = "certificate has expired - go and get a new one";
          return -1;
       }
-      //
-      // Deserialize main buffer
-      if (!((*bm) = new XrdSutBuffer(bckm->buffer,bckm->size))) {
-         cmsg = "error deserializing main buffer";
-         return -1;
-      }
-
-      // Deactivate what not need any longer
-      br->Deactivate(kXRS_issuer_hash);
-
-      // We are done
-      return 0;
    }
 
+   // Fill some relevant handshake variables
+   sessionKsig = sessionCF->RSA(*((XrdCryptoRSA *)(cent->buf2.buf)));
+   hs->Cbck = (XrdSutBucket *)(cent->buf3.buf);
+
+   // Create a handshake cache 
+   if (!(hs->Cref = new XrdSutPFEntry(hs->ID.c_str()))) {
+      cmsg = "cannot create cache entry";
+      return -1;
+   }
+   //
+   // Deserialize main buffer
+   if (!((*bm) = new XrdSutBuffer(bckm->buffer,bckm->size))) {
+      cmsg = "error deserializing main buffer";
+      return -1;
+   }
+
+   // Deactivate what not need any longer
+   br->Deactivate(kXRS_issuer_hash);
+
+   //
+   // Get options, if any
+   if (br->UnmarshalBucket(kXRS_clnt_opts, hs->Options) == 0)
+      br->Deactivate(kXRS_clnt_opts);
+
+   //
+   // Deserialize main buffer
+   if (!((*bm) = new XrdSutBuffer(bckm->buffer,bckm->size))) {
+      cmsg = "error deserializing main buffer";
+      return -1;
+   }
+
+   // We are done
+   return 0;
+}
+
+//_________________________________________________________________________
+int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
+                                    String &cmsg)
+{
+   // Server side: process a kXGC_cert message.
+   // Return 0 on success, -1 on error. If the case, a message is returned
+   // in cmsg.
+   EPNAME("ServerDoCert");
+
+   XrdSutBucket *bck = 0;
+   XrdSutBucket *bckm = 0;
+
+   //
+   // Extract the main buffer 
+   if (!(bckm = br->GetBucket(kXRS_main))) {
+      cmsg = "main buffer missing";
+      return -1;
+   }
    //
    // Extract cipher algorithm chosen by the client
    String cip = "";
@@ -2208,7 +2501,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
             " - using default");
    }
 
-   // Second iteration: first get the session cipher
+   // First get the session cipher
    if ((bck = br->GetBucket(kXRS_puk))) {
       //
       // Cleanup
@@ -2237,7 +2530,6 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       // We need it only once
       br->Deactivate(kXRS_puk);
    }
-
    //
    // Decrypt the main buffer with the session cipher, if available
    if (sessionKey) {
@@ -2323,6 +2615,46 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
 
    //
+   // Check if there will be delegated proxies; these can be through
+   // normal request+signature, or just forwarded by the client.
+   // In both cases we need to save the proxy chain. If we need a 
+   // request, we have to prepare it and send it back to the client.
+   bool needReq =
+      ((PxyReqOpts & kOptsSrvReq) && (hs->Options & kOptsSigReq)) ||
+       (hs->Options & kOptsDlgPxy);
+   if (needReq || (hs->Options & kOptsFwdPxy)) {
+      // Create a new proxy chain
+      hs->PxyChain = new X509Chain();
+      // Add the current proxy
+      if ((*ParseBucket)(bck, hs->PxyChain) > 1) {
+         // Reorder it
+         hs->PxyChain->Reorder();
+         if (needReq) {
+            // Create the request
+            XrdCryptoX509Req *rPXp = 0;
+            XrdCryptoRSA *krPXp = 0;
+            if (XrdSslgsiX509CreateProxyReq(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
+               // Save key in the cache
+               hs->Cref->buf4.buf = (char *)krPXp;
+               // Prepare export bucket for request
+               XrdSutBucket *bckr = rPXp->Export();
+               // Add it to the main list
+               if ((*bm)->AddBucket(bckr) != 0) {
+                  SafeDelete(hs->PxyChain);
+                  DEBUG("WARNING: proxy req: problem adding bucket to main buffer");
+               }
+            } else {
+               SafeDelete(hs->PxyChain);
+               DEBUG("WARNING: proxy req: problem creating request");
+            }
+         }
+      } else {
+         SafeDelete(hs->PxyChain);
+         DEBUG("WARNING: proxy req: wrong number of certificates");
+      }
+   }
+
+   //
    // Extract the client public key
    sessionKver = sessionCF->RSA(*(hs->Chain->End()->PKI()));
    if (!sessionKver || !sessionKver->IsValid()) {
@@ -2355,7 +2687,132 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       return -1;
    }
 
+   // We are done
+   return 0;
+}
+
+//_________________________________________________________________________
+int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
+                                      String &cmsg)
+{
+   // Server side: process a kXGC_sigpxy message.
+   // Return 0 on success, -1 on error. If the case, a message is returned
+   // in cmsg.
+   EPNAME("ServerDoSigpxy");
+
+   XrdSutBucket *bck = 0;
+   XrdSutBucket *bckm = 0;
+
    //
+   // Extract the main buffer 
+   if (!(bckm = br->GetBucket(kXRS_main))) {
+      cmsg = "main buffer missing";
+      return 0;
+   }
+   //
+   // Decrypt the main buffer with the session cipher, if available
+   if (sessionKey) {
+      if (!(sessionKey->Decrypt(*bckm))) {
+         cmsg = "error decrypting main buffer with session cipher";
+         return 0;
+      }
+   }
+   //
+   // Deserialize main buffer
+   if (!((*bm) = new XrdSutBuffer(bckm->buffer,bckm->size))) {
+      cmsg = "error deserializing main buffer";
+      return 0;
+   }
+
+   // Get the bucket
+   if (!(bck = (*bm)->GetBucket(kXRS_x509))) {
+      cmsg = "buffer with requested info missing";
+      // Is there a message from the client?
+      if (!(bck = (*bm)->GetBucket(kXRS_message))) {
+         // Yes: decode it and print it
+         String m;
+         bck->ToString(m);
+         DEBUG("msg from client: "<<m);
+         // Add it to the main message
+         cmsg += " :"; cmsg += m;
+      }
+      return 0;
+   }
+
+   // Make sure we still have the chain
+   X509Chain *pxyc = hs->PxyChain;
+   if (!pxyc) {
+      cmsg = "the proxy chain is gone";
+      return 0;
+   }
+
+   // Action depend on the type of message
+   if ((hs->Options & kOptsFwdPxy)) {
+      // The bucket contains a private key to be added to the proxy
+      // public key
+      XrdCryptoRSA *kpx = pxyc->End()->PKI();
+      if (kpx->ImportPrivate(bck->buffer, bck->size) != 0) {
+         cmsg = "problems importing private key";
+         return 0;
+      }
+   } else {
+      // The bucket contains our request signed by the client
+      // The full key is in the cache 
+      if (!hs->Cref) {
+         cmsg = "session cache has gone";
+         return 0;
+      }
+      // Get the signed certificate
+      XrdCryptoX509 *npx = sessionCF->X509(bck);
+      if (!npx) {
+         cmsg = "could not resolve signed request";
+         return 0;
+      }
+      // Set full PKI
+      XrdCryptoRSA *knpx = (XrdCryptoRSA *)(hs->Cref->buf4.buf);
+      npx->SetPKI((XrdCryptoX509data)(knpx->Opaque()));
+      // Add the new proxy ecert to the chain
+      pxyc->PushBack(npx);
+   }
+   // Save the chain in the instance
+   proxyChain = pxyc;
+   hs->PxyChain = 0;
+   // Notify
+   proxyChain->Dump();
+
+   // Dump to file if required
+   if ((PxyReqOpts & kOptsPxFile)) {
+      if (Entity.name && strlen(Entity.name)) {
+         String pxfile = UsrProxy;
+         // File name will be using uid or subject hash
+         struct passwd *pw = getpwnam(Entity.name);
+         if (pw) {
+            // Use the standard format /tmp/x509up_u<uid>
+            pxfile += (int) pw->pw_uid;
+         } else {
+            // Get Hash of the subject
+            XrdCryptoX509 *c =
+               proxyChain->SearchBySubject(proxyChain->EECname());
+            if (c) {
+               pxfile += c->SubjectHash();
+            } else {
+               cmsg = "proxy chain not dumped to file: could not find subject hash";
+               return 0;
+            }
+         }
+         // Get the function
+         XrdCryptoX509ChainToFile_t ctofile = sessionCF->X509ChainToFile();
+         if ((*ctofile)(proxyChain,pxfile.c_str()) != 0) {
+            cmsg = "problems dumping proxy chain to file ";
+            cmsg += pxfile;
+            return 0;
+         }
+      } else {
+         cmsg = "proxy chain not dumped to file: entity name undefined";
+         return 0;
+      }
+   }
+
    // We are done
    return 0;
 }

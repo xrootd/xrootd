@@ -55,6 +55,7 @@ enum kgsiClientSteps {
    kXGC_none = 0,
    kXGC_certreq     = 1000, // 1000: request server certificate
    kXGC_cert,               // 1001: packet with (proxy) certificate
+   kXGC_sigpxy,             // 1002: packet with signed proxy certificate
    kXGC_reserved            // 
 };
 
@@ -63,6 +64,7 @@ enum kgsiServerSteps {
    kXGS_none = 0,
    kXGS_init       = 2000,   // 2000: fake code used the first time 
    kXGS_cert,                // 2001: packet with certificate 
+   kXGS_pxyreq,              // 2002: packet with proxy req to be signed 
    kXGS_reserved             //
 };
 
@@ -129,12 +131,15 @@ public:
    int    bits;   // [c] bits in PKI for proxies [512] 
    char  *gridmap;// [s] gridmap file [/etc/grid-security/gridmap]
    int    ogmap;  // [s] gridmap file checking option 
+   int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy 
+                  // [s] ask client for proxies
+   int    sigpxy; // [c] accept delegated proxy requests 
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
                   cipher = 0; md = 0; crl = 1;
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
-                  gridmap = 0; ogmap = 1;}
+                  gridmap = 0; ogmap = 1; dlgpxy = 0; sigpxy = 1;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
 };
 
@@ -156,12 +161,13 @@ public:
    bool              RtagOK;        // Rndm tag checked / not checked
    bool              Tty;           // Terminal attached / not attached
    int               LastStep;      // Step required at previous iteration
+   int               Options;       // Handshake options;
 
    gsiHSVars() { Iter = 0; TimeStamp = -1; CryptoMod = "";
                  RemVers = -1; Rcip = 0;
                  Cbck = 0;
                  ID = ""; Cref = 0; Pent = 0; Chain = 0; Crl = 0; PxyChain = 0;
-                 RtagOK = 0; Tty = 0; LastStep = 0; }
+                 RtagOK = 0; Tty = 0; LastStep = 0; Options = 0;}
 
    ~gsiHSVars() { SafeDelete(Cref);
                   if (Chain)
@@ -252,6 +258,7 @@ private:
    static String           DefError;
    static String           GMAPFile;
    static int              GMAPOpt;
+   static int              PxyReqOpts;
    //
    // Crypto related info
    static int              ncrypt;                  // Number of factories
@@ -285,15 +292,32 @@ private:
    XrdCryptoMsgDigest *sessionMD;  // Message Digest instance
    XrdCryptoRSA    *sessionKsig;   // RSA key to sign
    XrdCryptoRSA    *sessionKver;   // RSA key to verify
+   X509Chain       *proxyChain;    // Chain with the delegated proxy on servers
 
    // Temporary Handshake local info
    gsiHSVars     *hs;
 
-   // Parsing received buffers
+   // Parsing received buffers: client
    int            ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
                                    String &emsg);
+   int            ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
+                               String &cmsg);
+   int            ClientDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
+                               String &cmsg);
+   int            ClientDoPxyreq(XrdSutBuffer *br,  XrdSutBuffer **bm,
+                                 String &cmsg);
+
+   // Parsing received buffers: server
    int            ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
                                    String &cmsg);
+   int            ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
+                                  String &cmsg);
+   int            ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
+                               String &cmsg);
+   int            ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
+                                 String &cmsg);
+
+   // Auxilliary functions
    int            ParseCrypto(String cryptlist);
    int            ParseCAlist(String calist);
 
