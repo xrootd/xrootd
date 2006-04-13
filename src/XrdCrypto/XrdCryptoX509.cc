@@ -172,6 +172,14 @@ XrdCryptoRSA *XrdCryptoX509::PKI()
 }
 
 //_____________________________________________________________________________
+void XrdCryptoX509::SetPKI(XrdCryptoX509data)
+{
+   // Set PKI
+
+   ABSTRACTMETHOD("XrdCryptoX509::SetPKI");
+}
+
+//_____________________________________________________________________________
 int XrdCryptoX509::SerialNumber()
 {
    // Return issuer name

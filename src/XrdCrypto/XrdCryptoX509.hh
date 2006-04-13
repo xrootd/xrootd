@@ -49,6 +49,7 @@ public:
 
    // Access certificate key
    virtual XrdCryptoRSA *PKI();
+   virtual void SetPKI(XrdCryptoX509data pki);
 
    // Export in form of bucket (for transfers)
    virtual XrdSutBucket *Export();
