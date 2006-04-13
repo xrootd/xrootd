@@ -186,5 +186,29 @@ int XrdSutMkdir(const char *dir, unsigned int mode = 0777,
 /*  Return the corresponding number of seconds                                */
 /******************************************************************************/
 int XrdSutParseTime(const char *tstr, int opt = 0);
+
+/******************************************************************************/
+/*  X r d S u t F i l e L o c k e r                                           */
+/*                                                                            */
+/*  Guard class for file locking                                              */
+/*  Usage:                                                                    */
+/*  {                                                                         */
+/*     XrdSutFileLocker fl(fd,XrdSutFileLocker::kExcl);                       */
+/*     // File exclusively locked                                             */
+/*     ...                                                                    */
+/*  } // Unlocks file descriptor 'fd'                                         */
+/*                                                                            */
+/******************************************************************************/
+class XrdSutFileLocker {
+private:
+   int  fdesk;
+   bool valid;
+public:
+   enum ELockType { kShared = 0, kExcl = 1 };
+   XrdSutFileLocker(int fd, ELockType lock);
+   ~XrdSutFileLocker();
+   bool IsValid() const { return valid; }
+};
+
 #endif
 

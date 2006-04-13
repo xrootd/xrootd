@@ -19,6 +19,7 @@
 #include <pwd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 
 #include <XrdOuc/XrdOucLogger.hh>
 #include <XrdOuc/XrdOucError.hh>
@@ -510,3 +511,58 @@ int XrdSutParseTime(const char *tstr, int opt)
    }
    return tsec;
 }
+
+/******************************************************************************/
+/*  X r d S u t F i l e L o c k e r                                           */
+/*                                                                            */
+/*  Guard class for file locking                                              */
+/*  Usage:                                                                    */
+/*  {                                                                         */
+/*     XrdSutFileLocker fl(filename,1);                                       */
+/*     // File exclusively locked                                             */
+/*     ...                                                                    */
+/*  } // Unlocks file 'filename'                                              */
+/*        's'     for seconds                                                 */
+/*                                                                            */
+/******************************************************************************/
+//______________________________________________________________________________
+XrdSutFileLocker::XrdSutFileLocker(int fd, ELockType lock)
+{
+   // Constructor: locks the file in 'lock' mode.
+   // Use IsValid() to test success.
+
+   valid = 0;
+   fdesk = fd;
+
+   // Exclusive lock of the whole file
+   int lockmode = (lock == XrdSutFileLocker::kExcl) ? (F_WRLCK | F_RDLCK)
+                                                    :  F_RDLCK;
+#ifdef __macos__
+   struct flock flck = {0, 0, 0, lockmode, SEEK_SET};
+#else
+   struct flock flck = {lockmode, SEEK_SET, 0, 0};
+#endif
+   if (fcntl(fdesk, F_SETLK, &flck) != 0)
+      // Failure
+      return;
+
+   // Success
+   valid = 1;
+}
+//______________________________________________________________________________
+XrdSutFileLocker::~XrdSutFileLocker()
+{
+   // Destructor: unlocks the file if locked.
+
+   if (fdesk < 0 || !IsValid())
+      return;
+   //
+   // Unlock the file
+#ifdef __macos__
+   struct flock flck = {0, 0, 0, F_UNLCK, SEEK_SET};
+#else
+   struct flock flck = {F_UNLCK, SEEK_SET, 0, 0};
+#endif
+   fcntl(fdesk, F_SETLK, &flck);
+}
+
