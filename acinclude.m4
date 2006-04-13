@@ -48,6 +48,7 @@ AC_ARG_WITH(base-directory,
             [
 	     acx_base_incdir="$withval/include"
 	     acx_base_libdir="$withval/lib"
+	     acx_base_bindir="$withval/bin"
              BASE_INCDIR="-I$withval/include"
              BASE_LIBDIR="-L$withval/lib"
             ]

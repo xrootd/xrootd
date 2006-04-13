@@ -32,7 +32,7 @@ libXrdSSLutil_la_SOURCES = \
         XrdCryptosslgsiAux.cc XrdCryptosslgsiAux.hh \
         XrdCryptosslgsiX509Chain.cc XrdCryptosslgsiX509Chain.hh
 libXrdSSLutil_la_LIBADD = ../XrdSut/libXrdSut.la \
-                          $(OPENSSL_LIBDIR) -lssl
+                          $(OPENSSL_LIBDIR) -lssl -lcrypto
 libXrdSSLutil_la_CXXFLAGS = $(SSLCXXFLAGS)
 
 

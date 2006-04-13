@@ -17,8 +17,11 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20060406cvs,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20060413cvs,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
+
+# use C++ for the compilation of tests
+AC_LANG(C++)
 
 ###############################################################
 # Set some defaults which will be augmented by the OS detection
@@ -647,13 +650,15 @@ AC_CHECK_FUNC([getprotobyname_r],[AC_DEFINE(HAS_PROTOR)],
                   ])
               ])
 
+AC_CHECK_FUNC([strlcpy],[AC_DEFINE(HAS_STRLCPY)])
+
 #   note: needed for solaris
 AC_CHECK_LIB([rt],[sem_post],
              [AC_SUBST(SEM_LIBRT,[-lrt])]
             )
 
 #   note: needed for solaris (network services library. many systems still have these
-#         these function still in the libc)
+#         functions still in the libc)
 AC_CHECK_LIB([nsl],[gethostbyname],
              [AC_SUBST(LIBNSL,[-lnsl])]
             )
