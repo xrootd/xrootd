@@ -207,7 +207,7 @@ void gsiHSVars::Dump(XrdSecProtocolgsi *p)
    PRINT("Proxy chain:         "<<PxyChain);
    PRINT("Rndm tag checked:    "<<RtagOK);
    PRINT("Last step:           "<<LastStep);
-   PRINT("Options:             "<<(int *)Options);
+   PRINT("Options:             "<<Options);
    PRINT("----------------------------------------------------------------");
 }
 
@@ -649,7 +649,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       if (opt.dlgpxy == 2 || opt.dlgpxy == 3)
          PxyReqOpts |= kOptsPxFile;
       // Some notification
-      DEBUG("Delegated proxies options: "<<(int *)PxyReqOpts);
+      DEBUG("Delegated proxies options: "<<PxyReqOpts);
 
       //
       // Parms in the form:
@@ -1349,7 +1349,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    //
    // Version
    DEBUG("version run by client: "<< hs->RemVers);
-   DEBUG("options req by client: "<< (int *) hs->Options);
+   DEBUG("options req by client: "<< hs->Options);
    //
    // Dump, if requested
    if (QTRACE(Authen)) {
