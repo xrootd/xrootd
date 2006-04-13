@@ -15,6 +15,8 @@
 #include <time.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <XrdCrypto/XrdCryptoX509Chain.hh>
 #include <XrdCrypto/XrdCryptosslAux.hh>
@@ -228,6 +230,86 @@ XrdSutBucket *XrdCryptosslX509ExportChain(XrdCryptoX509Chain *chain)
 }
 
 //____________________________________________________________________________
+int XrdCryptosslX509ChainToFile(XrdCryptoX509Chain *ch, const char *fn)
+{
+   // Dump non-CA content of chain 'c' into file 'fn'
+   EPNAME("X509ChainToFile");
+
+   // Check inputs
+   if (!ch || !fn) {
+      DEBUG("Invalid inputs");
+      return -1;
+   }
+
+   // We proceed only if we can lock for write
+   FILE *fp = fopen(fn,"w");
+   if (!fp) {
+      DEBUG("cannot open file to save chain (file: "<<fn<<")"); 
+      return -1;
+   }
+   int ifp = fileno(fp);
+   if (ifp == -1) {
+      DEBUG("got invalid file descriptor (file: "<<fn<<")"); 
+      fclose(fp);
+      return -1;
+   }
+
+   // We need to lock from now on
+   {  XrdSutFileLocker fl(ifp,XrdSutFileLocker::kExcl);
+
+      // If not successful, return
+      if (!fl.IsValid()) { 
+         DEBUG("could not lock file: "<<fn<<")"); 
+         fclose(fp);
+         return -1;
+      }
+
+      // Set permissions to 0600
+      if (fchmod(ifp, 0600) == -1) {
+         DEBUG("cannot set permissions on file: "<<fn<<" (errno: "<<errno<<")"); 
+         fclose(fp);
+         return -1;
+      }
+
+      // Reorder the chain
+      ch->Reorder();
+
+      // Write the last cert first
+      XrdCryptoX509 *c = ch->End();
+      if (PEM_write_X509(fp, (X509 *)c->Opaque()) != 1) {
+         DEBUG("error while writing proxy certificate"); 
+         fclose(fp);
+         return -1;
+      }
+      // Write is private key, if any
+      XrdCryptoRSA *k = c->PKI();
+      if (k->status == XrdCryptoRSA::kComplete) {
+         if (PEM_write_PrivateKey(fp, (EVP_PKEY *)(k->Opaque()),
+                                  0, 0, 0, 0, 0) != 1) {
+            DEBUG("error while writing proxy private key"); 
+            fclose(fp);
+            return -1;
+         }
+      }
+      // Now write all other certificates
+      while ((c = ch->SearchBySubject(c->Issuer()))) {
+         // Write to file
+         if (PEM_write_X509(fp, (X509 *)c->Opaque()) != 1) {
+            DEBUG("error while writing proxy certificate"); 
+            fclose(fp);
+            return -1;
+         }
+      }
+   } // Unlocks the file
+
+   // CLose the file
+   fclose(fp);
+   //
+   // We are done
+   return 0;
+}
+
+//____________________________________________________________________________
 int XrdCryptosslX509ParseFile(const char *fname,
                               XrdCryptoX509Chain *chain)
 {
@@ -313,10 +395,10 @@ int XrdCryptosslX509ParseFile(const char *fname,
                      if (PEM_read_bio_PrivateKey(bkey,&rsap,0,0)) {
                         DEBUG("RSA key completed ");
                         // Test consistency
-                        if (RSA_check_key(rsap->pkey.rsa) != 0) {
+                        int rc = RSA_check_key(rsap->pkey.rsa);
+                        if (rc != 0) {
                            // Update PKI in certificate
-                           ((XrdCryptosslX509 *)cert)->
-                              SetPKI((XrdCryptoX509data)rsap);
+                           cert->SetPKI((XrdCryptoX509data)rsap);
                            // Update status
                            cert->PKI()->status = XrdCryptoRSA::kComplete;
                            break;

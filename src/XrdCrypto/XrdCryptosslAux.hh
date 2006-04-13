@@ -34,8 +34,10 @@ int XrdCryptosslKDFun(const char *pass, int plen, const char *salt, int slen,
 bool XrdCryptosslX509VerifyCert(XrdCryptoX509 *c, XrdCryptoX509 *r);
 // chain verification
 bool XrdCryptosslX509VerifyChain(XrdCryptoX509Chain *chain, int &errcode);
-// chain export
+// chain export to bucket
 XrdSutBucket *XrdCryptosslX509ExportChain(XrdCryptoX509Chain *chain);
+// chain export to file (proxy file creation)
+int XrdCryptosslX509ChainToFile(XrdCryptoX509Chain *c, const char *fn);
 // certificates from file parsing
 int XrdCryptosslX509ParseFile(const char *fname, XrdCryptoX509Chain *c);
 // certificates from bucket parsing
