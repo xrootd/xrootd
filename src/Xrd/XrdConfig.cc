@@ -1104,7 +1104,7 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
        else parms = 0;
 
     if ((val = index(proname, ':')))
-       if (!(portnum = yport(&XrdLog, "tcp", val+1)) < 0) return 1;
+       if ((portnum = yport(&XrdLog, "tcp", val+1)) < 0) return 1;
           else *val = '\0';
 
     if ((cpp = Firstcp))
