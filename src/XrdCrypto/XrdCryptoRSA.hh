@@ -54,11 +54,15 @@ public:
    // Output lengths
    virtual int GetOutlen(int lin);   // Length of encrypted buffers
    virtual int GetPublen();          // Length of export public key
+   virtual int GetPrilen();          // Length of export private key
 
    // Import / Export methods
    virtual int ImportPublic(const char *in, int lin);
    virtual int ExportPublic(char *out, int lout);
    int ExportPublic(XrdOucString &exp);
+   virtual int ImportPrivate(const char *in, int lin);
+   virtual int ExportPrivate(char *out, int lout);
+   int ExportPrivate(XrdOucString &exp);
 
    // Encryption / Decryption methods
    virtual int EncryptPrivate(const char *in, int lin, char *out, int lout);

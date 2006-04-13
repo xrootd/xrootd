@@ -47,8 +47,16 @@ int XrdCryptoRSA::GetOutlen(int)
 //_____________________________________________________________________________
 int XrdCryptoRSA::GetPublen()
 {
-   // Get length of output
+   // Get length of public key export form
    ABSTRACTMETHOD("XrdCryptoRSA::GetPublen");
+   return 0;
+}
+
+//_____________________________________________________________________________
+int XrdCryptoRSA::GetPrilen()
+{
+   // Get length of private key export form
+   ABSTRACTMETHOD("XrdCryptoRSA::GetPrilen");
    return 0;
 }
 
@@ -69,6 +77,22 @@ int XrdCryptoRSA::ExportPublic(char *, int)
 }
 
 //_____________________________________________________________________________
+int XrdCryptoRSA::ImportPrivate(const char *, int)
+{
+   // Abstract method to import a private key
+   ABSTRACTMETHOD("XrdCryptoRSA::ImportPrivate");
+   return -1;
+}
+
+//_____________________________________________________________________________
+int XrdCryptoRSA::ExportPrivate(char *, int)
+{
+   // Abstract method to export the private key
+   ABSTRACTMETHOD("XrdCryptoRSA::ExportPrivate");
+   return -1;
+}
+
+//_____________________________________________________________________________
 int XrdCryptoRSA::ExportPublic(XrdOucString &s)
 {
    // Export the public key into string s
@@ -78,6 +102,26 @@ int XrdCryptoRSA::ExportPublic(XrdOucString &s)
       char *newbuf = new char[newlen+1];
       if (newbuf) {
          if (ExportPublic(newbuf,newlen+1) > -1) {
+            s = (const char *)newbuf;
+            delete[] newbuf;
+            return 0;
+         }
+         delete[] newbuf;
+      }
+   }
+   return -1;
+}
+
+//_____________________________________________________________________________
+int XrdCryptoRSA::ExportPrivate(XrdOucString &s)
+{
+   // Export the private key into string s
+
+   int newlen = GetPrilen();
+   if (newlen > 0) {
+      char *newbuf = new char[newlen+1];
+      if (newbuf) {
+         if (ExportPrivate(newbuf,newlen+1) > -1) {
             s = (const char *)newbuf;
             delete[] newbuf;
             return 0;
