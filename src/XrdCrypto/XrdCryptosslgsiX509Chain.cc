@@ -168,14 +168,20 @@ bool XrdCryptosslgsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *
       return 0;
    }
 
-   // Subject name must start with issuer name
-   int ilen = strlen(xcer->Issuer());
+   // Subject name must start with issuer name.
+   // We need the length of the common part between issuer and subject.
+   // We allow proxies issued by other proxies. In such cases we must
+   // ignore the last '/CN=' in the issuer name; this explains the need
+   // for the following gymnastic.
+   char *pcn = (char *) strstr(xcer->Issuer(),"/CN=");
+   pcn = (char *) strstr(pcn+1,"/CN=");
+   int ilen = (pcn) ? (int)(pcn - xcer->Issuer()) : strlen(xcer->Issuer());
    if (strncmp(xcer->Subject(), xcer->Issuer(), ilen)) {
       errcode = kInvalidNames;
       lastError = "subject check:";
       lastError += X509ChainError(errcode);
       return 0;
-   }   
+   }
 
    // A common name must be appendend
    char *pp = (char *)strstr(xcer->Subject()+ilen, "CN=");
@@ -184,8 +190,8 @@ bool XrdCryptosslgsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *
       lastError = "proxy subject check:";
       lastError += X509ChainError(errcode);
       return 0;
-   }   
-   
+   }
+
    // But only one
    pp = strstr(pp+strlen("CN="), "CN=");
    if (pp) {
