@@ -21,7 +21,12 @@ AC_INIT(xrootd,20060413cvs,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
-AC_LANG(C++)
+dnl currently commented out, since older versions of libtool (<1.5) contain
+dnl a test similar to AM_PROG_CC_C_O which triggers locking by libtool itself
+dnl if AC_LANG(C++) is in effect.
+dnl Since the locking is implemented via a hardlink to a file, this does not
+dnl work on AFS
+dnl AC_LANG(C++)
 
 ###############################################################
 # Set some defaults which will be augmented by the OS detection
