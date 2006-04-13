@@ -188,12 +188,26 @@ int main( int argc, char **argv )
       XrdCryptoRSA *CpyRSA = gCryptoFactory->RSA(*TestRSA_1);
       if (CpyRSA)
          CpyRSA->Dump();
+
       char RSApubexp[4096];
       TestRSA_1->ExportPublic(RSApubexp,4096);
       PRINT(outname<<": public export:"<<endl<<RSApubexp);
       PRINT(outname<<": The two printouts above should be equal");
       PRINT(outname<<": --------------------------------------------------- ");
       PRINT(outname<<": outlen : "<<TestRSA_1->GetPublen());
+      PRINT(outname<<": --------------------------------------------------- ");
+      char RSApriexp[4096];
+      TestRSA_1->ExportPrivate(RSApriexp,4096);
+      PRINT(outname<<": private export:"<<endl<<RSApriexp);
+      PRINT(outname<<": --------------------------------------------------- ");
+      PRINT(outname<<": outlen : "<<TestRSA_1->GetPrilen());
+      PRINT(outname<<": --------------------------------------------------- ");
+      PRINT(outname<<": --------------------------------------------------- ");
+      PRINT(outname<<": testing import/export ");
+      XrdCryptoRSA *TestRSA_2 = gCryptoFactory->RSA(1024);
+      TestRSA_2->ImportPublic(RSApubexp,strlen(RSApubexp));
+      TestRSA_2->ImportPrivate(RSApriexp,strlen(RSApriexp));
+
       PRINT(outname<<": --------------------------------------------------- ");
       char buf_1[128] = "Here I am ... in test";
       int lin = strlen(buf_1);
@@ -206,7 +220,7 @@ int main( int argc, char **argv )
       PRINT(outname<<": "<<buf_2_hex);
       char buf_3[4096];
       PRINT(outname<<": decrypting (private): ("<<lout1<<" bytes)");
-      int lout2 = TestRSA_1->DecryptPrivate(buf_2,lout1,buf_3,512);
+      int lout2 = TestRSA_2->DecryptPrivate(buf_2,lout1,buf_3,512);
       PRINT(outname<<": got: "<<buf_3<<" ("<<lout2<<" bytes)");
       if (memcmp(buf_1,buf_3,lin)) {
          PRINT(outname<<": RSA public enc / private dec mismatch: ");
@@ -227,7 +241,7 @@ int main( int argc, char **argv )
       PRINT(outname<<": output has "<<lout1<<" bytes: here is its hex:");
       PRINT(outname<<": "<<buf_2_hex);
       PRINT(outname<<": decrypting (public): ("<<lout1<<" bytes)");
-      lout2 = TestRSA_1->DecryptPublic(buf_2,lout1,buf_3,512);
+      lout2 = TestRSA_2->DecryptPublic(buf_2,lout1,buf_3,512);
       PRINT(outname<<": got: "<<buf_3<<" ("<<lout2<<" bytes)");
       if (memcmp(buf_1,buf_3,lin)) {
          PRINT(outname<<": RSA private enc / public dec mismatch: ");
