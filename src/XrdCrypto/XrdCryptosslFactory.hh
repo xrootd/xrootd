@@ -64,12 +64,16 @@ public:
    // X509 CRL constructor
    XrdCryptoX509Crl *X509Crl(const char *crlfile);
 
+   // X509 REQ constructors
+   XrdCryptoX509Req *X509Req(XrdSutBucket *bck);
+
    // Hooks to handle X509 certificates
    XrdCryptoX509VerifyCert_t X509VerifyCert();
    XrdCryptoX509VerifyChain_t X509VerifyChain();
    XrdCryptoX509ParseFile_t X509ParseFile();
    XrdCryptoX509ParseBucket_t X509ParseBucket();
    XrdCryptoX509ExportChain_t X509ExportChain();
+   XrdCryptoX509ChainToFile_t X509ChainToFile();
 };
 
 #endif

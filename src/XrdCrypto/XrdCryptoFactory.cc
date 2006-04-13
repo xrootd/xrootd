@@ -206,6 +206,15 @@ XrdCryptoX509Crl *XrdCryptoFactory::X509Crl(const char *)
 }
 
 //______________________________________________________________________________
+XrdCryptoX509Req *XrdCryptoFactory::X509Req(XrdSutBucket *)
+{
+   // Return an instance of an implementation of XrdCryptoX509Req.
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509Req");
+   return 0;
+}
+
+//______________________________________________________________________________
 XrdCryptoX509VerifyCert_t XrdCryptoFactory::X509VerifyCert()
 {
    // Return an instance of an implementation of a verification
@@ -232,6 +241,16 @@ XrdCryptoX509ExportChain_t XrdCryptoFactory::X509ExportChain()
    // to export a X509 certificate chain.
 
    ABSTRACTMETHOD("XrdCryptoFactory::X509ExportChain");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509ChainToFile_t XrdCryptoFactory::X509ChainToFile()
+{
+   // Return an instance of an implementation of a function
+   // to dump a X509 certificate chain to a file.
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509ChainToFile");
    return 0;
 }
 

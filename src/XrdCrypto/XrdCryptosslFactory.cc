@@ -22,6 +22,7 @@
 #include <XrdCrypto/XrdCryptosslRSA.hh>
 #include <XrdCrypto/XrdCryptosslX509.hh>
 #include <XrdCrypto/XrdCryptosslX509Crl.hh>
+#include <XrdCrypto/XrdCryptosslX509Req.hh>
 
 #include <XrdOuc/XrdOucLogger.hh>
 #include <XrdOuc/XrdOucError.hh>
@@ -304,6 +305,21 @@ XrdCryptoX509Crl *XrdCryptosslFactory::X509Crl(const char *cf)
 }
 
 //______________________________________________________________________________
+XrdCryptoX509Req *XrdCryptosslFactory::X509Req(XrdSutBucket *b)
+{
+   // Return an instance of a ssl implementation of XrdCryptoX509Crl.
+
+   XrdCryptoX509Req *x509Req = new XrdCryptosslX509Req(b);
+   if (x509Req) {
+      if (x509Req->Opaque())
+         return x509Req;
+      else
+         delete x509Req;
+   }
+   return (XrdCryptoX509Req *)0;
+}
+
+//______________________________________________________________________________
 XrdCryptoX509VerifyCert_t XrdCryptosslFactory::X509VerifyCert()
 {
    // Return hook to the OpenSSL implementation of the verification
@@ -328,6 +344,15 @@ XrdCryptoX509ExportChain_t XrdCryptosslFactory::X509ExportChain()
    // to export a X509 certificate chain.
 
    return &XrdCryptosslX509ExportChain;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509ChainToFile_t XrdCryptosslFactory::X509ChainToFile()
+{
+   // Return an instance of an implementation of a function
+   // to dump a X509 certificate chain to a file.
+
+   return &XrdCryptosslX509ChainToFile;
 }
 
 //______________________________________________________________________________

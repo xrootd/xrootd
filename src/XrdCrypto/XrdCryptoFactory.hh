@@ -35,6 +35,7 @@ class XrdCryptoRSA;
 class XrdCryptoX509;
 class XrdCryptoX509Chain;
 class XrdCryptoX509Crl;
+class XrdCryptoX509Req;
 
 #if 1
 //
@@ -53,6 +54,10 @@ typedef bool (*XrdCryptoX509VerifyChain_t)(XrdCryptoX509Chain *chain,
                                            int &errcode);
 // chain export
 typedef XrdSutBucket *(*XrdCryptoX509ExportChain_t)(XrdCryptoX509Chain *chain);
+
+// chain to file
+typedef int (*XrdCryptoX509ChainToFile_t)(XrdCryptoX509Chain *chain,
+                                          const char *filename);
 
 // certificates from file parsing
 typedef int (*XrdCryptoX509ParseFile_t)(const char *fname,
@@ -110,12 +115,16 @@ public:
    // X509 CRL constructor
    virtual XrdCryptoX509Crl *X509Crl(const char *crlfile);
 
+   // X509 REQ constructors
+   virtual XrdCryptoX509Req *X509Req(XrdSutBucket *bck);
+
    // Hooks to handle X509 certificates
    virtual XrdCryptoX509VerifyCert_t X509VerifyCert();
    virtual XrdCryptoX509VerifyChain_t X509VerifyChain();
    virtual XrdCryptoX509ParseFile_t X509ParseFile();
    virtual XrdCryptoX509ParseBucket_t X509ParseBucket();
    virtual XrdCryptoX509ExportChain_t X509ExportChain();
+   virtual XrdCryptoX509ChainToFile_t X509ChainToFile();
 
    // Equality operator
    bool operator==(const XrdCryptoFactory factory);
