@@ -95,6 +95,11 @@ int XrdNetDNS::getHostAddr(const  char     *InetName,
 
 #else
 
+// Disable IPv6 for 'localhost...' (potential confusion in the
+// default /etc/hosts on some platforms, e.g. MacOsX)
+//
+   if (!strncmp(InetName,"localhost",9)) myhints.ai_family = PF_INET;
+
 // Translate the name to an address list
 //
     if (isdigit((int)*InetName)) myhints.ai_flags |= AI_NUMERICHOST;
@@ -311,6 +316,11 @@ int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
       {InetName[0] = LowCase(strdup(mybuff));
        return 1;
       }
+
+// Disable IPv6 for 'localhost...' (potential confusion in the
+// default /etc/hosts on some platforms, e.g. MacOsX)
+//
+   if (!strncmp(mybuff,"localhost",9)) myhints.ai_family = PF_INET;
 
 // Get the aliases for this name
 //
