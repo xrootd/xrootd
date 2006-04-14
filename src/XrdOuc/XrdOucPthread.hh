@@ -13,6 +13,9 @@
 //        $Id$
 
 #include <errno.h>
+#ifdef WIN32
+#define HAVE_STRUCT_TIMESPEC 1
+#endif
 #include <pthread.h>
 #include <signal.h>
 #ifdef AIX

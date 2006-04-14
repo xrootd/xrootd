@@ -15,9 +15,14 @@ const char *XrdOucProgCVSID = "$Id$";
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef WIN32
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#else
+#include <sys/types.h>
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucProg.hh"

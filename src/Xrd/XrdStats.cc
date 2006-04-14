@@ -26,7 +26,7 @@ const char *XrdStatsCVSID = "$Id$";
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */

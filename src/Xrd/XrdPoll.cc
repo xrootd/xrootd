@@ -18,7 +18,7 @@ const char *XrdPollCVSID = "$Id$";
 #include <stdlib.h>
   
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "Xrd/XrdLink.hh"
 #define  TRACELINK lp

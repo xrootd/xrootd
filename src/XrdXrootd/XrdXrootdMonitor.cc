@@ -26,7 +26,7 @@ const char *XrdXrootdMonitorCVSID = "$Id$";
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 #include "Xrd/XrdScheduler.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"

@@ -12,7 +12,13 @@
 
 //         $Id$
 
+#ifndef WIN32
 #include <sys/time.h>
+#else
+#include <time.h>
+#include <Winsock2.h>
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 /* This include file describes the oo elapsed time interval interface. It is
    used by the oo Real Time Monitor, among others.

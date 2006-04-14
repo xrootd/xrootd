@@ -32,7 +32,7 @@ const char *XrdOlbServerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 

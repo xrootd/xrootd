@@ -22,7 +22,7 @@ const char *XrdBufferCVSID = "$Id$";
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucTimer.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdTrace.hh"

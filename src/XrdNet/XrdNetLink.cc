@@ -13,10 +13,14 @@
 const char *XrdNetLinkCVSID = "$Id$";
   
 #include <fcntl.h>
+#ifndef WIN32
 #include <poll.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#else
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetBuffer.hh"
@@ -24,7 +28,7 @@ const char *XrdNetLinkCVSID = "$Id$";
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
  
@@ -208,7 +212,7 @@ void XrdNetLink::Recycle()
 /******************************************************************************/
 /*                                  R e c v                                   */
 /******************************************************************************/
-  
+
 int XrdNetLink::Recv(char *Buff, int Blen)
 {
    ssize_t rlen;
@@ -227,15 +231,15 @@ int XrdNetLink::Recv(char *Buff, int Blen)
 /******************************************************************************/
 /*                                  S e n d                                   */
 /******************************************************************************/
-  
+
 int XrdNetLink::Send(const char *Buff, int Blen, int tmo)
 {
    int retc;
 
    if (!Blen && !(Blen = strlen(Buff))) return 0;
    if ('\n' != Buff[Blen-1])
-      {const struct iovec iodata[2] = {{(char * const)Buff, Blen}, 
-                                       {(char *)"\n", 1}};
+      {const struct iovec iodata[2] = {{IOV_INIT((char * const)Buff, Blen)},
+                                         {IOV_INIT((char *)"\n", 1)}};
        return Send(iodata, 2, tmo);
       }
 
@@ -248,7 +252,7 @@ int XrdNetLink::Send(const char *Buff, int Blen, int tmo)
       do {retc = write(FD, Buff, Blen);}
          while (retc < 0 && errno == EINTR);
       else
-      do {retc = sendto(FD, (void *)Buff, Blen, 0,
+      do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0,
                        (struct sockaddr *)&InetAddr, sizeof(InetAddr));}
          while (retc < 0 && errno == EINTR);
    if (retc < 0) return retErr(errno);
@@ -269,7 +273,7 @@ int XrdNetLink::Send(const void *Buff, int Blen, int tmo)
       do {retc = write(FD, Buff, Blen);}
          while (retc < 0 && errno == EINTR);
       else
-      do {retc = sendto(FD, (void *)Buff, Blen, 0,
+      do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0,
                        (struct sockaddr *)&InetAddr, sizeof(InetAddr));}
          while (retc < 0 && errno == EINTR);
    if (retc < 0) return retErr(errno);
@@ -284,8 +288,8 @@ int XrdNetLink::Send(const char *dest, const char *Buff, int Blen, int tmo)
 
    if (!Blen && !(Blen = strlen(Buff))) return 0;
    if ('\n' != Buff[Blen-1])
-      {const struct iovec iodata[2] = {{(char * const)Buff, Blen}, 
-                                       {(char *)"\n", 1}};
+      {const struct iovec iodata[2] = {{IOV_INIT((char * const)Buff, Blen)}, 
+                                         {IOV_INIT((char *)"\n", 1)}};
        return Send(dest, iodata, 2, tmo);
       }
 
@@ -304,7 +308,7 @@ int XrdNetLink::Send(const char *dest, const char *Buff, int Blen, int tmo)
    if (tmo >= 0 && !OK2Send(tmo, dest))
       {wrMutex.UnLock(); return -2;}
 
-   do {retc = sendto(FD, (void *)Buff, Blen, 0,
+   do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0,
                     (struct sockaddr *)&destip, sizeof(destip));}
        while (retc < 0 && errno == EINTR);
 
@@ -335,7 +339,7 @@ int XrdNetLink::Send(const struct iovec iov[], int iovcnt, int tmo)
             memcpy((void *)bp,(const void *)iov[i].iov_base,iov[i].iov_len);
             bp += iov[i].iov_len;
            }
-       do {retc = sendto(FD, (void *)sendbuff->data, (int)(bp-sendbuff->data), 0,
+       do {retc = sendto(FD, (Sokdata_t)sendbuff->data, (int)(bp-sendbuff->data), 0,
                        (struct sockaddr *)&InetAddr, sizeof(InetAddr));}
            while (retc < 0 && errno == EINTR);
        }
@@ -374,7 +378,7 @@ int XrdNetLink::Send(const char *dest,const struct iovec iov[],int iovcnt,int tm
         memcpy((void *)bp,(const void *)iov[i].iov_base,iov[i].iov_len);
         bp += iov[i].iov_len;
        }
-   do {retc = sendto(FD, (void *)sendbuff->data, (int)(bp-sendbuff->data), 0,
+   do {retc = sendto(FD, (Sokdata_t)sendbuff->data, (int)(bp-sendbuff->data), 0,
                      &destip, sizeof(destip));}
       while (retc < 0 && errno == EINTR);
 

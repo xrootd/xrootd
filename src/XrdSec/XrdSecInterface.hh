@@ -13,12 +13,14 @@
 //       $Id$ 
 
 #include <errno.h>
+#ifndef WIN32
 #include <netdb.h>
 #include <netinet/in.h>
+#include <sys/param.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/param.h>
 #if defined(__CYGWIN__)
 #include <sys/socket.h>
 #endif

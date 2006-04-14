@@ -14,13 +14,15 @@ const char *XrdNetConnectCVSID = "$Id$";
 
 #include "errno.h"
 #include "fcntl.h"
+#ifndef WIN32
 #include "poll.h"
 #include "unistd.h"
 #include <sys/types.h>
 #include <sys/socket.h>
+#endif
 
 #include "XrdNet/XrdNetConnect.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                               C o n n e c t                                */
@@ -56,7 +58,7 @@ int XrdNetConnect::Connect(             int       fd,
                     do {myRC = poll(&polltab, 1, tsec*1000);} 
                        while(myRC < 0 && errno == EINTR);
                     if (myRC != 1) myRC = ETIMEDOUT;
-                       else getsockopt(fd,SOL_SOCKET,SO_ERROR,&myRC,&myRClen);
+                       else getsockopt(fd,SOL_SOCKET,SO_ERROR,(Sokdata_t)&myRC,&myRClen);
                    }
    fcntl(fd, F_SETFD, old_flags);
    return myRC;

@@ -36,7 +36,7 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdNet/XrdNetOpts.hh"

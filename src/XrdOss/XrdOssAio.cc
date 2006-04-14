@@ -26,7 +26,7 @@ const char *XrdOssAioCVSID = "$Id$";
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 

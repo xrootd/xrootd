@@ -11,7 +11,11 @@
 /******************************************************************************/
 
 #include <sys/types.h>
+#ifndef WIN32
 #include <sys/socket.h>
+#else
+#include <Winsock2.h>
+#endif
   
 //         $Id$
 

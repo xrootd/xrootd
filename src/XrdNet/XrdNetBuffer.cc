@@ -12,7 +12,9 @@
 
 const char *XrdNetBufferCVSID = "$Id$";
 
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <sys/types.h>
 #include <stdlib.h>
 #ifndef __macos__
@@ -20,7 +22,7 @@ const char *XrdNetBufferCVSID = "$Id$";
 #endif
 
 #include "XrdNet/XrdNetBuffer.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                 X r d N e t B u f f e r Q   M e t h o d s                  */

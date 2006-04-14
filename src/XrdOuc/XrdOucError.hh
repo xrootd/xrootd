@@ -13,9 +13,13 @@
 //          $Id$
  
 #include <stdlib.h>
+#ifndef WIN32
 #include <unistd.h>
 #include <string.h>
 #include <strings.h>
+#else
+#include <string.h>
+#endif
 
 /******************************************************************************/
 /*                      o o u c _ E r r o r _ T a b l e                       */

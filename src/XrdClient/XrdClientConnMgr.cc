@@ -25,6 +25,9 @@
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientSid.hh"
+#ifdef WIN32
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 #ifdef AIX
 #include <sys/sem.h>

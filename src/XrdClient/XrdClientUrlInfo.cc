@@ -16,8 +16,12 @@
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdNet/XrdNetDNS.hh"
+#ifndef WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#else
+#include "XrdSys/XrdWin32.hh"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 

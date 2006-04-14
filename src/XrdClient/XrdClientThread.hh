@@ -32,7 +32,9 @@ private:
    
    
    XrdClientThread(VoidRtnFunc_t fn) {
+#ifndef WIN32
       fThr = 0;
+#endif
       ThreadFunc = fn;
    };
 

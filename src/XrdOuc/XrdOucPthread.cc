@@ -14,8 +14,14 @@ const char *XrdOucPthreadCVSID = "$Id$";
  
 #include <errno.h>
 #include <pthread.h>
+#ifndef WIN32
 #include <unistd.h>
 #include <sys/time.h>
+#else
+#include <Winsock2.h>
+#include <time.h>
+#include "XrdSys/XrdWin32.hh"
+#endif
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucPthread.hh"

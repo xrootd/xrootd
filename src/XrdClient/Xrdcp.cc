@@ -17,12 +17,15 @@
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdCpWorkLst.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifndef WIN32
 #include <sys/time.h>
 #include <unistd.h>
+#endif
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -241,7 +244,7 @@ int CreateDestPath_loc(XrdOucString path, bool isdir) {
    }
 
    if (path != "")
-      return ( mkdir(
+      return ( MAKEDIR(
 		     path.c_str(),
 		     S_IRUSR | S_IWUSR | S_IXUSR |
 		     S_IRGRP | S_IWGRP | S_IXGRP |
@@ -473,8 +476,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       // Copy to local fs
       unlink(dst);
       f = open(dst, 
-	       O_CREAT | O_WRONLY | O_TRUNC,
-	       S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);   
+	       O_CREAT | O_WRONLY | O_TRUNC | O_BINARY, 
+          S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
       if (f < 0) {
 	 cerr << "Error " << strerror(errno) <<
 	    " creating " << dst << endl;
@@ -692,6 +695,14 @@ int main(int argc, char**argv) {
       PrintUsage();
       exit(1);
    }
+
+#ifdef WIN32
+   WORD wVersionRequested;
+   WSADATA wsaData;
+   int err;
+   wVersionRequested = MAKEWORD( 2, 2 );
+   err = WSAStartup( wVersionRequested, &wsaData );
+#endif
 
    DebugSetLevel(-1);
 

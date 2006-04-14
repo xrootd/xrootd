@@ -14,7 +14,6 @@
 const char *XrdClientSockCVSID = "$Id$";
 
 #include <memory>
-#include <unistd.h>
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
@@ -24,7 +23,12 @@ const char *XrdClientSockCVSID = "$Id$";
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
+#ifndef WIN32
+#include <unistd.h>
 #include <sys/poll.h>
+#else
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 //_____________________________________________________________________________
 XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize)
@@ -125,8 +129,8 @@ int XrdClientSock::RecvRaw(void* buffer, int length)
 
       // First of all, we check if there is something to read
       if (fds_r.revents & (POLLIN | POLLPRI)) {
-	 int n = read(fSocket, static_cast<char *>(buffer) + bytesread,
-	 	      length - bytesread);
+    int n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
+                   length - bytesread, 0);
 
 	 // If we read nothing, the connection has been closed by the other side
 	 if (n <= 0) {
@@ -204,8 +208,8 @@ int XrdClientSock::SendRaw(const void* buffer, int length)
 
       // First of all, we check if we are allowed to write
       if (fds_w.revents & POLLOUT) {
-	 int n = write(fSocket, static_cast<const char *>(buffer) + byteswritten,
-		       length - byteswritten);
+	 int n = send(fSocket, static_cast<const char *>(buffer) + byteswritten,
+		       length - byteswritten, 0);
 
 	 // If we wrote nothing, the connection has been closed by the other
 	 if (n <= 0) {

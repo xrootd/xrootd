@@ -15,6 +15,9 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <stdlib.h>
+#ifdef WIN32
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 #include "XrdOuc/XrdOucError.hh"
 
@@ -104,7 +107,11 @@ char        *GetWord(int lowcase=0);
 
 // Indicate wether there is an active program attached to the stream
 //
+#ifndef WIN32
 inline int  isAlive() {return (child ? kill(child,0) == 0 : 0);}
+#else
+inline int  isAlive() {return (child ? 1 : 0);}
+#endif
 
 // Return last error code encountered.
 //

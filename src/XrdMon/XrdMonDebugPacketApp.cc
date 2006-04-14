@@ -14,7 +14,7 @@
 #include "XrdMon/XrdMonDecDictInfo.hh"
 #include "XrdMon/XrdMonDecUserInfo.hh"
 #include "XrdMon/XrdMonHeader.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include <fstream>
 #include <iomanip>

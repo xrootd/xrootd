@@ -15,8 +15,12 @@
 #include "XrdSys/XrdSysDir.hh"
 #include <sys/stat.h>
 #include <errno.h>
+#ifndef WIN32
 #include <unistd.h>
-
+#else
+#include "XrdSys/XrdWin32.hh"
+#include <iostream>
+#endif
 
 using namespace std;
 

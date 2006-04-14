@@ -12,6 +12,7 @@
 
 const char *XrdNetSocketCVSID = "$Id$";
 
+#ifndef WIN32
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -25,13 +26,23 @@ const char *XrdNetSocketCVSID = "$Id$";
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#else
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <Winsock2.h>
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 #include "XrdNet/XrdNetConnect.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                         l o c a l   d e f i n e s                          */
@@ -188,7 +199,7 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
 // Make sure the local endpoint can be reused
 //
    if ((*path != '/') && setsockopt(SockFD,SOL_SOCKET,SO_REUSEADDR,
-                                   (const void *)&one, szone) && eroute)
+                                   (Sokdata_t)&one, szone) && eroute)
       eroute->Emsg("open", errno, "set socket REUSEADDR");
 
 // Either do a connect or a bind.
@@ -280,19 +291,19 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdOucError *eDest)
    if (opts & XRDNET_UDPSOCKET) return rc;
 
    if (!(opts & XRDNET_NOLINGER)
-   &&  setsockopt(xfd,SOL_SOCKET,SO_LINGER,(const void *)&liopts,szlio))
+   &&  setsockopt(xfd,SOL_SOCKET,SO_LINGER,(Sokdata_t)&liopts,szlio))
       {rc = 1;
        if (eDest) eDest->Emsg("setOpts", errno, "set socket LINGER");
       }
 
    if ((opts & XRDNET_KEEPALIVE)
-   &&  setsockopt(xfd,SOL_SOCKET,SO_KEEPALIVE,(const void *)&one,szone))
+   &&  setsockopt(xfd,SOL_SOCKET,SO_KEEPALIVE,(Sokdata_t)&one,szone))
       {rc = 1;
        if (eDest) eDest->Emsg("setOpts", errno, "set socket KEEPALIVE");
       }
 
    if (!(opts & XRDNET_DELAY)
-   &&  setsockopt(xfd, tcpprotid, TCP_NODELAY, (const void *)&one,szone))
+   &&  setsockopt(xfd, tcpprotid, TCP_NODELAY, (Sokdata_t)&one,szone))
       {rc = 1;
        if (eDest) eDest->Emsg("setOpts", errno, "set socket NODELAY");
       }
@@ -310,13 +321,13 @@ int XrdNetSocket::setWindow(int xfd, int Windowsz, XrdOucError *eDest)
    const SOCKLEN_t szwb  = (SOCKLEN_t)sizeof(Windowsz);
 
    if (setsockopt(xfd, SOL_SOCKET, SO_SNDBUF,
-                       (const void *)&Windowsz, szwb))
+                       (Sokdata_t)&Windowsz, szwb))
       {rc = 1;
        if (eDest) eDest->Emsg("setWindow", errno, "set socket SNDBUF");
       }
 
    if (setsockopt(xfd, SOL_SOCKET, SO_RCVBUF,
-                       (const void *)&Windowsz, szwb))
+                       (Sokdata_t)&Windowsz, szwb))
       {rc = 1;
        if (eDest) eDest->Emsg("setWindow", errno, "set socket RCVBUF");
       }

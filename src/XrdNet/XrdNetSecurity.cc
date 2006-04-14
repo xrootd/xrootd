@@ -12,6 +12,7 @@
 
 const char *XrdNetSecurityCVSID = "$Id$";
 
+#ifndef WIN32
 #include <netdb.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -19,6 +20,18 @@ const char *XrdNetSecurityCVSID = "$Id$";
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#else
+#include <stdlib.h>
+#include <sys/types.h>
+#include <Winsock2.h>
+#include <io.h>
+int innetgr(const char *netgroup, const char *host, const char *user,
+             const char *domain)
+{
+   return 0;
+}
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetSecurity.hh"

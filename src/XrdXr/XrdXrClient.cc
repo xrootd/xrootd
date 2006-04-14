@@ -24,7 +24,7 @@ const char *XrdXrClientCVSID = "$Id$";
 
 #include "XrdXr/XrdXrClient.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 XrdOucLogger *XrdXrClient::logger = 0;
 

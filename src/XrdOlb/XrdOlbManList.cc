@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 #include "XrdNet/XrdNetDNS.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOlb/XrdOlbManList.hh"
 
 /******************************************************************************/

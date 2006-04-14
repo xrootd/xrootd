@@ -12,10 +12,14 @@
 
 #include <errno.h>
 
+#ifdef WIN32
+#include <direct.h>
+#include "XrdSys/XrdWin32.hh"
+#endif
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucUtils.hh"
   
 /******************************************************************************/
@@ -169,7 +173,7 @@ void XrdOucUtils::makeHome(XrdOucError &eDest, const char *inst)
    if (!inst || !getcwd(buff, sizeof(buff))) return;
 
    strcat(buff, "/"); strcat(buff, inst);
-   if (mkdir(buff, pathMode) && errno != EEXIST)
+   if (MAKEDIR(buff, pathMode) && errno != EEXIST)
       {eDest.Emsg("Config", errno, "create home directory", buff);
        return;
       }
@@ -194,7 +198,7 @@ int XrdOucUtils::makePath(char *path, mode_t mode)
 //
    while((next_path = index(next_path, int('/'))))
         {*next_path = '\0';
-         if (mkdir(path, mode))
+         if (MAKEDIR(path, mode))
             if (errno != EEXIST) return -errno;
                   else chmod(path, mode);
          *next_path = '/';

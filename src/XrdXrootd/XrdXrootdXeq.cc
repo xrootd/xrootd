@@ -15,7 +15,7 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"

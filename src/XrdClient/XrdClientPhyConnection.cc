@@ -21,8 +21,11 @@
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientSid.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#ifndef WIN32
 #include <sys/socket.h>
-
+#else
+#include <Winsock2.h>
+#endif
 
 //____________________________________________________________________________
 void *SocketReaderThread(void * arg, XrdClientThread *thr)

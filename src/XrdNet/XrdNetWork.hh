@@ -13,10 +13,14 @@
 //         $Id$
 
 #include <stdlib.h>
+#ifndef WIN32
 #include <strings.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#else
+#include <Winsock2.h>
+#endif
 
 #include "XrdNet/XrdNet.hh"
 

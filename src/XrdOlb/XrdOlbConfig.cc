@@ -56,7 +56,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucPlugin.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPthread.hh"
@@ -576,7 +576,7 @@ char *XrdOlbConfig::ASPath(char *path, const char *fn, mode_t mode)
 /******************************************************************************/
 /*                        C o n f i g D e f a u l t s                         */
 /******************************************************************************/
-  
+
 void XrdOlbConfig::ConfigDefaults(void)
 {
 
@@ -1950,7 +1950,7 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &CFile)
        }
     return 0;
 }
-  
+
 /******************************************************************************/
 /*                                 x s u b s                                  */
 /******************************************************************************/

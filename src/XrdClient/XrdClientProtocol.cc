@@ -14,10 +14,12 @@
 const char *XrdClientProtocolCVSID = "$Id$";
 
 #include "XProtocol/XProtocol.hh"
-#include <strings.h>
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include <sys/types.h>
+#ifndef WIN32
+#include <strings.h>
 #include <netinet/in.h> // needed to use htonl/htons byte swap functions
+#endif
 #include <string.h> // proto for memcpy (wanted by Solaris compiler)
 #include <stdio.h>
 

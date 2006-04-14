@@ -12,7 +12,11 @@
 
 const char *XrdOucTimerCVSID = "$Id$";
 
+#ifndef WIN32
 #include <unistd.h>
+#else
+#include "XrdSys/XrdWin32.hh"
+#endif
 #include <errno.h>
 #include <time.h>
 #include <stdio.h>
@@ -162,6 +166,7 @@ char *XrdOucTimer::s2hms(int sec, char *buff, int blen)
   
 void XrdOucTimer::Wait(int mills)
 {
+#ifndef WIN32
  struct timespec naptime, waketime;
 
 // Calculate nano sleep time
@@ -176,4 +181,7 @@ void XrdOucTimer::Wait(int mills)
         {naptime.tv_sec  =  waketime.tv_sec;
          naptime.tv_nsec =  waketime.tv_nsec;
         }
+#else
+   ::Sleep(mills);
+#endif
 }

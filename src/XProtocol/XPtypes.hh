@@ -38,9 +38,9 @@ typedef unsigned int   kXR_unt32;
 
 // Signed integer 8 bytes
 //
-#if defined(_WIN32)
-typedef __int64        kXR_int64;
-#else
+//#if defined(_WIN32)
+//typedef __int64        kXR_int64;
+//#else
 typedef long long      kXR_int64;
-#endif
+//#endif
 #endif

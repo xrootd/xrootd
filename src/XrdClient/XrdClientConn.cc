@@ -40,16 +40,23 @@ const char *XrdClientConnCVSID = "$Id$";
 #endif
 #endif
 
+#ifndef WIN32
 #include <dlfcn.h>
 #ifndef __macos__
 #include <link.h>
 #endif
+#endif
 
 #include <stdio.h>      // needed by printf
 #include <stdlib.h>     // needed by getenv()
+#ifndef WIN32
 #include <pwd.h>        // needed by getpwuid()
 #include <sys/types.h>  // needed by getpid()
 #include <unistd.h>     // needed by getpid() and getuid()
+#else
+#include <process.h>
+#include "XrdSys/XrdWin32.hh"
+#endif
 #include <string.h>     // needed by memcpy() and strcspn()
 #include <ctype.h>
 
@@ -1288,9 +1295,16 @@ bool XrdClientConn::DoLogin()
    XrdOucString User = fUrl.User;
    if (User.length() <= 0) {
       // Use local username, if not specified
+#ifndef WIN32
       struct passwd *u = getpwuid(getuid());
       if (u >= 0)
          User = u->pw_name;
+#else
+      char  name[256];
+      DWORD length = sizeof (name);
+      GetUserName(name, &length);
+      User = name;
+#endif
    }
    if (User.length() > 0)
       strcpy( (char *)reqhdr.login.username, User.c_str() );

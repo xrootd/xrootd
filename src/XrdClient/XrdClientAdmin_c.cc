@@ -14,7 +14,9 @@
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucString.hh"
 
+#ifndef WIN32
 #include <rpc/types.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 

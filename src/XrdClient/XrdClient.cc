@@ -22,7 +22,9 @@
 #include "XrdClient/XrdClientSid.hh"
 
 #include <stdio.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -69,7 +71,9 @@ XrdClient::XrdClient(const char *url) {
 	     "Create",
 	     "(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
 
+#ifndef WIN32
     signal(SIGPIPE, SIG_IGN);
+#endif
 
     fInitialUrl = url;
 

@@ -12,11 +12,15 @@
 
 //          $Id$
 
+#ifndef WIN32
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <fcntl.h>
+#else
+#include <Winsock2.h>
+#endif
 
 #include "XrdNet/XrdNetBuffer.hh"
 #include "XrdNet/XrdNetDNS.hh"

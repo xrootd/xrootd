@@ -13,8 +13,6 @@
 const char *XrdOucNListCVSID = "$Id$";
 
 #include <string.h>
-#include <strings.h>
-
 #include "XrdOuc/XrdOucNList.hh"
   
 /******************************************************************************/

@@ -12,7 +12,9 @@
 
 const char *XrdOucTokenizerCVSID = "$Id$";
 
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <ctype.h>
 #include <stdlib.h>
 

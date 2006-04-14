@@ -45,7 +45,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 #ifdef XRDOSSCX
 #include "oocx_CXFile.h"

@@ -17,6 +17,9 @@ const char *XrdOuca2xCVSID = "$Id$";
 #include <sys/stat.h>
 #include <errno.h>
 
+#ifdef WIN32
+#include "XrdSys/XrdWin32.hh"
+#endif
 #include "XrdOuc/XrdOuca2x.hh"
 
 /******************************************************************************/

@@ -28,7 +28,7 @@ const char *XrdXrootdPrepareCVSID = "$Id$";
 #endif
 
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"

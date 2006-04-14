@@ -13,8 +13,10 @@
 const char *XrdOucPlatformCVSID = "$Id$";
 
 #include <string.h>
+#ifndef WIN32
 #include <unistd.h>
 #include <netinet/in.h>
+#endif
 #include <sys/types.h>
 
 #if defined(_LITTLE_ENDIAN) || defined(__LITTLE_ENDIAN__) || \

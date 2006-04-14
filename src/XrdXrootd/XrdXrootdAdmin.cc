@@ -23,7 +23,7 @@ const char *XrdXrootdAdminCVSID = "$Id$";
 #include "Xrd/XrdLink.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdXrootd/XrdXrootdAdmin.hh"

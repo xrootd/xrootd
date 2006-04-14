@@ -79,7 +79,7 @@ const char *XrdOssLockCVSID = "$Id$";
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */

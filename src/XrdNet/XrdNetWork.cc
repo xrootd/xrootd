@@ -14,12 +14,19 @@ const char *XrdNetWorkCVSID = "$Id$";
 
 #include <errno.h>
 #include <fcntl.h>
+#ifndef WIN32
 #include <poll.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#else
+#include <stdio.h>
+#include <string.h>
+#include <Winsock2.h>
+#include <io.h>
+#endif
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetLink.hh"

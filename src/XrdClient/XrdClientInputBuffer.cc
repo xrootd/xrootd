@@ -19,7 +19,9 @@
 #include "XrdClient/XrdClientInputBuffer.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientDebug.hh"
+#ifndef WIN32
 #include <sys/time.h>
+#endif
 #include <stdio.h>
 
 using namespace std;

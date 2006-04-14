@@ -12,21 +12,23 @@
 
 const char *XrdOucLoggerCVSID = "$Id$";
 
-#include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <strings.h>
 #include <time.h>
 #include <sys/stat.h>
-#include <sys/termios.h>
 #include <sys/types.h>
+#ifndef WIN32
+#include <unistd.h>
+#include <strings.h>
+#include <sys/termios.h>
 #include <sys/uio.h>
 #if !defined(__macos__) && !defined(__CYGWIN__)
 #include <stropts.h>
 #endif
+#endif // WIN32
 
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucPthread.hh"

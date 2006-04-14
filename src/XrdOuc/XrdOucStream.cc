@@ -12,15 +12,16 @@
 
 const char *XrdOucStreamCVSID = "$Id$";
 
-#include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <iostream.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <stdio.h>
+#ifndef WIN32
+#include <iostream.h>
+#include <unistd.h>
+#include <strings.h>
 #if !defined(__linux__) && !defined(__CYGWIN__)
 #include <sys/conf.h>
 #endif
@@ -31,6 +32,12 @@ const char *XrdOucStreamCVSID = "$Id$";
 #include <sys/termios.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#else // WIN32
+#include "XrdSys/XrdWin32.hh"
+#include <process.h>
+#include <iostream>
+using namespace std;
+#endif // WIN32
 
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -164,11 +171,18 @@ int XrdOucStream::Drain()
 
     // Drain any outstanding processes (i.e., kill the process group)
     //
+#ifndef WIN32
     if (child) {kill(-child, 9);
                 do {retc = waitpid(child, &Status, 0);}
                     while(retc > 0 || (retc == -1 && errno == EINTR));
                 child = 0;
                }
+#else
+    if (child) {
+       TerminateProcess((HANDLE)child, 0);
+       child = 0;
+    }
+#endif
     return Status;
 }
   
@@ -206,14 +220,16 @@ int XrdOucStream::Exec(char **parm, int inrd)
     if (inrd >= 0)
        {if (pipe(fildes))
            return Err(Exec, errno, "create input pipe for", parm[0]);
-           else {fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
+           else {
+                 fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
                  Attach(fildes[0]); Child_out = fildes[1];
                 }
 
         if (inrd)
            if (pipe(fildes))
               return Err(Exec, errno, "create output pipe for", parm[0]);
-              else {fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
+              else {
+                    fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
                     FE = fildes[1]; Child_in  = fildes[0];
                    }
        } else {Child_out = FD; Child_in = FE;}

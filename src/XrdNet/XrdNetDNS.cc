@@ -14,9 +14,10 @@ const char *XrdNetDNSCVSID = "$Id$";
 
 #include <ctype.h>
 #include <errno.h>
-#include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef WIN32
+#include <netdb.h>
 #include <strings.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -24,9 +25,10 @@ const char *XrdNetDNSCVSID = "$Id$";
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <iostream.h>
+#endif
 
 #include "XrdNet/XrdNetDNS.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
   
 /******************************************************************************/
@@ -76,7 +78,7 @@ int XrdNetDNS::getHostAddr(const  char     *InetName,
                else gethostbyaddr_r(&addr,sizeof(addr), AF_INET, &hent,
                                     hbuff, sizeof(hbuff),      &rc);
 #else
-               else gethostbyaddr_r(&addr,sizeof(addr), AF_INET, &hent,
+               else gethostbyaddr_r((char *)&addr,sizeof(addr), AF_INET, &hent,
                                     hbuff, sizeof(hbuff), &hp, &rc);
 #endif
     if (rc) return (errtxt ? setET(errtxt, rc) : 0);

@@ -37,7 +37,7 @@ const char *XrdOdcFinderCVSID = "$Id$";
 #include "XrdOdc/XrdOdcTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTimer.hh"

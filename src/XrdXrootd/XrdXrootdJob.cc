@@ -19,7 +19,7 @@ const char *XrdXrootdJobCVSID = "$Id$";
 
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"

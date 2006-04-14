@@ -13,7 +13,9 @@
 const char *XrdOucHashValCVSID = "$Id$";
 
 #include "string.h"
+#ifndef WIN32
 #include "strings.h"
+#endif
 
 unsigned long XrdOucHashVal(const char *KeyVal)
          {extern unsigned long XrdOucHashVal2(const char *, int);

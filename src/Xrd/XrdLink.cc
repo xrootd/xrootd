@@ -22,7 +22,7 @@ const char *XrdLinkCVSID = "$Id$";
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"

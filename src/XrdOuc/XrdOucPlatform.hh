@@ -150,7 +150,9 @@ extern unsigned long long Swap_n2hll(unsigned long long x);
 #endif
 
 #else
+#ifndef WIN32
 #error Unable to determine target architecture endianness!
+#endif
 #endif
 
 #ifndef HAS_STRLCPY

@@ -15,7 +15,11 @@ const char *XrdOucReqIDCVSID = "$Id$";
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef WIN32
 #include <strings.h>
+#else
+#include "XrdSys/XrdWin32.hh"
+#endif
 #include <time.h>
 #include <sys/types.h>
   

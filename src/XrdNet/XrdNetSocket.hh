@@ -12,7 +12,11 @@
  
 //         $Id$
   
+#ifndef WIN32
 #include <sys/socket.h>
+#else
+#include <Winsock2.h>
+#endif
 
 /******************************************************************************/
 /*                      C l a s s   D e f i n i t i o n                       */

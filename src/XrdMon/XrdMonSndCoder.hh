@@ -19,7 +19,7 @@
 #include "XrdMon/XrdMonSndDictEntry.hh"
 #include "XrdMon/XrdMonSndPacket.hh"
 #include "XrdMon/XrdMonSndTraceEntry.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include <assert.h>
 #include <iostream>
 #include <netinet/in.h>

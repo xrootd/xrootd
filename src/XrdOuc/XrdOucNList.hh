@@ -12,7 +12,11 @@
 
 //         $Id$
 
+#ifndef WIN32
 #include <strings.h>
+#else
+#include "XrdSys/XrdWin32.hh"
+#endif
 #include <stdlib.h>
 #include "XrdOuc/XrdOucPthread.hh"
   

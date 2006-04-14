@@ -23,6 +23,7 @@ const char *XrdOucPluginCVSID = "$Id$";
 #endif
 #endif
 
+#ifndef WIN32
 #include <dlfcn.h>
 #if !defined(__macos__) && !defined(__CYGWIN__)
 #include <link.h>
@@ -32,6 +33,11 @@ const char *XrdOucPluginCVSID = "$Id$";
 #include <sys/types.h>
 #include <errno.h>
 #include <iostream.h>
+#else
+#include "XrdSys/XrdWin32.hh"
+#include <iostream>
+using namespace std;
+#endif
   
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlugin.hh"

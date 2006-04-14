@@ -17,7 +17,7 @@
 #include "XrdMon/XrdMonErrors.hh"
 #include "XrdMon/XrdMonDecPacketDecoder.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include <stdio.h>
 #include <netinet/in.h>

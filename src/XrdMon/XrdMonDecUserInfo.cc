@@ -17,7 +17,7 @@
 #include "XrdMon/XrdMonSenderInfo.hh"
 #include "XrdMon/XrdMonUtils.hh"
 #include "XrdMon/XrdMonDecTraceInfo.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include <netinet/in.h>
 #include <stdio.h>
 using std::cout;

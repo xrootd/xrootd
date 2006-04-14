@@ -21,7 +21,7 @@ const char *XrdXrClientWorkerCVSID = "$Id$";
 #include "XrdXr/XrdXrClientWorker.hh"
 #include "XrdXr/XrdXrTrace.hh"
 #include "XrdNet/XrdNetDNS.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 
 /*****************************************************************************/

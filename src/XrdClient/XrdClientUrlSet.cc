@@ -21,6 +21,7 @@ const char *XrdClientUrlSetCVSID = "$Id$";
 #include <stdio.h>
 #include <iostream>
 #include <ctype.h>               // needed by isdigit()
+#ifndef WIN32
 #include <netdb.h>               // needed by getservbyname()
 #include <netinet/in.h>          // needed by ntohs()
 
@@ -28,6 +29,11 @@ const char *XrdClientUrlSetCVSID = "$Id$";
 #include <resolv.h>
 #include <sys/time.h>
 #include <unistd.h>
+#else
+#include <stdlib.h>
+#include "XrdSys/XrdWin32.hh"
+#include <process.h>
+#endif
 
 #include "XrdClient/XrdClientDebug.hh"
 

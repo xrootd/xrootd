@@ -13,7 +13,7 @@
 #include <string.h>
 
 #include "Xrd/XrdLinkMatch.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
  
 /******************************************************************************/
 /*                                 M a t c h                                  */

@@ -44,7 +44,7 @@ XrdSysDir::XrdSysDir(const char *path)
 #else
       WIN32_FIND_DATA filedata;
       dhandle = (void *) ::FindFirstFile(path, &filedata);
-      if ((HANDLE)dhandle == INVALID_HANDLE_VALUE)
+      if ((HANDLE)dhandle == INVALID_HANDLE_VALUE) {
          lasterr = EINVAL;
          dhandle = 0;
       }

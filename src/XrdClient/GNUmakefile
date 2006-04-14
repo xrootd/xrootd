@@ -218,7 +218,7 @@ $(OBJDIR)/XrdClient.o: XrdClient.cc ../XrdClient/XrdClient.hh \
   ../XrdClient/XrdClientConnMgr.hh ../XrdClient/XrdClientLogConnection.hh \
   ../XrdClient/XrdClientPhyConnection.hh ../XrdClient/XrdClientThread.hh \
   ../XrdClient/XrdClientSid.hh ../XrdOuc/XrdOucRash.hh \
-  ../XrdOuc/XrdOucRash.icc ../XrdOuc/XrdOucPlatform.hh
+  ../XrdOuc/XrdOucRash.icc ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClient.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClient.o XrdClient.cc
 
@@ -287,7 +287,7 @@ $(OBJDIR)/XrdClientConn.o: XrdClientConn.cc ../XrdClient/XrdClientDebug.hh \
   ../XrdNet/XrdNetDNS.hh  \
   ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientSid.hh \
   ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
-  ../XrdOuc/XrdOucPlatform.hh
+  ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClientConn.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientConn.o XrdClientConn.cc
 
@@ -375,7 +375,7 @@ $(OBJDIR)/XrdClientPhyConnection.o: XrdClientPhyConnection.cc \
   ../XrdClient/XrdClientConst.hh ../XrdClient/XrdClientEnv.hh \
   ../XrdOuc/XrdOucEnv.hh ../XrdOuc/XrdOucLogger.hh \
   ../XrdClient/XrdClientSid.hh ../XrdOuc/XrdOucRash.hh \
-  ../XrdOuc/XrdOucRash.icc ../XrdOuc/XrdOucPlatform.hh
+  ../XrdOuc/XrdOucRash.icc ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClientPhyConnection.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientPhyConnection.o XrdClientPhyConnection.cc
 
@@ -410,7 +410,7 @@ $(OBJDIR)/XrdClientUrlSet.o: XrdClientUrlSet.cc ../XrdClient/XrdClientUrlSet.hh 
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientUrlSet.o XrdClientUrlSet.cc
 
 $(OBJDIR)/XrdClientProtocol.o: XrdClientProtocol.cc ../XProtocol/XProtocol.hh \
-  ../XProtocol/XPtypes.hh ../XrdOuc/XrdOucPlatform.hh
+  ../XProtocol/XPtypes.hh ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClientProtocol.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientProtocol.o XrdClientProtocol.cc
 
@@ -512,7 +512,7 @@ $(OBJDIR)/XrdCpWorkLst.o: XrdCpWorkLst.cc ../XrdClient/XrdCpWorkLst.hh \
 
 $(OBJDIR)/XrdClientSid.o: XrdClientSid.cc ../XrdClient/XrdClientSid.hh \
   ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
-  ../XrdOuc/XrdOucPlatform.hh ../XProtocol/XProtocol.hh \
+  ../XrdSys/XrdSysPlatform.hh ../XProtocol/XProtocol.hh \
   ../XProtocol/XPtypes.hh ../XrdClient/XrdClientVector.hh \
   ../XrdOuc/XrdOucPthread.hh ../XrdOuc/XrdOucError.hh
 	@echo Compiling XrdClientSid.cc

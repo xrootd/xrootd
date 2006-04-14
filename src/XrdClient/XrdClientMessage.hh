@@ -19,7 +19,9 @@
 
 #include "XrdClient/XrdClientProtocol.hh"
 #include "XrdClient/XrdClientSock.hh"
+#ifndef WIN32
 #include <netinet/in.h>
+#endif
 
 class XrdClientPhyConnection;
 

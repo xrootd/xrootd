@@ -13,12 +13,16 @@
 const char *XrdNetCVSID = "$Id$";
 
 #include <errno.h>
-#include <poll.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef WIN32
+#include <poll.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#else
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetDNS.hh"
@@ -27,7 +31,7 @@ const char *XrdNetCVSID = "$Id$";
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetSocket.hh"
 
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucError.hh"
 
 /******************************************************************************/
@@ -340,7 +344,7 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 
 // Read the message and get the host address
 //
-   do {dlen = recvfrom(iofd, (void *)bp->data, BuffSize, 0, &addr,&addrlen);
+   do {dlen = recvfrom(iofd, (Sokdata_t)bp->data, BuffSize, 0, &addr,&addrlen);
       } while(dlen < 0 && errno == EINTR);
 
    if (dlen < 0)

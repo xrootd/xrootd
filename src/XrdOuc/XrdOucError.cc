@@ -13,6 +13,7 @@
 const char *XrdOucErrorCVSID = "$Id$";
 
 #include <ctype.h>
+#ifndef WIN32
 #include <unistd.h>
 #include <errno.h>
 #include <iostream.h>
@@ -25,10 +26,19 @@ const char *XrdOucErrorCVSID = "$Id$";
 #if !defined(__macos__) && !defined(__CYGWIN__)
 #include <stropts.h>
 #endif
+#else
+#include <iostream>
+using namespace std;
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include "XrdSys/XrdWin32.hh"
+#endif
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                               d e f i n e s                                */

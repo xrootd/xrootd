@@ -14,6 +14,7 @@
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucSemWait.hh"
 
+#include <iostream>
 using namespace std;
 
 struct XrdCpMessage {
