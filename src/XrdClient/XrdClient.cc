@@ -417,7 +417,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		     // We read ahead only if the last byte we got is near (or over) to the last byte read
 		     // in advance. But not too much over.
 		     (fReadAheadLast - (offset+len) < rasize) &&
-                     (fReadAheadLast - (offset+len) > 10*rasize) &&
+                     (fReadAheadLast - (offset+len) > -10*rasize) &&
 		     (rasize > 0) ) {
 
 		    kXR_int64 araoffset;
@@ -452,7 +452,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		kXR_int32 len;
 	    
 		offs = cacheholes[i].beginoffs;
-		len = cacheholes[i].endoffs - offs;
+		len = cacheholes[i].endoffs - offs + 1;
 
 
 		Info( XrdClientDebug::kHIDEBUG, "Read",
@@ -468,7 +468,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		 // We read ahead only if the last byte we got is near (or over) to the last byte read
 		 // in advance. But not too much over.
 		 (fReadAheadLast - (offset+len) < rasize) &&
-                 (fReadAheadLast - (offset+len) > 10*rasize) &&
+                 (fReadAheadLast - (offset+len) > -10*rasize) &&
 		 (rasize > 0) ) {
 
 		kXR_int64 araoffset;

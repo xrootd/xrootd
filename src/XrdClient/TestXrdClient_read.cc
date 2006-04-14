@@ -14,18 +14,18 @@ int main(int argc, char **argv) {
 	 " and performs the corresponding read requests towards the given xrootd URL or to ALL" << endl <<
 	 " the xrootd URLS contained in the given file." << endl <<
 	 endl <<
-	 "Usage: TestXrdClient_read <xrootd url or file name> <rasize> <cachesize> <debuglevel>" << 
+	 "Usage: TestXrdClient_read <xrootd url or file name> <blksize> <cachesize> <debuglevel>" << 
 	 endl << endl <<
 	 " Where:" << endl <<
 	 "  <xrootd url> is the xrootd URL of a remote file " << endl <<
-	 "  <rasize> is the cache line/readahead block size. Can be 0." << endl <<
+	 "  <rasize> is the cache block size. Can be 0." << endl <<
 	 "  <cachesize> is the size of the internal cache, in bytes. Can be 0." << endl <<
 	 "  <debuglevel can be an integer from -1 to 3." << endl << endl;
 
       exit(1);
    }
 
-   EnvPutInt( NAME_READAHEADSIZE, atol(argv[2]));
+   EnvPutInt( NAME_READCACHEBLK, atol(argv[2]));
    EnvPutInt( NAME_READCACHESIZE, atol(argv[3]));
    
    EnvPutInt( NAME_DEBUG, atol(argv[4]));
