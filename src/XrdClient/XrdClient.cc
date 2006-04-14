@@ -379,6 +379,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
     len = xrdmax(0, xrdmin(len, stinfo.size - offset));
 
     kXR_int32 rasize = EnvGetLong(NAME_READAHEADSIZE);
+    kXR_int32 blksize = EnvGetLong(NAME_READCACHEBLK);
+
     bool retrysync = false;
 
     // we cycle until we get all the needed data
@@ -413,8 +415,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		// Are we using read ahead?
 		if ( EnvGetLong(NAME_GOASYNC) &&
 		     // We read ahead only if the last byte we got is near (or over) to the last byte read
-		     // in advance.
+		     // in advance. But not too much over.
 		     (fReadAheadLast - (offset+len) < rasize) &&
+                     (fReadAheadLast - (offset+len) > 10*rasize) &&
 		     (rasize > 0) ) {
 
 		    kXR_int64 araoffset;
@@ -463,8 +466,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	    // Are we using read ahead?
 	    if ( EnvGetLong(NAME_GOASYNC) &&
 		 // We read ahead only if the last byte we got is near (or over) to the last byte read
-		 // in advance.
+		 // in advance. But not too much over.
 		 (fReadAheadLast - (offset+len) < rasize) &&
+                 (fReadAheadLast - (offset+len) > 10*rasize) &&
 		 (rasize > 0) ) {
 
 		kXR_int64 araoffset;
@@ -505,6 +509,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	    readFileRequest.read.offset = offset;
 	    readFileRequest.read.rlen = len;
 	    readFileRequest.read.dlen = 0;
+
+            TrimReadRequest(readFileRequest.read.offset,
+                            readFileRequest.read.rlen, blksize);
 
 	    fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
 					FALSE, (char *)"ReadBuffer");
