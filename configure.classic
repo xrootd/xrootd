@@ -1649,7 +1649,7 @@ if test "x$enable_ssl" = "xyes" ; then
        fi
     else
        ssllibdir="$found_dir"
-       tmpssllibdir="${ssllibdir##-L}"
+       tmpssllibdir=`echo $ssllibdir | cut -c3-`
     fi
     # All libraries in the same directory
     check_library "libcrypto" "$ssl_shared" "$tmpssllibdir" \
