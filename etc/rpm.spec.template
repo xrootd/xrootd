@@ -18,7 +18,7 @@ root files. An optional load balancer is also included.
 %setup -q -n xrootd
 
 %build
-./configure.classic XRD-DEBUGOPT-XRD
+./configure.classic --enable-perlint --with-perl=/usr/local/bin/perl5.8 XRD-DEBUGOPT-XRD
 gmake clean
 gmake
 
@@ -37,10 +37,13 @@ install -m 755 bin/XRD-SYSNAME-XRD/xrdmonAdmin $RPM_BUILD_ROOT/opt/xrootd/bin/xr
 install -m 755 bin/XRD-SYSNAME-XRD/xrdgsiproxy $RPM_BUILD_ROOT/opt/xrootd/bin/xrdgsiproxy
 install -m 755 bin/XRD-SYSNAME-XRD/xrdpwdadmin $RPM_BUILD_ROOT/opt/xrootd/bin/xrdpwdadmin
 install -m 755 lib/XRD-SYSNAME-XRD/XrdClientAdmin.pm $RPM_BUILD_ROOT/opt/xrootd/lib/XrdClientAdmin.pm
+install -m 755 lib/XRD-SYSNAME-XRD/XrdClientAdmin.so $RPM_BUILD_ROOT/opt/xrootd/lib/XrdClientAdmin.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdPosix.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdPosix.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdOfs.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdOfs.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdRootd.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdRootd.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdSec.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSec.so
+install -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb4.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSeckrb4.so
+install -m 755 lib/XRD-SYSNAME-XRD/libXrdSeckrb5.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSeckrb5.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdCrypto.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdCrypto.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdCryptossl.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdCryptossl.so
 install -m 755 lib/XRD-SYSNAME-XRD/libXrdSut.so $RPM_BUILD_ROOT/opt/xrootd/lib/libXrdSut.so
@@ -81,10 +84,13 @@ install -m 755 utils/XrdOlbNotify.pm $RPM_BUILD_ROOT/opt/xrootd/utils/XrdOlbNoti
 /opt/xrootd/bin/xrdgsiproxy
 /opt/xrootd/bin/xrdpwdadmin
 /opt/xrootd/lib/XrdClientAdmin.pm
+/opt/xrootd/lib/XrdClientAdmin.so
 /opt/xrootd/lib/libXrdPosix.so
 /opt/xrootd/lib/libXrdOfs.so
 /opt/xrootd/lib/libXrdRootd.so
 /opt/xrootd/lib/libXrdSec.so
+/opt/xrootd/lib/libXrdSeckrb4.so
+/opt/xrootd/lib/libXrdSeckrb5.so
 /opt/xrootd/lib/libXrdCrypto.so
 /opt/xrootd/lib/libXrdCryptossl.so
 /opt/xrootd/lib/libXrdSut.so
