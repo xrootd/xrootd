@@ -10,7 +10,7 @@
 
 xrootdsysincdir = $(includedir)/xrootd/XrdSys
 
-xrootdsysinc_HEADERS = XrdSysDir.hh XrdSysPriv.hh
+xrootdsysinc_HEADERS = XrdSysDir.hh XrdSysPriv.hh XrdSysPlatform.hh
 
 lib_LTLIBRARIES = libXrdSys.la
 
@@ -24,3 +24,4 @@ libXrdSys_la_LIBADD = $(LIBPTHREAD) $(SEM_LIBRT) $(LIBNSL)
 libXrdSys_la_CXXFLAGS = -prefer-pic
 libXrdSys_la_LDFLAGS = -static
 
+EXTRA_DIST = XrdWin32.cc  XrdWin32.hh
