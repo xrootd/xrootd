@@ -61,6 +61,10 @@ void joinStrings(XrdOucString &buf, vecString vs)
 //_____________________________________________________________________________
 XrdClientAdmin::XrdClientAdmin(const char *url) {
 
+
+  // Pick-up the latest setting of the debug level
+  DebugSetLevel(EnvGetLong(NAME_DEBUG));
+
   if (!ConnectionManager)
     Info(XrdClientDebug::kNODEBUG,
 	 "",
