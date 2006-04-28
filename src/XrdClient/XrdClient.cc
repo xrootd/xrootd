@@ -492,6 +492,11 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	}
 
 	// If we got nothing from the cache let's do it sync and exit!
+	// Note that this part has the side effect of triggering the recovery actions
+	//  if we get here after an error (or timeout)
+	// Hence it's not a good idea to make async also this read
+	// Remember also that a sync read request must not be modified if it's going to be
+	//  written into the application-given buffer
 	if (retrysync || (!bytesgot && !blkstowait && !cacheholes.GetSize())) {
 
 	    retrysync = false;
@@ -509,9 +514,6 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	    readFileRequest.read.offset = offset;
 	    readFileRequest.read.rlen = len;
 	    readFileRequest.read.dlen = 0;
-
-            TrimReadRequest(readFileRequest.read.offset,
-                            readFileRequest.read.rlen, blksize);
 
 	    fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
 					FALSE, (char *)"ReadBuffer");
