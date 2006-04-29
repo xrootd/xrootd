@@ -58,7 +58,7 @@ int XrdOucUtils::doIf(XrdOucError *eDest, XrdOucStream &Config,
            val = Config.GetWord();
           } while(!hostok && val && !is1of(val, brk));
        if (hostok) while(val && !is1of(val, brk)) val = Config.GetWord();
-       if (!val) return hostok;
+          else return 0;
       }
 
 // Check if we need to compare program names (we are here only if we either
