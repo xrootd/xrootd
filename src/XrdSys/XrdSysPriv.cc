@@ -30,6 +30,7 @@
 
 #define NOUC ((uid_t)(-1))
 #define NOGC ((gid_t)(-1))
+#define XSPERR(x) ((x == 0) ? -1 : -x)
 
 // Some machine specific stuff
 #if defined(__sgi) && !defined(__GNUG__) && (SGI_REL<62)
@@ -55,14 +56,14 @@ extern "C" {
 static int setresgid(gid_t r, gid_t e, gid_t)
 {
    if (setgid(r) == -1)
-      return -1;
+      return XSPERR(errno);
    return setegid(e);
 }
 
 static int setresuid(uid_t r, uid_t e, uid_t)
 {
    if (setuid(r) == -1)
-      return -1;
+      return XSPERR(errno);
    return seteuid(e);
 }
 
@@ -100,40 +101,49 @@ extern "C" {
 int XrdSysPriv::Restore(bool saved)
 {
    // Restore the 'saved' (saved = TRUE) or 'real' entity as effective.
-   // Return 0 on success, !=0 if any error occurs.
+   // Return 0 on success, < 0 (== -errno) if any error occurs.
 
 #if !defined(WINDOWS)
    // Get the UIDs
    uid_t ruid = 0, euid = 0, suid = 0;
    if (getresuid(&ruid, &euid, &suid) != 0)
-      return -1;
+      return XSPERR(errno);
 
    // Set the wanted value
    uid_t uid = saved ? suid : ruid;
 
-   // Set uid as effective
-   if (setresuid(NOUC, uid, NOUC) != 0)
-      return -1;
+   // Act only if a change is needed
+   if (euid != uid) {
 
-   // Make sure the new effective UID is the one wanted
-   if (geteuid() != uid)
-      return -1;
+      // Set uid as effective
+      if (setresuid(NOUC, uid, NOUC) != 0)
+         return XSPERR(errno);
+
+      // Make sure the new effective UID is the one wanted
+      if (geteuid() != uid)
+         return XSPERR(errno);
+   }
 
    // Get the GIDs
    uid_t rgid = 0, egid = 0, sgid = 0;
    if (getresgid(&rgid, &egid, &sgid) != 0)
-      return -1;
+      return XSPERR(errno);
 
    // Set the wanted value
    gid_t gid = saved ? sgid : rgid;
 
-   // Set newuid as effective, saving the current effective GID
-   if (setresgid(NOGC, gid, NOGC) != 0)
-      return -1;
+   // Act only if a change is needed
+   if (egid != gid) {
 
-   // Make sure the new effective GID is the one wanted
-   if (getegid() != gid)
-      return -1;
+      // Set newuid as effective, saving the current effective GID
+      if (setresgid(NOGC, gid, NOGC) != 0)
+         return XSPERR(errno);
+
+      // Make sure the new effective GID is the one wanted
+      if (getegid() != gid)
+         return XSPERR(errno);
+   }
+
 #endif
    // Done
    return 0;
@@ -145,13 +155,13 @@ int XrdSysPriv::ChangeTo(uid_t newuid)
    // Change effective to entity newuid. Current entity is saved.
    // Real entity is not touched. Use RestoreSaved to go back to
    // previous settings.
-   // Return 0 on success, !=0 if any error occurs.
+   // Return 0 on success, < 0 (== -errno) if any error occurs.
 
 #if !defined(WINDOWS)
    // Make sure the entity is consistent
    struct passwd *pw = getpwuid(newuid);
    if (!pw)
-      return -1;
+      return XSPERR(errno);
 
    // Current UGID 
    uid_t oeuid = geteuid();
@@ -159,36 +169,45 @@ int XrdSysPriv::ChangeTo(uid_t newuid)
 
    // Restore privileges, if needed
    if (oeuid && XrdSysPriv::Restore(0) != 0)
-      return -1;
+      return XSPERR(errno);
 
    // New GID 
    gid_t newgid = pw->pw_gid;
 
-   // Set newgid as effective, saving the current effective GID
-   if (setresgid(NOGC, newgid, oegid) != 0)
-      return -1;
+   // Act only if a change is needed
+   if (newgid != oegid) {
 
-   // Get the GIDs
-   uid_t rgid = 0, egid = 0, sgid = 0;
-   if (getresgid(&rgid, &egid, &sgid) != 0)
-      return -1;
+      // Set newgid as effective, saving the current effective GID
+      if (setresgid(NOGC, newgid, oegid) != 0)
+         return XSPERR(errno);
 
-   // Make sure the new effective GID is the one wanted
-   if (egid != newgid || sgid != oegid)
-      return -1;
+      // Get the GIDs
+      uid_t rgid = 0, egid = 0, sgid = 0;
+      if (getresgid(&rgid, &egid, &sgid) != 0)
+         return XSPERR(errno);
 
-   // Set newuid as effective, saving the current effective UID
-   if (setresuid(NOUC, newuid, oeuid) != 0)
-      return -1;
+      // Make sure the new effective GID is the one wanted
+      if (egid != newgid || sgid != oegid)
+         return XSPERR(errno);
+   }
 
-   // Get the UIDs
-   uid_t ruid = 0, euid = 0, suid = 0;
-   if (getresuid(&ruid, &euid, &suid) != 0)
-      return -1;
+   // Act only if a change is needed
+   if (newuid != oeuid) {
 
-   // Make sure the new effective UID is the one wanted
-   if (euid != newuid || suid != oeuid)
-      return -1;
+      // Set newuid as effective, saving the current effective UID
+      if (setresuid(NOUC, newuid, oeuid) != 0)
+         return XSPERR(errno);
+
+      // Get the UIDs
+      uid_t ruid = 0, euid = 0, suid = 0;
+      if (getresuid(&ruid, &euid, &suid) != 0)
+         return XSPERR(errno);
+
+      // Make sure the new effective UID is the one wanted
+      if (euid != newuid || suid != oeuid)
+         return XSPERR(errno);
+   }
+
 #endif
    // Done
    return 0;
@@ -199,46 +218,64 @@ int XrdSysPriv::ChangePerm(uid_t newuid)
 {
    // Change permanently to entity newuid. Requires super-userprivileges.
    // Provides a way to drop permanently su privileges.
-   // Return 0 on success, !=0 if any error occurs.
+   // Return 0 on success, < 0 (== -errno) if any error occurs.
 
 #if !defined(WINDOWS)
    // Make sure the entity is consistent
    struct passwd *pw = getpwuid(newuid);
    if (!pw)
-      return -1;
+      return XSPERR(errno);
+
+   // Get UIDs
+   uid_t cruid = 0, ceuid = 0, csuid = 0;
+   if (getresuid(&cruid, &ceuid, &csuid) != 0)
+      return XSPERR(errno);
+
+   // Get GIDs
+   uid_t crgid = 0, cegid = 0, csgid = 0;
+   if (getresgid(&crgid, &cegid, &csgid) != 0)
+      return XSPERR(errno);
 
    // Restore privileges, if needed
-   if (geteuid() && XrdSysPriv::Restore(0) != 0)
-      return -1;
+   if (ceuid && XrdSysPriv::Restore(0) != 0)
+      return XSPERR(errno);
 
    // New GID 
    gid_t newgid = pw->pw_gid;
 
-   // Set newgid as GID, alle levels
-   if (setresgid(newgid, newgid, newgid) != 0)
-      return -1;
+   // Act only if needed
+   if (newgid != cegid || newgid != crgid) {
+   
+      // Set newgid as GID, all levels
+      if (setresgid(newgid, newgid, newgid) != 0)
+         return XSPERR(errno);
 
-   // Get GID
-   uid_t rgid = 0, egid = 0, sgid = 0;
-   if (getresgid(&rgid, &egid, &sgid) != 0)
-      return -1;
+      // Get GIDs
+      uid_t rgid = 0, egid = 0, sgid = 0;
+      if (getresgid(&rgid, &egid, &sgid) != 0)
+         return XSPERR(errno);
 
-   // Make sure the new GIDs are all equal to the one asked
-   if (rgid != newgid || egid != newgid || sgid != newgid)
-      return -1;
+      // Make sure the new GIDs are all equal to the one asked
+      if (rgid != newgid || egid != newgid || sgid != newgid)
+         return XSPERR(errno);
+   }
 
-   // Set newuid as UID, all levels
-   if (setresuid(newuid, newuid, newuid) != 0)
-      return -1;
+   // Act only if needed
+   if (newuid != ceuid || newuid != cruid) {
 
-   // Get UID
-   uid_t ruid = 0, euid = 0, suid = 0;
-   if (getresuid(&ruid, &euid, &suid) != 0)
-      return -1;
+      // Set newuid as UID, all levels
+      if (setresuid(newuid, newuid, newuid) != 0)
+         return XSPERR(errno);
 
-   // Make sure the new UIDs are all equal to the one asked 
-   if (ruid != newuid || euid != newuid || suid != newuid)
-      return -1;
+      // Get UIDs
+      uid_t ruid = 0, euid = 0, suid = 0;
+      if (getresuid(&ruid, &euid, &suid) != 0)
+         return XSPERR(errno);
+
+      // Make sure the new UIDs are all equal to the one asked 
+      if (ruid != newuid || euid != newuid || suid != newuid)
+         return XSPERR(errno);
+   }
 #endif
    // Done
    return 0;
