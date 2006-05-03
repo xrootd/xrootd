@@ -17,7 +17,7 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20060413cvs,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20060502cvs,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -59,6 +59,22 @@ case "$target_os" in
      ;;
    darwin*)
      AC_DEFINE(__macos__)
+     need_macos_dt=no
+     if test x"$MACOSX_DEPLOYMENT_TARGET" = x; then
+        AC_MSG_WARN([MACOSX_DEPLOYMENT_TARGET environment variable not set. Setting it to 10.3])
+        need_macos_dt=yes
+     else
+        vermajor=`expr x"$MACOSX_DEPLOYMENT_TARGET" : 'x\([[0-9]][[0-9]]*\).[[0-9]][[0-9]]*'`
+        verminor=`expr x"$MACOSX_DEPLOYMENT_TARGET" : 'x[[0-9]][[0-9]]*.\([[0-9]][[0-9]]*\)'`
+        if test 0"$vermajor" -lt 10 ; then need_macos_dt=ok;
+        else if test 0"$vermajor" -eq 10 -a 0"$verminor" -lt 3; then need_macos_dt=failed;
+              fi
+        fi
+
+        if test x"$need_macos_dt" = xfailed; then
+           AC_MSG_ERROR([MACOSX_DEPLOYMENT_TARGET must be >= 10.3 (current value: $MACOSX_DEPLOYMENT_TARGET)])
+        fi
+     fi
      ;;
    apple*)
      AC_DEFINE(__macos__)
@@ -88,6 +104,8 @@ case "$target_cpu" in
    *)
      ;;
 esac
+
+AM_CONDITIONAL(NEED_MACOS_DEPLOYMENT_TARGET,[test x"$need_macos_dt" = xyes])
 
 ###########################################################
 # At SLAC the Kerberos libs and includes are under AFS; 

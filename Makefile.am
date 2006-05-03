@@ -25,6 +25,12 @@ AUTOMAKE_OPTIONS = foreign 1.6
 
 SUBDIRS = src
 
+## This is needed on MacOS in order to correctly build shared libraries with weak
+## symbols
+if NEED_MACOS_DEPLOYMENT_TARGET
+export MACOSX_DEPLOYMENT_TARGET = 10.3
+endif
+
 .PHONY: doc silent
 
 silent:
