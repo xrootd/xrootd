@@ -379,7 +379,6 @@ int XrdClient::Read(void *buf, long long offset, int len) {
     len = xrdmax(0, xrdmin(len, stinfo.size - offset));
 
     kXR_int32 rasize = EnvGetLong(NAME_READAHEADSIZE);
-    kXR_int32 blksize = EnvGetLong(NAME_READCACHEBLK);
 
     bool retrysync = false;
 
