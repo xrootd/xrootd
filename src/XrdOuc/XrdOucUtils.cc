@@ -57,8 +57,11 @@ int XrdOucUtils::doIf(XrdOucError *eDest, XrdOucStream &Config,
       {do {hostok = XrdNetDNS::isMatch(hname, val);
            val = Config.GetWord();
           } while(!hostok && val && !is1of(val, brk));
-       if (hostok) while(val && !is1of(val, brk)) val = Config.GetWord();
-          else return 0;
+      if (hostok)
+         { while(val && !is1of(val, brk)) val = Config.GetWord();
+           // No more directives
+           if (!val) return 1;
+         } else return 0;
       }
 
 // Check if we need to compare program names (we are here only if we either
