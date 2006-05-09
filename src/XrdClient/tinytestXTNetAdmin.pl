@@ -38,5 +38,8 @@ $par = "/tmp/grossofile.dat";
 $ans = XrdClientAdmin::XrdGetChecksum("$par");
 print "\nThe answer of XrdClientAdmin::GetChecksum($par) is: \"$ans\" \n\n\n";
 
+$ans = XrdClientAdmin::XrdGetCurrentHost();
+print "\nWe are here. Good or bad, after all the current host we are connected to is: \"$ans\" \n\n\n";
+
 XrdClientAdmin::XrdTerminate();
 

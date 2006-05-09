@@ -67,6 +67,7 @@ extern "C" {
    bool XrdPrepare(const char *filepaths, unsigned char opts, unsigned char prty);
    char *XrdDirList(const char *dir);
    char *XrdGetChecksum(const char *path);
+   char *XrdGetCurrentHost();
 
    bool XrdStat(const char *fname, long *id, long long *size, long *flags, long *modtime);
 }

@@ -59,6 +59,7 @@ package XrdClientAdmin;
 *XrdPrepare = *XrdClientAdminc::XrdPrepare;
 *XrdDirList = *XrdClientAdminc::XrdDirList;
 *XrdGetChecksum = *XrdClientAdminc::XrdGetChecksum;
+*XrdGetCurrentHost = *XrdClientAdminc::XrdGetCurrentHost;
 *XrdStat = *XrdClientAdminc::XrdStat;
 
 # ------- VARIABLE STUBS --------

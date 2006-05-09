@@ -272,7 +272,7 @@ extern "C" {
 	 // The data has to be copied to the sharedbuf
 	 // to deal with perl parameter passing
 
-	 SharedBufRealloc(chksumlen);
+	 SharedBufRealloc(chksumlen+1);
 	 strncpy(sharedbuf, chksum, chksumlen);
 	 sharedbuf[chksumlen] = 0;
 
@@ -283,6 +283,17 @@ extern "C" {
       else return 0;
 
    }
+
+    char *XrdGetCurrentHost() {
+	if (!adminst) return 0;
+
+	int len = adminst->GetCurrentUrl().Host.length();
+	SharedBufRealloc(len+1);
+	strncpy(sharedbuf, adminst->GetCurrentUrl().Host.c_str(), len);
+	sharedbuf[len] = 0;
+
+	return sharedbuf;
+    }
 
    bool XrdStat(const char *fname, long *id, long long *size, long *flags, long *modtime) {
       if (!adminst) return false;
