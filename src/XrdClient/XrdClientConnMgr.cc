@@ -35,6 +35,12 @@
 #include <semaphore.h>
 #endif
 
+// For user info
+#ifndef WIN32
+#include <sys/types.h>
+#include <pwd.h>
+#endif
+
 //_____________________________________________________________________________
 void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 {
@@ -176,10 +182,10 @@ void XrdClientConnectionMgr::GarbageCollect()
 int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 {
    // Connects to the remote server:
-   //  - Looks for an existing physical connection already bound to 
-   //    RemoteAddress:TcpPort;
-   //  - If needed, creates a TCP channel to RemoteAddress:TcpPort
-   //    (this is a physical connection);
+   //  - Looks first for an existing physical connection already bound to
+   //    User@RemoteAddress:TcpPort;
+   //  - If needed, creates a TCP channel to User@RemoteAddress:TcpPort
+   //   (this is a physical connection);
    //  - Creates a logical connection and binds it to the previous 
    //    created physical connection;
    //  - Returns the logical connection ID. Every client will use this
@@ -188,7 +194,7 @@ int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    XrdClientLogConnection *logconn = 0;
    XrdClientPhyConnection *phyconn = 0;
    int newid;
-   bool phyfound;
+   bool phyfound = FALSE;
 
    // First we get a new logical connection object
    Info(XrdClientDebug::kHIDEBUG,
@@ -200,16 +206,27 @@ int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       abort();
    }
 
-   {
-      XrdOucMutexHelper mtx(fMutex);
+   // If empty, fill the user name with the default to avoid fake mismatches
+   if (RemoteServ.User.length() <= 0) {
+#ifndef WIN32
+      struct passwd *pw = getpwuid(getuid());
+      RemoteServ.User = (pw) ? pw->pw_name : "";
+#else
+      char  name[256];
+      DWORD length = sizeof (name);
+      ::GetUserName(name, &length);
+      RemoteServ.User = name;
+#endif
+   }
+
+   { XrdOucMutexHelper mtx(fMutex);
 
       // If we already have a physical connection to that host:port, 
       // then we use that
-      phyfound = FALSE;
-
       for (int i=0; i < fPhyVec.GetSize(); i++) {
 	 if ( fPhyVec[i] && fPhyVec[i]->IsValid() &&
 	      fPhyVec[i]->IsPort(RemoteServ.Port) &&
+	      fPhyVec[i]->IsUser(RemoteServ.User) &&
 	      (fPhyVec[i]->IsAddress(RemoteServ.Host) ||
 	       fPhyVec[i]->IsAddress(RemoteServ.HostAddr)) ) {
 
