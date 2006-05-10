@@ -56,6 +56,7 @@ options="                 \
    enable_mon             \
    enable_perlint         \
    enable_pwd             \
+   enable_shared          \
    enable_ssl             \
    enable_trace           \
    enable_javaint
@@ -70,6 +71,7 @@ for c in $options ; do eval $c="yes" ; done
 enable_echo=no
 enable_mon=yes
 enable_perlint=no
+enable_shared=yes
 enable_ssl=
 enable_thread=yes
 enable_javaint=no
@@ -504,6 +506,7 @@ enable/disable options, prefix with either --enable- or --disable-
    perlint         Enable/disable building of the perl admin interface
    pwd             Password-based authentication support
    sec             Sets gsi krb4 krb5 pwd and ssl together
+   shared          Use shared 3rd party libraries if possible
    ssl             Build OpenSSL implementation of crypto interfaces
    trace           Support for trace statements via the "-d" flag
    
@@ -1630,9 +1633,6 @@ if test "x$enable_ssl" = "xyes" ; then
     # libraries
     #
     ssl_shared="$enable_shared"
-    if test "x$type" = "xDarwin" ; then
-       ssl_shared=no
-    fi
     check_library "libssl" "$ssl_shared" "$ssllibdir" \
         $SSL $SSL/lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
     if test "x$found_lib" = "x" ; then
@@ -1644,6 +1644,7 @@ if test "x$enable_ssl" = "xyes" ; then
     ssllib="$found_lib"
     if test ! "x$found_lib" = "x-lssl" ; then
        tmpssllibdir="$ssllibdir"
+       ssllibdir=""
        if test ! "x$ssl_shared" = "xno" ; then
           ssl_shared=no
        fi
