@@ -1634,34 +1634,42 @@ if test "x$enable_ssl" = "xyes" ; then
     #
     ssl_shared="$enable_shared"
     check_library "libssl" "$ssl_shared" "$ssllibdir" \
-        $SSL $SSL/lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
+        $SSL $SSL/lib /usr/lib /us/lib32 /usr/lib64 \
+        /usr/local/lib /opt/lib $finkdir/lib
     if test "x$found_lib" = "x" ; then
         ssllib=""
         ssllibdir=""
         enable_ssl="no"
-        break
-    fi
-    ssllib="$found_lib"
-    if test ! "x$found_lib" = "x-lssl" ; then
-       tmpssllibdir="$ssllibdir"
-       ssllibdir=""
-       if test ! "x$ssl_shared" = "xno" ; then
-          ssl_shared=no
-       fi
     else
-       ssllibdir="$found_dir"
-       tmpssllibdir=`echo $ssllibdir | cut -c3-`
+        ssllib="$found_lib"
+        ssllibdir="$found_dir"
     fi
-    # All libraries in the same directory
-    check_library "libcrypto" "$ssl_shared" "$tmpssllibdir" \
-        $SSL $SSL/lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
-    if test "x$found_lib" = "x" ; then
-        ssllib=""
-        ssllibdir=""
-        enable_ssl="no"
-        break
+    if test ! "x$enable_ssl" = "xno" ; then
+       if test ! "x$found_lib" = "x-lssl" ; then
+          tmpssllibdir="$ssllibdir"
+          if test "x$tmpssllibdir" = "x" ; then
+             tmpssllibdir=`dirname $found_lib`
+          fi
+          ssllibdir=""
+          if test ! "x$ssl_shared" = "xno" ; then
+             ssl_shared=no
+          fi
+       else
+          ssllibdir="$found_dir"
+          tmpssllibdir=`echo $ssllibdir | cut -c3-`
+       fi
+       # All libraries in the same directory
+       check_library "libcrypto" "$ssl_shared" "$tmpssllibdir" \
+                    /usr/lib /usr/lib32 /usr/lib64
+       if test "x$found_lib" = "x" ; then
+          ssllib=""
+          ssllibdir=""
+          enable_ssl="no"
+       else
+          ssllib="$ssllib $found_lib"
+          ssllibdir="$found_dir"
+       fi
     fi
-    ssllib="$ssllib $found_lib"
     #
     # header files
     #
