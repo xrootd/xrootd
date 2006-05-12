@@ -1634,8 +1634,7 @@ if test "x$enable_ssl" = "xyes" ; then
     #
     ssl_shared="$enable_shared"
     check_library "libssl" "$ssl_shared" "$ssllibdir" \
-        $SSL $SSL/lib /usr/lib /us/lib32 /usr/lib64 \
-        /usr/local/lib /opt/lib $finkdir/lib
+        $SSL $SSL/lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
     if test "x$found_lib" = "x" ; then
         ssllib=""
         ssllibdir=""
@@ -1659,8 +1658,7 @@ if test "x$enable_ssl" = "xyes" ; then
           tmpssllibdir=`echo $ssllibdir | cut -c3-`
        fi
        # All libraries in the same directory
-       check_library "libcrypto" "$ssl_shared" "$tmpssllibdir" \
-                    /usr/lib /usr/lib32 /usr/lib64
+       check_library "libcrypto" "$ssl_shared" "$tmpssllibdir" /usr/lib
        if test "x$found_lib" = "x" ; then
           ssllib=""
           ssllibdir=""
