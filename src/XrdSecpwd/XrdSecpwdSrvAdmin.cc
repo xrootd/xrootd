@@ -135,6 +135,7 @@ XrdOucString SrvName  = "";
 XrdOucString Email    = "";
 XrdOucString IterNum  = "";
 bool         Backup   = 1;
+bool         DontAsk  = 0;
 bool         Force    = 0;
 bool         Passwd   = 1;
 bool         Change   = 1;
@@ -226,7 +227,7 @@ int main( int argc, char **argv )
    if (!ff.IsValid() && ff.LastError() == kPFErrNoFile) {
       prompt = "Create file ";
       prompt += File;
-      if (AskConfirm(prompt.c_str(),0)) {
+      if (DontAsk || AskConfirm(prompt.c_str(),0)) {
          if (Mode == kM_user || Mode == kM_srvpuk)
             ff.Init(File.c_str(), kPFEcreate, 0644);
          else
@@ -235,25 +236,31 @@ int main( int argc, char **argv )
       if (!ff.IsValid())
          exit(1);
       if (Mode == kM_admin || Mode == kM_user) {
-         if (AskConfirm("Would you like to enter a server ID? ",1)) {
-            XrdSutGetLine(SrvID,"Enter ID (max 32 chars): ");
-            if (SrvID.length() > 32)
-               SrvID.erase(32);
-         } else {
-            PRT("Server ID will be generated randomly. It can be changed");
-            PRT("at any time with 'add -srvID <ID>'.");
-            //
-            // Set random ID
-            XrdSutRndm::Init();
-            XrdSutRndm::GetString(1,8,SrvID);
-            //
-            // Add local user name
-            struct passwd *pw = getpwuid(getuid());
-            if (pw) {
-               SrvID.insert(':',0);
-               SrvID.insert(pw->pw_name,0);
+         if (SrvID.length() <= 0) {
+            if (!DontAsk && AskConfirm("Would you like to enter a server ID? ",1)) {
+               XrdSutGetLine(SrvID,"Enter ID (max 32 chars): ");
+               if (SrvID.length() > 32)
+                  SrvID.erase(32);
+            } else {
+               PRT("Server ID will be generated randomly. It can be changed");
+               PRT("at any time with 'add -srvID <ID>'.");
+               //
+               // Set random ID
+               XrdSutRndm::Init();
+               XrdSutRndm::GetString(1,8,SrvID);
+               //
+               // Add local user name
+               struct passwd *pw = getpwuid(getuid());
+               if (pw) {
+                  SrvID.insert(':',0);
+                  SrvID.insert(pw->pw_name,0);
+               }
             }
+         } else if (DontAsk) {
+            // This is a force creation where no prompt request can be answered
+            SetID = 0;
          }
+         PRT("Server ID: " << SrvID);
          if (SrvID.length() > 0) {
             //
             // Fill entry
@@ -1045,6 +1052,10 @@ void Menu(int opt)
    // Intro
    if (opt <= 3) {
      PRT("+                                                          +");
+     PRT("+   -dontask                                               +");
+     PRT("+      do not prompt for questions: when in doubt use      +");
+     PRT("+      defaults or fail                                    +");
+     PRT("+      [default: ask]                                      +");
      PRT("+   -force                                                 +");
      PRT("+      overwrite entry if it exists already                +");
      PRT("+      [default: do not overwrite]                         +");
@@ -1152,6 +1163,8 @@ int ParseArguments(int argc, char **argv)
                argc++;
                argv--;
             }
+         } else if (CheckOption(opt,"dontask",ival)) {
+            DontAsk = ival;
          } else if (CheckOption(opt,"force",ival)) {
             Force = ival;
          } else if (CheckOption(opt,"change",ival)) {
