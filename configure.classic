@@ -49,6 +49,7 @@ suncache="/SunWS_cache"
 type=`uname -s`
 
 options="                 \
+   enable_afs             \
    enable_echo            \
    enable_gsi             \
    enable_krb4            \
@@ -68,6 +69,7 @@ options="                 \
 #
 for c in $options ; do eval $c="yes" ; done
 
+enable_afs=no
 enable_echo=no
 enable_mon=yes
 enable_perlint=no
@@ -497,6 +499,7 @@ FIRST argument one of the architecures given at the end of this message.
 To build in debug mode use option '--build=debug' .
 
 enable/disable options, prefix with either --enable- or --disable-
+   afs             AFS support, requires AFS libs and objects
    echo            Enable/disable echoing of commands during building
    gsi             GSI authentication support, requires OpenSSL
    javaint         support for the Java Native Interface for XrdClientAdmin
@@ -512,6 +515,8 @@ enable/disable options, prefix with either --enable- or --disable-
    
 with options, prefix with --with-, enables corresponding support
 
+   afs-incdir      AFS support, location of afs/stds.h, afs/kautils.h
+   afs-libdir      AFS support, location of libafsauthent.a, libafsrpc.a
    java            Path to the Java SDK to be used for the java interface
    krb4            KerberosIV support, location of Kerberos distribution
    krb4-incdir     KerberosIV support, location of kerberosIV/krb.h
@@ -589,6 +594,8 @@ fi
 #
 ### echo %%% Command line arguments
 #
+afslibdir=""
+afsincdir=""
 ssllibdir=""
 sslincdir=""
 nccflv="$ccflv"
@@ -612,6 +619,8 @@ if test $# -gt 0 ; then
       --no-create)             noact="yes"           ;;
       --nohowto)               nohowto="yes"         ;;
       --use-xrd-strlcpy)       strlcpy="local"       ;;
+      --with-afs-incdir=*)     afsincdir=$optarg     ; enable_afs="yes"    ;;
+      --with-afs-libdir=*)     afslibdir=$optarg     ; enable_afs="yes"    ;;
       --with-java=*)           javadir=$optarg       ; enable_javaint="yes" ;;
       --with-krb4=*)           krb4dir=$optarg       ; enable_krb4="yes"    ;;
       --with-krb4-incdir=*)    krb4incdir=$optarg    ; enable_krb4="yes"    ;;
@@ -1531,6 +1540,86 @@ fi
 
 ######################################################################
 #
+### echo %%% AFS Support - Third party libraries
+#
+# (See http://www.openafs.org)
+#
+# Check for AFS (libdes.a)
+#
+if test ! "x$enable_afs" = "xno" ; then
+
+    #
+    # libraries
+    #
+    afslib=""
+    check_library "libafsauthent" "no" "$afslibdir" \
+        /usr/lib /usr/local/lib /opt/lib $finkdir/lib
+    if test "x$found_lib" = "x" ; then
+        afslib=""
+        afslibdir=""
+        enable_afs="no"
+    else
+        afslib="$found_lib"
+        afslibdir="$found_dir"
+    fi
+    if test ! "x$enable_afs" = "xno" ; then
+       if test ! "x$found_lib" = "x-lafsauthent" ; then
+          tmpafslibdir="$afslibdir"
+          if test "x$tmpafslibdir" = "x" ; then
+             tmpafslibdir=`dirname $found_lib`
+          fi
+          afslibdir=""
+       else
+          afslibdir="$found_dir"
+          tmpafslibdir=`echo $afslibdir | cut -c3-`
+       fi
+       # All libraries in the same directory
+       check_library "libafsrpc" "no" "$tmpafslibdir" /usr/lib
+       if test "x$found_lib" = "x" ; then
+          afslib=""
+          afslibdir=""
+          enable_afs="no"
+       else
+          afslib="$afslib $found_lib"
+          afslibdir="$found_dir"
+       fi
+    fi
+    #
+    # header files
+    #
+    if test "x$enable_afs" = "xyes" ; then
+       incafs="stds.h kautils.h"
+       for i in $incafs ; do
+           check_header "afs/$i" "$afsincdir" \
+              /usr/include /usr/local/include /opt/include $finkdir/include
+           if test "x$found_hdr" = "x" ; then
+               afsincdir=""
+               enable_afs="no"
+               break
+           fi
+       done
+    fi
+
+    if test "x$enable_afs" = "xno" ; then
+        afslib=""
+        afslibdir=""
+        afsincdir=""
+        afsextracflags=""
+        incafs="INCAFS = "
+        libafs="LIBAFS = "
+    else
+        afsextracflags="-DR__AFS"
+        if test ! "x$afsincdir" = "x" ; then
+           incafs="INCAFS = -I$afsincdir"
+        else
+           incafs="INCAFS ="
+        fi
+        libafs="LIBAFS = $afslibdir $afslib"
+    fi
+fi
+
+######################################################################
+#
 ### echo %%% Support for GSI authentication
 #
 #
@@ -1892,6 +1981,9 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@threadlib@|$threadlib|"       \
     -e "s|@threadlibdir@|$threadlibdir|" \
     -e "s|@pwdextracflags@|$pwdextracflags|" \
+    -e "s|@incafs@|$incafs|"           \
+    -e "s|@libafs@|$libafs|"           \
+    -e "s|@afsextracflags@|$afsextracflags|" \
     -e "s|@inckrb4@|$inckrb4|"           \
     -e "s|@libkrb4@|$libkrb4|"           \
     -e "s|@inckrb5@|$inckrb5|"           \

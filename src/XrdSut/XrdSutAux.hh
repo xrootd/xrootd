@@ -62,6 +62,7 @@ enum kXRSBucketTypes {
    kXRS_x509_req,              // 3024    X509 certificate request
    kXRS_cipher_alg,            // 3025    Cipher algorithm (list)
    kXRS_md_alg,                // 3026    MD algorithm (list)
+   kXRS_afsinfo,               // 3027    AFS information
    kXRS_reserved               //         Reserved
 };
 

@@ -33,7 +33,7 @@ typedef XrdOucString String;
   
 #define XrdSecPROTOIDENT    "pwd"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
-#define XrdSecpwdVERSION    10000
+#define XrdSecpwdVERSION    10100
 #define XrdSecNOIPCHK       0x0001
 #define XrdSecDEBUG         0x1000
 #define XrdCryptoMax        10
@@ -86,7 +86,9 @@ enum kpwdCredType {
    kpCT_newagain   =  4,      // new credentials again for confirmation
    kpCT_autoreg    =  5,      // autoreg: new creds to be confirmed
    kpCT_ar_again   =  6,      // autoreg: new creds again for confirmation
-   kpCT_crypt      =  7       // standard crypt hash
+   kpCT_crypt      =  7,      // standard crypt hash
+   kpCT_afs        =  8,      // AFS plain password
+   kpCT_afsenc     =  9       // AFS encrypted password
 };
 
 //
@@ -178,9 +180,9 @@ typedef struct {
 #define REL3(x,y,z) { if (x) delete x; if (y) delete y; if (z) delete z; }
 
 #ifndef NODEBUG
-#define PRINT(y) {SecTrace->Beg(epname); cerr <<y; SecTrace->End();}
+#define PRINT(y) {{SecTrace->Beg(epname); cerr <<y; SecTrace->End();}}
 #else
-#define PRINT(y)
+#define PRINT(y) { }
 #endif
 
 #define SafeDelete(x) { if (x) delete x ; x = 0; }
@@ -208,11 +210,13 @@ public:
    char  *cpass;        // [s] users's crypt hash pwd file [$HOME/.xrootdpass]
    char  *alogfile;     // [c] autologin file [$HOME/.xrd/pwdnetrc]
    char  *srvpuk;       // [c] file with server puks [$HOME/.xrd/pwdsrvpuk]
+   short  keepcreds;    // [s] keep / do-not-keep client credentials 
 
    pwdOptions() { debug = -1; mode = 's'; areg = -1; upwd = -1; alog = -1;
                   verisrv = -1; vericlnt = -1;
                   syspwd = -1; lifecreds = -1; maxprompts = -1; maxfailures = -1;
-                  clist = 0; dir = 0; udir = 0; cpass = 0; alogfile = 0; srvpuk = 0; }
+                  clist = 0; dir = 0; udir = 0; cpass = 0;
+                  alogfile = 0; srvpuk = 0; keepcreds = 0; }
    virtual ~pwdOptions() { } // Cleanup inside XrdSecProtocolpwdInit
 };
 
@@ -233,12 +237,17 @@ public:
    bool              RtagOK;        // Rndm tag checked / not checked
    pwdStatus_t       Status;        // Some state flags
    bool              Tty;           // Terminal attached / not attached
+   int               Step;          // Current step
    int               LastStep;      // Step required at previous iteration
+   String            ErrMsg;        // Last error message
+   int               SysPwd;        // 0 = no, 1 = Unix sys pwd, 2 = AFS pwd
+   String            AFScell;       // AFS cell if it makes sense
 
    pwdHSVars() { Iter = 0; TimeStamp = -1; CryptoMod = ""; User = ""; Tag = "";
                  RemVers = -1; CF = 0; Hcip = 0; Rcip = 0;
                  ID = ""; Cref = 0; Pent = 0; RtagOK = 0; Tty = 0;
-                 LastStep = 0;
+                 Step = 0; LastStep = 0; ErrMsg = "";
+                 SysPwd = 0; AFScell = "";
                  Status.ctype = 0; Status.action = 0; Status.options = 0; }
 
    ~pwdHSVars() { SafeDelete(Cref); SafeDelete(Hcip); }
@@ -312,6 +321,7 @@ private:
    static int              MaxFailures;    // [S] Max passwd failures before blocking
    static int              AutoLogin;      // [C] do-not-check/check/update autolog info
    static int              TimeSkew;       // [CS] Allowed skew in secs for time stamps 
+   static bool             KeepCreds;      // [S] Keep / Do-Not-Keep client creds
    //
    // for error logging and tracing
    static XrdOucLogger     Logger;
@@ -319,12 +329,16 @@ private:
    static XrdOucTrace     *SecTrace;
 
    // Information local to this instance
-   int             options;
-   struct sockaddr hostaddr;      // Client-side only
-   char            CName[256];    // Client-name
+   int                     options;
+   struct sockaddr         hostaddr;      // Client-side only
+   char                    CName[256];    // Client-name
+   bool                    srvMode;       // TRUE if server mode 
 
    // Handshake local info
-   pwdHSVars      *hs;
+   pwdHSVars              *hs;
+
+   // Acquired credentials (server side)
+   XrdSecCredentials      *clientCreds;
 
    // Parsing received buffers
    int            ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
@@ -354,6 +368,7 @@ private:
 
    // Check credentials
    bool           CheckCreds(XrdSutBucket *creds, int credtype);
+   bool           CheckCredsAFS(XrdSutBucket *creds, int ctype);
 
    // Check Time stamp
    bool           CheckTimeStamp(XrdSutBuffer *b, int skew, String &emsg);

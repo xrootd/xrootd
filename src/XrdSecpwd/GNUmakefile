@@ -4,7 +4,7 @@
 #------------------------------------------------------------------------------#
 include ../GNUmake.env
 
-BINLIBS  = $(CRYPTLIB) -L$(LIBDIR) -lXrdCrypto -lXrdSut -lXrdOuc -lXrdSys
+BINLIBS  = $(CRYPTLIB) $(LIBAFS) -L$(LIBDIR) -lXrdCrypto -lXrdSut -lXrdOuc -lXrdSys
 
 LIBDEPS = $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a \
           $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
@@ -64,7 +64,7 @@ anything: $(TARGETS)
 
 $(LIBRARY): $(OBJECTS) $(LIBDEPS)
 	@echo Creating shared library $(LIBRARY) 
-	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(BINLIBS) $(LIBS) -o $(LIBRARY)
+	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(BINLIBS) $(LIBS) -lresolv -o $(LIBRARY)
 
 $(SRVADMIN): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SRVADMIN) 
@@ -90,4 +90,5 @@ $(OBJDIR)/XrdSecProtocolpwd.o: XrdSecProtocolpwd.cc XrdOucLogger.hh \
 		XrdSutRndm.hh XrdCryptoAux.hh XrdCryptoCipher.hh XrdCryptoBasic.hh \
 		XrdCryptoFactory.hh XrdSecpwdPlatform.hh
 	@echo Compiling XrdSecProtocolpwd.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(PWDEXTRACFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolpwd.o XrdSecProtocolpwd.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(PWDEXTRACFLAGS) $(INCLUDE) $(INCAFS) \
+		-o $(OBJDIR)/XrdSecProtocolpwd.o XrdSecProtocolpwd.cc

@@ -58,6 +58,7 @@ static const char *gXRSBucketTypes[] = {
    "kXRS_x509_req",
    "kXRS_cipher_alg",
    "kXRS_md_alg",
+   "kXRS_afsinfo",
    "kXRS_reserved"
 };
 

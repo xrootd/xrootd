@@ -23,6 +23,26 @@
 #include <fcntl.h>
 #include <sys/times.h>
 
+// AFS support
+#ifdef R__AFS
+extern "C" {
+#include <afs/stds.h>
+#include <afs/kautils.h>
+afs_int32 ka_Authenticate(char *name, char *instance, char *cell,
+                          struct ubik_client *conn, int service,
+                          struct ktc_encryptionKey *key, Date start,
+                          Date end, struct ktc_token *token,
+                          afs_int32 * pwexpires);
+afs_int32 ka_ReadPassword(char *prompt, int verify, char *cell,
+                          struct ktc_encryptionKey *key);
+afs_int32 ka_AuthServerConn(char *cell, int service,
+                            struct ktc_token *token,
+                            struct ubik_client **conn);
+char     *ka_LocalCell();
+void      ka_StringToKey(char *str, char *cell,
+                         struct ktc_encryptionKey *key);
+}
+#endif
 
 #include <XrdOuc/XrdOucLogger.hh>
 #include <XrdOuc/XrdOucError.hh>
@@ -122,6 +142,7 @@ static const short kOptsClntTty = 0x0080;
 static const short kOptsExpCred = 0x0100;
 static const short kOptsCrypPwd = 0x0200;
 static const short kOptsChngPwd = 0x0400;
+static const short kOptsAFSPwd  = 0x0800;
 // One day in secs
 static const int kOneDay = 86400; 
 
@@ -168,6 +189,7 @@ int  XrdSecProtocolpwd::MaxPrompts  = 3; // [C] Repeating prompt
 int  XrdSecProtocolpwd::MaxFailures = 10;// [S] Max passwd failures before blocking
 int  XrdSecProtocolpwd::AutoLogin   = 0; // [C] do-not-check/check/update autologin info
 int  XrdSecProtocolpwd::TimeSkew    = 300; // [CS] Allowed skew in secs for time stamps 
+bool XrdSecProtocolpwd::KeepCreds   = 0; // [S] Keep / Do-Not-Keep client creds 
 //
 // Debug an tracing
 XrdOucError    XrdSecProtocolpwd::eDest(0, "secpwd_");
@@ -240,10 +262,14 @@ XrdSecProtocolpwd::XrdSecProtocolpwd(int opts, const char *hname,
       hs->Pent = 0;             // Pointer to relevant file entry
       hs->RtagOK = 0;           // Rndm tag checked / not checked
       hs->Tty = (isatty(0) == 0 || isatty(1) == 0) ? 0 : 1;
+      hs->Step = 0;             // Current step
       hs->LastStep = 0;         // Step required at previous iteration
    } else {
       DEBUG("could not create handshake vars object");
    }
+
+   // Used by servers to store forwarded credentials
+   clientCreds = 0;
 
    // Protocol ID
    strncpy(Entity.prot, XrdSecPROTOIDENT, sizeof(Entity.prot));
@@ -272,8 +298,10 @@ XrdSecProtocolpwd::XrdSecProtocolpwd(int opts, const char *hname,
    //
    // Notify, if required
    if (Server) {
+      srvMode = 1;
       DEBUG("mode: server");
    } else {
+      srvMode = 0;
       DEBUG("mode: client");
       if (AutoLogin > 0) {
          DEBUG("using autologin file: "<<PFAlog.Name());
@@ -352,23 +380,27 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
    //
    // If defined, check existence of the infodir and admin file
    if (infodir.length()) {
-      struct stat st;
-      if (stat(infodir.c_str(),&st) == -1) {
-         if (errno == ENOENT) {
-            if (argdir) {
-               DEBUG("infodir non existing: "<<infodir.c_str());
-            } else {
-               DEBUG("creating infodir: "<<infodir.c_str());
-               if (XrdSutMkdir(infodir.c_str(),0777) != 0) {
-                  DEBUG("cannot create infodir (errno: "<<errno<<")");
-                  infodir = "";
-                  argdir = 0;
+      // Acquire the privileges, if needed
+      XrdSysPrivGuard priv(getuid());
+      if (priv.Valid()) {
+         struct stat st;
+         if (stat(infodir.c_str(),&st) == -1) {
+            if (errno == ENOENT) {
+               if (argdir) {
+                  DEBUG("infodir non existing: "<<infodir.c_str());
+               } else {
+                  DEBUG("creating infodir: "<<infodir.c_str());
+                  if (XrdSutMkdir(infodir.c_str(),0777) != 0) {
+                     DEBUG("cannot create infodir (errno: "<<errno<<")");
+                     infodir = "";
+                     argdir = 0;
+                  }
                }
+            } else {
+               DEBUG("cannot stat infodir "<<infodir<<" (errno: "<<errno<<")");
+               infodir = "";
+               argdir = 0;
             }
-         } else {
-            DEBUG("cannot stat infodir "<<infodir<<" (errno: "<<errno<<")");
-            infodir = "";
-            argdir = 0;
          }
       }
    }
@@ -393,12 +425,20 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
          // Make sure this setting makes sense
          struct passwd *pw = getpwuid(getuid());
          if (pw) {
+#ifndef R__AFS
 #ifdef R__SHADOWPW
-            // System V Rel 4 style shadow passwords
-            struct spwd *spw = getspnam(pw->pw_name);
-            if (!spw) {
-               SysPwd = 0;
-               DEBUG("no privileges to access shadow passwd file");
+            // Acquire the privileges, if needed
+            XrdSysPrivGuard priv(0);
+            if (priv.Valid()) {
+               // System V Rel 4 style shadow passwords
+               struct spwd *spw = getspnam(pw->pw_name);
+               if (!spw) {
+                  SysPwd = 0;
+                  DEBUG("no privileges to access shadow passwd file");
+               }
+            } else {
+               DEBUG("problems acquiring credentials"
+                     " to access the system password file");
             }
 #else
             // Normal passwd file
@@ -407,6 +447,9 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                SysPwd = 0;
                DEBUG("no privileges to access system passwd file");
             }
+#endif
+#else
+            PRINT("configured with AFS support");
 #endif
          } else
             SysPwd = 0;
@@ -421,54 +464,60 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       //
       // If defined, check existence of the infodir and admin file
       if (infodir.length()) {
-         struct stat st;
-         //
-         // Define admin file and check its existence
-         FileAdmin = infodir + AdminRef;
-         if (stat(FileAdmin.c_str(),&st) == -1) {
-            if (errno == ENOENT) {
-               PRINT("FileAdmin non existing: "<<FileAdmin.c_str());
-            } else {
-               PRINT("cannot stat FileAdmin (errno: "<<errno<<")");
-            }
-            FileAdmin = "";
-            if (UserPwd == 0) {
-               PRINT("no passwd info available - invalid ");
-               ErrF(erp,kPWErrInit,"could not find a valid password file");
-               return Parms;
-            }
-         }
-         //
-         // Load server ID
-         PFAdmin.Init(FileAdmin.c_str(),0);
-         if (PFAdmin.IsValid()) {
+         // Acquire the privileges, if needed
+         XrdSysPrivGuard priv(getuid());
+         if (priv.Valid()) {
+            struct stat st;
             //
-            // Init cache for admin file
-            if (cacheAdmin.Load(FileAdmin.c_str()) != 0) {
-               PRINT("problems init cache for file admin ");
-               ErrF(erp,kPWErrError,"initializing cache for file admin");
-               return Parms;
+            // Define admin file and check its existence
+            FileAdmin = infodir + AdminRef;
+            if (stat(FileAdmin.c_str(),&st) == -1) {
+               if (errno == ENOENT) {
+                  PRINT("FileAdmin non existing: "<<FileAdmin.c_str());
+               } else {
+                  PRINT("cannot stat FileAdmin (errno: "<<errno<<")");
+               }
+               FileAdmin = "";
+               if (UserPwd == 0 && !SysPwd) {
+                  PRINT("no passwd info available - invalid ");
+                  ErrF(erp,kPWErrInit,"could not find a valid password file");
+                  return Parms;
+               }
             }
-            if (QTRACE(Authen)) { cacheAdmin.Dump(); }
-            XrdSutPFEntry *ent = cacheAdmin.Get("+++SrvID");
-            if (ent)
-               SrvID.insert(ent->buf1.buf, 0, ent->buf1.len);
-            ent = cacheAdmin.Get("+++SrvEmail");
-            if (ent)
-               SrvEmail.insert(ent->buf1.buf, 0, ent->buf1.len);
-            // Default error message
-            DefError += SrvEmail;
+            if (FileAdmin.length() > 0) {
+               //
+               // Load server ID
+               PFAdmin.Init(FileAdmin.c_str(),0);
+               if (PFAdmin.IsValid()) {
+                  //
+                  // Init cache for admin file
+                  if (cacheAdmin.Load(FileAdmin.c_str()) != 0) {
+                     PRINT("problems init cache for file admin ");
+                     ErrF(erp,kPWErrError,"initializing cache for file admin");
+                     return Parms;
+                  }
+                  if (QTRACE(Authen)) { cacheAdmin.Dump(); }
+                  XrdSutPFEntry *ent = cacheAdmin.Get("+++SrvID");
+                  if (ent)
+                     SrvID.insert(ent->buf1.buf, 0, ent->buf1.len);
+                  ent = cacheAdmin.Get("+++SrvEmail");
+                  if (ent)
+                     SrvEmail.insert(ent->buf1.buf, 0, ent->buf1.len);
+                  // Default error message
+                  DefError += SrvEmail;
+               }
+               DEBUG("server ID: "<<SrvID);
+               DEBUG("contact e-mail: "<<SrvEmail);
+            }
          }
-         DEBUG("server ID: "<<SrvID);
-         DEBUG("contact e-mail: "<<SrvEmail);
-      } else if (UserPwd == 0) {
+      } else if (UserPwd == 0 && !SysPwd) {
          PRINT("no passwd info available - invalid ");
          ErrF(erp,kPWErrError,"could not find a valid password file");
          return Parms;
       }
       //
       // Init cache for user pwd information
-      if (UserPwd > 0) {
+      if (UserPwd > 0 || SysPwd) {
          if (cacheUser.Init(100) != 0) {
             PRINT("problems init cache for user pwd info"
                   " - passwd files in user accounts will not be used");
@@ -499,22 +548,28 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                   // Ref cipher
                   String ptag("+++SrvPuk_");
                   ptag += cf->ID();
-                  if (PFAdmin.ReadEntry(ptag.c_str(),ent) <= 0) {
-                     PRINT("ref cipher for module "<<ncpt<<" missing: disable");
-                     cryptlist.erase(ncpt);
-                  } else {
-                     XrdSutBucket bck;
-                     bck.SetBuf(ent.buf1.buf,ent.buf1.len);
-                     if (!(refcip[ncrypt] = cf->Cipher(&bck))) {
-                        PRINT("ref cipher for module "<<ncpt<<
-                              " cannot be instantiated : disable");
-                        cryptlist.erase(ncpt);
-                     } else {
-                        ncrypt++;
-                        if (ncrypt >= XrdCryptoMax) {
-                           PRINT("max number of crypto modules ("
-                                 << XrdCryptoMax <<") reached ");
-                           break;
+                  if (FileAdmin.length() > 0) {
+                     // Acquire the privileges, if needed
+                     XrdSysPrivGuard priv(getuid());
+                     if (priv.Valid()) {
+                        if (PFAdmin.ReadEntry(ptag.c_str(),ent) <= 0) {
+                           PRINT("ref cipher for module "<<ncpt<<" missing: disable");
+                           cryptlist.erase(ncpt);
+                        } else {
+                           XrdSutBucket bck;
+                           bck.SetBuf(ent.buf1.buf,ent.buf1.len);
+                           if (!(refcip[ncrypt] = cf->Cipher(&bck))) {
+                              PRINT("ref cipher for module "<<ncpt<<
+                                    " cannot be instantiated : disable");
+                              cryptlist.erase(ncpt);
+                           } else {
+                              ncrypt++;
+                              if (ncrypt >= XrdCryptoMax) {
+                                 PRINT("max number of crypto modules ("
+                                        << XrdCryptoMax <<") reached ");
+                                 break;
+                              }
+                           }
                         }
                      }
                   }
@@ -555,10 +610,31 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       }
 
       //
+      // Whether to save client creds
+      KeepCreds = (opt.keepcreds > -1) ? opt.keepcreds : KeepCreds;
+
+      //
+      // Priority option field
+      String popt = "";
+      if (SysPwd) {
+#ifndef R__AFS
+         popt += "sys";
+#else
+         popt += "afs";
+         popt += ka_LocalCell();
+#endif
+      }
+
+      //
       // Parms in the form: &P=pwd,c:<cryptomod>,v:<version>,id:<srvid>
-      Parms = new char[cryptlist.length()+3+12+SrvID.length()+5];
+      Parms = new char[cryptlist.length()+3+12+SrvID.length()+5+popt.length()+3];
       if (Parms) {
-         sprintf(Parms,"v:%d,id:%s,c:%s",Version,SrvID.c_str(),cryptlist.c_str());
+         if (popt.length() > 0)
+            sprintf(Parms,"v:%d,id:%s,c:%s,po:%s",
+                          Version,SrvID.c_str(),cryptlist.c_str(),popt.c_str());
+         else
+            sprintf(Parms,"v:%d,id:%s,c:%s",
+                          Version,SrvID.c_str(),cryptlist.c_str());
       } else {
          PRINT("no system resources for 'Parms'");
          ErrF(erp,kPWErrInit,"no system resources for 'Parms'");
@@ -577,8 +653,15 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
             DEBUG("using private crypt-hash files: $(HOME)"<<FileCrypt);
          }
       }
-      if (SysPwd > 0) {
-         DEBUG("using system pwd files");
+      if (SysPwd) {
+#ifndef R__AFS
+         DEBUG("using system pwd information");
+#else
+         DEBUG("using AFS information");
+#endif
+      }
+      if (KeepCreds) {
+         DEBUG("client credentials will be kept");
       }
    }
 
@@ -745,6 +828,23 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    // Query client for the password; remote username and host
    // are specified in 'parm'. File '.rootnetrc' is checked. 
    EPNAME("getCredentials");
+   hs->ErrMsg = "";
+
+   // If we are a server the only reason to be here is to get the forwarded
+   // or saved client credentials
+   if (srvMode) {
+      XrdSecCredentials *creds = 0;
+      if (clientCreds) {
+         // Duplicate the buffer (otherwise it will get deleted ...)
+         int sz = clientCreds->size;
+         char *nbuf = (char *) malloc(sz);
+         if (nbuf) {
+            memcpy(nbuf, clientCreds->buffer, sz);
+            creds = new XrdSecCredentials(nbuf, sz);
+         }
+      }
+      return creds;
+   }
 
    // Handshake vars conatiner must be initialized at this point
    if (!hs)
@@ -762,7 +862,6 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    hs->TimeStamp = time(0);
 
    // Local vars
-   int step = 0;
    int nextstep = 0;
    const char *stepstr = 0;
    kXR_int32 status = 0;
@@ -781,7 +880,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    pwdStatus_t   SessionSt;
    memset(&SessionSt,0,sizeof(SessionSt));
 
-   // 
+   //
    // Unlocks automatically returning
    XrdOucMutexHelper pwdGuard(&pwdContext);
    //
@@ -794,8 +893,8 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
       return ErrC(ei,bpar,bmai,0,kPWErrBadProtocol,stepstr);
    //
    // The step indicates what we are supposed to do
-   step = (bpar->GetStep()) ? bpar->GetStep() : kXPS_init;
-   stepstr = ServerStepStr(step);
+   hs->Step = (bpar->GetStep()) ? bpar->GetStep() : kXPS_init;
+   stepstr = ServerStepStr(hs->Step);
    // Dump, if requested
    if (QTRACE(Authen)) {
       bpar->Dump(stepstr);
@@ -832,16 +931,19 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    //
    // Get the status bucket, if any
    if ((bck = bmai->GetBucket(kXRS_status))) {
-     memcpy(&SessionSt,bck->buffer,sizeof(pwdStatus_t));
-     SessionSt.options = ntohs(SessionSt.options);
-     bmai->Deactivate(kXRS_status);
+      int pst = 0;
+      memcpy(&pst,bck->buffer,sizeof(pwdStatus_t));
+      pst = ntohl(pst);
+      memcpy(&SessionSt, &pst, sizeof(pwdStatus_t));
+      bmai->Deactivate(kXRS_status);
    } else {
       SessionSt.ctype = kpCT_normal;
-   }   
+   }
+   PRINT("ctype: "<<(int)SessionSt.ctype);
    //
    // Now action depens on the step
    nextstep = kXPC_none;
-   switch (step) {
+   switch (hs->Step) {
 
    case kXPS_init:
       //
@@ -909,6 +1011,10 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
       //
       // Normal attempt: add credentials
       status = kpCT_normal;
+      if (hs->SysPwd == 1)
+         status = kpCT_crypt;
+      if (hs->SysPwd == 2)
+         status = kpCT_afs;
       if (!(bck = QueryCreds(bmai, (AutoLogin > 0), status)))
          return ErrC(ei,bpar,bmai,0, kPWErrQueryCreds,
                                      hs->Tag.c_str(),stepstr);
@@ -964,14 +1070,13 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    }
    //
    // Add / Update status
-   char *bstat = new char[sizeof(pwdStatus_t)];
-   if (bstat) {
-       SessionSt.options = htons(SessionSt.options);
-       memcpy(bstat,&SessionSt,sizeof(pwdStatus_t));
-       if (bmai->AddBucket(bstat,sizeof(pwdStatus_t), kXRS_status) != 0) {
-          DEBUG("problems adding bucket kXRS_status");
-       }
+   int *pst = new int;
+   memcpy(pst,&SessionSt,sizeof(pwdStatus_t));
+   *pst = htonl(*pst);
+   if (bmai->AddBucket((char *)pst,sizeof(pwdStatus_t), kXRS_status) != 0) {
+      DEBUG("problems adding bucket kXRS_status");
    }
+
    //
    // Serialize and encrypt
    if (AddSerialized('c', nextstep, hs->ID,
@@ -1016,6 +1121,8 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    // Check if we have any credentials or if no credentials really needed.
    // In either case, use host name as client name
    EPNAME("Authenticate");
+   hs->ErrMsg = "";
+
    //
    // If cred buffer is two small or empty assume host protocol
    if (cred->size <= (int)XrdSecPROTOIDLEN || !cred->buffer) {
@@ -1042,7 +1149,6 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    int kS_rc = kpST_more;
    int rc = 0;
    int entst = 0;
-   int step = 0;
    int nextstep = 0;
    int ctype = kpCT_normal;
    char *bpub = 0, *bpid = 0;
@@ -1075,8 +1181,8 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       return ErrS(hs->ID,ei,bpar,bmai,0,kPWErrBadProtocol,stepstr);
    //
    // The step indicates what we are supposed to do
-   step = bpar->GetStep();
-   stepstr = ClientStepStr(step);
+   hs->Step = bpar->GetStep();
+   stepstr = ClientStepStr(hs->Step);
    // Dump, if requested
    if (QTRACE(Authen)) {
       bpar->Dump(stepstr);
@@ -1095,8 +1201,10 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    //
    // Get handshake status
    if ((bck = bmai->GetBucket(kXRS_status))) {
-      memcpy(&SessionSt,bck->buffer,sizeof(pwdStatus_t));
-      SessionSt.options = ntohs(SessionSt.options);
+      int pst = 0;
+      memcpy(&pst,bck->buffer,sizeof(pwdStatus_t));
+      pst = ntohl(pst);
+      memcpy(&SessionSt, &pst, sizeof(pwdStatus_t));
       bmai->Deactivate(kXRS_status);
    } else {
       DEBUG("no bucket kXRS_status found in main buffer");
@@ -1128,7 +1236,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    //
    // Now action depens on the step
    bool savecreds = (SessionSt.options & kOptsExpCred);
-   switch (step) {
+   switch (hs->Step) {
 
    case kXPC_verifysrv:
       //
@@ -1208,10 +1316,18 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
          SessionSt.options |= kOptsExpCred;
       }
       if (entst == kPFE_crypt) {
-         // User credentials are in crypt form; in case of failure
+         // User credentials are either in crypt form (private or
+         // system ones) or of AFS type; in case of failure
          // this flag allows the client to send the right creds
          // at next iteration
-         SessionSt.options |= kOptsCrypPwd;
+         if (ClntMsg.beginswith("afs:")) {
+            SessionSt.options |= kOptsAFSPwd;
+            // Add cell info for client
+            String cell(ClntMsg,4);
+            if (bmai->AddBucket(cell, kXRS_afsinfo) != 0)
+               DEBUG("problems adding bucket with AFS cell info");
+         } else
+            SessionSt.options |= kOptsCrypPwd;
       }
       // Creds, if any, should be checked, unles we allow auto-registration
       savecreds = (entst != kPFE_allowed) ? 0 : 1;
@@ -1243,6 +1359,15 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       ctype = kpCT_normal;
       if (SessionSt.options & kOptsCrypPwd)
          ctype = kpCT_crypt;
+      else if (SessionSt.options & kOptsAFSPwd) {
+         ctype = kpCT_afs;
+         String afsInfo;
+         XrdSutBucket *bafs = bmai->GetBucket(kXRS_afsinfo);
+         if (bafs)
+            bafs->ToString(afsInfo);
+         if (afsInfo == "c")
+            ctype = kpCT_afsenc;
+      }
       //
       // Check credentials
       if (!CheckCreds(bck, ctype)) {
@@ -1260,6 +1385,10 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             // request again creds
             if (hs->Pent->status == kPFE_crypt) {
                SessionSt.ctype = kpCT_crypt;
+               if (ctype == kpCT_afs || ctype == kpCT_afsenc) {
+                  SessionSt.ctype = kpCT_afs;
+                  bmai->UpdateBucket(hs->ErrMsg, kXRS_afsinfo);
+               }
                ClntMsg = "";
             } else {
                SessionSt.ctype = kpCT_normal;
@@ -1274,9 +1403,12 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             // Count failures
             hs->Pent->mtime = (kXR_int32)time(0);
             // Flush cache content to source file
-            if (cacheAdmin.Flush() != 0) {
-               DEBUG("WARNING: some problem flushing to admin"
-                     " file after updating "<<hs->Pent->name);
+            XrdSysPrivGuard priv(getuid());
+            if (priv.Valid()) {
+               if (cacheAdmin.Flush() != 0) {
+                  DEBUG("WARNING: some problem flushing to admin"
+                        " file after updating "<<hs->Pent->name);
+               }
             }
          }
       } else {
@@ -1288,9 +1420,12 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             // Count failures
             hs->Pent->mtime = (kXR_int32)time(0);
             // Flush cache content to source file
-            if (cacheAdmin.Flush() != 0) {
-               DEBUG("WARNING: some problem flushing to admin"
-                     " file after updating "<<hs->Pent->name);
+            XrdSysPrivGuard priv(getuid());
+            if (priv.Valid()) {
+               if (cacheAdmin.Flush() != 0) {
+                  DEBUG("WARNING: some problem flushing to admin"
+                        " file after updating "<<hs->Pent->name);
+               }
             }
          }
          kS_rc = kpST_ok;
@@ -1309,6 +1444,18 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             SessionSt.ctype = kpCT_new;
             // So we can save at next round
             SessionSt.options |= kOptsExpCred;
+         }
+         // Create buffer to keep the credentials, if required
+         if (KeepCreds) {
+            char *buf = (char *) malloc(bck->size+5);
+            if (buf) {
+               memcpy(buf, "&pwd", 4);
+               buf[4] = 0;
+               memcpy(buf+5, bck->buffer, bck->size);
+               // Cleanup any existing info
+               SafeDelete(clientCreds);
+               clientCreds = new XrdSecCredentials(buf, bck->size+5); 
+            }
          }
       }
       // We will not use again these credentials
@@ -1349,14 +1496,13 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
          }
       //
       // We set some options in the option field of a pwdStatus_t structure
-      char *bstat = new char[sizeof(pwdStatus_t)];
-      if (bstat) {
-         SessionSt.options = htons(SessionSt.options);
-         memcpy(bstat,&SessionSt,sizeof(pwdStatus_t));
-         if (bmai->AddBucket(bstat,sizeof(pwdStatus_t), kXRS_status) != 0) {
-            DEBUG("problems adding bucket kXRS_status");
-         }
+      int *pst = new int;
+      memcpy(pst,&SessionSt,sizeof(pwdStatus_t));
+      *pst = htonl(*pst);
+      if (bmai->AddBucket((char *)pst,sizeof(pwdStatus_t), kXRS_status) != 0) {
+         DEBUG("problems adding bucket kXRS_status");
       }
+
       // 
       // Serialize, encrypt and add to the global list
       if (AddSerialized('s', nextstep, hs->ID,
@@ -1513,6 +1659,7 @@ char *XrdSecProtocolpwdInit(const char mode,
       String udir = "";
       String clist = "";
       String cpass = "";
+      int keepcreds = -1;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -1538,6 +1685,8 @@ char *XrdSecProtocolpwdInit(const char mode,
                maxfail =  atoi(op+9);
             } else if (!strncmp(op, "-cryptfile:",11)) {
                cpass = (const char *)(op+11);
+            } else if (!strncmp(op, "-keepcreds",10)) {
+               keepcreds = 1;
             }
          }
          // Check inputs
@@ -1563,6 +1712,7 @@ char *XrdSecProtocolpwdInit(const char mode,
          opts.clist = (char *)clist.c_str();
       if (cpass.length() > 0)
          opts.cpass = (char *)cpass.c_str();
+      opts.keepcreds = keepcreds;
       //
       // Setup the plug-in with the chosen options
       return XrdSecProtocolpwd::Init(opts,erp);
@@ -1713,13 +1863,19 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       return match;
    }
    // Make sure there is something to check against
-   if (!(hs->Pent->buf1.buf) || hs->Pent->buf1.len <= 0) {
+   if (ctype != kpCT_afs && ctype != kpCT_afsenc &&
+      (!(hs->Pent->buf1.buf) || hs->Pent->buf1.len <= 0)) {
       DEBUG("Cached information about creds missing");
       return match;
    }
    //
+   // Create a buffer to store credentials, if required
+   int len = creds->size+4;
+   char *cbuf = (KeepCreds) ? new char[len] : (char *)0;
+
+   //
    // Separate treatment for crypt-like creds
-   if (ctype != kpCT_crypt) {
+   if (ctype != kpCT_crypt && ctype != kpCT_afs && ctype != kpCT_afsenc) {
       //
       // Create a bucket for the salt to easy encryption
       XrdSutBucket *tmps = new XrdSutBucket();
@@ -1729,6 +1885,12 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       }
       tmps->SetBuf(hs->Pent->buf1.buf, hs->Pent->buf1.len);
       //
+      // Save input bucket if creds have to be kept
+      if (KeepCreds) {
+         memcpy(cbuf, "pwd:", 4);
+         memcpy(cbuf+4, creds->buffer, creds->size);
+      }
+      //
       // Hash received buffer for the comparison
       DoubleHash(hs->CF,creds,tmps);
       // Compare
@@ -1736,9 +1898,14 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
          if (!memcmp(creds->buffer, hs->Pent->buf2.buf, creds->size))
             match = 1;
       SafeDelete(tmps);
+      //
+      // recover input creds
+      if (match && KeepCreds)
+         creds->SetBuf(cbuf, len);
 
    } else {
 #ifndef DONT_HAVE_CRYPT
+#ifndef R__AFS
       // Crypt-like: get the pwhash
       String passwd(creds->buffer,creds->size+1);
       passwd.reset(0,creds->size,creds->size);
@@ -1747,16 +1914,127 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       // Compare
       if (!strncmp(pass_crypt, hs->Pent->buf1.buf, hs->Pent->buf1.len + 1) != 0)
          match = 1;
-      return match;
+      if (match && KeepCreds) {
+         memcpy(cbuf, "cpt:", 4);
+         memcpy(cbuf+4, creds->buffer, creds->size);
+         creds->SetBuf(cbuf, len);
+      }
+#else
+      // Check the AFS credentials
+      match = CheckCredsAFS(creds, ctype);
+#endif
 #else
       DEBUG("Crypt-like passwords (via crypt(...)) not supported");
       match = 0;
 #endif
    }
 
+   // Cleanup
+   if (cbuf)
+      delete[] cbuf;
+
    // We are done
    return match;
 }
+
+#ifdef R__AFS
+//________________________________________________________________________
+bool XrdSecProtocolpwd::CheckCredsAFS(XrdSutBucket *creds, int ctype)
+{
+   // Check AFS credentials, either in plain (ctype==kpCT_afs) or
+   // encrypted (ctype==kpCT_afsenc) form
+   EPNAME("CheckAFS");
+   bool match = 0;
+   int rc = 0;
+
+   // Here we are interested to the minimal token length (5 min)
+   int life = 60;
+
+   // We need a link to the user name
+   char *usr = (char *) hs->User.c_str();
+
+   bool notify = ((hs->Step == kXPC_creds) || QTRACE(ALL)) ? 1 : 0;
+   struct ktc_encryptionKey key;
+   if (ctype == kpCT_afs) {
+      char *errmsg;
+      String pwd(creds->buffer,creds->size);
+      rc = ka_UserAuthenticateGeneral(KA_USERAUTH_VERSION + KA_USERAUTH_DOSETPAG,
+                                      usr, "", "", (char *) pwd.c_str(),
+                                      life, 0, 0, &errmsg);
+      if (rc) {
+         if (notify)
+            PRINT("CheckAFS: failure: "<< errmsg);
+         hs->ErrMsg += ka_LocalCell();
+      } else {
+         match = 1;
+         if (KeepCreds)
+            // We need to encrypt te plain passwd
+            ka_StringToKey((char *) pwd.c_str(), 0, &key);
+         if (QTRACE(ALL))
+            PRINT("CheckAFS: success!");
+      }
+
+   } else if (ctype == kpCT_afsenc) {
+
+      // Get the cell
+      char *cell = 0;
+      char cellname[MAXKTCREALMLEN];
+      if (ka_ExpandCell(cell, cellname, 0) != 0) {
+         PRINT("CheckAFS: failure expanding cell");
+         return match;
+      }
+      cell = cellname;
+
+      // Get an unauthenticated connection to desired cell 
+      struct ubik_client *conn = 0;
+      if (ka_AuthServerConn(cell, KA_AUTHENTICATION_SERVICE, 0, &conn) != 0) {
+         PRINT("CheckAFS: failure getting an unauthenticated connection to the cell");
+         return match;
+      }
+
+      // Authenticate now
+      memcpy(key.data, creds->buffer, creds->size);
+      struct ktc_token token;
+      int pwexpires;
+      int now = hs->TimeStamp;
+      rc = ka_Authenticate(usr, (char *)"", cell, conn,
+                           KA_TICKET_GRANTING_SERVICE,
+                           &key, now, now + life,
+                           &token, &pwexpires);
+      if (rc) {
+         if (notify)
+            PRINT("CheckAFS: failure from ka_Authenticate");
+         hs->ErrMsg += ka_LocalCell();
+      } else {
+         match = 1;
+         if (QTRACE(ALL))
+            PRINT("CheckAFS: success!");
+      }
+   } else {
+      PRINT("CheckAFS: unknown credential type: "<< ctype);
+   }
+
+   // Save the creds, if requested
+   if (match && KeepCreds) {
+      // Create new buffer
+      int len = strlen("afs:") + 8;
+      char *buf = new char[len];
+      memcpy(buf,"afs:",4);
+      memcpy(buf+4,key.data,8);
+      // Fill output
+      creds->SetBuf(buf,len);
+   }
+   // We are done
+   return match;
+}
+#else
+//________________________________________________________________________
+bool XrdSecProtocolpwd::CheckCredsAFS(XrdSutBucket *, int)
+{
+   // Check AFS credentials - not supported
+   return 0;
+}
+#endif
 
 //____________________________________________________________________
 int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
@@ -1807,8 +2085,11 @@ int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
    DEBUG("Entry for tag: "<<wTag<<" updated in cache");
    //
    // Flush cache content to source file
-   if (cacheAdmin.Flush() != 0) {
-      DEBUG("WARNING: some problem flushing to admin file after updating "<<wTag);
+   XrdSysPrivGuard priv(getuid());
+   if (priv.Valid()) {
+      if (cacheAdmin.Flush() != 0) {
+         DEBUG("WARNING: some problem flushing to admin file after updating "<<wTag);
+      }
    }
    //
    // We are done
@@ -1843,6 +2124,16 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
       return (XrdSutBucket *)0;
    }
    creds->type = kXRS_creds;
+
+   //
+   // Extract AFS info (the cell), if any
+   String afsInfo;
+   if (ctype == kpCT_afs || ctype == kpCT_afsenc) {
+      XrdSutBucket *bafs = bm->GetBucket(kXRS_afsinfo);
+      if (bafs)
+         bafs->ToString(afsInfo);
+   }
+
    //
    // Build effective tag
    String wTag = hs->Tag + '_'; wTag += hs->CF->ID();
@@ -1925,24 +2216,48 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    //      (either one-time or too old)
    //       ==> query hs->Pent->buf2 before prompting
    //   4) we need to send a real password because the server uses crypt()
+   //      or AFS
    //       ==> query hs->Pent->buf2 from previous prompt
 
    //
    // If the previously cached entry has a second (final) passwd
    // use it. This is the case when the real passwd is required (like in
    // crypt), we may have it in cache from a previous prompt
-   if (ctype == kpCT_crypt) {
+   if (ctype == kpCT_crypt || ctype == kpCT_afs) {
       if (hs->Pent && hs->Pent->buf2.buf) {
+         if (ctype == kpCT_afs) {
+#ifdef R__AFS
+            String passwd(hs->Pent->buf2.buf,hs->Pent->buf2.len);
+            // We will send over and encrypted version
+            struct ktc_encryptionKey key;
+            ka_StringToKey((char *) passwd.c_str(),
+                           (char *) afsInfo.c_str(), &key);
+            // Fill output
+            creds->SetBuf(key.data,8);
+            // Tell the server
+            afsInfo = "c";
+            if (bm->UpdateBucket(afsInfo, kXRS_afsinfo) != 0)
+               PRINT("Warning: problems updating bucket with AFS info");
+#else
+            // Fill output
+            creds->SetBuf(hs->Pent->buf2.buf,hs->Pent->buf2.len);
+            // Not needed anymore
+            bm->Deactivate(kXRS_afsinfo);
+#endif
+         } else {
+            // Fill output
+            creds->SetBuf(hs->Pent->buf2.buf,hs->Pent->buf2.len);
+         }
+         // Save info in the first buffer and reset the second buffer
          hs->Pent->buf1.SetBuf(hs->Pent->buf2.buf,hs->Pent->buf2.len);
          hs->Pent->buf2.SetBuf();
-         // Fill output
-         creds->SetBuf(hs->Pent->buf1.buf,hs->Pent->buf1.len);
          // Update status
          status = kpCI_exact; 
          // We are done
          return creds;
       }
    }
+
    //
    // Prompt
    char prompt[XrdSutMAXPPT] = {0};
@@ -1953,6 +2268,13 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    // Prepare the prompt
    if (ctype == kpCT_new) {
       snprintf(prompt,XrdSutMAXPPT, "Enter new password: ");
+   } else if (ctype == kpCT_crypt) {
+      String host(hs->Tag,hs->Tag.find("@",0)+1,hs->Tag.find(":",0)-1);
+      snprintf(prompt,XrdSutMAXPPT, "Password for %s@%s: ", 
+                                    hs->User.c_str(), host.c_str());
+   } else if (ctype == kpCT_afs || ctype == kpCT_afsenc) {
+      snprintf(prompt,XrdSutMAXPPT, "AFS password for %s@%s: ", 
+                                    hs->User.c_str(), hs->AFScell.c_str());
    } else {
       // Normal prompt
       snprintf(prompt,XrdSutMAXPPT,"Password for %s:",hs->Tag.c_str());
@@ -1974,11 +2296,23 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
       if (passwd.length()) {
          // Fill in password
          creds->SetBuf(passwd.c_str(),passwd.length());
-         if (ctype != kpCT_crypt) {
+         if (ctype != kpCT_crypt && ctype != kpCT_afs) {
             // Self-Hash
             DoubleHash(hs->CF,creds,creds);
             // Update status
             status = kpCI_prompt;
+         } else if (ctype == kpCT_afs) {
+#ifdef R__AFS
+            // We will send over and encrypted version
+            struct ktc_encryptionKey key;
+            ka_StringToKey((char *) passwd.c_str(),
+                           (char *) afsInfo.c_str(), &key);
+            creds->SetBuf(key.data,8);
+            // Tell the server
+            afsInfo = "c";
+            if (bm->UpdateBucket(afsInfo, kXRS_afsinfo) != 0)
+               PRINT("Warning: problems updating bucket with AFS info");
+#endif
          }
          // Save creds to update auto-login file later
          // It will be flushed to file if required
@@ -2128,7 +2462,8 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
                      hs->Pent->mtime = hs->TimeStamp;
                      hs->Pent->status = status;
                      hs->Pent->cnt = 0;
-                     hs->Pent->buf1.SetBuf(pwhash.c_str(),pwhash.length()+1);
+                     if (!FileCrypt.beginswith("afs:"))
+                        hs->Pent->buf1.SetBuf(pwhash.c_str(),pwhash.length()+1);
                      // Trasmit the type of credentials we have found
                      cmsg = FileCrypt;
                      return 0;
@@ -2146,14 +2481,37 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
          }
       }
    }
+
+   //
+   // Check system info, if enabled
+   if (SysPwd) {
+      String pwhash, fn;
+      if (QueryCrypt(fn, pwhash) > 0) {
+         bad = 0;
+         status = kPFE_crypt;
+         // Fill entry
+         hs->Pent = cacheUser.Add(wTag.c_str());
+         hs->Pent->mtime = hs->TimeStamp;
+         hs->Pent->status = status;
+         hs->Pent->cnt = 0;
+         if (!fn.beginswith("afs:"))
+            hs->Pent->buf1.SetBuf(pwhash.c_str(),pwhash.length()+1);
+         // Trasmit the type of credentials we have found
+         cmsg = fn;
+         return 0;
+      }
+   }
    //
    // Check server admin files
    if (PFAdmin.IsValid()) {
       //
       // Make sure it is uptodate
-      if (cacheAdmin.Refresh() != 0) {
-         DEBUG("problems assuring cache update for file admin ");
-         return -1;
+      XrdSysPrivGuard priv(getuid());
+      if (priv.Valid()) {
+         if (cacheAdmin.Refresh() != 0) {
+            DEBUG("problems assuring cache update for file admin ");
+            return -1;
+         }
       }
       hs->Pent = cacheAdmin.Get(wTag.c_str());
       // Retrieve pwd information
@@ -2431,6 +2789,21 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       if (ii >= 0) {
          srvid.assign(opts, ii+3);
          srvid.erase(srvid.find(','));
+      }
+      //
+      // Extract priority options
+      String popt;
+      ii = opts.find("po:");
+      if (ii >= 0) {
+         popt.assign(opts, ii+3);
+         popt.erase(popt.find(','));
+         // Parse it
+         if (popt.beginswith("sys")) {
+            hs->SysPwd = 1;
+         } else if (popt.beginswith("afs")) {
+            hs->SysPwd = 2;
+            hs->AFScell.assign(popt,3);
+         }
       }
       //
       // Get user and host
@@ -2983,6 +3356,12 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
       return rc;
    //
    // If not, we check the system files
+#ifdef R__AFS
+   // Send over the cell
+   fn = "afs:";
+   fn += ka_LocalCell();
+   pwhash = "afs";
+#else
 #ifdef R__SHADOWPW
    {  // Acquire the privileges; needs to be 'superuser' to access the
       // shadow password file
@@ -3001,15 +3380,17 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
 #else
    pwhash = pw->pw_passwd;
 #endif
-   // Check if successful
-   if (pwhash.length() <= 2) {
-      DEBUG("passwd hash not available for user "<<hs->User);
-      pwhash = "";
-      rc = -1;
-   }
    //
    // This is send back to the client to locate autologin info
    fn = "system";
+#endif
+   // Check if successful
+   if ((rc = pwhash.length()) <= 2) {
+      DEBUG("passwd hash not available for user "<<hs->User);
+      pwhash = "";
+      fn = "";
+      rc = -1;
+   }
 
    // We are done
    return rc;
