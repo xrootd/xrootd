@@ -939,7 +939,6 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    } else {
       SessionSt.ctype = kpCT_normal;
    }
-   PRINT("ctype: "<<(int)SessionSt.ctype);
    //
    // Now action depens on the step
    nextstep = kXPC_none;
@@ -1076,7 +1075,6 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    if (bmai->AddBucket((char *)pst,sizeof(pwdStatus_t), kXRS_status) != 0) {
       DEBUG("problems adding bucket kXRS_status");
    }
-
    //
    // Serialize and encrypt
    if (AddSerialized('c', nextstep, hs->ID,
@@ -1322,10 +1320,6 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
          // at next iteration
          if (ClntMsg.beginswith("afs:")) {
             SessionSt.options |= kOptsAFSPwd;
-            // Add cell info for client
-            String cell(ClntMsg,4);
-            if (bmai->AddBucket(cell, kXRS_afsinfo) != 0)
-               DEBUG("problems adding bucket with AFS cell info");
          } else
             SessionSt.options |= kOptsCrypPwd;
       }
@@ -1387,7 +1381,8 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
                SessionSt.ctype = kpCT_crypt;
                if (ctype == kpCT_afs || ctype == kpCT_afsenc) {
                   SessionSt.ctype = kpCT_afs;
-                  bmai->UpdateBucket(hs->ErrMsg, kXRS_afsinfo);
+                  String afsinfo = hs->ErrMsg;
+                  bmai->UpdateBucket(afsinfo, kXRS_afsinfo);
                }
                ClntMsg = "";
             } else {
@@ -1447,14 +1442,18 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
          }
          // Create buffer to keep the credentials, if required
          if (KeepCreds) {
-            char *buf = (char *) malloc(bck->size+5);
+            int sz = bck->size+5;
+            char *buf = (char *) malloc(sz);
             if (buf) {
                memcpy(buf, "&pwd", 4);
                buf[4] = 0;
                memcpy(buf+5, bck->buffer, bck->size);
+               // Put in hex
+               char *out = new char[2*sz+1];
+               XrdSutToHex(buf, sz, out);
                // Cleanup any existing info
                SafeDelete(clientCreds);
-               clientCreds = new XrdSecCredentials(buf, bck->size+5); 
+               clientCreds = new XrdSecCredentials(out, 2*sz+1); 
             }
          }
       }
@@ -1502,7 +1501,6 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       if (bmai->AddBucket((char *)pst,sizeof(pwdStatus_t), kXRS_status) != 0) {
          DEBUG("problems adding bucket kXRS_status");
       }
-
       // 
       // Serialize, encrypt and add to the global list
       if (AddSerialized('s', nextstep, hs->ID,
@@ -2116,7 +2114,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
              ctype == kpCT_old || ctype == kpCT_crypt)) ? netrc : 0;
    //
    // reset status
-   status = kpCI_undef; 
+   status = kpCI_undef;
    // Output bucket
    XrdSutBucket *creds = new XrdSutBucket();
    if (!creds) {
@@ -2126,6 +2124,69 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    creds->type = kXRS_creds;
 
    //
+   // Build effective tag
+   String wTag = hs->Tag + '_'; wTag += hs->CF->ID();
+
+   //
+   // If creds are available in the environment pick them up and use them
+   char *cf = 0;
+   char *cbuf = getenv("XrdSecCREDS");
+   if (cbuf) {
+      int len = strlen(cbuf);
+      // From hex
+      int sz = len;
+      char *out = new char[sz/2+2];
+      XrdSutFromHex((const char *)cbuf, out, len);
+      if ((cf = strstr(out, "&pwd"))) {
+         cf += 5;
+         len -= 5;
+         if (len > 0) {
+            // Get prefix
+            char pfx[5] = {0};
+            memcpy(pfx, cf, 4);
+            cf += 4;
+            len -= 4;
+            if (len > 0) {
+               DEBUG("using "<<len<<" bytes of creds from the environment; pfx: "<<pfx);
+               // Create or Fill entry in cache
+               hs->Pent = cacheAlog.Add(wTag.c_str());
+               if (hs->Pent) {
+                 // Try only once
+                  if (hs->Pent->cnt == 0) {
+                     // Set buf
+                     creds->SetBuf(cf,len);
+                     // Fill entry
+                     if (strncmp(pfx,"pwd",3))
+                        hs->Pent->status = kPFE_crypt;
+                     hs->Pent->mtime = hs->TimeStamp;
+                     hs->Pent->buf1.SetBuf(cf, len);
+                     // Just in case we need the passwd itself (like in crypt)
+                     hs->Pent->buf2.SetBuf(cf, len);
+                     // Tell the server
+                     if (!strncmp(pfx,"afs",3)) {
+                        String afsInfo = "c";
+                        if (bm->UpdateBucket(afsInfo, kXRS_afsinfo) != 0)
+                           PRINT("Warning: problems updating bucket with AFS info");
+                     }
+                     // Update status
+                     status = kpCI_exact; 
+                     // We are done
+                     return creds;
+                  } else {
+                     // Cleanup
+                     hs->Pent->buf1.SetBuf();
+                     hs->Pent->buf2.SetBuf();
+                  }
+               } else {
+                  PRINT("Could create new entry in cache");
+                  return (XrdSutBucket *)0;
+               }
+            }
+         }
+      }
+   }
+
+   //
    // Extract AFS info (the cell), if any
    String afsInfo;
    if (ctype == kpCT_afs || ctype == kpCT_afsenc) {
@@ -2133,10 +2194,6 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
       if (bafs)
          bafs->ToString(afsInfo);
    }
-
-   //
-   // Build effective tag
-   String wTag = hs->Tag + '_'; wTag += hs->CF->ID();
    //
    // Search information in autolog file(s) first, if required
    if (netrc) {
