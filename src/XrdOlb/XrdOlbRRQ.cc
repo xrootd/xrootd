@@ -193,10 +193,10 @@ void *XrdOlbRRQ::Respond()
                   redr_iov[2].iov_len = i+1;
                  }
                sendResponse(&sp->Info, doredir);
-               while((cp = sp->Cont))
-                    {sp->Cont = cp->Cont;
-                     sendResponse(&cp->Info, doredir);
-                     cp->Recycle();
+               cp = sp->Cont;
+               while(cp)
+                    {sendResponse(&cp->Info, doredir);
+                     cp = cp->Cont;
                     }
                sp->Recycle();
               }
@@ -315,16 +315,17 @@ XrdOlbRRQSlot *XrdOlbRRQSlot::Alloc(XrdOlbRRQInfo *theInfo)
   
 void XrdOlbRRQSlot::Recycle()
 {
-   XrdOlbRRQSlot *sp;
+   XrdOlbRRQSlot *sp, *np = Cont;
 
    myMutex.Lock();
    if (!Link.Singleton()) Link.Remove();
-   while((sp = Cont))
-        {Cont         = sp->Cont;
+   while((sp = np))
+        {np           = sp->Cont;
          sp->Cont     = freeSlot;
          freeSlot     = sp;
          sp->Info.Key = 0;
         }
+   Info.Key = 0;
    Cont     = freeSlot;
    freeSlot = this;
    myMutex.UnLock();
