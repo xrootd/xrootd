@@ -43,6 +43,7 @@
 
 #define TXSOCK_ERR_TIMEOUT	-1
 #define TXSOCK_ERR		-2
+#define TXSOCK_ERR_INTERRUPT	-3
 
 // Maybe we don't want to start the garbage collector
 // But the default must be to start it
