@@ -944,8 +944,10 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
 	attnbody = (struct ServerResponseBody_Attn *)unsolmsg->GetData();
 
+        int actnum = (attnbody) ? (attnbody->actnum) : 0;
+
 	// "True" async resp is processed here
-	switch (attnbody->actnum) {
+	switch (actnum) {
 
 	case kXR_asyncdi:
 	    // Disconnection + delayed reconnection request
@@ -1024,6 +1026,14 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 	    // in order to stop further processing
 	    return fConnModule->ProcessAsynResp(unsolmsg);
 	    break;
+
+	default:
+
+	    Info(XrdClientDebug::kUSERDEBUG,
+	         "ProcessUnsolicitedMsg", "Empty message");
+
+	    // Propagate the message
+	    return kUNSOL_CONTINUE;
 
 	} // switch
 
