@@ -38,6 +38,7 @@ XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize)
    fHost.TcpHost = Host;
    fHost.TcpWindowSize = windowsize;
    fConnected = FALSE;
+   fInterrupt = FALSE;
    fSocket = -1;
 }
 
@@ -87,6 +88,8 @@ int XrdClientSock::RecvRaw(void* buffer, int length)
 
    starttime = time(0);
 
+   // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
+   fInterrupt = FALSE;
    while (bytesread < length) {
 
       // We cycle on the poll, ignoring the possible interruptions
@@ -116,7 +119,7 @@ int XrdClientSock::RecvRaw(void* buffer, int length)
 
 	 if ((pollRet < 0) && (errno != EINTR)) return TXSOCK_ERR;
 
-      } while (pollRet <= 0);
+      } while (pollRet <= 0 && !fInterrupt);
 
       // If we are here, pollRet is > 0 why?
       //  Because the timeout and the poll error are handled inside the previous loop
@@ -127,10 +130,17 @@ int XrdClientSock::RecvRaw(void* buffer, int length)
          return TXSOCK_ERR;
       }
 
+      // If we have been interrupt, reset the inetrrupt and exit
+      if (fInterrupt) {
+         fInterrupt = FALSE;
+         Error("XrdClientSock::RecvRaw", "got interrupt");
+         return TXSOCK_ERR_INTERRUPT;
+      }
+
       // First of all, we check if there is something to read
       if (fds_r.revents & (POLLIN | POLLPRI)) {
-    int n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
-                   length - bytesread, 0);
+         int n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
+                        length - bytesread, 0);
 
 	 // If we read nothing, the connection has been closed by the other side
 	 if (n <= 0) {
@@ -179,6 +189,8 @@ int XrdClientSock::SendRaw(const void* buffer, int length)
 
    starttime = time(0);
 
+   // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
+   fInterrupt = FALSE;
    while (byteswritten < length) {
 
       do {
@@ -201,7 +213,14 @@ int XrdClientSock::SendRaw(const void* buffer, int length)
 
 	 if ((pollRet < 0) && (errno != EINTR)) return TXSOCK_ERR;
 
-      } while (pollRet <= 0);
+      } while (pollRet <= 0 && !fInterrupt);
+
+      // If we have been interrupt, reset the inetrrupt and exit
+      if (fInterrupt) {
+         fInterrupt = FALSE;
+         Error("XrdClientSock::SendRaw", "got interrupt");
+         return TXSOCK_ERR_INTERRUPT;
+      }
 
       // If we are here, pollRet is > 0 why?
       //  Because the timeout and the poll error are handled inside the previous loop

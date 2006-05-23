@@ -247,7 +247,6 @@ void XrdClientPhyConnection::Disconnect()
    // in CheckAutoTerm or in the ConnMgr
 }
 
-
 //____________________________________________________________________________
 bool XrdClientPhyConnection::CheckAutoTerm() {
    bool doexit = FALSE;
@@ -328,7 +327,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 
       // If a socket error comes, then we disconnect
       // but we have not to disconnect in the case of a timeout
-      if (((res < 0) && (res != TXSOCK_ERR_TIMEOUT)) ||
+      if (((res < 0) && (res == TXSOCK_ERR)) ||
           (!fSocket->IsConnected())) {
 
 	 Info(XrdClientDebug::kHIDEBUG,
@@ -337,7 +336,6 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 	      fServer.Host << ":" << fServer.Port);
 
          Disconnect();
-
       }
 
       Touch();

@@ -85,6 +85,7 @@ public:
    int            GetSocket() { return fSocket ? fSocket->fSocket : -1; }
 
    int            SaveSocket() { return fSocket ? (fSocket->SaveSocket()) : -1; }
+   void           SetInterrupt() { if (fSocket) fSocket->SetInterrupt(); }
    void           SetSecProtocol(XrdSecProtocol *sp) { fSecProtocol = sp; }
 
    void           StartedReader();

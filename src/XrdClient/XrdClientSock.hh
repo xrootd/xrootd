@@ -31,9 +31,12 @@ private:
 
    XrdClientSockConnectParms fHost;
    bool                      fConnected;
+   bool                      fInterrupt;
    int fSocket;
 
-   int    SaveSocket() { int fd = fSocket; fSocket = -1;  fConnected = 0; return fd; }
+   int    SaveSocket() { int fd = fSocket; fSocket = -1;
+                         fConnected = 0; fInterrupt = 0; return fd; }
+   void   SetInterrupt() { fInterrupt = 1; }
 
 public:
    XrdClientSock(XrdClientUrlInfo host, int windowsize = 0);
