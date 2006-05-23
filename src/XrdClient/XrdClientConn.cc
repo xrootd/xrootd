@@ -494,25 +494,37 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 		  
 		   
 		    // Let's fake a regular answer
-		    if (HasToAlloc) {
-		      *answMoreDataAllocated = malloc(LastServerResp.dlen);
-		      memcpy(*answMoreDataAllocated,
-			     &fREQWaitRespData->respdata,
-			     LastServerResp.dlen);
+
+		    // Note: kXR_wait can be a fake response used to make the client retry!
+		    if (LastServerResp.status == kXR_wait) {
+			cmdrespMex->fHdr.status = kXR_wait;
+			memcpy(cmdrespMex->GetData(), fREQWaitRespData->respdata, sizeof(kXR_int32));
+			resp = false;
 		    }
 		    else {
 
-		      memcpy(answMoreData,
-			     &fREQWaitRespData->respdata,
-			     LastServerResp.dlen);
+			if (HasToAlloc) {
+			    *answMoreDataAllocated = malloc(LastServerResp.dlen);
+			    memcpy(*answMoreDataAllocated,
+				   &fREQWaitRespData->respdata,
+				   LastServerResp.dlen);
+			}
+			else {
+			    
+			    memcpy(answMoreData,
+				   &fREQWaitRespData->respdata,
+				   LastServerResp.dlen);
+			    
+			}
 
+			resp = true;
 		    }
 
 		    free( fREQWaitRespData);
 		    fREQWaitRespData = 0;
 
 		    abortcmd = false;
-		    resp = true;
+
 		  }
 
 
@@ -2169,7 +2181,7 @@ bool XrdClientConn::WaitResp(int secsmax) {
        rc = fREQWaitResp->Wait(secsmax);
 
        Info(XrdClientDebug::kHIDEBUG,
-	    "ProcessAsynResp", "Signal or timeout elapsed. Data=" << fREQWaitRespData );
+	    "WaitResp", "Signal or timeout elapsed. Data=" << fREQWaitRespData );
    }
    
    // Unlock mutex
@@ -2183,6 +2195,27 @@ bool XrdClientConn::WaitResp(int secsmax) {
 UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
    // A client on the current physical conn might be in a "wait for response" state
    // Here we process a potential response
+
+
+    // If this is a comm error, let's awake the sleeping thread and continue
+    if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok) {
+	fREQWaitResp->Lock();
+
+	// We also have to fake a regular answer. kxr_wait is ok!
+	fREQWaitRespData = (ServerResponseBody_Attn_asynresp *)malloc( sizeof(struct ServerResponseBody_Attn_asynresp) );
+	memset( fREQWaitRespData, 0, sizeof(struct ServerResponseBody_Attn_asynresp) );
+
+	fREQWaitRespData->resphdr.status = kXR_wait;
+	fREQWaitRespData->resphdr.dlen = sizeof(kXR_int32);
+
+	kXR_int32 i = 1;
+	memcpy(&fREQWaitRespData->respdata, &i, sizeof(i));
+
+	fREQWaitResp->Signal();
+	fREQWaitResp->UnLock();
+	return kUNSOL_CONTINUE;
+    }
+
 
     ServerResponseBody_Attn_asynresp *ar;
     ar = (ServerResponseBody_Attn_asynresp *)unsolmsg->GetData();
@@ -2200,10 +2233,41 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
    // Strip the data from the message and save it. It's the response we are waiting for.
    // Note that it will contain also the data!
    fREQWaitRespData = ar;
-   unsolmsg->DonateData(); // The data blk is released from the orig message
+   
 
    clientUnmarshall(&fREQWaitRespData->resphdr);
    smartPrintServerHeader(&fREQWaitRespData->resphdr);
+
+   // After all, this is the last resp we received
+   memcpy(&LastServerResp, &fREQWaitRespData->resphdr, sizeof(struct ServerResponseHeader));
+
+
+   if (fREQWaitRespData->resphdr.status == kXR_error) {
+      // The server declared an error. 
+      // We want to save its content
+
+      struct ServerResponseBody_Error *body_err;
+
+      body_err = (struct ServerResponseBody_Error *)(&fREQWaitRespData->respdata);
+
+      if (body_err) {
+         // Print out the error information, as received by the server
+
+         kXR_int32 fErr = (XErrorCode)ntohl(body_err->errnum);
+ 
+         Info(XrdClientDebug::kNODEBUG, "ProcessAsynResp", "Server declared: " <<
+             (const char*)body_err->errmsg << "(error code: " << fErr << ")");
+
+	 // Save the last error received
+	 memset(&LastServerError, 0, sizeof(LastServerError));
+	 memcpy(&LastServerError, body_err, xrdmin(fREQWaitRespData->resphdr.dlen, (kXR_int32)(sizeof(LastServerError)-1) ));
+	 LastServerError.errnum = fErr;
+
+      }
+
+   }
+
+   unsolmsg->DonateData(); // The data blk is released from the orig message
 
    // Signal the waiting condvar. Waiting is no more needed
    // Note: the message's data will be freed by the waiting process!

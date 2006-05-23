@@ -388,6 +388,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 
    XrdClientMessage *m;
    bool parallelsid;
+   UnsolRespProcResult res = kUNSOL_KEEP;
 
    m = new XrdClientMessage();
    if (!m) {
@@ -400,8 +401,8 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 
    parallelsid = SidManager->GetSidInfo(m->HeaderSID());
 
-   if ( parallelsid || (m->IsAttn()) ) {
-      UnsolRespProcResult res;
+   if ( parallelsid || (m->IsAttn()) || (m->GetStatusCode() == XrdClientMessage::kXrdMSC_readerr)) {
+      
 
       // Here we insert the PhyConn-level support for unsolicited responses
       // Some of them will be propagated in some way to the upper levels
@@ -409,53 +410,66 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
       //  here -> XrdClientConnMgr -> all the involved XrdClientLogConnections ->
       //   -> all the corresponding XrdClient
 
-      Info(XrdClientDebug::kDUMPDEBUG,
-          "BuildMessage"," propagating unsol id " << m->HeaderSID());
-
+      if (m->GetStatusCode() == XrdClientMessage::kXrdMSC_readerr) {
+	  Info(XrdClientDebug::kDUMPDEBUG,
+	       "BuildMessage"," propagating a communication error message.");
+      }
+      else {
+	  Info(XrdClientDebug::kDUMPDEBUG,
+	       "BuildMessage"," propagating unsol id " << m->HeaderSID());
+      }
 
       res = HandleUnsolicited(m);
 
-      // The purpose of this message ends here
-      if ( (parallelsid) && (res != kUNSOL_KEEP) )
-	 SidManager->ReleaseSid(m->HeaderSID());
 
-      delete m;
-      m = 0;
+
    }
-   else
-      if (Enqueue) {
-         // If we have to ignore the socket timeouts, then we have not to
-         // feed the queue with them. In this case, the newly created XrdClientMessage
-         // has to be freed.
-	 //if ( !IgnoreTimeouts || !m->IsError() )
+   
+   if (Enqueue && !parallelsid && !m->IsAttn() && (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr)) {
+       // If we have to ignore the socket timeouts, then we have not to
+       // feed the queue with them. In this case, the newly created XrdClientMessage
+       // has to be freed.
+       //if ( !IgnoreTimeouts || !m->IsError() )
 
-         //bool waserror;
+       //bool waserror;
 
-         if (IgnoreTimeouts) {
+       if (IgnoreTimeouts) {
 
-            if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_timeout) {
+	   if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_timeout) {
                //waserror = m->IsError();
 
-            Info(XrdClientDebug::kDUMPDEBUG,
-                 "BuildMessage"," posting id "<<m->HeaderSID());
+	       Info(XrdClientDebug::kDUMPDEBUG,
+		    "BuildMessage"," posting id "<<m->HeaderSID());
 
                fMsgQ.PutMsg(m);
 
                //if (waserror)
                //   for (int kk=0; kk < 10; kk++) fMsgQ.PutMsg(0);
-            }
-            else {
+	   }
+	   else {
 
-            Info(XrdClientDebug::kDUMPDEBUG,
-                 "BuildMessage"," deleting id "<<m->HeaderSID());
+	       Info(XrdClientDebug::kDUMPDEBUG,
+		    "BuildMessage"," deleting id "<<m->HeaderSID());
 
                delete m;
                m = 0;
-            }
+	   }
 
-         } else
-            fMsgQ.PutMsg(m);
-      }
+       } else
+	   fMsgQ.PutMsg(m);
+   }
+   else {
+
+
+       // The purpose of this message ends here
+       if ( (parallelsid) && (res != kUNSOL_KEEP) && (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) )
+	   SidManager->ReleaseSid(m->HeaderSID());
+       
+       if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) {
+	   delete m;
+	   m = 0;
+       }
+   }
   
    return m;
 }

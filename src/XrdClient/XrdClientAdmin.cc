@@ -265,7 +265,7 @@ bool XrdClientAdmin::Stat(const char *fname, long &id, long long &size, long &fl
 				    NULL, fStats , FALSE, (char *)"Stat");
 
 
-   if (ok) {
+   if (ok && (fConnModule->LastServerResp.status == 0)) {
       Info(XrdClientDebug::kHIDEBUG,
 	   "Stat", "Returned stats=" << fStats);
       sscanf(fStats, "%ld %lld %ld %ld", &id, &size, &flags, &modtime);
@@ -550,9 +550,15 @@ UnsolRespProcResult XrdClientAdmin::ProcessUnsolicitedMsg(XrdClientUnsolMsgSende
    // Remember that we are in a separate thread, since unsolicited 
    // responses are asynchronous by nature.
 
-   Info(XrdClientDebug::kNODEBUG,
-	"XrdClientAdmin", "Processing unsolicited response from streamid " <<
-	unsolmsg->HeaderSID() );
+   if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok) {
+	Info(XrdClientDebug::kHIDEBUG,
+	     "ProcessUnsolicitedMsg", "Incoming unsolicited communication error message." );
+    }
+    else {
+	Info(XrdClientDebug::kHIDEBUG,
+	     "ProcessUnsolicitedMsg", "Incoming unsolicited response from streamid " <<
+	     unsolmsg->HeaderSID() );
+    }
 
    // Local processing ....
    if (unsolmsg->IsAttn()) {
@@ -646,7 +652,10 @@ UnsolRespProcResult XrdClientAdmin::ProcessUnsolicitedMsg(XrdClientUnsolMsgSende
 
       
    }
-
+   else
+       // Let's see if the message is a communication error message
+       if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok)
+	   return fConnModule->ProcessAsynResp(unsolmsg);
 
 
    return kUNSOL_CONTINUE;
