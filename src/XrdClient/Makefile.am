@@ -71,6 +71,7 @@ clientlibs =  libXrdClient.la \
               ../XrdOuc/libXrdOuc.la \
               ../XrdNet/libXrdNet.la \
               ../XrdSys/libXrdSys.la \
+	      ../XrdCrypto/libXrdCrypto.la \
               -ldl
 
 xrdcp_SOURCES = Xrdcp.cc

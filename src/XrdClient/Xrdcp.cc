@@ -19,6 +19,9 @@
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+#include <XrdCrypto/XrdCryptoFactory.hh>
+#include <XrdCrypto/XrdCryptoMsgDigest.hh>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -80,6 +83,8 @@ struct XrdCpInfo {
 
 bool summary=false;            // print summary
 bool progbar=true;             // print progbar
+bool md5=false;                // print md5
+
 char *srcopaque=0,
    *dstopaque=0;   // opaque info to be added to urls
 // Default open flags for opening a file (xrd)
@@ -92,8 +97,12 @@ struct timeval abs_start_time;
 struct timeval abs_stop_time;
 struct timezone tz;
 
+// To calculate md5 sums during transfers
+XrdCryptoMsgDigest *MD_5=0;    // md5 computation
+XrdCryptoFactory *gCryptoFactory = 0;
 
-void print_summary(const char* src, const char* dst, unsigned long long bytesread) {
+
+void print_summary(const char* src, const char* dst, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5) {
    gettimeofday (&abs_stop_time, &tz);
    float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
 			   (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
@@ -112,9 +121,9 @@ void print_summary(const char* src, const char* dst, unsigned long long bytesrea
    if (abs_time > 0) {
       COUT(("[xrdcp] # Eff.Copy. Rate[Mb/s]     : %f\n",bytesread/abs_time/1000.0));
    }
-   //  if (strlen(authzfilename)) {
-   //    COUT(("[xrootd] # Authz Filename           : %s\n",authzfilename));
-   //  }
+   if (md5) {
+     COUT(("[xrdcp] # md5                      : %s\n",_MD_5->AsHexString()));
+   }
    COUT(("[xrdcp] #################################################################\n"));
 }
 
@@ -136,6 +145,14 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
 
 
 
+void print_md5(const char* src, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5) {
+  if (_MD_5) {
+    XrdOucString xsrc(src);
+    xsrc.erase(xsrc.rfind('?'));
+    //    printf("md5: %s\n",_MD_5->AsHexString());
+    cout << "md5: " << _MD_5->AsHexString() << " " << xsrc << " " << bytesread << endl;
+  }
+}
 
 // The body of a thread which reads from the global
 //  XrdClient and keeps the queue filled
@@ -398,6 +415,10 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 		 print_progbar(bytesread,size);
 	       }
 
+	       if (md5) {
+		 MD_5->Update((const char*)buf,len);
+	       }
+
 	       if (!(*xrddest)->Write(buf, offs, len)) {
 		  cerr << "Error writing to output server." << endl;
 		  retvalue = 11;
@@ -425,11 +446,16 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       if(progbar) {
 	cout << endl;
       }
+
+      if (md5) {
+	MD_5->Final();
+	print_md5(src,bytesread,MD_5);
+      }
       
       if (summary) {        
-	print_summary(src,dst,bytesread);
+	print_summary(src,dst,bytesread,MD_5);
       }
-
+      
       if (retvalue >= 0) {
 	 pthread_cancel(myTID);
 	 pthread_join(myTID, &thret);	 
@@ -514,6 +540,10 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	       print_progbar(bytesread,size);
 	    }
 
+	    if (md5) {
+	      MD_5->Update((const char*)buf,len);
+	    }
+
 	    if (write(f, buf, len) <= 0) {
 	       cerr << "Error " << strerror(errno) <<
 		  " writing to " << dst << endl;
@@ -542,9 +572,14 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    if(progbar) {
       cout << endl;
    }
+
+   if (md5) {
+     MD_5->Final();
+     print_md5(src,bytesread,MD_5);
+   }
       
    if (summary) {        
-      print_summary(src,dst,bytesread);
+      print_summary(src,dst,bytesread,MD_5);
    }      
 
    int closeres = close(f);
@@ -623,6 +658,10 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	      print_progbar(bytesread,size);
 	    }
 
+	    if (md5) {
+	      MD_5->Update((const char*)buf,len);
+	    }
+
 	    if (!(*xrddest)->Write(buf, offs, len)) {
 	       cerr << "Error writing to output server." << endl;
 	       retvalue = 12;
@@ -650,11 +689,16 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    if(progbar) {
      cout << endl;
    }
+
+   if (md5) {
+     MD_5->Final();
+     print_md5(src,bytesread,MD_5);
+   }
    
    if (summary) {        
-     print_summary(src,dst,bytesread);
+     print_summary(src,dst,bytesread,MD_5);
    }	 
-
+   
    pthread_cancel(myTID);
    pthread_join(myTID, &thret);
 
@@ -670,7 +714,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
 void PrintUsage() {
    cerr << "usage: xrdcp <source> <dest> "
-     "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force]" << endl;
+     "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5]" << endl;
    cerr << " -d lvl :         debug level: 1 (low), 2 (medium), 3 (high)" << endl;
    cerr << " -s     :         silent mode, no summary output, no progress bar" << endl;
    cerr << " -np    :         no progress bar" << endl;
@@ -679,6 +723,7 @@ void PrintUsage() {
    cerr << " -OD    :         adds some opaque information to any DEST xrootd url" << endl;
    cerr << " -f     :         set the 'force' flag for xrootd dest file opens" << endl;
    cerr << " -force :         set 1-min (re)connect attempts to retry for up to 1 week, to block until xrdcp is executed" << endl << endl;
+   cerr << " -md5   :         calculate the md5 sum during transfers\n" << endl; 
    cerr << " -R     :         recurse subdirectories" << endl;
    cerr << " where:" << endl;
    cerr << "   parmname     is the name of an internal parameter" << endl;
@@ -790,6 +835,22 @@ int main(int argc, char**argv) {
          continue;
       }
 
+      if ( (strstr(argv[i], "-md5") == argv[i])) {
+	md5=true;
+
+	if (!(gCryptoFactory = XrdCryptoFactory::GetCryptoFactory("ssl"))) {
+	  cerr << "Cannot instantiate crypto factory ssl" << endl;
+	  exit(-1);
+	}
+
+	MD_5 = gCryptoFactory->MsgDigest("md5");
+	if (! MD_5) {
+	  cerr << "MD object could not be instantiated " << endl;
+	  exit(-1);
+	}
+	continue;
+      }
+
       // Any other par is ignored
       if ( (strstr(argv[i], "-") == argv[i]) && (strlen(argv[i]) > 1) ) {
 	 cerr << "Unknown parameter " << argv[i] << endl;
@@ -837,6 +898,10 @@ int main(int argc, char**argv) {
    int retval = 0;
    while (!retval && wklst->GetCpJob(src, dest)) {
       Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
+      
+      if (md5) {
+	MD_5->Reset("md5");
+      }
 
       if ( (src.beginswith("root://")) || (src.beginswith("xroot://")) ) {
 	 // source is xrootd
@@ -902,5 +967,9 @@ int main(int argc, char**argv) {
       }
 
    }
+
+   if (md5 && MD_5) 
+     delete MD_5;
+
    return retval;
 }
