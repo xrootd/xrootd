@@ -716,6 +716,13 @@ void PrintUsage() {
    cerr << "usage: xrdcp <source> <dest> "
      "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5]" << endl;
    cerr << " -d lvl :         debug level: 1 (low), 2 (medium), 3 (high)" << endl;
+   cerr << " -DSparmname stringvalue" << endl <<
+	   "        :         set the internal parm <parmname> with the string value <stringvalue>" << endl <<
+	   "                   See XrdClientConst.hh for a list of parameters." << endl;
+   cerr << " -DIparmname intvalue" << endl <<
+           "        :         set the internal parm <parmname> with the integer value <intvalue>" << endl <<
+           "                   See XrdClientConst.hh for a list of parameters." << endl <<
+	   "                   Examples: -DIReadCacheSize 3000000 -DIReadCacheBlk 131072 -DIDebugLevel 1 -DIReadAheadSize 1000000" << endl;
    cerr << " -s     :         silent mode, no summary output, no progress bar" << endl;
    cerr << " -np    :         no progress bar" << endl;
    cerr << " -v     :         display summary output" << endl <<endl;
