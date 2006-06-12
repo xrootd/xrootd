@@ -312,7 +312,34 @@ void XrdSysPriv::DumpUGID(const char *msg)
 //______________________________________________________________________________
 XrdSysPrivGuard::XrdSysPrivGuard(uid_t uid)
 {
-   // Constructor. We act only if 'superuser'.
+   // Constructor. Create a guard object for temporarly change to privileges
+   // of 'uid'
+
+   dum = 1;
+   valid = 0;
+
+   Init(uid);
+}
+//______________________________________________________________________________
+XrdSysPrivGuard::XrdSysPrivGuard(const char *usr)
+{
+   // Constructor. Create a guard object for temporarly change to privileges
+   // of 'usr'
+
+   dum = 1;
+   valid = 0;
+
+   if (usr && strlen(usr) > 0) {
+      struct passwd *pw = getpwnam(usr);
+      if (pw)
+         Init(pw->pw_uid);
+   }
+}
+//______________________________________________________________________________
+void XrdSysPrivGuard::Init(uid_t uid)
+{
+   // Init a change of privileges guard. Act only if superuser.
+   // The result of initialization can be tested with the Valid() method.
 
    dum = 1;
    valid = 1;

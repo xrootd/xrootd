@@ -54,12 +54,14 @@ class XrdSysPriv
 class XrdSysPrivGuard
 {
  public:
-   XrdSysPrivGuard (uid_t uid);
+   XrdSysPrivGuard(uid_t uid);
+   XrdSysPrivGuard(const char *user);
    virtual ~XrdSysPrivGuard() { if (!dum) XrdSysPriv::Restore(); }
    bool Valid() const { return valid; }
  private:
    bool dum;
    bool valid;
+   void Init(uid_t uid);
 };
 
 #endif
