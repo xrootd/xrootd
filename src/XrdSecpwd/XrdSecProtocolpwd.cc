@@ -428,7 +428,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
 #ifndef R__AFS
 #ifdef R__SHADOWPW
             // Acquire the privileges, if needed
-            XrdSysPrivGuard priv(0);
+            XrdSysPrivGuard priv((uid_t) 0);
             if (priv.Valid()) {
                // System V Rel 4 style shadow passwords
                struct spwd *spw = getspnam(pw->pw_name);
@@ -3422,7 +3422,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
 #ifdef R__SHADOWPW
    {  // Acquire the privileges; needs to be 'superuser' to access the
       // shadow password file
-      XrdSysPrivGuard priv(0);
+      XrdSysPrivGuard priv((uid_t)0);
       if (priv.Valid()) {
          struct spwd *spw = 0;
          // System V Rel 4 style shadow passwords
