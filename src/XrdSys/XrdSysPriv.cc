@@ -329,12 +329,15 @@ XrdSysPrivGuard::XrdSysPrivGuard(const char *usr)
    dum = 1;
    valid = 0;
 
+#if !defined(WINDOWS)
    if (usr && strlen(usr) > 0) {
       struct passwd *pw = getpwnam(usr);
       if (pw)
          Init(pw->pw_uid);
    }
+#endif
 }
+
 //______________________________________________________________________________
 void XrdSysPrivGuard::Init(uid_t uid)
 {
