@@ -34,13 +34,7 @@ class XrdSecProtocol;
 class XrdClientConn {
 
 public:
-    enum ServerType {
-	kSTError      = -1,  // Some error occurred: server type undetermined 
-	kSTNone       = 0,   // Remote server type un-recognized
-	kSTRootd      = 1,   // Remote server type: old rootd server
-	kSTBaseXrootd = 2,   // Remote server type: xrootd dynamic load balancer
-	kSTDataXrootd = 3    // Remote server type: xrootd data server
-    }; 
+
     enum ESrvErrorHandlerRetval {
 	kSEHRReturnMsgToCaller   = 0,
 	kSEHRBreakLoop           = 1,
@@ -52,6 +46,11 @@ public:
 	kTSRHReturnMex     = 0,
 	kTSRHReturnNullMex = 1,
 	kTSRHContinue      = 2
+    };
+
+    // To keep info about an open session
+    struct                     SessionIDInfo {
+	char id[16];
     };
 
     int                        fLastDataBytesRecv;
@@ -97,6 +96,17 @@ public:
     }
 
     int                        GetLogConnID() const { return fLogConnID; }
+
+    ERemoteServerType          GetServerType() {
+
+	if (!ConnectionManager) return kSTError;
+	XrdClientPhyConnection *phyconn =
+	    ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection();
+	if (!phyconn) return kSTError;
+	return phyconn->fServerType;
+
+    }
+
     kXR_unt16                  GetStreamID() const { return fPrimaryStreamid; }
 
     inline XrdClientUrlInfo    *GetLBSUrl() { return fLBSUrl; }
@@ -118,9 +128,8 @@ public:
 					      const void *reqMoreData,       
 					      void **answMoreDataAllocated,
 					      void *answMoreData, bool HasToAlloc,
-					      char *CmdName);
+					      char *CmdName, int substreamid = 0);
 
-    ServerType                 GetServerType() const { return fServerType; }
     int                        GetOpenSockFD() const { return fOpenSockFD; }
 
     void                       SetClientHostDomain(const char *src) { fClientHostDomain = src; }
@@ -171,18 +180,22 @@ public:
 	fREQConnectWait->UnLock();
     }
 
-    void                       SetServerType(ServerType type) { fServerType = type; }
     void                       SetSID(kXR_char *sid);
     inline void                SetUrl(XrdClientUrlInfo thisUrl) { fUrl = thisUrl; }
-
 
     // Sends the request to the server, through logconn with ID LogConnID
     // The request is sent with a streamid 'child' of the current one, then marked as pending
     // Its answer will be caught asynchronously
     XReqErrorType              WriteToServer_Async(ClientRequest *req, 
-						   const void* reqMoreData);
+						   const void* reqMoreData,
+						   int substreamid = 0);
+
     static XrdClientConnectionMgr *GetConnectionMgr()
     { return fgConnectionMgr;} //Instance of the conn manager
+
+    void GetSessionID(SessionIDInfo &sess) {
+	memcpy(sess.id, fSessionID, sizeof(fSessionID));
+    }
 
 private:
     // The handler which first tried to connect somewhere
@@ -221,16 +234,9 @@ private:
     XrdOucCondVar              *fREQConnectWait;           // For explicitly requested delayed reconnect
 
     long                       fServerProto;        // The server protocol
-    ServerType                 fServerType;         // Server type as returned by doHandShake() 
-    // (see enum ServerType)
-
-    // To keep info about an open session
-    struct                     SessionIDInfo {
-	char id[16];
-    };
 
     static XrdOucHash<SessionIDInfo>
-    fSessionIDRepo;      // The reposiry of session IDs, shared.
+    fSessionIDRepo;      // The repository of session IDs, shared.
     // Association between
     // <hostname>:<port> and a SessionIDInfo struct
 
@@ -250,9 +256,12 @@ private:
 						const void *reqMoreData,
 						void **answMoreDataAllocated,
 						void *answMoreData,
-						bool HasToAlloc);
+						bool HasToAlloc,
+						int substreamid = 0);
     XrdSecProtocol            *DoAuthentication(char *plist, int plsiz);
-    ServerType                 DoHandShake(short log);
+
+    ERemoteServerType          DoHandShake(short log);
+
     bool                       DoLogin();
     bool                       DomainMatcher(XrdOucString dom, XrdOucString domlist);
 
@@ -276,7 +285,8 @@ private:
 
     XReqErrorType              WriteToServer(ClientRequest *req, 
 					     const void* reqMoreData,
-					     short LogConnID);
+					     short LogConnID,
+					     int substreamid = 0);
 
     bool                       WaitResp(int secsmax);
 };

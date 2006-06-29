@@ -35,7 +35,8 @@ XrdClientLogConnection::~XrdClientLogConnection() {
 }
 
 //_____________________________________________________________________________
-int XrdClientLogConnection::WriteRaw(const void *buffer, int bufferlength)
+int XrdClientLogConnection::WriteRaw(const void *buffer, int bufferlength,
+				     int substreamid)
 {
    // Send over the open physical connection 'bufferlength' bytes located
    // at buffer.
@@ -45,7 +46,7 @@ int XrdClientLogConnection::WriteRaw(const void *buffer, int bufferlength)
 	"WriteRaw",
 	"Writing " << bufferlength << " bytes to physical connection");
   
-   return fPhyConnection->WriteRaw(buffer, bufferlength);
+   return fPhyConnection->WriteRaw(buffer, bufferlength, substreamid);
 }
 
 //_____________________________________________________________________________

@@ -383,25 +383,9 @@ XrdClientMessage *XrdClientConnectionMgr::ReadMsg(short int LogConnectionID)
 
    logconn = GetConnection(LogConnectionID);
 
-
-   // Parametric asynchronous stuff.
-   // If we are going Sync, then we must build the message here,
-   // otherwise the messages come directly from the queue
-   if ( !EnvGetLong(NAME_GOASYNC) ) {
-
-      // We get a new message directly from the socket.
-      // The message gets inserted inside the phyconn queue
-      // This line of code will be moved to a reader thread inside TXPhyConnection
-      // Timeouts must not be ignored here, indeed they are an error
-      // because we are waiting for a message that must come quickly
-      mex = logconn->GetPhyConnection()->BuildMessage(FALSE, FALSE);
-
-   }
-   else {
-      // Now we get the message from the queue, with the timeouts needed
-      // Note that the physical connection know about streamids, NOT logconnids !!
-      mex = logconn->GetPhyConnection()->ReadMessage(logconn->Streamid());
-   }
+   // Now we get the message from the queue, with the timeouts needed
+   // Note that the physical connection know about streamids, NOT logconnids !!
+   mex = logconn->GetPhyConnection()->ReadMessage(logconn->Streamid());
 
    // Return the message unmarshalled to ClientServerCmd
    return mex;
@@ -409,7 +393,7 @@ XrdClientMessage *XrdClientConnectionMgr::ReadMsg(short int LogConnectionID)
 
 //_____________________________________________________________________________
 int XrdClientConnectionMgr::WriteRaw(short int LogConnectionID, const void *buffer, 
-                               int BufferLength) {
+				     int BufferLength, int substreamid) {
    // Write BufferLength bytes into the logical connection LogConnectionID
 
    XrdClientLogConnection *logconn;
@@ -417,7 +401,7 @@ int XrdClientConnectionMgr::WriteRaw(short int LogConnectionID, const void *buff
    logconn = GetConnection(LogConnectionID);
 
    if (logconn) {
-      return logconn->WriteRaw(buffer, BufferLength);
+       return logconn->WriteRaw(buffer, BufferLength, substreamid);
    }
    else {
       Error("WriteRaw", "There's not a logical connection with id " <<

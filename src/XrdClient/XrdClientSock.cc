@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientSock                                                     //
+// XrdClientSock                                                        //
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -33,282 +33,304 @@ const char *XrdClientSockCVSID = "$Id$";
 //_____________________________________________________________________________
 XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize)
 {
-   // Constructor
+    // Constructor
 
-   fHost.TcpHost = Host;
-   fHost.TcpWindowSize = windowsize;
-   fConnected = FALSE;
-   fInterrupt = FALSE;
-   fSocket = -1;
+    fHost.TcpHost = Host;
+    fHost.TcpWindowSize = windowsize;
+    fConnected = FALSE;
+    fInterrupt = FALSE;
+    fSocket = -1;
 }
 
 //_____________________________________________________________________________
 XrdClientSock::~XrdClientSock()
 {
-   // Destructor
-   Disconnect();
+    // Destructor
+    Disconnect();
 }
 
 //_____________________________________________________________________________
 void XrdClientSock::Disconnect()
 {
-   // Close the connection
+    // Close the connection
 
-   if (fConnected && fSocket >= 0) {
-      ::close(fSocket);
-      fConnected = FALSE;
-      fSocket = -1;
-   }
+    if (fConnected && fSocket >= 0) {
+	::close(fSocket);
+	fConnected = FALSE;
+	fSocket = -1;
+    }
 }
 
 //_____________________________________________________________________________
-int XrdClientSock::RecvRaw(void* buffer, int length)
+int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
+			   int *usedsubstreamid)
 {
-   // Read bytes following carefully the timeout rules
-   struct pollfd fds_r;
-   time_t starttime;
-   int bytesread = 0;
-   int pollRet;
+    // Read bytes following carefully the timeout rules
+    struct pollfd fds_r;
+    time_t starttime;
+    int bytesread = 0;
+    int pollRet;
 
-   // We cycle reading data.
-   // An exit occurs if:
-   // We have all the data we are waiting for
-   // Or a timeout occurs
-   // The connection is closed by the other peer
+    // We cycle reading data.
+    // An exit occurs if:
+    // We have all the data we are waiting for
+    // Or a timeout occurs
+    // The connection is closed by the other peer
 
-   // Init of the pollfd struct
-   if (fSocket < 0) {
-       Error("XrdClientSock::RecvRaw", "socket fd is " << fSocket);
-       return TXSOCK_ERR;
-   }
+    // Init of the pollfd struct
+    if (fSocket < 0) {
+	Error("XrdClientSock::RecvRaw", "socket fd is " << fSocket);
+	return TXSOCK_ERR;
+    }
 
-   fds_r.fd     = fSocket;
-//   fds_r.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL;
-   fds_r.events = POLLIN;
+    fds_r.fd     = fSocket;
+    //   fds_r.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL;
+    fds_r.events = POLLIN;
 
-   starttime = time(0);
+    starttime = time(0);
 
-   // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
-   fInterrupt = FALSE;
-   while (bytesread < length) {
+    // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
+    fInterrupt = FALSE;
+    while (bytesread < length) {
 
-      // We cycle on the poll, ignoring the possible interruptions
-      // We are waiting for something to come from the socket
-      do { 
+	// We cycle on the poll, ignoring the possible interruptions
+	// We are waiting for something to come from the socket
+	do { 
 
-         // If too much time has elapsed, then we return an error
-         if ((time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT)) {
+	    // If too much time has elapsed, then we return an error
+	    if ((time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT)) {
 
-            if (!EnvGetLong(NAME_GOASYNC) ||
-                (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)) //gEnv
-               Info(XrdClientDebug::kNODEBUG,
-		    "ClientSock::RecvRaw",
-		    "Request timed out "<< EnvGetLong(NAME_REQUESTTIMEOUT) << //gEnv
-		    "seconds reading " << length << " bytes" <<
-		    " from server " << fHost.TcpHost.Host <<
-		    ":" << fHost.TcpHost.Port);
+		Info(XrdClientDebug::kDUMPDEBUG,
+		     "ClientSock::RecvRaw",
+		     "Request timed out "<< EnvGetLong(NAME_REQUESTTIMEOUT) << //gEnv
+		     "seconds reading " << length << " bytes" <<
+		     " from server " << fHost.TcpHost.Host <<
+		     ":" << fHost.TcpHost.Port);
 
-	    return TXSOCK_ERR_TIMEOUT;
-         }
+		return TXSOCK_ERR_TIMEOUT;
+	    }
 
-         // Wait for some event from the socket
-	 pollRet = poll(&fds_r,
-			1,
-			1000 // 1 second as a step
-			);
+	    // Wait for some event from the socket
+	    pollRet = poll(&fds_r,
+			   1,
+			   1000 // 1 second as a step
+			   );
 
-	 if ((pollRet < 0) && (errno != EINTR)) return TXSOCK_ERR;
+	    if ((pollRet < 0) && (errno != EINTR)) return TXSOCK_ERR;
 
-      } while (pollRet <= 0 && !fInterrupt);
+	} while (pollRet <= 0 && !fInterrupt);
 
-      // If we are here, pollRet is > 0 why?
-      //  Because the timeout and the poll error are handled inside the previous loop
+	// If we are here, pollRet is > 0 why?
+	//  Because the timeout and the poll error are handled inside the previous loop
 
-      if (fSocket < 0) {
-         Error("XrdClientSock::RecvRaw", "since we entered RecvRaw, socket "
-	       "file descriptor has changed to " << fSocket);
-         return TXSOCK_ERR;
-      }
-
-      // If we have been interrupt, reset the inetrrupt and exit
-      if (fInterrupt) {
-         fInterrupt = FALSE;
-         Error("XrdClientSock::RecvRaw", "got interrupt");
-         return TXSOCK_ERR_INTERRUPT;
-      }
-
-      // First of all, we check if there is something to read
-      if (fds_r.revents & (POLLIN | POLLPRI)) {
-         int n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
-                        length - bytesread, 0);
-
-	 // If we read nothing, the connection has been closed by the other side
-	 if (n <= 0) {
-	    Error("XrdClientSock::RecvRaw", "Error reading from socket: " <<
-	       ::strerror(errno));
+	if (fSocket < 0) {
+	    Error("XrdClientSock::RecvRaw", "since we entered RecvRaw, socket "
+		  "file descriptor has changed to " << fSocket);
 	    return TXSOCK_ERR;
-	 }
+	}
 
-	 bytesread += n;
-      }
+	// If we have been interrupt, reset the inetrrupt and exit
+	if (fInterrupt) {
+	    fInterrupt = FALSE;
+	    Error("XrdClientSock::RecvRaw", "got interrupt");
+	    return TXSOCK_ERR_INTERRUPT;
+	}
 
-      // Then we check if poll reports a complaint from the socket like disconnections
-      if (fds_r.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+	// First of all, we check if there is something to read
+	if (fds_r.revents & (POLLIN | POLLPRI)) {
+	    int n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
+			   length - bytesread, 0);
+
+	    // If we read nothing, the connection has been closed by the other side
+	    if (n <= 0) {
+		Error("XrdClientSock::RecvRaw", "Error reading from socket: " <<
+		      ::strerror(errno));
+		return TXSOCK_ERR;
+	    }
+
+	    bytesread += n;
+	}
+
+	// Then we check if poll reports a complaint from the socket like disconnections
+	if (fds_r.revents & (POLLERR | POLLHUP | POLLNVAL)) {
 	 
-	 Error( "ClientSock::RecvRaw",
-		"Disconnection detected reading " << length <<
-                " bytes from socket " << fds_r.fd <<
-                " (server[" << fHost.TcpHost.Host <<
-                ":" << fHost.TcpHost.Port <<
-		"]). Revents=" << fds_r.revents );
-	 return TXSOCK_ERR;
-      }
+	    Error( "ClientSock::RecvRaw",
+		   "Disconnection detected reading " << length <<
+		   " bytes from socket " << fds_r.fd <<
+		   " (server[" << fHost.TcpHost.Host <<
+		   ":" << fHost.TcpHost.Port <<
+		   "]). Revents=" << fds_r.revents );
+	    return TXSOCK_ERR;
+	}
 
-   } // while
+    } // while
 
-   // Return number of bytes received
-   return bytesread;
+    // Return number of bytes received
+    return bytesread;
 }
 
 //_____________________________________________________________________________
-int XrdClientSock::SendRaw(const void* buffer, int length)
-{
-   // Write bytes following carefully the timeout rules
-   // (writes will not hang)
-   struct pollfd fds_w;
-   time_t starttime;
-   int byteswritten = 0;
-   int pollRet;
+int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock) {
+    // Write bytes following carefully the timeout rules
+    // (writes will not hang)
 
-   // Init of the pollfd structs. If fSocket is not valid... we can do this anyway
-   fds_w.fd     = fSocket;
-   fds_w.events = POLLOUT | POLLERR | POLLHUP | POLLNVAL;
+    struct pollfd fds_w;
+    time_t starttime;
+    int byteswritten = 0;
+    int pollRet;
 
-   // We cycle until we write all we have to write
-   // Or until a timeout occurs
+    // Init of the pollfd structs. If sock is not valid... we can do this anyway
+    fds_w.fd     = sock;
 
-   starttime = time(0);
+    fds_w.events = POLLOUT | POLLERR | POLLHUP | POLLNVAL;
 
-   // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
-   fInterrupt = FALSE;
-   while (byteswritten < length) {
+    // We cycle until we write all we have to write
+    // Or until a timeout occurs
 
-      do {
-         // If too much time has elapsed, then we return an error
-         if ( (time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT) ) { //gEnv
-	    Error( "ClientSock::SendRaw",
-		   "Request timed out "<< EnvGetLong(NAME_REQUESTTIMEOUT) << //gEnv
-		   "seconds writing " << length << " bytes" <<
-		   " to server " << fHost.TcpHost.Host <<
-		   ":" << fHost.TcpHost.Port);
+    starttime = time(0);
 
-	    return TXSOCK_ERR_TIMEOUT;
-         }
+    // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
+    fInterrupt = FALSE;
+    while (byteswritten < length) {
 
-	 // Wait for some event from the socket
-	 pollRet = poll(&fds_w,
-			1,
-			1000 // 1 second as a step
-			);
+	do {
+	    // If too much time has elapsed, then we return an error
+	    if ( (time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT) ) { //gEnv
+		Error( "ClientSock::SendRaw_sock",
+		       "Request timed out "<< EnvGetLong(NAME_REQUESTTIMEOUT) << //gEnv
+		       "seconds writing " << length << " bytes" <<
+		       " to server " << fHost.TcpHost.Host <<
+		       ":" << fHost.TcpHost.Port);
 
-	 if ((pollRet < 0) && (errno != EINTR)) return TXSOCK_ERR;
+		return TXSOCK_ERR_TIMEOUT;
+	    }
 
-      } while (pollRet <= 0 && !fInterrupt);
+	    // Wait for some event from the socket
+	    pollRet = poll(&fds_w,
+			   1,
+			   1000 // 1 second as a step
+			   );
 
-      // If we have been interrupt, reset the inetrrupt and exit
-      if (fInterrupt) {
-         fInterrupt = FALSE;
-         Error("XrdClientSock::SendRaw", "got interrupt");
-         return TXSOCK_ERR_INTERRUPT;
-      }
+	    if ((pollRet < 0) && (errno != EINTR)) return TXSOCK_ERR;
 
-      // If we are here, pollRet is > 0 why?
-      //  Because the timeout and the poll error are handled inside the previous loop
+	} while (pollRet <= 0 && !fInterrupt);
 
-      // First of all, we check if we are allowed to write
-      if (fds_w.revents & POLLOUT) {
-	 int n = send(fSocket, static_cast<const char *>(buffer) + byteswritten,
-		       length - byteswritten, 0);
+	// If we have been interrupt, reset the inetrrupt and exit
+	if (fInterrupt) {
+	    fInterrupt = FALSE;
+	    Error("XrdClientSock::SendRaw_sock", "got interrupt");
+	    return TXSOCK_ERR_INTERRUPT;
+	}
 
-	 // If we wrote nothing, the connection has been closed by the other
-	 if (n <= 0) {
-	    Error("ClientSock::SendRaw", "Error writing to a socket: " <<
-	    	::strerror(errno));
-	    return (TXSOCK_ERR);
-	 }
+	// If we are here, pollRet is > 0 why?
+	//  Because the timeout and the poll error are handled inside the previous loop
 
-	 byteswritten += n;
-      }
+	// First of all, we check if we are allowed to write
+	if (fds_w.revents & POLLOUT) {
+	    int n = send(sock, static_cast<const char *>(buffer) + byteswritten,
+			 length - byteswritten, 0);
 
-      // Then we check if poll reports a complaint from the socket like disconnections
-      if (fds_w.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+	    // If we wrote nothing, the connection has been closed by the other
+	    if (n <= 0) {
+		Error("ClientSock::SendRaw_sock", "Error writing to a socket: " <<
+		      ::strerror(errno));
+		return (TXSOCK_ERR);
+	    }
 
-	 Error( "ClientSock::SendRaw",
-		"Disconnection detected writing " << length <<
-                " bytes to socket " << fds_w.fd <<
-                " (server[" << fHost.TcpHost.Host <<
-                ":" << fHost.TcpHost.Port <<
-		"]). Revents=" << fds_w.revents );
+	    byteswritten += n;
+	}
+
+	// Then we check if poll reports a complaint from the socket like disconnections
+	if (fds_w.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+
+	    Error( "ClientSock::SendRaw_sock",
+		   "Disconnection detected writing " << length <<
+		   " bytes to socket " << fds_w.fd <<
+		   " (server[" << fHost.TcpHost.Host <<
+		   ":" << fHost.TcpHost.Port <<
+		   "]). Revents=" << fds_w.revents );
 	 
-	 return TXSOCK_ERR;
-      }
+	    return TXSOCK_ERR;
+	}
 
-   } // while
+    } // while
 
-   // Return number of bytes sent
-   return byteswritten;
+    // Return number of bytes sent
+    return byteswritten;
+}
+
+//_____________________________________________________________________________
+int XrdClientSock::SendRaw(const void* buffer, int length, int substreamid)
+{
+    // Note: here substreamid is used as "alternative socket" instead of fSocket
+
+    if (substreamid > 0) 
+	return SendRaw_sock(buffer, length, substreamid);
+    else
+	return SendRaw_sock(buffer, length, fSocket);
+
 }
 
 //_____________________________________________________________________________
 void XrdClientSock::TryConnect(bool isUnix)
 {
-   // Already connected - we are done.
-   //
-   if (fConnected) {
+    // Already connected - we are done.
+    //
+    if (fConnected) {
    	assert(fSocket >= 0);
 	return;
-   }
+    }
 
-   std::auto_ptr<XrdNetSocket> s(new XrdNetSocket());
+    fSocket = TryConnect_low(isUnix);
+}
 
-   // Log the attempt
-   //
-   if (!isUnix) {
-      Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
-           "Trying to connect to" <<
-           fHost.TcpHost.Host << "(" << fHost.TcpHost.HostAddr << "):" <<
-           fHost.TcpHost.Port << " Timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
+//_____________________________________________________________________________
+int XrdClientSock::TryConnect_low(bool isUnix)
+{
+    int sock = -1;
 
-      // Connect to a remote host
-      //
-      fSocket = s->Open(fHost.TcpHost.HostAddr.c_str(),
-                        fHost.TcpHost.Port, EnvGetLong(NAME_CONNECTTIMEOUT));
-   } else {
-      Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
-           "Trying to UNIX connect to" << fHost.TcpHost.File <<
-           "; timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
+    std::auto_ptr<XrdNetSocket> s(new XrdNetSocket());
 
-      // Connect to a remote host
-      //
-      fSocket = s->Open(fHost.TcpHost.File.c_str(), -1, EnvGetLong(NAME_CONNECTTIMEOUT));
-   }
+    // Log the attempt
+    //
+    if (!isUnix) {
+	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low",
+	     "Trying to connect to" <<
+	     fHost.TcpHost.Host << "(" << fHost.TcpHost.HostAddr << "):" <<
+	     fHost.TcpHost.Port << " Timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
 
-   // Check if we really got a connection and the remote host is available
-   //
-   if (fSocket < 0)  {
-      if (isUnix) {
-         Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Connection to" <<
-           fHost.TcpHost.File << " failed. (" << fSocket << ")");
-      } else {
-         Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Connection to" <<
-           fHost.TcpHost.Host << ":" << fHost.TcpHost.Port << " failed. (" << fSocket << ")");
-      }
-   } else {
-      fConnected = TRUE;
-      int detachedFD = s->Detach();
-      if (fSocket != detachedFD) {
-         Error("ClientSock::TryConnect",
-               "Socket detach returned " << detachedFD << " but expected " << fSocket);
-      }
-   }
+	// Connect to a remote host
+	//
+	sock = s->Open(fHost.TcpHost.HostAddr.c_str(),
+		       fHost.TcpHost.Port, EnvGetLong(NAME_CONNECTTIMEOUT));
+    } else {
+	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
+	     "Trying to UNIX connect to" << fHost.TcpHost.File <<
+	     "; timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
+
+	// Connect to a remote host
+	//
+	sock = s->Open(fHost.TcpHost.File.c_str(), -1, EnvGetLong(NAME_CONNECTTIMEOUT));
+    }
+
+    // Check if we really got a connection and the remote host is available
+    //
+    if (sock < 0)  {
+	if (isUnix) {
+	    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Connection to" <<
+		 fHost.TcpHost.File << " failed. (" << sock << ")");
+	} else {
+	    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Connection to" <<
+		 fHost.TcpHost.Host << ":" << fHost.TcpHost.Port << " failed. (" << sock << ")");
+	}
+    } else {
+	fConnected = TRUE;
+	int detachedFD = s->Detach();
+	if (sock != detachedFD) {
+	    Error("ClientSock::TryConnect",
+		  "Socket detach returned " << detachedFD << " but expected " << sock);
+	}
+    }
+
+    return sock;
 }

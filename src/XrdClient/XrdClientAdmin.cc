@@ -209,8 +209,8 @@ bool XrdClientAdmin::Connect() {
    // Variable initialization
    // If the server is a new xrootd ( load balancer or data server)
    //
-   if ((fConnModule->GetServerType() != XrdClientConn::kSTRootd) && 
-       (fConnModule->GetServerType() != XrdClientConn::kSTNone)) {
+   if ((fConnModule->GetServerType() != kSTRootd) && 
+       (fConnModule->GetServerType() != kSTNone)) {
       // Now we are connected to a server that didn't redirect us after the 
       // login/auth phase
 
@@ -220,7 +220,7 @@ bool XrdClientAdmin::Connect() {
    } else {
       // We close the connection only if we do not know the server type.
       // In the rootd case the connection may be re-used later.
-      if (fConnModule->GetServerType() == XrdClientConn::kSTNone)
+      if (fConnModule->GetServerType() == kSTNone)
 	 fConnModule->Disconnect(TRUE);
 
       return FALSE;

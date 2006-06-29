@@ -62,6 +62,7 @@ struct XrdClientStatInfo {
 
 class XrdClient : public XrdClientAbs {
     friend void *FileOpenerThread(void*, XrdClientThread*);
+    
 
 private:
 

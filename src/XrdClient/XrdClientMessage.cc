@@ -129,12 +129,14 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
 
    int readres;
    int readLen = sizeof(ServerResponseHeader);
+   int usedsubstreamid = 0;
 
    Info(XrdClientDebug::kDUMPDEBUG,
 	"XrdClientMessage::ReadRaw",
-	"Reading header (" << readLen << " bytes) from socket.");
+	"Reading header (" << readLen << " bytes).");
   
-   readres = phy->ReadRaw((void *)&fHdr, readLen);
+   // Read a header from any substream and report it
+   readres = phy->ReadRaw((void *)&fHdr, readLen, -1, &usedsubstreamid);
 
    if (readres < 0) {
 
@@ -154,18 +156,22 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
    Unmarshall();
 
    Info(XrdClientDebug::kDUMPDEBUG,
-        "XrdClientMessage::ReadRaw"," sid: "<<HeaderSID()<<", IsAttn: "<<IsAttn());
+        "XrdClientMessage::ReadRaw"," sid: "<<HeaderSID() <<
+	", IsAttn: " << IsAttn() <<
+	", substreamid: " << usedsubstreamid);
 
    if (fHdr.dlen) {
 
       Info(XrdClientDebug::kDUMPDEBUG,
 	   "XrdClientMessage::ReadRaw",
-	   "Reading data (" << fHdr.dlen << " bytes) from socket.");
+	   "Reading data (" << fHdr.dlen << " bytes) from substream " << usedsubstreamid);
 
       CreateData();
-      if (phy->ReadRaw(fData, fHdr.dlen) < 0) {
+      if (phy->ReadRaw(fData, fHdr.dlen, usedsubstreamid) < 0) {
+
          Error("XrdClientMessage::ReadRaw",
-               "Error reading data (" << fHdr.dlen << " bytes)");
+               "Error reading data (" << fHdr.dlen << " bytes) from substream " << usedsubstreamid);
+
          free( DonateData() );
 
          SetStatusCode(kXrdMSC_readerr);

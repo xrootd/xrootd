@@ -260,8 +260,9 @@ void XrdClientConn::Disconnect(bool ForcePhysicalDisc)
 
 //_____________________________________________________________________________
 XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void *reqMoreData,
-                                      void **answMoreDataAllocated,
-                                      void *answMoreData, bool HasToAlloc) 
+						 void **answMoreDataAllocated,
+						 void *answMoreData, bool HasToAlloc,
+						 int substreamid) 
 {
    // ClientServerCmd tries to send a command to the server and to get a response.
    // Here the kXR_redirect is handled, as well as other things.
@@ -316,7 +317,7 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
       // same as before, not valid anymore
       SetSID(req->header.streamid);
 
-      errorType = WriteToServer(req, reqMoreData, fLogConnID);
+      errorType = WriteToServer(req, reqMoreData, fLogConnID, substreamid);
       
       // Read from server the answer
       // Note that the answer can be composed by many reads, in the case that
@@ -380,9 +381,11 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
 
 //_____________________________________________________________________________
 bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
-				 void **answMoreDataAllocated, 
-                                 void *answMoreData, bool HasToAlloc,
-                                 char *CmdName) {
+				   void **answMoreDataAllocated, 
+				   void *answMoreData, bool HasToAlloc,
+				   char *CmdName,
+				   int substreamid) {
+
    // SendGenCommand tries to send a single command for a number of times 
 
    short retry = 0;
@@ -406,8 +409,9 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 
 
       XrdClientMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
-                                              answMoreDataAllocated, 
-                                              answMoreData, HasToAlloc);
+						     answMoreDataAllocated, 
+						     answMoreData, HasToAlloc,
+						     substreamid);
 
       // Save server response header if requested
       if (cmdrespMex)
@@ -693,8 +697,9 @@ void XrdClientConn::SetSID(kXR_char *sid) {
 
 //_____________________________________________________________________________
 XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req, 
-				       const void* reqMoreData, short LogConnID) 
-{
+					   const void* reqMoreData,
+					   short LogConnID,
+					   int substreamid) {
    // Send message to server
    ClientRequest req_netfmt = *req;
 
@@ -713,7 +718,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
 
       short len = sizeof(req->header);
 
-      int writeres = ConnectionManager->WriteRaw(LogConnID, &req_netfmt, len);
+      int writeres = ConnectionManager->WriteRaw(LogConnID, &req_netfmt, len, substreamid);
       fLastDataBytesSent = req->header.dlen;
   
       // A complete communication failure has to be handled later, but we
@@ -734,7 +739,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
          // Now we write the data associated to the request. Through the
          //  connection manager
          writeres = ConnectionManager->WriteRaw(LogConnID, reqMoreData,
-                                                  req->header.dlen);
+						req->header.dlen, substreamid);
     
          // A complete communication failure has to be handled later, but we
          //  don't have to abort what we are doing
@@ -1024,10 +1029,7 @@ bool XrdClientConn::GetAccessToSrv()
 
    XrdClientLogConnection *logconn = ConnectionManager->GetConnection(fLogConnID);
 
-   // Now we are connected and we ask for the kind of the server
-   //ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->LockChannel();
-   SetServerType(DoHandShake(fLogConnID));
-   //ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()->UnlockChannel();
+   DoHandShake(fLogConnID);
 
    switch (GetServerType()) {
    case kSTError:
@@ -1040,7 +1042,7 @@ bool XrdClientConn::GetAccessToSrv()
 
       return FALSE;
 
-   case XrdClientConn::kSTNone: 
+   case kSTNone: 
       Info(XrdClientDebug::kNODEBUG,
 	   "GetAccessToSrv", "The server on [" <<
 	   fUrl.Host << ":" << fUrl.Port << "] is unknown");
@@ -1049,7 +1051,7 @@ bool XrdClientConn::GetAccessToSrv()
 
       return FALSE;
 
-   case XrdClientConn::kSTRootd: 
+   case kSTRootd: 
 
       if (EnvGetLong(NAME_KEEPSOCKOPENIFNOTXRD) == 1) {
          Info(XrdClientDebug::kHIDEBUG,
@@ -1074,7 +1076,7 @@ bool XrdClientConn::GetAccessToSrv()
 	 return FALSE;
       }
 
-   case XrdClientConn::kSTBaseXrootd: 
+   case kSTBaseXrootd: 
 
       Info(XrdClientDebug::kHIDEBUG,
 	   "GetAccessToSrv", 
@@ -1082,10 +1084,10 @@ bool XrdClientConn::GetAccessToSrv()
 	   fUrl.Host << ":" << fUrl.Port << "] is an xrootd redirector.");
       
       logconn->GetPhyConnection()->SetTTL(DLBD_TTL);
-      logconn->GetPhyConnection()->fServerType = kBase;
+
       break;
 
-   case XrdClientConn::kSTDataXrootd: 
+   case kSTDataXrootd: 
 
       Info( XrdClientDebug::kHIDEBUG,
 	    "GetAccessToSrv", 
@@ -1093,12 +1095,12 @@ bool XrdClientConn::GetAccessToSrv()
 	    fUrl.Host << ":" << fUrl.Port << "] is an xrootd data server.");
 
       logconn->GetPhyConnection()->SetTTL(DATA_TTL);        // = DATA_TTL;
-      logconn->GetPhyConnection()->fServerType = kData;
+
       break;
    }
 
    // Execute a login if connected to a xrootd server
-   if (GetServerType() != XrdClientConn::kSTRootd) {
+   if (GetServerType() != kSTRootd) {
 
       // Start the reader thread in the phyconn, if needed
       logconn->GetPhyConnection()->StartReader();
@@ -1119,27 +1121,18 @@ bool XrdClientConn::GetAccessToSrv()
 }
 
 //_____________________________________________________________________________
-XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
-{
-   // Performs initial hand-shake with the server in order to understand which 
-   // kind of server is there at the other side and to make the server know who 
-   // we are (XrdNetFile instead of an old TNetFile)
-   struct ClientInitHandShake initHS;
+ERemoteServerType XrdClientConn::DoHandShake(short int log) {
+
    struct ServerInitHandShake xbody;
-   ServerResponseType type;
+   ERemoteServerType type;
 
-   int writeres, readres, len;
-  
-   // Set field in network byte order
-   memset(&initHS, 0, sizeof(initHS));
-   initHS.fourth = (kXR_int32)htonl(4);
-   initHS.fifth  = (kXR_int32)htonl(2012);
-
-   // Attach to physical connection
+   // Get the physical connection
    XrdClientPhyConnection *phyconn =
       ConnectionManager->GetConnection(log)->GetPhyConnection();
 
-   if (phyconn && phyconn->fServerType == kBase) {
+   if (!phyconn) return kSTError;
+
+   if (phyconn->fServerType == kSTBaseXrootd) {
 
       Info(XrdClientDebug::kHIDEBUG,
 	   "DoHandShake",
@@ -1163,7 +1156,9 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
       }
       return kSTBaseXrootd;
    }
-   if (phyconn && phyconn->fServerType == kData) {
+
+
+   if (phyconn->fServerType == kSTDataXrootd) {
 
       if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
          Info(XrdClientDebug::kHIDEBUG,
@@ -1174,116 +1169,32 @@ XrdClientConn::ServerType XrdClientConn::DoHandShake(short int log)
       return kSTDataXrootd;
    }
 
-   // Send to the server the initial hand-shaking message asking for the 
-   // kind of server
-   len = sizeof(initHS);
 
-   Info(XrdClientDebug::kHIDEBUG,
-	"DoHandShake",
-	"HandShake step 1: Sending " << len << " bytes to the server [" <<
-	    fUrl.Host << ":" << fUrl.Port << "]");
-
-   writeres = ConnectionManager->WriteRaw(log, &initHS, len);
-
-   if (writeres < 0) {
-      Error("DoHandShake", "Error sending " << len <<
-	    " bytes to the server  [" <<
-	    fUrl.Host << ":" << fUrl.Port << "]");
-
-      return kSTError;
-   }
-
-   // Read from server the first 4 bytes
-   len = sizeof(type);
-
-   Info(XrdClientDebug::kHIDEBUG,
-	"DoHandShake",
-	"HandShake step 2: Reading " << len <<
-	" bytes from server [" <<
-	fUrl.Host << ":" << fUrl.Port << "].");
- 
-   //
-   // Read returns the return value of TSocket->RecvRaw... that returns the 
-   // return value of recv (unix low level syscall)
-   //
-   readres = ConnectionManager->ReadRaw(log, &type, 
-					len); // Reads 4(2+2) bytes
-               
-   if (readres < 0) {
-      Error("DoHandShake", "Error reading " << len <<
-	    " bytes from server [" <<
-	    fUrl.Host << ":" << fUrl.Port << "].");
-
-      return kSTError;
-   }
-
-   // to host byte order
-   type = ntohl(type);
+   type = phyconn->DoHandShake(xbody);
 
    // Check if the server is the eXtended rootd or not, checking the value 
    // of type
-   if (type == 0) { // ok, eXtended!
-      len = sizeof(xbody);
+   fServerProto = xbody.protover;
 
-      Info(XrdClientDebug::kHIDEBUG,
-	   "DoHandShake",
-	   "HandShake step 3: Reading " << len << 
-	   " bytes from server [" <<
-	   fUrl.Host << ":" << fUrl.Port << "].");
+   if (type == kSTBaseXrootd) {
+       // This is a load balancing server
+       if (!fLBSUrl || (fLBSUrl->Host == "")) {
 
-      readres = ConnectionManager->ReadRaw(log, &xbody, 
-					   len); // Read 12(4+4+4) bytes
+	   Info(XrdClientDebug::kHIDEBUG, "DoHandShake", "Setting Load Balancer Server Url = " <<
+		fUrl.GetUrl() );
 
-      if (readres < 0) {
-         Error("DoHandShake", "Error reading " << len << 
-	       " bytes from server [" <<
-	       fUrl.Host << ":" << fUrl.Port << "].");
-
-         return kSTError;
-      }
-
-      ServerInitHandShake2HostFmt(&xbody);
-
-      fServerProto = xbody.protover;
-      Info(XrdClientDebug::kHIDEBUG,
-	   "DoHandShake",
-	   "Server protocol version is " << fServerProto);
-
-      // check if the eXtended rootd is a data server
-      switch (xbody.msgval) {
-      case kXR_DataServer:
-         // This is a data server
-         return kSTDataXrootd;
-
-      case kXR_LBalServer:
-         // This is a load balancing server
-         if (!fLBSUrl || (fLBSUrl->Host == "")) {
-
-	    Info(XrdClientDebug::kHIDEBUG, "DoHandShake", "Setting Load Balancer Server Url = " <<
-		 fUrl.GetUrl() );
-
-            // Save the url of load balancer server for future uses...
-            fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
-            if (!fLBSUrl) {
-               Error("DoHandShake","Object creation failed.");
-               abort();
-            }
-         }
-         return XrdClientConn::kSTBaseXrootd;
-
-      default:
-         // Unknown server type
-         return kSTNone;
-      }
-   } else {
-      // We are here if it wasn't an XRootd
-      // and we need to complete the reading
-      if (type == 8)
-         return kSTRootd;
-      else 
-         // We dunno the server type
-         return kSTNone;
+	   // Save the url of load balancer server for future uses...
+	   fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
+	   if (!fLBSUrl) {
+	       Error("DoHandShake","Object creation failed.");
+	       abort();
+	   }
+       }
+       
    }
+
+   return type;
+
 }
 
 //_____________________________________________________________________________
@@ -2059,7 +1970,8 @@ void                       SubmitPlaceholderToCache(long long begin_offs,
 
 //___________________________________________________________________________
 XReqErrorType XrdClientConn::WriteToServer_Async(ClientRequest *req,
-						 const void* reqMoreData) {
+						 const void* reqMoreData,
+						 int substreamid) {
 
 
    // We allocate a new child streamid, linked to this req
@@ -2071,7 +1983,7 @@ XReqErrorType XrdClientConn::WriteToServer_Async(ClientRequest *req,
       return kNOMORESTREAMS;
 
    // Send the req to the server
-   return WriteToServer(req, reqMoreData, fLogConnID);
+   return WriteToServer(req, reqMoreData, fLogConnID, substreamid);
 
 }
 

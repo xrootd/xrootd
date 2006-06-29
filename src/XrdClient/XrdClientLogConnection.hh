@@ -46,7 +46,7 @@ public:
       fPhyConnection = PhyConn;
    }
 
-   int                               WriteRaw(const void *buffer, int BufferLength);
+    int                               WriteRaw(const void *buffer, int BufferLength, int substreamid);
 
    inline kXR_unt16                  Streamid() {
       return fStreamid;

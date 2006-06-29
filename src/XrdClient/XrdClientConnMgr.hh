@@ -72,7 +72,7 @@ public:
 
    int           ReadRaw(short LogConnectionID, void *buffer, int BufferLength);
    int           WriteRaw(short LogConnectionID, const void *buffer, 
-                          int BufferLength);
+                          int BufferLength, int substreamid);
 
 };
 

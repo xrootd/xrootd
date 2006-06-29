@@ -67,7 +67,7 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
    fReaderCV(0) {
 
    // Constructor
-   fServerType = kUnknown;
+   fServerType = kSTNone;
 
    Touch();
 
@@ -125,7 +125,11 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
       Info(XrdClientDebug::kHIDEBUG,
       "Connect", "Connecting to [" << RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
    } 
-   fSocket = new XrdClientSock(RemoteHost);
+
+   if (EnvGetLong(NAME_MULTISTREAMCNT))
+       fSocket = new XrdClientPSock(RemoteHost);
+   else
+       fSocket = new XrdClientSock(RemoteHost);
 
    if(!fSocket) {
       Error("Connect","Unable to create a client socket. Aborting.");
@@ -176,7 +180,7 @@ void XrdClientPhyConnection::StartReader() {
    // Parametric asynchronous stuff.
    // If we are going Sync, then nothing has to be done,
    // otherwise the reader thread must be started
-   if ( !running && EnvGetLong(NAME_GOASYNC) ) {
+   if ( !running ) {
 
       Info(XrdClientDebug::kHIDEBUG,
 	   "StartReader", "Starting reader thread...");
@@ -256,7 +260,7 @@ bool XrdClientPhyConnection::CheckAutoTerm() {
 
    // Parametric asynchronous stuff
    // If we are going async, we might be willing to term ourself
-   if (!IsValid() && EnvGetLong(NAME_GOASYNC)) {
+   if ( !IsValid() ) {
 
          Info(XrdClientDebug::kHIDEBUG,
               "CheckAutoTerm", "Self-Cancelling reader thread.");
@@ -299,7 +303,8 @@ void XrdClientPhyConnection::Touch()
 }
 
 //____________________________________________________________________________
-int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
+int XrdClientPhyConnection::ReadRaw(void *buf, int len, int substreamid,
+			   int *usedsubstreamid) {
    // Receive 'len' bytes from the connected server and store them in 'buf'.
    // Return 0 if OK. 
 
@@ -315,7 +320,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len) {
 	   "Reading from " <<
 	   fServer.Host << ":" << fServer.Port);
 
-      res = fSocket->RecvRaw(buf, len);
+      res = fSocket->RecvRaw(buf, len, substreamid, usedsubstreamid);
 
       if ((res < 0) && (res != TXSOCK_ERR_TIMEOUT) && errno ) {
 	 //strerror_r(errno, errbuf, sizeof(buf));
@@ -551,10 +556,11 @@ UnsolRespProcResult XrdClientPhyConnection::HandleUnsolicited(XrdClientMessage *
 }
 
 //____________________________________________________________________________
-int XrdClientPhyConnection::WriteRaw(const void *buf, int len)
-{
-   // Send 'len' bytes located at 'buf' to the connected server.
-   // Return number of bytes sent. 
+int XrdClientPhyConnection::WriteRaw(const void *buf, int len, int substreamid) {
+    // Send 'len' bytes located at 'buf' to the connected server.
+    // Return number of bytes sent.
+    // usesubstreams tells if we have to select a substream to send the data through or
+    // the main stream is to be used
 
    int res;
 
@@ -567,7 +573,7 @@ int XrdClientPhyConnection::WriteRaw(const void *buf, int len)
 	   "Writing to" <<
 	   XrdClientDebug::kDUMPDEBUG);
     
-      res = fSocket->SendRaw(buf, len);
+      res = fSocket->SendRaw(buf, len, substreamid);
 
       if ((res < 0)  && (res != TXSOCK_ERR_TIMEOUT) && errno) {
 	 //strerror_r(errno, errbuf, sizeof(buf));
@@ -621,4 +627,116 @@ void XrdClientPhyConnection::UnlockChannel()
 {
    // Unlock
    fRwMutex.UnLock();
+}
+
+//_____________________________________________________________________________
+ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody,
+						      int substreamid)
+{
+   // Performs initial hand-shake with the server in order to understand which 
+   // kind of server is there at the other side and to make the server know who 
+   // we are
+   struct ClientInitHandShake initHS;
+   ServerResponseType type;
+   ERemoteServerType typeres = kSTNone;
+
+   int writeres, readres, len;
+
+   // Set field in network byte order
+   memset(&initHS, 0, sizeof(initHS));
+   initHS.fourth = (kXR_int32)htonl(4);
+   initHS.fifth  = (kXR_int32)htonl(2012);
+
+   // Send to the server the initial hand-shaking message asking for the 
+   // kind of server
+   len = sizeof(initHS);
+
+   Info(XrdClientDebug::kHIDEBUG,
+	"DoHandShake",
+	"HandShake step 1: Sending " << len << " bytes.");
+
+   writeres = WriteRaw(&initHS, len, substreamid);
+
+   if (writeres < 0) {
+      Error("DoHandShake", "Error sending " << len <<
+	    " bytes.");
+
+      return kSTError;
+   }
+
+   // Read from server the first 4 bytes
+   len = sizeof(type);
+
+   Info(XrdClientDebug::kHIDEBUG,
+	"DoHandShake",
+	"HandShake step 2: Reading " << len <<
+	" bytes.");
+ 
+   //
+   // Read returns the return value of TSocket->RecvRaw... that returns the 
+   // return value of recv (unix low level syscall)
+   //
+   readres = ReadRaw(&type, 
+		     len, substreamid); // Reads 4(2+2) bytes
+               
+   if (readres < 0) {
+      Error("DoHandShake", "Error reading " << len <<
+	    " bytes.");
+
+      return kSTError;
+   }
+
+   // to host byte order
+   type = ntohl(type);
+
+   // Check if the server is the eXtended rootd or not, checking the value 
+   // of type
+   if (type == 0) { // ok, eXtended!
+
+      len = sizeof(xbody);
+
+      Info(XrdClientDebug::kHIDEBUG,
+	   "DoHandShake",
+	   "HandShake step 3: Reading " << len << 
+	   " bytes.");
+
+      readres = ReadRaw(&xbody, len, substreamid); // Read 12(4+4+4) bytes
+
+      if (readres < 0) {
+         Error("DoHandShake", "Error reading " << len << 
+	       " bytes.");
+
+         return kSTError;
+      }
+
+      ServerInitHandShake2HostFmt(&xbody);
+
+      Info(XrdClientDebug::kHIDEBUG,
+	   "DoHandShake",
+	   "Server protocol: " << xbody.protover << " type: " << xbody.msgval);
+
+      // check if the eXtended rootd is a data server
+      switch (xbody.msgval) {
+
+      case kXR_DataServer:
+         // This is a data server
+         typeres = kSTDataXrootd;
+
+      case kXR_LBalServer:
+         typeres = kSTBaseXrootd;
+      }
+      
+   } else {
+
+      // We are here if it wasn't an XRootd
+      // and we need to complete the reading
+      if (type == 8)
+         typeres = kSTRootd;
+      else 
+         // We dunno the server type
+         typeres = kSTNone;
+   }
+
+   fServerType = typeres;
+   return typeres;
 }

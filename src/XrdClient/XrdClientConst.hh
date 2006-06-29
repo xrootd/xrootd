@@ -50,8 +50,10 @@
 #define DFLT_STARTGARBAGECOLLECTORTHREAD  1
 #define NAME_STARTGARBAGECOLLECTORTHREAD  (char *)"StartGarbageCollectorThread"
 
-#define DFLT_GOASYNC 1
-#define NAME_GOASYNC            (char *)"GoAsync"
+// the default number of parallel streams PER physical connection
+// 0 means that the multistream support is disabled
+#define DFLT_MULTISTREAMCNT     0
+#define NAME_MULTISTREAMCNT     (char *)"ParStreamsPerPhyConn"
 
 // keep/dont-keep the socket open (required by optimized rootd fallback)
 #define DFLT_KEEPSOCKOPENIFNOTXRD 0

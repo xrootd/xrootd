@@ -83,9 +83,6 @@ void XrdClientAbs::SetParm(const char *parm, int val)
    //                                  external causes someone could be
    //                                  interested in not having the garbage 
    //                                  collector thread around.
-   // XNet.GoAsynchronous   - Default is 0. When activated, TXNetFile 
-   //                                  works in async mode, allowing input 
-   //                                  buffering and unsolicited responses
    // XNet.TryConnect       - Number of tries connect to a single 
    //                                  server before giving up
    // XNet.TryConnectServersList

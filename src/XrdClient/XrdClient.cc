@@ -20,6 +20,7 @@
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientConnMgr.hh"
 #include "XrdClient/XrdClientSid.hh"
+#include "XrdClient/XrdClientMStream.hh"
 
 #include <stdio.h>
 #ifndef WIN32
@@ -299,8 +300,8 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
     // Variable initialization
     // If the server is a new xrootd ( load balancer or data server)
     //
-    if ((fConnModule->GetServerType() != XrdClientConn::kSTRootd) && 
-	(fConnModule->GetServerType() != XrdClientConn::kSTNone)) {
+    if ((fConnModule->GetServerType() != kSTRootd) && 
+	(fConnModule->GetServerType() != kSTNone)) {
 	// Now we are connected to a server that didn't redirect us after the 
 	// login/auth phase
 	// let's continue with the openfile sequence
@@ -327,10 +328,10 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
     } else {
 	// the server is an old rootd
-	if (fConnModule->GetServerType() == XrdClientConn::kSTRootd) {
+	if (fConnModule->GetServerType() == kSTRootd) {
 	    return FALSE;
 	}
-	if (fConnModule->GetServerType() == XrdClientConn::kSTNone) {
+	if (fConnModule->GetServerType() == kSTNone) {
 	    return FALSE;
 	}
     }
@@ -412,10 +413,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		     " offset=" << offset);
 
 		// Are we using read ahead?
-		if ( EnvGetLong(NAME_GOASYNC) &&
-		     // We read ahead only if the last byte we got is near (or over) to the last byte read
-		     // in advance. But not too much over.
-		     (fReadAheadLast - (offset+len) < rasize) &&
+		// We read ahead only if the last byte we got is near (or over) to the last byte read
+		// in advance. But not too much over.
+		if ( (fReadAheadLast - (offset+len) < rasize) &&
                      (fReadAheadLast - (offset+len) > -10*rasize) &&
 		     (rasize > 0) ) {
 
@@ -463,10 +463,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	
 	
 	    // Are we using read ahead?
-	    if ( EnvGetLong(NAME_GOASYNC) &&
-		 // We read ahead only if the last byte we got is near (or over) to the last byte read
-		 // in advance. But not too much over.
-		 (fReadAheadLast - (offset+len) < rasize) &&
+	    // We read ahead only if the last byte we got is near (or over) to the last byte read
+	    // in advance. But not too much over.
+	    if ( (fReadAheadLast - (offset+len) < rasize) &&
                  (fReadAheadLast - (offset+len) > -10*rasize) &&
 		 (rasize > 0) ) {
 
@@ -647,6 +646,10 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
     // First attempt to open a remote file
     bool lowopenRes = LowOpen(fUrl.File.c_str(), mode, options);
     if (lowopenRes) {
+
+	// And here we fire up the needed parallel streams
+	XrdClientMStream::EstablishParallelStreams(fConnModule);
+
 	TerminateOpenAttempt();
 	return TRUE;
     }
@@ -677,6 +680,10 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	if ( (fConnModule->GoToAnotherServer(*fConnModule->GetLBSUrl()) == kOK) &&
 	     LowOpen(fUrl.File.c_str(), mode, options | kXR_refresh,
 		     (char *)opinfo.c_str() ) ) {
+
+	    // And here we fire up the needed parallel streams
+	    XrdClientMStream::EstablishParallelStreams(fConnModule);
+
 	    TerminateOpenAttempt();
 	    return TRUE;
 	}
@@ -745,6 +752,7 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
     
     }
 
+
     return fOpenPars.opened;
 }
 
@@ -781,12 +789,6 @@ bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
     bool ok = fConnModule->SendGenCommand(&statFileRequest,
 					  (const char*)fUrl.File.c_str(),
 					  0, fStats , FALSE, (char *)"Stat");
-   
-
-
-
-
-
 
     if (ok && (fConnModule->LastServerResp.status == 0) ) {
 
@@ -1181,3 +1183,4 @@ bool XrdClient::UseCache(bool u)
   // Return the previous setting
   return r;
 }
+
