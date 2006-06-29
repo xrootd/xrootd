@@ -452,6 +452,11 @@ struct ServerResponseHeader {
    kXR_int32  dlen;
 };
 
+// Body for the kXR_bind response... useful
+struct ServerResponseBody_Bind {
+    kXR_unt16 substreamid;
+};
+
 // Body for the kXR_open response... useful
 struct ServerResponseBody_Open {
    kXR_char fhandle[4];
