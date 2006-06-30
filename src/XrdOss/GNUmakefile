@@ -86,7 +86,7 @@ $(OBJDIR)/XrdOssApi.o: XrdOss.hh XrdOssApi.hh XrdOssCache.hh XrdOssConfig.hh \
                        XrdOssMio.hh    XrdOssMioFile.hh \
                        XrdOucError.hh  XrdOucPList.hh    XrdOucPthread.hh \
                        XrdOucStream.hh XrdOucPlatform.hh XrdOssApi.cc \
-                       XrdOucName2Name.hh \
+                       XrdOucName2Name.hh XrdOucPlugin.hh \
                        ../XrdVersion.hh
 	@echo Compiling XrdOssApi.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssApi.o XrdOssApi.cc

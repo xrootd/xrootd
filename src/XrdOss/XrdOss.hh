@@ -17,32 +17,22 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-/******************************************************************************/
-/*                                X r d O s s                                 */
-/******************************************************************************/
-
 class XrdOucEnv;
 class XrdOucLogger;
 class XrdSfsAio;
-  
-class XrdOss
-{
-public:
-virtual int     Create(const char *, mode_t, XrdOucEnv &, int mkpath=0)=0;
-virtual int     Init(XrdOucLogger *, const char *)=0;
-virtual int     Mkdir(const char *, mode_t mode, int mkpath=0)=0;
-virtual int     Remdir(const char *)=0;
-virtual int     Rename(const char *, const char *)=0;
-virtual int     Stat(const char *, struct stat *, int resonly=0)=0;
-virtual int     Unlink(const char *)=0;
 
-                XrdOss() {}
-virtual        ~XrdOss() {}
-};
+#ifndef XrdOssOK
+#define XrdOssOK 0
+#endif
 
 /******************************************************************************/
 /*                              X r d O s s D F                               */
 /******************************************************************************/
+
+// This class defines the object that handles directory as well as file
+// oriented requests. It is instantiated for each file/dir to be opened.
+// The object is obtained by calling newDir(), newFile(), or newProxy()
+// in class XrdOss. This allows flexibility on how to structure an oss plugin.
   
 class XrdOssDF
 {
@@ -78,7 +68,47 @@ protected:
 int     fd;      // The associated file descriptor.
 };
 
-#ifndef XrdOssOK
-#define XrdOssOK 0
-#endif
+/******************************************************************************/
+/*                                X r d O s s                                 */
+/******************************************************************************/
+  
+class XrdOss
+{
+public:
+virtual XrdOssDF *newDir(const char *tident)=0;
+virtual XrdOssDF *newFile(const char *tident)=0;
+virtual XrdOssDF *newProxy(const char *tident, const char *host, int port)=0;
+
+virtual int     Chmod(const char *, mode_t mode)=0;
+virtual int     Create(const char *, mode_t, XrdOucEnv &, int mkpath=0)=0;
+virtual int     Init(XrdOucLogger *, const char *)=0;
+virtual int     Mkdir(const char *, mode_t mode, int mkpath=0)=0;
+virtual int     Remdir(const char *)=0;
+virtual int     Rename(const char *, const char *)=0;
+virtual int     Stat(const char *, struct stat *, int resonly=0)=0;
+virtual int     Unlink(const char *)=0;
+
+                XrdOss() {}
+virtual        ~XrdOss() {}
+};
+
+/******************************************************************************/
+/*           S t o r a g e   S y s t e m   I n s t a n t i a t o r            */
+/******************************************************************************/
+
+// This function is called to obtain an instance of a configured XrdOss object.
+// It is passed the object that would have been used as the storage system.
+// The object is not initialized (i.e., Init() has not yet been called).
+// This allows one to easily wrap the native implementation or to completely 
+// replace it, as needed. The name of the config file and any parameters
+// specified after the path on the ofs.osslib directive are also passed (note
+// that if no parameters exist, parms may be null).
+
+extern "C"
+{
+XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
+                               XrdOucLogger *Logger,
+                               const char   *config_fn,
+                               const char   *parms);
+}
 #endif

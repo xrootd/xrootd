@@ -19,6 +19,7 @@ const char *XrdOssProxyCVSID = "$Id$";
 
 #include "XrdOss/XrdOssProxy.hh"
 #include "XrdOss/XrdOssApi.hh"
+#include "XrdOss/XrdOssTrace.hh"
 
 /*****************************************************************************/
 /*                 E r r o r   R o u t i n g   O b j e c t                   */

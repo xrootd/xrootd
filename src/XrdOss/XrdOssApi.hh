@@ -19,6 +19,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
+#include "XrdOss/XrdOssProxy.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPList.hh"
@@ -61,14 +62,18 @@ class XrdOssFile : public XrdOssDF
 {
 public:
 
-int     Close();
+// The following two are virtual functions to allow for upcasting derivations
+// of this implementation
+//
+virtual int     Close();
+virtual int     Open(const char *, int, mode_t, XrdOucEnv &);
+
 int     Fstat(struct stat *);
 int     Fsync();
 int     Fsync(XrdSfsAio *aiop);
 int     Ftruncate(unsigned long long);
 off_t   getMmap(void **addr);
 int     isCompressed(char *cxidp=0);
-int     Open(const char *, int, mode_t, XrdOucEnv &);
 ssize_t Read(               off_t, size_t);
 ssize_t Read(       void *, off_t, size_t);
 int     Read(XrdSfsAio *aiop);
@@ -106,6 +111,13 @@ class XrdOucProg;
 class XrdOssSys : public XrdOss
 {
 public:
+virtual XrdOssDF *newDir(const char *tident)
+                       {return (XrdOssDF *)new XrdOssDir(tident);}
+virtual XrdOssDF *newFile(const char *tident)
+                       {return (XrdOssDF *)new XrdOssFile(tident);}
+virtual XrdOssDF *newProxy(const char *tident, const char *hostname, int port)
+                       {return (XrdOssDF *)new XrdOssProxy(hostname, port);}
+
 int       Chmod(const char *, mode_t mode);
 void     *CacheScan(void *carg);
 int       Configure(const char *, XrdOucError &);

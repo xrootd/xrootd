@@ -46,6 +46,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdOuc/XrdOucPlugin.hh"
 
 #ifdef XRDOSSCX
 #include "oocx_CXFile.h"
@@ -55,19 +56,62 @@ const char *XrdOssApiCVSID = "$Id$";
 /******************************************************************************/
 /*                  E r r o r   R o u t i n g   O b j e c t                   */
 /******************************************************************************/
+
+XrdOssSys   XrdOssSS;
   
 XrdOucError OssEroute(0, "oss_");
 
 XrdOucTrace OssTrace(&OssEroute);
 
+
 /******************************************************************************/
-/*                 S t o r a g e   S y s t e m   O b j e c t                  */
+/*           S t o r a g e   S y s t e m   I n s t a n t i a t o r            */
 /******************************************************************************/
-  
-XrdOssSys XrdOssSS;
 
 char      XrdOssSys::tryMmap = 0;
 char      XrdOssSys::chkMmap = 0;
+
+extern "C"
+{
+XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
+                               XrdOucLogger *Logger,
+                               const char   *config_fn,
+                               const char   *OssLib)
+{
+   XrdOucPlugin    *myLib;
+   XrdOss          *(*ep)(XrdOss *, XrdOucLogger *, const char *, const char *);
+   char *parms;
+
+// If no library has been specified, return the default object
+//
+   if (!OssLib)
+      return (XrdOssSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdOssSS);
+
+// Find the parms (ignore the constness of the variable)
+//
+   parms = (char *)OssLib;
+   while(*parms && *parms != ' ') parms++;
+   if (*parms) *parms++ = '\0';
+   while(*parms && *parms == ' ') parms++;
+   if (!*parms) parms = 0;
+
+// Create a pluin object (we will throw this away without deletion because
+// the library must stay open but we never want to reference it again).
+//
+   OssEroute.logger(Logger);
+   if (!(myLib = new XrdOucPlugin(&OssEroute, OssLib))) return 0;
+
+// Now get the entry point of the object creator
+//
+   ep = (XrdOss *(*)(XrdOss *, XrdOucLogger *, const char *, const char *))
+                    (myLib->getPlugin("XrdOssGetStorageSystem"));
+   if (!ep) return 0;
+
+// Get the Object now
+//
+   return ep((XrdOss *)&XrdOssSS, Logger, config_fn, parms);
+}
+}
 
 /******************************************************************************/
 /*                      o o s s _ S y s   M e t h o d s                       */
@@ -91,7 +135,7 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 // Do the herald thing
 //
    OssEroute.logger(lp);
-   OssEroute.Emsg("Init", "(c) 2005, Stanford University, oss Version "
+   OssEroute.Emsg("Init", "(c) 2006, Stanford University, oss Version "
                     XrdVSTRING);
 
 // Initialize the subsystems

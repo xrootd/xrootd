@@ -25,9 +25,9 @@
 #include <unistd.h>             // for size_t
 
 #include "XrdOss/XrdOss.hh"
-#include "XrdXr/XrdXrTrace.hh"
 #include "XrdXr/XrdXrClient.hh"
 
+class XrdXrClient;
 
 class  XrdOssProxy : public XrdOssDF
 {
