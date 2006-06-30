@@ -32,6 +32,8 @@ class XrdPosixXrootPath
 {
 public:
 
+void  CWD(const char *path);
+
 char *URL(const char *path, char *buff, int blen);
 
       XrdPosixXrootPath();
@@ -63,6 +65,8 @@ struct xpath
 
 struct xpath *xplist;
 char         *pBase;
+char         *cwdPath;
+int           cwdPlen;
 };
 
 /******************************************************************************/
@@ -76,6 +80,8 @@ XrdPosixXrootPath::XrdPosixXrootPath()
    XrdOucTokenizer thePaths(0);
    char *plist = 0, *colon = 0, *subs = 0, *lp = 0, *tp = 0;
    int aOK = 0;
+
+   cwdPath = 0; cwdPlen = 0;
 
    if (!(plist = getenv("XROOTD_VMP")) || !*plist) return;
    pBase = strdup(plist);
@@ -92,8 +98,9 @@ XrdPosixXrootPath::XrdPosixXrootPath()
           } else aOK = 0;
 
        if (aOK)
-          {*colon = '\0';
-           xplist = new xpath(xplist, tp, colon+1, subs);
+          {*colon++ = '\0';
+           while(*(colon+1) == '/') colon++;
+           xplist = new xpath(xplist, tp, colon, subs);
           } else cerr <<"XrdPosix: Invalid XROOTD_VMP token '" <<tp <<'"' <<endl;
       }
 }
@@ -111,6 +118,23 @@ XrdPosixXrootPath::~XrdPosixXrootPath()
 }
   
 /******************************************************************************/
+/*                     X r d P o s i x P a t h : : C W D                      */
+/******************************************************************************/
+  
+void XrdPosixXrootPath::CWD(const char *path)
+{
+   if (cwdPath) free(cwdPath);
+   cwdPlen = strlen(path);
+   if (*(path+cwdPlen-1) == '/') cwdPath = strdup(path);
+      else {char buff[2048];
+            strcpy(buff, path); 
+            *(buff+cwdPlen  ) = '/';
+            *(buff+cwdPlen+1) = '\0';
+            cwdPath = strdup(buff); cwdPlen++;
+           }
+}
+
+/******************************************************************************/
 /*                     X r d P o s i x P a t h : : U R L                      */
 /******************************************************************************/
   
@@ -121,7 +145,8 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
    const char   *xproto = "xroot://";
    const int     xprlen = strlen(xproto);
    struct xpath *xpnow = xplist;
-   int plen;
+   char tmpbuff[2048];
+   int plen, pathlen = 0;
 
 // If this starts with 'root", then this is our path
 //
@@ -134,6 +159,17 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
        if ((int(strlen(path))) > blen) return 0;
        strcpy(buff, path+1);
        return buff;
+      }
+
+// If a relative path was specified, convert it to an abso9lute path
+//
+   if (path[0] == '.' && path[1] == '/' && cwdPath)
+      {pathlen = (strlen(path) + cwdPlen - 2);
+       if (pathlen < (int)sizeof(tmpbuff))
+          {strcpy(tmpbuff, cwdPath);
+           strcpy(tmpbuff+cwdPlen, path+2);
+           path = (const char *)tmpbuff;
+          }  else return 0;
       }
 
 // Check if this path starts with one or our known paths
@@ -149,7 +185,8 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 
 // Verify that we won't overflow the buffer
 //
-   plen = xprlen | strlen(path) + xpnow->servln + 2;
+   if (!pathlen) pathlen = strlen(path);
+   plen = xprlen + pathlen + xpnow->servln + 2;
    if (xpnow->nath) plen =  plen - xpnow->plen + xpnow->nlen;
    if (plen >= blen) return 0;
 
@@ -174,6 +211,20 @@ static XrdPosixXrootPath XrootPath;
   
 extern XrdPosixLinkage   Xunix;
 
+/******************************************************************************/
+/*                        X r d P o s i x _ C h d i r                         */
+/******************************************************************************/
+
+int XrdPosix_Chdir(const char *path)
+{
+   int rc;
+
+// Set the working directory if the actual chdir succeeded
+//
+   if (!(rc = Xunix.Chdir(path))) XrootPath.CWD(path);
+   return rc;
+}
+  
 /******************************************************************************/
 /*                        X r d P o s i x _ C l o s e                         */
 /******************************************************************************/
@@ -229,6 +280,19 @@ off_t XrdPosix_Lseek(int fildes, off_t offset, int whence)
 //
    return (fildes < XrdPosixFD ? Xunix.Lseek(fildes, offset, whence)
                                : Xroot.Lseek(fildes, offset, whence));
+}
+
+/******************************************************************************/
+/*                    X r d P o s i x _ F d a t a s y n c                     */
+/******************************************************************************/
+  
+int XrdPosix_Fdatasync(int fildes)
+{
+
+// Return the result of the sync
+//
+   return (fildes < XrdPosixFD ? Xunix.Fdatasync(fildes)
+                               : Xroot.Fsync(fildes));
 }
 
 /******************************************************************************/

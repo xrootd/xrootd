@@ -61,6 +61,20 @@ int access(const char *path, int amode)
 }
 
 /******************************************************************************/
+/*                                 c h d i r                                  */
+/******************************************************************************/
+
+extern "C"
+{
+int     chdir(const char *path)
+{
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
+
+   return xinuX.Chdir(path);
+}
+}
+
+/******************************************************************************/
 /*                                 c l o s e                                  */
 /******************************************************************************/
 
@@ -113,6 +127,20 @@ int fclose(FILE *stream)
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
    return streamX.Fclose(stream);
+}
+}
+
+/******************************************************************************/
+/*                             f d a t a s y n c                              */
+/******************************************************************************/
+  
+extern "C"
+{
+int     fdatasync(int fildes)
+{
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
+
+   return (fildes >= XrdPosixFD) ? xinuX.Fsync(fildes):Xunix.Fdatasync(fildes);
 }
 }
 

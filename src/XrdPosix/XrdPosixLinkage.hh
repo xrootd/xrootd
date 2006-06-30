@@ -39,6 +39,10 @@
 #define Retv_Access int
 #define Args_Access const char *path, int amode
   
+#define Symb_Chdir UNIX_PFX "chdir"
+#define Retv_Chdir int
+#define Args_Chdir const char *path
+  
 #define Symb_Close UNIX_PFX "close"
 #define Retv_Close int
 #define Args_Close int
@@ -50,6 +54,10 @@
 #define Symb_Fclose UNIX_PFX "fclose"
 #define Retv_Fclose int
 #define Args_Fclose FILE *
+
+#define Symb_Fdatasync UNIX_PFX "fdatasync"
+#define Retv_Fdatasync int
+#define Args_Fdatasync int
 
 #define Symb_Fopen UNIX_PFX "fopen"
 #define Retv_Fopen FILE *
@@ -236,9 +244,11 @@ class XrdPosixLinkage
       int              Init(int *x) {return (Done ? 0 : Resolve());}
 
       Retv_Access      (*Access)(Args_Access);
+      Retv_Chdir       (*Chdir)(Args_Chdir);
       Retv_Close       (*Close)(Args_Close);
       Retv_Closedir    (*Closedir)(Args_Closedir);
       Retv_Fclose      (*Fclose)(Args_Fclose);
+      Retv_Fdatasync   (*Fdatasync)(Args_Fdatasync);
       Retv_Fopen       (*Fopen)(Args_Fopen);
       Retv_Fopen64     (*Fopen64)(Args_Fopen64);
       Retv_Fstat       (*Fstat)(Args_Fstat);
@@ -291,6 +301,9 @@ int Resolve();
   
 #define XRD_Retv_Access int
 #define XRD_Args_Access const char *path, int amode
+  
+#define XRD_Retv_Chdir int
+#define XRD_Args_Chdir const char *path
   
 #define XRD_Retv_Close int
 #define XRD_Args_Close int
@@ -373,6 +386,7 @@ class XrdPosixRootVec
       int                  Init(int *x) {return (Done ? 0 : Resolve());}
 
       XRD_Retv_Access      (*Access)(XRD_Args_Access);
+      XRD_Retv_Chdir       (*Chdir)(XRD_Args_Chdir);
       XRD_Retv_Close       (*Close)(XRD_Args_Close);
       XRD_Retv_Closedir    (*Closedir)(XRD_Args_Closedir);
       XRD_Retv_Lseek       (*Lseek)(XRD_Args_Lseek);

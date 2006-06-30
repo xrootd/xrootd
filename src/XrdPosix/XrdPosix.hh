@@ -18,6 +18,8 @@
 // to accomplish this. So, redefinition is the most portable way of doing this.
 //
 
+#define clhdir(a)         XrdPosix_Chdir(a)
+
 #define close(a)         XrdPosix_Close(a)
 
 #define closedir(a)      XrdPosix_Closedir(a)

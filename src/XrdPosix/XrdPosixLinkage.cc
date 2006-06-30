@@ -53,12 +53,16 @@ XrdPosixRootVec xinuX;
 
       Retv_Access      Xrd_U_Access(Args_Access)
                          {return (Retv_Access)Xunix.Load_Error("access");}
+      Retv_Chdir       Xrd_U_Chdir(Args_Chdir) 
+                         {return (Retv_Chdir)Xunix.Load_Error("chdir");}
       Retv_Close       Xrd_U_Close(Args_Close) 
                          {return (Retv_Close)Xunix.Load_Error("close");}
       Retv_Closedir    Xrd_U_Closedir(Args_Closedir) 
                          {return (Retv_Closedir)Xunix.Load_Error("closedir");}
       Retv_Fclose      Xrd_U_Fclose(Args_Fclose)
                          {return (Retv_Fclose)Xunix.Load_Error("fclose");}
+      Retv_Fdatasync   Xrd_U_Fdatasync(Args_Fdatasync)
+                         {return (Retv_Fdatasync)Xunix.Load_Error("fdatasync");}
       Retv_Fopen       Xrd_U_Fopen(Args_Fopen) 
                          {Xunix.Load_Error("fopen"); return (Retv_Fopen)0;}
       Retv_Fopen64     Xrd_U_Fopen64(Args_Fopen64)
@@ -137,9 +141,11 @@ XrdPosixRootVec xinuX;
 int XrdPosixLinkage::Resolve()
 {
   LOOKUP_UNIX(Access)
+  LOOKUP_UNIX(Chdir)
   LOOKUP_UNIX(Close)
   LOOKUP_UNIX(Closedir)
   LOOKUP_UNIX(Fclose)
+  LOOKUP_UNIX(Fdatasync)
   LOOKUP_UNIX(Fopen)
   LOOKUP_UNIX(Fopen64)
   LOOKUP_UNIX(Fstat)
@@ -210,6 +216,7 @@ int XrdPosixLinkage::Load_Error(const char *epname, int retv)
 int XrdPosixRootVec::Resolve()
 {
   LOOKUP_XROOT(Access)
+  LOOKUP_XROOT(Chdir)
   LOOKUP_XROOT(Close)
   LOOKUP_XROOT(Closedir)
   LOOKUP_XROOT(Fstat)

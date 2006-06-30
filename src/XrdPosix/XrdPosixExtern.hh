@@ -22,6 +22,8 @@
 // externs are included by XrdPosix.hh to complete the macro definitions.
 // Use this file directly to define your own macros or interfaces.
 //
+extern int     XrdPosix_Chdir(const char *path);
+
 extern int     XrdPosix_Close(int fildes);
 
 extern int     XrdPosix_Closedir(DIR *dirp);
