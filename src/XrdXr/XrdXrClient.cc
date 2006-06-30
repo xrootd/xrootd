@@ -23,11 +23,18 @@ const char *XrdXrClientCVSID = "$Id$";
 #include <strings.h>          // for strdup
 
 #include "XrdXr/XrdXrClient.hh"
+#include "XrdXr/XrdXrClientWorker.hh"
+#include "XrdXr/XrdXrTrace.hh"
+#include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucLogger.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 XrdOucLogger *XrdXrClient::logger = 0;
 
+extern XrdOucError XrEroute;
+
+extern XrdOucTrace XrTrace;
 
 /*****************************************************************************/
 /*                          c o n s t r u c t o r                            */
@@ -296,6 +303,15 @@ ssize_t XrdXrClient::read(void       *buffer,
 
   return received;
 } // read
+
+/******************************************************************************/
+/*                              s e t D e b u g                               */
+/******************************************************************************/
+  
+void XrdXrClient::setDebug()
+{
+   XrTrace.What |= TRACE_All;
+}
 
 /*****************************************************************************/
 /*                               s t a t                                     */

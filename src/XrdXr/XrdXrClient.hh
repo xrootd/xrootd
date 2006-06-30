@@ -21,21 +21,11 @@
 /*****************************************************************************/
 
 
-#include "XrdXr/XrdXrClientWorker.hh"
-#include "XrdXr/XrdXrTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
-/*****************************************************************************/
-/*                  E r r o r   R o u t i n g   O b j e c t                  */
-/*****************************************************************************/
-
-extern XrdOucError XrEroute;
-
-extern XrdOucTrace XrTrace;
-
+class XrdXrClientWorker;
+class XrdOucLogger;
 
 class  XrdXrClient
 {
@@ -172,7 +162,7 @@ public:
   /**
    *  Switch on debugging.
    */
-  void setDebug()                  {XrTrace.What |= TRACE_All;};
+  void setDebug();
 
   ~XrdXrClient();
 
