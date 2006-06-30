@@ -224,11 +224,14 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
                                   "ofs.fdscan     %d %d %d\n"
                                   "%s"
                                   "ofs.maxdelay   %d\n"
+                                  "%s%s%s"
                                   "ofs.trace      %x",
-              cloc, (Options * XrdOfsAUTHORIZE ? "ofs.authorize\n" : ""),
+              cloc, (Options & XrdOfsAUTHORIZE ? "ofs.authorize\n" : ""),
               rdp, rdt, rdu, 
               (Options & XrdOfsFDNOSHARE ? "ofs.fdnoshare\n" : ""),
               FDOpenMax, FDMinIdle, FDMaxIdle, fwbuff, MaxDelay,
+              (OssLib ? "ofs.authlib " : ""), (OssLib ? OssLib : ""),
+              (OssLib ? "/n" : ""),
               OfsTrace.What);
 
      Eroute.Say(buff);
@@ -323,6 +326,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("locktry",       xlocktry);
     TS_Xeq("maxdelay",      xmaxd);
     TS_Xeq("notify",        xnot);
+    TS_Xeq("osslib",        xolib);
     TS_Xeq("redirect",      xred);
     TS_Xeq("trace",         xtrace);
 
@@ -579,6 +583,44 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdOucError &Eroute)
    return 0;
 }
   
+
+/******************************************************************************/
+/*                                 x o l i b                                  */
+/******************************************************************************/
+  
+/* Function: xolib
+
+   Purpose:  To parse the directive: osslib <path> [<parms>]
+
+             <path>    the path of the oss library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xolib(XrdOucStream &Config, XrdOucError &Eroute)
+{
+    char *val, *parms;
+
+// Get the path and parms
+//
+   if (!(val = Config.GetToken(&parms)) || !val[0])
+      {Eroute.Emsg("Config", "osslib not specified"); return 1;}
+
+// Combine the path and parameters
+//
+   if (*parms--) 
+      {while(parms != val && *parms) parms--;
+       if (!*parms) *parms = ' ';
+      }
+
+// Record the path
+//
+   if (OssLib) free(OssLib);
+   OssLib = strdup(val);
+   return 0;
+}
+
 /******************************************************************************/
 /*                                  x r e d                                   */
 /******************************************************************************/

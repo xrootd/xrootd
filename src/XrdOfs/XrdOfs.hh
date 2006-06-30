@@ -53,7 +53,7 @@ inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 const   char       *FName() {return (const char *)fname;}
 
                     XrdOfsDirectory(const char *user) : XrdSfsDirectory(user)
-                          {dp     = (XrdOssDir *)0;
+                          {dp     = 0;
                            tident = (user ? user : "");
                            fname=0; atEOF=0;
                           }
@@ -64,7 +64,7 @@ const char    *tident;
 char          *fname;
 
 private:
-XrdOssDir     *dp;
+XrdOssDF      *dp;
 int            atEOF;
 char           dname[MAXNAMLEN];
 };
@@ -254,6 +254,7 @@ int   LockWait;       //    Number of milliseconds to wait for lock
 char *HostName;       //    ->Our hostname
 char *HostPref;       //    ->Our hostname with domain removed
 char *ConfigFN;       //    ->Configuration filename
+char *OssLib;         //    ->Oss Library
 
 /******************************************************************************/
 /*                       P r o t e c t e d   I t e m s                        */
@@ -309,6 +310,7 @@ int           xforward(XrdOucStream &, XrdOucError &);
 int           xlocktry(XrdOucStream &, XrdOucError &);
 int           xmaxd(XrdOucStream &, XrdOucError &);
 int           xnot(XrdOucStream &, XrdOucError &);
+int           xolib(XrdOucStream &, XrdOucError &);
 int           xred(XrdOucStream &, XrdOucError &);
 int           xtrace(XrdOucStream &, XrdOucError &);
 };

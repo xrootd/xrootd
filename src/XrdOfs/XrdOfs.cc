@@ -52,7 +52,7 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOfs/XrdOfsOpaque.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 
-#include "XrdOss/XrdOssApi.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssProxy.hh"
 
 #include "XrdNet/XrdNetDNS.hh"
@@ -100,7 +100,7 @@ XrdOucTrace      OfsTrace(&OfsEroute);
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */
 /******************************************************************************/
   
-extern XrdOssSys XrdOssSS;
+XrdOss *XrdOfsOss;
 
 /******************************************************************************/
 /*                    E x t e r n a l   F u n c t i o n s                     */
@@ -194,7 +194,6 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
                                       XrdOucLogger     *lp,
                                       const char       *configfn)
 {
-// extern XrdOfs XrdOfsFS;
  pthread_t tid;
  int retc;
 
@@ -213,7 +212,8 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 // Initialize the target storage system
 //
-   if (XrdOssSS.Init(lp, configfn)) return 0;
+   if (!(XrdOfsOss = XrdOssGetStorageSystem(0, lp, configfn, XrdOfsFS.OssLib)))
+      return 0;
 
 // Start a thread to periodically scan for idle file handles
 //
@@ -273,7 +273,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 
 // Open the directory and allocate a handle for it
 //
-   if (!(dp = new XrdOssDir(tident))) retc = -ENOMEM;
+   if (!(dp = XrdOfsOss->newDir(tident))) retc = -ENOMEM;
       else if (!(retc = dp->Opendir(dir_path)))
               {fname = strdup(dir_path);
                return SFS_OK;
@@ -494,7 +494,7 @@ int XrdOfsFile::open(const char          *path,      // In
        // Create the file
        //
        open_flag  = O_RDWR; mp = &XrdOfsOpen_RW;
-       if ((retc = XrdOssSS.Create(path, Mode & S_IAMB, Open_Env, mkpath)))
+       if ((retc = XrdOfsOss->Create(path, Mode & S_IAMB, Open_Env, mkpath)))
           return XrdOfsFS.Emsg(epname, error, retc, "create", path);
        if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
        mp->Lock();
@@ -542,9 +542,9 @@ int XrdOfsFile::open(const char          *path,      // In
       //
       struct stat fstat;
      
-      if (XrdOssSS.Stat(path, &fstat) == 0) {
+      if (XrdOfsOss->Stat(path, &fstat) == 0) {
          ZTRACE(open, "The file is found locally.");
-         fp = (XrdOssDF *)new XrdOssFile(tident);
+         fp = XrdOfsOss->newFile(tident);
       } else {
          retc = XrdOfsFS.Google->Locate(error, path, odc_mode|open_flag);
       
@@ -562,11 +562,11 @@ int XrdOfsFile::open(const char          *path,      // In
                return retc;
               }
 
-         fp = (XrdOssDF *)new XrdOssProxy(hostname, port);
+         fp = XrdOfsOss->newProxy(tident, hostname, port);
          ZTRACE(open, "Using " <<hostname <<" as a proxy for " <<path);
       }
    }
-   else {fp = (XrdOssDF *)new XrdOssFile(tident);}
+   else fp = XrdOfsOss->newFile(tident);
 
    if ( fp && (oh = new XrdOfsHandle(hval,path,open_flag,tod.tv_sec,ap,fp)) )
       {mp->UnLock();  // Handle is now locked so allow new opens
@@ -1230,7 +1230,7 @@ int XrdOfs::chmod(const char             *path,    // In
 
 // Now try to find the file or directory
 //
-   if (!(retc = XrdOssSS.Chmod(path, acc_mode))) return SFS_OK;
+   if (!(retc = XrdOfsOss->Chmod(path, acc_mode))) return SFS_OK;
 
 // An error occured, return the error info
 //
@@ -1284,7 +1284,7 @@ int XrdOfs::exists(const char                *path,        // In
 
 // Now try to find the file or directory
 //
-   retc = XrdOssSS.Stat(path, &fstat);
+   retc = XrdOfsOss->Stat(path, &fstat);
    if (!retc)
       {     if (S_ISDIR(fstat.st_mode)) file_exists=XrdSfsFileExistIsDirectory;
        else if (S_ISREG(fstat.st_mode)) file_exists=XrdSfsFileExistIsFile;
@@ -1356,7 +1356,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 
 // Perform the actual operation
 //
-    if ((retc = XrdOssSS.Mkdir(path, acc_mode, mkpath)))
+    if ((retc = XrdOfsOss->Mkdir(path, acc_mode, mkpath)))
        return XrdOfsFS.Emsg(epname, einfo, retc, "mkdir", path);
 
 // Check if we should generate an event
@@ -1448,7 +1448,7 @@ int XrdOfs::remove(const char              type,    // In
 
 // Perform the actual deletion
 //
-    if ((retc = XrdOssSS.Unlink(path)))
+    if ((retc = XrdOfsOss->Unlink(path)))
        return XrdOfsFS.Emsg(epname, einfo, retc, "remove", path);
     if (type == 'f')
        {XrdOfsFS.Detach_Name(path);
@@ -1513,7 +1513,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 
 // Perform actual rename operation
 //
-   if ((retc = XrdOssSS.Rename(old_name, new_name)))
+   if ((retc = XrdOfsOss->Rename(old_name, new_name)))
       return XrdOfsFS.Emsg(epname, einfo, retc, "rename", old_name);
    XrdOfsFS.Detach_Name(old_name);
    if (Balancer) {Balancer->Removed(old_name);
@@ -1562,7 +1562,7 @@ int XrdOfs::stat(const char             *path,        // In
 
 // Now try to find the file or directory
 //
-   if ((retc = XrdOssSS.Stat(path, buf)))
+   if ((retc = XrdOfsOss->Stat(path, buf)))
       return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
    return SFS_OK;
 }
@@ -1609,7 +1609,7 @@ int XrdOfs::stat(const char             *path,        // In
 
 // Now try to find the file or directory
 //
-   if (!(retc = XrdOssSS.Stat(path, &buf, 1))) mode = buf.st_mode;
+   if (!(retc = XrdOfsOss->Stat(path, &buf, 1))) mode = buf.st_mode;
       else if (ENOMSG != retc) return XrdOfsFS.Emsg(epname, einfo, retc,
                                                     "locate", path);
    return SFS_OK;
