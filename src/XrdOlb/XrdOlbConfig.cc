@@ -264,6 +264,10 @@ int XrdOlbConfig::Configure2()
 //
    Say.Say(0, myInstance, " phase 2 initialization started.");
 
+// Readjust the thread parameters as we know how many we will actually need
+//
+   Sched->setParms(16, 256, 8, 0);
+
 // Determine who we are. If we are a manager or supervisor start the file
 // location cache scrubber.
 //
