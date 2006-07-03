@@ -10,6 +10,10 @@ int sysconf(int what)
    return (int)(info.dwPageSize);
 }
 
+#if 0
+//
+// Though working fine with MSVC++ 7.1, this definition gives problems
+// with MSVC++ 8; we comment it out and wait for better times
 int fcntl(int fd, int cmd, long arg)
 {
    u_long argp = 1;
@@ -17,6 +21,13 @@ int fcntl(int fd, int cmd, long arg)
       return ioctlsocket((SOCKET)fd, FIONBIO, &argp);
    return 0;
 }
+#else
+int fcntl(int, int, long)
+{
+   // Dummy version
+   return 0;
+}
+#endif
 
 void gethostbyname_r(const char *inetName, struct hostent *hent, char *buff, 
                 int buffsize, struct hostent **hp, int *rc)
