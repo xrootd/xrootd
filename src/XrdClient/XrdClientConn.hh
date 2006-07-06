@@ -197,6 +197,7 @@ public:
 	memcpy(sess.id, fSessionID, sizeof(fSessionID));
     }
 
+    long                       GetserverProtocol() { return fServerProto; }
 private:
     // The handler which first tried to connect somewhere
     XrdClientAbsUnsolMsgHandler *fUnsolMsgHandler;

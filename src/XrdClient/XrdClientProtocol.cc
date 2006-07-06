@@ -227,6 +227,9 @@ char *convertRequestIdToChar(kXR_unt16 requestid)
    case kXR_endsess:
       return (char *)"kXR_endsess";
       break;
+   case kXR_bind:
+      return (char *)"kXR_bind";
+      break;
    default:
       return (char *)"kXR_UNKNOWN";
       break;

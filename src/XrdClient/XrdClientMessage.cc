@@ -174,7 +174,11 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
 
          free( DonateData() );
 
-         SetStatusCode(kXrdMSC_readerr);
+	 if (readres == TXSOCK_ERR_TIMEOUT)
+	     SetStatusCode(kXrdMSC_timeout);
+         else
+	     SetStatusCode(kXrdMSC_readerr);
+
          memset(&fHdr, 0, sizeof(fHdr));
       }
    }

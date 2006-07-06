@@ -36,7 +36,23 @@ public:
     // Returns into newid the substreamid assigned by the server
     static bool BindPendingStream(XrdClientConn *cliconn, int substreamid, int &newid);
 
+    struct ReadChunk {
+	kXR_int64 offset;
+	kXR_int32 len;
+	int streamtosend;
+    };
+    
+
+    // This splits a long requests into many smaller requests, to be sent in parallel
+    //  through multiple streams
+    // Returns false if the chunk is not worth splitting
+    static bool SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset, kXR_int32 len,
+				 XrdClientVector<ReadChunk> &reqlists);
+
+
 };
+
+
 
 
 

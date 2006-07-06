@@ -129,6 +129,8 @@ public:
 
     int TryConnectParallelStream() { return ( fSocket ? fSocket->TryConnectParallelSock() : -1); }
     int EstablishPendingParallelStream(int newid) { return ( fSocket ? fSocket->EstablishParallelSock(newid) : -1); }
+    void RemoveParallelStream(int substream) { if (fSocket) fSocket->RemoveParallelSock(substream); }
+
 };
 
 

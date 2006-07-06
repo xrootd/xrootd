@@ -47,12 +47,13 @@ int XrdClientMStream::AddParallelStream(XrdClientConn *cliconn) {
     // The connection now is here with a temp id XRDCLI_PSOCKTEMP
     // Do the handshake
     ServerInitHandShake xbody;
-    phyconn->DoHandShake(xbody, XRDCLI_PSOCKTEMP);
+    if (phyconn->DoHandShake(xbody, XRDCLI_PSOCKTEMP) == kSTError) return -1;
 
     // Send the kxr_bind req to get a new substream id
     int newid = -1;
     int res = -1;
-    if (BindPendingStream(cliconn, XRDCLI_PSOCKTEMP, newid)) {
+    if (BindPendingStream(cliconn, XRDCLI_PSOCKTEMP, newid) &&
+	phyconn->IsValid() ) {
       
 	// Everything ok, Establish the new connection with the new id
 	res = phyconn->EstablishPendingParallelStream(newid);
@@ -77,10 +78,17 @@ int XrdClientMStream::AddParallelStream(XrdClientConn *cliconn) {
 }
 
 // Remove a parallel stream to the pool used by the given client inst
-    int XrdClientMStream::RemoveParallelStream(XrdClientConn *cliconn, int substream) {
+int XrdClientMStream::RemoveParallelStream(XrdClientConn *cliconn, int substream) {
 
-    return 1;
-
+    // Get the XrdClientPhyconn to be used
+    XrdClientPhyConnection *phyconn =
+	ConnectionManager->GetConnection(cliconn->GetLogConnID())->GetPhyConnection();
+    
+    if (phyconn) 
+	phyconn->RemoveParallelStream(substream);
+    
+    return 0;
+    
 }
 
 
@@ -122,4 +130,17 @@ bool XrdClientMStream::BindPendingStream(XrdClientConn *cliconn, int substreamid
 
     return res;
 
+}
+
+
+
+// This splits a long requests into many smaller requests, to be sent in parallel
+//  through multiple streams
+// Returns false if the chunk is not worth splitting
+bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset, kXR_int32 len,
+			     XrdClientVector<XrdClientMStream::ReadChunk> &reqlists) {
+
+
+
+    return false;
 }

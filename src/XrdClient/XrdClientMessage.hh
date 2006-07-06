@@ -39,10 +39,10 @@ private:
 public:
 
    enum EXrdMSCStatus {             // Some status codes useful
-      kXrdMSC_ok       = 0,
-      kXrdMSC_readerr  = 1,
-      kXrdMSC_writeerr = 2,
-      kXrdMSC_timeout  = 3
+      kXrdMSC_ok               = 0,
+      kXrdMSC_readerr          = 1,
+      kXrdMSC_writeerr         = 2,
+      kXrdMSC_timeout          = 3,
    };
    ServerResponseHeader fHdr;
 

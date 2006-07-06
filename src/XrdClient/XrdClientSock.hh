@@ -89,6 +89,8 @@ public:
     // the given substreamid could be an integer suggested by the server
     virtual int EstablishParallelSock(int sockid) { return -1; }
 
+    virtual int RemoveParallelSock(int sockid) { return -1; };
+
     virtual void   Disconnect();
 
     bool   IsConnected() {return fConnected;}

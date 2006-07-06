@@ -14,6 +14,7 @@
 #define XRC_PSOCK_H
 
 #include <XrdClient/XrdClientSock.hh>
+#include <XrdClient/XrdClientVector.hh>
 #include <XrdOuc/XrdOucRash.hh>
 
 #define XRDCLI_PSOCKTEMP -2
@@ -23,12 +24,18 @@ class XrdClientPSock: public XrdClientSock {
 friend class XrdClientPhyConnection;
 
 private:
+    typedef int       Sockid;
+    typedef int       Sockdescr;
 
+    // To have a pool of the ids in use,
+    // e.g. to select a random stream from the set of possible streams
+    XrdClientVector<Sockid> fSocketIdRepo;
+ 
     // To translate from socket id to socket descriptor
-    XrdOucRash<int, int> fSocketPool;
+    XrdOucRash<Sockid, Sockdescr> fSocketPool;
 
-    int GetSock(int id) {
-	int *fd = fSocketPool.Find(id);
+    Sockdescr GetSock(Sockid id) {
+	Sockdescr *fd = fSocketPool.Find(id);
 	if (fd) return *fd;
 	else return -1;
     }
@@ -37,11 +44,11 @@ private:
     }
 
     // To translate from socket descriptor to socket id
-    XrdOucRash<int, int> fSocketIdPool;
+    XrdOucRash<Sockdescr, Sockid> fSocketIdPool;
 
 
-    int GetSockId(int sock) {
-	int *id = fSocketIdPool.Find(sock);
+    Sockid GetSockId(Sockdescr sock) {
+	Sockid *id = fSocketIdPool.Find(sock);
 	if (id) return *id;
 	else return -1;
     }
@@ -84,9 +91,14 @@ public:
 
     virtual int EstablishParallelSock(int sockid);
 
-   virtual void   Disconnect();
+    virtual void   Disconnect();
 
-   bool   IsConnected() {return fConnected;}
+    bool   IsConnected() {return fConnected;};
+
+    int RemoveParallelSock(int sockid);
+
+    // Suggests a sockid to be used for a req
+    Sockid GetSockidHint();
 };
 
 #endif

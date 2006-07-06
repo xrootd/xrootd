@@ -14,6 +14,7 @@ const char *XrdClientPSockCVSID = "$Id$";
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 #include "XrdClient/XrdClientPSock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -58,7 +59,9 @@ void XrdClientPSock::Disconnect()
 	// Make the SocketPool invoke the closing of all sockets
 	fSocketPool.Apply( CloseSockFunc, 0 );
 
-	//fSocketPool.Purge();
+	fSocketIdPool.Purge();
+	fSocketIdRepo.Clear();
+	fSocketPool.Purge();
 
 	fConnected = FALSE;
    }
@@ -125,7 +128,20 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 		  fSocketPool.Apply( FdSetSockFunc, (void *)&rset );
 	      } else {
 		  int sock = GetSock(substreamid);
-		  FD_SET(sock, &rset);
+		  if (sock >= 0) FD_SET(sock, &rset);
+		  else {
+		      Error("XrdClientPSock::RecvRaw", "since we entered RecvRaw, the substreamid " <<
+			    substreamid << " has been removed.");
+
+		      // A dropped parallel stream is not considered
+		      // as an error
+		      if (substreamid == 0)
+			  return TXSOCK_ERR;
+		      else {
+			  RemoveParallelSock(substreamid);
+			  return TXSOCK_ERR_TIMEOUT;
+		      }
+		  }
 	      }
 
 	      fReinit_fd = false;
@@ -143,7 +159,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	 selRet = select(FD_SETSIZE, &rset, NULL, NULL, &tv);
 
 	 if ((selRet < 0) && (errno != EINTR)) {
-	     Error("XrdClientSock::RecvRaw", "Error selecting from socket: " <<
+	     Error("XrdClientSock::RecvRaw", "Error in select() : " <<
 		   ::strerror(errno));
 	     return TXSOCK_ERR;
 	 }
@@ -181,7 +197,16 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	      if (n <= 0) {
 		  Error("XrdClientSock::RecvRaw", "Error reading from socket: " <<
 			::strerror(errno));
-		  return TXSOCK_ERR;
+
+		  // A dropped parallel stream is not considered
+		  // as an error
+		  if (( GetSockId(ii) == 0 ) || ( GetSockId(ii) == -1 ))
+		      return TXSOCK_ERR;
+		  else {
+		      RemoveParallelSock(GetSockId(ii));
+		      return TXSOCK_ERR_TIMEOUT;
+		  }
+
 	      }
 
 	      bytesread += n;
@@ -231,7 +256,6 @@ void XrdClientPSock::TryConnect(bool isUnix) {
     }
 
 }
-
 int XrdClientPSock::TryConnectParallelSock() {
 
     int s = TryConnect_low();
@@ -245,6 +269,21 @@ int XrdClientPSock::TryConnectParallelSock() {
     return s;
 }
 
+int XrdClientPSock::RemoveParallelSock(int sockid) {
+
+    int s = GetSock(XRDCLI_PSOCKTEMP);
+    fSocketIdPool.Del(s);
+    fSocketPool.Del(sockid);
+
+    for (int i = 0; i < fSocketIdRepo.GetSize(); i++)
+	if (fSocketIdRepo[i] == sockid) {
+	    fSocketIdRepo.Erase(i);
+	    break;
+	}
+
+    return 0;
+}
+
 int XrdClientPSock::EstablishParallelSock(int sockid) {
 
     int s = GetSock(XRDCLI_PSOCKTEMP);
@@ -255,6 +294,7 @@ int XrdClientPSock::EstablishParallelSock(int sockid) {
 
 	fSocketPool.Rep(sockid, s);
 	fSocketIdPool.Rep(s, sockid);
+	fSocketIdRepo.Push_back(sockid);
 
 	Info(XrdClientDebug::kUSERDEBUG,
 	     "XrdClientSock::EstablishParallelSock", "Sockid " << sockid << " established.");
@@ -263,4 +303,19 @@ int XrdClientPSock::EstablishParallelSock(int sockid) {
     }
 
     return -1;
+}
+
+int XrdClientPSock::GetSockidHint() {
+
+    double di = (random() / RAND_MAX) * fSocketIdRepo.GetSize();
+    int rnd;
+
+#ifdef __solaris__
+    rnd = irint(di) % fSocketIdRepo.GetSize();
+#else
+    rnd = lrint(di) % fSocketIdRepo.GetSize();
+#endif
+
+    return rnd;
+
 }

@@ -649,8 +649,13 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
 	// And here we fire up the needed parallel streams
 	XrdClientMStream::EstablishParallelStreams(fConnModule);
-
 	TerminateOpenAttempt();
+
+	if (!fConnModule->IsConnected()) {
+	    fOpenPars.opened = false;
+	    return false;
+	}
+
 	return TRUE;
     }
 
@@ -885,7 +890,7 @@ bool XrdClient::OpenFileWhenRedirected(char *newfhandle, bool &wasopen)
 	return TRUE;
     } else {
 	Error("OpenFileWhenRedirected", 
-	      "New redir destination server refuses to open the file.");
+	      "File open failed.");
       
 	return FALSE;
     }
@@ -1043,8 +1048,10 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
     }
     else
 	// Let's see if the message is a communication error message
-	if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok)
+	if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok) {
+	    TerminateOpenAttempt();
 	    return fConnModule->ProcessAsynResp(unsolmsg);
+	}
 	else
 	    // Let's see if we are receiving the response to an async read request
 	    if ( SidManager->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
@@ -1113,18 +1120,37 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
     readFileRequest.read.rlen = len;
     readFileRequest.read.dlen = 0;
 
-
-
     Info(XrdClientDebug::kHIDEBUG, "Read_Async",
 	 "Requesting to read " <<
 	 readFileRequest.read.rlen <<
 	 " bytes of data at offset " <<
 	 readFileRequest.read.offset);
+    
+    // This request might be splitted and distributed through multiple streams
+    XrdClientVector<XrdClientMStream::ReadChunk> chunks;
+    XReqErrorType ok = kOK;
 
-     
+    if (XrdClientMStream::SplitReadRequest(fConnModule, offset, len,
+					   chunks) ) {
 
-    return (fConnModule->WriteToServer_Async(&readFileRequest, 0));
+	for (int i = 0; i < chunks.GetSize(); i++) {
+	    XrdClientMStream::ReadChunk *c;
 
+	    c = &chunks[i];
+
+	    readFileRequest.read.offset = c->offset;
+	    readFileRequest.read.rlen = c->len;
+	    ok = fConnModule->WriteToServer_Async(&readFileRequest, 0,
+					     c->streamtosend);
+
+	    if (ok != kOK) break;
+	}
+    }
+    else
+	return (fConnModule->WriteToServer_Async(&readFileRequest, 0));
+
+
+    return ok;
 
 }
 
