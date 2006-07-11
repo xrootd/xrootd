@@ -17,14 +17,15 @@ SOURCES = \
         XrdOssConfig.cc \
         XrdOssCreate.cc \
         XrdOssLock.cc   \
+        XrdOssGetSS.cc  \
         XrdOssMio.cc    \
         XrdOssMSS.cc    \
         XrdOssRename.cc \
         XrdOssStage.cc  \
         XrdOssUnlink.cc \
-	XrdOssProxy.cc 
+        XrdOssProxy.cc
 
-OBJECTS = \
+OBJECTL = \
         $(OBJDIR)/XrdOssAio.o \
         $(OBJDIR)/XrdOssApi.o \
         $(OBJDIR)/XrdOssCache.o \
@@ -36,7 +37,12 @@ OBJECTS = \
         $(OBJDIR)/XrdOssRename.o \
         $(OBJDIR)/XrdOssStage.o  \
         $(OBJDIR)/XrdOssUnlink.o \
-	$(OBJDIR)/XrdOssProxy.o	
+        $(OBJDIR)/XrdOssProxy.o
+
+OBJECTK = \
+        $(OBJDIR)/XrdOssGetSS.o
+
+OBJECTS = $(OBJECTL) $(OBJECTK)
 
 LIBRARY = $(LIBDIR)/libXrdOss.a
 
@@ -67,7 +73,7 @@ anything: $(TARGETS)
 $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY)
 	$(ECHO)rm -f $(LIBRARY)
-	$(ECHO)ar -rc $(LIBRARY) $(OBJECTS)
+	$(ECHO)ar -rc $(LIBRARY) $(OBJECTL)
 	$(ECHO)ranlib $(LIBRARY)
 	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
 	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
@@ -111,6 +117,11 @@ $(OBJDIR)/XrdOssCreate.o: XrdOssApi.hh XrdOssConfig.hh  XrdOssError.hh \
                           XrdOucPlatform.hh XrdOssCreate.cc
 	@echo Compiling XrdOssCreate.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssCreate.o XrdOssCreate.cc
+
+$(OBJDIR)/XrdOssGetSS.o:  XrdOssApi.hh  XrdOssError.hh  XrdOucPlugin.hh \
+                          XrdOssGetSS.cc
+	@echo Compiling XrdOssGetSS.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssGetSS.o XrdOssGetSS.cc
 
 $(OBJDIR)/XrdOssLock.o:   XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
                           XrdOssLock.hh XrdOucError.hh XrdOucPlatform.hh \

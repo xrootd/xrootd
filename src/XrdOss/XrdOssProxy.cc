@@ -28,7 +28,7 @@ const char *XrdOssProxyCVSID = "$Id$";
 XrdOucError OssProxyEroute(0, "proxy_");
 
 extern XrdOssSys   XrdOssSS;
-extern XrdOucError OfsEroute;
+extern XrdOucError OssEroute;
 extern XrdOucTrace OssTrace;
 
 /*****************************************************************************/
@@ -53,7 +53,7 @@ int XrdOssProxy::Open(const char *path,
 
   int           rc;
 
-  client = new XrdXrClient(hostname_, port_, OfsEroute.logger());
+  client = new XrdXrClient(hostname_, port_, OssEroute.logger());
 
   // Switch on debugging if server is started with -d
   //
