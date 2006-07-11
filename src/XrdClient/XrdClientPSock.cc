@@ -21,6 +21,10 @@ const char *XrdClientPSockCVSID = "$Id$";
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
+#ifdef __solaris__
+#include <sunmath.h>
+#endif
+
 #ifndef WIN32
 #include <unistd.h>
 #include <sys/poll.h>
