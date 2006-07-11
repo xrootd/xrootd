@@ -327,6 +327,7 @@ int XrdXrootdProtocol::Process2()
 //
    switch(Request.header.requestid)   // First, the ones with file handles
          {case kXR_read:     return do_Read();
+//        case kXR_readv:    return do_ReadV();
           case kXR_write:    return do_Write();
           case kXR_sync:     return do_Sync();
           case kXR_close:    return do_Close();

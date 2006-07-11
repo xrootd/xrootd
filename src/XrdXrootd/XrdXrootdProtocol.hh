@@ -109,6 +109,7 @@ private:
        int   do_Putfile();
        int   do_Query();
        int   do_Read();
+//     int   do_ReadV();
        int   do_ReadAll();
        int   do_ReadNone(int &retc);
        int   do_Rm();
