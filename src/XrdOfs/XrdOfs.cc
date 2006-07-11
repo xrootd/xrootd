@@ -187,6 +187,8 @@ XrdOfs::XrdOfs()
 /******************************************************************************/
 /*                         G e t F i l e S y s t e m                          */
 /******************************************************************************/
+
+extern XrdOss    *XrdOssGetSS(XrdOucLogger *, const char *, const char *);
   
 extern "C"
 {
@@ -194,8 +196,8 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
                                       XrdOucLogger     *lp,
                                       const char       *configfn)
 {
- pthread_t tid;
- int retc;
+   pthread_t tid;
+   int retc;
 
 // Do the herald thing
 //
@@ -212,8 +214,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 // Initialize the target storage system
 //
-   if (!(XrdOfsOss = XrdOssGetStorageSystem(0, lp, configfn, XrdOfsFS.OssLib)))
-      return 0;
+   if (!(XrdOfsOss = XrdOssGetSS(lp, configfn, XrdOfsFS.OssLib))) return 0;
 
 // Start a thread to periodically scan for idle file handles
 //

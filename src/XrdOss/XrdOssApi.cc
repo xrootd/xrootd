@@ -71,6 +71,53 @@ char      XrdOssSys::tryMmap = 0;
 char      XrdOssSys::chkMmap = 0;
 
 /******************************************************************************/
+/*                XrdOssGetSS (a.k.a. XrdOssGetStorageSystem)                 */
+/******************************************************************************/
+  
+// This function is called by the OFS layer to retrieve the Storage System
+// object. If a plugin library has been specified, then this function will
+// return the object provided by XrdOssGetStorageSystem() within the library.
+//
+XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
+                    const char   *OssLib)
+{
+   extern XrdOssSys   XrdOssSS;
+   extern XrdOucError OssEroute;
+   XrdOucPlugin    *myLib;
+   XrdOss          *(*ep)(XrdOss *, XrdOucLogger *, const char *, const char *);
+   char *parms;
+
+// If no library has been specified, return the default object
+//
+   if (!OssLib)
+      return (XrdOssSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdOssSS);
+
+// Find the parms (ignore the constness of the variable)
+//
+   parms = (char *)OssLib;
+   while(*parms && *parms != ' ') parms++;
+   if (*parms) *parms++ = '\0';
+   while(*parms && *parms == ' ') parms++;
+   if (!*parms) parms = 0;
+
+// Create a pluin object (we will throw this away without deletion because
+// the library must stay open but we never want to reference it again).
+//
+   OssEroute.logger(Logger);
+   if (!(myLib = new XrdOucPlugin(&OssEroute, OssLib))) return 0;
+
+// Now get the entry point of the object creator
+//
+   ep = (XrdOss *(*)(XrdOss *, XrdOucLogger *, const char *, const char *))
+                    (myLib->getPlugin("XrdOssGetStorageSystem"));
+   if (!ep) return 0;
+
+// Get the Object now
+//
+   return ep((XrdOss *)&XrdOssSS, Logger, config_fn, parms);
+}
+ 
+/******************************************************************************/
 /*                      o o s s _ S y s   M e t h o d s                       */
 /******************************************************************************/
 /******************************************************************************/
