@@ -22,7 +22,8 @@ OBJECTS  = \
         $(OBJDIR)/XrdOfsEvs.o     \
         $(OBJDIR)/XrdOfsHandle.o  
 
-MORELIBS = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdXr -lXrdNet -lXrdOuc
+MORELIBS = $(OBJDIR)/XrdOssGetSS.o \
+           -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdXr -lXrdNet -lXrdOuc
 
 LIBDEP   = $(LIBDIR)/libXrdAcc.a $(LIBDIR)/libXrdOss.a \
            $(LIBDIR)/libXrdOdc.a $(LIBDIR)/libXrdOuc.a \
