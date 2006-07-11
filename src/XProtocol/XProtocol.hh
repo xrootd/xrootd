@@ -65,7 +65,8 @@ enum XRequestTypes {
    kXR_prepare, // 3021
    kXR_statx,   // 3022
    kXR_endsess, // 3023
-   kXR_bind     // 3024
+   kXR_bind,    // 3024
+   kXR_readv    // 3025
 };
 
 // OPEN MODE FOR A REMOTE FILE
@@ -353,6 +354,12 @@ struct ClientReadRequest {
    kXR_int32 rlen;
    kXR_int32  dlen;
 };
+struct ClientReadVRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  reserved[16];
+   kXR_int32  dlen;
+};
 struct ClientRmRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
@@ -420,6 +427,7 @@ typedef union {
    struct ClientPutfileRequest putfile;
    struct ClientQueryRequest query;
    struct ClientReadRequest read;
+   struct ClientReadVRequest readv;
    struct ClientRmRequest rm;
    struct ClientRmdirRequest rmdir;
    struct ClientSetRequest set;
