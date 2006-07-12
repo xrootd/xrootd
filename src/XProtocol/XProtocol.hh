@@ -442,6 +442,12 @@ struct readahead_list {
    kXR_int64 offset;
 };
 
+struct read_args {
+   kXR_char       pathid;
+   kXR_char       reserved[7];
+   readahead_list rvec;
+};
+
 //_____________________________________________________________________
 //   PROTOCOL DEFINITION: SERVER'S RESPONSE
 //_____________________________________________________________________
