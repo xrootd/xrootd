@@ -57,7 +57,7 @@ const char *XrdOssApiCVSID = "$Id$";
 /*                  E r r o r   R o u t i n g   O b j e c t                   */
 /******************************************************************************/
 
-XrdOssSys   XrdOssSS;
+XrdOssSys  *XrdOssSS = 0;
   
 XrdOucError OssEroute(0, "oss_");
 
@@ -81,7 +81,7 @@ char      XrdOssSys::chkMmap = 0;
 XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
                     const char   *OssLib)
 {
-   extern XrdOssSys   XrdOssSS;
+   static XrdOssSys   myOssSys;
    extern XrdOucError OssEroute;
    XrdOucPlugin    *myLib;
    XrdOss          *(*ep)(XrdOss *, XrdOucLogger *, const char *, const char *);
@@ -90,7 +90,8 @@ XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
 // If no library has been specified, return the default object
 //
    if (!OssLib)
-      return (XrdOssSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdOssSS);
+      if (myOssSys.Init(Logger, config_fn)) return 0;
+         else {XrdOssSS = &myOssSys; return (XrdOss *)&myOssSys;}
 
 // Find the parms (ignore the constness of the variable)
 //
@@ -114,7 +115,7 @@ XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
 
 // Get the Object now
 //
-   return ep((XrdOss *)&XrdOssSS, Logger, config_fn, parms);
+   return ep((XrdOss *)&myOssSys, Logger, config_fn, parms);
 }
  
 /******************************************************************************/
@@ -143,8 +144,8 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 
 // Initialize the subsystems
 //
-     if ( (retc=XrdOssSS.Configure(configfn, OssEroute)) ) return retc;
-     XrdOssSS.Config_Display(OssEroute);
+     if ( (retc = Configure(configfn, OssEroute)) ) return retc;
+     Config_Display(OssEroute);
 
 // All done.
 //
@@ -332,7 +333,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 
 // Construct the processing options for this path
 //
-   popts = XrdOssSS.PathOpts(path);
+   popts = PathOpts(path);
 
 // Generate local path
 //
@@ -397,13 +398,13 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // Get the processing flags for this directory
 //
-   isremote = XrdOssREMOTE & (pflags = XrdOssSS.PathOpts(dir_path));
+   isremote = XrdOssREMOTE & (pflags = XrdOssSS->PathOpts(dir_path));
    ateof = 0;
 
 // Generate local path
 //
-   if (XrdOssSS.lcl_N2N)
-      if ((retc = XrdOssSS.lcl_N2N->lfn2pfn(dir_path, actual_path, sizeof(actual_path))))
+   if (XrdOssSS->lcl_N2N)
+      if ((retc = XrdOssSS->lcl_N2N->lfn2pfn(dir_path, actual_path, sizeof(actual_path))))
          return retc;
          else local_path = actual_path;
       else local_path = (char *)dir_path;
@@ -419,8 +420,8 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // Generate remote path
 //
-   if (XrdOssSS.rmt_N2N)
-      if ((retc = XrdOssSS.rmt_N2N->lfn2pfn(dir_path, actual_path, sizeof(actual_path))))
+   if (XrdOssSS->rmt_N2N)
+      if ((retc = XrdOssSS->rmt_N2N->lfn2pfn(dir_path, actual_path, sizeof(actual_path))))
          return retc;
          else remote_path = actual_path;
       else remote_path = (char *)dir_path;
@@ -434,7 +435,7 @@ int XrdOssDir::Opendir(const char *dir_path)
    if (pflags & XrdOssNODREAD)
       {struct stat fstat;
        if (stat(local_path, &fstat)
-       && (retc = XrdOssSS.MSS_Stat(remote_path, &fstat))) return retc;
+       && (retc = XrdOssSS->MSS_Stat(remote_path, &fstat))) return retc;
        if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
        isopen = -1;
        return XrdOssOK;
@@ -442,7 +443,7 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // This is a remote directory and we must read it. Perform remote open
 //
-   if (!(mssfd = XrdOssSS.MSS_Opendir(remote_path, retc))) return retc;
+   if (!(mssfd = XrdOssSS->MSS_Opendir(remote_path, retc))) return retc;
    isopen = 1;
    return XrdOssOK;
 }
@@ -496,7 +497,7 @@ int XrdOssDir::Readdir(char *buff, int blen)
 
 // Perform a remote read
 //
-   return XrdOssSS.MSS_Readdir(mssfd, buff, blen);
+   return XrdOssSS->MSS_Readdir(mssfd, buff, blen);
 }
 
 /******************************************************************************/
@@ -521,7 +522,7 @@ int XrdOssDir::Close(void)
 // Close whichever handle is open
 //
     if (lclfd) {if (!(retc = closedir(lclfd))) lclfd = 0;}
-       else if (mssfd) { if (!(retc = XrdOssSS.MSS_Closedir(mssfd))) mssfd = 0;}
+       else if (mssfd) { if (!(retc = XrdOssSS->MSS_Closedir(mssfd))) mssfd = 0;}
                else retc = 0;
 
 // Indicate whether or not we really closed this object
@@ -560,12 +561,12 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Construct the processing options for this path
 //
-   popts = XrdOssSS.PathOpts(path);
+   popts = XrdOssSS->PathOpts(path);
 
 // Generate local path
 //
-   if (XrdOssSS.lcl_N2N)
-      if ((retc = XrdOssSS.lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path))))
+   if (XrdOssSS->lcl_N2N)
+      if ((retc = XrdOssSS->lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path))))
          return retc;
          else local_path = actual_path;
       else local_path = (char *)path;
@@ -583,7 +584,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
          == -ENOENT && (popts & XrdOssREMOTE))
       {if (popts & XrdOssNOSTAGE)
           return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8006,"open",path);
-       if ( (retc = XrdOssSS.Stage(path, Env)) ) return retc;
+       if ( (retc = XrdOssSS->Stage(path, Env)) ) return retc;
        fd = (int)Open_ufs(local_path, Oflag, Mode, popts & ~XrdOssREMOTE);
       }
 
@@ -600,12 +601,12 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // See if should memory map this file
 //
-   if (fd >= 0 && XrdOssSS.tryMmap)
+   if (fd >= 0 && XrdOssSS->tryMmap)
       {mopts = 0;
        if (popts & XrdOssMKEEP) mopts |= OSSMIO_MPRM;
        if (popts & XrdOssMLOK)  mopts |= OSSMIO_MLOK;
        if (popts & XrdOssMMAP)  mopts |= OSSMIO_MMAP;
-       if (XrdOssSS.chkMmap) mopts = XrdOssMio::getOpts(local_path, mopts);
+       if (XrdOssSS->chkMmap) mopts = XrdOssMio::getOpts(local_path, mopts);
        if (mopts) mmFile = XrdOssMio::Map(local_path, fd, mopts);
       } else mmFile = 0;
 
@@ -683,7 +684,7 @@ ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
 
 #ifdef XRDOSSCX
      if (cxobj)  
-        if (XrdOssSS.XeqFlags & XrdOssNOSSDEC) return (ssize_t)-XRDOSS_E8021;
+        if (XrdOssSS->XeqFlags & XrdOssNOSSDEC) return (ssize_t)-XRDOSS_E8021;
            else   retval = cxobj->Read((char *)buff, blen, offset);
         else 
 #endif
@@ -746,7 +747,7 @@ ssize_t XrdOssFile::Write(const void *buff, off_t offset, size_t blen)
 
      if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
-     if (XrdOssSS.MaxDBsize && (long long)(offset+blen) > XrdOssSS.MaxDBsize) 
+     if (XrdOssSS->MaxDBsize && (long long)(offset+blen) > XrdOssSS->MaxDBsize)
         return (ssize_t)-XRDOSS_E8007;
 
      do { retval = pwrite(fd, buff, blen, offset); }
@@ -907,8 +908,8 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
 // Relocate the file descriptor if need be and make sure file is closed on exec
 //
     if (myfd >= 0)
-       {if (myfd < XrdOssSS.FDFence)
-           if ((newfd = fcntl(myfd, F_DUPFD, XrdOssSS.FDFence)) < 0)
+       {if (myfd < XrdOssSS->FDFence)
+           if ((newfd = fcntl(myfd, F_DUPFD, XrdOssSS->FDFence)) < 0)
               OssEroute.Emsg("XrdOssOpen_ufs",errno,"reloc FD",path);
               else {close(myfd); myfd = newfd;}
         fcntl(myfd, F_SETFD, FD_CLOEXEC);

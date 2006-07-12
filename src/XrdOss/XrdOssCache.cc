@@ -29,7 +29,7 @@ const char *XrdOssCacheCVSID = "$Id$";
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */
 /******************************************************************************/
   
-extern XrdOssSys XrdOssSS;
+extern XrdOssSys *XrdOssSS;
 
 /******************************************************************************/
 /*           G l o b a l   E r r o r   R o u t i n g   O b j e c t            */
@@ -47,15 +47,15 @@ extern XrdOucTrace OssTrace;
 // when we try to do recursive (but protected) includes.
 //
 
-XrdOssCache_Lock::XrdOssCache_Lock()  {XrdOssSS.CacheContext.Lock(); locked = 1;}
+XrdOssCache_Lock::XrdOssCache_Lock()  {XrdOssSS->CacheContext.Lock(); locked = 1;}
 
-XrdOssCache_Lock::~XrdOssCache_Lock() {if (locked) XrdOssSS.CacheContext.UnLock();}
+XrdOssCache_Lock::~XrdOssCache_Lock() {if (locked) XrdOssSS->CacheContext.UnLock();}
   
-void   XrdOssCache_Lock::Lock() {if (!locked) {XrdOssSS.CacheContext.Lock();
+void   XrdOssCache_Lock::Lock() {if (!locked) {XrdOssSS->CacheContext.Lock();
                                 locked = 1;}
                                }
 
-void XrdOssCache_Lock::UnLock() {if ( locked) {XrdOssSS.CacheContext.UnLock();
+void XrdOssCache_Lock::UnLock() {if ( locked) {XrdOssSS->CacheContext.UnLock();
                                 locked = 0;}
                                }
 
@@ -102,8 +102,8 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
 
 // If this is an in-place creation, then we must get the cache lock
 //
-   if (inplace) {XrdOssSS.CacheContext.Lock(); fdp = XrdOssSS.fsdata;}
-      else fdp = XrdOssSS.xsdata;
+   if (inplace) {XrdOssSS->CacheContext.Lock(); fdp = XrdOssSS->fsdata;}
+      else fdp = XrdOssSS->xsdata;
 
 // Find the matching filesystem data
 //
@@ -114,8 +114,8 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
 //
    if (!fdp)
       if (!(fdp = new XrdOssCache_FSData(fsp, fsbuff))) return;
-         else if (inplace) {fdp->next = XrdOssSS.fsdata; XrdOssSS.fsdata = fdp;}
-                 else      {fdp->next = XrdOssSS.xsdata; XrdOssSS.xsdata = fdp;}
+         else if (inplace) {fdp->next = XrdOssSS->fsdata; XrdOssSS->fsdata = fdp;}
+                 else      {fdp->next = XrdOssSS->xsdata; XrdOssSS->xsdata = fdp;}
 
 // Complete the filesystem block
 //
@@ -126,32 +126,32 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
 // Link this filesystem into the filesystem chain
 //
    if (inplace)
-      {if (!XrdOssSS.fsfirst) {next = this;            XrdOssSS.fscurr = this;
-                              XrdOssSS.fsfirst = this; XrdOssSS.fslast = this;
-                             }
-          else {next = XrdOssSS.fslast->next; XrdOssSS.fslast->next = this;
-                       XrdOssSS.fslast = this;
+      {if (!XrdOssSS->fsfirst) {next = this;              XrdOssSS->fscurr = this;
+                                XrdOssSS->fsfirst = this; XrdOssSS->fslast = this;
+                               }
+          else {next = XrdOssSS->fslast->next; XrdOssSS->fslast->next = this;
+                       XrdOssSS->fslast = this;
                }
       } else {
-       if (!XrdOssSS.xsfirst) {next = this;            XrdOssSS.xscurr = this;
-                              XrdOssSS.xsfirst = this; XrdOssSS.xslast = this;
-                             }
-          else {next = XrdOssSS.xslast->next; XrdOssSS.xslast->next = this;
-                       XrdOssSS.xslast = this;
+       if (!XrdOssSS->xsfirst) {next = this;            ; XrdOssSS->xscurr = this;
+                                XrdOssSS->xsfirst = this; XrdOssSS->xslast = this;
+                               }
+          else {next = XrdOssSS->xslast->next; XrdOssSS->xslast->next = this;
+                       XrdOssSS->xslast = this;
                }
       }
 
 // Check if this is the first group allocation
 //
-   cgp = (inplace ? XrdOssSS.fsgroups : XrdOssSS.xsgroups);
+   cgp = (inplace ? XrdOssSS->fsgroups : XrdOssSS->xsgroups);
    while(cgp && strcmp(fsg, cgp->group)) cgp = cgp->next;
    if (!cgp && (cgp = new XrdOssCache_Group(fsg, this)))
-      if (inplace) {cgp->next = XrdOssSS.fsgroups; XrdOssSS.fsgroups = cgp;}
-         else      {cgp->next = XrdOssSS.xsgroups; XrdOssSS.xsgroups = cgp;}
+      if (inplace) {cgp->next = XrdOssSS->fsgroups; XrdOssSS->fsgroups = cgp;}
+         else      {cgp->next = XrdOssSS->xsgroups; XrdOssSS->xsgroups = cgp;}
 
 // Release the cache lock if we obtained it
 //
-   if (inplace) XrdOssSS.CacheContext.UnLock();
+   if (inplace) XrdOssSS->CacheContext.UnLock();
 }
 
 /******************************************************************************/
@@ -216,7 +216,7 @@ void *XrdOssSys::CacheScan(void *carg)
    EPNAME("CacheScan")
    XrdOssCache_FSData *fsdp;
    STATFS_t fsbuff;
-   const struct timespec naptime = {XrdOssSS.cscanint, 0};
+   const struct timespec naptime = {XrdOssSS->cscanint, 0};
 
 // Loop scanning the cache
 //
@@ -225,12 +225,12 @@ void *XrdOssSys::CacheScan(void *carg)
 
         // Get the cache context lock
         //
-           XrdOssSS.CacheContext.Lock();
+           XrdOssSS->CacheContext.Lock();
 
         // Scan through all filesystems skip filesystem that have been
         // recently adjusted to avoid fs statstics latency problems.
         //
-           fsdp = XrdOssSS.fsdata;
+           fsdp = XrdOssSS->fsdata;
            while(fsdp)
                 {if ((fsdp->stat & XrdOssFSData_REFRESH)
                  || !(fsdp->stat & XrdOssFSData_ADJUSTED))
@@ -248,7 +248,7 @@ void *XrdOssSys::CacheScan(void *carg)
 
          // Unlock the cache and go wait for the next interval
          //
-            XrdOssSS.CacheContext.UnLock();
+            XrdOssSS->CacheContext.UnLock();
          }
 
 // Keep the compiler happy

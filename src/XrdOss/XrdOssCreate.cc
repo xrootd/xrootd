@@ -49,12 +49,6 @@ extern XrdOucError OssEroute;
 extern XrdOucTrace OssTrace;
 
 /******************************************************************************/
-/*                 S t o r a g e   S y s t e m   O b j e c t                  */
-/******************************************************************************/
-  
-extern XrdOssSys XrdOssSS;
-
-/******************************************************************************/
 /*                                c r e a t e                                 */
 /******************************************************************************/
 
@@ -87,7 +81,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
 
 // Generate the actual local path for this file.
 //
-   if ((retc=XrdOssSS.GenLocalPath(path, local_path))) return retc;
+   if ((retc = GenLocalPath(path, local_path))) return retc;
 
 // If the path is to be created, make sure the path exists at this point
 //
@@ -108,7 +102,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
       {
       // Generate the remote path for this file
       //
-         if ((retc=XrdOssSS.GenRemotePath(path,remote_path))) return retc;
+         if ((retc = GenRemotePath(path,remote_path))) return retc;
 
       // Gain exclusive control over the directory.
       //

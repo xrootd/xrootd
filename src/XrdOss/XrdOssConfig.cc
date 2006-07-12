@@ -52,7 +52,7 @@ const char *XrdOssConfigCVSID = "$Id$";
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */
 /******************************************************************************/
   
-extern XrdOssSys    XrdOssSS;
+extern XrdOssSys   *XrdOssSS;
 
 extern XrdOucTrace  OssTrace;
 
@@ -117,9 +117,9 @@ const char *XrdOssErrorText[] =
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-void *XrdOssxfr(void *carg)       {return XrdOssSS.Stage_In(carg);}
+void *XrdOssxfr(void *carg)       {return XrdOssSS->Stage_In(carg);}
 
-void *XrdOssCacheScan(void *carg) {return XrdOssSS.CacheScan(carg);}
+void *XrdOssCacheScan(void *carg) {return XrdOssSS->CacheScan(carg);}
 
 /******************************************************************************/
 /*                             C o n f i g u r e                              */

@@ -51,12 +51,6 @@ const char *XrdOssStageCVSID = "$Id$";
 extern XrdOucError OssEroute;
  
 /******************************************************************************/
-/*                 S t o r a g e   S y s t e m   O b j e c t                  */
-/******************************************************************************/
-  
-extern XrdOssSys XrdOssSS;
-  
-/******************************************************************************/
 /*             H a s h   C o m p u t a t i o n   F u n c t i o n              */
 /******************************************************************************/
   
@@ -263,63 +257,62 @@ void *XrdOssSys::Stage_In(void *carg)
 
       // Wait until something shows up in the ready queue and process
       //
-   do   {XrdOssSS.ReadyRequest.Wait();
+   do   {ReadyRequest.Wait();
 
       // Obtain exclusive control over the queues
       //
-         XrdOssSS.CacheContext.Lock();
+         CacheContext.Lock();
 
       // Check if we really have something in the queue
       //
-         if (XrdOssSS.StageQ.pendList.Singleton())
-            {XrdOssSS.CacheContext.UnLock();
+         if (StageQ.pendList.Singleton())
+            {CacheContext.UnLock();
              continue;
             }
 
       // Remove the last entry in the queue
       //
-         rnode = XrdOssSS.StageQ.pendList.Prev();
+         rnode = StageQ.pendList.Prev();
          req   = rnode->Item();
          rnode->Remove();
          req->flags |= XRDOSS_REQ_ACTV;
 
       // Account for bytes being moved
       //
-         XrdOssSS.pndbytes -= req->size;
-         XrdOssSS.stgbytes += req->size;
+         pndbytes -= req->size;
+         stgbytes += req->size;
 
       // Bring in the file (don't hold the cache lock while doing so)
       //
-         XrdOssSS.CacheContext.UnLock();
+         CacheContext.UnLock();
          etime = time(0);
-         rc = XrdOssSS.GetFile(req);
+         rc = GetFile(req);
          etime = time(0) - etime;
-         XrdOssSS.CacheContext.Lock();
+         CacheContext.Lock();
 
       // Account for resources and adjust xfr rate
       //
-         XrdOssSS.stgbytes -= req->size;
+         stgbytes -= req->size;
          if (!rc)
             {if (etime > 1) 
-                {XrdOssSS.xfrspeed = ((XrdOssSS.xfrspeed*(XrdOssSS.totreqs+1))
-                                   + (req->size/etime))/(XrdOssSS.totreqs+1);
-                 if (XrdOssSS.xfrspeed < 512000) XrdOssSS.xfrspeed = 512000;
+                {xfrspeed=((xfrspeed*(totreqs+1))+(req->size/etime))/(totreqs+1);
+                 if (xfrspeed < 512000) xfrspeed = 512000;
                 }
-             XrdOssSS.totreqs++;          // Successful requests
-             XrdOssSS.totbytes += req->size;
+             totreqs++;          // Successful requests
+             totbytes += req->size;
              delete req;
             }
             else {req->flags &= ~XRDOSS_REQ_ACTV;
                   req->flags |=  XRDOSS_REQ_FAIL;
-                  req->sigtod = XrdOssSS.xfrhold + time(0);
-                  XrdOssSS.badreqs++;
+                  req->sigtod = xfrhold + time(0);
+                  badreqs++;
                  }
 
       // Check if we should continue or be terminated and unlock the cache
       //
-         if ((alldone = (XrdOssSS.xfrthreads < XrdOssSS.xfrtcount)))
-            XrdOssSS.xfrtcount--;
-         XrdOssSS.CacheContext.UnLock();
+         if ((alldone = (xfrthreads < xfrtcount)))
+            xfrtcount--;
+         CacheContext.UnLock();
 
          } while (!alldone);
 

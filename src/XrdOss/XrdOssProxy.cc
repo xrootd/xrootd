@@ -27,7 +27,7 @@ const char *XrdOssProxyCVSID = "$Id$";
   
 XrdOucError OssProxyEroute(0, "proxy_");
 
-extern XrdOssSys   XrdOssSS;
+extern XrdOssSys  *XrdOssSS;
 extern XrdOucError OssEroute;
 extern XrdOucTrace OssTrace;
 
@@ -64,7 +64,7 @@ int XrdOssProxy::Open(const char *path,
   // Set the maximum time to wait. If the server wants the client to wait
   // longer than the time set here, the wait time is passed back to the caller
   //
-  client->setMaxWaitTime(XrdOssSS.MaxTwiddle); 
+  client->setMaxWaitTime(XrdOssSS->MaxTwiddle);
   
   // We first need to login to the remote xrootd server
   //

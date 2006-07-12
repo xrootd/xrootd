@@ -33,12 +33,6 @@ const char *XrdOssUnlinkCVSID = "$Id$";
 extern XrdOucError OssEroute;
 
 extern XrdOucTrace OssTrace;
-
-/******************************************************************************/
-/*                 S t o r a g e   S y s t e m   O b j e c t                  */
-/******************************************************************************/
-  
-extern XrdOssSys XrdOssSS;
   
 /******************************************************************************/
 /*                                U n l i n k                                 */
@@ -68,8 +62,8 @@ int XrdOssSys::Unlink(const char *path)
 
 // Build the right local and remote paths.
 //
-   if ( (retc = XrdOssSS.GenLocalPath( path,  local_path))
-   ||   (retc = XrdOssSS.GenRemotePath(path, remote_path)) ) return retc;
+   if ( (retc = GenLocalPath( path,  local_path))
+   ||   (retc = GenRemotePath(path, remote_path)) ) return retc;
 
  // Serialize the directory.
  //

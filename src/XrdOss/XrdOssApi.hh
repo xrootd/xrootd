@@ -132,6 +132,7 @@ int       Mkpath(const char *, mode_t mode);
 int       PathOpts(const char *path) {return (RPList.Find(path) | XeqFlags);}
 int       Remdir(const char *) {return -ENOTSUP;}
 int       Rename(const char *, const char *);
+virtual 
 int       Stage(const char *, XrdOucEnv &);
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int resonly=0);
@@ -191,7 +192,7 @@ XrdOucPListAnchor RPList;    //    The remote path list
                    }
        ~XrdOssSys() {}
 
-private:
+protected:
 // Cache management related data and methods
 //
 long long minalloc;          //    Minimum allocation
