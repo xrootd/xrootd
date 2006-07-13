@@ -87,7 +87,7 @@ int     Write(XrdSfsAio *aiop);
                    mmFile = 0; tident = tid;
                   }
 
-       ~XrdOssFile() {if (fd >= 0) Close();}
+virtual ~XrdOssFile() {if (fd >= 0) Close();}
 
 private:
 int     Open_ufs(const char *, int, int, int);
@@ -190,7 +190,7 @@ XrdOucPListAnchor RPList;    //    The remote path list
                     StageQ.fullList.setItem(0);
                     ConfigDefaults();
                    }
-       ~XrdOssSys() {}
+virtual ~XrdOssSys() {}
 
 protected:
 // Cache management related data and methods

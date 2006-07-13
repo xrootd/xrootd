@@ -91,7 +91,7 @@ XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
 //
    if (!OssLib)
       if (myOssSys.Init(Logger, config_fn)) return 0;
-         else {XrdOssSS = &myOssSys; return (XrdOss *)&myOssSys;}
+         else return (XrdOss *)&myOssSys;
 
 // Find the parms (ignore the constness of the variable)
 //
@@ -144,8 +144,9 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 
 // Initialize the subsystems
 //
-     if ( (retc = Configure(configfn, OssEroute)) ) return retc;
-     Config_Display(OssEroute);
+   if ( (retc = Configure(configfn, OssEroute)) ) return retc;
+   XrdOssSS = this;
+   Config_Display(OssEroute);
 
 // All done.
 //
