@@ -83,7 +83,6 @@ XrdClientInputBuffer::XrdClientInputBuffer() {
 
 //_______________________________________________________________________
 int DeleteHashItem(const char *key, XrdOucSemWait *sem, void *Arg) {
-   if (sem) delete sem;
 
    // This makes the Apply method delete the entry
    return -1;
