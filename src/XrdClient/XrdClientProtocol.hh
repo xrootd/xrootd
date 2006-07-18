@@ -20,6 +20,7 @@
 
 
 void clientMarshall(ClientRequest* str);
+void clientMarshallReadAheadList(const void* reqMoreData, kXR_int32 dlen);
 void clientUnmarshall(struct ServerResponseHeader* str);
 
 void ServerResponseHeader2NetFmt(struct ServerResponseHeader *srh);

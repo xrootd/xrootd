@@ -111,6 +111,11 @@ private:
 
     void                        WaitForNewAsyncData();
 
+    // Real implementation for ReadV 
+    // To call it we need to be aware of the restrictions so the public
+    // interface should be ReadV()
+    kXR_int64                   ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int nbuf);
+
 protected:
 
     virtual bool                OpenFileWhenRedirected(char *newfhandle,
@@ -155,6 +160,12 @@ public:
 
     // Read a block of data. If no error occurs, it returns all the requested bytes.
     int                         Read(void *buf, long long offset, int len);
+
+    // Read multiple blocks of data compressed into a sinle one. It's up
+    // to the application to do the logistic (having the offset and len to find
+    // the position of the required buffer given the big one). If no error 
+    // occurs, it returns all the requested bytes.
+    kXR_int64                   ReadV(char *buf, long long *offsets, int *lens, int nbuf);
 
     // Submit an asynchronous read request. Its result will only populate the cache
     //  (if any!!)

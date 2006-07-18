@@ -92,6 +92,11 @@ void clientMarshall(ClientRequest* str)
       memcpy(&str->read.offset, &tmpl, sizeof(kXR_int64) );
       str->read.rlen = htonl(str->read.rlen);
       break;
+   case kXR_readv:
+      // no swap on ASCII fields
+      // and the swap of the list is done in
+      // clientMarshallReadAheadList
+      break;
    case kXR_rm:
       // no swap on ASCII fields
       break;
@@ -116,6 +121,23 @@ void clientMarshall(ClientRequest* str)
 
    str->header.requestid = htons(str->header.requestid);
    str->header.dlen      = htonl(str->header.dlen);
+}
+
+//___________________________________________________________________________
+void clientMarshallReadAheadList(const void* reqMoreData, kXR_int32 dlen)
+{
+   // This function applies the network byte order on the
+   // vector of read-ahead information
+   kXR_int64 tmpl;
+   
+   struct readahead_list *buf_list = (readahead_list *) reqMoreData;
+   int n = dlen / (sizeof(struct readahead_list));
+   for( int i = 0; i < n; i++ ) {
+      memcpy(&tmpl, &(buf_list[i].offset), sizeof(kXR_int64) );
+      tmpl = _htonll(tmpl);
+      memcpy(&(buf_list[i].offset), &tmpl, sizeof(kXR_int64) );
+      buf_list[i].rlen = htonl(buf_list[i].rlen);      
+   }
 }
 
 //_________________________________________________________________________
@@ -196,6 +218,9 @@ char *convertRequestIdToChar(kXR_unt16 requestid)
       break;
    case kXR_read:
       return (char *)"kXR_read";
+      break;
+   case kXR_readv:
+      return (char *)"kXR_readv";
       break;
    case kXR_rm:
       return (char *)"kXR_rm";
@@ -457,6 +482,16 @@ void smartPrintClientHeader(ClientRequest* hdr)
       printf("%40s%d\n", 
              "ClientHeader.read.rlen = ",
              hdr->read.rlen);
+      break;
+
+   case kXR_readv:
+      printf("%40s0 repeated %d times\n", 
+             "ClientHeader.readv.reserved = ",
+             (kXR_int32)sizeof(hdr->readv.reserved));
+
+      printf("%40s%d\n", 
+             "ClientHeader.readv.dlen = ",
+             hdr->readv.dlen);
       break;
 
    case kXR_rm:

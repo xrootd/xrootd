@@ -548,6 +548,167 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 }
 
 //_____________________________________________________________________________
+kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
+{
+    // This is only an additional step to ReadVEach... it will only split
+    // a really big request in multiple request... it sounds kind of silly
+    // since we are trying to do the opposite but there are restrictions
+    // in the server that dont let us send such big buffers.
+    // Note: this could return a smaller buffer than expected (for example
+    // if only a few readings were allowed).
+
+    if (!IsOpen_wait()) {
+       Error("ReadV", "File not opened.");
+       return 0;
+    }
+
+    // We say that the range for an unsigned int of 16 bits is 0 to +65,535
+    // which is Request.read.dlen .
+    // Since we are only sending "readahead_list" which are 16 bytes we could 
+    // send 4095 requests in one single call...
+
+    // Maximum number of segments addressable with a kXR_unt16 type
+    kXR_int32 limit = 1 << (int)(sizeof(kXR_unt16) * 8);
+    kXR_unt16 Nmax  = (kXR_unt16) ((limit) / sizeof(struct readahead_list));
+
+    int i = 0;
+    kXR_int64 pos = 0; 
+    kXR_int64 res = 0;
+    int n = ( Nmax < nbuf ) ? Nmax : nbuf;
+
+    while ( i < nbuf ) {
+       if ( (res = ReadVEach(&buf[pos], &offsets[i], &lens[i], n)) <= 0)
+          break;
+       pos += res;
+       i += n;
+
+       if ( (nbuf - i) < n  )
+          n = (nbuf - i);
+    }
+    
+    // pos will indicate the size of the data read
+    // Even if we were able to read only a part of the buffer !!!
+    return pos;
+}
+
+//_____________________________________________________________________________
+kXR_int64 XrdClient::ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int nbuf) {
+    // This will compress multiple request in one single read to
+    // avoid the latency.
+    // We dont know how to deal with the cache in this case of reading
+    // so we leave that for a near future (the same for read-aheads)...
+    // this call is completely sync. and straightforward
+
+    Info( XrdClientDebug::kHIDEBUG, "ReadV", " Number of Buffers=" << nbuf);
+
+    for(int i = 0 ; i < nbuf ; i++){
+      Info( XrdClientDebug::kHIDEBUG, "ReadV",
+            "Read(offs=" << offsets[i] << ", len=" << lens[i] << ")" ); 
+    }
+
+    // The first thing to do is to check if the server version
+    // supports the vectored reads... has to be > 2.4.5
+
+    // This means problems in getting the protocol version
+    if ( fConnModule->GetServerProtocol() < 0 ) {
+       Info(XrdClientDebug::kHIDEBUG, "ReadV",
+            "Problems retrieving protocol version run by the server" );
+       return -1;
+    }
+
+    // 246 is the non-recognized version of xrootd shipped with root 5.12
+    /*
+    if ( fConnModule->GetServerProtocol() < 0x00000246 ) {
+       Info(XrdClientDebug::kHIDEBUG, "ReadV",
+            "The server is an old version and doesn't support vectored reading" );
+       return -1;
+    }
+    */
+
+    // This means the server won't support it
+    if ( fConnModule->GetServerProtocol() < 0x00000247 ) {
+       Info(XrdClientDebug::kHIDEBUG, "ReadV",
+            "The server is an old version " << fConnModule->GetServerProtocol() <<
+	    " and doesn't support vectored reading" );
+       return -1;
+    }
+
+    kXR_int64 res;
+    kXR_int64 pos_from = 0;
+    kXR_int64 pos_to = 0;
+
+    readahead_list *buflis = new readahead_list[nbuf];
+
+    // Here we put the information of all the buffers in a single list
+    // then it's up to server to interpret it and send us all the data
+    // in a single buffer
+    kXR_int64 total_len = 0;
+    for (int i = 0; i < nbuf; i++) {
+
+        memcpy( &(buflis[i].fhandle), fHandle, sizeof(fHandle) ); 
+        buflis[i].offset = offsets[i];
+        buflis[i].rlen = lens[i];
+
+        total_len += lens[i];
+    }
+
+    // Prepare a request header 
+    ClientRequest readvFileRequest;
+    memset( &readvFileRequest, 0, sizeof(readvFileRequest) );
+    fConnModule->SetSID(readvFileRequest.header.streamid);
+    readvFileRequest.header.requestid = kXR_readv;
+    readvFileRequest.readv.dlen = nbuf * sizeof(struct readahead_list);
+
+    // A buffer able to hold the data and the info about the chunks
+    char *res_buf = new char[total_len + (nbuf * sizeof(struct readahead_list))];
+
+    bool r = fConnModule->SendGenCommand(&readvFileRequest, buflis, 0, 
+                               (void *)res_buf, FALSE, (char *)"ReadV");
+
+    delete [] buflis;
+
+    // This probably means that the server doesnt support ReadV
+    // ( old version of the server  )
+    res = -1;
+
+    if (r) {
+	res = fConnModule->LastServerResp.dlen;
+
+	// I just rebuild the readahead_list element
+	struct readahead_list header;
+	pos_from = 0;
+	pos_to = 0;
+
+	for ( int i = 0; i < nbuf ; i++) {
+	    memcpy(&header, res_buf + pos_from, sizeof(struct readahead_list));
+       
+	    kXR_int64 tmpl;
+	    memcpy(&tmpl, &header.offset, sizeof(kXR_int64) );
+	    tmpl = ntohll(tmpl);
+	    memcpy(&header.offset, &tmpl, sizeof(kXR_int64) );
+
+	    header.rlen  = ntohl(header.rlen);       
+       
+	    // If the data we receive is not the data we asked for we might
+	    // be seeing an error... but it has to be handled in a different
+	    // way if we get the data in a different order.
+	    if ( offsets[i] != header.offset || lens[i] != header.rlen ) {
+		res = -1;
+		break;
+	    }
+
+	    pos_from += sizeof(struct readahead_list);
+	    memcpy( &buf[pos_to], &res_buf[pos_from], header.rlen);
+	    pos_from += header.rlen;
+	    pos_to += header.rlen;
+	}
+	res = pos_to;
+    }
+
+    return res;
+}
+
+//_____________________________________________________________________________
 bool XrdClient::Write(const void *buf, long long offset, int len) {
 
     if (!IsOpen_wait()) {
