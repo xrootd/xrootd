@@ -28,13 +28,16 @@ using std::ios;
 using std::map;
 using std::setw;
 
+const kXR_unt16 XrdMonDecSink::VER_FREQ = 1000;
+
 XrdMonDecSink::XrdMonDecSink(const char* baseDir,
                              const char* rtLogDir,
                              int rtBufSize,
                              bool saveTraces,
                              int maxTraceLogSize,
                              bool verInRTLogName)
-    : _rtLogger(0),
+    : _verFreqCount(VER_FREQ),
+      _rtLogger(0),
       _saveTraces(saveTraces),
       _tCacheSize(32*1024), // 32*1024 * 32 bytes = 1 MB FIXME-configurable?
       _traceLogNumber(0),
@@ -175,6 +178,8 @@ XrdMonDecSink::initRT(const char* rtLogDir,
     char* rtLogNLock = new char [strlen(rtLogName)];
     sprintf(rtLogNLock, "%s/rtLog.lock", rtLogDir);
     _rtLogger = new XrdMonBufferedOutput(rtLogName, rtLogNLock, rtBufSize);
+    addVersion();
+    
     delete [] rtLogName;
     delete [] rtLogNLock;
     
@@ -264,6 +269,10 @@ XrdMonDecSink::addUserId(dictid_t usrId,
 
     if ( 0 != _rtLogger ) {
         _rtLogger->add( ui->writeRT2Buffer(XrdMonDecUserInfo::CONNECT) );
+        if ( --_verFreqCount < 1 ) {
+            addVersion();
+            _verFreqCount = VER_FREQ;
+        }
     }
 }
 
@@ -337,6 +346,10 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
     
     if ( 0 != _rtLogger ) {
         _rtLogger->add( itr->second->writeRT2Buffer(XrdMonDecUserInfo::DISCONNECT) );
+        if ( --_verFreqCount < 1 ) {
+            addVersion();
+            _verFreqCount = VER_FREQ;
+        }
     }    
 }
 
@@ -367,6 +380,10 @@ XrdMonDecSink::openFile(dictid_t xrdId,
 
     if ( 0 != _rtLogger ) {
         _rtLogger->add( itr->second->writeRT2BufferOpenFile(fSize) );
+        if ( --_verFreqCount < 1 ) {
+            addVersion();
+            _verFreqCount = VER_FREQ;
+        }
     }
 }
 
@@ -398,6 +415,10 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
 
     if ( 0 != _rtLogger ) {
         _rtLogger->add(itr->second->writeRT2BufferCloseFile());
+        if ( --_verFreqCount < 1 ) {
+            addVersion();
+            _verFreqCount = VER_FREQ;
+        }
     }
 }
 
@@ -817,3 +838,10 @@ XrdMonDecSink::registerXrdRestart(kXR_int32 stod, senderid_t senderId)
     f.close();
 }
 
+void
+XrdMonDecSink::addVersion() 
+{
+    char buf[16];
+    sprintf(buf, "v\t%03d\n", XRDMON_VERSION);
+    _rtLogger->add(buf);
+}

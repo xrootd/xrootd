@@ -79,6 +79,7 @@ private:
     typedef map<dictid_t, XrdMonDecUserInfo*>::iterator umapitr_t;
 
     void initRT(const char* rtLogDir, int rtBufSize, bool verInRTLogName);
+    void addVersion();
     
     void loadUniqueIdsAndSeq();
     vector<XrdMonDecDictInfo*> loadActiveDictInfo();
@@ -100,6 +101,12 @@ private:
     void resetUMap(senderid_t senderId);
     
 private:
+    // this defines how frequently version information will be
+    // added to the log file (every ...how many entries in the log file)
+    static const kXR_unt16 VER_FREQ;
+
+    kXR_unt16 _verFreqCount;
+
     // one map for one senderId (one xrootd host)
     vector< dmap_t* > _dCache;
     vector< umap_t* > _uCache;
