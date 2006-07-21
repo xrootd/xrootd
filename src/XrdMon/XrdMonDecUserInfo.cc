@@ -20,6 +20,8 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include <netinet/in.h>
 #include <stdio.h>
+#include <sys/time.h>
+
 using std::cout;
 using std::cerr;
 using std::endl;
@@ -125,9 +127,13 @@ XrdMonDecUserInfo::writeRT2Buffer(TYPE t) const
     static char buf[512];
     
     if ( t == CONNECT ) {
-        sprintf(buf, "u\t%i\t%s\t%i\t%s\t%s\n", 
+        struct timeval tv;
+        gettimeofday(&tv, 0);
+        static char timeNow[24];
+        timestamp2string(tv.tv_sec, timeNow, GMT);
+        sprintf(buf, "u\t%i\t%s\t%i\t%s\t%s\t%s\n", 
                 _myUniqueId, _user.c_str(), _pid, _cHost.c_str(), 
-                XrdMonSenderInfo::id2Host(_senderId));
+                XrdMonSenderInfo::id2Host(_senderId), timeNow);
     } else {
         static char b[24];
         timestamp2string(_dTime, b, GMT);

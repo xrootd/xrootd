@@ -44,7 +44,8 @@ const char XROOTD_MON_RWREQUESTMASK = 0x80;
 // 2 = changed API: extended to include file size information
 //     sent from xrootd. Also, all timestamps in GMT instead
 //     of localtime
-const kXR_int16 XRDMON_VERSION = 2;
+// 3 = added current time to the "u" entries at the end
+const kXR_int16 XRDMON_VERSION = 3;
 
 enum AdminCommand {
     c_shutdown = 1000
