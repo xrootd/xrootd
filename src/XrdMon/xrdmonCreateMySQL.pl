@@ -18,6 +18,18 @@ if ( @ARGV != 1 ) {
 $maxRowsTopPerfNow = 5 * $nTopPerfRows;
 $maxRowsTopPerfPast = 25 * $nTopPerfRows;
 
+# collector version
+$collector = `which xrdmonCollector`;
+chomp $collector;
+if ( $collector =~ 'xrdmonCollector$') {
+     $line = `xrdmonCollector -ver`;
+     @line = split('\t', $line);
+     $version = int($line[1]);
+} else { 
+     print "xrdmonCollector not in your PATH. No database created. \n";
+     exit;
+}
+
 @dbs = `mysql -S $mysqlSocket -u $mySQLUser -B -e "SHOW DATABASES"`;
 foreach $db ( @dbs ) {
     chomp $db;
@@ -102,8 +114,8 @@ foreach $fileType (@fileTypes) {
 }
 
 # make sure $thisSite gets id = 1 in sites
-&runQuery("INSERT INTO sites (name) 
-                VALUES ('$thisSite')");
+&runQuery("INSERT INTO sites (name, version) 
+                VALUES ('$thisSite', $version)");
 
 foreach $site (@sites) {
     $firstDate = $firstDates{$site};
@@ -393,13 +405,14 @@ sub readConfigFile() {
          push @missing, "baseDir";
     }
 
-    if ( $caller eq "collector" ) {
+    if ( $caller eq "collector" or $caller eq "create") {
          if ( ! $thisSite) {
             push @missing, "thisSite";    
          }
-    } else { 
+    } 
+    if ( $caller ne  "collector") {
          if ( ! $dbName ) {push @missing, "dbName";}
-         if ( ! $mySQLUser ) {push @missing, "mySQLUser";}
+         if ( ! $mySQLUser ) {push @missing, "MySQLUser";}
     }
 
     if ( @missing > 0 ) {
@@ -417,11 +430,12 @@ sub readConfigFile() {
              return;
         }
         print "  dbName: $dbName  \n";
-        print "  mySQLUser: $mySQLUser \n";
+        print "  MySQLUser: $mySQLUser \n";
         print "  MySQLSocket: $mysqlSocket \n";
         print "  nTopPerfRows: $nTopPerfRows \n";
         if ( $caller eq "create" ) {
              print "  backupIntDef: $backupIntDef \n";
+             print "  thisSite: $thisSite \n";
              foreach $site ( @sites ) {
                  print "  site: $site \n";
                  print "     timeZone: $timezones{$site}  \n";
