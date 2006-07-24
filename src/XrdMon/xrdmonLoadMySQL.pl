@@ -23,6 +23,7 @@ if ( @ARGV == 2 ) {
     $action = $ARGV[1];
 } else {
     &printUsage('start', 'stop');
+    exit;
 }
 
 if ( $action eq 'stop' ) {
@@ -33,6 +34,7 @@ if ( $action eq 'stop' ) {
     exit;
 } elsif ( $action ne 'start') {
     &printUsage('start', 'stop');
+    exit;
 }
 
 # Start
@@ -103,13 +105,14 @@ sub backupOneSite() {
     } else {
          $backupFile = $backupFiles{$siteName}
     }
-    `touch $backupFile; cat $inFN >> $backupFile; mv -f $inFN $baseDir/$siteName/journal/$siteName.ascii`;
+    `touch $backupFile; cat $inFN >> $backupFile; mv -f $inFN $baseDir/$siteName/journal/$siteName.ascii; touch $inFN`;
 
     # unlock the lock file
     unlockTheFile($lockF);
 }
 sub closeIdleSessions() {
-    # closes opened sessions with no open files.
+    # closes open sessions with no open files that have been
+    # open longer than $maxSessionIdleTime.
     # Assignments:
     # duration = MAX(closeT, connectT) - MIN(openT, connectT)
     # disconnectT = MAX(closeT, connectT)
@@ -135,7 +138,7 @@ sub closeIdleSessions() {
         return
     }
 
-    &runQuery("CREATE TEMPORARY TABLE cs_no_of LIKE ${siteName}_closedSessions");
+    &runQuery("CREATE TEMPORARY TABLE cs_no_of LIKE ${siteName}_closedSessions_LastHour");
     # close sessions with closed files
     my $n_cs_cf = 
         &runQueryRetNum("INSERT 
@@ -167,6 +170,7 @@ sub closeIdleSessions() {
     &runQuery("DROP TABLE IF EXISTS cs_no_of");
     print "closed $n_cs_cf sessions with closed and $n_cs_no_f with no files\n"; 
 }
+
 sub closeInputFiles() {
     close OFILE;
     close UFILE;
@@ -212,8 +216,8 @@ sub closeInteruptedSessions() {
 }
 
 sub closeLongSessions() {
-    # closes opened sessions with associated open files which were
-    # opened for longer than x days.
+    # closes open sessions with associated open files that are
+    # open longer than $maxConnectTime.
     # Assignments:
     # disconnectT = MAX(open-file openT, closed-file closeT) 
     # duration = disconnectT - MIN(openT)                  
@@ -224,7 +228,7 @@ sub closeLongSessions() {
     &printNow("Closing long sessions... ");
 
     my $cutOffDate = &runQueryWithRet("SELECT DATE_SUB('$GMTnow', INTERVAL $maxConnectTime)");
-    &runQuery("CREATE TEMPORARY TABLE IF NOT EXISTS cs LIKE ${siteName}_closedSessions");
+    &runQuery("CREATE TEMPORARY TABLE IF NOT EXISTS cs LIKE ${siteName}_closedSessions_LastHour");
     my $noDone =&runQueryRetNum("
                  INSERT IGNORE INTO cs
                  SELECT os.id, jobId, userId, pId, clientHId, serverHId,
@@ -304,14 +308,6 @@ sub closeOpenedFiles() {
 }
 
 sub doLoading {
-    my $ts = &timestamp();
-
-    # connect to the database
-    print "\n$ts Connecting to database...\n";
-    unless ( $dbh = DBI->connect("dbi:mysql:$dbName;mysql_socket=$mysqlSocket",$mySQLUser) ) {
-	print "Error while connecting to database. $DBI::errstr\n";
-	return;
-    }
 
     # load data for each site
     my $gmts = &gmtimestamp();
@@ -332,9 +328,6 @@ sub doLoading {
         &backupOneSite($siteName, $gmts);
 	$nr += &loadOneSite($siteName, $gmts, 1);
     }
-
-    # disconnect from db
-    $dbh->disconnect();
 
     $ts = &timestamp();
     print "$ts All done, processed $nr entries.\n";
@@ -478,7 +471,6 @@ sub forceClose() {
     }  
 }
 sub getFileEndTime() {
-    use vars qw(@line $EndT);
     my ($siteName, $file) = @_;
     my $tmpFile = "$baseDir/$siteName/journal/tmpFile";
     `tail -500 $file > $tmpFile`;
@@ -486,8 +478,9 @@ sub getFileEndTime() {
         print "Can't open file $tmpFile for reading \n";
         exit;
     }
+    my $endT = "";
     while ( <INPUT> ) {
-        @line = split('\t');
+        my @line = split('\t');
         if    ( $_ =~ m/^o/ ) { $endT = $line[6];}
         elsif ( $_ =~ m/^d/ ) { $endT = $line[3];}
         elsif ( $_ =~ m/^c/ ) { $endT = $line[4];}
@@ -499,14 +492,14 @@ sub getFileEndTime() {
     return($endT);
 }
 sub getFileStartTime() {
-    use vars qw(@line $startT);
     my ($siteName, $file) = @_;
     unless ( open INPUT, "< $file" ) {
         print "Can't open file $file for reading \n";
         exit;
     }
+    my $startT = "";
     while ( <INPUT> ) {
-        @line = split('\t');
+        my @line = split('\t');
         if    ( $_ =~ m/^o/ ) { $startT = $line[6];}
         elsif ( $_ =~ m/^d/ ) { $startT = $line[3];}
         elsif ( $_ =~ m/^c/ ) { $startT = $line[4];}
@@ -589,7 +582,16 @@ sub initLoad() {
     }
     $fileTypeList = join ',' , @fileTypeList;
     @siteNames = &runQueryRetArray("SELECT name FROM sites");
-    $dbh->disconnect();
+
+    foreach $siteName ( @siteNames ) {
+        $jrnlDir = "$baseDir/$siteName/journal:;
+        if ( -e "$jrnlDir/loadingActive" ) {
+            unlink "$jrnlDir/loadingActive";
+        }
+        if ( -e "$jrnlDir/inhibitPrepare" ) {
+            unlink "$jrnlDir/inhibitPrepare";
+        }
+    }
 }
 
 sub initLoad4OneSite() {
@@ -623,7 +625,7 @@ sub initLoad4OneSite() {
                                              FROM sites
                                             WHERE name = '$siteName'");
     if ( ! $backupInts{$siteName} ) {
-        $backupInts{$siteName} = $backupInt;
+        $backupInts{$siteName} = $backupIntDef;
     }
     if ( ! -d "$siteDir/journal" ) {
         mkdir "$siteDir/journal";
@@ -1004,9 +1006,10 @@ sub loadOpenSession() {
                                            ORDER BY jobId DESC
                                               LIMIT 1     ");
         if ( $jobId ) {
-            &runQuery("UPDATE ${siteName}_jobs   SET noOpenSessions = noOpenSessions + 1,
-                                                     beginT         = LEAST( '$connectT', beginT)
-                                               WHERE      jobId = $jobId");
+            &runQuery("UPDATE ${siteName}_jobs   
+                          SET noOpenSessions = noOpenSessions + 1,
+                              beginT         = LEAST('$connectT', beginT)
+                        WHERE jobId = $jobId");
         } else {
             &runQuery("INSERT IGNORE INTO ${siteName}_jobs ( userId,  pId,  clientHId,   noOpenSessions, beginT,      endT    ) 
                                    VALUES                  ($userId, $pid, $clientHostId,      1       ,'$connectT', '$connectT')");
@@ -1214,7 +1217,7 @@ sub readConfigFile() {
          }
     } else { 
          if ( ! $dbName ) {push @missing, "dbName";}
-         if ( ! $mySQLUser ) {push @missing, "mySQLUser";}
+         if ( ! $mySQLUser ) {push @missing, "MySQLUser";}
     }
 
     if ( @missing > 0 ) {
@@ -1232,21 +1235,21 @@ sub readConfigFile() {
              return;
         }
         print "  dbName: $dbName  \n";
-        print "  mySQLUser: $mySQLUser \n";
-        print "  mysqlSocket: $mysqlSocket \n";
+        print "  MySQLUser: $mySQLUser \n";
+        print "  MySQLSocket: $mysqlSocket \n";
         print "  nTopPerfRows: $nTopPerfRows \n";
         if ( $caller eq "create" ) {
-             print "backupIntDef: $backupIntDef \n";
+             print "  backupIntDef: $backupIntDef \n";
              foreach $site ( @sites ) {
-                 print "site: $site \n";
+                 print "  site: $site \n";
                  print "     timeZone: $timezones{$site}  \n";
                  print "     firstDate: $firstDates{$site} \n";
                  if ( $backupInts{$site} ) {
-                     print "backupInt: $backupInts{$site} \n";
+                     print "  backupInt: $backupInts{$site} \n";
                  }
              }
              foreach $fileType ( @fileTypes ) {
-                 print "fileType: $fileType $maxRowsTypes{$fileType} \n";
+                 print "  fileType: $fileType $maxRowsTypes{$fileType} \n";
              }
          } else {
              print "  baseDir: $baseDir \n";
@@ -1420,6 +1423,7 @@ sub stopLoading() {
              unlink "$baseDir/$siteName/journal/inhibitPrepare";
          }
      }
+     $dbh->disconnect();
      exit;
 }
 sub timestamp() {
