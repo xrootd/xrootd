@@ -23,6 +23,7 @@ if ( @ARGV == 2 ) {
     $action = $ARGV[1];
 } else {
     &printUsage('start', 'stop');
+    exit;
 }
 
 if ( $action eq 'stop' ) {
@@ -33,6 +34,7 @@ if ( $action eq 'stop' ) {
     exit;
 } elsif ( $action ne 'start') {
     &printUsage('start', 'stop');
+    exit;
 }
 
 # Start
@@ -317,7 +319,8 @@ sub avNumUsersInTimeInterval() {
 }
 
 sub closeIdleSessions() {
-    # closes opened sessions with no open files.
+    # closes open sessions with no open files that have been
+    # open longer than $maxSessionIdleTime.
     # Assignments:
     # duration = MAX(closeT, connectT) - MIN(openT, connectT)
     # disconnectT = MAX(closeT, connectT)
@@ -343,7 +346,7 @@ sub closeIdleSessions() {
         return
     }
 
-    &runQuery("CREATE TEMPORARY TABLE cs_no_of LIKE ${siteName}_closedSessions");
+    &runQuery("CREATE TEMPORARY TABLE cs_no_of LIKE ${siteName}_closedSessions_LastHour");
     # close sessions with closed files
     my $n_cs_cf = 
         &runQueryRetNum("INSERT 
@@ -375,9 +378,10 @@ sub closeIdleSessions() {
     &runQuery("DROP TABLE IF EXISTS cs_no_of");
     print "closed $n_cs_cf sessions with closed and $n_cs_no_f with no files\n"; 
 }
+
 sub closeLongSessions() {
-    # closes opened sessions with associated open files which were
-    # opened for longer than x days.
+    # closes open sessions with associated open files that are
+    # open longer than $maxConnectTime.
     # Assignments:
     # disconnectT = MAX(open-file openT, closed-file closeT) 
     # duration = disconnectT - MIN(openT)                  
@@ -388,7 +392,7 @@ sub closeLongSessions() {
     &printNow("Closing long sessions... ");
 
     my $cutOffDate = &runQueryWithRet("SELECT DATE_SUB('$GMTnow', INTERVAL $maxConnectTime)");
-    &runQuery("CREATE TEMPORARY TABLE IF NOT EXISTS cs LIKE ${siteName}_closedSessions");
+    &runQuery("CREATE TEMPORARY TABLE IF NOT EXISTS cs LIKE ${siteName}_closedSessions_LastHour");
     my $noDone =&runQueryRetNum("
                  INSERT IGNORE INTO cs
                  SELECT os.id, jobId, userId, pId, clientHId, serverHId,
@@ -492,7 +496,7 @@ sub fillStatsAllYearsMissingBins() {
                                    FROM ${siteName}_statsAllYears 
                                   WHERE date = '$t2' ") ) {
         
-            if ( $t1 lt $sourceTabTmin ) {
+            if ( ! $sourceTabTmin  or $t1 lt $sourceTabTmin ) {
                 # use full tables to get older statistics
                 $avNumJobs = &avNumJobsInTimeInterval($t1, $t2, $intervalSec, $siteName);
                 $avNumUsers = &avNumUsersInTimeInterval($t1, $t2, $intervalSec, $siteName);
@@ -549,7 +553,7 @@ sub fillStatsMissingBins() {
         $seqNo = &timeToSeqNo( $t2, $period );
         if ( ! &runQueryWithRet("SELECT date FROM ${siteName}_statsLast$period WHERE seqNo = $seqNo") ) {
 
-            if ( $period eq "Day" or $t1 lt $sourceTabTmin ) {
+             if ( ! $sourceTabTmin or $t1 lt $sourceTabTmin ) {
                 # use full tables to get older statistics
                 $avNumJobs = &avNumJobsInTimeInterval($t1, $t2, $intervalSec, $siteName);
                 $avNumUsers = &avNumUsersInTimeInterval($t1, $t2, $intervalSec, $siteName);
@@ -777,11 +781,11 @@ sub loadStatsLastHour() {
     my $siteId = $siteIds{$siteName};
     use vars qw($noJobs $noUsers $noUniqueF $noNonUniqueF $deltaJobs $jobs_p 
                 $deltaUsers $users_p $deltaUniqueF $uniqueF_p $deltaNonUniqueF $nonUniqueF_p);
-
-    if ( &getLastInsertTime($loadTime, "Hour") gt $dbUpdates{$siteName} ) {return;}
     
     &runQuery("DELETE FROM ${siteName}_statsLastHour 
                      WHERE date < DATE_SUB('$loadTime', INTERVAL  1 HOUR)");
+
+    if ( &getLastInsertTime($loadTime, "Hour") gt $dbUpdates{$siteName} ) {return;}
 
     ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(DISTINCT jobId), COUNT(DISTINCT userId) 
                                               FROM ${siteName}_openedSessions");
@@ -817,6 +821,10 @@ sub loadStatsLastPeriod() {
     my $interval = $intervals{$period};
     my $timeUnit = $timeUnits{$period};
     my $intervalSec = $interval * $seconds{$timeUnit};
+
+    # delete old points
+    &runQuery("DELETE FROM ${siteName}_statsLast$period
+                     WHERE date < DATE_SUB('$loadTime', INTERVAL  1 $period)");
 
     # $t1 - $t2 define the latest interval for $period
     my $t2 = &getLastInsertTime($loadTime, $period);
@@ -1072,7 +1080,7 @@ sub readConfigFile() {
          }
     } else { 
          if ( ! $dbName ) {push @missing, "dbName";}
-         if ( ! $mySQLUser ) {push @missing, "mySQLUser";}
+         if ( ! $mySQLUser ) {push @missing, "MySQLUser";}
     }
 
     if ( @missing > 0 ) {
@@ -1090,21 +1098,21 @@ sub readConfigFile() {
              return;
         }
         print "  dbName: $dbName  \n";
-        print "  mySQLUser: $mySQLUser \n";
-        print "  mysqlSocket: $mysqlSocket \n";
+        print "  MySQLUser: $mySQLUser \n";
+        print "  MySQLSocket: $mysqlSocket \n";
         print "  nTopPerfRows: $nTopPerfRows \n";
         if ( $caller eq "create" ) {
-             print "backupIntDef: $backupIntDef \n";
+             print "  backupIntDef: $backupIntDef \n";
              foreach $site ( @sites ) {
-                 print "site: $site \n";
+                 print "  site: $site \n";
                  print "     timeZone: $timezones{$site}  \n";
                  print "     firstDate: $firstDates{$site} \n";
                  if ( $backupInts{$site} ) {
-                     print "backupInt: $backupInts{$site} \n";
+                     print "  backupInt: $backupInts{$site} \n";
                  }
              }
              foreach $fileType ( @fileTypes ) {
-                 print "fileType: $fileType $maxRowsTypes{$fileType} \n";
+                 print "  fileType: $fileType $maxRowsTypes{$fileType} \n";
              }
          } else {
              print "  baseDir: $baseDir \n";
