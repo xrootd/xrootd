@@ -43,6 +43,7 @@ xrootdclientinc_HEADERS = XrdClient.hh \
 
 #############################################################################
 # Build rules
+BUILT_SOURCES=XrdClientAdmin_c_wrap.cc
 
 libXrdClient_la_SOURCES = \
         XrdClientAbs.cc XrdClientAbs.hh                \
@@ -64,7 +65,9 @@ libXrdClient_la_SOURCES = \
         XrdClientEnv.cc XrdClientEnv.hh XrdClientConst.hh                \
         XrdCpMthrQueue.cc  XrdCpMthrQueue.hh             \
         XrdCpWorkLst.cc XrdCpWorkLst.hh                \
-        XrdClientSid.cc XrdClientSid.hh
+        XrdClientSid.cc XrdClientSid.hh \
+        XrdClientPSock.cc XrdClientPSock.hh \
+	XrdClientMStream.cc XrdClientMStream.hh
 libXrdClient_la_LIBADD = $(LIBSUNMATH)
 
 clientlibs =  libXrdClient.la \
@@ -78,7 +81,7 @@ xrdcp_SOURCES = Xrdcp.cc
 xrdcp_LDADD = $(clientlibs)
 
 xrd_SOURCES = XrdCommandLine.cc
-xrd_LDADD = $(clientlibs)
+xrd_LDADD = $(clientlibs) $(READLINE_LIBS)
 
 TestXrdClient_SOURCES = XrdClientAdmin_c.cc XrdClientAdmin_c.hh \
                         TestXrdClient.cc
@@ -97,16 +100,28 @@ XrdClientAdminJNI.class: XrdClientAdminJNI.java
 install-exec-local:  XrdClientAdminJNI.class
 	$(INSTALL) -d $(javaclassdir)/xrootdadmin
 	$(INSTALL) -m 644 xrootdadmin/XrdClientAdminJNI.class $(javaclassdir)/xrootdadmin/XrdClientAdminJNI.class
-clean-local:
-	rm -f xrootdadmin/XrdClientAdminJNI.class
 uninstall-local:
 	rm -f $(javaclassdir)/xrootdadmin/XrdClientAdminJNI.class
 endif
 
+clean-local:
+	rm -f xrootdadmin/XrdClientAdminJNI.class XrdClientAdmin_c_wrap.cc
 
-# needed outside the ENABLE_PERLINT clause, because of "make dist" target
+
+# To have the swigfile compiled with the c++ compiler (and because it
+# always has been in the repository as .c) we copy it to .cc. If a
+# suitable swig is available, we instead create it anew
+# This needs to be done outside the ENABLE_PERLINT clause, to get a working
+# "make dist" target
+
+if REBUILD_SWIGFILE
 XrdClientAdmin_c_wrap.cc:
-	cp XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc
+	echo Creating swig perl interface
+	$(SWIG) -perl -o $@ $(srcdir)/XrdClientAdmin_c.hh
+else
+XrdClientAdmin_c_wrap.cc:
+	cp $(srcdir)/XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc
+endif
 
 if ENABLE_PERLINT
 

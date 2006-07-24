@@ -22,6 +22,15 @@
 #include <iostream>
 #include <unistd.h>
 #include <stdarg.h>
+#include <sstream>
+
+#ifdef HAVE_READLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+#include <curses.h>
+#include <term.h>
+#endif
+
 
 /////////////////////////////////////////////////////////////////////
 // function + macro to allow formatted print via cout,cerr
@@ -102,16 +111,28 @@ void PrintUsage() {
    cerr << "   intvalue     is an int to be assigned to an internal parameter" << endl;
 }
 
-void PrintPrompt() {
+void PrintPrompt(stringstream &s) {
+  s.clear();
+  if (genadmin)
+    s << "root://" << genadmin->GetCurrentUrl().Host << 
+      ":" << genadmin->GetCurrentUrl().Port <<
+      "/" << currentpath;
 
-   if (genadmin)
-      cout << "root://" << genadmin->GetCurrentUrl().Host << 
-	 ":" << genadmin->GetCurrentUrl().Port <<
-	 "/" << currentpath;
-   
-   cout << ">";
+  s << ">";
 
 }
+
+#ifndef HAVE_READLINE
+// replacement function for GNU readline
+char *readline(const char *prompt) {
+  char *linebuf = new char[4096];
+
+  cout << prompt;
+  if (!fgets(linebuf, 4096, stdin) || !strlen(linebuf))
+    return NULL;
+  return linebuf;
+}
+#endif
 
 void PrintHelp() {
 
@@ -269,16 +290,20 @@ int main(int argc, char**argv) {
    }
 
    while(1) {
-      char linebuf[4096];
-      linebuf[0] = 0;
-      XrdOucTokenizer tkzer(linebuf);
+      stringstream prompt;
+      char *linebuf;
+      XrdOucTokenizer tkzer(linebuf); // should add valid XrdOucTokenizer constructor()
 
       
-      PrintPrompt();
-
-      // Now we get a line of input from the console
-      if (!fgets(linebuf, 4096, stdin) || !strlen(linebuf))
-	 continue;
+      PrintPrompt(prompt);
+      linebuf = readline(prompt.str().c_str());
+      if(! linebuf || ! *linebuf) {
+        free(linebuf);
+	continue;
+      }
+#ifdef HAVE_READLINE
+      add_history(linebuf);
+#endif
 
       // And the simple parsing starts
       tkzer.Attach(linebuf);
@@ -1004,7 +1029,7 @@ int main(int argc, char**argv) {
       
 
       
-	
+      free(linebuf);
    } // while (1)
 
 

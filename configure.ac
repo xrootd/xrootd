@@ -17,7 +17,7 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20060502cvs,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20060704newconf,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -80,8 +80,10 @@ case "$target_os" in
      AC_DEFINE(__macos__)
      ;;
    linux*)
-     # TODO: check why two different macros are used for this
      AC_DEFINE(__linux__)
+     if test -r /etc/redhat-release; then
+        ACX_LOAD_DEFAULTS(config/ac_default_linux_rh)
+     fi
      ;;
    solaris*)
      TARGET_OS=solaris
@@ -108,11 +110,10 @@ esac
 AM_CONDITIONAL(NEED_MACOS_DEPLOYMENT_TARGET,[test x"$need_macos_dt" = xyes])
 
 ###########################################################
-# At SLAC the Kerberos libs and includes are under AFS; 
-# people there want some automatic tool to pick them up, but
-# having the paths hardcoded in the search lists may hang
-# configure in other places if access to SLAC AFS is down.
-# So we include them only for nodes in the domain '.stanford.edu'.
+# We allow site specific default configurations to be read from files in the
+# config area (important for people at SLAC where some depending
+# libraries are located in non standard places, and people do not want
+# every time to specify long configure options)
 domain=""
 case "$target_os" in
    linux*)
@@ -125,16 +126,21 @@ esac
 if test "x$domain" = "x" ; then
    domain=`domainname 2> /dev/null`
 fi
-extra_inc_path_default="$extra_inc_path_default /usr/kerberos/include"
-extra_lib_path_default="$extra_lib_path_default /usr/kerberos/lib"
-case $domain in
-  *.stanford.edu)
-     extra_inc_path_default="$extra_inc_path_default /afs/slac.stanford.edu/package/krb5/include "
-     extra_lib_path_default="$extra_lib_path_default /afs/slac.stanford.edu/package/krb5/lib"
-     ;;
-  *)
-     ;;
-esac
+
+# look whether there is a site specific defaults file for this domain
+domain=`expr $domain : '.*\.\(.*\..*\)$'`
+if test x"$domain" != x -a  x"$domain" != "x(none)"; then
+   ACX_LOAD_DEFAULTS(config/ac_default_$domain)
+fi
+
+# Allow loading of a user specified defaults file
+AC_ARG_WITH(defaults,
+	[  --with-defaults=PATH        path to a default options file to be sourced],
+        [if test x"$withval" = x -o ! -r "$withval"; then
+            AC_MSG_ERROR([Cannot open specified defaults file ($withval)])
+         fi
+         ACX_LOAD_DEFAULTS($withval)
+         ])
 
 ###########################################################
 # only carry on the paths which really exist on this system
@@ -149,7 +155,11 @@ for name in $extra_lib_path_default ; do
    fi
 done
 
+# this extension allows the definition of a base dir where dependencies are found
+# in basedir/lib, basedir/etc, ...
+# easier then specifying multiple options or using CPPFLAGS/LDFLAGS
 ACX_WITH_BASEDIR
+
 extra_inc_path="$acx_base_incdir $extra_inc_path"
 extra_lib_path="$acx_base_libdir $extra_lib_path"
 
@@ -178,7 +188,6 @@ for dir in $extra_inc_path ; do
    fi
 done
 
-
 # add extra library path elements to LDFLAGS
 for dir in $extra_lib_path ; do
    if test x"$dir" != x ; then
@@ -190,17 +199,17 @@ AC_MSG_NOTICE([my CPPFLAGS... $CPPFLAGS])
 AC_MSG_NOTICE([my LDFLAGS... $LDFLAGS])
 
 ############################################################
-
+# BUILDING WITH DEBUG SYMBOLS
 
 AC_ARG_ENABLE(dbg-build,
               [  --enable-dbg-build      build with debug symbols, no optimization],
-  if test x"$enableval" = "xyes"; then
-     debug_build=yes
+  [if test x"$enableval" = "xyes"; then
      DFLT_OPT=""
      DBG_OPT="-g"
      AC_MSG_NOTICE([ENABLING DEBUG BUILD])
-  fi
+  fi],[enableval=default_no]
 )
+ACX_COLLECT_OPTION(dbg_build,$enableval)
 
 
 #################################################################
@@ -239,9 +248,9 @@ LDFLAGS_BUP="$LDFLAGS"
 # passwd based authentication support
 AC_ARG_ENABLE(pwd,
               [  --enable-pwd            Password-based authentication support [[default=yes]] ],
-              [],[enable_pwd=yes])
-AM_CONDITIONAL(ENABLE_PWD, test x"$enable_pwd" = xyes)
-if test x"$enable_pwd" = xyes ; then
+              [],[enable_pwd=default_yes])
+AM_CONDITIONAL(ENABLE_PWD, test x"$enable_pwd" = xyes -o x"$enable_pwd" = xdefault_yes)
+if test x"$enable_pwd" = xyes -o x"$enable_pwd" = xdefault_yes; then
    if test -f "/etc/shadow"; then
      AC_DEFINE(R__SHADOWPW)
    fi
@@ -251,92 +260,83 @@ if test x"$enable_pwd" = xyes ; then
 		  AC_MSG_WARN([disabling support for crypt-like passwords])
 		 ],[])
 fi
+ACX_COLLECT_OPTION(pwd,$enable_pwd)
 
 ####################################################################
 # Kerberos IV support
-AC_ARG_ENABLE(krb4,
-              [  --enable-krb4           Kerberos4 support, requires Kerberos libs [[default=no]] ],
-              [],[enable_krb4=no]
-             )
-AC_ARG_WITH(krb4-incdir,
-            [  --with-krb4-incdir=PATH     KerberosIV support, location of kerberosIV/krb.h],
-            [if test ! -f "$withval"/kerberosIV/krb.h ; then
-                AC_MSG_ERROR([Could not locate kerberosIV/krb.h in $withval])
-             fi
-	    KRB4_INCDIR="-I$withval"
-            ]
-           )
-AC_SUBST(KRB4_INCDIR)
-
-AC_ARG_WITH(krb4-libdir,
-            [  --with-krb4-libdir=PATH     KerberosIV support, location of libkrb4],
-            [KRB4_LIBDIR="-L$withval"]
-           )
-AC_SUBST(KRB4_LIBDIR)
-
-
+ACX_LIBOPTION(krb4,[Kerberos4 support],yes)
+if test x"$acx_krb4_incdir" != x ; then
+   AC_MSG_CHECKING([for kerberosIV/krb.h in $acx_krb4_incdir])
+   if test ! -f "$acx_krb4_incdir"/kerberosIV/krb.h ; then
+      AC_MSG_RESULT([no])
+      if test $activate_krb4 = yes; then
+         AC_MSG_ERROR([Could not locate kerberosIV/krb.h in $acx_krb4_incdir])
+      else
+         AC_MSG_WARN([disabling krb4 support])
+         activate_krb4=disabled
+      fi
+   else      
+      AC_MSG_RESULT([found])
+   fi
+fi
 
 ####################################################################
 # Kerberos 5 support
-AC_ARG_ENABLE(krb5,
-              [  --enable-krb5           Kerberos5 support, requires Kerberos libs [[default=no]] ],
-              [],[enable_krb5=no]
-             )
-AC_ARG_WITH(krb5-incdir,
-            [  --with-krb5-incdir=PATH     Kerberos5 support, location of krb5.h],
-            [if test ! -f "$withval"/krb5.h ; then
-                AC_MSG_ERROR([Could not locate krb5.h in $withval])
-             fi]
-	    KRB5_INCDIR="-I$withval"
-           )
-AC_SUBST(KRB5_INCDIR)
-
-AC_ARG_WITH(krb5-libdir,
-            [  --with-krb5-libdir=PATH     Kerberos5 support, location of libkrb5],
-            [KRB5_LIBDIR="-L$withval"]
-           )
-AC_SUBST(KRB5_LIBDIR)
-
+ACX_LIBOPTION(krb5,[Kerberos5 support],yes)
+if test x"$acx_krb5_incdir" != x ; then
+   AC_MSG_CHECKING([for krb5.h in $acx_krb5_incdir])
+   if test ! -f "$acx_krb5_incdir"/krb5.h ; then
+      AC_MSG_RESULT([no])
+      if test $activate_krb5 = yes; then
+         AC_MSG_ERROR([Could not locate krb.h in $acx_krb5_incdir])
+      else
+         AC_MSG_WARN([disabling krb5 support])
+         activate_krb5=disabled
+      fi
+   else      
+      AC_MSG_RESULT([found])
+   fi
+fi
 
 ####################################################################
 # GSI support
 AC_ARG_ENABLE(gsi,
               [  --enable-gsi     GSI authentication support, requires OpenSSL [[default=no]] ],
-              [],[enable_gsi=no]
+              [],[enable_gsi=default_no]
               )
-if test x"$enable_gsi" = xyes ; then
-   enable_openssl=yes
+ACX_COLLECT_OPTION(gsi,$enable_gsi)
+if test x"$activate_gsi" = xyes -o x"$activate_gsi" = xdefault_yes ; then
+   AC_MSG_NOTICE([gsi module requires enabling of openssl module - enabling...])
+   activate_openssl=default_yes
 fi
-
-AM_CONDITIONAL(ENABLE_GSI,test x"$enable_gsi" = xyes)
 
 
 ####################################################################
 # OpenSSL support
-AC_ARG_ENABLE(openssl,
-              [  --enable-openssl       Build OpenSSL implementation of crypto interfaces [[default=yes]] ],
-              [],[enable_openssl=default_yes]
-             )
+ACX_LIBOPTION(openssl,[Build OpenSSL implementation of crypto interfaces],yes)
 
-if test x"$enable_openssl" != xno ; then
+if test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes ; then
   ssltests=ok
-  OPENSSLINC=""
-  AC_ARG_WITH(openssl-incdir,
-            [  --with-openssl-incdir=PATH   dir containing openssl/ header directory],
-            [searchpath="$withval"],
-            [searchpath="$std_inc_path"]
-           )
+
+  if test x"$acx_openssl_incdir" != x; then
+     searchpath=$acx_openssl_incdir
+  else
+     searchpath="$std_inc_path"
+  fi
 
   ACX_LOCATEFILE([openssl/opensslv.h],[$searchpath],
                  [OPENSSL_INCDIR="-I$acx_founddir"
                   OPENSSL_VERSION_TEXT=`grep OPENSSL_VERSION_TEXT "$dir"/openssl/opensslv.h | grep OpenSSL`
                   AC_MSG_NOTICE([openssl header dir set to: $dir ]) ],
-                 [if test  x"$enable_openssl" = xyes ; then
-                    AC_MSG_ERROR([Could not locate openssl/opensslv.h in $searchpath])
-                  fi]
+                 [if test  x"$activate_openssl" = xyes ; then
+                    AC_MSG_ERROR([Could not locate openssl/opensslv.h])
+                  else
+                    activate_openssl=disabled
+                  fi
+                 ]
                 )
 
-  AC_SUBST(OPENSSL_INCDIR)
+  #AC_SUBST(OPENSSL_INCDIR)
 
   # test openssl version
   verstr=`expr  x"$OPENSSL_VERSION_TEXT" : '.*\([[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*[[a-z]]*\)'`
@@ -365,16 +365,6 @@ if test x"$enable_openssl" != xno ; then
     AC_DEFINE(R__SSL_GE_098)
   fi
 
-  AC_ARG_WITH(openssl-libdir,
-            [  --with-openssl-libdir=PATH    dir containing openssl library (libssl.*)],
-            [
-              OPENSSL_LIBDIR="-L$withval";
-              AC_MSG_NOTICE([openssl library dir set to: ${OPENSSL_LIBDIR}])
-            ]
-           )
-  AC_SUBST(OPENSSL_LIBDIR)
-
-
   # note: openssl may require kerberos5 include files
   CPPFLAGS="$OPENSSL_INCDIR $KRB5_INCDIR $CPPFLAGS"
   AC_CHECK_HEADER([openssl/ssl.h],
@@ -388,36 +378,41 @@ if test x"$enable_openssl" != xno ; then
               )
 
   if test x"$ssltests" != xok ; then
-    if test x"$enable_openssl" = xyes ; then
+    if test x"$activate_openssl" = xyes ; then
       AC_MSG_ERROR([tests for openssl failed. Change configure options])
     fi
     AC_MSG_WARN([disabling openssl support])
-    enable_openssl=no
+    activate_openssl=disabled
+    activate_gsi=disabled
   fi
 
   CPPFLAGS="$CPPFLAGS_BUP"
   LDFLAGS=$LDFLAGS_BUP
 fi
 
-AM_CONDITIONAL(ENABLE_OPENSSL,test x"$enable_openssl" != xno)
+AM_CONDITIONAL(ENABLE_OPENSSL,test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes)
+AM_CONDITIONAL(ENABLE_GSI,test x"$activate_gsi" = xyes -o x"$activate_gsi" = xdefault_yes)
+
 
 ####################################################################
 # monitoring
 AC_ARG_ENABLE(mon,
               [  --enable-mon     Enable/disable building of monitoring services [[default=no]] ],
-              [],[enable_mon=no]
+              [],[enable_mon=default_no]
              )
-AM_CONDITIONAL(ENABLE_MON,test x"$enable_mon" = xyes)
+ACX_COLLECT_OPTION(mon,$enable_mon)
+AM_CONDITIONAL(ENABLE_MON,test x"$activate_mon" = xyes -o x"$activate_mon" = xdefault_yes)
 
 ####################################################################
-# PERL options
+# PERL interface options
 AC_ARG_ENABLE(perlint,
               [  --enable-perlint      build perl interface [[default=yes]] ],
-              [],[enable_perlint=yes]
+              [],[enable_perlint=default_yes]
              )
-AM_CONDITIONAL(ENABLE_PERLINT, test x"$enable_perlint" = xyes)
+ACX_COLLECT_OPTION(perlint,$enable_perlint)
+AM_CONDITIONAL(ENABLE_PERLINT, test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes)
 
-if test x"$enable_perlint" = xyes ; then
+if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; then
   AC_ARG_WITH(perl,
             [  --with-perl=PATH        path to perl executable],
             PERL=$withval,
@@ -455,14 +450,41 @@ if test x"$enable_perlint" = xyes ; then
   AC_SUBST(PERL_LIBS)
   AC_SUBST(PERL_LDOPTS)
   AC_SUBST(PERL_CCOPTS)
+
+  # SWIG checks
+  rebuild_swigfile="no"
+  AC_ARG_ENABLE(swig,
+              [  --enable-swig     enable rebuilding of Perl wrapper with SWIG [[default=yes]] ],
+              [],[enable_swig=default_yes])
+  ACX_COLLECT_OPTION(swig,$enable_swig)
+
+  AC_PATH_PROG(SWIG,swig,[no],[$SWIG_DIR:$PATH])
+  if test $enable_swig = "yes" -o $enable_swig = "default_yes" -a x"$SWIG" != xno; then
+     AC_MSG_CHECKING([for swig version])
+     verstr=`$SWIG -version 2>/dev/null`
+     vermajor=`expr x"$verstr" : '.*\([[0-9]][[0-9]]*\).[[0-9]][[0-9]]*.[[0-9]][[0-9]]*'`
+     verminor=`expr x"$verstr" : '.*[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*'`
+     verrelease=`expr x"$verstr" : '.*[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)'`
+     vernum=`expr 10000 \* 0"$vermajor" + 100 \* 0"$verminor" + 0"$verrelease"`
+     ##AC_MSG_NOTICE([SWIG version $vermajor.$verminor.$verrelease])
+     if test 0"$vernum" -lt 10322; then
+	AC_MSG_RESULT([$vermajor.$verminor.$verrelease; NOT OK! need at least 1.3.22])
+     else
+	AC_MSG_RESULT([$vermajor.$verminor.$verrelease; OK!])
+        rebuild_swigfile="yes"
+     fi
+     AC_SUBST(SWIG)
+  fi
 fi
+AM_CONDITIONAL(REBUILD_SWIGFILE,[test x"$rebuild_swigfile" = xyes])
 
 #################################################################
 # JAVA interface option
 AC_ARG_ENABLE(javaint,
               [  --enable-javaint      build java interface [[default=no]] ],
-              [],[enable_javaint=no])
-AM_CONDITIONAL(ENABLE_JAVAINT, test x"$enable_javaint" = xyes)
+              [],[enable_javaint=default_no])
+ACX_COLLECT_OPTION(javaint,$enable_javaint)
+AM_CONDITIONAL(ENABLE_JAVAINT, test x"$activate_javaint" = xyes -o x"$activate_javaint" = xdefault_yes)
 MY_JAVA_HOME=$JAVA_HOME
 JAVA_CLASSPATH="\$(libdir)"
 AC_ARG_WITH(java-home,
@@ -472,7 +494,7 @@ AC_ARG_WITH(java-classpath,
 	      [  --with-java-classpath=PATH  path where to install java .class files],
               JAVA_CLASSPATH=$withval)
 
-if test x"$enable_javaint" = xyes; then
+if test x"$activate_javaint" = xyes -o x"$activate_javaint" = xdefault_yes; then
    if test ! -d "${MY_JAVA_HOME}/include"; then
       AC_MSG_ERROR([java include folder not found: ${MY_JAVA_HOME}/include.
    Disable javaint or use correct --with-java-home directive])
@@ -503,35 +525,10 @@ AC_SUBST(JAVAC)
 AC_SUBST(JAVA_CLASSPATH)
 #################################################################
 # Catalog token authorization mechanism
-AC_ARG_ENABLE(tokenauthz,
-        [  --enable-tokenauthz      enable building of catalog token authorization Ofs [[default=no]] ],
-              [],[enable_tokenauthz=no]
-             )
+ACX_LIBOPTION(tkauthz,[enable building of catalog token authorization Ofs module],no)
 
-### we no longer invoke the sub-configure
-#if test x"$enable_tokenauthz" = xyes ; then
-#  AC_CONFIG_SUBDIRS(src/XrdTokenAuthOfs)
-#fi
+AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes)
 
-AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$enable_tokenauthz" = xyes)
-
-
-AC_ARG_WITH(tkauthz-inc,
-            [  --with-tkauthz-inc=PATH    directory containing TTokenAuthz.h],
-            [TKAUTHZ_INC="-I${withval}"]
-           )
-AC_SUBST(TKAUTHZ_INC)
-AC_ARG_WITH(tkauthz-lib,
-            [  --with-tkauthz-lib=PATH    directory containing libTokenAuthz],
-            [TKAUTHZ_LIB="-L${withval}"]
-           )
-AC_SUBST(TKAUTHZ_LIB)
-
-# if we configure from this top level configure, we are always using the autotools build
-#AM_CONDITIONAL(XROOTD_AUTOBUILD, test 1 = 1)
-
-# and therefore the srcdir for xrootd is "../.."
-#AC_SUBST(XROOTD_SRCDIR,[../..])
 
 #################################################################
 # where to install the utility scripts
@@ -571,7 +568,7 @@ AM_CONDITIONAL(HAVE_DOXYGEN,[test x"$DOXYGEN" != x])
 #               [AC_DEFINE(_LITTLE_ENDIAN)]
 #              )
 
-#  Note: This standard should already be included with the _GNU_SOURCE nacro
+#  Note: This standard should already be included with the _GNU_SOURCE macro
 AC_DEFINE(_LARGEFILE_SOURCE)
 
 case "$target_os" in
@@ -618,7 +615,6 @@ AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h limits.h malloc.h memory.h netdb.h netinet/in.h shadow.h stdlib.h string.h strings.h sys/file.h sys/mount.h sys/param.h sys/socket.h sys/statfs.h sys/statvfs.h sys/time.h sys/vfs.h unistd.h utime.h])
-
 
 #################################################################
 # Checks for typedefs, structures, and compiler characteristics.
@@ -704,6 +700,23 @@ case "$target_os" in
 esac
 
 ###########################################
+# GNU Readline checks
+AC_CHECK_HEADERS([readline/readline.h readline/history.h curses.h term.h],
+                  [enable_readline="yes"]
+		 )
+if test x"$enable_readline" = xyes; then
+   AC_CHECK_LIB([readline],[readline],
+               [AC_DEFINE(HAVE_READLINE)
+               READLINE_LIBS="-lreadline -lcurses"]
+               ,[enable_readline="no"],[-lcurses])
+fi
+AC_SUBST(READLINE_LIBS)
+
+if test x"$enable_readline" != xyes; then
+   AC_MSG_WARN([xrd application will be built without GNU readline support])
+fi
+
+###########################################
 # Kerberos 4 checks
 krb4tests=ok
 CPPFLAGS="$KRB4_INCDIR $CPPFLAGS"
@@ -716,17 +729,19 @@ AC_CHECK_LIB([krb4],[krb_get_lrealm],
              [:],[krb4tests=failed],[-ldes425 -lkrb5 -lk5crypto -lcom_err -lresolv  $LIBSOCKET  $LIBNSL]
             )
 
-if test x"$krb4tests" = xfailed ; then
-  if test x"$enable_krb4" = xyes ; then
-    ACX_MSG_ERROR([tests for krb4 failed. Change configure options!])
+if test x"$activate_krb4" = xyes -o x"$activate_krb4" = xdefault_yes; then
+  if test x"$krb4tests" = xfailed ; then
+    if test x"$enable_krb4" = xyes ; then
+      ACX_MSG_ERROR([tests for krb4 failed. Change configure options!])
+    fi
+      AC_MSG_WARN([tests for krb4 failed. Disabling krb4 support])
+    activate_krb4=disabled
   fi
-  AC_MSG_WARN([tests for krb4 failed. Disabling krb4 support])
-  enable_krb4=no
 fi
 CPPFLAGS="$CPPFLAGS_BUP"
 LDFLAGS="$LDFLAGS_BUP"
 
-AM_CONDITIONAL(ENABLE_KRB4,test x"$enable_krb4" = xyes)
+AM_CONDITIONAL(ENABLE_KRB4,test x"$activate_krb4" = xyes -o x"$activate_krb4" = xdefault_yes)
 
 ###########################################
 # Kerberos 5 checks
@@ -740,23 +755,50 @@ LDFLAGS="$KRB5_LIBDIR $LDFLAGS"
 AC_CHECK_LIB([krb5],[krb5_init_context],
              [:],[krb5tests=failed],[-lk5crypto -lcom_err]
             )
-
-if test x"$krb5tests" = xfailed ; then
-  if test x"$enable_krb5" = xyes ; then
-    ACX_MSG_ERROR([tests for krb5 failed. Change configure options!])
+if test x"$activate_krb5" = xyes -o x"$activate_krb5" = xdefault_yes; then
+  if test x"$krb5tests" = xfailed ; then
+    if test x"$enable_krb5" = xyes ; then
+      ACX_MSG_ERROR([tests for krb5 failed. Change configure options!])
+    fi
+    AC_MSG_WARN([tests for krb5 failed. Disabling krb5 support])
+    activate_krb5=disabled
   fi
-  AC_MSG_WARN([tests for krb5 failed. Disabling krb5 support])
-  enable_krb5=no
 fi
+
 LDFLAGS="$LDFLAGS_BUP"
 CPPFLAGS="$CPPFLAGS_BUP"
 
-AM_CONDITIONAL(ENABLE_KRB5,test x"$enable_krb5" = xyes)
+AM_CONDITIONAL(ENABLE_KRB5,test x"$activate_krb5" = xyes -o x"$activate_krb5" = xdefault_yes)
+
+
+
+###########################################
+# tkauthz checks
+# currently disabled since they would require the AC_LANG(C++) macro
+# (see at the beginning of this file)
+
+
+#if test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes; then
+#   CPPFLAGS="$TKAUTHZ_INCDIR $CPPFLAGS"
+#   AC_CHECK_HEADER([TTokenAuthz.h],
+#                [],[tkauthztests=failed]
+#            )
+#   if test x"$tkauthztests" = xfailed; then
+#      if test x"$activate_tkauthz" = xyes; then
+#         AC_MSG_ERROR([tkauthz tests failed])
+#      else
+#         AC_MSG_WARN([tkauthz tests failed - disabling])
+#         activate_tkauthz=disabled
+#      fi
+#   fi
+#
+#   CPPFLAGS="$CPPFLAGS_BUP"
+#fi
+
+#################################################################
 
 
 CXXFLAGS="$CXXFLAGS -D_REENTRANT"
-
-#################################################################
 
 
 AC_OUTPUT(Makefile
@@ -799,3 +841,5 @@ if test -e src/XrdOuc/GNUmakefile ; then
    fi
 fi
 
+
+ACX_PRINTOPTIONS

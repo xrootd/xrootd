@@ -92,6 +92,6 @@ utils/ooss_Lock.pm \
 utils/ooss_MonP.pm \
 utils/ooss_name2name.pm
 
-# Extra files to go into the distribution tarball
-EXTRA_DIST = Doxyfile README.Maintainer bootstrap.sh
+# Extra files/dirextories to go into the distribution tarball
+EXTRA_DIST = Doxyfile README.Maintainer bootstrap.sh config
 

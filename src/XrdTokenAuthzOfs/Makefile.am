@@ -13,7 +13,7 @@
 lib_LTLIBRARIES = libXrdTokenAuthzOfs.la
 bin_PROGRAMS = xrm
 
-INCLUDES = -I$(top_srcdir)/src $(AXMLR_INC) $(SENV_INC) $(TKAUTHZ_INC)
+INCLUDES = -I$(top_srcdir)/src $(AXMLR_INC) $(SENV_INC) $(TKAUTHZ_INCDIR)
 
 ###############################################
 # sources of the original XrdOfs implementation
@@ -33,8 +33,8 @@ $(OFSSOURCES) :
 	sed -e 's/XrdOfs\/XrdOfs.icc/XrdTokenAuthzOfs.icc/' \
             -e 's/XrdOfs\/XrdOfs.hh/XrdTokenAuthzOfs.hh/' \
             -e 's/XrdSfsGetFileSystem/XrdSfsGetFileSystemINACTIVE/' \
-            -e 's/extern *XrdOfs *XrdOfsFS/extern XrdTokenAuthzOfs XrdOfsFS/' $@ > /tmp/gaga
-	mv /tmp/gaga $@
+            -e 's/extern *XrdOfs *XrdOfsFS/extern XrdTokenAuthzOfs XrdOfsFS/' $@ > ./tmp_build
+	mv ./tmp_build $@
 
 ###############################################
 
@@ -52,7 +52,7 @@ libXrdTokenAuthzOfs_la_LIBADD = $(top_builddir)/src/XrdAcc/libXrdAcc.la \
                          $(top_builddir)/src//XrdNet/libXrdNet.la \
                          $(top_builddir)/src//XrdOuc/libXrdOuc.la \
                          $(top_builddir)/src/XrdXr/libXrdXr.la \
-                         $(TKAUTHZ_LIB) -lTokenAuthz 
+                         $(TKAUTHZ_LIBDIR) -lTokenAuthz 
 
 xrm_LDADD = $(top_builddir)/src/XrdClient/libXrdClient.la \
             $(top_builddir)/src/XrdSec/libXrdSec.la \

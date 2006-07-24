@@ -47,9 +47,14 @@ Configure options for subsystems:
 
 The --enable-FEATURE flags turn on building of an optional subsystem.
 The location of libraries and header files needed for some of the
-subsystems can be specified with the --with-FEATURE-lib=PATH arguments.
+subsystems can be specified with the --with-FEATURE-libdir=PATH and
+--with-FEATURE-incdir=PATH arguments.
 Try "./configure --list for a list of options.
 
+At the end of configure's run a summary of the enabled options is printed out,
+including whether a feature was enabled by default, and what default files
+were read (default files follow a simple syntax, so you can easily add your
+own and e.g. source it with the --with-defaults=PATH option)
 
 Results of configure's tests:
 -----------------------------

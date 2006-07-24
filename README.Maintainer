@@ -65,7 +65,9 @@ Notes to these steps:
 1. libtoolize installs the macros needed to build GNU libtool, a
    tool to portably build libraries.
 2. "aclocal" scans the configure.ac file and imports macros
-   needed by automake into the aclocal.m4 file.
+   needed by automake into the aclocal.m4 file. Macros are taken
+   from the autoconf installation, but a package can also provide
+   additional ones in acinclude.m4 or a folder.
 3. "automake -a" creates the Makefile.in files from the
    Makefile.am files. The -a flag will install a number of
    helper files like 'config.guess'.
@@ -115,5 +117,5 @@ This command will create the tarball and then directly run a test
 build on it.
 
 
-01/04/2006 Derek Feichtinger
+07/04/2006 Derek Feichtinger
 
