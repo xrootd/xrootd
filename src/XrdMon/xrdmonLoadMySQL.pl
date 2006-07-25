@@ -583,6 +583,9 @@ sub initLoad() {
     $fileTypeList = join ',' , @fileTypeList;
     @siteNames = &runQueryRetArray("SELECT name FROM sites");
 
+    if ( ! -l "$baseDir/$thisSite/${thisSite}.ascii" ) {
+        `ln -s $baseDir/$thisSite/logs/rt/rtLog.txt $baseDir/$thisSite/${thisSite}.ascii`;
+    }
     foreach $siteName ( @siteNames ) {
         $jrnlDir = "$baseDir/$siteName/journal:;
         if ( -e "$jrnlDir/loadingActive" ) {
@@ -1211,11 +1214,12 @@ sub readConfigFile() {
          push @missing, "baseDir";
     }
 
-    if ( $caller eq "collector" ) {
+    if ( $caller eq "collector" or $caller eq "create") {
          if ( ! $thisSite) {
             push @missing, "thisSite";    
          }
-    } else { 
+    } 
+    if ( $caller ne  "collector") {
          if ( ! $dbName ) {push @missing, "dbName";}
          if ( ! $mySQLUser ) {push @missing, "MySQLUser";}
     }
@@ -1240,6 +1244,7 @@ sub readConfigFile() {
         print "  nTopPerfRows: $nTopPerfRows \n";
         if ( $caller eq "create" ) {
              print "  backupIntDef: $backupIntDef \n";
+             print "  thisSite: $thisSite \n";
              foreach $site ( @sites ) {
                  print "  site: $site \n";
                  print "     timeZone: $timezones{$site}  \n";
