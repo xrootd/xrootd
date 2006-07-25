@@ -19,7 +19,7 @@ if ($action eq 'start' ) {
     $ts = &timestamp();
     $date = join '-', split(/ /,$ts);
     $logFile = "${baseDir}/${thisSite}/logs/out/xrdmonCollector.$date";
-    system("xrdmonCollector -port $ctrPort -verInRTLogName off > $logFile 2>&1 &");
+    system("xrdmonCollector -port $ctrPort > $logFile 2>&1 &");
 } elsif ( $action eq 'stop' ) {
     &readConfigFile($configFile, 'collector', 0);
     $psLine = `ps -ef | grep xrdmonCollector  | grep $ctrPort |grep -v grep`;
