@@ -587,7 +587,7 @@ sub initLoad() {
         `ln -s $baseDir/$thisSite/logs/rt/rtLog.txt $baseDir/$thisSite/${thisSite}.ascii`;
     }
     foreach $siteName ( @siteNames ) {
-        $jrnlDir = "$baseDir/$siteName/journal:;
+        $jrnlDir = "$baseDir/$siteName/journal";
         if ( -e "$jrnlDir/loadingActive" ) {
             unlink "$jrnlDir/loadingActive";
         }
