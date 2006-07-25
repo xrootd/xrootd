@@ -26,7 +26,7 @@ if ($action eq 'start' ) {
     if ( ! $psLine ) {
              die "xrdmonCollector -p $ctrPort not running \n";
         }
-    `touch $baseDir/$thisSite/logs/rt/rtLog_verXXX.txt.stop`;
+    `touch $baseDir/$thisSite/logs/rt/rtLog.txt.stop`;
     print "This might take up to 120 s. \n";
     for ( $i = 0; $i < 120; $i++ ) {
         sleep 1;
@@ -57,21 +57,21 @@ sub cleanup () {
     $oMax = 1;
     $uMax = 1;
 
-    if (-e "$rtDir/rtLog_verXXX.txt") {
-        $o1 = `grep '^o' $rtDir/rtLog_verXXX.txt        | tail -1 | awk '{ print \$2 }'`;
+    if (-e "$rtDir/rtLog.txt") {
+        $o1 = `grep '^o' $rtDir/rtLog.txt        | tail -1 | awk '{ print \$2 }'`;
         chop($o1);
         if ( $o1 =~ /[0-9]+/ ) { if ( $o1 > $oMax ) { $oMax = $o1; } }
 
-        $u1 = `grep '^u' $rtDir/rtLog_verXXX.txt        | tail -1 | awk '{ print \$2 }'`;
+        $u1 = `grep '^u' $rtDir/rtLog.txt        | tail -1 | awk '{ print \$2 }'`;
         chop($u1);
        if ( $u1 =~ /[0-9]+/ ) { if ( $u1 > $uMax ) { $uMax = $u1; } }
     }
-    if ( -e "$rtDir/rtLog_verXXX.txt.backup") {
-        $o2 = `grep '^o' $rtDir/rtLog_verXXX.txt.backup | tail -1 | awk '{ print \$2 }'`;
+    if ( -e "$rtDir/rtLog.txt.backup") {
+        $o2 = `grep '^o' $rtDir/rtLog.txt.backup | tail -1 | awk '{ print \$2 }'`;
         chop($o2);
         if ( $o2 =~ /[0-9]+/ ) { if ( $o2 > $oMax ) { $oMax = $o2; } }
 
-        $u2 = `grep '^u' $rtDir/rtLog_verXXX.txt.backup | tail -1 | awk '{ print \$2 }'`;
+        $u2 = `grep '^u' $rtDir/rtLog.txt.backup | tail -1 | awk '{ print \$2 }'`;
         chop($u2);
         if ( $u2 =~ /[0-9]+/ ) { if ( $u2 > $uMax ) { $uMax = $u2; } }
     }
