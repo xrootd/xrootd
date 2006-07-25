@@ -33,8 +33,7 @@ public:
                   const char* rtLogDir,
                   int rtBufSize,
                   bool saveTraces,
-                  int maxTraceLogSize,
-                  bool verInRTLogName);
+                  int maxTraceLogSize);
     ~XrdMonDecSink();
 
     void init(dictid_t min, dictid_t max, const string& senderHP);
@@ -78,7 +77,7 @@ private:
     typedef map<dictid_t, XrdMonDecDictInfo*>::iterator dmapitr_t;
     typedef map<dictid_t, XrdMonDecUserInfo*>::iterator umapitr_t;
 
-    void initRT(const char* rtLogDir, int rtBufSize, bool verInRTLogName);
+    void initRT(const char* rtLogDir, int rtBufSize);
     void addVersion();
     
     void loadUniqueIdsAndSeq();

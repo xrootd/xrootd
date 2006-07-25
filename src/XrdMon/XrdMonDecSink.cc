@@ -34,8 +34,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
                              const char* rtLogDir,
                              int rtBufSize,
                              bool saveTraces,
-                             int maxTraceLogSize,
-                             bool verInRTLogName)
+                             int maxTraceLogSize)
     : _verFreqCount(VER_FREQ),
       _rtLogger(0),
       _saveTraces(saveTraces),
@@ -77,7 +76,7 @@ XrdMonDecSink::XrdMonDecSink(const char* baseDir,
     }
 
     if ( 0 != rtLogDir ) {
-        initRT(rtLogDir, rtBufSize, verInRTLogName);
+        initRT(rtLogDir, rtBufSize);
     } else {
         loadUniqueIdsAndSeq();
     }
@@ -150,8 +149,7 @@ XrdMonDecSink::init(dictid_t min, dictid_t max, const string& senderHP)
 
 void
 XrdMonDecSink::initRT(const char* rtLogDir,
-                      int rtBufSize,
-                      bool verInRTLogName)
+                      int rtBufSize)
 {
     _rtFlagPath = rtLogDir;
     _rtFlagPath += "/rtRunning.flag";
@@ -170,12 +168,9 @@ XrdMonDecSink::initRT(const char* rtLogDir,
     f.close();
 
     char* rtLogName = new char [strlen(rtLogDir) + 32];
-    if ( verInRTLogName ) {
-        sprintf(rtLogName, "%s/rtLog_ver%03d.txt", rtLogDir, XRDMON_VERSION);
-    } else {
-        sprintf(rtLogName, "%s/rtLog_verXXX.txt", rtLogDir);
-    }
-    char* rtLogNLock = new char [strlen(rtLogName)];
+    sprintf(rtLogName, "%s/rtLog.txt", rtLogDir);
+
+    char* rtLogNLock = new char [strlen(rtLogDir) + 32];
     sprintf(rtLogNLock, "%s/rtLog.lock", rtLogDir);
     _rtLogger = new XrdMonBufferedOutput(rtLogName, rtLogNLock, rtBufSize);
     addVersion();

@@ -36,8 +36,7 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
                                      int ctrBufSize,
                                      int rtBufSize,
                                      bool onlineDec,
-                                     bool rtDec,
-                                     bool verInRTLogName)
+                                     bool rtDec)
     : _decoder(0), 
       _currentTime(0),
       _heartbeat(1) // force taking timestamp first time
@@ -47,8 +46,7 @@ XrdMonCtrArchiver::XrdMonCtrArchiver(const char* cBaseDir,
     XrdMonCtrWriter::setBufferSize(ctrBufSize);
     
     if ( onlineDec ) {
-        _decoder = new XrdMonDecPacketDecoder(dBaseDir, rtLogDir, 
-                                              rtBufSize, verInRTLogName);
+        _decoder = new XrdMonDecPacketDecoder(dBaseDir, rtLogDir, rtBufSize);
         // BTW, MT-safety inside Sink
         if ( 0 != pthread_create(&_decHDFlushThread, 
                                  0, 

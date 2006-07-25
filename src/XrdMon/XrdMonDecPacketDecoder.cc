@@ -28,9 +28,8 @@ using std::endl;
 // for light decoding in real time
 XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir, 
                                                const char* rtLogDir, 
-                                               int rtBufSize,
-                                               bool verInRTLogName)
-    : _sink(baseDir, rtLogDir, rtBufSize, false, 2, verInRTLogName),
+                                               int rtBufSize)
+    : _sink(baseDir, rtLogDir, rtBufSize, false, 2),
       _stopNow(false),
       _upToTime(0)
 {}
@@ -39,7 +38,7 @@ XrdMonDecPacketDecoder::XrdMonDecPacketDecoder(const char* baseDir,
                                                bool saveTraces,
                                                int maxTraceLogSize,
                                                kXR_int32 upToTime)
-    : _sink(baseDir, 0, 8, saveTraces, maxTraceLogSize, true),
+    : _sink(baseDir, 0, 8, saveTraces, maxTraceLogSize),
       _stopNow(false),
       _upToTime(upToTime)
 {}

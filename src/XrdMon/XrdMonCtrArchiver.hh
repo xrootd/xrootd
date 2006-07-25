@@ -38,8 +38,7 @@ public:
                       int ctrBufSize,
                       int rtBufSize,
                       bool onlineDec,
-                      bool rtDec,
-                      bool verInRTLogName);
+                      bool rtDec);
     ~XrdMonCtrArchiver();
     void operator()();
 
