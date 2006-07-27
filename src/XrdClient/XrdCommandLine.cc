@@ -291,7 +291,7 @@ int main(int argc, char**argv) {
 
    while(1) {
       stringstream prompt;
-      char *linebuf;
+      char *linebuf=0;
       XrdOucTokenizer tkzer(linebuf); // should add valid XrdOucTokenizer constructor()
 
       
