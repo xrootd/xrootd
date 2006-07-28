@@ -144,8 +144,8 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 
 // Initialize the subsystems
 //
-   if ( (retc = Configure(configfn, OssEroute)) ) return retc;
    XrdOssSS = this;
+   if ( (retc = Configure(configfn, OssEroute)) ) return retc;
    Config_Display(OssEroute);
 
 // All done.
