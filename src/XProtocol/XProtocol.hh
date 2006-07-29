@@ -136,7 +136,8 @@ enum XQueryType {
    kXR_Qcksum = 3,
    kXR_Qolbd  = 4,
    kXR_Qmaxs  = 5,
-   kXR_Qckscan= 6
+   kXR_Qckscan= 6,
+   kXR_Qconfig= 7
 };
 
 enum XLogonType {
