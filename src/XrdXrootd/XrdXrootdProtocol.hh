@@ -28,9 +28,9 @@
 /*                               D e f i n e s                                */
 /******************************************************************************/
   
-#define XROOTD_VERSBIN 0x00000245
+#define XROOTD_VERSBIN 0x00000260
 
-#define XROOTD_VERSION "2.4.5"
+#define XROOTD_VERSION "2.6.0"
 
 #define ROOTD_PQ 2012
 
@@ -107,9 +107,10 @@ private:
        int   do_Prepare();
        int   do_Protocol();
        int   do_Putfile();
+       int   do_Qconf();
        int   do_Query();
        int   do_Read();
-//     int   do_ReadV();
+       int   do_ReadV();
        int   do_ReadAll();
        int   do_ReadNone(int &retc);
        int   do_Rm();
@@ -201,6 +202,8 @@ static int                 as_force;     // aio to be forced
 static int                 as_noaio;     // aio is disabled
 static int                 as_syncw;     // writes to be synchronous
 static int                 maxBuffsz;    // Maximum buffer size we can have
+static int                 maxTransz;    // Maximum transfer size we can have
+static const int           maxRvecsz = 1024;   // Maximum read vector size
 
 // Statistical area
 //

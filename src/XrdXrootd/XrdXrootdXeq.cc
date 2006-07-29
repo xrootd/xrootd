@@ -47,9 +47,10 @@ extern XrdOucTrace *XrdXrootdTrace;
 struct XrdXrootdFHandle
        {kXR_int32 handle;
 
-        XrdXrootdFHandle() {}
-        XrdXrootdFHandle(kXR_char *ch)
+        void Set(kXR_char *ch)
             {memcpy((void *)&handle, (const void *)ch, sizeof(handle));}
+        XrdXrootdFHandle() {}
+        XrdXrootdFHandle(kXR_char *ch) {Set(ch);}
        ~XrdXrootdFHandle() {}
        };
 
@@ -872,6 +873,53 @@ int XrdXrootdProtocol::do_Putfile()
 }
 
 /******************************************************************************/
+/*                              d o _ Q c o n f                               */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_Qconf()
+{
+   XrdOucTokenizer qcargs(argp->buff);
+   char *val, buff[1024], *bp=buff;
+   int n, bleft = sizeof(buff);
+
+// Get the first argument
+//
+   if (!qcargs.GetLine() || !(val = qcargs.GetToken()))
+      return Response.Send(kXR_ArgMissing, "query config argument not specified.");
+
+// Trace this query variable
+//
+   do {TRACEP(DEBUG, "query config " <<val);
+       if (bleft < 32) break;
+
+   // Now determine what the user wants to query
+   //
+        if (!strcmp("readv_ior_max", val))
+           {n = sprintf(bp, "%d\n", maxTransz - sizeof(readahead_list));
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("readv_iov_max", val)) 
+           {n = sprintf(bp, "%d\n", maxRvecsz);
+            bp += n; bleft -= n;
+           }
+   else {n = strlen(val);
+         if (bleft <= n) break;
+         strcpy(bp, val); bp +=n; *bp = '\n'; bp++;
+         bleft -= (n+1);
+        }
+   } while((val = qcargs.GetToken()));
+
+// Make sure all ended well
+//
+   if (val) 
+      return Response.Send(kXR_ArgTooLong, "too many query config arguments.");
+
+// All done
+//
+   return Response.Send(buff, sizeof(buff) - bleft);
+}
+
+/******************************************************************************/
 /*                              d o _ Q u e r y                               */
 /******************************************************************************/
   
@@ -886,6 +934,7 @@ int XrdXrootdProtocol::do_Query()
                               (Request.header.dlen ? argp->buff : "a"));
           case kXR_Qcksum:  return do_CKsum(0);
           case kXR_Qckscan: return do_CKsum(1);
+          case kXR_Qconfig: return do_Qconf();
           default:          break;
          }
 
@@ -1023,6 +1072,120 @@ int XrdXrootdProtocol::do_ReadNone(int &retc)
 // All done
 //
    return 0;
+}
+
+/******************************************************************************/
+/*                               d o _ R e a d V                              */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_ReadV()
+{
+// This will read multiple buffers at the same time in an attempt to avoid
+// the latency in a network. The information with the offsets and lengths
+// of the information to read is passed as a data buffer... then we decode
+// it and put all the individual buffers in a single one (it's up to the)
+// client to interpret it. Code originally developed by Leandro Franco, CERN.
+//
+   const int rdVecOvhd = sizeof(read_args) - sizeof(readahead_list);
+   const int hdrSZ     = sizeof(readahead_list);
+   XrdXrootdFHandle currFH, lastFH((kXR_char *)"\xff\xff\xff\xff");
+   struct readahead_list rdVec[maxRvecsz];
+   long long totLen;
+   int rdVecNum, rdVecLen = Request.header.dlen - rdVecOvhd;
+   int i, rc, xframt, Quantum, Qleft;
+   char *buffp;
+
+// Compute number of elements in the read vector and make sure we have no
+// partial elements.
+//
+   rdVecNum = rdVecLen / sizeof(readahead_list);
+   if (rdVecLen <= 0 || rdVecNum*hdrSZ != rdVecLen)
+      {Response.Send(kXR_ArgInvalid, "Read vector is invalid");
+       return 0;
+      }
+
+// Make sure that we can copy the read vector to our local stack. We must impose 
+// a limit on it's size. We do this to be able to reuse the data buffer to 
+// prevent cross-cpu memory cache synchronization.
+//
+   if (rdVecLen > static_cast<int>(sizeof(rdVec)))
+      {Response.Send(kXR_ArgTooLong, "Read vector is too long");
+       return 0;
+      }
+   memcpy(rdVec, argp->buff+rdVecOvhd, rdVecLen);
+
+// Run down the list and compute the total size of the read. No individual
+// read may be greater than the maximum transfer size.
+//
+   totLen = rdVecLen; xframt = maxTransz - hdrSZ;
+   for (i = 0; i < rdVecNum; i++) 
+       {totLen += (rdVec[i].rlen = ntohl(rdVec[i].rlen));
+        if (rdVec[i].rlen > xframt)
+           {Response.Send(kXR_NoMemory, "Single readv transfer is too large");
+            return 0;
+           }
+       }
+
+// We limit the total size of the read to be 2GB for convenience
+//
+   if (totLen > 0x7fffffffLL)
+      {Response.Send(kXR_NoMemory, "Total readv transfer is too large");
+       return 0;
+      }
+   if ((Quantum = static_cast<int>(totLen)) > maxTransz) Quantum = maxTransz;
+   
+// Now obtain the right size buffer
+//
+   if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize)
+      {if ((rc = getBuff(1, Quantum)) <= 0) return rc;}
+      else if (hcNow < hcNext) hcNow++;
+
+// Check that we really have at least one file open. This needs to be done 
+// only once as this code runs in the control thread.
+//
+   if (!FTab) return Response.Send(kXR_FileNotOpen,
+                              "readv does not refer to an open file");
+
+// Run down the pre-read list. Each read element is prefixed by the verctor
+// element. We also break the reads into Quantum sized units. We do the
+//
+   Qleft = Quantum; buffp = argp->buff;
+   for (i = 0; i < rdVecNum; i++)
+       {
+        // Every request could come from a different file
+        //
+        currFH.Set(rdVec[i].fhandle);
+        if (currFH.handle != lastFH.handle)
+           if (!(myFile = FTab->Get(currFH.handle)))
+              return Response.Send(kXR_FileNotOpen,
+                              "readv does not refer to an open file");
+              else lastFH.handle = currFH.handle;
+      
+        // Read in the vector, segmenting as needed. Note that we gaurantee
+        // that a single readv element will never need to be segmented.
+        //
+        myIOLen  = rdVec[i].rlen;
+        n2hll(rdVec[i].offset, myOffset);
+        if (Qleft < (myIOLen + hdrSZ))
+           {if (Response.Send(kXR_oksofar,argp->buff,Quantum-Qleft) < 0)
+               return -1;
+            Qleft = Quantum;
+            buffp = argp->buff;
+           }
+        TRACEP(FS,"fh=" <<currFH.handle <<" readV " << myIOLen <<'@' <<myOffset);
+        if ((xframt = myFile->XrdSfsp->read(myOffset,buffp+hdrSZ,myIOLen)) < 0)
+           break;
+        myFile->readCnt += xframt; numReads++;
+        rdVec[i].rlen = htonl(xframt);
+        memcpy(buffp, &rdVec[i], hdrSZ);
+        buffp += (xframt+hdrSZ); Qleft -= (xframt+hdrSZ);
+       }
+   
+// Determine why we ended here
+//
+   if (i >= rdVecNum)
+      return Response.Send(argp->buff, Quantum-Qleft);
+   return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
 }
   
 /******************************************************************************/
