@@ -683,7 +683,7 @@ int XrdOlbConfig::ConfigN2N()
 
 // Get the Object now
 //
-   lcl_N2N = ep(&Say,ConfigFN,(N2N_Parms ? "" : N2N_Parms),LocalRoot,0);
+   lcl_N2N = ep(&Say,ConfigFN,(N2N_Parms ? N2N_Parms : ""),LocalRoot,0);
    return lcl_N2N == 0;
 }
 

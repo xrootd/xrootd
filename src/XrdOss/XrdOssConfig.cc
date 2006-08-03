@@ -397,7 +397,7 @@ int XrdOssSys::ConfigN2N(XrdOucError &Eroute)
 // Get the Object now
 //
    lcl_N2N = rmt_N2N = the_N2N = ep(&Eroute, ConfigFN, 
-                                   (N2N_Parms ? "" : N2N_Parms),
+                                   (N2N_Parms ? N2N_Parms : ""),
                                    LocalRoot, RemoteRoot);
    return lcl_N2N == 0;
 }
