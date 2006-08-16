@@ -22,27 +22,21 @@ public:
 
          XrdOucTable(int maxe)
                     {int i;
-                     Table = (struct OucTable *)malloc(maxe*sizeof(OucTable));
-                     memset(Table, 0, maxe*sizeof(OucTable));
+                     Table = new OucTable[maxe];
                      maxnum = maxe; curnum = 0; avlnum = 0;
                      for (i = 1; i < maxe; i++) Table[i-1].Fnum = i;
                      Table[maxe-1].Fnum = -1;
                     }
 
-        ~XrdOucTable() {int i; 
-                        for (i = 0; i < curnum; i++)
-                            if (Table[i].Item)
-                               {delete Table[i].Item;
-                                if (Table[i].Key) free(Table[i].Key);
-                               }
-                       }
+        ~XrdOucTable() {delete [] Table;}
 
 // Alloc() returns the next free slot number in the table. A negative value
 //         indicates that no free slots are left.
 //
 int  Alloc() {int i = avlnum;
-              if (i >= 0) avlnum = Table[i].Fnum;
-              if (i >= curnum) curnum = i+1;
+              if (i >= 0) {avlnum = Table[i].Fnum;
+                           if (i >= curnum) curnum = i+1;
+                          }
               return i;
              }
 
@@ -91,7 +85,7 @@ T       *Find(const char *key, int *Tnum=0)
 //          returned. A negative slot number indicates the table is full.
 //
 int Insert(T *Item, const char *key=0, int Tnum=-1)
-          {if (Tnum < 0 && (((Tnum = Alloc()) < 0) || Tnum >= maxnum)) return -1;
+          {if ((Tnum < 0 && ((Tnum = Alloc()) < 0)) || Tnum >= maxnum) return -1;
            Table[Tnum].Item = Item; Table[Tnum].Key = strdup(key);
            return Tnum;
           }
@@ -108,7 +102,7 @@ T  *Item(int Tnum, char **ikey=0)
 // Next() iterates through the table using a cursor. This function is
 //        useful for unlocked scanning of the table.
 //
-int Next(int &Tnum) {int i = Tnum;
+int Next(int &Tnum) {int i;
                      for (i = Tnum; i < curnum; i++)
                          if (Table[i].Item) {Tnum = i+1; return i;}
                      return -1;
@@ -136,8 +130,12 @@ T  *Remove(const char *key) {int i;
 
 private:
 struct OucTable {T           *Item;
-                 union {char *Key;
+                union {char *Key;
                         int   Fnum;};
+                 OucTable() {Item = 0; Key = 0;}
+                ~OucTable() {if (Key)  free(Key);
+                             if (Item) delete Item;
+                            }
                 };
 
 OucTable *Table;
