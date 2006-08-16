@@ -296,8 +296,8 @@ int XrdXrootdJob2Do::verClient(int dodel)
 // If no more clients, delete ourselves if safe to do so
 //
    if (!numClients && dodel)
-      {theJob->JobTable.Remove(JobNum);
-       delete this;
+      {XrdXrootdJob2Do *jp = theJob->JobTable.Remove(JobNum);
+       delete jp;
        return 0;
       }
    return numClients;
@@ -309,14 +309,15 @@ int XrdXrootdJob2Do::verClient(int dodel)
   
 void XrdXrootdJob2Do::Destruct(int sendresp)
 {
+   XrdXrootdJob2Do *jp;
 
 // Indicate this job was cancelled and delete ourselves. Note that the
 // caller must make immediate return for this to not segv.
 //
    if (sendresp) sendResult(0, 1);
-   theJob->JobTable.Remove(JobNum);
+   jp = theJob->JobTable.Remove(JobNum);
    theJob->myMutex.UnLock();
-   delete this;
+   delete jp;
    return;
 }
 
@@ -524,9 +525,9 @@ void XrdXrootdJob::DoIt()
 //
    while((jNum = JobTable.Next(jNext)) >= 0)
         {myMutex.Lock();
-         if ((jp = JobTable.Item(jNum)) && jp->JobMark) 
-            {if (!jp->verClient()) CleanUp(jp);}
-            else jp->JobMark = 1;
+         if ((jp = JobTable.Item(jNum)))
+            if (jp->JobMark) {if (!jp->verClient()) CleanUp(jp);}
+               else jp->JobMark = 1;
          myMutex.UnLock();
         }
 
