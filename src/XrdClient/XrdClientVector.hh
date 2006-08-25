@@ -123,10 +123,9 @@ public:
 
     // Bounded array like access
     T &At(int pos) {
-	if ( (pos >= 0) && (pos < size) )
-	    return data[pos];
-	else
-	    abort();
+        if ( (pos < 0) || (pos >= size) )
+            abort();
+        return data[pos];
     }
     T &operator[] (int pos) {
 	return At(pos);
