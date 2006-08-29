@@ -57,6 +57,7 @@ options="                 \
    enable_mon             \
    enable_perlint         \
    enable_pwd             \
+   enable_shadowpw        \
    enable_shared          \
    enable_ssl             \
    enable_trace           \
@@ -73,6 +74,7 @@ enable_afs=no
 enable_echo=no
 enable_mon=yes
 enable_perlint=no
+enable_shadowpw=no
 enable_shared=yes
 enable_ssl=
 enable_thread=yes
@@ -417,6 +419,7 @@ guess_architecture () {
       linux:x86_64:*)     arch=x86_64_linux    ; platform=linux; ccflv=gccx8664;;
       linux:alpha:*)      arch=alpha_linux     ; platform=linux; ccflv=gcc;;
       linux:arm*:*)       arch=arm_linux       ; platform=linux; ccflv=gcc;;
+      linux:ppc64:*)      arch=ppc_linux       ; platform=linux; ccflv=gccppc64;;
       linux:ppc*:*)       arch=ppc_linux       ; platform=linux; ccflv=gcc;;
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
       darwin:power*:7*)   arch=ppc_darwin_70   ; platform=macosx; ccflv=macos;;
@@ -509,10 +512,11 @@ enable/disable options, prefix with either --enable- or --disable-
    perlint         Enable/disable building of the perl admin interface
    pwd             Password-based authentication support
    sec             Sets gsi krb4 krb5 pwd and ssl together
+   shadowpw        Force support for shadow passwords
    shared          Use shared 3rd party libraries if possible
    ssl             Build OpenSSL implementation of crypto interfaces
    trace           Support for trace statements via the "-d" flag
-   
+
 with options, prefix with --with-, enables corresponding support
 
    afs-incdir      AFS support, location of afs/stds.h, afs/kautils.h
@@ -528,7 +532,6 @@ with options, prefix with --with-, enables corresponding support
    ssl-incdir      OpenSSL support, location of openssl headers
    ssl-libdir      OpenSSL support, location of libssl
    thread-libdir   Path to libpthread
-   
 
 Advanced options:
 
@@ -800,7 +803,7 @@ fi
 echo "Configuring for $arch and compiler $ccflv"
 
 # For gcc on opteron force checking for 64-bit libs
-if test "x$ccflv" = "xgccx8664" ; then
+if test "x$ccflv" = "xgccx8664" || test "x$ccflv" = "xgccppc64" ; then
    checklib64="yes"
 fi
 
@@ -1528,7 +1531,10 @@ if test ! "x$enable_pwd" = "xno" ; then
     #
     # shadow passwords
     checking_msg "shadow passwords"
-    if test -f "/etc/shadow"; then
+    # Here, we allow the option to support shadow passwords.  If one
+    # builds in a chroot jail, the file `/etc/shadow' may not exist,
+    # but shadow passwords may still be available.
+    if test -f "/etc/shadow" || test x$enable_shadowpw = xyes; then
       enable_shadowpw="yes"
       pwdextracflags="-DR__SHADOWPW "
       echo "yes"
@@ -1723,7 +1729,7 @@ if test "x$enable_ssl" = "xyes" ; then
     #
     ssl_shared="$enable_shared"
     check_library "libssl" "$ssl_shared" "$ssllibdir" \
-        $SSL $SSL/lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
+        $SSL $SSL/lib /lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
     if test "x$found_lib" = "x" ; then
         ssllib=""
         ssllibdir=""
