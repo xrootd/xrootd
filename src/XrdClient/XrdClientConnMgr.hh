@@ -57,7 +57,7 @@ public:
 
    virtual ~XrdClientConnectionMgr();
 
-   int           Connect(XrdClientUrlInfo RemoteAddress);
+   short int     Connect(XrdClientUrlInfo RemoteAddress);
    void          Disconnect(short LogConnectionID, bool ForcePhysicalDisc);
 
    void          GarbageCollect();

@@ -41,6 +41,9 @@
 #include <pwd.h>
 #endif
 
+// Max number allowed of logical connections ( 2**15 - 1, short int)
+#define XRC_MAXVECTSIZE 32767
+
 //_____________________________________________________________________________
 void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 {
@@ -179,7 +182,7 @@ void XrdClientConnectionMgr::GarbageCollect()
 }
 
 //_____________________________________________________________________________
-int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
+short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 {
    // Connects to the remote server:
    //  - Looks first for an existing physical connection already bound to
@@ -193,7 +196,7 @@ int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
    XrdClientLogConnection *logconn = 0;
    XrdClientPhyConnection *phyconn = 0;
-   int newid;
+   short int newid = -1;
    bool phyfound = FALSE;
 
    // First we get a new logical connection object
@@ -287,11 +290,31 @@ int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       if (!phyfound)
 	 fPhyVec.Push_back(phyconn);
 
-      // Then we push the logical connection into its vector
-      fLogVec.Push_back(logconn);
- 
-      // Its ID is its position inside the vector, we must return it later
-      newid = fLogVec.GetSize()-1;
+//
+//  Fix for serious bug affecting cases with more of 32767 logical connections
+//  (> 16284 in case of redirections). G. Ganis, 5 Aug 2006 .
+//
+      // Its ID is its position inside the vector, we must return it later.
+      // Get the first free slot, if any
+      newid = -1;
+      for (int i = 0; i < fLogVec.GetSize(); i++) {
+         if (!fLogVec[i]) {
+            fLogVec[i] = logconn;
+            newid = i;
+            break;
+         }
+      }
+      if (newid == -1) {
+         if (fLogVec.GetSize() < XRC_MAXVECTSIZE) {
+            // Then we push the logical connection into its vector
+            fLogVec.Push_back(logconn);
+            // and the new position is the ID
+            newid = fLogVec.GetSize()-1;
+         } else {
+            Error("Connect", "Out of allocated resources:"
+                  " max number allowed of logical connection reached ("<<XRC_MAXVECTSIZE<<")");
+         }
+      }
 
       // Now some debug log
       if (DebugLevel() >= XrdClientDebug::kHIDEBUG) {
