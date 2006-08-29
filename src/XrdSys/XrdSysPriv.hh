@@ -34,8 +34,10 @@ class XrdSysPriv
    XrdSysPriv();
    virtual ~XrdSysPriv() { }
 
-   static int ChangeTo(uid_t uid);
-   static int ChangePerm(uid_t uid);
+   static bool fDebug;
+
+   static int ChangeTo(uid_t uid, gid_t gid);
+   static int ChangePerm(uid_t uid, gid_t gid);
    static void DumpUGID(const char *msg = 0);
    static int Restore(bool saved = 1);
 };
@@ -54,14 +56,14 @@ class XrdSysPriv
 class XrdSysPrivGuard
 {
  public:
-   XrdSysPrivGuard(uid_t uid);
+   XrdSysPrivGuard(uid_t uid, gid_t gid);
    XrdSysPrivGuard(const char *user);
    virtual ~XrdSysPrivGuard() { if (!dum) XrdSysPriv::Restore(); }
    bool Valid() const { return valid; }
  private:
    bool dum;
    bool valid;
-   void Init(uid_t uid);
+   void Init(uid_t uid, gid_t gid);
 };
 
 #endif

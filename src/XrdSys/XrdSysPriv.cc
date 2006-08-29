@@ -97,6 +97,8 @@ extern "C" {
 #endif
 #endif // not WINDOWS
 
+bool XrdSysPriv::fDebug = 0; // debug switch
+
 //______________________________________________________________________________
 int XrdSysPriv::Restore(bool saved)
 {
@@ -150,7 +152,7 @@ int XrdSysPriv::Restore(bool saved)
 }
 
 //______________________________________________________________________________
-int XrdSysPriv::ChangeTo(uid_t newuid)
+int XrdSysPriv::ChangeTo(uid_t newuid, gid_t newgid)
 {
    // Change effective to entity newuid. Current entity is saved.
    // Real entity is not touched. Use RestoreSaved to go back to
@@ -158,11 +160,6 @@ int XrdSysPriv::ChangeTo(uid_t newuid)
    // Return 0 on success, < 0 (== -errno) if any error occurs.
 
 #if !defined(WINDOWS)
-   // Make sure the entity is consistent
-   struct passwd *pw = getpwuid(newuid);
-   if (!pw)
-      return XSPERR(errno);
-
    // Current UGID 
    uid_t oeuid = geteuid();
    gid_t oegid = getegid();
@@ -170,9 +167,6 @@ int XrdSysPriv::ChangeTo(uid_t newuid)
    // Restore privileges, if needed
    if (oeuid && XrdSysPriv::Restore(0) != 0)
       return XSPERR(errno);
-
-   // New GID 
-   gid_t newgid = pw->pw_gid;
 
    // Act only if a change is needed
    if (newgid != oegid) {
@@ -214,18 +208,13 @@ int XrdSysPriv::ChangeTo(uid_t newuid)
 }
 
 //______________________________________________________________________________
-int XrdSysPriv::ChangePerm(uid_t newuid)
+int XrdSysPriv::ChangePerm(uid_t newuid, gid_t newgid)
 {
    // Change permanently to entity newuid. Requires super-userprivileges.
    // Provides a way to drop permanently su privileges.
    // Return 0 on success, < 0 (== -errno) if any error occurs.
 
 #if !defined(WINDOWS)
-   // Make sure the entity is consistent
-   struct passwd *pw = getpwuid(newuid);
-   if (!pw)
-      return XSPERR(errno);
-
    // Get UIDs
    uid_t cruid = 0, ceuid = 0, csuid = 0;
    if (getresuid(&cruid, &ceuid, &csuid) != 0)
@@ -240,12 +229,9 @@ int XrdSysPriv::ChangePerm(uid_t newuid)
    if (ceuid && XrdSysPriv::Restore(0) != 0)
       return XSPERR(errno);
 
-   // New GID 
-   gid_t newgid = pw->pw_gid;
-
    // Act only if needed
    if (newgid != cegid || newgid != crgid) {
-   
+
       // Set newgid as GID, all levels
       if (setresgid(newgid, newgid, newgid) != 0)
          return XSPERR(errno);
@@ -310,15 +296,15 @@ void XrdSysPriv::DumpUGID(const char *msg)
 //
 // Guard class
 //______________________________________________________________________________
-XrdSysPrivGuard::XrdSysPrivGuard(uid_t uid)
+XrdSysPrivGuard::XrdSysPrivGuard(uid_t uid, gid_t gid)
 {
    // Constructor. Create a guard object for temporarly change to privileges
-   // of 'uid'
+   // of {'uid', 'gid'}
 
    dum = 1;
    valid = 0;
 
-   Init(uid);
+   Init(uid, gid);
 }
 //______________________________________________________________________________
 XrdSysPrivGuard::XrdSysPrivGuard(const char *usr)
@@ -333,26 +319,35 @@ XrdSysPrivGuard::XrdSysPrivGuard(const char *usr)
    if (usr && strlen(usr) > 0) {
       struct passwd *pw = getpwnam(usr);
       if (pw)
-         Init(pw->pw_uid);
+         Init(pw->pw_uid, pw->pw_gid);
    }
+#else
+   if (usr) { }
 #endif
 }
-
 //______________________________________________________________________________
-void XrdSysPrivGuard::Init(uid_t uid)
+void XrdSysPrivGuard::Init(uid_t uid, gid_t gid)
 {
    // Init a change of privileges guard. Act only if superuser.
    // The result of initialization can be tested with the Valid() method.
 
    dum = 1;
    valid = 1;
+
+   // Debug hook
+   if (XrdSysPriv::fDebug)
+      XrdSysPriv::DumpUGID("before Init()");
+
 #if !defined(WINDOWS)
    uid_t ruid = 0, euid = 0, suid = 0;
    if (getresuid(&ruid, &euid, &suid) == 0 && (euid != uid) && !ruid) {
       // Change temporarly identity
-      if (XrdSysPriv::ChangeTo(uid) != 0)
+      if (XrdSysPriv::ChangeTo(uid, gid) != 0)
          valid = 0;
       dum = 0;
    }
 #endif
+   // Debug hook
+   if (XrdSysPriv::fDebug)
+      XrdSysPriv::DumpUGID("after Init()");
 }

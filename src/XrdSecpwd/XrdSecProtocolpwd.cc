@@ -350,6 +350,14 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
    XrdSutSetTrace(trace);
    XrdCryptoSetTrace(trace);
 
+   // Get user info
+   struct passwd *pw = getpwuid(getuid());
+   if (!pw) {
+      PRINT("no user info available - invalid ");
+      ErrF(erp, kPWErrInit, "could not get user info from getpwuid");
+      return Parms;
+   }
+
    //
    // Operation mode
    Server = (opt.mode == 's');
@@ -368,20 +376,15 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       argdir = 1;
    } else {
       // use default dir $(HOME)/.<prefix>
-      struct passwd *pw = getpwuid(getuid());
-      if (pw) {
-         infodir = pw->pw_dir;
-         infodir += ("/." + Prefix);
-      } else {
-         PRINT("cannot get user information (uid:"<<getuid()<<")");
-      }
+      infodir = pw->pw_dir;
+      infodir += ("/." + Prefix);
    }
    if (!infodir.endswith("/")) infodir += "/";
    //
    // If defined, check existence of the infodir and admin file
    if (infodir.length()) {
       // Acquire the privileges, if needed
-      XrdSysPrivGuard priv(getuid());
+      XrdSysPrivGuard priv(pw->pw_uid, pw->pw_gid);
       if (priv.Valid()) {
          struct stat st;
          if (stat(infodir.c_str(),&st) == -1) {
@@ -423,12 +426,11 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       SysPwd = (opt.syspwd > -1) ? opt.syspwd : SysPwd;
       if (SysPwd) {
          // Make sure this setting makes sense
-         struct passwd *pw = getpwuid(getuid());
          if (pw) {
 #ifndef R__AFS
 #ifdef R__SHADOWPW
             // Acquire the privileges, if needed
-            XrdSysPrivGuard priv((uid_t) 0);
+            XrdSysPrivGuard priv((uid_t) 0, (gid_t) 0);
             if (priv.Valid()) {
                // System V Rel 4 style shadow passwords
                struct spwd *spw = getspnam(pw->pw_name);
@@ -465,7 +467,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       // If defined, check existence of the infodir and admin file
       if (infodir.length()) {
          // Acquire the privileges, if needed
-         XrdSysPrivGuard priv(getuid());
+         XrdSysPrivGuard priv(pw->pw_uid, pw->pw_gid);
          if (priv.Valid()) {
             struct stat st;
             //
@@ -550,7 +552,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                   ptag += cf->ID();
                   if (FileAdmin.length() > 0) {
                      // Acquire the privileges, if needed
-                     XrdSysPrivGuard priv(getuid());
+                     XrdSysPrivGuard priv(pw->pw_uid, pw->pw_gid);
                      if (priv.Valid()) {
                         if (PFAdmin.ReadEntry(ptag.c_str(),ent) <= 0) {
                            PRINT("ref cipher for module "<<ncpt<<" missing: disable");
@@ -1398,7 +1400,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             // Count failures
             hs->Pent->mtime = (kXR_int32)time(0);
             // Flush cache content to source file
-            XrdSysPrivGuard priv(getuid());
+            XrdSysPrivGuard priv(getuid(), getgid());
             if (priv.Valid()) {
                if (cacheAdmin.Flush() != 0) {
                   DEBUG("WARNING: some problem flushing to admin"
@@ -1415,7 +1417,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             // Count failures
             hs->Pent->mtime = (kXR_int32)time(0);
             // Flush cache content to source file
-            XrdSysPrivGuard priv(getuid());
+            XrdSysPrivGuard priv(getuid(), getgid());
             if (priv.Valid()) {
                if (cacheAdmin.Flush() != 0) {
                   DEBUG("WARNING: some problem flushing to admin"
@@ -2083,7 +2085,7 @@ int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
    DEBUG("Entry for tag: "<<wTag<<" updated in cache");
    //
    // Flush cache content to source file
-   XrdSysPrivGuard priv(getuid());
+   XrdSysPrivGuard priv(getuid(), getgid());
    if (priv.Valid()) {
       if (cacheAdmin.Flush() != 0) {
          DEBUG("WARNING: some problem flushing to admin file after updating "<<wTag);
@@ -2563,7 +2565,7 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
    if (PFAdmin.IsValid()) {
       //
       // Make sure it is uptodate
-      XrdSysPrivGuard priv(getuid());
+      XrdSysPrivGuard priv(getuid(), getgid());
       if (priv.Valid()) {
          if (cacheAdmin.Refresh() != 0) {
             DEBUG("problems assuring cache update for file admin ");
@@ -3343,7 +3345,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
       int uid = pw->pw_uid;
 
       // Acquire the privileges, if needed
-      XrdSysPrivGuard priv(uid);
+      XrdSysPrivGuard priv(uid, pw->pw_gid);
       bool go = priv.Valid();
       if (!go) {
          DEBUG("problems acquiring temporarly identity: "<<hs->User);
@@ -3422,7 +3424,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
 #ifdef R__SHADOWPW
    {  // Acquire the privileges; needs to be 'superuser' to access the
       // shadow password file
-      XrdSysPrivGuard priv((uid_t)0);
+      XrdSysPrivGuard priv((uid_t)0, (gid_t)0);
       if (priv.Valid()) {
          struct spwd *spw = 0;
          // System V Rel 4 style shadow passwords
