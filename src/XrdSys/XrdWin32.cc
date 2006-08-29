@@ -331,3 +331,47 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size)
    }
 }
 
+static void myerrcode(int err)
+{
+   if (err == EIO)
+      err = EBADF; // sometimes we get EIO when Unix would be EBADF
+   if (err == WSAENOTSOCK)
+      err = EBADF; // if it's not a socket, it's also not a fd
+   SetLastError(err);
+   errno = err;
+}
+
+static bool is_socket(SOCKET fd)
+{
+   char sockbuf[80];
+   int optlen;
+   int retval;
+
+   optlen = sizeof(sockbuf);
+   retval = getsockopt(fd, SOL_SOCKET, SO_TYPE, sockbuf, &optlen);
+   if (retval == SOCKET_ERROR) {
+      int iRet;
+      iRet = WSAGetLastError();
+      if (iRet == WSAENOTSOCK || iRet == WSANOTINITIALISED)
+         return FALSE;
+   }
+   //
+   // If we get here, then fd is actually a socket.
+   //
+   return TRUE;
+}
+
+int close(int fd)
+{
+   int ret;
+   if (is_socket(fd)) {
+      ret = closesocket(fd);
+      myerrcode(GetLastError());
+   }
+   else {
+      ret = _close(fd);
+      myerrcode(errno);
+   }
+   return ret;
+}
+

@@ -269,6 +269,7 @@ extern pid_t fork();
 extern const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 extern int sysconf(int what);
 extern int fcntl(int fd, int cmd, long arg);
+extern int close(int fd);
 
 #ifndef localtime_r
 #define localtime_r( _clock, _result ) \
