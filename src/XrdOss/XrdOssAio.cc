@@ -434,7 +434,7 @@ void XrdOssAioRSH(int signum, siginfo_t *info, void *ucontext)
 #ifdef __macos__
    XrdOssAioInfoR->si_value.sigval_ptr = info->si_addr;
 #else
-   XrdOssAioInfoR->si_value.sigval_ptr = info->si_value.sigval_ptr;
+   XrdOssAioInfoR->si_value.sival_ptr = info->si_value.sival_ptr;
 #endif
 }
 }
@@ -462,7 +462,7 @@ void XrdOssAioWSH(int signum, siginfo_t *info, void *ucontext)
 #ifdef __macos__
    XrdOssAioInfoW->si_value.sigval_ptr = info->si_addr;
 #else
-   XrdOssAioInfoW->si_value.sigval_ptr = info->si_value.sigval_ptr;
+   XrdOssAioInfoW->si_value.sival_ptr = info->si_value.sival_ptr;
 #endif
 }
 }
