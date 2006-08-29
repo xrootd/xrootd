@@ -139,7 +139,7 @@ $(LIBASSL): $(OBJCSSL)
 
 $(LIBCSSL): $(OBJCSSL) $(LIBARCH) $(LIBUTIL)
 	@echo Creating shared library $(LIBCSSL) 
-	$(ECHO)$(CC) $(OBJCSSL) $(LDSO) $(LIBSSL) $(LIBARCH) $(LIBUTIL) -o $(LIBCSSL)
+	$(ECHO)$(LD) $(OBJCSSL) $(LDSO) $(LIBSSL) $(LIBARCH) $(LIBUTIL) -o $(LIBCSSL)
 
 $(CRYPTOTEST): $(OBJECTA) $(LIBARCH) $(LIBDEPS)
 	@echo Creating executable $(CRYPTOTEST) 

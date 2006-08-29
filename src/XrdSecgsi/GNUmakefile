@@ -67,7 +67,7 @@ OBJECTA = \
 OBJECTB = \
         $(OBJDIR)/XrdSecgsiProxy.o
 
-GSIEXTRACFLAGS = $(INCSSL) -DPERL5
+GSIEXTRACFLAGS = $(INCSSL) -DPERL5 $(CRYPTOSSLEXTRACFLAGS)
 
 LIBRARY = $(LIBDIR)/libXrdSecgsi.$(TYPESHLIB)
 
@@ -103,7 +103,7 @@ anything: $(TARGETS)
 
 $(LIBRARY): $(OBJECTS) $(LIBDEPS)
 	@echo Creating shared library $(LIBRARY) 
-	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(LIBLIBS) $(LIBS) -o $(LIBRARY)
+	$(ECHO)$(LD) $(OBJECTS) $(LDSO) $(LIBLIBS) $(LIBS) -o $(LIBRARY)
 
 $(SECGSITEST): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SECGSITEST) 
@@ -111,7 +111,7 @@ $(SECGSITEST): $(OBJECTA) $(LIBDEPS)
 
 $(SECGSIPROXY): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(SECGSIPROXY) 
-	$(ECHO)$(LD) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(SECGSIPROXY)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(SECGSIPROXY)
 
 $(OBJDIR)/XrdSecgsitest.o: XrdSecgsitest.cc XrdOucString.hh \
 		XrdOucError.hh XrdSutAux.hh XProtocol.hh XPtypes.hh XrdCryptoAux.hh \
