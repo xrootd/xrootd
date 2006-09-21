@@ -1997,8 +1997,17 @@ bool XrdClientConn::SubmitDataToCache(XrdClientMessage *xmsg, long long begin_of
     return true;
 }
 
-void                       SubmitPlaceholderToCache(long long begin_offs,
-						    long long end_offs);
+//___________________________________________________________________________
+bool XrdClientConn::SubmitRawDataToCache(const void *buffer,
+					 long long begin_offs,
+					 long long end_offs) {
+
+
+    fMainReadCache->SubmitRawData(buffer, begin_offs, end_offs);
+
+    return true;
+
+}
 
 
 //___________________________________________________________________________

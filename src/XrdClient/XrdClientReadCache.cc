@@ -83,17 +83,14 @@ XrdClientReadCache::~XrdClientReadCache()
 
 }
 
+
+
 //________________________________________________________________________
-void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_offs,
+void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
 					long long end_offs)
 {
-    // To populate the cache of items, newly received
-
-    XrdClientReadCacheItem *itm;
-    const void *buffer = xmsg->DonateData();
-   
     if (!buffer) return;
-
+    XrdClientReadCacheItem *itm;
 
     // Mutual exclusion man!
     XrdOucMutexHelper mtx(fMutex);
@@ -133,6 +130,18 @@ void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_
 
 
     PrintCache();
+}
+
+
+//________________________________________________________________________
+void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_offs,
+					long long end_offs)
+{
+    // To populate the cache of items, newly received
+
+    const void *buffer = xmsg->DonateData();
+
+    SubmitRawData(buffer, begin_offs, end_offs);
 }
 
 //________________________________________________________________________

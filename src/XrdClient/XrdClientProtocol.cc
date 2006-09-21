@@ -489,9 +489,6 @@ void smartPrintClientHeader(ClientRequest* hdr)
              "ClientHeader.readv.reserved = ",
              (kXR_int32)sizeof(hdr->readv.reserved));
 
-      printf("%40s%d\n", 
-             "ClientHeader.readv.dlen = ",
-             hdr->readv.dlen);
       break;
 
    case kXR_rm:
@@ -553,7 +550,7 @@ void smartPrintClientHeader(ClientRequest* hdr)
    }
 
    printf("%40s%d", 
-          "ClientHeader.hheader.dlen = ",
+          "ClientHeader.header.dlen = ",
           hdr->header.dlen);
    printf("\n=================== END CLIENT HEADER DUMPING ===================\n\n");
 }

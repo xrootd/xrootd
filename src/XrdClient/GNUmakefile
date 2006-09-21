@@ -35,7 +35,8 @@ SOURCES = \
         XrdClientAdmin_c_wrap.c		\
 	XrdClientSid.cc                 \
 	XrdClientPSock.cc               \
-	XrdClientMStream.cc
+	XrdClientMStream.cc             \
+	XrdClientReadV.cc
 
   
 OBJECTS = \
@@ -60,7 +61,8 @@ OBJECTS = \
 	$(OBJDIR)/XrdCpWorkLst.o		\
 	$(OBJDIR)/XrdClientSid.o                \
 	$(OBJDIR)/XrdClientPSock.o              \
-	$(OBJDIR)/XrdClientMStream.o
+	$(OBJDIR)/XrdClientMStream.o            \
+	$(OBJDIR)/XrdClientReadV.o
 
 OBJECTB = $(OBJDIR)/TestXrdClient.o $(OBJDIR)/XrdClientAdmin_c.o
 OBJECTC = $(OBJDIR)/Xrdcp.o
@@ -531,6 +533,10 @@ $(OBJDIR)/XrdClientSid.o: XrdClientSid.cc ../XrdClient/XrdClientSid.hh \
   ../XrdOuc/XrdOucPthread.hh ../XrdOuc/XrdOucError.hh
 	@echo Compiling XrdClientSid.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientSid.o XrdClientSid.cc
+
+$(OBJDIR)/XrdClientReadV.o: XrdClientReadV.cc ../XrdClient/XrdClientReadV.hh
+	@echo Compiling XrdClientReadV.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientReadV.o XrdClientReadV.cc
 
 $(OBJDIR)/XrdClientMStream.o: XrdClientMStream.cc ../XrdClient/XrdClientDebug.hh \
   ../XrdClient/XrdClientConst.hh ../XrdOuc/XrdOucPthread.hh \

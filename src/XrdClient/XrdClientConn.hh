@@ -89,6 +89,10 @@ public:
 						 long long begin_offs,
 						 long long end_offs);
 
+    bool                       SubmitRawDataToCache(const void *buffer,
+						 long long begin_offs,
+						 long long end_offs);
+
     void                       SubmitPlaceholderToCache(long long begin_offs,
 							long long end_offs) {
 	if (fMainReadCache)

@@ -21,6 +21,7 @@
 #include "XrdClient/XrdClientConnMgr.hh"
 #include "XrdClient/XrdClientSid.hh"
 #include "XrdClient/XrdClientMStream.hh"
+#include "XrdClient/XrdClientReadV.hh"
 
 #include <stdio.h>
 #ifndef WIN32
@@ -568,8 +569,9 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
     // send 4095 requests in one single call...
 
     // Maximum number of segments addressable with a kXR_unt16 type
-    kXR_int32 limit = 1 << (int)(sizeof(kXR_unt16) * 8);
-    kXR_unt16 Nmax  = (kXR_unt16) ((limit) / sizeof(struct readahead_list));
+    //    kXR_int32 limit = 1 << (int)(sizeof(kXR_unt16) * 8);
+    //kXR_unt16 Nmax  = (kXR_unt16) ((limit) / sizeof(struct readahead_list));
+    kXR_unt16 Nmax  = READV_MAXCHUNKS;
 
     int i = 0;
     kXR_int64 pos = 0; 
@@ -577,13 +579,19 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
     int n = ( Nmax < nbuf ) ? Nmax : nbuf;
 
     while ( i < nbuf ) {
-       if ( (res = ReadVEach(&buf[pos], &offsets[i], &lens[i], n)) <= 0)
-          break;
-       pos += res;
-       i += n;
 
-       if ( (nbuf - i) < n  )
-          n = (nbuf - i);
+	if (buf) res = ReadVEach(&buf[pos], &offsets[i], &lens[i], n);
+	else
+	    res = ReadVEach(0, &offsets[i], &lens[i], n);
+
+	if ( res <= 0)
+	    break;
+
+	pos += res;
+	i += n;
+
+	if ( (nbuf - i) < n  )
+	    n = (nbuf - i);
     }
     
     // pos will indicate the size of the data read
@@ -595,9 +603,6 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 kXR_int64 XrdClient::ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int nbuf) {
     // This will compress multiple request in one single read to
     // avoid the latency.
-    // We dont know how to deal with the cache in this case of reading
-    // so we leave that for a near future (the same for read-aheads)...
-    // this call is completely sync. and straightforward
 
     Info( XrdClientDebug::kHIDEBUG, "ReadV", " Number of Buffers=" << nbuf);
 
@@ -633,79 +638,8 @@ kXR_int64 XrdClient::ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int nbu
        return -1;
     }
 
-    kXR_int64 res;
-    kXR_int64 pos_from = 0;
-    kXR_int64 pos_to = 0;
+    return XrdClientReadV::ReqReadV(fConnModule, fHandle, buf, offsets, lens, nbuf, fStatInfo.size);
 
-    readahead_list *buflis = new readahead_list[nbuf];
-
-    // Here we put the information of all the buffers in a single list
-    // then it's up to server to interpret it and send us all the data
-    // in a single buffer
-    kXR_int64 total_len = 0;
-    for (int i = 0; i < nbuf; i++) {
-
-        memcpy( &(buflis[i].fhandle), fHandle, sizeof(fHandle) ); 
-        buflis[i].offset = offsets[i];
-        buflis[i].rlen = lens[i];
-
-        total_len += lens[i];
-    }
-
-    // Prepare a request header 
-    ClientRequest readvFileRequest;
-    memset( &readvFileRequest, 0, sizeof(readvFileRequest) );
-    fConnModule->SetSID(readvFileRequest.header.streamid);
-    readvFileRequest.header.requestid = kXR_readv;
-    readvFileRequest.readv.dlen = nbuf * sizeof(struct readahead_list);
-
-    // A buffer able to hold the data and the info about the chunks
-    char *res_buf = new char[total_len + (nbuf * sizeof(struct readahead_list))];
-
-    bool r = fConnModule->SendGenCommand(&readvFileRequest, buflis, 0, 
-                               (void *)res_buf, FALSE, (char *)"ReadV");
-
-    delete [] buflis;
-
-    // This probably means that the server doesnt support ReadV
-    // ( old version of the server  )
-    res = -1;
-
-    if (r) {
-	res = fConnModule->LastServerResp.dlen;
-
-	// I just rebuild the readahead_list element
-	struct readahead_list header;
-	pos_from = 0;
-	pos_to = 0;
-
-	for ( int i = 0; i < nbuf ; i++) {
-	    memcpy(&header, res_buf + pos_from, sizeof(struct readahead_list));
-       
-	    kXR_int64 tmpl;
-	    memcpy(&tmpl, &header.offset, sizeof(kXR_int64) );
-	    tmpl = ntohll(tmpl);
-	    memcpy(&header.offset, &tmpl, sizeof(kXR_int64) );
-
-	    header.rlen  = ntohl(header.rlen);       
-       
-	    // If the data we receive is not the data we asked for we might
-	    // be seeing an error... but it has to be handled in a different
-	    // way if we get the data in a different order.
-	    if ( offsets[i] != header.offset || lens[i] != header.rlen ) {
-		res = -1;
-		break;
-	    }
-
-	    pos_from += sizeof(struct readahead_list);
-	    memcpy( &buf[pos_to], &res_buf[pos_from], header.rlen);
-	    pos_from += header.rlen;
-	    pos_to += header.rlen;
-	}
-	res = pos_to;
-    }
-
-    return res;
 }
 
 //_____________________________________________________________________________
@@ -1221,36 +1155,66 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 	 
 		Info(XrdClientDebug::kHIDEBUG,
 		     "ProcessUnsolicitedMsg",
-		     "Processing unsolicited response from streamid " <<
+		     "Processing async response from streamid " <<
 		     unsolmsg->HeaderSID() << " father=" <<
 		     si->fathersid );
-	 
-		if ( (req->header.requestid == kXR_read) &&
-		     ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
-		       (unsolmsg->HeaderStatus() == kXR_ok) ) ) {
+
+		// We are interested in data, not errors...
+		if ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
+		     (unsolmsg->HeaderStatus() == kXR_ok) ) {
+
+		    switch (req->header.requestid) {
+
+		    case kXR_read: {
+			long long offs = req->read.offset + si->reqbyteprogress;
 	    
-		    long long offs = req->read.offset + si->reqbyteprogress;
+			Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
+			     "Putting kXR_read data into cache. Offset=" <<
+			     offs <<
+			     " len " <<
+			     unsolmsg->fHdr.dlen);
+
+			fReadWaitData->Lock();
+
+			// To compute the end offset of the block we have to take 1 from the size!
+			fConnModule->SubmitDataToCache(unsolmsg, offs,
+						       offs + unsolmsg->fHdr.dlen - 1);
+
+			fReadWaitData->Broadcast();
+			fReadWaitData->UnLock();
+
+			si->reqbyteprogress += unsolmsg->fHdr.dlen;
 	    
-		    Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
-			 "Putting data into cache. Offset=" <<
-			 offs <<
-			 " len " <<
-			 unsolmsg->fHdr.dlen);
+			if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
+			else return kUNSOL_KEEP;
 
-		    fReadWaitData->Lock();
+			break;
+		    }
 
-		    // To compute the end offset of the block we have to take 1 from the size!
-		    fConnModule->SubmitDataToCache(unsolmsg, offs,
-						   offs + unsolmsg->fHdr.dlen - 1);
-
-		    fReadWaitData->Broadcast();
-		    fReadWaitData->UnLock();
-
-		    si->reqbyteprogress += unsolmsg->fHdr.dlen;
+		    case kXR_readv: {
 	    
-		    if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
-		    else return kUNSOL_KEEP;
-		}
+			Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
+			     "Putting kXR_readV data into cache. " <<
+			     " len " <<
+			     unsolmsg->fHdr.dlen);
+
+			fReadWaitData->Lock();
+
+			XrdClientReadV::SubmitToCacheReadVResp(fConnModule, (char *)unsolmsg->DonateData(),
+							       unsolmsg->fHdr.dlen);
+
+
+			fReadWaitData->Broadcast();
+			fReadWaitData->UnLock();
+
+			si->reqbyteprogress += unsolmsg->fHdr.dlen;
+	    
+			return kUNSOL_DISPOSE;
+			break;
+		    }
+		    }
+		} // if oksofar or ok
+			 
 	 
 	    }
    
@@ -1265,7 +1229,9 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 	return kGENERICERR;
     }
 
-    if (!len) return kOK;
+    len = xrdmin(fStatInfo.size - offset, len);
+ 
+    if (len <= 0) return kOK;
 
     if (fUseCache)
 	fConnModule->SubmitPlaceholderToCache(offset, offset+len-1);
@@ -1309,7 +1275,6 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
     }
     else
 	return (fConnModule->WriteToServer_Async(&readFileRequest, 0));
-
 
     return ok;
 
