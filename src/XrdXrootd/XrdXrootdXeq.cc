@@ -1086,12 +1086,11 @@ int XrdXrootdProtocol::do_ReadV()
 // it and put all the individual buffers in a single one (it's up to the)
 // client to interpret it. Code originally developed by Leandro Franco, CERN.
 //
-   const int rdVecOvhd = sizeof(read_args) - sizeof(readahead_list);
    const int hdrSZ     = sizeof(readahead_list);
    XrdXrootdFHandle currFH, lastFH((kXR_char *)"\xff\xff\xff\xff");
    struct readahead_list rdVec[maxRvecsz];
    long long totLen;
-   int rdVecNum, rdVecLen = Request.header.dlen - rdVecOvhd;
+   int rdVecNum, rdVecLen = Request.header.dlen;
    int i, rc, xframt, Quantum, Qleft;
    char *buffp;
 
@@ -1099,7 +1098,7 @@ int XrdXrootdProtocol::do_ReadV()
 // partial elements.
 //
    rdVecNum = rdVecLen / sizeof(readahead_list);
-   if (rdVecLen <= 0 || rdVecNum*hdrSZ != rdVecLen)
+   if ( (rdVecLen <= 0) || (rdVecNum*hdrSZ != rdVecLen) )
       {Response.Send(kXR_ArgInvalid, "Read vector is invalid");
        return 0;
       }
@@ -1112,7 +1111,7 @@ int XrdXrootdProtocol::do_ReadV()
       {Response.Send(kXR_ArgTooLong, "Read vector is too long");
        return 0;
       }
-   memcpy(rdVec, argp->buff+rdVecOvhd, rdVecLen);
+   memcpy(rdVec, argp->buff, rdVecLen);
 
 // Run down the list and compute the total size of the read. No individual
 // read may be greater than the maximum transfer size.
