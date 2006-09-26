@@ -13,7 +13,7 @@ lib_LTLIBRARIES = libXrdOfs.la
 INCLUDES = -I$(top_srcdir)/src
 
 libXrdOfs_la_SOURCES = \
-        XrdOfs.cc XrdOfs.hh XrdOfsOpaque.hh XrdOfsSecurity.hh XrdOfsTrace.hh XrdOfs.icc \
+        XrdOfs.cc XrdOfs.hh XrdOfsSecurity.hh XrdOfsTrace.hh XrdOfs.icc \
         XrdOfsConfig.cc XrdOfsConfig.hh \
         XrdOfsEvs.cc XrdOfsEvs.hh   \
         XrdOfsHandle.cc XrdOfsHandle.hh

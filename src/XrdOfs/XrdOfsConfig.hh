@@ -46,14 +46,8 @@
 #define XrdOfsREDIRTRG     0x0080
 #define XrdOfsREDIRECT     0x00E0
 
-#define XrdOfsFWDALL       0x1F00
-#define XrdOfsFWDCHMOD     0x1000
-#define XrdOfsFWDMKDIR     0x0100
-#define XrdOfsFWDMV        0x0200
-#define XrdOfsFWDRM        0x0400
-#define XrdOfsFWDRMDIR     0x0800
-#define XrdOfsFWDREMOVE    0x0C00
- 
+#define XrdOfsFWD          0x0100
+
 /******************************************************************************/
 /*                         M i s c e l l a n e o u s                          */
 /******************************************************************************/

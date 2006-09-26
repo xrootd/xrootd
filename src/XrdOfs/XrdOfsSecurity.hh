@@ -14,14 +14,14 @@
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 
-#define AUTHORIZE(usr, optype, action, pathp, edata, ecode) \
+#define AUTHORIZE(usr, env, optype, action, pathp, edata) \
     if (usr && XrdOfsFS.Authorization \
-    &&  !XrdOfsFS.Authorization->Access(usr, pathp, optype)) \
-       {XrdOfsFS.Emsg(epname, edata, EACCES, action, pathp); return ecode;}
+    &&  !XrdOfsFS.Authorization->Access(usr, pathp, optype, env)) \
+       {XrdOfsFS.Emsg(epname, edata, EACCES, action, pathp); return SFS_ERROR;}
 
-#define AUTHORIZE2(usr,edata,ecode,opt1,act1,path1,opt2,act2,path2) \
-       {AUTHORIZE(usr, opt1, act1, path1, edata, ecode); \
-        AUTHORIZE(usr, opt2, act2, path2, edata, ecode); \
+#define AUTHORIZE2(usr,edata,opt1,act1,path1,env1,opt2,act2,path2,env2) \
+       {AUTHORIZE(usr, env1, opt1, act1, path1, edata); \
+        AUTHORIZE(usr, env2, opt2, act2, path2, edata); \
        }
 
 #define OOIDENTENV(usr, env) \

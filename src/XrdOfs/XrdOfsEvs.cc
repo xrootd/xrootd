@@ -18,6 +18,8 @@
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucProg.hh"
+#include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetSocket.hh"
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -61,6 +63,7 @@ XrdOfsEvs::~XrdOfsEvs()
 // but, in practice, this object does not really get deleted after being 
 // started. So, the problem is moot.
 //
+   endIT = 1;
    if (tid) XrdOucThread::Kill(tid);
 
 // Release all queued message bocks
@@ -68,7 +71,8 @@ XrdOfsEvs::~XrdOfsEvs()
   qMut.Lock();
   while ((tp = msgFirst)) {msgFirst = tp->next; delete tp;}
   if (theTarget) free(theTarget);
-  if (theProg) {delete theProg; theProg = 0;}
+  if (msgFD >= 0)close(msgFD);
+  if (theProg)   delete theProg;
   qMut.UnLock();
 
 // Release all free message blocks
@@ -151,12 +155,14 @@ void XrdOfsEvs::sendEvents(void)
    while(1)
         {qSem.Wait();
          qMut.Lock();
-         if (!theProg) break;
+         if (endIT) break;
          if ((tp = msgFirst) && !(msgFirst = tp->next)) msgLast = 0;
          qMut.UnLock();
          if (tp) 
-            {theData[0] = tp->text; theDlen[0] = tp->tlen;
-             theProg->Feed(theData, theDlen);
+            {if (!theProg) Feed(tp->text, tp->tlen);
+                else {theData[0] = tp->text; theDlen[0] = tp->tlen;
+                      theProg->Feed(theData, theDlen);
+                     }
              retMsg(tp);
             }
          }
@@ -175,16 +181,28 @@ int XrdOfsEvs::Start(XrdOucError *eobj)
 //
    eDest = eobj;
 
-// Allocate a new program object if we don't have one
+// Check if we need to create a socket to a path
 //
-   if (theProg) return 0;
-   theProg = new XrdOucProg(eobj);
+   if (*theTarget == '>')
+      {XrdNetSocket *msgSock;
+       if (!(msgSock = XrdNetSocket::Create(eobj,theTarget+1,0,0660,XRDNET_FIFO)))
+          return -1;
+       msgFD = msgSock->Detach();
+       delete msgSock;
 
-// Setup the program
-//
-   if (theProg->Setup(theTarget, eobj)) return -1;
-   if ((rc = theProg->Start()))
-      {eobj->Emsg("Evs", rc, "start event collector"); return -1;}
+      } else {
+
+      // Allocate a new program object if we don't have one
+      //
+         if (theProg) return 0;
+         theProg = new XrdOucProg(eobj);
+
+     // Setup the program
+     //
+        if (theProg->Setup(theTarget, eobj)) return -1;
+        if ((rc = theProg->Start()))
+           {eobj->Emsg("Evs", rc, "start event collector"); return -1;}
+    }
 
 // Now start a thread to get messages and send them to the collector
 //
@@ -202,6 +220,28 @@ int XrdOfsEvs::Start(XrdOucError *eobj)
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                                  F e e d                                   */
+/******************************************************************************/
+  
+int XrdOfsEvs::Feed(const char *data, int dlen)
+{
+   int retc;
+
+// Write the data. ince this is a udp socket all the data goes or none does
+//
+  do { retc = write(msgFD, (const void *)data, (size_t)dlen);}
+       while (retc < 0 && errno == EINTR);
+  if (retc < 0)
+     {eDest->Emsg("EvsFeed", errno, "write to event socket", theTarget);
+      return -1;
+     }
+
+// All done
+//
+   return 0;
+}
+
 /******************************************************************************/
 /*                                g e t M s g                                 */
 /******************************************************************************/

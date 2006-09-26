@@ -13,12 +13,14 @@ include ../GNUmake.env
 SOURCES  = \
         XrdOfs.cc  \
         XrdOfsConfig.cc \
+        XrdOfsEvr.cc    \
         XrdOfsEvs.cc    \
         XrdOfsHandle.cc
 
 OBJECTS  = \
         $(OBJDIR)/XrdOfs.o \
         $(OBJDIR)/XrdOfsConfig.o  \
+        $(OBJDIR)/XrdOfsEvr.o     \
         $(OBJDIR)/XrdOfsEvs.o     \
         $(OBJDIR)/XrdOfsHandle.o  
 
@@ -64,10 +66,10 @@ $(TARGETS): $(OBJECTS) $(LIBDEP)
 
 $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdOfsConfig.hh  XrdOfsHandle.hh       XrdOfsEvs.hh       \
-                     XrdOfsOpaque.hh  XrdOfsSecurity.hh     XrdOfsTrace.hh     \
+                     XrdOfsSecurity.hh     XrdOfsTrace.hh   XrdOfsEvr.hh   \
                      XrdOuca2x.hh     XrdOucEnv.hh          XrdOucError.hh     \
-                     XrdOucHash.hh    XrdOucHash.icc \
-                     XrdOucLock.hh    XrdOucLogger.hh    \
+                     XrdOucHash.hh    XrdOucHash.icc        XrdOucMsubs.hh \
+                     XrdOucLock.hh    XrdOucLogger.hh       XrdOucPlugin.hh \
                      XrdOucPList.hh   XrdOucPthread.hh      XrdOucTrace.hh     \
                      XrdNetDNS.hh     XrdSecEntity.hh       XrdSfsNative.hh    \
                      XrdSfsAio.hh     XrdOss.hh          \
@@ -85,8 +87,17 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
 	@echo Compiling XrdOfsConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsConfig.o XrdOfsConfig.cc
 
+$(OBJDIR)/XrdOfsEvr.o:  XrdOfsEvr.cc      XrdOfsEvr.hh \
+                        XrdOfsTrace.hh    XrdOucTrace.hh \
+                        XrdOucErrInfo.hh  XrdOucPthread.hh  XrdOucStream.hh \
+                        XrdOucTimer.hh \
+                        XrdNetOpts.hh     XrdNetSocket.hh
+	@echo Compiling XrdOfsEvr.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsEvr.o XrdOfsEvr.cc
+
 $(OBJDIR)/XrdOfsEvs.o:  XrdOfsEvs.cc      XrdOfsEvs.hh \
-                        XrdOucPthread.hh  XrdOucProg.hh
+                        XrdOucPthread.hh  XrdOucProg.hh \
+                        XrdNetOpts.hh     XrdNetSocket.hh
 	@echo Compiling XrdOfsEvs.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsEvs.o XrdOfsEvs.cc
 

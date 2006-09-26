@@ -49,15 +49,16 @@ void        sendEvents(void);
 int         Start(XrdOucError *eobj);
 
       XrdOfsEvs(Event theEvents, const char *Target, int minq=90, int maxq=10)
-               {enEvents = theEvents; theTarget = strdup(Target);
+               {enEvents = theEvents; endIT = 0;
+                theTarget = strdup(Target);
                 eDest = 0; theProg = 0; maxMin = minq; maxMax = maxq;
                 msgFirst = msgLast = msgFreeMax = msgFreeMin = 0;
-                numMax = numMin = 0; tid = 0;
+                numMax = numMin = 0; tid = 0; msgFD = -1;
                }
      ~XrdOfsEvs();
 
 private:
-
+int             Feed(const char *data, int dlen);
 XrdOfsEvsMsg   *getMsg(int bigmsg);
 void            retMsg(XrdOfsEvsMsg *tp);
 
@@ -73,6 +74,8 @@ XrdOfsEvsMsg   *msgLast;
 XrdOucMutex     fMut;
 XrdOfsEvsMsg   *msgFreeMax;
 XrdOfsEvsMsg   *msgFreeMin;
+int             endIT;
+int             msgFD;
 int             numMax;
 int             maxMax;
 int             numMin;

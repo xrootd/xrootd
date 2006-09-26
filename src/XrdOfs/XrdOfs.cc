@@ -49,7 +49,6 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOfs/XrdOfsConfig.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOfs/XrdOfsOpaque.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 
 #include "XrdOss/XrdOss.hh"
@@ -62,6 +61,7 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
+#include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -170,6 +170,12 @@ XrdOfs::XrdOfs()
    Google        = 0;
    Balancer      = 0;
    evsObject     = 0;
+   fwdCHMOD      = 0;
+   fwdMKDIR      = 0;
+   fwdMKPATH     = 0;
+   fwdMV         = 0;
+   fwdRM         = 0;
+   fwdRMDIR      = 0;
 
 // Establish our hostname
 //
@@ -255,6 +261,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 */
 {
    static const char *epname = "opendir";
+   XrdOucEnv Open_Env(info);
    int retc;
 
 // Trace entry
@@ -270,7 +277,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(dir_path))
       return XrdOfsFS.Emsg(epname, error, EACCES, "list", dir_path);
-   AUTHORIZE(client,AOP_Readdir,"open directory",dir_path,error,SFS_ERROR);
+   AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
 
 // Open the directory and allocate a handle for it
 //
@@ -489,7 +496,7 @@ int XrdOfsFile::open(const char          *path,      // In
    if (open_mode & SFS_O_CREAT)
       {// Apply security, as needed
        //
-       AUTHORIZE(client,AOP_Create,"create",path,error,SFS_ERROR);
+       AUTHORIZE(client,&Open_Env,AOP_Create,"create",path,error);
        OOIDENTENV(client, Open_Env);
 
        // Create the file
@@ -504,8 +511,8 @@ int XrdOfsFile::open(const char          *path,      // In
 
        // Apply security, as needed
        //
-       AUTHORIZE(client, (open_flag == O_RDONLY ? AOP_Read : AOP_Update),
-                         "open", path, error, SFS_ERROR);
+       AUTHORIZE(client,&Open_Env,(open_flag == O_RDONLY ? AOP_Read:AOP_Update),
+                         "open", path, error);
        OOIDENTENV(client, Open_Env);
 
        // First try to attach the file
@@ -574,6 +581,10 @@ int XrdOfsFile::open(const char          *path,      // In
        if ((retc = fp->Open(path, open_flag, Mode, Open_Env)))
           {oh->ecode = retc; XrdOfsFS.Close(oh); oh = 0;
            if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
+           if (retc == -EINPROGRESS) 
+              {XrdOfsFS.evrObject.Wait4Event(path,&error);
+               return XrdOfsFS.fsError(error, retc);
+              }
           } else {
            if ((oh->cxrsz = fp->isCompressed(oh->cxid))) setCXinfo(open_mode);
            oh->Activate(); 
@@ -1200,6 +1211,7 @@ int XrdOfs::chmod(const char             *path,    // In
    static const char *epname = "chmod";
    mode_t acc_mode = Mode & S_IAMB;
    const char *tident = einfo.getErrUser();
+   XrdOucEnv chmod_Env(info);
    int retc;
    XTRACE(chmod, path, "");
 
@@ -1207,15 +1219,15 @@ int XrdOfs::chmod(const char             *path,    // In
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "change", path);
-   AUTHORIZE(client,AOP_Chmod,"chmod",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,einfo);
 
 // Find out where we should chmod this file
 //
    if (Finder && Finder->isRemote())
-      if (Options & XrdOfsFWDCHMOD)
+      if (fwdCHMOD)
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
-          if ((retc = Finder->Forward(einfo, "chmod", buff, path)))
+          if ((retc = Finder->Forward(einfo, fwdCHMOD, buff, path)))
              return fsError(einfo, retc);
          }
       else if ((retc = Finder->Locate(einfo,path,O_RDWR)))
@@ -1269,13 +1281,14 @@ int XrdOfs::exists(const char                *path,        // In
    struct stat fstat;
    int retc;
    const char *tident = einfo.getErrUser();
+   XrdOucEnv stat_Env(info);
    XTRACE(exists, path, "");
 
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
-   AUTHORIZE(client,AOP_Stat,"locate",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,&stat_Env,AOP_Stat,"locate",path,einfo);
 
 // Find out where we should stat this file
 //
@@ -1335,21 +1348,22 @@ int XrdOfs::mkdir(const char             *path,    // In
    mode_t acc_mode = Mode & S_IAMB;
    int retc, mkpath = Mode & SFS_O_MKPTH;
    const char *tident = einfo.getErrUser();
+   XrdOucEnv mkdir_Env(info);
    XTRACE(mkdir, path, "");
 
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "create", path);
-   AUTHORIZE(client,AOP_Mkdir,"mkdir",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,&mkdir_Env,AOP_Mkdir,"mkdir",path,einfo);
 
 // Find out where we should remove this file
 //
    if (Finder && Finder->isRemote())
-      if (Options & XrdOfsFWDMKDIR)
+      if (fwdMKDIR)
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
-          return ((retc = Finder->Forward(einfo, (mkpath ? "mkpath" : "mkdir"),
+          return ((retc = Finder->Forward(einfo, (mkpath ? fwdMKPATH : fwdMKDIR),
                                   buff, path)) ? fsError(einfo, retc) : SFS_OK);
          }
          else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
@@ -1386,7 +1400,7 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
 // Run through the paths to make sure client can read each one
 //
    while(tp)
-        {AUTHORIZE(client,AOP_Read,"prepare",tp->text,out_error,SFS_ERROR);
+        {AUTHORIZE(client,0,AOP_Read,"prepare",tp->text,out_error);
          tp = tp->next;
         }
 
@@ -1422,20 +1436,22 @@ int XrdOfs::remove(const char              type,    // In
    int retc;
    static const char *epname = "remove";
    const char *tident = einfo.getErrUser();
+   const char *fSpec;
+   XrdOucEnv rem_Env(info);
    XTRACE(remove, path, "");
 
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "remove", path);
-   AUTHORIZE(client,AOP_Delete,"remove",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,&rem_Env,AOP_Delete,"remove",path,einfo);
 
 // Find out where we should remove this file
 //
    if (Finder && Finder->isRemote())
-      if (Options & (type == 'd' ? XrdOfsFWDRMDIR : XrdOfsFWDRM))
-         return ((retc = Finder->Forward(einfo, (type == 'd' ? "rmdir":"rm"),
-                         path)) ? fsError(einfo, retc) : SFS_OK);
+      if ((fSpec = (type == 'd' ? fwdRMDIR : fwdRM)))
+         return ((retc = Finder->Forward(einfo, fSpec, path)) 
+                       ? fsError(einfo, retc) : SFS_OK);
          else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
                  return fsError(einfo, retc);
 
@@ -1484,6 +1500,8 @@ int XrdOfs::rename(const char             *old_name,  // In
    static const char *epname = "rename";
    int retc;
    const char *tident = einfo.getErrUser();
+   XrdOucEnv old_Env(infoO);
+   XrdOucEnv new_Env(infoN);
    XTRACE(rename, new_name, "old fn=" <<old_name <<" new ");
 
 // Apply security, as needed
@@ -1494,15 +1512,15 @@ int XrdOfs::rename(const char             *old_name,  // In
        if (XrdOfsFS.VPlist.Find(new_name))
           return XrdOfsFS.Emsg(epname, einfo, EACCES, "rename to", new_name);
       }
-   AUTHORIZE2(client, einfo, SFS_ERROR,
-              AOP_Rename, "renaming",    old_name,
-              AOP_Insert, "renaming to", new_name);
+   AUTHORIZE2(client, einfo,
+              AOP_Rename, "renaming",    old_name, &old_Env,
+              AOP_Insert, "renaming to", new_name, &new_Env );
 
 // Find out where we should rename this file
 //
    if (Finder && Finder->isRemote())
-      if (Options & XrdOfsFWDMV)
-         return ((retc = Finder->Forward(einfo,"mv", old_name, new_name))
+      if (fwdMV)
+         return ((retc = Finder->Forward(einfo, fwdMV, old_name, new_name))
                 ? fsError(einfo, retc) : SFS_OK);
          else if ((retc = Finder->Locate(einfo,old_name,O_RDWR)))
                  return fsError(einfo, retc);
@@ -1547,18 +1565,19 @@ int XrdOfs::stat(const char             *path,        // In
    static const char *epname = "stat";
    int retc;
    const char *tident = einfo.getErrUser();
+   XrdOucEnv stat_Env(info);
    XTRACE(stat, path, "");
 
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
-   AUTHORIZE(client,AOP_Stat,"locate",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,&stat_Env,AOP_Stat,"locate",path,einfo);
 
 // Find out where we should stat this file
 //
    if (Finder && Finder->isRemote()
-   &&  (retc = Finder->Locate(einfo, path, O_RDONLY)))
+   &&  (retc = Finder->Locate(einfo, path, O_RDONLY|O_NOCTTY)))
       return fsError(einfo, retc);
 
 // Now try to find the file or directory
@@ -1593,13 +1612,14 @@ int XrdOfs::stat(const char             *path,        // In
    struct stat buf;
    int retc;
    const char *tident = einfo.getErrUser();
+   XrdOucEnv stat_Env(info);
    XTRACE(stat, path, "");
 
 // Apply security, as needed
 //
    if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
       return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
-   AUTHORIZE(client,AOP_Stat,"locate",path,einfo,SFS_ERROR);
+   AUTHORIZE(client,&stat_Env,AOP_Stat,"locate",path,einfo);
    mode = (mode_t)-1;
 
 // Find out where we should stat this file
@@ -1771,9 +1791,11 @@ int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
 
 // Translate the error code
 //
-   if (rc == -EREMOTE) return SFS_REDIRECT;
-   if (rc > 0)         return rc;
-                       return SFS_ERROR;
+   if (rc == -EREMOTE)     return SFS_REDIRECT;
+   if (rc == -EINPROGRESS) return SFS_STARTED;
+   if (rc > 0)             return rc;
+   if (rc == -EALREADY)    return SFS_DATA;
+                           return SFS_ERROR;
 }
 
 /******************************************************************************/
