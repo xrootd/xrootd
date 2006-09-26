@@ -348,41 +348,19 @@ void XrdXrootdJob2Do::Redrive()
 void XrdXrootdJob2Do::sendResult(char *lp, int caned)
 {
    const char *TraceID = "sendResult";
-   const kXR_unt16 Xattn = static_cast<kXR_unt16>(htons(kXR_attn));
-   const kXR_int32 Xarsp = static_cast<kXR_int32>(htonl(kXR_asynresp));
-   const kXR_unt16 Xok   = static_cast<kXR_unt16>(htons(kXR_ok));
-   const kXR_unt16 Xerr  = static_cast<kXR_unt16>(htons(kXR_error));
    const kXR_int32 Xcan  = static_cast<kXR_int32>(htonl(kXR_Cancelled));
    const kXR_int32 Xbad  = static_cast<kXR_int32>(htonl(kXR_ServerError));
+   XrdXrootdReqID ReqID;
+   struct iovec   jobVec[6];
+   XResponseType  jobStat;
+   const char    *trc, *tre;
+   kXR_int32      erc;
+   int            j, i, ovhd = 0, dlen = 0, n = 1;
 
-// We would have used struct ServerResponseBody_Attn_asynresp but the silly
-// imbedded 4096 char array causes grief when computing lengths.
+// Format the message to be sent
 //
-   struct {ServerResponseHeader atnHdr;
-           kXR_int32            act;
-           kXR_int32            rsvd;  // Same as char[4]
-           ServerResponseHeader theHdr;
-          } asynResp;
-
-   struct iovec jobVec[5];
-   int dlen = 0, i, j, ovhd = 0, n = 1;
-   kXR_int32 erc;
-   const char *trc;
-
-// Fill out the header with constant information
-//
-   asynResp.atnHdr.streamid[0] = '\0';
-   asynResp.atnHdr.streamid[1] = '\0';
-   asynResp.atnHdr.status      = Xattn;
-   asynResp.act                = Xarsp;
-   asynResp.rsvd               = 0;
-
-// Construct an io vector to send this response
-//
-                   jobVec[0].iov_base = (char *)&asynResp;
-                   jobVec[0].iov_len  = sizeof(asynResp);           // 0
    if (lp)
-      {asynResp.theHdr.status = Xok; trc = "ok";
+      {jobStat = kXR_ok; trc = "ok";
        if (theArgs[0])
           {        jobVec[n].iov_base = theArgs[0];                 // 1
            dlen  = jobVec[n].iov_len  = strlen(theArgs[0]); n++;
@@ -390,7 +368,7 @@ void XrdXrootdJob2Do::sendResult(char *lp, int caned)
            dlen += jobVec[n].iov_len  = 1;                  n++;
           }
       } else {
-       asynResp.theHdr.status = Xerr; trc = "err";
+       jobStat = kXR_error; trc = "error";
        if (caned) {erc = Xcan; lp = (char *)"Cancelled by admin.";}
           else    {erc = Xbad; lp = (char *)"Program failed.";}
                    jobVec[n].iov_base = (char *)&erc;
@@ -400,22 +378,16 @@ void XrdXrootdJob2Do::sendResult(char *lp, int caned)
                    jobVec[n].iov_base = lp;                         // 4
            dlen += jobVec[n].iov_len  = strlen(lp)+ovhd;    n++;
 
-            asynResp.theHdr.dlen = static_cast<kXR_int32>(htonl(dlen));
-   dlen += (sizeof(asynResp) - sizeof(ServerResponseHeader));
-   asynResp.atnHdr.dlen = static_cast<kXR_int32>(htonl(dlen));
-   dlen += sizeof(ServerResponseHeader);
-
+// Send the response to each client waiting for it
+//
    j = 0;
    for (i = 0; i < numClients; i++)
        {if (!Client[i].isSync)
-           {Client[i].Link->setRef(1);
-            if (Client[i].Link->isInstance(Client[i].Inst))
-               {asynResp.theHdr.streamid[0] = Client[i].streamid[0];
-                asynResp.theHdr.streamid[1] = Client[i].streamid[1];
-                TRACE(RSP,"sending async " <<trc <<" to " <<Client[i].Link->ID);
-                Client[i].Link->Send(jobVec, n, dlen);
-               }
-            Client[i].Link->setRef(-1);
+           {ReqID.setID(Client[i].streamid, 
+                        Client[i].Link->FDnum(), Client[i].Link->Inst());
+            tre = (XrdXrootdResponse::Send(ReqID, jobStat, jobVec, n, dlen) < 0
+                ?  "skipped" : "sent");
+            TRACE(RSP, tre <<" async " <<trc <<" to " <<Client[i].Link->ID);
            } else if (i != j) Client[j++] = Client[i];
         }
    numClients = j;

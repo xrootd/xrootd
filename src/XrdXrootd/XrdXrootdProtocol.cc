@@ -366,6 +366,10 @@ int XrdXrootdProtocol::Process2()
        return 0;
       }
 
+// Construct request ID as the following functions are async eligible
+//
+   ReqID.setID(Request.header.streamid);
+
 // Process items that keep own statistics
 //
    switch(Request.header.requestid)

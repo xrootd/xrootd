@@ -21,6 +21,7 @@
 
 #include "Xrd/XrdObject.hh"
 #include "Xrd/XrdProtocol.hh"
+#include "XrdXrootd/XrdXrootdReqID.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XProtocol/XProtocol.hh"
 
@@ -131,8 +132,6 @@ private:
        int   aio_WriteAll();
        int   aio_WriteCont();
 
-static XrdNetSocket *ASocket(char *path, const char *fn, mode_t mode, int isudp=0);
-static char *ASPath(char *path, const char *fn, mode_t mode);
        void  Assign(const XrdXrootdProtocol &rhs);
        void  Cleanup();
 static int   Config(const char *fn);
@@ -259,6 +258,7 @@ static int                 hcMax;
 
 // Buffers to handle client requests
 //
+XrdXrootdReqID             ReqID;
 ClientRequest              Request;
 XrdXrootdResponse          Response;
 };

@@ -40,6 +40,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 
 #include "XrdXrootd/XrdXrootdAdmin.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
+#include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
@@ -108,6 +109,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    XrdXrootdXPath *xp;
    char *adminp, *fsver, *rdf, c, buff[1024];
+   int deper = 0;
 
 // Copy out the special info we want to use at top level
 //
@@ -119,6 +121,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    readWait     = pi->readWait;
    Port         = pi->Port;
    myInst       = pi->myInst;
+
+// Set the callback object static areas now!
+//
+   XrdXrootdCallBack::setVals(&eDest, SI, Sched, Port);
 
 // Prohibit this program from executing as superuser
 //
@@ -135,18 +141,21 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
       while ((c=getopt(pi->argc,pi->argv,"mrst")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
-       case 'm': break;    // Backward compatibility only
+       case 'r': deper = 1;
+       case 'm': putenv((char *)"XRDREDIRECT=R");
                  break;
-       case 'r': putenv((char *)"XRDREDIRECT=R");
-                 break;
-       case 's': break; // Backward compatibility only
-       case 't': putenv((char *)"XRDRETARGET=1");
+       case 't': deper = 1;
+       case 's': putenv((char *)"XRDRETARGET=1");
                  break;
        case 'y': putenv((char *)"XRDREDPROXY=1");
                  break;
        default:  eDest.Say(0,"Warning, ignoring invalid option ",pi->argv[optind-1]);
        }
      }
+
+// Check for deprecated options
+//
+   if (deper) eDest.Say(0,"Warning, '-r -t' are deprecated; use '-m -s' instead.");
 
 // Pick up exported paths
 //
@@ -254,7 +263,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Setup the admin path (used in all roles).
 //
-   if (!(AdminSock = ASocket(adminp, "admin", pi->AdmMode))
+   if (!(AdminSock = XrdNetSocket::Create(&eDest, adminp, "admin", pi->AdmMode))
    ||  !XrdXrootdAdmin::Init(&eDest, AdminSock)) return 0;
 
 // Indicate we configured successfully
@@ -308,78 +317,6 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
-/******************************************************************************/
-/*                               A S o c k e t                                */
-/******************************************************************************/
-  
-XrdNetSocket *XrdXrootdProtocol::ASocket(char *path, const char *fn, 
-                                         mode_t mode, int isudp)
-{
-   XrdNetSocket *ASock;
-   int sflags = (isudp ? XRDNET_UDPSOCKET : 0);
-   char *fnp;
-
-// Setup the path
-//
-   if (!(fnp = ASPath(path, fn, mode))) return (XrdNetSocket *)0;
-
-// Connect to the path
-//
-   ASock = new XrdNetSocket(&eDest);
-   if (ASock->Open(fnp, -1, XRDNET_SERVER|sflags) < 0)
-      {eDest.Emsg("Config",ASock->LastError(),"establish socket",fnp);
-       delete ASock;
-       return (XrdNetSocket *)0;
-      }
-
-// Set the mode and return the socket object
-//
-   chmod(fnp, mode); // This may fail on some platforms
-   return ASock;
-}
-
-/******************************************************************************/
-/*                                A S P a t h                                 */
-/******************************************************************************/
-
-char *XrdXrootdProtocol::ASPath(char *path, const char *fn, mode_t mode)
-{
-   int rc, i;
-   struct stat buf;
-   static char fnbuff[1024];
-
-// Create the directory if it is not already there
-//
-   if ((rc = XrdOucUtils::makePath(path, mode)))
-      {eDest.Emsg("Config", errno, "create admin path", path);
-       return 0;
-      }
-
-// Construct full filename
-//
-   i = strlen(path);
-   strcpy(fnbuff, path);
-   if (path[i-1] != '/') fnbuff[i++] = '/';
-   strcpy(fnbuff+i, fn);
-
-// Check is we have already created it and whether we can access
-//
-   if (!stat(fnbuff,&buf))
-      {if ((buf.st_mode & S_IFMT) != S_IFSOCK)
-          {eDest.Emsg("Config","Path",fnbuff,"exists but is not a socket");
-           return 0;
-          }
-       if (access(fnbuff, W_OK))
-          {eDest.Emsg("Config", errno, "access path", fnbuff);
-           return 0;
-          }
-      }
-
-// All set now
-//
-   return fnbuff;
-}
-
 /******************************************************************************/
 /*                                x a s y n c                                 */
 /******************************************************************************/

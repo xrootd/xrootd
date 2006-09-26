@@ -24,6 +24,7 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
+#include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
@@ -462,6 +463,10 @@ int XrdXrootdProtocol::do_Login()
           monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID, 0);
       }
 
+// Complete the rquestID object
+//
+   ReqID.setID(Request.header.streamid, Link->FDnum(), Link->Inst());
+
 // Document this login
 //
    if (!(Status & XRD_NEED_AUTH))
@@ -547,6 +552,7 @@ int XrdXrootdProtocol::do_Mv()
   
 int XrdXrootdProtocol::do_Open()
 {
+   static XrdXrootdCallBack openCB("open file");
    int fhandle;
    int rc, mode, opts, openopts, mkpath = 0, doforce = 0, compchk = 0;
    int retStat = 0;
@@ -609,6 +615,10 @@ int XrdXrootdProtocol::do_Open()
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
       }
+
+// The open is elegible for a defered response, indicate we're ok with that
+//
+   fp->error.setErrCB(&openCB, ReqID.getID());
 
 // Open the file
 //
@@ -1342,10 +1352,11 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 int XrdXrootdProtocol::do_Stat()
 {
    int rc;
+   static XrdXrootdCallBack statCB("stat");
    const char *opaque;
    char xxBuff[256];
    struct stat buf;
-   XrdOucErrInfo myError(Link->ID);
+   XrdOucErrInfo myError(Link->ID, &statCB, ReqID.getID());
 
 // Prescreen the path
 //
@@ -1366,11 +1377,12 @@ int XrdXrootdProtocol::do_Stat()
   
 int XrdXrootdProtocol::do_Statx()
 {
+   static XrdXrootdCallBack statxCB("xstat");
    int rc;
    const char *opaque;
    char *path, *respinfo = argp->buff;
    mode_t mode;
-   XrdOucErrInfo myError(Link->ID);
+   XrdOucErrInfo myError(Link->ID, &statxCB, ReqID.getID());
    XrdOucTokenizer pathlist(argp->buff);
 
 // Cycle through all of the paths in the list
@@ -1380,7 +1392,7 @@ int XrdXrootdProtocol::do_Statx()
          if (!Squash(path))          return vpEmsg("Stating", path);
          rc = osFS->stat(path, mode, myError, CRED, opaque);
          TRACEP(FS, "rc=" <<rc <<" stat " <<path);
-         if (rc != SFS_OK)                   *respinfo = (char)kXR_other;
+         if (rc != SFS_OK)                    return fsError(rc, myError);
             else {if (mode == (mode_t)-1)    *respinfo = (char)kXR_offline;
                      else if (S_ISDIR(mode)) *respinfo = (char)kXR_isDir;
                              else            *respinfo = (char)kXR_file;
@@ -1600,6 +1612,24 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
        return Response.Send(kXR_redirect, ecode, eMsg);
       }
 
+// Process the deferal. We also synchronize sending the deferal response with
+// sending the actual defered response as these can violate time causality.
+//
+   if (rc == SFS_STARTED)
+      {SI->stallCnt++;
+       if (ecode <= 0) ecode = 1800;
+       TRACEI(STALL, Response.ID() <<"delaying client up to " <<ecode <<" sec");
+       rc = Response.Send(kXR_waitresp, ecode, eMsg);
+       myError.getErrCB()->Done(ecode, &myError);
+       return rc;
+      }
+
+// Process the data response
+//
+   if (rc == SFS_DATA)
+      if (ecode) return Response.Send((void *)eMsg, ecode);
+         else    return Response.Send();
+
 // Process the deferal
 //
    if (rc >= SFS_STALL)
@@ -1759,58 +1789,12 @@ int XrdXrootdProtocol::Squash(char *fn)
 }
 
 /******************************************************************************/
-/*                              S t a t e G e n                               */
+/*                               S t a t G e n                                */
 /******************************************************************************/
   
-int XrdXrootdProtocol::StatGen(struct stat &buf, char *xxBuff)
-{
-   const mode_t isReadable = (S_IRUSR | S_IRGRP | S_IROTH);
-   const mode_t isWritable = (S_IWUSR | S_IWGRP | S_IWOTH);
-   const mode_t isExecable = (S_IXUSR | S_IXGRP | S_IXOTH);
-   static uid_t myuid = getuid();
-   static gid_t mygid = getgid();
-   union {long long uuid; struct {int hi; int lo;} id;} Dev;
-   long long fsz;
-   int flags = 0;
+#define XRDXROOTD_STAT_CLASSNAME XrdXrootdProtocol
+#include "XrdXrootd/XrdXrootdStat.icc"
 
-// Compute the unique id
-//
-   Dev.id.lo = buf.st_ino;
-   Dev.id.hi = buf.st_dev;
-
-// Compute correct setting of the readable flag
-//
-   if (buf.st_mode & isReadable
-   &&((buf.st_mode & S_IRUSR && myuid == buf.st_uid)
-   || (buf.st_mode & S_IRGRP && mygid == buf.st_gid)
-   ||  buf.st_mode & S_IROTH)) flags |= kXR_readable;
-
-// Compute correct setting of the writable flag
-//
-   if (buf.st_mode & isWritable
-   &&((buf.st_mode & S_IWUSR && myuid == buf.st_uid)
-   || (buf.st_mode & S_IWGRP && mygid == buf.st_gid)
-   ||  buf.st_mode & S_IWOTH)) flags |= kXR_writable;
-
-// Compute correct setting of the execable flag
-//
-   if (buf.st_mode & isExecable
-   &&((buf.st_mode & S_IXUSR && myuid == buf.st_uid)
-   || (buf.st_mode & S_IXGRP && mygid == buf.st_gid)
-   ||  buf.st_mode & S_IXOTH)) flags |= kXR_xset;
-
-// Compute the other flag settings
-//
-   if (S_ISDIR(buf.st_mode))           flags |= kXR_isDir;
-      else if (!S_ISREG(buf.st_mode))  flags |= kXR_other;
-   if (!Dev.uuid)                      flags |= kXR_offline;
-   fsz = static_cast<long long>(buf.st_size);
-
-// Format the results and return them
-//
-   return sprintf(xxBuff,"%lld %lld %d %ld",Dev.uuid,fsz,flags,buf.st_mtime)+1;
-}
-  
 /******************************************************************************/
 /*                                v p E m s g                                 */
 /******************************************************************************/

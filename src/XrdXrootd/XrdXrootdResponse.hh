@@ -18,6 +18,7 @@
   
 #include "XProtocol/XProtocol.hh"
 #include "XProtocol/XPtypes.hh"
+#include "XrdXrootd/XrdXrootdReqID.hh"
 
 /******************************************************************************/
 /*                       x r o o t d _ R e s p o n s e                        */
@@ -40,6 +41,8 @@ const  char *ID() {return (const char *)trsid;}
        int   Send(struct iovec *, int iovcnt, int iolen=-1);
        int   Send(XResponseType rcode, void *data, int dlen);
        int   Send(XResponseType rcode, int info, const char *data);
+static int   Send(XrdXrootdReqID &ReqID,  XResponseType Status,
+                  struct iovec   *IOResp, int           iornum, int  iolen);
 
 inline void  Set(XrdLink *lp) {Link = lp;}
        void  Set(kXR_char *stream);
