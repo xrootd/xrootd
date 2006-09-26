@@ -5,7 +5,7 @@
 #------------------------------------------------------------------------------#
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSec
+BINLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSec -lXrdSys
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -41,6 +41,7 @@ TARGETS = $(LIBRARY) $(TESTBIN)
 vpath XrdNet%     ../XrdNet
 vpath XrdOuc%     ../XrdOuc
 vpath XrdSec%     ../XrdSec
+vpath XrdSys%     ../XrdSys
 vpath XrdXrootd%  ../XrdXrootd
 vpath Xrd%        ../Xrd
 vpath XP%         ../XProtocol
@@ -72,7 +73,7 @@ $(OBJDIR)/XrdXrClientWorker.o: XrdXrClientWorker.hh XrdXrClientWorker.cc \
                                XrdXrTrace.hh         XrdNetDNS.hh \
                                XrdNetLink.hh         XrdNetWork.hh \
                                XrdOucErrInfo.hh      XrdOucError.hh \
-                               XrdOucLogger.hh       XrdOucPlatform.hh \
+                               XrdOucLogger.hh       XrdSysPlatform.hh \
                                XrdXrootdProtocol.hh  XProtocol.hh
 	@echo Compiling XrdXrClientWorker.cc ...
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrClientWorker.o \
@@ -80,7 +81,7 @@ $(OBJDIR)/XrdXrClientWorker.o: XrdXrClientWorker.hh XrdXrClientWorker.cc \
 
 $(OBJDIR)/XrdXrClient.o:  XrdXrClient.hh        XrdXrClient.cc  \
                           XrdXrClientWorker.hh  XrdXrTrace.hh   \
-                          XrdOucLogger.hh       XrdOucPlatform.hh \
+                          XrdOucLogger.hh       XrdSysPlatform.hh \
                           XrdOucPthread.hh \
                           XrdXrootdProtocol.hh  XProtocol.hh
 	@echo Compiling XrdXrClient.cc ...
