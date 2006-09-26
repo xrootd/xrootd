@@ -79,12 +79,14 @@ friend class XrdAccConfig;
 
       XrdAccPrivs Access(const XrdSecEntity    *Entity,
                          const char            *path,
-                         const Access_Operation oper);
+                         const Access_Operation oper,
+                               XrdOucEnv       *Env=0);
 
       int         Audit(const int              accok,
                         const XrdSecEntity    *Entity,
                         const char            *path,
-                        const Access_Operation oper);
+                        const Access_Operation oper,
+                               XrdOucEnv      *Env=0);
 
 // SwapTabs() is used by the configuration object to establish new access
 // control tables. It may be called whenever the tables change.

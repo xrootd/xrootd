@@ -37,7 +37,8 @@ extern XrdAccConfig XrdAccConfiguration;
 /*                 Object Creation via XrdAccAuthorize Object                 */
 /******************************************************************************/
   
-XrdAccAuthorize *XrdAccAuthorizeObject(XrdOucLogger *lp, const char *cfn)
+XrdAccAuthorize *XrdAccAuthorizeObject(XrdOucLogger *lp, 
+                                       const char *cfn, const char *parm)
 {
    static XrdOucError Eroute(lp, "acc_");
 
@@ -67,7 +68,8 @@ XrdAccAccess::XrdAccAccess(XrdOucError *erp)
   
 XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
                                  const char            *path,
-                                 const Access_Operation oper)
+                                 const Access_Operation oper,
+                                       XrdOucEnv       *Env)
 {
    XrdAccPrivs myprivs;
    char *gname;
@@ -217,7 +219,8 @@ XrdAccPrivs XrdAccAccess::Access(const char *id,
 int XrdAccAccess::Audit(const int              accok,
                         const XrdSecEntity    *Entity,
                         const char            *path,
-                        const Access_Operation oper)
+                        const Access_Operation oper,
+                              XrdOucEnv       *Env)
 {
 // Warning! This table must be in 1-to-1 correspondence with Access_Operation
 //

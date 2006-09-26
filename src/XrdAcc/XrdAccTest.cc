@@ -112,7 +112,7 @@ char *ConfigFN = (char *)"./acc.cf";
 
 // Obtain the authorization object
 //
-if (!(Authorize = XrdAccAuthorizeObject(&myLogger, ConfigFN)))
+if (!(Authorize = XrdAccAuthorizeObject(&myLogger, ConfigFN, 0)))
    {cerr << "testaccess: Initialization failed." <<endl;
     exit(2);
    }
