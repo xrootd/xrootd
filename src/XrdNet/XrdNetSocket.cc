@@ -42,6 +42,7 @@ const char *XrdNetSocketCVSID = "$Id$";
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -112,6 +113,43 @@ void XrdNetSocket::Close()
      // Reset values and return.
      //
      ErrCode=0;
+}
+
+/******************************************************************************/
+/*                                C r e a t e                                 */
+/******************************************************************************/
+
+XrdNetSocket *XrdNetSocket::Create(XrdOucError *Say, const char *path, 
+                                   const char *fn, mode_t mode, int opts)
+{
+   XrdNetSocket *ASock;
+   int pflags    = (opts & XRDNET_FIFO ? S_IFIFO : S_IFSOCK);
+   int sflags    = (opts & XRDNET_UDPSOCKET) | XRDNET_SERVER;
+   mode_t myMode = (mode & (S_IRWXU | S_IRWXG));
+   const char *eMsg = 0;
+   char fnbuff[1024];
+
+// Setup the path
+//
+   if (!socketPath(Say, fnbuff, path, fn, mode|pflags))
+      return (XrdNetSocket *)0;
+
+// Connect to the path
+//
+   ASock = new XrdNetSocket(Say);
+   if (opts & XRDNET_FIFO)
+      {if ((ASock->SockFD = mkfifo(fnbuff, mode)) < 0 && errno != EEXIST)
+         eMsg = "create fifo";
+         else if ((ASock->SockFD = open(fnbuff, O_RDWR, myMode)) < 0)
+                 eMsg = "open fifo";
+      } else if (ASock->Open(fnbuff, -1, sflags) < 0) eMsg = "create socket";
+
+// Return the result
+//
+   if (eMsg) {Say->Emsg("Create", ASock->LastError(), eMsg, fnbuff);
+              delete ASock; ASock = 0;
+             }
+   return ASock;
 }
 
 /******************************************************************************/
@@ -332,4 +370,67 @@ int XrdNetSocket::setWindow(int xfd, int Windowsz, XrdOucError *eDest)
        if (eDest) eDest->Emsg("setWindow", errno, "set socket RCVBUF");
       }
    return rc;
+}
+
+/******************************************************************************/
+/*                            s o c k e t P a t h                             */
+/******************************************************************************/
+
+char *XrdNetSocket::socketPath(XrdOucError *Say, char *fnbuff,
+                               const char *path, const char *fn, mode_t mode)
+{
+   const int srchOK = S_IXUSR | S_IXGRP;
+   const int sfMask = (S_IFIFO | S_IFSOCK);
+   int rc, i, fnlen = (fnbuff ? strlen(fnbuff) : 0);
+   mode_t myMode = (mode & (S_IRWXU | S_IRWXG)) | srchOK;
+   struct stat buf;
+   char *sp = 0;
+
+// Copy the const char path because makePath modifies it
+//
+   i = strlen(path);
+   if (strlcpy(fnbuff, path, 1024) >= 1024 || (i + fnlen + 1) >= 1024)
+      {Say->Emsg("createPath", "Socket path", path, "too long");
+       return 0;
+      }
+
+// Check if we should separate the filename from the path
+//
+   if (!fn)
+      {if (fnbuff[i-1] == '/') fnbuff[i-1] = '\0';
+       if ((sp = rindex(fnbuff, '/'))) *sp = '\0';
+      }
+   
+// Create the directory if it is not already there
+//
+   if ((rc = XrdOucUtils::makePath(fnbuff, myMode)))
+      {Say->Emsg("createPath", errno, "create path", path);
+       return 0;
+      }
+
+// Construct full filename
+//
+   if (sp) *sp = '/';
+      else {if (path[i-1] != '/') fnbuff[i++] = '/';
+            strcpy(fnbuff+i, fn);
+           }
+
+// Check is we have already created it and whether we can access
+//
+   if (!stat(fnbuff,&buf))
+      {if ((buf.st_mode & S_IFMT) != (mode & sfMask))
+          {Say->Emsg("createPath","Path",fnbuff,
+                     (mode & S_IFSOCK) ? "exists but is not a socket"
+                                       : "exists but is not a pipe");
+           return 0;
+          }
+       if (access(fnbuff, W_OK))
+          {Say->Emsg("cratePath", errno, "access path", fnbuff);
+           return 0;
+          }
+      } else chmod(fnbuff, mode); // This may fail on some platforms
+
+// All set now
+//
+   return fnbuff;
 }

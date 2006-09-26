@@ -38,6 +38,14 @@ public:
 
            ~XrdNetSocket() {Close();}
 
+// Create a named socket. Returns a NetSocket object that can be used for the
+// given path. A udp or tcp socket can be created on the path with the given
+// file name. The access permission mode must also be supplied. Upon failure,
+// a null pointer is returned.
+//
+static XrdNetSocket *Create(XrdOucError *Say, const char *path,
+                            const char *fn, mode_t mode, int isudp=0);
+
 // Open a socket. Returns socket number upon success otherwise a -1. Use
 // LastError() to find out the reason for failure. Only one socket at a time
 // may be created. Use Close() to close the socket of Detach() to remove
@@ -102,6 +110,16 @@ static int setWindow(int fd, int Windowsz, XrdOucError *eDest=0);
 // Return socket file descriptor number (useful when attaching to a stream).
 //
 inline int  SockNum() {return SockFD;}
+
+// Create a path to a named socket returning the actual name of the socket.
+// This method does not actually create the socket, only the path to the
+// socket. If the full path exists then it must be a named socket. Upon
+// success, it returns a pointer to the buffer holding the name (supplied by
+// the caller). Otherwise, it returns a null pointer.
+//
+static char *XrdNetSocket::socketPath(XrdOucError *Say, char *inbuff,
+                                      const char *path, const char *fn, 
+                                      mode_t mode);
 
 /******************************************************************************/
   

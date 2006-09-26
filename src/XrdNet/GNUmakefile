@@ -40,6 +40,7 @@ TARGETS = $(LIBRARY)
 
 vpath XrdOuc% ../XrdOuc
 vpath XrdNet% ../XrdNet
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -66,27 +67,27 @@ fi
 
 $(OBJDIR)/XrdNet.o: XrdNet.cc       XrdNet.hh         XrdNetBuffer.hh \
                     XrdNetDNS.hh    XrdNetOpts.hh     XrdNetSecurity.hh \
-                    XrdNetSocket.hh XrdOucPlatform.hh XrdOucError.hh
+                    XrdNetSocket.hh XrdSysPlatform.hh XrdOucError.hh
 	@echo Compiling XrdNet.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNet.cc -o $(OBJDIR)/XrdNet.o
 
 $(OBJDIR)/XrdNetBuffer.o: XrdNetBuffer.cc XrdNetBuffer.hh \
-                          XrdOucChain.hh  XrdOucPlatform.hh  XrdOucPthread.hh
+                          XrdOucChain.hh  XrdSysPlatform.hh  XrdOucPthread.hh
 	@echo Compiling XrdNetBuffer.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetBuffer.cc -o $(OBJDIR)/XrdNetBuffer.o
 
-$(OBJDIR)/XrdNetConnect.o: XrdNetConnect.cc XrdNetConnect.hh XrdOucPlatform.hh
+$(OBJDIR)/XrdNetConnect.o: XrdNetConnect.cc XrdNetConnect.hh XrdSysPlatform.hh
 	@echo Compiling XrdNetConnect.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetConnect.cc -o $(OBJDIR)/XrdNetConnect.o
 
-$(OBJDIR)/XrdNetDNS.o: XrdNetDNS.cc XrdNetDNS.hh XrdOucPlatform.hh XrdOucPthread.hh
+$(OBJDIR)/XrdNetDNS.o: XrdNetDNS.cc XrdNetDNS.hh XrdSysPlatform.hh XrdOucPthread.hh
 	@echo Compiling XrdNetDNS.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFGETHBYXR) $(CFNAMEINFO) $(CFPROTOR) $(INCLUDE) XrdNetDNS.cc -o $(OBJDIR)/XrdNetDNS.o
 
 $(OBJDIR)/XrdNetLink.o: XrdNetLink.cc XrdNetLink.hh          XrdNet.hh \
                         XrdNetBuffer.hh   XrdNetDNS.hh       XrdNetPeer.hh \
                         XrdOucChain.hh    XrdOucError.hh     XrdOucPthread.hh \
-                        XrdOucPlatform.hh XrdOucStream.hh    XrdOucTokenizer.hh
+                        XrdSysPlatform.hh XrdOucStream.hh    XrdOucTokenizer.hh
 	@echo Compiling XrdNetLink.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetLink.cc -o $(OBJDIR)/XrdNetLink.o
 
@@ -98,7 +99,7 @@ $(OBJDIR)/XrdNetSecurity.o: XrdNetSecurity.cc XrdNetSecurity.hh \
 
 $(OBJDIR)/XrdNetSocket.o: XrdNetSocket.cc  XrdNetSocket.hh \
                           XrdNetConnect.hh XrdNetDNS.hh        XrdNetOpts.hh \
-                          XrdOucError.hh   XrdOucPlatform.hh
+                          XrdOucError.hh   XrdOucUtils.hh XrdSysPlatform.hh
 	@echo Compiling XrdNetSocket.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetSocket.cc -o $(OBJDIR)/XrdNetSocket.o
 

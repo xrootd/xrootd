@@ -60,6 +60,10 @@
 //
 #define XRDNET_UDPSOCKET 0x00200000
 
+// Define a FIFO (currently only for NetSocket)
+//
+#define XRDNET_FIFO      0x00400000
+
 /******************************************************************************/
 /*                  X r d N e t S o c k e t   O p t i o n s                   */
 /******************************************************************************/
