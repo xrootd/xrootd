@@ -1,3 +1,5 @@
+#ifndef __XRDOUCNAME2NAME_H__
+#define __XRDOUCNAME2NAME_H__
 /******************************************************************************/
 /*                                                                            */
 /*                    X r d O u c n a m e 2 n a m e . h h                     */
@@ -94,3 +96,4 @@ XrdOucName2Name *XrdOucgetName2Name(XrdOucgetName2NameArgs);
 // as well as other meta-file operations (e.g., stat(), rename(), etc.).
 // The algorithms used by this object *must* be effecient and speedy; otherwise,
 // system performance will be severely degraded.
+#endif

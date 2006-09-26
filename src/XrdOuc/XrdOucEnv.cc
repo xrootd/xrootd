@@ -25,14 +25,16 @@ XrdOucEnv::XrdOucEnv(const char *vardata, int varlen) : env_Hash(8,13)
 {
    char *vdp, varsave, *varname, *varvalu;
 
-   if (!vardata) {global_env = 0; return;}
+   if (!vardata) {global_env = 0; global_len = 0; return;}
 
 // Copy the the global information (don't rely on its being correct)
 //
    if (!varlen) varlen = strlen(vardata);
-   global_env = (char *)malloc(varlen+1);
-   memcpy((void *)global_env, (const void *)vardata, (size_t)varlen);
-   global_env[varlen+1] = '\0';
+   global_env = (char *)malloc(varlen+2); global_len = varlen;
+   if (*vardata == '&') vdp = global_env;
+      else {*global_env = '&'; vdp = global_env+1;}
+   memcpy((void *)vdp, (const void *)vardata, (size_t)varlen);
+   *(vdp+varlen) = '\0';
    vdp = global_env;
 
 // scan through the string looking for '&'

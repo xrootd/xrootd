@@ -23,6 +23,11 @@
 #else
 #include <semaphore.h>
 #endif
+#if defined(__solaris__)
+#define SEM_IS_BLOCKED EBUSY
+#else
+#define SEM_IS_BLOCKED EAGAIN
+#endif
 
 #include "XrdOuc/XrdOucError.hh"
 
@@ -192,7 +197,7 @@ public:
 
 inline int  CondWait()
        {if (sem_trywait( &h_semaphore ))
-           if (errno == EBUSY) return 0;
+           if (errno == SEM_IS_BLOCKED) return 0;
                else { throw "sem_CondWait() failed";}
         return 1;
        }

@@ -16,7 +16,7 @@
 #include <string.h>      // For strlcpy()
 #include <sys/types.h>
 
-#include "XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                              X r d O u c E I                               */
@@ -47,6 +47,7 @@ const      char *user;
 /******************************************************************************/
 
 class XrdOucEICB;
+class XrdOucSemaphore;
   
 class XrdOucErrInfo
 {
@@ -71,8 +72,8 @@ public:
                }
       void  setErrUser(const char *user) {ErrInfo.user = (user ? user : "?");}
 
-XrdOucEICB *getErrCB(unsigned long long &cbarg) 
-                    {cbarg = ErrCBarg; return ErrCB;}
+XrdOucEICB *getErrCB() {return ErrCB;}
+XrdOucEICB *getErrCB(unsigned long long &ap) {ap = ErrCBarg; return ErrCB;}
       int   getErrInfo() {return ErrInfo.code;}
       int   getErrInfo(XrdOucEI &errorParm)
                {errorParm = ErrInfo; return ErrInfo.code;}
@@ -95,9 +96,9 @@ const char *getErrUser()
 
 protected:
 
-XrdOucEI           ErrInfo;
-XrdOucEICB        *ErrCB;
-unsigned long long ErrCBarg;
+XrdOucEI            ErrInfo;
+XrdOucEICB         *ErrCB;
+unsigned long long  ErrCBarg;
 };
 
 /******************************************************************************/
@@ -116,6 +117,11 @@ public:
 //
 virtual void        Done(int           &Result,   //I/O: Function result
                          XrdOucErrInfo *eInfo)=0; // In: Error Info
+
+// Same() is invoked to determine if two argtuments refer to the same user.
+//        True is returned if so, false, otherwise.
+//
+virtual int         Same(unsigned long long arg1, unsigned long long arg2)=0;
 
                     XrdOucEICB() {}
 virtual            ~XrdOucEICB() {}

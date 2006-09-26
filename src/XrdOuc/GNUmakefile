@@ -16,9 +16,9 @@ SOURCES = \
         XrdOucError.cc       \
         XrdOucHashVal.cc     \
         XrdOucLogger.cc      \
+        XrdOucMsubs.cc       \
         XrdOucName2Name.cc   \
         XrdOucNList.cc       \
-        XrdOucPlatform.cc    \
         XrdOucPlugin.cc      \
         XrdOucProg.cc        \
         XrdOucPthread.cc     \
@@ -38,9 +38,9 @@ OBJECTS = \
         $(OBJDIR)/XrdOucHashVal.o      \
         $(OBJDIR)/XrdOucEnv.o          \
         $(OBJDIR)/XrdOucLogger.o       \
+        $(OBJDIR)/XrdOucMsubs.o        \
         $(OBJDIR)/XrdOucName2Name.o    \
         $(OBJDIR)/XrdOucNList.o        \
-        $(OBJDIR)/XrdOucPlatform.o     \
         $(OBJDIR)/XrdOucPlugin.o       \
         $(OBJDIR)/XrdOucProg.o         \
         $(OBJDIR)/XrdOucPthread.o      \
@@ -62,6 +62,7 @@ TARGETS = $(LIBRARY)
 #------------------------------------------------------------------------------#
 
 vpath XrdNet% ../XrdNet
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -95,7 +96,7 @@ $(OBJDIR)/XrdOucEnv.o: XrdOucEnv.cc XrdOucEnv.hh XrdOucHash.hh
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucEnv.cc -o $(OBJDIR)/XrdOucEnv.o
 
 $(OBJDIR)/XrdOucError.o: XrdOucError.cc XrdOucError.hh XrdOucLogger.hh \
-                         XrdOucPlatform.hh
+                         XrdSysPlatform.hh
 	@echo Compiling XrdOucError.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucError.cc -o $(OBJDIR)/XrdOucError.o
 
@@ -108,18 +109,19 @@ $(OBJDIR)/XrdOucLogger.o: XrdOucLogger.cc XrdOucLogger.hh \
 	@echo Compiling XrdOucLogger.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucLogger.cc -o $(OBJDIR)/XrdOucLogger.o
 
+$(OBJDIR)/XrdOucMsubs.o: XrdOucMsubs.cc XrdOucMsubs.hh \
+                         XrdOucEnv.hh   XrdOucName2Name.hh
+	@echo Compiling XrdOucMsubs.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucMsubs.cc -o $(OBJDIR)/XrdOucMsubs.o
+
 $(OBJDIR)/XrdOucName2Name.o: XrdOucName2Name.cc XrdOucName2Name.hh \
-                             XrdOucError.hh XrdOucPlatform.hh
+                             XrdOucError.hh XrdSysPlatform.hh
 	@echo Compiling XrdOucName2Name.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucName2Name.cc -o $(OBJDIR)/XrdOucName2Name.o
 
 $(OBJDIR)/XrdOucNList.o: XrdOucNList.cc XrdOucNList.hh XrdOucPthread.hh
 	@echo Compiling XrdOucNList.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucNList.cc -o $(OBJDIR)/XrdOucNList.o
-
-$(OBJDIR)/XrdOucPlatform.o: XrdOucPlatform.cc XrdOucPlatform.hh
-	@echo Compiling XrdOucPlatform.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(CFSTRLCPY) $(INCLUDE) XrdOucPlatform.cc -o $(OBJDIR)/XrdOucPlatform.o
 
 $(OBJDIR)/XrdOucPlugin.o: XrdOucPlugin.cc XrdOucPlugin.hh  XrdOucError.hh
 	@echo Compiling XrdOucPlugin.cc
