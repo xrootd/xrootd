@@ -49,6 +49,7 @@ sun4x_56        sunCC     all    for Solaris 5.6 CC 5.0
 sun4x_57        sunCC     all    for Solaris 5.7 CC 5.0
 sun4x_58        sunCC     all    for Solaris 5.8 CC 5.0
 sun4x_59        sunCC     all    for Solaris 5.9 CC 5.0
+sun4x_510       sunCC     all    for Solaris 5.9 CC 5.0
 sun4x_5         sunCC     all    for Solaris 5.x CC 5.0
 sun4x_4         sunCC     all    for Solaris 4.x
 sun4x_6         sungcc    all    for Solaris 6.x with gcc and glibc
@@ -56,6 +57,7 @@ sun4x_56        sungcc    all    for Solaris 5.6 with gcc and glibc
 sun4x_57        sungcc    all    for Solaris 5.7 with gcc and glibc
 sun4x_58        sungcc    all    for Solaris 5.8 with gcc and glibc
 sun4x_59        sungcc    all    for Solaris 5.9 with gcc and glibc
+sun4x_510       sungcc    all    for Solaris 5.9 with gcc and glibc
 sun4x_5         sungcc    all    for Solaris 5.x with gcc and glibc
 sun4x_4         sungcc    all    for Solaris 4.x with gcc and glibc
 sunx86_510      sunCCamd  all    for Solaris 5.x on AMD   i86 platform
