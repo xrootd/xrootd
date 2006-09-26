@@ -433,6 +433,7 @@ guess_architecture () {
       sunos:*:5.7)        arch=sun4x_57        ; platform=solaris; ccflv=sunCC;;
       sunos:*:5.8)        arch=sun4x_58        ; platform=solaris; ccflv=sunCC;;
       sunos:*:5.9)        arch=sun4x_59        ; platform=solaris; ccflv=sunCC;;
+      sunos:*:5.10)       arch=sun4x_510       ; platform=solaris; ccflv=sunCC;;
       sunos:*:5*)         arch=sun4x_5         ; platform=solaris; ccflv=sunCC;;
       sunos:*:4*)         arch=sun4x_4         ; platform=solaris; ccflv=sunCC;;
       cygwin_*:*:*)       arch=win32 ; platform=win32;  ccflv=wingcc; type=cygwin;;
