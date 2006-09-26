@@ -36,6 +36,7 @@ private:
     int fSocket;
 
 protected:
+    int                       fRequestTimeout;
     XrdClientSockConnectParms fHost;
 
     bool                      fConnected;
@@ -43,7 +44,7 @@ protected:
 
     // Tells if we have to reinit the table of the fd selectors
     // after adding or removing one of them
-    bool                fReinit_fd;
+    bool                      fReinit_fd;
 
     virtual int    SaveSocket() { int fd = fSocket; fSocket = -1;
 	fConnected = 0; fInterrupt = 0; return fd; }
@@ -76,6 +77,8 @@ public:
     // if substreamid <= 0 then use the main one
     virtual int    SendRaw(const void* buffer, int length, int substreamid = 0);
 
+    void   SetRequestTimeout(int timeout = -1);
+
     virtual void   TryConnect(bool isUnix = 0);
 
     // Returns a temporary socket id or -1
@@ -87,9 +90,9 @@ public:
     // Attach the pending (and hidden) sock associated to the substreamid XRDCLI_PSOCKTEMP
     //  to the given substreamid
     // the given substreamid could be an integer suggested by the server
-    virtual int EstablishParallelSock(int sockid) { return -1; }
+    virtual int EstablishParallelSock(int /*sockid*/) { return -1; }
 
-    virtual int RemoveParallelSock(int sockid) { return -1; };
+    virtual int RemoveParallelSock(int /* sockid */) { return -1; };
 
     virtual void   Disconnect();
 

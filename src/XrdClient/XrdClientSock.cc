@@ -40,6 +40,7 @@ XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize)
     fConnected = FALSE;
     fInterrupt = FALSE;
     fSocket = -1;
+    fRequestTimeout = EnvGetLong(NAME_REQUESTTIMEOUT);
 }
 
 //_____________________________________________________________________________
@@ -47,6 +48,15 @@ XrdClientSock::~XrdClientSock()
 {
     // Destructor
     Disconnect();
+}
+
+//_____________________________________________________________________________
+void XrdClientSock::SetRequestTimeout(int timeout)
+{
+   // Set request timeout. If timeout is non-positive reset the request
+   // timeout to the default value
+
+   fRequestTimeout = (timeout > 0) ? timeout : EnvGetLong(NAME_REQUESTTIMEOUT);
 }
 
 //_____________________________________________________________________________
@@ -67,7 +77,6 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
 {
     // Read bytes following carefully the timeout rules
     struct pollfd fds_r;
-    time_t starttime;
     int bytesread = 0;
     int pollRet;
 
@@ -79,89 +88,94 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
 
     // Init of the pollfd struct
     if (fSocket < 0) {
-	Error("XrdClientSock::RecvRaw", "socket fd is " << fSocket);
-	return TXSOCK_ERR;
+       Error("XrdClientSock::RecvRaw", "socket fd is " << fSocket);
+       return TXSOCK_ERR;
     }
 
     fds_r.fd     = fSocket;
     //   fds_r.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL;
     fds_r.events = POLLIN;
 
-    starttime = time(0);
-
     // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
     fInterrupt = FALSE;
     while (bytesread < length) {
 
-	// We cycle on the poll, ignoring the possible interruptions
-	// We are waiting for something to come from the socket
-	do { 
+        // We cycle on the poll, ignoring the possible interruptions
+        // We are waiting for something to come from the socket
 
-	    // If too much time has elapsed, then we return an error
-	    if ((time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT)) {
+      // We cycle on the poll, ignoring the possible interruptions
+      // We are waiting for something to come from the socket,
+      // but we will not wait forever
+      int timeleft = fRequestTimeout;
+      do {
+         // Wait for some event from the socket
+         pollRet = poll(&fds_r,
+                        1,
+                        1000 // 1 second as a step
+                        );
 
-		Info(XrdClientDebug::kDUMPDEBUG,
-		     "ClientSock::RecvRaw",
-		     "Request timed out "<< EnvGetLong(NAME_REQUESTTIMEOUT) << //gEnv
-		     "seconds reading " << length << " bytes" <<
-		     " from server " << fHost.TcpHost.Host <<
-		     ":" << fHost.TcpHost.Port);
+         if ((pollRet < 0) && (errno != EINTR))
+            return TXSOCK_ERR;
 
-		return TXSOCK_ERR_TIMEOUT;
-	    }
+      } while (--timeleft && pollRet <= 0 && !fInterrupt);
 
-	    // Wait for some event from the socket
-	    pollRet = poll(&fds_r,
-			   1,
-			   1000 // 1 second as a step
-			   );
 
-	    if ((pollRet < 0) && (errno != EINTR)) return TXSOCK_ERR;
+      // If we are here, pollRet is > 0 why?
+      //  Because the timeout and the poll error are handled inside the previous loop
 
-	} while (pollRet <= 0 && !fInterrupt);
+      if (fSocket < 0) {
+         if (fConnected) {
+            Error("XrdClientSock::RecvRaw", "since we entered RecvRaw, socket "
+                  "file descriptor has changed to " << fSocket);
+            fConnected = FALSE;
+         }
+         return TXSOCK_ERR;
+      }
 
-	// If we are here, pollRet is > 0 why?
-	//  Because the timeout and the poll error are handled inside the previous loop
+      // If we have been timed-out, return a specific error code
+      if (timeleft <= 0) {
+         if ((DebugLevel() >= XrdClientDebug::kDUMPDEBUG))
+            Info(XrdClientDebug::kNODEBUG,
+                 "ClientSock::RecvRaw",
+                 "Request timed out "<< fRequestTimeout << 
+                 "seconds reading " << length << " bytes" <<
+                 " from server " << fHost.TcpHost.Host <<
+                 ":" << fHost.TcpHost.Port);
+         return TXSOCK_ERR_TIMEOUT;
+      }
 
-	if (fSocket < 0) {
-	    Error("XrdClientSock::RecvRaw", "since we entered RecvRaw, socket "
-		  "file descriptor has changed to " << fSocket);
-	    return TXSOCK_ERR;
-	}
+      // If we have been interrupt, reset the inetrrupt and exit
+      if (fInterrupt) {
+         fInterrupt = FALSE;
+         Error("XrdClientSock::RecvRaw", "got interrupt");
+         return TXSOCK_ERR_INTERRUPT;
+      }
 
-	// If we have been interrupt, reset the inetrrupt and exit
-	if (fInterrupt) {
-	    fInterrupt = FALSE;
-	    Error("XrdClientSock::RecvRaw", "got interrupt");
-	    return TXSOCK_ERR_INTERRUPT;
-	}
 
-	// First of all, we check if there is something to read
-	if (fds_r.revents & (POLLIN | POLLPRI)) {
-	    int n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
-			   length - bytesread, 0);
+      // First of all, we check if there is something to read
+      if (fds_r.revents & (POLLIN | POLLPRI)) {
+         int n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
+                        length - bytesread, 0);
 
-	    // If we read nothing, the connection has been closed by the other side
-	    if (n <= 0) {
-		Error("XrdClientSock::RecvRaw", "Error reading from socket: " <<
-		      ::strerror(errno));
-		return TXSOCK_ERR;
-	    }
+         // If we read nothing, the connection has been closed by the other side
+         if (n <= 0) {
+            Error("XrdClientSock::RecvRaw", "Error reading from socket: " <<
+            ::strerror(errno));
+            return TXSOCK_ERR;
+         }
+         bytesread += n;
+      }
 
-	    bytesread += n;
-	}
-
-	// Then we check if poll reports a complaint from the socket like disconnections
-	if (fds_r.revents & (POLLERR | POLLHUP | POLLNVAL)) {
-	 
-	    Error( "ClientSock::RecvRaw",
-		   "Disconnection detected reading " << length <<
-		   " bytes from socket " << fds_r.fd <<
-		   " (server[" << fHost.TcpHost.Host <<
-		   ":" << fHost.TcpHost.Port <<
-		   "]). Revents=" << fds_r.revents );
-	    return TXSOCK_ERR;
-	}
+      // Then we check if poll reports a complaint from the socket like disconnections
+      if (fds_r.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+         Error("ClientSock::RecvRaw",
+               "Disconnection detected reading " << length <<
+               " bytes from socket " << fds_r.fd <<
+               " (server[" << fHost.TcpHost.Host <<
+               ":" << fHost.TcpHost.Port <<
+               "]). Revents=" << fds_r.revents );
+               return TXSOCK_ERR;
+      }
 
     } // while
 
@@ -170,12 +184,12 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
 }
 
 //_____________________________________________________________________________
-int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock) {
+int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock)
+{
     // Write bytes following carefully the timeout rules
     // (writes will not hang)
 
     struct pollfd fds_w;
-    time_t starttime;
     int byteswritten = 0;
     int pollRet;
 
@@ -187,71 +201,77 @@ int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock) {
     // We cycle until we write all we have to write
     // Or until a timeout occurs
 
-    starttime = time(0);
-
     // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
     fInterrupt = FALSE;
     while (byteswritten < length) {
 
-	do {
-	    // If too much time has elapsed, then we return an error
-	    if ( (time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT) ) { //gEnv
-		Error( "ClientSock::SendRaw_sock",
-		       "Request timed out "<< EnvGetLong(NAME_REQUESTTIMEOUT) << //gEnv
-		       "seconds writing " << length << " bytes" <<
-		       " to server " << fHost.TcpHost.Host <<
-		       ":" << fHost.TcpHost.Port);
+      // We will not wait forever
+      int timeleft = fRequestTimeout;
+      do {
+         // Wait for some event from the socket
+         pollRet = poll(&fds_w,
+                        1,
+                        1000 // 1 second as a step
+                        );
+         if ((pollRet < 0) && (errno != EINTR))
+            return TXSOCK_ERR;
 
-		return TXSOCK_ERR_TIMEOUT;
-	    }
+      } while (--timeleft && pollRet <= 0 && !fInterrupt);
 
-	    // Wait for some event from the socket
-	    pollRet = poll(&fds_w,
-			   1,
-			   1000 // 1 second as a step
-			   );
+      // If we have been timed-out, return a specific error code
+      if (timeleft <= 0) { //gEnv
+         Error("ClientSock::SendRaw",
+               "Request timed out "<< fRequestTimeout << //gEnv
+               "seconds writing " << length << " bytes" <<
+               " to server " << fHost.TcpHost.Host <<
+               ":" << fHost.TcpHost.Port);
 
-	    if ((pollRet < 0) && (errno != EINTR)) return TXSOCK_ERR;
+         return TXSOCK_ERR_TIMEOUT;
+      }
 
-	} while (pollRet <= 0 && !fInterrupt);
+      // If we have been interrupt, reset the inetrrupt and exit
+      if (fInterrupt) {
+         fInterrupt = FALSE;
+         Error("XrdClientSock::SendRaw", "got interrupt");
+         return TXSOCK_ERR_INTERRUPT;
+      }
 
-	// If we have been interrupt, reset the inetrrupt and exit
-	if (fInterrupt) {
-	    fInterrupt = FALSE;
-	    Error("XrdClientSock::SendRaw_sock", "got interrupt");
-	    return TXSOCK_ERR_INTERRUPT;
-	}
+      // First of all, we check if we are allowed to write
+      if (fds_w.revents & POLLOUT) {
 
-	// If we are here, pollRet is > 0 why?
-	//  Because the timeout and the poll error are handled inside the previous loop
+         // We will be retrying on errors like EAGAIN or EWOULDBLOCK,
+         // but not forever
+         timeleft = fRequestTimeout;
+         int n = -1;
+         while (n <= 0 && timeleft--) {
+            if ((n = send(fSocket, static_cast<const char *>(buffer) + byteswritten,
+                          length - byteswritten, 0)) <= 0) {
+               if (timeleft <= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
+                  // Real error: nothing more to do!
+                  // If we wrote nothing, the connection has been closed by the other
+                  Error("ClientSock::SendRaw", "Error writing to a socket: " <<
+                  ::strerror(errno));
+                  return (TXSOCK_ERR);
+               } else {
+                  // Sleep one second
+                  sleep(1);
+               }
+            }
+         }
+         byteswritten += n;
+      }
 
-	// First of all, we check if we are allowed to write
-	if (fds_w.revents & POLLOUT) {
-	    int n = send(sock, static_cast<const char *>(buffer) + byteswritten,
-			 length - byteswritten, 0);
+      // Then we check if poll reports a complaint from the socket like disconnections
+      if (fds_w.revents & (POLLERR | POLLHUP | POLLNVAL)) {
 
-	    // If we wrote nothing, the connection has been closed by the other
-	    if (n <= 0) {
-		Error("ClientSock::SendRaw_sock", "Error writing to a socket: " <<
-		      ::strerror(errno));
-		return (TXSOCK_ERR);
-	    }
-
-	    byteswritten += n;
-	}
-
-	// Then we check if poll reports a complaint from the socket like disconnections
-	if (fds_w.revents & (POLLERR | POLLHUP | POLLNVAL)) {
-
-	    Error( "ClientSock::SendRaw_sock",
-		   "Disconnection detected writing " << length <<
-		   " bytes to socket " << fds_w.fd <<
-		   " (server[" << fHost.TcpHost.Host <<
-		   ":" << fHost.TcpHost.Port <<
-		   "]). Revents=" << fds_w.revents );
-	 
-	    return TXSOCK_ERR;
-	}
+         Error("ClientSock::SendRaw",
+               "Disconnection detected writing " << length <<
+               " bytes to socket " << fds_w.fd <<
+               " (server[" << fHost.TcpHost.Host <<
+               ":" << fHost.TcpHost.Port <<
+               "]). Revents=" << fds_w.revents );
+         return TXSOCK_ERR;
+      }
 
     } // while
 
@@ -265,10 +285,9 @@ int XrdClientSock::SendRaw(const void* buffer, int length, int substreamid)
     // Note: here substreamid is used as "alternative socket" instead of fSocket
 
     if (substreamid > 0) 
-	return SendRaw_sock(buffer, length, substreamid);
+       return SendRaw_sock(buffer, length, substreamid);
     else
-	return SendRaw_sock(buffer, length, fSocket);
-
+       return SendRaw_sock(buffer, length, fSocket);
 }
 
 //_____________________________________________________________________________
@@ -277,8 +296,8 @@ void XrdClientSock::TryConnect(bool isUnix)
     // Already connected - we are done.
     //
     if (fConnected) {
-   	assert(fSocket >= 0);
-	return;
+       assert(fSocket >= 0);
+       return;
     }
 
     fSocket = TryConnect_low(isUnix);
