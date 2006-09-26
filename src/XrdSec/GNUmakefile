@@ -8,7 +8,7 @@ include ../GNUmake.env
 
 MORELIBS = -L$(LIBDIR) -lXrdOuc -lXrdNet
 
-BINLIBS  = -L$(LIBDIR) -lXrdSec -lXrdOuc -lXrdNet
+BINLIBS  = -L$(LIBDIR) -lXrdSec -lXrdOuc -lXrdNet -lXrdSys
 
 LIBDEPS = $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdNet.a
 
@@ -72,7 +72,7 @@ $(LIBARCH): $(OBJSLIB)
 	$(ECHO)ranlib $(LIBARCH)
 	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
 	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	      ar -rc $(LIBARCH) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+	      ar -rc $(LIBARCH); \
 	   fi;\
 	fi
 

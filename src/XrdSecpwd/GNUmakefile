@@ -47,6 +47,7 @@ vpath XPty%         ../XProtocol
 vpath XrdOuc% ../XrdOuc
 vpath XrdSec% ../XrdSec
 vpath XrdSut% ../XrdSut
+vpath XrdSys% ../XrdSys
 vpath XrdSecpwd% ../XrdSecpwd
 vpath XrdCrypto% ../XrdCrypto
 
@@ -83,7 +84,7 @@ $(OBJDIR)/XrdSecProtocolpwd.o: XrdSecProtocolpwd.cc XrdOucLogger.hh \
 		XrdOucPthread.hh  XrdOucError.hh XrdOucStream.hh \
 		XrdSutCache.hh XPtypes.hh XrdSutPFEntry.hh \
 		XProtocol.hh XrdOucHash.hh XrdOucHash.icc XrdOucString.hh \
-		XrdSecProtocolpwd.hh XrdOucErrInfo.hh XrdOucPlatform.hh \
+		XrdSecProtocolpwd.hh XrdOucErrInfo.hh XrdSysPlatform.hh \
 		XrdOucTokenizer.hh XrdSecInterface.hh XrdSecEntity.hh XrdSecTrace.hh \
 		XrdOucTrace.hh XrdSutPFile.hh XrdSutBuffer.hh \
 		XrdSutBuckList.hh XrdSutBucket.hh XrdSutAux.hh \
