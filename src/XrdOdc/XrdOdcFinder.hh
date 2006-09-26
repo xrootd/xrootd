@@ -28,6 +28,8 @@ struct XrdSfsPrep;
 // Return Val   Resp.errcode          Resp.errtext
 // ---------    -------------------   --------
 // -EREMOTE     port (0 for default)  Host name
+// -EINPROGRESS n/a                   n/a
+// -EEXIST      Length of errtext     Data to be returned to client as response
 // > 0          Wait time (= retval)  Reason for wait
 // < 0          Error number          Error message
 // = 0          Not applicable        Not applicable (see below)
@@ -87,8 +89,9 @@ public:
 
 private:
 int            Decode(char **resp);
-XrdOdcManager *SelectManager(XrdOucErrInfo &Resp, char *path);
+XrdOdcManager *SelectManager(XrdOucErrInfo &Resp, const char *path);
 void           SelectManFail(XrdOucErrInfo &Resp);
+int            send2Man(XrdOucErrInfo &, const char *, struct iovec *, int);
 int            StartManagers(XrdOucTList *);
 
 XrdOdcManager *myManTable[XRDODCMAXMAN];

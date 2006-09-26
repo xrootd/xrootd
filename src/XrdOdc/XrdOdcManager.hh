@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <sys/uio.h>
 
+#include "XrdOdc/XrdOdcResp.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdOucError;
@@ -26,6 +28,9 @@ class XrdOdcManager
 {
 public:
 
+int            delayResp(XrdOucErrInfo &Resp);
+
+void           relayResp(int msgid, char *msg);
 
 int            isActive() {return Active;}
 
@@ -54,6 +59,9 @@ void  Hookup();
 void  Sleep(int slpsec);
 char *Receive(int &msgid);
 
+XrdOucSemaphore syncResp;
+XrdOdcRespQ     RespQ;
+
 XrdOdcManager *Next;
 XrdOucMutex    myData;
 XrdOucError   *eDest;
@@ -67,5 +75,6 @@ int            dally;
 int            Active;
 int            Silent;
 int            nrMax;
+int            maxMsgID;
 };
 #endif

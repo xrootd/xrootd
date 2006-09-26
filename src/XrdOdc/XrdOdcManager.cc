@@ -25,14 +25,14 @@ const char *XrdOdcManagerCVSID = "$Id$";
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-extern XrdOucTrace OdcTrace;
+extern      XrdOucTrace OdcTrace;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
 XrdOdcManager::XrdOdcManager(XrdOucError *erp, char *host, int port, 
-                             int cw, int nr)
+                             int cw, int nr) : syncResp(0)
 {
    char *dot;
 
@@ -71,6 +71,71 @@ XrdOdcManager::~XrdOdcManager()
   if (mytid)   XrdOucThread::Kill(mytid);
 }
   
+/******************************************************************************/
+/*                             d e l a y R e s p                              */
+/******************************************************************************/
+  
+int XrdOdcManager::delayResp(XrdOucErrInfo &Resp)
+{
+   XrdOdcResp *rp;
+   int msgid;
+
+// Obtain the message ID
+//
+   if (!(msgid = atoi(Resp.getErrText())))
+      {eDest->Emsg("Manager", Host, "supplied invalid waitr msgid");
+       Resp.setErrInfo(0, "redirector protocol error");
+       syncResp.Post();
+       return -EINVAL;
+      }
+
+// Allocate a delayed response object
+//
+   if (!(rp = XrdOdcResp::Alloc(&Resp, msgid)))
+      {eDest->Emsg("Manager",ENOMEM,"allocate resp object for",Resp.getErrUser());
+       Resp.setErrInfo(0, "0");
+       syncResp.Post();
+       return -EAGAIN;
+      }
+
+// Add this object to our delayed response queue. If the manager bounced then
+// purge all of the pending repsonses to avoid sending wrong ones.
+//
+   if (msgid < maxMsgID) RespQ.Purge();
+   maxMsgID = msgid;
+   RespQ.Add(rp);
+
+// Tell client to wait for response. The semaphore post allows the manager
+// to get the next message from the olbd. This prevents us from getting the
+// delayed response before the response object is added to the queue.
+//
+   Resp.setErrInfo(0, "");
+   syncResp.Post();
+   return -EINPROGRESS;
+}
+
+/******************************************************************************/
+/*                             r e l a y R e s p                              */
+/******************************************************************************/
+  
+void XrdOdcManager::relayResp(int msgid, char *msg)
+{
+   EPNAME("relayResp");
+   XrdOdcResp *rp;
+
+// Remove the response object from our queue.
+//
+   if (!(rp = RespQ.Rem(msgid)))
+      {DEBUG("Manager: " <<Host <<" Replied to non-existent request; id=" <<msgid);
+       return;
+      }
+
+// We trust that the reply will not take much time. If it does, then it should
+// be executed by another thread so that we can quickly continue on our way.
+//
+   rp->Reply(HPfx, msg);
+}
+
 /******************************************************************************/
 /*                                  S e n d                                   */
 /******************************************************************************/
@@ -134,9 +199,18 @@ void *XrdOdcManager::Start()
 //
    do {Hookup();
 
-       // Now simply start receiving messages on the stream
+       // Now simply start receiving messages on the stream. When we get a
+       // respwait reply then we must be assured that the object representing
+       // the request is added to the queue before the actual reply arrives.
+       // We do this by waiting on syncResp which is posted once the request
+       // object is fully processed. Synchronizing sending the respwait response
+       // back to the client which is handled during the callback phase.
        //
-       while((msg = Receive(msgid))) XrdOdcMsg::Reply(msgid, msg);
+       while((msg = Receive(msgid))) 
+            if (*msg == '>') relayResp(msgid, msg+1);
+               else   {XrdOdcMsg::Reply(msgid, msg);
+                       if (*msg == '+') syncResp.Wait(); // Time causality!
+                      }
 
        // Tear down the connection
        //
@@ -248,7 +322,7 @@ char *XrdOdcManager::Receive(int &msgid)
    EPNAME("Receive")
    char *lp, *tp, *rest;
    if ((lp=Link->GetLine()) && *lp)
-      {DEBUG("Server: Received from " <<Link->Name() <<": " <<lp);
+      {DEBUG("Received from " <<Link->Name() <<": " <<lp);
        Silent = 0;  // Setting Silent w/o lock may cause rare connection bounce
        if ((tp=Link->GetToken(&rest)))
           {errno = 0;

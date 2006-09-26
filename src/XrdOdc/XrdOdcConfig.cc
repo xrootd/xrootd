@@ -39,9 +39,6 @@ const char *XrdOdcConfigCVSID = "$Id$";
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(eDest, Config);
 
-#define ODC_Prefix    "odc."
-#define ODC_PrefLen   sizeof(ODC_Prefix)-1
-
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
@@ -174,8 +171,9 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 // Now start reading records until eof.
 //
    while((var = Config.GetMyFirstWord()))
-        {if (!strncmp(var, ODC_Prefix, ODC_PrefLen))
-            {var += ODC_PrefLen;
+        {if (!strncmp(var, "odc.", 4)
+         ||  !strcmp(var, "all.manager"))
+            {var += 4;
              NoGo |= ConfigXeq(var, Config);
             }
             else if (!strcmp(var, "olb.adminpath"))
@@ -341,7 +339,10 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
     if (isProxy) SModeP = smode;
        else      SMode  = smode;
 
-    if ((val = Config.GetWord()))
+    if (!(val = index(mval,':'))) val = Config.GetWord();
+       else {*val = '\0'; val++;}
+
+    if (val)
        if (isdigit(*val))
            {if (XrdOuca2x::a2i(*errp,"manager port",val,&port,1,65535))
                port = 0;

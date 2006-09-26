@@ -28,6 +28,8 @@ static int       Init();
 
        void      Lock() {Hold.Lock();}
 
+static int       mapError(const char *ecode);
+
        void      Recycle();
 
 static int       Reply(int msgid, char *reply);

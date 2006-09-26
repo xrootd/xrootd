@@ -142,10 +142,6 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
        return -EINVAL;
       }
 
-// Select the right manager for this request
-//
-   if (!(Manp = SelectManager(Resp, (char *)'/'))) return 1;
-
 // Construct a message to be sent to the manager
 //
               xmsg[0].iov_base = (char *)"0 "; xmsg[0].iov_len = 2;
@@ -158,6 +154,17 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
               xmsg[i].iov_base = (char *)arg2; xmsg[i++].iov_len = strlen(arg2);
              }
               xmsg[i].iov_base = (char *)"\n"; xmsg[i++].iov_len = 1;
+
+// This may be a 2way message. If so, use the longer path.
+//
+   if (*cmd == '+') 
+      {xmsg[1].iov_base = (char *)cmd+1; xmsg[1].iov_len--;
+       return send2Man(Resp, (arg1 ? arg1 : "/"), xmsg, i);
+      }
+
+// Select the right manager for this request
+//
+   if (!(Manp = SelectManager(Resp, (arg1 ? arg1 : "/")))) return 1;
 
 // Send message and simply wait for the reply
 //
@@ -175,12 +182,8 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
   
 int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 {
-   EPNAME("Locate")
-   int  val, retc, mlen;
-   char *colon, *msg, stype, ptype, mbuff[64];
-   XrdOdcMsg *mp;
-   XrdOdcManager *Manp;
-   struct iovec xmsg[3];
+   const char *ptype;
+   struct iovec xmsg[5];
 
 // Make sure we are configured
 //
@@ -192,72 +195,28 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
 
 // Compute mode
 //
-   if (flags & O_CREAT) ptype = 'c';
-      else if (flags & (O_WRONLY | O_RDWR)) ptype = 'w';
-              else if (flags & O_NDELAY) ptype = 'x';
-                      else ptype = 'r';
-   stype = (flags & O_EXCL ? 's' : ' ');
+        if (flags & O_CREAT)
+           ptype = (flags & (O_WRONLY | O_RDWR) && flags & O_TRUNC ? "d " : "c ");
+   else if (flags & (O_WRONLY | O_RDWR))
+           ptype = (flags & O_TRUNC ? "t " : "w ");
+   else if (flags & O_NOCTTY) ptype = "s ";
+   else if (flags & O_NDELAY) ptype = "x ";
+   else    ptype = "r ";
 
-// Select the right manager for this request
+// Construct a message to be sent to the manager. The first element is filled
+// in by send2Man() and is the requestid.
 //
-   if (!(Manp = SelectManager(Resp, (char *)path))) return ConWait;
+   if (flags & O_EXCL)
+      {xmsg[1].iov_base = (char *)"selects "; xmsg[1].iov_len = 8;}
+      else
+      {xmsg[1].iov_base = (char *)"select " ; xmsg[1].iov_len = 7;}
+   xmsg[2].iov_base = (char *)ptype; xmsg[2].iov_len = 2;
+   xmsg[3].iov_base = (char *)path;  xmsg[3].iov_len = strlen(path);
+   xmsg[4].iov_base = (char *)"\n";  xmsg[4].iov_len = 1;
 
-// Allocate a message object. There is only a fixed number of these and if
-// all of them are in use, th client has to wait to prevent over-runs.
+// Send the 2way message
 //
-   if (!(mp = XrdOdcMsg::Alloc(&Resp)))
-      {Resp.setErrInfo(RepDelay, "");
-       TRACE(Redirect, Resp.getErrUser() <<" no more msg objects; path=" <<path);
-       return RepDelay;
-      }
-
-// Construct a message to be sent to the manager
-//
-   mlen = sprintf(mbuff, "%d select%c %c ", mp->ID(), stype, ptype);
-   xmsg[0].iov_base = mbuff;        xmsg[0].iov_len = mlen;
-   xmsg[1].iov_base = (char *)path; xmsg[1].iov_len = strlen(path);
-   xmsg[2].iov_base = (char *)"\n"; xmsg[2].iov_len = 1;
-
-// Send message and simply wait for the reply (msg object is locked via Alloc)
-//
-   if (!Manp->Send(xmsg, 3) || (mp->Wait4Reply(RepWait)))
-      {mp->Recycle();
-       Resp.setErrInfo(RepDelay, "");
-       Manp->whatsUp();
-       TRACE(Redirect, Resp.getErrUser() <<" got no response from "
-                       <<Manp->NPfx() <<" path=" <<path);
-       return RepDelay;
-      }
-      else {msg = (char *)Resp.getErrText(retc);
-                 if (retc == -EREMOTE)
-                    {if (!(colon = index(msg, (int)':'))) val = 0;
-                        else {*colon = '\0';
-                              val = atoi(colon+1);
-                             }
-                     Resp.setErrCode(val);
-                     TRACE(Redirect, Resp.getErrUser() <<" redirected to " <<msg
-                           <<':' <<val <<" by " << Manp->NPfx() <<" path=" <<path);
-                    }
-            else if (retc == -EAGAIN)
-                    {if (!(retc = atoi(msg))) retc = RepDelay;
-                     Resp.setErrInfo(retc, "");
-                     TRACE(Redirect, Resp.getErrUser() <<" asked to wait "
-                           <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
-                    }
-            else if (retc == -EINVAL)
-                    {TRACE(Redirect, Resp.getErrUser() <<" given error msg '"
-                           <<msg <<"' by " << Manp->NPfx() <<" path=" <<path);
-                    }
-            else    {TRACE(Redirect, Resp.getErrUser() <<" given error "
-                           <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
-                     retc = -EINVAL;
-                    }
-           }
-
-// All done
-//
-   mp->Recycle();
-   return retc;
+   return send2Man(Resp, path, xmsg, 5);
 }
   
 /******************************************************************************/
@@ -356,7 +315,8 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
 /*                         S e l e c t M a n a g e r                          */
 /******************************************************************************/
   
-XrdOdcManager *XrdOdcFinderRMT::SelectManager(XrdOucErrInfo &Resp, char *path)
+XrdOdcManager *XrdOdcFinderRMT::SelectManager(XrdOucErrInfo &Resp, 
+                                              const char *path)
 {
    XrdOdcManager *Womp, *Manp;
 
@@ -397,6 +357,93 @@ void XrdOdcFinderRMT::SelectManFail(XrdOucErrInfo &Resp)
       } else myData.UnLock();
    Resp.setErrInfo(ConWait, "");
    TRACE(Redirect, "user=" <<Resp.getErrUser() <<" No managers available; wait " <<ConWait);
+}
+  
+/******************************************************************************/
+/*                              s e n d 2 O l b                               */
+/******************************************************************************/
+  
+int XrdOdcFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
+                              struct iovec *xmsg, int xnum)
+{
+   EPNAME("send2Man")
+   int  val, retc;
+   char *cgi, *colon, *msg, idbuff[16];
+   XrdOdcMsg *mp;
+   XrdOdcManager *Manp;
+
+// Select the right manager for this request
+//
+   if (!(Manp = SelectManager(Resp, path))) return ConWait;
+
+// Allocate a message object. There is only a fixed number of these and if
+// all of them are in use, th client has to wait to prevent over-runs.
+//
+   if (!(mp = XrdOdcMsg::Alloc(&Resp)))
+      {Resp.setErrInfo(RepDelay, "");
+       TRACE(Redirect, Resp.getErrUser() <<" no more msg objects; path=" <<path);
+       return RepDelay;
+      }
+
+// Insert the response ID into the message
+//
+   xmsg[0].iov_len  = sprintf(idbuff, "%d ", mp->ID());
+   xmsg[0].iov_base = idbuff;
+
+// Send message and simply wait for the reply (msg object is locked via Alloc)
+//
+   if (!Manp->Send(xmsg, xnum) || (mp->Wait4Reply(RepWait)))
+      {mp->Recycle();
+       Resp.setErrInfo(RepDelay, "");
+       Manp->whatsUp();
+       TRACE(Redirect, Resp.getErrUser() <<" got no response from "
+                       <<Manp->NPfx() <<" path=" <<path);
+       return RepDelay;
+      }
+      else {msg = (char *)Resp.getErrText(retc);
+            if (retc == -EINPROGRESS) retc = Manp->delayResp(Resp);
+                 if (retc == -EREMOTE)
+                    {TRACE(Redirect, Resp.getErrUser() <<" redirected to " <<msg
+                           <<" by " << Manp->NPfx() <<" path=" <<path);
+                     if (!(cgi   = index(msg, (int)'?'))) *cgi = '\0';
+                     if (!(colon = index(msg, (int)':'))) 
+                        {val = 0;
+                         if (cgi) *cgi ='?';
+                        } else {
+                         *colon = '\0';
+                         val = atoi(colon+1);
+                         if (cgi) {*cgi = '?'; strcpy(colon, cgi);}
+                        }
+                     Resp.setErrCode(val);
+                    }
+            else if (retc == -EAGAIN)
+                    {if (!(retc = atoi(msg))) retc = RepDelay;
+                     Resp.setErrInfo(retc, "");
+                     TRACE(Redirect, Resp.getErrUser() <<" asked to wait "
+                           <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
+                    }
+            else if (retc == -EINPROGRESS)
+                    {TRACE(Redirect, Resp.getErrUser() <<" in reply wait by "
+                           << Manp->NPfx() <<" path=" <<path);
+                    }
+            else if (retc == -EALREADY)
+                    {TRACE(Redirect, Resp.getErrUser() <<" given text data '"
+                           <<msg <<"' by " << Manp->NPfx() <<" path=" <<path);
+                     Resp.setErrCode(*msg ? strlen(msg)+1 : 0);
+                    }
+            else if (retc == -EINVAL)
+                    {TRACE(Redirect, Resp.getErrUser() <<" given error msg '"
+                           <<msg <<"' by " << Manp->NPfx() <<" path=" <<path);
+                    }
+            else    {TRACE(Redirect, Resp.getErrUser() <<" given error "
+                           <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
+                    }
+           }
+
+// All done
+//
+   mp->Recycle();
+   return retc;
 }
 
 /******************************************************************************/

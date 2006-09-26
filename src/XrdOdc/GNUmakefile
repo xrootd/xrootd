@@ -19,13 +19,15 @@ SOURCES = \
         XrdOdcFinder.cc \
         XrdOdcManager.cc \
         XrdOdcMsg.cc \
+        XrdOdcResp.cc \
         XrdOdcTest.cc
   
 OBJECTA = \
         $(OBJDIR)/XrdOdcConfig.o \
         $(OBJDIR)/XrdOdcFinder.o \
         $(OBJDIR)/XrdOdcManager.o \
-        $(OBJDIR)/XrdOdcMsg.o
+        $(OBJDIR)/XrdOdcMsg.o \
+        $(OBJDIR)/XrdOdcResp.o
 
 OBJECTB = \
         $(OBJDIR)/XrdOdcTest.o
@@ -46,6 +48,7 @@ vpath XrdNet% ../XrdNet
 vpath XrdOdc% ../XrdOdc
 vpath XrdOuc% ../XrdOuc
 vpath XrdSfs% ../XrdSfs
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -85,7 +88,7 @@ $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
 $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
                           XrdOdcMsg.hh      XrdOdcTrace.hh  \
                           XrdOucPthread.hh  XrdOdcConfDefs.hh XrdOucError.hh \
-                          XrdOucErrInfo.hh  XrdOucPlatform.hh XrdOucPthread.hh \
+                          XrdOucErrInfo.hh  XrdSysPlatform.hh XrdOucPthread.hh \
                           XrdOucReqID.hh    XrdOucStream.hh   XrdOucTimer.hh \
                           XrdNetDNS.hh      XrdNetOpts.hh     XrdNetSocket.hh \
                           XrdSfsInterface.hh
@@ -93,7 +96,7 @@ $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcFinder.o XrdOdcFinder.cc
 
 $(OBJDIR)/XrdOdcManager.o: XrdOdcManager.hh  XrdOdcManager.cc \
-                           XrdOdcMsg.hh      XrdOdcTrace.hh \
+                           XrdOdcMsg.hh      XrdOdcResp.hh    XrdOdcTrace.hh \
                            XrdOucError.hh    XrdOucPthread.hh \
                            XrdNetLink.hh     XrdNetWork.hh
 	@echo Compiling XrdOdcManager.cc 
@@ -104,6 +107,12 @@ $(OBJDIR)/XrdOdcMsg.o: XrdOdcMsg.hh     XrdOdcTrace.hh  XrdOucErrInfo.hh \
                        XrdOdcMsg.cc
 	@echo Compiling XrdOdcMsg.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcMsg.o XrdOdcMsg.cc
+
+$(OBJDIR)/XrdOdcResp.o: XrdOdcResp.hh     XrdOdcTrace.hh  XrdOucErrInfo.hh \
+                       XrdOucPthread.hh   XrdSfsInterface.hh  XrdOdcMsg.hh \
+                       XrdOdcResp.cc
+	@echo Compiling XrdOdcResp.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcResp.o XrdOdcResp.cc
 
 $(OBJDIR)/XrdOdcTest.o: XrdOucError.hh   XrdOdcFinder.hh  XrdOucErrInfo.hh \
                         XrdOucLogger.hh  XrdOucStream.hh   \

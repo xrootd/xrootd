@@ -94,6 +94,25 @@ int XrdOdcMsg::Init()
 }
 
 /******************************************************************************/
+/*                              m a p E r r o r                               */
+/******************************************************************************/
+  
+int XrdOdcMsg::mapError(const char *ecode)
+{
+   if (!strcmp("ENOENT", ecode))       return ENOENT;
+   if (!strcmp("EPERM", ecode))        return EPERM;
+   if (!strcmp("EACCES", ecode))       return EACCES;
+   if (!strcmp("EIO", ecode))          return EIO;
+   if (!strcmp("ENOMEM", ecode))       return ENOMEM;
+   if (!strcmp("ENOSPC", ecode))       return ENOSPC;
+   if (!strcmp("ENAMETOOLONG", ecode)) return ENAMETOOLONG;
+   if (!strcmp("ENETUNREACH", ecode))  return ENETUNREACH;
+   if (!strcmp("ENOTBLK", ecode))      return ENOTBLK;
+   if (!strcmp("EISDIR", ecode))       return EISDIR;
+   return EINVAL;
+}
+
+/******************************************************************************/
 /*                               R e c y c l e                                */
 /******************************************************************************/
   
@@ -131,7 +150,7 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
 // Find the appropriate message
 //
    if (!(mp = XrdOdcMsg::RemFromWaitQ(msgid)))
-      {DEBUG("Msg: Reply to non-existent message; id=" <<msgid);
+      {DEBUG("Reply to non-existent message; id=" <<msgid);
        return 0;
       }
 
@@ -142,9 +161,18 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
             retc = -EREMOTE;
             while(*msg && (' ' == *msg)) msg++;
            }
+   else if (*msg == '+')
+           {msg += 1;
+            retc = -EINPROGRESS;
+           }
    else if (!strncmp(msg, "!wait", 5))
            {msg += 6;
             retc = -EAGAIN;
+            while(*msg && (' ' == *msg)) msg++;
+           }
+   else if (!strncmp(msg, "!data", 5))
+           {msg += 6;
+            retc = -EALREADY;
             while(*msg && (' ' == *msg)) msg++;
            }
    else if (!strncmp(msg, "?err", 4))
@@ -152,12 +180,20 @@ int XrdOdcMsg::Reply(int msgid, char *msg)
             retc = -EINVAL;
             while(*msg && (' ' == *msg)) msg++;
            }
+   else if (!strncmp(msg, "!err", 4))
+           {msg += 5;
+            while(*msg && (' ' == *msg)) msg++;
+            char *ecode = msg;
+            while(*msg && (' ' != *msg)) msg++;
+            if (*msg) {*msg++ = '\0'; while(*msg && (' ' == *msg)) msg++;}
+            retc = -mapError(ecode);
+           }
    else retc = -EINVAL;
 
 // Make sure the reply is not too long
 //
    if (strlen(msg) >= XrdOucEI::Max_Error_Len)
-      {DEBUG("Msg: Truncated: " <<msg);
+      {DEBUG("Truncated: " <<msg);
        msg[XrdOucEI::Max_Error_Len-1] = '\0';
       }
 
