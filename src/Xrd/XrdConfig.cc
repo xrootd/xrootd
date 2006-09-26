@@ -610,7 +610,7 @@ int XrdConfig::setFDL()
   
 int XrdConfig::Setup(char *dfltp)
 {
-   static char portbuff[32];
+   static char portbuff[32], AdmPathBuff[1056];
    XrdConfigProt *cp, *pp, *po, *POrder = 0;
    int lastPort = -17;
    char *p;
@@ -637,6 +637,8 @@ int XrdConfig::Setup(char *dfltp)
 // warrant a lot of logic to get around.
 //
    if (myInsName) ProtInfo.AdmPath = XrdOucUtils::genPath(AdminPath,myInsName);
+   sprintf(AdmPathBuff, "XRDADMINPATH=%s", ProtInfo.AdmPath);
+   putenv(AdmPathBuff);
    p = XrdOucUtils::genPath(AdminPath, myInsName, ".xrd");
    AdminPath = p;
 
