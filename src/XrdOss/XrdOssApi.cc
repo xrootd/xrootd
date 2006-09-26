@@ -585,7 +585,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
          == -ENOENT && (popts & XrdOssREMOTE))
       {if (popts & XrdOssNOSTAGE)
           return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8006,"open",path);
-       if ( (retc = XrdOssSS->Stage(path, Env)) ) return retc;
+       if ((retc = XrdOssSS->Stage(tident, path, Env, Oflag, Mode))) return retc;
        fd = (int)Open_ufs(local_path, Oflag, Mode, popts & ~XrdOssREMOTE);
       }
 

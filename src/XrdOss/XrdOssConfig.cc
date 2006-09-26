@@ -39,9 +39,11 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssMio.hh"
+#include "XrdOss/XrdOssOpaque.hh"
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPlugin.hh"
 #include "XrdOuc/XrdOucProg.hh"
@@ -206,6 +208,12 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
              (Have ## base  ? "oss." #opt " " : ""), \
              (Have ## base  ? base     : ""), \
              (Have ## base  ? "\n"     : "")
+  
+#define XrdOssConfig_Vop(base, opt, optchk, opt1, opt2) \
+             (Have ## base  ? "oss." #opt " " : ""), \
+             (Have ## base  ? (optchk ? opt1 : opt2) : ""), \
+             (Have ## base  ? base     : ""), \
+             (Have ## base  ? "\n"     : "")
 
 void XrdOssSys::Config_Display(XrdOucError &Eroute)
 {
@@ -218,6 +226,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
      int HaveStageCmd   = (StageCmd   && StageCmd[0]);
      int HaveRemoteRoot = (RemoteRoot && RemoteRoot[0]);
      int HaveLocalRoot  = (LocalRoot  && LocalRoot[0]);
+     int HaveStageMsg   = (StageMsg   && StageMsg[0]);
      int HaveN2N_Lib    = (N2N_Lib != 0);
 
      if (!ConfigFN || !ConfigFN[0]) cloc = (char *)"Default";
@@ -232,6 +241,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
                                   "%s%s%s"
                                   "%s%s%s"
                                   "%s%s%s"
+                                  "%s%s%s%s"
                                   "%s%s%s"
                                   "%s%s%s"
                                   "oss.trace        %x\n"
@@ -244,7 +254,8 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
              XrdOssConfig_Val(N2N_Lib,    namelib),
              XrdOssConfig_Val(LocalRoot,  localroot),
              XrdOssConfig_Val(RemoteRoot, remoteroot),
-             XrdOssConfig_Val(StageCmd,   stagecmd),
+             XrdOssConfig_Vop(StageCmd,   stagecmd, StageAsync,"async ","sync "),
+             XrdOssConfig_Val(StageMsg,   stagemsg),
              XrdOssConfig_Val(MSSgwCmd,   mssgwcmd),
              OssTrace.What,
              xfrthreads, xfrspeed, xfrovhd, xfrhold);
@@ -557,6 +568,15 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
                } else NoGo = StageProg->Start();
      }
 
+// Setup the additional stage information vector. Variable substitution:
+// <data>$var;<data>.... (max of MaxArgs substitutions)
+//
+   if (!NoGo && !StageRealTime && StageMsg)
+      {XrdOucMsubs *msubs = new XrdOucMsubs(&Eroute);
+       if (msubs->Parse("stagemsg", StageMsg)) StageSnd = msubs;
+          else NoGo = 1;  // We will exit no need to delete msubs
+      }
+
 // All done
 //
    tp = (NoGo ? (char *)"failed." : (char *)"completed.");
@@ -621,6 +641,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    TS_Xeq("memfile",       xmemf);
    TS_Xeq("namelib",       xnml);
    TS_Xeq("path",          xpath);
+   TS_Xeq("stagecmd",      xstg);
    TS_Xeq("trace",         xtrace);
    TS_Xeq("xfr",           xxfr);
 
@@ -653,7 +674,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
 
    // Check for tokens taking a variable number of parameters
    //
-   TS_String("stagecmd",   StageCmd);
+   TS_String("stagemsg",   StageMsg);
    TS_String("mssgwcmd",   MSSgwCmd);
 
    // No match found, complain.
@@ -1136,6 +1157,55 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
    RPList.Insert(new XrdOucPList(path, rpval));
    return 0;
 }
+
+/******************************************************************************/
+/*                                  x s t g                                   */
+/******************************************************************************/
+
+/* Function: xstg
+
+   Purpose:  To parse the directive: stagecmd [async | sync>] [|]<cmd>]
+
+             async     Client is to be notified when <cmd> sends an event
+             sync      Client is to poll for <cmd> completion.
+             <cmd>     The command and args to stage in the file. If the
+                       <cmd> is prefixed ny '|' then pipe in the requests.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
+{
+    char *val, buff[2048], *bp = buff;
+    int vlen, blen = sizeof(buff)-1, isAsync = 0;
+
+// Get the aync or async option
+//
+    if ((val = Config.GetWord()))
+       if ((isAsync = !strcmp(val, "async")) || !strcmp(val, "sync"))
+          val = Config.GetToken();
+
+// Get the command
+//
+   if (!val) {Eroute.Emsg("Config", "stagecmd not specified"); return 1;}
+
+// Copy the command and all of it's arguments
+//
+   do {if ((vlen = strlen(val)) >= blen)
+          {Eroute.Emsg("config", "stagecmd arguments too long"); return 1;}
+       *bp = ' '; bp++; strcpy(bp, val); bp += vlen; blen -= vlen;
+      } while((val = Config.GetWord()));
+
+    *bp = '\0'; val = buff+1;
+
+// Record the command and operating mode
+//
+   StageAsync = (isAsync ? 1 : 0);
+   if (StageCmd) free(StageCmd);
+   StageCmd = strdup(val);
+   return 0;
+}
+
   
 /******************************************************************************/
 /*                                x t r a c e                                 */

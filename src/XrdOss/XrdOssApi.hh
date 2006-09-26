@@ -105,6 +105,7 @@ char         cxid[4];
 /*                              o o s s _ S y s                               */
 /******************************************************************************/
   
+class XrdOucMsubs;
 class XrdOucName2Name;
 class XrdOucProg;
 
@@ -134,7 +135,7 @@ int       PathOpts(const char *path) {return (RPList.Find(path) | XeqFlags);}
 int       Remdir(const char *) {return -ENOTSUP;}
 int       Rename(const char *, const char *);
 virtual 
-int       Stage(const char *, XrdOucEnv &);
+int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t);
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int resonly=0);
 int       Unlink(const char *);
@@ -154,13 +155,22 @@ int       MSS_Rename(const char *, const char *);
 int       MSS_Stat(const char *, struct stat *);
 int       MSS_Unlink(const char *);
 
+static const int MaxArgs = 15;
+
 char     *ConfigFN;       // -> Pointer to the config file name
 int       Hard_FD_Limit;  //    Hard file descriptor limit
 int       MaxTwiddle;     //    Maximum seconds of internal wait
 char     *LocalRoot;      // -> Path prefix for local  filename
 char     *RemoteRoot;     // -> Path prefix for remote filename
 int       StageRealTime;  //    If 1, Invoke stage command on demand
+int       StageAsync;     //    If 1, return EINPROGRESS to the caller
 char     *StageCmd;       // -> Staging command to use
+char     *StageMsg;       // -> Staging message to be passed
+XrdOucMsubs *StageSnd;    // -> Parsed Message
+
+char     *StageArg[MaxArgs];
+int       StageAln[MaxArgs];
+int       StageAnum;      //    Count of valid Arg/Aln array elements
 char     *MSSgwCmd;       // -> MSS Gateway command to use
 long long MaxDBsize;      //    Maximum database size
 int       FDFence;        //    Smallest file FD number allowed
@@ -189,6 +199,7 @@ XrdOucPListAnchor RPList;    //    The remote path list
                     lcl_N2N = rmt_N2N = the_N2N = 0; N2N_Lib = N2N_Parms = 0;
                     StageQ.pendList.setItem(0);
                     StageQ.fullList.setItem(0);
+                    StageMsg = 0; StageSnd = 0;
                     ConfigDefaults();
                    }
 virtual ~XrdOssSys() {}
@@ -249,8 +260,8 @@ int                GetFile(XrdOssCache_Req *req);
 time_t             HasFile(const char *fn, const char *sfx);
 void               List_Cache(char *lname, int self, XrdOucError &Eroute);
 void               ReCache();
-int                Stage_QT(const char *, XrdOucEnv &);
-int                Stage_RT(const char *, XrdOucEnv &);
+int                Stage_QT(const char *, const char *, XrdOucEnv &, int, mode_t);
+int                Stage_RT(const char *, const char *, XrdOucEnv &);
 
 // Configuration related methods
 //
@@ -272,6 +283,7 @@ int    xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmemf(XrdOucStream &Config, XrdOucError &Eroute);
 int    xnml(XrdOucStream &Config, XrdOucError &Eroute);
 int    xpath(XrdOucStream &Config, XrdOucError &Eroute);
+int    xstg(XrdOucStream &Config, XrdOucError &Eroute);
 int    xtrace(XrdOucStream &Config, XrdOucError &Eroute);
 int    xxfr(XrdOucStream &Config, XrdOucError &Eroute);
 

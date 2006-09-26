@@ -23,6 +23,8 @@
 #define OSS_SYSPRTY         (char *)"oss&sprty"
 #define OSS_CGROUP_DEFAULT  (char *)"public"
 
+#define OSS_VARLEN          32
+
 #define OSS_MAX_PRTY        15
 #define OSS_USE_PRTY         7
 

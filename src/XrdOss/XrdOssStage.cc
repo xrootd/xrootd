@@ -40,6 +40,7 @@ const char *XrdOssStageCVSID = "$Id$";
 #include "XrdOss/XrdOssOpaque.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
@@ -66,26 +67,29 @@ int XrdOssScrubScan(const char *key, char *cip, void *xargp) {return 0;}
 /*                                 S t a g e                                  */
 /******************************************************************************/
   
-int XrdOssSys::Stage(const char *fn, XrdOucEnv &env)
+int XrdOssSys::Stage(const char *Tid, const char *fn, XrdOucEnv &env, 
+                     int Oflag, mode_t Mode)
 {
 // Use the appropriate method here: queued staging or real-time staging
 //
-   return (StageRealTime ? Stage_RT(fn, env) : Stage_QT(fn, env));
+   return (StageRealTime ? Stage_RT(Tid, fn, env)
+                         : Stage_QT(Tid, fn, env, Oflag, Mode));
 }
 
 /******************************************************************************/
 /*                              S t a g e _ Q T                               */
 /******************************************************************************/
   
-int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
+int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env, 
+                        int Oflag, mode_t Mode)
 {
    static XrdOucReqID ReqID(static_cast<int>(getpid()),(char *)"localhost",
                                           (unsigned long)0xef000001);
    static XrdOucMutex      PTMutex;
    static XrdOucHash<char> PTable;
    static time_t nextScrub = xfrkeep + time(0);
-   char *Found, idbuff[64], *pdata[12];
-   int rc, pdlen[12];
+   char *Found, *pdata[XrdOucMsubs::maxElem + 2];
+   int rc, pdlen[XrdOucMsubs::maxElem + 2];
    time_t tNow = time(0);
 
 // If there is a fail file and the error occured within the hold time,
@@ -113,41 +117,29 @@ int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
    PTMutex.UnLock();
    if (Found) return CalcTime();
 
-// Get a unique request id
+// If a stagemsg template was not defined; use our default template
 //
-   ReqID.ID(idbuff, sizeof(idbuff));
-
-// Create the line to add this request to the queue
-//
-   pdata[0] = (char *)"+ ";
-   pdlen[0] = 2;
-   pdata[1] = idbuff;
-   pdlen[1] = strlen(idbuff);  // Request ID
-   pdata[2] = (char *)" ";
-   pdlen[2] = 1;
-   pdata[3] = (char *)"-"; // User
-   pdlen[3] = 1;
-   pdata[4] = (char *)" ";
-   pdlen[4] = 1;
-   pdata[5] = (char *)"0";     // Priority
-   pdlen[5] = 1;
-   pdata[6] = (char *)" ";
-   pdlen[6] = 1;
-   pdata[7] = (char *)"wq";    // suppress messages, r/w staging
-   pdlen[7] = 2;
-   pdata[8] = (char *)" ";
-   pdlen[8] = 1;
-   pdata[9] = (char *)fn;
-   pdlen[9] = strlen(fn);
-   pdata[10] = (char *)"\n";
-   pdlen[10] = 1;
-   pdata[11]= 0;
-   pdlen[11]= 0;
-
-// Feed the queue
-//
-   if (StageProg->Feed((const char **)pdata, pdlen))
-      return -XRDOSS_E8025;
+   if (!StageSnd)
+      {char idbuff[64];
+       ReqID.ID(idbuff, sizeof(idbuff));
+       pdata[0] = (char *)"+ ";  pdlen[0] = 2;
+       pdata[1] = idbuff;        pdlen[1] = strlen(idbuff);  // Request ID
+       pdata[2] = (char *)" ";   pdlen[2] = 1;
+       pdata[3] = (char *)"-";   pdlen[3] = 1;               // user
+       pdata[4] = (char *)" ";   pdlen[4] = 1;
+       pdata[5] = (char *)"0 ";  pdlen[5] = 2;               // prty
+       pdata[6] = (char *)"wq "; pdlen[6] = 3;  // suppress messages, r/w staging
+       pdata[7] = (char *)fn;    pdlen[7] = strlen(fn);
+       pdata[8] = (char *)"\n";  pdlen[8] = 1;
+       pdata[9] = 0;             pdlen[9] = 0;
+       if (StageProg->Feed((const char **)pdata, pdlen)) return -XRDOSS_E8025;
+      } else {
+       XrdOucMsubsInfo Info(Tid, &env, lcl_N2N, fn, 0, Oflag, Mode);
+       int k = StageSnd->Subs(Info, pdata, pdlen);
+       pdata[k]   = (char *)"\n"; pdlen[k++] = 1;
+       pdata[k]   = 0;            pdlen[k]   = 0;
+       if (StageProg->Feed((const char **)pdata, pdlen)) return -XRDOSS_E8025;
+      }
 
 // All done
 //
@@ -158,7 +150,7 @@ int XrdOssSys::Stage_QT(const char *fn, XrdOucEnv &env)
 /*                              S t a g e _ R T                               */
 /******************************************************************************/
   
-int XrdOssSys::Stage_RT(const char *fn, XrdOucEnv &env)
+int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env)
 {
     extern int XrdOssFind_Prty(XrdOssCache_Req *req, void *carg);
     XrdOssCache_Req req, *newreq, *oldreq;
@@ -336,7 +328,7 @@ int XrdOssSys::CalcTime()
 // So, return 60 seconds. Note that the following code, which is far more
 // elaborate, rarely returns the right estimate anyway.
 //
-   return 60;
+   return (StageAsync ? -EINPROGRESS : 60);
 }
 
 int XrdOssSys::CalcTime(XrdOssCache_Req *req) // CacheContext lock held!
@@ -345,6 +337,10 @@ int XrdOssSys::CalcTime(XrdOssCache_Req *req) // CacheContext lock held!
     int xfrtime, numq = 1;
     time_t now;
     XrdOssCache_Req *rqp = req;
+
+// Return an EINP{ROG if we are doing async staging
+//
+   if (StageAsync) return -EINPROGRESS;
 
 // If the request is active, recalculate the time based on previous estimate
 //
@@ -419,5 +415,5 @@ time_t XrdOssSys::HasFile(const char *fn, const char *fsfx)
 
 // Now check if the file actually exists
 //
-   return (lstat(path, &statbuff) ? 0 : statbuff.st_ctime);
+   return (stat(path, &statbuff) ? 0 : statbuff.st_ctime);
 }
