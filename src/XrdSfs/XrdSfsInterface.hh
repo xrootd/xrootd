@@ -54,6 +54,7 @@
 #define SFS_ERROR        -1 // ErrInfo code -> Error occurred
 #define SFS_REDIRECT   -256 // ErrInfo code -> Port number to redirect to
 #define SFS_STARTED    -512 // ErrInfo code -> Estimated seconds to completion
+#define SFS_DATA      -1024 // ErrInfo code -> Length of data
 
 /******************************************************************************/
 /*                 S t r u c t u r e s   &   T y p e d e f s                  */
