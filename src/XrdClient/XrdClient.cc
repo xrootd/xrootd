@@ -376,6 +376,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
 
     // Ok, from now on we are sure that we have to deal with the cache
+
     struct XrdClientStatInfo stinfo;
     Stat(&stinfo);
     len = xrdmax(0, xrdmin(len, stinfo.size - offset));
@@ -384,40 +385,93 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
     bool retrysync = false;
 
-    // we cycle until we get all the needed data
-    do {
+    {
+	
 
-	cacheholes.Clear();
-	blkstowait = 0;
-	long bytesgot = 0;
+	// we cycle until we get all the needed data
+	do {
 
-	if (!retrysync) {
+	    cacheholes.Clear();
+	    blkstowait = 0;
+	    long bytesgot = 0;
+
+	    if (!retrysync) {
 
 
-	    bytesgot = fConnModule->GetDataFromCache(buf, offset,
-						     len + offset - 1,
-						     true,
-						     cacheholes, blkstowait);
-
-	    Info(XrdClientDebug::kHIDEBUG, "Read",
-		 "Cache response: got " << bytesgot << " bytes. Holes= " <<
-		 cacheholes.GetSize() << " Outstanding= " << blkstowait);
-
-	    // If the cache gives the data to us
-	    //  we don't need to ask the server for them... in principle!
-	    if( bytesgot >= len ) {
-
-		// The cache gave us all the requested data
+		bytesgot = fConnModule->GetDataFromCache(buf, offset,
+							 len + offset - 1,
+							 true,
+							 cacheholes, blkstowait);
 
 		Info(XrdClientDebug::kHIDEBUG, "Read",
-		     "Found data in cache. len=" << len <<
-		     " offset=" << offset);
+		     "Cache response: got " << bytesgot << " bytes. Holes= " <<
+		     cacheholes.GetSize() << " Outstanding= " << blkstowait);
 
+		// If the cache gives the data to us
+		//  we don't need to ask the server for them... in principle!
+		if( bytesgot >= len ) {
+
+		    // The cache gave us all the requested data
+
+		    Info(XrdClientDebug::kHIDEBUG, "Read",
+			 "Found data in cache. len=" << len <<
+			 " offset=" << offset);
+
+		    // Are we using read ahead?
+		    // We read ahead only if the last byte we got is near (or over) to the last byte read
+		    // in advance. But not too much over.
+		    if ( (fReadAheadLast - (offset+len) < rasize) &&
+			 (fReadAheadLast - (offset+len) > -10*rasize) &&
+			 (rasize > 0) ) {
+
+			kXR_int64 araoffset;
+			kXR_int32 aralen;
+
+			// This is a HIT case. Async readahead will try to put some data
+			// in advance into the cache. The higher the araoffset will be,
+			// the best chances we have not to cause overhead
+			araoffset = xrdmax(fReadAheadLast, offset + len);
+			aralen = xrdmin(rasize,
+					offset + len + rasize -
+					xrdmax(offset + len, fReadAheadLast));
+
+			if (aralen > 0) {
+			    TrimReadRequest(araoffset, aralen, rasize);
+			    fReadAheadLast = araoffset + aralen;
+			    Read_Async(araoffset, aralen);
+			}
+		    }
+
+		    return len;
+		}
+
+
+
+	
+
+		// We are here if the cache did not give all the data to us
+		// We should have a list of blocks to request
+		for (int i = 0; i < cacheholes.GetSize(); i++) {
+		    kXR_int64 offs;
+		    kXR_int32 len;
+	    
+		    offs = cacheholes[i].beginoffs;
+		    len = cacheholes[i].endoffs - offs + 1;
+
+
+		    Info( XrdClientDebug::kHIDEBUG, "Read",
+			  "Hole in the cache: offs=" << offs <<
+			  ", len=" << len );
+	    
+		    Read_Async(offs, len);
+		}
+	
+	
 		// Are we using read ahead?
 		// We read ahead only if the last byte we got is near (or over) to the last byte read
 		// in advance. But not too much over.
 		if ( (fReadAheadLast - (offset+len) < rasize) &&
-                     (fReadAheadLast - (offset+len) > -10*rasize) &&
+		     (fReadAheadLast - (offset+len) > -10*rasize) &&
 		     (rasize > 0) ) {
 
 		    kXR_int64 araoffset;
@@ -438,113 +492,66 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		    }
 		}
 
-		return len;
 	    }
 
+	    // If we got nothing from the cache let's do it sync and exit!
+	    // Note that this part has the side effect of triggering the recovery actions
+	    //  if we get here after an error (or timeout)
+	    // Hence it's not a good idea to make async also this read
+	    // Remember also that a sync read request must not be modified if it's going to be
+	    //  written into the application-given buffer
+	    if (retrysync || (!bytesgot && !blkstowait && !cacheholes.GetSize())) {
 
-
-	
-
-	    // We are here if the cache did not give all the data to us
-	    // We should have a list of blocks to request
-	    for (int i = 0; i < cacheholes.GetSize(); i++) {
-		kXR_int64 offs;
-		kXR_int32 len;
-	    
-		offs = cacheholes[i].beginoffs;
-		len = cacheholes[i].endoffs - offs + 1;
-
+		retrysync = false;
 
 		Info( XrdClientDebug::kHIDEBUG, "Read",
-		      "Hole in the cache: offs=" << offs <<
-		      ", len=" << len );
-	    
-		Read_Async(offs, len);
-	    }
-	
-	
-	    // Are we using read ahead?
-	    // We read ahead only if the last byte we got is near (or over) to the last byte read
-	    // in advance. But not too much over.
-	    if ( (fReadAheadLast - (offset+len) < rasize) &&
-                 (fReadAheadLast - (offset+len) > -10*rasize) &&
-		 (rasize > 0) ) {
+		      "Read(offs=" << offset <<
+		      ", len=" << len << "). Going sync." );
 
-		kXR_int64 araoffset;
-		kXR_int32 aralen;
+		// Prepare a request header 
+		ClientRequest readFileRequest;
+		memset( &readFileRequest, 0, sizeof(readFileRequest) );
+		fConnModule->SetSID(readFileRequest.header.streamid);
+		readFileRequest.read.requestid = kXR_read;
+		memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
+		readFileRequest.read.offset = offset;
+		readFileRequest.read.rlen = len;
+		readFileRequest.read.dlen = 0;
 
-		// This is a HIT case. Async readahead will try to put some data
-		// in advance into the cache. The higher the araoffset will be,
-		// the best chances we have not to cause overhead
-		araoffset = xrdmax(fReadAheadLast, offset + len);
-		aralen = xrdmin(rasize,
-				offset + len + rasize -
-				xrdmax(offset + len, fReadAheadLast));
+		fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
+					    FALSE, (char *)"ReadBuffer");
 
-		if (aralen > 0) {
-		    TrimReadRequest(araoffset, aralen, rasize);
-		    fReadAheadLast = araoffset + aralen;
-		    Read_Async(araoffset, aralen);
-		}
+		return fConnModule->LastServerResp.dlen;
 	    }
 
-	}
+	    // Now it's time to sleep
+	    // This thread will be awakened when new data will arrive
+	    if ((blkstowait > 0)|| cacheholes.GetSize()) {
+		Info( XrdClientDebug::kHIDEBUG, "Read",
+		      "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
 
-	// If we got nothing from the cache let's do it sync and exit!
-	// Note that this part has the side effect of triggering the recovery actions
-	//  if we get here after an error (or timeout)
-	// Hence it's not a good idea to make async also this read
-	// Remember also that a sync read request must not be modified if it's going to be
-	//  written into the application-given buffer
-	if (retrysync || (!bytesgot && !blkstowait && !cacheholes.GetSize())) {
+		//	    fReadWaitData->Lock();
+		XrdOucCondVarHelper cndh(fReadWaitData);
 
-	    retrysync = false;
+		if (fReadWaitData->Wait(10)) {
 
-	    Info( XrdClientDebug::kHIDEBUG, "Read",
-		  "Read(offs=" << offset <<
-		  ", len=" << len << "). Going sync." );
-
-	    // Prepare a request header 
-	    ClientRequest readFileRequest;
-	    memset( &readFileRequest, 0, sizeof(readFileRequest) );
-	    fConnModule->SetSID(readFileRequest.header.streamid);
-	    readFileRequest.read.requestid = kXR_read;
-	    memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
-	    readFileRequest.read.offset = offset;
-	    readFileRequest.read.rlen = len;
-	    readFileRequest.read.dlen = 0;
-
-	    fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
-					FALSE, (char *)"ReadBuffer");
-
-	    return fConnModule->LastServerResp.dlen;
-	}
-
-	// Now it's time to sleep
-	// This thread will be awakened when new data will arrive
-	if ((blkstowait > 0)|| cacheholes.GetSize()) {
-	    Info( XrdClientDebug::kHIDEBUG, "Read",
-		  "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
-
-	    fReadWaitData->Lock();
-
-	    if (fReadWaitData->Wait(10)) {
-
-		Info( XrdClientDebug::kUSERDEBUG, "Read",
-		  "Timeout waiting outstanding blocks. Retrying sync!" );
+		    Info( XrdClientDebug::kUSERDEBUG, "Read",
+			  "Timeout waiting outstanding blocks. Retrying sync!" );
 		
-		retrysync = true;
+		    retrysync = true;
+		}
+
+		//	    fReadWaitData->UnLock();
+
 	    }
-
-	    fReadWaitData->UnLock();
-
-	}
 	
 	
 
-    } while ((blkstowait > 0) || cacheholes.GetSize());
+	} while ((blkstowait > 0) || cacheholes.GetSize());
 
-    
+    }
+
+
     return len;
 }
 
@@ -562,6 +569,8 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
        Error("ReadV", "File not opened.");
        return 0;
     }
+
+    Stat(0);
 
     // We say that the range for an unsigned int of 16 bits is 0 to +65,535
     // which is Request.read.dlen .
@@ -1174,17 +1183,18 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 			     " len " <<
 			     unsolmsg->fHdr.dlen);
 
-			fReadWaitData->Lock();
+			// Keep in sync with the cache lookup
+			XrdOucCondVarHelper cndh(fReadWaitData);
 
 			// To compute the end offset of the block we have to take 1 from the size!
 			fConnModule->SubmitDataToCache(unsolmsg, offs,
 						       offs + unsolmsg->fHdr.dlen - 1);
 
-			fReadWaitData->Broadcast();
-			fReadWaitData->UnLock();
-
 			si->reqbyteprogress += unsolmsg->fHdr.dlen;
-	    
+
+			// Awaken all the waiting threads, some of them may be interested
+			fReadWaitData->Broadcast();
+
 			if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
 			else return kUNSOL_KEEP;
 
@@ -1198,18 +1208,18 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 			     " len " <<
 			     unsolmsg->fHdr.dlen);
 
-			fReadWaitData->Lock();
+			// Keep in sync with the cache lookup
+			XrdOucCondVarHelper cndh(fReadWaitData);
 
 			XrdClientReadV::SubmitToCacheReadVResp(fConnModule, (char *)unsolmsg->DonateData(),
 							       unsolmsg->fHdr.dlen);
 
-
+			// Awaken all the sleepers. Some of them may be interested
 			fReadWaitData->Broadcast();
-			fReadWaitData->UnLock();
 
-			si->reqbyteprogress += unsolmsg->fHdr.dlen;
-	    
-			return kUNSOL_DISPOSE;
+			if (unsolmsg->HeaderStatus() == kXR_ok) return kUNSOL_DISPOSE;
+			else return kUNSOL_KEEP;
+
 			break;
 		    }
 		    }
@@ -1311,10 +1321,9 @@ bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasiz
 //_____________________________________________________________________________
 // Sleeps on a condvar which is signalled when a new async block arrives
 void XrdClient::WaitForNewAsyncData() {
+    XrdOucCondVarHelper cndh(fReadWaitData);
 
-   fReadWaitData->Lock();
-   fReadWaitData->Wait();
-   fReadWaitData->UnLock();
+    fReadWaitData->Wait();
 
 }
 

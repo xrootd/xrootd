@@ -92,6 +92,9 @@ void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
     if (!buffer) return;
     XrdClientReadCacheItem *itm;
 
+    Info(XrdClientDebug::kHIDEBUG, "Cache",
+	 "Submitting " << begin_offs << "->" << end_offs << " to cache.");
+
     // Mutual exclusion man!
     XrdOucMutexHelper mtx(fMutex);
 
@@ -129,7 +132,7 @@ void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
     } // if
 
 
-    PrintCache();
+    //PrintCache();
 }
 
 
@@ -162,9 +165,15 @@ void XrdClientReadCache::PutPlaceholder(long long begin_offs,
 	// We find the correct insert position to keep the list sorted by
 	// BeginOffset
 	int pos = 0;
-	for (pos = 0; pos < fItems.GetSize(); pos++)
+	for (pos = 0; pos < fItems.GetSize(); pos++) {
+	    if (fItems[pos]->ContainsInterval(begin_offs, end_offs)) {
+		delete itm;
+		return;
+	    }
+
 	    if (fItems[pos]->BeginOffset() >= begin_offs)
 		break;
+	}
 
 	fItems.Insert(itm, pos);
 
@@ -309,6 +318,9 @@ void XrdClientReadCache::PrintCache() {
     XrdOucMutexHelper mtx(fMutex);
     int it;
 
+    Info(XrdClientDebug::kHIDEBUG, "Cache",
+	 "Cache Status --------------------------");
+
     for (it = 0; it < fItems.GetSize(); it++) {
 
 	if (fItems[it]) {
@@ -328,7 +340,8 @@ void XrdClientReadCache::PrintCache() {
 	}
     }
     
-
+    Info(XrdClientDebug::kHIDEBUG, "Cache",
+	 "--------------------------------------");
 
 }
 
@@ -428,7 +441,31 @@ void XrdClientReadCache::RemoveItems()
     fTotalByteCount = 0;
 
 }
+//________________________________________________________________________
+void XrdClientReadCache::RemovePlaceholders() {
 
+    // Finds the LRU item and removes it
+    // We don't remove placeholders
+
+    int it;
+
+    XrdOucMutexHelper mtx(fMutex);
+
+    if (!fItems.GetSize()) return;
+
+    while (1) {
+
+	if (fItems[it] && fItems[it]->IsPlaceholder()) {
+	    delete fItems[it];
+	    fItems.Erase(it);
+	}
+	else
+	    it++;
+
+	if (it == fItems.GetSize()) break;
+    }
+
+}
 
 //________________________________________________________________________
 bool XrdClientReadCache::RemoveLRUItem()

@@ -1621,8 +1621,12 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
     // idea to shutdown it.
     // If there are other logical conns pointing to it, they will get an error,
     // which will be handled
-    if ((errorType == kREAD) || (errorType == kWRITE))
+    if ((errorType == kREAD) || (errorType == kWRITE)) {
 	ConnectionManager->Disconnect(fLogConnID, TRUE);
+
+	if (fMainReadCache)
+	    fMainReadCache->RemovePlaceholders();
+    }
     else
 	ConnectionManager->Disconnect(fLogConnID, FALSE);
   

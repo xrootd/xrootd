@@ -184,6 +184,7 @@ public:
 
     void            RemoveItems();
     void            RemoveItems(long long begin_offs, long long end_offs);
+    void            RemovePlaceholders();
 
     // To check if a block dimension will fit into the cache
     inline bool   WillFit(long long bc) {

@@ -28,44 +28,50 @@ kXR_int64 XrdClientReadV::ReqReadV(XrdClientConn *xrdc, char *handle, char *dest
     // then it's up to server to interpret it and send us all the data
     // in a single buffer
     kXR_int64 total_len = 0;
+    int bufcnt = 0;
+
     for (int i = 0; i < nbuf; i++) {
 	kXR_int64 newlen = xrdmin(maxoffs - offsets[i], lens[i]);
 	newlen = xrdmin(newlen, READV_MAXCHUNKSIZE);
 
 	// We want to trim out useless reads
 	if (newlen > 0) {
-	    memcpy( &(buflis[i].fhandle), handle, 4 ); 
+	    memcpy( &(buflis[bufcnt].fhandle), handle, 4 ); 
 
 	    if (!destbuf)
 		xrdc->SubmitPlaceholderToCache(offsets[i], offsets[i]+lens[i]-1);
 
-	    buflis[i].offset = offsets[i];
-	    buflis[i].rlen = lens[i];
+	    buflis[bufcnt].offset = offsets[i];
+	    buflis[bufcnt].rlen = lens[i];
 
 	    total_len += lens[i];
+	    bufcnt++;
 	}
     }
 
+    if (bufcnt > 0) {
 
-    // Prepare a request header 
-    ClientRequest readvFileRequest;
-    memset( &readvFileRequest, 0, sizeof(readvFileRequest) );
-    xrdc->SetSID(readvFileRequest.header.streamid);
-    readvFileRequest.header.requestid = kXR_readv;
-    readvFileRequest.readv.dlen = nbuf * sizeof(struct readahead_list);
+	// Prepare a request header 
+	ClientRequest readvFileRequest;
+	memset( &readvFileRequest, 0, sizeof(readvFileRequest) );
+	xrdc->SetSID(readvFileRequest.header.streamid);
+	readvFileRequest.header.requestid = kXR_readv;
+	readvFileRequest.readv.dlen = bufcnt * sizeof(struct readahead_list);
 
-    if (destbuf) {
-	// A buffer able to hold the data and the info about the chunks
-	char *res_buf = new char[total_len + (nbuf * sizeof(struct readahead_list))];
+	if (destbuf) {
+	    // A buffer able to hold the data and the info about the chunks
+	    char *res_buf = new char[total_len + (bufcnt * sizeof(struct readahead_list))];
 
-	if ( xrdc->SendGenCommand(&readvFileRequest, buflis, 0, 
-				  (void *)res_buf, FALSE, (char *)"ReadV") )
-	    total_len = UnpackReadVResp(destbuf, res_buf, xrdc->LastServerResp.dlen, offsets, lens, nbuf);
+	    if ( xrdc->SendGenCommand(&readvFileRequest, buflis, 0, 
+				      (void *)res_buf, FALSE, (char *)"ReadV") )
+		total_len = UnpackReadVResp(destbuf, res_buf, xrdc->LastServerResp.dlen, offsets, lens, bufcnt);
 	
-	delete res_buf;
+	    delete res_buf;
+	}
+	else
+	    if (xrdc->WriteToServer_Async(&readvFileRequest, buflis) != kOK ) total_len = 0;
+
     }
-    else
-	if (! xrdc->WriteToServer_Async(&readvFileRequest, buflis) ) total_len = 0;
 
     delete [] buflis;
 
@@ -125,34 +131,52 @@ int XrdClientReadV::SubmitToCacheReadVResp(XrdClientConn *xrdc, char *respdata,
 
 	// I just rebuild the readahead_list element
 	struct readahead_list *header;
-	int pos_from = 0, pos_to = 0;
+	int pos_from = 0, rlen;
+	kXR_int64 offs=0;
+
+// 	// Just to log the entries
+// 	while ( pos_from < respdatalen ) {
+// 	    header = ( readahead_list * )(respdata + pos_from);
+
+// 	    memcpy(&offs, &header->offset, sizeof(kXR_int64) );
+// 	    offs = ntohll(offs);
+// 	    rlen = ntohl(header->rlen);   
+
+// 	    pos_from += sizeof(struct readahead_list);
+
+// 	    Info(XrdClientDebug::kHIDEBUG, "ReadV",
+// 		 "Received chunk " << rlen << " @ " << offs );
+
+// 	    pos_from += rlen;
+// 	}
+
+
+
+	pos_from = 0;
+
 
 	while ( pos_from < respdatalen ) {
 	    header = ( readahead_list * )(respdata + pos_from);
 
-	    kXR_int64 tmpl;
-	    memcpy(&tmpl, &header->offset, sizeof(kXR_int64) );
-	    tmpl = ntohll(tmpl);
-	    memcpy(&header->offset, &tmpl, sizeof(kXR_int64) );
-
-	    header->rlen = ntohl(header->rlen);      
+	    memcpy(&offs, &header->offset, sizeof(kXR_int64) );
+	    offs = ntohll(offs);
+	    rlen = ntohl(header->rlen);      
 
 	    pos_from += sizeof(struct readahead_list);
 
 	    // NOTE: we must duplicate the buffer to be submitted, since a cache block has to be
 	    // contained in one single memblock, while here we have one for multiple chunks.
-	    void *newbuf = malloc(header->rlen);
-	    memcpy(newbuf, &respdata[pos_from], header->rlen);
+	    void *newbuf = malloc(rlen);
+	    memcpy(newbuf, &respdata[pos_from], rlen);
 
-	    xrdc->SubmitRawDataToCache(newbuf, header->offset, header->offset + header->rlen - 1);
+	    xrdc->SubmitRawDataToCache(newbuf, offs, offs + rlen - 1);
 
-	    pos_from += header->rlen;
-	    pos_to += header->rlen;
-
+	    pos_from += rlen;
 
 	}
-	res = pos_to;
+	res = pos_from;
 
+	delete respdata;
 
     return res;
 

@@ -87,7 +87,7 @@
 // Note for dummies: this is not the max number of parallel opens
 #define DFLT_MAXCONCURRENTOPENS    100
 
-#define READV_MAXCHUNKS            1024
+#define READV_MAXCHUNKS            512
 #define READV_MAXCHUNKSIZE         32767
 
 #define TRUE  1

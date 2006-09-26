@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
     if (argc >= 5)
 	vectored_style = atol(argv[5]);
 
-    buf = malloc(16*1024*1024);
+    buf = malloc(50*1024*1024);
 
     // Check if we have a file or a root:// url
     bool isrooturl = (strstr(argv[1], "root://"));
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
 		    v_idx++;
 
 		    // when the buffer is full, do the readv!
-		    if (v_idx == 10240) {
+		    if (v_idx == 4096) {
 			switch (vectored_style) {
 			case 1: // sync
 			    retval = cli->ReadV((char *)buf, v_offsets, v_lens, v_idx);
@@ -88,10 +88,15 @@ int main(int argc, char **argv) {
 			    retval = cli->ReadV(0, v_offsets, v_lens, v_idx);
 			    cout << endl << "---ReadV returned " << retval << endl;
 
+			    //sleep(10);
+
 			    for (int ii = 0; ii < v_idx; ii++) {
 				retval = cli->Read(buf, v_offsets[ii], v_lens[ii]);
-				cout << endl << "---Read returned " << retval << endl;
+				cout << endl << "---Read (" << ii << " of " << v_idx <<
+				    " returned " << retval << endl;
 			    }
+			    
+			    retval = 1;
 
 			    break;
 
@@ -136,7 +141,8 @@ int main(int argc, char **argv) {
 
 			    for (int ii = 0; ii < v_idx; ii++) {
 				retval = cli->Read(buf, v_offsets[ii], v_lens[ii]);
-				cout << endl << "---Read returned " << retval << endl;
+				cout << endl << "---Read (" << ii << " of " << v_idx <<
+				    " returned " << retval << endl;
 			    }
 			    break;
 
