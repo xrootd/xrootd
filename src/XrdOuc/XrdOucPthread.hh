@@ -77,6 +77,47 @@ int             relMutex;
 const char     *condID;
 };
 
+
+
+/******************************************************************************/
+/*                     X r d O u c C o n d V a r H e l p e r                  */
+/******************************************************************************/
+
+// XrdOucCondVarHelper is used to implement monitors with the Lock of a a condvar.
+//                     Monitors are used to lock
+//                     whole regions of code (e.g., a method) and automatically
+//                     unlock with exiting the region (e.g., return). The
+//                     methods should be self-evident.
+  
+class XrdOucCondVarHelper
+{
+public:
+
+inline void   Lock(XrdOucCondVar *CndVar)
+                  {if (cnd) 
+                      if (cnd != CndVar) cnd->UnLock();
+                         else return;
+                   CndVar->Lock();
+                   cnd = CndVar;
+                  };
+
+inline void UnLock() {if (cnd) {cnd->UnLock(); cnd = 0;}}
+
+            XrdOucCondVarHelper(XrdOucCondVar *CndVar=0)
+                 {if (CndVar) CndVar->Lock();
+                  cnd = CndVar;
+                 }
+            XrdOucCondVarHelper(XrdOucCondVar &CndVar) {
+	         CndVar.Lock();
+		 cnd = &CndVar;
+                 }
+
+           ~XrdOucCondVarHelper() {if (cnd) UnLock();}
+private:
+XrdOucCondVar *cnd;
+};
+
+
 /******************************************************************************/
 /*                           X r d O u c M u t e x                            */
 /******************************************************************************/
