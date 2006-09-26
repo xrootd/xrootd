@@ -35,8 +35,8 @@ const char *XrdOlbMeterCVSID = "$Id$";
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbManager.hh"
 #include "XrdOlb/XrdOlbMeter.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
 #include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdOlb;
  

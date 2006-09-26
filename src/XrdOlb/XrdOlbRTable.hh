@@ -37,7 +37,7 @@ void          UnLock() {myMutex.UnLock();}
 
 private:
 
-static const int   maxRD = 64;
+static const int   maxRD = 65;  // slot 0 is never used.
 
 XrdOucMutex   myMutex;
 XrdOlbServer *Rtable[maxRD];

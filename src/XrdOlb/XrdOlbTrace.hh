@@ -22,14 +22,18 @@
 
 #ifndef NODEBUG
 
+#ifndef XRDOLBTRACETYPE
+#define XRDOLBTRACETYPE .
+#endif
+
 #include <iostream.h>
 #include "XrdOuc/XrdOucTrace.hh"
 
-#define DEBUG(y) if (Trace.What & TRACE_Debug) TRACEX(y)
+#define DEBUG(y) if (Trace XRDOLBTRACETYPE What & TRACE_Debug) TRACEX(y)
 
-#define TRACE(x,y) if (Trace.What & TRACE_ ## x) TRACEX(y)
+#define TRACE(x,y) if (Trace XRDOLBTRACETYPE What & TRACE_ ## x) TRACEX(y)
 
-#define TRACEX(y) {Trace.Beg(0,epname); cerr <<y; Trace.End();}
+#define TRACEX(y) {Trace XRDOLBTRACETYPE Beg(0,epname); cerr <<y; Trace XRDOLBTRACETYPE End();}
 
 #define EPNAME(x) const char *epname = x;
 

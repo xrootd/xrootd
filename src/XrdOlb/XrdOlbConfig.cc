@@ -48,6 +48,8 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
+#include "XrdOlb/XrdOlbXmi.hh"
+#include "XrdOlb/XrdOlbXmiReq.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdNet/XrdNetWork.hh"
@@ -91,6 +93,17 @@ Where:
 
       XrdScheduler    *XrdOlb::Sched = 0;
       XrdOlbConfig     XrdOlb::Config;
+      XrdOlbXmi       *XrdOlb::Xmi_Chmod  = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Load   = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Mkdir  = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Mkpath = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Prep   = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Rename = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Remdir = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Remove = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Select = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Space  = 0;
+      XrdOlbXmi       *XrdOlb::Xmi_Stat   = 0;
 
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -124,7 +137,7 @@ void *XrdOlbStartSupervising(void *carg)
        XrdNetWork *NetTCPr = (XrdNetWork *)carg;
        XrdNetLink *newlink;
        while(1) if ((newlink = NetTCPr->Accept(XRDNET_NODNTRIM)))
-                   {DEBUG("olbd: FD " <<newlink->FDnum() <<" connected to " <<newlink->Nick());
+                   {DEBUG("FD " <<newlink->FDnum() <<" connected to " <<newlink->Nick());
                     Manager.Login(newlink);
                    }
        return (void *)0;
@@ -190,6 +203,7 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 
 // Bail if no configuration file specified
 //
+   inArgv = argv; inArgc = argc;
    if (!(ConfigFN = cfn) && !(ConfigFN = getenv("XrdOlbCONFIGFN")) || !*ConfigFN)
       {Say.Emsg("Config", "Required config file not specified.");
        Usage(1);
@@ -287,8 +301,8 @@ int XrdOlbConfig::Configure2()
 
 // Setup the admin path (used in all roles)
 //
-   if (!NoGo) NoGo = !(AdminSock = ASocket(AdminPath,
-                      (isManager ? "olbd.nimda" : "olbd.admin"), AdminMode));
+   if (!NoGo) NoGo = !(AdminSock = XrdNetSocket::Create(&Say, AdminPath,
+                     (isManager ? "olbd.nimda" : "olbd.admin"), AdminMode));
 
 // Develop a stable unique identifier for this olbd independent of the port
 //
@@ -311,6 +325,14 @@ int XrdOlbConfig::Configure2()
 // Create the pid file
 //
    if (!NoGo) NoGo |= PidFile();
+
+// If we need a name library, load it now
+//
+   if ((LocalRoot || RemotRoot) && ConfigN2N()) return 1;
+
+// Load the XMI plugin
+//
+   if (!NoGo && XmiPath) NoGo = setupXmi();
 
 // All done, check for success or failure
 //
@@ -356,17 +378,20 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest)
    TS_Xeq("adminpath",     xapath);  // Any,     non-dynamic
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
    TS_Xeq("fsxeq",         xfsxq);   // Server,  non-dynamic
-   TS_Xeq("localroot",     xlclrt);  // Server,  non-dynamic
+   TS_Xeq("localroot",     xlclrt);  // Any,     non-dynamic
+   TS_Xeq("manager",       xmang);   // Server,  non-dynamic
    TS_Xeq("namelib",       xnml);    // Server,  non-dynamic
    TS_Xeq("path",          xpath);   // Server,  non-dynamic
    TS_Xeq("perf",          xperf);   // Server,  non-dynamic
    TS_Xeq("pidpath",       xpidf);   // Any,     non-dynamic
    TS_Xeq("port",          xport);   // Any,     non-dynamic
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
+   TS_Xeq("remoteroot",    xrmtrt);  // Any,     non-dynamic
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
+   TS_Xeq("xmilib",        xxmi);    // Any,     non-dynamic
    }
 
    // No match found, complain.
@@ -506,78 +531,6 @@ int  XrdOlbConfig::inSuspend()
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
 /******************************************************************************/
-/*                               A S o c k e t                                */
-/******************************************************************************/
-  
-XrdNetSocket *XrdOlbConfig::ASocket(char *path, const char *fn, mode_t mode, 
-                                    int isudp)
-{
-   XrdNetSocket *ASock;
-   int sflags = (isudp ? XRDNET_UDPSOCKET : 0);
-   char *fnp;
-
-// Setup the path
-//
-   if (!(fnp = ASPath(path, fn, mode))) return (XrdNetSocket *)0;
-
-// Connect to the path
-//
-   ASock = new XrdNetSocket(&Say);
-   if (ASock->Open(fnp, -1, XRDNET_SERVER|sflags) < 0)
-      {Say.Emsg("Config",ASock->LastError(),"establish socket",fnp);
-       delete ASock;
-       return (XrdNetSocket *)0;
-      }
-
-// Set the mode and return the socket object
-//
-   chmod(fnp, mode); // This may fail on some platforms
-   return ASock;
-}
-
-/******************************************************************************/
-/*                                A S P a t h                                 */
-/******************************************************************************/
-
-char *XrdOlbConfig::ASPath(char *path, const char *fn, mode_t mode)
-{
-   int rc, i;
-   struct stat buf;
-   static char fnbuff[1024];
-
-// Create the directory if it is not already there
-//
-   if ((rc = XrdOucUtils::makePath(path, mode)))
-      {Say.Emsg("Config", errno, "create admin path", path);
-       return 0;
-      }
-
-// Construct full filename
-//
-   i = strlen(path);
-   strcpy(fnbuff, path);
-   if (path[i-1] != '/') fnbuff[i++] = '/';
-   strcpy(fnbuff+i, fn);
-
-// Check is we have already created it and whether we can access
-//
-   if (!stat(fnbuff,&buf))
-      {if ((buf.st_mode & S_IFMT) != S_IFSOCK)
-          {Say.Emsg("Config","Path",fnbuff,"exists but is not a socket");
-           return 0;
-          }
-       if (access(fnbuff, W_OK))
-          {Say.Emsg("Config", errno, "access path", fnbuff);
-           return 0;
-          }
-      }
-
-// All set now
-//
-   return fnbuff;
-}
-
-/******************************************************************************/
 /*                        C o n f i g D e f a u l t s                         */
 /******************************************************************************/
 
@@ -621,9 +574,12 @@ void XrdOlbConfig::ConfigDefaults(void)
    N2N_Lib  = 0;
    N2N_Parms= 0;
    lcl_N2N  = 0;
+   xeq_N2N  = 0;
    LocalRoot= 0;
+   RemotRoot= 0;
    myInsName= 0;
    myManagers=0;
+   ManList   =0;
    mySID    = 0;
    perfint  = 3*60;
    perfpgm  = 0;
@@ -651,6 +607,8 @@ void XrdOlbConfig::ConfigDefaults(void)
    NoStageFile = 0;
    SuspendFile = 0;
    NetTCPr     = 0;
+   XmiPath     = 0;
+   XmiParms    = 0;
 }
   
   
@@ -666,8 +624,11 @@ int XrdOlbConfig::ConfigN2N()
 // If we have no library path then use the default method (this will always
 // succeed).
 //
-   if (!N2N_Lib && LocalRoot)
-      {lcl_N2N = XrdOucgetName2Name(&Say, ConfigFN, "", LocalRoot, 0);
+   if (!N2N_Lib)
+      {if (LocalRoot || (RemotRoot && XmiPath))
+          {xeq_N2N = XrdOucgetName2Name(&Say,ConfigFN,"",LocalRoot,RemotRoot);
+           if (LocalRoot) lcl_N2N = xeq_N2N;
+          }
        return 0;
       }
 
@@ -709,14 +670,16 @@ int XrdOlbConfig::ConfigProc(int getrole)
 //
    while((var = CFile.GetMyFirstWord()))
         if (getrole)
-           {if (!strcmp("olb.role", var)) NoGo |=  xrole(&Say, CFile);}
-           else {if (!strncmp(var, "olb.", 4) || !strncmp(var, "all.", 4))
-                    {var += 4;
-                     NoGo |= ConfigXeq(var, CFile, 0);
-                    } else
-                 if (!strcmp(var, "oss.cache") 
+           {if (!strcmp("olb.role", var) || !strcmp("all.role", var))
+               NoGo |=  xrole(&Say, CFile);
+           }
+           else {if (!strncmp(var, "olb.", 4)
+                 ||  !strcmp(var, "oss.cache")
                  ||  !strcmp(var, "oss.localroot")
-                 ||  !strcmp(var, "oss.namelib"))
+                 ||  !strcmp(var, "oss.remoteroot")
+                 ||  !strcmp(var, "oss.namelib")
+                 ||  !strcmp(var, "all.manager")
+                 ||  !strcmp(var, "all.role"))
                     {var += 4;
                      NoGo |= ConfigXeq(var, CFile, 0);
                     }
@@ -811,14 +774,15 @@ int XrdOlbConfig::setupManager()
 // Setup a local connection when in supervisor role
 //
    if (isServer)
-      {char *fnp;
-       if (!(fnp = ASPath(AdminPath, "olbd.super", AdminMode))) return 1;
+      {char spbuff[1024];
+       if (!XrdNetSocket::socketPath(&Say, spbuff, AdminPath,
+            "olbd.super", AdminMode | S_IFSOCK)) return 1;
        if (!(NetTCPr = new XrdNetWork(&Say)))
           {Say.Emsg("Config","Unable to create supervisor interface.");
            return 1;
           }
        if (myDomain) NetTCPr->setDomain(myDomain);
-       if (NetTCPr->Bind(fnp, "tcp")) return 1;
+       if (NetTCPr->Bind(spbuff, "tcp")) return 1;
       }
 
 // Compute the scheduling policy
@@ -877,14 +841,10 @@ int XrdOlbConfig::setupServer()
 
 // Make sure we have enough info to be a server
 //
-   if (!myManagers)
+   if (!myManagers && !(myManagers = ManList))
       {Say.Emsg("Config", "Manager node not specified for server role");
        return 1;
       }
-
-// If we need a name library, load it now
-//
-   if ((N2N_Lib || LocalRoot) && ConfigN2N()) return 1;
 
 // Setup TCP outgoing network connections
 //
@@ -952,9 +912,9 @@ int XrdOlbConfig::setupServer()
 
 // Setup notification path
 //
-   if (!(AnoteSock = ASocket(AdminPath,
+   if (!(AnoteSock = XrdNetSocket::Create(&Say, AdminPath,
                              (isManager ? "olbd.seton" : "olbd.notes"),
-                             AdminMode, 1))) return 1;
+                             AdminMode, XRDNET_UDPSOCKET))) return 1;
 
 // Construct the nostage/suspend file path names
 //
@@ -984,6 +944,91 @@ int XrdOlbConfig::setupServer()
 // Determine whether or not we have data
 //
    Manager.noData = isManager;
+   return 0;
+}
+
+
+/******************************************************************************/
+/*                              s e t u p X m i                               */
+/******************************************************************************/
+  
+int XrdOlbConfig::setupXmi()
+{
+   EPNAME("setupXmi");
+   static XrdOlbXmiEnv XmiEnv;
+   XrdOucPlugin       *xmiLib;
+   XrdOlbXmi          *(*ep)(int, char **, XrdOlbXmiEnv *);
+   unsigned int isNormal, isDirect;
+   XrdOlbXmi          *XMI, *myXMI;
+   const char         *theMode;
+   int i;
+
+   struct {unsigned int   theMask;
+           XrdOlbXmi    **theAddr;
+           const char    *theName;} XmiTab[] =
+          {{XMI_CHMOD,  &Xmi_Chmod,  "chmod"},
+           {XMI_LOAD,   &Xmi_Load,   "load"},
+           {XMI_MKDIR,  &Xmi_Mkdir,  "mkdir"},
+           {XMI_MKPATH, &Xmi_Mkpath, "mkpath"},
+           {XMI_PREP,   &Xmi_Prep,   "prep"},
+           {XMI_RENAME, &Xmi_Rename, "rename"},
+           {XMI_REMDIR, &Xmi_Remdir, "remdir"},
+           {XMI_REMOVE, &Xmi_Remove, "remove"},
+           {XMI_SELECT, &Xmi_Select, "select"},
+           {XMI_SPACE,  &Xmi_Space,  "space"},
+           {XMI_STAT,   &Xmi_Stat,   "stat"}};
+   int numintab = sizeof(XmiTab)/sizeof(XmiTab[0]);
+
+// Determine the role (peer | proxy | manager | server | supervisor)
+//
+        if (isManager && isServer) XmiEnv.Role = "supervisor";
+   else if (isManager)             XmiEnv.Role = "manager";
+   else                            XmiEnv.Role = "server";
+
+// Fill out the rest of the XmiEnv structure
+//
+   XmiEnv.ConfigFN = ConfigFN;
+   XmiEnv.Parms    = XmiParms;
+   XmiEnv.eDest    = &Say;
+   XmiEnv.iNet     = NetTCP;
+   XmiEnv.Sched    = Sched;
+   XmiEnv.Trace    = &Trace;
+   XmiEnv.Name2Name= xeq_N2N;
+
+// Create a pluin object (we will throw this away without deletion because
+// the library must stay open but we never want to reference it again).
+//
+   if (!(xmiLib = new XrdOucPlugin(&Say, XmiPath))) return 1;
+
+// Now get the entry point of the object creator
+//
+   ep = (XrdOlbXmi *(*)(int, char **, XrdOlbXmiEnv *))(xmiLib->getPlugin("XrdOlbgetXmi"));
+   if (!ep) return 1;
+
+// Get the Object now
+//
+   if (!(XMI = ep(inArgc, inArgv, &XmiEnv))) return 1;
+   DEBUG("xmi library loaded; path=" <<XmiPath);
+
+// Obtain the execution mode
+//
+   XMI->XeqMode(isNormal, isDirect);
+
+// Check if we need to create an indirect XMI interface
+//
+   if ((isDirect & XMI_ALL) == XMI_ALL) myXMI = 0;
+      else myXMI = (XrdOlbXmi *)new XrdOlbXmiReq(XMI);
+
+// Now run throw all of the possibilities setting the execution mode as needed
+//
+   for (i = 0; i < numintab; i++)
+       {if (!(isNormal & XmiTab[i].theMask))
+           if (isDirect & XmiTab[i].theMask)
+                   {*XmiTab[i].theAddr =   XMI; theMode = "direct";}
+              else {*XmiTab[i].theAddr = myXMI; theMode = "queued";}
+           else theMode = "normal";
+        DEBUG(XmiTab[i].theName <<" is " <<theMode);
+       }
    return 0;
 }
 
@@ -1268,7 +1313,7 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &CFile)
    Purpose:  To parse the directive: fsxeq <types> <prog>
 
              <types>   what operations the program performs (one or more of):
-                       chmod mkdir mv rm rmdir
+                       chmod mkdir mkpath mv rm rmdir
              <prog>    the program to execute when doing a forwarded fs op.
 
    Type: Server only, non-dynamic.
@@ -1282,6 +1327,7 @@ int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &CFile)
        {
         {"chmod",    0, &ProgCH},
         {"mkdir",    0, &ProgMD},
+        {"mkpath",   0, &ProgMP},
         {"mv",       0, &ProgMV},
         {"rm",       0, &ProgRM},
         {"rmdir",    0, &ProgRD}
@@ -1371,7 +1417,7 @@ int XrdOlbConfig::xfxhld(XrdOucError *eDest, XrdOucStream &CFile)
 /*                                x l c l r t                                 */
 /******************************************************************************/
 
-/* Function: xpath
+/* Function: xlclrt
 
    Purpose:  To parse the directive: localroot <path>
 
@@ -1413,6 +1459,102 @@ int XrdOlbConfig::xlclrt(XrdOucError *eDest, XrdOucStream &CFile)
    return 0;
 }
 
+/******************************************************************************/
+/*                                 x m a n g                                  */
+/******************************************************************************/
+
+/* Function: xmang
+
+   Purpose:  To parse directive: manager [proxy] [all|any] <host>[+] <port>
+                                         [if <hl> [named <nl>]]
+
+             proxy  Ignored (useful only to the odc)
+             all    Ignored (useful only to the odc)
+             any    Ignored (useful only to the odc)
+             <host> The dns name of the host that is the cache manager.
+                    If the host name ends with a plus, all addresses that are
+                    associated with the host are treated as managers.
+             <port> The port number to use for this host.
+             <hl>   Apply manager directive is host is one listed in <hl>
+             <nl>   Apply manager directive is name is one listed in <nl>
+
+   Notes:   Any number of manager directives can be given. Servers and 
+            supervisors will subscribe to all of them. The subscribe directive
+            also provides this information but is now deprecated.
+
+   Type: Remote server only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
+{
+    struct sockaddr InetAddr[8];
+    XrdOucTList *tp = 0;
+    char *val, *bval = 0, *mval = 0;
+    int i, port;
+
+    do {if (!(val = CFile.GetWord()))
+           {eDest->Emsg("Config","manager host name not specified"); return 1;}
+        if (strcmp("proxy", val) && strcmp("any", val) && strcmp("all", val))
+           mval = strdup(val);
+       } while(!mval);
+
+    if ((val = index(mval, ':'))) {*val = '\0'; val++;}
+       else val = CFile.GetWord();
+
+    if (val)
+       if (isdigit(*val))
+           {if (XrdOuca2x::a2i(*eDest,"manager port",val,&port,1,65535))
+               port = 0;
+           }
+           else if (!(port = XrdNetDNS::getPort(val, "tcp")))
+                   {eDest->Emsg("CFile", "unable to find tcp service", val);
+                    port = 0;
+                   }
+       else if (!(port = PortTCP))
+               eDest->Emsg("Config","manager port not specified for",mval);
+
+    if (!port) {free(mval); return 1;}
+
+    if ((val = CFile.GetWord()))
+       {if (strcmp(val, "if"))
+           {eDest->Emsg("Config","expecting manager 'if' but",val,"found");
+            return 1;
+           }
+        if ((i=XrdOucUtils::doIf(eDest,CFile,"manager directive",
+                            myName,myInsName,myProg))<=0) return i < 0;
+       }
+
+    i = strlen(mval);
+    if (mval[i-1] != '+') i = 0;
+        else {bval = strdup(mval); mval[i-1] = '\0';
+              if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
+                 {eDest->Emsg("CFile","Manager host", mval, "not found");
+                  free(bval); free(mval); return 1;
+                 }
+             }
+
+    do {if (i)
+           {i--; free(mval);
+            mval = XrdNetDNS::getHostName(InetAddr[i]);
+            eDest->Emsg("Config", bval, "-> all.manager", mval);
+           }
+        tp = ManList;
+        while(tp) 
+             if (strcmp(tp->text, mval) || tp->val != port) tp = tp->next;
+                else {eDest->Emsg("Config","Duplicate manager",mval);
+                      break;
+                     }
+        if (tp) break;
+        ManList = new XrdOucTList(mval, port, ManList);
+       } while(i);
+
+    if (bval) free(bval);
+    free(mval);
+    return tp != 0;
+}
+  
 /******************************************************************************/
 /*                                  x n m l                                   */
 /******************************************************************************/
@@ -1766,15 +1908,62 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &CFile)
 }
 
 /******************************************************************************/
+/*                                x r m t r t                                 */
+/******************************************************************************/
+
+/* Function: xrmtrt
+
+   Purpose:  To parse the directive: remoteroot <path>
+
+             <path>    the path that the server will prefix to all remote paths.
+
+   Type: Manager only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &CFile)
+{
+    char *val;
+    int i;
+
+// If we are a server, ignore this option
+//
+   if (!isManager) return 0;
+
+// Get path type
+//
+   val = CFile.GetWord();
+   if (!val || !val[0])
+      {eDest->Emsg("Config", "remoteroot path not specified"); return 1;}
+   if (*val != '/')
+      {eDest->Emsg("Config", "remoteroot path not absolute"); return 1;}
+
+// Cleanup the path
+//
+   i = strlen(val)-1;
+   while (i && val[i] == '/') val[i--] = '\0';
+
+// Assign new path prefix
+//
+   if (i)
+      {if (RemotRoot) free(RemotRoot);
+       RemotRoot = strdup(val);
+      }
+   return 0;
+}
+
+/******************************************************************************/
 /*                                 x r o l e                                  */
 /******************************************************************************/
 
 /* Function: xrole
 
-   Purpose:  To parse the directive: role {manager | server | supervisor}
+   Purpose:  To parse the directive: role {manager | proxy | server | supervisor}
                                           [if <hostlist> [named <namelist>]]
 
              manager    act as a manager (incomming no outgoing).
+             proxy      act as a manager (this is only meaningful to the ofs)
              server     act as a server (no incomming only outgoing).
              supervisor act as a supervisor (incomming and outgoing).
              <hostlist> apply role only when executing on matching host.
@@ -1794,7 +1983,7 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "role not specified"); return 1;}
 
-         if (!strcmp("manager",    val)) 
+         if (!strcmp("manager",    val) || !strcmp("proxy", val))
             {xServ =  0; xMan = -1; myrole = "manager";}
     else if (!strcmp("server",     val)) 
             {xServ = -1; xMan =  0; myrole = "server";}
@@ -1812,6 +2001,7 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
 
     return 0;
 }
+
 /******************************************************************************/
 /*                                x s c h e d                                 */
 /******************************************************************************/
@@ -1978,6 +2168,9 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &CFile)
    Notes:   Any number of subscribe directives can be given. The server will
             subscribe to all of the managers.
 
+            The subscribe directive is depricated. The manager directive should
+            be used as it applies to all components.
+
    Type: Server only, non-dynamic.
 
    Output: 0 upon success or !0 upon failure.
@@ -2098,4 +2291,41 @@ int XrdOlbConfig::xtrace(XrdOucError *eDest, XrdOucStream &CFile)
 
     Trace.What = trval;
     return 0;
+}
+  
+/******************************************************************************/
+/*                                  x x m i                                   */
+/******************************************************************************/
+
+/* Function: xxmi
+
+   Purpose:  To parse the directive: xmilib <path> [<parms>]
+
+             <path>    the SO path for the XrdOlbXmi plugin.
+             <parms>   optional parms to be passed to the Xmi object
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOlbConfig::xxmi(XrdOucError *eDest, XrdOucStream &CFile)
+{
+    char *val, *parms;
+
+// Get the path
+//
+   if (!(val = CFile.GetToken(&parms)) || !val[0])
+      {eDest->Emsg("Config", "xmilib path not specified"); return 1;}
+
+// Record the path
+//
+   if (XmiPath) free(XmiPath);
+   XmiPath = strdup(val);
+
+// Record any parms
+//
+   if (XmiParms) free(XmiParms);
+   if (!parms) XmiParms = 0;
+      else {while (*parms == ' ') parms++; XmiParms = strdup(parms);}
+
+   return 0;
 }

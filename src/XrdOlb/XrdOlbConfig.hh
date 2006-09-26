@@ -18,6 +18,7 @@
 #include "XrdOuc/XrdOucTList.hh"
   
 class XrdScheduler;
+class XrdInet;
 class XrdNetSecurity;
 class XrdNetSocket;
 class XrdNetWork;
@@ -25,6 +26,7 @@ class XrdOucError;
 class XrdOucName2Name;
 class XrdOucProg;
 class XrdOucStream;
+class XrdOlbXmi;
 
 class XrdOlbConfig : public XrdJob
 {
@@ -59,6 +61,7 @@ int         AskPing;      // Number of ping requests per AskPerf window
 int         LogPerf;      // AskPerf intervals before logging perf
 
 int         PortTCP;      // TCP Port to listen on
+XrdInet    *NetTCP;       // -> Network Object
 
 int         P_cpu;        // % CPU Capacity in load factor
 int         P_fuzz;       // %     Capacity to fuzz when comparing
@@ -78,11 +81,13 @@ int         sched_RR;     // 1 -> Simply do round robin scheduling
 int         doWait;       // 1 -> Wait for a data end-point
 int         Disabled;     // 1 -> Delay director requests
 
+XrdOucName2Name *xeq_N2N; // Server or Manager (non-null if library loaded)
 XrdOucName2Name *lcl_N2N; // Server Only
 
 char        *N2N_Lib;     // Server Only
 char        *N2N_Parms;   // Server Only
 char        *LocalRoot;   // Server Only
+char        *RemotRoot;   // Manager
 char        *MsgGID;
 int          MsgGIDL;
 const char  *myProg;
@@ -91,13 +96,15 @@ const char  *myDomain;
 const char  *myInsName;
 const char  *myInstance;
 const char  *mySID;
-XrdOucTList *myManagers;
+XrdOucTList *myManagers;  // From depricated subscribe directive
+XrdOucTList *ManList;     // From preferred  manager   directive
 
 char        *NoStageFile;
 char        *SuspendFile;
 
 XrdOucProg  *ProgCH;      // Server only chmod
 XrdOucProg  *ProgMD;      // Server only mkdir
+XrdOucProg  *ProgMP;      // Server only mkpath
 XrdOucProg  *ProgMV;      // Server only mv
 XrdOucProg  *ProgRD;      // Server only rmdir
 XrdOucProg  *ProgRM;      // Server only rm
@@ -113,8 +120,6 @@ XrdNetSecurity    *Police;
 
 private:
 
-XrdNetSocket *ASocket(char *path, const char *fn, mode_t mode, int isudp=0);
-char *ASPath(char *path, const char *fn, mode_t mode);
 void ConfigDefaults(void);
 int  ConfigN2N(void);
 int  ConfigProc(int getrole=0);
@@ -122,6 +127,7 @@ int  isExec(XrdOucError *eDest, const char *ptype, char *prog);
 int  PidFile(void);
 int  setupManager(void);
 int  setupServer(void);
+int  setupXmi(void);
 void Usage(int rc);
 int  xapath(XrdOucError *edest, XrdOucStream &CFile);
 int  xallow(XrdOucError *edest, XrdOucStream &CFile);
@@ -131,6 +137,7 @@ int  xdelay(XrdOucError *edest, XrdOucStream &CFile);
 int  xfsxq(XrdOucError *edest, XrdOucStream &CFile);
 int  xfxhld(XrdOucError *edest, XrdOucStream &CFile);
 int  xlclrt(XrdOucError *edest, XrdOucStream &CFile);
+int  xmang(XrdOucError *edest, XrdOucStream &CFile);
 int  xnml(XrdOucError *edest, XrdOucStream &CFile);
 int  xpath(XrdOucError *edest, XrdOucStream &CFile);
 int  xperf(XrdOucError *edest, XrdOucStream &CFile);
@@ -138,11 +145,13 @@ int  xpidf(XrdOucError *edest, XrdOucStream &CFile);
 int  xping(XrdOucError *edest, XrdOucStream &CFile);
 int  xport(XrdOucError *edest, XrdOucStream &CFile);
 int  xprep(XrdOucError *edest, XrdOucStream &CFile);
+int  xrmtrt(XrdOucError *edest, XrdOucStream &CFile);
 int  xrole(XrdOucError *edest, XrdOucStream &CFile);
 int  xsched(XrdOucError *edest, XrdOucStream &CFile);
 int  xspace(XrdOucError *edest, XrdOucStream &CFile);
 int  xsubs(XrdOucError *edest, XrdOucStream &CFile);
 int  xtrace(XrdOucError *edest, XrdOucStream &CFile);
+int  xxmi(XrdOucError *edest, XrdOucStream &CFile);
 
 XrdNetWork       *NetTCPr;     // Network for supervisors
 XrdOucTList      *monPath;     // cache directive paths
@@ -151,6 +160,10 @@ char             *AdminPath;
 int               AdminMode;
 char             *pidPath;
 char             *ConfigFN;
+char            **inArgv;
+int               inArgc;
+char             *XmiPath;
+char             *XmiParms;
 int               isManager;
 int               isServer;
 char             *perfpgm;
@@ -163,5 +176,16 @@ namespace XrdOlb
 {
 extern    XrdScheduler *Sched;
 extern    XrdOlbConfig  Config;
+extern    XrdOlbXmi    *Xmi_Chmod;
+extern    XrdOlbXmi    *Xmi_Load;
+extern    XrdOlbXmi    *Xmi_Mkdir;
+extern    XrdOlbXmi    *Xmi_Mkpath;
+extern    XrdOlbXmi    *Xmi_Prep;
+extern    XrdOlbXmi    *Xmi_Rename;
+extern    XrdOlbXmi    *Xmi_Remdir;
+extern    XrdOlbXmi    *Xmi_Remove;
+extern    XrdOlbXmi    *Xmi_Select;
+extern    XrdOlbXmi    *Xmi_Space;
+extern    XrdOlbXmi    *Xmi_Stat;
 }
 #endif

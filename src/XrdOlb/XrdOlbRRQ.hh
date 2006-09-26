@@ -27,7 +27,7 @@ class XrdOlbRRQInfo
 public:
 void   *Key;     // Key link, which is the cache line address
 int     Rinst;   // Redirector instance
-short   Rnum;    // Redirector number (negative -> r/w access)
+short   Rnum;    // Redirector number (RTable slot number)
 char    isRW;    // True if r/w access wanted
 char    Pad;
 char    ID[16];  // Response link, which is the request ID

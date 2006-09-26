@@ -19,6 +19,7 @@
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOlb/XrdOlbManList.hh"
+#include "XrdOlb/XrdOlbReq.hh"
 #include "XrdOlb/XrdOlbRRQ.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
@@ -86,6 +87,7 @@ private:
        int   do_Have(char *rid);
        int   do_Load(char *rid);
        int   do_Mkdir(char *rid, int do4real);
+       int   do_Mkpath(char *rid, int do4real);
        int   do_Mv(char *rid, int do4real);
        int   do_Ping(char *rid);
        int   do_Pong(char *rid);
@@ -106,8 +108,10 @@ static int   do_PrepSel(XrdOlbPrepArgs *pargs, int stage);
        int   do_SuRes(char *rid, int Resume);
        int   do_Try(char *rid);
        int   do_Usage(char *rid);
+       int   getMode(const char *, const char *, const char *, mode_t &);
 static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
        int   isOnline(char *path, int upt=1);
+       int   Mkpath(char *local_path, mode_t mode);
        char *Receive(char *idbuff, int blen);
        int   Reissue(char *rid, const char *op, char *arg1, char *path, char *arg3=0);
 
@@ -120,6 +124,7 @@ XrdOlbServer     *Next;
 time_t            DropTime;
 XrdOlbDrop       *DropJob;
 XrdOlbRRQInfo     Info;
+XrdOlbReq         Req;
 
 SMask_t    ServMask;
 int        ServID;

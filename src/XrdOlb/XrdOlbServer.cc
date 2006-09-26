@@ -31,6 +31,7 @@ const char *XrdOlbServerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
+#include "XrdOlb/XrdOlbXmi.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucProg.hh"
@@ -67,6 +68,7 @@ int         XrdOlbServer::dsk_tota = 0;
 /******************************************************************************/
   
 XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
+                          : Req(this, &Info)
 {
     static XrdOucMutex iMutex;
     static int         iNum = 1;
@@ -238,6 +240,7 @@ void XrdOlbServer::Process_Director()
        else if (!strcmp("stats",  tp)) retc = do_Stats(id,1);
        else if (!strcmp("chmod",  tp)) retc = do_Chmod(id, 0);
        else if (!strcmp("mkdir",  tp)) retc = do_Mkdir(id, 0);
+       else if (!strcmp("mkpath", tp)) retc = do_Mkpath(id, 0);
        else if (!strcmp("mv",     tp)) retc = do_Mv(id, 0);
        else if (!strcmp("rm",     tp)) retc = do_Rm(id, 0);
        else if (!strcmp("rmdir",  tp)) retc = do_Rmdir(id, 0);
@@ -283,6 +286,7 @@ int XrdOlbServer::Process_Requests()
        else if (!strcmp("space",  tp)) retc = do_Space(id);
        else if (!strcmp("chmod",  tp)) retc = do_Chmod(id, 1);
        else if (!strcmp("mkdir",  tp)) retc = do_Mkdir(id, 1);
+       else if (!strcmp("mkpath", tp)) retc = do_Mkpath(id, 1);
        else if (!strcmp("mv",     tp)) retc = do_Mv(id, 1);
        else if (!strcmp("rm",     tp)) retc = do_Rm(id, 1);
        else if (!strcmp("rmdir",  tp)) retc = do_Rmdir(id, 1);
@@ -441,7 +445,7 @@ int XrdOlbServer::do_AvKb(char *rid)
 }
   
 /******************************************************************************/
-/* SERVER:                      d o _ C h m o d                               */
+/*                              d o _ C h m o d                               */
 /******************************************************************************/
   
 // Manager requests to do a chmod must be forwarded to all subscribers.
@@ -469,6 +473,12 @@ int XrdOlbServer::do_Chmod(char *rid, int do4real)
       {Say.Emsg("Server", "chmod path not specified");
        return 0;
       }
+
+// If we have an XMI then pass the request there
+//
+   if (Xmi_Chmod
+   && (!getMode(rid, tp, modearg, mode) || Xmi_Chmod->Chmod(&Req, tp, mode)))
+      return 0;
 
 // If are a manager then broadcast the request to every server that might
 // might be able to do this operation, then check if we should do it as well.
@@ -677,7 +687,7 @@ int XrdOlbServer::do_Load(char *rid)
 }
   
 /******************************************************************************/
-/* SERVER:                      d o _ M k d i r                               */
+/*                              d o _ M k d i r                               */
 /******************************************************************************/
   
 // Manager requests to do a mkdir must be forwarded to all subscribers.
@@ -705,6 +715,12 @@ int XrdOlbServer::do_Mkdir(char *rid, int do4real)
       {Say.Emsg("Server", "mkdir directory not specified");
        return 0;
       }
+
+// If we have an XMI then pass the request there
+//
+   if (Xmi_Mkdir 
+   && (!getMode(rid, tp, modearg, mode) || Xmi_Mkdir->Mkdir(&Req, tp, mode)))
+      return 0;
 
 // If we have subsscribers then broadcast the request to every server that
 // might be able to do this operation
@@ -736,7 +752,73 @@ int XrdOlbServer::do_Mkdir(char *rid, int do4real)
 }
   
 /******************************************************************************/
-/* SERVER:                         d o _ M v                                  */
+/*                             d o _ M k p a t h                              */
+/******************************************************************************/
+  
+  
+// Manager requests to do a mkpath must be forwarded to all subscribers.
+//
+int XrdOlbServer::do_Mkpath(char *rid, int do4real)
+{
+   EPNAME("do_Mkpath";)
+   char *tp, modearg[16];
+   char lclpath[XrdOlbMAX_PATH_LEN+1];
+   mode_t mode;
+   int rc;
+
+// Process: <id> mkpath <mode> <path>
+// Respond: n/a
+//
+   if (!(tp = Link->GetToken())
+   || strlcpy(modearg, tp, sizeof(modearg)) >= sizeof(modearg))
+      {Say.Emsg("Server", "Mode too long in mkpath", tp);
+       return 0;
+      }
+
+// Get the directory name
+//
+   if (!(tp = Link->GetToken()))
+      {Say.Emsg("Server", "mkpath directory not specified");
+       return 0;
+      }
+
+// If we have an XMI then pass the request there
+//
+   if (Xmi_Mkpath
+   && (!getMode(rid, tp, modearg, mode) || Xmi_Mkpath->Mkpath(&Req, tp, mode)))
+      return 0;
+
+// If we have subsscribers then broadcast the request to every server that
+// might be able to do this operation
+//
+   if (Manager.ServCnt) Reissue(rid, "mkpath ", modearg, tp);
+   if (Manager.noData) return 0;
+
+// Convert the mode
+//
+   if (!(mode = strtol(modearg, 0, 8)))
+      {Say.Emsg("Server", "Invalid mode in mkpath", modearg, tp);
+       return 0;
+      }
+
+// Generate the true local path
+//
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
+         else tp = lclpath;
+
+// Attempt to create the directory path
+//
+   if (Config.ProgMD) rc = Config.ProgMP->Run(modearg, tp);
+      else if (Mkpath(tp, mode)) rc = errno;
+              else rc = 0;
+   if (rc) Say.Emsg("Server", rc, "create path", tp);
+      else DEBUG("rc=" <<rc <<" mkpath " <<std::oct <<mode <<std::dec <<' ' <<tp);
+   return 0;
+}
+
+/******************************************************************************/
+/*                                 d o _ M v                                  */
 /******************************************************************************/
   
 // Manager requests to do an mv must be forwarded to all subscribers.
@@ -775,6 +857,14 @@ int XrdOlbServer::do_Mv(char *rid, int do4real)
    if (!(tp = Link->GetToken()))
       {Say.Emsg("Server", "mv new path not specified");
        return 0;
+      }
+
+// If we have an XMI then pass the request there. This only works when
+// we are a manager. We still have to figure out what to do for servers.
+//
+   if (!do4real && Xmi_Rename)
+      {strcpy(Info.ID, rid);  // Gauranteed to fit
+       if (Xmi_Rename->Rename(&Req, old_lclpath, tp)) return 0;
       }
 
 // If we have subscribers then broadcast the request to every server that
@@ -1089,7 +1179,7 @@ int XrdOlbServer::do_Pong(char *rid)
 }
   
 /******************************************************************************/
-/* SERVER:                         d o _ R m                                  */
+/*                                 d o _ R m                                  */
 /******************************************************************************/
   
 // Manager requests to do an rm must be forwarded to all subscribers.
@@ -1109,6 +1199,13 @@ int XrdOlbServer::do_Rm(char *rid, int do4real)
    if (!(tp = Link->GetToken()))
       {Say.Emsg("Server", "rm path not specified");
        return 0;
+      }
+
+// If we have an XMI then pass the request there.
+//
+   if (Xmi_Remove)
+      {strcpy(Info.ID, rid);  // Gauranteed to fit
+       if (Xmi_Remove->Remove(&Req, tp)) return 0;
       }
 
 // If we have subscribers then broadcast the request to every server that
@@ -1135,7 +1232,7 @@ int XrdOlbServer::do_Rm(char *rid, int do4real)
 }
   
 /******************************************************************************/
-/* SERVER:                      d o _ R m d i r                               */
+/*                              d o _ R m d i r                               */
 /******************************************************************************/
   
 // Manager requests to do an rmdir must be forwarded to all subscribers.
@@ -1155,6 +1252,13 @@ int XrdOlbServer::do_Rmdir(char *rid, int do4real)
    if (!(tp = Link->GetToken()))
       {Say.Emsg("Server", "rmdir path not specified");
        return 0;
+      }
+
+// If we have an XMI then pass the request there.
+//
+   if (Xmi_Remdir)
+      {strcpy(Info.ID, rid);  // Gauranteed to fit
+       if (Xmi_Remdir->Remdir(&Req, tp)) return 0;
       }
 
 // If we have subscribers then broadcast the request to every server that
@@ -1215,10 +1319,11 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
    char *tp, *amode, ptc, hbuff[512];
-   int n, dowt = 0, retc, needrw, resonly = 0, newfile = 0;
+   int n, dowt = 0, retc, needrw;
+   int qattr = 0, resonly = 0, newfile = 0, dotrunc = 0;
    SMask_t amask, smask, pmask;
 
-// Process: <id> select[s] {c | r | w | x] <path>
+// Process: <id> select[s] {c | d | r | w | s | t | x] <path>
 // Reponds: ?err  <msg>
 //          !try  <host>
 //          !wait <sec>
@@ -1229,12 +1334,31 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    ptc = *tp;
    switch(*tp)
         {case 'r': needrw = 0; amode = (char *)"read";  break;
+         case 's': needrw = 0; amode = (char *)"read";  qattr   = 1; break;
          case 'w': needrw = 1; amode = (char *)"write"; break;
+         case 'x': needrw = 0; amode = (char *)"read";  resonly = 1;
+                                                        qattr   = 1; break;
          case 'c': needrw = 2; amode = (char *)"write"; newfile = 1; break;
-         case 'x': needrw = 0; amode = (char *)"read";  resonly = 1; break;
+         case 'd': needrw = 2; amode = (char *)"write"; newfile = 1;
+                                                        dotrunc = 1; break;
+         case 't': needrw = 2; amode = (char *)"write"; dotrunc = 1; break;
          default:  return 1;
         }
    if (!(tp = Link->GetToken())) return 1;
+
+// Insert the request ID into the RRQ info structure in case we need to wait
+//
+   strcpy(Info.ID, rid);  // Gauranteed to fit
+
+// Do a callout to the external manager if we have one
+//
+      if (qattr) {if (Xmi_Stat && Xmi_Select->Stat(&Req, tp)) return 0;}
+         else if (Xmi_Select) 
+                 {int opts = (needrw ? XMI_RW : 0);
+                  if (newfile) opts |= XMI_NEW;
+                  if (dotrunc) opts |= XMI_TRUNC;
+                  if (Xmi_Select->Select(&Req, tp, opts)) return 0;
+                 }
 
 // Find out who serves this path
 //
@@ -1245,10 +1369,6 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
        DEBUG("Path find failed for select " <<ptc <<' ' <<tp);
        return 0;
       }
-
-// Insert the request ID into the RRQ info structure in case we need to wait
-//
-   strcpy(Info.ID, rid);  // Gauranteed to fit
 
 // First check if we have seen this file before. If so, get primary selections.
 //
@@ -1598,6 +1718,31 @@ int XrdOlbServer::do_Usage(char *rid)
 }
 
 /******************************************************************************/
+/*                               g e t M o d e                                */
+/******************************************************************************/
+
+int XrdOlbServer::getMode(const char *rid, const char *path,
+                          const char *modearg, mode_t &mode)
+{
+
+// Copy the request id
+//
+   strcpy(Info.ID, rid);  // Gauranteed to fit
+
+// Convert the mode argument
+//
+   if (!(mode = strtol(modearg, 0, 8)))
+      {Say.Emsg("Server", "Invalid mode in chmod", modearg, path);
+       Req.Reply_Error("EINVAL", "Invalid mode");
+       return 0;
+      }
+
+// All is well
+//
+   return 1;
+}
+
+/******************************************************************************/
 /*                                I n f o r m                                 */
 /******************************************************************************/
   
@@ -1670,6 +1815,44 @@ int XrdOlbServer::isOnline(char *path, int upt)
 // Indicate possible problem
 //
    Say.Emsg("Server", Link->Name(), "stated a non-file,", path);
+   return 0;
+}
+
+/******************************************************************************/
+/*                                M k p a t h                                 */
+/******************************************************************************/
+
+int XrdOlbServer::Mkpath(char *local_path, mode_t mode)
+{
+    char *next_path;
+    struct stat buf;
+    int retc;
+
+// Trim off the trailing slash so that we make everything but the last component
+//
+   if (!(retc = strlen(local_path))) return -ENOENT;
+   while(retc && local_path[retc-1] == '/') 
+        {retc--; local_path[retc] = '\0';}
+
+// Typically, the path exists. So, do a quick check before launching into it
+//
+   if (!(next_path = rindex(local_path, (int)'/'))
+   ||  next_path == local_path) return 0;
+   *next_path = '\0';
+   if (!stat(local_path, &buf)) return 0;
+   *next_path = '/';
+
+// Start creating directories starting with the root
+//
+   next_path = local_path;
+   while((next_path = index(next_path+1, int('/'))))
+        {*next_path = '\0';
+         if (mkdir(local_path, mode) && errno != EEXIST) return -errno;
+         *next_path = '/';
+        }
+
+// All done
+//
    return 0;
 }
 

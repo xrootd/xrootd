@@ -74,6 +74,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 //
    XrdOlbProtocol::setNet(pi->NetTCP, pi->readWait);
    Config.PortTCP = pi->NetTCP->Port();
+   Config.NetTCP  = pi->NetTCP;
 
 // If we have a connection allow list, add it to the network object. Note that
 // we clear the address because the object is lost in the add process.
