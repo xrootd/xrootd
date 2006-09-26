@@ -11,10 +11,12 @@ include ../GNUmake.env
 #------------------------------------------------------------------------------#
 SOURCES = \
         XrdSysDir.cc \
+        XrdSysPlatform.cc \
         XrdSysPriv.cc
 
 OBJECTS = \
         $(OBJDIR)/XrdSysDir.o \
+        $(OBJDIR)/XrdSysPlatform.o \
         $(OBJDIR)/XrdSysPriv.o
 
 LIBRARY = $(LIBDIR)/libXrdSys.a
@@ -51,6 +53,10 @@ fi
 $(OBJDIR)/XrdSysDir.o: XrdSysDir.cc  XrdSysDir.hh
 	@echo Compiling XrdSysDir.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysDir.cc -o $(OBJDIR)/XrdSysDir.o
+
+$(OBJDIR)/XrdSysPlatform.o: XrdSysPlatform.cc  XrdSysPlatform.hh
+	@echo Compiling XrdSysPlatform.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFSETRESUID) $(INCLUDE) XrdSysPlatform.cc -o $(OBJDIR)/XrdSysPlatform.o
 
 $(OBJDIR)/XrdSysPriv.o: XrdSysPriv.cc  XrdSysPriv.hh
 	@echo Compiling XrdSysPriv.cc
