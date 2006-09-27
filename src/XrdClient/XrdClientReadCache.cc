@@ -447,7 +447,7 @@ void XrdClientReadCache::RemovePlaceholders() {
     // Finds the LRU item and removes it
     // We don't remove placeholders
 
-    int it;
+    int it = 0;
 
     XrdOucMutexHelper mtx(fMutex);
 
