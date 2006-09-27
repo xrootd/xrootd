@@ -62,6 +62,10 @@ public:
 	Clear();
     }
 
+    void XrdClientVector::Resize(int newsize) {
+	BufRealloc(newsize);
+    }
+
     void Push_back(T& item) {
       
 	if ( !BufRealloc(size+1) ) {
