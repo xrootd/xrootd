@@ -403,7 +403,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 							 true,
 							 cacheholes, blkstowait);
 
-		Info(XrdClientDebug::kHIDEBUG, "Read",
+		Info(XrdClientDebug::kUSERDEBUG, "Read",
 		     "Cache response: got " << bytesgot << " bytes. Holes= " <<
 		     cacheholes.GetSize() << " Outstanding= " << blkstowait);
 
@@ -527,7 +527,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	    // Now it's time to sleep
 	    // This thread will be awakened when new data will arrive
 	    if ((blkstowait > 0)|| cacheholes.GetSize()) {
-		Info( XrdClientDebug::kHIDEBUG, "Read",
+		Info( XrdClientDebug::kUSERDEBUG, "Read",
 		      "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
 
 		//	    fReadWaitData->Lock();

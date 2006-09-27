@@ -130,8 +130,9 @@ int XrdClientReadV::SubmitToCacheReadVResp(XrdClientConn *xrdc, char *respdata,
 	res = respdatalen;
 
 	// I just rebuild the readahead_list element
-	struct readahead_list *header;
-	int pos_from = 0, rlen;
+	struct readahead_list header;
+	kXR_int32 pos_from = 0;
+        kXR_int32 rlen;
 	kXR_int64 offs=0;
 
 // 	// Just to log the entries
@@ -150,17 +151,14 @@ int XrdClientReadV::SubmitToCacheReadVResp(XrdClientConn *xrdc, char *respdata,
 // 	    pos_from += rlen;
 // 	}
 
-
-
 	pos_from = 0;
 
 
 	while ( pos_from < respdatalen ) {
-	    header = ( readahead_list * )(respdata + pos_from);
+            memcpy(&header, respdata + pos_from, sizeof(struct readahead_list));
 
-	    memcpy(&offs, &header->offset, sizeof(kXR_int64) );
-	    offs = ntohll(offs);
-	    rlen = ntohl(header->rlen);      
+	    offs = ntohll(header.offset);
+	    rlen = ntohl(header.rlen);      
 
 	    pos_from += sizeof(struct readahead_list);
 
