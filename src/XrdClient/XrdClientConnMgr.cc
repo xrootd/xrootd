@@ -71,6 +71,49 @@ void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 }
 
 //_____________________________________________________________________________
+static int DisconnectElapsed(const char *key,
+                             XrdClientPhyConnection *p, void *)
+{
+   // Function applied to the hash table to disconnect the elapsed
+   // physical connections
+
+   if (p) {
+      if ((p->GetLogConnCnt() <= 0) && 
+           p->ExpiredTTL() && p->IsValid()) {
+         p->Touch();
+         p->Disconnect();
+      }
+   }
+
+   // Process next
+   return 0;
+}
+
+//_____________________________________________________________________________
+static int DestroyElapsed(const char *key,
+                          XrdClientPhyConnection *p, void *m)
+{
+   // Function applied to the hash table to destroy the disconnected, elapsed
+   // physical connections.
+   // Doing this way, a phyconn in async mode has all the time it needs
+   // to terminate its reader thread.
+
+   int rc = 0;
+   if (p) {
+      // If a single physical connection has no linked logical connections,
+      // then we kill it if its TTL has expired after disconnection
+      if ((p->GetLogConnCnt() <= 0) && 
+         p->ExpiredTTL() && !(p->IsValid())) {
+         delete p;
+         rc = -1;
+      }
+   }
+
+   // Delete this item and go to next
+   return rc;
+}
+
+//_____________________________________________________________________________
 XrdClientConnectionMgr::XrdClientConnectionMgr() : fGarbageColl(0)
 {
    // XrdClientConnectionMgr constructor.
@@ -128,57 +171,18 @@ void XrdClientConnectionMgr::GarbageCollect()
    // is quite small.
 
    // Mutual exclusion on the vectors and other vars
-   {
-      XrdOucMutexHelper mtx(fMutex);
+   XrdOucMutexHelper mtx(fMutex);
 
-      // We cycle all the physical connections to disconnect the elapsed ones
-      for (int i = 0; i < fPhyVec.GetSize(); i++) { 
-   
-	 // If a single physical connection has no linked logical connections,
-	 // then we kill it if its TTL has expired
-	 if ( fPhyVec[i] && (GetPhyConnectionRefCount(fPhyVec[i]) <= 0) && 
-	      fPhyVec[i]->ExpiredTTL() && fPhyVec[i]->IsValid() ) {
-      
-	    Info(XrdClientDebug::kUSERDEBUG,
-		 "GarbageCollect", "Disconnecting physical connection " << i);
+   if (fPhyHash.Num() > 0) {
 
-	    fPhyVec[i]->Touch();
-	    fPhyVec[i]->Disconnect();
-	          
-	    Info(XrdClientDebug::kUSERDEBUG,
-		 "GarbageCollect", "Disconnected physical connection " << i);
+      // Cycle all the physical connections to disconnect the elapsed ones
+      fPhyHash.Apply(DisconnectElapsed, this);
 
-	 }
-      }
-
-
-
-
-      // We cycle all the physical connections to destroy the
-      // elapsed once more after a disconnection
-      // Doing this way, a phyconn in async mode has all the time it needs
-      //  to terminate its reader thread
-      for (int i = 0; i < fPhyVec.GetSize(); i++) { 
-   
-	 // If a single physical connection has no linked logical connections,
-	 // then we kill it if its TTL has expired after disconnection
-	 if ( fPhyVec[i] && (GetPhyConnectionRefCount(fPhyVec[i]) <= 0) && 
-	      fPhyVec[i]->ExpiredTTL() && !fPhyVec[i]->IsValid() ) {
-      
-	    Info(XrdClientDebug::kUSERDEBUG,
-		 "GarbageCollect", "Purging physical connection " << i);
-
-	    delete fPhyVec[i];
-	    fPhyVec[i] = 0;
-      
-	    Info(XrdClientDebug::kUSERDEBUG,
-		 "GarbageCollect", "Purged physical connection " << i);
-
-	 }
-      }
-
+      // Cycle all the physical connections to destroy the elapsed once more
+      // after a disconnection. Doing this way, a phyconn in async mode has
+      // all the time it needs to terminate its reader thread
+      fPhyHash.Apply(DestroyElapsed, this);
    }
-
 }
 
 //_____________________________________________________________________________
@@ -222,25 +226,26 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 #endif
    }
 
+   // Keys
+   XrdOucString key1(RemoteServ.User.c_str(), 256); key1 += '@';
+   key1 += RemoteServ.Host; key1 += ':'; key1 += RemoteServ.Port;
+   XrdOucString key2(RemoteServ.User.c_str(), 256); key2 += '@';
+   key2 += RemoteServ.HostAddr; key2 += ':'; key2 += RemoteServ.Port;
+
    { XrdOucMutexHelper mtx(fMutex);
 
       // If we already have a physical connection to that host:port, 
       // then we use that
-      for (int i=0; i < fPhyVec.GetSize(); i++) {
-	 if ( fPhyVec[i] && fPhyVec[i]->IsValid() &&
-	      fPhyVec[i]->IsPort(RemoteServ.Port) &&
-	      fPhyVec[i]->IsUser(RemoteServ.User) &&
-	      (fPhyVec[i]->IsAddress(RemoteServ.Host) ||
-	       fPhyVec[i]->IsAddress(RemoteServ.HostAddr)) ) {
-
-	    // We link that physical connection to the new logical connection
-	    fPhyVec[i]->Touch();
-	    logconn->SetPhyConnection( fPhyVec[i] );
-	    phyfound = TRUE;
-	    break;
-	 }
+      if (fPhyHash.Num() > 0) {
+         if ((phyconn = fPhyHash.Find(key1.c_str())) ||
+             (phyconn = fPhyHash.Find(key2.c_str()))) {
+            // We link that physical connection to the new logical connection
+            phyconn->CountLogConn();
+            phyconn->Touch();
+            logconn->SetPhyConnection(phyconn);
+            phyfound = TRUE;
+         }
       }
-
    }
 
    if (!phyfound) {
@@ -254,14 +259,13 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       // While we are trying to connect, the mutex must be unlocked
       // Note that at this point logconn is a pure local instance, so it 
       // does not need to be protected by mutex
-      phyconn = new XrdClientPhyConnection(this);
-
-      if (!phyconn) {
-	 Error("Connect", "Object creation failed. Aborting.");
+      if (!(phyconn = new XrdClientPhyConnection(this))) {
+         Error("Connect", "Object creation failed. Aborting.");
          abort();
       }
       if ( phyconn && phyconn->Connect(RemoteServ) ) {
 
+         phyconn->CountLogConn();
          logconn->SetPhyConnection(phyconn);
 
          if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
@@ -288,7 +292,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound)
-	 fPhyVec.Push_back(phyconn);
+         fPhyHash.Add(key1.c_str(), phyconn);
 
 //
 //  Fix for serious bug affecting cases with more of 32767 logical connections
@@ -318,24 +322,17 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
       // Now some debug log
       if (DebugLevel() >= XrdClientDebug::kHIDEBUG) {
-	 int logCnt = 0, phyCnt = 0;
 
-	 for (int i=0; i < fPhyVec.GetSize(); i++)
-	    if (fPhyVec[i])
-	       phyCnt++;
-	 for (int i=0; i < fLogVec.GetSize(); i++)
-	    if (fLogVec[i])
-	       logCnt++;
+         int logCnt = 0;
+         for (int i=0; i < fLogVec.GetSize(); i++)
+            if (fLogVec[i])
+               logCnt++;
 
-	 Info(XrdClientDebug::kHIDEBUG,
-	      "Connect",
-	      "LogConn: size:" << fLogVec.GetSize() << " count: " << logCnt <<
-	      "PhyConn: size:" << fPhyVec.GetSize() << " count: " << phyCnt );
-
+         Info(XrdClientDebug::kHIDEBUG, "Connect",
+              "LogConn: size:" << fLogVec.GetSize() << " count: " << logCnt <<
+              "PhyConn: size:" << fPhyHash.Num());
       }
-
    }
-  
 
    return newid;
 }
@@ -442,23 +439,6 @@ XrdClientLogConnection *XrdClientConnectionMgr::GetConnection(short int LogConne
  
    return fLogVec[LogConnectionID];
 
-}
-
-//_____________________________________________________________________________
-short int XrdClientConnectionMgr::GetPhyConnectionRefCount(XrdClientPhyConnection *PhyConn)
-{
-   // Return the number of logical connections bound to the physical one 'PhyConn'
-   int cnt = 0;
-
-   {
-      XrdOucMutexHelper mtx(fMutex);
-
-      for (int i = 0; i < fLogVec.GetSize(); i++)
-	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == PhyConn) ) cnt++;
-
-   }
-  
-   return cnt;
 }
 
 //_____________________________________________________________________________
