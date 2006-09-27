@@ -64,7 +64,7 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
 
 //____________________________________________________________________________
 XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
-   fReaderCV(0) {
+   fReaderCV(0), fLogConnCnt(0) {
 
    // Constructor
    fServerType = kSTNone;
@@ -739,4 +739,13 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
 
    fServerType = typeres;
    return typeres;
+}
+
+//____________________________________________________________________________
+void XrdClientPhyConnection::CountLogConn(int d)
+{
+   // Modify countre of logical connections using this phyconn
+   fMutex.Lock();
+   fLogConnCnt += d;
+   fMutex.UnLock();
 }

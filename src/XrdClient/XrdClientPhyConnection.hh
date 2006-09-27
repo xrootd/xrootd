@@ -71,6 +71,8 @@ private:
 
     XrdOucSemWait       fReaderCV;
 
+    short               fLogConnCnt; // Number of logical connections using this phyconn
+
 public:
     ERemoteServerType   fServerType;
     long                fTTLsec;
@@ -82,6 +84,7 @@ public:
     bool                  CheckAutoTerm();
 
     bool           Connect(XrdClientUrlInfo RemoteHost, bool isUnix = 0);
+    void           CountLogConn(int d = 1);
     void           Disconnect();
 
     ERemoteServerType
@@ -89,6 +92,7 @@ public:
 		int substreamid = 0);
 
     bool           ExpiredTTL();
+    short          GetLogConnCnt() const { return fLogConnCnt; }
     long           GetTTL() { return fTTLsec; }
 
     XrdSecProtocol *GetSecProtocol() const { return fSecProtocol; }
