@@ -1,0 +1,112 @@
+#              $Id$
+
+#------------------------------------------------------------------------------#
+#                       C o m m o n   V a r i a b l e s                        #
+#------------------------------------------------------------------------------#
+  
+include ../GNUmake.env
+
+INCLUDE = -I. -I.. -I/usr/local/src/CASTOR2 -I/usr/local/src/CASTOR2/h
+
+#------------------------------------------------------------------------------#
+#                             C o m p o n e n t s                              #
+#------------------------------------------------------------------------------#
+
+SOURCES  = \
+        XrdCS2DCM.cc \
+        XrdCS2DCM2cs.cc \
+        XrdCS2DCMConfig.cc \
+        XrdCS2DCMMain.cc \
+        XrdCS2Req.cc \
+        XrdCS2Xmi.cc
+
+OBJBINS  = \
+        $(OBJDIR)/XrdCS2DCM.o \
+        $(OBJDIR)/XrdCS2DCM2cs.o \
+        $(OBJDIR)/XrdCS2DCMConfig.o \
+        $(OBJDIR)/XrdCS2DCMMain.o
+
+OBJECTS  = \
+        $(OBJDIR)/XrdCS2Req.o \
+        $(OBJDIR)/XrdCS2Xmi.o
+
+SUNLIBS  = -L$(LIBDIR) -lXrd -lXrdNet -lXrdOuc -lXrdSys -lpthread -lnsl -lsocket -lrt
+LNXLIBS  = -L$(LIBDIR) -lXrd -lXrdNet -lXrdOuc -lXrdSys -lpthread -lnsl -lrt
+CS2LIBS  = $(LNXLIBS) -lshift
+
+LIBRARY  = $(LIBDIR)/libXrdCS2.$(TYPESHLIB)
+
+TARGETS   = libXrdCS2.so XrdCS2d
+
+#------------------------------------------------------------------------------#
+#                           S e a r c h   P a t h s                            #
+#------------------------------------------------------------------------------#
+
+vpath XrdNet%  ../XrdNet
+vpath XrdOlb%  ../XrdOlb
+vpath XrdOuc%  ../XrdOuc
+vpath Xrd%     ../Xrd
+
+#------------------------------------------------------------------------------#
+#                          I n i t i a l   R u l e s                           #
+#------------------------------------------------------------------------------#
+ 
+include ../GNUmake.options
+
+anything: $(TARGETS)
+	@echo Make XrdCS2 done.
+
+#------------------------------------------------------------------------------#
+#                           D e p e n d e n c i e s                            #
+#------------------------------------------------------------------------------#
+
+libXrdCS2.so: $(OBJECTS) $(LIBDEP)
+	@echo Creating shared library $(LIBRARY) 
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(CS2LIBS)  -o $(LIBRARY)
+
+XrdCS2d: $(OBJBINS)
+	@echo Creating executable XrdCS2d
+	$(ECHO)$(CC) $(CFLAGS) $(OBJBINS) $(CS2LIBS)  -o XrdCS2d
+
+$(OBJDIR)/XrdCS2DCM.o:     XrdCS2DCM.hh  XrdCS2DCM.cc \
+                           XrdOucError.hh   XrdOucLogger.hh  XrdOucPthread.hh \
+                           XrdOucStream.hh  XrdOucUtils.hh \
+                           XrdScheduler.hh  XrdTrace.hh
+	@echo Compiling XrdCS2DCM.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2DCM.o XrdCS2DCM.cc
+
+$(OBJDIR)/XrdCS2DCM2cs.o: XrdCS2DCM.hh  XrdCS2DCM2cs.cc \
+                          XrdOucError.hh   XrdOucLogger.hh  XrdTrace.hh \
+                          XrdOucTimer.hh   XrdOucPthread.hh
+	@echo Compiling XrdCS2DCM2cs.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2DCM2cs.o XrdCS2DCM2cs.cc
+
+$(OBJDIR)/XrdCS2DCMConfig.o: XrdCS2DCM.hh  XrdCS2DCMConfig.cc \
+                             XrdNetOpts.hh    XrdNetSocket.hh  XrdOucUtils.hh \
+                             XrdOucError.hh   XrdOucLogger.hh  XrdOucTimer.hh \
+                             XrdScheduler.hh  XrdTrace.hh
+	@echo Compiling XrdCS2DCMConfig.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2DCMConfig.o XrdCS2DCMConfig.cc
+
+$(OBJDIR)/XrdCS2DCMMain.o: XrdCS2DCM.hh XrdCS2DCMMain.cc \
+                           XrdOucError.hh    XrdOucLogger.hh   XrdOucPthread.hh \
+                           XrdScheduler.hh   XrdTrace.hh
+	@echo Compiling XrdCS2DCMMain.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2DCMMain.o XrdCS2DCMMain.cc
+
+$(OBJDIR)/XrdCS2Req.o:     XrdCS2Req.cc      XrdCS2Req.hh    \
+                           XrdOlbReq.hh      XrdOlbTrace.hh     XrdOlbXmi.hh \
+                           XrdOucError.hh    XrdOucName2Name.hh \
+                           XrdOucPlatform.hh
+	@echo Compiling XrdCS2Req.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2Req.o XrdCS2Req.cc
+
+$(OBJDIR)/XrdCS2Xmi.o:     XrdCS2Xmi.cc      XrdCS2Xmi.hh    \
+                           XrdCS2Req.hh \
+                           XrdScheduler.hh     XrdOucPlatform.hh \
+                           XrdOucError.hh      XrdOucName2Name.hh \
+                           XrdOucPthread.hh    XrdOucTimer.hh \
+                           XrdOlbTrace.hh      XrdOlbTypes.hh \
+                           XrdOlbReq.hh        XrdOlbXmi.hh
+	@echo Compiling XrdCS2Xmi.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2Xmi.o XrdCS2Xmi.cc
