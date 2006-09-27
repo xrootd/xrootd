@@ -23,6 +23,8 @@ XrdClientSid *XrdClientSid::fgInstance = 0;
 
 XrdClientSid::XrdClientSid() {
 
+   freesids.Resize(65536);
+
    // We populate the free sids queue
    for (kXR_unt16 i = 65535; i >= 1; i--)
       freesids.Push_back(i);
