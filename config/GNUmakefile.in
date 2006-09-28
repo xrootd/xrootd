@@ -42,9 +42,10 @@ SUNCACHE= @suncache@
 all:
 	@$(MAKE) $(TARGETS) MAKEXEQ=all XMSG=Making XDBG=@dbgmsg@ --no-print-directory
 	@if [ "x$(ARCHDIR)" != "x" ]; then \
-	    $(RM) -fr bin/arch@dbgsfx@ lib/arch@dbgsfx@;\
+	    $(RM) -fr bin/arch@dbgsfx@ lib/arch@dbgsfx@ obj/arch@dbgsfx@;\
 	    $(LN) -s ./$(ARCH)@dbgsfx@  bin/arch@dbgsfx@;\
 	    $(LN) -s ./$(ARCH)@dbgsfx@  lib/arch@dbgsfx@;\
+	    $(LN) -s ./$(ARCH)@dbgsfx@  obj/arch@dbgsfx@;\
 	fi
 	@echo Make all done
 
