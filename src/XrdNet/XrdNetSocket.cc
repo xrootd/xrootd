@@ -137,12 +137,16 @@ XrdNetSocket *XrdNetSocket::Create(XrdOucError *Say, const char *path,
 // Connect to the path
 //
    ASock = new XrdNetSocket(Say);
+#ifndef WIN32
    if (opts & XRDNET_FIFO)
       {if ((ASock->SockFD = mkfifo(fnbuff, mode)) < 0 && errno != EEXIST)
          eMsg = "create fifo";
          else if ((ASock->SockFD = open(fnbuff, O_RDWR, myMode)) < 0)
                  eMsg = "open fifo";
       } else if (ASock->Open(fnbuff, -1, sflags) < 0) eMsg = "create socket";
+#else
+   if (ASock->Open(fnbuff, -1, sflags) < 0) eMsg = "create socket";
+#endif
 
 // Return the result
 //

@@ -121,9 +121,11 @@ void print_summary(const char* src, const char* dst, unsigned long long bytesrea
    if (abs_time > 0) {
       COUT(("[xrdcp] # Eff.Copy. Rate[Mb/s]     : %f\n",bytesread/abs_time/1000.0));
    }
+#ifndef WIN32
    if (md5) {
      COUT(("[xrdcp] # md5                      : %s\n",_MD_5->AsHexString()));
    }
+#endif
    COUT(("[xrdcp] #################################################################\n"));
 }
 
@@ -144,13 +146,14 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
 }
 
 
-
 void print_md5(const char* src, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5) {
   if (_MD_5) {
     XrdOucString xsrc(src);
     xsrc.erase(xsrc.rfind('?'));
     //    printf("md5: %s\n",_MD_5->AsHexString());
+#ifndef WIN32
     cout << "md5: " << _MD_5->AsHexString() << " " << xsrc << " " << bytesread << endl;
+#endif
   }
 }
 
@@ -842,6 +845,7 @@ int main(int argc, char**argv) {
          continue;
       }
 
+#ifndef WIN32
       if ( (strstr(argv[i], "-md5") == argv[i])) {
 	md5=true;
 
@@ -857,6 +861,7 @@ int main(int argc, char**argv) {
 	}
 	continue;
       }
+#endif
 
       // Any other par is ignored
       if ( (strstr(argv[i], "-") == argv[i]) && (strlen(argv[i]) > 1) ) {

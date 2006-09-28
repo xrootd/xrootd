@@ -78,14 +78,15 @@ HEADERS =   XrdClient.hh XrdClientAbs.hh XrdClientAdmin.hh XrdClientAdmin_c.hh \
             XrdClientDNS.hh XrdClientEnv.hh XrdClientInputBuffer.hh XrdClientLogConnection.hh \
             XrdClientMessage.hh XrdClientPhyConnection.hh XrdClientProtocol.hh XrdClientReadCache.hh \
             XrdClientSid.hh XrdClientSock.hh XrdClientThread.hh XrdClientUnsolMsg.hh \
-            XrdClientUrlInfo.hh XrdClientUrlSet.hh XrdClientVector.hh XrdCpMthrQueue.hh XrdCpWorkLst.hh
+            XrdClientUrlInfo.hh XrdClientUrlSet.hh XrdClientVector.hh XrdCpMthrQueue.hh \
+            XrdCpWorkLst.hh XrdClientMStream.hh XrdClientPSock.hh XrdClientReadV.hh
 
 SOURCES =   XrdClient.cc XrdClientAbs.cc XrdClientAdmin.cc XrdClientAdmin_c.cc XrdClientConn.cc \
             XrdClientConnMgr.cc XrdClientDebug.cc XrdClientEnv.cc XrdClientInputBuffer.cc \
             XrdClientLogConnection.cc XrdClientMessage.cc XrdClientPhyConnection.cc \
             XrdClientProtocol.cc XrdClientReadCache.cc XrdClientSid.cc XrdClientSock.cc \
-            XrdClientThread.cc XrdClientUrlInfo.cc XrdClientUrlSet.cc \
-            XrdCpMthrQueue.cc XrdCpWorkLst.cc
+            XrdClientThread.cc XrdClientUrlInfo.cc XrdClientUrlSet.cc XrdCpMthrQueue.cc \
+            XrdCpWorkLst.cc XrdClientMStream.cc XrdClientPSock.cc XrdClientReadV.cc
 
 OBJECTS =   $(OUTDIR)/XrdClient.obj $(OUTDIR)/XrdClientAbs.obj $(OUTDIR)/XrdClientAdmin.obj \
             $(OUTDIR)/XrdClientAdmin_c.obj $(OUTDIR)/XrdClientConn.obj $(OUTDIR)/XrdClientConnMgr.obj \
@@ -94,7 +95,8 @@ OBJECTS =   $(OUTDIR)/XrdClient.obj $(OUTDIR)/XrdClientAbs.obj $(OUTDIR)/XrdClie
             $(OUTDIR)/XrdClientPhyConnection.obj $(OUTDIR)/XrdClientProtocol.obj \
             $(OUTDIR)/XrdClientReadCache.obj $(OUTDIR)/XrdClientSid.obj $(OUTDIR)/XrdClientSock.obj \
             $(OUTDIR)/XrdClientThread.obj $(OUTDIR)/XrdClientUrlInfo.obj \
-            $(OUTDIR)/XrdClientUrlSet.obj $(OUTDIR)/XrdCpMthrQueue.obj $(OUTDIR)/XrdCpWorkLst.obj
+            $(OUTDIR)/XrdClientUrlSet.obj $(OUTDIR)/XrdCpMthrQueue.obj $(OUTDIR)/XrdCpWorkLst.obj \
+            $(OUTDIR)/XrdClientMStream.obj $(OUTDIR)/XrdClientPSock.obj $(OUTDIR)/XrdClientReadV.obj
 
 ####### Build rules
 

@@ -111,6 +111,17 @@
 #define S_IRWXG 0000070
 #endif
 
+#ifndef S_ISFIFO
+# ifndef S_IFIFO
+#  define S_IFIFO 0010000
+# endif
+# define S_ISFIFO(m)	((m & S_IFMT) == S_IFIFO)
+#endif
+
+#ifndef S_IFSOCK
+#define S_IFSOCK   0140000
+#endif
+
 #define _SC_PAGESIZE 1
 
 #define F_GETFL      1
@@ -123,6 +134,8 @@
 #define O_NONBLOCK   4
 
 #define X_OK 1
+#define W_OK 2
+#define R_OK 4
 
 #define RTLD_NOW 0x0001
 
@@ -285,6 +298,7 @@ extern int close(int fd);
 #define strtoll(a, b, c) _strtoi64(a, b, c)
 #define ntohll(x) (((_int64)(ntohl((int)((x << 32) >> 32))) << 32) | (unsigned int)ntohl(((int)(x >> 32))))
 #define htonll(x) ntohll(x)
+#define random() rand()
 
 #define usleep(x) Sleep(x / 1000)
 #define lstat(a, b) stat(a, b)
