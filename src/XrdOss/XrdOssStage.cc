@@ -125,10 +125,10 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
        pdata[0] = (char *)"+ ";  pdlen[0] = 2;
        pdata[1] = idbuff;        pdlen[1] = strlen(idbuff);  // Request ID
        pdata[2] = (char *)" ";   pdlen[2] = 1;
-       pdata[3] = (char *)"-";   pdlen[3] = 1;               // user
+       pdata[3] = StageEvents;   pdlen[3] = StageEvSize;     // notification
        pdata[4] = (char *)" ";   pdlen[4] = 1;
        pdata[5] = (char *)"0 ";  pdlen[5] = 2;               // prty
-       pdata[6] = (char *)"wq "; pdlen[6] = 3;  // suppress messages, r/w staging
+       pdata[6] = StageAction;   pdlen[6] = StageActLen;     // action
        pdata[7] = (char *)fn;    pdlen[7] = strlen(fn);
        pdata[8] = (char *)"\n";  pdlen[8] = 1;
        pdata[9] = 0;             pdlen[9] = 0;

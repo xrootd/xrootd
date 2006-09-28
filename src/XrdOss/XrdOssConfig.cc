@@ -566,6 +566,13 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
                        Eroute.Emsg("config", retc, "create staging thread");
                        else xfrtcount++;
                } else NoGo = StageProg->Start();
+
+      // Set up the event path
+      //
+         char sebuff[1024];
+         StageEvSize = sprintf(sebuff, "file:///%s", getenv("XRDOFSEVENTS"));
+         StageEvents = strdup(sebuff);
+         StageAction = (char *)"wfn "; StageActLen = 4;
      }
 
 // Setup the additional stage information vector. Variable substitution:

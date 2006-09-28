@@ -243,7 +243,7 @@ void XrdOfsEvr::Work4Event(theClient *Client)
 void XrdOfsEvr::eventStage()
 {
    int rc;
-   char *tp, *eMsg;
+   char *tp, *eMsg, *altMsg;
    struct theEvent *anEvent;
 
 // Get the status token and decode it
@@ -251,11 +251,16 @@ void XrdOfsEvr::eventStage()
    if (!(tp = eventFIFO.GetToken()))
       {eDest->Emsg("Evr", "Missing stage event status"); return;}
 
-        if (!strcmp(tp, "OK"))     rc = 0;
-   else if (!strcmp(tp, "ENOENT")) rc = ENOENT;
-   else if (!strcmp(tp, "BAD"))    rc = -1;
+        if (!strcmp(tp, "OK"))      rc = 0;
+   else if (!strcmp(tp, "ENOENT")) {rc = ENOENT;
+                                    altMsg = (char *)"file does not exist.";
+                                   }
+   else if (!strcmp(tp, "BAD"))    {rc = -1;
+                                    altMsg = (char *)"Dynamic staging failed.";
+                                   }
    else {rc = -1;
          eDest->Emsg("Evr", "Invalid stage event status -", tp);
+         altMsg = (char *)"Dynamic staging malfunctioned.";
         }
 
 // Get the path and optional message
@@ -264,8 +269,8 @@ void XrdOfsEvr::eventStage()
       {eDest->Emsg("Evr", "Missing stage event path"); return;}
    if (rc)
       if (eMsg) {while(*eMsg == ' ') eMsg++;
-                 if (!*eMsg) eMsg = (char *)"Dynamic staging failed.";
-                } else eMsg = (char *)"Dynamic staging failed.";
+                 if (!*eMsg) eMsg = altMsg;
+                } else eMsg = altMsg;
       else eMsg = 0;
 
 // Either people are waiting for this event or it is preposted event.

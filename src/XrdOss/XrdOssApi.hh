@@ -168,6 +168,11 @@ char     *StageCmd;       // -> Staging command to use
 char     *StageMsg;       // -> Staging message to be passed
 XrdOucMsubs *StageSnd;    // -> Parsed Message
 
+char     *StageEvents;    // -> file:////<adminpath> if async staging
+int       StageEvSize;    //    Length of above
+int       StageActLen;    //    Length of below
+char     *StageAction;    // -> "wq " if sync | "wfn " if async
+
 char     *StageArg[MaxArgs];
 int       StageAln[MaxArgs];
 int       StageAnum;      //    Count of valid Arg/Aln array elements
@@ -200,6 +205,8 @@ XrdOucPListAnchor RPList;    //    The remote path list
                     StageQ.pendList.setItem(0);
                     StageQ.fullList.setItem(0);
                     StageMsg = 0; StageSnd = 0;
+                    StageEvents = (char *)"-";   StageEvSize = 1;
+                    StageAction = (char *)"wq "; StageActLen = 3;
                     ConfigDefaults();
                    }
 virtual ~XrdOssSys() {}
