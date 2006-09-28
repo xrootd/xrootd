@@ -62,7 +62,7 @@ public:
 	Clear();
     }
 
-    void XrdClientVector::Resize(int newsize) {
+    void Resize(int newsize) {
 	BufRealloc(newsize);
     }
 
