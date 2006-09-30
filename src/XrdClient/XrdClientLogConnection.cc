@@ -32,7 +32,7 @@ XrdClientLogConnection::~XrdClientLogConnection() {
    // Destructor
 
    // Decrement counter in the reference phy conn
-   if (fPhyConnection && fPhyConnection->IsValid())
+   if (fPhyConnection)
       fPhyConnection->CountLogConn(-1);
    SidManager->ReleaseSid(fStreamid);
 }
