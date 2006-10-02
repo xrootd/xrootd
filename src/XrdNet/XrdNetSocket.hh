@@ -117,9 +117,9 @@ inline int  SockNum() {return SockFD;}
 // success, it returns a pointer to the buffer holding the name (supplied by
 // the caller). Otherwise, it returns a null pointer.
 //
-static char *XrdNetSocket::socketPath(XrdOucError *Say, char *inbuff,
-                                      const char *path, const char *fn, 
-                                      mode_t mode);
+static char *socketPath(XrdOucError *Say, char *inbuff,
+                        const char *path, const char *fn, 
+                        mode_t mode);
 
 /******************************************************************************/
   
