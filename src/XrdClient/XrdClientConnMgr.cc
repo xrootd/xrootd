@@ -90,8 +90,8 @@ static int DisconnectElapsed(const char *key,
 }
 
 //_____________________________________________________________________________
-static int DestroyElapsed(const char *key,
-                          XrdClientPhyConnection *p, void *m)
+static int DestroyElapsed(const char *,
+                          XrdClientPhyConnection *p, void *)
 {
    // Function applied to the hash table to destroy the disconnected, elapsed
    // physical connections.
@@ -104,7 +104,6 @@ static int DestroyElapsed(const char *key,
       // then we kill it if its TTL has expired after disconnection
       if ((p->GetLogConnCnt() <= 0) && 
          p->ExpiredTTL() && !(p->IsValid())) {
-         delete p;
          rc = -1;
       }
    }
@@ -237,9 +236,11 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       // If we already have a physical connection to that host:port, 
       // then we use that
       if (fPhyHash.Num() > 0) {
-         if ((phyconn = fPhyHash.Find(key1.c_str())) ||
-             (phyconn = fPhyHash.Find(key2.c_str()))) {
+         XrdClientPhyConnection *p = 0;
+         if (((p = fPhyHash.Find(key1.c_str())) ||
+              (p = fPhyHash.Find(key2.c_str()))) && p->IsValid()) {
             // We link that physical connection to the new logical connection
+            phyconn = p;
             phyconn->CountLogConn();
             phyconn->Touch();
             logconn->SetPhyConnection(phyconn);
