@@ -101,7 +101,7 @@ public:
     // Tells to the sock to rebuild the list of interesting selectors
     void           ReinitFDTable() { if (fSocket) fSocket->ReinitFDTable(); }
 
-    int            SaveSocket() { return fSocket ? (fSocket->SaveSocket()) : -1; }
+    int            SaveSocket() { fTTLsec = 0; return fSocket ? (fSocket->SaveSocket()) : -1; }
     void           SetInterrupt() { if (fSocket) fSocket->SetInterrupt(); }
     void           SetSecProtocol(XrdSecProtocol *sp) { fSecProtocol = sp; }
 
