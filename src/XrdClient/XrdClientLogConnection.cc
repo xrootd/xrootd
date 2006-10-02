@@ -24,6 +24,7 @@
 XrdClientLogConnection::XrdClientLogConnection() {
    // Constructor
 
+   fPhyConnection = 0;
    fStreamid = SidManager->GetNewSid();
 }
 
