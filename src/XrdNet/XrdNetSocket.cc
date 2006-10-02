@@ -127,7 +127,7 @@ XrdNetSocket *XrdNetSocket::Create(XrdOucError *Say, const char *path,
    int sflags    = (opts & XRDNET_UDPSOCKET) | XRDNET_SERVER;
    mode_t myMode = (mode & (S_IRWXU | S_IRWXG));
    const char *eMsg = 0;
-   char fnbuff[1024];
+   char fnbuff[1024] = {0};
 
 // Setup the path
 //
