@@ -169,6 +169,8 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
 	}
     }
 
+    // Server type unknown at initialization
+    fServerType = kSTNone;
 }
 
 //_____________________________________________________________________________
@@ -1058,7 +1060,7 @@ bool XrdClientConn::GetAccessToSrv()
 
     XrdClientLogConnection *logconn = ConnectionManager->GetConnection(fLogConnID);
 
-    switch (DoHandShake(fLogConnID)) {
+    switch ((fServerType = DoHandShake(fLogConnID))) {
     case kSTError:
 	Info(XrdClientDebug::kNODEBUG,
 	     "GetAccessToSrv",
@@ -1127,7 +1129,7 @@ bool XrdClientConn::GetAccessToSrv()
     }
 
     // Execute a login if connected to a xrootd server
-    if (GetServerType() != kSTRootd) {
+    if (fServerType != kSTRootd) {
 
 	// Start the reader thread in the phyconn, if needed
 	logconn->GetPhyConnection()->StartReader();

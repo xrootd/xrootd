@@ -101,15 +101,7 @@ public:
 
     int                        GetLogConnID() const { return fLogConnID; }
 
-    ERemoteServerType          GetServerType() {
-
-	if (!ConnectionManager) return kSTError;
-	XrdClientPhyConnection *phyconn =
-	    ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection();
-	if (!phyconn) return kSTError;
-	return phyconn->fServerType;
-
-    }
+    ERemoteServerType          GetServerType() const { return fServerType; }
 
     kXR_unt16                  GetStreamID() const { return fPrimaryStreamid; }
 
@@ -239,6 +231,7 @@ private:
     XrdOucCondVar              *fREQConnectWait;           // For explicitly requested delayed reconnect
 
     long                       fServerProto;        // The server protocol
+    ERemoteServerType          fServerType;         // Server type as returned by doHandShake() 
 
     static XrdOucHash<SessionIDInfo>
     fSessionIDRepo;      // The repository of session IDs, shared.
