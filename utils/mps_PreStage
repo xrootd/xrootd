@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 #
 #  $Id$
 #
@@ -215,10 +215,10 @@ if (-f "$errlogfn") {			# is there a error log file?
       }
    }
 
-sleep $waittime - 1;
-# wait a second for stage-in process to terminate. Assumes prior
-# sleep was terminated by SIGALRM.
-sleep 1;		
+sleep $waittime - 3;
+# wait for stage-in process to terminate. Assumes prior
+# sleep was terminated by SIGUSR1.
+sleep 3;		
 } # while (1)
 exit;
 
@@ -268,7 +268,7 @@ sub do_stagein {
 my($action) = @_;
 my($fn, $reqid, $usrid, $func, $file, $owner) = split(' ', $action, 6);
 
-my($cmd, $prc);
+my($cmd, @data, $prc);
 my($retry_cnt) = 0;
 my($temp);
 
@@ -282,7 +282,7 @@ while (++$retry_cnt <= $max_retry) {
    $trgfn = mss2local($file);
    $cmd = "$pstgcmd $rflag $Lflag $file $trgfn 2>&1";
    logit("do_stagein: Executing: $cmd") if $debug >= $CTL;
-   my(@data) = `$cmd`;
+   (@data) = `$cmd`;
    $prc = $? >> 8;
    if ($prc) {			# command failed
       # Retryable error conditions that do not require notification should go here.
@@ -315,7 +315,9 @@ while (++$retry_cnt <= $max_retry) {
 #   q quiet, suppress default failure notice
 
 if ($prc) {
-   notifyuser('FAIL', "$action") if ($func =~ /f/) || ($func !~ /q/);
+   my($fail) = ($prc == 2) ? 'FAIL2' : 'FAIL';
+   my($etext) = ($prc == 2) ? 'file does not exist' : "";
+   notifyuser("$fail", "$action", "$etext") if ($func =~ /f/) || ($func !~ /q/);
    }
 else {
    notifyuser('SUCC', "$action") if ($func =~ /n/);
@@ -556,9 +558,33 @@ close(LOG);
 }
 
 #===================================================================
+# Subroutine to send a notification to a user via file
+#
+# Input: type of notification: DONE, FAIL, FAIL2, SUCC
+#        action queue item
+#===================================================================
+sub notifyfile {
+my($type, $action, $etext) = @_;
+my($fn, $reqid, $usrid, $func, $file) = split(' ', $action, 5);
+my($rhost, $ofn, $lfn) = $usrid =~ m|^file://(.*?)/(.*)\?lfn=(.*)$|;
+my($stat);
+
+if (! (open(OUT, "+<$ofn"))) {
+   logit("notifyfile: Unable to open $ofn, $!");
+   return:
+   }
+$stat = 'DONE';
+$stat = 'OK'     if $type eq 'SUCC';
+$stat = 'BAD'    if $type eq 'FAIL';
+$stat = 'ENOENT' if $type eq 'FAIL2';
+print OUT "stage $stat $lfn $etext\n";
+close(OUT);
+return;
+}
+#===================================================================
 # Subroutine to send a notification to a user via sockets
 #
-# Input: type of notification: FAIL, DONE
+# Input: type of notification: DONE, FAIL, FAIL2, SUCC
 #        action queue item
 #===================================================================
 sub notifysock {
@@ -581,7 +607,7 @@ if ("$type" eq 'DONE') {
 elsif ("$type" eq 'SUCC') {
    $msgt = "ready $reqid $string $file\n";
    }
-elsif ("$type" eq 'FAIL') {
+elsif ($type =~ /^FAIL/) {
     if ($func =~ /f/) {
        $msgt = "unprep $reqid $string $file\n";
        }
@@ -629,7 +655,7 @@ else {
 #        action queue item
 #===================================================================
 sub notifyuser {
-my($type, $action) = @_;
+my($type, $action, $etext) = @_;
 my($fn, $reqid, $usrid, $func, $file) = split(' ', $action, 5);
 my($failtxt, $msgt, $subj);
 
@@ -637,6 +663,10 @@ return if ("$usrid" eq '-');
 logit("notifyuser: Sending $type notice for \"$action\"");
 if ($usrid =~ m|^\S*://\S*:\S*$|) {	# notify via socket
    notifysock($type, $action);
+   return;
+   }
+if ($usrid =~ m|^file://|) {	        # notify via file
+   notifyfile($type, $action, $etext);
    return;
    }
 if ($usrid =~ m|^mailto://(\S*)$|) {
@@ -651,7 +681,7 @@ if ("$type" eq 'DONE') {
    $msgt = "PreStage request finished for:\n" .
            "$file$failtxt";
    }
-elsif ("$type" eq 'FAIL') {
+elsif ($type =~ /^FAIL/) {
    $subj = "PreStage failed on $host";
    $msgt = "Stagein failed for:\n$file\n";
    }

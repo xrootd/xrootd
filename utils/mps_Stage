@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 
 # $Id$
 
@@ -129,6 +129,7 @@ $KeepPG  = 0;      # Process group
 $Force   = 0;      # Force staging
 $Immed   = 0;      # Default use prestage
 $User    = '';     # Alternate username
+$pnomsg  = 1;
 
 # These are commands that we use which may or may not differ by os-type
 #
@@ -296,6 +297,14 @@ do_prestage() if (!$Immed);
               elsif (-e $trg_fn) {&CleanUp(&Emsg("File $trg_fn already exists.",$OKFile));}
           }
 
+# Check if we should pause processing
+#
+  while(-e $Config{stoppstg} || (-e $Config{stoppsta} && !$Force))
+       {&Emsg("Staging has been paused.", 1) if $pnomsg;
+        $pnomsg = 0;
+        sleep(3);
+       }
+
 # At this point we need to bring the file into this cache. Issue the
 # appropriate command to do this.
 #
@@ -309,7 +318,11 @@ do_prestage() if (!$Immed);
      } else{
       $resp=Get_File($src_fn, $TempFile, $CmdFile, $VerSZ);
      }
-  &Emsg("Unable to transfer file '$src_fn' to '$trg_fn'; $resp.") if $resp;
+#  &Emsg("Unable to transfer file '$src_fn' to '$trg_fn'; $resp.") if $resp;
+  if ($resp) {
+      my($rc) = ($resp =~ /cannot be opened - HPSS Error: -2/) ? 2 : 4;
+      &Emsg("Unable to transfer file '$src_fn' to '$trg_fn'; $resp.",0,$rc);
+  }
   $xfrtime = time() - $xfrtime;
 
 # Create a symbolic link to the file if we need to do this
@@ -365,7 +378,7 @@ sub CleanUp {my($rc) = @_;
 #******************************************************************************
  
 sub Get_File {my($src, $trg, $cfn, $sz) = @_;
-    my($cmd, $resp, $GetTries, @fstat); my($pnomsg) = 1;
+    my($cmd, $resp, $GetTries, @fstat);
 
     # For zero length files, simply open and close it
     #
@@ -396,14 +409,7 @@ sub Get_File {my($src, $trg, $cfn, $sz) = @_;
     #
     $cmd =  "$Config{xfrcmd} -f $cfn $Eoutput";
     $GetTries = $Config{max_retry};
-    while($GetTries--)
-        # Check if we should pause processing
-        #
-       {while(-e $Config{stoppstg} || (-e $Config{stoppsta} && !$Force))
-             {&Emsg("Staging has been paused.", 1) if $pnomsg;
-              $pnomsg = 0;
-              sleep(3);
-             }
+    while($GetTries--) {
         &Log("Executing '$cmd'") if $Debug;
 	my($stime) = time();
         $resp = `$cmd`;
@@ -548,7 +554,7 @@ sub XDirFn {my($fn) = @_; my($i, $dir);
 sub MakePath {my($path) = @_; my(@dirs, $mkpath, $dname);
     @dirs = split('/', $path);
     $mkpath = shift(@dirs);  # start with either "" or "."
-    while ($dname = shift(@dirs)) {
+    while (($dname = shift(@dirs)) ne "") {
           $mkpath .= "/$dname";
           if (!mkdir($mkpath, $Config{dmode}) && $! != 17)
              {&Emsg("cannot create '$dname' in '$path'; $!", 1); return;}
@@ -620,12 +626,13 @@ sub IsNum  {my($v) = @_; return ($v =~ m/^[0-9]+$/);}
 
 sub IsOct  {my($v) = @_; return ($v =~ m/^[0-7]+$/);}
 
-sub Emsg {my($msg,$ret) = @_;
+sub Emsg {my($msg,$ret,$rc) = @_;
     &Log($msg) if $LogErrors;
     print STDERR $SSD.'_Stage: ', $msg, "\n";
     $ErrLog .= $msg."\n";
     return 0 if $ret;
-    &CleanUp(4);
+    $rc = 4 if $rc eq "";
+    &CleanUp($rc);
     }
 
 #******************************************************************************

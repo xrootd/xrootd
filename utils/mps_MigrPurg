@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 #
 #   $Id$
 #
@@ -132,8 +132,6 @@ $num_migr_proc = 0;			# number of active migration processes
 $ppid = $$;				# save parent pid
 chop($systyp = `$CMDuname`);		# used for processing df command
 chop($host = `$CMDhostname`);
-
-$CMDdf .= ' -P' if $systyp eq 'Linux';
 
 $ERR   = 0;				# set debug levels
 $CTL   = 1;
@@ -1044,14 +1042,21 @@ else {
 #===================================================================
 sub scan {
    my($base) = @_;
-   my($fpurgtime);
+   my(@files,$fn,$fpurgtime);
    $base .= "$c" if (($c = chop($base)) ne '/'); # remove trailing /
-   my($parent) = $base =~ m|(^.*)/[^/]*$|;
-   chdir($base) or logit("Unable to chdir to $base: $!"), return;
-   opendir(DIR, ".") or logit("Unable to open $base: $!"), chdir($parent), return;
-   my(@files) = grep(! /^\.\.?$/ & ! /\.anew|\.dual|\.map|\.migr|\.pin|\.stage|\.lock$/ & !/$dirlock$/, readdir(DIR));
-   closedir(DIR);
-
+   if (-d $base) {
+      my($parent) = $base =~ m|(^.*)/[^/]*$|;
+      chdir($base) or logit("Unable to chdir to $base: $!"), return;
+      opendir(DIR, ".") or logit("Unable to open $base: $!"), chdir($parent), return;
+      @files = grep(! /^\.\.?$/ & ! /\.anew$|\.dual$|\.map$|\.migr$|\.pin$|\.stage$|\.lock$/ & !/$dirlock$/, readdir(DIR));
+      closedir(DIR);
+      }
+   elsif (-f $base) {    # single file
+      ($base, $fn) = $base =~ m|(^.*)/([^/]*)$|;
+      chdir($base);
+      push(@files,"$fn");
+      }
+  
    $curtime = time();
    for $file (@files) {
       stat "$file";
@@ -1059,7 +1064,7 @@ sub scan {
          scan("$base/$file");
          }
       elsif (-f _ ) {		# have a file
-         get_ctl_fnames($file);
+         get_ctl_fnames("$base/$file");
          my($dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksiz, $blks)
             = stat($file);
          $mtime{"$base/$file"} = $mtime;

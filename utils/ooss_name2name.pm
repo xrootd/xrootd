@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 #******************************************************************************
 # (c) 2002 by the Board of Trustees of the Leland Stanford, Jr., University   *
 #                          All Rights Reserved                                *

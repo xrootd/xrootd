@@ -1,7 +1,5 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 #******************************************************************************
-#
-#   $Id$
 #*                                                                            *
 #*                          o o s s _ M o n P . p m                           *
 #                                                                             *
@@ -10,6 +8,8 @@
 # Produced by Andrew Hanushevsky for Stanford University under contract       *
 #            DE-AC03-76-SFO0515 with the Department of Energy                 *
 #******************************************************************************
+
+# $Id$
 
 # Monitor the parent process. If it stalls, optionally restart it.
 

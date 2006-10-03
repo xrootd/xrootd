@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 
 #   $Id$
 
@@ -137,13 +137,15 @@ sub add_queue {
 	    @temp = <FILE>;
 	    close(FILE);
 	    foreach $fn (@temp) {
+		$tmpid = ($usrid =~ m|^file://|) ? "$usrid"."?lfn=$fn" : $usrid;
 		$fn = none2mss($fn);
-		print $fh "$reqid $usrid $func $fn";
+		print $fh "$reqid $tmpid $func $fn";
 	    }
 	}
 	else {
+	    $tmpid = ($usrid =~ m|^file://|) ? "$usrid"."?lfn=$fn" : $usrid;
 	    $fn = none2mss($fn);
-	    print $fh "$reqid $usrid $func $fn\n";
+	    print $fh "$reqid $tmpid $func $fn\n";
 	}
     }
     unlock($fh, "$file");
