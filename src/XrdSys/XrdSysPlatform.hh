@@ -208,12 +208,14 @@ extern "C"
 #define Sokdata_t char *
 #define IOV_INIT(data,dlen) dlen,data
 #define MAKEDIR(path,mode) mkdir(path)
+#define net_errno WSAGetLastError()
 #else
 #define O_BINARY 0
 #define Netdata_t char *
 #define Sokdata_t void *
 #define IOV_INIT(data,dlen) data,dlen
 #define MAKEDIR(path,mode) mkdir(path,mode)
+#define net_errno errno
 #endif
 
 #endif  // __XRDSYS_PLATFORM_H__
