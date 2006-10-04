@@ -256,15 +256,6 @@ struct iovec {
    char FAR *iov_base;
 };
 
-static inline int writev(int sock, const struct iovec iov[], int nvecs)
-{
-	DWORD ret;
-	if (WSASend(sock, (LPWSABUF)iov, nvecs, &ret, 0, NULL, NULL) == 0) {
-		return ret;
-	}
-	return -1;
-}
-
 inline int lrint(double n) { return (int)n; };
 
 extern void gethostbyname_r(const char *inetName, struct hostent *hent, char *buff, 
@@ -283,6 +274,7 @@ extern const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 extern int sysconf(int what);
 extern int fcntl(int fd, int cmd, long arg);
 extern int close(int fd);
+extern int writev(int sock, const struct iovec iov[], int nvecs);
 
 #ifndef localtime_r
 #define localtime_r( _clock, _result ) \
