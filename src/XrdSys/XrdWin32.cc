@@ -2,6 +2,7 @@
 #include "XrdSys/XrdWin32.hh"
 #include <Windows.h>
 #include <errno.h>
+#include <malloc.h>
 
 int sysconf(int what)
 {
@@ -10,7 +11,7 @@ int sysconf(int what)
    return (int)(info.dwPageSize);
 }
 
-#if 0
+#if 0 // defined(_MSC_VER) && (_MSC_VER < 1400)
 //
 // Though working fine with MSVC++ 7.1, this definition gives problems
 // with MSVC++ 8; we comment it out and wait for better times
@@ -341,6 +342,10 @@ static void myerrcode(int err)
    errno = err;
 }
 
+// This is the simple and dirty method to check if fd is a socket
+#define IS_SOCKET(fd) ((fd)>=64)
+
+// And this is a more clever one
 static bool is_socket(SOCKET fd)
 {
    char sockbuf[80];
@@ -373,5 +378,41 @@ int close(int fd)
       myerrcode(errno);
    }
    return ret;
+}
+
+int writev(int fd, const struct iovec iov[], int nvecs)
+{
+   DWORD ret;
+   char *buffer, *bp;
+   size_t i, bytes = 0;
+   if (is_socket(fd)) {
+      if (WSASend(fd, (LPWSABUF)iov, nvecs, &ret, 0, NULL, NULL) == 0) {
+         return ret;
+      }
+   }
+   else {
+
+      /* Find the total number of bytes to write */
+      for (i = 0; i < nvecs; i++)
+         bytes += iov[i].iov_len;
+
+      if (bytes == 0)   /* not an error */
+         return (0);
+
+      /* Allocate a temporary buffer to hold the data */
+      buffer = bp = (char*) alloca (bytes);
+      if (!buffer) {
+         errno = ENOMEM;
+         return (-1);
+      }
+
+      /* Copy the data into buffer. */
+      for (i = 0; i < nvecs; ++i) {
+         memcpy (bp, iov[i].iov_base, iov[i].iov_len);
+         bp += iov[i].iov_len;
+      }
+      return (int)_write(fd, buffer, bytes);
+   }
+   return -1;
 }
 
