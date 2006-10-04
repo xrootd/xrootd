@@ -53,7 +53,7 @@ int XrdNetConnect::Connect(             int       fd,
    new_flags = old_flags | O_NDELAY | O_NONBLOCK;
    fcntl(fd, F_SETFL, new_flags);
    if (!connect(fd, name, namelen))  myRC = 0;
-      else if (EINPROGRESS != errno) myRC = errno;
+      else if (EINPROGRESS != net_errno) myRC = net_errno;
               else {struct pollfd polltab = {fd, POLLOUT|POLLWRNORM, 0};
                     do {myRC = poll(&polltab, 1, tsec*1000);} 
                        while(myRC < 0 && errno == EINTR);
