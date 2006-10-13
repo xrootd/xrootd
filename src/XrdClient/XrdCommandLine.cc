@@ -902,7 +902,8 @@ int main(int argc, char**argv) {
 
 	 if (fname1) {
 
-	    if (strstr(fname1, "root://") == fname1)
+	     if ( (strstr(fname1, "root://") == fname1) ||
+		  (strstr(fname1, "xroot://") == fname1) )
 	       pathname1 = fname1;
 	    else
 	       if (fname1[0] == '/') {
@@ -961,7 +962,8 @@ int main(int argc, char**argv) {
 
 	 if (fname1) {
 
-	    if (strstr(fname1, "root://") == fname1)
+	     if ( (strstr(fname1, "root://") == fname1) ||
+		  (strstr(fname1, "xroot://") == fname1) )
 	       pathname1 = fname1;
 	    else
 	       if (fname1[0] == '/') {
@@ -984,7 +986,8 @@ int main(int argc, char**argv) {
 	 }
 	 if (fname2) {
 
-	    if (strstr(fname2, "root://") == fname2)
+	     if ( (strstr(fname2, "root://") == fname2) ||
+		  (strstr(fname2, "xroot://") == fname2) )
 	       pathname2 = fname2;
 	    else
 	       if (fname2[0] == '/') {

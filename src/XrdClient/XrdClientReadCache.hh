@@ -61,6 +61,10 @@ public:
 		 (fBeginOffset <= begin_offs) && (fEndOffset >= end_offs) );
     }
 
+    inline bool ContainsOffset(long long offs) {
+	return (fBeginOffset <= offs) && (fEndOffset >= offs);
+    }
+    
     // Get the requested interval, if possible
     inline bool   GetInterval(const void *buffer, long long begin_offs, 
 			      long long end_offs) {
@@ -149,6 +153,9 @@ private:
 	    fBytesUsefulness = (float)fBytesHit / fBytesSubmitted;
     }
 
+    int             FindInsertionApprox(long long begin_offs);
+    int             FindInsertionApprox_rec(int startidx, int endidx,
+					long long begin_offs);
 public:
     XrdClientReadCache();
     ~XrdClientReadCache();

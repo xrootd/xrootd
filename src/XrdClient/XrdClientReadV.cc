@@ -18,7 +18,7 @@
 kXR_int64 XrdClientReadV::ReqReadV(XrdClientConn *xrdc, char *handle, char *destbuf,
 				   kXR_int64 *offsets, int *lens, int nbuf, kXR_int64 maxoffs) {
 
-    readahead_list *buflis = new readahead_list[nbuf];
+    readahead_list buflis[READV_MAXCHUNKS];
 
     Info(XrdClientDebug::kUSERDEBUG, "ReqReadV",
 	 "Requesting to read " << nbuf <<
@@ -28,26 +28,38 @@ kXR_int64 XrdClientReadV::ReqReadV(XrdClientConn *xrdc, char *handle, char *dest
     // then it's up to server to interpret it and send us all the data
     // in a single buffer
     kXR_int64 total_len = 0;
-    int bufcnt = 0;
+    int bufcnt = 0, i = 0;
 
-    for (int i = 0; i < nbuf; i++) {
+    while ((i < nbuf) && (bufcnt < READV_MAXCHUNKS)) {
+	// The length to request is trimmed to the eof
+	// But it may be splitted into smaller chunks
 	kXR_int64 newlen = xrdmin(maxoffs - offsets[i], lens[i]);
-	newlen = xrdmin(newlen, READV_MAXCHUNKSIZE);
+	kXR_int32 donelen = 0;
 
 	// We want to trim out useless reads
-	if (newlen > 0) {
+	// and split a huge req into smaller chunks
+	while ((donelen < newlen) && (bufcnt < READV_MAXCHUNKS)) {
 	    memcpy( &(buflis[bufcnt].fhandle), handle, 4 ); 
 
+	    kXR_int32 actlen = xrdmin(newlen-donelen, READV_MAXCHUNKSIZE);
+	    kXR_int64 actoffs = offsets[i]+donelen;
 	    if (!destbuf)
-		xrdc->SubmitPlaceholderToCache(offsets[i], offsets[i]+lens[i]-1);
+		xrdc->SubmitPlaceholderToCache(actoffs, actoffs+actlen-1);
 
-	    buflis[bufcnt].offset = offsets[i];
-	    buflis[bufcnt].rlen = lens[i];
+	    buflis[bufcnt].offset = actoffs;
+	    buflis[bufcnt].rlen = actlen;
+	    donelen += actlen;
 
-	    total_len += lens[i];
 	    bufcnt++;
+
+	    if (bufcnt >= READV_MAXCHUNKS) break;
 	}
+
+	total_len += lens[i];
+	i++;
     }
+
+    nbuf = i;
 
     if (bufcnt > 0) {
 
@@ -72,8 +84,6 @@ kXR_int64 XrdClientReadV::ReqReadV(XrdClientConn *xrdc, char *handle, char *dest
 	    if (xrdc->WriteToServer_Async(&readvFileRequest, buflis) != kOK ) total_len = 0;
 
     }
-
-    delete [] buflis;
 
     return total_len;
 }
@@ -130,9 +140,10 @@ int XrdClientReadV::SubmitToCacheReadVResp(XrdClientConn *xrdc, char *respdata,
 	res = respdatalen;
 
 	// I just rebuild the readahead_list element
+
 	struct readahead_list header;
 	kXR_int32 pos_from = 0;
-        kXR_int32 rlen;
+        kXR_int32 rlen = 0;
 	kXR_int64 offs=0;
 
 // 	// Just to log the entries

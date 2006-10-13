@@ -1,38 +1,108 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientVector                                                      // 
+// XrdClientIdxVector                                                   // 
 //                                                                      //
-// Author: Fabrizio Furano (INFN Padova, 2004)                          //
+// Author: Fabrizio Furano (INFN Padova, 2006)                          //
 //                                                                      //
-// A simple vector class based on low level functions                   //
+// A vector class optimized for insertions and deletions                //
+//   indexed access takes O(1)                                          //
+//   insertion takes O(1) plus a very small fraction of O(n)            //
+//   deletion takes O(1) plus a very small fraction of O(n)             //
+//                                                                      //
+// Better suited than XrdClientVector to hold complex objects           //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
 //         $Id$
 
 
-#ifndef XRD_CLIVEC_H
-#define XRD_CLIVEC_H
+#ifndef XRD_CLIIDXVEC_H
+#define XRD_CLIIDXVEC_H
 
 #include <stdlib.h>
+#include <iostream>
+
+
+#define IDXVEC_MINCAPACITY       16384
 
 template<class T>
 class XrdClientVector {
 
 
 private:
-    T *data;
 
-    // Remember that the unit is sizeof(T)
-    int size;
-    int capacity;
+    // We keep the corrected size of T
+    int sizeof_t;
 
+    char *rawdata; // A raw mem block to hold (casted) T instances
+
+    struct myindex {
+	long offs; // Offset to a T inside rawdata
+	bool notempty;
+    } *index;
+
+    // the number of holes inside rawdata
+    // each hole is sizeof_t bytes
+    int holecount;
+
+    long size;
+    long capacity, maxsize;
+
+    // Completely packs rawdata
+    // Eventually adjusts the sizes in order to contain at least
+    // newsize elements
     int BufRealloc(int newsize);
 
     inline void Init() {
-	data = 0;
+	if (rawdata) free(rawdata);
+	if (index) free(index);
+
+	rawdata = static_cast<char *>(malloc(IDXVEC_MINCAPACITY * sizeof_t));
+
+	index = static_cast<myindex *>(malloc(IDXVEC_MINCAPACITY * sizeof(myindex)));
+	// and we make every item as empty, i.e. not pointing to anything
+	memset(index, 0, IDXVEC_MINCAPACITY * sizeof(myindex));
+
+	holecount = 0;
+
 	size = 0;
-	capacity = 0;
+	maxsize = capacity = IDXVEC_MINCAPACITY;
+    }
+
+    // Makes a null position... not to be exposed
+    // Because after this the element pointed to by el becomes invalid
+    // Typically el will be moved at the end, at the size+holecount position
+    void DestroyElem(myindex *el) {
+	reinterpret_cast<T*>(rawdata+el->offs)->~T();
+	//el->notempty = false;
+    }
+
+    void put(T& item, long pos) {
+	// Puts an element in position pos
+	// Hence write at pos in the index array
+	// Use a new chunk of rawdata if the item does not point to a chunk
+
+	T *p;
+	long offs = (size+holecount)*sizeof_t;
+
+	if (index[pos].notempty) {
+	    offs = index[pos].offs;
+
+	    // did we fill a hole?
+	    holecount--;
+	}
+
+	p = new(rawdata + offs) T(item);
+
+	if (p) {
+	    index[pos].offs = offs;
+	    index[pos].notempty = true;
+	}
+	else {
+	    std::cerr << "XrdClientIdxVector::put .... out of memory." << std::endl;
+	    abort();
+	}
+
     }
 
 public:
@@ -42,24 +112,34 @@ public:
     }
 
     void Clear() {
-	if (data) delete []data;
+	for (long i = 0; i < size; i++)
+	    if (index[i].notempty) DestroyElem(&index[i]);
+
 	Init();
     }
 
-    XrdClientVector() {
+    XrdClientVector():
+	sizeof_t(0), rawdata(0), index(0)
+    {
+	// We calculate a size which is aligned on 4-bytes
+	sizeof_t = (sizeof(T) + 3) >> 2 << 2;
 	Init();
     }
 
-    XrdClientVector(const XrdClientVector &v) {
+    XrdClientVector(XrdClientVector &v):
+	rawdata(0), index(0) {
+
 	Init();
 	BufRealloc(v.size);
-	size = v.size;
+
 	for (int i = 0; i < v.size; i++)
-	    data[i] = v.data[i];
+	    Push_back( v[i] );
     }
 
     ~XrdClientVector() {
 	Clear();
+	free(rawdata);
+	free(index);
     }
 
     void Resize(int newsize) {
@@ -67,10 +147,9 @@ public:
     }
 
     void Push_back(T& item) {
-      
-	if ( !BufRealloc(size+1) ) {
-	    data[size++] = item;
-	}
+
+	if ( BufRealloc(size+1) )
+	    put(item, size++);
 
     }
 
@@ -82,34 +161,40 @@ public:
 	    return;
 	}
 
-	if ( !BufRealloc(size+1) ) {
+	if ( BufRealloc(size+1) ) {
 
-	    for (int i=size-1; i >= pos; i--)
-		data[i+1] = data[i];
-
+	    memmove(&index[pos+1], &index[pos], (size+holecount-pos) * sizeof(myindex));
+	    index[pos].notempty = false;
 	    size++;
-
-	    data[pos] = item;
+	    put(item, pos);
 	}
 
     }
 
     // Removes a single element in position pos
-    T &Erase(unsigned int pos) {
-	T &res = At(pos);
+    void Erase(unsigned int pos) {
+	// We make the position empty, then move the free index to the end
+	DestroyElem(index + pos);
 
-	for (int i=pos+1; i < size; i++)
-	    data[i-1] = data[i];
+	index[size+holecount] = index[pos];
+	holecount++;
+
+	memmove(&index[pos], &index[pos+1], (size+holecount-pos) * sizeof(myindex));
 
 	size--;
 	BufRealloc(size);
 
-	return res;
     }
 
-    T &Pop_back() {
-	T &r( At(size-1) );
+    T Pop_back() {
+	T r( At(size-1) );
+
+	DestroyElem(index+size-1);
+
+	holecount++;
 	size--;
+	BufRealloc(size);
+
 	return (r);
     }
 
@@ -117,54 +202,96 @@ public:
 	T res;
 
 	res = At(0);
-	for (int i=1; i < size; i++)
-	    data[i-1] = data[i];
-	size--;
 
+	Erase(0);
 	return (res);
     }
 
-
     // Bounded array like access
-    T &At(int pos) {
-        if ( (pos < 0) || (pos >= size) )
-            abort();
-        return data[pos];
+    inline T &At(int pos) {
+	//        if ( (pos < 0) || (pos >= size) )
+	//            abort();
+
+	return *( reinterpret_cast<T*>(rawdata + index[pos].offs));
     }
-    T &operator[] (int pos) {
+
+    inline T &operator[] (int pos) {
 	return At(pos);
     }
 
 };
 
+
+// Completely packs rawdata if needed
+// Eventually adjusts the sizes in order to fit newsize elements
 template <class T>
 int XrdClientVector<T>::BufRealloc(int newsize) {
-    int sz, blks;
-    T *newdata;
 
-    if ((newsize <= 0) || (newsize <= capacity)) return 0;
+    // If for some reason we have too many holes, we repack everything
+    // this is very heavy!!
+    if (holecount > 2*maxsize) 
+	while (holecount > maxsize/2) {
+	    long lastempty = size+holecount-1;  // The first hole to fill
 
-    blks = (newsize) / 256 + 1;
-
-    sz = blks * 256;
-
-    newdata = new T[sz];
+	    // Pack everything in rawdata
+	    // Keep the pointers updated
 
 
-    if (newdata) {
-	for (int i = 0; i < size; i++)
-	    newdata[i] = data[i];
+	    // Do the trick
 
-	delete []data;
+	    // Move the last filled to the first encountered hole
+	    memmove(rawdata + index[lastempty].offs, rawdata + index[lastempty].offs + sizeof_t,
+		    (size+holecount)*sizeof_t - index[lastempty].offs );
 
-	data = newdata;      
-	capacity = sz;
-	return 0;
+	    // Drop the index
+	    index[lastempty].notempty = false;
+	    holecount--;
+
+	    // Adjust all the pointers to the subsequent chunks
+	    for (long i = 0; i < size+holecount; i++)
+		if (index[i].notempty && (index[i].offs > index[lastempty].offs))
+		    index[i].offs -= sizeof_t;
+	
+	}
+
+    if (newsize > maxsize) maxsize = newsize;
+
+    while (newsize+holecount > capacity*2/3) {
+	// Too near to the end?
+	// double the capacity
+
+	capacity *= 2;
+
+	rawdata = static_cast<char *>(realloc(rawdata, capacity*sizeof_t));
+	if (!rawdata) {
+	    std::cerr << "XrdClientIdxVector::BufRealloc .... out of memory." << std::endl;
+	    abort();
+	}
+
+	index = static_cast<myindex *>(realloc(index, capacity*sizeof(myindex)));
+	memset(index+capacity/2, 0, capacity*sizeof(myindex)/2);
+
     }
 
-    abort();
+    while ((newsize+holecount < capacity/3) && (capacity > IDXVEC_MINCAPACITY)) {
+	// Too near to the beginning?
+	// half the capacity
+
+
+	capacity /= 2;
+
+	rawdata = static_cast<char *>(realloc(rawdata, capacity*sizeof_t));
+	if (!rawdata) {
+	    std::cerr << "XrdClientIdxVector::BufRealloc .... out of memory." << std::endl;
+	    abort();
+	}
+
+	index = static_cast<myindex *>(realloc(index, capacity*sizeof(myindex)));
+
+    }
 
     return 1;
+
 }
 
 

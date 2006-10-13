@@ -565,6 +565,8 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
     // Note: this could return a smaller buffer than expected (for example
     // if only a few readings were allowed).
 
+    // If buf==0 then the request is considered as asynchronous
+
     if (!IsOpen_wait()) {
        Error("ReadV", "File not opened.");
        return 0;
@@ -589,6 +591,9 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 
     while ( i < nbuf ) {
 
+	// This returns how many bytes are expected from the request
+	// BUT cam modify n, which is the number of chunks processed from the
+	// given list
 	if (buf) res = ReadVEach(&buf[pos], &offsets[i], &lens[i], n);
 	else
 	    res = ReadVEach(0, &offsets[i], &lens[i], n);
@@ -609,11 +614,11 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 }
 
 //_____________________________________________________________________________
-kXR_int64 XrdClient::ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int nbuf) {
+kXR_int64 XrdClient::ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int &nbuf) {
     // This will compress multiple request in one single read to
     // avoid the latency.
 
-    Info( XrdClientDebug::kHIDEBUG, "ReadV", " Number of Buffers=" << nbuf);
+    Info( XrdClientDebug::kUSERDEBUG, "ReadV", " Number of requested buffers=" << nbuf);
 
     for(int i = 0 ; i < nbuf ; i++){
       Info( XrdClientDebug::kHIDEBUG, "ReadV",

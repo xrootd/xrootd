@@ -114,8 +114,7 @@ private:
     // Real implementation for ReadV 
     // To call it we need to be aware of the restrictions so the public
     // interface should be ReadV()
-    kXR_int64                   ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int nbuf);
-    XReqErrorType               ReadVEach_Async(char *buf, long long *offsets, int *lens, int nbuf);
+    kXR_int64                   ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int &nbuf);
 protected:
 
     virtual bool                OpenFileWhenRedirected(char *newfhandle,
@@ -165,8 +164,9 @@ public:
     // to the application to do the logistic (having the offset and len to find
     // the position of the required buffer given the big one). If no error 
     // occurs, it returns all the requested bytes.
-    // NOTE: if buf == 0 then the req will be carried out asynchronously
-
+    // NOTE: if buf == 0 then the req will be carried out asynchronously, i.e.
+    // the result of the request will only populate the internal cache. A subsequent read()
+    // of that chunk will get the data from the cache
     kXR_int64                   ReadV(char *buf, long long *offsets, int *lens, int nbuf);
 
     // Submit an asynchronous read request. Its result will only populate the cache

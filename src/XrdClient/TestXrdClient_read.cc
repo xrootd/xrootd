@@ -73,10 +73,11 @@ int main(int argc, char **argv) {
 		    v_idx++;
 
 		    // when the buffer is full, do the readv!
-		    if (v_idx == 4096) {
+		    if (v_idx == 10240) {
 			switch (vectored_style) {
 			case 1: // sync
 			    retval = cli->ReadV((char *)buf, v_offsets, v_lens, v_idx);
+			    cout << endl << "---ReadV returned " << retval << endl;
 			    break;
 
 			case 2: // async
@@ -85,15 +86,26 @@ int main(int argc, char **argv) {
 			    break;
 
 			case 3: // async and immediate read
-			    retval = cli->ReadV(0, v_offsets, v_lens, v_idx);
+			    retval = cli->ReadV(0, v_offsets, v_lens, 512);
 			    cout << endl << "---ReadV returned " << retval << endl;
 
 			    //sleep(10);
 
-			    for (int ii = 0; ii < v_idx; ii++) {
-				retval = cli->Read(buf, v_offsets[ii], v_lens[ii]);
-				cout << endl << "---Read (" << ii << " of " << v_idx <<
-				    " returned " << retval << endl;
+			    for (int ii = 512; ii < v_idx-512; ii+=512) {
+
+				retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, 512);
+				cout << endl << "---ReadV returned " << retval << endl;
+
+				for (int iii = ii-512; iii < ii; iii++) {
+				    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
+				    cout << ".";
+
+				    if (retval <= 0)
+					cout << endl << "---Read (" << iii << " of " << v_idx <<
+					    " returned " << retval << endl;
+
+				}
+
 			    }
 			    
 			    retval = 1;
@@ -111,15 +123,15 @@ int main(int argc, char **argv) {
 		else
 		    retval = cli->Read(buf, offs, sz);
 
-		cout << endl << "---Read returned " << retval << endl;
+		//cout << endl << "---Read returned " << retval << endl;
 	    }
 	    else break;
 
 
-	    if (retval <= 0) {
-		cout << "------ A read failed" << endl << endl;
+	    //	    if (retval <= 0) {
+	    //		cout << "------ A read failed" << endl << endl;
 		//exit(1);
-	    }
+	    //}
 	}
 
 
@@ -128,6 +140,7 @@ int main(int argc, char **argv) {
 			switch (vectored_style) {
 			case 1: // sync
 			    retval = cli->ReadV((char *)buf, v_offsets, v_lens, v_idx);
+			    cout << endl << "---ReadV returned " << retval << endl;
 			    break;
 
 			case 2: // async
@@ -136,15 +149,31 @@ int main(int argc, char **argv) {
 			    break;
 
 			case 3: // async and immediate read
-			    retval = cli->ReadV(0, v_offsets, v_lens, v_idx);
+			    retval = cli->ReadV(0, v_offsets, v_lens, 512);
 			    cout << endl << "---ReadV returned " << retval << endl;
 
-			    for (int ii = 0; ii < v_idx; ii++) {
-				retval = cli->Read(buf, v_offsets[ii], v_lens[ii]);
-				cout << endl << "---Read (" << ii << " of " << v_idx <<
-				    " returned " << retval << endl;
+			    //sleep(10);
+
+			    for (int ii = 512; ii < v_idx-512; ii+=512) {
+
+				retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, 512);
+				cout << endl << "---ReadV returned " << retval << endl;
+
+				for (int iii = ii-512; iii < ii; iii++) {
+				    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
+				    cout << ".";
+
+				    if (retval <= 0)
+					cout << endl << "---Read (" << ii << " of " << v_idx <<
+					    " returned " << retval << endl;
+
+				}
+
 			    }
-			    break;
+			    
+			    retval = 1;
+
+
 
 			}
 
