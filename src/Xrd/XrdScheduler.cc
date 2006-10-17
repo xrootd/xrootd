@@ -223,15 +223,20 @@ pid_t XrdScheduler::Fork(const char *id)
   
 void *XrdScheduler::Reaper()
 {
-   sigset_t Sset;
-   int signum, status;
+   int status;
    pid_t pid;
    XrdSchedulerPID *tp, *ptp, *xtp;
+#ifdef __macos__
+   struct timespec ts = { 1, 0 };
+#else
+   sigset_t Sset;
+   int signum;
 
 // Set up for signal handling. Note: main() must block this signal at start)
 //
    sigemptyset(&Sset);
    sigaddset(&Sset, SIGCHLD);
+#endif
 
 // Wait for all outstanding children
 //
@@ -249,7 +254,12 @@ void *XrdScheduler::Reaper()
                 } else {ptp = tp; tp = tp->next;}
              }
        ReaperMutex.UnLock();
+#ifdef __macos__
+       // Mac OS X sigwait() is broken on <= 10.4.
+      } while (nanosleep(&ts, 0) <= 0);
+#else
       } while(sigwait(&Sset, &signum) >= 0);
+#endif
    return (void *)0;
 }
 
