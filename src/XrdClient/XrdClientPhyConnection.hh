@@ -74,6 +74,7 @@ private:
     short               fLogConnCnt; // Number of logical connections using this phyconn
 
 public:
+    long                fServerProto;        // The server protocol
     ERemoteServerType   fServerType;
     long                fTTLsec;
 

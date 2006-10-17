@@ -1169,6 +1169,8 @@ ERemoteServerType XrdClientConn::DoHandShake(short int log) {
 	     " server [" <<
 	     fUrl.Host << ":" << fUrl.Port << "]. No handshake is needed.");
 
+	fServerProto = phyconn->fServerProto;
+
 	if (!fLBSUrl || (fLBSUrl->Host == "")) {
 
 	    Info(XrdClientDebug::kHIDEBUG,
@@ -1195,6 +1197,8 @@ ERemoteServerType XrdClientConn::DoHandShake(short int log) {
 		 "The physical channel is already bound to the data server"
 		 " [" << fUrl.Host << ":" << fUrl.Port << "]. No handshake is needed.");
 
+	fServerProto = phyconn->fServerProto;
+
 	return kSTDataXrootd;
     }
 
@@ -1206,6 +1210,10 @@ ERemoteServerType XrdClientConn::DoHandShake(short int log) {
     // Check if the server is the eXtended rootd or not, checking the value 
     // of type
     fServerProto = xbody.protover;
+
+    // This is useful for other streams trying to use the same phyconn
+    // they will be able to get the proto version
+    phyconn->fServerProto = fServerProto;
 
     if (type == kSTBaseXrootd) {
 	// This is a load balancing server

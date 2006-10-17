@@ -64,7 +64,7 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
 
 //____________________________________________________________________________
 XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
-   fReaderCV(0), fLogConnCnt(0) {
+    fReaderCV(0), fLogConnCnt(0), fServerProto(0) {
 
    // Constructor
    fServerType = kSTNone;

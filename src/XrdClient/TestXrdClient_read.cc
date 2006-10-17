@@ -6,15 +6,29 @@
 #include <string>
 
 
+int ReadSome(kXR_int64 *offs, kXR_int32 *lens, int maxnread) {
 
+    for (int i = 0; i < maxnread;) {
 
+	lens[i] = -1;
+	offs[i] = -1;
+	
+	if (cin.eof()) return i;
+
+	cin >> lens[i] >> offs[i];
+
+	if ((lens[i] > 0) && (offs[i] >= 0))
+	    i++;
+
+    }
+
+    return maxnread;
+
+}
 
 int main(int argc, char **argv) {
     void *buf;
     int vectored_style = 0;
-    kXR_int64 v_offsets[10240];
-    kXR_int32 v_lens[10240];
-    int v_idx = 0;
 
     if (argc < 3) {
 	cout << endl << endl <<
@@ -52,138 +66,73 @@ int main(int argc, char **argv) {
     // Check if we have a file or a root:// url
     bool isrooturl = (strstr(argv[1], "root://"));
     int retval = 0;
+    int ntoread = 0;
+    kXR_int64 v_offsets[10240];
+    kXR_int32 v_lens[10240];
 
     if (isrooturl) {
 	XrdClient *cli = new XrdClient(argv[1]);
 
 	cli->Open(0, 0);
 
-	while (!cin.eof()) {
-	    int sz = 0;
-	    long long offs = 0;
-	    
+	while ( (ntoread = ReadSome(v_offsets, v_lens, 10240)) ) {
 
-	    cin >> sz >> offs;
+	    switch (vectored_style) {
+	    case 0: // no readv
+		for (int iii = 0; iii < ntoread; iii++) {
+		    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
+		    cout << ".";
 
-	    if (offs || sz) {
-		if (vectored_style) {
-		    // Accumulate some reads ....
-		    v_offsets[v_idx] = offs;
-		    v_lens[v_idx] = sz;
-		    v_idx++;
+		    if (retval <= 0)
+			cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
+			    v_lens[iii] << "@" << v_offsets[iii] <<
+			    " returned " << retval << endl;
+		    
+		}		
+		break;
+	    case 1: // sync
+		retval = cli->ReadV((char *)buf, v_offsets, v_lens, ntoread);
+		cout << endl << "---ReadV returned " << retval << endl;
+		break;
+		
+	    case 2: // async
+		retval = cli->ReadV(0, v_offsets, v_lens, ntoread);
+		cout << endl << "---ReadV returned " << retval << endl;
+		break;
+		
+	    case 3: // async and immediate read, optimized!
+		
+		for (int ii = 0; ii < ntoread; ii+=512) {
 
-		    // when the buffer is full, do the readv!
-		    if (v_idx == 10240) {
-			switch (vectored_style) {
-			case 1: // sync
-			    retval = cli->ReadV((char *)buf, v_offsets, v_lens, v_idx);
-			    cout << endl << "---ReadV returned " << retval << endl;
-			    break;
+		    // Read a chunk of data
+		    retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, 512);
+		    cout << endl << "---ReadV returned " << retval << endl;
 
-			case 2: // async
-			    retval = cli->ReadV(0, v_offsets, v_lens, v_idx);
-			    cout << endl << "---ReadV returned " << retval << endl;
-			    break;
+		    // Process the preceeding chunk while the last is coming
+		    for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
+			retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
+			cout << ".";
 
-			case 3: // async and immediate read
-			    retval = cli->ReadV(0, v_offsets, v_lens, 512);
-			    cout << endl << "---ReadV returned " << retval << endl;
-
-			    //sleep(10);
-
-			    for (int ii = 512; ii < v_idx-512; ii+=512) {
-
-				retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, 512);
-				cout << endl << "---ReadV returned " << retval << endl;
-
-				for (int iii = ii-512; iii < ii; iii++) {
-				    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
-				    cout << ".";
-
-				    if (retval <= 0)
-					cout << endl << "---Read (" << iii << " of " << v_idx <<
-					    " returned " << retval << endl;
-
-				}
-
-			    }
-			    
-			    retval = 1;
-
-			    break;
-
-			}
-
-			v_idx = 0;
+			if (retval <= 0)
+			    cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
+				v_lens[iii] << "@" << v_offsets[iii] <<
+				" returned " << retval << endl;
 		    }
-		    else continue;
-
-		  
+		    
 		}
-		else
-		    retval = cli->Read(buf, offs, sz);
-
-		//cout << endl << "---Read returned " << retval << endl;
-	    }
-	    else break;
-
-
-	    //	    if (retval <= 0) {
-	    //		cout << "------ A read failed" << endl << endl;
-		//exit(1);
-	    //}
-	}
-
-
-		    // if the buffer is not empty, do the readv!
-		    if (v_idx > 0) {
-			switch (vectored_style) {
-			case 1: // sync
-			    retval = cli->ReadV((char *)buf, v_offsets, v_lens, v_idx);
-			    cout << endl << "---ReadV returned " << retval << endl;
-			    break;
-
-			case 2: // async
-			    retval = cli->ReadV(0, v_offsets, v_lens, v_idx);
-			    cout << endl << "---ReadV returned " << retval << endl;
-			    break;
-
-			case 3: // async and immediate read
-			    retval = cli->ReadV(0, v_offsets, v_lens, 512);
-			    cout << endl << "---ReadV returned " << retval << endl;
-
-			    //sleep(10);
-
-			    for (int ii = 512; ii < v_idx-512; ii+=512) {
-
-				retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, 512);
-				cout << endl << "---ReadV returned " << retval << endl;
-
-				for (int iii = ii-512; iii < ii; iii++) {
-				    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
-				    cout << ".";
-
-				    if (retval <= 0)
-					cout << endl << "---Read (" << ii << " of " << v_idx <<
-					    " returned " << retval << endl;
-
-				}
-
-			    }
 			    
-			    retval = 1;
+		retval = 1;
 
+		break;
+		
+	    }
 
-
-			}
-
-			v_idx = 0;
-		    }
-
-
+	}
 
     }
     else {
+	// Same test on multiple filez
+
 	vector<XrdClient *> xrdcvec;
 	ifstream filez(argv[1]);
 	int i = 0;
@@ -215,30 +164,115 @@ int main(int argc, char **argv) {
      
 	i = 0;
 
-	// Now fire the read trace to all the instances
-	while (!cin.eof()) {
-	    int sz = 0;
-	    long long offs = 0;
-	    int retval = 0;
-       
-	    cin >> sz >> offs;
-    
-	    if (offs || sz) {
-		cout << "-----<<<<<< Trying to read " << sz << "@" << offs << endl;
-		for(int i = 0; i < (int) xrdcvec.size(); i++) {
-		    retval = xrdcvec[i]->Read(buf, offs, sz);
-		    cout << "Mytest " << time(0) << " File: " << xrdcvec[i]->GetCurrentUrl().File << " - Finished read " << sz << "@" << offs << endl;
-		    if (retval <= 0) {
-			cout << "------ A read failed:" << xrdcvec[i]->GetCurrentUrl().GetUrl() << endl << endl;
+
+
+
+
+
+
+
+
+
+	while ( (ntoread = ReadSome(v_offsets, v_lens, 10240)) ) {
+
+	    switch (vectored_style) {
+	    case 0: // no readv
+		for (int iii = 0; iii < ntoread; iii++) {
+
+
+		    for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+			retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
+
+			cout << ".";
+
+			if (retval <= 0)
+			    cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
+				v_lens[iii] << "@" << v_offsets[iii] <<
+				" returned " << retval << endl;		    
 		    }
+
 		}
+		
+		break;
+	    case 1: // sync
+
+		    for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+			retval = xrdcvec[i]->ReadV((char *)buf, v_offsets, v_lens, ntoread);
+			cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+			    " returned " << retval << endl;
+		    }
+
+		break;
+		
+	    case 2: // async
+
+		for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+		    retval = xrdcvec[i]->ReadV((char *)0, v_offsets, v_lens, ntoread);
+		    cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+			" returned " << retval << endl;
+		}
+
+		break;
+		
+	    case 3: // async and immediate read, optimized!
+		
+		for (int ii = 0; ii < ntoread; ii+=512) {
+
+		    // Read a chunk of data
+		    for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+			retval = xrdcvec[i]->ReadV((char *)0, v_offsets+ii, v_lens+ii, xrdmin(512, ntoread-ii));
+			cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+			    " returned " << retval << endl;
+		    }
+
+		    // Process the preceeding chunk while the last is coming
+		    for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
+
+			for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+			    retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
+
+			    cout << ".";
+
+			    if (retval <= 0)
+				cout << endl << "---Read " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+				    "(" << iii << " of " << ntoread << " " <<
+				    v_lens[iii] << "@" << v_offsets[iii] <<
+				    " returned " << retval << endl;		    
+			}
+
+		    }
+		    
+		}
+			    
+		retval = 1;
+
+		break;
+		
 	    }
-	    else break;
-       
-	    cout << endl << "Last Read (of " << xrdcvec.size() << ") returned " << retval << endl;
-       
-	    i++;
+
 	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	cout << "--- Closing all instances" << endl;
 	for(int i = 0; i < (int) xrdcvec.size(); i++) {
