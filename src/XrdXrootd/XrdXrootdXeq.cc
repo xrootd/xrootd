@@ -905,7 +905,7 @@ int XrdXrootdProtocol::do_Qconf()
    // Now determine what the user wants to query
    //
         if (!strcmp("readv_ior_max", val))
-           {n = sprintf(bp, "%d\n", maxTransz - sizeof(readahead_list));
+           {n = sprintf(bp, "%d\n", maxTransz - (int)sizeof(readahead_list));
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_iov_max", val)) 
