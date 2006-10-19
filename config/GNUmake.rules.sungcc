@@ -11,8 +11,8 @@ TYPEMISC   = -D_ALL_SOURCE -D_REENTRANT -D__solaris__ -D_GNU_SOURCE -fPIC \
              -Wall -Wno-deprecated -DSUNGCC $(CFTRACE)
 TYPECF32   =
 TYPECF64   =
-TYPEOPT    = $(TYPEMISC) -O3
-TYPEDBG    = $(TYPEMISC) -g -O3
+TYPEOPT    = $(TYPEMISC) -O2
+TYPEDBG    = $(TYPEMISC) -g
 TYPELDSO   = -shared
 TYPESHLIB  = so
 
