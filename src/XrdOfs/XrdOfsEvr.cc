@@ -243,7 +243,7 @@ void XrdOfsEvr::Work4Event(theClient *Client)
 void XrdOfsEvr::eventStage()
 {
    int rc;
-   char *tp, *eMsg, *altMsg;
+   char *tp, *eMsg, *altMsg = 0;
    struct theEvent *anEvent;
 
 // Get the status token and decode it
