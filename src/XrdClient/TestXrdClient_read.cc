@@ -4,7 +4,8 @@
 #include <fstream>
 #include <vector>
 #include <string>
-
+#include <sys/time.h>
+#include <math.h>
 
 int ReadSome(kXR_int64 *offs, kXR_int32 *lens, int maxnread) {
 
@@ -26,9 +27,47 @@ int ReadSome(kXR_int64 *offs, kXR_int32 *lens, int maxnread) {
 
 }
 
+// Waste cpu cycles for msdelay milliseconds
+void Think(long msdelay) {
+
+    timeval tv;
+    long long tlimit, t;
+
+    if (msdelay <= 0) return;
+
+    gettimeofday(&tv, 0);
+    tlimit = tv.tv_sec * 1000 + tv.tv_usec / 1000 + msdelay;
+    t = 0;
+
+    while ( t < tlimit ) {
+
+	double numb[1000];
+	for (int i = 0; i < 100; i++)
+	    numb[i] = random();
+
+	for (int i = 0; i < 100; i++)
+	    numb[i] = sqrt(numb[i]);
+	
+	for (int i = 0; i < 100; i++)
+	    memmove(numb+10, numb, 90*sizeof(double));
+
+	gettimeofday(&tv, 0);
+	t = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    }
+
+
+}
+
+
 int main(int argc, char **argv) {
     void *buf;
     int vectored_style = 0;
+    long read_delay = 0;
+    timeval tv;
+    double starttime, t;
+
+    gettimeofday(&tv, 0);
+    starttime = tv.tv_sec + tv.tv_usec / 1000000;
 
     if (argc < 3) {
 	cout << endl << endl <<
@@ -37,18 +76,21 @@ int main(int argc, char **argv) {
 	    " and performs the corresponding read requests towards the given xrootd URL or to ALL" << endl <<
 	    " the xrootd URLS contained in the given file." << endl <<
 	    endl <<
-	    "Usage: TestXrdClient_read <xrootd url or file name> <blksize> <cachesize> <debuglevel> <vectored_style>" << 
+	    "Usage: TestXrdClient_read <xrootd url or file name> <blksize> <cachesize> <debuglevel> <vectored_style>"
+	     " <inter_read_delay_ms>" << 
 	    endl << endl <<
 	    " Where:" << endl <<
-	    "  <xrootd url> is the xrootd URL of a remote file " << endl <<
-	    "  <rasize> is the cache block size. Can be 0." << endl <<
-	    "  <cachesize> is the size of the internal cache, in bytes. Can be 0." << endl <<
-	    "  <debuglevel can be an integer from -1 to 3." << endl << endl <<
-	    " <vectored_style> means 0: no vectored reads (default)," << endl <<
-	    "                        1: sync vectored reads," << endl <<
-	    "                        2: async vectored reads, do not access the buffer," << endl <<
-	    "                        3: async vectored reads, copy the buffers" << endl <<
-	    "                           (makes it sync through async calls!)" << endl << endl;
+	    "  <xrootd url>          is the xrootd URL of a remote file " << endl <<
+	    "  <rasize>              is the cache block size. Can be 0." << endl <<
+	    "  <cachesize>           is the size of the internal cache, in bytes. Can be 0." << endl <<
+	    "  <debuglevel>          can be an integer from -1 to 3." << endl << endl <<
+	    "  <vectored_style>      means 0: no vectored reads (default)," << endl <<
+	    "                              1: sync vectored reads," << endl <<
+	    "                              2: async vectored reads, do not access the buffer," << endl <<
+	    "                              3: async vectored reads, copy the buffers" << endl <<
+	    "                                (makes it sync through async calls!)" << endl <<
+	    "  <inter_read_delay_ms> is the optional think time between reads." << endl <<
+	    "                        note: the think time will comsume cpu cycles, not sleep." << endl << endl;
 
 	exit(1);
     }
@@ -60,6 +102,9 @@ int main(int argc, char **argv) {
 
     if (argc >= 5)
 	vectored_style = atol(argv[5]);
+
+    if (argc >= 6)
+	read_delay = atol(argv[6]);
 
     buf = malloc(50*1024*1024);
 
@@ -82,17 +127,21 @@ int main(int argc, char **argv) {
 		for (int iii = 0; iii < ntoread; iii++) {
 		    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
 		    cout << ".";
+		    cout.flush();
 
 		    if (retval <= 0)
 			cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
 			    v_lens[iii] << "@" << v_offsets[iii] <<
 			    " returned " << retval << endl;
 		    
+		    Think(read_delay);
 		}		
 		break;
 	    case 1: // sync
 		retval = cli->ReadV((char *)buf, v_offsets, v_lens, ntoread);
 		cout << endl << "---ReadV returned " << retval << endl;
+
+		if (retval > 0) Think(read_delay * ntoread);
 		break;
 		
 	    case 2: // async
@@ -112,11 +161,14 @@ int main(int argc, char **argv) {
 		    for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
 			retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
 			cout << ".";
+			cout.flush();
 
 			if (retval <= 0)
 			    cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
 				v_lens[iii] << "@" << v_offsets[iii] <<
 				" returned " << retval << endl;
+
+			Think(read_delay);
 		    }
 		    
 		}
@@ -185,11 +237,14 @@ int main(int argc, char **argv) {
 			retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
 			cout << ".";
+			cout.flush();
 
 			if (retval <= 0)
 			    cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
 				v_lens[iii] << "@" << v_offsets[iii] <<
-				" returned " << retval << endl;		    
+				" returned " << retval << endl;		 
+
+			if (retval > 0) Think(read_delay);
 		    }
 
 		}
@@ -202,6 +257,8 @@ int main(int argc, char **argv) {
 			retval = xrdcvec[i]->ReadV((char *)buf, v_offsets, v_lens, ntoread);
 			cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
 			    " returned " << retval << endl;
+
+			if (retval > 0) Think(read_delay * ntoread);
 		    }
 
 		break;
@@ -237,12 +294,15 @@ int main(int argc, char **argv) {
 			    retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
 			    cout << ".";
+			    cout.flush();
 
 			    if (retval <= 0)
 				cout << endl << "---Read " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
 				    "(" << iii << " of " << ntoread << " " <<
 				    v_lens[iii] << "@" << v_offsets[iii] <<
-				    " returned " << retval << endl;		    
+				    " returned " << retval << endl;	
+
+			    if (retval > 0) Think(read_delay);
 			}
 
 		    }
@@ -291,7 +351,10 @@ int main(int argc, char **argv) {
     cout << "--- Freeing buffer" << endl;
     free(buf);
 
-    cout << "--- bye bye" << endl;
+    gettimeofday(&tv, 0);
+    t = tv.tv_sec + tv.tv_usec / 1000000;
+
+    cout << "--- elapsed: " << t << emdl << endl;
     return 0;
 
 }
