@@ -134,7 +134,8 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
 	Error("XrdClientConn",
 	      "Error resolving this host's domain name." );
 
-    XrdOucString goodDomainsRE = fClientHostDomain + "|*";
+    XrdOucString goodDomainsRE = fClientHostDomain;
+    goodDomainsRE += "|*";
 
     if (EnvGetString(NAME_REDIRDOMAINALLOW_RE) == 0)
 	EnvPutString(NAME_REDIRDOMAINALLOW_RE, goodDomainsRE.c_str());

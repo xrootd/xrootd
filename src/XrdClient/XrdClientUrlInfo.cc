@@ -204,8 +204,10 @@ XrdOucString XrdClientUrlInfo::GetUrl()
 
    XrdOucString s;
 
-   if (Proto != "")
-      s = Proto + "://";
+   if (Proto != "") {
+      s = Proto;
+      s += "://";
+   }
 
    if (User != "") {
       s += User;
