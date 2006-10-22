@@ -19,6 +19,7 @@ INCLUDES = -I$(top_srcdir)/src
 xrootd_SOURCES = \
         XrdXrootdAdmin.cc XrdXrootdAdmin.hh \
         XrdXrootdAio.cc XrdXrootdAio.hh       \
+        XrdXrootdCallBack.cc XrdXrootdCallBack.hh \
         XrdXrootdConfig.cc XrdXrootdXPath.hh   \
         XrdXrootdFile.cc XrdXrootdFile.hh XrdXrootdFileLock.hh      \
         XrdXrootdFileLock1.cc XrdXrootdFileLock1.hh \

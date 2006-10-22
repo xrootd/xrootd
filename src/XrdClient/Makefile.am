@@ -39,7 +39,7 @@ xrootdclientinc_HEADERS = XrdClient.hh \
                XrdClientConn.hh XrdClientConst.hh XrdClientReadCache.hh \
                XrdClientInputBuffer.hh XrdClientEnv.hh XrdClientThread.hh \
                XrdClientPhyConnection.hh XrdClientLogConnection.hh \
-               XrdClientDebug.hh
+               XrdClientDebug.hh XrdClientReadV.hh
 
 #############################################################################
 # Build rules
@@ -67,12 +67,14 @@ libXrdClient_la_SOURCES = \
         XrdCpWorkLst.cc XrdCpWorkLst.hh                \
         XrdClientSid.cc XrdClientSid.hh \
         XrdClientPSock.cc XrdClientPSock.hh \
-	XrdClientMStream.cc XrdClientMStream.hh
+	XrdClientMStream.cc XrdClientMStream.hh \
+        XrdClientReadV.cc XrdClientReadV.hh
+
 libXrdClient_la_LIBADD = $(LIBSUNMATH)
 
 clientlibs =  libXrdClient.la \
-              ../XrdOuc/libXrdOuc.la \
               ../XrdNet/libXrdNet.la \
+              ../XrdOuc/libXrdOuc.la \
               ../XrdSys/libXrdSys.la \
 	      ../XrdCrypto/libXrdCrypto.la \
               -ldl
