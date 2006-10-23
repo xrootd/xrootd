@@ -79,6 +79,11 @@ public:
 
     void   SetRequestTimeout(int timeout = -1);
 
+    // Performs a SOCKS4 handshake in a given stream
+    // Returns the handshake result
+    // If successful, we are connected through a socks4 proxy
+    virtual int Socks4Handshake(int sockid);
+
     virtual void   TryConnect(bool isUnix = 0);
 
     // Returns a temporary socket id or -1

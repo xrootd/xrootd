@@ -22,6 +22,7 @@ const char *XrdClientSockCVSID = "$Id$";
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include <netinet/in.h>
 
 #ifndef WIN32
 #include <unistd.h>
@@ -300,13 +301,57 @@ void XrdClientSock::TryConnect(bool isUnix)
        return;
     }
 
+    
     fSocket = TryConnect_low(isUnix);
+
+    if (fSocket >= 0) {
+	
+	// If we are using a SOCKS4 host...
+	if ( EnvGetString(NAME_SOCKS4HOST) ) {
+
+	    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Handshaking with SOCKS4 host");
+
+	    switch (Socks4Handshake(fSocket)) {
+
+	    case 90:
+		// Everything OK!
+		Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "SOCKS4 connection OK");
+		break;
+	    case 91:
+	    case 92:
+	    case 93:
+		// Failed
+		Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
+		     "SOCKS host refused the connection.");
+		Disconnect();
+		break;
+	    }
+
+
+
+	}
+
+    }
 }
 
 //_____________________________________________________________________________
 int XrdClientSock::TryConnect_low(bool isUnix)
 {
     int sock = -1;
+    XrdOucString host;
+    int port;
+
+
+    host = EnvGetString(NAME_SOCKS4HOST);
+    port = EnvGetLong(NAME_SOCKS4PORT);
+
+    if (host.length() == 0) {
+	host = fHost.TcpHost.HostAddr;
+	port = fHost.TcpHost.Port;
+    }
+    else
+	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Trying SOCKS4 host " <<
+	     host << ":" << port);
 
     std::auto_ptr<XrdNetSocket> s(new XrdNetSocket());
 
@@ -320,8 +365,8 @@ int XrdClientSock::TryConnect_low(bool isUnix)
 
 	// Connect to a remote host
 	//
-	sock = s->Open(fHost.TcpHost.HostAddr.c_str(),
-		       fHost.TcpHost.Port, EnvGetLong(NAME_CONNECTTIMEOUT));
+	sock = s->Open(host.c_str(),
+		       port, EnvGetLong(NAME_CONNECTTIMEOUT));
     } else {
 	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
 	     "Trying to UNIX connect to" << fHost.TcpHost.File <<
@@ -352,4 +397,37 @@ int XrdClientSock::TryConnect_low(bool isUnix)
     }
 
     return sock;
+}
+
+int XrdClientSock::Socks4Handshake(int sockid) {
+
+    char buf[4096], userid[4096];
+    uint16_t port;
+    char a, b, c, d;
+
+    // Issue a Connect req
+    buf[0] = 4; // Socks version
+    buf[1] = 1; // Connect request
+
+    port = htons(fHost.TcpHost.Port);
+    memcpy(buf+2, &port, sizeof(port)); // The port
+
+    sscanf(fHost.TcpHost.HostAddr.c_str(), "%hhd.%hhd.%hhd.%hhd", &a, &b, &c, &d ); 
+    buf[4] = a;
+    buf[5] = b;
+    buf[6] = c;
+    buf[7] = d;
+
+    cuserid(userid);
+    strcpy(buf+8, userid);
+
+    // send the buffer to the server!
+    SendRaw(buf, 8+strlen(userid)+1, sockid);
+
+    // Now wait the answer on the same sock
+    RecvRaw(buf, 8, sockid);
+
+    return buf[1];
+
+
 }

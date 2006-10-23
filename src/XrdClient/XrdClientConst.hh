@@ -90,6 +90,10 @@
 #define READV_MAXCHUNKS            512
 #define READV_MAXCHUNKSIZE         32767
 
+// SOCKS4 support
+#define NAME_SOCKS4HOST            (char *)"Socks4Server"
+#define NAME_SOCKS4PORT            (char *)"Socks4Port"
+
 #define TRUE  1
 #define FALSE 0
 
