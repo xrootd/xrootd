@@ -354,7 +354,7 @@ int main(int argc, char **argv) {
     gettimeofday(&tv, 0);
     t = tv.tv_sec + tv.tv_usec / 1000000;
 
-    cout << "--- elapsed: " << t << emdl << endl;
+    cout << "--- elapsed: " << t << endl << endl;
     return 0;
 
 }
