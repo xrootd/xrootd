@@ -405,7 +405,7 @@ int XrdOdcFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
                  if (retc == -EREMOTE)
                     {TRACE(Redirect, Resp.getErrUser() <<" redirected to " <<msg
                            <<" by " << Manp->NPfx() <<" path=" <<path);
-                     if (!(cgi   = index(msg, (int)'?'))) *cgi = '\0';
+                     if ( (cgi   = index(msg, (int)'?'))) *cgi = '\0';
                      if (!(colon = index(msg, (int)':'))) 
                         {val = 0;
                          if (cgi) *cgi ='?';
