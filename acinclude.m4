@@ -75,6 +75,9 @@ dnl a default value for activate_FEATURE set before the evaluation of this
 dnl macro will be honored.
 dnl all options get collected in acx_optionvar for later printout with
 dnl the ACX_PRINTOPTIONS macro
+dnl specifying one of the --with-feature-*dir options will set the activate
+dnl state of the feature to yes, except if it has been deliberately turned off
+dnl with the --enable-feature=no or --disable-feature options
 AC_DEFUN([ACX_LIBOPTION],[
    if test x"$[]activate_$1" = x; then 
       ifelse($3, yes,activate_$1=default_yes,activate_$1=default_no)
@@ -83,10 +86,12 @@ AC_DEFUN([ACX_LIBOPTION],[
    AC_ARG_WITH($1-libdir,[[  --with-$1-libdir=PATH    path containing $1 library]],
                 [acx_$1_libdir=$[]withval
                 if test $[]activate_$1 = default_no; then activate_$1=yes;fi
+                if test $[]activate_$1 = default_yes; then activate_$1=yes;fi
    ])
    AC_ARG_WITH($1-incdir,[[  --with-$1-incdir=PATH    path containing $1 headers]],
                 [acx_$1_incdir=$[]withval
                 if test $[]activate_$1 = default_no; then activate_$1=yes;fi
+                if test $[]activate_$1 = default_yes; then activate_$1=yes;fi
    ])
 
    if test x"$[]acx_$1_libdir" != x; then
