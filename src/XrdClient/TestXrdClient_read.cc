@@ -69,42 +69,75 @@ int main(int argc, char **argv) {
     gettimeofday(&tv, 0);
     starttime = tv.tv_sec + tv.tv_usec / 1000000;
 
-    if (argc < 3) {
+    if (argc < 2) {
 	cout << endl << endl <<
 	    "This program gets from the standard input a sequence of" << endl <<
 	    " <length> <offset>             (one for each line, with <length> less than 16M)" << endl <<
 	    " and performs the corresponding read requests towards the given xrootd URL or to ALL" << endl <<
 	    " the xrootd URLS contained in the given file." << endl <<
-	    endl <<
-	    "Usage: TestXrdClient_read <xrootd url or file name> <blksize> <cachesize> <debuglevel> <vectored_style>"
-	     " <inter_read_delay_ms>" << 
+ 	    endl <<
+	    "Usage: TestXrdClient_read <xrootd url or file name> <blksize> <cachesize> <vectored_style>  <inter_read_delay_ms> [-DSparmname stringvalue]... [-DIparmname intvalue]..." <<
 	    endl << endl <<
 	    " Where:" << endl <<
 	    "  <xrootd url>          is the xrootd URL of a remote file " << endl <<
 	    "  <rasize>              is the cache block size. Can be 0." << endl <<
 	    "  <cachesize>           is the size of the internal cache, in bytes. Can be 0." << endl <<
-	    "  <debuglevel>          can be an integer from -1 to 3." << endl << endl <<
 	    "  <vectored_style>      means 0: no vectored reads (default)," << endl <<
 	    "                              1: sync vectored reads," << endl <<
 	    "                              2: async vectored reads, do not access the buffer," << endl <<
 	    "                              3: async vectored reads, copy the buffers" << endl <<
 	    "                                (makes it sync through async calls!)" << endl <<
 	    "  <inter_read_delay_ms> is the optional think time between reads." << endl <<
-	    "                        note: the think time will comsume cpu cycles, not sleep." << endl << endl;
-
+	    "                        note: the think time will comsume cpu cycles, not sleep." << endl <<
+	    " -DSparmname stringvalue" << endl <<
+	    "                        set the internal parm <parmname> with the string value <stringvalue>" << endl <<
+   	    "                         See XrdClientConst.hh for a list of parameters." << endl <<
+	    " -DIparmname intvalue" << endl <<
+            "                        set the internal parm <parmname> with the integer value <intvalue>" << endl <<
+            "                         See XrdClientConst.hh for a list of parameters." << endl <<
+	    "                         Examples: -DSSocks4Server 123.345.567.8 -DISocks4Port 8080 -DIDebugLevel 1" << endl;
 	exit(1);
     }
 
-    EnvPutInt( NAME_READAHEADSIZE, atol(argv[2]));
-    EnvPutInt( NAME_READCACHESIZE, atol(argv[3]));
-   
-    EnvPutInt( NAME_DEBUG, atol(argv[4]));
+    if (argc > 2)
+      EnvPutInt( NAME_READAHEADSIZE, atol(argv[2]));
 
-    if (argc >= 5)
+    if (argc >= 3)
+      EnvPutInt( NAME_READCACHESIZE, atol(argv[3]));
+   
+    
+
+    if (argc > 4)
 	vectored_style = atol(argv[5]);
 
-    if (argc >= 6)
+    if (argc > 5)
 	read_delay = atol(argv[6]);
+
+
+    // The other args, they have to be an even number!
+    if ((argc > 6) && !((argc-6) % 2))
+      for (int i=6; i < argc; i++) {
+
+	if ( (strstr(argv[i], "-DS") == argv[i]) &&
+	     (argc >= i+2) ) {
+	  cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << ". ";
+	  EnvPutString( argv[i]+3, argv[i+1] );
+	  cerr << " Final value: " << EnvGetString(argv[i]+3) << endl;
+	  i++;
+	  continue;
+	}
+
+	if ( (strstr(argv[i], "-DI") == argv[i]) &&
+	     (argc >= i+2) ) {
+	  cerr << "Overriding '" << argv[i]+3 << "' with value " << argv[i+1] << ". ";
+	  EnvPutInt( argv[i]+3, atoi(argv[i+1]) );
+	  cerr << " Final value: " << EnvGetLong(argv[i]+3) << endl;
+	  i++;
+	  continue;
+	}
+
+      }
+
 
     buf = malloc(50*1024*1024);
 
