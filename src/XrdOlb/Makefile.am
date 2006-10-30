@@ -27,7 +27,7 @@ olbd_SOURCES = \
         XrdOlbRTable.cc XrdOlbRTable.hh \
         XrdOlbServer.cc XrdOlbServer.hh   \
         XrdOlbState.cc XrdOlbState.hh \
-	XrdOlbXmiReq.cc XrdOlbXmiReq.hh
+	XrdOlbXmiReq.cc XrdOlbXmiReq.hh XrdOlbXmi.hh
 
 olbd_LDADD = ../XrdNet/libXrdNet.la \
              ../XrdOuc/libXrdOuc.la \

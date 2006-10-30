@@ -19,7 +19,8 @@ libXrdOdc_la_SOURCES = \
         XrdOdcConfig.cc XrdOdcConfig.hh XrdOdcConfDefs.hh \
         XrdOdcFinder.cc XrdOdcFinder.hh \
         XrdOdcManager.cc XrdOdcManager.hh \
-        XrdOdcMsg.cc XrdOdcMsg.hh XrdOdcTrace.hh
+        XrdOdcMsg.cc XrdOdcMsg.hh XrdOdcTrace.hh \
+        XrdOdcResp.cc XrdOdcResp.hh
 
 ## XrdOdcTest_SOURCES = XrdOdcTest.cc
 ## XrdOdcTest_LDADD = libXrdOdc.la \

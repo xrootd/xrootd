@@ -15,7 +15,7 @@ xrootdoucincdir = $(includedir)/xrootd/XrdOuc
 
 xrootdoucinc_HEADERS = XrdOucChain.hh XrdOucDLlist.hh XrdOucEnv.hh XrdOucErrInfo.hh \
                        XrdOucError.hh XrdOucName2Name.hh XrdOucHash.hh XrdOucLock.hh \
-                       XrdOucLogger.hh \
+                       XrdOucLogger.hh XrdOucMsubs.hh \
                        XrdOucNList.hh XrdOucPList.hh XrdOucPlatform.hh XrdOucPlugin.hh \
                        XrdOucProg.hh \
                        XrdOucPthread.hh XrdOucRash.hh XrdOucReqID.hh XrdOucSemWait.hh \
@@ -35,6 +35,7 @@ libXrdOuc_la_SOURCES = \
         XrdOucName2Name.cc XrdOucName2Name.hh \
         XrdOucHashVal.cc     \
         XrdOucLogger.cc XrdOucLogger.hh     \
+        XrdOucMsubs.cc XrdOucMsubs.hh \
         XrdOucNList.cc XrdOucNList.hh      \
         XrdOucPlatform.cc XrdOucPlatform.hh \
         XrdOucPlugin.cc XrdOucPlugin.hh \

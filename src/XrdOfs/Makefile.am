@@ -15,6 +15,7 @@ INCLUDES = -I$(top_srcdir)/src
 libXrdOfs_la_SOURCES = \
         XrdOfs.cc XrdOfs.hh XrdOfsSecurity.hh XrdOfsTrace.hh XrdOfs.icc \
         XrdOfsConfig.cc XrdOfsConfig.hh \
+        XrdOfsEvr.cc XrdOfsEvr.hh   \
         XrdOfsEvs.cc XrdOfsEvs.hh   \
         XrdOfsHandle.cc XrdOfsHandle.hh
 

@@ -16,6 +16,8 @@ bin_PROGRAMS = xrootd
 
 INCLUDES = -I$(top_srcdir)/src
 
+EXTRA_DIST = XrdXrootdStat.icc
+
 xrootd_SOURCES = \
         XrdXrootdAdmin.cc XrdXrootdAdmin.hh \
         XrdXrootdAio.cc XrdXrootdAio.hh       \
@@ -31,7 +33,7 @@ xrootd_SOURCES = \
         XrdXrootdResponse.cc XrdXrootdResponse.hh  \
         XrdXrootdStats.cc XrdXrootdStats.hh     \
         XrdXrootdXeq.cc        \
-        XrdXrootdXeqAio.cc XrdXrootdTrace.hh
+        XrdXrootdXeqAio.cc XrdXrootdTrace.hh XrdXrootdReqID.hh
 
 xrootd_LDADD = -ldl \
                   ../Xrd/libXrd.la \
