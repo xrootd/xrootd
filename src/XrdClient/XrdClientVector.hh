@@ -129,6 +129,8 @@ public:
     XrdClientVector(XrdClientVector &v):
 	rawdata(0), index(0) {
 
+        sizeof_t = (sizeof(T) + 3) >> 2 << 2;
+
 	Init();
 	BufRealloc(v.size);
 
