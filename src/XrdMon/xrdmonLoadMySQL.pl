@@ -5,11 +5,12 @@ use Fcntl;
 
 ###############################################################################
 #                                                                             #
-#                            loadRTDataToMySQL.pl                             #
+#                            xrdmonLoadMySQL.pl                               #
 #                                                                             #
 #  (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  #
 #                             All Rights Reserved                             #
-#        Produced by Jacek Becla for Stanford University under contract       #
+#                 Produced by Tofigh Azemoon and Jacek Becla                  #
+#                   for Stanford University under contract                    #
 #               DE-AC02-76SF00515 with the Department of Energy               #
 ###############################################################################
 
@@ -18,34 +19,33 @@ use Fcntl;
 
 # take care of arguments
 
-if ( @ARGV == 2 ) {
+if ( @ARGV == 3 ) {
     $configFile = $ARGV[0];
     $action = $ARGV[1];
+    $group = $ARGV[2];
 } else {
     &printUsage('start', 'stop');
-    exit;
 }
 
 if ( $action eq 'stop' ) {
     &readConfigFile($configFile, 'load', 0);
     $stopFName = "$baseDir/$0";
-    substr($stopFName,-2,2,'stop');
+    substr($stopFName,-2,2,"stop_$group");
     `touch  $stopFName`;
     exit;
 } elsif ( $action ne 'start') {
     &printUsage('start', 'stop');
-    exit;
 }
 
 # Start
 
 &readConfigFile($configFile, 'load', 1);
 
-&initLoad();
+# make sure load or prepare is not running for any of the sites in this group
+&checkActiveSites("load");
+&checkActiveSites("prepare");
 
-foreach $siteName (@siteNames) {
-    $firstCall{$siteName} = 1;
-}
+&initLoad();
 
 # and run the main never-ending loop
 while ( 1 ) {
@@ -59,10 +59,6 @@ while ( 1 ) {
     my $minSec1 = $localt[1]*60 + $localt[0];
 
     &doLoading();
-
-    if ( -e $stopFName ) {
-        &stopLoading();
-    }
 
     # ensure that time before and after loading aren't the same.
     @localt = localtime(time());
@@ -101,6 +97,9 @@ sub backupOneSite() {
                            
          $bkuptime = join "-", split(/ /, $loadTime);
          $backupFile = "$baseDir/$siteName/backup/${siteName}-${bkuptime}-GMT.backup";
+         if ( $backupUtil and -e $backupFiles{$siteName}) {
+             `$backupUtil $siteName $backupFiles{$siteName}`;
+         }
          $backupFiles{$siteName} = $backupFile
     } else {
          $backupFile = $backupFiles{$siteName}
@@ -109,10 +108,26 @@ sub backupOneSite() {
 
     # unlock the lock file
     unlockTheFile($lockF);
+    return 1;
+}
+sub checkActiveSites() {
+    ($application) = @_;
+    @activeList = ();
+    foreach $siteName (@siteNames) {
+        if ( -e "$baseDir/$siteName/journal/${application}Active" ) {
+            push @activeList, $siteName;
+        }
+    }
+    if ( @activeList > 0 ) {
+        print "$application is active for following sites: \n";
+        foreach $siteName (@siteNames) {
+            print "    $siteName \n";
+        }
+        die "Either stop prepare for above sites or do a clean up \n";
+    }
 }
 sub closeIdleSessions() {
-    # closes open sessions with no open files that have been
-    # open longer than $maxSessionIdleTime.
+    # closes opened sessions with no open files.
     # Assignments:
     # duration = MAX(closeT, connectT) - MIN(openT, connectT)
     # disconnectT = MAX(closeT, connectT)
@@ -124,8 +139,8 @@ sub closeIdleSessions() {
 
     my $cutOffDate = &runQueryWithRet("SELECT DATE_SUB('$GMTnow', INTERVAL $maxSessionIdleTime)");
 
-    # make temporary table of open sessions with no open files.
-    &runQuery("CREATE TEMPORARY TABLE os_no_of LIKE ${siteName}_openedSessions");
+    # os_no_of is temporary table of open sessions with no open files.
+    &runQuery("DELETE FROM os_no_of");
     my $noDone = &runQueryRetNum("INSERT INTO os_no_of
                                         SELECT os.*
                                           FROM        ${siteName}_openedSessions os
@@ -133,13 +148,11 @@ sub closeIdleSessions() {
                                                       ${siteName}_openedFiles of
                                             ON     os.id = of.sessionId
                                          WHERE of.id IS NULL");
-    if ( $noDone == 0 ) {
-        &runQuery("DROP TABLE IF EXISTS os_no_of");
-        return
-    }
+    return if ( $noDone == 0 );
 
-    &runQuery("CREATE TEMPORARY TABLE cs_no_of LIKE ${siteName}_closedSessions_LastHour");
-    # close sessions with closed files
+    &runQuery("DELETE FROM cs_no_of");
+    # cs_no_of is temporary table of closed sessions corresponding to os_no_of.
+    # case: with closed files
     my $n_cs_cf = 
         &runQueryRetNum("INSERT 
                            INTO cs_no_of
@@ -152,7 +165,7 @@ sub closeIdleSessions() {
                        GROUP BY os.id
                          HAVING maxT < '$cutOffDate' ");
 
-    # close sessions with no files
+    # case: with no files
     my $n_cs_no_f =
         &runQueryRetNum("INSERT 
                            INTO cs_no_of
@@ -166,11 +179,8 @@ sub closeIdleSessions() {
 
     &updateForClosedSessions("cs_no_of", $siteName, $GMTnow, $loadLastTables);
 
-    &runQuery("DROP TABLE IF EXISTS os_no_of");
-    &runQuery("DROP TABLE IF EXISTS cs_no_of");
     print "closed $n_cs_cf sessions with closed and $n_cs_no_f with no files\n"; 
 }
-
 sub closeInputFiles() {
     close OFILE;
     close UFILE;
@@ -186,8 +196,10 @@ sub closeInteruptedSessions() {
     # status = R
 
     my ($hostId, $siteName, $restartTime, $GMTnow, $loadLastTables) = @_;
-    &runQuery("CREATE TEMPORARY TABLE cs LIKE ${siteName}_closedSessions");
-    my $noDone = &runQueryRetNum("INSERT INTO cs
+
+    # cs_tmp is the temporary table of sessions closed due to xrootd restart on the host.
+    &runQuery("DELETE FROM cs_tmp");
+    my $noDone = &runQueryRetNum("INSERT INTO cs_tmp
                                        SELECT os.id, jobId, userId, pId, clientHId, serverHId,
                                               TIMESTAMPDIFF(SECOND,
                                                             LEAST(IFNULL(MIN(of.openT),'3'),
@@ -205,13 +217,10 @@ sub closeInteruptedSessions() {
                                         WHERE serverHId = $hostId
                                      GROUP BY os.id
                                        HAVING duration > 0 ");
-    if ( $noDone == 0 ) {
-        &runQuery("DROP TABLE IF EXISTS cs");
-        return
-    }
-    &updateForClosedSessions("cs", $siteName, $GMTnow, $loadLastTables);
+    return if ( $noDone == 0 );
+    
+    &updateForClosedSessions("cs_tmp", $siteName, $GMTnow, $loadLastTables);
 
-    &runQuery("DROP TABLE IF EXISTS cs");
     print " closed $noDone interupted sessions \n";
 }
 
@@ -228,9 +237,9 @@ sub closeLongSessions() {
     &printNow("Closing long sessions... ");
 
     my $cutOffDate = &runQueryWithRet("SELECT DATE_SUB('$GMTnow', INTERVAL $maxConnectTime)");
-    &runQuery("CREATE TEMPORARY TABLE IF NOT EXISTS cs LIKE ${siteName}_closedSessions_LastHour");
+    &runQuery("DELETE FROM cs_tmp");
     my $noDone =&runQueryRetNum("
-                 INSERT IGNORE INTO cs
+                 INSERT IGNORE INTO cs_tmp
                  SELECT os.id, jobId, userId, pId, clientHId, serverHId,
                         TIMESTAMPDIFF(SECOND,
                                       LEAST(IFNULL(MIN(cf.openT),'3'),
@@ -250,9 +259,8 @@ sub closeLongSessions() {
                GROUP BY os.id");
 
     if ( $noDone > 0 ) {
-        &updateForClosedSessions("cs", $siteName, $GMTnow, $loadLastTables);
+        &updateForClosedSessions("cs_tmp", $siteName, $GMTnow, $loadLastTables);
     }
-    &runQuery("DROP TABLE IF EXISTS cs");
     print "$noDone closed\n";
 }
 
@@ -262,13 +270,13 @@ sub closeOpenedFiles() {
     my ($siteName, $GMTnow, $loadLastTables) = @_;
 
     &printNow("Closing open files... ");
-    &runQuery("CREATE TEMPORARY TABLE xcf like ${siteName}_closedFiles");
+    &runQuery("DELETE FROM cf_tmp");
 
     # give it extra time: sometimes closeFile
     # info may arrive after the closeSession info
     # timeout on xrootd server is ~ 1min, so 10 min should suffice
     # This is the default value of $fileCloseWaitTime
-    &runQuery("INSERT IGNORE INTO xcf
+    &runQuery("INSERT IGNORE INTO cf_tmp
                  SELECT of.id,
                         of.sessionId,
                         of.pathId,
@@ -283,27 +291,26 @@ sub closeOpenedFiles() {
 
     &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles
                            SELECT * 
-                             FROM xcf");
+                             FROM cf_tmp");
 
     if ( $loadLastTables ) {
         foreach $period ( @periods ) {
             next if ( $period eq "Hour" );
             &runQuery("INSERT IGNORE INTO ${siteName}_closedFiles_Last$period
                        SELECT * 
-                         FROM xcf 
+                         FROM cf_tmp 
                         WHERE closeT > DATE_SUB('$GMTnow', INTERVAL 1 $period)");
 
         }
     } else {
         &runQuery("INSERT IGNORE INTO closedFiles
                    SELECT * 
-                    FROM xcf ");
+                    FROM cf_tmp ");
     }
  
     my $noDone =&runQueryRetNum("DELETE FROM  ${siteName}_openedFiles
-                                  USING ${siteName}_openedFiles, xcf
-                                  WHERE ${siteName}_openedFiles.id = xcf.id");
-    &runQuery("DROP TABLE xcf");
+                                  USING ${siteName}_openedFiles, cf_tmp
+                                  WHERE ${siteName}_openedFiles.id = cf_tmp.id");
     print " $noDone closed\n";
 }
 
@@ -314,19 +321,22 @@ sub doLoading {
     my $nr = 0;
     foreach $siteName (@siteNames) {
         my $jrnlDir = "$baseDir/$siteName/journal";
-        next if ( -e "$jrnlDir/inhibitLoading" );
+        next if ( -e "$jrnlDir/inhibitLoad" );
         if ( $firstCall{$siteName} ) {
             &initLoad4OneSite($siteName);
             `touch $jrnlDir/inhibitPrepare`;
-            `touch $jrnlDir/loadingActive`;
             &recoverLoad4OneSite($siteName);
             $firstCall{$siteName} = 0;
             `rm -f $jrnlDir/inhibitPrepare`;
             next;
         }
-        `touch $jrnlDir/loadingActive`;
-        &backupOneSite($siteName, $gmts);
-	$nr += &loadOneSite($siteName, $gmts, 1);
+        if (&backupOneSite($siteName, $gmts)) {
+	    $nr += &loadOneSite($siteName, $gmts, 1);
+        }
+        if ( -e $stopFName ) {
+            print "Last site: $siteName, processed $nr entries in this cycle.\n";
+            &stopLoading();
+        }
     }
 
     $ts = &timestamp();
@@ -438,9 +448,9 @@ sub findSessionId() {
     my $serverHostId = &findOrInsertHostId($srvHost, $siteName, 1);
 
     return &runQueryWithRet("SELECT id FROM ${siteName}_openedSessions 
-                                       WHERE userId=$userId          AND
-                                             pId=$pid                AND
+                                       WHERE pId=$pid                AND
                                              clientHId=$clientHostId AND
+                                             userId=$userId          AND
                                              serverHId=$serverHostId      ");
 }
 
@@ -544,7 +554,7 @@ sub initLoad() {
     # do the necessary one-time initialization
     
     $stopFName = "$baseDir/$0";
-    substr($stopFName,-2,2,'stop');
+    substr($stopFName,-2,2,"stop_$group");
     if ( -e $stopFName ) {
        unlink $stopFName;
     }
@@ -553,6 +563,19 @@ sub initLoad() {
         print "Error while connecting to database. $DBI::errstr\n";
         exit;
     }
+
+    foreach $siteName ( @siteNames ) {
+        unless ( &runQueryWithRet("SELECT id
+                                    FROM sites
+                                   WHERE name = '$siteName'")
+               ) {
+            die "Site $siteName not in the database \n";
+        }
+        unless ( -d "$baseDir/$siteName" ) {
+            die "directory $baseDir/$siteName does not exist \n";
+        }
+    }
+
 
     @periods = ( 'Hour', 'Day', 'Week', 'Month' );
     if ( $yearlyStats ) {push @periods, "Year";}
@@ -581,29 +604,43 @@ sub initLoad() {
         $fileTypeIds[$tId] = \%typeIds;
     }
     $fileTypeList = join ',' , @fileTypeList;
-    @siteNames = &runQueryRetArray("SELECT name FROM sites");
-
-    if ( ! -l "$baseDir/$thisSite/${thisSite}.ascii" ) {
-        `ln -s $baseDir/$thisSite/logs/rt/rtLog.txt $baseDir/$thisSite/${thisSite}.ascii`;
-    }
+    
     foreach $siteName ( @siteNames ) {
-        $jrnlDir = "$baseDir/$siteName/journal";
-        if ( -e "$jrnlDir/loadingActive" ) {
-            unlink "$jrnlDir/loadingActive";
+        if ( $siteName eq $thisSite and
+             ! -l "$baseDir/$thisSite/${thisSite}.ascii" ) {
+             `ln -s $baseDir/$thisSite/logs/rt/rtLog.txt $baseDir/$thisSite/${thisSite}.ascii`;
         }
-        if ( -e "$jrnlDir/inhibitPrepare" ) {
-            unlink "$jrnlDir/inhibitPrepare";
-        }
+        `touch "$baseDir/$siteName/journal/loadActive"`;
+        $firstCall{$siteName} = 1;
     }
+
+    # create temporary tables
+    &runQuery("CREATE TEMPORARY TABLE os_no_of LIKE ${thisSite}_openedSessions");
+    &runQuery("ALTER TABLE os_no_of MAX_ROWS = 65535");
+    &runQuery("CREATE TEMPORARY TABLE cs_no_of LIKE ${thisSite}_closedSessions");
+    &runQuery("ALTER TABLE cs_no_of MAX_ROWS = 65535");
+    &runQuery("CREATE TEMPORARY TABLE cs_tmp LIKE ${thisSite}_closedSessions");
+    &runQuery("ALTER TABLE cs_tmp MAX_ROWS = 65535");
+    &runQuery("CREATE TEMPORARY TABLE cf_tmp like ${thisSite}_closedFiles");
+    &runQuery("ALTER TABLE cf_tmp MAX_ROWS = 65535");
+    &runQuery("CREATE TEMPORARY TABLE job_no_os LIKE ${thisSite}_dormantJobs");
+    &runQuery("ALTER TABLE job_no_os MAX_ROWS = 65535");
+    &runQuery("CREATE TEMPORARY TABLE IF NOT EXISTS ns ( jobId INT UNSIGNED NOT NULL PRIMARY KEY,
+                                                           nos SMALLINT NOT NULL,
+                                                           INDEX(nos)                            )
+                                                           MAX_ROWS=65535                         ");
+    &runQuery("CREATE TEMPORARY TABLE closedSessions LIKE ${thisSite}_closedSessions");
+    &runQuery("ALTER TABLE closedSessions MAX_ROWS = 1000000");
+    &runQuery("CREATE TEMPORARY TABLE closedFiles LIKE ${thisSite}_closedFiles");
+    &runQuery("ALTER TABLE closedFiles MAX_ROWS = 1000000");
+    &runQuery("CREATE TEMPORARY TABLE finishedJobs LIKE ${thisSite}_finishedJobs");
+    &runQuery("ALTER TABLE finishedJobs MAX_ROWS = 1000000");
 }
+
 
 sub initLoad4OneSite() {
     my ($siteName) = @_;
     my $siteDir = "$baseDir/$siteName";
-    if ( ! -d "$siteDir" ) {
-        print "directory $siteDir does not exist \n";
-        exit;
-    }
     
     my $inFN = "$siteDir/$siteName.ascii";
     if ( -l $inFN ) {
@@ -613,9 +650,8 @@ sub initLoad4OneSite() {
         } else {
              $siteInputFiles{$siteName} = "$siteDir/$link";
         }
-        if ( ! -e $siteInputFiles{$siteName} ) {
-             print "Input file $siteInputFiles{$siteName} does not exist \n";
-             exit;
+        unless ( -e $siteInputFiles{$siteName} ) {
+            die "Input file $siteInputFiles{$siteName} does not exist \n";
         }
     } elsif ( -e  $inFN ) {
         $siteInputFiles{$siteName} = $inFN;
@@ -623,12 +659,24 @@ sub initLoad4OneSite() {
         print "Need to supply input file or link to it for site $siteName\n";
         exit;
     }
-    ($siteIds{$siteName}, $timeZones{$siteName}, $backupInt, $backupTime) =
-                         &runQueryWithRet("SELECT id, timezone, backupInt, backupTime
+    ($siteIds{$siteName}, $timeZones{$siteName}, $backupInt, $backupTime, $lastJobIds{$siteName}) =
+                         &runQueryWithRet("SELECT id, timezone, backupInt, backupTime, lastJobId
                                              FROM sites
                                             WHERE name = '$siteName'");
+    # check if lastJobId is most uptodate in case there was a program crash 
+    my $lastJobId = &runQueryWithRet("SELECT IFNULL(MAX(maxJobId),0)
+                                        FROM (SELECT IFNULL(MAX(jobId),0) maxJobId
+                                                FROM ${siteName}_runningJobs
+                                           UNION ALL
+                                              SELECT IFNULL(MAX(jobId),0)
+                                                FROM ${siteName}_dormantJobs
+                                             ) AS jobs ");
+    if ( $lastJobId > $lastJobIds{$siteName} ) {
+        $lastJobIds{$siteName} = $lastJobId
+    }
+
     if ( ! $backupInts{$siteName} ) {
-        $backupInts{$siteName} = $backupIntDef;
+        $backupInts{$siteName} = $backupInt;
     }
     if ( ! -d "$siteDir/journal" ) {
         mkdir "$siteDir/journal";
@@ -766,11 +814,17 @@ sub loadCloseFile() {
         if ( $version == 1 ) {
             $closeT = &runQueryWithRet("SELECT CONVERT_TZ('$closeT', '$timeZones{$siteName}', 'GMT') ");
         }
-
-        &runQuery("UPDATE ${siteName}_jobs   
-                      SET endT = GREATEST( '$closeT', endT)
-                    WHERE jobId = $jobId");
+         
+        # File close info may arrive after the last session close info and the job already be dormant.
+        my $nDone = &runQueryRetNum("UPDATE ${siteName}_runningJobs  
+                                        SET endT = GREATEST( '$closeT', endT)
+                                      WHERE jobId = $jobId");
         
+        if ( $nDone == 0 ) {
+             &runQuery("UPDATE ${siteName}_dormantJobs
+                           SET endT = GREATEST( '$closeT', endT)
+                         WHERE jobId = $jobId");
+        }
 
         # remove it from the open files table
         &runQuery("DELETE FROM ${siteName}_openedFiles WHERE id = $fileId");
@@ -792,14 +846,14 @@ sub loadCloseFile() {
         }
     } else {
         &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
-                   INTO TABLE closedFiles"); 
+                   INTO TABLE closedFiles");
     }
     print "$rows rows loaded \n";
     `rm -f $mysqlIn $inFile`;
 }
 
 sub loadCloseSession() {
-    my ($siteName, $version, $loadLastTables) = @_;
+    my ($siteName, $version, $loadTime, $loadLastTables) = @_;
 
     my $inFile = "$baseDir/$siteName/journal/dfile-V${version}.ascii";
     if ( -z $inFile ) {return;}
@@ -812,8 +866,8 @@ sub loadCloseSession() {
     while ( <INFILE> ) {
         chomp;
 
-        my ($d, $sessionId, $sec, $timestamp) = split('\t');
-        #print "d=$d, sId=$sessionId, sec=$sec, t=$timestamp\n";
+        my ($d, $sessionId, $sec, $disconnectT) = split('\t');
+        #print "d=$d, sId=$sessionId, sec=$sec, t=$disconnectT\n";
 
 
         # find if there is corresponding open session, if not don't bother
@@ -822,38 +876,22 @@ sub loadCloseSession() {
                              FROM ${siteName}_openedSessions
                              WHERE id = $sessionId");
         next if ( ! $pId  );
-        # update jobs table
         if ( $version == 1 ) {
-            $timestamp = &runQueryWithRet("SELECT CONVERT_TZ('$timestamp', '$timeZones{$siteName}', 'GMT') ");
+            $disconnectT = &runQueryWithRet("SELECT CONVERT_TZ('$disconnectT', '$timeZones{$siteName}', 'GMT') ");
         }
-        &runQuery("UPDATE ${siteName}_jobs  SET noOpenSessions = noOpenSessions - 1, 
-                                                beginT = LEAST(beginT, DATE_SUB('$timestamp', INTERVAL $sec SECOND)),
-                                                endT   = GREATEST(endT, '$timestamp')
-                                          WHERE jobId  = $jobId");
-        
-        # remove it from the open session table
-        &runQuery("DELETE FROM ${siteName}_openedSessions 
-                   WHERE id = $sessionId");
-
-        # and insert into the closed
         print MYSQLIN "$sessionId \t $jobId \t $userId \t $pId \t ";
-        print MYSQLIN "$clientHId \t $serverHId \t $sec \t $timestamp \n";
+        print MYSQLIN "$clientHId \t $serverHId \t $sec \t $disconnectT \n";
         $rows++;
     }
     close INFILE;
     close MYSQLIN;
 
-    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
-               INTO TABLE ${siteName}_closedSessions          ");
-    if ( $loadLastTables ) {
-        foreach $period ( @periods ) {
-            &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
-                       INTO TABLE ${siteName}_closedSessions_Last$period ");
-        }
-    } else {
-        &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn' IGNORE
-                   INTO TABLE closedSessions ");
-        }
+    &runQuery("DELETE FROM cs_tmp");
+    &runQuery("LOAD DATA LOCAL INFILE '$mysqlIn'
+               INTO TABLE cs_tmp      ");
+
+    &updateForClosedSessions("cs_tmp", $siteName, $loadTime, $loadLastTables);
+    
     print "$rows rows loaded \n";
     `rm -f $mysqlIn $inFile`;
 }
@@ -861,7 +899,6 @@ sub loadCloseSession() {
 
 sub loadOneSite() {
     my ($siteName, $loadTime, $loadLastTables) = @_;
-
     my $inFN  = "$baseDir/$siteName/journal/$siteName.ascii";
     # open the input file for reading
     unless ( open INFILE, "< $inFN" ) {
@@ -909,13 +946,14 @@ sub loadOneSite() {
         &loadOpenSession($siteName, $loadTime, $version);
         &loadOpenFile($siteName, $version);
         &loadCloseFile($siteName, $version, $loadLastTables);
-        &loadCloseSession($siteName, $version, $loadLastTables);
+        &loadCloseSession($siteName, $version, $loadTime, $loadLastTables);
         &loadXrdRestarts($siteName, $version, $loadTime, $loadLastTables );
     }
     # record loadTime in sites table
     &runQuery("UPDATE sites 
                   SET dbUpdate = '$loadTime'
                 WHERE name = '$siteName' ");
+    &moveFinishedJobs($siteName, $loadTime, $loadLastTables);
     print "$nr loaded, load time $loadTime \n";
     return $nr;
 }
@@ -952,10 +990,16 @@ sub loadOpenFile() {
             $openT = &runQueryWithRet("SELECT CONVERT_TZ('$openT', '$timeZones{$siteName}', 'GMT') ");
         }
         
-        &runQuery("UPDATE ${siteName}_jobs   
-                      SET beginT = LEAST( '$openT', beginT)
-                    WHERE jobId = $jobId");
+        my $nDone = &runQueryRetNum("UPDATE ${siteName}_runningJobs                            
+                                SET beginT = LEAST( '$openT', beginT)
+                              WHERE jobId = $jobId");
         
+        if ( $nDone == 0 ) {
+             &runQuery("UPDATE ${siteName}_dormantJobs
+                           SET beginT = LEAST( '$openT', beginT)
+                         WHERE jobId = $jobId");
+        }
+
         my $pathId = &findOrInsertPathId($path, $size);
         #print "$sessionId $pathId \n";
         if ( ! $pathId ) {
@@ -1000,23 +1044,40 @@ sub loadOpenSession() {
         my $clientHostId = &findOrInsertHostId($clientHost, $siteName, 2);
         my $serverHostId = &findOrInsertHostId($srvHost, $siteName, 1);
         my $jobId        = &runQueryWithRet("SELECT jobId 
-                                               FROM ${siteName}_jobs
-                                              WHERE userId    = $userId        AND
-                                                    pId       = $pid           AND
+                                               FROM ${siteName}_runningJobs
+                                              WHERE pId       = $pid           AND
                                                     clientHId = $clientHostId  AND
+                                                    userId    = $userId        AND
                                                     ( noOpenSessions > 0         OR
-                                                      '$connectT' <= DATE_ADD(endT, INTERVAL $maxJobIdleTime) )
+                                                         endT >= DATE_SUB('$connectT', INTERVAL $maxJobIdleTime) )
                                            ORDER BY jobId DESC
                                               LIMIT 1     ");
         if ( $jobId ) {
-            &runQuery("UPDATE ${siteName}_jobs   
+            &runQuery("UPDATE ${siteName}_runningJobs   
                           SET noOpenSessions = noOpenSessions + 1,
-                              beginT         = LEAST('$connectT', beginT)
-                        WHERE jobId = $jobId");
-        } else {
-            &runQuery("INSERT IGNORE INTO ${siteName}_jobs ( userId,  pId,  clientHId,   noOpenSessions, beginT,      endT    ) 
-                                   VALUES                  ($userId, $pid, $clientHostId,      1       ,'$connectT', '$connectT')");
-            $jobId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
+                              beginT         = LEAST( '$connectT', beginT)
+                        WHERE jobId = $jobId"); 
+        } else {           
+            $jobId       = &runQueryWithRet("SELECT jobId
+                                               FROM ${siteName}_dormantJobs
+                                              WHERE pId       = $pid           AND
+                                                    clientHId = $clientHostId  AND
+                                                    userId    = $userId        AND
+                                                        endT >= DATE_SUB('$connectT', INTERVAL $maxJobIdleTime  )
+                                           ORDER BY jobId DESC
+                                              LIMIT 1     ");
+            if ( $jobId ) {
+                 &runQuery("INSERT INTO ${siteName}_runningJobs 
+                                 SELECT $jobId, $userId, $pid, $clientHostId, 1, LEAST( '$connectT', beginT), GREATEST('$connectT', endT)
+                                   FROM ${siteName}_dormantJobs
+                                  WHERE jobId = $jobId");
+                 &runQuery("DELETE FROM ${siteName}_dormantJobs
+                                  WHERE jobId = $jobId");
+            } else {
+                 $jobId = ++$lastJobIds{$siteName};
+                 &runQuery("INSERT INTO ${siteName}_runningJobs  
+                                 VALUES ($jobId, $userId, $pid, $clientHostId, 1,'$connectT', '$connectT')");
+            }
         }
         #print "uid=$userId, chid=$clientHostId, shd=$serverHostId, jobId\n";
         print MYSQLIN "$sessionId \t  $jobId \t $userId \t $pid \t ";
@@ -1101,6 +1162,57 @@ sub makeUniqueFiles() {
        `sort -u +1 -2 $file > $tmpFile; mv -f $tmpFile $file`;
     }
 }
+sub moveFinishedJobs() {
+    my ($siteName, $loadTime, $loadLastTables) = @_;
+
+    if ( $lastJobIds{$siteName} ) {
+         &runQuery("UPDATE sites
+                       SET lastJobId = $lastJobIds{$siteName}
+                     WHERE name = '$siteName' ");
+    }
+
+    # temporary table job_no_os stores job with no open sessions.
+    &runQuery("DELETE FROM job_no_os");
+    my $nDone = &runQueryRetNum("INSERT INTO job_no_os
+                                 SELECT jobId, userId, pId, clientHId, beginT, endT 
+                                   FROM ${siteName}_runningJobs
+                                  WHERE noOpenSessions < 1 ");
+    if ( $nDone > 0 ) {
+        &runQuery("INSERT IGNORE INTO ${siteName}_dormantJobs
+                               SELECT *
+                                 FROM job_no_os ");
+        &runQuery("DELETE FROM ${siteName}_runningJobs rj
+                         USING ${siteName}_runningJobs rj, job_no_os j
+                         WHERE rj.jobId = j.jobId ");
+        &runQuery("DELETE FROM job_no_os");
+    }
+  
+    $nDone = &runQueryRetNum("INSERT INTO job_no_os
+                              SELECT *
+                                FROM ${siteName}_dormantJobs
+                               WHERE endT < DATE_SUB('$loadTime', INTERVAL $maxJobIdleTime)");
+    if ( $nDone > 0 ) {
+        &runQuery("INSERT IGNORE INTO ${siteName}_finishedJobs
+                               SELECT *
+                                 FROM job_no_os ");
+        &runQuery("DELETE FROM ${siteName}_dormantJobs dj
+                         USING ${siteName}_dormantJobs dj, job_no_os j
+                         WHERE dj.jobId = j.jobId ");
+
+        if ( $loadLastTables ) {
+            foreach $period ( @periods ) {
+                &runQuery("INSERT IGNORE INTO ${siteName}_finishedJobs_Last$period
+                                SELECT *
+                                  FROM job_no_os
+                                 WHERE endT > DATE_SUB('$loadTime', INTERVAL 1 $period) ");
+            }
+        } else {
+            &runQuery("INSERT IGNORE INTO finishedJobs
+                                   SELECT *
+                                     FROM job_no_os ");
+        }
+    }
+}
 sub openInputFiles() {
     my ($siteName, $version) = @_;
     my $jrnlDir = "$baseDir/$siteName/journal";
@@ -1121,7 +1233,7 @@ sub printNow() {
 
 sub printUsage() {
     $opts = join('|', @_);
-    die "Usage: $0 <configFile> $opts \n";
+    die "Usage: $0 <configFile> $opts <group number> \n";
 }     
 sub readConfigFile() {
     my ($confFile, $caller, $print) = @_;
@@ -1130,6 +1242,7 @@ sub readConfigFile() {
         exit;
     }
 
+    print "reading $confFile for group $group \n";
     $dbName = "";
     $mySQLUser = "";
     $webUser = "";
@@ -1137,6 +1250,7 @@ sub readConfigFile() {
     $thisSite = "";
     $ctrPort = 9930;
     $backupIntDef = "1 DAY";
+    $backupUtil = "";
     $fileCloseWaitTime = "10 MINUNTE";
     $maxJobIdleTime = "15 MINUNTE";
     $maxSessionIdleTime = "12 HOUR";
@@ -1146,15 +1260,19 @@ sub readConfigFile() {
     $closeLongSessionInt = "1 DAY";
     $mysqlSocket = '/tmp/mysql.sock';
     $nTopPerfRows = 20;
+    $maxRowsRunning = 500000;
+    $maxRowsDormant = 500000;
+    $maxRowsFinished = 1000000000;
+
     $yearlyStats = 0;
     $allYearsStats = 0;
     @flags = ('OFF', 'ON');
-    @sites = ();
+    @siteNames = ();
 
 
     while ( <INFILE> ) {
         chomp();
-        my ($token, $v1, $v2, $v3, $v4) = split;
+        my ($token, $v1, $v2, $v3, $v4, $v5) = split;
         if ( $token eq "dbName:" ) {
             $dbName = $v1;
         } elsif ( $token eq "MySQLUser:" ) {
@@ -1170,13 +1288,17 @@ sub readConfigFile() {
         } elsif ( $token eq "thisSite:" ) {
             $thisSite = $v1;
         } elsif ( $token eq "site:" ) {
-            push @sites, $v1;
-            $timezones{$v1} = $v2;
-            $firstDates{$v1} = "$v3 $v4";
+            if ( $v1 == $group or $group == 0 ) {
+                push @siteNames, $v2;
+                $timezones{$v2} = $v3;
+                $firstDates{$v2} = "$v4 $v5";
+            }
         } elsif ( $token eq "backupIntDef:" ) {
             $backupIntDef = "$v1 $v2";
         } elsif ( $token eq "backupInt:" ) {
             $backupInts{$v1} = "$v2 $v3";
+        } elsif ( $token eq "backupUtil:" ) {
+            $backupUtil = $v1;
         } elsif ( $token eq "fileType:" ) {
             push @fileTypes, $v1;
             $maxRowsTypes{$v1} = $v2;
@@ -1196,6 +1318,12 @@ sub readConfigFile() {
             $closeLongSessionInt = "$v1 $v2";
         } elsif ( $token eq "nTopPerfRows:" ) {
             $nTopPerfRows = $v1;
+        } elsif ( $token eq "maxRowsRunning:" ) {
+            $maxRowsRunning = $v1;
+        } elsif ( $token eq "maxRowsDormant:" ) {
+            $maxRowsDormant = $v1;
+        } elsif ( $token eq "maxRowsFinished:" ) {
+            $maxRowsFinished = $v1;
         } elsif ( $token eq "yearlyStats:" ) {
             if ( lc($v1) eq "on" ) {$yearlyStats = 1;}
         } elsif ( $token eq "allYearsStats:" ) {
@@ -1207,6 +1335,10 @@ sub readConfigFile() {
         }
     }
     close INFILE;
+    # make sure at least one site is selected
+    if ( $group > 0 and @siteNames == 0 ) {
+        die "ERROR: No sites in group $group";
+    }
     # check missing tokens
     @missing = ();
     # $baseDir required for all callers except create
@@ -1214,18 +1346,23 @@ sub readConfigFile() {
          push @missing, "baseDir";
     }
 
-    if ( $caller eq "collector" or $caller eq "create") {
-         if ( ! $thisSite) {
-            push @missing, "thisSite";    
-         }
-    } 
-    if ( $caller ne  "collector") {
+    if ( $caller ne "prepare" and ! $thisSite ) {
+        push @missing, "thisSite";
+    }
+    if ( $caller ne "collector" ) {
          if ( ! $dbName ) {push @missing, "dbName";}
          if ( ! $mySQLUser ) {push @missing, "MySQLUser";}
     }
 
+    if ( $caller eq  "load") {
+       if ( ! $backupUtil ) {
+           print "WARNING: NO BACKUP UTILITY FOUND IN CONFIG FILE \n";
+       } elsif ( ! -e $backupUtil ) {
+           die "backup utility $backupUtil not found \n";
+       }
+    } 
     if ( @missing > 0 ) {
-       print "Follwing tokens are missing from $confFile \n";
+       print "Following tokens are missing from $confFile \n";
        foreach $token ( @missing ) {
            print "    $token \n";
        }
@@ -1245,7 +1382,7 @@ sub readConfigFile() {
         if ( $caller eq "create" ) {
              print "  backupIntDef: $backupIntDef \n";
              print "  thisSite: $thisSite \n";
-             foreach $site ( @sites ) {
+              foreach $site ( @siteNames ) {
                  print "  site: $site \n";
                  print "     timeZone: $timezones{$site}  \n";
                  print "     firstDate: $firstDates{$site} \n";
@@ -1256,6 +1393,9 @@ sub readConfigFile() {
              foreach $fileType ( @fileTypes ) {
                  print "  fileType: $fileType $maxRowsTypes{$fileType} \n";
              }
+             print "  maxRowsRunning: $maxRowsRunning \n";
+             print "  maxRowsDormant: $maxRowsDormant \n";
+             print "  maxRowsFinished: $maxRowsFinished \n";
          } else {
              print "  baseDir: $baseDir \n";
              print "  fileCloseWaitTime: $fileCloseWaitTime \n";
@@ -1305,23 +1445,24 @@ sub recoverLoad4OneSite() {
                  $loadedSomething = 1;
              }
              if ( -e  "$jrnlDir/dfile-V${v}.ascii" ) {
-                 &loadCloseSession($siteName, $v, 1);
+                 &loadCloseSession($siteName, $v, $loadTime, 1);
              }
                  $loadedSomething = 1;
              if ( -e  "$jrnlDir/rfile-V${v}.ascii" ) {
                  &loadXrdRestarts($siteName, $v, $loadTime, 1);
                  $loadedSomething = 1;
              }
-         }
+        }
+        if ( $loadedSomething ) {
+             &runQuery("UPDATE sites
+                           SET dbUpdate = '$loadTime'
+                         WHERE name = '$siteName' ");
+             &moveFinishedJobs($siteName, $loadTime, 1);
+        }
     } else {
-         $nr += &loadOneSite($siteName, $loadTime, 1);
-         $loadedSomething = 1;
+        $nr += &loadOneSite($siteName, $loadTime, 1);
     }    
-    if ( $loadedSomething ) {
-         &runQuery("UPDATE sites 
-                       SET dbUpdate = '$loadTime'
-                     WHERE name = '$siteName' ");
-    }
+
     # backup the backlog file
     my $gmts = &gmtimestamp();
     &backupOneSite($siteName, $gmts);
@@ -1335,20 +1476,18 @@ sub recoverLoad4OneSite() {
         `touch $backlogFile; cat $inFN >> $backlogFile; rm -f $inFN`;
     }
 
-    # create temporary tables to store new closed files and sessions.
-    &runQuery("CREATE TEMPORARY TABLE closedSessions LIKE ${siteName}_closedSessions");
-    &runQuery("CREATE TEMPORARY TABLE closedFiles LIKE ${siteName}_closedFiles");
+    # temporary tables closedFiles and closedSessions store new closed files and sessions.
+    &runQuery("DELETE FROM closedSessions");
+    &runQuery("DELETE FROM closedFiles");
 
     &loadBigFile($siteName, $backlogFile); 
 
     &updateLastTables($siteName);
-    &runQuery("DROP TABLE IF EXISTS closedSessions");
-    &runQuery("DROP TABLE IF EXISTS closedFiles");
 
     `rm -f $backlogFile`;
     print "removed  $backlogFile \n";
     if ( -e $stopFName ) {
-        stopLoading;
+        &stopLoading();
     }
 }           
 sub returnHash() {
@@ -1417,12 +1556,13 @@ sub runQueryWithRet() {
     return $sth->fetchrow_array;
 }
 sub stopLoading() {
-     print "Detected $stopFName. Exiting... \n";
+     $ts = &timestamp();
+     print "$ts Detected $stopFName. Exiting... \n";
      unlink $stopFName;
      
      foreach $siteName (@siteNames) {
-         if ( -e "$baseDir/$siteName/journal/loadingActive" ) {
-             unlink "$baseDir/$siteName/journal/loadingActive";
+         if ( -e "$baseDir/$siteName/journal/loadActive" ) {
+             unlink "$baseDir/$siteName/journal/loadActive";
          }
          if ( -e "$baseDir/$siteName/journal/inhibitPrepare" ) {
              unlink "$baseDir/$siteName/journal/inhibitPrepare";
@@ -1450,9 +1590,9 @@ sub unlockTheFile() {
     fcntl($fh, F_SETLKW, $lk_parms);
 }
 sub updateForClosedSessions() {
-    my ($cs, $siteName, $loadTime, $loadLastTables) = @_;
+    my ($cs, $siteName,  $loadTime, $loadLastTables) = @_;
 
-    #insert contents of $cs table into closedSessions tables, delete them 
+    # insert contents of $cs table into closedSessions tables, delete them 
     # from openSession table and update the jobs table
 
     &runQuery("INSERT IGNORE INTO ${siteName}_closedSessions
@@ -1463,17 +1603,14 @@ sub updateForClosedSessions() {
                      USING ${siteName}_openedSessions os, $cs cs
                      WHERE os.id = cs.id ");
 
-    &runQuery("CREATE TEMPORARY TABLE IF NOT EXISTS ns ( jobId INT UNSIGNED NOT NULL PRIMARY KEY,
-                                                           nos SMALLINT NOT NULL,
-                                                           INDEX(nos)                            ) 
-                                                           MAX_ROWS=65535                         ");
-
+    # ns it the temporary table of noOpenSessions, nos, per jobId in table $cs.
+    &runQuery("DELETE FROM ns");
     &runQuery("INSERT INTO ns
                     SELECT jobId, count(jobId)
                       FROM $cs
                   GROUP BY jobId ");
 
-    &runQuery("UPDATE ${siteName}_jobs j, ns
+    &runQuery("UPDATE ${siteName}_runningJobs j, ns
                   SET noOpenSessions = noOpenSessions - nos
                 WHERE j.jobId = ns.jobId  ");
 
@@ -1490,7 +1627,7 @@ sub updateForClosedSessions() {
                                  FROM $cs ");
     }
 
-    &runQuery("DROP TABLE IF EXISTS ns");
+    &moveFinishedJobs($siteName, $loadTime, $loadLastTables);
 }
 sub updateLastTables() {
     my ($siteName) = @_;
@@ -1511,6 +1648,14 @@ sub updateLastTables() {
                    SELECT * 
                      FROM closedFiles
                     WHERE closeT >= DATE_SUB('$gmts', INTERVAL 1 $period) ");
+
+        &runQuery("DELETE FROM ${siteName}_finishedJobs_Last$period
+                    WHERE endT < DATE_SUB('$gmts', INTERVAL 1 $period) ");
+
+        &runQuery("INSERT IGNORE INTO ${siteName}_finishedJobs_Last$period
+                   SELECT *
+                     FROM finishedJobs
+                    WHERE endT >= DATE_SUB('$gmts', INTERVAL 1 $period) ");
      }
 }
 
