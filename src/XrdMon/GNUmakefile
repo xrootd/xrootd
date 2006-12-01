@@ -158,11 +158,11 @@ $(COLLECTOR):	$(OBJECTS_BIN_CTR) $(LIBRARY_CTR) \
 	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 		if [ "x$(SUNCACHE)" != "x" ]; then \
 			$(CC) -xar -o lib_temp.a $(OBJDIR)$(SUNCACHE)/*/*.o; \
-			$(CC) $(CFLAGS) $(LDOP) lib_temp.a $(LIBS) -o $@ $^; \
+			$(CC) $(CFLAGS) $(LDOP) lib_temp.a $(LIBS) -o $@ $^ -L$(LIBDIR) -lXrdSys; \
 			rm lib_temp.a; \
 		fi; \
 	else \
-		$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^; \
+		$(CC) $(CFLAGS) $(LDOP) $(LIBS) -o $@ $^ -L$(LIBDIR) -lXrdSys; \
 	fi
 $(DECODER):	$(OBJECTS_BIN_DEC) $(LIBRARY_DEC) $(LIBRARY_OUC) \
 	$(LIBRARY_COMMON) 
