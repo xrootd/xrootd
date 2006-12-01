@@ -830,7 +830,6 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    // Query client for the password; remote username and host
    // are specified in 'parm'. File '.rootnetrc' is checked. 
    EPNAME("getCredentials");
-   hs->ErrMsg = "";
 
    // If we are a server the only reason to be here is to get the forwarded
    // or saved client credentials
@@ -852,6 +851,8 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    if (!hs)
       return ErrC(ei,0,0,0,kPWErrError,
                   "handshake var container missing","getCredentials");
+   hs->ErrMsg = "";
+
    //
    // Nothing to do if buffer is empty
    if (!parm || !(parm->buffer) || parm->size <= 0)
