@@ -28,6 +28,7 @@
 #include <XrdSut/XrdSutCache.hh>
 
 #include <XrdCrypto/XrdCryptoMsgDigest.hh>
+#include <XrdCrypto/XrdCryptosslAux.hh>
 #include <XrdCrypto/XrdCryptosslgsiAux.hh>
 
 #include <XrdSecgsi/XrdSecProtocolgsi.hh>
@@ -264,10 +265,12 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    //
    // basic settings
    options  = opts;
+   srvMode = 0;
 
    //
    // Notify, if required
    if (Server) {
+      srvMode = 1;
       DEBUG("mode: server");
    } else {
       DEBUG("mode: client");
@@ -1089,7 +1092,32 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    // are specified in 'parm'. File '.rootnetrc' is checked. 
    EPNAME("getCredentials");
 
-   // Handshake vars conatiner must be initialized at this point
+   // If we are a server the only reason to be here is to get the forwarded
+   // or saved client credentials
+   if (srvMode) {
+      XrdSecCredentials *creds = 0;
+      if (proxyChain) {
+         // Export the proxy chain into a bucket
+         XrdCryptoX509ExportChain_t ExportChain = sessionCF->X509ExportChain();
+         if (ExportChain) {
+            XrdSutBucket *bck = (*ExportChain)(proxyChain, 1);
+            if (bck) {
+               // We need to duplicate it because XrdSecCredentials uses
+               // {malloc, free} instead of {new, delete}
+               char *nbuf = (char *) malloc(bck->size);
+               if (nbuf) {
+                  memcpy(nbuf, bck->buffer, bck->size);
+                  // Import the buffer in a XrdSecCredentials object
+                  creds = new XrdSecCredentials(nbuf, bck->size);
+               }
+               delete bck;
+            }
+         }
+      }
+      return creds;
+   }
+
+   // Handshake vars container must be initialized at this point
    if (!hs)
       return ErrC(ei,0,0,0,kGSErrError,
                   "handshake var container missing","getCredentials");
@@ -3480,6 +3508,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          }
       }
    }
+
    //
    // We do not have good proxies, try load (user may have initialized
    // them in the meanwhile)
@@ -3490,9 +3519,11 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       DEBUG("cannot create new chain!");
       return -1;
    }
-   int ntry = 2;
+   int ntry = 3;
    bool parsefile = 1;
+   bool chainfromfile = 0;
    XrdCryptoX509ParseFile_t ParseFile = 0;
+   XrdCryptoX509ParseBucket_t ParseBucket = 0;
    while (!hasproxy && ntry > 0) {
 
       // Try init as last option
@@ -3515,19 +3546,48 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       }
       ntry--;
 
-      if (parsefile) {
-         if (!ParseFile) {
-            if (!(ParseFile = cf->X509ParseFile())) {
-               DEBUG("cannot attach to ParseFile function!");
+      //
+      // A proxy chain may have been passed via XrdSecCREDS: check that first
+      if (ntry == 2) {
+
+         char *cbuf = getenv("XrdSecCREDS");
+         if (cbuf) {
+            // Import into a bucket
+            po->cbck = new XrdSutBucket(0, 0, kXRS_x509);
+            // Fill bucket
+            po->cbck->SetBuf(cbuf, strlen(cbuf));
+            // Parse the bucket
+            if (!(ParseBucket = cf->X509ParseBucket())) {
+               DEBUG("cannot attach to ParseBucket function!");
                continue;
             }
+            int nci = (*ParseBucket)(po->cbck, po->chain);
+            if (nci < 2) {
+               DEBUG("proxy bucket must have at least two certificates"
+                     " (found: "<<nci<<")");
+               continue;
+            }
+         } else {
+            // No env: parse the file
+            ntry--;
          }
-         // Parse the proxy file
-         int nci = (*ParseFile)(pi->out, po->chain);
-         if (nci < 2) {
-            DEBUG("proxy files must have at least two certificates"
-                  " (found: "<<nci<<")");
-            continue;
+      }
+      if (ntry == 1) {
+         if (parsefile) {
+            if (!ParseFile) {
+               if (!(ParseFile = cf->X509ParseFile())) {
+                  DEBUG("cannot attach to ParseFile function!");
+                  continue;
+               }
+            }
+            // Parse the proxy file
+            int nci = (*ParseFile)(pi->out, po->chain);
+            if (nci < 2) {
+               DEBUG("proxy files must have at least two certificates"
+                     " (found: "<<nci<<")");
+               continue;
+            }
+            chainfromfile = 1;
          }
       }
 
@@ -3557,10 +3617,12 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       }
 
       // Create bucket for export
-      po->cbck = (*ExportChain)(po->chain);
-      if (!(po->cbck)) {
-         DEBUG("could not create bucket for export");
-         continue;
+      if (chainfromfile) {
+         po->cbck = (*ExportChain)(po->chain, 0);
+         if (!(po->cbck)) {
+            DEBUG("could not create bucket for export");
+            continue;
+         }
       }
 
       // Get attach an entry in cache

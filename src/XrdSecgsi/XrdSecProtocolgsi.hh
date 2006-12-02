@@ -293,6 +293,7 @@ private:
    XrdCryptoRSA    *sessionKsig;   // RSA key to sign
    XrdCryptoRSA    *sessionKver;   // RSA key to verify
    X509Chain       *proxyChain;    // Chain with the delegated proxy on servers
+   bool             srvMode;       // TRUE if server mode 
 
    // Temporary Handshake local info
    gsiHSVars     *hs;
