@@ -53,11 +53,10 @@ typedef bool (*XrdCryptoX509VerifyCert_t)(XrdCryptoX509 *c, XrdCryptoX509 *r);
 typedef bool (*XrdCryptoX509VerifyChain_t)(XrdCryptoX509Chain *chain,
                                            int &errcode);
 // chain export
-typedef XrdSutBucket *(*XrdCryptoX509ExportChain_t)(XrdCryptoX509Chain *chain);
+typedef XrdSutBucket *(*XrdCryptoX509ExportChain_t)(XrdCryptoX509Chain *, bool);
 
 // chain to file
-typedef int (*XrdCryptoX509ChainToFile_t)(XrdCryptoX509Chain *chain,
-                                          const char *filename);
+typedef int (*XrdCryptoX509ChainToFile_t)(XrdCryptoX509Chain *, const char *);
 
 // certificates from file parsing
 typedef int (*XrdCryptoX509ParseFile_t)(const char *fname,

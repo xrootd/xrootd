@@ -35,7 +35,7 @@ bool XrdCryptosslX509VerifyCert(XrdCryptoX509 *c, XrdCryptoX509 *r);
 // chain verification
 bool XrdCryptosslX509VerifyChain(XrdCryptoX509Chain *chain, int &errcode);
 // chain export to bucket
-XrdSutBucket *XrdCryptosslX509ExportChain(XrdCryptoX509Chain *chain);
+XrdSutBucket *XrdCryptosslX509ExportChain(XrdCryptoX509Chain *c, bool key = 0);
 // chain export to file (proxy file creation)
 int XrdCryptosslX509ChainToFile(XrdCryptoX509Chain *c, const char *fn);
 // certificates from file parsing
