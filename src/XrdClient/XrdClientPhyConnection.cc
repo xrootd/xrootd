@@ -658,8 +658,8 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
    writeres = WriteRaw(&initHS, len, substreamid);
 
    if (writeres < 0) {
-      Error("DoHandShake", "Error sending " << len <<
-	    " bytes.");
+      Info(XrdClientDebug::kNODEBUG,"DoHandShake", "Failed to send " << len <<
+	    " bytes. Retrying ...");
 
       return kSTError;
    }
@@ -680,8 +680,8 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
 		     len, substreamid); // Reads 4(2+2) bytes
                
    if (readres < 0) {
-      Error("DoHandShake", "Error reading " << len <<
-	    " bytes.");
+      Info(XrdClientDebug::kNODEBUG, "DoHandShake", "Failed to read " << len <<
+	    " bytes. Retrying ...");
 
       return kSTError;
    }

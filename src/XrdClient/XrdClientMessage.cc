@@ -143,8 +143,8 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
       if (readres == TXSOCK_ERR_TIMEOUT)
          SetStatusCode(kXrdMSC_timeout);
       else {
-         Error("XrdClientMessage::ReadRaw",
-	       "Error reading header (" << readLen << " bytes)");
+         Info(XrdClientDebug::kNODEBUG,"XrdClientMessage::ReadRaw",
+	       "Failed to read header (" << readLen << " bytes). Retrying ...");
          SetStatusCode(kXrdMSC_readerr);
 
       }
@@ -169,8 +169,8 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
       CreateData();
       if (phy->ReadRaw(fData, fHdr.dlen, usedsubstreamid) < 0) {
 
-         Error("XrdClientMessage::ReadRaw",
-               "Error reading data (" << fHdr.dlen << " bytes) from substream " << usedsubstreamid);
+         Info(XrdClientDebug::kNODEBUG,"XrdClientMessage::ReadRaw",
+	      "Failed to read data (" << fHdr.dlen << " bytes) from substream " << usedsubstreamid<< ". Retrying ...");
 
          free( DonateData() );
 

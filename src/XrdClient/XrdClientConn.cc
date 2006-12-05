@@ -897,9 +897,8 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
 	fLastDataBytesRecv = Xmsg ? Xmsg->DataLen() : 0;
 
 	if ( !Xmsg || (Xmsg->IsError()) ) {
-	    Error("ReadPartialAnswer", "Error reading msg from connmgr"
-		  " (server [" << 
-		  fUrl.Host << ":" << fUrl.Port << "]).");
+	    Info(XrdClientDebug::kNODEBUG, "ReadPartialAnswer", "Failed to read msg from connmgr"
+		  " (server [" << fUrl.Host << ":" << fUrl.Port << "]). Retrying ...");
 
 	    if (HasToAlloc) {
 		if (*tmpMoreData)
