@@ -307,6 +307,10 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len, int substreamid,
 			   int *usedsubstreamid) {
    // Receive 'len' bytes from the connected server and store them in 'buf'.
    // Return 0 if OK. 
+   // If substreamid = -1 then
+   //  gets length bytes from any par socket, and returns the usedsubstreamid
+   //   where it got the bytes from
+   // Otherwise read bytes from the specified substream. 0 is the main one.
 
    int res;
 
@@ -357,7 +361,7 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len, int substreamid,
 	  }
 
 	  Info(XrdClientDebug::kHIDEBUG,
-	       "ReadRaw", "Read " << res <<  "bytes. Dump:" << endl << s );
+	       "ReadRaw", "Read " << res <<  "bytes. Dump:" << endl << s << endl);
 
       }
 
@@ -561,6 +565,7 @@ int XrdClientPhyConnection::WriteRaw(const void *buf, int len, int substreamid) 
     // Return number of bytes sent.
     // usesubstreams tells if we have to select a substream to send the data through or
     // the main stream is to be used
+    // substreamid == 0 means to use the main stream
 
    int res;
 

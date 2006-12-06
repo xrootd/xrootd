@@ -74,7 +74,7 @@ public:
    virtual ~XrdClientPSock();
 
     // Gets length bytes from the parsockid socket
-    // If parsockid = -1 then
+    // If substreamid = -1 then
     //  gets length bytes from any par socket, and returns the usedsubstreamid
     //   where it got the bytes from
     virtual int    RecvRaw(void* buffer, int length, int substreamid = -1,
@@ -82,7 +82,7 @@ public:
 
 
     // Send the buffer to the specified substream
-    // if substreamid <= 0 then use the main socket
+    // if substreamid == 0 then use the main socket
     virtual int    SendRaw(const void* buffer, int length, int substreamid = 0);
 
     virtual void   TryConnect(bool isUnix = 0);

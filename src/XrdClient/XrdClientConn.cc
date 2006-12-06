@@ -750,7 +750,8 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
 
 	short len = sizeof(req->header);
 
-	int writeres = ConnectionManager->WriteRaw(LogConnID, &req_netfmt, len, substreamid);
+	// A request header is always sent through the main stream
+	int writeres = ConnectionManager->WriteRaw(LogConnID, &req_netfmt, len, 0);
 	fLastDataBytesSent = req->header.dlen;
   
 	// A complete communication failure has to be handled later, but we
@@ -770,6 +771,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
 
 	    // Now we write the data associated to the request. Through the
 	    //  connection manager
+	    // the data chunk can be sent through a parallel stream
 	    writeres = ConnectionManager->WriteRaw(LogConnID, reqMoreData,
 						   req->header.dlen, substreamid);
     
@@ -965,8 +967,9 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
 		    Info (XrdClientDebug::kDUMPDEBUG, "ReadPartialAnswer","Dumping read data...");
 		    for(int jj = 0; jj < Xmsg->DataLen(); jj++) {
 			printf("0x%.2x ", *( ((kXR_char *)Xmsg->GetData()) + jj ) );
-			if ( !(jj % 10) ) printf("\n");
+			if ( !((jj+1) % 10) ) printf("\n");
 		    }
+		    printf("\n\n");
 		}
 		TotalBlkSize += Xmsg->DataLen();
 	

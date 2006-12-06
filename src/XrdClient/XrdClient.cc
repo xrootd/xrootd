@@ -842,7 +842,8 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
     openFileRequest.header.requestid = kXR_open;
 
     // Now set the options field basing on user's requests
-    openFileRequest.open.options = options;
+    // We want also to avoid an explicit stat request
+    openFileRequest.open.options = options | kXR_retstat;
 
     // Set the open mode field
     openFileRequest.open.mode = mode;
@@ -863,7 +864,21 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 	fOpenPars.opened = TRUE;
 	fOpenPars.options = options;
 	fOpenPars.mode = mode;
-    
+
+	if (fConnModule->LastServerResp.dlen > 12) {
+	  // Get the stats
+	  Info(XrdClientDebug::kHIDEBUG,
+	       "Open", "Returned stats=" << (char *)openresp.info);
+
+	  sscanf((char *)openresp.info, "%ld %lld %ld %ld",
+		 &fStatInfo.id,
+		 &fStatInfo.size,
+		 &fStatInfo.flags,
+		 &fStatInfo.modtime);
+
+	  fStatInfo.stated = true;
+	}
+
     }
 
 
