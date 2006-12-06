@@ -719,6 +719,8 @@ void PrintUsage() {
    cerr << "usage: xrdcp <source> <dest> "
      "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5]" << endl;
    cerr << " -d lvl :         debug level: 1 (low), 2 (medium), 3 (high)" << endl;
+   cerr << " -D proxyaddr:proxyport" << endl <<
+           "        :         use proxyaddr:proxyport as a SOCKS4 proxy. Only numerical addresses are supported." << endl <<
    cerr << " -DSparmname stringvalue" << endl <<
 	   "        :         set the internal parm <parmname> with the string value <stringvalue>" << endl <<
 	   "                   See XrdClientConst.hh for a list of parameters." << endl;
@@ -815,7 +817,8 @@ int main(int argc, char**argv) {
 	 EnvPutInt( NAME_FIRSTCONNECTMAXCNT, 7*24*60);
 	 continue;
       }
-      
+
+
       if ( (strstr(argv[i], "-DS") == argv[i]) &&
 	   (argc >= i+2) ) {
 	cerr << "Overriding " << argv[i]+3 << " with value " << argv[i+1] << ". ";
@@ -833,6 +836,38 @@ int main(int argc, char**argv) {
 	 i++;
 	 continue;
       }
+
+
+      if ( (strstr(argv[i], "-D") == argv[i]) &&
+	   (argc >= i+2) ) { 
+
+	char host[1024];
+	char *pos;
+	int port;
+
+	pos = strstr(argv[i+1], ":");
+
+	if (pos && strlen(pos) > 1) {
+
+	  cerr << "Using '" << argv[i+1] << "' as a SOCKS4 proxy.";
+	  strncpy(host, argv[i+1], pos-argv[i+1]);
+	  host[pos-argv[i+1]] = 0;
+
+	  sscanf(pos+1, "%d", &port);
+
+	  cerr << " Host:" << host << " port: " << port << endl;
+	  EnvPutString( NAME_SOCKS4HOST, host);
+	  EnvPutInt( NAME_SOCKS4PORT, port);
+	}
+	else {
+	  cerr << "Malformed -D option." << endl;
+	  exit(-1);
+	}
+
+	i++;
+	continue;
+      }
+
 
       if ( (strstr(argv[i], "-d") == argv[i]) &&
            (argc >= i+2) ) {
