@@ -784,7 +784,7 @@ sub loadStatsLastHour() {
     if ( &getLastInsertTime($loadTime, "Hour") gt $dbUpdates{$siteName} ) {return;}
 
     ($noJobs, $noUsers) = &runQueryWithRet("SELECT COUNT(jobId), COUNT(DISTINCT userId) 
-                                              FROM ${siteName}_runningJobss
+                                              FROM ${siteName}_runningJobs
                                              WHERE noOpensessions > 0 ");
 
     ($noUniqueF, $noNonUniqueF) = &runQueryWithRet("SELECT COUNT(DISTINCT pathId), COUNT(*) 
