@@ -16,7 +16,6 @@ use Fcntl;
 
 # $Id$
 
-
 # take care of arguments
 
 if ( @ARGV == 3 ) {
@@ -346,7 +345,7 @@ sub doLoading {
 sub findOrInsertHostId() {
     my ($hostName, $siteName, $hostType) = @_;
 
-    my $hostId = $hostIds{$hostName};
+    my $hostId = $siteName_$hostIds{$hostName};
     if ( $hostId ) {
         return $hostId;
     }
@@ -362,7 +361,7 @@ sub findOrInsertHostId() {
 
 	$hostId = &runQueryWithRet("SELECT LAST_INSERT_ID()");
     }
-    $hostIds{$hostName} = $hostId;
+    $siteName_$hostIds{$hostName} = $hostId;
     return $hostId;
 }
 sub findOrInsertPathId() {
@@ -1110,19 +1109,13 @@ sub loadXrdRestarts() {
         chomp;
         my ($r, $hostName, $timestamp) = split('\t');
 
-        my $hostId = $hostIds{$hostName};
-        if ( ! $hostId ) {
-            $hostId = &runQueryWithRet("SELECT id
-                                        FROM ${siteName}_hosts
-                                        WHERE hostName = '$hostName'");
-	}
-        if ( ! $hostId ) {
-            print "WARNING: No entry for host name $hostName at $siteName\n";
-	    next;
-	}
-        &runQuery("INSERT IGNORE INTO xrdRestarts(hostId, siteId, startT)
-                   VALUES ($hostId, $siteId, '$timestamp')");
-        &closeInteruptedSessions($hostId, $siteName, $timestamp, $GMTnow, $loadLastTables);
+        my $hostId = &findOrInsertHostId($hostName, $siteName, 1);
+
+        my $nDone = &runQueryRetNum("INSERT IGNORE INTO xrdRestarts( hostId,  siteId,   startT)
+                                                            VALUES ($hostId, $siteId, '$timestamp')");
+        if ( $nDone == 1 ) {
+            &closeInteruptedSessions($hostId, $siteName, $timestamp, $GMTnow, $loadLastTables);
+        }
     }
     `rm -f $inFile`;
 }
@@ -1156,6 +1149,10 @@ sub makeUniqueFiles() {
     use vars qw($file $type);
     my ($siteName, $version) = @_;
     my $tmpFile = "$baseDir/$siteName/journal/tmp";
+    my $file = "$baseDir/$siteName/journal/rfile-V${version}.ascii";
+    if ( ! -z $file) {
+        `sort -u  > $tmpFile; mv -f $tmpFile $file`;
+    }
     foreach $type ( 'ofile', 'ufile', 'dfile', 'cfile' ) {
        $file = "$baseDir/$siteName/journal/${type}-V${version}.ascii";
        next if ( -z $file);
