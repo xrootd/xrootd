@@ -716,7 +716,6 @@ int XrdOucString::replace(const char *s1, const char *s2, int from, int to)
          }
          dl = nr*dd;
       }
-      str[len] = 0;
    }
 
    // Variation of string length
