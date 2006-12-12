@@ -469,7 +469,7 @@ struct ServerResponseHeader {
 
 // Body for the kXR_bind response... useful
 struct ServerResponseBody_Bind {
-    kXR_unt16 substreamid;
+    kXR_char substreamid;
 };
 
 // Body for the kXR_open response... useful
@@ -477,6 +477,7 @@ struct ServerResponseBody_Open {
    kXR_char fhandle[4];
    kXR_int32 cpsize;
    kXR_char cptype[4];
+   kXR_char info[1024];
 };
 
 // Body for the kXR_protocol response... useful
