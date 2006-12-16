@@ -57,11 +57,13 @@ void          DoIt();
 int           FDnum() {return FD;}
 
 static XrdLink *fd2link(int fd)
-                {if (fd < 0) fd = -fd; return (LinkBat[fd] ? LinkTab[fd] : 0);}
+                {if (fd < 0) fd = -fd; 
+                 return (fd <= LTLast && LinkBat[fd] ? LinkTab[fd] : 0);
+                }
 
 static XrdLink *fd2link(int fd, unsigned int inst)
                 {if (fd < 0) fd = -fd; 
-                 if (LinkBat[fd] && LinkTab[fd] 
+                 if (fd <= LTLast && LinkBat[fd] && LinkTab[fd]
                  && LinkTab[fd]->Instance == inst) return LinkTab[fd];
                  return (XrdLink *)0;
                 }
@@ -80,6 +82,8 @@ static XrdLink *Find(int &curr, XrdLinkMatch *who=0);
 static int    getName(int &curr, char *bname, int blen, XrdLinkMatch *who=0);
 
 XrdProtocol  *getProtocol() {return Protocol;} // opmutex must be locked
+
+void          Hold(int lk) {(lk ? opMutex.Lock() : opMutex.UnLock());}
 
 char         *ID;      // This is referenced a lot
 

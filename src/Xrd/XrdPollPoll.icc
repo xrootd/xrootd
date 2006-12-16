@@ -193,6 +193,7 @@ void XrdPollPoll::Disable(XrdLink *lp, const char *etxt)
 // Send a disable request to the poller thread handling this link. We need to
 // wait until the operation is actually completed before returning.
 //
+   memset(&cmdbuff, 0, sizeof(cmdbuff));
    cmdbuff[0].req           = PipeData::DiFD;
    cmdbuff[0].Parms.Arg.fd  = lp->FD;
    cmdbuff[0].Parms.Arg.ent = lp->PollEnt - PollTab;
