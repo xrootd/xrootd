@@ -852,7 +852,8 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
     // Send a kXR_open request in order to open the remote file
     ClientRequest openFileRequest;
 
-    struct ServerResponseBody_Open *openresp;
+    char buf[1024];
+    struct ServerResponseBody_Open *openresp = (struct ServerResponseBody_Open *)buf;;
 
     memset(&openFileRequest, 0, sizeof(openFileRequest));
 
@@ -874,7 +875,7 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
     // Send request to server and receive response
     bool resp = fConnModule->SendGenCommand(&openFileRequest,
 					    (const void *)finalfilename.c_str(),
-					    (void **)&openresp, 0, true, (char *)"Open");
+					    0, openresp, false, (char *)"Open");
 
     if (resp) {
 	// Get the file handle to use for future read/write...
@@ -887,16 +888,15 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 	if (fConnModule->LastServerResp.dlen > 12) {
 	  // Get the stats
 	  Info(XrdClientDebug::kHIDEBUG,
-	       "Open", "Returned stats=" << (char *)openresp + sizeof(openresp));
+	       "Open", "Returned stats=" << ((char *)openresp + sizeof(struct ServerResponseBody_Open)));
 
-	  sscanf((char *)openresp + sizeof(openresp), "%ld %lld %ld %ld",
+	  sscanf((char *)openresp + sizeof(struct ServerResponseBody_Open), "%ld %lld %ld %ld",
 		 &fStatInfo.id,
 		 &fStatInfo.size,
 		 &fStatInfo.flags,
 		 &fStatInfo.modtime);
 
 	  fStatInfo.stated = true;
-          free(openresp);
 	}
 
     }
