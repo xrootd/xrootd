@@ -38,6 +38,7 @@
 #define XRD_LOGGEDIN       1
 #define XRD_NEED_AUTH      2
 #define XRD_ADMINUSER      4
+#define XRD_BOUNDPATH      8
 
 #ifndef __GNUC__
 #define __attribute__(x)
@@ -94,6 +95,7 @@ private:
 
        int   do_Admin();
        int   do_Auth();
+       int   do_Bind();
        int   do_Chmod();
        int   do_CKsum(int canit);
        int   do_Close();
@@ -103,6 +105,8 @@ private:
        int   do_Login();
        int   do_Mkdir();
        int   do_Mv();
+       int   do_Offload(int pathID, int isRead);
+       int   do_OffloadIO();
        int   do_Open();
        int   do_Ping();
        int   do_Prepare();
@@ -113,7 +117,7 @@ private:
        int   do_Read();
        int   do_ReadV();
        int   do_ReadAll();
-       int   do_ReadNone(int &retc);
+       int   do_ReadNone(int &retc, int &pathID);
        int   do_Rm();
        int   do_Rmdir();
        int   do_Set();
@@ -255,6 +259,30 @@ static int                 hcMax;
        int                 hcNext;
        int                 hcNow;
        int                 halfBSize;
+
+// This area is used for parallel streams
+//
+static const int           maxStreams = 16;
+XrdOucMutex                streamMutex;
+XrdOucSemaphore           *reTry;
+XrdXrootdProtocol         *Stream[maxStreams];
+unsigned int               mySID;
+char                       isActive;
+char                       isDead;
+char                       isBound;
+char                       isNOP;
+
+static const int           maxStreamOP = 2;
+struct {XrdXrootdFile     *myFile;
+        long long          myOffset;
+        int                myIOLen;
+        kXR_char           StreamID[2];
+        char               isWrite;
+       }                   StreamOP[maxStreamOP];
+
+short                      lastOP;
+char                       pendOP;
+char                       doWrite;
 
 // Buffers to handle client requests
 //

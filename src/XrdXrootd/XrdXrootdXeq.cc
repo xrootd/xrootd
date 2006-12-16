@@ -56,12 +56,12 @@ struct XrdXrootdFHandle
        };
 
 struct XrdXrootdSessID
-       {unsigned int       rsvd;
+       {unsigned int       Sid;
                  int       Pid;
                  int       FD;
         unsigned int       Inst;
 
-        XrdXrootdSessID() {rsvd = 0;}
+        XrdXrootdSessID() {}
        ~XrdXrootdSessID() {}
        };
 
@@ -146,6 +146,101 @@ int XrdXrootdProtocol::do_Auth()
    eText = eMsg.getErrText(rc);
    eDest.Emsg("Xeq", "User authentication failed;", eText);
    return Response.Send(kXR_NotAuthorized, eText);
+}
+
+/******************************************************************************/
+/*                               d o _ B i n d                                */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_Bind()
+{
+   XrdXrootdSessID *sp = (XrdXrootdSessID *)Request.bind.sessid;
+   XrdXrootdProtocol *pp;
+   XrdLink *lp;
+   int i, pPid, rc;
+   char buff[64], *cp, *dp;
+
+// Update misc stats count
+//
+   UPSTATS(miscCnt);
+
+// Find the link we are to bind to
+//
+   if (sp->FD <= 0 || !(lp = XrdLink::fd2link(sp->FD, sp->Inst)))
+      return Response.Send(kXR_NotFound, "session not found");
+
+// The link may have escaped so we need to hold this link and try again
+//
+   lp->Hold(1);
+   if (lp != XrdLink::fd2link(sp->FD, sp->Inst))
+      {lp->Hold(0);
+       return Response.Send(kXR_NotFound, "session just closed");
+      }
+
+// Get the protocol associated with the link
+//
+   if (!(pp=dynamic_cast<XrdXrootdProtocol *>(lp->getProtocol()))||lp != pp->Link)
+      {lp->Hold(0);
+       return Response.Send(kXR_ArgInvalid, "session protocol not xroot");
+      }
+
+// Verify that the parent protocol is fully logged in
+//
+   if (!(pp->Status & XRD_LOGGEDIN) || (pp->Status & XRD_NEED_AUTH))
+      {lp->Hold(0);
+       return Response.Send(kXR_ArgInvalid, "session not logged in");
+      }
+
+// Verify that the bind is valid for the requestor
+//
+   if (sp->Pid != myPID || sp->Sid != pp->mySID)
+      {lp->Hold(0);
+       return Response.Send(kXR_ArgInvalid, "invalid session ID");
+      }
+
+// For now, verify that the request is comming from the same host
+//
+   if (strcmp(Link->Host(), lp->Host()))
+      {lp->Hold(0);
+       return Response.Send(kXR_NotAuthorized, "cross-host bind not allowed");
+      }
+
+// Find a slot for this path in parent protocol
+//
+   for (i = 1; i < maxStreams && pp->Stream[i]; i++) {}
+   if (i >= maxStreams)
+      {lp->Hold(0);
+       return Response.Send(kXR_NoMemory, "bind limit exceeded");
+      }
+
+// Link this protocol to the parent
+//
+   pp->Stream[i] = this;
+   Stream[0]     = pp;
+   pp->isBound   = 1;
+   sprintf(buff, "FD %d#%d bound", Link->FDnum(), i);
+   eDest.Log(OUC_LOG_01, "Xeq", buff, lp->ID);
+
+// Construct a login name for this bind session
+//
+   cp = strdup(lp->ID);
+   if ( (dp = rindex(cp, '@'))) *dp = '\0';
+   if (!(dp = rindex(cp, '.'))) pPid = 0;
+      {*dp++ = '\0'; pPid = strtol(dp, (char **)NULL, 10);}
+   Link->setID(cp, pPid);
+   free(cp);
+   CapVer = pp->CapVer;
+   Status = XRD_BOUNDPATH;
+
+// There are no errors possible at this point unless the response fails
+//
+   buff[0] = static_cast<char>(i);
+   if (!(rc = Response.Send(kXR_ok, buff, 1))) rc = -EINPROGRESS;
+
+// Return but keep the link disabled
+//
+   lp->Hold(0);
+   return rc;
 }
 
 /******************************************************************************/
@@ -385,6 +480,8 @@ int XrdXrootdProtocol::do_Getfile()
   
 int XrdXrootdProtocol::do_Login()
 {
+   static XrdOucMutex sessMutex;
+   static unsigned int Sid = 0;
    XrdXrootdSessID sessID;
    int i, pid, rc, sendSID = 0;
    char uname[9];
@@ -419,6 +516,8 @@ int XrdXrootdProtocol::do_Login()
       {sessID.FD   = Link->FDnum();
        sessID.Inst = Link->Inst();
        sessID.Pid  = myPID;
+       sessMutex.Lock(); mySID = ++Sid; sessMutex.UnLock();
+       sessID.Sid  = mySID;
        sendSID = 1;
       }
 
@@ -544,6 +643,123 @@ int XrdXrootdProtocol::do_Mv()
 // An error occured
 //
    return fsError(rc, myError);
+}
+
+/******************************************************************************/
+/*                            d o _ O f f l o a d                             */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
+{
+   XrdOucSemaphore isAvail(0);
+   XrdXrootdProtocol *pp;
+   kXR_char streamID[2];
+   int i;
+
+// Verify that the path actually exists
+//
+   if (pathID > maxStreams || !(pp = Stream[pathID]))
+      return Response.Send(kXR_ArgInvalid, "invalid path ID");
+
+// Verify that this path is still functional
+//
+   pp->streamMutex.Lock();
+   if (pp->isDead || pp->isNOP)
+      {pp->streamMutex.UnLock();
+       return Response.Send(kXR_ArgInvalid, 
+       (pp->isDead ? "path ID is not functional"
+                   : "path ID is not connected"));
+      }
+
+// Grab the stream ID
+//
+   Response.StreamID(streamID);
+
+// Try to schedule this operation
+//
+   do{if (!pp->isActive)
+         {pp->myFile   = myFile;
+          pp->myOffset = myOffset;
+          pp->myIOLen  = myIOLen;
+          pp->myBlen   = 0;
+          pp->doWrite  = static_cast<char>(isWrite);
+          pp->Resume   = &XrdXrootdProtocol::do_OffloadIO;
+          pp->isActive = 1;
+          pp->Response.Set(streamID);
+          pp->streamMutex.UnLock();
+          Link->setRef(1);
+          Sched->Schedule((XrdJob *)pp);
+          return 0;
+         }
+
+      for (i = 0; i < maxStreamOP && pp->StreamOP[i].myFile; i++) {}
+      if (i < maxStreamOP) break;
+      pp->reTry = &isAvail;
+      pp->streamMutex.UnLock();
+      TRACEP(FS, (isWrite ? 'w' : 'r') <<" busy path " <<pathID <<" offs=" <<myOffset);
+      isAvail.Wait();
+      TRACEP(FS, (isWrite ? 'w' : 'r') <<" free path " <<pathID <<" offs=" <<myOffset);
+      pp->streamMutex.Lock();
+      if (pp->isNOP)
+         {pp->streamMutex.UnLock();
+          return Response.Send(kXR_ArgInvalid, "path ID is not connected");
+         }
+      } while(1);
+
+// Fill out the queue entry
+//
+   pp->StreamOP[i].myFile      = myFile;
+   pp->StreamOP[i].myOffset    = myOffset;
+   pp->StreamOP[i].myIOLen     = myIOLen;
+   pp->StreamOP[i].isWrite     = static_cast<char>(isWrite);
+   pp->StreamOP[i].StreamID[0] = streamID[0];
+   pp->StreamOP[i].StreamID[1] = streamID[1];
+   pp->pendOP                  = 1;
+   pp->streamMutex.UnLock();
+   return 0;
+}
+
+/******************************************************************************/
+/*                          d o _ O f f l o a d I O                           */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_OffloadIO()
+{
+   int i, rc;
+  
+// Perform all I/O operations on a parallel stream. Currently we do not
+// support memory based or async I/O. We also have not yet implemented writes.
+//
+   do {if (doWrite) rc = 0;
+          else      rc = do_ReadAll();
+       if (rc) break;
+       streamMutex.Lock();
+       if (!pendOP) break;
+       for (i = (lastOP+1)%maxStreamOP; i != lastOP; i = (i+1)%maxStreamOP)
+           if (StreamOP[i].myFile) break;
+
+       if (i == lastOP) break;
+       lastOP   = i;
+       myFile   = StreamOP[i].myFile;
+       myOffset = StreamOP[i].myOffset;
+       myIOLen  = StreamOP[i].myIOLen;
+       doWrite  = StreamOP[i].isWrite;
+
+       Response.Set(StreamOP[i].StreamID);
+       StreamOP[i].myFile = 0;
+       if (reTry) {reTry->Post(); reTry = 0;}
+       streamMutex.UnLock();
+      } while(1);
+
+// There are no pending operations or the link died
+//
+   if (rc) isNOP = 1;
+   pendOP   = 0;
+   isActive = 0;
+   Stream[0]->Link->setRef(-1);
+   if (reTry) {reTry->Post(); reTry = 0;}
+   streamMutex.UnLock();
+   return -EINPROGRESS;
 }
 
 /******************************************************************************/
@@ -686,8 +902,7 @@ int XrdXrootdProtocol::do_Open()
 //
    if (!compchk) 
       {resplen = sizeof(myResp.fhandle);
-       myResp.cpsize = 0;
-       myResp.cptype[0] = '\0';
+       memset(&myResp, 0, sizeof(myResp));
       }
       else {int cpsize;
             fp->getCXinfo((char *)myResp.cptype, cpsize);
@@ -730,8 +945,8 @@ int XrdXrootdProtocol::do_Open()
 // Respond
 //
    TRACEP(FS, "open " <<opt <<' ' <<fn <<" fh=" <<fhandle);
-   if (retStat)   Response.Send(IOResp, 3, resplen);
-           return Response.Send((void *)&myResp, resplen);
+   if (retStat)  return Response.Send(IOResp, 3, resplen);
+      else       return Response.Send((void *)&myResp, resplen);
 }
 
 /******************************************************************************/
@@ -904,7 +1119,11 @@ int XrdXrootdProtocol::do_Qconf()
 
    // Now determine what the user wants to query
    //
-        if (!strcmp("readv_ior_max", val))
+        if (!strcmp("bind_max", val))
+           {n = sprintf(bp, "%d\n", maxStreams-1);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("readv_ior_max", val))
            {n = sprintf(bp, "%d\n", maxTransz - (int)sizeof(readahead_list));
             bp += n; bleft -= n;
            }
@@ -960,15 +1179,16 @@ int XrdXrootdProtocol::do_Query()
   
 int XrdXrootdProtocol::do_Read()
 {
-   int retc;
+   int pathID, retc;
    XrdXrootdFHandle fh(Request.read.fhandle);
    numReads++;
 
-// We first handle the pre-read list, if any. We do it this was because of
+// We first handle the pre-read list, if any. We do it this way because of
 // a historical glitch in the protocol. One should really not piggy back a
 // pre-read on top of a read, though it is allowed.
 //
-   if (Request.header.dlen && do_ReadNone(retc)) return retc;
+   if (!Request.header.dlen) pathID = 0;
+      else if (do_ReadNone(retc, pathID)) return retc;
 
 // Unmarshall the data
 //
@@ -983,13 +1203,17 @@ int XrdXrootdProtocol::do_Read()
 
 // Short circuit processing is read length is zero
 //
-   TRACEP(FS, "fh=" <<fh.handle <<" read " <<myIOLen <<'@' <<myOffset);
+   TRACEP(FS, pathID <<" fh=" <<fh.handle <<" read " <<myIOLen <<'@' <<myOffset);
    if (!myIOLen) return Response.Send();
 
 // If we are monitoring, insert a read entry
 //
    if (monIO && Monitor) Monitor->Add_rd(myFile->FileID, Request.read.rlen,
                                          Request.read.offset);
+
+// See if an alternate path is required
+//
+   if (pathID) return do_Offload(pathID, 0);
 
 // If this file is memory mapped, short ciruit all the logic and immediately
 // transfer the requested data to minimize latency.
@@ -1000,6 +1224,10 @@ int XrdXrootdProtocol::do_Read()
               return Response.Send(myFile->mmAddr+myOffset, myIOLen);
       else    return Response.Send(myFile->mmAddr+myOffset, 
                                    myFile->mmSize - myOffset);
+
+// If an alternate path was specified, offload this read
+//
+   if (pathID) return do_Offload(pathID, 1);
 
 // If we are in async mode, schedule the read to ocur asynchronously
 //
@@ -1054,11 +1282,24 @@ int XrdXrootdProtocol::do_ReadAll()
 /*                           d o _ R e a d N o n e                            */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_ReadNone(int &retc)
+int XrdXrootdProtocol::do_ReadNone(int &retc, int &pathID)
 {
    XrdXrootdFHandle fh;
    int ralsz = Request.header.dlen;
-   struct readahead_list *ralsp=(struct readahead_list *)(argp->buff);
+   struct read_args *rargs=(struct read_args *)(argp->buff);
+   struct readahead_list *ralsp = (readahead_list *)(rargs+sizeof(read_args));
+
+// Return the pathid
+//
+   pathID = static_cast<int>(rargs->pathid);
+   if ((ralsz -= sizeof(read_args)) <= 0) return 0;
+
+// Make sure that we have a proper pre-read list
+//
+   if (ralsz%sizeof(readahead_list))
+      {Response.Send(kXR_ArgInvalid, "Invalid length for read ahead list");
+       return 1;
+      }
 
 // Run down the pre-read list
 //

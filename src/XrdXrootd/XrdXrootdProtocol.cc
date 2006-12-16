@@ -60,8 +60,8 @@ int                   XrdXrootdProtocol::maxTransz    = 262144; // 256KB
 int                   XrdXrootdProtocol::as_maxperlnk = 8;   // Max ops per link
 int                   XrdXrootdProtocol::as_maxperreq = 8;   // Max ops per request
 int                   XrdXrootdProtocol::as_maxpersrv = 4096;// Max ops per server
-int                   XrdXrootdProtocol::as_segsize   = 65536;
-int                   XrdXrootdProtocol::as_miniosz   = 16384;
+int                   XrdXrootdProtocol::as_segsize   = 131072;
+int                   XrdXrootdProtocol::as_miniosz   = 32768;
 int                   XrdXrootdProtocol::as_maxstalls = 5;
 int                   XrdXrootdProtocol::as_force     = 0;
 int                   XrdXrootdProtocol::as_noaio     = 0;
@@ -318,6 +318,7 @@ int XrdXrootdProtocol::Process2()
       switch(Request.header.requestid)
             {case kXR_login:    return do_Login();
              case kXR_protocol: return do_Protocol();
+             case kXR_bind:     return do_Bind();
              default:           Response.Send(kXR_InvalidRequest,
                                 "Invalid request; user not logged in");
                                 return Link->setEtext("protocol sequence error 1");
@@ -424,7 +425,20 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
                     sfxp = buff;
                    } else sfxp = ctbuff;
 
-       eDest.Log(OUC_LOG_02,"Xeq",lp->ID,(char *)"disc", sfxp);
+       eDest.Log(OUC_LOG_02, "Xeq", lp->ID,
+             (Status == XRD_BOUNDPATH ? (char *)"unbind":(char *)"disc"), sfxp);
+      }
+
+// If this is a bound stream then we cannot release the resources until
+// the main stream closes this stream otherwise we risk memory corruption
+//
+   if (Status == XRD_BOUNDPATH && Stream[0])
+      {if (isActive)
+          {Stream[0]->Link->setRef(-1);
+           isActive = 0;
+          }
+       isDead = 1;
+       if (isBound) return;  // Async close
       }
 
 // Check if we should monitor disconnects
@@ -477,6 +491,7 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
   
 void XrdXrootdProtocol::Cleanup()
 {
+   int i;
 
 // If we have a buffer, release it
 //
@@ -485,6 +500,20 @@ void XrdXrootdProtocol::Cleanup()
 // Delete the FTab if we have it
 //
    if (FTab) {delete FTab; FTab = 0;}
+
+// Handle parallel stream cleanup. The session stream cannot be closed if
+// there is any queued activity on subordinate streams. A subordinate
+// can either be closed from the session stream or asynchronously only if
+// it is active. Hence, we don't need interlocks here.
+//
+   if (isBound && Status != XRD_BOUNDPATH)
+       for (i = 1; i < maxStreams; i++)
+           if (Stream[i])
+              {Stream[i]->isBound = 0;
+               if (Stream[i]->isDead) Stream[i]->Recycle(0, 0, 0);
+                  else Stream[i]->Link->Close();
+               Stream[i] = 0;
+              }
 
 // Handle statistics
 //
@@ -559,5 +588,12 @@ void XrdXrootdProtocol::Reset()
    monIO              = 0;
    Client             = 0;
    AuthProt           = 0;
+   mySID              = 0;
+   CapVer             = 0;
+   reTry              = 0;
+   lastOP             = 0;
+   isActive = isDead  = isNOP = isBound = pendOP = 0;
    memset(&Entity, 0, sizeof(Entity));
+   memset(Stream,  0, sizeof(Stream));
+   memset(StreamOP,0, sizeof(StreamOP));
 }
