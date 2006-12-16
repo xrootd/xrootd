@@ -967,15 +967,16 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
 			   Xmsg->GetData(), Xmsg->DataLen());
 	
 		// Dump the buffer tmpMoreData
-		if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG) {
+// 		if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG) {
 
-		    Info (XrdClientDebug::kDUMPDEBUG, "ReadPartialAnswer","Dumping read data...");
-		    for(int jj = 0; jj < Xmsg->DataLen(); jj++) {
-			printf("0x%.2x ", *( ((kXR_char *)Xmsg->GetData()) + jj ) );
-			if ( !((jj+1) % 10) ) printf("\n");
-		    }
-		    printf("\n\n");
-		}
+// 		    Info (XrdClientDebug::kDUMPDEBUG, "ReadPartialAnswer","Dumping read data...");
+// 		    for(int jj = 0; jj < Xmsg->DataLen(); jj++) {
+// 			printf("0x%.2x ", *( ((kXR_char *)Xmsg->GetData()) + jj ) );
+// 			if ( !((jj+1) % 10) ) printf("\n");
+// 		    }
+// 		    printf("\n\n");
+// 		}
+
 		TotalBlkSize += Xmsg->DataLen();
 	
 	    } else {

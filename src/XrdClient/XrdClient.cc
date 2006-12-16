@@ -412,7 +412,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 							 cacheholes, blkstowait);
 
 		Info(XrdClientDebug::kUSERDEBUG, "Read",
-		     "Cache response: got " << bytesgot << " bytes. Holes= " <<
+		     "Cache response: got " << bytesgot << "@" << offset << " bytes. Holes= " <<
 		     cacheholes.GetSize() << " Outstanding= " << blkstowait);
 
 		// If the cache gives the data to us
@@ -489,12 +489,11 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		    // This is a HIT case. Async readahead will try to put some data
 		    // in advance into the cache. The higher the araoffset will be,
 		    // the best chances we have not to cause overhead
-
-//                    if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
-//		      araoffset = xrdmax(fReadAheadLast, offset);
-//                      blkstowait++;
-//                    }
-//                    else
+                    if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
+		      araoffset = xrdmax(fReadAheadLast, offset);
+                      blkstowait++;
+                    }
+                    else
                       araoffset = xrdmax(fReadAheadLast, offset + len);
 
 		    aralen = xrdmin(rasize,

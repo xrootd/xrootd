@@ -310,9 +310,9 @@ void XrdClientPhyConnection::Touch()
 
    time_t t = time(0);
 
-   Info(XrdClientDebug::kDUMPDEBUG,
-      "Touch",
-      "Setting last use to current time" << t);
+   //Info(XrdClientDebug::kDUMPDEBUG,
+   //   "Touch",
+   //   "Setting last use to current time" << t);
 
    fLastUseTimestamp = t;
 }
