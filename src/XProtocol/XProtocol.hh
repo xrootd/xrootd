@@ -397,7 +397,8 @@ struct ClientWriteRequest {
    kXR_unt16 requestid;
    kXR_char fhandle[4];
    kXR_int64 offset;
-   kXR_char reserved[4];
+   kXR_char  pathid;
+   kXR_char reserved[3];
    kXR_int32  dlen;
 };
 
@@ -475,10 +476,9 @@ struct ServerResponseBody_Bind {
 // Body for the kXR_open response... useful
 struct ServerResponseBody_Open {
    kXR_char fhandle[4];
-   kXR_int32 cpsize;
-   kXR_char cptype[4];
-   kXR_char info[1024];
-};
+   kXR_int32 cpsize;   // cpsize & cptype returned if kXR_compress *or*
+   kXR_char cptype[4]; // kXR_retstat is specified
+}; // info will follow if kXR_retstat is specified
 
 // Body for the kXR_protocol response... useful
 struct ServerResponseBody_Protocol {
