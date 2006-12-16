@@ -446,7 +446,7 @@ struct readahead_list {
 struct read_args {
    kXR_char       pathid;
    kXR_char       reserved[7];
-   readahead_list rvec;
+   // his struct is followed by an array of readahead_list
 };
 
 //_____________________________________________________________________
