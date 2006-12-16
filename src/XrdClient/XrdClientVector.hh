@@ -139,7 +139,9 @@ public:
     }
 
     ~XrdClientVector() {
-	Clear();
+        for (long i = 0; i < size; i++)
+          if (index[i].notempty) DestroyElem(&index[i]);
+
 	free(rawdata);
 	free(index);
     }

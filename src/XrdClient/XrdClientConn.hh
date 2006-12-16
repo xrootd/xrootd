@@ -99,6 +99,18 @@ public:
 	    fMainReadCache->PutPlaceholder(begin_offs, end_offs);
     }
 
+    void                       RemoveDataFromCache(long long begin_offs,
+                                                   long long end_offs) {
+        if (fMainReadCache)
+            fMainReadCache->RemoveItems(begin_offs, end_offs);
+    }
+
+    void                       PrintCache() {
+        if (fMainReadCache)
+            fMainReadCache->PrintCache();
+    }
+
+
     int                        GetLogConnID() const { return fLogConnID; }
 
     ERemoteServerType          GetServerType() const { return fServerType; }
@@ -132,6 +144,9 @@ public:
     void                       SetConnected(bool conn) { fConnected = conn; }
 
     void                       SetOpenError(XErrorCode err) { fOpenError = err; }
+
+    int                        GetParallelStreamToUse();     // Gets a parallel stream id to use to set the return path for a req
+
     void                       SetRedirHandler(XrdClientAbs *rh) { fRedirHandler = rh; }
 
     void                       SetRequestedDestHost(char *newh, kXR_int32 port) {
@@ -190,7 +205,19 @@ public:
     { return fgConnectionMgr;} //Instance of the conn manager
 
     void GetSessionID(SessionIDInfo &sess) {
-	memcpy(sess.id, fSessionID, sizeof(fSessionID));
+      XrdOucString sessname;
+      char buf[20];
+      
+      snprintf(buf, 20, "%d", fUrl.Port);
+
+      sessname = fUrl.HostAddr;
+      if (sessname.length() <= 0)
+	sessname = fUrl.Host;
+
+      sessname += ":";
+      sessname += buf;
+
+      sess = *( fSessionIDRepo.Find(sessname.c_str()) );
     }
 
     long                       GetServerProtocol() { return fServerProto; }
@@ -237,8 +264,6 @@ private:
     fSessionIDRepo;      // The repository of session IDs, shared.
     // Association between
     // <hostname>:<port> and a SessionIDInfo struct
-
-    char                       fSessionID[16];          // The ID of this session got from the login
 
     XrdClientUrlInfo           fUrl;                // The current URL
 

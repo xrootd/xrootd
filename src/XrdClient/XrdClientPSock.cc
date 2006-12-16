@@ -36,6 +36,7 @@ const char *XrdClientPSockCVSID = "$Id$";
 XrdClientPSock::XrdClientPSock(XrdClientUrlInfo Host, int windowsize):
     XrdClientSock(Host, windowsize) {
 
+    lastsidhint = 0;
     fReinit_fd = true;
 }
 
@@ -60,23 +61,27 @@ void XrdClientPSock::Disconnect()
 
     if (fConnected) {
 
+        fConnected = FALSE;
+
+        fSocketIdPool.Purge();
+        fSocketIdRepo.Clear();
+
 	// Make the SocketPool invoke the closing of all sockets
 	fSocketPool.Apply( CloseSockFunc, 0 );
 
-	fSocketIdPool.Purge();
-	fSocketIdRepo.Clear();
-	fSocketPool.Purge();
+	//fSocketPool.Purge();
 
-	fConnected = FALSE;
    }
 }
 
 //_____________________________________________________________________________
 int FdSetSockFunc(int sockid, int sockdescr, void *arg) {
-    fd_set *fds = (fd_set *)arg;
+    struct fdinfo *fds = (struct fdinfo *)arg;
     
-    if ( (sockdescr >= 0) )
-	FD_SET(sockdescr, fds);
+    if ( (sockdescr >= 0) ) {
+	FD_SET(sockdescr, &fds->fdset);
+	fds->maxfd = xrdmax(fds->maxfd, sockdescr);
+    }
 
     // And we continue
     return 0;
@@ -85,11 +90,14 @@ int FdSetSockFunc(int sockid, int sockdescr, void *arg) {
 int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 			   int *usedsubstreamid)
 {
-   // Read bytes following carefully the timeout rules
-   time_t starttime;
-   int bytesread = 0;
-   int selRet;
-   fd_set rset;
+  // Read bytes following carefully the timeout rules
+  time_t starttime;
+  int bytesread = 0;
+  int selRet;
+  // The local set of interesting sock descriptors
+  struct fdinfo locfdinfo;
+
+
 
    // We cycle reading data.
    // An exit occurs if:
@@ -107,50 +115,58 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
    }
 
 
-   fReinit_fd = true;
    starttime = time(0);
 
    // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
    fInterrupt = FALSE;
    while (bytesread < length) {
 
+     // We cycle on the select, ignoring the possible interruptions
+     // We are waiting for something to come from the socket(s)
+     do {
+        
+       if (fReinit_fd) {
+         // we want to reconstruct the global fd_set
+         Info(XrdClientDebug::kDUMPDEBUG, "XrdClientPSock::RecvRaw", "Reconstructing global fd table.");
 
+         FD_ZERO(&globalfdinfo.fdset);
+	 globalfdinfo.maxfd = 0;
 
+         // We are interested in any sock
+         fSocketPool.Apply( FdSetSockFunc, (void *)&globalfdinfo );
+         fReinit_fd = false;
+       }
 
-      // We cycle on the select, ignoring the possible interruptions
-      // We are waiting for something to come from the socket(s)
-      do { 
+         if (substreamid == -1) {
+           // We are interested in any sock so we take the global fdset
+           locfdinfo = globalfdinfo;
 
-	  if (fReinit_fd) {
-	      // Init of the fd_set thing
-	      FD_ZERO(&rset);
+         } else {
+           // we are using a single specified sock
+           FD_ZERO(&locfdinfo.fdset);
+	   locfdinfo.maxfd = 0;
 
-	      // We are interested only in reading and errors
+           int sock = GetSock(substreamid);
+           if (sock >= 0) {
+	     FD_SET(sock, &locfdinfo.fdset);
+	     locfdinfo.maxfd = sock;
+	   }
+           else {
+             Error("XrdClientPSock::RecvRaw", "since we entered RecvRaw, the substreamid " <<
+                   substreamid << " has been removed.");
+              
+             // A dropped parallel stream is not considered
+             // as an error
+             if (substreamid == 0)
+             return TXSOCK_ERR;
+             else {
+               RemoveParallelSock(substreamid);
+               return TXSOCK_ERR_TIMEOUT;
+             }
+           }
+         }
 
-	      if (substreamid == -1) {
-		  // We are interested in any sock
-		  fSocketPool.Apply( FdSetSockFunc, (void *)&rset );
-	      } else {
-		  int sock = GetSock(substreamid);
-		  if (sock >= 0) FD_SET(sock, &rset);
-		  else {
-		      Error("XrdClientPSock::RecvRaw", "since we entered RecvRaw, the substreamid " <<
-			    substreamid << " has been removed.");
-
-		      // A dropped parallel stream is not considered
-		      // as an error
-		      if (substreamid == 0)
-			  return TXSOCK_ERR;
-		      else {
-			  RemoveParallelSock(substreamid);
-			  return TXSOCK_ERR_TIMEOUT;
-		      }
-		  }
-	      }
-
-	      fReinit_fd = false;
-	  }
-
+       
          // If too much time has elapsed, then we return an error
          if ((time(0) - starttime) > EnvGetLong(NAME_REQUESTTIMEOUT)) {
 
@@ -160,11 +176,13 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	 struct timeval tv = { 0, 100000 }; // .1 second as timeout step
 
 	 // Wait for some events from the socket pool
-	 selRet = select(FD_SETSIZE, &rset, NULL, NULL, &tv);
+	 selRet = select(locfdinfo.maxfd+1, &locfdinfo.fdset, NULL, NULL, &tv);
 
 	 if ((selRet < 0) && (errno != EINTR)) {
 	     Error("XrdClientSock::RecvRaw", "Error in select() : " <<
 		   ::strerror(errno));
+
+             ReinitFDTable();
 	     return TXSOCK_ERR;
 	 }
 
@@ -189,9 +207,9 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 
       // First of all, we check if there is something to read from any sock.
       // the first we find is ok for now
-      for (int ii = 0; ii < FD_SETSIZE; ii++) {
+      for (int ii = 0; ii <= locfdinfo.maxfd; ii++) {
 
-	  if (FD_ISSET(ii, &rset)) {
+	  if (FD_ISSET(ii, &locfdinfo.fdset)) {
 	      int n = 0;
 	      
 	      n = ::recv(ii, static_cast<char *>(buffer) + bytesread,
@@ -218,8 +236,10 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	      // If we need to loop more than once to get the whole amount
 	      // of requested bytes, then we have to select only on this fd which
 	      // started providing a chunk of data
-	      FD_ZERO(&rset);
-	      FD_SET(ii, &rset);
+	      FD_ZERO(&locfdinfo.fdset);
+	      FD_SET(ii, &locfdinfo.fdset);
+	      locfdinfo.maxfd = ii;
+
 	      if (usedsubstreamid) *usedsubstreamid = GetSockId(ii);
 
 	      // We got some data, hence we stop scanning the fd list,
@@ -232,12 +252,19 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 
    // Return number of bytes received
    // And also usedparsockid has been initialized with the sockid we got something from
+
    return bytesread;
 }
 
 int XrdClientPSock::SendRaw(const void* buffer, int length, int substreamid) {
 
     int sfd = GetSock(substreamid);
+
+    Info(XrdClientDebug::kDUMPDEBUG,
+	 "SendRaw",
+	 "Writing to substreamid " <<
+	 substreamid << " mapped to socket fd " << sfd);
+
     return XrdClientSock::SendRaw(buffer, length, sfd);
 
 }
@@ -257,6 +284,7 @@ void XrdClientPSock::TryConnect(bool isUnix) {
 	int z = 0;
 	fSocketPool.Rep(0, s);
 	fSocketIdPool.Rep(s, z);
+	//	fSocketIdRepo.Push_back(z);
     }
 
 }
@@ -309,17 +337,34 @@ int XrdClientPSock::EstablishParallelSock(int sockid) {
     return -1;
 }
 
-int XrdClientPSock::GetSockidHint() {
+int XrdClientPSock::GetSockIdHint() {
 
-    double di = (random() / RAND_MAX) * fSocketIdRepo.GetSize();
-    int rnd;
+  // A round robin through the secondary streams. We avoid
+  // requesting data through the main one because it can become a bottleneck
+  lastsidhint = ( ++lastsidhint % (fSocketIdRepo.GetSize()) +1) ;
 
-#ifdef __solaris__
-    rnd = irint(di) % fSocketIdRepo.GetSize();
-#else
-    rnd = lrint(di) % fSocketIdRepo.GetSize();
-#endif
+  return lastsidhint;
+  //return (random() % (fSocketIdRepo.GetSize()+1));
 
-    return rnd;
+}
+
+
+
+void XrdClientPSock::PauseSelectOnSubstream(int substreamid) {
+
+   int sock = GetSock(substreamid);
+
+   if (sock >= 0)
+      FD_CLR(sock, &globalfdinfo.fdset);
+
+}
+
+
+void XrdClientPSock::RestartSelectOnSubstream(int substreamid) {
+
+   int sock = GetSock(substreamid);
+
+   if (sock >= 0)
+      FD_SET(sock, &globalfdinfo.fdset);
 
 }

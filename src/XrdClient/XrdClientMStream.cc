@@ -49,6 +49,9 @@ int XrdClientMStream::AddParallelStream(XrdClientConn *cliconn) {
     ServerInitHandShake xbody;
     if (phyconn->DoHandShake(xbody, XRDCLI_PSOCKTEMP) == kSTError) return -1;
 
+    // After the handshake make the reader thread aware of the new stream
+    phyconn->ReinitFDTable();
+
     // Send the kxr_bind req to get a new substream id
     int newid = -1;
     int res = -1;
@@ -121,7 +124,7 @@ bool XrdClientMStream::BindPendingStream(XrdClientConn *cliconn, int substreamid
    
 
     // The request has to be sent through the stream which has to be bound!
-    res =  cliconn->SendGenCommand(&bindFileRequest, (void *)&bndresp, 0, 0,
+    res =  cliconn->SendGenCommand(&bindFileRequest, 0, 0, (void *)&bndresp,
 				   FALSE, (char *)"Bind", substreamid);
 
     if (res && (cliconn->LastServerResp.status == kXR_ok)) newid = bndresp.substreamid;
@@ -140,7 +143,20 @@ bool XrdClientMStream::BindPendingStream(XrdClientConn *cliconn, int substreamid
 bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset, kXR_int32 len,
 			     XrdClientVector<XrdClientMStream::ReadChunk> &reqlists) {
 
+//    if (len < DFLT_MULTISTREAMSPLITSIZE) return false;
+
+    for (kXR_int32 pp = 0; pp < len; pp += DFLT_MULTISTREAMSPLITSIZE) {
+      ReadChunk ck;
+
+      ck.offset = pp+offset;
+      ck.len = xrdmin(len - pp, DFLT_MULTISTREAMSPLITSIZE);
+      ck.streamtosend = cliconn->GetParallelStreamToUse();
+
+      reqlists.Push_back(ck);
+
+    }
+    
 
 
-    return false;
+    return true;
 }

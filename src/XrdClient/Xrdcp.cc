@@ -75,8 +75,9 @@ struct XrdCpInfo {
    XrdCpMthrQueue               queue;
 } cpnfo;
 
-#define XRDCP_BLOCKSIZE          (DFLT_READAHEADSIZE)
-#define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 0.2 beta"
+#define XRDCP_BLOCKSIZE          (512*1024)
+#define XRDCP_XRDRASIZE          (20*XRDCP_BLOCKSIZE)
+#define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 0.2"
 
 ///////////////////////////////////////////////////////////////////////
 // Coming from parameters on the cmd line
@@ -771,6 +772,9 @@ int main(int argc, char**argv) {
    EnvPutString( NAME_CONNECTDOMAINALLOW_RE, "*" );
    EnvPutString( NAME_REDIRDOMAINDENY_RE, "" );
    EnvPutString( NAME_CONNECTDOMAINDENY_RE, "" );
+
+   EnvPutInt( NAME_READAHEADSIZE, XRDCP_XRDRASIZE);
+   EnvPutInt(NAME_REMUSEDCACHEBLKS, 1);
 
    EnvPutInt( NAME_DEBUG, -1);
 

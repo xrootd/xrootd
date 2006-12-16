@@ -20,6 +20,7 @@ const char *XrdClientSockCVSID = "$Id$";
 #include "XrdClient/XrdClientSock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"
+#include "XrdNet/XrdNetOpts.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include <netinet/in.h>
@@ -245,7 +246,7 @@ int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock)
          timeleft = fRequestTimeout;
          int n = -1;
          while (n <= 0 && timeleft--) {
-            if ((n = send(fSocket, static_cast<const char *>(buffer) + byteswritten,
+            if ((n = send(sock, static_cast<const char *>(buffer) + byteswritten,
                           length - byteswritten, 0)) <= 0) {
                if (timeleft <= 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
                   // Real error: nothing more to do!
@@ -366,7 +367,8 @@ int XrdClientSock::TryConnect_low(bool isUnix)
 	// Connect to a remote host
 	//
 	sock = s->Open(host.c_str(),
-		       port, EnvGetLong(NAME_CONNECTTIMEOUT));
+		       port, EnvGetLong(NAME_CONNECTTIMEOUT),
+	               256*1024);
     } else {
 	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
 	     "Trying to UNIX connect to" << fHost.TcpHost.File <<

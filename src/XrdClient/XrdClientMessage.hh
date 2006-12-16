@@ -19,6 +19,8 @@
 
 #include "XrdClient/XrdClientProtocol.hh"
 #include "XrdClient/XrdClientSock.hh"
+#include "XrdOuc/XrdOucPthread.hh"
+
 #ifndef WIN32
 #include <netinet/in.h>
 #endif
@@ -32,6 +34,7 @@ private:
    void           *fData;
    bool           fMarshalled;
    short          fStatusCode;
+   XrdOucRecMutex fMultireadMutex;
 
    kXR_unt16       CharStreamid2Int(kXR_char *charstreamid);
    void            Int2CharStreamid(kXR_char *charstreamid, short intstreamid);

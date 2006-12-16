@@ -22,7 +22,7 @@
 #define DFLT_CONNECTTIMEOUTWAN  60
 #define NAME_CONNECTTIMEOUTWAN  (char *)"ConnectTimeoutWan"
 
-#define DFLT_REQUESTTIMEOUT     60
+#define DFLT_REQUESTTIMEOUT     180
 #define NAME_REQUESTTIMEOUT     (char *)"RequestTimeout"
 
 
@@ -55,6 +55,9 @@
 #define DFLT_MULTISTREAMCNT     0
 #define NAME_MULTISTREAMCNT     (char *)"ParStreamsPerPhyConn"
 
+// The size to use to split big single requests through multiple streams
+#define DFLT_MULTISTREAMSPLITSIZE (128*1024)
+
 // keep/dont-keep the socket open (required by optimized rootd fallback)
 #define DFLT_KEEPSOCKOPENIFNOTXRD 0
 #define NAME_KEEPSOCKOPENIFNOTXRD (char *)"KeepSockOpenIfNotXrd"
@@ -67,7 +70,7 @@
 #define XRD_CLIENT_CAPVER       ((kXR_char)kXR_asyncap | XRD_CLIENT_CURRENTVER)
 
 // Defaults for ReadAhead and Cache
-#define DFLT_READCACHESIZE      0
+#define DFLT_READCACHESIZE      10000000
 #define NAME_READCACHESIZE      (char *)"ReadCacheSize"
 
 #define DFLT_READCACHEBLK       0
@@ -75,6 +78,11 @@
 
 #define DFLT_READAHEADSIZE      (1024*1024)
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
+
+// To be used in copy-like apps when the data is to be accessed only once
+// ... to reduce additional cache overhead
+#define DFLT_REMUSEDCACHEBLKS   0
+#define NAME_REMUSEDCACHEBLKS   (char *)"RemoveUsedCacheBlocks"
 
 #define NAME_REDIRDOMAINALLOW_RE   (char *)"RedirDomainAllowRE"
 #define NAME_REDIRDOMAINDENY_RE    (char *)"RedirDomainDenyRE"

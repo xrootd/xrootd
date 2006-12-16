@@ -57,11 +57,13 @@ private:
     // (for reading and/or writing)
 
     XrdOucRecMutex         fMutex;
+    XrdOucRecMutex         fMultireadMutex; // Used to arbitrate between multiple
+                                            // threads reading msgs from the same conn
 
-    XrdClientThread     *fReaderthreadhandler; // The thread which is going to pump
+    XrdClientThread     *fReaderthreadhandler[64]; // The thread which is going to pump
     // out the data from the socket
-    // in the async mode
-    bool                fReaderthreadrunning;
+
+    int                  fReaderthreadrunning;
 
     XrdClientUrlInfo          fServer;
 
@@ -136,6 +138,12 @@ public:
     int EstablishPendingParallelStream(int newid) { return ( fSocket ? fSocket->EstablishParallelSock(newid) : -1); }
     void RemoveParallelStream(int substream) { if (fSocket) fSocket->RemoveParallelSock(substream); }
 
+    int GetSockIdHint() { return ( fSocket ? fSocket->GetSockIdHint() : 0); }
+
+    void PauseSelectOnSubstream(int substreamid) { if (fSocket) fSocket->PauseSelectOnSubstream(substreamid); }
+    void RestartSelectOnSubstream(int substreamid) { if (fSocket) fSocket->RestartSelectOnSubstream(substreamid); }
+    void ReadLock() { fMultireadMutex.Lock(); }
+    void ReadUnLock() { fMultireadMutex.UnLock(); }
 };
 
 

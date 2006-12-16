@@ -131,12 +131,17 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
    int readLen = sizeof(ServerResponseHeader);
    int usedsubstreamid = 0;
 
+   phy->ReadLock();
+
    Info(XrdClientDebug::kDUMPDEBUG,
 	"XrdClientMessage::ReadRaw",
 	"Reading header (" << readLen << " bytes).");
   
    // Read a header from any substream and report it
    readres = phy->ReadRaw((void *)&fHdr, readLen, -1, &usedsubstreamid);
+   phy->PauseSelectOnSubstream(usedsubstreamid);
+
+   phy->ReadUnLock();
 
    if (readres < 0) {
 
@@ -182,6 +187,7 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
          memset(&fHdr, 0, sizeof(fHdr));
       }
    }
+   phy->RestartSelectOnSubstream(usedsubstreamid);
    return 1;
 }
 

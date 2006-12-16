@@ -19,6 +19,11 @@
 
 #define XRDCLI_PSOCKTEMP -2
 
+struct fdinfo {
+  fd_set fdset;
+  int maxfd;
+};
+
 class XrdClientPSock: public XrdClientSock {
 
 friend class XrdClientPhyConnection;
@@ -26,6 +31,13 @@ friend class XrdClientPhyConnection;
 private:
     typedef int       Sockid;
     typedef int       Sockdescr;
+
+    XrdClientVector<int> fBusysubstreams;
+
+    // The set of interesting sock descriptors
+    fdinfo globalfdinfo;
+
+    int lastsidhint;
 
     // To have a pool of the ids in use,
     // e.g. to select a random stream from the set of possible streams
@@ -98,7 +110,11 @@ public:
     int RemoveParallelSock(int sockid);
 
     // Suggests a sockid to be used for a req
-    Sockid GetSockidHint();
+    virtual int GetSockIdHint();
+
+    virtual void PauseSelectOnSubstream(int substreamid);
+    virtual void RestartSelectOnSubstream(int substreamid);
+
 };
 
 #endif

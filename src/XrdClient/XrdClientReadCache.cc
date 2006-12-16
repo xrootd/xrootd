@@ -99,6 +99,8 @@ void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
     XrdOucMutexHelper mtx(fMutex);
 
 
+    //    PrintCache();
+
     // We remove all the blocks contained in the one we are going to put
     RemoveItems(begin_offs, end_offs);
 
@@ -111,6 +113,8 @@ void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
 	// A data block will always be inserted BEFORE a true block with
 	// equal beginoffset
 	int pos = FindInsertionApprox(begin_offs);
+
+	if (pos > 0) pos--;
 
 	for (; pos < fItems.GetSize(); pos++) {
 	    if (fItems[pos]->ContainsInterval(begin_offs, end_offs)) {
@@ -133,7 +137,7 @@ void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
     } // if
 
 
-    //PrintCache();
+    //    PrintCache();
 }
 
 
@@ -227,21 +231,55 @@ void XrdClientReadCache::PutPlaceholder(long long begin_offs,
 	// We find the correct insert position to keep the list sorted by
 	// BeginOffset
 	int pos = FindInsertionApprox(begin_offs);
+	int p = pos;
+	if (p > 0) p--;
 
-	for (int p = pos; p < fItems.GetSize()-1; p++) {
+	for (; p < fItems.GetSize(); p++) {
 	    if (fItems[p]->ContainsInterval(begin_offs, end_offs)) {
 		return;
 	    }
 
 	    if (fItems[p]->BeginOffset() > end_offs)
 		break;
+
+	    // We found an item which is overlapping the new candidate.
+	    // Here we shrink the candidate at the left 
+	    if ( (fItems[p]->BeginOffset() >= begin_offs) &&
+		 (fItems[p]->BeginOffset() <= end_offs) ) {
+
+	      itm = 0;
+	      if (begin_offs < fItems[p]->BeginOffset()-1)
+		itm = new XrdClientReadCacheItem(0, begin_offs, fItems[p]->BeginOffset()-1,
+						 GetTimestampTick(), true);
+	      begin_offs = fItems[p]->EndOffset()+1;
+	      if (itm) {
+		fItems.Insert(itm, p);
+	      }
+	      
+	    }
+
+	    if ( (fItems[p]->BeginOffset() <= begin_offs) &&
+		 (fItems[p]->EndOffset() >= begin_offs) ) {
+
+	      begin_offs = fItems[p]->EndOffset()+1;
+	      
+	    }
+
+
+	    pos = p+1;
+
+	    if (begin_offs >= end_offs) return;
+
+
 	}
 
 	itm = new XrdClientReadCacheItem(0, begin_offs, end_offs,
 					 GetTimestampTick(), true);
 	fItems.Insert(itm, pos);
 
-    } // if
+    }
+
+    //    PrintCache();
 }
 
 //________________________________________________________________________
@@ -281,7 +319,10 @@ long XrdClientReadCache::GetDataIfPresent(const void *buffer,
 
     // First scan: we get the useful data
     // and remember where we arrived
-    for (it = FindInsertionApprox(lasttakenbyte); it < fItems.GetSize(); it++) {
+    it = FindInsertionApprox(lasttakenbyte);
+    if (it > 0) it--;
+
+    for (; it < fItems.GetSize(); it++) {
 	long l = 0;
 
 	if (!fItems[it]) continue;
@@ -443,6 +484,7 @@ void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
     // Then we resize or split the placeholders overlapping the given interval
     bool changed;
     it = FindInsertionApprox(begin_offs);
+    if (it > 0) it--;
 
     do {
 	changed = false;

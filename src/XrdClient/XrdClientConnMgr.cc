@@ -463,16 +463,19 @@ UnsolRespProcResult XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsol
    // which threw the event
    // So we throw the evt towards each logical connection
    {
+      // Find an interested logid
       XrdOucMutexHelper mtx(fMutex);
-
-      for (int i = 0; i < fLogVec.GetSize(); i++)
+      
+      for (int i = 0; i < fLogVec.GetSize(); i++) {
+      
 	 if ( fLogVec[i] && (fLogVec[i]->GetPhyConnection() == sender) ) {
+	    fMutex.UnLock();
 	    res = fLogVec[i]->ProcessUnsolicitedMsg(sender, unsolmsg);
+            fMutex.Lock();
 
 	    if (res != kUNSOL_CONTINUE) break;
 	 }
+      }
    }
-
-
    return res;
 }

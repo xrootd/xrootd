@@ -719,7 +719,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
     if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)
 	smartPrintClientHeader(req);
 
-    lgc = ConnectionManager->GetConnection(fLogConnID);
+    lgc = ConnectionManager->GetConnection(LogConnID);
     if (!lgc) {
 	Error("WriteToServer",
 	      "Unknown logical conn " << LogConnID);
@@ -750,8 +750,13 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
 
 	short len = sizeof(req->header);
 
-	// A request header is always sent through the main stream
-	int writeres = ConnectionManager->WriteRaw(LogConnID, &req_netfmt, len, 0);
+	// A request header is always sent through the main stream, except for kxr_bind!
+	int writeres;
+	if ( req->header.requestid == kXR_bind )
+	  writeres = ConnectionManager->WriteRaw(LogConnID, &req_netfmt, len, substreamid);
+	else
+	  writeres = ConnectionManager->WriteRaw(LogConnID, &req_netfmt, len, 0);
+
 	fLastDataBytesSent = req->header.dlen;
   
 	// A complete communication failure has to be handled later, but we
@@ -1688,7 +1693,8 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 
 	    if ( (fREQUrl.Host.length() > 0) ) {
 		// If this client was explicitly told to redirect somewhere...
-		ClearSessionID();
+		//ClearSessyionID();
+
 		newhost = fREQUrl.Host;
 		newport = fREQUrl.Port;
 
@@ -1700,7 +1706,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 		if ( cangoaway && fLBSUrl && (fLBSUrl->GetUrl().length() > 0) ) {
 		    // "Normal" error... we go to the LB if any
 		    // Clear the current session info. Rather simplicistic.
-		    ClearSessionID();
+		    //ClearSessionID();
 	       
 		    newhost = fLBSUrl->Host;
 		    newport = fLBSUrl->Port;
@@ -1729,7 +1735,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 	    ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
 
 	    // Clear the current session info. Rather simplicistic.
-	    ClearSessionID();
+	    //ClearSessionID();
 	}
     
 	// Now we should have the parameters needed for the redir
@@ -2067,12 +2073,6 @@ bool XrdClientConn::PanicClose() {
 }
 
 
-void XrdClientConn::ClearSessionID() {
-
-    for (int i=0; i < 16; i++)
-	fSessionID[i] = 0;
-
-}
 
 void XrdClientConn::CheckREQPauseState() {
     // This client might have been paused. In this case the calling thread
@@ -2248,4 +2248,34 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
 
     // The message is to be destroyed, its data has been saved
     return kUNSOL_DISPOSE;
+}
+
+
+
+
+
+
+//_____________________________________________________________________________
+int XrdClientConn::GetParallelStreamToUse() {
+    // Gets a parallel stream id to use to set the return path for a req
+    XrdClientLogConnection *lgc = 0;
+    XrdClientPhyConnection *phyc = 0;
+
+    lgc = ConnectionManager->GetConnection(fLogConnID);
+    if (!lgc) {
+	Error("GetParallelStreamToUse",
+	      "Unknown logical conn " << fLogConnID);
+       
+	return kWRITE;
+    }
+
+    phyc = lgc->GetPhyConnection();
+    if (!phyc) {
+	Error("GetParallelStreamToUse",
+	      "Cannot find physical conn for logid " << fLogConnID);
+       
+	return kWRITE;
+    }
+
+    return phyc->GetSockIdHint();
 }

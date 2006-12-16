@@ -385,18 +385,26 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
     bool retrysync = false;
 
-    {
+    
 	
 
 	// we cycle until we get all the needed data
 	do {
+ 	    fReadWaitData->Lock();
 
 	    cacheholes.Clear();
 	    blkstowait = 0;
 	    long bytesgot = 0;
 
+
+	    
+
+
 	    if (!retrysync) {
 
+
+
+	      
 
 		bytesgot = fConnModule->GetDataFromCache(buf, offset,
 							 len + offset - 1,
@@ -442,6 +450,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 			}
 		    }
 
+		    fReadWaitData->UnLock();
 		    return len;
 		}
 
@@ -480,7 +489,14 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		    // This is a HIT case. Async readahead will try to put some data
 		    // in advance into the cache. The higher the araoffset will be,
 		    // the best chances we have not to cause overhead
-		    araoffset = xrdmax(fReadAheadLast, offset + len);
+
+//                    if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
+//		      araoffset = xrdmax(fReadAheadLast, offset);
+//                      blkstowait++;
+//                    }
+//                    else
+                      araoffset = xrdmax(fReadAheadLast, offset + len);
+
 		    aralen = xrdmin(rasize,
 				    offset + len + rasize -
 				    xrdmax(offset + len, fReadAheadLast));
@@ -501,6 +517,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	    // Remember also that a sync read request must not be modified if it's going to be
 	    //  written into the application-given buffer
 	    if (retrysync || (!bytesgot && !blkstowait && !cacheholes.GetSize())) {
+
+ 	        fReadWaitData->UnLock();
 
 		retrysync = false;
 
@@ -530,27 +548,27 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		Info( XrdClientDebug::kUSERDEBUG, "Read",
 		      "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
 
-		//	    fReadWaitData->Lock();
-		XrdOucCondVarHelper cndh(fReadWaitData);
-
 		if (fReadWaitData->Wait(10)) {
 
-		    Info( XrdClientDebug::kUSERDEBUG, "Read",
+                    fConnModule->PrintCache();
+
+		    Error( "Read",
 			  "Timeout waiting outstanding blocks. Retrying sync!" );
 		
 		    retrysync = true;
 		}
 
-		//	    fReadWaitData->UnLock();
+		
 
 	    }
 	
-	
+	    fReadWaitData->UnLock();
 
 	} while ((blkstowait > 0) || cacheholes.GetSize());
 
-    }
-
+    // To lower caching overhead in copy-like applications
+    if (EnvGetLong(NAME_REMUSEDCACHEBLKS))
+       fConnModule->RemoveDataFromCache(0, offset+len+1);
 
     return len;
 }
@@ -582,7 +600,8 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
     // Maximum number of segments addressable with a kXR_unt16 type
     //    kXR_int32 limit = 1 << (int)(sizeof(kXR_unt16) * 8);
     //kXR_unt16 Nmax  = (kXR_unt16) ((limit) / sizeof(struct readahead_list));
-    kXR_unt16 Nmax  = READV_MAXCHUNKS;
+    kXR_unt16 Nmax = READV_MAXCHUNKS;
+    if (!buf) Nmax = READV_MAXCHUNKS/EnvGetLong(NAME_MULTISTREAMCNT);
 
     int i = 0;
     kXR_int64 pos = 0; 
@@ -833,7 +852,7 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
     // Send a kXR_open request in order to open the remote file
     ClientRequest openFileRequest;
 
-    struct ServerResponseBody_Open openresp;
+    struct ServerResponseBody_Open *openresp;
 
     memset(&openFileRequest, 0, sizeof(openFileRequest));
 
@@ -855,11 +874,11 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
     // Send request to server and receive response
     bool resp = fConnModule->SendGenCommand(&openFileRequest,
 					    (const void *)finalfilename.c_str(),
-					    0, &openresp, FALSE, (char *)"Open");
+					    (void **)&openresp, 0, true, (char *)"Open");
 
     if (resp) {
 	// Get the file handle to use for future read/write...
-	memcpy( fHandle, openresp.fhandle, sizeof(fHandle) );
+	memcpy( fHandle, openresp->fhandle, sizeof(fHandle) );
 
 	fOpenPars.opened = TRUE;
 	fOpenPars.options = options;
@@ -868,15 +887,16 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 	if (fConnModule->LastServerResp.dlen > 12) {
 	  // Get the stats
 	  Info(XrdClientDebug::kHIDEBUG,
-	       "Open", "Returned stats=" << (char *)openresp.info);
+	       "Open", "Returned stats=" << (char *)openresp + sizeof(openresp));
 
-	  sscanf((char *)openresp.info, "%ld %lld %ld %ld",
+	  sscanf((char *)openresp + sizeof(openresp), "%ld %lld %ld %ld",
 		 &fStatInfo.id,
 		 &fStatInfo.size,
 		 &fStatInfo.flags,
 		 &fStatInfo.modtime);
 
 	  fStatInfo.stated = true;
+          free(openresp);
 	}
 
     }
@@ -1203,6 +1223,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 			     " len " <<
 			     unsolmsg->fHdr.dlen);
 
+			{
 			// Keep in sync with the cache lookup
 			XrdOucCondVarHelper cndh(fReadWaitData);
 
@@ -1210,6 +1231,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 			fConnModule->SubmitDataToCache(unsolmsg, offs,
 						       offs + unsolmsg->fHdr.dlen - 1);
 
+			}
 			si->reqbyteprogress += unsolmsg->fHdr.dlen;
 
 			// Awaken all the waiting threads, some of them may be interested
@@ -1227,13 +1249,13 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 			     "Putting kXR_readV data into cache. " <<
 			     " len " <<
 			     unsolmsg->fHdr.dlen);
-
+			{
 			// Keep in sync with the cache lookup
 			XrdOucCondVarHelper cndh(fReadWaitData);
 
 			XrdClientReadV::SubmitToCacheReadVResp(fConnModule, (char *)unsolmsg->DonateData(),
 							       unsolmsg->fHdr.dlen);
-
+			}
 			// Awaken all the sleepers. Some of them may be interested
 			fReadWaitData->Broadcast();
 
@@ -1259,6 +1281,7 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 	return kGENERICERR;
     }
 
+    Stat(0);
     len = xrdmin(fStatInfo.size - offset, len);
  
     if (len <= 0) return kOK;
@@ -1293,12 +1316,19 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 	for (int i = 0; i < chunks.GetSize(); i++) {
 	    XrdClientMStream::ReadChunk *c;
 
-	    c = &chunks[i];
+	    read_args args;
 
+	    c = &chunks[i];
+	    args.pathid = c->streamtosend;
+	    
+	    Info(XrdClientDebug::kHIDEBUG, "Read_Async",
+		 "Requesting pathid " << c->streamtosend);
+	    
 	    readFileRequest.read.offset = c->offset;
 	    readFileRequest.read.rlen = c->len;
-	    ok = fConnModule->WriteToServer_Async(&readFileRequest, 0,
-					     c->streamtosend);
+	    readFileRequest.read.dlen = sizeof(read_args);
+	    ok = fConnModule->WriteToServer_Async(&readFileRequest, &args,
+						  0);
 
 	    if (ok != kOK) break;
 	}

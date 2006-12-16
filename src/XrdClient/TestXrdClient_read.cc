@@ -87,6 +87,8 @@ int main(int argc, char **argv) {
 	    "                              2: async vectored reads, do not access the buffer," << endl <<
 	    "                              3: async vectored reads, copy the buffers" << endl <<
 	    "                                (makes it sync through async calls!)" << endl <<
+	    "                              4: no vectored reads. Async reads followed by sync reads." << endl <<
+	    "                                (exploits the multistreaming for single reads)" << endl <<
 	    "  <inter_read_delay_ms> is the optional think time between reads." << endl <<
 	    "                        note: the think time will comsume cpu cycles, not sleep." << endl <<
 	    " -DSparmname stringvalue" << endl <<
@@ -108,10 +110,10 @@ int main(int argc, char **argv) {
     
 
     if (argc > 4)
-	vectored_style = atol(argv[5]);
+	vectored_style = atol(argv[4]);
 
     if (argc > 5)
-	read_delay = atol(argv[6]);
+	read_delay = atol(argv[5]);
 
 
     // The other args, they have to be an even number!
@@ -145,15 +147,25 @@ int main(int argc, char **argv) {
     bool isrooturl = (strstr(argv[1], "root://"));
     int retval = 0;
     int ntoread = 0;
+    int maxtoread = 10240;
     kXR_int64 v_offsets[10240];
     kXR_int32 v_lens[10240];
+
+
+    switch (vectored_style) {
+      case 0:
+        maxtoread = 1;
+      case 4:
+        maxtoread = 20;
+    }
+
 
     if (isrooturl) {
 	XrdClient *cli = new XrdClient(argv[1]);
 
 	cli->Open(0, 0);
 
-	while ( (ntoread = ReadSome(v_offsets, v_lens, 10240)) ) {
+	while ( (ntoread = ReadSome(v_offsets, v_lens, maxtoread)) ) {
 
 	    switch (vectored_style) {
 	    case 0: // no readv
@@ -187,7 +199,7 @@ int main(int argc, char **argv) {
 		for (int ii = 0; ii < ntoread; ii+=512) {
 
 		    // Read a chunk of data
-		    retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, 512);
+		    retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, xrdmin(ntoread - ii, 512) );
 		    cout << endl << "---ReadV returned " << retval << endl;
 
 		    // Process the preceeding chunk while the last is coming
@@ -210,6 +222,33 @@ int main(int argc, char **argv) {
 
 		break;
 		
+	    
+    	    case 4: // read async and then read
+		for (int iii = 0; iii < ntoread; iii++) {
+		    retval = cli->Read_Async(v_offsets[iii], v_lens[iii]);
+	  
+		    if (retval <= 0)
+			cout << endl << "---Read_Async (" << iii << " of " << ntoread << " " <<
+			    v_lens[iii] << "@" << v_offsets[iii] <<
+			    " returned " << retval << endl;
+		}		
+		for (int iii = 0; iii < ntoread; iii++) {
+  		    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
+		    cout << ".";
+		    cout.flush();
+
+		    if (retval <= 0)
+			cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
+			    v_lens[iii] << "@" << v_offsets[iii] <<
+			    " returned " << retval << endl;
+	  
+		    Think(read_delay);
+		}
+
+
+
+		break;
+
 	    }
 
 	}
@@ -387,7 +426,10 @@ int main(int argc, char **argv) {
     gettimeofday(&tv, 0);
     t = tv.tv_sec + tv.tv_usec / 1000000;
 
-    cout << "--- elapsed: " << t << endl << endl;
+    cout << "--- elapsed: " << t - starttime << endl << endl;
     return 0;
+
+
+
 
 }

@@ -27,6 +27,9 @@
 #include <Winsock2.h>
 #endif
 
+
+#define READERCOUNT (xrdmin(50, EnvGetLong(NAME_MULTISTREAMCNT)*3+1))
+
 //____________________________________________________________________________
 void *SocketReaderThread(void * arg, XrdClientThread *thr)
 {
@@ -79,8 +82,9 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
 
    UnsolicitedMsgHandler = h;
 
-   fReaderthreadhandler = 0;
-   fReaderthreadrunning = FALSE;
+   for (int i = 0; i < READERCOUNT; i++)
+     fReaderthreadhandler[i] = 0;
+   fReaderthreadrunning = 0;
 
    fSecProtocol = 0;
 }
@@ -102,8 +106,10 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 
    UnlockChannel();
 
-   if (fReaderthreadrunning)
-      fReaderthreadhandler->Cancel();
+   if (fReaderthreadrunning) 
+      for (int i = 0; i < READERCOUNT; i++)
+         if (fReaderthreadhandler[i])
+            fReaderthreadhandler[i]->Cancel();
 
    if (fSecProtocol) {
       // This insures that the right destructor is called
@@ -162,7 +168,11 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
    }
 
    fServer = RemoteHost;
-   fReaderthreadrunning = FALSE;
+
+   {
+      XrdOucMutexHelper l(fMutex);
+      fReaderthreadrunning = 0;
+   }
 
    return TRUE;
 }
@@ -185,29 +195,33 @@ void XrdClientPhyConnection::StartReader() {
       Info(XrdClientDebug::kHIDEBUG,
 	   "StartReader", "Starting reader thread...");
 
+
+      for (int i = 0; i < READERCOUNT; i++) {
+
       // Now we launch  the reader thread
-      fReaderthreadhandler = new XrdClientThread(SocketReaderThread);
-      if (!fReaderthreadhandler) {
+      fReaderthreadhandler[i] = new XrdClientThread(SocketReaderThread);
+      if (!fReaderthreadhandler[i]) {
 	 Error("PhyConnection",
 	       "Can't create reader thread: out of system resources");
 // HELP: what do we do here
          std::exit(-1);
       }
 
-      if (fReaderthreadhandler->Run(this)) {
+      if (fReaderthreadhandler[i]->Run(this)) {
          Error("PhyConnection",
                "Can't run reader thread: out of system resources. Critical error.");
 // HELP: what do we do here
          std::exit(-1);
       }
 
-      if (fReaderthreadhandler->Detach())
+      if (fReaderthreadhandler[i]->Detach())
       {
 	 Error("PhyConnection", "Thread detach failed");
-	 return;
+	 //return;
       }
-      
-      // sleep until the detached thread starts running, which hopefully
+
+      }
+      // sleep until at least one thread starts running, which hopefully
       // is not forever.
       int maxRetries = 10;
       while (--maxRetries >= 0 && !fReaderthreadrunning)
@@ -221,7 +235,7 @@ void XrdClientPhyConnection::StartReader() {
 //____________________________________________________________________________
 void XrdClientPhyConnection::StartedReader() {
    XrdOucMutexHelper l(fMutex);
-   fReaderthreadrunning = TRUE;
+   fReaderthreadrunning++;
    fReaderCV.Post();
 }
 
@@ -265,9 +279,10 @@ bool XrdClientPhyConnection::CheckAutoTerm() {
          Info(XrdClientDebug::kHIDEBUG,
               "CheckAutoTerm", "Self-Cancelling reader thread.");
 
-
-         fReaderthreadrunning = FALSE;
-         fReaderthreadhandler = 0;
+         {
+            XrdOucMutexHelper l(fMutex);
+            fReaderthreadrunning--;
+         }
 
          //delete fSocket;
          //fSocket = 0;
@@ -315,8 +330,6 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len, int substreamid,
    int res;
 
 
-   Touch();
-
    if (IsValid()) {
 
       Info(XrdClientDebug::kDUMPDEBUG,
@@ -347,7 +360,6 @@ int XrdClientPhyConnection::ReadRaw(void *buf, int len, int substreamid,
          Disconnect();
       }
 
-      Touch();
 
       // Let's dump the received bytes
       if ((res > 0) && (DebugLevel() > XrdClientDebug::kDUMPDEBUG)) {
@@ -404,7 +416,11 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
       abort();
    }
 
-   m->ReadRaw(this);
+   {
+//     fMultireadMutex.Lock();
+     m->ReadRaw(this);
+//     fMultireadMutex.UnLock();
+   }
 
    parallelsid = SidManager->GetSidInfo(m->HeaderSID());
 
@@ -426,6 +442,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 	       "BuildMessage"," propagating unsol id " << m->HeaderSID());
       }
 
+      Touch();
       res = HandleUnsolicited(m);
 
 
@@ -575,8 +592,8 @@ int XrdClientPhyConnection::WriteRaw(const void *buf, int len, int substreamid) 
 
       Info(XrdClientDebug::kDUMPDEBUG,
 	   "WriteRaw",
-	   "Writing to" <<
-	   XrdClientDebug::kDUMPDEBUG);
+	   "Writing to substreamid " <<
+	   substreamid);
     
       res = fSocket->SendRaw(buf, len, substreamid);
 
