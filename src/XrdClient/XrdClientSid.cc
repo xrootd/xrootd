@@ -90,3 +90,18 @@ void XrdClientSid::ReleaseSid(kXR_unt16 sid) {
    freesids.Push_back(sid);
 };
 
+
+static int printoutreq(kXR_unt16,
+                       struct SidInfo p, void *) {
+
+  smartPrintClientHeader(&p.outstandingreq);
+  return 0;
+}
+void XrdClientSid::PrintoutOutstandingRequests() {
+
+  childsidnfo.Apply(printoutreq, this);
+
+
+
+
+}

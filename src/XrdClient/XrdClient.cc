@@ -552,8 +552,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
                     fConnModule->PrintCache();
 
 		    Error( "Read",
-			  "Timeout waiting outstanding blocks. Retrying sync!" );
-		
+			  "Timeout waiting outstanding blocks. Retrying sync! List of outstanding reqs follows." );
+                    SidManager->PrintoutOutstandingRequests();
+
 		    retrysync = true;
 		}
 

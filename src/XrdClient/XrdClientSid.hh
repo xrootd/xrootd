@@ -22,6 +22,7 @@
 
 #include "XrdOuc/XrdOucRash.hh"
 #include "XProtocol/XProtocol.hh"
+#include "XrdClient/XrdClientProtocol.hh"
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
@@ -107,6 +108,9 @@ class XrdClientSid {
       return (si->fathersid == father);
    }
 
+
+  // Useful for debugging
+  void PrintoutOutstandingRequests();
 };
 
 
