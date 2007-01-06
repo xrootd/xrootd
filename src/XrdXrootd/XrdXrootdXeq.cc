@@ -675,7 +675,9 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 //
    Response.StreamID(streamID);
 
-// Try to schedule this operation
+// Try to schedule this operation. In order to maximize the I/O overlap, we
+// will wait until the stream gets control and will have a chance to start
+// reading from the device or from the network.
 //
    do{if (!pp->isActive)
          {pp->myFile   = myFile;
@@ -685,10 +687,12 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
           pp->doWrite  = static_cast<char>(isWrite);
           pp->Resume   = &XrdXrootdProtocol::do_OffloadIO;
           pp->isActive = 1;
+          pp->reTry    = &isAvail;
           pp->Response.Set(streamID);
           pp->streamMutex.UnLock();
           Link->setRef(1);
           Sched->Schedule((XrdJob *)pp);
+          isAvail.Wait();
           return 0;
          }
 
@@ -725,7 +729,15 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 
 int XrdXrootdProtocol::do_OffloadIO()
 {
+   XrdOucSemaphore *sesSem;
    int i, rc;
+
+// Entry implies that we just got scheduled and are marked as active. Hence
+// we need to post the session thread so that it can pick up the next request.
+// We can manipulate the semaphore pointer without a lock as the only other
+// thread that can manipulate the pointer is the waiting session thread.
+//
+   if ((sesSem = reTry)) {reTry = 0; sesSem->Post();}
   
 // Perform all I/O operations on a parallel stream. Currently we do not
 // support memory based or async I/O. We also have not yet implemented writes.
