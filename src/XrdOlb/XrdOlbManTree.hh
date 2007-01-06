@@ -31,8 +31,9 @@ void setMaxCon(int i);
 
 int  Trying(int sID, int Lvl);
 
-     XrdOlbManTree() : conLevel(0), conSID(-1), numConn(0), maxConn(0),
-                       maxTMI(0), numWaiting(0), atRoot(0), myStatus(Active) {};
+     XrdOlbManTree() : maxTMI(0),   numConn(0), maxConn(0),    atRoot(0),
+                       conLevel(0), conSID(-1), numWaiting(0),
+                       myStatus(Active) {};
     ~XrdOlbManTree() {};
 
 private:
@@ -77,4 +78,4 @@ namespace XrdOlb
 {
 extern XrdOlbManTree ManTree;
 }
-#endif;
+#endif
