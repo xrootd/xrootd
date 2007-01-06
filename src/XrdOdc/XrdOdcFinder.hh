@@ -16,6 +16,7 @@
 #include "XrdOuc/XrdOucPthread.hh"
 
 class  XrdOdcManager;
+class  XrdOucEnv;
 class  XrdOucError;
 class  XrdOucErrInfo;
 class  XrdOucLogger;
@@ -47,11 +48,10 @@ virtual int    Forward(XrdOucErrInfo &Resp, const char *cmd,
 
 virtual int    isRemote() {return myPersona == XrdOdcFinder::amRemote;}
 
-virtual int    Locate(XrdOucErrInfo &Resp, const char *path, int flags) = 0;
+virtual int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
+                      XrdOucEnv *Info=0) = 0;
 
 virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) = 0;
-
-virtual void   UpdateFD(int num) = 0;
 
         enum   Persona {amLocal, amProxy, amRemote, amTarget};
 
@@ -78,11 +78,10 @@ public:
         int    Forward(XrdOucErrInfo &Resp, const char *cmd, 
                        const char *arg1=0, const char *arg2=0);
 
-        int    Locate(XrdOucErrInfo &Resp, const char *path, int flags);
+        int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
+                      XrdOucEnv *Info=0);
 
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs);
-
-        void   UpdateFD(int numfd) {}
 
                XrdOdcFinderRMT(XrdOucLogger *lp, int istrg=0, int isProxy=0);
               ~XrdOdcFinderRMT();
@@ -122,16 +121,14 @@ public:
         int    Forward(XrdOucErrInfo &Resp, const char *cmd,
                        const char *arg1=0, const char *arg2=0) {return 0;}
 
-        int    Locate(XrdOucErrInfo &Resp, const char *path, int flags)
-               {return 0;}
+        int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
+                      XrdOucEnv *Info=0) {return 0;}
 
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) {return 0;}
 
         void   Removed(const char *path);
 
         void  *Start();
-
-        void   UpdateFD(int num) {}
 
                XrdOdcFinderTRG(XrdOucLogger *lp, int isredir, int port);
               ~XrdOdcFinderTRG();

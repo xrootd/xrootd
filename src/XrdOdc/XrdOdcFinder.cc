@@ -35,6 +35,7 @@ const char *XrdOdcFinderCVSID = "$Id$";
 #include "XrdOdc/XrdOdcManager.hh"
 #include "XrdOdc/XrdOdcMsg.hh"
 #include "XrdOdc/XrdOdcTrace.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -180,10 +181,13 @@ int XrdOdcFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 /*                                L o c a t e                                 */
 /******************************************************************************/
   
-int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
+int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
+                            XrdOucEnv *Env)
 {
    const char *ptype;
-   struct iovec xmsg[5];
+   char *Avoid;
+   int   ioveol = 4;
+   struct iovec xmsg[7];
 
 // Make sure we are configured
 //
@@ -192,6 +196,11 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
        Resp.setErrInfo(EINVAL, "Internal error locating file.");
        return -EINVAL;
       }
+
+// Check if there is a server we need to avoid (we wish to tell the olb)
+//
+   if (Env) Avoid = Env->Get("tried");
+      else  Avoid = 0;
 
 // Compute mode
 //
@@ -210,13 +219,19 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags)
       {xmsg[1].iov_base = (char *)"selects "; xmsg[1].iov_len = 8;}
       else
       {xmsg[1].iov_base = (char *)"select " ; xmsg[1].iov_len = 7;}
-   xmsg[2].iov_base = (char *)ptype; xmsg[2].iov_len = 2;
-   xmsg[3].iov_base = (char *)path;  xmsg[3].iov_len = strlen(path);
-   xmsg[4].iov_base = (char *)"\n";  xmsg[4].iov_len = 1;
+       xmsg[2].iov_base = (char *)ptype;      xmsg[2].iov_len = 2;
+       xmsg[3].iov_base = (char *)path;       xmsg[3].iov_len = strlen(path);
+   if (Avoid)
+      {xmsg[4].iov_base = (char *)" -";       xmsg[4].iov_len = 2;
+       xmsg[5].iov_base = Avoid;              xmsg[3].iov_len = strlen(Avoid);
+       ioveol = 6;
+      }
+
+   xmsg[ioveol].iov_base = (char *)"\n";  xmsg[ioveol].iov_len = 1;
 
 // Send the 2way message
 //
-   return send2Man(Resp, path, xmsg, 5);
+   return send2Man(Resp, path, xmsg, ioveol+1);
 }
   
 /******************************************************************************/

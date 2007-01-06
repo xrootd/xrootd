@@ -86,7 +86,7 @@ $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcConfig.o XrdOdcConfig.cc
 
 $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
-                          XrdOdcMsg.hh      XrdOdcTrace.hh  \
+                          XrdOdcMsg.hh      XrdOdcTrace.hh    XrdOucEnv.hh \
                           XrdOucPthread.hh  XrdOdcConfDefs.hh XrdOucError.hh \
                           XrdOucErrInfo.hh  XrdSysPlatform.hh XrdOucPthread.hh \
                           XrdOucReqID.hh    XrdOucStream.hh   XrdOucTimer.hh \

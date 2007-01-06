@@ -93,7 +93,7 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
               }
       else if (*mode == 'R' && !isBoth)
               {if (!ManList)
-                  {eDest->Emsg("Config", "Remote manager not specified.");
+                  {eDest->Emsg("Config", "Manager not specified.");
                    NoGo=1;
                   }
               }
@@ -299,22 +299,27 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
 
 /* Function: xmang
 
-   Purpose:  To parse directive: manager [proxy] [all|any] <host>[+] <port>
-                                         [if <hl> [named <nl>]]
+   Purpose:  Parse: manager [peer | proxy] [all|any] <host>[+][:<port>|<port>] 
+                                                     [if ...]
 
-             proxy  This is a proxy service manager not cache space manager.
+             peer   For olbd:   Specified the manager when running as a peer
+                    For xrootd: The directive is ignored.
+             proxy  For olbd:   This directive is ignored.
+                    For xrootd: Specifies the odc-proxy service manager
              all    Distribute requests across all managers.
              any    Choose different manager only when necessary (default).
              <host> The dns name of the host that is the cache manager.
                     If the host name ends with a plus, all addresses that are
                     associated with the host are treated as managers.
-
              <port> The port number to use for this host.
-             <hl>   Apply manager directive is host is one listed in <hl>
-             <nl>   Apply manager directive is name is one listed in <nl>
+             if     Apply the manager directive if "if" is true. See
+                    XrdOucUtils:doIf() for "if" syntax.
 
-   Notes:   Any number of manager directives can be given. The finder will
-            load balance amongst all of them.
+   Notes:   Any number of manager directives can be given. When niether peer nor
+            proxy is specified, then regardless of role the following occurs:
+            olbd:   Subscribes to each manager whens role is not peer.
+            xrootd: Logins in as a redirector to each manager when role is not 
+                    proxy or server.
 
    Type: Remote server only, non-dynamic.
 
@@ -328,16 +333,31 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
     char *val, *bval = 0, *mval = 0;
     int rc, i, port, isProxy = 0, smode = ODC_FAILOVER;
 
-    SMode = 0;
-    do {if (!(val = Config.GetWord()))
-           {errp->Emsg("Config","manager host name not specified"); return 1;}
-             if (!isProxy && !strcmp("proxy", val)) isProxy = 1;
-        else if (!SMode && !strcmp("any", val)) smode = ODC_FAILOVER;
-        else if (!SMode && !strcmp("all", val)) smode = ODC_ROUNDROB;
-        else mval = strdup(val);
-       } while(!mval);
-    if (isProxy) SModeP = smode;
-       else      SMode  = smode;
+//  Process the optional "peer" or "proxy"
+//
+    if ((val = Config.GetWord()))
+       {if (!strcmp("peer", val)) return 0;
+        if ((isProxy = !strcmp("proxy", val))) val = Config.GetWord();
+       }
+
+//  We can accept this manager. Skip the optional "all" or "any"
+//
+    if (val)
+       {     if (!strcmp("any", val)) smode = ODC_FAILOVER;
+        else if (!strcmp("all", val)) smode = ODC_ROUNDROB;
+        else                          smode = 0;
+        if (smode)
+           {if (isProxy) SModeP = smode;
+               else      SMode  = smode;
+            val = Config.GetWord();
+           }
+       }
+
+//  Get the actual manager
+//
+    if (!val)
+       {errp->Emsg("Config","manager host name not specified"); return 1;}
+       else mval = strdup(val);
 
     if (!(val = index(mval,':'))) val = Config.GetWord();
        else {*val = '\0'; val++;}

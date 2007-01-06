@@ -150,7 +150,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
 // Set the redirect option for upper layers
 //
-   if ((Options & XrdOfsREDIRECT) == XrdOfsREDIRRMT)
+   if (Options & XrdOfsREDIRRMT)
            putenv((char *)"XRDREDIRECT=R");
       else putenv((char *)"XRDREDIRECT=0");
 
@@ -158,14 +158,16 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 //
    if (Options & XrdOfsREDIRECT) NoGo |= ConfigRedir(Eroute);
 
-// Turn off forwarding if we are not a pure remote redirector
+// Turn off forwarding if we are not a pure remote redirector or a peer
 //
-   if (Options & XrdOfsFWD && (Options & (XrdOfsREDIRTRG | XrdOfsREDIROXY)))
-      {Eroute.Emsg("Config", "Forwarding turned off; not a pure manager");
-       Options &= ~(XrdOfsFWD);
-       fwdCHMOD      = 0; fwdMKDIR      = 0; fwdMKPATH     = 0;
-       fwdMV         = 0; fwdRM         = 0; fwdRMDIR      = 0;
-      }
+   if (Options & XrdOfsFWD)
+      if (!(Options & XrdOfsREDIREER)
+      && (Options & (XrdOfsREDIRTRG | XrdOfsREDIROXY)))
+         {Eroute.Emsg("Config", "Forwarding turned off; not a pure manager");
+          Options &= ~(XrdOfsFWD);
+          fwdCHMOD      = 0; fwdMKDIR      = 0; fwdMKPATH     = 0;
+          fwdMV         = 0; fwdRM         = 0; fwdRMDIR      = 0;
+         }
 
 // Initialize th Evr object if we are an actual server
 //
@@ -263,14 +265,14 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
   
 int XrdOfs::ConfigRedir(XrdOucError &Eroute) 
 {
+   int isRedir = Options & XrdOfsREDIRRMT;
    int port;
    char *pp;
 
 // For remote redirection, we simply do a standard config
 //
-   if (Options & XrdOfsREDIRRMT)
-      {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),
-                                        (Options & XrdOfsREDIRTRG));
+   if (isRedir) {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),
+                                               (Options & XrdOfsREDIRTRG));
        if (!Finder->Configure(ConfigFN))
           {delete Finder; Finder = 0; return 1;}
       }
@@ -290,8 +292,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
           }
-       Balancer = new XrdOdcFinderTRG(Eroute.logger(),
-                                     (Options & XrdOfsREDIRRMT), port);
+       Balancer = new XrdOdcFinderTRG(Eroute.logger(), isRedir, port);
        if (!Balancer->Configure(ConfigFN)) 
           {delete Balancer; Balancer = 0; return 1;}
       }
@@ -317,11 +318,11 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Bit("fdnoshare",     Options, XrdOfsFDNOSHARE);
     TS_Xeq("fdscan",        xfdscan);
     TS_Xeq("forward",       xforward);
-    TS_Xeq("locktry",       xlocktry);
+    TS_Xeq("locktry",       xlocktry); // Deprecated
     TS_Xeq("maxdelay",      xmaxd);
     TS_Xeq("notify",        xnot);
     TS_Xeq("osslib",        xolib);
-    TS_Xeq("redirect",      xred);
+    TS_Xeq("redirect",      xred);     // Deprecated
     TS_Xeq("role",          xrole);
     TS_Xeq("trace",         xtrace);
 
@@ -692,12 +693,13 @@ int XrdOfs::xolib(XrdOucStream &Config, XrdOucError &Eroute)
 
 /* Function: xred
 
-   Purpose:  Parse directive: redirect [proxy|remote|target] [if] [ <hosts> ]
+   Purpose:  Parse directive: redirect [proxy|remote|target] [if ...]
 
    Args:     proxy    - enables this server for proxy   load balancing
              remote   - enables this server for dynamic load balancing
              target   - enables this server as a redirection target
-             hosts    - list of hostnames for which this directive applies
+             if       - applies directive if "if" is true. 
+                        See XrdOucUtils::doIf() for syntax.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -740,15 +742,27 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 
 /* Function: xrole
 
-   Purpose:  To parse the directive: role {manager | proxy | server | supervisor}
-                                          [if <hostlist> [named <namelist>]]
+   Purpose:  Parse: role {manager | peer [solo] | proxy | server | supervisor} 
+                         [if ...]
 
-             manager    act as a manager    (redirect remote).
-             proxy      act as a proxy      (redirect proxy).
-             server     act as a server     (redirect target).
-             supervisor act as a supervisor (redirect remote + target).
-             <hostlist> apply role only when executing on matching host.
-             <namelist> apply role only when executing on matching instance.
+             peer       act as a peer manager (redirecting server).
+                        Peers are selected last by a manager.
+             solo       Has no meaning for xrootd (ignored).
+             manager    act as a manager (redirecting server).
+             proxy      act as a server but supply data from another server.
+             server     act as a server (supply local data).
+             supervisor act as a supervisor (equivalent to manager).
+             if         Apply the manager directive if "if" is true. See
+                        XrdOucUtils:doIf() for "if" syntax.
+
+   Notes: 1. This directive superceeds the redirect directive. There is no
+             equivalent for "peer" designation. For other possibilities:
+             manager    -> redirect remote
+             proxy      -> redirect proxy
+             server     -> redirect target
+             supervisor -> redirect remote + target
+
+          2. The peer designation only affects how the olbd communicates.
 
    Type: Server only, non-dynamic.
 
@@ -757,25 +771,24 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOfs::xrole(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    const int resetit = ~(XrdOfsREDIROXY|XrdOfsREDIRRMT|XrdOfsREDIRTRG);
+    const int resetit = ~XrdOfsREDIRECT;
     char *val;
-    const char *myrole;
-    int rc, ropt;
+    int rc, ropt, isPeer = 0;
 
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("Config", "role not specified"); return 1;}
 
-         if (!strcmp("manager",    val))
-            {ropt = XrdOfsREDIRRMT;                  myrole = "manager";}
-    else if (!strcmp("proxy",      val))
-            {ropt = XrdOfsREDIROXY;                  myrole = "proxy";}
-    else if (!strcmp("server",     val)) 
-            {ropt = XrdOfsREDIRTRG;                  myrole = "server";}
-    else if (!strcmp("supervisor", val)) 
-            {ropt = XrdOfsREDIRRMT | XrdOfsREDIRTRG; myrole = "supervisor";}
+         if (!strcmp("manager",    val))  ropt = XrdOfsREDIRRMT;
+    else if (!strcmp("peer",       val)) {ropt = XrdOfsREDIREER; isPeer = 1;}
+    else if (!strcmp("proxy",      val))  ropt = XrdOfsREDIROXY;
+    else if (!strcmp("server",     val))  ropt = XrdOfsREDIRTRG;
+    else if (!strcmp("supervisor", val))  ropt = XrdOfsREDIRVER;
     else {Eroute.Emsg("Config", "invalid role -", val); return 1;}
 
-    if ((val = Config.GetWord()) && !strcmp("if", val))
+    if ((val = Config.GetWord()) && isPeer)
+       if (strcmp("solo", val)) val = Config.GetWord();
+
+    if (val && !strcmp("if", val))
        if ((rc = XrdOucUtils::doIf(&Eroute,Config,"role directive",
                                    getenv("XRDHOST"), getenv("XRDNAME"),
                                    getenv("XRDPROG"))) <= 0)
@@ -786,7 +799,6 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdOucError &Eroute)
     return 0;
 }
 
-  
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/
@@ -894,7 +906,8 @@ int XrdOfs::setupAuth(XrdOucError &Eroute)
   
 const char *XrdOfs::theRole(int opts)
 {
-          if (opts & XrdOfsREDIRRMT
+          if (opts & XrdOfsREDIREER) return "peer";
+     else if (opts & XrdOfsREDIRRMT
           &&  opts & XrdOfsREDIRTRG) return "supervisor";
      else if (opts & XrdOfsREDIRRMT) return "manager";
      else if (opts & XrdOfsREDIROXY) return "proxy";

@@ -488,7 +488,7 @@ int XrdOfsFile::open(const char          *path,      // In
 // destination will apply the security that is needed
 //
    if (XrdOfsFS.Finder && (retc = XrdOfsFS.Finder->Locate(error, path,
-                odc_mode|(open_flag & ~O_EXCL))))
+                odc_mode|(open_flag & ~O_EXCL), &Open_Env)))
       return XrdOfsFS.fsError(error, retc);
 
 // Create the file if so requested o/w try to attach the file
