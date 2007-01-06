@@ -41,11 +41,13 @@ int   GenMsgID(char *oldmid, char *buff, int blen);
 int   inSuspend();
 int   inNoStage();
 int   asManager() {return isManager;}
+int   asPeer()    {return isPeer;}
 int   asServer()  {return isServer;}
 
 int         LUPDelay;     // Maximum delay at look-up
 int         LUPHold;      // Maximum hold  at look-up (in millisconds)
 int         DRPDelay;     // Maximum delay for dropping an offline server
+int         PSDelay;      // Maximum delay time before peer is selected
 int         SRVDelay;     // Minimum delay at startup
 int         SUPCount;     // Minimum server count
 int         SUPLevel;     // Minimum server count as floating percentage
@@ -165,7 +167,11 @@ int               inArgc;
 char             *XmiPath;
 char             *XmiParms;
 int               isManager;
+int               isPeer;
+int               isProxy;
 int               isServer;
+int               isSolo;
+const char       *myRole;
 char             *perfpgm;
 int               perfint;
 int               cachelife;

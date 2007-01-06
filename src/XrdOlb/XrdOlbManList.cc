@@ -17,6 +17,14 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOlb/XrdOlbManList.hh"
 
+using namespace XrdOlb;
+
+/******************************************************************************/
+/*                        G l o b a l   O b j e c t s                         */
+/******************************************************************************/
+
+       XrdOlbManList  XrdOlb::myMans;
+
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
@@ -29,10 +37,12 @@ XrdOlbManRef *Next;
 char         *Manager;
 unsigned int  ManRef;
 int           ManPort;
+int           ManLvl;
 
-              XrdOlbManRef(unsigned int ref, char *name, int port)
-                          {Next=0; ManRef=ref; Manager=name; ManPort=port;
-                          }
+              XrdOlbManRef(unsigned int ref, char *name, int port, int lvl)
+                          : Next(0), ManRef(ref), Manager(name),
+                            ManPort(port), ManLvl(lvl) {};
+
              ~XrdOlbManRef() {if (Manager) free(Manager);}
 };
 
@@ -52,7 +62,7 @@ XrdOlbManList::~XrdOlbManList()
 /*                                   A d d                                    */
 /******************************************************************************/
   
-void XrdOlbManList::Add(unsigned int ref, char *manp, int manport)
+void XrdOlbManList::Add(unsigned int ref, char *manp, int manport, int lvl)
 {
    XrdOlbManRef *prp = 0, *mrp;
    struct sockaddr InetAddr;
@@ -82,14 +92,19 @@ void XrdOlbManList::Add(unsigned int ref, char *manp, int manport)
    while(mrp)
         {if (!strcmp(mrp->Manager, ipname)) 
             {mlMutex.UnLock(); free(ipname); return;}
-         prp = mrp; mrp = mrp->Next;
+         if (mrp->Next)
+            {if (mrp->Next->ManLvl > lvl) prp = mrp;}
+            else if (!prp) prp = mrp;
+         mrp = mrp->Next;
         }
 
 // Create new entry
 //
-   mrp = new XrdOlbManRef(ref, ipname, port);
-   if (prp) prp->Next = mrp;
-      else nextMan = allMans = mrp;
+   mrp = new XrdOlbManRef(ref, ipname, port, lvl);
+   if (!prp) nextMan = allMans = mrp;
+      else {mrp->Next = prp->Next; prp->Next = mrp;
+            if (nextMan->ManLvl > lvl) nextMan = mrp;
+           }
    mlMutex.UnLock();
 }
 
@@ -130,9 +145,10 @@ void XrdOlbManList::Del(unsigned int ref)
 /*                                  N e x t                                   */
 /******************************************************************************/
   
-char *XrdOlbManList::Next(int &port, char *buff, int bsz)
+int XrdOlbManList::Next(int &port, char *buff, int bsz)
 {
    XrdOlbManRef *np;
+   int lvl;
 
    mlMutex.Lock();
    if (!(np = nextMan)) nextMan = allMans;
@@ -140,6 +156,7 @@ char *XrdOlbManList::Next(int &port, char *buff, int bsz)
             port = np->ManPort;
             nextMan = np->Next;
            }
+   lvl = (np ? np->ManLvl : 0);
    mlMutex.UnLock();
-   return (np ? buff : 0);
+   return lvl;
 }

@@ -22,7 +22,7 @@ public:
 
 // Add() adds an alternate manager to the list of managers (duplicates not added)
 //
-void     Add(unsigned int refp, char *manp, int manport);
+void     Add(unsigned int refp, char *manp, int manport, int lvl);
 
 // Del() removes all entries added under refp
 //
@@ -32,10 +32,10 @@ void     Del(unsigned int refp);
 //
 int      haveAlts() {return allMans != 0;}
 
-// Next() returns the next manager in the list or 0 if none are left.
+// Next() returns the next manager in the list and its level or 0 if none are left.
 //        The next call to Next() will return the first manager in the list.
 //
-char    *Next(int &port, char *buff, int bsz);
+int      Next(int &port, char *buff, int bsz);
 
          XrdOlbManList() {allMans = nextMan = 0;}
         ~XrdOlbManList();
@@ -46,4 +46,9 @@ XrdOucMutex   mlMutex;
 XrdOlbManRef *nextMan;
 XrdOlbManRef *allMans;
 };
+
+namespace XrdOlb
+{
+extern    XrdOlbManList myMans;
+}
 #endif

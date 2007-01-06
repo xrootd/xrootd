@@ -26,6 +26,7 @@ const char *XrdOlbManagerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbManager.hh"
 #include "XrdOlb/XrdOlbManList.hh"
+#include "XrdOlb/XrdOlbManTree.hh"
 #include "XrdOlb/XrdOlbRTable.hh"
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbState.hh"
@@ -87,6 +88,8 @@ XrdOlbManager::XrdOlbManager()
      SelRcnt = 0;
      doReset = 0;
      resetMask = 0;
+     peerHost  = 0;
+     peerMask  = 0; peerMask = ~peerMask;
 }
   
 /******************************************************************************/
@@ -97,15 +100,17 @@ void XrdOlbManager::Broadcast(SMask_t smask, char *buff, int blen)
 {
    int i;
    XrdOlbServer *sp;
+   SMask_t bmask;
 
-// Obtain a lock on the table
+// Obtain a lock on the table and screen out peer nodes
 //
    STMutex.Lock();
+   bmask = smask & peerMask;
 
 // Run through the table looking for servers to send messages to
 //
    for (i = 0; i <= STHi; i++)
-       {if ((sp = ServTab[i]) && sp->isServer(smask) && !sp->isOffline)
+       {if ((sp = ServTab[i]) && sp->isServer(bmask) && !sp->isOffline)
            sp->Lock();
            else continue;
         STMutex.UnLock();
@@ -122,15 +127,17 @@ void XrdOlbManager::Broadcast(SMask_t smask, const struct iovec *iod, int iovcnt
 {
    int i;
    XrdOlbServer *sp;
+   SMask_t bmask;
 
-// Obtain a lock on the table
+// Obtain a lock on the table and screen out peer nodes
 //
    STMutex.Lock();
+   bmask = smask & peerMask;
 
 // Run through the table looking for servers to send messages to
 //
    for (i = 0; i <= STHi; i++)
-       {if ((sp = ServTab[i]) && sp->isServer(smask) && !sp->isOffline)
+       {if ((sp = ServTab[i]) && sp->isServer(bmask) && !sp->isOffline)
            sp->Lock();
            else continue;
         STMutex.UnLock();
@@ -236,7 +243,7 @@ void XrdOlbManager::Inform(SMask_t mmask, const char *cmd, int clen)
   
 XrdOlbSInfo *XrdOlbManager::ListServers(SMask_t mask, int opts)
 {
-    char *reason;
+    const char *reason;
     int i, iend, nump, delay, lsall = opts & OLB_LS_ALL;
     XrdOlbServer *sp;
     XrdOlbSInfo  *sipp = 0, *sip;
@@ -283,9 +290,10 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 {
    EPNAME("Login")
    XrdOlbServer *sp;
-   char *tp, *Stype, *theSID;
+   const char *mp, *Stype;
+   char *tp, *theSID;
    int   Status = 0, fdsk = 0, numfs = 1, addedp = 0, port = 0, Sport = 0;
-   int   servID, servInst, Rslot;
+   int   rc, isPeer, servID, servInst, Rslot;
    SMask_t servset = 0, newmask;
 
 // Handle the login for the server stream.
@@ -301,7 +309,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
       }
    DEBUG("from " <<lnkp->Nick() <<": " <<tp);
 
-// Get the login command and its argument
+// The server may only send a proper login request, check for this
 //
    if (!(tp = lnkp->GetToken()) || strcmp(tp, "login")
    ||  !(tp = lnkp->GetToken()))
@@ -325,16 +333,19 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
        return (void *)0;
       }
 
-// Server Command: login server [port <dport>] [nostage] [suspend] [+m:<sport>]
-//                              [=<sid>]
+// Server Command: login {peer | server} [options]
+// Options:        [port <dport>] [nostage] [suspend] [+m:<sport>] [=<sid>]
+
 // Responses:      <id> ping
 //                 <id> try <hostlist>
 // Server Command: addpath <mode> <path>
 //                 start <maxkb> <numfs> <totkb>
 //
-   if (strcmp(tp, "server"))
+   if ((isPeer = strcmp(tp, "server")) && strcmp(tp, "peer"))
       return Login_Failed("Invalid server type", lnkp);
-   Stype = (char *)"server";
+
+   if (isPeer) {Stype = "peer"; Status |= (OLB_Special | OLB_isPeer);}
+      else      Stype = "server";
 
 // The server may specify a port number
 //
@@ -437,6 +448,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
    if (!addedp) 
       {XrdOlbPInfo pinfo;
        pinfo.rovec = sp->ServMask;
+       if (sp->isPeer) pinfo.ssvec = sp->ServMask;
        servset = Cache.Paths.Insert("/", &pinfo);
        Cache.Bounce(sp->ServMask);
        Say.Emsg("Manager",Stype,lnkp->Nick(),"defaulted r /");
@@ -455,14 +467,15 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
    Say.Emsg("Manager", Stype, sp->Nick(), tp);
 
    sp->isDisable = 0;
-   sp->Process_Responses();
+   rc = sp->Process_Responses();
 
-   tp = sp->isOffline ? (char *)"forced out." : (char *)"logged out.";
-   Say.Emsg("Manager", Stype, sp->Nick(), tp);
+   if (rc == -86) mp = "disconnected";
+      else mp = sp->isOffline ? "forced out." : "logged out.";
+   Say.Emsg("Manager", Stype, sp->Nick(), mp);
 
 // Recycle the server
 //
-   if (sp->Link) Remove_Server(0, servID, servInst);
+   if (sp->Link) Remove_Server(0, servID, servInst, rc == -86);
    return (void *)0;
 }
   
@@ -597,9 +610,20 @@ void *XrdOlbManager::Pander(char *manager, int mport)
    EPNAME("Pander");
    XrdOlbServer   *sp;
    XrdNetLink     *lp;
-   XrdOlbManList   myMans;
    int rc, Status, opts = 0, waits = 6, tries = 6, fails = 0, xport = mport;
+   int Lvl = 0, mySID = ManTree.Register();
    char manbuff[256], *reason, *manp = manager;
+   const int manblen = sizeof(manbuff);
+
+// Compute the Manager's status (this never changes for managers/supervisors)
+//
+   if (Config.asManager())
+      {Status = OLB_noStage;
+       if (Config.asPeer())
+           if (Config.SUPCount) Status |= OLB_isPeer | OLB_Suspend;
+               else             Status |= OLB_isPeer;
+           else                 Status |= OLB_isMan  | OLB_Suspend;
+      }
 
 // Keep connecting to our manager. If XWait is present, wait for it to
 // be turned off first; then try to connect.
@@ -609,16 +633,19 @@ void *XrdOlbManager::Pander(char *manager, int mport)
                 {Say.Emsg("Manager", "Suspend state still active.");
                  waits = 6;
                 }
-             Snooze(10);
+             Snooze(12);
             }
-       DEBUG("Trying to connect to " <<manp <<':' <<xport);
+       if (!ManTree.Trying(mySID, Lvl) && Lvl)
+          {DEBUG("Restarting at root node " <<manager <<':' <<mport);
+           manp = manager; xport = mport; Lvl = 0;
+          }
+       DEBUG("Trying to connect to lvl " <<Lvl <<' ' <<manp <<':' <<xport);
        if (!(lp = NetTCPs->Connect(manp, xport, opts)))
           {if (tries--) opts = XRDNET_NOEMSG;
               else {tries = 6; opts = 0;}
-           if (!XrdOlbServer::myMans.haveAlts()
-           ||  !(manp=XrdOlbServer::myMans.Next(xport,manbuff,sizeof(manbuff))))
-              {manp = manager; xport = mport; Snooze(10); fails++;}
-              else Snooze(3);
+           if ((Lvl = myMans.Next(xport,manbuff,manblen)))
+                  {Snooze(3); manp = manbuff;}
+             else {Snooze(6); manp = manager; xport = mport; fails++;}
            continue;
           }
        opts = 0; tries = waits = 6;
@@ -628,27 +655,31 @@ void *XrdOlbManager::Pander(char *manager, int mport)
        sp = new XrdOlbServer(lp);
        Add_Manager(sp);
 
-       // Login this server. If we are a line manager login suspended
+       // Login this server. If we are a supervisor login possibly suspended
        //
        reason = 0;
-       if (Config.asManager()) Status = OLB_Suspend|OLB_noStage|OLB_isMan;
-          else Status = (XWait ? OLB_Suspend : 0)|(XnoStage ? OLB_noStage : 0);
+       if (!Config.asManager())
+          Status = (XWait ? OLB_Suspend : 0)|(XnoStage ? OLB_noStage : 0);
        if (fails >= 6 && manp == manager) {Status |= OLB_Lost; fails = 0;}
+          else Status &= ~OLB_Lost;
 
-       if (!(rc=sp->Login(Port, Status))) sp->Process_Requests();
+       if (!(rc=sp->Login(Port, Status, Lvl+1)))
+          if (!ManTree.Connect(mySID, sp)) rc = -86;
+             else rc = sp->Process_Requests();
           else if (rc == 1) reason = (char *)"login to manager failed";
 
-       // Just try again
+       // Just try again. Note that if were successful in fully connecting to
+       // the root then we will continue to try the root.
        //
        Remove_Manager(reason, sp);
+       ManTree.Disc(mySID);
        delete sp;
 
        // Cycle on to the next manager if we have one or snooze and try over
        //
-       if ((manp=XrdOlbServer::myMans.Next(xport,manbuff,sizeof(manbuff))))
-          continue;
-       Snooze(15);
-       manp = manager; xport = mport; fails++;
+       if (rc != -86 && (Lvl = myMans.Next(xport,manbuff,manblen)))
+          {manp = manbuff; continue;}
+       Snooze(9); Lvl = 0; manp = manager; xport = mport; fails++;
       } while(1);
     return (void *)0;
 }
@@ -758,20 +789,22 @@ void XrdOlbManager::Resume()
 /*                             S e l S e r v e r                              */
 /******************************************************************************/
   
-int XrdOlbManager::SelServer(int needrw, char *path, 
+int XrdOlbManager::SelServer(int opts, char *path,
                             SMask_t pmask, SMask_t amask, char *hbuff,
                             const struct iovec *iodata, int iovcnt)
 {
     EPNAME("SelServer")
-    char *reason;
-    int delay, nump, isalt = 0, pass = 2;
+    const char *reason, *reason2;
+    int delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
+    int needrw = opts & OLB_needrw;
     SMask_t mask;
     XrdOlbServer *sp = 0;
 
-// Scan for a primary and alternate server (alternates do staging)
+// Scan for a primary and alternate server (alternates do staging). At this
+// point we omit all peer servers as they are our last resort.
 //
-   mask = pmask;
    STMutex.Lock();
+   mask = pmask & peerMask;
    while(pass--)
         {if (mask)
             {sp = (Config.sched_RR
@@ -779,7 +812,7 @@ int XrdOlbManager::SelServer(int needrw, char *path,
                    : SelbyLoad(mask, nump, delay, &reason, isalt||needrw));
              if (sp || (nump && delay) || ServCnt < Config.SUPCount) break;
             }
-         mask = amask; isalt = 1;
+         mask = amask & peerMask; isalt = 1;
         }
    STMutex.UnLock();
 
@@ -787,8 +820,7 @@ int XrdOlbManager::SelServer(int needrw, char *path,
 //
    if (sp)
       {strcpy(hbuff, sp->Name());
-       sp->RefR++;
-       if (isalt || needrw > 1)
+       if (isalt || opts & OLB_newfile)
           {if (isalt)
               {Cache.AddFile(path, sp->ServMask, needrw);
                if (iovcnt && iodata) sp->Link->Send(iodata, iovcnt);
@@ -796,29 +828,47 @@ int XrdOlbManager::SelServer(int needrw, char *path,
               } else {
                TRACE(Stage, "Server " <<hbuff <<" creating " <<path);
               }
-          sp->RefA++;
           }
        sp->UnLock();
        return 0;
-      }
+      } else if (!delay && ServCnt < Config.SUPCount)
+                {reason = "insufficient number of servers";
+                 delay = Config.SUPDelay;
+                }
 
 // Return delay if selection failure is recoverable
 //
-   if (delay)
+   if (delay && delay < Config.PSDelay)
       {Record(path, reason);
        return delay;
       }
 
-// At this point we know that we don't have enough servers
+// At this point, we attempt a peer node selection (choice of last resort)
 //
-   TRACE(Defer, "client defered; not enough servers for " <<path);
-   return Config.SUPDelay;
+   if (opts & OLB_peersok)
+      {STMutex.Lock();
+       if ((mask = (pmask | amask) & peerHost))
+          sp = SelbyCost(mask, nump, delay2, &reason2, needrw);
+       STMutex.UnLock();
+       if (sp)
+          {strcpy(hbuff, sp->Name());
+           if (iovcnt && iodata) sp->Link->Send(iodata, iovcnt);
+           sp->UnLock();
+           TRACE(Stage, "Peer " <<hbuff <<" handling " <<path);
+           return 0;
+          }
+       if (!delay) {delay = delay2; reason = reason2;}
+      }
 
-// Return failure, waits are not allowed (at this point we would bounce the
-// client to a proxy server if we had that implemented)
+// At this point we either don't have enough servers or simply can't handle this
 //
-// return -1;
+   if (delay)
+      {TRACE(Defer, "client defered; " <<reason <<" for " <<path);
+       return delay;
+      }
+   return -1;
 }
+
 /******************************************************************************/
   
 int XrdOlbManager::SelServer(int isrw, SMask_t pmask, char *hbuff)
@@ -1112,8 +1162,9 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
        if (ServBat[i])
           {if (ServBat[i]->isServer(ipaddr, port, theSID)) break;
               else if (!ServTab[i] && k < 0) k = i;
-                   else if (os < 0 && (Status & OLB_isMan)
-                        &&  ServBat[i]->isSpecial && !ServBat[i]->isMan) os = i;
+                   else if (os < 0 && (Status & (OLB_isMan|OLB_isPeer))
+                        &&  ServBat[i]->isSpecial 
+                        && !ServBat[i]->isMan && !ServBat[i]->isPeer) os = i;
           }
           else if (j < 0) j = i;
 
@@ -1149,7 +1200,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
                          ServTab[os] = ServBat[os] = 0;
                          j = os;
                         } else {STMutex.UnLock();
-                                if (Status & OLB_Special)
+                                if (Status&OLB_Special && !(Status&OLB_isPeer))
                                    {sendAList(lp);
                                     act = " redirected";
                                    } else act = " failed";
@@ -1171,12 +1222,19 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
    sp->isNoStage = (Status & OLB_noStage);
    sp->isSuspend = (Status & OLB_Suspend);
    sp->isMan     = (Status & OLB_isMan);
+   sp->isPeer    = (Status & OLB_isPeer);
    sp->isSpecial = (Status & OLB_Special);
    sp->isDisable = 1;
    ServCnt++;
    if (Config.SUPLevel
    && (tmp = ServCnt*Config.SUPLevel/100) > Config.SUPCount)
       Config.SUPCount=tmp;
+
+// Compute new peer mask, as needed
+//
+   if (sp->isPeer) peerHost |=  sp->ServMask;
+      else         peerHost &= ~sp->ServMask;
+   peerMask = ~peerHost;
 
 // Check if we should bump someone (deferal avoids extra recovery transactions)
 //
@@ -1186,6 +1244,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
        DEBUG("ID " <<os <<" bumped " <<bump->Nick() <<" for " <<hnp);
        bump->isOffline = 1;
        bump->Link->Close(1);
+       ServCnt--;
        bump->UnLock();
       }
 
@@ -1209,25 +1268,25 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
 /******************************************************************************/
   
 XrdOlbServer *XrdOlbManager::calcDelay(int nump, int numd, int numf, int numo,
-                                       int nums, int &delay, char **reason)
+                                       int nums, int &delay, const char **reason)
 {
         if (!nump) {delay = 0;
-                    *reason = (char *)"no eligible servers for";
+                    *reason = "no eligible servers for";
                    }
    else if (numf)  {delay = Config.DiskWT;
-                    *reason = (char *)"no eligible servers have space for";
+                    *reason = "no eligible servers have space for";
                    }
    else if (numo)  {delay = Config.MaxDelay;
-                    *reason = (char *)"eligible servers overloaded for";
+                    *reason = "eligible servers overloaded for";
                    }
    else if (nums)  {delay = Config.SUSDelay;
-                    *reason = (char *)"eligible servers suspended for";
+                    *reason = "eligible servers suspended for";
                    }
    else if (numd)  {delay = Config.SUPDelay;
-                    *reason = (char *)"eligible servers offline for";
+                    *reason = "eligible servers offline for";
                    }
    else            {delay = Config.SUPDelay;
-                    *reason = (char *)"server selection error for";
+                    *reason = "server selection error for";
                    }
    return (XrdOlbServer *)0;
 }
@@ -1274,6 +1333,10 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
    sp->DropJob   = 0;
    sp->isBound   = 0;
 
+// Remove Server from the peer list (if it is one)
+//
+   if (sp->isPeer) {peerHost &= sp->ServMask; peerMask = ~peerHost;}
+
 // Remove server entry from the alternate list and readjust the end pointer.
 //
    if (sp->isMan)
@@ -1298,7 +1361,8 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 // Document the drop
 //
    STMutex.UnLock();
-   Say.Emsg("Server", hname, "dropped.");
+   DEBUG("Server " <<hname <<' ' <<sent <<'.' <<sinst <<" dropped.");
+   Say.Emsg("Drop_Server", hname, "dropped.");
    return 0;
 }
 
@@ -1309,7 +1373,7 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 void *XrdOlbManager::Login_Failed(const char *reason, 
                                  XrdNetLink *lp, XrdOlbServer *sp)
 {
-     if (sp) Remove_Server(reason, sp->ServID, sp->Instance);
+     if (sp) Remove_Server(reason, sp->ServID, sp->Instance, 1);
         else {if (reason) Say.Emsg("Manager", lp->Nick(),
                                           "login failed;", reason);
               lp->Recycle();
@@ -1378,13 +1442,57 @@ void XrdOlbManager::Remove_Manager(const char *reason, XrdOlbServer *sp)
 //
    if (reason) Say.Emsg("Manager", sp->Nick(), "removed;", reason);
 }
+ 
+/******************************************************************************/
+/*                             S e l b y C o s t                              */
+/******************************************************************************/
 
+// Cost selection is used only for peer node selection as peers do not
+// report a load and handle their own scheduling.
+
+XrdOlbServer *XrdOlbManager::SelbyCost(SMask_t mask, int &nump, int &delay,
+                                       const char **reason, int needspace)
+{
+    int i, numd, numf, nums;
+    XrdOlbServer *np, *sp = 0;
+
+// Scan for a server
+//
+   nump = nums = numf = numd = 0; // possible, suspended, full, and dead
+   for (i = 0; i <= STHi; i++)
+       if ((np = ServTab[i]) && (np->ServMask & mask))
+          {nump++;
+           if (np->isOffline)                   {numd++; continue;}
+           if (np->isSuspend || np->isDisable)  {nums++; continue;}
+           if (needspace &&     np->isNoStage)  {numf++; continue;}
+           if (!sp) sp = np;
+              else if (abs(sp->myCost - np->myCost)
+                          <= Config.P_fuzz)
+                      {if (needspace)
+                          {if (sp->RefA > (np->RefA+Config.DiskLinger))
+                               sp=np;
+                           } 
+                           else if (sp->RefR > np->RefR) sp=np;
+                       }
+                       else if (sp->myCost > np->myCost) sp=np;
+          }
+
+// Check for overloaded server and return result
+//
+   if (!sp) return calcDelay(nump, numd, numf, 0, nums, delay, reason);
+   if (needspace) SelAcnt++;  // Protected by STMutex
+      else        SelRcnt++;
+   sp->Lock();
+   delay = 0;
+   return sp;
+}
+  
 /******************************************************************************/
 /*                             S e l b y L o a d                              */
 /******************************************************************************/
   
 XrdOlbServer *XrdOlbManager::SelbyLoad(SMask_t mask, int &nump, int &delay,
-                                       char **reason, int needspace)
+                                       const char **reason, int needspace)
 {
     int i, numd, numf, numo, nums;
     XrdOlbServer *np, *sp = 0;
@@ -1422,13 +1530,12 @@ XrdOlbServer *XrdOlbManager::SelbyLoad(SMask_t mask, int &nump, int &delay,
    delay = 0;
    return sp;
 }
- 
 /******************************************************************************/
 /*                              S e l b y R e f                               */
 /******************************************************************************/
 
 XrdOlbServer *XrdOlbManager::SelbyRef(SMask_t mask, int &nump, int &delay,
-                                      char **reason, int needspace)
+                                      const char **reason, int needspace)
 {
     int i, numd, numf, nums;
     XrdOlbServer *np, *sp = 0;

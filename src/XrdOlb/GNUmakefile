@@ -20,6 +20,7 @@ SOURCES = \
         XrdOlbConfig.cc    \
         XrdOlbManager.cc   \
         XrdOlbManList.cc   \
+        XrdOlbManTree.cc   \
         XrdOlbMeter.cc     \
         XrdOlbPList.cc     \
         XrdOlbPrepare.cc   \
@@ -37,6 +38,7 @@ OBJECTS = \
         $(OBJDIR)/XrdOlbConfig.o    \
         $(OBJDIR)/XrdOlbManager.o   \
         $(OBJDIR)/XrdOlbManList.o   \
+        $(OBJDIR)/XrdOlbManTree.o   \
         $(OBJDIR)/XrdOlbMeter.o     \
         $(OBJDIR)/XrdOlbPList.o     \
         $(OBJDIR)/XrdOlbPrepare.o   \
@@ -114,7 +116,7 @@ $(OBJDIR)/XrdOlbConfig.o: XrdOlbConfig.hh   XrdOlbConfig.cc \
 
 $(OBJDIR)/XrdOlbManager.o: XrdOlbManager.hh XrdOlbManager.cc \
                            XrdJob.hh        XrdScheduler.hh \
-                           XrdNetWork.hh    XrdOlbAdmin.hh \
+                           XrdNetWork.hh    XrdOlbAdmin.hh    XrdOlbManTree.hh \
                            XrdOlbCache.hh   XrdOlbConfig.hh   XrdOlbManager.hh \
                            XrdOlbManList.hh XrdOlbRTable.hh   XrdOlbServer.hh \
                            XrdOlbState.hh   XrdOlbTrace.hh    XrdOlbTypes.hh \
@@ -126,6 +128,12 @@ $(OBJDIR)/XrdOlbManList.o: XrdOlbManList.cc   XrdOlbManList.hh \
                            XrdNetDNS.hh       XrdSysPlatform.hh  XrdOucPthread.hh
 	@echo Compiling XrdOlbManList.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbManList.o XrdOlbManList.cc
+
+$(OBJDIR)/XrdOlbManTree.o: XrdOlbManTree.cc   XrdOlbManTree.hh \
+                           XrdOucPthread.hh   XrdOlbTrace.hh  \
+                           XrdOlbManager.hh   XrdOlbServer.hh
+	@echo Compiling XrdOlbManTree.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbManTree.o XrdOlbManTree.cc
 
 $(OBJDIR)/XrdOlbMeter.o: XrdOlbMeter.hh  XrdOlbMeter.cc  \
                          XrdOlbConfig.hh XrdOlbManager.hh  XrdOlbTrace.hh \

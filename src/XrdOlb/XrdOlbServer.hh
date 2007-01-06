@@ -18,13 +18,11 @@
   
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
-#include "XrdOlb/XrdOlbManList.hh"
 #include "XrdOlb/XrdOlbReq.hh"
 #include "XrdOlb/XrdOlbRRQ.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 
 class XrdOlbDrop;
-class XrdOlbManList;
 class XrdOlbPrepArgs;
 
 class XrdOlbServer
@@ -37,6 +35,7 @@ friend class XrdOlbManager;
        char  isNoStage;    // Set upon a nostage event
        char  isSpecial;    // Set when server can be redirected
        char  isMan;        // Set when server can act as manager
+       char  isPeer;       // Set when server can act as peer manager
        char  isSuspend;    // Set upon a suspend event
        char  isActive;     // Set when server is functioning
        char  isBound;      // Set when server is in the configuration
@@ -61,7 +60,7 @@ inline const char *Nick()   {return (myNick ? myNick : (char *)"?");}
 inline void    Lock() {myMutex.Lock();}
 inline void  UnLock() {myMutex.UnLock();}
 
-       int  Login(int Port, int Status);
+       int  Login(int Port, int Status, int Lvl);
 
        void Process_Director(void);
        int  Process_Requests(void);
@@ -83,6 +82,7 @@ private:
        int   do_AvKb(char *rid);
        int   do_Chmod(char *rid, int do4real);
        int   do_Delay(char *rid);
+       int   do_Disc(char *rid, int sendDisc);
        int   do_Gone(char *rid);
        int   do_Have(char *rid);
        int   do_Load(char *rid);
@@ -115,7 +115,6 @@ static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
        char *Receive(char *idbuff, int blen);
        int   Reissue(char *rid, const char *op, char *arg1, char *path, char *arg3=0);
 
-static XrdOlbManList myMans;
 static XrdNetLink   *Relay;
 XrdOucMutex       myMutex;
 XrdNetLink       *Link;
@@ -130,6 +129,7 @@ SMask_t    ServMask;
 int        ServID;
 int        Instance;
 int        Port;
+int        myLevel;
 char      *mySID;
 char      *myName;
 char      *myNick;
@@ -144,6 +144,7 @@ int        logload;
 int        DiskFree;     // Largest free KB
 int        DiskNums;     // Number of file systems
 int        DiskTota;     // Total free KB across all file systems
+int        myCost;       // Overall cost (determined by location)
 int        myLoad;       // Overall load
 int        RefA;         // Number of times used for allocation
 int        RefTotA;

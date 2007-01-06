@@ -45,8 +45,6 @@ using namespace XrdOlb;
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
-       XrdOlbManList  XrdOlbServer::myMans;
-
        XrdNetLink    *XrdOlbServer::Relay = 0;
 
 /******************************************************************************/
@@ -86,6 +84,7 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     isSpecial=  0;
     isMan    =  0;
     isKnown  =  0;
+    myCost   =  0;
     myLoad   =  0;
     DiskFree =  0;
     DiskNums =  0;
@@ -106,6 +105,7 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     setName(lnkp, port);
     Stype    = (char *)"Server";
     mySID    = strdup(sid ? sid : "?");
+    myLevel  = 0;
 
     iMutex.Lock();
     Instance =  iNum++;
@@ -154,26 +154,30 @@ XrdOlbServer::~XrdOlbServer()
 /*                                 L o g i n                                  */
 /******************************************************************************/
   
-int XrdOlbServer::Login(int dataPort, int Status)
+int XrdOlbServer::Login(int dataPort, int Status, int Lvl)
 {
    XrdOlbPList *plp = Config.PathList.First();
    long totfr, maxfr;
-   char pbuff[16], buff[1280];
+   char pbuff[16], qbuff[16], buff[1280];
 
 // Send a message is we are lost
 //
    if (Status & OLB_Lost)
       Link->Send("msg cannot find usable manager; still searching.\n");
+   myLevel = Lvl;
 
 // Send a login request
 //
    if (dataPort) sprintf(pbuff, "port %d", dataPort);
       else *pbuff = '\0';
-   sprintf(buff, "login server %s %s %s +%c:%d =%s\n", pbuff,
+   if (Status & OLB_isPeer) *qbuff = '\0';
+      else sprintf(qbuff,"+%c:%d",(Status&OLB_isMan?'m':'s'),Config.PortTCP);
+
+   sprintf(buff, "login %s %s %s %s %s =%s\n",
+                 (Status & OLB_isPeer  ? "peer"    : "server"), pbuff,
                  (Status & OLB_noStage ? "nostage" : ""),
                  (Status & OLB_Suspend ? "suspend" : ""),
-                 (Status & OLB_isMan   ? 'm'       : 's'), 
-                 Config.PortTCP, Config.mySID);
+                 qbuff, Config.mySID);
    if (Link->Send(buff) < 0) return -1;
 
 // If this is a new manager, it will send us a ping or try response at this
@@ -186,7 +190,7 @@ int XrdOlbServer::Login(int dataPort, int Status)
              {unsigned int ipaddr = Link->Addr();
               myMans.Del(ipaddr);
               while((tp = Link->GetToken()))
-                   myMans.Add(ipaddr, tp, Config.PortTCP);
+                   myMans.Add(ipaddr, tp, Config.PortTCP, Lvl);
               return 2;
              }
       }
@@ -291,6 +295,7 @@ int XrdOlbServer::Process_Requests()
        else if (!strcmp("rm",     tp)) retc = do_Rm(id, 1);
        else if (!strcmp("rmdir",  tp)) retc = do_Rmdir(id, 1);
        else if (!strcmp("try",    tp)) retc = do_Try(id);
+       else if (!strcmp("disc",   tp)) retc = do_Disc(id, 0);
        else retc = 1;
        if (retc > 0)
           Say.Emsg("Server", "invalid request from", Link->Name());
@@ -351,6 +356,7 @@ int XrdOlbServer::Process_Responses()
        else if (!strcmp("stage",   tp)) retc = do_StNst(id, 1);
        else if (!strcmp("nostage", tp)) retc = do_StNst(id, 0);
        else if (!strcmp("rst",     tp)) retc = do_RST(id);
+       else if (!strcmp("disc",    tp)) retc = do_Disc(id, 1);
        else retc = 1;
        if (retc > 0)
           Say.Emsg("Server", "invalid response from", myNick);
@@ -520,6 +526,32 @@ int XrdOlbServer::do_Delay(char *rid)
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                                "%s !wait %d\n", rid, Config.SUPDelay));
 }
+
+/******************************************************************************/
+/* ALL:                          d o _ D i s c                                */
+/******************************************************************************/
+
+// When a manager receives a disc response from a server it sends a disc request
+// When a server receives a disc request it simply closes the connection.
+
+int XrdOlbServer::do_Disc(char *rid, int sendDisc)
+{
+
+// Indicate we have received a disconnect
+//
+   Say.Emsg("Server", Link->Name(), "requested a disconnect");
+
+// If we must send a disc request, do so now
+//
+   if (sendDisc) Link->Send("1@0 disc\n", 9);
+
+// Close the link and return an error
+//
+   isOffline = 1;
+   Link->Close(1);
+   return -86;
+}
+
 /******************************************************************************/
 /* MANAGER:                      d o _ G o n e                                */
 /******************************************************************************/
@@ -1089,14 +1121,14 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
    char ptc, hbuff[512];
-   int retc, needrw;
+   int retc, needrw, Osel;
    SMask_t amask, smask, pmask;
 
 // Determine mode
 //
    if (index(pargs->mode, (int)'w'))
-           {needrw = 1; ptc = 'w';}
-      else {needrw = 0; ptc = 'r';}
+           {needrw = 1; ptc = 'w'; Osel = OLB_needrw;}
+      else {needrw = 0; ptc = 'r'; Osel = 0;}
 
 // Find out who serves this path
 //
@@ -1137,10 +1169,10 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
    pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
    smask = amask & pinfo.ssvec;   // Alternate selection
 
-// Select a server
+// Select a server (do not select any peers)
 //
    if (!(pmask | smask)) retc = -1;
-      else if (!(retc = Manager.SelServer(needrw, pargs->path, pmask, smask, 
+      else if (!(retc = Manager.SelServer(Osel, pargs->path, pmask, smask, 
                         hbuff, pargs->iovp,pargs->iovn)))
               {DEBUG(hbuff <<" prepared " <<pargs->reqid <<' ' <<pargs->path);
                return 0;
@@ -1318,12 +1350,23 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    BUFF(2048);
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
-   char *tp, *amode, ptc, hbuff[512];
-   int n, dowt = 0, retc, needrw;
+   const char *amode;
+   char *tp, ptc, hbuff[512];
+   int n, dowt = 0, Osel, retc, needrw;
    int qattr = 0, resonly = 0, newfile = 0, dotrunc = 0;
    SMask_t amask, smask, pmask;
 
-// Process: <id> select[s] {c | d | r | w | s | t | x] <path>
+// Process: <id> select[s] {c | d | r | w | s | t | x] <path> [-host]
+
+// Note: selects - requests a cache refresh for <path>
+//             c - file will be created
+//             d - file will be created or truncated
+//             r - file will only be read
+//             w - file will be read and writen
+//             s - only stat information will be obtained
+//             x - only stat information will be obtained (file must be resident)
+//             - - the host failed to deliver the file.
+
 // Reponds: ?err  <msg>
 //          !try  <host>
 //          !wait <sec>
@@ -1333,15 +1376,15 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    if (!(tp = Link->GetToken()) || strlen(tp) != 1) return 1;
    ptc = *tp;
    switch(*tp)
-        {case 'r': needrw = 0; amode = (char *)"read";  break;
-         case 's': needrw = 0; amode = (char *)"read";  qattr   = 1; break;
-         case 'w': needrw = 1; amode = (char *)"write"; break;
-         case 'x': needrw = 0; amode = (char *)"read";  resonly = 1;
+        {case 'r': Osel = 0;           amode = "read";  break;
+         case 's': Osel = 0;           amode = "read";  qattr   = 1; break;
+         case 'w': Osel = OLB_needrw;  amode = "write"; break;
+         case 'x': Osel = 0;           amode = "read";  resonly = 1;
                                                         qattr   = 1; break;
-         case 'c': needrw = 2; amode = (char *)"write"; newfile = 1; break;
-         case 'd': needrw = 2; amode = (char *)"write"; newfile = 1;
+         case 'c': Osel = OLB_newfile; amode = "write"; newfile = 1; break;
+         case 'd': Osel = OLB_newfile; amode = "write"; newfile = 1;
                                                         dotrunc = 1; break;
-         case 't': needrw = 2; amode = (char *)"write"; dotrunc = 1; break;
+         case 't': Osel = OLB_newfile; amode = "write"; dotrunc = 1; break;
          default:  return 1;
         }
    if (!(tp = Link->GetToken())) return 1;
@@ -1354,7 +1397,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 //
       if (qattr) {if (Xmi_Stat && Xmi_Select->Stat(&Req, tp)) return 0;}
          else if (Xmi_Select) 
-                 {int opts = (needrw ? XMI_RW : 0);
+                 {int opts = (Osel & OLB_needrw ? XMI_RW : 0);
                   if (newfile) opts |= XMI_NEW;
                   if (dotrunc) opts |= XMI_TRUNC;
                   if (Xmi_Select->Select(&Req, tp, opts)) return 0;
@@ -1362,6 +1405,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 
 // Find out who serves this path
 //
+   needrw = Osel & OLB_needrw; Osel |= OLB_peersok;
    if (!Cache.Paths.Find(tp, pinfo)
    || (amask = (needrw ? pinfo.rwvec : pinfo.rovec)) == 0)
       {Link->Send(buff, snprintf(buff, sizeof(buff)-1,
@@ -1420,7 +1464,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 // Select a server
 //
    if (!(pmask | smask)) retc = -1;
-      else if (!(retc = Manager.SelServer(needrw, tp, pmask, smask, hbuff)))
+      else if (!(retc = Manager.SelServer(Osel, tp, pmask, smask, hbuff)))
               {DEBUG("Redirect " <<Name() <<" -> " <<hbuff <<" for " <<tp);
                redr_iov[0].iov_base = rid;   redr_iov[0].iov_len = strlen(rid);
                n = strlen(hbuff); hbuff[n] = '\n';
@@ -1437,15 +1481,9 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
       {Link->Send(buff, sprintf(buff, "%s !wait %d\n", rid, retc));
        DEBUG("Select delay " <<Name() <<' ' <<retc);
       } else {
-       if (Manager.ServCnt < Config.SUPCount)
-          {Link->Send(buff,sprintf(buff,"%s !wait %d\n",rid,Config.SUPDelay));
-           Cache.DelCache(tp);
-           TRACE(Defer, "client defered; insufficient servers for " <<tp);
-          }
-          else {Link->Send(buff, snprintf(buff, sizeof(buff)-1,
+       Link->Send(buff, snprintf(buff, sizeof(buff)-1,
                 "%s ?err No servers are available to %s the file.\n",rid,amode));
-                DEBUG("No servers available to " <<ptc <<' ' <<tp);
-               }
+       DEBUG("No servers available to " <<ptc <<' ' <<tp);
       }
 
 // All done
@@ -1679,7 +1717,7 @@ int XrdOlbServer::do_Try(char *rid)
 // Add all the alternates to our alternate list
 //
    while((tp = Link->GetToken()))
-         myMans.Add(ipaddr, tp, Config.PortTCP);
+         myMans.Add(ipaddr, tp, Config.PortTCP, myLevel);
 
 // Close the link and reurn an error
 //

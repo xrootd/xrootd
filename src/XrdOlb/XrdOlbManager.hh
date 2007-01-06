@@ -65,13 +65,20 @@ int          Status;
 /*                          S t a t u s   F l a g s                           */
 /******************************************************************************/
 
-// Flags passed to the AddServer()
+// Flags passed to AddServer()
 //
 const int OLB_noStage =  1;
 const int OLB_Suspend =  2;
 const int OLB_Special =  4;
 const int OLB_isMan   =  8;
 const int OLB_Lost    = 16;
+const int OLB_isPeer  = 32;
+
+// Flags passed to SelServer() full selection (long signature)
+//
+const int OLB_needrw  =  1;
+const int OLB_newfile =  3;
+const int OLB_peersok =  4;
   
 /******************************************************************************/
 /*                          o o l b _ M a n a g e r                           */
@@ -107,7 +114,7 @@ void        ResetRef(SMask_t smask);
 void        Resume();
 int         SelServer(int pt, char *path, SMask_t pmsk, SMask_t amsk, char *hb,
                       const struct iovec *iodata=0, int iovcnt=0);
-int         SelServer(int isrw, SMask_t pmask, char *hbuff);
+int         SelServer(int opts, SMask_t pmask, char *hbuff);
 void        setNet(XrdNetWork *net) {NetTCPs = net;}
 void        setPort(int port) {Port = port;}
 void        Snooze(int slpsec);
@@ -125,15 +132,17 @@ int           Add_Manager(XrdOlbServer *sp);
 XrdOlbServer *AddServer(XrdNetLink *lp, int port, int Status, 
                                         int sport, char *sid);
 XrdOlbServer *calcDelay(int nump, int numd, int numf, int numo,
-                        int nums, int &delay, char **reason);
+                        int nums, int &delay, const char **reason);
 int           Drop_Server(int sent, int sinst, XrdOlbDrop *djp=0);
 void         *Login_Failed(const char *reason, XrdNetLink *lp, XrdOlbServer *sp=0);
 void          Record(char *path, const char *reason);
 void          Remove_Manager(const char *reason, XrdOlbServer *sp);
+XrdOlbServer *SelbyCost(SMask_t mask, int &nump, int &delay,
+                        const char **reason, int needspace);
 XrdOlbServer *SelbyLoad(SMask_t mask, int &nump, int &delay,
-                        char **reason, int needspace);
+                        const char **reason, int needspace);
 XrdOlbServer *SelbyRef( SMask_t mask, int &nump, int &delay,
-                        char **reason, int needspace);
+                        const char **reason, int needspace);
 void          sendAList(XrdNetLink *lp);
 void          setAltMan(int snum, unsigned int ipaddr, int port);
 
@@ -159,6 +168,8 @@ int  SelAcnt;
 int  SelRcnt;
 int  doReset;
 SMask_t resetMask;
+SMask_t peerHost;      // Protected by STMutex
+SMask_t peerMask;      // Protected by STMutex
 };
 
 namespace XrdOlb

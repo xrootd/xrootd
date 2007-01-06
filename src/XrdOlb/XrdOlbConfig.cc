@@ -43,6 +43,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbMeter.hh"
 #include "XrdOlb/XrdOlbManager.hh"
+#include "XrdOlb/XrdOlbManTree.hh"
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbRRQ.hh"
 #include "XrdOlb/XrdOlbState.hh"
@@ -171,6 +172,7 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 */
    int NoGo = 0, immed = 0;
    char c, buff[512];
+   const char *therole;
    extern int opterr, optopt;
 
 // Prohibit this program from executing as superuser
@@ -238,21 +240,32 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 // Determine the role
 //
    if (isManager < 0) isManager = 1;
+   if (isPeer    < 0) isPeer    = 1;
+   if (isProxy   < 0) isProxy   = 1;
    if (isServer  < 0) isServer  = 1;
 
-// For managers, make sure that we have a well designated port. If we are a
-// server or a supervisor then force an ephemeral port to be used.
+// Create a text description of our role for use in messages
+//
+        if (isPeer)                myRole = "peer";
+   else if (isProxy)               myRole = "proxy";
+   else if (isManager && isServer) myRole = "Supervisor";
+   else if (isManager)             myRole = "manager";
+   else                            myRole = "server";
+
+// For managers, make sure that we have a well designated port.
+// For servers or supervisors, force an ephemeral port to be used.
 //
    if (!NoGo)
-      if (isManager && !isServer)
+      if ((isManager && !isServer) || isPeer)
          {if (PortTCP < 0)
-             {Say.Emsg("Config","Manager's port not specified."); NoGo = 1;}
+             {Say.Emsg("Config", myRole, "port not specified."); NoGo = 1;}
          }
          else PortTCP = 0;
 
 // Determine how we ended and return status
 //
-   sprintf(buff, " phase 1 initialization %s.", (NoGo ? "failed":"ended"));
+   sprintf(buff, " phase 1 %s initialization %s.", myRole,
+                (NoGo ? "failed" : "suceeded"));
    Say.Say(0, myInstance, buff);
    return NoGo;
 }
@@ -272,11 +285,11 @@ int XrdOlbConfig::Configure2()
 */
    int NoGo = 0;
    char *p, buff[512];
-   const char *temp, *smtype = 0;
 
 // Print herald
 //
-   Say.Say(0, myInstance, " phase 2 initialization started.");
+   sprintf(buff, " phase 2 %s initialization started.", myRole);
+   Say.Say(0, myInstance, buff);
 
 // Readjust the thread parameters as we know how many we will actually need
 //
@@ -286,12 +299,9 @@ int XrdOlbConfig::Configure2()
 // location cache scrubber.
 //
    if (isManager) 
-      {smtype = "manager";
-       XrdJob *jp=(XrdJob *)new XrdOlbCache_Scrubber(&Cache, Sched);
+      {XrdJob *jp=(XrdJob *)new XrdOlbCache_Scrubber(&Cache, Sched);
        Sched->Schedule(jp, cachelife+time(0));
       }
-   if (isServer) smtype = "server";
-   if (isServer && isManager) smtype = "supervisor";
 
 // Establish the path to be used for admin functions
 //
@@ -336,10 +346,9 @@ int XrdOlbConfig::Configure2()
 
 // All done, check for success or failure
 //
-   sprintf(buff, "%s:%d %s ", myInstance, PortTCP, smtype);
-   temp = (NoGo ? "phase 2 initialization failed." 
-                : "phase 2 initialization completed.");
-   Say.Say(0, buff, temp);
+   sprintf(buff, " phase 2 %s initialization %s.", myRole,
+                 (NoGo ? "failed" : "completed"));
+   Say.Say(0, myInstance, buff);
 
 // The remainder of the configuration needs to be run in a separate thread
 //
@@ -388,7 +397,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest)
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
    TS_Xeq("remoteroot",    xrmtrt);  // Any,     non-dynamic
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
-   TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic
+   TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic (deprecated)
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
    TS_Xeq("xmilib",        xxmi);    // Any,     non-dynamic
@@ -433,7 +442,7 @@ void XrdOlbConfig::DoIt()
    if (NetTCPr)
       {if (XrdOucThread::Run(&tid,XrdOlbStartSupervising, 
                              (void *)NetTCPr, 0, "supervisor"))
-          {Say.Emsg("olbd", errno, "start supervisor");
+          {Say.Emsg("olbd", errno, "start", myRole);
           return;
           }
       }
@@ -446,7 +455,7 @@ void XrdOlbConfig::DoIt()
             {if (!isManager && !tp->next) Manager.Pander(tp->text, tp->val);
                 else {if (XrdOucThread::Run(&tid,XrdOlbStartPandering,(void *)tp,
                                             0, tp->text))
-                         {Say.Emsg("olbd", errno, "start server");
+                         {Say.Emsg("olbd", errno, "start", myRole);
                           return;
                          }
                       }
@@ -460,7 +469,7 @@ void XrdOlbConfig::DoIt()
       {wTime = SRVDelay - static_cast<int>((time(0) - eTime));
        if (wTime > 0) XrdOucTimer::Wait(wTime*1000);
        Disabled = 0;
-       Say.Emsg("Config", "Service enabled.");
+       Say.Emsg("Config", myRole, "service enabled.");
       }
 }
 
@@ -544,6 +553,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    LUPDelay = 5;
    LUPHold  = 133;
    DRPDelay = 10*60;
+   PSDelay  = 0;
    SRVDelay = 90;
    SUPCount = 1;
    SUPLevel = 80;
@@ -570,6 +580,9 @@ void XrdOlbConfig::ConfigDefaults(void)
    ConfigFN = 0;
    sched_RR = 0;
    isManager= 0;
+   isPeer   = 0;
+   isSolo   = 0;
+   isProxy  = 0;
    isServer = 0;
    N2N_Lib  = 0;
    N2N_Parms= 0;
@@ -579,6 +592,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    RemotRoot= 0;
    myInsName= 0;
    myManagers=0;
+   myRole    = (char *)"unknown";
    ManList   =0;
    mySID    = 0;
    perfint  = 3*60;
@@ -823,6 +837,10 @@ int XrdOlbConfig::setupManager()
 //
    RRQ.Init(LUPHold, LUPDelay);
 
+// If we are a solo peer then we need no servers
+//
+   if (isPeer && isSolo) {SUPCount = 0; SUPLevel = 0;}
+
 // All done
 //
    return 0;
@@ -834,17 +852,26 @@ int XrdOlbConfig::setupManager()
   
 int XrdOlbConfig::setupServer()
 {
+   XrdOucTList *tp;
    XrdNetWork *Net;
    XrdNetLink *Relay;
    pthread_t tid;
-   int rc;
+   int n = 0, rc;
 
 // Make sure we have enough info to be a server
 //
    if (!myManagers && !(myManagers = ManList))
-      {Say.Emsg("Config", "Manager node not specified for server role");
+      {Say.Emsg("Config", "Manager node not specified for", myRole, "role");
        return 1;
       }
+
+// Count the number of managers we have and tell ManTree about it
+//
+   tp = myManagers;
+   while(tp) {n++; tp = tp->next;}
+   if (n > XrdOlbManager::MTMax)
+      {Say.Emsg("Config", "Too many managers have been specified"); return 1;}
+   ManTree.setMaxCon(n);
 
 // Setup TCP outgoing network connections
 //
@@ -979,14 +1006,9 @@ int XrdOlbConfig::setupXmi()
            {XMI_STAT,   &Xmi_Stat,   "stat"}};
    int numintab = sizeof(XmiTab)/sizeof(XmiTab[0]);
 
-// Determine the role (peer | proxy | manager | server | supervisor)
-//
-        if (isManager && isServer) XmiEnv.Role = "supervisor";
-   else if (isManager)             XmiEnv.Role = "manager";
-   else                            XmiEnv.Role = "server";
-
 // Fill out the rest of the XmiEnv structure
 //
+   XmiEnv.Role     = myRole;
    XmiEnv.ConfigFN = ConfigFN;
    XmiEnv.Parms    = XmiParms;
    XmiEnv.eDest    = &Say;
@@ -1231,6 +1253,7 @@ int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
                                            [full <sec>] [discard <cnt>]
                                            [suspend <sec>] [drop <sec>]
                                            [service <sec>] [hold <msec>]
+                                           [peer <sec>]
 
    discard   <cnt>     maximum number a message may be forwarded.
    drop      <sec>     seconds to delay a drop of an offline server.
@@ -1238,6 +1261,8 @@ int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
    hold      <msec>    millseconds to optimistically hold requests.
    lookup    <sec>     seconds to delay client when finding a file.
    overload  <sec>     seconds to delay client when all servers overloaded.
+   peer      <sec>     maximum seconds client may be delayed before peer
+                       selection is triggered.
    servers   <cnt>     minimum number of servers we need.
    service   <sec>     seconds to delay client when waiting for servers.
    startup   <sec>     seconds to delay enabling our service
@@ -1260,6 +1285,7 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &CFile)
         {"hold",     &LUPHold,  0},
         {"lookup",   &LUPDelay, 1},
         {"overload", &MaxDelay,-1},
+        {"peer",     &PSDelay,  1},
         {"servers",  &SUPCount, 0},
         {"service",  &SUPDelay, 1},
         {"startup",  &SRVDelay, 1},
@@ -1465,22 +1491,29 @@ int XrdOlbConfig::xlclrt(XrdOucError *eDest, XrdOucStream &CFile)
 
 /* Function: xmang
 
-   Purpose:  To parse directive: manager [proxy] [all|any] <host>[+] <port>
-                                         [if <hl> [named <nl>]]
+   Purpose:  Parse: manager [peer | proxy] [all|any] <host>[+][:<port>|<port>] 
+                                                     [if ...]
 
-             proxy  Ignored (useful only to the odc)
+             peer   For olbd:   Specified the manager when running as a peer
+                    For xrootd: The directive is ignored.
+             proxy  For olbd:   This directive is ignored.
+                    For xrootd: Specifies the odc-proxy service manager
              all    Ignored (useful only to the odc)
              any    Ignored (useful only to the odc)
              <host> The dns name of the host that is the cache manager.
                     If the host name ends with a plus, all addresses that are
                     associated with the host are treated as managers.
              <port> The port number to use for this host.
-             <hl>   Apply manager directive is host is one listed in <hl>
-             <nl>   Apply manager directive is name is one listed in <nl>
+             if     Apply the manager directive if "if" is true. See
+                    XrdOucUtils:doIf() for "if" syntax.
 
-   Notes:   Any number of manager directives can be given. Servers and 
-            supervisors will subscribe to all of them. The subscribe directive
-            also provides this information but is now deprecated.
+   Notes:   Any number of manager directives can be given. When niether peer nor
+            proxy is specified, then regardless of role the following occurs:
+            olbd:   Subscribes to each manager whens role is not peer.
+            xrootd: Logins in as a redirector to each manager when role is not 
+                    proxy or server.
+            The subscribe directive also provides this information but is now 
+            deprecated.
 
    Type: Remote server only, non-dynamic.
 
@@ -1492,19 +1525,34 @@ int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval = 0;
-    int i, port;
+    int i, port = 0, xPeer = 0, xProxy = 0;
 
-    do {if (!(val = CFile.GetWord()))
-           {eDest->Emsg("Config","manager host name not specified"); return 1;}
-        if (strcmp("proxy", val) && strcmp("any", val) && strcmp("all", val))
-           mval = strdup(val);
-       } while(!mval);
+//  Process the optional "peer" or "proxy"
+//
+    if ((val = CFile.GetWord()))
+       if ((xPeer = !strcmp("peer", val)) || (xProxy = !strcmp("proxy", val)))
+          {if (xProxy || (xPeer && !isPeer)) return 0;
+           val = CFile.GetWord();
+          } else if (isPeer) return 0;
 
+//  We can accept this manager. Skip the optional "all" or "any"
+//
+    if (val)
+       if (!strcmp("any", val) || !strcmp("all", val)) val = CFile.GetWord();
+
+//  Get the actual host name
+//
+    if (!val)
+       {eDest->Emsg("Config","manager host name not specified"); return 1;}
+    mval = strdup(val);
+
+//  Grab the port number
+//
     if ((val = index(mval, ':'))) {*val = '\0'; val++;}
        else val = CFile.GetWord();
 
     if (val)
-       if (isdigit(*val))
+       {if (isdigit(*val))
            {if (XrdOuca2x::a2i(*eDest,"manager port",val,&port,1,65535))
                port = 0;
            }
@@ -1512,6 +1560,7 @@ int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
                    {eDest->Emsg("CFile", "unable to find tcp service", val);
                     port = 0;
                    }
+       }
        else if (!(port = PortTCP))
                eDest->Emsg("Config","manager port not specified for",mval);
 
@@ -1801,11 +1850,11 @@ int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &CFile)
 
 /* Function: xport
 
-   Purpose:  To parse the directive: port <tcpnum> [if [<hl> [named <nl>]]
+   Purpose:  To parse the directive: port <tcpnum> [if ...]
 
              <tcpnum>   number of the tcp port for incomming requests
-             <hl>       apply port directive if this hostname is in <hl>
-             <nl>       apply port directive if this netname is in <nl>
+             if         Apply the manager directive if "if" is true. See
+                        XrdOucUtils:doIf() for "if" syntax.
 
    Type: Manager or Server, non-dynamic.
 
@@ -1959,15 +2008,17 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &CFile)
 
 /* Function: xrole
 
-   Purpose:  To parse the directive: role {manager | proxy | server | supervisor}
-                                          [if <hostlist> [named <namelist>]]
+   Purpose:  Parse: role {manager | peer [solo] | proxy | server | supervisor} 
+                         [if ...]
 
+             peer       act as a peer manager. Peers are always selected last.
+             solo       This peer does not need subscribers.
              manager    act as a manager (incomming no outgoing).
              proxy      act as a manager (this is only meaningful to the ofs)
              server     act as a server (no incomming only outgoing).
              supervisor act as a supervisor (incomming and outgoing).
-             <hostlist> apply role only when executing on matching host.
-             <namelist> apply role only when executing on matching instance.
+             if         Apply the manager directive if "if" is true. See
+                        XrdOucUtils:doIf() for "if" syntax.
 
    Type: Server only, non-dynamic.
 
@@ -1977,27 +2028,30 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &CFile)
 int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
 {
     char *val;
-    const char *myrole;
-    int rc, xServ = 0, xMan = 0;
+    int rc, xPeer = 0, xProxy = 0, xServ = 0, xMan = 0, xSolo = 0;
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "role not specified"); return 1;}
 
-         if (!strcmp("manager",    val) || !strcmp("proxy", val))
-            {xServ =  0; xMan = -1; myrole = "manager";}
-    else if (!strcmp("server",     val)) 
-            {xServ = -1; xMan =  0; myrole = "server";}
-    else if (!strcmp("supervisor", val)) 
-            {xServ = -1; xMan = -1; myrole = "supervisor";}
+         if (!strcmp("manager",    val)) {xMan = -1;}
+    else if (!strcmp("peer",       val)) {xMan = -1; xServ = -1; xPeer  = -1;}
+    else if (!strcmp("proxy",      val)) {           xServ = -1; xProxy = -1;}
+    else if (!strcmp("server",     val)) {           xServ = -1;}
+    else if (!strcmp("supervisor", val)) {xMan = -1; xServ = -1;}
+
     else {eDest->Emsg("Config", "invalid role -", val); return 1;}
 
-    if ((val = CFile.GetWord()) && !strcmp("if", val))
+    if ((val = CFile.GetWord()) && xPeer)
+       if (!strcmp("solo", val)) {xSolo = 1; val = CFile.GetWord();}
+
+    if (val && !strcmp("if", val))
        if ((rc = XrdOucUtils::doIf(eDest,CFile,"role directive",
                               myName,myInsName,myProg)) <= 0) return (rc < 0);
 
-    if (isServer > 0 || isManager > 0)
-       eDest->Emsg("Config",myrole,"role over-ridden by command line options.");
-       else {isServer = xServ; isManager = xMan;}
+    if (isServer > 0 || isManager > 0 || isProxy > 0 || isPeer > 0)
+       eDest->Emsg("Config","role directive over-ridden by command line options.");
+       else {isServer = xServ; isManager = xMan; isProxy = xProxy;
+             isPeer   = xPeer; isSolo    = xSolo;}
 
     return 0;
 }
@@ -2151,8 +2205,7 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &CFile)
 
 /* Function: xsubs
 
-   Purpose:  Parse the directive: subscribe <host>[+] [<port>]
-                                            [if <hlist> [named <nlist>]]
+   Purpose:  Parse the directive: subscribe <host>[+] [<port>] [if ...]
 
              <host> The dns name of the host that is the manager of this host.
                     If the host name ends with a plus, all addresses that are
@@ -2161,9 +2214,8 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &CFile)
              <port> The port number to use for this host. The default comes
                     from the port directive.
 
-            <hlist> Apply directive if this is one of the named hosts.
-
-            <nlist> Apply directive if this is one of the named instances.
+             if     Apply the manager directive if "if" is true. See
+                    XrdOucUtils:doIf() for "if" syntax.
 
    Notes:   Any number of subscribe directives can be given. The server will
             subscribe to all of the managers.
@@ -2184,6 +2236,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &CFile)
     int i, port = 0;
 
     if (!isServer) return 0;
+    eDest->Emsg("Config","subscribe directive is deprecated; use 'all.manager' instead");
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "subscribe host not specified"); return 1;}
