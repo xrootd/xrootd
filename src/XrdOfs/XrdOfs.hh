@@ -318,6 +318,8 @@ XrdOfsEvs        *evsObject;      //    ->Event Notifier
 //
 int           ConfigRedir(XrdOucError &Eroute);
 const char   *Fname(const char *);
+int           PStat(XrdOucEnv &, XrdOucErrInfo &, const char *, struct stat *,
+                    int resonly=0);
 int           setupAuth(XrdOucError &);
 const char   *theRole(int opts);
 void          List_VPlist(char *, XrdOucPListAnchor &, XrdOucError &);

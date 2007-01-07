@@ -200,6 +200,17 @@ int XrdXrClient::open(kXR_char    *path,
   int            cwTime;                // Wait time for client
   static const char  *epname = "open";
 
+// If this is a virtual open in preparation for a stat() then short-circuit
+// the open. We can also use the incomming path as it will not be freed.
+//
+    if (oflag & O_NOFOLLOW)
+       {fileInfo.open = false;
+        fileInfo.path = (kXR_char*)path;
+        fileInfo.oflag = oflag;
+        fileInfo.mode = mode;
+        return 0;
+       }
+
   // We try to open a remote file. Since we might get redirected to another
   // host, we handle that here. In addition, the server might not have all
   // information to satisfy the open request and thus sends a "wait". We handle

@@ -1580,6 +1580,10 @@ int XrdOfs::stat(const char             *path,        // In
    &&  (retc = Finder->Locate(einfo, path, O_RDONLY|O_NOCTTY)))
       return fsError(einfo, retc);
 
+// Check for proxy mode
+//
+   if (Google) return PStat(stat_Env, einfo, path, buf);
+
 // Now try to find the file or directory
 //
    if ((retc = XrdOfsOss->Stat(path, buf)))
@@ -1627,6 +1631,13 @@ int XrdOfs::stat(const char             *path,        // In
    if (Finder && Finder->isRemote()
    &&  (retc = Finder->Locate(einfo, path, O_RDONLY | O_NDELAY)))
       return fsError(einfo, retc);
+
+// Check for proxy mode
+//
+   if (Google) 
+      {if (!(retc = PStat(stat_Env, einfo, path, &buf))) mode = buf.st_mode;
+       return retc;
+      }
 
 // Now try to find the file or directory
 //
@@ -1796,6 +1807,45 @@ int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
    if (rc > 0)             return rc;
    if (rc == -EALREADY)    return SFS_DATA;
                            return SFS_ERROR;
+}
+
+/******************************************************************************/
+/*                                 P S t a t                                  */
+/******************************************************************************/
+  
+int XrdOfs::PStat(XrdOucEnv     &stat_Env,    // Out
+                  XrdOucErrInfo &einfo,       // Out
+                  const char    *path,
+                  struct stat   *buf,
+                  int            resonly)
+{
+   static const char *epname = "PStat";
+   XrdOssDF          *fp;
+   int                retc, port;
+   const int          ROpts = O_RDONLY|O_NOCTTY|O_NDELAY;
+   const int          SOpts = O_RDONLY|O_NOCTTY;
+   const char        *hostname = 0;
+   const char *tident = einfo.getErrUser();
+
+   retc = XrdOfsFS.Google->Locate(einfo, path, (resonly ? ROpts : SOpts));
+      
+   if (retc == -EREMOTE)
+      {ZTRACE(open, "Found remote data server");
+       hostname = einfo.getErrText();
+       port     = einfo.getErrInfo();
+
+       // If no port number is assigned, use the default port 1094
+       //
+       if (port == 0) port = XrdDEFAULTPORT;
+      } else return fsError(einfo, retc);
+
+   fp = XrdOfsOss->newProxy(tident, hostname, port);
+   ZTRACE(open, "Using " <<hostname <<" as a proxy for " <<path);
+
+   if (!(retc = fp->Open(path, O_NOFOLLOW, 0, stat_Env))) retc = fp->Fstat(buf);
+   delete fp;
+   if (retc) return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
+   return 0;
 }
 
 /******************************************************************************/
