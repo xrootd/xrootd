@@ -218,6 +218,7 @@ int XrdXrootdProtocol::do_Bind()
    pp->Stream[i] = this;
    Stream[0]     = pp;
    pp->isBound   = 1;
+   PathID        = i;
    sprintf(buff, "FD %d#%d bound", Link->FDnum(), i);
    eDest.Log(OUC_LOG_01, "Xeq", buff, lp->ID);
 
@@ -744,7 +745,7 @@ int XrdXrootdProtocol::do_OffloadIO()
 //
    do {if (doWrite) rc = 0;
           else      rc = do_ReadAll();
-       streamMutex.Lock();
+        streamMutex.Lock();
        if (rc || !pendOP) break;
        n = maxStreamOP;
        for (theOP = (theOP+1)%maxStreamOP; n; theOP = (theOP+1)%maxStreamOP,n--)
@@ -757,6 +758,7 @@ int XrdXrootdProtocol::do_OffloadIO()
                StreamOP[theOP].myFile = 0;
                if (reTry) {reTry->Post(); reTry = 0;}
                streamMutex.UnLock();
+               break;
               }
       } while(n);
 
