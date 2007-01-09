@@ -142,8 +142,10 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
    if (getenv("XRDREDPROXY")) i |= XrdOfsREDIROXY;
    if (i)
       {if ((j = Options & XrdOfsREDIRECT) && (i ^ j))
+          {free(myRole); myRole = strdup(theRole(i));
            Eroute.Emsg("Config", "Command line role options override config "
-                       "file; ofs.role", theRole(i), "in effect.");
+                       "file; ofs.role", myRole, "in effect.");
+          }
        Options &= ~(XrdOfsREDIRECT);
        Options |= i;
       }
@@ -219,7 +221,7 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
                                   "ofs.maxdelay   %d\n"
                                   "%s%s%s"
                                   "ofs.trace      %x",
-              cloc, theRole(Options),
+              cloc, myRole,
               (Options * XrdOfsAUTHORIZE ? "ofs.authorize\n" : ""),
               (AuthLib ? "ofs.authlib " : ""), (AuthLib ? AuthLib : ""),
               (AuthLib ? "/n" : ""),
@@ -295,6 +297,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
        Balancer = new XrdOdcFinderTRG(Eroute.logger(), isRedir, port);
        if (!Balancer->Configure(ConfigFN)) 
           {delete Balancer; Balancer = 0; return 1;}
+       if (Options & XrdOfsREDIROXY) Balancer = 0; // No chatting for proxies
       }
 
 // All done
@@ -742,16 +745,35 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 
 /* Function: xrole
 
-   Purpose:  Parse: role {manager | peer [solo] | proxy | server | supervisor} 
-                         [if ...]
+   Purpose:  Parse: role {[peer] [proxy] manager | peer | proxy | [proxy] server
+                          | supervisor} [if ...]
 
-             peer       act as a peer manager (redirecting server).
-                        Peers are selected last by a manager.
-             solo       Has no meaning for xrootd (ignored).
-             manager    act as a manager (redirecting server).
-             proxy      act as a server but supply data from another server.
-             server     act as a server (supply local data).
-             supervisor act as a supervisor (equivalent to manager).
+             manager    xrootd: act as a manager (redirecting server). Prefix
+                                modifications are ignored.
+                        olbd:   accept server subscribes and redirectors. Prefix
+                                modifiers do the following:
+                                peer  - subscribe to other managers as a peer
+                                proxy - manage a cluster of proxy servers
+
+             peer       xrootd: same as "peer manager"
+                        olbd:   same as "peer manager" but no server subscribers
+                                are required to function (i.e., run stand-alone).
+
+             proxy      xrootd: act as a server but supply data from another 
+                                server. No local olbd is present or required.
+                        olbd:   Generates an error as this makes no sense.
+
+             server     xrootd: act as a server (supply local data). Prefix
+                                modifications do the following:
+                                proxy - server is part of a cluster. A local
+                                        olbd is required.
+                        olbd:   subscribe to a manager. The prefix modification
+                                is ignored.
+
+             supervisor xrootd: equivalent to manager.
+                        olbd:   equivalent to manager but also subscribe to a
+                                manager.
+
              if         Apply the manager directive if "if" is true. See
                         XrdOucUtils:doIf() for "if" syntax.
 
@@ -771,29 +793,69 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOfs::xrole(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    const int resetit = ~XrdOfsREDIRECT;
-    char *val;
-    int rc, ropt, isPeer = 0;
+   const int resetit = ~XrdOfsREDIRECT;
+   char role[64];
+   char *val;
+   int rc, qopt = 0, ropt = 0, sopt = 0;
 
-    if (!(val = Config.GetWord()))
+   *role = '\0';
+   if (!(val = Config.GetWord()))
+      {Eroute.Emsg("Config", "role not specified"); return 1;}
+
+// First screen for "peer"
+//
+   if (!strcmp("peer", val))
+      {qopt = XrdOfsREDIREER;
+       strcpy(role, val);
+       val = Config.GetWord();
+      }
+
+// Now scan for "proxy"
+//
+   if (val && !strcmp("proxy", val))
+      {ropt = XrdOfsREDIROXY;
+       if (qopt) strcat(role, " ");
+       strcat(role, val);
+       val = Config.GetWord();
+      }
+
+// Scan for other possible alternatives
+//
+   if (val && strcmp("if", val))
+      {     if (!strcmp("manager",    val)) sopt = XrdOfsREDIRRMT;
+       else if (!strcmp("server",     val)) sopt = XrdOfsREDIRTRG;
+       else if (!strcmp("supervisor", val)) sopt = XrdOfsREDIRVER;
+       else    {Eroute.Emsg("Config", "invalid role -", val); return 1;}
+
+       if (qopt || ropt) strcat(role, " ");
+       strcat(role, val);
+       val = Config.GetWord();
+      }
+
+// Scan for invalid roles: peer proxy | peer server | {peer | proxy} supervisor
+//
+   if ((qopt && ropt && !sopt) 
+   ||  (qopt && sopt == XrdOfsREDIRTRG)
+   ||  (qopt && sopt == XrdOfsREDIREER))
+      {Eroute.Emsg("Config", "invalid role -", role); return 1;}
+
+// Make sure a role was specified
+//
+    if (!(ropt = qopt | ropt | sopt))
        {Eroute.Emsg("Config", "role not specified"); return 1;}
 
-         if (!strcmp("manager",    val))  ropt = XrdOfsREDIRRMT;
-    else if (!strcmp("peer",       val)) {ropt = XrdOfsREDIREER; isPeer = 1;}
-    else if (!strcmp("proxy",      val))  ropt = XrdOfsREDIROXY;
-    else if (!strcmp("server",     val))  ropt = XrdOfsREDIRTRG;
-    else if (!strcmp("supervisor", val))  ropt = XrdOfsREDIRVER;
-    else {Eroute.Emsg("Config", "invalid role -", val); return 1;}
-
-    if ((val = Config.GetWord()) && isPeer)
-       if (strcmp("solo", val)) val = Config.GetWord();
-
+// Pick up optional "if"
+//
     if (val && !strcmp("if", val))
        if ((rc = XrdOucUtils::doIf(&Eroute,Config,"role directive",
                                    getenv("XRDHOST"), getenv("XRDNAME"),
                                    getenv("XRDPROG"))) <= 0)
            return (rc < 0);
 
+// Set values
+//
+    free(myRole);
+    myRole = strdup(role);
     Options &= resetit;
     Options |= ropt;
     return 0;

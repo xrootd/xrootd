@@ -296,6 +296,7 @@ private:
   
 char             *AuthLib;        //    ->Authorization   Library
 char             *AuthParm;       //    ->Authorization   Parameters
+char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdOdcFinder     *Finder;         //    ->Distrib Cache   Service
 XrdOdcFinder     *Google;         //    ->Remote  Cache   Service

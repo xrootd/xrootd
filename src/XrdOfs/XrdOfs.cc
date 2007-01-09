@@ -176,6 +176,7 @@ XrdOfs::XrdOfs()
    fwdMV         = 0;
    fwdRM         = 0;
    fwdRMDIR      = 0;
+   myRole        = strdup("server");
 
 // Establish our hostname
 //
@@ -1842,7 +1843,7 @@ int XrdOfs::PStat(XrdOucEnv     &stat_Env,    // Out
    fp = XrdOfsOss->newProxy(tident, hostname, port);
    ZTRACE(open, "Using " <<hostname <<" as a proxy for " <<path);
 
-   if (!(retc = fp->Open(path, O_NOFOLLOW, 0, stat_Env))) retc = fp->Fstat(buf);
+   if (!(retc = fp->Open(path, O_NONBLOCK, 0, stat_Env))) retc = fp->Fstat(buf);
    delete fp;
    if (retc) return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
    return 0;
