@@ -203,7 +203,7 @@ int XrdXrClient::open(kXR_char    *path,
 // If this is a virtual open in preparation for a stat() then short-circuit
 // the open. We can also use the incomming path as it will not be freed.
 //
-    if (oflag & O_NOFOLLOW)
+    if (oflag & O_NONBLOCK)
        {fileInfo.open = false;
         fileInfo.path = (kXR_char*)path;
         fileInfo.oflag = oflag;
