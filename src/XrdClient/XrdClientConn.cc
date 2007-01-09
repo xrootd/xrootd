@@ -2280,3 +2280,30 @@ int XrdClientConn::GetParallelStreamToUse() {
 
     return phyc->GetSockIdHint();
 }
+
+
+//_____________________________________________________________________________
+int XrdClientConn:: GetParallelStreamCount() {
+
+    XrdClientLogConnection *lgc = 0;
+    XrdClientPhyConnection *phyc = 0;
+
+    lgc = ConnectionManager->GetConnection(fLogConnID);
+    if (!lgc) {
+        Error("GetParallelStreamCount",
+              "Unknown logical conn " << fLogConnID);
+       
+        return 0;
+    }
+
+    phyc = lgc->GetPhyConnection();
+    if (!phyc) {
+        Error("GetParallelStreamCount",
+              "Cannot find physical conn for logid " << fLogConnID);
+       
+        return 0;
+    }
+
+    return phyc->GetSockIdCount();
+
+}

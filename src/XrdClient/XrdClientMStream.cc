@@ -143,13 +143,17 @@ bool XrdClientMStream::BindPendingStream(XrdClientConn *cliconn, int substreamid
 bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset, kXR_int32 len,
 			     XrdClientVector<XrdClientMStream::ReadChunk> &reqlists) {
 
-//    if (len < DFLT_MULTISTREAMSPLITSIZE) return false;
+    int spltsize = DFLT_MULTISTREAMSPLITSIZE;
 
-    for (kXR_int32 pp = 0; pp < len; pp += DFLT_MULTISTREAMSPLITSIZE) {
+    // Let's try to distribute the load into maximum sized chunks
+    if (cliconn->GetParallelStreamCount() > 1)
+      spltsize = xrdmax( spltsize, len / (cliconn->GetParallelStreamCount()) + 1 );
+
+    for (kXR_int32 pp = 0; pp < len; pp += spltsize) {
       ReadChunk ck;
 
       ck.offset = pp+offset;
-      ck.len = xrdmin(len - pp, DFLT_MULTISTREAMSPLITSIZE);
+      ck.len = xrdmin(len - pp, spltsize);
       ck.streamtosend = cliconn->GetParallelStreamToUse();
 
       reqlists.Push_back(ck);

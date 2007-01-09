@@ -105,7 +105,7 @@ public:
     virtual void   Disconnect();
 
     bool   IsConnected() {return fConnected;}
-
+    virtual int GetSockIdCount() { return 1; }
     virtual void PauseSelectOnSubstream(int substreamid) {  }
     virtual void RestartSelectOnSubstream(int substreamid) {  }
 };

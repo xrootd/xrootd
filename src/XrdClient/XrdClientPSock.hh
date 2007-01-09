@@ -112,6 +112,11 @@ public:
     // Suggests a sockid to be used for a req
     virtual int GetSockIdHint();
 
+    // And this is the total stream count
+    virtual int GetSockIdCount() { 
+        return fSocketPool.Num();
+    }
+
     virtual void PauseSelectOnSubstream(int substreamid);
     virtual void RestartSelectOnSubstream(int substreamid);
 

@@ -139,7 +139,7 @@ public:
     void RemoveParallelStream(int substream) { if (fSocket) fSocket->RemoveParallelSock(substream); }
 
     int GetSockIdHint() { return ( fSocket ? fSocket->GetSockIdHint() : 0); }
-
+    int GetSockIdCount() {return ( fSocket ? fSocket->GetSockIdCount() : 0); }
     void PauseSelectOnSubstream(int substreamid) { if (fSocket) fSocket->PauseSelectOnSubstream(substreamid); }
     void RestartSelectOnSubstream(int substreamid) { if (fSocket) fSocket->RestartSelectOnSubstream(substreamid); }
     void ReadLock() { fMultireadMutex.Lock(); }
