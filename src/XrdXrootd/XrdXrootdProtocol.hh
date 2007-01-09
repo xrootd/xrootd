@@ -280,7 +280,6 @@ struct {XrdXrootdFile     *myFile;
         char               isWrite;
        }                   StreamOP[maxStreamOP];
 
-short                      lastOP;
 char                       pendOP;
 char                       doWrite;
 

@@ -591,7 +591,6 @@ void XrdXrootdProtocol::Reset()
    mySID              = 0;
    CapVer             = 0;
    reTry              = 0;
-   lastOP             = 0;
    isActive = isDead  = isNOP = isBound = pendOP = 0;
    memset(&Entity, 0, sizeof(Entity));
    memset(Stream,  0, sizeof(Stream));

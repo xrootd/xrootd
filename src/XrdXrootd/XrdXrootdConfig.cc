@@ -221,7 +221,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Schedule protocol object cleanup
 //
    ProtStack.Set(pi->Sched, XrdXrootdTrace, TRACE_MEM);
-   ProtStack.Set(pi->ConnOptn, pi->ConnLife);
+   ProtStack.Set((pi->ConnMax/3 ? pi->ConnMax/3 : 30), 60*60);
 
 // Initialize the request ID generation object
 //

@@ -730,7 +730,7 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 int XrdXrootdProtocol::do_OffloadIO()
 {
    XrdOucSemaphore *sesSem;
-   int i, rc;
+   int n, rc, theOP = -1;
 
 // Entry implies that we just got scheduled and are marked as active. Hence
 // we need to post the session thread so that it can pick up the next request.
@@ -744,24 +744,21 @@ int XrdXrootdProtocol::do_OffloadIO()
 //
    do {if (doWrite) rc = 0;
           else      rc = do_ReadAll();
-       if (rc) break;
        streamMutex.Lock();
-       if (!pendOP) break;
-       for (i = (lastOP+1)%maxStreamOP; i != lastOP; i = (i+1)%maxStreamOP)
-           if (StreamOP[i].myFile) break;
-
-       if (i == lastOP) break;
-       lastOP   = i;
-       myFile   = StreamOP[i].myFile;
-       myOffset = StreamOP[i].myOffset;
-       myIOLen  = StreamOP[i].myIOLen;
-       doWrite  = StreamOP[i].isWrite;
-
-       Response.Set(StreamOP[i].StreamID);
-       StreamOP[i].myFile = 0;
-       if (reTry) {reTry->Post(); reTry = 0;}
-       streamMutex.UnLock();
-      } while(1);
+       if (rc || !pendOP) break;
+       n = maxStreamOP;
+       for (theOP = (theOP+1)%maxStreamOP; n; theOP = (theOP+1)%maxStreamOP,n--)
+           if (StreamOP[theOP].myFile)
+              {myFile   = StreamOP[theOP].myFile;
+               myOffset = StreamOP[theOP].myOffset;
+               myIOLen  = StreamOP[theOP].myIOLen;
+               doWrite  = StreamOP[theOP].isWrite;
+               Response.Set(StreamOP[theOP].StreamID);
+               StreamOP[theOP].myFile = 0;
+               if (reTry) {reTry->Post(); reTry = 0;}
+               streamMutex.UnLock();
+              }
+      } while(n);
 
 // There are no pending operations or the link died
 //
