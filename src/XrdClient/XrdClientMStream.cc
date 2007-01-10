@@ -147,7 +147,8 @@ bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset
 
     // Let's try to distribute the load into maximum sized chunks
     if (cliconn->GetParallelStreamCount() > 1)
-      spltsize = xrdmax( spltsize, len / (cliconn->GetParallelStreamCount()) + 1 );
+      spltsize = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
+                        len / (cliconn->GetParallelStreamCount()) + 1);
 
     for (kXR_int32 pp = 0; pp < len; pp += spltsize) {
       ReadChunk ck;

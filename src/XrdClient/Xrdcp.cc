@@ -439,7 +439,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 	    }
 	 }
 	 else {
-	    cerr << endl << endl << "Critical read timeout. Unable to read data from the source." << endl;
+	    cerr << endl << endl << 
+	      "Critical read timeout. Unable to read data from the source." << endl;
             retvalue = -1;
             break;
          }
@@ -738,6 +739,8 @@ void PrintUsage() {
    cerr << " -force :         set 1-min (re)connect attempts to retry for up to 1 week, to block until xrdcp is executed" << endl << endl;
    cerr << " -md5   :         calculate the md5 sum during transfers\n" << endl; 
    cerr << " -R     :         recurse subdirectories" << endl;
+   cerr << " -S num :         use <num> additional parallel streams to do the xfer." << endl << 
+           "                  The max value is 15. The default is 0 (i.e. use only the main stream)" << endl;
    cerr << " where:" << endl;
    cerr << "   parmname     is the name of an internal parameter" << endl;
    cerr << "   stringvalue  is a string to be assigned to an internal parameter" << endl;
@@ -878,8 +881,29 @@ int main(int argc, char**argv) {
          int dbglvl = atoi(argv[i+1]);
          if (dbglvl > 0) {
             EnvPutInt( NAME_DEBUG, dbglvl);
-            cerr << "Setting debug level " <<  EnvGetLong(NAME_DEBUG)<< endl;
+            cerr << "Set debug level " <<  EnvGetLong(NAME_DEBUG)<< endl;
          }
+         i++;
+         continue;
+      }
+
+      if ( (strstr(argv[i], "-S") == argv[i]) &&
+           (argc >= i+2) ) {
+         int parstreams = atoi(argv[i+1]);
+	 parstreams = xrdmin(parstreams, 15);
+	 parstreams = xrdmax(0, parstreams);
+
+	 EnvPutInt( NAME_MULTISTREAMCNT, parstreams);
+
+	 cerr << "Set " << NAME_MULTISTREAMCNT << " to " <<
+	   EnvGetLong(NAME_MULTISTREAMCNT) << endl;
+
+	 // For the multistream we need to enable the cache.
+	 // Note that the cache is emptied as new blocks arrive. The memory usage
+	 // will never grow up to this level since it's used only for temporary
+	 // placement of arriving blocks.
+	 EnvPutInt( NAME_READCACHESIZE, 50000000 );
+
          i++;
          continue;
       }
