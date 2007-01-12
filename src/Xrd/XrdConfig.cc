@@ -165,8 +165,7 @@ XrdConfig::XrdConfig(void)
    ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
 
    ProtInfo.Format   = XrdFORMATB;
-   ProtInfo.ConnOptn = -4;     // Num of connections to optimize for (1/4*max)
-   ProtInfo.ConnLife = 60*60;  // Time   of connections to optimize for.
+   ProtInfo.PortWAN  = 0;
    ProtInfo.ConnMax  = -1;     // Max       connections (fd limit)
    ProtInfo.readWait = 3*1000; // Wait time for data before we reschedule
    ProtInfo.idleWait = 0;      // Seconds connection may remain idle (0=off)
@@ -396,7 +395,6 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    {
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
-   TS_Xeq("connections",   xcon);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("timeout",       xtmo);
@@ -549,9 +547,7 @@ int XrdConfig::setFDL()
 
 // Set the limit to the maximum allowed
 //
-   if (ProtInfo.ConnMax > 0 && ProtInfo.ConnMax < (int)rlim.rlim_max)
-           rlim.rlim_cur = ProtInfo.ConnMax;
-      else rlim.rlim_cur = rlim.rlim_max;
+   rlim.rlim_cur = rlim.rlim_max;
    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
       return XrdLog.Emsg("Config", errno,"set FD limit");
 
@@ -562,45 +558,10 @@ int XrdConfig::setFDL()
 
 // Establish operating limit
 //
-   if (ProtInfo.ConnMax < 0) ProtInfo.ConnMax = rlim.rlim_cur;
-      else if (ProtInfo.ConnMax > (int)rlim.rlim_cur)
-              {ProtInfo.ConnMax = rlim.rlim_cur;
-               sprintf(buff,"%d > system FD limit of %d",
-                       ProtInfo.ConnMax, ProtInfo.ConnMax);
-               XrdLog.Emsg("Config", "Warning: connection mfd", buff);
-              }
+   ProtInfo.ConnMax = rlim.rlim_cur;
+   sprintf(buff, "%d", ProtInfo.ConnMax);
+   XrdLog.Say(0, "Maximum number of connections is ", buff);
 
-// Establish optimization point
-//
-   if (ProtInfo.ConnOptn < 0)
-      {ProtInfo.ConnOptn = -ProtInfo.ConnOptn;
-       if (!(ProtInfo.ConnOptn = ProtInfo.ConnMax/ProtInfo.ConnOptn))
-          ProtInfo.ConnOptn = (2 > ProtInfo.ConnMax ? 1 : 2);
-      }
-      else if (ProtInfo.ConnOptn > ProtInfo.ConnMax)
-              {sprintf(buff,"%d > system FD limit of %d",
-                            ProtInfo.ConnOptn, ProtInfo.ConnMax);
-               XrdLog.Emsg("Config", "Warning: connection avg", buff);
-               ProtInfo.ConnOptn = ProtInfo.ConnMax;
-              }
-
-// Indicate what we optimized for
-//
-   sprintf(buff, "%d connections; maximum is %d",
-                 ProtInfo.ConnOptn, ProtInfo.ConnMax);
-   XrdLog.Say(0, "Optimizing for ", buff);
-
-// Establish scheduler limits now if they have not been already set
-//
-   if (setSched)
-      {int V_mint, V_maxt, V_avlt, ncb2 = 0, numcon = ProtInfo.ConnOptn;
-       while((numcon = numcon >> 1)) ncb2++;
-       if (ncb2 == 0) ncb2 = 1;
-       if ((V_maxt = ProtInfo.ConnOptn / ncb2) > 1024) V_maxt = 1024;
-       if ((V_mint = V_maxt / ncb2) <= 0)              V_mint = 1;
-       if ((V_avlt = V_maxt /  5) <= 0)                V_avlt = 1;
-       XrdSched.setParms(V_mint, V_maxt, V_avlt, -1);
-      }
    return 0;
 }
 
@@ -623,9 +584,9 @@ int XrdConfig::Setup(char *dfltp)
 //
    XrdBuffPool.Init();
 
-// Start the required number of workers
+// Start the scheduler
 //
-   XrdSched.Start(ProtInfo.ConnOptn/256);
+   XrdSched.Start();
 
 // Setup the link and socket polling infrastructure
 //
@@ -716,7 +677,7 @@ void XrdConfig::UnderCover()
    pid_t mypid;
    int myfd;
 
-// Fork to that we are not tied to a shell
+// Fork so that we are not tied to a shell
 //
    if ((mypid = fork()) < 0)
       {XrdLog.Emsg("Config", errno, "fork process 1 for backgrounding");
@@ -878,78 +839,6 @@ int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
           return 1;
 
     XrdBuffPool.Set((int)blim, bint);
-    return 0;
-}
-  
-/******************************************************************************/
-/*                                  x c o n                                   */
-/******************************************************************************/
-
-/* Function: xcon
-
-   Purpose:  To parse the directive: connections [avg <avg>] [dur <dur>]
-                                                 [mfd <mfd>]
-
-             <avg>      number of connections expected, on average, as an
-                        absolute number or /nn as a fraction of max possible.
-             <dur>      average second duration for a connection.
-             <mfd>      maximum number of FDs to allow
-
-   Output: 0 upon success or !0 upon failure.
-*/
-int XrdConfig::xcon(XrdOucError *eDest, XrdOucStream &Config)
-{   int i, n, rc, sgn, aval = -1, dval=60*60, fval = -1;
-    char *val;
-    static struct conopts {const char *opname; int istime; 
-                           int *oploc; const char *etxt;} cnopts[] =
-       {
-        {"avg",-1, &aval, "conections avg"},
-        {"dur", 1, &dval, "conections dur"},
-        {"mfd", 0, &fval, "conections mfd"}
-       };
-    int numopts = sizeof(cnopts)/sizeof(struct conopts);
-
-    if (!(val = Config.GetWord()))
-       {eDest->Emsg("Config", "connections option not specified"); return 1;}
-
-    while (val)
-          {for (i = 0; i < numopts; i++)
-               if (!strcmp(val, cnopts[i].opname))
-                  {if (!(val = Config.GetWord()))
-                      {eDest->Emsg("Config", "connections", 
-                                   cnopts[i].opname, "value not specified");
-                       return 1;
-                      }
-                   sgn = 1;
-                   if (cnopts[i].istime < 0)
-                      if (val[0] == '1' && val[1] == '/') {val+=2; sgn = -1;}
-                         else if (*val == '/') {val++; sgn = -1;}
-                   rc = (cnopts[i].istime > 0 ?
-                         XrdOuca2x::a2tm(*eDest,cnopts[i].etxt,val,&n,1):
-                         XrdOuca2x::a2i (*eDest,cnopts[i].etxt,val,&n,1));
-                   if (rc) return 1;
-                   *cnopts[i].oploc = n * sgn;
-                   break;
-                  }
-           if (i >= numopts)
-              eDest->Emsg("Config", "Warning, invalid connections option", val);
-           val = Config.GetWord();
-          }
-
-// Make sure values are consistent
-//
-   if (ProtInfo.ConnOptn > 0 && ProtInfo.ConnMax > 0
-   &&  ProtInfo.ConnOptn > ProtInfo.ConnMax) 
-      {eDest->Emsg("Config", "connection avg may not be greater than mfd");
-       return 1;
-      }
-
-// Set values and return
-//
-    ProtInfo.ConnOptn = aval;
-    ProtInfo.ConnLife = dval;
-    ProtInfo.ConnMax  = fval;
-
     return 0;
 }
 
@@ -1214,21 +1103,6 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
           return 1;
          }
      }
-
-// Calculate consistent values for any values that are missing
-//
-        if (V_maxt > 0)
-           {if (V_mint < 0) V_mint = (V_maxt/10 ? V_maxt/10 : 1);
-            if (V_avlt < 0) V_avlt = (V_maxt/5  ? V_maxt/5  : 1);
-           }
-   else if (V_mint > 0)
-           {if (V_maxt < 0) V_maxt =  V_mint*5;
-            if (V_avlt < 0) V_avlt = (V_maxt/5 ? V_maxt/5 : 1);
-           }
-   else if (V_avlt > 0)
-           {if (V_maxt < 0) V_maxt =  V_avlt*5;
-            if (V_mint < 0) V_mint = (V_maxt/10 ? V_maxt/10 : 1);
-           }
 
 // Establish scheduler options
 //

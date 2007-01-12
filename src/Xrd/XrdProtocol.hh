@@ -52,15 +52,14 @@ XrdOucTrace    *Trace;       // Stable -> Trace Information
 char            *ConfigFN;     // -> Configuration file
 int              Format;       // Binary format of this server
 int              Port;         // Port number
+int              PortWAN;      // Port prefered for WAN connections (0 if none)
 const char      *AdmPath;      // Admin path
 int              AdmMode;      // Admin path mode
 const char      *myInst;       // Instance name
 const char      *myName;       // Host name
 const char      *myProg;       // Program name
 struct sockaddr *myAddr;       // Host address
-int              ConnOptn;     // Number of connections to optimize for.
-int              ConnLife;     // Life   of connections to optimize for.
-int              ConnMax;      // Max       connections
+int              ConnMax;      // Max connections
 int              readWait;     // Max milliseconds to wait for data
 int              idleWait;     // Max milliseconds connection may be idle
 int              argc;         // Number of arguments

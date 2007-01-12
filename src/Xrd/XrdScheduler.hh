@@ -26,8 +26,8 @@ public:
 
 void          Cancel(XrdJob *jp);
 
-inline int    canStick() {return num_Workers < stk_Workers
-                              || idl_Workers > avl_Workers;}
+inline int    canStick() {return  num_Workers              < stk_Workers
+                              || (num_Workers-idl_Workers) < stk_Workers;}
 
 void          DoIt();
 
@@ -43,7 +43,7 @@ void          Schedule(XrdJob *jp, time_t atime);
 
 void          setParms(int minw, int maxw, int avlt, int maxi);
 
-void          Start(int mode);
+void          Start();
 
 int           Stats(char *buff, int blen, int do_sync=0);
 
@@ -59,19 +59,18 @@ int        num_Limited; // Number of times max was reached
 
 // Constructor and destructor
 //
-              XrdScheduler(int minw=8, int maxw=16, int frt=4, int maxi=780);
+              XrdScheduler(int minw=8, int maxw=2048, int maxi=780);
 
              ~XrdScheduler();
 
 private:
-int        idl_Workers;   // Disp: Number of idle workers
+int        idl_Workers;    // Disp: Number of idle workers
 XrdOucMutex DispatchMutex; // Disp: Protects above area
 
 int        min_Workers;   // Sched: Min threads we need to have
 int        max_Workers;   // Sched: Max threads we can start
 int        max_Workidl;   // Sched: Max idle time for threads above min_Workers
 int        num_Workers;   // Sched: Number of threads we have
-int        avl_Workers;   // Sched: Number of readily available threads we need
 int        stk_Workers;   // Sched: Number of sticky workers we can have
 int        num_JobsinQ;   // Sched: Number of outstanding jobs in the queue
 

@@ -87,7 +87,7 @@ void *XrdStartWorking(void *carg)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdScheduler::XrdScheduler(int minw, int maxw, int avlw, int maxi)
+XrdScheduler::XrdScheduler(int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
                 WorkAvail(0, "sched work")
 {
@@ -96,8 +96,7 @@ XrdScheduler::XrdScheduler(int minw, int maxw, int avlw, int maxi)
     max_Workidl =  maxi;
     num_Workers =  0;
     num_JobsinQ =  0;
-    avl_Workers =  avlw;
-    stk_Workers =  maxw - avlw;
+    stk_Workers =  maxw - (maxw/4*3);
     idl_Workers =  0;
     num_Jobs    =  0;
     max_QLength =  0;
@@ -415,21 +414,20 @@ void XrdScheduler::setParms(int minw, int maxw, int avlw, int maxi)
 //
    SchedMutex.Lock();
 
-// Make sure we have consistent minw and maxw
+// get a consistent view of all the values
 //
-        if (minw <= 0)   minw = maxw;
-   else if (maxw <= 0)   maxw = minw;
-   else if (minw > maxw) minw = maxw = -1;
-        if (avlw > maxw) avlw = maxw;
+   if (maxw <= 0) maxw = max_Workers;
+   if (minw < 0) minw = (maxw/10 ? maxw/10 : 1);
+      else if (minw > maxw) minw = maxw;
+   if (avlw < 0) avlw = maxw/4*3;
+      else if (avlw > maxw) avlw = maxw;
 
 // Set the values
 //
-   if (minw > 0)  min_Workers = minw;
-   if (maxw > 0)  max_Workers = maxw;
+   min_Workers = minw;
+   max_Workers = maxw;
+   stk_Workers = maxw - avlw;
    if (maxi >=0)  max_Workidl = maxi;
-   if (avlw > 0) {stk_Workers = max_Workers - avlw;
-                  avl_Workers = avlw;
-                 }
 
 // Unlock the data area
 //
@@ -449,9 +447,9 @@ void XrdScheduler::setParms(int minw, int maxw, int avlw, int maxi)
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
-void XrdScheduler::Start(int numw)
+void XrdScheduler::Start()
 {
-    int retc;
+    int retc, numw;
     pthread_t tid;
 
 // Start a time based scheduler
@@ -468,12 +466,10 @@ void XrdScheduler::Start(int numw)
 //
    SchedMutex.Lock();
 
-// If we are in agressive mode scheduling, start the minimum threads now
+// Start 1/3 of the minimum number of threads
 //
-   if (numw <= 1) hireWorker(0);
-      else {if (numw > min_Workers) numw = min_Workers;
-            while(numw--) hireWorker(0);
-           }
+   if (!(numw = min_Workers/3)) numw = 2;
+   while(numw--) hireWorker(0);
 
 // Unlock the data area
 //
@@ -566,7 +562,11 @@ void XrdScheduler::hireWorker(int dotrace)  // Called with SchedMutex locked!
 //
    if ((retc = XrdOucThread::Run(&tid, XrdStartWorking, (void *)this,
                                  0, "Worker")))
-      XrdLog.Emsg("Scheduler", retc, "create worker thread");
+      {XrdLog.Emsg("Scheduler", retc, "create worker thread");
+       max_Workers = num_Workers;
+       min_Workers = max_Workers/10;
+       stk_Workers = max_Workers/4*3;
+      }
       else {num_Workers++;
             num_TCreate++;
             if (dotrace) TRACE(SCHED, "Now have " <<num_Workers <<" workers" );

@@ -36,6 +36,7 @@ Trace     = rhs.Trace;
 ConfigFN  = rhs.ConfigFN ? strdup(rhs.ConfigFN) : 0;
 Format    = rhs.Format;
 Port      = rhs.Port;
+PortWAN   = rhs.PortWAN;
 AdmPath   = rhs.AdmPath  ? strdup(rhs.AdmPath)  : 0;
 AdmMode   = rhs.AdmMode;
 myInst    = rhs.myInst   ? strdup(rhs.myInst)   : 0;
@@ -44,8 +45,6 @@ myName    = rhs.myName   ? strdup(rhs.myName)   : 0;
             else {myAddr = (struct sockaddr *)malloc(sizeof(struct sockaddr));
                   memcpy(myAddr, rhs.myAddr, sizeof(struct sockaddr));
                  }
-ConnOptn  = rhs.ConnOptn;
-ConnLife  = rhs.ConnLife;
 ConnMax   = rhs.ConnMax;
 readWait  = rhs.readWait;
 idleWait  = rhs.idleWait;

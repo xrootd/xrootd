@@ -41,7 +41,6 @@ void  Usage(int rc);
 int   xallow(XrdOucError *edest, XrdOucStream &Config);
 int   xapath(XrdOucError *edest, XrdOucStream &Config);
 int   xbuf(XrdOucError *edest, XrdOucStream &Config);
-int   xcon(XrdOucError *edest, XrdOucStream &Config);
 int   xnet(XrdOucError *edest, XrdOucStream &Config);
 int   xlog(XrdOucError *edest, XrdOucStream &Config);
 int   xport(XrdOucError *edest, XrdOucStream &Config);
