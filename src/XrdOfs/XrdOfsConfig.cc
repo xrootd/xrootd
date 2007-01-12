@@ -274,7 +274,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
 // For remote redirection, we simply do a standard config
 //
    if (isRedir) {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),
-                                               (Options & XrdOfsREDIRTRG));
+                           (Options & XrdOfsREDIRTRG ? XrdOdcIsTarget : 0));
        if (!Finder->Configure(ConfigFN))
           {delete Finder; Finder = 0; return 1;}
       }
@@ -282,7 +282,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
 // For proxy  redirection, we simply do a standard config
 //
    if (Options & XrdOfsREDIROXY)
-      {Google=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(), 0, 1);
+      {Google=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),XrdOdcIsProxy);
        if (!Google->Configure(ConfigFN))
           {delete Google; Google = 0; return 1;}
       }
@@ -294,7 +294,8 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
           }
-       Balancer = new XrdOdcFinderTRG(Eroute.logger(), isRedir, port);
+       Balancer = new XrdOdcFinderTRG(Eroute.logger(), 
+                         (isRedir ? XrdOdcIsRedir : 0), port);
        if (!Balancer->Configure(ConfigFN)) 
           {delete Balancer; Balancer = 0; return 1;}
        if (Options & XrdOfsREDIROXY) Balancer = 0; // No chatting for proxies
@@ -746,7 +747,7 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
 /* Function: xrole
 
    Purpose:  Parse: role {[peer] [proxy] manager | peer | proxy | [proxy] server
-                          | supervisor} [if ...]
+                          | [proxy] supervisor} [if ...]
 
              manager    xrootd: act as a manager (redirecting server). Prefix
                                 modifications are ignored.
@@ -767,12 +768,13 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
                                 modifications do the following:
                                 proxy - server is part of a cluster. A local
                                         olbd is required.
-                        olbd:   subscribe to a manager. The prefix modification
-                                is ignored.
+                        olbd:   subscribe to a manager, possibly as a proxy.
 
-             supervisor xrootd: equivalent to manager.
+             supervisor xrootd: equivalent to manager. The prefix modification
+                                is ignored.
                         olbd:   equivalent to manager but also subscribe to a
-                                manager.
+                                manager. When proxy is specified, then subscribe
+                                as a proxy and only accept proxies.
 
              if         Apply the manager directive if "if" is true. See
                         XrdOucUtils:doIf() for "if" syntax.
@@ -832,11 +834,11 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdOucError &Eroute)
        val = Config.GetWord();
       }
 
-// Scan for invalid roles: peer proxy | peer server | {peer | proxy} supervisor
+// Scan for invalid roles: peer proxy | peer server | {peer} supervisor
 //
    if ((qopt && ropt && !sopt) 
    ||  (qopt && sopt == XrdOfsREDIRTRG)
-   ||  (qopt && sopt == XrdOfsREDIREER))
+   ||  (qopt && sopt == XrdOfsREDIRVER))
       {Eroute.Emsg("Config", "invalid role -", role); return 1;}
 
 // Make sure a role was specified

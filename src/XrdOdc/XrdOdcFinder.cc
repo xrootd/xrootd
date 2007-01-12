@@ -74,14 +74,15 @@ XrdOdcFinder::XrdOdcFinder(XrdOucLogger *lp, Persona acting)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOdcFinderRMT::XrdOdcFinderRMT(XrdOucLogger *lp, int istrg, int isProxy)
-               : XrdOdcFinder(lp, (isProxy ? XrdOdcFinder::amProxy
-                                           : XrdOdcFinder::amRemote))
+XrdOdcFinderRMT::XrdOdcFinderRMT(XrdOucLogger *lp, int whoami)
+               : XrdOdcFinder(lp, (whoami & XrdOdcIsProxy 
+                                          ? XrdOdcFinder::amProxy
+                                          : XrdOdcFinder::amRemote))
 {
      myManagers  = 0;
      myManCount  = 0;
      SMode       = 0;
-     isTarget    = istrg;
+     isTarget    = whoami & XrdOdcIsTarget;
 }
  
 /******************************************************************************/
@@ -526,16 +527,17 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOdcFinderTRG::XrdOdcFinderTRG(XrdOucLogger *lp, int isredir, int port)
+XrdOdcFinderTRG::XrdOdcFinderTRG(XrdOucLogger *lp, int whoami, int port)
                : XrdOdcFinder(lp, XrdOdcFinder::amTarget)
 {
    char buff [256];
-   isRedir = isredir;
+   isRedir = whoami & XrdOdcIsRedir;
+   isProxy = whoami & XrdOdcIsProxy;
    OLBPath = 0;
    OLBp    = new XrdOucStream(&OdcEDest);
    Active  = 0;
    myPort  = port;
-   sprintf(buff, "login p %d port %d\n", getpid(), port);
+   sprintf(buff, "login %c %d port %d\n",(isProxy ? 'P' : 'p'),getpid(),port);
    Login = strdup(buff);
 }
  

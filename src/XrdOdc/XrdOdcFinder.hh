@@ -69,6 +69,10 @@ static char *OLBPath;
 /******************************************************************************/
 
 #define XRDODCMAXMAN 16
+
+#define XrdOdcIsProxy  1
+#define XrdOdcIsRedir  2
+#define XrdOdcIsTarget 4
   
 class XrdOdcFinderRMT : public XrdOdcFinder
 {
@@ -83,7 +87,7 @@ public:
 
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs);
 
-               XrdOdcFinderRMT(XrdOucLogger *lp, int istrg=0, int isProxy=0);
+               XrdOdcFinderRMT(XrdOucLogger *lp, int whoami = 0);
               ~XrdOdcFinderRMT();
 
 private:
@@ -130,7 +134,7 @@ public:
 
         void  *Start();
 
-               XrdOdcFinderTRG(XrdOucLogger *lp, int isredir, int port);
+               XrdOdcFinderTRG(XrdOucLogger *lp, int whoami, int port);
               ~XrdOdcFinderTRG();
 
 private:
@@ -143,6 +147,7 @@ int            myPort;
 char          *OLBPath;
 char          *Login;
 int            isRedir;
+int            isProxy;
 int            Active;
 };
 #endif
