@@ -290,10 +290,10 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 {
    EPNAME("Login")
    XrdOlbServer *sp;
-   const char *mp, *Stype;
+   const char *mp, *Ptype = "", *Stype = "";
    char *tp, *theSID;
    int   Status = 0, fdsk = 0, numfs = 1, addedp = 0, port = 0, Sport = 0;
-   int   rc, isPeer, servID, servInst, Rslot;
+   int   rc, servID, servInst, Rslot, isProxy = 0, isPeer = 0, isServ = 0;
    SMask_t servset = 0, newmask;
 
 // Handle the login for the server stream.
@@ -333,7 +333,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
        return (void *)0;
       }
 
-// Server Command: login {peer | server} [options]
+// Server Command: login {peer | pproxy | proxy | server} [options]
 // Options:        [port <dport>] [nostage] [suspend] [+m:<sport>] [=<sid>]
 
 // Responses:      <id> ping
@@ -341,11 +341,22 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 // Server Command: addpath <mode> <path>
 //                 start <maxkb> <numfs> <totkb>
 //
-   if ((isPeer = strcmp(tp, "server")) && strcmp(tp, "peer"))
-      return Login_Failed("Invalid server type", lnkp);
+// Note: For now we designate proxies as peers to avoid polling them
 
-   if (isPeer) {Stype = "peer"; Status |= (OLB_Special | OLB_isPeer);}
-      else      Stype = "server";
+        if ((isServ =  !strcmp(tp, "server")))
+            Stype = "server";
+   else if ((isPeer =  !strcmp(tp, "peer")))
+           {Ptype = "peer ";       Status |= (OLB_Special | OLB_isPeer);}
+   else if ((isProxy = !strcmp(tp, "pproxy")))
+           {Ptype = "peer proxy "; Status |= (OLB_Special | OLB_isPeer);}
+   else if ((isProxy = !strcmp(tp, "proxy")))
+           {Ptype = "proxy ";      Status |= (OLB_Special | OLB_isProxy);}
+   else    return Login_Failed("invalid login role", lnkp);
+
+// Disallow subscriptions we are are configured as a solo manager
+//
+   if (Config.asSolo())
+      return Login_Failed("configuration disallows subscribers", lnkp);
 
 // The server may specify a port number
 //
@@ -378,7 +389,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
        tp++;
        if (*tp == 'm') 
           {Status |= OLB_isMan; tp++;
-           Stype = (char *)"Supervisor";
+           Stype = (isPeer ? "Manager" : "Supervisor");
            if (*tp == ':')
               if (XrdOuca2x::a2i(Say,"subscription port",tp+1,&Sport,0))
                  return Login_Failed("invalid subscription port", lnkp);
@@ -393,11 +404,35 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
    if (tp && *tp == '=') theSID = tp+1;
       else theSID = 0;
 
+// Make sure that our role is compatible with the incomming role
+//
+   mp = 0;
+   if (Config.asServer())       // We are a supervisor
+      {if (Config.asProxy() && (!isProxy || isPeer))
+          mp = "configuration only allows proxies";
+          else if (!isServ)
+          mp = "configuration disallows peers and proxies";
+      } else {                  // We are a manager
+       if (Config.asProxy() &&   isServ)
+          mp = "configuration only allows peers or proxies";
+          else if (isProxy)
+          mp = "configuration disallows proxies";
+      }
+   if (mp) return Login_Failed(mp, lnkp);
+
 // Add the server
 //
    if (!(sp = AddServer(lnkp, port, Status, Sport, theSID)))
       return Login_Failed(0, lnkp);
    servID = sp->ServID; servInst = sp->Instance;
+
+// Create a human readable role name for this server
+//
+   {char buff[64];
+    sprintf(buff,"%s%s", Ptype, Stype);
+    if (sp->Stype) free(sp->Stype);
+    sp->Stype = strdup(buff);
+   }
 
 // Immediately send a ping request to validate the login (phase 1)
 //
@@ -451,7 +486,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
        if (sp->isPeer) pinfo.ssvec = sp->ServMask;
        servset = Cache.Paths.Insert("/", &pinfo);
        Cache.Bounce(sp->ServMask);
-       Say.Emsg("Manager",Stype,lnkp->Nick(),"defaulted r /");
+       Say.Emsg("Manager",sp->Stype,lnkp->Nick(),"defaulted r /");
       }
 
 // Finally set the reference counts for intersecting servers to be the same.
@@ -464,14 +499,14 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 // Process responses from the server.
 //
    tp = sp->isSuspend ? (char *)"logged in suspended." : (char *)"logged in.";
-   Say.Emsg("Manager", Stype, sp->Nick(), tp);
+   Say.Emsg("Manager", sp->Stype, sp->Nick(), tp);
 
    sp->isDisable = 0;
    rc = sp->Process_Responses();
 
    if (rc == -86) mp = "disconnected";
       else mp = sp->isOffline ? "forced out." : "logged out.";
-   Say.Emsg("Manager", Stype, sp->Nick(), mp);
+   Say.Emsg("Manager", sp->Stype, sp->Nick(), mp);
 
 // Recycle the server
 //
@@ -623,6 +658,7 @@ void *XrdOlbManager::Pander(char *manager, int mport)
            if (Config.SUPCount) Status |= OLB_isPeer | OLB_Suspend;
                else             Status |= OLB_isPeer;
            else                 Status |= OLB_isMan  | OLB_Suspend;
+       if (Config.asProxy())    Status |= OLB_isProxy;
       }
 
 // Keep connecting to our manager. If XWait is present, wait for it to
@@ -659,7 +695,8 @@ void *XrdOlbManager::Pander(char *manager, int mport)
        //
        reason = 0;
        if (!Config.asManager())
-          Status = (XWait ? OLB_Suspend : 0)|(XnoStage ? OLB_noStage : 0);
+           Status = (Config.asProxy() ? OLB_isProxy : 0)
+                  | (XWait ? OLB_Suspend : 0)|(XnoStage ? OLB_noStage : 0);
        if (fails >= 6 && manp == manager) {Status |= OLB_Lost; fails = 0;}
           else Status &= ~OLB_Lost;
 
@@ -1154,6 +1191,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
     const char *hnp = lp->Nick();
     unsigned int ipaddr = lp->Addr();
     XrdOlbServer *bump = 0, *sp = 0;
+    char buff[64];
 
 // Find available ID for this server
 //
@@ -1163,8 +1201,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
           {if (ServBat[i]->isServer(ipaddr, port, theSID)) break;
               else if (!ServTab[i] && k < 0) k = i;
                    else if (os < 0 && (Status & (OLB_isMan|OLB_isPeer))
-                        &&  ServBat[i]->isSpecial 
-                        && !ServBat[i]->isMan && !ServBat[i]->isPeer) os = i;
+                        &&  ServBat[i]->isSpecial) os = i;
           }
           else if (j < 0) j = i;
 
@@ -1214,6 +1251,11 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
        sp->ServMask = smask_1<<j;
       }
 
+// Indicate whether this server can be redirected
+//
+   if (Status & (OLB_isMan | OLB_isPeer)) sp->isSpecial = 0;
+      else sp->isSpecial = (Status & OLB_Special);
+
 // Assign new server
 //
    if (Status & OLB_isMan) setAltMan(j, ipaddr, sport);
@@ -1223,7 +1265,6 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
    sp->isSuspend = (Status & OLB_Suspend);
    sp->isMan     = (Status & OLB_isMan);
    sp->isPeer    = (Status & OLB_isPeer);
-   sp->isSpecial = (Status & OLB_Special);
    sp->isDisable = 1;
    ServCnt++;
    if (Config.SUPLevel

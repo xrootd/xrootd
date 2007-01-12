@@ -73,6 +73,7 @@ const int OLB_Special =  4;
 const int OLB_isMan   =  8;
 const int OLB_Lost    = 16;
 const int OLB_isPeer  = 32;
+const int OLB_isProxy = 64;
 
 // Flags passed to SelServer() full selection (long signature)
 //

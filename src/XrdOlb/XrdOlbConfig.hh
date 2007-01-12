@@ -42,7 +42,9 @@ int   inSuspend();
 int   inNoStage();
 int   asManager() {return isManager;}
 int   asPeer()    {return isPeer;}
+int   asProxy()   {return isProxy;}
 int   asServer()  {return isServer;}
+int   asSolo()    {return isSolo;}
 
 int         LUPDelay;     // Maximum delay at look-up
 int         LUPHold;      // Maximum hold  at look-up (in millisconds)
@@ -171,7 +173,7 @@ int               isPeer;
 int               isProxy;
 int               isServer;
 int               isSolo;
-const char       *myRole;
+char             *myRole;
 char             *perfpgm;
 int               perfint;
 int               cachelife;

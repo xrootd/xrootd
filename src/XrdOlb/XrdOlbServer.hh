@@ -36,6 +36,7 @@ friend class XrdOlbManager;
        char  isSpecial;    // Set when server can be redirected
        char  isMan;        // Set when server can act as manager
        char  isPeer;       // Set when server can act as peer manager
+       char  isProxy;      // Set when server can act as a proxy
        char  isSuspend;    // Set upon a suspend event
        char  isActive;     // Set when server is functioning
        char  isBound;      // Set when server is in the configuration

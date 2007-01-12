@@ -180,10 +180,11 @@ void *XrdOlbAdmin::Start(XrdNetSocket *AdminSock)
   
 int XrdOlbAdmin::do_Login()
 {
-   char *tp, Ltype = '1';
+   const char *emsg;
+   char *tp, Ltype = 0;
    int Port = 0;
 
-// Process: login {p | s | u} <name> [port <port>]
+// Process: login {p | P | s | u} <name> [port <port>]
 //
    if (!(tp = Stream.GetToken()))
       {Say.Emsg("do_Login", "login type not specified");
@@ -193,6 +194,7 @@ int XrdOlbAdmin::do_Login()
    if (*(tp+1) == '\0')
       switch (*tp)
              {case 'p': Stype = "Primary server"; break;
+              case 'P': Stype = "Proxy server";   break;
               case 's': Stype = "Server";         break;
               case 'u': Stype = "Admin";          break;
               default:  Ltype = 0;                break;
@@ -224,14 +226,22 @@ int XrdOlbAdmin::do_Login()
                  }
         }
 
-// If this is not a primary, we are done. Otherwise there is much more
+// If this is not a primary, we are done. Otherwise there is much more. We
+// must make sure we are compatible with the login
 //
-   if (Ltype != 'p') return 1;
+   if (Ltype != 'p' && Ltype != 'P') return 1;
+        if (Ltype == 'p' &&  Config.asProxy()) emsg = "only accepts proxies";
+   else if (Ltype == 'P' && !Config.asProxy()) emsg = "does not accept proxies";
+   else                                        emsg = 0;
+   if (emsg) 
+      {Say.Emsg("do_login", "Server login rejected; configured role", emsg);
+       return 0;
+      }
 
 // Discard login if this is a duplicate primary server
 //
    myMutex.Lock();
-   if (POnline && Ltype == 'p')
+   if (POnline)
       {myMutex.UnLock();
        Say.Emsg("do_Login", "Primary server already logged in; login of", 
                                    tp, "rejected.");

@@ -31,6 +31,8 @@ void setMaxCon(int i);
 
 int  Trying(int sID, int Lvl);
 
+enum connStat {Active, Connected, None, Pending, Waiting};
+
      XrdOlbManTree() : maxTMI(0),   numConn(0), maxConn(0),    atRoot(0),
                        conLevel(0), conSID(-1), numWaiting(0),
                        myStatus(Active) {};
@@ -50,18 +52,17 @@ void Pause(int sID)   {tmInfo[sID].Status = Waiting;
 
 XrdOucMutex     myMutex;
 
-enum            connStat {Active, Connected, None, Pending, Waiting};
 
 struct TreeInfo
-      {XrdOucSemaphore theSem;
-       XrdOlbServer   *servP;
-       connStat        Status;
-       int             Level;
+       {XrdOucSemaphore theSem;
+        XrdOlbServer   *servP;
+        connStat        Status;
+        int             Level;
 
-       TreeInfo() : theSem(0), servP(0), Status(None), Level(0) {};
-      ~TreeInfo() {};
+        TreeInfo() : theSem(0), servP(0), Status(None), Level(0) {};
+       ~TreeInfo() {};
 
-      }         tmInfo[XrdOlbManager::MTMax];
+       }         tmInfo[XrdOlbManager::MTMax];
 
 char            buff[8];
 int             maxTMI;

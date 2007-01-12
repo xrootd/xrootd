@@ -172,7 +172,6 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 */
    int NoGo = 0, immed = 0;
    char c, buff[512];
-   const char *therole;
    extern int opterr, optopt;
 
 // Prohibit this program from executing as superuser
@@ -246,11 +245,13 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 
 // Create a text description of our role for use in messages
 //
-        if (isPeer)                myRole = "peer";
-   else if (isProxy)               myRole = "proxy";
-   else if (isManager && isServer) myRole = "Supervisor";
-   else if (isManager)             myRole = "manager";
-   else                            myRole = "server";
+   if (!myRole)
+      {      if (isPeer)                myRole = strdup("peer");
+        else if (isProxy)               myRole = strdup("proxy");
+        else if (isManager && isServer) myRole = strdup("Supervisor");
+        else if (isManager)             myRole = strdup("manager");
+        else                            myRole = strdup("server");
+      }
 
 // For managers, make sure that we have a well designated port.
 // For servers or supervisors, force an ephemeral port to be used.
@@ -290,10 +291,6 @@ int XrdOlbConfig::Configure2()
 //
    sprintf(buff, " phase 2 %s initialization started.", myRole);
    Say.Say(0, myInstance, buff);
-
-// Readjust the thread parameters as we know how many we will actually need
-//
-   Sched->setParms(16, 256, 8, 0);
 
 // Determine who we are. If we are a manager or supervisor start the file
 // location cache scrubber.
@@ -592,7 +589,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    RemotRoot= 0;
    myInsName= 0;
    myManagers=0;
-   myRole    = (char *)"unknown";
+   myRole    =0;
    ManList   =0;
    mySID    = 0;
    perfint  = 3*60;
@@ -2007,18 +2004,39 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &CFile)
 /******************************************************************************/
 
 /* Function: xrole
+   Purpose:  Parse: role {[peer] [proxy] manager | peer | proxy | [proxy] server
+                          | [proxy] supervisor} [if ...]
 
-   Purpose:  Parse: role {manager | peer [solo] | proxy | server | supervisor} 
-                         [if ...]
+             manager    xrootd: act as a manager (redirecting server). Prefix
+                                modifications are ignored.
+                        olbd:   accept server subscribes and redirectors. Prefix
+                                modifiers do the following:
+                                peer  - subscribe to other managers as a peer
+                                proxy - manage a cluster of proxy servers
 
-             peer       act as a peer manager. Peers are always selected last.
-             solo       This peer does not need subscribers.
-             manager    act as a manager (incomming no outgoing).
-             proxy      act as a manager (this is only meaningful to the ofs)
-             server     act as a server (no incomming only outgoing).
-             supervisor act as a supervisor (incomming and outgoing).
+             peer       xrootd: same as "peer manager"
+                        olbd:   same as "peer manager" but no server subscribers
+                                are required to function (i.e., run stand-alone).
+
+             proxy      xrootd: act as a server but supply data from another 
+                                server. No local olbd is present or required.
+                        olbd:   Generates an error as this makes no sense.
+
+             server     xrootd: act as a server (supply local data). Prefix
+                                modifications do the following:
+                                proxy - server is part of a cluster. A local
+                                        olbd is required.
+                        olbd:   subscribe to a manager, possibly as a proxy.
+
+             supervisor xrootd: equivalent to manager.
+                        olbd:   equivalent to manager but also subscribe to a
+                                manager. When proxy is specified, subscribe as
+                                a proxy and only accept proxy servers.
+
+
              if         Apply the manager directive if "if" is true. See
                         XrdOucUtils:doIf() for "if" syntax.
+
 
    Type: Server only, non-dynamic.
 
@@ -2027,23 +2045,64 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &CFile)
 
 int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
 {
-    char *val;
-    int rc, xPeer = 0, xProxy = 0, xServ = 0, xMan = 0, xSolo = 0;
+    char *val, role[64];
+    int rc, xPeer=0, xProxy=0, xServ=0, xMan=0, xSolo=0, xSup=0;
 
+    *role = '\0';
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "role not specified"); return 1;}
 
-         if (!strcmp("manager",    val)) {xMan = -1;}
-    else if (!strcmp("peer",       val)) {xMan = -1; xServ = -1; xPeer  = -1;}
-    else if (!strcmp("proxy",      val)) {           xServ = -1; xProxy = -1;}
-    else if (!strcmp("server",     val)) {           xServ = -1;}
-    else if (!strcmp("supervisor", val)) {xMan = -1; xServ = -1;}
 
-    else {eDest->Emsg("Config", "invalid role -", val); return 1;}
+// First screen for "peer"
+//
+   if (!strcmp("peer", val))
+      {xPeer = -1;
+       strcpy(role, val);
+       val = CFile.GetWord();
+      }
 
-    if ((val = CFile.GetWord()) && xPeer)
-       if (!strcmp("solo", val)) {xSolo = 1; val = CFile.GetWord();}
+// Now scan for "proxy"
+//
+   if (val && !strcmp("proxy", val))
+      {xProxy = -1;
+       if (xPeer) strcat(role, " ");
+       strcat(role, val);
+       val = CFile.GetWord();
+      }
 
+// Scan for other possible alternatives
+//
+   if (val && strcmp("if", val))
+      {     if (!strcmp("manager",    val)) {xMan = -1;}
+       else if (!strcmp("server",     val)) {           xServ = -1;}
+       else if (!strcmp("supervisor", val)) {xMan = -1; xServ = -1; xSup = -1;}
+       else    {eDest->Emsg("Config", "invalid role -", val); return 1;}
+
+       if (xPeer || xProxy) strcat(role, " ");
+       strcat(role, val);
+       val = CFile.GetWord();
+      }
+
+// Scan for invalid roles: peer proxy | peer server | peer supervisor
+//
+   if ((xPeer && xProxy) && !(xMan || xServ)
+   ||  (xPeer && xServ)
+   ||  (xPeer && xSup))
+      {eDest->Emsg("Config", "invalid role -", role); return 1;}
+   if (!(xMan || xServ) && xProxy)
+      {eDest->Emsg("Config", "pure proxy role is not supported"); return 1;}
+
+// Make sure a role was specified
+//
+    if (!(xPeer || xProxy || xServ || xMan))
+       {eDest->Emsg("Config", "role not specified"); return 1;}
+
+// Check if this is a solo peer
+//
+    if (xPeer) if (!xMan) {xSolo = 1; xMan = -1;}
+
+// Handle optional "if"
+//
     if (val && !strcmp("if", val))
        if ((rc = XrdOucUtils::doIf(eDest,CFile,"role directive",
                               myName,myInsName,myProg)) <= 0) return (rc < 0);
@@ -2051,8 +2110,9 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
     if (isServer > 0 || isManager > 0 || isProxy > 0 || isPeer > 0)
        eDest->Emsg("Config","role directive over-ridden by command line options.");
        else {isServer = xServ; isManager = xMan; isProxy = xProxy;
-             isPeer   = xPeer; isSolo    = xSolo;}
-
+             isPeer   = xPeer; isSolo    = xSolo;
+             if (myRole) free(myRole); myRole = strdup(role);
+            }
     return 0;
 }
 

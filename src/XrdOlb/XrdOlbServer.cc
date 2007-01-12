@@ -103,7 +103,7 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     myNick   =  0;
     Port     =  0; // setName() will set myName, myNick, and Port!
     setName(lnkp, port);
-    Stype    = (char *)"Server";
+    Stype    =  0;
     mySID    = strdup(sid ? sid : "?");
     myLevel  = 0;
 
@@ -144,6 +144,7 @@ XrdOlbServer::~XrdOlbServer()
    if (myName)    free(myName);
    if (myNick)    free(myNick);
    if (mySID)     free(mySID);
+   if (Stype)     free(Stype);
 
 // All done
 //
@@ -159,6 +160,7 @@ int XrdOlbServer::Login(int dataPort, int Status, int Lvl)
    XrdOlbPList *plp = Config.PathList.First();
    long totfr, maxfr;
    char pbuff[16], qbuff[16], buff[1280];
+   const char *role;
 
 // Send a message is we are lost
 //
@@ -173,8 +175,10 @@ int XrdOlbServer::Login(int dataPort, int Status, int Lvl)
    if (Status & OLB_isPeer) *qbuff = '\0';
       else sprintf(qbuff,"+%c:%d",(Status&OLB_isMan?'m':'s'),Config.PortTCP);
 
-   sprintf(buff, "login %s %s %s %s %s =%s\n",
-                 (Status & OLB_isPeer  ? "peer"    : "server"), pbuff,
+   if (Status & OLB_isProxy) role = (Status & OLB_isPeer ? "pproxy" : "proxy");
+      else                   role = (Status & OLB_isPeer ? "peer"   : "server");
+
+   sprintf(buff, "login %s %s %s %s %s =%s\n", role, pbuff,
                  (Status & OLB_noStage ? "nostage" : ""),
                  (Status & OLB_Suspend ? "suspend" : ""),
                  qbuff, Config.mySID);
