@@ -198,7 +198,8 @@ bool XrdSutAskConfirm(const char *msg1, bool defact, const char *msg2)
 
    bool rc = defact;
 
-   if (msg2); cout << msg2;
+   if (msg2)
+      cout << msg2;
    XrdOucString ask;
    XrdOucString prompt = defact ? " [y]: " : " [n]: ";
    if (msg1)
