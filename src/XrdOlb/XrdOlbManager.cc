@@ -1521,9 +1521,9 @@ XrdOlbServer *XrdOlbManager::SelbyCost(SMask_t mask, int &nump, int &delay,
 // Check for overloaded server and return result
 //
    if (!sp) return calcDelay(nump, numd, numf, 0, nums, delay, reason);
-   if (needspace) SelAcnt++;  // Protected by STMutex
-      else        SelRcnt++;
    sp->Lock();
+   if (needspace) {SelAcnt++; sp->RefA++;}  // Protected by STMutex
+      else        {SelRcnt++; sp->RefR++;}
    delay = 0;
    return sp;
 }
@@ -1565,9 +1565,9 @@ XrdOlbServer *XrdOlbManager::SelbyLoad(SMask_t mask, int &nump, int &delay,
 // Check for overloaded server and return result
 //
    if (!sp) return calcDelay(nump, numd, numf, numo, nums, delay, reason);
-   if (needspace) SelAcnt++;  // Protected by STMutex
-      else        SelRcnt++;
    sp->Lock();
+   if (needspace) {SelAcnt++; sp->RefA++;}  // Protected by STMutex
+      else        {SelRcnt++; sp->RefR++;}
    delay = 0;
    return sp;
 }
@@ -1601,9 +1601,9 @@ XrdOlbServer *XrdOlbManager::SelbyRef(SMask_t mask, int &nump, int &delay,
 // Check for overloaded server and return result
 //
    if (!sp) return calcDelay(nump, numd, numf, 0, nums, delay, reason);
-   if (needspace) SelAcnt++;  // Protected by STMutex
-      else        SelRcnt++;
    sp->Lock();
+   if (needspace) {SelAcnt++; sp->RefA++;}  // Protected by STMutex
+      else        {SelRcnt++; sp->RefR++;}
    delay = 0;
    return sp;
 }
