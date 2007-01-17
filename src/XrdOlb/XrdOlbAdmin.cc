@@ -191,6 +191,7 @@ int XrdOlbAdmin::do_Login()
        return 0;
       }
 
+   Ltype = *tp;
    if (*(tp+1) == '\0')
       switch (*tp)
              {case 'p': Stype = "Primary server"; break;
