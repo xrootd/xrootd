@@ -111,13 +111,13 @@ struct XrdOssCache_FSData
 XrdOssCache_FSData *next;
 long long          size;
 long long          frsz;
-u_long             fsid;
+dev_t              fsid;
 const char        *path;
 int                plen;
 time_t             updt;
 int                stat;
 
-       XrdOssCache_FSData(const char *fsp, STATFS_t &fsbuff);
+       XrdOssCache_FSData(const char *fsp, STATFS_t &fsbuff, dev_t fsID);
       ~XrdOssCache_FSData() {if (path) free((void *)path);}
 };
 

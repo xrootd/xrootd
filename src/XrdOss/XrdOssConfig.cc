@@ -643,6 +643,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    TS_Xeq("cache",         xcache);
    TS_Xeq("cachescan",     xcachescan);
    TS_Xeq("compdetect",    xcompdct);
+   TS_Xeq("defaults",      xdefault);
    TS_Xeq("fdlimit",       xfdlimit);
    TS_Xeq("maxsize",       xmaxdbsz);
    TS_Xeq("memfile",       xmemf);
@@ -877,6 +878,76 @@ int XrdOssSys::xcachescan(XrdOucStream &Config, XrdOucError &Eroute)
     return 0;
 }
 
+/******************************************************************************/
+/*                              x d e f a u l t                               */
+/******************************************************************************/
+
+/* Function: xdefault
+
+   Purpose:  Parse: defaults [compchk] [[no]dread] [[no]check] [forcero] 
+                              
+                             [[no]mig] [[not]migratable] [[no]mkeep]
+
+                             [[no]mlock] [[no]mmap] [readonly] [[no]ssdec]
+
+                             [[no]stage]  [[no]rcreate] [[not]writable]
+
+   Notes: See the oss configuration manual for the meaning of each option.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOssSys::xdefault(XrdOucStream &Config, XrdOucError &Eroute)
+{
+   char *var;
+
+   if (!(var = Config.GetWord()))
+      {Eroute.Emsg("config", "defaults value not specified"); return 1;}
+
+   do {if (xdefset(var)) Eroute.Emsg("config","unknown defaults value -",var);
+      } while((var = Config.GetWord()));
+
+   return 0;
+}
+
+int XrdOssSys::xdefset(const char *var)
+{
+   TS_Add("compchk",       XeqFlags, XrdOssCOMPCHK,  0);
+   TS_Add("forcero",       XeqFlags, XrdOssFORCERO,  XrdOssROW_X);
+   TS_Add("readonly",      XeqFlags, XrdOssREADONLY, XrdOssROW_X);
+   TS_Add("notwritable",   XeqFlags, XrdOssREADONLY, XrdOssROW_X);
+   TS_Rem("writable",      XeqFlags, XrdOssNOTRW,    XrdOssROW_X);
+
+   TS_Add("mig",           XeqFlags, XrdOssMIG,      XrdOssMIG_X);
+   TS_Rem("nomig",         XeqFlags, XrdOssMIG,      XrdOssMIG_X);
+   TS_Add("migratable",    XeqFlags, XrdOssMIG,      XrdOssMIG_X);
+   TS_Rem("notmigratable", XeqFlags, XrdOssMIG,      XrdOssMIG_X);
+
+   TS_Add("mkeep",         XeqFlags, XrdOssMKEEP,    XrdOssMKEEP_X);
+   TS_Rem("nomkeep",       XeqFlags, XrdOssMKEEP,    XrdOssMKEEP_X);
+
+   TS_Add("mlock",         XeqFlags, XrdOssMLOK,     XrdOssMLOK_X);
+   TS_Rem("nomlock",       XeqFlags, XrdOssMLOK,     XrdOssMLOK_X);
+
+   TS_Add("mmap",          XeqFlags, XrdOssMMAP,     XrdOssMMAP_X);
+   TS_Rem("nommap",        XeqFlags, XrdOssMMAP,     XrdOssMMAP_X);
+
+   TS_Rem("check",         XeqFlags, XrdOssNOCHECK,  XrdOssCHECK_X);
+   TS_Add("nocheck",       XeqFlags, XrdOssNOCHECK,  XrdOssCHECK_X);
+
+   TS_Rem("dread",         XeqFlags, XrdOssNODREAD,  XrdOssDREAD_X);
+   TS_Add("nodread",       XeqFlags, XrdOssNODREAD,  XrdOssDREAD_X);
+
+   TS_Rem("ssdec",         XeqFlags, XrdOssNOSSDEC,  0);
+   TS_Add("nossdec",       XeqFlags, XrdOssNOSSDEC,  0);
+
+   TS_Rem("stage",         XeqFlags, XrdOssNOSTAGE,  XrdOssSTAGE_X);
+   TS_Add("nostage",       XeqFlags, XrdOssNOSTAGE,  XrdOssSTAGE_X);
+
+   TS_Add("rcreate",       XeqFlags, XrdOssRCREATE,  XrdOssRCREATE_X);
+   TS_Rem("norcreate",     XeqFlags, XrdOssRCREATE,  XrdOssRCREATE_X);
+   return 1;
+}
   
 /******************************************************************************/
 /*                              x f d l i m i t                               */

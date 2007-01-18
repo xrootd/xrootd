@@ -63,14 +63,16 @@ void XrdOssCache_Lock::UnLock() {if ( locked) {XrdOssSS->CacheContext.UnLock();
 /*            X r d O s s C a c h e _ F S D a t a   M e t h o d s             */
 /******************************************************************************/
   
-XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp, STATFS_t &fsbuff)
+XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp, 
+                                       STATFS_t   &fsbuff,
+                                       dev_t       fsID)
 {
 
      path = strdup(fsp);
      plen = strlen(fsp);
      size = (long long)fsbuff.f_blocks*fsbuff.FS_BLKSZ;
      frsz = (long long)fsbuff.f_bavail*fsbuff.FS_BLKSZ;
-     memcpy((void *)&fsid, (const void *)&fsbuff.f_fsid, sizeof(fsid));
+     fsid = fsID;
      updt = time(0);
      next = 0;
      stat = 0;
@@ -82,13 +84,14 @@ XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp, STATFS_t &fsbuff)
   
 XrdOssCache_FS::XrdOssCache_FS(int &retc,
                                const char *fsg, 
-                                const char *fsp,
+                               const char *fsp,
                                const int inplace)
 {
    STATFS_t fsbuff;
+   struct stat sfbuff;
    XrdOssCache_FSData *fdp;
    XrdOssCache_Group  *cgp;
-   u_long tmpid;
+   dev_t tmpid = 0;
 
 // set the groupname and the path supplied
 //
@@ -98,7 +101,7 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
 
 // Find the filesystem for this object
 //
-   if (FS_Stat(fsp, &fsbuff)) {retc = errno; return;}
+   if (FS_Stat(fsp, &fsbuff) || stat(fsp, &sfbuff)) {retc = errno; return;}
 
 // If this is an in-place creation, then we must get the cache lock
 //
@@ -107,13 +110,12 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
 
 // Find the matching filesystem data
 //
-   memcpy((void *)&tmpid, (const void *)&fsbuff.f_fsid, sizeof(tmpid));
-   while(fdp) {if (fdp->fsid == tmpid) break; fdp = fdp->next;}
+   while(fdp) {if (fdp->fsid == sfbuff.st_dev) break; fdp = fdp->next;}
 
 // If we didn't find the filesystem, then create one
 //
    if (!fdp)
-      if (!(fdp = new XrdOssCache_FSData(fsp, fsbuff))) return;
+      if (!(fdp = new XrdOssCache_FSData(fsp, fsbuff, tmpid))) return;
          else if (inplace) {fdp->next = XrdOssSS->fsdata; XrdOssSS->fsdata = fdp;}
                  else      {fdp->next = XrdOssSS->xsdata; XrdOssSS->xsdata = fdp;}
 
@@ -170,7 +172,7 @@ off_t  XrdOssSys::Adjust(dev_t devid, off_t size)
 // Search for matching filesystem
 //
    fsdp = fsdata;
-   while(fsdp && fsdp->fsid != (u_long)devid) fsdp = fsdp->next;
+   while(fsdp && fsdp->fsid != devid) fsdp = fsdp->next;
 
 // Process the result
 //

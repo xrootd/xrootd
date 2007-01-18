@@ -285,6 +285,8 @@ int    xcache(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcacheBuild(char *grp, char *fn, XrdOucError &Eroute);
 int    xcompdct(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcachescan(XrdOucStream &Config, XrdOucError &Eroute);
+int    xdefault(XrdOucStream &Config, XrdOucError &Eroute);
+int    xdefset(const char *var);
 int    xfdlimit(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmemf(XrdOucStream &Config, XrdOucError &Eroute);
