@@ -227,7 +227,7 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
               (AuthLib ? "/n" : ""),
               (Options & XrdOfsFDNOSHARE ? "ofs.fdnoshare\n" : ""),
               FDOpenMax, FDMinIdle, FDMaxIdle, fwbuff, MaxDelay,
-              (OssLib ? "ofs.authlib " : ""), (OssLib ? OssLib : ""),
+              (OssLib ? "ofs.osslib " : ""), (OssLib ? OssLib : ""),
               (OssLib ? "/n" : ""),
               OfsTrace.What);
 
