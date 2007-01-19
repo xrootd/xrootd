@@ -69,7 +69,6 @@ XrdOssCache_FSData::XrdOssCache_FSData(const char *fsp,
 {
 
      path = strdup(fsp);
-     plen = strlen(fsp);
      size = (long long)fsbuff.f_blocks*fsbuff.FS_BLKSZ;
      frsz = (long long)fsbuff.f_bavail*fsbuff.FS_BLKSZ;
      fsid = fsID;
@@ -122,6 +121,7 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
 // Complete the filesystem block
 //
    path   = strdup(fsp);
+   plen   = strlen(fsp);
    fsdata = fdp;
    retc   = 0;
 

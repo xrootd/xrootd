@@ -109,13 +109,12 @@ int                         prty;
 struct XrdOssCache_FSData
 {
 XrdOssCache_FSData *next;
-long long          size;
-long long          frsz;
-dev_t              fsid;
-const char        *path;
-int                plen;
-time_t             updt;
-int                stat;
+long long           size;
+long long           frsz;
+dev_t               fsid;
+const char         *path;
+time_t              updt;
+int                 stat;
 
        XrdOssCache_FSData(const char *fsp, STATFS_t &fsbuff, dev_t fsID);
       ~XrdOssCache_FSData() {if (path) free((void *)path);}
@@ -128,8 +127,9 @@ int                stat;
 struct XrdOssCache_FS
 {
 XrdOssCache_FS     *next;
-const   char      *group;
-const   char      *path;
+const   char       *group;
+const   char       *path;
+int                 plen;
 XrdOssCache_FSData *fsdata;
 
        XrdOssCache_FS(      int  &retc, // Yucky historical output value

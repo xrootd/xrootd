@@ -223,10 +223,10 @@ int XrdOssSys::Alloc_Cache(const char *path, mode_t amode, XrdOucEnv &env)
 
 // Construct the target filename
 //
-   if ((fsp_sel->fsdata->plen + strlen(path)) >= sizeof(pbuff))
+   if ((fsp_sel->plen + strlen(path)) >= sizeof(pbuff))
       return -ENAMETOOLONG;
    strcpy(pbuff, fsp_sel->path);
-   pbp = &pbuff[fsp_sel->fsdata->plen];
+   pbp = &pbuff[fsp_sel->plen];
    pap = (char *)path;
    XrdOssTAMP(pbp, pap);
 
