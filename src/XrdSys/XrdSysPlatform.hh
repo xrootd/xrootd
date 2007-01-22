@@ -129,7 +129,7 @@ typedef off_t offset_t;
      (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
 #define Xrd_Little_Endian
 // Use GNU's bswap routines if compiling using g++ o/w use our own.
-#if !defined(__GNUC__) || defined(__macos__)
+#if !defined(__GNUC__) || defined(__macos__) || defined(__solaris__)
 #ifndef __bswap_64
 extern unsigned long long Swap_n2hll(unsigned long long x);
 #define __bswap_64(x) Swap_n2hll(x)
