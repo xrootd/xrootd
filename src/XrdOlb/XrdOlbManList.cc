@@ -40,7 +40,7 @@ int           ManPort;
 int           ManLvl;
 
               XrdOlbManRef(unsigned int ref, char *name, int port, int lvl)
-                          : Next(0), ManRef(ref), Manager(name),
+                          : Next(0), Manager(name), ManRef(ref),
                             ManPort(port), ManLvl(lvl) {};
 
              ~XrdOlbManRef() {if (Manager) free(Manager);}
