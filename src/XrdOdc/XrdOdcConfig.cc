@@ -103,6 +103,8 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
    temp=XrdOucUtils::genPath(OLBPath,(strcmp("anon",myName)?myName:0), ".olb");
    free(OLBPath); 
    OLBPath = temp;
+   sprintf(buff, "XRDOLBPATH=%s", temp);
+   putenv(strdup(buff));
    i = strlen(OLBPath);
 
 // Construct proper olb communications path for a supervisor node
