@@ -19,6 +19,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 
 class XrdOucError;
+class XrdOdcFinderTRG;
 
 class XrdOfsEvr
 {
@@ -27,7 +28,7 @@ class theClient;
 
 void flushEvents();
 
-int  Init(XrdOucError *eObj);
+int  Init(XrdOucError *eObj, XrdOdcFinderTRG *trg=0);
 
 void recvEvents();
 
@@ -88,6 +89,7 @@ XrdOucMutex          myMutex;
 XrdOucSemaphore      mySem;
 XrdOucStream         eventFIFO;
 XrdOucError         *eDest;
+XrdOdcFinderTRG     *Balancer;
 theClient           *deferQ;
 int                  runQ;
 int                  msgFD;

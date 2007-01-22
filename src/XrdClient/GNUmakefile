@@ -6,9 +6,11 @@
 include ../GNUmake.env
 
 
-BINLIBS = -L$(LIBDIR) -lXrdClient -lXrdNet -lXrdOuc -lXrdSys -lXrdCrypto
+#BINLIBS = -L$(LIBDIR) -lXrdClient -lXrdNet -lXrdOuc -lXrdSys -lXrdCrypto
+BINLIBS = -L$(LIBDIR) -lXrdClient -lXrdNet -lXrdOuc -lXrdSys
+SSLLIBS = $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a
 
-LIBDEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdCrypto.a
+LIBDEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -148,15 +150,13 @@ $(BINDIR)/TestXrdClient: $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(BINDIR)/TestXrdClient 
 	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(BINDIR)/TestXrdClient
 
-
-
 $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 	@echo Creating executable $(XRDCP) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(BINLIBS) $(LIBS) -o $(XRDCP)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(SSLLIBS) $(BINLIBS) $(LIBS) -o $(XRDCP)
 
 $(XRDCLI): $(OBJECTS) $(OBJECT_CLI) $(LIBDEPS)
 	@echo Creating executable $(XRDCLI) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(BINLIBS) $(LIBS) -o $(XRDCLI)
+	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(SSLLIBS) $(BINLIBS) $(LIBS) -o $(XRDCLI)
 
 $(XRDADMIN): $(PERLMOD)
 	$(ECHO)if [ "$(PERLBIN)" != "" ]; then \

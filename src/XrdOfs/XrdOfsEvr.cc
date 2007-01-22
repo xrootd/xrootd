@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "XrdOdc/XrdOdcFinder.hh"
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
@@ -106,16 +107,17 @@ void XrdOfsEvr::flushEvents()
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdOfsEvr::Init(XrdOucError *eobj)
+int XrdOfsEvr::Init(XrdOucError *eobj, XrdOdcFinderTRG *trgp)
 {
    XrdNetSocket *msgSock;
    pthread_t     tid;
    int n, rc;
    char *p, *path, pbuff[2048];
 
-// Set the error object pointer
+// Set the error object and balancer pointers
 //
-   eDest = eobj;
+   eDest    = eobj;
+   Balancer = trgp;
 
 // Create path to the pipe we will creat
 //
@@ -272,6 +274,10 @@ void XrdOfsEvr::eventStage()
                  if (!*eMsg) eMsg = altMsg;
                 } else eMsg = altMsg;
       else eMsg = 0;
+
+// At this point if the file was successfully staged, notify the balancer
+//
+   if (rc == 0 && Balancer) Balancer->Added(tp);
 
 // Either people are waiting for this event or it is preposted event.
 //

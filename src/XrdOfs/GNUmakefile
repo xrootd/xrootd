@@ -90,7 +90,7 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
 $(OBJDIR)/XrdOfsEvr.o:  XrdOfsEvr.cc      XrdOfsEvr.hh \
                         XrdOfsTrace.hh    XrdOucTrace.hh \
                         XrdOucErrInfo.hh  XrdOucPthread.hh  XrdOucStream.hh \
-                        XrdOucTimer.hh \
+                        XrdOucTimer.hh    XrdOdcFinder.hh \
                         XrdNetOpts.hh     XrdNetSocket.hh
 	@echo Compiling XrdOfsEvr.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsEvr.o XrdOfsEvr.cc
