@@ -4,69 +4,20 @@
 /*                                                                            */
 /*                      X r d O l b P r e p a r e . h h                       */
 /*                                                                            */
-/* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
 //         $Id$
   
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "XrdOlb/XrdOlbServer.hh"
+#include "XrdOlb/XrdOlbPrepArgs.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
-
-/******************************************************************************/
-/*                        X r d O l b P r e p A r g s                         */
-/******************************************************************************/
-
-class XrdOlbServer;
-
-class XrdOlbPrepArgs : public XrdJob
-{
-public:
-
-char           *reqid;
-char           *user;
-char           *prty;
-char           *mode;
-char           *path;
-struct iovec   *iovp;
-int             iovn;
-
-void            Clear() {reqid = user = prty = mode = path = 0;
-                         iovp = 0; iovn = 0;}
-
-void            DoIt() {if (!XrdOlbServer::Resume(this)) delete this;}
-
-                XrdOlbPrepArgs() : XrdJob("prepare") {Clear();}
-
-XrdOlbPrepArgs &operator =(const XrdOlbPrepArgs &rhs)
-                   {reqid = rhs.reqid;
-                    user  = rhs.user;
-                    prty  = rhs.prty;
-                    mode  = rhs.mode;
-                    path  = rhs.path;
-                    iovp  = rhs.iovp;
-                    iovn  = rhs.iovn;
-                    return *this;
-                   }
-               ~XrdOlbPrepArgs()
-                   {if (reqid)   free(reqid);
-                    if (user)    free(user);
-                    if (prty)    free(prty);
-                    if (mode)    free(mode);
-                    if (path)    free(path);
-                    if (iovp)    free(iovp);
-                   }
-};
-  
-/******************************************************************************/
-/*                   C l a s s   X r d O l b P r e p a r e                    */
-/******************************************************************************/
 
 class XrdOlbPrepare : public XrdJob
 {
@@ -86,6 +37,8 @@ void       DoIt() {Scrub();
                   }
 
 int        Pending() {return NumFiles;}
+
+void       Queue(XrdOlbPrepArgs *parg);
 
 int        Reset();
 

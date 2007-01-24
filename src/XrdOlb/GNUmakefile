@@ -24,6 +24,7 @@ SOURCES = \
         XrdOlbMeter.cc     \
         XrdOlbPList.cc     \
         XrdOlbPrepare.cc   \
+        XrdOlbPrepArgs.cc  \
         XrdOlbProtocol.cc  \
         XrdOlbReq.cc       \
         XrdOlbRRQ.cc       \
@@ -42,6 +43,7 @@ OBJECTS = \
         $(OBJDIR)/XrdOlbMeter.o     \
         $(OBJDIR)/XrdOlbPList.o     \
         $(OBJDIR)/XrdOlbPrepare.o   \
+        $(OBJDIR)/XrdOlbPrepArgs.o  \
         $(OBJDIR)/XrdOlbProtocol.o  \
         $(OBJDIR)/XrdOlbReq.o       \
         $(OBJDIR)/XrdOlbRRQ.o       \
@@ -105,7 +107,7 @@ $(OBJDIR)/XrdOlbConfig.o: XrdOlbConfig.hh   XrdOlbConfig.cc \
                           XrdOlbCache.hh    XrdOlbManager.hh XrdOlbMeter.hh \
                           XrdOlbPList.hh    XrdOlbPrepare.hh XrdOlbRRQ.hh \
                           XrdOlbState.hh    XrdOlbTrace.hh   XrdOlbTypes.hh \
-                          XrdOlbXmi.hh      XrdOlbXmiReq.hh \
+                          XrdOlbXmi.hh      XrdOlbXmiReq.hh  XrdOlbServer.hh \
                           XrdOuca2x.hh      XrdOucError.hh   XrdOucName2Name.hh\
                           XrdSysPlatform.hh XrdOucPlugin.hh  XrdOucProg.hh \
                           XrdOucPthread.hh  XrdOucStream.hh  XrdOucTimer.hh \
@@ -147,13 +149,20 @@ $(OBJDIR)/XrdOlbPList.o: XrdOlbPList.hh XrdOlbPList.cc \
 	@echo Compiling XrdOlbPList.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPList.o XrdOlbPList.cc
 
-$(OBJDIR)/XrdOlbPrepare.o: XrdOlbPrepare.hh  XrdOlbPrepare.cc  \
+$(OBJDIR)/XrdOlbPrepare.o: XrdOlbPrepare.hh  XrdOlbPrepare.cc  XrdOlbPrepArgs.hh \
                            XrdJob.hh         XrdScheduler.hh \
                            XrdOlbServer.hh   XrdOlbTrace.hh  \
                            XrdOucError.hh    XrdOucHash.hh     XrdOucHash.icc \
                            XrdOucPthread.hh  XrdOucStream.hh   XrdOucTList.hh
 	@echo Compiling XrdOlbPrepare.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPrepare.o XrdOlbPrepare.cc
+
+$(OBJDIR)/XrdOlbPrepArgs.o: XrdOlbPrepArgs.hh  XrdOlbPrepArgs.cc  \
+                            XrdJob.hh          XrdScheduler.hh \
+                            XrdOlbConfig.hh    XrdOlbServer.hh  \
+                            XrdOucPthread.hh
+	@echo Compiling XrdOlbPrepArgs.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPrepArgs.o XrdOlbPrepArgs.cc
 
 $(OBJDIR)/XrdOlbProtocol.o: XrdOlbProtocol.hh  XrdOlbProtocol.cc  \
                             XrdInet.hh         XrdLink.hh       XrdProtocol.hh   \

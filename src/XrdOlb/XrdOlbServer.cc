@@ -384,9 +384,26 @@ int XrdOlbServer::Process_Responses()
 /*                                R e s u m e                                 */
 /******************************************************************************/
 
-int XrdOlbServer::Resume(XrdOlbPrepArgs *pargs)
+int XrdOlbServer::Resume(XrdOlbPrepArgs *pargs)   // Static!!!
 {
-    return do_PrepSel(pargs, *(pargs->reqid) != '*');
+
+// If we have a prep argument then this is a timed resumption. The caller will
+// delete the pargs object if the object has not been rescheduled.
+//
+    if (pargs) return do_PrepSel(pargs, pargs->Stage);
+
+// Otherwise we are being asked to process all queued prepare arguments. If we
+// are an endpoint then we must do the prepare for real. Otherwise, simply
+// do a server selection and, if need be, tell the server to stage the file.
+//
+   do { pargs = XrdOlbPrepArgs::Request();
+        if (pargs->endP) {do_PrepAdd4Real(pargs);     delete pargs;}
+           else if (!do_PrepSel(pargs, pargs->Stage)) delete pargs;
+      } while(1);
+
+// Keep the compiler happy
+//
+   return 0;
 }
   
 /******************************************************************************/
@@ -950,89 +967,47 @@ int XrdOlbServer::do_Ping(char *rid)
   
 int XrdOlbServer::do_PrepAdd(char *rid, int server)
 {
-    XrdOlbPrepArgs pargs;
-    char *tp;
+   XrdOlbPrepArgs *pargs = new XrdOlbPrepArgs(server);
+   char *Line;
 
 // Process: <id> prepadd <reqid> <usr> <prty> <mode> <path>\n
 // Respond: No response.
 //
 
-// Get the request id
+// Return the previous token so that we can get the whole line back
 //
-   if (!(tp = Link->GetToken()))
-      {Say.Emsg("Server", "no prep request id from", Name());
-       return 1;
+   Link->RetToken();
+   Link->GetToken(&Line);
+   if (!Line)
+      {Say.Emsg("Server", "invalid prepare request from", Name());
+       delete pargs; return 1;
       }
-   pargs.reqid = strdup(tp);
+   Line = pargs->data = strdup(Line);
+
+// Get the request id and whether we need to stage the file
+//
+   if (!(pargs->reqid = prepScan(&Line, pargs, "no prep request id"))) return 1;
+   pargs->Stage = (*(pargs->reqid) != '*');
 
 // Get userid
 //
-   if (!(tp = Link->GetToken()))
-      {Say.Emsg("Server", "no prep user from", Name());
-       return 1;
-      }
-   pargs.user = strdup(tp);
+   if (!(pargs->user = prepScan(&Line, pargs, "no prep user"))) return 1;
 
 // Get priority
 //
-   if (!(tp = Link->GetToken()))
-      {Say.Emsg("Server", "no prep prty from", Name());
-       return 1;
-      }
-   pargs.prty = strdup(tp);
+   if (!(pargs->prty = prepScan(&Line, pargs, "no prep prty"))) return 1;
 
 // Get mode
 //
-   if (!(tp = Link->GetToken()))
-      {Say.Emsg("Server", "no prep mode from", Name());
-       return 1;
-      }
-   pargs.mode = strdup(tp);
+   if (!(pargs->mode = prepScan(&Line, pargs, "no prep mode"))) return 1;
 
 // Get path
 //
-   if (!(tp = Link->GetToken()))
-      {Say.Emsg("Server", "no prep path from", Name());
-       return 1;
-      }
-   pargs.path = strdup(tp);
+   if (!(pargs->path = prepScan(&Line, pargs, "no prep path"))) return 1;
 
-// Process accroding to whether or not we are the endpoint
+// Queue this request for async processing
 //
-   if (server) return do_PrepAdd4Real(pargs);
-
-// If this is just a background lookup, we can save a lot of time
-//
-   if (*pargs.reqid == '*') {do_PrepSel(&pargs,0); return 0;}
-
-// Allocate storage for the iovec structure array
-//
-   struct iovec *iovp = (struct iovec *)malloc(sizeof(struct iovec)*12);
-
-// Create prepare message to be used when a server is selected:
-// <mid> prepadd <reqid> <usr> <prty> <mode> <path>\n
-//
-   iovp[ 0].iov_base = Config.MsgGID; 
-   iovp[ 0].iov_len  = Config.MsgGIDL;
-   iovp[ 1].iov_base = (char *)"prepadd "; iovp[ 1].iov_len  = 8;
-   iovp[ 2].iov_base = pargs.reqid;  iovp[ 2].iov_len  = strlen(pargs.reqid);
-   iovp[ 3].iov_base = (char *)" ";  iovp[ 3].iov_len  = 1;
-   iovp[ 4].iov_base = pargs.user;   iovp[ 4].iov_len  = strlen(pargs.user);
-   iovp[ 5].iov_base = (char *)" ";  iovp[ 5].iov_len  = 1;
-   iovp[ 6].iov_base = pargs.prty;   iovp[ 6].iov_len  = strlen(pargs.prty);
-   iovp[ 7].iov_base = (char *)" ";  iovp[ 7].iov_len  = 1;
-   iovp[ 8].iov_base = pargs.mode;   iovp[ 8].iov_len  = strlen(pargs.mode);
-   iovp[ 9].iov_base = (char *)" ";  iovp[ 9].iov_len  = 1;
-   iovp[10].iov_base = pargs.path;   iovp[10].iov_len  = strlen(pargs.path);
-   iovp[11].iov_base = (char *)"\n"; iovp[11].iov_len  = 1;
-
-// Since the pargs is schedulable, it will be deleted asynchronously
-//
-   XrdOlbPrepArgs *nargs = new XrdOlbPrepArgs;
-   *nargs = pargs;
-   nargs->iovp = iovp; nargs->iovn = 12;  // See above!
-   pargs.Clear();
-   do_PrepSel(nargs,1);
+   pargs->Queue(); 
    return 0;
 }
 
@@ -1040,36 +1015,34 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
 /*                       d o _ P r e p A d d 4 R e a l                        */
 /******************************************************************************/
   
-int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs &pargs)
+int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs *pargs)  // Static!!!
 {
-   EPNAME("do_PrepAdd4Real")
-    char  *oldpath, lclpath[XrdOlbMAX_PATH_LEN+1];
-
+   EPNAME("do_PrepAdd4Real");
+   char *oldpath, lclpath[XrdOlbMAX_PATH_LEN+1];
 // Generate the true local path
 //
-   oldpath = pargs.path;
+   oldpath = pargs->path;
    if (Config.lcl_N2N)
-      if (Config.lcl_N2N->lfn2pfn(oldpath,lclpath,sizeof(lclpath))) 
-         return 0;
-         else pargs.path = lclpath;
+      if (Config.lcl_N2N->lfn2pfn(oldpath,lclpath,sizeof(lclpath))) return 0;
+         else pargs->path = lclpath;
 
 // Check if this file is not online, prepare it
 //
-   if (!isOnline(pargs.path))
-      {DEBUG("Preparing " <<pargs.reqid <<' ' <<pargs.user <<' ' <<pargs.prty
-                          <<' ' <<pargs.mode <<' ' <<pargs.path);
+   if (!isOnline(pargs->path))
+      {DEBUG("Preparing " <<pargs->reqid <<' ' <<pargs->user <<' ' <<pargs->prty
+                          <<' ' <<pargs->mode <<' ' <<pargs->path);
        if (!Config.DiskSS)
           Say.Emsg("Server", "staging disallowed; ignoring prep",
-                          pargs.user, pargs.reqid);
-          else PrepQ.Add(pargs);
-       pargs.path = oldpath;
+                          pargs->user, pargs->reqid);
+          else PrepQ.Add(*pargs);
+       pargs->path = oldpath;
        return 0;
       }
 
 // File is already online, so we are done
 //
-   pargs.path = oldpath;
-   Inform("avail", &pargs);
+   pargs->path = oldpath;
+   Inform("avail", pargs);
    return 0;
 }
   
@@ -1118,7 +1091,7 @@ int XrdOlbServer::do_PrepDel(char *rid, int server)
 /*                            d o _ P r e p S e l                             */
 /******************************************************************************/
   
-int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is static!!
+int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage) // Static!!!
 {
    EPNAME("do_PrepSel")
    BUFF(2048);
@@ -1177,7 +1150,7 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage)  // This is stati
 //
    if (!(pmask | smask)) retc = -1;
       else if (!(retc = Manager.SelServer(Osel, pargs->path, pmask, smask, 
-                        hbuff, pargs->iovp,pargs->iovn)))
+                        hbuff, pargs->Msg, pargs->prepMsg())))
               {DEBUG(hbuff <<" prepared " <<pargs->reqid <<' ' <<pargs->path);
                return 0;
               }
@@ -1552,7 +1525,7 @@ int XrdOlbServer::do_State(char *rid,int reset)
 
 // Do a stat, respond if we have the file
 //
-   if (isOnline(pp, 0))
+   if (isOnline(pp, 0, Link))
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
              "%s have %s %s\n", rid, Config.PathList.Type(tp), tp));
    return 0;
@@ -1792,7 +1765,6 @@ int XrdOlbServer::Inform(const char *cmd, XrdOlbPrepArgs *pargs)
 {
    EPNAME("Inform")
    char *mdest, *minfo;
-   struct iovec iodata[8];
 
 // See if user wants a response
 //
@@ -1811,20 +1783,9 @@ int XrdOlbServer::Inform(const char *cmd, XrdOlbPrepArgs *pargs)
    if (!minfo || !*minfo) minfo = (char *)"*";
    DEBUG("Sending " <<mdest <<": " <<cmd <<' '<<pargs->reqid <<' ' <<minfo);
 
-// Create message to be sent
-//
-   iodata[0].iov_base = (char *)cmd;  iodata[0].iov_len  = strlen(cmd);
-   iodata[1].iov_base = (char *)" ";  iodata[1].iov_len  = 1;
-   iodata[2].iov_base = pargs->reqid; iodata[2].iov_len  = strlen(pargs->reqid);
-   iodata[3].iov_base = (char *)" ";  iodata[3].iov_len  = 1;
-   iodata[4].iov_base = minfo;        iodata[4].iov_len  = strlen(minfo);
-   iodata[5].iov_base = (char *)" ";  iodata[5].iov_len  = 1;
-   iodata[6].iov_base = pargs->path;  iodata[6].iov_len  = strlen(pargs->path);
-   iodata[7].iov_base = (char *)"\n"; iodata[7].iov_len  = 1;
-
 // Send the message and return
 //
-   Relay->Send(mdest, (const struct iovec *)&iodata, 8);
+   Relay->Send(mdest, pargs->Msg, pargs->prepMsg(cmd, minfo));
    return 0;
 }
 
@@ -1832,7 +1793,7 @@ int XrdOlbServer::Inform(const char *cmd, XrdOlbPrepArgs *pargs)
 /*                              i s O n l i n e                               */
 /******************************************************************************/
   
-int XrdOlbServer::isOnline(char *path, int upt)
+int XrdOlbServer::isOnline(char *path, int upt, XrdNetLink *myLink) // Static!!!
 {
    struct stat buf;
    struct utimbuf times;
@@ -1856,7 +1817,7 @@ int XrdOlbServer::isOnline(char *path, int upt)
 
 // Indicate possible problem
 //
-   Say.Emsg("Server", Link->Name(), "stated a non-file,", path);
+   if (myLink) Say.Emsg("Server", myLink->Name(), "stated a non-file,", path);
    return 0;
 }
 
@@ -1896,6 +1857,28 @@ int XrdOlbServer::Mkpath(char *local_path, mode_t mode)
 // All done
 //
    return 0;
+}
+
+/******************************************************************************/
+/*                              p r e p S c a n                               */
+/******************************************************************************/
+  
+char *XrdOlbServer::prepScan(char **Line,XrdOlbPrepArgs *pargs,const char *Etxt)
+{
+   char *np, *tp = *Line;
+
+   while(*tp && *tp == ' ') tp++;
+   if (!(*tp))
+      {Say.Emsg("Server", Etxt, "from", Name());
+       delete pargs;
+       return 0;
+      }
+
+   np = tp+1;
+   while(*np && *np != ' ') np++;
+   if (*np) *np++ = '\0';
+   *Line = np;
+   return tp;
 }
 
 /******************************************************************************/

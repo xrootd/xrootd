@@ -94,7 +94,7 @@ private:
        int   do_Pong(char *rid);
        int   do_Port(char *rid);
        int   do_PrepAdd(char *rid, int server=0);
-       int   do_PrepAdd4Real(XrdOlbPrepArgs &pargs);
+static int   do_PrepAdd4Real(XrdOlbPrepArgs *pargs);
        int   do_PrepDel(char *rid, int server=0);
 static int   do_PrepSel(XrdOlbPrepArgs *pargs, int stage);
        int   do_Rm(char *rid, int do4real);
@@ -111,8 +111,9 @@ static int   do_PrepSel(XrdOlbPrepArgs *pargs, int stage);
        int   do_Usage(char *rid);
        int   getMode(const char *, const char *, const char *, mode_t &);
 static int   Inform(const char *cmd, XrdOlbPrepArgs *pargs);
-       int   isOnline(char *path, int upt=1);
+static int   isOnline(char *path, int upt=1, XrdNetLink *lnk=0);
        int   Mkpath(char *local_path, mode_t mode);
+       char *prepScan(char **Line,XrdOlbPrepArgs *pargs,const char *Etxt);
        char *Receive(char *idbuff, int blen);
        int   Reissue(char *rid, const char *op, char *arg1, char *path, char *arg3=0);
 

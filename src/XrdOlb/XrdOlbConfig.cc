@@ -46,6 +46,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOlb/XrdOlbManTree.hh"
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbRRQ.hh"
+#include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
@@ -133,6 +134,11 @@ void *XrdOlbStartPandering(void *carg)
        return Manager.Pander(tp->text, tp->val);
       }
 
+void *XrdOlbStartPreparing(void *carg)
+      {XrdOlbServer::Resume(0);
+       return (void *)0;
+      }
+
 void *XrdOlbStartSupervising(void *carg)
       {EPNAME("StartSuper");
        XrdNetWork *NetTCPr = (XrdNetWork *)carg;
@@ -143,6 +149,7 @@ void *XrdOlbStartSupervising(void *carg)
                    }
        return (void *)0;
       }
+
 /******************************************************************************/
 /*                               d e f i n e s                                */
 /******************************************************************************/
@@ -421,16 +428,24 @@ void XrdOlbConfig::DoIt()
 // Start the notification thread if we need to
 //
    if (AnoteSock)
-      XrdOucThread::Run(&tid, XrdOlbStartAnote, (void *)AnoteSock,
-                        0, "Notification handler");
+      if (XrdOucThread::Run(&tid, XrdOlbStartAnote, (void *)AnoteSock,
+                            0, "Notification handler"))
+         Say.Emsg("olbd", errno, "start notification handler");
+
+// Start the prepare handler
+//
+   if (XrdOucThread::Run(&tid,XrdOlbStartPreparing,
+                             (void *)0, 0, "Prep handler"))
+      Say.Emsg("olbd", errno, "start prep handler");
 
 // Start the admin thread if we need to, we will not continue until told
 // to do so by the admin interface.
 //
    if (AdminSock)
       {XrdOlbAdmin::setSync(&SyncUp);
-       XrdOucThread::Run(&tid, XrdOlbStartAdmin, (void *)AdminSock,
-                         0, "Admin traffic");
+       if (XrdOucThread::Run(&tid, XrdOlbStartAdmin, (void *)AdminSock,
+                             0, "Admin traffic"))
+          Say.Emsg("olbd", errno, "start admin handler");
        SyncUp.Wait();
       }
 
