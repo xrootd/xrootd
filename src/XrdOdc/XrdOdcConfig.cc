@@ -421,11 +421,12 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
 /* Function: xreqs
 
    Purpose:  To parse the directive: request [repwait <sec1>] [delay <sec2>]
-                                             [noresp <cnt>]
+                                             [noresp <cnt>] [prep <ms>]
 
              <sec1>  number of seconds to wait for a locate reply
              <sec2>  number of seconds to delay a retry upon failure
              <cnt>   number of no-responses before olb fault declared.
+             <ms>    milliseconds between prepare requests
 
    Type: Remote server only, dynamic.
 
@@ -440,6 +441,7 @@ int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
        {
         {"delay",    1, &RepDelay},
         {"noresp",   0, &RepNone},
+        {"prep",     1, &PrepWait},
         {"repwait",  1, &RepWait}
        };
     int i, ppp, numopts = sizeof(rqopts)/sizeof(struct reqsopts);

@@ -37,6 +37,7 @@ int           RepWait;      // Seconds to wait for manager replies
 int           RepWaitMS;    // RepWait*1000 for poll()
 int           RepDelay;     // Seconds to delay before retrying manager
 int           RepNone;      // Max number of consecutive non-responses
+int           PrepWait;     // Millisecond wait between prepare requests
 
 char         *OLBPath;      // Path to the local olb for target nodes
 char         *myHost;
@@ -49,7 +50,7 @@ unsigned char SModeP;       // Manager selection mode (proxy)
 
       XrdOdcConfig(XrdOucError *erp)
                   {ConWait = 10; RepWait = 6; RepWaitMS = 3000; RepDelay = 5;
-                   ManList = PanList = 0;
+                   PrepWait = 33; ManList = PanList = 0;
                    SMode = SModeP = ODC_FAILOVER;
                    eDest = erp;
                    OLBPath = 0; RepNone = 8;

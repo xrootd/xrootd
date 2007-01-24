@@ -116,6 +116,7 @@ int XrdOdcFinderRMT::Configure(char *cfn)
    RepNone    = config.RepNone;
    RepWait    = config.RepWait;
    ConWait    = config.ConWait;
+   PrepWait   = config.PrepWait;
    if (myPersona == XrdOdcFinder::amProxy)
            {SMode = config.SModeP; StartManagers(config.PanList);}
       else {SMode = config.SMode;  StartManagers(config.ManList);}
@@ -242,6 +243,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
 {
    EPNAME("Prepare")
+   static XrdOucMutex prepMutex;
    char mbuff1[32], mbuff2[32], *mode;
    XrdOucTList *tp;
    int pathloc, plenloc = 0;
@@ -315,7 +317,11 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
                       <<' ' <<iodata[5].iov_base);
 
          if (!Manp->Send((const struct iovec *)&iodata, 7)) break;
-         tp = tp->next;
+         if ((tp = tp->next))
+            {prepMutex.Lock();
+             XrdOucTimer::Wait(PrepWait);
+             prepMutex.UnLock();
+            }
         }
 
 // Check if all went well

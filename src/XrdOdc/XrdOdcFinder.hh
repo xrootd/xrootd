@@ -105,6 +105,7 @@ int            ConWait;
 int            RepDelay;
 int            RepNone;
 int            RepWait;
+int            PrepWait;
 int            isTarget;
 unsigned char  SMode;
 };
