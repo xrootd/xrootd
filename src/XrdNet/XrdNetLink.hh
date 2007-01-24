@@ -67,6 +67,7 @@ char         *GetLine();
 
 char         *GetToken(char **rest);
 char         *GetToken(void);
+void          RetToken(void);
 
 // isConnected() returns true if this object is connected to an XrdOucStream
 //               object and false otherwise.
