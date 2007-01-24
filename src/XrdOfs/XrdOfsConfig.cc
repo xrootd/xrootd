@@ -173,7 +173,8 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
 // Initialize th Evr object if we are an actual server
 //
-   if (!(Options & XrdOfsREDIRRMT) && !evrObject.Init(&Eroute)) NoGo = 1;
+   if (!(Options & XrdOfsREDIRRMT) 
+   && !evrObject.Init(&Eroute, Balancer)) NoGo = 1;
 
 // If we need to send notifications, initialize the interface
 //
