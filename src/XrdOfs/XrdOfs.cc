@@ -502,7 +502,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
        // Create the file
        //
-       open_flag  = O_RDWR; mp = &XrdOfsOpen_RW;
+       open_flag  = O_RDWR|O_TRUNC; mp = &XrdOfsOpen_RW;
        if ((retc = XrdOfsOss->Create(path, Mode & S_IAMB, Open_Env, crOpts)))
           return XrdOfsFS.Emsg(epname, error, retc, "create", path);
        if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
