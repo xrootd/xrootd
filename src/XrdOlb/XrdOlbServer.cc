@@ -1459,7 +1459,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
        DEBUG("Select delay " <<Name() <<' ' <<retc);
       } else {
        Link->Send(buff, snprintf(buff, sizeof(buff)-1,
-                "%s ?err No servers are available to %s the file.\n",rid,amode));
+                "%s !err ENOENT No servers are available to %s the file.\n",rid,amode));
        DEBUG("No servers available to " <<ptc <<' ' <<tp);
       }
 
