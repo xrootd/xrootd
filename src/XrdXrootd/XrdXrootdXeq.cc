@@ -829,6 +829,7 @@ int XrdXrootdProtocol::do_Open()
                                       }
    if (opts & kXR_retstat)            {*op++ = 't'; retStat = 1;}
    *op = '\0';
+   TRACEP(FS, "open " <<opt <<' ' <<fn);
 
 // Check if opaque data has been provided
 //
@@ -955,7 +956,6 @@ int XrdXrootdProtocol::do_Open()
 
 // Respond
 //
-   TRACEP(FS, "open " <<opt <<' ' <<fn <<" fh=" <<fhandle);
    if (retStat)  return Response.Send(IOResp, 3, resplen);
       else       return Response.Send((void *)&myResp, resplen);
 }
@@ -1950,6 +1950,7 @@ int XrdXrootdProtocol::mapError(int rc)
         case ENETUNREACH:  return kXR_noserver;
         case ENOTBLK:      return kXR_NotFile;
         case EISDIR:       return kXR_isDirectory;
+        case EEXIST:       return kXR_InvalidRequest;
         default:           return kXR_FSError;
        }
 }
