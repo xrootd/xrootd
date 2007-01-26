@@ -124,7 +124,7 @@ void     *CacheScan(void *carg);
 int       Configure(const char *, XrdOucError &);
 void      Config_Display(XrdOucError &);
 virtual
-int       Create(const char *, mode_t, XrdOucEnv &, int mkpath=0);
+int       Create(const char *, mode_t, XrdOucEnv &, int opts=0);
 int       GenLocalPath(const char *, char *);
 int       GenRemotePath(const char *, char *);
 int       Init(XrdOucLogger *, const char *);

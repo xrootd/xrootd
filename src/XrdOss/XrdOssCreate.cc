@@ -60,12 +60,14 @@ extern XrdOucTrace OssTrace;
                           These bits correspond to the standard Unix permission
                           bits (e.g., 744 == "rwxr--r--").
             env         - Environmental information.
-            mkpath      - If true, create directory path if it does not exist.
+            opts        - Set as follows:
+                          XRDOSS_mkpath - create dir path if it does not exist.
+                          XRDOSS_new    - the file must not already exist.
 
   Output:   Returns XRDOSS_OK upon success; (-errno) otherwise.
 */
 int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
-                                        int mkpath)
+                                        int Opts)
 {
     EPNAME("Create")
     const int LKFlags = XrdOssFILE|XrdOssSHR|XrdOssNOWAIT|XrdOssRETIME;
@@ -74,6 +76,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
     char remote_path[XrdOssMAX_PATH_LEN+1];
     int popts, retc, remotefs, datfd;
     XrdOssLock path_dir, new_file;
+    struct stat buf;
 
 // Determine whether we can actually create a file on this server.
 //
@@ -83,13 +86,18 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
 //
    if ((retc = GenLocalPath(path, local_path))) return retc;
 
+// Check if the file must not exist
+//
+   if (Opts & XRDOSS_new)
+      if (!(retc = stat(local_path, &buf)) || errno != ENOENT)
+         return (retc ? -errno : -EEXIST);
+
 // If the path is to be created, make sure the path exists at this point
 //
-   if (mkpath && (retc = strlen(local_path)))
+   if ((Opts & XRDOSS_mkpath) && (retc = strlen(local_path)))
       {if (local_path[retc-1] == '/') local_path[retc-1] = '\0';
        if ((p = rindex(local_path, int('/'))))
-          {struct stat buf;
-           *p = '\0';
+          {*p = '\0';
            if (stat(local_path, &buf) && errno == ENOENT)
               {*p = '/'; Mkpath(path, AMode);}
               else *p = '/';
@@ -119,8 +127,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
                 return retc;
                }
            } else if (!(popts & XrdOssNOCHECK))
-                     {struct stat fstat;
-                      if (!(retc = MSS_Stat(remote_path, &fstat)))
+                     {if (!(retc = MSS_Stat(remote_path, &buf)))
                          {path_dir.UnSerialize(0); return -EEXIST;}
                          else if (retc != -ENOENT)
                                  {path_dir.UnSerialize(0); return retc;}
@@ -149,8 +156,7 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
        close(datfd);
       } else {
        if (datfd == -EEXIST)
-          {struct stat buf;
-           do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
+          {do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
            if (!retc && (buf.st_mode & S_IFDIR)) datfd = -EISDIR;
           }
       }
