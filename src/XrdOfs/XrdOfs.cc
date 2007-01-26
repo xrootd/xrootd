@@ -436,7 +436,7 @@ int XrdOfsFile::open(const char          *path,      // In
    static const char *epname = "open";
    const char        *hostname = 0;
    int retc, odc_mode, open_flag = 0, port = 0;
-   int mkpath = Mode & SFS_O_MKPTH;
+   int crOpts = (Mode & SFS_O_MKPTH ? XRDOSS_mkpath : 0);
    unsigned long hval = XrdOucHashVal(path);
    XrdOucMutex        *mp;
    XrdOfsHandleAnchor *ap;
@@ -466,7 +466,7 @@ int XrdOfsFile::open(const char          *path,      // In
    switch(open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
                        SFS_O_CREAT  | SFS_O_TRUNC))
    {
-   case SFS_O_CREAT:  open_flag   = O_EXCL;
+   case SFS_O_CREAT:  open_flag   = O_EXCL; crOpts |= XRDOSS_new;
    case SFS_O_TRUNC:  open_flag  |= O_RDWR | O_CREAT | O_TRUNC;
                       ap = &XrdOfsOrigin_RW; mp = &XrdOfsOpen_RW;
                       break;
@@ -494,7 +494,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Create the file if so requested o/w try to attach the file
 //
-   if (open_mode & SFS_O_CREAT)
+   if (open_flag & O_CREAT)
       {// Apply security, as needed
        //
        AUTHORIZE(client,&Open_Env,AOP_Create,"create",path,error);
@@ -503,7 +503,7 @@ int XrdOfsFile::open(const char          *path,      // In
        // Create the file
        //
        open_flag  = O_RDWR; mp = &XrdOfsOpen_RW;
-       if ((retc = XrdOfsOss->Create(path, Mode & S_IAMB, Open_Env, mkpath)))
+       if ((retc = XrdOfsOss->Create(path, Mode & S_IAMB, Open_Env, crOpts)))
           return XrdOfsFS.Emsg(epname, error, retc, "create", path);
        if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
        mp->Lock();
