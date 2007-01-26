@@ -560,6 +560,8 @@ int     XrdPosixXrootd::Open(const char *path, int oflags, int mode)
 //
    XOflags = (oflags & (O_WRONLY | O_RDWR) ? kXR_open_updt : kXR_open_read);
    if (oflags & O_CREAT) XOflags |= (oflags & O_EXCL ? kXR_new : kXR_delete);
+      else if (oflags & O_TRUNC && XOflags & kXR_open_updt)
+              XOflags |= kXR_delete;
 
 // Translate the mode, if need be
 //
