@@ -204,7 +204,14 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
    if (Env) Avoid = Env->Get("tried");
       else  Avoid = 0;
 
-// Compute mode
+// Compute command and mode mode:
+// selects - requests a cache refresh for <path>
+//       c - file will be created
+//       d - file will be created or truncated
+//       r - file will only be read
+//       w - file will be read and writen
+//       s - only stat information will be obtained
+//       x - only stat information will be obtained (file must be resident)
 //
         if (flags & O_CREAT)
            ptype = (flags & (O_WRONLY | O_RDWR) && flags & O_TRUNC ? "d " : "c ");
@@ -382,7 +389,7 @@ void XrdOdcFinderRMT::SelectManFail(XrdOucErrInfo &Resp)
 }
   
 /******************************************************************************/
-/*                              s e n d 2 O l b                               */
+/*                              s e n d 2 M a n                               */
 /******************************************************************************/
   
 int XrdOdcFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
@@ -422,44 +429,47 @@ int XrdOdcFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
                        <<Manp->NPfx() <<" path=" <<path);
        return RepDelay;
       }
-      else {msg = (char *)Resp.getErrText(retc);
-            if (retc == -EINPROGRESS) retc = Manp->delayResp(Resp);
-                 if (retc == -EREMOTE)
-                    {TRACE(Redirect, Resp.getErrUser() <<" redirected to " <<msg
-                           <<" by " << Manp->NPfx() <<" path=" <<path);
-                     if ( (cgi   = index(msg, (int)'?'))) *cgi = '\0';
-                     if (!(colon = index(msg, (int)':'))) 
-                        {val = 0;
-                         if (cgi) *cgi ='?';
-                        } else {
-                         *colon = '\0';
-                         val = atoi(colon+1);
-                         if (cgi) {*cgi = '?'; strcpy(colon, cgi);}
-                        }
-                     Resp.setErrCode(val);
-                    }
-            else if (retc == -EAGAIN)
-                    {if (!(retc = atoi(msg))) retc = RepDelay;
-                     Resp.setErrInfo(retc, "");
-                     TRACE(Redirect, Resp.getErrUser() <<" asked to wait "
-                           <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
-                    }
-            else if (retc == -EINPROGRESS)
-                    {TRACE(Redirect, Resp.getErrUser() <<" in reply wait by "
-                           << Manp->NPfx() <<" path=" <<path);
-                    }
-            else if (retc == -EALREADY)
-                    {TRACE(Redirect, Resp.getErrUser() <<" given text data '"
-                           <<msg <<"' by " << Manp->NPfx() <<" path=" <<path);
-                     Resp.setErrCode(*msg ? strlen(msg)+1 : 0);
-                    }
-            else if (retc == -EINVAL)
-                    {TRACE(Redirect, Resp.getErrUser() <<" given error msg '"
-                           <<msg <<"' by " << Manp->NPfx() <<" path=" <<path);
-                    }
-            else    {TRACE(Redirect, Resp.getErrUser() <<" given error "
-                           <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
-                    }
+
+// A reply was received; process as appropriate
+//
+   msg = (char *)Resp.getErrText(retc);
+   if (retc == -EINPROGRESS) retc = Manp->delayResp(Resp);
+
+        if (retc == -EREMOTE)
+           {TRACE(Redirect, Resp.getErrUser() <<" redirected to " <<msg
+                  <<" by " << Manp->NPfx() <<" path=" <<path);
+            if ( (cgi   = index(msg, (int)'?'))) *cgi = '\0';
+            if (!(colon = index(msg, (int)':'))) 
+               {val = 0;
+                if (cgi) *cgi ='?';
+               } else {
+                *colon = '\0';
+                val = atoi(colon+1);
+                if (cgi) {*cgi = '?'; strcpy(colon, cgi);}
+               }
+            Resp.setErrCode(val);
+           }
+   else if (retc == -EAGAIN)
+           {if (!(retc = atoi(msg))) retc = RepDelay;
+            Resp.setErrInfo(retc, "");
+            TRACE(Redirect, Resp.getErrUser() <<" asked to wait "
+                  <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
+           }
+   else if (retc == -EINPROGRESS)
+           {TRACE(Redirect, Resp.getErrUser() <<" in reply wait by "
+                  << Manp->NPfx() <<" path=" <<path);
+           }
+   else if (retc == -EALREADY)
+           {TRACE(Redirect, Resp.getErrUser() <<" given text data '"
+                  <<msg <<"' by " << Manp->NPfx() <<" path=" <<path);
+            Resp.setErrCode(*msg ? strlen(msg)+1 : 0);
+           }
+   else if (retc == -EINVAL)
+           {TRACE(Redirect, Resp.getErrUser() <<" given error msg '"
+                  <<msg <<"' by " << Manp->NPfx() <<" path=" <<path);
+           }
+   else    {TRACE(Redirect, Resp.getErrUser() <<" given error "
+                  <<retc <<" by " << Manp->NPfx() <<" path=" <<path);
            }
 
 // All done
