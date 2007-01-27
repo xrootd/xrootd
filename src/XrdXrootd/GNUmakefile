@@ -22,6 +22,7 @@ SOURCES = \
         XrdXrootdJob.cc     \
         XrdXrootdLoadLib.cc \
         XrdXrootdMonitor.cc   \
+        XrdXrootdPio.cc       \
         XrdXrootdPrepare.cc   \
         XrdXrootdProtocol.cc   \
         XrdXrootdResponse.cc   \
@@ -39,6 +40,7 @@ OBJECTS = \
         $(OBJDIR)/XrdXrootdJob.o     \
         $(OBJDIR)/XrdXrootdLoadLib.o \
         $(OBJDIR)/XrdXrootdMonitor.o \
+        $(OBJDIR)/XrdXrootdPio.o     \
         $(OBJDIR)/XrdXrootdPrepare.o \
         $(OBJDIR)/XrdXrootdProtocol.o   \
         $(OBJDIR)/XrdXrootdResponse.o   \
@@ -174,6 +176,12 @@ $(OBJDIR)/XrdXrootdMonitor.o: XrdOucError.hh      \
 	@echo Compiling XrdXrootdMonitor.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdMonitor.o XrdXrootdMonitor.cc
 
+$(OBJDIR)/XrdXrootdPio.o:  XrdXrootdPio.hh  XrdXrootdPio.cc \
+                           XrdOucPthread.hh XPtypes.hh
+                              
+	@echo Compiling XrdXrootdPio.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdPio.o XrdXrootdPio.cc
+
 $(OBJDIR)/XrdXrootdPrepare.o: XrdOucError.hh      XrdOucTList.hh   \
                               XrdJob.hh           XrdScheduler.hh  \
                               XrdXrootdTrace.hh   XrdSysPlatform.hh \
@@ -192,7 +200,7 @@ $(OBJDIR)/XrdXrootdProtocol.o: XrdXrootdFile.hh       XrdXrootdFileLock.hh \
                                XrdSfsInterface.hh     XrdSecInterface.hh \
                                XrdOucError.hh         XrdOucPthread.hh   \
                                XrdOucTimer.hh         XrdOucTrace.hh \
-                               XrdXrootdProtocol.cc
+                               XrdXrootdPio.hh        XrdXrootdProtocol.cc
 	@echo Compiling XrdXrootdProtocol.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdProtocol.o XrdXrootdProtocol.cc
 
@@ -215,7 +223,7 @@ $(OBJDIR)/XrdXrootdXeq.o: XrdXrootdFile.hh      XrdXrootdFileLock.hh  \
                           XrdXrootdPrepare.hh   XrdXrootdXPath.hh  \
                           XrdXrootdMonitor.hh   XrdXrootdMonData.hh \
                           XrdXrootdAio.hh       XrdXrootdReqID.hh \
-                          XrdXrootdStat.icc \
+                          XrdXrootdPio.hh       XrdXrootdStat.icc \
                           XrdBuffer.hh          XrdLink.hh            \
                           XrdSfsInterface.hh    XrdSecInterface.hh \
                           XrdOucError.hh        XrdOucTrace.hh  \

@@ -22,6 +22,7 @@ const char *XrdXrootdProtocolCVSID = "$Id$";
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
+#include "XrdXrootd/XrdXrootdPio.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -491,6 +492,7 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
   
 void XrdXrootdProtocol::Cleanup()
 {
+   XrdXrootdPio *pioP;
    int i;
 
 // If we have a buffer, release it
@@ -528,6 +530,11 @@ void XrdXrootdProtocol::Cleanup()
 // Handle authentication protocol
 //
    if (AuthProt) {AuthProt->Delete(); AuthProt = 0;}
+
+// Handle parallel I/O appendages
+//
+   while((pioP = pioFirst)) {pioFirst = pioP->Next; pioP->Recycle();}
+   while((pioP = pioFree )) {pioFree  = pioP->Next; pioP->Recycle();}
 }
   
 /******************************************************************************/
@@ -592,8 +599,8 @@ void XrdXrootdProtocol::Reset()
    CapVer             = 0;
    reTry              = 0;
    PathID             = 0;
-   isActive = isDead  = isNOP = isBound = pendOP = 0;
+   pioFree = pioFirst = pioLast = 0;
+   isActive = isDead  = isNOP = isBound = 0;
    memset(&Entity, 0, sizeof(Entity));
    memset(Stream,  0, sizeof(Stream));
-   memset(StreamOP,0, sizeof(StreamOP));
 }

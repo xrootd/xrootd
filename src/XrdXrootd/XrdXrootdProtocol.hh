@@ -57,14 +57,15 @@ class XrdSfsFileSystem;
 class XrdSecProtocol;
 class XrdBuffer;
 class XrdLink;
+class XrdXrootdAioReq;
 class XrdXrootdFile;
 class XrdXrootdFileLock;
 class XrdXrootdFileTable;
 class XrdXrootdJob;
 class XrdXrootdMonitor;
+class XrdXrootdPio;
 class XrdXrootdStats;
 class XrdXrootdXPath;
-class XrdXrootdAioReq;
 
 class XrdXrootdProtocol : public XrdProtocol
 {
@@ -272,17 +273,14 @@ char                       isDead;
 char                       isBound;
 char                       isNOP;
 
-static const int           maxStreamOP = 2;
-struct {XrdXrootdFile     *myFile;
-        long long          myOffset;
-        int                myIOLen;
-        kXR_char           StreamID[2];
-        char               isWrite;
-       }                   StreamOP[maxStreamOP];
+static const int           maxPio = 2;
+XrdXrootdPio              *pioFirst;
+XrdXrootdPio              *pioLast;
+XrdXrootdPio              *pioFree;
 
 short                      PathID;
-char                       pendOP;
 char                       doWrite;
+char                       doWriteC;
 
 // Buffers to handle client requests
 //

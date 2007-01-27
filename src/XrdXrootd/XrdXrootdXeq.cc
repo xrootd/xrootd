@@ -29,6 +29,7 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
+#include "XrdXrootd/XrdXrootdPio.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
@@ -232,6 +233,10 @@ int XrdXrootdProtocol::do_Bind()
    free(cp);
    CapVer = pp->CapVer;
    Status = XRD_BOUNDPATH;
+
+// Get the required number of parallel I/O objects
+//
+   pioFree = XrdXrootdPio::Alloc(maxPio);
 
 // There are no errors possible at this point unless the response fails
 //
@@ -654,8 +659,8 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 {
    XrdOucSemaphore isAvail(0);
    XrdXrootdProtocol *pp;
+   XrdXrootdPio      *pioP;
    kXR_char streamID[2];
-   int i;
 
 // Verify that the path actually exists
 //
@@ -686,6 +691,7 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
           pp->myIOLen  = myIOLen;
           pp->myBlen   = 0;
           pp->doWrite  = static_cast<char>(isWrite);
+          pp->doWriteC = 0;
           pp->Resume   = &XrdXrootdProtocol::do_OffloadIO;
           pp->isActive = 1;
           pp->reTry    = &isAvail;
@@ -697,8 +703,7 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
           return 0;
          }
 
-      for (i = 0; i < maxStreamOP && pp->StreamOP[i].myFile; i++) {}
-      if (i < maxStreamOP) break;
+      if ((pioP = pp->pioFree)) break;
       pp->reTry = &isAvail;
       pp->streamMutex.UnLock();
       TRACEP(FS, (isWrite ? 'w' : 'r') <<" busy path " <<pathID <<" offs=" <<myOffset);
@@ -711,15 +716,13 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
          }
       } while(1);
 
-// Fill out the queue entry
+// Fill out the queue entry and add it to the queue
 //
-   pp->StreamOP[i].myFile      = myFile;
-   pp->StreamOP[i].myOffset    = myOffset;
-   pp->StreamOP[i].myIOLen     = myIOLen;
-   pp->StreamOP[i].isWrite     = static_cast<char>(isWrite);
-   pp->StreamOP[i].StreamID[0] = streamID[0];
-   pp->StreamOP[i].StreamID[1] = streamID[1];
-   pp->pendOP                  = 1;
+   pp->pioFree = pioP->Next; pioP->Next = 0;
+   pioP->Set(myFile, myOffset, myIOLen, streamID, static_cast<char>(isWrite));
+   if (pp->pioLast) pp->pioLast->Next = pioP;
+      else          pp->pioFirst      = pioP;
+   pp->pioLast = pioP;
    pp->streamMutex.UnLock();
    return 0;
 }
@@ -731,41 +734,42 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 int XrdXrootdProtocol::do_OffloadIO()
 {
    XrdOucSemaphore *sesSem;
-   int n, rc, theOP = -1;
+   XrdXrootdPio    *pioP;
+   int rc;
 
 // Entry implies that we just got scheduled and are marked as active. Hence
 // we need to post the session thread so that it can pick up the next request.
 // We can manipulate the semaphore pointer without a lock as the only other
 // thread that can manipulate the pointer is the waiting session thread.
 //
-   if ((sesSem = reTry)) {reTry = 0; sesSem->Post();}
+   if (!doWriteC && (sesSem = reTry)) {reTry = 0; sesSem->Post();}
   
 // Perform all I/O operations on a parallel stream. Currently we do not
-// support memory based or async I/O. We also have not yet implemented writes.
+// support memory based or async I/O.
 //
-   do {if (doWrite) rc = 0;
-          else      rc = do_ReadAll();
-        streamMutex.Lock();
-       if (rc || !pendOP) break;
-       n = maxStreamOP;
-       for (theOP = (theOP+1)%maxStreamOP; n; theOP = (theOP+1)%maxStreamOP,n--)
-           if (StreamOP[theOP].myFile)
-              {myFile   = StreamOP[theOP].myFile;
-               myOffset = StreamOP[theOP].myOffset;
-               myIOLen  = StreamOP[theOP].myIOLen;
-               doWrite  = StreamOP[theOP].isWrite;
-               Response.Set(StreamOP[theOP].StreamID);
-               StreamOP[theOP].myFile = 0;
-               if (reTry) {reTry->Post(); reTry = 0;}
-               streamMutex.UnLock();
-               break;
-              }
-      } while(n);
+   do {if (!doWrite) rc = do_ReadAll();
+          else if ( (rc = (doWriteC ? do_WriteAll() : do_WriteCont()) ) > 0)
+                  {Resume = &XrdXrootdProtocol::do_OffloadIO;
+                   doWriteC = 1;
+                   return rc;
+                  }
+       streamMutex.Lock();
+       if (rc || !(pioP = pioFirst)) break;
+       if (!(pioFirst = pioP->Next)) pioLast = 0;
+       myFile   = pioP->myFile;
+       myOffset = pioP->myOffset;
+       myIOLen  = pioP->myIOLen;
+       doWrite  = pioP->isWrite;
+       doWriteC = 0;
+       Response.Set(pioP->StreamID);
+       pioP->Next = pioFree; pioFree = pioP;
+       if (reTry) {reTry->Post(); reTry = 0;}
+       streamMutex.UnLock();
+      } while(1);
 
 // There are no pending operations or the link died
 //
    if (rc) isNOP = 1;
-   pendOP   = 0;
    isActive = 0;
    Stream[0]->Link->setRef(-1);
    if (reTry) {reTry->Post(); reTry = 0;}
@@ -1132,6 +1136,10 @@ int XrdXrootdProtocol::do_Qconf()
    //
         if (!strcmp("bind_max", val))
            {n = sprintf(bp, "%d\n", maxStreams-1);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("pio_max", val))
+           {n = sprintf(bp, "%d\n", maxPio+1);
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_ior_max", val))
@@ -1694,7 +1702,7 @@ int XrdXrootdProtocol::do_Sync()
   
 int XrdXrootdProtocol::do_Write()
 {
-   int retc;
+   int retc, pathID;
    XrdXrootdFHandle fh(Request.write.fhandle);
    numWrites++;
 
@@ -1702,6 +1710,7 @@ int XrdXrootdProtocol::do_Write()
 //
    myIOLen  = Request.header.dlen;
               n2hll(Request.write.offset, myOffset);
+   pathID   = static_cast<int>(Request.write.pathid);
 
 // Find the file object
 //
@@ -1719,6 +1728,10 @@ int XrdXrootdProtocol::do_Write()
 //
    TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
    if (myIOLen <= 0) return Response.Send();
+
+// See if an alternate path is required
+//
+   if (pathID) return do_Offload(pathID, 1);
 
 // If we are in async mode, schedule the write to occur asynchronously
 //
