@@ -95,11 +95,11 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucStr
 
 	if ( (pos = host.find('?')) != STR_NPOS ) {
 	    opaque.assign(host,pos+1);
-	    host.erasefromend(pos);
+	    host.erasefromend(host.length()-pos);
 
 	    if ( (pos = opaque.find('?')) != STR_NPOS ) {
 		token.assign(host,pos+1);
-		opaque.erasefromend(pos);
+		opaque.erasefromend(opaque.length() - pos);
 	    }
 
 	}
@@ -394,6 +394,10 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
     short retry = 0;
     bool resp = FALSE, abortcmd = FALSE;
 
+    string orig_fname,new_fname;
+    if (req->header.requestid == kXR_open && reqMoreData)
+      orig_fname.assign((const char *)reqMoreData);
+
     // if we're going to open a file for the 2nd time we should reset fOpenError, 
     // just in case...
     if (req->header.requestid == kXR_open)
@@ -415,6 +419,19 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 						       answMoreDataAllocated, 
 						       answMoreData, HasToAlloc,
 						       substreamid);
+
+
+	if (req->header.requestid == kXR_open && reqMoreData) {
+	  new_fname = orig_fname;
+	  if (fRedirOpaque.length()) {
+	    new_fname += "?";
+	    new_fname += string(fRedirOpaque.c_str());
+	  }
+	  reqMoreData = new_fname.c_str();
+	  req->open.dlen = new_fname.length();
+	}
+
+
 
 	// Save server response header if requested
 	if (cmdrespMex)

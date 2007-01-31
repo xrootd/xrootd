@@ -841,13 +841,15 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
     // Low level Open method
     XrdOucString finalfilename(file);
 
-    if (fConnModule->fRedirOpaque.length() > 0) {
+    if ((fConnModule->fRedirOpaque.length() > 0) || additionalquery) {
 	finalfilename += "?";
-	finalfilename += fConnModule->fRedirOpaque;
-    }
 
-    if (additionalquery)
-	finalfilename += additionalquery;
+	if (fConnModule->fRedirOpaque.length() > 0)
+	  finalfilename += fConnModule->fRedirOpaque;
+
+	if (additionalquery)
+	  finalfilename += additionalquery;
+    }
 
     // Send a kXR_open request in order to open the remote file
     ClientRequest openFileRequest;
