@@ -18,6 +18,8 @@ olbd_SOURCES = \
         XrdOlbConfig.cc XrdOlbConfig.hh XrdOlbTypes.hh  \
         XrdOlbManager.cc XrdOlbManager.hh  \
         XrdOlbManList.cc XrdOlbManList.hh  \
+	XrdOlbManTree.cc XrdOlbManTree.hh \
+	XrdOlbPrepArgs.cc XrdOlbPrepArgs.hh \
         XrdOlbMeter.cc XrdOlbMeter.hh    \
         XrdOlbPList.cc XrdOlbPList.hh    \
         XrdOlbPrepare.cc XrdOlbPrepare.hh  \
