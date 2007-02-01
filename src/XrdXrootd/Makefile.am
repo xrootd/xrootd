@@ -27,6 +27,7 @@ xrootd_SOURCES = \
         XrdXrootdFileLock1.cc XrdXrootdFileLock1.hh \
         XrdXrootdJob.cc XrdXrootdJob.hh \
         XrdXrootdLoadLib.cc \
+	XrdXrootdPio.cc XrdXrootdPio.hh \
         XrdXrootdMonitor.cc XrdXrootdMonitor.hh XrdXrootdMonData.hh \
         XrdXrootdPrepare.cc XrdXrootdPrepare.hh  \
         XrdXrootdProtocol.cc XrdXrootdProtocol.hh  \
