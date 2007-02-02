@@ -73,12 +73,34 @@ XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
 XrdClientConnectionMgr *XrdClientConn::fgConnectionMgr = 0;
 
 //_____________________________________________________________________________
+void ParseRedirHost(XrdOucString &host, XrdOucString &opaque, XrdOucString &token)
+{
+    // Small utility function... we want to parse a hostname which
+    // can contain opaque or token info
+  
+    int pos;
+
+    token = "";
+    opaque = "";
+
+    if ( (pos = host.find('?')) != STR_NPOS ) {
+      opaque.assign(host,pos+1);
+      host.erasefromend(host.length()-pos);
+
+      if ( (pos = opaque.find('?')) != STR_NPOS ) {
+	token.assign(host,pos+1);
+	opaque.erasefromend(opaque.length()-pos);
+      }
+
+    }
+
+}
+
+//_____________________________________________________________________________
 void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucString &opaque, XrdOucString &token)
 {
     // Small utility function... we want to parse the content
     // of a redir response from the server.
-
-    int pos;
 
     // Remember... an instance of XrdClientMessage automatically 0-terminates the
     // data if present
@@ -88,24 +110,14 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucStr
     port = 0;
 
     if (redirdata) {
-
-	host = redirdata->host;
-	token = "";
-	opaque = "";
-
-	if ( (pos = host.find('?')) != STR_NPOS ) {
-	    opaque.assign(host,pos+1);
-	    host.erasefromend(host.length()-pos);
-
-	    if ( (pos = opaque.find('?')) != STR_NPOS ) {
-		token.assign(host,pos+1);
-		opaque.erasefromend(opaque.length() - pos);
-	    }
-
-	}
-	port = ntohl(redirdata->port);
+      XrdOucString h(redirdata->host);
+      ParseRedirHost(h, opaque, token);
+      port = ntohl(redirdata->port);
     }
 }
+
+
+
 
 //_____________________________________________________________________________
 XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false), 
@@ -1713,8 +1725,11 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 		// If this client was explicitly told to redirect somewhere...
 		//ClearSessyionID();
 
+	        // Note, this could contain opaque information
 		newhost = fREQUrl.Host;
 		newport = fREQUrl.Port;
+
+		ParseRedirHost(newhost, fRedirOpaque, fRedirInternalToken);
 
 		// An unsuccessful connection to the dest host will make the
 		//  client go to the LB
@@ -2231,29 +2246,67 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
     memcpy(&LastServerResp, &fREQWaitRespData->resphdr, sizeof(struct ServerResponseHeader));
 
 
-    if (fREQWaitRespData->resphdr.status == kXR_error) {
-	// The server declared an error. 
-	// We want to save its content
+    switch (fREQWaitRespData->resphdr.status) {
+    case kXR_error: {
+      // The server declared an error. 
+      // We want to save its content
+      
+      struct ServerResponseBody_Error *body_err;
+      
+      body_err = (struct ServerResponseBody_Error *)(&fREQWaitRespData->respdata);
+      
+      if (body_err) {
+	// Print out the error information, as received by the server
+	
+	kXR_int32 fErr = (XErrorCode)ntohl(body_err->errnum);
+	
+	Info(XrdClientDebug::kNODEBUG, "ProcessAsynResp", "Server declared: " <<
+	     (const char*)body_err->errmsg << "(error code: " << fErr << ")");
+	
+	// Save the last error received
+	memset(&LastServerError, 0, sizeof(LastServerError));
+	memcpy(&LastServerError, body_err, xrdmin(fREQWaitRespData->resphdr.dlen, (kXR_int32)(sizeof(LastServerError)-1) ));
+	LastServerError.errnum = fErr;
+	
+      }
 
-	struct ServerResponseBody_Error *body_err;
+    }
+    case kXR_redirect: {
 
-	body_err = (struct ServerResponseBody_Error *)(&fREQWaitRespData->respdata);
+      // Hybrid case. A sync redirect request which comes out the async way.
+      // We handle it by simulating an async one
 
-	if (body_err) {
-	    // Print out the error information, as received by the server
+      // Get the encapsulated data
+      struct ServerResponseBody_Redirect *rd;
+      rd = (struct ServerResponseBody_Redirect *)fREQWaitRespData->respdata;
 
-	    kXR_int32 fErr = (XErrorCode)ntohl(body_err->errnum);
- 
-	    Info(XrdClientDebug::kNODEBUG, "ProcessAsynResp", "Server declared: " <<
-		 (const char*)body_err->errmsg << "(error code: " << fErr << ")");
+      // Explicit redirection request
+      if (rd && (strlen(rd->host) > 0)) {
+	Info(XrdClientDebug::kUSERDEBUG,
+	     "ProcessUnsolicitedMsg", "Requested sync redir (via async response) to " << rd->host <<
+	     ":" << ntohl(rd->port));
+	
+	SetRequestedDestHost(rd->host, ntohl(rd->port));
 
-	    // Save the last error received
-	    memset(&LastServerError, 0, sizeof(LastServerError));
-	    memcpy(&LastServerError, body_err, xrdmin(fREQWaitRespData->resphdr.dlen, (kXR_int32)(sizeof(LastServerError)-1) ));
-	    LastServerError.errnum = fErr;
+	// And then we disconnect only this logical conn
+	// The subsequent retry will bounce to the requested host
+	Disconnect(false);
+      }
 
-	}
 
+      // We also have to fake a regular answer. kxr_wait is ok to make the thing retry!
+      fREQWaitRespData = (ServerResponseBody_Attn_asynresp *)malloc( sizeof(struct ServerResponseBody_Attn_asynresp) );
+      memset( fREQWaitRespData, 0, sizeof(struct ServerResponseBody_Attn_asynresp) );
+      
+      fREQWaitRespData->resphdr.status = kXR_wait;
+      fREQWaitRespData->resphdr.dlen = sizeof(kXR_int32);
+      
+      kXR_int32 i = 1;
+      memcpy(&fREQWaitRespData->respdata, &i, sizeof(i));
+
+      free(unsolmsg->DonateData());
+
+    }
     }
 
     unsolmsg->DonateData(); // The data blk is released from the orig message

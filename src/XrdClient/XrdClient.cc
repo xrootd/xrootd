@@ -1075,7 +1075,7 @@ bool XrdClient::Copy(const char *localpath) {
 UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
 						     XrdClientMessage *unsolmsg) {
     // We are here if an unsolicited response comes from a logical conn
-    // The response comes in the form of an TXMessage *, that must NOT be
+    // The response comes in the form of a TXMessage *, that must NOT be
     // destroyed after processing. It is destroyed by the first sender.
     // Remember that we are in a separate thread, since unsolicited 
     // responses are asynchronous by nature.
