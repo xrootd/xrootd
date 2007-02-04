@@ -335,7 +335,7 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
 //
    if (!tp) return 0;
    Resp.setErrInfo(RepDelay, "");
-   DEBUG("Finder: Failed to send prepare to " <<Manp->Name()
+   DEBUG("Finder: Failed to send prepare to " <<(Manp ? Manp->Name() : "?")
                   <<" reqid=" <<pargs.reqid);
    return RepDelay;
 }
