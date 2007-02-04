@@ -84,6 +84,8 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     isSpecial=  0;
     isMan    =  0;
     isKnown  =  0;
+    isPeer   =  0;
+    isProxy  =  0;
     myCost   =  0;
     myLoad   =  0;
     DiskFree =  0;
