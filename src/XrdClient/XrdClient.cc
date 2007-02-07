@@ -519,6 +519,10 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
  	        fReadWaitData->UnLock();
 
+		// We might be here for a suspect comm trouble
+		// In this case the outstanding readahead blocks may have been lost
+		if (retrysync) fReadAheadLast = offset+len;
+
 		retrysync = false;
 
 		Info( XrdClientDebug::kHIDEBUG, "Read",
@@ -547,7 +551,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		Info( XrdClientDebug::kUSERDEBUG, "Read",
 		      "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
 
-		if (fReadWaitData->Wait(10)) {
+		if (!fConnModule->IsPhyConnConnected() ||
+		    fReadWaitData->Wait( EnvGetLong(NAME_REQUESTTIMEOUT) )) {
 
                     fConnModule->PrintCache();
 
@@ -1195,8 +1200,12 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
     else
 	// Let's see if the message is a communication error message
 	if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok) {
-	    TerminateOpenAttempt();
-	    return fConnModule->ProcessAsynResp(unsolmsg);
+	  // This is a low level error. The outstanding things have to be terminated
+	  // Awaken all the waiting threads, some of them may be interested
+	  fReadWaitData->Broadcast();
+	  TerminateOpenAttempt();
+	  
+	  return fConnModule->ProcessAsynResp(unsolmsg);
 	}
 	else
 	    // Let's see if we are receiving the response to an async read request

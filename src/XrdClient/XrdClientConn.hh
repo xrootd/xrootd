@@ -123,6 +123,7 @@ public:
     XErrorCode                 GetOpenError() const { return fOpenError; }
     XReqErrorType              GoToAnotherServer(XrdClientUrlInfo newdest);
     bool                       IsConnected() const { return fConnected; }
+    bool                       IsPhyConnConnected();
 
     struct ServerResponseHeader
     LastServerResp;

@@ -41,6 +41,10 @@ int XrdClientMStream::AddParallelStream(XrdClientConn *cliconn) {
     XrdClientPhyConnection *phyconn =
 	ConnectionManager->GetConnection(cliconn->GetLogConnID())->GetPhyConnection();
 
+
+    // If the phyconn already has all the needed streams... exit
+    if (phyconn->GetSockIdCount() > EnvGetLong(NAME_MULTISTREAMCNT)) return 0;
+
     // Connect a new connection, get the socket fd
     if (phyconn->TryConnectParallelStream() < 0) return -1;
 
@@ -83,14 +87,16 @@ int XrdClientMStream::AddParallelStream(XrdClientConn *cliconn) {
 // Remove a parallel stream to the pool used by the given client inst
 int XrdClientMStream::RemoveParallelStream(XrdClientConn *cliconn, int substream) {
 
-    // Get the XrdClientPhyconn to be used
-    XrdClientPhyConnection *phyconn =
-	ConnectionManager->GetConnection(cliconn->GetLogConnID())->GetPhyConnection();
+  // Get the XrdClientPhyconn to be used
+  XrdClientLogConnection *log = ConnectionManager->GetConnection(cliconn->GetLogConnID());
+  if (!log) return 0;
+
+  XrdClientPhyConnection *phyconn = log->GetPhyConnection();
     
-    if (phyconn) 
-	phyconn->RemoveParallelStream(substream);
+  if (phyconn) 
+    phyconn->RemoveParallelStream(substream);
     
-    return 0;
+  return 0;
     
 }
 

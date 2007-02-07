@@ -479,7 +479,9 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 			  ". Aborting command.");
 
 		    abortcmd = TRUE;
-		} else
+		} 
+
+		else
 		    if (req->header.requestid == kXR_bind) {
 			Info(XrdClientDebug::kHIDEBUG,
 			     "SendGenCommand", "Parallel stream bind failure. Aborting request." <<
@@ -487,6 +489,8 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 
 			abortcmd = TRUE;
 		    }
+
+
 		    else {
 
 			// Here we are connected, but we could not have a filehandle for
@@ -1698,9 +1702,9 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 	if ( fGlobalRedirCnt >= fMaxGlobalRedirCnt ) 
 	    return kSEHRContinue;
 
-	// An error in kxr_bind must not be repeated
-	if (req->header.requestid == kXR_bind)
-	    return kSEHRReturnNoMsgToCaller;
+// 	// An error in kxr_bind must not be repeated
+// 	if (req->header.requestid == kXR_bind)
+// 	    return kSEHRReturnNoMsgToCaller;
 
 	newhost = "";
 	newport = 0;
@@ -2351,7 +2355,21 @@ int XrdClientConn::GetParallelStreamToUse() {
     return phyc->GetSockIdHint();
 }
 
+//_____________________________________________________________________________
+bool XrdClientConn::IsPhyConnConnected() {
+  // Tells if this instance seems correctly connected to a server
 
+  XrdClientLogConnection *lgc = 0;
+  XrdClientPhyConnection *phyc = 0;
+
+  lgc = ConnectionManager->GetConnection(fLogConnID);
+  if (!lgc) return false;
+
+  phyc = lgc->GetPhyConnection();
+  if (!phyc) return false;
+
+  return phyc->IsValid();
+}
 //_____________________________________________________________________________
 int XrdClientConn:: GetParallelStreamCount() {
 
