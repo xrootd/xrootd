@@ -2331,7 +2331,7 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
 
 
 //_____________________________________________________________________________
-int XrdClientConn::GetParallelStreamToUse() {
+int XrdClientConn::GetParallelStreamToUse(int reqsperstream) {
     // Gets a parallel stream id to use to set the return path for a req
     XrdClientLogConnection *lgc = 0;
     XrdClientPhyConnection *phyc = 0;
@@ -2352,7 +2352,7 @@ int XrdClientConn::GetParallelStreamToUse() {
 	return kWRITE;
     }
 
-    return phyc->GetSockIdHint();
+    return phyc->GetSockIdHint(reqsperstream);
 }
 
 //_____________________________________________________________________________

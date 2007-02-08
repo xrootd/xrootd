@@ -146,7 +146,8 @@ public:
 
     void                       SetOpenError(XErrorCode err) { fOpenError = err; }
 
-    int                        GetParallelStreamToUse();     // Gets a parallel stream id to use to set the return path for a req
+    // Gets a parallel stream id to use to set the return path for a re
+    int                        GetParallelStreamToUse(int reqsperstream);
     int                        GetParallelStreamCount();     // Returns the total number of connected streams
 
     void                       SetRedirHandler(XrdClientAbs *rh) { fRedirHandler = rh; }

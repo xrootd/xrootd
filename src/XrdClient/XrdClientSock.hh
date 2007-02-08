@@ -100,7 +100,7 @@ public:
     virtual int RemoveParallelSock(int /* sockid */) { return -1; };
 
     // Suggests a sockid to be used for a req
-    virtual int GetSockIdHint() { return 0; }
+    virtual int GetSockIdHint(int reqsperstream) { return 0; }
 
     virtual void   Disconnect();
 

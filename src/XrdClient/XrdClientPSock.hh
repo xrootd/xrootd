@@ -110,7 +110,7 @@ public:
     int RemoveParallelSock(int sockid);
 
     // Suggests a sockid to be used for a req
-    virtual int GetSockIdHint();
+    virtual int GetSockIdHint(int reqsperstream);
 
     // And this is the total stream count
     virtual int GetSockIdCount() { 

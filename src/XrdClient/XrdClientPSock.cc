@@ -337,15 +337,16 @@ int XrdClientPSock::EstablishParallelSock(int sockid) {
     return -1;
 }
 
-int XrdClientPSock::GetSockIdHint() {
+int XrdClientPSock::GetSockIdHint(int reqsperstream) {
 
   // A round robin through the secondary streams. We avoid
   // requesting data through the main one because it can become a bottleneck
-  if (fSocketIdRepo.GetSize() > 0)
-    lastsidhint = ( ( lastsidhint % (fSocketIdRepo.GetSize()) ) +1  );
+  if (fSocketIdRepo.GetSize() > 0) {
+    lastsidhint = ( ( ++lastsidhint % (fSocketIdRepo.GetSize()*reqsperstream) )  );
+  }
   else lastsidhint = 0;
 
-  return lastsidhint;
+  return lastsidhint / reqsperstream + 1;
   //return (random() % (fSocketIdRepo.GetSize()+1));
 
 }

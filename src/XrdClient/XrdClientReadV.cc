@@ -83,7 +83,7 @@ kXR_int64 XrdClientReadV::ReqReadV(XrdClientConn *xrdc, char *handle, char *dest
 	else
 	    if (xrdc->WriteToServer_Async(&readvFileRequest,
 					  buflis,
-					  xrdc->GetParallelStreamToUse()) != kOK )
+					  xrdc->GetParallelStreamToUse(1)) != kOK )
 		total_len = 0;
 
     }

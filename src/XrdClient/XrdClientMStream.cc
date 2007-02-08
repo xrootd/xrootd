@@ -150,24 +150,56 @@ bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset
 			     XrdClientVector<XrdClientMStream::ReadChunk> &reqlists) {
 
     int spltsize = DFLT_MULTISTREAMSPLITSIZE;
+   
 
+//     // Let's try to distribute the load into maximum sized chunks
+//     if (cliconn->GetParallelStreamCount() > 1)
+//       spltsize = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
+//                         len / (cliconn->GetParallelStreamCount()) + 1);
+
+//     for (kXR_int32 pp = 0; pp < len; pp += spltsize) {
+//       ReadChunk ck;
+
+//       ck.offset = pp+offset;
+//       ck.len = xrdmin(len - pp, spltsize);
+//       ck.streamtosend = cliconn->GetParallelStreamToUse();
+
+//       reqlists.Push_back(ck);
+
+//     }
+    
+
+
+
+    int reqsperstream = 1;
     // Let's try to distribute the load into maximum sized chunks
-    if (cliconn->GetParallelStreamCount() > 1)
-      spltsize = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
-                        len / (cliconn->GetParallelStreamCount()) + 1);
+    if (cliconn->GetParallelStreamCount() > 1) {
 
+      // We start seeing which length we get trying to fill all the
+      // available slots ( per stream)
+      int candlen = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
+			   len / (reqsperstream * cliconn->GetParallelStreamCount()) + 1);
+
+      // We don't want blocks smaller than a min value
+      // If this is the case we consider only one slot per stream
+      if (candlen < DFLT_MULTISTREAMSPLITSIZE) {
+	spltsize = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
+			  len / (cliconn->GetParallelStreamCount()) + 1);
+	reqsperstream = 1;
+      }
+
+
+    }
     for (kXR_int32 pp = 0; pp < len; pp += spltsize) {
       ReadChunk ck;
 
       ck.offset = pp+offset;
       ck.len = xrdmin(len - pp, spltsize);
-      ck.streamtosend = cliconn->GetParallelStreamToUse();
+      ck.streamtosend = cliconn->GetParallelStreamToUse(reqsperstream);
 
       reqlists.Push_back(ck);
 
     }
-    
-
 
     return true;
 }
