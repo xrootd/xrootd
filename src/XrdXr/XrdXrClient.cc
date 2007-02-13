@@ -505,7 +505,7 @@ int XrdXrClient::reconnect(const char        *epname)
 int XrdXrClient::handleWait(int waitTime, 
 			    const char *epname)
 {
-  if (waitTime > maxWait) {
+  if (waitTime > maxWaitTime) {
     TRACE(All, "Need to wait " << waitTime << 
           " seconds - longer than max. wait time.");
     return waitTime;
