@@ -30,7 +30,7 @@ OBJECTT = \
         $(OBJDIR)/XrdPosixPreload32.o \
         $(OBJDIR)/XrdPosixStream.o
 
-MORELIBS = -L$(LIBDIR) -lXrdClient -lXrdNet -lXrdOuc -lXrdSec
+MORELIBS = -L$(LIBDIR) -lXrdClient $(LIBM) -lXrdNet -lXrdOuc -lXrdSec
 
 LIBDEP   = $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdNet.a \
