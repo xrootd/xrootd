@@ -809,20 +809,22 @@ int XrdXrootdProtocol::do_Open()
 
 // Map the mode and options
 //
-   mode = mapMode(mode) | S_IRUSR | S_IWUSR; usage = 'w';
+   mode = mapMode(mode) | S_IRUSR | S_IWUSR; usage = 'r';
         if (opts & kXR_open_read)  
-           {openopts  = SFS_O_RDONLY;  *op++ = 'r'; usage = 'r';}
-   else if (opts & kXR_new)         
-           {openopts  = SFS_O_CREAT;   *op++ = 'n';
+           {openopts  = SFS_O_RDONLY;  *op++ = 'r';}
+   else if (opts & kXR_open_updt)   
+           {openopts  = SFS_O_RDWR;    *op++ = 'u'; usage = 'w';}
+   else    {openopts  = SFS_O_RDONLY;  *op++ = 'r';}
+
+        if (opts & kXR_new)
+           {openopts |= SFS_O_CREAT;   *op++ = 'n';
             if (opts & kXR_mkdir)     {*op++ = 'm'; mkpath = 1;
                                        mode |= SFS_O_MKPTH;
                                       }
            }
-   else if (opts & kXR_delete)     
+   else if (opts & kXR_delete)
            {openopts  = SFS_O_TRUNC;   *op++ = 'd';}
-   else if (opts & kXR_open_updt)   
-           {openopts  = SFS_O_RDWR;    *op++ = 'u';}
-   else    {openopts  = SFS_O_RDONLY;  *op++ = 'r'; usage = 'r';}
+
    if (opts & kXR_compress)        
            {openopts |= SFS_O_RAWIO;   *op++ = 'c'; compchk = 1;}
    if (opts & kXR_force)              {*op++ = 'f'; doforce = 1;}

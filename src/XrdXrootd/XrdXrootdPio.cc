@@ -41,7 +41,7 @@ XrdXrootdPio *XrdXrootdPio::Alloc(int Num)
 
 // Allocate additional if we have not allocated enough
 //
-   while(Num--) qp = new XrdXrootdPio(qp->Next);
+   while(Num--) qp = new XrdXrootdPio(qp);
 
 // All done
 //
