@@ -191,6 +191,8 @@ bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset
 
 //      spltsize = min(256*1024, spltsize);
     }
+    else spltsize = len;
+
     for (kXR_int32 pp = 0; pp < len; pp += spltsize) {
       ReadChunk ck;
 
