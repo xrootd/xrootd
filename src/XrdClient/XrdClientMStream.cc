@@ -178,17 +178,18 @@ bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset
       // We start seeing which length we get trying to fill all the
       // available slots ( per stream)
       int candlen = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
-			   len / (reqsperstream * cliconn->GetParallelStreamCount()) + 1);
+			   len / (reqsperstream * (cliconn->GetParallelStreamCount()-1)) + 1);
 
       // We don't want blocks smaller than a min value
       // If this is the case we consider only one slot per stream
       if (candlen < DFLT_MULTISTREAMSPLITSIZE) {
 	spltsize = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
-			  len / (cliconn->GetParallelStreamCount()) + 1);
+			  len / (cliconn->GetParallelStreamCount()-1) + 1);
 	reqsperstream = 1;
       }
+      else spltsize = candlen;
 
-
+//      spltsize = min(256*1024, spltsize);
     }
     for (kXR_int32 pp = 0; pp < len; pp += spltsize) {
       ReadChunk ck;
