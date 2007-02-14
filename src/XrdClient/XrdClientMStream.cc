@@ -171,7 +171,7 @@ bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset
 
 
 
-    int reqsperstream = 1;
+    int reqsperstream = 2;
     // Let's try to distribute the load into maximum sized chunks
     if (cliconn->GetParallelStreamCount() > 1) {
 

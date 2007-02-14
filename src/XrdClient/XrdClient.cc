@@ -606,7 +606,8 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
     //    kXR_int32 limit = 1 << (int)(sizeof(kXR_unt16) * 8);
     //kXR_unt16 Nmax  = (kXR_unt16) ((limit) / sizeof(struct readahead_list));
     kXR_unt16 Nmax = READV_MAXCHUNKS;
-    if (!buf) Nmax = READV_MAXCHUNKS/EnvGetLong(NAME_MULTISTREAMCNT);
+    if (!buf && EnvGetLong(NAME_MULTISTREAMCNT))
+      Nmax = READV_MAXCHUNKS/EnvGetLong(NAME_MULTISTREAMCNT);
 
     int i = 0;
     kXR_int64 pos = 0; 

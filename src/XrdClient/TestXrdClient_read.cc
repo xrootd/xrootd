@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     int vectored_style = 0;
     long read_delay = 0;
     timeval tv;
-    double starttime, t;
+    double starttime, openphasetime, endtime;
 
     gettimeofday(&tv, 0);
     starttime = tv.tv_sec + tv.tv_usec / 1000000;
@@ -164,6 +164,9 @@ int main(int argc, char **argv) {
 	XrdClient *cli = new XrdClient(argv[1]);
 
 	cli->Open(0, 0);
+
+	gettimeofday(&tv, 0);
+	openphasetime = tv.tv_sec + tv.tv_usec / 1000000;
 
 	while ( (ntoread = ReadSome(v_offsets, v_lens, maxtoread)) ) {
 
@@ -272,7 +275,6 @@ int main(int argc, char **argv) {
 		cli = new XrdClient(s.c_str());
 		u.TakeUrl(s.c_str());
 
-		cout << "Mytest " << time(0) << " File: " << u.File << " - Opening." << endl;
 		if (cli->Open(0, 0)) {
 		    cout << "--- Open of " << s << " in progress." << endl;
 		    xrdcvec.push_back(cli);
@@ -288,14 +290,8 @@ int main(int argc, char **argv) {
      
 	i = 0;
 
-
-
-
-
-
-
-
-
+	gettimeofday(&tv, 0);
+	openphasetime = tv.tv_sec + tv.tv_usec / 1000000;
 
 	while ( (ntoread = ReadSome(v_offsets, v_lens, 10240)) ) {
 
@@ -308,11 +304,10 @@ int main(int argc, char **argv) {
 
 			retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
-			cout << ".";
 			cout.flush();
 
 			if (retval <= 0)
-			    cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
+			    cout << endl << "---Read (" << iii << " of " << ntoread << ") " <<
 				v_lens[iii] << "@" << v_offsets[iii] <<
 				" returned " << retval << endl;		 
 
@@ -370,7 +365,7 @@ int main(int argc, char **argv) {
 
 			    if (retval <= 0)
 				cout << endl << "---Read " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
-				    "(" << iii << " of " << ntoread << " " <<
+				    "(" << iii << " of " << ntoread << ") " <<
 				    v_lens[iii] << "@" << v_offsets[iii] <<
 				    " returned " << retval << endl;	
 
@@ -384,32 +379,51 @@ int main(int argc, char **argv) {
 		retval = 1;
 
 		break;
+
+    	    case 4: // read async and then read
+	      for(int i = 0; i < (int) xrdcvec.size(); i++) {
+		for (int iii = 0; iii < ntoread; iii++) {
+		  retval =  xrdcvec[i]->Read_Async(v_offsets[iii], v_lens[iii]);
+		  
+		  if (retval <= 0)
+		    cout << endl << "---Read_Async "  << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+		      "(" << iii << " of " << ntoread << ") " <<
+		      v_lens[iii] << "@" << v_offsets[iii] <<
+		      " returned " << retval << endl;
+		}	
+	      
+	      
+	      
+		for (int iii = 0; iii < ntoread; iii++) {
+		  retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
+
+		  cout.flush();
+		  
+		  if (retval <= 0)
+		    cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
+		      v_lens[iii] << "@" << v_offsets[iii] <<
+		      " returned " << retval << endl;
+		  
+		  Think(read_delay);
+		}
+
+		cout << ".";
+	      }
+	      cout << endl;
+
+
+
+	      break;
+
 		
 	    }
 
 	}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	cout << "--- Closing all instances" << endl;
+	cout << endl << endl << "--- Closing all instances" << endl;
 	for(int i = 0; i < (int) xrdcvec.size(); i++) {
 	    xrdcvec[i]->Close();
-	    cout << "Mytest " << time(0) << " File: " << xrdcvec[i]->GetCurrentUrl().File << " - Closed." << endl;
+
 	}
     
 	cout << "--- Deleting all instances" << endl;
@@ -424,9 +438,14 @@ int main(int argc, char **argv) {
     free(buf);
 
     gettimeofday(&tv, 0);
-    t = tv.tv_sec + tv.tv_usec / 1000000;
+    endtime = tv.tv_sec + tv.tv_usec / 1000000;
 
-    cout << "--- elapsed: " << t - starttime << endl << endl;
+    cout << "--- starttime: " << starttime << endl;
+    cout << "--- lastopentime: " << openphasetime << endl;
+    cout << "--- endtime: " << endtime << endl;
+    cout << "--- open_elapsed: " << openphasetime - starttime<< endl;
+    cout << "--- total_elapsed: " << endtime - starttime << endl << endl;
+
     return 0;
 
 
