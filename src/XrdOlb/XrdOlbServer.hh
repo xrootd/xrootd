@@ -42,6 +42,8 @@ friend class XrdOlbManager;
        char  isBound;      // Set when server is in the configuration
        char  isRW;         // Set when server can write or stage data
        char  isKnown;      // Set when we have recieved a "state"
+       char  isBusy;       // Set when server has an active thread
+       char  isGone;       // Set when server must be deleted
 
 inline int   Inst() {return Instance;}
 

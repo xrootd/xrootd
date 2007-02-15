@@ -508,9 +508,13 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
       else mp = sp->isOffline ? "forced out." : "logged out.";
    Say.Emsg("Manager", sp->Stype, sp->Nick(), mp);
 
-// Recycle the server
+// Remove the server from the configuration if it is still in it. We only delete
+// this object if the delete was defered as we may still be in the backup config.
 //
-   if (sp->Link) Remove_Server(0, servID, servInst, rc == -86);
+   sp->Lock();
+   if (sp->isBound) {Remove_Server(0,servID,servInst,rc == -86); sp->UnLock();}
+      else if (sp->isGone) {sp->UnLock(); delete sp;}
+              else sp->UnLock();
    return (void *)0;
 }
   
@@ -1216,6 +1220,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
           if (sp->Link) sp->Link->Recycle();
           sp->Link      = lp;
           sp->isOffline = 0;
+          sp->isBusy    = 1;
           sp->Instance++;
           sp->setName(lp, port);  // Just in case it changed
           ServTab[i] = sp;
@@ -1228,8 +1233,9 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
    if (!sp)
       {if (j < 0 && k >= 0)
           {DEBUG("ID " <<k <<" reassigned" <<ServBat[k]->Nick() <<" to " <<hnp);
-           delete ServBat[k]; ServBat[k] = 0;
-           j = k;
+           if (ServBat[k]->isBusy) ServBat[k]->isGone = 1;
+              else delete ServBat[k]; 
+           ServBat[k] = 0; j = k;
           } else if (j < 0)
                     {if (os >= 0)
                         {bump = ServTab[os];
@@ -1250,6 +1256,19 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
        sp->ServMask = smask_1<<j;
       }
 
+// Check if we should bump someone now as we cannot go through Remove_Server().
+//
+   if (bump)
+      {bump->Lock();
+       sendAList(bump->Link);
+       DEBUG("ID " <<os <<" bumped " <<bump->Nick() <<" for " <<hnp);
+       bump->isOffline = 1;
+       bump->isGone    = 1;
+       bump->Link->Close(1);
+       ServCnt--;
+       bump->UnLock();
+      }
+
 // Indicate whether this server can be redirected
 //
    if (Status & (OLB_isMan | OLB_isPeer)) sp->isSpecial = 0;
@@ -1260,6 +1279,7 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
    if (Status & OLB_isMan) setAltMan(j, ipaddr, sport);
    if (j > STHi) STHi = j;
    sp->isBound   = 1;
+   sp->isBusy    = 1;
    sp->isNoStage = (Status & OLB_noStage);
    sp->isSuspend = (Status & OLB_Suspend);
    sp->isMan     = (Status & OLB_isMan);
@@ -1275,18 +1295,6 @@ XrdOlbServer *XrdOlbManager::AddServer(XrdNetLink *lp, int port,
    if (sp->isPeer) peerHost |=  sp->ServMask;
       else         peerHost &= ~sp->ServMask;
    peerMask = ~peerHost;
-
-// Check if we should bump someone (deferal avoids extra recovery transactions)
-//
-   if (bump)
-      {bump->Lock();
-       sendAList(bump->Link);
-       DEBUG("ID " <<os <<" bumped " <<bump->Nick() <<" for " <<hnp);
-       bump->isOffline = 1;
-       bump->Link->Close(1);
-       ServCnt--;
-       bump->UnLock();
-      }
 
 // Document login
 //
@@ -1336,6 +1344,8 @@ XrdOlbServer *XrdOlbManager::calcDelay(int nump, int numd, int numf, int numo,
 /******************************************************************************/
   
 // Warning: STMutex must be locked upon entry. It will be released upon exit!
+//          This method may only be called via Remove_Server() either directly
+//          or via a defered job scheduled by that method.
 
 int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 {
@@ -1394,11 +1404,7 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 //
    if (sent == STHi) while(STHi >= 0 && !ServTab[STHi]) STHi--;
 
-// Recycle the link
-//
-   if (sp->Link) {sp->Link->Recycle(); sp->Link = 0;}
-
-// Document the drop
+// Document the drop (The link will be recycled when object is actually deleted)
 //
    STMutex.UnLock();
    DEBUG("Server " <<hname <<' ' <<sent <<'.' <<sinst <<" dropped.");
@@ -1413,7 +1419,14 @@ int XrdOlbManager::Drop_Server(int sent, int sinst, XrdOlbDrop *djp)
 void *XrdOlbManager::Login_Failed(const char *reason, 
                                  XrdNetLink *lp, XrdOlbServer *sp)
 {
-     if (sp) Remove_Server(reason, sp->ServID, sp->Instance, 1);
+// If we have a server object then we must remove it and then delete it. This
+// is safe to do because we ask for an immediate drop. The delete will recycle
+// the link so we need not do it here. Otherwise, a link pointer must be
+// passed which we will recycle as a server object does not yet exist.
+//
+     if (sp) {Remove_Server(reason, sp->ServID, sp->Instance, 1);
+              delete sp;
+             }
         else {if (reason) Say.Emsg("Manager", lp->Nick(),
                                           "login failed;", reason);
               lp->Recycle();

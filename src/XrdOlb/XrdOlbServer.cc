@@ -81,6 +81,8 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     isSuspend=  0;
     isActive =  0;
     isBound  =  0;
+    isBusy   =  0;
+    isGone   =  0;
     isSpecial=  0;
     isMan    =  0;
     isKnown  =  0;
@@ -1891,8 +1893,8 @@ char *XrdOlbServer::Receive(char *idbuff, int blen)
 {
    EPNAME("Receive")
    char *lp, *tp;
-   // let's be sure that with are not performing on offline server where link is closed
-   if (Link && (lp=Link->GetLine()) && *lp)
+
+   if ((lp=Link->GetLine()) && *lp)
       {if (Trace.What & TRACE_Debug
        &&  strcmp("1@0 ping", lp) && strcmp("1@0 pong", lp))
            TRACEX("from " <<myNick <<": " <<lp);
