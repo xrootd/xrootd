@@ -125,6 +125,7 @@ XrdNetSocket *XrdNetSocket::Create(XrdOucError *Say, const char *path,
    XrdNetSocket *ASock;
    int pflags    = (opts & XRDNET_FIFO ? S_IFIFO : S_IFSOCK);
    int sflags    = (opts & XRDNET_UDPSOCKET) | XRDNET_SERVER;
+   int rc;
    mode_t myMode = (mode & (S_IRWXU | S_IRWXG));
    const char *eMsg = 0;
    char fnbuff[1024] = {0};
@@ -140,17 +141,19 @@ XrdNetSocket *XrdNetSocket::Create(XrdOucError *Say, const char *path,
 #ifndef WIN32
    if (opts & XRDNET_FIFO)
       {if ((ASock->SockFD = mkfifo(fnbuff, mode)) < 0 && errno != EEXIST)
-         eMsg = "create fifo";
+         {eMsg = "create fifo"; rc = errno;}
          else if ((ASock->SockFD = open(fnbuff, O_RDWR, myMode)) < 0)
-                 eMsg = "open fifo";
-      } else if (ASock->Open(fnbuff, -1, sflags) < 0) eMsg = "create socket";
+                 {eMsg = "open fifo"; rc = ASock->LastError();}
+      } else if (ASock->Open(fnbuff, -1, sflags) < 0) 
+                {eMsg = "create socket"; rc = ASock->LastError();}
 #else
-   if (ASock->Open(fnbuff, -1, sflags) < 0) eMsg = "create socket";
+   if (ASock->Open(fnbuff, -1, sflags) < 0)
+      {eMsg = "create socket"; rc = ASock->LastError();}
 #endif
 
 // Return the result
 //
-   if (eMsg) {Say->Emsg("Create", ASock->LastError(), eMsg, fnbuff);
+   if (eMsg) {Say->Emsg("Create", rc, eMsg, fnbuff);
               delete ASock; ASock = 0;
              }
    return ASock;
