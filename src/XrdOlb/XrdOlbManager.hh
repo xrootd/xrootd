@@ -96,7 +96,7 @@ static const int MTMax = 16;   // Maximum number of Managers
 static const int STMax = 64;   // Maximum number of Subscribers
 
 int         ServCnt;           // Number of active subscribers
-char        noData;            // Set when we are a manager or supervisor
+char        hasData;           // Set when we are pure data server
 
 void        Broadcast(SMask_t smask, char *buff, int blen);
 void        Broadcast(SMask_t smask, const struct iovec *, int iovcnt);

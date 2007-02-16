@@ -79,7 +79,7 @@ XrdOlbManager::XrdOlbManager()
      AltMend = AltMans;
      AltMent = -1;
      ServCnt =  0;
-     noData  =  1;
+     hasData =  0;
      MTHi    = -1;
      STHi    = -1;
      XWait   = 0;

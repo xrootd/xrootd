@@ -78,6 +78,8 @@ static int  Resume(XrdOlbPrepArgs *pargs);
 
 static void setRelay(XrdNetLink *rlyp) {Relay = rlyp;}
 
+static void setSpace(int Dfree, int Dtota) {dsk_free = Dfree; dsk_tota = Dtota;}
+
             XrdOlbServer(XrdNetLink *lnkp, int port=0, char *sid=0);
            ~XrdOlbServer();
 

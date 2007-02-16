@@ -331,6 +331,15 @@ int XrdOlbConfig::Configure2()
   if (!NoGo && isManager) NoGo = setupManager();
   if (!NoGo && isServer)  NoGo = setupServer();
 
+// If we are a solo peer then we have no servers and a lot of space
+//
+   if (isPeer && isSolo) 
+      {SUPCount = 0; 
+       SUPLevel = 0; 
+       doWait = 0;
+       XrdOlbServer::setSpace(0x7fffffff, 0x7fffffffff);
+      }
+
 // Set up the generic message id
 //
    MsgGIDL = sprintf(buff, "%d@0 ", MsgTTL);
@@ -461,7 +470,7 @@ void XrdOlbConfig::DoIt()
 
 // Start the server subsystem
 //
-   if (isServer)
+   if (isServer || isPeer)
       {tp = myManagers;
        while(tp)
             {if (!isManager && !tp->next) Manager.Pander(tp->text, tp->val);
@@ -849,10 +858,6 @@ int XrdOlbConfig::setupManager()
 //
    RRQ.Init(LUPHold, LUPDelay);
 
-// If we are a solo peer then we need no servers
-//
-   if (isPeer && isSolo) {SUPCount = 0; SUPLevel = 0;}
-
 // All done
 //
    return 0;
@@ -888,7 +893,7 @@ int XrdOlbConfig::setupServer()
 // Setup TCP outgoing network connections
 //
    if (!(Net = new XrdNetWork(&Say, 0)))
-      {Say.Emsg("Config","Unable to create server network interface.");
+      {Say.Emsg("Config","Unable to create", myRole, "network interface.");
        return 1;
       }
    if (myDomain) Net->setDomain(myDomain);
@@ -899,9 +904,10 @@ int XrdOlbConfig::setupServer()
    if (!(Relay = Net->Relay(0, XRDNET_SENDONLY))) return 1;
    XrdOlbServer::setRelay(Relay);
 
-// If this is a staging server then we better have a disk cache
+// If this is a staging server then we better have a disk cache. We ignore this
+// restriction if an XMI plugin will be used and we are a peer.
 //
-   if (DiskSS && !(monPath || monPathP))
+   if (!(isPeer || XmiPath) && DiskSS && !(monPath || monPathP))
       {Say.Emsg("Config","Staging paths present but no disk cache specified.");
        return 1;
       }
@@ -980,12 +986,11 @@ int XrdOlbConfig::setupServer()
        Manager.Suspend(0);
       }
 
-// Determine whether or not we have data
+// We have data only if we are a pure data server (the default is noData)
 //
-   Manager.noData = isManager;
+   if (!isProxy && !isSolo) Manager.hasData = 1;
    return 0;
 }
-
 
 /******************************************************************************/
 /*                              s e t u p X m i                               */
@@ -2114,7 +2119,7 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
 
 // Check if this is a solo peer
 //
-    if (xPeer) if (!xMan) {xSolo = 1; xMan = -1;}
+    if (xPeer) if (!xMan) {xSolo = 1; xServ = -1;}
 
 // Handle optional "if"
 //

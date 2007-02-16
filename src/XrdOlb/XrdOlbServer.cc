@@ -292,16 +292,16 @@ int XrdOlbServer::Process_Requests()
        else if (!strcmp("state",  tp)) retc = do_State(id, 0);
        else if (!strcmp("statf",  tp)) retc = do_State(id, 1);
        else if (!strcmp("ping",   tp)) retc = do_Ping(id);
-       else if (!strcmp("prepadd",tp)) retc = do_PrepAdd(id,1);
-       else if (!strcmp("prepdel",tp)) retc = do_PrepDel(id,1);
+       else if (!strcmp("prepadd",tp)) retc = do_PrepAdd(id,Manager.hasData);
+       else if (!strcmp("prepdel",tp)) retc = do_PrepDel(id,Manager.hasData);
        else if (!strcmp("usage",  tp)) retc = do_Usage(id);
        else if (!strcmp("space",  tp)) retc = do_Space(id);
-       else if (!strcmp("chmod",  tp)) retc = do_Chmod(id, 1);
-       else if (!strcmp("mkdir",  tp)) retc = do_Mkdir(id, 1);
-       else if (!strcmp("mkpath", tp)) retc = do_Mkpath(id, 1);
-       else if (!strcmp("mv",     tp)) retc = do_Mv(id, 1);
-       else if (!strcmp("rm",     tp)) retc = do_Rm(id, 1);
-       else if (!strcmp("rmdir",  tp)) retc = do_Rmdir(id, 1);
+       else if (!strcmp("chmod",  tp)) retc = do_Chmod(id,  Manager.hasData);
+       else if (!strcmp("mkdir",  tp)) retc = do_Mkdir(id,  Manager.hasData);
+       else if (!strcmp("mkpath", tp)) retc = do_Mkpath(id, Manager.hasData);
+       else if (!strcmp("mv",     tp)) retc = do_Mv(id,     Manager.hasData);
+       else if (!strcmp("rm",     tp)) retc = do_Rm(id,     Manager.hasData);
+       else if (!strcmp("rmdir",  tp)) retc = do_Rmdir(id,  Manager.hasData);
        else if (!strcmp("try",    tp)) retc = do_Try(id);
        else if (!strcmp("disc",   tp)) retc = do_Disc(id, 0);
        else retc = 1;
@@ -514,8 +514,10 @@ int XrdOlbServer::do_Chmod(char *rid, int do4real)
 // If are a manager then broadcast the request to every server that might
 // might be able to do this operation, then check if we should do it as well.
 //
-   if (Manager.ServCnt) Reissue(rid, "chmod ", modearg, tp);
-   if (Manager.noData) return 0;
+   if (!do4real)
+      {if (Manager.ServCnt) Reissue(rid, "chmod ", modearg, tp);
+       return 0;
+      }
 
 // Convert the mode
 //
@@ -782,8 +784,10 @@ int XrdOlbServer::do_Mkdir(char *rid, int do4real)
 // If we have subsscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (Manager.ServCnt) Reissue(rid, "mkdir ", modearg, tp);
-   if (Manager.noData) return 0;
+   if (!do4real)
+      {if (Manager.ServCnt) Reissue(rid, "mkdir ", modearg, tp);
+       return 0;
+      }
 
 // Convert the mode
 //
@@ -848,8 +852,10 @@ int XrdOlbServer::do_Mkpath(char *rid, int do4real)
 // If we have subsscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (Manager.ServCnt) Reissue(rid, "mkpath ", modearg, tp);
-   if (Manager.noData) return 0;
+   if (!do4real)
+      {if (Manager.ServCnt) Reissue(rid, "mkpath ", modearg, tp);
+       return 0;
+      }
 
 // Convert the mode
 //
@@ -884,6 +890,7 @@ int XrdOlbServer::do_Mv(char *rid, int do4real)
 {
    EPNAME("do_Mv")
    char *tp;
+   char old_lfnpath[XrdOlbMAX_PATH_LEN+1];
    char old_lclpath[XrdOlbMAX_PATH_LEN+1];
    char new_lclpath[XrdOlbMAX_PATH_LEN+1];
    int rc;
@@ -896,6 +903,15 @@ int XrdOlbServer::do_Mv(char *rid, int do4real)
    if (!(tp = Link->GetToken()))
       {Say.Emsg("Server", "mv old path not specified");
        return 0;
+      }
+
+// If we have an XMI or are virtual then we must save the original path name
+//
+   if (!do4real || Xmi_Rename)
+      {if (strlcpy(old_lfnpath,tp,sizeof(old_lfnpath)) > XrdOlbMAX_PATH_LEN)
+          {Say.Emsg("Server", "mv old path too long", tp);
+           return 0;
+          }
       }
 
 // Generate proper old path name
@@ -919,16 +935,18 @@ int XrdOlbServer::do_Mv(char *rid, int do4real)
 // If we have an XMI then pass the request there. This only works when
 // we are a manager. We still have to figure out what to do for servers.
 //
-   if (!do4real && Xmi_Rename)
+   if (Xmi_Rename)
       {strcpy(Info.ID, rid);  // Gauranteed to fit
-       if (Xmi_Rename->Rename(&Req, old_lclpath, tp)) return 0;
+       if (Xmi_Rename->Rename(&Req, old_lfnpath, tp)) return 0;
       }
 
 // If we have subscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (Manager.ServCnt) Reissue(rid, "mv ", 0, old_lclpath, tp);
-   if (Manager.noData) return 0;
+   if (!do4real)
+      {if (Manager.ServCnt) Reissue(rid, "mv ", 0, old_lfnpath, tp);
+       return 0;
+      }
 
 // Generate the true local path for new name
 //
@@ -1085,9 +1103,10 @@ int XrdOlbServer::do_PrepDel(char *rid, int server)
 // Cancel the request. Since we don't know where this went, inform all
 // subscribers about this cancellation.
 //
-  DEBUG("Canceling prepare " <<tp);
-  Manager.Broadcast(amask, buff, snprintf(buff, sizeof(buff)-1,
-                     "%s prepdel %s\n", Config.MsgGID, tp));
+  if (Manager.ServCnt) 
+     {DEBUG("Forwarding prepare cancel " <<tp);
+      Reissue(rid, "prepdel ", 0, tp);
+     }
   return 0;
 }
   
@@ -1224,8 +1243,10 @@ int XrdOlbServer::do_Rm(char *rid, int do4real)
 // If we have subscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (Manager.ServCnt) Reissue(rid, "rm ", 0, tp);
-   if (Manager.noData) return 0;
+   if (!do4real)
+      {if (Manager.ServCnt) Reissue(rid, "rm ", 0, tp);
+       return 0;
+      }
 
 // Generate the true local path for name
 //
@@ -1277,8 +1298,10 @@ int XrdOlbServer::do_Rmdir(char *rid, int do4real)
 // If we have subscribers then broadcast the request to every server that
 // might be able to do this operation
 //
-   if (Manager.ServCnt) Reissue(rid, "rmdir ", 0, tp);
-   if (Manager.noData) return 0;
+   if (!do4real)
+      {if (Manager.ServCnt) Reissue(rid, "rmdir ", 0, tp);
+       return 0;
+      }
 
 // Generate the true local path for name
 //
@@ -1518,7 +1541,7 @@ int XrdOlbServer::do_State(char *rid,int reset)
    if (isMan && do_StateFWD(tp, reset))
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
              "%s have %s %s\n", rid, Config.PathList.Type(tp), tp));
-   if (Manager.noData) return 0;
+   if (!Manager.hasData) return 0;
 
 // Generate the true local path
 //
