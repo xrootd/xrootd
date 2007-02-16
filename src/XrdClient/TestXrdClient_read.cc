@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include <math.h>
 
-int ReadSome(kXR_int64 *offs, kXR_int32 *lens, int maxnread) {
+int ReadSome(kXR_int64 *offs, kXR_int32 *lens, int maxnread, long long &totalbytes) {
 
     for (int i = 0; i < maxnread;) {
 
@@ -18,8 +18,10 @@ int ReadSome(kXR_int64 *offs, kXR_int32 *lens, int maxnread) {
 
 	cin >> lens[i] >> offs[i];
 
-	if ((lens[i] > 0) && (offs[i] >= 0))
-	    i++;
+	if ((lens[i] > 0) && (offs[i] >= 0)) {
+	  totalbytes += lens[i];
+	  i++;
+	}
 
     }
 
@@ -64,10 +66,13 @@ int main(int argc, char **argv) {
     int vectored_style = 0;
     long read_delay = 0;
     timeval tv;
-    double starttime, openphasetime, endtime;
+    double starttime = 0, openphasetime = 0, endtime = 0;
+    long long totalbytesread = 0;
+    long totalreadscount = 0;
+    int filezcount = 0;
 
     gettimeofday(&tv, 0);
-    starttime = tv.tv_sec + tv.tv_usec / 1000000;
+    starttime = tv.tv_sec + tv.tv_usec / 1000000.0;
 
     if (argc < 2) {
 	cout << endl << endl <<
@@ -164,11 +169,14 @@ int main(int argc, char **argv) {
 	XrdClient *cli = new XrdClient(argv[1]);
 
 	cli->Open(0, 0);
+	filezcount = 1;
 
 	gettimeofday(&tv, 0);
-	openphasetime = tv.tv_sec + tv.tv_usec / 1000000;
+	openphasetime = tv.tv_sec + tv.tv_usec / 1000000.0;
 
-	while ( (ntoread = ReadSome(v_offsets, v_lens, maxtoread)) ) {
+	while ( (ntoread = ReadSome(v_offsets, v_lens, maxtoread, totalbytesread)) ) {
+	  
+	  totalreadscount += ntoread;
 
 	    switch (vectored_style) {
 	    case 0: // no readv
@@ -290,10 +298,14 @@ int main(int argc, char **argv) {
      
 	i = 0;
 
-	gettimeofday(&tv, 0);
-	openphasetime = tv.tv_sec + tv.tv_usec / 1000000;
+	filezcount = xrdcvec.size();
 
-	while ( (ntoread = ReadSome(v_offsets, v_lens, 10240)) ) {
+	gettimeofday(&tv, 0);
+	openphasetime = tv.tv_sec + tv.tv_usec / 1000000.0;
+
+	while ( (ntoread = ReadSome(v_offsets, v_lens, 10240, totalbytesread)) ) {
+
+	  totalreadscount += ntoread;
 
 	    switch (vectored_style) {
 	    case 0: // no readv
@@ -422,7 +434,9 @@ int main(int argc, char **argv) {
 
 	cout << endl << endl << "--- Closing all instances" << endl;
 	for(int i = 0; i < (int) xrdcvec.size(); i++) {
-	    xrdcvec[i]->Close();
+	    if (xrdcvec[i]->IsOpen()) xrdcvec[i]->Close();
+	    else cout << "WARNING: file '" <<
+		   xrdcvec[i]->GetCurrentUrl().GetUrl() << " was not opened." << endl;
 
 	}
     
@@ -438,13 +452,21 @@ int main(int argc, char **argv) {
     free(buf);
 
     gettimeofday(&tv, 0);
-    endtime = tv.tv_sec + tv.tv_usec / 1000000;
+    endtime = tv.tv_sec + tv.tv_usec / 1000000.0;
 
+    cout << "Summary ----------------------------" << endl;
     cout << "--- starttime: " << starttime << endl;
     cout << "--- lastopentime: " << openphasetime << endl;
     cout << "--- endtime: " << endtime << endl;
-    cout << "--- open_elapsed: " << openphasetime - starttime<< endl;
-    cout << "--- total_elapsed: " << endtime - starttime << endl << endl;
+    cout << "--- open_elapsed: " << openphasetime - starttime << endl;
+    cout << "--- data_xfer_elapsed: " << endtime - openphasetime << endl;
+    cout << "--- total_elapsed: " << endtime - starttime << endl;
+    cout << "--- totalbytesreadperfile: " << totalbytesread << endl;
+    cout << "--- maxbytesreadpersecperfile: " << totalbytesread / (endtime - openphasetime) << endl;
+    cout << "--- effbytesreadpersecperfile: " << totalbytesread / (endtime - starttime) << endl;
+    cout << "--- readscountperfile: " << totalreadscount << endl;
+    cout << "--- filescount: " << filezcount << endl;
+    cout << endl;
 
     return 0;
 
