@@ -184,7 +184,7 @@ $(OBJDIR)/XrdClientAdmin_c.o: XrdClientAdmin_c.cc ../XrdClient/XrdClientAdmin.hh
   ../XrdOuc/XrdOucHash.hh ../XrdOuc/XrdOucHash.icc \
   ../XrdClient/XrdClientVector.hh ../XrdClient/XrdClientDebug.hh \
   ../XrdClient/XrdClientEnv.hh ../XrdOuc/XrdOucEnv.hh \
-  ../XrdOuc/XrdOucLogger.hh
+  ../XrdOuc/XrdOucLogger.hh ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClientAdmin_c.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) $(PERLCCFLAGS) -o $(OBJDIR)/XrdClientAdmin_c.o XrdClientAdmin_c.cc
 
