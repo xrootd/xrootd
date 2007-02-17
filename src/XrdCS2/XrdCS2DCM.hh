@@ -15,11 +15,15 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucPthread.hh"
   
+class XrdNetLink;
 class XrdNetSocket;
 
 class XrdCS2DCM
 {
 public:
+
+void  Cleanup();
+void  Cleanup(const char *);
 
 int   Configure(int argc, char **argv);
 
@@ -27,7 +31,7 @@ void  doEvents();
 
 void  doRequests();
 
-void  Event(const char *Tid, char *ReqID, char *Mode, char *Lfn);
+void  Event(const char *Tid, const char *ReqID, const char *Mode, const char *Lfn);
 
 void  Stage(const char *, char *, char *, char *, char *);
 
@@ -38,13 +42,15 @@ private:
 
 int   CS2_Open(const char *Tid, const char *Fid, char *Lfn,
                int flags, off_t fsize);
-int   CS2_rDone(const char *Tid, unsigned long long reqID, char *Lfn);
-int   CS2_wDone(const char *Tid, unsigned long long reqID, char *Pfn);
+int   CS2_rDone(const char *, unsigned long long, const char *);
+int   CS2_wDone(const char *, unsigned long long, const char *, int);
+int   CS2_wFail(const char *, unsigned long long, const char *, int);
 int   CS2_Init();
 void  failRequest(char *Pfn);
-int   makeFname(char *thePath, const char *fn);
+int   makeFname(char *, const char *, int, const char *);
 int   makePath(char *fn);
-void  Release(const char *, char *, char *);
+int   Release(const char *, const char *, int failed=0);
+void  rmStale(const char *, time_t Deadline);
 int   Setup();
 void  LockDir()  {dirMutex.Lock();}
 void  UnLockDir(){dirMutex.UnLock();}
@@ -52,7 +58,19 @@ void  UnLockDir(){dirMutex.UnLock();}
 XrdOucMutex     dirMutex;
 XrdOucStream    Request;
 XrdOucStream    Events;
-char           *MPath;
+XrdNetLink     *olbdLink;
+char           *APath;   // Active
+int             APlen;
+char           *CPath;   // Closed
+int             CPlen;
+char           *EPath;   // Event FIFO path
+int             EPlen;
+char           *MPath;   // Management path (base)
 int             MPlen;
+char           *PPath;   // Pending
+int             PPlen;
+pid_t           Parent;
+int             QLim;
+time_t          UpTime;
 };
 #endif

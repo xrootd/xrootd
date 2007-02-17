@@ -19,7 +19,7 @@ const char *XrdCS2ReqCVSID = "$Id$";
 #define XRDOLBTRACETYPE ->
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbXmi.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
  
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -29,18 +29,21 @@ XrdOucError           *XrdCS2Req::eDest;
 XrdOucTrace           *XrdCS2Req::Trace;
 XrdOucName2Name       *XrdCS2Req::N2N = 0;
 XrdOucMutex            XrdCS2Req::myMutex;
-XrdOucSemaphore        XrdCS2Req::mySem;
-XrdCS2Req             *XrdCS2Req::nextFree =  0;
-int                    XrdCS2Req::numFree  =  0;
-int                    XrdCS2Req::numinQ   =  0;
-char                   XrdCS2Req::isWaiting=  0;
-XrdCS2Req             *XrdCS2Req::STab[Slots] = {0};
+XrdOucSemaphore        XrdCS2Req::mySem_R;
+XrdOucSemaphore        XrdCS2Req::mySem_W;
+XrdCS2Req             *XrdCS2Req::nextFree   =  0;
+int                    XrdCS2Req::numFree    =  0;
+int                    XrdCS2Req::numinQ_R   =  0;
+int                    XrdCS2Req::numinQ_W   =  0;
+char                   XrdCS2Req::isWaiting_R=  0;
+char                   XrdCS2Req::isWaiting_W=  0;
+XrdCS2Req             *XrdCS2Req::STab[Slots]= {0};
 
 /******************************************************************************/
 /*                                 A l l o c                                  */
 /******************************************************************************/
   
-XrdCS2Req *XrdCS2Req::Alloc(XrdOlbReq *reqP, const char *Path)
+XrdCS2Req *XrdCS2Req::Alloc(XrdOlbReq *reqP, const char *Path, int as_W)
 {
    XrdCS2Req *rp;
    int rc;
@@ -81,6 +84,7 @@ XrdCS2Req *XrdCS2Req::Alloc(XrdOlbReq *reqP, const char *Path)
    rp->Next    = 0;
    rp->Same    = 0;
    rp->myLock  = 0;
+   rp->is_W    = as_W;
    return rp;
 }
 
@@ -102,12 +106,12 @@ void XrdCS2Req::Queue()
                          else {Same = rp->Same; rp->Same = this;}
             if (prp) prp->Next = this;
            }
-    if (isWaiting) {isWaiting = 0; mySem.Post();}
-    numinQ++;
+    if (is_W) {if (isWaiting_W) {isWaiting_W = 0; mySem_W.Post(); numinQ_W++;}}
+       else   {if (isWaiting_R) {isWaiting_R = 0; mySem_R.Post(); numinQ_R++;}}
 
 // Do some debugging
 //
-   DEBUG(numinQ <<" in queue; added path=" <<thePath);
+   DEBUG((is_W ? numinQ_W : numinQ_R) <<" in queue; added path=" <<thePath);
    myMutex.UnLock();
 }
 
@@ -152,8 +156,8 @@ XrdCS2Req *XrdCS2Req::Remove(const char *Path)
        if (rp)
           {if (prp) prp->Next = rp->Next;
               else  STab[hval]= rp->Next;
-           numinQ--;
-           if (numinQ < 0) numinQ = 0;
+           if (rp->is_W) {numinQ_W--; if (numinQ_W < 0) numinQ_W = 0;}
+              else       {numinQ_R--; if (numinQ_R < 0) numinQ_R = 0;}
           }
       }
    myMutex.UnLock();
@@ -161,7 +165,7 @@ XrdCS2Req *XrdCS2Req::Remove(const char *Path)
 // Document the miss
 //
    if (!rp) eDest->Emsg("CS2Req", "Did not find request for", Path);
-      else {DEBUG(numinQ <<" in queue; pulled path=" <<rp->thePath);}
+      else {DEBUG((rp->is_W?numinQ_W:numinQ_R) <<" in Q; rmv path=" <<rp->thePath);}
    return rp;
 }
 
@@ -202,23 +206,45 @@ unsigned int XrdCS2Req::SlotNum(const char *Path)
 }
 
 /******************************************************************************/
-/*                                W a i t 4 Q                                 */
+/*                              W a i t 4 Q _ R                               */
 /******************************************************************************/
   
-int XrdCS2Req::Wait4Q()
+int XrdCS2Req::Wait4Q_R()
 {
    int temp;
 
 // Wait until something is in the queue
 //
    myMutex.Lock();
-   while(!numinQ)
-        {isWaiting = 1;
+   while(!numinQ_R)
+        {isWaiting_R = 1;
          myMutex.UnLock();
-         mySem.Wait();
+         mySem_R.Wait();
          myMutex.Lock();
         };
-   temp = numinQ;
+   temp = numinQ_R;
+   myMutex.UnLock();
+   return temp;
+}
+
+/******************************************************************************/
+/*                              W a i t 4 Q _ W                               */
+/******************************************************************************/
+  
+int XrdCS2Req::Wait4Q_W()
+{
+   int temp;
+
+// Wait until something is in the queue
+//
+   myMutex.Lock();
+   while(!numinQ_W)
+        {isWaiting_W = 1;
+         myMutex.UnLock();
+         mySem_W.Wait();
+         myMutex.Lock();
+        };
+   temp = numinQ_W;
    myMutex.UnLock();
    return temp;
 }

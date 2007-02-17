@@ -192,7 +192,7 @@ void XrdCS2DCMService::Rel()
   
 int XrdCS2DCM::CS2_Init()
 {
-
+    castor::BaseObject::initLog("", castor::SVC_NOMSG);
     return XrdCS2DCMService::Init();
 }
 
@@ -252,14 +252,17 @@ int XrdCS2DCM::CS2_Open(const char *Tid, const char *Fid, char *Lfn,
 /*                             C S 2 _ r D o n e                              */
 /******************************************************************************/
   
-int XrdCS2DCM::CS2_rDone(const char *Tid, unsigned long long reqID, char *Lfn)
+int XrdCS2DCM::CS2_rDone(const char *Tid, unsigned long long reqID, 
+                         const char *Lfn)
 {
+  const char *TraceID = "_rDone";
   XrdCS2DCMService *sp;
   int allOK = 1;
 
 // Obatin a service object
 //
-  sp = XrdCS2DCMService::Get();
+   TRACE(DEBUG, "Calling getUpdateDone(" <<reqID <<") for " <<Lfn);
+   sp = XrdCS2DCMService::Get();
 
 // Issue the done
 //
@@ -290,8 +293,10 @@ int XrdCS2DCM::CS2_rDone(const char *Tid, unsigned long long reqID, char *Lfn)
 /*                             C S 2 _ w D o n e                              */
 /******************************************************************************/
   
-int  XrdCS2DCM::CS2_wDone(const char *Tid, unsigned long long reqID, char *Pfn)
+int  XrdCS2DCM::CS2_wDone(const char *Tid, unsigned long long reqID, 
+                          const char *Pfn, int isNew)
 {
+  const char *TraceID = "_wDone";
   castor::stager::SubRequest subReq;
   XrdCS2DCMService *sp;
   struct stat buf;
@@ -307,17 +312,25 @@ int  XrdCS2DCM::CS2_wDone(const char *Tid, unsigned long long reqID, char *Pfn)
 
 // Obatin a service object
 //
-  sp = XrdCS2DCMService::Get();
+   sp = XrdCS2DCMService::Get();
 
 // Insert the requestid into the subRequest
 //
-  subReq.setId(reqID);
+   subReq.setId(reqID);
 
-// Issue the prepare for Migrate
+// Issue the prepare for Migration followed by a putDone (new files) or
+// getUpdateDone (existing files opened for r/w).
 //
-
-  try {sp->jobSvc->prepareForMigration(&subReq, fileSize);}
-
+  try {TRACE(DEBUG, "Calling prepareForMigration(" <<reqID <<',' <<fileSize <<") for " <<Pfn);
+       sp->jobSvc->prepareForMigration(&subReq, fileSize);
+       if (isNew)
+          {TRACE(DEBUG, "Calling putDone(" <<reqID <<") for " <<Pfn);
+//         sp->jobSvc->putDone(reqID);
+          } else {
+           TRACE(DEBUG, "Calling getUpdateDone(" <<reqID <<") for " <<Pfn);
+           sp->jobSvc->getUpdateDone(reqID);
+          }
+      }
   catch (castor::exception::Communication e)
         {XrdLog.Emsg("wDone", Tid, "Communications error;",
                                    e.getMessage().str().c_str());
@@ -332,6 +345,52 @@ int  XrdCS2DCM::CS2_wDone(const char *Tid, unsigned long long reqID, char *Pfn)
 // Another message here
 //
    if (!allOK) XrdLog.Emsg("wDone", Tid, "done processing failed for", Pfn);
+
+// Release the object and return
+//
+   sp->Rel();
+   return allOK;
+}
+
+/******************************************************************************/
+/*                             C S 2 _ w F a i l                              */
+/******************************************************************************/
+  
+int  XrdCS2DCM::CS2_wFail(const char *Tid, unsigned long long reqID, 
+                          const char *Pfn, int isNew)
+{
+  const char *TraceID = "_wFail";
+  XrdCS2DCMService *sp;
+  int allOK = 1;
+
+// Obatin a service object
+//
+   sp = XrdCS2DCMService::Get();
+
+// Issue the putFailed (new file) or getUpdateFailed (existing files open for rw)
+//
+  try {if (isNew)
+          {TRACE(DEBUG, "Calling putFailed(" <<reqID <<") for " <<Pfn);
+           sp->jobSvc->putFailed(reqID);
+          } else {
+           TRACE(DEBUG, "Calling getUpdateFailed(" <<reqID <<") for " <<Pfn);
+           sp->jobSvc->getUpdateFailed(reqID);
+          }
+      }
+  catch (castor::exception::Communication e)
+        {XrdLog.Emsg("wFail", Tid, "Communications error;",
+                                   e.getMessage().str().c_str());
+         allOK = 0;
+        }
+  catch (castor::exception::Exception e)
+        {XrdLog.Emsg("wFail",Tid, "Fatal exception;",
+                                  e.getMessage().str().c_str());
+         allOK = 0;;
+        }
+
+// Another message here
+//
+   if (!allOK) XrdLog.Emsg("wFail", Tid, "fail processing failed for", Pfn);
 
 // Release the object and return
 //

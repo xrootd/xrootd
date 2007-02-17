@@ -10,6 +10,8 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
+//         $Id$
+
 #include "XrdOlb/XrdOlbReq.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
@@ -24,7 +26,7 @@ class XrdCS2Req
 {
 public:
 
-static XrdCS2Req  *Alloc(XrdOlbReq *ReqP, const char *Path);
+static XrdCS2Req  *Alloc(XrdOlbReq *ReqP, const char *Path, int as_W=0);
 
        void        Lock() {myLock = 1; myMutex.Lock();}
 
@@ -42,7 +44,8 @@ static void        Set(XrdOlbXmiEnv *Env);
 
        void        UnLock() {myLock = 0; myMutex.UnLock();}
 
-static int         Wait4Q();
+static int         Wait4Q_R();
+static int         Wait4Q_W();
 
                    XrdCS2Req() {}
                   ~XrdCS2Req() {}
@@ -52,12 +55,14 @@ private:
 static unsigned int SlotNum(const char *Path);
 
 static XrdOucMutex      myMutex;
-static XrdOucSemaphore  mySem;
+static XrdOucSemaphore  mySem_R;
+static XrdOucSemaphore  mySem_W;
 static XrdCS2Req       *nextFree;
 static const int        Slots = 64;
 static XrdCS2Req       *STab[Slots];
 static int              numFree;
-static int              numinQ;
+static int              numinQ_R;
+static int              numinQ_W;
 static const int        maxFree   = 100;
 static const int        retryTime = 60;
 static XrdOucError     *eDest;         // -> Error message handler
@@ -68,8 +73,10 @@ static XrdOucName2Name *N2N;           // -> lfn mapper
        XrdCS2Req       *Same;
        XrdOlbReq       *olbReq;
        int              myLock;
+       int              is_W;
 static const unsigned int PathSize = 1024;
-static char             isWaiting;
+static char             isWaiting_R;
+static char             isWaiting_W;
        char             thePath[PathSize];
 };
 #endif

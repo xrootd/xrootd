@@ -10,6 +10,8 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
+//         $Id$
+
 #include "XrdOlb/XrdOlbReq.hh"
 #include "XrdOlb/XrdOlbXmi.hh"
 #include "XrdOuc/XrdOucPthread.hh"
@@ -18,16 +20,18 @@
 #include "castor/Constants.hpp"
 #include "castor/client/VectorResponseHandler.hpp"
 #include "castor/client/BaseClient.hpp"
+#include "castor/stager/Request.hpp"
 #include "castor/stager/StagePrepareToGetRequest.hpp"
 #include "castor/stager/StagePrepareToPutRequest.hpp"
 #include "castor/stager/StagePrepareToUpdateRequest.hpp"
+#include "castor/stager/StagePutRequest.hpp"
 #include "castor/stager/RequestHelper.hpp"
 #include "castor/stager/SubRequest.hpp"
 #include "castor/rh/IOResponse.hpp"
 #include "castor/exception/Exception.hpp"
 #include "castor/exception/Internal.hpp"
 #include "castor/exception/Communication.hpp"
-#include "stager_client_api_common.h"
+#include "stager_client_api_common.hpp"
 
 class XrdOucError;
 class XrdInet;
@@ -74,7 +78,9 @@ public:
 
        void InitXeq();
 
-       void MSSPoll();
+       void doPut(XrdOlbReq *Request, const char *path);
+
+       void MSSPoll(int reqType, const char *UserTag, int is_W);
 
             XrdCS2Xmi(XrdOlbXmiEnv *);
 
@@ -84,8 +90,12 @@ private:
 int   notSupported(XrdOlbReq *rp, const char *opn, const char *path);
 int   sendError(XrdOlbReq *reqP, int rc, const char *opn, const char *path);
 int   sendError(XrdCS2Req *reqP, const char *fn, int rc, const char *emsg);
+int   sendError(XrdOlbReq *reqP, const char *fn, int rc, const char *emsg);
 void  sendRedirect(XrdCS2Req *, struct stage_filequery_resp *);
+void  sendRedirect(XrdOlbReq *, castor::rh::IOResponse *, const char *);
 void  Init(int When=0, int force=0);
+void  InitXeqDel(castor::stager::FileRequest    *req,
+                 castor::stager::RequestHelper **reqH);
 
 // The objects to handle prepare (we never query them)
 //
@@ -97,6 +107,7 @@ void  Init(int When=0, int force=0);
 // The objects to handle stage
 //
    static const char                           *stageTag;
+   static const char                           *stageTag_ww;
    castor::stager::StagePrepareToGetRequest    *stageReq_ro;
    castor::stager::StagePrepareToUpdateRequest *stageReq_rw;
    castor::stager::StagePrepareToPutRequest    *stageReq_ww;

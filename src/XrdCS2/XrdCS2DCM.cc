@@ -17,7 +17,6 @@ const char *XrdCS2DCM2csCVSID = "$Id$";
 #include <iostream.h>
 #include <string.h>
 #include <stdio.h>
-#include <utime.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
@@ -26,20 +25,18 @@ const char *XrdCS2DCM2csCVSID = "$Id$";
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdCS2/XrdCS2DCM.hh"
+#include "XrdCS2/XrdCS2DCMFile.hh"
 
 /******************************************************************************/
-/*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
+/*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
 extern XrdScheduler      XrdSched;
 
 extern XrdOucError       XrdLog;
-
-extern XrdOucLogger      XrdLogger;
 
 extern XrdOucTrace       XrdTrace;
  
@@ -147,6 +144,8 @@ void XrdCS2DCM::doRequests()
                Miss = 0;
               } } } } } }
 
+         if (!Miss && !strcmp(Fid, "$cs2.fid")) Miss = "actual file id";
+
          if (Miss) {XrdLog.Emsg("doReq", "Missing", Miss, "in request.");
                     if (Tid) free(Tid);
                     if (Fid) free(Fid);
@@ -167,23 +166,18 @@ void XrdCS2DCM::doRequests()
 /*                                 E v e n t                                  */
 /******************************************************************************/
   
-void XrdCS2DCM::Event(const char *Tid, char *Eid, char *Mode, char *Lfn)
+void XrdCS2DCM::Event(const char *Tid, const char *Eid, const char *Mode,
+                      const char *Lfn)
 {
-   char thePath[2048];
-
-// Construct the filename of where the RequestID is recorded
-//
-   makeFname(thePath, Lfn);
 
 // Process the event
 //
         if (!strcmp("closer", Eid)
-        ||  !strcmp("closew", Eid)) Release(Tid, thePath, Lfn);
+        ||  !strcmp("closew", Eid)) Release(Tid, Lfn);
    else if (!strcmp("fwrite", Eid))
-           {struct utimbuf times;
-            times.actime = times.modtime = 0;
-            if (utime(thePath, (const struct utimbuf *)&times))
-               XrdLog.Emsg("Event", errno, "update time for file", thePath);
+           {char thePath[2048];
+            makeFname(thePath, APath, APlen, Lfn);
+            XrdCS2DCMFile::Modify(thePath);
            }
    else XrdLog.Emsg("Event", "Received unknown event -", Tid, Eid);
 }
@@ -196,26 +190,21 @@ void XrdCS2DCM::Stage(const char *Tid, char *Fid, char *Mode,
                             char *Lfn, char *Pfn)
 {
    const char *TraceID = "Stage";
-   char thePath[2048], xeqPath[1024], *op;
+   char thePath[2048], xeqPath[1024], oMode = 'r', *op;
    char *ofsEvent = getenv("XRDOFSEVENTS");
+   int thePathLen = makeFname(thePath, APath, APlen, Lfn);
 
                                   //12345678901234
-   struct iovec iox[12]= {{(char *)"#!/bin/sh\n",          10}, // 0
-                          {(char *)"echo $2 >>",           10}, // 1
-                          {thePath,   makeFname(thePath, Lfn)}, // 2
-                          {(char *)"\n",                    1}, // 3
-                          {(char *)"/bin/ln -s $1 ",       14}, // 4
-                          {Pfn,                   strlen(Pfn)}, // 5
-                          {(char *)"\n",                    1}, // 6
-                          {(char *)"echo stage OK ",       14}, // 7
-                          {Lfn,                   strlen(Lfn)}, // 9
-                          {(char *)" >> ",                  4}, // 9
-                          {ofsEvent,         strlen(ofsEvent)}, // 10
-                          {(char *)"\n",                    1}};// 11
-
-   struct iovec iov[3] = {{Mode,                            1}, // 0
-                          {Pfn,                   strlen(Pfn)}, // 1
-                          {(char *)"\n",                    1}};// 2
+   struct iovec iox[10]= {{(char *)"#!/bin/sh\n",          10}, // 0
+                          {(char *)"Rfn=",                  4}, // 1
+                          {thePath,                thePathLen}, // 2
+                          {(char *)"\nPfn=",                5}, // 3
+                          {Pfn,                   strlen(Pfn)}, // 4
+                          {(char *)"\nLfn=",                5}, // 5
+                          {Lfn,                   strlen(Lfn)}, // 6
+                          {(char *)"\nEfn=",                5}, // 7
+                          {ofsEvent,         strlen(ofsEvent)}, // 8
+                          {(char *)"\n",                    1}};// 9
    int Oflags, fnfd, rc;
 
 // Convert mode to open type flags
@@ -223,11 +212,11 @@ void XrdCS2DCM::Stage(const char *Tid, char *Fid, char *Mode,
    op = Mode; Oflags = 0;
    while(*op)
         {switch(*op++)
-               {case 'r': Oflags  = O_RDONLY; break;
-                case 'w': Oflags |= O_RDWR;   break;
-                case 'c': Oflags |= O_CREAT;  break;
-                case 't': Oflags |= O_TRUNC;  break;
-                case 'x': Oflags |= O_EXCL;   break;
+               {case 'r': Oflags  = O_RDONLY; oMode = 'r'; break;
+                case 'w': Oflags |= O_RDWR;   oMode = 'w'; break;
+                case 'c': Oflags |= O_CREAT;  oMode = 'c'; break;
+                case 't': Oflags |= O_TRUNC;               break;
+                case 'x': Oflags |= O_EXCL;                break;
                 default:  XrdLog.Emsg("Stage", "Invalid mode:", Mode, Lfn);
                           failRequest(Pfn);
                           return;
@@ -244,38 +233,21 @@ void XrdCS2DCM::Stage(const char *Tid, char *Fid, char *Mode,
 // Create a file that will hold this information
 //
    LockDir();
-   do {fnfd = open(thePath, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);}
-      while( fnfd < 0 && errno == EINTR);
-   if (fnfd < 0)
-      {XrdLog.Emsg("Stage", errno, "create file", thePath);
-       failRequest(Pfn);
+   if (!XrdCS2DCMFile::Create(thePath, oMode, Pfn))
+      {failRequest(Pfn);
        UnLockDir();
        return;
       }
-
-// Write the information into the file
-//
-   if (writev(fnfd, iov, 3) < 0)
-      {XrdLog.Emsg("Stage", errno, "write file", thePath);
-       failRequest(Pfn);
-       UnLockDir();
-       return;
-      }
-
-// All done here
-//
-   close(fnfd);
 
 // Construct name of the script that will create the symlink and append the
 // the subreqid to the database file we just created.
 //
-   strcpy(xeqPath,        MPath);
-   strcpy(xeqPath+MPlen,  "files/");
-   strcpy(xeqPath+MPlen+6,Fid);
+   strcpy(xeqPath,      PPath);
+   strcpy(xeqPath+PPlen,Fid);
 
 // Construct the script that will create the symlink to the physical file
 //
-   do {fnfd = open(xeqPath, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IXUSR);}
+   do {fnfd = open(xeqPath, O_RDWR|O_CREAT, S_IRUSR|S_IXUSR);}
       while( fnfd < 0 && errno == EINTR);
    if (fnfd < 0)
       {XrdLog.Emsg("Stage", errno, "create script", xeqPath);
@@ -286,7 +258,7 @@ void XrdCS2DCM::Stage(const char *Tid, char *Fid, char *Mode,
 
 // Write the information into the file
 //
-   if (writev(fnfd, iox, 12) < 0)
+   if (writev(fnfd, iox, 10) < 0)
       {XrdLog.Emsg("Stage", errno, "write script", xeqPath);
        failRequest(Pfn);
        UnLockDir();
@@ -298,10 +270,11 @@ void XrdCS2DCM::Stage(const char *Tid, char *Fid, char *Mode,
    close(fnfd);
    UnLockDir();
 
-// Now we can schedule the I/O
+// Now we can schedule the I/O. The I/O has already been scheduled for file
+// creation events. So, don't do it twice.
 //
    TRACE(DEBUG, Tid <<" open mode " << Mode <<" file " <<Fid <<' ' <<Lfn);
-   if (!CS2_Open(Tid, Fid, Lfn, Oflags, 0))
+   if (!(Oflags & O_CREAT) && !CS2_Open(Tid, Fid, Lfn, Oflags, 0))
       {failRequest(Pfn);
        return;
       }
@@ -335,24 +308,17 @@ void XrdCS2DCM::failRequest(char *Pfn)
 /*                             m a k e F n a m e                              */
 /******************************************************************************/
   
-int XrdCS2DCM::makeFname(char *thePath, const char *fn)
+int XrdCS2DCM::makeFname(char *thePath, const char *pfxPath, int pfxPlen,
+                                        const char *fn)
 {
-   static const char subdir[] = "0123456789abcdef";
-   static const int  subnum   = 16;
-   char *tp; int khash = 0;
+   char *tp;
 
 // Construct the filename of where we will record the RequestID and pfn
 //
-   strcpy(thePath, MPath); 
-   tp = thePath+MPlen+2;
-   while(*fn) {*tp = (*fn == '/' ? '%' : *fn); khash ^= *fn; tp++; fn++;}
+   strcpy(thePath, pfxPath);
+   tp = thePath+pfxPlen;
+   while(*fn) {*tp = (*fn == '/' ? '%' : *fn); tp++; fn++;}
    *tp = '\0';
-
-// Insert the directory we really want
-//
-   khash %= subnum;
-   thePath[MPlen]   = subdir[khash];
-   thePath[MPlen+1] = '/';
    return strlen(thePath);
 }
 
@@ -360,60 +326,49 @@ int XrdCS2DCM::makeFname(char *thePath, const char *fn)
 /*                               R e l e a s e                                */
 /******************************************************************************/
   
-void XrdCS2DCM::Release(const char *Tid, char *thePath, char *Lfn)
+int XrdCS2DCM::Release(const char *Tid, const char *Lfn, int Fail)
 {
    const char *TraceID = "Release";
-   struct stat buf;
-   char *np, *lp = 0, *Pfn=0, fileData[2048];
-   int fd, isMod, len;
+   XrdCS2DCMFile theFile;
+   char *Pfn=0, newPath[2048], thePath[2048];
+   int rc, isNew, isMod;
    unsigned long long reqID;
 
-// Read the contents of the file
+// Construct the name of the record file based on the Lfn
 //
-   do {fd = open(thePath, O_RDONLY);} while(fd < 0 && errno == EINTR);
-   if (fd < 0)
-      {if (errno == ENOENT)
+   makeFname(thePath, APath, APlen, Lfn);
+
+// Process the file
+//
+   if ((rc = theFile.Init(thePath, (Fail ? UpTime : 0))))
+      {if (rc == ENOENT)
           {TRACE(DEBUG, "Release file gone Tid=" <<Tid <<" path=" <<thePath);}
-          else XrdLog.Emsg("Release", errno, "open file", thePath);
-       return;
-      }
-   if (fstat(fd, &buf))
-       {XrdLog.Emsg("Release", errno, "stat", thePath);
-        close(fd); unlink(thePath);
-        return;
-       }
-   if ((len = read(fd, fileData, sizeof(fileData)-1)) < 0)
-      {XrdLog.Emsg("Release", errno, "read file", thePath);
-       unlink(thePath);
-       return;
+       return 0;
       }
 
 // Prepare to process the subreqid's
 //
-   close(fd); 
-   Pfn = fileData+1;
-   if (len < 2 || !(lp = index(fileData, '\n')))
-      {XrdLog.Emsg("Release", "Invalid file data in", thePath);
-       return;
-      }
-   *lp = '\0'; lp++;
-   isMod = (buf.st_mtime == 0); // Indicates file modified
-   fileData[len] = '\0';
+   isMod = theFile.Modified();
+   isNew = theFile.Mode() == 'c';
+   Pfn   = theFile.Pfn();
 
-// Issue putDone() or getDone() for each subreqid
+// We consider the request as "failed" if the file was opened for create but a
+// write never happened to the file.
 //
-   while(*lp)
-        {reqID = strtoull(lp, &np, 10);
-         if (*np != '\n')
-            {XrdLog.Emsg("Release", "Invalid reqID", lp, thePath);
-             break;
-            }
-         if (isMod) CS2_wDone(Tid, reqID, Lfn);
-            else    CS2_rDone(Tid, reqID, Pfn);
-         lp = np+1;
+   if (isNew && !isMod) Fail = 1;
+
+// Issue updateFailed(), putFail(), putDone() or getDone() for each subreqid
+//
+   while((reqID = theFile.reqID()))
+        {if (isMod)
+            if (Fail) CS2_wFail(Tid, reqID, Pfn, isNew);
+               else   CS2_wDone(Tid, reqID, Pfn, isNew);
+            else      CS2_rDone(Tid, reqID, Lfn);
         }
 
-// Delete the file
+// Move the file to the "closed" directory
 //
-   unlink(thePath);
+   makeFname(newPath, CPath, CPlen, Lfn);
+   rename(thePath, newPath);
+   return 1;
 }

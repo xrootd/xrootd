@@ -12,6 +12,8 @@
 
 const char *XrdCS2DCMConfigCVSID = "$Id$";
 
+#include <dirent.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <iostream.h>
 #include <string.h>
@@ -23,6 +25,8 @@ const char *XrdCS2DCMConfigCVSID = "$Id$";
 #include "Xrd/XrdTrace.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
+#include "XrdNet/XrdNetLink.hh"
+#include "XrdNet/XrdNetWork.hh"
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
@@ -30,6 +34,7 @@ const char *XrdCS2DCMConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdCS2/XrdCS2DCM.hh"
+#include "XrdCS2/XrdCS2DCMFile.hh"
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
@@ -42,6 +47,8 @@ extern XrdOucError       XrdLog;
 extern XrdOucLogger      XrdLogger;
 
 extern XrdOucTrace       XrdTrace;
+
+       XrdNetWork        XrdCS2Net(&XrdLog);
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -65,6 +72,19 @@ private:
 time_t midnite;
 };
 
+class XrdCleanup : XrdJob
+{
+public:
+
+     void DoIt() {extern XrdCS2DCM XrdCS2d;
+                  XrdCS2d.Cleanup();
+                  delete this;
+                 }
+
+          XrdCleanup() : XrdJob("cleanup") {}
+         ~XrdCleanup() {}
+};
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -74,8 +94,19 @@ XrdCS2DCM::XrdCS2DCM(void) : Request(&XrdLog)
 
 // Preset all variables with common defaults
 //
+   APath    = 0;    // Path to active files
+   APlen    = 0;
+   CPath    = 0;    // Path to closed files
+   CPlen    = 0;
+   EPath    = 0;    // Path to our event FIFO
+   EPlen    = 0;
    MPath    = strdup("/tmp/XrdCS2d/");
    MPlen    = strlen(MPath);
+   PPath    = 0;    // Path to pending files
+   PPlen    = 0;
+   Parent   = getppid();
+   UpTime   = time(0);
+   QLim     = 100;
 }
   
 /******************************************************************************/
@@ -91,13 +122,11 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 
   Output:   1 upon success or 0 otherwise.
 */
-   const char *subdir = "0123456789abcdef";
-   const int   subnum = 16;
    struct stat buf;
    XrdNetSocket *EventSock;
-   int n, EventFD, retc, minT, maxT = 100, NoGo = 0;
+   int n, EventFD, retc, NoGo = 0;
    const char *inP;
-   char c, buff[2048], *logfn = 0;
+   char c, buff[2048], *olbP, *logfn = 0;
    extern char *optarg;
    extern int optind, opterr;
 
@@ -114,7 +143,7 @@ int XrdCS2DCM::Configure(int argc, char **argv)
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
                  break;
-       case 'q': if (!(maxT = atoi(optarg)))
+       case 'q': if (!(QLim = atoi(optarg)))
                     {XrdLog.Emsg("Config", "Invalid -q value -",optarg);NoGo=1;}
                  break;
        default:  if (index("lq", (int)(*(argv[optind-1]+1))))
@@ -156,25 +185,38 @@ int XrdCS2DCM::Configure(int argc, char **argv)
        return 0;
       }
 
-// Create the "files" directory for intermediate symlinks
+// Create the "active" directory for known active files
 //
    strcpy(buff, MPath); 
-   strcat(buff, "files/");
+   strcat(buff, "active/");
    if ((retc = XrdOucUtils::makePath(buff,0770)))
-      {XrdLog.Emsg("Config", retc, "create symlink cache", buff);
+      {XrdLog.Emsg("Config", retc, "create active file cache", buff);
        return 0;
       }
+   APath = strdup(buff);
+   APlen = strlen(buff);
 
-// Now create 16 cache directories (0 through f)
+// Create the "closed" directory for known closed files
 //
-   buff[MPlen+1] = '/'; buff[MPlen+2] ='\0';
-   for (n = 0; n < subnum; n++)
-       {buff[MPlen] = subdir[n];
-        if ((retc = XrdOucUtils::makePath(buff,0770)))
-           {XrdLog.Emsg("Config", retc, "create recording cache", buff);
-            return 0;
-           }
-       }
+   strcpy(buff, MPath); 
+   strcat(buff, "closed/");
+   if ((retc = XrdOucUtils::makePath(buff,0770)))
+      {XrdLog.Emsg("Config", retc, "create closed file cache", buff);
+       return 0;
+      }
+   CPath = strdup(buff);
+   CPlen = strlen(buff);
+
+// Create the "pending" directory for known pending files
+//
+   strcpy(buff, MPath); 
+   strcat(buff, "pending/");
+   if ((retc = XrdOucUtils::makePath(buff,0770)))
+      {XrdLog.Emsg("Config", retc, "create pending file cache", buff);
+       return 0;
+      }
+   PPath = strdup(buff);
+   PPlen = strlen(buff);
 
 // Check if we should continue
 //
@@ -191,21 +233,27 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 //
    XrdLog.Emsg("Config", "XrdCS2d initialization started.");
 
-// Set the number of threads we want and start the scheduler
+// Start the Scheduler
 //
-   if ((minT = maxT/10) < 10) minT = 10;
-   if (minT > maxT) maxT = minT;
-   XrdSched.setParms(minT, maxT, minT, maxT);
-   XrdSched.Start(minT);
+   XrdSched.Start();
 
-// Create the notification path (r/w for us and our group)
+// Create our notification path (r/w for us and our group)
 //
    if (!(EventSock = XrdNetSocket::Create(&XrdLog, MPath, "CS2.events",
                                    0660, XRDNET_FIFO))) NoGo = 1;
       else {EventFD = EventSock->Detach();
             delete EventSock;
             Events.Attach(EventFD, 32*1024);
+            sprintf(buff, "%sCS2.events", MPath);
+            EPath = strdup(buff); EPlen = strlen(buff);
            }
+
+// Create the notification path to the local olbd
+//
+   if ((olbP = getenv("XRDOLBPATH")) && *olbP)
+      {sprintf(buff, "%solbd.notes", olbP);
+       if (!(olbdLink = XrdCS2Net.Relay(buff, XRDNET_SENDONLY))) NoGo = 1;
+      } else olbdLink = 0;
 
 // Attach standard-in to our stream
 //
@@ -227,15 +275,164 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
 /******************************************************************************/
+/*                               C l e a n u p                                */
+/******************************************************************************/
+
+void XrdCS2DCM::Cleanup()
+{
+   const int oneHour = 60*60*1000;
+   struct dirent *dir;
+   DIR *DFD;
+   char *cp, buff[16], thePath[2048];
+   int fnum = 0;
+   time_t Deadline;
+
+// Open the directory that records active files
+//
+    if (!(DFD = opendir(APath)))
+       {XrdLog.Emsg("Config", errno, "open active files directory", APath);
+        return;
+       }
+
+// For each file in this directory we must issue a getdone or putfail
+//
+    errno = 0;
+    while((dir = readdir(DFD)))
+         {if (dir->d_name[0] != '%') continue;
+          cp = dir->d_name;
+          while(*cp) {if (*cp == '%') *cp = '/'; cp++;}
+          fnum += Release("CS2d", dir->d_name, 1);
+          errno = 0;
+         }
+
+    if (errno)
+        XrdLog.Emsg("Config",errno,"cleaning up active file directory", APath);
+        else {sprintf(buff, "%d", fnum);
+              XrdLog.Emsg("config", buff, "file(s) cleaned up in", APath);
+             }
+
+    closedir(DFD);
+
+// Now, we will scan through the list of closed files every hour to see if we
+// can delete the symlink that points to the file. We also scan through the
+// pending directory and delete any stale files.
+//
+   do {XrdOucTimer::Wait(oneHour);
+       if (!(DFD = opendir(CPath)))
+          {XrdLog.Emsg("Config", errno, "open closed files directory", APath);
+           continue;
+          }
+       errno = 0;
+       strcpy(thePath, CPath);
+       while((dir = readdir(DFD)))
+            {if (dir->d_name[0] != '%') continue;
+             strcpy(thePath+CPlen, dir->d_name);
+             Cleanup(thePath);
+             errno = 0;
+            }
+       if (errno)
+           XrdLog.Emsg("Config",errno,"cleaning up closed file directory", CPath);
+       closedir(DFD);
+
+       if (!(DFD = opendir(PPath)))
+          {XrdLog.Emsg("Config", errno, "open pending files directory", PPath);
+           continue;
+          }
+       errno = 0;
+       strcpy(thePath, PPath);
+       Deadline = time(0) - (60*60);
+       while((dir = readdir(DFD)))
+            {if (*(dir->d_name) != '.')
+                {strcpy(thePath+PPlen, dir->d_name);
+                 rmStale(thePath, Deadline);
+                 errno = 0;
+                }
+            }
+       if (errno)
+           XrdLog.Emsg("Config",errno,"cleaning up pending file directory", PPath);
+       closedir(DFD);
+      } while(1);
+}
+  
+/******************************************************************************/
+
+void XrdCS2DCM::Cleanup(const char *thePath)
+{
+   const char *TraceID = "Cleanup";
+   XrdCS2DCMFile theFile;
+   struct stat buf;
+   struct iovec iov[3];
+
+// Read the contents of the file and notify the olbd
+//
+   if (!theFile.Init(thePath))
+      {if (!stat(theFile.Pfn(), &buf)) return;
+       TRACE(DEBUG, "Removed symlink " <<theFile.Pfn());
+       unlink(theFile.Pfn());
+       if (olbdLink)
+          {iov[0].iov_base = (char *)"gone "; iov[0].iov_len = 5;
+           iov[1].iov_base = theFile.Pfn();   iov[1].iov_len = strlen(theFile.Pfn());
+           iov[2].iov_base = (char *)"\n";    iov[0].iov_len = 1;
+           olbdLink->Send(iov, 3);
+           unlink(thePath);
+          }
+      }
+}
+
+/******************************************************************************/
+/*                               r m S t a l e                                */
+/******************************************************************************/
+  
+void XrdCS2DCM::rmStale(const char *thePath, time_t Deadline)
+{
+   const char *TraceID = "rmStale";
+   struct stat buf;
+
+   if (!stat(thePath, &buf) && buf.st_atime > Deadline) return;
+
+   TRACE(DEBUG, "Removed file " <<thePath);
+   unlink(thePath);
+}
+
+/******************************************************************************/
 /*                                 S e t u p                                  */
 /******************************************************************************/
   
 int XrdCS2DCM::Setup()
 {
+   char thePath[1024];
+   int fnfd, plen;
+   pid_t prevParent;
+
+// Initialize Castor
+//
+   if (!CS2_Init()) return 1;
+
 // At this point a warm start would be signified by our parent pid being the
 // same as when we last started. Otherwise, this is a cold start and we need
 // to go through all files that we had opened and either tell Castor to
-// release them or to prepare them for migration. For now, we ignore it.
+// release them or to prepare them for migration.
 //
-   return !CS2_Init();
+   strcpy(thePath, MPath); strcat(thePath, "CS2d.ppid");
+   do {fnfd = open(thePath, O_RDWR|O_CREAT, S_IRUSR|S_IWUSR);}
+      while(fnfd < 0 && errno == EINTR);
+   if (fnfd < 0)
+      {XrdLog.Emsg("Config", errno, "open file", thePath);
+       return 0;
+      }
+
+   if ((plen = read(fnfd, &prevParent, sizeof(prevParent))) < 0)
+      {XrdLog.Emsg("Config", errno, "read file", thePath); plen = 0;}
+
+   if (plen && prevParent != Parent)
+      {XrdJob *jp = (XrdJob *)new XrdCleanup();
+       XrdSched.Schedule(jp);
+       plen = 0;
+      }
+
+   if (!plen && write(fnfd, &Parent, sizeof(Parent)) < 0)
+       XrdLog.Emsg("Config", errno, "write file", thePath);
+
+   close(fnfd);
+   return 0;
 }

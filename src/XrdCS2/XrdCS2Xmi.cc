@@ -8,10 +8,15 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
+//         $Id$
+
+const char *XrdCS2Xmi2csCVSID = "$Id$";
+
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <vector>
 
 #include "Cns_api.h"
 
@@ -22,7 +27,7 @@
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucTimer.hh"
-#include "XrdOuc/XrdOucPlatform.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #define XRDOLBTRACETYPE ->
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
@@ -64,14 +69,39 @@ private:
 
 XrdCS2Req *xmiReq;
 };
+
+struct PollArgs
+       {XrdCS2Xmi  *xmiP;
+        const char *UserTag;
+        int         reqType;
+        int         is_W;
+       };
+
+class XmiJob : XrdJob
+{
+public:
+
+void DoIt() {XmiP->doPut(ReqP, Path); delete this;}
+
+     XmiJob(XrdCS2Xmi *xp,  XrdOlbReq *reqp, const char *path) : XrdJob("CS2 xmi put")
+           {XmiP = xp; ReqP = reqp; Path = strdup(path);}
+    ~XmiJob() {if (Path) delete Path;}
+
+private:
+
+XrdCS2Xmi *XmiP;
+XrdOlbReq *ReqP;
+char      *Path;
+};
 }
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-const char   *XrdCS2Xmi::prepTag  = "OlbXmiPrep";
-const char   *XrdCS2Xmi::stageTag = "OlbXmiStage";
+const char   *XrdCS2Xmi::prepTag     = "OlbXmiPrep";
+const char   *XrdCS2Xmi::stageTag    = "OlbXmiStage";
+const char   *XrdCS2Xmi::stageTag_ww = "OlbXmiStageWW";
 
 XrdOucError  *XrdCS2Xmi::eDest;
 XrdInet      *XrdCS2Xmi::iNet;
@@ -84,9 +114,9 @@ XrdOucTrace  *XrdCS2Xmi::Trace;
   
 void *XrdCS2Xmi_StartPoll(void *parg)
 {  
-   XrdCS2Xmi *requestProcessor = (XrdCS2Xmi *)parg;
+   CS2Xmi::PollArgs *pArgs = (CS2Xmi::PollArgs *)parg;
 
-   requestProcessor->MSSPoll();
+   pArgs->xmiP->MSSPoll(pArgs->reqType, pArgs->UserTag, pArgs->is_W);
 
    return (void *)0;
 }
@@ -215,7 +245,10 @@ void XrdCS2Xmi::Init(int deltatime, int force)
 void XrdCS2Xmi::InitXeq()
 {
    EPNAME("InitXeq");
-   static int PollerOK = 0;
+   static int PollerOK_R = 0;
+   static CS2Xmi::PollArgs PA_rw = {this, stageTag,    BY_USERTAG_GETNEXT, 0};
+// static CS2Xmi::PollArgs PA_ww = {this, stageTag_ww, BY_USERTAG,         1};
+   castor::stager::SubRequest *subreq;
    pthread_t tid;
    int       retc, TimeOut;
    mode_t    mask;
@@ -237,14 +270,10 @@ void XrdCS2Xmi::InitXeq()
 
 // Delete any objects we may have allocated here and try again
 //
-   if (prepReq)      {delete prepReq;      prepReq      = 0;}
-   if (prepReqH)     {delete prepReqH;     prepReqH     = 0;}
-   if (stageReq_ro)  {delete stageReq_ro;  stageReq_ro  = 0;}
-   if (stageReq_rw)  {delete stageReq_rw;  stageReq_rw  = 0;}
-   if (stageReq_ww)  {delete stageReq_ww;  stageReq_ww  = 0;}
-   if (stageHlp_ro)  {delete stageHlp_ro;  stageHlp_ro  = 0;}
-   if (stageHlp_rw)  {delete stageHlp_rw;  stageHlp_rw  = 0;}
-   if (stageHlp_ww)  {delete stageHlp_ww;  stageHlp_ww  = 0;}
+   if (prepReq)     {InitXeqDel(prepReq,     &prepReqH);    prepReq    =0;}
+   if (stageReq_ro) {InitXeqDel(stageReq_ro, &stageHlp_ro); stageReq_ro=0;}
+   if (stageReq_rw) {InitXeqDel(stageReq_rw, &stageHlp_rw); stageReq_rw=0;}
+   if (stageReq_ww) {InitXeqDel(stageReq_ww, &stageHlp_ww); stageReq_ww=0;}
 
 // First off, tell the base object to stop logging
 //
@@ -263,6 +292,10 @@ try {
   prepReq->setMask(mask);
   prepReq->setUserTag(prepTag);
 
+  subreq = new castor::stager::SubRequest();
+  subreq->setRequest(prepReq);
+  prepReq->addSubRequests(subreq);
+
   prepReqH   = new castor::stager::RequestHelper(prepReq);
   prepReqH->setOptions(&Opts);
 
@@ -275,6 +308,10 @@ try {
   stageReq_ro = new castor::stager::StagePrepareToGetRequest;
   stageReq_ro->setUserTag(stageTag);
 
+  subreq = new castor::stager::SubRequest();
+  subreq->setRequest(stageReq_ro);
+  stageReq_ro->addSubRequests(subreq);
+
   stageHlp_ro = new castor::stager::RequestHelper(stageReq_ro);
   stageHlp_ro->setOptions(&Opts);
 
@@ -282,12 +319,20 @@ try {
   stageReq_rw->setUserTag(stageTag);
   stageReq_rw->setMask(mask);
 
+  subreq = new castor::stager::SubRequest();
+  subreq->setRequest(stageReq_rw);
+  stageReq_rw->addSubRequests(subreq);
+
   stageHlp_rw = new castor::stager::RequestHelper(stageReq_rw);
   stageHlp_rw->setOptions(&Opts);
 
   stageReq_ww = new castor::stager::StagePrepareToPutRequest;
-  stageReq_ww->setUserTag(stageTag);
+  stageReq_ww->setUserTag(stageTag_ww);
   stageReq_ww->setMask(mask);
+
+  subreq = new castor::stager::SubRequest();
+  subreq->setRequest(stageReq_ww);
+  stageReq_ww->addSubRequests(subreq);
 
   stageHlp_ww = new castor::stager::RequestHelper(stageReq_ww);
   stageHlp_ww->setOptions(&Opts);
@@ -313,11 +358,19 @@ try {
 
 // Start the thread that handles polling
 //
-   if (!PollerOK)
-      if ((retc = XrdOucThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)this,
-                                     XRDOUCTHREAD_BIND, "cs2 request polling")))
-         eDest->Emsg("CS2Xmi", retc, "create polling thread");
-         else PollerOK = 1;
+   if (!PollerOK_R)
+      if ((retc = XrdOucThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_rw,
+                                     XRDOUCTHREAD_BIND, "cs2 r request polling")))
+         eDest->Emsg("CS2Xmi", retc, "create read polling thread");
+         else PollerOK_R = 1;
+
+// Start the thread that handles polling
+//
+// if (!PollerOK_W)
+//    if ((retc = XrdOucThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_ww,
+//                                   XRDOUCTHREAD_BIND, "cs2 w request polling")))
+//       eDest->Emsg("CS2Xmi", retc, "create write polling thread");
+//       else PollerOK_W = 1;
 
 // All done
 //
@@ -326,12 +379,33 @@ try {
    initMutex.UnLock();
    eDest->Say("XrdCS2Xmi: CS2 interface initialized.");
 }
+
+/******************************************************************************/
+/*                            I n i t X e q D e l                             */
+/******************************************************************************/
+  
+void XrdCS2Xmi::InitXeqDel(castor::stager::FileRequest    *req,
+                           castor::stager::RequestHelper **reqH)
+{
+   castor::stager::SubRequest *subreq;
+
+// Delete the pre-allocated subrequest
+//
+   subreq = *(req->subRequests().begin());
+   delete subreq;
+   req->subRequests().clear();
+
+// Now delete the actual request and its helper (whatever that is)
+//
+   delete req;
+   if (*reqH) {delete *reqH; *reqH = 0;}
+}
  
 /******************************************************************************/
 /*                               M S S P o l l                                */
 /******************************************************************************/
   
-void XrdCS2Xmi::MSSPoll()
+void XrdCS2Xmi::MSSPoll(int reqType, const char *UserTag, int is_W)
 {
    EPNAME("MSSPoll");
    struct stage_query_req       *requests;  // <- this is allocated by next
@@ -348,13 +422,13 @@ void XrdCS2Xmi::MSSPoll()
 // external one copies large amounts of data that we just don't need, sigh.
 //
    create_query_req(&requests, 1);
-   requests[0].type  = BY_USERTAG_GETNEXT;
-   requests[0].param = (void *)stageTag;
+   requests[0].type  = reqType;
+   requests[0].param = (void *)UserTag;
 
 // Endless loop waiting for thing to query. Eventually, we will have to be
 // responsive to file creation requests (though who knows how).
 //
-do{pcnt = XrdCS2Req::Wait4Q();
+do{pcnt = (is_W ? XrdCS2Req::Wait4Q_W() : XrdCS2Req::Wait4Q_R());
    DEBUG("polling for " <<pcnt <<" request(s)");
    while(pcnt > 0)
         {*errbuf = '\0';
@@ -536,12 +610,12 @@ int XrdCS2Xmi::Remove(XrdOlbReq *Request, const char *path)
 int XrdCS2Xmi::Select( XrdOlbReq *Request, const char *path, int opts)
 {
    EPNAME("Select");
-   castor::stager::Request *req;
-   castor::stager::SubRequest *subreq = new castor::stager::SubRequest();
+   castor::stager::FileRequest *req;
+   castor::stager::SubRequest *subreq;
    std::vector<castor::rh::Response *>respvec;
    castor::client::VectorResponseHandler rh(&respvec);
-   XrdCS2Req *myRequest;
-   int dopoll = 0;
+   XrdCS2Req *myRequest = 0;
+   castor::rh::IOResponse *fr;
    const char *rType;
 
 // Perform an initialization Check
@@ -549,42 +623,35 @@ int XrdCS2Xmi::Select( XrdOlbReq *Request, const char *path, int opts)
    if (!initDone) {Request->Reply_Wait(retryTime); return 1;}
    stage_apiInit(&Tinfo);
 
-// Allocate a request object for this request
-//
-   if (!(myRequest = XrdCS2Req::Alloc(Request, path))) return 1;
-
-// Create a new Castor request
-//
-    subreq->setProtocol(std::string("xroot"));
-    subreq->setFileName(std::string(myRequest->Path()));
-    subreq->setModeBits(0744);
-
 // There are three possibilities here:r/o files, r/w files, new files
 // We need to separate each type and issue the request appropriately
 // Too bad the class design is not orthogonal. It would have been easier.
+// Each request object has been assigned a single subrequest object that
+// we can reuse. As prepareToPut does nothing really useful, we will
+// need to schedule a real put request after issuing it.
 //
-        if (opts & XMI_NEW) {stageReq_ww->addSubRequests(subreq);
-                             subreq->setRequest(stageReq_ww);
-                             req = stageReq_ww;
-                             rType = "Prep2Put";
-                            }
-   else if (opts & XMI_RW)  {stageReq_rw->addSubRequests(subreq);
-                             subreq->setRequest(stageReq_rw);
-                             req = stageReq_rw;
-                             rType = "Prep2Upd"; dopoll = 1;
-                            }
-   else                     {stageReq_ro->addSubRequests(subreq);
-                             subreq->setRequest(stageReq_ro);
-                             req = stageReq_ro;
-                             rType = "Prep2Get"; dopoll = 1;
-                            }
+        if (opts & XMI_NEW) {req = stageReq_ww; rType = "Prep2Put";}
+   else if (opts & XMI_RW)  {req = stageReq_rw; rType = "Prep2Upd";}
+   else                     {req = stageReq_ro; rType = "Prep2Get";}
+
+// Allocate an Xmi request object for this request
+//
+   if (!(myRequest = XrdCS2Req::Alloc(Request,path,opts & XMI_NEW))) return 1;
+   myRequest->Lock();
+
+// Create a new Castor request
+//
+    subreq = *(req->subRequests().begin());
+    subreq->setProtocol(std::string("xroot"));
+    subreq->setFileName(std::string(myRequest->Path()));
+    subreq->setModeBits(0744);
+    subreq->setXsize(0);  // for now
 
 // Now send the request (we have no idea what to do with reqid which will
 // generate a warning, sigh). We also need to lock the response queue
 // for this request prior to adding it to the queue of pending responses.
 // Since Recycle() automatically unlocks the queue so we don't explictly do it.
 //
-   myRequest->Lock();
    try   {std::string reqid = stageClient->sendRequest(req, &rh);
           DEBUG(rType << " reqid=" <<reqid.c_str() <<" path=" <<path);
          }
@@ -611,13 +678,21 @@ int XrdCS2Xmi::Select( XrdOlbReq *Request, const char *path, int opts)
        return 1;
       }
 
+//
+int i, n  =  respvec.size();
+for (i = 0; i < n; i++)
+   {fr = dynamic_cast<castor::rh::IOResponse*>(respvec[i]);
+   if (0 != fr)
+   {DEBUG("respvec " <<i <<"ec=" <<fr->errorCode() <<' '
+          <<fr->errorMessage().c_str() <<" fn=" <<fr->fileName().c_str());}
+  }
+
 // Proccess the response.
 //
-   castor::rh::IOResponse* fr =
-               dynamic_cast<castor::rh::IOResponse*>(respvec[0]);
+   fr = dynamic_cast<castor::rh::IOResponse*>(respvec[0]);
    if (0 == fr)
       {myRequest->Recycle();
-       eDest->Emsg("Select", "Invalid reesponse object for select", path);
+       eDest->Emsg("Select", "Invalid response object for select", path);
        Request->Reply_Error("Internal Castor2 error casting response.");
        return 1;
       }
@@ -626,7 +701,11 @@ int XrdCS2Xmi::Select( XrdOlbReq *Request, const char *path, int opts)
 //
    if (fr->errorCode())
       sendError(myRequest,path,fr->errorCode(),fr->errorMessage().c_str());
-      else myRequest->Queue();
+      else if (opts & XMI_NEW) 
+              {CS2Xmi::XmiJob *jp = new CS2Xmi::XmiJob(this, Request, path);
+               myRequest->Recycle();
+               Sched->Schedule((XrdJob *)jp);
+              } else myRequest->Queue();
 
 // Free response data and return
 //
@@ -671,6 +750,91 @@ int XrdCS2Xmi::Stat(XrdOlbReq *Request, const char *path)
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                                 d o P u t                                  */
+/******************************************************************************/
+  
+void XrdCS2Xmi::doPut(XrdOlbReq *Request, const char *path)
+{
+   EPNAME("doPut");
+   castor::stager::StagePutRequest  putReq_ww;
+   castor::stager::RequestHelper    putHlp_ww(&putReq_ww);
+   castor::client::BaseClient       putClient(stage_getClientTimeout());
+// castor::stager::Request         *req;
+   castor::stager::SubRequest      *subreq = new castor::stager::SubRequest();
+   std::vector<castor::rh::Response *>respvec;
+   castor::client::VectorResponseHandler rh(&respvec);
+   mode_t    mask;
+
+// Obtain our umask (sort of silly if you ask me)
+//
+   mask = umask(0);
+   umask(mask);
+
+// Initialize objects used for put processing.
+//
+   putClient.setOption(&Opts);
+   putHlp_ww.setOptions(&Opts);
+   putReq_ww.setUserTag(stageTag_ww);
+   putReq_ww.setMask(mask);
+   putReq_ww.addSubRequests(subreq);
+   subreq->setRequest(&putReq_ww);
+   subreq->setProtocol(std::string("xroot"));
+   subreq->setFileName(std::string(path));
+   subreq->setModeBits(0744);
+
+// Now send the request (we have no idea what to do with reqid which will
+// generate a warning, sigh). We also need to lock the response queue
+// for this request prior to adding it to the queue of pending responses.
+// Since Recycle() automatically unlocks the queue so we don't explictly do it.
+//
+   try   {std::string reqid = putClient.sendRequest(&putReq_ww, &rh);
+          DEBUG("Put" << " reqid=" <<reqid.c_str() <<" path=" <<path);
+         }
+   catch (castor::exception::Communication e)
+         {eDest->Emsg("Put","Communications error;",e.getMessage().str().c_str());
+          Request->Reply_Wait(retryTime);
+          return;
+         }
+   catch (castor::exception::Exception e)
+         {eDest->Emsg("Select","sendRequest exception;",e.getMessage().str().c_str());
+          Request->Reply_Error("Unexpected communications exception.");
+          return;
+         }
+
+// Make sure we have an initial response.
+//
+   if (respvec.size() <= 0)
+      {eDest->Emsg("Put", "No response for put", path);
+       Request->Reply_Error("Internal Castor2 error receiving put response.");
+       return;
+      }
+
+// Proccess the response.
+//
+   castor::rh::IOResponse* fr =
+               dynamic_cast<castor::rh::IOResponse*>(respvec[0]);
+   if (0 == fr)
+      {eDest->Emsg("Select", "Invalid response object for put", path);
+       Request->Reply_Error("Internal Castor2 error casting put response.");
+       return;
+      }
+
+// Send an error or just add this to the queue (sendError/Recycle does unlock)
+//
+   if (fr->errorCode())
+      sendError(Request,path,fr->errorCode(),fr->errorMessage().c_str());
+      else {DEBUG(stage_fileStatusName(fr->status()) <<" rc=" << fr->errorCode()
+                  <<" path=" <<fr->server().c_str() <<':' <<fr->fileName().c_str()
+                  <<" (" <<fr->castorFileName().c_str() <<") id=" <<fr->id());
+            sendRedirect(Request, fr, path);
+           }
+
+// Free response data and return
+//
+   delete respvec[0];
+}
+
 /******************************************************************************/
 /*                             s e n d E r r o r                              */
 /******************************************************************************/
@@ -736,6 +900,21 @@ int XrdCS2Xmi::sendError(XrdCS2Req *reqP, const char *fn, int rc, const char *em
 }
 
 /******************************************************************************/
+int XrdCS2Xmi::sendError(XrdOlbReq *reqP, const char *fn, int rc, const char *emsg)
+{
+   EPNAME("sendError");
+   char buff[1024];
+
+   snprintf(buff, sizeof(buff), "Staging error %d: %s (%s)", rc, 
+                                 sstrerror(rc), (emsg ? emsg : ""));
+   buff[sizeof(buff)-1] = '\0';
+   DEBUG("msg='" <<buff <<"'; path=" <<fn);
+
+   reqP->Reply_Error(buff);
+   return 1;
+}
+
+/******************************************************************************/
 /*                          s e n d R e d i r e c t                           */
 /******************************************************************************/
   
@@ -751,6 +930,23 @@ void XrdCS2Xmi::sendRedirect(XrdCS2Req                   *reqP,
       DEBUG("-> " <<resp->diskserver <<'?' <<buff <<" path=" <<reqP->Path());
       reqP->Request()->Reply_Redirect(resp->diskserver, 0, buff);
      } while((reqP = reqP->Recycle()));
+}
+
+/******************************************************************************/
+  
+void XrdCS2Xmi::sendRedirect(XrdOlbReq                   *reqP,
+                             castor::rh::IOResponse      *resp,
+                             const char                  *Path)
+{
+   EPNAME("sendRedirect");
+   char buff[256];
+
+// Send the redirect
+//
+   sprintf(buff, "&cs2.fid=%llu@%s", resp->fileId(),
+                 (Opts.stage_host ? Opts.stage_host : ""));
+   DEBUG("-> " <<resp->server().c_str() <<'?' <<buff <<" path=" <<Path);
+   reqP->Reply_Redirect(resp->server().c_str(), 0, buff);
 }
 
 /******************************************************************************/
