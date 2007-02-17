@@ -502,10 +502,17 @@ int XrdOfsFile::open(const char          *path,      // In
 
        // Create the file
        //
-       open_flag  = O_RDWR|O_TRUNC; mp = &XrdOfsOpen_RW;
-       if ((retc = XrdOfsOss->Create(path, Mode & S_IAMB, Open_Env, crOpts)))
-          return XrdOfsFS.Emsg(epname, error, retc, "create", path);
+       if ((retc = XrdOfsOss->Create(tident, path, Mode & S_IAMB, Open_Env,
+                                     ((open_flag << 8) | crOpts))))
+          {if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
+           if (retc == -EINPROGRESS)
+              {XrdOfsFS.evrObject.Wait4Event(path,&error);
+               return XrdOfsFS.fsError(error, retc);
+              }
+           return XrdOfsFS.Emsg(epname, error, retc, "create", path);
+          }
        if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
+       open_flag  = O_RDWR|O_TRUNC; mp = &XrdOfsOpen_RW;
        mp->Lock();
 
       } else {
