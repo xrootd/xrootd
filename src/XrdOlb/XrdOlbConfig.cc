@@ -337,7 +337,7 @@ int XrdOlbConfig::Configure2()
       {SUPCount = 0; 
        SUPLevel = 0; 
        doWait = 0;
-       XrdOlbServer::setSpace(0x7fffffff, 0x7fffffffff);
+       XrdOlbServer::setSpace(0x7fffffff, 0x7fffffff);
       }
 
 // Set up the generic message id
