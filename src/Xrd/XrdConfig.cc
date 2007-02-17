@@ -115,7 +115,7 @@ class XrdLogWorker : XrdJob
 public:
 
      void DoIt() {XrdLog.Say(0, XrdBANNER);
-                  XrdLog.Say(0, mememe, "running.");
+                  XrdLog.Say(0, mememe, " running.");
                   midnite += 86400;
                   XrdSched.Schedule((XrdJob *)this, midnite);
                  }
