@@ -12,6 +12,7 @@
 
 const char *XrdSysPlatformCVSID = "$Id$";
 
+#include <stdio.h>
 #include <string.h>
 #ifndef WIN32
 #include <unistd.h>
@@ -55,4 +56,23 @@ size_t strlcpy(char *dst, const char *src, size_t sz)
 }
 }
 #endif
+#ifdef __macos__
+#include <pwd.h>
+// This is not re-enetrant or mt-safe but it's all we have
+//
+char *cuserid(char *buff)
+{
+static char myBuff[L_cuserid];
+char *theBuff = (buff ? buff : myBuff);
+uid_t myUID = getuid();
+struct passwd *thePWD;
 
+if (!(thePWD - getpwuid(myUID)))
+   {if (buff) *buff = '\0';
+    return buff;
+   }
+
+strcpy(theBuff, thePWD->pw_name);
+return theBuff;
+}
+#endif

@@ -87,6 +87,7 @@ typedef off_t offset_t;
 //
 #ifdef __macos__
 #include <AvailabilityMacros.h>
+extern char *cuserid(char *s);
 #ifndef POLLRDNORM
 #define POLLRDNORM  0
 #endif
