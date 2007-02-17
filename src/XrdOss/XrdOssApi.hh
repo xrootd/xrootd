@@ -124,7 +124,7 @@ void     *CacheScan(void *carg);
 int       Configure(const char *, XrdOucError &);
 void      Config_Display(XrdOucError &);
 virtual
-int       Create(const char *, mode_t, XrdOucEnv &, int opts=0);
+int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 int       GenLocalPath(const char *, char *);
 int       GenRemotePath(const char *, char *);
 int       Init(XrdOucLogger *, const char *);
@@ -164,6 +164,7 @@ char     *LocalRoot;      // -> Path prefix for local  filename
 char     *RemoteRoot;     // -> Path prefix for remote filename
 int       StageRealTime;  //    If 1, Invoke stage command on demand
 int       StageAsync;     //    If 1, return EINPROGRESS to the caller
+int       StageCreate;    //    If 1, use open path to create files
 char     *StageCmd;       // -> Staging command to use
 char     *StageMsg;       // -> Staging message to be passed
 XrdOucMsubs *StageSnd;    // -> Parsed Message
@@ -256,8 +257,8 @@ XrdOucSemaphore ReadyRequest;
 
 char **sfx;                  // -> Valid filename suffixes
 
-int                Alloc_Cache(const char *path, mode_t amode, XrdOucEnv &env);
-int                Alloc_Local(const char *path, mode_t amode, XrdOucEnv &env);
+int                Alloc_Cache(const char *, int, mode_t, XrdOucEnv &);
+int                Alloc_Local(const char *, int, mode_t, XrdOucEnv &);
 int                BreakLink(const char *local_path, struct stat &statbuff);
 int                CalcTime();
 int                CalcTime(XrdOssCache_Req *req);

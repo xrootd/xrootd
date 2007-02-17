@@ -48,6 +48,8 @@ extern XrdOucError OssEroute;
 
 extern XrdOucTrace OssTrace;
 
+extern XrdOssSys  *XrdOssSS;
+
 /******************************************************************************/
 /*                                c r e a t e                                 */
 /******************************************************************************/
@@ -63,11 +65,12 @@ extern XrdOucTrace OssTrace;
             opts        - Set as follows:
                           XRDOSS_mkpath - create dir path if it does not exist.
                           XRDOSS_new    - the file must not already exist.
+                          x00000000     - x are standard open flags (<<8)
 
   Output:   Returns XRDOSS_OK upon success; (-errno) otherwise.
 */
-int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
-                                        int Opts)
+int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
+                      XrdOucEnv &env, int Opts)
 {
     EPNAME("Create")
     const int LKFlags = XrdOssFILE|XrdOssSHR|XrdOssNOWAIT|XrdOssRETIME;
@@ -85,6 +88,17 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
 // Generate the actual local path for this file.
 //
    if ((retc = GenLocalPath(path, local_path))) return retc;
+
+// At this point, creation requests may need to be routed via the stagecmd
+// which will take care of all the stuff we do here.
+//
+   if (StageCreate)
+      {struct stat buf;
+       if (lstat(local_path, &buf))
+          if (errno != ENOENT) return -errno;
+             else return XrdOssSS->Stage(tident,path,env,Opts>>8,access_mode);
+       return 0;
+      }
 
 // Check if the file must not exist
 //
@@ -137,8 +151,8 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
 // Created file in the extended cache or the local name space
 //
    if (fsfirst && !(popts & XrdOssINPLACE))
-           datfd = Alloc_Cache(local_path, access_mode, env);
-      else datfd = Alloc_Local(local_path, access_mode, env);
+           datfd = Alloc_Cache(local_path, Opts>>8, access_mode, env);
+      else datfd = Alloc_Local(local_path, Opts>>8, access_mode, env);
 
 // Diagnose file creation problems at this point
 //
@@ -173,7 +187,8 @@ int XrdOssSys::Create(const char *path, mode_t access_mode, XrdOucEnv &env,
 /*                           A l l o c _ C a c h e                            */
 /******************************************************************************/
 
-int XrdOssSys::Alloc_Cache(const char *path, mode_t amode, XrdOucEnv &env)
+int XrdOssSys::Alloc_Cache(const char *path, int Oflag, mode_t amode, 
+                           XrdOucEnv &env)
 {
    EPNAME("Alloc_Cache")
    double fuzz, diffree;
@@ -238,7 +253,7 @@ int XrdOssSys::Alloc_Cache(const char *path, mode_t amode, XrdOucEnv &env)
 
 // Simply open the file in the local filesystem, creating it if need be.
 //
-   do {datfd = open(pbuff, O_RDWR|O_CREAT|O_EXCL|O_LARGEFILE, amode);}
+   do {datfd = open(pbuff, Oflag, amode);}
                while(datfd < 0 && errno == EINTR);
 
 // Now create a symbolic link to the target and adjust free space
@@ -263,13 +278,14 @@ int XrdOssSys::Alloc_Cache(const char *path, mode_t amode, XrdOucEnv &env)
 /*                           A l l o c _ L o c a l                            */
 /******************************************************************************/
   
-int XrdOssSys::Alloc_Local(const char *path, mode_t amode, XrdOucEnv &env)
+int XrdOssSys::Alloc_Local(const char *path, int Oflag, mode_t amode, 
+                           XrdOucEnv &env)
 {
    int datfd;
 
 // Simply open the file in the local filesystem, creating it if need be.
 //
-   do {datfd = open(path, O_RDWR|O_CREAT|O_EXCL|O_LARGEFILE, amode);}
+   do {datfd = open(path, Oflag, amode);}
                while(datfd < 0 && errno == EINTR);
    return (datfd < 0 ? -errno : datfd);
 }

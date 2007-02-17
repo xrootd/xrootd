@@ -85,7 +85,8 @@ virtual XrdOssDF *newFile(const char *tident)=0;
 virtual XrdOssDF *newProxy(const char *tident, const char *host, int port)=0;
 
 virtual int     Chmod(const char *, mode_t mode)=0;
-virtual int     Create(const char *, mode_t, XrdOucEnv &, int opts=0)=0;
+virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &, 
+                       int opts=0)=0;
 virtual int     Init(XrdOucLogger *, const char *)=0;
 virtual int     Mkdir(const char *, mode_t mode, int mkpath=0)=0;
 virtual int     Remdir(const char *)=0;

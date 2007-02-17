@@ -209,9 +209,10 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
              (Have ## base  ? base     : ""), \
              (Have ## base  ? "\n"     : "")
   
-#define XrdOssConfig_Vop(base, opt, optchk, opt1, opt2) \
+#define XrdOssConfig_Vop(base, opt, optchk0, opt1, opt2, optchk1, opt3, opt4) \
              (Have ## base  ? "oss." #opt " " : ""), \
-             (Have ## base  ? (optchk ? opt1 : opt2) : ""), \
+             (Have ## base  ? (optchk0 ? opt1 : opt2) : ""), \
+             (Have ## base  ? (optchk1 ? opt3 : opt4) : ""), \
              (Have ## base  ? base     : ""), \
              (Have ## base  ? "\n"     : "")
 
@@ -241,7 +242,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
                                   "%s%s%s"
                                   "%s%s%s"
                                   "%s%s%s"
-                                  "%s%s%s%s"
+                                  "%s%s%s%s%s"
                                   "%s%s%s"
                                   "%s%s%s"
                                   "oss.trace        %x\n"
@@ -254,7 +255,8 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
              XrdOssConfig_Val(N2N_Lib,    namelib),
              XrdOssConfig_Val(LocalRoot,  localroot),
              XrdOssConfig_Val(RemoteRoot, remoteroot),
-             XrdOssConfig_Vop(StageCmd,   stagecmd, StageAsync,"async ","sync "),
+             XrdOssConfig_Vop(StageCmd,   stagecmd, StageAsync,  "async ","sync ",
+                                                    StageCreate, "creates ", ""),
              XrdOssConfig_Val(StageMsg,   stagemsg),
              XrdOssConfig_Val(MSSgwCmd,   mssgwcmd),
              OssTrace.What,
@@ -294,6 +296,8 @@ void XrdOssSys::ConfigDefaults(void)
    if (Configured && StageCmd) free(StageCmd);
        StageCmd      = 0;
        StageRealTime = 1;
+       StageAsync    = 0;
+       StageCreate   = 0;
 
    if (Configured && MSSgwCmd) free(MSSgwCmd);
        MSSgwCmd      = 0;
@@ -1242,10 +1246,12 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
 
 /* Function: xstg
 
-   Purpose:  To parse the directive: stagecmd [async | sync>] [|]<cmd>]
+   Purpose:  To parse the directive: 
+                stagecmd [async | sync] [creates] [|]<cmd>]
 
              async     Client is to be notified when <cmd> sends an event
              sync      Client is to poll for <cmd> completion.
+             creates   Route file creation requests to <cmd>.
              <cmd>     The command and args to stage in the file. If the
                        <cmd> is prefixed ny '|' then pipe in the requests.
 
@@ -1255,13 +1261,18 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
 int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
 {
     char *val, buff[2048], *bp = buff;
-    int vlen, blen = sizeof(buff)-1, isAsync = 0;
+    int vlen, blen = sizeof(buff)-1, isAsync = 0, isCreate = 0;
 
 // Get the aync or async option
 //
     if ((val = Config.GetWord()))
        if ((isAsync = !strcmp(val, "async")) || !strcmp(val, "sync"))
           val = Config.GetToken();
+
+// Get the create option
+//
+   if (val)
+       if ((isCreate = !strcmp(val, "creates"))) val = Config.GetToken();
 
 // Get the command
 //
@@ -1279,6 +1290,7 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
 // Record the command and operating mode
 //
    StageAsync = (isAsync ? 1 : 0);
+   StageCreate= isCreate;
    if (StageCmd) free(StageCmd);
    StageCmd = strdup(val);
    return 0;

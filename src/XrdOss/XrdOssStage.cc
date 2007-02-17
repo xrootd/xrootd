@@ -134,7 +134,7 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
        pdata[9] = 0;             pdlen[9] = 0;
        if (StageProg->Feed((const char **)pdata, pdlen)) return -XRDOSS_E8025;
       } else {
-       XrdOucMsubsInfo Info(Tid, &env, lcl_N2N, fn, 0, Oflag, Mode);
+       XrdOucMsubsInfo Info(Tid, &env, lcl_N2N, fn, 0, Mode, Oflag);
        int k = StageSnd->Subs(Info, pdata, pdlen);
        pdata[k]   = (char *)"\n"; pdlen[k++] = 1;
        pdata[k]   = 0;            pdlen[k]   = 0;
