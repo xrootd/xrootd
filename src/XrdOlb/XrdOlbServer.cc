@@ -1076,7 +1076,6 @@ int XrdOlbServer::do_PrepDel(char *rid, int server)
 {
    EPNAME("do_PrepDel")
    char *tp;
-   SMask_t amask = (SMask_t)-1;
    BUFF(2048);
 
 // Process: <id> prepcan <reqid>
