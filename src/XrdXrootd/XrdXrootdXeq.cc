@@ -926,7 +926,7 @@ int XrdXrootdProtocol::do_Open()
             fp->getCXinfo((char *)myResp.cptype, cpsize);
             if (cpsize) {myResp.cpsize = static_cast<kXR_int32>(htonl(cpsize));
                          resplen = sizeof(myResp);
-                        }
+                        } else myResp.cpsize = 0;
            }
 
 // Determine if file is memory mapped

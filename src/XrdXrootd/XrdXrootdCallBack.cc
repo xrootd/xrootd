@@ -116,9 +116,10 @@ void XrdXrootdCBJob::DoIt()
 // the client to wait zero seconds. Protocol demands a client retry.
 //
    if (SFS_OK == Result)
-      {if (*(cbFunc->Func()) == 'o'){Result = SFS_STALL; eInfo->setErrCode(0);}
-          else if (*(cbFunc->Func()) == 'x') DoStatx(eInfo);
-       cbFunc->sendResp(eInfo, kXR_ok, 0, eInfo->getErrText());
+      {if (*(cbFunc->Func()) == 'o') cbFunc->sendResp(eInfo, kXR_wait, 0);
+          else {if (*(cbFunc->Func()) == 'x') DoStatx(eInfo);
+                cbFunc->sendResp(eInfo, kXR_ok, 0, eInfo->getErrText());
+               }
       } else cbFunc->sendError(Result, eInfo);
 
 // Recycle ourselves before returning
