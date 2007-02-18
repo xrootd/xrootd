@@ -832,6 +832,7 @@ void XrdCS2Xmi::doPut(XrdOlbReq *Request, const char *path)
 
 // Free response data and return
 //
+   delete subreq;
    delete respvec[0];
 }
 

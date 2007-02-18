@@ -80,7 +80,7 @@ $(OBJDIR)/XrdCS2DCM.o:     XrdCS2DCM.hh  XrdCS2DCM.cc  XrdCS2DCMFile.hh \
 
 $(OBJDIR)/XrdCS2DCM2cs.o: XrdCS2DCM.hh  XrdCS2DCM2cs.cc \
                           XrdOucError.hh   XrdOucLogger.hh  XrdTrace.hh \
-                          XrdOucTimer.hh   XrdOucPthread.hh
+                          XrdOucTimer.hh   XrdOucPthread.hh XrdNetLink.hh
 	@echo Compiling XrdCS2DCM2cs.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2DCM2cs.o XrdCS2DCM2cs.cc
 

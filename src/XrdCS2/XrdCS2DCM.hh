@@ -43,12 +43,13 @@ private:
 int   CS2_Open(const char *Tid, const char *Fid, char *Lfn,
                int flags, off_t fsize);
 int   CS2_rDone(const char *, unsigned long long, const char *);
-int   CS2_wDone(const char *, unsigned long long, const char *, int);
+int   CS2_wDone(const char *, unsigned long long, const char *);
 int   CS2_wFail(const char *, unsigned long long, const char *, int);
 int   CS2_Init();
 void  failRequest(char *Pfn);
 int   makeFname(char *, const char *, int, const char *);
 int   makePath(char *fn);
+void  Prep(const char *, const char *);
 int   Release(const char *, const char *, int failed=0);
 void  rmStale(const char *, time_t Deadline);
 int   Setup();
@@ -65,10 +66,12 @@ char           *CPath;   // Closed
 int             CPlen;
 char           *EPath;   // Event FIFO path
 int             EPlen;
-char           *MPath;   // Management path (base)
+char           *MPath;   // Management path
 int             MPlen;
 char           *PPath;   // Pending
 int             PPlen;
+char           *XPath;   // Base path that the above derive from
+int             XPlen;
 pid_t           Parent;
 int             QLim;
 time_t          UpTime;

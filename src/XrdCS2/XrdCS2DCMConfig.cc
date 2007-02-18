@@ -100,10 +100,12 @@ XrdCS2DCM::XrdCS2DCM(void) : Request(&XrdLog)
    CPlen    = 0;
    EPath    = 0;    // Path to our event FIFO
    EPlen    = 0;
-   MPath    = strdup("/tmp/XrdCS2d/");
-   MPlen    = strlen(MPath);
+   MPath    = 0;    // Path to our management directory
+   MPlen    = 0;
    PPath    = 0;    // Path to pending files
    PPlen    = 0;
+   XPath    = strdup("/tmp/XrdCS2d/");
+   XPlen    = strlen(XPath);
    Parent   = getppid();
    UpTime   = time(0);
    QLim     = 100;
@@ -156,12 +158,18 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 // Get the directory where the meta information is to go
 //
    if (optind >= argc)
-      XrdLog.Emsg("Config", "Using default recording directory", MPath);
+      XrdLog.Emsg("Config", "Using default recording directory", XPath);
       else {strcpy(buff, argv[optind]);
             n = strlen(buff);
             if (buff[n-1] != '/') {buff[n] = '/'; buff[n+1] = '\0';}
-            MPath = strdup(buff); MPlen = strlen(buff);
+            XPath = strdup(buff); XPlen = strlen(buff);
            }
+
+// Construct the management path
+//
+   strcpy(buff, XPath);
+   strcpy(buff+XPlen, "db");
+   MPath = strdup(buff); MPlen = strlen(buff);
 
 // Verify that the meta directory exists
 //

@@ -83,7 +83,7 @@ void XrdCS2DCM::doEvents()
    char *Eid, *tp, *Tid, *Lfn;
 
 // Each request comes in as
-// <traceid> {closer | closew | fwrite} <lfn>
+// <traceid> {closer | closew | fwrite | prep} <lfn>
 //
    while((tp = Events.GetLine()))
         {TRACE(DEBUG, "Event: '" <<tp <<"'");
@@ -179,9 +179,10 @@ void XrdCS2DCM::Event(const char *Tid, const char *Eid, const char *Mode,
             makeFname(thePath, APath, APlen, Lfn);
             XrdCS2DCMFile::Modify(thePath);
            }
+   else if (!strcmp("prep",   Eid)) Prep(Tid, Lfn);
    else XrdLog.Emsg("Event", "Received unknown event -", Tid, Eid);
 }
-  
+
 /******************************************************************************/
 /*                                 S t a g e                                  */
 /******************************************************************************/
@@ -362,7 +363,7 @@ int XrdCS2DCM::Release(const char *Tid, const char *Lfn, int Fail)
    while((reqID = theFile.reqID()))
         {if (isMod)
             if (Fail) CS2_wFail(Tid, reqID, Pfn, isNew);
-               else   CS2_wDone(Tid, reqID, Pfn, isNew);
+               else   CS2_wDone(Tid, reqID, Pfn);
             else      CS2_rDone(Tid, reqID, Lfn);
         }
 

@@ -32,9 +32,14 @@ const char *XrdCS2DCMCVSID = "$Id$";
 
 #include "XrdCS2/XrdCS2DCM.hh"
 
+#include "XrdNet/XrdNetLink.hh"
+
+#include "Cns_api.h"
+
 #include "castor/Constants.hpp"
 #include "castor/Services.hpp"
 #include "castor/stager/IJobSvc.hpp"
+#include "castor/stager/DiskCopy.hpp"
 #include "castor/IService.hpp"
 #include "castor/BaseObject.hpp"
 #include "castor/stager/SubRequest.hpp"
@@ -294,10 +299,11 @@ int XrdCS2DCM::CS2_rDone(const char *Tid, unsigned long long reqID,
 /******************************************************************************/
   
 int  XrdCS2DCM::CS2_wDone(const char *Tid, unsigned long long reqID, 
-                          const char *Pfn, int isNew)
+                          const char *Pfn)
 {
   const char *TraceID = "_wDone";
   castor::stager::SubRequest subReq;
+  castor::stager::DiskCopy *dp;
   XrdCS2DCMService *sp;
   struct stat buf;
   unsigned long long fileSize = 0;
@@ -323,13 +329,8 @@ int  XrdCS2DCM::CS2_wDone(const char *Tid, unsigned long long reqID,
 //
   try {TRACE(DEBUG, "Calling prepareForMigration(" <<reqID <<',' <<fileSize <<") for " <<Pfn);
        sp->jobSvc->prepareForMigration(&subReq, fileSize);
-       if (isNew)
-          {TRACE(DEBUG, "Calling putDone(" <<reqID <<") for " <<Pfn);
-//         sp->jobSvc->putDone(reqID);
-          } else {
-           TRACE(DEBUG, "Calling getUpdateDone(" <<reqID <<") for " <<Pfn);
-           sp->jobSvc->getUpdateDone(reqID);
-          }
+       TRACE(DEBUG, "Calling putDoneStart(" <<reqID <<") for " <<Pfn);
+       if ((dp = sp->jobSvc->putDoneStart(reqID))) delete dp;
       }
   catch (castor::exception::Communication e)
         {XrdLog.Emsg("wDone", Tid, "Communications error;",
@@ -396,4 +397,63 @@ int  XrdCS2DCM::CS2_wFail(const char *Tid, unsigned long long reqID,
 //
    sp->Rel();
    return allOK;
+}
+ 
+/******************************************************************************/
+/*                                  P r e p                                   */
+/******************************************************************************/
+
+void XrdCS2DCM::Prep(const char *Fid, const char *Rfn)
+{
+   char *servP, *endP, Lfn[CA_MAXPATHLEN+1], Pfn[2048];
+   unsigned long long reqID, Fnum;
+   struct iovec iov[3];
+
+// Extract out the requestid from Fid (<reqid>:<fid>@<server>)
+//
+   if ((endP = index(Fid, ':')))
+      {Fid = endP+1;
+       reqID = strtoll(Fid, &endP, 10);
+       if (*endP != ':') reqID = 0;
+      } else reqID = 0;
+
+// Convert the Fid to the Castor file name (lfn)
+//
+   if ((servP = index(Fid, '@')))
+      {servP++;
+       Fnum = strtoll(Fid, &endP, 10);
+       if (*endP != '@') servP = 0;
+      }
+   if (!servP) 
+      {XrdLog.Emsg("Prepare", Fid, "fileid invalid in", Rfn);
+       return;
+      }
+
+// Convert the fid to the actual Castor file name
+//
+   if (Cns_getpath(servP, Fnum, Lfn) != 0)
+      {XrdLog.Emsg("Prepare", Fid, "fid conversion failed;", sstrerror(serrno));
+       return;
+      }
+
+// Convert the lfn to our pfn
+//
+   strcpy(Pfn, XPath);
+   strcpy(Pfn+XPlen, Lfn);
+
+// Create the symlink to the real file
+//
+   if (symlink(Rfn, Pfn))
+      {XrdLog.Emsg("Prepare", errno, "create symlink", Pfn);
+       return;
+      }
+
+// Notify the olbd that we now have the file
+//
+   if (olbdLink)
+      {iov[0].iov_base = (char *)"newfn "; iov[0].iov_len = 6;
+       iov[1].iov_base = Lfn;              iov[1].iov_len = strlen(Lfn);
+       iov[2].iov_base = (char *)"\n";     iov[0].iov_len = 1;
+       olbdLink->Send(iov, 3);
+      }
 }
