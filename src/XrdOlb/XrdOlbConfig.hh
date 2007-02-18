@@ -80,6 +80,7 @@ int         DiskLinger;   // Manager Only
 int         DiskAsk;      // Seconds between disk space reclaculations
 int         DiskWT;       // Seconds to defer client while waiting for space
 int         DiskSS;       // This is a staging server
+int         PrepOK;       // Prepare processing configured
 
 int         sched_RR;     // 1 -> Simply do round robin scheduling
 int         doWait;       // 1 -> Wait for a data end-point

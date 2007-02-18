@@ -86,8 +86,8 @@ void XrdOlbAdmin::Login(int socknum)
         {DEBUG("received admin request: '" <<request <<"'");
          if ((tp = Stream.GetToken()))
             {     if (!strcmp("resume",   tp)) do_Resume();
-             else if (!strcmp("rmdid",    tp)) do_RmDid();
-             else if (!strcmp("newfn",    tp)) do_RmDud();
+             else if (!strcmp("rmdid",    tp)) do_RmDid();   // via lfn
+             else if (!strcmp("newfn",    tp)) do_RmDud();   // via lfn
              else if (!strcmp("suspend",  tp)) do_Suspend();
              else Say.Emsg(epname, "invalid admin request,", tp);
             }
@@ -128,8 +128,10 @@ void *XrdOlbAdmin::Notes(XrdNetSocket *AnoteSock)
    do {while((request = Stream.GetLine()))
             {DEBUG("received notification: '" <<request <<"'");
              if ((tp = Stream.GetToken()))
-                {     if (!strcmp("gone",    tp)) do_RmDid(1);
-                 else if (!strcmp("have",    tp)) do_RmDud(1);
+                {     if (!strcmp("gone",    tp)) do_RmDid(1); // via pfn
+                 else if (!strcmp("rmdid",   tp)) do_RmDid(0); // via lfn
+                 else if (!strcmp("have",    tp)) do_RmDud(1); // via pfn
+                 else if (!strcmp("newfn",   tp)) do_RmDud(0); // via lfn
                  else if (!strcmp("nostage", tp)) do_NoStage();
                  else if (!strcmp("stage",   tp)) do_Stage();
                  else Say.Emsg(epname, "invalid notification,", tp);
@@ -295,12 +297,12 @@ void XrdOlbAdmin::do_Resume()
 /*                              d o _ R m D i d                               */
 /******************************************************************************/
   
-void XrdOlbAdmin::do_RmDid(int dotrim)
+void XrdOlbAdmin::do_RmDid(int isPfn)
 {
    const char *epname = "do_RmDid";
    const char *cmd = "gone ";
    const int   cmdl= strlen(cmd);
-   char  *tp, apath[XrdOlbMAX_PATH_LEN];
+   char  *tp, *thePath, apath[XrdOlbMAX_PATH_LEN];
    int   rc;
 
    if (!(tp = Stream.GetToken()))
@@ -308,8 +310,21 @@ void XrdOlbAdmin::do_RmDid(int dotrim)
        return;
       }
 
-   PrepQ.Gone(tp);
-   if (dotrim && Config.lcl_N2N)
+// Handle prepare queue removal
+//
+   if (Config.PrepOK)
+      {if (!isPfn && Config.lcl_N2N)
+          if ((rc = Config.lcl_N2N->lfn2pfn(tp, apath, sizeof(apath))))
+             {Say.Emsg(epname, rc, "determine pfn for removed path", tp);
+              thePath = 0;
+             } else thePath = apath;
+          else thePath = tp;
+       if (thePath) PrepQ.Gone(thePath);
+      }
+
+// If we have a pfn then we must get the lfn to inform our manager about the file
+//
+   if (isPfn && Config.lcl_N2N)
       if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
          {Say.Emsg(epname, rc, "determine lfn for removed path", tp);
           return;
@@ -323,7 +338,7 @@ void XrdOlbAdmin::do_RmDid(int dotrim)
 /*                              d o _ R m D u d                               */
 /******************************************************************************/
   
-void XrdOlbAdmin::do_RmDud(int dotrim)
+void XrdOlbAdmin::do_RmDud(int isPfn)
 {
    const char *epname = "do_RmDud";
    const char *cmd = "have ? ";
@@ -336,7 +351,7 @@ void XrdOlbAdmin::do_RmDud(int dotrim)
        return;
       }
 
-   if (dotrim && Config.lcl_N2N)
+   if (isPfn && Config.lcl_N2N)
       if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
          {Say.Emsg(epname, rc, "determine lfn for added path", tp);
           return;

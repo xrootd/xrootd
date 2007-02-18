@@ -598,6 +598,7 @@ void XrdOlbConfig::ConfigDefaults(void)
    DiskAsk  = 12;         // 15 Seconds between space calibrations.
    DiskWT   = 0;          // Do not defer when out of space
    DiskSS   = 0;          // Not a staging server
+   PrepOK   = 0;
    ConfigFN = 0;
    sched_RR = 0;
    isManager= 0;
@@ -951,7 +952,7 @@ int XrdOlbConfig::setupServer()
 //
    if (DiskSS) 
       {PrepQ.setParms(Sched);
-       PrepQ.Reset();
+       PrepOK = PrepQ.Reset();
        Sched->Schedule((XrdJob *)&PrepQ,pendplife+time(0));
       }
 
