@@ -306,6 +306,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
          else if TS_Xeq("log",           xlog);
          else if TS_Xeq("monitor",       xmon);
          else if TS_Xeq("prep",          xprep);
+         else if TS_Xeq("redirect",      xred);
          else if TS_Xeq("seclib",        xsecl);
          else if TS_Xeq("trace",         xtrace);
          else if (!ignore) eDest.Say(0,
@@ -761,6 +762,86 @@ int XrdXrootdProtocol::xprep(XrdOucStream &Config)
            return 1;
           }
    return 0;
+}
+
+/******************************************************************************/
+/*                                  x r e d                                   */
+/******************************************************************************/
+  
+/* Function: xred
+
+   Purpose:  To parse the directive: redirect <host>:<port> <funcs>
+
+             <funcs>   are one or more of the following functions that will
+                       be immediately redirected to <host>:<port>. Each function
+                       may be prefixed by a minus sign to disable redirection.
+
+                       chmod dirlist mkdir mv prepare rm rmdir stat
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xred(XrdOucStream &Config)
+{
+    static struct rediropts {const char *opname; RD_func opval;} rdopts[] =
+       {
+        {"chmod",    RD_chmod},
+        {"dirlist",  RD_dirlist},
+        {"mkdir",    RD_mkdir},
+        {"mv",       RD_mv},
+        {"prepare",  RD_prepare},
+        {"prepstage",RD_prepstg},
+        {"rm",       RD_rm},
+        {"rmdir",    RD_rmdir},
+        {"stat",     RD_stat}
+       };
+    char rHost[512], *val, *pp;
+    int i, neg, rPort, numopts = sizeof(rdopts)/sizeof(struct rediropts);
+
+// Get the host and port
+//
+   val = Config.GetToken();
+   if (!val || !val[0] || val[0] == ':')
+      {eDest.Emsg("Config", "redirect host not specified"); return 1;}
+   if (!(pp = index(val, ':')))
+      {eDest.Emsg("Config", "redirect port not specified"); return 1;}
+   if (!(rPort = atoi(pp+1)))
+      {eDest.Emsg("Config", "redirect port is invalid");    return 1;}
+   *pp = '\0';
+   strlcpy(rHost, val, sizeof(rHost));
+
+// Set all redirect target functions
+//
+    if (!(val = Config.GetToken()))
+       {eDest.Emsg("config", "redirect option not specified"); return 1;}
+    while (val)
+          {if (!strcmp(val, "all"))
+              {for (i = 0; i < numopts; i++)
+                   xred_set(rdopts[i].opval, rHost, rPort);
+              }
+              else {if ((neg = (val[0] == '-' && val[1]))) val++;
+                    for (i = 0; i < numopts; i++)
+                       {if (!strcmp(val, rdopts[i].opname))
+                           {if (neg) xred_set(rdopts[i].opval, 0, 0);
+                               else  xred_set(rdopts[i].opval, rHost, rPort);
+                            break;
+                           }
+                       }
+                   if (i >= numopts)
+                      eDest.Emsg("config", "invalid redirect option", val);
+                  }
+          val = Config.GetToken();
+         }
+   return 0;
+}
+
+void XrdXrootdProtocol::xred_set(RD_func func, const char *rHost, int rPort)
+{
+// Reset static redirection
+//
+   if (Route[func].Host) free(Route[func].Host);
+   Route[func].Host = strdup(rHost);
+   Route[func].Port = rPort;
 }
 
 /******************************************************************************/

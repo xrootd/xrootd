@@ -259,6 +259,11 @@ int XrdXrootdProtocol::do_Chmod()
    const char *opaque;
    XrdOucErrInfo myError(Link->ID);
 
+// Check for static routing
+//
+   if (Route[RD_chmod].Port) 
+      return Response.Send(kXR_redirect,Route[RD_chmod].Host,Route[RD_chmod].Port);
+
 // Unmarshall the data
 //
    mode = mapMode((int)ntohs(Request.chmod.mode));
@@ -363,6 +368,11 @@ int XrdXrootdProtocol::do_Dirlist()
    char *buff, ebuff[4096];
    const char *opaque, *dname;
    XrdSfsDirectory *dp;
+
+// Check for static routing
+//
+   if (Route[RD_dirlist].Port) 
+      return Response.Send(kXR_redirect,Route[RD_dirlist].Host,Route[RD_dirlist].Port);
 
 // Prescreen the path
 //
@@ -590,6 +600,11 @@ int XrdXrootdProtocol::do_Mkdir()
    const char *opaque;
    XrdOucErrInfo myError(Link->ID);
 
+// Check for static routing
+//
+   if (Route[RD_mkdir].Port) 
+      return Response.Send(kXR_redirect,Route[RD_mkdir].Host,Route[RD_mkdir].Port);
+
 // Unmarshall the data
 //
    mode = mapMode((int)ntohs(Request.mkdir.mode)) | S_IRWXU;
@@ -619,6 +634,11 @@ int XrdXrootdProtocol::do_Mv()
    const char *Opaque, *Npaque;
    char *oldp, *newp;
    XrdOucErrInfo myError(Link->ID);
+
+// Check for static routing
+//
+   if (Route[RD_mv].Port) 
+      return Response.Send(kXR_redirect,Route[RD_mv].Host,Route[RD_mv].Port);
 
 // Find the space separator between the old and new paths
 //
@@ -1001,7 +1021,14 @@ int XrdXrootdProtocol::do_Prepare()
 //
    opts = Request.prepare.options;
 
-// Get a request ID for this prepare
+// Check for static routing
+//
+   if (Route[RD_prepstg].Port && ((opts & kXR_stage) || (opts & kXR_cancel)))
+      return Response.Send(kXR_redirect,Route[RD_prepstg].Host,Route[RD_prepstg].Port);
+   if (Route[RD_prepare].Port)
+      return Response.Send(kXR_redirect,Route[RD_prepare].Host,Route[RD_prepare].Port);
+
+// Get a request ID for this prepare and check for static routine
 //
    if (opts & kXR_stage && !(opts & kXR_cancel)) 
       XrdOucReqID::ID(reqid, sizeof(reqid));
@@ -1469,6 +1496,11 @@ int XrdXrootdProtocol::do_Rm()
    const char *opaque;
    XrdOucErrInfo myError(Link->ID);
 
+// Check for static routing
+//
+   if (Route[RD_rm].Port) 
+      return Response.Send(kXR_redirect,Route[RD_rm].Host,Route[RD_rm].Port);
+
 // Prescreen the path
 //
    if (rpCheck(argp->buff, &opaque)) return rpEmsg("Removing", argp->buff);
@@ -1494,6 +1526,11 @@ int XrdXrootdProtocol::do_Rmdir()
    int rc;
    const char *opaque;
    XrdOucErrInfo myError(Link->ID);
+
+// Check for static routing
+//
+   if (Route[RD_rmdir].Port) 
+      return Response.Send(kXR_redirect,Route[RD_rmdir].Host,Route[RD_rmdir].Port);
 
 // Prescreen the path
 //
@@ -1619,6 +1656,11 @@ int XrdXrootdProtocol::do_Stat()
    char xxBuff[256];
    struct stat buf;
    XrdOucErrInfo myError(Link->ID, &statCB, ReqID.getID());
+
+// Check for static routing
+//
+   if (Route[RD_stat].Port) 
+      return Response.Send(kXR_redirect,Route[RD_stat].Host,Route[RD_stat].Port);
 
 // Prescreen the path
 //

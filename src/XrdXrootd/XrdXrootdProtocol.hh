@@ -94,6 +94,12 @@ static int           StatGen(struct stat &buf, char *xxBuff);
 
 private:
 
+// Note that Route[] structure (velow) must have equivalent elemnts!
+//            0             1           2         3      4           5
+enum RD_func {RD_chmod = 0, RD_dirlist, RD_mkdir, RD_mv, RD_prepare, RD_prepstg,
+              RD_rm,        RD_rmdir,   RD_stat};
+//            6             7           8        (9 elements)
+
        int   do_Admin();
        int   do_Auth();
        int   do_Bind();
@@ -159,6 +165,8 @@ static int   xfsl(XrdOucStream &Config);
 static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
 static int   xmon(XrdOucStream &Config);
+static int   xred(XrdOucStream &Config);
+static void  xred_set(RD_func func, const char *rHost, int rPort);
 static int   xsecl(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
 
@@ -193,6 +201,10 @@ static char                isRedir;
 static char                chkfsV;
 static XrdXrootdJob       *JobCKS;
 static char               *JobCKT;
+
+// Static redirection
+//
+static struct RD_Table {char *Host; int Port;} Route[9];
 
 // async configuration values
 //
