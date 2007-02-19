@@ -140,6 +140,8 @@ extern "C"
 {
 #if defined __linux__ && __GNUC__ && __GNUC__ >= 2
 int  __fxstat(int ver, int fildes, struct stat *buf)
+#elif defined(__solaris__) && defined(__i386)
+int   _fxstat(int ver, int fildes, struct stat *buf)
 #else
 int     fstat(         int fildes, struct stat *buf)
 #endif
@@ -193,6 +195,8 @@ extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2 && defined(__linux__)
 int     __xlstat(int ver, const char *path, struct stat *buf)
+#elif defined(__solaris__) && defined(__i386)
+int      _xlstat(int ver, const char *path, struct stat *buf)
 #else
 int        lstat(         const char *path, struct stat *buf)
 #endif
@@ -322,6 +326,8 @@ extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2
 int     __xstat(int ver, const char *path, struct stat *buf)
+#elif defined(__solaris__) && defined(__i386)
+int      _xstat(int ver, const char *path, struct stat *buf)
 #else
 int        stat(         const char *path, struct stat *buf)
 #endif
