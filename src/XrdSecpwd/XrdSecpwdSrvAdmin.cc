@@ -54,6 +54,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <pwd.h>
+#include <dirent.h>
 
 #include <XrdOuc/XrdOucString.hh>
 
@@ -150,6 +151,7 @@ bool         Import   = 0;
 bool         Hash     = 1;
 bool         ChangePuk = 0;
 bool         ChangePwd = 0;
+bool         ExportPuk = 0;
 
 #define NCRYPTMAX 10 // max number of crypto factories
 
@@ -176,6 +178,7 @@ bool ReadPuk(int &npuk, XrdOucString *tpuk, XrdOucString *puk);
 int GeneratePuk();
 bool SavePuk();
 bool ReadPuk();
+bool ExpPuk(const char *puk = 0, bool read = 1);
 bool GetEntry(XrdSutPFile *ff, XrdOucString tag,
               XrdSutPFEntry &ent, bool &check);
 bool AskConfirm(const char *msg1, bool defact, const char *msg2 = 0);
@@ -398,10 +401,20 @@ int main( int argc, char **argv )
       // some special entry (Server Unique ID, Email, Host Name)
       if (Mode == kM_admin) {
          //
+         // Export current Server PUK
+         if (ExportPuk) {
+            if (!ExpPuk()) {
+               PRT("// Could not export public keys");
+            }
+            //
+            // We are done
+            break;
+         }
+         //
          // Server PUK
          ent.Reset();
          if (ChangePuk) {
-            if (!AskConfirm("Override server PUK?",0,0))
+            if (!DontAsk && !AskConfirm("Override server PUK?",0,0))
                break;
             //
             // If we are given a file name, try import from the file
@@ -414,7 +427,7 @@ int main( int argc, char **argv )
             } else {
                // Generate new puks
                if (GeneratePuk() != ncrypt) {
-                  PRT("// Could generate ref ciphers for all the factories");
+                  PRT("// Could not generate ref ciphers for all the factories");
                   break;
                }
             }
@@ -654,7 +667,7 @@ int main( int argc, char **argv )
       // Ask confirmation, if required
       prompt = "Adding/Updating entry for tag: ";
       prompt += NameTag;
-      if (!AskConfirm("Do you want to continue?",0,prompt.c_str()))
+      if (!DontAsk && !AskConfirm("Do you want to continue?",0,prompt.c_str()))
          break;
       //
       // Normal operations
@@ -796,7 +809,7 @@ int main( int argc, char **argv )
       // Ask confirmation, if required
       prompt = "Removing entry for tag: ";
       prompt += NameTag;
-      if (!AskConfirm("Do you want to continue?",0,prompt.c_str()))
+      if (!DontAsk && !AskConfirm("Do you want to continue?",0,prompt.c_str()))
          break;
       //
       // Get number of entries related
@@ -838,7 +851,7 @@ int main( int argc, char **argv )
       // Ask confirmation, if required
       prompt = "Disabling entry for tag: ";
       prompt += NameTag;
-      if (!AskConfirm("Do you want to continue?",0,prompt.c_str()))
+      if (!DontAsk && !AskConfirm("Do you want to continue?",0,prompt.c_str()))
          break;
       //
       // Get number of entries related
@@ -893,7 +906,7 @@ int main( int argc, char **argv )
       prompt += NameTag;
       prompt += " into tag: ";
       prompt += CopyTag;
-      if (!AskConfirm("Do you want to continue?",0,prompt.c_str()))
+      if (!DontAsk && !AskConfirm("Do you want to continue?",0,prompt.c_str()))
          break;
       //
       // Ready entry
@@ -1190,6 +1203,8 @@ int ParseArguments(int argc, char **argv)
             ChangePuk = ival;
          } else if (CheckOption(opt,"changepwd",ival)) {
             ChangePwd = ival;
+         } else if (CheckOption(opt,"exportpuk",ival)) {
+            ExportPuk = ival;
          } else if (CheckOption(opt,"iternum",ival)) {
             --argc;
             ++argv;
@@ -1354,7 +1369,7 @@ int ParseArguments(int argc, char **argv)
 
    //
    // Some action need a tag name
-   bool special = SetID || SetEmail || SetHost || ChangePuk;
+   bool special = SetID || SetEmail || SetHost || ChangePuk || ExportPuk;
    if (Action == kA_add || Action == kA_update ||
        Action == kA_read || Action == kA_remove) {
       if (!special && !NameTag.length() &&!Import) {
@@ -2082,10 +2097,10 @@ bool ReadPuk(int &ipuk, XrdOucString *tpuk, XrdOucString *puk)
 bool SavePuk()
 {
    // Save ref ciphers in file named after GenPukRef and a date string
-   
+
    // Make sure the directory exists, first
    if (!Dir.length()) {
-      PRT("SavePasswd: main directory undefined - do nothing");
+      PRT("SavePuk: main directory undefined - do nothing");
       return 0;
    }
    //
@@ -2114,8 +2129,8 @@ bool SavePuk()
    // Open file, truncating if it exists already
    int fd = open(PukFile.c_str(),O_WRONLY | O_CREAT | O_TRUNC);
    if (fd < 0) {
-      PRT("SavePasswd: could not open/create file: "<<PukFile);
-      PRT("SavePasswd: errno: "<<errno);
+      PRT("SavePuk: could not open/create file: "<<PukFile);
+      PRT("SavePuk: errno: "<<errno);
       return 0;
    }
    //
@@ -2323,4 +2338,110 @@ int LocateFactoryIndex(char *tag, int &id)
       PRT("// warning: factory with ID "<< id << " not found");
 
    return j;
+}
+
+bool ExpPuk(const char *puk, bool read)
+{
+   // Export public part of key contained in file 'puk'. The file
+   // name can be absolute or relative to the standard 'genpuk' or
+   // a date to be looked for in the genpuk directory. The public
+   // key is exported in a file adding the extension ".export"
+   // to 'puk'. If the file name is not defined the most recent
+   // key in the standard genpuk directory is exported.
+   // Return 0 in case of failure, 1 in case of success.
+
+   // Read the keys in, if needed
+   if (read) {
+      // Standard genpuk dir
+      XrdOucString genpukdir = Dir;
+      genpukdir += GenPukRef;
+
+      // Locate the file with the full key
+      if (puk && strlen(puk) > 0) {
+         // If not absolute, expand with respect to the standard genpuk dir
+         if (puk[0] != '/')
+            PukFile = genpukdir;
+         PukFile += puk;
+      } else {
+         // Scan the standard genpuk to find the most recent key
+         DIR *dir = opendir(genpukdir.c_str());
+         if (!dir) {
+            PRT("ExpPuk: cannot open standard genpuk dir "<<genpukdir);
+            return 0;
+         }
+         dirent *ent = 0;
+         time_t latest = -1;
+         while ((ent = readdir(dir))) {
+            // Skip non-key files
+            if (strncmp(ent->d_name, "puk.", 4))
+               continue;
+            // Get the modification date
+            XrdOucString fn = genpukdir;
+            fn += ent->d_name;
+            struct stat st;
+            if (stat(fn.c_str(), &st) != 0) {
+               PRT("ExpPuk: cannot stat "<<fn<<" - skipping");
+               continue;
+            }
+            if (st.st_mtime > latest) {
+               PukFile = fn;
+               latest = st.st_mtime;
+            }
+         }
+      }
+
+      // Read the keys in
+      if (!ReadPuk()) {
+         PRT("ExpPuk: problem reading the key in");
+         return 0;
+      }
+   }
+
+   // Build the export file name
+   XrdOucString expfile = PukFile;
+   expfile += ".export";
+   PRT("ExpPuk: exporting key from file "<<PukFile);
+
+   // Now we save the public part in the export files
+   // Open file, truncating if it exists already
+   int fd = open(expfile.c_str(),O_WRONLY | O_CREAT | O_TRUNC);
+   if (fd < 0) {
+      PRT("ExpPuk: could not open/create file: "<<expfile.c_str());
+      PRT("ExpPuk: errno: "<<errno);
+      return 0;
+   }
+   //
+   // Change mode to 0644
+   fchmod(fd,0644);
+   //
+   // Generate buffer
+   XrdOucString buf;
+   buf.assign("\n",0);
+   buf += "********* Server PUK information **************\n\n";
+   int i = 0;
+   for (; i < ncrypt; i++) {
+      XrdOucString ptag = SrvName + ":";
+      ptag += SrvID; ptag += "_"; ptag += CF[i]->ID();
+      buf += "puk:      "; buf += ptag; buf += "\n";
+      int lpub = 0;
+      char *pub = RefCip[i]->Public(lpub);
+      if (pub) {
+         buf += pub; buf += "\n";
+         delete[] pub;
+      }
+      buf += "epuk\n";
+   }
+   buf += "\n";
+   buf += "*********************************************";
+   //
+   // Write it to file
+      // Now write the buffer to the stream
+   while (write(fd, buf.c_str(), buf.length()) < 0 && errno == EINTR)
+      errno = 0;
+   //
+   // Close file
+   close (fd);
+
+   // We are done
+   return 1;
 }
