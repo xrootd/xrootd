@@ -245,8 +245,8 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
                } else {// Need to re-init
                        CLPRT("Ticket missing or invalid: re-init ");
                        rc = system(reinitcmd);
-                       CLDBG("getCrdentials: return code from '"<<reinitcmd<<
-                             "': "<< rc << " (0x"<<(int *)rc<<")");
+                       CLDBG("getCredentials: return code from '"<<reinitcmd<<
+                             "': "<< rc);
                        reinitdone = 1;
                        continue;
                       }
@@ -258,7 +258,7 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
                CLPRT("Existing ticket is not forwardable: re-init ");
                rc = system(reinitcmd);
                CLDBG("getCredentials: return code from '"<<reinitcmd<<
-                     "': "<< rc << " (0x"<<(int *)rc<<")");
+                     "': "<< rc);
                reinitdone = 1;
                continue;
               }
