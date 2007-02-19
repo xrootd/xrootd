@@ -6,9 +6,9 @@
   
 include ../GNUmake.env
 
-MORELIBS = -L$(LIBDIR) -lXrdOuc $(LIBKRB5)
+MORELIBS = -L$(LIBDIR) -lXrdOuc  -lXrdSys $(LIBKRB5)
 
-LIBDEPS = $(LIBDIR)/libXrdOuc.a
+LIBDEPS = $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
