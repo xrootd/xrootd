@@ -124,7 +124,7 @@ XrdOucString::XrdOucString(const char *s, int ls)
    if (ls > 0)
       str = bufalloc(ls+1);
    int lr = s ? strlen(s) : 0;
-   if (lr > 0)
+   if (lr >= 0)
       assign(s,0,ls-1);
 }
 
@@ -419,7 +419,7 @@ void XrdOucString::assign(const char *s, int j, int k)
    // Use j == 0 and k == -1 to assign the full string.
 
    int ls = s ? strlen(s) : 0;
-   if (!s || (ls <= 0)) {
+   if (!s)) {
       // We are passed an empty string
       if (str) {
          // empty the local string, leaving capacity as it is
