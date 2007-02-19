@@ -817,10 +817,10 @@ else
 fi
 
 # Which targets to build
-targets="\$(SERVER) \$(XRDCLIENT) "
+targets="\$(XRDSEC) \$(SERVER) \$(XRDCLIENT) "
 if test "x$clientonly" = "xyes" ; then
    echo "Building only client ..."
-   targets="\$(XRDCLIENT)"
+   targets="\$(XRDSEC) \$(XRDCLIENT)"
 fi
 if test "x$seconly" = "xyes" ; then
    echo "Building only security modules..."
