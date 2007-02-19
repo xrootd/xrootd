@@ -49,7 +49,7 @@ sun4x_56        sunCC     all    for Solaris 5.6 CC 5.0
 sun4x_57        sunCC     all    for Solaris 5.7 CC 5.0
 sun4x_58        sunCC     all    for Solaris 5.8 CC 5.0
 sun4x_59        sunCC     all    for Solaris 5.9 CC 5.0
-sun4x_510       sunCC     all    for Solaris 5.9 CC 5.0
+sun4x_510       sunCC     all    for Solaris 5.10 CC 5.0
 sun4x_5         sunCC     all    for Solaris 5.x CC 5.0
 sun4x_4         sunCC     all    for Solaris 4.x
 sun4x_6         sungcc    all    for Solaris 6.x with gcc and glibc
@@ -60,7 +60,7 @@ sun4x_59        sungcc    all    for Solaris 5.9 with gcc and glibc
 sun4x_510       sungcc    all    for Solaris 5.9 with gcc and glibc
 sun4x_5         sungcc    all    for Solaris 5.x with gcc and glibc
 sun4x_4         sungcc    all    for Solaris 4.x with gcc and glibc
-sunx86_510      sunCCamd  all    for Solaris 5.x on AMD   i86 platform
-sunx86_510      sunCC     all    for Solaris 5.x on Intel i86 platform
+sunx86_510      sunCCi86pc all   for Solaris 5.x on i86 platform
+sunx86_510      sunCCamd  all    for Solaris 5.x on AMD i86 platform
 win32           VC++      no     for Win32 with VC++ and gdk based GUI
 win32gcc        wingcc    sec    for Win32 with cygwin/gcc
