@@ -204,19 +204,20 @@ public:
    int    lifecreds;    // [s] lifetime in seconds of credentials
    int    maxprompts;   // [c] max number of empty prompts
    int    maxfailures;  // [s] max passwd failures before blocking
-   char  *clist;        // [s] list of crypto modules ["ssl" ]
+   char  *clist;        // [s] list of crypto modules ["ssl"]
    char  *dir;          // [s] directory with admin pwd files [$HOME/.xrd]
    char  *udir;         // [s] users's sub-directory with pwd files [$HOME/.xrd]
    char  *cpass;        // [s] users's crypt hash pwd file [$HOME/.xrootdpass]
    char  *alogfile;     // [c] autologin file [$HOME/.xrd/pwdnetrc]
    char  *srvpuk;       // [c] file with server puks [$HOME/.xrd/pwdsrvpuk]
    short  keepcreds;    // [s] keep / do-not-keep client credentials 
+   char  *expcreds;     // [s] (template for) file with exported creds
 
    pwdOptions() { debug = -1; mode = 's'; areg = -1; upwd = -1; alog = -1;
                   verisrv = -1; vericlnt = -1;
                   syspwd = -1; lifecreds = -1; maxprompts = -1; maxfailures = -1;
                   clist = 0; dir = 0; udir = 0; cpass = 0;
-                  alogfile = 0; srvpuk = 0; keepcreds = 0; }
+                  alogfile = 0; srvpuk = 0; keepcreds = 0; expcreds = 0;}
    virtual ~pwdOptions() { } // Cleanup inside XrdSecProtocolpwdInit
 };
 
@@ -284,6 +285,7 @@ private:
    // Static members initialized at startup
    static XrdOucMutex      pwdContext;
    static String           FileAdmin;
+   static String           FileExpCreds;     // (Template for) file with exported creds [S]
    static String           FileUser;
    static String           FileCrypt;
    static String           FileSrvPuk;
@@ -377,6 +379,7 @@ private:
    bool           CheckRtag(XrdSutBuffer *bm, String &emsg);
 
    // Saving / Updating
+   int            ExportCreds(XrdSutBucket *creds);
    int            SaveCreds(XrdSutBucket *creds);
    int            UpdateAlog();
 

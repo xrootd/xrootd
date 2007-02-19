@@ -151,6 +151,7 @@ static const int kOneDay = 86400;
 /******************************************************************************/
 XrdOucMutex XrdSecProtocolpwd::pwdContext;
 String XrdSecProtocolpwd::FileAdmin= "";
+String XrdSecProtocolpwd::FileExpCreds= "";
 String XrdSecProtocolpwd::FileUser = "";
 String XrdSecProtocolpwd::FileCrypt= "/.xrdpass";
 String XrdSecProtocolpwd::FileSrvPuk= "";
@@ -614,6 +615,14 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       //
       // Whether to save client creds
       KeepCreds = (opt.keepcreds > -1) ? opt.keepcreds : KeepCreds;
+      if (KeepCreds)
+         PRINT("Exporting client creds to internal buffer");
+
+      //
+      // Whether to export client creds to a file
+      FileExpCreds = (opt.expcreds) ? opt.expcreds : FileExpCreds;
+      if (FileExpCreds.length() > 0)
+         PRINT("Exporting client creds to files "<<FileExpCreds);
 
       //
       // Priority option field
@@ -696,6 +705,15 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
             if (errno == ENOENT) {
                PRINT("server public key file "<<FileSrvPuk<<" non existing: creating");
                openmode = kPFEcreate;
+               // Make sure that the dir path exists
+               XrdOucString dir = FileSrvPuk;
+               dir.erase(dir.rfind('/')+1);
+               DEBUG("asserting dir: "<<dir);
+               if (XrdSutMkdir(dir.c_str(),0777) != 0) {
+                  DEBUG("cannot create dir for srvpuk(errno: "<<errno<<")");
+                  ErrF(erp,kPWErrInit,"cannot create dir for server public key file- exit");
+                  return Parms;
+               }
             } else {
                PRINT("cannot stat server public key file (errno: "<<errno<<")");
                FileSrvPuk = "";
@@ -1122,7 +1140,6 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    // Check if we have any credentials or if no credentials really needed.
    // In either case, use host name as client name
    EPNAME("Authenticate");
-   hs->ErrMsg = "";
 
    //
    // If cred buffer is two small or empty assume host protocol
@@ -1136,6 +1153,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       return ErrS(String("none"),ei,0,0,0,kPWErrError,
                   "handshake var container missing",
                   "protocol initialization problems");
+   hs->ErrMsg = "";
    //
    // Update time stamp
    hs->TimeStamp = time(0);
@@ -1456,8 +1474,14 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
                XrdSutToHex(buf, sz, out);
                // Cleanup any existing info
                SafeDelete(clientCreds);
-               clientCreds = new XrdSecCredentials(out, 2*sz+1); 
+               clientCreds = new XrdSecCredentials(out, 2*sz+1);
             }
+         }
+         // Export creds to a file, if required
+         if (FileExpCreds.length() >= 0) {
+            if (ExportCreds(bck) != 0)
+               DEBUG("WARNING: some problem exporting creds to file;"
+                     " template is :"<<FileExpCreds);
          }
       }
       // We will not use again these credentials
@@ -1629,7 +1653,7 @@ char *XrdSecProtocolpwdInit(const char mode,
       //
       // The tokenizer
       XrdOucTokenizer inParms(parmbuff);
-      
+
       //
       // Decode parms:
       // for servers: [-upwd:<user_pwd_option>]
@@ -1642,12 +1666,17 @@ char *XrdSecProtocolpwdInit(const char mode,
       //              [-syspwd]
       //              [-lf:<credential_lifetime>]
       //              [-maxfail:<max_number_of_failures>]
+      //              [-keepcreds]
+      //              [-expcreds:<creds_file_name>]
       //
       // <user_pwd_opt> = 0 (do-not-use), 1 (use), 2 (also-crypt-hash)
       // <debug_level> = 0 (none), 1 (low), 2 (medium), 3 (high)   [0]
       // <autoreg_level> = 0 (none), 1 (local users + allowed tags), 2 (all) [0]
       // <credential_lifetime> = 1d, 5h:10m, ... (see XrdSutAux::ParseTime)
       // <client_verification_level> = 0 (none), 1 (timestamp), 2 (random tag) [2]
+      // <creds_file_name> = can be a fully specified path or in the templated form
+      //                     /path/<user>/file, with <user> expanded at the moment
+      //                     of use with the login name.
       //
       int debug = -1;
       int areg = -1;
@@ -1661,6 +1690,7 @@ char *XrdSecProtocolpwdInit(const char mode,
       String clist = "";
       String cpass = "";
       int keepcreds = -1;
+      String expcreds = "";
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -1688,13 +1718,15 @@ char *XrdSecProtocolpwdInit(const char mode,
                cpass = (const char *)(op+11);
             } else if (!strncmp(op, "-keepcreds",10)) {
                keepcreds = 1;
+            } else if (!strncmp(op, "-expcreds:",10)) {
+               expcreds = (const char *)(op+10);
             }
          }
          // Check inputs
          areg = (areg >= 0 && areg <= 2) ? areg : 0;
          vc = (vc >= 0 && vc <= 2) ? vc : 2;
       }
-         
+
       //
       // Build the option object
       opts.debug = (debug > -1) ? debug : opts.debug;
@@ -1714,6 +1746,8 @@ char *XrdSecProtocolpwdInit(const char mode,
       if (cpass.length() > 0)
          opts.cpass = (char *)cpass.c_str();
       opts.keepcreds = keepcreds;
+      if (expcreds.length() > 0)
+         opts.expcreds = (char *)expcreds.c_str();
       //
       // Setup the plug-in with the chosen options
       return XrdSecProtocolpwd::Init(opts,erp);
@@ -2098,6 +2132,65 @@ int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
 }
 
 //____________________________________________________________________
+int XrdSecProtocolpwd::ExportCreds(XrdSutBucket *creds)
+{
+   // Export client credentials to a PF file to be used as autologin
+   // in a next step.
+   // Returns 0 if ok, -1 otherwise
+   EPNAME("ExportCreds");
+
+   // Check inputs
+   if ((hs->User.length() <= 0) || !hs->CF || !creds) {
+      DEBUG("Bad inputs ("<<hs->User.length()<<","<<hs->CF<<","
+                          <<creds<<")");
+      return -1;
+   }
+
+   // Check inputs
+   if (FileExpCreds.length() <= 0) {
+      DEBUG("File (template) undefined - do nothing");
+      return -1;
+   }
+
+   // Expand templated keywords, if needed
+   String filecreds = FileExpCreds;
+   filecreds.replace("<user>", hs->User.c_str());
+   DEBUG("Exporting client creds to: "<<filecreds);
+
+   // Attach or create the file
+   XrdSutPFile pfcreds(filecreds.c_str());
+   if (!pfcreds.IsValid()) {
+      DEBUG("Problem attaching / creating file "<<filecreds);
+      return -1;
+   }
+   //
+   // Build effective tag
+   String wTag = hs->Tag + '_'; wTag += hs->CF->ID();
+   //
+   // Create and fill a new entry
+   XrdSutPFEntry ent;
+   ent.SetName(wTag.c_str());
+   ent.status = kPFE_ok;
+   ent.cnt    = 0;
+   if (!strncmp(creds->buffer, "pwd:", 4)) {
+      // Skip initial "pwd:"
+      ent.buf1.SetBuf(creds->buffer+4, creds->size-4);
+   } else {
+      // For crypt and AFS we keep that to be able to distinguish
+      // later on
+      ent.buf1.SetBuf(creds->buffer,creds->size);
+   }
+   //
+   // Write entry
+   ent.mtime = time(0);
+   pfcreds.WriteEntry(ent);
+   DEBUG("New entry for "<<wTag<<" successfully written to file: "
+                  <<filecreds);
+   // We are done
+   return 0;
+}
+
+//____________________________________________________________________
 XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
                                             bool netrc, int &status)
 {
@@ -2214,6 +2307,24 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
       // Retrieve pwd information if ok 
       if (hs->Pent && hs->Pent->buf1.buf) {
          if (hs->Pent->cnt == 0) {
+            cf = hs->Pent->buf1.buf;
+            bool afspwd = strncmp(cf,"afs",3) ? 0 : 1;
+            if (!strncmp(cf,"cpt",3) || afspwd) {
+               int len = hs->Pent->buf1.len;
+               cf += 4;
+               len -= 4;
+               hs->Pent->status = kPFE_crypt;
+               hs->Pent->mtime = hs->TimeStamp;
+               hs->Pent->buf1.SetBuf(cf, len);
+               // Just in case we need the passwd itself (like in crypt)
+               hs->Pent->buf2.SetBuf(cf, len);
+               // Tell the server
+               if (afspwd) {
+                  String afsInfo = "c";
+                  if (bm->UpdateBucket(afsInfo, kXRS_afsinfo) != 0)
+                     PRINT("Warning: problems updating bucket with AFS info");
+               }
+            }
             // Fill output with double hash
             creds->SetBuf(hs->Pent->buf1.buf,hs->Pent->buf1.len);
             // Update status
@@ -2316,6 +2427,14 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
          // We are done
          return creds;
       }
+   }
+
+   //
+   // From now we need to prompt the user: we can do this only if
+   // connected to a terminal
+   if (!(hs->Tty)) {
+      DEBUG("Not connected to tty: cannot prompt user for credentials");
+      return (XrdSutBucket *)0;
    }
 
    //
@@ -2910,12 +3029,6 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
          SafeDelArray(ptag);
       } else 
          emsg = "could not allocate buffer for server puk tag";
-      //
-      // If we do not have a cipher the only thing we can try is
-      // auto-registration: but this we can do only if we have a
-      // terminal attached, to be able to answer to questions
-      if (!(hs->Hcip) && !(hs->Tty))
-         return -1;
       //
       // And we are done;
       return 0;
