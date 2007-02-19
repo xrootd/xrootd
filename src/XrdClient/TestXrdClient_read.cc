@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
     int vectored_style = 0;
     long read_delay = 0;
     timeval tv;
-    double starttime = 0, openphasetime = 0, endtime = 0;
+    double starttime = 0, openphasetime = 0, endtime = 0, closetime = 0;
     long long totalbytesread = 0;
     long totalreadscount = 0;
     int filezcount = 0;
@@ -432,6 +432,9 @@ int main(int argc, char **argv) {
 
 	}
 
+	gettimeofday(&tv, 0);
+	closetime = tv.tv_sec + tv.tv_usec / 1000000.0;
+
 	cout << endl << endl << "--- Closing all instances" << endl;
 	for(int i = 0; i < (int) xrdcvec.size(); i++) {
 	    if (xrdcvec[i]->IsOpen()) xrdcvec[i]->Close();
@@ -457,16 +460,19 @@ int main(int argc, char **argv) {
     cout << "Summary ----------------------------" << endl;
     cout << "--- starttime: " << starttime << endl;
     cout << "--- lastopentime: " << openphasetime << endl;
+    cout << "--- closetime: " << closetime << endl;
     cout << "--- endtime: " << endtime << endl;
     cout << "--- open_elapsed: " << openphasetime - starttime << endl;
-    cout << "--- data_xfer_elapsed: " << endtime - openphasetime << endl;
+    cout << "--- data_xfer_elapsed: " << closetime - openphasetime << endl;
+    cout << "--- close_elapsed: " << endtime - closetime << endl;
     cout << "--- total_elapsed: " << endtime - starttime << endl;
     cout << "--- totalbytesreadperfile: " << totalbytesread << endl;
-    cout << "--- maxbytesreadpersecperfile: " << totalbytesread / (endtime - openphasetime) << endl;
+    cout << "--- maxbytesreadpersecperfile: " << totalbytesread / (closetime - openphasetime) << endl;
     cout << "--- effbytesreadpersecperfile: " << totalbytesread / (endtime - starttime) << endl;
     cout << "--- readscountperfile: " << totalreadscount << endl;
     cout << "--- filescount: " << filezcount << endl;
     cout << endl;
+
 
     return 0;
 
