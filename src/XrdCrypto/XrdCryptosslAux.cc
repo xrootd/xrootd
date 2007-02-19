@@ -211,7 +211,6 @@ XrdSutBucket *XrdCryptosslX509ExportChain(XrdCryptoX509Chain *chain,
             BIO_free(bmem);
             return bck;
          }
-      } else {
       }
    }
    // Now write all other certificates
