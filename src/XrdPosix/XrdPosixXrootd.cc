@@ -556,11 +556,15 @@ int     XrdPosixXrootd::Open(const char *path, int oflags, int mode)
    if (fd > highFD) highFD = fd;
    myMutex.UnLock();
 
-// Translate option bits to the appropraite values
+// Translate option bits to the appropraite values. Always 
+// make directory path for new file.
 //
    XOflags = (oflags & (O_WRONLY | O_RDWR) ? kXR_open_updt : kXR_open_read);
-   if (oflags & O_CREAT) XOflags |= (oflags & O_EXCL ? kXR_new : kXR_delete);
-      else if (oflags & O_TRUNC && XOflags & kXR_open_updt)
+   if (oflags & O_CREAT) {
+       XOflags |= (oflags & O_EXCL ? kXR_new : kXR_delete);
+       XOflags |= kXR_mkpath | kXR_new;
+   }
+   else if (oflags & O_TRUNC && XOflags & kXR_open_updt)
               XOflags |= kXR_delete;
 
 // Translate the mode, if need be
