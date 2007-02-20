@@ -344,14 +344,14 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 
 // Read the message and get the host address
 //
-   do {dlen = recvfrom(iofd, (Sokdata_t)bp->data, BuffSize, 0, &addr,&addrlen);
+   do {dlen = recvfrom(iofd,(Sokdata_t)bp->data,BuffSize-1,0,&addr,&addrlen);
       } while(dlen < 0 && errno == EINTR);
 
    if (dlen < 0)
       {eDest->Emsg("Receive", errno, "perform UDP recvfrom()");
        BuffQ->Recycle(bp);
        return 0;
-      }
+      } else bp->data[dlen] = '\0';
 
 // Authorize this connection. We don't accept messages that set the
 // loopback address since this can be trivially spoofed in UDP packets.
