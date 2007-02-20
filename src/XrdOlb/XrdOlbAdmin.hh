@@ -46,7 +46,6 @@ void  do_Suspend();
 
 static XrdOucMutex      myMutex;
 static XrdOucSemaphore *SyncUp;
-static int              nSync;
 static int              POnline;
        XrdOucStream     Stream;
        const char      *Stype;

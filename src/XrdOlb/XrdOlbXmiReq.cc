@@ -119,6 +119,30 @@ XrdOlbXmiReq::~XrdOlbXmiReq()
 }
 
 /******************************************************************************/
+/*                                  P r e p                                   */
+/******************************************************************************/
+
+int XrdOlbXmiReq::Prep(const char *reqid,
+                       const char *path,
+                       int         opts)
+{
+    char buff[4096], *bp;
+    int rlen = strlen(reqid);
+    int plen = strlen(path);
+
+    if (rlen+plen+1 >= static_cast<int>(sizeof(buff)))
+       {Say.Emsg("Prep", "Input args to long:", reqid, path);
+        return 1;
+       }
+
+    strcpy(buff, reqid);
+    bp = buff+rlen; *bp = ' '; bp++;
+    strcpy(bp, path);
+
+    return Qit(0, do_prep, buff, opts);
+}
+
+/******************************************************************************/
 /*                                R e n a m e                                 */
 /******************************************************************************/
 
@@ -143,6 +167,38 @@ int XrdOlbXmiReq::Rename(      XrdOlbReq      *Request,
 }
 
 /******************************************************************************/
+/*                           p r o c e s s P r p Q                            */
+/******************************************************************************/
+  
+void XrdOlbXmiReq::processPrpQ()
+{
+   XrdOlbXmiReq *myQueue, *rp;
+   char *cp;
+
+// This is one big loop where we take off as many requests from the queue
+// as we can. However we feed them one at a time the Xmi prep   processor
+// as we have found that the interfaces can be so gruesome that batching
+// requests outweighs incurs complexity beyond belief. For prepare, no
+// responses are possible, so we pass a null XmiReq pointer.
+//
+   while(1)
+        {stgReady.Wait();
+         stgMutex.Lock();
+         myQueue  = stgFirst;
+         stgFirst = stgLast = 0;
+         stgMutex.UnLock();
+
+         while((rp = myQueue))
+              {myQueue = rp->Next;
+               if ((cp = index(rp->Path, ' '))) {*cp = '\0'; cp++;}
+                  else cp = (char *)"";
+               XmiP->Prep(rp->Path, cp, rp->Parms);
+               delete rp;
+              }
+        }
+}
+
+/******************************************************************************/
 /*                           p r o c e s s R e q Q                            */
 /******************************************************************************/
   
@@ -150,6 +206,7 @@ void XrdOlbXmiReq::processReqQ()
 {
    XrdOlbXmiReq *myQueue, *rp;
    char *cp;
+   int rc;
 
 // This is one big loop where we take off as many requests from the queue
 // as we can and feed them to the general request processor
@@ -164,26 +221,32 @@ void XrdOlbXmiReq::processReqQ()
          while((rp = myQueue))
               {myQueue = rp->Next;
                switch(rp->Rtype)
-                     {case do_stat:   XmiP->Stat(rp->ReqP, rp->Path);
+                     {case do_stat:   rc = XmiP->Stat(rp->ReqP, rp->Path);
                                       break;
-                      case do_mkdir:  XmiP->Mkdir(rp->ReqP, rp->Path, rp->Parms);
+                      case do_mkdir:  rc = XmiP->Mkdir(rp->ReqP, rp->Path, rp->Parms);
                                       break;
-                      case do_mkpath: XmiP->Mkpath(rp->ReqP, rp->Path, rp->Parms);
+                      case do_mkpath: rc = XmiP->Mkpath(rp->ReqP, rp->Path, rp->Parms);
                                       break;
-                      case do_rmdir:  XmiP->Remdir(rp->ReqP, rp->Path);
+                      case do_rmdir:  rc = XmiP->Remdir(rp->ReqP, rp->Path);
                                       break;
-                      case do_rm:     XmiP->Remove(rp->ReqP, rp->Path);
+                      case do_rm:     rc = XmiP->Remove(rp->ReqP, rp->Path);
                                       break;
                       case do_mv:     if ((cp = index(rp->Path, ' ')))
-                                         XmiP->Rename(rp->ReqP, rp->Path, cp+1);
-                                         else rp->ReqP->Reply_Error("Internal request format error");
+                                         {*cp = '\0';
+                                          rc = XmiP->Rename(rp->ReqP, rp->Path, cp+1);
+                                         } else {
+                                          rp->ReqP->Reply_Error("Internal request format error");
+                                          rc = 1;
+                                         }
                                       break;
-                      case do_chmod:  XmiP->Chmod(rp->ReqP, rp->Path, rp->Parms);
+                      case do_chmod:  rc = XmiP->Chmod(rp->ReqP, rp->Path, rp->Parms);
                                       break;
                       default: Say.Emsg("reqQ", "Invalid request code.");
                                rp->ReqP->Reply_Error("Internal server error");
+                               rc = 1;
                                break;
                      }
+               if (!rc) rp->ReqP->Reply_Error("Function failed in xmi handler");
                delete rp;
               }
         }
@@ -211,7 +274,8 @@ void XrdOlbXmiReq::processStgQ()
 
          while((rp = myQueue))
               {myQueue = rp->Next;
-               XmiP->Select(rp->ReqP, rp->Path, rp->Parms);
+               if (!XmiP->Select(rp->ReqP, rp->Path, rp->Parms))
+                  rp->ReqP->Reply_Error("Select failed in xmi handler");
                delete rp;
               }
         }
@@ -251,6 +315,6 @@ void XrdOlbXmiReq::Start()
   
 int XrdOlbXmiReq::Qit(XrdOlbReq *rp, ReqType rt, const char *path, int parms)
 {
-    new XrdOlbXmiReq(rp->Reply_WaitResp(5940), rt, path, parms);
+    new XrdOlbXmiReq((rp ? rp->Reply_WaitResp(5940) : 0), rt, path, parms);
     return 1;
 }

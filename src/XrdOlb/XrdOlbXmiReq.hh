@@ -36,10 +36,9 @@ public:
                          mode_t          mode)
                   {return Qit(Request, do_mkpath, path, (int)mode);}
 
-       int  Prep  (      XrdOlbReq      *Request,
+       int  Prep  (const char           *ReqID,
                    const char           *path,
-                         int             opts)
-                  {return Qit(Request, do_prep, path, opts);}
+                         int             opts);
 
        int  Rename(      XrdOlbReq      *Request,
                    const char           *oldpath,

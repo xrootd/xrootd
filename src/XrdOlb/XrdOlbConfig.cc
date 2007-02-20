@@ -316,7 +316,7 @@ int XrdOlbConfig::Configure2()
 // Setup the admin path (used in all roles)
 //
    if (!NoGo) NoGo = !(AdminSock = XrdNetSocket::Create(&Say, AdminPath,
-                     (isManager ? "olbd.nimda" : "olbd.admin"), AdminMode));
+                     (isManager|isPeer ? "olbd.nimda":"olbd.admin"),AdminMode));
 
 // Develop a stable unique identifier for this olbd independent of the port
 //
@@ -336,7 +336,6 @@ int XrdOlbConfig::Configure2()
    if (isPeer && isSolo) 
       {SUPCount = 0; 
        SUPLevel = 0; 
-       doWait = 0;
        XrdOlbServer::setSpace(0x7fffffff, 0x7fffffff);
       }
 
@@ -468,6 +467,10 @@ void XrdOlbConfig::DoIt()
           }
       }
 
+// For solo peers we do not run disabled
+//
+   if (isPeer && isSolo) Disabled = 0;
+
 // Start the server subsystem
 //
    if (isServer || isPeer)
@@ -486,7 +489,7 @@ void XrdOlbConfig::DoIt()
 
 // If we are a manager then we must do a service enable after a service delay
 //
-   if (isManager)
+   if (isManager || isPeer)
       {wTime = SRVDelay - static_cast<int>((time(0) - eTime));
        if (wTime > 0) XrdOucTimer::Wait(wTime*1000);
        Disabled = 0;
@@ -905,40 +908,10 @@ int XrdOlbConfig::setupServer()
    if (!(Relay = Net->Relay(0, XRDNET_SENDONLY))) return 1;
    XrdOlbServer::setRelay(Relay);
 
-// If this is a staging server then we better have a disk cache. We ignore this
-// restriction if an XMI plugin will be used and we are a peer.
-//
-   if (!(isPeer || XmiPath) && DiskSS && !(monPath || monPathP))
-      {Say.Emsg("Config","Staging paths present but no disk cache specified.");
-       return 1;
-      }
-
 // Calculate overload delay time
 //
    if (MaxDelay < 0) MaxDelay = AskPerf*AskPing+30;
    if (DiskWT   < 0) DiskWT   = AskPerf*AskPing+30;
-
-// If no cache has been specified but paths exist get the pfn for each path
-// in the list for monitoring purposes
-//
-   if (!monPath && monPathP && lcl_N2N)
-      {XrdOucTList *tlp = monPathP;
-       char pbuff[2048];
-       while(tlp)
-            {if ((rc = lcl_N2N->lfn2pfn(tlp->text, pbuff, sizeof(pbuff))))
-                Say.Emsg("Config",rc,"determine pfn for lfn",tlp->text);
-                else {free(tlp->text);
-                      tlp->text = strdup(pbuff);
-                     }
-             tlp = tlp->next;
-            }
-       }
-
-// Setup file system metering
-//
-   Meter.setParms(monPath ? monPath : monPathP);
-   if (perfpgm && Meter.Monitor(perfpgm, perfint))
-      Say.Emsg("Config","Load based scheduling disabled.");
 
 // Create manager monitoring thread
 //
@@ -959,7 +932,7 @@ int XrdOlbConfig::setupServer()
 // Setup notification path
 //
    if (!(AnoteSock = XrdNetSocket::Create(&Say, AdminPath,
-                             (isManager ? "olbd.seton" : "olbd.notes"),
+                             (isManager|isPeer ? "olbd.seton":"olbd.notes"),
                              AdminMode, XRDNET_UDPSOCKET))) return 1;
 
 // Construct the nostage/suspend file path names
@@ -988,8 +961,43 @@ int XrdOlbConfig::setupServer()
       }
 
 // We have data only if we are a pure data server (the default is noData)
+// If we have no data, then we are done (the rest is for pure servers)
 //
-   if (!isProxy && !isSolo) Manager.hasData = 1;
+   if (isManager || isPeer || isProxy) return 0;
+   Manager.hasData = 1;
+
+// If no cache has been specified but paths exist get the pfn for each path
+// in the list for monitoring purposes
+//
+   if (!monPath && monPathP && lcl_N2N)
+      {XrdOucTList *tlp = monPathP;
+       char pbuff[2048];
+       while(tlp)
+            {if ((rc = lcl_N2N->lfn2pfn(tlp->text, pbuff, sizeof(pbuff))))
+                Say.Emsg("Config",rc,"determine pfn for lfn",tlp->text);
+                else {free(tlp->text);
+                      tlp->text = strdup(pbuff);
+                     }
+             tlp = tlp->next;
+            }
+       }
+
+// Setup file system metering (skip it for peers)
+//
+   Meter.setParms(monPath ? monPath : monPathP);
+   if (perfpgm && Meter.Monitor(perfpgm, perfint))
+      Say.Emsg("Config","Load based scheduling disabled.");
+
+// If this is a staging server then we better have a disk cache. We ignore this
+// restriction if an XMI plugin will be used and we are a peer.
+//
+   if (!(isPeer || XmiPath) && DiskSS && !(monPath || monPathP))
+      {Say.Emsg("Config","Staging paths present but no disk cache specified.");
+       return 1;
+      }
+
+// All done
+//
    return 0;
 }
 
@@ -1311,7 +1319,7 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &CFile)
        };
     int numopts = sizeof(dyopts)/sizeof(struct delayopts);
 
-    if (!isManager) return 0;
+    if (!isManager && !isPeer) return 0;
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "delay arguments not specified"); return 1;}

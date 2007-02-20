@@ -299,14 +299,6 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 // Handle the login for the server stream.
 //
    if (!(tp = lnkp->GetLine())) return Login_Failed("missing login",lnkp);
-
-// Check if this is a message request. One such request can be sent ahead of
-// the login to be included in the log (typically the manager's log).
-//
-   if (!strncmp("msg ", tp, 4) && tp[4])
-      {Say.Emsg("Manager",lnkp->Nick(), tp+4);
-       if (!(tp = lnkp->GetLine())) return Login_Failed("missing login",lnkp);
-      }
    DEBUG("from " <<lnkp->Nick() <<": " <<tp);
 
 // The server may only send a proper login request, check for this
@@ -334,7 +326,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
       }
 
 // Server Command: login {peer | pproxy | proxy | server} [options]
-// Options:        [port <dport>] [nostage] [suspend] [+m:<sport>] [=<sid>]
+// Options:        [port <dport>] [nostage] [suspend] [+m:<sport>] [=<sid>] [!]
 
 // Responses:      <id> ping
 //                 <id> try <hostlist>
@@ -401,8 +393,13 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 // Server may specify a stable unique identifier relative to hostname
 // Note: If additional parms we must copy the sid to a local buffer
 //
-   if (tp && *tp == '=') theSID = tp+1;
+   if (tp && *tp == '=') {theSID = tp+1; tp = lnkp->GetToken();}
       else theSID = 0;
+
+// The server may specify that it has been trying for a long time
+//
+   if (tp && *tp == '!')
+      Say.Emsg("Manager",lnkp->Nick(),"has not yet found a cluster slot!");
 
 // Make sure that our role is compatible with the incomming role
 //
@@ -649,21 +646,19 @@ void *XrdOlbManager::Pander(char *manager, int mport)
    EPNAME("Pander");
    XrdOlbServer   *sp;
    XrdNetLink     *lp;
-   int rc, Status, opts = 0, waits = 6, tries = 6, fails = 0, xport = mport;
+   int Role = 0, Status;
+   int rc, opts = 0, waits = 6, tries = 6, fails = 0, xport = mport;
    int Lvl = 0, mySID = ManTree.Register();
    char manbuff[256], *reason, *manp = manager;
    const int manblen = sizeof(manbuff);
 
 // Compute the Manager's status (this never changes for managers/supervisors)
 //
-   if (Config.asManager())
-      {Status = OLB_noStage;
-       if (Config.asPeer())
-           if (Config.SUPCount) Status |= OLB_isPeer | OLB_Suspend;
-               else             Status |= OLB_isPeer;
-           else                 Status |= OLB_isMan  | OLB_Suspend;
-       if (Config.asProxy())    Status |= OLB_isProxy;
-      }
+   if (Config.asPeer())
+      if (Config.SUPCount)             Role  = OLB_isPeer | OLB_Suspend;
+               else                    Role  = OLB_isPeer;
+      else if (Config.asManager())     Role  = OLB_isMan  | OLB_Suspend;
+   if (Config.asProxy())               Role |= OLB_isProxy;
 
 // Keep connecting to our manager. If XWait is present, wait for it to
 // be turned off first; then try to connect.
@@ -685,7 +680,10 @@ void *XrdOlbManager::Pander(char *manager, int mport)
               else {tries = 6; opts = 0;}
            if ((Lvl = myMans.Next(xport,manbuff,manblen)))
                   {Snooze(3); manp = manbuff;}
-             else {Snooze(6); manp = manager; xport = mport; fails++;}
+             else {Snooze(6); 
+                   if (manp != manager) fails++;
+                   manp = manager; xport = mport;
+                  }
            continue;
           }
        opts = 0; tries = waits = 6;
@@ -698,11 +696,8 @@ void *XrdOlbManager::Pander(char *manager, int mport)
        // Login this server. If we are a supervisor login possibly suspended
        //
        reason = 0;
-       if (!Config.asManager())
-           Status = (Config.asProxy() ? OLB_isProxy : 0)
-                  | (XWait ? OLB_Suspend : 0)|(XnoStage ? OLB_noStage : 0);
+       Status = Role|(XWait ? OLB_Suspend : 0)|(XnoStage ? OLB_noStage : 0);
        if (fails >= 6 && manp == manager) {Status |= OLB_Lost; fails = 0;}
-          else Status &= ~OLB_Lost;
 
        if (!(rc=sp->Login(Port, Status, Lvl+1)))
           if (!ManTree.Connect(mySID, sp)) rc = -86;
@@ -720,7 +715,9 @@ void *XrdOlbManager::Pander(char *manager, int mport)
        //
        if (rc != -86 && (Lvl = myMans.Next(xport,manbuff,manblen)))
           {manp = manbuff; continue;}
-       Snooze(9); Lvl = 0; manp = manager; xport = mport; fails++;
+       Snooze(9); Lvl = 0;
+       if (manp != manager) fails++;
+       manp = manager; xport = mport;
       } while(1);
     return (void *)0;
 }
@@ -998,6 +995,8 @@ void XrdOlbManager::Space(int none, int doinform)
 {
      const char *cmd = (none ? "nostage" : "stage");
      int PStage;
+
+     if (Config.asSolo()) return;
 
      XXMutex.Lock();
      PStage = XnoStage;

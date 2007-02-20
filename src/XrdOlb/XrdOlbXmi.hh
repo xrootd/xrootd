@@ -25,10 +25,19 @@
    to be processed by the plugin. You should use the thread scheduler passed
    via the XrdOlbXmiEnv structure (see below).
 
-   Each method is passed an XrdOlbReq object. This object must be used to send
-   a reply to the client (only one reply is allowed). A reply is mandatory
-   even if that reply is merely an indication that everything succeeded. Refer
-   to XrdOlbReq.hh on the description of how replies are effected.
+   Each method (other that Prep(), see below) is passed an XrdOlbReq object.
+   This object must be used to send a reply to the client (only one reply is 
+   allowed). A reply is *mandatory* if the function returns TRUE; even if that
+   reply is merely an indication that everything succeeded. A reply must *not*
+   be sent if the function returns FALSE; as a reply will be sent by the driver.
+   Refer to XrdOlbReq.hh on the description of how replies are effected.
+
+   The Prep() method is a background function and the client never expects a
+   reply. Therefore, no request object is passed since no reply is possible.
+   Instead, the first parameter is a request ID that is used to tag the
+   request. This ID may be passed later with XMI_CANCEL set to cancel and
+   path passed as a null string. All preparation for files tagged with request
+   ID should be stopped, if possible.
 
    The Xmi methods may be called in one of two modes, DIRECT or INDIRECT.
    The modes are indicated by XeqMode(). In DIRECT mode the Xmi methods are
@@ -38,18 +47,18 @@
    implementation is not particularly relevant as the protocol details are
    handled by the Xmi driver and the request object.
 
-   In general, each method must return either true (1) or false (0). However,
-   the action taken based on the return value depends on the calling mode.
+   Each method must return either true (1) or false (0). However, the action
+   taken based on the return value depends on the calling mode.
 
    TRUE  (1)  -> The function was processed and a reply was sent.
          Action: INDIRECT: Normal processing continues, the request was done.
                    DIRECT: Same as above.
    FALSE (0)  -> The function was *not* processed and *no* reply was sent.
-         Action: INDIRECT: An error is sent and processing continues.
+         Action: INDIRECT: An error reply is sent and processing continues.
                    DIRECT: Processing continues as if the Xmi was not present.
 
-   There are also special considerations for the XeqMode() function. See the
-   description for XrdOlbgetXmi().
+   See the description of XeqMode() on how to indicate which methods are to
+   be called and which mode each method requires.
 */
 
 /******************************************************************************/
@@ -85,13 +94,13 @@ XrdOucName2Name *Name2Name;     // -> lfn to xxx mapper (may be null)
   
 class XrdOlbPrepArgs;
 
-// Flags passed to Select()
+// Flags passed to Prep():   XMI_RW, XMI_CANCEL
+// Flags passed to Select(): XMI_RW, XMI_NEW, XMI_TRUNC
 //
 #define XMI_RW     0x0001
 #define XMI_NEW    0x0002
 #define XMI_TRUNC  0x0004
-#define XMI_MAKEP  0x0008
-#define XMI_ONLINE 0x0010
+#define XMI_CANCEL 0x0008
 
 // Flags to be passed back by XeqMode()
 //
@@ -136,7 +145,7 @@ virtual int  Mkpath(      XrdOlbReq      *Request,
 
 // Called to prepare future access to a file
 //
-virtual int  Prep  (      XrdOlbReq      *Request,
+virtual int  Prep  (const char           *ReqID,
                     const char           *Path,
                           int             Opts) = 0;
 // Called to rename a file or directory

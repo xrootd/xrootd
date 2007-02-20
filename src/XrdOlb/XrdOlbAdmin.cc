@@ -37,7 +37,6 @@ using namespace XrdOlb;
 
        XrdOucMutex      XrdOlbAdmin::myMutex;
        XrdOucSemaphore *XrdOlbAdmin::SyncUp = 0;
-       int              XrdOlbAdmin::nSync  = 0;
        int              XrdOlbAdmin::POnline= 0;
 
 /******************************************************************************/
@@ -159,8 +158,9 @@ void *XrdOlbAdmin::Start(XrdNetSocket *AdminSock)
 
 // If we are in independent mode then let the caller continue
 //
-   if (!Config.doWait || !Config.asServer()) {SyncUp->Post(); nSync = 1;}
-      else Say.Emsg(epname, "Waiting for primary server to login.");
+   if (Config.doWait && Config.asServer() || Config.asSolo())
+      Say.Emsg(epname, "Waiting for primary server to login.");
+      else if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
 
 // Accept connections in an endless loop
 //
@@ -259,9 +259,9 @@ int XrdOlbAdmin::do_Login()
 
 // Check if this is the first primary login and resume if we must
 //
-   if (!nSync) 
+   if (SyncUp)
       {SyncUp->Post();
-       nSync = 1;
+       SyncUp = 0;
        myMutex.UnLock();
        return 1;
       }

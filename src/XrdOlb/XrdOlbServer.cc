@@ -166,14 +166,9 @@ int XrdOlbServer::Login(int dataPort, int Status, int Lvl)
    char pbuff[16], qbuff[16], buff[1280];
    const char *role;
 
-// Send a message is we are lost
-//
-   if (Status & OLB_Lost)
-      Link->Send("msg cannot find usable manager; still searching.\n");
-   myLevel = Lvl;
-
 // Send a login request
 //
+   myLevel = Lvl;
    if (dataPort) sprintf(pbuff, "port %d", dataPort);
       else *pbuff = '\0';
    if (Status & OLB_isPeer) *qbuff = '\0';
@@ -182,10 +177,10 @@ int XrdOlbServer::Login(int dataPort, int Status, int Lvl)
    if (Status & OLB_isProxy) role = (Status & OLB_isPeer ? "pproxy" : "proxy");
       else                   role = (Status & OLB_isPeer ? "peer"   : "server");
 
-   sprintf(buff, "login %s %s %s %s %s =%s\n", role, pbuff,
+   sprintf(buff, "login %s %s %s %s %s =%s%s\n", role, pbuff,
                  (Status & OLB_noStage ? "nostage" : ""),
                  (Status & OLB_Suspend ? "suspend" : ""),
-                 qbuff, Config.mySID);
+                 qbuff, Config.mySID, (Status & OLB_Lost ? " !" : ""));
    if (Link->Send(buff) < 0) return -1;
 
 // If this is a new manager, it will send us a ping or try response at this
@@ -1041,6 +1036,7 @@ int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs *pargs)  // Static!!!
 {
    EPNAME("do_PrepAdd4Real");
    char *oldpath, lclpath[XrdOlbMAX_PATH_LEN+1];
+
 // Generate the true local path
 //
    oldpath = pargs->path;
@@ -1056,7 +1052,10 @@ int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs *pargs)  // Static!!!
        if (!Config.DiskSS)
           Say.Emsg("Server", "staging disallowed; ignoring prep",
                           pargs->user, pargs->reqid);
-          else PrepQ.Add(*pargs);
+          else if (!Xmi_Prep 
+               ||  !Xmi_Prep->Prep(pargs->reqid, oldpath,
+                                  (index(pargs->mode, 'w') ? XMI_RW:0)))
+                  PrepQ.Add(*pargs);
        pargs->path = oldpath;
        return 0;
       }
@@ -1088,6 +1087,10 @@ int XrdOlbServer::do_PrepDel(char *rid, int server)
       {Say.Emsg("Server", "no prepcan request id from", Name());
        return 1;
       }
+
+// Do a callout to the external manager if we have one
+//
+   if (Xmi_Prep &&  Xmi_Prep->Prep(tp, "", XMI_CANCEL)) return 0;
 
 // If this is a server call, do it for real
 //
@@ -1128,6 +1131,13 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage) // Static!!!
    if (index(pargs->mode, (int)'w'))
            {needrw = 1; ptc = 'w'; Osel = OLB_needrw;}
       else {needrw = 0; ptc = 'r'; Osel = 0;}
+
+// Do a callout to the external manager if we have one
+//
+   if (Xmi_Prep)
+      {int opts = (Osel & OLB_needrw ? XMI_RW : 0);
+       if (Xmi_Prep->Prep(pargs->reqid, pargs->path, opts)) return 0;
+      }
 
 // Find out who serves this path
 //
@@ -1398,7 +1408,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 
 // Do a callout to the external manager if we have one
 //
-      if (qattr) {if (Xmi_Stat && Xmi_Select->Stat(&Req, tp)) return 0;}
+      if (qattr) {if (Xmi_Stat && Xmi_Stat->Stat(&Req, tp)) return 0;}
          else if (Xmi_Select) 
                  {int opts = (Osel & OLB_needrw ? XMI_RW : 0);
                   if (newfile) opts |= XMI_NEW;
