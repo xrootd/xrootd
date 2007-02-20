@@ -419,7 +419,7 @@ void XrdOucString::assign(const char *s, int j, int k)
    // Use j == 0 and k == -1 to assign the full string.
 
    int ls = s ? strlen(s) : 0;
-   if (!s)) {
+   if (!s) {
       // We are passed an empty string
       if (str) {
          // empty the local string, leaving capacity as it is
