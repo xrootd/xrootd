@@ -24,7 +24,11 @@ const char *XrdCS2DCM2csCVSID = "$Id$";
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdTrace.hh"
 
+#include "XrdNet/XrdNet.hh"
+#include "XrdNet/XrdNetPeer.hh"
+
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdCS2/XrdCS2DCM.hh"
@@ -42,6 +46,8 @@ extern XrdOucTrace       XrdTrace;
  
 extern XrdCS2DCM         XrdCS2d;
 
+extern XrdNet            XrdCS2Net;
+
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
@@ -56,14 +62,17 @@ public:
                  }
 
           XrdCS2Job(char *tid, char *fileid, char *mode,
-                    char *lfn, char *pfn)
+                    char *lfn, char *pfn, int freeDo=1)
                    {Tid    = tid;
                     FileID = fileid;
                     strcpy(Mode,  mode);
                     Lfn = lfn; Pfn = pfn;
+                    doFree = freeDo;
                    }
-         ~XrdCS2Job() {free(Tid); free(FileID); free(Lfn);
-                       if (Pfn) free(Pfn);
+         ~XrdCS2Job() {if (doFree)
+                          {free(Tid); free(FileID); free(Lfn);
+                           if (Pfn) free(Pfn);
+                          }
                       }
 private:
 char *Tid;
@@ -71,6 +80,7 @@ char *FileID;
 char  Mode[8];
 char *Lfn;
 char *Pfn;
+int   doFree;
 };
 
 /******************************************************************************/
@@ -83,7 +93,9 @@ void XrdCS2DCM::doEvents()
    char *Eid, *tp, *Tid, *Lfn;
 
 // Each request comes in as
-// <traceid> {closer | closew | fwrite | prep} <lfn>
+// From ofs:    <traceid> {closer | closew | fwrite} <lfn>
+//
+// From XrdCS2e: <reqid>:<fileid> prep <physpath>
 //
    while((tp = Events.GetLine()))
         {TRACE(DEBUG, "Event: '" <<tp <<"'");
@@ -109,6 +121,49 @@ void XrdCS2DCM::doEvents()
 //
    XrdLog.Emsg("doEvents", "Exiting; lost event connection to xrootd!");
    exit(8);
+}
+
+/******************************************************************************/
+/*                            d o M e s s a g e s                             */
+/******************************************************************************/
+
+void XrdCS2DCM::doMessages()
+{
+   const char *Miss = 0, *TraceID = "doMessages";
+   XrdNetPeer      myPeer;
+   XrdOucTokenizer Msg(0);
+   char *tp, *cmd, *arg1, *arg2;
+
+// Make sure we can really receive messages
+//
+   if (!udpPort) 
+      {XrdLog.Emsg("main", "No udp port specified, udp event msgs ignored.");
+       return;
+      }
+
+// Get udp messages in an endless loop:
+//
+// addfile <physpath> <fid>
+// addlink <physpath> <lfn>
+// rmfile  <fid>
+// rmlink  <lfn>
+//
+   while(XrdCS2Net.Accept(myPeer))
+        {Msg.Attach(myPeer.InetBuff->data);
+         while((tp = Msg.GetLine()))
+              {TRACE(DEBUG, "Message: '" <<tp <<"'");
+                    if (!(cmd  = Msg.GetToken())) Miss = "command";
+               else if (!(arg1 = Msg.GetToken())) Miss = "arg 1";
+               else if (*cmd == 'a'
+                    &&  !(arg2 = Msg.GetToken())) Miss = "arg 2";
+               else Miss = 0;
+
+               if (Miss) {XrdLog.Emsg("doMsg", "Missing", Miss, "in request.");
+                          break;
+                         }
+               XrdSched.Schedule((XrdJob *)new XrdCS2Job(arg1,cmd,(char *)"",arg2,0));
+              }
+        }
 }
 
 /******************************************************************************/
@@ -172,14 +227,18 @@ void XrdCS2DCM::Event(const char *Tid, const char *Eid, const char *Mode,
 
 // Process the event
 //
-        if (!strcmp("closer", Eid)
-        ||  !strcmp("closew", Eid)) Release(Tid, Lfn);
-   else if (!strcmp("fwrite", Eid))
+        if (!strcmp("closer",  Eid)
+        ||  !strcmp("closew",  Eid)) Release(Tid, Lfn);
+   else if (!strcmp("fwrite",  Eid))
            {char thePath[2048];
             makeFname(thePath, APath, APlen, Lfn);
             XrdCS2DCMFile::Modify(thePath);
            }
-   else if (!strcmp("prep",   Eid)) Prep(Tid, Lfn);
+   else if (!strcmp("prep",    Eid)
+        ||  !strcmp("addfile", Eid)) Prep(Tid, Lfn);
+   else if (!strcmp("addlink", Eid)) addLink(Tid, Lfn);
+   else if (!strcmp("rmfile",  Eid)) unPrep(Tid);
+   else if (!strcmp("rmlink",  Eid)) delLink(Tid);
    else XrdLog.Emsg("Event", "Received unknown event -", Tid, Eid);
 }
 

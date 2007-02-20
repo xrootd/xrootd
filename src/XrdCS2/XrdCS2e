@@ -5,7 +5,7 @@
 subreqID=$1
 fileID=$2
 physPath=$3
-prepPath=/xroot/db/CS2.events
+prepPath=/xroot/adm/OFS.events
 
 # Common subroutines (set DEBUG variable to 1 for debugging)
 #

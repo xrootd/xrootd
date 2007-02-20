@@ -26,6 +26,7 @@ const char *XrdCS2DCMConfigCVSID = "$Id$";
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdNet/XrdNetLink.hh"
+#include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetWork.hh"
 
 #include "XrdOuc/XrdOucError.hh"
@@ -109,6 +110,7 @@ XrdCS2DCM::XrdCS2DCM(void) : Request(&XrdLog)
    Parent   = getppid();
    UpTime   = time(0);
    QLim     = 100;
+   myName   = XrdNetDNS::getHostName();
 }
   
 /******************************************************************************/
@@ -124,10 +126,9 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 
   Output:   1 upon success or 0 otherwise.
 */
-   struct stat buf;
    XrdNetSocket *EventSock;
+   XrdNetSecurity *netSec;
    int n, EventFD, retc, NoGo = 0;
-   const char *inP;
    char c, buff[2048], *olbP, *logfn = 0;
    extern char *optarg;
    extern int optind, opterr;
@@ -136,7 +137,7 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"dl:q:")) && ((unsigned char)c != 0xff))
+      while ((c = getopt(argc,argv,"dl:p:q:")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'd': XrdTrace.What = TRACE_ALL;
@@ -144,6 +145,9 @@ int XrdCS2DCM::Configure(int argc, char **argv)
                  break;
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
+                 break;
+       case 'p': if (!(udpPort = atoi(optarg)))
+                    {XrdLog.Emsg("Config", "Invalid -p value -",optarg);NoGo=1;}
                  break;
        case 'q': if (!(QLim = atoi(optarg)))
                     {XrdLog.Emsg("Config", "Invalid -q value -",optarg);NoGo=1;}
@@ -154,6 +158,19 @@ int XrdCS2DCM::Configure(int argc, char **argv)
                  NoGo = 1;
        }
      }
+
+// Bind the log file if we have one
+//
+   if (logfn)
+      {XrdLogger.Bind(logfn, 24*60*60);
+       free(logfn);
+       new XrdLogWorker();
+      }
+
+// Put out the herald
+//
+   XrdLog.Emsg("Config", "XrdCS2d initialization started.");
+   if (NoGo) return !NoGo;
 
 // Get the directory where the meta information is to go
 //
@@ -168,30 +185,9 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 // Construct the management path
 //
    strcpy(buff, XPath);
-   strcpy(buff+XPlen, "db");
+   strcpy(buff+XPlen, "db/");
    MPath = strdup(buff); MPlen = strlen(buff);
-
-// Verify that the meta directory exists
-//
-   if (stat(MPath,&buf))
-      if (errno == ENOENT)
-         {if ((retc = XrdOucUtils::makePath(MPath,0770)))
-             {XrdLog.Emsg("Config", retc, "create recording directory", MPath);
-              return 0;
-             }
-         } else {
-          XrdLog.Emsg("Config", errno, "process recording directory", MPath);
-          return 0;
-         }
-
-   if (!(buf.st_mode & S_IFDIR))
-      {XrdLog.Emsg("Config","Recording path",MPath,"is not a directory");
-        return 0;
-      }
-   if (access(MPath, W_OK))
-      {XrdLog.Emsg("Config", errno, "access path", MPath);
-       return 0;
-      }
+   if (!SetupPath(MPath)) return 0;
 
 // Create the "active" directory for known active files
 //
@@ -230,30 +226,24 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 //
    if (NoGo) return 0;
 
-// Bind the log file if we have one
-//
-   if (logfn)
-      {XrdLogger.Bind(logfn, 24*60*60);
-       free(logfn);
-      }
-
-// Put out the herald
-//
-   XrdLog.Emsg("Config", "XrdCS2d initialization started.");
-
 // Start the Scheduler
 //
    XrdSched.Start();
 
+// Construct the event path
+//
+   strcpy(buff, XPath);
+   strcpy(buff+XPlen, "adm");
+   EPath = strdup(buff); EPlen = strlen(buff);
+   if (!SetupPath(EPath)) return 0;
+
 // Create our notification path (r/w for us and our group)
 //
-   if (!(EventSock = XrdNetSocket::Create(&XrdLog, MPath, "CS2.events",
+   if (!(EventSock = XrdNetSocket::Create(&XrdLog, EPath, "OFS.events",
                                    0660, XRDNET_FIFO))) NoGo = 1;
       else {EventFD = EventSock->Detach();
             delete EventSock;
             Events.Attach(EventFD, 32*1024);
-            sprintf(buff, "%sCS2.events", MPath);
-            EPath = strdup(buff); EPlen = strlen(buff);
            }
 
 // Create the notification path to the local olbd
@@ -262,6 +252,19 @@ int XrdCS2DCM::Configure(int argc, char **argv)
       {sprintf(buff, "%solbd.notes", olbP);
        if (!(olbdLink = XrdCS2Net.Relay(buff, XRDNET_SENDONLY))) NoGo = 1;
       } else olbdLink = 0;
+
+// Add network security constraint: we only talk with others on this host.
+//
+   netSec = new XrdNetSecurity();
+   netSec->AddHost(myName);
+   XrdCS2Net.Secure(netSec);
+
+// Bind our network to a UDP port number
+//
+   if (udpPort && (retc = XrdCS2Net.Bind(udpPort, "udp")))
+      {XrdLog.Emsg("Config", retc, "bind to specified udp port");
+       return 0;
+      }
 
 // Attach standard-in to our stream
 //
@@ -273,9 +276,6 @@ int XrdCS2DCM::Configure(int argc, char **argv)
 
 // All done
 //
-   inP = (NoGo ? "failed." : "completed.");
-   XrdLog.Emsg("Config", "XrdCS2d initialization ", inP);
-   if (logfn) new XrdLogWorker();
    return !NoGo;
 }
 
@@ -443,4 +443,39 @@ int XrdCS2DCM::Setup()
 
    close(fnfd);
    return 0;
+}
+ 
+/******************************************************************************/
+/*                             S e t u p P a t h                              */
+/******************************************************************************/
+  
+int XrdCS2DCM::SetupPath(const char *YPath)
+{
+   struct stat buf;
+   char buff[2048];
+   int retc;
+
+// Verify that the meta directory exists
+//
+   if (stat(YPath,&buf))
+      if (errno == ENOENT)
+         {strcpy(buff, YPath);
+          if ((retc = XrdOucUtils::makePath(buff,0770)))
+             {XrdLog.Emsg("Config", retc, "create recording directory", YPath);
+              return 0;
+             }
+         } else {
+          XrdLog.Emsg("Config", errno, "process recording directory", YPath);
+          return 0;
+         }
+
+   if (!(buf.st_mode & S_IFDIR))
+      {XrdLog.Emsg("Config","Recording path",YPath,"is not a directory");
+        return 0;
+      }
+   if (access(YPath, W_OK))
+      {XrdLog.Emsg("Config", errno, "access path", YPath);
+       return 0;
+      }
+   return 1;
 }

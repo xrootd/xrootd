@@ -154,8 +154,10 @@ XrdCS2Xmi::XrdCS2Xmi(XrdOlbXmiEnv *Env)
 
 // Set pointers and variables to zero
 //
-   prepReq      = 0;
-   prepReqH     = 0;
+   prepReq_ro   = 0;
+   prepReq_rw   = 0;
+   prepHlp_ro   = 0;
+   prepHlp_rw   = 0;
    stageReq_ro  = 0;
    stageReq_rw  = 0;
    stageReq_ww  = 0;
@@ -270,7 +272,8 @@ void XrdCS2Xmi::InitXeq()
 
 // Delete any objects we may have allocated here and try again
 //
-   if (prepReq)     {InitXeqDel(prepReq,     &prepReqH);    prepReq    =0;}
+   if (prepReq_ro)  {InitXeqDel(prepReq_ro,  &prepHlp_ro);  prepReq_ro =0;}
+   if (prepReq_rw)  {InitXeqDel(prepReq_rw,  &prepHlp_rw);  prepReq_rw =0;}
    if (stageReq_ro) {InitXeqDel(stageReq_ro, &stageHlp_ro); stageReq_ro=0;}
    if (stageReq_rw) {InitXeqDel(stageReq_rw, &stageHlp_rw); stageReq_rw=0;}
    if (stageReq_ww) {InitXeqDel(stageReq_ww, &stageHlp_ww); stageReq_ww=0;}
@@ -288,16 +291,27 @@ try {
   prepClient = new castor::client::BaseClient(TimeOut);
   prepClient->setOption(&Opts);
 
-  prepReq    = new castor::stager::StagePrepareToGetRequest;
-  prepReq->setMask(mask);
-  prepReq->setUserTag(prepTag);
+  prepReq_ro    = new castor::stager::StagePrepareToGetRequest;
+  prepReq_ro->setMask(mask);
+  prepReq_ro->setUserTag(prepTag);
 
   subreq = new castor::stager::SubRequest();
-  subreq->setRequest(prepReq);
-  prepReq->addSubRequests(subreq);
+  subreq->setRequest(prepReq_ro);
+  prepReq_ro->addSubRequests(subreq);
 
-  prepReqH   = new castor::stager::RequestHelper(prepReq);
-  prepReqH->setOptions(&Opts);
+  prepHlp_ro = new castor::stager::RequestHelper(prepReq_ro);
+  prepHlp_ro->setOptions(&Opts);
+
+  prepReq_rw    = new castor::stager::StagePrepareToUpdateRequest;
+  prepReq_rw->setMask(mask);
+  prepReq_rw->setUserTag(prepTag);
+
+  subreq = new castor::stager::SubRequest();
+  subreq->setRequest(prepReq_rw);
+  prepReq_rw->addSubRequests(subreq);
+
+  prepHlp_rw = new castor::stager::RequestHelper(prepReq_rw);
+  prepHlp_rw->setOptions(&Opts);
 
 // Now create the objects used for stage processing. We want a separate set
 // of objects here because we *will* be issuing queries for these requests
@@ -364,7 +378,7 @@ try {
          eDest->Emsg("CS2Xmi", retc, "create read polling thread");
          else PollerOK_R = 1;
 
-// Start the thread that handles polling
+// Start the thread that handles polling (n/a as no responses to prepareToPut)
 //
 // if (!PollerOK_W)
 //    if ((retc = XrdOucThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_ww,
@@ -545,6 +559,85 @@ int XrdCS2Xmi::Mkpath(XrdOlbReq *Request, const char *path, mode_t mode)
 }
   
 /******************************************************************************/
+/*                                  P r e p                                   */
+/******************************************************************************/
+
+int XrdCS2Xmi::Prep(const char *ReqID, const char *path, int opts)
+{
+   EPNAME("Select");
+   castor::stager::FileRequest *req;
+   castor::stager::SubRequest *subreq;
+   std::vector<castor::rh::Response *>respvec;
+   castor::client::VectorResponseHandler rh(&respvec);
+   XrdCS2Req *myRequest = 0;
+   castor::rh::IOResponse *fr;
+   const char *rType;
+
+// We currently do not support cancel requests, so ignore them
+//
+   if (opts & XMI_CANCEL || !*path) return 1;
+
+// Perform an initialization Check
+//
+   if (!initDone) return 1;
+   stage_apiInit(&Tinfo);
+
+// There are two possibilities here: r/o files and r/w files.
+// We need to separate each type and issue the request appropriately.
+// Each request object has been assigned a single subrequest object that
+// we can reuse.
+//
+        if (opts & XMI_RW)  {req = prepReq_rw; rType = "PPrep2Upd";}
+   else                     {req = prepReq_ro; rType = "PPrep2Get";}
+
+// Create a new Castor request
+//
+    subreq = *(req->subRequests().begin());
+    subreq->setProtocol(std::string("xroot"));
+    subreq->setFileName(std::string(myRequest->Path()));
+    subreq->setModeBits(0744);
+    subreq->setXsize(0);  // for now
+
+// Now send the request (we have no idea what to do with reqid which will
+// generate a warning, sigh). There is no need to wait for a response as
+// all we want is to start the staging operation.
+//
+   try   {std::string reqid = prepClient->sendRequest(req, &rh);
+          DEBUG(rType << " reqid=" <<reqid.c_str() <<" path=" <<path);
+         }
+   catch (castor::exception::Communication e)
+         {eDest->Emsg("Select","Communications error;",e.getMessage().str().c_str());
+          Init(reinitTime);
+          return 1;
+         }
+   catch (castor::exception::Exception e)
+         {eDest->Emsg("Select","sendRequest exception;",e.getMessage().str().c_str());
+          return 1;
+         }
+
+// Make sure we have an initial response.
+//
+   if (respvec.size() <= 0)
+      {eDest->Emsg("Prep", "No response for prepare", path);
+       return 1;
+      }
+
+// Proccess the response.
+//
+   fr = dynamic_cast<castor::rh::IOResponse*>(respvec[0]);
+   if (0 == fr)
+      {eDest->Emsg("Prep", "Invalid response object for prepare", path);
+       return 1;
+      } else if (fr->errorCode())
+                eDest->Emsg("Prep",fr->errorMessage().c_str(),"preparing",path);
+
+// Free response data and return
+//
+   delete respvec[0];
+   return 1;
+}
+
+/******************************************************************************/
 /*                                R e n a m e                                 */
 /******************************************************************************/
   
@@ -627,12 +720,22 @@ int XrdCS2Xmi::Select( XrdOlbReq *Request, const char *path, int opts)
 // We need to separate each type and issue the request appropriately
 // Too bad the class design is not orthogonal. It would have been easier.
 // Each request object has been assigned a single subrequest object that
-// we can reuse. As prepareToPut does nothing really useful, we will
-// need to schedule a real put request after issuing it.
+// we can reuse. Technically, we should issue a prepareToPut but as it
+// really does nothing useful and since we don't support multiple put
+// session, we keep the structure but short-circuit the code and just
+// go ahead and issue a put in another thread.
 //
         if (opts & XMI_NEW) {req = stageReq_ww; rType = "Prep2Put";}
    else if (opts & XMI_RW)  {req = stageReq_rw; rType = "Prep2Upd";}
    else                     {req = stageReq_ro; rType = "Prep2Get";}
+
+// If this is file creation, short-circuit the code below
+//
+   if (opts & XMI_NEW)
+      {CS2Xmi::XmiJob *jp = new CS2Xmi::XmiJob(this, Request, path);
+       Sched->Schedule((XrdJob *)jp);
+       return 1;
+      }
 
 // Allocate an Xmi request object for this request
 //
@@ -677,15 +780,6 @@ int XrdCS2Xmi::Select( XrdOlbReq *Request, const char *path, int opts)
        Request->Reply_Error("Internal Castor2 error receiving response.");
        return 1;
       }
-
-//
-int i, n  =  respvec.size();
-for (i = 0; i < n; i++)
-   {fr = dynamic_cast<castor::rh::IOResponse*>(respvec[i]);
-   if (0 != fr)
-   {DEBUG("respvec " <<i <<"ec=" <<fr->errorCode() <<' '
-          <<fr->errorMessage().c_str() <<" fn=" <<fr->fileName().c_str());}
-  }
 
 // Proccess the response.
 //
@@ -948,20 +1042,4 @@ void XrdCS2Xmi::sendRedirect(XrdOlbReq                   *reqP,
                  (Opts.stage_host ? Opts.stage_host : ""));
    DEBUG("-> " <<resp->server().c_str() <<'?' <<buff <<" path=" <<Path);
    reqP->Reply_Redirect(resp->server().c_str(), 0, buff);
-}
-
-/******************************************************************************/
-/*                                                                            */
-/*                          n o t S u p p o r t e d                           */
-/*                                                                            */
-/******************************************************************************/
-  
-int XrdCS2Xmi::notSupported(XrdOlbReq *rp, const char *opn, const char *path)
-{
-   char buff[2048];
-   int n;
-
-   n = sprintf(buff, "Unable to %s %s; operation not supported.",opn,path);
-   rp->Reply_Error(buff, n);
-   return 1;
 }

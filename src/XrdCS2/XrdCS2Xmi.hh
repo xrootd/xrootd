@@ -54,10 +54,9 @@ public:
                    const char           *path,
                          mode_t          mode);
 
-       int  Prep  (      XrdOlbReq      *Request,
+       int  Prep  (const char           *ReqID,
                    const char           *path,
-                         int             opts)
-                  {return notSupported(Request, "prepare", path);}
+                         int             opts);
 
        int  Rename(      XrdOlbReq      *Request,
                    const char           *oldpath,
@@ -87,7 +86,6 @@ public:
 virtual    ~XrdCS2Xmi() {}
 
 private:
-int   notSupported(XrdOlbReq *rp, const char *opn, const char *path);
 int   sendError(XrdOlbReq *reqP, int rc, const char *opn, const char *path);
 int   sendError(XrdCS2Req *reqP, const char *fn, int rc, const char *emsg);
 int   sendError(XrdOlbReq *reqP, const char *fn, int rc, const char *emsg);
@@ -99,10 +97,12 @@ void  InitXeqDel(castor::stager::FileRequest    *req,
 
 // The objects to handle prepare (we never query them)
 //
-   static const char                        *prepTag;
-   castor::stager::StagePrepareToGetRequest *prepReq;
-   castor::stager::RequestHelper            *prepReqH;
-   castor::client::BaseClient               *prepClient;
+   static const char                           *prepTag;
+   castor::stager::StagePrepareToGetRequest    *prepReq_ro;
+   castor::stager::StagePrepareToUpdateRequest *prepReq_rw;
+   castor::stager::RequestHelper               *prepHlp_ro;
+   castor::stager::RequestHelper               *prepHlp_rw;
+   castor::client::BaseClient                  *prepClient;
 
 // The objects to handle stage
 //

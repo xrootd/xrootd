@@ -29,6 +29,8 @@ int   Configure(int argc, char **argv);
 
 void  doEvents();
 
+void  doMessages();
+
 void  doRequests();
 
 void  Event(const char *Tid, const char *ReqID, const char *Mode, const char *Lfn);
@@ -40,6 +42,8 @@ void  Stage(const char *, char *, char *, char *, char *);
 
 private:
 
+void  addLink(const char *Rfn, const char *Lfn);
+void  delLink(const char *Lfn);
 int   CS2_Open(const char *Tid, const char *Fid, char *Lfn,
                int flags, off_t fsize);
 int   CS2_rDone(const char *, unsigned long long, const char *);
@@ -53,13 +57,16 @@ void  Prep(const char *, const char *);
 int   Release(const char *, const char *, int failed=0);
 void  rmStale(const char *, time_t Deadline);
 int   Setup();
+int   SetupPath(const char *thePath);
 void  LockDir()  {dirMutex.Lock();}
 void  UnLockDir(){dirMutex.UnLock();}
+void  unPrep(const char *Fid);
 
 XrdOucMutex     dirMutex;
 XrdOucStream    Request;
 XrdOucStream    Events;
 XrdNetLink     *olbdLink;
+char           *myName;
 char           *APath;   // Active
 int             APlen;
 char           *CPath;   // Closed
@@ -72,8 +79,9 @@ char           *PPath;   // Pending
 int             PPlen;
 char           *XPath;   // Base path that the above derive from
 int             XPlen;
-pid_t           Parent;
 int             QLim;
+int             udpPort;
+pid_t           Parent;
 time_t          UpTime;
 };
 #endif

@@ -79,6 +79,13 @@ void *mainEvent(void *parg)
 
    return (void *)0;
 }
+  
+void *udpEvent(void *parg)
+{
+   XrdCS2d.doMessages();
+
+   return (void *)0;
+}
 
 /******************************************************************************/
 /*                                  m a i n                                   */
@@ -88,6 +95,7 @@ int main(int argc, char *argv[])
 {
    sigset_t myset;
    pthread_t tid;
+   const char *wp;
    int retc;
 
 // Turn off sigpipe and host a variety of others before we start any threads
@@ -105,13 +113,22 @@ int main(int argc, char *argv[])
 
 // Perform configuration
 //
-   if (!XrdCS2d.Configure(argc, argv)) _exit(1);
+   if (XrdCS2d.Configure(argc, argv)) wp = "completed.";
+      else wp = "failed.";
+   XrdLog.Emsg("Config", "XrdCS2d initialization ", wp);
+   if (*wp == 'f') _exit(1);
 
 // Start the event thread
 //
    if ((retc = XrdOucThread::Run(&tid, mainEvent, (void *)0,
                             XRDOUCTHREAD_BIND, "Event handler")))
       {XrdLog.Emsg("main", retc, "create event thread"); _exit(3);}
+
+// Start the UDP event thread
+//
+   if ((retc = XrdOucThread::Run(&tid, udpEvent, (void *)0,
+                                     XRDOUCTHREAD_BIND, "UDP event handler")))
+      {XrdLog.Emsg("main", retc, "create udp event thread"); _exit(3);}
 
 // At this point we should be able to accept new requests.
 //

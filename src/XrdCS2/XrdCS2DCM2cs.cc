@@ -303,7 +303,6 @@ int  XrdCS2DCM::CS2_wDone(const char *Tid, unsigned long long reqID,
 {
   const char *TraceID = "_wDone";
   castor::stager::SubRequest subReq;
-  castor::stager::DiskCopy *dp;
   XrdCS2DCMService *sp;
   struct stat buf;
   unsigned long long fileSize = 0;
@@ -329,8 +328,6 @@ int  XrdCS2DCM::CS2_wDone(const char *Tid, unsigned long long reqID,
 //
   try {TRACE(DEBUG, "Calling prepareForMigration(" <<reqID <<',' <<fileSize <<") for " <<Pfn);
        sp->jobSvc->prepareForMigration(&subReq, fileSize);
-       TRACE(DEBUG, "Calling putDoneStart(" <<reqID <<") for " <<Pfn);
-       if ((dp = sp->jobSvc->putDoneStart(reqID))) delete dp;
       }
   catch (castor::exception::Communication e)
         {XrdLog.Emsg("wDone", Tid, "Communications error;",
@@ -398,6 +395,68 @@ int  XrdCS2DCM::CS2_wFail(const char *Tid, unsigned long long reqID,
    sp->Rel();
    return allOK;
 }
+
+/******************************************************************************/
+/*                               a d d L i n k                                */
+/******************************************************************************/
+  
+void  XrdCS2DCM::addLink(const char *Rfn, const char *Lfn)
+{
+   char Pfn[2048];
+   struct iovec iov[3];
+
+// Convert the lfn to our pfn
+//
+   strcpy(Pfn, XPath);
+   strcpy(Pfn+XPlen, Lfn);
+
+// Create the symlink to the real file
+//
+   if (symlink(Rfn, Pfn))
+      {XrdLog.Emsg("addLink", errno, "create symlink", Pfn);
+       return;
+      }
+
+// Notify the olbd that we now have the file
+//
+   if (olbdLink)
+      {iov[0].iov_base = (char *)"newfn "; iov[0].iov_len = 6;
+       iov[1].iov_base = (char *)Lfn;      iov[1].iov_len = strlen(Lfn);
+       iov[2].iov_base = (char *)"\n";     iov[0].iov_len = 1;
+       olbdLink->Send(iov, 3);
+      }
+}
+
+/******************************************************************************/
+/*                               d e l L i n k                                */
+/******************************************************************************/
+  
+void  XrdCS2DCM::delLink(const char *Lfn)
+{
+   char Pfn[2048];
+   struct iovec iov[3];
+
+// Convert the lfn to our pfn
+//
+   strcpy(Pfn, XPath);
+   strcpy(Pfn+XPlen, Lfn);
+
+// Create the symlink to the real file
+//
+   if (unlink(Lfn))
+      {if (errno != ENOENT) XrdLog.Emsg("delLink", errno, "remove symlink", Lfn);
+       return;
+      }
+
+// Notify the olbd that we no longer have the file
+//
+   if (olbdLink)
+      {iov[0].iov_base = (char *)"rmdid "; iov[0].iov_len = 6;
+       iov[1].iov_base = (char *)Lfn;      iov[1].iov_len = strlen(Lfn);
+       iov[2].iov_base = (char *)"\n";     iov[0].iov_len = 1;
+       olbdLink->Send(iov, 3);
+      }
+}
  
 /******************************************************************************/
 /*                                  P r e p                                   */
@@ -405,9 +464,8 @@ int  XrdCS2DCM::CS2_wFail(const char *Tid, unsigned long long reqID,
 
 void XrdCS2DCM::Prep(const char *Fid, const char *Rfn)
 {
-   char *servP, *endP, Lfn[CA_MAXPATHLEN+1], Pfn[2048];
+   char *servP, *endP, Lfn[CA_MAXPATHLEN+1];
    unsigned long long reqID, Fnum;
-   struct iovec iov[3];
 
 // Extract out the requestid from Fid (<reqid>:<fid>@<server>)
 //
@@ -425,35 +483,51 @@ void XrdCS2DCM::Prep(const char *Fid, const char *Rfn)
        if (*endP != '@') servP = 0;
       }
    if (!servP) 
-      {XrdLog.Emsg("Prepare", Fid, "fileid invalid in", Rfn);
+      {XrdLog.Emsg("Prep", Fid, "fileid invalid in", Rfn);
        return;
       }
 
 // Convert the fid to the actual Castor file name
 //
    if (Cns_getpath(servP, Fnum, Lfn) != 0)
-      {XrdLog.Emsg("Prepare", Fid, "fid conversion failed;", sstrerror(serrno));
+      {XrdLog.Emsg("Prep", Fid, "fid conversion failed;", sstrerror(serrno));
        return;
       }
 
-// Convert the lfn to our pfn
+// Add the symlink
 //
-   strcpy(Pfn, XPath);
-   strcpy(Pfn+XPlen, Lfn);
+   addLink(Rfn, Lfn);
+}
+ 
+/******************************************************************************/
+/*                                u n P r e p                                 */
+/******************************************************************************/
 
-// Create the symlink to the real file
+void XrdCS2DCM::unPrep(const char *Fid)
+{
+   char *servP, *endP, Lfn[CA_MAXPATHLEN+1];
+   unsigned long long Fnum;
+
+// Convert the Fid to the Castor file name (lfn)
 //
-   if (symlink(Rfn, Pfn))
-      {XrdLog.Emsg("Prepare", errno, "create symlink", Pfn);
+   if ((servP = index(Fid, '@')))
+      {servP++;
+       Fnum = strtoll(Fid, &endP, 10);
+       if (*endP != '@') servP = 0;
+      }
+   if (!servP) 
+      {XrdLog.Emsg("unPrep", "Invalid ffileid -", Fid);
        return;
       }
 
-// Notify the olbd that we now have the file
+// Convert the fid to the actual Castor file name
 //
-   if (olbdLink)
-      {iov[0].iov_base = (char *)"newfn "; iov[0].iov_len = 6;
-       iov[1].iov_base = Lfn;              iov[1].iov_len = strlen(Lfn);
-       iov[2].iov_base = (char *)"\n";     iov[0].iov_len = 1;
-       olbdLink->Send(iov, 3);
+   if (Cns_getpath(servP, Fnum, Lfn) != 0)
+      {XrdLog.Emsg("unPrep", Fid, "fid conversion failed;", sstrerror(serrno));
+       return;
       }
+
+// Remove the symlink
+//
+   delLink(Lfn);
 }
