@@ -262,7 +262,7 @@ int XrdXrootdProtocol::do_Chmod()
 // Check for static routing
 //
    if (Route[RD_chmod].Port) 
-      return Response.Send(kXR_redirect,Route[RD_chmod].Host,Route[RD_chmod].Port);
+      return Response.Send(kXR_redirect,Route[RD_chmod].Port,Route[RD_chmod].Host);
 
 // Unmarshall the data
 //
@@ -372,7 +372,7 @@ int XrdXrootdProtocol::do_Dirlist()
 // Check for static routing
 //
    if (Route[RD_dirlist].Port) 
-      return Response.Send(kXR_redirect,Route[RD_dirlist].Host,Route[RD_dirlist].Port);
+      return Response.Send(kXR_redirect,Route[RD_dirlist].Port,Route[RD_dirlist].Host);
 
 // Prescreen the path
 //
@@ -603,7 +603,7 @@ int XrdXrootdProtocol::do_Mkdir()
 // Check for static routing
 //
    if (Route[RD_mkdir].Port) 
-      return Response.Send(kXR_redirect,Route[RD_mkdir].Host,Route[RD_mkdir].Port);
+      return Response.Send(kXR_redirect,Route[RD_mkdir].Port,Route[RD_mkdir].Host);
 
 // Unmarshall the data
 //
@@ -638,7 +638,7 @@ int XrdXrootdProtocol::do_Mv()
 // Check for static routing
 //
    if (Route[RD_mv].Port) 
-      return Response.Send(kXR_redirect,Route[RD_mv].Host,Route[RD_mv].Port);
+      return Response.Send(kXR_redirect,Route[RD_mv].Port,Route[RD_mv].Host);
 
 // Find the space separator between the old and new paths
 //
@@ -1024,9 +1024,9 @@ int XrdXrootdProtocol::do_Prepare()
 // Check for static routing
 //
    if (Route[RD_prepstg].Port && ((opts & kXR_stage) || (opts & kXR_cancel)))
-      return Response.Send(kXR_redirect,Route[RD_prepstg].Host,Route[RD_prepstg].Port);
+      return Response.Send(kXR_redirect,Route[RD_prepstg].Port,Route[RD_prepstg].Host);
    if (Route[RD_prepare].Port)
-      return Response.Send(kXR_redirect,Route[RD_prepare].Host,Route[RD_prepare].Port);
+      return Response.Send(kXR_redirect,Route[RD_prepare].Port,Route[RD_prepare].Host);
 
 // Get a request ID for this prepare and check for static routine
 //
@@ -1499,7 +1499,7 @@ int XrdXrootdProtocol::do_Rm()
 // Check for static routing
 //
    if (Route[RD_rm].Port) 
-      return Response.Send(kXR_redirect,Route[RD_rm].Host,Route[RD_rm].Port);
+      return Response.Send(kXR_redirect,Route[RD_rm].Port,Route[RD_rm].Host);
 
 // Prescreen the path
 //
@@ -1530,7 +1530,7 @@ int XrdXrootdProtocol::do_Rmdir()
 // Check for static routing
 //
    if (Route[RD_rmdir].Port) 
-      return Response.Send(kXR_redirect,Route[RD_rmdir].Host,Route[RD_rmdir].Port);
+      return Response.Send(kXR_redirect,Route[RD_rmdir].Port,Route[RD_rmdir].Host);
 
 // Prescreen the path
 //
@@ -1660,7 +1660,7 @@ int XrdXrootdProtocol::do_Stat()
 // Check for static routing
 //
    if (Route[RD_stat].Port) 
-      return Response.Send(kXR_redirect,Route[RD_stat].Host,Route[RD_stat].Port);
+      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
 
 // Prescreen the path
 //

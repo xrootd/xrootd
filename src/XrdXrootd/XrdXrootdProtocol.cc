@@ -72,7 +72,7 @@ const char           *XrdXrootdProtocol::myInst  = 0;
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
 int                   XrdXrootdProtocol::myPID = static_cast<int>(getpid());
 
-struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[9] = {0,0};
+struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[9] = {{0,0}};
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */

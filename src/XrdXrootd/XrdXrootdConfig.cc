@@ -840,7 +840,7 @@ void XrdXrootdProtocol::xred_set(RD_func func, const char *rHost, int rPort)
 // Reset static redirection
 //
    if (Route[func].Host) free(Route[func].Host);
-   Route[func].Host = strdup(rHost);
+   Route[func].Host = (rHost ? strdup(rHost) : 0);
    Route[func].Port = rPort;
 }
 
