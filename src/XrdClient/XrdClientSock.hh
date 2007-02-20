@@ -100,14 +100,14 @@ public:
     virtual int RemoveParallelSock(int /* sockid */) { return -1; };
 
     // Suggests a sockid to be used for a req
-    virtual int GetSockIdHint(int reqsperstream) { return 0; }
+    virtual int GetSockIdHint(int /* reqsperstream */ ) { return 0; }
 
     virtual void   Disconnect();
 
     bool   IsConnected() {return fConnected;}
     virtual int GetSockIdCount() { return 1; }
-    virtual void PauseSelectOnSubstream(int substreamid) {  }
-    virtual void RestartSelectOnSubstream(int substreamid) {  }
+    virtual void PauseSelectOnSubstream(int /* substreamid */) {  }
+    virtual void RestartSelectOnSubstream(int /*substreamid */) {  }
 };
 
 #endif
