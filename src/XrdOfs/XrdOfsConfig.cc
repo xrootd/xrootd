@@ -275,7 +275,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
 // For remote redirection, we simply do a standard config
 //
    if (isRedir) {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),
-                           (Options & XrdOfsREDIRTRG ? XrdOdcIsTarget : 0));
+                           (Options & XrdOfsREDIRTRG  ? XrdOdcIsTarget : 0));
        if (!Finder->Configure(ConfigFN))
           {delete Finder; Finder = 0; return 1;}
       }
@@ -290,7 +290,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
 
 // For target redirection find the port number and create the object
 //
-   if (Options & XrdOfsREDIRTRG)
+   if (Options & (XrdOfsREDIRTRG | XrdOfsREDIREER))
       {if (!(pp=getenv("XRDPORT")) || !(port=strtol(pp, (char **)NULL, 10)))
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
