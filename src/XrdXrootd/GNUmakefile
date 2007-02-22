@@ -133,6 +133,7 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdOucLogger.hh      XrdOucReqID.hh \
                              XrdOucTokenizer.hh   XrdOucTrace.hh \
                              XrdOucProg.hh        XrdXrootdConfig.cc \
+                             XrdOucStream.hh      XrdOucEnv.hh \
                              ../XrdVersion.hh
 	@echo Compiling XrdXrootdConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdConfig.o XrdXrootdConfig.cc
