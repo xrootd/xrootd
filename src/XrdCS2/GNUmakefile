@@ -34,7 +34,7 @@ OBJECTS  = \
 
 SUNLIBS  = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys -lpthread -lnsl -lsocket -lrt
 LNXLIBS  = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys -lpthread -lnsl -lrt
-CS2LIBS  = $(LNXLIBS) -lshift
+CS2LIBS  = $(LNXLIBS) -LCASTOR2LIB -lshift
 
 LIBRARY  = $(LIBDIR)/libXrdCS2.$(TYPESHLIB)
 

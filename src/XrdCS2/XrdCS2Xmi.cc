@@ -755,8 +755,9 @@ int XrdCS2Xmi::Select( XrdOlbReq *Request, const char *path, int opts)
 // for this request prior to adding it to the queue of pending responses.
 // Since Recycle() automatically unlocks the queue so we don't explictly do it.
 //
-   try   {std::string reqid = stageClient->sendRequest(req, &rh);
-          DEBUG(rType << " reqid=" <<reqid.c_str() <<" path=" <<path);
+   try   {DEBUG("Sending " <<rType << " path=" <<path);
+          std::string reqid = stageClient->sendRequest(req, &rh);
+          DEBUG(rType << "sent; reqid=" <<reqid.c_str() <<" path=" <<path);
          }
    catch (castor::exception::Communication e)
          {myRequest->Recycle();
@@ -882,8 +883,9 @@ void XrdCS2Xmi::doPut(XrdOlbReq *Request, const char *path)
 // for this request prior to adding it to the queue of pending responses.
 // Since Recycle() automatically unlocks the queue so we don't explictly do it.
 //
-   try   {std::string reqid = putClient.sendRequest(&putReq_ww, &rh);
-          DEBUG("Put" << " reqid=" <<reqid.c_str() <<" path=" <<path);
+   try   {DEBUG("Sending Put path=" <<path);
+          std::string reqid = putClient.sendRequest(&putReq_ww, &rh);
+          DEBUG("Put sent; reqid=" <<reqid.c_str() <<" path=" <<path);
          }
    catch (castor::exception::Communication e)
          {eDest->Emsg("Put","Communications error;",e.getMessage().str().c_str());

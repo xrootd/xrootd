@@ -2,11 +2,14 @@ This directory contains the source to build the xrootd/olbd interface to CERN's
 CASTOR2 system. It is only supported for linux platforms as this is the only
 platform support by the Castor service. Follow the steps:
 
-0) cd to the xrootd directory (the enclosing directory).
-1) Run bootstrap.sh (autotools) or configure.classic.
-2) Compile, as needed the xroot/olb source tree.
-3) cd into this directory.
-4) Issue gmake to compile the contents therin.
+1) cd to the xrootd directory (the enclosing directory).
+2) Run bootstrap.sh (autotools) or configure.classic.
+3) Compile, as needed the xroot/olb source tree.
+4) cd into this directory (xrootd/src/XrdCS2)
+5) Look at configure and change tge definition of the location of the include
+   directory and the castor library director, if need be.
+6) execute ./configure
+7) Issue gmake to compile the contents therin.
 
 The following will be built:
 

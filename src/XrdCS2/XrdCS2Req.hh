@@ -28,7 +28,7 @@ public:
 
 static XrdCS2Req  *Alloc(XrdOlbReq *ReqP, const char *Path, int as_W=0);
 
-       void        Lock() {myLock = 1; myMutex.Lock();}
+       void        Lock() {myMutex.Lock(); myLock = 1;}
 
        const char *Path() {return thePath;}
 
