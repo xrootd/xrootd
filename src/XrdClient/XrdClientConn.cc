@@ -112,6 +112,7 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucStr
     if (redirdata) {
       XrdOucString h(redirdata->host);
       ParseRedirHost(h, opaque, token);
+      host = h;
       port = ntohl(redirdata->port);
     }
 }
