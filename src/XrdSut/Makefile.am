@@ -8,6 +8,12 @@
 ## Checked in by $Author$
 #######################################################################
 
+xrootdsutincdir = $(includedir)/xrootd/XrdSut
+
+xrootdsutinc_HEADERS =  XrdSutAux.hh  XrdSutBucket.hh  XrdSutBuckList.hh  \
+			XrdSutBuffer.hh  XrdSutCache.hh  XrdSutPFEntry.hh  \
+			XrdSutPFile.hh  XrdSutRndm.hh  XrdSutTrace.hh
+
 lib_LTLIBRARIES = libXrdSut.la
 
 INCLUDES = -I$(top_srcdir)/src
