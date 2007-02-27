@@ -127,7 +127,7 @@ if (!$netmax)
 # Start up the netstat command which will give the pace for the monitoring
 #
 Log("Unable to start netstat; $!")
-  if !defined(open(CMDFD, "netstat -c -i $monint |"));
+  if !defined(open(CMDFD, "netstat -i $monint |"));
 
 # Discard the first three lines of output
 #
