@@ -554,11 +554,15 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		if (!fConnModule->IsPhyConnConnected() ||
 		    fReadWaitData->Wait( EnvGetLong(NAME_REQUESTTIMEOUT) )) {
 
+                  if (DebugLevel() >= XrdClientDebug::kUSERDEBUG) {
                     fConnModule->PrintCache();
 
 		    Error( "Read",
-			  "Timeout waiting outstanding blocks. Retrying sync! List of outstanding reqs follows." );
+                           "Timeout waiting outstanding blocks. "
+                           "Retrying sync! "
+                           "List of outstanding reqs follows." );
                     SidManager->PrintoutOutstandingRequests();
+                  }
 
 		    retrysync = true;
 		}
