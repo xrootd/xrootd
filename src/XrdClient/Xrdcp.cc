@@ -719,7 +719,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
 void PrintUsage() {
    cerr << "usage: xrdcp <source> <dest> "
-     "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5]" << endl;
+     "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5] [-np] [-f] [-R] [-S]" << endl;
    cerr << " -d lvl :         debug level: 1 (low), 2 (medium), 3 (high)" << endl;
    cerr << " -D proxyaddr:proxyport" << endl <<
            "        :         use proxyaddr:proxyport as a SOCKS4 proxy. Only numerical addresses are supported." << endl <<

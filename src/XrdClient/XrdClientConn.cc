@@ -2245,7 +2245,9 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
    
 
     clientUnmarshall(&fREQWaitRespData->resphdr);
-    smartPrintServerHeader(&fREQWaitRespData->resphdr);
+
+    if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)
+      smartPrintServerHeader(&fREQWaitRespData->resphdr);
 
     // After all, this is the last resp we received
     memcpy(&LastServerResp, &fREQWaitRespData->resphdr, sizeof(struct ServerResponseHeader));
