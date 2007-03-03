@@ -77,6 +77,8 @@ kXR_int64 XrdClientReadV::ReqReadV(XrdClientConn *xrdc, char *handle, char *dest
 	    if ( xrdc->SendGenCommand(&readvFileRequest, buflis, 0, 
 				      (void *)res_buf, FALSE, (char *)"ReadV") )
 		total_len = UnpackReadVResp(destbuf, res_buf, xrdc->LastServerResp.dlen, offsets, lens, bufcnt);
+            else
+	      total_len = -1;
 	
 	    delete [] res_buf;
 	}
