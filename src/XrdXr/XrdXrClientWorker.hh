@@ -55,7 +55,6 @@ public:
    *          role      - role can have one of following two two values:
    *                            kXR_useruser  = 0
    *			      kXR_useradmin = 1
-   *          tlen      - length of the token supplied in the next parameter
    *          token     - Char token supplied by a previous redirection response
    *          resevered - Can have a maximum of 3 characters.
    *  
@@ -63,7 +62,6 @@ public:
    */
   int login(kXR_char      *username,
 	    kXR_char       role[1],
-	    kXR_int32      tlen = 0,
 	    kXR_char      *token = 0,
 	    kXR_char      *reserved = 0);
 

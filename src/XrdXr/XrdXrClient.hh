@@ -51,14 +51,12 @@ public:
    *          role      - role can have one of following two values:
    *                            kXR_useruser  = 0
    *			        kXR_useradmin = 1
-   *          tlen      - length of the token supplied in the next parameter
    *          token     - Char token supplied by a previous redirection response
    *
    * Output:  return 0 if OK, or an error number otherwise.
    */
   int login(kXR_char       *username,
 	    kXR_char        role[1],
-	    kXR_int32       tlen = 0,
 	    kXR_char       *token = 0);
 
   /**
@@ -91,12 +89,16 @@ public:
    *         mode  - mode in which file will be opened when newly created
    *                 This corresponds to the file access permissions set at
    *                 file creation time.   
+   *         token - the file opaque information or nil
+   *         tlen  - is the length of the token or zero
    *
    * Output: return 0 upon success; -errno otherwise.
    */
   int open(kXR_char       *path,
 	   kXR_unt16       oflag,
-	   kXR_unt16       mode);
+	   kXR_unt16       mode,
+	   const char     *token=0,
+	   int             tlen=0);
 
   /**
    * Read 'blen' bytes from the associated file, placing in 'buff'
@@ -219,13 +221,12 @@ private:
   //
   struct fileinfo {
     kXR_char  *path;
+    kXR_char  *token;
     bool       open;
     kXR_unt16  oflag;
     kXR_unt16  mode;
     kXR_char  *username;
     kXR_char   role[1];
-    kXR_int32  tlen;
-    kXR_char  *token;
   } fileInfo;
   
   // Since the current code only allows one file to be opened and worked on at 

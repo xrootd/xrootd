@@ -56,6 +56,9 @@ XrdXrClientWorker::XrdXrClientWorker(const char*   hostname,
   //
   hostname_ = hostname;
   port_ = port;
+  redirectHost = 0;
+  lp = 0;
+  xrootd = 0;
 
   // Use Logger/Error for the network connection
   //
@@ -67,6 +70,7 @@ XrdXrClientWorker::XrdXrClientWorker(const char*   hostname,
   //
   streamIdBase = 10;
 
+  filepath = 0;
   waitTime = redirectPort = redirect = 0;
 } // Constructor 
 
@@ -83,7 +87,6 @@ XrdXrClientWorker::XrdXrClientWorker(const char*   hostname,
  *          role      - role can have one of following two two values:
  *                            kXR_useruser  = 0
  *			      kXR_useradmin = 1
- *          tlen      - length of the token supplied in the next parameter
  *          token     - Char token supplied by a previous redirection response
  *          resevered - Can have a maximum of 3 characters.
  *  
@@ -91,12 +94,12 @@ XrdXrClientWorker::XrdXrClientWorker(const char*   hostname,
  */
 int XrdXrClientWorker::login(kXR_char      *username,
 			     kXR_char       role[1],
-			     kXR_int32      tlen,
 			     kXR_char      *token,
 			     kXR_char      *reserved)
 {
   static const char *epname = "login";
   int rc;  // return code
+  int tlen = (token ? strlen((const char *)token) : 0);
 
   TRACE(Login, "Try to connect to " <<  hostname_);
 
@@ -155,7 +158,7 @@ int XrdXrClientWorker::login(kXR_char      *username,
   int length = 1; 
   if (token != NULL) {
     iov[1].iov_base = (caddr_t) token;
-    iov[1].iov_len  = strlen((char*) token); 
+    iov[1].iov_len  = tlen;
     length = 2;
   } else {
     iov[1].iov_base = NULL;
@@ -465,7 +468,7 @@ int XrdXrClientWorker::open(kXR_char    *path,
 
   TRACE(Open, "open ok.");
   errInfo->setErrInfo(0,(const char*) "");
-  filepath = path;
+  filepath = (kXR_char *)strdup((const char *)path);
   return 0;
 } // open
 
@@ -586,7 +589,7 @@ int XrdXrClientWorker::stat(struct stat *buffer,
 {
   static const char  *epname = "stat";
   ClientStatRequest   statRequest;
-  int                 rc;           // return code
+  int                 rc, xMode;    // return code
   char               *lasttk;       // For strtok_r()
 
   // Check if a optional file path is assigned. If not, we use the default
@@ -656,19 +659,22 @@ int XrdXrClientWorker::stat(struct stat *buffer,
     union {long long uuid; struct {int hi; int lo;} id;} Dev;
     char *temp = strtok_r(buff, (const char*) " ", &lasttk);
 
-    Dev.uuid = (atoll(temp));
-    buffer->st_ino = Dev.id.lo;
-    buffer->st_dev = Dev.id.hi;
-
     for (int i = 0; i< 4; i ++) {
       temp = strtok_r(NULL, " ,.", &lasttk);
       switch (i) {
       case 0: buffer->st_size = atoll(temp); break;
-      case 1: buffer->st_mode = atoll(temp); break;
-      case 2: buffer->st_mtime = atol(temp); break;
+      case 1: xMode = atoi(temp);
+              buffer->st_mode = (xMode & kXR_xset ? S_IEXEC : 0);
+              if (xMode & kXR_isDir) buffer->st_mode |= S_IFDIR;
+                 else if (!(xMode & kXR_other)) buffer->st_mode |= S_IFREG;
+              if (xMode & kXR_readable) buffer->st_mode |= S_IREAD;
+              Dev.uuid = (xMode & kXR_offline ? 0 : atoll(temp));
+              break;
+      case 2: buffer->st_mtime = atoll(temp); break;
       }
     } 
-
+    buffer->st_ino = Dev.id.lo;
+    buffer->st_dev = Dev.id.hi;
     free(buff);
   } else {
     XrEroute.Emsg(epname, "No status information available.");
@@ -763,9 +769,10 @@ XrdXrClientWorker::~XrdXrClientWorker()
 
   // Delete all pointers
   //
-  delete xrootd;  xrootd  = 0;
-  delete errInfo; errInfo = 0;
-  if (redirect) { free(redirectHost); redirectHost = 0; redirect = 0;};
+  if (filepath)     free(filepath);
+  if (xrootd)       delete xrootd;
+  if (errInfo)      delete errInfo;
+  if (redirectHost) free(redirectHost);
 }
 
 
@@ -919,13 +926,15 @@ int XrdXrClientWorker::handleError(kXR_int32      dlen,
   }
 
   // If error type is kXR_error, print the error message. For kXR_wait and
-  // kXR_redirect assign the respective variables
+  // kXR_redirect assign the respective variables. Note that we do not yet
+  // support tokens passed on a redirect.
   //
   switch(status) {
   case kXR_error:    XrEroute.Emsg(method, error.errmsg);
                      status       = ntohl(error.errnum);  break;
   case kXR_wait:     waitTime     = ntohl(error.errnum);  break;
   case kXR_redirect: redirectPort = ntohl(error.errnum);  
+                     if (redirectHost) free(redirectHost);
                      redirectHost = (char*) malloc(rc - 3);
 		     memcpy((char *) redirectHost, error.errmsg, rc - 3);
 		     *(redirectHost+(rc-4)) = '\0';

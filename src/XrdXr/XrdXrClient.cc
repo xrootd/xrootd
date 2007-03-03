@@ -56,7 +56,7 @@ XrdXrClient::XrdXrClient(const char* hostname, int port, XrdOucLogger *log)
   port_ = portOrig_ = port;
   XrdXrClient::logger = log;
 
-  fileInfo.open = false;
+  memset(&fileInfo, 0, sizeof(fileInfo));
 
   maxRetry = maxWait = 10;
   maxWaitTime = 3;
@@ -74,14 +74,12 @@ XrdXrClient::XrdXrClient(const char* hostname, int port, XrdOucLogger *log)
  *          role      - role can have one of following two values:
  *                            kXR_useruser  = 0
  *			      kXR_useradmin = 1
- *          tlen      - length of the token supplied in the next parameter
  *          token     - Char token supplied by a previous redirection response
  *  
  * Output:  return 0 if OK, or an error number otherwise.
  */
 int XrdXrClient::login(kXR_char      *username,
 		       kXR_char       role[1],
-		       kXR_int32      tlen,
 		       kXR_char      *token)
 {
   int rc;
@@ -91,15 +89,13 @@ int XrdXrClient::login(kXR_char      *username,
 				 port_,
 				 logger);
   
-  rc = worker->login(username, role, tlen, token);
+  rc = worker->login(username, role, token);
 
   // If the login was correct, store the login information in the fileInfo 
   //
   if (!rc) {
-    fileInfo.username = username;
+    fileInfo.username = (kXR_char *)strdup((const char *)username);
     fileInfo.role[0] = role[0];
-    fileInfo.tlen = tlen;
-    fileInfo.token = token;
   }
   mutex.UnLock();
   return rc;
@@ -186,12 +182,16 @@ int XrdXrClient::auth(kXR_char        credtype[4],
  *         mode  - mode in which file will be opened when newly created
  *                 This corresponds to the file access permissions set at
  *                 file creation time.   
+ *         token - opaque information for path or null
+ *         tlen  - is the length of the token or zero
  *
  * Output: return 0 upon success; -errno otherwise.
  */
 int XrdXrClient::open(kXR_char    *path,
 		      kXR_unt16    oflag,
-		      kXR_unt16    mode)
+		      kXR_unt16    mode,
+		      const char  *token,
+		      int          tlen)
 {
   int            status;
   int            rc;
@@ -200,16 +200,26 @@ int XrdXrClient::open(kXR_char    *path,
   int            cwTime;                // Wait time for client
   static const char  *epname = "open";
 
-// If this is a virtual open in preparation for a stat() then short-circuit
-// the open. We can also use the incomming path as it will not be freed.
+// Construct the true path and optimistically preset fileInfo
 //
-    if (oflag & O_NONBLOCK)
-       {fileInfo.open = false;
-        fileInfo.path = (kXR_char*)path;
-        fileInfo.oflag = oflag;
-        fileInfo.mode = mode;
-        return 0;
-       }
+   if (fileInfo.path) free(fileInfo.path);
+   if (token && tlen)
+      {int plen = strlen((const char *)path);
+       fileInfo.path = (kXR_char *)malloc(plen+1+tlen+1);
+       strcpy((char *)fileInfo.path, (const char *)path);
+       fileInfo.path[plen] = '?';
+       strncpy((char *)&fileInfo.path[plen+1], token, tlen);
+       fileInfo.path[plen+1+tlen] = '\0';
+      } else fileInfo.path = (kXR_char *)strdup((const char *)path);
+   fileInfo.open  = false;
+   fileInfo.oflag = oflag;
+   fileInfo.mode  = mode;
+
+
+// If this is a virtual open in preparation for a stat() then short-circuit
+// the open.
+//
+    if (oflag & O_NONBLOCK) return 0;
 
   // We try to open a remote file. Since we might get redirected to another
   // host, we handle that here. In addition, the server might not have all
@@ -218,7 +228,7 @@ int XrdXrClient::open(kXR_char    *path,
   //
   while((wait < maxWait) && (redirect < maxRetry)) {
 
-    status = worker->open(path, oflag, mode);
+    status = worker->open(fileInfo.path, oflag, mode);
 
     switch (status) {
     case -kXR_redirect:
@@ -231,12 +241,9 @@ int XrdXrClient::open(kXR_char    *path,
       else {mutex.UnLock(); return cwTime;};
 
     case kXR_ok:
-      // Fill in the fileInfo structure with the correct values
+      // Indicate that the file is open
       //
       fileInfo.open = true;
-      fileInfo.path = (kXR_char*) strdup((const char *)path);
-      fileInfo.oflag = oflag;
-      fileInfo.mode = mode;
       return 0;
       
     default:
@@ -348,7 +355,7 @@ int XrdXrClient::stat(struct stat *buffer,
 
   while((wait < maxWait) && (redirect < maxRetry)) {
 
-    status = worker->stat(buffer, path);
+    status = worker->stat(buffer, (path ? path : fileInfo.path));
 
     switch (status) {
     case -kXR_redirect:
@@ -385,10 +392,8 @@ int XrdXrClient::close()
 
   // Free the file path in case the file was opened and we stored the path
   //
-  if (fileInfo.open == true) {
-    free (fileInfo.path);
-    fileInfo.open = false;
-  }
+  if (fileInfo.path) free (fileInfo.path);
+  fileInfo.open = false;
 
   mutex.UnLock();
   return mapError(worker->close());
@@ -406,12 +411,11 @@ XrdXrClient::~XrdXrClient()
   // delete all pointers
   //
   delete worker;
-  free(hostname_);
-  if (hostOrig_) free(hostOrig_);
+  if (hostname_)         free(hostname_);
+  if (hostOrig_)         free(hostOrig_);
+  if (fileInfo.path)     free (fileInfo.path);
+  if (fileInfo.username) free (fileInfo.username);
   
-  if (fileInfo.open == true) {
-    free (fileInfo.path);
-  }
   mutex.UnLock();
 } // destructor
 
