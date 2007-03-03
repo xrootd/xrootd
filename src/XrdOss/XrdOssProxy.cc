@@ -20,6 +20,7 @@ const char *XrdOssProxyCVSID = "$Id$";
 #include "XrdOss/XrdOssProxy.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssTrace.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 
 /*****************************************************************************/
 /*                 E r r o r   R o u t i n g   O b j e c t                   */
@@ -51,7 +52,8 @@ int XrdOssProxy::Open(const char *path,
 		      XrdOucEnv  &Env) 
 {
 
-  int           rc;
+  int        tLen, rc;
+  const char *Token = Env.Env(tLen);
 
   client = new XrdXrClient(hostname_, port_, OssEroute.logger());
 
@@ -76,7 +78,8 @@ int XrdOssProxy::Open(const char *path,
   
   // Once the login is done, we can try to open the remote file
   //
-  return client->open((kXR_char*)path, (kXR_unt16) oflag, (kXR_unt16) mode);
+  return client->open((kXR_char*)path, (kXR_unt16) oflag, (kXR_unt16) mode,
+                      Token, tLen);
 
 } // Open
 

@@ -155,6 +155,7 @@ $(OBJDIR)/XrdOssUnlink.o: XrdOssApi.hh XrdOssError.hh XrdOssLock.hh \
 
 $(OBJDIR)/XrdOssProxy.o: XrdOssConfig.hh XrdOssError.hh \
 			 XrdOssLock.hh XrdOucError.hh XrdSysPlatform.hh \
+			 XrdOucEnv.hh \
 			 XrdOssProxy.cc
 	@echo Compiling XrdOssProxy.cc ...
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssProxy.o XrdOssProxy.cc
