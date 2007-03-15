@@ -355,7 +355,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	return 0;
     }
 
-    if (!fUseCache) {
+    // Note: old servers do not support unsolicited responses for reads
+    if (!fUseCache || (fConnModule->GetServerProtocol() < 0x00000270) ) {
 	// Without caching
 
 	// Prepare a request header 
@@ -861,6 +862,10 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 	  finalfilename += additionalquery;
     }
 
+
+
+
+
     // Send a kXR_open request in order to open the remote file
     ClientRequest openFileRequest;
 
@@ -875,7 +880,17 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 
     // Now set the options field basing on user's requests
     // We want also to avoid an explicit stat request
-    openFileRequest.open.options = options | kXR_retstat;
+    // Note: some older server versions expose a bug associated to kXR_retstat
+    if ( fConnModule->GetServerProtocol() < 0x00000270 ) {
+      if (options & kXR_retstat)
+	options ^= kXR_retstat;
+
+       Info(XrdClientDebug::kHIDEBUG, "LowOpen",
+            "Old server proto version(" << fConnModule->GetServerProtocol() <<
+	    ". kXR_retstat is now disabled. Current open options: " << options);
+    }
+    else
+      openFileRequest.open.options = options | kXR_retstat;
 
     // Set the open mode field
     openFileRequest.open.mode = mode;

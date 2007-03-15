@@ -735,7 +735,8 @@ void PrintUsage() {
    cerr << " -v     :         display summary output" << endl <<endl;
    cerr << " -OS    :         adds some opaque information to any SOURCE xrootd url" << endl;
    cerr << " -OD    :         adds some opaque information to any DEST xrootd url" << endl;
-   cerr << " -f     :         set the 'force' flag for xrootd dest file opens" << endl;
+   cerr << " -f     :         re-create a file if already present" << endl;
+   cerr << " -F     :         set the 'force' flag for xrootd dest file opens (ignore if file is already opened)" << endl;
    cerr << " -force :         set 1-min (re)connect attempts to retry for up to 1 week, to block until xrdcp is executed" << endl << endl;
    cerr << " -md5   :         calculate the md5 sum during transfers\n" << endl; 
    cerr << " -R     :         recurse subdirectories" << endl;
@@ -814,8 +815,21 @@ int main(int argc, char**argv) {
 	 continue;
       }
 
-      if ( (strstr(argv[i], "-f") == argv[i])) {
+      if ( (strstr(argv[i], "-F") == argv[i])) {
 	 xrd_wr_flags |= kXR_force;
+	continue;
+      }
+
+      if ( (strstr(argv[i], "-f") == argv[i])) {
+	// Remove the kXR_new option
+	kXR_unt16 tmp = kXR_new;
+	tmp = ~tmp;
+
+	xrd_wr_flags &= tmp;
+
+	// Also delete the existing file
+	xrd_wr_flags |= kXR_delete;
+
 	continue;
       }
 
