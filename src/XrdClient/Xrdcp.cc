@@ -778,6 +778,7 @@ int main(int argc, char**argv) {
    EnvPutString( NAME_CONNECTDOMAINDENY_RE, "" );
 
    EnvPutInt( NAME_READAHEADSIZE, XRDCP_XRDRASIZE);
+   EnvPutInt( NAME_READCACHESIZE, 10*XRDCP_XRDRASIZE );
    EnvPutInt(NAME_REMUSEDCACHEBLKS, 1);
 
    EnvPutInt( NAME_DEBUG, -1);
@@ -916,7 +917,7 @@ int main(int argc, char**argv) {
 	 // Note that the cache is emptied as new blocks arrive. The memory usage
 	 // will never grow up to this level since it's used only for temporary
 	 // placement of arriving blocks.
-	 EnvPutInt( NAME_READCACHESIZE, 50000000 );
+	 //EnvPutInt( NAME_READCACHESIZE, 50000000 );
 
          i++;
          continue;
