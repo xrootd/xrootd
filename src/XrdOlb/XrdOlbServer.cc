@@ -1418,7 +1418,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 
 // Find out who serves this path
 //
-   needrw = Osel & OLB_needrw; Osel |= OLB_peersok;
+   needrw = Osel & (OLB_needrw | OLB_newfile); Osel |= OLB_peersok;
    if (!Cache.Paths.Find(tp, pinfo)
    || (amask = (needrw ? pinfo.rwvec : pinfo.rovec)) == 0)
       {Link->Send(buff, snprintf(buff, sizeof(buff)-1,

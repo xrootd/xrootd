@@ -834,7 +834,7 @@ int XrdOlbManager::SelServer(int opts, char *path,
     EPNAME("SelServer")
     const char *reason, *reason2;
     int delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
-    int needrw = opts & OLB_needrw;
+    int needrw = opts & (OLB_needrw | OLB_newfile);
     SMask_t mask;
     XrdOlbServer *sp = 0;
 
