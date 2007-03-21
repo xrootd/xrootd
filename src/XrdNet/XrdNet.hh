@@ -115,6 +115,11 @@ void            Trim(char *hname);
 //
 void            unBind();
 
+// WSzize()    Returns the actual RCVBUF window size. A value of zero
+//             indicates that an error has occurred.
+//
+int            WSize();
+
 // When creating this object, you must specify the error routing object.
 // Optionally, specify the security object to screen incomming connections.
 // (if zero, no screening is done).

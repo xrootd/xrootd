@@ -105,7 +105,9 @@ static int setOpts(int fd, int options, XrdOucError *eDest=0);
 // any context. An optional error routing object may be specified if error 
 // messages are wanted. Only when all option settings succeed is 0 is returned.
 //
-static int setWindow(int fd, int Windowsz, XrdOucError *eDest=0);
+static int setWindow(int fd, int  Windowsz, XrdOucError *eDest=0);
+
+static int getWindow(int fd, int &Windowsz, XrdOucError *eDest=0);
 
 // Return socket file descriptor number (useful when attaching to a stream).
 //
