@@ -194,6 +194,9 @@ static XrdNetSocket         *AdminSock;
 //
 static int                 readWait;
 static int                 Port;
+static int                 Window;
+static int                 WANPort;
+static int                 WANWindow;
 static char               *SecLib;
 static char               *FSLib;
 static char               *Notify;

@@ -121,6 +121,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    readWait     = pi->readWait;
    Port         = pi->Port;
    myInst       = pi->myInst;
+   Window       = pi->WSize;
+   WANPort      = pi->WANPort;
+   WANWindow    = pi->WANWSize;
 
 // Set the callback object static areas now!
 //

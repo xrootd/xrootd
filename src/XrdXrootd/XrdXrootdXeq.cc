@@ -1179,6 +1179,18 @@ int XrdXrootdProtocol::do_Qconf()
            {n = sprintf(bp, "%d\n", maxRvecsz);
             bp += n; bleft -= n;
            }
+   else if (!strcmp("wan_port", val) && WANPort)
+           {n = sprintf(bp, "%d\n", WANPort);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("wan_window", val) && WANPort)
+           {n = sprintf(bp, "%d\n", WANWindow);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("window", val) && Window)
+           {n = sprintf(bp, "%d\n", Window);
+            bp += n; bleft -= n;
+           }
    else {n = strlen(val);
          if (bleft <= n) break;
          strcpy(bp, val); bp +=n; *bp = '\n'; bp++;
