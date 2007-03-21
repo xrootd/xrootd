@@ -712,17 +712,15 @@ int XrdOlbConfig::ConfigProc(int getrole)
            {if (!strcmp("olb.role", var) || !strcmp("all.role", var))
                NoGo |=  xrole(&Say, CFile);
            }
-           else {if (!strncmp(var, "olb.", 4)
-                 ||  !strcmp(var, "oss.cache")
-                 ||  !strcmp(var, "oss.localroot")
-                 ||  !strcmp(var, "oss.remoteroot")
-                 ||  !strcmp(var, "oss.namelib")
-                 ||  !strcmp(var, "all.manager")
-                 ||  !strcmp(var, "all.role"))
-                    {var += 4;
-                     NoGo |= ConfigXeq(var, CFile, 0);
-                    }
-                 }
+           else if (!strncmp(var, "olb.", 4)
+                ||  !strcmp(var, "oss.cache")
+                ||  !strcmp(var, "oss.localroot")
+                ||  !strcmp(var, "oss.remoteroot")
+                ||  !strcmp(var, "oss.namelib")
+                ||  !strcmp(var, "all.adminpath")
+                ||  !strcmp(var, "all.manager")
+                ||  !strcmp(var, "all.role"))
+                   NoGo |= ConfigXeq(var+4, CFile, 0);
 
 // Now check if any errors occured during file i/o
 //
