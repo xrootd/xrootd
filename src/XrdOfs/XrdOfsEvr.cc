@@ -71,7 +71,7 @@ void XrdOfsEvr::flushEvents()
 
 // Compute the hash flush interval
 //
-   if (!(expWait = maxLife/4)) expWait = 60;
+   if ((expWait = maxLife/4) == 0) expWait = 60;
    expClock = expWait;
 
 // We wait for the right period of time, unless there is a defered event
