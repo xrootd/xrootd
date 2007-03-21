@@ -130,7 +130,7 @@ char *XrdOucUtils::genPath(const char *p_path, const char *inst,
    if (s_path) strcat(buff, s_path);
 
    i = strlen(buff);
-   if (buff[i] != '/') {buff[i++] = '/'; buff[i] = '\0';}
+   if (buff[i-1] != '/') {buff[i++] = '/'; buff[i] = '\0';}
 
    return strdup(buff);
 }

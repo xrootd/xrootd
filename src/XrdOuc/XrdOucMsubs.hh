@@ -79,7 +79,7 @@ char *getVal(XrdOucMsubsInfo &Info, int vNum);
 enum vNum {vLFN =  1, vPFN =  2, vRFN =  3, vLFN2 =  4, vPFN2 =  5, vRFN2 =  6,
            vFM  =  7, vOFL =  8, vUSR =  9, vHST  = 10, vTID  = 11};
 
-static const int   vMax = 11;
+static const int   vMax = 12;
 static const char *vName[vMax];
 
 XrdOucError *eDest;
