@@ -888,6 +888,9 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
        Info(XrdClientDebug::kHIDEBUG, "LowOpen",
             "Old server proto version(" << fConnModule->GetServerProtocol() <<
 	    ". kXR_retstat is now disabled. Current open options: " << options);
+
+       openFileRequest.open.options = options;
+
     }
     else
       openFileRequest.open.options = options | kXR_retstat;
