@@ -36,7 +36,7 @@ Trace     = rhs.Trace;
 ConfigFN  = rhs.ConfigFN ? strdup(rhs.ConfigFN) : 0;
 Format    = rhs.Format;
 Port      = rhs.Port;
-PortWAN   = rhs.PortWAN;
+WSize     = rhs.WSize;
 AdmPath   = rhs.AdmPath  ? strdup(rhs.AdmPath)  : 0;
 AdmMode   = rhs.AdmMode;
 myInst    = rhs.myInst   ? strdup(rhs.myInst)   : 0;
@@ -51,4 +51,6 @@ idleWait  = rhs.idleWait;
 argc      = rhs.argc;
 argv      = rhs.argv;
 DebugON   = rhs.DebugON;
+WANPort   = rhs.WANPort;
+WANWSize  = rhs.WANWSize;
 }

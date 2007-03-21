@@ -52,7 +52,7 @@ XrdOucTrace    *Trace;       // Stable -> Trace Information
 char            *ConfigFN;     // -> Configuration file
 int              Format;       // Binary format of this server
 int              Port;         // Port number
-int              PortWAN;      // Port prefered for WAN connections (0 if none)
+int              WSize;        // Window size for Port
 const char      *AdmPath;      // Admin path
 int              AdmMode;      // Admin path mode
 const char      *myInst;       // Instance name
@@ -65,6 +65,8 @@ int              idleWait;     // Max milliseconds connection may be idle
 int              argc;         // Number of arguments
 char           **argv;         // Argument array (prescreened)
 char             DebugON;      // True if started with -d option
+int              WANPort;      // Port prefered for WAN connections (0 if none)
+int              WANWSize;     // Window size for the WANPort
 
                  XrdProtocol_Config(XrdProtocol_Config &rhs);
                  XrdProtocol_Config() {}

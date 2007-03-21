@@ -53,7 +53,9 @@ static int          getProtocolPort(const char *lname, const char *pname,
 static char          *ProtName[ProtoMax];   // ->Supported protocol names
 static XrdProtocol   *Protocol[ProtoMax];   // ->Supported protocol objects
 static int            ProtPort[ProtoMax];   // ->Supported protocol ports
+static XrdProtocol   *ProtoWAN[ProtoMax];   // ->Supported protocol objects WAN
 static int            ProtoCnt;             // Number in table (at least 1)
+static int            ProtWCnt;             // Number in table (WAN may be 0)
 
 static char          *liblist[ProtoMax];    // -> Path used for shared library
 static XrdOucPlugin  *libhndl[ProtoMax];    // -> Plugin object

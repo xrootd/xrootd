@@ -58,7 +58,7 @@ const char *XrdConfigCVSID = "$Id$";
        XrdBuffManager    XrdBuffPool;
 
        int               XrdNetTCPlep = -1;
-       XrdInet          *XrdNetTCP[XrdProtLoad::ProtoMax] = {0};
+       XrdInet          *XrdNetTCP[XrdProtLoad::ProtoMax+1] = {0};
 extern XrdInet          *XrdNetADM;
 
 extern XrdScheduler      XrdSched;
@@ -79,9 +79,6 @@ extern XrdOucTrace       XrdTrace;
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(eDest, Config);
 
-#define XRD_Prefix     "xrd."
-#define XRD_PrefLen    sizeof(XRD_Prefix)-1
-
 #ifndef S_IAMB
 #define S_IAMB  0x1FF
 #endif
@@ -99,9 +96,11 @@ char           *proname;
 char           *libpath;
 char           *parms;
 int             port;
+int             wanopt;
 
-                XrdConfigProt(char *pn, char *ln, char *pp, int np=-1)
-                    {Next = 0; proname = pn; libpath = ln; parms = pp; port=np;
+                XrdConfigProt(char *pn, char *ln, char *pp, int np=-1, int wo=0)
+                    {Next = 0; proname = pn; libpath = ln; parms = pp; 
+                     port=np; wanopt = wo;
                     }
                ~XrdConfigProt()
                     {free(proname);
@@ -142,13 +141,16 @@ XrdConfig::XrdConfig(void)
 //
    PortTCP  = -1;
    PortUDP  = -1;
+   PortWAN  = 0;
    ConfigFN = 0;
    myInsName= 0;
    AdminPath= strdup("/tmp");
    AdminMode= 0700;
    Police   = 0;
-   Net_Blen = 0;
+   Net_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
    Net_Opts = 0;
+   Wan_Blen = 1024*1024; // Default window size 1M
+   Wan_Opts = 0;
    setSched = 1;
 
    Firstcp = Lastcp = 0;
@@ -165,7 +167,9 @@ XrdConfig::XrdConfig(void)
    ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
 
    ProtInfo.Format   = XrdFORMATB;
-   ProtInfo.PortWAN  = 0;
+   ProtInfo.WANPort  = 0;
+   ProtInfo.WANWSize = 0;
+   ProtInfo.WSize    = 0;
    ProtInfo.ConnMax  = -1;     // Max       connections (fd limit)
    ProtInfo.readWait = 3*1000; // Wait time for data before we reschedule
    ProtInfo.idleWait = 0;      // Seconds connection may remain idle (0=off)
@@ -480,11 +484,9 @@ int XrdConfig::ConfigProc()
 // Now start reading records until eof.
 //
    while((var = Config.GetMyFirstWord()))
-        {if (!strncmp(var, XRD_Prefix, XRD_PrefLen))
-            {var += XRD_PrefLen;
-             NoGo |= ConfigXeq(var, Config);
-            }
-        }
+        if (!strncmp(var, "xrd.", 4)
+        ||  !strcmp (var, "all.adminpath"))
+           NoGo |= ConfigXeq(var+4, Config);
 
 // Now check if any errors occured during file i/o
 //
@@ -572,9 +574,9 @@ int XrdConfig::setFDL()
 int XrdConfig::Setup(char *dfltp)
 {
    static char portbuff[32], AdmPathBuff[1056];
+   XrdInet *NetWAN;
    XrdConfigProt *cp, *pp, *po, *POrder = 0;
-   int lastPort = -17;
-   char *p;
+   int wsz, lastPort = -17;
 
 // Establish the FD limit
 //
@@ -598,10 +600,10 @@ int XrdConfig::Setup(char *dfltp)
 // warrant a lot of logic to get around.
 //
    if (myInsName) ProtInfo.AdmPath = XrdOucUtils::genPath(AdminPath,myInsName);
+      else ProtInfo.AdmPath = AdminPath;
    sprintf(AdmPathBuff, "XRDADMINPATH=%s", ProtInfo.AdmPath);
    putenv(AdmPathBuff);
-   p = XrdOucUtils::genPath(AdminPath, myInsName, ".xrd");
-   AdminPath = p;
+   AdminPath = XrdOucUtils::genPath(AdminPath, myInsName, ".xrd");
 
 // Setup admin connection now
 //
@@ -632,6 +634,18 @@ int XrdConfig::Setup(char *dfltp)
 //
    ProtInfo.Stats = new XrdStats(ProtInfo.myName, POrder->port);
 
+// Allocate a WAN port number of we need to
+//
+   if (PortWAN &&  (NetWAN = new XrdInet(&XrdLog, Police)))
+      {if (Wan_Opts || Wan_Blen) NetWAN->setDefaults(Wan_Opts, Wan_Blen);
+       if (myDomain) NetWAN->setDomain(myDomain);
+       if (NetWAN->Bind(0, "tcp")) return 1;
+       PortWAN  = NetWAN->Port();
+       wsz      = NetWAN->WSize();
+       Wan_Blen = (wsz < Wan_Blen ? wsz : Wan_Blen);
+       XrdNetTCP[XrdProtLoad::ProtoMax] = NetWAN;
+      } else {PortWAN = 0; Wan_Blen = 0;}
+
 // Load the protocols. For each new protocol port number, create a new
 // network object to handle the port dependent communications part. All
 // port issues will have been resolved at this point.
@@ -639,12 +653,18 @@ int XrdConfig::Setup(char *dfltp)
    while((cp= POrder))
         {if (cp->port != lastPort)
             {XrdNetTCP[++XrdNetTCPlep] = new XrdInet(&XrdLog, Police);
-             if (XrdNetTCP[XrdNetTCPlep]->Bind(cp->port, "tcp")) return 1;
-             if (Net_Opts | Net_Blen) 
+             if (Net_Opts || Net_Blen)
                 XrdNetTCP[XrdNetTCPlep]->setDefaults(Net_Opts, Net_Blen);
              if (myDomain) XrdNetTCP[XrdNetTCPlep]->setDomain(myDomain);
+             if (XrdNetTCP[XrdNetTCPlep]->Bind(cp->port, "tcp")) return 1;
              ProtInfo.Port   = XrdNetTCP[XrdNetTCPlep]->Port();
              ProtInfo.NetTCP = XrdNetTCP[XrdNetTCPlep];
+             wsz             = XrdNetTCP[XrdNetTCPlep]->WSize();
+             ProtInfo.WSize  = (wsz < Net_Blen ? wsz : Net_Blen);
+             if (cp->wanopt)
+                {ProtInfo.WANPort = PortWAN;
+                 ProtInfo.WANWSize= Wan_Blen;
+                } else ProtInfo.WANPort = ProtInfo.WANWSize = 0;
              sprintf(portbuff, "XRDPORT=%d", ProtInfo.Port);
              putenv(portbuff);
              lastPort = cp->port;
@@ -755,6 +775,11 @@ int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
    if (*pval != '/')
       {eDest->Emsg("Config", "adminpath not absolute"); return 1;}
 
+// Record the path
+//
+   if (AdminPath) free(AdminPath);
+   AdminPath = strdup(pval);
+
 // Get the optional access rights
 //
    if ((val = Config.GetWord()) && val[0])
@@ -762,11 +787,6 @@ int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
          else {eDest->Emsg("Config", "invalid admin path modifier -", val);
                return 1;
               }
-
-// Record the path
-//
-   if (AdminPath) free(AdminPath);
-   AdminPath = strdup(pval);
    AdminMode = ProtInfo.AdmMode = mode;
    return 0;
 }
@@ -848,8 +868,9 @@ int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
 
 /* Function: xnet
 
-   Purpose:  To parse directive: network [keepalive] [buffsz <blen>]
+   Purpose:  To parse directive: network [wan] [keepalive] [buffsz <blen>]
 
+             wan       parameters apply only to the wan port
              keepalive sets the socket keepalive option.
              <blen>    is the socket's send/rcv buffer size.
 
@@ -859,14 +880,15 @@ int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
 int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int  i, V_keep = 0;
+    int  i, V_keep = 0, V_iswan = 0, V_blen = -1;
     long long llp;
     static struct netopts {const char *opname; int hasarg;
                            int  *oploc;  const char *etxt;}
            ntopts[] =
        {
         {"keepalive",  0, &V_keep,   "option"},
-        {"buffsz",     1, &Net_Blen, "network buffsz"}
+        {"buffsz",     1, &V_blen,   "network buffsz"},
+        {"wan",        0, &V_iswan,  "option"}
        };
     int numopts = sizeof(ntopts)/sizeof(struct netopts);
 
@@ -884,16 +906,23 @@ int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
                          }
                       if (XrdOuca2x::a2sz(*eDest,ntopts[i].etxt,val,&llp,0))
                          return 1;
-                      *ntopts[i].oploc = (int)llp;
                      }
+             *ntopts[i].oploc = (int)llp;
               break;
-             }
+            }
       if (i >= numopts)
          eDest->Emsg("Config", "Warning, invalid net option", val);
       val = Config.GetWord();
      }
 
-     Net_Opts = (V_keep ? XRDNET_KEEPALIVE : 0);
+     if (V_iswan)
+        {if (V_blen >= 0) Wan_Blen = V_blen;
+         Wan_Opts = (V_keep ? XRDNET_KEEPALIVE : 0);
+         PortWAN  = 1;
+        } else {
+         if (V_blen >= 0) Net_Blen = V_blen;
+         Net_Opts = (V_keep ? XRDNET_KEEPALIVE : 0);
+        }
      return 0;
 }
   
@@ -955,8 +984,9 @@ int XrdConfig::yport(XrdOucError *eDest, const char *ptype, const char *val)
 
 /* Function: xprot
 
-   Purpose:  To parse the directive: protocol <name>[:<port>] <loc> [<parm>]
+   Purpose:  To parse the directive: protocol [wan] <name>[:<port>] <loc> [<parm>]
 
+             wan    The protocol is WAN optimized
              <name> The name of the protocol (e.g., rootd)
              <port> Port binding for the protocol, if not the default.
              <loc>  The shared library in which it is located.
@@ -969,10 +999,14 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
 {
     XrdConfigProt *cpp;
     char *val, *parms, *lib, proname[64], buff[1024];
-    int vlen, bleft = sizeof(buff), portnum = -1;
+    int vlen, bleft = sizeof(buff), portnum = -1, wanopt = 0;
 
-    if (!(val = Config.GetWord()))
-       {eDest->Emsg("Config", "protocol name not specified"); return 1;}
+    do {if (!(val = Config.GetWord()))
+           {eDest->Emsg("Config", "protocol name not specified"); return 1;}
+        if (wanopt || strcmp("wan", val)) break;
+        wanopt = 1;
+       } while(1);
+
     if (strlen(val) > sizeof(proname)-1)
        {eDest->Emsg("Config", "protocol name is too long"); return 1;}
     strcpy(proname, val);
@@ -998,18 +1032,21 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
        if ((portnum = yport(&XrdLog, "tcp", val+1)) < 0) return 1;
           else *val = '\0';
 
+    if (wanopt && !PortWAN) PortWAN = 1;
+
     if ((cpp = Firstcp))
        do {if (!strcmp(proname, cpp->proname))
               {if (cpp->libpath) free(cpp->libpath);
                if (cpp->parms)   free(cpp->parms);
                cpp->libpath = lib;
                cpp->parms   = parms;
+               cpp->wanopt  = wanopt;
                return 0;
               }
           } while((cpp = cpp->Next));
 
     if (lib)
-       {cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum);
+       {cpp = new XrdConfigProt(strdup(proname), lib, parms, portnum, wanopt);
         if (Lastcp) Lastcp->Next = cpp;
            else    Firstcp = cpp;
         Lastcp = cpp;

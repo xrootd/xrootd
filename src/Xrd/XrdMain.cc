@@ -93,7 +93,9 @@ extern XrdInet           *XrdNetTCP[];    // Defined by config
   
 void *mainAccept(void *parg)
 {  XrdInet *myNet = (XrdInet *)parg;
-   XrdProtLoad ProtSelect(myNet->Port());
+   int myPort = (myNet == XrdNetTCP[XrdProtLoad::ProtoMax]
+                       ?  -(myNet->Port()) : myNet->Port());
+   XrdProtLoad ProtSelect(myPort);
    XrdLink *newlink;
 
    while(1) if ((newlink = myNet->Accept(XRDNET_NODNTRIM)))
@@ -167,16 +169,17 @@ int main(int argc, char *argv[])
 // thread for each network except the first. The main thread will handle
 // that network as some implementations require a main active thread.
 //
-   for (i = 1; i <= XrdNetTCPlep; i++)
-       {sprintf(buff, "Port %d handler", XrdNetTCP[i]->Port());
-        if ((retc = XrdOucThread::Run(&tid, mainAccept,
-                                     (void *)XrdNetTCP[i],
-                                     XRDOUCTHREAD_BIND, strdup(buff))))
-           {sprintf(buff, "create port %d handler", XrdNetTCP[i]->Port());
-            XrdLog.Emsg("main", retc, buff);
-            _exit(3);
-           }
-       }
+   for (i = 1; i <= XrdProtLoad::ProtoMax; i++)
+       if (XrdNetTCP[i])
+          {sprintf(buff, "Port %d handler", XrdNetTCP[i]->Port());
+           if ((retc = XrdOucThread::Run(&tid, mainAccept,
+                                         (void *)XrdNetTCP[i],
+                                         XRDOUCTHREAD_BIND, strdup(buff))))
+              {sprintf(buff, "create port %d handler", XrdNetTCP[i]->Port());
+               XrdLog.Emsg("main", retc, buff);
+               _exit(3);
+              }
+          }
 
 // Finally, start accepting connections on the main port
 //

@@ -28,11 +28,13 @@ extern XrdOucError XrdLog;
 
 extern XrdOucTrace XrdTrace;
 
+XrdProtocol *XrdProtLoad::ProtoWAN[ProtoMax] = {0};
 XrdProtocol *XrdProtLoad::Protocol[ProtoMax] = {0};
 char        *XrdProtLoad::ProtName[ProtoMax] = {0};
 int          XrdProtLoad::ProtPort[ProtoMax] = {0};
 
 int          XrdProtLoad::ProtoCnt = 0;
+int          XrdProtLoad::ProtWCnt = 0;
 
 char         *XrdProtLoad::liblist[ProtoMax];
 XrdOucPlugin *XrdProtLoad::libhndl[ProtoMax];
@@ -63,6 +65,7 @@ int XrdProtLoad::Load(const char *lname, const char *pname,
 {
    XrdProtocol *xp;
    int i, j, port = pi->Port;
+   int wanopt = pi->WANPort;
 
 // Trace this load if so wanted
 //
@@ -86,6 +89,10 @@ int XrdProtLoad::Load(const char *lname, const char *pname,
    if (!xp) {XrdLog.Emsg("Protocol","Protocol", pname, "could not be loaded");
              return 0;
             }
+
+// If this is a WAN enabled protocol then add it to the WAN table
+//
+   if (wanopt) ProtoWAN[ProtWCnt++] = xp;
 
 // Find a port associated slot in the table
 //
@@ -140,11 +147,17 @@ int XrdProtLoad::Process(XrdLink *lp)
      XrdProtocol *pp = 0;
      int i;
 
-// We check each protocol we have until we find one that works with this link
+// Check if this is a WAN lookup or standard lookup
 //
-   for (i = 0; i < ProtoCnt; i++) 
-       if (myPort == ProtPort[i] && (pp = Protocol[i]->Match(lp))) break;
-          else if (lp->isFlawed()) {lp->Close(); return -1;}
+   if (myPort < 0)
+      {for (i = 0; i < ProtWCnt; i++)
+           if ((pp = ProtoWAN[i]->Match(lp))) break;
+              else if (lp->isFlawed()) {lp->Close(); return -1;}
+      } else {
+       for (i = 0; i < ProtoCnt; i++)
+           if (myPort == ProtPort[i] && (pp = Protocol[i]->Match(lp))) break;
+               else if (lp->isFlawed()) {lp->Close(); return -1;}
+      }
    if (!pp) {DISCARD_LINK(lp, "matching protocol not found");}
 
 // Now attach the new protocol object to the link

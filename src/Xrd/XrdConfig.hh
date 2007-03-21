@@ -66,9 +66,12 @@ XrdConfigProt      *Firstcp;
 XrdConfigProt      *Lastcp;
 int                 Net_Blen;
 int                 Net_Opts;
+int                 Wan_Blen;
+int                 Wan_Opts;
 
 int                 PortTCP;      // TCP Port to listen on
 int                 PortUDP;      // UDP Port to listen on (currently unsupported)
+int                 PortWAN;      // TCP port to listen on for WAN connections
 int                 AdminMode;
 char                isProxy;
 char                setSched;
