@@ -42,12 +42,6 @@ XrdOucPlugin *XrdProtLoad::libhndl[ProtoMax];
 int           XrdProtLoad::libcnt = 0;
 
 /******************************************************************************/
-/*                               D e f i n e s                                */
-/******************************************************************************/
-
-#define DISCARD_LINK(x,y) x->setEtext(y); x->Close(); return -1
-  
-/******************************************************************************/
 /*            C o n s t r u c t o r   a n d   D e s t r u c t o r             */
 /******************************************************************************/
   
@@ -152,13 +146,13 @@ int XrdProtLoad::Process(XrdLink *lp)
    if (myPort < 0)
       {for (i = 0; i < ProtWCnt; i++)
            if ((pp = ProtoWAN[i]->Match(lp))) break;
-              else if (lp->isFlawed()) {lp->Close(); return -1;}
+              else if (lp->isFlawed()) return -1;
       } else {
        for (i = 0; i < ProtoCnt; i++)
            if (myPort == ProtPort[i] && (pp = Protocol[i]->Match(lp))) break;
-               else if (lp->isFlawed()) {lp->Close(); return -1;}
+               else if (lp->isFlawed()) return -1;
       }
-   if (!pp) {DISCARD_LINK(lp, "matching protocol not found");}
+   if (!pp) {lp->setEtext("matching protocol not found"); return -1;}
 
 // Now attach the new protocol object to the link
 //
@@ -172,9 +166,9 @@ int XrdProtLoad::Process(XrdLink *lp)
        XrdTrace.End();
       }
 
-// Attach this link to the appropriate poller and enable it.
+// Attach this link to the appropriate poller
 //
-   if (!XrdPoll::Attach(lp)) {DISCARD_LINK(lp, "attach failed");}
+   if (!XrdPoll::Attach(lp)) {lp->setEtext("attach failed"); return -1;}
 
 // Take a short-cut and process the initial request as a sticky request
 //

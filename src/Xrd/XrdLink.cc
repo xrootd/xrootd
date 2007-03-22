@@ -717,19 +717,20 @@ void XrdLink::setRef(int use)
    InUse += use;
 
          if (!InUse)
-            {InUse = 1; opMutex.UnLock(); Close();}
+            {InUse = 1; opMutex.UnLock();
+             XrdLog.Emsg("Link", "Zero use count for", ID);
+            }
     else if (InUse == 1 && doPost)
             {doPost--;
              IOSemaphore.Post();
-             TRACE(CONN, "setRef posted link fd " <<FD);
+             TRACE(CONN, "setRef posted link " <<ID);
              opMutex.UnLock();
             }
-    else if (InUse < 1)
+    else if (InUse < 0)
             {const char *etp = (InUse < 0 ? "use count underflow" : 0);
              InUse = 1;
              opMutex.UnLock();
-             setEtext(etp);
-             Close();
+             XrdLog.Emsg("Link", "Negative use count for", ID);
             }
     else opMutex.UnLock();
 }
@@ -849,7 +850,7 @@ int XrdLink::Terminate(const XrdLink *owner, int fdnum, unsigned int inst)
 
 // Make sure we can disable this link
 //
-   if (!(lp->Poller) || !(lp->isEnabled) || lp->InUse > 1)
+   if (!(lp->isEnabled) || lp->InUse > 1)
       {lp->opMutex.UnLock();
        return EBUSY;
       }
