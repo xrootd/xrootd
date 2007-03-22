@@ -174,12 +174,10 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 //
    while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, "odc.", 4)
-         ||  !strcmp(var, "all.manager"))
-            {var += 4;
-             NoGo |= ConfigXeq(var, Config);
-            }
-            else if (!strcmp(var, "olb.adminpath"))
-                    NoGo |= xapath(eDest, Config);
+         ||  !strcmp(var, "all.manager")
+         ||  !strcmp(var, "all.adminpath")
+         ||  !strcmp(var, "olb.adminpath"))
+            NoGo |= ConfigXeq(var+4, Config);
         }
 
 // Now check if any errors occured during file i/o
