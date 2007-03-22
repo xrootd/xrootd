@@ -67,12 +67,16 @@ int main(int argc, char **argv) {
     long read_delay = 0;
     timeval tv;
     double starttime = 0, openphasetime = 0, endtime = 0, closetime = 0;
-    long long totalbytesread = 0;
+    long long totalbytesread = 0, prevtotalbytesread = 0;
     long totalreadscount = 0;
     int filezcount = 0;
+    string summarypref = "$$$";
+    bool iserror = false;
 
     gettimeofday(&tv, 0);
     starttime = tv.tv_sec + tv.tv_usec / 1000000.0;
+    closetime = openphasetime = starttime;
+
 
     if (argc < 2) {
 	cout << endl << endl <<
@@ -185,12 +189,17 @@ int main(int argc, char **argv) {
 		    cout << ".";
 		    cout.flush();
 
-		    if (retval <= 0)
+		    if (retval <= 0) {
 			cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
 			    v_lens[iii] << "@" << v_offsets[iii] <<
 			    " returned " << retval << endl;
-		    
-		    Think(read_delay);
+			
+			iserror = true;
+			break;
+		    }
+		    else
+		      Think(read_delay);
+
 		}		
 		break;
 	    case 1: // sync
@@ -198,6 +207,11 @@ int main(int argc, char **argv) {
 		cout << endl << "---ReadV returned " << retval << endl;
 
 		if (retval > 0) Think(read_delay * ntoread);
+		else {
+		  iserror = true;
+		  break;
+		}
+
 		break;
 		
 	    case 2: // async
@@ -212,6 +226,11 @@ int main(int argc, char **argv) {
 		    // Read a chunk of data
 		    retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, xrdmin(ntoread - ii, 512) );
 		    cout << endl << "---ReadV returned " << retval << endl;
+		    
+		    if (retval <= 0) {
+		      iserror = true;
+		      break;
+		    }
 
 		    // Process the preceeding chunk while the last is coming
 		    for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
@@ -238,10 +257,14 @@ int main(int argc, char **argv) {
 		for (int iii = 0; iii < ntoread; iii++) {
 		    retval = cli->Read_Async(v_offsets[iii], v_lens[iii]);
 	  
-		    if (retval <= 0)
+		    if (retval <= 0) {
 			cout << endl << "---Read_Async (" << iii << " of " << ntoread << " " <<
 			    v_lens[iii] << "@" << v_offsets[iii] <<
 			    " returned " << retval << endl;
+			iserror = true;
+			break;
+		    }
+
 		}		
 		for (int iii = 0; iii < ntoread; iii++) {
   		    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
@@ -262,185 +285,242 @@ int main(int argc, char **argv) {
 
 	    }
 
-	}
+	    if (!cli->IsOpen_wait()) {
+	      iserror = true;
+	      break;
+	    }
+
+	} // while
 
     }
     else {
-	// Same test on multiple filez
+      // Same test on multiple filez
 
-	vector<XrdClient *> xrdcvec;
-	ifstream filez(argv[1]);
-	int i = 0;
-	XrdClientUrlInfo u;
+      vector<XrdClient *> xrdcvec;
+      ifstream filez(argv[1]);
+      int i = 0, fnamecount = 0;;
+      XrdClientUrlInfo u;
 
-	// Open all the files (in parallel man!)
-	while (!filez.eof()) {
-	    string s;
-	    XrdClient * cli;
+      // Open all the files (in parallel man!)
+      while (!filez.eof()) {
+	string s;
+	XrdClient * cli;
 
-	    filez >> s;
-	    if (s != "") {
-		cli = new XrdClient(s.c_str());
-		u.TakeUrl(s.c_str());
-
-		if (cli->Open(0, 0)) {
-		    cout << "--- Open of " << s << " in progress." << endl;
-		    xrdcvec.push_back(cli);
-		}
-		else delete cli;
-	    }
-
-	    i++;
+	filez >> s;
+	if (s != "") {
+	  fnamecount++;
+	  cli = new XrdClient(s.c_str());
+	  u.TakeUrl(s.c_str());
+	      
+	  if (cli->Open(0, 0)) {
+	    cout << "--- Open of " << s << " in progress." << endl;
+	    xrdcvec.push_back(cli);
+	  }
+	  else delete cli;
 	}
+	    
+	i++;
+      }
 
-	filez.close();
-	cout << "--- All the open requests have been submitted" << endl;
+      filez.close();
+
+      filezcount = xrdcvec.size();
+      cout << "--- All the open requests have been submitted" << endl;
+
+      if (fnamecount == filezcount) {
      
 	i = 0;
 
-	filezcount = xrdcvec.size();
 
 	gettimeofday(&tv, 0);
 	openphasetime = tv.tv_sec + tv.tv_usec / 1000000.0;
 
 	while ( (ntoread = ReadSome(v_offsets, v_lens, 10240, totalbytesread)) ) {
 
-	  totalreadscount += ntoread;
 
-	    switch (vectored_style) {
-	    case 0: // no readv
-		for (int iii = 0; iii < ntoread; iii++) {
+	  switch (vectored_style) {
+	  case 0: // no readv
+	    for (int iii = 0; iii < ntoread; iii++) {
 
 
-		    for(int i = 0; i < (int) xrdcvec.size(); i++) {
+	      for(int i = 0; i < (int) xrdcvec.size(); i++) {
 
-			retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
+		retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
-			cout.flush();
+		cout.flush();
 
-			if (retval <= 0)
-			    cout << endl << "---Read (" << iii << " of " << ntoread << ") " <<
-				v_lens[iii] << "@" << v_offsets[iii] <<
-				" returned " << retval << endl;		 
-
-			if (retval > 0) Think(read_delay);
-		    }
-
+		if (retval <= 0) {
+		  cout << endl << "---Read (" << iii << " of " << ntoread << ") " <<
+		    v_lens[iii] << "@" << v_offsets[iii] <<
+		    " returned " << retval << endl;		 
+		  iserror = true;
+		  break;
 		}
+
+
+		if (retval > 0) Think(read_delay);
+	      }
+
+	    }
 		
+	    break;
+	  case 1: // sync
+
+	    for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+	      retval = xrdcvec[i]->ReadV((char *)buf, v_offsets, v_lens, ntoread);
+
+	    
+	      cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+		" returned " << retval << endl;
+
+	      if (retval > 0) Think(read_delay * ntoread);
+	      else {
+		iserror = true;
 		break;
-	    case 1: // sync
+	      }
 
-		    for(int i = 0; i < (int) xrdcvec.size(); i++) {
+	    }
 
-			retval = xrdcvec[i]->ReadV((char *)buf, v_offsets, v_lens, ntoread);
-			cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
-			    " returned " << retval << endl;
-
-			if (retval > 0) Think(read_delay * ntoread);
-		    }
-
-		break;
+	    break;
 		
-	    case 2: // async
+	  case 2: // async
+
+	    for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+	      retval = xrdcvec[i]->ReadV((char *)0, v_offsets, v_lens, ntoread);
+	      cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+		" returned " << retval << endl;
+	    }
+
+	    break;
+		
+	  case 3: // async and immediate read, optimized!
+		
+	    for (int ii = 0; ii < ntoread; ii+=512) {
+
+	      // Read a chunk of data
+	      for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+		retval = xrdcvec[i]->ReadV((char *)0, v_offsets+ii, v_lens+ii, xrdmin(512, ntoread-ii));
+		cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+		  " returned " << retval << endl;
+
+		if (retval <= 0) {
+		  iserror = true;
+		  break;
+		}
+
+	      }
+
+	      // Process the preceeding chunk while the last is coming
+	      for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
 
 		for(int i = 0; i < (int) xrdcvec.size(); i++) {
 
-		    retval = xrdcvec[i]->ReadV((char *)0, v_offsets, v_lens, ntoread);
-		    cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
-			" returned " << retval << endl;
-		}
-
-		break;
-		
-	    case 3: // async and immediate read, optimized!
-		
-		for (int ii = 0; ii < ntoread; ii+=512) {
-
-		    // Read a chunk of data
-		    for(int i = 0; i < (int) xrdcvec.size(); i++) {
-
-			retval = xrdcvec[i]->ReadV((char *)0, v_offsets+ii, v_lens+ii, xrdmin(512, ntoread-ii));
-			cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
-			    " returned " << retval << endl;
-		    }
-
-		    // Process the preceeding chunk while the last is coming
-		    for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
-
-			for(int i = 0; i < (int) xrdcvec.size(); i++) {
-
-			    retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
-
-			    cout << ".";
-			    cout.flush();
-
-			    if (retval <= 0)
-				cout << endl << "---Read " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
-				    "(" << iii << " of " << ntoread << ") " <<
-				    v_lens[iii] << "@" << v_offsets[iii] <<
-				    " returned " << retval << endl;	
-
-			    if (retval > 0) Think(read_delay);
-			}
-
-		    }
-		    
-		}
-			    
-		retval = 1;
-
-		break;
-
-    	    case 4: // read async and then read
-	      for(int i = 0; i < (int) xrdcvec.size(); i++) {
-		for (int iii = 0; iii < ntoread; iii++) {
-		  retval =  xrdcvec[i]->Read_Async(v_offsets[iii], v_lens[iii]);
-		  
-		  if (retval <= 0)
-		    cout << endl << "---Read_Async "  << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
-		      "(" << iii << " of " << ntoread << ") " <<
-		      v_lens[iii] << "@" << v_offsets[iii] <<
-		      " returned " << retval << endl;
-		}	
-	      
-	      
-	      
-		for (int iii = 0; iii < ntoread; iii++) {
 		  retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
+		  cout << ".";
 		  cout.flush();
-		  
+
 		  if (retval <= 0)
-		    cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
+		    cout << endl << "---Read " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+		      "(" << iii << " of " << ntoread << ") " <<
 		      v_lens[iii] << "@" << v_offsets[iii] <<
-		      " returned " << retval << endl;
-		  
-		  Think(read_delay);
+		      " returned " << retval << endl;	
+
+		  if (retval > 0) Think(read_delay);
 		}
 
-		cout << ".";
 	      }
-	      cout << endl;
+		    
+	    }
+			    
+	    retval = 1;
+
+	    break;
+
+	  case 4: // read async and then read
+
+	    for (int ii = 0; ii < ntoread; ii+=10) {
+
+	      // Read a chunk of data
+	      for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+		for (int jj = 0; jj < xrdmin(10, ntoread-ii); jj++) {
+		  retval =  xrdcvec[i]->Read_Async(v_offsets[ii+jj], v_lens[ii+jj]);
+
+		  cout << "read_async "  <<
+		      v_lens[ii+jj] << "@" << v_offsets[ii+jj]<< endl;
+
+		  if (retval <= 0) {
+		    cout << endl << "---Read_Async "  << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+		      "(" << ii+jj << " of " << ntoread << ") " <<
+		      v_lens[ii+jj] << "@" << v_offsets[ii+jj] <<
+		      " returned " << retval << endl;
+		    
+		    iserror = true;
+		    break;
+		  }
+		}
+
+	      }
+
+	      // Process the preceeding chunk while the last is coming
+	      for (int iii = ii-10; (iii >= 0) && (iii < ii); iii++) {
+
+		for(int i = 0; i < (int) xrdcvec.size(); i++) {
+
+		  retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
+
+		  cout << ".";
+		  cout.flush();
+
+		  if (retval > 0) Think(read_delay);
+		  else {
+		    cout << endl << "---Read (" << iii << " of " << ntoread << ") " <<
+		      v_lens[iii] << "@" << v_offsets[iii] <<
+		      " returned " << retval << endl;		 
+		    iserror = true;
+		    break;
+		  }
 
 
+		  if (iserror) break;
 
-	      break;
+		} // for i
+
+		if (iserror) break;
+	      } // for iii
+		    
+	      if (iserror) break;
+	    } // for ii
+			    
+	    retval = 1;
+
+
+	    break;
 
 		
-	    }
+	  } // switch
 
-	}
+	  if (iserror) {
+	    totalbytesread = prevtotalbytesread;
+	    break;
+	  }
+
+	  prevtotalbytesread = totalbytesread;
+	  totalreadscount += ntoread;
+	} // while readsome
 
 	gettimeofday(&tv, 0);
 	closetime = tv.tv_sec + tv.tv_usec / 1000000.0;
 
 	cout << endl << endl << "--- Closing all instances" << endl;
 	for(int i = 0; i < (int) xrdcvec.size(); i++) {
-	    if (xrdcvec[i]->IsOpen()) xrdcvec[i]->Close();
-	    else cout << "WARNING: file '" <<
-		   xrdcvec[i]->GetCurrentUrl().GetUrl() << " was not opened." << endl;
-
+	  if (xrdcvec[i]->IsOpen()) xrdcvec[i]->Close();
+	  else cout << "WARNING: file '" <<
+	    xrdcvec[i]->GetCurrentUrl().GetUrl() << " was not opened." << endl;
 	}
     
 	cout << "--- Deleting all instances" << endl;
@@ -448,7 +528,13 @@ int main(int argc, char **argv) {
      
 	cout << "--- Clearing pointer vector" << endl; 
 	xrdcvec.clear();
-    }
+
+
+      } //if fnamecount == filezcount
+
+
+
+    } // Case of multiple urls
   
 
     cout << "--- Freeing buffer" << endl;
@@ -457,20 +543,23 @@ int main(int argc, char **argv) {
     gettimeofday(&tv, 0);
     endtime = tv.tv_sec + tv.tv_usec / 1000000.0;
 
+    if (iserror) summarypref = "%%%";
+
+
     cout << "Summary ----------------------------" << endl;
-    cout << "--- starttime: " << starttime << endl;
-    cout << "--- lastopentime: " << openphasetime << endl;
-    cout << "--- closetime: " << closetime << endl;
-    cout << "--- endtime: " << endtime << endl;
-    cout << "--- open_elapsed: " << openphasetime - starttime << endl;
-    cout << "--- data_xfer_elapsed: " << closetime - openphasetime << endl;
-    cout << "--- close_elapsed: " << endtime - closetime << endl;
-    cout << "--- total_elapsed: " << endtime - starttime << endl;
-    cout << "--- totalbytesreadperfile: " << totalbytesread << endl;
-    cout << "--- maxbytesreadpersecperfile: " << totalbytesread / (closetime - openphasetime) << endl;
-    cout << "--- effbytesreadpersecperfile: " << totalbytesread / (endtime - starttime) << endl;
-    cout << "--- readscountperfile: " << totalreadscount << endl;
-    cout << "--- filescount: " << filezcount << endl;
+    cout << summarypref << " starttime: " << starttime << endl;
+    cout << summarypref << " lastopentime: " << openphasetime << endl;
+    cout << summarypref << " closetime: " << closetime << endl;
+    cout << summarypref << " endtime: " << endtime << endl;
+    cout << summarypref << " open_elapsed: " << openphasetime - starttime << endl;
+    cout << summarypref << " data_xfer_elapsed: " << closetime - openphasetime << endl;
+    cout << summarypref << " close_elapsed: " << endtime - closetime << endl;
+    cout << summarypref << " total_elapsed: " << endtime - starttime << endl;
+    cout << summarypref << " totalbytesreadperfile: " << totalbytesread << endl;
+    cout << summarypref << " maxbytesreadpersecperfile: " << totalbytesread / (closetime - openphasetime) << endl;
+    cout << summarypref << " effbytesreadpersecperfile: " << totalbytesread / (endtime - starttime) << endl;
+    cout << summarypref << " readscountperfile: " << totalreadscount << endl;
+    cout << summarypref << " openedkofilescount: " << filezcount << endl;
     cout << endl;
 
 
