@@ -727,8 +727,7 @@ void XrdLink::setRef(int use)
              opMutex.UnLock();
             }
     else if (InUse < 0)
-            {const char *etp = (InUse < 0 ? "use count underflow" : 0);
-             InUse = 1;
+            {InUse = 1;
              opMutex.UnLock();
              XrdLog.Emsg("Link", "Negative use count for", ID);
             }
