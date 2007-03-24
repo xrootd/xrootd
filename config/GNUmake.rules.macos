@@ -18,10 +18,12 @@ TYPELINK   = -undefined dynamic_lookup -multiply_defined suppress
 TYPEOPT    = $(TYPEMISC) $(TYPELINK) -O2
 TYPEDBG    = $(TYPEMISC) $(TYPELINK) -g
 TYPELDSO   = $(TYPELINK) -bundle
+TYPELDDY   = $(TYPELINK) -dynamiclib -single_module
 TYPESHLIB  = so
+TYPEDYLIB  = dylib
 
 # In MacOSx the threading functions should come libc.
-#TYPELIBS   =  $(PTHREAD) -ldl -lc
+#TYPELIBS   =  $(PTHREAD) -ldl -lc 
 TYPELIBS   =  -ldl -lc
 
 ifeq ($(GCC_MAJOR),4)
