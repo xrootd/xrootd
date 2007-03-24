@@ -103,7 +103,7 @@ $(OBJDIR)/XrdAccCapability.o: XrdAccCapability.hh XrdAccCapability.cc \
 $(OBJDIR)/XrdAccConfig.o: XrdAccConfig.hh     XrdAccConfig.cc \
                           XrdAccAccess.hh     XrdAccAudit.hh  XrdAccAuthDB.hh \
                           XrdAccCapability.hh XrdAccGroups.hh XrdOucLock.hh \
-                          XrdOuca2x.hh        XrdOucError.hh  \
+                          XrdOuca2x.hh        XrdOucEnv.hh    XrdOucError.hh  \
                           XrdOucHash.hh       XrdOucHash.icc \
                           XrdOucPthread.hh    XrdOucStream.hh XrdOucStream.hh
 	@echo Compiling XrdAccConfig.cc 

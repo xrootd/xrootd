@@ -45,6 +45,7 @@ const char *XrdConfigCVSID = "$Id$";
 #include "XrdNet/XrdNetSecurity.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -407,6 +408,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
    // No match found, complain.
    //
    eDest->Emsg("Config", "Warning, unknown xrd directive", var);
+   Config.Echo();
    return 0;
 }
 
@@ -471,7 +473,8 @@ int XrdConfig::ConfigProc()
 {
   char *var;
   int  cfgFD, retc, NoGo = 0;
-  XrdOucStream Config(&XrdLog, myInstance);
+  XrdOucEnv myEnv;
+  XrdOucStream Config(&XrdLog, myInstance, &myEnv);
 
 // Try to open the configuration file.
 //
@@ -486,7 +489,7 @@ int XrdConfig::ConfigProc()
    while((var = Config.GetMyFirstWord()))
         if (!strncmp(var, "xrd.", 4)
         ||  !strcmp (var, "all.adminpath"))
-           NoGo |= ConfigXeq(var+4, Config);
+           if (ConfigXeq(var+4, Config)) {Config.Echo(); NoGo = 1;}
 
 // Now check if any errors occured during file i/o
 //

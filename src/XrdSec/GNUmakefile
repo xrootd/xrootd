@@ -113,7 +113,7 @@ $(OBJDIR)/XrdSecServer.o: XrdSecServer.cc       XrdSecServer.hh \
                           XrdOucErrInfo.hh      XrdOucError.hh \
                           XrdOucLogger.hh       XrdOucStream.hh \
                           XrdSecInterface.hh    XrdSecPManager.hh \
-                          XrdSecTrace.hh
+                          XrdSecTrace.hh        XrdOucEnv.hh
 	@echo Compiling XrdSecServer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecServer.o XrdSecServer.cc
 

@@ -39,8 +39,10 @@ const char *XrdOucStreamCVSID = "$Id$";
 using namespace std;
 #endif // WIN32
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                         l o c a l   d e f i n e s                          */
@@ -58,7 +60,8 @@ using namespace std;
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
 /******************************************************************************/
   
-XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname)
+XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname,
+                           XrdOucEnv   *anEnv)
 {
  char *cp;
      if (ifname)
@@ -89,8 +92,15 @@ XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname)
      xcont  = 1;
      xline  = 0;
      Eroute = erobj;
+     myEnv  = anEnv;
+     Verbose= 0;
      sawif  = 0;
      skpel  = 0;
+     varVal =  (myEnv ? new char[maxVLen+1] : 0);
+     llBuff = 0;
+     llBcur = 0;
+     llBleft= 0;
+     llBok  = 0;
 }
 
 /******************************************************************************/
@@ -131,6 +141,8 @@ int XrdOucStream::Attach(int FileDescriptor, int bsz)
     xline  = 0;
     sawif  = 0;
     skpel  = 0;
+    if (llBuff) 
+       {llBcur = llBuff; *llBuff = '\0'; llBleft = llBsz; llBok = 0;}
     return  0;
 }
   
@@ -159,6 +171,14 @@ void XrdOucStream::Close(int hold)
     //
     FD = FE = -1;
     buff = 0;
+
+    // Check if we should echo the last line
+    //
+    if (llBuff && Verbose && Eroute)
+       {if (*llBuff && llBok > 1) Eroute->Say(llBuff);
+        Eroute->Say("");
+        Verbose = llBok = 0;
+       }
 }
 
 /******************************************************************************/
@@ -186,6 +206,16 @@ int XrdOucStream::Drain()
     return Status;
 }
   
+/******************************************************************************/
+/*                                  E c h o                                   */
+/******************************************************************************/
+  
+void XrdOucStream::Echo()
+{
+   if (llBok && Verbose && *llBuff && Eroute) Eroute->Say(llBuff);
+   llBok = 0;
+}
+
 /******************************************************************************/
 /*                               E   x   e   c                                */
 /******************************************************************************/
@@ -321,7 +351,6 @@ char *XrdOucStream::GetLine()
 // Read up to the maximum number of bytes. Stop reading should we see a
 // new-line character or a null byte -- the end of a record.
 //
-   ecode = 0;
    recp  = token = buff; // This will always be true at this point
    while(bcnt)
         {do { retc = read(FD, (void *)bp, (size_t)bcnt); }
@@ -411,9 +440,14 @@ char *XrdOucStream::GetToken(char **rest, int lowcase)
 
 char *XrdOucStream::GetFirstWord(int lowcase)
 {
-      // If in the middle of a line, flush to the end of the line
+      // If in the middle of a line, flush to the end of the line. Suppress
+      // variable substitution when doing this to avoid errors.
       //
-      if (xline) while(GetWord(lowcase));
+      if (xline) 
+         {XrdOucEnv *oldEnv = SetEnv(0);
+          while(GetWord(lowcase));
+          SetEnv(oldEnv);
+         }
       return GetWord(lowcase);
 }
 
@@ -426,14 +460,22 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
    char *var;
    int   skip2fi = 0;
 
-   if (!myInst) return GetFirstWord(lowcase);
+
+   if (llBok > 1 && Verbose && *llBuff && Eroute) Eroute->Say(llBuff);
+   llBok = 0;
+
+   if (!myInst)
+      if (!myEnv) return add2llB(GetFirstWord(lowcase), 1);
+         else {while((var = GetFirstWord(lowcase)) && !isSet(var)) {}
+               return add2llB(var, 1);
+              }
 
    do {if (!(var = GetFirstWord(lowcase)))
           {if (sawif)
               {ecode = EINVAL;
                if (Eroute) Eroute->Emsg("Stream", "Missing 'fi' for last 'if'.");
               }
-           return var;
+           return add2llB(var, 1);
           }
 
              if (!strcmp("if",   var)) skpel = doif();
@@ -454,7 +496,7 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
                           ecode = EINVAL;
                          }
                 }
-        else if (!skip2fi) return var;
+        else if (!skip2fi && (!myEnv || !isSet(var))) return add2llB(var, 1);
        } while (1);
 
    return 0;
@@ -471,7 +513,7 @@ char *XrdOucStream::GetWord(int lowcase)
      // If we have a token, return it
      //
      xline = 1;
-     if ((wp = GetToken(lowcase))) return wp;
+     if ((wp = GetToken(lowcase))) return add2llB((myEnv ? vSubs(wp) : wp));
 
      // If no continuation allowed, return a null (but only once)
      //
@@ -495,10 +537,36 @@ char *XrdOucStream::GetWord(int lowcase)
          if (ep < buff) continue;
          if (*ep == '\\') {xcont = 1; *ep = '\0';}
             else xcont = 0;
-         return wp;
+         return add2llB((myEnv ? vSubs(wp) : wp));
          }
       xline = 0;
       return (char *)0;
+}
+
+/******************************************************************************/
+/*                               G e t R e s t                                */
+/******************************************************************************/
+  
+int XrdOucStream::GetRest(char *theBuff, int Blen, int lowcase)
+{
+   char *tp, *myBuff = theBuff;
+   int tlen;
+
+// Get remaining tokens
+//
+   theBuff[0] = '\0';
+   while ((tp = GetWord(lowcase)))
+         {tlen = strlen(tp)+1;
+          if (tlen >= Blen) return 0;
+          if (myBuff != theBuff) *myBuff++ = ' ';
+          strcpy(myBuff, tp);
+          Blen -= tlen;
+         }
+
+// All done
+//
+   add2llB(0);
+   return 1;
 }
 
 /******************************************************************************/
@@ -570,6 +638,41 @@ int XrdOucStream::Put(const char *datavec[], const int dlenvec[]) {
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
+/*                               a d d 2 l l B                                */
+/******************************************************************************/
+
+char *XrdOucStream::add2llB(char *tok, int reset)
+{
+   int tlen;
+
+// Return if not saving data
+//
+   if (!llBuff) return tok;
+
+// Check if we should flush the previous line
+//
+   if (reset)
+      {llBok  = 1;
+       llBcur = llBuff;
+       llBleft= llBsz;
+      *llBuff = '\0';
+      } else if (!llBok) return tok;
+                else {llBok = 2;
+                      if (llBleft >= 2)
+                         {*llBcur++ = ' '; *llBcur = '\0'; llBleft--;}
+                     }
+
+// Add in the new token
+//
+   if (tok)
+      {tlen = strlen(tok);
+       if (tlen < llBsz)
+          {strcpy(llBcur, tok); llBcur += tlen; llBleft -= tlen;}
+      }
+   return tok;
+}
+  
+/******************************************************************************/
 /*                                  d o i f                                   */
 /******************************************************************************/
 
@@ -628,4 +731,123 @@ int XrdOucStream::doif()
        ecode = EINVAL;
       }
    return 0;
+}
+
+/******************************************************************************/
+/*                                 i s S e t                                  */
+/******************************************************************************/
+  
+int XrdOucStream::isSet(char *var)
+{
+   char *tp, *vp, *pv, Vname[64];
+   int sawEQ;
+
+// Process set var = value | set -v
+//
+   if (strcmp("set", var)) return 0;
+   if (!(tp = GetToken())) return xMsg("Missing variable name after 'set'.");
+   if (!strcmp(tp, "-v") || !strcmp(tp, "-V"))
+      {if (Eroute)
+          {if (!llBuff) llBuff = (char *)malloc(llBsz);
+           llBcur = llBuff; llBok = 0; llBleft = llBsz; *llBuff = '\0';
+           Eroute->Say("");
+           Verbose = (strcmp(tp, "-V") ? 1 : 2);
+          }
+       return 1;
+      }
+
+// Next may be var= | var | var=val
+//
+   if ((vp = index(tp, '='))) {sawEQ = 1; *vp = '\0'; vp++;}
+      else sawEQ = 0;
+   if (strlcpy(Vname, tp, sizeof(Vname)) >= sizeof(Vname))
+      return xMsg("Set variable",tp,"is too long.");
+
+// Verify that variable is only an alphanum
+//
+   tp = Vname;
+   while (*tp && isalnum(*tp)) tp++;
+   if (*tp) return xMsg("Set variable name", Vname, "is non-alphanumeric");
+
+// Now look for the value
+//
+   if (sawEQ) tp = vp;
+      else if (!(tp = GetToken()) || *tp != '=')
+              return xMsg("Missing '=' after set",Vname);
+              else tp++;
+   if (!*tp && !(tp = GetToken())) tp = (char *)"";
+
+// The value may be '$var', in which case we need to get it out of the env
+//
+   if (*tp != '$') vp = tp;
+      else if (!(vp = getenv(tp+1)))
+              return xMsg("Environmental variable", tp+1, "has not been set.");
+
+// Make sure the value is not too long
+//
+   if ((int)strlen(vp) > maxVLen)
+      return xMsg("Variable", Vname, "value is too long.");
+
+// Set the value
+//
+   if (Verbose == 2 && Eroute)
+      if (!(pv = myEnv->Get(Vname)) || strcmp(vp, pv))
+         {char vbuff[1024];
+          strcpy(vbuff, "set "); strcat(vbuff, Vname);
+          Eroute->Say(vbuff, " = ", vp);
+         }
+   myEnv->Put(Vname, vp);
+   return 1;
+}
+
+/******************************************************************************/
+/*                                 v S u b s                                  */
+/******************************************************************************/
+  
+char *XrdOucStream::vSubs(char *Var)
+{
+   char *vp, *sp, *dp, *vnp, ec, bkp, valbuff[maxVLen];
+   int n;
+
+// Check for substitution
+//
+   if (!Var) return Var;
+   sp = Var; dp = valbuff; n = maxVLen-1; *varVal = '\0';
+
+   while(*sp && n > 0)
+        {if (*sp == '\\') {*dp++ = *(sp+1); sp +=2; n--; continue;}
+         if ((*sp != '$' 
+         || (!isalnum(*(sp+1)) && *(sp+1) != '(' && *(sp+1) != '{')))
+                {*dp++ = *sp++;         n--; continue;}
+         sp++; vnp = sp;
+              if (*sp == '(') ec = ')';
+         else if (*sp == '{') ec = '}';
+         else                 ec = 0;
+         if (ec) {sp++; vnp++;}
+         while(isalnum(*sp)) sp++;
+         if (ec && *sp != ec)
+            {xMsg("Variable", vnp-2, "is malformed."); return varVal;}
+         bkp = *sp; *sp = '\0';
+         if (!(vp = myEnv->Get(vnp)))
+            {xMsg("Variable", vnp, "is undefined."); return varVal;}
+         while(n && *vp) {*dp++ = *vp++; n--;}
+         if (*vp) break;
+         if (ec) sp++;
+            else *sp = bkp;
+        }
+
+   if (*sp) xMsg("Substituted text too long using", Var);
+      else {*dp = '\0'; strcpy(varVal, valbuff);}
+   return varVal;
+}
+
+/******************************************************************************/
+/*                                  x M s g                                   */
+/******************************************************************************/
+
+int XrdOucStream::xMsg(const char *txt1, const char *txt2, const char *txt3)
+{
+    if (Eroute) Eroute->Emsg("Stream", txt1, txt2, txt3);
+    ecode = EINVAL;
+    return 1;
 }

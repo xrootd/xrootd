@@ -42,6 +42,7 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOss/XrdOssOpaque.hh"
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
@@ -49,6 +50,7 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */
@@ -105,15 +107,12 @@ const char *XrdOssErrorText[] =
 
 #define TS_Char(x,m)   if (!strcmp(x,var)) {m = val[0]; return 0;}
 
-#define TS_Add(x,m,v,s) if (!strcmp(x,var)) {m |= (v|s); return 0;}
-#define TS_Rem(x,m,v,s) if (!strcmp(x,var)) {m = (m & ~v) | s; return 0;}
+#define TS_Add(x,m,v,s) if (!strcmp(x,var)) {m |= (v|s); Config.Echo(); return 0;}
+#define TS_Rem(x,m,v,s) if (!strcmp(x,var)) {m = (m & ~v) | s;Config.Echo();  return 0;}
 
-#define TS_Set(x,m,v)  if (!strcmp(x,var)) {m = v; return 0;}
+#define TS_Set(x,m,v)  if (!strcmp(x,var)) {m = v; Config.Echo(); return 0;}
 
 #define xrdmax(a,b)       (a < b ? b : a)
-
-#define XRDOSS_Prefix    "oss."
-#define XRDOSS_PrefLen   sizeof(XRDOSS_Prefix)-1
 
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -425,7 +424,8 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 {
   char *var;
   int  cfgFD, retc, NoGo = XrdOssOK;
-  XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
+  XrdOucEnv myEnv;
+  XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv);
 
 // If there is no config file, return with the defaults sets.
 //
@@ -445,10 +445,8 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 // Now start reading records until eof.
 //
    while((var = Config.GetMyFirstWord()))
-        {if (!strncmp(var, XRDOSS_Prefix, XRDOSS_PrefLen))
-            {var += XRDOSS_PrefLen;
-             NoGo |= ConfigXeq(var, Config, Eroute);
-            }
+        {if (!strncmp(var, "oss.", 4))
+            if (ConfigXeq(var+4, Config, Eroute)) {Config.Echo(); NoGo = 1;}
         }
 
 // All done scanning the file, set dependent parameters.
@@ -601,8 +599,9 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 
 int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
 {
-    char  buff[2048], *bp, *val;
-    int vlen, blen;
+    char  myVar[64], buff[2048], *val;
+    int nosubs;
+    XrdOucEnv *myEnv = 0;
 
    // Process items that don't need a vlaue
    //
@@ -657,41 +656,59 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    TS_Xeq("trace",         xtrace);
    TS_Xeq("xfr",           xxfr);
 
+   // Accepts options that used to be valid but otherwise ignore them
+   //
+   if (!strcmp("mssgwpath", var)) return 0;
+   if (!strcmp("gwbacklog", var)) return 0;
+
+   // Check if var substitutions are prohibited (e.g., stagemsg). Note that
+   // TS_String() returns upon success so be careful when adding new opts.
+   //
+   if ((nosubs = !strcmp(var, "stagemsg"))) myEnv = Config.SetEnv(0);
+
+   // Copy the variable name as this may change because it points to an
+   // internal buffer in Config. The vagaries of effeciency.
+   //
+   strlcpy(myVar, var, sizeof(myVar));
+   var = myVar;
+
    // At this point, make sure we have a value
    //
    if (!(val = Config.GetWord()))
-      {Eroute.Emsg("config", "no value for", var); return 1;}
+      {Eroute.Emsg("config", "no value for directive", var);
+       if (nosubs) Config.SetEnv(myEnv);
+       return 1;
+      }
 
    // Now assign the appropriate global variable
    //
    TS_String("localroot",  LocalRoot);
    TS_String("remoteroot", RemoteRoot);
 
-   // Accepts options that used to be valid
-   //
-   if (!strcmp("mssgwpath", var)) return 0;
-   if (!strcmp("gwbacklog", var)) return 0;
-
    // We need to suck all the tokens to the end of the line for remaining
-   // options. Do so, until we run out of space in the buffer
+   // options. Do so, until we run out of space in the buffer.
    //
-   bp = buff; blen = sizeof(buff)-1;
+   if (!Config.GetRest(buff, sizeof(buff)))
+      {Eroute.Emsg("config", "arguments too long for", var);
+       if (nosubs) Config.SetEnv(myEnv);
+       return 1;
+      }
+   val = buff;
 
-   do {if ((vlen = strlen(val)) >= blen)
-          {Eroute.Emsg("config", "arguments too long for", var); return 1;}
-       *bp = ' '; bp++; strcpy(bp, val); bp += vlen;
-       } while((val = Config.GetWord()));
-
-    *bp = '\0'; val = buff+1;
+   // Restore substititions at this point if need be
+   //
+   if (nosubs) Config.SetEnv(myEnv);
 
    // Check for tokens taking a variable number of parameters
    //
    TS_String("stagemsg",   StageMsg);
-   TS_String("mssgwcmd",   MSSgwCmd);
+   TS_String("mssgwcmd",   MSSgwCmd);  // Deprecated
+   TS_String("msscmd",     MSSgwCmd);
 
    // No match found, complain.
    //
    Eroute.Emsg("config", "Warning, unknown directive", var);
+   Config.Echo();
    return 0;
 }
   
@@ -908,13 +925,14 @@ int XrdOssSys::xdefault(XrdOucStream &Config, XrdOucError &Eroute)
    if (!(var = Config.GetWord()))
       {Eroute.Emsg("config", "defaults value not specified"); return 1;}
 
-   do {if (xdefset(var)) Eroute.Emsg("config","unknown defaults value -",var);
+   do {if (xdefset(Config, var)) 
+          Eroute.Emsg("config","unknown defaults value -",var);
       } while((var = Config.GetWord()));
 
    return 0;
 }
 
-int XrdOssSys::xdefset(const char *var)
+int XrdOssSys::xdefset(XrdOucStream &Config, const char *var)
 {
    TS_Add("compchk",       XeqFlags, XrdOssCOMPCHK,  0);
    TS_Add("forcero",       XeqFlags, XrdOssFORCERO,  XrdOssROW_X);
@@ -1055,7 +1073,7 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
         {"max",        3, "memfile max"}};
     int numopts = sizeof(mmopts)/sizeof(struct mmapopts);
 
-    if (!(val = Config.GetToken()))
+    if (!(val = Config.GetWord()))
        {Eroute.Emsg("Config", "memfile option not specified"); return 1;}
 
     while (val)
@@ -1063,7 +1081,7 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
               if (!strcmp(val, mmopts[i].opname)) break;
           if (i >= numopts)
              Eroute.Emsg("Config", "Warning, invalid memfile option", val);
-             else {if (mmopts[i].otyp >  1 && !(val = Config.GetToken()))
+             else {if (mmopts[i].otyp >  1 && !(val = Config.GetWord()))
                       {Eroute.Emsg("Config","memfile",mmopts[i].opname,
                                    "value not specified");
                        return 1;
@@ -1091,7 +1109,7 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
                                   break;
                           default: V_on = 0; break;
                          }
-                  val = Config.GetToken();
+                  val = Config.GetWord();
                  }
          }
 
@@ -1118,11 +1136,11 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOssSys::xnml(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    char *val, *parms;
+    char *val, parms[1024];
 
 // Get the path
 //
-   if (!(val = Config.GetToken(&parms)) || !val[0])
+   if (!(val = Config.GetWord()) || !val[0])
       {Eroute.Emsg("Config", "namelib not specified"); return 1;}
 
 // Record the path
@@ -1132,9 +1150,10 @@ int XrdOssSys::xnml(XrdOucStream &Config, XrdOucError &Eroute)
 
 // Record any parms
 //
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "namelib parameters too long"); return 1;}
    if (N2N_Parms) free(N2N_Parms);
-   if (!parms) N2N_Parms = 0;
-      else {while (*parms == ' ') parms++; N2N_Parms = strdup(parms);}
+   N2N_Parms = (*parms ? strdup(parms) : 0);
    return 0;
 }
 
@@ -1260,6 +1279,7 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
 {
+    XrdOucEnv *theEnv;
     char *val, buff[2048], *bp = buff;
     int vlen, blen = sizeof(buff)-1, isAsync = 0, isCreate = 0;
 
@@ -1267,24 +1287,27 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
 //
     if ((val = Config.GetWord()))
        if ((isAsync = !strcmp(val, "async")) || !strcmp(val, "sync"))
-          val = Config.GetToken();
+          val = Config.GetWord();
 
 // Get the create option
 //
    if (val)
-       if ((isCreate = !strcmp(val, "creates"))) val = Config.GetToken();
+       if ((isCreate = !strcmp(val, "creates"))) val = Config.GetWord();
 
 // Get the command
 //
    if (!val) {Eroute.Emsg("Config", "stagecmd not specified"); return 1;}
 
-// Copy the command and all of it's arguments
+// Copy the command and all of it's arguments (suppress variable subs)
 //
+   theEnv = Config.SetEnv(0);
    do {if ((vlen = strlen(val)) >= blen)
-          {Eroute.Emsg("config", "stagecmd arguments too long"); return 1;}
+          {Eroute.Emsg("config", "stagecmd arguments too long"); break;}
        *bp = ' '; bp++; strcpy(bp, val); bp += vlen; blen -= vlen;
       } while((val = Config.GetWord()));
 
+    Config.SetEnv(theEnv);
+    if (val) return 1;
     *bp = '\0'; val = buff+1;
 
 // Record the command and operating mode

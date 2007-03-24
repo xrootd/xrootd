@@ -30,6 +30,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucProg.hh"
@@ -284,13 +285,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 /*                                C o n f i g                                 */
 /******************************************************************************/
   
-#define TS_Xeq(x,m) (!strcmp(x,var)) NoGo |=  m(Config)
+#define TS_Xeq(x,m) (!strcmp(x,var)) GoNo = m(Config)
 
 int XrdXrootdProtocol::Config(const char *ConfigFN)
 {
-   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"));
+   XrdOucEnv myEnv;
+   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv);
    char *var;
-   int cfgFD, NoGo = 0, ignore;
+   int cfgFD, GoNo, NoGo = 0, ignore;
 
    // Open and attach the config file
    //
@@ -312,9 +314,13 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
          else if TS_Xeq("redirect",      xred);
          else if TS_Xeq("seclib",        xsecl);
          else if TS_Xeq("trace",         xtrace);
-         else if (!ignore) eDest.Say(0,
-                     "Warning, unknown xrootd directive ",var);
-            }
+         else if (!ignore) 
+                 {eDest.Say(0, "Warning, unknown xrootd directive ",var);
+                  Config.Echo();
+                  continue;
+                 }
+         if (GoNo) {Config.Echo(); NoGo = 1;}
+        }
    return NoGo;
 }
 
@@ -373,13 +379,13 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
         {"minsize", 4096, &V_minsz, "async minsize"}};
     int numopts = sizeof(asopts)/sizeof(struct asyncopts);
 
-    if (!(val = Config.GetToken()))
+    if (!(val = Config.GetWord()))
        {eDest.Emsg("Config", "async option not specified"); return 1;}
 
     while (val)
          {for (i = 0; i < numopts; i++)
               if (!strcmp(val, asopts[i].opname))
-                 {if (asopts[i].minv >=  0 && !(val = Config.GetToken()))
+                 {if (asopts[i].minv >=  0 && !(val = Config.GetWord()))
                      {eDest.Emsg("Config","async",(char *)asopts[i].opname,
                                  "value not specified");
                       return 1;
@@ -397,7 +403,7 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
                  }
           if (i >= numopts)
              eDest.Emsg("Config", "Warning, invalid async option", val);
-          val = Config.GetToken();
+          val = Config.GetWord();
          }
 
 // Make sure max values are consistent
@@ -453,14 +459,14 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 {
    static XrdOucProg *theProg = 0;
-   char *palg, *prog;
+   char *palg, prog[2048];
    int jmax = 4;
 
 // Get the algorithm name and the program implementing it
 //
-   while ((palg = Config.GetToken(&prog)) && *palg != '/')
+   while ((palg = Config.GetWord()) && *palg != '/')
          {if (strcmp(palg, "max")) break;
-          if (!(palg = Config.GetToken()))
+          if (!(palg = Config.GetWord()))
              {eDest.Emsg("Config", "chksum max not specified"); return 1;}
           if (XrdOuca2x::a2i(eDest, "chksum max", palg, &jmax, 1)) return 1;
          }
@@ -469,16 +475,18 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 //
    if (*palg == '/')
       {eDest.Emsg("Config", "chksum algorithm not specified"); return 1;}
+   if (JobCKT) free(JobCKT);
+   JobCKT = strdup(palg);
 
 // Verify that we have a program
 //
-   if (!prog || *prog == '\0')
+   if (!Config.GetRest(prog, sizeof(prog)))
+      {eDest.Emsg("Config", "cksum parameters too long"); return 1;}
+   if (*prog == '\0')
       {eDest.Emsg("Config", "chksum program not specified"); return 1;}
 
 // Set up the program and job
 //
-   if (JobCKT) free(JobCKT);
-   JobCKT = strdup(palg);
    if (!theProg) theProg = new XrdOucProg(0);
    if (theProg->Setup(prog, &eDest)) return 1;
    if (JobCKS) delete JobCKS;
@@ -505,7 +513,7 @@ int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 
 // Get the path
 //
-   val = Config.GetToken();
+   val = Config.GetWord();
    if (!val || !val[0])
       {eDest.Emsg("Config", "export path not specified"); return 1;}
 
@@ -552,8 +560,8 @@ int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
 // Get the path
 //
    chkfsV = 0;
-   if ((val = Config.GetToken()) && *val == '?' && !val[1])
-      {chkfsV = '?'; val = Config.GetToken();}
+   if ((val = Config.GetWord()) && *val == '?' && !val[1])
+      {chkfsV = '?'; val = Config.GetWord();}
 
    if (!val || !val[0])
       {eDest.Emsg("Config", "fslib not specified"); return 1;}
@@ -589,7 +597,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
        };
     int i, neg, lgval = -1, numopts = sizeof(lgopts)/sizeof(struct logopts);
 
-    if (!(val = Config.GetToken()))
+    if (!(val = Config.GetWord()))
        {eDest.Emsg("config", "log option not specified"); return 1;}
     while (val)
           {if ((neg = (val[0] == '-' && val[1]))) val++;
@@ -601,7 +609,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
                    }
                }
            if (i >= numopts) eDest.Emsg("config","invalid log option",val);
-           val = Config.GetToken();
+           val = Config.GetWord();
           }
     eDest.setMsgMask(lgval);
     return 0;
@@ -636,11 +644,11 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
     long long tempval;
     int i, monFlush=0, monMBval=0, monWWval=0, xmode=0, monMode[2] = {0, 0};
 
-    while((val = Config.GetToken()))
+    while((val = Config.GetWord()))
 
          {     if (!strcmp("all",  val)) xmode = XROOTD_MON_ALL;
           else if (!strcmp("flush", val))
-                {if (!(val = Config.GetToken()))
+                {if (!(val = Config.GetWord()))
                     {eDest.Emsg("Config", "monitor flush value not specified");
                      return 1;
                     }
@@ -648,7 +656,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                                            &monFlush,1)) return 1;
                 }
           else if (!strcmp("mbuff",val))
-                  {if (!(val = Config.GetToken()))
+                  {if (!(val = Config.GetWord()))
                       {eDest.Emsg("Config", "monitor mbuff value not specified");
                        return 1;
                       }
@@ -657,7 +665,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                     monMBval = static_cast<int>(tempval);
                   }
           else if (!strcmp("window", val))
-                {if (!(val = Config.GetToken()))
+                {if (!(val = Config.GetWord()))
                     {eDest.Emsg("Config", "monitor window value not specified");
                      return 1;
                     }
@@ -671,7 +679,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 
     for (i = 0; i < 2; i++)
         {if (strcmp("dest", val)) break;
-         while((val = Config.GetToken()))
+         while((val = Config.GetWord()))
                    if (!strcmp("files",val)) monMode[i] |=  XROOTD_MON_FILE;
               else if (!strcmp("info", val)) monMode[i] |=  XROOTD_MON_INFO;
               else if (!strcmp("io",   val)) monMode[i] |=  XROOTD_MON_IO;
@@ -685,7 +693,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
               return 1;
              }
           monDest[i] = strdup(val);
-         if (!(val = Config.GetToken())) break;
+         if (!(val = Config.GetWord())) break;
         }
 
     if (val)
@@ -728,31 +736,31 @@ int XrdXrootdProtocol::xprep(XrdOucStream &Config)
 {   int   rc, keep = 0, scrub=0;
     char  *ldir=0,*val,buff[1024];
 
-    if (!(val = Config.GetToken()))
+    if (!(val = Config.GetWord()))
        {eDest.Emsg("Config", "prep options not specified"); return 1;}
 
         do { if (!strcmp("keep", val))
-                {if (!(val = Config.GetToken()))
+                {if (!(val = Config.GetWord()))
                     {eDest.Emsg("Config", "prep keep value not specified");
                      return 1;
                     }
                  if (XrdOuca2x::a2tm(eDest,"prep keep int",val,&keep,1)) return 1;
                 }
         else if (!strcmp("scrub", val))
-                {if (!(val = Config.GetToken()))
+                {if (!(val = Config.GetWord()))
                     {eDest.Emsg("Config", "prep scrub value not specified");
                      return 1;
                     }
                  if (XrdOuca2x::a2tm(eDest,"prep scrub",val,&scrub,0)) return 1;
                 }
         else if (!strcmp("logdir", val))
-                {if (!(ldir = Config.GetToken()))
+                {if (!(ldir = Config.GetWord()))
                    {eDest.Emsg("Config", "prep logdir value not specified");
                     return 1;
                    }
                 }
         else eDest.Emsg("Config", "Warning, invalid prep option", val);
-       } while((val = Config.GetToken()));
+       } while((val = Config.GetWord()));
 
 // Set the values
 //
@@ -803,7 +811,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
 
 // Get the host and port
 //
-   val = Config.GetToken();
+   val = Config.GetWord();
    if (!val || !val[0] || val[0] == ':')
       {eDest.Emsg("Config", "redirect host not specified"); return 1;}
    if (!(pp = index(val, ':')))
@@ -815,7 +823,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
 
 // Set all redirect target functions
 //
-    if (!(val = Config.GetToken()))
+    if (!(val = Config.GetWord()))
        {eDest.Emsg("config", "redirect option not specified"); return 1;}
     while (val)
           {if (!strcmp(val, "all"))
@@ -833,7 +841,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
                    if (i >= numopts)
                       eDest.Emsg("config", "invalid redirect option", val);
                   }
-          val = Config.GetToken();
+          val = Config.GetWord();
          }
    return 0;
 }
@@ -866,7 +874,7 @@ int XrdXrootdProtocol::xsecl(XrdOucStream &Config)
 
 // Get the path
 //
-   val = Config.GetToken();
+   val = Config.GetWord();
    if (!val || !val[0])
       {eDest.Emsg("Config", "XRootd seclib not specified"); return 1;}
 
@@ -909,7 +917,7 @@ int XrdXrootdProtocol::xtrace(XrdOucStream &Config)
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
-    if (!(val = Config.GetToken()))
+    if (!(val = Config.GetWord()))
        {eDest.Emsg("config", "trace option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) trval = 0;
@@ -924,7 +932,7 @@ int XrdXrootdProtocol::xtrace(XrdOucStream &Config)
                    if (i >= numopts)
                       eDest.Emsg("config", "invalid trace option", val);
                   }
-          val = Config.GetToken();
+          val = Config.GetWord();
          }
     XrdXrootdTrace->What = trval;
     return 0;

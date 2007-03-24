@@ -28,6 +28,7 @@ const char *XrdOdcConfigCVSID = "$Id$";
 #include "XrdOdc/XrdOdcMsg.hh"
 #include "XrdOdc/XrdOdcTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -153,7 +154,8 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 {
   char *var;
   int  cfgFD, retc, NoGo = 0;
-  XrdOucStream Config(eDest, getenv("XRDINSTANCE"));
+  XrdOucEnv myEnv;
+  XrdOucStream Config(eDest, getenv("XRDINSTANCE"), &myEnv);
 
 // Make sure we have a config file
 //
@@ -177,7 +179,7 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
          ||  !strcmp(var, "all.manager")
          ||  !strcmp(var, "all.adminpath")
          ||  !strcmp(var, "olb.adminpath"))
-            NoGo |= ConfigXeq(var+4, Config);
+            if (ConfigXeq(var+4, Config)) {Config.Echo(); NoGo = 1;}
         }
 
 // Now check if any errors occured during file i/o
@@ -213,9 +215,9 @@ int XrdOdcConfig::ConfigXeq(char *var, XrdOucStream &Config)
    // No match found, complain.
    //
    eDest->Emsg("Config", "Warning, unknown directive", var);
+   Config.Echo();
    return 0;
 }
-
 
 /******************************************************************************/
 /*                                x a p a t h                                 */

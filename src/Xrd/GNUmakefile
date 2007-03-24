@@ -86,6 +86,7 @@ $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
                        XrdStats.hh       XrdTrace.hh       XrdInfo.hh    \
                        XrdOuca2x.hh      XrdOucError.hh    XrdOucLogger.hh   \
                        XrdOucStream.hh   XrdOucTrace.hh    XrdOucTimer.hh \
+                       XrdOucEnv.hh \
                        XrdNetSecurity.hh XrdNetDNS.hh      XrdConfig.cc \
                        ../XrdVersion.hh
 	@echo Compiling XrdConfig.cc 

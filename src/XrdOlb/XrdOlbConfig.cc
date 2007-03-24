@@ -58,6 +58,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -158,9 +159,9 @@ void *XrdOlbStartSupervising(void *carg)
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(eDest, CFile);
 
-#define TS_Set(x,v)    if (!strcmp(x,var)) {v=1; return 0;}
+#define TS_Set(x,v)    if (!strcmp(x,var)) {v=1; CFile.Echo(); return 0;}
 
-#define TS_unSet(x,v)  if (!strcmp(x,var)) {v=0; return 0;}
+#define TS_unSet(x,v)  if (!strcmp(x,var)) {v=0; CFile.Echo(); return 0;}
 
 /******************************************************************************/
 /*                            C o n f i g u r e 1                             */
@@ -418,6 +419,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest)
    // No match found, complain.
    //
    eDest->Emsg("Config", "Warning, unknown directive", var);
+   CFile.Echo();
    return 0;
 }
 
@@ -695,7 +697,8 @@ int XrdOlbConfig::ConfigProc(int getrole)
 {
   char *var;
   int  cfgFD, retc, NoGo = 0;
-  XrdOucStream CFile(&Say, myInstance);
+  XrdOucEnv myEnv;
+  XrdOucStream CFile(&Say, myInstance, &myEnv);
 
 // Try to open the configuration file.
 //
@@ -705,12 +708,19 @@ int XrdOlbConfig::ConfigProc(int getrole)
       }
    CFile.Attach(cfgFD);
 
+// Turn off echoing if we are doing a pre-scan
+//
+   if (getrole) CFile.SetEroute(0);
+
 // Now start reading records until eof.
 //
    while((var = CFile.GetMyFirstWord()))
         if (getrole)
            {if (!strcmp("olb.role", var) || !strcmp("all.role", var))
-               NoGo |=  xrole(&Say, CFile);
+               if (xrole(&Say, CFile))
+                  {CFile.SetEroute(&Say); CFile.Echo(); NoGo = 1;
+                   CFile.SetEroute(0);
+                  }
            }
            else if (!strncmp(var, "olb.", 4)
                 ||  !strcmp(var, "oss.cache")
@@ -720,7 +730,7 @@ int XrdOlbConfig::ConfigProc(int getrole)
                 ||  !strcmp(var, "all.adminpath")
                 ||  !strcmp(var, "all.manager")
                 ||  !strcmp(var, "all.role"))
-                   NoGo |= ConfigXeq(var+4, CFile, 0);
+                   if (ConfigXeq(var+4, CFile, 0)) {CFile.Echo(); NoGo = 1;}
 
 // Now check if any errors occured during file i/o
 //
@@ -1644,11 +1654,11 @@ int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
 
 int XrdOlbConfig::xnml(XrdOucError *eDest, XrdOucStream &CFile)
 {
-    char *val, *parms;
+    char *val, parms[1024];
 
 // Get the path
 //
-   if (!(val = CFile.GetToken(&parms)) || !val[0])
+   if (!(val = CFile.GetWord()) || !val[0])
       {eDest->Emsg("Config", "namelib not specified"); return 1;}
 
 // Record the path
@@ -1658,9 +1668,10 @@ int XrdOlbConfig::xnml(XrdOucError *eDest, XrdOucStream &CFile)
 
 // Record any parms
 //
+   if (!CFile.GetRest(parms, sizeof(parms)))
+      {eDest->Emsg("Config", "namelib parameters too long"); return 1;}
    if (N2N_Parms) free(N2N_Parms);
-   if (!parms) N2N_Parms = 0;
-      else {while (*parms == ' ') parms++; N2N_Parms = strdup(parms);}
+   N2N_Parms = (*parms ? strdup(parms) : 0);
    return 0;
 }
 
@@ -1739,7 +1750,7 @@ int XrdOlbConfig::xpath(XrdOucError *eDest, XrdOucStream &CFile)
 */
 int XrdOlbConfig::xperf(XrdOucError *eDest, XrdOucStream &CFile)
 {   int   ival = 3*60;
-    char *pgm=0, *val, *rest;
+    char *pgm=0, *val, rest[2048];
 
     if (!isServer) return 0;
 
@@ -1753,17 +1764,9 @@ int XrdOlbConfig::xperf(XrdOucError *eDest, XrdOucStream &CFile)
                     }
                  if (XrdOuca2x::a2tm(*eDest,"perf int",val,&ival,0)) return 1;
                 }
-        else if (!strcmp("key", val))
-                {if (!(val = CFile.GetWord()))
-                    {eDest->Emsg("Config", "perf key value not specified");
-                     return 1;
-                    }
-                 eDest->Emsg("Config", "key parameter deprecated; ignored.");
-                }
         else if (!strcmp("pgm",  val))
-                {CFile.RetToken();
-                 CFile.GetToken(&rest);
-                 while (*rest == ' ') rest++;
+                {if (!CFile.GetRest(rest, sizeof(rest)))
+                    {eDest->Emsg("Config", "perf pgm parameters too long"); return 1;}
                  if (!*rest)
                     {eDest->Emsg("Config", "perf prog value not specified");
                      return 1;
@@ -1930,7 +1933,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &CFile)
 */
 int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &CFile)
 {   int   reset=0, scrub=0, echo = 0, doset = 0;
-    char  *prepif=0, *val, *rest;
+    char  *prepif=0, *val, rest[2048];
 
     if (!isServer) return 0;
 
@@ -1955,9 +1958,8 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &CFile)
                  doset = 1;
                 }
         else if (!strcmp("ifpgm",  val))
-                {CFile.RetToken();
-                 CFile.GetToken(&rest);
-                 while (*rest == ' ') rest++;
+                {if (!CFile.GetRest(rest, sizeof(rest)))
+                    {eDest->Emsg("Config", "prep ifpgm parameters too long"); return 1;}
                  if (!*rest)
                     {eDest->Emsg("Config", "prep ifpgm value not specified");
                      return 1;
@@ -2449,11 +2451,11 @@ int XrdOlbConfig::xtrace(XrdOucError *eDest, XrdOucStream &CFile)
 
 int XrdOlbConfig::xxmi(XrdOucError *eDest, XrdOucStream &CFile)
 {
-    char *val, *parms;
+    char *val, parms[1024];
 
 // Get the path
 //
-   if (!(val = CFile.GetToken(&parms)) || !val[0])
+   if (!(val = CFile.GetWord()) || !val[0])
       {eDest->Emsg("Config", "xmilib path not specified"); return 1;}
 
 // Record the path
@@ -2463,9 +2465,10 @@ int XrdOlbConfig::xxmi(XrdOucError *eDest, XrdOucStream &CFile)
 
 // Record any parms
 //
+   if (!CFile.GetRest(parms, sizeof(parms)))
+      {eDest->Emsg("Config", "xmilib parameters too long"); return 1;}
    if (XmiParms) free(XmiParms);
-   if (!parms) XmiParms = 0;
-      else {while (*parms == ' ') parms++; XmiParms = strdup(parms);}
+   XmiParms = (*parms ? strdup(parms) : 0);
 
    return 0;
 }

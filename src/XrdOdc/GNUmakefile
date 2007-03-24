@@ -80,7 +80,7 @@ $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 
 $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
                           XrdOuca2x.hh    XrdOucStream.hh  XrdOucTList.hh  \
-                          XrdOucUtils.hh     XrdNetWork.hh \
+                          XrdOucEnv.hh    XrdOucUtils.hh   XrdNetWork.hh \
                           XrdOdcConfig.cc XrdOdcConfDefs.hh
 	@echo Compiling XrdOdcConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcConfig.o XrdOdcConfig.cc

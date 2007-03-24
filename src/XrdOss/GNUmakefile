@@ -100,9 +100,10 @@ $(OBJDIR)/XrdOssCache.o: XrdOssApi.hh XrdOssCache.hh XrdOssTrace.hh \
 
 $(OBJDIR)/XrdOssConfig.o: XrdOssApi.hh  XrdOssConfig.hh XrdOssError.hh \
                           XrdOssLock.hh XrdOssTrace.hh XrdOucError.hh \
-                          XrdOssMio.hh  XrdOssOpaque.hh \
+                          XrdOssMio.hh  XrdOssOpaque.hh XrdOucEnv.hh \
                           XrdOucProg.hh XrdOssConfig.cc XrdOuca2x.hh  \
-                          XrdOucMsubs.hh XrdOucName2Name.hh XrdOucPlugin.hh
+                          XrdOucMsubs.hh XrdOucName2Name.hh XrdOucPlugin.hh \
+                          XrdSysPlatform.hh
 	@echo Compiling XrdOssConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssConfig.o XrdOssConfig.cc
 
@@ -157,5 +158,5 @@ $(OBJDIR)/XrdOssProxy.o: XrdOssConfig.hh XrdOssError.hh \
 			 XrdOssLock.hh XrdOucError.hh XrdSysPlatform.hh \
 			 XrdOucEnv.hh \
 			 XrdOssProxy.cc
-	@echo Compiling XrdOssProxy.cc ...
+	@echo Compiling XrdOssProxy.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssProxy.o XrdOssProxy.cc

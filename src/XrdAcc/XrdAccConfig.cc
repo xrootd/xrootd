@@ -32,6 +32,7 @@ const char *XrdAccConfigCVSID = "$Id$";
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucLock.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAccess.hh"
@@ -60,9 +61,6 @@ XrdAccConfig XrdAccConfiguration;
 #define TS_Chr(x,m)   if (!strcmp(x,var)) {m = val[0]; return 0;}
 
 #define TS_Bit(x,m,v) if (!strcmp(x,var)) {m |= v; return 0;}
-
-#define ACC_Prefix    "acc."
-#define ACC_PrefLen   sizeof(ACC_Prefix)-1
 
 #define ACC_PGO 0x0001
 
@@ -230,7 +228,8 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 */
    char *var;
    int  cfgFD, retc, NoGo = 0, recs = 0;
-   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
+   XrdOucEnv myEnv;
+   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv);
 
 // If there is no config file, complain
 //
@@ -258,9 +257,9 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 //
    ConfigDefaults(); Config.Attach(cfgFD); Config.Tabs(0);
    while((var = Config.GetMyFirstWord()))
-        {if (!strncmp(var, ACC_Prefix, ACC_PrefLen))
-            {var += ACC_PrefLen; recs++;
-             NoGo |= ConfigXeq(var, Config, Eroute);
+        {if (!strncmp(var, "acc.", 2))
+            {recs++;
+             if (ConfigXeq(var+4, Config, Eroute)) {Config.Echo(); NoGo = 1;}
             }
         }
 
@@ -314,6 +313,7 @@ int XrdAccConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute
 // No match found, complain.
 //
    Eroute.Emsg("config", "unknown directive", var);
+   Config.Echo();
    return 1;
 }
   

@@ -23,6 +23,7 @@ const char *XrdSecServerCVSID = "$Id$";
 #include <stdio.h>
 #include <sys/param.h>
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucLogger.hh"
@@ -340,9 +341,6 @@ XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
 
 #define Max(x,y) (x > y ? x : y)
 
-#define SEC_Prefix    "sec."
-#define SEC_PrefLen   sizeof(SEC_Prefix)-1
-  
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
@@ -390,7 +388,8 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 {
    char *var;
    int  cfgFD, retc, NoGo = 0, recs = 0;
-   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"));
+   XrdOucEnv myEnv;
+   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv);
    XrdSecProtParm *pp;
 
 // If there is no config file, return with the defaults sets.
@@ -411,9 +410,9 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 //
    Config.Attach(cfgFD); Config.Tabs(0);
    while((var = Config.GetMyFirstWord()))
-        {if (!strncmp(var, SEC_Prefix, SEC_PrefLen))
-            {var += SEC_PrefLen; recs++;
-             NoGo |= ConfigXeq(var, Config, eDest);
+        {if (!strncmp(var, "sec.", 4))
+            {recs++;
+             if (ConfigXeq(var+4, Config, eDest)) {Config.Echo(); NoGo = 1;}
             }
         }
 
@@ -464,6 +463,7 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute
     // No match found, complain.
     //
     Eroute.Emsg("Config", "unknown directive", var, "ignored.");
+    Config.Echo();
     return 0;
 }
   

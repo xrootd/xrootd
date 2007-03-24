@@ -21,6 +21,8 @@
 
 #include "XrdOuc/XrdOucError.hh"
 
+class XrdOucEnv;
+
 class XrdOucStream
 {
 public:
@@ -29,9 +31,13 @@ public:
 // If you do so, error messages will be writen via the error object. Otherwise,
 // errors will be returned quietly.
 //
-            XrdOucStream(XrdOucError *erobj=0, const char *ifname=0);
+            XrdOucStream(XrdOucError *erobj=0, const char *ifname=0,
+                         XrdOucEnv   *anEnv=0);
 
-           ~XrdOucStream() {Close(); if (myInst) free(myInst);}
+           ~XrdOucStream() {Close(); if (myInst) free(myInst);
+                                     if (varVal) delete varVal;
+                                     if (llBuff) free(llBuff);
+                           }
 
 // Attach a file descriptor to an existing stream. Any curently associated
 // stream is closed and detached. An optional buffer size can be specified.
@@ -53,6 +59,12 @@ int          Detach() {int oldFD = FD; FD = FE = -1; return oldFD;}
 // function only when you need to find out the ending status of the command.
 //
 int          Drain();
+
+// Display last valid line if variable substitution enabled. Fully formed
+// input lines are displayed if 'set -v' was encountered (only when using
+// the GetxxxWord() methods),
+//
+void         Echo();
 
 // Execute a command on a stream. Returns 0 upon success or -1 otherwise.
 // Use LastError() to get the actual error code. Subsequent Get() calls
@@ -86,8 +98,8 @@ char        *GetLine();
 // first form returns simply a token pointer. The second form returns a token
 // pointer and a pointer to the remainder of the line with no leading blanks.
 // The lowcase argument, if 1, converts all letters to lower case in the token.
-// RetToken() simply backups the token scanner one token. This simplifies
-// inheritance override processing.
+// RetToken() simply backups the token scanner one token. None of these
+// methods perform variable substitution (see GetxxxWord() below).
 //
 char        *GetToken(int lowcase=0);
 char        *GetToken(char **rest, int lowcase=0);
@@ -99,10 +111,14 @@ void         RetToken();
 // will return the next word on the next logical line. A physical line may be
 // continued by placing a back slash at it's end (i.e., last non-blank char).
 // GetFirstWord() always makes sure that the first word of a logical line is
-// returned (useful for start afresh after a mid-sentence error).
+// returned (useful for start afresh after a mid-sentence error). GetRest()
+// places the remining tokens in the supplied buffer; returning 0 if the
+// buffer was too small. All of these methods perform variable substitution
+// should an XrdOucEnv object be passed to the constructor.
 //
 char        *GetFirstWord(int lowcase=0);
 char        *GetMyFirstWord(int lowcase=0);
+int          GetRest(char *theBuf, int Blen, int lowcase=0);
 char        *GetWord(int lowcase=0);
 
 // Indicate wether there is an active program attached to the stream
@@ -115,7 +131,7 @@ inline int  isAlive() {return (child ? 1 : 0);}
 
 // Return last error code encountered.
 //
-inline int   LastError() {return ecode;}
+inline int   LastError() {int n = ecode; ecode = 0; return n;}
 
 // Return the last input line
 //
@@ -132,6 +148,12 @@ inline int   Put(const char *data) {return Put(data, strlen(data));}
 //
 int          Put(const char *data[], const int dlen[]);
 
+// Set the Env (returning the old Env). This is useful for suppressing
+// substitutions for a while.
+//
+XrdOucEnv   *SetEnv(XrdOucEnv *newEnv)
+                   {XrdOucEnv *oldEnv = myEnv; myEnv = newEnv; return oldEnv;}
+
 // Set error routing
 //
 void         SetEroute(XrdOucError *eroute) {Eroute = eroute;}
@@ -144,13 +166,21 @@ void         Tabs(int x=1) {notabs = !x;}
 /******************************************************************************/
   
 private:
+        char *add2llB(char *tok, int reset=0);
         int   doif();
+        int   isSet(char *var);
+        char *vSubs(char *Var);
+        int   xMsg(const char *txt1, const char *txt2=0, const char *txt3=0);
+
+static const int maxVLen = 512;
+static const int llBsz   = 1024;
+
         int   FD;
         int   FE;
         int   bsize;
+        int   bleft;
         char *buff;
         char *bnext;
-        int   bleft;
         char *recp;
         char *token;
         int   flags;
@@ -164,7 +194,14 @@ private:
         char *myName;
         char *myExec;
  XrdOucError *Eroute;
+ XrdOucEnv   *myEnv;
+        char *varVal;
+        char *llBuff;
+        char *llBcur;
+        int   llBleft;
+        char  Verbose;
         char  sawif;
         char  skpel;
+        char  llBok;
 };
 #endif

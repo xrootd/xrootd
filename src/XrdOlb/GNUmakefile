@@ -111,7 +111,7 @@ $(OBJDIR)/XrdOlbConfig.o: XrdOlbConfig.hh   XrdOlbConfig.cc \
                           XrdOuca2x.hh      XrdOucError.hh   XrdOucName2Name.hh\
                           XrdSysPlatform.hh XrdOucPlugin.hh  XrdOucProg.hh \
                           XrdOucPthread.hh  XrdOucStream.hh  XrdOucTimer.hh \
-                          XrdOucTList.hh    XrdOucUtils.hh \
+                          XrdOucTList.hh    XrdOucUtils.hh   XrdOucEnv.hh \
                           ../XrdVersion.hh
 	@echo Compiling XrdOlbConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbConfig.o XrdOlbConfig.cc

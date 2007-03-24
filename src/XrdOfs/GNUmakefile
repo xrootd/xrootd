@@ -82,7 +82,7 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
                            XrdOfs.hh         XrdOfsEvs.hh     XrdOfsTrace.hh  \
                            XrdOuca2x.hh      XrdOucError.hh   XrdOucStream.hh \
                            XrdOucTrace.hh    XrdOucUtils.hh   XrdNetDNS.hh   \
-                           XrdAccAuthorize.hh \
+                           XrdOucEnv.hh      XrdAccAuthorize.hh \
                            XrdOdcFinder.hh
 	@echo Compiling XrdOfsConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsConfig.o XrdOfsConfig.cc

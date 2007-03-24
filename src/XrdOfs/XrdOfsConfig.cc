@@ -42,6 +42,7 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include "XrdNet/XrdNetDNS.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucPlugin.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -70,7 +71,7 @@ extern XrdOucTrace OfsTrace;
 
 #define TS_Chr(x,m)   if (!strcmp(x,var)) {m = val[0]; return 0;}
 
-#define TS_Bit(x,m,v) if (!strcmp(x,var)) {m |= v; return 0;}
+#define TS_Bit(x,m,v) if (!strcmp(x,var)) {m |= v; Config.Echo(); return 0;}
 
 #define Max(x,y) (x > y ? x : y)
 
@@ -89,7 +90,8 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
    char *var;
    const char *tmp;
    int  i, j, cfgFD, retc, NoGo = 0;
-   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
+   XrdOucEnv myEnv;
+   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv);
 
 // Print warm-up message
 //
@@ -117,9 +119,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
            while((var = Config.GetMyFirstWord()))
                 {if (!strncmp(var, "ofs.", 4)
                  ||  !strcmp(var, "all.role"))
-                    {var += 4;
-                     NoGo |= ConfigXeq(var, Config, Eroute);
-                    }
+                    if (ConfigXeq(var+4,Config,Eroute)) {Config.Echo();NoGo=1;}
                 }
 
            // Now check if any errors occured during file i/o
@@ -225,11 +225,11 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
               cloc, myRole,
               (Options * XrdOfsAUTHORIZE ? "ofs.authorize\n" : ""),
               (AuthLib ? "ofs.authlib " : ""), (AuthLib ? AuthLib : ""),
-              (AuthLib ? "/n" : ""),
+              (AuthLib ? "\n" : ""),
               (Options & XrdOfsFDNOSHARE ? "ofs.fdnoshare\n" : ""),
               FDOpenMax, FDMinIdle, FDMaxIdle, fwbuff, MaxDelay,
               (OssLib ? "ofs.osslib " : ""), (OssLib ? OssLib : ""),
-              (OssLib ? "/n" : ""),
+              (OssLib ? "\n" : ""),
               OfsTrace.What);
 
      Eroute.Say(buff);
@@ -314,7 +314,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
 int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
                                  XrdOucError &Eroute)
 {
-    char *val;
+    char *val, vBuff[64];
 
     // Now assign the appropriate global variable
     //
@@ -333,6 +333,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
 
     // Get the actual value for simple directives
     //
+    strlcpy(vBuff, var, sizeof(vBuff)); var = vBuff;
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("Config", "value not specified for", var); return 1;}
 
@@ -343,6 +344,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     // No match found, complain.
     //
     Eroute.Emsg("Config", "Warning, unknown directive", var);
+    Config.Echo();
     return 0;
 }
 
@@ -362,11 +364,11 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
 
 int XrdOfs::xalib(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    char *val, *parms;
+    char *val, parms[1024];
 
 // Get the path
 //
-   if (!(val = Config.GetToken(&parms)) || !val[0])
+   if (!(val = Config.GetWord()) || !val[0])
       {Eroute.Emsg("Config", "authlib not specified"); return 1;}
 
 // Record the path
@@ -376,9 +378,10 @@ int XrdOfs::xalib(XrdOucStream &Config, XrdOucError &Eroute)
 
 // Record any parms
 //
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "authlib parameters too long"); return 1;}
    if (AuthParm) free(AuthParm);
-   if (!parms) AuthParm = 0;
-      else {while (*parms == ' ') parms++; AuthParm = strdup(parms);}
+   AuthParm = (*parms ? strdup(parms) : 0);
    return 0;
 }
 
@@ -671,24 +674,26 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOfs::xolib(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    char *val, *parms;
+    char *val, parms[2048];
+    int pl;
 
 // Get the path and parms
 //
-   if (!(val = Config.GetToken(&parms)) || !val[0])
+   if (!(val = Config.GetWord()) || !val[0])
       {Eroute.Emsg("Config", "osslib not specified"); return 1;}
 
 // Combine the path and parameters
 //
-   if (*parms--) 
-      {while(parms != val && *parms) parms--;
-       if (!*parms) *parms = ' ';
-      }
+   strcpy(parms, val);
+   pl = strlen(val);
+   *(parms+pl) = ' ';
+   if (!Config.GetRest(parms+pl+1, sizeof(parms)-pl-1))
+      {Eroute.Emsg("Config", "osslib parameters too long"); return 1;}
 
 // Record the path
 //
    if (OssLib) free(OssLib);
-   OssLib = strdup(val);
+   OssLib = strdup(parms);
    return 0;
 }
 
