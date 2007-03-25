@@ -14,6 +14,7 @@ SOURCES = \
         XrdOuca2x.cc         \
         XrdOucEnv.cc         \
         XrdOucError.cc       \
+        XrdOucExport.cc      \
         XrdOucHashVal.cc     \
         XrdOucLogger.cc      \
         XrdOucMsubs.cc       \
@@ -34,9 +35,10 @@ SOURCES = \
   
 OBJECTS = \
         $(OBJDIR)/XrdOuca2x.o          \
-        $(OBJDIR)/XrdOucError.o        \
-        $(OBJDIR)/XrdOucHashVal.o      \
         $(OBJDIR)/XrdOucEnv.o          \
+        $(OBJDIR)/XrdOucError.o        \
+        $(OBJDIR)/XrdOucExport.o       \
+        $(OBJDIR)/XrdOucHashVal.o      \
         $(OBJDIR)/XrdOucLogger.o       \
         $(OBJDIR)/XrdOucMsubs.o        \
         $(OBJDIR)/XrdOucName2Name.o    \
@@ -99,6 +101,12 @@ $(OBJDIR)/XrdOucError.o: XrdOucError.cc XrdOucError.hh XrdOucLogger.hh \
                          XrdSysPlatform.hh
 	@echo Compiling XrdOucError.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucError.cc -o $(OBJDIR)/XrdOucError.o
+
+$(OBJDIR)/XrdOucExport.o: XrdOucExport.cc XrdOucExport.hh \
+                          XrdOucStream.hh XrdOucPList.hh  XrdOucError.hh \
+                          XrdSysPlatform.hh
+	@echo Compiling XrdOucExport.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucExport.cc -o $(OBJDIR)/XrdOucExport.o
 
 $(OBJDIR)/XrdOucHashVal.o: XrdOucHashVal.cc
 	@echo Compiling XrdOucHashVal.cc

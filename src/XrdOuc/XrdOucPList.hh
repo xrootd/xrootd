@@ -19,16 +19,16 @@ class XrdOucPList
 {
 public:
 
-inline int          Flag() {return flags;}
-inline XrdOucPList *Next() {return next;}
-inline char        *Path() {return path;}
+inline unsigned long long  Flag() {return flags;}
+inline XrdOucPList        *Next() {return next;}
+inline char               *Path() {return path;}
 
 inline int          PathOK(const char *pd, const int pl)
                           {return pl >= pathlen && !strncmp(pd, path, pathlen);}
 
-inline void         Set(int fval) {flags = fval;}
+inline void         Set(unsigned long long fval) {flags = fval;}
 
-             XrdOucPList(const char *pathdata="", int fvals=0)
+             XrdOucPList(const char *pathdata="", unsigned long long fvals=0)
                   {next = 0; 
                    pathlen = strlen(pathdata); 
                    path    = strdup(pathdata);
@@ -42,16 +42,16 @@ friend class XrdOucPListAnchor;
 private:
 
 XrdOucPList       *next;
-int                pathlen;
+unsigned long long flags;
 char              *path;
-int                flags;
+int                pathlen;
 };
 
 class XrdOucPListAnchor : public XrdOucPList
 {
 public:
 
-inline void        Default(int x) {dflts = x;}
+inline void        Default(unsigned long long x) {dflts = x;}
 
 inline void        Empty(XrdOucPList *newlist=0)
                    {XrdOucPList *p = next;
@@ -59,7 +59,7 @@ inline void        Empty(XrdOucPList *newlist=0)
                     next = newlist;
                    }
 
-inline int         Find(const char *pathname)
+inline unsigned long long  Find(const char *pathname)
                    {int plen = strlen(pathname); 
                     XrdOucPList *p = next;
                     while(p) {if (p->PathOK(pathname, plen)) break;
@@ -68,19 +68,32 @@ inline int         Find(const char *pathname)
                     return (p ? p->flags : dflts);
                    }
 
+inline XrdOucPList *Match(const char *pathname)
+                   {int plen = strlen(pathname); 
+                    XrdOucPList *p = next;
+                    while(p) {if (p->pathlen == plen 
+                              &&  !strcmp(p->path, pathname)) break;
+                              p=p->next;
+                             }
+                    return p;
+                   }
+
 inline XrdOucPList *First() {return next;}
 
 inline void        Insert(XrdOucPList *newitem)
-                   {newitem->next = next; next = newitem;
+                   {XrdOucPList *pp = 0, *cp = next;
+                    while(cp && newitem->pathlen < cp->pathlen) {pp=cp;cp=next;}
+                    if (pp) {newitem->next = pp->next; pp->next = newitem;}
+                       else {newitem->next = next;         next = newitem;}
                    }
 
 inline int         NotEmpty() {return next != 0;}
 
-                   XrdOucPListAnchor() {dflts = 0;}
+                   XrdOucPListAnchor(unsigned long long dfx=0) {dflts = dfx;}
                   ~XrdOucPListAnchor() {}
 
 private:
 
-int                dflts;
+unsigned long long dflts;
 };
 #endif
