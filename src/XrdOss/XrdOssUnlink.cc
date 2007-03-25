@@ -48,7 +48,8 @@ extern XrdOucTrace OssTrace;
 int XrdOssSys::Unlink(const char *path) 
 {
     EPNAME("Unlink")
-    int ismig, i, remotefs, retc2, retc = XrdOssOK;
+    unsigned long long ismig, remotefs;
+    int i, retc2, retc = XrdOssOK;
     XrdOssLock un_file;
     struct stat statbuff;
     char *fnp;
@@ -58,7 +59,7 @@ int XrdOssSys::Unlink(const char *path)
 // Determine whether we can actually unlink a file on this server.
 //
    remotefs = Check_RO(Unlink, ismig, path, "deleting ");
-   ismig &= (XrdOssREMOTE | XrdOssMIG);
+   ismig &= (XRDEXP_REMOTE | XRDEXP_MIG);
 
 // Build the right local and remote paths.
 //

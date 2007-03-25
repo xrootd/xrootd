@@ -218,7 +218,7 @@ int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env)
 
 // Calculate the user priority
 //
-   if (XeqFlags & XrdOssUSRPRTY)
+   if (OptFlags & XrdOss_USRPRTY)
       if ((val = env.Get(OSS_USRPRTY))
       && (XrdOuca2x::a2i(OssEroute,"user prty",val,&rc,0)
           || rc > OSS_MAX_PRTY)) return -XRDOSS_E8010;

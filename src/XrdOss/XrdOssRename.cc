@@ -25,6 +25,7 @@ const char *XrdOssRenameCVSID = "$Id$";
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"
 #include "XrdOss/XrdOssTrace.hh"
+#include "XrdOuc/XrdOucExport.hh"
 
 /******************************************************************************/
 /*           G l o b a l   E r r o r   R o u t i n g   O b j e c t            */
@@ -49,8 +50,9 @@ extern XrdOucTrace OssTrace;
 int XrdOssSys::Rename(const char *oldname, const char *newname)
 {
     EPNAME("Rename")
-    int i, retc2, remotefs_Old, remotefs_New, remotefs, ismig, retc = XrdOssOK;
-    int old_popts, new_popts;
+    unsigned long long remotefs_Old, remotefs_New, remotefs, ismig;
+    unsigned long long old_popts, new_popts;
+    int i, retc2, retc = XrdOssOK;
     XrdOssLock old_file, new_file;
     struct stat statbuff;
     char  local_path_Old[XrdOssMAX_PATH_LEN+1+8], *lpo;
@@ -66,13 +68,13 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
 // Make sure we are renaming within compatible file systems
 //
    if (remotefs_Old ^ remotefs_New
-   || ((old_popts & XrdOssMIG) ^ (new_popts & XrdOssMIG)))
+   || ((old_popts & XRDEXP_MIG) ^ (new_popts & XRDEXP_MIG)))
       {char buff[PATH_MAX+128];
        snprintf(buff, sizeof(buff), "rename %s to ", oldname);
        return OssEroute.Emsg("XrdOssRename",-XRDOSS_E8011,buff,(char *)newname);
       }
    remotefs = remotefs_Old | remotefs_New;
-   ismig    = remotefs | (XrdOssMIG & (old_popts | new_popts));
+   ismig    = remotefs | (XRDEXP_MIG & (old_popts | new_popts));
 
 // Construct the filename that we will be dealing with.
 //

@@ -22,6 +22,7 @@
 #include "XrdOss/XrdOssProxy.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -42,12 +43,12 @@ int     Readdir(char *buff, int blen);
                  {lclfd=0; mssfd=0; pflags=ateof=isopen=0; tident=tid;}
        ~XrdOssDir() {if (isopen > 0) Close(); isopen = 0;}
 private:
-      DIR  *lclfd;
-      void *mssfd;
-const char *tident;
-      int   pflags;
-      int   ateof;
-      int   isopen;
+         DIR       *lclfd;
+         void      *mssfd;
+const    char      *tident;
+unsigned long long  pflags;
+         int        ateof;
+         int        isopen;
 };
   
 /******************************************************************************/
@@ -90,7 +91,7 @@ int     Write(XrdSfsAio *aiop);
 virtual ~XrdOssFile() {if (fd >= 0) Close();}
 
 private:
-int     Open_ufs(const char *, int, int, int);
+int     Open_ufs(const char *, int, int, unsigned long long);
 
 static int   AioFailure;
 oocx_CXFile *cxobj;
@@ -128,10 +129,11 @@ int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 int       GenLocalPath(const char *, char *);
 int       GenRemotePath(const char *, char *);
 int       Init(XrdOucLogger *, const char *);
-int       IsRemote(const char *path) {return RPList.Find(path) & XrdOssREMOTE;}
+int       IsRemote(const char *path) 
+                  {return (RPList.Find(path) & XRDEXP_REMOTE) != 0;}
 int       Mkdir(const char *, mode_t mode, int mkpath=0);
 int       Mkpath(const char *, mode_t mode);
-int       PathOpts(const char *path) {return (RPList.Find(path) | XeqFlags);}
+unsigned long long PathOpts(const char *path) {return RPList.Find(path);}
 int       Remdir(const char *) {return -ENOTSUP;}
 int       Rename(const char *, const char *);
 virtual 
@@ -181,35 +183,22 @@ char     *MSSgwCmd;       // -> MSS Gateway command to use
 long long MaxDBsize;      //    Maximum database size
 int       FDFence;        //    Smallest file FD number allowed
 int       FDLimit;        //    Largest  file FD number allowed
-int       XeqFlags;       //    General execution flags
+unsigned long long DirFlags;//  Default directory settings
 int       Trace;          //    Trace flags
 int       ConvertFN;      //    If 1 filenames need to be converted
 char     *CompSuffix;     // -> Compressed file suffix or null for autodetect
 int       CompSuflen;     //    Length of suffix
-int       Configured;     //    0 at start 1 ever after
+int       OptFlags;       //    General option flags
+char     *DeprLine;       //    Temporrary to catch deprecated options
 
 char             *N2N_Lib;   // -> Name2Name Library Path
 char             *N2N_Parms; // -> Name2Name Object Parameters
 XrdOucName2Name  *lcl_N2N;   // -> File mapper for local  files
 XrdOucName2Name  *rmt_N2N;   // -> File mapper for remote files
 XrdOucName2Name  *the_N2N;   // -> File mapper object
-XrdOucPListAnchor RPList;    //    The remote path list
+XrdOucPListAnchor RPList;    //    The real path list
    
-        XrdOssSys() {static char *syssfx[] = {XRDOSS_SFX_LIST, 0};
-                    sfx = syssfx; Configured = 0; xfrtcount = 0;
-                    fsdata=0; fsfirst=0; fslast=0; fscurr=0; fsgroups=0;
-                    xsdata=0; xsfirst=0; xslast=0; xscurr=0; xsgroups=0;
-                    pndbytes=0; stgbytes=0; totbytes=0; totreqs=0; badreqs=0;
-                    CompSuffix = 0; CompSuflen = 0; MaxTwiddle = 3;
-                    StageRealTime = 1; tryMmap = 0; chkMmap = 0;
-                    lcl_N2N = rmt_N2N = the_N2N = 0; N2N_Lib = N2N_Parms = 0;
-                    StageQ.pendList.setItem(0);
-                    StageQ.fullList.setItem(0);
-                    StageMsg = 0; StageSnd = 0;
-                    StageEvents = (char *)"-";   StageEvSize = 1;
-                    StageAction = (char *)"wq "; StageActLen = 3;
-                    ConfigDefaults();
-                   }
+         XrdOssSys();
 virtual ~XrdOssSys() {}
 
 protected:
@@ -274,20 +263,19 @@ int                Stage_RT(const char *, const char *, XrdOucEnv &);
 // Configuration related methods
 //
 off_t  Adjust(dev_t devid, off_t size);
-void   ConfigDefaults(void);
+int    chkDep(const char *var);
 void   ConfigMio(XrdOucError &Eroute);
 int    ConfigN2N(XrdOucError &Eroute);
 int    ConfigProc(XrdOucError &Eroute);
 int    ConfigStage(XrdOucError &Eroute);
 int    ConfigXeq(char *, XrdOucStream &, XrdOucError &);
-void   List_Path(char *, int , XrdOucError &);
+void   List_Path(char *, unsigned long long, XrdOucError &);
 int    xalloc(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcache(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcacheBuild(char *grp, char *fn, XrdOucError &Eroute);
 int    xcompdct(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcachescan(XrdOucStream &Config, XrdOucError &Eroute);
 int    xdefault(XrdOucStream &Config, XrdOucError &Eroute);
-int    xdefset(XrdOucStream &Config, const char *var);
 int    xfdlimit(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute);
 int    xmemf(XrdOucStream &Config, XrdOucError &Eroute);
@@ -323,7 +311,7 @@ int    RenameLink(char *old_path, char *new_path);
 // The Check_RO macro is valid only for XrdOssSys objects.
 //
 #define Check_RO(act, flags, path, opname) \
-   XrdOssREMOTE & (flags = PathOpts(path)); \
-   if ((XeqFlags & XrdOssNOTRW) || (flags & XrdOssNOTRW)) \
+   XRDEXP_REMOTE & (flags = PathOpts(path)); \
+   if (flags & XRDEXP_NOTRW) \
       return OssEroute.Emsg(#act, -XRDOSS_E8005, opname, path)
 #endif

@@ -38,6 +38,7 @@ const char *XrdOssCreateCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucExport.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -77,7 +78,8 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
     const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
     char  local_path[XrdOssMAX_PATH_LEN+1], *p;
     char remote_path[XrdOssMAX_PATH_LEN+1];
-    int popts, retc, remotefs, datfd;
+    unsigned long long popts, remotefs;
+    int retc, datfd;
     XrdOssLock path_dir, new_file;
     struct stat buf;
 
@@ -133,14 +135,14 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
 
      // Create the file in remote system unless not wanted so
      //
-        if (popts & XrdOssRCREATE)
+        if (popts & XRDEXP_RCREATE)
            {if ((retc = MSS_Create(remote_path, access_mode, env)) < 0)
                {path_dir.UnSerialize(0);
                 DEBUG("rc" <<retc <<" mode=" <<std::oct <<access_mode
                            <<std::dec <<" remote path=" <<remote_path);
                 return retc;
                }
-           } else if (!(popts & XrdOssNOCHECK))
+           } else if (!(popts & XRDEXP_NOCHECK))
                      {if (!(retc = MSS_Stat(remote_path, &buf)))
                          {path_dir.UnSerialize(0); return -EEXIST;}
                          else if (retc != -ENOENT)
@@ -150,7 +152,7 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
 
 // Created file in the extended cache or the local name space
 //
-   if (fsfirst && !(popts & XrdOssINPLACE))
+   if (fsfirst && !(popts & XRDEXP_INPLACE))
            datfd = Alloc_Cache(local_path, Opts>>8, access_mode, env);
       else datfd = Alloc_Local(local_path, Opts>>8, access_mode, env);
 
@@ -162,7 +164,7 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
 // If successful, appropriately manage the locks.
 //
    if (datfd >= 0)
-      {if (remotefs || (popts & XrdOssMIG))
+      {if (remotefs || (popts & XRDEXP_MIG))
           {if ((new_file.Serialize(local_path,LKFlags))
                 >= 0) new_file.UnSerialize(0);
            if (remotefs) path_dir.UnSerialize(0);

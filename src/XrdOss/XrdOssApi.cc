@@ -330,7 +330,8 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 {
      const int ro_Mode = ~(S_IWUSR | S_IWGRP | S_IWOTH);
     char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *remote_path;
-    int popts, retc;
+    unsigned long long popts;
+    int retc;
 
 // Construct the processing options for this path
 //
@@ -347,7 +348,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 // Stat the file in the local filesystem first.
 //
    if (!stat(local_path, buff)) 
-      {if (popts & XrdOssNOTRW) buff->st_mode &= ro_Mode;
+      {if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
        return XrdOssOK;
       }
    if (!IsRemote(path)) return -errno;
@@ -364,7 +365,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 // Now stat the file in the remote system (it doesn't exist locally)
 //
    if ((retc = MSS_Stat(remote_path, buff))) return retc;
-   if (popts & XrdOssNOTRW) buff->st_mode &= ro_Mode;
+   if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
    return XrdOssOK;
 }
 
@@ -391,7 +392,8 @@ int XrdOssDir::Opendir(const char *dir_path)
    const char *epname = "Opendir";
 #endif
    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *remote_path;
-   int retc, isremote;
+   unsigned long long isremote;
+   int retc;
 
 // Return an error if this object is already open
 //
@@ -399,7 +401,7 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // Get the processing flags for this directory
 //
-   isremote = XrdOssREMOTE & (pflags = XrdOssSS->PathOpts(dir_path));
+   isremote = XRDEXP_REMOTE & (pflags = XrdOssSS->PathOpts(dir_path));
    ateof = 0;
 
 // Generate local path
@@ -433,7 +435,7 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // If we need not read the actual directory, just check if it exists
 //
-   if (pflags & XrdOssNODREAD)
+   if (pflags & XRDEXP_NODREAD)
       {struct stat fstat;
        if (stat(local_path, &fstat)
        && (retc = XrdOssSS->MSS_Stat(remote_path, &fstat))) return retc;
@@ -490,7 +492,7 @@ int XrdOssDir::Readdir(char *buff, int blen)
 
 // Simulate the read operation, if need be.
 //
-   if (pflags & XrdOssNODREAD)
+   if (pflags & XRDEXP_NODREAD)
       {if (ateof) *buff = '\0';
           else   {*buff = '.'; ateof = 1;}
        return XrdOssOK;
@@ -551,7 +553,8 @@ int XrdOssDir::Close(void)
 */
 int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 {
-   int retc, mopts, popts;
+   unsigned long long popts;
+   int retc, mopts;
    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
    struct stat buf;
 
@@ -574,19 +577,19 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Check if this is a read/only filesystem
 //
-   if ((Oflag & (O_WRONLY | O_RDWR)) && (popts & XrdOssNOTRW))
-      if (popts & XrdOssFORCERO) Oflag = O_RDONLY;
+   if ((Oflag & (O_WRONLY | O_RDWR)) && (popts & XRDEXP_NOTRW))
+      if (popts & XRDEXP_FORCERO) Oflag = O_RDONLY;
          else return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8005,"open r/w",path);
 
 // If we can open the local copy. If not found, try to stage it in if possible.
 // Note that stage will regenerate the right local and remote paths.
 //
    if ( (fd = (int)Open_ufs(local_path, Oflag, Mode, popts))
-         == -ENOENT && (popts & XrdOssREMOTE))
-      {if (popts & XrdOssNOSTAGE)
+         == -ENOENT && (popts & XRDEXP_REMOTE))
+      {if (popts & XRDEXP_NOSTAGE)
           return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8006,"open",path);
        if ((retc = XrdOssSS->Stage(tident, path, Env, Oflag, Mode))) return retc;
-       fd = (int)Open_ufs(local_path, Oflag, Mode, popts & ~XrdOssREMOTE);
+       fd = (int)Open_ufs(local_path, Oflag, Mode, popts & ~XRDEXP_REMOTE);
       }
 
 // This interface supports only regular files. Complain if this is not one.
@@ -604,9 +607,9 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 //
    if (fd >= 0 && XrdOssSS->tryMmap)
       {mopts = 0;
-       if (popts & XrdOssMKEEP) mopts |= OSSMIO_MPRM;
-       if (popts & XrdOssMLOK)  mopts |= OSSMIO_MLOK;
-       if (popts & XrdOssMMAP)  mopts |= OSSMIO_MMAP;
+       if (popts & XRDEXP_MKEEP) mopts |= OSSMIO_MPRM;
+       if (popts & XRDEXP_MLOK)  mopts |= OSSMIO_MLOK;
+       if (popts & XRDEXP_MMAP)  mopts |= OSSMIO_MMAP;
        if (XrdOssSS->chkMmap) mopts = XrdOssMio::getOpts(local_path, mopts);
        if (mopts) mmFile = XrdOssMio::Map(local_path, fd, mopts);
       } else mmFile = 0;
@@ -685,7 +688,7 @@ ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
 
 #ifdef XRDOSSCX
      if (cxobj)  
-        if (XrdOssSS->XeqFlags & XrdOssNOSSDEC) return (ssize_t)-XRDOSS_E8021;
+        if (XrdOssSS->DirFlags & XrdOssNOSSDEC) return (ssize_t)-XRDOSS_E8021;
            else   retval = cxobj->Read((char *)buff, blen, offset);
         else 
 #endif
@@ -874,7 +877,8 @@ int XrdOssFile::Ftruncate(unsigned long long flen) {
 /*                      o o s s _ O p e n _ u f s                             */
 /******************************************************************************/
 
-int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
+int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, 
+                         unsigned long long popts)
 {
     EPNAME("Open_ufs")
     int myfd, newfd, retc;
@@ -888,7 +892,7 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
 
 // Obtain exclusive control over the directory.
 //
-    if ((popts & XrdOssREMOTE) 
+    if ((popts & XRDEXP_REMOTE) 
     && (retc = ufs_file.Serialize(path, XrdOssDIR|XrdOssEXC)) < 0) return retc;
 
 // Now open the actual data file in the appropriate mode.
@@ -900,7 +904,7 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
 //
     if (myfd < 0) myfd = -errno;
 #ifdef XRDOSSCX
-       else if ((popts & XrdOssCOMPCHK)
+       else if ((popts & XRDEXP_COMPCHK)
             && oocx_CXFile::isCompressed(myfd, cxid, &cxpgsz)) 
                if (Oflag != O_RDONLY) {close(myfd); return -XRDOSS_E8022;}
                   else attcx = 1;
@@ -932,6 +936,6 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode, int popts)
 
 // Deserialize the directory and return the result.
 //
-    if (popts & XrdOssREMOTE) ufs_file.UnSerialize(0);
+    if (popts & XRDEXP_REMOTE) ufs_file.UnSerialize(0);
     return myfd;
 }

@@ -44,6 +44,7 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucPlugin.hh"
@@ -107,8 +108,9 @@ const char *XrdOssErrorText[] =
 
 #define TS_Char(x,m)   if (!strcmp(x,var)) {m = val[0]; return 0;}
 
-#define TS_Add(x,m,v,s) if (!strcmp(x,var)) {m |= (v|s); Config.Echo(); return 0;}
-#define TS_Rem(x,m,v,s) if (!strcmp(x,var)) {m = (m & ~v) | s;Config.Echo();  return 0;}
+#define TS_Add(x,m,v,s) if (!strcmp(x,var)) {m |= (v|s); return 0;}
+#define TS_Ade(x,m,v,s) if (!strcmp(x,var)) {m |= (v|s); Config.Echo(); return 0;}
+#define TS_Rem(x,m,v,s) if (!strcmp(x,var)) {m = (m & ~v) | s; return 0;}
 
 #define TS_Set(x,m,v)  if (!strcmp(x,var)) {m = v; Config.Echo(); return 0;}
 
@@ -122,6 +124,71 @@ void *XrdOssxfr(void *carg)       {return XrdOssSS->Stage_In(carg);}
 
 void *XrdOssCacheScan(void *carg) {return XrdOssSS->CacheScan(carg);}
 
+/******************************************************************************/
+/*                           C o n s t r u c t o r                            */
+/******************************************************************************/
+
+XrdOssSys::XrdOssSys()
+{
+   static char *syssfx[] = {XRDOSS_SFX_LIST, 0};
+
+   sfx           = syssfx;
+   xfrtcount     = 0;
+   fsdata        = 0;
+   fsfirst       = 0;
+   fslast        = 0;
+   fscurr        = 0;
+   fsgroups      = 0;
+   xsdata        = 0;
+   xsfirst       = 0;
+   xslast        = 0;
+   xscurr        = 0;
+   xsgroups      = 0;
+   pndbytes      = 0;
+   stgbytes      = 0;
+   totbytes      = 0;
+   totreqs       = 0;
+   badreqs       = 0;
+   CompSuffix    = 0;
+   CompSuflen    = 0;
+   MaxTwiddle    = 3;
+   tryMmap       = 0;
+   chkMmap       = 0;
+   lcl_N2N = rmt_N2N = the_N2N = 0; 
+   N2N_Lib = N2N_Parms         = 0;
+   StageQ.pendList.setItem(0);
+   StageQ.fullList.setItem(0);
+   StageCmd      = 0;
+   StageMsg      = 0; 
+   StageSnd      = 0;
+   StageRealTime = 1;
+   StageAsync    = 0;
+   StageCreate   = 0;
+   StageEvents   = (char *)"-";
+   StageEvSize   = 1;
+   StageAction   = (char *)"wq "; 
+   StageActLen   = 3;
+   MSSgwCmd      = 0;
+   DirFlags      = 0; 
+   OptFlags      = 0;
+   LocalRoot     = 0;
+   RemoteRoot    = 0;
+   cscanint      = XrdOssCSCANINT;
+   FDFence       = -1;
+   FDLimit       = XrdOssFDLIMIT;
+   MaxDBsize     = XrdOssMAXDBSIZE;
+   minalloc      = XrdOssMINALLOC;
+   ovhalloc      = XrdOssOVRALLOC;
+   fuzalloc      = XrdOssFUZALLOC;
+   xfrspeed      = XrdOssXFRSPEED;
+   xfrovhd       = XrdOssXFROVHD;
+   xfrhold       = XrdOssXFRHOLD;
+   xfrkeep       = 20*60;
+   xfrthreads    = XrdOssXFRTHREADS;
+   ConfigFN      = 0;
+   DeprLine      = 0;
+}
+  
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
@@ -145,10 +212,10 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 //
    Eroute.Emsg("config", "Storage system initialization started.");
    Eroute.addTable(ETab);
+   if (getenv("XRDDEBUG")) OssTrace.What = TRACE_ALL;
 
 // Preset all variables with common defaults
 //
-   ConfigDefaults();
    ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
 
 // Process the configuration file
@@ -185,6 +252,10 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 // Initialize memory mapping setting to speed execution
 //
    if (!NoGo) ConfigMio(Eroute);
+
+// Establish the actual default path settings (modified by the above)
+//
+   RPList.Set(DirFlags);
 
 // Start up the cache scan thread
 //
@@ -265,12 +336,13 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
 
      XrdOssMio::Display(Eroute);
 
+     Eroute.Say("The following path options are in effect:");
      fp = RPList.First();
      while(fp)
           {List_Path(fp->Path(), fp->Flag(), Eroute);
            fp = fp->Next();
           }
-     if (!(XeqFlags & XrdOssROOTDIR)) List_Path((char *)"/", XeqFlags, Eroute);
+     if (!(OptFlags & XrdOss_ROOTDIR)) List_Path((char *)"/", DirFlags, Eroute);
      List_Cache((char *)"oss.cache ", 0, Eroute);
 }
 
@@ -278,56 +350,14 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
 /******************************************************************************/
-/*                        C o n f i g D e f a u l t s                         */
-/******************************************************************************/
-  
-void XrdOssSys::ConfigDefaults(void)
-{
-
-// Preset all variables with common defaults
-//
-   if (Configured && LocalRoot) free(LocalRoot);
-       LocalRoot     = 0;
-
-   if (Configured && RemoteRoot) free(RemoteRoot);
-       RemoteRoot    = 0;
-
-   if (Configured && StageCmd) free(StageCmd);
-       StageCmd      = 0;
-       StageRealTime = 1;
-       StageAsync    = 0;
-       StageCreate   = 0;
-
-   if (Configured && MSSgwCmd) free(MSSgwCmd);
-       MSSgwCmd      = 0;
-
-       cscanint      = XrdOssCSCANINT;
-       FDFence       = -1;
-       FDLimit       = XrdOssFDLIMIT;
-       XeqFlags      = XrdOssXEQFLAGS;
-       MaxDBsize     = XrdOssMAXDBSIZE;
-       minalloc      = XrdOssMINALLOC;
-       ovhalloc      = XrdOssOVRALLOC;
-       fuzalloc      = XrdOssFUZALLOC;
-       xfrspeed      = XrdOssXFRSPEED;
-       xfrovhd       = XrdOssXFROVHD;
-       xfrhold       = XrdOssXFRHOLD;
-       xfrkeep       = 20*60;
-       xfrthreads    = XrdOssXFRTHREADS;
-
-   if (ConfigFN) {free(ConfigFN); ConfigFN = 0;}
-   Configured = 1;
-  if (getenv("XRDDEBUG")) OssTrace.What = TRACE_ALL;
-}
-  
-/******************************************************************************/
 /*                             C o n f i g M i o                              */
 /******************************************************************************/
   
 void XrdOssSys::ConfigMio(XrdOucError &Eroute)
 {
      XrdOucPList *fp;
-     int flags = 0, setoff = 0;
+     unsigned long long flags = 0;
+     int setoff = 0;
 
 // Initialize memory mapping setting to speed execution
 //
@@ -344,35 +374,41 @@ void XrdOssSys::ConfigMio(XrdOucError &Eroute)
 
 // Handle default settings
 //
-   if (XeqFlags & XrdOssMEMAP && !(XeqFlags & XrdOssNOTRW))
-      XeqFlags |= XrdOssFORCERO;
-   if (!(XeqFlags & XrdOssROOTDIR)) flags |= XeqFlags;
-   if (XeqFlags & (XrdOssMLOK | XrdOssMKEEP)) XeqFlags |= XrdOssMMAP;
+   if (DirFlags & XRDEXP_MEMAP && !(DirFlags & XRDEXP_NOTRW))
+      DirFlags |= XRDEXP_FORCERO;
+   if (!(OptFlags & XrdOss_ROOTDIR)) flags |= DirFlags;
+   if (DirFlags & (XRDEXP_MLOK | XRDEXP_MKEEP)) DirFlags |= XRDEXP_MMAP;
 
 // Produce warnings if unsupported features have been selected
 //
 #if !defined(_POSIX_MAPPED_FILES)
-   if (flags & XrdOssMEMAP)
+   if (flags & XRDEXP_MEMAP)
       {Eroute.Emsg("Config", "Warning! Memory mapped files not supported; "
                              "feature disabled.");
        setoff = 1;
+       fp = RPList.First();
+       while(fp)
+            {fp->Set(fp->Flag() & ~XRDEXP_MEMAP);
+             fp = fp->Next();
+            }
+       DirFlags = DirFlags & ~XRDEXP_MEMAP;
       }
 #elif !defined(_POSIX_MEMLOCK)
-   if (flags & XrdOssMLOK)
+   if (flags & XRDEXP_MLOK)
       {Eroute.Emsg("Config", "Warning! Memory locked files not supported; "
                              "feature disabled.");
        fp = RPList.First();
        while(fp)
-            {fp->Set(fp->Flag() & ~XrdOssMLOK);
+            {fp->Set(fp->Flag() & ~XRDEXP_MLOK);
              fp = fp->Next();
             }
-       XeqFlags = XeqFlags & ~XrdOssNLOK;
+       DirFlags = DirFlags & ~XRDEXP_MLOK;
       }
 #endif
 
 // If no memory flags are set, turn off memory mapped files
 //
-   if (!(flags & XrdOssMEMAP) || setoff)
+   if (!(flags & XRDEXP_MEMAP) || setoff)
      {XrdOssMio::Set(0, 0, 0, 0, 0);
       tryMmap = 0; chkMmap = 0;
      }
@@ -446,7 +482,11 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 //
    while((var = Config.GetMyFirstWord()))
         {if (!strncmp(var, "oss.", 4))
-            if (ConfigXeq(var+4, Config, Eroute)) {Config.Echo(); NoGo = 1;}
+            {if (ConfigXeq(var+4, Config, Eroute)) {Config.Echo(); NoGo = 1;}}
+            else if (!strcmp(var,"all.export"))
+                    {OptFlags |= XrdOss_EXPORT;
+                     if (xpath(Config, Eroute)) {Config.Echo(); NoGo = 1;}
+                    }
         }
 
 // All done scanning the file, set dependent parameters.
@@ -458,6 +498,14 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
    if ((retc = Config.LastError()))
       NoGo = Eroute.Emsg("config", retc, "read config file", ConfigFN);
    Config.Close();
+
+// Check if we have any conflicts using new and old options
+//
+   if ((OptFlags & XrdOss_EXPORT) && DeprLine)
+      {Eroute.Emsg("config", "'all.export' conflicts with deprecated",DeprLine);
+       Eroute.Emsg("config", "'oss.defaults' must be used instead!");
+       NoGo = 1;
+      }
 
 // Return final return code
 //
@@ -471,38 +519,39 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 {
    char *tp, *gwp = 0, *stgp = 0;
-   int dflags, flags, retc, numt, NoGo = 0;
+   unsigned long long dflags, flags;
+   int retc, numt, NoGo = 0;
    pthread_t tid;
    XrdOucPList *fp;
 
 // A mssgwcmd implies mig and a stagecmd implies stage as defaults
 //
-   dflags = (MSSgwCmd ? XrdOssMIG : XrdOssNOCHECK|XrdOssNODREAD);
-   if (!StageCmd) dflags |= XrdOssNOSTAGE;
-   XeqFlags = XeqFlags | (dflags & (~(XeqFlags >> XrdOssMASKSHIFT)));
-   if (MSSgwCmd && (XeqFlags & XrdOssMIG)) XeqFlags |= XrdOssREMOTE;
-   RPList.Default(XeqFlags);
+   dflags = (MSSgwCmd ? XRDEXP_MIG : XRDEXP_NOCHECK|XRDEXP_NODREAD);
+   if (!StageCmd) dflags |= XRDEXP_NOSTAGE;
+   DirFlags = DirFlags | (dflags & (~(DirFlags >> XRDEXP_MASKSHIFT)));
+   if (MSSgwCmd && (DirFlags & XRDEXP_MIG)) DirFlags |= XRDEXP_REMOTE;
+   RPList.Default(DirFlags);
 
 // Reprocess the paths to set correct defaults
 //
    fp = RPList.First();
    while(fp) 
         {flags = fp->Flag();
-         flags = flags | (dflags & (~(flags >> XrdOssMASKSHIFT)));
-         if (!(flags & XrdOssNOSTAGE)) gwp = stgp = fp->Path();
-            else if (!(flags & XrdOssNOCHECK) || !(flags & XrdOssNODREAD) ||
-                    (flags & XrdOssRCREATE))  gwp = fp->Path();
-         if (MSSgwCmd && (flags & XrdOssMIG)) flags |= XrdOssREMOTE;
+         flags = flags | (dflags & (~(flags >> XRDEXP_MASKSHIFT)));
+         if (!(flags & XRDEXP_NOSTAGE)) gwp = stgp = fp->Path();
+            else if (!(flags & XRDEXP_NOCHECK) || !(flags & XRDEXP_NODREAD) ||
+                    (flags & XRDEXP_RCREATE))  gwp = fp->Path();
+         if (MSSgwCmd && (flags & XRDEXP_MIG)) flags |= XRDEXP_REMOTE;
          fp->Set(flags);
          fp = fp->Next();
         }
 
 // Include the defaults if a root directory was not specified
 //
-   if (!(XeqFlags & XrdOssROOTDIR))
-      {if (!(XeqFlags & XrdOssNOSTAGE)) gwp = stgp = (char *)"/";
-          else if (!(XeqFlags & XrdOssNOCHECK) || !(XeqFlags & XrdOssNODREAD) ||
-                  (XeqFlags & XrdOssRCREATE))  gwp = (char *)"/";
+   if (!(OptFlags & XrdOss_ROOTDIR))
+      {if (!(DirFlags & XRDEXP_NOSTAGE)) gwp = stgp = (char *)"/";
+          else if (!(DirFlags & XRDEXP_NOCHECK) || !(DirFlags & XRDEXP_NODREAD) ||
+                  (DirFlags & XRDEXP_RCREATE))  gwp = (char *)"/";
       }
 
 // Check if we need or don't need the stagecmd
@@ -603,44 +652,22 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
     int nosubs;
     XrdOucEnv *myEnv = 0;
 
-   // Process items that don't need a vlaue
+   // Check for deprecated options
    //
-   TS_Add("compchk",       XeqFlags, XrdOssCOMPCHK, 0);
-   TS_Add("forcero",       XeqFlags, XrdOssFORCERO,  XrdOssROW_X);
-   TS_Add("readonly",      XeqFlags, XrdOssREADONLY, XrdOssROW_X);
-   TS_Add("notwritable",   XeqFlags, XrdOssREADONLY, XrdOssROW_X);
-   TS_Rem("writable",      XeqFlags, XrdOssNOTRW,    XrdOssROW_X);
+   if (!chkDep(var))
+      {strcpy(buff, "oss."); strcat(buff, var);
+       Eroute.Emsg("config", "WARNING,", buff,
+                             "is deprecated; use 'oss.defaults' instead!");
+       Config.Echo();
+       if (DeprLine)
+          {strcpy(buff, DeprLine); strcat(buff," oss."); strcat(buff, var);
+           free(DeprLine);
+          }
+       DeprLine = strdup(buff);
+       return 0;
+      }
 
-   TS_Add("mig",           XeqFlags, XrdOssMIG,    XrdOssMIG_X);
-   TS_Rem("nomig",         XeqFlags, XrdOssMIG,    XrdOssMIG_X);
-   TS_Add("migratable",    XeqFlags, XrdOssMIG,    XrdOssMIG_X);
-   TS_Rem("notmigratable", XeqFlags, XrdOssMIG,    XrdOssMIG_X);
-
-   TS_Add("mkeep",         XeqFlags, XrdOssMKEEP,  XrdOssMKEEP_X);
-   TS_Rem("nomkeep",       XeqFlags, XrdOssMKEEP,  XrdOssMKEEP_X);
-
-   TS_Add("mlock",         XeqFlags, XrdOssMLOK,   XrdOssMLOK_X);
-   TS_Rem("nomlock",       XeqFlags, XrdOssMLOK,   XrdOssMLOK_X);
-
-   TS_Add("mmap",          XeqFlags, XrdOssMMAP,   XrdOssMMAP_X);
-   TS_Rem("nommap",        XeqFlags, XrdOssMMAP,   XrdOssMMAP_X);
-
-   TS_Rem("check",         XeqFlags, XrdOssNOCHECK, XrdOssCHECK_X);
-   TS_Add("nocheck",       XeqFlags, XrdOssNOCHECK, XrdOssCHECK_X);
-
-   TS_Rem("dread",         XeqFlags, XrdOssNODREAD, XrdOssDREAD_X);
-   TS_Add("nodread",       XeqFlags, XrdOssNODREAD, XrdOssDREAD_X);
-
-   TS_Rem("ssdec",         XeqFlags, XrdOssNOSSDEC, 0);
-   TS_Add("nossdec",       XeqFlags, XrdOssNOSSDEC, 0);
-
-   TS_Rem("stage",         XeqFlags, XrdOssNOSTAGE, XrdOssSTAGE_X);
-   TS_Add("nostage",       XeqFlags, XrdOssNOSTAGE, XrdOssSTAGE_X);
-
-   TS_Add("rcreate",       XeqFlags, XrdOssRCREATE, XrdOssRCREATE_X);
-   TS_Rem("norcreate",     XeqFlags, XrdOssRCREATE, XrdOssRCREATE_X);
-
-   TS_Add("userprty",      XeqFlags, XrdOssUSRPRTY, 0);
+   TS_Ade("userprty",      OptFlags, XrdOss_USRPRTY, 0);
 
    TS_Xeq("alloc",         xalloc);
    TS_Xeq("cache",         xcache);
@@ -712,6 +739,52 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    return 0;
 }
   
+/******************************************************************************/
+/*                                c h k D e p                                 */
+/******************************************************************************/
+
+int XrdOssSys::chkDep(const char *var)
+{
+   // Process items that don't need a vlaue
+   //
+   TS_Add("compchk",       DirFlags, XRDEXP_COMPCHK, 0);
+   TS_Add("forcero",       DirFlags, XRDEXP_FORCERO, XRDEXP_ROW_X);
+   TS_Add("readonly",      DirFlags, XRDEXP_READONLY,XRDEXP_ROW_X);
+   TS_Add("notwritable",   DirFlags, XRDEXP_READONLY,XRDEXP_ROW_X);
+   TS_Rem("writable",      DirFlags, XRDEXP_NOTRW,   XRDEXP_ROW_X);
+
+   TS_Add("mig",           DirFlags, XRDEXP_MIG,     XRDEXP_MIG_X);
+   TS_Rem("nomig",         DirFlags, XRDEXP_MIG,     XRDEXP_MIG_X);
+   TS_Add("migratable",    DirFlags, XRDEXP_MIG,     XRDEXP_MIG_X);
+   TS_Rem("notmigratable", DirFlags, XRDEXP_MIG,     XRDEXP_MIG_X);
+
+   TS_Add("mkeep",         DirFlags, XRDEXP_MKEEP,   XRDEXP_MKEEP_X);
+   TS_Rem("nomkeep",       DirFlags, XRDEXP_MKEEP,   XRDEXP_MKEEP_X);
+
+   TS_Add("mlock",         DirFlags, XRDEXP_MLOK,    XRDEXP_MLOK_X);
+   TS_Rem("nomlock",       DirFlags, XRDEXP_MLOK,    XRDEXP_MLOK_X);
+
+   TS_Add("mmap",          DirFlags, XRDEXP_MMAP,    XRDEXP_MMAP_X);
+   TS_Rem("nommap",        DirFlags, XRDEXP_MMAP,    XRDEXP_MMAP_X);
+
+   TS_Rem("check",         DirFlags, XRDEXP_NOCHECK, XRDEXP_CHECK_X);
+   TS_Add("nocheck",       DirFlags, XRDEXP_NOCHECK, XRDEXP_CHECK_X);
+
+   TS_Rem("dread",         DirFlags, XRDEXP_NODREAD, XRDEXP_DREAD_X);
+   TS_Add("nodread",       DirFlags, XRDEXP_NODREAD, XRDEXP_DREAD_X);
+
+   TS_Rem("ssdec",         DirFlags, XRDEXP_NOSSDEC, 0);
+   TS_Add("nossdec",       DirFlags, XRDEXP_NOSSDEC, 0);
+
+   TS_Rem("stage",         DirFlags, XRDEXP_NOSTAGE, XRDEXP_STAGE_X);
+   TS_Add("nostage",       DirFlags, XRDEXP_NOSTAGE, XRDEXP_STAGE_X);
+
+   TS_Add("rcreate",       DirFlags, XRDEXP_RCREATE, XRDEXP_RCREATE_X);
+   TS_Rem("norcreate",     DirFlags, XRDEXP_RCREATE, XRDEXP_RCREATE_X);
+
+   return 1;
+}
+
 /******************************************************************************/
 /*                                x a l l o c                                 */
 /******************************************************************************/
@@ -905,70 +978,18 @@ int XrdOssSys::xcachescan(XrdOucStream &Config, XrdOucError &Eroute)
 
 /* Function: xdefault
 
-   Purpose:  Parse: defaults [compchk] [[no]dread] [[no]check] [forcero] 
+   Purpose:  Parse: defaults <default options>
                               
-                             [[no]mig] [[not]migratable] [[no]mkeep]
-
-                             [[no]mlock] [[no]mmap] [readonly] [[no]ssdec]
-
-                             [[no]stage]  [[no]rcreate] [[not]writable]
-
    Notes: See the oss configuration manual for the meaning of each option.
+          The actual implementation is defined in XrdOucExport.
 
    Output: 0 upon success or !0 upon failure.
 */
 
 int XrdOssSys::xdefault(XrdOucStream &Config, XrdOucError &Eroute)
 {
-   char *var;
-
-   if (!(var = Config.GetWord()))
-      {Eroute.Emsg("config", "defaults value not specified"); return 1;}
-
-   do {if (xdefset(Config, var)) 
-          Eroute.Emsg("config","unknown defaults value -",var);
-      } while((var = Config.GetWord()));
-
+   DirFlags = XrdOucExport::ParseDefs(Config, Eroute, DirFlags);
    return 0;
-}
-
-int XrdOssSys::xdefset(XrdOucStream &Config, const char *var)
-{
-   TS_Add("compchk",       XeqFlags, XrdOssCOMPCHK,  0);
-   TS_Add("forcero",       XeqFlags, XrdOssFORCERO,  XrdOssROW_X);
-   TS_Add("readonly",      XeqFlags, XrdOssREADONLY, XrdOssROW_X);
-   TS_Add("notwritable",   XeqFlags, XrdOssREADONLY, XrdOssROW_X);
-   TS_Rem("writable",      XeqFlags, XrdOssNOTRW,    XrdOssROW_X);
-
-   TS_Add("mig",           XeqFlags, XrdOssMIG,      XrdOssMIG_X);
-   TS_Rem("nomig",         XeqFlags, XrdOssMIG,      XrdOssMIG_X);
-   TS_Add("migratable",    XeqFlags, XrdOssMIG,      XrdOssMIG_X);
-   TS_Rem("notmigratable", XeqFlags, XrdOssMIG,      XrdOssMIG_X);
-
-   TS_Add("mkeep",         XeqFlags, XrdOssMKEEP,    XrdOssMKEEP_X);
-   TS_Rem("nomkeep",       XeqFlags, XrdOssMKEEP,    XrdOssMKEEP_X);
-
-   TS_Add("mlock",         XeqFlags, XrdOssMLOK,     XrdOssMLOK_X);
-   TS_Rem("nomlock",       XeqFlags, XrdOssMLOK,     XrdOssMLOK_X);
-
-   TS_Add("mmap",          XeqFlags, XrdOssMMAP,     XrdOssMMAP_X);
-   TS_Rem("nommap",        XeqFlags, XrdOssMMAP,     XrdOssMMAP_X);
-
-   TS_Rem("check",         XeqFlags, XrdOssNOCHECK,  XrdOssCHECK_X);
-   TS_Add("nocheck",       XeqFlags, XrdOssNOCHECK,  XrdOssCHECK_X);
-
-   TS_Rem("dread",         XeqFlags, XrdOssNODREAD,  XrdOssDREAD_X);
-   TS_Add("nodread",       XeqFlags, XrdOssNODREAD,  XrdOssDREAD_X);
-
-   TS_Rem("ssdec",         XeqFlags, XrdOssNOSSDEC,  0);
-   TS_Add("nossdec",       XeqFlags, XrdOssNOSSDEC,  0);
-
-   TS_Rem("stage",         XeqFlags, XrdOssNOSTAGE,  XrdOssSTAGE_X);
-   TS_Add("nostage",       XeqFlags, XrdOssNOSTAGE,  XrdOssSTAGE_X);
-
-   TS_Add("rcreate",       XeqFlags, XrdOssRCREATE,  XrdOssRCREATE_X);
-   TS_Rem("norcreate",     XeqFlags, XrdOssRCREATE,  XrdOssRCREATE_X);
-   return 1;
 }
   
 /******************************************************************************/
@@ -1163,99 +1184,35 @@ int XrdOssSys::xnml(XrdOucStream &Config, XrdOucError &Eroute)
 
 /* Function: xpath
 
-   Purpose:  To parse the directive: path <path> [<options>]
+   Purpose:  To parse the directive: {export | path} <path> [<options>]
 
              <path>    the full path that resides in a remote system.
-             <options> a blank separated list of options:
-                       [no]dread    - [don't] read actual directory contents
-                           forcero  - force r/w opens to r/o opens
-                           inplace  - do not use extended cache for creation
-                       [no]mig      - this is [not] a migratable name space
-                       [no]mkeep    - this is [not] a memory keepable name space
-                       [no]mlock    - this is [not] a memory lockable name space
-                       [no]mmap     - this is [not] a memory mappable name space
-                       [no]check    - [don't] check remote filesystem when creating
-                       [no]stage    - [don't] stage in files.
-                           r/o      - do not allow modifications (read/only)
-                           r/w      - path is writable/modifiable
+             <options> a blank separated list of options (see XrdOucExport)
 
    Output: 0 upon success or !0 upon failure.
 */
 
 int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    char *val, *path;
-    static struct rpathopts 
-           {const char *opname; int oprem; int opadd; int opset;} rpopts[] =
-       {
-        {"compchk",       0,             XrdOssCOMPCHK, 0},
-        {"r/o",           0,             XrdOssREADONLY,XrdOssROW_X},
-        {"forcero",       0,             XrdOssFORCERO, XrdOssROW_X},
-        {"notwritable",   0,             XrdOssREADONLY,XrdOssROW_X},
-        {"writable",      XrdOssNOTRW,   0,             XrdOssROW_X},
-        {"r/w",           XrdOssNOTRW,   0,             XrdOssROW_X},
-        {"inplace",       0,             XrdOssINPLACE, 0},
-        {"nomig",         XrdOssMIG,     0,             XrdOssMIG_X},
-        {"mig",           0,             XrdOssMIG,     XrdOssMIG_X},
-        {"notmigratable", XrdOssMIG,     0,             XrdOssMIG_X},
-        {"migratable",    0,             XrdOssMIG,     XrdOssMIG_X},
-        {"nomkeep",       XrdOssMKEEP,   0,             XrdOssMKEEP_X},
-        {"mkeep",         0,             XrdOssMKEEP,   XrdOssMKEEP_X},
-        {"nomlock",       XrdOssMLOK,    0,             XrdOssMLOK_X},
-        {"mlock",         0,             XrdOssMLOK,    XrdOssMLOK_X},
-        {"nommap",        XrdOssMMAP,    0,             XrdOssMMAP_X},
-        {"mmap",          0,             XrdOssMMAP,    XrdOssMMAP_X},
-        {"nostage",       0,             XrdOssNOSTAGE, XrdOssSTAGE_X},
-        {"stage",         XrdOssNOSTAGE, 0,             XrdOssSTAGE_X},
-        {"dread",         XrdOssNODREAD, 0,             XrdOssDREAD_X},
-        {"nodread",       0,             XrdOssNODREAD, XrdOssDREAD_X},
-        {"check",         XrdOssNOCHECK, 0,             XrdOssCHECK_X},
-        {"nocheck",       0,             XrdOssNOCHECK, XrdOssCHECK_X},
-        {"rcreate",       0,             XrdOssRCREATE, XrdOssRCREATE_X},
-        {"norcreate",     XrdOssRCREATE, 0,             XrdOssRCREATE_X}
-       };
-    int xspec, i, rpval = 0;
-    int numopts = sizeof(rpopts)/sizeof(struct rpathopts);
+    XrdOucPList *plp, *olp;
+    unsigned long long Opts;
 
-// Get the remote path
+// Parse the arguments
 //
-   path = Config.GetWord();
-   if (!path || !path[0])
-      {Eroute.Emsg("config", "remote path not specified"); return 1;}
+   if (!(plp = XrdOucExport::ParsePath(Config, Eroute, DirFlags))) return 1;
 
-// Process remaining options
+// Check if this path is being modified or added. For modifications, turn off
+// all bitsin the old path specified in the new path and then set the new bits.
 //
-   val = Config.GetWord();
-   while (val)
-         {for (i = 0; i < numopts; i++)
-              {if (!strcmp(val, rpopts[i].opname))
-                  {rpval = (rpval & ~rpopts[i].oprem)|rpopts[i].opadd|rpopts[i].opset;
-                   break;
-                  }
-              }
-         if (i >= numopts) 
-            Eroute.Emsg("config", "warning, invalid path option", val);
-         val = Config.GetWord();
-         }
-
-// Include current defaults for unspecified options
-//
-   xspec = rpval >> XrdOssMASKSHIFT;
-   rpval = rpval | (XeqFlags & ~xspec);
-   if (!strcmp("/", path)) XeqFlags |= XrdOssROOTDIR;
-
-// Make sure that we have no conflicting options
-//
-   if ((rpval & XrdOssMEMAP) && !(rpval & XrdOssNOTRW))
-      {Eroute.Emsg("config", "warning, file memory mapping forced path", path,
-                             "to be readonly");
-       rpval |= XrdOssFORCERO;
+   if (!(olp = RPList.Match(plp->Path()))) 
+      {RPList.Insert(plp);
+       if (!strcmp(plp->Path(), "/")) OptFlags |= XrdOss_ROOTDIR;
       }
-   if (rpval & (XrdOssMLOK | XrdOssMKEEP)) rpval |= XrdOssMMAP;
-
-// Add the path to the list of paths
-//
-   RPList.Insert(new XrdOucPList(path, rpval));
+      else {Opts = plp->Flag() >> XRDEXP_MASKSHIFT;
+            Opts = olp->Flag() & ~Opts;
+            olp->Set(Opts | plp->Flag());
+            delete plp;
+           }
    return 0;
 }
 
@@ -1435,30 +1392,33 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdOucError &Eroute)
 }
 
 /******************************************************************************/
-/*                            L i s t _ F l i s t                             */
+/*                            L i s t _ P a t h                               */
 /******************************************************************************/
   
-void XrdOssSys::List_Path(char *pname, int flags, XrdOucError &Eroute)
+void XrdOssSys::List_Path(char *pname, unsigned long long flags,
+                          XrdOucError &Eroute)
 {
      char buff[4096], *rwmode;
 
-     if (flags & XrdOssFORCERO) rwmode = (char *)" forcero";
-        else if (flags & XrdOssREADONLY) rwmode = (char *)" r/o ";
+     if (flags & XRDEXP_FORCERO) rwmode = (char *)" forcero";
+        else if (flags & XRDEXP_READONLY) rwmode = (char *)" r/o ";
                 else rwmode = (char *)" r/w ";
-                                   //        0 1 2 3 4 5 6 7 8 9 0 1
-     snprintf(buff, sizeof(buff), "oss.path %s%s%s%s%s%s%s%s%s%s%s%s",
-              pname,                                               // 0
-              (flags & XrdOssCOMPCHK ?  " compchk" : ""),          // 1
-              rwmode,                                              // 2
-              (flags & XrdOssINPLACE  ? " inplace" : ""),          // 3
-              (flags & XrdOssNOCHECK  ? " nocheck" : " check"),    // 4
-              (flags & XrdOssNODREAD  ? " nodread" : " dread"),    // 5
-              (flags & XrdOssMIG      ? " mig"     : " nomig"),    // 6
-              (flags & XrdOssMKEEP    ? " mkeep"   : " nomkeep"),  // 7
-              (flags & XrdOssMLOK     ? " mlock"   : " nomlock"),  // 8
-              (flags & XrdOssMMAP     ? " mmap"    : " nommap"),   // 9
-              (flags & XrdOssRCREATE  ? " rcreate" : " norcreate"),// 0
-              (flags & XrdOssNOSTAGE  ? " nostage" : " stage")     // 1
+                                 // 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+     snprintf(buff, sizeof(buff), "%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+              pname,                                                // 0
+              (flags & XRDEXP_COMPCHK  ?  " compchk" : ""),         // 1
+              rwmode,                                               // 2
+              (flags & XRDEXP_INPLACE  ? " inplace" : ""),          // 3
+              (flags & XRDEXP_LOCAL    ? " local"   : ""),          // 4
+              (flags & XRDEXP_GLBLRO   ? " globalro": ""),          // 5
+              (flags & XRDEXP_NOCHECK  ? " nocheck" : " check"),    // 6
+              (flags & XRDEXP_NODREAD  ? " nodread" : " dread"),    // 7
+              (flags & XRDEXP_MIG      ? " mig"     : " nomig"),    // 8
+              (flags & XRDEXP_MKEEP    ? " mkeep"   : " nomkeep"),  // 9
+              (flags & XRDEXP_MLOK     ? " mlock"   : " nomlock"),  // 10
+              (flags & XRDEXP_MMAP     ? " mmap"    : " nommap"),   // 11
+              (flags & XRDEXP_RCREATE  ? " rcreate" : " norcreate"),// 12
+              (flags & XRDEXP_NOSTAGE  ? " nostage" : " stage")     // 13
               );
      Eroute.Say(buff); 
 }
