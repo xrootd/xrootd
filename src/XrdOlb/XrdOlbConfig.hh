@@ -12,9 +12,12 @@
 
 //         $Id$
 
+#include <sys/socket.h>
+
 #include "Xrd/XrdJob.hh"
 #include "XrdOlb/XrdOlbPList.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
+#include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucTList.hh"
   
 class XrdScheduler;
@@ -114,11 +117,14 @@ XrdOucProg  *ProgMV;      // Server only mv
 XrdOucProg  *ProgRD;      // Server only rmdir
 XrdOucProg  *ProgRM;      // Server only rm
 
+unsigned long long DirFlags;
 XrdOlbPList_Anchor PathList;
+XrdOucPListAnchor  PexpList;
 XrdNetSocket      *AdminSock;
 XrdNetSocket      *AnoteSock;
 XrdNetSocket      *RedirSock;
 XrdNetSecurity    *Police;
+struct sockaddr    myAddr;
 
       XrdOlbConfig() : XrdJob("olbd startup") {ConfigDefaults();}
      ~XrdOlbConfig() {}
@@ -129,6 +135,7 @@ void ConfigDefaults(void);
 int  ConfigN2N(void);
 int  ConfigProc(int getrole=0);
 int  isExec(XrdOucError *eDest, const char *ptype, char *prog);
+int  MergeP(void);
 int  PidFile(void);
 int  setupManager(void);
 int  setupServer(void);
@@ -139,6 +146,8 @@ int  xallow(XrdOucError *edest, XrdOucStream &CFile);
 int  xcache(XrdOucError *edest, XrdOucStream &CFile);
 int  Fsysadd(XrdOucError *edest, int chk, char *fn);
 int  xdelay(XrdOucError *edest, XrdOucStream &CFile);
+int  xdefs(XrdOucError *edest, XrdOucStream &CFile);
+int  xexpo(XrdOucError *edest, XrdOucStream &CFile);
 int  xfsxq(XrdOucError *edest, XrdOucStream &CFile);
 int  xfxhld(XrdOucError *edest, XrdOucStream &CFile);
 int  xlclrt(XrdOucError *edest, XrdOucStream &CFile);

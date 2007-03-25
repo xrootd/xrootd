@@ -60,6 +60,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucPlugin.hh"
@@ -396,9 +397,11 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest)
 
    if (!dynamic)
    {
-   TS_Xeq("cache",         xcache);  // Server,  non-dynamic
    TS_Xeq("adminpath",     xapath);  // Any,     non-dynamic
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
+   TS_Xeq("cache",         xcache);  // Server,  non-dynamic
+   TS_Xeq("defaults",      xdefs);   // Server,  non-dynamic
+   TS_Xeq("export",        xexpo);   // Server,  non-dynamic
    TS_Xeq("fsxeq",         xfsxq);   // Server,  non-dynamic
    TS_Xeq("localroot",     xlclrt);  // Any,     non-dynamic
    TS_Xeq("manager",       xmang);   // Server,  non-dynamic
@@ -650,8 +653,8 @@ void XrdOlbConfig::ConfigDefaults(void)
    NetTCPr     = 0;
    XmiPath     = 0;
    XmiParms    = 0;
+   DirFlags    = 0;
 }
-  
   
 /******************************************************************************/
 /*                             C o n f i g N 2 N                              */
@@ -724,19 +727,26 @@ int XrdOlbConfig::ConfigProc(int getrole)
            }
            else if (!strncmp(var, "olb.", 4)
                 ||  !strcmp(var, "oss.cache")
+                ||  !strcmp(var, "oss.defaults")
                 ||  !strcmp(var, "oss.localroot")
                 ||  !strcmp(var, "oss.remoteroot")
                 ||  !strcmp(var, "oss.namelib")
                 ||  !strcmp(var, "all.adminpath")
+                ||  !strcmp(var, "all.export")
                 ||  !strcmp(var, "all.manager")
                 ||  !strcmp(var, "all.role"))
-                   if (ConfigXeq(var+4, CFile, 0)) {CFile.Echo(); NoGo = 1;}
+                   {if (ConfigXeq(var+4, CFile, 0)) {CFile.Echo(); NoGo = 1;}}
+                   else if (!strcmp(var, "oss.stagecmd")) DiskSS |= 2;
 
 // Now check if any errors occured during file i/o
 //
    if ((retc = CFile.LastError()))
       NoGo = Say.Emsg("Config", retc, "read config file", ConfigFN);
    CFile.Close();
+
+// Merge Paths as needed
+//
+   if (!getrole && isServer) NoGo |= MergeP();
 
 // Return final return code
 //
@@ -769,6 +779,80 @@ int XrdOlbConfig::isExec(XrdOucError *eDest, const char *ptype, char *prog)
 //
    *mp = pp;
    return 1;
+}
+
+/******************************************************************************/
+/*                                M e r g e P                                 */
+/******************************************************************************/
+  
+int XrdOlbConfig::MergeP()
+{
+   XrdOucPList *plp = PexpList.First();
+   XrdOlbPList *pp;
+   XrdOlbPInfo opinfo, npinfo;
+   const char *ptype;
+   char buff[80];
+   unsigned long long Opts;
+   int NoGo = 0;
+   npinfo.rovec = 1;
+
+// First, add nostage to all exported path if nothing was specified and stagecmd
+// was not specified in the oss section (this is really how it works)
+//
+   if (DiskSS < 2)
+      {while(plp)
+            {Opts = plp->Flag();
+             if (!(Opts & XRDEXP_STAGE_X)) plp->Set(Opts | XRDEXP_NOSTAGE);
+             plp = plp->Next();
+            }
+       plp = PexpList.First();
+      }
+
+// For each path in the export list merge it into the path list
+//
+   while(plp)
+        {Opts = plp->Flag();
+         npinfo.rwvec = (Opts & (XRDEXP_GLBLRO | XRDEXP_NOTRW) ? 0 : 1);
+         npinfo.ssvec = (Opts & XRDEXP_NOSTAGE ? 0 : 1);
+         if (!PathList.Find(plp->Path(), opinfo))
+            {if (!(Opts & XRDEXP_LOCAL))
+                {PathList.Insert(plp->Path(), &npinfo);
+                 if (npinfo.ssvec) DiskSS = 1;
+                }
+            }
+            else if (opinfo.rwvec != npinfo.rwvec
+                 ||  opinfo.ssvec != npinfo.ssvec
+                 ||  Opts & XRDEXP_LOCAL)
+                 {Say.Emsg("Config","all.export conflicts with olb.path ...");
+                  sprintf(buff, " %s %s%s", (npinfo.rwvec ? "r/w" : "r/o"),
+                         (npinfo.ssvec ? "stage" : "nostage"),
+                         (Opts & XRDEXP_LOCAL ? " local" : ""));
+                  Say.Say("all.export  ", plp->Path(), buff);
+                  buff[0] = (opinfo.rwvec ? 'w' : 'r');
+                  buff[1] = (opinfo.ssvec ? 's' : ' '); 
+                  buff[2] = ' '; buff[3] = '\0';
+                  Say.Say("olb.path ", buff, plp->Path());
+                  NoGo = 1;
+                 }
+          plp = plp->Next();
+         }
+
+// Document what we will be declaring as available
+//
+   if (!NoGo)
+      {Say.Say("The following paths are available to the redirector:");
+       if (!(pp = PathList.First())) Say.Say("r  /");
+        else while(pp)
+             {ptype = pp->PType();
+              Say.Say(ptype, (strlen(ptype) > 1 ? " " : "  "), pp->Path());
+              pp = pp->Next();
+             }
+       Say.Say(" ");
+      }
+
+// All done
+//
+   return NoGo;
 }
 
 /******************************************************************************/
@@ -1365,6 +1449,64 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &CFile)
 }
 
 /******************************************************************************/
+/*                                 x d e f s                                  */
+/******************************************************************************/
+
+/* Function: xdefs
+
+   Purpose:  Parse: oss.defaults <default options>
+                              
+   Notes: See the oss configuration manual for the meaning of each option.
+          The actual implementation is defined in XrdOucExport.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOlbConfig::xdefs(XrdOucError *eDest, XrdOucStream &CFile)
+{
+   if (!isServer) return 0;
+   DirFlags = XrdOucExport::ParseDefs(CFile, *eDest, DirFlags);
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                 x e x p o                                  */
+/******************************************************************************/
+
+/* Function: xexpo
+
+   Purpose:  To parse the directive: all.export <path> [<options>]
+
+             <path>    the full path that resides in a remote system.
+             <options> a blank separated list of options (see XrdOucExport)
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOlbConfig::xexpo(XrdOucError *eDest, XrdOucStream &CFile)
+{
+   XrdOucPList *plp, *olp;
+   unsigned long long Opts = DirFlags & XRDEXP_SETTINGS;
+
+   if (!isServer) return 0;
+
+// Parse the arguments
+//
+   if (!(plp = XrdOucExport::ParsePath(CFile, *eDest, Opts))) return 1;
+
+// Check if this path is being modified or added. For modifications, turn off
+// all bitsin the old path specified in the new path and then set the new bits.
+//
+   if (!(olp = PexpList.Match(plp->Path()))) PexpList.Insert(plp);
+      else {Opts = plp->Flag() >> XRDEXP_MASKSHIFT;
+            Opts = olp->Flag() & ~Opts;
+            olp->Set(Opts | plp->Flag());
+            delete plp;
+           }
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                 x f s x q                                  */
 /******************************************************************************/
   
@@ -1559,7 +1701,7 @@ int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval = 0;
-    int i, port = 0, xPeer = 0, xProxy = 0;
+    int j, i, port = 0, xPeer = 0, xProxy = 0;
 
 //  Process the optional "peer" or "proxy"
 //
@@ -1610,13 +1752,24 @@ int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
        }
 
     i = strlen(mval);
-    if (mval[i-1] != '+') i = 0;
+    if (mval[i-1] != '+') 
+       {i = 0;
+        if (!XrdNetDNS::getHostAddr(mval, InetAddr))
+           {eDest->Emsg("CFile","Manager host", mval, "not found");
+            free(mval); return 1;
+           }
+       }
         else {bval = strdup(mval); mval[i-1] = '\0';
               if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
                  {eDest->Emsg("CFile","Manager host", mval, "not found");
                   free(bval); free(mval); return 1;
                  }
              }
+
+    if (isManager && !isServer)
+       for (j = 0; j <= i; j++)
+           if (!memcmp(&InetAddr[j], &myAddr, sizeof(struct sockaddr)))
+              {PortTCP = port; break;}
 
     do {if (i)
            {i--; free(mval);
@@ -1711,7 +1864,7 @@ int XrdOlbConfig::xpath(XrdOucError *eDest, XrdOucStream &CFile)
    while(val[++i])
               if ('r' == val[i])  pmask.rovec = 1;
          else if ('w' == val[i])  pmask.rovec = pmask.rwvec = 1;
-         else if ('s' == val[i]) {pmask.rovec = pmask.ssvec = 1; DiskSS = 1;}
+         else if ('s' == val[i]) {pmask.rovec = pmask.ssvec = 1; DiskSS |= 1;}
          else {eDest->Emsg("Config", "invalid path type", val); return 1;}
 
 // Get the path

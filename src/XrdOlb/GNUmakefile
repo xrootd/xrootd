@@ -109,6 +109,7 @@ $(OBJDIR)/XrdOlbConfig.o: XrdOlbConfig.hh   XrdOlbConfig.cc \
                           XrdOlbState.hh    XrdOlbTrace.hh   XrdOlbTypes.hh \
                           XrdOlbXmi.hh      XrdOlbXmiReq.hh  XrdOlbServer.hh \
                           XrdOuca2x.hh      XrdOucError.hh   XrdOucName2Name.hh\
+                          XrdOucPList.hh    XrdOucExport.hh \
                           XrdSysPlatform.hh XrdOucPlugin.hh  XrdOucProg.hh \
                           XrdOucPthread.hh  XrdOucStream.hh  XrdOucTimer.hh \
                           XrdOucTList.hh    XrdOucUtils.hh   XrdOucEnv.hh \

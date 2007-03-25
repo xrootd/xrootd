@@ -129,6 +129,7 @@ int XrdgetProtocolPort(const char *pname, char *parms,
    Config.myProg    = strdup(pi->myProg);
    Sched            = pi->Sched;
    if (pi->DebugON) Trace.What = TRACE_ALL;
+   memcpy(&Config.myAddr, pi->myAddr, sizeof(struct sockaddr));
 
 // The only parameter we accept is the name of an alternate config file
 //
