@@ -292,7 +292,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
    XrdOucEnv myEnv;
    XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv);
    char *var;
-   int cfgFD, GoNo, NoGo = 0, ignore;
+   int cfgFD, GoNo, NoGo = 0, ismine;
 
    // Open and attach the config file
    //
@@ -303,23 +303,25 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
    // Process items
    //
    while((var = Config.GetMyFirstWord()))
-        {if (!(ignore = strncmp("xrootd.", var, 7)) && var[7]) var += 7;
-              if TS_Xeq("async",         xasync);
-         else if TS_Xeq("chksum",        xcksum);
-         else if TS_Xeq("export",        xexp);
-         else if TS_Xeq("fslib",         xfsl);
-         else if TS_Xeq("log",           xlog);
-         else if TS_Xeq("monitor",       xmon);
-         else if TS_Xeq("prep",          xprep);
-         else if TS_Xeq("redirect",      xred);
-         else if TS_Xeq("seclib",        xsecl);
-         else if TS_Xeq("trace",         xtrace);
-         else if (!ignore) 
-                 {eDest.Say(0, "Warning, unknown xrootd directive ",var);
-                  Config.Echo();
-                  continue;
-                 }
-         if (GoNo) {Config.Echo(); NoGo = 1;}
+        {if ((ismine = !strncmp("xrootd.", var, 7)) && var[7]) var += 7;
+            else if ((ismine = !strcmp("all.export", var)))    var += 4;
+         if (ismine)
+            {     if TS_Xeq("async",         xasync);
+             else if TS_Xeq("chksum",        xcksum);
+             else if TS_Xeq("export",        xexp);
+             else if TS_Xeq("fslib",         xfsl);
+             else if TS_Xeq("log",           xlog);
+             else if TS_Xeq("monitor",       xmon);
+             else if TS_Xeq("prep",          xprep);
+             else if TS_Xeq("redirect",      xred);
+             else if TS_Xeq("seclib",        xsecl);
+             else if TS_Xeq("trace",         xtrace);
+             else {eDest.Say(0, "Warning, unknown xrootd directive ",var);
+                   Config.Echo();
+                   continue;
+                  }
+             if (GoNo) {Config.Echo(); NoGo = 1;}
+            }
         }
    return NoGo;
 }
