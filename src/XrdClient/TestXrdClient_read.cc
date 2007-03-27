@@ -38,7 +38,7 @@ void Think(long msdelay) {
     if (msdelay <= 0) return;
 
     gettimeofday(&tv, 0);
-    tlimit = tv.tv_sec * 1000 + tv.tv_usec / 1000 + msdelay;
+    tlimit = (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000 + msdelay;
     t = 0;
 
     while ( t < tlimit ) {
@@ -54,7 +54,7 @@ void Think(long msdelay) {
 	    memmove(numb+10, numb, 90*sizeof(double));
 
 	gettimeofday(&tv, 0);
-	t = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+	t = (long long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
     }
 
 
@@ -372,9 +372,14 @@ int main(int argc, char **argv) {
 
 	    
 	      cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+                " of " << ntoread << " chunks " <<
 		" returned " << retval << endl;
 
-	      if (retval > 0) Think(read_delay * ntoread);
+	      if (retval) {
+                cout << "start think " << time(0) << endl;
+                for (int kkk = 0; kkk < ntoread; kkk++) Think(read_delay);
+                cout << time(0) << endl;
+              }
 	      else {
 		iserror = true;
 		break;
@@ -404,6 +409,7 @@ int main(int argc, char **argv) {
 
 		retval = xrdcvec[i]->ReadV((char *)0, v_offsets+ii, v_lens+ii, xrdmin(512, ntoread-ii));
 		cout << endl << "---ReadV " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
+                  " of " << xrdmin(512, ntoread-ii) << " chunks " <<
 		  " returned " << retval << endl;
 
 		if (retval <= 0) {
@@ -420,8 +426,8 @@ int main(int argc, char **argv) {
 
 		  retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
-		  cout << ".";
-		  cout.flush();
+		  //cout << ".";
+		  //cout.flush();
 
 		  if (retval <= 0)
 		    cout << endl << "---Read " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
@@ -450,8 +456,8 @@ int main(int argc, char **argv) {
 		for (int jj = 0; jj < xrdmin(10, ntoread-ii); jj++) {
 		  retval =  xrdcvec[i]->Read_Async(v_offsets[ii+jj], v_lens[ii+jj]);
 
-		  cout << "read_async "  <<
-		      v_lens[ii+jj] << "@" << v_offsets[ii+jj]<< endl;
+		  // cout << "read_async "  <<
+		  //    v_lens[ii+jj] << "@" << v_offsets[ii+jj]<< endl;
 
 		  if (retval <= 0) {
 		    cout << endl << "---Read_Async "  << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
@@ -473,8 +479,8 @@ int main(int argc, char **argv) {
 
 		  retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
-		  cout << ".";
-		  cout.flush();
+		  //cout << ".";
+		  //cout.flush();
 
 		  if (retval > 0) Think(read_delay);
 		  else {
