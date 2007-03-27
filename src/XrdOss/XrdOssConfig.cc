@@ -715,6 +715,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
    // We need to suck all the tokens to the end of the line for remaining
    // options. Do so, until we run out of space in the buffer.
    //
+   Config.RetToken();
    if (!Config.GetRest(buff, sizeof(buff)))
       {Eroute.Emsg("config", "arguments too long for", var);
        if (nosubs) Config.SetEnv(myEnv);
