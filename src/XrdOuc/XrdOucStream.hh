@@ -35,7 +35,7 @@ public:
                          XrdOucEnv   *anEnv=0);
 
            ~XrdOucStream() {Close(); if (myInst) free(myInst);
-                                     if (varVal) delete varVal;
+                                     if (varVal) delete [] varVal;
                                      if (llBuff) free(llBuff);
                            }
 

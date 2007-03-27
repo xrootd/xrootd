@@ -93,14 +93,20 @@ XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname,
      xline  = 0;
      Eroute = erobj;
      myEnv  = anEnv;
-     Verbose= 0;
      sawif  = 0;
      skpel  = 0;
-     varVal =  (myEnv ? new char[maxVLen+1] : 0);
-     llBuff = 0;
-     llBcur = 0;
-     llBleft= 0;
-     llBok  = 0;
+     if (myEnv && Eroute)
+        {llBuff = (char *)malloc(llBsz);
+         llBcur = llBuff; llBok = 0; llBleft = llBsz; *llBuff = '\0';
+         Verbose= 1;
+        } else {
+         Verbose= 0;
+         llBuff = 0;
+         llBcur = 0;
+         llBleft= 0;
+         llBok  = 0;
+        }
+     varVal = (myEnv ? new char[maxVLen+1] : 0);
 }
 
 /******************************************************************************/
@@ -177,7 +183,7 @@ void XrdOucStream::Close(int hold)
     if (llBuff && Verbose && Eroute)
        {if (*llBuff && llBok > 1) Eroute->Say(llBuff);
         Eroute->Say("");
-        Verbose = llBok = 0;
+        llBok = 0;
        }
 }
 
@@ -556,11 +562,11 @@ int XrdOucStream::GetRest(char *theBuff, int Blen, int lowcase)
 //
    theBuff[0] = '\0';
    while ((tp = GetWord(lowcase)))
-         {tlen = strlen(tp)+1;
-          if (tlen >= Blen) return 0;
+         {tlen = strlen(tp);
+          if (tlen+1 >= Blen) return 0;
           if (myBuff != theBuff) *myBuff++ = ' ';
           strcpy(myBuff, tp);
-          Blen -= tlen;
+          Blen -= tlen; myBuff += tlen;
          }
 
 // All done
@@ -588,6 +594,11 @@ void XrdOucStream::RetToken()
          while(*token && *token != ' ' && token != recp) token--;
          if (token != recp) token++;
         }
+
+     // If saving line, we must do the same for the saved line
+     //
+     if (llBuff)
+         while(llBcur != llBuff && *llBcur != ' ') {llBcur--; llBleft++;}
 }
 
 /******************************************************************************/
@@ -746,6 +757,7 @@ int XrdOucStream::isSet(char *var)
 //
    if (strcmp("set", var)) return 0;
    if (!(tp = GetToken())) return xMsg("Missing variable name after 'set'.");
+   if (!strcmp(tp, "-q")) {if (llBuff) {free(llBuff); llBuff = 0;}; return 1;}
    if (!strcmp(tp, "-v") || !strcmp(tp, "-V"))
       {if (Eroute)
           {if (!llBuff) llBuff = (char *)malloc(llBsz);
