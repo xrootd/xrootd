@@ -232,7 +232,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
        xmsg[3].iov_base = (char *)path;       xmsg[3].iov_len = strlen(path);
    if (Avoid)
       {xmsg[4].iov_base = (char *)" -";       xmsg[4].iov_len = 2;
-       xmsg[5].iov_base = Avoid;              xmsg[3].iov_len = strlen(Avoid);
+       xmsg[5].iov_base = Avoid;              xmsg[5].iov_len = strlen(Avoid);
        ioveol = 6;
       }
 
