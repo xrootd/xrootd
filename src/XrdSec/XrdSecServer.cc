@@ -359,7 +359,7 @@ int XrdSecServer::Configure(const char *cfn)
 
 // Print warm-up message
 //
-   eDest.Emsg("Config","Authentication system initialization started.");
+   eDest.Say("++++++ Authentication system initialization started.");
 
 // Perform initialization
 //
@@ -368,7 +368,7 @@ int XrdSecServer::Configure(const char *cfn)
 // All done
 //
    var = (NoGo > 0 ? (char *)"failed." : (char *)"completed.");
-   eDest.Emsg("Config", "Authentication system initialization", var);
+   eDest.Say("------ Authentication system initialization ", var);
    return (NoGo > 0);
 }
 
@@ -389,7 +389,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
    char *var;
    int  cfgFD, retc, NoGo = 0, recs = 0;
    XrdOucEnv myEnv;
-   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv);
+   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv, "=====> ");
    XrdSecProtParm *pp;
 
 // If there is no config file, return with the defaults sets.
@@ -420,10 +420,10 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 //
    if ((retc = Config.LastError()))
       NoGo = eDest.Emsg("Config",-retc,"reading config file", ConfigFN);
-      else {char buff[12];
-            snprintf(buff, sizeof(buff), "%d", recs);
-            eDest.Emsg("Config", buff,
-                       "authentication directives processed in", ConfigFN);
+      else {char buff[128];
+            snprintf(buff, sizeof(buff), 
+                     "%d authentication directives processed in ", recs);
+            eDest.Say("Config", buff, ConfigFN);
            }
    Config.Close();
 
@@ -462,7 +462,7 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute
 
     // No match found, complain.
     //
-    Eroute.Emsg("Config", "unknown directive", var, "ignored.");
+    Eroute.Say("Config warning: ignoring unknown directive '",var,"'.");
     Config.Echo();
     return 0;
 }
@@ -546,8 +546,8 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
 // protocols were also bound, making them rather useless.
 //
    if (phost && *sectoken)
-      {Eroute.Emsg("Config","Warning! 'protbind", thost,
-                            "host' negates all other bound protocols.");
+      {Eroute.Say("Config warning: 'protbind", thost,
+                          "host' negates all other bound protocols.");
        *sectoken = '\0';
       }
 
@@ -614,7 +614,7 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdOucError &Eroute)
       {Eroute.Emsg("Config","protocol id too long - ", val); return 1;}
 
    if (PManager.Find(val))
-      {Eroute.Emsg("Config","protocol",val,"previously defined.");
+      {Eroute.Say("Config warning: protocol ",val," previously defined.");
        strcpy(pid, val);
        return add2token(Eroute, pid, &STBuff, STBlen, mymask);}
 
@@ -691,7 +691,7 @@ int XrdSecServer::xpparm(XrdOucStream &Config, XrdOucError &Eroute)
       {Eroute.Emsg("Config","protocol id too long - ", val); return 1;}
 
    if (PManager.Find(val))
-      {Eroute.Emsg("Config","protparm protocol",val,"already defined.");
+      {Eroute.Emsg("Config warning: protparm protocol ",val," already defined.");
        return 0;
       }
 
@@ -758,9 +758,7 @@ int XrdSecServer::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
                            }
                        }
                    if (i >= numopts)
-                      {Eroute.Emsg("Config", "invalid trace option -", val);
-                       return 1;
-                      }
+                      Eroute.Say("Config warning: ignoring invalid trace option '", val, "'.");
                   }
           val = Config.GetWord();
          }
@@ -826,12 +824,12 @@ int XrdSecServer::ProtBind_Complete(XrdOucError &Eroute)
 // Check if we have a default token, create one otherwise
 //
    if (!bpDefault)
-      {if (!*SToken) {Eroute.Emsg("Config", "No protocols defined; "
+      {if (!*SToken) {Eroute.Say("Config warning: nNo protocols defined; "
                                   "only host authentication available.");
                       implauth = 1;
                      }
           else if (implauth)
-                  {Eroute.Emsg("Config", "Warning! Enabled builtin host "
+                  {Eroute.Say("Config warning: enabled builtin host "
                    "protocol negates default use of any other protocols.");
                    *SToken = '\0';
                   }

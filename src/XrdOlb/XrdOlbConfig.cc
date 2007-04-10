@@ -207,7 +207,7 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
        case 'w': immed = -1;   // Backward compatability only
                  break;
        default:  buff[0] = '-'; buff[1] = optopt; buff[2] = '\0';
-                 Say.Emsg("Config","Unrecognized option,",buff,", ignored.");
+                 Say.Say("Config warning: unrecognized option,",buff,", ignored.");
        }
      }
 
@@ -226,14 +226,14 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 
 // Print herald
 //
-   Say.Say(0, myInstance, " phase 1 initialization started.");
+   Say.Say("++++++ ", myInstance, " phase 1 initialization started.");
 
 // If we don't know our role yet then we must find out before processing the
 // config file. This means a double scan, sigh.
 //
    if (!(isManager || isServer)) 
       if (!(NoGo |= ConfigProc(1)) && !(isManager || isServer))
-         {Say.Emsg("Config", "Role not specified; manager role assumed.");
+         {Say.Say("Config warning: role not specified; manager role assumed.");
           isManager = -1;
          }
 
@@ -275,8 +275,8 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 // Determine how we ended and return status
 //
    sprintf(buff, " phase 1 %s initialization %s.", myRole,
-                (NoGo ? "failed" : "suceeded"));
-   Say.Say(0, myInstance, buff);
+                (NoGo ? "failed." : "completed."));
+   Say.Say("------ ", myInstance, buff);
    return NoGo;
 }
 
@@ -299,7 +299,7 @@ int XrdOlbConfig::Configure2()
 // Print herald
 //
    sprintf(buff, " phase 2 %s initialization started.", myRole);
-   Say.Say(0, myInstance, buff);
+   Say.Say("++++++ ", myInstance, buff);
 
 // Determine who we are. If we are a manager or supervisor start the file
 // location cache scrubber.
@@ -361,8 +361,8 @@ int XrdOlbConfig::Configure2()
 // All done, check for success or failure
 //
    sprintf(buff, " phase 2 %s initialization %s.", myRole,
-                 (NoGo ? "failed" : "completed"));
-   Say.Say(0, myInstance, buff);
+                 (NoGo ? "failed." : "completed."));
+   Say.Say("------ ", myInstance, buff);
 
 // The remainder of the configuration needs to be run in a separate thread
 //
@@ -421,7 +421,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest)
 
    // No match found, complain.
    //
-   eDest->Emsg("Config", "Warning, unknown directive", var);
+   eDest->Say("Config warning: ignoring unknown directive '", var, "'.");
    CFile.Echo();
    return 0;
 }
@@ -701,7 +701,7 @@ int XrdOlbConfig::ConfigProc(int getrole)
   char *var;
   int  cfgFD, retc, NoGo = 0;
   XrdOucEnv myEnv;
-  XrdOucStream CFile(&Say, myInstance, &myEnv);
+  XrdOucStream CFile(&Say, myInstance, &myEnv, "=====> ");
 
 // Try to open the configuration file.
 //
@@ -921,7 +921,7 @@ int XrdOlbConfig::setupManager()
    sched_RR = (100 == P_fuzz) || !AskPerf
               || !(P_cpu || P_io || P_load || P_mem || P_pag);
    if (sched_RR)
-      Say.Emsg("Config", "Round robin scheduling in effect.");
+      Say.Say("Config round robin scheduling in effect.");
 
 // Create statistical monitoring thread
 //
@@ -1044,11 +1044,11 @@ int XrdOlbConfig::setupServer()
 // Determine if we are in nostage and/or suspend state
 //
    if (inNoStage())
-      {Say.Emsg("Config", "Starting in NOSTAGE state.");
+      {Say.Say("Config starting in NOSTAGE state.");
        Manager.Stage(0, 0);
       }
    if (inSuspend())
-      {Say.Emsg("Config", "Starting in SUSPEND state.");
+      {Say.Say("Config starting in SUSPEND state.");
        Manager.Suspend(0);
       }
 
@@ -1078,7 +1078,7 @@ int XrdOlbConfig::setupServer()
 //
    Meter.setParms(monPath ? monPath : monPathP);
    if (perfpgm && Meter.Monitor(perfpgm, perfint))
-      Say.Emsg("Config","Load based scheduling disabled.");
+      Say.Say("Config warning: load based scheduling disabled.");
 
 // If this is a staging server then we better have a disk cache. We ignore this
 // restriction if an XMI plugin will be used and we are a peer.
@@ -1338,7 +1338,7 @@ int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &CFile)
        {if (rc >= 0) 
            {rc = -1; eDest->Emsg("Config", errno, "process cache directory", fn);}
        }
-       else if (!cnum) eDest->Emsg("config","no cache directories found in ",val);
+       else if (!cnum) eDest->Say("Config warning: no cache directories found in ",val);
 
     closedir(DFD);
     return rc < 0;
@@ -1442,7 +1442,7 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &CFile)
                    break;
                   }
            if (i >= numopts) 
-              eDest->Emsg("Config","Warning, invalid delay option",val);
+              eDest->Say("Config warning: ignoring invalid delay option '",val,"'.");
            val = CFile.GetWord();
           }
      return 0;
@@ -1552,7 +1552,7 @@ int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &CFile)
                    break;
                   }
            if (i >= numopts)
-              eDest->Emsg("Config", "invalid fsxeq type option -", val);
+              eDest->Say("Config warning: ignoring invalid fsxeq type option '",val,"'.");
            val = CFile.GetWord();
           }
 
@@ -1733,7 +1733,7 @@ int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
                port = 0;
            }
            else if (!(port = XrdNetDNS::getPort(val, "tcp")))
-                   {eDest->Emsg("CFile", "unable to find tcp service", val);
+                   {eDest->Emsg("Config", "Unable to find tcp service '",val,"'.");
                     port = 0;
                    }
        }
@@ -1773,13 +1773,15 @@ int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
 
     do {if (i)
            {i--; free(mval);
+            char mvBuff[1024];
+            sprintf(mvBuff, "%s -> all.manager ", bval);
             mval = XrdNetDNS::getHostName(InetAddr[i]);
-            eDest->Emsg("Config", bval, "-> all.manager", mval);
+            eDest->Say("Config ", mvBuff, mval);
            }
         tp = ManList;
         while(tp) 
              if (strcmp(tp->text, mval) || tp->val != port) tp = tp->next;
-                else {eDest->Emsg("Config","Duplicate manager",mval);
+                else {eDest->Say("Config warning: duplicate manager ",mval);
                       break;
                      }
         if (tp) break;
@@ -1927,7 +1929,7 @@ int XrdOlbConfig::xperf(XrdOucError *eDest, XrdOucStream &CFile)
                  pgm = rest;
                  break;
                 }
-        else eDest->Emsg("Config", "Warning, invalid perf option", val);
+        else eDest->Say("Config warning: ignoring invalid perf option '",val,"'.");
        } while((val = CFile.GetWord()));
 
 // Make sure that the perf program is here
@@ -2120,7 +2122,7 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &CFile)
                  prepif = rest;
                  break;
                 }
-        else eDest->Emsg("Config", "Warning, invalid prep option", val);
+        else eDest->Say("Config warning: ignoring invalid prep option '",val,"'.");
        } while((val = CFile.GetWord()));
 
 
@@ -2290,7 +2292,7 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
                               myName,myInsName,myProg)) <= 0) return (rc < 0);
 
     if (isServer > 0 || isManager > 0 || isProxy > 0 || isPeer > 0)
-       eDest->Emsg("Config","role directive over-ridden by command line options.");
+       eDest->Say("Config warning: role directive over-ridden by command line options.");
        else {isServer = xServ; isManager = xMan; isProxy = xProxy;
              isPeer   = xPeer; isSolo    = xSolo;
              if (myRole) free(myRole); myRole = strdup(role);
@@ -2359,7 +2361,7 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &CFile)
                    break;
                   }
            if (i >= numopts)
-              eDest->Emsg("Config", "Warning, invalid sched option", val);
+              eDest->Say("Config warning: ignoring invalid sched option '",val,"'.");
            val = CFile.GetWord();
           }
 
@@ -2478,7 +2480,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &CFile)
     int i, port = 0;
 
     if (!isServer) return 0;
-    eDest->Emsg("Config","subscribe directive is deprecated; use 'all.manager' instead");
+    eDest->Say("Config warning: 'subscribe' directive is deprecated; use 'all.manager' instead");
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "subscribe host not specified"); return 1;}
@@ -2519,18 +2521,19 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &CFile)
              }
 
     do {if (i)
-           {char *mp;
+           {char *mp, mvBuff[1024];
             i--; //Greg had it right
             mp = XrdNetDNS::getHostName(InetAddr[i]);
             strlcpy(mbuff, mp, sizeof(mbuff)); free(mp);
-            eDest->Emsg("Config", bval, "-> olb.subscribe", mbuff);
+            sprintf(mvBuff, "%s -> olb.subscribe ", bval);
+            eDest->Emsg("Config", mvBuff, mbuff);
             if (isdigit(*mbuff))
-               eDest->Emsg("Config", "Warning! Unable to reverse lookup", mbuff);
+               eDest->Say("Config warning: unable to reverse lookup ", mbuff);
            }
         tp = myManagers;
         while(tp) 
              if (strcmp(tp->text, mbuff) || tp->val != port) tp = tp->next;
-                else {eDest->Emsg("Config","Duplicate subscription to",mbuff);
+                else {eDest->Say("Config warning: duplicate subscription to ",mbuff);
                       break;
                      }
         if (tp) break;
@@ -2579,7 +2582,7 @@ int XrdOlbConfig::xtrace(XrdOucError *eDest, XrdOucStream &CFile)
                            }
                        }
                    if (i >= numopts)
-                      eDest->Emsg("config", "invalid trace option", val);
+                      eDest->Say("Config warning: ignoring invalid trace option '",val,"'.");
                   }
           val = CFile.GetWord();
          }

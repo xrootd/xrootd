@@ -98,7 +98,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
  static XrdOucError  Eroute(lp, "XrdSfs");
  static XrdSfsNative myFS(&Eroute);
 
- Eroute.Say(0, "(c) 2005 Stanford University/SLAC "
+ Eroute.Say("Copr.  2007 Stanford University/SLAC "
                "sfs (Standard File System) v 9.0n");
 
  return &myFS;

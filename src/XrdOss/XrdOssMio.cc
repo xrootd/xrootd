@@ -63,7 +63,7 @@ extern XrdOucTrace OssTrace;
 void XrdOssMio::Display(XrdOucError &Eroute)
 {
      char buff[1024];
-     snprintf(buff, sizeof(buff), "oss.memfile %s%s%s%s%s max %lld",
+     snprintf(buff, sizeof(buff), "       oss.memfile %s%s%s%s%s max %lld",
              (MM_on      ? ""            : "off "),
              (MM_preld   ? "preload"     : ""),
              (MM_chklok  ? "check lock " : ""),

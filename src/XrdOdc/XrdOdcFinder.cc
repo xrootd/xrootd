@@ -517,7 +517,8 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
 // Check if we exceeded maximum manager count
 //
    if (tp) while(tp)
-                {OdcEDest.Emsg("Config","Too many managers;",tp->text,"ignored.");
+                {OdcEDest.Emsg("Config warning: too many managers; ",tp->text,
+                               " ignored.");
                  tp = tp->next;
                 }
 
@@ -528,7 +529,7 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
 // Indicate how many managers have been started
 //
    sprintf(buff, "%d manager(s) started.", i);
-   OdcEDest.Emsg("Config", buff);
+   OdcEDest.Say("Config ", buff);
    myManCount = i;
 
 // All done

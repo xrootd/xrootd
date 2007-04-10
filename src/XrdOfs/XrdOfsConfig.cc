@@ -91,11 +91,11 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
    const char *tmp;
    int  i, j, cfgFD, retc, NoGo = 0;
    XrdOucEnv myEnv;
-   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv);
+   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
 
 // Print warm-up message
 //
-   Eroute.Emsg("Config", "File system initialization started.");
+   Eroute.Say("++++++ File system initialization started.");
 
 // Preset all variables with common defaults
 //
@@ -143,8 +143,8 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
    if (i)
       {if ((j = Options & XrdOfsREDIRECT) && (i ^ j))
           {free(myRole); myRole = strdup(theRole(i));
-           Eroute.Emsg("Config", "Command line role options override config "
-                       "file; ofs.role", myRole, "in effect.");
+           Eroute.Say("Config warning: command line role options override "
+                       "config file; 'ofs.role", myRole, "' in effect.");
           }
        Options &= ~(XrdOfsREDIRECT);
        Options |= i;
@@ -156,16 +156,22 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
            putenv((char *)"XRDREDIRECT=R");
       else putenv((char *)"XRDREDIRECT=0");
 
-// Initialize redirection, as needed
+// Initialize redirection.  We type te herald here to minimize confusion
 //
-   if (Options & XrdOfsREDIRECT) NoGo |= ConfigRedir(Eroute);
+   if (Options & XrdOfsREDIRECT)
+      {Eroute.Say("++++++ ", myRole, " initialization started.");
+       if (ConfigRedir(Eroute))
+          {Eroute.Say("------ ", myRole, " initialization failed.");
+           NoGo = 1;
+          } else Eroute.Say("------ ", myRole, " initialization completed.");
+      }
 
 // Turn off forwarding if we are not a pure remote redirector or a peer
 //
    if (Options & XrdOfsFWD)
       if (!(Options & XrdOfsREDIREER)
       && (Options & (XrdOfsREDIRTRG | XrdOfsREDIROXY)))
-         {Eroute.Emsg("Config", "Forwarding turned off; not a pure manager");
+         {Eroute.Say("Config warning: forwarding turned off; not a pure manager");
           Options &= ~(XrdOfsFWD);
           fwdCHMOD      = 0; fwdMKDIR      = 0; fwdMKPATH     = 0;
           fwdMV         = 0; fwdRM         = 0; fwdRMDIR      = 0;
@@ -180,10 +186,14 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 //
    if (!NoGo && evsObject) NoGo = evsObject->Start(&Eroute);
 
+// Display final configuration
+//
+   if (!NoGo) Config_Display(Eroute);
+
 // All done
 //
    tmp = (NoGo ? "failed." : "completed.");
-   Eroute.Emsg("Config", "File system initialization",tmp);
+   Eroute.Say("------ File system initialization ", tmp);
    return NoGo;
 }
 
@@ -201,7 +211,7 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
 
      if (!(Options &  XrdOfsFWD)) fwbuff[0] = '\0';
         else {bp = fwbuff;
-              setBuff("ofs.forward", 11);
+              setBuff("       ofs.forward", 11);
               if (fwdCHMOD) setBuff(" chmod", 6);
               if (fwdMKDIR) setBuff(" mkdir", 6);
               if (fwdMV   ) setBuff(" mv"   , 3);
@@ -210,33 +220,33 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
               setBuff("\n", 1);
              }
 
-     if (!ConfigFN || !ConfigFN[0]) cloc = "Default";
+     if (!ConfigFN || !ConfigFN[0]) cloc = "default";
         else cloc = ConfigFN;
-     snprintf(buff, sizeof(buff), "%s ofs configuration:\n"
-                                  "ofs.role %s\n"
+     snprintf(buff, sizeof(buff), "Config effective %s ofs configuration:\n"
+                                  "       ofs.role %s\n"
                                   "%s"
                                   "%s%s%s"
                                   "%s"
-                                  "ofs.fdscan     %d %d %d\n"
+                                  "       ofs.fdscan     %d %d %d\n"
                                   "%s"
-                                  "ofs.maxdelay   %d\n"
+                                  "       ofs.maxdelay   %d\n"
                                   "%s%s%s"
-                                  "ofs.trace      %x",
+                                  "       ofs.trace      %x",
               cloc, myRole,
-              (Options * XrdOfsAUTHORIZE ? "ofs.authorize\n" : ""),
-              (AuthLib ? "ofs.authlib " : ""), (AuthLib ? AuthLib : ""),
-              (AuthLib ? "\n" : ""),
-              (Options & XrdOfsFDNOSHARE ? "ofs.fdnoshare\n" : ""),
+              (Options & XrdOfsAUTHORIZE ? "       ofs.authorize\n" : ""),
+              (AuthLib                   ? "       ofs.authlib " : ""),
+              (AuthLib ? AuthLib : ""), (AuthLib ? "\n" : ""),
+              (Options & XrdOfsFDNOSHARE ? "       ofs.fdnoshare\n" : ""),
               FDOpenMax, FDMinIdle, FDMaxIdle, fwbuff, MaxDelay,
-              (OssLib ? "ofs.osslib " : ""), (OssLib ? OssLib : ""),
-              (OssLib ? "\n" : ""),
+              (OssLib                    ? "       ofs.osslib " : ""),
+              (OssLib ? OssLib : ""), (OssLib ? "\n" : ""),
               OfsTrace.What);
 
      Eroute.Say(buff);
 
      if (evsObject)
         {bp = buff;
-         setBuff("ofs.notify ", 11);                     //  1234567890
+         setBuff("       ofs.notify ", 11);              //  1234567890
          if (evsObject->Enabled(XrdOfsEvs::Chmod))  setBuff("chmod ",  6);
          if (evsObject->Enabled(XrdOfsEvs::Closer)) setBuff("closer ", 7);
          if (evsObject->Enabled(XrdOfsEvs::Closew)) setBuff("closew ", 7);
@@ -256,7 +266,7 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
          Eroute.Say(buff);
         }
 
-     List_VPlist((char *)"ofs.validpath  ", VPlist, Eroute);
+     List_VPlist((char *)"       ofs.validpath  ", VPlist, Eroute);
 }
 
 /******************************************************************************/
@@ -290,7 +300,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
 
 // For target redirection find the port number and create the object
 //
-   if (Options & (XrdOfsREDIRTRG | XrdOfsREDIREER))
+   if (Options & (XrdOfsREDIRTRG | (XrdOfsREDIREER & ~ XrdOfsREDIRRMT)))
       {if (!(pp=getenv("XRDPORT")) || !(port=strtol(pp, (char **)NULL, 10)))
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
@@ -343,7 +353,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
 
     // No match found, complain.
     //
-    Eroute.Emsg("Config", "Warning, unknown directive", var);
+    Eroute.Say("Config warning: ignoring unknown directive '",var,"'.");
     Config.Echo();
     return 0;
 }
@@ -479,7 +489,7 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdOucError &Eroute)
                            }
                        }
                    if (i >= numopts)
-                      Eroute.Emsg("Config", "invalid foward option -", val);
+                      Eroute.Say("Config warning: ignoring invalid foward option '",val,"'.");
                   }
           val = Config.GetWord();
          }
@@ -631,7 +641,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdOucError &Eroute)
                   }
               }
           if (i >= numopts)
-             Eroute.Emsg("Config", "invalid notify event -", val);
+             Eroute.Say("Config warning: ignoring invalid notify event '",val,"'.");
           val = Config.GetWord();
          }
 
@@ -720,7 +730,7 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
     char *val;
     int rc, ropt = 0;
 
-    Eroute.Emsg("Config", "Warning! redirect directive is deprecated; use role.");
+    Eroute.Say("Config warning: redirect directive is deprecated; use 'all.role'.");
 
     if ((val = Config.GetWord()))
        {     if (!strcmp("proxy",  val)) {ropt = XrdOfsREDIROXY;
@@ -929,7 +939,7 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
                            }
                        }
                    if (i >= numopts)
-                      Eroute.Emsg("Config", "invalid trace option -", val);
+                      Eroute.Say("Config warning: ignoring invalid trace option '",val,"'.");
                   }
           val = Config.GetWord();
          }

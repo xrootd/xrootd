@@ -302,7 +302,7 @@ int XrdConfig::Configure(int argc, char **argv)
        XrdLog.Emsg("Config", "Execution continues but connection failures may occur.");
        myDomain = 0;
       } else if (!(myDomain = index(myName, '.')))
-                XrdLog.Emsg("Config", "Warning! This hostname,", myName,
+                XrdLog.Say("Config warning: this hostname, ", myName,
                             ", is registered without a domain qualification.");
 
 // Get our IP address
@@ -334,8 +334,8 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Put out the herald
 //
-   XrdLog.Say(0, XrdBANNER);
-   XrdLog.Say(0, myInstance, " initialization started.");
+   XrdLog.Say(0, "Scalla is starting. . .");
+   XrdLog.Say(XrdBANNER);
 
 // Setup the initial required protocol
 //
@@ -349,10 +349,11 @@ int XrdConfig::Configure(int argc, char **argv)
 // Process the configuration file, if one is present
 //
    if (ConfigFN && *ConfigFN)
-      {XrdLog.Say(0, "Using configuration file ", ConfigFN);
+      {XrdLog.Say("Config using configuration file ", ConfigFN);
+       XrdLog.Say("++++++ ", myInstance, " initialization started.");
        ProtInfo.ConfigFN = ConfigFN;
        NoGo = ConfigProc();
-      }
+      }else  XrdLog.Say("++++++ ", myInstance, " initialization started.");
    if (clPort >= 0) PortTCP = clPort;
    if (!NoGo) NoGo = Setup(dfltProt);
    if (ProtInfo.DebugON) 
@@ -369,7 +370,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    temp = (NoGo ? " initialization failed." : " initialization completed.");
    sprintf(buff, "%s:%d", myInstance, PortTCP);
-   XrdLog.Say(0, buff, temp);
+   XrdLog.Say("------ ", buff, temp);
    if (logfn) new XrdLogWorker(buff);
    return NoGo;
 }
@@ -407,7 +408,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
 
    // No match found, complain.
    //
-   eDest->Emsg("Config", "Warning, unknown xrd directive", var);
+   eDest->Say("Config warning: ignoring unknown xrd directive '",var,"'.");
    Config.Echo();
    return 0;
 }
@@ -474,7 +475,7 @@ int XrdConfig::ConfigProc()
   char *var;
   int  cfgFD, retc, NoGo = 0;
   XrdOucEnv myEnv;
-  XrdOucStream Config(&XrdLog, myInstance, &myEnv);
+  XrdOucStream Config(&XrdLog, myInstance, &myEnv, "=====> ");
 
 // Try to open the configuration file.
 //
@@ -565,7 +566,7 @@ int XrdConfig::setFDL()
 //
    ProtInfo.ConnMax = rlim.rlim_cur;
    sprintf(buff, "%d", ProtInfo.ConnMax);
-   XrdLog.Say(0, "Maximum number of connections is ", buff);
+   XrdLog.Say("Config maximum number of connections restricted to ", buff);
 
    return 0;
 }
@@ -914,7 +915,7 @@ int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
               break;
             }
       if (i >= numopts)
-         eDest->Emsg("Config", "Warning, invalid net option", val);
+         eDest->Say("Config warning: ignoring invalid net option '",val,"'.");
       val = Config.GetWord();
      }
 
@@ -1127,7 +1128,7 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
                    break;
                   }
            if (i >= numopts)
-              eDest->Emsg("Config", "Warning, invalid sched option", val);
+              eDest->Say("Config warning: ignoring invalid sched option '",val,"'.");
            val = Config.GetWord();
           }
 
@@ -1203,7 +1204,7 @@ int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
                     break;
                    }
            if (i >= numopts)
-              eDest->Emsg("Config", "Warning, invalid timeout option", val);
+              eDest->Say("Config warning: ignoring invalid timeout option '",val,"'.");
            val = Config.GetWord();
           }
 
@@ -1247,7 +1248,7 @@ int XrdConfig::xtrace(XrdOucError *eDest, XrdOucStream &Config)
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 
     if (!(val = Config.GetWord()))
-       {eDest->Emsg("config", "trace option not specified"); return 1;}
+       {eDest->Emsg("Config", "trace option not specified"); return 1;}
     while (val)
          {if (!strcmp(val, "off")) trval = 0;
              else {if ((neg = (val[0] == '-' && val[1]))) val++;
@@ -1262,7 +1263,7 @@ int XrdConfig::xtrace(XrdOucError *eDest, XrdOucStream &Config)
                            }
                        }
                    if (i >= numopts)
-                      eDest->Emsg("config", "invalid trace option", val);
+                      eDest->Say("Config warning: ignoring invalid trace option '",val,"'.");
                   }
           val = Config.GetWord();
          }

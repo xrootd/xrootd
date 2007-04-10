@@ -269,7 +269,7 @@ int    ConfigN2N(XrdOucError &Eroute);
 int    ConfigProc(XrdOucError &Eroute);
 int    ConfigStage(XrdOucError &Eroute);
 int    ConfigXeq(char *, XrdOucStream &, XrdOucError &);
-void   List_Path(char *, unsigned long long, XrdOucError &);
+void   List_Path(const char *, char *, unsigned long long, XrdOucError &);
 int    xalloc(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcache(XrdOucStream &Config, XrdOucError &Eroute);
 int    xcacheBuild(char *grp, char *fn, XrdOucError &Eroute);

@@ -210,14 +210,12 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 //
    OfsEroute.SetPrefix("ofs_");
    OfsEroute.logger(lp);
-   OfsEroute.Emsg("Init", "(c) 2005 Stanford University/SLAC, Ofs Version "
-                          XrdVSTRING);
+   OfsEroute.Say("Copr.  2007 Stanford University, Ofs Version " XrdVSTRING);
 
 // Initialize the subsystems
 //
    XrdOfsFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
    if ( XrdOfsFS.Configure(OfsEroute) ) return 0;
-   XrdOfsFS.Config_Display(OfsEroute);
 
 // Initialize the target storage system
 //

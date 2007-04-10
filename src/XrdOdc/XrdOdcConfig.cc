@@ -71,10 +71,6 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
    int i, NoGo = 0;
    char buff[256], *slash, *temp;
 
-// Tell the world we have started
-//
-   eDest->Emsg("Config", mode, "redirection initialization started");
-
 // Preset tracing options
 //
    if (getenv("XRDDEBUG")) OdcTrace.What = TRACE_ALL;
@@ -136,10 +132,6 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
        NoGo = 1;
       }
 
-// All done
-//
-   temp = (NoGo ? (char *)"failed." : (char *)"completed.");
-   eDest->Emsg("Config", mode, "redirection initialization", temp);
    return NoGo;
 }
 
@@ -152,10 +144,12 @@ int XrdOdcConfig::Configure(char *cfn, const char *mode, int isBoth)
   
 int XrdOdcConfig::ConfigProc(char *ConfigFN)
 {
+  static int DoneOnce = 0;
   char *var;
   int  cfgFD, retc, NoGo = 0;
   XrdOucEnv myEnv;
-  XrdOucStream Config(eDest, getenv("XRDINSTANCE"), &myEnv);
+  XrdOucStream Config((DoneOnce ? 0 : eDest), getenv("XRDINSTANCE"), 
+                      &myEnv, "=====> ");
 
 // Make sure we have a config file
 //
@@ -190,6 +184,7 @@ int XrdOdcConfig::ConfigProc(char *ConfigFN)
 
 // Return final return code
 //
+   DoneOnce = 1;
    return NoGo;
 }
 
@@ -214,7 +209,7 @@ int XrdOdcConfig::ConfigXeq(char *var, XrdOucStream &Config)
 
    // No match found, complain.
    //
-   eDest->Emsg("Config", "Warning, unknown directive", var);
+   eDest->Say("Config warning: ignoring unknown directive '",var,"'.");
    Config.Echo();
    return 0;
 }
@@ -463,7 +458,7 @@ int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
                       else *rqopts[i].oploc = ppp;
                 break;
                }
-        if (i >= numopts) errp->Emsg("Config","invalid request option",val);
+        if (i >= numopts) errp->Say("Config warning: ignoring invalid request option '",val,"'.");
        } while((val = Config.GetWord()));
      return 0;
 }
@@ -508,7 +503,7 @@ int XrdOdcConfig::xtrac(XrdOucError *Eroute, XrdOucStream &Config)
                            }
                        }
                    if (i >= numopts)
-                      Eroute->Emsg("config", "invalid trace option", val);
+                      Eroute->Say("Config warning: ignoring invalid trace option '",val,"'.");
                   }
           val = Config.GetWord();
          }

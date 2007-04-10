@@ -139,14 +139,12 @@ int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
 // Do the herald thing
 //
    OssEroute.logger(lp);
-   OssEroute.Emsg("Init", "(c) 2006, Stanford University, oss Version "
-                    XrdVSTRING);
+   OssEroute.Say("Copr.  2007, Stanford University, oss Version " XrdVSTRING);
 
 // Initialize the subsystems
 //
    XrdOssSS = this;
    if ( (retc = Configure(configfn, OssEroute)) ) return retc;
-   Config_Display(OssEroute);
 
 // All done.
 //

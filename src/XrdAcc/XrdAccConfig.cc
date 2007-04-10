@@ -122,7 +122,7 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 
 // Print warm-up message
 //
-   Eroute.Emsg("config","Authorization system initialization started.");
+   Eroute.Say("++++++ Authorization system initialization started.");
 
 // Process the configuration file and authorization database
 //
@@ -143,7 +143,7 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 // All done
 //
    var = (NoGo > 0 ? (char *)"failed." : (char *)"completed.");
-   Eroute.Emsg("config", "Authorization system initialization", var);
+   Eroute.Say("------ Authorization system initialization ", var);
    return (NoGo > 0);
 }
   
@@ -160,7 +160,7 @@ int XrdAccConfig::ConfigDB(int Warm, XrdOucError &Eroute)
 
   Output:   0 upon success or !0 otherwise.
 */
-   char buff[12];
+   char buff[128];
    int  retc, anum = 0, NoGo = 0;
    struct XrdAccAccess_Tables tabs;
    XrdOucLock cdb_Lock(&Config_Context);
@@ -188,8 +188,8 @@ int XrdAccConfig::ConfigDB(int Warm, XrdOucError &Eroute)
 // Now start processing records until eof.
 //
    while((retc = ConfigDBrec(Eroute, tabs))) {NoGo |= retc < 0; anum++;}
-   snprintf(buff, sizeof(buff), "%d", anum);
-   Eroute.Emsg("ConfigDB", buff, "auth entries processed in", dbpath);
+   snprintf(buff, sizeof(buff), "%d auth entries processed in ", anum);
+   Eroute.Say("Config ", buff, dbpath);
 
 // All done, close the database and return if we failed
 //
@@ -229,29 +229,29 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
    char *var;
    int  cfgFD, retc, NoGo = 0, recs = 0;
    XrdOucEnv myEnv;
-   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv);
+   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
 
 // If there is no config file, complain
 //
    if( !ConfigFN || !*ConfigFN)
-     {Eroute.Emsg("config", "Authorization configuration file not specified.");
+     {Eroute.Emsg("Config", "Authorization configuration file not specified.");
       return 1;
      } 
 
 // Check if security is to be disabled
 //
    if (!strcmp(ConfigFN, "none"))
-      {Eroute.Emsg("config", "Authorization system deactivated.");
+      {Eroute.Emsg("Config", "Authorization system deactivated.");
        return -1;
       }
 
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {Eroute.Emsg("config", errno, "open config file", ConfigFN);
+      {Eroute.Emsg("Config", errno, "open config file", ConfigFN);
        return 1;
       }
-   Eroute.Emsg("config","Authorization system using configuration in",ConfigFN);
+   Eroute.Emsg("Config","Authorization system using configuration in",ConfigFN);
 
 // Now start reading records until eof.
 //
@@ -266,11 +266,11 @@ int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = Eroute.Emsg("config",-retc,"read config file",ConfigFN);
-      else {char buff[12];
-            snprintf(buff, sizeof(buff), "%d", recs);
-            Eroute.Emsg("config", buff,
-                        "authorization directives processed in", ConfigFN);
+      NoGo = Eroute.Emsg("Config",-retc,"read config file",ConfigFN);
+      else {char buff[128];
+            snprintf(buff, sizeof(buff), 
+                     "%d authorization directives processed in ", recs);
+            Eroute.Say("Config ", buff, ConfigFN);
            }
    Config.Close();
 
@@ -312,7 +312,7 @@ int XrdAccConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute
 
 // No match found, complain.
 //
-   Eroute.Emsg("config", "unknown directive", var);
+   Eroute.Emsg("Config", "unknown directive", var);
    Config.Echo();
    return 1;
 }
@@ -346,14 +346,14 @@ int XrdAccConfig::xaud(XrdOucStream &Config, XrdOucError &Eroute)
 
     val = Config.GetWord();
     if (!val || !val[0])
-       {Eroute.Emsg("config", "audit option not specified"); return 1;}
+       {Eroute.Emsg("Config", "audit option not specified"); return 1;}
     while (val && val[0])
           {if (!strcmp(val, "none")) audval = (int)audit_none;
               else for (i = 0; i < numopts; i++)
                        {if (!strcmp(val, audopts[i].opname))
                            {audval |= audopts[i].opval; break;}
                         if (i >= numopts)
-                           {Eroute.Emsg("config","invalid audit option -",val);
+                           {Eroute.Emsg("Config","invalid audit option -",val);
                             return 1;
                            }
                        }
@@ -383,7 +383,7 @@ int XrdAccConfig::xart(XrdOucStream &Config, XrdOucError &Eroute)
 
       val = Config.GetWord();
       if (!val || !val[0])
-         {Eroute.Emsg("config","authrefresh value not specified");return 1;}
+         {Eroute.Emsg("Config","authrefresh value not specified");return 1;}
       if (XrdOuca2x::a2tm(Eroute,"authrefresh value",val,&reft,60))
          return 1;
       AuthRT = reft;
@@ -409,7 +409,7 @@ int XrdAccConfig::xdbp(XrdOucStream &Config, XrdOucError &Eroute)
 
       val = Config.GetWord();
       if (!val || !val[0])
-         {Eroute.Emsg("config","authdb path not specified");return 1;}
+         {Eroute.Emsg("Config","authdb path not specified");return 1;}
       dbpath = strdup(val);
       return 0;
 }
@@ -434,7 +434,7 @@ int XrdAccConfig::xglt(XrdOucStream &Config, XrdOucError &Eroute)
 
       val = Config.GetWord();
       if (!val || !val[0])
-         {Eroute.Emsg("config","gidlifetime value not specified");return 1;}
+         {Eroute.Emsg("Config","gidlifetime value not specified");return 1;}
       if (XrdOuca2x::a2tm(Eroute,"gidlifetime value",val,&reft,60))
          return 1;
       GroupMaster.SetLifetime(reft);
@@ -462,12 +462,12 @@ int XrdAccConfig::xgrt(XrdOucStream &Config, XrdOucError &Eroute)
 
     val = Config.GetWord();
     if (!val || !val[0])
-       {Eroute.Emsg("config","gidretran value not specified"); return 1;}
+       {Eroute.Emsg("Config","gidretran value not specified"); return 1;}
 
     while (val && val[0])
       {if (XrdOuca2x::a2i(Eroute, "gid", val, &gid, 0)) return 1;
        if (GroupMaster.Retran((gid_t)gid) < 0)
-          {Eroute.Emsg("config", "to many gidretran gid's"); return 1;}
+          {Eroute.Emsg("Config", "to many gidretran gid's"); return 1;}
        val = Config.GetWord();
       }
     return 0;
@@ -492,7 +492,7 @@ int XrdAccConfig::xnis(XrdOucStream &Config, XrdOucError &Eroute)
 
       val = Config.GetWord();
       if (!val || !val[0])
-         {Eroute.Emsg("config","nisdomain value not specified");return 1;}
+         {Eroute.Emsg("Config","nisdomain value not specified");return 1;}
       GroupMaster.SetDomain(strdup(val));
       return 0;
 }

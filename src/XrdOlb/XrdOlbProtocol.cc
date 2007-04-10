@@ -144,7 +144,7 @@ int XrdgetProtocolPort(const char *pname, char *parms,
 
 // Put up the banner
 //
-   Say.Say(0, "(c) 2006 Stanford University/SLAC olbd.");
+   Say.Say("Copr.  2006 Stanford University/SLAC olbd.");
 
 // Return failure if static init fails
 //
