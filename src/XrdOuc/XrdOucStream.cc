@@ -61,7 +61,7 @@ using namespace std;
 /******************************************************************************/
   
 XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname,
-                           XrdOucEnv   *anEnv)
+                           XrdOucEnv   *anEnv, const char *Pfx)
 {
  char *cp;
      if (ifname)
@@ -107,6 +107,7 @@ XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname,
          llBok  = 0;
         }
      varVal = (myEnv ? new char[maxVLen+1] : 0);
+     llPrefix = Pfx;
 }
 
 /******************************************************************************/
@@ -181,8 +182,7 @@ void XrdOucStream::Close(int hold)
     // Check if we should echo the last line
     //
     if (llBuff && Verbose && Eroute)
-       {if (*llBuff && llBok > 1) Eroute->Say(llBuff);
-        Eroute->Say("");
+       {if (*llBuff && llBok > 1) Eroute->Say(llPrefix, llBuff);
         llBok = 0;
        }
 }
@@ -218,7 +218,7 @@ int XrdOucStream::Drain()
   
 void XrdOucStream::Echo()
 {
-   if (llBok && Verbose && *llBuff && Eroute) Eroute->Say(llBuff);
+   if (llBok && Verbose && *llBuff && Eroute) Eroute->Say(llPrefix, llBuff);
    llBok = 0;
 }
 
@@ -467,7 +467,7 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
    int   skip2fi = 0;
 
 
-   if (llBok > 1 && Verbose && *llBuff && Eroute) Eroute->Say(llBuff);
+   if (llBok > 1 && Verbose && *llBuff && Eroute) Eroute->Say(llPrefix,llBuff);
    llBok = 0;
 
    if (!myInst)
@@ -762,7 +762,6 @@ int XrdOucStream::isSet(char *var)
       {if (Eroute)
           {if (!llBuff) llBuff = (char *)malloc(llBsz);
            llBcur = llBuff; llBok = 0; llBleft = llBsz; *llBuff = '\0';
-           Eroute->Say("");
            Verbose = (strcmp(tp, "-V") ? 1 : 2);
           }
        return 1;

@@ -71,32 +71,35 @@ XrdOucMsubs::~XrdOucMsubs()
   
 int XrdOucMsubs::Parse(const char *dName, char *msg)
 {
-   char ctmp, *vp, *ip, *infop;
+   char ctmp, *vp, *ip, *lastp, *infop;
    int i, j = 0;
 
 // Setup the additional stage information vector. Variable substitution:
 // <data>$var<data>.... (max of MaxArgs substitutions)
 //
-   infop = mText = strdup(msg);
+   lastp = infop = mText = strdup(msg);
    while ((ip = index(infop, '$')) && j < maxElem)
-         if (isalnum(*(ip+1)))
-            {if ((mDlen[j] = ip-infop)) mData[j++] = infop;
+         if (isalnum(*(ip+1)) && (infop == ip || *(ip-1) != '\\'))
+            {if ((mDlen[j] = ip-lastp)) mData[j++] = lastp;
              vp = ip; ip++;
              while(isalnum(*ip) || *ip == '.') ip++;
              ctmp = *ip; *ip = '\0';
              mDlen[j] = -(ip-vp);
              mData[j] = vp = strdup(vp); mData[j++]++;
-             *ip = ctmp; infop = ip;
+             *ip = ctmp; lastp = infop = ip;
              if (isupper(*(vp+1)))
                 for (i = 1; i <= vMax; i++)
                     if (!strcmp(vp, vName[i])) 
                        {mDlen[j-1] = i; mData[j-1] = 0; free(vp); break;}
-            }
+            } else if (ip != infop && *(ip-1) == '\\')
+                      {if ((mDlen[j] = (ip-lastp)-1) > 0) mData[j++] = lastp;
+                       lastp = ip; infop = ip+1;
+                      } else infop = ip+1;
 
 // Make sure we have not exceeded the array
 //
    if (j < maxElem)
-      {if ((mDlen[j] = strlen(infop))) mData[j++] = infop;
+      {if ((mDlen[j] = strlen(lastp))) mData[j++] = lastp;
        numElem = j;
       } else {
        eDest->Emsg(dName, "Too many variables in", dName, "string.");

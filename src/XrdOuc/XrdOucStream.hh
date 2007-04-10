@@ -32,7 +32,7 @@ public:
 // errors will be returned quietly.
 //
             XrdOucStream(XrdOucError *erobj=0, const char *ifname=0,
-                         XrdOucEnv   *anEnv=0);
+                         XrdOucEnv   *anEnv=0, const char *Pfx=0);
 
            ~XrdOucStream() {Close(); if (myInst) free(myInst);
                                      if (varVal) delete [] varVal;
@@ -196,6 +196,7 @@ static const int llBsz   = 1024;
  XrdOucError *Eroute;
  XrdOucEnv   *myEnv;
         char *varVal;
+ const  char *llPrefix;
         char *llBuff;
         char *llBcur;
         int   llBleft;
