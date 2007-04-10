@@ -133,8 +133,7 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdOucLogger.hh      XrdOucReqID.hh \
                              XrdOucTokenizer.hh   XrdOucTrace.hh \
                              XrdOucProg.hh        XrdXrootdConfig.cc \
-                             XrdOucStream.hh      XrdOucEnv.hh \
-                             ../XrdVersion.hh
+                             XrdOucStream.hh      XrdOucEnv.hh
 	@echo Compiling XrdXrootdConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdConfig.o XrdXrootdConfig.cc
 
@@ -207,9 +206,9 @@ $(OBJDIR)/XrdXrootdProtocol.o: XrdXrootdFile.hh       XrdXrootdFileLock.hh \
 
 $(OBJDIR)/XrdXrootdResponse.o: XrdLink.hh           XrdXrootdResponse.hh  \
                                XrdXrootdReqID.hh    XrdXrootdTrace.hh \
-                               XProtocol.hh      XrdOucError.hh \
-                               XrdOucTrace.hh \
-                               XrdXrootdResponse.cc
+                               XProtocol.hh         XrdOucError.hh \
+                               XrdOucTrace.hh       XrdXrootdResponse.cc \
+                               ../XrdVersion.hh
 	@echo Compiling XrdXrootdResponse.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdResponse.o XrdXrootdResponse.cc
 

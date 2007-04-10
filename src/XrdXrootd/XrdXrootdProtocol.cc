@@ -12,6 +12,8 @@
 
 const char *XrdXrootdProtocolCVSID = "$Id$";
  
+#include "XrdVersion.hh"
+
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
@@ -105,16 +107,22 @@ extern "C"
 XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
                               XrdProtocol_Config *pi)
 {
+   XrdProtocol *pp = 0;
+   const char *txt = "completed.";
 
 // Put up the banner
 //
-   pi->eDest->Say(0, "(c) 2005 Stanford University/SLAC XRootd.");
+   pi->eDest->Say("Copr.  2007 Stanford University, xrootd version "
+                   XROOTD_VERSION " build "  XrdVERSION);
+   pi->eDest->Say("++++++ xrootd protocol initialization started.");
 
 // Return the protocol object to be used if static init succeeds
 //
    if (XrdXrootdProtocol::Configure(parms, pi))
-      return (XrdProtocol *)new XrdXrootdProtocol();
-   return (XrdProtocol *)0;
+      pp = (XrdProtocol *)new XrdXrootdProtocol();
+      else txt = "failed.";
+    pi->eDest->Say("------ xrootd protocol initialization ", txt);
+   return pp;
 }
 }
 

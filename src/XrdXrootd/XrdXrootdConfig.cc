@@ -153,13 +153,13 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                  break;
        case 'y': putenv((char *)"XRDREDPROXY=1");
                  break;
-       default:  eDest.Say(0,"Warning, ignoring invalid option ",pi->argv[optind-1]);
+       default:  eDest.Say("Config warning: ignoring invalid option '",pi->argv[optind-1],"'.");
        }
      }
 
 // Check for deprecated options
 //
-   if (deper) eDest.Say(0,"Warning, '-r -t' are deprecated; use '-m -s' instead.");
+   if (deper) eDest.Say("Config warning: '-r -t' are deprecated; use '-m -s' instead.");
 
 // Pick up exported paths
 //
@@ -179,14 +179,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Initialiaze for AIO
 //
    if (!as_noaio) XrdXrootdAioReq::Init(as_segsize, as_maxperreq, as_maxpersrv);
-      else {eDest.Emsg("Config", "Asynchronous I/O has been disabled!");
+      else {eDest.Say("Config warining: asynchronous I/O has been disabled!");
             as_noaio = 1;
            }
 
 // Initialize the security system if this is wanted
 //
-   if (!SecLib) eDest.Say(0, "XRootd seclib not specified;"
-                          " strong authentication disabled");
+   if (!SecLib) eDest.Say("Config warning: 'xrootd.seclib' not specified;"
+                          " strong authentication disabled!");
       else {TRACE(DEBUG, "Loading security library " <<SecLib);
             if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib, pi->ConfigFN)))
                {eDest.Emsg("Config", "Unable to load security system.");
@@ -200,7 +200,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
       {TRACE(DEBUG, "Loading filesystem library " <<FSLib);
        osFS = XrdXrootdloadFileSystem(&eDest, FSLib, pi->ConfigFN);
       } else {
-       eDest.Say(0, "XRootd fslib not specified; using native file system");
+       eDest.Say("Config warning: 'xrootd.fslib' not specified; using native file system.");
        osFS = XrdSfsGetFileSystem((XrdSfsFileSystem *)0, eDest.logger());
       }
    if (!osFS)
@@ -242,9 +242,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (!(xp = XPList.First()))
       {XPList.Insert("/tmp");
-       eDest.Say(0, "Warning, only '/tmp' will be exported.");
+       eDest.Say("Config warning: only '/tmp' will be exported.");
       } else while(xp)
-                  {eDest.Say(0, "Exporting ", xp->Path());
+                  {eDest.Say("Config exporting ", xp->Path());
                    xp = xp->Next();
                   }
 
@@ -270,11 +270,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!(AdminSock = XrdNetSocket::Create(&eDest, adminp, "admin", pi->AdmMode))
    ||  !XrdXrootdAdmin::Init(&eDest, AdminSock)) return 0;
 
-// Indicate we configured successfully
-//
-   eDest.Say(0, "XRootd protocol version " XROOTD_VERSION
-                " build " XrdVERSION " successfully loaded.");
-
 // Return success
 //
    free(adminp);
@@ -290,7 +285,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 int XrdXrootdProtocol::Config(const char *ConfigFN)
 {
    XrdOucEnv myEnv;
-   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv);
+   XrdOucStream Config(&eDest, getenv("XRDINSTANCE"), &myEnv, "=====> ");
    char *var;
    int cfgFD, GoNo, NoGo = 0, ismine;
 
@@ -316,7 +311,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("redirect",      xred);
              else if TS_Xeq("seclib",        xsecl);
              else if TS_Xeq("trace",         xtrace);
-             else {eDest.Say(0, "Warning, unknown xrootd directive ",var);
+             else {eDest.Say("Config warning: ignoring unknown directive '",var,"'.");
                    Config.Echo();
                    continue;
                   }
