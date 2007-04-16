@@ -98,7 +98,7 @@ void XrdOdcResp::Reply(const char *Man, char *msg)
 {
    EPNAME("Reply")
    int Result, msgval;
-   char *colon;
+   char *colon, *opaque;
 
 // If there is no callback object, ignore this call. Eventually, we may wish
 // to simulate a callback but this is rather complicated.
@@ -117,8 +117,9 @@ void XrdOdcResp::Reply(const char *Man, char *msg)
            {msg += 5; Result = SFS_REDIRECT;
             while(*msg && (' ' == *msg)) msg++;
             if (!(colon = index(msg, (int)':'))) msgval = 0;
-               else {*colon = '\0';
-                     msgval = atoi(colon+1);
+               else {msgval = atoi(colon+1);
+                     if (!(opaque = index(colon, (int)'?'))) *colon = '\0';
+                        else strcpy(colon, opaque);
                     }
             TRACE(Redirect, UserID <<" redirected to " <<msg
                   <<':' <<msgval <<" by " << Man);
