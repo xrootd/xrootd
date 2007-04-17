@@ -21,7 +21,7 @@ xrootdoucinc_HEADERS = XrdOucChain.hh XrdOucDLlist.hh XrdOucEnv.hh XrdOucErrInfo
                        XrdOucPthread.hh XrdOucRash.hh XrdOucReqID.hh XrdOucSemWait.hh \
                        XrdOucStream.hh XrdOucString.hh XrdOucTList.hh XrdOucTimer.hh \
                        XrdOucTokenizer.hh XrdOucTrace.hh XrdOucUtils.hh XrdOucXSLock.hh \
-                       XrdOuca2x.hh XrdOucTable.hh \
+                       XrdOuca2x.hh XrdOucTable.hh XrdOucExport.hh\
                        XrdOucHash.icc
 
 lib_LTLIBRARIES = libXrdOuc.la
@@ -49,6 +49,7 @@ libXrdOuc_la_SOURCES = \
         XrdOucTrace.cc XrdOucTrace.hh      \
         XrdOucUtils.cc XrdOucUtils.hh      \
         XrdOucXSLock.cc XrdOucXSLock.hh \
+	XrdOucExport.cc XrdOucExport.hh \
         XrdOucHash.icc
 
 libXrdOuc_la_LIBADD = $(LIBPTHREAD) $(SEM_LIBRT) $(LIBNSL)
