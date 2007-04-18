@@ -14,6 +14,9 @@
 
 #include <strings.h>
 #include <stdlib.h>
+
+#define XROOTDXP_OK        1
+#define XROOTDXP_NOLK      2
   
 class XrdXrootdXPath
 {
@@ -23,9 +26,9 @@ inline XrdXrootdXPath *First() {return first;}
 inline XrdXrootdXPath *Next()  {return next;}
 inline char           *Path()  {return path;}
 
-static void            Insert(const char *pd)
+static void            Insert(const char *pd, int popt=0)
                              {XrdXrootdXPath *pp = 0, *p = first;
-                              XrdXrootdXPath *newp = new XrdXrootdXPath(pd);
+                              XrdXrootdXPath *newp = new XrdXrootdXPath(pd,popt);
                               while(p && newp->pathlen >= p->pathlen)
                                    {pp = p; p = p->next;}
                               newp->next = p;
@@ -38,14 +41,15 @@ inline int             Validate(const char *pd, const int pl=0)
                                 XrdXrootdXPath *p = first;
                                 while(p && plen >= p->pathlen)
                                      {if (!strncmp(pd, p->path, p->pathlen))
-                                         return 1;
+                                         return p->pathopt;
                                       p=p->next;
                                      }
                                 return 0;
                                }
 
-       XrdXrootdXPath(const char *pathdata="")
+       XrdXrootdXPath(const char *pathdata="", int popt=0)
                      {next = 0;
+                      pathopt = popt | XROOTDXP_OK;
                       pathlen = strlen(pathdata);
                       path    = strdup(pathdata);
                      }
@@ -57,6 +61,7 @@ private:
 static XrdXrootdXPath *first;
        XrdXrootdXPath *next;
        int             pathlen;
+       int             pathopt;
        char           *path;
 };
 #endif

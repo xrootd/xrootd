@@ -497,7 +497,7 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 
 /* Function: xexp
 
-   Purpose:  To parse the directive: export <path>
+   Purpose:  To parse the directive: export <path> [lock|nolock]
 
              <path>    the path to be exported.
 
@@ -506,22 +506,30 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 
 int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 {
-    char *val;
+    char *val, pbuff[1024];
+    int   popt = 0;
 
 // Get the path
 //
    val = Config.GetWord();
    if (!val || !val[0])
       {eDest.Emsg("Config", "export path not specified"); return 1;}
+   strlcpy(pbuff, val, sizeof(pbuff));
+
+// Get export lock option
+//
+   if ((val = Config.GetWord()))
+      if (!strcmp("nolock", val)) popt = XROOTDXP_NOLK;
+         else if (strcmp("lock", val)) Config.RetToken();
 
 // Add path to configuration
 //
-   return xexpdo(val);
+   return xexpdo(pbuff, popt);
 }
 
 /******************************************************************************/
 
-int XrdXrootdProtocol::xexpdo(char *path)
+int XrdXrootdProtocol::xexpdo(char *path, int popt)
 {
    const char *opaque;
 
@@ -532,7 +540,7 @@ int XrdXrootdProtocol::xexpdo(char *path)
 
 // Record the path
 //
-   if (!Squash(path)) XPList.Insert(path);
+   if (!Squash(path)) XPList.Insert(path, popt);
    return 0;
 }
   

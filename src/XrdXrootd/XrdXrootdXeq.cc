@@ -806,7 +806,7 @@ int XrdXrootdProtocol::do_Open()
    static XrdXrootdCallBack openCB("open file");
    int fhandle;
    int rc, mode, opts, openopts, mkpath = 0, doforce = 0, compchk = 0;
-   int retStat = 0;
+   int popt, retStat = 0;
    const char *opaque;
    char usage, ebuff[2048];
    char *fn = argp->buff, opt[16], *op=opt, isAsync = '\0';
@@ -860,7 +860,7 @@ int XrdXrootdProtocol::do_Open()
 // Check if opaque data has been provided
 //
    if (rpCheck(fn, &opaque)) return rpEmsg("Opening", fn);
-   if (!Squash(fn))          return vpEmsg("Opening", fn);
+   if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
 
 // Get a file object
 //
@@ -896,7 +896,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Lock this file
 //
-   if ((rc = Locker->Lock(xp, doforce)))
+   if (!(popt & XROOTDXP_NOLK) && (rc = Locker->Lock(xp, doforce)))
       {const char *who;
        if (rc > 0) who = (rc > 1 ? "readers" : "reader");
           else {   rc = -rc;

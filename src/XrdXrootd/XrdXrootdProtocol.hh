@@ -160,7 +160,7 @@ static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
 static int   xexp(XrdOucStream &Config);
-static int   xexpdo(char *path);
+static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
 static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
