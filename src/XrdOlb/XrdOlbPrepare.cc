@@ -12,6 +12,7 @@
 
 const char *XrdOlbPrepareCVSID = "$Id$";
   
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -19,7 +20,9 @@ const char *XrdOlbPrepareCVSID = "$Id$";
 
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
+#include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
 using namespace XrdOlb;
@@ -58,8 +61,8 @@ XrdOlbPrepare::XrdOlbPrepare() : XrdJob("File cache scrubber"),
   
 int XrdOlbPrepare::Add(XrdOlbPrepArgs &pargs)
 {
-   char *pdata[12];
-   int rc, pdlen[12];
+   char *pdata[XrdOucMsubs::maxElem + 2];
+   int rc, pdlen[XrdOucMsubs::maxElem + 2];
 
 // Restart the scheduler if need be
 //
@@ -72,30 +75,30 @@ int XrdOlbPrepare::Add(XrdOlbPrepArgs &pargs)
 
 // Write out the header line
 //
-   pdata[0] = (char *)"+ ";
-   pdlen[0] = 2;
-   pdata[1] = pargs.reqid;
-   pdlen[1] = strlen(pargs.reqid);
-   pdata[2] = (char *)" ";
-   pdlen[2] = 1;
-   pdata[3] = pargs.user;
-   pdlen[3] = strlen(pargs.user);
-   pdata[4] = (char *)" ";
-   pdlen[4] = 1;
-   pdata[5] = pargs.prty;
-   pdlen[5] = strlen(pargs.prty);
-   pdata[6] = (char *)" ";
-   pdlen[6] = 1;
-   pdata[7] = pargs.mode;
-   pdlen[7] = strlen(pargs.mode);
-   pdata[8] = (char *)" ";
-   pdlen[8] = 1;
-   pdata[9] = pargs.path;
-   pdlen[9] = strlen(pargs.path);
-   pdata[10] = (char *)"\n";
-   pdlen[10] = 1;
-   pdata[11]= 0;
-   pdlen[11]= 0;
+   if (!prepMsg)
+      {pdata[0] = (char *)"+ ";               pdlen[0] = 2;
+       pdata[1] = pargs.reqid;                pdlen[1] = strlen(pargs.reqid);
+       pdata[2] = (char *)" ";                pdlen[2] = 1;
+       pdata[3] = pargs.user;                 pdlen[3] = strlen(pargs.user);
+       pdata[4] = (char *)" ";                pdlen[4] = 1;
+       pdata[5] = pargs.prty;                 pdlen[5] = strlen(pargs.prty);
+       pdata[6] = (char *)" ";                pdlen[6] = 1;
+       pdata[7] = pargs.mode;                 pdlen[7] = strlen(pargs.mode);
+       pdata[8] = (char *)" ";                pdlen[8] = 1;
+       pdata[9] = pargs.path;                 pdlen[9] = strlen(pargs.path);
+       pdata[10] = (char *)"\n";              pdlen[10] = 1;
+       pdata[11]= 0;                          pdlen[11]= 0;
+      } else {
+       int Oflag = (index(pargs.mode, (int)'w') ? O_RDWR : 0);
+       mode_t Prty = atoi(pargs.prty);
+       XrdOucEnv Env;
+       XrdOucMsubsInfo Info(pargs.reqid, &Env,  N2N,   pargs.path,
+                            pargs.user,   Prty, Oflag, pargs.mode);
+       int k = prepMsg->Subs(Info, pdata, pdlen);
+       pdata[k]   = (char *)"\n"; pdlen[k++] = 1;
+       pdata[k]   = 0;            pdlen[k]   = 0;
+      }
+
    if (!(rc = prepSched.Put((const char **)pdata, (const int *)pdlen)))
       if (!PTable.Add(pargs.path, 0, 0, Hash_data_is_key)) NumFiles++;
 
@@ -191,10 +194,16 @@ int XrdOlbPrepare::setParms(int rcnt, int stime, int deco)
  return 0;
 }
 
-int XrdOlbPrepare::setParms(char *ifpgm)
+int XrdOlbPrepare::setParms(char *ifpgm, char *ifmsg)
 {if (ifpgm)
     {if (prepif) free(prepif);
      prepif = strdup(ifpgm);
+    }
+ if (ifmsg)
+    {if (prepMsg) delete prepMsg;
+     prepMsg = new XrdOucMsubs(&Say);
+     if (!(prepMsg->Parse("prepmsg", ifmsg)))
+        {delete prepMsg; prepMsg = 0; return 1;}
     }
  return 0;
 }

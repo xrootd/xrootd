@@ -275,7 +275,7 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 // Determine how we ended and return status
 //
    sprintf(buff, " phase 1 %s initialization %s.", myRole,
-                (NoGo ? "failed." : "completed."));
+                (NoGo ? "failed" : "completed"));
    Say.Say("------ ", myInstance, buff);
    return NoGo;
 }
@@ -411,6 +411,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest)
    TS_Xeq("pidpath",       xpidf);   // Any,     non-dynamic
    TS_Xeq("port",          xport);   // Any,     non-dynamic
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
+   TS_Xeq("prepmsg",       xprepm);  // Any,     non-dynamic
    TS_Xeq("remoteroot",    xrmtrt);  // Any,     non-dynamic
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("subscribe",     xsubs);   // Server,  non-dynamic (deprecated)
@@ -673,6 +674,7 @@ int XrdOlbConfig::ConfigN2N()
           {xeq_N2N = XrdOucgetName2Name(&Say,ConfigFN,"",LocalRoot,RemotRoot);
            if (LocalRoot) lcl_N2N = xeq_N2N;
           }
+       PrepQ.setParms(xeq_N2N);
        return 0;
       }
 
@@ -689,6 +691,7 @@ int XrdOlbConfig::ConfigN2N()
 // Get the Object now
 //
    lcl_N2N = ep(&Say,ConfigFN,(N2N_Parms ? N2N_Parms : ""),LocalRoot,0);
+   PrepQ.setParms(lcl_N2N);
    return lcl_N2N == 0;
 }
 
@@ -2137,6 +2140,50 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &CFile)
    return 0;
 }
 
+/******************************************************************************/
+/*                                x p r e p m                                 */
+/******************************************************************************/
+
+/* Function: xprepm
+
+   Purpose:  To parse the directive: prepmsg <msg>
+
+             <msg>     the message to be sent to the prep ifpgm (see prep).
+
+   Type: Manager only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOlbConfig::xprepm(XrdOucError *eDest, XrdOucStream &CFile)
+{
+    char *val, buff[2048];
+    XrdOucEnv *myEnv = CFile.SetEnv(0);
+
+   // At this point, make sure we have a value
+   //
+   if (!(val = CFile.GetWord()))
+      {eDest->Emsg("Config", "no value for prepmsg directive");
+       CFile.SetEnv(myEnv);
+       return 1;
+      }
+
+   // We need to suck all the tokens to the end of the line for remaining
+   // options. Do so, until we run out of space in the buffer.
+   //
+   CFile.RetToken();
+   if (!CFile.GetRest(buff, sizeof(buff)))
+      {eDest->Emsg("Config", "prepmsg arguments too long");
+       CFile.SetEnv(myEnv);
+       return 1;
+      }
+
+   // Restore substitutions and parse the message
+   //
+   CFile.SetEnv(myEnv);
+   return PrepQ.setParms(0, buff);
+}
+  
 /******************************************************************************/
 /*                                x r m t r t                                 */
 /******************************************************************************/

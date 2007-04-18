@@ -154,7 +154,8 @@ $(OBJDIR)/XrdOlbPrepare.o: XrdOlbPrepare.hh  XrdOlbPrepare.cc  XrdOlbPrepArgs.hh
                            XrdJob.hh         XrdScheduler.hh \
                            XrdOlbServer.hh   XrdOlbTrace.hh  \
                            XrdOucError.hh    XrdOucHash.hh     XrdOucHash.icc \
-                           XrdOucPthread.hh  XrdOucStream.hh   XrdOucTList.hh
+                           XrdOucPthread.hh  XrdOucStream.hh   XrdOucTList.hh \
+                           XrdOucEnv.hh      XrdOucMsubs.hh
 	@echo Compiling XrdOlbPrepare.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPrepare.o XrdOlbPrepare.cc
 

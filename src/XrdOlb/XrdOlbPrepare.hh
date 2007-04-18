@@ -19,6 +19,9 @@
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
+class XrdOucMsubs;
+class XrdOucName2Name;
+
 class XrdOlbPrepare : public XrdJob
 {
 public:
@@ -44,9 +47,11 @@ int        Reset();
 
 int        setParms(int rcnt, int stime, int deco=0);
 
-int        setParms(char *ifpgm);
+int        setParms(char *ifpgm, char *ifmsg=0);
 
 int        setParms(XrdScheduler *sp) {SchedP = sp; return 0;}
+
+int        setParms(XrdOucName2Name *n2n) {N2N = n2n; return 0;}
 
            XrdOlbPrepare();
           ~XrdOlbPrepare() {}   // Never gets deleted
@@ -60,6 +65,8 @@ XrdOucMutex           PTMutex;
 XrdOucHash<char>      PTable;
 XrdOucStream          prepSched;
 XrdScheduler         *SchedP;
+XrdOucName2Name      *N2N;
+XrdOucMsubs          *prepMsg;
 time_t                lastemsg;
 pid_t                 preppid;
 int                   NumFiles;

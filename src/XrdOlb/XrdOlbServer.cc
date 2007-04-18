@@ -1035,14 +1035,6 @@ int XrdOlbServer::do_PrepAdd(char *rid, int server)
 int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs *pargs)  // Static!!!
 {
    EPNAME("do_PrepAdd4Real");
-   char *oldpath, lclpath[XrdOlbMAX_PATH_LEN+1];
-
-// Generate the true local path
-//
-   oldpath = pargs->path;
-   if (Config.lcl_N2N)
-      if (Config.lcl_N2N->lfn2pfn(oldpath,lclpath,sizeof(lclpath))) return 0;
-         else pargs->path = lclpath;
 
 // Check if this file is not online, prepare it
 //
@@ -1053,16 +1045,14 @@ int XrdOlbServer::do_PrepAdd4Real(XrdOlbPrepArgs *pargs)  // Static!!!
           Say.Emsg("Server", "staging disallowed; ignoring prep",
                           pargs->user, pargs->reqid);
           else if (!Xmi_Prep 
-               ||  !Xmi_Prep->Prep(pargs->reqid, oldpath,
+               ||  !Xmi_Prep->Prep(pargs->reqid, pargs->path,
                                   (index(pargs->mode, 'w') ? XMI_RW:0)))
                   PrepQ.Add(*pargs);
-       pargs->path = oldpath;
        return 0;
       }
 
 // File is already online, so we are done
 //
-   pargs->path = oldpath;
    Inform("avail", pargs);
    return 0;
 }
@@ -1535,8 +1525,7 @@ int XrdOlbServer::do_Space(char *rid)
 //
 int XrdOlbServer::do_State(char *rid,int reset)
 {
-   char *pp, *tp, respbuff[2048];
-   char lclpath[XrdOlbMAX_PATH_LEN+1];
+   char *tp, respbuff[2048];
 
 // Process: <id> state <path>
 //          <id> statf <path>
@@ -1552,16 +1541,9 @@ int XrdOlbServer::do_State(char *rid,int reset)
              "%s have %s %s\n", rid, Config.PathList.Type(tp), tp));
    if (!Manager.hasData) return 0;
 
-// Generate the true local path
-//
-   if (Config.lcl_N2N)
-      if (Config.lcl_N2N->lfn2pfn(tp,lclpath,sizeof(lclpath))) return 0;
-         else pp = lclpath;
-      else pp = tp;
-
 // Do a stat, respond if we have the file
 //
-   if (isOnline(pp, 0, Link))
+   if (isOnline(tp, 0, Link))
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
              "%s have %s %s\n", rid, Config.PathList.Type(tp), tp));
    return 0;
@@ -1833,10 +1815,18 @@ int XrdOlbServer::isOnline(char *path, int upt, XrdNetLink *myLink) // Static!!!
 {
    struct stat buf;
    struct utimbuf times;
+   char *lclpath, lclbuff[XrdOlbMAX_PATH_LEN+1];
+
+// Generate the true local path
+//
+   lclpath = path;
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(lclpath,lclbuff,sizeof(lclbuff))) return 0;
+         else lclpath = lclbuff;
 
 // Do a stat
 //
-   if (stat(path, &buf))
+   if (stat(lclpath, &buf))
       if (Config.DiskSS && PrepQ.Exists(path)) return 1;
          else return 0;
 
@@ -1846,7 +1836,7 @@ int XrdOlbServer::isOnline(char *path, int upt, XrdNetLink *myLink) // Static!!!
       {if (upt)
           {times.actime = time(0);
            times.modtime = buf.st_mtime;
-           utime(path, &times);
+           utime(lclpath, &times);
           }
        return 1;
       }

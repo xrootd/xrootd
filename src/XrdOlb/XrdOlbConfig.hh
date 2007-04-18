@@ -159,6 +159,7 @@ int  xpidf(XrdOucError *edest, XrdOucStream &CFile);
 int  xping(XrdOucError *edest, XrdOucStream &CFile);
 int  xport(XrdOucError *edest, XrdOucStream &CFile);
 int  xprep(XrdOucError *edest, XrdOucStream &CFile);
+int  xprepm(XrdOucError *edest, XrdOucStream &CFile);
 int  xrmtrt(XrdOucError *edest, XrdOucStream &CFile);
 int  xrole(XrdOucError *edest, XrdOucStream &CFile);
 int  xsched(XrdOucError *edest, XrdOucStream &CFile);
