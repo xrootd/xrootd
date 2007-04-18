@@ -32,26 +32,29 @@
   
 struct XrdOucMsubsInfo
 {
-const char      *Tid;
+const char      *Tid;       // $TID   or $RID
 XrdOucEnv       *Env;
 XrdOucName2Name *N2N;
-const char      *lfn;
-const char      *lfn2;
+const char      *lfn;       // $LFN
+const char      *lfn2;      // $LFN2  or $NOTIFY
+const char      *misc;      // $OPTS
 char            *pfnbuff;
 char            *rfnbuff;
 char            *pfn2buff;
 char            *rfn2buff;
-mode_t           Mode;
-int              Oflag;
+mode_t           Mode;      // $FMODE or $PRTY
+int              Oflag;     // $OFLAG
 char             mbuff[12];
 char             obuff[4];
 
              XrdOucMsubsInfo(const char *tid, XrdOucEnv *envP, 
                              XrdOucName2Name *n2np,
                              const char *lfnP, const char *lfn2P,
-                             mode_t mode=0,    int ofl=0)
+                             mode_t mode=0,    int ofl=0,
+                             const char *Opts=0)
                             : Tid(tid), Env(envP), N2N(n2np), 
-                              lfn(lfnP), lfn2(lfn2P), Mode(mode), Oflag(ofl)
+                              lfn(lfnP), lfn2(lfn2P), misc(Opts), Mode(mode), 
+                              Oflag(ofl)
                               {pfnbuff = rfnbuff = pfn2buff = rfn2buff = 0;}
             ~XrdOucMsubsInfo(){if (pfnbuff ) free(pfnbuff);
                                if (rfnbuff ) free(rfnbuff);
@@ -77,9 +80,10 @@ private:
 char *getVal(XrdOucMsubsInfo &Info, int vNum);
 
 enum vNum {vLFN =  1, vPFN =  2, vRFN =  3, vLFN2 =  4, vPFN2 =  5, vRFN2 =  6,
-           vFM  =  7, vOFL =  8, vUSR =  9, vHST  = 10, vTID  = 11};
+           vFM  =  7, vOFL =  8, vUSR =  9, vHST  = 10, vTID  = 11,
+           vNFY = 12, vOPT = 13, vPTY = 14, vRID  = 15};
 
-static const int   vMax = 12;
+static const int   vMax = 16;
 static const char *vName[vMax];
 
 XrdOucError *eDest;

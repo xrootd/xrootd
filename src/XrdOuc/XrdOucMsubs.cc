@@ -42,9 +42,13 @@ XrdOucMsubs::XrdOucMsubs(XrdOucError *errp)
        vName[vPFN2] = "$PFN2";
        vName[vRFN2] = "$RFN2";
        vName[vFM]   = "$FMODE";
+       vName[vNFY]  = "$NOTIFY";
        vName[vOFL]  = "$OFLAG";
+       vName[vOPT]  = "$OPTS";
+       vName[vPTY]  = "$PRTY";
        vName[vUSR]  = "$USER";
        vName[vHST]  = "$HOST";
+       vName[vRID]  = "$RID";
        vName[vTID]  = "$TID";
       }
     mText = 0; 
@@ -160,6 +164,10 @@ char *XrdOucMsubs::getVal(XrdOucMsubsInfo &Info, int vNum)
                   Info.rfnbuff = strdup(buff);
                   return Info.rfnbuff;
 
+      case vLFN2:
+      case vNFY:  if (Info.lfn2) return (char *)Info.lfn2;
+                  break;
+
       case vPFN2: if (!Info.lfn2) break;
                   if (!Info.N2N) return (char *)Info.lfn2;
                   if (Info.pfn2buff)   return Info.pfn2buff;
@@ -186,11 +194,22 @@ char *XrdOucMsubs::getVal(XrdOucMsubsInfo &Info, int vNum)
                           }
                   *op = '\0';
                   return Info.obuff;
+
+      case vOPT:  if (Info.misc) return (char *)Info.misc;
+                  break;
+
+      case vPTY:  sprintf(Info.mbuff, "%d", Info.Mode);
+                  return Info.mbuff;
+
       case vHST:  if ((op = Info.Env->Get(SEC_HOST))) return op;
                   break;
+
       case vUSR:  if ((op = Info.Env->Get(SEC_USER))) return op;
                   break;
+
+      case vRID:
       case vTID:  return (char *)Info.Tid;
+
       default:    return (char *)"$";
      }
    return (char *)vName[vNum];

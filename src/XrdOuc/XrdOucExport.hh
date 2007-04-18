@@ -64,6 +64,11 @@
 #define XRDEXP_ROOTDIR    0x0000000001000000LL
 #define XRDEXP_REMOTE     0x0000000002000000LL
 
+// The following options are prescreened elsewhere
+//
+#define XRDEXP_NOLK       0LL
+#define XRDEXP_NOLK_X     0LL
+
 /******************************************************************************/
 /*                       C l a s s   X r d E x p o r t                        */
 /******************************************************************************/

@@ -77,7 +77,9 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
         {"ssdec",         XRDEXP_NOSSDEC, 0,              XRDEXP_NOSSDEC_X},
         {"local",         XRDEXP_GLBLRO,  XRDEXP_LOCAL,   XRDEXP_LOCAL_X},
         {"global",        XRDEXP_LOCAL,   0,              XRDEXP_LOCAL_X},
-        {"globalro",      XRDEXP_LOCAL,   XRDEXP_GLBLRO,  XRDEXP_GLBLRO_X}
+        {"globalro",      XRDEXP_LOCAL,   XRDEXP_GLBLRO,  XRDEXP_GLBLRO_X},
+        {"lock",          XRDEXP_NOLK,    0,              XRDEXP_NOLK_X},
+        {"nolock",        0,              XRDEXP_NOLK,    XRDEXP_NOLK_X}
        };
     int i, numopts = sizeof(rpopts)/sizeof(struct rpathopts);
     char *val;
