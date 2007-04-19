@@ -199,6 +199,7 @@ int XrdOdcConfig::ConfigXeq(char *var, XrdOucStream &Config)
    //
    TS_Xeq("conwait",       xconw);
    TS_Xeq("manager",       xmang);
+   TS_Xeq("adminpath",     xapath);
    TS_Xeq("olbapath",      xapath);
    TS_Xeq("request",       xreqs);
    TS_Xeq("trace",         xtrac);
