@@ -82,7 +82,7 @@ inline XrdOucPList *First() {return next;}
 
 inline void        Insert(XrdOucPList *newitem)
                    {XrdOucPList *pp = 0, *cp = next;
-                    while(cp && newitem->pathlen < cp->pathlen) {pp=cp;cp=next;}
+                    while(cp && newitem->pathlen < cp->pathlen) {pp=cp;cp=cp->next;}
                     if (pp) {newitem->next = pp->next; pp->next = newitem;}
                        else {newitem->next = next;         next = newitem;}
                    }
