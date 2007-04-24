@@ -147,7 +147,7 @@ int XrdNetDNS::getAddrName(const char *InetName,
 
 // Max 10 addresses and names
 //
-   maxipa = (maxipa > 1 && maxipa < 10) ? maxipa : 1;
+   maxipa = (maxipa > 1 && maxipa <= 10) ? maxipa : 1;
 
 // Number of addresses
    struct sockaddr_in ip[10];
