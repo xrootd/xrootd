@@ -120,7 +120,7 @@ void print_summary(const char* src, const char* dst, unsigned long long bytesrea
    COUT(("[xrdcp] # Data Copied [bytes]      : %lld\n",bytesread));
    COUT(("[xrdcp] # Realtime [s]             : %f\n",abs_time/1000.0));
    if (abs_time > 0) {
-      COUT(("[xrdcp] # Eff.Copy. Rate[Mb/s]     : %f\n",bytesread/abs_time/1000.0));
+      COUT(("[xrdcp] # Eff.Copy. Rate[MB/s]     : %f\n",bytesread/abs_time/1000.0));
    }
 #ifndef WIN32
    if (md5) {
