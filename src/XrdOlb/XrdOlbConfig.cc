@@ -690,7 +690,7 @@ int XrdOlbConfig::ConfigN2N()
 
 // Get the Object now
 //
-   lcl_N2N = ep(&Say,ConfigFN,(N2N_Parms ? N2N_Parms : ""),LocalRoot,0);
+   lcl_N2N = ep(&Say,ConfigFN,(N2N_Parms ? N2N_Parms : ""),LocalRoot,RemotRoot);
    PrepQ.setParms(lcl_N2N);
    return lcl_N2N == 0;
 }
