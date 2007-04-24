@@ -878,22 +878,7 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 
     openFileRequest.header.requestid = kXR_open;
 
-    // Now set the options field basing on user's requests
-    // We want also to avoid an explicit stat request
-    // Note: some older server versions expose a bug associated to kXR_retstat
-    if ( fConnModule->GetServerProtocol() < 0x00000270 ) {
-      if (options & kXR_retstat)
-	options ^= kXR_retstat;
-
-       Info(XrdClientDebug::kHIDEBUG, "LowOpen",
-            "Old server proto version(" << fConnModule->GetServerProtocol() <<
-	    ". kXR_retstat is now disabled. Current open options: " << options);
-
-       openFileRequest.open.options = options;
-
-    }
-    else
-      openFileRequest.open.options = options | kXR_retstat;
+    openFileRequest.open.options = options | kXR_retstat;
 
     // Set the open mode field
     openFileRequest.open.mode = mode;
@@ -1006,9 +991,8 @@ bool XrdClient::Close() {
     closeFileRequest.close.requestid = kXR_close;
     memcpy(closeFileRequest.close.fhandle, fHandle, sizeof(fHandle) );
     closeFileRequest.close.dlen = 0;
-  
-    fConnModule->SendGenCommand(&closeFileRequest, 0,
-				0, 0, FALSE, (char *)"Close");
+ 
+    fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
   
     // No file is opened for now
     fOpenPars.opened = FALSE;

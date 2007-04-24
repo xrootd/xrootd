@@ -427,6 +427,18 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 	Info(XrdClientDebug::kHIDEBUG,
 	     "SendGenCommand","Sending command " << CmdName);
 
+        // Note: some older server versions expose a bug associated to kXR_retstat
+        if ( (req->header.requestid == kXR_open) &&
+             (GetServerProtocol() < 0x00000270) ) {
+           if (req->open.options & kXR_retstat)
+	     req->open.options ^= kXR_retstat;
+
+           Info(XrdClientDebug::kHIDEBUG, "SendGenCommand",
+            "Old server proto version(" << GetServerProtocol() <<
+	    ". kXR_retstat is now disabled. Current open options: " << req->open.options);
+        }
+
+ 
 
 	XrdClientMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
 						       answMoreDataAllocated, 
