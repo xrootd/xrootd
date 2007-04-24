@@ -2204,9 +2204,9 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &CFile)
     char *val;
     int i;
 
-// If we are a server, ignore this option
+// If we are a manager, ignore this option
 //
-   if (!isManager) return 0;
+   if (isManager) return 0;
 
 // Get path type
 //
