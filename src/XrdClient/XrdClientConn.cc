@@ -416,6 +416,10 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
     if (req->header.requestid == kXR_open)
 	fOpenError = (XErrorCode)0;
 
+
+
+
+
     while (!abortcmd && !resp) {
 	abortcmd = FALSE;
 
@@ -1211,14 +1215,21 @@ ERemoteServerType XrdClientConn::DoHandShake(short int log) {
     ERemoteServerType type;
 
     // Get the physical connection
-    XrdClientPhyConnection *phyconn =
-	ConnectionManager->GetConnection(log)->GetPhyConnection();
+    XrdClientLogConnection *lcn = ConnectionManager->GetConnection(log);
+
+    if (!lcn) return kSTError;
+
+    XrdClientPhyConnection *phyconn = lcn->GetPhyConnection();
 
     if (!phyconn) return kSTError;
 
-    if (phyconn->fServerType == kSTBaseXrootd) {
 
-	Info(XrdClientDebug::kHIDEBUG,
+    {
+      XrdClientPhyConnLocker pl(phyconn);
+
+      if (phyconn->fServerType == kSTBaseXrootd) {
+
+	Info(XrdClientDebug::kUSERDEBUG,
 	     "DoHandShake",
 	     "The physical channel is already bound to a load balancer"
 	     " server [" <<
@@ -1228,67 +1239,69 @@ ERemoteServerType XrdClientConn::DoHandShake(short int log) {
 
 	if (!fLBSUrl || (fLBSUrl->Host == "")) {
 
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "DoHandShake", "Setting Load Balancer Server Url = " <<
-		 fUrl.GetUrl() );
+	  Info(XrdClientDebug::kHIDEBUG,
+	       "DoHandShake", "Setting Load Balancer Server Url = " <<
+	       fUrl.GetUrl() );
 
-	    // Save the url of load balancer server for future uses...
-	    fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
-	    if(!fLBSUrl) {
-		Error("DoHandShake","Object creation "
-		      " failed. Probable system resources exhausted.");
-		abort();
-	    }
+	  // Save the url of load balancer server for future uses...
+	  fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
+	  if(!fLBSUrl) {
+	    Error("DoHandShake","Object creation "
+		  " failed. Probable system resources exhausted.");
+	    abort();
+	  }
 	}
 	return kSTBaseXrootd;
-    }
+      }
 
 
-    if (phyconn->fServerType == kSTDataXrootd) {
+      if (phyconn->fServerType == kSTDataXrootd) {
 
 	if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "DoHandShake",
-		 "The physical channel is already bound to the data server"
-		 " [" << fUrl.Host << ":" << fUrl.Port << "]. No handshake is needed.");
+	  Info(XrdClientDebug::kHIDEBUG,
+	       "DoHandShake",
+	       "The physical channel is already bound to the data server"
+	       " [" << fUrl.Host << ":" << fUrl.Port << "]. No handshake is needed.");
 
 	fServerProto = phyconn->fServerProto;
 
 	return kSTDataXrootd;
-    }
+      }
 
 
-    type = phyconn->DoHandShake(xbody);
-    if (type == kSTError) return type;
+      type = phyconn->DoHandShake(xbody);
+      if (type == kSTError) return type;
 
 
-    // Check if the server is the eXtended rootd or not, checking the value 
-    // of type
-    fServerProto = xbody.protover;
+      // Check if the server is the eXtended rootd or not, checking the value 
+      // of type
+      fServerProto = xbody.protover;
 
-    // This is useful for other streams trying to use the same phyconn
-    // they will be able to get the proto version
-    phyconn->fServerProto = fServerProto;
+      // This is useful for other streams trying to use the same phyconn
+      // they will be able to get the proto version
+      phyconn->fServerProto = fServerProto;
 
-    if (type == kSTBaseXrootd) {
+      if (type == kSTBaseXrootd) {
 	// This is a load balancing server
 	if (!fLBSUrl || (fLBSUrl->Host == "")) {
 
-	    Info(XrdClientDebug::kHIDEBUG, "DoHandShake", "Setting Load Balancer Server Url = " <<
-		 fUrl.GetUrl() );
+	  Info(XrdClientDebug::kHIDEBUG, "DoHandShake", "Setting Load Balancer Server Url = " <<
+	       fUrl.GetUrl() );
 
-	    // Save the url of load balancer server for future uses...
-	    fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
-	    if (!fLBSUrl) {
-		Error("DoHandShake","Object creation failed.");
-		abort();
-	    }
+	  // Save the url of load balancer server for future uses...
+	  fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
+	  if (!fLBSUrl) {
+	    Error("DoHandShake","Object creation failed.");
+	    abort();
+	  }
 	}
        
+      }
+
+      return type;
+
+
     }
-
-    return type;
-
 }
 
 //_____________________________________________________________________________

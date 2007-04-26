@@ -669,6 +669,7 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
    initHS.fourth = (kXR_int32)htonl(4);
    initHS.fifth  = (kXR_int32)htonl(2012);
 
+
    // Send to the server the initial hand-shaking message asking for the 
    // kind of server
    len = sizeof(initHS);

@@ -43,6 +43,18 @@ class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler,
 private:
    XrdClientVector<XrdClientLogConnection*> fLogVec;
    XrdOucHash<XrdClientPhyConnection> fPhyHash;
+   XrdOucRash<XrdClientPhyConnection*, XrdOucString> fPhyKeysHash;
+
+   // Phyconns are inserted here when they have to be destroyed later
+   // All the phyconns here are disconnected.
+   XrdClientVector<XrdClientPhyConnection *> fPhyTrash;
+
+   // To arbitrate between multiple threads trying to connect to the same server.
+   // The first has to connect, all the others have to wait for the completion
+   // The meaning of this is: if there is a condvar associated to the hostname key,
+   //  then wait for it to be signalled before deciding what to do
+   XrdOucHash<XrdOucCondVar> fConnectingCondVars;
+
    XrdOucRecMutex                fMutex; // mutex used to protect local variables
                                       // of this and TXLogConnection, TXPhyConnection
                                       // classes; not used to protect i/o streams
@@ -73,6 +85,11 @@ public:
    int           WriteRaw(short LogConnectionID, const void *buffer, 
                           int BufferLength, int substreamid);
 
+
+  friend int DisconnectElapsedPhyConn(const char *,
+				      XrdClientPhyConnection *, void *);
+  friend int DestroyPhyConn(const char *,
+			    XrdClientPhyConnection *, void *);
 };
 
 

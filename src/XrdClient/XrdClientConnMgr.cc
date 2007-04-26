@@ -71,11 +71,14 @@ void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 }
 
 //_____________________________________________________________________________
-static int DisconnectElapsed(const char *key,
-                             XrdClientPhyConnection *p, void *)
+int DisconnectElapsedPhyConn(const char *key,
+			     XrdClientPhyConnection *p, void *voidcmgr)
 {
-   // Function applied to the hash table to disconnect the elapsed
+   // Function applied to the hash table to disconnect the unused elapsed
    // physical connections
+
+   XrdClientConnectionMgr *cmgr = (XrdClientConnectionMgr *)voidcmgr;
+   assert(cmgr != 0);
 
    if (p) {
       if ((p->GetLogConnCnt() <= 0) && 
@@ -83,34 +86,44 @@ static int DisconnectElapsed(const char *key,
          p->Touch();
          p->Disconnect();
       }
-   }
+      
+      if ((p->GetLogConnCnt() <= 0) && !p->IsValid()) {
+	
+	// We also have to remove the corresponding key from the keys hash
+	cmgr->fPhyKeysHash.Del(p);
+	  
+	// And then add the instance to the trashed list
+	cmgr->fPhyTrash.Push_back(p);
 
+	// And remove the current from here
+	return -1;
+      }
+   }
+   
    // Process next
    return 0;
 }
 
 //_____________________________________________________________________________
-static int DestroyElapsed(const char *,
-                          XrdClientPhyConnection *p, void *)
+int DestroyPhyConn(const char *key,
+			  XrdClientPhyConnection *p, void *voidcmgr)
 {
-   // Function applied to the hash table to destroy the disconnected, elapsed
-   // physical connections.
-   // Doing this way, a phyconn in async mode has all the time it needs
-   // to terminate its reader thread.
+  // Function applied to the hash table to destroy all the phyconns
 
-   int rc = 0;
-   if (p) {
-      // If a single physical connection has no linked logical connections,
-      // then we kill it if its TTL has expired after disconnection
-      if ((p->GetLogConnCnt() <= 0) && 
-         p->ExpiredTTL() && !(p->IsValid())) {
-         rc = -1;
-      }
-   }
+  XrdClientConnectionMgr *cmgr = (XrdClientConnectionMgr *)voidcmgr;
+  assert(cmgr != 0);
 
-   // Delete this item and go to next
-   return rc;
+  if (p) {
+    
+    // We also have to remove the corresponding key from the keys hash
+    cmgr->fPhyKeysHash.Del(p);
+    delete(p);
+  }
+
+   // Process next, remove current item
+   return -1;
 }
+
 
 //_____________________________________________________________________________
 XrdClientConnectionMgr::XrdClientConnectionMgr() : fGarbageColl(0)
@@ -159,6 +172,8 @@ XrdClientConnectionMgr::~XrdClientConnectionMgr()
    }
 
    GarbageCollect();
+
+   fPhyHash.Apply(DestroyPhyConn, this);
 }
 
 //_____________________________________________________________________________
@@ -175,13 +190,20 @@ void XrdClientConnectionMgr::GarbageCollect()
    if (fPhyHash.Num() > 0) {
 
       // Cycle all the physical connections to disconnect the elapsed ones
-      fPhyHash.Apply(DisconnectElapsed, this);
+      fPhyHash.Apply(DisconnectElapsedPhyConn, this);
 
-      // Cycle all the physical connections to destroy the elapsed once more
-      // after a disconnection. Doing this way, a phyconn in async mode has
-      // all the time it needs to terminate its reader thread
-      fPhyHash.Apply(DestroyElapsed, this);
    }
+
+   // Cycle all the trashed physical connections to destroy the elapsed once more
+   // after a disconnection. Doing this way, a phyconn in async mode has
+   // all the time it needs to terminate its reader thread
+   for (int i = fPhyTrash.GetSize()-1; i >= 0; i--) {
+     if (fPhyTrash[i]->ExpiredTTL()) {
+       delete fPhyTrash[i];
+       fPhyTrash.Erase(i);
+     }
+   }
+
 }
 
 //_____________________________________________________________________________
@@ -199,6 +221,8 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
    XrdClientLogConnection *logconn = 0;
    XrdClientPhyConnection *phyconn = 0;
+   XrdOucCondVar *cnd = 0;
+
    short int newid = -1;
    bool phyfound = FALSE;
 
@@ -231,24 +255,60 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    XrdOucString key2(RemoteServ.User.c_str(), 256); key2 += '@';
    key2 += RemoteServ.HostAddr; key2 += ':'; key2 += RemoteServ.Port;
 
-   { XrdOucMutexHelper mtx(fMutex);
+   do {
 
-      // If we already have a physical connection to that host:port, 
-      // then we use that
-      if (fPhyHash.Num() > 0) {
-         XrdClientPhyConnection *p = 0;
-         if (((p = fPhyHash.Find(key1.c_str())) ||
-              (p = fPhyHash.Find(key2.c_str()))) && p->IsValid()) {
-            // We link that physical connection to the new logical connection
-            phyconn = p;
-            phyconn->CountLogConn();
-            phyconn->Touch();
-            logconn->SetPhyConnection(phyconn);
-            phyfound = TRUE;
-         }
-      }
-   }
+     
+       fMutex.Lock();
+       cnd = 0;
 
+       cnd = fConnectingCondVars.Find(key1.c_str());
+       if (!cnd) cnd = fConnectingCondVars.Find(key2.c_str());
+
+       // If there are no connection attempts in progress...
+       if (!cnd) {
+
+	 // If we already have a physical connection to that host:port, 
+	 // then we use that
+	 if (fPhyHash.Num() > 0) {
+	   XrdClientPhyConnection *p = 0;
+	   if (((p = fPhyHash.Find(key1.c_str())) ||
+		(p = fPhyHash.Find(key2.c_str()))) && p->IsValid()) {
+	     // We link that physical connection to the new logical connection
+	     phyconn = p;
+	     phyconn->CountLogConn();
+	     phyconn->Touch();
+	     logconn->SetPhyConnection(phyconn);
+
+	     phyfound = TRUE;
+	   }
+	   else {
+	     // no connection attempts in progress and no already established connections
+	     // Mark this as an ongoing attempt
+	     // Now we have a pending conn attempt
+	     XrdOucCondVar *c;
+	     c = new XrdOucCondVar(1);
+	     fConnectingCondVars.Add(key1.c_str(), c);
+	   }
+	 }
+
+	 fMutex.UnLock();
+       }
+       else {
+	 // this is an attempt which must wait for the result of a previous one
+	 // In any case after the wait we loop and recheck
+	 cnd->Lock();
+	 fMutex.UnLock();
+	 cnd->Wait();
+	 cnd->UnLock();
+       }
+
+  
+
+
+   } while (cnd); // here cnd means "if there is a condvar to wait on"
+
+   // We are here if cnd == 0
+  
    if (!phyfound) {
       
       Info(XrdClientDebug::kHIDEBUG,
@@ -277,6 +337,20 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 		 " succesfully created.");
 
       } else {
+
+	// The connection attempt failed, so we signal all the threads waiting for a result
+	{
+	  XrdOucMutexHelper mtx(fMutex);
+	  cnd = fConnectingCondVars.Find(key1.c_str());
+	  if (cnd) {
+	    cnd->Lock();
+	    cnd->Broadcast();
+	    fConnectingCondVars.Del(key1.c_str());
+	    cnd->UnLock();
+
+	    delete cnd;
+	  }
+	}
 	 delete logconn;
 	 delete phyconn;
 	 
@@ -292,8 +366,10 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       XrdOucMutexHelper mtx(fMutex);
 
       // Then, if needed, we push the physical connection into its vector
-      if (!phyfound)
-         fPhyHash.Add(key1.c_str(), phyconn);
+      if (!phyfound) {
+         fPhyHash.Rep(key1.c_str(), phyconn);
+	 fPhyKeysHash.Rep(phyconn, key1);
+      }
 
 //
 //  Fix for serious bug affecting cases with more of 32767 logical connections
@@ -333,7 +409,23 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
               "LogConn: size:" << fLogVec.GetSize() << " count: " << logCnt <<
               "PhyConn: size:" << fPhyHash.Num());
       }
-   }
+   
+
+
+      // The connection attempt went ok, so we signal all the threads waiting for a result
+      if (!phyfound) {
+	cnd = fConnectingCondVars.Find(key1.c_str());
+	if (cnd) {
+	  cnd->Lock();
+	  cnd->Broadcast();
+	  fConnectingCondVars.Del(key1.c_str());
+	  cnd->UnLock();
+
+	  delete cnd;
+	}
+      }
+
+   } // mutex
 
    return newid;
 }
@@ -362,7 +454,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
 	 // Note that here we cannot destroy the phyconn, since there can be other 
 	 // logconns pointing to it the phyconn will be removed when there are no 
 	 // more logconns pointing to it
-	 //fLogVec[LogConnectionID]->GetPhyConnection()->SetTTL(0);
+
 	 fLogVec[LogConnectionID]->GetPhyConnection()->Disconnect();
       }
     
