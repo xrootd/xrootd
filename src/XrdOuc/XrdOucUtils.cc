@@ -203,7 +203,6 @@ int XrdOucUtils::makePath(char *path, mode_t mode)
         {*next_path = '\0';
          if (MAKEDIR(path, mode))
             if (errno != EEXIST) return -errno;
-                  else chmod(path, mode);
          *next_path = '/';
          next_path = next_path+1;
         }
