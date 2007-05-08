@@ -288,7 +288,7 @@ char                       isDead;
 char                       isBound;
 char                       isNOP;
 
-static const int           maxPio = 2;
+static const int           maxPio = 4;
 XrdXrootdPio              *pioFirst;
 XrdXrootdPio              *pioLast;
 XrdXrootdPio              *pioFree;

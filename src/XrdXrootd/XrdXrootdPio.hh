@@ -52,7 +52,7 @@ inline void               Set(XrdXrootdFile *theFile, long long theOffset,
 
 private:
 
-static const int          FreeMax = 100;
+static const int          FreeMax = 256;
 static XrdOucMutex        myMutex;
 static XrdXrootdPio      *Free;
 static int                FreeNum;
