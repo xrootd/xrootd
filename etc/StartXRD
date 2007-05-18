@@ -37,16 +37,6 @@ TEST=
 
 umask 002
 
-# Determine where the access command resides
-#
-  if test -x /usr/bin/access; then
-     ACCESS=/usr/bin/access
-  elif test -x /bin/access; then
-     ACCESS=/bin/access
-  else
-     ACCESS=/usr/local/bin/access
-  fi
-
 ##############################################################################
 #                           s u b r o u t i n e s                            #
 ##############################################################################
@@ -66,9 +56,10 @@ MustExist () {
 
 Writable () {
     Debug "Checking writability of $1 $2 ..."
-    $ACCESS w $2
-    if test $? -gt 0 ; then
-       Notify "$1 $2 is not writable by $MYNAME."
+    if test -r $2 ; then
+       if test ! -w $2 ; then
+          Notify "$1 $2 is not writable by $MYNAME."
+       fi
     fi
     }
   

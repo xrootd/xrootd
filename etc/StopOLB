@@ -16,6 +16,7 @@ MYNAME=`/usr/ucb/whoami`
 else
 MYNAME=`/usr/bin/whoami`
 fi
+CONDCHK=0
 
 ##############################################################################
 #                           s u b r o u t i n e s                            #
@@ -73,8 +74,10 @@ Check(){
 while test -n "$1"; do
      if test -n "'$1'" -a "'$1'" = "'-d'"; then
         set -x
+   elif test -n "'$1'" -a "'$1'" = "'-c'"; then
+        CONDCHK=1
    else
-        Notify "Invalid option '$1'."
+        /bin/echo StopOLB: Invalid option - $1.
      fi
    shift
    done
@@ -84,7 +87,12 @@ while test -n "$1"; do
   set -- `/bin/ps -e -o pid -o args | /bin/grep /opt/xrootd/ | /bin/grep /bin/olbd | /bin/grep -v grep | /bin/awk '{print $1}'`
 
   if [ -z "$1" ]; then
-     Emsg "Unable to find OLB process number; is it running?"
+     msg="Unable to find OLB process number"
+     if [ $CONDCHK -ne 1 ]; then
+        Emsg "$msg; is it running?"
+     fi
+     /bin/echo StopXRD: $msg\; continuing.
+     exit 0
   fi
 
 # Kill each process that we have found
