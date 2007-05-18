@@ -340,11 +340,23 @@ void XrdSysPrivGuard::Init(uid_t uid, gid_t gid)
 
 #if !defined(WINDOWS)
    uid_t ruid = 0, euid = 0, suid = 0;
-   if (getresuid(&ruid, &euid, &suid) == 0 && (euid != uid) && !ruid) {
-      // Change temporarly identity
-      if (XrdSysPriv::ChangeTo(uid, gid) != 0)
-         valid = 0;
-      dum = 0;
+   gid_t rgid = 0, egid = 0, sgid = 0;
+   if (getresuid(&ruid, &euid, &suid) == 0 &&
+       getresgid(&rgid, &egid, &sgid) == 0) {
+     if ((euid != uid) || (egid != gid)) {
+       if (!ruid) {
+	 // Change temporarly identity
+	 if (XrdSysPriv::ChangeTo(uid, gid) != 0)
+	   valid = 0;
+	 dum = 0;
+       } else {
+	 // Change requested but not enough privileges
+	 valid = 0;
+       }
+     }
+   } else {
+     // Something bad happened: memory corruption?
+     valid = 0;
    }
 #endif
    // Debug hook
