@@ -29,6 +29,8 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 
+#include <assert.h>
+
 #ifdef AIX
 #include <sys/sem.h>
 #else
