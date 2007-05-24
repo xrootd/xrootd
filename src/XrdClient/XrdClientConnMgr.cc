@@ -288,8 +288,8 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	     // Mark this as an ongoing attempt
 	     // Now we have a pending conn attempt
 	     XrdOucCondVar *c;
-	     c = new XrdOucCondVar(1);
-	     fConnectingCondVars.Add(key1.c_str(), c);
+	     c = new XrdOucCondVar(0);
+	     fConnectingCondVars.Add(key1.c_str(), c, Hash_keep);
 	   }
 	 }
 
