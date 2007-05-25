@@ -223,7 +223,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
    XrdClientLogConnection *logconn = 0;
    XrdClientPhyConnection *phyconn = 0;
-   XrdOucCondVar *cnd = 0;
+   CndVarInfo *cnd = 0;
 
    short int newid = -1;
    bool phyfound = FALSE;
@@ -287,8 +287,8 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	     // no connection attempts in progress and no already established connections
 	     // Mark this as an ongoing attempt
 	     // Now we have a pending conn attempt
-	     XrdOucCondVar *c;
-	     c = new XrdOucCondVar(0);
+	     CndVarInfo *c;
+	     c = new CndVarInfo();
 	     fConnectingCondVars.Add(key1.c_str(), c, Hash_keep);
 	   }
 	 }
@@ -298,10 +298,12 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
        else {
 	 // this is an attempt which must wait for the result of a previous one
 	 // In any case after the wait we loop and recheck
-	 cnd->Lock();
+	 cnd->cv.Lock();
+	 cnd->cnt++;
 	 fMutex.UnLock();
-	 cnd->Wait();
-	 cnd->UnLock();
+	 cnd->cv.Wait();
+	 cnd->cnt--;
+	 cnd->cv.UnLock();
        }
 
   
@@ -343,14 +345,21 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	// The connection attempt failed, so we signal all the threads waiting for a result
 	{
 	  XrdOucMutexHelper mtx(fMutex);
+	  int cnt;
+
 	  cnd = fConnectingCondVars.Find(key1.c_str());
 	  if (cnd) {
-	    cnd->Lock();
-	    cnd->Broadcast();
+	    cnd->cv.Lock();
+	    cnd->cv.Broadcast();
 	    fConnectingCondVars.Del(key1.c_str());
-	    cnd->UnLock();
+	    cnt = cnd->cnt;
+	    cnd->cv.UnLock();
 
-	    delete cnd;
+	    if (!cnt) {
+	      Info(XrdClientDebug::kHIDEBUG, "Connect",
+		   "Destroying connection condvar for " << key1 );
+	      delete cnd;
+	    }
 	  }
 	}
 	 delete logconn;
@@ -414,18 +423,24 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    
 
 
-      // The connection attempt went ok, so we signal all the threads waiting for a result
-      if (!phyfound) {
+      // The connection attempt went ok, so we signal all the threads waiting for a result, if we can still find the corresponding condvar
+      int cnt;
+      //      if (!phyfound) {
 	cnd = fConnectingCondVars.Find(key1.c_str());
 	if (cnd) {
-	  cnd->Lock();
-	  cnd->Broadcast();
+	  cnd->cv.Lock();
+	  cnd->cv.Broadcast();
 	  fConnectingCondVars.Del(key1.c_str());
-	  cnd->UnLock();
+	  cnt = cnd->cnt;
+	  cnd->cv.UnLock();
 
-	  delete cnd;
+	  if (!cnt) {
+	    Info(XrdClientDebug::kHIDEBUG, "Connect",
+		 "Destroying connection condvar for " << key1 );
+	    delete cnd;
+	  }
 	}
-      }
+	//      }
 
    } // mutex
 

@@ -53,7 +53,14 @@ private:
    // The first has to connect, all the others have to wait for the completion
    // The meaning of this is: if there is a condvar associated to the hostname key,
    //  then wait for it to be signalled before deciding what to do
-   XrdOucHash<XrdOucCondVar> fConnectingCondVars;
+  class CndVarInfo {
+  public:
+    XrdOucCondVar cv;
+    int cnt;
+    CndVarInfo(): cv(0), cnt(0) {};
+  };
+
+   XrdOucHash<CndVarInfo> fConnectingCondVars;
 
    XrdOucRecMutex                fMutex; // mutex used to protect local variables
                                       // of this and TXLogConnection, TXPhyConnection
