@@ -40,16 +40,18 @@ protected:
     XrdClientSockConnectParms fHost;
 
     bool                      fConnected;
-    bool                      fInterrupt;
+    bool                      fRDInterrupt;
+    bool                      fWRInterrupt;
 
     // Tells if we have to reinit the table of the fd selectors
     // after adding or removing one of them
     bool                      fReinit_fd;
 
     virtual int    SaveSocket() { int fd = fSocket; fSocket = -1;
-	fConnected = 0; fInterrupt = 0; return fd; }
+	fConnected = 0; fRDInterrupt = 0; fWRInterrupt = 0; return fd; }
 
-    void   SetInterrupt() { fInterrupt = 1; }
+    void   SetInterrupt(int which = 0) { if (which == 0 || which == 1) fRDInterrupt = 1;
+                                         if (which == 0 || which == 2) fRDInterrupt = 1; }
 
     // returns the socket descriptor or -1
     int   TryConnect_low(bool isUnix = 0);

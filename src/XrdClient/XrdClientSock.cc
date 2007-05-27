@@ -42,7 +42,8 @@ XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize)
     fHost.TcpHost = Host;
     fHost.TcpWindowSize = windowsize;
     fConnected = FALSE;
-    fInterrupt = FALSE;
+    fRDInterrupt = 0;
+    fWRInterrupt = 0;
     fSocket = -1;
     fRequestTimeout = EnvGetLong(NAME_REQUESTTIMEOUT);
 }
@@ -100,8 +101,6 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
     //   fds_r.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL;
     fds_r.events = POLLIN;
 
-    // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
-    fInterrupt = FALSE;
     while (bytesread < length) {
 
         // We cycle on the poll, ignoring the possible interruptions
@@ -121,7 +120,7 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
          if ((pollRet < 0) && (errno != EINTR))
             return TXSOCK_ERR;
 
-      } while (--timeleft && pollRet <= 0 && !fInterrupt);
+      } while (--timeleft && pollRet <= 0 && !fRDInterrupt);
 
 
       // If we are here, pollRet is > 0 why?
@@ -149,8 +148,8 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
       }
 
       // If we have been interrupt, reset the inetrrupt and exit
-      if (fInterrupt) {
-         fInterrupt = FALSE;
+      if (fRDInterrupt) {
+         fRDInterrupt = 0;
          Error("XrdClientSock::RecvRaw", "got interrupt");
          return TXSOCK_ERR_INTERRUPT;
       }
@@ -205,8 +204,6 @@ int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock)
     // We cycle until we write all we have to write
     // Or until a timeout occurs
 
-    // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
-    fInterrupt = FALSE;
     while (byteswritten < length) {
 
       // We will not wait forever
@@ -220,7 +217,7 @@ int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock)
          if ((pollRet < 0) && (errno != EINTR))
             return TXSOCK_ERR;
 
-      } while (--timeleft && pollRet <= 0 && !fInterrupt);
+      } while (--timeleft && pollRet <= 0 && !fWRInterrupt);
 
       // If we have been timed-out, return a specific error code
       if (timeleft <= 0) { //gEnv
@@ -233,9 +230,9 @@ int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock)
          return TXSOCK_ERR_TIMEOUT;
       }
 
-      // If we have been interrupt, reset the inetrrupt and exit
-      if (fInterrupt) {
-         fInterrupt = FALSE;
+      // If we have been interrupt, reset the interrupt and exit
+      if (fWRInterrupt) {
+         fWRInterrupt = 0;
          Error("XrdClientSock::SendRaw", "got interrupt");
          return TXSOCK_ERR_INTERRUPT;
       }

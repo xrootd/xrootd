@@ -117,8 +117,6 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 
    starttime = time(0);
 
-   // Interrupt may be set by external calls via, e.g., Ctrl-C handlers
-   fInterrupt = FALSE;
    while (bytesread < length) {
 
      // We cycle on the select, ignoring the possible interruptions
@@ -186,7 +184,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	     return TXSOCK_ERR;
 	 }
 
-      } while (selRet <= 0 && !fInterrupt);
+      } while (selRet <= 0 && !fRDInterrupt);
 
       // If we are here, selRet is > 0 why?
       //  Because the timeout and the select error are handled inside the previous loop
@@ -199,8 +197,8 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
       }
 
       // If we have been interrupt, reset the interrupt and exit
-      if (fInterrupt) {
-         fInterrupt = FALSE;
+      if (fRDInterrupt) {
+         fRDInterrupt = 0;
          Error("XrdClientPSock::RecvRaw", "got interrupt");
          return TXSOCK_ERR_INTERRUPT;
       }
