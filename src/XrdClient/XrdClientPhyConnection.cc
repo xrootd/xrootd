@@ -38,6 +38,10 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
    // MsqQ with a stream of TXMessages containing what's happening
    // at the socket level
 
+   // Mask all allowed signals
+   if (thr->MaskSignal(0) != 0)
+      Error("SocketReaderThread", "Warning: problems masking signals");
+
    XrdClientPhyConnection *thisObj;
 
    Info(XrdClientDebug::kHIDEBUG,
@@ -224,9 +228,12 @@ void XrdClientPhyConnection::StartReader() {
       // sleep until at least one thread starts running, which hopefully
       // is not forever.
       int maxRetries = 10;
-      while (--maxRetries >= 0 && !fReaderthreadrunning)
-      {
-	 fReaderCV.Wait(100);
+      while (--maxRetries >= 0) {
+         {  XrdOucMutexHelper l(fMutex);
+            if (fReaderthreadrunning)
+               break;
+         }
+         fReaderCV.Wait(100);
       }
    }
 }
