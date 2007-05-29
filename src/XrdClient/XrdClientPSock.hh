@@ -75,7 +75,8 @@ protected:
 	fSocketPool.Del(0);
 
 	fConnected = 0;
-	fInterrupt = 0;
+	fRDInterrupt = 0;
+	fWRInterrupt = 0;
 
 	if (fd) return *fd;
 	else return 0;
