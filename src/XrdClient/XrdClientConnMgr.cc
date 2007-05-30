@@ -252,6 +252,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    }
 
    // Keys
+   XrdOucString key;
    XrdOucString key1(RemoteServ.User.c_str(), 256); key1 += '@';
    key1 += RemoteServ.Host; key1 += ':'; key1 += RemoteServ.Port;
    XrdOucString key2(RemoteServ.User.c_str(), 256); key2 += '@';
@@ -287,9 +288,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	     // no connection attempts in progress and no already established connections
 	     // Mark this as an ongoing attempt
 	     // Now we have a pending conn attempt
-	     CndVarInfo *c;
-	     c = new CndVarInfo();
-	     fConnectingCondVars.Add(key1.c_str(), c, Hash_keep);
+	     fConnectingCondVars.Add(key1.c_str(), new CndVarInfo(), Hash_keep);
 	   }
 	 }
 
@@ -305,9 +304,6 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	 cnd->cnt--;
 	 cnd->cv.UnLock();
        }
-
-  
-
 
    } while (cnd); // here cnd means "if there is a condvar to wait on"
 
@@ -347,17 +343,19 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	  XrdOucMutexHelper mtx(fMutex);
 	  int cnt;
 
-	  cnd = fConnectingCondVars.Find(key1.c_str());
+          key = key1;
+          cnd = fConnectingCondVars.Find(key.c_str());
+          if (!cnd) { key = key2; cnd = fConnectingCondVars.Find(key.c_str()); }
 	  if (cnd) {
 	    cnd->cv.Lock();
 	    cnd->cv.Broadcast();
-	    fConnectingCondVars.Del(key1.c_str());
+	    fConnectingCondVars.Del(key.c_str());
 	    cnt = cnd->cnt;
 	    cnd->cv.UnLock();
 
 	    if (!cnt) {
 	      Info(XrdClientDebug::kHIDEBUG, "Connect",
-		   "Destroying connection condvar for " << key1 );
+		   "Destroying connection condvar for " << key );
 	      delete cnd;
 	    }
 	  }
@@ -378,7 +376,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound) {
-         fPhyHash.Rep(key1.c_str(), phyconn);
+         fPhyHash.Rep(key1.c_str(), phyconn, 0, Hash_keep);
 	 fPhyKeysHash.Rep(phyconn, key1);
       }
 
@@ -426,17 +424,19 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       // The connection attempt went ok, so we signal all the threads waiting for a result, if we can still find the corresponding condvar
       int cnt;
       //      if (!phyfound) {
-	cnd = fConnectingCondVars.Find(key1.c_str());
+        key = key1;
+        cnd = fConnectingCondVars.Find(key.c_str());
+        if (!cnd) { key = key2; cnd = fConnectingCondVars.Find(key.c_str()); }
 	if (cnd) {
 	  cnd->cv.Lock();
 	  cnd->cv.Broadcast();
-	  fConnectingCondVars.Del(key1.c_str());
+	  fConnectingCondVars.Del(key.c_str());
 	  cnt = cnd->cnt;
 	  cnd->cv.UnLock();
 
 	  if (!cnt) {
 	    Info(XrdClientDebug::kHIDEBUG, "Connect",
-		 "Destroying connection condvar for " << key1 );
+		 "Destroying connection condvar for " << key );
 	    delete cnd;
 	  }
 	}
