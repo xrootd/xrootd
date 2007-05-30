@@ -38,10 +38,6 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
    // MsqQ with a stream of TXMessages containing what's happening
    // at the socket level
 
-   // Mask all allowed signals
-   if (thr->MaskSignal(0) != 0)
-      Error("SocketReaderThread", "Warning: problems masking signals");
-
    XrdClientPhyConnection *thisObj;
 
    Info(XrdClientDebug::kHIDEBUG,
