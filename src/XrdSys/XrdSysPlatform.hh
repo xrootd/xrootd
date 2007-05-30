@@ -26,6 +26,11 @@
 #include <sys/types.h>
 #endif
 
+#ifdef __solaris__
+#define posix_memalign(memp, algn, sz) \
+        ((*memp = memalign(algn, sz)) ? 0 : ENOMEM)
+#endif
+
 #if defined(__linux__) || defined(__macos__)
 
 #define S_IAMB      0x1FF   /* access mode bits */
