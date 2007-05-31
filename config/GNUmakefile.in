@@ -14,9 +14,9 @@
 XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
 
 SERVER  = XrdSfs   XrdAcc XrdOdc \
-          XrdXr    XrdOss   XrdOfs   Xrd XrdOlb  XrdRootd   XrdXrootd
+          XrdOss   XrdOfs   Xrd XrdOlb  XrdRootd   XrdXrootd
 
-XRDCLIENT = XrdClient XrdPosix
+XRDCLIENT = XrdClient XrdPosix XrdPss
 
 XRDMON    = XrdMon
 
@@ -135,6 +135,11 @@ XrdPosix: FORCE
 	$(ECHO)cd src/XrdPosix;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
+XrdPss: FORCE
+	@echo $(XMSG) oss $(XDBG) component...
+	$(ECHO)cd src/XrdPss;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
 XrdSfs: FORCE
 	@echo $(XMSG) sfs $(XDBG) component...
 	$(ECHO)cd src/XrdSfs;\
@@ -183,11 +188,6 @@ XrdSut: FORCE
 Xrd: FORCE
 	@echo $(XMSG) xrd $(XDBG) component...
 	$(ECHO)cd src/Xrd;\
-	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
-
-XrdXr: FORCE
-	@echo $(XMSG) XrdXr $(XDBG) component...
-	$(ECHO)cd src/XrdXr;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdXrootd: FORCE
