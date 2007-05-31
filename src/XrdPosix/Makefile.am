@@ -23,6 +23,5 @@ libXrdPosix_la_SOURCES = \
         XrdPosixXrootd.cc
 
 libXrdPosix_la_LIBADD = ../XrdClient/libXrdClient.la \
-                        ../XrdSec/libXrdSec.la \
                         ../XrdNet/libXrdNet.la \
                         ../XrdOuc/libXrdOuc.la

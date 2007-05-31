@@ -155,7 +155,7 @@ int            XrdPosixXrootd::highFD   = -1;
 int            XrdPosixXrootd::lastFD   = -1;
 int            XrdPosixXrootd::highDir  = -1;
 int            XrdPosixXrootd::lastDir  = -1;
-int            XrdPosixXrootd::Debug    = -2;
+long           XrdPosixXrootd::Debug    = -2;
 const int      XrdPosixXrootd::FDMask   = 0x00003fff;
 const int      XrdPosixXrootd::FDOffs   = 0x00004000;
 const int      XrdPosixXrootd::FDLeft   = 0x7fffC000;
@@ -310,7 +310,7 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 {
    struct rlimit rlim;
    char *cvar;
-   int isize;
+   long isize;
 
 // Compute size of table
 //
@@ -336,12 +336,12 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 // Establish debugging level
 //
    if ((cvar = getenv("XRDPOSIX_DEBUG")) && *cvar)
-      {Debug = atoi(cvar); setEnv(NAME_DEBUG, Debug);}
+      {Debug = atol(cvar); setEnv(NAME_DEBUG, Debug);}
 
 // Establish cache size
 //
    if ((cvar = getenv("XRDPOSIX_RCSZ")) && *cvar)
-      {isize = atoi(cvar); setEnv(NAME_READCACHESIZE, isize);}
+      {isize = atol(cvar); setEnv(NAME_READCACHESIZE, isize);}
 }
  
 /******************************************************************************/
@@ -1002,7 +1002,7 @@ int XrdPosixXrootd::mapError(int rc)
 
 void XrdPosixXrootd::setDebug(int val)
 {
-     Debug = val;
+     Debug = static_cast<long>(val);
      setEnv("DebugLevel", val);
 }
   
@@ -1015,7 +1015,7 @@ void XrdPosixXrootd::setEnv(const char *var, const char *val)
      EnvPutString(var, val);
 }
 
-void XrdPosixXrootd::setEnv(const char *var, int val)
+void XrdPosixXrootd::setEnv(const char *var, long val)
 {
      EnvPutInt(var, val);
 }
