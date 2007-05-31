@@ -21,8 +21,7 @@ SOURCES = \
         XrdOssMSS.cc    \
         XrdOssRename.cc \
         XrdOssStage.cc  \
-        XrdOssUnlink.cc \
-        XrdOssProxy.cc
+        XrdOssUnlink.cc
 
 OBJECTS = \
         $(OBJDIR)/XrdOssAio.o \
@@ -35,8 +34,7 @@ OBJECTS = \
         $(OBJDIR)/XrdOssMSS.o    \
         $(OBJDIR)/XrdOssRename.o \
         $(OBJDIR)/XrdOssStage.o  \
-        $(OBJDIR)/XrdOssUnlink.o \
-        $(OBJDIR)/XrdOssProxy.o
+        $(OBJDIR)/XrdOssUnlink.o
 
 LIBRARY = $(LIBDIR)/libXrdOss.a
 
@@ -154,10 +152,3 @@ $(OBJDIR)/XrdOssUnlink.o: XrdOssApi.hh XrdOssError.hh XrdOssLock.hh \
                           XrdOssUnlink.cc
 	@echo Compiling XrdOssUnlink.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssUnlink.o XrdOssUnlink.cc
-
-$(OBJDIR)/XrdOssProxy.o: XrdOssConfig.hh XrdOssError.hh \
-			 XrdOssLock.hh XrdOucError.hh XrdSysPlatform.hh \
-			 XrdOucEnv.hh \
-			 XrdOssProxy.cc
-	@echo Compiling XrdOssProxy.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssProxy.o XrdOssProxy.cc

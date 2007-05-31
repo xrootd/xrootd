@@ -49,10 +49,16 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *eDest,
                                           char *fslib, const char *cfn)
 {
    void *libhandle;
+   char  buff[2048];
    XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdOucLogger *, const char *);
    XrdSfsFileSystem *FS;
 
-// Open the security library
+// Record the library path in the environment
+//
+   sprintf(buff, "XRDOFSLIB=%s", fslib);
+   putenv(strdup(buff));
+
+// Open the file system library
 //
    if (!(libhandle = dlopen(fslib, RTLD_NOW)))
       {eDest->Emsg("Config",dlerror(),"opening shared library",fslib);

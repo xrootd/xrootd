@@ -52,7 +52,6 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOfs/XrdOfsSecurity.hh"
 
 #include "XrdOss/XrdOss.hh"
-#include "XrdOss/XrdOssProxy.hh"
 
 #include "XrdNet/XrdNetDNS.hh"
 
@@ -167,7 +166,6 @@ XrdOfs::XrdOfs()
    MaxDelay      = 60;
    Authorization = 0;
    Finder        = 0;
-   Google        = 0;
    Balancer      = 0;
    evsObject     = 0;
    fwdCHMOD      = 0;
@@ -432,8 +430,7 @@ int XrdOfsFile::open(const char          *path,      // In
 */
 {
    static const char *epname = "open";
-   const char        *hostname = 0;
-   int retc, odc_mode, open_flag = 0, port = 0;
+   int retc, odc_mode, open_flag = 0;
    int crOpts = (Mode & SFS_O_MKPTH ? XRDOSS_mkpath : 0);
    unsigned long hval = XrdOucHashVal(path);
    XrdOucMutex        *mp;
@@ -498,7 +495,8 @@ int XrdOfsFile::open(const char          *path,      // In
        AUTHORIZE(client,&Open_Env,AOP_Create,"create",path,error);
        OOIDENTENV(client, Open_Env);
 
-       // Create the file
+       // Create the file. If ENOTSUP is returned, promote the creation to
+       // the subsequent open. This is to accomodate proxy support.
        //
        if ((retc = XrdOfsOss->Create(tident, path, Mode & S_IAMB, Open_Env,
                                      ((open_flag << 8) | crOpts))))
@@ -507,10 +505,12 @@ int XrdOfsFile::open(const char          *path,      // In
               {XrdOfsFS.evrObject.Wait4Event(path,&error);
                return XrdOfsFS.fsError(error, retc);
               }
-           return XrdOfsFS.Emsg(epname, error, retc, "create", path);
+           if (retc != -ENOTSUP)
+              return XrdOfsFS.Emsg(epname, error, retc, "create", path);
+          } else {
+            if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
+            open_flag  = O_RDWR|O_TRUNC;
           }
-       if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
-       open_flag  = O_RDWR|O_TRUNC; mp = &XrdOfsOpen_RW;
        mp->Lock();
 
       } else {
@@ -543,44 +543,7 @@ int XrdOfsFile::open(const char          *path,      // In
 // Open the file and allocate a handle for it. Insert into the full chain
 // prior to opening, which may take quite a bit of time.
 //
-// By default, load the XrdOssFile class that is capable of reading the file
-// from the local disk as well as stage it. If the data server acts as a proxy,
-// load the XrdOssProxy class that can also retrieve data from a remote data 
-// server
-//
-   if (XrdOfsFS.Google) {
-
-      // Check if the file is available locally. If so, open it locally. 
-      // Otherwise, search for a remote data server
-      // if not local, try to get proxy and retrieve the remote file
-      //
-      struct stat fstat;
-     
-      if (XrdOfsOss->Stat(path, &fstat) == 0) {
-         ZTRACE(open, "The file is found locally.");
-         fp = XrdOfsOss->newFile(tident);
-      } else {
-         retc = XrdOfsFS.Google->Locate(error, path, odc_mode|open_flag);
-      
-         if (retc == -EREMOTE) {
-            ZTRACE(open, "Found remote data server");
-            hostname = error.getErrText();
-            port     = error.getErrInfo();
-
-            // If no port number is assigned, use the default port 1094
-            //
-            if (port == 0) port = XrdDEFAULTPORT;
-         }
-         else {
-               mp->UnLock();
-               return retc;
-              }
-
-         fp = XrdOfsOss->newProxy(tident, hostname, port);
-         ZTRACE(open, "Using " <<hostname <<" as a proxy for " <<path);
-      }
-   }
-   else fp = XrdOfsOss->newFile(tident);
+   fp = XrdOfsOss->newFile(tident);
 
    if ( fp && (oh = new XrdOfsHandle(hval,path,open_flag,tod.tv_sec,ap,fp)) )
       {mp->UnLock();  // Handle is now locked so allow new opens
@@ -1586,10 +1549,6 @@ int XrdOfs::stat(const char             *path,        // In
    &&  (retc = Finder->Locate(einfo, path, O_RDONLY|O_NOCTTY)))
       return fsError(einfo, retc);
 
-// Check for proxy mode
-//
-   if (Google) return PStat(stat_Env, einfo, path, buf);
-
 // Now try to find the file or directory
 //
    if ((retc = XrdOfsOss->Stat(path, buf)))
@@ -1637,13 +1596,6 @@ int XrdOfs::stat(const char             *path,        // In
    if (Finder && Finder->isRemote()
    &&  (retc = Finder->Locate(einfo, path, O_RDONLY | O_NDELAY)))
       return fsError(einfo, retc);
-
-// Check for proxy mode
-//
-   if (Google) 
-      {if (!(retc = PStat(stat_Env, einfo, path, &buf))) mode = buf.st_mode;
-       return retc;
-      }
 
 // Now try to find the file or directory
 //
@@ -1813,45 +1765,6 @@ int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
    if (rc > 0)             return rc;
    if (rc == -EALREADY)    return SFS_DATA;
                            return SFS_ERROR;
-}
-
-/******************************************************************************/
-/*                                 P S t a t                                  */
-/******************************************************************************/
-  
-int XrdOfs::PStat(XrdOucEnv     &stat_Env,    // Out
-                  XrdOucErrInfo &einfo,       // Out
-                  const char    *path,
-                  struct stat   *buf,
-                  int            resonly)
-{
-   static const char *epname = "PStat";
-   XrdOssDF          *fp;
-   int                retc, port;
-   const int          ROpts = O_RDONLY|O_NOCTTY|O_NDELAY;
-   const int          SOpts = O_RDONLY|O_NOCTTY;
-   const char        *hostname = 0;
-   const char *tident = einfo.getErrUser();
-
-   retc = XrdOfsFS.Google->Locate(einfo, path, (resonly ? ROpts : SOpts));
-      
-   if (retc == -EREMOTE)
-      {ZTRACE(open, "Found remote data server");
-       hostname = einfo.getErrText();
-       port     = einfo.getErrInfo();
-
-       // If no port number is assigned, use the default port 1094
-       //
-       if (port == 0) port = XrdDEFAULTPORT;
-      } else return fsError(einfo, retc);
-
-   fp = XrdOfsOss->newProxy(tident, hostname, port);
-   ZTRACE(open, "Using " <<hostname <<" as a proxy for " <<path);
-
-   if (!(retc = fp->Open(path, O_NONBLOCK, 0, stat_Env))) retc = fp->Fstat(buf);
-   delete fp;
-   if (retc) return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
-   return 0;
 }
 
 /******************************************************************************/

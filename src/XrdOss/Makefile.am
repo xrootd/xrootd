@@ -25,6 +25,5 @@ libXrdOss_la_SOURCES = \
         XrdOssMSS.cc    \
         XrdOssRename.cc \
         XrdOssStage.cc  \
-        XrdOssUnlink.cc \
-        XrdOssProxy.cc XrdOssProxy.hh
+        XrdOssUnlink.cc
 libXrdOss_la_LIBADD = $(LIBRT)

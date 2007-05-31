@@ -19,7 +19,6 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
-#include "XrdOss/XrdOssProxy.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucExport.hh"
@@ -117,8 +116,6 @@ virtual XrdOssDF *newDir(const char *tident)
                        {return (XrdOssDF *)new XrdOssDir(tident);}
 virtual XrdOssDF *newFile(const char *tident)
                        {return (XrdOssDF *)new XrdOssFile(tident);}
-virtual XrdOssDF *newProxy(const char *tident, const char *hostname, int port)
-                       {return (XrdOssDF *)new XrdOssProxy(hostname, port);}
 
 int       Chmod(const char *, mode_t mode);
 void     *CacheScan(void *carg);

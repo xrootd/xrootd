@@ -31,8 +31,8 @@ class XrdSfsAio;
 
 // This class defines the object that handles directory as well as file
 // oriented requests. It is instantiated for each file/dir to be opened.
-// The object is obtained by calling newDir(), newFile(), or newProxy()
-// in class XrdOss. This allows flexibility on how to structure an oss plugin.
+// The object is obtained by calling newDir() or newFile() in class XrdOss.
+// This allows flexibility on how to structure an oss plugin.
   
 class XrdOssDF
 {
@@ -82,7 +82,6 @@ class XrdOss
 public:
 virtual XrdOssDF *newDir(const char *tident)=0;
 virtual XrdOssDF *newFile(const char *tident)=0;
-virtual XrdOssDF *newProxy(const char *tident, const char *host, int port)=0;
 
 virtual int     Chmod(const char *, mode_t mode)=0;
 virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &, 

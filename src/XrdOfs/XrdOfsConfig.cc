@@ -159,11 +159,8 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 // Initialize redirection.  We type te herald here to minimize confusion
 //
    if (Options & XrdOfsREDIRECT)
-      {Eroute.Say("++++++ ", myRole, " initialization started.");
-       if (ConfigRedir(Eroute))
-          {Eroute.Say("------ ", myRole, " initialization failed.");
-           NoGo = 1;
-          } else Eroute.Say("------ ", myRole, " initialization completed.");
+      {Eroute.Say("++++++ Configuring ", myRole, " role. . .");
+       NoGo |= ConfigRedir(Eroute);
       }
 
 // Turn off forwarding if we are not a pure remote redirector or a peer
@@ -192,8 +189,8 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
 // All done
 //
-   tmp = (NoGo ? "failed." : "completed.");
-   Eroute.Say("------ File system initialization ", tmp);
+   tmp = (NoGo ? " initialization failed." : " initialization completed.");
+   Eroute.Say("------ File system ", myRole, tmp);
    return NoGo;
 }
 
@@ -282,7 +279,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
    int port;
    char *pp;
 
-// For remote redirection, we simply do a standard config
+// For manager roles, we simply do a standard config
 //
    if (isRedir) {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),
                            (Options & XrdOfsREDIRTRG  ? XrdOdcIsTarget : 0));
@@ -290,15 +287,22 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
           {delete Finder; Finder = 0; return 1;}
       }
 
-// For proxy  redirection, we simply do a standard config
+// For proxy roles, we specify the proxy oss library if possible
 //
    if (Options & XrdOfsREDIROXY)
-      {Google=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),XrdOdcIsProxy);
-       if (!Google->Configure(ConfigFN))
-          {delete Google; Google = 0; return 1;}
+      {char buff[2048], *bp, *libofs = getenv("XRDOFSLIB");
+       if (OssLib) Eroute.Say("Config warning: ",
+                   "specified osslib overrides default proxy lib.");
+          else {if (!libofs) bp = buff;
+                   else {strcpy(buff, libofs); bp = buff+strlen(buff)-1;
+                         while(bp != buff && *(bp-1) != '/') bp--;
+                        }
+                strcpy(bp, "libXrdProxy.so");
+                OssLib = strdup(buff);
+               }
       }
 
-// For target redirection find the port number and create the object
+// For server roles find the port number and create the object
 //
    if (Options & (XrdOfsREDIRTRG | (XrdOfsREDIREER & ~ XrdOfsREDIRRMT)))
       {if (!(pp=getenv("XRDPORT")) || !(port=strtol(pp, (char **)NULL, 10)))

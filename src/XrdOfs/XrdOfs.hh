@@ -298,8 +298,7 @@ char             *AuthLib;        //    ->Authorization   Library
 char             *AuthParm;       //    ->Authorization   Parameters
 char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
-XrdOdcFinder     *Finder;         //    ->Distrib Cache   Service
-XrdOdcFinder     *Google;         //    ->Remote  Cache   Service
+XrdOdcFinder     *Finder;         //    ->Distrib Cluster Service
 XrdOdcFinderTRG  *Balancer;       //    ->Server Balancer Interface
 XrdOfsEvs        *evsObject;      //    ->Event Notifier
 
@@ -319,8 +318,6 @@ XrdOfsEvs        *evsObject;      //    ->Event Notifier
 //
 int           ConfigRedir(XrdOucError &Eroute);
 const char   *Fname(const char *);
-int           PStat(XrdOucEnv &, XrdOucErrInfo &, const char *, struct stat *,
-                    int resonly=0);
 int           setupAuth(XrdOucError &);
 const char   *theRole(int opts);
 void          List_VPlist(char *, XrdOucPListAnchor &, XrdOucError &);

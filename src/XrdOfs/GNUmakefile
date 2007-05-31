@@ -24,11 +24,10 @@ OBJECTS  = \
         $(OBJDIR)/XrdOfsEvs.o     \
         $(OBJDIR)/XrdOfsHandle.o  
 
-MORELIBS = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdXr -lXrdNet -lXrdOuc
+MORELIBS = -L$(LIBDIR) -lXrdAcc -lXrdOss -lXrdOdc -lXrdNet -lXrdOuc
 
 LIBDEP   = $(LIBDIR)/libXrdAcc.a $(LIBDIR)/libXrdOss.a \
-           $(LIBDIR)/libXrdOdc.a $(LIBDIR)/libXrdOuc.a \
-           $(LIBDIR)/libXrdXr.a		
+           $(LIBDIR)/libXrdOdc.a $(LIBDIR)/libXrdOuc.a
 
 LIBRARY  = $(LIBDIR)/libXrdOfs.$(TYPESHLIB)
 
