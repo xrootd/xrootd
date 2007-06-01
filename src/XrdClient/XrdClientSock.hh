@@ -51,7 +51,7 @@ protected:
 	fConnected = 0; fRDInterrupt = 0; fWRInterrupt = 0; return fd; }
 
     void   SetInterrupt(int which = 0) { if (which == 0 || which == 1) fRDInterrupt = 1;
-                                         if (which == 0 || which == 2) fRDInterrupt = 1; }
+                                         if (which == 0 || which == 2) fWRInterrupt = 1; }
 
     // returns the socket descriptor or -1
     int   TryConnect_low(bool isUnix = 0);
