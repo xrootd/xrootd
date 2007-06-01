@@ -92,6 +92,15 @@ utils/ooss_Lock.pm \
 utils/ooss_MonP.pm \
 utils/ooss_name2name.pm
 
-# Extra files/dirextories to go into the distribution tarball
-EXTRA_DIST = Doxyfile README.Maintainer bootstrap.sh config
+# Extra files/directories to go into the distribution tarball
+EXTRA_DIST = Doxyfile README.Maintainer bootstrap.sh config pthreads-win32 \
+             test/test1.sh test/testconfig.sh.in 
+
+
+TESTS = test/test1.sh
+
+
+
+
+
 

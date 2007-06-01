@@ -17,7 +17,7 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20060704newconf,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20070601,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -239,6 +239,14 @@ AM_INIT_AUTOMAKE(1.6 subdir-objects)
 CPPFLAGS_BUP="$CPPFLAGS"
 LDFLAGS_BUP="$LDFLAGS"
 
+
+# libsocket is needed on solaris
+AC_CHECK_LIB([socket],[socket],
+               [LIBSOCKET="-lsocket"],[LIBSOCKET=""],[]
+              )
+AC_SUBST(LIBSOCKET)
+
+
 ###################################################################
 # OPTIONAL PACKAGES AND DIRECTIVES
 ###################################################################
@@ -302,7 +310,7 @@ fi
 # GSI support
 AC_ARG_ENABLE(gsi,
               [  --enable-gsi     GSI authentication support, requires OpenSSL [[default=no]] ],
-              [],[enable_gsi=default_no]
+              [],[enable_gsi=$activate_gsi]
               )
 ACX_COLLECT_OPTION(gsi,$enable_gsi)
 if test x"$activate_gsi" = xyes -o x"$activate_gsi" = xdefault_yes ; then
@@ -374,7 +382,7 @@ if test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes ; the
 
   LDFLAGS="$OPENSSL_LIBDIR $LDFLAGS"
   AC_CHECK_LIB([ssl],[SSL_library_init],
-               [:],[ssltests=failed],[-lcrypto]
+               [:],[ssltests=failed],[-lcrypto $LIBSOCKET]
               )
 
   if test x"$ssltests" != xok ; then
@@ -524,10 +532,17 @@ AC_SUBST(JAVA_INCDIR)
 AC_SUBST(JAVAC)
 AC_SUBST(JAVA_CLASSPATH)
 #################################################################
+# Castor interface options
+ACX_LIBOPTION(castor,[enable building of castor interface module],no)
+
+AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes)
+
+
+#################################################################
 # Catalog token authorization mechanism
 ACX_LIBOPTION(tkauthz,[enable building of catalog token authorization Ofs module],no)
 
-AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes)
+AM_CONDITIONAL(ENABLE_CASTOR, test x"$activate_castor" = xyes -o x"$activate_castor" = xdefault_yes)
 
 
 #################################################################
@@ -808,6 +823,7 @@ AC_OUTPUT(Makefile
           src/XrdNet/Makefile
           src/XrdSec/Makefile
           src/XrdSut/Makefile
+	  src/XrdCS2/Makefile
 	  src/XrdCrypto/Makefile
           src/XrdSecpwd/Makefile
 	  src/XrdSeckrb4/Makefile
@@ -825,8 +841,10 @@ AC_OUTPUT(Makefile
           src/XrdXrootd/Makefile
           src/XrdClient/Makefile
           src/XrdPosix/Makefile
+          src/XrdPss/Makefile
           src/XrdMon/Makefile
           src/XrdTokenAuthzOfs/Makefile
+          test/testconfig.sh
           xrootd.spec)
 
 #####################################################################

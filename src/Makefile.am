@@ -22,7 +22,7 @@ noinst_HEADERS = XrdVersion.hh XProtocol/XProtocol.hh  XProtocol/XPtypes.hh
 if ENABLE_PWD
 XRDSUT = XrdSut
 XRDSECPWD = XrdSecpwd
-XRDCRYPTO =XrdCrypto
+XRDCRYPTO = XrdCrypto
 endif
 
 if ENABLE_OPENSSL
@@ -49,6 +49,10 @@ if ENABLE_TOKENAUTHZ
 TOKENAUTHZ = XrdTokenAuthzOfs
 endif
 
+if ENABLE_CASTOR
+CASTOR = XrdCS2
+endif
+
 #######################################################################
 
 SUBDIRS = XrdSys \
@@ -64,7 +68,6 @@ SUBDIRS = XrdSys \
           XrdSfs \
           XrdAcc \
           XrdOdc \
-          XrdXr \
           XrdOss \
           XrdOfs \
           Xrd \
@@ -73,6 +76,8 @@ SUBDIRS = XrdSys \
           XrdXrootd \
           XrdClient \
           XrdPosix \
+          XrdPss \
+          $(CASTOR) \
           $(XRDMON) \
           $(TOKENAUTHZ)
 
