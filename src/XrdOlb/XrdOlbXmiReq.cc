@@ -116,6 +116,7 @@ XrdOlbXmiReq::XrdOlbXmiReq(XrdOlbReq *reqp, ReqType rtype,
 XrdOlbXmiReq::~XrdOlbXmiReq()
 {
    if (Path) free(Path);
+   if (ReqP) delete ReqP;
 }
 
 /******************************************************************************/

@@ -868,8 +868,7 @@ int XrdOlbServer::do_Mkpath(char *rid, int do4real)
 // Attempt to create the directory path
 //
    if (Config.ProgMD) rc = Config.ProgMP->Run(modearg, tp);
-      else if (Mkpath(tp, mode)) rc = errno;
-              else rc = 0;
+      else            rc = Mkpath(tp, mode);
    if (rc) Say.Emsg("Server", rc, "create path", tp);
       else DEBUG("rc=" <<rc <<" mkpath " <<std::oct <<mode <<std::dec <<' ' <<tp);
    return 0;
@@ -1855,33 +1854,30 @@ int XrdOlbServer::Mkpath(char *local_path, mode_t mode)
 {
     char *next_path;
     struct stat buf;
-    int retc;
+    int i;
 
-// Trim off the trailing slash so that we make everything but the last component
+// Typically, the path exists, so check if so
 //
-   if (!(retc = strlen(local_path))) return -ENOENT;
-   while(retc && local_path[retc-1] == '/') 
-        {retc--; local_path[retc] = '\0';}
-
-// Typically, the path exists. So, do a quick check before launching into it
-//
-   if (!(next_path = rindex(local_path, (int)'/'))
-   ||  next_path == local_path) return 0;
-   *next_path = '\0';
    if (!stat(local_path, &buf)) return 0;
-   *next_path = '/';
+
+// Trim off the trailing slashes so we can have predictable behaviour
+//
+   i = strlen(local_path);
+   while(i && local_path[--i] == '/') local_path[i] = '\0';
+   if (!i) return ENOENT;
 
 // Start creating directories starting with the root
 //
    next_path = local_path;
    while((next_path = index(next_path+1, int('/'))))
         {*next_path = '\0';
-         if (mkdir(local_path, mode) && errno != EEXIST) return -errno;
+         if (mkdir(local_path, mode) && errno != EEXIST) return errno;
          *next_path = '/';
         }
 
-// All done
+// Create last component and return
 //
+   if (mkdir(local_path, mode) && errno != EEXIST) return errno;
    return 0;
 }
 

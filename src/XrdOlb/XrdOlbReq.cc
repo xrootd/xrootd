@@ -38,6 +38,8 @@ XrdOlbReq::XrdOlbReq(XrdOlbServer *sp, XrdOlbRRQInfo *ip)
    ServerP = sp;
    InfoP   = ip;
    ReqNum  = 0;
+   ReqSnum = 0;
+   ReqSins = 0;
 }
 
 /******************************************************************************/
@@ -204,7 +206,7 @@ void XrdOlbReq::Reply_Wait(int sec)
    iov[2].iov_base = buff;
    iov[2].iov_len  = sprintf(buff, "%d", sec);
 
-// Send off the reply (this object may be deleted so make a fast exit)
+// Send off the reply
 //
    Reply(iov, 3);
 }
@@ -250,7 +252,7 @@ XrdOlbReq *XrdOlbReq::Reply_WaitResp(int sec)
        Reply(iov, 2);
       }
 
-// Send off the reply (this object may be deleted so make a fast exit)
+// Return an object to affect an asynchronous reply
 //
    return newReq;
 }
@@ -270,11 +272,16 @@ void XrdOlbReq::noReply()
 {
    static int nrNum = 255;
 
-// Issue warning every so many times this happens as it shouldn't happen
+// We always issue a message about double object use otherwise issue warning
+// as this is indicative of an improper configuration.
 //
-   nrNum++;
-   if (!(nrNum & 255)) Say.Emsg("Req", "Attempted reply to a 1way request; "
+   if (ReqSnum < 0)
+      Say.Emsg("Req", "Attempted reply to twice to a 2way async request.");
+      else {nrNum++;
+            if (!(nrNum & 255)) Say.Emsg("Req", 
+                                "Attempted reply to a 1way request; "
                                 "probable incorrect ofs forward directive.");
+           }
 }
 
 /******************************************************************************/
@@ -322,7 +329,8 @@ void XrdOlbReq::Reply(struct iovec *iov, int iovnum)
       else {DEBUG("Async resp " <<ReqNum <<' ' <<iov[1].iov_base <<" discarded; server gone");}
    RTable.UnLock();
 
-// Only one async response is allowed. So, we can now delete the object
+// Only one async response is allowed. Mark this object unusable
 //
-   delete this;
+   ReqNum  = 0;
+   ReqSnum = -1;
 }
