@@ -112,11 +112,11 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
 //
    if ((Opts & XRDOSS_mkpath) && (retc = strlen(local_path)))
       {if (local_path[retc-1] == '/') local_path[retc-1] = '\0';
-       if ((p = rindex(local_path, int('/'))))
+       if ((p = rindex(local_path, int('/'))) && p != local_path)
           {*p = '\0';
            if (stat(local_path, &buf) && errno == ENOENT)
-              {*p = '/'; Mkpath(path, AMode);}
-              else *p = '/';
+              Mkpath(local_path, AMode);
+           *p = '/';
           }
       }
 

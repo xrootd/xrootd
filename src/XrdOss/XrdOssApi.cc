@@ -246,16 +246,11 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
          else local_path = actual_path;
       else local_path = (char *)path;
 
-// Create the directory only in the loal file system
+// Create the directory or full path only in the loal file system
 //
-   if (!mkdir(local_path, mode)) return XrdOssOK;
-
-// Check if the full path is to be created
-//
-   if (!mkpath || errno != ENOENT) return -errno;
-   if ((retc = Mkpath(local_path, mode))) return retc;
-   if (!mkdir(local_path, mode)) return XrdOssOK;
-   return -errno;
+   if (!mkdir(local_path, mode))  return XrdOssOK;
+   if (mkpath && errno == ENOENT) return Mkpath(local_path, mode);
+                                  return -errno;
 }
 
 /******************************************************************************/
@@ -264,7 +259,7 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 /*
   Function: Create a directory path
 
-  Input:    path        - Is the fully qualified name of the new path.
+  Input:    path        - Is the fully qualified *local* name of the new path.
             mode        - The new mode that each new directory is to have.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
@@ -275,26 +270,16 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 int XrdOssSys::Mkpath(const char *path, mode_t mode)
 {
     char local_path[XrdOssMAX_PATH_LEN+1], *next_path;
-    struct stat buf;
-    int retc;
+    int  i = strlen(local_path);
 
-// Generate local path (we need to do this to get a r/w copy of the path)
+// Copy the path so we can modify it
 //
-   if ((retc = GenLocalPath(path, local_path))) return retc;
+   strcpy(local_path, path);
 
-// Trim off the trailing slash so that we make everything but the last component
+// Trim off the trailing slashes so we can have predictable behaviour
 //
-   if (!(retc = strlen(local_path))) return -ENOENT;
-   while(retc && local_path[retc-1] == '/') 
-        {retc--; local_path[retc] = '\0';}
-
-// Typically, the path exists. So, do a quick check before launching into it
-//
-   if (!(next_path = rindex(local_path, (int)'/'))
-   ||  next_path == local_path) return XrdOssOK;
-   *next_path = '\0';
-   if (!stat(local_path, &buf)) return XrdOssOK;
-   *next_path = '/';
+   while(i && local_path[--i] == '/') local_path[i] = '\0';
+   if (!i) return -ENOENT;
 
 // Start creating directories starting with the root
 //
@@ -305,8 +290,9 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
          *next_path = '/';
         }
 
-// All done
+// Create last component and return
 //
+   if (mkdir(local_path, mode) && errno != EEXIST) return -errno;
    return XrdOssOK;
 }
 
