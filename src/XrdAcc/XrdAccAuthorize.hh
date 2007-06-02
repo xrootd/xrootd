@@ -115,7 +115,7 @@ class XrdOucLogger;
    parm  -> Parameters specified on the authlib directive. If none it is zero.
 */
 
-extern XrdAccAuthorize *XrdAccAuthorizeObject(XrdOucLogger *lp,
-                                              const char   *cfn,
-                                              const char   *parm);
+extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdOucLogger *lp,
+                                                  const char   *cfn,
+                                                  const char   *parm);
 #endif
