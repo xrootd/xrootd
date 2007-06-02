@@ -1,8 +1,14 @@
 Installation Instructions for xrootd
 ====================================
 
+These instructions refer to the GNU autotools build, not
+to the build invoked by configure.classic.
+
+Contents:
 
 I) Basic compilation and installation
+  Ia) Building from a tarball
+  Ib) Building from CVS
 II) Tested systems
 III) How to use standard GNU autotools configure scripts
      (e.g how to obtain several different compilations
@@ -13,24 +19,20 @@ III) How to use standard GNU autotools configure scripts
 I) Basic compilation and installation:
 ======================================
 
-If you build directly from CVS sources, you first need to
-create the configure script by invoking GNU autotools. The
-necessary steps can be executed by the bootstrap script:
-
-./bootstrap.sh
+Ia) Building from a tarball
 
 Building from a distribution tarball just involves the usual
 configure, make, make install sequence:
 
 ./configure --prefix=install_directory [other options]
 make
-(make check)            builds test programs
+(make check)            builds test programs and runs tests
 make install
 
 Note: You don't need the autotools for building this package from
 an official tarball. Only if changes in a Makefile.am template or
-in the configure.ac files are made, autotools need to be run to
-generate the updated configure script and Makefiles.
+in the configure.ac files are made, autotools are required to
+generate the updated configure script and the Makefiles.
 
 If a build error is encountered on your system, please notify the
 maintainers and include the config.log file that has been generated
@@ -64,35 +66,18 @@ The generated config.status file is a shell script that will produce the exact
 same configuration as the one you just configured.
 
 
-II) Tested systems:
-===================
-
-CPU        OS                       Compiler      system's target string               date
-                                                  (as found by configure)              confirmed
----------------------------------------------------------------------------------------------------
-i686       RH 7.3                   gcc-2.96      i686-pc-linux-gnu
-i686 (P4)  SL CERN Release 3.0.5    gcc-3.2.3     i686-pc-linux-gnu
-i686 (AMD) RH EL3                   gcc-3.2.3     i686-pc-linux-gnu                    2006-02-04
-i686       Gentoo 1.6.13            gcc-3.3.5     i686-pc-linux-gnu                    2006-02-04
-i686       debian SID (unstable)    gcc-3.3.6     i686-pc-linux-gnu
-i686       slackware                gcc-3.3.6     i686-pc-linux-gnu
-i686       RH 7.3                   icc-8.0       i686-pc-linux-gnu
-IA-64      SL CERN Release 3.0.5    gcc-3.2.3     ia64-unknown-linux-gnu
-amd64      SL CERN Release 3        gcc-3.2.3     x86_64-unknown-linux-gnu
-powerpc    darwin7.9.0              gcc-3.3       powerpc-apple-darwin7.9.0
-sparc      Solaris 9 (SunOS)        Sun CC++ 5.6  sparc-sun-solaris2.9                 2006-02-04
-sparc      Solaris 9 (SunOS)        Sun CC++ 5.5  sparc-sun-solaris2.9
-sparc      Solaris 9 (SunOS)        Forte 7       sparc-sun-solaris2.9     NOT OK
-sparc      Solaris 9 (SunOS)        gcc           sparc-sun-solaris2.9     NOT OK
-
-Note:
-      - Solaris/Forte 7 has problems due to template cache issues and libtool
-      - Solaris/gcc     has problems due to tested gcc installation missing
-                        some C99 functions (lrint)
 
 
-How to use standard GNU autotools configure scripts
-===================================================
+Ib) Building from CVS
+
+Refer to section II) of the README.Maintainer file.
+
+
+
+
+
+II) How to use standard GNU autotools configure scripts
+=======================================================
 
 - How to select the compiler
 
@@ -144,5 +129,35 @@ How to use standard GNU autotools configure scripts
   http://sources.redhat.com/autobook/autobook/autobook_toc.html
 
 
-02/04/2006 Derek Feichtinger
+III) Tested systems:
+====================
+
+This section is not up to date.
+
+CPU        OS                       Compiler      system's target string               date
+                                                  (as found by configure)              confirmed
+---------------------------------------------------------------------------------------------------
+i686       RH 7.3                   gcc-2.96      i686-pc-linux-gnu
+i686 (P4)  SL CERN Release 3.0.5    gcc-3.2.3     i686-pc-linux-gnu
+i686 (AMD) RH EL3                   gcc-3.2.3     i686-pc-linux-gnu                    2006-02-04
+i686       Gentoo 1.6.13            gcc-3.3.5     i686-pc-linux-gnu                    2006-02-04
+i686       debian SID (unstable)    gcc-3.3.6     i686-pc-linux-gnu
+i686       slackware                gcc-3.3.6     i686-pc-linux-gnu
+i686       RH 7.3                   icc-8.0       i686-pc-linux-gnu
+IA-64      SL CERN Release 3.0.5    gcc-3.2.3     ia64-unknown-linux-gnu
+amd64      SL CERN Release 3        gcc-3.2.3     x86_64-unknown-linux-gnu
+powerpc    darwin7.9.0              gcc-3.3       powerpc-apple-darwin7.9.0
+sparc      Solaris 9 (SunOS)        Sun CC++ 5.6  sparc-sun-solaris2.9                 2006-02-04
+sparc      Solaris 9 (SunOS)        Sun CC++ 5.5  sparc-sun-solaris2.9
+sparc      Solaris 9 (SunOS)        Forte 7       sparc-sun-solaris2.9     NOT OK
+sparc      Solaris 9 (SunOS)        gcc           sparc-sun-solaris2.9     NOT OK
+
+Note:
+      - Solaris/Forte 7 has problems due to template cache issues and libtool
+      - Solaris/gcc     has problems due to tested gcc installation missing
+                        some C99 functions (lrint)
+
+
+
+2.6.2007 Derek Feichtinger
 

@@ -7,8 +7,7 @@ INSTRUCTIONS FOR PACKAGE MAINTAINERS
 I) Overview
 II) Creating the configure script and the Makefiles
 III) Information concerning the created Makefiles
-IV) Producing a distribution tarball
-
+IV) Producing a distribution tarball and releasing
 
 
 I) Overview
@@ -44,7 +43,21 @@ libtool:  used to generate libraries. Allows running the built
 II) Creating the configure script and the Makefiles
 ===================================================
 
-Note: The simple script "bootstrap.sh" is provided to automatize the 
+You should have a reasonably current distribution of the autotools
+on your development machine. If not you can fetch the needed packages
+using the getAutotools.sh script found in the top directory of the
+xrootd tree. The script will download and install the tools to a
+private area of your choice.
+
+The following command does all of the things lined out below. So, you
+can skip the rest of this section, if it works fine:
+
+autoreconf --install
+(autoreconf --install --force   if your setup got severely corrupted)
+
+Only read this, if you are interested in details:
+
+The simple script "bootstrap.sh" is provided to automatize the 
 required four steps that are explained in more detail in the rest of
 this section.
 
@@ -98,24 +111,42 @@ In this example files will end up in /somedir/usr/local
 (this is typically used in rpm builds where DESTDIR is a staging dir)
 
 
-IV) Producing a distribution tarball
-=====================================
+IV) Producing a distribution tarball and releasing
+==================================================
 
-Producing a distribution tarball is as easy as typing
+1. Check library versions
+
+If library versioning is used, check that all modified libraries
+have correct version numbers
+
+2. Check distribution version  
+
+Make sure that you have updated the version number in the
+AC_INIT(name,version,bug-mail-address) macro in the configure.ac
+file.
+
+3. Producing a distribution tarball is as easy as typing
 
 make dist
 
 A tarball containing all the files needed for the build and any
-extra files specified in the Makefile.am templates will be created.
-It is named in the standard GNU manner. The name and version number
-are taken from the AC_INIT(name,version,bug-mail-address) line in
-the configure.ac file.
+extra files specified in the Makefile.am templates is created.
+The tarball is named according to GNU standard. 
+
+BEFORE RELEASING YOU _MUST_ RUN
 
 make distcheck
 
-This command will create the tarball and then directly run a test
-build on it.
+This will
+- generate a distribution tarball
+- unpack the tarball in a sandbox and build it, making sure that no files
+  have been forgotten
+- test the installation process
+- make sure that "make DESTDIR=" works. This is important for package builders
+- run the test suite
+- make sure that "make uninstall" leaves no files (this is less important, 
+  since almost never used)
 
 
-07/04/2006 Derek Feichtinger
+2.6.2007 Derek Feichtinger  <derek.feichtinger@psi.ch>
 
