@@ -533,16 +533,19 @@ AC_SUBST(JAVAC)
 AC_SUBST(JAVA_CLASSPATH)
 #################################################################
 # Castor interface options
-ACX_LIBOPTION(castor,[enable building of castor interface module],no)
-
-AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes)
+# Currently disabled. Seems to require esoteric knowledge to build
+# 
+# ACX_LIBOPTION(castor,[enable building of castor interface module],no)
+#
+activate_castor=no
+AM_CONDITIONAL(ENABLE_CASTOR, test x"$activate_castor" = xyes -o x"$activate_castor" = xdefault_yes)
 
 
 #################################################################
 # Catalog token authorization mechanism
 ACX_LIBOPTION(tkauthz,[enable building of catalog token authorization Ofs module],no)
 
-AM_CONDITIONAL(ENABLE_CASTOR, test x"$activate_castor" = xyes -o x"$activate_castor" = xdefault_yes)
+AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes)
 
 
 #################################################################
@@ -823,7 +826,6 @@ AC_OUTPUT(Makefile
           src/XrdNet/Makefile
           src/XrdSec/Makefile
           src/XrdSut/Makefile
-	  src/XrdCS2/Makefile
 	  src/XrdCrypto/Makefile
           src/XrdSecpwd/Makefile
 	  src/XrdSeckrb4/Makefile
@@ -846,6 +848,8 @@ AC_OUTPUT(Makefile
           src/XrdTokenAuthzOfs/Makefile
           test/testconfig.sh
           xrootd.spec)
+
+# disabled: src/XrdCS2/Makefile
 
 #####################################################################
 # we need to move the GNUMakefiles of the classic build away

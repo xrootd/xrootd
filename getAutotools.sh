@@ -150,7 +150,7 @@ INSTALLATION SETTINGS:
 Is this ok?   (Y/n)
 EOF
     read a
-    if test x"$a" != xy -o x"$a" != xY; then
+    if test x"$a" != xy -a x"$a" != xY; then
 	usage
 	exit 0
     fi
