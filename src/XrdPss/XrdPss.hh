@@ -115,6 +115,7 @@ static char        *myName;
 static XrdOucTList *PanList;
 static char        *hdrData;
 static char         hdrLen;
+static long         rdAheadSz;
 static long         rdCacheSz;
 static long         numStream;
    

@@ -51,8 +51,9 @@ char        *XrdPssSys::myName;
 XrdOucTList *XrdPssSys::PanList = 0;
 char        *XrdPssSys::hdrData;
 char         XrdPssSys::hdrLen;
-long         XrdPssSys::rdCacheSz = 0;
-long         XrdPssSys::numStream = 8;
+long         XrdPssSys::rdAheadSz =  0;
+long         XrdPssSys::rdCacheSz =  0;
+long         XrdPssSys::numStream =  8;
 
 namespace XrdProxy
 {
@@ -103,8 +104,9 @@ int XrdPssSys::Configure(const char *cfn)
 
 // Set the read cache size value and parallel streams
 //
-   XrdPosixXrootd::setEnv("ReadCacheSize",        rdCacheSz);
-   XrdPosixXrootd::setEnv("ParStreamsPerPhyConn", numStream);
+   if (rdAheadSz >= 0) XrdPosixXrootd::setEnv("ReadAheadSize",       rdAheadSz);
+   if (rdCacheSz >= 0) XrdPosixXrootd::setEnv("ReadCacheSize",       rdCacheSz);
+   if (numStream >= 0) XrdPosixXrootd::setEnv("ParStreamsPerPhyConn",numStream);
    return 0;
 }
 
@@ -345,33 +347,36 @@ int XrdPssSys::xsopt(XrdOucError *Eroute, XrdOucStream &Config)
 {
     char  kword[256], *val, *kvp;
     long  kval;
+    static struct setopts {const char *opname; long *opdest;} Sopts[] =
+       {
+        {"ReadAheadSize",        &rdAheadSz},
+        {"ReadCacheSize",        &rdCacheSz},
+        {"ParStreamsPerPhyConn", &numStream}
+       };
+    int i, numopts = sizeof(Sopts)/sizeof(struct setopts);
 
     if (!(val = Config.GetWord()))
        {Eroute->Emsg("config", "setopt keyword not specified"); return 1;}
-    while (val)
-         {strlcpy(kword, val, sizeof(kword));
-          if (!(val = Config.GetWord()))
-             {Eroute->Emsg("config", "setopt value not specified"); return 1;}
-          kval = strtol(val, &kvp, 10);
+    strlcpy(kword, val, sizeof(kword));
+    if (!(val = Config.GetWord()))
+       {Eroute->Emsg("config", "setopt", kword, "value not specified"); 
+        return 1;
+       }
+    kval = strtol(val, &kvp, 10);
 
-               if (!strcmp("ReadCacheSize", val))
-                  {if (*kvp)
-                      {Eroute->Emsg("config","invalid setopt ReadCacheSize value -",val);
-                       return 1;
-                      }
-                   rdCacheSz = kval;
-                  }
-          else if (!strcmp("ParStreamsPerPhyConn", val))
-                  {if (*kvp)
-                      {Eroute->Emsg("config","invalid setopt ParStreamsPerPhyConn value -",val);
-                       return 1;
-                      }
-                   numStream = kval;
-                  }
-          else if (*kvp) XrdPosixXrootd::setEnv(kword,  val);
-                  else   XrdPosixXrootd::setEnv(kword, kval);
-          val = Config.GetWord();
-         }
+    for (i = 0; i < numopts; i++)
+        if (!strcmp(Sopts[i].opname, kword))
+           {if (*kvp)
+               {sprintf(kword,"invalid setopt %s value -", Sopts[i].opname);
+                Eroute->Emsg("config",kword,val);
+                return 1;
+               }
+            *Sopts[i].opdest = kval;
+            return 0;
+           }
+
+    if (*kvp) XrdPosixXrootd::setEnv(kword,  val);
+       else   XrdPosixXrootd::setEnv(kword, kval);
     return 0;
 }
   
