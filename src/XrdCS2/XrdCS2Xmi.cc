@@ -127,11 +127,12 @@ void *XrdCS2Xmi_StartPoll(void *parg)
 
 // We allow the the following on the xmi directive line after the library path:
 
-// [host[:port]] [-v version] [-s sclass]
+// [host[:port]] [-v version] [-s sclass] [-n castorns]
 
 // Where: host:port is the location of the Castor stager
 //        version   is the version number (example, '-v3')
 //        sclass    is the service class  (example, '-sfoo')
+//        castorns  is the castor nameserver host (default is stager 'host')
 
 extern "C"
 {
@@ -180,6 +181,7 @@ XrdCS2Xmi::XrdCS2Xmi(XrdOlbXmiEnv *Env)
    Opts.service_class = NULL;
    Opts.stage_version = 2;
    Opts.stage_port    = 0;
+   castorns           = 0;
 
 // Obtain the optional data (we ignore malformed parameters)
 //
@@ -196,6 +198,7 @@ XrdCS2Xmi::XrdCS2Xmi(XrdOlbXmiEnv *Env)
               if (*tp != '-') break;
                    if (*(tp+1) == 'v') Opts.stage_version = atoi(tp+2);
               else if (*(tp+1) == 's') Opts.service_class = tp+2;
+              else if (*(tp+1) == 'n') castorns = tp+2;
               else break;
               while(*tp && *tp != ' ') tp++;
               if (*tp) {*tp = '\0'; tp++;}
@@ -527,20 +530,18 @@ int XrdCS2Xmi::Mkpath(XrdOlbReq *Request, const char *path, mode_t mode)
    struct Cns_filestat cnsbuf;
    int retc;
 
-// Trim off the trailing slash so that we make everything but the last component
+// Trim off all trailing slashes (we will, however, make all components).
 //
-   if (!(retc = strlen(this_path))) 
+   if (!(retc = strlen(this_path)))
       return sendError(Request, ENOENT, "mkpath", path);
    while(retc && this_path[retc-1] == '/') 
         {retc--; this_path[retc] = '\0';}
+   if (*this_path != '/')
+      return sendError(Request, EINVAL, "mkpath", path);
 
 // Typically, the path exists. So, do a quick check before launching into it
 //
-   if (!(next_path = rindex(this_path, (int)'/'))
-   ||  next_path == this_path) {Request->Reply_OK(); return 1;}
-   *next_path = '\0';
    if (!Cns_stat(this_path, &cnsbuf)) {Request->Reply_OK(); return 1;}
-   *next_path = '/';
 
 // Start creating directories starting with the root
 //
@@ -551,6 +552,11 @@ int XrdCS2Xmi::Mkpath(XrdOlbReq *Request, const char *path, mode_t mode)
             return sendError(Request, serrno, "mkdir", path);
          *next_path = '/';
         }
+
+// Make the final component in this path
+//
+   if (Cns_mkdir(this_path, mode) && serrno != EEXIST)
+      return sendError(Request, serrno, "mkdir", path);
 
 // All done
 //
@@ -1041,7 +1047,7 @@ void XrdCS2Xmi::sendRedirect(XrdOlbReq                   *reqP,
 // Send the redirect
 //
    sprintf(buff, "&cs2.fid=%llu@%s", resp->fileId(),
-                 (Opts.stage_host ? Opts.stage_host : ""));
+          (castorns ? castorns : (Opts.stage_host ? Opts.stage_host : "")));
    DEBUG("-> " <<resp->server().c_str() <<'?' <<buff <<" path=" <<Path);
    reqP->Reply_Redirect(resp->server().c_str(), 0, buff);
 }

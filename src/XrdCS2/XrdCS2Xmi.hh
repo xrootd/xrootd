@@ -120,6 +120,7 @@ void  InitXeqDel(castor::stager::FileRequest    *req,
 //
    struct stage_options                         Opts;
    struct stager_client_api_thread_info        *Tinfo;
+   char                                        *castorns;
 
 // Other pointers
 //

@@ -183,7 +183,7 @@ void XrdCS2DCMService::Rel()
 //
    myMutex.Lock();
    Next = Free;
-   Free = Next;
+   Free = this;
    mySem.Post();
    myMutex.UnLock();
 }

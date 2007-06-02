@@ -113,7 +113,7 @@ int XrdCS2DCMFile::Init(const char *thePath, time_t UpTime)
       }
 
    *lp = '\0'; lp++;
-   isMod = (buf.st_mtime == 0); // Indicates file modified
+   isMod = (buf.st_mtime == 0)? 1:0 ; // Indicates file modified
    fileData[len] = '\0';
    myPath = thePath;
    return 0;
@@ -129,9 +129,11 @@ void XrdCS2DCMFile::Modify(const char *thePath)
 
 // Indicate file modified by making access time and modtime zero
 //
+   XrdLog.Emsg("Modfied",0,"-< I am updating file", thePath);
    times.actime = times.modtime = 0;
    if (utime(thePath, (const struct utimbuf *)&times))
        XrdLog.Emsg("Modified", errno, "update time for file", thePath);
+   XrdLog.Emsg("Modified",0,"-< I updated time for file", thePath);
 }
 
 /******************************************************************************/
