@@ -3,7 +3,6 @@
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOss/XrdOssApi.hh"
-#include "XrdOss/XrdOssProxy.hh"
 #include "XrdOuc/XrdOucString.hh"
 #define WITHTHREADS
 #include "TTokenAuthz.h"

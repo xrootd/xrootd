@@ -117,11 +117,11 @@ clean-local:
 # "make dist" target
 
 if REBUILD_SWIGFILE
-XrdClientAdmin_c_wrap.cc:
+XrdClientAdmin_c_wrap.cc: XrdClientAdmin_c.hh
 	echo Creating swig perl interface
 	$(SWIG) -perl -o $@ $(srcdir)/XrdClientAdmin_c.hh
 else
-XrdClientAdmin_c_wrap.cc:
+XrdClientAdmin_c_wrap.cc: XrdClientAdmin_c_wrap.c
 	cp $(srcdir)/XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc
 endif
 
@@ -133,4 +133,5 @@ libXrdClientAdmin_la_SOURCES = XrdClientAdmin_c.cc \
 libXrdClientAdmin_la_CXXFLAGS = $(PERL_CCOPTS)
 endif
 
-
+# we need to include the pregenerated swig file in the disribution
+EXTRA_DIST = XrdClientAdmin_c_wrap.c

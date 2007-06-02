@@ -22,14 +22,17 @@ libXrdSec_la_SOURCES = \
         XrdSecPManager.cc XrdSecPManager.hh     \
         XrdSecProtocolhost.cc XrdSecProtocolhost.hh \
         XrdSecServer.cc XrdSecServer.hh XrdSecTrace.hh
+libXrdSec_la_LDFLAGS = -module
 
 testclient_SOURCES = XrdSectestClient.cc
+testclient_LDFLAGS = -static
 testclient_LDADD =   libXrdSec.la \
                      -ldl \
                      ../XrdOuc/libXrdOuc.la \
                      ../XrdNet/libXrdNet.la
 
 testserver_SOURCES = XrdSectestServer.cc
+testserver_LDFLAGS = -static
 testserver_LDADD = libXrdSec.la \
                    -ldl \
                    ../XrdOuc/libXrdOuc.la \

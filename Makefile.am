@@ -38,13 +38,23 @@ silent:
             -e 's/.*-o  *\([^ ]*\).*/++++ Creating \1 ++++/p' \
             -e '/make/p'
 
-if HAVE_DOXYGEN
+if ENABLE_DOC
+all-local: doc
+
+clean-local:
+	rm -rf doxydoc
+
+
 doc: Doxyfile
-	$(DOXYGEN) Doxyfile
-else
-doc:
-	echo "sorry! you don't seem to have doxygen installed"
+	@if test ! -e doxydoc/html/index.html; then \
+           echo "BUILDING DOXYGEN DOCUMENTATION"; \
+           $(DOXYGEN) Doxyfile; \
+        else \
+           echo "Doxygen doc already built. Remove the directory"; \
+           echo "'doxydoc' to trigger rebuilding"; \
+        fi
 endif
+
 
 
 ################################################################

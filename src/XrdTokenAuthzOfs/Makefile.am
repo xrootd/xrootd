@@ -45,7 +45,7 @@ nodist_libXrdTokenAuthzOfs_la_SOURCES = $(OFSSOURCES)
 
 xrm_SOURCES = xrm.cc
 
-
+libXrdTokenAuthzOfs_la_LDFLAGS = -module
 libXrdTokenAuthzOfs_la_LIBADD = $(top_builddir)/src/XrdAcc/libXrdAcc.la \
                          $(top_builddir)/src/XrdOss/libXrdOss.la \
                          $(top_builddir)/src/XrdOdc/libXrdOdc.la \

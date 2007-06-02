@@ -27,6 +27,7 @@ dnl if AC_LANG(C++) is in effect.
 dnl Since the locking is implemented via a hardlink to a file, this does not
 dnl work on AFS
 dnl AC_LANG(C++)
+AC_LANG(C++)
 
 ###############################################################
 # Set some defaults which will be augmented by the OS detection
@@ -254,9 +255,12 @@ AC_SUBST(LIBSOCKET)
 
 ####################################################################
 # passwd based authentication support
+if test x"$activate_pwd" = x; then
+   activate_pwd=default_yes
+fi
 AC_ARG_ENABLE(pwd,
               [  --enable-pwd            Password-based authentication support [[default=yes]] ],
-              [],[enable_pwd=default_yes])
+              [],[enable_pwd=$activate_pwd])
 AM_CONDITIONAL(ENABLE_PWD, test x"$enable_pwd" = xyes -o x"$enable_pwd" = xdefault_yes)
 if test x"$enable_pwd" = xyes -o x"$enable_pwd" = xdefault_yes; then
    if test -f "/etc/shadow"; then
@@ -308,6 +312,9 @@ fi
 
 ####################################################################
 # GSI support
+if test x"$activate_gsi" = x; then
+   activate_gsi=default_no
+fi
 AC_ARG_ENABLE(gsi,
               [  --enable-gsi     GSI authentication support, requires OpenSSL [[default=no]] ],
               [],[enable_gsi=$activate_gsi]
@@ -404,18 +411,24 @@ AM_CONDITIONAL(ENABLE_GSI,test x"$activate_gsi" = xyes -o x"$activate_gsi" = xde
 
 ####################################################################
 # monitoring
+if test x"$activate_mon" = x; then
+   activate_mon=default_no
+fi
 AC_ARG_ENABLE(mon,
               [  --enable-mon     Enable/disable building of monitoring services [[default=no]] ],
-              [],[enable_mon=default_no]
+              [],[enable_mon=$activate_mon]
              )
 ACX_COLLECT_OPTION(mon,$enable_mon)
 AM_CONDITIONAL(ENABLE_MON,test x"$activate_mon" = xyes -o x"$activate_mon" = xdefault_yes)
 
 ####################################################################
 # PERL interface options
+if test x"$activate_perlint" = x; then
+   activate_perlint=default_yes
+fi
 AC_ARG_ENABLE(perlint,
               [  --enable-perlint      build perl interface [[default=yes]] ],
-              [],[enable_perlint=default_yes]
+              [],[enable_perlint=$activate_perlint]
              )
 ACX_COLLECT_OPTION(perlint,$enable_perlint)
 AM_CONDITIONAL(ENABLE_PERLINT, test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes)
@@ -459,12 +472,13 @@ if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; the
   AC_SUBST(PERL_LDOPTS)
   AC_SUBST(PERL_CCOPTS)
 
-  # SWIG checks
-  rebuild_swigfile="no"
+  # SWIG checks for Perl interface building ####################
+  if test x"$activate_swig" = x; then
+     activate_swig=default_yes
+  fi
   AC_ARG_ENABLE(swig,
               [  --enable-swig     enable rebuilding of Perl wrapper with SWIG [[default=yes]] ],
-              [],[enable_swig=default_yes])
-  ACX_COLLECT_OPTION(swig,$enable_swig)
+              [],[enable_swig=$activate_swig])
 
   AC_PATH_PROG(SWIG,swig,[no],[$SWIG_DIR:$PATH])
   if test $enable_swig = "yes" -o $enable_swig = "default_yes" -a x"$SWIG" != xno; then
@@ -477,20 +491,26 @@ if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; the
      ##AC_MSG_NOTICE([SWIG version $vermajor.$verminor.$verrelease])
      if test 0"$vernum" -lt 10322; then
 	AC_MSG_RESULT([$vermajor.$verminor.$verrelease; NOT OK! need at least 1.3.22])
+	activate_swig=disabled					
      else
 	AC_MSG_RESULT([$vermajor.$verminor.$verrelease; OK!])
-        rebuild_swigfile="yes"
+        activate_swig=yes
      fi
      AC_SUBST(SWIG)
   fi
+  ACX_COLLECT_OPTION(swig,$activate_swig)
 fi
-AM_CONDITIONAL(REBUILD_SWIGFILE,[test x"$rebuild_swigfile" = xyes])
+
+AM_CONDITIONAL(REBUILD_SWIGFILE,[test x"$activate_swig" = xyes])
 
 #################################################################
 # JAVA interface option
+if test x"$activate_javaint" = x; then
+   activate_javaint=default_no
+fi
 AC_ARG_ENABLE(javaint,
               [  --enable-javaint      build java interface [[default=no]] ],
-              [],[enable_javaint=default_no])
+              [],[enable_javaint=$activate_javaint])
 ACX_COLLECT_OPTION(javaint,$enable_javaint)
 AM_CONDITIONAL(ENABLE_JAVAINT, test x"$activate_javaint" = xyes -o x"$activate_javaint" = xdefault_yes)
 MY_JAVA_HOME=$JAVA_HOME
@@ -533,13 +553,10 @@ AC_SUBST(JAVAC)
 AC_SUBST(JAVA_CLASSPATH)
 #################################################################
 # Castor interface options
-# Currently disabled. Seems to require esoteric knowledge to build
-# 
+# Currently disabled since building seems to require arcane knowledge
 # ACX_LIBOPTION(castor,[enable building of castor interface module],no)
-#
 activate_castor=no
 AM_CONDITIONAL(ENABLE_CASTOR, test x"$activate_castor" = xyes -o x"$activate_castor" = xdefault_yes)
-
 
 #################################################################
 # Catalog token authorization mechanism
@@ -570,13 +587,26 @@ fi
 dnl Disable libtool 1.5 support for languages we don't use (this is a HACK!)
 define([AC_LIBTOOL_LANG_F77_CONFIG], [:])dnl
 define([AC_LIBTOOL_LANG_GCJ_CONFIG], [:])dnl
-
+# determines shared library needed for loading modules
+AC_LIBTOOL_DLOPEN
+# init for libtool
 AC_PROG_LIBTOOL
 
+
+#################################################################
+# Doxygen documentation
+if test x"$activate_doc" = x; then activate_doc=default_no; fi
+AC_ARG_ENABLE(doc,
+              [  --enable-doc      build Doxygen documentation [[default=no]] ],
+              [],[enable_doc=$activate_doc])
+ACX_COLLECT_OPTION(doc,$enable_doc)
 AC_PATH_PROGS(DOXYGEN,[doxygen],
                [no], [$PATH])
 AC_SUBST(DOXYGEN)
-AM_CONDITIONAL(HAVE_DOXYGEN,[test x"$DOXYGEN" != x])
+if test x"$DOXYGEN" = x; then
+   activate_doc=disabled
+fi
+AM_CONDITIONAL(ENABLE_DOC, test x"$activate_doc" = xyes -o x"$activate_doc" = xdefault_yes)
 
 #################################################################
 # additional architecture dependent compiler flags
@@ -834,7 +864,6 @@ AC_OUTPUT(Makefile
 	  src/XrdSfs/Makefile
           src/XrdAcc/Makefile
           src/XrdOdc/Makefile
-          src/XrdXr/Makefile
           src/XrdOss/Makefile
           src/XrdOfs/Makefile
           src/XrdOlb/Makefile
@@ -849,7 +878,7 @@ AC_OUTPUT(Makefile
           test/testconfig.sh
           xrootd.spec)
 
-# disabled: src/XrdCS2/Makefile
+# disabled:	  src/XrdCS2/Makefile
 
 #####################################################################
 # we need to move the GNUMakefiles of the classic build away

@@ -13,26 +13,24 @@
 #############################
 # Bootstrap
 
-# srcdir is passed as environment variable by "make check"
-if test x"$srcdir" != x; then
-    cd $srcdir/test
-fi
+test -r test/testconfig.sh && cd test
 
 curdir=`pwd`
-if test ! -r testconfig.sh; then
+if test ! -r testconfig.sh ; then
     echo "Error: Cannot find configuration file testconfig.sh (pwd: $curdir)" >&2
     exit 1
 fi
 
 . testconfig.sh
 
+echo cd $top_srcdir
+top_srcdir=$(cd $top_srcdir;pwd)
+top_builddir=$(cd $top_builddir;pwd)
+
 if test ! -e $top_srcdir/src/XrdOfs/XrdOfs.hh; then
     echo "Error: $top_srcdir seems not to be the correct top_srcdir" >&2
     exit 1
 fi
-
-top_srcdir=$(cd $top_srcdir;pwd)
-top_builddir=$(cd $top_builddir;pwd)
 
 ##################################################################
 # CONFIGURATION SETTINGS

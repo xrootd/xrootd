@@ -19,6 +19,8 @@ libXrdOfs_la_SOURCES = \
         XrdOfsEvs.cc XrdOfsEvs.hh   \
         XrdOfsHandle.cc XrdOfsHandle.hh
 
+libXrdOfs_la_LDFLAGS = -module
+
 libXrdOfs_la_LIBADD = ../XrdAcc/libXrdAcc.la \
                       ../XrdOss/libXrdOss.la \
                       ../XrdOdc/libXrdOdc.la \

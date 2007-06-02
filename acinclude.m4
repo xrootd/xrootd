@@ -144,7 +144,7 @@ AC_DEFUN([ACX_PRINTOPTIONS],[
         bydefault="            "
      fi
 
-     if test $optval != yes; then
+     if test x"$[]optval" != xyes; then
         optincval="";optlibval=""
      fi
      echo "$[]opt:     $[]optval   $[]bydefault  $[]optincval  $[]optlibval"

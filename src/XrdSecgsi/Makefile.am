@@ -19,10 +19,12 @@ INCLUDES = -I$(top_srcdir)/src
 
 libXrdSecgsi_la_SOURCES = \
         XrdSecProtocolgsi.cc XrdSecProtocolgsi.hh XrdSecgsiTrace.hh
+libXrdSecgsi_la_LDFLAGS = -module
 libXrdSecgsi_la_LIBADD = ../XrdCrypto/libXrdCrypto.la
 
 
 xrdgsiproxy_SOURCES = XrdSecgsiProxy.cc
+xrdgsiproxy_LDFLAGS =  -static
 xrdgsiproxy_LDADD = libXrdSecgsi.la \
                     ../XrdSec/libXrdSec.la \
                     ../XrdOuc/libXrdOuc.la \
