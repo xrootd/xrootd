@@ -338,6 +338,11 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
    if ((cvar = getenv("XRDPOSIX_DEBUG")) && *cvar)
       {Debug = atol(cvar); setEnv(NAME_DEBUG, Debug);}
 
+// Establish read ahead size
+//
+   if ((cvar = getenv("XRDPOSIX_RASZ")) && *cvar)
+      {isize = atol(cvar); setEnv(NAME_READAHEADSIZE, isize);}
+
 // Establish cache size
 //
    if ((cvar = getenv("XRDPOSIX_RCSZ")) && *cvar)

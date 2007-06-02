@@ -78,11 +78,22 @@ $*
 This will isolate the use of the wrapper to desired instances.
 
 Most Unix command will work against an xrootd server. However, some, like 'ls'
-that assumes a directory structure, will fail (you can still do an ls against
+that assumes a directory structure, may fail (you can still do an ls against
 an individual xroot file). Additionally, since the shell expands filename
 globbing, using meta characters in the filename will not work. We encourage
 you to play around and see how you like using Unix commands with xrootd files.
 
+                    *** SPECIAL ENVIRNMENTAL VARIABLE ***
+
+The following setenv (Unix environmental variable) can be set to change
+operational characteristics:
+
+XRDPOSIX_DEBUG   - Debug value or 0, 1, 2, or 3. The higher the more info.
+                   Default is 0.
+XRDPOSIX_RASZ    - Read ahead size any integer value 0 or more.
+                   Default is  1048576 ( 1 megabyte).
+XRDPOSIX_RCSZ    - Read cache size any integer value 0 or more.
+                   Default is 10000000 (10 megabytes) per file.
                             *** STATIC WRAPPER ***
 
 The static wrapper is used to control exactly which programs and under which
@@ -120,6 +131,7 @@ The XrdPosix.hh file redefines the standard POSIX system calls:
 int     close(int fildes);
 int     closedir(DIR *dirp);
 off_t   lseek(int fildes, off_t offset, int whence);
+int     fcntl(int fildes, int cmd, /* arg */ ...);
 int     fstat(int fildes, struct stat *buf);
 int     fsync(int fildes);
 int     mkdir(const char *path, mode_t mode);
