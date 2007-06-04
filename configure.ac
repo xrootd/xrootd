@@ -17,7 +17,7 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20070601,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20070601-dfrefactor,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -479,9 +479,13 @@ if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; the
   AC_ARG_ENABLE(swig,
               [  --enable-swig     enable rebuilding of Perl wrapper with SWIG [[default=yes]] ],
               [],[enable_swig=$activate_swig])
-
+  if test $enable_swig = "yes"; then activate_swig=yes; fi
+  if test $enable_swig = "no"; then activate_swig=no; fi
+	
   AC_PATH_PROG(SWIG,swig,[no],[$SWIG_DIR:$PATH])
-  if test $enable_swig = "yes" -o $enable_swig = "default_yes" -a x"$SWIG" != xno; then
+  if test x"$SWIG" = xno; then activate_swig=disabled; fi
+
+  if test $activate_swig = "yes" -o $activate_swig = "default_yes"; then
      AC_MSG_CHECKING([for swig version])
      verstr=`$SWIG -version 2>/dev/null`
      vermajor=`expr x"$verstr" : '.*\([[0-9]][[0-9]]*\).[[0-9]][[0-9]]*.[[0-9]][[0-9]]*'`

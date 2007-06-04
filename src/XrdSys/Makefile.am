@@ -18,7 +18,8 @@ INCLUDES = -I$(top_srcdir)/src
 
 libXrdSys_la_SOURCES = \
         XrdSysDir.cc XrdSysDir.hh \
-        XrdSysPriv.cc XrdSysPriv.hh
+        XrdSysPriv.cc XrdSysPriv.hh \
+        XrdSysPlatform.cc
 
 libXrdSys_la_LIBADD = $(LIBPTHREAD) $(SEM_LIBRT) $(LIBNSL)
 libXrdSys_la_CXXFLAGS = -prefer-pic

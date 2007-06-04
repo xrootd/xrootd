@@ -45,30 +45,69 @@ testfor() {
     status=$?
     if test 0"$status" -ne 0; then
 	echo "Error: Could not find $1 in PATH" >&2
-	exit 1
+        echo "notfound"
+	return
     fi
+    # following test needed on macos/darwin since "which" is
+    # horribly broken (If command is not found prints Error
+    # to stdout and returns a status of 0)
+    if test ! -e "$p"; then
+        echo "Error: Could not find $1 in PATH" >&2
+        echo "notfound"
+	return
+    fi
+
     echo "$p"
     echo "################################# $p" >&2
 }
 
-build_install() {
-    product=`expr $1 : '\([^-]*\)'`
+fetch_archive() {
+    product=`expr $1 : '\([a-zA-Z]*\)-'`
     if test x"$1" = x; then
-	echo "Error: build_install() called without argument" >&2
+	echo "Error: fetch_archives() called without argument" >&2
 	exit 1
     fi
     if test ! -e $1.tar; then
 	if test ! -e $1.tar.gz; then
 	    test -z $WGET && WGET=`testfor wget`
+	    if test x"$WGET" = xnotfound; then
+		echo "you need to manually get $WGETSRC/$product/$1.tar.gz " \
+		    "and place it in $BUILDDIR" >&2
+		exit 1
+	    fi
 	    $WGET $WGETSRC/$product/$1.tar.gz
 	    if test ! -e $1.tar.gz; then
-		echo "Error: Failed to fetch tarball: $WGETSRC/$1.tar.gz" >&2
+		echo "Error: Failed to fetch tarball: $WGETSRC/$product/$1.tar.gz" >&2
 		exit 1
 	    fi
 	fi
 	gunzip $1.tar.gz
+	status=$?
+	if test 0"$status" -ne 0; then
+	    echo "Error: gunzip of $BUILDDIR/$1.tar.gz failed. Probably broken tarball." >&2
+	    echo "Remove the tarball and retry" >&2
+	    exit 1
+	fi	
     fi
+}
+
+
+build_install() {
+    #product=`expr $1 : '\([^-]*\)'`
+    product=`expr $1 : '\([a-zA-Z]*\)-'`
+    if test x"$1" = x; then
+	echo "Error: build_install() called without argument" >&2
+	exit 1
+    fi
+
+    echo "######################## BUILDING AND INSTALLING $1"
+    cd $BUILDDIR
     tar xvf $1.tar
+    status=$?
+    if test 0"$status" -ne 0; then
+	echo "Error: Failed to extract $1.tar" >&2
+	exit 1
+    fi	
     cd $1
     ./configure --prefix=$INSTALLDIR
     make install
@@ -159,8 +198,12 @@ fi
 
 mkdir -p $BUILDDIR
 cd $BUILDDIR
+BUILDDIR=`pwd`
 
 export PATH=$INSTALLDIR/bin:$PATH
+for n in $AUTOCONF $AUTOMAKE $LIBTOOL; do
+    fetch_archive $n
+done
 for n in $AUTOCONF $AUTOMAKE $LIBTOOL; do
     build_install $n
 done
