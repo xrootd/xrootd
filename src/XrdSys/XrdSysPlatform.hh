@@ -104,6 +104,8 @@ extern char *cuserid(char *s);
 #endif
 #define O_LARGEFILE 0
 #define memalign(pgsz,amt) valloc(amt)
+#define posix_memalign(memp, algn, sz) \
+        ((*memp = memalign(algn, sz)) ? 0 : ENOMEM)
 #define SHMDT_t void *
 #ifndef EDEADLOCK
 #define EDEADLOCK EDEADLK
