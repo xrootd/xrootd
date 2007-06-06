@@ -49,6 +49,11 @@ int  originalFD() {return baseFD;}
 //
 void Put(int iovcnt, struct iovec *iov);
 
+// Set log file keep value. A negative number means keep abs() files.
+//                          A positive number means keep no more than n bytes.
+//
+void setKeep(long long knum) {eKeep = knum;}
+
 // Set log file rotation on/off. Used by forked processes.
 //
 void setRotate(int onoff) {doLFR = onoff;}
@@ -66,6 +71,7 @@ char  traceEnd() {Logger_Mutex.UnLock(); return '\n';}
 private:
 
 XrdOucMutex Logger_Mutex;
+long long  eKeep;
 char       TBuff[24];        // Trace header buffer
 int        eFD;
 int        baseFD;
@@ -77,5 +83,6 @@ time_t     eNow;
 int        doLFR;
 
 int    ReBind(int dorename=1);
+void   Trim();
 };
 #endif

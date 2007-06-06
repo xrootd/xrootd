@@ -12,6 +12,7 @@
 
 const char *XrdOucLoggerCVSID = "$Id$";
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -45,7 +46,9 @@ XrdOucLogger::XrdOucLogger(int ErrFD, int dorotate)
    eInt  = 0;
    eNow  = 0;
    eFD   = ErrFD;
+   eKeep = 0;
    doLFR = dorotate;
+
 
 // Establish message routing
 //
@@ -191,5 +194,121 @@ int XrdOucLogger::ReBind(int dorename)
 //
    if (dup2(newfd, eFD) < 0) return -errno;
    close(newfd);
+
+// Check if we should trim log files
+//
+   if (eKeep && doLFR) Trim();
    return 0;
+}
+
+/******************************************************************************/
+/*                                  T r i m                                   */
+/******************************************************************************/
+
+#define putEmsg(msg,msz) eVec[1].iov_base = msg; eVec[1].iov_len = msz; \
+                         eVec[0].iov_base = 0; Put(2, eVec)
+  
+void XrdOucLogger::Trim()
+{
+   struct LogFile 
+          {LogFile *next;
+           char    *fn;
+           off_t    sz;
+           time_t   tm;
+
+           LogFile(char *xfn, off_t xsz, time_t xtm)
+                  {fn = (xfn ? strdup(xfn) : 0); sz = xsz; tm = xtm; next = 0;}
+          ~LogFile() 
+                  {if (fn)   free(fn);
+                   if (next) delete next;
+                  }
+          } logList(0,0,0);
+
+   struct LogFile *logEnt, *logPrev, *logNow;
+   struct iovec eVec[2];
+   char eBuff[2048], logFN[256], logDir[1024], *logSfx;
+   struct dirent *dp;
+   struct stat buff;
+   long long totSz = 0;
+   int n,rc, totNum= 0;
+   DIR *DFD;
+
+// Ignore this call if we are not deleting log files
+//
+   if (!eKeep) return;
+
+// Construct the directory path
+//
+   if (!ePath) return;
+   strcpy(logDir, ePath);
+   if (!(logSfx = rindex(logDir, '/'))) return;
+   *logSfx = '\0';
+   strcpy(logFN, logSfx+1);
+   n = strlen(logFN);
+
+// Open the directory
+//
+   if (!(DFD = opendir(logDir)))
+      {int msz = sprintf(eBuff, "Error %d (%s) opening log directory %s\n",
+                                errno, strerror(errno), logDir);
+       putEmsg(eBuff, msz);
+       return;
+      }
+    *logSfx++ = '/';
+
+// Record all of the log files currently in this directory
+//
+   errno = 0;
+   while((dp = readdir(DFD)))
+        {if (strncmp(dp->d_name, logFN, n)) continue;
+         strcpy(logSfx, dp->d_name);
+         if (stat(logDir, &buff) || !(buff.st_mode & S_IFREG)) continue;
+
+         totNum++; totSz += buff.st_size;
+         logEnt = new LogFile(dp->d_name, buff.st_size, buff.st_mtime);
+         logPrev = &logList; logNow = logList.next;
+         while(logNow && logNow->tm < buff.st_mtime)
+              {logPrev = logNow; logNow = logNow->next;}
+
+         logPrev->next = logEnt; 
+         logEnt->next  = logNow;
+        }
+
+// Check if we received an error
+//
+   rc = errno; closedir(DFD);
+   if (rc)
+      {int msz = sprintf(eBuff, "Error %d (%s) reading log directory %s\n",
+                                rc, strerror(rc), logDir);
+       putEmsg(eBuff, msz);
+       return;
+      }
+
+// If there is only one log file here no need to
+//
+   if (totNum <= 1) return;
+
+// Check if we need to trim log files
+//
+   if (eKeep < 0)
+      {if ((totNum += eKeep) <= 0) return;
+      } else {
+       if (totSz <= eKeep)         return;
+       logNow = logList.next; totNum = 0;
+       while(logNow && totSz > eKeep)
+            {totNum++; totSz -= logNow->sz; logNow = logNow->next;}
+      }
+
+// Now start deleting log files
+//
+   logNow = logList.next;
+   while(logNow && totNum--)
+        {strcpy(logSfx, logNow->fn);
+         if (unlink(logDir))
+            rc = sprintf(eBuff, "Error %d (%s) removing log file %s\n",
+                                errno, strerror(errno), logDir);
+            else rc = sprintf(eBuff, "Removed log file %s\n", logDir);
+         putEmsg(eBuff, rc);
+         logNow = logNow->next;
+        }
 }
