@@ -198,9 +198,10 @@ int XrdConfig::Configure(int argc, char **argv)
    const char *xrdProg="XRDPROG=";
 
    static sockaddr myIPAddr;
-   int retc, dotrim = 1, NoGo = 0, aP = 1, clPort = -1, optbg = 0;
+   int n, retc, dotrim = 1, NoGo = 0, aP = 1, clPort = -1, optbg = 0;
    const char *temp;
    char c, *Penv, buff[512], *dfltProt, *logfn = 0;
+   long long logkeep = 0;
    uid_t myUid = 0;
    gid_t myGid = 0;
    extern char *optarg;
@@ -216,7 +217,8 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"bc:dhl:n:p:P:R:")) && ((unsigned char)c != 0xff))
+      while ((c = getopt(argc,argv,"bc:dhk:l:n:p:P:R:")) 
+             && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'b': optbg = 1;
@@ -229,6 +231,13 @@ int XrdConfig::Configure(int argc, char **argv)
                  putenv((char *)"XRDDEBUG=1");
                  break;
        case 'h': Usage(0);
+       case 'k': n = strlen(optarg)-1;
+                 retc = (isalpha(optarg[n])
+                        ? XrdOuca2x::a2sz(XrdLog,"keep size", optarg,&logkeep)
+                        : XrdOuca2x::a2ll(XrdLog,"keep count",optarg,&logkeep));
+                 if (retc) Usage(1);
+                 if (!isalpha(optarg[n])) logkeep = -logkeep;
+                 break;
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
                  break;
@@ -279,6 +288,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    if (logfn)
       {if (!(logfn = XrdOucUtils::subLogfn(XrdLog, myInsName, logfn))) _exit(16);
+       if (logkeep) XrdLogger.setKeep(logkeep);
        XrdLogger.Bind(logfn, 24*60*60);
        free(logfn);
       }
@@ -741,7 +751,7 @@ void XrdConfig::UnderCover()
 void XrdConfig::Usage(int rc)
 {
 
-     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-l <fn>] "
+     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-k {n|sz}] [-l <fn>] "
             "[-n name] [-p <port>] [-P <prot>] [<prot_options>]" <<endl;
      _exit(rc);
 }
