@@ -29,6 +29,7 @@ class XrdOlbServer;
 //
 #define OLB_LS_BEST   0x0001
 #define OLB_LS_ALL    0x0002
+#define OLB_LS_IPO    0x0004
 
 // Status flags
 //
@@ -37,6 +38,12 @@ class XrdOlbServer;
 #define OLB_SERVER_OFFLINE 0x0004
 #define OLB_SERVER_SUSPEND 0x0008
 #define OLB_SERVER_NOSPACE 0x0020
+#define OLB_SERVER_ISRW    0x0040
+//                         0x0080
+#define OLB_SERVER_ISMANGR 0x0100
+#define OLB_SERVER_ISPEER  0x0200
+#define OLB_SERVER_ISPROXY 0x0400
+#define OLB_SERVER_NOSERVR 0x0700
 
 /******************************************************************************/
 /*                            o o l b _ S I n f o                             */
@@ -48,8 +55,12 @@ public:
 
 XrdOlbSInfo *next;
 char        *Name;
+SMask_t      Mask;
 int          Id;
+unsigned int IPAddr;
+int          Port;
 int          Load;
+int          Util;
 int          Free;
 int          RefTotA;
 int          RefTotR;

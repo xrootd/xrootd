@@ -78,7 +78,7 @@ static int  Resume(XrdOlbPrepArgs *pargs);
 
 static void setRelay(XrdNetLink *rlyp) {Relay = rlyp;}
 
-static void setSpace(int Dfree, int Dtota) {dsk_free = Dfree; dsk_tota = Dtota;}
+static void setSpace(int Dfree, int Dutil) {dsk_free = Dfree; dsk_totu = Dutil;}
 
             XrdOlbServer(XrdNetLink *lnkp, int port=0, char *sid=0);
            ~XrdOlbServer();
@@ -149,7 +149,7 @@ int        newload;
 int        logload;
 int        DiskFree;     // Largest free KB
 int        DiskNums;     // Number of file systems
-int        DiskTota;     // Total free KB across all file systems
+int        DiskTotu;     // Total disk utilization
 int        myCost;       // Overall cost (determined by location)
 int        myLoad;       // Overall load
 int        RefA;         // Number of times used for allocation
@@ -166,6 +166,6 @@ static int         mem_load;
 static int         pag_load;
 static int         net_load;
 static int         dsk_free;
-static int         dsk_tota;
+static int         dsk_totu;
 };
 #endif

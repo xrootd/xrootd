@@ -338,7 +338,7 @@ int XrdOlbConfig::Configure2()
    if (isPeer && isSolo) 
       {SUPCount = 0; 
        SUPLevel = 0; 
-       XrdOlbServer::setSpace(0x7fffffff, 0x7fffffff);
+       XrdOlbServer::setSpace(0x7fffffff, 0);
       }
 
 // Set up the generic message id

@@ -59,7 +59,7 @@ int         XrdOlbServer::mem_load = 0;
 int         XrdOlbServer::pag_load = 0;
 int         XrdOlbServer::net_load = 0;
 int         XrdOlbServer::dsk_free = 0;
-int         XrdOlbServer::dsk_tota = 0;
+int         XrdOlbServer::dsk_totu = 0;
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -92,7 +92,7 @@ XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
     myLoad   =  0;
     DiskFree =  0;
     DiskNums =  0;
-    DiskTota =  0;
+    DiskTotu =  0;
     newload  =  1;
     Next     =  0;
     RefA     =  0;
@@ -162,7 +162,7 @@ XrdOlbServer::~XrdOlbServer()
 int XrdOlbServer::Login(int dataPort, int Status, int Lvl)
 {
    XrdOlbPList *plp = Config.PathList.First();
-   long totfr, maxfr;
+   int  tutil, maxfr;
    char pbuff[16], qbuff[16], buff[1280];
    const char *role;
 
@@ -213,10 +213,10 @@ int XrdOlbServer::Login(int dataPort, int Status, int Lvl)
    if (Config.asManager())
       {if (Link->Send("start 0 1 0\n") < 0) return -1;
       } else {
-       maxfr = Meter.FreeSpace(totfr);
+       maxfr = Meter.FreeSpace(tutil);
        if (Link->Send(buff, snprintf(buff, sizeof(buff)-1,
-                      "start %ld %d %ld\n",
-                      maxfr, Meter.numFS(), totfr)) < 0) return -1;
+                      "start %d %d %d\n",
+                      maxfr, Meter.numFS(), tutil)) < 0) return -1;
       }
 
 // Document the login
@@ -335,12 +335,12 @@ int XrdOlbServer::Process_Responses()
    if (Config.asManager())
       {mlMutex.Lock();
        if (isRW && DiskFree > dsk_free)
-          {retc = dsk_free; dsk_free = DiskFree; dsk_tota = DiskTota;
+          {retc = dsk_free; dsk_free = DiskFree; dsk_totu = DiskTotu;
            if (!retc)
               {char respbuff[128];
                Manager.Inform("avkb", 4,
                                respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                               " %d %d\n", dsk_free, dsk_tota));
+                               " %d %d\n", dsk_free, dsk_totu));
               }
           }
        mlMutex.UnLock();
@@ -455,18 +455,22 @@ void XrdOlbServer::setName(XrdNetLink *lnkp, int port)
 int XrdOlbServer::do_AvKb(char *rid)
 {
     char *tp;
-    int fdsk;
+    int fdsk, udsk;
 
-// Process: <id> avkb <fsdsk> <totdsk>
+// Process: <id> avkb <fsdsk> {<totdsk> | <util>}
 //
    if (!(tp = Link->GetToken())
    || XrdOuca2x::a2i(Say, "fs kb value",  tp, &fdsk, 0))
       return 1;
-   DiskTota = DiskFree = fdsk;
+   DiskFree = fdsk;
    if ((tp = Link->GetToken()))
-      if (XrdOuca2x::a2i(Say, "tot kb value",  tp, &fdsk, 0))
-         return 1;
-         else DiskTota = fdsk;
+      if (XrdOuca2x::a2i(Say, "util value",  tp, &udsk, 0)) return 1;
+         else {if (udsk > 100)
+                  {long long Fdsk = static_cast<long long>(fdsk);
+                   if ((udsk = 100-(Fdsk*100/udsk)) > 100) udsk=100;
+                  }
+               DiskTotu = udsk;
+              }
    return 0;
 }
   
@@ -662,7 +666,7 @@ int XrdOlbServer::do_Have(char *rid)
 int XrdOlbServer::do_Load(char *rid)
 {
     char *tp;
-    int temp, pcpu, pio, pload, pmem, ppag, fdsk, tdsk = -1;
+    int temp, pcpu, pio, pload, pmem, ppag, fdsk, udsk = -1;
 
 // Process: <id> load <cpu> <io> <load> <mem> <pag> <dsk>
 //
@@ -684,15 +688,26 @@ int XrdOlbServer::do_Load(char *rid)
    if (!(tp = Link->GetToken())) return 1;
    if (XrdOuca2x::a2i(Say, "fs dsk value",  tp, &fdsk, 0))
       return 1;
+
+// The last value is tricky. Old servers returned the total amount of free
+// space but new servers return total utilization (0-100). We use the range
+// to indicate whether this is a new or old server. Old servers always
+// willcalculate based on the sent values, though that is specious since
+// the total is truncated at 2TB and most severs have more than that.
+//
    if ((tp = Link->GetToken())
-   && XrdOuca2x::a2i(Say, "tot dsk value",  tp, &tdsk, 0))
+   && XrdOuca2x::a2i(Say, "utl dsk value",  tp, &udsk, 0))
       return 1;
+   if (udsk > 100)
+       {long long Fdsk = static_cast<long long>(fdsk);
+        if ((udsk = 100 - (Fdsk*100/udsk)) > 100) udsk = 100;
+       }
 
 // Compute actual load value
 //
    myLoad = Meter.calcLoad(pcpu, pio, pload, pmem, ppag);
    DiskFree = fdsk;
-   DiskTota = (tdsk >= 0 ? tdsk : fdsk);
+   DiskTotu = udsk;
    newload = 1;
 
 // If we are also a manager then use this load figure to come up with
@@ -712,12 +727,12 @@ int XrdOlbServer::do_Load(char *rid)
        temp = pag_load + pag_load/2;
        pag_load = (pag_load + (ppag > temp ? temp : ppag ))/2;
        if (isRW && DiskFree > dsk_free)
-          {temp = dsk_free; dsk_free = DiskFree; dsk_tota = DiskTota;
+          {temp = dsk_free; dsk_free = DiskFree; dsk_totu = DiskTotu;
            if (!temp)   
               {char respbuff[128];
                Manager.Inform("avkb", 4,
                                respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                               " %d %d\n", dsk_free, dsk_tota));
+                               " %d %d\n", dsk_free, dsk_totu));
               }
           }
        mlMutex.UnLock();
@@ -731,8 +746,8 @@ int XrdOlbServer::do_Load(char *rid)
 //
    {char buff[1024];
     snprintf(buff, sizeof(buff)-1,
-            "load=%d; cpu=%d i/o=%d inq=%d mem=%d pag=%d dsk=%d tot=%d",
-            myLoad, pcpu, pio, pload, pmem, ppag, fdsk, tdsk);
+            "load=%d; cpu=%d i/o=%d inq=%d mem=%d pag=%d dsk=%d utl=%d",
+            myLoad, pcpu, pio, pload, pmem, ppag, fdsk, udsk);
     Say.Emsg("Server", Name(), buff);
     if ((logload = Config.LogPerf)) logload--;
    }
@@ -1502,18 +1517,18 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 int XrdOlbServer::do_Space(char *rid)
 {
    char respbuff[128];
-   long maxfr, totfr;
+   int maxfr, tutil;
 
 // Process: <id> space
 // Respond: <id> avkb  <numkb>
 //
    if (Config.asManager())
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                        "%s avkb %d %d\n", rid, dsk_free, dsk_tota));
+                        "%s avkb %d %d\n", rid, dsk_free, dsk_totu));
 
-   maxfr = Meter.FreeSpace(totfr);
+   maxfr = Meter.FreeSpace(tutil);
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                "%s avkb %ld %ld\n", rid, maxfr, totfr));
+                "%s avkb %d %d\n", rid, maxfr, tutil));
 }
   
 /******************************************************************************/
@@ -1729,24 +1744,24 @@ int XrdOlbServer::do_Try(char *rid)
 int XrdOlbServer::do_Usage(char *rid)
 {
     char respbuff[512];
-    long maxfr, totfr;
+    int  maxfr, tutil;
 
 // Process: <id> usage
-// Respond: <id> load <cpu> <io> <load> <mem> <pag> <dskfree> <dsktot>
+// Respond: <id> load <cpu> <io> <load> <mem> <pag> <dskfree> <dskutil>
 //
    if (Config.asManager())
       return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                         "%s load %d %d %d %d %d %d %d\n", rid,
                         cpu_load, net_load, xeq_load, mem_load, pag_load,
-                        dsk_free, dsk_tota));
+                        dsk_free, dsk_totu));
 
    if (Meter.isOn())
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
                      "%s load %s\n", rid, Meter.Report()));
 
-   maxfr = Meter.FreeSpace(totfr);
+   maxfr = Meter.FreeSpace(tutil);
    return Link->Send(respbuff, snprintf(respbuff, sizeof(respbuff)-1,
-                     "%s load 0 0 0 0 0 %ld %ld\n", rid, maxfr, totfr));
+                     "%s load 0 0 0 0 0 %d %d\n", rid, maxfr, tutil));
 }
 
 /******************************************************************************/

@@ -90,6 +90,7 @@ XrdOlbMeter::XrdOlbMeter() : myMeter(&Say)
     noSpace  = 0;
     MinFree  = 0;
     HWMFree  = 0;
+    dsk_tot  = 0;
     dsk_free = 0;
     dsk_maxf = 0;
     monpgm   = 0;
@@ -131,26 +132,24 @@ int XrdOlbMeter::calcLoad(int pcpu, int pio, int pload, int pmem, int ppag)
 /*                             F r e e S p a c e                              */
 /******************************************************************************/
   
-long XrdOlbMeter::FreeSpace(long &tot_free)
+int XrdOlbMeter::FreeSpace(int &tot_util)
 {
-   long long fsavail, fstotav;
+   long long fsavail;
 
 // The values are calculated periodically so use the last available ones
 //
    cfsMutex.Lock();
    fsavail = dsk_maxf;
-   fstotav = dsk_free;
+   tot_util= dsk_util;
    cfsMutex.UnLock();
 
 // Now adjust the values to fit
 //
    if (fsavail >> 31) fsavail = 0x7fffffff;
-   if (fstotav >> 31) fstotav = 0x7fffffff;
 
-// Set the quantity and return it
+// Return amount available
 //
-   tot_free = static_cast<long>(fstotav);
-   return static_cast<long>(fsavail);
+   return static_cast<int>(fsavail);
 }
 
 /******************************************************************************/
@@ -189,7 +188,7 @@ int XrdOlbMeter::Monitor(char *pgm, int itv)
   
 char *XrdOlbMeter::Report()
 {
-   long maxfree, totfree;
+   int maxfree, totutil;
 
 // Force restart the monitor program if it hasn't reported within 2 intervals
 //
@@ -198,10 +197,10 @@ char *XrdOlbMeter::Report()
 // Format a usage line
 //
    repMutex.Lock();
-   maxfree = FreeSpace(totfree);
-   snprintf(ubuff, sizeof(ubuff), "%d %d %d %d %d %ld %ld",
+   maxfree = FreeSpace(totutil);
+   snprintf(ubuff, sizeof(ubuff), "%d %d %d %d %d %d %d",
             cpu_load, net_load, xeq_load, mem_load,
-            pag_load, maxfree, totfree);
+            pag_load, maxfree, totutil);
    repMutex.UnLock();
 
 // All done
@@ -281,8 +280,10 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
     XrdOlbMeterFS *fsP, baseFS(0,0,0);
     XrdOucTList *plp, *nlp;
     char buff[1024], sfx1, sfx2;
-    long maxfree, totfree;
+    long long fsbsize;
+    long maxfree, totDisk;
     struct stat buf;
+    STATFS_BUFF fsdata;
     int rc;
 
 // Set values (disk space values are in kilobytes)
@@ -306,8 +307,19 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
             delete nlp;
             if ((nlp = xlp)) continue;
             break;
-           } else fs_nums++;
+           } else {
+            fs_nums++;
+            if (!STATFS(nlp->text, &fsdata))
+#if defined(__solaris__) || defined(_STATFS_F_FRSIZE)
+               {fsbsize = (fsdata.f_frsize ? fsdata.f_frsize : fsdata.f_bsize);
+#else
+               {fsbsize = fsdata.f_bsize;
+#endif
+                dsk_tot += fsdata.f_blocks * ( fsbsize ?  fsbsize : FS_BLKFACT);
+               }
+           }
        } while((nlp = nlp->next));
+   dsk_tot = dsk_tot/1024;
 
 // Calculate the initial free space and start the FS monitor thread
 //
@@ -330,9 +342,10 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
 //
    if (fs_nums)
       {sfx1 = Scale(dsk_maxf, maxfree);
-       sfx2 = Scale(dsk_free, totfree);
-       sprintf(buff,"Found %d filesystem(s); %ld%c total bytes free; %ld%c available",
-                    fs_nums, totfree, sfx2, maxfree, sfx1);
+       sfx2 = Scale(dsk_tot,  totDisk);
+       sprintf(buff,"Found %d filesystem(s); %ld%c total bytes (%d%% utilized);"
+                    " %ld%c max available",
+                    fs_nums, totDisk, sfx2, dsk_util, maxfree, sfx1);
        Say.Emsg("Meter", buff);
        if (noSpace)
           {sprintf(buff, "%lldK minimum", MinFree);
@@ -350,14 +363,14 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
   
 void XrdOlbMeter::informLoad()
 {
-   long maxfree, totfree;
+   int maxfree, tutil;
    char mybuff[64];
    int i;
 
-   maxfree = FreeSpace(totfree);
-   i = snprintf(mybuff, sizeof(mybuff), "load %d %d %d %d %d %ld %ld\n",
+   maxfree = FreeSpace(tutil);
+   i = snprintf(mybuff, sizeof(mybuff), "load %d %d %d %d %d %d %d\n",
                 cpu_load, net_load, xeq_load, mem_load,
-                pag_load, maxfree, totfree);
+                pag_load, maxfree, tutil);
 
    Manager.Inform(mybuff, i);
 }
@@ -389,7 +402,7 @@ void XrdOlbMeter::calcSpace()
 {
    EPNAME("calcSpace")
    long long fsbsize;
-   long long bytes, fsavail = 0, fstotav = 0;
+   long long bytes, fsutil, fsavail = 0, fstotav = 0;
    XrdOucTList *tlp = fs_list;
    STATFS_BUFF fsdata;
 
@@ -413,15 +426,22 @@ void XrdOlbMeter::calcSpace()
          tlp = tlp->next;
         }
 
+// Calculate the disk utilization
+//
+   fsutil = (dsk_tot ? 100-((fstotav/1024*100)/dsk_tot) : 100);
+   if (fsutil < 0) fsutil = 0;
+      else if (fsutil > 100) fsutil = 100;
+
 // Update the stats and release the lock
 //
    cfsMutex.Lock();
    bytes    = dsk_maxf;
    dsk_maxf = fsavail/1024;
-   dsk_free = fstotav/1024;
+   dsk_free = fsavail/1024;
+   dsk_util = static_cast<int>(fsutil);
    cfsMutex.UnLock();
    if (bytes != dsk_maxf)
-      DEBUG("New fs info; maxfree=" <<dsk_maxf <<"K totfree=" <<dsk_free <<"K");
+      DEBUG("New fs info; maxfree=" <<dsk_maxf <<"K utilized=" <<dsk_util <<"%");
 }
 
 /******************************************************************************/

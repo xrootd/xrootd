@@ -260,10 +260,13 @@ XrdOlbSInfo *XrdOlbManager::ListServers(SMask_t mask, int opts)
            else if (((sp = ServTab[i]) || (sp = ServBat[i]))
                 &&  !lsall && !(sp->ServMask & mask)) sp = 0;
         if (sp)
-           {sip = new XrdOlbSInfo(sp->Name(), sipp);
+           {sip = new XrdOlbSInfo((opts & OLB_LS_IPO) ? 0 : sp->Name(), sipp);
+            sip->Mask    = sp->ServMask;
             sip->Id      = sp->ServID;
+            sip->IPAddr  = sp->IPAddr;
+            sip->Port    = sp->Port;
             sip->Load    = sp->myLoad;
-            sip->Free    = sp->DiskTota;
+            sip->Util    = sp->DiskTotu;
             sip->RefTotA = sp->RefTotA + sp->RefA;
             sip->RefTotR = sp->RefTotR + sp->RefR;
             if (sp->isOffline) sip->Status  = OLB_SERVER_OFFLINE;
@@ -271,6 +274,10 @@ XrdOlbSInfo *XrdOlbManager::ListServers(SMask_t mask, int opts)
             if (sp->isDisable) sip->Status |= OLB_SERVER_DISABLE;
             if (sp->isNoStage) sip->Status |= OLB_SERVER_NOSTAGE;
             if (sp->isSuspend) sip->Status |= OLB_SERVER_SUSPEND;
+            if (sp->isRW     ) sip->Status |= OLB_SERVER_ISRW;
+            if (sp->isMan    ) sip->Status |= OLB_SERVER_ISMANGR;
+            if (sp->isPeer   ) sip->Status |= OLB_SERVER_ISPEER;
+            if (sp->isProxy  ) sip->Status |= OLB_SERVER_ISPROXY;
             sp->UnLock();
             sipp = sip;
            }
@@ -294,6 +301,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
    char *tp, *theSID;
    int   Status = 0, fdsk = 0, numfs = 1, addedp = 0, port = 0, Sport = 0;
    int   rc, servID, servInst, Rslot, isProxy = 0, isPeer = 0, isServ = 0;
+   int   udsk;
    SMask_t servset = 0, newmask;
 
 // Handle the login for the server stream.
@@ -331,7 +339,7 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 // Responses:      <id> ping
 //                 <id> try <hostlist>
 // Server Command: addpath <mode> <path>
-//                 start <maxkb> <numfs> <totkb>
+//                 start <maxkb> [<numfs> [<totkb> | <util>]]
 //
 // Note: For now we designate proxies as peers to avoid polling them
 
@@ -453,26 +461,29 @@ void *XrdOlbManager::Login(XrdNetLink *lnkp)
 //
    if (!tp) return Login_Failed("missing start", lnkp, sp);
 
-// The server may include the max amount of free space, if need be, on the start
+// The server may include the max free space, if need be, on the start
 //
    if ((tp = lnkp->GetToken())
-   && XrdOuca2x::a2i(Say,"start maxkb value",tp,&fdsk,0))
-      return Login_Failed("invalid start maxkb value", lnkp, sp);
-      else {sp->DiskTota = sp->DiskFree = fdsk; sp->DiskNums = 1;}
+   && XrdOuca2x::a2i(Say,"start disk free value",tp,&fdsk,0))
+      return Login_Failed("invalid start dsk free value", lnkp, sp);
+      else {sp->DiskFree = fdsk; sp->DiskNums = 1; sp->DiskTotu = 0;}
 
 // The server may include the number of file systems, on the start
 //
-   if ((tp = lnkp->GetToken())
+   if (tp && (tp = lnkp->GetToken())
    && XrdOuca2x::a2i(Say, "start numfs value",  tp, &numfs, 0))
       return Login_Failed("invalid start numfs value", lnkp, sp);
       else sp->DiskNums = numfs;
 
 // The server may include the total free space in all file systems, on the start
+// For new servers the value will be actual disk utilization.
 //
-   if ((tp = lnkp->GetToken())
-   && XrdOuca2x::a2i(Say, "start totkb value",  tp, &fdsk, 0))
-      return Login_Failed("invalid start totkb value", lnkp, sp);
-      else sp->DiskTota = fdsk;
+   if (tp && (tp = lnkp->GetToken())
+   && XrdOuca2x::a2i(Say, "start totkb value",  tp, &udsk, 0))
+      return Login_Failed("invalid start util value", lnkp, sp);
+      else {if (udsk > 100 && (udsk = 100 - (fdsk/udsk)) > 100) udsk = 100;
+            sp->DiskTotu = udsk;
+            }
 
 // Check if we have any special paths. If none, then we must set the cache for
 // all entries to indicate that the server bounced.

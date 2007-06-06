@@ -25,7 +25,7 @@ public:
 
 int   calcLoad(int pcpu, int pio, int pload, int pmem, int ppag);
 
-long  FreeSpace(long &totfree);
+int   FreeSpace(int &tutil);
 
 int   isOn() {return Running;}
 
@@ -57,10 +57,12 @@ XrdOucMutex   repMutex;
 XrdOucTList  *fs_list;
 long long     MinFree;
 long long     HWMFree;
+long long     dsk_tot;  // Calculated only once
 long long     dsk_free;
 long long     dsk_maxf;
+int           dsk_util;
 int           dsk_calc;
-int           fs_nums;
+int           fs_nums;  // Calculated only once
 int           noSpace;
 int           Running;
 
