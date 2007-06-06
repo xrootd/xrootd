@@ -127,7 +127,9 @@ enum XOpenRequestOption {
    kXR_refresh  = 128,
    kXR_mkpath   = 256,
    kXR_open_apnd= 512,
-   kXR_retstat  = 1024
+   kXR_retstat  = 1024,
+   kXR_open_temp= 2048,
+   kXR_open_cont= 4096
 };
 
 enum XQueryType {
