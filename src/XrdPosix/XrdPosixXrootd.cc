@@ -77,7 +77,7 @@ public:
   long             getEntries() { return fentries.GetSize(); }
   long             getOffset() { return fentry; }
   void             setOffset(long offset) { fentry = offset; }
-  dirent          *nextEntry(dirent *dp=0);
+  dirent64        *nextEntry(dirent64 *dp=0);
   void             rewind() { fentry = -1; fentries.Clear();}
   int              Status() { return eNum;}
 
@@ -85,7 +85,7 @@ public:
 private:
   XrdOucMutex     myMutex;
   XrdClientAdmin  XAdmin;
-  dirent         *myDirent;
+  dirent64       *myDirent;
   static int      maxname;
   int             fdirno;
   char           *fpath;
@@ -216,7 +216,7 @@ XrdPosixDir::XrdPosixDir(int dirno, const char *path) : XAdmin(path)
 // Allocate a local dirent. Note that we get additional padding because on
 // some system the dirent structure does not include the name buffer
 //
-   if (!(myDirent = (dirent *)malloc(sizeof(dirent) + maxname + 1))) 
+   if (!(myDirent = (dirent64 *)malloc(sizeof(dirent64) + maxname + 1)))
       eNum = ENOMEM;
 }
 
@@ -233,10 +233,10 @@ XrdPosixDir::~XrdPosixDir()
 /*                            n e x t E n t r y                               */
 /******************************************************************************/
 
-dirent *XrdPosixDir::nextEntry(dirent *dp)
+dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
 {
    const char *cp;
-   const int dirhdrln = sizeof(struct dirent) - sizeof(dp->d_name) + 1;
+   const int dirhdrln = dp->d_name - (char *)dp;
    int reclen;
 
 // Object is already / must be locked at this point
@@ -726,8 +726,25 @@ ssize_t XrdPosixXrootd::Readv(int fildes, const struct iovec *iov, int iovcnt)
 
 struct dirent* XrdPosixXrootd::Readdir(DIR *dirp)
 {
+   dirent64 *dp64;
+   dirent   *dp32; // Could be the same as dp64
+
+   if (!(dp64 = Readdir64(dirp))) return 0;
+
+   dp32 = (struct dirent *)dp64;
+   if (dp32->d_name != dp64->d_name)
+      {dp32->d_ino    = dp64->d_ino;
+       dp32->d_off    = dp64->d_off;
+       dp32->d_reclen = dp64->d_reclen;
+       strcpy(dp32->d_name, dp64->d_name);
+      }
+   return dp32;
+}
+
+struct dirent64* XrdPosixXrootd::Readdir64(DIR *dirp)
+{
    XrdPosixDir *XrdDirp = findDIR(dirp);
-   dirent *dp;
+   dirent64 *dp;
    int rc;
 
 // Returns the next directory entry
@@ -747,14 +764,31 @@ struct dirent* XrdPosixXrootd::Readdir(DIR *dirp)
 /*                              R e a d d i r _ r                             */
 /******************************************************************************/
 
-int XrdPosixXrootd::Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
+int XrdPosixXrootd::Readdir_r(DIR *dirp,   struct dirent    *entry,
+                                           struct dirent   **result)
+{
+   dirent64 *dp64;
+   int       rc;
+
+   if ((rc = Readdir64_r(dirp, 0, &dp64)) <= 0) {*result = 0; return rc;}
+
+   entry->d_ino    = dp64->d_ino;
+   entry->d_off    = dp64->d_off;
+   entry->d_reclen = dp64->d_reclen;
+   strcpy(entry->d_name, dp64->d_name);
+   *result = entry;
+   return rc;
+}
+
+int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
+                                           struct dirent64 **result)
 {
    XrdPosixDir *XrdDirp = findDIR(dirp);
    int rc;
 
 // Thread safe verison of readdir
 //
-   if (!XrdDirp) return -1;
+   if (!XrdDirp) {errno = EBADF; return -1;}
 
    if (!(*result = XrdDirp->nextEntry(entry))) rc = XrdDirp->Status();
       else rc = 0;

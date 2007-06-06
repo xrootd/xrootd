@@ -131,6 +131,26 @@ int fclose(FILE *stream)
 }
 
 /******************************************************************************/
+/*                               f c n t l 6 4                                */
+/******************************************************************************/
+  
+extern "C"
+{
+int     fcntl64(int fd, int cmd, ...)
+{
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
+   va_list ap;
+   void *theArg;
+
+   if (fd >= XrdPosixFD) return 0;
+   va_start(ap, cmd);
+   theArg = va_arg(ap, void *);
+   va_end(ap);
+   return Xunix.Fcntl64(fd, cmd, theArg);
+}
+}
+
+/******************************************************************************/
 /*                             f d a t a s y n c                              */
 /******************************************************************************/
   
@@ -406,7 +426,7 @@ struct dirent64* readdir64(DIR *dirp)
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
-   return (struct dirent64 *)xinuX.Readdir(dirp);
+   return xinuX.Readdir64(dirp);
 }
 }
 
@@ -420,7 +440,7 @@ int     readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
-   return xinuX.Readdir_r(dirp, (struct dirent *)entry, (struct dirent **)result);
+   return xinuX.Readdir64_r(dirp, entry, result);
 }
 }
 

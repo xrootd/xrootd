@@ -53,9 +53,11 @@ static ssize_t Read(int fildes, void *buf, size_t nbyte);
 
 static ssize_t Readv(int fildes, const struct iovec *iov, int iovcnt);
 
-static struct dirent* Readdir(DIR *dirp);
+static struct dirent*   Readdir  (DIR *dirp);
+static struct dirent64* Readdir64(DIR *dirp);
 
-static int     Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+static int     Readdir_r  (DIR *dirp, struct dirent   *entry, struct dirent   **result);
+static int     Readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result);
 
 static void    Rewinddir(DIR *dirp);
 

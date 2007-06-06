@@ -126,8 +126,9 @@ not. If your program stops working, check for naming conflicts.
 
                  **** SUPPORTED STATIC POSIX INTERFACES ****
 
-The XrdPosix.hh file redefines the standard POSIX system calls:
+The XrdPosix.hh file redefines the standard POSIX calls:
 
+int     access(const char *path, int amode);
 int     close(int fildes);
 int     closedir(DIR *dirp);
 off_t   lseek(int fildes, off_t offset, int whence);
@@ -140,8 +141,10 @@ DIR*    opendir(const char *path);
 ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset);
 ssize_t read(int fildes, void *buf, size_t nbyte);
 ssize_t readv(int fildes, const struct iovec *iov, int iovcnt);
-struct dirent readdir(DIR *dirp);
-int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+struct dirent   readdir(DIR *dirp);
+struct dirent64 readdir(DIR *dirp);
+int     readdir_r  (DIR *dirp, struct dirent   *entry, struct dirent   **result);
+int     readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result);
 void    rewinddir(DIR *dirp);
 int     rmdir(const char *path);
 void    seekdir(DIR *dirp, long loc);

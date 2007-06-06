@@ -18,7 +18,9 @@
 // to accomplish this. So, redefinition is the most portable way of doing this.
 //
 
-#define clhdir(a)         XrdPosix_Chdir(a)
+#define access(a,b)      XrdPosix_Access(a,b)
+
+#define clhdir(a)        XrdPosix_Chdir(a)
 
 #define close(a)         XrdPosix_Close(a)
 
@@ -43,8 +45,10 @@
 #define readv(a,b,c)     XrdPosix_Readv(a,b,c)
 
 #define readdir(a)       XrdPosix_Readdir(a)
+#define readdir64(a)     XrdPosix_Readdir64(a)
 
-#define readdir_r(a,b,c) XrdPosix_Readdir_r(a,b,c)
+#define readdir_r(a,b,c)   XrdPosix_Readdir_r(a,b,c)
+#define readdir64_r(a,b,c) XrdPosix_Readdir64_r(a,b,c)
 
 #define rewinddir(a)     XrdPosix_Rewinddir(a)
 

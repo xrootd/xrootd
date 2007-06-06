@@ -61,6 +61,10 @@ XrdPosixRootVec xinuX;
                          {return (Retv_Closedir)Xunix.Load_Error("closedir");}
       Retv_Fclose      Xrd_U_Fclose(Args_Fclose)
                          {return (Retv_Fclose)Xunix.Load_Error("fclose");}
+      Retv_Fcntl       Xrd_U_Fcntl(Args_Fcntl) 
+                         {Xunix.Load_Error("fcntl"); return (Retv_Fcntl)0;}
+      Retv_Fcntl64     Xrd_U_Fcntl64(Args_Fcntl64)
+                         {Xunix.Load_Error("fcntl"); return (Retv_Fcntl64)0;}
       Retv_Fdatasync   Xrd_U_Fdatasync(Args_Fdatasync)
                          {return (Retv_Fdatasync)Xunix.Load_Error("fdatasync");}
       Retv_Fopen       Xrd_U_Fopen(Args_Fopen) 
@@ -106,11 +110,11 @@ XrdPosixRootVec xinuX;
       Retv_Readdir     Xrd_U_Readdir(Args_Readdir) 
                          {Xunix.Load_Error("readdir"); return (Retv_Readdir)0;}
       Retv_Readdir64   Xrd_U_Readdir64(Args_Readdir64)
-                         {Xunix.Load_Error("readdir");return (Retv_Readdir64)0;}
+                         {Xunix.Load_Error("readdir64");return (Retv_Readdir64)0;}
       Retv_Readdir_r   Xrd_U_Readdir_r(Args_Readdir_r) 
                          {return (Retv_Readdir_r)Xunix.Load_Error("readdir_r", ELIBACC);}
       Retv_Readdir64_r Xrd_U_Readdir64_r(Args_Readdir64_r)
-                         {return (Retv_Readdir64_r)Xunix.Load_Error("readdir_r", ELIBACC);}
+                         {return (Retv_Readdir64_r)Xunix.Load_Error("readdir64_r", ELIBACC);}
       Retv_Rewinddir   Xrd_U_Rewinddir(Args_Rewinddir) 
                          {       Xunix.Load_Error("rewinddir"); _exit(255);}
       Retv_Rmdir       Xrd_U_Rmdir(Args_Rmdir) 
@@ -145,6 +149,8 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Close)
   LOOKUP_UNIX(Closedir)
   LOOKUP_UNIX(Fclose)
+  LOOKUP_UNIX(Fcntl)
+  LOOKUP_UNIX(Fcntl64)
   LOOKUP_UNIX(Fdatasync)
   LOOKUP_UNIX(Fopen)
   LOOKUP_UNIX(Fopen64)
@@ -219,6 +225,7 @@ int XrdPosixRootVec::Resolve()
   LOOKUP_XROOT(Chdir)
   LOOKUP_XROOT(Close)
   LOOKUP_XROOT(Closedir)
+  LOOKUP_XROOT(Fcntl)
   LOOKUP_XROOT(Fstat)
   LOOKUP_XROOT(Fsync)
   LOOKUP_XROOT(Lseek)
@@ -230,7 +237,9 @@ int XrdPosixRootVec::Resolve()
   LOOKUP_XROOT(Read)
   LOOKUP_XROOT(Readv)
   LOOKUP_XROOT(Readdir)
+  LOOKUP_XROOT(Readdir64)
   LOOKUP_XROOT(Readdir_r)
+  LOOKUP_XROOT(Readdir64_r)
   LOOKUP_XROOT(Rewinddir)
   LOOKUP_XROOT(Rmdir)
   LOOKUP_XROOT(Seekdir)

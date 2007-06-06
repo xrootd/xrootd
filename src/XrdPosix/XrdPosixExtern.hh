@@ -46,9 +46,11 @@ extern ssize_t XrdPosix_Read(int fildes, void *buf, size_t nbyte);
   
 extern ssize_t XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt);
 
-extern struct dirent* XrdPosix_Readdir(DIR *dirp);
+extern struct  dirent*   XrdPosix_Readdir  (DIR *dirp);
+extern struct  dirent64* XrdPosix_Readdir64(DIR *dirp);
 
-extern int     XrdPosix_Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+extern int     XrdPosix_Readdir_r  (DIR *dirp, struct dirent   *entry, struct dirent   **result);
+extern int     XrdPosix_Readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result);
 
 extern void    XrdPosix_Rewinddir(DIR *dirp);
 

@@ -51,14 +51,17 @@ extern XrdPosixStream  streamX;
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
+  int isdiff = (dent->d_name-(char *)dent) != (dent64->d_name-(char *)dent64);
 
-  if ((dent64->d_ino    & LLMask)
-  ||  (dent64->d_off    & LLMask)) {errno = EOVERFLOW; return EOVERFLOW;}
+  if (isdiff  && ((dent64->d_ino & LLMask) || (dent64->d_off & LLMask)))
+     {errno = EOVERFLOW; return EOVERFLOW;}
 
-  dent->d_ino    = dent64->d_ino;
-  dent->d_off    = dent64->d_off;
-  dent->d_reclen = dent64->d_reclen;
-  strcpy(dent->d_name, dent64->d_name);
+  if (isdiff || (void *)dent != (void *)dent64)
+     {dent->d_ino    = dent64->d_ino;
+      dent->d_off    = dent64->d_off;
+      dent->d_reclen = dent64->d_reclen;
+      strcpy(dent->d_name, dent64->d_name);
+     }
   return 0;
 }
 #endif
@@ -111,6 +114,28 @@ int     creat(const char *path, mode_t mode)
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 
    return xinuX.Open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+}
+#endif
+
+/******************************************************************************/
+/*                                 f c n t l                                  */
+/******************************************************************************/
+  
+#if !defined(_LP64)
+extern "C"
+{
+int     fcntl(int fd, int cmd, ...)
+{
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
+   va_list ap;
+   void *theArg;
+
+   if (fd >= XrdPosixFD) return 0;
+   va_start(ap, cmd);
+   theArg = va_arg(ap, void *);
+   va_end(ap);
+   return Xunix.Fcntl(fd, cmd, theArg);
 }
 }
 #endif
@@ -272,15 +297,15 @@ extern "C"
 struct dirent* readdir(DIR *dirp)
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-   struct dirent *dent;
+   struct dirent64 *dp64;
 
-   if (!(dent = xinuX.Readdir(dirp))) return 0;
+   if (!(dp64 = xinuX.Readdir64(dirp))) return 0;
 
 #ifndef __macos__
-   if (XrdPosix_CopyDirent(dent, (struct dirent64 *)dent)) return 0;
+   if (XrdPosix_CopyDirent((struct dirent *)dp64, dp64)) return 0;
 #endif
 
-   return dent;
+   return (struct dirent *)dp64;
 }
 }
 #endif
@@ -296,19 +321,20 @@ int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #ifdef __macos__
-   return xinuX.Readdir_r(dirp, entry, result);
+   return xinuX.Readdir_r(dirp, (struct dirent64  *)entry,
+                                (struct dirent64 **)result);
 #else
    char buff[sizeof(struct dirent64) + 2048];
-   struct dirent64 *dent64 = (struct dirent64 *)buff;
-   struct dirent   *mydirent;
+   struct dirent64 *dp64 = (struct dirent64 *)buff;
+   struct dirent64 *mydirent;
    int rc;
 
-   if ((rc = xinuX.Readdir_r(dirp, (struct dirent *)dent64, &mydirent)))
+   if ((rc = xinuX.Readdir64_r(dirp, dp64, &mydirent)))
       return rc;
 
    if (!mydirent) {*result = 0; return 0;}
 
-   if ((rc = XrdPosix_CopyDirent(entry, dent64))) return rc;
+   if ((rc = XrdPosix_CopyDirent(entry, dp64))) return rc;
 
    *result = entry;
    return 0;

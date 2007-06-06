@@ -55,6 +55,14 @@
 #define Retv_Fclose int
 #define Args_Fclose FILE *
 
+#define Symb_Fcntl   UNIX_PFX "fcntl"
+#define Retv_Fcntl   int
+#define Args_Fcntl   int, int, ...
+
+#define Symb_Fcntl64 UNIX_PFX "fcntl64"
+#define Retv_Fcntl64 int
+#define Args_Fcntl64 int, int, ...
+
 #define Symb_Fdatasync UNIX_PFX "fdatasync"
 #define Retv_Fdatasync int
 #define Args_Fdatasync int
@@ -248,6 +256,8 @@ class XrdPosixLinkage
       Retv_Close       (*Close)(Args_Close);
       Retv_Closedir    (*Closedir)(Args_Closedir);
       Retv_Fclose      (*Fclose)(Args_Fclose);
+      Retv_Fcntl       (*Fcntl)(Args_Fcntl);
+      Retv_Fcntl64     (*Fcntl64)(Args_Fcntl64);
       Retv_Fdatasync   (*Fdatasync)(Args_Fdatasync);
       Retv_Fopen       (*Fopen)(Args_Fopen);
       Retv_Fopen64     (*Fopen64)(Args_Fopen64);
@@ -314,6 +324,9 @@ int Resolve();
 #define XRD_Retv_Lseek off64_t
 #define XRD_Args_Lseek int, off64_t, int
 
+#define XRD_Retv_Fcntl int
+#define XRD_Args_Fcntl int, int, ...
+
 #define XRD_Retv_Fstat int
 #define XRD_Args_Fstat int, struct stat *
 
@@ -341,11 +354,17 @@ int Resolve();
 #define XRD_Retv_Readv ssize_t
 #define XRD_Args_Readv int, const struct iovec *, int
 
-#define XRD_Retv_Readdir struct dirent *
-#define XRD_Args_Readdir DIR *
+#define XRD_Retv_Readdir     struct dirent *
+#define XRD_Args_Readdir     DIR *
 
-#define XRD_Retv_Readdir_r int
-#define XRD_Args_Readdir_r DIR *, struct dirent *, struct dirent **
+#define XRD_Retv_Readdir64   struct dirent64 *
+#define XRD_Args_Readdir64   DIR *
+
+#define XRD_Retv_Readdir_r   int
+#define XRD_Args_Readdir_r   DIR *, struct dirent   *, struct dirent   **
+
+#define XRD_Retv_Readdir64_r int
+#define XRD_Args_Readdir64_r DIR *, struct dirent64 *, struct dirent64 **
 
 #define XRD_Retv_Rewinddir void
 #define XRD_Args_Rewinddir DIR *
@@ -390,6 +409,7 @@ class XrdPosixRootVec
       XRD_Retv_Close       (*Close)(XRD_Args_Close);
       XRD_Retv_Closedir    (*Closedir)(XRD_Args_Closedir);
       XRD_Retv_Lseek       (*Lseek)(XRD_Args_Lseek);
+      XRD_Retv_Fcntl       (*Fcntl)(XRD_Args_Fcntl);
       XRD_Retv_Fstat       (*Fstat)(XRD_Args_Fstat);
       XRD_Retv_Fsync       (*Fsync)(XRD_Args_Fsync);
       XRD_Retv_Lstat       (*Lstat)(XRD_Args_Lstat);
@@ -400,7 +420,9 @@ class XrdPosixRootVec
       XRD_Retv_Read        (*Read)(XRD_Args_Read);
       XRD_Retv_Readv       (*Readv)(XRD_Args_Readv);
       XRD_Retv_Readdir     (*Readdir)(XRD_Args_Readdir);
+      XRD_Retv_Readdir64   (*Readdir64)(XRD_Args_Readdir64);
       XRD_Retv_Readdir_r   (*Readdir_r)(XRD_Args_Readdir_r);
+      XRD_Retv_Readdir64_r (*Readdir64_r)(XRD_Args_Readdir64_r);
       XRD_Retv_Rewinddir   (*Rewinddir)(XRD_Args_Rewinddir);
       XRD_Retv_Rmdir       (*Rmdir)(XRD_Args_Rmdir);
       XRD_Retv_Seekdir     (*Seekdir)(XRD_Args_Seekdir);

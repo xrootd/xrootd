@@ -270,6 +270,12 @@ int XrdPosix_Closedir(DIR *dirp)
 }
 
 /******************************************************************************/
+/*                        X r d P o s i x _ F c n t l                         */
+/******************************************************************************/
+  
+int XrdPosix_Fcntl(int fd, int cmd, ...) {return 0;}
+
+/******************************************************************************/
 /*                        X r d P o s i x _ L s e e k                         */
 /******************************************************************************/
   
@@ -470,12 +476,23 @@ ssize_t XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt)
 /*                      X r d P o s i x _ R e a d d i r                       */
 /******************************************************************************/
 
-struct dirent* XrdPosix_Readdir(DIR *dirp)
+
+// On some platforms both 32- and 64-bit versions are callable. so do the same
+//
+struct dirent   * XrdPosix_Readdir  (DIR *dirp)
 {
 // Return result of readdir
 //
    return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir(dirp)
                                    : Xunix.Readdir(dirp));
+}
+
+struct dirent64 * XrdPosix_Readdir64(DIR *dirp)
+{
+// Return result of readdir
+//
+   return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir64(dirp)
+                                   : Xunix.Readdir64(dirp));
 }
 
 /******************************************************************************/
@@ -488,6 +505,14 @@ int XrdPosix_Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 //
    return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir_r(dirp,entry,result)
                                    : Xunix.Readdir_r(dirp,entry,result));
+}
+
+int XrdPosix_Readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
+{
+// Return result of readdir
+//
+   return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir64_r(dirp,entry,result)
+                                   : Xunix.Readdir64_r(dirp,entry,result));
 }
 
 /******************************************************************************/
