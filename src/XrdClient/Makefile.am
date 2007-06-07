@@ -82,7 +82,7 @@ clientlibs =  libXrdClient.la \
 xrdcp_SOURCES = Xrdcp.cc
 # Note: static is required for Darwin. Linux and Solaris nicely manage to integrate
 #       all needed symbols with shared lib linking
-xrdcp_LDFLAGS = -static
+xrdcp_LDFLAGS = -static -rdynamic
 xrdcp_LDADD = $(clientlibs)
 
 xrd_SOURCES = XrdCommandLine.cc
