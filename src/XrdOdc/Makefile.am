@@ -8,10 +8,17 @@
 ## Checked in by $Author$
 #######################################################################
 
-noinst_LTLIBRARIES = libXrdOdc.la
+lib_LTLIBRARIES = libXrdOdc.la
 
 ## Currently commented out. Compilation of the test will yield an error
 ## bin_PROGRAMS = XrdOdcTest
+
+xrootdodcincdir = $(includedir)/xrootd/XrdOdc
+
+xrootdodcinc_HEADERS = \
+    XrdOdcConfDefs.hh  XrdOdcConfig.hh  XrdOdcFinder.hh \
+    XrdOdcManager.hh  XrdOdcMsg.hh  XrdOdcResp.hh \
+    XrdOdcTrace.hh
 
 INCLUDES = -I$(top_srcdir)/src
 

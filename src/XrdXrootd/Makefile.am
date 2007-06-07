@@ -41,10 +41,14 @@ xrootd_LDADD = -ldl \
                   ../XrdNet/libXrdNet.la \
                   ../XrdOuc/libXrdOuc.la \
                   ../XrdSfs/libXrdSfs.la
+xrootd_LDFLAGS = -static
 
 if IS_GCC
 xrootd_CXXFLAGS = -fPIC
-xrootd_LDFLAGS = -rdynamic -fPIC
+# the program should export its symbol table so that a module's
+# unresolved functions can be satisfied by it:
+# -rdynamic = -export-dynamic
+xrootd_LDFLAGS += -static -rdynamic -fPIC
 endif
 
 

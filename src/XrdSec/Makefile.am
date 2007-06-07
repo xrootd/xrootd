@@ -24,6 +24,15 @@ libXrdSec_la_SOURCES = \
         XrdSecServer.cc XrdSecServer.hh XrdSecTrace.hh
 libXrdSec_la_LDFLAGS = -module
 
+# Note: the next option leads to problems at least on Darwin
+#libXrdSec_la_LIBTOOLFLAGS = --tag=disable-static
+#  loadable modules are not equal to shared libraries, even though
+#  this holds true for many systems
+#  So, the testclient linking is actually not portable. Libtool can go
+#  around this problem, if a static library for libXrdSec is available.
+#  The clean way would be to either build a module and a library, or
+#  make the testclient load the loadable module.
+
 testclient_SOURCES = XrdSectestClient.cc
 testclient_LDFLAGS = -static
 testclient_LDADD =   libXrdSec.la \

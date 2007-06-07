@@ -35,12 +35,15 @@ fi
 ##################################################################
 # CONFIGURATION SETTINGS
 
+xrdport=22000
 testdir=$top_srcdir/test
 workdir=$top_builddir/test/work
 exportdir=$workdir/exportdir
 
 logfile=$workdir/test1-xrootd.log
-xrdport=22000
+# name of the xrootd to avoid clashes with other runnin instances
+# Warning: this strangely also affects the name of the logfile 
+name=testxrootd$$
 ##################################################################
 
 cleanup() {
@@ -57,9 +60,30 @@ cleanup() {
     return 0
 }
 
+cleanup_workarea() {
+# clean up the work area
+#    echo -n "Cleaning up work area..."
+    files="$exportdir/testfile_r 
+$exportdir/testfile_w
+$workdir/testfile_r
+$workdir/test1-xrootd.cfg
+$workdir/$name/test1-xrootd.log"
+
+    rm -f $files
+    test -d $exportdir && rmdir $exportdir
+    test -d $exportdir && echo "Warning: Failed to clean up $exportdir" >&2
+
+    test -d $workdir/$name && rmdir $workdir/$name
+    test -d $workdir/$name && echo "Warning: Failed to clean up $workdir/$name" >&2
+
+    test -d $workdir && rmdir $workdir
+    test -d $workdir && echo "Warning: Failed to clean up $workdir" >&2
+}
 
 
 cd $testdir
+cleanup_workarea
+mkdir -p $workdir
 mkdir -p $exportdir
 cp $testdir/test1.sh $exportdir/testfile_r
 
@@ -73,7 +97,10 @@ EOF
 # start up xrootd
 rm -rf $logfile
 echo -n "Starting up a test xrootd (port $xrdport)..."
-$top_builddir/src/XrdXrootd/xrootd -c $workdir/test1-xrootd.cfg -l $logfile &
+#echo $top_builddir/src/XrdXrootd/xrootd -c $workdir/test1-xrootd.cfg \
+#      -n $name -l $logfile
+$top_builddir/src/XrdXrootd/xrootd -c $workdir/test1-xrootd.cfg \
+      -n $name -l $logfile &
 PID=$!
 
 if test 0"$PID" -eq 0; then
@@ -128,25 +155,7 @@ if test 0"$status" -ne 0; then
 fi
 echo "[OK]"
 
-# clean up the work area
-echo -n "Cleaning up work area..."
-files="$exportdir/testfile_r 
-$exportdir/testfile_w
-$workdir/testfile_r
-$workdir/test1-xrootd.cfg
-$workdir/test1-xrootd.log"
-
-rm -rf $files
-rmdir $exportdir
-rmdir $workdir
-status=$?
-#echo STATUS is $status
-if test 0"$status" -ne 0; then
-    echo "[FAILED]"
-    echo "Error: Failed to kill process ($PID)" >&2
-    return 1
-fi
-echo "[OK]"
+cleanup_workarea
 
 exit 0
 

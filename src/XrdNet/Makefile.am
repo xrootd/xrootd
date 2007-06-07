@@ -29,6 +29,6 @@ libXrdNet_la_SOURCES = \
         XrdNetSocket.cc XrdNetSocket.hh     \
         XrdNetWork.cc XrdNetWork.hh
 libXrdNet_la_LIBADD = $(LIBSOCKET) $(LIBNSL)
-libXrdNet_la_CXXFLAGS = -prefer-pic
-libXrdNet_la_LDFLAGS = -static
+#REFAC libXrdNet_la_CXXFLAGS = -prefer-pic
+#REFAC libXrdNet_la_LDFLAGS = -static
 

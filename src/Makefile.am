@@ -53,6 +53,7 @@ if ENABLE_CASTOR
 CASTOR = XrdCS2
 endif
 
+
 #######################################################################
 
 SUBDIRS = XrdSys \
@@ -77,9 +78,10 @@ SUBDIRS = XrdSys \
           XrdClient \
           XrdPosix \
           XrdPss \
-          $(CASTOR) \
           $(XRDMON) \
+          $(CASTOR) \
           $(TOKENAUTHZ)
+
 
 
 

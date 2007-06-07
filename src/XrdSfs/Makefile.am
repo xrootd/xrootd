@@ -10,6 +10,10 @@
 
 noinst_LTLIBRARIES = libXrdSfs.la
 
+xrootdsfsincdir = $(includedir)/xrootd/XrdSfs
+
+xrootdsfsinc_HEADERS = XrdSfsAio.hh  XrdSfsInterface.hh  XrdSfsNative.hh
+
 INCLUDES = -I$(top_srcdir)/src
 
 libXrdSfs_la_SOURCES = \

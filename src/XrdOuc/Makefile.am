@@ -13,16 +13,23 @@ EXTRA_DIST = XrdOucRash.hh XrdOucRash.icc
 
 xrootdoucincdir = $(includedir)/xrootd/XrdOuc
 
-xrootdoucinc_HEADERS = XrdOucChain.hh XrdOucDLlist.hh XrdOucEnv.hh XrdOucErrInfo.hh \
-                       XrdOucError.hh XrdOucName2Name.hh XrdOucHash.hh XrdOucLock.hh \
-                       XrdOucLogger.hh XrdOucMsubs.hh \
-                       XrdOucNList.hh XrdOucPList.hh XrdOucPlatform.hh XrdOucPlugin.hh \
-                       XrdOucProg.hh \
-                       XrdOucPthread.hh XrdOucRash.hh XrdOucReqID.hh XrdOucSemWait.hh \
-                       XrdOucStream.hh XrdOucString.hh XrdOucTList.hh XrdOucTimer.hh \
-                       XrdOucTokenizer.hh XrdOucTrace.hh XrdOucUtils.hh XrdOucXSLock.hh \
-                       XrdOuca2x.hh XrdOucTable.hh XrdOucExport.hh\
-                       XrdOucHash.icc
+xrootdoucinc_HEADERS = \
+    XrdOucChain.hh      XrdOucProg.hh \
+    XrdOucDLlist.hh     XrdOucPthread.hh \
+    XrdOucEnv.hh        XrdOucRash.hh \
+    XrdOucErrInfo.hh    XrdOucReqID.hh \
+    XrdOucError.hh      XrdOucSemWait.hh \
+    XrdOucExport.hh     XrdOucStream.hh \
+    XrdOucHash.hh       XrdOucString.hh \
+    XrdOucLock.hh       XrdOucTList.hh \
+    XrdOucLogger.hh     XrdOucTable.hh \
+    XrdOucMsubs.hh      XrdOucTimer.hh \
+    XrdOucNList.hh      XrdOucTokenizer.hh \
+    XrdOucName2Name.hh  XrdOucTrace.hh \
+    XrdOucPList.hh      XrdOucUtils.hh \
+    XrdOucPlatform.hh   XrdOucXSLock.hh \
+    XrdOucPlugin.hh     XrdOuca2x.hh \
+    XrdOucHash.icc XrdOucRash.icc
 
 lib_LTLIBRARIES = libXrdOuc.la
 
@@ -53,6 +60,6 @@ libXrdOuc_la_SOURCES = \
         XrdOucHash.icc
 
 libXrdOuc_la_LIBADD = $(LIBPTHREAD) $(SEM_LIBRT) $(LIBNSL)
-libXrdOuc_la_CXXFLAGS = -prefer-pic
-libXrdOuc_la_LDFLAGS = -static
+#REFAC libXrdOuc_la_CXXFLAGS = -prefer-pic
+#REFAC libXrdOuc_la_LDFLAGS = -static
 

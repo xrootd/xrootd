@@ -17,7 +17,7 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20070601-dfrefactor,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20070607cvs,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -878,11 +878,11 @@ AC_OUTPUT(Makefile
           src/XrdPosix/Makefile
           src/XrdPss/Makefile
           src/XrdMon/Makefile
+          src/XrdCS2/Makefile
           src/XrdTokenAuthzOfs/Makefile
           test/testconfig.sh
           xrootd.spec)
 
-# disabled:	  src/XrdCS2/Makefile
 
 #####################################################################
 # we need to move the GNUMakefiles of the classic build away

@@ -13,9 +13,14 @@ EXTRA_DIST = XrdObject.hh XrdObject.icc
 
 xrootdxrdincdir = $(includedir)/xrootd/Xrd
 
-xrootdxrdinc_HEADERS = XrdLink.hh XrdBuffer.hh XrdScheduler.hh XrdProtocol.hh \
-                       XrdObject.hh XrdJob.hh XrdLinkMatch.hh XrdObject.icc \
-                       XrdPoll.hh XrdProtLoad.hh
+xrootdxrdinc_HEADERS = \
+    XrdBuffer.hh  XrdLinkMatch.hh  XrdProtocol.hh \
+    XrdConfig.hh  XrdObject.hh     XrdScheduler.hh \
+    XrdInet.hh    XrdPoll.hh       XrdStats.hh \
+    XrdInfo.hh    XrdPollDev.hh    XrdTrace.hh \
+    XrdJob.hh     XrdPollPoll.hh \
+    XrdLink.hh    XrdProtLoad.hh \
+    XrdObject.icc
 
 lib_LTLIBRARIES = libXrd.la
 

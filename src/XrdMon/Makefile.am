@@ -28,6 +28,8 @@ check_PROGRAMS = xrdmonDecoder \
 
 INCLUDES = -I$(top_srcdir)/src
 
+AM_LDFLAGS=-static
+
 libXrdMonCommon_la_SOURCES = \
 	    XrdMonArgParser.cc XrdMonArgParser.hh XrdMonArgParser.icc         \
 	    XrdMonCommon.cc XrdMonCommon.hh             \

@@ -22,6 +22,7 @@ libXrdSecpwd_la_LIBADD = ../XrdCrypto/libXrdCrypto.la \
                       ../XrdSys/libXrdSys.la \
 		      $(CRYPTLIB) $(OPENSSL_LIBDIR) -ldl -lcrypto
 libXrdSecpwd_la_LDFLAGS = -module
+libXrdSecpwd_la_LIBTOOLFLAGS = --tag=disable-static
 
 xrdpwdadmin_SOURCES = XrdSecpwdSrvAdmin.cc
 xrdpwdadmin_LDFLAGS = -static

@@ -8,9 +8,17 @@
 ## Checked in by $Author$
 #######################################################################
 
-noinst_LTLIBRARIES = libXrdAcc.la
+lib_LTLIBRARIES = libXrdAcc.la
 
 bin_PROGRAMS = XrdAccTest
+
+xrootdaccincdir = $(includedir)/xrootd/XrdAcc
+
+xrootdaccinc_HEADERS = \
+    XrdAccAccess.hh  XrdAccAuthFile.hh    XrdAccConfig.hh \
+    XrdAccAudit.hh   XrdAccAuthorize.hh   XrdAccGroups.hh \
+    XrdAccAuthDB.hh  XrdAccCapability.hh  XrdAccPrivs.hh
+
 
 INCLUDES = -I$(top_srcdir)/src
 
@@ -21,8 +29,8 @@ libXrdAcc_la_SOURCES = \
         XrdAccCapability.cc XrdAccCapability.hh \
         XrdAccConfig.cc XrdAccConfig.hh XrdAccAuthDB.hh    \
         XrdAccGroups.cc XrdAccGroups.hh XrdAccPrivs.hh
-#libXrdAcc_la_LIBADD = ../XrdOuc/libXrdOuc.la 
-#\                     ../XrdNet/libXrdNet.la
 
 XrdAccTest_SOURCES = XrdAccTest.cc XrdAccAuthorize.hh
-XrdAccTest_LDADD = libXrdAcc.la ../XrdOuc/libXrdOuc.la ../XrdNet/libXrdNet.la
+XrdAccTest_LDADD = libXrdAcc.la \
+                   ../XrdOuc/libXrdOuc.la \
+                   ../XrdNet/libXrdNet.la -ldl

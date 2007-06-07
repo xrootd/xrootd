@@ -10,9 +10,18 @@
 
 noinst_HEADERS = XrdOss.hh
 
-noinst_LTLIBRARIES = libXrdOss.la
+lib_LTLIBRARIES = libXrdOss.la
 
 INCLUDES = -I$(top_srcdir)/src
+
+xrootdossincdir = $(includedir)/xrootd/XrdOss
+
+xrootdossinc_HEADERS = \
+    XrdOss.hh        XrdOssError.hh    XrdOssOpaque.hh \
+    XrdOssApi.hh     XrdOssLock.hh     XrdOssTrace.hh \
+    XrdOssCache.hh   XrdOssMio.hh \
+    XrdOssConfig.hh  XrdOssMioFile.hh
+
 
 libXrdOss_la_SOURCES = \
         XrdOssAio.cc XrdOssTrace.hh \

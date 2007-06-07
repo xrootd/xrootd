@@ -10,6 +10,18 @@
 
 bin_PROGRAMS = olbd
 
+xrootdolbincdir = $(includedir)/xrootd/XrdOlb
+
+xrootdolbinc_HEADERS = \
+    XrdOlbAdmin.hh    XrdOlbPList.hh     XrdOlbServer.hh \
+    XrdOlbCache.hh    XrdOlbPrepArgs.hh  XrdOlbState.hh \
+    XrdOlbConfig.hh   XrdOlbPrepare.hh   XrdOlbTrace.hh \
+    XrdOlbManList.hh  XrdOlbProtocol.hh  XrdOlbTypes.hh \
+    XrdOlbManTree.hh  XrdOlbRRQ.hh       XrdOlbXmi.hh \
+    XrdOlbManager.hh  XrdOlbRTable.hh    XrdOlbXmiReq.hh \
+    XrdOlbMeter.hh    XrdOlbReq.hh
+
+
 INCLUDES = -I$(top_srcdir)/src
 
 olbd_SOURCES = \
