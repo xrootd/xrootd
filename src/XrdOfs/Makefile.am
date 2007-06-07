@@ -18,7 +18,7 @@ xrootdofsinc_HEADERS = \
     XrdOfs.hh  XrdOfs.icc  XrdOfsConfig.hh \
     XrdOfsEvr.hh  XrdOfsEvs.hh  XrdOfsHandle.hh \
     XrdOfsSecurity.hh  XrdOfsTrace.hh \
-    XrdOfsConfig.cc XrdOfsEvs.cc XrdOfsHandle.cc XrdOfs.cc
+    XrdOfsConfig.cc XrdOfsEvs.cc XrdOfsEvr.cc XrdOfsHandle.cc XrdOfs.cc
 # Note: the source files above also get installed, so that third party
 # derived objects of the Ofs can be built
 
