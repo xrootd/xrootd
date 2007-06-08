@@ -284,6 +284,7 @@ XrdOfsEvr         evrObject;  // Event receiver
 virtual int   ConfigXeq(char *var, XrdOucStream &, XrdOucError &);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    const char *y="");
+XrdOdcFinder     *Finder;         //    ->Distrib Cluster Service
 static  int   fsError(XrdOucErrInfo &myError, int rc);
         int   Stall(XrdOucErrInfo  &, int, const char *);
         char *WaitTime(int, char *, int);
@@ -298,7 +299,6 @@ char             *AuthLib;        //    ->Authorization   Library
 char             *AuthParm;       //    ->Authorization   Parameters
 char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
-XrdOdcFinder     *Finder;         //    ->Distrib Cluster Service
 XrdOdcFinderTRG  *Balancer;       //    ->Server Balancer Interface
 XrdOfsEvs        *evsObject;      //    ->Event Notifier
 
