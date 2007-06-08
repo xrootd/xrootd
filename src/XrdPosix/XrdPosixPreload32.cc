@@ -106,7 +106,6 @@ int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 /*                                 c r e a t                                  */
 /******************************************************************************/
   
-#if !defined(_LP64)
 extern "C"
 {
 int     creat(const char *path, mode_t mode)
@@ -116,13 +115,11 @@ int     creat(const char *path, mode_t mode)
    return xinuX.Open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 }
-#endif
 
 /******************************************************************************/
 /*                                 f c n t l                                  */
 /******************************************************************************/
   
-#if !defined(_LP64)
 extern "C"
 {
 int     fcntl(int fd, int cmd, ...)
@@ -138,7 +135,6 @@ int     fcntl(int fd, int cmd, ...)
    return Xunix.Fcntl(fd, cmd, theArg);
 }
 }
-#endif
   
 /******************************************************************************/
 /*                                 f o p e n                                  */
@@ -160,7 +156,6 @@ FILE  *fopen(const char *path, const char *mode)
 /*                                 f s t a t                                  */
 /******************************************************************************/
 
-#if !defined(_LP64)
 extern "C"
 {
 #if defined __linux__ && __GNUC__ && __GNUC__ >= 2
@@ -191,13 +186,11 @@ int     fstat(         int fildes, struct stat *buf)
 #endif
 }
 }
-#endif
 
 /******************************************************************************/
 /*                                 l s e e k                                  */
 /******************************************************************************/
   
-#if !defined(_LP64)
 extern "C"
 {
 off_t   lseek(int fildes, off_t offset, int whence)
@@ -209,13 +202,11 @@ off_t   lseek(int fildes, off_t offset, int whence)
           : Xunix.Lseek(fildes, offset, whence);
 }
 }
-#endif
 
 /******************************************************************************/
 /*                                 l s t a t                                  */
 /******************************************************************************/
 
-#if !defined(_LP64)
 extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2 && defined(__linux__)
@@ -246,13 +237,11 @@ int        lstat(         const char *path, struct stat *buf)
 #endif
 }
 }
-#endif
 
 /******************************************************************************/
 /*                                  o p e n                                   */
 /******************************************************************************/
   
-#if !defined(_LP64)
 extern "C"
 {
 int     open(const char *path, int oflag, ...)
@@ -267,13 +256,11 @@ int     open(const char *path, int oflag, ...)
    return xinuX.Open(path, oflag, mode);
 }
 }
-#endif
 
 /******************************************************************************/
 /*                                 p r e a d                                  */
 /******************************************************************************/
   
-#if !defined(_LP64)
 extern "C"
 {
 ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
@@ -285,13 +272,11 @@ ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
           : Xunix.Pread(fildes, buf, nbyte, offset);
 }
 }
-#endif
 
 /******************************************************************************/
 /*                               r e a d d i r                                */
 /******************************************************************************/
 
-#if !defined(_LP64)
 extern "C"
 {
 struct dirent* readdir(DIR *dirp)
@@ -308,13 +293,11 @@ struct dirent* readdir(DIR *dirp)
    return (struct dirent *)dp64;
 }
 }
-#endif
 
 /******************************************************************************/
 /*                             r e a d d i r _ r                              */
 /******************************************************************************/
   
-#if !defined(_LP64)
 extern "C"
 {
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
@@ -341,13 +324,11 @@ int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 #endif
 }
 }
-#endif
 
 /******************************************************************************/
 /*                                  s t a t                                   */
 /******************************************************************************/
 
-#if !defined(_LP64)
 extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2
@@ -377,13 +358,11 @@ int        stat(         const char *path, struct stat *buf)
 #endif
 }
 }
-#endif
 
 /******************************************************************************/
 /*                                p w r i t e                                 */
 /******************************************************************************/
   
-#if !defined(_LP64)
 extern "C"
 {
 ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
@@ -395,4 +374,3 @@ ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
           : Xunix.Pwrite(fildes, buf, nbyte, offset);
 }
 }
-#endif
