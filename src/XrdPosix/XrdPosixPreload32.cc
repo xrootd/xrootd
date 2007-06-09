@@ -14,12 +14,14 @@
 //#undef  _FILE_OFFSET_BITS
 //#define _FILE_OFFSET_BITS 32
 
+#include <errno.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <iostream.h>
 
 #include "XrdPosix/XrdPosixExtern.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
@@ -47,7 +49,7 @@ extern XrdPosixStream  streamX;
 // defined as 64 bits anyway. So, the dirent structure is 64-bit conformable
 // making CopyDirent() superfluous.
 //
-#ifndef __macos__
+#if !defined( __macos__) || !defined(_LP64)
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -74,7 +76,7 @@ int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 // defined as 64 bits anyway. So, the stat structure is 64-bit conformable
 // making CopyStat() superfluous.
 //
-#ifndef __macos__
+#if !defined( __macos__) || !defined(_LP64)
 int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -167,7 +169,7 @@ int     fstat(         int fildes, struct stat *buf)
 #endif
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-#ifdef __macos__
+#if defined(__macos__)
    return (fildes < XrdPosixFD) ? Xunix.Fstat(fildes, buf)
                                 : xinuX.Fstat(fildes, buf);
 #else
@@ -210,17 +212,22 @@ off_t   lseek(int fildes, off_t offset, int whence)
 extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2 && defined(__linux__)
-int     __xlstat(int ver, const char *path, struct stat *buf)
+int     __lxstat(int ver, const char *path, struct stat *buf)
 #elif defined(__solaris__) && defined(__i386)
-int      _xlstat(int ver, const char *path, struct stat *buf)
+int      _lxstat(int ver, const char *path, struct stat *buf)
 #else
 int        lstat(         const char *path, struct stat *buf)
 #endif
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-#ifdef __macos__
-   return (!xinuX.isMyPath(path) ? Xunix.Lstat(path, buf)
-                                 : xinuX.Stat(path, buf));
+#if defined(__macos__) || defined(_LP64)
+#if defined(__linux__)
+   return (!xinuX.isMyPath(path) ? Xunix.Lstat(ver, path, buf)
+                                 : xinuX.Stat(      path, buf));
+#else
+   return (!xinuX.isMyPath(path) ? Xunix.Lstat(     path, buf)
+                                 : xinuX.Stat(     path, buf));
+#endif
 #else
    struct stat64 buf64;
    int rc;
@@ -340,9 +347,14 @@ int        stat(         const char *path, struct stat *buf)
 #endif
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-#ifdef __macos__
-   return (!xinuX.isMyPath(path) ? Xunix.Stat(path, buf)
-                                 : xinuX.Stat(path, buf));
+#if defined(__macos__) || defined(_LP64)
+#if defined(__linux__)
+   return (!xinuX.isMyPath(path) ? Xunix.Stat(ver, path, buf)
+                                 : xinuX.Stat(     path, buf));
+#else
+   return (!xinuX.isMyPath(path) ? Xunix.Stat(     path, buf)
+                                 : xinuX.Stat(     path, buf));
+#endif
 #else
    struct stat64 buf64;
    int rc;
