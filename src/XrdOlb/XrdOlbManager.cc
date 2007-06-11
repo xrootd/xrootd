@@ -869,15 +869,11 @@ int XrdOlbManager::SelServer(int opts, char *path,
 //
    if (sp)
       {strcpy(hbuff, sp->Name());
-       if (isalt || opts & OLB_newfile)
-          {if (isalt)
-              {Cache.AddFile(path, sp->ServMask, needrw);
-               if (iovcnt && iodata) sp->Link->Send(iodata, iovcnt);
-               TRACE(Stage, "Server " <<hbuff <<" staging " <<path);
-              } else {
-               TRACE(Stage, "Server " <<hbuff <<" creating " <<path);
-              }
-          }
+       if (isalt || (opts & OLB_newfile) || iovcnt)
+          {if (isalt) Cache.AddFile(path, sp->ServMask, needrw);
+           if (iovcnt && iodata) sp->Link->Send(iodata, iovcnt);
+                  TRACE(Stage, "Server " <<hbuff <<" staging "  <<path);
+          } else {TRACE(Stage, "Server " <<hbuff <<" creating " <<path);}
        sp->UnLock();
        return 0;
       } else if (!delay && ServCnt < Config.SUPCount)
