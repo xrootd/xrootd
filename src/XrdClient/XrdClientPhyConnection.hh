@@ -86,7 +86,7 @@ public:
     XrdClientMessage     *BuildMessage(bool IgnoreTimeouts, bool Enqueue);
     bool                  CheckAutoTerm();
 
-    bool           Connect(XrdClientUrlInfo RemoteHost, bool isUnix = 0);
+    bool           Connect(XrdClientUrlInfo RemoteHost);
     void           CountLogConn(int d = 1);
     void           Disconnect();
 
@@ -134,7 +134,7 @@ public:
     void           UnlockChannel();
     int            WriteRaw(const void *buffer, int BufferLength, int substreamid = 0);
 
-    int TryConnectParallelStream() { return ( fSocket ? fSocket->TryConnectParallelSock() : -1); }
+    int TryConnectParallelStream(int port, int windowsz) { return ( fSocket ? fSocket->TryConnectParallelSock(port, windowsz) : -1); }
     int EstablishPendingParallelStream(int newid) { return ( fSocket ? fSocket->EstablishParallelSock(newid) : -1); }
     void RemoveParallelStream(int substream) { if (fSocket) fSocket->RemoveParallelSock(substream); }
 

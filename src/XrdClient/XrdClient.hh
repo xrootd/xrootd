@@ -179,6 +179,12 @@ public:
     // On-the-fly enabling/disabling of the cache
     bool                        UseCache(bool u = TRUE);
 
+    // To instantly remove all the chunks in the cache
+    void                        RemoveAllDataFromCache() {
+        if (fConnModule)
+            fConnModule->RemoveAllDataFromCache();
+    }
+
     // Write data to the file
     bool                        Write(const void *buf, long long offset, int len);
 

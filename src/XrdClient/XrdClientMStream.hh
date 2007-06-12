@@ -27,7 +27,7 @@ public:
     static int EstablishParallelStreams(XrdClientConn *cliconn);
 
     // Add a parallel stream to the pool used by the given client inst
-    static int AddParallelStream(XrdClientConn *cliconn);
+    static int AddParallelStream(XrdClientConn *cliconn, int port, int windowsz);
 
     // Remove a parallel stream to the pool used by the given client inst
     static int RemoveParallelStream(XrdClientConn *cliconn, int substream = -1);

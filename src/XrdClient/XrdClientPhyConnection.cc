@@ -120,17 +120,14 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 }
 
 //____________________________________________________________________________
-bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
+bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 {
    // Connect to remote server
    XrdOucMutexHelper l(fMutex);
 
-   if (isUnix) {
-      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connecting to " << RemoteHost.File);
-   } else {
-      Info(XrdClientDebug::kHIDEBUG,
-      "Connect", "Connecting to [" << RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
-   } 
+
+   Info(XrdClientDebug::kHIDEBUG,
+	"Connect", "Connecting to [" << RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
 
    if (EnvGetLong(NAME_MULTISTREAMCNT))
        fSocket = new XrdClientPSock(RemoteHost);
@@ -142,30 +139,24 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
       abort();
    }
 
-   fSocket->TryConnect(isUnix);
+   fSocket->TryConnect();
 
    if (!fSocket->IsConnected()) {
-      if (isUnix) {
-         Error("Connect", "can't open UNIX connection to " << RemoteHost.File);
-      } else {
-         Error("Connect", "can't open connection to [" <<
-               RemoteHost.Host << ":" << RemoteHost.Port << "]");
-      }
-      Disconnect();
 
-      return FALSE;
+     Error("Connect", "can't open connection to [" <<
+	   RemoteHost.Host << ":" << RemoteHost.Port << "]");
+
+     Disconnect();
+
+     return FALSE;
    }
 
    Touch();
 
    fTTLsec = DATA_TTL;
 
-   if (isUnix) {
-      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to " << RemoteHost.File);
-   } else {
-      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to [" <<
-           RemoteHost.Host << ":" << RemoteHost.Port << "]");
-   }
+   Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to [" <<
+	RemoteHost.Host << ":" << RemoteHost.Port << "]");
 
    fServer = RemoteHost;
 

@@ -292,7 +292,7 @@ int XrdClientSock::SendRaw(const void* buffer, int length, int substreamid)
 }
 
 //_____________________________________________________________________________
-void XrdClientSock::TryConnect(bool isUnix)
+void XrdClientSock::TryConnect()
 {
     // Already connected - we are done.
     //
@@ -302,7 +302,7 @@ void XrdClientSock::TryConnect(bool isUnix)
     }
 
     
-    fSocket = TryConnect_low(isUnix);
+    fSocket = TryConnect_low();
 
     if (fSocket >= 0) {
 	
@@ -335,11 +335,12 @@ void XrdClientSock::TryConnect(bool isUnix)
 }
 
 //_____________________________________________________________________________
-int XrdClientSock::TryConnect_low(bool isUnix)
+int XrdClientSock::TryConnect_low(int altport, int windowsz)
 {
     int sock = -1;
     XrdOucString host;
     int port;
+    if (!windowsz) windowsz = EnvGetLong(NAME_DFLTTCPWINDOWSIZE);
 
 
     host = EnvGetString(NAME_SOCKS4HOST);
@@ -348,51 +349,40 @@ int XrdClientSock::TryConnect_low(bool isUnix)
     if (host.length() == 0) {
 	host = fHost.TcpHost.HostAddr;
 	port = fHost.TcpHost.Port;
+
+	if (altport) port = altport;
     }
     else
-	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Trying SOCKS4 host " <<
+	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low", "Trying SOCKS4 host " <<
 	     host << ":" << port);
 
     std::auto_ptr<XrdNetSocket> s(new XrdNetSocket());
 
     // Log the attempt
     //
-    if (!isUnix) {
-	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low",
-	     "Trying to connect to" <<
-	     fHost.TcpHost.Host << "(" << fHost.TcpHost.HostAddr << "):" <<
-	     fHost.TcpHost.Port << " Timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
-
-	// Connect to a remote host
-	//
-	sock = s->Open(host.c_str(),
-		       port, EnvGetLong(NAME_CONNECTTIMEOUT),
-	               256*1024);
-    } else {
-	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect",
-	     "Trying to UNIX connect to" << fHost.TcpHost.File <<
-	     "; timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
-
-	// Connect to a remote host
-	//
-	sock = s->Open(fHost.TcpHost.File.c_str(), -1, EnvGetLong(NAME_CONNECTTIMEOUT));
-    }
+    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low",
+	 "Trying to connect to " <<
+	 fHost.TcpHost.Host << "(" << host << "):" <<
+	 port << " Windowsize=" << windowsz << " Timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
+    
+    // Connect to a remote host
+    //
+    sock = s->Open(host.c_str(),
+		   port, EnvGetLong(NAME_CONNECTTIMEOUT),
+		   windowsz );
 
     // Check if we really got a connection and the remote host is available
     //
     if (sock < 0)  {
-	if (isUnix) {
-	    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Connection to" <<
-		 fHost.TcpHost.File << " failed. (" << sock << ")");
-	} else {
-	    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect", "Connection to" <<
-		 fHost.TcpHost.Host << ":" << fHost.TcpHost.Port << " failed. (" << sock << ")");
-	}
+
+      Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low", "Connection to" <<
+	   fHost.TcpHost.Host << ":" << fHost.TcpHost.Port << " failed. (" << sock << ")");
+      
     } else {
 	fConnected = TRUE;
 	int detachedFD = s->Detach();
 	if (sock != detachedFD) {
-	    Error("ClientSock::TryConnect",
+	    Error("ClientSock::TryConnect_low",
 		  "Socket detach returned " << detachedFD << " but expected " << sock);
 	}
     }

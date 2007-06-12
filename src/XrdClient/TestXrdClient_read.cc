@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
     int filezcount = 0;
     string summarypref = "$$$";
     bool iserror = false;
+    bool dobytecheck = false;
 
     gettimeofday(&tv, 0);
     starttime = tv.tv_sec + tv.tv_usec / 1000000.0;
@@ -85,7 +86,7 @@ int main(int argc, char **argv) {
 	    " and performs the corresponding read requests towards the given xrootd URL or to ALL" << endl <<
 	    " the xrootd URLS contained in the given file." << endl <<
  	    endl <<
-	    "Usage: TestXrdClient_read <xrootd url or file name> <blksize> <cachesize> <vectored_style>  <inter_read_delay_ms> [-DSparmname stringvalue]... [-DIparmname intvalue]..." <<
+	    "Usage: TestXrdClient_read <xrootd url or file name> <blksize> <cachesize> <vectored_style>  <inter_read_delay_ms> [--check] [-DSparmname stringvalue]... [-DIparmname intvalue]..." <<
 	    endl << endl <<
 	    " Where:" << endl <<
 	    "  <xrootd url>          is the xrootd URL of a remote file " << endl <<
@@ -100,6 +101,7 @@ int main(int argc, char **argv) {
 	    "                                (exploits the multistreaming for single reads)" << endl <<
 	    "  <inter_read_delay_ms> is the optional think time between reads." << endl <<
 	    "                        note: the think time will comsume cpu cycles, not sleep." << endl <<
+            "  --check               verify if the value of the byte at offet i is i%256. Valid only for the single url mode." << endl <<
 	    " -DSparmname stringvalue" << endl <<
 	    "                        set the internal parm <parmname> with the string value <stringvalue>" << endl <<
    	    "                         See XrdClientConst.hh for a list of parameters." << endl <<
@@ -116,18 +118,21 @@ int main(int argc, char **argv) {
     if (argc >= 3)
       EnvPutInt( NAME_READCACHESIZE, atol(argv[3]));
    
-    
-
     if (argc > 4)
 	vectored_style = atol(argv[4]);
 
     if (argc > 5)
 	read_delay = atol(argv[5]);
 
-
-    // The other args, they have to be an even number!
-    if ((argc > 6) && !((argc-6) % 2))
+    // The other args, they have to be an even number. Odd only if --check is there
+    if (argc > 6)
       for (int i=6; i < argc; i++) {
+
+	if (strstr(argv[i], "--check") == argv[i]) {
+	  cerr << "Enabling file content check." << endl;
+	  dobytecheck = true;
+	  continue;
+	}
 
 	if ( (strstr(argv[i], "-DS") == argv[i]) &&
 	     (argc >= i+2) ) {
@@ -149,7 +154,6 @@ int main(int argc, char **argv) {
 
       }
 
-
     buf = malloc(50*1024*1024);
 
     // Check if we have a file or a root:// url
@@ -160,14 +164,12 @@ int main(int argc, char **argv) {
     kXR_int64 v_offsets[10240];
     kXR_int32 v_lens[10240];
 
-
     switch (vectored_style) {
       case 0:
         maxtoread = 1;
       case 4:
         maxtoread = 20;
     }
-
 
     if (isrooturl) {
 	XrdClient *cli = new XrdClient(argv[1]);
@@ -179,14 +181,14 @@ int main(int argc, char **argv) {
 	openphasetime = tv.tv_sec + tv.tv_usec / 1000000.0;
 
 	while ( (ntoread = ReadSome(v_offsets, v_lens, maxtoread, totalbytesread)) ) {
-	  
+	  cout << ".";
+
 	  totalreadscount += ntoread;
 
 	    switch (vectored_style) {
 	    case 0: // no readv
 		for (int iii = 0; iii < ntoread; iii++) {
 		    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
-		    cout << ".";
 		    cout.flush();
 
 		    if (retval <= 0) {
@@ -197,8 +199,20 @@ int main(int argc, char **argv) {
 			iserror = true;
 			break;
 		    }
-		    else
+		    else {
+
+		      if (dobytecheck)
+			for ( unsigned int jj = 0; jj < (unsigned)v_lens[iii]; jj++) {
+			  
+			  if ( ((jj+v_offsets[iii]) % 256) != ((unsigned char *)buf)[jj] ) {
+			    cout << "errore nel file all'offset= " << jj+v_offsets[iii] <<
+			      " letto: " << (int)((unsigned char *)buf)[jj] << " atteso: " << (jj+v_offsets[iii]) % 256 << endl;
+			    iserror = true;
+			    break;
+			  }
+		      }
 		      Think(read_delay);
+		    }
 
 		}		
 		break;
@@ -235,7 +249,7 @@ int main(int argc, char **argv) {
 		    // Process the preceeding chunk while the last is coming
 		    for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
 			retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
-			cout << ".";
+
 			cout.flush();
 
 			if (retval <= 0)
@@ -243,6 +257,16 @@ int main(int argc, char **argv) {
 				v_lens[iii] << "@" << v_offsets[iii] <<
 				" returned " << retval << endl;
 
+			if (dobytecheck)
+			  for ( unsigned int jj = 0; jj < (unsigned)v_lens[iii]; jj++) {
+			    if ( ((jj+v_offsets[iii]) % 256) != ((unsigned char *)buf)[jj] ) {
+			      cout << "errore nel file all'offset= " << jj+v_offsets[iii] <<
+				" letto: " << (int)((unsigned char *)buf)[jj] << " atteso: " << (jj+v_offsets[iii]) % 256 << endl;
+			      iserror = true;
+			      break;
+			    }
+			  }
+			
 			Think(read_delay);
 		    }
 		    
@@ -268,7 +292,6 @@ int main(int argc, char **argv) {
 		}		
 		for (int iii = 0; iii < ntoread; iii++) {
   		    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
-		    cout << ".";
 		    cout.flush();
 
 		    if (retval <= 0)
@@ -291,6 +314,14 @@ int main(int argc, char **argv) {
 	    }
 
 	} // while
+
+	gettimeofday(&tv, 0);
+	closetime = tv.tv_sec + tv.tv_usec / 1000000.0;
+
+	cli->Close();
+	delete cli;
+	cli = 0;
+
 
     }
     else {

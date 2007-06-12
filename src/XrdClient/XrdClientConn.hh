@@ -99,6 +99,12 @@ public:
 	    fMainReadCache->PutPlaceholder(begin_offs, end_offs);
     }
 
+
+    void                       RemoveAllDataFromCache() {
+        if (fMainReadCache)
+            fMainReadCache->RemoveItems();
+    }
+
     void                       RemoveDataFromCache(long long begin_offs,
                                                    long long end_offs) {
         if (fMainReadCache)

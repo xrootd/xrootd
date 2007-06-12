@@ -102,6 +102,9 @@
 #define NAME_SOCKS4HOST            (char *)"Socks4Server"
 #define NAME_SOCKS4PORT            (char *)"Socks4Port"
 
+#define DFLT_DFLTTCPWINDOWSIZE     (256*1024)
+#define NAME_DFLTTCPWINDOWSIZE     (char *)"DfltTcpWindowSize"
+
 #define TRUE  1
 #define FALSE 0
 

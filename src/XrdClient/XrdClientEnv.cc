@@ -49,7 +49,7 @@ XrdClientEnv::XrdClientEnv() {
    PutInt(NAME_READCACHESIZE, DFLT_READCACHESIZE);
    PutInt(NAME_READAHEADSIZE, DFLT_READAHEADSIZE);
    PutInt(NAME_MULTISTREAMCNT, DFLT_MULTISTREAMCNT);
-
+   PutInt(NAME_DFLTTCPWINDOWSIZE, DFLT_DFLTTCPWINDOWSIZE);
 }
 
 //_____________________________________________________________________________

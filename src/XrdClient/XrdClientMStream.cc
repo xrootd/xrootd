@@ -18,13 +18,43 @@
 
 int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
     int mx = EnvGetLong(NAME_MULTISTREAMCNT);
-    int i;
+    int i, res;
+    int wan_port = 0, wan_window = 0;
+
+
+    if (mx <= 1) return 1;
+
+    // Query the server config, for the WAN port and the windowsize
+    char *qryitems = "wan_port wan_window";
+    ClientRequest qryRequest;
+    char *qryResp;
+    memset( &qryRequest, 0, sizeof(qryRequest) );
+
+    cliconn->SetSID(qryRequest.header.streamid);
+    qryRequest.header.requestid = kXR_query;
+    qryRequest.query.infotype = kXR_Qconfig;
+    qryRequest.header.dlen = strlen(qryitems);
+
+    res =  cliconn->SendGenCommand(&qryRequest, qryitems, &((void *)qryResp), 0,
+				   FALSE, (char *)"QueryConfig");
+
+    if (res && (cliconn->LastServerResp.status == kXR_ok) &&
+	qryResp && cliconn->LastServerResp.dlen) {
+
+      sscanf(qryResp, "%d %d",
+	     &wan_port,
+	     &wan_window);
+
+      Info(XrdClientDebug::kUSERDEBUG,
+	   "XrdClientMStream::EstablishParallelStreams", "Server WAN parameters: port=" << wan_port << " windowsize=" << wan_window );
+    }
+
 
     for (i = 0; i < mx; i++) {
 	Info(XrdClientDebug::kHIDEBUG,
 	     "XrdClientMStream::EstablishParallelStreams", "Trying to establish " << i+1 << "th substream." );
 	// If something goes wrong, stop adding new streams
-	if (AddParallelStream(cliconn))
+	if (AddParallelStream(cliconn, wan_port, wan_window))
 	    break;
 
     }
@@ -35,7 +65,7 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
 
 // Add a parallel stream to the pool used by the given client inst
 // Returns 0 if ok
-int XrdClientMStream::AddParallelStream(XrdClientConn *cliconn) {
+int XrdClientMStream::AddParallelStream(XrdClientConn *cliconn, int port, int windowsz) {
 
     // Get the XrdClientPhyconn to be used
     XrdClientPhyConnection *phyconn =
@@ -46,7 +76,7 @@ int XrdClientMStream::AddParallelStream(XrdClientConn *cliconn) {
     if (phyconn->GetSockIdCount() > EnvGetLong(NAME_MULTISTREAMCNT)) return 0;
 
     // Connect a new connection, get the socket fd
-    if (phyconn->TryConnectParallelStream() < 0) return -1;
+    if (phyconn->TryConnectParallelStream(port, windowsz) < 0) return -1;
 
     // The connection now is here with a temp id XRDCLI_PSOCKTEMP
     // Do the handshake

@@ -401,11 +401,11 @@ long XrdClientReadCache::GetDataIfPresent(const void *buffer,
 
     }
 
-//     if (lasttakenbyte+1 < end_offs) {
-// 	    intv.beginoffs = lasttakenbyte+1;
-// 	    intv.endoffs = end_offs;
-// 	    missingblks.Push_back( intv );
-//     }
+     if (lasttakenbyte+1 < end_offs) {
+ 	    intv.beginoffs = lasttakenbyte+1;
+ 	    intv.endoffs = end_offs;
+ 	    missingblks.Push_back( intv );
+     }
 
 
     if (PerfCalc) {

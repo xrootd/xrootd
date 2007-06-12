@@ -268,7 +268,7 @@ int XrdClientPSock::SendRaw(const void* buffer, int length, int substreamid) {
 }
 
 //_____________________________________________________________________________
-void XrdClientPSock::TryConnect(bool isUnix) {
+void XrdClientPSock::TryConnect() {
     // Already connected - we are done.
     //
     if (fConnected) {
@@ -276,7 +276,7 @@ void XrdClientPSock::TryConnect(bool isUnix) {
 	return;
     }
 
-    int s = TryConnect_low(isUnix);
+    int s = TryConnect_low();
 
     if (s >= 0) {
 	int z = 0;
@@ -286,9 +286,9 @@ void XrdClientPSock::TryConnect(bool isUnix) {
     }
 
 }
-int XrdClientPSock::TryConnectParallelSock() {
+int XrdClientPSock::TryConnectParallelSock(int port, int windowsz) {
 
-    int s = TryConnect_low();
+    int s = TryConnect_low(port, windowsz);
 
     if (s >= 0) {
 	int tmp = XRDCLI_PSOCKTEMP;

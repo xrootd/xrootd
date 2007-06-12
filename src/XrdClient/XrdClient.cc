@@ -477,6 +477,10 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		}
 	
 	
+		// Here we forget to have read in advance if the last byte taken is
+		// too much before the first read ahead byte
+		if ( fReadAheadLast - 2*rasize > (offset+len) ) fReadAheadLast = offset+len-1;
+
 		// Are we using read ahead?
 		// We read ahead only if the last byte we got is near (or over) to the last byte read
 		// in advance. But not too much over.
