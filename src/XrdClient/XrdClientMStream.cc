@@ -27,7 +27,7 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
     // Query the server config, for the WAN port and the windowsize
     char *qryitems = (char *)"wan_port wan_window";
     ClientRequest qryRequest;
-    char *qryResp;
+    char *qryResp = 0;
     memset( &qryRequest, 0, sizeof(qryRequest) );
 
     cliconn->SetSID(qryRequest.header.streamid);
