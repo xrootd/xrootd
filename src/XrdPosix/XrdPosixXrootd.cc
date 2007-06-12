@@ -106,8 +106,9 @@ XrdClient *XClient;
 
 long long  Offset() {return currOffset;}
 
-long long  addOffset(long long offs)
+long long  addOffset(long long offs, int updtSz=0)
                     {currOffset += offs;
+                     if (updtSz && currOffset > stat.size) stat.size=currOffset;
                      return currOffset;
                     }
 
@@ -910,6 +911,7 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
 
 // All went well
 //
+   if (offs+iosz > fp->stat.size) fp->stat.size = offs + iosz;
    fp->UnLock();
    return (ssize_t)iosz;
 }
@@ -973,7 +975,7 @@ ssize_t XrdPosixXrootd::Write(int fildes, const void *buf, size_t nbyte)
 
 // All went well
 //
-   fp->addOffset(iosz);
+   fp->addOffset(iosz, 1);
    fp->UnLock();
    return (ssize_t)iosz;
 }
