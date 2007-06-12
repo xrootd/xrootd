@@ -48,4 +48,6 @@ olbd_LDADD = ../XrdNet/libXrdNet.la \
              ../Xrd/libXrd.la \
              -ldl
 
+olbd_LDFLAGS = -export-dynamic
+
 
