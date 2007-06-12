@@ -300,7 +300,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	 cnd->cv.Lock();
 	 cnd->cnt++;
 	 fMutex.UnLock();
-	 cnd->cv.Wait();
+	 cnd->cv.Wait();	 
 	 cnd->cnt--;
 	 cnd->cv.UnLock();
        }
