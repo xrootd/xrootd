@@ -60,12 +60,22 @@ LDOPT    = -lib /nologo /out:$(LIBDIR)/$(TARGET)
 
 #CXXFLAGS = -Z7 -G5 -GR -GX -MD -DWIN32 -DWINDOWS -D_WINDOWS -nologo -DVISUAL_CPLUSPLUS -D_X86_=1 -Fo"$(OUTDIR)/"
 !IF  "$(CFG)" == "Win32 Release"
-CXXFLAGS = /nologo /G6 /MD /W3 /GX /O2 /I "./" /D "_WIN32" /D "WIN32" /D "_LIB" /D "NDEBUG" /D "_WINDOWS" /D "WINDOWS" /Fo"$(OUTDIR)/" /FD /c
+CXXFLAGS = /nologo /MD /W3 /EHsc /O2 /I "./" /D "_WIN32" /D "WIN32" /D "_LIB" /D "NDEBUG" /D "_WINDOWS" /D "WINDOWS" /Fo"$(OUTDIR)/" /FD /c
 LDFLAGS  = 
 !ELSEIF  "$(CFG)" == "Win32 Debug"
-CXXFLAGS = /nologo /MDd /W3 /Gm /GX /Zi /Od /I "./" /D "_WIN32" /D "WIN32" /D "_LIB" /D "_DEBUG" /D "_WINDOWS" /D "WINDOWS" /Fo"$(OUTDIR)/" /FD /GZ /c
+CXXFLAGS = /nologo /MDd /W3 /Gm /EHsc /Zi /Od /I "./" /D "_WIN32" /D "WIN32" /D "_LIB" /D "_DEBUG" /D "_WINDOWS" /D "WINDOWS" /Fo"$(OUTDIR)/" /FD /RTC1 /c
 LDFLAGS  = /DEBUG
 !ENDIF 
+
+!if ("$(_NMAKE_VER)" == "8.00.50727.42") || ("$(_NMAKE_VER)" == "8.00.50727.762")
+MT_EXE        = mt -nologo -manifest $@.manifest -outputresource:$@;1
+MT_DLL        = mt -nologo -manifest $@.manifest -outputresource:$@;2
+EXTRAFLAGS    = /wd4244 /wd4996 /wd4273 /D_CRT_SECURE_NO_DEPRECATE
+!else
+MT_EXE        = 
+MT_DLL        = 
+EXTRAFLAGS    = /G6 /wd4244 /wd4996 /wd4273
+!endif
 
 ######################
 INCPATH  =  -I.. -I../../pthreads-win32/include
@@ -73,7 +83,8 @@ LFLAGS   =
 
 ####### Files
 
-HEADERS =   XrdClient.hh XrdClientAbs.hh XrdClientAdmin.hh XrdClientAdmin_c.hh \
+HEADERS =   XrdClient.hh XrdClientAbs.hh XrdClientAdmin_c.hh \
+            XrdClientAdmin.hh XrdClientAdminConn.hh \
             XrdClientConn.hh XrdClientConnMgr.hh XrdClientConst.hh XrdClientDebug.hh \
             XrdClientDNS.hh XrdClientEnv.hh XrdClientInputBuffer.hh XrdClientLogConnection.hh \
             XrdClientMessage.hh XrdClientPhyConnection.hh XrdClientProtocol.hh XrdClientReadCache.hh \
@@ -81,14 +92,16 @@ HEADERS =   XrdClient.hh XrdClientAbs.hh XrdClientAdmin.hh XrdClientAdmin_c.hh \
             XrdClientUrlInfo.hh XrdClientUrlSet.hh XrdClientVector.hh XrdCpMthrQueue.hh \
             XrdCpWorkLst.hh XrdClientMStream.hh XrdClientPSock.hh XrdClientReadV.hh
 
-SOURCES =   XrdClient.cc XrdClientAbs.cc XrdClientAdmin.cc XrdClientAdmin_c.cc XrdClientConn.cc \
+SOURCES =   XrdClient.cc XrdClientAbs.cc XrdClientConn.cc XrdClientAdmin_c.cc \
+            XrdClientAdmin.cc XrdClientAdminConn.cc \
             XrdClientConnMgr.cc XrdClientDebug.cc XrdClientEnv.cc XrdClientInputBuffer.cc \
             XrdClientLogConnection.cc XrdClientMessage.cc XrdClientPhyConnection.cc \
             XrdClientProtocol.cc XrdClientReadCache.cc XrdClientSid.cc XrdClientSock.cc \
             XrdClientThread.cc XrdClientUrlInfo.cc XrdClientUrlSet.cc XrdCpMthrQueue.cc \
             XrdCpWorkLst.cc XrdClientMStream.cc XrdClientPSock.cc XrdClientReadV.cc
 
-OBJECTS =   $(OUTDIR)/XrdClient.obj $(OUTDIR)/XrdClientAbs.obj $(OUTDIR)/XrdClientAdmin.obj \
+OBJECTS =   $(OUTDIR)/XrdClient.obj $(OUTDIR)/XrdClientAbs.obj \
+            $(OUTDIR)/XrdClientAdmin.obj $(OUTDIR)/XrdClientAdminConn.obj \
             $(OUTDIR)/XrdClientAdmin_c.obj $(OUTDIR)/XrdClientConn.obj $(OUTDIR)/XrdClientConnMgr.obj \
             $(OUTDIR)/XrdClientDebug.obj $(OUTDIR)/XrdClientEnv.obj $(OUTDIR)/XrdClientInputBuffer.obj \
             $(OUTDIR)/XrdClientLogConnection.obj $(OUTDIR)/XrdClientMessage.obj \
@@ -123,5 +136,5 @@ clean:
 .SUFFIXES: .cc .obj .lib
 
 .cc{$(OUTDIR)}.obj:
-   $(CXX) -c $(CXXFLAGS) $(INCPATH) -o $@ $<
+   $(CXX) -c $(CXXFLAGS) $(EXTRAFLAGS) $(INCPATH) -c $<
 
