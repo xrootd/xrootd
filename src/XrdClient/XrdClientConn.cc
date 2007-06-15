@@ -2227,130 +2227,132 @@ bool XrdClientConn::WaitResp(int secsmax) {
 
 
 UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
-    // A client on the current physical conn might be in a "wait for response" state
-    // Here we process a potential response
+  // A client on the current physical conn might be in a "wait for response" state
+  // Here we process a potential response
 
 
-    // If this is a comm error, let's awake the sleeping thread and continue
-    if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok) {
-	fREQWaitResp->Lock();
+  // If this is a comm error, let's awake the sleeping thread and continue
+  if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok) {
+    fREQWaitResp->Lock();
 
-	// We also have to fake a regular answer. kxr_wait is ok!
-	fREQWaitRespData = (ServerResponseBody_Attn_asynresp *)malloc( sizeof(struct ServerResponseBody_Attn_asynresp) );
-	memset( fREQWaitRespData, 0, sizeof(struct ServerResponseBody_Attn_asynresp) );
+    // We also have to fake a regular answer. kxr_wait is ok!
+    fREQWaitRespData = (ServerResponseBody_Attn_asynresp *)malloc( sizeof(struct ServerResponseBody_Attn_asynresp) );
+    memset( fREQWaitRespData, 0, sizeof(struct ServerResponseBody_Attn_asynresp) );
 
-	fREQWaitRespData->resphdr.status = kXR_wait;
-	fREQWaitRespData->resphdr.dlen = sizeof(kXR_int32);
+    fREQWaitRespData->resphdr.status = kXR_wait;
+    fREQWaitRespData->resphdr.dlen = sizeof(kXR_int32);
 
-	kXR_int32 i = 1;
-	memcpy(&fREQWaitRespData->respdata, &i, sizeof(i));
+    kXR_int32 i = 1;
+    memcpy(&fREQWaitRespData->respdata, &i, sizeof(i));
 
-	fREQWaitResp->Signal();
-	fREQWaitResp->UnLock();
-	return kUNSOL_CONTINUE;
-    }
+    fREQWaitResp->Signal();
+    fREQWaitResp->UnLock();
+    return kUNSOL_CONTINUE;
+  }
 
 
-    ServerResponseBody_Attn_asynresp *ar;
-    ar = (ServerResponseBody_Attn_asynresp *)unsolmsg->GetData();
+  ServerResponseBody_Attn_asynresp *ar;
+  ar = (ServerResponseBody_Attn_asynresp *)unsolmsg->GetData();
 
     
 
-    // If the msg streamid matched ours then continue
-    if ( !MatchStreamid(&ar->resphdr) ) return kUNSOL_CONTINUE;
+  // If the msg streamid matched ours then continue
+  if ( !MatchStreamid(&ar->resphdr) ) return kUNSOL_CONTINUE;
 
-    Info(XrdClientDebug::kHIDEBUG,
-	 "ProcessAsynResp", "Streamid matched." );
+  Info(XrdClientDebug::kHIDEBUG,
+       "ProcessAsynResp", "Streamid matched." );
 
-    fREQWaitResp->Lock(); 
+  fREQWaitResp->Lock(); 
 
-    // Strip the data from the message and save it. It's the response we are waiting for.
-    // Note that it will contain also the data!
-    fREQWaitRespData = ar;
+  // Strip the data from the message and save it. It's the response we are waiting for.
+  // Note that it will contain also the data!
+  fREQWaitRespData = ar;
    
 
-    clientUnmarshall(&fREQWaitRespData->resphdr);
+  clientUnmarshall(&fREQWaitRespData->resphdr);
 
-    if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)
-      smartPrintServerHeader(&fREQWaitRespData->resphdr);
+  if (DebugLevel() >= XrdClientDebug::kDUMPDEBUG)
+    smartPrintServerHeader(&fREQWaitRespData->resphdr);
 
-    // After all, this is the last resp we received
-    memcpy(&LastServerResp, &fREQWaitRespData->resphdr, sizeof(struct ServerResponseHeader));
+  // After all, this is the last resp we received
+  memcpy(&LastServerResp, &fREQWaitRespData->resphdr, sizeof(struct ServerResponseHeader));
 
 
-    switch (fREQWaitRespData->resphdr.status) {
-    case kXR_error: {
-      // The server declared an error. 
-      // We want to save its content
+  switch (fREQWaitRespData->resphdr.status) {
+  case kXR_error: {
+    // The server declared an error. 
+    // We want to save its content
       
-      struct ServerResponseBody_Error *body_err;
+    struct ServerResponseBody_Error *body_err;
       
-      body_err = (struct ServerResponseBody_Error *)(&fREQWaitRespData->respdata);
+    body_err = (struct ServerResponseBody_Error *)(&fREQWaitRespData->respdata);
       
-      if (body_err) {
-	// Print out the error information, as received by the server
+    if (body_err) {
+      // Print out the error information, as received by the server
 	
-	kXR_int32 fErr = (XErrorCode)ntohl(body_err->errnum);
+      kXR_int32 fErr = (XErrorCode)ntohl(body_err->errnum);
 	
-	Info(XrdClientDebug::kNODEBUG, "ProcessAsynResp", "Server declared: " <<
-	     (const char*)body_err->errmsg << "(error code: " << fErr << ")");
+      Info(XrdClientDebug::kNODEBUG, "ProcessAsynResp", "Server declared: " <<
+	   (const char*)body_err->errmsg << "(error code: " << fErr << ")");
 	
-	// Save the last error received
-	memset(&LastServerError, 0, sizeof(LastServerError));
-	memcpy(&LastServerError, body_err, xrdmin(fREQWaitRespData->resphdr.dlen, (kXR_int32)(sizeof(LastServerError)-1) ));
-	LastServerError.errnum = fErr;
+      // Save the last error received
+      memset(&LastServerError, 0, sizeof(LastServerError));
+      memcpy(&LastServerError, body_err, xrdmin(fREQWaitRespData->resphdr.dlen, (kXR_int32)(sizeof(LastServerError)-1) ));
+      LastServerError.errnum = fErr;
 	
-      }
-
-    }
-    case kXR_redirect: {
-
-      // Hybrid case. A sync redirect request which comes out the async way.
-      // We handle it by simulating an async one
-
-      // Get the encapsulated data
-      struct ServerResponseBody_Redirect *rd;
-      rd = (struct ServerResponseBody_Redirect *)fREQWaitRespData->respdata;
-
-      // Explicit redirection request
-      if (rd && (strlen(rd->host) > 0)) {
-	Info(XrdClientDebug::kUSERDEBUG,
-	     "ProcessUnsolicitedMsg", "Requested sync redir (via async response) to " << rd->host <<
-	     ":" << ntohl(rd->port));
-	
-	SetRequestedDestHost(rd->host, ntohl(rd->port));
-
-	// And then we disconnect only this logical conn
-	// The subsequent retry will bounce to the requested host
-	Disconnect(false);
-      }
-
-
-      // We also have to fake a regular answer. kxr_wait is ok to make the thing retry!
-      fREQWaitRespData = (ServerResponseBody_Attn_asynresp *)malloc( sizeof(struct ServerResponseBody_Attn_asynresp) );
-      memset( fREQWaitRespData, 0, sizeof(struct ServerResponseBody_Attn_asynresp) );
-      
-      fREQWaitRespData->resphdr.status = kXR_wait;
-      fREQWaitRespData->resphdr.dlen = sizeof(kXR_int32);
-      
-      kXR_int32 i = 1;
-      memcpy(&fREQWaitRespData->respdata, &i, sizeof(i));
-
-      free(unsolmsg->DonateData());
-
-    }
     }
 
-    unsolmsg->DonateData(); // The data blk is released from the orig message
+    break;
+  }
 
-    // Signal the waiting condvar. Waiting is no more needed
-    // Note: the message's data will be freed by the waiting process!
-    fREQWaitResp->Signal();
+  case kXR_redirect: {
 
-    fREQWaitResp->UnLock();
+    // Hybrid case. A sync redirect request which comes out the async way.
+    // We handle it by simulating an async one
 
-    // The message is to be destroyed, its data has been saved
-    return kUNSOL_DISPOSE;
+    // Get the encapsulated data
+    struct ServerResponseBody_Redirect *rd;
+    rd = (struct ServerResponseBody_Redirect *)fREQWaitRespData->respdata;
+
+    // Explicit redirection request
+    if (rd && (strlen(rd->host) > 0)) {
+      Info(XrdClientDebug::kUSERDEBUG,
+	   "ProcessUnsolicitedMsg", "Requested sync redir (via async response) to " << rd->host <<
+	   ":" << ntohl(rd->port));
+	
+      SetRequestedDestHost(rd->host, ntohl(rd->port));
+
+      // And then we disconnect only this logical conn
+      // The subsequent retry will bounce to the requested host
+      Disconnect(false);
+    }
+
+
+    // We also have to fake a regular answer. kxr_wait is ok to make the thing retry!
+    fREQWaitRespData = (ServerResponseBody_Attn_asynresp *)malloc( sizeof(struct ServerResponseBody_Attn_asynresp) );
+    memset( fREQWaitRespData, 0, sizeof(struct ServerResponseBody_Attn_asynresp) );
+      
+    fREQWaitRespData->resphdr.status = kXR_wait;
+    fREQWaitRespData->resphdr.dlen = sizeof(kXR_int32);
+      
+    kXR_int32 i = 1;
+    memcpy(&fREQWaitRespData->respdata, &i, sizeof(i));
+
+    free(unsolmsg->DonateData());
+    break;
+  }
+  }
+
+  unsolmsg->DonateData(); // The data blk is released from the orig message
+
+  // Signal the waiting condvar. Waiting is no more needed
+  // Note: the message's data will be freed by the waiting process!
+  fREQWaitResp->Signal();
+
+  fREQWaitResp->UnLock();
+
+  // The message is to be destroyed, its data has been saved
+  return kUNSOL_DISPOSE;
 }
 
 
