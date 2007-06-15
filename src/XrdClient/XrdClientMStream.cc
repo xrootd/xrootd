@@ -36,12 +36,12 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
     qryRequest.header.dlen = strlen(qryitems);
 
     res =  cliconn->SendGenCommand(&qryRequest, qryitems, (void **)&qryResp, 0,
-				   FALSE, (char *)"QueryConfig");
+				   true, (char *)"QueryConfig");
 
     if (res && (cliconn->LastServerResp.status == kXR_ok) &&
 	qryResp && cliconn->LastServerResp.dlen) {
 
-      sscanf(qryResp, "%d %d",
+      sscanf(qryResp, "%d\n%d",
 	     &wan_port,
 	     &wan_window);
 
