@@ -43,7 +43,6 @@ class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler,
 private:
    XrdClientVector<XrdClientLogConnection*> fLogVec;
    XrdOucHash<XrdClientPhyConnection> fPhyHash;
-   XrdOucRash<XrdClientPhyConnection*, XrdOucString> fPhyKeysHash;
 
    // Phyconns are inserted here when they have to be destroyed later
    // All the phyconns here are disconnected.

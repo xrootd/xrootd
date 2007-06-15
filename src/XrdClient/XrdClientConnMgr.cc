@@ -90,9 +90,6 @@ int DisconnectElapsedPhyConn(const char *key,
       }
       
       if ((p->GetLogConnCnt() <= 0) && !p->IsValid()) {
-	
-	// We also have to remove the corresponding key from the keys hash
-	cmgr->fPhyKeysHash.Del(p);
 	  
 	// And then add the instance to the trashed list
 	cmgr->fPhyTrash.Push_back(p);
@@ -117,8 +114,6 @@ int DestroyPhyConn(const char *key,
 
   if (p) {
     
-    // We also have to remove the corresponding key from the keys hash
-    cmgr->fPhyKeysHash.Del(p);
     delete(p);
   }
 
@@ -288,7 +283,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	     // no connection attempts in progress and no already established connections
 	     // Mark this as an ongoing attempt
 	     // Now we have a pending conn attempt
-	     fConnectingCondVars.Add(key1.c_str(), new CndVarInfo(), Hash_keep);
+	     fConnectingCondVars.Rep(key1.c_str(), new CndVarInfo());
 	   }
 	 }
 
@@ -376,8 +371,9 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound) {
-         fPhyHash.Rep(key1.c_str(), phyconn, 0, Hash_keep);
-	 fPhyKeysHash.Rep(phyconn, key1);
+	if (!phyconn) cerr << endl << endl << endl << "ALERT!!!!!!!!" << endl;
+	fPhyHash.Rep(key1.c_str(), phyconn);
+
       }
 
 //

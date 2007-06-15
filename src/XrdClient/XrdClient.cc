@@ -108,7 +108,7 @@ XrdClient::~XrdClient()
     Close();
 
     if (fConnModule)
-	delete fConnModule;
+      delete fConnModule;
 
     delete fReadWaitData;
     delete fOpenProgCnd;
@@ -995,7 +995,7 @@ bool XrdClient::Close() {
     closeFileRequest.close.requestid = kXR_close;
     memcpy(closeFileRequest.close.fhandle, fHandle, sizeof(fHandle) );
     closeFileRequest.close.dlen = 0;
- 
+
     fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
   
     // No file is opened for now

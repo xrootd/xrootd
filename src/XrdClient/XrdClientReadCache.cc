@@ -77,9 +77,9 @@ XrdClientReadCache::XrdClientReadCache()
 //________________________________________________________________________
 XrdClientReadCache::~XrdClientReadCache()
 {
-    // Destructor
+  // Destructor
 
-    RemoveItems();
+  RemoveItems();
 
 }
 

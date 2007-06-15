@@ -123,6 +123,7 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucStr
 //_____________________________________________________________________________
 XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false), 
 				fLBSUrl(0), 
+				fMainReadCache(0),
 				fREQWaitRespData(0),
 				fREQWaitTimeLimit(0),
 				fREQConnectWaitTimeLimit(0), fUrl("") {
@@ -170,7 +171,6 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
     fGlobalRedirCnt = 0;
     fMaxGlobalRedirCnt = EnvGetLong(NAME_MAXREDIRECTCOUNT);
 
-    fMainReadCache = NULL;
     if (EnvGetLong(NAME_READCACHESIZE))
 	fMainReadCache = new XrdClientReadCache();
 
@@ -192,26 +192,26 @@ XrdClientConn::~XrdClientConn()
 {
 
 
-    // Disconnect underlying logical connection
-    Disconnect(FALSE);
+  // Disconnect underlying logical connection
+  Disconnect(FALSE);
 
-    // Destructor
-    if (fMainReadCache && (DebugLevel() >= XrdClientDebug::kUSERDEBUG))
-	fMainReadCache->PrintPerfCounters();
+  // Destructor
+  if (fMainReadCache && (DebugLevel() >= XrdClientDebug::kUSERDEBUG))
+    fMainReadCache->PrintPerfCounters();
 
-    if (fLBSUrl) delete fLBSUrl;
+  if (fLBSUrl) delete fLBSUrl;
 
-    delete fMainReadCache;
-    fMainReadCache = 0;
+  if (fMainReadCache) delete fMainReadCache;
+  fMainReadCache = 0;
 
-    delete fREQWait;
-    fREQWait = 0;
+  delete fREQWait;
+  fREQWait = 0;
 
-    delete fREQConnectWait;
-    fREQConnectWait = 0;
+  delete fREQConnectWait;
+  fREQConnectWait = 0;
 
-    delete fREQWaitResp;
-    fREQWaitResp = 0;
+  delete fREQWaitResp;
+  fREQWaitResp = 0;
 }
 
 //_____________________________________________________________________________
