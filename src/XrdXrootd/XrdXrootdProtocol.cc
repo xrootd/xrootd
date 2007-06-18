@@ -212,7 +212,7 @@ int dlen;
 
 // Peek at the first 20 bytes of data
 //
-   if ((dlen = lp->Peek(hsbuff,sizeof(hsdata),readWait)) != sizeof(hsdata))
+   if ((dlen = lp->Peek(hsbuff,sizeof(hsdata),120)) != sizeof(hsdata))
       {if (dlen <= 0) lp->setEtext("handshake not received");
        return (XrdProtocol *)0;
       }
