@@ -193,7 +193,7 @@ void XrdClientConnectionMgr::GarbageCollect()
 
    // Cycle all the trashed physical connections to destroy the elapsed once more
    // after a disconnection. Doing this way, a phyconn in async mode has
-   // all the time it needs to terminate its reader thread
+   // all the time it needs to terminate its reader thread pool
    for (int i = fPhyTrash.GetSize()-1; i >= 0; i--) {
      if (fPhyTrash[i]->ExpiredTTL()) {
        delete fPhyTrash[i];
@@ -283,7 +283,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	     // no connection attempts in progress and no already established connections
 	     // Mark this as an ongoing attempt
 	     // Now we have a pending conn attempt
-	     fConnectingCondVars.Rep(key1.c_str(), new CndVarInfo());
+	     fConnectingCondVars.Rep(strdup(key1.c_str()), new CndVarInfo(), 0, Hash_keep);
 	   }
 	 }
 
@@ -356,7 +356,10 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	  }
 	}
 	 delete logconn;
-	 delete phyconn;
+	// And then add the instance to the trashed list
+	 phyconn->Touch();
+	 fPhyTrash.Push_back(phyconn);
+	 //delete phyconn;
 	 
          return -1;
       }
@@ -372,7 +375,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound) {
 	if (!phyconn) cerr << endl << endl << endl << "ALERT!!!!!!!!" << endl;
-	fPhyHash.Rep(key1.c_str(), phyconn);
+	fPhyHash.Rep(strdup(key1.c_str()), phyconn, 0, Hash_keep);
 
       }
 

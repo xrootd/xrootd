@@ -16,6 +16,7 @@
 #include <XrdClient/XrdClientSock.hh>
 #include <XrdClient/XrdClientVector.hh>
 #include <XrdOuc/XrdOucRash.hh>
+#include <XrdOuc/XrdOucPthread.hh>
 
 #define XRDCLI_PSOCKTEMP -2
 
@@ -33,6 +34,7 @@ private:
     typedef int       Sockdescr;
 
     XrdClientVector<int> fBusysubstreams;
+    XrdOucRecMutex fMutex;
 
     // The set of interesting sock descriptors
     fdinfo globalfdinfo;
@@ -47,6 +49,8 @@ private:
     XrdOucRash<Sockid, Sockdescr> fSocketPool;
 
     Sockdescr GetSock(Sockid id) {
+        XrdOucMutexHelper mtx(fMutex);
+
 	Sockdescr *fd = fSocketPool.Find(id);
 	if (fd) return *fd;
 	else return -1;
@@ -60,6 +64,8 @@ private:
 
 
     Sockid GetSockId(Sockdescr sock) {
+        XrdOucMutexHelper mtx(fMutex);
+
 	Sockid *id = fSocketIdPool.Find(sock);
 	if (id) return *id;
 	else return -1;
@@ -68,6 +74,8 @@ private:
 protected:
 
     virtual int    SaveSocket() {
+        XrdOucMutexHelper mtx(fMutex);
+
 	// this overwrites the main stream
 	int *fd = fSocketPool.Find(0);
 
@@ -115,6 +123,8 @@ public:
 
     // And this is the total stream count
     virtual int GetSockIdCount() { 
+        XrdOucMutexHelper mtx(fMutex);
+
         return fSocketPool.Num();
     }
 

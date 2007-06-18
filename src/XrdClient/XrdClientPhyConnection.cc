@@ -72,6 +72,9 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
    // Constructor
    fServerType = kSTNone;
 
+   // Immediate destruction of this object is always a bad idea
+   fTTLsec = 30;
+
    Touch();
 
    fServer.Clear();

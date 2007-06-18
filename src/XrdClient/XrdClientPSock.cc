@@ -60,6 +60,7 @@ void XrdClientPSock::Disconnect()
    // Close the connection
 
     if (fConnected) {
+        XrdOucMutexHelper mtx(fMutex);
 
         fConnected = FALSE;
 
@@ -279,6 +280,8 @@ void XrdClientPSock::TryConnect() {
     int s = TryConnect_low();
 
     if (s >= 0) {
+        XrdOucMutexHelper mtx(fMutex);
+
 	int z = 0;
 	fSocketPool.Rep(0, s);
 	fSocketIdPool.Rep(s, z);
@@ -301,6 +304,8 @@ int XrdClientPSock::TryConnectParallelSock(int port, int windowsz) {
 
 int XrdClientPSock::RemoveParallelSock(int sockid) {
 
+    XrdOucMutexHelper mtx(fMutex);
+
     int s = GetSock(XRDCLI_PSOCKTEMP);
     fSocketIdPool.Del(s);
     fSocketPool.Del(sockid);
@@ -319,6 +324,8 @@ int XrdClientPSock::EstablishParallelSock(int sockid) {
     int s = GetSock(XRDCLI_PSOCKTEMP);
 
     if (s >= 0) {
+        XrdOucMutexHelper mtx(fMutex);
+
 	fSocketPool.Del(XRDCLI_PSOCKTEMP);
 	fSocketIdPool.Del(s);
 
