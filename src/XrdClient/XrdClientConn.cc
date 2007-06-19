@@ -2425,3 +2425,11 @@ int XrdClientConn:: GetParallelStreamCount() {
     return phyc->GetSockIdCount();
 
 }
+
+
+XrdClientPhyConnection *XrdClientConn::GetPhyConn(int LogConnID) {
+  XrdClientLogConnection *log;
+
+  log = ConnectionManager->GetConnection(LogConnID);
+  if (log) return log->GetPhyConnection();
+}

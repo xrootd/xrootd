@@ -52,7 +52,7 @@ private:
     fMsgQ;         // The queue used to hold incoming messages
 
     int                 fRequestTimeout;
-
+    bool                fMStreamsGoing;
     XrdOucRecMutex         fRwMutex;     // Lock before using the physical channel 
     // (for reading and/or writing)
 
@@ -137,6 +137,9 @@ public:
     int TryConnectParallelStream(int port, int windowsz) { return ( fSocket ? fSocket->TryConnectParallelSock(port, windowsz) : -1); }
     int EstablishPendingParallelStream(int newid) { return ( fSocket ? fSocket->EstablishParallelSock(newid) : -1); }
     void RemoveParallelStream(int substream) { if (fSocket) fSocket->RemoveParallelSock(substream); }
+    // Tells if the attempt to establish the parallel streams is ongoing or was done
+    //  and mark it as ongoing or done
+    bool TestAndSetMStreamsGoing();
 
     int GetSockIdHint(int reqsperstream) { return ( fSocket ? fSocket->GetSockIdHint(reqsperstream) : 0); }
     int GetSockIdCount() {return ( fSocket ? fSocket->GetSockIdCount() : 0); }

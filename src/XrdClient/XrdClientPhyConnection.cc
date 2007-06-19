@@ -67,7 +67,7 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
 
 //____________________________________________________________________________
 XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
-    fReaderCV(0), fLogConnCnt(0), fServerProto(0) {
+    fMStreamsGoing(false), fReaderCV(0), fLogConnCnt(0), fServerProto(0) {
 
    // Constructor
    fServerType = kSTNone;
@@ -768,4 +768,12 @@ void XrdClientPhyConnection::CountLogConn(int d)
    fMutex.Lock();
    fLogConnCnt += d;
    fMutex.UnLock();
+}
+
+
+bool XrdClientPhyConnection::TestAndSetMStreamsGoing() {
+  XrdOucMutexHelper mtx(fMutex);
+  bool retval = fMStreamsGoing;
+  fMStreamsGoing = true;
+  return retval;
 }

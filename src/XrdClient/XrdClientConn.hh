@@ -78,6 +78,9 @@ public:
     bool                       GetAccessToSrv();
     XrdOucString               GetClientHostDomain() { return fClientHostDomain; }
 
+
+    static XrdClientPhyConnection     *GetPhyConn(int LogConnID);
+
     long                       GetDataFromCache(const void *buffer,
 						long long begin_offs,
 						long long end_offs,

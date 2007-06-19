@@ -89,7 +89,7 @@ int DisconnectElapsedPhyConn(const char *key,
          p->Disconnect();
       }
       
-      if ((p->GetLogConnCnt() <= 0) && !p->IsValid()) {
+      if (!p->IsValid()) {
 	  
 	// And then add the instance to the trashed list
 	cmgr->fPhyTrash.Push_back(p);
@@ -101,6 +101,30 @@ int DisconnectElapsedPhyConn(const char *key,
    
    // Process next
    return 0;
+}
+
+
+
+//_____________________________________________________________________________
+int DumpPhyConn(const char *key,
+		XrdClientPhyConnection *p, void *voidcmgr)
+{
+
+  cout << "Phyconn entry, key='" << key;
+  if (!p) {
+    cout << " NULL" << endl;
+    return 0;
+  }
+  
+
+  cout << " LogCnt=" << p->GetLogConnCnt();
+  if (p->IsValid()) cout << " Valid";
+  else cout << "NotValid";
+
+  cout << endl;
+
+  // Process next
+  return 0;
 }
 
 //_____________________________________________________________________________
@@ -195,7 +219,7 @@ void XrdClientConnectionMgr::GarbageCollect()
    // after a disconnection. Doing this way, a phyconn in async mode has
    // all the time it needs to terminate its reader thread pool
    for (int i = fPhyTrash.GetSize()-1; i >= 0; i--) {
-     if (fPhyTrash[i]->ExpiredTTL()) {
+     if ((fPhyTrash[i]->GetLogConnCnt() <= 0) && (fPhyTrash[i]->ExpiredTTL())) {
        delete fPhyTrash[i];
        fPhyTrash.Erase(i);
      }
@@ -309,6 +333,9 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       Info(XrdClientDebug::kHIDEBUG,
 	   "Connect",
 	   "Physical connection not found. Creating a new one...");
+
+      fPhyHash.Apply(DumpPhyConn, this);
+
 
       // If not already present, then we must build a new physical connection, 
       // and try to connect it
@@ -472,6 +499,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
 	 // more logconns pointing to it
 
 	 fLogVec[LogConnectionID]->GetPhyConnection()->Disconnect();
+	 GarbageCollect();
       }
     
       fLogVec[LogConnectionID]->GetPhyConnection()->Touch();
