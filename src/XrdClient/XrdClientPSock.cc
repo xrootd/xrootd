@@ -64,14 +64,12 @@ void XrdClientPSock::Disconnect()
 
         fConnected = FALSE;
 
+	// Make the SocketPool invoke the closing of all sockets
+	if (fSocketPool.Num() > 0)
+	  fSocketPool.Apply( CloseSockFunc, 0 );
+
         fSocketIdPool.Purge();
         fSocketIdRepo.Clear();
-
-	// Make the SocketPool invoke the closing of all sockets
-	fSocketPool.Apply( CloseSockFunc, 0 );
-
-	//fSocketPool.Purge();
-
    }
 }
 
@@ -307,6 +305,9 @@ int XrdClientPSock::RemoveParallelSock(int sockid) {
     XrdOucMutexHelper mtx(fMutex);
 
     int s = GetSock(XRDCLI_PSOCKTEMP);
+
+    if (s >= 0) ::close(s);
+
     fSocketIdPool.Del(s);
     fSocketPool.Del(sockid);
 

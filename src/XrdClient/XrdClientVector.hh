@@ -151,8 +151,8 @@ public:
         for (long i = 0; i < size; i++)
           if (index[i].notempty) DestroyElem(&index[i]);
 
-	free(rawdata);
-	free(index);
+	if (rawdata) free(rawdata);
+	if (index) free(index);
     }
 
     void Resize(int newsize) {

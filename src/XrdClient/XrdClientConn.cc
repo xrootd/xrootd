@@ -2432,4 +2432,6 @@ XrdClientPhyConnection *XrdClientConn::GetPhyConn(int LogConnID) {
 
   log = ConnectionManager->GetConnection(LogConnID);
   if (log) return log->GetPhyConnection();
+  return 0;
+
 }

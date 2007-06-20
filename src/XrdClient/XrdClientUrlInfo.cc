@@ -137,7 +137,7 @@ void XrdClientUrlInfo::TakeUrl(XrdOucString u)
       Info(XrdClientDebug::kHIDEBUG,"TakeUrl", "   Proto:   " << Proto);
       // Update start of search range and remaining length
       p1 = p2 + 3;
-      left -= p1;
+      left = u.length() - p1;
    }
    if (left <= 0) {
       Clear();
@@ -150,7 +150,7 @@ void XrdClientUrlInfo::TakeUrl(XrdOucString u)
          HostWPort.assign(u, p1, p2-1);
          // Update start of search range and remaining length
          p1 = p2+1;
-         left -= p1;
+         left = u.length() - p1;
       }
    } else {
       HostWPort.assign(u, p1);

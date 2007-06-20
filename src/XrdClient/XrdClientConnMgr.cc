@@ -187,8 +187,9 @@ XrdClientConnectionMgr::~XrdClientConnectionMgr()
    }
 
    if (fGarbageColl) {
+     void *ret;
       fGarbageColl->Cancel();
-      fGarbageColl->Join(0);
+      fGarbageColl->Join(&ret);
       delete fGarbageColl;
    }
 
@@ -207,6 +208,8 @@ void XrdClientConnectionMgr::GarbageCollect()
 
    // Mutual exclusion on the vectors and other vars
    XrdOucMutexHelper mtx(fMutex);
+
+   fPhyHash.Apply(DumpPhyConn, this);
 
    if (fPhyHash.Num() > 0) {
 
@@ -334,7 +337,8 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	   "Connect",
 	   "Physical connection not found. Creating a new one...");
 
-      fPhyHash.Apply(DumpPhyConn, this);
+      if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
+	fPhyHash.Apply(DumpPhyConn, this);
 
 
       // If not already present, then we must build a new physical connection, 

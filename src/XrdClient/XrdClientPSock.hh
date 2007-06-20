@@ -33,7 +33,6 @@ private:
     typedef int       Sockid;
     typedef int       Sockdescr;
 
-    XrdClientVector<int> fBusysubstreams;
     XrdOucRecMutex fMutex;
 
     // The set of interesting sock descriptors

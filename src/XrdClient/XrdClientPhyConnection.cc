@@ -52,7 +52,9 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
    thisObj->StartedReader();
 
    while (1) {
+     thr->SetCancelOff();
      thisObj->BuildMessage(TRUE, TRUE);
+     thr->SetCancelOn();
 
      if (thisObj->CheckAutoTerm())
 	break;
