@@ -640,7 +640,7 @@ int XrdPssFile::Ftruncate(unsigned long long flen) {
 int XrdPssSys::P2URL(char *pbuff,int pblen,const char *path,XrdOucEnv *env)
 {
      int   theLen, envLen, pathln = strlen(path);
-     char *theEnv;
+     char *theEnv = 0;
 
 // Calculate the lengths here (include strlen("xrootd://<host>:port/"))
 //
