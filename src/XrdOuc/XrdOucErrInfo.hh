@@ -94,6 +94,8 @@ const char *getErrUser()
       XrdOucErrInfo(const char *user=0,XrdOucEICB *cb=0,unsigned long long ca=0)
                    : ErrInfo(user) {ErrCB = cb; ErrCBarg = ca;}
 
+virtual ~XrdOucErrInfo() {}
+
 protected:
 
 XrdOucEI            ErrInfo;
