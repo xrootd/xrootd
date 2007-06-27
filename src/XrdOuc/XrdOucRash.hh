@@ -86,7 +86,7 @@ XrdOucRash_Tent<K,V> *Table;
 XrdOucRash_Item<K,V> *Item;
 
       XrdOucRash_Tent() {Table = 0; Item = 0;}
-     ~XrdOucRash_Tent() {if (Table) delete(Table);
+     ~XrdOucRash_Tent() {if (Table) delete[] Table;
                          if (Item)  delete(Item);
                          }
 };
