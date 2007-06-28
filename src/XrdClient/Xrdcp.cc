@@ -158,6 +158,19 @@ void print_md5(const char* src, unsigned long long bytesread, XrdCryptoMsgDigest
   }
 }
 
+
+// To print out the last server error info
+//____________________________________________________________________________
+void PrintLastServerError(XrdClient *cli) {
+  struct ServerResponseBody_Error *e;
+
+  if ( cli && (e = cli->LastServerError()) )
+    cerr << "Last server error " << e->errnum << " ('" << e->errmsg << "')" <<
+      endl;
+
+}
+
+
 // The body of a thread which reads from the global
 //  XrdClient and keeps the queue filled
 //____________________________________________________________________________
@@ -372,6 +385,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       if ( ( !cpnfo.XrdCli->Open(0, kXR_async) ||
 	     (cpnfo.XrdCli->LastServerResp()->status != kXR_ok) ) ) {
 	 cerr << "Error opening remote source file " << src << endl;
+	 PrintLastServerError(cpnfo.XrdCli);
 
 	 delete cpnfo.XrdCli;
 	 cpnfo.XrdCli = 0;
@@ -389,7 +403,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 	 if (!(*xrddest)->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
 			       xrd_wr_flags)) {
 	    cerr << "Error opening remote destination file " << dst << endl;
-	    
+	    PrintLastServerError(*xrddest);
+
 	    delete cpnfo.XrdCli;
 	    delete *xrddest;
 	    *xrddest = 0;
@@ -425,6 +440,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 
 	       if (!(*xrddest)->Write(buf, offs, len)) {
 		  cerr << "Error writing to output server." << endl;
+		  PrintLastServerError(*xrddest);
 		  retvalue = 11;
 		  break;
 	       }
@@ -495,6 +511,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	 cpnfo.XrdCli = 0;
 
 	 cerr << "Error opening remote source file " << src << endl;
+	 PrintLastServerError(cpnfo.XrdCli);
 	 return 1;
       }
    }
@@ -510,8 +527,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	       O_CREAT | O_WRONLY | O_TRUNC | O_BINARY, 
           S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
       if (f < 0) {
-	 cerr << "Error " << strerror(errno) <<
-	    " creating " << dst << endl;
+	 cerr << "Error '" << strerror(errno) <<
+	    "' creating " << dst << endl;
 
 	 cpnfo.XrdCli->Close();
 	 delete cpnfo.XrdCli;
@@ -550,8 +567,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	    }
 
 	    if (write(f, buf, len) <= 0) {
-	       cerr << "Error " << strerror(errno) <<
-		  " writing to " << dst << endl;
+	       cerr << "Error '" << strerror(errno) <<
+		  "' writing to " << dst << endl;
 	       retvalue = 10;
 	       break;
 	    }
@@ -616,13 +633,13 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    // Open the input file (loc)
    cpnfo.localfile = open(src, O_RDONLY);   
    if (cpnfo.localfile < 0) {
-      cerr << "Error " << strerror(errno) << " opening " << src << endl;
+      cerr << "Error '" << strerror(errno) << "' opening " << src << endl;
       cpnfo.localfile = 0;
       return -1;
    }
 
    if (fstat(cpnfo.localfile, &stat)) {
-     cerr << "Error " << strerror(errno) << " stat " << src << endl;
+     cerr << "Error '" << strerror(errno) << "' stat " << src << endl;
      cpnfo.localfile = 0;
      return -1;
    }
@@ -634,6 +651,8 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
       if (!(*xrddest)->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
 			    xrd_wr_flags)) {
 	 cerr << "Error opening remote destination file " << dst << endl;
+	 PrintLastServerError(*xrddest);
+
 	 close(cpnfo.localfile);
 	 delete *xrddest;
 	 *xrddest = 0;
@@ -669,6 +688,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
 	    if (!(*xrddest)->Write(buf, offs, len)) {
 	       cerr << "Error writing to output server." << endl;
+	       PrintLastServerError(*xrddest);
 	       retvalue = 12;
 	       break;
 	    }
@@ -972,6 +992,7 @@ int main(int argc, char**argv) {
   
    if (wklst->SetSrc(&cpnfo.XrdCli, srcpath, srcopaque, recurse)) {
      cerr << "Error accessing path/file for " << srcpath << endl;
+     PrintLastServerError(cpnfo.XrdCli);
      exit(1);
    }
 
@@ -982,6 +1003,7 @@ int main(int argc, char**argv) {
    // an open instance of xrdclient if it's a file
    if (wklst->SetDest(&xrddest, destpath, dstopaque, xrd_wr_flags)) {
       cerr << "Error accessing path/file for " << destpath << endl;
+      PrintLastServerError(xrddest);
       exit(1);
    }
 

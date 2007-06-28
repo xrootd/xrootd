@@ -60,13 +60,15 @@ private:
 	rawdata = static_cast<char *>(malloc(IDXVEC_MINCAPACITY * sizeof_t));
 
 	index = static_cast<myindex *>(malloc(IDXVEC_MINCAPACITY * sizeof(myindex)));
-	// and we make every item as empty, i.e. not pointing to anything
-	memset(index, 0, IDXVEC_MINCAPACITY * sizeof(myindex));
+
 	if (!rawdata || !index) {
 	  std::cerr << "XrdClientIdxVector::Init .... out of memory. sizeof_t=" << sizeof_t <<
 	    " sizeof(myindex)=" << sizeof(myindex) << " capacity=" << IDXVEC_MINCAPACITY << std::endl;
 	  abort();
 	}
+
+	// and we make every item as empty, i.e. not pointing to anything
+	memset(index, 0, IDXVEC_MINCAPACITY * sizeof(myindex));
 
 	holecount = 0;
 
@@ -79,7 +81,7 @@ private:
     // Typically el will be moved at the end, at the size+holecount position
     void DestroyElem(myindex *el) {
       reinterpret_cast<T*>(rawdata+el->offs)->~T();
-      //el->notempty = false;
+      el->notempty = false;
     }
 
     void put(T& item, long pos) {

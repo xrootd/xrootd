@@ -57,20 +57,19 @@ int CloseSockFunc(int K, int V, void *arg) {
 //_____________________________________________________________________________
 void XrdClientPSock::Disconnect()
 {
-   // Close the connection
+  // Close the connection
+  XrdOucMutexHelper mtx(fMutex);
 
-    if (fConnected) {
-        XrdOucMutexHelper mtx(fMutex);
-
-        fConnected = FALSE;
-
-	// Make the SocketPool invoke the closing of all sockets
-	if (fSocketPool.Num() > 0)
-	  fSocketPool.Apply( CloseSockFunc, 0 );
-
-        fSocketIdPool.Purge();
-        fSocketIdRepo.Clear();
-   }
+  if (fConnected) {
+    fConnected = FALSE;
+    
+    // Make the SocketPool invoke the closing of all sockets
+    if (fSocketPool.Num() > 0)
+      fSocketPool.Apply( CloseSockFunc, 0 );
+    
+    fSocketIdPool.Purge();
+    fSocketIdRepo.Clear();
+  }
 }
 
 //_____________________________________________________________________________
@@ -147,6 +146,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
            if (sock >= 0) {
 	     FD_SET(sock, &locfdinfo.fdset);
 	     locfdinfo.maxfd = sock;
+
 	   }
            else {
              Error("XrdClientPSock::RecvRaw", "since we entered RecvRaw, the substreamid " <<
@@ -158,6 +158,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
              return TXSOCK_ERR;
              else {
                RemoveParallelSock(substreamid);
+	       ReinitFDTable();
                return TXSOCK_ERR_TIMEOUT;
              }
            }
@@ -176,7 +177,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	 selRet = select(locfdinfo.maxfd+1, &locfdinfo.fdset, NULL, NULL, &tv);
 
 	 if ((selRet < 0) && (errno != EINTR)) {
-	     Error("XrdClientSock::RecvRaw", "Error in select() : " <<
+	     Error("XrdClientPSock::RecvRaw", "Error in select() : " <<
 		   ::strerror(errno));
 
              ReinitFDTable();
@@ -214,8 +215,9 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 
 	      // If we read nothing, the connection has been closed by the other side
 	      if (n <= 0) {
-		  Error("XrdClientSock::RecvRaw", "Error reading from socket: " <<
-			::strerror(errno));
+		Error("XrdClientPSock::RecvRaw", "Error reading from socket " << ii << ". n=" << n <<
+		      "Error:'" <<
+		      ::strerror(errno) << "'");
 
 		  // A dropped parallel stream is not considered
 		  // as an error
@@ -223,6 +225,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 		      return TXSOCK_ERR;
 		  else {
 		      RemoveParallelSock(GetSockId(ii));
+		      ReinitFDTable();
 		      return TXSOCK_ERR_TIMEOUT;
 		  }
 
@@ -292,6 +295,7 @@ int XrdClientPSock::TryConnectParallelSock(int port, int windowsz) {
     int s = TryConnect_low(port, windowsz);
 
     if (s >= 0) {
+        XrdOucMutexHelper mtx(fMutex);
 	int tmp = XRDCLI_PSOCKTEMP;
 	fSocketPool.Rep(XRDCLI_PSOCKTEMP, s);
 	fSocketIdPool.Rep(s, tmp);

@@ -98,7 +98,7 @@ XrdClientInputBuffer::~XrdClientInputBuffer() {
 
       // Delete the content of the queue
       for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
-	 delete fMsgQue[fMsgIter];
+	 if (fMsgQue[fMsgIter]) delete fMsgQue[fMsgIter];
 	 fMsgQue[fMsgIter] = 0;
       }
 

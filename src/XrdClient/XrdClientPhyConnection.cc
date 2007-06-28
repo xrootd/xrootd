@@ -98,15 +98,15 @@ XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
 XrdClientPhyConnection::~XrdClientPhyConnection()
 {
    // Destructor
-  Info(XrdClientDebug::kHIDEBUG,
+  Info(XrdClientDebug::kUSERDEBUG,
        "XrdClientPhyConnection",
        "Destroying. [" << fServer.Host << ":" << fServer.Port << "]");
 
    Disconnect();
 
-   if (fSocket) {
-      delete fSocket;
-      fSocket = 0;
+     if (fSocket) {
+        delete fSocket;
+        fSocket = 0;
    }
 
    UnlockChannel();
@@ -743,9 +743,11 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
       case kXR_DataServer:
          // This is a data server
          typeres = kSTDataXrootd;
+	 break;
 
       case kXR_LBalServer:
          typeres = kSTBaseXrootd;
+	 break;
       }
       
    } else {

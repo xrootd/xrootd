@@ -33,16 +33,17 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
     // Query the server config, for the WAN port and the windowsize
     char *qryitems = (char *)"wan_port wan_window";
     ClientRequest qryRequest;
-    char *qryResp = 0;
+    char qryResp[1024];
     memset( &qryRequest, 0, sizeof(qryRequest) );
+    memset( qryResp, 0, 1024 );
 
     cliconn->SetSID(qryRequest.header.streamid);
     qryRequest.header.requestid = kXR_query;
     qryRequest.query.infotype = kXR_Qconfig;
     qryRequest.header.dlen = strlen(qryitems);
 
-    res =  cliconn->SendGenCommand(&qryRequest, qryitems, (void **)&qryResp, 0,
-				   true, (char *)"QueryConfig");
+    res =  cliconn->SendGenCommand(&qryRequest, qryitems, 0, qryResp,
+				   false, (char *)"QueryConfig");
 
     if (res && (cliconn->LastServerResp.status == kXR_ok) &&
 	qryResp && cliconn->LastServerResp.dlen) {
@@ -50,8 +51,6 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
       sscanf(qryResp, "%d\n%d",
 	     &wan_port,
 	     &wan_window);
-
-      delete qryResp;
 
       Info(XrdClientDebug::kUSERDEBUG,
 	   "XrdClientMStream::EstablishParallelStreams", "Server WAN parameters: port=" << wan_port << " windowsize=" << wan_window );

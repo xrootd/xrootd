@@ -115,7 +115,7 @@ public:
 
     bool   IsConnected() {return fConnected;};
 
-    int RemoveParallelSock(int sockid);
+    virtual int RemoveParallelSock(int sockid);
 
     // Suggests a sockid to be used for a req
     virtual int GetSockIdHint(int reqsperstream);

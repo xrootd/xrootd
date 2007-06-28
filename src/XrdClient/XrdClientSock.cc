@@ -214,7 +214,7 @@ int XrdClientSock::SendRaw_sock(const void* buffer, int length, int sock)
                         1,
                         1000 // 1 second as a step
                         );
-         if ((pollRet < 0) && (errno != EINTR))
+         if (((pollRet < 0) && (errno != EINTR)) || !fConnected)
             return TXSOCK_ERR;
 
       } while (--timeleft && pollRet <= 0 && !fWRInterrupt);

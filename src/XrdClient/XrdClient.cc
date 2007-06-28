@@ -1339,6 +1339,7 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 	    XrdClientMStream::ReadChunk *c;
 
 	    read_args args;
+	    memset(&args, 0, sizeof(args));
 
 	    c = &chunks[i];
 	    args.pathid = c->streamtosend;

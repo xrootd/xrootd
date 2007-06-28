@@ -110,18 +110,13 @@ int DumpPhyConn(const char *key,
 		XrdClientPhyConnection *p, void *voidcmgr)
 {
 
-  cout << "Phyconn entry, key='" << key;
   if (!p) {
-    cout << " NULL" << endl;
+    Info(XrdClientDebug::kHIDEBUG, "DumpPhyConn", "Phyconn entry, key=NULL");
     return 0;
   }
   
-
-  cout << " LogCnt=" << p->GetLogConnCnt();
-  if (p->IsValid()) cout << " Valid";
-  else cout << "NotValid";
-
-  cout << endl;
+  Info(XrdClientDebug::kHIDEBUG, "DumpPhyConn", "Phyconn entry, key='" <<
+       " LogCnt=" << p->GetLogConnCnt() << (p->IsValid() ? " Valid" : " NotValid") )
 
   // Process next
   return 0;
@@ -209,9 +204,10 @@ void XrdClientConnectionMgr::GarbageCollect()
    // Mutual exclusion on the vectors and other vars
    XrdOucMutexHelper mtx(fMutex);
 
-   fPhyHash.Apply(DumpPhyConn, this);
-
    if (fPhyHash.Num() > 0) {
+
+     if(DebugLevel() >= XrdClientDebug::kHIDEBUG)
+       fPhyHash.Apply(DumpPhyConn, this);
 
       // Cycle all the physical connections to disconnect the elapsed ones
       fPhyHash.Apply(DisconnectElapsedPhyConn, this);
@@ -222,8 +218,13 @@ void XrdClientConnectionMgr::GarbageCollect()
    // after a disconnection. Doing this way, a phyconn in async mode has
    // all the time it needs to terminate its reader thread pool
    for (int i = fPhyTrash.GetSize()-1; i >= 0; i--) {
-     if ((fPhyTrash[i]->GetLogConnCnt() <= 0) && (fPhyTrash[i]->ExpiredTTL())) {
-       delete fPhyTrash[i];
+
+     DumpPhyConn("Trashed connection",
+		 fPhyTrash[i], this);
+
+     if ( !fPhyTrash[i] || 
+	  ((fPhyTrash[i]->GetLogConnCnt() <= 0) && (fPhyTrash[i]->ExpiredTTL())) ) {
+       if (fPhyTrash[i]) delete fPhyTrash[i];
        fPhyTrash.Erase(i);
      }
    }
