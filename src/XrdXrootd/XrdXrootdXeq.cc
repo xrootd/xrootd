@@ -843,8 +843,11 @@ int XrdXrootdProtocol::do_Open()
                                       }
            }
    else if (opts & kXR_delete)
-           {openopts  = SFS_O_TRUNC;   *op++ = 'd';}
-
+           {openopts  = SFS_O_TRUNC;   *op++ = 'd';
+            if (opts & kXR_mkdir)     {*op++ = 'm'; mkpath = 1;
+                                       mode |= SFS_O_MKPTH;
+                                      }
+           }
    if (opts & kXR_compress)        
            {openopts |= SFS_O_RAWIO;   *op++ = 'c'; compchk = 1;}
    if (opts & kXR_force)              {*op++ = 'f'; doforce = 1;}
