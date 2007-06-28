@@ -552,37 +552,16 @@ struct ServerInitHandShake {
 
 
 
-void ServerInitHandShake2HostFmt(struct ServerInitHandShake *srh);
-
 typedef kXR_int32 ServerResponseType;
 
 // A connection towards a Load Balancer timeouts after many seconds of no use
 #define DLBD_TTL 600
 
 // A connection towards a data server timeouts quickly
-#define DATA_TTL 300
-
-void clientMarshall(ClientRequest*);
-void clientUnmarshall(struct ServerResponseHeader*);
-
-bool isRedir(struct ServerResponseHeader *ServerResponse);
+#define DATA_TTL 30
 
 struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
    char chkszrsp[ 9-sizeof(ServerResponseHeader)];
 };
-
-char *convertRequestIdToChar(kXR_unt16 requestid);
-char *convertRespStatusToChar(kXR_unt16 status);
-void smartPrintClientHeader(ClientRequest*);
-void smartPrintServerHeader(struct ServerResponseHeader*);
-
-kXR_int64 _ntohll(kXR_int64);
-kXR_int64 _htonll(kXR_int64);
-
-
-// this function inserts a filehandle in a generic request header
-// already composed
-//___________________________________________________________________________
-void PutFilehandleInRequest(ClientRequest* str, char *fHandle);
 
 #endif
