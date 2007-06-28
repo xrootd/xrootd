@@ -1262,15 +1262,13 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
 //
    if (!val) {Eroute.Emsg("Config", "stagecmd not specified"); return 1;}
 
-// Copy the command and all of it's arguments (suppress variable subs)
+// Copy the command and all of it's arguments
 //
-   theEnv = Config.SetEnv(0);
    do {if ((vlen = strlen(val)) >= blen)
           {Eroute.Emsg("Config", "stagecmd arguments too long"); break;}
        *bp = ' '; bp++; strcpy(bp, val); bp += vlen; blen -= vlen;
       } while((val = Config.GetWord()));
 
-    Config.SetEnv(theEnv);
     if (val) return 1;
     *bp = '\0'; val = buff+1;
 
