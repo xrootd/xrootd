@@ -22,6 +22,7 @@
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientThread.hh"
 #include "XrdOuc/XrdOucSemWait.hh"
+#include "XrdClient/XrdClientSid.hh"
 
 #include <time.h> // for time_t data type
 
@@ -75,12 +76,13 @@ private:
 
     short               fLogConnCnt; // Number of logical connections using this phyconn
 
+    XrdClientSid          *fSidManager;
 public:
     long                fServerProto;        // The server protocol
     ERemoteServerType   fServerType;
     long                fTTLsec;
 
-    XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h);
+    XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h, XrdClientSid *sid);
     ~XrdClientPhyConnection();
 
     XrdClientMessage     *BuildMessage(bool IgnoreTimeouts, bool Enqueue);

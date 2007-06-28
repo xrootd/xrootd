@@ -19,7 +19,6 @@
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdOuc/XrdOucPthread.hh"
-#include "XrdClient/XrdClientSid.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #ifndef WIN32
 #include <sys/socket.h>
@@ -68,8 +67,10 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
 }
 
 //____________________________________________________________________________
-XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h):
-    fMStreamsGoing(false), fReaderCV(0), fLogConnCnt(0), fServerProto(0) {
+XrdClientPhyConnection::XrdClientPhyConnection(XrdClientAbsUnsolMsgHandler *h,
+					       XrdClientSid *sid):
+    fMStreamsGoing(false), fReaderCV(0), fLogConnCnt(0), fSidManager(sid),
+    fServerProto(0) {
 
    // Constructor
    fServerType = kSTNone;
@@ -421,7 +422,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 //     fMultireadMutex.UnLock();
    }
 
-   parallelsid = SidManager->GetSidInfo(m->HeaderSID());
+   parallelsid = fSidManager->GetSidInfo(m->HeaderSID());
 
    if ( parallelsid || (m->IsAttn()) || (m->GetStatusCode() == XrdClientMessage::kXrdMSC_readerr)) {
       
@@ -486,7 +487,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 
        // The purpose of this message ends here
        if ( (parallelsid) && (res != kUNSOL_KEEP) && (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) )
-	   SidManager->ReleaseSid(m->HeaderSID());
+	   fSidManager->ReleaseSid(m->HeaderSID());
        
        if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) {
 	   delete m;

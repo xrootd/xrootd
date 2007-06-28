@@ -412,7 +412,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 							 true,
 							 cacheholes, blkstowait);
 
-		Info(XrdClientDebug::kUSERDEBUG, "Read",
+		Info(XrdClientDebug::kHIDEBUG, "Read",
 		     "Cache response: got " << bytesgot << "@" << offset << " bytes. Holes= " <<
 		     cacheholes.GetSize() << " Outstanding= " << blkstowait);
 
@@ -566,7 +566,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
                            "Timeout waiting outstanding blocks. "
                            "Retrying sync! "
                            "List of outstanding reqs follows." );
-                    SidManager->PrintoutOutstandingRequests();
+                    ConnectionManager->SidManager()->PrintoutOutstandingRequests();
                   }
 
 		    retrysync = true;
@@ -1220,8 +1220,8 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 	}
 	else
 	    // Let's see if we are receiving the response to an async read request
-	    if ( SidManager->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
-		struct SidInfo *si = SidManager->GetSidInfo(unsolmsg->HeaderSID());
+	    if ( ConnectionManager->SidManager()->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
+		struct SidInfo *si = ConnectionManager->SidManager()->GetSidInfo(unsolmsg->HeaderSID());
 		ClientRequest *req = &(si->outstandingreq);
 	 
 		Info(XrdClientDebug::kHIDEBUG,

@@ -32,13 +32,9 @@ struct  SidInfo {
    long long reqbyteprogress;
 };
 
-#define SidManager XrdClientSid::Instance()
-
 class XrdClientSid {
 
  private:
-   static XrdClientSid        *fgInstance;
-   
    // Used to quickly get info about a sid being used
    //  as a child of another sid. A child sid is used to parallely
    //  interact with a server for the same logical connection using its father sid
@@ -57,23 +53,8 @@ class XrdClientSid {
 
    XrdOucMutex                fMutex;
    
- protected:
-   XrdClientSid();
-
  public:
-
-   static XrdClientSid *Instance() {
-      if(fgInstance == 0) {
-
-	 fgInstance = new XrdClientSid;
-
-	 if(!fgInstance)
-	    abort();
-
-      }
-      return fgInstance;
-   }
-
+   XrdClientSid();
    virtual ~XrdClientSid();
 
    // Gets an available sid

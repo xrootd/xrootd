@@ -21,11 +21,13 @@
 
 
 //_____________________________________________________________________________
-XrdClientLogConnection::XrdClientLogConnection() {
+XrdClientLogConnection::XrdClientLogConnection(XrdClientSid *sidmgr):
+  fSidManager(sidmgr) {
+
    // Constructor
 
    fPhyConnection = 0;
-   fStreamid = SidManager->GetNewSid();
+   fStreamid = fSidManager->GetNewSid();
 }
 
 //_____________________________________________________________________________
@@ -35,7 +37,7 @@ XrdClientLogConnection::~XrdClientLogConnection() {
    // Decrement counter in the reference phy conn
    if (fPhyConnection)
       fPhyConnection->CountLogConn(-1);
-   SidManager->ReleaseSid(fStreamid);
+   fSidManager->ReleaseSid(fStreamid);
 }
 
 //_____________________________________________________________________________

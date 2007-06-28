@@ -41,6 +41,8 @@ class XrdClientConnectionMgr: public XrdClientAbsUnsolMsgHandler,
                        XrdClientUnsolMsgSender {
 
 private:
+   XrdClientSid *fSidManager;
+
    XrdClientVector<XrdClientLogConnection*> fLogVec;
    XrdOucHash<XrdClientPhyConnection> fPhyHash;
 
@@ -91,7 +93,7 @@ public:
    int           WriteRaw(short LogConnectionID, const void *buffer, 
                           int BufferLength, int substreamid);
 
-
+  XrdClientSid *SidManager() { return fSidManager; }
   friend int DisconnectElapsedPhyConn(const char *,
 				      XrdClientPhyConnection *, void *);
   friend int DestroyPhyConn(const char *,

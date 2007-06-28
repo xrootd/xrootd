@@ -25,12 +25,13 @@ class XrdClientLogConnection: public XrdClientAbsUnsolMsgHandler,
    public XrdClientUnsolMsgSender {
 private:
    XrdClientPhyConnection            *fPhyConnection;
+   XrdClientSid                      *fSidManager;
 
    // A logical connection has a private streamid
    kXR_unt16                         fStreamid;
 
 public:
-   XrdClientLogConnection();
+   XrdClientLogConnection(XrdClientSid *sidmgr);
    virtual ~XrdClientLogConnection();
 
    inline XrdClientPhyConnection     *GetPhyConnection() {

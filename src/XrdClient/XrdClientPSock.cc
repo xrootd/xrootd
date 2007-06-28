@@ -60,16 +60,14 @@ void XrdClientPSock::Disconnect()
   // Close the connection
   XrdOucMutexHelper mtx(fMutex);
 
-  if (fConnected) {
-    fConnected = FALSE;
+  fConnected = FALSE;
     
-    // Make the SocketPool invoke the closing of all sockets
-    if (fSocketPool.Num() > 0)
-      fSocketPool.Apply( CloseSockFunc, 0 );
+  // Make the SocketPool invoke the closing of all sockets
+  fSocketPool.Apply( CloseSockFunc, 0 );
     
-    fSocketIdPool.Purge();
-    fSocketIdRepo.Clear();
-  }
+  fSocketIdPool.Purge();
+  fSocketIdRepo.Clear();
+
 }
 
 //_____________________________________________________________________________
@@ -216,7 +214,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	      // If we read nothing, the connection has been closed by the other side
 	      if (n <= 0) {
 		Error("XrdClientPSock::RecvRaw", "Error reading from socket " << ii << ". n=" << n <<
-		      "Error:'" <<
+		      " Error:'" <<
 		      ::strerror(errno) << "'");
 
 		  // A dropped parallel stream is not considered

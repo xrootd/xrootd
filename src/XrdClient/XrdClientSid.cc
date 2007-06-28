@@ -18,9 +18,6 @@
 
 #include "XrdClient/XrdClientSid.hh"
 
-XrdClientSid *XrdClientSid::fgInstance = 0;
-
-
 XrdClientSid::XrdClientSid() {
 
    freesids.Resize(65536);
@@ -34,8 +31,6 @@ XrdClientSid::~XrdClientSid() {
    freesids.Clear();
    childsidnfo.Purge();
 
-   delete fgInstance;
-   fgInstance = 0;
 }
 
 

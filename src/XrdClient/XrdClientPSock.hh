@@ -113,8 +113,6 @@ public:
 
     virtual void   Disconnect();
 
-    bool   IsConnected() {return fConnected;};
-
     virtual int RemoveParallelSock(int sockid);
 
     // Suggests a sockid to be used for a req

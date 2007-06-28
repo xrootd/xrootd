@@ -2108,7 +2108,7 @@ XReqErrorType XrdClientConn::WriteToServer_Async(ClientRequest *req,
     //  to send N times the same req without destroying it
     //  if an answer comes before we finish
     // req is automatically updated with the new streamid
-    if (!SidManager->GetNewSid(fPrimaryStreamid, req))
+    if (!ConnectionManager->SidManager()->GetNewSid(fPrimaryStreamid, req))
 	return kNOMORESTREAMS;
 
     // Send the req to the server

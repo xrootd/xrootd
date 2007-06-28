@@ -111,11 +111,11 @@ int DumpPhyConn(const char *key,
 {
 
   if (!p) {
-    Info(XrdClientDebug::kHIDEBUG, "DumpPhyConn", "Phyconn entry, key=NULL");
+    Info(XrdClientDebug::kUSERDEBUG, "DumpPhyConn", "Phyconn entry, key=NULL");
     return 0;
   }
   
-  Info(XrdClientDebug::kHIDEBUG, "DumpPhyConn", "Phyconn entry, key='" <<
+  Info(XrdClientDebug::kUSERDEBUG, "DumpPhyConn", "Phyconn entry, key='" <<
        " LogCnt=" << p->GetLogConnCnt() << (p->IsValid() ? " Valid" : " NotValid") )
 
   // Process next
@@ -142,7 +142,8 @@ int DestroyPhyConn(const char *key,
 
 
 //_____________________________________________________________________________
-XrdClientConnectionMgr::XrdClientConnectionMgr() : fGarbageColl(0)
+XrdClientConnectionMgr::XrdClientConnectionMgr() : fSidManager(0),
+						   fGarbageColl(0)
 {
    // XrdClientConnectionMgr constructor.
    // Creates a Connection Manager object.
@@ -164,6 +165,14 @@ XrdClientConnectionMgr::XrdClientConnectionMgr() : fGarbageColl(0)
 	      "ConnectionMgr",
               "Explicitly requested not to start the garbage collector"
               " thread. Are you sure?");
+
+   fSidManager = new XrdClientSid();
+   if (!fSidManager) {
+     Error("ConnectionMgr",
+	   "Can't create sid manager: out of system resources");
+     abort();
+   }
+
 }
 
 //_____________________________________________________________________________
@@ -191,6 +200,7 @@ XrdClientConnectionMgr::~XrdClientConnectionMgr()
    GarbageCollect();
 
    fPhyHash.Apply(DestroyPhyConn, this);
+   delete fSidManager;
 }
 
 //_____________________________________________________________________________
@@ -206,7 +216,7 @@ void XrdClientConnectionMgr::GarbageCollect()
 
    if (fPhyHash.Num() > 0) {
 
-     if(DebugLevel() >= XrdClientDebug::kHIDEBUG)
+     if(DebugLevel() >= XrdClientDebug::kUSERDEBUG)
        fPhyHash.Apply(DumpPhyConn, this);
 
       // Cycle all the physical connections to disconnect the elapsed ones
@@ -255,7 +265,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    Info(XrdClientDebug::kHIDEBUG,
 	"Connect", "Creating a logical connection...");
 
-   logconn = new XrdClientLogConnection();
+   logconn = new XrdClientLogConnection(fSidManager);
    if (!logconn) {
       Error("Connect", "Object creation failed. Aborting.");
       abort();
@@ -347,7 +357,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       // While we are trying to connect, the mutex must be unlocked
       // Note that at this point logconn is a pure local instance, so it 
       // does not need to be protected by mutex
-      if (!(phyconn = new XrdClientPhyConnection(this))) {
+      if (!(phyconn = new XrdClientPhyConnection(this, fSidManager))) {
          Error("Connect", "Object creation failed. Aborting.");
          abort();
       }
