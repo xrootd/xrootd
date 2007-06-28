@@ -270,7 +270,7 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 int XrdOssSys::Mkpath(const char *path, mode_t mode)
 {
     char local_path[XrdOssMAX_PATH_LEN+1], *next_path;
-    int  i = strlen(local_path);
+    int  i = strlen(path);
 
 // Copy the path so we can modify it
 //
