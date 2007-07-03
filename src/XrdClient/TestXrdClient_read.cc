@@ -510,12 +510,12 @@ int main(int argc, char **argv) {
 
 	  case 4: // read async and then read
 
-	    for (int ii = 0; ii < ntoread; ii+=10) {
+	    for (int ii = 0; ii < ntoread; ii+=512) {
 
 	      // Read a chunk of data
 	      for(int i = 0; i < (int) xrdcvec.size(); i++) {
 
-		for (int jj = 0; jj < xrdmin(10, ntoread-ii); jj++) {
+		for (int jj = 0; jj < xrdmin(512, ntoread-ii); jj++) {
 		  retval =  xrdcvec[i]->Read_Async(v_offsets[ii+jj], v_lens[ii+jj]);
 
 		  // cout << "read_async "  <<
@@ -535,7 +535,7 @@ int main(int argc, char **argv) {
 	      }
 
 	      // Process the preceeding chunk while the last is coming
-	      for (int iii = ii-10; (iii >= 0) && (iii < ii); iii++) {
+	      for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
 
 		for(int i = 0; i < (int) xrdcvec.size(); i++) {
 

@@ -146,7 +146,7 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
   
   // Read a header from any substream and report it
   readres = phy->ReadRaw((void *)&fHdr, readLen, -1, &usedsubstreamid);
-  phy->PauseSelectOnSubstream(usedsubstreamid);
+  if (readres >= 0) phy->PauseSelectOnSubstream(usedsubstreamid);
 
   phy->ReadUnLock();
 

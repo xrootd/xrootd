@@ -306,7 +306,7 @@ int XrdClientPSock::RemoveParallelSock(int sockid) {
 
     XrdOucMutexHelper mtx(fMutex);
 
-    int s = GetSock(XRDCLI_PSOCKTEMP);
+    int s = GetSock(sockid);
 
     if (s >= 0) ::close(s);
 
