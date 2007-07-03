@@ -254,6 +254,9 @@ void XrdClientReadCache::PutPlaceholder(long long begin_offs,
 	      begin_offs = fItems[p]->EndOffset()+1;
 	      if (itm) {
 		fItems.Insert(itm, p);
+
+		// Optimization: we avoid to check the same block twice
+		p++;
 	      }
 	      
 	    }
@@ -517,6 +520,7 @@ void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
 			delete fItems[it];
 			fItems.Erase(it);
 			changed = true;
+			it--;
 
 			if (plc1_end - plc1_beg > 32) {
 			    PutPlaceholder(plc1_beg, plc1_end);

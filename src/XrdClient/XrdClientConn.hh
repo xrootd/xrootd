@@ -102,7 +102,7 @@ public:
 	    fMainReadCache->PutPlaceholder(begin_offs, end_offs);
     }
 
-
+  
     void                       RemoveAllDataFromCache() {
         if (fMainReadCache)
             fMainReadCache->RemoveItems();
@@ -112,6 +112,11 @@ public:
                                                    long long end_offs) {
         if (fMainReadCache)
             fMainReadCache->RemoveItems(begin_offs, end_offs);
+    }
+
+    void                       RemovePlaceholdersFromCache() {
+        if (fMainReadCache)
+            fMainReadCache->RemovePlaceholders();
     }
 
     void                       PrintCache() {

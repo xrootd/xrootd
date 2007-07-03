@@ -485,6 +485,7 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 		     "SendGenCommand", "Got (and maybe recovered) an error from " <<
 		     fUrl.Host << ":" << fUrl.Port);
 
+
 		// For the kxr_open request we don't rely on the count limit of other
 		// reqs. The open request is bounded only by the redir count limit
 		if (req->header.requestid != kXR_open) 

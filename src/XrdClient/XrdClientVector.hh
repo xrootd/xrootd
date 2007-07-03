@@ -81,7 +81,7 @@ private:
     // Typically el will be moved at the end, at the size+holecount position
     void DestroyElem(myindex *el) {
       reinterpret_cast<T*>(rawdata+el->offs)->~T();
-      el->notempty = false;
+      //      el->notempty = false;
     }
 
     void put(T& item, long pos) {

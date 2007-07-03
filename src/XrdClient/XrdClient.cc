@@ -337,6 +337,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	}
     }
 
+
     return TRUE;
 
 }
@@ -430,7 +431,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		    // We read ahead only if the last byte we got is near (or over) to the last byte read
 		    // in advance. But not too much over.
 		    if ( (fReadAheadLast - (offset+len) < rasize) &&
-			 (fReadAheadLast - (offset+len) > -10*rasize) &&
+			 //(fReadAheadLast - (offset+len) > -10*rasize) &&
 			 (rasize > 0) ) {
 
 			kXR_int64 araoffset;
@@ -485,7 +486,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		// We read ahead only if the last byte we got is near (or over) to the last byte read
 		// in advance. But not too much over.
 		if ( (fReadAheadLast - (offset+len) < rasize) &&
-		     (fReadAheadLast - (offset+len) > -10*rasize) &&
+		     //(fReadAheadLast - (offset+len) > -10*rasize) &&
 		     (rasize > 0) ) {
 
 		    kXR_int64 araoffset;
