@@ -1243,7 +1243,6 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
 {
-    XrdOucEnv *theEnv;
     char *val, buff[2048], *bp = buff;
     int vlen, blen = sizeof(buff)-1, isAsync = 0, isCreate = 0;
 
