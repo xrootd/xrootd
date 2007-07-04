@@ -108,10 +108,11 @@ XrdNetLink *XrdNetLink::Alloc(XrdOucError *erp, XrdNet *Net, XrdNetPeer &Peer,
 int XrdNetLink::Close(int defer)
 {
 
-// Make sure no I/O activity is occuring
+// Make sure no output activity is occuring. Sync on input only if this is not
+// a deferred close. Otherwise, we will likely deadlock.
 //
-    rdMutex.Lock();
-    wrMutex.Lock();
+   if(!defer) rdMutex.Lock();
+              wrMutex.Lock();
 
 // If close is not to be defered until a recycle, then delete appendages and
 // close the file descriptor unless it is being shared. Otherwise, substitute
@@ -130,8 +131,8 @@ int XrdNetLink::Close(int defer)
 
 // All done
 //
-    wrMutex.UnLock();
-    rdMutex.UnLock();
+                wrMutex.UnLock();
+    if (!defer) rdMutex.UnLock();
     return 0;
 }
 
