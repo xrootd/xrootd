@@ -89,7 +89,8 @@ bool XrdClientMessage::CreateData()
 	fData = malloc(fHdr.dlen+1);
 
       if (!fData || memtrbl) {
-	Error("XrdClientMessage::CreateData","Fatal ERROR *** malloc failed."
+	Error("XrdClientMessage::CreateData","Fatal ERROR *** malloc of " <<
+	      fHdr.dlen+1 << " bytes failed."
 	      " Probable system resources exhausted.");
 	abort();
       }
@@ -146,17 +147,17 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
   
   // Read a header from any substream and report it
   readres = phy->ReadRaw((void *)&fHdr, readLen, -1, &usedsubstreamid);
-  if (readres >= 0) phy->PauseSelectOnSubstream(usedsubstreamid);
+  if (readres == readLen) phy->PauseSelectOnSubstream(usedsubstreamid);
 
   phy->ReadUnLock();
 
-  if (readres < 0) {
+  if (readres != readLen) {
 
     if (readres == TXSOCK_ERR_TIMEOUT)
       SetStatusCode(kXrdMSC_timeout);
     else {
       Info(XrdClientDebug::kNODEBUG,"XrdClientMessage::ReadRaw",
-	   "Failed to read header (" << readLen << " bytes). Retrying ...");
+	   "Failed to read header (" << readLen << " bytes).");
       SetStatusCode(kXrdMSC_readerr);
 
     }
@@ -179,10 +180,11 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
 	 "Reading data (" << fHdr.dlen << " bytes) from substream " << usedsubstreamid);
 
     CreateData();
-    if (phy->ReadRaw(fData, fHdr.dlen, usedsubstreamid) < 0) {
+    if (phy->ReadRaw(fData, fHdr.dlen, usedsubstreamid) != fHdr.dlen) {
 
       Info(XrdClientDebug::kNODEBUG,"XrdClientMessage::ReadRaw",
-	   "Failed to read data (" << fHdr.dlen << " bytes) from substream " << usedsubstreamid<< ". Retrying ...");
+	   "Failed to read data (" << fHdr.dlen << " bytes) from substream " <<
+	   usedsubstreamid << ".");
 
       free( DonateData() );
 
