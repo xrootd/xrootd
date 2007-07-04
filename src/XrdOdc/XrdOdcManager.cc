@@ -153,7 +153,7 @@ int XrdOdcManager::Send(char *msg, int mlen)
    if (Active)
       {myData.Lock();
        if (Link)
-          if (!(allok = (Link && Link->Send(msg, mlen, 0) == 0)))
+          if (!(allok = (Link && Link->Send(msg, mlen, 33) == 0)))
              {Active = 0;
               Link->Close(1);
              }
@@ -174,7 +174,7 @@ int XrdOdcManager::Send(const struct iovec *iov, int iovcnt)
    if (Active)
       {myData.Lock();
        if (Link)
-          if (!(allok = (Link && Link->Send(iov, iovcnt, 0) == 0)))
+          if (!(allok = (Link && Link->Send(iov, iovcnt, 33) == 0)))
              {Active = 0;
               Link->Close(1);
              }
