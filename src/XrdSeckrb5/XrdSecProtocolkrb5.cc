@@ -32,6 +32,7 @@ extern "C" {
 #include "com_err.h"
 }
 
+#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -117,6 +118,8 @@ static int                options;       // Client or server
 static krb5_context       krb_context;   // Client or server
 static krb5_ccache        krb_ccache;    // Client or server
 static krb5_keytab        krb_keytab;    // Server
+static uid_t              krb_kt_uid;// Server
+static gid_t              krb_kt_gid;// Server
 static krb5_principal     krb_principal; // Server
 
 static char              *Principal;     // Server's principal name
@@ -146,6 +149,8 @@ int                 XrdSecProtocolkrb5::options = 0;       // Client or Server
 krb5_context        XrdSecProtocolkrb5::krb_context;       // Client or server
 krb5_ccache         XrdSecProtocolkrb5::krb_ccache;        // Client or server
 krb5_keytab         XrdSecProtocolkrb5::krb_keytab = NULL; // Server
+uid_t               XrdSecProtocolkrb5::krb_kt_uid = 0;    // Server
+gid_t               XrdSecProtocolkrb5::krb_kt_gid = 0;    // Server
 krb5_principal      XrdSecProtocolkrb5::krb_principal;     // Server
 
 char               *XrdSecProtocolkrb5::Principal = 0;     // Server
@@ -384,22 +389,27 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 
 // Decode the credentials and extract client's name
 //
-   if (!rc)
-       if ((rc = krb5_rd_req(krb_context, &AuthContext, &inbuf,
-                            (krb5_const_principal)krb_principal,
-                             krb_keytab, NULL, &Ticket)))
-          iferror = (char *)"Unable to authenticate credentials;";
-          else if ((rc = krb5_aname_to_localname(krb_context,
-                                    Ticket->enc_part2->client,
-                                    sizeof(CName)-1, CName)))
-                  iferror = (char *)"Unable to extract client name;";
+   {  XrdSysPrivGuard pGuard(krb_kt_uid, krb_kt_gid);
+      if (pGuard.Valid())
+         {if (!rc)
+             if ((rc = krb5_rd_req(krb_context, &AuthContext, &inbuf,
+                                  (krb5_const_principal)krb_principal,
+                                   krb_keytab, NULL, &Ticket)))
+                iferror = (char *)"Unable to authenticate credentials;";
+             else if ((rc = krb5_aname_to_localname(krb_context,
+                                          Ticket->enc_part2->client,
+                                          sizeof(CName)-1, CName)))
+                     iferror = (char *)"Unable to extract client name;";
+      } else
+         iferror = (char *)"Unable to acquire privileges to read the keytab;";
+   }
 // Make sure the name is null-terminated
 //
    CName[sizeof(CName)-1] = '\0';
 
 // If requested, ask the client for a forwardable token
    int hsrc = 0;
-   if (XrdSecProtocolkrb5::options & XrdSecEXPTKN) {
+   if (!rc && XrdSecProtocolkrb5::options & XrdSecEXPTKN) {
       // We just ask for more; the client knows what to send over
       hsrc = 1;
       // We need to fill-in a fake buffer
@@ -459,6 +469,33 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
           }
       } else {
        krb5_kt_default(krb_context, &krb_keytab);
+      }
+
+// Keytab name
+//
+   char krb_kt_name[1024];
+   if ((rc = krb5_kt_get_name(krb_context, krb_keytab, &krb_kt_name[0], 1024)))
+      {snprintf(buff, sizeof(buff), "Unable to get keytab name;");
+       return Fatal(erp, ESRCH, buff, Principal, rc);
+      }
+
+// Find out if need to acquire privileges to open and read the keytab file and
+// set the required uid,gid accordingly
+//
+   krb_kt_uid = 0;
+   krb_kt_gid = 0;
+   char *pf = 0;
+   if ((pf = (char *) strstr(krb_kt_name, "FILE:")))
+      {pf += strlen("FILE:");
+       if (strlen(pf) > 0)
+          {struct stat st;
+           if (!stat(pf, &st))
+              {if (st.st_uid != geteuid() || st.st_gid != getegid())
+                  {krb_kt_uid = st.st_uid;
+                   krb_kt_gid = st.st_gid;
+                  }
+              }
+          }
       }
 
 // Now, extract the "principal/instance@realm" from the stream
@@ -765,7 +802,7 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
                if (op[7] == ':') ExpFile = op+8;
                op = inParms.GetToken();
               }
-           KPrincipal = op;
+           KPrincipal = strdup(op);
       }
 
     if (ExpFile)
@@ -782,12 +819,41 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
        return (char *)0;
       }
 
+// Expand possible keywords in the principal
+//
+    int plen = strlen(KPrincipal);
+    int lkey = strlen("<host>");
+    char *phost = (char *) strstr(&KPrincipal[0], "<host>");
+    if (phost)
+       {char *hn = XrdNetDNS::getHostName();
+        if (hn)
+           {int lhn = strlen(hn);
+            if (lhn != lkey) {
+              // Allocate, if needed
+              int lnew = plen - lkey + lhn;
+              if (lnew > plen) {
+                 KPrincipal = (char *) realloc(KPrincipal, lnew+1);
+                 KPrincipal[lnew] = 0;
+                 phost = (char *) strstr(&KPrincipal[0], "<host>");
+              }
+              // Adjust the space
+              int lm = plen - (int)(phost + lkey - &KPrincipal[0]); 
+              memmove(phost + lhn, phost + lkey, lm);
+            }
+            // Copy the name
+            memcpy(phost, hn, lhn);
+            // Cleanup
+            free(hn);
+           }
+       }
+
 // Now initialize the server
 //
    XrdSecProtocolkrb5::setExpFile(ExpFile);
    XrdSecProtocolkrb5::setOpts(options);
    if (!XrdSecProtocolkrb5::Init(erp, KPrincipal, Keytab))
-      {int lpars = strlen(XrdSecProtocolkrb5::getPrincipal());
+      {free(KPrincipal);
+       int lpars = strlen(XrdSecProtocolkrb5::getPrincipal());
        if (options & XrdSecEXPTKN)
           lpars += strlen(",fwd");
        char *parms = (char *)malloc(lpars+1);
@@ -803,6 +869,7 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
 
 // Failure
 //
+   free(KPrincipal);
    return (char *)0;
 }
 }
