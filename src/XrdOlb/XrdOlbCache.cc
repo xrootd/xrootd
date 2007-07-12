@@ -55,8 +55,8 @@ int XrdOlbBounceAll(const char *key, XrdOlbCInfo *cinfo, void *maskp)
 // Clear the vector for this server and indicate it bounced
 //
    xmask = ~smask;
-   cinfo->rovec &= xmask;
-   cinfo->rwvec &= xmask;
+   cinfo->hfvec &= xmask;
+   cinfo->pfvec &= xmask;
    cinfo->sbvec |= smask;
 
 // Return a zero to keep this hash table
@@ -94,13 +94,13 @@ int XrdOlbClearVec(const char *key, XrdOlbCInfo *cinfo, void *sid)
 // Clear the vector for this server
 //
    smask = ~smask;
-   cinfo->rovec &= smask;
-   cinfo->rwvec &= smask;
+   cinfo->hfvec &= smask;
+   cinfo->pfvec &= smask;
    cinfo->sbvec &= smask;
 
 // Return indicating whether we should delete this or not
 //
-   return (cinfo->rovec || cinfo->rwvec ? 0 : -1);
+   return (cinfo->hfvec ? 0 : -1);
 }
 
 /******************************************************************************/
@@ -159,26 +159,22 @@ int XrdOlbCache::AddFile(const char    *path,
    if ((cinfo = PTable.Find(path)))
       {if (dltime > 0) 
           {cinfo->deadline = dltime + time(0);
-           cinfo->rovec = 0; cinfo->rwvec = 0; cinfo->sbvec = 0;
+           cinfo->hfvec = 0; cinfo->pfvec = 0; cinfo->sbvec = 0;
            if (Info) Add2Q(Info, cinfo, isrw);
           } else {
-           isnew = (cinfo->rovec == 0);
-           cinfo->rovec |=  mask; cinfo->sbvec &= ~mask;
-           if (isrw) {cinfo->rwvec |=  mask;
-                      cinfo->deadline = 0;
+           isnew = (cinfo->hfvec == 0);
+           cinfo->hfvec |=  mask; cinfo->sbvec &= ~mask;
+           if (isrw) {cinfo->deadline = 0;
                       if (cinfo->roPend || cinfo->rwPend)
                          Dispatch(cinfo, cinfo->roPend, cinfo->rwPend);
                      }
-              else   {cinfo->rwvec &= ~mask;
-                      if (!cinfo->rwPend) cinfo->deadline = 0;
+              else   {if (!cinfo->rwPend) cinfo->deadline = 0;
                       if (cinfo->roPend) Dispatch(cinfo, cinfo->roPend, 0);
                      }
           }
       } else if (dltime)
                 {cinfo = new XrdOlbCInfo();
-                 cinfo->rovec = mask; cinfo->sbvec = 0; isnew = 1;
-                 if (isrw) cinfo->rwvec =  mask;
-                    else   cinfo->rwvec = 0;
+                 cinfo->hfvec = mask; cinfo->pfvec=cinfo->sbvec = 0; isnew = 1;
                  if (dltime > 0) cinfo->deadline = dltime + time(0);
                  PTable.Add(path, cinfo, LifeTime);
                  if (Info) Add2Q(Info, cinfo, isrw);
@@ -228,10 +224,10 @@ int XrdOlbCache::DelFile(const char    *path,
 // Look up the entry and remove server
 //
    if ((cinfo = PTable.Find(path)))
-      {cinfo->rovec &= ~mask;
-       cinfo->rwvec &= ~mask;
+      {cinfo->hfvec &= ~mask;
+       cinfo->pfvec &= ~mask;
        cinfo->sbvec &= ~mask;
-       gone4good = (cinfo->rovec == 0);
+       gone4good = (cinfo->hfvec == 0);
        if (dltime > 0) cinfo->deadline = dltime + time(0);
           else if (gone4good) PTable.Del(path);
       } else gone4good = 0;
@@ -260,8 +256,8 @@ int  XrdOlbCache::GetFile(const char    *path,
 // Look up the entry and remove server
 //
    if ((info = PTable.Find(path)))
-      {cinfo.rovec = info->rovec;
-       cinfo.rwvec = info->rwvec;
+      {cinfo.hfvec = info->hfvec;
+       cinfo.pfvec = info->pfvec;
        cinfo.sbvec = info->sbvec;
        if (info->deadline && info->deadline <= time(0))
           info->deadline = 0;
@@ -373,10 +369,10 @@ void XrdOlbCache::Dispatch(XrdOlbCInfo *cinfo, short roQ, short rwQ)
 
 // Dispach the waiting elements
 //
-   if (roQ) {RRQ.Ready(roQ, cinfo, cinfo->rovec | cinfo->rwvec);
+   if (roQ) {RRQ.Ready(roQ, cinfo, cinfo->hfvec);
              cinfo->roPend = 0;
             }
-   if (rwQ) {RRQ.Ready(rwQ, cinfo,                cinfo->rwvec);
+   if (rwQ) {RRQ.Ready(rwQ, cinfo, cinfo->hfvec);
              cinfo->rwPend = 0;
             }
 }

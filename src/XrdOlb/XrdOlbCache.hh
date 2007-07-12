@@ -24,9 +24,9 @@
 /******************************************************************************/
   
 struct XrdOlbCInfo
-       {SMask_t rovec;    // Servers offering R/O access
-        SMask_t rwvec;    // Servers offering R/W access
-        SMask_t sbvec;    // Servers that are suspect
+       {SMask_t hfvec;    // Servers who are staging or have the file
+        SMask_t pfvec;    // Servers who are staging         the file
+        SMask_t sbvec;    // Servers that are suspect (eventually TOE clock)
         int     deadline;
         short   roPend;   // Redirectors waiting for R/O response
         short   rwPend;   // Redirectors waiting for R/W response

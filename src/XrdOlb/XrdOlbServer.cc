@@ -1179,7 +1179,7 @@ int XrdOlbServer::do_PrepSel(XrdOlbPrepArgs *pargs, int stage) // Static!!!
 // Primary:   Servers who already have the file
 // Secondary: Servers who don't have the file but can stage it in
 //
-   pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
+   pmask = (needrw ? cinfo.hfvec & pinfo.rwvec: cinfo.hfvec);
    smask = amask & pinfo.ssvec;   // Alternate selection
 
 // Select a server (do not select any peers)
@@ -1435,7 +1435,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 //
    if (refresh) {retc = 0; pmask = 0;}
       else if (!(retc = Cache.GetFile(tp,cinfo,needrw,&Info))) pmask = 0;
-              else pmask = (needrw ? cinfo.rwvec : cinfo.rovec);
+              else pmask = (needrw ? cinfo.hfvec & pinfo.rwvec : cinfo.hfvec);
 
 // We didn't find the file or a refresh is wanted (easy case). Client must wait.
 //
@@ -1586,7 +1586,7 @@ int XrdOlbServer::do_StateFWD(char *tp, int reset)
 // First check if we have seen this file before. If so, get primary selections.
 //
    if (reset) retc = 0;
-      else if ((retc = Cache.GetFile(tp, cinfo))) pmask = cinfo.rovec;
+      else if ((retc = Cache.GetFile(tp, cinfo))) pmask = cinfo.hfvec;
 
 // If we didn't find the file, or it's being searched for, then return failure.
 // Otherwise, we will ask the relevant servers if they have the file. We return
