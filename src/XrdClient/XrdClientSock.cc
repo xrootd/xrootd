@@ -292,7 +292,7 @@ int XrdClientSock::SendRaw(const void* buffer, int length, int substreamid)
 }
 
 //_____________________________________________________________________________
-void XrdClientSock::TryConnect()
+void XrdClientSock::TryConnect(bool isUnix)
 {
     // Already connected - we are done.
     //
@@ -302,7 +302,7 @@ void XrdClientSock::TryConnect()
     }
 
     
-    fSocket = TryConnect_low();
+    fSocket = TryConnect_low(isUnix);
 
     if (fSocket >= 0) {
 	
@@ -335,7 +335,7 @@ void XrdClientSock::TryConnect()
 }
 
 //_____________________________________________________________________________
-int XrdClientSock::TryConnect_low(int altport, int windowsz)
+int XrdClientSock::TryConnect_low(bool isUnix, int altport, int windowsz)
 {
     int sock = -1;
     XrdOucString host;
@@ -360,23 +360,37 @@ int XrdClientSock::TryConnect_low(int altport, int windowsz)
 
     // Log the attempt
     //
-    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low",
-	 "Trying to connect to " <<
-	 fHost.TcpHost.Host << "(" << host << "):" <<
-	 port << " Windowsize=" << windowsz << " Timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
+    if (!isUnix) {
+       Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low",
+	    "Trying to connect to " <<
+	    fHost.TcpHost.Host << "(" << host << "):" <<
+	    port << " Windowsize=" << windowsz << " Timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
     
-    // Connect to a remote host
-    //
-    sock = s->Open(host.c_str(),
+       // Connect to a remote host
+       //
+       sock = s->Open(host.c_str(),
 		   port, EnvGetLong(NAME_CONNECTTIMEOUT),
 		   windowsz );
+    } else {
+	Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low",
+	     "Trying to UNIX connect to" << fHost.TcpHost.File <<
+	     "; timeout=" << EnvGetLong(NAME_CONNECTTIMEOUT));
+
+	// Connect to a remote host
+	//
+	sock = s->Open(fHost.TcpHost.File.c_str(), -1, EnvGetLong(NAME_CONNECTTIMEOUT));
+    }
 
     // Check if we really got a connection and the remote host is available
     //
     if (sock < 0)  {
-
-      Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low", "Connection to" <<
-	   fHost.TcpHost.Host << ":" << fHost.TcpHost.Port << " failed. (" << sock << ")");
+	if (isUnix) {
+	    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low", "Connection to" <<
+		 fHost.TcpHost.File << " failed. (" << sock << ")");
+	} else {
+	    Info(XrdClientDebug::kHIDEBUG, "ClientSock::TryConnect_low", "Connection to" <<
+		 fHost.TcpHost.Host << ":" << fHost.TcpHost.Port << " failed. (" << sock << ")");
+	}
       
     } else {
 	fConnected = TRUE;

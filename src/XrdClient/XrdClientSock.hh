@@ -54,7 +54,7 @@ protected:
                                          if (which == 0 || which == 2) fWRInterrupt = 1; }
 
     // returns the socket descriptor or -1
-    int   TryConnect_low(int altport = 0, int windowsz = 0);
+    int   TryConnect_low(bool isUnix = 0, int altport = 0, int windowsz = 0);
 
     // Send the buffer to the specified socket
     virtual int    SendRaw_sock(const void* buffer, int length, int sock);
@@ -86,13 +86,13 @@ public:
     // If successful, we are connected through a socks4 proxy
     virtual int Socks4Handshake(int sockid);
 
-    virtual void   TryConnect();
+    virtual void   TryConnect(bool isUnix = 0);
 
     // Returns a temporary socket id or -1
     // The temporary sock id XRDCLI_PSOCKTEMP is to be used to send the kxr_bind_request
     // If all this goes ok, then the caller must call EstablishParallelSock, otherwise the
     //  creation of parallel streams should be aborted (but the already created streams are OK)
-    virtual int TryConnectParallelSock(int port = 0, int windowsz = 0) { return -1; }
+    virtual int TryConnectParallelSock(int /*port*/ = 0, int /*windowsz*/ = 0) { return -1; }
 
     // Attach the pending (and hidden) sock associated to the substreamid XRDCLI_PSOCKTEMP
     //  to the given substreamid

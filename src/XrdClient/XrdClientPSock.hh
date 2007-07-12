@@ -105,7 +105,7 @@ public:
     // if substreamid == 0 then use the main socket
     virtual int    SendRaw(const void* buffer, int length, int substreamid = 0);
 
-    virtual void   TryConnect();
+    virtual void   TryConnect(bool isUnix = 0);
 
     virtual int TryConnectParallelSock(int port = 0, int windowsz = 0);
 

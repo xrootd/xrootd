@@ -268,7 +268,7 @@ int XrdClientPSock::SendRaw(const void* buffer, int length, int substreamid) {
 }
 
 //_____________________________________________________________________________
-void XrdClientPSock::TryConnect() {
+void XrdClientPSock::TryConnect(bool isUnix) {
     // Already connected - we are done.
     //
     if (fConnected) {
@@ -276,7 +276,7 @@ void XrdClientPSock::TryConnect() {
 	return;
     }
 
-    int s = TryConnect_low();
+    int s = TryConnect_low(isUnix);
 
     if (s >= 0) {
         XrdOucMutexHelper mtx(fMutex);
