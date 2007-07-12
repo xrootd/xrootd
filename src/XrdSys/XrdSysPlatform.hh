@@ -24,6 +24,12 @@
 #endif
 #ifdef __macos__
 #include <sys/types.h>
+#ifndef dirent64
+#  define dirent64 dirent
+#endif
+#ifndef stat64
+#  define stat64 stat
+#endif
 #endif
 
 #ifdef __solaris__

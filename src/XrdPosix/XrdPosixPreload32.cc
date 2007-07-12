@@ -27,6 +27,7 @@
 #include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixStream.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdSys/XrdSysPlatform.hh"
  
 /******************************************************************************/
 /*                   G l o b a l   D e c l a r a t i o n s                    */
@@ -49,7 +50,7 @@ extern XrdPosixStream  streamX;
 // defined as 64 bits anyway. So, the dirent structure is 64-bit conformable
 // making CopyDirent() superfluous.
 //
-#if !defined( __macos__) || !defined(_LP64)
+#if !defined( __macos__) && !defined(_LP64)
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -76,7 +77,7 @@ int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 // defined as 64 bits anyway. So, the stat structure is 64-bit conformable
 // making CopyStat() superfluous.
 //
-#if !defined( __macos__) || !defined(_LP64)
+#if !defined( __macos__) && !defined(_LP64)
 int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;

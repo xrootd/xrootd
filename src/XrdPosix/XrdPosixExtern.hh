@@ -18,6 +18,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+// We need to avoid using dirent64 for MacOS platforms. We would normally
+// include XrdSysPlatform.hh for this but this include file needs to be
+// standalone. So, we replicate the dirent64 redefinition here,
+//
+#if defined(__macos__) && !defined(dirent64)
+#define dirent64 dirent
+#endif
+
 // Define the external interfaces (not C++ but OS compatabile). These
 // externs are included by XrdPosix.hh to complete the macro definitions.
 // Use this file directly to define your own macros or interfaces.

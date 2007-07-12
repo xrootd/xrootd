@@ -735,7 +735,9 @@ struct dirent* XrdPosixXrootd::Readdir(DIR *dirp)
    dp32 = (struct dirent *)dp64;
    if (dp32->d_name != dp64->d_name)
       {dp32->d_ino    = dp64->d_ino;
+#if !defined(__macos__)
        dp32->d_off    = dp64->d_off;
+#endif
        dp32->d_reclen = dp64->d_reclen;
        strcpy(dp32->d_name, dp64->d_name);
       }
@@ -774,7 +776,9 @@ int XrdPosixXrootd::Readdir_r(DIR *dirp,   struct dirent    *entry,
    if ((rc = Readdir64_r(dirp, 0, &dp64)) <= 0) {*result = 0; return rc;}
 
    entry->d_ino    = dp64->d_ino;
+#if !defined(__macos__)
    entry->d_off    = dp64->d_off;
+#endif
    entry->d_reclen = dp64->d_reclen;
    strcpy(entry->d_name, dp64->d_name);
    *result = entry;

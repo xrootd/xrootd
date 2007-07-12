@@ -49,6 +49,7 @@ TARGETS  = $(LIBRARY) $(LIBPLDR)
 
 vpath XrdClient% ../XrdClient
 vpath XrdOuc%    ../XrdOuc
+vpath XrdSys%    ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -91,7 +92,7 @@ $(OBJDIR)/XrdPosixPreload.o:  XrdPosixPreload.cc   XrdPosixLinkage.hh \
 
 $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
                                 XrdPosixExtern.hh      XrdPosixStream.hh \
-                                XrdPosixXrootd.hh
+                                XrdPosixXrootd.hh      XrdSysPlatform.hh
 	@echo Compiling XrdPosiXPreload32.cc
 	$(ECHO)$(CC) -c $(CFLAGS32) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
 
