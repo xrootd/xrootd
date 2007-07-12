@@ -16,7 +16,7 @@
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientUrlSet.hh"
-#include "XrdClient/XrdClientConn.hh"
+#include "XrdClient/XrdClientAdminConn.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientConnMgr.hh"
 
@@ -31,6 +31,7 @@
 #include <netinet/in.h>
 #endif
 
+XrdOucHash<XrdClientAdmin> XrdClientAdmin::fgAdminHash;
 
 //_____________________________________________________________________________
 void joinStrings(XrdOucString &buf, vecString vs)
@@ -54,10 +55,6 @@ void joinStrings(XrdOucString &buf, vecString vs)
       buf.erasefromend(1);
 }
 
-
-
-
-
 //_____________________________________________________________________________
 XrdClientAdmin::XrdClientAdmin(const char *url) {
 
@@ -72,7 +69,7 @@ XrdClientAdmin::XrdClientAdmin(const char *url) {
 
    fInitialUrl = url;
 
-   fConnModule = new XrdClientConn();
+   fConnModule = new XrdClientAdminConn();
 
    if (!fConnModule) {
       Error("XrdClientAdmin",
@@ -91,10 +88,39 @@ XrdClientAdmin::~XrdClientAdmin()
    delete fConnModule;
 }
 
+//_____________________________________________________________________________
+XrdClientAdmin *XrdClientAdmin::GetClientAdmin(const char *url)
+{
+   // Checks if an admin for 'url' exists already.
+   // Avoid duplications.
+   XrdClientAdmin *ca = 0;
 
+   // ID key
+   XrdOucString key = XrdClientConn::GetKey(XrdClientUrlInfo(url));
+
+   // If we have one for 'key', just use it
+   if (fgAdminHash.Num() > 0 && (ca = fgAdminHash.Find(key.c_str()))) {
+      return ca;
+   }
+
+   // Create one and save the reference in the hash table
+   ca = new XrdClientAdmin(url);
+   fgAdminHash.Add(key.c_str(), ca);
+
+   // Done
+   return ca;
+}
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::Connect() {
+bool XrdClientAdmin::Connect()
+{
+   // Connect to the server
+
+   // Nothing to do if already connected
+   if (fConnModule && fConnModule->IsConnected()) {
+      return TRUE;
+   }
+
    short locallogid;
   
    // Now we try to set up the first connection
@@ -106,29 +132,7 @@ bool XrdClientAdmin::Connect() {
    // Construction of the url set coming from the resolution of the hosts given
    XrdClientUrlSet urlArray(fInitialUrl);
    if (!urlArray.IsValid()) {
-      Error("Create", "The URL provided is incorrect.");
-      return FALSE;
-   }
-
-
-
-   // Check for allowed domains
-   bool validDomain = FALSE;
-
-   for (int jj=0; jj < urlArray.Size(); jj++) {
-      XrdClientUrlInfo *thisUrl;
-      thisUrl = urlArray.GetNextUrl();
-
-      if (fConnModule->CheckHostDomain(thisUrl->Host,
-				       EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
-				       EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
-	 validDomain = TRUE;
-	 break;
-      }
-   }
-
-   if (!validDomain) {
-      Error("CreateTXNf", "All the specified servers are disallowed. ");
+      Error("Connect", "The URL provided is incorrect.");
       return FALSE;
    }
 
@@ -137,28 +141,40 @@ bool XrdClientAdmin::Connect() {
    //
    urlArray.Rewind();
    locallogid = -1;
+   int urlstried = 0;
    for (int connectTry = 0;
 	(connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
 	connectTry++) {
 
-      XrdClientUrlInfo *thisUrl;
-     
-      // Get an url from the available set
-      thisUrl = urlArray.GetARandomUrl();
-     
-      if (thisUrl) {
+      XrdClientUrlInfo *thisUrl = 0;
+      urlstried = (urlstried == urlArray.Size()) ? 0 : urlstried;
 
-	 if (fConnModule->CheckHostDomain(thisUrl->Host,
-					  EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
-					  EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
+      bool nogoodurl = TRUE;
+      while (urlArray.Size() > 0) {
+     
+         // Get an url from the available set
+         if ((thisUrl = urlArray.GetARandomUrl())) {
 
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "CreateTXNf", "Trying to connect to " <<
-		 thisUrl->Host << ":" << thisUrl->Port <<
-		 ". Connect try " << connectTry+1);
-	   
-	    locallogid = fConnModule->Connect(*thisUrl, this);
+            if (fConnModule->CheckHostDomain(thisUrl->Host)) {
+               nogoodurl = FALSE;
+               Info(XrdClientDebug::kHIDEBUG, "Connect", "Trying to connect to " <<
+                                              thisUrl->Host << ":" << thisUrl->Port <<
+                                              ". Connect try " << connectTry+1);
+               locallogid = fConnModule->Connect(*thisUrl, this);
+               // To find out if we have tried the whole URLs set
+               urlstried++;
+               break;
+            } else {
+               // Invalid domain: drop the url and move to next, if any
+               urlArray.EraseUrl(thisUrl);
+               continue;
+            }
+
 	 }
+      }
+      if (nogoodurl) {
+         Error("Connect", "Access denied to all URL domains requested");
+         break;
       }
      
       // We are connected to a host. Let's handshake with it.
@@ -167,31 +183,50 @@ bool XrdClientAdmin::Connect() {
 	 // Now the have the logical Connection ID, that we can use as streamid for 
 	 // communications with the server
 
-	 Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
+	 Info(XrdClientDebug::kHIDEBUG, "Connect",
 	      "The logical connection id is " << fConnModule->GetLogConnID() <<
 	      ". This will be the streamid for this client");
 
 	 fConnModule->SetUrl(*thisUrl);
         
-	 Info(XrdClientDebug::kHIDEBUG, "CreateTXNf",
+	 Info(XrdClientDebug::kHIDEBUG, "Connect",
 	      "Working url is " << thisUrl->GetUrl());
         
 	 // after connection deal with server
-	 if (!fConnModule->GetAccessToSrv())
-	    Error("CreateTXNf", "Access to server failed")
-	    else {
-	       Info(XrdClientDebug::kUSERDEBUG, "Create", "Access to server granted.");
-	       break;
-	    }
+	 if (!fConnModule->GetAccessToSrv()) {
+            if (fConnModule->LastServerError.errnum == kXR_NotAuthorized) {
+               if (urlstried == urlArray.Size()) {
+                  // Authentication error: we tried all the indicated URLs:
+                  // does not make much sense to retry
+                  fConnModule->Disconnect(TRUE);
+                  XrdOucString msg(fConnModule->LastServerError.errmsg);
+                  msg.erasefromend(1);
+                  Error("Connect", "Authentication failure: " << msg);
+                  break;
+               } else {
+                  XrdOucString msg(fConnModule->LastServerError.errmsg);
+                  msg.erasefromend(1);
+                  Info(XrdClientDebug::kHIDEBUG, "Connect",
+                                                 "Authentication failure: " << msg);
+               }
+            } else {
+               Error("Connect", "Access to server failed: error: " <<
+                                fConnModule->LastServerError.errnum << " (" << 
+                                fConnModule->LastServerError.errmsg << ") - retrying.");
+            }
+         } else {
+            Info(XrdClientDebug::kUSERDEBUG, "Connect", "Access to server granted.");
+            break;
+	 }
       }
      
       // The server denied access. We have to disconnect.
-      Info(XrdClientDebug::kHIDEBUG, "CreateTXNf", "Disconnecting.");
+      Info(XrdClientDebug::kHIDEBUG, "Connect", "Disconnecting.");
      
       fConnModule->Disconnect(FALSE);
      
       if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
-	 Info(XrdClientDebug::kUSERDEBUG, "Create",
+	 Info(XrdClientDebug::kUSERDEBUG, "Connect",
 	      "Connection attempt failed. Sleeping " <<
 	      EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
      
@@ -259,13 +294,16 @@ bool XrdClientAdmin::Stat(const char *fname, long &id, long long &size, long &fl
    size = 0;
    flags = 0;
    modtime = 0;
-   memset(fStats, 0, 2048);
 
    ok = fConnModule->SendGenCommand(&statFileRequest, (const char*)fname,
 				    NULL, fStats , FALSE, (char *)"Stat");
 
 
    if (ok && (fConnModule->LastServerResp.status == 0)) {
+      if (fConnModule->LastServerResp.dlen >= 0)
+         fStats[fConnModule->LastServerResp.dlen] = 0;
+      else
+         fStats[0] = 0;
       Info(XrdClientDebug::kHIDEBUG,
 	   "Stat", "Returned stats=" << fStats);
       sscanf(fStats, "%ld %lld %ld %ld", &id, &size, &flags, &modtime);
@@ -700,6 +738,19 @@ bool XrdClientAdmin::Protocol(kXR_int32 &proto, kXR_int32 &kind)
 //_____________________________________________________________________________
 bool XrdClientAdmin::Prepare(vecString vs, kXR_char option, kXR_char prty)
 {
+   // Send a bulk prepare request for a vector of paths
+
+   XrdOucString buf;
+   joinStrings(buf, vs);
+
+   return Prepare(buf.c_str(), option, prty);
+}
+
+//_____________________________________________________________________________
+bool XrdClientAdmin::Prepare(const char *buf, kXR_char option, kXR_char prty)
+{
+   // Send a bulk prepare request for a '\n' separated list in buf
+
    ClientRequest prepareRequest;
 
    memset( &prepareRequest, 0, sizeof(prepareRequest) );
@@ -710,15 +761,10 @@ bool XrdClientAdmin::Prepare(vecString vs, kXR_char option, kXR_char prty)
    prepareRequest.prepare.options     = option;
    prepareRequest.prepare.prty        = prty;
 
-   XrdOucString buf;
-   joinStrings(buf, vs);
-   prepareRequest.header.dlen = buf.length();
-  
-   kXR_char respBuf[1024];
-   memset (respBuf, 0, 1024);
+   prepareRequest.header.dlen = strlen(buf);
 
-   bool ret = fConnModule->SendGenCommand(&prepareRequest, buf.c_str(),
-					  NULL, respBuf , FALSE, (char *)"Prepare");
+   bool ret = fConnModule->SendGenCommand(&prepareRequest, buf,
+                                          NULL, NULL , FALSE, (char *)"Prepare");
 
    return ret;
 }
@@ -801,13 +847,27 @@ long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
 //_____________________________________________________________________________
 bool XrdClientAdmin::Locate(kXR_char *pathfile, XrdClientUrlInfo &urlinfo)
 {
-   long id, flags, modtime;
-   long long size;
-   
-   bool ret = Stat((const char *)pathfile, id, size, flags, modtime);
-   urlinfo = GetCurrentUrl();
+   // asks the server for stat file informations
+   ClientRequest statFileRequest;
+   memset( &statFileRequest, 0, sizeof(ClientRequest) );
+   fConnModule->SetSID(statFileRequest.header.streamid);
+   statFileRequest.stat.requestid = kXR_stat;
+   memset(statFileRequest.stat.reserved, 0, sizeof(statFileRequest.stat.reserved));
+   statFileRequest.header.dlen = strlen((const char *)pathfile);
 
-   return ret;
+   // We do not want to redirected, just the redir info
+   short oldredirmx = fConnModule->GetMaxRedirCnt();
+   fConnModule->SetMaxRedirCnt(1);
+   bool ok = fConnModule->SendGenCommand(&statFileRequest, (const char*)pathfile,
+                                    0, 0, FALSE, (char *)"Stat");
+   if (!ok && (fConnModule->LastServerResp.status != kXR_redirect))
+      // Failure
+      return 0;
 
+   // Endpoint url
+   urlinfo = (ok) ? fConnModule->GetCurrentUrl() : fConnModule->GetRedirUrl();
+   fConnModule->SetMaxRedirCnt(oldredirmx);
+
+   // Done!
+   return 1;
 }
-

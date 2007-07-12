@@ -19,6 +19,7 @@
 
 #include "XrdClient/XrdClientAbs.hh"
 #include "XrdClient/XrdClientVector.hh"
+#include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 
 
@@ -30,6 +31,7 @@ void joinStrings(XrdOucString &buf, vecString vs);
 class XrdClientAdmin : public XrdClientAbs {
 
    XrdOucString                    fInitialUrl;
+   static XrdOucHash<XrdClientAdmin> fgAdminHash;
 
  protected:
 
@@ -95,6 +97,9 @@ class XrdClientAdmin : public XrdClientAbs {
    bool                            Prepare(vecString vs,
                                            kXR_char opts,
                                            kXR_char prty);
+   bool                            Prepare(const char *paths,
+                                           kXR_char opts,
+                                           kXR_char prty);
 
    // Gives ONE location of a particular file... if present
    bool                            Locate(kXR_char *pathfile,
@@ -104,7 +109,10 @@ class XrdClientAdmin : public XrdClientAbs {
                                                          XrdClientMessage *unsolmsg);
 
    // Hook to the open connection (needed by TXNetSystem)
-   XrdClientConn              *GetClientConn() const { return fConnModule; }
+   XrdClientConn                  *GetClientConn() const { return fConnModule; }
+
+   // Checks if an admin already exists for url
+   static XrdClientAdmin          *GetClientAdmin(const char *url);
 };
 
 #endif
