@@ -32,8 +32,8 @@ if ENABLE_PERLINT
 endif
 lib_LTLIBRARIES = libXrdClient.la $(BUILDPERL) $(BUILDJAVA)
 
-xrootdclientinc_HEADERS = XrdClient.hh \
-               XrdClientVector.hh XrdClientAdmin.hh XrdClientConnMgr.hh \
+xrootdclientinc_HEADERS = XrdClient.hh XrdClientAdmin.hh \
+               XrdClientVector.hh XrdClientAdminConn.hh XrdClientConnMgr.hh \
                XrdClientAbs.hh XrdClientUnsolMsg.hh XrdClientMessage.hh \
                XrdClientProtocol.hh XrdClientSock.hh XrdClientUrlInfo.hh \
                XrdClientConn.hh XrdClientConst.hh XrdClientReadCache.hh \

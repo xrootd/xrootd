@@ -5,8 +5,8 @@
 #-----------------------------------------------------------------------------#
 include ../GNUmake.env
 
-
-BINLIBS = -L$(LIBDIR) -lXrdClient -lXrdNet -lXrdOuc -lXrdSys $(LIBM)
+LIBLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys 
+BINLIBS = -L$(LIBDIR) -lXrdClient -lXrdCrypto $(LIBLIBS) $(LIBM)
 SSLLIBS = $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a
 
 LIBDEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a
@@ -31,6 +31,7 @@ SOURCES = \
 	XrdClientThread.cc              \
 	XrdClientProtocol.cc            \
 	XrdClientAdmin.cc		\
+	XrdClientAdminConn.cc		\
 	XrdCpMthrQueue.cc		\
 	XrdCpWorkLst.cc                 \
         XrdClientAdmin_c.cc             \
@@ -58,6 +59,7 @@ OBJECTS = \
 	$(OBJDIR)/XrdClientUrlSet.o		\
 	$(OBJDIR)/XrdClientProtocol.o           \
 	$(OBJDIR)/XrdClientAdmin.o              \
+	$(OBJDIR)/XrdClientAdminConn.o          \
 	$(OBJDIR)/XrdClientEnv.o		\
 	$(OBJDIR)/XrdCpMthrQueue.o		\
 	$(OBJDIR)/XrdCpWorkLst.o		\
@@ -77,6 +79,12 @@ OBJECTPERLMOD = $(OBJDIR)/XrdClientAdmin_c.o            \
 
 LIBRARY = $(LIBDIR)/libXrdClient.a
 
+LIBDEP   = $(LIBDIR)/libXrdNet.a \
+           $(LIBDIR)/libXrdOuc.a \
+           $(LIBDIR)/libXrdSys.a
+
+LIBSHARED  = $(LIBDIR)/libXrdClient.$(TYPESHLIB)
+
 LIBRARY_JNI =
 CLASS_JNI =
 ifneq ($(JAVAINC),)
@@ -95,10 +103,9 @@ ifneq ($(PERLINC),)
 PERLMOD = $(LIBDIR)/XrdClientAdmin.so
 endif
 
-
-TARGETS = $(LIBRARY) $(LIBAUX) $(TESTBIN) $(XRDCP) $(XRDCLI) $(XRDADMIN) \
+TARGETS = $(LIBRARY) $(LIBSHARED) $(LIBAUX) \
+	  $(TESTBIN) $(XRDCP) $(XRDCLI) $(XRDADMIN) \
 	  $(LIBRARY_JNI) $(CLASS_JNI_TARGET)
-
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
 #------------------------------------------------------------------------------#
@@ -130,6 +137,14 @@ $(LIBRARY): $(OBJECTS)
 	else \
 	   ar -rc $(LIBRARY) $(OBJECTS); \
 	   ranlib $(LIBRARY); \
+	fi
+
+$(LIBSHARED): $(OBJECTS) $(LIBDEP)
+	@echo Creating shared library $(LIBSHARED) 
+	$(ECHO)rm -f $(LIBSHARED);
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(LIBLIBS) $(LIBS) -o $(LIBSHARED)
+	$(ECHO)if [ "x$(TYPE)" = "xDarwin" ]; then \
+	   $(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(TYPELDDY) $(LIBLIBS) $(LIBS) -o $(LIBDIR)/libXrdClient.$(TYPEDYLIB); \
 	fi
 
 $(LIBRARY_JNI): $(OBJECT_JNI)
@@ -285,7 +300,7 @@ $(OBJDIR)/XrdClientPSock.o: XrdClientPSock.cc ../XrdClient/XrdClientSock.hh \
 	@echo Compiling XrdClientPSock.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientPSock.o XrdClientPSock.cc
 
-$(OBJDIR)/XrdClientConn.o: XrdClientConn.cc ../XrdClient/XrdClientDebug.hh \
+$(OBJDIR)/XrdClientConn.o: XrdClientConn.cc XrdClientConn.hh ../XrdClient/XrdClientDebug.hh \
   ../XrdClient/XrdClientConst.hh ../XrdOuc/XrdOucPthread.hh \
   ../XrdOuc/XrdOucError.hh ../XrdClient/XrdClientEnv.hh \
   ../XrdOuc/XrdOucEnv.hh ../XrdOuc/XrdOucHash.hh ../XrdOuc/XrdOucHash.icc \
@@ -306,6 +321,28 @@ $(OBJDIR)/XrdClientConn.o: XrdClientConn.cc ../XrdClient/XrdClientDebug.hh \
   ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClientConn.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientConn.o XrdClientConn.cc
+
+$(OBJDIR)/XrdClientAdminConn.o: XrdClientAdminConn.cc XrdClientAdminConn.hh ../XrdClient/XrdClientDebug.hh \
+  ../XrdClient/XrdClientConst.hh ../XrdOuc/XrdOucPthread.hh \
+  ../XrdOuc/XrdOucError.hh ../XrdClient/XrdClientEnv.hh \
+  ../XrdOuc/XrdOucEnv.hh ../XrdOuc/XrdOucHash.hh ../XrdOuc/XrdOucHash.icc \
+  ../XrdOuc/XrdOucLogger.hh ../XrdClient/XrdClientConnMgr.hh \
+  ../XrdClient/XrdClientUnsolMsg.hh ../XrdClient/XrdClientMessage.hh \
+  ../XrdClient/XrdClientProtocol.hh ../XProtocol/XProtocol.hh \
+  ../XProtocol/XPtypes.hh ../XrdClient/XrdClientSock.hh \
+  ../XrdClient/XrdClientUrlInfo.hh ../XrdClient/XrdClientPSock.hh \
+  ../XrdClient/XrdClientLogConnection.hh \
+  ../XrdClient/XrdClientPhyConnection.hh \
+  ../XrdClient/XrdClientInputBuffer.hh ../XrdOuc/XrdOucSemWait.hh \
+  ../XrdClient/XrdClientVector.hh ../XrdClient/XrdClientThread.hh \
+  ../XrdClient/XrdClientConn.hh ../XrdClient/XrdClientReadCache.hh \
+  ../XrdSec/XrdSecInterface.hh ../XrdSec/XrdSecEntity.hh \
+  ../XrdNet/XrdNetDNS.hh  \
+  ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientSid.hh \
+  ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
+  ../XrdSys/XrdSysPlatform.hh
+	@echo Compiling XrdClientAdminConn.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAdminConn.o XrdClientAdminConn.cc
 
 $(OBJDIR)/XrdClientConnMgr.o: XrdClientConnMgr.cc ../XrdClient/XrdClientConnMgr.hh \
   ../XrdOuc/XrdOucPthread.hh ../XrdOuc/XrdOucError.hh \
