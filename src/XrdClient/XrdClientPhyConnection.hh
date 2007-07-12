@@ -22,7 +22,6 @@
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientThread.hh"
 #include "XrdOuc/XrdOucSemWait.hh"
-#include "XrdClient/XrdClientSid.hh"
 
 #include <time.h> // for time_t data type
 

@@ -12,6 +12,7 @@ const char *XrdClientAdminConnCVSID = "$Id$";
 
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientAdminConn.hh"
+#include "XrdClient/XrdClientLogConnection.hh"
 
 //_____________________________________________________________________________
 bool XrdClientAdminConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,

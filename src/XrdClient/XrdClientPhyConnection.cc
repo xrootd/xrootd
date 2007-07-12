@@ -18,6 +18,7 @@
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdClient/XrdClientSid.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #ifndef WIN32

@@ -13,6 +13,7 @@
 
 
 #include "XrdClient/XrdClientMStream.hh"
+#include "XrdClient/XrdClientLogConnection.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientDebug.hh"
 
