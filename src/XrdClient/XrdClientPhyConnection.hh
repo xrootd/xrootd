@@ -40,6 +40,7 @@ enum ERemoteServerType {
     kSTDataXrootd = 3    // Remote server type: xrootd data server
 }; 
 
+class XrdClientSid;
 class XrdSecProtocol;
 
 class XrdClientPhyConnection: public XrdClientUnsolMsgSender {
@@ -76,7 +77,8 @@ private:
 
     short               fLogConnCnt; // Number of logical connections using this phyconn
 
-    XrdClientSid          *fSidManager;
+    XrdClientSid       *fSidManager;
+
 public:
     long                fServerProto;        // The server protocol
     ERemoteServerType   fServerType;
@@ -88,7 +90,7 @@ public:
     XrdClientMessage     *BuildMessage(bool IgnoreTimeouts, bool Enqueue);
     bool                  CheckAutoTerm();
 
-    bool           Connect(XrdClientUrlInfo RemoteHost);
+    bool           Connect(XrdClientUrlInfo RemoteHost, bool isUnix = 0);
     void           CountLogConn(int d = 1);
     void           Disconnect();
 

@@ -37,6 +37,10 @@ void *SocketReaderThread(void * arg, XrdClientThread *thr)
    // MsqQ with a stream of TXMessages containing what's happening
    // at the socket level
 
+   // Mask all allowed signals
+   if (thr->MaskSignal(0) != 0)
+      Error("SocketReaderThread", "Warning: problems masking signals");
+
    XrdClientPhyConnection *thisObj;
 
    Info(XrdClientDebug::kHIDEBUG,
@@ -126,14 +130,18 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 }
 
 //____________________________________________________________________________
-bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
+bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
 {
    // Connect to remote server
    XrdOucMutexHelper l(fMutex);
 
 
-   Info(XrdClientDebug::kHIDEBUG,
-	"Connect", "Connecting to [" << RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
+   if (isUnix) {
+      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connecting to " << RemoteHost.File);
+   } else {
+      Info(XrdClientDebug::kHIDEBUG,
+      "Connect", "Connecting to [" << RemoteHost.Host << ":" <<	RemoteHost.Port << "]");
+   } 
 
    if (EnvGetLong(NAME_MULTISTREAMCNT))
        fSocket = new XrdClientPSock(RemoteHost);
@@ -145,14 +153,16 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
       abort();
    }
 
-   fSocket->TryConnect();
+   fSocket->TryConnect(isUnix);
 
    if (!fSocket->IsConnected()) {
-
-     Error("Connect", "can't open connection to [" <<
-	   RemoteHost.Host << ":" << RemoteHost.Port << "]");
-
-     Disconnect();
+      if (isUnix) {
+         Error("Connect", "can't open UNIX connection to " << RemoteHost.File);
+      } else {
+         Error("Connect", "can't open connection to [" <<
+               RemoteHost.Host << ":" << RemoteHost.Port << "]");
+      }
+      Disconnect();
 
      return FALSE;
    }
@@ -161,8 +171,12 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost)
 
    fTTLsec = DATA_TTL;
 
-   Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to [" <<
-	RemoteHost.Host << ":" << RemoteHost.Port << "]");
+   if (isUnix) {
+      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to " << RemoteHost.File);
+   } else {
+      Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to [" <<
+           RemoteHost.Host << ":" << RemoteHost.Port << "]");
+   }
 
    fServer = RemoteHost;
 
@@ -406,7 +420,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
    // Also put automatically the msg into the queue
 
    XrdClientMessage *m;
-   bool parallelsid;
+   struct SidInfo *parallelsid = 0;
    UnsolRespProcResult res = kUNSOL_KEEP;
 
    m = new XrdClientMessage();
@@ -422,7 +436,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 //     fMultireadMutex.UnLock();
    }
 
-   parallelsid = fSidManager->GetSidInfo(m->HeaderSID());
+   parallelsid = (fSidManager) ? fSidManager->GetSidInfo(m->HeaderSID()) : 0;
 
    if ( parallelsid || (m->IsAttn()) || (m->GetStatusCode() == XrdClientMessage::kXrdMSC_readerr)) {
       
@@ -486,8 +500,10 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
 
 
        // The purpose of this message ends here
-       if ( (parallelsid) && (res != kUNSOL_KEEP) && (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) )
-	   fSidManager->ReleaseSid(m->HeaderSID());
+       if ( (parallelsid) && (res != kUNSOL_KEEP) &&
+            (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) )
+          if (fSidManager)
+	    fSidManager->ReleaseSid(m->HeaderSID());
        
        if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) {
 	   delete m;
