@@ -197,6 +197,7 @@ int XrdClientMessage::ReadRaw(XrdClientPhyConnection *phy)
     }
   }
   phy->RestartSelectOnSubstream(usedsubstreamid);
+  //  phy->ReadUnLock();
   return 1;
 }
 

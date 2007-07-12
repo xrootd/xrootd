@@ -996,6 +996,11 @@ bool XrdClient::Close() {
     memcpy(closeFileRequest.close.fhandle, fHandle, sizeof(fHandle) );
     closeFileRequest.close.dlen = 0;
 
+
+    //bool ok = fConnModule->SendGenCommand(&closeFileRequest,
+    //					  0,
+    //					  0, 0 , FALSE, (char *)"Close");
+
     fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
   
     // No file is opened for now

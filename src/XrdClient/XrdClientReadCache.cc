@@ -607,7 +607,7 @@ bool XrdClientReadCache::RemoveLRUItem()
 
     lruit = -1;
 
-    if (fItems.GetSize() < 10000)
+    if (fItems.GetSize() < 1000000)
 	for (it = 0; it < fItems.GetSize(); it++) {
 	    // We don't remove placeholders
 	    if (fItems[it] && !fItems[it]->IsPlaceholder()) {

@@ -93,8 +93,6 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
   // The local set of interesting sock descriptors
   struct fdinfo locfdinfo;
 
-
-
    // We cycle reading data.
    // An exit occurs if:
    // We have all the data we are waiting for
@@ -123,6 +121,8 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
          // we want to reconstruct the global fd_set
          Info(XrdClientDebug::kDUMPDEBUG, "XrdClientPSock::RecvRaw", "Reconstructing global fd table.");
 
+	 XrdOucMutexHelper mtx(fMutex);
+
          FD_ZERO(&globalfdinfo.fdset);
 	 globalfdinfo.maxfd = 0;
 
@@ -131,36 +131,44 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
          fReinit_fd = false;
        }
 
-         if (substreamid == -1) {
-           // We are interested in any sock so we take the global fdset
-           locfdinfo = globalfdinfo;
+       // If we already read something, then we are stuck to a single socket
+       // waiting for the completion of its read
+       // This is reflected in the local fdset hence we don't have to touch it
+       //       if ((!bytesread) || (substreamid == -1)) {
 
-         } else {
-           // we are using a single specified sock
-           FD_ZERO(&locfdinfo.fdset);
+	 if (substreamid == -1) {
+	   // We are interested in any sock and we are not stuck
+	   // to any in particular so we take the global fdset
+	   locfdinfo = globalfdinfo;
+	   
+	 } else {
+	   // we are using a single specified sock
+	   FD_ZERO(&locfdinfo.fdset);
 	   locfdinfo.maxfd = 0;
-
-           int sock = GetSock(substreamid);
-           if (sock >= 0) {
+	   
+	   int sock = GetSock(substreamid);
+	   if (sock >= 0) {
 	     FD_SET(sock, &locfdinfo.fdset);
 	     locfdinfo.maxfd = sock;
-
+	     
 	   }
-           else {
-             Error("XrdClientPSock::RecvRaw", "since we entered RecvRaw, the substreamid " <<
-                   substreamid << " has been removed.");
-              
-             // A dropped parallel stream is not considered
-             // as an error
-             if (substreamid == 0)
-             return TXSOCK_ERR;
-             else {
-               RemoveParallelSock(substreamid);
+	   else {
+	     Error("XrdClientPSock::RecvRaw", "since we entered RecvRaw, the substreamid " <<
+		   substreamid << " has been removed.");
+	   
+	     // A dropped parallel stream is not considered
+	     // as an error
+	     if (substreamid == 0)
+	       return TXSOCK_ERR;
+	     else {
+	       RemoveParallelSock(substreamid);
 	       ReinitFDTable();
-               return TXSOCK_ERR_TIMEOUT;
-             }
-           }
-         }
+	       return TXSOCK_ERR_TIMEOUT;
+	     }
+	   }
+	 }
+
+	 //       }
 
        
          // If too much time has elapsed, then we return an error
@@ -178,7 +186,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	     Error("XrdClientPSock::RecvRaw", "Error in select() : " <<
 		   ::strerror(errno));
 
-             ReinitFDTable();
+	     //             ReinitFDTable();
 	     return TXSOCK_ERR;
 	 }
 
@@ -237,6 +245,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	      FD_ZERO(&locfdinfo.fdset);
 	      FD_SET(ii, &locfdinfo.fdset);
 	      locfdinfo.maxfd = ii;
+	      substreamid = GetSockId(ii);
 
 	      if (usedsubstreamid) *usedsubstreamid = GetSockId(ii);
 
