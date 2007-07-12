@@ -22,7 +22,8 @@
 #include "XrdClient/XrdClientConnMgr.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientMessage.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdClient/XrdClientLogConnection.hh"
+#include "XrdClient/XrdClientThread.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientSid.hh"
 #ifdef WIN32
@@ -50,6 +51,10 @@
 void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 {
    // Function executed in the garbage collector thread
+
+   // Mask all allowed signals
+   if (thr->MaskSignal(0) != 0)
+      Error("GarbageCollectorThread", "Warning: problems masking signals");
 
    int i;
    XrdClientConnectionMgr *thisObj = (XrdClientConnectionMgr *)arg;
@@ -149,6 +154,7 @@ XrdClientConnectionMgr::XrdClientConnectionMgr() : fSidManager(0),
    // Creates a Connection Manager object.
    // Starts the garbage collector thread.
 
+
    // Garbage collector thread creation
    if (EnvGetLong(NAME_STARTGARBAGECOLLECTORTHREAD)) {
       fGarbageColl = new XrdClientThread(GarbageCollectorThread);
@@ -160,11 +166,9 @@ XrdClientConnectionMgr::XrdClientConnectionMgr() : fSidManager(0),
       fGarbageColl->Run(this);
    }
    else
-      if(DebugLevel() >= XrdClientDebug::kHIDEBUG)
-         Info(XrdClientDebug::kHIDEBUG,
-	      "ConnectionMgr",
-              "Explicitly requested not to start the garbage collector"
-              " thread. Are you sure?");
+      Info(XrdClientDebug::kHIDEBUG, "ConnectionMgr",
+           "Explicitly requested not to start the garbage collector"
+           " thread. Are you sure?");
 
    fSidManager = new XrdClientSid();
    if (!fSidManager) {
@@ -416,9 +420,9 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound) {
-	if (!phyconn) cerr << endl << endl << endl << "ALERT!!!!!!!!" << endl;
-	fPhyHash.Rep(strdup(key1.c_str()), phyconn, 0, Hash_keep);
-
+         if (!phyconn)
+	    Error("Connect"," problems connecting to " << key1);
+  	 fPhyHash.Rep(strdup(key1.c_str()), phyconn, 0, Hash_keep);
       }
 
 //
@@ -521,7 +525,8 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
       delete fLogVec[LogConnectionID];
       fLogVec[LogConnectionID] = 0;
 
-
+      Info(XrdClientDebug::kHIDEBUG, "Disconnect",
+           " LogConnID: " << LogConnectionID <<" destroyed");
    }
 
 }

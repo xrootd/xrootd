@@ -26,13 +26,13 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucPthread.hh"
 #include "XrdClient/XrdClientUnsolMsg.hh"
-#include "XrdClient/XrdClientLogConnection.hh"
-#include "XrdClient/XrdClientMessage.hh"
+#include "XrdClient/XrdClientPhyConnection.hh"
 #include "XrdClient/XrdClientVector.hh"
-#include "XrdClient/XrdClientThread.hh"
 
-
-
+class XrdClientSid;
+class XrdClientLogConnection;
+class XrdClientMessage;
+class XrdClientThread;
 
 // Ugly prototype to avoid warnings under solaris
 //void * GarbageCollectorThread(void * arg, XrdClientThread *thr);
@@ -94,6 +94,7 @@ public:
                           int BufferLength, int substreamid);
 
   XrdClientSid *SidManager() { return fSidManager; }
+
   friend int DisconnectElapsedPhyConn(const char *,
 				      XrdClientPhyConnection *, void *);
   friend int DestroyPhyConn(const char *,
