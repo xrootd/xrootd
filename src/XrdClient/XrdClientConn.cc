@@ -17,6 +17,7 @@ const char *XrdClientConnCVSID = "$Id$";
 
 #include "XrdClient/XrdClientConnMgr.hh"
 #include "XrdClient/XrdClientConn.hh"
+#include "XrdClient/XrdClientLogConnection.hh"
 #include "XrdClient/XrdClientPhyConnection.hh"
 #include "XrdClient/XrdClientProtocol.hh"
 
@@ -71,6 +72,7 @@ XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
 
 // Instance of the Connection Manager
 XrdClientConnectionMgr *XrdClientConn::fgConnectionMgr = 0;
+XrdOucString XrdClientConn::fgClientHostDomain;
 
 //_____________________________________________________________________________
 void ParseRedirHost(XrdOucString &host, XrdOucString &opaque, XrdOucString &token)
@@ -121,14 +123,14 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucStr
 
 
 //_____________________________________________________________________________
-XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false), 
+XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fUrl(""),
 				fLBSUrl(0), 
+                                fConnected(false), 
 				fMainReadCache(0),
 				fREQWaitRespData(0),
 				fREQWaitTimeLimit(0),
-				fREQConnectWaitTimeLimit(0), fUrl("") {
+				fREQConnectWaitTimeLimit(0) {
     // Constructor
-    char buf[255];
 
     memset(&LastServerResp, 0, sizeof(LastServerResp));
     memset(&LastServerError, 0, sizeof(LastServerError));
@@ -139,29 +141,6 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
     fREQWait = new XrdOucCondVar(0);
     fREQConnectWait = new XrdOucCondVar(0);
     fREQWaitResp = new XrdOucCondVar(0);
-
-    gethostname(buf, sizeof(buf));
-
-    fClientHostDomain = GetDomainToMatch(buf);
-
-    if (fClientHostDomain == "")
-	Error("XrdClientConn",
-	      "Error resolving this host's domain name." );
-
-    XrdOucString goodDomainsRE = fClientHostDomain;
-    goodDomainsRE += "|*";
-
-    if (EnvGetString(NAME_REDIRDOMAINALLOW_RE) == 0)
-	EnvPutString(NAME_REDIRDOMAINALLOW_RE, goodDomainsRE.c_str());
-
-    if (EnvGetString(NAME_REDIRDOMAINDENY_RE) == 0)
-	EnvPutString(NAME_REDIRDOMAINDENY_RE, "<unknown>");
-
-    if (EnvGetString(NAME_CONNECTDOMAINALLOW_RE) == 0)
-	EnvPutString(NAME_CONNECTDOMAINALLOW_RE, goodDomainsRE.c_str());
-
-    if (EnvGetString(NAME_CONNECTDOMAINDENY_RE) == 0)
-	EnvPutString(NAME_CONNECTDOMAINDENY_RE, "<unknown>");
 
     fRedirHandler = 0;
     fUnsolMsgHandler = 0;
@@ -181,6 +160,26 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fConnected(false),
 	if (!(fgConnectionMgr = new XrdClientConnectionMgr())) {
 	    Error("XrdClientConn::XrdClientConn", "initializing connection manager");
 	}
+
+      char buf[255];
+      gethostname(buf, sizeof(buf));
+      fgClientHostDomain = GetDomainToMatch(buf);
+
+      if (fgClientHostDomain == "")
+	  Error("XrdClientConn",
+	        "Error resolving this host's domain name." );
+
+      XrdOucString goodDomainsRE = fgClientHostDomain;
+      goodDomainsRE += "|*";
+
+      if (EnvGetString(NAME_REDIRDOMAINALLOW_RE) == 0)
+	 EnvPutString(NAME_REDIRDOMAINALLOW_RE, goodDomainsRE.c_str());
+      if (EnvGetString(NAME_REDIRDOMAINDENY_RE) == 0)
+	 EnvPutString(NAME_REDIRDOMAINDENY_RE, "<unknown>");
+      if (EnvGetString(NAME_CONNECTDOMAINALLOW_RE) == 0)
+	 EnvPutString(NAME_CONNECTDOMAINALLOW_RE, goodDomainsRE.c_str());
+      if (EnvGetString(NAME_CONNECTDOMAINDENY_RE) == 0)
+	 EnvPutString(NAME_CONNECTDOMAINDENY_RE, "<unknown>");
     }
 
     // Server type unknown at initialization
@@ -270,7 +269,8 @@ void XrdClientConn::Disconnect(bool ForcePhysicalDisc)
 {
     // Disconnect
 
-    ConnectionManager->Disconnect(fLogConnID, ForcePhysicalDisc);
+    if (fConnected)
+       ConnectionManager->Disconnect(fLogConnID, ForcePhysicalDisc);
     fConnected = FALSE;
 }
 
@@ -623,51 +623,53 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 }
 
 //_____________________________________________________________________________
-bool XrdClientConn::CheckHostDomain(XrdOucString hostToCheck, XrdOucString allow, XrdOucString deny)
+bool XrdClientConn::CheckHostDomain(XrdOucString hostToCheck)
 {
     // Checks domain matching
 
-    XrdOucString domain;
-    XrdOucString reAllow, reDeny;
+    static XrdOucHash<int> knownHosts;
+    static XrdOucString alloweddomains = EnvGetString(NAME_REDIRDOMAINALLOW_RE);
+    static XrdOucString denieddomains = EnvGetString(NAME_REDIRDOMAINDENY_RE);
+
+    // Check cached info
+    int *he = knownHosts.Find(hostToCheck.c_str());
+    if (he)
+       return (*he == 1) ? TRUE : FALSE;
 
     // Get the domain for the url to check
-    domain = GetDomainToMatch(hostToCheck);
-
-    Info(XrdClientDebug::kHIDEBUG,
-	 "CheckHostDomain",
-	 "Resolved [" <<
-	 hostToCheck << "]'s domain name into [" <<
-	 domain << "]" );
+    XrdOucString domain = GetDomainToMatch(hostToCheck);
 
     // If we are unable to get the domain for the url to check --> access denied to it
     if (domain.length() <= 0) {
-	Error("CheckHostDomain",
-	      "Error resolving domain name for " << hostToCheck <<
-	      ". Denying access.");
-
-	return FALSE;
+       Error("CheckHostDomain", "Error resolving domain name for " <<
+                                hostToCheck << ". Denying access.");
+       return FALSE;
     }
+    Info(XrdClientDebug::kHIDEBUG, "CheckHostDomain", "Resolved [" << hostToCheck <<
+                                   "]'s domain name into [" << domain << "]" );
 
     // Given a list of |-separated regexps for the hosts to DENY,
     // match every entry with domain. If any match is found, deny access.
-    if (DomainMatcher(domain, deny) ) {
-	Error("CheckHostDomain",
-	      "Access denied to the domain of [" << hostToCheck << "].");
-	return FALSE;
+    if (DomainMatcher(domain, denieddomains) ) {
+       knownHosts.Add(hostToCheck.c_str(), new int(0));
+       Error("CheckHostDomain", "Access denied to the domain of [" << hostToCheck << "].");
+       return FALSE;
     }
 
     // Given a list of |-separated regexps for the hosts to ALLOW,
     // match every entry with domain. If any match is found, grant access.
-    if (DomainMatcher(domain, allow) ) {
-	Info(XrdClientDebug::kHIDEBUG, "CheckHostDomain",
-	     "Access granted to the domain of [" << hostToCheck << "].");
-	return TRUE;
+    if (DomainMatcher(domain, alloweddomains) ) {
+       knownHosts.Add(hostToCheck.c_str(), new int(1));
+       Info(XrdClientDebug::kHIDEBUG, "CheckHostDomain",
+            "Access granted to the domain of [" << hostToCheck << "].");
+       return TRUE;
     }
 
     Error("CheckHostDomain", "Access to domain " << domain <<
-	  " is not allowed nor denied: deny.");
+          " is not allowed nor denied: deny.");
 
     return FALSE;
+
 }
 
 //___________________________________________________________________________
@@ -855,7 +857,7 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 
     if (mex->HeaderStatus() == kXR_redirect) {
 	// Too many redirections
-	Error("SendGenCommand",
+	Error("CheckErrorStatus",
 	      "Max redirection count reached for request" << CmdName );
 	return TRUE;
     }
@@ -873,7 +875,7 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 
 	    fOpenError = (XErrorCode)ntohl(body_err->errnum);
  
-	    Info(XrdClientDebug::kNODEBUG, "SendGenCommand", "Server declared: " <<
+	    Info(XrdClientDebug::kNODEBUG, "CheckErrorStatus", "Server declared: " <<
 		 (const char*)body_err->errmsg << "(error code: " << fOpenError << ")");
 
 	    // Save the last error received
@@ -896,18 +898,27 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 	if (body_wait) {
 
             if (mex->DataLen() > 4) 
-		Info(XrdClientDebug::kUSERDEBUG, "SendGenCommand", "Server [" << 
+		Info(XrdClientDebug::kUSERDEBUG, "CheckErrorStatus", "Server [" << 
 		     fUrl.Host << ":" << fUrl.Port <<
 		     "] requested " << ntohl(body_wait->seconds) << " seconds"
 		     " of wait. Server message is " << body_wait->infomsg)
 		else
-		    Info(XrdClientDebug::kUSERDEBUG, "SendGenCommand", "Server [" << 
+		    Info(XrdClientDebug::kUSERDEBUG, "CheckErrorStatus", "Server [" << 
 			 fUrl.Host << ":" << fUrl.Port <<
 			 "] requested " << ntohl(body_wait->seconds) << " seconds"
 			 " of wait")
 
-
-			sleep(ntohl(body_wait->seconds));
+            // Check if we have to sleep
+            int cmw = (getenv("XRDCLIENTMAXWAIT")) ? atoi(getenv("XRDCLIENTMAXWAIT")) : -1;
+            int bws = (int)ntohl(body_wait->seconds);
+            if ((cmw > -1) && cmw < bws) {
+               Error("CheckErrorStatus", "XROOTD MaxWait forced - file is offline"
+                                       ". Aborting command. " << cmw << " : " << bws);
+               Retry= kXR_maxReqRetry;
+               return TRUE;
+            }
+            // Sleep now
+            sleep(bws);
 	}
 
 	// We don't want kxr_wait to count as an error
@@ -916,7 +927,7 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
     }
     
     // We don't understand what the server said. Better investigate on it...
-    Error("SendGenCommand", 
+    Error("CheckErrorStatus", 
 	  "Answer from server [" << 
 	  fUrl.Host << ":" << fUrl.Port <<
 	  "]  not recognized after executing " << CmdName);
@@ -1128,7 +1139,7 @@ bool XrdClientConn::GetAccessToSrv()
 	     "HandShake failed with server [" <<
 	     fUrl.Host << ":" << fUrl.Port << "]");
 
-	ConnectionManager->Disconnect(fLogConnID, TRUE);
+	Disconnect(TRUE);
 
 	return FALSE;
 
@@ -1137,7 +1148,7 @@ bool XrdClientConn::GetAccessToSrv()
 	     "GetAccessToSrv", "The server on [" <<
 	     fUrl.Host << ":" << fUrl.Port << "] is unknown");
 
-	ConnectionManager->Disconnect(fLogConnID, TRUE);
+	Disconnect(TRUE);
 
 	return FALSE;
 
@@ -1150,7 +1161,7 @@ bool XrdClientConn::GetAccessToSrv()
 		 "] is a rootd. Saving socket for later use.");
 	    // Get socket descriptor
 	    fOpenSockFD = logconn->GetPhyConnection()->SaveSocket();
-	    ConnectionManager->Disconnect(fLogConnID, TRUE);
+	    Disconnect(TRUE);
 	    ConnectionManager->GarbageCollect();
 	    break;
 
@@ -1161,7 +1172,7 @@ bool XrdClientConn::GetAccessToSrv()
 		 fUrl.Host << ":" << fUrl.Port << "] is a rootd."
 		 " Not supported.");
 
-	    ConnectionManager->Disconnect(fLogConnID, TRUE);
+	    Disconnect(TRUE);
 
 	    return FALSE;
 	}
@@ -1377,13 +1388,15 @@ bool XrdClientConn::DoLogin()
 	int lenauth = 0; 
 	if ((fServerProto >= 0x240) && (LastServerResp.dlen >= 16)) {
 
-	    char b[20];
-	    for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
-		snprintf(b, 20, "%.2x", plist[i]);
-		sessdump += b;
-	    }
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "DoLogin","Got session ID: " << sessdump);
+           if (prevsessid && XrdClientDebug::kHIDEBUG <= DebugLevel()) {
+	      char b[20];
+	      for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
+		  snprintf(b, 20, "%.2x", plist[i]);
+		  sessdump += b;
+	      }
+	      Info(XrdClientDebug::kHIDEBUG,
+		  "DoLogin","Got session ID: " << sessdump);
+            }
 
 	    // Get the previous session id, in order to kill it later
 
@@ -1446,15 +1459,17 @@ bool XrdClientConn::DoLogin()
 	    // We have to kill the previous session, if any
 	    // By sending a kXR_endsess
 
-	    XrdOucString sessdump;
-	    char b[20];
-	    for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
-		snprintf(b, 20, "%.2x", prevsessid->id[i]);
-		sessdump += b;
-	    }
-	    Info(XrdClientDebug::kHIDEBUG,
-		 "DoLogin","Found prev session info for " << sessname <<
-		 ": " << sessdump);
+           if (XrdClientDebug::kHIDEBUG <= DebugLevel()) {
+	      XrdOucString sessdump;
+	      char b[20];
+	      for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
+		  snprintf(b, 20, "%.2x", prevsessid->id[i]);
+		  sessdump += b;
+	      }
+	      Info(XrdClientDebug::kHIDEBUG,
+		   "DoLogin","Found prev session info for " << sessname <<
+		   ": " << sessdump);
+            }
 
 	    memset( &reqhdr, 0, sizeof(reqhdr));
 	    SetSID(reqhdr.header.streamid);
@@ -1696,19 +1711,23 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
     int newport; 	
     XrdOucString newhost; 	
   
+    bool noRedirError =
+       (fMaxGlobalRedirCnt == 1 && xmsg && isRedir(&xmsg->fHdr)) ? 1 : 0;
+
     // Close the log connection at this point the fLogConnID is no longer valid.
     // On read/write error the physical channel may be not OK, so it's a good
     // idea to shutdown it.
     // If there are other logical conns pointing to it, they will get an error,
     // which will be handled
-    if ((errorType == kREAD) || (errorType == kWRITE)) {
-	ConnectionManager->Disconnect(fLogConnID, TRUE);
+    if (!noRedirError) {
+       if ((errorType == kREAD) || (errorType == kWRITE)) {
+	  Disconnect(TRUE);
 
-	if (fMainReadCache)
-	    fMainReadCache->RemovePlaceholders();
+	  if (fMainReadCache)
+	     fMainReadCache->RemovePlaceholders();
+       } else
+	  Disconnect(FALSE);
     }
-    else
-	ConnectionManager->Disconnect(fLogConnID, FALSE);
   
     // We cycle repeatedly trying to ask the dlb for a working redir destination
     do {
@@ -1727,8 +1746,24 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 	     "HandleServerError",
 	     "Redir count=" << fGlobalRedirCnt);
 
-	if ( fGlobalRedirCnt >= fMaxGlobalRedirCnt ) 
-	    return kSEHRContinue;
+	if ( fGlobalRedirCnt >= fMaxGlobalRedirCnt ) {
+           if (noRedirError) {
+              // The caller just wants the redir info:
+              // extract it (new host:port) from the response and return
+              newhost = "";
+              newport = 0;
+              // An explicit redir overwrites token and opaque info
+              ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
+              // Save it in fREQUrl
+              fREQUrl.Host = newhost;
+              fREQUrl.Port = newport;
+              // Reset counter
+              fGlobalRedirCnt = 0;
+              return kSEHRReturnMsgToCaller;
+           } else {
+              return kSEHRContinue;
+           }
+        }
 
 // 	// An error in kxr_bind must not be repeated
 // 	if (req->header.requestid == kXR_bind)
@@ -1824,9 +1859,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 	    NewUrl.SetAddrFromHost();
 
 
-	    if ( !CheckHostDomain( newhost,
-				   EnvGetString(NAME_REDIRDOMAINALLOW_RE),
-				   EnvGetString(NAME_REDIRDOMAINDENY_RE) ) ) {
+	    if ( !CheckHostDomain(newhost) ) {
 		Error("HandleServerError",
 		      "Redirection to a server out-of-domain disallowed. Abort.");
 		abort();
@@ -1959,7 +1992,11 @@ XrdOucString XrdClientConn::GetDomainToMatch(XrdOucString hostname) {
     //  to be matched later for access granting
 
     char *fullname, *err;
-    XrdOucString res;
+
+    // The name may be already a FQDN: try extracting the domain
+    XrdOucString res = ParseDomainFromHostname(hostname);
+    if (res.length() > 0)
+       return res;
 
     // Let's look up the hostname
     // It may also be a w.x.y.z type address.
@@ -2007,24 +2044,17 @@ XrdOucString XrdClientConn::GetDomainToMatch(XrdOucString hostname) {
 }
 
 //_____________________________________________________________________________
-XrdOucString XrdClientConn::ParseDomainFromHostname(XrdOucString hostname) {
+XrdOucString XrdClientConn::ParseDomainFromHostname(XrdOucString hostname)
+{
+   // Extract the domain
 
     XrdOucString res;
-    int pos;
-
-    res = hostname;
-
-    // Isolate domain
-    pos = res.find('.');
-
-    if (pos == STR_NPOS)
-	res = "";
-    else
-	res.erasefromstart(pos+1);
-
+    int idot = hostname.find('.');
+    if (idot != STR_NPOS)
+       res.assign(hostname, idot+1);
+    // Done
     return res;
 }
-
 
 //_____________________________________________________________________________
 void XrdClientConn::CheckPort(int &port) {
@@ -2326,7 +2356,7 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
 
       // And then we disconnect only this logical conn
       // The subsequent retry will bounce to the requested host
-      Disconnect(false);
+      Disconnect(FALSE);
     }
 
 
@@ -2428,8 +2458,29 @@ int XrdClientConn:: GetParallelStreamCount() {
 
 }
 
+//_____________________________________________________________________________
+XrdOucString XrdClientConn::GetKey(XrdClientUrlInfo uu)
+{
+   // Build from uu a unique ID key used in hash tables
 
-XrdClientPhyConnection *XrdClientConn::GetPhyConn(int LogConnID) {
+   XrdOucString key(uu.User.c_str(), uu.Host.length() + uu.User.length() + 10);
+   if (uu.User.length() > 0)
+      key += "@";
+   key += uu.Host;
+   if (uu.Port > 0) {
+      key += ":";
+      key += uu.Port;
+   }
+
+   // Done
+   return key;
+}
+
+//_____________________________________________________________________________
+XrdClientPhyConnection *XrdClientConn::GetPhyConn(int LogConnID)
+{
+  // Protected way to get the underlying physical connection
+
   XrdClientLogConnection *log;
 
   log = ConnectionManager->GetConnection(LogConnID);

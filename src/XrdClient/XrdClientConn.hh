@@ -61,7 +61,7 @@ public:
 
     // redirecting. To be used in the next opens
     XrdClientConn();
-    ~XrdClientConn();
+    virtual ~XrdClientConn();
 
     inline bool                CacheWillFit(long long bytes) {
 	if (!fMainReadCache)
@@ -69,14 +69,12 @@ public:
 	return fMainReadCache->WillFit(bytes);
     }
 
-    bool                       CheckHostDomain(XrdOucString hostToCheck,
-					       XrdOucString allow, 
-					       XrdOucString deny);
+    bool                       CheckHostDomain(XrdOucString hostToCheck);
     short                      Connect(XrdClientUrlInfo Host2Conn,
 				       XrdClientAbsUnsolMsgHandler *unsolhandler);
     void                       Disconnect(bool ForcePhysicalDisc);
-    bool                       GetAccessToSrv();
-    XrdOucString               GetClientHostDomain() { return fClientHostDomain; }
+    virtual bool               GetAccessToSrv();
+    XrdOucString               GetClientHostDomain() { return fgClientHostDomain; }
 
 
     static XrdClientPhyConnection     *GetPhyConn(int LogConnID);
@@ -133,9 +131,10 @@ public:
 
     inline XrdClientUrlInfo    *GetLBSUrl() { return fLBSUrl; }
     inline XrdClientUrlInfo    GetCurrentUrl() { return fUrl; }
+    inline XrdClientUrlInfo    GetRedirUrl() { return fREQUrl; }
 
     XErrorCode                 GetOpenError() const { return fOpenError; }
-    XReqErrorType              GoToAnotherServer(XrdClientUrlInfo newdest);
+    virtual XReqErrorType      GoToAnotherServer(XrdClientUrlInfo newdest);
     bool                       IsConnected() const { return fConnected; }
     bool                       IsPhyConnConnected();
 
@@ -147,7 +146,7 @@ public:
 
     UnsolRespProcResult        ProcessAsynResp(XrdClientMessage *unsolmsg);
 
-    bool                       SendGenCommand(ClientRequest *req, 
+    virtual bool               SendGenCommand(ClientRequest *req, 
 					      const void *reqMoreData,       
 					      void **answMoreDataAllocated,
 					      void *answMoreData, bool HasToAlloc,
@@ -155,7 +154,7 @@ public:
 
     int                        GetOpenSockFD() const { return fOpenSockFD; }
 
-    void                       SetClientHostDomain(const char *src) { fClientHostDomain = src; }
+    void                       SetClientHostDomain(const char *src) { fgClientHostDomain = src; }
     void                       SetConnected(bool conn) { fConnected = conn; }
 
     void                       SetOpenError(XErrorCode err) { fOpenError = err; }
@@ -238,16 +237,29 @@ public:
     }
 
     long                       GetServerProtocol() { return fServerProto; }
-private:
+
+    short                      GetMaxRedirCnt() const { return fMaxGlobalRedirCnt; }
+    void                       SetMaxRedirCnt(short mx) {fMaxGlobalRedirCnt = mx; }
+
+    static XrdOucString        GetKey(XrdClientUrlInfo uu);
+
+protected:
+    void                       SetLogConnID(int cid) { fLogConnID = cid; }
+    void                       SetStreamID(kXR_unt16 sid) { fPrimaryStreamid = sid; }
+
     // The handler which first tried to connect somewhere
     XrdClientAbsUnsolMsgHandler *fUnsolMsgHandler;
 
-    XrdOucString               fClientHostDomain; // Save the client's domain name
-    bool                       fConnected;
-    short                      fGlobalRedirCnt;    // Number of redirections
-    time_t                     fGlobalRedirLastUpdateTimestamp; // Timestamp of last redirection
-
+    XrdClientUrlInfo           fUrl;                // The current URL
     XrdClientUrlInfo           *fLBSUrl;            // Needed to save the load balancer url
+
+    short                      fGlobalRedirCnt;    // Number of redirections
+
+private:
+
+    static XrdOucString        fgClientHostDomain; // Save the client's domain name
+    bool                       fConnected;
+    time_t                     fGlobalRedirLastUpdateTimestamp; // Timestamp of last redirection
 
     int                        fLogConnID;        // Logical connection ID used
     kXR_unt16                  fPrimaryStreamid;  // Streamid used for normal communication
@@ -281,8 +293,6 @@ private:
     fSessionIDRepo;      // The repository of session IDs, shared.
     // Association between
     // <hostname>:<port> and a SessionIDInfo struct
-
-    XrdClientUrlInfo           fUrl;                // The current URL
 
     int                        fOpenSockFD;         // Descriptor of the underlying socket
     static XrdClientConnectionMgr *fgConnectionMgr; //Instance of the Connection Manager
