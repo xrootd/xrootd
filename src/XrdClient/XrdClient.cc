@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <signal.h>
 
+
 XrdOucSemWait     XrdClient::fConcOpenSem(DFLT_MAXCONCURRENTOPENS);
 
 //_____________________________________________________________________________
@@ -205,9 +206,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	    // Get an url from the available set
 	    if ((thisUrl = urlArray.GetARandomUrl())) {
 
-		if (fConnModule->CheckHostDomain(thisUrl->Host,
-						 EnvGetString(NAME_CONNECTDOMAINALLOW_RE),
-						 EnvGetString(NAME_CONNECTDOMAINDENY_RE))) {
+		if (fConnModule->CheckHostDomain(thisUrl->Host)) {
 		    nogoodurl = FALSE;
 
 		    Info(XrdClientDebug::kHIDEBUG, "Open", "Trying to connect to " <<
@@ -1221,8 +1220,10 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 	}
 	else
 	    // Let's see if we are receiving the response to an async read request
-	    if ( ConnectionManager->SidManager()->JoinedSids(fConnModule->GetStreamID(), unsolmsg->HeaderSID()) ) {
-		struct SidInfo *si = ConnectionManager->SidManager()->GetSidInfo(unsolmsg->HeaderSID());
+	    if ( ConnectionManager->SidManager()->JoinedSids(fConnModule->GetStreamID(),
+                                                             unsolmsg->HeaderSID()) ) {
+		struct SidInfo *si =
+                   ConnectionManager->SidManager()->GetSidInfo(unsolmsg->HeaderSID());
 		ClientRequest *req = &(si->outstandingreq);
 	 
 		Info(XrdClientDebug::kHIDEBUG,
