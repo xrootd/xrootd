@@ -79,6 +79,7 @@ private:
       XrdOucThread::CancelPoint();
    };
 
+   int MaskSignal(int snum = 0, bool block = 1);
 };
 
 

@@ -11,6 +11,9 @@
 
 const char *XrdClientThreadCVSID = "$Id$";
 
+#include <pthread.h>
+#include <signal.h>
+
 #include "XrdClient/XrdClientThread.hh"
 
 //_____________________________________________________________________________
@@ -32,5 +35,22 @@ void * XrdClientThreadDispatcher(void * arg)
 
 }
 
+//_____________________________________________________________________________
+int XrdClientThread::MaskSignal(int snum, bool block)
+{
+   // Modify masking for signal snum: if block is true the signal is blocked,
+   // else is unblocked. If snum <= 0 (default) all the allowed signals are
+   // blocked / unblocked.
+#ifndef WIN32
+   sigset_t mask;
+   int how = block ? SIG_BLOCK : SIG_UNBLOCK;
+   if (snum <= 0)
+      sigfillset(&mask);
+      else sigaddset(&mask, snum);
+   return pthread_sigmask(how, &mask, 0);
+#else
+   return 0;
+#endif
+}
 
 
