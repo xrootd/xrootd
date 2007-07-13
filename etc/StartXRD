@@ -115,6 +115,9 @@ while test -n "$1"; do
         set -x
    elif [ "$1" = "-f" ]; then
         XRDPFIX=1
+   elif [ "$1" = "-n" ]; then
+        shift
+        XRDOPTIONS="$XRDOPTIONS -n $1"
    elif [ "$1" = "-r" ]; then
         if [ "$XRDRT" = "1" ]; then
            XRDMODE='-r -t'

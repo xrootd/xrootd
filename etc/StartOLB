@@ -114,6 +114,9 @@ while test -n "$1"; do
            OLBTYPE='manager'
         fi
         OLBMS=1
+   elif [ "$1" = "-n" ]; then
+        shift
+        OLBOPTS="$OLBOPTS -n $1"
    elif [ "$1" = "-s" ]; then
         if [ "$OLBMS" = "1" ]; then
            OLBMODE="-m -s"
