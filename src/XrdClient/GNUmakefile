@@ -141,10 +141,10 @@ $(LIBRARY): $(OBJECTS)
 
 $(LIBSHARED): $(OBJECTS) $(LIBDEP)
 	@echo Creating shared library $(LIBSHARED) 
-	$(ECHO)rm -f $(LIBSHARED);
+	$(ECHO)rm -f $(LIBSHARED)
 	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(LIBLIBS) $(LIBS) -o $(LIBSHARED)
 	$(ECHO)if [ "x$(TYPE)" = "xDarwin" ]; then \
-	   $(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(TYPELDDY) $(LIBLIBS) $(LIBS) -o $(LIBDIR)/libXrdClient.$(TYPEDYLIB); \
+	          $(CC) $(CFLAGS) $(OBJECTS) $(TYPELDDY) $(LIBLIBS) $(LIBS) -o $(LIBDIR)/libXrdClient.$(TYPEDYLIB); \
 	fi
 
 $(LIBRARY_JNI): $(OBJECT_JNI)
