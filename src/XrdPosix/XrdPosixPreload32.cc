@@ -170,9 +170,13 @@ int     fstat(         int fildes, struct stat *buf)
 #endif
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-#if defined(__macos__)
-   return (fildes < XrdPosixFD) ? Xunix.Fstat(fildes, buf)
-                                : xinuX.Fstat(fildes, buf);
+#if defined(__macos__) || defined(_LP64)
+#ifdef __linux__
+   return (fildes < XrdPosixFD) ? Xunix.Fstat(ver, fildes, buf)
+#else
+   return (fildes < XrdPosixFD) ? Xunix.Fstat(     fildes, buf)
+#endif
+                                : xinuX.Fstat(     fildes, buf);
 #else
    struct stat64 buf64;
    int rc;
@@ -183,7 +187,6 @@ int     fstat(         int fildes, struct stat *buf)
    if (fildes < XrdPosixFD) return Xunix.Fstat(     fildes, buf);
 #endif
 
-   return  xinuX.Fstat(fildes, buf);
    if ((rc = xinuX.Fstat(fildes, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
 #endif
@@ -294,7 +297,7 @@ struct dirent* readdir(DIR *dirp)
 
    if (!(dp64 = xinuX.Readdir64(dirp))) return 0;
 
-#ifndef __macos__
+#if !defined(__macos__) && !defined(_LP64)
    if (XrdPosix_CopyDirent((struct dirent *)dp64, dp64)) return 0;
 #endif
 
@@ -311,9 +314,8 @@ extern "C"
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
    static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-#ifdef __macos__
-   return xinuX.Readdir_r(dirp, (struct dirent64  *)entry,
-                                (struct dirent64 **)result);
+#if defined(__macos__) || defined(_LP64)
+   return xinuX.Readdir_r(dirp, entry, result);
 #else
    char buff[sizeof(struct dirent64) + 2048];
    struct dirent64 *dp64 = (struct dirent64 *)buff;
