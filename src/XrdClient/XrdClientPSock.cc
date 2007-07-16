@@ -299,7 +299,7 @@ void XrdClientPSock::TryConnect(bool isUnix) {
 }
 int XrdClientPSock::TryConnectParallelSock(int port, int windowsz) {
 
-    int s = TryConnect_low(port, windowsz);
+    int s = TryConnect_low(false, port, windowsz);
 
     if (s >= 0) {
         XrdOucMutexHelper mtx(fMutex);
