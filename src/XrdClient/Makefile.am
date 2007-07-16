@@ -49,6 +49,7 @@ libXrdClient_la_SOURCES = \
         XrdClientAbs.cc XrdClientAbs.hh                \
         XrdClient.cc XrdClient.hh                   \
         XrdClientSock.cc XrdClientSock.hh               \
+        XrdClientAdminConn.cc XrdClientAdminConn.hh               \
         XrdClientConn.cc XrdClientConn.hh               \
         XrdClientConnMgr.cc XrdClientConnMgr.hh XrdClientUnsolMsg.hh           \
         XrdClientDebug.cc XrdClientDebug.hh              \
