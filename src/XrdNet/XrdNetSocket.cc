@@ -178,7 +178,7 @@ int XrdNetSocket::getWindow(int fd, int &Windowsz, XrdOucError *eDest)
 {
    socklen_t szb = (socklen_t)sizeof(Windowsz);
 
-   if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &Windowsz, &szb))
+   if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (Sokdata_t)&Windowsz, &szb))
       {if (eDest) eDest->Emsg("setWindow", errno, "set socket RCVBUF");
        return -1;
       }

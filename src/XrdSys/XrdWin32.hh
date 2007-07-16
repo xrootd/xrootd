@@ -173,6 +173,10 @@ typedef int pid_t;
 typedef unsigned int mode_t;
 #endif
 
+#ifndef uint16_t
+typedef unsigned short uint16_t;
+#endif
+
 struct timezone {
    int tz_minuteswest; /* minutes west of Greenwich */
    int tz_dsttime;     /* type of dst correction */
@@ -275,6 +279,9 @@ extern int sysconf(int what);
 extern int fcntl(int fd, int cmd, long arg);
 extern int close(int fd);
 extern int writev(int sock, const struct iovec iov[], int nvecs);
+extern int posix_memalign (void **memptr, size_t alignment, size_t size);
+extern char *index(const char *str, int c);
+extern char *cuserid(char * s);
 
 #ifndef localtime_r
 #define localtime_r( _clock, _result ) \
@@ -283,7 +290,6 @@ extern int writev(int sock, const struct iovec iov[], int nvecs);
 #endif
 
 #define pipe(a) _pipe(a, 256, O_BINARY)
-#define index(a, b) strchr((char *)a, b)
 #define rindex strrchr
 #define sleep(s) Sleep(s*1000)
 

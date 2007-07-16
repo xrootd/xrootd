@@ -25,9 +25,9 @@ const char *XrdClientSockCVSID = "$Id$";
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
-#include <netinet/in.h>
 
 #ifndef WIN32
+#include <netinet/in.h>
 #include <unistd.h>
 #include <sys/poll.h>
 #else

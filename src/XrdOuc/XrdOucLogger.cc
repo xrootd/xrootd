@@ -12,7 +12,6 @@
 
 const char *XrdOucLoggerCVSID = "$Id$";
 
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -22,6 +21,7 @@ const char *XrdOucLoggerCVSID = "$Id$";
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifndef WIN32
+#include <dirent.h>
 #include <unistd.h>
 #include <strings.h>
 #include <sys/termios.h>
@@ -208,6 +208,7 @@ int XrdOucLogger::ReBind(int dorename)
 #define putEmsg(msg,msz) eVec[1].iov_base = msg; eVec[1].iov_len = msz; \
                          eVec[0].iov_base = 0; Put(2, eVec)
   
+#ifndef WIN32
 void XrdOucLogger::Trim()
 {
    struct LogFile 
@@ -312,3 +313,8 @@ void XrdOucLogger::Trim()
          logNow = logNow->next;
         }
 }
+#else
+void XrdOucLogger::Trim()
+{
+}
+#endif
