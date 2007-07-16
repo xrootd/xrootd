@@ -87,19 +87,19 @@ $(OBJDIR)/XrdPosixLinkage.o:  XrdPosixLinkage.cc   XrdPosixLinkage.hh
 $(OBJDIR)/XrdPosixPreload.o:  XrdPosixPreload.cc   XrdPosixLinkage.hh \
                               XrdPosixExtern.hh    XrdPosixStream.hh \
                               XrdPosixXrootd.hh
-	@echo Compiling XrdPosiXPreload.cc 
+	@echo Compiling XrdPosixPreload.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload.o XrdPosixPreload.cc
 
 $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
                                 XrdPosixExtern.hh      XrdPosixStream.hh \
                                 XrdPosixXrootd.hh      XrdSysPlatform.hh
-	@echo Compiling XrdPosiXPreload32.cc
+	@echo Compiling XrdPosixPreload32.cc
 	$(ECHO)$(CC) -c $(CFLAGS32) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
 
 $(OBJDIR)/XrdPosixStream.o:  XrdPosixStream.cc   XrdPosixStream.hh \
                              XrdOucPthread.hh    XrdPosixLinkage.hh \
                              XrdPosixExtern.hh   XrdPosixXrootd.hh
-	@echo Compiling XrdPosiXStream.cc
+	@echo Compiling XrdPosixStream.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixStream.o XrdPosixStream.cc
 
 $(OBJDIR)/XrdPosixXrootd.o:  XrdPosixXrootd.cc   XrdPosixXrootd.hh \
