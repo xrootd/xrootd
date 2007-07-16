@@ -134,7 +134,8 @@ bool XrdClientAdminConn::GetAccessToSrv()
       fDataConn.Add(key.c_str(), new int(0));
 
    // Trim the LSBUrl
-   fLBSUrl->File = "";
+   if (fLBSUrl)
+      fLBSUrl->File = "";
 
    // Flag we went through here at least once
    fInit = 1;
