@@ -121,7 +121,8 @@ int DumpPhyConn(const char *key,
   }
   
   Info(XrdClientDebug::kUSERDEBUG, "DumpPhyConn", "Phyconn entry, key='" <<
-       " LogCnt=" << p->GetLogConnCnt() << (p->IsValid() ? " Valid" : " NotValid") )
+       (key ? key : "***def***") <<
+       "', LogCnt=" << p->GetLogConnCnt() << (p->IsValid() ? " Valid" : " NotValid") )
 
   // Process next
   return 0;
