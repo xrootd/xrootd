@@ -1365,15 +1365,16 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 {
    EPNAME("do_Select")
    BUFF(2048);
+   XrdOlbRRQInfo *InfoP = &Info;
    XrdOlbPInfo pinfo;
    XrdOlbCInfo cinfo;
    const char *amode;
    char *tp, ptc, hbuff[512];
    int n, dowt = 0, Osel, retc, needrw;
    int qattr = 0, resonly = 0, newfile = 0, dotrunc = 0;
-   SMask_t amask, smask, pmask;
+   SMask_t amask, smask, pmask, nmask;
 
-// Process: <id> select[s] {c | d | r | w | s | t | x] <path> [-host]
+// Process: <id> select[s] {c | d | r | w | s | t | x] [-host] <path>
 
 // Note: selects - requests a cache refresh for <path>
 //             c - file will be created
@@ -1406,6 +1407,16 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
         }
    if (!(tp = Link->GetToken())) return 1;
 
+// Check if an avoid host is here
+//
+   if (*tp == '-')
+      {unsigned int IPaddr;
+       if (XrdNetDNS::Host2IP(tp+1, &IPaddr)) 
+          {nmask = ~Manager.getMask(IPaddr); InfoP = 0;}
+       if (!(tp = Link->GetToken())) return 1;
+       InfoP = 0;
+      } else nmask = ~SMask_t(0);
+
 // Insert the request ID into the RRQ info structure in case we need to wait
 //
    strcpy(Info.ID, rid);  // Gauranteed to fit
@@ -1424,7 +1435,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 //
    needrw = Osel & (OLB_needrw | OLB_newfile); Osel |= OLB_peersok;
    if (!Cache.Paths.Find(tp, pinfo)
-   || (amask = (needrw ? pinfo.rwvec : pinfo.rovec)) == 0)
+   || (amask = ((needrw ? pinfo.rwvec : pinfo.rovec) & nmask)) == 0)
       {Link->Send(buff, snprintf(buff, sizeof(buff)-1,
              "%s ?err No servers have %s access to the file", rid, amode));
        DEBUG("Path find failed for select " <<ptc <<' ' <<tp);
@@ -1435,16 +1446,17 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 //
    if (refresh) {retc = 0; pmask = 0;}
       else if (!(retc = Cache.GetFile(tp,cinfo,needrw,&Info))) pmask = 0;
-              else pmask = (needrw ? cinfo.hfvec & pinfo.rwvec : cinfo.hfvec);
+              else pmask = (needrw ? cinfo.hfvec & pinfo.rwvec
+                                   : cinfo.hfvec & nmask);
 
 // We didn't find the file or a refresh is wanted (easy case). Client must wait.
 //
    if (!retc)
-      {Cache.AddFile(tp, 0, needrw, Config.LUPDelay, &Info);
+      {Cache.AddFile(tp, 0, needrw, Config.LUPDelay, InfoP);
        Manager.Broadcast(pinfo.rovec, buff, snprintf(buff, sizeof(buff)-1,
                           "%s stat%c %s\n", Config.MsgGID,
                           (refresh ? 'f' : 'e'), tp));
-       if (Info.Key) return 0; // Placed in pending state
+       if (InfoP && Info.Key) return 0; // Placed in pending state
        dowt = 1;
       } else
 
@@ -1476,7 +1488,8 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 // Secondary: Servers who don't have the file but can get it
 //
    if (resonly) smask = 0;
-      else smask = (newfile ? pinfo.rwvec : amask & pinfo.ssvec); // Alt selection
+      else smask = (newfile ? nmask & pinfo.rwvec
+                            : amask & pinfo.ssvec); // Alt selection
 
 // Select a server
 //

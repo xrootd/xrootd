@@ -67,7 +67,7 @@ SMask_t XrdOlbPList_Anchor::Insert(const char *pname, XrdOlbPInfo *pinfo)
 
 // Merge the path masks
 //
-   if (!rc) p->pathmask.Or(pinfo);
+   if (!rc) {p->pathmask.And(~(pinfo->rovec)); p->pathmask.Or(pinfo);}
       else { p = new XrdOlbPList(pname, pinfo);
              if (pp)
                 { p->next = pp->next;

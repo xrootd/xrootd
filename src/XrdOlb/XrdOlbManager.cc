@@ -149,6 +149,32 @@ void XrdOlbManager::Broadcast(SMask_t smask, const struct iovec *iod, int iovcnt
 }
 
 /******************************************************************************/
+/*                               g e t M a s k                                */
+/******************************************************************************/
+
+SMask_t XrdOlbManager::getMask(unsigned int IPv4adr)
+{
+   int i;
+   XrdOlbServer *sp;
+   SMask_t smask = 0;
+
+// Obtain a lock on the table
+//
+   STMutex.Lock();
+
+// Run through the table looking for server with matching IP address
+//
+   for (i = 0; i <= STHi; i++)
+       if ((sp = ServTab[i]) && sp->isServer(IPv4adr))
+          {smask = sp->ServMask; break;}
+
+// All done
+//
+   STMutex.UnLock();
+   return smask;
+}
+  
+/******************************************************************************/
 /*                                I n f o r m                                 */
 /******************************************************************************/
   

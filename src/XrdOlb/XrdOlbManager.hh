@@ -111,6 +111,7 @@ char        hasData;           // Set when we are pure data server
 
 void        Broadcast(SMask_t smask, char *buff, int blen);
 void        Broadcast(SMask_t smask, const struct iovec *, int iovcnt);
+SMask_t     getMask(unsigned int IPv4adr);
 int         haveManagers() {return MTHi >= 0;};
 void        Inform(const char *cmd, int clen=0, char *arg=0, int alen=0);
 void        Inform(SMask_t mmask, const char *cmd, int clen=0);
