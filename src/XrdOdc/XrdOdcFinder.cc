@@ -188,8 +188,8 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 {
    const char *ptype;
    char *Avoid;
-   int   ioveol = 4;
-   struct iovec xmsg[7];
+   int   ioveol = 3;
+   struct iovec xmsg[8];
 
 // Make sure we are configured
 //
@@ -229,14 +229,15 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
       else
       {xmsg[1].iov_base = (char *)"select " ; xmsg[1].iov_len = 7;}
        xmsg[2].iov_base = (char *)ptype;      xmsg[2].iov_len = 2;
-       xmsg[3].iov_base = (char *)path;       xmsg[3].iov_len = strlen(path);
    if (Avoid)
-      {xmsg[4].iov_base = (char *)" -";       xmsg[4].iov_len = 2;
-       xmsg[5].iov_base = Avoid;              xmsg[5].iov_len = strlen(Avoid);
+      {xmsg[3].iov_base = (char *)" -";       xmsg[3].iov_len = 2;
+       xmsg[4].iov_base = Avoid;              xmsg[4].iov_len = strlen(Avoid);
+       xmsg[5].iov_base = (char *)" ";        xmsg[5].iov_len = 1;
        ioveol = 6;
       }
 
-   xmsg[ioveol].iov_base = (char *)"\n";  xmsg[ioveol].iov_len = 1;
+   xmsg[ioveol].iov_base = (char *)path;  xmsg[ioveol++].iov_len = strlen(path);
+   xmsg[ioveol].iov_base = (char *)"\n";  xmsg[ioveol  ].iov_len = 1;
 
 // Send the 2way message
 //
