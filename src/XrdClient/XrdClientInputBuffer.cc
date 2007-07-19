@@ -152,25 +152,31 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
    // Find the sem where to wait for a msg
    sem = GetSyncObjOrMakeOne(streamid);
 
-   sem->Wait(secstimeout);
+   int to = secstimeout;
+   int dt = (to > 2) ? 2 : dt;  // 2 secs steps
+   while (to) {
+     int rc = sem->Wait(dt);
+     if (!rc) {
+       // make sure is not a spurious signal ...
+       XrdOucMutexHelper mtx(fMutex);
+       if (fMsgQue.GetSize() > 0) {
 
-   {
-      // Yes, we have to lock the mtx until we finish
-      XrdOucMutexHelper mtx(fMutex);
-
-      // We were awakened. Or the timeout elapsed. The mtx is again locked.
-      // If there are messages to dequeue, we pick the oldest one
-      for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
-	 m = fMsgQue[fMsgIter];
-	 if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
-	    res = fMsgQue[fMsgIter];
-	    fMsgQue.Erase(fMsgIter);
-	    if (!m) return 0;
-	    break;
+	 // We were awakened. Or the timeout elapsed. The mtx is again locked.
+	 // If there are messages to dequeue, we pick the oldest one
+	 for (fMsgIter = 0; fMsgIter < fMsgQue.GetSize(); ++fMsgIter) {
+	   m = fMsgQue[fMsgIter];
+	   if ((!m) || m->IsError() || m->MatchStreamid(streamid)) {
+	     res = fMsgQue[fMsgIter];
+	     fMsgQue.Erase(fMsgIter);
+	     if (!m) return 0;
+	     break;
+	   }
 	 }
-      }
+	 break;
+       }
+     } else
+       to -= dt;
    }
-
 
   return res;
 }
