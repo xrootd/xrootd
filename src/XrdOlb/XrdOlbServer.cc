@@ -1372,7 +1372,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    char *tp, ptc, hbuff[512];
    int n, dowt = 0, Osel, retc, needrw;
    int qattr = 0, resonly = 0, newfile = 0, dotrunc = 0;
-   SMask_t amask, smask, pmask, nmask;
+   SMask_t amask, smask, pmask, nmask = ~SMask_t(0);
 
 // Process: <id> select[s] {c | d | r | w | s | t | x] [-host] <path>
 
@@ -1415,7 +1415,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
           {nmask = ~Manager.getMask(IPaddr); InfoP = 0;}
        if (!(tp = Link->GetToken())) return 1;
        InfoP = 0;
-      } else nmask = ~SMask_t(0);
+      }
 
 // Insert the request ID into the RRQ info structure in case we need to wait
 //
