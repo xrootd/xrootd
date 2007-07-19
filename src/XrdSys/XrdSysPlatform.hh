@@ -23,12 +23,16 @@
 #include <byteswap.h>
 #endif
 #ifdef __macos__
+#include <AvailabilityMacros.h>
 #include <sys/types.h>
 #ifndef dirent64
 #  define dirent64 dirent
 #endif
+#if (!defined(MAC_OS_X_VERSION_10_5) || \
+     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 #ifndef stat64
 #  define stat64 stat
+#endif
 #endif
 #endif
 

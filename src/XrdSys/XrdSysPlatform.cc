@@ -62,17 +62,17 @@ size_t strlcpy(char *dst, const char *src, size_t sz)
 //
 char *cuserid(char *buff)
 {
-static char myBuff[L_cuserid];
+static char myBuff[33];
 char *theBuff = (buff ? buff : myBuff);
 uid_t myUID = getuid();
 struct passwd *thePWD;
 
-if (!(thePWD - getpwuid(myUID)))
+if (!(thePWD = getpwuid(myUID)))
    {if (buff) *buff = '\0';
     return buff;
    }
 
-strcpy(theBuff, thePWD->pw_name);
+strlcpy(theBuff, thePWD->pw_name, 33);
 return theBuff;
 }
 #endif
