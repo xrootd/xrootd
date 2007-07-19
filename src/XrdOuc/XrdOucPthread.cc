@@ -126,7 +126,9 @@ int XrdOucCondVar::Wait(int sec)
 
 // Wait for the condition or timeout
 //
-   retc = pthread_cond_timedwait(&cvar, &cmut, &tval);
+   do {retc = pthread_cond_timedwait(&cvar, &cmut, &tval);}
+   while (retc && (retc != ETIMEDOUT));
+
    if (relMutex) UnLock();
    return retc == ETIMEDOUT;
 }
@@ -168,7 +170,9 @@ int XrdOucCondVar::WaitMS(int msec)
 
 // Now wait for the condition or timeout
 //
-   retc = pthread_cond_timedwait(&cvar, &cmut, &tval);
+   do {retc = pthread_cond_timedwait(&cvar, &cmut, &tval);}
+   while (retc && (retc != ETIMEDOUT));
+
    if (relMutex) UnLock();
    return retc == ETIMEDOUT;
 }
