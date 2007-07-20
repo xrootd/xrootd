@@ -12,6 +12,7 @@ include ../GNUmake.env
   
 SOURCES = \
         XrdOuca2x.cc         \
+        XrdOucCRC.cc         \
         XrdOucEnv.cc         \
         XrdOucError.cc       \
         XrdOucExport.cc      \
@@ -35,6 +36,7 @@ SOURCES = \
   
 OBJECTS = \
         $(OBJDIR)/XrdOuca2x.o          \
+        $(OBJDIR)/XrdOucCRC.o          \
         $(OBJDIR)/XrdOucEnv.o          \
         $(OBJDIR)/XrdOucError.o        \
         $(OBJDIR)/XrdOucExport.o       \
@@ -92,6 +94,10 @@ fi
 $(OBJDIR)/XrdOuca2x.o: XrdOuca2x.cc XrdOuca2x.hh XrdOucError.hh
 	@echo Compiling XrdOuca2x.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOuca2x.cc -o $(OBJDIR)/XrdOuca2x.o
+
+$(OBJDIR)/XrdOucCRC.o: XrdOucCRC.cc XrdOucCRC.hh
+	@echo Compiling XrdOucCRC.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucCRC.cc -o $(OBJDIR)/XrdOucCRC.o
 
 $(OBJDIR)/XrdOucEnv.o: XrdOucEnv.cc XrdOucEnv.hh XrdOucHash.hh
 	@echo Compiling XrdOucEnv.cc
