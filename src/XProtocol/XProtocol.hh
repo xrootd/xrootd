@@ -66,7 +66,8 @@ enum XRequestTypes {
    kXR_statx,   // 3022
    kXR_endsess, // 3023
    kXR_bind,    // 3024
-   kXR_readv    // 3025
+   kXR_readv,   // 3025
+   kXR_verifyw  // 3026
 };
 
 // OPEN MODE FOR A REMOTE FILE
@@ -128,8 +129,8 @@ enum XOpenRequestOption {
    kXR_mkpath   = 256,
    kXR_open_apnd= 512,
    kXR_retstat  = 1024,
-   kXR_open_temp= 2048,
-   kXR_open_cont= 4096
+   kXR_replica  = 2048,
+   kXR_ulterior = 4096
 };
 
 enum XQueryType {
@@ -140,6 +141,10 @@ enum XQueryType {
    kXR_Qmaxs  = 5,
    kXR_Qckscan= 6,
    kXR_Qconfig= 7
+};
+
+enum XVerifyType {
+   kXR_crc32  = 0
 };
 
 enum XLogonType {
@@ -211,6 +216,8 @@ enum XErrorCode {
    kXR_NotFile,
    kXR_isDirectory,
    kXR_Cancelled,
+   kXR_ChkLenErr,
+   kXR_ChkSumErr,
    kXR_noErrorYet = 10000
 };
 
@@ -258,7 +265,8 @@ struct ClientCloseRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
    kXR_char fhandle[4];
-   kXR_char reserved[12];
+   kXR_int64 fsize;
+   kXR_char reserved[4];
    kXR_int32  dlen;
 };
 struct ClientDirlistRequest {
@@ -402,6 +410,16 @@ struct ClientWriteRequest {
    kXR_char  pathid;
    kXR_char reserved[3];
    kXR_int32  dlen;
+};
+struct ClientVerifywRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char  fhandle[4];
+   kXR_int64 offset;
+   kXR_char  pathid;
+   kXR_char  vertype;       // One of XVerifyType
+   kXR_char  reserved[2];
+   kXR_int32 dlen;          // Includes crc length
 };
 
 struct ClientRequestHdr {
