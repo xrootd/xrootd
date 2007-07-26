@@ -32,7 +32,7 @@ const char *XrdOlbManagerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbState.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdNet/XrdNetWork.hh"
 
 using namespace XrdOlb;
@@ -1474,7 +1474,7 @@ void XrdOlbManager::Record(char *path, const char *reason)
 {
    EPNAME("Record")
    static int msgcnt = 256;
-   static XrdOucMutex mcMutex;
+   static XrdSysMutex mcMutex;
    int mcnt;
 
    DEBUG(reason <<path);

@@ -28,6 +28,7 @@ TARGETS = $(LIBDIR)/libXrdSeckrb4.$(TYPESHLIB)
 
 vpath XrdOuc% ../XrdOuc
 vpath XrdSec% ../XrdSec
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -52,7 +53,7 @@ $(TARGETS): $(OBJECTS) $(LIBDEPS)
 	fi
 
 $(OBJDIR)/XrdSecProtocolkrb4.o: XrdSecProtocolkrb4.cc XrdSecInterface.hh \
-                                XrdOucPthread.hh      XrdOucTokenizer.hh \
+                                XrdSysPthread.hh      XrdOucTokenizer.hh \
                                 XrdOucErrInfo.hh
 	@echo Compiling XrdSecProtocolkrb4.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $(INCKRB4) -o $(OBJDIR)/XrdSecProtocolkrb4.o XrdSecProtocolkrb4.cc

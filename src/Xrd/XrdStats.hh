@@ -14,7 +14,7 @@
 
 #include <stdlib.h>
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #define XRD_STATS_ALL    0x000000FF
 #define XRD_STATS_INFO   0x00000001
@@ -45,7 +45,7 @@ int        getBuff(int xtra);
 int        InfoStats(char *buff, int blen, int dosync=0);
 int        ProcStats(char *buff, int blen, int dosync=0);
 
-XrdOucMutex statsMutex;
+XrdSysMutex statsMutex;
 
 char       *buff;        // Used by all callers
 int         blen;

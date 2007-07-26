@@ -83,7 +83,7 @@ public:
 
   
 private:
-  XrdOucMutex     myMutex;
+  XrdSysMutex     myMutex;
   XrdClientAdmin  XAdmin;
   dirent64       *myDirent;
   static int      maxname;
@@ -129,7 +129,7 @@ XrdClientStatInfo stat;
 
 private:
 
-XrdOucMutex myMutex;
+XrdSysMutex myMutex;
 long long   currOffset;
 };
 
@@ -149,7 +149,7 @@ typedef XrdClientVector<bool> vecBool;
 
 int            XrdPosixDir::maxname = (pathconf("./",_PC_NAME_MAX) > 0 ?
                                        pathconf("./",_PC_NAME_MAX) : 255);
-XrdOucMutex    XrdPosixXrootd::myMutex;
+XrdSysMutex    XrdPosixXrootd::myMutex;
 XrdPosixFile **XrdPosixXrootd::myFiles  =  0;
 XrdPosixDir  **XrdPosixXrootd::myDirs   =  0;
 int            XrdPosixXrootd::highFD   = -1;

@@ -75,7 +75,7 @@ extern XrdOucTrace     XrdTrace;
        char           *XrdLink::LinkBat;
        unsigned int    XrdLink::LinkAlloc;
        int             XrdLink::LTLast = -1;
-       XrdOucMutex     XrdLink::LTMutex;
+       XrdSysMutex     XrdLink::LTMutex;
 
        const char     *XrdLink::TraceID = "Link";
 
@@ -87,7 +87,7 @@ extern XrdOucTrace     XrdTrace;
        int             XrdLink::LinkCountMax  = 0;
        int             XrdLink::LinkTimeOuts  = 0;
        int             XrdLink::LinkStalls    = 0;
-       XrdOucMutex     XrdLink::statsMutex;
+       XrdSysMutex     XrdLink::statsMutex;
 
        const char     *XrdLinkScan::TraceID = "LinkScan";
 
@@ -145,7 +145,7 @@ void XrdLink::Reset()
   
 XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
 {
-   static XrdOucMutex  instMutex;
+   static XrdSysMutex  instMutex;
    static unsigned int myInstance = 1;
    XrdLink *lp;
    char *unp, buff[16];
@@ -418,7 +418,7 @@ int XrdLink::getName(int &curr, char *nbuf, int nbsz, XrdLinkMatch *who)
   
 int XrdLink::Peek(char *Buff, int Blen, int timeout)
 {
-   XrdOucMutexHelper theMutex;
+   XrdSysMutexHelper theMutex;
    struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
    ssize_t mlen;
    int retc;
@@ -481,7 +481,7 @@ int XrdLink::Recv(char *Buff, int Blen)
 
 int XrdLink::Recv(char *Buff, int Blen, int timeout)
 {
-   XrdOucMutexHelper theMutex;
+   XrdSysMutexHelper theMutex;
    struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
    ssize_t rlen, totlen = 0;
    int retc;

@@ -47,7 +47,7 @@ const      char *user;
 /******************************************************************************/
 
 class XrdOucEICB;
-class XrdOucSemaphore;
+class XrdSysSemaphore;
   
 class XrdOucErrInfo
 {

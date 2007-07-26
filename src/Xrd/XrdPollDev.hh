@@ -24,7 +24,7 @@ public:
 
        int   Enable(XrdLink *lp);
 
-       void Start(XrdOucSemaphore *syncp, int &rc);
+       void Start(XrdSysSemaphore *syncp, int &rc);
 
             XrdPollDev(struct pollfd *ptab, int numfd, int pfd)
                        {PollTab = ptab; PollMax = numfd; PollDfd = pfd;}

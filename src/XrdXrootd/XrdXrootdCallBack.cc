@@ -55,7 +55,7 @@ inline void            Recycle(){delete eInfo;
 
 private:
 void DoStatx(XrdOucErrInfo *eInfo);
-static XrdOucMutex         myMutex;
+static XrdSysMutex         myMutex;
 static XrdXrootdCBJob     *FreeJob;
 
 XrdXrootdCBJob            *Next;
@@ -75,7 +75,7 @@ extern XrdOucTrace       *XrdXrootdTrace;
        XrdScheduler      *XrdXrootdCallBack::Sched;
        int                XrdXrootdCallBack::Port;
 
-       XrdOucMutex        XrdXrootdCBJob::myMutex;
+       XrdSysMutex        XrdXrootdCBJob::myMutex;
        XrdXrootdCBJob    *XrdXrootdCBJob::FreeJob;
 
 /******************************************************************************/

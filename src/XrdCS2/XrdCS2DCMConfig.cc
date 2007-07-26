@@ -31,7 +31,7 @@ const char *XrdCS2DCMConfigCVSID = "$Id$";
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdCS2/XrdCS2DCM.hh"
@@ -65,7 +65,7 @@ public:
                  }
 
           XrdLogWorker() : XrdJob("midnight runner")
-                         {midnite = XrdOucTimer::Midnight() + 86400;
+                         {midnite = XrdSysTimer::Midnight() + 86400;
                           XrdSched.Schedule((XrdJob *)this, midnite);
                          }
          ~XrdLogWorker() {}
@@ -141,7 +141,7 @@ int XrdCS2DCM::Configure(int argc, char **argv)
      { switch(c)
        {
        case 'd': XrdTrace.What = TRACE_ALL;
-                 XrdOucThread::setDebug(&XrdLog);
+                 XrdSysThread::setDebug(&XrdLog);
                  break;
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
@@ -325,7 +325,7 @@ void XrdCS2DCM::Cleanup()
 // can delete the symlink that points to the file. We also scan through the
 // pending directory and delete any stale files.
 //
-   do {XrdOucTimer::Wait(oneHour);
+   do {XrdSysTimer::Wait(oneHour);
        if (!(DFD = opendir(CPath)))
           {XrdLog.Emsg("Config", errno, "open closed files directory", APath);
            continue;

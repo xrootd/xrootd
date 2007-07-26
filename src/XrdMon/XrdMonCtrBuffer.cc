@@ -42,7 +42,7 @@ XrdMonCtrBuffer::instance() {
 
 void
 XrdMonCtrBuffer::push_back(XrdMonCtrPacket* p) {
-    XrdOucMutexHelper mh;
+    XrdSysMutexHelper mh;
     mh.Lock(&_mutex);
     if ( 0 == _head ) {
         _tail = _head = new Elem(p);
@@ -70,7 +70,7 @@ XrdMonCtrBuffer::pop_front() {
     XrdMonCtrPacket* p = 0;
     Elem* e = 0;
     {    // retrieve
-        XrdOucMutexHelper mh;
+        XrdSysMutexHelper mh;
         mh.Lock(&_mutex);
         p = _head->packet;
         e = _head;
@@ -88,7 +88,7 @@ XrdMonCtrBuffer::pop_front() {
 void
 XrdMonCtrBuffer::printList(const char* txt)
 {
-    XrdOucMutexHelper mh; 
+    XrdSysMutexHelper mh; 
     mh.Lock(&XrdMonCtrDebug::_mutex);
     cout << txt << " #" << _noElems << " h" << (int *) _head << " t" << (int *) _tail << " ";
     Elem* e = _head;
@@ -114,7 +114,7 @@ XrdMonCtrBuffer::collectStats()
         _aver = (_aver*_noKInAver + last1Kaver) / (_noKInAver+1);
         ++_noKInAver;
         { // print stats
-            XrdOucMutexHelper mh;
+            XrdSysMutexHelper mh;
             mh.Lock(&XrdMonCtrDebug::_mutex);
             cout << "Packet buffer stats: 1K: max "   << setw(3) << _last1Kmax
                  << ", aver "         << setw(1) << last1Kaver

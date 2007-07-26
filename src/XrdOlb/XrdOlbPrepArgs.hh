@@ -14,7 +14,7 @@
   
 #include "Xrd/XrdJob.hh"
 #include "XrdOlb/XrdOlbServer.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOlbPrepArgs : public XrdJob
 {
@@ -51,8 +51,8 @@ static XrdOlbPrepArgs *Request();
 
 private:
 
-static XrdOucMutex     PAQueue;
-static XrdOucSemaphore PAReady;
+static XrdSysMutex     PAQueue;
+static XrdSysSemaphore PAReady;
        XrdOlbPrepArgs *Next;
 static XrdOlbPrepArgs *First;
 static XrdOlbPrepArgs *Last;

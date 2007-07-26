@@ -35,8 +35,8 @@ using namespace XrdOlb;
 /*                     G l o b a l s   &   S t a t i c s                      */
 /******************************************************************************/
 
-       XrdOucMutex      XrdOlbAdmin::myMutex;
-       XrdOucSemaphore *XrdOlbAdmin::SyncUp = 0;
+       XrdSysMutex      XrdOlbAdmin::myMutex;
+       XrdSysSemaphore *XrdOlbAdmin::SyncUp = 0;
        int              XrdOlbAdmin::POnline= 0;
 
 /******************************************************************************/
@@ -165,7 +165,7 @@ void *XrdOlbAdmin::Start(XrdNetSocket *AdminSock)
 // Accept connections in an endless loop
 //
    while(1) if ((InSock = AdminSock->Accept()) >= 0)
-               {if (XrdOucThread::Run(&tid,XrdOlbLoginAdmin,(void *)&InSock))
+               {if (XrdSysThread::Run(&tid,XrdOlbLoginAdmin,(void *)&InSock))
                    {Say.Emsg(epname, errno, "start admin");
                     close(InSock);
                    }

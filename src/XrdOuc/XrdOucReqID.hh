@@ -17,7 +17,7 @@
 #include <strings.h>
 #endif
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 class XrdOucReqID
 {
@@ -39,7 +39,7 @@ static int   Index(int KeyMax, const char *KeyVal, int KeyLen=0);
 
 private:
 
-static XrdOucMutex  myMutex;
+static XrdSysMutex  myMutex;
 static int          reqPFXlen;
 static char        *reqPFX;
 static char        *reqFMT;

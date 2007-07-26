@@ -16,7 +16,7 @@
 #include "Xrd/XrdScheduler.hh"
 #include "XrdOlb/XrdOlbPrepArgs.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 class XrdOucMsubs;
@@ -61,7 +61,7 @@ private:
 void       Scrub();
 int        startIF();
 
-XrdOucMutex           PTMutex;
+XrdSysMutex           PTMutex;
 XrdOucHash<char>      PTable;
 XrdOucStream          prepSched;
 XrdScheduler         *SchedP;

@@ -24,7 +24,7 @@ const char *XrdXrootdAdminCVSID = "$Id$";
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdXrootd/XrdXrootdAdmin.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
@@ -81,7 +81,7 @@ int XrdXrootdAdmin::Init(XrdOucError *erp, XrdNetSocket *asock)
    pthread_t tid;
 
    eDest = erp;
-   if (XrdOucThread::Run(&tid, XrdXrootdInitAdmin, (void *)asock,
+   if (XrdSysThread::Run(&tid, XrdXrootdInitAdmin, (void *)asock,
                          0, "Admin traffic"))
       {eDest->Emsg(epname, errno, "start admin");
        return 0;
@@ -139,7 +139,7 @@ void *XrdXrootdAdmin::Start(XrdNetSocket *AdminSock)
 // Accept connections in an endless loop
 //
    while(1) if ((InSock = AdminSock->Accept()) >= 0)
-               {if (XrdOucThread::Run(&tid,XrdXrootdLoginAdmin,(void *)&InSock))
+               {if (XrdSysThread::Run(&tid,XrdXrootdLoginAdmin,(void *)&InSock))
                    {eDest->Emsg(epname, errno, "start admin");
                     close(InSock);
                    }

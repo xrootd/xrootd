@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdJob.hh"
 
 class XrdSchedulerPID;
@@ -65,7 +65,7 @@ int        num_Limited; // Number of times max was reached
 
 private:
 int        idl_Workers;    // Disp: Number of idle workers
-XrdOucMutex DispatchMutex; // Disp: Protects above area
+XrdSysMutex DispatchMutex; // Disp: Protects above area
 
 int        min_Workers;   // Sched: Min threads we need to have
 int        max_Workers;   // Sched: Max threads we can start
@@ -76,15 +76,15 @@ int        num_JobsinQ;   // Sched: Number of outstanding jobs in the queue
 
 XrdJob                *WorkFirst;  // Pending work
 XrdJob                *WorkLast;
-XrdOucSemaphore        WorkAvail;
-XrdOucMutex            SchedMutex; // Protects private area
+XrdSysSemaphore        WorkAvail;
+XrdSysMutex            SchedMutex; // Protects private area
 
 XrdJob                *TimerQueue; // Pending work
-XrdOucCondVar          TimerRings;
-XrdOucMutex            TimerMutex; // Protects scheduler area
+XrdSysCondVar          TimerRings;
+XrdSysMutex            TimerMutex; // Protects scheduler area
 
 XrdSchedulerPID       *firstPID;
-XrdOucMutex            ReaperMutex;
+XrdSysMutex            ReaperMutex;
 
 void hireWorker(int dotrace=1);
 void Monitor();

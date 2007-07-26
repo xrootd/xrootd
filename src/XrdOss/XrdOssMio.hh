@@ -14,7 +14,7 @@
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOssMioFile.hh"
 
 // The following are options passed to Map()
@@ -51,7 +51,7 @@ static int  Reclaim(XrdOssMioFile *mp);
 
 static XrdOucHash<XrdOssMioFile> MM_Hash;
 
-static XrdOucMutex    MM_Mutex;
+static XrdSysMutex    MM_Mutex;
 static XrdOssMioFile *MM_Perm;
 static XrdOssMioFile *MM_Idle;
 static XrdOssMioFile *MM_IdleLast;

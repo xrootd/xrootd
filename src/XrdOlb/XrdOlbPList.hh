@@ -17,7 +17,7 @@
 #include <stdlib.h>
 
 #include "XrdOlb/XrdOlbTypes.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 /******************************************************************************/
 /*                     S t r u c t   o o l b _ P I n f o                      */
@@ -116,7 +116,7 @@ inline XrdOlbPList *Zorch(XrdOlbPList *newlist=0)
 
 private:
 
-XrdOucMutex   mutex;
+XrdSysMutex   mutex;
 XrdOlbPList  *next;
 };
 #endif

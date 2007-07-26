@@ -18,7 +18,7 @@ const char *XrdXrootdProtocolCVSID = "$Id$";
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XProtocol/XProtocol.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
@@ -434,7 +434,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 // Document the disconnect
 //
    if (lp)
-      {XrdOucTimer::s2hms(csec, ctbuff, sizeof(ctbuff));
+      {XrdSysTimer::s2hms(csec, ctbuff, sizeof(ctbuff));
        if (reason) {snprintf(buff, sizeof(buff), "%s (%s)", ctbuff, reason);
                     sfxp = buff;
                    } else sfxp = ctbuff;

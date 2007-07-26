@@ -12,7 +12,7 @@
 //       $Id$
 
 #include "Xrd/XrdProtocol.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOlbProtocol : public XrdProtocol
 {
@@ -40,7 +40,7 @@ static void            setNet(XrdInet *net, int rwt)
 private:
 static XrdInet        *myNet;
 static int             readWait;
-static XrdOucMutex     ProtMutex;
+static XrdSysMutex     ProtMutex;
 static XrdOlbProtocol *ProtStack;
        XrdOlbProtocol *ProtLink;
 };

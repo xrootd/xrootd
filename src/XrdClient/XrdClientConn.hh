@@ -276,15 +276,15 @@ private:
     XrdOucString               fRedirInternalToken; // Token returned by the server when
     // redirecting. To be used in the next logins
 
-    XrdOucCondVar              *fREQWaitResp;           // For explicitly requested delayed async responses
+    XrdSysCondVar              *fREQWaitResp;           // For explicitly requested delayed async responses
     ServerResponseBody_Attn_asynresp *
                                fREQWaitRespData;        // For explicitly requested delayed async responses
 
     XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
     time_t                     fREQWaitTimeLimit;   // For explicitly requested pause state
-    XrdOucCondVar              *fREQWait;           // For explicitly requested pause state
+    XrdSysCondVar              *fREQWait;           // For explicitly requested pause state
     time_t                     fREQConnectWaitTimeLimit;   // For explicitly requested delayed reconnect
-    XrdOucCondVar              *fREQConnectWait;           // For explicitly requested delayed reconnect
+    XrdSysCondVar              *fREQConnectWait;           // For explicitly requested delayed reconnect
 
     long                       fServerProto;        // The server protocol
     ERemoteServerType          fServerType;         // Server type as returned by doHandShake() 

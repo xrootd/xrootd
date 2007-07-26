@@ -149,7 +149,7 @@ static const int kOneDay = 86400;
 /******************************************************************************/
 /*                     S t a t i c   C l a s s   D a t a                      */
 /******************************************************************************/
-XrdOucMutex XrdSecProtocolpwd::pwdContext;
+XrdSysMutex XrdSecProtocolpwd::pwdContext;
 String XrdSecProtocolpwd::FileAdmin= "";
 String XrdSecProtocolpwd::FileExpCreds= "";
 String XrdSecProtocolpwd::FileUser = "";
@@ -903,7 +903,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
 
    //
    // Unlocks automatically returning
-   XrdOucMutexHelper pwdGuard(&pwdContext);
+   XrdSysMutexHelper pwdGuard(&pwdContext);
    //
    // Decode received buffer
    if (!(bpar = new XrdSutBuffer((const char *)parm->buffer,parm->size)))
@@ -1189,7 +1189,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
 
    //
    // Unlocks automatically returning
-   XrdOucMutexHelper pwdGuard(&pwdContext);
+   XrdSysMutexHelper pwdGuard(&pwdContext);
    //
    // Decode received buffer
    if (!(bpar = new XrdSutBuffer((const char *)cred->buffer,cred->size)))

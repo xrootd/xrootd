@@ -18,8 +18,8 @@ const char *XrdOlbRRQCVSID = "$Id$";
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPthread.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include <stdio.h>
 
 using namespace XrdOlb;
@@ -34,7 +34,7 @@ using namespace XrdOlb;
   
 XrdOlbRRQ             XrdOlb::RRQ;
 
-XrdOucMutex           XrdOlbRRQSlot::myMutex;
+XrdSysMutex           XrdOlbRRQSlot::myMutex;
 XrdOlbRRQSlot        *XrdOlbRRQSlot::freeSlot = 0;
 short                 XrdOlbRRQSlot::initSlot = 0;
 
@@ -108,7 +108,7 @@ int XrdOlbRRQ::Init(int Tint, int Tdly)
 
 // Start the responder thread
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdOlbRRQ_StartRespond, (void *)0,
+   if ((rc = XrdSysThread::Run(&tid, XrdOlbRRQ_StartRespond, (void *)0,
                                0, "Request Responder")))
       {Say.Emsg("Config", rc, "create request responder thread");
        return 1;
@@ -116,7 +116,7 @@ int XrdOlbRRQ::Init(int Tint, int Tdly)
 
 // Start the timeout thread
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdOlbRRQ_StartTimeOut, (void *)0,
+   if ((rc = XrdSysThread::Run(&tid, XrdOlbRRQ_StartTimeOut, (void *)0,
                                0, "Request Timeout")))
       {Say.Emsg("Config", rc, "create request timeout thread");
        return 1;
@@ -252,7 +252,7 @@ void *XrdOlbRRQ::TimeOut()
          while(1)
               {myClock++;
                myMutex.UnLock();
-               XrdOucTimer::Wait(Tslice);
+               XrdSysTimer::Wait(Tslice);
                myMutex.Lock();
                while((sp=waitQ.Next()->Item()) && sp->Expire < myClock)
                     {sp->Link.Remove();

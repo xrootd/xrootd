@@ -88,7 +88,7 @@ extern "C" void* receivePackets(void*)
         static kXR_int32 packetNo = 0;
         ++packetNo;
         {
-            XrdMonCtrXrdOucMutexHelper mh; mh.Lock(&XrdMonCtrDebug::_mutex);
+            XrdMonCtrXrdSysMutexHelper mh; mh.Lock(&XrdMonCtrDebug::_mutex);
             cout << "Received packet no " 
                  << setw(5) << packetNo << " from " 
                  << XrdMonSenderInfo::hostPort(packet->sender) << endl;

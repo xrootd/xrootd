@@ -48,7 +48,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 // Start a thread to periodically scan for idle file handles
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdOfsIdleScan, (void *)0)))
+   if ((retc = XrdSysThread::Run(&tid, XrdOfsIdleScan, (void *)0)))
       OfsEroute.Emsg("XrdOfsinit", retc, "create idle scan thread");
 
 // All done, we can return the callout vector to these routines.

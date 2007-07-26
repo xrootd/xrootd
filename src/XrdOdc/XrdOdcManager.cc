@@ -17,7 +17,7 @@ const char *XrdOdcManagerCVSID = "$Id$";
 #include "XrdOdc/XrdOdcTrace.hh"
 
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdNet/XrdNetWork.hh"
  
@@ -68,7 +68,7 @@ XrdOdcManager::~XrdOdcManager()
   if (Link)    Link->Recycle();
   if (Host)    free(Host);
   if (HPfx)    free(HPfx);
-  if (mytid)   XrdOucThread::Kill(mytid);
+  if (mytid)   XrdSysThread::Kill(mytid);
 }
   
 /******************************************************************************/

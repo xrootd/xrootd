@@ -12,7 +12,7 @@
   
 //         $Id$
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 
 class XrdOlbState
@@ -30,8 +30,8 @@ void  Sync(SMask_t mmask, int nosState, int susState);
 
 private:
 
-XrdOucSemaphore mySemaphore;
-XrdOucMutex     myMutex;
+XrdSysSemaphore mySemaphore;
+XrdSysMutex     myMutex;
 
 int             numSuspend;
 int             numStaging;

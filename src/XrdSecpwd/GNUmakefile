@@ -81,7 +81,7 @@ $(OBJDIR)/XrdSecpwdSrvAdmin.o: XrdSecpwdSrvAdmin.cc \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecpwdSrvAdmin.o XrdSecpwdSrvAdmin.cc
 
 $(OBJDIR)/XrdSecProtocolpwd.o: XrdSecProtocolpwd.cc XrdOucLogger.hh \
-		XrdOucPthread.hh  XrdOucError.hh XrdOucStream.hh \
+		XrdSysPthread.hh  XrdOucError.hh XrdOucStream.hh \
 		XrdSutCache.hh XPtypes.hh XrdSutPFEntry.hh \
 		XProtocol.hh XrdOucHash.hh XrdOucHash.icc XrdOucString.hh \
 		XrdSecProtocolpwd.hh XrdOucErrInfo.hh XrdSysPlatform.hh \

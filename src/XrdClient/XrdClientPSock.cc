@@ -58,7 +58,7 @@ int CloseSockFunc(int K, int V, void *arg) {
 void XrdClientPSock::Disconnect()
 {
   // Close the connection
-  XrdOucMutexHelper mtx(fMutex);
+  XrdSysMutexHelper mtx(fMutex);
 
   fConnected = FALSE;
     
@@ -121,7 +121,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
          // we want to reconstruct the global fd_set
          Info(XrdClientDebug::kDUMPDEBUG, "XrdClientPSock::RecvRaw", "Reconstructing global fd table.");
 
-	 XrdOucMutexHelper mtx(fMutex);
+	 XrdSysMutexHelper mtx(fMutex);
 
          FD_ZERO(&globalfdinfo.fdset);
 	 globalfdinfo.maxfd = 0;
@@ -288,7 +288,7 @@ void XrdClientPSock::TryConnect(bool isUnix) {
     int s = TryConnect_low(isUnix);
 
     if (s >= 0) {
-        XrdOucMutexHelper mtx(fMutex);
+        XrdSysMutexHelper mtx(fMutex);
 
 	int z = 0;
 	fSocketPool.Rep(0, s);
@@ -302,7 +302,7 @@ int XrdClientPSock::TryConnectParallelSock(int port, int windowsz) {
     int s = TryConnect_low(false, port, windowsz);
 
     if (s >= 0) {
-        XrdOucMutexHelper mtx(fMutex);
+        XrdSysMutexHelper mtx(fMutex);
 	int tmp = XRDCLI_PSOCKTEMP;
 	fSocketPool.Rep(XRDCLI_PSOCKTEMP, s);
 	fSocketIdPool.Rep(s, tmp);
@@ -313,7 +313,7 @@ int XrdClientPSock::TryConnectParallelSock(int port, int windowsz) {
 
 int XrdClientPSock::RemoveParallelSock(int sockid) {
 
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
 
     int s = GetSock(sockid);
 
@@ -336,7 +336,7 @@ int XrdClientPSock::EstablishParallelSock(int sockid) {
     int s = GetSock(XRDCLI_PSOCKTEMP);
 
     if (s >= 0) {
-        XrdOucMutexHelper mtx(fMutex);
+        XrdSysMutexHelper mtx(fMutex);
 
 	fSocketPool.Del(XRDCLI_PSOCKTEMP);
 	fSocketIdPool.Del(s);

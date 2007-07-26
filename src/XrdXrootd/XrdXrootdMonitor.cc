@@ -46,7 +46,7 @@ char              *XrdXrootdMonitor::Dest2      = 0;
 int                XrdXrootdMonitor::monMode2   = 0;
 struct sockaddr    XrdXrootdMonitor::InetAddr2;
 XrdXrootdMonitor  *XrdXrootdMonitor::altMon     = 0;
-XrdOucMutex        XrdXrootdMonitor::windowMutex;
+XrdSysMutex        XrdXrootdMonitor::windowMutex;
 kXR_int32          XrdXrootdMonitor::startTime  = 0;
 int                XrdXrootdMonitor::monBlen    = 0;
 int                XrdXrootdMonitor::lastEnt    = 0;
@@ -119,11 +119,11 @@ static void UnLock() {monLock.UnLock();}
 
 private:
 
-static XrdOucMutex monLock;
+static XrdSysMutex monLock;
        char        unLock;
 };
 
-XrdOucMutex XrdXrootdMonitorLock::monLock;
+XrdSysMutex XrdXrootdMonitorLock::monLock;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -405,7 +405,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdOucError *errp)
 kXR_unt32 XrdXrootdMonitor::Map(const char code,
                                    const char *uname, const char *path)
 {
-     static XrdOucMutex  seqMutex;
+     static XrdSysMutex  seqMutex;
      static unsigned int monSeqID = 1;
      XrdXrootdMonMap     map;
      int                 size, montype;
@@ -538,7 +538,7 @@ unsigned char XrdXrootdMonitor::do_Shift(long long xTot, unsigned int &xVal)
   
 void XrdXrootdMonitor::fillHeader(XrdXrootdMonHeader *hdr,
                                   const char          id, int size)
-{  static XrdOucMutex seqMutex;
+{  static XrdSysMutex seqMutex;
    static int         seq = 0;
           int         myseq;
 
@@ -646,7 +646,7 @@ int XrdXrootdMonitor::Send(int monMode, void *buff, int blen)
 #ifndef NODEBUG
     const char *TraceID = "Monitor";
 #endif
-    static XrdOucMutex sendMutex;
+    static XrdSysMutex sendMutex;
     int rc1, rc2;
 
     sendMutex.Lock();

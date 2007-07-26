@@ -42,7 +42,7 @@ const char *XrdOssStageCVSID = "$Id$";
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdOuc/XrdOucProg.hh"
+#include "XrdSys/XrdSysProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 
 /******************************************************************************/
@@ -85,7 +85,7 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
 {
    static XrdOucReqID ReqID(static_cast<int>(getpid()),(char *)"localhost",
                                           (unsigned long)0xef000001);
-   static XrdOucMutex      PTMutex;
+   static XrdSysMutex      PTMutex;
    static XrdOucHash<char> PTable;
    static time_t nextScrub = xfrkeep + time(0);
    char *Found, *pdata[XrdOucMsubs::maxElem + 2];

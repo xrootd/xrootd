@@ -46,7 +46,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucPlugin.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 
 #ifdef XRDOSSCX
 #include "oocx_CXFile.h"
@@ -83,7 +83,7 @@ XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
 {
    static XrdOssSys   myOssSys;
    extern XrdOucError OssEroute;
-   XrdOucPlugin    *myLib;
+   XrdSysPlugin    *myLib;
    XrdOss          *(*ep)(XrdOss *, XrdOucLogger *, const char *, const char *);
    char *parms;
 
@@ -105,7 +105,7 @@ XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
 // the library must stay open but we never want to reference it again).
 //
    OssEroute.logger(Logger);
-   if (!(myLib = new XrdOucPlugin(&OssEroute, OssLib))) return 0;
+   if (!(myLib = new XrdSysPlugin(&OssEroute, OssLib))) return 0;
 
 // Now get the entry point of the object creator
 //

@@ -10,7 +10,7 @@
 
 lib_LTLIBRARIES = libXrdPosix.la
 
-# N.B.: XrdPosixXrootd.hh includes XrdOucPthread.hh!
+# N.B.: XrdPosixXrootd.hh includes XrdSysPthread.hh!
 xrootdposixincdir = $(includedir)/xrootd/XrdPosix
 xrootdposixinc_HEADERS = XrdPosixXrootd.hh XrdPosixLinkage.hh \
                         XrdPosixExtern.hh  XrdPosixStream.hh

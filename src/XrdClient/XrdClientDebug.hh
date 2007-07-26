@@ -19,7 +19,7 @@
 #include <iostream>
 #include <sstream>
 #include "XrdClient/XrdClientConst.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucError.hh"
@@ -57,7 +57,7 @@ class XrdClientDebug {
 
    static XrdClientDebug       *fgInstance;
 
-   XrdOucRecMutex                 fMutex;
+   XrdSysRecMutex                 fMutex;
 
  protected:
    XrdClientDebug();
@@ -73,19 +73,19 @@ class XrdClientDebug {
    };
 
    short           GetDebugLevel() {
-       XrdOucMutexHelper m(fMutex);
+       XrdSysMutexHelper m(fMutex);
        return fDbgLevel;
        }
 
    static XrdClientDebug *Instance();
 
    inline void SetLevel(int l) {
-      XrdOucMutexHelper m(fMutex);
+      XrdSysMutexHelper m(fMutex);
       fDbgLevel = l;
    }
 
    inline void TraceStream(short DbgLvl, ostringstream &s) {
-      XrdOucMutexHelper m(fMutex);
+      XrdSysMutexHelper m(fMutex);
 
       if (DbgLvl <= GetDebugLevel())
 	 fOucErr->Emsg("", s.str().c_str() );
@@ -96,7 +96,7 @@ class XrdClientDebug {
    //   ostringstream outs;  // Declare an output string stream.
 
    inline void TraceString(short DbgLvl, char * s) {
-      XrdOucMutexHelper m(fMutex);
+      XrdSysMutexHelper m(fMutex);
       if (DbgLvl <= GetDebugLevel())
 	 fOucErr->Emsg("", s);
    }

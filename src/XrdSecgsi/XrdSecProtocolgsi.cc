@@ -99,7 +99,7 @@ static const int kOneDay = 86400;
 /*                     S t a t i c   C l a s s   D a t a                      */
 /******************************************************************************/
 
-XrdOucMutex XrdSecProtocolgsi::gsiContext;
+XrdSysMutex XrdSecProtocolgsi::gsiContext;
 String XrdSecProtocolgsi::CAdir    = "/etc/grid-security/certificates/";
 String XrdSecProtocolgsi::CRLdir   = "/etc/grid-security/certificates/";
 String XrdSecProtocolgsi::DefCRLext= ".r0";

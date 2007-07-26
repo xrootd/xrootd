@@ -34,7 +34,7 @@ extern "C" {
 
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysPriv.hh"
@@ -113,7 +113,7 @@ private:
 static int Fatal(XrdOucErrInfo *erp,int rc,const char *msg1,char *KP=0,int krc=0);
 static int get_krbCreds(char *KP, krb5_creds **krb_creds);
 
-static XrdOucMutex        krbContext;    // Client or server
+static XrdSysMutex        krbContext;    // Client or server
 static int                options;       // Client or server
 static krb5_context       krb_context;   // Client or server
 static krb5_ccache        krb_ccache;    // Client or server
@@ -143,7 +143,7 @@ krb5_creds               *Creds;         // Client: credentials
 /*                           S t a t i c   D a t a                            */
 /******************************************************************************/
   
-XrdOucMutex         XrdSecProtocolkrb5::krbContext;        // Client or server
+XrdSysMutex         XrdSecProtocolkrb5::krbContext;        // Client or server
 
 int                 XrdSecProtocolkrb5::options = 0;       // Client or Server
 krb5_context        XrdSecProtocolkrb5::krb_context;       // Client or server

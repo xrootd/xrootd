@@ -46,6 +46,7 @@ vpath XrdCrypto%    ../XrdCrypto
 vpath XrdOuc%       ../XrdOuc
 vpath XrdSec%       ../XrdSec
 vpath XrdSut%       ../XrdSut
+vpath XrdSys%       ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -80,7 +81,7 @@ $(OBJDIR)/XrdSutPFAdmin.o: XrdSutPFAdmin.cc XrdOucString.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSutPFAdmin.o XrdSutPFAdmin.cc
 
 $(OBJDIR)/XrdSutAux.o: XrdSutAux.cc XrdOucLogger.hh \
-		XrdOucPthread.hh XrdOucError.hh XrdOucString.hh \
+		XrdSysPthread.hh XrdOucError.hh XrdOucString.hh \
 		XProtocol.hh XPtypes.hh XrdSutTrace.hh \
 		XrdOucTrace.hh
 	@echo Compiling XrdSutAux.cc 

@@ -19,7 +19,7 @@ const char *XrdPollCVSID = "$Id$";
   
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdLink.hh"
 #define  TRACELINK lp
 #include "Xrd/XrdTrace.hh"
@@ -36,7 +36,7 @@ const char *XrdPollCVSID = "$Id$";
   
        XrdPoll   *XrdPoll::Pollers[XRD_NUMPOLLERS] = {0, 0, 0};
 
-       XrdOucMutex  XrdPoll::doingAttach;
+       XrdSysMutex  XrdPoll::doingAttach;
 
        const char *XrdPoll::TraceID = "Poll";
 
@@ -51,7 +51,7 @@ extern XrdOucTrace  XrdTrace;
 struct XrdPollArg
        {XrdPoll      *Poller;
         int            retcode;
-        XrdOucSemaphore PollSync;
+        XrdSysSemaphore PollSync;
 
         XrdPollArg() : PollSync(0, "poll sync") {}
        ~XrdPollArg()               {}
@@ -234,7 +234,7 @@ int XrdPoll::Setup(int numfd)
         PArg.Poller = Pollers[i];
         PArg.retcode= 0;
         TRACE(POLL, "Starting poller " <<i);
-        if ((retc = XrdOucThread::Run(&tid,XrdStartPolling,(void *)&PArg,
+        if ((retc = XrdSysThread::Run(&tid,XrdStartPolling,(void *)&PArg,
                                       XRDOUCTHREAD_BIND, "Poller")))
            {XrdLog.Emsg("Poll", retc, "create poller thread"); return 0;}
         Pollers[i]->TID = tid;

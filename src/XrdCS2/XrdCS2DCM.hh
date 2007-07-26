@@ -13,7 +13,7 @@
 //         $Id$
 
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 class XrdNetLink;
 class XrdNetSocket;
@@ -62,7 +62,7 @@ void  LockDir()  {dirMutex.Lock();}
 void  UnLockDir(){dirMutex.UnLock();}
 void  unPrep(const char *Fid);
 
-XrdOucMutex     dirMutex;
+XrdSysMutex     dirMutex;
 XrdOucStream    Request;
 XrdOucStream    Events;
 XrdNetLink     *olbdLink;

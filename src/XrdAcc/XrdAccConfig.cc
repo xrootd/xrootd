@@ -136,7 +136,7 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 // Start a refresh thread unless this was a refresh thread call
 //
    if (Cold && !NoGo)
-      {if ((retc=XrdOucThread::Run(&reftid,XrdAccConfig_Refresh,(void *)&Eroute)))
+      {if ((retc=XrdSysThread::Run(&reftid,XrdAccConfig_Refresh,(void *)&Eroute)))
           Eroute.Emsg("ConfigDB",retc,"start refresh thread.");
       }
 

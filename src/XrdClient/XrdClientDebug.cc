@@ -11,7 +11,7 @@
 
 #include "XrdClient/XrdClientDebug.hh"
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 XrdClientDebug *XrdClientDebug::fgInstance = 0;
 
 //_____________________________________________________________________________

@@ -49,7 +49,7 @@ const char *XrdConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 /******************************************************************************/
@@ -68,7 +68,7 @@ extern XrdOucError       XrdLog;
 
 extern XrdOucLogger      XrdLogger;
 
-extern XrdOucThread     *XrdThread;
+extern XrdSysThread     *XrdThread;
 
 extern XrdOucTrace       XrdTrace;
 
@@ -121,7 +121,7 @@ public:
                  }
 
           XrdLogWorker(char *who) : XrdJob("midnight runner")
-                         {midnite = XrdOucTimer::Midnight() + 86400;
+                         {midnite = XrdSysTimer::Midnight() + 86400;
                           mememe = strdup(who);
                           XrdSched.Schedule((XrdJob *)this, midnite);
                          }
@@ -368,7 +368,7 @@ int XrdConfig::Configure(int argc, char **argv)
    if (!NoGo) NoGo = Setup(dfltProt);
    if (ProtInfo.DebugON) 
       {XrdTrace.What = TRACE_ALL;
-       XrdOucThread::setDebug(&XrdLog);
+       XrdSysThread::setDebug(&XrdLog);
       }
    ProtInfo.Threads = XrdThread;
 
@@ -1129,7 +1129,7 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
                    else if (*scopts[i].opname == 's')
                            {if (XrdOuca2x::a2sz(*eDest, scopts[i].opmsg, val,
                                                 &lpp, scopts[i].minv)) return 1;
-                            XrdOucThread::setStackSize((size_t)lpp);
+                            XrdSysThread::setStackSize((size_t)lpp);
                             break;
                            }
                    else if (XrdOuca2x::a2i(*eDest, scopts[i].opmsg, val,

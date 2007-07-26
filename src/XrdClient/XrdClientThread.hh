@@ -12,7 +12,7 @@
 #ifndef XRC_THREAD_H
 #define XRC_THREAD_H
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 void * XrdClientThreadDispatcher(void * arg);
 
@@ -44,39 +44,39 @@ private:
    };
 
    int Cancel() {
-      return XrdOucThread::Cancel(fThr);
+      return XrdSysThread::Cancel(fThr);
    };
 
    int Run(void *arg = 0) {
       fArg.arg = arg;
       fArg.threadobj = this;
-      return XrdOucThread::Run(&fThr, XrdClientThreadDispatcher, (void *)&fArg,
+      return XrdSysThread::Run(&fThr, XrdClientThreadDispatcher, (void *)&fArg,
 			       XRDOUCTHREAD_HOLD, "");
    };
 
    int Detach() {
-      return XrdOucThread::Detach(fThr);
+      return XrdSysThread::Detach(fThr);
    };
 
    int Join(void **ret = 0) {
-      return XrdOucThread::Join(fThr, ret);
+      return XrdSysThread::Join(fThr, ret);
    };
 
    // these funcs are to be called only from INSIDE the thread loop
    int     SetCancelOn() {
-      return XrdOucThread::SetCancelOn();
+      return XrdSysThread::SetCancelOn();
    };
    int     SetCancelOff() {
-      return XrdOucThread::SetCancelOff();
+      return XrdSysThread::SetCancelOff();
    };
    int     SetCancelAsynchronous() {
-      return XrdOucThread::SetCancelAsynchronous();
+      return XrdSysThread::SetCancelAsynchronous();
    };
    int     SetCancelDeferred() {
-      return XrdOucThread::SetCancelDeferred();
+      return XrdSysThread::SetCancelDeferred();
    };
    void     CancelPoint() {
-      XrdOucThread::CancelPoint();
+      XrdSysThread::CancelPoint();
    };
 
    int MaskSignal(int snum = 0, bool block = 1);

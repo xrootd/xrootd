@@ -87,9 +87,9 @@ $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
 
 $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
                           XrdOdcMsg.hh      XrdOdcTrace.hh    XrdOucEnv.hh \
-                          XrdOucPthread.hh  XrdOdcConfDefs.hh XrdOucError.hh \
-                          XrdOucErrInfo.hh  XrdSysPlatform.hh XrdOucPthread.hh \
-                          XrdOucReqID.hh    XrdOucStream.hh   XrdOucTimer.hh \
+                          XrdSysPthread.hh  XrdOdcConfDefs.hh XrdOucError.hh \
+                          XrdOucErrInfo.hh  XrdSysPlatform.hh XrdSysPthread.hh \
+                          XrdOucReqID.hh    XrdOucStream.hh   XrdSysTimer.hh \
                           XrdNetDNS.hh      XrdNetOpts.hh     XrdNetSocket.hh \
                           XrdSfsInterface.hh
 	@echo Compiling XrdOdcFinder.cc 
@@ -97,19 +97,19 @@ $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
 
 $(OBJDIR)/XrdOdcManager.o: XrdOdcManager.hh  XrdOdcManager.cc \
                            XrdOdcMsg.hh      XrdOdcResp.hh    XrdOdcTrace.hh \
-                           XrdOucError.hh    XrdOucPthread.hh \
+                           XrdOucError.hh    XrdSysPthread.hh \
                            XrdNetLink.hh     XrdNetWork.hh
 	@echo Compiling XrdOdcManager.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcManager.o XrdOdcManager.cc
 
 $(OBJDIR)/XrdOdcMsg.o: XrdOdcMsg.hh     XrdOdcTrace.hh  XrdOucErrInfo.hh \
-                       XrdOucPthread.hh \
+                       XrdSysPthread.hh \
                        XrdOdcMsg.cc
 	@echo Compiling XrdOdcMsg.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcMsg.o XrdOdcMsg.cc
 
 $(OBJDIR)/XrdOdcResp.o: XrdOdcResp.hh     XrdOdcTrace.hh  XrdOucErrInfo.hh \
-                       XrdOucPthread.hh   XrdSfsInterface.hh  XrdOdcMsg.hh \
+                       XrdSysPthread.hh   XrdSfsInterface.hh  XrdOdcMsg.hh \
                        XrdOdcResp.cc
 	@echo Compiling XrdOdcResp.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcResp.o XrdOdcResp.cc

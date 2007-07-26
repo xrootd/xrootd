@@ -13,7 +13,7 @@
 //          $Id$
 
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                          X r d O d c R e s p C B                           */
@@ -36,7 +36,7 @@ void Wait() {respSync.Wait();}
 
 private:
 
-XrdOucSemaphore     respSync;
+XrdSysSemaphore     respSync;
 };
 
 /******************************************************************************/
@@ -68,7 +68,7 @@ private:
        void Recycle();
 
 static XrdOdcResp            *nextFree;
-static XrdOucMutex            myMutex;  // Protects above and below
+static XrdSysMutex            myMutex;  // Protects above and below
 static int                    numFree;
 static const int              maxFree = 300;
 static int                    RepDelay;
@@ -97,7 +97,7 @@ public:
 
 private:
 
-       XrdOucMutex            myMutex;  // Protects above and below
+       XrdSysMutex            myMutex;  // Protects above and below
 static const int              mqSize = 512;
 
 XrdOdcResp         *mqTab[mqSize];

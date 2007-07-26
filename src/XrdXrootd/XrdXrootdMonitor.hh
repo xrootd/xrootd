@@ -18,7 +18,7 @@
 #include <sys/types.h>
 
 #include "XrdNet/XrdNetPeer.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include "XProtocol/XPtypes.hh"
   
@@ -101,7 +101,7 @@ static void              startClock();
 
 static XrdScheduler      *Sched;
 static XrdOucError       *eDest;
-static XrdOucMutex        windowMutex;
+static XrdSysMutex        windowMutex;
 static int                monFD;
 static char              *Dest1;
 static int                monMode1;

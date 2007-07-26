@@ -25,7 +25,7 @@
 #include "XrdNet/XrdNetBuffer.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucChain.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 // Options for SetOpts and Alloc()
 //
@@ -161,8 +161,8 @@ private:
 int OK2Send(int timeout=0, const char *dest=0);
 int retErr(int ecode, const char *dest=0);
 
-XrdOucMutex         rdMutex;
-XrdOucMutex         wrMutex;
+XrdSysMutex         rdMutex;
+XrdSysMutex         wrMutex;
 XrdNetBufferQ      *BuffQ;
 int                 FD;
 int                 noclose;
@@ -176,7 +176,7 @@ XrdOucStream       *Stream;    // tcp tokenizer
 XrdOucTokenizer    *Bucket;    // udp tokenizer
 XrdOucError        *eDest;
 
-static XrdOucMutex             LinkList;
+static XrdSysMutex             LinkList;
 static XrdOucStack<XrdNetLink> LinkStack;
 static int                     size;
 static int                     maxlink;

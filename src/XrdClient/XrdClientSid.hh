@@ -24,7 +24,7 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdClient/XrdClientProtocol.hh"
 #include "XrdClient/XrdClientVector.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 struct  SidInfo {
    kXR_unt16 fathersid;
@@ -51,7 +51,7 @@ class XrdClientSid {
    // Remember: 0 is NOT a valid sid
    XrdClientVector<kXR_unt16> freesids;
 
-   XrdOucMutex                fMutex;
+   XrdSysMutex                fMutex;
    
  public:
    XrdClientSid();
@@ -76,12 +76,12 @@ class XrdClientSid {
 
    // 0 if non existent as a child sid
    inline struct SidInfo *GetSidInfo(kXR_unt16 sid) {
-      XrdOucMutexHelper l(fMutex);
+      XrdSysMutexHelper l(fMutex);
       return (childsidnfo.Find(sid));
    };
 
    inline bool JoinedSids(kXR_unt16 father, kXR_unt16 child) {
-      XrdOucMutexHelper l(fMutex);
+      XrdSysMutexHelper l(fMutex);
 
       struct SidInfo *si = childsidnfo.Find(child);
 

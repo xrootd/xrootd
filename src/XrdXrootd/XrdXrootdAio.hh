@@ -13,7 +13,7 @@
 //        $Id$
   
 #include "XProtocol/XPtypes.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
@@ -57,7 +57,7 @@ static  const char      *TraceID;
 static  XrdBuffManager  *BPool;   // -> Buffer Manager
 static  XrdScheduler    *Sched;   // -> System Scheduler
 static  XrdXrootdStats  *SI;      // -> System Statistics
-static  XrdOucMutex      fqMutex; // Locks static data
+static  XrdSysMutex      fqMutex; // Locks static data
 static  XrdXrootdAio    *fqFirst; // -> Object in free queue
 static  int              maxAio;  // Maximum Aio objects we can yet have
 
@@ -122,7 +122,7 @@ inline  void               UnLock() {isLocked = 0; aioMutex.UnLock();}
 
 static  const char        *TraceID;
 static  XrdOucError       *eDest;      // -> Error Object
-static  XrdOucMutex        rqMutex;    // Locks static data
+static  XrdSysMutex        rqMutex;    // Locks static data
 static  XrdXrootdAioReq   *rqFirst;    // -> Object in free queue
 static  int                QuantumMin; // aio segment size (Quantum/2)
 static  int                Quantum;    // aio segment size
@@ -130,7 +130,7 @@ static  int                QuantumMax; // aio segment size (Quantum*2)
 static  int                maxAioPR;   // aio objects per request (max)
 static  int                maxAioPR2;  // aio objects per request (max*2)
 
-        XrdOucMutex        aioMutex;  // Locks private data
+        XrdSysMutex        aioMutex;  // Locks private data
         XrdXrootdAioReq   *Next;      // -> Chain pointer
 
         off_t              myOffset;  // Next offset    (used for read's only)

@@ -17,7 +17,7 @@
 #include "XrdMon/XrdMonDecTraceInfo.hh"
 #include "XrdMon/XrdMonDecUserInfo.hh"
 #include "XrdMon/XrdMonBufferedOutput.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include <algorithm>
 #include <fstream>
 #include <map>
@@ -112,8 +112,8 @@ private:
     // The mutexes guard access to dCache and uCache respectively.
     // _dCache and _uCache can be accessed from different threads
     // (periodic data flushing inside dedicated thread)
-    XrdOucMutex    _dMutex;
-    XrdOucMutex    _uMutex;
+    XrdSysMutex    _dMutex;
+    XrdSysMutex    _uMutex;
 
     XrdMonBufferedOutput* _rtLogger;
 

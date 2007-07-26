@@ -21,7 +21,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucDLlist.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                     X r d O f s H a n d l e _ A r g s                      */
@@ -81,7 +81,7 @@ unsigned int           pathid;         // ID to uniquely distinguish handles
 
 private:
 
-XrdOucMutex   mutex;
+XrdSysMutex   mutex;
 };
   
 /******************************************************************************/

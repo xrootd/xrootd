@@ -24,7 +24,7 @@ const char *XrdOlbReqCVSID = "$Id$";
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbRTable.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XProtocol/XProtocol.hh"
 
 using namespace XrdOlb;
@@ -217,7 +217,7 @@ void XrdOlbReq::Reply_Wait(int sec)
   
 XrdOlbReq *XrdOlbReq::Reply_WaitResp(int sec)
 {
-   static XrdOucMutex rnMutex;
+   static XrdSysMutex rnMutex;
    static unsigned int RequestNum = 0;
           struct iovec iov[3];  // Reply() fills in the last element
           char buff[32];

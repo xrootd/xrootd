@@ -89,14 +89,14 @@ $(OBJDIR)/XrdOlbAdmin.o:  XrdOlbAdmin.hh    XrdOlbAdmin.cc \
                           XrdOlbConfig.hh   XrdOlbManager.hh XrdOlbPrepare.hh\
                           XrdOlbTrace.hh \
                           XrdOuca2x.hh      XrdOucError.hh   XrdOucName2Name.hh\
-                          XrdSysPlatform.hh XrdOucPthread.hh XrdOucStream.hh
+                          XrdSysPlatform.hh XrdSysPthread.hh XrdOucStream.hh
 	@echo Compiling XrdOlbAdmin.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbAdmin.o XrdOlbAdmin.cc
 
 $(OBJDIR)/XrdOlbCache.o: XrdOlbCache.hh  XrdOlbCache.cc \
                          XrdJob.hh       XrdScheduler.hh \
                          XrdOlbPList.hh  XrdOlbRRQ.hh      XrdOlbTypes.hh \
-                         XrdOucHash.hh   XrdOucHash.icc    XrdOucPthread.hh
+                         XrdOucHash.hh   XrdOucHash.icc    XrdSysPthread.hh
 	@echo Compiling XrdOlbCache.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbCache.o XrdOlbCache.cc
 
@@ -110,8 +110,8 @@ $(OBJDIR)/XrdOlbConfig.o: XrdOlbConfig.hh   XrdOlbConfig.cc \
                           XrdOlbXmi.hh      XrdOlbXmiReq.hh  XrdOlbServer.hh \
                           XrdOuca2x.hh      XrdOucError.hh   XrdOucName2Name.hh\
                           XrdOucPList.hh    XrdOucExport.hh \
-                          XrdSysPlatform.hh XrdOucPlugin.hh  XrdOucProg.hh \
-                          XrdOucPthread.hh  XrdOucStream.hh  XrdOucTimer.hh \
+                          XrdSysPlatform.hh XrdSysPlugin.hh  XrdSysProg.hh \
+                          XrdSysPthread.hh  XrdOucStream.hh  XrdSysTimer.hh \
                           XrdOucTList.hh    XrdOucUtils.hh   XrdOucEnv.hh \
                           ../XrdVersion.hh
 	@echo Compiling XrdOlbConfig.cc 
@@ -123,30 +123,30 @@ $(OBJDIR)/XrdOlbManager.o: XrdOlbManager.hh XrdOlbManager.cc \
                            XrdOlbCache.hh   XrdOlbConfig.hh   XrdOlbManager.hh \
                            XrdOlbManList.hh XrdOlbRTable.hh   XrdOlbServer.hh \
                            XrdOlbState.hh   XrdOlbTrace.hh    XrdOlbTypes.hh \
-                           XrdOuca2x.hh     XrdOucPthread.hh
+                           XrdOuca2x.hh     XrdSysPthread.hh
 	@echo Compiling XrdOlbManager.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbManager.o XrdOlbManager.cc
 
 $(OBJDIR)/XrdOlbManList.o: XrdOlbManList.cc   XrdOlbManList.hh \
-                           XrdNetDNS.hh       XrdSysPlatform.hh  XrdOucPthread.hh
+                           XrdNetDNS.hh       XrdSysPlatform.hh  XrdSysPthread.hh
 	@echo Compiling XrdOlbManList.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbManList.o XrdOlbManList.cc
 
 $(OBJDIR)/XrdOlbManTree.o: XrdOlbManTree.cc   XrdOlbManTree.hh \
-                           XrdOucPthread.hh   XrdOlbTrace.hh  \
+                           XrdSysPthread.hh   XrdOlbTrace.hh  \
                            XrdOlbManager.hh   XrdOlbServer.hh
 	@echo Compiling XrdOlbManTree.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbManTree.o XrdOlbManTree.cc
 
 $(OBJDIR)/XrdOlbMeter.o: XrdOlbMeter.hh  XrdOlbMeter.cc  \
                          XrdOlbConfig.hh XrdOlbManager.hh  XrdOlbTrace.hh \
-                         XrdOucError.hh  XrdSysPlatform.hh XrdOucPthread.hh \
+                         XrdOucError.hh  XrdSysPlatform.hh XrdSysPthread.hh \
                          XrdOucStream.hh XrdOucTList.hh
 	@echo Compiling XrdOlbMeter.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbMeter.o XrdOlbMeter.cc
 
 $(OBJDIR)/XrdOlbPList.o: XrdOlbPList.hh XrdOlbPList.cc \
-                         XrdOlbTypes.hh XrdOucPthread.hh
+                         XrdOlbTypes.hh XrdSysPthread.hh
 	@echo Compiling XrdOlbPList.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPList.o XrdOlbPList.cc
 
@@ -154,7 +154,7 @@ $(OBJDIR)/XrdOlbPrepare.o: XrdOlbPrepare.hh  XrdOlbPrepare.cc  XrdOlbPrepArgs.hh
                            XrdJob.hh         XrdScheduler.hh \
                            XrdOlbServer.hh   XrdOlbTrace.hh  \
                            XrdOucError.hh    XrdOucHash.hh     XrdOucHash.icc \
-                           XrdOucPthread.hh  XrdOucStream.hh   XrdOucTList.hh \
+                           XrdSysPthread.hh  XrdOucStream.hh   XrdOucTList.hh \
                            XrdOucEnv.hh      XrdOucMsubs.hh
 	@echo Compiling XrdOlbPrepare.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPrepare.o XrdOlbPrepare.cc
@@ -162,7 +162,7 @@ $(OBJDIR)/XrdOlbPrepare.o: XrdOlbPrepare.hh  XrdOlbPrepare.cc  XrdOlbPrepArgs.hh
 $(OBJDIR)/XrdOlbPrepArgs.o: XrdOlbPrepArgs.hh  XrdOlbPrepArgs.cc  \
                             XrdJob.hh          XrdScheduler.hh \
                             XrdOlbConfig.hh    XrdOlbServer.hh  \
-                            XrdOucPthread.hh
+                            XrdSysPthread.hh
 	@echo Compiling XrdOlbPrepArgs.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbPrepArgs.o XrdOlbPrepArgs.cc
 
@@ -170,27 +170,27 @@ $(OBJDIR)/XrdOlbProtocol.o: XrdOlbProtocol.hh  XrdOlbProtocol.cc  \
                             XrdInet.hh         XrdLink.hh       XrdProtocol.hh   \
                             XrdNetLink.hh      XrdNetPeer.hh \
                             XrdOlbConfig.hh    XrdOlbManager.hh XrdOlbTrace.hh \
-                            XrdOucError.hh     XrdOucLogger.hh  XrdOucPthread.hh
+                            XrdOucError.hh     XrdOucLogger.hh  XrdSysPthread.hh
 	@echo Compiling XrdOlbProtocol.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbProtocol.o XrdOlbProtocol.cc
 
 $(OBJDIR)/XrdOlbReq.o: XrdOlbReq.hh     XrdOlbReq.cc   \
-                       XrdOucError.hh   XrdOucPthread.hh  XrdOlbRRQ.hh \
+                       XrdOucError.hh   XrdSysPthread.hh  XrdOlbRRQ.hh \
                        XrdOlbRTable.hh  XrdOlbServer.hh   XrdOlbTrace.hh \
                        XrdXrootdStat.icc
 	@echo Compiling XrdOlbReq.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbReq.o XrdOlbReq.cc
 
 $(OBJDIR)/XrdOlbRRQ.o: XrdOlbRRQ.hh     XrdOlbRRQ.cc   \
-                       XrdOucDLlist.hh  XrdOucError.hh  XrdOucPthread.hh \
-                       XrdOucTimer.hh   XProtocol.hh \
+                       XrdOucDLlist.hh  XrdOucError.hh  XrdSysPthread.hh \
+                       XrdSysTimer.hh   XProtocol.hh \
                        XrdOlbManager.hh XrdOlbRTable.hh XrdOlbServer.hh \
                        XrdOlbTrace.hh   XrdOlbTypes.hh
 	@echo Compiling XrdOlbRRQ.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbRRQ.o XrdOlbRRQ.cc
 
 $(OBJDIR)/XrdOlbRTable.o: XrdOlbRTable.hh     XrdOlbRTable.cc   \
-                          XrdOucPthread.hh    XrdOlbServer.hh
+                          XrdSysPthread.hh    XrdOlbServer.hh
 	@echo Compiling XrdOlbRTable.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbRTable.o XrdOlbRTable.cc
 
@@ -203,18 +203,18 @@ $(OBJDIR)/XrdOlbServer.o: XrdOlbServer.hh   XrdOlbServer.cc \
                           XrdOlbServer.hh   XrdOlbState.hh \
                           XrdOlbTrace.hh    XrdOlbTypes.hh     XrdOlbXmi.hh \
                           XrdOuca2x.hh      XrdOucName2Name.hh XrdSysPlatform.hh\
-                          XrdOucProg.hh     XrdOucPthread.hh   XrdOucStream.hh
+                          XrdSysProg.hh     XrdSysPthread.hh   XrdOucStream.hh
 	@echo Compiling XrdOlbServer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbServer.o XrdOlbServer.cc
 
 $(OBJDIR)/XrdOlbState.o: XrdOlbState.hh   XrdOlbState.cc \
-                         XrdOlbManager.hh XrdOlbTypes.hh XrdOucPthread.hh
+                         XrdOlbManager.hh XrdOlbTypes.hh XrdSysPthread.hh
 	@echo Compiling XrdOlbState.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbState.o XrdOlbState.cc
 
 $(OBJDIR)/XrdOlbXmiReq.o: XrdOlbXmiReq.hh   XrdOlbXmiReq.cc \
                           XrdOlbReq.hh      XrdOlbTrace.hh  \
                           XrdOlbXmi.hh \
-                          XrdOucError.hh    XrdOucTrace.hh  XrdOucPthread.hh
+                          XrdOucError.hh    XrdOucTrace.hh  XrdSysPthread.hh
 	@echo Compiling XrdOlbXmiReq.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbXmiReq.o XrdOlbXmiReq.cc

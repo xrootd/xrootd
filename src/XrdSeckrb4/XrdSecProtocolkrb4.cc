@@ -22,7 +22,7 @@ const char *XrdSecProtocolkrb4CVSID = "$Id$";
 #include <sys/param.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 
@@ -86,7 +86,7 @@ static int Fatal(XrdOucErrInfo *erp,int rc,const char *msg1,char *KP=0,int krc=0
 static int   get_SIR(XrdOucErrInfo *erp, const char *sh, char *sbuff, char *ibuff,
               char *rbuff);
 
-static XrdOucMutex        krbContext;           // Client or server
+static XrdSysMutex        krbContext;           // Client or server
 static int                options;              // Client or server
 static char               mySname[SNAME_SZ+1];  // Server
 static char               myIname[INST_SZ+1];   // Server
@@ -104,7 +104,7 @@ char                     *Service;       // Target principal for client
 /*                           S t a t i c   D a t a                            */
 /******************************************************************************/
   
-XrdOucMutex         XrdSecProtocolkrb4::krbContext;          // Client or server
+XrdSysMutex         XrdSecProtocolkrb4::krbContext;          // Client or server
 int                 XrdSecProtocolkrb4::options = 0;         // Client or Server
 
 char                XrdSecProtocolkrb4::mySname[SNAME_SZ+1]; // Server

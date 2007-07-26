@@ -16,7 +16,7 @@
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 
 #include "Xrd/XrdObject.hh"
@@ -279,8 +279,8 @@ static int                 hcMax;
 // This area is used for parallel streams
 //
 static const int           maxStreams = 16;
-XrdOucMutex                streamMutex;
-XrdOucSemaphore           *reTry;
+XrdSysMutex                streamMutex;
+XrdSysSemaphore           *reTry;
 XrdXrootdProtocol         *Stream[maxStreams];
 unsigned int               mySID;
 char                       isActive;

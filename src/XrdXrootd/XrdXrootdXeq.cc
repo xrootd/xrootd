@@ -496,7 +496,7 @@ int XrdXrootdProtocol::do_Getfile()
   
 int XrdXrootdProtocol::do_Login()
 {
-   static XrdOucMutex sessMutex;
+   static XrdSysMutex sessMutex;
    static unsigned int Sid = 0;
    XrdXrootdSessID sessID;
    int i, pid, rc, sendSID = 0;
@@ -677,7 +677,7 @@ int XrdXrootdProtocol::do_Mv()
 
 int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 {
-   XrdOucSemaphore isAvail(0);
+   XrdSysSemaphore isAvail(0);
    XrdXrootdProtocol *pp;
    XrdXrootdPio      *pioP;
    kXR_char streamID[2];
@@ -753,7 +753,7 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 
 int XrdXrootdProtocol::do_OffloadIO()
 {
-   XrdOucSemaphore *sesSem;
+   XrdSysSemaphore *sesSem;
    XrdXrootdPio    *pioP;
    int rc;
 

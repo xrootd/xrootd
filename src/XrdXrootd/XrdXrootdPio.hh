@@ -13,7 +13,7 @@
 //        $Id$
   
 #include "XProtocol/XPtypes.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdXrootdFile;
 
@@ -53,7 +53,7 @@ inline void               Set(XrdXrootdFile *theFile, long long theOffset,
 private:
 
 static const int          FreeMax = 256;
-static XrdOucMutex        myMutex;
+static XrdSysMutex        myMutex;
 static XrdXrootdPio      *Free;
 static int                FreeNum;
 };

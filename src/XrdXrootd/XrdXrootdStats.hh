@@ -12,7 +12,7 @@
   
 //      $Id$
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdStats;
 class XrdXrootdResponse;
@@ -38,7 +38,7 @@ int              AsyncRej;     // Stats: Number of async rejected
 int              AsyncNow;     // Stats: Number of async now (not locked)
 int              Refresh;      // Stats: Number of refresh requests
 
-XrdOucMutex      statsMutex;   // Mutex to serialize updates
+XrdSysMutex      statsMutex;   // Mutex to serialize updates
 
 int              Stats(char *buff, int blen, int do_sync=0);
 

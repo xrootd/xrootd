@@ -51,7 +51,7 @@ Where:
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdCS2/XrdCS2DCM.hh"
   
@@ -108,8 +108,8 @@ int main(int argc, char *argv[])
 
 // Set the default stack size here
 //
-   if (sizeof(long) > 4) XrdOucThread::setStackSize((size_t)1048576);
-      else               XrdOucThread::setStackSize((size_t)786432);
+   if (sizeof(long) > 4) XrdSysThread::setStackSize((size_t)1048576);
+      else               XrdSysThread::setStackSize((size_t)786432);
 
 // Perform configuration
 //
@@ -120,13 +120,13 @@ int main(int argc, char *argv[])
 
 // Start the event thread
 //
-   if ((retc = XrdOucThread::Run(&tid, mainEvent, (void *)0,
+   if ((retc = XrdSysThread::Run(&tid, mainEvent, (void *)0,
                             XRDOUCTHREAD_BIND, "Event handler")))
       {XrdLog.Emsg("main", retc, "create event thread"); _exit(3);}
 
 // Start the UDP event thread
 //
-   if ((retc = XrdOucThread::Run(&tid, udpEvent, (void *)0,
+   if ((retc = XrdSysThread::Run(&tid, udpEvent, (void *)0,
                                      XRDOUCTHREAD_BIND, "UDP event handler")))
       {XrdLog.Emsg("main", retc, "create udp event thread"); _exit(3);}
 

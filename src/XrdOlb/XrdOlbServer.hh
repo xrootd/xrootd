@@ -20,7 +20,7 @@
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOlb/XrdOlbReq.hh"
 #include "XrdOlb/XrdOlbRRQ.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOlbDrop;
 class XrdOlbPrepArgs;
@@ -122,7 +122,7 @@ static int   isOnline(char *path, int upt=1, XrdNetLink *lnk=0);
        int   Reissue(char *rid, const char *op, char *arg1, char *path, char *arg3=0);
 
 static XrdNetLink   *Relay;
-XrdOucMutex       myMutex;
+XrdSysMutex       myMutex;
 XrdNetLink       *Link;
 unsigned int      IPAddr;
 XrdOlbServer     *Next;
@@ -159,7 +159,7 @@ int        RefTotR;
 
 // The following fields are used to keep the supervisor's load values
 //
-static XrdOucMutex mlMutex;
+static XrdSysMutex mlMutex;
 static int         xeq_load;
 static int         cpu_load;
 static int         mem_load;

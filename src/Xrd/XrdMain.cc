@@ -65,7 +65,7 @@ Where:
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 /******************************************************************************/
 /*                      G l o b a l   V a r i a b l e s                       */
@@ -83,7 +83,7 @@ extern XrdInet           *XrdNetTCP[];    // Defined by config
 
        XrdOucError        XrdLog(&XrdLogger, "Xrd");
 
-       XrdOucThread      *XrdThread;
+       XrdSysThread      *XrdThread;
 
        XrdOucTrace        XrdTrace(&XrdLog);
 
@@ -152,8 +152,8 @@ int main(int argc, char *argv[])
 
 // Set the default stack size here
 //
-   if (sizeof(long) > 4) XrdOucThread::setStackSize((size_t)1048576);
-      else               XrdOucThread::setStackSize((size_t)786432);
+   if (sizeof(long) > 4) XrdSysThread::setStackSize((size_t)1048576);
+      else               XrdSysThread::setStackSize((size_t)786432);
 
 // Process configuration file
 //
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
 
 // Start the admin thread if an admin network is defined
 //
-   if (XrdNetADM && (retc = XrdOucThread::Run(&tid, mainAdmin, (void *)0,
+   if (XrdNetADM && (retc = XrdSysThread::Run(&tid, mainAdmin, (void *)0,
                             XRDOUCTHREAD_BIND, "Admin handler")))
       {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
 
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
    for (i = 1; i <= XrdProtLoad::ProtoMax; i++)
        if (XrdNetTCP[i])
           {sprintf(buff, "Port %d handler", XrdNetTCP[i]->Port());
-           if ((retc = XrdOucThread::Run(&tid, mainAccept,
+           if ((retc = XrdSysThread::Run(&tid, mainAccept,
                                          (void *)XrdNetTCP[i],
                                          XRDOUCTHREAD_BIND, strdup(buff))))
               {sprintf(buff, "create port %d handler", XrdNetTCP[i]->Port());

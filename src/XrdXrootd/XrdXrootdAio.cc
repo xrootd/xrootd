@@ -17,7 +17,7 @@ const char *XrdXrootdAioCVSID = "$Id$";
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -33,14 +33,14 @@ XrdBuffManager           *XrdXrootdAio::BPool;
 XrdScheduler             *XrdXrootdAio::Sched;
 XrdXrootdStats           *XrdXrootdAio::SI;
 
-XrdOucMutex               XrdXrootdAio::fqMutex;
+XrdSysMutex               XrdXrootdAio::fqMutex;
 XrdXrootdAio             *XrdXrootdAio::fqFirst = 0;
 const char               *XrdXrootdAio::TraceID = "Aio";
 
 int                       XrdXrootdAio::maxAio;
 
 XrdOucError              *XrdXrootdAioReq::eDest;
-XrdOucMutex               XrdXrootdAioReq::rqMutex;
+XrdSysMutex               XrdXrootdAioReq::rqMutex;
 XrdXrootdAioReq          *XrdXrootdAioReq::rqFirst = 0;
 const char               *XrdXrootdAioReq::TraceID = "AioReq";
 

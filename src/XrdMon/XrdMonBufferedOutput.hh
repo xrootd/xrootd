@@ -13,7 +13,7 @@
 #ifndef XRDMONBUFFEREDOUTPUT_HH
 #define XRDMONBUFFEREDOUTPUT_HH
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include <string>
 using std::string;
 
@@ -34,7 +34,7 @@ private:
     char*       _buf;
     const int   _bufSize; // flush when buffer is full, or when
                           // triggered by external thread
-    XrdOucMutex _mutex;
+    XrdSysMutex _mutex;
 };
 
 #endif /* XRDMONBUFFEREDOUTPUT_HH */

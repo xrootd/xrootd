@@ -30,7 +30,7 @@ XrdOlbManTree XrdOlb::ManTree;
   
 int XrdOlbManTree::Connect(int sID, XrdOlbServer *sp)
 {
-   XrdOucMutexHelper Monitor(myMutex);
+   XrdSysMutexHelper Monitor(myMutex);
    char mybuff[8];
    int i;
 

@@ -11,7 +11,7 @@
 //       $Id$
 
 #include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdCpMthrQueue.hh"
 #include "XrdClient/XrdClientDebug.hh"
@@ -414,7 +414,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       }
 
       // Start reader on xrdc
-      XrdOucThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
+      XrdSysThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
 
       int len = 1;
       void *buf;
@@ -542,7 +542,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       f = STDOUT_FILENO;
 
    // Start reader on xrdc
-   XrdOucThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
+   XrdSysThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
 
    int len = 1;
    void *buf;
@@ -662,7 +662,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    }
       
    // Start reader on loc
-   XrdOucThread::Run(&myTID, ReaderThread_loc, (void *)&cpnfo);
+   XrdSysThread::Run(&myTID, ReaderThread_loc, (void *)&cpnfo);
 
    int len = 1;
    void *buf;

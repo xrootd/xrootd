@@ -18,7 +18,7 @@
   
 #include "XrdOlb/XrdOlbManList.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdNetLink;
 class XrdNetWork;
@@ -161,11 +161,11 @@ void          setAltMan(int snum, unsigned int ipaddr, int port);
 
 static const  int AltSize = 24;
 
-XrdOucMutex   XXMutex;
-XrdOucMutex   STMutex;
+XrdSysMutex   XXMutex;
+XrdSysMutex   STMutex;
 XrdOlbServer *ServTab[STMax];
 XrdOlbServer *ServBat[STMax];
-XrdOucMutex   MTMutex;
+XrdSysMutex   MTMutex;
 XrdOlbServer *MastTab[MTMax];
 XrdNetWork   *NetTCPs;
 char          AltMans[STMax*AltSize]; // ||123.123.123.123:12345|| = 21

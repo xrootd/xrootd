@@ -18,7 +18,7 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 #include <stdlib.h>
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 class XrdOucNList
 {
@@ -109,6 +109,6 @@ inline void        Zorch(XrdOucNList *newnext=0) {next = newnext;}
 
 private:
 
-XrdOucMutex         mutex;
+XrdSysMutex         mutex;
 };
 #endif

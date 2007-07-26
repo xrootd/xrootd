@@ -11,7 +11,7 @@
 //       $Id$
 
 #include "XrdClient/XrdCpMthrQueue.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClientDebug.hh"
 
 XrdCpMthrQueue::XrdCpMthrQueue(): fReadSem(0) {
@@ -32,7 +32,7 @@ int XrdCpMthrQueue::PutBuffer(void *buf, int len) {
    bool wantstowait = FALSE;
 
    {
-      XrdOucMutexHelper mtx(fMutex);
+      XrdSysMutexHelper mtx(fMutex);
       
       if (fTotSize > CPMTQ_BUFFSIZE) wantstowait = TRUE;
    }
@@ -45,7 +45,7 @@ int XrdCpMthrQueue::PutBuffer(void *buf, int len) {
 
    // Put message in the list
    {
-      XrdOucMutexHelper mtx(fMutex);
+      XrdSysMutexHelper mtx(fMutex);
     
       fMsgQue.Push_back(m);
       fTotSize += len;
@@ -63,7 +63,7 @@ int XrdCpMthrQueue::GetBuffer(void **buf, int &len) {
  
    // If there is no data for one hour, then give up with an error
    if (!fReadSem.Wait(3600)) {
-	 XrdOucMutexHelper mtx(fMutex);
+	 XrdSysMutexHelper mtx(fMutex);
 
       	 if (fMsgQue.GetSize() > 0) {
 

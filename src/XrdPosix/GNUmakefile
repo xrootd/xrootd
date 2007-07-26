@@ -97,7 +97,7 @@ $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
 	$(ECHO)$(CC) -c $(CFLAGS32) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
 
 $(OBJDIR)/XrdPosixStream.o:  XrdPosixStream.cc   XrdPosixStream.hh \
-                             XrdOucPthread.hh    XrdPosixLinkage.hh \
+                             XrdSysPthread.hh    XrdPosixLinkage.hh \
                              XrdPosixExtern.hh   XrdPosixXrootd.hh
 	@echo Compiling XrdPosixStream.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixStream.o XrdPosixStream.cc

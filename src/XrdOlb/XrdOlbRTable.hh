@@ -15,7 +15,7 @@
 #include <string.h>
 
 #include "XrdOlb/XrdOlbServer.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 class XrdOlbRTable
 {
@@ -39,7 +39,7 @@ private:
 
 static const int   maxRD = 65;  // slot 0 is never used.
 
-XrdOucMutex   myMutex;
+XrdSysMutex   myMutex;
 XrdOlbServer *Rtable[maxRD];
 int           Hwm;
 };

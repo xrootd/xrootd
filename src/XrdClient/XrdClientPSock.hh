@@ -13,10 +13,10 @@
 #ifndef XRC_PSOCK_H
 #define XRC_PSOCK_H
 
-#include <XrdClient/XrdClientSock.hh>
-#include <XrdClient/XrdClientVector.hh>
-#include <XrdOuc/XrdOucRash.hh>
-#include <XrdOuc/XrdOucPthread.hh>
+#include "XrdClient/XrdClientSock.hh"
+#include "XrdClient/XrdClientVector.hh"
+#include "XrdOuc/XrdOucRash.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #define XRDCLI_PSOCKTEMP -2
 
@@ -33,7 +33,7 @@ private:
     typedef int       Sockid;
     typedef int       Sockdescr;
 
-    XrdOucRecMutex fMutex;
+    XrdSysRecMutex fMutex;
 
     // The set of interesting sock descriptors
     fdinfo globalfdinfo;
@@ -48,7 +48,7 @@ private:
     XrdOucRash<Sockid, Sockdescr> fSocketPool;
 
     Sockdescr GetSock(Sockid id) {
-        XrdOucMutexHelper mtx(fMutex);
+        XrdSysMutexHelper mtx(fMutex);
 
 	Sockdescr *fd = fSocketPool.Find(id);
 	if (fd) return *fd;
@@ -63,7 +63,7 @@ private:
 
 
     Sockid GetSockId(Sockdescr sock) {
-        XrdOucMutexHelper mtx(fMutex);
+        XrdSysMutexHelper mtx(fMutex);
 
 	Sockid *id = fSocketIdPool.Find(sock);
 	if (id) return *id;
@@ -73,7 +73,7 @@ private:
 protected:
 
     virtual int    SaveSocket() {
-        XrdOucMutexHelper mtx(fMutex);
+        XrdSysMutexHelper mtx(fMutex);
 
 	// this overwrites the main stream
 	int *fd = fSocketPool.Find(0);
@@ -120,7 +120,7 @@ public:
 
     // And this is the total stream count
     virtual int GetSockIdCount() { 
-        XrdOucMutexHelper mtx(fMutex);
+        XrdSysMutexHelper mtx(fMutex);
 
         return fSocketPool.Num();
     }

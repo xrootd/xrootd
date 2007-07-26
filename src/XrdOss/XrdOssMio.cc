@@ -19,7 +19,7 @@ const char *XrdOssMioCVSID = "$Id$";
 #include <sys/mman.h>
 #endif
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssMioFile.hh"
 #include "XrdOss/XrdOssTrace.hh"
@@ -30,7 +30,7 @@ const char *XrdOssMioCVSID = "$Id$";
 
 XrdOucHash<XrdOssMioFile> XrdOssMio::MM_Hash;
 
-XrdOucMutex    XrdOssMio::MM_Mutex;
+XrdSysMutex    XrdOssMio::MM_Mutex;
 
 XrdOssMioFile *XrdOssMio::MM_Perm     = 0;
 XrdOssMioFile *XrdOssMio::MM_Idle     = 0;
@@ -107,7 +107,7 @@ XrdOssMioFile *XrdOssMio::Map(char *path, int fd, int opts)
 {
 #if defined(_POSIX_MAPPED_FILES)
    EPNAME("MioMap");
-   XrdOucMutexHelper mapMutex;
+   XrdSysMutexHelper mapMutex;
    struct stat statb;
    XrdOssMioFile *mp;
    void *thefile;
@@ -210,7 +210,7 @@ XrdOssMioFile *XrdOssMio::Map(char *path, int fd, int opts)
       {pthread_t tid;
        int retc;
        mp->inUse++;
-       if ((retc = XrdOucThread::Run(&tid, preLoad, (void *)mp)) < 0)
+       if ((retc = XrdSysThread::Run(&tid, preLoad, (void *)mp)) < 0)
           {OssEroute.Emsg("Mio", retc, "creating mmap preload thread");
            mp->inUse--;
           }
@@ -301,7 +301,7 @@ int XrdOssMio::Reclaim(XrdOssMioFile *mp)
   
 void XrdOssMio::Recycle(XrdOssMioFile *mp)
 {
-   XrdOucMutexHelper mmMutex(&MM_Mutex);
+   XrdSysMutexHelper mmMutex(&MM_Mutex);
 
 // Decrement the use count
 //

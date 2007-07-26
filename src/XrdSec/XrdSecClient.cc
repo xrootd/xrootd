@@ -27,7 +27,7 @@ const char *XrdSecClientCVSID = "$Id$";
 #include <arpa/inet.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecPManager.hh"
 #include "XrdSec/XrdSecInterface.hh"
 

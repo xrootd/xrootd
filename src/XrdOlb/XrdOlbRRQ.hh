@@ -16,7 +16,7 @@
 
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucDLlist.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 /******************************************************************************/
 /*                         X r d O l b R R Q I n f o                          */
@@ -53,7 +53,7 @@ static XrdOlbRRQSlot *Alloc(XrdOlbRRQInfo *Info);
 
 private:
 
-static   XrdOucMutex                 myMutex;
+static   XrdSysMutex                 myMutex;
 static   XrdOlbRRQSlot              *freeSlot;
 static   short                       initSlot;
 
@@ -94,9 +94,9 @@ private:
 void sendResponse(XrdOlbRRQInfo *Info, int doredir);
 static const int numSlots = 1024;
 
-         XrdOucMutex                 myMutex;
-         XrdOucSemaphore             isWaiting;
-         XrdOucSemaphore             isReady;
+         XrdSysMutex                 myMutex;
+         XrdSysSemaphore             isWaiting;
+         XrdSysSemaphore             isReady;
          XrdOlbRRQSlot               Slot[numSlots];
          XrdOucDLlist<XrdOlbRRQSlot> waitQ;
          XrdOucDLlist<XrdOlbRRQSlot> readyQ;

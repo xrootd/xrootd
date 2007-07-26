@@ -21,7 +21,7 @@
 #include "XrdClient/XrdClientInputBuffer.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientThread.hh"
-#include "XrdOuc/XrdOucSemWait.hh"
+#include "XrdSys/XrdSysSemWait.hh"
 
 #include <time.h> // for time_t data type
 
@@ -54,11 +54,11 @@ private:
 
     int                 fRequestTimeout;
     bool                fMStreamsGoing;
-    XrdOucRecMutex         fRwMutex;     // Lock before using the physical channel 
+    XrdSysRecMutex         fRwMutex;     // Lock before using the physical channel 
     // (for reading and/or writing)
 
-    XrdOucRecMutex         fMutex;
-    XrdOucRecMutex         fMultireadMutex; // Used to arbitrate between multiple
+    XrdSysRecMutex         fMutex;
+    XrdSysRecMutex         fMultireadMutex; // Used to arbitrate between multiple
                                             // threads reading msgs from the same conn
 
     XrdClientThread     *fReaderthreadhandler[64]; // The thread which is going to pump
@@ -72,7 +72,7 @@ private:
 
     UnsolRespProcResult HandleUnsolicited(XrdClientMessage *m);
 
-    XrdOucSemWait       fReaderCV;
+    XrdSysSemWait       fReaderCV;
 
     short               fLogConnCnt; // Number of logical connections using this phyconn
 

@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                            x r d _ B u f f e r                             */
@@ -95,7 +95,7 @@ int       minrsw;
 int       rsinprog;
 int       totadj;
 
-XrdOucCondVar      Reshaper;
+XrdSysCondVar      Reshaper;
 static const char *TraceID;
 };
 #endif

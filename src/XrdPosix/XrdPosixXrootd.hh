@@ -18,7 +18,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 const int XrdPosixFD = 16384;
 
@@ -107,7 +107,7 @@ static void                  initStat(struct stat *buf);
 static void                  initXdev(dev_t &st_dev, dev_t &st_rdev);
 static int                   mapFlags(int flags);
 
-static XrdOucMutex    myMutex;
+static XrdSysMutex    myMutex;
 static const  int     FDMask;
 static const  int     FDOffs;
 static const  int     FDLeft;

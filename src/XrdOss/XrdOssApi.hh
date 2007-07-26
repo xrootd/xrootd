@@ -23,7 +23,7 @@
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucPList.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 /******************************************************************************/
@@ -107,7 +107,7 @@ char         cxid[4];
   
 class XrdOucMsubs;
 class XrdOucName2Name;
-class XrdOucProg;
+class XrdSysProg;
 
 class XrdOssSys : public XrdOss
 {
@@ -235,11 +235,11 @@ XrdOssCache_FS     *xscurr;   // -> Curent filesystem (config time only)
 XrdOssCache_Group  *xsgroups; // -> Cache group list  (config time only)
 
 XrdOssCache_Req StageQ;       //    Queue of staging requests
-XrdOucProg     *StageProg;    //    Command or manager than handles staging
-XrdOucProg     *MSSgwProg;    //    Command for MSS meta-data operations
+XrdSysProg     *StageProg;    //    Command or manager than handles staging
+XrdSysProg     *MSSgwProg;    //    Command for MSS meta-data operations
 
-XrdOucMutex     CacheContext;
-XrdOucSemaphore ReadyRequest;
+XrdSysMutex     CacheContext;
+XrdSysSemaphore ReadyRequest;
 
 char **sfx;                  // -> Valid filename suffixes
 

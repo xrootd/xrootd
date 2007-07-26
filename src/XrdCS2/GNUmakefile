@@ -72,7 +72,7 @@ XrdCS2d: $(OBJBINS)
 	$(ECHO)$(CC) $(CFLAGS) $(OBJBINS) $(CS2LIBS) -lXrd -o $(BINDIR)/XrdCS2d
 
 $(OBJDIR)/XrdCS2DCM.o:     XrdCS2DCM.hh  XrdCS2DCM.cc  XrdCS2DCMFile.hh \
-                           XrdOucError.hh   XrdOucPthread.hh \
+                           XrdOucError.hh   XrdSysPthread.hh \
                            XrdOucStream.hh  XrdOucUtils.hh \
                            XrdScheduler.hh  XrdTrace.hh
 	@echo Compiling XrdCS2DCM.cc
@@ -80,13 +80,13 @@ $(OBJDIR)/XrdCS2DCM.o:     XrdCS2DCM.hh  XrdCS2DCM.cc  XrdCS2DCMFile.hh \
 
 $(OBJDIR)/XrdCS2DCM2cs.o: XrdCS2DCM.hh  XrdCS2DCM2cs.cc \
                           XrdOucError.hh   XrdOucLogger.hh  XrdTrace.hh \
-                          XrdOucTimer.hh   XrdOucPthread.hh XrdNetLink.hh
+                          XrdSysTimer.hh   XrdSysPthread.hh XrdNetLink.hh
 	@echo Compiling XrdCS2DCM2cs.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2DCM2cs.o XrdCS2DCM2cs.cc
 
 $(OBJDIR)/XrdCS2DCMConfig.o: XrdCS2DCM.hh  XrdCS2DCMConfig.cc  XrdCS2DCMFile.hh \
                              XrdNetOpts.hh    XrdNetSocket.hh  XrdOucUtils.hh \
-                             XrdOucError.hh   XrdOucLogger.hh  XrdOucTimer.hh \
+                             XrdOucError.hh   XrdOucLogger.hh  XrdSysTimer.hh \
                              XrdScheduler.hh  XrdTrace.hh      \
                              XrdNetLink.hh    XrdNetWork.hh
 	@echo Compiling XrdCS2DCMConfig.cc
@@ -98,7 +98,7 @@ $(OBJDIR)/XrdCS2DCMFile.o: XrdCS2DCM.hh   XrdCS2DCMFile.cc \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2DCMFile.o XrdCS2DCMFile.cc
 
 $(OBJDIR)/XrdCS2DCMMain.o: XrdCS2DCM.hh XrdCS2DCMMain.cc \
-                           XrdOucError.hh    XrdOucLogger.hh   XrdOucPthread.hh \
+                           XrdOucError.hh    XrdOucLogger.hh   XrdSysPthread.hh \
                            XrdScheduler.hh   XrdTrace.hh
 	@echo Compiling XrdCS2DCMMain.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCS2DCMMain.o XrdCS2DCMMain.cc
@@ -114,7 +114,7 @@ $(OBJDIR)/XrdCS2Xmi.o:     XrdCS2Xmi.cc      XrdCS2Xmi.hh    \
                            XrdCS2Req.hh \
                            XrdScheduler.hh     XrdSysPlatform.hh \
                            XrdOucError.hh      XrdOucName2Name.hh \
-                           XrdOucPthread.hh    XrdOucTimer.hh \
+                           XrdSysPthread.hh    XrdSysTimer.hh \
                            XrdOlbTrace.hh      XrdOlbTypes.hh \
                            XrdOlbReq.hh        XrdOlbXmi.hh
 	@echo Compiling XrdCS2Xmi.cc

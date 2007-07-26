@@ -55,7 +55,7 @@ XrdMonBufferedOutput::~XrdMonBufferedOutput()
 void
 XrdMonBufferedOutput::add(const char* s)
 {
-    XrdOucMutexHelper mh; mh.Lock(&_mutex);
+    XrdSysMutexHelper mh; mh.Lock(&_mutex);
 
     if ( static_cast<int>(strlen(_buf) + strlen(s)) >= _bufSize ) {
         flush(false); // false -> don't lock mutex, already locked
@@ -80,7 +80,7 @@ XrdMonBufferedOutput::flush(bool lockIt)
 
     int s = strlen(_buf);
     if ( s > 0 ) {        
-        XrdOucMutexHelper mh;
+        XrdSysMutexHelper mh;
         if ( lockIt ) {
             mh.Lock(&_mutex);
         }

@@ -207,7 +207,7 @@ pid_t XrdScheduler::Fork(const char *id)
 // Start the reaper thread if it has not started.
 //
    if (!retc)
-      if ((retc = XrdOucThread::Run(&tid, XrdStartReaper, (void *)this,
+      if ((retc = XrdSysThread::Run(&tid, XrdStartReaper, (void *)this,
                                     0, "Process reaper")))
          {XrdLog.Emsg("Scheduler", retc, "create reaper thread");
           ReaperStarted = 0;
@@ -454,7 +454,7 @@ void XrdScheduler::Start()
 
 // Start a time based scheduler
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdStartTSched, (void *)this,
+   if ((retc = XrdSysThread::Run(&tid, XrdStartTSched, (void *)this,
                                  XRDOUCTHREAD_BIND, "Time scheduler")))
       XrdLog.Emsg("Scheduler", retc, "create time scheduler thread");
 
@@ -560,7 +560,7 @@ void XrdScheduler::hireWorker(int dotrace)  // Called with SchedMutex locked!
 
 // Start a new thread
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdStartWorking, (void *)this,
+   if ((retc = XrdSysThread::Run(&tid, XrdStartWorking, (void *)this,
                                  0, "Worker")))
       {XrdLog.Emsg("Scheduler", retc, "create worker thread");
        max_Workers = num_Workers;

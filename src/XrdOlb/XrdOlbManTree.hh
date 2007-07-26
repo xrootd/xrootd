@@ -13,7 +13,7 @@
 //         $Id$
 
 #include "XrdOlb/XrdOlbManager.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOlbServer;
   
@@ -50,11 +50,11 @@ void Pause(int sID)   {tmInfo[sID].Status = Waiting;
                        tmInfo[sID].theSem.Wait();
                       }
 
-XrdOucMutex     myMutex;
+XrdSysMutex     myMutex;
 
 
 struct TreeInfo
-       {XrdOucSemaphore theSem;
+       {XrdSysSemaphore theSem;
         XrdOlbServer   *servP;
         connStat        Status;
         int             Level;

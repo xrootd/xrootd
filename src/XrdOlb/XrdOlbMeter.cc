@@ -35,7 +35,7 @@ const char *XrdOlbMeterCVSID = "$Id$";
 #include "XrdOlb/XrdOlbConfig.hh"
 #include "XrdOlb/XrdOlbManager.hh"
 #include "XrdOlb/XrdOlbMeter.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdOlb;
@@ -112,7 +112,7 @@ XrdOlbMeter::XrdOlbMeter() : myMeter(&Say)
 XrdOlbMeter::~XrdOlbMeter()
 {
    if (monpgm) free(monpgm);
-   if (montid) XrdOucThread::Kill(montid);
+   if (montid) XrdSysThread::Kill(montid);
 }
   
 /******************************************************************************/
@@ -177,7 +177,7 @@ int XrdOlbMeter::Monitor(char *pgm, int itv)
 // Monitor() is a one-time call (otherwise unpredictable results may occur).
 //
    *mp = pp; monint = itv;
-   XrdOucThread::Run(&montid, XrdOlbMeterRun, (void *)this, 0, "Perf meter");
+   XrdSysThread::Run(&montid, XrdOlbMeterRun, (void *)this, 0, "Perf meter");
    Running = 1;
    return 0;
 }
@@ -331,7 +331,7 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
       } else {
        calcSpace();
        if ((noSpace = (dsk_maxf < MinFree))) Manager.Space(1,0);
-       XrdOucThread::Run(&monFStid,XrdOlbMeterRunFS,(void *)this,0,"FS meter");
+       XrdSysThread::Run(&monFStid,XrdOlbMeterRunFS,(void *)this,0,"FS meter");
       }
 
 // Delete any additional MeterFS objects we allocated

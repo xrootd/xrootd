@@ -78,23 +78,23 @@ LFLAGS   =
 
 HEADERS =   XrdOuca2x.hh XrdOucChain.hh XrdOucDLlist.hh XrdOucEnv.hh XrdOucErrInfo.hh \
             XrdOucError.hh XrdOucHash.hh XrdOucLock.hh XrdOucLogger.hh XrdOucName2Name.hh \
-            XrdOucNList.hh XrdOucPlatform.hh XrdOucPList.hh XrdOucPlugin.hh XrdOucProg.hh \
-            XrdOucPthread.hh XrdOucRash.hh XrdOucReqID.hh XrdOucSemWait.hh XrdOucStream.hh \
-            XrdOucString.hh XrdOucTable.hh XrdOucTimer.hh XrdOucTList.hh XrdOucTokenizer.hh \
-            XrdOucTrace.hh XrdOucUtils.hh XrdOucXSLock.hh
+            XrdOucNList.hh XrdSysPlatform.hh XrdOucPList.hh XrdSysPlugin.hh XrdSysProg.hh \
+            XrdSysPthread.hh XrdOucRash.hh XrdOucReqID.hh XrdSysSemWait.hh XrdOucStream.hh \
+            XrdOucString.hh XrdOucTable.hh XrdSysTimer.hh XrdOucTList.hh XrdOucTokenizer.hh \
+            XrdOucTrace.hh XrdOucUtils.hh XrdSysXSLock.hh
 
 SOURCES =   XrdOuca2x.cc XrdOucEnv.cc XrdOucError.cc XrdOucHashVal.cc XrdOucLogger.cc \
-            XrdOucName2Name.cc XrdOucNList.cc XrdOucPlatform.cc XrdOucPlugin.cc XrdOucProg.cc \
-            XrdOucPthread.cc XrdOucReqID.cc XrdOucStream.cc XrdOucString.cc XrdOucTimer.cc \
-            XrdOucTokenizer.cc XrdOucTrace.cc XrdOucUtils.cc XrdOucXSLock.cc
+            XrdOucName2Name.cc XrdOucNList.cc XrdSysPlatform.cc XrdSysPlugin.cc XrdSysProg.cc \
+            XrdSysPthread.cc XrdOucReqID.cc XrdOucStream.cc XrdOucString.cc XrdSysTimer.cc \
+            XrdOucTokenizer.cc XrdOucTrace.cc XrdOucUtils.cc XrdSysXSLock.cc
 
 OBJECTS =   $(OUTDIR)/XrdOuca2x.obj $(OUTDIR)/XrdOucEnv.obj $(OUTDIR)/XrdOucError.obj \
             $(OUTDIR)/XrdOucHashVal.obj $(OUTDIR)/XrdOucLogger.obj $(OUTDIR)/XrdOucName2Name.obj \
-            $(OUTDIR)/XrdOucNList.obj $(OUTDIR)/XrdOucPlatform.obj $(OUTDIR)/XrdOucPlugin.obj \
-            $(OUTDIR)/XrdOucProg.obj $(OUTDIR)/XrdOucPthread.obj $(OUTDIR)/XrdOucReqID.obj \
-            $(OUTDIR)/XrdOucStream.obj $(OUTDIR)/XrdOucString.obj $(OUTDIR)/XrdOucTimer.obj \
+            $(OUTDIR)/XrdOucNList.obj $(OUTDIR)/XrdSysPlatform.obj $(OUTDIR)/XrdSysPlugin.obj \
+            $(OUTDIR)/XrdSysProg.obj $(OUTDIR)/XrdSysPthread.obj $(OUTDIR)/XrdOucReqID.obj \
+            $(OUTDIR)/XrdOucStream.obj $(OUTDIR)/XrdOucString.obj $(OUTDIR)/XrdSysTimer.obj \
             $(OUTDIR)/XrdOucTokenizer.obj $(OUTDIR)/XrdOucTrace.obj $(OUTDIR)/XrdOucUtils.obj \
-            $(OUTDIR)/XrdOucXSLock.obj
+            $(OUTDIR)/XrdSysXSLock.obj
 
 ####### Build rules
 

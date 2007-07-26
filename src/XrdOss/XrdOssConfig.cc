@@ -47,9 +47,9 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdOuc/XrdOucPlugin.hh"
-#include "XrdOuc/XrdOucProg.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSys/XrdSysProg.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -259,7 +259,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 
 // Start up the cache scan thread
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdOssCacheScan, (void *)0,
+   if ((retc = XrdSysThread::Run(&tid, XrdOssCacheScan, (void *)0,
                                  0, "cache scan")))
       Eroute.Emsg("Config", retc, "create cache scan thread");
 
@@ -424,7 +424,7 @@ void XrdOssSys::ConfigMio(XrdOucError &Eroute)
 
 int XrdOssSys::ConfigN2N(XrdOucError &Eroute)
 {
-   XrdOucPlugin    *myLib;
+   XrdSysPlugin    *myLib;
    XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
 
 // If we have no library path then use the default method (this will always
@@ -440,7 +440,7 @@ int XrdOssSys::ConfigN2N(XrdOucError &Eroute)
 // Create a pluin object (we will throw this away without deletion because
 // the library must stay open but we never want to reference it again).
 //
-   if (!(myLib = new XrdOucPlugin(&Eroute, N2N_Lib))) return 1;
+   if (!(myLib = new XrdSysPlugin(&Eroute, N2N_Lib))) return 1;
 
 // Now get the entry point of the object creator
 //
@@ -592,7 +592,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 // Allocate a prgram object for the gateway command
 //
    if (MSSgwCmd)
-      {MSSgwProg = new XrdOucProg(&Eroute);
+      {MSSgwProg = new XrdSysProg(&Eroute);
        if (MSSgwProg->Setup(MSSgwCmd)) NoGo = 1;
       }
 
@@ -608,7 +608,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 
       // Set up a program object for the command
       //
-         StageProg = new XrdOucProg(&Eroute);
+         StageProg = new XrdSysProg(&Eroute);
          if (StageProg->Setup(StageCmd)) NoGo = 1;
 
       // For old-style real-time staging, create threads to handle the staging
@@ -617,7 +617,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
          if (!NoGo)
             if (StageRealTime)
                {if ((numt = xfrthreads - xfrtcount) > 0) while(numt--)
-                    if ((retc = XrdOucThread::Run(&tid,XrdOssxfr,(void *)0,0,"staging")))
+                    if ((retc = XrdSysThread::Run(&tid,XrdOssxfr,(void *)0,0,"staging")))
                        Eroute.Emsg("Config", retc, "create staging thread");
                        else xfrtcount++;
                } else NoGo = StageProg->Start();

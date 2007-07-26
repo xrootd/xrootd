@@ -12,12 +12,12 @@
 //          $Id$
 
 #include <sys/poll.h>
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #define XRD_NUMPOLLERS 3
 
 class XrdLink;
-class XrdOucSemaphore;
+class XrdSysSemaphore;
   
 class XrdPoll
 {
@@ -49,7 +49,7 @@ static  int   Setup(int numfd);        // Implementation supplied
 
 // Start() is called via a thread for each poller that was created
 //
-virtual    void        Start(XrdOucSemaphore *syncp, int &rc) = 0;
+virtual    void        Start(XrdSysSemaphore *syncp, int &rc) = 0;
 
 // Stats() is called to provide statistics on polling
 //
@@ -90,11 +90,11 @@ static     XrdPoll   *newPoller(int pollid, int numfd)    /* = 0 */;
 
 // The following is common to all implementations
 //
-XrdOucMutex   PollPipe;
+XrdSysMutex   PollPipe;
 struct pollfd PipePoll;
 int           CmdFD;      // FD to send PipeData commands
 int           ReqFD;      // FD to recv PipeData requests
-struct        PipeData {union {XrdOucSemaphore  *theSem;
+struct        PipeData {union {XrdSysSemaphore  *theSem;
                                struct {int fd;
                                        int ent;} Arg;
                               } Parms;
@@ -113,7 +113,7 @@ int           PipeBlen;
 
 private:
 
-static     XrdOucMutex  doingAttach;
+static     XrdSysMutex  doingAttach;
            int          numAttached;    // Number of fd's attached to poller
 };
 #endif

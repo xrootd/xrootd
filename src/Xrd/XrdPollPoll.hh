@@ -28,7 +28,7 @@ public:
 
        int  Enable(XrdLink *lp);
 
-       void Start(XrdOucSemaphore *syncp, int &rc);
+       void Start(XrdSysSemaphore *syncp, int &rc);
 
             XrdPollPoll(struct pollfd *pp, int numfd);
            ~XrdPollPoll();
@@ -49,7 +49,7 @@ void  Restart(int ecode);
 struct     pollfd     *PollTab;    //<---
            int         PollTNum;   // PollMutex protects these elements
            XrdLink    *PollQ;      //<---
-           XrdOucMutex PollMutex;
+           XrdSysMutex PollMutex;
            int         maxent;
 };
 #endif

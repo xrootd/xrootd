@@ -18,16 +18,16 @@
 /******************************************************************************/
   
 XrdOlbXmi       *XrdOlbXmiReq::XmiP;
-XrdOucMutex      XrdOlbXmiReq::prpMutex;
-XrdOucSemaphore  XrdOlbXmiReq::prpReady(0);
+XrdSysMutex      XrdOlbXmiReq::prpMutex;
+XrdSysSemaphore  XrdOlbXmiReq::prpReady(0);
 XrdOlbXmiReq    *XrdOlbXmiReq::prpFirst = 0;
 XrdOlbXmiReq    *XrdOlbXmiReq::prpLast  = 0;
-XrdOucMutex      XrdOlbXmiReq::reqMutex;
-XrdOucSemaphore  XrdOlbXmiReq::reqReady(0);
+XrdSysMutex      XrdOlbXmiReq::reqMutex;
+XrdSysSemaphore  XrdOlbXmiReq::reqReady(0);
 XrdOlbXmiReq    *XrdOlbXmiReq::reqFirst = 0;
 XrdOlbXmiReq    *XrdOlbXmiReq::reqLast  = 0;
-XrdOucMutex      XrdOlbXmiReq::stgMutex;
-XrdOucSemaphore  XrdOlbXmiReq::stgReady(0);
+XrdSysMutex      XrdOlbXmiReq::stgMutex;
+XrdSysSemaphore  XrdOlbXmiReq::stgReady(0);
 XrdOlbXmiReq    *XrdOlbXmiReq::stgFirst = 0;
 XrdOlbXmiReq    *XrdOlbXmiReq::stgLast  = 0;
 
@@ -293,19 +293,19 @@ void XrdOlbXmiReq::Start()
 
 // Start the thread that handles prepare requests
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdOlbXmi_StartPrpQ, (void *)this,
+   if ((retc = XrdSysThread::Run(&tid, XrdOlbXmi_StartPrpQ, (void *)this,
                             XRDOUCTHREAD_BIND, "xmi prepare handler")))
       {Say.Emsg("XmiReq", retc, "create prepare thread"); _exit(3);}
 
 // Start the thread that handles general requests
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdOlbXmi_StartReqQ, (void *)this,
+   if ((retc = XrdSysThread::Run(&tid, XrdOlbXmi_StartReqQ, (void *)this,
                             XRDOUCTHREAD_BIND, "xmi request handler")))
       {Say.Emsg("XmiReq", retc, "create request thread"); _exit(3);}
 
 // Start the thread that handles staging requests
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdOlbXmi_StartStgQ, (void *)this,
+   if ((retc = XrdSysThread::Run(&tid, XrdOlbXmi_StartStgQ, (void *)this,
                             XRDOUCTHREAD_BIND, "xmi staging handler")))
       {Say.Emsg("XmiReq", retc, "create staging thread"); _exit(3);}
 }

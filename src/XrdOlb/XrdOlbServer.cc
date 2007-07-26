@@ -34,7 +34,7 @@ const char *XrdOlbServerCVSID = "$Id$";
 #include "XrdOlb/XrdOlbXmi.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucProg.hh"
+#include "XrdSys/XrdSysProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
@@ -51,7 +51,7 @@ using namespace XrdOlb;
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
 
-XrdOucMutex XrdOlbServer::mlMutex;
+XrdSysMutex XrdOlbServer::mlMutex;
 
 int         XrdOlbServer::xeq_load = 0;
 int         XrdOlbServer::cpu_load = 0;
@@ -68,7 +68,7 @@ int         XrdOlbServer::dsk_totu = 0;
 XrdOlbServer::XrdOlbServer(XrdNetLink *lnkp, int port, char *sid)
                           : Req(this, &Info)
 {
-    static XrdOucMutex iMutex;
+    static XrdSysMutex iMutex;
     static int         iNum = 1;
 
     Link     =  lnkp;
@@ -1628,7 +1628,7 @@ int XrdOlbServer::do_StateFWD(char *tp, int reset)
 //
 int XrdOlbServer::do_Stats(char *rid, int full)
 {
-   static XrdOucMutex StatsData;
+   static XrdSysMutex StatsData;
    static int    statsz = 0;
    static int    statln = 0;
    static char  *statbuff = 0;

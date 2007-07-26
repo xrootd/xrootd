@@ -12,7 +12,7 @@
 
 //      $Id$
  
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 
@@ -33,6 +33,6 @@ public:
            ~XrdXrootdFileLock1() {} // This object is never destroyed!
 private:
 static const char *TraceID;
-static XrdOucMutex  LTMutex;
+static XrdSysMutex  LTMutex;
 };
 #endif

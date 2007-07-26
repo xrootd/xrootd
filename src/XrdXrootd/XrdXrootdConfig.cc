@@ -33,7 +33,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucProg.hh"
+#include "XrdSys/XrdSysProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -455,7 +455,7 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 
 int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 {
-   static XrdOucProg *theProg = 0;
+   static XrdSysProg *theProg = 0;
    char *palg, prog[2048];
    int jmax = 4;
 
@@ -484,7 +484,7 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 
 // Set up the program and job
 //
-   if (!theProg) theProg = new XrdOucProg(0);
+   if (!theProg) theProg = new XrdSysProg(0);
    if (theProg->Setup(prog, &eDest)) return 1;
    if (JobCKS) delete JobCKS;
    JobCKS = new XrdXrootdJob(Sched, theProg, "chksum", jmax);

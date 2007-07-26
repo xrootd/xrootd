@@ -27,7 +27,7 @@ const char *XrdOssAioCVSID = "$Id$";
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 
 // All AIO interfaces are defined here.
@@ -293,12 +293,12 @@ int XrdOssSys::AioInit()
 // write) that synhronously wait for AIO events. We assume, blithely, that
 // the first two real-time signals have been blocked for all threads.
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdOssAioWait,
+   if ((retc = XrdSysThread::Run(&tid, XrdOssAioWait,
                                 (void *)(&OSS_AIO_READ_DONE))) < 0)
       OssEroute.Emsg("AioInit", retc, "creating AIO read signal thread; "
                                  "AIO support terminated.");
       else {DEBUG("started AIO read signal thread; tid=" <<(unsigned int)tid);
-            if ((retc = XrdOucThread::Run(&tid, XrdOssAioWait,
+            if ((retc = XrdSysThread::Run(&tid, XrdOssAioWait,
                                 (void *)(&OSS_AIO_WRITE_DONE))) < 0)
                OssEroute.Emsg("AioInit", retc, "creating AIO write signal thread; "
                                  "AIO support terminated.");

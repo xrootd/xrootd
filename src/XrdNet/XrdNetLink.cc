@@ -36,7 +36,7 @@ const char *XrdNetLinkCVSID = "$Id$";
 /*                 S t a t i c   I n i t i a l i z a t i o n                  */
 /******************************************************************************/
 
-XrdOucMutex             XrdNetLink::LinkList;
+XrdSysMutex             XrdNetLink::LinkList;
 XrdOucStack<XrdNetLink> XrdNetLink::LinkStack;
 int                     XrdNetLink::maxlink = 16;
 int                     XrdNetLink::numlink = 0;

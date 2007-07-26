@@ -44,7 +44,7 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlugin.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -960,7 +960,7 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
 
 int XrdOfs::setupAuth(XrdOucError &Eroute)
 {
-   XrdOucPlugin    *myLib;
+   XrdSysPlugin    *myLib;
    XrdAccAuthorize *(*ep)(XrdOucLogger *, const char *, const char *);
 
 // Authorization comes from the library or we use the default
@@ -971,7 +971,7 @@ int XrdOfs::setupAuth(XrdOucError &Eroute)
 // Create a pluin object (we will throw this away without deletion because
 // the library must stay open but we never want to reference it again).
 //
-   if (!(myLib = new XrdOucPlugin(&Eroute, AuthLib))) return 1;
+   if (!(myLib = new XrdSysPlugin(&Eroute, AuthLib))) return 1;
 
 // Now get the entry point of the object creator
 //

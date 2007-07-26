@@ -94,7 +94,7 @@ XrdMonDecSink::~XrdMonDecSink()
         checkpoint();
     }    
     {
-        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        XrdSysMutexHelper mh; mh.Lock(&_dMutex);
         int i, dcacheSize = _dCache.size();
         for ( i=0; i<dcacheSize ; ++i ) {
             resetDMap(i);
@@ -103,7 +103,7 @@ XrdMonDecSink::~XrdMonDecSink()
         }
     }
     {
-        XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+        XrdSysMutexHelper mh; mh.Lock(&_uMutex);
         int i, ucacheSize = _uCache.size();
         for ( i=0; i<ucacheSize ; ++i ) {
             resetUMap(i);
@@ -208,7 +208,7 @@ XrdMonDecSink::addDictId(dictid_t xrdId,
                          int len,
                          senderid_t senderId)
 {
-    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+    XrdSysMutexHelper mh; mh.Lock(&_dMutex);
     dmap_t* dMap = 0;
     if ( _dCache.size() <= senderId ) {
         dMap = new dmap_t;
@@ -240,7 +240,7 @@ XrdMonDecSink::addUserId(dictid_t usrId,
                          int len,
                          senderid_t senderId)
 {
-    XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+    XrdSysMutexHelper mh; mh.Lock(&_uMutex);
     umap_t* uMap = 0;
     if ( _uCache.size() <= senderId ) {
         uMap = new umap_t;
@@ -283,7 +283,7 @@ XrdMonDecSink::add(dictid_t xrdId,
         noLostTraces = 0;
     }
 
-    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+    XrdSysMutexHelper mh; mh.Lock(&_dMutex);
     dmap_t* dMap = 0;
     if ( _dCache.size() <= senderId ) {
         dMap = new dmap_t;
@@ -322,7 +322,7 @@ XrdMonDecSink::addUserDisconnect(dictid_t xrdId,
                                  kXR_int32 timestamp,
                                  senderid_t senderId)
 {
-    XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+    XrdSysMutexHelper mh; mh.Lock(&_uMutex);
 
     umap_t* uMap = 0;
     if ( _uCache.size() <= senderId ) {
@@ -354,7 +354,7 @@ XrdMonDecSink::openFile(dictid_t xrdId,
                         senderid_t senderId,
                         kXR_int64 fSize)
 {
-    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+    XrdSysMutexHelper mh; mh.Lock(&_dMutex);
     dmap_t* dMap = 0;
     if ( _dCache.size() <= senderId ) {
         dMap = new dmap_t;
@@ -389,7 +389,7 @@ XrdMonDecSink::closeFile(dictid_t xrdId,
                          kXR_int32 timestamp,
                          senderid_t senderId)
 {
-    XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+    XrdSysMutexHelper mh; mh.Lock(&_dMutex);
     dmap_t* dMap = 0;
     if ( _dCache.size() <= senderId ) {
         dMap = new dmap_t;
@@ -453,7 +453,7 @@ XrdMonDecSink::flushClosedDicts()
 
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
     {
-        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        XrdSysMutexHelper mh; mh.Lock(&_dMutex);
         int i, dcacheSize = _dCache.size();
         for ( i=0; i<dcacheSize ; ++i ) {
             dmap_t* m = _dCache[i];
@@ -520,7 +520,7 @@ XrdMonDecSink::flushUserCache()
 
     int curLen = 0, sizeBefore = 0, sizeAfter = 0;
     {
-        XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+        XrdSysMutexHelper mh; mh.Lock(&_uMutex);
         int i, ucacheSize = _uCache.size();
         for ( i=0 ; i<ucacheSize ; ++i ) {
             umap_t* m = _uCache[i];
@@ -643,7 +643,7 @@ XrdMonDecSink::checkpoint()
     map<dictid_t, XrdMonDecDictInfo*>::iterator itr;
     {
         vector<dictid_t> forDeletion;
-        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        XrdSysMutexHelper mh; mh.Lock(&_dMutex);
         for ( itr=_dCache.begin() ; itr != _dCache.end() ; ++itr ) {
             XrdMonDecDictInfo* di = itr->second;
             if ( di != 0 && ! di->isClosed() ) {
@@ -762,12 +762,12 @@ XrdMonDecSink::reset(senderid_t senderId)
     flushClosedDicts();
 
     {
-        XrdOucMutexHelper mh; mh.Lock(&_dMutex);
+        XrdSysMutexHelper mh; mh.Lock(&_dMutex);
         resetDMap(senderId);
     }
     
     {
-        XrdOucMutexHelper mh; mh.Lock(&_uMutex);
+        XrdSysMutexHelper mh; mh.Lock(&_uMutex);
         resetUMap(senderId);
     }    
 }

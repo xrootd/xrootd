@@ -16,7 +16,7 @@
 #include <netdb.h>
 #include <sys/param.h>
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAuthDB.hh"
 
@@ -52,7 +52,7 @@ XrdOucStream      DBfile;
 char             *authfn;
 char              rectype;
 time_t            modtime;
-XrdOucMutex       DBcontext;
+XrdSysMutex       DBcontext;
 
 char recname_buff[MAXHOSTNAMELEN+1];   // Max record name by default
 char path_buff[PATH_MAX+2];          // Max path   name

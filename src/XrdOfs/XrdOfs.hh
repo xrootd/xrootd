@@ -21,7 +21,7 @@
 #include "XrdOfs/XrdOfsHandle.hh"
 #include "XrdOdc/XrdOdcFinder.hh"
 #include "XrdOss/XrdOss.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 

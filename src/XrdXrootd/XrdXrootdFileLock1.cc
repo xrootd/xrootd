@@ -40,12 +40,12 @@ class XrdXrootdLockFileLock
 {
 public:
 
-      XrdXrootdLockFileLock(XrdOucMutex *mutex)
+      XrdXrootdLockFileLock(XrdSysMutex *mutex)
                       {mp = mutex; mp->Lock();}
      ~XrdXrootdLockFileLock()
                       {mp->UnLock();}
 private:
-XrdOucMutex *mp;
+XrdSysMutex *mp;
 };
 
 /******************************************************************************/
@@ -54,7 +54,7 @@ XrdOucMutex *mp;
   
 XrdOucHash<XrdXrootdFileLockInfo> XrdXrootdLockTable;
 
-XrdOucMutex  XrdXrootdFileLock1::LTMutex;
+XrdSysMutex  XrdXrootdFileLock1::LTMutex;
 
 const char *XrdXrootdFileLock1::TraceID = "FileLock1";
  

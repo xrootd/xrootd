@@ -14,7 +14,7 @@
 
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 class XrdOlbMeterFS;
@@ -52,8 +52,8 @@ const char Scale(long long inval, long &outval);
       void SpaceMsg(int why);
 
 XrdOucStream  myMeter;
-XrdOucMutex   cfsMutex;
-XrdOucMutex   repMutex;
+XrdSysMutex   cfsMutex;
+XrdSysMutex   repMutex;
 XrdOucTList  *fs_list;
 long long     MinFree;
 long long     HWMFree;

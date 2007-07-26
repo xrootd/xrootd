@@ -41,7 +41,7 @@ const char *XrdOdcFinderCVSID = "$Id$";
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -251,7 +251,7 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
 {
    EPNAME("Prepare")
-   static XrdOucMutex prepMutex;
+   static XrdSysMutex prepMutex;
    char mbuff1[32], mbuff2[32], *mode;
    XrdOucTList *tp;
    int pathloc, plenloc = 0;
@@ -327,7 +327,7 @@ int XrdOdcFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
          if (!Manp->Send((const struct iovec *)&iodata, 7)) break;
          if ((tp = tp->next))
             {prepMutex.Lock();
-             XrdOucTimer::Wait(PrepWait);
+             XrdSysTimer::Wait(PrepWait);
              prepMutex.UnLock();
             }
         }
@@ -509,7 +509,7 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
          if (myManagers) mp->setNext(myManagers);
             else firstone = mp;
          myManagers = mp;
-         if (XrdOucThread::Run(&tid,XrdOdcStartManager,(void *)mp,0,tp->text))
+         if (XrdSysThread::Run(&tid,XrdOdcStartManager,(void *)mp,0,tp->text))
             OdcEDest.Emsg("Config", errno, "start manager");
             else mp->setTID(tid);
          tp = tp->next; i++;
@@ -615,7 +615,7 @@ int XrdOdcFinderTRG::Configure(char *cfn)
 
 // Start a thread to connect with the local olb
 //
-   if (XrdOucThread::Run(&tid, XrdOdcStartOlb, (void *)this, 0, "olb i/f"))
+   if (XrdSysThread::Run(&tid, XrdOdcStartOlb, (void *)this, 0, "olb i/f"))
       OdcEDest.Emsg("Config", errno, "start olb interface");
 
 // All done
@@ -679,7 +679,7 @@ void *XrdOdcFinderTRG::Start()
          Active = 0;
          myData.UnLock();
          OdcEDest.Emsg("olb", "Lost contact with olb via", OLBPath);
-         XrdOucTimer::Wait(10*1000);
+         XrdSysTimer::Wait(10*1000);
         }
 
 // We should never get here
@@ -705,7 +705,7 @@ void XrdOdcFinderTRG::Hookup()
    while(stat(OLBPath, &buf)) 
         {if (!tries--)
             {OdcEDest.Emsg("olb", "Waiting for olb path", OLBPath); tries=6;}
-         XrdOucTimer::Wait(10*1000);
+         XrdSysTimer::Wait(10*1000);
         }
 
 // We can now try to connect
@@ -716,7 +716,7 @@ void XrdOdcFinderTRG::Hookup()
             {opts = XRDNET_NOEMSG;
              tries = 6;
             } else if (!tries) opts = 0;
-         XrdOucTimer::Wait(10*1000);
+         XrdSysTimer::Wait(10*1000);
         };
 
 // Transfer the socket FD to a stream

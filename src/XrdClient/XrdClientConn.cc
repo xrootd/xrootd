@@ -138,9 +138,9 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fUrl(""),
     LastServerError.errnum = kXR_noErrorYet;
 
     fREQUrl.Clear();
-    fREQWait = new XrdOucCondVar(0);
-    fREQConnectWait = new XrdOucCondVar(0);
-    fREQWaitResp = new XrdOucCondVar(0);
+    fREQWait = new XrdSysCondVar(0);
+    fREQConnectWait = new XrdSysCondVar(0);
+    fREQWaitResp = new XrdSysCondVar(0);
 
     fRedirHandler = 0;
     fUnsolMsgHandler = 0;

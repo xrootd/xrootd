@@ -13,7 +13,7 @@
 //          $Id$
 
 #include "XrdOdc/XrdOdcConfDefs.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class  XrdOdcManager;
 class  XrdOucEnv;
@@ -100,7 +100,7 @@ int            StartManagers(XrdOucTList *);
 XrdOdcManager *myManTable[XRDODCMAXMAN];
 XrdOdcManager *myManagers;
 int            myManCount;
-XrdOucMutex    myData;
+XrdSysMutex    myData;
 int            ConWait;
 int            RepDelay;
 int            RepNone;
@@ -143,7 +143,7 @@ private:
 void  Hookup();
 
 XrdOucStream  *OLBp;
-XrdOucMutex    myData;
+XrdSysMutex    myData;
 int            myPort;
 char          *OLBPath;
 char          *Login;

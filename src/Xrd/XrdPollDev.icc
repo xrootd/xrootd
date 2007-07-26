@@ -104,7 +104,7 @@ XrdPollDev::~XrdPollDev()
 void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
 {
    static XrdPoll_End linkend;
-   XrdOucSemaphore mySem(0);
+   XrdSysSemaphore mySem(0);
    PipeData cmdbuff[2];
    int myerrno = 0;
 
@@ -188,7 +188,7 @@ void XrdPollDev::Exclude(XrdLink *lp)
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
-void XrdPollDev::Start(XrdOucSemaphore *syncsem, int &retcode)
+void XrdPollDev::Start(XrdSysSemaphore *syncsem, int &retcode)
 {
    int i, numpolled, num2sched, AOK = 0;
    XrdJob *jfirst, *jlast;

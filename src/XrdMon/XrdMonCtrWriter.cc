@@ -87,7 +87,7 @@ XrdMonCtrWriter::operator()(const char* packet,
     _bPos += header.packetLen();
 
     if ( XrdMonCtrDebug::verbose(XrdMonCtrDebug::Receiving) ) {
-        XrdOucMutexHelper mh; mh.Lock(&XrdMonCtrDebug::_mutex);
+        XrdSysMutexHelper mh; mh.Lock(&XrdMonCtrDebug::_mutex);
         //cout << " Archiving packet #" << setw(5) << ++_totalArchived 
         //     << " from " << _sender.first << " " << header << endl;
     }

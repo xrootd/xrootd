@@ -27,7 +27,7 @@ class XrdNetSocket;
 class XrdNetWork;
 class XrdOucError;
 class XrdOucName2Name;
-class XrdOucProg;
+class XrdSysProg;
 class XrdOucStream;
 class XrdOlbXmi;
 
@@ -110,12 +110,12 @@ XrdOucTList *ManList;     // From preferred  manager   directive
 char        *NoStageFile;
 char        *SuspendFile;
 
-XrdOucProg  *ProgCH;      // Server only chmod
-XrdOucProg  *ProgMD;      // Server only mkdir
-XrdOucProg  *ProgMP;      // Server only mkpath
-XrdOucProg  *ProgMV;      // Server only mv
-XrdOucProg  *ProgRD;      // Server only rmdir
-XrdOucProg  *ProgRM;      // Server only rm
+XrdSysProg  *ProgCH;      // Server only chmod
+XrdSysProg  *ProgMD;      // Server only mkdir
+XrdSysProg  *ProgMP;      // Server only mkpath
+XrdSysProg  *ProgMV;      // Server only mv
+XrdSysProg  *ProgRD;      // Server only rmdir
+XrdSysProg  *ProgRM;      // Server only rm
 
 unsigned long long DirFlags;
 XrdOlbPList_Anchor PathList;

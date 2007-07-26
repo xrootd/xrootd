@@ -13,7 +13,7 @@
 #ifndef XRDMONCTRDEBUG_HH
 #define XRDMONCTRDEBUG_HH
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 // class responsible for handling log/debug/error messages
 
@@ -37,7 +37,7 @@ public:
         return _verbose & val;
     }
 
-    static XrdOucMutex _mutex;
+    static XrdSysMutex _mutex;
 
 private:
     static Verbosity _verbose;

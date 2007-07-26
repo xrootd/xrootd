@@ -13,7 +13,7 @@
 #ifndef XRDMONCTRBUFFER_HH
 #define XRDMONCTRBUFFER_HH
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 class XrdMonCtrPacket;
 
 // It is a fast and simple list: elements are added 
@@ -43,8 +43,8 @@ private:
     Elem* _tail;
     int   _noElems;
     
-    XrdOucMutex    _mutex;
-    XrdOucCondVar  _cond;
+    XrdSysMutex    _mutex;
+    XrdSysCondVar  _cond;
 
     // statistics
     int _max;        // maximum _noElems in the list

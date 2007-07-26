@@ -11,7 +11,7 @@
 //       $Id$
 
 #include "XrdClient/XrdClientReadCache.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
@@ -51,7 +51,7 @@ long long XrdClientReadCache::GetTimestampTick()
     // Return timestamp
 
     // Mutual exclusion man!
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
     return ++fTimestampTickCounter;
 }
   
@@ -96,7 +96,7 @@ void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
 	 "Submitting " << begin_offs << "->" << end_offs << " to cache.");
 
     // Mutual exclusion man!
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
 
 
     //    PrintCache();
@@ -226,7 +226,7 @@ void XrdClientReadCache::PutPlaceholder(long long begin_offs,
 
     {
 	// Mutual exclusion man!
-	XrdOucMutexHelper mtx(fMutex);
+	XrdSysMutexHelper mtx(fMutex);
 
 	// We find the correct insert position to keep the list sorted by
 	// BeginOffset
@@ -305,7 +305,7 @@ long XrdClientReadCache::GetDataIfPresent(const void *buffer,
     outstandingblks = 0;
     missingblks.Clear();
 
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
 
     if (PerfCalc)
 	fReadsCounter++;
@@ -423,7 +423,7 @@ long XrdClientReadCache::GetDataIfPresent(const void *buffer,
 //________________________________________________________________________
 void XrdClientReadCache::PrintCache() {
 
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
     int it;
 
     Info(XrdClientDebug::kHIDEBUG, "Cache",
@@ -460,7 +460,7 @@ void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
     // To remove all the items contained in the given interval
 
     int it;
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
 
     it = FindInsertionApprox(begin_offs);
 
@@ -555,7 +555,7 @@ void XrdClientReadCache::RemoveItems()
 {
     // To remove all the items
     int it;
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
 
     it = 0;
 
@@ -575,7 +575,7 @@ void XrdClientReadCache::RemovePlaceholders() {
 
     int it = 0;
 
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
 
     if (!fItems.GetSize()) return;
 
@@ -603,7 +603,7 @@ bool XrdClientReadCache::RemoveLRUItem()
     long long minticks = -1;
     XrdClientReadCacheItem *item;
 
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
 
     lruit = -1;
 
@@ -652,7 +652,7 @@ bool XrdClientReadCache::MakeFreeSpace(long long bytes)
     if (!WillFit(bytes))
 	return false;
 
-    XrdOucMutexHelper mtx(fMutex);
+    XrdSysMutexHelper mtx(fMutex);
 
     while (fMaxCacheSize - fTotalByteCount < bytes)
 	if (!RemoveLRUItem()) break;

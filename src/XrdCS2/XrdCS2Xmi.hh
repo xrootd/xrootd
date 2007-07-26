@@ -14,7 +14,7 @@
 
 #include "XrdOlb/XrdOlbReq.hh"
 #include "XrdOlb/XrdOlbXmi.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 #include "castor/BaseObject.hpp"
 #include "castor/Constants.hpp"
@@ -134,7 +134,7 @@ static XrdOucTrace  *Trace;         // -> Trace handler
 static const int reinitTime = 60; // Re-initialize no more then 60 times an hour
 static const int retryTime  = 90; // How long a client waits between retries
 static const int MSSPollTime= 30; // Poll for new files every 30 seconds
-XrdOucMutex      initMutex;
+XrdSysMutex      initMutex;
 char             initDone;
 char             initActive;
 };

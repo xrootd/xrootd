@@ -48,6 +48,7 @@ TARGETS = $(LIBRARY) $(TESTBIN)
 
 vpath XrdOuc% ../XrdOuc
 vpath XrdSec% ../XrdSec
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -81,7 +82,7 @@ $(OBJDIR)/XrdAccAccess.o: XrdAccAccess.cc     XrdAccAccess.hh \
                           XrdAccCapability.hh XrdAccConfig.hh    XrdAccGroups.hh \
                           XrdAccAudit.hh     XrdAccAuthorize.hh  XrdAccPrivs.hh \
                           XrdOucError.hh     XrdOucHash.hh       XrdOucHash.icc \
-                          XrdOucLogger.hh    XrdOucXSLock.hh     XrdSecEntity.hh
+                          XrdOucLogger.hh    XrdSysXSLock.hh     XrdSecEntity.hh
 	@echo Compiling XrdAccAccess.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAccess.o XrdAccAccess.cc
 
@@ -90,7 +91,7 @@ $(OBJDIR)/XrdAccAudit.o: XrdAccAudit.cc XrdAccAudit.hh XrdOucError.hh
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAudit.o XrdAccAudit.cc
 
 $(OBJDIR)/XrdAccAuthFile.o: XrdAccAuthFile.hh XrdAccAuthFile.cc \
-                            XrdOucError.hh  XrdOucPthread.hh  XrdOucStream.hh \
+                            XrdOucError.hh  XrdSysPthread.hh  XrdOucStream.hh \
                             XrdAccAuthDB.hh
 	@echo Compiling XrdAccAuthFile.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAuthFile.o XrdAccAuthFile.cc
@@ -105,13 +106,13 @@ $(OBJDIR)/XrdAccConfig.o: XrdAccConfig.hh     XrdAccConfig.cc \
                           XrdAccCapability.hh XrdAccGroups.hh XrdOucLock.hh \
                           XrdOuca2x.hh        XrdOucEnv.hh    XrdOucError.hh  \
                           XrdOucHash.hh       XrdOucHash.icc \
-                          XrdOucPthread.hh    XrdOucStream.hh XrdOucStream.hh
+                          XrdSysPthread.hh    XrdOucStream.hh XrdOucStream.hh
 	@echo Compiling XrdAccConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccConfig.o XrdAccConfig.cc
 
 $(OBJDIR)/XrdAccGroups.o: XrdAccGroups.hh     XrdAccGroups.cc \
                           XrdAccCapability.hh XrdAccPrivs.hh \
-                          XrdOucHash.hh       XrdOucHash.icc  XrdOucPthread.hh
+                          XrdOucHash.hh       XrdOucHash.icc  XrdSysPthread.hh
 	@echo Compiling XrdAccGroups.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccGroups.o XrdAccGroups.cc
 

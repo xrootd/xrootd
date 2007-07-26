@@ -21,8 +21,8 @@
 
 
 #include "XrdClient/XrdClientMessage.hh"
-#include "XrdOuc/XrdOucPthread.hh"
-#include "XrdOuc/XrdOucSemWait.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysSemWait.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdClient/XrdClientVector.hh"
 
@@ -35,15 +35,15 @@ private:
    XrdClientVector<XrdClientMessage*> fMsgQue;      // queue for incoming messages
    int                                fMsgIter;     // an iterator on it
 
-   XrdOucRecMutex                        fMutex;       // mutex to protect data structures
+   XrdSysRecMutex                        fMutex;       // mutex to protect data structures
 
-   XrdOucHash<XrdOucSemWait>          fSyncobjRepo;
+   XrdOucHash<XrdSysSemWait>          fSyncobjRepo;
                                              // each streamid counts on a condition
                                              // variable to make the caller wait
                                              // until some data is available
 
 
-   XrdOucSemWait                      *GetSyncObjOrMakeOne(int streamid);
+   XrdSysSemWait                      *GetSyncObjOrMakeOne(int streamid);
 
    int             MsgForStreamidCnt(int streamid);
 
@@ -54,12 +54,12 @@ public:
    inline bool     IsMexEmpty() { return (MexSize() == 0); }
    inline bool     IsSemEmpty() { return (SemSize() == 0); }
    inline int      MexSize() { 
-                       XrdOucMutexHelper mtx(fMutex);
+                       XrdSysMutexHelper mtx(fMutex);
                        return fMsgQue.GetSize();
                        }
    int             PutMsg(XrdClientMessage *msg);
    inline int      SemSize() {
-                       XrdOucMutexHelper mtx(fMutex);
+                       XrdSysMutexHelper mtx(fMutex);
                        return fSyncobjRepo.Num();
                        }
 

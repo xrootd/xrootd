@@ -17,7 +17,7 @@
   
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucNList.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class  XrdNetTextList;
 class  XrdOucTrace;
@@ -49,7 +49,7 @@ XrdOucNList_Anchor        HostList;
 XrdNetTextList           *NetGroups;
 
 XrdOucHash<char>          OKHosts;
-XrdOucMutex               okHMutex;
+XrdSysMutex               okHMutex;
 XrdOucTrace              *eTrace;
 
 int                       lifetime;

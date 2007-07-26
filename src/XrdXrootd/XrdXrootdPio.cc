@@ -16,7 +16,7 @@
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
   
-XrdOucMutex        XrdXrootdPio::myMutex;
+XrdSysMutex        XrdXrootdPio::myMutex;
 XrdXrootdPio      *XrdXrootdPio::Free = 0;
 int                XrdXrootdPio::FreeNum = 0;
 

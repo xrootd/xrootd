@@ -12,18 +12,18 @@
   
 //         $Id$
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOucLock
 {
 public:
-       XrdOucLock(XrdOucMutex *mp)
+       XrdOucLock(XrdSysMutex *mp)
                     {Mutex = mp; Mutex->Lock(); isLocked = 1;}
       ~XrdOucLock() {if (isLocked) Mutex->UnLock();}
 
 private:
 
-XrdOucMutex *Mutex;
+XrdSysMutex *Mutex;
 int          isLocked;
 };
 #endif

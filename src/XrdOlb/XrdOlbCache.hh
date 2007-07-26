@@ -17,7 +17,7 @@
 #include "XrdOlb/XrdOlbPList.hh"
 #include "XrdOlb/XrdOlbTypes.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
  
 /******************************************************************************/
 /*                     S t r u c t   o o l b _ C I n f o                      */
@@ -85,7 +85,7 @@ private:
 
 void                    Add2Q(XrdOlbRRQInfo *Info, XrdOlbCInfo *cp, int isrw);
 void                    Dispatch(XrdOlbCInfo *cinfo, short roQ, short rwQ);
-XrdOucMutex             PTMutex;
+XrdSysMutex             PTMutex;
 XrdOucHash<XrdOlbCInfo> PTable;
 int                     LifeTime;
 };

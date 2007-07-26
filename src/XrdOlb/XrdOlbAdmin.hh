@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdNetSocket;
 
@@ -25,7 +25,7 @@ public:
 
        void  Login(int socknum);
 
-static void  setSync(XrdOucSemaphore  *sync)  {SyncUp = sync;}
+static void  setSync(XrdSysSemaphore  *sync)  {SyncUp = sync;}
 
        void *Notes(XrdNetSocket *AdminSock);
 
@@ -44,8 +44,8 @@ void  do_RmDud(int dotrim=0);
 void  do_Stage();
 void  do_Suspend();
 
-static XrdOucMutex      myMutex;
-static XrdOucSemaphore *SyncUp;
+static XrdSysMutex      myMutex;
+static XrdSysSemaphore *SyncUp;
 static int              POnline;
        XrdOucStream     Stream;
        const char      *Stype;

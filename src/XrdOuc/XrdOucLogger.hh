@@ -23,7 +23,7 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOucLogger
 {
@@ -70,7 +70,7 @@ char  traceEnd() {Logger_Mutex.UnLock(); return '\n';}
 
 private:
 
-XrdOucMutex Logger_Mutex;
+XrdSysMutex Logger_Mutex;
 long long  eKeep;
 char       TBuff[24];        // Trace header buffer
 int        eFD;

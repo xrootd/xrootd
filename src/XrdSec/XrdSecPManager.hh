@@ -15,7 +15,7 @@
 #include <sys/socket.h>
   
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOucErrInfo;
 class XrdSecProtList;
@@ -67,7 +67,7 @@ XrdSecProtList    *ldPO(XrdOucErrInfo *eMsg,    // In
 XrdSecProtList    *Lookup(const char *pid);
 
 XrdSecPMask_t      protnum;
-XrdOucMutex        myMutex;
+XrdSysMutex        myMutex;
 XrdSecProtList    *First;
 XrdSecProtList    *Last;
 int                DebugON;

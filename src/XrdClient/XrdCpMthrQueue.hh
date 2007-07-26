@@ -10,9 +10,9 @@
 
 //       $Id$
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClientVector.hh"
-#include "XrdOuc/XrdOucSemWait.hh"
+#include "XrdSys/XrdSysSemWait.hh"
 
 #include <iostream>
 using namespace std;
@@ -32,11 +32,11 @@ class XrdCpMthrQueue {
    XrdClientVector<XrdCpMessage*>            fMsgQue;      // queue for incoming messages
    int                                       fMsgIter;     // an iterator on it
 
-   XrdOucRecMutex                        fMutex;       // mutex to protect data structures
+   XrdSysRecMutex                        fMutex;       // mutex to protect data structures
 
-   XrdOucSemWait                      fReadSem;     // variable to make the reader wait
+   XrdSysSemWait                      fReadSem;     // variable to make the reader wait
                                                     // until some data is available
-   XrdOucCondVar                      fWriteCnd;    // variable to make the writer wait
+   XrdSysCondVar                      fWriteCnd;    // variable to make the writer wait
                                                     // if the queue is full
  public:
 

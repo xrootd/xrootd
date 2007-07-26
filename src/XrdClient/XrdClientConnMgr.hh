@@ -24,7 +24,7 @@
 
 
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClientUnsolMsg.hh"
 #include "XrdClient/XrdClientPhyConnection.hh"
 #include "XrdClient/XrdClientVector.hh"
@@ -56,14 +56,14 @@ private:
    //  then wait for it to be signalled before deciding what to do
   class CndVarInfo {
   public:
-    XrdOucCondVar cv;
+    XrdSysCondVar cv;
     int cnt;
     CndVarInfo(): cv(0), cnt(0) {};
   };
 
    XrdOucHash<CndVarInfo> fConnectingCondVars;
 
-   XrdOucRecMutex                fMutex; // mutex used to protect local variables
+   XrdSysRecMutex                fMutex; // mutex used to protect local variables
                                       // of this and TXLogConnection, TXPhyConnection
                                       // classes; not used to protect i/o streams
 

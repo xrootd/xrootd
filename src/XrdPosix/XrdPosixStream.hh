@@ -16,7 +16,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdPosixStream
 {
@@ -35,7 +35,7 @@ inline int   myFD(int fildes)
 
 private:
 
-XrdOucMutex FileMutex;
+XrdSysMutex FileMutex;
 
 static const int MaxFiles = 256;
 

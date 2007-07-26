@@ -45,7 +45,7 @@ using namespace XrdOlb;
 
        XrdOucTrace      XrdOlb::Trace(&XrdOlb::Say);
 
-       XrdOucMutex      XrdOlbProtocol::ProtMutex;
+       XrdSysMutex      XrdOlbProtocol::ProtMutex;
        XrdOlbProtocol  *XrdOlbProtocol::ProtStack = 0;
 
        XrdInet         *XrdOlbProtocol::myNet     = 0;

@@ -12,7 +12,7 @@
   
 //          $Id$
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOucErrInfo;
 
@@ -48,10 +48,10 @@ static int          nextid;
 
 static XrdOdcMsg   *msgTab;
 static XrdOdcMsg   *nextfree;
-static XrdOucMutex  FreeMsgQ;
+static XrdSysMutex  FreeMsgQ;
 
 XrdOdcMsg          *next;
-XrdOucCondVar       Hold;
+XrdSysCondVar       Hold;
 int                 inwaitq;
 int                 id;
 XrdOucErrInfo      *Resp;

@@ -16,10 +16,10 @@
   
 #include "Xrd/XrdJob.hh"
 #include "XrdOuc/XrdOucTList.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucTable.hh"
 
-class XrdOucProg;
+class XrdSysProg;
 class XrdLink;
 class XrdScheduler;
 class XrdXrootdJob2Do;
@@ -53,7 +53,7 @@ int      Schedule(const char         *jkey,   // Job Identifier
                   int                 Opts=0);// Options (see above)
 
          XrdXrootdJob(XrdScheduler *schp,       // -> Scheduler
-                      XrdOucProg   *pgm,        // -> Program Object
+                      XrdSysProg   *pgm,        // -> Program Object
                       const char   *jname,      // -> Job name
                       int           maxjobs=4); // Maximum simultaneous jobs
         ~XrdXrootdJob();
@@ -66,10 +66,10 @@ int  sendResult(XrdXrootdResponse *resp,
 
 static const int              reScan = 15*60;
 
-XrdOucMutex                   myMutex;
+XrdSysMutex                   myMutex;
 XrdScheduler                 *Sched;
 XrdOucTable<XrdXrootdJob2Do>  JobTable;
-XrdOucProg                   *theProg;
+XrdSysProg                   *theProg;
 char                         *JobName;
 int                           maxJobs;
 int                           numJobs;

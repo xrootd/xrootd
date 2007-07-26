@@ -14,10 +14,10 @@
 //         $Id$
 
 #include <strings.h>
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOucError;
-class XrdOucProg;
+class XrdSysProg;
 class XrdOfsEvsMsg;
 
 class XrdOfsEvs
@@ -66,12 +66,12 @@ pthread_t       tid;
 char           *theTarget;
 Event           enEvents;
 XrdOucError    *eDest;
-XrdOucProg     *theProg;
-XrdOucMutex     qMut;
-XrdOucSemaphore qSem;
+XrdSysProg     *theProg;
+XrdSysMutex     qMut;
+XrdSysSemaphore qSem;
 XrdOfsEvsMsg   *msgFirst;
 XrdOfsEvsMsg   *msgLast;
-XrdOucMutex     fMut;
+XrdSysMutex     fMut;
 XrdOfsEvsMsg   *msgFreeMax;
 XrdOfsEvsMsg   *msgFreeMin;
 int             endIT;

@@ -29,7 +29,7 @@ const char *XrdNetDNSCVSID = "$Id$";
 
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 /******************************************************************************/
 /*                           g e t H o s t A d d r                            */
@@ -249,8 +249,8 @@ int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
    struct hostent hent, *hp;
    char *hname, hbuff[1024];
 #else
-   static XrdOucMutex getHN;
-          XrdOucMutexHelper getHNhelper;
+   static XrdSysMutex getHN;
+          XrdSysMutexHelper getHNhelper;
    struct sockaddr_in *ip = (sockaddr_in *)&InetAddr;
    struct hostent *hp;
    unsigned int ipaddr;
@@ -420,7 +420,7 @@ int XrdNetDNS::getProtoID(const char *pname)
     struct protoent pp;
     char buff[1024];
 #else
-    static XrdOucMutex protomutex;
+    static XrdSysMutex protomutex;
     struct protoent *pp;
     int    protoid;
 #endif

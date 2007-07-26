@@ -27,7 +27,7 @@ int         XrdOdcMsg::nextid   =  0;
 XrdOdcMsg  *XrdOdcMsg::msgTab   =  0;
 XrdOdcMsg  *XrdOdcMsg::nextfree =  0;
 
-XrdOucMutex XrdOdcMsg::FreeMsgQ;
+XrdSysMutex XrdOdcMsg::FreeMsgQ;
 
 extern XrdOucTrace OdcTrace;
 

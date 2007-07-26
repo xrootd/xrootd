@@ -7,7 +7,7 @@
 /*                                                                            */
 /******************************************************************************/
 #include <XrdOuc/XrdOucErrInfo.hh>
-#include <XrdOuc/XrdOucPthread.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucTokenizer.hh>
 
@@ -239,7 +239,7 @@ public:
 private:
 
    // Static members initialized at startup
-   static XrdOucMutex      gsiContext;
+   static XrdSysMutex      gsiContext;
    static String           CAdir;
    static String           CRLdir;
    static String           DefCRLext;

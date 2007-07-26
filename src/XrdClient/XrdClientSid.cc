@@ -38,7 +38,7 @@ XrdClientSid::~XrdClientSid() {
 // From now on it will be no more available.
 // A retval of 0 means that there are no more available sids
 kXR_unt16 XrdClientSid::GetNewSid() {
-   XrdOucMutexHelper l(fMutex);
+   XrdSysMutexHelper l(fMutex);
 
    if (!freesids.GetSize()) return 0;
       
@@ -51,7 +51,7 @@ kXR_unt16 XrdClientSid::GetNewSid() {
 // The request gets inserted the new sid in the right place
 // Also the one passed as parameter gets the new sid, as should be expected
 kXR_unt16 XrdClientSid::GetNewSid(kXR_unt16 sid, ClientRequest *req) {
-   XrdOucMutexHelper l(fMutex);
+   XrdSysMutexHelper l(fMutex);
 
    if (!freesids.GetSize()) return 0;
       
@@ -79,7 +79,7 @@ kXR_unt16 XrdClientSid::GetNewSid(kXR_unt16 sid, ClientRequest *req) {
 // It is re-inserted into the available set
 // Its info is rmeoved from the tree
 void XrdClientSid::ReleaseSid(kXR_unt16 sid) {
-   XrdOucMutexHelper l(fMutex);
+   XrdSysMutexHelper l(fMutex);
 
    childsidnfo.Del(sid);
    freesids.Push_back(sid);

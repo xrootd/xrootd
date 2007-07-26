@@ -26,7 +26,7 @@ const char *XrdOdcRespCVSID = "$Id$";
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-XrdOucMutex             XrdOdcResp::myMutex;
+XrdSysMutex             XrdOdcResp::myMutex;
 XrdOdcResp             *XrdOdcResp::nextFree =  0;
 int                     XrdOdcResp::numFree  =  0;
 int                     XrdOdcResp::RepDelay =  5;

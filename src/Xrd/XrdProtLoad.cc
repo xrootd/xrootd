@@ -13,7 +13,7 @@
 const char *XrdProtLoadCVSID = "$Id$";
 
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucPlugin.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
@@ -37,7 +37,7 @@ int          XrdProtLoad::ProtoCnt = 0;
 int          XrdProtLoad::ProtWCnt = 0;
 
 char         *XrdProtLoad::liblist[ProtoMax];
-XrdOucPlugin *XrdProtLoad::libhndl[ProtoMax];
+XrdSysPlugin *XrdProtLoad::libhndl[ProtoMax];
 
 int           XrdProtLoad::libcnt = 0;
 
@@ -256,7 +256,7 @@ int XrdProtLoad::getProtocolPort(const char *lname,
           {XrdLog.Emsg("Protocol", "Too many protocols have been defined.");
            return -1;
           }
-       if (!(libhndl[i] = new XrdOucPlugin(&XrdLog, lname))) return -1;
+       if (!(libhndl[i] = new XrdSysPlugin(&XrdLog, lname))) return -1;
        liblist[i] = strdup(lname);
        libcnt++;
       }

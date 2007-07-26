@@ -43,7 +43,7 @@
 #include "XrdClient/XrdClientAbs.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdClient/XrdClientThread.hh"
-#include "XrdOuc/XrdOucSemWait.hh"
+#include "XrdSys/XrdSysSemWait.hh"
 
 struct XrdClientOpenInfo {
     bool      inprogress;
@@ -74,17 +74,17 @@ private:
 
     // The open request can be in progress. Further requests must be delayed until
     //  finished.
-    XrdOucCondVar              *fOpenProgCnd;
+    XrdSysCondVar              *fOpenProgCnd;
 
     // Used to open a file in parallel
     XrdClientThread            *fOpenerTh;
 
     // Used to limit the maximum number of concurrent opens
-    static XrdOucSemWait        fConcOpenSem;
+    static XrdSysSemWait        fConcOpenSem;
 
     bool                        fOpenWithRefresh;
 
-    XrdOucCondVar              *fReadWaitData;  // Used to wait for outstanding data   
+    XrdSysCondVar              *fReadWaitData;  // Used to wait for outstanding data   
 
     struct XrdClientStatInfo    fStatInfo;
 

@@ -15,7 +15,7 @@ const char *XrdOfsHandleCVSID = "$Id$";
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsConfig.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 /******************************************************************************/
 /*                    F i l e   S y s t e m   O b j e c t                     */
@@ -212,7 +212,7 @@ unsigned int XrdOfsHandleAnchor::Insert(XrdOfsHandle &item)
   
 int XrdOfsHandle_Common::WaitLock(void)
 {
-    static XrdOucTimer timer;
+    static XrdSysTimer timer;
     int ntry=0;
 
 // Try to obtain a lock within the retry parameters

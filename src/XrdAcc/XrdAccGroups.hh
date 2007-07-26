@@ -16,7 +16,7 @@
 #include <limits.h>
 
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                       X r d A c c G r o u p L i s t                        */
@@ -144,8 +144,8 @@ XrdAccGroups_Options options;// Various option values.
 int         HaveGroups;
 int         HaveNetGroups;
 
-XrdOucMutex  Group_Build_Context, Group_Name_Context;
-XrdOucMutex  Group_Cache_Context, NetGroup_Cache_Context;
+XrdSysMutex  Group_Build_Context, Group_Name_Context;
+XrdSysMutex  Group_Cache_Context, NetGroup_Cache_Context;
 
 XrdOucHash<XrdAccGroupList> NetGroup_Cache;
 XrdOucHash<XrdAccGroupList>    Group_Cache;

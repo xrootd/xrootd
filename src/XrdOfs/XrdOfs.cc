@@ -61,7 +61,7 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucLogger.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
@@ -118,8 +118,8 @@ XrdOfsHandleAnchor XrdOfsOrigin_RW("r/w",1);          // Files open r/w.
 
 // The following mutexes are used to serialize open processing
 //
-XrdOucMutex XrdOfsOpen_RO;
-XrdOucMutex XrdOfsOpen_RW;
+XrdSysMutex XrdOfsOpen_RO;
+XrdSysMutex XrdOfsOpen_RW;
 
 // Functions that manage idle file handles
 //
@@ -221,7 +221,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
 // Start a thread to periodically scan for idle file handles
 //
-   if ((retc = XrdOucThread::Run(&tid, XrdOfsIdleScan, (void *)0)))
+   if ((retc = XrdSysThread::Run(&tid, XrdOfsIdleScan, (void *)0)))
       OfsEroute.Emsg("XrdOfsinit", retc, "create idle scan thread");
 
 // All done, we can return the callout vector to these routines.
@@ -433,7 +433,7 @@ int XrdOfsFile::open(const char          *path,      // In
    int retc, odc_mode, open_flag = 0;
    int crOpts = (Mode & SFS_O_MKPTH ? XRDOSS_mkpath : 0);
    unsigned long hval = XrdOucHashVal(path);
-   XrdOucMutex        *mp;
+   XrdSysMutex        *mp;
    XrdOfsHandleAnchor *ap;
    XrdOssDF           *fp;
    XrdOucEnv Open_Env(info);

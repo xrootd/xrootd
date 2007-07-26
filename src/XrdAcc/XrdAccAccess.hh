@@ -17,7 +17,7 @@
 #include "XrdAcc/XrdAccCapability.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucXSLock.hh"
+#include "XrdSys/XrdSysXSLock.hh"
 
 /******************************************************************************/
 /*                        A c c e s s _ I D _ T y p e                         */
@@ -106,7 +106,7 @@ XrdAccPrivs Access(const char *id, const Access_ID_Type idtype,
 
 struct XrdAccAccess_Tables Atab;
 
-XrdOucXSLock Access_Context;
+XrdSysXSLock Access_Context;
 
 XrdAccAudit *Auditor;
 };

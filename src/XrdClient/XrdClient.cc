@@ -34,7 +34,7 @@
 #include <signal.h>
 
 
-XrdOucSemWait     XrdClient::fConcOpenSem(DFLT_MAXCONCURRENTOPENS);
+XrdSysSemWait     XrdClient::fConcOpenSem(DFLT_MAXCONCURRENTOPENS);
 
 //_____________________________________________________________________________
 // Calls the Open func in order to parallelize the Open requests
@@ -56,8 +56,8 @@ void *FileOpenerThread(void *arg, XrdClientThread *thr) {
 XrdClient::XrdClient(const char *url) {
     fReadAheadLast = 0;
     fOpenerTh = 0;
-    fOpenProgCnd = new XrdOucCondVar(0);
-    fReadWaitData = new XrdOucCondVar(0);
+    fOpenProgCnd = new XrdSysCondVar(0);
+    fReadWaitData = new XrdSysCondVar(0);
 
     memset(&fStatInfo, 0, sizeof(fStatInfo));
     memset(&fOpenPars, 0, sizeof(fOpenPars));
@@ -1259,7 +1259,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
 			{
 			// Keep in sync with the cache lookup
-			XrdOucCondVarHelper cndh(fReadWaitData);
+			XrdSysCondVarHelper cndh(fReadWaitData);
 
 			// To compute the end offset of the block we have to take 1 from the size!
 			fConnModule->SubmitDataToCache(unsolmsg, offs,
@@ -1285,7 +1285,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 			     unsolmsg->fHdr.dlen);
 			{
 			// Keep in sync with the cache lookup
-			XrdOucCondVarHelper cndh(fReadWaitData);
+			XrdSysCondVarHelper cndh(fReadWaitData);
 
 			XrdClientReadV::SubmitToCacheReadVResp(fConnModule, (char *)unsolmsg->DonateData(),
 							       unsolmsg->fHdr.dlen);
@@ -1406,7 +1406,7 @@ bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasiz
 //_____________________________________________________________________________
 // Sleeps on a condvar which is signalled when a new async block arrives
 void XrdClient::WaitForNewAsyncData() {
-    XrdOucCondVarHelper cndh(fReadWaitData);
+    XrdSysCondVarHelper cndh(fReadWaitData);
 
     fReadWaitData->Wait();
 

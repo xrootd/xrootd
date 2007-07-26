@@ -25,8 +25,8 @@ using namespace XrdOlb;
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
 
-XrdOucMutex     XrdOlbPrepArgs::PAQueue;
-XrdOucSemaphore XrdOlbPrepArgs::PAReady(0);
+XrdSysMutex     XrdOlbPrepArgs::PAQueue;
+XrdSysSemaphore XrdOlbPrepArgs::PAReady(0);
 
 XrdOlbPrepArgs *XrdOlbPrepArgs::First = 0;
 XrdOlbPrepArgs *XrdOlbPrepArgs::Last  = 0;

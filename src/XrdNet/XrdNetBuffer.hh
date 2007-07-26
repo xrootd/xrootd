@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 #include "XrdOuc/XrdOucChain.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                         X r d N e t B u f f e r Q                          */
@@ -39,7 +39,7 @@ inline int            BuffSize(void) {return size;}
       ~XrdNetBufferQ();
 
        int                       alignit;
-       XrdOucMutex               BuffList;
+       XrdSysMutex               BuffList;
        XrdOucStack<XrdNetBuffer> BuffStack;
        int                       maxbuff;
        int                       numbuff;

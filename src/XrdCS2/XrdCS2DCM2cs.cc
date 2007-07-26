@@ -27,8 +27,8 @@ const char *XrdCS2DCMCVSID = "$Id$";
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucTimer.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdCS2/XrdCS2DCM.hh"
 
@@ -101,8 +101,8 @@ static int               Init();
 
 private:
 
-static XrdOucSemaphore   mySem;
-static XrdOucMutex       myMutex;
+static XrdSysSemaphore   mySem;
+static XrdSysMutex       myMutex;
 static XrdCS2DCMService *Free;
 
        XrdCS2DCMService *Next;
@@ -110,8 +110,8 @@ static XrdCS2DCMService *Free;
        castor::IService *JobSvcs;
 };
 
-XrdOucSemaphore   XrdCS2DCMService::mySem(0);
-XrdOucMutex       XrdCS2DCMService::myMutex;
+XrdSysSemaphore   XrdCS2DCMService::mySem(0);
+XrdSysMutex       XrdCS2DCMService::myMutex;
 XrdCS2DCMService *XrdCS2DCMService::Free = 0;
 
 /******************************************************************************/
@@ -222,7 +222,7 @@ int XrdCS2DCM::CS2_Open(const char *Tid, const char *Fid, char *Lfn,
            if ((ecode == SECOMERR)     || (ecode == SETIMEDOUT)
            ||  (ecode == ECONNREFUSED))
               {TRACE(DEBUG, "Cannot connect to Castor2!");
-               XrdOucTimer::Wait(retryWait);
+               XrdSysTimer::Wait(retryWait);
               }
               else {XrdLog.Emsg("Open", Lfn, "open failed;", sstrerror(ecode));
                     return 0;

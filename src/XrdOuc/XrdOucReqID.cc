@@ -29,7 +29,7 @@ const char *XrdOucReqIDCVSID = "$Id$";
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
   
-XrdOucMutex  XrdOucReqID::myMutex;
+XrdSysMutex  XrdOucReqID::myMutex;
 char        *XrdOucReqID::reqFMT;
 char        *XrdOucReqID::reqPFX;
 int          XrdOucReqID::reqPFXlen = 0;

@@ -15,7 +15,7 @@
 #include <strings.h>
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 class XrdOucError;
@@ -85,8 +85,8 @@ void eventStage();
 void sendEvent(theEvent *ep);
 
 static const int     maxLife = (8*60*60); // Eight hours
-XrdOucMutex          myMutex;
-XrdOucSemaphore      mySem;
+XrdSysMutex          myMutex;
+XrdSysSemaphore      mySem;
 XrdOucStream         eventFIFO;
 XrdOucError         *eDest;
 XrdOdcFinderTRG     *Balancer;

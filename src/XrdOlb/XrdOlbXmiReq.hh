@@ -12,7 +12,7 @@
 
 #include "XrdOlb/XrdOlbReq.hh"
 #include "XrdOlb/XrdOlbXmi.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
   
 class XrdOlbXmiReq : XrdOlbXmi
 {
@@ -79,16 +79,16 @@ void Start();
 int  Qit(XrdOlbReq *rp, ReqType, const char *path, int parms);
 
 static XrdOlbXmi      *XmiP;
-static XrdOucMutex     prpMutex;
-static XrdOucSemaphore prpReady;
+static XrdSysMutex     prpMutex;
+static XrdSysSemaphore prpReady;
 static XrdOlbXmiReq   *prpFirst;
 static XrdOlbXmiReq   *prpLast;
-static XrdOucMutex     reqMutex;
-static XrdOucSemaphore reqReady;
+static XrdSysMutex     reqMutex;
+static XrdSysSemaphore reqReady;
 static XrdOlbXmiReq   *reqFirst;
 static XrdOlbXmiReq   *reqLast;
-static XrdOucMutex     stgMutex;
-static XrdOucSemaphore stgReady;
+static XrdSysMutex     stgMutex;
+static XrdSysSemaphore stgReady;
 static XrdOlbXmiReq   *stgFirst;
 static XrdOlbXmiReq   *stgLast;
        XrdOlbXmiReq   *Next;

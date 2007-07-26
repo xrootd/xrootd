@@ -188,7 +188,7 @@ XrdClientConnectionMgr::~XrdClientConnectionMgr()
    int i=0;
 
    {
-      XrdOucMutexHelper mtx(fMutex);
+      XrdSysMutexHelper mtx(fMutex);
 
       for (i = 0; i < fLogVec.GetSize(); i++)
 	 if (fLogVec[i]) Disconnect(i, FALSE);
@@ -217,7 +217,7 @@ void XrdClientConnectionMgr::GarbageCollect()
    // is quite small.
 
    // Mutual exclusion on the vectors and other vars
-   XrdOucMutexHelper mtx(fMutex);
+   XrdSysMutexHelper mtx(fMutex);
 
    if (fPhyHash.Num() > 0) {
 
@@ -382,7 +382,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
 	// The connection attempt failed, so we signal all the threads waiting for a result
 	{
-	  XrdOucMutexHelper mtx(fMutex);
+	  XrdSysMutexHelper mtx(fMutex);
 	  int cnt;
 
           key = key1;
@@ -417,7 +417,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    // Now, we are connected to the host desired.
    // The physical connection can be old or newly created
    {
-      XrdOucMutexHelper mtx(fMutex);
+      XrdSysMutexHelper mtx(fMutex);
 
       // Then, if needed, we push the physical connection into its vector
       if (!phyfound) {
@@ -502,7 +502,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
    if (LogConnectionID < 0) return;
 
    {
-      XrdOucMutexHelper mtx(fMutex);
+      XrdSysMutexHelper mtx(fMutex);
 
       if ((LogConnectionID < 0) ||
 	  (LogConnectionID >= fLogVec.GetSize()) || (!fLogVec[LogConnectionID])) {
@@ -593,7 +593,7 @@ int XrdClientConnectionMgr::WriteRaw(short int LogConnectionID, const void *buff
 XrdClientLogConnection *XrdClientConnectionMgr::GetConnection(short int LogConnectionID)
 {
    // Return a logical connection object that has LogConnectionID as its ID.
-   XrdOucMutexHelper mtx(fMutex);
+   XrdSysMutexHelper mtx(fMutex);
  
    return fLogVec[LogConnectionID];
 
@@ -621,7 +621,7 @@ UnsolRespProcResult XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsol
    // So we throw the evt towards each logical connection
    {
       // Find an interested logid
-      XrdOucMutexHelper mtx(fMutex);
+      XrdSysMutexHelper mtx(fMutex);
       
       for (int i = 0; i < fLogVec.GetSize(); i++) {
       

@@ -93,9 +93,10 @@ endif
 
 vpath XProtocol%    ../XProtocol
 vpath XPty%         ../XProtocol
+vpath XrdOuc%       ../XrdOuc
 vpath XrdSec%       ../XrdSec
 vpath XrdSut%       ../XrdSut
-vpath XrdOuc%       ../XrdOuc
+vpath XrdSys%       ../XrdSys
 vpath PSCH%         ../XrdCrypto
 
 #------------------------------------------------------------------------------#
@@ -161,7 +162,7 @@ $(OBJDIR)/PC3.o: PC3.cc PC3.hh
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/PC3.o PC3.cc
 
 $(OBJDIR)/XrdCryptoAux.o: XrdCryptoAux.cc XrdOucLogger.hh \
-			  XrdOucPthread.hh XrdOucError.hh \
+			  XrdSysPthread.hh XrdOucError.hh \
 			  XrdCryptoAux.hh XProtocol.hh XPtypes.hh \
 			  XrdCryptoTrace.hh XrdOucTrace.hh
 	@echo Compiling XrdCryptoAux.cc 
@@ -293,7 +294,7 @@ $(OBJDIR)/XrdCryptosslFactory.o: XrdCryptosslFactory.cc \
 			XrdCryptosslRSA.hh XrdCryptosslX509.hh \
 			XrdCryptosslX509Crl.hh XrdSutCache.hh \
 			XrdSutPFEntry.hh XrdOucHash.hh XrdOucHash.icc \
-			XrdOucLogger.hh XrdOucPthread.hh \
+			XrdOucLogger.hh XrdSysPthread.hh \
 			XrdOucError.hh XrdSutRndm.hh \
 			XrdCryptosslTrace.hh XrdOucTrace.hh
 	@echo Compiling XrdCryptosslFactory.cc 

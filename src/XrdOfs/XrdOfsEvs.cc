@@ -17,7 +17,7 @@
 
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucProg.hh"
+#include "XrdSys/XrdSysProg.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 
@@ -64,7 +64,7 @@ XrdOfsEvs::~XrdOfsEvs()
 // started. So, the problem is moot.
 //
    endIT = 1;
-   if (tid) XrdOucThread::Kill(tid);
+   if (tid) XrdSysThread::Kill(tid);
 
 // Release all queued message bocks
 //
@@ -195,7 +195,7 @@ int XrdOfsEvs::Start(XrdOucError *eobj)
       // Allocate a new program object if we don't have one
       //
          if (theProg) return 0;
-         theProg = new XrdOucProg(eobj);
+         theProg = new XrdSysProg(eobj);
 
      // Setup the program
      //
@@ -206,7 +206,7 @@ int XrdOfsEvs::Start(XrdOucError *eobj)
 
 // Now start a thread to get messages and send them to the collector
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdOfsEvsSend, static_cast<void *>(this),
+   if ((rc = XrdSysThread::Run(&tid, XrdOfsEvsSend, static_cast<void *>(this),
                           0, "Event notification sender")))
       {eobj->Emsg("Evs", rc, "create event notification thread");
        return -1;

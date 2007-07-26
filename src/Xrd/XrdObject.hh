@@ -108,7 +108,7 @@ inline void    Push(XrdObject<T> *Node)
 
 private:
 
-XrdOucMutex    QMutex;
+XrdSysMutex    QMutex;
 XrdObject<T>  *First;
 int            Count;
 int            Curage;

@@ -24,7 +24,7 @@
 // whole object using the supplied copy constructor.
 
 class XrdOucError;
-class XrdOucThread;
+class XrdSysThread;
 class XrdOucTrace;
 class XrdBuffManager;
 class XrdInet;
@@ -44,7 +44,7 @@ XrdInet        *NetTCP;      // Stable -> Network Object    (@ XrdgetProtocol)
 XrdBuffManager *BPool;       // Stable -> Buffer Pool Manager
 XrdScheduler   *Sched;       // Stable -> System Scheduler
 XrdStats       *Stats;       // Stable -> System Statistics (@ XrdgetProtocol)
-XrdOucThread   *Threads;     // Stable -> The thread manager
+XrdSysThread   *Threads;     // Stable -> The thread manager
 XrdOucTrace    *Trace;       // Stable -> Trace Information
 
 // The following information must be duplicated; it is unstable.

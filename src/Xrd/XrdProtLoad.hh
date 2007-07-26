@@ -14,7 +14,7 @@
 
 #include "Xrd/XrdProtocol.hh"
 
-class XrdOucPlugin;
+class XrdSysPlugin;
   
 // This class load and allows the selection of the appropriate link protocol. 
 //
@@ -58,7 +58,7 @@ static int            ProtoCnt;             // Number in table (at least 1)
 static int            ProtWCnt;             // Number in table (WAN may be 0)
 
 static char          *liblist[ProtoMax];    // -> Path used for shared library
-static XrdOucPlugin  *libhndl[ProtoMax];    // -> Plugin object
+static XrdSysPlugin  *libhndl[ProtoMax];    // -> Plugin object
 static int            libcnt;               // Number in table
 
        int            myPort;

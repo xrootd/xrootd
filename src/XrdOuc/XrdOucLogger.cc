@@ -32,8 +32,8 @@ const char *XrdOucLoggerCVSID = "$Id$";
 #endif // WIN32
 
 #include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucPthread.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
  
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -69,7 +69,7 @@ int XrdOucLogger::Bind(const char *path, int isec)
 // Compute time at midnight
 //
    eNow = time(0);
-   eNTC = XrdOucTimer::Midnight(eNow);
+   eNTC = XrdSysTimer::Midnight(eNow);
 
 // Bind to the logfile as needed
 //
@@ -137,7 +137,7 @@ int XrdOucLogger::Time(char *tbuff)
    i =    snprintf(tbuff, minblen, "%02d%02d%02d %02d:%02d:%02d %03ld ",
                   tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
                   tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
-                  XrdOucThread::Num());
+                  XrdSysThread::Num());
    return (i >= minblen ? minblen-1 : i);
 }
 

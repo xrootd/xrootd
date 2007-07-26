@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <time.h>
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdLinkMatch.hh"
@@ -138,7 +138,7 @@ private:
 
 void   Reset();
 
-static XrdOucMutex   LTMutex;    // For the LinkTab only LTMutex->IOMutex allowed
+static XrdSysMutex   LTMutex;    // For the LinkTab only LTMutex->IOMutex allowed
 static XrdLink     **LinkTab;
 static char         *LinkBat;
 static unsigned int  LinkAlloc;
@@ -163,7 +163,7 @@ static int          LinkStalls;
        int              stallCntTot;
        int              tardyCnt;
        int              tardyCntTot;
-static XrdOucMutex  statsMutex;
+static XrdSysMutex  statsMutex;
 
 // Identification section
 //
@@ -173,10 +173,10 @@ char                Lname[232];
 char               *HostName;
 int                 HNlen;
 
-XrdOucMutex         opMutex;
-XrdOucMutex         rdMutex;
-XrdOucMutex         wrMutex;
-XrdOucSemaphore     IOSemaphore;
+XrdSysMutex         opMutex;
+XrdSysMutex         rdMutex;
+XrdSysMutex         wrMutex;
+XrdSysSemaphore     IOSemaphore;
 XrdLink            *Next;
 XrdNetBuffer       *udpbuff;
 XrdProtocol        *Protocol;

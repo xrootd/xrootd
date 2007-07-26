@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdPosix/XrdPosixExtern.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixStream.hh"

@@ -23,7 +23,7 @@ const char *XrdBufferCVSID = "$Id$";
 
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdTrace.hh"
 
@@ -90,7 +90,7 @@ void XrdBuffManager::Init()
 
 // Start the reshaper thread
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdReshaper, static_cast<void *>(this), 0,
+   if ((rc = XrdSysThread::Run(&tid, XrdReshaper, static_cast<void *>(this), 0,
                           "Buffer Manager reshaper")))
       XrdLog.Emsg("BuffManager", rc, "create reshaper thread");
 }
@@ -200,7 +200,7 @@ void XrdBuffManager::Reshape()
 int i, bufprof[XRD_BUCKETS], numfreed;
 time_t delta, lastshape = time(0);
 long long memslot, memhave, memtarget = (long long)(.80*(float)maxalo);
-XrdOucTimer Timer;
+XrdSysTimer Timer;
 float requests, buffers;
 XrdBuffer *bp;
 

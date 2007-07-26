@@ -20,7 +20,7 @@
 #include <string>
 
 XrdMonCtrDebug::Verbosity XrdMonCtrDebug::_verbose = XrdMonCtrDebug::Receiving;
-XrdOucMutex      XrdMonCtrDebug::_mutex;
+XrdSysMutex      XrdMonCtrDebug::_mutex;
 
 void
 XrdMonCtrDebug::initialize()

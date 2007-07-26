@@ -20,7 +20,7 @@ const char *XrdXrootdFileCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
   
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
@@ -49,7 +49,7 @@ extern XrdOucTrace      *XrdXrootdTrace;
   
 XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async)
 {
-    static XrdOucMutex seqMutex;
+    static XrdSysMutex seqMutex;
     struct stat buf;
     int i;
 

@@ -45,6 +45,7 @@ vpath XrdOuc% ../XrdOuc
 vpath XrdAcc% ../XrdAcc
 vpath XrdSec% ../XrdSec
 vpath XrdSfs% ../XrdSfs
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -68,8 +69,8 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdOfsSecurity.hh     XrdOfsTrace.hh   XrdOfsEvr.hh   \
                      XrdOuca2x.hh     XrdOucEnv.hh          XrdOucError.hh     \
                      XrdOucHash.hh    XrdOucHash.icc        XrdOucMsubs.hh \
-                     XrdOucLock.hh    XrdOucLogger.hh       XrdOucPlugin.hh \
-                     XrdOucPList.hh   XrdOucPthread.hh      XrdOucTrace.hh     \
+                     XrdOucLock.hh    XrdOucLogger.hh       XrdSysPlugin.hh \
+                     XrdOucPList.hh   XrdSysPthread.hh      XrdOucTrace.hh     \
                      XrdNetDNS.hh     XrdSecEntity.hh       XrdSfsNative.hh    \
                      XrdSfsAio.hh     XrdOss.hh          \
                      XrdOucTList.hh   XrdOdcFinder.hh  XrdAccAuthorize.hh      \
@@ -88,14 +89,14 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc   XrdOfsConfig.hh \
 
 $(OBJDIR)/XrdOfsEvr.o:  XrdOfsEvr.cc      XrdOfsEvr.hh \
                         XrdOfsTrace.hh    XrdOucTrace.hh \
-                        XrdOucErrInfo.hh  XrdOucPthread.hh  XrdOucStream.hh \
-                        XrdOucTimer.hh    XrdOdcFinder.hh \
+                        XrdOucErrInfo.hh  XrdSysPthread.hh  XrdOucStream.hh \
+                        XrdSysTimer.hh    XrdOdcFinder.hh \
                         XrdNetOpts.hh     XrdNetSocket.hh
 	@echo Compiling XrdOfsEvr.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsEvr.o XrdOfsEvr.cc
 
 $(OBJDIR)/XrdOfsEvs.o:  XrdOfsEvs.cc      XrdOfsEvs.hh \
-                        XrdOucPthread.hh  XrdOucProg.hh \
+                        XrdSysPthread.hh  XrdSysProg.hh \
                         XrdNetOpts.hh     XrdNetSocket.hh
 	@echo Compiling XrdOfsEvs.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsEvs.o XrdOfsEvs.cc
@@ -103,6 +104,6 @@ $(OBJDIR)/XrdOfsEvs.o:  XrdOfsEvs.cc      XrdOfsEvs.hh \
 $(OBJDIR)/XrdOfsHandle.o:  XrdOfsHandle.cc   XrdOfsHandle.hh \
                            XrdOfs.hh         XrdOfsConfig.hh  XrdOfsTrace.hh  \
                            XrdOuca2x.hh      XrdOucError.hh   XrdOucStream.hh \
-                           XrdOucPthread.hh  XrdOucTrace.hh   XrdOdcFinder.hh
+                           XrdSysPthread.hh  XrdOucTrace.hh   XrdOdcFinder.hh
 	@echo Compiling XrdOfsHandle.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsHandle.o XrdOfsHandle.cc

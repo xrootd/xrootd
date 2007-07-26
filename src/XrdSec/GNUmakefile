@@ -51,6 +51,7 @@ TARGETS = $(LIBARCH) $(LIBRARY) $(TSTBINA) $(TSTBINB)
 #------------------------------------------------------------------------------#
 
 vpath XrdOuc% ../XrdOuc
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -93,14 +94,14 @@ $(TSTBINB): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TSTBINB) 
 	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(LIBS) $(BINLIBS) -o $(TSTBINB)
 
-$(OBJDIR)/XrdSecClient.o: XrdOucPthread.hh XrdSecPManager.hh XrdSecInterface.hh \
+$(OBJDIR)/XrdSecClient.o: XrdSysPthread.hh XrdSecPManager.hh XrdSecInterface.hh \
                           XrdOucErrInfo.hh XrdSecClient.cc   XrdSecEntity.hh
 	@echo Compiling XrdSecClient.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecClient.o XrdSecClient.cc
 
 $(OBJDIR)/XrdSecPManager.o: XrdSecInterface.hh XrdSecPManager.hh \
                             XrdSecProtocolhost.hh \
-                            XrdOucErrInfo.hh   XrdOucPthread.hh \
+                            XrdOucErrInfo.hh   XrdSysPthread.hh \
                             XrdSecPManager.cc
 	@echo Compiling XrdSecPManager.cc 
 	$(ECHO)$(CC) -c $(CFLAGS32) $(INCLUDE) -o $(OBJDIR)/XrdSecPManager.o XrdSecPManager.cc

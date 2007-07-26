@@ -10,7 +10,7 @@
 //       $Id: xrm.cc
 
 #include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"

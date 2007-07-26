@@ -17,7 +17,7 @@
 
 #include "XrdOdc/XrdOdcResp.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdOucError;
 class XrdOucLogger;
@@ -59,11 +59,11 @@ void  Hookup();
 void  Sleep(int slpsec);
 char *Receive(int &msgid);
 
-XrdOucSemaphore syncResp;
+XrdSysSemaphore syncResp;
 XrdOdcRespQ     RespQ;
 
 XrdOdcManager *Next;
-XrdOucMutex    myData;
+XrdSysMutex    myData;
 XrdOucError   *eDest;
 XrdNetLink    *Link;
 XrdNetWork    *Network;

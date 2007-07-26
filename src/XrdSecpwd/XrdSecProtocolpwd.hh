@@ -9,7 +9,7 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 #include <XrdOuc/XrdOucErrInfo.hh>
-#include <XrdOuc/XrdOucPthread.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucTokenizer.hh>
 
@@ -283,7 +283,7 @@ public:
 private:
 
    // Static members initialized at startup
-   static XrdOucMutex      pwdContext;
+   static XrdSysMutex      pwdContext;
    static String           FileAdmin;
    static String           FileExpCreds;     // (Template for) file with exported creds [S]
    static String           FileUser;

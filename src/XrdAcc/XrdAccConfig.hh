@@ -17,7 +17,7 @@
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAccess.hh"
 #include "XrdAcc/XrdAccAuthDB.hh"
@@ -85,8 +85,8 @@ int                 xnis(XrdOucStream &Cofig, XrdOucError &Eroute);
 XrdAccAuthDB        *Database;
 char                *dbpath;
 
-XrdOucMutex          Config_Context;
-XrdOucThread         Config_Refresh;
+XrdSysMutex          Config_Context;
+XrdSysThread         Config_Refresh;
 
 int                  options;
 };

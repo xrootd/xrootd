@@ -21,19 +21,13 @@ SOURCES = \
         XrdOucMsubs.cc       \
         XrdOucName2Name.cc   \
         XrdOucNList.cc       \
-        XrdOucPlugin.cc      \
-        XrdOucProg.cc        \
-        XrdOucPthread.cc     \
         XrdOucReqID.cc       \
         XrdOucStream.cc      \
         XrdOucString.cc      \
-        XrdOucTimer.cc       \
         XrdOucTokenizer.cc   \
         XrdOucTrace.cc       \
-        XrdOucUtils.cc       \
-        XrdOucXSLock.cc
+        XrdOucUtils.cc
 
-  
 OBJECTS = \
         $(OBJDIR)/XrdOuca2x.o          \
         $(OBJDIR)/XrdOucCRC.o          \
@@ -45,17 +39,12 @@ OBJECTS = \
         $(OBJDIR)/XrdOucMsubs.o        \
         $(OBJDIR)/XrdOucName2Name.o    \
         $(OBJDIR)/XrdOucNList.o        \
-        $(OBJDIR)/XrdOucPlugin.o       \
-        $(OBJDIR)/XrdOucProg.o         \
-        $(OBJDIR)/XrdOucPthread.o      \
         $(OBJDIR)/XrdOucReqID.o        \
         $(OBJDIR)/XrdOucStream.o       \
         $(OBJDIR)/XrdOucString.o       \
-        $(OBJDIR)/XrdOucTimer.o        \
         $(OBJDIR)/XrdOucTokenizer.o    \
         $(OBJDIR)/XrdOucTrace.o        \
-        $(OBJDIR)/XrdOucUtils.o        \
-        $(OBJDIR)/XrdOucXSLock.o
+        $(OBJDIR)/XrdOucUtils.o
 
 LIBRARY = $(LIBDIR)/libXrdOuc.a
 
@@ -119,7 +108,7 @@ $(OBJDIR)/XrdOucHashVal.o: XrdOucHashVal.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucHashVal.cc -o $(OBJDIR)/XrdOucHashVal.o
 
 $(OBJDIR)/XrdOucLogger.o: XrdOucLogger.cc XrdOucLogger.hh \
-                          XrdOucTimer.hh  XrdOucPthread.hh
+                          XrdSysTimer.hh  XrdSysPthread.hh
 	@echo Compiling XrdOucLogger.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucLogger.cc -o $(OBJDIR)/XrdOucLogger.o
 
@@ -133,24 +122,11 @@ $(OBJDIR)/XrdOucName2Name.o: XrdOucName2Name.cc XrdOucName2Name.hh \
 	@echo Compiling XrdOucName2Name.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucName2Name.cc -o $(OBJDIR)/XrdOucName2Name.o
 
-$(OBJDIR)/XrdOucNList.o: XrdOucNList.cc XrdOucNList.hh XrdOucPthread.hh
+$(OBJDIR)/XrdOucNList.o: XrdOucNList.cc XrdOucNList.hh XrdSysPthread.hh
 	@echo Compiling XrdOucNList.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucNList.cc -o $(OBJDIR)/XrdOucNList.o
 
-$(OBJDIR)/XrdOucPlugin.o: XrdOucPlugin.cc XrdOucPlugin.hh  XrdOucError.hh
-	@echo Compiling XrdOucPlugin.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(CFSTRLCPY) $(INCLUDE) XrdOucPlugin.cc -o $(OBJDIR)/XrdOucPlugin.o
-
-$(OBJDIR)/XrdOucProg.o: XrdOucProg.cc  XrdOucProg.hh \
-                        XrdOucError.hh XrdOucStream.hh XrdOucPthread.hh
-	@echo Compiling XrdOucProg.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucProg.cc -o $(OBJDIR)/XrdOucProg.o
-
-$(OBJDIR)/XrdOucPthread.o: XrdOucPthread.cc XrdOucPthread.hh XrdOucError.hh
-	@echo Compiling XrdOucPthread.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucPthread.cc -o $(OBJDIR)/XrdOucPthread.o
-
-$(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh XrdOucPthread.hh
+$(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh XrdSysPthread.hh
 	@echo Compiling XrdOucReqID.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucReqID.cc -o $(OBJDIR)/XrdOucReqID.o
 
@@ -162,10 +138,6 @@ $(OBJDIR)/XrdOucStream.o: XrdOucStream.cc XrdOucStream.hh XrdOucError.hh \
 $(OBJDIR)/XrdOucString.o: XrdOucString.cc XrdOucString.hh
 	@echo Compiling XrdOucString.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucString.cc -o $(OBJDIR)/XrdOucString.o
-
-$(OBJDIR)/XrdOucTimer.o: XrdOucTimer.cc XrdOucTimer.hh  
-	@echo Compiling XrdOucTimer.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTimer.cc -o $(OBJDIR)/XrdOucTimer.o
 
 $(OBJDIR)/XrdOucTokenizer.o: XrdOucTokenizer.cc XrdOucTokenizer.hh  
 	@echo Compiling XrdOucTokenizer.cc
@@ -179,7 +151,3 @@ $(OBJDIR)/XrdOucUtils.o: XrdOucUtils.cc XrdOucUtils.hh \
                       XrdOucError.hh XrdOucStream.hh XrdNetDNS.hh
 	@echo Compiling XrdOucUtils.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucUtils.cc -o $(OBJDIR)/XrdOucUtils.o
-
-$(OBJDIR)/XrdOucXSLock.o: XrdOucError.hh XrdOucXSLock.hh XrdOucXSLock.cc
-	@echo Compiling XrdOucXSLock.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucXSLock.cc -o $(OBJDIR)/XrdOucXSLock.o

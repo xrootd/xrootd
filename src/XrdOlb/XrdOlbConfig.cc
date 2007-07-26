@@ -63,11 +63,11 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucPlugin.hh"
-#include "XrdOuc/XrdOucProg.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSys/XrdSysProg.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
@@ -433,7 +433,7 @@ int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest)
   
 void XrdOlbConfig::DoIt()
 {
-   XrdOucSemaphore SyncUp(0);
+   XrdSysSemaphore SyncUp(0);
    XrdOucTList    *tp;
    pthread_t       tid;
    time_t          eTime = time(0);
@@ -442,13 +442,13 @@ void XrdOlbConfig::DoIt()
 // Start the notification thread if we need to
 //
    if (AnoteSock)
-      if (XrdOucThread::Run(&tid, XrdOlbStartAnote, (void *)AnoteSock,
+      if (XrdSysThread::Run(&tid, XrdOlbStartAnote, (void *)AnoteSock,
                             0, "Notification handler"))
          Say.Emsg("olbd", errno, "start notification handler");
 
 // Start the prepare handler
 //
-   if (XrdOucThread::Run(&tid,XrdOlbStartPreparing,
+   if (XrdSysThread::Run(&tid,XrdOlbStartPreparing,
                              (void *)0, 0, "Prep handler"))
       Say.Emsg("olbd", errno, "start prep handler");
 
@@ -457,7 +457,7 @@ void XrdOlbConfig::DoIt()
 //
    if (AdminSock)
       {XrdOlbAdmin::setSync(&SyncUp);
-       if (XrdOucThread::Run(&tid, XrdOlbStartAdmin, (void *)AdminSock,
+       if (XrdSysThread::Run(&tid, XrdOlbStartAdmin, (void *)AdminSock,
                              0, "Admin traffic"))
           Say.Emsg("olbd", errno, "start admin handler");
        SyncUp.Wait();
@@ -466,7 +466,7 @@ void XrdOlbConfig::DoIt()
 // Start the supervisor subsystem
 //
    if (NetTCPr)
-      {if (XrdOucThread::Run(&tid,XrdOlbStartSupervising, 
+      {if (XrdSysThread::Run(&tid,XrdOlbStartSupervising, 
                              (void *)NetTCPr, 0, "supervisor"))
           {Say.Emsg("olbd", errno, "start", myRole);
           return;
@@ -483,7 +483,7 @@ void XrdOlbConfig::DoIt()
       {tp = myManagers;
        while(tp)
             {if (!isManager && !tp->next) Manager.Pander(tp->text, tp->val);
-                else {if (XrdOucThread::Run(&tid,XrdOlbStartPandering,(void *)tp,
+                else {if (XrdSysThread::Run(&tid,XrdOlbStartPandering,(void *)tp,
                                             0, tp->text))
                          {Say.Emsg("olbd", errno, "start", myRole);
                           return;
@@ -497,7 +497,7 @@ void XrdOlbConfig::DoIt()
 //
    if (isManager || isPeer)
       {wTime = SRVDelay - static_cast<int>((time(0) - eTime));
-       if (wTime > 0) XrdOucTimer::Wait(wTime*1000);
+       if (wTime > 0) XrdSysTimer::Wait(wTime*1000);
        Disabled = 0;
        Say.Emsg("Config", myRole, "service enabled.");
       }
@@ -663,7 +663,7 @@ void XrdOlbConfig::ConfigDefaults(void)
 
 int XrdOlbConfig::ConfigN2N()
 {
-   XrdOucPlugin    *myLib;
+   XrdSysPlugin    *myLib;
    XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
 
 // If we have no library path then use the default method (this will always
@@ -681,7 +681,7 @@ int XrdOlbConfig::ConfigN2N()
 // Create a pluin object (we will throw this away without deletion because
 // the library must stay open but we never want to reference it again).
 //
-   if (!(myLib = new XrdOucPlugin(&Say, N2N_Lib))) return 1;
+   if (!(myLib = new XrdSysPlugin(&Say, N2N_Lib))) return 1;
 
 // Now get the entry point of the object creator
 //
@@ -928,7 +928,7 @@ int XrdOlbConfig::setupManager()
 
 // Create statistical monitoring thread
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonPerf, (void *)0,
+   if ((rc = XrdSysThread::Run(&tid, XrdOlbStartMonPerf, (void *)0,
                                0, "Performance monitor")))
       {Say.Emsg("Config", rc, "create perf monitor thread");
        return 1;
@@ -938,7 +938,7 @@ int XrdOlbConfig::setupManager()
 //
    RefTurn  = 3*XrdOlbManager::STMax*(DiskLinger+1);
    if (RefReset)
-      {if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonRefs, (void *)0,
+      {if ((rc = XrdSysThread::Run(&tid, XrdOlbStartMonRefs, (void *)0,
                                    0, "Refcount monitor")))
           {Say.Emsg("Config", rc, "create refcount monitor thread");
            return 1;
@@ -947,7 +947,7 @@ int XrdOlbConfig::setupManager()
 
 // Create state monitoring thread
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonStat, (void *)0,
+   if ((rc = XrdSysThread::Run(&tid, XrdOlbStartMonStat, (void *)0,
                                0, "State monitor")))
       {Say.Emsg("Config", rc, "create state monitor thread");
        return 1;
@@ -1010,7 +1010,7 @@ int XrdOlbConfig::setupServer()
 
 // Create manager monitoring thread
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdOlbStartMonPing, (void *)0,
+   if ((rc = XrdSysThread::Run(&tid, XrdOlbStartMonPing, (void *)0,
                                0, "Ping monitor")))
       {Say.Emsg("Config", rc, "create ping monitor thread");
        return 1;
@@ -1104,7 +1104,7 @@ int XrdOlbConfig::setupXmi()
 {
    EPNAME("setupXmi");
    static XrdOlbXmiEnv XmiEnv;
-   XrdOucPlugin       *xmiLib;
+   XrdSysPlugin       *xmiLib;
    XrdOlbXmi          *(*ep)(int, char **, XrdOlbXmiEnv *);
    unsigned int isNormal, isDirect;
    XrdOlbXmi          *XMI, *myXMI;
@@ -1141,7 +1141,7 @@ int XrdOlbConfig::setupXmi()
 // Create a pluin object (we will throw this away without deletion because
 // the library must stay open but we never want to reference it again).
 //
-   if (!(xmiLib = new XrdOucPlugin(&Say, XmiPath))) return 1;
+   if (!(xmiLib = new XrdSysPlugin(&Say, XmiPath))) return 1;
 
 // Now get the entry point of the object creator
 //
@@ -1528,7 +1528,7 @@ int XrdOlbConfig::xexpo(XrdOucError *eDest, XrdOucStream &CFile)
 
 int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &CFile)
 {
-    struct xeqopts {const char *opname; int doset; XrdOucProg **pgm;} xqopts[] =
+    struct xeqopts {const char *opname; int doset; XrdSysProg **pgm;} xqopts[] =
        {
         {"chmod",    0, &ProgCH},
         {"mkdir",    0, &ProgMD},
@@ -1577,7 +1577,7 @@ int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &CFile)
 //
    for (i = 0; i < numopts; i++)
        if (xqopts[i].doset)
-          {if (!*xqopts[i].pgm) *(xqopts[i].pgm) = new XrdOucProg(0);
+          {if (!*xqopts[i].pgm) *(xqopts[i].pgm) = new XrdSysProg(0);
            if ((*(xqopts[i].pgm))->Setup(val, eDest)) return 1;
           }
 

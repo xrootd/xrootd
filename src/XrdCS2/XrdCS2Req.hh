@@ -15,7 +15,7 @@
 #include "XrdOlb/XrdOlbReq.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include "osdep.h"
 
@@ -54,9 +54,9 @@ private:
 
 static unsigned int SlotNum(const char *Path);
 
-static XrdOucMutex      myMutex;
-static XrdOucSemaphore  mySem_R;
-static XrdOucSemaphore  mySem_W;
+static XrdSysMutex      myMutex;
+static XrdSysSemaphore  mySem_R;
+static XrdSysSemaphore  mySem_W;
 static XrdCS2Req       *nextFree;
 static const int        Slots = 64;
 static XrdCS2Req       *STab[Slots];

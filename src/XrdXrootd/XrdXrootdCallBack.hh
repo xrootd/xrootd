@@ -13,7 +13,7 @@
 //        $Id$
 
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 class XrdScheduler;
 class XrdOurError;

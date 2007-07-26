@@ -26,7 +26,7 @@ const char *XrdCS2Xmi2csCVSID = "$Id$";
 #include "Xrd/XrdScheduler.hh"
 #include "XrdOuc/XrdOucError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #define XRDOLBTRACETYPE ->
 #include "XrdOlb/XrdOlbTrace.hh"
@@ -376,7 +376,7 @@ try {
 // Start the thread that handles polling
 //
    if (!PollerOK_R)
-      if ((retc = XrdOucThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_rw,
+      if ((retc = XrdSysThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_rw,
                                      XRDOUCTHREAD_BIND, "cs2 r request polling")))
          eDest->Emsg("CS2Xmi", retc, "create read polling thread");
          else PollerOK_R = 1;
@@ -384,7 +384,7 @@ try {
 // Start the thread that handles polling (n/a as no responses to prepareToPut)
 //
 // if (!PollerOK_W)
-//    if ((retc = XrdOucThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_ww,
+//    if ((retc = XrdSysThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_ww,
 //                                   XRDOUCTHREAD_BIND, "cs2 w request polling")))
 //       eDest->Emsg("CS2Xmi", retc, "create write polling thread");
 //       else PollerOK_W = 1;
@@ -473,7 +473,7 @@ do{pcnt = (is_W ? XrdCS2Req::Wait4Q_W() : XrdCS2Req::Wait4Q_R());
                   }
               }
           free_filequery_resp(resp, nbresps);
-          if (pcnt > 0) XrdOucTimer::Wait(MSSPollTime*1000);
+          if (pcnt > 0) XrdSysTimer::Wait(MSSPollTime*1000);
          }
    } while(1);
 }

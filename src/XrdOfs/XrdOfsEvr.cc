@@ -18,7 +18,7 @@
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucTimer.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -81,7 +81,7 @@ void XrdOfsEvr::flushEvents()
           else runQ = 0;
        myMutex.UnLock();
        while(ntp)
-            {XrdOucTimer::Wait(1000*60);
+            {XrdSysTimer::Wait(1000*60);
              expClock -= 60;
              myMutex.Lock();
              while((tp = ntp))
@@ -141,7 +141,7 @@ int XrdOfsEvr::Init(XrdOucError *eobj, XrdOdcFinderTRG *trgp)
 
 // Now start a thread to get incomming messages
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdOfsEvRecv, static_cast<void *>(this),
+   if ((rc = XrdSysThread::Run(&tid, XrdOfsEvRecv, static_cast<void *>(this),
                           0, "Event receiver")))
       {eobj->Emsg("Evr", rc, "create event reader thread");
        return 0;
@@ -149,7 +149,7 @@ int XrdOfsEvr::Init(XrdOucError *eobj, XrdOdcFinderTRG *trgp)
 
 // Now start a thread to flush posted events
 //
-   if ((rc = XrdOucThread::Run(&tid, XrdOfsEvFlush,static_cast<void *>(this),
+   if ((rc = XrdSysThread::Run(&tid, XrdOfsEvFlush,static_cast<void *>(this),
                           0, "Event flusher")))
       {eobj->Emsg("Evr", rc, "create event flush thread");
        return 0;

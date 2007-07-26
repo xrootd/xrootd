@@ -10,7 +10,7 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-#include "XrdOuc/XrdOucPthread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 //         $Id$
 
@@ -42,7 +42,7 @@ int      Next(int &port, char *buff, int bsz);
 
 private:
 
-XrdOucMutex   mlMutex;
+XrdSysMutex   mlMutex;
 XrdOlbManRef *nextMan;
 XrdOlbManRef *allMans;
 };
