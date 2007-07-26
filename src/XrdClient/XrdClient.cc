@@ -825,6 +825,11 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	     "Open", "Back to " << fConnModule->GetLBSUrl()->Host <<
 	     ". Refreshing cache. Opaque info: " << opinfo);
 
+        // First disconnect the current logical connection (otherwise spurious
+        // connection will stay around and create problems with processing of
+        // unsolicited messages)
+        fConnModule->Disconnect(FALSE);
+
 	if ( (fConnModule->GoToAnotherServer(*fConnModule->GetLBSUrl()) == kOK) &&
 	     LowOpen(fUrl.File.c_str(), mode, options | kXR_refresh,
 		     (char *)opinfo.c_str() ) ) {
