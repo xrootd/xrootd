@@ -227,7 +227,8 @@ XrdPosixDir::XrdPosixDir(int dirno, const char *path) : XAdmin(path)
 
 XrdPosixDir::~XrdPosixDir()
 {
-  if (fpath)  free(fpath);
+  if (fpath)    free(fpath);
+  if (myDirent) free(myDirent);
 }
 
 /******************************************************************************/
