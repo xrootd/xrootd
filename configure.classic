@@ -190,7 +190,7 @@ check_library() {
     done
     slibs=""
     for i in $lib ; do
-        for ext in .so .sl .dylib .dll.a ; do      # .dll.a for cygwin gcc
+        for ext in .so .sl .dylib ; do
             slibs="$slibs $i$ext"
         done
     done
@@ -436,7 +436,6 @@ guess_architecture () {
       sunos:*:5.10)       arch=sun4x_510       ; platform=solaris; ccflv=sunCC;;
       sunos:*:5*)         arch=sun4x_5         ; platform=solaris; ccflv=sunCC;;
       sunos:*:4*)         arch=sun4x_4         ; platform=solaris; ccflv=sunCC;;
-      cygwin_*:*:*)       arch=win32 ; platform=win32;  ccflv=wingcc; type=cygwin;;
 
       *)
           echo "Attempts at guessing your architecture failed."
@@ -742,15 +741,6 @@ if test "x$platform" = "xmacosx" ; then
       echo "$macosx_major.$macosx_minor: OS version not supported (must be >= 10.3). Sorry."
       exit 1
    fi
-fi
-
-
-#
-# If Cygwin-gcc set the correct cc flavour
-#
-if test "x$arch" = "xwin32gcc" ; then
-    nccflv="wingcc"
-    type="cygwin"
 fi
 
 #

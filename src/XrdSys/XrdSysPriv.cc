@@ -52,7 +52,7 @@ extern "C" {
 #endif
 
 #if !defined(__hpux) && !defined(linux) && !defined(__FreeBSD__) && \
-    !defined(__OpenBSD__) || defined(cygwingcc)
+    !defined(__OpenBSD__)
 static int setresgid(gid_t r, gid_t e, gid_t)
 {
    if (setgid(r) == -1)
