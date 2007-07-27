@@ -79,12 +79,7 @@ $(LIBARCH): $(OBJSLIB)
 
 $(LIBRARY): $(OBJSLIB) $(LIBDEPS)
 	@echo Creating shared library $(LIBRARY) 
-	$(ECHO)if [ "x$(TYPE)" = "xcygwin" ]; then \
-	   $(CC) $(OBJSLIB) $(LDSO) $(MORELIBS) $(LIBS) \
-		-Wl,--out-implib=$(LIBRARY).a -o $(LIBRARY); \
-	else \
-	   $(CC) $(OBJSLIB) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY); \
-	fi
+	$(ECHO)$(CC) $(OBJSLIB) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY); \
 
 $(TSTBINA): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(TSTBINA) 
