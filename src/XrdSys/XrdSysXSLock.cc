@@ -42,7 +42,7 @@ XrdSysXSLock::~XrdSysXSLock()
 /*                                  L o c k                                   */
 /******************************************************************************/
   
-void XrdSysXSLock::Lock(const XrdOucXS_Type usage)
+void XrdSysXSLock::Lock(const XrdSysXS_Type usage)
 {  int FirstTime = 1;
 
 // Serialize access to this object
@@ -85,7 +85,7 @@ void XrdSysXSLock::Lock(const XrdOucXS_Type usage)
 /*                                U n L o c k                                 */
 /******************************************************************************/
   
-void XrdSysXSLock::UnLock(const XrdOucXS_Type usage)
+void XrdSysXSLock::UnLock(const XrdSysXS_Type usage)
 {
 
 // Serialize access to our data

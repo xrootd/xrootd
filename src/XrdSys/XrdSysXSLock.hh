@@ -17,7 +17,7 @@
 
 // These are valid usage options
 //
-enum XrdOucXS_Type {xs_None = 0, xs_Shared = 1, xs_Exclusive = 2};
+enum XrdSysXS_Type {xs_None = 0, xs_Shared = 1, xs_Exclusive = 2};
 
 // This class implements the shared lock. Any number of readers are allowed
 // by requesting a shared lock. Only one exclusive writer is allowed by
@@ -27,9 +27,9 @@ class XrdSysXSLock
 {
 public:
 
-void        Lock(const XrdOucXS_Type usage);
+void        Lock(const XrdSysXS_Type usage);
 
-void      UnLock(const XrdOucXS_Type usage=xs_None);
+void      UnLock(const XrdSysXS_Type usage=xs_None);
 
           XrdSysXSLock()
                {cur_usage = xs_None; cur_count = 0;
@@ -39,7 +39,7 @@ void      UnLock(const XrdOucXS_Type usage=xs_None);
 
 private:
 
-XrdOucXS_Type cur_usage;
+XrdSysXS_Type cur_usage;
 int           cur_count;
 int           exc_wait;
 int           shr_wait;
