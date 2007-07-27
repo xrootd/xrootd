@@ -145,7 +145,7 @@ enum XQueryType {
 };
 
 enum XVerifyType {
-   kXR_nocrc  = 0
+   kXR_nocrc  = 0,
    kXR_crc32  = 1
 };
 
