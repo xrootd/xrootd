@@ -115,6 +115,8 @@ XrdPosixRootVec xinuX;
                          {return (Retv_Readdir_r)Xunix.Load_Error("readdir_r", ELIBACC);}
       Retv_Readdir64_r Xrd_U_Readdir64_r(Args_Readdir64_r)
                          {return (Retv_Readdir64_r)Xunix.Load_Error("readdir64_r", ELIBACC);}
+      Retv_Rename      Xrd_U_Rename(Args_Rename)
+                         {return (Retv_Rename)Xunix.Load_Error("rename");}
       Retv_Rewinddir   Xrd_U_Rewinddir(Args_Rewinddir) 
                          {       Xunix.Load_Error("rewinddir"); _exit(255);}
       Retv_Rmdir       Xrd_U_Rmdir(Args_Rmdir) 
@@ -177,6 +179,7 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Readdir64)
   LOOKUP_UNIX(Readdir_r)
   LOOKUP_UNIX(Readdir64_r)
+  LOOKUP_UNIX(Rename)
   LOOKUP_UNIX(Rewinddir)
   LOOKUP_UNIX(Rmdir)
   LOOKUP_UNIX(Seekdir)
@@ -240,6 +243,7 @@ int XrdPosixRootVec::Resolve()
   LOOKUP_XROOT(Readdir64)
   LOOKUP_XROOT(Readdir_r)
   LOOKUP_XROOT(Readdir64_r)
+  LOOKUP_XROOT(Rename)
   LOOKUP_XROOT(Rewinddir)
   LOOKUP_XROOT(Rmdir)
   LOOKUP_XROOT(Seekdir)

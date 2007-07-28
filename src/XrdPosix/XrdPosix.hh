@@ -50,6 +50,8 @@
 #define readdir_r(a,b,c)   XrdPosix_Readdir_r(a,b,c)
 #define readdir64_r(a,b,c) XrdPosix_Readdir64_r(a,b,c)
 
+#define rename(a,b)      XrdPosix_Rename(a,b)
+
 #define rewinddir(a)     XrdPosix_Rewinddir(a)
 
 #define rmdir(a)         XrdPosix_Rmdir(a)

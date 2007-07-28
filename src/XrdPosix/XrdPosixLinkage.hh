@@ -187,6 +187,10 @@
 #define Retv_Readdir64_r int
 #define Args_Readdir64_r DIR *, struct dirent64 *, struct dirent64 **
 
+#define Symb_Rename UNIX_PFX "rename"
+#define Retv_Rename int
+#define Args_Rename const char *, const char *
+
 #define Symb_Rewinddir UNIX_PFX "rewinddir"
 #define Retv_Rewinddir void
 #define Args_Rewinddir DIR *
@@ -283,6 +287,7 @@ class XrdPosixLinkage
       Retv_Readdir64   (*Readdir64)(Args_Readdir64);
       Retv_Readdir_r   (*Readdir_r)(Args_Readdir_r);
       Retv_Readdir64_r (*Readdir64_r)(Args_Readdir64_r);
+      Retv_Rename      (*Rename)(Args_Rename);
       Retv_Rewinddir   (*Rewinddir)(Args_Rewinddir);
       Retv_Rmdir       (*Rmdir)(Args_Rmdir);
       Retv_Seekdir     (*Seekdir)(Args_Seekdir);
@@ -366,6 +371,9 @@ int Resolve();
 #define XRD_Retv_Readdir64_r int
 #define XRD_Args_Readdir64_r DIR *, struct dirent64 *, struct dirent64 **
 
+#define XRD_Retv_Rename int
+#define XRD_Args_Rename const char *, const char *
+
 #define XRD_Retv_Rewinddir void
 #define XRD_Args_Rewinddir DIR *
 
@@ -423,6 +431,7 @@ class XrdPosixRootVec
       XRD_Retv_Readdir64   (*Readdir64)(XRD_Args_Readdir64);
       XRD_Retv_Readdir_r   (*Readdir_r)(XRD_Args_Readdir_r);
       XRD_Retv_Readdir64_r (*Readdir64_r)(XRD_Args_Readdir64_r);
+      XRD_Retv_Rename      (*Rename)(XRD_Args_Rename);
       XRD_Retv_Rewinddir   (*Rewinddir)(XRD_Args_Rewinddir);
       XRD_Retv_Rmdir       (*Rmdir)(XRD_Args_Rmdir);
       XRD_Retv_Seekdir     (*Seekdir)(XRD_Args_Seekdir);

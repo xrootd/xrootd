@@ -59,6 +59,8 @@ static struct dirent64* Readdir64(DIR *dirp);
 static int     Readdir_r  (DIR *dirp, struct dirent   *entry, struct dirent   **result);
 static int     Readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result);
 
+static int     Rename(const char *oldpath, const char *newpath);
+
 static void    Rewinddir(DIR *dirp);
 
 static int     Rmdir(const char *path);

@@ -516,6 +516,29 @@ int XrdPosix_Readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **re
 }
 
 /******************************************************************************/
+/*                       X r d P o s i x _ R e n a m e                        */
+/******************************************************************************/
+
+int XrdPosix_Rename(const char *oldpath, const char *newpath)
+{
+   char *oldPath, buffold[2048], *newPath, buffnew[2048];
+
+// Make sure a path was passed
+//
+   if (!oldpath || !newpath) {errno = EFAULT; return -1;}
+
+// Return the results of a mkdir of a Unix file system
+//
+   if (!(oldPath = XrootPath.URL(oldpath, buffold, sizeof(buffold)))
+   ||  !(newPath = XrootPath.URL(newpath, buffnew, sizeof(buffnew))))
+      return Xunix.Rename(oldpath, newpath);
+
+// Return the results of an mkdir of an xrootd file system
+//
+   return Xroot.Rename(oldPath, newPath);
+}
+
+/******************************************************************************/
 /*                    X r d P o s i x _ R e w i n d d i r                     */
 /******************************************************************************/
 

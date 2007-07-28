@@ -60,6 +60,8 @@ extern struct  dirent64* XrdPosix_Readdir64(DIR *dirp);
 extern int     XrdPosix_Readdir_r  (DIR *dirp, struct dirent   *entry, struct dirent   **result);
 extern int     XrdPosix_Readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result);
 
+extern int     XrdPosix_Rename(const char *oname, const char *nname);
+
 extern void    XrdPosix_Rewinddir(DIR *dirp);
 
 extern int     XrdPosix_Rmdir(const char *path);

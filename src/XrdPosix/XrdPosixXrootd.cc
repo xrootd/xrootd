@@ -804,6 +804,27 @@ int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
 }
 
 /******************************************************************************/
+/*                                R e n a m e                                 */
+/******************************************************************************/
+
+int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
+{
+  XrdPosixAdminNew admin(oldpath);
+
+  if (admin.isOK())
+     {XrdOucString    oldstr(oldpath);
+      XrdClientUrlSet oldurl(oldstr);
+      XrdOucString    newstr(newpath);
+      XrdClientUrlSet newurl(newstr);
+      if (admin.Admin.Mv(oldurl.GetFile().c_str(),
+                         newurl.GetFile().c_str())) return 0;
+      return admin.Fault();
+     }
+  return admin.Result();
+}
+
+
+/******************************************************************************/
 /*                            R e w i n d d i r                               */
 /******************************************************************************/
 

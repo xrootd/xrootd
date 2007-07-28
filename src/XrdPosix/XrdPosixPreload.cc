@@ -445,6 +445,20 @@ int     readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
 }
 
 /******************************************************************************/
+/*                                r e n a m e                                 */
+/******************************************************************************/
+  
+extern "C"
+{
+int     rename(const char *oldpath, const char *newpath)
+{
+   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
+
+   return xinuX.Rename(oldpath, newpath);
+}
+}
+
+/******************************************************************************/
 /*                             r e w i n d d i r                              */
 /******************************************************************************/
 
