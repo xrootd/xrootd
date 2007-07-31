@@ -21,7 +21,7 @@ const char *XrdBufferCVSID = "$Id$";
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdBuffer.hh"
@@ -42,7 +42,7 @@ void *XrdReshaper(void *pp)
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-extern XrdOucError  XrdLog;
+extern XrdSysError  XrdLog;
 
 #ifndef NODEBUG 
 extern XrdOucTrace  XrdTrace;

@@ -16,7 +16,7 @@ const char *XrdOdcManagerCVSID = "$Id$";
 #include "XrdOdc/XrdOdcMsg.hh"
 #include "XrdOdc/XrdOdcTrace.hh"
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdNet/XrdNetWork.hh"
@@ -31,7 +31,7 @@ extern      XrdOucTrace OdcTrace;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOdcManager::XrdOdcManager(XrdOucError *erp, char *host, int port, 
+XrdOdcManager::XrdOdcManager(XrdSysError *erp, char *host, int port, 
                              int cw, int nr) : syncResp(0)
 {
    char *dot;

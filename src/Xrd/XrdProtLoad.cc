@@ -12,7 +12,7 @@
 
 const char *XrdProtLoadCVSID = "$Id$";
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
 #include "Xrd/XrdLink.hh"
@@ -24,7 +24,7 @@ const char *XrdProtLoadCVSID = "$Id$";
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
-extern XrdOucError XrdLog;
+extern XrdSysError XrdLog;
 
 extern XrdOucTrace XrdTrace;
 

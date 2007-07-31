@@ -34,7 +34,7 @@ const char *XrdNetWorkCVSID = "$Id$";
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdNet/XrdNetWork.hh"
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
 /*                                A c c e p t                                 */

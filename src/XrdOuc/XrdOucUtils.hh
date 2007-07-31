@@ -15,7 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
   
-class XrdOucError;
+class XrdSysError;
 class XrdOucStream;
 
 class XrdOucUtils
@@ -24,7 +24,7 @@ public:
 
 static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 
-static int   doIf(XrdOucError *eDest, XrdOucStream &Config,
+static int   doIf(XrdSysError *eDest, XrdOucStream &Config,
                   const char *what, const char *hname, 
                                     const char *nname, const char *pname);
  
@@ -34,11 +34,11 @@ static int   genPath(char *buff, int blen, const char *path, const char *psfx=0)
 
 static int   is1of(char *val, const char **clist);
 
-static void  makeHome(XrdOucError &eDest, const char *inst);
+static void  makeHome(XrdSysError &eDest, const char *inst);
 
 static int   makePath(char *path, mode_t mode);
  
-static char *subLogfn(XrdOucError &eDest, const char *inst, char *logfn);
+static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 
        XrdOucUtils() {}
       ~XrdOucUtils() {}

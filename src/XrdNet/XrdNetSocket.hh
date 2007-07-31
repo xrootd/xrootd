@@ -22,7 +22,7 @@
 /*                      C l a s s   D e f i n i t i o n                       */
 /******************************************************************************/
   
-class XrdOucError;
+class XrdSysError;
 
 class XrdNetSocket
 {
@@ -34,7 +34,7 @@ public:
 // to the socket object. This is useful when creating an object for accepted
 // connections, e.g., ClientSock = new XrdNetSocket("", ServSock.Accept()).
 //
-            XrdNetSocket(XrdOucError *erobj=0, int SockFileDesc=-1);
+            XrdNetSocket(XrdSysError *erobj=0, int SockFileDesc=-1);
 
            ~XrdNetSocket() {Close();}
 
@@ -43,7 +43,7 @@ public:
 // file name. The access permission mode must also be supplied. Upon failure,
 // a null pointer is returned.
 //
-static XrdNetSocket *Create(XrdOucError *Say, const char *path,
+static XrdNetSocket *Create(XrdSysError *Say, const char *path,
                             const char *fn, mode_t mode, int isudp=0);
 
 // Open a socket. Returns socket number upon success otherwise a -1. Use
@@ -99,15 +99,15 @@ const char *Peername(struct sockaddr **InetAddr=0);
 // An optional error routing object may be specified if error messages are 
 // wanted. Only when all option settings succeed is 0 is returned.
 //
-static int setOpts(int fd, int options, XrdOucError *eDest=0);
+static int setOpts(int fd, int options, XrdSysError *eDest=0);
 
 // Set socket recv/send buffer sizes. The method is static so it can be used in 
 // any context. An optional error routing object may be specified if error 
 // messages are wanted. Only when all option settings succeed is 0 is returned.
 //
-static int setWindow(int fd, int  Windowsz, XrdOucError *eDest=0);
+static int setWindow(int fd, int  Windowsz, XrdSysError *eDest=0);
 
-static int getWindow(int fd, int &Windowsz, XrdOucError *eDest=0);
+static int getWindow(int fd, int &Windowsz, XrdSysError *eDest=0);
 
 // Return socket file descriptor number (useful when attaching to a stream).
 //
@@ -119,7 +119,7 @@ inline int  SockNum() {return SockFD;}
 // success, it returns a pointer to the buffer holding the name (supplied by
 // the caller). Otherwise, it returns a null pointer.
 //
-static char *socketPath(XrdOucError *Say, char *inbuff,
+static char *socketPath(XrdSysError *Say, char *inbuff,
                         const char *path, const char *fn, 
                         mode_t mode);
 
@@ -130,6 +130,6 @@ int             SockFD;
 int             ErrCode;
 struct sockaddr PeerAddr;
 char           *PeerName;
-XrdOucError    *eroute;
+XrdSysError    *eroute;
 };
 #endif

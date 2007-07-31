@@ -30,7 +30,7 @@ const char *XrdOucMsubs::vName[vMax] = {0};
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOucMsubs::XrdOucMsubs(XrdOucError *errp)
+XrdOucMsubs::XrdOucMsubs(XrdSysError *errp)
 {
 
    if (vName[0] == 0)

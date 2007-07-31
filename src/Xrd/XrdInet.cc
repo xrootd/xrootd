@@ -20,7 +20,7 @@ const char *XrdInetCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"

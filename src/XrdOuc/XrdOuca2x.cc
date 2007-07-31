@@ -26,7 +26,7 @@ const char *XrdOuca2xCVSID = "$Id$";
 /*                                   a 2 i                                    */
 /******************************************************************************/
 
-int XrdOuca2x::a2i(XrdOucError &Eroute, const char *emsg, const char *item,
+int XrdOuca2x::a2i(XrdSysError &Eroute, const char *emsg, const char *item,
                                              int *val, int minv, int maxv)
 {
     if (!item || !*item)
@@ -49,7 +49,7 @@ int XrdOuca2x::a2i(XrdOucError &Eroute, const char *emsg, const char *item,
 /*                                  a 2 l l                                   */
 /******************************************************************************/
 
-long long XrdOuca2x::a2ll(XrdOucError &Eroute, const char *emsg, const char *item,
+long long XrdOuca2x::a2ll(XrdSysError &Eroute, const char *emsg, const char *item,
                                 long long *val, long long minv, long long maxv)
 {
     if (!item || !*item)
@@ -72,7 +72,7 @@ long long XrdOuca2x::a2ll(XrdOucError &Eroute, const char *emsg, const char *ite
 /*                                  a 2 f m                                   */
 /******************************************************************************/
 
-int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, const char *item,
+int XrdOuca2x::a2fm(XrdSysError &Eroute, const char *emsg, const char *item,
                                               int *val, int minv, int maxv)
 {  int rc, num;
    if ((rc = a2fm(Eroute, emsg, item, &num, minv))) return rc;
@@ -94,7 +94,7 @@ int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, const char *item,
    return 0;
 }
 
-int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, const char *item,
+int XrdOuca2x::a2fm(XrdSysError &Eroute, const char *emsg, const char *item,
                                               int *val, int minv)
 {
     if (!item || !*item)
@@ -117,7 +117,7 @@ int XrdOuca2x::a2fm(XrdOucError &Eroute, const char *emsg, const char *item,
 /*                                  a 2 s z                                   */
 /******************************************************************************/
 
-long long XrdOuca2x::a2sz(XrdOucError &Eroute, const char *emsg, const char *item,
+long long XrdOuca2x::a2sz(XrdSysError &Eroute, const char *emsg, const char *item,
                                 long long *val, long long minv, long long maxv)
 {   int i = strlen(item)-1;
     long long qmult = 1;
@@ -145,7 +145,7 @@ long long XrdOuca2x::a2sz(XrdOucError &Eroute, const char *emsg, const char *ite
 /*                                  a 2 t m                                   */
 /******************************************************************************/
 
-int XrdOuca2x::a2tm(XrdOucError &Eroute, const char *emsg, const char *item, int *val,
+int XrdOuca2x::a2tm(XrdSysError &Eroute, const char *emsg, const char *item, int *val,
                           int minv, int maxv)
 {   int i = strlen(item)-1;
     int qmult = 1;
@@ -174,7 +174,7 @@ int XrdOuca2x::a2tm(XrdOucError &Eroute, const char *emsg, const char *item, int
 /*                                  a 2 v p                                   */
 /******************************************************************************/
 
-int XrdOuca2x::a2vp(XrdOucError &Eroute, const char *emsg, const char *item,
+int XrdOuca2x::a2vp(XrdSysError &Eroute, const char *emsg, const char *item,
                                              int *val, int minv, int maxv)
 {
     char *pp;
@@ -208,7 +208,7 @@ int XrdOuca2x::a2vp(XrdOucError &Eroute, const char *emsg, const char *item,
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
   
-int XrdOuca2x::Emsg(XrdOucError &Eroute, const char *etxt1, const char *item,
+int XrdOuca2x::Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
                                          const char *etxt2, int val)
 {char buff[256];
  sprintf(buff, etxt2, val);
@@ -216,7 +216,7 @@ int XrdOuca2x::Emsg(XrdOucError &Eroute, const char *etxt1, const char *item,
  return -1;
 }
 
-long long XrdOuca2x::Emsg(XrdOucError &Eroute, const char *etxt1, const char *item,
+long long XrdOuca2x::Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
                                                const char *etxt2, long long val)
 {char buff[256];
  sprintf(buff, etxt2, val);

@@ -1,8 +1,8 @@
-#ifndef __OOUC_SEMWAIT__
-#define __OOUC_SEMWAIT__ 
+#ifndef __SYS_SEMWAIT__
+#define __SYS_SEMWAIT__
 
 /******************************************************************************/
-/*                       X r d O u c S e m W a i t                            */
+/*                       X r d S y s S e m W a i t                            */
 /*                                                                            */
 /* Author: Fabrizio Furano (INFN, 2005)                                       */
 /*                                                                            */

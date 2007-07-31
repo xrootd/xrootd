@@ -42,14 +42,14 @@ const char *XrdOssStageCVSID = "$Id$";
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdSys/XrdSysProg.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 
 /******************************************************************************/
 /*           G l o b a l   E r r o r   R o u t i n g   O b j e c t            */
 /******************************************************************************/
 
-extern XrdOucError OssEroute;
+extern XrdSysError OssEroute;
  
 /******************************************************************************/
 /*             H a s h   C o m p u t a t i o n   F u n c t i o n              */

@@ -63,8 +63,8 @@ Where:
 #define  TRACELINK newlink
 #include "Xrd/XrdTrace.hh"
 
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
   
 /******************************************************************************/
@@ -79,9 +79,9 @@ extern XrdInet           *XrdNetTCP[];    // Defined by config
 
        XrdScheduler       XrdSched;
 
-       XrdOucLogger       XrdLogger;
+       XrdSysLogger       XrdLogger;
 
-       XrdOucError        XrdLog(&XrdLogger, "Xrd");
+       XrdSysError        XrdLog(&XrdLogger, "Xrd");
 
        XrdSysThread      *XrdThread;
 
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
 // Start the admin thread if an admin network is defined
 //
    if (XrdNetADM && (retc = XrdSysThread::Run(&tid, mainAdmin, (void *)0,
-                            XRDOUCTHREAD_BIND, "Admin handler")))
+                            XRDSYSTHREAD_BIND, "Admin handler")))
       {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
 
 // At this point we should be able to accept new connections. Spawn a
@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
           {sprintf(buff, "Port %d handler", XrdNetTCP[i]->Port());
            if ((retc = XrdSysThread::Run(&tid, mainAccept,
                                          (void *)XrdNetTCP[i],
-                                         XRDOUCTHREAD_BIND, strdup(buff))))
+                                         XRDSYSTHREAD_BIND, strdup(buff))))
               {sprintf(buff, "create port %d handler", XrdNetTCP[i]->Port());
                XrdLog.Emsg("main", retc, buff);
                _exit(3);

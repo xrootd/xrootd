@@ -28,7 +28,7 @@
 
 class XrdNetPeer;
 class XrdNetSecurity;
-class XrdOucError;
+class XrdSysError;
 
 class XrdNet
 {
@@ -124,12 +124,12 @@ int            WSize();
 // Optionally, specify the security object to screen incomming connections.
 // (if zero, no screening is done).
 //
-                XrdNet(XrdOucError *erp, XrdNetSecurity *secp=0);
+                XrdNet(XrdSysError *erp, XrdNetSecurity *secp=0);
                ~XrdNet();
 
 protected:
 
-XrdOucError       *eDest;
+XrdSysError       *eDest;
 XrdNetSecurity    *Police;
 char              *Domain;
 int                Domlen;

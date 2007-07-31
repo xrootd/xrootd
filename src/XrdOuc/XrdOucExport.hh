@@ -12,7 +12,7 @@
 
 //          $Id$
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucStream.hh"
   
@@ -77,10 +77,10 @@ class XrdOucExport
 {
 public:
 
-static unsigned long long ParseDefs(XrdOucStream &Config, XrdOucError &Eroute,
+static unsigned long long ParseDefs(XrdOucStream &Config, XrdSysError &Eroute,
                                     unsigned long long Flags);
 
-static XrdOucPList       *ParsePath(XrdOucStream &Config, XrdOucError &Eroute,
+static XrdOucPList       *ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
                                     unsigned long long Defopts);
 
                    XrdOucExport() {}

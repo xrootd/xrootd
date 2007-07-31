@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c T i m e r . c c                         */
+/*                        X r d S y s T i m e r . c c                         */
 /*                                                                            */
 /* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */

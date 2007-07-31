@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d O u c P l u g i n . c c                        */
+/*                       X r d S y s P l u g i n . c c                        */
 /*                                                                            */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -39,7 +39,7 @@ const char *XrdSysPluginCVSID = "$Id$";
 using namespace std;
 #endif
   
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
  
 /******************************************************************************/

@@ -104,18 +104,18 @@ virtual                  ~XrdAccAuthorize() {}
 /*                   o o a c c _ A c c e s s _ O b j e c t                    */
 /******************************************************************************/
 
-class XrdOucLogger;
+class XrdSysLogger;
   
 /* XrdAccAuthorizeObject() is called to obtain an instance of the auth object
    that will be used for all subsequent authorization decisions. If it returns
    a null pointer; initialization fails and the program exits. The args are:
 
-   lp    -> XrdOucLogger to be tied to an XrdOucError object for messages
+   lp    -> XrdSysLogger to be tied to an XrdSysError object for messages
    cfn   -> The name of the configuration file
    parm  -> Parameters specified on the authlib directive. If none it is zero.
 */
 
-extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdOucLogger *lp,
+extern "C" XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp,
                                                   const char   *cfn,
                                                   const char   *parm);
 #endif

@@ -32,8 +32,8 @@ const char *XrdOlbProtocolCVSID = "$Id$";
 #include "XrdOlb/XrdOlbManager.hh"
 #include "XrdOlb/XrdOlbProtocol.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 
 using namespace XrdOlb;
   
@@ -41,7 +41,7 @@ using namespace XrdOlb;
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
-       XrdOucError      XrdOlb::Say(0, "olb_");
+       XrdSysError      XrdOlb::Say(0, "olb_");
 
        XrdOucTrace      XrdOlb::Trace(&XrdOlb::Say);
 

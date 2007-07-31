@@ -21,7 +21,7 @@ const char *XrdOlbPrepareCVSID = "$Id$";
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucTList.hh"
 

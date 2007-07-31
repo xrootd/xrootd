@@ -12,8 +12,8 @@
 
 //       $Id$
 
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecPManager.hh"
@@ -37,14 +37,14 @@ XrdSecProtocol         *getProtocol(const char              *host,    // In
 
 int                     Configure(const char *cfn);
 
-                        XrdSecServer(XrdOucLogger *lp);
+                        XrdSecServer(XrdSysLogger *lp);
                        ~XrdSecServer() {}      // Server is never deleted
 
 private:
 
 static XrdSecPManager  PManager;
 
-XrdOucError     eDest;
+XrdSysError     eDest;
 XrdOucTrace    *SecTrace;
 XrdSecProtBind *bpFirst;
 XrdSecProtBind *bpLast;
@@ -55,13 +55,13 @@ int             STBlen;
 int             Enforce;
 int             implauth;
 
-int             add2token(XrdOucError &erp,char *,char **,int &,XrdSecPMask_t &);
+int             add2token(XrdSysError &erp,char *,char **,int &,XrdSecPMask_t &);
 int             ConfigFile(const char *cfn);
-int             ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute);
-int             ProtBind_Complete(XrdOucError &Eroute);
-int             xpbind(XrdOucStream &Config, XrdOucError &Eroute);
-int             xpparm(XrdOucStream &Config, XrdOucError &Eroute);
-int             xprot(XrdOucStream &Config, XrdOucError &Eroute);
-int             xtrace(XrdOucStream &Config, XrdOucError &Eroute);
+int             ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute);
+int             ProtBind_Complete(XrdSysError &Eroute);
+int             xpbind(XrdOucStream &Config, XrdSysError &Eroute);
+int             xpparm(XrdOucStream &Config, XrdSysError &Eroute);
+int             xprot(XrdOucStream &Config, XrdSysError &Eroute);
+int             xtrace(XrdOucStream &Config, XrdSysError &Eroute);
 };
 #endif

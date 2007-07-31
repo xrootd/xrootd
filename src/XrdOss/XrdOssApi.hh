@@ -20,7 +20,7 @@
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -107,7 +107,7 @@ char         cxid[4];
   
 class XrdOucMsubs;
 class XrdOucName2Name;
-class XrdSysProg;
+class XrdOucProg;
 
 class XrdOssSys : public XrdOss
 {
@@ -119,13 +119,13 @@ virtual XrdOssDF *newFile(const char *tident)
 
 int       Chmod(const char *, mode_t mode);
 void     *CacheScan(void *carg);
-int       Configure(const char *, XrdOucError &);
-void      Config_Display(XrdOucError &);
+int       Configure(const char *, XrdSysError &);
+void      Config_Display(XrdSysError &);
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 int       GenLocalPath(const char *, char *);
 int       GenRemotePath(const char *, char *);
-int       Init(XrdOucLogger *, const char *);
+int       Init(XrdSysLogger *, const char *);
 int       IsRemote(const char *path) 
                   {return (RPList.Find(path) & XRDEXP_REMOTE) != 0;}
 int       Mkdir(const char *, mode_t mode, int mkpath=0);
@@ -235,8 +235,8 @@ XrdOssCache_FS     *xscurr;   // -> Curent filesystem (config time only)
 XrdOssCache_Group  *xsgroups; // -> Cache group list  (config time only)
 
 XrdOssCache_Req StageQ;       //    Queue of staging requests
-XrdSysProg     *StageProg;    //    Command or manager than handles staging
-XrdSysProg     *MSSgwProg;    //    Command for MSS meta-data operations
+XrdOucProg     *StageProg;    //    Command or manager than handles staging
+XrdOucProg     *MSSgwProg;    //    Command for MSS meta-data operations
 
 XrdSysMutex     CacheContext;
 XrdSysSemaphore ReadyRequest;
@@ -252,7 +252,7 @@ void               doScrub();
 int                Find(XrdOssCache_Req *req, void *carg);
 int                GetFile(XrdOssCache_Req *req);
 time_t             HasFile(const char *fn, const char *sfx);
-void               List_Cache(char *lname, int self, XrdOucError &Eroute);
+void               List_Cache(char *lname, int self, XrdSysError &Eroute);
 void               ReCache();
 int                Stage_QT(const char *, const char *, XrdOucEnv &, int, mode_t);
 int                Stage_RT(const char *, const char *, XrdOucEnv &);
@@ -261,26 +261,26 @@ int                Stage_RT(const char *, const char *, XrdOucEnv &);
 //
 off_t  Adjust(dev_t devid, off_t size);
 int    chkDep(const char *var);
-void   ConfigMio(XrdOucError &Eroute);
-int    ConfigN2N(XrdOucError &Eroute);
-int    ConfigProc(XrdOucError &Eroute);
-int    ConfigStage(XrdOucError &Eroute);
-int    ConfigXeq(char *, XrdOucStream &, XrdOucError &);
-void   List_Path(const char *, char *, unsigned long long, XrdOucError &);
-int    xalloc(XrdOucStream &Config, XrdOucError &Eroute);
-int    xcache(XrdOucStream &Config, XrdOucError &Eroute);
-int    xcacheBuild(char *grp, char *fn, XrdOucError &Eroute);
-int    xcompdct(XrdOucStream &Config, XrdOucError &Eroute);
-int    xcachescan(XrdOucStream &Config, XrdOucError &Eroute);
-int    xdefault(XrdOucStream &Config, XrdOucError &Eroute);
-int    xfdlimit(XrdOucStream &Config, XrdOucError &Eroute);
-int    xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute);
-int    xmemf(XrdOucStream &Config, XrdOucError &Eroute);
-int    xnml(XrdOucStream &Config, XrdOucError &Eroute);
-int    xpath(XrdOucStream &Config, XrdOucError &Eroute);
-int    xstg(XrdOucStream &Config, XrdOucError &Eroute);
-int    xtrace(XrdOucStream &Config, XrdOucError &Eroute);
-int    xxfr(XrdOucStream &Config, XrdOucError &Eroute);
+void   ConfigMio(XrdSysError &Eroute);
+int    ConfigN2N(XrdSysError &Eroute);
+int    ConfigProc(XrdSysError &Eroute);
+int    ConfigStage(XrdSysError &Eroute);
+int    ConfigXeq(char *, XrdOucStream &, XrdSysError &);
+void   List_Path(const char *, char *, unsigned long long, XrdSysError &);
+int    xalloc(XrdOucStream &Config, XrdSysError &Eroute);
+int    xcache(XrdOucStream &Config, XrdSysError &Eroute);
+int    xcacheBuild(char *grp, char *fn, XrdSysError &Eroute);
+int    xcompdct(XrdOucStream &Config, XrdSysError &Eroute);
+int    xcachescan(XrdOucStream &Config, XrdSysError &Eroute);
+int    xdefault(XrdOucStream &Config, XrdSysError &Eroute);
+int    xfdlimit(XrdOucStream &Config, XrdSysError &Eroute);
+int    xmaxdbsz(XrdOucStream &Config, XrdSysError &Eroute);
+int    xmemf(XrdOucStream &Config, XrdSysError &Eroute);
+int    xnml(XrdOucStream &Config, XrdSysError &Eroute);
+int    xpath(XrdOucStream &Config, XrdSysError &Eroute);
+int    xstg(XrdOucStream &Config, XrdSysError &Eroute);
+int    xtrace(XrdOucStream &Config, XrdSysError &Eroute);
+int    xxfr(XrdOucStream &Config, XrdSysError &Eroute);
 
 // Mass storage related methods
 //

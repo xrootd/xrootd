@@ -18,7 +18,7 @@
 #include <sys/types.h>
 
 class XrdOucEnv;
-class XrdOucLogger;
+class XrdSysLogger;
 class XrdSfsAio;
 
 #ifndef XrdOssOK
@@ -86,7 +86,7 @@ virtual XrdOssDF *newFile(const char *tident)=0;
 virtual int     Chmod(const char *, mode_t mode)=0;
 virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &, 
                        int opts=0)=0;
-virtual int     Init(XrdOucLogger *, const char *)=0;
+virtual int     Init(XrdSysLogger *, const char *)=0;
 virtual int     Mkdir(const char *, mode_t mode, int mkpath=0)=0;
 virtual int     Remdir(const char *)=0;
 virtual int     Rename(const char *, const char *)=0;
@@ -112,7 +112,7 @@ virtual        ~XrdOss() {}
 extern "C"
 {
 XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
-                               XrdOucLogger *Logger,
+                               XrdSysLogger *Logger,
                                const char   *config_fn,
                                const char   *parms);
 }

@@ -16,7 +16,7 @@ const char *XrdXrootdAiocbCVSID = "$Id$";
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"

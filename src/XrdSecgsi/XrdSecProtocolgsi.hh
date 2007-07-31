@@ -279,8 +279,8 @@ private:
    static int              TimeSkew;       // [CS] Allowed skew in secs for time stamps 
    //
    // for error logging and tracing
-   static XrdOucLogger     Logger;
-   static XrdOucError      eDest;
+   static XrdSysLogger     Logger;
+   static XrdSysError      eDest;
    static XrdOucTrace     *GSITrace;
 
    // Information local to this instance

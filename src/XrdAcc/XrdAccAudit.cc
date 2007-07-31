@@ -16,13 +16,13 @@ const char *XrdAccAuditCVSID = "$Id$";
 #include <stdlib.h>
 
 #include "XrdAcc/XrdAccAudit.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdAccAudit::XrdAccAudit(XrdOucError *erp)
+XrdAccAudit::XrdAccAudit(XrdSysError *erp)
 {
 
 // Set default
@@ -73,7 +73,7 @@ void XrdAccAudit::Grant(const char *opname,
 /*                A u d i t   O b j e c t   G e n e r a t o r                 */
 /******************************************************************************/
   
-XrdAccAudit *XrdAccAuditObject(XrdOucError *erp)
+XrdAccAudit *XrdAccAuditObject(XrdSysError *erp)
 {
 static XrdAccAudit AuditObject(erp);
 

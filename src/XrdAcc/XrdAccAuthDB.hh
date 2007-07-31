@@ -12,7 +12,7 @@
 
 //         $Id$
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
   
 // This class is provided for obtaining capability information from some source.
 // Derive a class to provide an actual source for the information. The
@@ -66,7 +66,7 @@ class XrdAccAuthDB
 {
 public:
 
-virtual int   Open(XrdOucError &eroute, const char *path=0) = 0;
+virtual int   Open(XrdSysError &eroute, const char *path=0) = 0;
 
 virtual char  getRec(char **recname) = 0;
 
@@ -85,6 +85,6 @@ virtual      ~XrdAccAuthDB() {}
 /*                   X r d A c c X u t h D B _ O b j e c t                    */
 /******************************************************************************/
   
-extern XrdAccAuthDB *XrdAccAuthDBObject(XrdOucError *erp);
+extern XrdAccAuthDB *XrdAccAuthDBObject(XrdSysError *erp);
 
 #endif

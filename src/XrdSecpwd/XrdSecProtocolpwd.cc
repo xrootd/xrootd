@@ -44,8 +44,8 @@ void      ka_StringToKey(char *str, char *cell,
 }
 #endif
 
-#include <XrdOuc/XrdOucLogger.hh>
-#include <XrdOuc/XrdOucError.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysError.hh>
 #include <XrdOuc/XrdOucStream.hh>
 
 #include <XrdSys/XrdSysPriv.hh>
@@ -193,8 +193,8 @@ int  XrdSecProtocolpwd::TimeSkew    = 300; // [CS] Allowed skew in secs for time
 bool XrdSecProtocolpwd::KeepCreds   = 0; // [S] Keep / Do-Not-Keep client creds 
 //
 // Debug an tracing
-XrdOucError    XrdSecProtocolpwd::eDest(0, "secpwd_");
-XrdOucLogger   XrdSecProtocolpwd::Logger;
+XrdSysError    XrdSecProtocolpwd::eDest(0, "secpwd_");
+XrdSysLogger   XrdSecProtocolpwd::Logger;
 XrdOucTrace   *XrdSecProtocolpwd::SecTrace = 0;
 
 /******************************************************************************/

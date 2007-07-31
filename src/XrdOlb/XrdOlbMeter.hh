@@ -13,7 +13,7 @@
 //         $Id$
 
 #include "XrdOuc/XrdOucTList.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 

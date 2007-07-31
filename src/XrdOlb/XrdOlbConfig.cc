@@ -59,17 +59,17 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucProg.hh"
+#include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
-#include "XrdSys/XrdSysProg.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysTimer.hh"
-#include "XrdOuc/XrdOucTList.hh"
-#include "XrdOuc/XrdOucUtils.hh"
 
 using namespace XrdOlb;
 
@@ -377,7 +377,7 @@ int XrdOlbConfig::Configure2()
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
 
-int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdOucError *eDest)
+int XrdOlbConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
 {
    int dynamic;
 
@@ -760,7 +760,7 @@ int XrdOlbConfig::ConfigProc(int getrole)
 /*                                i s E x e c                                 */
 /******************************************************************************/
   
-int XrdOlbConfig::isExec(XrdOucError *eDest, const char *ptype, char *prog)
+int XrdOlbConfig::isExec(XrdSysError *eDest, const char *ptype, char *prog)
 {
   char buff[512], pp, *mp = prog;
 
@@ -1202,7 +1202,7 @@ exit(rc);
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xallow(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xallow(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
     int ishost;
@@ -1243,7 +1243,7 @@ int XrdOlbConfig::xallow(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xapath(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *pval, *val;
     mode_t mode = S_IRWXU;
@@ -1300,7 +1300,7 @@ int XrdOlbConfig::xapath(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xcache(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val, *pfxdir, *sfxdir, fn[XrdOlbMAX_PATH_LEN+1];
     int i, k, rc, pfxln, cnum = 0;
@@ -1347,7 +1347,7 @@ int XrdOlbConfig::xcache(XrdOucError *eDest, XrdOucStream &CFile)
     return rc < 0;
 }
 
-int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
+int XrdOlbConfig::Fsysadd(XrdSysError *eDest, int chk, char *fn)
 {
     struct stat buff;
 
@@ -1393,7 +1393,7 @@ int XrdOlbConfig::Fsysadd(XrdOucError *eDest, int chk, char *fn)
 
    Output: 0 upon success or !0 upon failure.
 */
-int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
 {   char *val;
     const char *etxt = "invalid delay option";
     int  i, ppp, ispercent = 0;
@@ -1465,7 +1465,7 @@ int XrdOlbConfig::xdelay(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xdefs(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xdefs(XrdSysError *eDest, XrdOucStream &CFile)
 {
    if (!isServer) return 0;
    DirFlags = XrdOucExport::ParseDefs(CFile, *eDest, DirFlags);
@@ -1486,7 +1486,7 @@ int XrdOlbConfig::xdefs(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xexpo(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xexpo(XrdSysError *eDest, XrdOucStream &CFile)
 {
    XrdOucPList *plp, *olp;
    unsigned long long Opts = DirFlags & XRDEXP_SETTINGS;
@@ -1526,9 +1526,9 @@ int XrdOlbConfig::xexpo(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xfsxq(XrdSysError *eDest, XrdOucStream &CFile)
 {
-    struct xeqopts {const char *opname; int doset; XrdSysProg **pgm;} xqopts[] =
+    struct xeqopts {const char *opname; int doset; XrdOucProg **pgm;} xqopts[] =
        {
         {"chmod",    0, &ProgCH},
         {"mkdir",    0, &ProgMD},
@@ -1577,7 +1577,7 @@ int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &CFile)
 //
    for (i = 0; i < numopts; i++)
        if (xqopts[i].doset)
-          {if (!*xqopts[i].pgm) *(xqopts[i].pgm) = new XrdSysProg(0);
+          {if (!*xqopts[i].pgm) *(xqopts[i].pgm) = new XrdOucProg(0);
            if ((*(xqopts[i].pgm))->Setup(val, eDest)) return 1;
           }
 
@@ -1601,7 +1601,7 @@ int XrdOlbConfig::xfsxq(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xfxhld(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xfxhld(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
     int ct;
@@ -1633,7 +1633,7 @@ int XrdOlbConfig::xfxhld(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xlclrt(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xlclrt(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
     int i;
@@ -1699,7 +1699,7 @@ int XrdOlbConfig::xlclrt(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
 {
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
@@ -1810,7 +1810,7 @@ int XrdOlbConfig::xmang(XrdOucError *eDest, XrdOucStream &CFile)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xnml(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xnml(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val, parms[1024];
 
@@ -1848,7 +1848,7 @@ int XrdOlbConfig::xnml(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xpath(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xpath(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val, *path;
     int i = -1;
@@ -1906,7 +1906,7 @@ int XrdOlbConfig::xpath(XrdOucError *eDest, XrdOucStream &CFile)
 
    Output: 0 upon success or !0 upon failure. Ignored by manager.
 */
-int XrdOlbConfig::xperf(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xperf(XrdSysError *eDest, XrdOucStream &CFile)
 {   int   ival = 3*60;
     char *pgm=0, *val, rest[2048];
 
@@ -1962,7 +1962,7 @@ int XrdOlbConfig::xperf(XrdOucError *eDest, XrdOucStream &CFile)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xpidf(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xpidf(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
 
@@ -1998,7 +1998,7 @@ int XrdOlbConfig::xpidf(XrdOucError *eDest, XrdOucStream &CFile)
 
    Output: 0 upon success or !0 upon failure.
 */
-int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xping(XrdSysError *eDest, XrdOucStream &CFile)
 {   int pnum = AskPerf, lnum = LogPerf, ping;
     char *val;
 
@@ -2045,7 +2045,7 @@ int XrdOlbConfig::xping(XrdOucError *eDest, XrdOucStream &CFile)
 
    Output: 0 upon success or !0 upon failure.
 */
-int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xport(XrdSysError *eDest, XrdOucStream &CFile)
 {   int rc, pnum = 0;
     char *val;
 
@@ -2089,7 +2089,7 @@ int XrdOlbConfig::xport(XrdOucError *eDest, XrdOucStream &CFile)
 
    Output: 0 upon success or !0 upon failure. Ignored by manager.
 */
-int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xprep(XrdSysError *eDest, XrdOucStream &CFile)
 {   int   reset=0, scrub=0, echo = 0, doset = 0;
     char  *prepif=0, *val, rest[2048];
 
@@ -2155,7 +2155,7 @@ int XrdOlbConfig::xprep(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xprepm(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xprepm(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val, buff[2048];
     XrdOucEnv *myEnv = CFile.SetEnv(0);
@@ -2199,7 +2199,7 @@ int XrdOlbConfig::xprepm(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xrmtrt(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
     int i;
@@ -2274,7 +2274,7 @@ int XrdOlbConfig::xrmtrt(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val, role[64];
     int rc, xPeer=0, xProxy=0, xServ=0, xMan=0, xSolo=0, xSup=0;
@@ -2369,7 +2369,7 @@ int XrdOlbConfig::xrole(XrdOucError *eDest, XrdOucStream &CFile)
    Output: retc upon success or -EINVAL upon failure.
 */
 
-int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
     int  i, ppp;
@@ -2444,7 +2444,7 @@ int XrdOlbConfig::xsched(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
     int alinger = -1, arecalc = -1;
@@ -2519,7 +2519,7 @@ int XrdOlbConfig::xspace(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xsubs(XrdSysError *eDest, XrdOucStream &CFile)
 {
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
@@ -2604,7 +2604,7 @@ int XrdOlbConfig::xsubs(XrdOucError *eDest, XrdOucStream &CFile)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xtrace(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xtrace(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char  *val;
     static struct traceopts {const char *opname; int opval;} tropts[] =
@@ -2652,7 +2652,7 @@ int XrdOlbConfig::xtrace(XrdOucError *eDest, XrdOucStream &CFile)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOlbConfig::xxmi(XrdOucError *eDest, XrdOucStream &CFile)
+int XrdOlbConfig::xxmi(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val, parms[1024];
 

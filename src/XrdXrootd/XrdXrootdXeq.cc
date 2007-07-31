@@ -14,7 +14,7 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 #include <stdio.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -124,9 +124,9 @@ int XrdXrootdProtocol::do_Auth()
        rc = Response.Send(); Status &= ~XRD_NEED_AUTH;
        Client = &AuthProt->Entity;
        if (Client->name) 
-          eDest.Log(OUC_LOG_01, "Xeq", Link->ID, msg, Client->name);
+          eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, Client->name);
           else
-          eDest.Log(OUC_LOG_01, "Xeq", Link->ID, msg, "nobody");
+          eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, "nobody");
        return rc;
       }
 
@@ -221,7 +221,7 @@ int XrdXrootdProtocol::do_Bind()
    pp->isBound   = 1;
    PathID        = i;
    sprintf(buff, "FD %d#%d bound", Link->FDnum(), i);
-   eDest.Log(OUC_LOG_01, "Xeq", buff, lp->ID);
+   eDest.Log(SYS_LOG_01, "Xeq", buff, lp->ID);
 
 // Construct a login name for this bind session
 //
@@ -585,7 +585,7 @@ int XrdXrootdProtocol::do_Login()
 // Document this login
 //
    if (!(Status & XRD_NEED_AUTH))
-      eDest.Log(OUC_LOG_01, "Xeq", Link->ID, (Status & XRD_ADMINUSER
+      eDest.Log(SYS_LOG_01, "Xeq", Link->ID, (Status & XRD_ADMINUSER
                             ? "admin login" : "login"));
    return rc;
 }

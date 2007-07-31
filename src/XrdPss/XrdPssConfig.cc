@@ -27,7 +27,7 @@ const char *XrdPssConfigCVSID = "$Id$";
 #include "XrdPss/XrdPss.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -59,7 +59,7 @@ namespace XrdProxy
 {
 static XrdPosixXrootd  *Xroot;
   
-extern XrdOucError      eDest;
+extern XrdSysError      eDest;
 }
 
 using namespace XrdProxy;
@@ -250,7 +250,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdPssSys::xmang(XrdOucError *errp, XrdOucStream &Config)
+int XrdPssSys::xmang(XrdSysError *errp, XrdOucStream &Config)
 {
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
@@ -343,7 +343,7 @@ int XrdPssSys::xmang(XrdOucError *errp, XrdOucStream &Config)
    Output: retc upon success or -EINVAL upon failure.
 */
 
-int XrdPssSys::xsopt(XrdOucError *Eroute, XrdOucStream &Config)
+int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
 {
     char  kword[256], *val, *kvp;
     long  kval;
@@ -394,7 +394,7 @@ int XrdPssSys::xsopt(XrdOucError *Eroute, XrdOucStream &Config)
    Output: retc upon success or -EINVAL upon failure.
 */
 
-int XrdPssSys::xtrac(XrdOucError *Eroute, XrdOucStream &Config)
+int XrdPssSys::xtrac(XrdSysError *Eroute, XrdOucStream &Config)
 {
     char  *val;
     static struct traceopts {const char *opname; int opval;} tropts[] =

@@ -37,10 +37,10 @@ extern XrdAccConfig XrdAccConfiguration;
 /*                 Object Creation via XrdAccAuthorize Object                 */
 /******************************************************************************/
   
-XrdAccAuthorize *XrdAccAuthorizeObject(XrdOucLogger *lp, 
+XrdAccAuthorize *XrdAccAuthorizeObject(XrdSysLogger *lp, 
                                        const char *cfn, const char *parm)
 {
-   static XrdOucError Eroute(lp, "acc_");
+   static XrdSysError Eroute(lp, "acc_");
 
 // Configure the authorization system
 //
@@ -55,7 +55,7 @@ XrdAccAuthorize *XrdAccAuthorizeObject(XrdOucLogger *lp,
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdAccAccess::XrdAccAccess(XrdOucError *erp)
+XrdAccAccess::XrdAccAccess(XrdSysError *erp)
 {
 // Get the audit option that we should use
 //

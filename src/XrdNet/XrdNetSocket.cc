@@ -41,7 +41,7 @@ const char *XrdNetSocketCVSID = "$Id$";
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -58,7 +58,7 @@ const char *XrdNetSocketCVSID = "$Id$";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdNetSocket::XrdNetSocket(XrdOucError *erobj, int SockFileDesc)
+XrdNetSocket::XrdNetSocket(XrdSysError *erobj, int SockFileDesc)
 {
    ErrCode  = 0;
    PeerName = 0;
@@ -119,7 +119,7 @@ void XrdNetSocket::Close()
 /*                                C r e a t e                                 */
 /******************************************************************************/
 
-XrdNetSocket *XrdNetSocket::Create(XrdOucError *Say, const char *path, 
+XrdNetSocket *XrdNetSocket::Create(XrdSysError *Say, const char *path, 
                                    const char *fn, mode_t mode, int opts)
 {
    XrdNetSocket *ASock;
@@ -174,7 +174,7 @@ int XrdNetSocket::Detach()
 /*                             g e t W i n d o w                              */
 /******************************************************************************/
   
-int XrdNetSocket::getWindow(int fd, int &Windowsz, XrdOucError *eDest)
+int XrdNetSocket::getWindow(int fd, int &Windowsz, XrdSysError *eDest)
 {
    socklen_t szb = (socklen_t)sizeof(Windowsz);
 
@@ -334,7 +334,7 @@ const char *XrdNetSocket::Peername(struct sockaddr **InetAddr)
 /*                               s e t O p t s                                */
 /******************************************************************************/
   
-int XrdNetSocket::setOpts(int xfd, int opts, XrdOucError *eDest)
+int XrdNetSocket::setOpts(int xfd, int opts, XrdSysError *eDest)
 {
    int rc = 0;
    const int one = 1;
@@ -375,7 +375,7 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdOucError *eDest)
 /*                             s e t W i n d o w                              */
 /******************************************************************************/
   
-int XrdNetSocket::setWindow(int xfd, int Windowsz, XrdOucError *eDest)
+int XrdNetSocket::setWindow(int xfd, int Windowsz, XrdSysError *eDest)
 {
    int rc = 0;
    const SOCKLEN_t szwb  = (SOCKLEN_t)sizeof(Windowsz);
@@ -398,7 +398,7 @@ int XrdNetSocket::setWindow(int xfd, int Windowsz, XrdOucError *eDest)
 /*                            s o c k e t P a t h                             */
 /******************************************************************************/
 
-char *XrdNetSocket::socketPath(XrdOucError *Say, char *fnbuff,
+char *XrdNetSocket::socketPath(XrdSysError *Say, char *fnbuff,
                                const char *path, const char *fn, mode_t mode)
 {
    const int srchOK = S_IXUSR | S_IXGRP;

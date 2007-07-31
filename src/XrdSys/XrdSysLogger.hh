@@ -1,8 +1,8 @@
-#ifndef __OOUC_LOGGER_H__
-#define __OOUC_LOGGER_H__
+#ifndef __SYS_LOGGER_H__
+#define __SYS_LOGGER_H__
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d O u c L o g g e r . h h                        */
+/*                       X r d S y s L o g g e r . h h                        */
 /*                                                                            */
 /*(c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
@@ -25,12 +25,12 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-class XrdOucLogger
+class XrdSysLogger
 {
 public:
-         XrdOucLogger(int ErrFD=STDERR_FILENO, int xrotate=1);
+         XrdSysLogger(int ErrFD=STDERR_FILENO, int xrotate=1);
 
-        ~XrdOucLogger() {if (ePath) free(ePath);}
+        ~XrdSysLogger() {if (ePath) free(ePath);}
 
 // Bind allows you to bind standard error to a file with an optional periodic
 // closing and opening of the file.

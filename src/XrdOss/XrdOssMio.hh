@@ -12,7 +12,7 @@
 
 //           $Id$
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOssMioFile.hh"
@@ -26,7 +26,7 @@
 class XrdOssMio
 {
 public:
-static void           Display(XrdOucError &Eroute);
+static void           Display(XrdSysError &Eroute);
 
 static int            getOpts(char *path, int popts);
 

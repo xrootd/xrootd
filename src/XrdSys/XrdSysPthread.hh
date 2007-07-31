@@ -1,8 +1,8 @@
-#ifndef __OOUC_PTHREAD__
-#define __OOUC_PTHREAD__
+#ifndef __SYS_PTHREAD__
+#define __SYS_PTHREAD__
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d O u c P t h r e a d . h h                       */
+/*                      X r d S y s P t h r e a d . h h                       */
 /*                                                                            */
 /* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
@@ -29,14 +29,14 @@
 #define SEM_IS_BLOCKED EAGAIN
 #endif
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
-/*                         X r d O u c C o n d V a r                          */
+/*                         X r d S y s C o n d V a r                          */
 /******************************************************************************/
   
-// XrdOucConVar implements the standard POSIX-compliant condition variable.
-//              Methods correspond to the equivalent pthread condvar functions.
+// XrdSysCondVar implements the standard POSIX-compliant condition variable.
+//               Methods correspond to the equivalent pthread condvar functions.
 
 class XrdSysCondVar
 {
@@ -80,7 +80,7 @@ const char     *condID;
 
 
 /******************************************************************************/
-/*                     X r d O u c C o n d V a r H e l p e r                  */
+/*                     X r d S y s C o n d V a r H e l p e r                  */
 /******************************************************************************/
 
 // XrdSysCondVarHelper is used to implement monitors with the Lock of a a condvar.
@@ -119,7 +119,7 @@ XrdSysCondVar *cnd;
 
 
 /******************************************************************************/
-/*                           X r d O u c M u t e x                            */
+/*                           X r d S y s M u t e x                            */
 /******************************************************************************/
 
 // XrdSysMutex implements the standard POSIX mutex. The methods correspond
@@ -147,7 +147,7 @@ pthread_mutex_t cs;
 };
 
 /******************************************************************************/
-/*                         X r d O u c R e c M u t e x                        */
+/*                         X r d S y s R e c M u t e x                        */
 /******************************************************************************/
 
 // XrdSysRecMutex implements the recursive POSIX mutex. The methods correspond
@@ -163,7 +163,7 @@ XrdSysRecMutex();
 
 
 /******************************************************************************/
-/*                     X r d O u c M u t e x H e l p e r                      */
+/*                     X r d S y s M u t e x H e l p e r                      */
 /******************************************************************************/
 
 // XrdSysMutexHelper us ised to implement monitors. Monitors are used to lock
@@ -200,7 +200,7 @@ XrdSysMutex *mtx;
 };
 
 /******************************************************************************/
-/*                       X r d O u c S e m a p h o r e                        */
+/*                       X r d S y s S e m a p h o r e                        */
 /******************************************************************************/
 
 // XrdSysSemaphore implements the classic counting semaphore. The methods
@@ -268,7 +268,7 @@ sem_t h_semaphore;
 #endif
 
 /******************************************************************************/
-/*                          X r d O u c T h r e a d                           */
+/*                          X r d S y s T h r e a d                           */
 /******************************************************************************/
   
 // The C++ standard makes it impossible to link extern "C" methods with C++
@@ -281,12 +281,12 @@ sem_t h_semaphore;
 //
 // BIND creates threads that are bound to a kernel thread.
 //
-#define XRDOUCTHREAD_BIND 0x001
+#define XRDSYSTHREAD_BIND 0x001
 
 // HOLD creates a thread that needs to be joined to get its ending value.
 //      Otherwise, a detached thread is created.
 //
-#define XRDOUCTHREAD_HOLD 0x002
+#define XRDSYSTHREAD_HOLD 0x002
 
 class XrdSysThread
 {
@@ -334,7 +334,7 @@ static unsigned long Num(void)
 static int          Run(pthread_t *, void *(*proc)(void *), void *arg, 
                         int opts=0, const char *desc = 0);
 
-static void         setDebug(XrdOucError *erp) {eDest = erp;}
+static void         setDebug(XrdSysError *erp) {eDest = erp;}
 
 static void         setStackSize(size_t stsz) {stackSize = stsz;}
 
@@ -348,7 +348,7 @@ static int          Wait(pthread_t tid);
 
 private:
 static void          doInit(void);
-static XrdOucError  *eDest;
+static XrdSysError  *eDest;
 static pthread_key_t threadNumkey;
 static size_t        stackSize;
 static int           initDone;

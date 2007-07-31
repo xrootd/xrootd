@@ -33,7 +33,7 @@
 #include "castor/exception/Communication.hpp"
 #include "stager_client_api_common.hpp"
 
-class XrdOucError;
+class XrdSysError;
 class XrdInet;
 class XrdScheduler;
 class XrdOucTrace;
@@ -124,7 +124,7 @@ void  InitXeqDel(castor::stager::FileRequest    *req,
 
 // Other pointers
 //
-static XrdOucError  *eDest;         // -> Error message handler
+static XrdSysError  *eDest;         // -> Error message handler
 static XrdInet      *iNet;          // -> Network object
 static XrdScheduler *Sched;         // -> Thread scheduler
 static XrdOucTrace  *Trace;         // -> Trace handler

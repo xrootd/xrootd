@@ -24,7 +24,7 @@
 
 #include "XrdNet/XrdNet.hh"
 
-class XrdOucError;
+class XrdSysError;
 class XrdNetLink;
 class XrdNetSecurity;
 
@@ -65,7 +65,7 @@ XrdNetLink     *Relay(const char  *dest=0, // Optional destination
 // Optionally, specify the security object to screen incomming connections.
 // (if zero, no screening is done).
 //
-                XrdNetWork(XrdOucError *erp, XrdNetSecurity *secp=0)
+                XrdNetWork(XrdSysError *erp, XrdNetSecurity *secp=0)
                           : XrdNet(erp, secp) {}
                ~XrdNetWork() {}
 };

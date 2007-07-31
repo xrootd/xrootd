@@ -9,16 +9,16 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-#include <XrdOuc/XrdOucLogger.hh>
-#include <XrdOuc/XrdOucError.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysError.hh>
 
 #include <XrdCrypto/XrdCryptoAux.hh>
 #include <XrdCrypto/XrdCryptoTrace.hh>
 
 //
 // For error logging and tracing
-static XrdOucLogger Logger;
-static XrdOucError eDest(0,"crypto_");
+static XrdSysLogger Logger;
+static XrdSysError eDest(0,"crypto_");
 XrdOucTrace *cryptoTrace = 0;
 
 /******************************************************************************/

@@ -1,8 +1,8 @@
-#ifndef __XRDOUCPLUGIN__
-#define __XRDOUCPLUGIN__
+#ifndef __XRDSYSPLUGIN__
+#define __XRDSYSPLUGIN__
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d O u c P l u g i n . h h                        */
+/*                       X r d S y s P l u g i n . h h                        */
 /*                                                                            */
 /* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -12,7 +12,7 @@
   
 //       $Id$
 
-class XrdOucError;
+class XrdSysError;
 
 class XrdSysPlugin
 {
@@ -20,13 +20,13 @@ public:
 
 void *getPlugin(const char *pname, int errok=0);
 
-      XrdSysPlugin(XrdOucError *erp, const char *path)
+      XrdSysPlugin(XrdSysError *erp, const char *path)
                   {eDest = erp; libPath = path; libHandle = 0;}
      ~XrdSysPlugin();
 
 private:
 
-XrdOucError *eDest;
+XrdSysError *eDest;
 const char  *libPath;
 void        *libHandle;
 };

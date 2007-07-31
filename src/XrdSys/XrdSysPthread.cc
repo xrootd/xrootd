@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d O u c P t h r e a d . c c                       */
+/*                      X r d S y s P t h r e a d . c c                       */
 /*                                                                            */
 /* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
@@ -33,12 +33,12 @@ const char *XrdSysPthreadCVSID = "$Id$";
 struct XrdSysThreadArgs
        {
         pthread_key_t numKey;
-        XrdOucError  *eDest;
+        XrdSysError  *eDest;
         const char   *tDesc;
         void         *(*proc)(void *);
         void         *arg;
 
-        XrdSysThreadArgs(pthread_key_t nk, XrdOucError *ed, const char *td,
+        XrdSysThreadArgs(pthread_key_t nk, XrdSysError *ed, const char *td,
                          void *(*p)(void *), void *a)
                         {numKey=nk; eDest=ed; tDesc=td, proc=p; arg=a;}
        ~XrdSysThreadArgs() {}
@@ -50,7 +50,7 @@ struct XrdSysThreadArgs
   
 pthread_key_t XrdSysThread::threadNumkey;
 
-XrdOucError  *XrdSysThread::eDest     = 0;
+XrdSysError  *XrdSysThread::eDest     = 0;
 
 size_t        XrdSysThread::stackSize = 0;
 
@@ -90,7 +90,7 @@ void *XrdSysThread_Xeq(void *myargs)
 }
   
 /******************************************************************************/
-/*                         X r d O u c C o n d V a r                          */
+/*                         X r d S y s C o n d V a r                          */
 /******************************************************************************/
 /******************************************************************************/
 /*                                  W a i t                                   */
@@ -178,7 +178,7 @@ int XrdSysCondVar::WaitMS(int msec)
 }
  
 /******************************************************************************/
-/*                       X r d O u c S e m a p h o r e                        */
+/*                       X r d S y s S e m a p h o r e                        */
 /******************************************************************************/
 /******************************************************************************/
 /*                              C o n d W a i t                               */
@@ -272,9 +272,9 @@ int XrdSysThread::Run(pthread_t *tid, void *(*proc)(void *), void *arg,
    myargs = new XrdSysThreadArgs(threadNumkey, eDest, tDesc, proc, arg);
 
    pthread_attr_init(&tattr);
-   if (  opts & XRDOUCTHREAD_BIND)
+   if (  opts & XRDSYSTHREAD_BIND)
       pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
-   if (!(opts & XRDOUCTHREAD_HOLD))
+   if (!(opts & XRDSYSTHREAD_HOLD))
       pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
    if (stackSize)
        pthread_attr_setstacksize(&tattr, stackSize);
@@ -296,7 +296,7 @@ int XrdSysThread::Wait(pthread_t tid)
 
 
 /******************************************************************************/
-/*                         X r d O u c R e c M u t e x                        */
+/*                         X r d S y s R e c M u t e x                        */
 /******************************************************************************/
 
 XrdSysRecMutex::XrdSysRecMutex() {

@@ -326,8 +326,8 @@ private:
    static bool             KeepCreds;      // [S] Keep / Do-Not-Keep client creds
    //
    // for error logging and tracing
-   static XrdOucLogger     Logger;
-   static XrdOucError      eDest;
+   static XrdSysLogger     Logger;
+   static XrdSysError      eDest;
    static XrdOucTrace     *SecTrace;
 
    // Information local to this instance

@@ -25,7 +25,7 @@ const char *XrdXrootdMonitorCVSID = "$Id$";
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetPeer.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 #include "Xrd/XrdScheduler.hh"
@@ -37,7 +37,7 @@ const char *XrdXrootdMonitorCVSID = "$Id$";
 /******************************************************************************/
   
 XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
-XrdOucError       *XrdXrootdMonitor::eDest      = 0;
+XrdSysError       *XrdXrootdMonitor::eDest      = 0;
 int                XrdXrootdMonitor::monFD;
 char              *XrdXrootdMonitor::Dest1      = 0;
 int                XrdXrootdMonitor::monMode1   = 0;
@@ -344,7 +344,7 @@ void XrdXrootdMonitor::Dup(XrdXrootdMonTrace *mrec)
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdOucError *errp)
+int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdSysError *errp)
 {
    XrdNet     myNetwork(errp, 0);
    XrdNetPeer monDest;

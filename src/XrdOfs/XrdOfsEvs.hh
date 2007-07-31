@@ -16,8 +16,8 @@
 #include <strings.h>
 #include "XrdSys/XrdSysPthread.hh"
 
-class XrdOucError;
-class XrdSysProg;
+class XrdSysError;
+class XrdOucProg;
 class XrdOfsEvsMsg;
 
 class XrdOfsEvs
@@ -46,7 +46,7 @@ const char *Prog() {return theTarget;}
 
 void        sendEvents(void);
 
-int         Start(XrdOucError *eobj);
+int         Start(XrdSysError *eobj);
 
       XrdOfsEvs(Event theEvents, const char *Target, int minq=90, int maxq=10)
                {enEvents = theEvents; endIT = 0;
@@ -65,8 +65,8 @@ void            retMsg(XrdOfsEvsMsg *tp);
 pthread_t       tid;
 char           *theTarget;
 Event           enEvents;
-XrdOucError    *eDest;
-XrdSysProg     *theProg;
+XrdSysError    *eDest;
+XrdOucProg     *theProg;
 XrdSysMutex     qMut;
 XrdSysSemaphore qSem;
 XrdOfsEvsMsg   *msgFirst;

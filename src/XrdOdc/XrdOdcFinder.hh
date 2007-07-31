@@ -17,9 +17,9 @@
 
 class  XrdOdcManager;
 class  XrdOucEnv;
-class  XrdOucError;
+class  XrdSysError;
 class  XrdOucErrInfo;
-class  XrdOucLogger;
+class  XrdSysLogger;
 class  XrdOucTList;
 struct XrdOdcData;
 struct XrdSfsPrep;
@@ -55,7 +55,7 @@ virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) = 0;
 
         enum   Persona {amLocal, amProxy, amRemote, amTarget};
 
-               XrdOdcFinder(XrdOucLogger *lp, Persona acting);
+               XrdOdcFinder(XrdSysLogger *lp, Persona acting);
 virtual       ~XrdOdcFinder() {}
 
 protected:
@@ -87,7 +87,7 @@ public:
 
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs);
 
-               XrdOdcFinderRMT(XrdOucLogger *lp, int whoami = 0);
+               XrdOdcFinderRMT(XrdSysLogger *lp, int whoami = 0);
               ~XrdOdcFinderRMT();
 
 private:
@@ -135,7 +135,7 @@ public:
 
         void  *Start();
 
-               XrdOdcFinderTRG(XrdOucLogger *lp, int whoami, int port);
+               XrdOdcFinderTRG(XrdSysLogger *lp, int whoami, int port);
               ~XrdOdcFinderTRG();
 
 private:

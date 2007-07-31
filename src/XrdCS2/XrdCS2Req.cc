@@ -25,7 +25,7 @@ const char *XrdCS2ReqCVSID = "$Id$";
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-XrdOucError           *XrdCS2Req::eDest;
+XrdSysError           *XrdCS2Req::eDest;
 XrdOucTrace           *XrdCS2Req::Trace;
 XrdOucName2Name       *XrdCS2Req::N2N = 0;
 XrdSysMutex            XrdCS2Req::myMutex;

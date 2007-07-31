@@ -24,7 +24,7 @@ const char *XrdAccAuthFileCVSID = "$Id$";
 /*                   X r d A c c A u t h D B _ O b j e c t                    */
 /******************************************************************************/
   
-XrdAccAuthDB *XrdAccAuthDBObject(XrdOucError *erp)
+XrdAccAuthDB *XrdAccAuthDBObject(XrdSysError *erp)
 {
       static XrdAccAuthFile mydatabase(erp);
 
@@ -35,7 +35,7 @@ XrdAccAuthDB *XrdAccAuthDBObject(XrdOucError *erp)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdAccAuthFile::XrdAccAuthFile(XrdOucError *erp)
+XrdAccAuthFile::XrdAccAuthFile(XrdSysError *erp)
 {
 
 // Set starting values
@@ -240,7 +240,7 @@ char XrdAccAuthFile::getRec(char **recname)
 /*                                  O p e n                                   */
 /******************************************************************************/
 
-int XrdAccAuthFile::Open(XrdOucError &eroute, const char *path)
+int XrdAccAuthFile::Open(XrdSysError &eroute, const char *path)
 {
    struct stat statbuff;
    int authFD;

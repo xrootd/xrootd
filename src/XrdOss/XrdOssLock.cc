@@ -78,14 +78,14 @@ const char *XrdOssLockCVSID = "$Id$";
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*           G l o b a l   E r r o r   R o u t i n g   O b j e c t            */
 /******************************************************************************/
   
-extern XrdOucError OssEroute;
+extern XrdSysError OssEroute;
 
 /******************************************************************************/
 /*                               d e f i n e s                                */

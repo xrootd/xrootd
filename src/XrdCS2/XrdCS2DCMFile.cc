@@ -20,14 +20,14 @@
 #include <errno.h>
 
 #include "Xrd/XrdTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdCS2/XrdCS2DCMFile.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
-extern XrdOucError       XrdLog;
+extern XrdSysError       XrdLog;
 
 extern XrdOucTrace       XrdTrace;
  

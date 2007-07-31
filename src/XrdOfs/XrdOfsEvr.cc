@@ -17,7 +17,7 @@
 #include "XrdOdc/XrdOdcFinder.hh"
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdNet/XrdNetOpts.hh"
@@ -107,7 +107,7 @@ void XrdOfsEvr::flushEvents()
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdOfsEvr::Init(XrdOucError *eobj, XrdOdcFinderTRG *trgp)
+int XrdOfsEvr::Init(XrdSysError *eobj, XrdOdcFinderTRG *trgp)
 {
    XrdNetSocket *msgSock;
    pthread_t     tid;

@@ -10,7 +10,7 @@
 
 //          $Id$
 
-const char *XrdSysProgCVSID = "$Id$";
+const char *XrdOucProgCVSID = "$Id$";
 
 #include <errno.h>
 #include <stdio.h>
@@ -24,16 +24,16 @@ const char *XrdSysProgCVSID = "$Id$";
 #include "XrdSys/XrdWin32.hh"
 #endif
 
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdSys/XrdSysProg.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
   
-XrdSysProg::~XrdSysProg()
+XrdOucProg::~XrdOucProg()
 {
    if (ArgBuff) free(ArgBuff);
    if (myStream) delete myStream;
@@ -43,7 +43,7 @@ XrdSysProg::~XrdSysProg()
 /*                                  F e e d                                   */
 /******************************************************************************/
 
-int XrdSysProg::Feed(const char *data[], const int dlen[])
+int XrdOucProg::Feed(const char *data[], const int dlen[])
 {
    static XrdSysMutex feedMutex;
    XrdSysMutexHelper  feedHelper;
@@ -80,7 +80,7 @@ int XrdSysProg::Feed(const char *data[], const int dlen[])
 /*                                   R u n                                    */
 /******************************************************************************/
   
-int XrdSysProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
+int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
                                       const char *arg3, const char *arg4)
 {
    const int maxArgs = sizeof(Arg)/sizeof(Arg[0])+4;
@@ -128,7 +128,7 @@ int XrdSysProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
 
 /******************************************************************************/
 
-int XrdSysProg::Run(const char *arg1, const char *arg2,
+int XrdOucProg::Run(const char *arg1, const char *arg2,
                     const char *arg3, const char *arg4)
 {
    XrdOucStream cmd;
@@ -174,7 +174,7 @@ int XrdSysProg::Run(const char *arg1, const char *arg2,
 /*                                 S e t u p                                  */
 /******************************************************************************/
   
-int XrdSysProg::Setup(const char *prog, XrdOucError *errP)
+int XrdOucProg::Setup(const char *prog, XrdSysError *errP)
 {
    const int maxArgs = sizeof(Arg)/sizeof(Arg[0]);
    char *pp;
@@ -222,7 +222,7 @@ for (j = 0; j < maxArgs-1 && *pp; j++)
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
-int XrdSysProg::Start()
+int XrdOucProg::Start()
 {
 
 // Create a stream for this command (it is an eror if we are already started)
@@ -242,7 +242,7 @@ int XrdSysProg::Start()
 /*                               R e s t a r t                                */
 /******************************************************************************/
   
-int XrdSysProg::Restart()
+int XrdOucProg::Restart()
 {
    myStream->Close();
    return Run(myStream);

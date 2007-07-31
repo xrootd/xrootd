@@ -51,7 +51,7 @@ private:
       fArg.arg = arg;
       fArg.threadobj = this;
       return XrdSysThread::Run(&fThr, XrdClientThreadDispatcher, (void *)&fArg,
-			       XRDOUCTHREAD_HOLD, "");
+			       XRDSYSTHREAD_HOLD, "");
    };
 
    int Detach() {

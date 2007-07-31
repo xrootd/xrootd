@@ -75,7 +75,7 @@ $(TARGETS): $(OBJECTS)
 	fi
 
 $(OBJDIR)/XrdOssAio.o: XrdOssAio.cc    XrdOssTrace.hh  XrdOssApi.hh \
-                       XrdOucError.hh  XrdSysPthread.hh XrdSysPlatform.hh \
+                       XrdSysError.hh  XrdSysPthread.hh XrdSysPlatform.hh \
                        XrdSfsAio.hh
 	@echo Compiling XrdOssAio.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFSIGWTI) $(INCLUDE) -o $(OBJDIR)/XrdOssAio.o XrdOssAio.cc
@@ -83,7 +83,7 @@ $(OBJDIR)/XrdOssAio.o: XrdOssAio.cc    XrdOssTrace.hh  XrdOssApi.hh \
 $(OBJDIR)/XrdOssApi.o: XrdOss.hh XrdOssApi.hh XrdOssCache.hh XrdOssConfig.hh \
                        XrdOssError.hh  XrdOssLock.hh     XrdOssTrace.hh \
                        XrdOssMio.hh    XrdOssMioFile.hh  XrdOucExport.hh \
-                       XrdOucError.hh  XrdOucPList.hh    XrdSysPthread.hh \
+                       XrdSysError.hh  XrdOucPList.hh    XrdSysPthread.hh \
                        XrdOucStream.hh XrdSysPlatform.hh XrdOssApi.cc \
                        XrdOucName2Name.hh XrdSysPlugin.hh \
                        ../XrdVersion.hh
@@ -91,15 +91,15 @@ $(OBJDIR)/XrdOssApi.o: XrdOss.hh XrdOssApi.hh XrdOssCache.hh XrdOssConfig.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssApi.o XrdOssApi.cc
 
 $(OBJDIR)/XrdOssCache.o: XrdOssApi.hh XrdOssCache.hh XrdOssTrace.hh \
-                         XrdOucDLlist.hh XrdOucError.hh \
+                         XrdOucDLlist.hh XrdSysError.hh \
                          XrdOssCache.cc
 	@echo Compiling XrdOssCache.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssCache.o XrdOssCache.cc
 
 $(OBJDIR)/XrdOssConfig.o: XrdOssApi.hh  XrdOssConfig.hh XrdOssError.hh \
-                          XrdOssLock.hh XrdOssTrace.hh XrdOucError.hh \
+                          XrdOssLock.hh XrdOssTrace.hh XrdSysError.hh \
                           XrdOssMio.hh  XrdOssOpaque.hh XrdOucEnv.hh \
-                          XrdSysProg.hh XrdOssConfig.cc XrdOuca2x.hh  \
+                          XrdOucProg.hh XrdOssConfig.cc XrdOuca2x.hh  \
                           XrdOucMsubs.hh XrdOucName2Name.hh XrdSysPlugin.hh \
                           XrdOucExport.hh XrdSysPlatform.hh
 	@echo Compiling XrdOssConfig.cc 
@@ -107,27 +107,27 @@ $(OBJDIR)/XrdOssConfig.o: XrdOssApi.hh  XrdOssConfig.hh XrdOssError.hh \
 
 $(OBJDIR)/XrdOssCreate.o: XrdOssApi.hh XrdOssConfig.hh  XrdOssError.hh \
                           XrdOssLock.hh XrdOssTrace.hh  XrdOssOpaque.hh \
-                          XrdOucEnv.hh  XrdOucError.hh  XrdOuca2x.hh  \
+                          XrdOucEnv.hh  XrdSysError.hh  XrdOuca2x.hh  \
                           XrdOucExport.hh \
                           XrdSysPlatform.hh XrdOssCreate.cc
 	@echo Compiling XrdOssCreate.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssCreate.o XrdOssCreate.cc
 
 $(OBJDIR)/XrdOssLock.o:   XrdOssApi.hh XrdOssConfig.hh XrdOssError.hh \
-                          XrdOssLock.hh XrdOucError.hh XrdSysPlatform.hh \
+                          XrdOssLock.hh XrdSysError.hh XrdSysPlatform.hh \
                           XrdOssLock.cc
 	@echo Compiling XrdOssLock.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssLock.o XrdOssLock.cc
 
 $(OBJDIR)/XrdOssMio.o:    XrdOssMio.cc   XrdOssMio.hh    XrdOssMioFile.hh \
-                          XrdOssTrace.hh XrdOucError.hh  XrdSysPthread.hh \
+                          XrdOssTrace.hh XrdSysError.hh  XrdSysPthread.hh \
                           XrdOucHash.hh  XrdOucHash.icc
 	@echo Compiling XrdOssMio.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssMio.o XrdOssMio.cc
 
 $(OBJDIR)/XrdOssMSS.o:    XrdOssApi.hh   XrdOssConfig.hh XrdOssError.hh \
-                          XrdOssTrace.hh XrdOucError.hh  XrdSysProg.hh \
-                          XrdOucStream.hh XrdSysPlatform.hh  XrdOucLogger.hh \
+                          XrdOssTrace.hh XrdSysError.hh  XrdOucProg.hh \
+                          XrdOucStream.hh XrdSysPlatform.hh  XrdSysLogger.hh \
                           XrdNetOpts.hh   XrdNetSocket.hh \
                           XrdOssMSS.cc
 	@echo Compiling XrdOssMSS.cc 
@@ -143,7 +143,7 @@ $(OBJDIR)/XrdOssStage.o: XrdOssApi.hh   XrdOssCache.hh  XrdOssError.hh \
                          XrdOssLock.hh  XrdOssOpaque.hh XrdOucEnv.hh \
                          XrdOuca2x.hh   XrdOucHash.hh   XrdOucHash.icc \
                          XrdSysPthread.hh XrdOucMsubs.hh XrdOucName2Name.hh \
-                         XrdSysProg.hh  XrdOucReqID.hh  XrdOssStage.cc
+                         XrdOucProg.hh  XrdOucReqID.hh  XrdOssStage.cc
 	@echo Compiling XrdOssStage.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssStage.o XrdOssStage.cc
 

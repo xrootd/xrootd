@@ -16,8 +16,8 @@
 #include <string.h>
 
 #include "XrdOfs/XrdOfsEvs.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdSys/XrdSysProg.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 
@@ -173,7 +173,7 @@ void XrdOfsEvs::sendEvents(void)
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
-int XrdOfsEvs::Start(XrdOucError *eobj)
+int XrdOfsEvs::Start(XrdSysError *eobj)
 {
    int rc;
 
@@ -195,7 +195,7 @@ int XrdOfsEvs::Start(XrdOucError *eobj)
       // Allocate a new program object if we don't have one
       //
          if (theProg) return 0;
-         theProg = new XrdSysProg(eobj);
+         theProg = new XrdOucProg(eobj);
 
      // Setup the program
      //

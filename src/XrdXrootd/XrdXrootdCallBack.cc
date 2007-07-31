@@ -19,7 +19,7 @@
 #include "Xrd/XrdScheduler.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XProtocol/XPtypes.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -70,7 +70,7 @@ int                        Result;
 
 extern XrdOucTrace       *XrdXrootdTrace;
 
-       XrdOucError       *XrdXrootdCallBack::eDest;
+       XrdSysError       *XrdXrootdCallBack::eDest;
        XrdXrootdStats    *XrdXrootdCallBack::SI;
        XrdScheduler      *XrdXrootdCallBack::Sched;
        int                XrdXrootdCallBack::Port;

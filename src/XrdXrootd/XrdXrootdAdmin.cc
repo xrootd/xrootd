@@ -22,7 +22,7 @@ const char *XrdXrootdAdminCVSID = "$Id$";
 #include "XrdVersion.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdNet/XrdNetSocket.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -37,7 +37,7 @@ const char *XrdXrootdAdminCVSID = "$Id$";
 
 extern XrdOucTrace     *XrdXrootdTrace;
 
-       XrdOucError     *XrdXrootdAdmin::eDest;
+       XrdSysError     *XrdXrootdAdmin::eDest;
 
        XrdXrootdAdmin::JobTable        *XrdXrootdAdmin::JobList = 0;
   
@@ -75,7 +75,7 @@ void XrdXrootdAdmin::addJob(const char *jname, XrdXrootdJob *jp)
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdXrootdAdmin::Init(XrdOucError *erp, XrdNetSocket *asock)
+int XrdXrootdAdmin::Init(XrdSysError *erp, XrdNetSocket *asock)
 {
    const char *epname = "Init";
    pthread_t tid;

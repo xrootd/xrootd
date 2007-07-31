@@ -28,7 +28,7 @@ public:
 
 static void  addJob(const char *jname, XrdXrootdJob *jp);
 
-static int   Init(XrdOucError *erp, XrdNetSocket *asock);
+static int   Init(XrdSysError *erp, XrdNetSocket *asock);
 
        void  Login(int socknum);
 
@@ -67,7 +67,7 @@ struct JobTable {struct JobTable *Next;
 
 static JobTable        *JobList;
 
-static XrdOucError     *eDest;
+static XrdSysError     *eDest;
        XrdOucStream     Stream;
        XrdLinkMatch     Target;
 

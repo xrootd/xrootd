@@ -232,7 +232,7 @@ int XrdOdcConfig::ConfigXeq(char *var, XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure.
 */
   
-int XrdOdcConfig::xapath(XrdOucError *errp, XrdOucStream &Config)
+int XrdOdcConfig::xapath(XrdSysError *errp, XrdOucStream &Config)
 {
     struct sockaddr_un USock;
     char *pval;
@@ -277,7 +277,7 @@ int XrdOdcConfig::xapath(XrdOucError *errp, XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
+int XrdOdcConfig::xconw(XrdSysError *errp, XrdOucStream &Config)
 {
     char *val;
     int cw;
@@ -324,7 +324,7 @@ int XrdOdcConfig::xconw(XrdOucError *errp, XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
+int XrdOdcConfig::xmang(XrdSysError *errp, XrdOucStream &Config)
 {
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
@@ -429,7 +429,7 @@ int XrdOdcConfig::xmang(XrdOucError *errp, XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
+int XrdOdcConfig::xreqs(XrdSysError *errp, XrdOucStream &Config)
 {
     char *val;
     static struct reqsopts {const char *opname; int istime; int *oploc;}
@@ -478,7 +478,7 @@ int XrdOdcConfig::xreqs(XrdOucError *errp, XrdOucStream &Config)
    Output: retc upon success or -EINVAL upon failure.
 */
 
-int XrdOdcConfig::xtrac(XrdOucError *Eroute, XrdOucStream &Config)
+int XrdOdcConfig::xtrac(XrdSysError *Eroute, XrdOucStream &Config)
 {
     extern XrdOucTrace OdcTrace;
     char  *val;

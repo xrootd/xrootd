@@ -6,8 +6,8 @@
 /*                                                                            */
 /******************************************************************************/
 #include "XrdVersion.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"

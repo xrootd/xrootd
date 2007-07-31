@@ -30,7 +30,7 @@ const char *XrdXrootdLoadLibCVSID = "$Id$";
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
   
 /******************************************************************************/
 /*                        G l o b a l   S y m b o l s                         */
@@ -45,12 +45,12 @@ XrdSecProtocol *(*XrdXrootdSecGetProtocol)(const char             *hostname,
 /*                 x r o o t d _ l o a d F i l e s y s t e m                  */
 /******************************************************************************/
 
-XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *eDest, 
+XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest, 
                                           char *fslib, const char *cfn)
 {
    void *libhandle;
    char  buff[2048];
-   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdOucLogger *, const char *);
+   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
    XrdSfsFileSystem *FS;
 
 // Record the library path in the environment
@@ -67,7 +67,7 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *eDest,
 
 // Get the file system object creator
 //
-   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdOucLogger *,const char *))
+   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
                                   dlsym(libhandle,"XrdSfsGetFileSystem")))
       {eDest->Emsg("Config", dlerror(),
                    "finding XrdSfsGetFileSystem() in", fslib);
@@ -90,10 +90,10 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *eDest,
 /*                   x r o o t d _ l o a d S e c u r i t y                    */
 /******************************************************************************/
 
-XrdSecService *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib, char *cfn)
+XrdSecService *XrdXrootdloadSecurity(XrdSysError *eDest, char *seclib, char *cfn)
 {
    void *libhandle;
-   XrdSecService *(*ep)(XrdOucLogger *, const char *cfn);
+   XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
    XrdSecService *CIA;
 
 // Open the security library
@@ -105,7 +105,7 @@ XrdSecService *XrdXrootdloadSecurity(XrdOucError *eDest, char *seclib, char *cfn
 
 // Get the server object creator
 //
-   if (!(ep = (XrdSecService *(*)(XrdOucLogger *, const char *cfn))dlsym(libhandle,
+   if (!(ep = (XrdSecService *(*)(XrdSysLogger *, const char *cfn))dlsym(libhandle,
               "XrdSecgetService")))
       {eDest->Emsg("Config", dlerror(),
                    "finding XrdSecgetService() in", seclib);

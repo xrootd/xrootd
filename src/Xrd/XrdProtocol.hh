@@ -23,7 +23,7 @@
 // the protocol must copy out any values it desires to keep. It may copy the 
 // whole object using the supplied copy constructor.
 
-class XrdOucError;
+class XrdSysError;
 class XrdSysThread;
 class XrdOucTrace;
 class XrdBuffManager;
@@ -39,7 +39,7 @@ public:
 
 // The following pointers may be copied; they are stable.
 //
-XrdOucError    *eDest;       // Stable -> Error Message/Logging Handler
+XrdSysError    *eDest;       // Stable -> Error Message/Logging Handler
 XrdInet        *NetTCP;      // Stable -> Network Object    (@ XrdgetProtocol)
 XrdBuffManager *BPool;       // Stable -> Buffer Pool Manager
 XrdScheduler   *Sched;       // Stable -> System Scheduler

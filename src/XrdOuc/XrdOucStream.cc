@@ -60,7 +60,7 @@ using namespace std;
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
 /******************************************************************************/
   
-XrdOucStream::XrdOucStream(XrdOucError *erobj, const char *ifname,
+XrdOucStream::XrdOucStream(XrdSysError *erobj, const char *ifname,
                            XrdOucEnv   *anEnv, const char *Pfx)
 {
  char *cp;

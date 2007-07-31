@@ -43,7 +43,7 @@ const char *XrdOfsConfigCVSID = "$Id$";
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -79,7 +79,7 @@ extern XrdOucTrace OfsTrace;
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdOfs::Configure(XrdOucError &Eroute) {
+int XrdOfs::Configure(XrdSysError &Eroute) {
 /*
   Function: Establish default values using a configuration file.
 
@@ -200,7 +200,7 @@ int XrdOfs::Configure(XrdOucError &Eroute) {
 
 #define setBuff(x,y) {strcpy(bp, x); bp += y;}
   
-void XrdOfs::Config_Display(XrdOucError &Eroute)
+void XrdOfs::Config_Display(XrdSysError &Eroute)
 {
      const char *cloc;
      char buff[8192], fwbuff[256], *bp;
@@ -273,7 +273,7 @@ void XrdOfs::Config_Display(XrdOucError &Eroute)
 /*                           C o n f i g R e d i r                            */
 /******************************************************************************/
   
-int XrdOfs::ConfigRedir(XrdOucError &Eroute) 
+int XrdOfs::ConfigRedir(XrdSysError &Eroute) 
 {
    int isRedir = Options & XrdOfsREDIRRMT;
    int port;
@@ -326,7 +326,7 @@ int XrdOfs::ConfigRedir(XrdOucError &Eroute)
 /******************************************************************************/
   
 int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
-                                 XrdOucError &Eroute)
+                                 XrdSysError &Eroute)
 {
     char *val, vBuff[64];
 
@@ -376,7 +376,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xalib(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xalib(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[1024];
 
@@ -415,7 +415,7 @@ int XrdOfs::xalib(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xfdscan(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xfdscan(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int numf, minidle, maxidle;
@@ -454,7 +454,7 @@ int XrdOfs::xfdscan(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xforward(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
 {
     enum fwdType {OfsFWDALL = 0x1f, OfsFWDCHMOD = 0x01, OfsFWDMKDIR = 0x02,
                   OfsFWDMV  = 0x04, OfsFWDRM    = 0x08, OfsFWDRMDIR = 0x10,
@@ -532,7 +532,7 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xlocktry(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xlocktry(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int numt, mswt;
@@ -563,7 +563,7 @@ int XrdOfs::xlocktry(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xmaxd(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xmaxd(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int maxd;
@@ -598,7 +598,7 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdOucError &Eroute)
 
    Output: 0 upon success or !0 upon failure.
 */
-int XrdOfs::xnot(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 {
     static struct notopts {const char *opname; XrdOfsEvs::Event opval;} 
         noopts[] = {
@@ -686,7 +686,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdOucError &Eroute)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xolib(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xolib(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[2048];
     int pl;
@@ -728,7 +728,7 @@ int XrdOfs::xolib(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xred(XrdOucStream &Config, XrdSysError &Eroute)
 {
     const char *mode = "remote";
     char *val;
@@ -813,7 +813,7 @@ int XrdOfs::xred(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xrole(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 {
    const int resetit = ~XrdOfsREDIRECT;
    char role[64];
@@ -897,7 +897,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOfs::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOfs::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 {
     static struct traceopts {const char *opname; int opval;} tropts[] =
        {
@@ -958,10 +958,10 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
 /*                             s e t u p A u t h                              */
 /******************************************************************************/
 
-int XrdOfs::setupAuth(XrdOucError &Eroute)
+int XrdOfs::setupAuth(XrdSysError &Eroute)
 {
    XrdSysPlugin    *myLib;
-   XrdAccAuthorize *(*ep)(XrdOucLogger *, const char *, const char *);
+   XrdAccAuthorize *(*ep)(XrdSysLogger *, const char *, const char *);
 
 // Authorization comes from the library or we use the default
 //
@@ -975,7 +975,7 @@ int XrdOfs::setupAuth(XrdOucError &Eroute)
 
 // Now get the entry point of the object creator
 //
-   ep = (XrdAccAuthorize *(*)(XrdOucLogger *, const char *, const char *))
+   ep = (XrdAccAuthorize *(*)(XrdSysLogger *, const char *, const char *))
                              (myLib->getPlugin("XrdAccAuthorizeObject"));
    if (!ep) return 1;
 
@@ -1003,7 +1003,7 @@ const char *XrdOfs::theRole(int opts)
 /******************************************************************************/
   
 void XrdOfs::List_VPlist(char *lname, 
-                      XrdOucPListAnchor &plist, XrdOucError &Eroute)
+                      XrdOucPListAnchor &plist, XrdSysError &Eroute)
 {
      XrdOucPList *fp;
 

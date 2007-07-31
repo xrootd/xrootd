@@ -29,6 +29,7 @@ TARGETS = $(LIBRARY)
 #                           S e a r c h   P a t h s                           -
 #------------------------------------------------------------------------------#
 
+vpath XrdSys% ../XrdSys
 vpath XrdOuc% ../XrdOuc
 vpath  Xrd%   ../Xrd
   
@@ -51,7 +52,7 @@ $(TARGETS): $(OBJECTS) $(LIBDEPS)
 
 $(OBJDIR)/XrdRootdProtocol.o: XrdRootdProtocol.hh XrdLink.hh \
                               XrdScheduler.hh     XrdTrace.hh \
-                              XrdOucError.hh      XrdOucTrace.hh \
+                              XrdSysError.hh      XrdOucTrace.hh \
                               XrdRootdProtocol.cc
 	@echo Compiling XrdRootdProtocol.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdRootdProtocol.o XrdRootdProtocol.cc

@@ -21,7 +21,7 @@
 // support framework. However, Accept and Connect have been augmented to
 // provide for more scalable communications handling.
 //
-class XrdOucError;
+class XrdSysError;
 class XrdNetSecurity;
 class XrdLink;
 
@@ -33,7 +33,7 @@ XrdLink    *Accept(int opts=0, int timeout=-1);
 
 XrdLink    *Connect(const char *host, int port, int opts=0, int timeout=-1);
 
-            XrdInet(XrdOucError *erp, XrdNetSecurity *secp=0)
+            XrdInet(XrdSysError *erp, XrdNetSecurity *secp=0)
                       : XrdNet(erp, secp) {}
            ~XrdInet() {}
 private:

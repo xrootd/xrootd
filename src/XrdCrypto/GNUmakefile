@@ -161,8 +161,8 @@ $(OBJDIR)/PC3.o: PC3.cc PC3.hh
 	@echo Compiling PC3.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/PC3.o PC3.cc
 
-$(OBJDIR)/XrdCryptoAux.o: XrdCryptoAux.cc XrdOucLogger.hh \
-			  XrdSysPthread.hh XrdOucError.hh \
+$(OBJDIR)/XrdCryptoAux.o: XrdCryptoAux.cc XrdSysLogger.hh \
+			  XrdSysPthread.hh XrdSysError.hh \
 			  XrdCryptoAux.hh XProtocol.hh XPtypes.hh \
 			  XrdCryptoTrace.hh XrdOucTrace.hh
 	@echo Compiling XrdCryptoAux.cc 
@@ -184,7 +184,7 @@ $(OBJDIR)/XrdCryptoCipher.o: XrdCryptoCipher.cc XrdCryptoAux.hh \
 $(OBJDIR)/XrdCryptoFactory.o: XrdCryptoFactory.cc \
 			XrdCryptoAux.hh XProtocol.hh \
 			XPtypes.hh XrdCryptoTrace.hh \
-			XrdOucTrace.hh XrdOucError.hh \
+			XrdOucTrace.hh XrdSysError.hh \
 			XrdCryptoFactory.hh XrdCryptolocalFactory.hh
 	@echo Compiling XrdCryptoFactory.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptoFactory.o XrdCryptoFactory.cc
@@ -208,7 +208,7 @@ $(OBJDIR)/XrdCryptoX509.o: XrdCryptoX509.cc XrdCryptoX509.hh \
 			XProtocol.hh XPtypes.hh \
 			XrdCryptoRSA.hh XrdOucString.hh \
 			XrdCryptoAux.hh XrdCryptoTrace.hh \
-			XrdOucTrace.hh XrdOucError.hh
+			XrdOucTrace.hh XrdSysError.hh
 	@echo Compiling XrdCryptoX509.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptoX509.o XrdCryptoX509.cc
 
@@ -218,7 +218,7 @@ $(OBJDIR)/XrdCryptoX509Chain.o: XrdCryptoX509Chain.cc \
 			XPtypes.hh XrdCryptoX509.hh \
 			XrdCryptoRSA.hh XrdOucString.hh \
 			XrdCryptoAux.hh XrdCryptoX509Crl.hh \
-			XrdCryptoTrace.hh XrdOucTrace.hh XrdOucError.hh
+			XrdCryptoTrace.hh XrdOucTrace.hh XrdSysError.hh
 	@echo Compiling XrdCryptoX509Chain.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptoX509Chain.o XrdCryptoX509Chain.cc
 
@@ -228,7 +228,7 @@ $(OBJDIR)/XrdCryptoX509Req.o: XrdCryptoX509Req.cc \
 			XPtypes.hh XrdCryptoRSA.hh \
 			XrdOucString.hh XrdCryptoAux.hh \
 			XrdCryptoTrace.hh XrdOucTrace.hh \
-			XrdOucError.hh
+			XrdSysError.hh
 	@echo Compiling XrdCryptoX509Req.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptoX509Req.o XrdCryptoX509Req.cc
 
@@ -257,7 +257,7 @@ $(OBJDIR)/XrdCryptolocalFactory.o: XrdCryptolocalFactory.cc \
 			XrdCryptoAux.hh  \
 			XrdCryptoRSA.hh XrdOucString.hh \
 			XrdCryptoTrace.hh \
-			XrdOucTrace.hh XrdOucError.hh
+			XrdOucTrace.hh XrdSysError.hh
 	@echo Compiling XrdCryptolocalFactory.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptolocalFactory.o XrdCryptolocalFactory.cc
 
@@ -268,14 +268,14 @@ $(OBJDIR)/XrdCryptosslAux.o: XrdCryptosslAux.cc XrdCryptoX509Chain.hh \
 			XrdOucString.hh XrdCryptoX509Crl.hh \
 			XrdCryptosslAux.hh XrdCryptosslRSA.hh \
 			XrdCryptosslX509.hh XrdCryptosslTrace.hh \
-			XrdOucTrace.hh XrdOucError.hh
+			XrdOucTrace.hh XrdSysError.hh
 	@echo Compiling XrdCryptosslAux.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CRYPTOSSLEXTRACFLAGS) $(INCLUDE) $(INCSSL) -o $(OBJDIR)/XrdCryptosslAux.o XrdCryptosslAux.cc
 
 $(OBJDIR)/XrdCryptosslCipher.o: XrdCryptosslCipher.cc XrdSutRndm.hh \
 			XrdSutAux.hh XProtocol.hh XPtypes.hh \
 			XrdCryptosslTrace.hh XrdOucTrace.hh \
-			XrdOucError.hh XrdCryptoAux.hh \
+			XrdSysError.hh XrdCryptoAux.hh \
 			XrdCryptosslCipher.hh XrdCryptoCipher.hh \
 			XrdSutBucket.hh XrdCryptoBasic.hh
 	@echo Compiling XrdCryptosslCipher.cc 
@@ -294,8 +294,8 @@ $(OBJDIR)/XrdCryptosslFactory.o: XrdCryptosslFactory.cc \
 			XrdCryptosslRSA.hh XrdCryptosslX509.hh \
 			XrdCryptosslX509Crl.hh XrdSutCache.hh \
 			XrdSutPFEntry.hh XrdOucHash.hh XrdOucHash.icc \
-			XrdOucLogger.hh XrdSysPthread.hh \
-			XrdOucError.hh XrdSutRndm.hh \
+			XrdSysLogger.hh XrdSysPthread.hh \
+			XrdSysError.hh XrdSutRndm.hh \
 			XrdCryptosslTrace.hh XrdOucTrace.hh
 	@echo Compiling XrdCryptosslFactory.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CRYPTOSSLEXTRACFLAGS) $(INCLUDE) $(INCSSL) -o $(OBJDIR)/XrdCryptosslFactory.o XrdCryptosslFactory.cc
@@ -304,7 +304,7 @@ $(OBJDIR)/XrdCryptosslFactory.o: XrdCryptosslFactory.cc \
 $(OBJDIR)/XrdCryptosslMsgDigest.o: XrdCryptosslMsgDigest.cc \
 			XrdCryptoAux.hh XProtocol.hh \
 			XPtypes.hh XrdCryptosslTrace.hh \
-			XrdOucTrace.hh XrdOucError.hh \
+			XrdOucTrace.hh XrdSysError.hh \
 			XrdCryptosslMsgDigest.hh XrdCryptoMsgDigest.hh \
 			XrdCryptoBasic.hh XrdSutBucket.hh XrdSutAux.hh
 	@echo Compiling XrdCryptosslMsgDigest.cc 
@@ -313,7 +313,7 @@ $(OBJDIR)/XrdCryptosslMsgDigest.o: XrdCryptosslMsgDigest.cc \
 $(OBJDIR)/XrdCryptosslRSA.o: XrdCryptosslRSA.cc XrdSutRndm.hh \
 			XrdSutAux.hh XProtocol.hh XPtypes.hh \
 			XrdCryptosslTrace.hh XrdOucTrace.hh \
-			XrdOucError.hh XrdCryptoAux.hh \
+			XrdSysError.hh XrdCryptoAux.hh \
 			XrdCryptosslRSA.hh XrdCryptoRSA.hh \
 			XrdSutBucket.hh XrdOucString.hh
 	@echo Compiling XrdCryptosslRSA.cc 
@@ -327,7 +327,7 @@ $(OBJDIR)/XrdCryptosslX509.o: XrdCryptosslX509.cc \
 			XrdCryptoX509.hh XrdCryptosslAux.hh \
 			XrdCryptoX509Chain.hh XrdCryptoX509Crl.hh \
 			XrdCryptosslTrace.hh XrdOucTrace.hh \
-			XrdOucError.hh
+			XrdSysError.hh
 	@echo Compiling XrdCryptosslX509.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CRYPTOSSLEXTRACFLAGS) $(INCLUDE) $(INCSSL) -o $(OBJDIR)/XrdCryptosslX509.o XrdCryptosslX509.cc
 
@@ -339,7 +339,7 @@ $(OBJDIR)/XrdCryptosslX509Req.o: XrdCryptosslX509Req.cc \
 			XrdCryptoX509Req.hh XrdCryptosslAux.hh \
 			XrdCryptoX509Chain.hh XrdCryptoX509.hh \
 			XrdCryptoX509Crl.hh XrdCryptosslTrace.hh \
-			XrdOucTrace.hh XrdOucError.hh 
+			XrdOucTrace.hh XrdSysError.hh 
 	@echo Compiling XrdCryptosslX509Req.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CRYPTOSSLEXTRACFLAGS) $(INCLUDE) $(INCSSL) -o $(OBJDIR)/XrdCryptosslX509Req.o XrdCryptosslX509Req.cc
 
@@ -353,7 +353,7 @@ $(OBJDIR)/XrdCryptosslX509Crl.o: XrdCryptosslX509Crl.cc \
 			XrdCryptoX509Crl.hh XrdCryptoX509.hh \
 			XrdCryptosslAux.hh XrdCryptoX509Chain.hh \
 			XrdCryptosslTrace.hh XrdOucTrace.hh \
-			XrdOucError.hh
+			XrdSysError.hh
 	@echo Compiling XrdCryptosslX509Crl.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CRYPTOSSLEXTRACFLAGS) $(INCLUDE) $(INCSSL) -o $(OBJDIR)/XrdCryptosslX509Crl.o XrdCryptosslX509Crl.cc
 
@@ -363,7 +363,7 @@ $(OBJDIR)/XrdCryptosslgsiAux.o: XrdCryptosslgsiAux.cc XrdSutRndm.hh XrdSutAux.hh
 			XrdCryptosslgsiX509Chain.hh XrdCryptoX509Chain.hh XrdSutBucket.hh \
 			XrdCryptoX509.hh XrdCryptoRSA.hh XrdOucString.hh \
 			XrdCryptoAux.hh XrdCryptoX509Crl.hh XrdCryptoX509Req.hh \
-			XrdCryptoTrace.hh XrdOucTrace.hh XrdOucError.hh \
+			XrdCryptoTrace.hh XrdOucTrace.hh XrdSysError.hh \
 			XrdCryptosslAux.hh XrdCryptosslRSA.hh XrdCryptosslX509.hh \
 			XrdCryptosslX509Req.hh
 	@echo Compiling XrdCryptosslgsiAux.cc 
@@ -375,6 +375,6 @@ $(OBJDIR)/XrdCryptosslgsiX509Chain.o: XrdCryptosslgsiX509Chain.cc \
 			XrdSutAux.hh XProtocol.hh XPtypes.hh \
 			XrdCryptoX509.hh XrdCryptoRSA.hh XrdOucString.hh \
 			XrdCryptoAux.hh XrdCryptoX509Crl.hh XrdCryptoX509Req.hh \
-			XrdCryptoTrace.hh XrdOucTrace.hh XrdOucError.hh
+			XrdCryptoTrace.hh XrdOucTrace.hh XrdSysError.hh
 	@echo Compiling XrdCryptosslgsiX509Chain.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCryptosslgsiX509Chain.o XrdCryptosslgsiX509Chain.cc

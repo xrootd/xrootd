@@ -19,9 +19,9 @@ const char *XrdXrootdJobCVSID = "$Id$";
 
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "XrdSys/XrdSysPlatform.hh"
-#include "XrdSys/XrdSysProg.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -70,7 +70,7 @@ struct {XrdLink     *Link;
 
        XrdOucStream       jobStream;  // -> Stream for job I/O
        XrdXrootdJob      *theJob;     // -> Job description
-       char              *theArgs[5]; // -> Program arguments (see XrdSysProg)
+       char              *theArgs[5]; // -> Program arguments (see XrdOucProg)
        char              *theResult;  // -> The result
        int                JobNum;     //    Job Number
        char               JobMark;
@@ -401,7 +401,7 @@ void XrdXrootdJob2Do::sendResult(char *lp, int caned)
 /******************************************************************************/
 
 XrdXrootdJob::XrdXrootdJob(XrdScheduler *schp, 
-                           XrdSysProg   *pgm,
+                           XrdOucProg   *pgm,
                            const char   *jname,
                            int           maxjobs)
                           : XrdJob("Job Scheduler"),

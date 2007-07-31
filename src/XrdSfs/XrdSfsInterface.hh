@@ -189,12 +189,12 @@ protected:
 /*              F i l e   S y s t e m   I n s t a n t i a t o r               */
 /******************************************************************************/
 
-class XrdOucLogger;
+class XrdSysLogger;
 
 extern "C"
 {
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
-                                      XrdOucLogger     *Logger,
+                                      XrdSysLogger     *Logger,
                                       const char       *config_fn);
 }
 

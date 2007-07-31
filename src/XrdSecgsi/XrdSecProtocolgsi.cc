@@ -21,8 +21,8 @@
 #include <fcntl.h>
 #include <dirent.h>
 
-#include <XrdOuc/XrdOucLogger.hh>
-#include <XrdOuc/XrdOucError.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysError.hh>
 #include <XrdOuc/XrdOucStream.hh>
 
 #include <XrdSut/XrdSutCache.hh>
@@ -139,8 +139,8 @@ bool XrdSecProtocolgsi::Server      = 1; // [CS] If server mode
 int  XrdSecProtocolgsi::TimeSkew    = 300; // [CS] Allowed skew in secs for time stamps 
 //
 // Debug an tracing
-XrdOucError    XrdSecProtocolgsi::eDest(0, "secgsi_");
-XrdOucLogger   XrdSecProtocolgsi::Logger;
+XrdSysError    XrdSecProtocolgsi::eDest(0, "secgsi_");
+XrdSysLogger   XrdSecProtocolgsi::Logger;
 XrdOucTrace   *XrdSecProtocolgsi::GSITrace = 0;
 
 XrdOucTrace *gsiTrace = 0;

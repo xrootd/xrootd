@@ -45,7 +45,7 @@ XrdSecService        *XrdXrootdProtocol::CIA      = 0;
 char                 *XrdXrootdProtocol::SecLib   = 0;
 XrdScheduler         *XrdXrootdProtocol::Sched;
 XrdBuffManager       *XrdXrootdProtocol::BPool;
-XrdOucError           XrdXrootdProtocol::eDest(0, "Xrootd");
+XrdSysError           XrdXrootdProtocol::eDest(0, "Xrootd");
 XrdXrootdStats       *XrdXrootdProtocol::SI;
 XrdXrootdJob         *XrdXrootdProtocol::JobCKS   = 0;
 char                 *XrdXrootdProtocol::JobCKT   = 0;
@@ -439,7 +439,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
                     sfxp = buff;
                    } else sfxp = ctbuff;
 
-       eDest.Log(OUC_LOG_02, "Xeq", lp->ID,
+       eDest.Log(SYS_LOG_02, "Xeq", lp->ID,
              (Status == XRD_BOUNDPATH ? (char *)"unbind":(char *)"disc"), sfxp);
       }
 

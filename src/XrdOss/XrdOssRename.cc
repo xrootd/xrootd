@@ -31,7 +31,7 @@ const char *XrdOssRenameCVSID = "$Id$";
 /*           G l o b a l   E r r o r   R o u t i n g   O b j e c t            */
 /******************************************************************************/
 
-extern XrdOucError OssEroute;
+extern XrdSysError OssEroute;
 
 extern XrdOucTrace OssTrace;
   

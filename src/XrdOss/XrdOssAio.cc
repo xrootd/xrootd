@@ -25,7 +25,7 @@ const char *XrdOssAioCVSID = "$Id$";
 
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsAio.hh"
@@ -49,7 +49,7 @@ const char *XrdOssAioCVSID = "$Id$";
 extern XrdOucTrace OssTrace;
 #define tident aiop->TIdent
 
-extern XrdOucError OssEroute;
+extern XrdSysError OssEroute;
 
 int   XrdOssFile::AioFailure = 0;
 

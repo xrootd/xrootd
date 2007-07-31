@@ -70,7 +70,7 @@
    static in that it persists during the execution of the program.
 */
 
-class XrdOucError;
+class XrdSysError;
 class XrdInet;
 class XrdScheduler;
 class XrdOucName2Name;
@@ -81,7 +81,7 @@ struct XrdOlbXmiEnv
 const char      *Role;          // Manager | Peer | Proxy | Supervisor | Server
 const char      *ConfigFN;      // -> Config file name
 const char      *Parms;         // -> Optional parms from xmilib directive
-XrdOucError     *eDest;         // -> Error message handler
+XrdSysError     *eDest;         // -> Error message handler
 XrdInet         *iNet;          // -> Network object
 XrdScheduler    *Sched;         // -> Thread scheduler
 XrdOucTrace     *Trace;         // -> Trace handler

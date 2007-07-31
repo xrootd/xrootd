@@ -27,6 +27,7 @@ TARGETS = OBJECTFILE
 
 vpath XrdOuc% ../XrdOuc
 vpath XrdSec% ../XrdSec
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -50,7 +51,7 @@ $(TARGETS): $(OBJECTS)
 #fi
 
 $(OBJDIR)/XrdSfsNative.o:  XrdSfsInterface.hh XrdSfsNative.hh  XrdSecInterface.hh \
-                           XrdOucError.hh     XrdOucErrInfo.hh XrdOucLogger.hh \
+                           XrdSysError.hh     XrdOucErrInfo.hh XrdSysLogger.hh \
                            XrdSfsNative.cc    XrdSfsAio.hh  ../XrdVersion.hh
 	@echo Compiling XrdSfsNative.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSfsNative.o XrdSfsNative.cc

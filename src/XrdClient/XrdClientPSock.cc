@@ -16,7 +16,7 @@ const char *XrdClientPSockCVSID = "$Id$";
 #include <assert.h>
 #include <math.h>
 #include "XrdClient/XrdClientPSock.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"

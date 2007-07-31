@@ -27,7 +27,7 @@ const char *XrdXrootdPrepareCVSID = "$Id$";
 #define getdents(fd, dirp, cnt) syscall(SYS_getdents, fd, dirp, cnt)
 #endif
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
@@ -47,7 +47,7 @@ extern XrdOucTrace     *XrdXrootdTrace;
 
        XrdScheduler    *XrdXrootdPrepare::SchedP;
 
-       XrdOucError     *XrdXrootdPrepare::eDest;     // Error message handler
+       XrdSysError     *XrdXrootdPrepare::eDest;     // Error message handler
 
        int              XrdXrootdPrepare::scrubtime = 60*60;
        int              XrdXrootdPrepare::scrubkeep = 60*60*24;
@@ -59,7 +59,7 @@ const  char            *XrdXrootdPrepare::TraceID = "Prepare";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdXrootdPrepare::XrdXrootdPrepare(XrdOucError *errp, XrdScheduler *sp)
+XrdXrootdPrepare::XrdXrootdPrepare(XrdSysError *errp, XrdScheduler *sp)
                  : XrdJob("Prep log scrubber")
 {eDest    = errp;
  SchedP   = sp;

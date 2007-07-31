@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c E r r o r . c c                         */
+/*                        X r d S y s E r r o r . c c                         */
 /*                                                                            */
 /*(c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
@@ -10,7 +10,7 @@
  
 //         $Id$
 
-const char *XrdOucErrorCVSID = "$Id$";
+const char *XrdSysErrorCVSID = "$Id$";
 
 #include <ctype.h>
 #ifndef WIN32
@@ -36,8 +36,8 @@ using namespace std;
 #include "XrdSys/XrdWin32.hh"
 #endif
 
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -54,23 +54,23 @@ using namespace std;
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-XrdOucError_Table *XrdOucError::etab = 0;
+XrdSysError_Table *XrdSysError::etab = 0;
 
 /******************************************************************************/
 /*                                b a s e F D                                 */
 /******************************************************************************/
   
-int XrdOucError::baseFD() {return Logger->originalFD();}
+int XrdSysError::baseFD() {return Logger->originalFD();}
 
 /******************************************************************************/
 /*                               e c 2 t e x t                                */
 /******************************************************************************/
 
-char *XrdOucError::ec2text(int ecode)
+char *XrdSysError::ec2text(int ecode)
 {
     int xcode;
     char *etxt = 0;
-    XrdOucError_Table *etp = etab;
+    XrdSysError_Table *etp = etab;
 
     xcode = (ecode < 0 ? -ecode : ecode);
     while((etp != 0) && !(etxt = etp->Lookup(xcode))) etp = etp->next;
@@ -82,7 +82,7 @@ char *XrdOucError::ec2text(int ecode)
 /*                                  E m s g                                   */
 /******************************************************************************/
 
-int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1, 
+int XrdSysError::Emsg(const char *esfx, int ecode, const char *txt1, 
                                                    const char *txt2)
 {
     struct iovec iov[16];
@@ -113,7 +113,7 @@ int XrdOucError::Emsg(const char *esfx, int ecode, const char *txt1,
     return ecode;
 }
   
-void XrdOucError::Emsg(const char *esfx, const char *txt1, 
+void XrdSysError::Emsg(const char *esfx, const char *txt1, 
                                          const char *txt2, 
                                          const char *txt3)
 {
@@ -137,7 +137,7 @@ void XrdOucError::Emsg(const char *esfx, const char *txt1,
 /*                                   S a y                                    */
 /******************************************************************************/
   
-void XrdOucError::Say(const char *txt1, const char *txt2, const char *txt3)
+void XrdSysError::Say(const char *txt1, const char *txt2, const char *txt3)
 {
     struct iovec iov[5];
     int iovpnt = 0;
@@ -153,7 +153,7 @@ void XrdOucError::Say(const char *txt1, const char *txt2, const char *txt3)
 /*                                  T b e g                                   */
 /******************************************************************************/
   
-void XrdOucError::TBeg(const char *txt1, const char *txt2, const char *txt3)
+void XrdSysError::TBeg(const char *txt1, const char *txt2, const char *txt3)
 {
  cerr <<Logger->traceBeg();
  if (txt1) cerr <<txt1 <<' ';
@@ -165,4 +165,4 @@ void XrdOucError::TBeg(const char *txt1, const char *txt2, const char *txt3)
 /*                                  T E n d                                   */
 /******************************************************************************/
   
-void XrdOucError::TEnd() {cerr <<endl; Logger->traceEnd();}
+void XrdSysError::TEnd() {cerr <<endl; Logger->traceEnd();}

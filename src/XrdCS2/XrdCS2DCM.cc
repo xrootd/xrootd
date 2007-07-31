@@ -27,7 +27,7 @@ const char *XrdCS2DCM2csCVSID = "$Id$";
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
@@ -40,7 +40,7 @@ const char *XrdCS2DCM2csCVSID = "$Id$";
 
 extern XrdScheduler      XrdSched;
 
-extern XrdOucError       XrdLog;
+extern XrdSysError       XrdLog;
 
 extern XrdOucTrace       XrdTrace;
  

@@ -43,14 +43,14 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
-#include "XrdSys/XrdSysPlugin.hh"
-#include "XrdSys/XrdSysProg.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -193,7 +193,7 @@ XrdOssSys::XrdOssSys()
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
+int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
 {
 /*
   Function: Establish default values using a configuration file.
@@ -202,7 +202,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
 
   Output:   0 upon success or !0 otherwise.
 */
-   XrdOucError_Table *ETab = new XrdOucError_Table(XRDOSS_EBASE, XRDOSS_ELAST,
+   XrdSysError_Table *ETab = new XrdSysError_Table(XRDOSS_EBASE, XRDOSS_ELAST,
                                                    XrdOssErrorText);
    char *val;
    int  retc, NoGo = XrdOssOK;
@@ -290,7 +290,7 @@ int XrdOssSys::Configure(const char *configfn, XrdOucError &Eroute)
              (Have ## base  ? base     : ""), \
              (Have ## base  ? "\n"     : "")
 
-void XrdOssSys::Config_Display(XrdOucError &Eroute)
+void XrdOssSys::Config_Display(XrdSysError &Eroute)
 {
      char buff[4096], *cloc;
      XrdOucPList *fp;
@@ -357,7 +357,7 @@ void XrdOssSys::Config_Display(XrdOucError &Eroute)
 /*                             C o n f i g M i o                              */
 /******************************************************************************/
   
-void XrdOssSys::ConfigMio(XrdOucError &Eroute)
+void XrdOssSys::ConfigMio(XrdSysError &Eroute)
 {
      XrdOucPList *fp;
      unsigned long long flags = 0;
@@ -422,7 +422,7 @@ void XrdOssSys::ConfigMio(XrdOucError &Eroute)
 /*                             C o n f i g N 2 N                              */
 /******************************************************************************/
 
-int XrdOssSys::ConfigN2N(XrdOucError &Eroute)
+int XrdOssSys::ConfigN2N(XrdSysError &Eroute)
 {
    XrdSysPlugin    *myLib;
    XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
@@ -460,7 +460,7 @@ int XrdOssSys::ConfigN2N(XrdOucError &Eroute)
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/
   
-int XrdOssSys::ConfigProc(XrdOucError &Eroute)
+int XrdOssSys::ConfigProc(XrdSysError &Eroute)
 {
   char *var;
   int  cfgFD, retc, NoGo = XrdOssOK;
@@ -520,7 +520,7 @@ int XrdOssSys::ConfigProc(XrdOucError &Eroute)
 /*                           C o n f i g S t a g e                            */
 /******************************************************************************/
 
-int XrdOssSys::ConfigStage(XrdOucError &Eroute)
+int XrdOssSys::ConfigStage(XrdSysError &Eroute)
 {
    char *tp, *gwp = 0, *stgp = 0;
    unsigned long long dflags, flags;
@@ -592,7 +592,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 // Allocate a prgram object for the gateway command
 //
    if (MSSgwCmd)
-      {MSSgwProg = new XrdSysProg(&Eroute);
+      {MSSgwProg = new XrdOucProg(&Eroute);
        if (MSSgwProg->Setup(MSSgwCmd)) NoGo = 1;
       }
 
@@ -608,7 +608,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 
       // Set up a program object for the command
       //
-         StageProg = new XrdSysProg(&Eroute);
+         StageProg = new XrdOucProg(&Eroute);
          if (StageProg->Setup(StageCmd)) NoGo = 1;
 
       // For old-style real-time staging, create threads to handle the staging
@@ -652,7 +652,7 @@ int XrdOssSys::ConfigStage(XrdOucError &Eroute)
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
 
-int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
 {
     char  myVar[64], buff[2048], *val;
     int nosubs;
@@ -812,7 +812,7 @@ int XrdOssSys::chkDep(const char *var)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xalloc(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xalloc(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     long long mina = XrdOssMINALLOC;
@@ -854,7 +854,7 @@ int XrdOssSys::xalloc(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xcache(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, *pfxdir, *sfxdir, grp[17], fn[XrdOssMAX_PATH_LEN+1];
     int i, k, rc, pfxln, cnum = 0;
@@ -912,7 +912,7 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdOucError &Eroute)
     return rc != 0;
 }
 
-int XrdOssSys::xcacheBuild(char *grp, char *fn, XrdOucError &Eroute)
+int XrdOssSys::xcacheBuild(char *grp, char *fn, XrdSysError &Eroute)
 {
     XrdOssCache_FS *fsp;
     int rc;
@@ -940,7 +940,7 @@ int XrdOssSys::xcacheBuild(char *grp, char *fn, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xcompdct(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xcompdct(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
 
@@ -968,7 +968,7 @@ int XrdOssSys::xcompdct(XrdOucStream &Config, XrdOucError &Eroute)
 
    Output: 0 upon success or !0 upon failure.
 */
-int XrdOssSys::xcachescan(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xcachescan(XrdOucStream &Config, XrdSysError &Eroute)
 {   int cscan = 0;
     char *val;
 
@@ -993,7 +993,7 @@ int XrdOssSys::xcachescan(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xdefault(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xdefault(XrdOucStream &Config, XrdSysError &Eroute)
 {
    DirFlags = XrdOucExport::ParseDefs(Config, Eroute, DirFlags);
    return 0;
@@ -1016,7 +1016,7 @@ int XrdOssSys::xdefault(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int fence = 0, fdmax = XrdOssFDLIMIT;
@@ -1054,7 +1054,7 @@ int XrdOssSys::xfdlimit(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xmaxdbsz(XrdOucStream &Config, XrdSysError &Eroute)
 {   long long mdbsz;
     char *val;
 
@@ -1086,7 +1086,7 @@ int XrdOssSys::xmaxdbsz(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xmemf(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int i, j, V_autolok=-1, V_automap=-1, V_autokeep=-1, V_preld = -1, V_on=-1;
@@ -1162,7 +1162,7 @@ int XrdOssSys::xmemf(XrdOucStream &Config, XrdOucError &Eroute)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xnml(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xnml(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[1024];
 
@@ -1199,7 +1199,7 @@ int XrdOssSys::xnml(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xpath(XrdOucStream &Config, XrdSysError &Eroute)
 {
     XrdOucPList *plp, *olp;
     unsigned long long Opts;
@@ -1241,7 +1241,7 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdOucError &Eroute)
   Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, buff[2048], *bp = buff;
     int vlen, blen = sizeof(buff)-1, isAsync = 0, isCreate = 0;
@@ -1295,7 +1295,7 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdOucError &Eroute)
    Output: retc upon success or -EINVAL upon failure.
 */
 
-int XrdOssSys::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     static struct traceopts {const char *opname; int opval;} tropts[] =
@@ -1346,7 +1346,7 @@ int XrdOssSys::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdOssSys::xxfr(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdOssSys::xxfr(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int       thrds = XrdOssXFRTHREADS;
@@ -1400,7 +1400,7 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdOucError &Eroute)
 /******************************************************************************/
   
 void XrdOssSys::List_Path(const char *pfx, char *pname, 
-                          unsigned long long flags, XrdOucError &Eroute)
+                          unsigned long long flags, XrdSysError &Eroute)
 {
      char buff[4096], *rwmode;
 

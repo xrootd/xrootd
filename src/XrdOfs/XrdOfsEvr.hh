@@ -18,7 +18,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
-class XrdOucError;
+class XrdSysError;
 class XrdOdcFinderTRG;
 
 class XrdOfsEvr
@@ -28,7 +28,7 @@ class theClient;
 
 void flushEvents();
 
-int  Init(XrdOucError *eObj, XrdOdcFinderTRG *trg=0);
+int  Init(XrdSysError *eObj, XrdOdcFinderTRG *trg=0);
 
 void recvEvents();
 
@@ -88,7 +88,7 @@ static const int     maxLife = (8*60*60); // Eight hours
 XrdSysMutex          myMutex;
 XrdSysSemaphore      mySem;
 XrdOucStream         eventFIFO;
-XrdOucError         *eDest;
+XrdSysError         *eDest;
 XrdOdcFinderTRG     *Balancer;
 theClient           *deferQ;
 int                  runQ;

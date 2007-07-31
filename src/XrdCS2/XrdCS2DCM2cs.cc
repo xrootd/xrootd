@@ -25,8 +25,8 @@ const char *XrdCS2DCMCVSID = "$Id$";
 
 #include "Xrd/XrdTrace.hh"
 
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -52,9 +52,9 @@ const char *XrdCS2DCMCVSID = "$Id$";
 /******************************************************************************/
 
 
-extern XrdOucError       XrdLog;
+extern XrdSysError       XrdLog;
 
-extern XrdOucLogger      XrdLogger;
+extern XrdSysLogger      XrdLogger;
 
 extern XrdOucTrace       XrdTrace;
  

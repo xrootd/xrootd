@@ -106,8 +106,8 @@ $(OBJDIR)/XrdSecProtocolhost.o: XrdSecProtocolhost.cc XrdSecProtocolhost.hh \
 	@echo Compiling XrdSecProtocolhost.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolhost.o XrdSecProtocolhost.cc
 $(OBJDIR)/XrdSecServer.o: XrdSecServer.cc       XrdSecServer.hh \
-                          XrdOucErrInfo.hh      XrdOucError.hh \
-                          XrdOucLogger.hh       XrdOucStream.hh \
+                          XrdOucErrInfo.hh      XrdSysError.hh \
+                          XrdSysLogger.hh       XrdOucStream.hh \
                           XrdSecInterface.hh    XrdSecPManager.hh \
                           XrdSecTrace.hh        XrdOucEnv.hh
 	@echo Compiling XrdSecServer.cc 
@@ -118,7 +118,7 @@ $(OBJDIR)/XrdSectestClient.o:   XrdSectestClient.cc XrdSecInterface.hh \
 	@echo Compiling XrdSectestClient.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSectestClient.o XrdSectestClient.cc
 
-$(OBJDIR)/XrdSectestServer.o: XrdSecInterface.hh XrdSecEntity.hh XrdOucLogger.hh \
+$(OBJDIR)/XrdSectestServer.o: XrdSecInterface.hh XrdSecEntity.hh XrdSysLogger.hh \
                               XrdSectestServer.cc
 	@echo Compiling XrdSectestServer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSectestServer.o XrdSectestServer.cc

@@ -46,8 +46,8 @@ const char *XrdConfigCVSID = "$Id$";
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -64,9 +64,9 @@ extern XrdInet          *XrdNetADM;
 
 extern XrdScheduler      XrdSched;
 
-extern XrdOucError       XrdLog;
+extern XrdSysError       XrdLog;
 
-extern XrdOucLogger      XrdLogger;
+extern XrdSysLogger      XrdLogger;
 
 extern XrdSysThread     *XrdThread;
 
@@ -389,7 +389,7 @@ int XrdConfig::Configure(int argc, char **argv)
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
 
-int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest)
+int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
 {
    int dynamic;
 
@@ -773,7 +773,7 @@ void XrdConfig::Usage(int rc)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xapath(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *pval, *val;
     mode_t mode = S_IRWXU;
@@ -820,7 +820,7 @@ int XrdConfig::xapath(XrdOucError *eDest, XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xallow(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     int ishost;
@@ -857,7 +857,7 @@ int XrdConfig::xallow(XrdOucError *eDest, XrdOucStream &Config)
 
    Output: 0 upon success or !0 upon failure.
 */
-int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 {
     int bint = -1;
     long long blim;
@@ -891,7 +891,7 @@ int XrdConfig::xbuf(XrdOucError *eDest, XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     int  i, V_keep = 0, V_iswan = 0, V_blen = -1;
@@ -954,7 +954,7 @@ int XrdConfig::xnet(XrdOucError *eDest, XrdOucStream &Config)
 
    Output: 0 upon success or !0 upon failure.
 */
-int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xport(XrdSysError *eDest, XrdOucStream &Config)
 {   int rc, pnum = 0;
     char *val, cport[32];
 
@@ -974,7 +974,7 @@ int XrdConfig::xport(XrdOucError *eDest, XrdOucStream &Config)
 
 /******************************************************************************/
 
-int XrdConfig::yport(XrdOucError *eDest, const char *ptype, const char *val)
+int XrdConfig::yport(XrdSysError *eDest, const char *ptype, const char *val)
 {
     int pnum;
     if (!strcmp("any", val)) return 0;
@@ -1009,7 +1009,7 @@ int XrdConfig::yport(XrdOucError *eDest, const char *ptype, const char *val)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
 {
     XrdConfigProt *cpp;
     char *val, *parms, *lib, proname[64], buff[1024];
@@ -1094,7 +1094,7 @@ int XrdConfig::xprot(XrdOucError *eDest, XrdOucStream &Config)
    Output: 0 upon success or 1 upon failure.
 */
 
-int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     long long lpp;
@@ -1179,7 +1179,7 @@ int XrdConfig::xsched(XrdOucError *eDest, XrdOucStream &Config)
    Output: 0 upon success or 1 upon failure.
 */
 
-int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xtmo(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     int  i, ppp, rc;
@@ -1239,7 +1239,7 @@ int XrdConfig::xtmo(XrdOucError *eDest, XrdOucStream &Config)
    Output: 0 upon success or 1 upon failure.
 */
 
-int XrdConfig::xtrace(XrdOucError *eDest, XrdOucStream &Config)
+int XrdConfig::xtrace(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     static struct traceopts {const char *opname; int opval;} tropts[] =

@@ -18,7 +18,7 @@ const char *XrdRootdProtocolCVSID = "$Id$";
 #include <sys/types.h>
 #include <netinet/in.h>
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdRootd/XrdRootdProtocol.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"

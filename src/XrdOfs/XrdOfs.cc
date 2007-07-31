@@ -57,9 +57,9 @@ const char *XrdOfsCVSID = "$Id$";
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucLock.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -85,7 +85,7 @@ const char *XrdOfsCVSID = "$Id$";
 /*                  E r r o r   R o u t i n g   O b j e c t                   */
 /******************************************************************************/
 
-XrdOucError      OfsEroute(0);
+XrdSysError      OfsEroute(0);
 
 XrdOucTrace      OfsTrace(&OfsEroute);
 
@@ -193,12 +193,12 @@ XrdOfs::XrdOfs()
 /*                         G e t F i l e S y s t e m                          */
 /******************************************************************************/
 
-extern XrdOss    *XrdOssGetSS(XrdOucLogger *, const char *, const char *);
+extern XrdOss    *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
   
 extern "C"
 {
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
-                                      XrdOucLogger     *lp,
+                                      XrdSysLogger     *lp,
                                       const char       *configfn)
 {
    pthread_t tid;

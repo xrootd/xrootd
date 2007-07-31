@@ -24,7 +24,7 @@ const char *XrdOlbAdminCVSID = "$Id$";
 #include "XrdOlb/XrdOlbPrepare.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdNet/XrdNetSocket.hh"

@@ -32,7 +32,7 @@ const char *XrdNetCVSID = "$Id$";
 #include "XrdNet/XrdNetSocket.hh"
 
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -44,7 +44,7 @@ const char *XrdNetCVSID = "$Id$";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdNet::XrdNet(XrdOucError *erp, XrdNetSecurity *secp)
+XrdNet::XrdNet(XrdSysError *erp, XrdNetSecurity *secp)
 {
    iofd   = PortType = -1;
    eDest  = erp;

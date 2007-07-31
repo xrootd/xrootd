@@ -58,7 +58,7 @@ virtual     ~XrdOucName2Name() {}
 // 'extern "C"' defined function.
 
 // The 1st argument is a pointer to the error object that must be used to
-//         print any errors or other messages (see XrdOucError.hh).
+//         print any errors or other messages (see XrdSysError.hh).
 
 // The 2nd argument is the name of the configuration file that was used.
 //         This value may be null though that would be impossible.
@@ -75,9 +75,9 @@ virtual     ~XrdOucName2Name() {}
 // The function must return an instance of this class upon success and a null
 // pointer upon failure.
 
-class XrdOucError;
+class XrdSysError;
 
-#define XrdOucgetName2NameArgs XrdOucError       *eDest, \
+#define XrdOucgetName2NameArgs XrdSysError       *eDest, \
                                const char        *confg, \
                                const char        *parms, \
                                const char        *lroot, \

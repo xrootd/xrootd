@@ -8,25 +8,19 @@
 ## Checked in by $Author$
 #######################################################################
 
-## Note: XrdOucRash.hh and XrdOucRash.icc seem not to be used
 EXTRA_DIST = XrdOucRash.hh XrdOucRash.icc
 
 xrootdoucincdir = $(includedir)/xrootd/XrdOuc
 
 xrootdoucinc_HEADERS = \
-    XrdOucChain.hh      XrdOucDLlist.hh \
-    XrdOucEnv.hh        XrdOucRash.hh \
-    XrdOucErrInfo.hh    XrdOucReqID.hh \
-    XrdOucError.hh      XrdOuca2x.hh \
-    XrdOucExport.hh     XrdOucStream.hh \
-    XrdOucHash.hh       XrdOucString.hh \
-    XrdOucLock.hh       XrdOucTList.hh \
-    XrdOucLogger.hh     XrdOucTable.hh \
-    XrdOucMsubs.hh      \
-    XrdOucNList.hh      XrdOucTokenizer.hh \
-    XrdOucName2Name.hh  XrdOucTrace.hh \
-    XrdOucPList.hh      XrdOucUtils.hh \
-    XrdOucHash.icc      XrdOucRash.icc
+    XrdOuca2x.hh    XrdOucChain.hh      XrdOucDLlist.hh \
+    XrdOucEnv.hh    XrdOucErrInfo.hh    XrdOucExport.hh \
+    XrdOucHash.hh   XrdOucHash.icc      XrdOucLock.hh  \
+    XrdOucMsubs.hh  XrdOucName2Name.hh  XrdOucNList.hh  \
+    XrdOucPList.hh  XrdOucRash.hh       XrdOucRash.icc \
+    XrdOucReqID.hh  XrdOucStream.hh     XrdOucString.hh \
+    XrdOucTable.hh  XrdOucTList.hh      XrdOucTokenizer.hh \
+    XrdOucTrace.hh  XrdOucUtils.hh      XrdSysProg.hh
 
 lib_LTLIBRARIES = libXrdOuc.la
 
@@ -35,12 +29,11 @@ INCLUDES = -I$(top_srcdir)/src
 libXrdOuc_la_SOURCES = \
         XrdOuca2x.cc XrdOuca2x.hh        \
         XrdOucEnv.cc XrdOucEnv.hh XrdOucHash.hh       \
-        XrdOucError.cc XrdOucError.hh      \
         XrdOucName2Name.cc XrdOucName2Name.hh \
         XrdOucHashVal.cc     \
-        XrdOucLogger.cc XrdOucLogger.hh     \
         XrdOucMsubs.cc XrdOucMsubs.hh \
         XrdOucNList.cc XrdOucNList.hh      \
+        XrdOucProg.cc XrdOucProg.hh \
         XrdOucReqID.cc XrdOucReqID.hh      \
         XrdOucStream.cc XrdOucStream.hh     \
         XrdOucString.cc XrdOucString.hh     \

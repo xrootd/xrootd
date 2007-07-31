@@ -1,8 +1,8 @@
-#ifndef __OUC_XSLOCK_HH__
-#define __OUC_XSLOCK_HH__
+#ifndef __SYS_XSLOCK_HH__
+#define __SYS_XSLOCK_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d O u c X S L o c k . h h                        */
+/*                       X r d S y s X S L o c k . h h                        */
 /*                                                                            */
 /* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */

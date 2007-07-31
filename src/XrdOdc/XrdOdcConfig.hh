@@ -16,7 +16,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOuca2x.hh"
   
-class XrdOucError;
+class XrdSysError;
 class XrdOucStream;
 
 /******************************************************************************/
@@ -48,7 +48,7 @@ XrdOucTList  *PanList;      // List of managers for proxy  redirection
 unsigned char SMode;        // Manager selection mode
 unsigned char SModeP;       // Manager selection mode (proxy)
 
-      XrdOdcConfig(XrdOucError *erp)
+      XrdOdcConfig(XrdSysError *erp)
                   {ConWait = 10; RepWait = 6; RepWaitMS = 3000; RepDelay = 5;
                    PrepWait = 33; ManList = PanList = 0;
                    SMode = SModeP = ODC_FAILOVER;
@@ -60,12 +60,12 @@ unsigned char SModeP;       // Manager selection mode (proxy)
 private:
 int ConfigProc(char *cfn);
 int ConfigXeq(char *var, XrdOucStream &Config);
-int xapath(XrdOucError *eDest, XrdOucStream &Config);
-int xconw(XrdOucError *eDest, XrdOucStream &Config);
-int xmang(XrdOucError *eDest, XrdOucStream &Config);
-int xreqs(XrdOucError *eDest, XrdOucStream &Config);
-int xtrac(XrdOucError *eDest, XrdOucStream &Config);
+int xapath(XrdSysError *eDest, XrdOucStream &Config);
+int xconw(XrdSysError *eDest, XrdOucStream &Config);
+int xmang(XrdSysError *eDest, XrdOucStream &Config);
+int xreqs(XrdSysError *eDest, XrdOucStream &Config);
+int xtrac(XrdSysError *eDest, XrdOucStream &Config);
 
-XrdOucError   *eDest;
+XrdSysError   *eDest;
 };
 #endif

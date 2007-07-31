@@ -33,7 +33,7 @@ const char *XrdAccConfigCVSID = "$Id$";
 
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAccess.hh"
 #include "XrdAcc/XrdAccAudit.hh"
@@ -73,7 +73,7 @@ XrdAccConfig XrdAccConfiguration;
 
 void *XrdAccConfig_Refresh( void *start_data )
 {
-   XrdOucError *Eroute = (XrdOucError *)start_data;
+   XrdSysError *Eroute = (XrdSysError *)start_data;
 
 // Get the number of seconds between refreshes
 //
@@ -108,7 +108,7 @@ XrdAccConfig::XrdAccConfig()
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
+int XrdAccConfig::Configure(XrdSysError &Eroute, const char *cfn) {
 /*
   Function: Establish default values using a configuration file.
 
@@ -151,7 +151,7 @@ int XrdAccConfig::Configure(XrdOucError &Eroute, const char *cfn) {
 /*                              C o n f i g D B                               */
 /******************************************************************************/
   
-int XrdAccConfig::ConfigDB(int Warm, XrdOucError &Eroute)
+int XrdAccConfig::ConfigDB(int Warm, XrdSysError &Eroute)
 {
 /*
   Function: Establish default values using a configuration file.
@@ -216,7 +216,7 @@ int XrdAccConfig::ConfigDB(int Warm, XrdOucError &Eroute)
 /*        C o n f i g   F i l e   P r o c e s s i n g   M e t h o d s         */
 /******************************************************************************/
   
-int XrdAccConfig::ConfigFile(XrdOucError &Eroute, const char *ConfigFN) {
+int XrdAccConfig::ConfigFile(XrdSysError &Eroute, const char *ConfigFN) {
 /*
   Function: Establish default values using a configuration file.
 
@@ -297,7 +297,7 @@ void XrdAccConfig::ConfigDefaults()
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
   
-int XrdAccConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
+int XrdAccConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
 {
 
 // Fan out based on the variable
@@ -334,7 +334,7 @@ int XrdAccConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdAccConfig::xaud(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdAccConfig::xaud(XrdOucStream &Config, XrdSysError &Eroute)
 {
     static struct auditopts {const char *opname; int opval;} audopts[] =
        {
@@ -376,7 +376,7 @@ int XrdAccConfig::xaud(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdAccConfig::xart(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdAccConfig::xart(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int reft;
@@ -403,7 +403,7 @@ int XrdAccConfig::xart(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdAccConfig::xdbp(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdAccConfig::xdbp(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
 
@@ -427,7 +427,7 @@ int XrdAccConfig::xdbp(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdAccConfig::xglt(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdAccConfig::xglt(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int reft;
@@ -455,7 +455,7 @@ int XrdAccConfig::xglt(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdAccConfig::xgrt(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdAccConfig::xgrt(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
     int gid;
@@ -486,7 +486,7 @@ int XrdAccConfig::xgrt(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdAccConfig::xnis(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdAccConfig::xnis(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val;
 
@@ -504,7 +504,7 @@ int XrdAccConfig::xnis(XrdOucStream &Config, XrdOucError &Eroute)
 /*                           C o n f i g D B r e c                            */
 /******************************************************************************/
 
-int XrdAccConfig::ConfigDBrec(XrdOucError &Eroute,
+int XrdAccConfig::ConfigDBrec(XrdSysError &Eroute,
                             struct XrdAccAccess_Tables &tabs)
 {
 // The following enum is here for convenience

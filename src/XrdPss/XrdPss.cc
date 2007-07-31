@@ -37,7 +37,7 @@ const char *XrdPssCVSID = "$Id$";
 
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -48,7 +48,7 @@ namespace XrdProxy
 {
 static XrdPssSys   XrdProxySS;
   
-       XrdOucError eDest(0, "proxy_");
+       XrdSysError eDest(0, "proxy_");
 
 static const int   PBsz = 3072;
 }
@@ -65,7 +65,7 @@ using namespace XrdProxy;
 extern "C"
 {
 XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
-                               XrdOucLogger *Logger,
+                               XrdSysLogger *Logger,
                                const char   *config_fn,
                                const char   *parms)
 {
@@ -90,7 +90,7 @@ XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
 
   Output:   Returns zero upon success otherwise (-errno).
 */
-int XrdPssSys::Init(XrdOucLogger *lp, const char *configfn)
+int XrdPssSys::Init(XrdSysLogger *lp, const char *configfn)
 {
    int NoGo;
    const char *tmp;

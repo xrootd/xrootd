@@ -30,23 +30,23 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include <sys/un.h>
 #include <sys/wait.h>
 
+#include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetSocket.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
-#include "XrdSys/XrdSysPlatform.hh"
-#include "XrdSys/XrdSysProg.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdNet/XrdNetOpts.hh"
-#include "XrdNet/XrdNetSocket.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                  E r r o r   R o u t i n g   O b j e c t                   */
 /******************************************************************************/
   
-extern XrdOucError OssEroute;
+extern XrdSysError OssEroute;
 
 extern XrdOucTrace OssTrace;
 

@@ -31,13 +31,13 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
-#include "XrdSys/XrdSysProg.hh"
+#include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 
 #include "XrdXrootd/XrdXrootdAdmin.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
@@ -101,11 +101,11 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
   Output:   0 upon success or !0 otherwise.
 */
-   extern XrdSecService    *XrdXrootdloadSecurity(XrdOucError *, char *, char *);
-   extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdOucError *, char *, 
+   extern XrdSecService    *XrdXrootdloadSecurity(XrdSysError *, char *, char *);
+   extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, char *, 
                                                     const char *);
    extern XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *, 
-                                                XrdOucLogger *);
+                                                XrdSysLogger *);
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
@@ -455,7 +455,7 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 
 int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 {
-   static XrdSysProg *theProg = 0;
+   static XrdOucProg *theProg = 0;
    char *palg, prog[2048];
    int jmax = 4;
 
@@ -484,7 +484,7 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 
 // Set up the program and job
 //
-   if (!theProg) theProg = new XrdSysProg(0);
+   if (!theProg) theProg = new XrdOucProg(0);
    if (theProg->Setup(prog, &eDest)) return 1;
    if (JobCKS) delete JobCKS;
    JobCKS = new XrdXrootdJob(Sched, theProg, "chksum", jmax);
@@ -597,8 +597,8 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
     static struct logopts {const char *opname; int opval;} lgopts[] =
        {
         {"all",     -1},
-        {"disc",    OUC_LOG_02},
-        {"login",   OUC_LOG_01}
+        {"disc",    SYS_LOG_02},
+        {"login",   SYS_LOG_01}
        };
     int i, neg, lgval = -1, numopts = sizeof(lgopts)/sizeof(struct logopts);
 

@@ -18,8 +18,8 @@
   
 #include "XrdSfs/XrdSfsInterface.hh"
 
-class XrdOucError;
-class XrdOucLogger;
+class XrdSysError;
+class XrdSysLogger;
 
 /******************************************************************************/
 /*                 X r d S f s N a t i v e D i r e c t o r y                  */
@@ -209,11 +209,11 @@ static  int            Mkpath(const char *path, mode_t mode,
 static  int            Emsg(const char *, XrdOucErrInfo&, int, const char *x,
                             const char *y="");
 
-                       XrdSfsNative(XrdOucError *lp);
+                       XrdSfsNative(XrdSysError *lp);
 virtual               ~XrdSfsNative() {}
 
 private:
 
-static XrdOucError *eDest;
+static XrdSysError *eDest;
 };
 #endif

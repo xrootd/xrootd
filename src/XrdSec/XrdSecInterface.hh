@@ -331,11 +331,11 @@ virtual                ~XrdSecService() {}
 // obtain the XrdSecService object. This object is used to control server-side
 // authentication.
 //
-class XrdOucLogger;
+class XrdSysLogger;
 
 extern "C"
 {
-extern XrdSecService *XrdSecgetService(XrdOucLogger *lp, const char *cfn);
+extern XrdSecService *XrdSecgetService(XrdSysLogger *lp, const char *cfn);
 }
 
 // MT Requirements: None. Function called once in single-thread mode.

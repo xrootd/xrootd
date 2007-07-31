@@ -52,7 +52,7 @@ long long      XrdOssMio::MM_pages    = (long long)sysconf(_SC_PHYS_PAGES);
 long long      XrdOssMio::MM_max      = MM_pagsz*MM_pages/2;
 long long      XrdOssMio::MM_inuse    = 0;
 
-extern XrdOucError OssEroute;
+extern XrdSysError OssEroute;
 
 extern XrdOucTrace OssTrace;
   
@@ -60,7 +60,7 @@ extern XrdOucTrace OssTrace;
 /*                               D i s p l a y                                */
 /******************************************************************************/
 
-void XrdOssMio::Display(XrdOucError &Eroute)
+void XrdOssMio::Display(XrdSysError &Eroute)
 {
      char buff[1024];
      snprintf(buff, sizeof(buff), "       oss.memfile %s%s%s%s%s max %lld",

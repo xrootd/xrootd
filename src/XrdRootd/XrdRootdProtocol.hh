@@ -18,7 +18,7 @@
 /*                    x r d _ P r o t o c o l _ R o o t d                     */
 /******************************************************************************/
 
-class XrdOucError;
+class XrdSysError;
 class XrdOucTrace;
 class XrdLink;
 class XrdScheduler;
@@ -46,7 +46,7 @@ private:
 XrdScheduler      *Scheduler;
 const char        *Program;
 const char       **ProgArg;
-XrdOucError       *eDest;
+XrdSysError       *eDest;
 XrdOucTrace       *XrdTrace;
 int                stderrFD;
 int                ReadWait;

@@ -68,7 +68,7 @@ static void              Defaults(int msz, int wsz, int flush);
 
        void              Dup(XrdXrootdMonTrace *mrec);
 
-static int               Init(XrdScheduler *sp, XrdOucError *errp);
+static int               Init(XrdScheduler *sp, XrdSysError *errp);
 
 static kXR_unt32         Map(const char code,const char *uname,const char *path);
 
@@ -100,7 +100,7 @@ static int               Send(int mmode, void *buff, int size);
 static void              startClock();
 
 static XrdScheduler      *Sched;
-static XrdOucError       *eDest;
+static XrdSysError       *eDest;
 static XrdSysMutex        windowMutex;
 static int                monFD;
 static char              *Dest1;

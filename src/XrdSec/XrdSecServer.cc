@@ -24,9 +24,9 @@ const char *XrdSecServerCVSID = "$Id$";
 #include <sys/param.h>
 
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysLogger.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecServer.hh"
@@ -148,7 +148,7 @@ static XrdSecProtParm *First;
 
 char   ProtoID[XrdSecPROTOIDSIZE+1];
 
-       XrdSecProtParm(XrdOucError *erp, const char *cid) : who(cid)
+       XrdSecProtParm(XrdSysError *erp, const char *cid) : who(cid)
                      {*ProtoID = '\0';
                       bsize = 4096;
                       buff = (char *)malloc(bsize);
@@ -160,7 +160,7 @@ char   ProtoID[XrdSecPROTOIDSIZE+1];
       ~XrdSecProtParm() {free(buff);}
 private:
 
-XrdOucError *eDest;
+XrdSysError *eDest;
 int          bsize;
 char        *buff;
 char        *bp;
@@ -225,7 +225,7 @@ XrdSecPManager XrdSecServer::PManager;
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-XrdSecServer::XrdSecServer(XrdOucLogger *lp) : eDest(0, "sec_")
+XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(0, "sec_")
 {
 
 // Set default values
@@ -450,7 +450,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
 /*                             C o n f i g X e q                              */
 /******************************************************************************/
   
-int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute)
+int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
 {
 
     // Fan out based on the variable
@@ -482,7 +482,7 @@ int XrdSecServer::ConfigXeq(char *var, XrdOucStream &Config, XrdOucError &Eroute
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdSecServer::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdSecServer::xpbind(XrdOucStream &Config, XrdSysError &Eroute)
 {
     EPNAME("xpbind")
     char *val, *thost;
@@ -589,7 +589,7 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdSecServer::xprot(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdSecServer::xprot(XrdOucStream &Config, XrdSysError &Eroute)
 {
     XrdSecProtParm *pp, myParms(&Eroute, "protocol");
     char *pap, *val, pid[XrdSecPROTOIDSIZE+1], *args = 0;
@@ -667,7 +667,7 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdSecServer::xpparm(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdSecServer::xpparm(XrdOucStream &Config, XrdSysError &Eroute)
 {
     XrdSecProtParm *pp;
     char *val, pid[XrdSecPROTOIDSIZE+1];
@@ -732,7 +732,7 @@ int XrdSecServer::xpparm(XrdOucStream &Config, XrdOucError &Eroute)
    Output: 0 upon success or !0 upon failure.
 */
 
-int XrdSecServer::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
+int XrdSecServer::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 {
     static struct traceopts {const char *opname; int opval;} tropts[] =
        {
@@ -781,7 +781,7 @@ int XrdSecServer::xtrace(XrdOucStream &Config, XrdOucError &Eroute)
 /*                             a d d 2 t o k e n                              */
 /******************************************************************************/
 
-int XrdSecServer::add2token(XrdOucError &Eroute, char *pid,
+int XrdSecServer::add2token(XrdSysError &Eroute, char *pid,
                             char **tokbuff, int &toklen, XrdSecPMask_t &pmask)
 {
     int i;
@@ -816,7 +816,7 @@ int XrdSecServer::add2token(XrdOucError &Eroute, char *pid,
 /*                     P r o t B i n d _ C o m p l e t e                      */
 /******************************************************************************/
   
-int XrdSecServer::ProtBind_Complete(XrdOucError &Eroute)
+int XrdSecServer::ProtBind_Complete(XrdSysError &Eroute)
 {
     EPNAME("ProtBind_Complete")
     XrdOucErrInfo erp;
@@ -856,7 +856,7 @@ int XrdSecServer::ProtBind_Complete(XrdOucError &Eroute)
 
 extern "C"
 {
-XrdSecService *XrdSecgetService(XrdOucLogger *lp, const char *cfn)
+XrdSecService *XrdSecgetService(XrdSysLogger *lp, const char *cfn)
 {
    XrdSecServer *SecServer = new XrdSecServer(lp);
 

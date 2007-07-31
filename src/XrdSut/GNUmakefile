@@ -80,8 +80,8 @@ $(OBJDIR)/XrdSutPFAdmin.o: XrdSutPFAdmin.cc XrdOucString.hh \
 	@echo Compiling XrdSutPFAdmin.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSutPFAdmin.o XrdSutPFAdmin.cc
 
-$(OBJDIR)/XrdSutAux.o: XrdSutAux.cc XrdOucLogger.hh \
-		XrdSysPthread.hh XrdOucError.hh XrdOucString.hh \
+$(OBJDIR)/XrdSutAux.o: XrdSutAux.cc XrdSysLogger.hh \
+		XrdSysPthread.hh XrdSysError.hh XrdOucString.hh \
 		XProtocol.hh XPtypes.hh XrdSutTrace.hh \
 		XrdOucTrace.hh
 	@echo Compiling XrdSutAux.cc 
@@ -90,14 +90,14 @@ $(OBJDIR)/XrdSutAux.o: XrdSutAux.cc XrdOucLogger.hh \
 $(OBJDIR)/XrdSutCache.o: XrdSutCache.cc XrdSutCache.hh \
 		XPtypes.hh XrdSutPFEntry.hh XProtocol.hh \
 		XrdOucHash.hh XrdSutPFile.hh XrdSutTrace.hh \
-		XrdOucTrace.hh XrdOucError.hh XrdSutAux.hh
+		XrdOucTrace.hh XrdSysError.hh XrdSutAux.hh
 	@echo Compiling XrdSutCache.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSutCache.o XrdSutCache.cc
 
 $(OBJDIR)/XrdSutBucket.o: XrdSutBucket.cc XrdOucString.hh \
 		XrdSutBucket.hh XrdSutAux.hh XProtocol.hh \
 		XPtypes.hh XrdSutTrace.hh XrdOucTrace.hh \
-		XrdOucError.hh
+		XrdSysError.hh
 	@echo Compiling XrdSutBucket.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSutBucket.o XrdSutBucket.cc
 
@@ -112,7 +112,7 @@ $(OBJDIR)/XrdSutBuffer.o: XrdSutBuffer.cc /usr/include/stdio.h \
 		XrdOucString.hh XrdSutBuffer.hh \
 		XrdSutBuckList.hh XrdSutBucket.hh XrdSutAux.hh \
 		XProtocol.hh XPtypes.hh XrdSutTrace.hh \
-		XrdOucTrace.hh XrdOucError.hh
+		XrdOucTrace.hh XrdSysError.hh
 	@echo Compiling XrdSutBuffer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSutBuffer.o XrdSutBuffer.cc
 
@@ -120,7 +120,7 @@ $(OBJDIR)/XrdSutPFile.o: XrdSutPFile.cc XrdSutAux.hh \
 		XProtocol.hh XPtypes.hh XrdSutPFEntry.hh \
 		XrdSutPFile.hh XrdOucHash.hh XrdOucHash.icc \
 		XrdOucString.hh XrdSutTrace.hh XrdOucTrace.hh \
-		XrdOucError.hh
+		XrdSysError.hh
 	@echo Compiling XrdSutPFile.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSutPFile.o XrdSutPFile.cc
 
@@ -132,6 +132,6 @@ $(OBJDIR)/XrdSutPFEntry.o: XrdSutPFEntry.cc XrdSutAux.hh \
 $(OBJDIR)/XrdSutRndm.o: XrdSutRndm.cc XrdOucString.hh \
 		XrdSutRndm.hh XrdSutAux.hh XProtocol.hh \
 		XPtypes.hh XrdSutTrace.hh XrdOucTrace.hh \
-		XrdOucError.hh
+		XrdSysError.hh
 	@echo Compiling XrdSutRndm.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSutRndm.o XrdSutRndm.cc

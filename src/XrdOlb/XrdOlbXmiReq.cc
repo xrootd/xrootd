@@ -294,19 +294,19 @@ void XrdOlbXmiReq::Start()
 // Start the thread that handles prepare requests
 //
    if ((retc = XrdSysThread::Run(&tid, XrdOlbXmi_StartPrpQ, (void *)this,
-                            XRDOUCTHREAD_BIND, "xmi prepare handler")))
+                            XRDSYSTHREAD_BIND, "xmi prepare handler")))
       {Say.Emsg("XmiReq", retc, "create prepare thread"); _exit(3);}
 
 // Start the thread that handles general requests
 //
    if ((retc = XrdSysThread::Run(&tid, XrdOlbXmi_StartReqQ, (void *)this,
-                            XRDOUCTHREAD_BIND, "xmi request handler")))
+                            XRDSYSTHREAD_BIND, "xmi request handler")))
       {Say.Emsg("XmiReq", retc, "create request thread"); _exit(3);}
 
 // Start the thread that handles staging requests
 //
    if ((retc = XrdSysThread::Run(&tid, XrdOlbXmi_StartStgQ, (void *)this,
-                            XRDOUCTHREAD_BIND, "xmi staging handler")))
+                            XRDSYSTHREAD_BIND, "xmi staging handler")))
       {Say.Emsg("XmiReq", retc, "create staging thread"); _exit(3);}
 }
  

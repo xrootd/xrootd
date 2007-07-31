@@ -14,10 +14,10 @@
 
 #include <sys/types.h>
 
-class XrdOucError;
+class XrdSysError;
 class XrdOucStream;
 
-class XrdSysProg
+class XrdOucProg
 {
 public:
 
@@ -25,12 +25,12 @@ public:
 // If you do so, error messages and all command output will be writen via the 
 // error object. Otherwise, errors will be returned quietly.
 //
-            XrdSysProg(XrdOucError *errobj=0)
+            XrdOucProg(XrdSysError *errobj=0)
                       {eDest = errobj; myStream = 0;
                        ArgBuff = Arg[0] = 0; numArgs = 0;
                       }
 
-           ~XrdSysProg();
+           ~XrdOucProg();
 
 // Feed() send a data to the program started by Start(). Several variations
 // exist to accomodate various needs. Note that should the program not be
@@ -74,13 +74,13 @@ int          Start(void);
 // sets up a parameter list structure.
 // Zero is returned upon success, otherwise a -errno is returned,
 //
-int          Setup(const char *prog, XrdOucError *errP=0);
+int          Setup(const char *prog, XrdSysError *errP=0);
 
 /******************************************************************************/
   
 private:
   int           Restart();
-  XrdOucError  *eDest;
+  XrdSysError  *eDest;
   XrdOucStream *myStream;
   char         *ArgBuff;
   char         *Arg[64];

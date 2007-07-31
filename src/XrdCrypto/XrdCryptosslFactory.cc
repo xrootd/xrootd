@@ -24,8 +24,8 @@
 #include <XrdCrypto/XrdCryptosslX509Crl.hh>
 #include <XrdCrypto/XrdCryptosslX509Req.hh>
 
-#include <XrdOuc/XrdOucLogger.hh>
-#include <XrdOuc/XrdOucError.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysError.hh>
 #include <XrdSut/XrdSutRndm.hh>
 #include <XrdCrypto/XrdCryptosslTrace.hh>
 
@@ -34,8 +34,8 @@
 
 //
 // For error logging and tracing
-static XrdOucLogger Logger;
-static XrdOucError eDest(0,"cryptossl_");
+static XrdSysLogger Logger;
+static XrdSysError eDest(0,"cryptossl_");
 XrdOucTrace *sslTrace = 0;
 
 //______________________________________________________________________________

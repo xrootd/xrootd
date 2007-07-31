@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d O u c L o g g e r . c c                        */
+/*                       X r d S y s L o g g e r . c c                        */
 /*                                                                            */
 /*(c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
@@ -10,7 +10,7 @@
 
 //       $Id$ 
 
-const char *XrdOucLoggerCVSID = "$Id$";
+const char *XrdSysLoggerCVSID = "$Id$";
 
 #include <errno.h>
 #include <fcntl.h>
@@ -31,7 +31,7 @@ const char *XrdOucLoggerCVSID = "$Id$";
 #endif
 #endif // WIN32
 
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
  
@@ -39,8 +39,10 @@ const char *XrdOucLoggerCVSID = "$Id$";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdOucLogger::XrdOucLogger(int ErrFD, int dorotate)
+XrdSysLogger::XrdSysLogger(int ErrFD, int dorotate)
 {
+   char * logFN;
+
    ePath = 0;
    eNTC  = 0;
    eInt  = 0;
@@ -49,13 +51,16 @@ XrdOucLogger::XrdOucLogger(int ErrFD, int dorotate)
    eKeep = 0;
    doLFR = dorotate;
 
+// Establish default log file name
+//
+   if (!(logFN = getenv("XrdSysLOGFILE"))) logFN = getenv("XrdOucLOGFILE");
 
 // Establish message routing
 //
    if (ErrFD != STDERR_FILENO) baseFD = ErrFD;
       else {baseFD = dup(ErrFD);
             fcntl(baseFD, F_SETFD, FD_CLOEXEC);
-            Bind(getenv("XrdOucLOGFILE"), 86400);
+            Bind(logFN, 86400);
            }
 }
   
@@ -63,7 +68,7 @@ XrdOucLogger::XrdOucLogger(int ErrFD, int dorotate)
 /*                                  B i n d                                   */
 /******************************************************************************/
   
-int XrdOucLogger::Bind(const char *path, int isec)
+int XrdSysLogger::Bind(const char *path, int isec)
 {
 
 // Compute time at midnight
@@ -88,7 +93,7 @@ int XrdOucLogger::Bind(const char *path, int isec)
 /*                                   P u t                                    */
 /******************************************************************************/
   
-void XrdOucLogger::Put(int iovcnt, struct iovec *iov)
+void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 {
     int retc;
     char tbuff[24];
@@ -123,7 +128,7 @@ void XrdOucLogger::Put(int iovcnt, struct iovec *iov)
 /*                                  T i m e                                   */
 /******************************************************************************/
   
-int XrdOucLogger::Time(char *tbuff)
+int XrdSysLogger::Time(char *tbuff)
 {
     const int minblen = 24;
     eNow = time(0);
@@ -148,7 +153,7 @@ int XrdOucLogger::Time(char *tbuff)
 /*                                R e B i n d                                 */
 /******************************************************************************/
   
-int XrdOucLogger::ReBind(int dorename)
+int XrdSysLogger::ReBind(int dorename)
 {
    const char seq[] = "0123456789";
    unsigned int i;
@@ -209,7 +214,7 @@ int XrdOucLogger::ReBind(int dorename)
                          eVec[0].iov_base = 0; Put(2, eVec)
   
 #ifndef WIN32
-void XrdOucLogger::Trim()
+void XrdSysLogger::Trim()
 {
    struct LogFile 
           {LogFile *next;
@@ -314,7 +319,7 @@ void XrdOucLogger::Trim()
         }
 }
 #else
-void XrdOucLogger::Trim()
+void XrdSysLogger::Trim()
 {
 }
 #endif

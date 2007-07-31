@@ -17,7 +17,7 @@ const char *XrdOlbRRQCVSID = "$Id$";
 #include "XrdOlb/XrdOlbRTable.hh"
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include <stdio.h>

@@ -26,8 +26,8 @@ const char *XrdSfsNativeCVSID = "$Id$";
 #include <sys/stat.h>
 
 #include "XrdVersion.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
@@ -49,7 +49,7 @@ const char *XrdSfsNativeCVSID = "$Id$";
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
   
-XrdOucError    *XrdSfsNative::eDest;
+XrdSysError    *XrdSfsNative::eDest;
 
 /******************************************************************************/
 /*            U n i x   F i l e   S y s t e m   I n t e r f a c e             */
@@ -83,7 +83,7 @@ static int Statfn(const char *fn, struct stat *buf) {return stat(fn, buf);}
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdSfsNative::XrdSfsNative(XrdOucError *ep)
+XrdSfsNative::XrdSfsNative(XrdSysError *ep)
 {
   eDest = ep;
 }
@@ -93,9 +93,9 @@ XrdSfsNative::XrdSfsNative(XrdOucError *ep)
 /******************************************************************************/
   
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
-                                      XrdOucLogger     *lp)
+                                      XrdSysLogger     *lp)
 {
- static XrdOucError  Eroute(lp, "XrdSfs");
+ static XrdSysError  Eroute(lp, "XrdSfs");
  static XrdSfsNative myFS(&Eroute);
 
  Eroute.Say("Copr.  2007 Stanford University/SLAC "

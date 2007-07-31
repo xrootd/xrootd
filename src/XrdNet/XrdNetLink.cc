@@ -27,7 +27,7 @@ const char *XrdNetLinkCVSID = "$Id$";
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdNet/XrdNetPeer.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -46,7 +46,7 @@ int                     XrdNetLink::devNull = open("/dev/null", O_RDONLY);
 /*                                 A l l o c                                  */
 /******************************************************************************/
   
-XrdNetLink *XrdNetLink::Alloc(XrdOucError *erp, XrdNet *Net, XrdNetPeer &Peer,
+XrdNetLink *XrdNetLink::Alloc(XrdSysError *erp, XrdNet *Net, XrdNetPeer &Peer,
                               XrdNetBufferQ *bq, int opts)
 {
    XrdNetLink *lp;

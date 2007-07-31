@@ -87,7 +87,7 @@ $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
 
 $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
                           XrdOdcMsg.hh      XrdOdcTrace.hh    XrdOucEnv.hh \
-                          XrdSysPthread.hh  XrdOdcConfDefs.hh XrdOucError.hh \
+                          XrdSysPthread.hh  XrdOdcConfDefs.hh XrdSysError.hh \
                           XrdOucErrInfo.hh  XrdSysPlatform.hh XrdSysPthread.hh \
                           XrdOucReqID.hh    XrdOucStream.hh   XrdSysTimer.hh \
                           XrdNetDNS.hh      XrdNetOpts.hh     XrdNetSocket.hh \
@@ -97,7 +97,7 @@ $(OBJDIR)/XrdOdcFinder.o: XrdOdcFinder.cc   XrdOdcFinder.hh XrdOdcManager.hh \
 
 $(OBJDIR)/XrdOdcManager.o: XrdOdcManager.hh  XrdOdcManager.cc \
                            XrdOdcMsg.hh      XrdOdcResp.hh    XrdOdcTrace.hh \
-                           XrdOucError.hh    XrdSysPthread.hh \
+                           XrdSysError.hh    XrdSysPthread.hh \
                            XrdNetLink.hh     XrdNetWork.hh
 	@echo Compiling XrdOdcManager.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcManager.o XrdOdcManager.cc
@@ -114,8 +114,8 @@ $(OBJDIR)/XrdOdcResp.o: XrdOdcResp.hh     XrdOdcTrace.hh  XrdOucErrInfo.hh \
 	@echo Compiling XrdOdcResp.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcResp.o XrdOdcResp.cc
 
-$(OBJDIR)/XrdOdcTest.o: XrdOucError.hh   XrdOdcFinder.hh  XrdOucErrInfo.hh \
-                        XrdOucLogger.hh  XrdOucStream.hh   \
+$(OBJDIR)/XrdOdcTest.o: XrdSysError.hh   XrdOdcFinder.hh  XrdOucErrInfo.hh \
+                        XrdSysLogger.hh  XrdOucStream.hh   \
                         XrdOdcTest.cc
 	@echo Compiling XrdOdcTest.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcTest.o XrdOdcTest.cc

@@ -24,7 +24,7 @@ public:
 
 int   Configure(int argc, char **argv);
 
-int   ConfigXeq(char *var, XrdOucStream &Config, XrdOucError *eDest=0);
+int   ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest=0);
 
       XrdConfig();
      ~XrdConfig() {}
@@ -38,17 +38,17 @@ int   setFDL();
 int   Setup(char *dfltp);
 void  UnderCover(void);
 void  Usage(int rc);
-int   xallow(XrdOucError *edest, XrdOucStream &Config);
-int   xapath(XrdOucError *edest, XrdOucStream &Config);
-int   xbuf(XrdOucError *edest, XrdOucStream &Config);
-int   xnet(XrdOucError *edest, XrdOucStream &Config);
-int   xlog(XrdOucError *edest, XrdOucStream &Config);
-int   xport(XrdOucError *edest, XrdOucStream &Config);
-int   xprot(XrdOucError *edest, XrdOucStream &Config);
-int   xsched(XrdOucError *edest, XrdOucStream &Config);
-int   xtrace(XrdOucError *edest, XrdOucStream &Config);
-int   xtmo(XrdOucError *edest, XrdOucStream &Config);
-int   yport(XrdOucError *edest, const char *ptyp, const char *pval);
+int   xallow(XrdSysError *edest, XrdOucStream &Config);
+int   xapath(XrdSysError *edest, XrdOucStream &Config);
+int   xbuf(XrdSysError *edest, XrdOucStream &Config);
+int   xnet(XrdSysError *edest, XrdOucStream &Config);
+int   xlog(XrdSysError *edest, XrdOucStream &Config);
+int   xport(XrdSysError *edest, XrdOucStream &Config);
+int   xprot(XrdSysError *edest, XrdOucStream &Config);
+int   xsched(XrdSysError *edest, XrdOucStream &Config);
+int   xtrace(XrdSysError *edest, XrdOucStream &Config);
+int   xtmo(XrdSysError *edest, XrdOucStream &Config);
+int   yport(XrdSysError *edest, const char *ptyp, const char *pval);
 
 static const char  *TraceID;
 

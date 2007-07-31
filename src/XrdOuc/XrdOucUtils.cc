@@ -17,7 +17,7 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 #include "XrdNet/XrdNetDNS.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -36,7 +36,7 @@
 // Otherwise, returns false (0). Some combination of hostlist, pgm, and 
 // namelist, must be specified.
 
-int XrdOucUtils::doIf(XrdOucError *eDest, XrdOucStream &Config,
+int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
                       const char *what,  const char *hname,
                       const char *nname, const char *pname)
 {
@@ -169,7 +169,7 @@ int XrdOucUtils::is1of(char *val, const char **clist)
 /*                              m a k e H o m e                               */
 /******************************************************************************/
   
-void XrdOucUtils::makeHome(XrdOucError &eDest, const char *inst)
+void XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst)
 {
    char buff[1024];
 
@@ -216,7 +216,7 @@ int XrdOucUtils::makePath(char *path, mode_t mode)
 /*                              s u b L o g f n                               */
 /******************************************************************************/
   
-char *XrdOucUtils::subLogfn(XrdOucError &eDest, const char *inst, char *logfn)
+char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 {
    const mode_t lfm = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH;
    char buff[2048], *sp;

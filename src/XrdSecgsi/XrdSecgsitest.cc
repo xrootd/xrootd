@@ -8,8 +8,8 @@
 #include <string.h>
 
 #include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucLogger.hh>
-#include <XrdOuc/XrdOucError.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysError.hh>
 
 #include <XrdSut/XrdSutAux.hh>
 
@@ -47,8 +47,8 @@ const char *CRLcer1 = "/etc/grid-security/certificates/fa3af1d7_r0";
 
 //
 // For error logging and tracing
-static XrdOucLogger Logger;
-static XrdOucError eDest(0,"gsitest_");
+static XrdSysLogger Logger;
+static XrdSysError eDest(0,"gsitest_");
 XrdOucTrace *gsiTrace = 0;
 
 int main( int argc, char **argv )

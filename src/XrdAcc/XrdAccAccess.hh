@@ -95,7 +95,7 @@ void              SwapTabs(struct XrdAccAccess_Tables &newtab);
 
       int Test(const XrdAccPrivs priv, const Access_Operation oper);
 
-      XrdAccAccess(XrdOucError *erp);
+      XrdAccAccess(XrdSysError *erp);
 
      ~XrdAccAccess() {} // The access object is never deleted
 

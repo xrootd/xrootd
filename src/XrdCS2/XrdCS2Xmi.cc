@@ -24,7 +24,7 @@ const char *XrdCS2Xmi2csCVSID = "$Id$";
 #include "XrdCS2/XrdCS2Xmi.hh"
 
 #include "Xrd/XrdScheduler.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -103,7 +103,7 @@ const char   *XrdCS2Xmi::prepTag     = "OlbXmiPrep";
 const char   *XrdCS2Xmi::stageTag    = "OlbXmiStage";
 const char   *XrdCS2Xmi::stageTag_ww = "OlbXmiStageWW";
 
-XrdOucError  *XrdCS2Xmi::eDest;
+XrdSysError  *XrdCS2Xmi::eDest;
 XrdInet      *XrdCS2Xmi::iNet;
 XrdScheduler *XrdCS2Xmi::Sched ;
 XrdOucTrace  *XrdCS2Xmi::Trace;
@@ -377,7 +377,7 @@ try {
 //
    if (!PollerOK_R)
       if ((retc = XrdSysThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_rw,
-                                     XRDOUCTHREAD_BIND, "cs2 r request polling")))
+                                     XRDSYSTHREAD_BIND, "cs2 r request polling")))
          eDest->Emsg("CS2Xmi", retc, "create read polling thread");
          else PollerOK_R = 1;
 
@@ -385,7 +385,7 @@ try {
 //
 // if (!PollerOK_W)
 //    if ((retc = XrdSysThread::Run(&tid, XrdCS2Xmi_StartPoll, (void *)&PA_ww,
-//                                   XRDOUCTHREAD_BIND, "cs2 w request polling")))
+//                                   XRDSYSTHREAD_BIND, "cs2 w request polling")))
 //       eDest->Emsg("CS2Xmi", retc, "create write polling thread");
 //       else PollerOK_W = 1;
 

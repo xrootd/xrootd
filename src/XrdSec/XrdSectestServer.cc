@@ -25,7 +25,7 @@ const char *XrdSectestServerCVSID = "$Id$";
 #include <sys/socket.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSec/XrdSecInterface.hh"
   
 /******************************************************************************/
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
   struct sockaddr_in *netaddr = (struct sockaddr_in *)&caddr;
 
   XrdOucErrInfo einfo;
-  XrdOucLogger Logger;
+  XrdSysLogger Logger;
   XrdSecService *ServerSecurity;
   XrdSecParameters *parmp;
   XrdSecCredentials cred((char *)malloc(8192), 8192);

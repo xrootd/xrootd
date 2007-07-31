@@ -12,7 +12,7 @@
 
 #include <errno.h>
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -26,13 +26,13 @@ virtual int lfn2rfn(const char *lfn, char *buff, int blen);
 
 virtual int pfn2lfn(const char *lfn, char *buff, int blen);
 
-            XrdOucN2N(XrdOucError *erp, const char *lpfx, const char *rpfx);
+            XrdOucN2N(XrdSysError *erp, const char *lpfx, const char *rpfx);
 
 private:
 int concat_fn(const char *prefix, int  pfxlen,
               const char *path,  char *buffer, int blen);
 
-XrdOucError *eDest;
+XrdSysError *eDest;
 char        *LocalRoot;
 int          LocalRootLen;
 char        *RemotRoot;
@@ -46,7 +46,7 @@ int          RemotRootLen;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOucN2N::XrdOucN2N(XrdOucError *erp, const char *lpfx, const char *rpfx)
+XrdOucN2N::XrdOucN2N(XrdSysError *erp, const char *lpfx, const char *rpfx)
 {
    eDest = erp;
 

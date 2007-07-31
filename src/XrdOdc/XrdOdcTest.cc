@@ -46,8 +46,8 @@ Notes:
 #include <fcntl.h>
 
 #include "XrdOdc/XrdOdcFinder.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 
@@ -57,8 +57,8 @@ Notes:
   
 int main(int argc, char *argv[])
 {
-   XrdOucLogger eLog;
-   XrdOucError  eDest(&eLog, "odctest_");
+   XrdSysLogger eLog;
+   XrdSysError  eDest(&eLog, "odctest_");
    XrdOdcFinder *Finder = (XrdOdcFinder *)(new XrdOdcFinderRMT(&eLog));
    XrdOucStream Stream;
    XrdOucErrInfo   Resp;

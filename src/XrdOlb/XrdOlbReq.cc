@@ -23,7 +23,7 @@ const char *XrdOlbReqCVSID = "$Id$";
 #include "XrdOlb/XrdOlbServer.hh"
 #include "XrdOlb/XrdOlbTrace.hh"
 #include "XrdOlb/XrdOlbRTable.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XProtocol/XProtocol.hh"
 

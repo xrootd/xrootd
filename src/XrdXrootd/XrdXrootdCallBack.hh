@@ -36,7 +36,7 @@ public:
                              XResponseType  xrt,       int  *Data=0,
                              const char    *Msg=0,     int   ovhd=0);
 
-static  void        setVals(XrdOucError    *erp,
+static  void        setVals(XrdSysError    *erp,
                             XrdXrootdStats *SIp,
                             XrdScheduler   *schp,
                             int             port)
@@ -46,7 +46,7 @@ static  void        setVals(XrdOucError    *erp,
 
                    ~XrdXrootdCallBack() {}
 private:
-static XrdOucError        *eDest;
+static XrdSysError        *eDest;
 static XrdXrootdStats     *SI;
 static XrdScheduler       *Sched;
        const char         *Opname;

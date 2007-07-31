@@ -1,8 +1,8 @@
-#ifndef __OOUC_ERROR_H__
-#define __OOUC_ERROR_H__
+#ifndef __SYS_ERROR_H__
+#define __SYS_ERROR_H__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c E r r o r . h h                         */
+/*                        X r d S y s E r r o r . h h                         */
 /*                                                                            */
 /*(c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University   */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
@@ -25,24 +25,24 @@
 /*                      o o u c _ E r r o r _ T a b l e                       */
 /******************************************************************************/
 
-class XrdOucError_Table
+class XrdSysError_Table
 {
 public:
-friend class XrdOucError;
+friend class XrdSysError;
 
 char  *Lookup(int mnum)
              {return (char *)(mnum < base_msgnum || mnum > last_msgnum
                              ? 0 : msg_text[mnum - base_msgnum]);
              }
-       XrdOucError_Table(int base, int last, const char **text)
+       XrdSysError_Table(int base, int last, const char **text)
                         : next(0),
                           base_msgnum(base),
                           last_msgnum(last),
                           msg_text(text) {}
-      ~XrdOucError_Table() {}
+      ~XrdSysError_Table() {}
 
 private:
-XrdOucError_Table *next;            // -> Next table or 0;
+XrdSysError_Table *next;            // -> Next table or 0;
 int               base_msgnum;     // Starting message number
 int               last_msgnum;     // Ending   message number
 const char      **msg_text;        // Array of message text
@@ -52,39 +52,39 @@ const char      **msg_text;        // Array of message text
 /*                  L o g   M a s k   D e f i n i t i o n s                   */
 /******************************************************************************/
   
-const int OUC_LOG_01 =   1;
-const int OUC_LOG_02 =   2;
-const int OUC_LOG_03 =   4;
-const int OUC_LOG_04 =   8;
-const int OUC_LOG_05 =  16;
-const int OUC_LOG_06 =  32;
-const int OUC_LOG_07 =  64;
-const int OUC_LOG_08 = 128;
+const int SYS_LOG_01 =   1;
+const int SYS_LOG_02 =   2;
+const int SYS_LOG_03 =   4;
+const int SYS_LOG_04 =   8;
+const int SYS_LOG_05 =  16;
+const int SYS_LOG_06 =  32;
+const int SYS_LOG_07 =  64;
+const int SYS_LOG_08 = 128;
 
 /******************************************************************************/
 /*                            o o u c _ E r r o r                             */
 /******************************************************************************/
 
-class XrdOucLogger;
+class XrdSysLogger;
   
-class XrdOucError
+class XrdSysError
 {
 public:
-         XrdOucError(XrdOucLogger *lp, const char *ErrPrefix="oouc")
+         XrdSysError(XrdSysLogger *lp, const char *ErrPrefix="sys")
                     : epfx(0),
                       epfxlen(0),
                       msgMask(-1),
                       Logger(lp)
                     { SetPrefix(ErrPrefix); }
 
-        ~XrdOucError() {}
+        ~XrdSysError() {}
 
 // addTable allows you to add a new error table for errno handling. Any
 // number of table may be added and must consist of statis message text
 // since the table are deleted but the text is not freed. Error tables
 // must be setup without multi-threading.  There is only one global table.
 //
-static void addTable(XrdOucError_Table *etp) {etp->next = etab; etab = etp;}
+static void addTable(XrdSysError_Table *etp) {etp->next = etab; etab = etp;}
 
 // baseFD() returns the original FD associated with this object.
 //
@@ -119,8 +119,8 @@ inline void Log(int mask, const char *esfx,
 
 // logger() sets/returns the logger object for this message message handler.
 //
-XrdOucLogger *logger(XrdOucLogger *lp=0)
-                   {XrdOucLogger *oldp = Logger;
+XrdSysLogger *logger(XrdSysLogger *lp=0)
+                   {XrdSysLogger *oldp = Logger;
                     if (lp) Logger = lp;
                     return oldp;
                    }
@@ -148,10 +148,10 @@ void TEnd();
 
 private:
 
-static XrdOucError_Table *etab;
+static XrdSysError_Table *etab;
 const char               *epfx;
 int                       epfxlen;
 int                       msgMask;
-XrdOucLogger             *Logger;
+XrdSysLogger             *Logger;
 };
 #endif

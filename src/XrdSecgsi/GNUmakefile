@@ -116,7 +116,7 @@ $(SECGSIPROXY): $(OBJECTB) $(LIBDEPS)
 	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(SECGSIPROXY)
 
 $(OBJDIR)/XrdSecgsitest.o: XrdSecgsitest.cc XrdOucString.hh \
-		XrdOucError.hh XrdSutAux.hh XProtocol.hh XPtypes.hh XrdCryptoAux.hh \
+		XrdSysError.hh XrdSutAux.hh XProtocol.hh XPtypes.hh XrdCryptoAux.hh \
 		XrdCryptoFactory.hh XrdCryptoX509.hh XrdSutBucket.hh XrdCryptoRSA.hh \
 		XrdCryptoX509Req.hh XrdCryptoX509Chain.hh XrdCryptoX509Crl.hh \
 		XrdCryptosslgsiX509Chain.hh XrdCryptosslgsiAux.hh XrdSecgsiTrace.hh \
@@ -125,7 +125,7 @@ $(OBJDIR)/XrdSecgsitest.o: XrdSecgsitest.cc XrdOucString.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(GSIEXTRACFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsitest.o XrdSecgsitest.cc
 
 $(OBJDIR)/XrdSecgsiProxy.o: XrdSecgsiProxy.cc XrdOucString.hh \
-		XrdOucError.hh XrdSutAux.hh XProtocol.hh XPtypes.hh XrdCryptoAux.hh \
+		XrdSysError.hh XrdSutAux.hh XProtocol.hh XPtypes.hh XrdCryptoAux.hh \
 		XrdCryptoFactory.hh XrdCryptoX509.hh XrdSutBucket.hh XrdCryptoRSA.hh \
 		XrdCryptoX509Req.hh XrdCryptoX509Chain.hh XrdCryptoX509Crl.hh \
 		XrdCryptosslgsiX509Chain.hh XrdCryptosslgsiAux.hh XrdSecgsiTrace.hh \
@@ -133,8 +133,8 @@ $(OBJDIR)/XrdSecgsiProxy.o: XrdSecgsiProxy.cc XrdOucString.hh \
 	@echo Compiling XrdSecgsiProxy.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(GSIEXTRACFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsiProxy.o XrdSecgsiProxy.cc
 
-$(OBJDIR)/XrdSecProtocolgsi.o: XrdSecProtocolgsi.cc XrdOucLogger.hh \
-		XrdOucError.hh XrdOucStream.hh XrdSutCache.hh XPtypes.hh XrdSutPFEntry.hh \
+$(OBJDIR)/XrdSecProtocolgsi.o: XrdSecProtocolgsi.cc XrdSysLogger.hh \
+		XrdSysError.hh XrdOucStream.hh XrdSutCache.hh XPtypes.hh XrdSutPFEntry.hh \
 		XProtocol.hh XrdOucHash.hh XrdOucHash.icc XrdOucString.hh \
 		XrdCryptoMsgDigest.hh XrdCryptoBasic.hh XrdSutBucket.hh XrdSutAux.hh \
 		XrdCryptosslgsiAux.hh XrdCryptosslgsiX509Chain.hh \

@@ -37,7 +37,7 @@
 */
 
 unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
-                                           XrdOucError       &Eroute,
+                                           XrdSysError       &Eroute,
                                            unsigned long long Flags)
 {
     static struct rpathopts 
@@ -138,7 +138,7 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
    Output: XrdOucPList object upon success or 0 upon failure.
 */
   
-XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdOucError &Eroute,
+XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
                                      unsigned long long Defopts)
 {
     char *path, pbuff[1024];

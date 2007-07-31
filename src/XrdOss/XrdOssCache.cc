@@ -35,7 +35,7 @@ extern XrdOssSys *XrdOssSS;
 /*           G l o b a l   E r r o r   R o u t i n g   O b j e c t            */
 /******************************************************************************/
 
-extern XrdOucError OssEroute;
+extern XrdSysError OssEroute;
 
 extern XrdOucTrace OssTrace;
   
@@ -193,7 +193,7 @@ off_t  XrdOssSys::Adjust(dev_t devid, off_t size)
 /*                            L i s t _ C a c h e                             */
 /******************************************************************************/
   
-void XrdOssSys::List_Cache(char *lname, int self, XrdOucError &Eroute)
+void XrdOssSys::List_Cache(char *lname, int self, XrdSysError &Eroute)
 {
      XrdOssCache_FS *fsp;
      char buff[4096];

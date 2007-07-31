@@ -42,7 +42,7 @@ enum XrdAccAudit_Options {audit_none  = 0,
 // return the object of there choosing up-cast to this object. See the
 // routine XrdAccAudit.C for the particulars.
 
-class XrdOucError;
+class XrdSysError;
 
 class XrdAccAudit
 {
@@ -71,19 +71,19 @@ virtual void   Grant(const char *opname,
 //
 void           setAudit(XrdAccAudit_Options aops) {auditops = aops;}
 
-               XrdAccAudit(XrdOucError *erp);
+               XrdAccAudit(XrdSysError *erp);
 virtual       ~XrdAccAudit() {}
 
 private:
 
 XrdAccAudit_Options auditops;
-XrdOucError        *mDest;
+XrdSysError        *mDest;
 };
 
 /******************************************************************************/
 /*                    o o a c c _ A u d i t _ O b j e c t                     */
 /******************************************************************************/
   
-extern XrdAccAudit *XrdAccAuditObject(XrdOucError *erp);
+extern XrdAccAudit *XrdAccAuditObject(XrdSysError *erp);
 
 #endif

@@ -49,8 +49,8 @@ Where:
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdTrace.hh"
 
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdCS2/XrdCS2DCM.hh"
@@ -63,9 +63,9 @@ Where:
 
        XrdScheduler       XrdSched;
 
-       XrdOucLogger       XrdLogger;
+       XrdSysLogger       XrdLogger;
 
-       XrdOucError        XrdLog(&XrdLogger, "XrdCS2");
+       XrdSysError        XrdLog(&XrdLogger, "XrdCS2");
 
        XrdOucTrace        XrdTrace(&XrdLog);
 
@@ -121,13 +121,13 @@ int main(int argc, char *argv[])
 // Start the event thread
 //
    if ((retc = XrdSysThread::Run(&tid, mainEvent, (void *)0,
-                            XRDOUCTHREAD_BIND, "Event handler")))
+                            XRDSYSTHREAD_BIND, "Event handler")))
       {XrdLog.Emsg("main", retc, "create event thread"); _exit(3);}
 
 // Start the UDP event thread
 //
    if ((retc = XrdSysThread::Run(&tid, udpEvent, (void *)0,
-                                     XRDOUCTHREAD_BIND, "UDP event handler")))
+                                     XRDSYSTHREAD_BIND, "UDP event handler")))
       {XrdLog.Emsg("main", retc, "create udp event thread"); _exit(3);}
 
 // At this point we should be able to accept new requests.

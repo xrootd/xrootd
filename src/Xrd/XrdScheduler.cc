@@ -21,13 +21,13 @@ const char *XrdSchedulerCVSID = "$Id$";
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
-extern XrdOucError   XrdLog;
+extern XrdSysError   XrdLog;
   
 #ifndef NODEBUG
 extern XrdOucTrace   XrdTrace;
@@ -455,7 +455,7 @@ void XrdScheduler::Start()
 // Start a time based scheduler
 //
    if ((retc = XrdSysThread::Run(&tid, XrdStartTSched, (void *)this,
-                                 XRDOUCTHREAD_BIND, "Time scheduler")))
+                                 XRDSYSTHREAD_BIND, "Time scheduler")))
       XrdLog.Emsg("Scheduler", retc, "create time scheduler thread");
 
 // If we an idle interval, schedule the idle check

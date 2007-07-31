@@ -19,7 +19,7 @@ const char *XrdPollPollCVSID = "cvsid: $Id$";
 #include <stdlib.h>
 #include <signal.h>
   
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPollPoll.hh"
 #include "Xrd/XrdProtocol.hh"
@@ -29,7 +29,7 @@ const char *XrdPollPollCVSID = "cvsid: $Id$";
 /*                           G l o b a l   D a t a                            */
 /******************************************************************************/
 
-extern XrdOucError    XrdLog;
+extern XrdSysError    XrdLog;
 
 extern XrdScheduler   XrdSched;
 

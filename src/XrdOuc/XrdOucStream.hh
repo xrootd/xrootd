@@ -19,7 +19,7 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 class XrdOucEnv;
 
@@ -31,7 +31,7 @@ public:
 // If you do so, error messages will be writen via the error object. Otherwise,
 // errors will be returned quietly.
 //
-            XrdOucStream(XrdOucError *erobj=0, const char *ifname=0,
+            XrdOucStream(XrdSysError *erobj=0, const char *ifname=0,
                          XrdOucEnv   *anEnv=0, const char *Pfx=0);
 
            ~XrdOucStream() {Close(); if (myInst) free(myInst);
@@ -156,7 +156,7 @@ XrdOucEnv   *SetEnv(XrdOucEnv *newEnv)
 
 // Set error routing
 //
-void         SetEroute(XrdOucError *eroute) {Eroute = eroute;}
+void         SetEroute(XrdSysError *eroute) {Eroute = eroute;}
 
 // A 0 indicates that tabs in the stream should be converted to spaces.
 // A 1 inducates that tabs should be left alone (the default).
@@ -193,7 +193,7 @@ static const int llBsz   = 1024;
         char *myHost;
         char *myName;
         char *myExec;
- XrdOucError *Eroute;
+ XrdSysError *Eroute;
  XrdOucEnv   *myEnv;
         char *varVal;
  const  char *llPrefix;

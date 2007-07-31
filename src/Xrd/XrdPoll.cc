@@ -17,7 +17,7 @@ const char *XrdPollCVSID = "$Id$";
 #include <stdio.h>
 #include <stdlib.h>
   
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdLink.hh"
@@ -40,7 +40,7 @@ const char *XrdPollCVSID = "$Id$";
 
        const char *XrdPoll::TraceID = "Poll";
 
-extern XrdOucError  XrdLog;
+extern XrdSysError  XrdLog;
 
 extern XrdOucTrace  XrdTrace;
 
@@ -235,7 +235,7 @@ int XrdPoll::Setup(int numfd)
         PArg.retcode= 0;
         TRACE(POLL, "Starting poller " <<i);
         if ((retc = XrdSysThread::Run(&tid,XrdStartPolling,(void *)&PArg,
-                                      XRDOUCTHREAD_BIND, "Poller")))
+                                      XRDSYSTHREAD_BIND, "Poller")))
            {XrdLog.Emsg("Poll", retc, "create poller thread"); return 0;}
         Pollers[i]->TID = tid;
         PArg.PollSync.Wait();

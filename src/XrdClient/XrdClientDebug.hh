@@ -21,8 +21,8 @@
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClientEnv.hh"
-#include "XrdOuc/XrdOucLogger.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
 
 using namespace std;
 
@@ -52,8 +52,8 @@ class XrdClientDebug {
  private:
    short                       fDbgLevel;
 
-   XrdOucLogger                *fOucLog;
-   XrdOucError                 *fOucErr;
+   XrdSysLogger                *fOucLog;
+   XrdSysError                 *fOucErr;
 
    static XrdClientDebug       *fgInstance;
 

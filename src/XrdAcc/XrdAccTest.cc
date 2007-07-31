@@ -41,8 +41,8 @@ const char *XrdAccTestCVSID = "$Id$";
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
 #include "XrdAcc/XrdAccPrivs.hh"
-#include "XrdOuc/XrdOucError.hh"
-#include "XrdOuc/XrdOucLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 /******************************************************************************/
@@ -59,9 +59,9 @@ XrdAccAuthorize *Authorize;
 
 int  extra;
 
-XrdOucLogger myLogger;
+XrdSysLogger myLogger;
 
-XrdOucError  eroute(&myLogger, "acc_");
+XrdSysError  eroute(&myLogger, "acc_");
 
 /******************************************************************************/
 /*                       O p e r a t i o n   T a b l e                        */

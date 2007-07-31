@@ -43,7 +43,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include "XrdOss/XrdOssLock.hh"
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
@@ -59,7 +59,7 @@ const char *XrdOssApiCVSID = "$Id$";
 
 XrdOssSys  *XrdOssSS = 0;
   
-XrdOucError OssEroute(0, "oss_");
+XrdSysError OssEroute(0, "oss_");
 
 XrdOucTrace OssTrace(&OssEroute);
 
@@ -78,13 +78,13 @@ char      XrdOssSys::chkMmap = 0;
 // object. If a plugin library has been specified, then this function will
 // return the object provided by XrdOssGetStorageSystem() within the library.
 //
-XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
+XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char   *config_fn,
                     const char   *OssLib)
 {
    static XrdOssSys   myOssSys;
-   extern XrdOucError OssEroute;
+   extern XrdSysError OssEroute;
    XrdSysPlugin    *myLib;
-   XrdOss          *(*ep)(XrdOss *, XrdOucLogger *, const char *, const char *);
+   XrdOss          *(*ep)(XrdOss *, XrdSysLogger *, const char *, const char *);
    char *parms;
 
 // If no library has been specified, return the default object
@@ -109,7 +109,7 @@ XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
 
 // Now get the entry point of the object creator
 //
-   ep = (XrdOss *(*)(XrdOss *, XrdOucLogger *, const char *, const char *))
+   ep = (XrdOss *(*)(XrdOss *, XrdSysLogger *, const char *, const char *))
                     (myLib->getPlugin("XrdOssGetStorageSystem"));
    if (!ep) return 0;
 
@@ -132,7 +132,7 @@ XrdOss *XrdOssGetSS(XrdOucLogger *Logger, const char   *config_fn,
 
   Output:   Returns zero upon success otherwise (-errno).
 */
-int XrdOssSys::Init(XrdOucLogger *lp, const char *configfn)
+int XrdOssSys::Init(XrdSysLogger *lp, const char *configfn)
 {
      int retc;
 

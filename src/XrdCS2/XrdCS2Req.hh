@@ -13,7 +13,7 @@
 //         $Id$
 
 #include "XrdOlb/XrdOlbReq.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -65,7 +65,7 @@ static int              numinQ_R;
 static int              numinQ_W;
 static const int        maxFree   = 100;
 static const int        retryTime = 60;
-static XrdOucError     *eDest;         // -> Error message handler
+static XrdSysError     *eDest;         // -> Error message handler
 static XrdOucTrace     *Trace;         // -> Trace handler
 static XrdOucName2Name *N2N;           // -> lfn mapper
 

@@ -31,8 +31,8 @@ XrdClientDebug* XrdClientDebug::Instance() {
 XrdClientDebug::XrdClientDebug() {
    // Constructor
 
-   fOucLog = new XrdOucLogger();
-   fOucErr = new XrdOucError(fOucLog, "Xrd");
+   fOucLog = new XrdSysLogger();
+   fOucErr = new XrdSysError(fOucLog, "Xrd");
 
    fDbgLevel = EnvGetLong(NAME_DEBUG);
 }

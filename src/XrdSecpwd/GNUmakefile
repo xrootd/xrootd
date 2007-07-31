@@ -80,8 +80,8 @@ $(OBJDIR)/XrdSecpwdSrvAdmin.o: XrdSecpwdSrvAdmin.cc \
 	@echo Compiling XrdSecpwdSrvAdmin.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecpwdSrvAdmin.o XrdSecpwdSrvAdmin.cc
 
-$(OBJDIR)/XrdSecProtocolpwd.o: XrdSecProtocolpwd.cc XrdOucLogger.hh \
-		XrdSysPthread.hh  XrdOucError.hh XrdOucStream.hh \
+$(OBJDIR)/XrdSecProtocolpwd.o: XrdSecProtocolpwd.cc XrdSysLogger.hh \
+		XrdSysPthread.hh  XrdSysError.hh XrdOucStream.hh \
 		XrdSutCache.hh XPtypes.hh XrdSutPFEntry.hh \
 		XProtocol.hh XrdOucHash.hh XrdOucHash.icc XrdOucString.hh \
 		XrdSecProtocolpwd.hh XrdOucErrInfo.hh XrdSysPlatform.hh \

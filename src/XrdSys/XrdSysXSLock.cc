@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d O u c X S L o c k . c c                        */
+/*                       X r d S y s X S L o c k . c c                        */
 /*                                                                            */
 /* (c) 2003 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */

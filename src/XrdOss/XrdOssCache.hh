@@ -15,7 +15,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include "XrdOuc/XrdOucDLlist.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
 /*              O S   D e p e n d e n t   D e f i n i t i o n s               */

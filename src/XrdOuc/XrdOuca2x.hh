@@ -12,7 +12,7 @@
   
 //          $Id$
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 // This class is a holding area for various conversion utility routines
 //
@@ -20,18 +20,18 @@
 class XrdOuca2x
 {
 public:
-static int         a2i( XrdOucError &, const char *emsg, const char *item, int *val, int minv=-1, int maxv=-1);
-static long long   a2ll(XrdOucError &, const char *emsg, const char *item, long long *val, long long minv=-1, long long maxv=-1);
-static int         a2fm(XrdOucError &, const char *emsg, const char *item, int *val, int minv);
-static int         a2fm(XrdOucError &, const char *emsg, const char *item, int *val, int minv, int maxv);
-static long long   a2sz(XrdOucError &, const char *emsg, const char *item, long long *val, long long minv=-1, long long maxv=-1);
-static int         a2tm(XrdOucError &, const char *emsg, const char *item, int *val, int minv=-1, int maxv=-1);
-static int         a2vp(XrdOucError &, const char *emsg, const char *item, int *val, int minv=-1, int maxv=-1);
+static int         a2i( XrdSysError &, const char *emsg, const char *item, int *val, int minv=-1, int maxv=-1);
+static long long   a2ll(XrdSysError &, const char *emsg, const char *item, long long *val, long long minv=-1, long long maxv=-1);
+static int         a2fm(XrdSysError &, const char *emsg, const char *item, int *val, int minv);
+static int         a2fm(XrdSysError &, const char *emsg, const char *item, int *val, int minv, int maxv);
+static long long   a2sz(XrdSysError &, const char *emsg, const char *item, long long *val, long long minv=-1, long long maxv=-1);
+static int         a2tm(XrdSysError &, const char *emsg, const char *item, int *val, int minv=-1, int maxv=-1);
+static int         a2vp(XrdSysError &, const char *emsg, const char *item, int *val, int minv=-1, int maxv=-1);
 
 private:
-static int       Emsg(XrdOucError &Eroute, const char *etxt1, const char *item,
+static int       Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
                                            const char *etxt2, int       val);
-static long long Emsg(XrdOucError &Eroute, const char *etxt1, const char *item,
+static long long Emsg(XrdSysError &Eroute, const char *etxt1, const char *item,
                                            const char *etxt2, long long val);
 };
 

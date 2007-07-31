@@ -14,7 +14,7 @@
 
 #include <stdlib.h>
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 
@@ -73,7 +73,7 @@ int   Parse(const char *oname, char *msg);
 
 int   Subs(XrdOucMsubsInfo &Info, char **Data, int *Dlen);
 
-      XrdOucMsubs(XrdOucError *errp);
+      XrdOucMsubs(XrdSysError *errp);
      ~XrdOucMsubs();
 
 private:
@@ -86,7 +86,7 @@ enum vNum {vLFN =  1, vPFN =  2, vRFN =  3, vLFN2 =  4, vPFN2 =  5, vRFN2 =  6,
 static const int   vMax = 16;
 static const char *vName[vMax];
 
-XrdOucError *eDest;
+XrdSysError *eDest;
 char        *mText;
 char        *mData[maxElem+1];
 int          mDlen[maxElem+1];

@@ -12,7 +12,7 @@
 
 //         $Id$
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
 #define TRACE_ALL   0x0007
@@ -47,7 +47,7 @@
 
 namespace XrdOlb
 {
-extern    XrdOucError Say;
+extern    XrdSysError Say;
 extern    XrdOucTrace Trace;
 }
 #endif

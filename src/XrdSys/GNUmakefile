@@ -11,20 +11,22 @@ include ../GNUmake.env
 #------------------------------------------------------------------------------#
 SOURCES = \
         XrdSysDir.cc \
+        XrdSysError.cc \
+        XrdSysLogger.cc \
         XrdSysPlatform.cc \
         XrdSysPlugin.cc   \
         XrdSysPriv.cc     \
-        XrdSysProg.cc        \
         XrdSysPthread.cc     \
         XrdSysTimer.cc       \
         XrdSysXSLock.cc
 
 OBJECTS = \
         $(OBJDIR)/XrdSysDir.o \
+        $(OBJDIR)/XrdSysError.o \
+        $(OBJDIR)/XrdSysLogger.o \
         $(OBJDIR)/XrdSysPlatform.o \
         $(OBJDIR)/XrdSysPlugin.o       \
         $(OBJDIR)/XrdSysPriv.o    \
-        $(OBJDIR)/XrdSysProg.o         \
         $(OBJDIR)/XrdSysPthread.o     \
         $(OBJDIR)/XrdSysTimer.o        \
         $(OBJDIR)/XrdSysXSLock.o
@@ -66,11 +68,21 @@ $(OBJDIR)/XrdSysDir.o: XrdSysDir.cc  XrdSysDir.hh
 	@echo Compiling XrdSysDir.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysDir.cc -o $(OBJDIR)/XrdSysDir.o
 
+$(OBJDIR)/XrdSysError.o: XrdSysError.cc XrdSysError.hh XrdSysLogger.hh \
+                         XrdSysPlatform.hh
+	@echo Compiling XrdSysError.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysError.cc -o $(OBJDIR)/XrdSysError.o
+
+$(OBJDIR)/XrdSysLogger.o: XrdSysLogger.cc XrdSysLogger.hh \
+                          XrdSysTimer.hh  XrdSysPthread.hh
+	@echo Compiling XrdSysLogger.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysLogger.cc -o $(OBJDIR)/XrdSysLogger.o
+
 $(OBJDIR)/XrdSysPlatform.o: XrdSysPlatform.cc  XrdSysPlatform.hh
 	@echo Compiling XrdSysPlatform.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFSETRESUID) $(INCLUDE) XrdSysPlatform.cc -o $(OBJDIR)/XrdSysPlatform.o
 
-$(OBJDIR)/XrdSysPlugin.o: XrdSysPlugin.cc XrdSysPlugin.hh  XrdOucError.hh
+$(OBJDIR)/XrdSysPlugin.o: XrdSysPlugin.cc XrdSysPlugin.hh  XrdSysError.hh
 	@echo Compiling XrdSysPlugin.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFSTRLCPY) $(INCLUDE) XrdSysPlugin.cc -o $(OBJDIR)/XrdSysPlugin.o
 
@@ -78,12 +90,7 @@ $(OBJDIR)/XrdSysPriv.o: XrdSysPriv.cc  XrdSysPriv.hh
 	@echo Compiling XrdSysPriv.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFSETRESUID) $(INCLUDE) XrdSysPriv.cc -o $(OBJDIR)/XrdSysPriv.o
 
-$(OBJDIR)/XrdSysProg.o: XrdSysProg.cc  XrdSysProg.hh \
-                        XrdOucError.hh XrdOucStream.hh XrdSysPthread.hh
-	@echo Compiling XrdSysProg.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysProg.cc -o $(OBJDIR)/XrdSysProg.o
-
-$(OBJDIR)/XrdSysPthread.o: XrdSysPthread.cc XrdSysPthread.hh XrdOucError.hh
+$(OBJDIR)/XrdSysPthread.o: XrdSysPthread.cc XrdSysPthread.hh XrdSysError.hh
 	@echo Compiling XrdSysPthread.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysPthread.cc -o $(OBJDIR)/XrdSysPthread.o
 
@@ -91,6 +98,6 @@ $(OBJDIR)/XrdSysTimer.o: XrdSysTimer.cc XrdSysTimer.hh
 	@echo Compiling XrdSysTimer.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysTimer.cc -o $(OBJDIR)/XrdSysTimer.o
 
-$(OBJDIR)/XrdSysXSLock.o: XrdOucError.hh XrdSysXSLock.hh XrdSysXSLock.cc
+$(OBJDIR)/XrdSysXSLock.o: XrdSysError.hh XrdSysXSLock.hh XrdSysXSLock.cc
 	@echo Compiling XrdSysXSLock.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysXSLock.cc -o $(OBJDIR)/XrdSysXSLock.o

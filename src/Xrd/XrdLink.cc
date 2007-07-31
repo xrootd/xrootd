@@ -21,7 +21,7 @@ const char *XrdLinkCVSID = "$Id$";
 
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetPeer.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 #include "Xrd/XrdBuffer.hh"
@@ -64,7 +64,7 @@ static const char *TraceID;
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-extern XrdOucError     XrdLog;
+extern XrdSysError     XrdLog;
 
 extern XrdScheduler    XrdSched;
 

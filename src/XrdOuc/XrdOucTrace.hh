@@ -19,7 +19,7 @@
 using namespace std;
 #endif
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 
 class XrdOucTrace
 {
@@ -34,12 +34,12 @@ inline  int         Tracing(int mask) {return mask & What;}
 
         int         What;
 
-                    XrdOucTrace(XrdOucError *erp) {eDest = erp; What = 0;}
+                    XrdOucTrace(XrdSysError *erp) {eDest = erp; What = 0;}
                    ~XrdOucTrace() {}
 
 static char *bin2hex(char *data, int dlen, char *buff=0);
 
 private:
-        XrdOucError *eDest;
+        XrdSysError *eDest;
 };
 #endif

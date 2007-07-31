@@ -37,7 +37,7 @@ const char *XrdOssCreateCVSID = "$Id$";
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -45,7 +45,7 @@ const char *XrdOssCreateCVSID = "$Id$";
 /*                  E r r o r   R o u t i n g   O b j e c t                   */
 /******************************************************************************/
   
-extern XrdOucError OssEroute;
+extern XrdSysError OssEroute;
 
 extern XrdOucTrace OssTrace;
 

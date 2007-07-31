@@ -15,7 +15,7 @@
 #include <limits.h>
 #include <netdb.h>
 #include <sys/param.h>
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAuthDB.hh"
@@ -26,7 +26,7 @@ class XrdAccAuthFile : public XrdAccAuthDB
 {
 public:
 
-int      Open(XrdOucError &eroute, const char *path=0);
+int      Open(XrdSysError &eroute, const char *path=0);
 
 char     getRec(char **recname);
 
@@ -36,7 +36,7 @@ int      Close();
 
 int      Changed(const char *dbpath);
 
-         XrdAccAuthFile(XrdOucError *erp);
+         XrdAccAuthFile(XrdSysError *erp);
         ~XrdAccAuthFile();
 
 private:
@@ -46,7 +46,7 @@ char *Copy(char *dp, char *sp, int dplen);
 
 enum DBflags {Noflags=0, inRec=1, isOpen=2, dbError=4}; // Values combined
 
-XrdOucError      *Eroute;
+XrdSysError      *Eroute;
 DBflags           flags;
 XrdOucStream      DBfile;
 char             *authfn;

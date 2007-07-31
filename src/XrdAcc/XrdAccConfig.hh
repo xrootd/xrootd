@@ -15,7 +15,7 @@
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -49,13 +49,13 @@ public:
 
 // Configure() is called during initialization.
 //
-int           Configure(XrdOucError &Eroute, const char *cfn);
+int           Configure(XrdSysError &Eroute, const char *cfn);
 
 // ConfigDB() simply refreshes the in-core authorization database. When the 
 // Warm is true, a check is made whether the database actually changed and the
 // refresh is skipped if it has not changed.
 //
-int           ConfigDB(int Warm, XrdOucError &Eroute);
+int           ConfigDB(int Warm, XrdSysError &Eroute);
 
 XrdAccAccess *Authorization;
 XrdAccGroups  GroupMaster;
@@ -69,18 +69,18 @@ private:
 
 struct XrdAccGlist *addGlist(gid_t Gid, const char *Gname, 
                              struct XrdAccGlist *Gnext);
-int                 ConfigDBrec(XrdOucError &Eroute,
+int                 ConfigDBrec(XrdSysError &Eroute,
                                 struct XrdAccAccess_Tables &tabs);
 void                ConfigDefaults(void);
-int                 ConfigFile(XrdOucError &Eroute, const char *cfn);
-int                 ConfigXeq(char *, XrdOucStream &, XrdOucError &);
+int                 ConfigFile(XrdSysError &Eroute, const char *cfn);
+int                 ConfigXeq(char *, XrdOucStream &, XrdSysError &);
 int                 PrivsConvert(char *privs, XrdAccPrivCaps &ctab);
-int                 xaud(XrdOucStream &Config, XrdOucError &Eroute);
-int                 xart(XrdOucStream &Config, XrdOucError &Eroute);
-int                 xdbp(XrdOucStream &Config, XrdOucError &Eroute);
-int                 xglt(XrdOucStream &Config, XrdOucError &Eroute);
-int                 xgrt(XrdOucStream &Config, XrdOucError &Eroute);
-int                 xnis(XrdOucStream &Cofig, XrdOucError &Eroute);
+int                 xaud(XrdOucStream &Config, XrdSysError &Eroute);
+int                 xart(XrdOucStream &Config, XrdSysError &Eroute);
+int                 xdbp(XrdOucStream &Config, XrdSysError &Eroute);
+int                 xglt(XrdOucStream &Config, XrdSysError &Eroute);
+int                 xgrt(XrdOucStream &Config, XrdSysError &Eroute);
+int                 xnis(XrdOucStream &Cofig, XrdSysError &Eroute);
 
 XrdAccAuthDB        *Database;
 char                *dbpath;

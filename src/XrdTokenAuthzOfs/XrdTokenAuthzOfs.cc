@@ -1,6 +1,6 @@
 #include "XrdTokenAuthzOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -14,7 +14,7 @@
 
 extern XrdTokenAuthzOfs XrdOfsFS;
 
-extern XrdOucError      OfsEroute;
+extern XrdSysError      OfsEroute;
 extern XrdOssSys        XrdOssSS;
 extern XrdOucTrace      OfsTrace;
 extern void         *XrdOfsIdleScan(void *);
@@ -22,7 +22,7 @@ extern void         *XrdOfsIdleScan(void *);
 extern "C"
 {
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
-                                      XrdOucLogger     *lp,
+                                      XrdSysLogger     *lp,
                                       const char       *configfn)
 {
    pthread_t tid;

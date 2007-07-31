@@ -36,7 +36,7 @@ const char *XrdOdcFinderCVSID = "$Id$";
 #include "XrdOdc/XrdOdcMsg.hh"
 #include "XrdOdc/XrdOdcTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucReqID.hh"
@@ -51,7 +51,7 @@ const char *XrdOdcFinderCVSID = "$Id$";
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-XrdOucError  OdcEDest(0, "odc_");
+XrdSysError  OdcEDest(0, "odc_");
   
 XrdOucTrace  OdcTrace(&OdcEDest);
 
@@ -61,7 +61,7 @@ char        *XrdOdcFinder::OLBPath = 0;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOdcFinder::XrdOdcFinder(XrdOucLogger *lp, Persona acting)
+XrdOdcFinder::XrdOdcFinder(XrdSysLogger *lp, Persona acting)
 {
    OdcEDest.logger(lp);
    myPersona = acting;
@@ -74,7 +74,7 @@ XrdOdcFinder::XrdOdcFinder(XrdOucLogger *lp, Persona acting)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOdcFinderRMT::XrdOdcFinderRMT(XrdOucLogger *lp, int whoami)
+XrdOdcFinderRMT::XrdOdcFinderRMT(XrdSysLogger *lp, int whoami)
                : XrdOdcFinder(lp, (whoami & XrdOdcIsProxy 
                                           ? XrdOdcFinder::amProxy
                                           : XrdOdcFinder::amRemote))
@@ -545,7 +545,7 @@ int XrdOdcFinderRMT::StartManagers(XrdOucTList *myManList)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOdcFinderTRG::XrdOdcFinderTRG(XrdOucLogger *lp, int whoami, int port)
+XrdOdcFinderTRG::XrdOdcFinderTRG(XrdSysLogger *lp, int whoami, int port)
                : XrdOdcFinder(lp, XrdOdcFinder::amTarget)
 {
    char buff [256];

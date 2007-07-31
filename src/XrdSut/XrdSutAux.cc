@@ -21,8 +21,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <XrdOuc/XrdOucLogger.hh>
-#include <XrdOuc/XrdOucError.hh>
+#include <XrdSys/XrdSysLogger.hh>
+#include <XrdSys/XrdSysError.hh>
 #include <XrdOuc/XrdOucString.hh>
 
 #include <XrdSut/XrdSutAux.hh>
@@ -64,8 +64,8 @@ static const char *gXRSBucketTypes[] = {
 
 //
 // For error logging and tracing
-static XrdOucLogger Logger;
-static XrdOucError eDest(0,"sut_");
+static XrdSysLogger Logger;
+static XrdSysError eDest(0,"sut_");
 XrdOucTrace *sutTrace = 0;
 
 /******************************************************************************/

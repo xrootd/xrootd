@@ -17,7 +17,7 @@
   
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
 /******************************************************************************/
@@ -86,14 +86,14 @@ static int        setParms(int stime, int skeep);
 
 static int        setParms(char *ldir);
 
-           XrdXrootdPrepare(XrdOucError *lp, XrdScheduler *sp);
+           XrdXrootdPrepare(XrdSysError *lp, XrdScheduler *sp);
           ~XrdXrootdPrepare() {}   // Never gets deleted
 
 private:
 
 static const char    *TraceID;
 static XrdScheduler  *SchedP;    // System scheduler
-static XrdOucError   *eDest;     // Error message handler
+static XrdSysError   *eDest;     // Error message handler
 
 static int            scrubtime;
 static int            scrubkeep;

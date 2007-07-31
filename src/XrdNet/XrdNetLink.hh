@@ -37,7 +37,7 @@
 //
 class XrdNet;
 class XrdNetPeer;
-class XrdOucError;
+class XrdSysError;
 class XrdOucStream;
 class XrdOucTokenizer;
 
@@ -47,7 +47,7 @@ public:
 
 XrdOucQSItem<XrdNetLink> LinkLink;
 
-static XrdNetLink *Alloc(XrdOucError   *erp, XrdNet *Net, XrdNetPeer &Peer,
+static XrdNetLink *Alloc(XrdSysError   *erp, XrdNet *Net, XrdNetPeer &Peer,
                          XrdNetBufferQ *bq,  int opts=0);
 
 // Closes() closes the link. Specify defer=1 to postpone deallocating
@@ -150,7 +150,7 @@ void          SetOpts(int opts);
 // routing. Additionally, a pointer to a UDP buffer may be provided. This
 // buffer must contain a text datagram suitable for tokenization.
 //
-              XrdNetLink(XrdOucError *erp, XrdNetBufferQ *bq) : LinkLink(this)
+              XrdNetLink(XrdSysError *erp, XrdNetBufferQ *bq) : LinkLink(this)
                           {FD = -1; Lname = Sname = 0; recvbuff = sendbuff = 0;
                            BuffQ = bq; Stream = 0; Bucket = 0; eDest = erp;
                           }
@@ -174,7 +174,7 @@ XrdNetBuffer       *recvbuff;  // udp receive buffer
 XrdNetBuffer       *sendbuff;  // udp send    buffer
 XrdOucStream       *Stream;    // tcp tokenizer
 XrdOucTokenizer    *Bucket;    // udp tokenizer
-XrdOucError        *eDest;
+XrdSysError        *eDest;
 
 static XrdSysMutex             LinkList;
 static XrdOucStack<XrdNetLink> LinkStack;

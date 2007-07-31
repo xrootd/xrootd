@@ -28,7 +28,7 @@
 
 class XrdBuffer;
 class XrdBuffManager;
-class XrdOucError;
+class XrdSysError;
 class XrdXrootdAioReq;
 class XrdXrootdStats;
   
@@ -121,7 +121,7 @@ inline  void               Lock() {aioMutex.Lock(); isLocked = 1;}
 inline  void               UnLock() {isLocked = 0; aioMutex.UnLock();}
 
 static  const char        *TraceID;
-static  XrdOucError       *eDest;      // -> Error Object
+static  XrdSysError       *eDest;      // -> Error Object
 static  XrdSysMutex        rqMutex;    // Locks static data
 static  XrdXrootdAioReq   *rqFirst;    // -> Object in free queue
 static  int                QuantumMin; // aio segment size (Quantum/2)

@@ -28,8 +28,8 @@
 class XrdOfsEvs;
 class XrdOssDir;
 class XrdOucEnv;
-class XrdOucError;
-class XrdOucLogger;
+class XrdSysError;
+class XrdSysLogger;
 class XrdOucStream;
 class XrdSfsAio;
 
@@ -224,9 +224,9 @@ const   char          *getVersion();
 
 // Management functions
 //
-virtual int            Configure(XrdOucError &);
+virtual int            Configure(XrdSysError &);
 
-        void           Config_Display(XrdOucError &);
+        void           Config_Display(XrdSysError &);
 
 virtual int            Unopen(XrdOfsHandle *);
 
@@ -281,7 +281,7 @@ XrdOucPListAnchor VPlist;     // -> Valid file list
 
 XrdOfsEvr         evrObject;  // Event receiver
 
-virtual int   ConfigXeq(char *var, XrdOucStream &, XrdOucError &);
+virtual int   ConfigXeq(char *var, XrdOucStream &, XrdSysError &);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    const char *y="");
 XrdOdcFinder     *Finder;         //    ->Distrib Cluster Service
@@ -316,20 +316,20 @@ XrdOfsEvs        *evsObject;      //    ->Event Notifier
 
 // Function used during Configuration
 //
-int           ConfigRedir(XrdOucError &Eroute);
+int           ConfigRedir(XrdSysError &Eroute);
 const char   *Fname(const char *);
-int           setupAuth(XrdOucError &);
+int           setupAuth(XrdSysError &);
 const char   *theRole(int opts);
-void          List_VPlist(char *, XrdOucPListAnchor &, XrdOucError &);
-int           xalib(XrdOucStream &, XrdOucError &);
-int           xfdscan(XrdOucStream &, XrdOucError &);
-int           xforward(XrdOucStream &, XrdOucError &);
-int           xlocktry(XrdOucStream &, XrdOucError &);
-int           xmaxd(XrdOucStream &, XrdOucError &);
-int           xnot(XrdOucStream &, XrdOucError &);
-int           xolib(XrdOucStream &, XrdOucError &);
-int           xred(XrdOucStream &, XrdOucError &);
-int           xrole(XrdOucStream &, XrdOucError &);
-int           xtrace(XrdOucStream &, XrdOucError &);
+void          List_VPlist(char *, XrdOucPListAnchor &, XrdSysError &);
+int           xalib(XrdOucStream &, XrdSysError &);
+int           xfdscan(XrdOucStream &, XrdSysError &);
+int           xforward(XrdOucStream &, XrdSysError &);
+int           xlocktry(XrdOucStream &, XrdSysError &);
+int           xmaxd(XrdOucStream &, XrdSysError &);
+int           xnot(XrdOucStream &, XrdSysError &);
+int           xolib(XrdOucStream &, XrdSysError &);
+int           xred(XrdOucStream &, XrdSysError &);
+int           xrole(XrdOucStream &, XrdSysError &);
+int           xtrace(XrdOucStream &, XrdSysError &);
 };
 #endif

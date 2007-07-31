@@ -67,7 +67,7 @@ fi
 
 $(OBJDIR)/XrdNet.o: XrdNet.cc       XrdNet.hh         XrdNetBuffer.hh \
                     XrdNetDNS.hh    XrdNetOpts.hh     XrdNetSecurity.hh \
-                    XrdNetSocket.hh XrdSysPlatform.hh XrdOucError.hh
+                    XrdNetSocket.hh XrdSysPlatform.hh XrdSysError.hh
 	@echo Compiling XrdNet.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNet.cc -o $(OBJDIR)/XrdNet.o
 
@@ -86,7 +86,7 @@ $(OBJDIR)/XrdNetDNS.o: XrdNetDNS.cc XrdNetDNS.hh XrdSysPlatform.hh XrdSysPthread
 
 $(OBJDIR)/XrdNetLink.o: XrdNetLink.cc XrdNetLink.hh          XrdNet.hh \
                         XrdNetBuffer.hh   XrdNetDNS.hh       XrdNetPeer.hh \
-                        XrdOucChain.hh    XrdOucError.hh     XrdSysPthread.hh \
+                        XrdOucChain.hh    XrdSysError.hh     XrdSysPthread.hh \
                         XrdSysPlatform.hh XrdOucStream.hh    XrdOucTokenizer.hh
 	@echo Compiling XrdNetLink.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetLink.cc -o $(OBJDIR)/XrdNetLink.o
@@ -99,12 +99,12 @@ $(OBJDIR)/XrdNetSecurity.o: XrdNetSecurity.cc XrdNetSecurity.hh \
 
 $(OBJDIR)/XrdNetSocket.o: XrdNetSocket.cc  XrdNetSocket.hh \
                           XrdNetConnect.hh XrdNetDNS.hh        XrdNetOpts.hh \
-                          XrdOucError.hh   XrdOucUtils.hh XrdSysPlatform.hh
+                          XrdSysError.hh   XrdOucUtils.hh XrdSysPlatform.hh
 	@echo Compiling XrdNetSocket.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetSocket.cc -o $(OBJDIR)/XrdNetSocket.o
 
 $(OBJDIR)/XrdNetWork.o: XrdNetWork.cc     XrdNetWork.hh     XrdNetBuffer.hh \
                         XrdNetLink.hh     XrdNetOpts.hh     XrdNetPeer.hh   \
-                        XrdNet.hh         XrdOucError.hh
+                        XrdNet.hh         XrdSysError.hh
 	@echo Compiling XrdNetWork.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetWork.cc -o $(OBJDIR)/XrdNetWork.o

@@ -85,7 +85,7 @@ const char *crPath;
 /******************************************************************************/
   
 class XrdOucEnv;
-class XrdOucError;
+class XrdSysError;
 class XrdOucStream;
 class XrdOucTList;
 
@@ -100,7 +100,7 @@ virtual XrdOssDF *newFile(const char *tident)
 int       Chmod(const char *, mode_t mode);
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
-int       Init(XrdOucLogger *, const char *);
+int       Init(XrdSysLogger *, const char *);
 int       Mkdir(const char *, mode_t mode, int mkpath=0);
 int       Remdir(const char *);
 int       Rename(const char *, const char *);
@@ -128,8 +128,8 @@ int    buildHdr();
 int    Configure(const char *);
 int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
-int    xmang(XrdOucError *errp,   XrdOucStream &Config);
-int    xsopt(XrdOucError *Eroute, XrdOucStream &Config);
-int    xtrac(XrdOucError *Eroute, XrdOucStream &Config);
+int    xmang(XrdSysError *errp,   XrdOucStream &Config);
+int    xsopt(XrdSysError *Eroute, XrdOucStream &Config);
+int    xtrac(XrdSysError *Eroute, XrdOucStream &Config);
 };
 #endif

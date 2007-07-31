@@ -19,8 +19,8 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-class XrdOucError;
-class XrdOucLogger;
+class XrdSysError;
+class XrdSysLogger;
 class XrdNetLink;
 class XrdNetWork;
 
@@ -50,7 +50,7 @@ void           setNext(XrdOdcManager *np) {Next = np;}
 
 void           whatsUp();
 
-               XrdOdcManager(XrdOucError *erp, char *host, int port, 
+               XrdOdcManager(XrdSysError *erp, char *host, int port, 
                              int cw, int nr);
               ~XrdOdcManager();
 
@@ -64,7 +64,7 @@ XrdOdcRespQ     RespQ;
 
 XrdOdcManager *Next;
 XrdSysMutex    myData;
-XrdOucError   *eDest;
+XrdSysError   *eDest;
 XrdNetLink    *Link;
 XrdNetWork    *Network;
 char          *Host;

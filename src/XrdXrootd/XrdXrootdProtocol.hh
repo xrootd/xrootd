@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#include "XrdOuc/XrdOucError.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 
@@ -181,7 +181,7 @@ static XrdSecService        *CIA;       // Authentication Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager
-static XrdOucError           eDest;     // Error message handler
+static XrdSysError           eDest;     // Error message handler
 static const char           *myInst;
 static const char           *TraceID;
 static int                   myPID;
