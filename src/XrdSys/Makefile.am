@@ -10,7 +10,7 @@
 
 xrootdsysincdir = $(includedir)/xrootd/XrdSys
 
-xrootdsysinc_HEADERS = XrdSysDir.hh XrdSysError.hh XrdSysLogger.hh
+xrootdsysinc_HEADERS = XrdSysDir.hh XrdSysError.hh XrdSysLogger.hh \
                        XrdSysPlugin.hh XrdSysPriv.hh \
                        XrdSysPlatform.hh XrdSysPthread.hh \
                        XrdSysSemWait.hh XrdSysTimer.hh XrdSysXSLock.hh
