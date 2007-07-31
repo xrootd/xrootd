@@ -30,7 +30,9 @@ OBJECTT = \
         $(OBJDIR)/XrdPosixPreload32.o \
         $(OBJDIR)/XrdPosixStream.o
 
-MORELIBS = -L$(LIBDIR) -lXrdClient $(LIBM) -lXrdNet -lXrdOuc -lXrdSec -lXrdSys
+OBJECTU = $(LIBDIR)/libXrdClient.a
+
+MORELIBS = -L$(LIBDIR) $(LIBM) -lXrdNet -lXrdOuc -lXrdSys
 
 LIBDEP   = $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdNet.a \
@@ -66,14 +68,14 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
 	$(ECHO)if [ "x$(TYPE)" = "xDarwin" ]; then \
 	   $(CC) $(CFLAGS) $(OBJECTS) $(TYPELDDY) $(MORELIBS) $(LIBS) -o $(LIBDIR)/libXrdPosix.$(TYPEDYLIB); \
 	fi
 # MacOS X does not support linking against shared libraries so include
 # all of the objects in the preload library (yech).
 	@echo Creating shared library $(LIBPLDR)
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
 
 $(OBJDIR)/XrdPosix.o:  XrdPosix.cc XrdPosix.hh XrdPosixXrootd.hh  \
                        XrdPosixExtern.hh XrdPosixLinkage.hh XrdOucTokenizer.hh

@@ -23,7 +23,9 @@ OBJECTS  = \
 OBJECTT  = \
         $(OBJDIR)/XrdPosixXrootd.o
 
-MORELIBS = -L$(LIBDIR) -lXrdClient $(LIBM) -lXrdNet -lXrdOuc -lXrdSys
+OBJECTU  = $(LIBDIR)/libXrdClient.a
+
+MORELIBS = -L$(LIBDIR) $(LIBM) -lXrdNet -lXrdOuc -lXrdSys
 
 LIBDEP   = $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdNet.a \
@@ -62,7 +64,7 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(OBJECTT) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
 
 $(OBJDIR)/XrdPss.o:  XrdPss.cc         XrdPss.hh      XrdPosixXrootd.hh \
                      XrdOss.hh         XrdOssError.hh XrdOucEnv.hh \
