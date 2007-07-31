@@ -153,7 +153,7 @@ XrdClientMessage *XrdClientInputBuffer::GetMsg(int streamid, int secstimeout)
    sem = GetSyncObjOrMakeOne(streamid);
 
    int to = secstimeout;
-   int dt = (to > 2) ? 2 : dt;  // 2 secs steps
+   int dt = (to > 2) ? 2 : to;  // 2 secs steps
    while (to) {
      int rc = sem->Wait(dt);
      if (!rc) {
