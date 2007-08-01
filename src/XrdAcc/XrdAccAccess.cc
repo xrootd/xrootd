@@ -20,6 +20,7 @@ const char *XrdAccAccessCVSID = "$Id$";
 #include "XrdAcc/XrdAccCapability.hh"
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
   
 /******************************************************************************/
 /*                   E x t e r n a l   R e f e r e n c e s                    */
@@ -111,15 +112,25 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
    if (isuser && Atab.U_Hash && (cp = Atab.U_Hash->Find(id)))
       cp->Privs(caps, path, plen, phash);
 
-// Next add in the group privileges
+// Next add in the group privileges. The group list either comes from the
+// credentials, in which case we need not have a username, or from the
+// standard unix-username group mapping.
 //
-   if (isuser && Atab.G_Hash 
-   && (glp = XrdAccConfiguration.GroupMaster.Groups(id)))
-      {while((gname = (char *)glp->Next()))
+   if (Entity->grps)
+      {char gBuff[1024];
+       XrdOucTokenizer gList(gBuff);
+       strlcpy(gBuff, Entity->grps, sizeof(gBuff));
+       gList.GetLine();
+       while((gname = gList.GetToken()))
             if ((cp = Atab.G_Hash->Find((const char *)gname)))
                cp->Privs(caps, path, plen, phash);
-       delete glp;
-      }
+      } else if (isuser && Atab.G_Hash
+             && (glp = XrdAccConfiguration.GroupMaster.Groups(id)))
+                {while((gname = (char *)glp->Next()))
+                      if ((cp = Atab.G_Hash->Find((const char *)gname)))
+                         cp->Privs(caps, path, plen, phash);
+                 delete glp;
+                }
 
 // Now add in the netgroup privileges
 //

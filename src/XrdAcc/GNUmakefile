@@ -82,6 +82,7 @@ $(OBJDIR)/XrdAccAccess.o: XrdAccAccess.cc     XrdAccAccess.hh \
                           XrdAccCapability.hh XrdAccConfig.hh    XrdAccGroups.hh \
                           XrdAccAudit.hh     XrdAccAuthorize.hh  XrdAccPrivs.hh \
                           XrdSysError.hh     XrdOucHash.hh       XrdOucHash.icc \
+                          XrdOucTokenizer.hh \
                           XrdSysLogger.hh    XrdSysXSLock.hh     XrdSecEntity.hh
 	@echo Compiling XrdAccAccess.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccAccess.o XrdAccAccess.cc
