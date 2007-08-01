@@ -29,6 +29,7 @@ xrdgsiproxy_LDFLAGS =  -static
 xrdgsiproxy_LDADD = libXrdSecgsi.la \
                     ../XrdSec/libXrdSec.la \
                     ../XrdOuc/libXrdOuc.la \
+                    ../XrdSys/libXrdSys.la \
                     ../XrdNet/libXrdNet.la
 
 #xrdsecgsitest_SOURCES = XrdSecgsitest.cc

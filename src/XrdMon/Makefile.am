@@ -76,12 +76,14 @@ xrdmonCollector_SOURCES = XrdMonCtrMainApp.cc XrdMonCtrCollector.hh XrdMonArgPar
 xrdmonCollector_LDADD = libXrdMonCollector.la \
                         libXrdMonDecoder.la \
                         libXrdMonCommon.la \
-                        ../XrdOuc/libXrdOuc.la
+                        ../XrdOuc/libXrdOuc.la \
+                        ../XrdSys/libXrdSys.la
 
 xrdmonDecoder_SOURCES = XrdMonDecMainApp.cc
 xrdmonDecoder_LDADD =   libXrdMonDecoder.la \
                         libXrdMonCommon.la \
-                        ../XrdOuc/libXrdOuc.la
+                        ../XrdOuc/libXrdOuc.la \
+                        ../XrdSys/libXrdSys.la
 
 xrdmonDummySender_SOURCES = XrdMonSndDummyXrootdApp.cc
 xrdmonDummySender_LDADD = libXrdMonDummySender.la \

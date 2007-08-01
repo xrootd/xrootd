@@ -45,6 +45,7 @@ olbd_SOURCES = \
 
 olbd_LDADD = ../XrdNet/libXrdNet.la \
              ../XrdOuc/libXrdOuc.la \
+             ../XrdSys/libXrdSys.la \
              ../Xrd/libXrd.la \
              -ldl
 

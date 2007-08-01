@@ -54,6 +54,7 @@ libXrdCrypto_la_SOURCES = \
         XrdCryptolocalFactory.cc XrdCryptolocalFactory.hh
 libXrdCrypto_la_LIBADD = libXrdSSLutil.la \
                          ../XrdOuc/libXrdOuc.la \
+                         ../XrdSys/libXrdSys.la \
                          ../XrdNet/libXrdNet.la
 
 
