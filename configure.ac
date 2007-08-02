@@ -17,7 +17,7 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20070607cvs,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20070802cvs,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -232,6 +232,9 @@ AM_CONDITIONAL(IS_GCC,[test x"$GCC" = xyes])
 if test x"$GCC" = xyes ; then
    AC_GNU_SOURCE
 fi
+
+# invoke large file support (Defines _FILE_OFFSET_BITS and _LARGE_FILES if necessary)
+AC_SYS_LARGEFILE
 
 AM_INIT_AUTOMAKE(1.6 subdir-objects)
 

@@ -33,5 +33,5 @@ libXrdAcc_la_SOURCES = \
 XrdAccTest_SOURCES = XrdAccTest.cc XrdAccAuthorize.hh
 XrdAccTest_LDADD = libXrdAcc.la \
                    ../XrdOuc/libXrdOuc.la \
-                   ../XrdSys/libXrdSys.la \
-                   ../XrdNet/libXrdNet.la -ldl
+                   ../XrdNet/libXrdNet.la \
+                   ../XrdSys/libXrdSys.la -ldl

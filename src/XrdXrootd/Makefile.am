@@ -40,8 +40,8 @@ xrootd_LDADD = -ldl \
                   ../Xrd/libXrd.la \
                   ../XrdNet/libXrdNet.la \
                   ../XrdOuc/libXrdOuc.la \
-                  ../XrdSys/libXrdSys.la \
-                  ../XrdSfs/libXrdSfs.la
+                  ../XrdSfs/libXrdSfs.la \
+                  ../XrdSys/libXrdSys.la 
 xrootd_LDFLAGS = -static -export-dynamic
 
 #if IS_GCC

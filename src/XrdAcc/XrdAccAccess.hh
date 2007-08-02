@@ -18,6 +18,7 @@
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysXSLock.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                        A c c e s s _ I D _ T y p e                         */

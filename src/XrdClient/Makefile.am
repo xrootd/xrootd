@@ -71,13 +71,14 @@ libXrdClient_la_SOURCES = \
 	XrdClientMStream.cc XrdClientMStream.hh \
         XrdClientReadV.cc XrdClientReadV.hh
 
-libXrdClient_la_LIBADD = $(LIBSUNMATH)
-
-clientlibs =  libXrdClient.la \
-              ../XrdNet/libXrdNet.la \
-              ../XrdOuc/libXrdOuc.la \
+libXrdClient_la_LIBADD = $(LIBSUNMATH) \
               ../XrdSys/libXrdSys.la \
 	      ../XrdCrypto/libXrdCrypto.la \
+              ../XrdNet/libXrdNet.la \
+              ../XrdOuc/libXrdOuc.la \
+              ../XrdSys/libXrdSys.la
+
+clientlibs =  libXrdClient.la \
               -ldl
 
 xrdcp_SOURCES = Xrdcp.cc

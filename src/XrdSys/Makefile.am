@@ -10,7 +10,8 @@
 
 xrootdsysincdir = $(includedir)/xrootd/XrdSys
 
-xrootdsysinc_HEADERS = XrdSysDir.hh XrdSysError.hh XrdSysLogger.hh \
+xrootdsysinc_HEADERS = XrdSysDir.hh XrdSysPlugin.hh XrdSysPriv.hh \
+                       XrdSysPlatform.hh XrdSysPthread.hh \
                        XrdSysPlugin.hh XrdSysPriv.hh \
                        XrdSysPlatform.hh XrdSysPthread.hh \
                        XrdSysSemWait.hh XrdSysTimer.hh XrdSysXSLock.hh
@@ -33,6 +34,5 @@ libXrdSys_la_SOURCES = \
 
 libXrdSys_la_LIBADD = $(LIBPTHREAD) $(SEM_LIBRT) $(LIBNSL)
 libXrdSys_la_CXXFLAGS = -prefer-pic
-libXrdSys_la_LDFLAGS = -static
 
 EXTRA_DIST = XrdWin32.cc  XrdWin32.hh
