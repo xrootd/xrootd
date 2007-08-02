@@ -198,6 +198,7 @@ $(OBJDIR)/XrdXrootdProtocol.o: XrdXrootdFile.hh       XrdXrootdFileLock.hh \
                                XrdObject.hh           XrdObject.icc        \
                                XrdXrootdReqID.hh      XProtocol.hh \
                                XrdSfsInterface.hh     XrdSecInterface.hh \
+                               XrdSecEntity.hh \
                                XrdSysError.hh         XrdSysPthread.hh   \
                                XrdSysTimer.hh         XrdOucTrace.hh \
                                XrdXrootdPio.hh        XrdXrootdProtocol.cc
@@ -226,6 +227,7 @@ $(OBJDIR)/XrdXrootdXeq.o: XrdXrootdFile.hh      XrdXrootdFileLock.hh  \
                           XrdXrootdPio.hh       XrdXrootdStat.icc \
                           XrdBuffer.hh          XrdLink.hh            \
                           XrdSfsInterface.hh    XrdSecInterface.hh \
+                          XrdSecEntity.hh \
                           XrdSysError.hh        XrdOucTrace.hh  \
                           XrdSysPlatform.hh     XrdOucTList.hh \
                           XrdOucReqID.hh        XrdOucStream.hh \

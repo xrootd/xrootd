@@ -72,8 +72,8 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc        XrdOfs.hh \
                      XrdOucHash.hh    XrdOucHash.icc        XrdOucMsubs.hh \
                      XrdOucLock.hh    XrdSysLogger.hh       XrdSysPlugin.hh \
                      XrdOucPList.hh   XrdSysPthread.hh      XrdOucTrace.hh     \
-                     XrdNetDNS.hh     XrdSecEntity.hh       XrdSfsNative.hh    \
-                     XrdSfsAio.hh     XrdOss.hh          \
+                     XrdNetDNS.hh     XrdSecEntity.hh       XrdSecInterface.hh \
+                     XrdSfsNative.hh  XrdSfsAio.hh     XrdOss.hh          \
                      XrdOucTList.hh   XrdOdcFinder.hh  XrdAccAuthorize.hh      \
                   ../XrdVersion.hh
 	@echo Compiling XrdOfs.cc 
