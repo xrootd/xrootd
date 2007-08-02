@@ -361,13 +361,13 @@ XrdPosixXrootd::~XrdPosixXrootd()
 
    if (myFiles)
       {for (i = 0; i <= highFD; i++) if (myFiles[i]) delete myFiles[i];
-       free(myFiles);
+       free(myFiles); myFiles = 0;
       }
 
    if (myDirs) {
      for (i = 0; i <= highDir; i++)
        if (myDirs[i]) delete myDirs[i];
-     free(myDirs);
+     free(myDirs); myDirs = 0;
    }
 }
  
