@@ -422,7 +422,7 @@ int XrdSecServer::ConfigFile(const char *ConfigFN)
       NoGo = eDest.Emsg("Config",-retc,"reading config file", ConfigFN);
       else {char buff[128];
             snprintf(buff, sizeof(buff), 
-                     "%d authentication directives processed in ", recs);
+                     " %d authentication directives processed in ", recs);
             eDest.Say("Config", buff, ConfigFN);
            }
    Config.Close();
