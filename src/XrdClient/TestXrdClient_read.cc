@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
 
       }
 
-    buf = malloc(50*1024*1024);
+    buf = malloc(200*1024*1024);
 
     // Check if we have a file or a root:// url
     bool isrooturl = (strstr(argv[1], "root://"));
