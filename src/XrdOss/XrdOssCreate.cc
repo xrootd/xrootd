@@ -102,11 +102,17 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
        return 0;
       }
 
-// Check if the file must not exist
+// The file must not exist if it's declared "new". Otherwise, we must reuse the
+// file, especially in the presence of multiple filesystems
 //
-   if (Opts & XRDOSS_new)
-      if (!(retc = stat(local_path, &buf)) || errno != ENOENT)
-         return (retc ? -errno : -EEXIST);
+   if (stat(local_path, &buf))
+      {if (Opts & XRDOSS_new) return -EEXIST;
+       do {datfd = open(local_path, Opts>>8, access_mode);}
+                   while(datfd < 0 && errno == EINTR);
+           if (datfd < 0) return -errno;
+       close(datfd);
+       return 0;
+      }
 
 // If the path is to be created, make sure the path exists at this point
 //
