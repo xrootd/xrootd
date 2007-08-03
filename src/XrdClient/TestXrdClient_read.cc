@@ -280,31 +280,36 @@ int main(int argc, char **argv) {
 		
 	    
     	    case 4: // read async and then read
-		for (int iii = 0; iii < ntoread; iii++) {
-		    retval = cli->Read_Async(v_offsets[iii], v_lens[iii]);
+	      
+
+		for (int iii = -1024; iii < ntoread; iii++) {
+		    if (iii + 1024 < ntoread)
+		      retval = cli->Read_Async(v_offsets[iii+1024], v_lens[iii+1024]);
 	  
 		    if (retval <= 0) {
-			cout << endl << "---Read_Async (" << iii << " of " << ntoread << " " <<
-			    v_lens[iii] << "@" << v_offsets[iii] <<
+			cout << endl << "---Read_Async (" << iii+1024 << " of " << ntoread << " " <<
+			    v_lens[iii+1024] << "@" << v_offsets[iii+1024] <<
 			    " returned " << retval << endl;
 			iserror = true;
 			break;
 		    }
 
-		}		
-		for (int iii = 0; iii < ntoread; iii++) {
-  		    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
-		    cout.flush();
+		    if (iii >= 0) {
+		      retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
 
-		    if (retval <= 0)
+		      if (retval <= 0) {
 			cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
-			    v_lens[iii] << "@" << v_offsets[iii] <<
-			    " returned " << retval << endl;
-	  
-		    Think(read_delay);
+			  v_lens[iii] << "@" << v_offsets[iii] <<
+			  " returned " << retval << endl;
+			
+			iserror = true;
+			break;
+		      }
+
+		      Think(read_delay);
+		    }
+
 		}
-
-
 
 		break;
 
