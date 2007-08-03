@@ -33,9 +33,9 @@
 //____________________________________________________________________________
 void *SocketReaderThread(void * arg, XrdClientThread *thr)
 {
-   // This thread is the base for the async capabilities of TXPhyConnection
+   // This thread is the base for the async capabilities of XrdClientPhyConnection
    // It repeatedly keeps reading from the socket, while feeding the
-   // MsqQ with a stream of TXMessages containing what's happening
+   // MsqQ with a stream of XrdClientMessages containing what's happening
    // at the socket level
 
    // Mask all allowed signals
@@ -119,8 +119,10 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 
    if (fReaderthreadrunning) 
       for (int i = 0; i < READERCOUNT; i++)
-         if (fReaderthreadhandler[i])
-            fReaderthreadhandler[i]->Cancel();
+	if (fReaderthreadhandler[i]) {
+	  fReaderthreadhandler[i]->Cancel();
+	  delete fReaderthreadhandler[i];
+	}
 
    if (fSecProtocol) {
       // This insures that the right destructor is called
@@ -506,10 +508,11 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
           if (fSidManager)
 	    fSidManager->ReleaseSid(m->HeaderSID());
        
-       if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) {
-	   delete m;
-	   m = 0;
-       }
+       //       if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) {
+       delete m;
+       m = 0;
+       //       }
+
    }
   
    return m;
