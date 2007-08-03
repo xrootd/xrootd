@@ -105,7 +105,7 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
 // The file must not exist if it's declared "new". Otherwise, we must reuse the
 // file, especially in the presence of multiple filesystems
 //
-   if (stat(local_path, &buf))
+   if (!stat(local_path, &buf))
       {if (Opts & XRDOSS_new) return -EEXIST;
        do {datfd = open(local_path, Opts>>8, access_mode);}
                    while(datfd < 0 && errno == EINTR);
