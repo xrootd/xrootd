@@ -167,8 +167,10 @@ int main(int argc, char **argv) {
     switch (vectored_style) {
       case 0:
         maxtoread = 1;
-      case 4:
-        maxtoread = 20;
+	break;
+	//      case 4:
+	//        maxtoread = 20;
+	//       break;
     }
 
     if (isrooturl) {
