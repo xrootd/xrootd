@@ -164,15 +164,6 @@ int main(int argc, char **argv) {
     kXR_int64 v_offsets[10240];
     kXR_int32 v_lens[10240];
 
-    switch (vectored_style) {
-      case 0:
-        maxtoread = 1;
-	break;
-	//      case 4:
-	//        maxtoread = 20;
-	//       break;
-    }
-
     if (isrooturl) {
 	XrdClient *cli = new XrdClient(argv[1]);
 
@@ -191,7 +182,6 @@ int main(int argc, char **argv) {
 	    case 0: // no readv
 		for (int iii = 0; iii < ntoread; iii++) {
 		    retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
-		    cout.flush();
 
 		    if (retval <= 0) {
 			cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
@@ -251,8 +241,6 @@ int main(int argc, char **argv) {
 		    // Process the preceeding chunk while the last is coming
 		    for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
 			retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
-
-			cout.flush();
 
 			if (retval <= 0)
 			    cout << endl << "---Read (" << iii << " of " << ntoread << " " <<
@@ -385,7 +373,6 @@ int main(int argc, char **argv) {
 
 		retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
-		cout.flush();
 
 		if (retval <= 0) {
 		  cout << endl << "---Read (" << iii << " of " << ntoread << ") " <<
@@ -479,9 +466,6 @@ int main(int argc, char **argv) {
 
 		  retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
-		  //cout << ".";
-		  //cout.flush();
-
 		  if (retval <= 0)
 		    cout << endl << "---Read " << xrdcvec[i]->GetCurrentUrl().GetUrl() <<
 		      "(" << iii << " of " << ntoread << ") " <<
@@ -548,8 +532,6 @@ int main(int argc, char **argv) {
 
 		  retval = xrdcvec[i]->Read(buf, v_offsets[iii], v_lens[iii]);
 
-		  //cout << ".";
-		  //cout.flush();
 
 		  if (retval > 0) {
 
