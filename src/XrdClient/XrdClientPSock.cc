@@ -161,6 +161,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	     if (substreamid == 0)
 	       return TXSOCK_ERR;
 	     else {
+	       XrdSysMutexHelper mtx(fMutex);
 	       FD_CLR(sock, &globalfdinfo.fdset);
 	       RemoveParallelSock(substreamid);
 	       //ReinitFDTable();
@@ -231,6 +232,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 		  if (( GetSockId(ii) == 0 ) || ( GetSockId(ii) == -1 ))
 		      return TXSOCK_ERR;
 		  else {
+		    XrdSysMutexHelper mtx(fMutex);
 		    FD_CLR(ii, &globalfdinfo.fdset);
 		    RemoveParallelSock(GetSockId(ii));
 		    //ReinitFDTable();
@@ -373,6 +375,7 @@ int XrdClientPSock::GetSockIdHint(int reqsperstream) {
 
 
 void XrdClientPSock::PauseSelectOnSubstream(int substreamid) {
+  XrdSysMutexHelper mtx(fMutex);
 
    int sock = GetSock(substreamid);
 
@@ -383,6 +386,7 @@ void XrdClientPSock::PauseSelectOnSubstream(int substreamid) {
 
 
 void XrdClientPSock::RestartSelectOnSubstream(int substreamid) {
+  XrdSysMutexHelper mtx(fMutex);
 
    int sock = GetSock(substreamid);
 
