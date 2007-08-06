@@ -136,7 +136,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
        // This is reflected in the local fdset hence we don't have to touch it
        //       if ((!bytesread) || (substreamid == -1)) {
 
-	 if (substreamid == -1) {
+       if (substreamid == -1) {
 	   // We are interested in any sock and we are not stuck
 	   // to any in particular so we take the global fdset
 	   locfdinfo = globalfdinfo;
@@ -161,8 +161,9 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	     if (substreamid == 0)
 	       return TXSOCK_ERR;
 	     else {
+	       FD_CLR(sock, &globalfdinfo.fdset);
 	       RemoveParallelSock(substreamid);
-	       ReinitFDTable();
+	       //ReinitFDTable();
 	       return TXSOCK_ERR_TIMEOUT;
 	     }
 	   }
@@ -186,7 +187,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	     Error("XrdClientPSock::RecvRaw", "Error in select() : " <<
 		   ::strerror(errno));
 
-	     //             ReinitFDTable();
+	     ReinitFDTable();
 	     return TXSOCK_ERR;
 	 }
 
@@ -220,7 +221,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 			     length - bytesread, 0);
 
 	      // If we read nothing, the connection has been closed by the other side
-	      if (n <= 0) {
+	      if ((n <= 0)  && (errno != EINTR)) {
 		Error("XrdClientPSock::RecvRaw", "Error reading from socket " << ii << ". n=" << n <<
 		      " Error:'" <<
 		      ::strerror(errno) << "'");
@@ -230,14 +231,15 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 		  if (( GetSockId(ii) == 0 ) || ( GetSockId(ii) == -1 ))
 		      return TXSOCK_ERR;
 		  else {
-		      RemoveParallelSock(GetSockId(ii));
-		      ReinitFDTable();
-		      return TXSOCK_ERR_TIMEOUT;
+		    FD_CLR(ii, &globalfdinfo.fdset);
+		    RemoveParallelSock(GetSockId(ii));
+		    //ReinitFDTable();
+		    return TXSOCK_ERR_TIMEOUT;
 		  }
 
 	      }
-
-	      bytesread += n;
+	      
+	      if (n > 0) bytesread += n;
 	      
 	      // If we need to loop more than once to get the whole amount
 	      // of requested bytes, then we have to select only on this fd which
