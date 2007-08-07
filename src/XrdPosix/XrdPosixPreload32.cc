@@ -48,9 +48,9 @@ extern XrdPosixStream  streamX;
   
 // Macos is a curious beast. It is not an LP64 platform but offset are
 // defined as 64 bits anyway. So, the dirent structure is 64-bit conformable
-// making CopyDirent() superfluous.
+// making CopyDirent() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
-#if !defined( __macos__) && !defined(_LP64)
+#if !defined( __macos__) && !defined(_LP64) && !defined(SUNX86)
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -75,9 +75,9 @@ int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
   
 // Macos is a curious beast. It is not an LP64 platform but stat sizes are
 // defined as 64 bits anyway. So, the stat structure is 64-bit conformable
-// making CopyStat() superfluous.
+// making CopyStat() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
-#if !defined( __macos__) && !defined(_LP64)
+#if !defined( __macos__) && !defined(_LP64) && !defined(SUNX86)
 int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -109,6 +109,7 @@ int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 /*                                 c r e a t                                  */
 /******************************************************************************/
   
+#ifndef SUNX86
 extern "C"
 {
 int     creat(const char *path, mode_t mode)
@@ -118,6 +119,7 @@ int     creat(const char *path, mode_t mode)
    return xinuX.Open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 }
+#endif
 
 /******************************************************************************/
 /*                                 f c n t l                                  */
@@ -159,6 +161,7 @@ FILE  *fopen(const char *path, const char *mode)
 /*                                 f s t a t                                  */
 /******************************************************************************/
 
+#ifndef SUNX86
 extern "C"
 {
 #if defined __linux__ && __GNUC__ && __GNUC__ >= 2
@@ -192,11 +195,13 @@ int     fstat(         int fildes, struct stat *buf)
 #endif
 }
 }
+#endif
 
 /******************************************************************************/
 /*                                 l s e e k                                  */
 /******************************************************************************/
   
+#ifndef SUNX86
 extern "C"
 {
 off_t   lseek(int fildes, off_t offset, int whence)
@@ -208,11 +213,13 @@ off_t   lseek(int fildes, off_t offset, int whence)
           : Xunix.Lseek(fildes, offset, whence);
 }
 }
+#endif
 
 /******************************************************************************/
 /*                                 l s t a t                                  */
 /******************************************************************************/
 
+#ifndef SUNX86
 extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2 && defined(__linux__)
@@ -248,11 +255,13 @@ int        lstat(         const char *path, struct stat *buf)
 #endif
 }
 }
+#endif
 
 /******************************************************************************/
 /*                                  o p e n                                   */
 /******************************************************************************/
   
+#ifndef SUNX86
 extern "C"
 {
 int     open(const char *path, int oflag, ...)
@@ -267,11 +276,13 @@ int     open(const char *path, int oflag, ...)
    return xinuX.Open(path, oflag, mode);
 }
 }
+#endif
 
 /******************************************************************************/
 /*                                 p r e a d                                  */
 /******************************************************************************/
   
+#ifndef SUNX86
 extern "C"
 {
 ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
@@ -283,11 +294,13 @@ ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
           : Xunix.Pread(fildes, buf, nbyte, offset);
 }
 }
+#endif
 
 /******************************************************************************/
 /*                               r e a d d i r                                */
 /******************************************************************************/
 
+#ifndef SUNX86
 extern "C"
 {
 struct dirent* readdir(DIR *dirp)
@@ -304,11 +317,13 @@ struct dirent* readdir(DIR *dirp)
    return (struct dirent *)dp64;
 }
 }
+#endif
 
 /******************************************************************************/
 /*                             r e a d d i r _ r                              */
 /******************************************************************************/
   
+#ifndef SUNX86
 extern "C"
 {
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
@@ -334,11 +349,13 @@ int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 #endif
 }
 }
+#endif
 
 /******************************************************************************/
 /*                                  s t a t                                   */
 /******************************************************************************/
 
+#ifndef SUNX86
 extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2
@@ -373,11 +390,13 @@ int        stat(         const char *path, struct stat *buf)
 #endif
 }
 }
+#endif
 
 /******************************************************************************/
 /*                                p w r i t e                                 */
 /******************************************************************************/
   
+#ifndef SUNX86
 extern "C"
 {
 ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
@@ -389,3 +408,4 @@ ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
           : Xunix.Pwrite(fildes, buf, nbyte, offset);
 }
 }
+#endif

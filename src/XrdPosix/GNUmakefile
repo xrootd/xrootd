@@ -39,11 +39,13 @@ LIBDEP   = $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdOuc.a \
            $(LIBDIR)/libXrdSys.a
 
+LIBARCH  = $(LIBDIR)/libXrdPosix.a
+
 LIBRARY  = $(LIBDIR)/libXrdPosix.$(TYPESHLIB)
 
 LIBPLDR  = $(LIBDIR)/libXrdPosixPreload.$(TYPESHLIB)
 
-TARGETS  = $(LIBRARY) $(LIBPLDR)
+TARGETS  = $(LIBARCH) $(LIBRARY) $(LIBPLDR)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
@@ -66,7 +68,21 @@ anything: $(TARGETS)
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
 
-$(TARGETS): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
+$(LIBARCH): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
+	@echo Creating archive $(LIBARCH)
+	$(ECHO)rm -f $(LIBARCH)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	$(CC) -xar -o $(LIBARCH) $(OBJECTS); \
+	else \
+	ar -rc $(LIBARCH) $(OBJECTS); \
+	ranlib $(LIBARCH); \
+fi
+
+$(LIBPLDR): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
+	@echo Creating shared library $(LIBPLDR)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
+
+$(LIBRARY): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
 	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
 	$(ECHO)if [ "x$(TYPE)" = "xDarwin" ]; then \
@@ -74,8 +90,6 @@ $(TARGETS): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 	fi
 # MacOS X does not support linking against shared libraries so include
 # all of the objects in the preload library (yech).
-	@echo Creating shared library $(LIBPLDR)
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
 
 $(OBJDIR)/XrdPosix.o:  XrdPosix.cc XrdPosix.hh XrdPosixXrootd.hh  \
                        XrdPosixExtern.hh XrdPosixLinkage.hh XrdOucTokenizer.hh
