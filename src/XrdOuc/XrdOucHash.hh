@@ -17,12 +17,27 @@
 #include <string.h>
 #include <time.h>
 
+/*
+Hash_data_is_key - The key and data are the same so when an item is added
+                   the data pointer is set to the key address.
+Hash_replace     - When adding an item, any existing item is replaced.
+Hash_count       - The number of deletion requests must equal the number of
+                   additions before the item is actually deleted.
+Hash_keep        - When the item is added, the key is not duplicated and
+                   when the item is deleted, the key *and* data are not deleted.
+Hash_dofree      - When an item is deleted the data is released using free()
+                   instead of delete().
+Hash_keepdata    - Works like Hash_keep but only applies to the data object.
+                   When adding the entry, the key is strdup'd and when deleting
+                   an entry, the key is freed.
+*/
 enum XrdOucHash_Options {Hash_default     = 0x0000,
                         Hash_data_is_key = 0x0001,
                         Hash_replace     = 0x0002,
                         Hash_count       = 0x0004,
                         Hash_keep        = 0x0008,
-                        Hash_dofree      = 0x0010
+                        Hash_dofree      = 0x0010,
+                        Hash_keepdata    = 0x0020
                        };
   
 template<class T>
@@ -70,9 +85,10 @@ void                 SetNext(XrdOucHash_Item<T> *item) {next = item;}
 
     ~XrdOucHash_Item()
           {if (!(entopts & Hash_keep))
-              {if (keydata && keydata != (T *)keyval) 
-               if (entopts & Hash_dofree) free(keydata);
-                  else delete keydata;
+              {if (keydata && keydata != (T *)keyval 
+               && !(entopts & Hash_keepdata))
+                  if (entopts & Hash_dofree) free(keydata);
+                     else delete keydata;
                if (keyval)  free((void *)keyval);
               }
            keydata = 0; keyval = 0; keycount = 0;
