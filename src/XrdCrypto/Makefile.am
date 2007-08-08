@@ -15,6 +15,17 @@ EXTRA_DIST = XrdCryptosslX509Store.cc XrdCryptosslX509Store.hh
 lib_LTLIBRARIES = libXrdCrypto.la
 noinst_LTLIBRARIES = libXrdSSLutil.la
 
+xrdcryptoincdir = $(includedir)/xrootd/XrdCrypto
+xrdcryptoinc_HEADERS = \
+      PC1.hh                   XrdCryptolocalFactory.hh  XrdCryptosslgsiX509Chain.hh  XrdCryptosslX509Store.hh \
+      PC3.hh                   XrdCryptoMsgDigest.hh     XrdCryptosslMsgDigest.hh     XrdCryptoTrace.hh \
+      XrdCryptoAux.hh          XrdCryptoRSA.hh           XrdCryptosslRSA.hh           XrdCryptoX509Chain.hh \
+      XrdCryptoBasic.hh        XrdCryptosslAux.hh        XrdCryptosslTrace.hh         XrdCryptoX509Crl.hh \
+      XrdCryptoCipher.hh       XrdCryptosslCipher.hh     XrdCryptosslX509Crl.hh       XrdCryptoX509.hh \
+      XrdCryptoFactory.hh      XrdCryptosslFactory.hh    XrdCryptosslX509.hh          XrdCryptoX509Req.hh \
+      XrdCryptolocalCipher.hh  XrdCryptosslgsiAux.hh     XrdCryptosslX509Req.hh
+
+
 check_PROGRAMS = xrdcryptotest
 
 INCLUDES = -I$(top_srcdir)/src $(OPENSSL_INCDIR) $(KRB5_INCDIR)

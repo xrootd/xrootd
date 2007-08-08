@@ -10,11 +10,11 @@
 
 xrootdsysincdir = $(includedir)/xrootd/XrdSys
 
-xrootdsysinc_HEADERS = XrdSysDir.hh XrdSysPlugin.hh XrdSysPriv.hh \
-                       XrdSysPlatform.hh XrdSysPthread.hh \
-                       XrdSysPlugin.hh XrdSysPriv.hh \
-                       XrdSysPlatform.hh XrdSysPthread.hh \
-                       XrdSysSemWait.hh XrdSysTimer.hh XrdSysXSLock.hh
+xrootdsysinc_HEADERS = \
+     XrdSysDir.hh    XrdSysLogger.hh    XrdSysPlugin.hh \
+     XrdSysPthread.hh  XrdSysTimer.hh   XrdWin32.hh \
+     XrdSysError.hh  XrdSysPlatform.hh  XrdSysPriv.hh \
+     XrdSysSemWait.hh  XrdSysXSLock.hh
 
 lib_LTLIBRARIES = libXrdSys.la
 

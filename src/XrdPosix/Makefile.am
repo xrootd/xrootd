@@ -8,7 +8,7 @@
 ## Checked in by $Author$
 #######################################################################
 
-lib_LTLIBRARIES = libXrdPosix.la
+lib_LTLIBRARIES = libXrdPosix.la libXrdPosixPreload.la
 
 # N.B.: XrdPosixXrootd.hh includes XrdSysPthread.hh!
 xrootdposixincdir = $(includedir)/xrootd/XrdPosix
@@ -23,5 +23,20 @@ libXrdPosix_la_SOURCES = \
         XrdPosixXrootd.cc
 
 libXrdPosix_la_LIBADD = ../XrdClient/libXrdClient.la \
+                        ../XrdSec/libXrdSec.la \
                         ../XrdNet/libXrdNet.la \
-                        ../XrdOuc/libXrdOuc.la
+                        ../XrdOuc/libXrdOuc.la \
+                        ../XrdSys/libXrdSys.la
+
+libXrdPosixPreload_la_SOURCES = \
+         XrdPosixPreload.cc  \
+         XrdPosixLinkage.cc \
+         XrdPosixXrootd.cc \
+         XrdPosixStream.cc \
+         XrdPosix.cc  
+
+libXrdPosixPreload_la_LIBADD = ../XrdClient/libXrdClient.la \
+                         ../XrdNet/libXrdNet.la \
+                         ../XrdOuc/libXrdOuc.la \
+                         ../XrdSec/libXrdSec.la \
+                         ../XrdSys/libXrdSys.la
