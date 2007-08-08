@@ -88,6 +88,8 @@ int XrdOlbPrepare::Add(XrdOlbPrepArgs &pargs)
        pdata[9] = pargs.path;                 pdlen[9] = strlen(pargs.path);
        pdata[10] = (char *)"\n";              pdlen[10] = 1;
        pdata[11]= 0;                          pdlen[11]= 0;
+      if (!(rc = prepSched.Put((const char **)pdata, (const int *)pdlen)))
+         if (!PTable.Add(pargs.path, 0, 0, Hash_data_is_key)) NumFiles++;
       } else {
        int Oflag = (index(pargs.mode, (int)'w') ? O_RDWR : 0);
        mode_t Prty = atoi(pargs.prty);
@@ -97,10 +99,9 @@ int XrdOlbPrepare::Add(XrdOlbPrepArgs &pargs)
        int k = prepMsg->Subs(Info, pdata, pdlen);
        pdata[k]   = (char *)"\n"; pdlen[k++] = 1;
        pdata[k]   = 0;            pdlen[k]   = 0;
+       if (!(rc = prepSched.Put((const char **)pdata, (const int *)pdlen)))
+          if (!PTable.Add(pargs.path, 0, 0, Hash_data_is_key)) NumFiles++;
       }
-
-   if (!(rc = prepSched.Put((const char **)pdata, (const int *)pdlen)))
-      if (!PTable.Add(pargs.path, 0, 0, Hash_data_is_key)) NumFiles++;
 
 // All done
 //
