@@ -259,6 +259,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
          i=sprintf(fwbuff,"%d %d ",evsObject->maxSmsg(),evsObject->maxLmsg());
          setBuff(fwbuff, i);
          cloc = evsObject->Prog();
+         if (*cloc != '>') setBuff("|",1);
          setBuff(cloc, strlen(cloc));
          setBuff("\n", 1);
          Eroute.Say(buff);
