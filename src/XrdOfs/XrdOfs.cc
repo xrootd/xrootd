@@ -510,6 +510,12 @@ int XrdOfsFile::open(const char          *path,      // In
           } else {
             if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
             open_flag  = O_RDWR|O_TRUNC;
+            if (XrdOfsFS.evsObject 
+            &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Create))
+               {char buff[8];
+                sprintf(buff, "%o", Mode);
+                XrdOfsFS.evsObject->Notify(XrdOfsEvs::Create,tident,buff,path);
+               }
           }
        mp->Lock();
 

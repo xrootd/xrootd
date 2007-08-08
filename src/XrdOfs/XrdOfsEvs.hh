@@ -29,9 +29,9 @@ static const int   maxMsgSize = (16+320+1024+1024);
 
 enum Event {All    = 0xffff, None   = 0x0000, Chmod  = 0x0001,
             Closer = 0x0002, Closew = 0x0004, Close  = 0x0006,
-            Mkdir  = 0x0008, Mv     = 0x0010,
-            Openr  = 0x0020, Openw  = 0x0040, Open   = 0x0060,
-            Rm     = 0x0080, Rmdir  = 0x0100, Fwrite = 0x0200
+            Create = 0x0008, Mkdir  = 0x0010, Mv     = 0x0020,
+            Openr  = 0x0040, Openw  = 0x0080, Open   = 0x00c0,
+            Rm     = 0x0100, Rmdir  = 0x0200, Fwrite = 0x0400
            };
 
 int         Enabled(Event theEvents) {return theEvents & enEvents;}

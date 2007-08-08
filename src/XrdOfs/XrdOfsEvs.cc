@@ -101,6 +101,7 @@ void XrdOfsEvs::Notify(Event theEvent, const char *tident,
         {case XrdOfsEvs::Chmod:  evName = "chmod";  break;
          case XrdOfsEvs::Closer: evName = "closer"; break;
          case XrdOfsEvs::Closew: evName = "closew"; break;
+         case XrdOfsEvs::Create: evName = "create"; break;
          case XrdOfsEvs::Mkdir:  evName = "mkdir";  break;
          case XrdOfsEvs::Mv:     evName = "mv";
                                  isBig  = 1;        break;

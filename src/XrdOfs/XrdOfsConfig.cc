@@ -247,6 +247,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
          if (evsObject->Enabled(XrdOfsEvs::Chmod))  setBuff("chmod ",  6);
          if (evsObject->Enabled(XrdOfsEvs::Closer)) setBuff("closer ", 7);
          if (evsObject->Enabled(XrdOfsEvs::Closew)) setBuff("closew ", 7);
+         if (evsObject->Enabled(XrdOfsEvs::Create)) setBuff("create ", 7);
          if (evsObject->Enabled(XrdOfsEvs::Mkdir))  setBuff("mkdir ",  6);
          if (evsObject->Enabled(XrdOfsEvs::Mv))     setBuff("mv ",     3);
          if (evsObject->Enabled(XrdOfsEvs::Openr))  setBuff("openr ",  6);
@@ -258,7 +259,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
          i=sprintf(fwbuff,"%d %d ",evsObject->maxSmsg(),evsObject->maxLmsg());
          setBuff(fwbuff, i);
          cloc = evsObject->Prog();
-         setBuff("pgm ", 4); setBuff(cloc, strlen(cloc));
+         setBuff(cloc, strlen(cloc));
          setBuff("\n", 1);
          Eroute.Say(buff);
         }
@@ -607,6 +608,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
         {"close",    XrdOfsEvs::Close},
         {"closer",   XrdOfsEvs::Closer},
         {"closew",   XrdOfsEvs::Closew},
+        {"create",   XrdOfsEvs::Create},
         {"mkdir",    XrdOfsEvs::Mkdir},
         {"mv",       XrdOfsEvs::Mv},
         {"open",     XrdOfsEvs::Open},
@@ -619,7 +621,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
     XrdOfsEvs::Event noval = XrdOfsEvs::None;
     int numopts = sizeof(noopts)/sizeof(struct notopts);
     int i, neg, msgL = 90, msgB = 10;
-    char *val;
+    char *val, parms[1024];
 
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("Config", "notify parameters not specified"); return 1;}
@@ -654,12 +656,14 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
    if (!val)   {Eroute.Emsg("Config","notify program not specified");return 1;}
    if (!noval) {Eroute.Emsg("Config","notify events not specified"); return 1;}
 
-// Check if a program or message path is here (we do not free msgPath)
+// Get the remaining parameters
 //
-   if (*val != '>') 
-      {*val = ' ';
-       Config.RetToken();
-      }
+   Config.RetToken();
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "authlib parameters too long"); return 1;}
+   val = (*parms == '|' ? parms+1 : parms);
+
+// Get the remaining
 
 // Create an notification object
 //
