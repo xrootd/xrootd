@@ -36,5 +36,6 @@ libXrdOfs_la_LIBADD = ../XrdAcc/libXrdAcc.la \
                       ../XrdOss/libXrdOss.la \
                       ../XrdOdc/libXrdOdc.la \
                       ../XrdNet/libXrdNet.la \
-                      ../XrdOuc/libXrdOuc.la
+                      ../XrdOuc/libXrdOuc.la \
+                      ../XrdSys/libXrdSys.la
 
