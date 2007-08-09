@@ -71,11 +71,20 @@ int XrdOssSys::Unlink(const char *path)
     if (remotefs && (retc=un_file.Serialize(local_path,XrdOssDIR|XrdOssEXC)) < 0)
        return retc;
 
-// Check if this path is really a symbolic link elsewhere
+// Check if this path is really a directory of a symbolic link elsewhere
 //
     if (lstat(local_path, &statbuff)) retc = (errno == ENOENT ? 0 : -errno);
        else if ((statbuff.st_mode & S_IFMT) == S_IFLNK)
                retc = BreakLink(local_path, statbuff);
+               else if ((statbuff.st_mode & S_IFMT) == S_IFDIR)
+                       {if (remotefs) 
+                           {un_file.UnSerialize(0);
+                            un_file.NoSerialize(local_path, XrdOssDIR);
+                           }
+                        if (rmdir(local_path)) retc = -errno;
+                        DEBUG("dir rc=" <<retc <<" path=" <<local_path);
+                        return retc;
+                       }
 
 // Delete the local copy and every valid suffix variation
 //
