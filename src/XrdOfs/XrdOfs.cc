@@ -512,8 +512,8 @@ int XrdOfsFile::open(const char          *path,      // In
             open_flag  = O_RDWR|O_TRUNC;
             if (XrdOfsFS.evsObject 
             &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Create))
-               {char buff[8];
-                sprintf(buff, "%o", Mode);
+               {char buff[16];
+                sprintf(buff, "%o", (Mode & S_IAMB));
                 XrdOfsFS.evsObject->Notify(XrdOfsEvs::Create,tident,buff,path);
                }
           }
@@ -1413,7 +1413,7 @@ int XrdOfs::remove(const char              type,    // In
    const char *tident = einfo.getErrUser();
    const char *fSpec;
    XrdOucEnv rem_Env(info);
-   XTRACE(remove, path, "");
+   XTRACE(remove, path, type);
 
 // Apply security, as needed
 //
