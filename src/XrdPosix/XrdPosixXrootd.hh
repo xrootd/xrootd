@@ -43,7 +43,7 @@ static int     Fsync(int fildes);
 
 static int     Mkdir(const char *path, mode_t mode);
 
-static int     Open(const char *path, int oflag, int mode=0);
+static int     Open(const char *path, int oflag, mode_t mode=0);
 
 static DIR*    Opendir(const char *path);
   
@@ -108,6 +108,7 @@ static XrdPosixDir          *findDIR(DIR *dirp, int glk=0);
 static void                  initStat(struct stat *buf);
 static void                  initXdev(dev_t &st_dev, dev_t &st_rdev);
 static int                   mapFlags(int flags);
+static int                   mapMode(mode_t Mode);
 
 static XrdSysMutex    myMutex;
 static const  int     FDMask;

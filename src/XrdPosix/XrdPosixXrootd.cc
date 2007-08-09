@@ -533,12 +533,21 @@ int     XrdPosixXrootd::Fsync(int fildes)
 int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 {
   XrdPosixAdminNew admin(path);
+  int uMode = 0, gMode = 0, oMode = 0;
 
   if (admin.isOK())
      {XrdOucString str(path);
       XrdClientUrlSet url(str);
-      if (admin.Admin.Mkdir(url.GetFile().c_str(), mode && S_IRWXU,
-                                  mode && S_IRWXG, mode && S_IRWXO)) return 0;
+      if (mode & S_IRUSR) uMode |= 4;
+      if (mode & S_IWUSR) uMode |= 2;
+      if (mode & S_IXUSR) uMode |= 1;
+      if (mode & S_IRGRP) gMode |= 4;
+      if (mode & S_IWGRP) gMode |= 2;
+      if (mode & S_IXGRP) gMode |= 1;
+      if (mode & S_IROTH) oMode |= 4;
+      if (mode & S_IXOTH) oMode |= 1;
+      if (admin.Admin.Mkdir(url.GetFile().c_str(), uMode, gMode, oMode))
+         return 0;
       return admin.Fault();
      }
   return admin.Result();
@@ -548,7 +557,7 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 /*                                  O p e n                                   */
 /******************************************************************************/
   
-int     XrdPosixXrootd::Open(const char *path, int oflags, int mode)
+int     XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode)
 {
    XrdPosixFile *fp;
    int retc = 0, fd, XOflags, XMode;
@@ -576,20 +585,11 @@ int     XrdPosixXrootd::Open(const char *path, int oflags, int mode)
 
 // Translate the mode, if need be
 //
-   XMode = 0;
-   if (mode && (oflags & O_CREAT))
-      {if (mode & S_IRUSR) XMode |= kXR_ur;
-       if (mode & S_IWUSR) XMode |= kXR_uw;
-       if (mode & S_IXUSR) XMode |= kXR_ux;
-       if (mode & S_IRGRP) XMode |= kXR_gr;
-       if (mode & S_IWGRP) XMode |= kXR_gw;
-       if (mode & S_IXGRP) XMode |= kXR_gx;
-       if (mode & S_IROTH) XMode |= kXR_or;
-      }
+   XMode = (mode && (oflags & O_CREAT) ? mapMode(mode) : 0);
 
 // Open the file
 //
-   if (!fp->XClient->Open(mode, XOflags)
+   if (!fp->XClient->Open(XMode, XOflags)
    || (fp->XClient->LastServerResp()->status) != kXR_ok)
       {retc = Fault(fp, 0);
        myMutex.Lock();
@@ -1221,4 +1221,24 @@ int XrdPosixXrootd::mapFlags(int flags)
    if (flags & kXR_offline) newflags |= S_ISVTX;
 
    return newflags;
+}
+
+/******************************************************************************/
+/*                               m a p M o d e                                */
+/******************************************************************************/
+  
+int XrdPosixXrootd::mapMode(mode_t mode)
+{  int XMode = 0;
+
+// Map the mode
+//
+   if (mode & S_IRUSR) XMode |= kXR_ur;
+   if (mode & S_IWUSR) XMode |= kXR_uw;
+   if (mode & S_IXUSR) XMode |= kXR_ux;
+   if (mode & S_IRGRP) XMode |= kXR_gr;
+   if (mode & S_IWGRP) XMode |= kXR_gw;
+   if (mode & S_IXGRP) XMode |= kXR_gx;
+   if (mode & S_IROTH) XMode |= kXR_or;
+   if (mode & S_IXOTH) XMode |= kXR_ox;
+   return XMode;
 }
