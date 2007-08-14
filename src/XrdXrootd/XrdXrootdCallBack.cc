@@ -39,8 +39,7 @@ static XrdXrootdCBJob *Alloc(XrdXrootdCallBack *cbF, XrdOucErrInfo *erp, int rva
 
        void            DoIt();
 
-inline void            Recycle(){delete eInfo;
-                                 myMutex.Lock();
+inline void            Recycle(){myMutex.Lock();  // eInfo is deleted elsewhere
                                  Next = FreeJob;
                                  FreeJob = this;
                                  myMutex.UnLock();
@@ -95,7 +94,9 @@ XrdXrootdCBJob *XrdXrootdCBJob::Alloc(XrdXrootdCallBack *cbF,
 //
    myMutex.Lock();
    if (!(cbj = FreeJob)) cbj = new XrdXrootdCBJob(cbF, erp, rval);
-      else {cbj->cbFunc = cbF, cbj->eInfo = erp; cbj->Result = rval;}
+      else {cbj->cbFunc = cbF, cbj->eInfo = erp; 
+            cbj->Result = rval;FreeJob = cbj->Next;
+           }
    myMutex.UnLock();
 
 // Return the new object
