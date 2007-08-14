@@ -119,7 +119,9 @@ void XrdOdcResp::Reply(const char *Man, char *msg)
             if (!(colon = index(msg, (int)':'))) msgval = 0;
                else {msgval = atoi(colon+1);
                      if (!(opaque = index(colon, (int)'?'))) *colon = '\0';
-                        else strcpy(colon, opaque);
+                     else {*opaque = '\0'; *colon = '?';
+                           memmove(colon+1, opaque+1, strlen(opaque+1)+1);
+                          }
                     }
             TRACE(Redirect, UserID <<" redirected to " <<msg
                   <<':' <<msgval <<" by " << Man);
