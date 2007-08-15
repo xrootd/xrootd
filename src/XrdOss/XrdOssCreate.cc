@@ -106,7 +106,8 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
 // file, especially in the presence of multiple filesystems
 //
    if (!stat(local_path, &buf))
-      {if (Opts & XRDOSS_new) return -EEXIST;
+      {if (Opts & XRDOSS_new)     return -EEXIST;
+       if (buf.st_mode & S_IFDIR) return -EISDIR;
        do {datfd = open(local_path, Opts>>8, access_mode);}
                    while(datfd < 0 && errno == EINTR);
            if (datfd < 0) return -errno;
@@ -162,11 +163,6 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
            datfd = Alloc_Cache(local_path, Opts>>8, access_mode, env);
       else datfd = Alloc_Local(local_path, Opts>>8, access_mode, env);
 
-// Diagnose file creation problems at this point
-//
-   if (datfd < 0) retc = datfd;
-      else retc = XrdOssOK;
-
 // If successful, appropriately manage the locks.
 //
    if (datfd >= 0)
@@ -175,13 +171,8 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
                 >= 0) new_file.UnSerialize(0);
            if (remotefs) path_dir.UnSerialize(0);
           }
-       close(datfd);
-      } else {
-       if (datfd == -EEXIST)
-          {do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
-           if (!retc && (buf.st_mode & S_IFDIR)) datfd = -EISDIR;
-          }
-      }
+       close(datfd); retc = XrdOssOK;
+      } else         retc = datfd;
 
 // All done.
 //
@@ -267,7 +258,8 @@ int XrdOssSys::Alloc_Cache(const char *path, int Oflag, mode_t amode,
 // Now create a symbolic link to the target and adjust free space
 //
    if (datfd < 0) datfd = -errno;
-      else if (symlink(pbuff, path))
+      else if ((symlink(pbuff, path) && errno != EEXIST)
+           || unlink(path) || symlink(pbuff, path))
               {rc = -errno; close(datfd); unlink(pbuff); datfd = rc;}
               else fsp_sel->fsdata->frsz -= size;
 
