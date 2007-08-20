@@ -24,6 +24,17 @@
 
 using namespace std;
 
+// To print out the last server error info
+//____________________________________________________________________________
+void PrintLastServerError(XrdClient *cli) {
+  struct ServerResponseBody_Error *e;
+
+  if ( cli && (e = cli->LastServerError()) )
+    cerr << "Last server error " << e->errnum << " ('" << e->errmsg << "')" <<
+      endl;
+
+}
+
 
 XrdCpWorkLst::XrdCpWorkLst() {
    fWorkList.Clear();
@@ -83,6 +94,7 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
 	 }
 	 else {
 	    // It was not opened, nor it was a dir.
+  	    PrintLastServerError(*srccli);
 	    return 1;
 	    //fWorkList.Push_back(fSrc);
 	 }
@@ -194,8 +206,10 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
 	       // Anyway, it's ok
 	       retval = 0;
 	    }
-	    else
+	    else {
+	       PrintLastServerError(*xrddest);
 	       retval = 1;
+	    }
 	    
 	    // If the file has not been opened for writing,
 	    // there is no need to keep this instance alive.

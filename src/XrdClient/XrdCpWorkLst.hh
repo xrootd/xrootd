@@ -15,6 +15,7 @@
 #include "XrdClient/XrdClient.hh"
 
 class XrdSysDir;
+void PrintLastServerError(XrdClient *cli);
 
 class XrdCpWorkLst {
 

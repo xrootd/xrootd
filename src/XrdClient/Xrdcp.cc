@@ -159,16 +159,7 @@ void print_md5(const char* src, unsigned long long bytesread, XrdCryptoMsgDigest
 }
 
 
-// To print out the last server error info
-//____________________________________________________________________________
-void PrintLastServerError(XrdClient *cli) {
-  struct ServerResponseBody_Error *e;
 
-  if ( cli && (e = cli->LastServerError()) )
-    cerr << "Last server error " << e->errnum << " ('" << e->errmsg << "')" <<
-      endl;
-
-}
 
 
 // The body of a thread which reads from the global
@@ -992,7 +983,6 @@ int main(int argc, char**argv) {
   
    if (wklst->SetSrc(&cpnfo.XrdCli, srcpath, srcopaque, recurse)) {
      cerr << "Error accessing path/file for " << srcpath << endl;
-     PrintLastServerError(cpnfo.XrdCli);
      exit(1);
    }
 

@@ -326,7 +326,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 	     // no connection attempts in progress and no already established connections
 	     // Mark this as an ongoing attempt
 	     // Now we have a pending conn attempt
-	     fConnectingCondVars.Rep(strdup(key1.c_str()), new CndVarInfo(), 0, Hash_keep);
+	     fConnectingCondVars.Rep(key1.c_str(), new CndVarInfo(), 0, Hash_keepdata);
 	   }
 	 }
 
@@ -423,7 +423,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
       if (!phyfound) {
          if (!phyconn)
 	    Error("Connect"," problems connecting to " << key1);
-  	 fPhyHash.Rep(strdup(key1.c_str()), phyconn, 0, Hash_keep);
+  	 fPhyHash.Rep(key1.c_str(), phyconn, 0, Hash_keepdata);
       }
 
 //
