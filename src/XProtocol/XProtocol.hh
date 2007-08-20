@@ -574,12 +574,6 @@ struct ServerInitHandShake {
 
 typedef kXR_int32 ServerResponseType;
 
-// A connection towards a Load Balancer timeouts after many seconds of no use
-#define DLBD_TTL 600
-
-// A connection towards a data server timeouts quickly
-#define DATA_TTL 30
-
 struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
    char chkszrsp[ 9-sizeof(ServerResponseHeader)];
 };
