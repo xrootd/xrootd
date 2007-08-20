@@ -138,7 +138,7 @@ int DestroyPhyConn(const char *key,
   assert(cmgr != 0);
 
   if (p) {
-    
+    p->UnsolicitedMsgHandler = 0;
     delete(p);
   }
 
@@ -517,7 +517,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
 	 // Note that here we cannot destroy the phyconn, since there can be other 
 	 // logconns pointing to it the phyconn will be removed when there are no 
 	 // more logconns pointing to it
-
+ 	 fLogVec[LogConnectionID]->GetPhyConnection()->UnsolicitedMsgHandler = 0;
 	 fLogVec[LogConnectionID]->GetPhyConnection()->Disconnect();
 	 GarbageCollect();
       }

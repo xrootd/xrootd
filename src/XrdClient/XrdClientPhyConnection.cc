@@ -276,6 +276,7 @@ void XrdClientPhyConnection::Disconnect()
       Info(XrdClientDebug::kHIDEBUG,
 	   "PhyConnection", "Disconnecting socket...");
       fSocket->Disconnect();
+
    }
 
    // We do not destroy the socket here. The socket will be destroyed
