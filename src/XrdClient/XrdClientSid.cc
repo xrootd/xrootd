@@ -86,6 +86,30 @@ void XrdClientSid::ReleaseSid(kXR_unt16 sid) {
 };
 
 
+
+//_____________________________________________________________________________
+int ReleaseSidTreeItem(kXR_unt16 key,
+		       struct SidInfo si, void *arg) {
+
+  kXR_unt16 *pfathersid = static_cast<kXR_unt16 *>(arg);
+
+  // If the sid we have is a son of the given father then delete it
+  if (si.fathersid == *pfathersid) return -1;
+  return 0;
+
+}
+
+// Releases a sid and all its childs
+void XrdClientSid::ReleaseSidTree(kXR_unt16 fathersid) {
+   XrdSysMutexHelper l(fMutex);
+   childsidnfo.Apply(ReleaseSidTreeItem, static_cast<void *>(&fathersid));
+  
+   freesids.Push_back(fathersid);
+   
+
+}
+
+
 static int printoutreq(kXR_unt16,
                        struct SidInfo p, void *) {
 

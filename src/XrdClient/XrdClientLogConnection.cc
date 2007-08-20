@@ -38,7 +38,7 @@ XrdClientLogConnection::~XrdClientLogConnection() {
    if (fPhyConnection)
       fPhyConnection->CountLogConn(-1);
    if (fSidManager) 
-      fSidManager->ReleaseSid(fStreamid);
+      fSidManager->ReleaseSidTree(fStreamid);
 }
 
 //_____________________________________________________________________________

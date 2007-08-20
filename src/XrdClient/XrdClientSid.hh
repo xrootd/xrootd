@@ -74,6 +74,9 @@ class XrdClientSid {
    // Its info is rmeoved from the tree
    void ReleaseSid(kXR_unt16 sid);
 
+   // Releases a sid and all its childs
+   void ReleaseSidTree(kXR_unt16 fathersid);
+
    // 0 if non existent as a child sid
    inline struct SidInfo *GetSidInfo(kXR_unt16 sid) {
       XrdSysMutexHelper l(fMutex);
