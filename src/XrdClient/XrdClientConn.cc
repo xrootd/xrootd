@@ -1184,7 +1184,7 @@ bool XrdClientConn::GetAccessToSrv()
 	     "Ok: the server on [" <<
 	     fUrl.Host << ":" << fUrl.Port << "] is an xrootd redirector.");
       
-	logconn->GetPhyConnection()->SetTTL(DLBD_TTL);
+	logconn->GetPhyConnection()->SetTTL(EnvGetLong(NAME_LBSERVERCONN_TTL));
 
 	break;
 
@@ -1195,7 +1195,7 @@ bool XrdClientConn::GetAccessToSrv()
 	      "Ok, the server on [" <<
 	      fUrl.Host << ":" << fUrl.Port << "] is an xrootd data server.");
 
-	logconn->GetPhyConnection()->SetTTL(DATA_TTL);        // = DATA_TTL;
+	logconn->GetPhyConnection()->SetTTL(EnvGetLong(NAME_DATASERVERCONN_TTL));
 
 	break;
     }

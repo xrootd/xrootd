@@ -172,7 +172,7 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
 
    Touch();
 
-   fTTLsec = DATA_TTL;
+   fTTLsec = EnvGetLong(NAME_DATASERVERCONN_TTL);
 
    if (isUnix) {
       Info(XrdClientDebug::kHIDEBUG, "Connect", "Connected to " << RemoteHost.File);
