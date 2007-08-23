@@ -90,6 +90,7 @@ extern XrdOucTrace     XrdTrace;
        XrdSysMutex     XrdLink::statsMutex;
 
        const char     *XrdLinkScan::TraceID = "LinkScan";
+       int             XrdLink::devNull = open("/dev/null", O_RDONLY);
 
 // The following values are defined for LinkBat[]. We assume that FREE is 0
 //
@@ -246,13 +247,27 @@ int XrdLink::Client(char *nbuf, int nbsz)
 /*                                 C l o s e                                  */
 /******************************************************************************/
   
-int XrdLink::Close()
+int XrdLink::Close(int defer)
 {   int csec, fd, rc = 0;
+
+// If a defer close is requested, we can close the descriptor but we must
+// keep the slot number to prevent a new client getting the same fd number.
+//
+   opMutex.Lock();
+   if (defer)
+      {TRACE(DEBUG, "Defered close " <<ID <<" FD=" <<FD);
+       if (FD > 1)
+          {if (!KeepFD) dup2(devNull, FD);
+           FD = -FD;
+           Instance = 0;
+          }
+       opMutex.UnLock();
+       return 0;
+      }
 
 // Multiple protocols may be bound to this link. If it is in use, defer the
 // actual close until the use count drops to zero.
 //
-   opMutex.Lock();
    InUse--;
    if (InUse > 0) 
       {opMutex.UnLock();
@@ -287,7 +302,7 @@ int XrdLink::Close()
        LinkBat[fd] = XRDLINK_FREE;
        if (fd == LTLast) while(LTLast && !(LinkBat[LTLast])) LTLast--;
        LTMutex.UnLock();
-      } else {FD = -1; opMutex.UnLock();}
+      } else opMutex.UnLock();
 
 // Close the file descriptor if it isn't being shared. Do it as the last
 // thing because closes and accepts and not interlocked.
@@ -525,6 +540,28 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
         }
 
    return int(totlen);
+}
+
+
+/******************************************************************************/
+/*                               R e c v A l l                                */
+/******************************************************************************/
+  
+int XrdLink::RecvAll(char *Buff, int Blen)
+{
+   ssize_t rlen;
+
+// Note that we will block until we receive all he bytes.
+//
+   if (LockReads) rdMutex.Lock();
+   isIdle = 0;
+   do {rlen = recv(FD,Buff,Blen,MSG_WAITALL);} while(rlen < 0 && errno == EINTR);
+   if (LockReads) rdMutex.UnLock();
+
+   if (int(rlen) == Blen) return Blen;
+   if (rlen < 0) XrdLog.Emsg("Link", errno, "recieve from", Lname);
+      else       XrdLog.Emsg("Link", "Premature end of recv().");
+   return -1;
 }
 
 /******************************************************************************/
