@@ -599,6 +599,46 @@ XrdClientLogConnection *XrdClientConnectionMgr::GetConnection(short int LogConne
 
 }
 
+//____________________________________________________________________________
+XrdClientPhyConnection *XrdClientConnectionMgr::GetPhyConnection(XrdClientUrlInfo server)
+{
+  // Gets pointer to the physical connection to 'server', if any.
+  // Return 0 if none is found.
+
+  XrdClientPhyConnection *p = 0;
+
+  // If empty, fill the user name with the default to avoid fake mismatches
+  if (server.User.length() <= 0) {
+#ifndef WIN32
+    struct passwd *pw = getpwuid(getuid());
+    server.User = (pw) ? pw->pw_name : "";
+#else
+    char  name[256];
+    DWORD length = sizeof (name);
+    ::GetUserName(name, &length);
+    server.User = name;
+#endif
+  }
+
+  // Keys
+  XrdOucString key;
+  XrdOucString key1(server.User.c_str(), 256); key1 += '@';
+  key1 += server.Host; key1 += ':'; key1 += server.Port;
+  XrdOucString key2(server.User.c_str(), 256); key2 += '@';
+  key2 += server.HostAddr; key2 += ':'; key2 += server.Port;
+
+  if (fPhyHash.Num() > 0) {
+    if (((p = fPhyHash.Find(key1.c_str())) ||
+	 (p = fPhyHash.Find(key2.c_str()))) && !(p->IsValid())) {
+      // We found an invalid connection: do not use it
+      p = 0;
+    }
+  }
+
+  // Done
+  return p;
+}
+
 //_____________________________________________________________________________
 UnsolRespProcResult XrdClientConnectionMgr::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                              XrdClientMessage *unsolmsg)

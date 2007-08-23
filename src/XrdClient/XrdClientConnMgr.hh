@@ -85,6 +85,7 @@ public:
 
    XrdClientLogConnection 
                  *GetConnection(short LogConnectionID);
+   XrdClientPhyConnection *GetPhyConnection(XrdClientUrlInfo server);
 
    XrdClientMessage*   
                  ReadMsg(short LogConnectionID);
