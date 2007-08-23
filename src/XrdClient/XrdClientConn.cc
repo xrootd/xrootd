@@ -1755,6 +1755,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
               // An explicit redir overwrites token and opaque info
               ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
               // Save it in fREQUrl
+              fREQUrl = fUrl;
               fREQUrl.Host = newhost;
               fREQUrl.Port = newport;
               // Reset counter

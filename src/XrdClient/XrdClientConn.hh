@@ -252,6 +252,7 @@ protected:
 
     XrdClientUrlInfo           fUrl;                // The current URL
     XrdClientUrlInfo           *fLBSUrl;            // Needed to save the load balancer url
+    XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
 
     short                      fGlobalRedirCnt;    // Number of redirections
 
@@ -280,7 +281,6 @@ private:
     ServerResponseBody_Attn_asynresp *
                                fREQWaitRespData;        // For explicitly requested delayed async responses
 
-    XrdClientUrlInfo           fREQUrl;             // For explicitly requested redirs
     time_t                     fREQWaitTimeLimit;   // For explicitly requested pause state
     XrdSysCondVar              *fREQWait;           // For explicitly requested pause state
     time_t                     fREQConnectWaitTimeLimit;   // For explicitly requested delayed reconnect

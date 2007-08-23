@@ -21,28 +21,29 @@ bool XrdClientAdminConn::SendGenCommand(ClientRequest *req, const void *reqMoreD
                                         char *CmdName,
                                         int substreamid)
 {
-    // SendGenCommand tries to send a single command for a number of times 
+   // SendGenCommand tries to send a single command for a number of times 
 
-    // Notify
-    Info(XrdClientDebug::kHIDEBUG, "XrdClientAdminConn::SendGenCommand",
-        " CmdName: " << CmdName << ", fInit: " << fInit);
+   // Notify
+   Info(XrdClientDebug::kHIDEBUG, "XrdClientAdminConn::SendGenCommand",
+                                  " CmdName: " << CmdName << ", fInit: " << fInit);
 
-    // Run the command
-    bool fInitSv = fInit;
-    fInit = 0;
-    fRedirected = 0;
-    bool rc = XrdClientConn::SendGenCommand(req, reqMoreData, answMoreDataAllocated, 
-                                            answMoreData, HasToAlloc,
-                                            CmdName, substreamid);
-    fInit = fInitSv;
-    if (fInit && fRedirected) {
-       if (GoToAnotherServer(*GetLBSUrl()) != kOK)
-          return 0;
-       fGlobalRedirCnt = 0;
-    }
+   // Run the command
+   bool fInitSv = fInit;
+   fInit = 0;
+   fRedirected = 0;
+   fREQUrl = fUrl;
+   bool rc = XrdClientConn::SendGenCommand(req, reqMoreData, answMoreDataAllocated, 
+                                           answMoreData, HasToAlloc,
+                                           CmdName, substreamid);
+   fInit = fInitSv;
+   if (fInit && fRedirected) {
+      if (GoToAnotherServer(*GetLBSUrl()) != kOK)
+         return 0;
+      fGlobalRedirCnt = 0;
+   }
 
-    //  Done
-    return rc;
+   //  Done
+   return rc;
 }
 
 //_____________________________________________________________________________
@@ -68,7 +69,10 @@ XReqErrorType XrdClientAdminConn::GoToAnotherServer(XrdClientUrlInfo newdest)
    }
    //
    // Set fUrl to the new data/lb server if the connection has been succesfull
-   fUrl = newdest;
+   fREQUrl.Host = fUrl.Host;
+   fREQUrl.Port = fUrl.Port;
+   fUrl.Host = newdest.Host;
+   fUrl.Port = newdest.Port;
 
    // ID key
    XrdOucString key = XrdClientConn::GetKey(newdest);
