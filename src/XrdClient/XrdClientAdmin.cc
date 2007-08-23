@@ -32,6 +32,7 @@
 #endif
 
 XrdOucHash<XrdClientAdmin> XrdClientAdmin::fgAdminHash;
+bool XrdClientAdmin::fgAdminConn = 0;
 
 //_____________________________________________________________________________
 void joinStrings(XrdOucString &buf, vecString vs)
@@ -69,7 +70,8 @@ XrdClientAdmin::XrdClientAdmin(const char *url) {
 
    fInitialUrl = url;
 
-   fConnModule = new XrdClientAdminConn();
+   fConnModule = (fgAdminConn) ? new XrdClientAdminConn()
+                               : new XrdClientConn();
 
    if (!fConnModule) {
       Error("XrdClientAdmin",
@@ -109,6 +111,14 @@ XrdClientAdmin *XrdClientAdmin::GetClientAdmin(const char *url)
 
    // Done
    return ca;
+}
+
+//_____________________________________________________________________________
+void XrdClientAdmin::SetAdminConn(bool on)
+{
+   // Switch between optmized and standard connections
+
+   fgAdminConn = on;
 }
 
 //_____________________________________________________________________________
@@ -845,29 +855,80 @@ long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
 }
 
 //_____________________________________________________________________________
-bool XrdClientAdmin::Locate(kXR_char *pathfile, XrdClientUrlInfo &urlinfo)
+bool XrdClientAdmin::Locate(kXR_char *path, XrdClientUrlInfo &eurl, bool fast)
 {
-   // asks the server for stat file informations
-   ClientRequest statFileRequest;
-   memset( &statFileRequest, 0, sizeof(ClientRequest) );
-   fConnModule->SetSID(statFileRequest.header.streamid);
-   statFileRequest.stat.requestid = kXR_stat;
-   memset(statFileRequest.stat.reserved, 0, sizeof(statFileRequest.stat.reserved));
-   statFileRequest.header.dlen = strlen((const char *)pathfile);
+   // Find out the exact location of the file 'path' and save the corresponding
+   // URL in eurl. If 'fast' is TRUE do not check actual availability of the
+   // file on the end-point data server, otherwise a 'stat' operation is performed
+   // which may result in a significant performance penalty.
+   // In case of success 1 (TRUE) is returned; in case of error eurl is untouched
+   // and 0 (FALSE) is returned.
 
-   // We do not want to redirected, just the redir info
-   short oldredirmx = fConnModule->GetMaxRedirCnt();
-   fConnModule->SetMaxRedirCnt(1);
-   bool ok = fConnModule->SendGenCommand(&statFileRequest, (const char*)pathfile,
-                                    0, 0, FALSE, (char *)"Stat");
-   if (!ok && (fConnModule->LastServerResp.status != kXR_redirect))
-      // Failure
-      return 0;
+   bool rc = 1;
 
-   // Endpoint url
-   urlinfo = (ok) ? fConnModule->GetCurrentUrl() : fConnModule->GetRedirUrl();
-   fConnModule->SetMaxRedirCnt(oldredirmx);
+   if (fast) {
+
+      XrdOucString srcurl = eurl.GetUrl();
+      eurl.TakeUrl(XrdOucString((const char*)path));
+
+      // We do not want to redirected, just the redir info
+      short oldredirmx = fConnModule->GetMaxRedirCnt();
+      fConnModule->SetMaxRedirCnt(1);
+
+      // Fill the client request
+      ClientRequest statFileRequest;
+      memset( &statFileRequest, 0, sizeof(ClientRequest) );
+      fConnModule->SetSID(statFileRequest.header.streamid);
+      statFileRequest.stat.requestid = kXR_stat;
+      memset(statFileRequest.stat.reserved, 0, sizeof(statFileRequest.stat.reserved));
+      statFileRequest.header.dlen = eurl.File.length();
+
+      bool ok = fConnModule->SendGenCommand(&statFileRequest, eurl.File.c_str(),
+                                            0, 0, FALSE, (char *)"Stat");
+      if (!ok && (fConnModule->LastServerResp.status != kXR_redirect)) {
+         // Failure: restore original settings and return
+         eurl.TakeUrl(srcurl);
+         fConnModule->SetMaxRedirCnt(oldredirmx);
+         return 0;
+      }
+
+      // Endpoint url
+      if (ok) {
+         eurl.Proto = fConnModule->GetCurrentUrl().Proto;
+         eurl.Host = fConnModule->GetCurrentUrl().Host;
+         eurl.Port = fConnModule->GetCurrentUrl().Port;
+      } else {
+         eurl.Proto = fConnModule->GetRedirUrl().Proto;
+         eurl.Host = fConnModule->GetRedirUrl().Host;
+         eurl.Port = fConnModule->GetRedirUrl().Port;
+      }
+
+      // Get physical connection to check the server type: if redirector we have to
+      // continue stepping down to find the end-poit data server
+      XrdClientPhyConnection *p = XrdClientConn::GetConnectionMgr()->GetPhyConnection(eurl);
+      if (!p || !(p->fServerType == kSTDataXrootd)) {
+         XrdClientAdmin *ca = GetClientAdmin(eurl.GetUrl().c_str());
+         if (!ca || !ca->Connect()) {
+            // Failure: restore original settings and return
+            eurl.TakeUrl(srcurl);
+            fConnModule->SetMaxRedirCnt(oldredirmx);
+            return 0;
+         }
+         rc = ca->Locate((kXR_char *)eurl.File.c_str(), eurl, 1);
+      }
+
+      // Original settings
+      fConnModule->SetMaxRedirCnt(oldredirmx);
+
+   } else {
+
+      // Stat the file
+      long id, flags, modtime;
+      long long size;
+      if ((rc = Stat((const char *)path, id, size, flags, modtime)))
+         eurl = fConnModule->GetRedirUrl();
+   }
 
    // Done!
-   return 1;
+   return rc;
 }

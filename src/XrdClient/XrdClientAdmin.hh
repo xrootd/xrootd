@@ -31,7 +31,9 @@ void joinStrings(XrdOucString &buf, vecString vs);
 class XrdClientAdmin : public XrdClientAbs {
 
    XrdOucString                    fInitialUrl;
+
    static XrdOucHash<XrdClientAdmin> fgAdminHash;
+   static bool                     fgAdminConn;
 
  protected:
 
@@ -102,8 +104,9 @@ class XrdClientAdmin : public XrdClientAbs {
                                            kXR_char prty);
 
    // Gives ONE location of a particular file... if present
-   bool                            Locate(kXR_char *pathfile,
-		                          XrdClientUrlInfo &urlinfo);
+   bool                            Locate(kXR_char *path,
+		                          XrdClientUrlInfo &eurl,
+                                          bool fast = FALSE);
 	   
    UnsolRespProcResult             ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                                          XrdClientMessage *unsolmsg);
@@ -113,6 +116,9 @@ class XrdClientAdmin : public XrdClientAbs {
 
    // Checks if an admin already exists for url
    static XrdClientAdmin          *GetClientAdmin(const char *url);
+
+   // Switch between optmized and standard connections
+   static void                     SetAdminConn(bool on = 1);
 };
 
 #endif
