@@ -77,23 +77,24 @@ bool XrdCryptosslgsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt
    }
 
    //
-   // Check the end-point entity certificate
-   xsig = xcer;
-   node = node->Next();
-   xcer = node->Cert();
-   if (!XrdCryptoX509Chain::Verify(errcode, "EEC: ", XrdCryptoX509::kEEC,
-                                   when, xcer, xsig, crl))
-      return 0;
-
-   //
-   // Check if we are done
-   if (size == 2) 
-      return 1;
-
-   //
    // Update the max path depth len
    if (plen > -1)
-      plen -= 2;
+      plen -= 1;
+   //
+   // Check the end-point entity (or sub-CA) certificate
+   while (node->Next() && strcmp(node->Next()->Cert()->Type(), "Proxy")) {
+      xsig = xcer;
+      node = node->Next();
+      xcer = node->Cert();
+      if (!XrdCryptoX509Chain::Verify(errcode, "EEC or sub-CA: ",
+                                      XrdCryptoX509::kUnknown,
+                                      when, xcer, xsig, crl))
+         return 0;
+      //
+      // Update the max path depth len
+      if (plen > -1)
+         plen -= 1;
+   }
 
    //
    // There are proxy certificates
