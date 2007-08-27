@@ -31,7 +31,7 @@
 // Description of options for verify
 typedef struct {
    int  opt;            // option container
-   int  when;           // time of evrification (UTC)
+   int  when;           // time of verification (UTC)
    int  pathlen;        // max allowed path length of chain
    XrdCryptoX509Crl *crl; // CRL
 } x509ChainVerifyOpt_t;
@@ -48,7 +48,7 @@ public:
    XrdCryptoX509ChainNode(XrdCryptoX509 *c = 0, XrdCryptoX509ChainNode *n = 0)
         { cert = c; next = n;}
    virtual ~XrdCryptoX509ChainNode() { }
-   
+
    XrdCryptoX509          *Cert() const { return cert; }
    XrdCryptoX509ChainNode *Next() const { return next; }
 
@@ -60,18 +60,20 @@ class XrdCryptoX509Chain {
    friend class XrdCryptosslgsiX509Chain;
 
    enum ESearchMode { kExact = 0, kBegin = 1, kEnd = 2 };
-   enum ECAStatus { kUnknown = 0, kAbsent, kInvalid, kValid };
 
 public:
    XrdCryptoX509Chain(XrdCryptoX509 *c = 0);
    XrdCryptoX509Chain(XrdCryptoX509Chain *ch);
    virtual ~XrdCryptoX509Chain();
 
+   // CA status
+   enum ECAStatus { kUnknown = 0, kAbsent, kInvalid, kValid };
+
    // Error codes
    enum EX509ChainErr { kNone = 0, kInconsistent, kTooMany, kNoCA,
                         kNoCertificate, kInvalidType, kInvalidNames,
                         kRevoked, kExpired, kMissingExtension,
-                        kVerifyFail, kInvalidSign };
+                        kVerifyFail, kInvalidSign, kCANotAutoSigned };
 
    // In case or error
    const char         *X509ChainError(EX509ChainErr e);
@@ -94,6 +96,7 @@ public:
    void                Remove(XrdCryptoX509 *c);
    bool                CheckCA();
    void                Cleanup(bool keepCA = 0);
+   void                SetStatusCA(ECAStatus st) { statusCA = st; }
 
    // Search
    XrdCryptoX509      *SearchByIssuer(const char *issuer,
@@ -109,7 +112,7 @@ public:
 
    // Verify chain
    virtual bool        Verify(EX509ChainErr &e, x509ChainVerifyOpt_t *vopt = 0);
-   
+
    // Pseudo - iterator functionality
    XrdCryptoX509       *Begin();
    XrdCryptoX509       *Next();
@@ -125,7 +128,7 @@ private:
    XrdOucString            lastError;
    XrdOucString            caname;
    XrdOucString            eecname;
-   ECAStatus               statusCA;                  
+   ECAStatus               statusCA;
 
    XrdCryptoX509ChainNode *Find(XrdCryptoX509 *c);
    XrdCryptoX509ChainNode *FindIssuer(const char *issuer,

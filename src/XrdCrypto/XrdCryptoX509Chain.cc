@@ -37,7 +37,8 @@ static const char *X509ChainErrStr[] = {
    "certificate expired",                // 8
    "extension not found",                // 9
    "signature verification failed",      // 10
-   "issuer had no signing rights"        // 11
+   "issuer had no signing rights",       // 11
+   "CA issued by another CA"             // 12
 };
 
 //___________________________________________________________________________
@@ -53,7 +54,7 @@ XrdCryptoX509Chain::XrdCryptoX509Chain(XrdCryptoX509 *c)
    lastError = "";
    caname = "";
    eecname = "";
-   statusCA = kUnknown;                  
+   statusCA = kUnknown;
 
    if (c) {
       XrdCryptoX509ChainNode *f = new XrdCryptoX509ChainNode(c,0);
@@ -141,21 +142,23 @@ void XrdCryptoX509Chain::Cleanup(bool keepCA)
    lastError = "";
    caname = "";
    eecname = "";
-   statusCA = kUnknown;                  
+   statusCA = kUnknown;
 }
 
 //___________________________________________________________________________
 bool XrdCryptoX509Chain::CheckCA()
 {
    // Search the list for a valid CA and set it at top.
-   // Search stops when a valid CA is found; an invalid CA is
-   // flagged; a second CA is ignored.
-   // Return 1 if found, 0 otherwise. 
+   // Search stops when a valid CA is found; an invalid CA is flagged.
+   // A second CA is always ignored.
+   // Return 1 if found, 0 otherwise; lastError is filled with the reason of
+   // failure, if any.
 
    XrdCryptoX509 *xc = 0;
    XrdCryptoX509ChainNode *n = 0;
    XrdCryptoX509ChainNode *c = begin;
    XrdCryptoX509ChainNode *p = 0;
+   lastError = "";
    while (c) {
       n = c->Next();
       xc = c->Cert();
@@ -164,6 +167,7 @@ bool XrdCryptoX509Chain::CheckCA()
          EX509ChainErr ecode = kNone;
          if (!Verify(ecode, "CA: ",XrdCryptoX509::kCA, 0, xc, xc)) {
             statusCA = kInvalid;
+            lastError += X509ChainError(kVerifyFail);
          } else {
             statusCA = kValid;
             if (p) {
@@ -308,7 +312,7 @@ void XrdCryptoX509Chain::Remove(XrdCryptoX509 *c)
    }
 
    // Cleanup and update size
-   delete curr;      
+   delete curr;
    size--;
 }
 
