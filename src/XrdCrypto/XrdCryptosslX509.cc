@@ -609,6 +609,7 @@ XrdSutBucket *XrdCryptosslX509::Export()
 bool XrdCryptosslX509::Verify(XrdCryptoX509 *ref)
 {
    // Verify certificate signature with pub key of ref cert
+   EPNAME("X509::Verify");
 
    // We must have been initialized
    if (!cert)
@@ -625,10 +626,10 @@ bool XrdCryptosslX509::Verify(XrdCryptoX509 *ref)
    if (rc <= 0) {
       if (rc == 0) {
          // Signatures are not OK
-         DEBUG("XrdCryptosslX509::Verify: signature not OK);
+         DEBUG("signature not OK");
       } else {
          // General failure
-         DEBUG("XrdCryptosslX509::Verify: could not verify signature");
+         DEBUG("could not verify signature");
       }
       return 0;
    }
