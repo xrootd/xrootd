@@ -112,6 +112,7 @@ String XrdSecProtocolgsi::UsrKey   = "/.globus/userkey.pem";;
 String XrdSecProtocolgsi::PxyValid = "12:00";
 int    XrdSecProtocolgsi::DepLength= 0;
 int    XrdSecProtocolgsi::DefBits  = 512;
+int    XrdSecProtocolgsi::CACheck  = 1;
 int    XrdSecProtocolgsi::CRLCheck = 1;
 int    XrdSecProtocolgsi::GMAPOpt  = 1;
 String XrdSecProtocolgsi::DefCrypto= "ssl";
@@ -320,29 +321,50 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    Server = (opt.mode == 's');
 
    //
+   // CA verification level
+   //
+   //    0   do not verify
+   //    1   verify if self-signed; warn if not
+   //    2   verify in all cases; fail if not possible
+   //
+   if (opt.ca >= 0 && opt.ca <= 2)
+      CACheck = opt.ca;
+   DEBUG("option CACheck: "<<CACheck);
+
+   //
    // Check existence of CA directory
    struct stat st;
    if (opt.certdir) {
-      DEBUG("testing CA dir: "<<opt.certdir);
-      String CATmp = opt.certdir;
-      if (XrdSutExpand(CATmp) == 0) {
-         CAdir = CATmp;
-      } else {
-         PRINT("Could not expand: "<<opt.certdir<<": use default");
+      DEBUG("testing CA dir(s): "<<opt.certdir);
+      String CAtmp;
+      String tmp = opt.certdir;
+      String dp;
+      int from = 0;
+      while ((from = tmp.tokenize(dp, from, ',')) != -1) {
+         if (dp.length() > 0) {
+            if (XrdSutExpand(dp) == 0) {
+               if (stat(dp.c_str(),&st) == -1) {
+                  if (errno == ENOENT) {
+                     ErrF(erp,kGSErrError,"CA directory non existing:",dp.c_str());
+                     PRINT(erp->getErrText());
+                  } else {
+                     ErrF(erp,kGSErrError,"cannot stat CA directory:",dp.c_str());
+                     PRINT(erp->getErrText());
+                  }
+               } else {
+                  if (!(dp.endswith('/'))) dp += '/';
+                  if (!(CAtmp.endswith(','))) CAtmp += ',';
+                  CAtmp += dp;
+               }
+            } else {
+               PRINT("Warning: could not expand: "<<dp);
+            }
+         }
       }
+      if (CAtmp.length() > 0)
+         CAdir = CAtmp;
    }
-   if (stat(CAdir.c_str(),&st) == -1) {
-      if (errno == ENOENT) {
-         ErrF(erp,kGSErrError,"CA directory non existing:",CAdir.c_str());
-         PRINT(erp->getErrText());
-      } else {
-         ErrF(erp,kGSErrError,"cannot stat CA directory:",CAdir.c_str());
-         PRINT(erp->getErrText());
-      }
-      return Parms;
-   }
-   if (!(CAdir.endswith('/'))) CAdir += '/';
-   DEBUG("using CA dir: "<<CAdir);
+   DEBUG("using CA dir(s): "<<CAdir);
 
    //
    // CRL check level
@@ -359,38 +381,42 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    //
    // Check existence of CRL directory
    if (opt.crldir) {
-      String CRLTmp = opt.crldir;
-      if (XrdSutExpand(CRLTmp) == 0) {
-         CRLdir = CRLTmp;
-      } else {
-         PRINT("Could not expand: "<<opt.crldir<<": use default");
-      }
-      if (CRLCheck > 0) {
-         if (stat(CRLdir.c_str(),&st) == -1) {
-            if (CRLCheck > 1) {
-               if (errno == ENOENT) {
-                  ErrF(erp,kGSErrError,"CRL directory non existing:",CRLdir.c_str());
-                  PRINT(erp->getErrText());
+
+      DEBUG("testing CRL dir(s): "<<opt.crldir);
+      String CRLtmp;
+      String tmp = opt.crldir;
+      String dp;
+      int from = 0;
+      while ((from = tmp.tokenize(dp, from, ',')) != -1) {
+         if (dp.length() > 0) {
+            if (XrdSutExpand(dp) == 0) {
+               if (stat(dp.c_str(),&st) == -1) {
+                  if (errno == ENOENT) {
+                     ErrF(erp,kGSErrError,"CRL directory non existing:",dp.c_str());
+                     PRINT(erp->getErrText());
+                  } else {
+                     ErrF(erp,kGSErrError,"cannot stat CRL directory:",dp.c_str());
+                     PRINT(erp->getErrText());
+                  }
                } else {
-                  ErrF(erp,kGSErrError,"cannot stat CRL directory:",CRLdir.c_str());
-                  PRINT(erp->getErrText());
+                  if (!(dp.endswith('/'))) dp += '/';
+                  if (!(CRLtmp.endswith(','))) CRLtmp += ',';
+                  CRLtmp += dp;
                }
-               return Parms;
             } else {
-               DEBUG("CRL dir: "<<CRLdir<<" cannot be stat: use defaults");
-               // Use CAdir
-               CRLdir = CAdir;
+               PRINT("Warning: could not expand: "<<dp);
             }
          }
       }
+      if (CRLtmp.length() > 0)
+         CRLdir = CRLtmp;
+
    } else {
       // Use CAdir
       CRLdir = CAdir;
    }
-   if (CRLCheck > 0) {
-      if (!(CRLdir.endswith('/'))) CRLdir += '/';
-      DEBUG("using CRL dir: "<<CRLdir);
-   }
+   if (CRLCheck > 0)
+      DEBUG("using CRL dir(s): "<<CRLdir);
 
    //
    // Default extension for CRL files
@@ -1646,6 +1672,11 @@ char *XrdSecProtocolgsiInit(const char mode,
       if (cenv)
          opts.bits = atoi(cenv);
 
+      // CA verification level 
+      cenv = getenv("XrdSecGSICACHECK");
+      if (cenv)
+         opts.ca = atoi(cenv);
+
       // CRL check level 
       cenv = getenv("XrdSecGSICRLCHECK");
       if (cenv)
@@ -1700,6 +1731,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-key:<path_to_server_key>]
       //              [-cipher:<list_of_supported_ciphers>]
       //              [-md:<list_of_supported_digests>]
+      //              [-ca:<crl_verification_level>]
       //              [-crl:<crl_check_level>]
       //              [-gridmap:<grid_map_file>]
       //              [-gmapopt:<grid_map_check_option>]
@@ -1715,6 +1747,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       String cipher = "";
       String md = "";
       String gridmap = "";
+      int ca = 1;
       int crl = 2;
       int ogmap = 1;
       int dlgpxy = 0;
@@ -1739,6 +1772,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                cipher = (const char *)(op+8);
             } else if (!strncmp(op, "-md:",4)) {
                md = (const char *)(op+4);
+            } else if (!strncmp(op, "-ca:",4)) {
+               ca = atoi(op+4);
             } else if (!strncmp(op, "-crl:",5)) {
                crl = atoi(op+5);
             } else if (!strncmp(op, "-gmapopt:",9)) {
@@ -1755,6 +1790,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       // Build the option object
       opts.debug = (debug > -1) ? debug : opts.debug;
       opts.mode = 's';
+      opts.ca = ca;
       opts.crl = crl;
       opts.ogmap = ogmap;
       opts.dlgpxy = dlgpxy;
@@ -2144,7 +2180,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Finalize chain: get a copy of it (we do not touch the reference)
    hs->Chain = new X509Chain(hs->Chain);
    if (!(hs->Chain)) {
-      emsg = "cannot suplicate reference chain";
+      emsg = "cannot duplicate reference chain";
       return -1;
    }
    // Get hook to parsing function
@@ -3004,89 +3040,97 @@ int XrdSecProtocolgsi::LoadCADir(int timestamp)
    // Return 0 if ok, -1 if problems
    EPNAME("LoadCADir");
 
-   // Some global statics
-   int opt = XrdSecProtocolgsi::CRLCheck;
-   String cadir = XrdSecProtocolgsi::CAdir;
-   XrdSutCache *ca = &(XrdSecProtocolgsi::cacheCA);
-
-   // Open directory
-   DIR *dd = opendir(cadir.c_str());
-   if (!dd) {
-      DEBUG("could not open directory: "<<cadir<<" (errno: "<<errno<<")");
-      return -1;
-   }
-
    // Init cache
+   XrdSutCache *ca = &(XrdSecProtocolgsi::cacheCA);
    if (!ca || ca->Init(100) != 0) {
       DEBUG("problems init cache for CA info");
       return -1;
    }
-  
-   // Read the content
-   int i = 0;
-   XrdCryptoX509ParseFile_t ParseFile = 0;
-   String enam(cadir.length()+100); 
-   struct dirent *dent = 0;
-   while ((dent = readdir(dd))) {
-      // entry name
-      enam = cadir + dent->d_name;
-      DEBUG("analysing entry "<<enam);
-      // Try to init a chain: for each crypto factory
-      for (i = 0; i < ncrypt; i++) {
-         X509Chain *chain = new X509Chain();
-         // Get the parse function
-         ParseFile = cryptF[i]->X509ParseFile();
-         int nci = (*ParseFile)(enam.c_str(), chain);
-         bool ok = 0;
-         XrdCryptoX509Crl *crl = 0;
-         // Check what we got
-         if (chain && nci == 1 && chain->CheckCA()) {
-            // Get CRL, if required
-            if (opt > 0)
-               crl = LoadCRL(chain->Begin(), cryptF[i]);
-            // Apply requirements
-            if (opt < 2 || crl) {
-               if (opt < 3 ||
-                  (opt == 3 && crl && !(crl->IsExpired(timestamp)))) {
-                  // Good CA
-                  ok = 1;
-               } else {
-                  DEBUG("CRL is expired (opt: "<<opt<<")");
+
+   // Some global statics
+   String cadir;
+   int from = 0;
+   while ((from = CAdir.tokenize(cadir, from, ',')) != -1) {
+      if (cadir.length() <= 0) continue;
+
+      // Open directory
+      DIR *dd = opendir(cadir.c_str());
+      if (!dd) {
+         DEBUG("could not open directory: "<<cadir<<" (errno: "<<errno<<")");
+         continue;
+      }
+
+      // Read the content
+      int i = 0;
+      XrdCryptoX509ParseFile_t ParseFile = 0;
+      String enam(cadir.length()+100); 
+      struct dirent *dent = 0;
+      while ((dent = readdir(dd))) {
+         // entry name
+         enam = cadir + dent->d_name;
+         DEBUG("analysing entry "<<enam);
+         // Try to init a chain: for each crypto factory
+         for (i = 0; i < ncrypt; i++) {
+            X509Chain *chain = new X509Chain();
+            // Get the parse function
+            ParseFile = cryptF[i]->X509ParseFile();
+            int nci = (*ParseFile)(enam.c_str(), chain);
+            bool ok = 0;
+            XrdCryptoX509Crl *crl = 0;
+            // Check what we got
+            if (chain && nci == 1) {
+               // Verify the CA
+               bool verified = VerifyCA(CACheck, chain, cryptF[i]);
+               if (verified) {
+
+                  // Get CRL, if required
+                  if (CRLCheck > 0)
+                     crl = LoadCRL(chain->Begin(), cryptF[i]);
+                  // Apply requirements
+                  if (CRLCheck < 2 || crl) {
+                     if (CRLCheck < 3 ||
+                        (CRLCheck == 3 && crl && !(crl->IsExpired(timestamp)))) {
+                        // Good CA
+                        ok = 1;
+                     } else {
+                        DEBUG("CRL is expired (CRLCheck: "<<CRLCheck<<")");
+                     }
+                  } else {
+                     DEBUG("CRL is missing (CRLCheck: "<<CRLCheck<<")");
+                  }
+               }
+            }
+            //
+            if (ok) {
+               // Save the chain: create the tag first
+               String tag(chain->Begin()->SubjectHash());
+               tag += ':';
+               tag += cryptID[i];
+               // Add to the cache
+               XrdSutPFEntry *cent = ca->Add(tag.c_str());
+               if (cent) {
+                  cent->buf1.buf = (char *)chain;
+                  cent->buf1.len = 1;      // Just a flag
+                  if (crl) {
+                     cent->buf2.buf = (char *)crl;
+                     cent->buf2.len = 1;      // Just a flag
+                  }
+                  cent->mtime = timestamp;
+                  cent->status = kPFE_ok;
+                  cent->cnt = 0;
                }
             } else {
-               DEBUG("CRL is missing (opt: "<<opt<<")");
+               DEBUG("Entry "<<enam<<" does not contain a valid CA");
+               if (chain)
+                  chain->Cleanup();
+               SafeDelete(chain);
+               SafeDelete(crl);
             }
-         }
-         //
-         if (ok) {
-            // Save the chain: create the tag first
-            String tag(chain->Begin()->SubjectHash());
-            tag += ':';
-            tag += cryptID[i];
-            // Add to the cache
-            XrdSutPFEntry *cent = ca->Add(tag.c_str());
-            if (cent) {
-               cent->buf1.buf = (char *)chain;
-               cent->buf1.len = 1;      // Just a flag
-               if (crl) {
-                  cent->buf2.buf = (char *)crl;
-                  cent->buf2.len = 1;      // Just a flag
-               }
-               cent->mtime = timestamp;
-               cent->status = kPFE_ok;
-               cent->cnt = 0;
-            }
-         } else {
-            if (chain)
-               chain->Cleanup();
-            SafeDelete(chain);
-            SafeDelete(crl);
          }
       }
+      // Close dir
+      closedir(dd);
    }
-
-   // Close dir
-   closedir(dd);
 
    // Rehash cache
    ca->Rehash(1);
@@ -3106,80 +3150,207 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
    EPNAME("LoadCRL");
    XrdCryptoX509Crl *crl = 0;
 
-   // The dir
-   String crldir = XrdSecProtocolgsi::CRLdir;
-   String crlext = XrdSecProtocolgsi::DefCRLext;
-
    // make sure we got what we need
-   if (crldir.length() <= 0 || !xca || !CF) {
+   if (!xca || !CF) {
       DEBUG("Invalid inputs");
       return crl;
    }
 
-   // Try first the target file
-   String crlfile(crldir.length()+100); 
    // Get the CA hash
    String cahash = xca->SubjectHash();
    // Drop the extension (".0")
    String caroot(cahash, 0, cahash.find(".0")-1);
-   // Add the default CRL extension and the dir
-   crlfile = crldir + caroot;
-   crlfile += crlext;
-   DEBUG("target file: "<<crlfile);
-   // Try to init a crl
-   if ((crl = CF->X509Crl(crlfile.c_str()))) {
-      // Verify issuer
-      if (!(strcmp(crl->Issuer(),xca->Subject()))) {
-         // Verify signature
-         if (crl->Verify(xca)) {
-            // Ok, we are done
-            return crl;
+
+   // The dir
+   String crlext = XrdSecProtocolgsi::DefCRLext;
+
+   String crldir;
+   int from = 0;
+   while ((from = CRLdir.tokenize(crldir, from, ',')) != -1) {
+      if (crldir.length() <= 0) continue;
+      // Add the default CRL extension and the dir
+      String crlfile = crldir + caroot;
+      crlfile += crlext;
+      DEBUG("target file: "<<crlfile);
+      // Try to init a crl
+      if ((crl = CF->X509Crl(crlfile.c_str()))) {
+         // Verify issuer
+         if (!(strcmp(crl->Issuer(),xca->Subject()))) {
+            // Verify signature
+            if (crl->Verify(xca)) {
+               // Ok, we are done
+               return crl;
+            }
          }
       }
+      SafeDelete(crl);
    }
 
-   // We need to parse the full dir: make sime cleanup first
-   SafeDelete(crl);
-
-   // Open directory
-   DIR *dd = opendir(crldir.c_str());
-   if (!dd) {
-      DEBUG("could not open directory: "<<crldir<<" (errno: "<<errno<<")");
-      return crl;
-   }
-  
-   // Read the content
-   struct dirent *dent = 0;
-   while ((dent = readdir(dd))) {
-      // Do not analyse the CA certificate
-      if (!strcmp(cahash.c_str(),dent->d_name)) continue;
-      // File name contain the root CA hash
-      if (!strstr(dent->d_name,caroot.c_str())) continue;
-      // candidate name
-      crlfile = crldir + dent->d_name;
-      DEBUG("analysing entry "<<crlfile);
-      // Try to init a crl
-      crl = CF->X509Crl(crlfile.c_str());
-      if (!crl) continue;
-      // Verify issuer
-      if (strcmp(crl->Issuer(),xca->Subject())) {
-         SafeDelete(crl);
+   // We need to parse the full dirs: make sime cleanup first
+   from = 0;
+   while ((from = CRLdir.tokenize(crldir, from, ',')) != -1) {
+      if (crldir.length() <= 0) continue;
+      SafeDelete(crl);
+      // Open directory
+      DIR *dd = opendir(crldir.c_str());
+      if (!dd) {
+         DEBUG("could not open directory: "<<crldir<<" (errno: "<<errno<<")");
          continue;
       }
-      // Verify signature
-      if (!(crl->Verify(xca))) {
-         SafeDelete(crl);
-         continue;
+      // Read the content
+      struct dirent *dent = 0;
+      while ((dent = readdir(dd))) {
+         // Do not analyse the CA certificate
+         if (!strcmp(cahash.c_str(),dent->d_name)) continue;
+         // File name contain the root CA hash
+         if (!strstr(dent->d_name,caroot.c_str())) continue;
+         // candidate name
+         String crlfile = crldir + dent->d_name;
+         DEBUG("analysing entry "<<crlfile);
+         // Try to init a crl
+         crl = CF->X509Crl(crlfile.c_str());
+         if (!crl) continue;
+         // Verify issuer
+         if (strcmp(crl->Issuer(),xca->Subject())) {
+            SafeDelete(crl);
+            continue;
+         }
+         // Verify signature
+         if (!(crl->Verify(xca))) {
+            SafeDelete(crl);
+            continue;
+         }
+         // Ok
+         break;
       }
-      // Ok
-      break;
+      // Close dir
+      closedir(dd);
+      // Are we done?
+      if (crl) break;
    }
-
-   // Close dir
-   closedir(dd);
 
    // We are done
    return crl;
+}
+//______________________________________________________________________________
+String XrdSecProtocolgsi::GetCApath(const char *cahash)
+{
+   // Look in the paths defined by CAdir for the certificate file related to
+   // 'cahash', in the form <CAdir_entry>/<cahash>.0
+
+   String path;
+   String ent;
+   int from = 0;
+   while ((from = CAdir.tokenize(ent, from, ',')) != -1) {
+      if (ent.length() > 0) {
+         path = ent;
+         if (!path.endswith('/'))
+            path += "/";
+         path += cahash;
+         if (!path.endswith(".0"))
+            path += ".0";
+         if (!access(path.c_str(), R_OK))
+            break;
+      }
+      path = "";
+   }
+
+   // Done
+   return path;
+}
+//______________________________________________________________________________
+bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
+{
+   // Verify the CA in 'cca' according to 'opt':
+   //   opt = 2    full check
+   //         1    only if self-signed
+   //         0    no check
+   EPNAME("VerifyCA");
+
+   bool verified = 0;
+   XrdCryptoX509Chain::ECAStatus st = XrdCryptoX509Chain::kUnknown;
+   cca->SetStatusCA(st);
+
+   // We nust have got a CA hash
+   if (!cca) {
+      DEBUG("Invalid input ");
+      return 0;
+   }
+
+   // Get the parse function
+   XrdCryptoX509ParseFile_t ParseFile = CF->X509ParseFile();
+   if (!ParseFile) {
+      DEBUG("Cannot attach to the ParseFile function");
+      return 0;
+   }
+
+   // Point to the certificate
+   XrdCryptoX509 *xc = cca->Begin();
+   // Is it self-signed ?
+   bool self = (!strcmp(xc->IssuerHash(), xc->SubjectHash())) ? 1 : 0;
+   if (!self) {
+      String inam;
+      if (opt == 2) {
+         // We are requested to verify it
+         bool notdone = 1;
+         // We need to load the issuer(s) CA(s)
+         XrdCryptoX509 *xd = xc;
+         while (notdone) {
+            inam = GetCApath(xd->IssuerHash());
+            if (inam.length() <= 0) break;
+            X509Chain *ch = new X509Chain();
+            int ncis = (*ParseFile)(inam.c_str(), ch);
+            if (ncis < 1) break;
+            XrdCryptoX509 *xi = ch->Begin();
+            while (xi) {
+               if (!strcmp(xd->IssuerHash(), xi->SubjectHash()))
+                  break;
+               xi = ch->Next();
+            }
+            if (xi) {
+               // Add the certificate to the requested CA chain
+               ch->Remove(xi);
+               cca->PutInFront(xi);
+               SafeDelete(ch);
+               // We may be over
+               if (!strcmp(xi->IssuerHash(), xi->SubjectHash())) {
+                  notdone = 0;
+                  break;
+               } else {
+                  // This becomes the daughter
+                  xd = xi;
+               }
+            } else {
+               break;
+            }
+         }
+         if (!notdone) {
+            // Add the certificate to the requested CA chain
+            X509Chain::EX509ChainErr e;
+            verified = cca->Verify(e);
+         } else {
+            PRINT("CA certificate not self-signed: cannot verify integrity ("<<xc->SubjectHash()<<")");
+         }
+      } else if (opt == 1) {
+         // Cannot check: warn
+         verified = 1;
+         PRINT("Warning: CA certificate not self-signed:"
+               " integrity not checked, assuming OK ("<<xc->SubjectHash()<<")");
+      } else {
+         // No check required
+         verified = 1;
+      }
+   } else if (CACheck > 0) {
+      // Check self-signature
+      verified = cca->CheckCA();
+   }
+
+   // Set the status in the chain
+   st = (verified) ? XrdCryptoX509Chain::kValid : st;
+   cca->SetStatusCA(st);
+
+   // Done
+   return verified;
 }
 
 //______________________________________________________________________________
@@ -3212,8 +3383,8 @@ int XrdSecProtocolgsi::GetCA(const char *cahash)
       return 0;
    }
 
-   // If not, prepare the file name   
-   String fnam = CAdir + cahash; 
+   // If not, prepare the file name
+   String fnam = GetCApath(cahash);
    DEBUG("trying to load CA certificate from "<<fnam);
 
    // Create chain
@@ -3227,24 +3398,28 @@ int XrdSecProtocolgsi::GetCA(const char *cahash)
    XrdCryptoX509ParseFile_t ParseFile = sessionCF->X509ParseFile();
    if (ParseFile) {
       int nci = (*ParseFile)(fnam.c_str(), hs->Chain);
-      bool ok = 0;
-      if (nci == 1 && hs->Chain->CheckCA()) {
+      bool ok = 0, verified = 0;
+      if (nci == 1) {
+         // Verify the CA
+         verified = VerifyCA(CACheck, hs->Chain, sessionCF);
 
-         // Get CRL, if required
-         if (CRLCheck > 0)
-            hs->Crl = LoadCRL(hs->Chain->Begin(), sessionCF);
-         // Apply requirements
-         if (CRLCheck < 2 || hs->Crl) {
-            if (CRLCheck < 3 ||
-               (CRLCheck == 3 &&
-                hs->Crl && !(hs->Crl->IsExpired(hs->TimeStamp)))) {
-               // Good CA
-               ok = 1;
+         if (verified) {
+            // Get CRL, if required
+            if (CRLCheck > 0)
+               hs->Crl = LoadCRL(hs->Chain->Begin(), sessionCF);
+            // Apply requirements
+            if (CRLCheck < 2 || hs->Crl) {
+               if (CRLCheck < 3 ||
+                  (CRLCheck == 3 &&
+                  hs->Crl && !(hs->Crl->IsExpired(hs->TimeStamp)))) {
+                  // Good CA
+                  ok = 1;
+               } else {
+                  DEBUG("CRL is expired (CRLCheck: "<<CRLCheck<<")");
+               }
             } else {
-               DEBUG("CRL is expired (CRLCheck: "<<CRLCheck<<")");
+               DEBUG("CRL is missing (CRLCheck: "<<CRLCheck<<")");
             }
-         } else {
-            DEBUG("CRL is missing (CRLCheck: "<<CRLCheck<<")");
          }
          //
          if (ok) {
@@ -3266,7 +3441,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash)
          }
       } else {
          DEBUG("certificate not found or invalid (nci: "<<nci<<", CA: "<<
-               (int)(hs->Chain->CheckCA())<<")");
+               (int)(verified)<<")");
          return -1;
       }
    }
@@ -3334,9 +3509,11 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp
    cmd += " -key ";
    cmd += pi->key;
 
-   // Add CA dir
+   // Add CA dir (no support for multi-dirs)
+   String cdir(pi->certdir);
+   cdir.erase(cdir.find(','));
    cmd += " -certdir ";
-   cmd += pi->certdir;
+   cmd += cdir;
 
    // Add validity
    if (pi->valid) {

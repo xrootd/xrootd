@@ -125,6 +125,7 @@ public:
    char  *cipher; // [s] list of ciphers [aes-128-cbc:bf-cbc:des-ede3-cbc]
    char  *md;     // [s] list of MDs [sha1:md5]
    int    crl;    // [cs] check level of CRL's [1] 
+   int    ca;     // [cs] verification level of CA's [1] 
    char  *proxy;  // [c] user proxy  [/tmp/x509up_u<uid>]
    char  *valid;  // [c] proxy validity  [12:00]
    int    deplen; // [c] depth of signature path for proxies [0] 
@@ -137,7 +138,7 @@ public:
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
-                  cipher = 0; md = 0; crl = 1;
+                  cipher = 0; md = 0; ca = 1 ; crl = 1;
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
                   gridmap = 0; ogmap = 1; dlgpxy = 0; sigpxy = 1;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
@@ -251,6 +252,7 @@ private:
    static String           PxyValid;
    static int              DepLength;
    static int              DefBits;
+   static int              CACheck;
    static int              CRLCheck;
    static String           DefCrypto;
    static String           DefCipher;
@@ -325,6 +327,8 @@ private:
    // Load CA certificates
    static int     LoadCADir(int timestamp);
    int            GetCA(const char *cahash);
+   static String  GetCApath(const char *cahash);
+   static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca,
