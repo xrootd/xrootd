@@ -574,7 +574,7 @@ XrdSutBucket *XrdCryptosslX509::Export()
       DEBUG("unable to create BIO for memory operations");
       return 0;
    }
-   
+
    // Write certificate to BIO
    if (!PEM_write_bio_X509(bmem, cert)) {
       DEBUG("unable to write certificate to memory BIO");
@@ -605,7 +605,6 @@ XrdSutBucket *XrdCryptosslX509::Export()
    return bucket;
 }
 
-
 //_____________________________________________________________________________
 bool XrdCryptosslX509::Verify(XrdCryptoX509 *ref)
 {
@@ -622,5 +621,17 @@ bool XrdCryptosslX509::Verify(XrdCryptoX509 *ref)
       return 0;
 
    // Ok: we can verify
-   return (X509_verify(cert, rk) > 0);
+   int rc = X509_verify(cert, rk);
+   if (rc <= 0) {
+      if (rc == 0) {
+         // Signatures are not OK
+         DEBUG("XrdCryptosslX509::Verify: signature not OK);
+      } else {
+         // General failure
+         DEBUG("XrdCryptosslX509::Verify: could not verify signature");
+      }
+      return 0;
+   }
+   // Success
+   return 1;
 }
