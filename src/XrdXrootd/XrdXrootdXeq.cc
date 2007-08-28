@@ -338,8 +338,8 @@ int XrdXrootdProtocol::do_Close()
       return Response.Send(kXR_FileNotOpen, 
                           "close does not refer to an open file");
 
-// If we are in async mode, serialize the link to make sure any in-flight
-// operations on this handle have completed
+// Serialize the link to make sure that any in-flight operations on this handle
+// have completed (async mode or parallel streams)
 //
    if (fp->AsyncMode) Link->Serialize();
 
