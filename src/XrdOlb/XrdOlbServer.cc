@@ -1856,7 +1856,7 @@ int XrdOlbServer::isOnline(char *path, int upt, XrdNetLink *myLink) // Static!!!
       if (Config.DiskSS && PrepQ.Exists(path)) return 1;
          else return 0;
 
-// Make sure we are doing a state on a file
+// Update access time if so requested but only if this is a file
 //
    if ((buf.st_mode & S_IFMT) == S_IFREG)
       {if (upt)
@@ -1867,10 +1867,7 @@ int XrdOlbServer::isOnline(char *path, int upt, XrdNetLink *myLink) // Static!!!
        return 1;
       }
 
-// Indicate possible problem
-//
-   if (myLink) Say.Emsg("Server", myLink->Name(), "stated a non-file,", path);
-   return 0;
+   return (buf.st_mode & S_IFMT) == S_IFDIR;
 }
 
 /******************************************************************************/
