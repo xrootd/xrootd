@@ -541,7 +541,7 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
    fp = RPList.First();
    while(fp) 
         {flags = fp->Flag();
-         flags = flags | (dflags & (~(flags >> XRDEXP_MASKSHIFT)));
+         flags = flags | (DirFlags & (~(flags >> XRDEXP_MASKSHIFT)));
          if (!(flags & XRDEXP_NOSTAGE)) gwp = stgp = fp->Path();
             else if (!(flags & XRDEXP_NOCHECK) || !(flags & XRDEXP_NODREAD) ||
                     (flags & XRDEXP_RCREATE))  gwp = fp->Path();
