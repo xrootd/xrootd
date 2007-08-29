@@ -341,7 +341,7 @@ int XrdXrootdProtocol::do_Close()
 // Serialize the link to make sure that any in-flight operations on this handle
 // have completed (async mode or parallel streams)
 //
-   if (fp->AsyncMode) Link->Serialize();
+   Link->Serialize();
 
 // If we are monitoring, insert a close entry
 //
