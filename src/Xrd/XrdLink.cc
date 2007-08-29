@@ -266,14 +266,15 @@ int XrdLink::Close(int defer)
       }
 
 // Multiple protocols may be bound to this link. If it is in use, defer the
-// actual close until the use count drops to zero.
+// actual close until the use count drops to one.
 //
-   InUse--;
-   if (InUse > 0) 
+   while(InUse > 1)
       {opMutex.UnLock();
        TRACE(DEBUG, "Close " <<ID <<" defered, use count=" <<InUse);
-       return 0;
+       Serialize();
+       opMutex.Lock();
       }
+   InUse--;
    Instance = 0;
 
 // Add up the statistic for this link
