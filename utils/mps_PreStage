@@ -2,7 +2,7 @@
 #
 #  $Id$
 #
-# ooss_PreStage
+# mps_PreStage
 #	-b basedir		base directory for local filesystem
 #	-c config file path
 #	-f prty_filename	filename for stagein requests
@@ -78,8 +78,9 @@ $pstgcmd = ($isMPS ? '/opt/xrootd/utils/mps_Stage'
 $stoppstg = "/var/adm/$SSD/STOPPSTG";	# existence of file will stop stage-ins
 $stoppsta = "/var/adm/$SSD/STOPPSTA";	# stop stage-ins set by purge
 $max_retry = 1;				# maximum number of retries for stage-ins
-
-
+$waitchld = 2;                          # seconds to wait for child to exit
+$waitpoll = 3;                          # polling interval while staging active
+ 
 # Initialize global variables
 $cftag = 'pstg';			# configuration file tag
 $globalfh = 'FILE0000';
@@ -214,11 +215,12 @@ if (-f "$errlogfn") {			# is there a error log file?
          }
       }
    }
-
-sleep $waittime - 3;
+# if stage-ins are pending, check more frequently
+$sleeptim = $num_pstg_proc ? $waitpoll : $waittime - $waitchld;
+sleep $sleeptim;
 # wait for stage-in process to terminate. Assumes prior
 # sleep was terminated by SIGUSR1.
-sleep 3;		
+sleep $waitchld;		
 } # while (1)
 exit;
 

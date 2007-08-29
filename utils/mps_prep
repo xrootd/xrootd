@@ -3,7 +3,7 @@
 #   $Id$
 
 #
-# ooss_prep [add|del|list|ll] [reqid [usrid prty func fn [fn...]]]
+# mps_prep [add|del|list|ll] [reqid [usrid prty func fn [fn...]]]
 #
 # If no parameters are specified, input mode is entered where
 # +, -, ?, ll will invoke the corresponding add, del, list, ll
@@ -60,7 +60,7 @@ $LOCKNOERR = 0;				# ignore errors in getlock
 $LOCKERR   = 1;				# report errors in getlock
 
 # Process parameters
-if (! &Getopts('c:f:l:x:')) {
+if (! &Getopts('c:f:l:wx:')) {
    logerr("Missing or invalid argument"); 
    exit 1;
    }
@@ -127,7 +127,7 @@ sub add_queue {
 	logerr("Unable to access $file");
 	return 1;
     }
-#    my($exists) = (-s "$file") + (-s "$file.old");
+    my($exists) = (-s "$file") + (-s "$file.old");
     foreach $fn (@files) {
 	if ($fn =~ /^\+/) {   # if fn starts with a '+', treat as input file
 	    if (! open(FILE,"$fn")) {
@@ -150,7 +150,7 @@ sub add_queue {
     }
     unlock($fh, "$file");
     unlock($LOCK_fh, "$file.lock");
-#    wakeup("/tmp/$SSD_prestage.pid") if !$exists;
+    wakeup("/tmp/$SSD" . "_prestage.pid") if defined($opt_w) && !$exists;
     return 0;
 }
 #===================================================================
@@ -398,4 +398,15 @@ if (!Flock($fh, $LOCK_UN)) {
    }
 close($fh);
 logit("unlock: unlocking file $file") if $debug >= $DEBUG;
+}
+#=============================================================================
+sub wakeup {
+    my($pidfn) = @_;
+    if (-s "$pidfn") {
+	open(PID, "$pidfn");
+	my($pid) = <PID>;
+	close(PID);
+	chop($pid);
+	`/bin/kill -USR1 $pid`;
+    }
 }

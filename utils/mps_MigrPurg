@@ -2,7 +2,7 @@
 #
 #   $Id$
 #
-# ooss_MigrPurg
+# mps_MigrPurg
 #	-M			do migrate function
 #	-O			one time only flag for purge
 #	-P			do purge function
@@ -1042,10 +1042,10 @@ else {
 #===================================================================
 sub scan {
    my($base) = @_;
-   my(@files,$fn,$fpurgtime);
+   my(@files,$fn,$fpurgtime,$parent);
    $base .= "$c" if (($c = chop($base)) ne '/'); # remove trailing /
    if (-d $base) {
-      my($parent) = $base =~ m|(^.*)/[^/]*$|;
+      ($parent) = $base =~ m|(^.*)/[^/]*$|;
       chdir($base) or logit("Unable to chdir to $base: $!"), return;
       opendir(DIR, ".") or logit("Unable to open $base: $!"), chdir($parent), return;
       @files = grep(! /^\.\.?$/ & ! /\.anew$|\.dual$|\.map$|\.migr$|\.pin$|\.stage$|\.lock$/ & !/$dirlock$/, readdir(DIR));
