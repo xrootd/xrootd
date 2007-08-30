@@ -174,7 +174,7 @@ void PrintHelp() {
       "  removes a file." << endl <<
       " rmdir <dirname>" << endl <<
       "  removes a directory." << endl <<
-      " prepare <filename>" << endl <<
+      " prepare <filename> <options> <priority>" << endl <<
       "  stages a file in." << endl <<
       " cat <filename> [xrdcp parameters]" << endl <<
       "  outputs a file on standard output using xrdcp. <filename> can be a root:// URL." << endl <<

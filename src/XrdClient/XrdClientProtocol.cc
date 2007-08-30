@@ -454,10 +454,10 @@ void smartPrintClientHeader(ClientRequest* hdr)
       break;
 
    case kXR_prepare:
-      printf("%40s0x%c\n",
+      printf("%40s0x%.2x\n",
              "ClientHeader.prepare.options = ",
              hdr->prepare.options);
-      printf("%40s0x%c\n",
+      printf("%40s0x%.2x\n",
              "ClientHeader.prepare.prty = ",
              hdr->prepare.prty);
       printf("%40s0 repeated %d times\n", 
