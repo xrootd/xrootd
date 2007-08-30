@@ -39,7 +39,7 @@ void *RunFS();
 
 int   numFS() {return fs_nums;}
 
-void  setParms(XrdOucTList *tlp);
+void  setParms(XrdOucTList *tlp, int warnDups);
 
        XrdOlbMeter();
       ~XrdOlbMeter();

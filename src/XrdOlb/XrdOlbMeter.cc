@@ -70,10 +70,9 @@ public:
 
 XrdOlbMeterFS *Next;
 dev_t          Dnum;
-ino_t          Inum;
 
-               XrdOlbMeterFS(XrdOlbMeterFS *curP, dev_t dn, ino_t in)
-                            {Next = curP; Dnum = dn; Inum = in;}
+               XrdOlbMeterFS(XrdOlbMeterFS *curP, dev_t dn)
+                            {Next = curP; Dnum = dn;}
               ~XrdOlbMeterFS() {}
 };
 
@@ -274,10 +273,10 @@ void *XrdOlbMeter::RunFS()
 /*                              s e t P a r m s                               */
 /******************************************************************************/
   
-void  XrdOlbMeter::setParms(XrdOucTList *tlp)
+void  XrdOlbMeter::setParms(XrdOucTList *tlp, int warnDups)
 {
     pthread_t monFStid;
-    XrdOlbMeterFS *fsP, baseFS(0,0,0);
+    XrdOlbMeterFS *fsP, baseFS(0,0);
     XrdOucTList *plp, *nlp;
     char buff[1024], sfx1, sfx2;
     long long fsbsize;
@@ -296,29 +295,31 @@ void  XrdOlbMeter::setParms(XrdOucTList *tlp)
 // Calculate number of filesystems without duplication
 //
     fs_nums = 0; plp = 0;
-    if ((nlp = tlp)) do
-       {if ((rc = stat(nlp->text, &buf)) || isDup(buf, &baseFS))
-           {XrdOucTList *xlp = nlp->next;
-            const char *fault = (rc ? "Missing filesystem '"
-                                    : "Duplicate filesystem '");
-            Say.Emsg("Meter", fault, nlp->text, "' skipped for free space.");
-            if (plp) plp->next = xlp;
-               else  fs_list   = xlp;
-            delete nlp;
-            if ((nlp = xlp)) continue;
-            break;
-           } else {
-            fs_nums++;
-            if (!STATFS(nlp->text, &fsdata))
+    if ((nlp = tlp))
+       do {if ((rc = stat(nlp->text, &buf)) || isDup(buf, &baseFS))
+              {XrdOucTList *xlp = nlp->next;
+               const char *fault = (rc ? "Missing filesystem '"
+                                       : "Duplicate filesystem '");
+               if (rc || warnDups)
+                  Say.Emsg("Meter",fault,nlp->text,"' skipped for free space.");
+               if (plp) plp->next = xlp;
+                  else  fs_list   = xlp;
+               delete nlp;
+               if ((nlp = xlp)) continue;
+               break;
+              } else {
+               fs_nums++;
+               if (!STATFS(nlp->text, &fsdata))
 #if defined(__solaris__) || defined(_STATFS_F_FRSIZE)
-               {fsbsize = (fsdata.f_frsize ? fsdata.f_frsize : fsdata.f_bsize);
+                  {fsbsize = (fsdata.f_frsize ? fsdata.f_frsize : fsdata.f_bsize);
 #else
-               {fsbsize = fsdata.f_bsize;
+                  {fsbsize = fsdata.f_bsize;
 #endif
-                dsk_tot += fsdata.f_blocks * ( fsbsize ?  fsbsize : FS_BLKFACT);
-               }
-           }
-       } while((nlp = nlp->next));
+                   dsk_tot += fsdata.f_blocks*(fsbsize ? fsbsize : FS_BLKFACT);
+                  }
+              }
+           plp = nlp;
+          } while((nlp = nlp->next));
    dsk_tot = dsk_tot/1024;
 
 // Calculate the initial free space and start the FS monitor thread
@@ -385,12 +386,12 @@ int XrdOlbMeter::isDup(struct stat &buf, XrdOlbMeterFS *baseFS)
 
 // Search for matching filesystem
 //
-   while(fsp) if (fsp->Dnum == buf.st_dev && fsp->Inum == buf.st_ino) return 1;
+   while(fsp) if (fsp->Dnum == buf.st_dev) return 1;
                  else fsp = fsp->Next;
 
 // New filesystem
 //
-   baseFS->Next = new XrdOlbMeterFS(baseFS->Next, buf.st_dev, buf.st_ino);
+   baseFS->Next = new XrdOlbMeterFS(baseFS->Next, buf.st_dev);
    return 0;
 }
 

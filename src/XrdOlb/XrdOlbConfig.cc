@@ -328,6 +328,10 @@ int XrdOlbConfig::Configure2()
        mySID = strdup(sidbuf);
       }
 
+// If we need a name library, load it now
+//
+   if ((LocalRoot || RemotRoot) && ConfigN2N()) NoGo = 1;
+
 // Setup manager or server, as needed
 //
   if (!NoGo && isManager) NoGo = setupManager();
@@ -349,10 +353,6 @@ int XrdOlbConfig::Configure2()
 // Create the pid file
 //
    if (!NoGo) NoGo |= PidFile();
-
-// If we need a name library, load it now
-//
-   if ((LocalRoot || RemotRoot) && ConfigN2N()) return 1;
 
 // Load the XMI plugin
 //
@@ -821,6 +821,8 @@ int XrdOlbConfig::MergeP()
             {if (!(Opts & XRDEXP_LOCAL))
                 {PathList.Insert(plp->Path(), &npinfo);
                  if (npinfo.ssvec) DiskSS = 1;
+                 if (npinfo.rwvec || npinfo.ssvec)
+                    monPathP = new XrdOucTList(plp->Path(), 0, monPathP);
                 }
             }
             else if (opinfo.rwvec != npinfo.rwvec
@@ -836,7 +838,7 @@ int XrdOlbConfig::MergeP()
                   buff[2] = ' '; buff[3] = '\0';
                   Say.Say("olb.path ", buff, plp->Path());
                   NoGo = 1;
-                 }
+                 } 
           plp = plp->Next();
          }
 
@@ -1079,7 +1081,7 @@ int XrdOlbConfig::setupServer()
 
 // Setup file system metering (skip it for peers)
 //
-   Meter.setParms(monPath ? monPath : monPathP);
+   Meter.setParms(monPath ? monPath : monPathP, monPath != 0);
    if (perfpgm && Meter.Monitor(perfpgm, perfint))
       Say.Say("Config warning: load based scheduling disabled.");
 
@@ -1358,8 +1360,7 @@ int XrdOlbConfig::Fsysadd(XrdSysError *eDest, int chk, char *fn)
 
     if ((chk > 0) && !(buff.st_mode & S_IFDIR)) return 0;
 
-    if (chk < 0) monPathP = new XrdOucTList(fn, 0, monPathP);
-       else monPath = new XrdOucTList(fn, 0, monPath);
+    monPath = new XrdOucTList(fn, 0, monPath);
     return 1;
 }
 
@@ -1885,7 +1886,7 @@ int XrdOlbConfig::xpath(XrdSysError *eDest, XrdOucStream &CFile)
 // If the path is writable, add it to the potential cache list. This list gets
 // used if no cache directives have been specified.
 //
-   if (pmask.rwvec || pmask.ssvec) Fsysadd(eDest, -1, path);
+   if (pmask.rwvec || pmask.ssvec) monPathP = new XrdOucTList(path,0,monPathP);
    return 0;
 }
   
