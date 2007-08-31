@@ -824,7 +824,7 @@ int XrdSecServer::ProtBind_Complete(XrdSysError &Eroute)
 // Check if we have a default token, create one otherwise
 //
    if (!bpDefault)
-      {if (!*SToken) {Eroute.Say("Config warning: nNo protocols defined; "
+      {if (!*SToken) {Eroute.Say("Config warning: No protocols defined; "
                                   "only host authentication available.");
                       implauth = 1;
                      }
