@@ -235,12 +235,16 @@ bool XrdClientAdmin::Connect()
      
       fConnModule->Disconnect(FALSE);
      
-      if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
-	 Info(XrdClientDebug::kUSERDEBUG, "Connect",
-	      "Connection attempt failed. Sleeping " <<
-	      EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
+      if (connectTry < connectMaxTry-1) {
+
+	 if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
+	    Info(XrdClientDebug::kUSERDEBUG, "Connect",
+	         "Connection attempt failed. Sleeping " <<
+	         EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
      
-      sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
+         sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
+
+      }
 
    } //for connect try
 
