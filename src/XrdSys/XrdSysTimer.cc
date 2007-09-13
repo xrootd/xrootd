@@ -143,6 +143,30 @@ unsigned long XrdSysTimer::Report(struct timeval &Total_Time)
 }
 
 /******************************************************************************/
+/*                                S n o o z e                                 */
+/******************************************************************************/
+  
+void XrdSysTimer::Snooze(int sec)
+{
+#ifndef WIN32
+ struct timespec naptime, waketime;
+
+// Calculate nano sleep time
+//
+   naptime.tv_sec  =  sec;
+   naptime.tv_nsec =  0;
+
+// Wait for a lsoppy number of seconds
+//
+   while(nanosleep(&naptime, &waketime) && EINTR == errno)
+        {naptime.tv_sec  =  waketime.tv_sec;
+         naptime.tv_nsec =  waketime.tv_nsec;
+        }
+#else
+   ::Sleep(sec*1000);
+#endif
+}
+/******************************************************************************/
 /*                                 s 2 h m s                                  */
 /******************************************************************************/
   
@@ -174,8 +198,7 @@ void XrdSysTimer::Wait(int mills)
    naptime.tv_sec  =  mills/1000;
    naptime.tv_nsec = (mills%1000)*1000000;
 
-// Initialize the pollfd structure in a way to prevent it from ever catching
-// an event. All we really want is to wait for x milliseconds.
+// Wait for exactly x milliseconds
 //
    while(nanosleep(&naptime, &waketime) && EINTR == errno)
         {naptime.tv_sec  =  waketime.tv_sec;

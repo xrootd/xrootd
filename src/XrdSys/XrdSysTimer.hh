@@ -50,9 +50,11 @@ inline void Set(struct timeval &tod)
                         StopWatch.tv_usec = tod.tv_usec;
                        }
 
+static void Snooze(int seconds);
+
 static char *s2hms(int sec, char *buff, int blen);
 
-static void Wait(int millisconds);
+static void Wait(int milliseconds);
 
       XrdSysTimer() {Reset();}
 
