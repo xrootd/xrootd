@@ -698,6 +698,8 @@ globus_l_gfs_posix_write_to_storage(
     globus_result_t                     rc;
 
     GlobusGFSName(globus_l_gfs_posix_write_to_storage);
+    globus_gridftp_server_get_optimal_concurrency(posix_handle->op,
+                                                  &posix_handle->optimal_count);
 
     while (posix_handle->outstanding < posix_handle->optimal_count) 
     {
@@ -786,9 +788,6 @@ globus_l_gfs_posix_recv(
         rc = GlobusGFSErrorGeneric("open() fail");
         globus_gridftp_server_finished_transfer(op, rc);
     }
-
-    globus_gridftp_server_get_optimal_concurrency(posix_handle->op,
-                                                  &posix_handle->optimal_count);
 
     globus_mutex_lock(&posix_handle->mutex);
     globus_l_gfs_posix_write_to_storage(posix_handle);
