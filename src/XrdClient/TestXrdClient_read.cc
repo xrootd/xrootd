@@ -160,9 +160,9 @@ int main(int argc, char **argv) {
     bool isrooturl = (strstr(argv[1], "root://"));
     int retval = 0;
     int ntoread = 0;
-    int maxtoread = 10240;
-    kXR_int64 v_offsets[10240];
-    kXR_int32 v_lens[10240];
+    int maxtoread = 20480;
+    kXR_int64 v_offsets[20480];
+    kXR_int32 v_lens[20480];
 
     if (isrooturl) {
 	XrdClient *cli = new XrdClient(argv[1]);
@@ -227,19 +227,21 @@ int main(int argc, char **argv) {
 		
 	    case 3: // async and immediate read, optimized!
 		
-		for (int ii = 0; ii < ntoread; ii+=512) {
+		for (int ii = 0; ii < ntoread+512; ii+=512) {
 
-		    // Read a chunk of data
-		    retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, xrdmin(ntoread - ii, 512) );
-		    cout << endl << "---ReadV returned " << retval << endl;
+                    if (ii < ntoread) {
+  		      // Read a chunk of data
+		      retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, xrdmin(ntoread - ii, 512) );
+		      cout << endl << "---ReadV returned " << retval << endl;
 		    
-		    if (retval <= 0) {
-		      iserror = true;
-		      break;
-		    }
+		      if (retval <= 0) {
+		        iserror = true;
+		        break;
+		      }
+                    }
 
 		    // Process the preceeding chunk while the last is coming
-		    for (int iii = ii-512; (iii >= 0) && (iii < ii); iii++) {
+		    for (int iii = ii-512; (iii >= 0) && (iii < ii) && (iii < ntoread); iii++) {
 			retval = cli->Read(buf, v_offsets[iii], v_lens[iii]);
 
 			if (retval <= 0)
@@ -270,13 +272,13 @@ int main(int argc, char **argv) {
     	    case 4: // read async and then read
 	      
 
-		for (int iii = -1024; iii < ntoread; iii++) {
-		    if (iii + 1024 < ntoread)
-		      retval = cli->Read_Async(v_offsets[iii+1024], v_lens[iii+1024]);
+		for (int iii = -512; iii < ntoread; iii++) {
+		    if (iii + 512 < ntoread)
+		      retval = cli->Read_Async(v_offsets[iii+512], v_lens[iii+512]);
 	  
 		    if (retval <= 0) {
-			cout << endl << "---Read_Async (" << iii+1024 << " of " << ntoread << " " <<
-			    v_lens[iii+1024] << "@" << v_offsets[iii+1024] <<
+			cout << endl << "---Read_Async (" << iii+512 << " of " << ntoread << " " <<
+			    v_lens[iii+512] << "@" << v_offsets[iii+512] <<
 			    " returned " << retval << endl;
 			iserror = true;
 			break;
