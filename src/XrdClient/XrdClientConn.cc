@@ -2118,7 +2118,8 @@ bool XrdClientConn::SubmitRawDataToCache(const void *buffer,
 					 long long end_offs) {
 
 
-    fMainReadCache->SubmitRawData(buffer, begin_offs, end_offs);
+    if (fMainReadCache)
+      fMainReadCache->SubmitRawData(buffer, begin_offs, end_offs);
 
     return true;
 

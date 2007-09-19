@@ -233,12 +233,13 @@ int main(int argc, char **argv) {
   		      // Read a chunk of data
 		      retval = cli->ReadV(0, v_offsets+ii, v_lens+ii, xrdmin(ntoread - ii, 512) );
 		      cout << endl << "---ReadV returned " << retval << endl;
-		    
+
 		      if (retval <= 0) {
 		        iserror = true;
 		        break;
 		      }
                     }
+
 
 		    // Process the preceeding chunk while the last is coming
 		    for (int iii = ii-512; (iii >= 0) && (iii < ii) && (iii < ntoread); iii++) {
