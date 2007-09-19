@@ -21,6 +21,11 @@ class XrdClientMStream {
 
 
 public:
+  
+    // Compute the parameters to split blocks
+    static void GetGoodSplitParameters(XrdClientConn *cliconn,
+			      int &spltsize, int &reqsperstream,
+			      kXR_int32 len);
 
     // Establish all the parallel streams, stop
     // adding streams at the first creation refusal/failure

@@ -179,6 +179,38 @@ bool XrdClientMStream::BindPendingStream(XrdClientConn *cliconn, int substreamid
 }
 
 
+void XrdClientMStream::GetGoodSplitParameters(XrdClientConn *cliconn,
+					      int &spltsize, int &reqsperstream,
+					      kXR_int32 len) {
+  spltsize = DFLT_MULTISTREAMSPLITSIZE;
+  reqsperstream = 2;
+
+
+  // Let's try to distribute the load into maximum sized chunks
+  if (cliconn->GetParallelStreamCount() > 1) {
+    
+    // We start seeing which length we get trying to fill all the
+    // available slots ( per stream)
+    int candlen = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
+			 len / (reqsperstream * (cliconn->GetParallelStreamCount()-1)) + 1);
+    
+    // We don't want blocks smaller than a min value
+    // If this is the case we consider only one slot per stream
+    if (candlen < DFLT_MULTISTREAMSPLITSIZE) {
+      spltsize = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
+			len / (cliconn->GetParallelStreamCount()-1) + 1);
+      reqsperstream = 1;
+    }
+    else spltsize = candlen;
+    
+  }
+  else spltsize = len;
+
+  //cout << "parstreams: " << cliconn->GetParallelStreamCount() <<
+  // " len: " << len << " splitsize: " << spltsize << " reqsperstream: " <<
+  // reqsperstream << endl << endl;
+}
+
 
 // This splits a long requests into many smaller requests, to be sent in parallel
 //  through multiple streams
@@ -186,50 +218,10 @@ bool XrdClientMStream::BindPendingStream(XrdClientConn *cliconn, int substreamid
 bool XrdClientMStream::SplitReadRequest(XrdClientConn *cliconn, kXR_int64 offset, kXR_int32 len,
 			     XrdClientVector<XrdClientMStream::ReadChunk> &reqlists) {
 
-    int spltsize = DFLT_MULTISTREAMSPLITSIZE;
-   
+    int spltsize = 0;
+    int reqsperstream = 0;
 
-//     // Let's try to distribute the load into maximum sized chunks
-//     if (cliconn->GetParallelStreamCount() > 1)
-//       spltsize = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
-//                         len / (cliconn->GetParallelStreamCount()) + 1);
-
-//     for (kXR_int32 pp = 0; pp < len; pp += spltsize) {
-//       ReadChunk ck;
-
-//       ck.offset = pp+offset;
-//       ck.len = xrdmin(len - pp, spltsize);
-//       ck.streamtosend = cliconn->GetParallelStreamToUse();
-
-//       reqlists.Push_back(ck);
-
-//     }
-    
-
-
-
-    int reqsperstream = 2;
-    // Let's try to distribute the load into maximum sized chunks
-    if (cliconn->GetParallelStreamCount() > 1) {
-
-      // We start seeing which length we get trying to fill all the
-      // available slots ( per stream)
-      int candlen = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
-			   len / (reqsperstream * (cliconn->GetParallelStreamCount()-1)) + 1);
-
-      // We don't want blocks smaller than a min value
-      // If this is the case we consider only one slot per stream
-      if (candlen < DFLT_MULTISTREAMSPLITSIZE) {
-	spltsize = xrdmax(DFLT_MULTISTREAMSPLITSIZE,
-			  len / (cliconn->GetParallelStreamCount()-1) + 1);
-	reqsperstream = 1;
-      }
-      else spltsize = candlen;
-
-//      spltsize = min(256*1024, spltsize);
-    }
-    else spltsize = len;
-
+    GetGoodSplitParameters(cliconn, spltsize, reqsperstream, len);
     for (kXR_int32 pp = 0; pp < len; pp += spltsize) {
       ReadChunk ck;
 

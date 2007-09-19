@@ -590,13 +590,6 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 //_____________________________________________________________________________
 kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 {
-    // This is only an additional step to ReadVEach... it will only split
-    // a really big request in multiple request... it sounds kind of silly
-    // since we are trying to do the opposite but there are restrictions
-    // in the server that dont let us send such big buffers.
-    // Note: this could return a smaller buffer than expected (for example
-    // if only a few readings were allowed).
-
     // If buf==0 then the request is considered as asynchronous
 
     if (!IsOpen_wait()) {
@@ -604,79 +597,12 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
        return 0;
     }
 
-    Stat(0);
-
-    // We say that the range for an unsigned int of 16 bits is 0 to +65,535
-    // which is Request.read.dlen .
-    // Since we are only sending "readahead_list" which are 16 bytes we could 
-    // send 4095 requests in one single call...
-
-    // Maximum number of segments addressable with a kXR_unt16 type
-    //    kXR_int32 limit = 1 << (int)(sizeof(kXR_unt16) * 8);
-    //kXR_unt16 Nmax  = (kXR_unt16) ((limit) / sizeof(struct readahead_list));
-    kXR_unt16 Nmax = READV_MAXCHUNKS;
-    if (!buf && EnvGetLong(NAME_MULTISTREAMCNT))
-      Nmax = READV_MAXCHUNKS/EnvGetLong(NAME_MULTISTREAMCNT);
-
-    int i = 0;
-    kXR_int64 pos = 0; 
-    kXR_int64 res = 0;
-    int n = ( Nmax < nbuf ) ? Nmax : nbuf;
-
-    while ( i < nbuf ) {
-
-	// This returns how many bytes are expected from the request
-	// BUT cam modify n, which is the number of chunks processed from the
-	// given list
-	if (buf) res = ReadVEach(&buf[pos], &offsets[i], &lens[i], n);
-	else
-	    res = ReadVEach(0, &offsets[i], &lens[i], n);
-
-	if ( res <= 0)
-	    break;
-
-	pos += res;
-	i += n;
-
-	if ( (nbuf - i) < n  )
-	    n = (nbuf - i);
-    }
-    
-    // pos will indicate the size of the data read
-    // Even if we were able to read only a part of the buffer !!!
-    return pos;
-}
-
-//_____________________________________________________________________________
-kXR_int64 XrdClient::ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int &nbuf) {
-    // This will compress multiple request in one single read to
-    // avoid the latency.
-
-    Info( XrdClientDebug::kUSERDEBUG, "ReadV", " Number of requested buffers=" << nbuf);
-
-    for(int i = 0 ; i < nbuf ; i++){
-      Info( XrdClientDebug::kHIDEBUG, "ReadV",
-            "Read(offs=" << offsets[i] << ", len=" << lens[i] << ")" ); 
-    }
-
-    // The first thing to do is to check if the server version
-    // supports the vectored reads... has to be > 2.4.5
-
     // This means problems in getting the protocol version
     if ( fConnModule->GetServerProtocol() < 0 ) {
        Info(XrdClientDebug::kHIDEBUG, "ReadV",
             "Problems retrieving protocol version run by the server" );
        return -1;
     }
-
-    // 246 is the non-recognized version of xrootd shipped with root 5.12
-    /*
-    if ( fConnModule->GetServerProtocol() < 0x00000246 ) {
-       Info(XrdClientDebug::kHIDEBUG, "ReadV",
-            "The server is an old version and doesn't support vectored reading" );
-       return -1;
-    }
-    */
 
     // This means the server won't support it
     if ( fConnModule->GetServerProtocol() < 0x00000247 ) {
@@ -686,9 +612,70 @@ kXR_int64 XrdClient::ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int &nb
        return -1;
     }
 
-    return XrdClientReadV::ReqReadV(fConnModule, fHandle, buf, offsets, lens, nbuf, fStatInfo.size);
+    Stat(0);
 
+    // We pre-process the request list in order to make it compliant
+    //  with the restrictions imposed by the server
+    XrdClientVector<XrdClientReadVinfo> reqvect;
+
+    // First we want to know how much data we expect
+    kXR_int64 maxbytes = 0;
+    for (int i = 0; i < nbuf; i++)
+      maxbytes += lens[i];
+
+    // Then we get a suggestion about the splitsize to use
+    int spltsize = 0;
+    int reqsperstream = 0;
+    XrdClientMStream::GetGoodSplitParameters(fConnModule, spltsize, reqsperstream, maxbytes);
+
+    // To optimize the splitting for the readv, we need the greater multiple
+    // of READV_MAXCHUNKSIZE... maybe yes, maybe not...
+    // if (spltsize > 2*READV_MAXCHUNKSIZE) blah blah
+
+    // Each subchunk must not exceed spltsize bytes
+    for (int i = 0; i < nbuf; i++)
+      XrdClientReadV::PreProcessChunkRequest(reqvect, offsets[i], lens[i],
+					     fStatInfo.size,
+					     spltsize );
+
+
+    int i = 0, startitem = 0;
+    kXR_int64 res = 0, bytesread = 0;
+
+    while ( i < reqvect.GetSize() ) {
+
+      // Here we have the sequence of fixed blocks to request
+      // We want to request single readv reqs which
+      //  - are compliant with the max number of blocks the server supports
+      //  - do not request more than maxbytes bytes each
+      kXR_int64 tmpbytes = 0;
+      int chunkcnt = 0;
+      for ( ; i < reqvect.GetSize(); i++) {
+	if (chunkcnt >= READV_MAXCHUNKS) break;
+	if (tmpbytes + reqvect[i].len >= spltsize) break;
+	tmpbytes += reqvect[i].len;
+	chunkcnt++;
+      }
+
+      res = XrdClientReadV::ReqReadV(fConnModule, fHandle, buf,
+				     reqvect, startitem, i-startitem,
+				     fConnModule->GetParallelStreamToUse(reqsperstream) );
+
+      // The next bunch of chunks to request starts from here
+      startitem = i;
+
+      if ( res <= 0)
+	break;
+
+      bytesread += res;
+
+    }
+    
+    // pos will indicate the size of the data read
+    // Even if we were able to read only a part of the buffer !!!
+    return bytesread;
 }
+
 
 //_____________________________________________________________________________
 bool XrdClient::Write(const void *buf, long long offset, int len) {

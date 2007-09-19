@@ -124,19 +124,33 @@ void clientMarshall(ClientRequest* str)
 }
 
 //___________________________________________________________________________
-void clientMarshallReadAheadList(const void* reqMoreData, kXR_int32 dlen)
+void clientMarshallReadAheadList(readahead_list *buf_list, kXR_int32 dlen)
 {
    // This function applies the network byte order on the
    // vector of read-ahead information
    kXR_int64 tmpl;
    
-   struct readahead_list *buf_list = (readahead_list *) reqMoreData;
    int n = dlen / (sizeof(struct readahead_list));
    for( int i = 0; i < n; i++ ) {
       memcpy(&tmpl, &(buf_list[i].offset), sizeof(kXR_int64) );
-      tmpl = _htonll(tmpl);
+      tmpl = htonll(tmpl);
       memcpy(&(buf_list[i].offset), &tmpl, sizeof(kXR_int64) );
       buf_list[i].rlen = htonl(buf_list[i].rlen);      
+   }
+}
+//___________________________________________________________________________
+void clientUnMarshallReadAheadList(readahead_list *buf_list, kXR_int32 dlen)
+{
+   // This function applies the network byte order on the
+   // vector of read-ahead information
+   kXR_int64 tmpl;
+   
+   int n = dlen / (sizeof(struct readahead_list));
+   for( int i = 0; i < n; i++ ) {
+      memcpy(&tmpl, &(buf_list[i].offset), sizeof(kXR_int64) );
+      tmpl = ntohll(tmpl);
+      memcpy(&(buf_list[i].offset), &tmpl, sizeof(kXR_int64) );
+      buf_list[i].rlen = ntohl(buf_list[i].rlen);      
    }
 }
 

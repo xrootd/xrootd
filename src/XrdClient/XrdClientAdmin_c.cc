@@ -102,8 +102,12 @@ extern "C" {
       if (!adminst)
 	 adminst = new XrdClientAdmin(url);
       
-      adminst->Connect();
+      bool conn = false;
+
+      if (adminst) conn = adminst->Connect();
       
+      if (!conn) delete adminst;
+
       sharedbuf = 0;
       return (adminst != NULL);
    }

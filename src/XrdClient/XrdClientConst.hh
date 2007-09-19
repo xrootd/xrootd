@@ -55,8 +55,9 @@
 #define DFLT_MULTISTREAMCNT     0
 #define NAME_MULTISTREAMCNT     (char *)"ParStreamsPerPhyConn"
 
-// The size to use to split big single requests through multiple streams
-#define DFLT_MULTISTREAMSPLITSIZE (128*1024)
+// The minimum size to use to split big single requests
+//  through multiple streams
+#define DFLT_MULTISTREAMSPLITSIZE (32*1024)
 
 // keep/dont-keep the socket open (required by optimized rootd fallback)
 #define DFLT_KEEPSOCKOPENIFNOTXRD 0

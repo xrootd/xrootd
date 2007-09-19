@@ -788,10 +788,6 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
 	return kWRITE;
     }
 
-    // If this a ReadV, marshall the vector also
-    if ( req->header.requestid == kXR_readv)
-       clientMarshallReadAheadList(reqMoreData, req->readv.dlen);
-
     clientMarshall(&req_netfmt);
 
     // Strong mutual exclusion over the physical channel

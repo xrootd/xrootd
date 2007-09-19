@@ -15,96 +15,94 @@
 
 // Builds a request and sends it to the server
 // If destbuf == 0 the request is sent asynchronously
+// nbuf returns the number of processed buffers
 kXR_int64 XrdClientReadV::ReqReadV(XrdClientConn *xrdc, char *handle, char *destbuf,
-				   kXR_int64 *offsets, int *lens, int nbuf, kXR_int64 maxoffs) {
+				   XrdClientVector<XrdClientReadVinfo> &reqvect,
+				   int firstreq, int nreq, int streamtosend) {
 
     readahead_list buflis[READV_MAXCHUNKS];
 
     Info(XrdClientDebug::kUSERDEBUG, "ReqReadV",
-	 "Requesting to read " << nbuf <<
-	 " chunks");
+	 "Requesting to read " << nreq <<
+	 " chunks.");
 
-    // Here we put the information of all the buffers in a single list
-    // then it's up to server to interpret it and send us all the data
-    // in a single buffer
     kXR_int64 total_len = 0;
-    int bufcnt = 0, i = 0;
 
-    while ((i < nbuf) && (bufcnt < READV_MAXCHUNKS)) {
-	// The length to request is trimmed to the eof
-	// But it may be splitted into smaller chunks
-	kXR_int64 newlen = xrdmin(maxoffs - offsets[i], lens[i]);
-	kXR_int32 donelen = 0;
+    // Now we build the protocol-ready read ahead list
+    //  and also put the correct placeholders inside the cache
+    for (int i = 0; i < nreq; i++) {
 
-	// We want to trim out useless reads
-	// and split a huge req into smaller chunks
-	while ((donelen < newlen) && (bufcnt < READV_MAXCHUNKS)) {
-	    memcpy( &(buflis[bufcnt].fhandle), handle, 4 ); 
+	    memcpy( &(buflis[i].fhandle), handle, 4 ); 
 
-	    kXR_int32 actlen = xrdmin(newlen-donelen, READV_MAXCHUNKSIZE);
-	    kXR_int64 actoffs = offsets[i]+donelen;
 	    if (!destbuf)
-		xrdc->SubmitPlaceholderToCache(actoffs, actoffs+actlen-1);
+		xrdc->SubmitPlaceholderToCache(reqvect[firstreq+i].offset,
+					       reqvect[firstreq+i].offset +
+					       reqvect[firstreq+i].len-1);
 
-	    buflis[bufcnt].offset = actoffs;
-	    buflis[bufcnt].rlen = actlen;
-	    donelen += actlen;
-
-	    bufcnt++;
-
-	    if (bufcnt >= READV_MAXCHUNKS) break;
-	}
-
-	total_len += lens[i];
-	i++;
+	    buflis[i].offset = reqvect[firstreq+i].offset;
+	    buflis[i].rlen = reqvect[firstreq+i].len;
+	    total_len += buflis[i].rlen;
     }
 
-    nbuf = i;
-
-    if (bufcnt > 0) {
+    if (nreq > 0) {
 
 	// Prepare a request header 
 	ClientRequest readvFileRequest;
 	memset( &readvFileRequest, 0, sizeof(readvFileRequest) );
 	xrdc->SetSID(readvFileRequest.header.streamid);
 	readvFileRequest.header.requestid = kXR_readv;
-	readvFileRequest.readv.dlen = bufcnt * sizeof(struct readahead_list);
+	readvFileRequest.readv.dlen = nreq * sizeof(struct readahead_list);
 
 	if (destbuf) {
 	    // A buffer able to hold the data and the info about the chunks
-	    char *res_buf = new char[total_len + (bufcnt * sizeof(struct readahead_list))];
+	    char *res_buf = new char[total_len + (nreq * sizeof(struct readahead_list))];
 
-	    if ( xrdc->SendGenCommand(&readvFileRequest, buflis, 0, 
-				      (void *)res_buf, FALSE, (char *)"ReadV") )
-		total_len = UnpackReadVResp(destbuf, res_buf, xrdc->LastServerResp.dlen, offsets, lens, bufcnt);
+	    clientMarshallReadAheadList(buflis, readvFileRequest.readv.dlen);
+	    bool r = xrdc->SendGenCommand(&readvFileRequest, buflis, 0, 
+					  (void *)res_buf, FALSE, (char *)"ReadV");
+	    clientUnMarshallReadAheadList(buflis, readvFileRequest.readv.dlen);
+
+	    if ( r ) {
+        
+		total_len = UnpackReadVResp(destbuf, res_buf,
+					    xrdc->LastServerResp.dlen,
+					    buflis,
+					    nreq);
+            }
             else
 	      total_len = -1;
 	
 	    delete [] res_buf;
 	}
-	else
-	    if (xrdc->WriteToServer_Async(&readvFileRequest,
-					  buflis,
-					  xrdc->GetParallelStreamToUse(1)) != kOK )
-		total_len = 0;
+	else {
+	  clientMarshallReadAheadList(buflis, readvFileRequest.readv.dlen);
+	  if (xrdc->WriteToServer_Async(&readvFileRequest,
+					buflis) != kOK )
+	    total_len = 0;
+	}
 
     }
 
+    Info(XrdClientDebug::kHIDEBUG, "ReqReadV",
+         "Returning: total_len " << total_len);
     return total_len;
 }
 
 
 // Picks a readv response and puts the individual chunks into the dest buffer
 kXR_int32 XrdClientReadV::UnpackReadVResp(char *destbuf, char *respdata, kXR_int32 respdatalen,
-				    kXR_int64 *offsets, int *lens, int nbuf) {
+				    readahead_list *buflis, int nbuf) {
 
     int res = respdatalen;
 
     // I just rebuild the readahead_list element
     struct readahead_list header;
-    int pos_from = 0, pos_to = 0, i = 0;
+    kXR_int64 pos_from = 0, pos_to = 0;
+    int i = 0;
 
-    while ( (pos_from <= respdatalen) && (i < nbuf) ) {
+    int cur_buf_len = 0, cur_buf_offset = -1, cur_buf = 0;
+    
+    while ( (pos_from < respdatalen) && (i < nbuf) ) {
 	memcpy(&header, respdata + pos_from, sizeof(struct readahead_list));
        
 	kXR_int64 tmpl;
@@ -114,21 +112,35 @@ kXR_int32 XrdClientReadV::UnpackReadVResp(char *destbuf, char *respdata, kXR_int
 
 	header.rlen  = ntohl(header.rlen);       
 
-	// If the data we receive is not the data we asked for we might
-	// be seeing an error... but it has to be handled in a different
-	// way if we get the data in a different order.
-	if ( offsets[i] != header.offset || lens[i] != header.rlen ) {
-	    res = -1;
-	    break;
-	}
+        // Do some consistency checks
+        if (cur_buf_len == 0) {
+           cur_buf_offset = header.offset;
+           if (cur_buf_offset != buflis[cur_buf].offset) {
+              res = -1;  
+              break;
+           }
+           cur_buf_len += header.rlen;
+           if (cur_buf_len == buflis[cur_buf].rlen) {
+              cur_buf++;
+              cur_buf_len = 0;
+           }
+        }
 
 	pos_from += sizeof(struct readahead_list);
 	memcpy( &destbuf[pos_to], &respdata[pos_from], header.rlen);
 	pos_from += header.rlen;
 	pos_to += header.rlen;
-	i++;
+        i++;
     }
-    res = pos_to;
+
+    if (pos_from != respdatalen || i != nbuf)
+       Error("UnpackReadVResp","Inconsistency: pos_from " << pos_from <<
+	     " respdatalen " << respdatalen <<
+	     " i " << i <<
+	     " nbuf " << nbuf );
+
+    if (res > 0)
+      res = pos_to;
 
     return res;
 }
@@ -197,3 +209,32 @@ int XrdClientReadV::SubmitToCacheReadVResp(XrdClientConn *xrdc, char *respdata,
 
 
 }
+
+
+
+void XrdClientReadV::PreProcessChunkRequest(XrdClientVector<XrdClientReadVinfo> &reqvect,
+					    kXR_int64 offs, kXR_int32 len,
+					    kXR_int64 filelen,
+					    kXR_int32 spltsize) {
+  // Process a single subchunk request, eventually splitting it into more than one
+
+  kXR_int32 len_ok = 0;
+  kXR_int32 newlen = xrdmin(filelen - offs, len);
+  
+  // We want blocks whose len does not exceed READV_MAXCHUNKSIZE
+  spltsize = xrdmin(spltsize, READV_MAXCHUNKSIZE);
+
+  while (len_ok < newlen) {
+    XrdClientReadVinfo nfo;
+
+    nfo.offset = offs+len_ok;
+    nfo.len = xrdmin(newlen-len_ok, spltsize);
+
+    reqvect.Push_back(nfo);
+
+    len_ok += nfo.len;
+  }
+  
+}
+
+
