@@ -106,7 +106,11 @@ extern "C" {
 
       if (adminst) conn = adminst->Connect();
       
-      if (!conn) delete adminst;
+      if (!conn) {
+          delete adminst;
+          adminst = NULL;
+      }
+      
 
       sharedbuf = 0;
       return (adminst != NULL);
