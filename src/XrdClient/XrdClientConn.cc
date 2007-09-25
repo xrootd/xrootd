@@ -565,6 +565,9 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 			    if (LastServerResp.status == kXR_wait) {
 				cmdrespMex->fHdr.status = kXR_wait;
 				memcpy(cmdrespMex->GetData(), fREQWaitRespData->respdata, sizeof(kXR_int32));
+
+				CheckErrorStatus(cmdrespMex, retry, CmdName);
+				// This causes a retry
 				resp = false;
 			    }
 			    else {
@@ -582,7 +585,8 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 					   LastServerResp.dlen);
 			    
 				}
-
+				
+				// This makes the request exit with the new answer
 				resp = true;
 			    }
 
