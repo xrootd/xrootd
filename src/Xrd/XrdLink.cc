@@ -603,7 +603,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 
 // Add up bytes if they were not given to us
 //
-   if (!bytes) for (i = 0; i < iocnt; i++) bytes += iov->iov_len;
+   if (!bytes) for (i = 0; i < iocnt; i++) bytes += iov[i].iov_len;
    bytesleft = bytes;
 
 // Get a lock
