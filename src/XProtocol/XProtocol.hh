@@ -67,7 +67,8 @@ enum XRequestTypes {
    kXR_endsess, // 3023
    kXR_bind,    // 3024
    kXR_readv,   // 3025
-   kXR_verifyw  // 3026
+   kXR_verifyw, // 3026
+   kXR_locate   // 3027
 };
 
 // OPEN MODE FOR A REMOTE FILE
