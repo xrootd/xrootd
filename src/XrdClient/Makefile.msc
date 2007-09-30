@@ -84,7 +84,7 @@ LFLAGS   =
 ####### Files
 
 HEADERS =   XrdClient.hh XrdClientAbs.hh XrdClientAdmin_c.hh \
-            XrdClientAdmin.hh XrdClientAdminConn.hh \
+            XrdClientAdmin.hh \
             XrdClientConn.hh XrdClientConnMgr.hh XrdClientConst.hh XrdClientDebug.hh \
             XrdClientDNS.hh XrdClientEnv.hh XrdClientInputBuffer.hh XrdClientLogConnection.hh \
             XrdClientMessage.hh XrdClientPhyConnection.hh XrdClientProtocol.hh XrdClientReadCache.hh \
@@ -93,7 +93,7 @@ HEADERS =   XrdClient.hh XrdClientAbs.hh XrdClientAdmin_c.hh \
             XrdCpWorkLst.hh XrdClientMStream.hh XrdClientPSock.hh XrdClientReadV.hh
 
 SOURCES =   XrdClient.cc XrdClientAbs.cc XrdClientConn.cc XrdClientAdmin_c.cc \
-            XrdClientAdmin.cc XrdClientAdminConn.cc \
+            XrdClientAdmin.cc \
             XrdClientConnMgr.cc XrdClientDebug.cc XrdClientEnv.cc XrdClientInputBuffer.cc \
             XrdClientLogConnection.cc XrdClientMessage.cc XrdClientPhyConnection.cc \
             XrdClientProtocol.cc XrdClientReadCache.cc XrdClientSid.cc XrdClientSock.cc \
@@ -101,7 +101,7 @@ SOURCES =   XrdClient.cc XrdClientAbs.cc XrdClientConn.cc XrdClientAdmin_c.cc \
             XrdCpWorkLst.cc XrdClientMStream.cc XrdClientPSock.cc XrdClientReadV.cc
 
 OBJECTS =   $(OUTDIR)/XrdClient.obj $(OUTDIR)/XrdClientAbs.obj \
-            $(OUTDIR)/XrdClientAdmin.obj $(OUTDIR)/XrdClientAdminConn.obj \
+            $(OUTDIR)/XrdClientAdmin.obj \
             $(OUTDIR)/XrdClientAdmin_c.obj $(OUTDIR)/XrdClientConn.obj $(OUTDIR)/XrdClientConnMgr.obj \
             $(OUTDIR)/XrdClientDebug.obj $(OUTDIR)/XrdClientEnv.obj $(OUTDIR)/XrdClientInputBuffer.obj \
             $(OUTDIR)/XrdClientLogConnection.obj $(OUTDIR)/XrdClientMessage.obj \

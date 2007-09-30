@@ -1,60 +1,61 @@
 //       $Id$
+// Simple keleton for simple tests of Xrdclient and XrdClientAdmin
+//
 
 #include "XrdClient/XrdClient.hh"
-#include "XrdClient/XrdClientAdmin_c.hh"
+#include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include <iostream>
 
 int main(int argc, char **argv) {
 
-  //EnvPutInt(NAME_DEBUG, 3);
-  EnvPutInt(NAME_READCACHESIZE, 100000000);
+  EnvPutInt(NAME_DEBUG, -1);
+  //EnvPutInt(NAME_READCACHESIZE, 100000000);
 
 
-  XrdClient *x = new XrdClient(argv[1]);
-  XrdClient *y = new XrdClient(argv[2]);
-  x->Open(0, 0);
+//   XrdClient *x = new XrdClient(argv[1]);
+//   XrdClient *y = new XrdClient(argv[2]);
+//   x->Open(0, 0);
     
-  //    for (int i = 0; i < 1000; i++)
-  //      x->Copy("/tmp/testcopy");
+//      for (int i = 0; i < 1000; i++)
+//        x->Copy("/tmp/testcopy");
   
-  x->Close();
+//   x->Close();
 
-  delete x;
-  x = 0;
+//   delete x;
+//   x = 0;
    
-  y->Open(0, 0);
+//   y->Open(0, 0);
   
-  //    for (int i = 0; i < 1000; i++)
-  //      x->Copy("/tmp/testcopy");
+//      for (int i = 0; i < 1000; i++)
+//        x->Copy("/tmp/testcopy");
   
-  y->Close();
+//   y->Close();
   
-  delete y;
+//   delete y;
 
-//    XrdInitialize(argv[1], "DebugLevel 3\nConnectTimeout 5");
-//    bool ans;
-//    char *strans;
+  XrdClientUrlInfo u;
+  XrdClientAdmin::SetAdminConn(false);
+  XrdClientAdmin *adm = new XrdClientAdmin(argv[1]);
 
-//    ans = XrdExistFiles("/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root");
-//    cout << "\nThe answer of XTNetAdmin_ExistFiles is:" << ans << endl;
+  adm->Connect();
 
-//    ans = XrdExistDirs("/prod");
-//    cout << "\nThe answer of XTNetAdmin_ExistDirs is:" << ans << endl;
+  string s;
+  int i = 0;
+  while (!cin.eof()) {
+    cin >> s;
 
-//    ans = XrdExistFiles("/prod\n/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root\n/tmp");
-//    cout << "\nThe answer of XTNetAdmin_ExistFiles is:" << ans << endl;
+    if (!s.size()) continue;
 
-//    ans = XrdExistDirs("/prod\n/store\n/store/PR");
-//    cout << "\nThe answer of XTNetAdmin_ExistDirs is:" << ans << endl;
+    adm->Locate((kXR_char*)s.c_str(), u, false);
 
-//    ans = XrdIsFileOnline("/store/PR/R14/AllEvents/0004/35/14.2.0b/AllEvents_00043511_14.2.0bV00.02E.root");
-//    cout << "\nThe answer of XTNetAdmin_IsFileOnline is:" << ans << endl;
+    if (!(i % 100)) cout << i << "...";
+    i++;
 
-//    strans = XrdGetChecksum("/prod/store/PRskims/R14/16.0.1a/AllEvents/23/AllEvents_2301.01.root");
-//    cout << "\nThe answer of XTNetAdmin_Getchecksum is:'" << strans << "'" << endl;
+  }
 
-//    XrdTerminate();
+
+  delete adm;
 
       
 

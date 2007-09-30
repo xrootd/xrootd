@@ -657,7 +657,7 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 	chunkcnt++;
       }
 
-      res = XrdClientReadV::ReqReadV(fConnModule, fHandle, buf,
+      res = XrdClientReadV::ReqReadV(fConnModule, fHandle, buf+bytesread,
 				     reqvect, startitem, i-startitem,
 				     fConnModule->GetParallelStreamToUse(reqsperstream) );
 

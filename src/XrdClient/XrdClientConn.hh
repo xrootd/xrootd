@@ -74,6 +74,8 @@ public:
 				       XrdClientAbsUnsolMsgHandler *unsolhandler);
     void                       Disconnect(bool ForcePhysicalDisc);
     virtual bool               GetAccessToSrv();
+    XReqErrorType              GoBackToRedirector();
+
     XrdOucString               GetClientHostDomain() { return fgClientHostDomain; }
 
 
@@ -134,7 +136,7 @@ public:
     inline XrdClientUrlInfo    GetRedirUrl() { return fREQUrl; }
 
     XErrorCode                 GetOpenError() const { return fOpenError; }
-    virtual XReqErrorType      GoToAnotherServer(XrdClientUrlInfo newdest);
+    virtual XReqErrorType      GoToAnotherServer(XrdClientUrlInfo &newdest);
     bool                       IsConnected() const { return fConnected; }
     bool                       IsPhyConnConnected();
 

@@ -33,7 +33,6 @@ SOURCES = \
 	XrdClientThread.cc              \
 	XrdClientProtocol.cc            \
 	XrdClientAdmin.cc		\
-	XrdClientAdminConn.cc		\
 	XrdCpMthrQueue.cc		\
 	XrdCpWorkLst.cc                 \
         XrdClientAdmin_c.cc             \
@@ -61,7 +60,6 @@ OBJECTS = \
 	$(OBJDIR)/XrdClientUrlSet.o		\
 	$(OBJDIR)/XrdClientProtocol.o           \
 	$(OBJDIR)/XrdClientAdmin.o              \
-	$(OBJDIR)/XrdClientAdminConn.o          \
 	$(OBJDIR)/XrdClientEnv.o		\
 	$(OBJDIR)/XrdCpMthrQueue.o		\
 	$(OBJDIR)/XrdCpWorkLst.o		\
@@ -324,27 +322,7 @@ $(OBJDIR)/XrdClientConn.o: XrdClientConn.cc XrdClientConn.hh ../XrdClient/XrdCli
 	@echo Compiling XrdClientConn.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientConn.o XrdClientConn.cc
 
-$(OBJDIR)/XrdClientAdminConn.o: XrdClientAdminConn.cc XrdClientAdminConn.hh ../XrdClient/XrdClientDebug.hh \
-  ../XrdClient/XrdClientConst.hh ../XrdSys/XrdSysPthread.hh \
-  ../XrdSys/XrdSysError.hh ../XrdClient/XrdClientEnv.hh \
-  ../XrdOuc/XrdOucEnv.hh ../XrdOuc/XrdOucHash.hh ../XrdOuc/XrdOucHash.icc \
-  ../XrdSys/XrdSysLogger.hh ../XrdClient/XrdClientConnMgr.hh \
-  ../XrdClient/XrdClientUnsolMsg.hh ../XrdClient/XrdClientMessage.hh \
-  ../XrdClient/XrdClientProtocol.hh ../XProtocol/XProtocol.hh \
-  ../XProtocol/XPtypes.hh ../XrdClient/XrdClientSock.hh \
-  ../XrdClient/XrdClientUrlInfo.hh ../XrdClient/XrdClientPSock.hh \
-  ../XrdClient/XrdClientLogConnection.hh \
-  ../XrdClient/XrdClientPhyConnection.hh \
-  ../XrdClient/XrdClientInputBuffer.hh ../XrdSys/XrdSysSemWait.hh \
-  ../XrdClient/XrdClientVector.hh ../XrdClient/XrdClientThread.hh \
-  ../XrdClient/XrdClientConn.hh ../XrdClient/XrdClientReadCache.hh \
-  ../XrdSec/XrdSecInterface.hh ../XrdSec/XrdSecEntity.hh \
-  ../XrdNet/XrdNetDNS.hh  \
-  ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientSid.hh \
-  ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
-  ../XrdSys/XrdSysPlatform.hh
-	@echo Compiling XrdClientAdminConn.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAdminConn.o XrdClientAdminConn.cc
+
 
 $(OBJDIR)/XrdClientConnMgr.o: XrdClientConnMgr.cc ../XrdClient/XrdClientConnMgr.hh \
   ../XrdSys/XrdSysPthread.hh ../XrdSys/XrdSysError.hh \

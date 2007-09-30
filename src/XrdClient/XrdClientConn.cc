@@ -1754,10 +1754,12 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
               newport = 0;
               // An explicit redir overwrites token and opaque info
               ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
+
               // Save it in fREQUrl
-              fREQUrl = fUrl;
-              fREQUrl.Host = newhost;
-              fREQUrl.Port = newport;
+              // fREQUrl = fUrl;
+              // fREQUrl.Host = newhost;
+              // fREQUrl.Port = newport;
+
               // Reset counter
               fGlobalRedirCnt = 0;
               return kSEHRReturnMsgToCaller;
@@ -1952,7 +1954,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 }
 
 //_____________________________________________________________________________
-XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo newdest)
+XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo &newdest)
 {
     // Re-directs to another server
    
@@ -1983,6 +1985,16 @@ XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo newdest)
     fPrimaryStreamid = ConnectionManager->GetConnection(fLogConnID)->Streamid();
 
     return kOK;
+}
+
+//_____________________________________________________________________________
+XReqErrorType XrdClientConn::GoBackToRedirector() {
+  // This is a primitive used to force a client to consider again
+  // the root node as the default connection, even after requests that involve
+  // redirections. Used typically for stat and similar functions
+  Disconnect(false);
+  if (fGlobalRedirCnt) fGlobalRedirCnt--;
+  return GoToAnotherServer(*fLBSUrl);
 }
 
 //_____________________________________________________________________________
