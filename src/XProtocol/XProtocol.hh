@@ -293,6 +293,13 @@ struct ClientGetfileRequest {
    kXR_int32 buffsz;
    kXR_int32  dlen;
 };
+struct ClientLocateRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_unt16 options;
+   kXR_char reserved[14];
+   kXR_int32  dlen;
+};
 struct ClientLoginRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
@@ -442,6 +449,7 @@ typedef union {
    struct ClientDirlistRequest dirlist;
    struct ClientEndsessRequest endsess;
    struct ClientGetfileRequest getfile;
+   struct ClientLocateRequest locate;
    struct ClientLoginRequest login;
    struct ClientMkdirRequest mkdir;
    struct ClientMvRequest mv;
