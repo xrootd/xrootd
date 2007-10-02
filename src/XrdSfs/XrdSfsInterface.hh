@@ -28,6 +28,7 @@
 #define SFS_O_RDWR             2         // open read/write
 #define SFS_O_CREAT        0x100         // used for file creation
 #define SFS_O_TRUNC        0x200         // used for file truncation
+#define SFS_O_NOWAIT  0x01000000         // do not impose operational delays
 #define SFS_O_RAWIO   0x02000000         // allow client-side decompression
 #define SFS_O_RESET   0x04000000         // Reset any cached information
 
@@ -46,6 +47,12 @@
 // Maximum number of bytes of opaque information that can be set
 //
 #define SFS_MAX_ERROR_LEN 1280
+
+// Common fsctl command values (0 to 255)
+//
+#define SFS_FSCTL_CMD   255
+
+#define SFS_FSCTL_LOCATE  1 // Locate a file
 
 // Return Values for Integer Returning XrdSfs Interface
 //

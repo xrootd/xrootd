@@ -101,6 +101,7 @@ class XrdOlbPrepArgs;
 #define XMI_NEW    0x0002
 #define XMI_TRUNC  0x0004
 #define XMI_CANCEL 0x0008
+#define XMI_LOCATE 0x0010
 
 // Flags to be passed back by XeqMode()
 //

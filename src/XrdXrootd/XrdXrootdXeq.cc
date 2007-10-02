@@ -491,6 +491,47 @@ int XrdXrootdProtocol::do_Getfile()
 }
 
 /******************************************************************************/
+/*                             d o _ L o c a t e                              */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_Locate()
+{
+   static XrdXrootdCallBack locCB("locate");
+   int rc, opts, fsctl_cmd = SFS_FSCTL_LOCATE;
+   const char *opaque;
+   char *fn = argp->buff, opt[8], *op=opt;
+   XrdOucErrInfo myError(Link->ID, &locCB, ReqID.getID());
+
+// Unmarshall the data
+//
+   opts = (int)ntohs(Request.locate.options);
+
+// Map the options
+//
+   if (opts & kXR_nowait)  {fsctl_cmd |= SFS_O_NOWAIT; *op++ = 'i';}
+   if (opts & kXR_refresh) {fsctl_cmd |= SFS_O_RESET;  *op++ = 's';}
+   *op = '\0';
+   TRACEP(FS, "locate " <<opt <<' ' <<fn);
+
+// Check for static routing
+//
+   if (Route[RD_locate].Port)
+      return Response.Send(kXR_redirect, Route[RD_locate].Port,
+                                         Route[RD_locate].Host);
+
+// Prescreen the path
+//
+   if (rpCheck(fn, &opaque)) return rpEmsg("Locating", fn);
+   if (!Squash(fn))          return vpEmsg("Locating", fn);
+
+// Preform the actual function
+//
+   rc = osFS->fsctl(fsctl_cmd, fn, myError, CRED);
+   TRACEP(FS, "rc=" <<rc <<" locate " <<fn);
+   return fsError(rc, myError);
+}
+  
+/******************************************************************************/
 /*                              d o _ L o g i n                               */
 /******************************************************************************/
   

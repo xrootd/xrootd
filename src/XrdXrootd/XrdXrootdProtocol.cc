@@ -77,7 +77,7 @@ const char           *XrdXrootdProtocol::myInst  = 0;
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
 int                   XrdXrootdProtocol::myPID = static_cast<int>(getpid());
 
-struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[9] = {{0,0}};
+struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[10] = {{0,0}};
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
@@ -405,6 +405,7 @@ int XrdXrootdProtocol::Process2()
                                  else break;
           case kXR_chmod:     return do_Chmod();
           case kXR_dirlist:   return do_Dirlist();
+          case kXR_locate:    return do_Locate();
           case kXR_mkdir:     return do_Mkdir();
           case kXR_mv:        return do_Mv();
           case kXR_query:     return do_Query();

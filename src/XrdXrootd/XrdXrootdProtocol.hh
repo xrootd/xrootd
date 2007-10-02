@@ -95,10 +95,10 @@ static int           StatGen(struct stat &buf, char *xxBuff);
 private:
 
 // Note that Route[] structure (velow) must have equivalent elemnts!
-//            0             1           2         3      4           5
-enum RD_func {RD_chmod = 0, RD_dirlist, RD_mkdir, RD_mv, RD_prepare, RD_prepstg,
-              RD_rm,        RD_rmdir,   RD_stat};
-//            6             7           8        (9 elements)
+//            0             1           2         3         4
+enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
+              RD_prepare,   RD_prepstg, RD_rm,    RD_rmdir, RD_stat};
+//            5             6           7         8         9  (10 elements)
 
        int   do_Admin();
        int   do_Auth();
@@ -110,6 +110,7 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_mkdir, RD_mv, RD_prepare, RD_prepstg,
        int   do_Endsess();
        int   do_Getfile();
        int   do_Login();
+       int   do_Locate();
        int   do_Mkdir();
        int   do_Mv();
        int   do_Offload(int pathID, int isRead);
@@ -207,7 +208,7 @@ static char               *JobCKT;
 
 // Static redirection
 //
-static struct RD_Table {char *Host; int Port;} Route[9];
+static struct RD_Table {char *Host; int Port;} Route[10];
 
 // async configuration values
 //

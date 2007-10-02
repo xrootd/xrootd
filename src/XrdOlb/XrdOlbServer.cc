@@ -755,6 +755,56 @@ int XrdOlbServer::do_Load(char *rid)
 }
   
 /******************************************************************************/
+/*                             d o _ L o c a t e                              */
+/******************************************************************************/
+
+int XrdOlbServer::do_Locate(char *rid, const char *path, XrdOlbPInfo &pinfo, 
+                            XrdOlbCInfo &cinfo)
+{
+   EPNAME("do_Locate";)
+   XrdOlbSInfo *sP, *pP;
+   static const int Skip = (OLB_SERVER_DISABLE | OLB_SERVER_OFFLINE);
+   char outbuff[32*64], *oP;
+
+// List the servers
+//
+   if (!cinfo.hfvec
+   || !(sP = Manager.ListServers(cinfo.hfvec, OLB_LS_IPO)))
+      {Link->Send(outbuff, snprintf(outbuff, sizeof(outbuff)-1,
+             "%s ?err No servers have the file", rid));
+       DEBUG("Path find failed for locate " <<path);
+       return 0;
+      }
+
+// Insert prefix into the buffer
+//
+   oP = outbuff + sprintf(outbuff, "%s !data ", rid);
+
+// format out the request as follows:                   
+// 01234567810123456789212345678
+// xy[::123.123.123.123]:123456
+//
+   while(sP)
+        {if (sP->Status & Skip) continue;
+         *oP++ = (sP->Status & OLB_SERVER_ISMANGR ? 'M' : 'S');
+         *oP++ = (sP->Mask & pinfo.rwvec          ? 'w' : 'r');
+         strcpy(oP, "[::"); oP += 3;
+         oP += XrdNetDNS::IP2String(sP->IPAddr, 0, oP, 24); // We're cheating
+         *oP++ = ']'; *oP++ = ':';
+         oP += sprintf(oP, "%d", sP->Port);
+         pP = sP; 
+         if ((sP = sP->next)) *oP++ = ' ';
+         delete pP;
+        }
+
+// Send of the result
+//
+   *oP = '\0';
+   Link->Send(outbuff, oP-outbuff);
+   return 0;
+}
+  
+/******************************************************************************/
 /*                              d o _ M k d i r                               */
 /******************************************************************************/
   
@@ -1370,10 +1420,10 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    const char *amode;
    char *tp, ptc, hbuff[512];
    int n, dowt = 0, Osel, retc, needrw;
-   int qattr = 0, resonly = 0, newfile = 0, dotrunc = 0;
+   int qattr = 0, resonly = 0, newfile = 0, dotrunc = 0, dolocate = 0;
    SMask_t amask, smask, pmask, nmask = ~SMask_t(0);
 
-// Process: <id> select[s] {c | d | r | w | s | t | x] [-host] <path>
+// Process: <id> select[s] {c | d | r | w | s | t | x | z] [-host] <path>
 
 // Note: selects - requests a cache refresh for <path>
 //             c - file will be created
@@ -1382,6 +1432,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 //             w - file will be read and writen
 //             s - only stat information will be obtained
 //             x - only stat information will be obtained (file must be resident)
+//             z - only loc  information will be obtained
 //             - - the host failed to deliver the file.
 
 // Reponds: ?err  <msg>
@@ -1398,6 +1449,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
          case 'w': Osel = OLB_needrw;  amode = "write"; break;
          case 'x': Osel = 0;           amode = "read";  resonly = 1;
                                                         qattr   = 1; break;
+         case 'z': Osel = 0; InfoP=0;  amode = "read";  dolocate= 1; break;
          case 'c': Osel = OLB_newfile; amode = "write"; newfile = 1; break;
          case 'd': Osel = OLB_newfile; amode = "write"; newfile = 1;
                                                         dotrunc = 1; break;
@@ -1427,6 +1479,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
                  {int opts = (Osel & OLB_needrw ? XMI_RW : 0);
                   if (newfile) opts |= XMI_NEW;
                   if (dotrunc) opts |= XMI_TRUNC;
+                  if (dolocate)opts |= XMI_LOCATE;
                   if (Xmi_Select->Select(&Req, tp, opts)) return 0;
                  }
 
@@ -1481,6 +1534,10 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
        DEBUG("Lookup delay " <<Name() <<' ' <<Config.LUPDelay);
        return 0;
       }
+
+// If this is a locate request, perform it now
+//
+   if (dolocate) return do_Locate(rid, tp, pinfo, cinfo);
 
 // Compute the primary and secondary selections:
 // Primary:   Servers who already have the file (computed above)

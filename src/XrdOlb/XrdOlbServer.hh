@@ -22,7 +22,9 @@
 #include "XrdOlb/XrdOlbRRQ.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+class XrdOlbCInfo;
 class XrdOlbDrop;
+class XrdOlbPInfo;
 class XrdOlbPrepArgs;
 
 class XrdOlbServer
@@ -91,6 +93,7 @@ private:
        int   do_Gone(char *rid);
        int   do_Have(char *rid);
        int   do_Load(char *rid);
+       int   do_Locate(char *, const char *, XrdOlbPInfo &, XrdOlbCInfo &);
        int   do_Mkdir(char *rid, int do4real);
        int   do_Mkpath(char *rid, int do4real);
        int   do_Mv(char *rid, int do4real);

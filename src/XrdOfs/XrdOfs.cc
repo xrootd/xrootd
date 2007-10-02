@@ -272,8 +272,6 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 
 // Apply security, as needed
 //
-   if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(dir_path))
-      return XrdOfsFS.Emsg(epname, error, EACCES, "list", dir_path);
    AUTHORIZE(client,&Open_Env,AOP_Readdir,"open directory",dir_path,error);
 
 // Open the directory and allocate a handle for it
@@ -446,15 +444,9 @@ int XrdOfsFile::open(const char          *path,      // In
 //
    if (oh) return XrdOfsFS.Emsg(epname,error,EADDRINUSE,"open file",path);
 
-// Verify that we can use this path
-//
-   if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, error, EACCES, "open", path);
-   error.setErrInfo(0, "");
-
 // Set the actual open mode
 //
-   odc_mode = (open_mode & SFS_O_RESET ? O_EXCL : 0);
+   odc_mode = (open_mode & SFS_O_RESET ? O_SYNC : 0);
    if (open_mode & SFS_O_CREAT) open_mode = SFS_O_CREAT;
       else if (open_mode & SFS_O_TRUNC) open_mode = SFS_O_TRUNC;
 
@@ -1192,8 +1184,6 @@ int XrdOfs::chmod(const char             *path,    // In
 
 // Apply security, as needed
 //
-   if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "change", path);
    AUTHORIZE(client,&chmod_Env,AOP_Chmod,"chmod",path,einfo);
 
 // Find out where we should chmod this file
@@ -1261,8 +1251,6 @@ int XrdOfs::exists(const char                *path,        // In
 
 // Apply security, as needed
 //
-   if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
    AUTHORIZE(client,&stat_Env,AOP_Stat,"locate",path,einfo);
 
 // Find out where we should stat this file
@@ -1288,6 +1276,51 @@ int XrdOfs::exists(const char                *path,        // In
 // An error occured, return the error info
 //
    return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
+}
+
+/******************************************************************************/
+/*                                 f s c t l                                  */
+/******************************************************************************/
+
+int XrdOfs::fsctl(const int               cmd,
+                  const char             *args,
+                  XrdOucErrInfo          &einfo,
+                  const XrdSecEntity     *client)
+/*
+  Function: Perform filesystem operations:
+
+  Input:    cmd       - Operation command (currently supported):
+                        SFS_FSCTL_LOCATE - locate file
+            arg       - Command dependent argument:
+                      - Locate: The path whose location is wanted
+            buf       - The stat structure to hold the results
+            einfo     - Error/Response information structure.
+            client    - Authentication credentials, if any.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+   static const char *epname = "fsctl";
+   int retc, oflags = O_NOFOLLOW, opcode = cmd & SFS_FSCTL_CMD;
+   const char *tident = einfo.getErrUser();
+   XTRACE(fsctl, args, "");
+
+// Screen for commands we support (each has it's own security and implentation)
+//
+   if (opcode == SFS_FSCTL_LOCATE)
+      {AUTHORIZE(client,0,AOP_Stat,"locate",args,einfo);
+       if (cmd & SFS_O_NOWAIT) oflags |= O_NDELAY;
+       if (cmd & SFS_O_RESET)  oflags |= O_SYNC;
+       if (Finder && Finder->isRemote()
+       &&  (retc = Finder->Locate(einfo, args, oflags)))
+          return fsError(einfo, retc);
+       return SFS_OK;
+      }
+
+// Operation is not supported
+//
+   return XrdOfsFS.Emsg(epname, einfo, ENOTSUP, "fsctl", args);
+
 }
 
 /******************************************************************************/
@@ -1328,8 +1361,6 @@ int XrdOfs::mkdir(const char             *path,    // In
 
 // Apply security, as needed
 //
-   if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "create", path);
    AUTHORIZE(client,&mkdir_Env,AOP_Mkdir,"mkdir",path,einfo);
 
 // Find out where we should remove this file
@@ -1417,8 +1448,6 @@ int XrdOfs::remove(const char              type,    // In
 
 // Apply security, as needed
 //
-   if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "remove", path);
    AUTHORIZE(client,&rem_Env,AOP_Delete,"remove",path,einfo);
 
 // Find out where we should remove this file
@@ -1481,12 +1510,6 @@ int XrdOfs::rename(const char             *old_name,  // In
 
 // Apply security, as needed
 //
-   if (XrdOfsFS.VPlist.NotEmpty())
-      {if (XrdOfsFS.VPlist.Find(old_name))
-          return XrdOfsFS.Emsg(epname, einfo, EACCES, "rename", old_name);
-       if (XrdOfsFS.VPlist.Find(new_name))
-          return XrdOfsFS.Emsg(epname, einfo, EACCES, "rename to", new_name);
-      }
    AUTHORIZE2(client, einfo,
               AOP_Rename, "renaming",    old_name, &old_Env,
               AOP_Insert, "renaming to", new_name, &new_Env );
@@ -1545,8 +1568,6 @@ int XrdOfs::stat(const char             *path,        // In
 
 // Apply security, as needed
 //
-   if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
    AUTHORIZE(client,&stat_Env,AOP_Stat,"locate",path,einfo);
 
 // Find out where we should stat this file
@@ -1592,8 +1613,6 @@ int XrdOfs::stat(const char             *path,        // In
 
 // Apply security, as needed
 //
-   if (XrdOfsFS.VPlist.NotEmpty() && !XrdOfsFS.VPlist.Find(path))
-      return XrdOfsFS.Emsg(epname, einfo, EACCES, "locate", path);
    AUTHORIZE(client,&stat_Env,AOP_Stat,"locate",path,einfo);
    mode = (mode_t)-1;
 

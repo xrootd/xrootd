@@ -792,7 +792,7 @@ int XrdXrootdProtocol::xprep(XrdOucStream &Config)
                        be immediately redirected to <host>:<port>. Each function
                        may be prefixed by a minus sign to disable redirection.
 
-                       chmod dirlist mkdir mv prepare rm rmdir stat
+                       chmod dirlist locate mkdir mv prepare rm rmdir stat
 
   Output: 0 upon success or !0 upon failure.
 */
@@ -803,6 +803,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
        {
         {"chmod",    RD_chmod},
         {"dirlist",  RD_dirlist},
+        {"locate",   RD_locate},
         {"mkdir",    RD_mkdir},
         {"mv",       RD_mv},
         {"prepare",  RD_prepare},
