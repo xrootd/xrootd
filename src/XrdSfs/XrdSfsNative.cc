@@ -649,6 +649,19 @@ int XrdSfsNative::exists(const char                *path,        // In
 }
 
 /******************************************************************************/
+/*                                 f s c t l                                  */
+/******************************************************************************/
+
+int XrdSfsNative::fsctl(const int               cmd,
+                        const char             *args,
+                              XrdOucErrInfo    &out_error,
+                        const XrdSecClientName *client)
+{
+    out_error.setErrInfo(ENOTSUP, "Operation not supported.");
+    return SFS_ERROR;
+}
+  
+/******************************************************************************/
 /*                            g e t V e r s i o n                             */
 /******************************************************************************/
 

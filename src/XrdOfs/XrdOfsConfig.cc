@@ -278,8 +278,6 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
 int XrdOfs::ConfigRedir(XrdSysError &Eroute) 
 {
    int isRedir = Options & XrdOfsREDIRRMT;
-   int port;
-   char *pp;
 
 // For manager roles, we simply do a standard config
 //
@@ -307,12 +305,12 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
 // For server roles find the port number and create the object
 //
    if (Options & (XrdOfsREDIRTRG | (XrdOfsREDIREER & ~ XrdOfsREDIRRMT)))
-      {if (!(pp=getenv("XRDPORT")) || !(port=strtol(pp, (char **)NULL, 10)))
+      {if (!myPort)
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
           }
        Balancer = new XrdOdcFinderTRG(Eroute.logger(), 
-                         (isRedir ? XrdOdcIsRedir : 0), port);
+                         (isRedir ? XrdOdcIsRedir : 0), myPort);
        if (!Balancer->Configure(ConfigFN)) 
           {delete Balancer; Balancer = 0; return 1;}
        if (Options & XrdOfsREDIROXY) Balancer = 0; // No chatting for proxies

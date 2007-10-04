@@ -350,6 +350,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 //
    if ((retc = MSS_Stat(remote_path, buff))) return retc;
    if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
+   buff->st_mode |= S_IFBLK;
    return XrdOssOK;
 }
 

@@ -240,6 +240,7 @@ virtual               ~XrdOfs() {}  // Too complicate to delete :-)
 // Configuration values for this filesystem
 //
 int   Options;        //    Various options
+int   myPort;         //    Port number being used
 
 // Forward options
 //
@@ -301,6 +302,8 @@ char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdOdcFinderTRG  *Balancer;       //    ->Server Balancer Interface
 XrdOfsEvs        *evsObject;      //    ->Event Notifier
+char             *locResp;        //    ->Locate Response
+int               locRlen;        //      Length of locResp;
 
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */

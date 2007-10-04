@@ -152,6 +152,8 @@ int           XrdOfsIdleXeq(XrdOfsHandle *, void *);
 
 XrdOfs::XrdOfs()
 {
+   unsigned int myIPaddr = 0;
+   char buff[256], *bp;
    int i;
 
 // Establish defaults
@@ -176,9 +178,19 @@ XrdOfs::XrdOfs()
    fwdRMDIR      = 0;
    myRole        = strdup("server");
 
-// Establish our hostname
+// Obtain port number we will be using
+//
+   myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **)NULL, 10) : 0;
+
+// Establish our hostname and IPV4 address
 //
    HostName      = XrdNetDNS::getHostName();
+   if (!XrdNetDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
+   strcpy(buff, "[::"); bp = buff+3;
+   bp += XrdNetDNS::IP2String(myIPaddr, 0, bp, 128);
+   *bp++ = ']'; *bp++ = ':';
+   sprintf(bp, "%d", myPort);
+   locResp = strdup(buff); locRlen = strlen(buff);
    for (i = 0; HostName[i] && HostName[i] != '.'; i++);
    HostName[i] = '\0';
    HostPref = strdup(HostName);
@@ -1308,13 +1320,21 @@ int XrdOfs::fsctl(const int               cmd,
 // Screen for commands we support (each has it's own security and implentation)
 //
    if (opcode == SFS_FSCTL_LOCATE)
-      {AUTHORIZE(client,0,AOP_Stat,"locate",args,einfo);
+      {struct stat fstat;
+       char rType[3], *Resp[] = {rType, locResp};
+       AUTHORIZE(client,0,AOP_Stat,"locate",args,einfo);
        if (cmd & SFS_O_NOWAIT) oflags |= O_NDELAY;
        if (cmd & SFS_O_RESET)  oflags |= O_SYNC;
        if (Finder && Finder->isRemote()
        &&  (retc = Finder->Locate(einfo, args, oflags)))
           return fsError(einfo, retc);
-       return SFS_OK;
+       if ((retc = XrdOfsOss->Stat(args, &fstat)))
+          return XrdOfsFS.Emsg(epname, einfo, retc, "locate", args);
+       rType[0] = (fstat.st_mode & S_IFBLK == S_IFBLK ? 's' : 'S');
+       rType[1] = (fstat.st_mode & S_IWUSR            ? 'w' : 'r');
+       rType[2] = '\0';
+       einfo.setErrInfo(locRlen+3, (const char **)Resp, 2);
+       return SFS_DATA;
       }
 
 // Operation is not supported

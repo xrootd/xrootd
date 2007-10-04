@@ -771,7 +771,7 @@ int XrdOlbServer::do_Locate(char *rid, const char *path, XrdOlbPInfo &pinfo,
    if (!cinfo.hfvec
    || !(sP = Manager.ListServers(cinfo.hfvec, OLB_LS_IPO)))
       {Link->Send(outbuff, snprintf(outbuff, sizeof(outbuff)-1,
-             "%s ?err No servers have the file", rid));
+             "%s !err ENOENT No servers have the file", rid));
        DEBUG("Path find failed for locate " <<path);
        return 0;
       }
@@ -1489,7 +1489,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
    if (!Cache.Paths.Find(tp, pinfo)
    || (amask = ((needrw ? pinfo.rwvec : pinfo.rovec) & nmask)) == 0)
       {Link->Send(buff, snprintf(buff, sizeof(buff)-1,
-             "%s ?err No servers have %s access to the file", rid, amode));
+             "%s !err ENOENT No servers have %s access to the file",rid,amode));
        DEBUG("Path find failed for select " <<ptc <<' ' <<tp);
        return 0;
       }

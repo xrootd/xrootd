@@ -151,7 +151,7 @@ public:
         int            fsctl(const int               cmd,
                              const char             *args,
                                    XrdOucErrInfo    &out_error,
-                             const XrdSecClientName *client = 0) {return 0;}
+                             const XrdSecClientName *client = 0);
 
         int            getStats(char *buff, int blen) {return 0;}
 
