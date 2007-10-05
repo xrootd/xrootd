@@ -76,6 +76,10 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
 	 if ( do_recurse && 
 	      ((*srccli)->LastServerError()->errnum == kXR_isDirectory) ){
 
+
+ 	    delete (*srccli);
+	    *srccli = 0;
+
 	    // So, it's a dir for sure
 	    // Let's process it recursively
 

@@ -59,6 +59,9 @@ void clientMarshall(ClientRequest* str)
       str->getfile.options = htonl(str->getfile.options);
       str->getfile.buffsz  = htonl(str->getfile.buffsz);
       break;
+   case kXR_locate:
+      str->locate.options = htons(str->getfile.options);
+      break;
    case kXR_login:
       str->login.pid     = htonl(str->login.pid);
       break;
@@ -205,6 +208,9 @@ char *convertRequestIdToChar(kXR_unt16 requestid)
       break;
    case kXR_getfile:
       return (char *)"kXR_getfile";
+      break;
+   case kXR_locate:
+      return (char *)"kXR_locate";
       break;
    case kXR_login:
       return (char *)"kXR_login";
@@ -397,7 +403,16 @@ void smartPrintClientHeader(ClientRequest* hdr)
              "ClientHeader.dirlist.reserved = ",
              (kXR_int32)sizeof(hdr->dirlist.reserved));
       break;
+   case kXR_locate:
+      printf("  ClientHeader.locate.options= 0x%.2x 0x%.2x \n", 
+             *((kXR_char *)&hdr->locate.options),
+             *(((kXR_char *)&hdr->locate.options)+1)
+	     );
 
+      printf("%40s0 repeated %d times\n", 
+             "ClientHeader.locate.reserved = ",
+             (kXR_int32)sizeof(hdr->locate.reserved));
+      break;
    case kXR_login:
       printf("%40s%d \n", 
              "ClientHeader.login.pid = ",

@@ -19,6 +19,7 @@
 #include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientConnMgr.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 
 
 #include <stdio.h>
@@ -859,22 +860,292 @@ long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
    else return 0;
 }
 
+int XrdClientAdmin::LocalLocate(kXR_char *path, XrdClientVector<XrdClientLocate_Info> &res) {
+  // Fires a locate req towards the currently connected server, and pushes the
+  // results into the res vector
+  //
+  // Returns the number of pushed elements, or -1 if an error occurred
+   ClientRequest locateRequest;
+   char *resp = 0, *token = 0;
+
+   memset( &locateRequest, 0, sizeof(locateRequest) );
+
+   fConnModule->SetSID(locateRequest.header.streamid);
+
+   locateRequest.locate.requestid = kXR_locate;
+   //chksumRequest.locate.options = 0;
+   locateRequest.locate.dlen = strlen((char *) path);
+
+   // Resp is allocated inside the call
+   bool ret = fConnModule->SendGenCommand(&locateRequest, (const char*) path,
+					  (void **)&resp, 0, true,
+					  (char *)"LocalLocate");
+
+   if (!ret) return (-1);
+   if (!resp || !strlen(resp)) return 0;
+
+   XrdOucTokenizer tkzer(resp);
+   int retval = 0;
+   XrdClientLocate_Info nfo;
+   if (!tkzer.GetLine()) return 0;
+
+   while ( (token = tkzer.GetToken(0, 0)) ) {
+
+     // If a token is bad, we keep the ones processed previously
+     if ( (strlen(token) < 8) || (token[2] != '[') || (token[4] != ':') ) {
+	  Error("LocalLocate",
+		"Invalid server response. Resp: '" << resp << "'");
+	  break;
+	  
+     }
+
+     strcpy((char *)nfo.Location, token+5);
+     char *pp = strchr((char *)nfo.Location, ']');
+     if (pp)
+       memmove(pp, pp+1, strlen(pp+1)+1);
+
+     switch (token[0]) {
+     case 'S':
+       nfo.Infotype = XrdClientLocate_Info::kXrdcLocDataServer;
+       break;
+     case 's':
+       nfo.Infotype = XrdClientLocate_Info::kXrdcLocDataServerPending;
+       break;
+     case 'M':
+       nfo.Infotype = XrdClientLocate_Info::kXrdcLocManager;
+       break;
+     case 'm':
+       nfo.Infotype = XrdClientLocate_Info::kXrdcLocManagerPending;
+       break;
+     }
+     
+
+     nfo.CanWrite = (token[1] == 'w');
+
+     res.Push_back(nfo);
+     retval++;
+   }
+
+   return retval;
+}
+
 //_____________________________________________________________________________
-bool XrdClientAdmin::Locate(kXR_char *path, XrdClientUrlInfo &eurl, bool fast)
+bool XrdClientAdmin::Locate(kXR_char *path, XrdClientLocate_Info &resp, bool writable)
 {
-   // Find out the exact location of the file 'path' and save the corresponding
-   // URL in eurl.
+   // Find out any exact location of file 'path' and save the corresponding
+   // URL in resp.
+   // Returns true if found
+   // If the retval is false and writable==true , resp contains a non writable url
+   //  if there is one
 
-   bool rc = 1;
-   eurl.Clear();
+   bool found = false;
+   int depth = 0;
+   memset(&resp, 0, sizeof(resp));
+
+   if (!fConnModule) return 0;
+   if (!fConnModule->IsConnected()) return 0;
+   XrdClientUrlInfo currurl(fConnModule->GetCurrentUrl().GetUrl());
+   if (!currurl.HostWPort.length()) return 0;
+
+   // Set up the starting point in the vectored queue
+   XrdClientVector<XrdClientLocate_Info> hosts;
+   XrdClientLocate_Info nfo;
+   nfo.Infotype = XrdClientLocate_Info::kXrdcLocManager;
+   nfo.CanWrite = true;
+   strcpy((char *)nfo.Location, currurl.HostWPort.c_str());
+   hosts.Push_back(nfo);
+   bool firsthost = true;
+   XrdClientLocate_Info currnfo;
+   bool stoprecursion = true;
+
+   do {
+     
+     // Figure out how many checks at max we have to do to accomodate this level
+     int qrytodo = hosts.GetSize();
+     int pos = 0;
+
+     stoprecursion = true;
+
+     // Expand a level, i.e. ask to all the masters and remove items from the list
+     for (int ii = 0; ii < qrytodo; ii++) {
+
+       // Take the first item to process
+       currnfo = hosts[pos];
+
+       // If it's a master, we have to contact it, otherwise take the next
+       if ((currnfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServer) ||
+	   (currnfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServerPending)) {
+	 pos++;
+	 continue;
+       }
+
+       stoprecursion = false;
+	 
+       // Here, currnfo is pointing to a master we have to contact
+       currurl.TakeUrl((char *)currnfo.Location);
+
+       // Connect to the given host. At the beginning we are connected to the starting point
+       // A failed connection is just ignored. Only one attempt is performed. Timeouts are
+       // honored.
+       if (!firsthost) {
+	 firsthost = false;
+
+	 fConnModule->Disconnect(false);
+	 if (fConnModule->GoToAnotherServer(currurl) != kOK) {
+	   pos++;
+	   continue;
+	 }
+       }
+
+       // We are connected, do the locate
+       int prevsz = hosts.GetSize();
+       int added = LocalLocate(path, hosts);
+
+       // Now look into the added hosts if we have finished
+       if (added > 0)
+	 for (ii = prevsz-1; ii < hosts.GetSize(); ii++) {
+	   currnfo = hosts[ii];
+
+	   // If it's a candidate we keep it as a temp result
+	   // After all, here we want to take only the first
+	   // At this stage we don't stop if we only find a pending item
+	   // Instead, the item is left in the queue
+	   if (currnfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServer) {
+	     resp = currnfo;
+	     
+	     if (!writable || resp.CanWrite) {
+	       found = true;
+	       break;
+	     }
+	     
 
 
-   // Stat the file
-   long id, flags, modtime;
-   long long size;
-   if ((rc = Stat((const char *)path, id, size, flags, modtime)))
-     eurl = fConnModule->GetCurrentUrl();
 
-   // Done!
-   return rc;
+	   }
+	 }
+
+
+       if (found) break;
+
+       // We did not finish, take the next
+       hosts.Erase(pos);
+     }
+
+     depth++;
+   } while ( !found && (depth <= 4) && !stoprecursion);
+   
+   if (depth > 4)
+     Error("Locate",
+	   "The cluster exposes too many levels.");
+
+   if (!found && hosts.GetSize()) {
+     // If not found, we check anyway in the remaining list
+     // to pick a pending one if present
+     for (int ii = 0; ii < hosts.GetSize(); ii++) {
+       currnfo = hosts[ii];
+       if ( (currnfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServer) ||
+	    (currnfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServerPending) ) {
+	     resp = currnfo;
+	     
+	     if (!writable || resp.CanWrite) {
+	       found = true;
+	       break;
+	     }
+	     
+	   }
+
+
+     }
+
+   }
+
+   // At the end we want to rewind to the main redirector in any case
+   fConnModule->GoBackToRedirector();
+
+   return found;
+}
+
+
+//_____________________________________________________________________________
+bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info> &hosts)
+{
+   // Find out any exact location of file 'path' and save the corresponding
+   // URL in resp.
+   // Returns true if found at least one
+
+   int depth = 0;
+   hosts.Clear();
+
+   if (!fConnModule) return 0;
+   if (!fConnModule->IsConnected()) return 0;
+   XrdClientUrlInfo currurl(fConnModule->GetCurrentUrl().GetUrl());
+   if (!currurl.HostWPort.length()) return 0;
+
+   // Set up the starting point in the vectored queue
+   XrdClientLocate_Info nfo;
+   nfo.Infotype = XrdClientLocate_Info::kXrdcLocManager;
+   nfo.CanWrite = true;
+   strcpy((char *)nfo.Location, currurl.HostWPort.c_str());
+   hosts.Push_back(nfo);
+   bool firsthost = true;
+   XrdClientLocate_Info currnfo;
+   bool stoprecursion = true;
+
+   do {
+     
+     // Figure out how many checks at max we have to do to accomodate this level
+     int qrytodo = hosts.GetSize();
+     int pos = 0;
+
+     stoprecursion = true;
+
+     // Expand a level, i.e. ask to all the masters and remove items from the list
+     for (int ii = 0; ii < qrytodo; ii++) {
+
+       // Take the first item to process
+       currnfo = hosts[pos];
+
+       // If it's a master, we have to contact it, otherwise take the next
+       if ((currnfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServer) ||
+	   (currnfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServerPending)) {
+	 pos++;
+	 continue;
+       }
+
+       stoprecursion = false;
+	 
+       // Here, currnfo is pointing to a master we have to contact
+       currurl.TakeUrl((char *)currnfo.Location);
+
+       // Connect to the given host. At the beginning we are connected to the starting point
+       // A failed connection is just ignored. Only one attempt is performed. Timeouts are
+       // honored.
+       if (!firsthost) {
+	 firsthost = false;
+
+	 fConnModule->Disconnect(false);
+	 if (fConnModule->GoToAnotherServer(currurl) != kOK) {
+	   pos++;
+	   continue;
+	 }
+       }
+
+       // We are connected, do the locate
+       LocalLocate(path, hosts);
+
+       // We did not finish, take the next
+       hosts.Erase(pos);
+     }
+
+     depth++;
+   } while ( (depth <= 4) && !stoprecursion);
+   
+   if (depth > 4)
+     Error("Locate",
+	   "The cluster exposes too many levels.");
+
+   // At the end we want to rewind to the main redirector in any case
+   fConnModule->GoBackToRedirector();
+
+   return (hosts.GetSize() > 0);
 }

@@ -28,6 +28,20 @@ typedef XrdClientVector<bool> vecBool;
 
 void joinStrings(XrdOucString &buf, vecString vs);
 
+struct XrdClientLocate_Info {
+  enum {
+    kXrdcLocNone,
+    kXrdcLocDataServer,
+    kXrdcLocDataServerPending,
+    kXrdcLocManager,
+    kXrdcLocManagerPending
+  } Infotype;
+
+  bool CanWrite;
+
+  kXR_char Location[256];
+};
+
 class XrdClientAdmin : public XrdClientAbs {
 
    XrdOucString                    fInitialUrl;
@@ -35,6 +49,9 @@ class XrdClientAdmin : public XrdClientAbs {
    static XrdOucHash<XrdClientAdmin> fgAdminHash;
    static bool                     fgAdminConn;
 
+  
+   int                             LocalLocate(kXR_char *path,
+					       XrdClientVector<XrdClientLocate_Info> &res);
  protected:
 
    bool                            CanRedirOnError() {
@@ -104,10 +121,16 @@ class XrdClientAdmin : public XrdClientAbs {
                                            kXR_char prty);
 
    // Gives ONE location of a particular file... if present
+   //  if writable is true only a writable location is searched
+   //  but, if no writable locations are found, the result is negative but may
+   //  propose a non writable one as a bonus
+   bool                            Locate(kXR_char *path, XrdClientLocate_Info &resp,
+					  bool writable=false);
+
+   // Gives ALL the locations of a particular file... if present
    bool                            Locate(kXR_char *path,
-		                          XrdClientUrlInfo &eurl,
-                                          bool fast = FALSE);
-	   
+					  XrdClientVector<XrdClientLocate_Info> &hosts);
+
    UnsolRespProcResult             ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                                          XrdClientMessage *unsolmsg);
 

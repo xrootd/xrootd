@@ -90,6 +90,12 @@ char *srcopaque=0,
    *dstopaque=0;   // opaque info to be added to urls
 // Default open flags for opening a file (xrd)
 kXR_unt16 xrd_wr_flags=kXR_async | kXR_mkpath | kXR_open_updt | kXR_new;
+
+// Flags for open() to force overwriting or not. Default is not.
+#define LOC_WR_FLAGS_FORCE ( O_CREAT | O_WRONLY | O_TRUNC | O_BINARY );
+#define LOC_WR_FLAGS       ( O_CREAT | O_WRONLY | O_EXCL | O_BINARY );
+int loc_wr_flags = LOC_WR_FLAGS;
+
 bool recurse = false;
 ///////////////////////
 
@@ -513,9 +519,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 
    if (strcmp(dst, "-")) {
       // Copy to local fs
-      unlink(dst);
-      f = open(dst, 
-	       O_CREAT | O_WRONLY | O_TRUNC | O_BINARY, 
+      //unlink(dst);
+      f = open(dst, loc_wr_flags, 
           S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
       if (f < 0) {
 	 cerr << "Error '" << strerror(errno) <<
@@ -730,25 +735,41 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
 void PrintUsage() {
    cerr << "usage: xrdcp <source> <dest> "
-     "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v] [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5] [-np] [-f] [-R] [-S]" << endl;
+     "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v]"
+     " [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5] [-np] [-f] [-R] [-S]" << endl << endl;
+
+   cerr << "<source> can be:" << endl <<
+     "   a local file" << endl <<
+     "   a local directory name suffixed by /" << endl <<
+     "   an xrootd URL in the form root://user@host/<absolute Logical File Name in xrootd domain>" << endl <<
+     "      (can be a directory. In this case the -R option can be fully honored only on a standalone server)" << endl;
+   cerr << "<dest> can be:" << endl <<
+     "   a local file" << endl <<
+     "   a local directory name suffixed by /" << endl <<
+     "   an xrootd URL in the form root://user@host/<absolute Logical File Name in xrootd domain>" << endl <<
+     "      (can be a directory LFN)" << endl << endl;
+
    cerr << " -d lvl :         debug level: 1 (low), 2 (medium), 3 (high)" << endl;
    cerr << " -D proxyaddr:proxyport" << endl <<
-           "        :         use proxyaddr:proxyport as a SOCKS4 proxy. Only numerical addresses are supported." << endl <<
+           "        :         use proxyaddr:proxyport as a SOCKS4 proxy."
+     " Only numerical addresses are supported." << endl <<
    cerr << " -DSparmname stringvalue" << endl <<
 	   "        :         set the internal parm <parmname> with the string value <stringvalue>" << endl <<
 	   "                   See XrdClientConst.hh for a list of parameters." << endl;
    cerr << " -DIparmname intvalue" << endl <<
            "        :         set the internal parm <parmname> with the integer value <intvalue>" << endl <<
            "                   See XrdClientConst.hh for a list of parameters." << endl <<
-	   "                   Examples: -DIReadCacheSize 3000000 -DIReadCacheBlk 131072 -DIDebugLevel 1 -DIReadAheadSize 1000000" << endl;
+	   "                   Examples: -DIReadCacheSize 3000000 -DIReadAheadSize 1000000" << endl;
    cerr << " -s     :         silent mode, no summary output, no progress bar" << endl;
    cerr << " -np    :         no progress bar" << endl;
    cerr << " -v     :         display summary output" << endl <<endl;
    cerr << " -OS    :         adds some opaque information to any SOURCE xrootd url" << endl;
    cerr << " -OD    :         adds some opaque information to any DEST xrootd url" << endl;
    cerr << " -f     :         re-create a file if already present" << endl;
-   cerr << " -F     :         set the 'force' flag for xrootd dest file opens (ignore if file is already opened)" << endl;
-   cerr << " -force :         set 1-min (re)connect attempts to retry for up to 1 week, to block until xrdcp is executed" << endl << endl;
+   cerr << " -F     :         set the 'force' flag for xrootd dest file opens"
+     " (ignore if file is already opened)" << endl;
+   cerr << " -force :         set 1-min (re)connect attempts to retry for up to 1 week,"
+     " to block until xrdcp is executed" << endl << endl;
    cerr << " -md5   :         calculate the md5 sum during transfers\n" << endl; 
    cerr << " -R     :         recurse subdirectories" << endl;
    cerr << " -S num :         use <num> additional parallel streams to do the xfer." << endl << 
@@ -841,6 +862,10 @@ int main(int argc, char**argv) {
 
 	// Also delete the existing file
 	xrd_wr_flags |= kXR_delete;
+
+
+	// Also set up the flags for the local fs
+	loc_wr_flags = LOC_WR_FLAGS_FORCE;
 
 	continue;
       }

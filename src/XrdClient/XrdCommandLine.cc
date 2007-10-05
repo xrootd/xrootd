@@ -164,6 +164,13 @@ void PrintHelp() {
       "  gets the checksum for the specified file." << endl <<
       " isfileonline <filename>" << endl <<
       "  tells if the specified file is online." << endl <<
+      " locatesingle <filename> <writable>" << endl <<
+      "  gives a location of the given file in the currently connected cluster." << endl <<
+      "  if writable is true only a writable location is searched" << endl <<
+      "   but, if no writable locations are found, the result is negative but may" << endl <<
+      "   propose a non writable one." << endl <<
+      " locateall <filename>" << endl <<
+      "  gives all the locations of the given file in the currently connected cluster." << endl <<
       " mv <filename1> <filename2>" << endl <<
       "  moves filename1 to filename2 locally to the same server." << endl <<
       " mkdir <dirname> [user] [group] [other]" << endl <<
@@ -207,6 +214,39 @@ bool CheckAnswer(XrdClientAbs *gencli) {
 
    }
 }
+
+void PrintLocateInfo(XrdClientLocate_Info &loc) {
+
+
+	 cout << "InfoType: ";
+	 switch (loc.Infotype) {
+	 case XrdClientLocate_Info::kXrdcLocNone:
+	   cout << "none" << endl;
+	   break;
+	 case XrdClientLocate_Info::kXrdcLocDataServer:
+	   cout << "kXrdcLocDataServer" << endl;
+	   break;
+	 case XrdClientLocate_Info::kXrdcLocDataServerPending:
+	   cout << "kXrdcLocDataServerPending" << endl;
+	   break;
+	 case XrdClientLocate_Info::kXrdcLocManager:
+	   cout << "kXrdcLocManager" << endl;
+	   break;
+	 case XrdClientLocate_Info::kXrdcLocManagerPending:
+	   cout << "kXrdcLocManagerPending" << endl;
+	   break;
+	 default:
+	   cout << "Invalid Infotype" << endl;
+	 }
+	 cout << "CanWrite: ";
+	 if (loc.CanWrite) cout << "true" << endl;
+	 else cout << "false" << endl;
+	 cout << "Location: '" << loc.Location << "'" << endl;
+	 
+
+
+}
+
 
 
 // Main program
@@ -444,6 +484,87 @@ int main(int argc, char**argv) {
       
 	 for (int i = 0; i < vs.GetSize(); i++)
 	    cout << vs[i] << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- locatesingle ---------------------------
+      if (!strcmp(cmd, "locatesingle")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdOucString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else pathname = currentpath;
+
+	 char *writable = tkzer.GetToken(0, 1);
+	 bool wrt = false;
+
+	 if (writable) {
+	   wrt = true;
+	   if (!strcmp(writable, "false") ||
+	       !strcmp(writable, "0")) wrt = false;
+	   else
+	     cout << "Checking for a writable location." << endl;
+	 }
+
+	 // Now try to issue the request
+	 XrdClientLocate_Info loc;
+	 bool r;
+	 r = genadmin->Locate((kXR_char *)pathname.c_str(), loc, wrt);
+	 if (!r)
+	   cout << "No matching files were found." << endl;
+	   
+	 PrintLocateInfo(loc);
+
+
+
+	 cout << endl;
+	 continue;
+      }
+
+
+      // -------------------------- locateall ---------------------------
+      if (!strcmp(cmd, "locateall")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdOucString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else pathname = currentpath;
+
+	 // Now try to issue the request
+	 XrdClientVector<XrdClientLocate_Info> loc;
+	 bool r;
+	 r = genadmin->Locate((kXR_char *)pathname.c_str(), loc);
+	 if (!r)
+	   cout << "No matching files were found." << endl;
+	 
+	 for (int ii = 0; ii < loc.GetSize(); ii++) {
+	   cout << endl << endl << "------------- Location #" << ii+1 << endl;
+	   PrintLocateInfo(loc[ii]);
+	 }
 
 	 cout << endl;
 	 continue;

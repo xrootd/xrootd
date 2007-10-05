@@ -46,8 +46,9 @@ int main(int argc, char **argv) {
     cin >> s;
 
     if (!s.size()) continue;
+    XrdClientLocate_Info loc;
 
-    adm->Locate((kXR_char*)s.c_str(), u, false);
+    adm->Locate((kXR_char*)s.c_str(), loc);
 
     if (!(i % 100)) cout << i << "...";
     i++;
