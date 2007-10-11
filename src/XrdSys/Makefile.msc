@@ -76,11 +76,24 @@ LFLAGS   =
 
 ####### Files
 
-HEADERS =   XrdSysDir.hh XrdSysPriv.hh XrdWin32.h
+HEADERS =   XrdSysDir.hh XrdSysPriv.hh XrdSysError.hh \
+            XrdSysLogger.hh XrdSysPlatform.hh XrdWin32.h \
+            XrdSysPlugin.hh \
+            XrdSysPthread.hh XrdSysTimer.hh XrdSysSemWait.hh \
+            XrdSysXSLock.hh
 
-SOURCES =   XrdSysDir.cc XrdSysPriv.cc XrdWin32.cc
+SOURCES =   XrdSysDir.cc XrdSysPriv.cc XrdWin32.cc \
+            XrdSysError.cc XrdSysLogger.cc \
+            XrdSysPlatform.cc XrdSysPlugin.cc   \
+            XrdSysPthread.cc XrdSysTimer.cc       \
+            XrdSysXSLock.cc
 
-OBJECTS =   $(OUTDIR)/XrdSysDir.obj $(OUTDIR)/XrdSysPriv.obj $(OUTDIR)/XrdWin32.obj
+OBJECTS =   $(OUTDIR)/XrdSysDir.obj $(OUTDIR)/XrdSysPriv.obj \
+            $(OUTDIR)/XrdWin32.obj \
+            $(OUTDIR)/XrdSysError.obj $(OUTDIR)/XrdSysLogger.obj \
+            $(OUTDIR)/XrdSysPlatform.obj $(OUTDIR)/XrdSysPlugin.obj   \
+            $(OUTDIR)/XrdSysPthread.obj $(OUTDIR)/XrdSysTimer.obj     \
+            $(OUTDIR)/XrdSysXSLock.obj
 
 ####### Build rules
 
