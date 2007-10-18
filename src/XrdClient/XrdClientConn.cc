@@ -2472,23 +2472,6 @@ int XrdClientConn:: GetParallelStreamCount() {
 
 }
 
-//_____________________________________________________________________________
-XrdOucString XrdClientConn::GetKey(XrdClientUrlInfo uu)
-{
-   // Build from uu a unique ID key used in hash tables
-
-   XrdOucString key(uu.User.c_str(), uu.Host.length() + uu.User.length() + 10);
-   if (uu.User.length() > 0)
-      key += "@";
-   key += uu.Host;
-   if (uu.Port > 0) {
-      key += ":";
-      key += uu.Port;
-   }
-
-   // Done
-   return key;
-}
 
 //_____________________________________________________________________________
 XrdClientPhyConnection *XrdClientConn::GetPhyConn(int LogConnID)

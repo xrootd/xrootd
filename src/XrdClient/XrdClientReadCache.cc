@@ -92,6 +92,9 @@ void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
     if (!buffer) return;
     XrdClientReadCacheItem *itm;
 
+
+    fMaxCacheSize = EnvGetLong(NAME_READCACHESIZE);
+
     Info(XrdClientDebug::kHIDEBUG, "Cache",
 	 "Submitting " << begin_offs << "->" << end_offs << " to cache.");
 

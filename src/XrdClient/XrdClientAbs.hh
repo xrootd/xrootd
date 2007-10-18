@@ -44,6 +44,9 @@ class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
    void SetParm(const char *parm, int val);
    void SetParm(const char *parm, double val);
 
+   // Hook to the open connection (needed by TXNetFile)
+   XrdClientConn              *GetClientConn() const { return fConnModule; }
+
    inline XrdClientUrlInfo GetCurrentUrl() {
       if (fConnModule)
 	 return fConnModule->GetCurrentUrl();

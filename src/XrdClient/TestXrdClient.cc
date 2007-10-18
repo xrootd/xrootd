@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv) {
 
-  EnvPutInt(NAME_DEBUG, -1);
+//    EnvPutInt(NAME_DEBUG, 3);
   //EnvPutInt(NAME_READCACHESIZE, 100000000);
 
 
@@ -35,26 +35,51 @@ int main(int argc, char **argv) {
 //   delete y;
 
   XrdClientUrlInfo u;
-  XrdClientAdmin::SetAdminConn(false);
   XrdClientAdmin *adm = new XrdClientAdmin(argv[1]);
 
   adm->Connect();
 
-  string s;
-  int i = 0;
-  while (!cin.eof()) {
-    cin >> s;
+   string s;
+   int i = 0;
+   XrdClientLocate_Info loc;
+   while (!cin.eof()) {
+     cin >> s;
 
-    if (!s.size()) continue;
-    XrdClientLocate_Info loc;
+     if (!s.size()) continue;
 
-    adm->Locate((kXR_char*)s.c_str(), loc);
+     adm->Locate((kXR_char*)s.c_str(), loc);
 
-    if (!(i % 100)) cout << i << "...";
-    i++;
+     if (!(i % 100)) cout << i << "...";
+     i++;
+//     if (i == 9000) break;
+   }
 
-  }
+//  vecString vs;
+//  XrdOucString os;
+// string s;
+//  int i = 0;
+//  while (!cin.eof()) {
+//    cin >> s;
 
+//    if (!s.size()) continue;
+
+//    os = s.c_str();
+//    vs.Push_back(os);
+
+//    if (!(i % 200)) {
+//      cout << i << "...";
+//      adm->Prepare(vs, kXR_stage, 0);
+//      vs.Clear();
+//    }
+
+//    i++;
+
+//  }
+
+
+
+//  adm->Prepare(vs, 0, 0);
+//  cout << endl << endl;
 
   delete adm;
 

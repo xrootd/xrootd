@@ -243,8 +243,6 @@ public:
     short                      GetMaxRedirCnt() const { return fMaxGlobalRedirCnt; }
     void                       SetMaxRedirCnt(short mx) {fMaxGlobalRedirCnt = mx; }
 
-    static XrdOucString        GetKey(XrdClientUrlInfo uu);
-
 protected:
     void                       SetLogConnID(int cid) { fLogConnID = cid; }
     void                       SetStreamID(kXR_unt16 sid) { fPrimaryStreamid = sid; }

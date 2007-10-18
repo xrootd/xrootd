@@ -188,8 +188,7 @@ public:
     // Write data to the file
     bool                        Write(const void *buf, long long offset, int len);
 
-    // Hook to the open connection (needed by TXNetFile)
-    XrdClientConn              *GetClientConn() const { return fConnModule; }
+
 
 };
 

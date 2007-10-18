@@ -32,9 +32,6 @@
 #include <netinet/in.h>
 #endif
 
-XrdOucHash<XrdClientAdmin> XrdClientAdmin::fgAdminHash;
-bool XrdClientAdmin::fgAdminConn = 0;
-
 //_____________________________________________________________________________
 void joinStrings(XrdOucString &buf, vecString vs)
 {
@@ -90,36 +87,7 @@ XrdClientAdmin::~XrdClientAdmin()
    delete fConnModule;
 }
 
-//_____________________________________________________________________________
-XrdClientAdmin *XrdClientAdmin::GetClientAdmin(const char *url)
-{
-   // Checks if an admin for 'url' exists already.
-   // Avoid duplications.
-   XrdClientAdmin *ca = 0;
 
-   // ID key
-   XrdOucString key = XrdClientConn::GetKey(XrdClientUrlInfo(url));
-
-   // If we have one for 'key', just use it
-   if (fgAdminHash.Num() > 0 && (ca = fgAdminHash.Find(key.c_str()))) {
-      return ca;
-   }
-
-   // Create one and save the reference in the hash table
-   ca = new XrdClientAdmin(url);
-   fgAdminHash.Add(key.c_str(), ca);
-
-   // Done
-   return ca;
-}
-
-//_____________________________________________________________________________
-void XrdClientAdmin::SetAdminConn(bool on)
-{
-   // Switch between optmized and standard connections
-
-   fgAdminConn = on;
-}
 
 //_____________________________________________________________________________
 bool XrdClientAdmin::Connect()
@@ -1148,4 +1116,16 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info
    fConnModule->GoBackToRedirector();
 
    return (hosts.GetSize() > 0);
+}
+
+
+
+// Quickly jump to the former redirector. Useful after having been redirected.
+void XrdClientAdmin::GoBackToRedirector() {
+
+  if (fConnModule)
+    fConnModule->GoBackToRedirector();
+
+
+
 }

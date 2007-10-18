@@ -46,10 +46,6 @@ class XrdClientAdmin : public XrdClientAbs {
 
    XrdOucString                    fInitialUrl;
 
-   static XrdOucHash<XrdClientAdmin> fgAdminHash;
-   static bool                     fgAdminConn;
-
-  
    int                             LocalLocate(kXR_char *path,
 					       XrdClientVector<XrdClientLocate_Info> &res);
  protected:
@@ -89,6 +85,9 @@ class XrdClientAdmin : public XrdClientAbs {
 
    long                            GetChecksum(kXR_char *path,
                                                kXR_char **chksum);
+
+   // Quickly jump to the former redirector. Useful after having been redirected.
+   void                            GoBackToRedirector();
 
    bool                            IsFileOnline(vecString&,
                                                 vecBool&);
@@ -134,14 +133,6 @@ class XrdClientAdmin : public XrdClientAbs {
    UnsolRespProcResult             ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                                          XrdClientMessage *unsolmsg);
 
-   // Hook to the open connection (needed by TXNetSystem)
-   XrdClientConn                  *GetClientConn() const { return fConnModule; }
-
-   // Checks if an admin already exists for url
-   static XrdClientAdmin          *GetClientAdmin(const char *url);
-
-   // Switch between optmized and standard connections
-   static void                     SetAdminConn(bool on = 1);
 };
 
 #endif

@@ -989,11 +989,11 @@ bool XrdClient::Close() {
     closeFileRequest.close.dlen = 0;
 
 
-    //bool ok = fConnModule->SendGenCommand(&closeFileRequest,
-    //					  0,
-    //					  0, 0 , FALSE, (char *)"Close");
+    bool ok = fConnModule->SendGenCommand(&closeFileRequest,
+    					  0,
+    					  0, 0 , FALSE, (char *)"Close");
 
-    fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
+    //fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
   
     // No file is opened for now
     fOpenPars.opened = FALSE;

@@ -77,7 +77,7 @@
 #define DFLT_READCACHEBLK       0
 #define NAME_READCACHEBLK       (char *)"ReadCacheBlk"
 
-#define DFLT_READAHEADSIZE      (1024*1024)
+#define DFLT_READAHEADSIZE      (0)
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
 
 // To be used in copy-like apps when the data is to be accessed only once
