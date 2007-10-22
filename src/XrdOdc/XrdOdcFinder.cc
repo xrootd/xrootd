@@ -215,20 +215,20 @@ int XrdOdcFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 //       y - locate file at currently know locations (do not wait)
 //       z - locate file.
 //
-        if (flags & O_CREAT)
-           ptype = (flags & (O_WRONLY | O_RDWR) && flags & O_TRUNC ? "d " : "c ");
-   else if (flags & (O_WRONLY | O_RDWR))
-           ptype = (flags & O_TRUNC ? "t " : "w ");
-   else if (flags & O_NOFOLLOW)
-           ptype = (flags & O_NDELAY ? "y " : "z ");
-   else if (flags & O_NOCTTY) ptype = "s ";
-   else if (flags & O_NDELAY) ptype = "x ";
+        if (flags & Find_Create)
+           ptype = (flags & (Find_Write | Find_RDWR) && flags & Find_Trunc ? "d " : "c ");
+   else if (flags & (Find_Write | Find_RDWR))
+           ptype = (flags & Find_Trunc ? "t " : "w ");
+   else if (flags & Find_LocInfo)
+           ptype = (flags & Find_NoDelay ? "y " : "z ");
+   else if (flags & Find_Stat)    ptype = "s ";
+   else if (flags & Find_NoDelay) ptype = "x ";
    else    ptype = "r ";
 
 // Construct a message to be sent to the manager. The first element is filled
 // in by send2Man() and is the requestid.
 //
-   if (flags & O_SYNC)
+   if (flags & Find_Refresh)
       {xmsg[1].iov_base = (char *)"selects "; xmsg[1].iov_len = 8;}
       else
       {xmsg[1].iov_base = (char *)"select " ; xmsg[1].iov_len = 7;}

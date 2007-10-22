@@ -440,7 +440,7 @@ int XrdOfsFile::open(const char          *path,      // In
 */
 {
    static const char *epname = "open";
-   int retc, odc_mode, open_flag = 0;
+   int retc, find_flag, open_flag = 0;
    int crOpts = (Mode & SFS_O_MKPTH ? XRDOSS_mkpath : 0);
    unsigned long hval = XrdOucHashVal(path);
    XrdSysMutex        *mp;
@@ -458,7 +458,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Set the actual open mode
 //
-   odc_mode = (open_mode & SFS_O_RESET ? O_SYNC : 0);
+   find_flag = (open_mode & SFS_O_RESET ? Find_Refresh : 0);
    if (open_mode & SFS_O_CREAT) open_mode = SFS_O_CREAT;
       else if (open_mode & SFS_O_TRUNC) open_mode = SFS_O_TRUNC;
 
@@ -466,19 +466,20 @@ int XrdOfsFile::open(const char          *path,      // In
                        SFS_O_CREAT  | SFS_O_TRUNC))
    {
    case SFS_O_CREAT:  open_flag   = O_EXCL; crOpts |= XRDOSS_new;
-   case SFS_O_TRUNC:  open_flag  |= O_RDWR | O_CREAT | O_TRUNC;
+   case SFS_O_TRUNC:  open_flag  |= O_RDWR    | O_CREAT     | O_TRUNC;
+                      find_flag   = Find_RDWR | Find_Create | Find_Trunc;
                       ap = &XrdOfsOrigin_RW; mp = &XrdOfsOpen_RW;
                       break;
-   case SFS_O_RDONLY: open_flag = O_RDONLY;
+   case SFS_O_RDONLY: open_flag = O_RDONLY; find_flag = Find_Read;
                       ap = &XrdOfsOrigin_RO; mp = &XrdOfsOpen_RO;
                       break;
-   case SFS_O_WRONLY: open_flag = O_WRONLY;
+   case SFS_O_WRONLY: open_flag = O_WRONLY; find_flag = Find_Write;
                       ap = &XrdOfsOrigin_RW; mp = &XrdOfsOpen_RW;
                       break;
-   case SFS_O_RDWR:   open_flag = O_RDWR;
+   case SFS_O_RDWR:   open_flag = O_RDWR;   find_flag = Find_RDWR;
                       ap = &XrdOfsOrigin_RW; mp = &XrdOfsOpen_RW;
                       break;
-   default:           open_flag = O_RDONLY;
+   default:           open_flag = O_RDONLY; find_flag = Find_Read;
                       ap = &XrdOfsOrigin_RO; mp = &XrdOfsOpen_RO;
                       break;
    }
@@ -488,7 +489,7 @@ int XrdOfsFile::open(const char          *path,      // In
 // destination will apply the security that is needed
 //
    if (XrdOfsFS.Finder && (retc = XrdOfsFS.Finder->Locate(error, path,
-                odc_mode|(open_flag & ~O_EXCL), &Open_Env)))
+                                                   find_flag, &Open_Env)))
       return XrdOfsFS.fsError(error, retc);
 
 // Create the file if so requested o/w try to attach the file
@@ -1207,7 +1208,7 @@ int XrdOfs::chmod(const char             *path,    // In
           if ((retc = Finder->Forward(einfo, fwdCHMOD, buff, path)))
              return fsError(einfo, retc);
          }
-      else if ((retc = Finder->Locate(einfo,path,O_RDWR)))
+      else if ((retc = Finder->Locate(einfo,path,Find_RDWR)))
               return fsError(einfo, retc);
 
 // Check if we should generate an event
@@ -1268,7 +1269,7 @@ int XrdOfs::exists(const char                *path,        // In
 // Find out where we should stat this file
 //
    if (Finder && Finder->isRemote() 
-   &&  (retc = Finder->Locate(einfo, path, O_RDONLY)))
+   &&  (retc = Finder->Locate(einfo, path, Find_Read)))
       return fsError(einfo, retc);
 
 // Now try to find the file or directory
@@ -1313,7 +1314,7 @@ int XrdOfs::fsctl(const int               cmd,
 */
 {
    static const char *epname = "fsctl";
-   int retc, oflags = O_NOFOLLOW, opcode = cmd & SFS_FSCTL_CMD;
+   int retc, find_flag = Find_LocInfo, opcode = cmd & SFS_FSCTL_CMD;
    const char *tident = einfo.getErrUser();
    XTRACE(fsctl, args, "");
 
@@ -1323,10 +1324,10 @@ int XrdOfs::fsctl(const int               cmd,
       {struct stat fstat;
        char rType[3], *Resp[] = {rType, locResp};
        AUTHORIZE(client,0,AOP_Stat,"locate",args,einfo);
-       if (cmd & SFS_O_NOWAIT) oflags |= O_NDELAY;
-       if (cmd & SFS_O_RESET)  oflags |= O_SYNC;
+       if (cmd & SFS_O_NOWAIT) find_flag |= Find_NoDelay;
+       if (cmd & SFS_O_RESET)  find_flag |= Find_Refresh;
        if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Locate(einfo, args, oflags)))
+       &&  (retc = Finder->Locate(einfo, args, find_flag)))
           return fsError(einfo, retc);
        if ((retc = XrdOfsOss->Stat(args, &fstat)))
           return XrdOfsFS.Emsg(epname, einfo, retc, "locate", args);
@@ -1392,7 +1393,7 @@ int XrdOfs::mkdir(const char             *path,    // In
           return ((retc = Finder->Forward(einfo, (mkpath ? fwdMKPATH : fwdMKDIR),
                                   buff, path)) ? fsError(einfo, retc) : SFS_OK);
          }
-         else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
+         else if ((retc = Finder->Locate(einfo,path,Find_Write)))
                  return fsError(einfo, retc);
 
 // Perform the actual operation
@@ -1476,7 +1477,7 @@ int XrdOfs::remove(const char              type,    // In
       if ((fSpec = (type == 'd' ? fwdRMDIR : fwdRM)))
          return ((retc = Finder->Forward(einfo, fSpec, path)) 
                        ? fsError(einfo, retc) : SFS_OK);
-         else if ((retc = Finder->Locate(einfo,path,O_WRONLY)))
+         else if ((retc = Finder->Locate(einfo,path,Find_Write)))
                  return fsError(einfo, retc);
 
 // Check if we should generate an event
@@ -1540,7 +1541,7 @@ int XrdOfs::rename(const char             *old_name,  // In
       if (fwdMV)
          return ((retc = Finder->Forward(einfo, fwdMV, old_name, new_name))
                 ? fsError(einfo, retc) : SFS_OK);
-         else if ((retc = Finder->Locate(einfo,old_name,O_RDWR)))
+         else if ((retc = Finder->Locate(einfo,old_name,Find_RDWR)))
                  return fsError(einfo, retc);
 
 // Check if we should generate an event
@@ -1593,7 +1594,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Find out where we should stat this file
 //
    if (Finder && Finder->isRemote()
-   &&  (retc = Finder->Locate(einfo, path, O_RDONLY|O_NOCTTY)))
+   &&  (retc = Finder->Locate(einfo, path, Find_Read|Find_Stat)))
       return fsError(einfo, retc);
 
 // Now try to find the file or directory
@@ -1639,7 +1640,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Find out where we should stat this file
 //
    if (Finder && Finder->isRemote()
-   &&  (retc = Finder->Locate(einfo, path, O_RDONLY | O_NDELAY)))
+   &&  (retc = Finder->Locate(einfo, path, Find_Read | Find_NoDelay)))
       return fsError(einfo, retc);
 
 // Now try to find the file or directory
