@@ -809,7 +809,7 @@ int XrdXrootdProtocol::do_OffloadIO()
 // support memory based or async I/O.
 //
    do {if (!doWrite) rc = do_ReadAll();
-          else if ( (rc = (doWriteC ? do_WriteAll() : do_WriteCont()) ) > 0)
+          else if ( (rc = (doWriteC ? do_WriteCont() : do_WriteAll()) ) > 0)
                   {Resume = &XrdXrootdProtocol::do_OffloadIO;
                    doWriteC = 1;
                    return rc;
