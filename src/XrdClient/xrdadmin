@@ -474,6 +474,8 @@ sub xrdadmin() {
   my $term = new Term::ReadLine 'PerlSQ';
   my $OUT = $term->OUT || *STDOUT{IO}; 
 
+  $term->newTTY(*STDIN, $OUT);
+
   # Allocate a socket if we do not have one
   #
   my $path;
