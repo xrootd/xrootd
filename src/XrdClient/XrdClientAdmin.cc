@@ -938,6 +938,7 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientLocate_Info &resp, bool wri
        strcpy((char *)resp.Location, fConnModule->GetCurrentUrl().HostWPort.c_str());
      }
      fConnModule->GoBackToRedirector();
+     return ok;
    }
 
 
@@ -1091,6 +1092,7 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info
        hosts.Push_back(resp);
      }
      fConnModule->GoBackToRedirector();
+     return ok;
    }
 
    XrdClientUrlInfo currurl(fConnModule->GetCurrentUrl().GetUrl());
