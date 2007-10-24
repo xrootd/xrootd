@@ -740,6 +740,7 @@ bool XrdClientAdmin::Prepare(vecString vs, kXR_char option, kXR_char prty)
      if (!Prepare(buf.c_str(), option, prty)) return false;
    }
 
+   return true;
 }
 
 //_____________________________________________________________________________
