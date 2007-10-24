@@ -33,14 +33,14 @@
 #endif
 
 //_____________________________________________________________________________
-void joinStrings(XrdOucString &buf, vecString vs,
+void joinStrings(XrdOucString &buf, vecString &vs,
 		 int startidx, int endidx)
 {
 
   if (endidx < 0) endidx = vs.GetSize()-1;
 
   if (!vs.GetSize() || (vs.GetSize() <= startidx) ||
-      (endidx <= startidx) ){
+      (endidx < startidx) ){
     buf = "";
     return;
   }
