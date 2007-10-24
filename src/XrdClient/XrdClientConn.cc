@@ -2288,7 +2288,7 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
     fREQWaitRespData->resphdr.status = kXR_wait;
     fREQWaitRespData->resphdr.dlen = sizeof(kXR_int32);
 
-    kXR_int32 i = 1;
+    kXR_int32 i = htonl(1);
     memcpy(&fREQWaitRespData->respdata, &i, sizeof(i));
 
     fREQWaitResp->Signal();
@@ -2381,7 +2381,7 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
     fREQWaitRespData->resphdr.status = kXR_wait;
     fREQWaitRespData->resphdr.dlen = sizeof(kXR_int32);
       
-    kXR_int32 i = 1;
+    kXR_int32 i = htonl(1);
     memcpy(&fREQWaitRespData->respdata, &i, sizeof(i));
 
     free(unsolmsg->DonateData());
