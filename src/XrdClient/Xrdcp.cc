@@ -665,6 +665,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    long long offs = 0;
    unsigned long long bytesread=0;
    unsigned long long size = stat.st_size;
+   int blkcnt = 0;
 
    // Loop to write until ended or timeout err
    while (len > 0) {
@@ -682,7 +683,8 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	      MD_5->Update((const char*)buf,len);
 	    }
 
-	    if (!(*xrddest)->Write(buf, offs, len)) {
+	    // Always do a checkpoint for the multistream mode
+	    if ( !(*xrddest)->Write(buf, offs, len, true) ) {
 	       cerr << "Error writing to output server." << endl;
 	       PrintLastServerError(*xrddest);
 	       retvalue = 12;
@@ -705,6 +707,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
       }
 
       buf = 0;
+      blkcnt++;
    }
 
    if(progbar) {

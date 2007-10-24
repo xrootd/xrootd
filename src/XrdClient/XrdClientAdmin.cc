@@ -33,25 +33,25 @@
 #endif
 
 //_____________________________________________________________________________
-void joinStrings(XrdOucString &buf, vecString vs)
+void joinStrings(XrdOucString &buf, vecString vs,
+		 int startidx, int endidx)
 {
 
-   if (!vs.GetSize()) {
-      buf = "";
-      return;
-   }
+  if (endidx < 0) endidx = vs.GetSize()-1;
 
-   if (vs.GetSize() == 1)
-      buf = vs[0];
-   else {
-      for(int j=0; j < vs.GetSize(); j++)
-	 {
-	    buf += vs[j];
-	    buf += "\n";
-	 }
-   }
-   if (buf[buf.length()-1] == '\n')
-      buf.erasefromend(1);
+  if (!vs.GetSize() || (vs.GetSize() <= startidx) ||
+      (endidx <= startidx) ){
+    buf = "";
+    return;
+  }
+
+  int lastidx = xrdmin(vs.GetSize()-1, endidx);
+  
+  for(int j=startidx; j <= lastidx; j++) {
+    buf += vs[j];
+    if (j < lastidx) buf += "\n";
+  }
+
 }
 
 //_____________________________________________________________________________
@@ -723,12 +723,23 @@ bool XrdClientAdmin::Protocol(kXR_int32 &proto, kXR_int32 &kind)
 //_____________________________________________________________________________
 bool XrdClientAdmin::Prepare(vecString vs, kXR_char option, kXR_char prty)
 {
-   // Send a bulk prepare request for a vector of paths
+  // Send a bulk prepare request for a vector of paths
+  // Split a huge prepare list into smaller chunks
 
    XrdOucString buf;
-   joinStrings(buf, vs);
 
-   return Prepare(buf.c_str(), option, prty);
+   if (vs.GetSize() < 75) {
+     joinStrings(buf, vs);
+     return Prepare(buf.c_str(), option, prty);
+   }
+
+
+   for (int i = 0; i < vs.GetSize()+50; i++) {
+     joinStrings(buf, vs, i, i+49);
+
+     if (!Prepare(buf.c_str(), option, prty)) return false;
+   }
+
 }
 
 //_____________________________________________________________________________
@@ -769,7 +780,7 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
   
    // Note that the connmodule has to dynamically alloc the space for the answer
    ret = fConnModule->SendGenCommand(&DirListFileRequest, dir,
-				     (void **)&dl, 0, TRUE, (char *)"DirList");
+				     reinterpret_cast<void **>(&dl), 0, TRUE, (char *)"DirList");
   
    // Now parse the answer building the entries vector
    if (ret) {
@@ -912,6 +923,23 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientLocate_Info &resp, bool wri
 
    if (!fConnModule) return 0;
    if (!fConnModule->IsConnected()) return 0;
+
+
+   // Old servers will use what's there
+   if (fConnModule->GetServerProtocol() < 0x290) {
+     long id, flags, modtime;
+     long long size;
+
+     bool ok = Stat((const char *)path, id, size, flags, modtime);
+     if (ok && (fConnModule->LastServerResp.status == 0)) {
+       resp.Infotype = XrdClientLocate_Info::kXrdcLocDataServer;
+       resp.CanWrite = 1;
+       strcpy((char *)resp.Location, fConnModule->GetCurrentUrl().HostWPort.c_str());
+     }
+     fConnModule->GoBackToRedirector();
+   }
+
+
    XrdClientUrlInfo currurl(fConnModule->GetCurrentUrl().GetUrl());
    if (!currurl.HostWPort.length()) return 0;
 
@@ -1046,6 +1074,24 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info
 
    if (!fConnModule) return 0;
    if (!fConnModule->IsConnected()) return 0;
+
+
+   // Old servers will use what's there
+   if (fConnModule->GetServerProtocol() < 0x290) {
+     long id, flags, modtime;
+     long long size;
+     XrdClientLocate_Info resp;
+
+     bool ok = Stat((const char *)path, id, size, flags, modtime);
+     if (ok && (fConnModule->LastServerResp.status == 0)) {
+       resp.Infotype = XrdClientLocate_Info::kXrdcLocDataServer;
+       resp.CanWrite = 1;
+       strcpy((char *)resp.Location, fConnModule->GetCurrentUrl().HostWPort.c_str());
+       hosts.Push_back(resp);
+     }
+     fConnModule->GoBackToRedirector();
+   }
+
    XrdClientUrlInfo currurl(fConnModule->GetCurrentUrl().GetUrl());
    if (!currurl.HostWPort.length()) return 0;
 

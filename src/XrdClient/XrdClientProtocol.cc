@@ -572,6 +572,10 @@ void smartPrintClientHeader(ClientRequest* hdr)
              "ClientHeader.write.offset = ",
              tmpl);
 
+      printf("%40s%d\n", 
+             "ClientHeader.write.pathid = ",
+             hdr->write.pathid);
+
       printf("%40s0 repeated %d times\n", 
              "ClientHeader.write.reserved = ",
              (kXR_int32)sizeof(hdr->write.reserved));

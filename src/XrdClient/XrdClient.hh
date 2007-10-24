@@ -185,8 +185,9 @@ public:
             fConnModule->RemoveAllDataFromCache();
     }
 
-    // Write data to the file
-    bool                        Write(const void *buf, long long offset, int len);
+    // Write data to the file. If the multistream support is enabled, it will
+    //  make sure about the arrival of the outstanding data if docheckppoint==true
+    bool                        Write(const void *buf, long long offset, int len, bool docheckpoint=true);
 
 
 

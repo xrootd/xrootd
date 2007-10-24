@@ -26,7 +26,7 @@
 typedef XrdClientVector<XrdOucString> vecString;
 typedef XrdClientVector<bool> vecBool;
 
-void joinStrings(XrdOucString &buf, vecString vs);
+void joinStrings(XrdOucString &buf, vecString vs, int startidx = 0, int endidx=-1);
 
 struct XrdClientLocate_Info {
   enum {

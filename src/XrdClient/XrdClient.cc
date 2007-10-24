@@ -678,13 +678,16 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 
 
 //_____________________________________________________________________________
-bool XrdClient::Write(const void *buf, long long offset, int len) {
+bool XrdClient::Write(const void *buf, long long offset, int len, bool docheckpoint) {
 
     if (!IsOpen_wait()) {
 	Error("WriteBuffer", "File not opened.");
 	return FALSE;
     }
 
+    XrdClientVector<XrdClientMStream::ReadChunk> rl;
+    XrdClientMStream::SplitReadRequest(fConnModule, offset, len, rl);
+    kXR_char *cbuf = (kXR_char *)buf;
 
     // Prepare request
     ClientRequest writeFileRequest;
@@ -692,12 +695,34 @@ bool XrdClient::Write(const void *buf, long long offset, int len) {
     fConnModule->SetSID(writeFileRequest.header.streamid);
     writeFileRequest.write.requestid = kXR_write;
     memcpy( writeFileRequest.write.fhandle, fHandle, sizeof(fHandle) );
-    writeFileRequest.write.offset = offset;
-    writeFileRequest.write.dlen = len;
+
+    for (int i = 0; i < rl.GetSize(); i++) {
+
+      writeFileRequest.write.offset = rl[i].offset;
+      writeFileRequest.write.dlen = rl[i].len;
+      writeFileRequest.write.pathid = rl[i].streamtosend;
    
-   
-    return fConnModule->SendGenCommand(&writeFileRequest, buf, 0, 0,
-				       FALSE, (char *)"Write");
+      if (i < rl.GetSize()-1) {
+	bool b = fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend);
+	if (!b) return false;
+      }
+      else
+	
+	if (docheckpoint || (rl.GetSize() == 1)) {
+	  writeFileRequest.write.pathid = 0;
+	  //	  if (!Sync()) return false;
+	  return fConnModule->SendGenCommand(&writeFileRequest, (void *)cbuf, 0, 0,
+					     FALSE, (char *)"Write");
+	}
+	else
+	  return fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend);
+      
+
+
+      cbuf += rl[i].len;
+    }
+
+    return true;
 }
 
 
