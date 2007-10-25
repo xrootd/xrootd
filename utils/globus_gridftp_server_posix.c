@@ -80,6 +80,7 @@ typedef struct globus_l_gfs_posix_handle_s
 {
     char *                              pathname; 
     int                                 fd;
+    char                                seekable;
     globus_size_t                       block_size;
     globus_off_t                        block_length;
     globus_off_t                        offset;
@@ -630,8 +631,12 @@ globus_l_gfs_posix_write_to_storage_cb(
 
     if (nbytes > 0)
     {
-        start_offset = lseek(posix_handle->fd, offset, SEEK_SET);
-        if (start_offset != offset) 
+        if (posix_handle->seekable)
+        {
+            start_offset = lseek(posix_handle->fd, offset, SEEK_SET);
+        }
+
+        if (posix_handle->seekable && start_offset != offset) 
         {
             rc = GlobusGFSErrorGeneric("lseek() fail");
             posix_handle->done = GLOBUS_TRUE;
@@ -767,10 +772,14 @@ globus_l_gfs_posix_recv(
     posix_handle->done = GLOBUS_FALSE;
     globus_gridftp_server_get_block_size(op, &posix_handle->block_size); 
 
+    globus_gridftp_server_get_write_range(posix_handle->op,
+                                          &posix_handle->offset,
+                                          &posix_handle->block_length);
+
     globus_gridftp_server_begin_transfer(posix_handle->op, 0, posix_handle);
     if (stat(posix_handle->pathname, &stat_buffer) == 0)
     {
-        posix_handle->fd = open(posix_handle->pathname, O_WRONLY|O_TRUNC);
+        posix_handle->fd = open(posix_handle->pathname, O_WRONLY); /* |O_TRUNC);  */
     }
     else if (errno == ENOENT)
     {
@@ -787,6 +796,16 @@ globus_l_gfs_posix_recv(
     {
         rc = GlobusGFSErrorGeneric("open() fail");
         globus_gridftp_server_finished_transfer(op, rc);
+    }
+
+/*
+ * /dev/null and /dev/zero are not seekable. They are used for memory-to-memory
+ * performance test
+ */
+    posix_handle->seekable=1;
+    if (! strcmp(posix_handle->pathname,"/dev/null"))
+    {
+        posix_handle->seekable=0;
     }
 
     globus_mutex_lock(&posix_handle->mutex);
@@ -829,6 +848,7 @@ globus_l_gfs_posix_read_from_storage(
 {
     globus_byte_t *                     buffer;
     globus_size_t                       nbytes;
+    globus_size_t                       read_length;
     globus_result_t                     rc;
 
     GlobusGFSName(globus_l_gfs_posix_read_from_storage);
@@ -844,8 +864,24 @@ globus_l_gfs_posix_read_from_storage(
             globus_gridftp_server_finished_transfer(posix_handle->op, rc);
             return;
         }
-        lseek(posix_handle->fd, posix_handle->offset, SEEK_SET);
-        nbytes = read(posix_handle->fd, buffer, posix_handle->block_size);
+/*
+        if (posix_handle->seekable)
+        {
+            lseek(posix_handle->fd, posix_handle->offset, SEEK_SET);
+        }
+ */ 
+        /* block_length == -1 indicates transferring data to eof */
+        if (posix_handle->block_length < 0 ||   
+            posix_handle->block_length > posix_handle->block_size)
+        {
+            read_length = posix_handle->block_size;
+        }
+        else
+        {
+            read_length = posix_handle->block_length;
+        }
+ 
+        nbytes = read(posix_handle->fd, buffer, read_length);
         if (nbytes == 0)    /* eof */
         {
             posix_handle->done = GLOBUS_TRUE;
@@ -877,6 +913,7 @@ globus_l_gfs_posix_read_from_storage(
         {
             posix_handle->outstanding++;
             posix_handle->offset += nbytes;
+            posix_handle->block_length -= nbytes;
             rc = globus_gridftp_server_register_write(posix_handle->op,
                                        buffer,
                                        nbytes,
@@ -950,6 +987,20 @@ globus_l_gfs_posix_send(
     {
         rc = GlobusGFSErrorGeneric("open() fail");
         globus_gridftp_server_finished_transfer(op, rc);
+    }
+
+/*
+ * /dev/null and /dev/zero are not seekable. They are used for memory-to-memory
+ * performance test.
+ */
+    posix_handle->seekable=1;
+    if (! strcmp(posix_handle->pathname,"/dev/zero"))
+    {
+        posix_handle->seekable=0;
+    }
+    else 
+    {
+        lseek(posix_handle->fd, posix_handle->offset, SEEK_SET);
     }
 
     globus_gridftp_server_get_optimal_concurrency(posix_handle->op,
