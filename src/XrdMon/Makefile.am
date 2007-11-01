@@ -8,6 +8,23 @@
 ## Checked in by $Author$
 #######################################################################
 
+xrootdxrdmonincdir = $(includedir)/xrootd/XrdMon
+
+xrootdxrdmoninc_HEADERS = \
+XrdMonArgParser.hh         XrdMonDecDictInfo.hh       XrdMonSndCoder.hh \
+XrdMonArgParserConvert.hh  XrdMonDecOnePacket.hh      XrdMonSndDebug.hh \
+XrdMonBufferedOutput.hh    XrdMonDecPacketDecoder.hh  XrdMonSndDictEntry.hh \
+XrdMonCommon.hh            XrdMonDecPreProcess.hh     XrdMonSndDummyXrootd.hh \
+XrdMonCtrAdmin.hh          XrdMonDecSink.hh           XrdMonSndPacket.hh \
+XrdMonCtrArchiver.hh       XrdMonDecTraceInfo.hh      XrdMonSndTraceCache.hh \
+XrdMonCtrBuffer.hh         XrdMonDecUserInfo.hh       XrdMonSndTraceEntry.hh \
+XrdMonCtrCollector.hh      XrdMonErrors.hh            XrdMonSndTransmitter.hh \
+XrdMonCtrDebug.hh          XrdMonException.hh         XrdMonTimer.hh \
+XrdMonCtrPacket.hh         XrdMonHeader.hh            XrdMonTypes.hh \
+XrdMonCtrWriter.hh         XrdMonSenderInfo.hh        XrdMonUtils.hh \
+XrdMonDecArgParser.hh      XrdMonSndAdminEntry.hh \
+XrdMonArgParser.icc  XrdMonTimer.icc
+
 noinst_LTLIBRARIES = libXrdMonCommon.la \
                      libXrdMonDecoder.la \
                      libXrdMonCollector.la \

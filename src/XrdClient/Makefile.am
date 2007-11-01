@@ -139,4 +139,4 @@ libXrdClientAdmin_la_CXXFLAGS = $(PERL_CCOPTS)
 endif
 
 # we need to include the pregenerated swig file in the disribution
-EXTRA_DIST = XrdClientAdmin_c_wrap.c
+EXTRA_DIST = XrdClientAdmin_c_wrap.c XrdClientAdmin.pm

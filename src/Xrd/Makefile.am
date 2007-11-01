@@ -20,7 +20,7 @@ xrootdxrdinc_HEADERS = \
     XrdInfo.hh    XrdPollDev.hh    XrdTrace.hh \
     XrdJob.hh     XrdPollPoll.hh \
     XrdLink.hh    XrdProtLoad.hh \
-    XrdObject.icc
+    XrdObject.icc XrdPollDev.icc XrdPollPoll.icc
 
 lib_LTLIBRARIES = libXrd.la
 

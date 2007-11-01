@@ -17,7 +17,7 @@
 #######################################################################
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,20070802cvs,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,20071028-1219-rcand2,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
