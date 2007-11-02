@@ -422,6 +422,8 @@ guess_architecture () {
       linux:ppc64:*)      arch=ppc_linux       ; platform=linux; ccflv=gccppc64;;
       linux:ppc*:*)       arch=ppc_linux       ; platform=linux; ccflv=gcc;;
       linux:sparc*:*)     arch=sparc_linux     ; platform=linux; ccflv=gcc;;
+      linux:mips*:*)      arch=mips_linux      ; platform=linux; ccflv=gcc;;
+      linux:parisc*:*)    arch=hppa_linux      ; platform=linux; ccflv=gcc;;
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
       darwin:power*:7*)   arch=ppc_darwin_70   ; platform=macosx; ccflv=macos;;
       darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;

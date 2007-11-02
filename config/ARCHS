@@ -36,6 +36,8 @@ x86_64_linux_26 iccx8664  all    for AMD Opteron 64 Linux kernel 2.6.x Intel icc
 x86_64_linux    iccx8664  all    for AMD Opteron 64 Linux Intel icc
 alpha_linux     gcc       all    for Alpha Linux egcs and glibc
 sparc_linux     gcc       all    for Sparc Linux gcc and glibc
+mips_linux      gcc       all    for GNU/Linux on MIPS - 32bit, big endian
+hppa_linux      gcc       all    for GNU/Linux on HP/PA - 32bit, big endian
 arm_linux       gcc       no     for ARM Linux egcs and glibc
 ppc_linux       gcc       all    for PPC Linux egcs/gcc and glibc
 ppc_linux       gccppc64  all    for PPC Linux egcs/gcc and glibc - 64 bit
