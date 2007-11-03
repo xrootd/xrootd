@@ -13,11 +13,4 @@
 //          $Id$
 
 enum XrdOdcPselT { selByFD, selByLD, selByRR};
-
-#define maxPORTS 16
-
-enum   {Find_Create  = 0x0001, Find_LocInfo = 0x0002, Find_NoDelay = 0x0004,
-        Find_RDWR    = 0x0008, Find_Read    = 0x0010, Find_Refresh = 0x0020,
-        Find_Stat    = 0x0040, Find_Trunc   = 0x0080, Find_Write   = 0x0100
-       };
 #endif
