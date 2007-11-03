@@ -758,8 +758,8 @@ int XrdOlbServer::do_Load(char *rid)
 /*                             d o _ L o c a t e                              */
 /******************************************************************************/
 
-int XrdOlbServer::do_Locate(char *rid, const char *path, XrdOlbPInfo &pinfo, 
-                            XrdOlbCInfo &cinfo)
+int XrdOlbServer::do_Locate(char *rid, const char *path,
+                            SMask_t hfVec, SMask_t rwVec)
 {
    EPNAME("do_Locate";)
    XrdOlbSInfo *sP, *pP;
@@ -768,8 +768,7 @@ int XrdOlbServer::do_Locate(char *rid, const char *path, XrdOlbPInfo &pinfo,
 
 // List the servers
 //
-   if (!cinfo.hfvec
-   || !(sP = Manager.ListServers(cinfo.hfvec, OLB_LS_IPO)))
+   if (!hfVec || !(sP = Manager.ListServers(hfVec, OLB_LS_IPO)))
       {Link->Send(outbuff, snprintf(outbuff, sizeof(outbuff)-1,
              "%s !err ENOENT No servers have the file", rid));
        DEBUG("Path find failed for locate " <<path);
@@ -787,7 +786,7 @@ int XrdOlbServer::do_Locate(char *rid, const char *path, XrdOlbPInfo &pinfo,
    while(sP)
         {if (sP->Status & Skip) continue;
          *oP++ = (sP->Status & OLB_SERVER_ISMANGR ? 'M' : 'S');
-         *oP++ = (sP->Mask & pinfo.rwvec          ? 'w' : 'r');
+         *oP++ = (sP->Mask & rwVec                ? 'w' : 'r');
          strcpy(oP, "[::"); oP += 3;
          oP += XrdNetDNS::IP2String(sP->IPAddr, 0, oP, 24); // We're cheating
          *oP++ = ']'; *oP++ = ':';
@@ -1432,6 +1431,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 //             w - file will be read and writen
 //             s - only stat information will be obtained
 //             x - only stat information will be obtained (file must be resident)
+//             y - only loc  information will be obtained (do asap)
 //             z - only loc  information will be obtained
 //             - - the host failed to deliver the file.
 
@@ -1449,6 +1449,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
          case 'w': Osel = OLB_needrw;  amode = "write"; break;
          case 'x': Osel = 0;           amode = "read";  resonly = 1;
                                                         qattr   = 1; break;
+         case 'y': Osel = 0;           amode = "read";  dolocate= 1; break;
          case 'z': Osel = 0; InfoP=0;  amode = "read";  dolocate= 1; break;
          case 'c': Osel = OLB_newfile; amode = "write"; newfile = 1; break;
          case 'd': Osel = OLB_newfile; amode = "write"; newfile = 1;
@@ -1467,10 +1468,6 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
        if (!(tp = Link->GetToken())) return 1;
        InfoP = 0;
       }
-
-// Insert the request ID into the RRQ info structure in case we need to wait
-//
-   strcpy(Info.ID, rid);  // Gauranteed to fit
 
 // Do a callout to the external manager if we have one
 //
@@ -1494,10 +1491,16 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
        return 0;
       }
 
+// Insert the request ID into the RRQ info structure in case we need to wait
+//
+   strcpy(Info.ID, rid);  // Gauranteed to fit
+   Info.isLU = dolocate;
+   Info.Arg  = pinfo.rwvec;
+
 // First check if we have seen this file before. If so, get primary selections.
 //
    if (refresh) {retc = 0; pmask = 0;}
-      else if (!(retc = Cache.GetFile(tp,cinfo,needrw,&Info))) pmask = 0;
+      else if (!(retc = Cache.GetFile(tp,cinfo,needrw,InfoP))) pmask = 0;
               else pmask = (needrw ? cinfo.hfvec & pinfo.rwvec
                                    : cinfo.hfvec & nmask);
 
@@ -1523,8 +1526,8 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
                               "%s state %s\n", Config.MsgGID, tp));
           }
        if (cinfo.deadline) 
-          if (Info.Key) return 0; // Placed in pending queue
-             else dowt = 1;       // Query  in progress, full wait
+          if (InfoP && Info.Key) return 0; // Placed in pending queue
+             else dowt = 1;                // Query  in progress, full wait
       }
 
 // If the client has to wait now, delay the client and return
@@ -1537,7 +1540,7 @@ int XrdOlbServer::do_Select(char *rid, int refresh)
 
 // If this is a locate request, perform it now
 //
-   if (dolocate) return do_Locate(rid, tp, pinfo, cinfo);
+   if (dolocate) return do_Locate(rid, tp, cinfo.hfvec, pinfo.rwvec);
 
 // Compute the primary and secondary selections:
 // Primary:   Servers who already have the file (computed above)

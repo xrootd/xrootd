@@ -47,6 +47,8 @@ friend class XrdOlbManager;
        char  isBusy;       // Set when server has an active thread
        char  isGone;       // Set when server must be deleted
 
+       int   do_Locate(char *, const char *, SMask_t hfVec, SMask_t rwVec);
+
 inline int   Inst() {return Instance;}
 
 inline int   isServer(SMask_t smask) {return (smask & ServMask) != 0;}
@@ -93,7 +95,6 @@ private:
        int   do_Gone(char *rid);
        int   do_Have(char *rid);
        int   do_Load(char *rid);
-       int   do_Locate(char *, const char *, XrdOlbPInfo &, XrdOlbCInfo &);
        int   do_Mkdir(char *rid, int do4real);
        int   do_Mkpath(char *rid, int do4real);
        int   do_Mv(char *rid, int do4real);

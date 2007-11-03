@@ -186,18 +186,22 @@ void *XrdOlbRRQ::Respond()
                sp->Link.Remove();
                sp->Expire = 0;
                myMutex.UnLock();
-               if ((doredir = (sp->Arg &&
-                               Manager.SelServer(sp->Info.isRW,sp->Arg,hostbuff))))
-                 {i = strlen(hostbuff);
-                  hostbuff[i] = '\n';
-                  redr_iov[2].iov_len = i+1;
-                 }
-               sendResponse(&sp->Info, doredir);
-               cp = sp->Cont;
-               while(cp)
-                    {sendResponse(&cp->Info, doredir);
-                     cp = cp->Cont;
-                    }
+               cp = sp;
+               while(cp && cp->Info.isLU) cp = sendLocInfo(cp);
+               if (cp)
+                  {if ((doredir = (cp->Arg &&
+                       Manager.SelServer(cp->Info.isRW,cp->Arg,hostbuff))))
+                      {i = strlen(hostbuff);
+                       hostbuff[i] = '\n';
+                       redr_iov[2].iov_len = i+1;
+                      }
+                   sendResponse(&cp->Info, doredir);
+                   do {if (cp->Info.isLU) cp = sendLocInfo(cp);
+                           else {sendResponse(&cp->Info, doredir);
+                                 cp = cp->Cont;
+                                }
+                      } while(cp);
+                  }
                sp->Recycle();
               }
         }
@@ -207,6 +211,31 @@ void *XrdOlbRRQ::Respond()
    return (void *)0;
 }
 
+/******************************************************************************/
+/*                           s e n d L o c I n f o                            */
+/******************************************************************************/
+  
+XrdOlbRRQSlot *XrdOlbRRQ::sendLocInfo(XrdOlbRRQSlot *Sp)
+{
+   XrdOlbServer *sP;
+   SMask_t myArg = Sp->Arg;
+
+// Handle delays or responses
+//
+   if (myArg) do {RTable.Lock();
+                  if ((sP = RTable.Find(Sp->Info.Rnum, Sp->Info.Rinst)))
+                     sP->do_Locate(Sp->Info.ID,Sp->Info.ID,myArg,Sp->Info.Arg);
+                  RTable.UnLock();
+                 } while((Sp = Sp->Cont) && Sp->Info.isLU);
+      else    do {sendResponse(&(Sp->Info), 0);}
+                   while((Sp = Sp->Cont) && Sp->Info.isLU);
+
+// Return propogated slot
+//
+   if (Sp) Sp->Arg = myArg;
+   return Sp;
+}
+  
 /******************************************************************************/
 /*                          s e n d R e s p o n s e                           */
 /******************************************************************************/

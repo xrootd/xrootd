@@ -29,10 +29,11 @@ void   *Key;     // Key link, which is the cache line address
 int     Rinst;   // Redirector instance
 short   Rnum;    // Redirector number (RTable slot number)
 char    isRW;    // True if r/w access wanted
-char    Pad;
+char    isLU;    // True if this is a lookup only
 char    ID[16];  // Response link, which is the request ID
+SMask_t Arg;     // Argument to lookup
 
-        XrdOlbRRQInfo() {Pad = 0;}
+        XrdOlbRRQInfo() {isLU = 0;}
        ~XrdOlbRRQInfo() {}
 };
 
@@ -91,7 +92,8 @@ void *TimeOut();
 
 private:
 
-void sendResponse(XrdOlbRRQInfo *Info, int doredir);
+XrdOlbRRQSlot *sendLocInfo(XrdOlbRRQSlot *Sp);
+void           sendResponse(XrdOlbRRQInfo *Info, int doredir);
 static const int numSlots = 1024;
 
          XrdSysMutex                 myMutex;
