@@ -47,7 +47,11 @@ int main(int argc, char **argv) {
 
      if (!s.size()) continue;
 
-     adm->Locate((kXR_char*)s.c_str(), loc);
+     if (!adm->Locate((kXR_char*)s.c_str(), loc)) {
+       cout << endl <<
+	 " The server complained for file:" << endl <<
+	 s.c_str() << endl << endl;
+     }
 
      if (!(i % 100)) cout << i << "...";
      i++;
