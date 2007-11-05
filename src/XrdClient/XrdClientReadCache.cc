@@ -86,10 +86,10 @@ XrdClientReadCache::~XrdClientReadCache()
 
 
 //________________________________________________________________________
-void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
+bool XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
 					long long end_offs)
 {
-    if (!buffer) return;
+    if (!buffer) return true;
     XrdClientReadCacheItem *itm;
 
 
@@ -136,9 +136,10 @@ void XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
 	    fBytesSubmitted += itm->Size();
 	}
 
-
+	return true;
     } // if
 
+    return false;
 
     //    PrintCache();
 }
@@ -152,7 +153,8 @@ void XrdClientReadCache::SubmitXMessage(XrdClientMessage *xmsg, long long begin_
 
     const void *buffer = xmsg->DonateData();
 
-    SubmitRawData(buffer, begin_offs, end_offs);
+    if (!SubmitRawData(buffer, begin_offs, end_offs))
+        free(const_cast<void *>(buffer));
 }
 
 

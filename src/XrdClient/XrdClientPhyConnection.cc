@@ -506,7 +506,7 @@ XrdClientMessage *XrdClientPhyConnection::BuildMessage(bool IgnoreTimeouts, bool
        // The purpose of this message ends here
        if ( (parallelsid) && (res != kUNSOL_KEEP) &&
             (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) )
-          if (fSidManager)
+	 if (fSidManager && (m->HeaderStatus() != kXR_oksofar))
 	    fSidManager->ReleaseSid(m->HeaderSID());
        
        //       if (m->GetStatusCode() != XrdClientMessage::kXrdMSC_readerr) {

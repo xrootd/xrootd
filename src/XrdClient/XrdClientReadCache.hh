@@ -186,7 +186,8 @@ public:
 
     void            SubmitXMessage(XrdClientMessage *xmsg, long long begin_offs,
 				   long long end_offs);
-    void            SubmitRawData(const void *buffer, long long begin_offs,
+
+    bool            SubmitRawData(const void *buffer, long long begin_offs,
 				   long long end_offs);
 
     void            RemoveItems();

@@ -1014,7 +1014,7 @@ bool XrdClient::Close() {
     closeFileRequest.close.dlen = 0;
 
 
-    bool ok = fConnModule->SendGenCommand(&closeFileRequest,
+    fConnModule->SendGenCommand(&closeFileRequest,
     					  0,
     					  0, 0 , FALSE, (char *)"Close");
 
@@ -1118,9 +1118,9 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
     // Remember that we are in a separate thread, since unsolicited 
     // responses are asynchronous by nature.
 
-    if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok) {
-	Info(XrdClientDebug::kHIDEBUG,
-	     "ProcessUnsolicitedMsg", "Incoming unsolicited communication error message." );
+    if ( unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok ) {
+      Info(XrdClientDebug::kHIDEBUG,
+	   "ProcessUnsolicitedMsg", "Incoming unsolicited communication error message." );
     }
     else {
 	Info(XrdClientDebug::kHIDEBUG,
@@ -1232,12 +1232,12 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
     }
     else
 	// Let's see if the message is a communication error message
-	if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok) {
-	  // This is a low level error. The outstanding things have to be terminated
-	  // Awaken all the waiting threads, some of them may be interested
-	  fReadWaitData->Broadcast();
-	  TerminateOpenAttempt();
-	  
+       if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok){
+	 // This is a low level error. The outstanding things have to be terminated
+	 // Awaken all the waiting threads, some of them may be interested
+	 fReadWaitData->Broadcast();
+	 TerminateOpenAttempt();
+	 
 	  return fConnModule->ProcessAsynResp(unsolmsg);
 	}
 	else
