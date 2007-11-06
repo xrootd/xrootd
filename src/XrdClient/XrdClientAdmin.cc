@@ -840,7 +840,7 @@ long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
    else return 0;
 }
 
-int XrdClientAdmin::LocalLocate(kXR_char *path, XrdClientVector<XrdClientLocate_Info> &res) {
+int XrdClientAdmin::LocalLocate(kXR_char *path, XrdClientVector<XrdClientLocate_Info> &res, bool nowait) {
   // Fires a locate req towards the currently connected server, and pushes the
   // results into the res vector
   //
@@ -853,7 +853,7 @@ int XrdClientAdmin::LocalLocate(kXR_char *path, XrdClientVector<XrdClientLocate_
    fConnModule->SetSID(locateRequest.header.streamid);
 
    locateRequest.locate.requestid = kXR_locate;
-   //chksumRequest.locate.options = 0;
+   if (nowait) locateRequest.locate.options = kXR_nowait;
    locateRequest.locate.dlen = strlen((char *) path);
 
    // Resp is allocated inside the call
@@ -862,7 +862,11 @@ int XrdClientAdmin::LocalLocate(kXR_char *path, XrdClientVector<XrdClientLocate_
 					  (char *)"LocalLocate");
 
    if (!ret) return (-1);
-   if (!resp || !strlen(resp)) return 0;
+   if (!resp) return 0;
+   if (!strlen(resp)) {
+     free(resp);
+     return 0;
+   }
 
    XrdOucTokenizer tkzer(resp);
    int retval = 0;
@@ -997,7 +1001,7 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientLocate_Info &resp, bool wri
 
        // We are connected, do the locate
        int prevsz = hosts.GetSize();
-       int added = LocalLocate(path, hosts);
+       int added = LocalLocate(path, hosts, true);
 
        // Now look into the added hosts if we have finished
        if (added > 0)
@@ -1148,7 +1152,7 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info
        }
 
        // We are connected, do the locate
-       LocalLocate(path, hosts);
+       LocalLocate(path, hosts, false);
 
        // We did not finish, take the next
        hosts.Erase(pos);
