@@ -78,20 +78,20 @@ public:
 
    virtual ~XrdClientConnectionMgr();
 
-   short int     Connect(XrdClientUrlInfo RemoteAddress);
-   void          Disconnect(short LogConnectionID, bool ForcePhysicalDisc);
+   int           Connect(XrdClientUrlInfo RemoteAddress);
+   void          Disconnect(int LogConnectionID, bool ForcePhysicalDisc);
 
    void          GarbageCollect();
 
    XrdClientLogConnection 
-                 *GetConnection(short LogConnectionID);
+                 *GetConnection(int LogConnectionID);
    XrdClientPhyConnection *GetPhyConnection(XrdClientUrlInfo server);
 
    XrdClientMessage*   
-                 ReadMsg(short LogConnectionID);
+                 ReadMsg(int LogConnectionID);
 
-   int           ReadRaw(short LogConnectionID, void *buffer, int BufferLength);
-   int           WriteRaw(short LogConnectionID, const void *buffer, 
+   int           ReadRaw(int LogConnectionID, void *buffer, int BufferLength);
+   int           WriteRaw(int LogConnectionID, const void *buffer, 
                           int BufferLength, int substreamid);
 
   XrdClientSid *SidManager() { return fSidManager; }

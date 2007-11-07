@@ -247,7 +247,7 @@ void XrdClientConnectionMgr::GarbageCollect()
 }
 
 //_____________________________________________________________________________
-short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
+int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 {
    // Connects to the remote server:
    //  - Looks first for an existing physical connection already bound to
@@ -263,7 +263,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
    XrdClientPhyConnection *phyconn = 0;
    CndVarInfo *cnd = 0;
 
-   short int newid = -1;
+   int newid = -1;
    bool phyfound = FALSE;
 
    // First we get a new logical connection object
@@ -494,7 +494,7 @@ short int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 }
 
 //_____________________________________________________________________________
-void XrdClientConnectionMgr::Disconnect(short int LogConnectionID, 
+void XrdClientConnectionMgr::Disconnect(int LogConnectionID, 
                                  bool ForcePhysicalDisc)
 {
    // Deletes a logical connection.
@@ -533,7 +533,7 @@ void XrdClientConnectionMgr::Disconnect(short int LogConnectionID,
 }
 
 //_____________________________________________________________________________
-int XrdClientConnectionMgr::ReadRaw(short int LogConnectionID, void *buffer, 
+int XrdClientConnectionMgr::ReadRaw(int LogConnectionID, void *buffer, 
                                int BufferLength)
 {
    // Read BufferLength bytes from the logical connection LogConnectionID
@@ -554,7 +554,7 @@ int XrdClientConnectionMgr::ReadRaw(short int LogConnectionID, void *buffer,
 }
 
 //_____________________________________________________________________________
-XrdClientMessage *XrdClientConnectionMgr::ReadMsg(short int LogConnectionID)
+XrdClientMessage *XrdClientConnectionMgr::ReadMsg(int LogConnectionID)
 {
    XrdClientLogConnection *logconn;
    XrdClientMessage *mex;
@@ -570,7 +570,7 @@ XrdClientMessage *XrdClientConnectionMgr::ReadMsg(short int LogConnectionID)
 }
 
 //_____________________________________________________________________________
-int XrdClientConnectionMgr::WriteRaw(short int LogConnectionID, const void *buffer, 
+int XrdClientConnectionMgr::WriteRaw(int LogConnectionID, const void *buffer, 
 				     int BufferLength, int substreamid) {
    // Write BufferLength bytes into the logical connection LogConnectionID
 
@@ -590,7 +590,7 @@ int XrdClientConnectionMgr::WriteRaw(short int LogConnectionID, const void *buff
 }
 
 //_____________________________________________________________________________
-XrdClientLogConnection *XrdClientConnectionMgr::GetConnection(short int LogConnectionID)
+XrdClientLogConnection *XrdClientConnectionMgr::GetConnection( int LogConnectionID)
 {
    // Return a logical connection object that has LogConnectionID as its ID.
    XrdSysMutexHelper mtx(fMutex);

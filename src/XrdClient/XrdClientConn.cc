@@ -443,23 +443,26 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
         }
 
  
+        kXR_int32 oldlen = 0;
+        if (req->header.requestid == kXR_open && reqMoreData) {
+          oldlen = req->open.dlen;
+          new_fname = orig_fname;
+          if (fRedirOpaque.length()) {
+            new_fname += "?";
+            new_fname += string(fRedirOpaque.c_str());
+          }
+          reqMoreData = new_fname.c_str();
+          req->open.dlen = new_fname.length();
+        }
 
-	XrdClientMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
-						       answMoreDataAllocated, 
-						       answMoreData, HasToAlloc,
-						       substreamid);
+        XrdClientMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
+                                                       answMoreDataAllocated,
+                                                       answMoreData, HasToAlloc,
+                                                       substreamid);
 
-
-	if (req->header.requestid == kXR_open && reqMoreData) {
-	  new_fname = orig_fname;
-	  if (fRedirOpaque.length()) {
-	    new_fname += "?";
-	    new_fname += string(fRedirOpaque.c_str());
-	  }
-	  reqMoreData = new_fname.c_str();
-	  req->open.dlen = new_fname.length();
-	}
-
+        if (req->header.requestid == kXR_open && reqMoreData) {
+          req->open.dlen = oldlen;
+        }
 
 
 	// Save server response header if requested
