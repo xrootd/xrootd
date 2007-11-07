@@ -214,7 +214,7 @@ XrdOssMioFile *XrdOssMio::Map(char *path, int fd, int opts)
           {OssEroute.Emsg("Mio", retc, "creating mmap preload thread");
            mp->inUse--;
           }
-          else DEBUG("started mmap preload thread; tid=" <<(unsigned int)tid);
+          else DEBUG("started mmap preload thread; tid=" <<(unsigned long)tid);
       }
 
 // All done

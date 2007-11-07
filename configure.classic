@@ -447,6 +447,13 @@ guess_architecture () {
           exit 1
           ;;
     esac
+    if [ "$platform" = "macosx" ]; then
+       if [ `sw_vers | sed -n 's/ProductVersion://p' | cut -d . -f 2` = 5 ]; then
+          if `sysctl machdep.cpu.extfeatures | grep "64" > /dev/null  2>&1` ; then
+             ccflv=macos64
+          fi
+       fi
+    fi
     echo "$osys | $chip | $rele | $arch | $ccflv"
 }
 
