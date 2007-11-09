@@ -149,6 +149,7 @@ int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psf
      if (psfx)
         {if (buff[i-1] != '/') buff[i++] = '/';
          strcpy(&buff[i], psfx);
+         if (psfx[j-1] != '/') strcat(buff, "/");
         }
     return 0;
 }
