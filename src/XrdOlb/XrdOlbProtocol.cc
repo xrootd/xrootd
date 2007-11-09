@@ -70,6 +70,11 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
                             XrdProtocol_Config *pi)
 {
 
+// If an error occured in Phase 1 then we must return a null object to force
+// termination of this instance (with a meaningful message).
+//
+   if (Config.Disabled < 0) return (XrdProtocol *)0;
+
 // Initialize the network interface and get the actual port number assigned
 //
    XrdOlbProtocol::setNet(pi->NetTCP, pi->readWait);
@@ -146,10 +151,12 @@ int XrdgetProtocolPort(const char *pname, char *parms,
 //
    Say.Say("Copr.  2006 Stanford University/SLAC olbd.");
 
-// Return failure if static init fails
+// Return an arbitrary port if static init fails. We will return true failure
+// when the protocol driver tries to get the first protocol object.
 //
    if (cfn) cfn = strdup(cfn);
-   if (Config.Configure1(pi->argc, pi->argv, cfn)) return -1;
+   if (Config.Configure1(pi->argc, pi->argv, cfn)) 
+      {Config.Disabled = -1;  return 0;}
 
 // Return the port number to be used
 //
