@@ -705,23 +705,9 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
    strlcpy(myVar, var, sizeof(myVar));
    var = myVar;
 
-   // At this point, make sure we have a value
-   //
-   if (!(val = Config.GetWord()))
-      {Eroute.Emsg("Config", "no value for directive", var);
-       if (nosubs) Config.SetEnv(myEnv);
-       return 1;
-      }
-
-   // Now assign the appropriate global variable
-   //
-   TS_String("localroot",  LocalRoot);
-   TS_String("remoteroot", RemoteRoot);
-
    // We need to suck all the tokens to the end of the line for remaining
    // options. Do so, until we run out of space in the buffer.
    //
-   Config.RetToken();
    if (!Config.GetRest(buff, sizeof(buff)))
       {Eroute.Emsg("Config", "arguments too long for", var);
        if (nosubs) Config.SetEnv(myEnv);
@@ -733,8 +719,17 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
    //
    if (nosubs) Config.SetEnv(myEnv);
 
+   // At this point, make sure we have a value
+   //
+   if (!(*val))
+      {Eroute.Emsg("Config", "no value for directive", var);
+       return 1;
+      }
+
    // Check for tokens taking a variable number of parameters
    //
+   TS_String("localroot",  LocalRoot);
+   TS_String("remoteroot", RemoteRoot);
    TS_String("stagemsg",   StageMsg);
    TS_String("mssgwcmd",   MSSgwCmd);  // Deprecated
    TS_String("msscmd",     MSSgwCmd);
