@@ -126,6 +126,7 @@ void ParseRedir(XrdClientMessage* xmsg, int &port, XrdOucString &host, XrdOucStr
 XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fUrl(""),
 				fLBSUrl(0), 
                                 fConnected(false), 
+				fGettingAccessToSrv(false),
 				fMainReadCache(0),
 				fREQWaitRespData(0),
 				fREQWaitTimeLimit(0),
@@ -1135,6 +1136,14 @@ bool XrdClientConn::GetAccessToSrv()
 
     XrdClientLogConnection *logconn = ConnectionManager->GetConnection(fLogConnID);
 
+    // This is to prevent recursion in this delicate phase
+    if (fGettingAccessToSrv) {
+      logconn->GetPhyConnection()->StartReader();
+      return true;
+    }
+
+    fGettingAccessToSrv = true;
+
     switch ((fServerType = DoHandShake(fLogConnID))) {
     case kSTError:
 	Info(XrdClientDebug::kNODEBUG,
@@ -1144,6 +1153,7 @@ bool XrdClientConn::GetAccessToSrv()
 
 	Disconnect(TRUE);
 
+	fGettingAccessToSrv = false;
 	return FALSE;
 
     case kSTNone: 
@@ -1153,6 +1163,7 @@ bool XrdClientConn::GetAccessToSrv()
 
 	Disconnect(TRUE);
 
+	fGettingAccessToSrv = false;
 	return FALSE;
 
     case kSTRootd: 
@@ -1177,6 +1188,7 @@ bool XrdClientConn::GetAccessToSrv()
 
 	    Disconnect(TRUE);
 
+	    fGettingAccessToSrv = false;
 	    return FALSE;
 	}
 
@@ -1203,6 +1215,8 @@ bool XrdClientConn::GetAccessToSrv()
 	break;
     }
 
+    bool retval = false;
+
     // Execute a login if connected to a xrootd server
     if (fServerType != kSTRootd) {
 
@@ -1210,18 +1224,21 @@ bool XrdClientConn::GetAccessToSrv()
 	logconn->GetPhyConnection()->StartReader();
 
 	if (logconn->GetPhyConnection()->IsLogged() == kNo)
-	    return DoLogin();
+	    retval = DoLogin();
 	else {
 
 	    Info( XrdClientDebug::kHIDEBUG,
 		  "GetAccessToSrv", "Reusing physical connection to server [" <<
 		  fUrl.Host << ":" << fUrl.Port << "]).");
 
-	    return TRUE;
+	    retval = true;
 	}
     }
     else
-	return TRUE;
+	retval = true;
+
+    fGettingAccessToSrv = false;
+    return retval;
 }
 
 //_____________________________________________________________________________
@@ -1237,7 +1254,7 @@ ERemoteServerType XrdClientConn::DoHandShake(short int log) {
 
     XrdClientPhyConnection *phyconn = lcn->GetPhyConnection();
 
-    if (!phyconn) return kSTError;
+    if (!phyconn || !phyconn->IsValid()) return kSTError;
 
 
     {
