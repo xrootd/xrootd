@@ -2383,7 +2383,7 @@ UnsolRespProcResult XrdClientConn::ProcessAsynResp(XrdClientMessage *unsolmsg) {
     // Explicit redirection request
     if (rd && (strlen(rd->host) > 0)) {
       Info(XrdClientDebug::kUSERDEBUG,
-	   "ProcessUnsolicitedMsg", "Requested sync redir (via async response) to " << rd->host <<
+	   "ProcessAsynResp", "Requested sync redir (via async response) to " << rd->host <<
 	   ":" << ntohl(rd->port));
 	
       SetRequestedDestHost(rd->host, ntohl(rd->port));
