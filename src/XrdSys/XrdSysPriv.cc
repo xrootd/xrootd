@@ -99,6 +99,9 @@ extern "C" {
 
 bool XrdSysPriv::fDebug = 0; // debug switch
 
+// Gloval mutex
+XrdSysRecMutex XrdSysPriv::fgMutex;
+
 //______________________________________________________________________________
 int XrdSysPriv::Restore(bool saved)
 {
@@ -214,55 +217,72 @@ int XrdSysPriv::ChangePerm(uid_t newuid, gid_t newgid)
    // Provides a way to drop permanently su privileges.
    // Return 0 on success, < 0 (== -errno) if any error occurs.
 
+   // Atomic action
+   XrdSysPriv::fgMutex.Lock();
 #if !defined(WINDOWS)
    // Get UIDs
    uid_t cruid = 0, ceuid = 0, csuid = 0;
-   if (getresuid(&cruid, &ceuid, &csuid) != 0)
+   if (getresuid(&cruid, &ceuid, &csuid) != 0) {
+      XrdSysPriv::fgMutex.UnLock();
       return XSPERR(errno);
+   }
 
    // Get GIDs
    uid_t crgid = 0, cegid = 0, csgid = 0;
-   if (getresgid(&crgid, &cegid, &csgid) != 0)
+   if (getresgid(&crgid, &cegid, &csgid) != 0) {
+      XrdSysPriv::fgMutex.UnLock();
       return XSPERR(errno);
-
+   }
    // Restore privileges, if needed
-   if (ceuid && XrdSysPriv::Restore(0) != 0)
+   if (ceuid && XrdSysPriv::Restore(0) != 0) {
+      XrdSysPriv::fgMutex.UnLock();
       return XSPERR(errno);
-
+   }
    // Act only if needed
    if (newgid != cegid || newgid != crgid) {
 
       // Set newgid as GID, all levels
-      if (setresgid(newgid, newgid, newgid) != 0)
+      if (setresgid(newgid, newgid, newgid) != 0) {
+         XrdSysPriv::fgMutex.UnLock();
          return XSPERR(errno);
-
+      }
       // Get GIDs
       uid_t rgid = 0, egid = 0, sgid = 0;
-      if (getresgid(&rgid, &egid, &sgid) != 0)
+      if (getresgid(&rgid, &egid, &sgid) != 0) {
+         XrdSysPriv::fgMutex.UnLock();
          return XSPERR(errno);
-
+      }
       // Make sure the new GIDs are all equal to the one asked
-      if (rgid != newgid || egid != newgid || sgid != newgid)
+      if (rgid != newgid || egid != newgid || sgid != newgid) {
+         XrdSysPriv::fgMutex.UnLock();
          return XSPERR(errno);
+      }
    }
 
    // Act only if needed
    if (newuid != ceuid || newuid != cruid) {
 
       // Set newuid as UID, all levels
-      if (setresuid(newuid, newuid, newuid) != 0)
+      if (setresuid(newuid, newuid, newuid) != 0) {
+         XrdSysPriv::fgMutex.UnLock();
          return XSPERR(errno);
-
+      }
       // Get UIDs
       uid_t ruid = 0, euid = 0, suid = 0;
-      if (getresuid(&ruid, &euid, &suid) != 0)
+      if (getresuid(&ruid, &euid, &suid) != 0) {
+         XrdSysPriv::fgMutex.UnLock();
          return XSPERR(errno);
-
+      }
       // Make sure the new UIDs are all equal to the one asked 
-      if (ruid != newuid || euid != newuid || suid != newuid)
+      if (ruid != newuid || euid != newuid || suid != newuid) {
+         XrdSysPriv::fgMutex.UnLock();
          return XSPERR(errno);
+      }
    }
 #endif
+   // Release the mutex
+   XrdSysPriv::fgMutex.UnLock();
+
    // Done
    return 0;
 }
@@ -273,6 +293,7 @@ void XrdSysPriv::DumpUGID(const char *msg)
    // Dump current entity
 
 #if !defined(WINDOWS)
+   XrdSysPriv::fgMutex.Lock();
    // Get the UIDs
    uid_t ruid = 0, euid = 0, suid = 0;
    if (getresuid(&ruid, &euid, &suid) != 0)
@@ -290,6 +311,7 @@ void XrdSysPriv::DumpUGID(const char *msg)
    cout << "XrdSysPriv: effective  = (" << euid <<","<< egid <<")" << endl; 
    cout << "XrdSysPriv: saved      = (" << suid <<","<< sgid <<")" << endl; 
    cout << "XrdSysPriv: "  << endl; 
+   XrdSysPriv::fgMutex.UnLock();
 #endif
 }
 
@@ -306,6 +328,7 @@ XrdSysPrivGuard::XrdSysPrivGuard(uid_t uid, gid_t gid)
 
    Init(uid, gid);
 }
+
 //______________________________________________________________________________
 XrdSysPrivGuard::XrdSysPrivGuard(const char *usr)
 {
@@ -325,6 +348,18 @@ XrdSysPrivGuard::XrdSysPrivGuard(const char *usr)
    if (usr) { }
 #endif
 }
+
+//______________________________________________________________________________
+XrdSysPrivGuard::~XrdSysPrivGuard()
+{
+   // Destructor. Restore state and unlock the global mutex.
+
+   if (!dum) {
+      XrdSysPriv::Restore();
+      XrdSysPriv::fgMutex.UnLock();
+   }
+}
+
 //______________________________________________________________________________
 void XrdSysPrivGuard::Init(uid_t uid, gid_t gid)
 {
@@ -339,25 +374,29 @@ void XrdSysPrivGuard::Init(uid_t uid, gid_t gid)
       XrdSysPriv::DumpUGID("before Init()");
 
 #if !defined(WINDOWS)
+   XrdSysPriv::fgMutex.Lock();
    uid_t ruid = 0, euid = 0, suid = 0;
    gid_t rgid = 0, egid = 0, sgid = 0;
    if (getresuid(&ruid, &euid, &suid) == 0 &&
        getresgid(&rgid, &egid, &sgid) == 0) {
-     if ((euid != uid) || (egid != gid)) {
-       if (!ruid) {
-	 // Change temporarly identity
-	 if (XrdSysPriv::ChangeTo(uid, gid) != 0)
-	   valid = 0;
-	 dum = 0;
-       } else {
-	 // Change requested but not enough privileges
-	 valid = 0;
-       }
-     }
+      if ((euid != uid) || (egid != gid)) {
+         if (!ruid) {
+            // Change temporarly identity
+            if (XrdSysPriv::ChangeTo(uid, gid) != 0)
+               valid = 0;
+            dum = 0;
+         } else {
+            // Change requested but not enough privileges
+            valid = 0;
+         }
+      }
    } else {
-     // Something bad happened: memory corruption?
-     valid = 0;
+      // Something bad happened: memory corruption?
+      valid = 0;
    }
+   // Unlock if no action
+   if (dum)
+      XrdSysPriv::fgMutex.UnLock();
 #endif
    // Debug hook
    if (XrdSysPriv::fDebug)

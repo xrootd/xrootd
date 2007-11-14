@@ -19,6 +19,8 @@
 //   "Setuid Demystified" by H.Chen, D.Wagner, D.Dean                   //
 // also quoted in "Secure programming Cookbook" by J.Viega & M.Messier. //
 //                                                                      //
+// NB: this class can only used via XrdSysPrivGuard (see below)         //
+//                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
 #if !defined(WINDOWS)
@@ -28,22 +30,32 @@
 #  define gid_t unsigned int
 #endif
 
+#include "XrdSys/XrdSysPthread.hh"
+
 class XrdSysPriv
 {
- public:
+ friend class XrdSysPrivGuard;
+ private:
+   // Ownership cannot be changed by thread, so there must be an overall
+   // locking
+   static XrdSysRecMutex fgMutex;
+
    XrdSysPriv();
-   virtual ~XrdSysPriv() { }
 
    static bool fDebug;
 
    static int ChangeTo(uid_t uid, gid_t gid);
-   static int ChangePerm(uid_t uid, gid_t gid);
    static void DumpUGID(const char *msg = 0);
    static int Restore(bool saved = 1);
+
+ public:
+   virtual ~XrdSysPriv() { }
+   static int ChangePerm(uid_t uid, gid_t gid);
 };
 
 //
-// To minimize the chance of forgetting the super-privileges set
+// Guard class; ownership is not chageable by thread, so we must prevent
+// other threads to do the same thing.
 // Usage:
 //
 //    {  XrdSysPrivGuard priv(tempuid);
@@ -58,7 +70,7 @@ class XrdSysPrivGuard
  public:
    XrdSysPrivGuard(uid_t uid, gid_t gid);
    XrdSysPrivGuard(const char *user);
-   virtual ~XrdSysPrivGuard() { if (!dum) XrdSysPriv::Restore(); }
+   virtual ~XrdSysPrivGuard();
    bool Valid() const { return valid; }
  private:
    bool dum;
