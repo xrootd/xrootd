@@ -1392,7 +1392,7 @@ int XrdOfs::mkdir(const char             *path,    // In
           return ((retc = Finder->Forward(einfo, (mkpath ? fwdMKPATH : fwdMKDIR),
                                   buff, path)) ? fsError(einfo, retc) : SFS_OK);
          }
-         else if ((retc = Finder->Locate(einfo,path,SFS_O_WRONLY)))
+         else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR | SFS_O_CREAT)))
                  return fsError(einfo, retc);
 
 // Perform the actual operation
