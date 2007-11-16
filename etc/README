@@ -1,16 +1,19 @@
 
   $Id$
 
-This directory contains start and stop scripts for the olbd and xrootd, as well
-as a monitoring script for the olbd when you wish to use load based balancing.
+This directory contains start and stop scripts for the cmsd, olbd (deprecated)
+and xrootd, as well as a monitoring script for the cmsd when you wish to use
+load based balancing. Please note that the cmsd and olbd provide the same
+services but you must use one or the other everywhere. You may not mix them. The
+cmsd is the prefered daemon (the olbd is provided for backward compatability).
 
 The documentation for each script is contained within the script itself. Please
 read the header comments in each script before using the script!
 
-The StartOLB script starts the olbd and must have a StartOLB.cf file installed
+The StartCMS script starts the cmsd and must have a StartCMS.cf file installed
 in the same directory as the start script. This distribution includes a
-StartOLB.cf.example file to guide you through setting the various variables
-to the appropriate values. Please create your own StartOLB.cf file from this
+StartCMS.cf.example file to guide you through setting the various variables
+to the appropriate values. Please create your own StartCMS.cf file from this
 example file.
 
 The StartXRD script starts the xrootd and must have a StartXRD.cf file installed

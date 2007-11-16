@@ -13,8 +13,8 @@
 #
 XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
 
-SERVER  = XrdSfs   XrdAcc XrdOdc \
-          XrdOss   XrdOfs   Xrd XrdOlb  XrdRootd   XrdXrootd
+SERVER  = XrdSfs   XrdAcc XrdOdc XrdCms \
+          XrdOss   XrdOfs   Xrd  XrdOlb  XrdRootd   XrdXrootd
 
 XRDCLIENT = XrdClient XrdPosix XrdPss
 
@@ -94,6 +94,11 @@ XrdClientPerl: FORCE
 	@echo $(XMSG) admin client perl wrapper $(XDBG) component...
 	@cd src/XrdClient;\
 	$(MAKE) perlmod ARCH=$(ARCH) --no-print-directory
+
+XrdCms: FORCE
+	@echo $(XMSG) cms $(XDBG) component...
+	$(ECHO)cd src/XrdCms;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdCrypto: FORCE
 	@echo $(XMSG) crypto $(XDBG) component...

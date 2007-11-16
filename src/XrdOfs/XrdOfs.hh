@@ -19,7 +19,6 @@
   
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
-#include "XrdOdc/XrdOdcFinder.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucPList.hh"
@@ -142,6 +141,7 @@ struct timeval tod;
 /******************************************************************************/
 
 class XrdAccAuthorize;
+class XrdCmsClient;
   
 class XrdOfs : public XrdSfsFileSystem
 {
@@ -285,7 +285,7 @@ XrdOfsEvr         evrObject;  // Event receiver
 virtual int   ConfigXeq(char *var, XrdOucStream &, XrdSysError &);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    const char *y="");
-XrdOdcFinder     *Finder;         //    ->Distrib Cluster Service
+XrdCmsClient *Finder;         //    ->Cluster Management Service
 static  int   fsError(XrdOucErrInfo &myError, int rc);
         int   Stall(XrdOucErrInfo  &, int, const char *);
         char *WaitTime(int, char *, int);
@@ -300,7 +300,7 @@ char             *AuthLib;        //    ->Authorization   Library
 char             *AuthParm;       //    ->Authorization   Parameters
 char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
-XrdOdcFinderTRG  *Balancer;       //    ->Server Balancer Interface
+XrdCmsClient     *Balancer;       //    ->Cluster Local   Interface
 XrdOfsEvs        *evsObject;      //    ->Event Notifier
 char             *locResp;        //    ->Locate Response
 int               locRlen;        //      Length of locResp;

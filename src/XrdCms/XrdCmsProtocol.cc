@@ -1,0 +1,849 @@
+/******************************************************************************/
+/*                                                                            */
+/*                     X r d C m s P r o t o c o l . c c                      */
+/*                                                                            */
+/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/******************************************************************************/
+
+//       $Id$
+
+// Original Version: 1.7 2007/07/31 02:25:15 abh
+
+const char *XrdCmsProtocolCVSID = "$Id$";
+ 
+  
+#include <unistd.h>
+#include <ctype.h>
+#include <errno.h>
+#include <iostream.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <stdio.h>
+#include <netinet/in.h>
+#include <sys/param.h>
+
+#include "XProtocol/YProtocol.hh"
+
+#include "Xrd/XrdInet.hh"
+#include "Xrd/XrdLink.hh"
+
+#include "XrdCms/XrdCmsCache.hh"
+#include "XrdCms/XrdCmsCluster.hh"
+#include "XrdCms/XrdCmsConfig.hh"
+#include "XrdCms/XrdCmsJob.hh"
+#include "XrdCms/XrdCmsLogin.hh"
+#include "XrdCms/XrdCmsManager.hh"
+#include "XrdCms/XrdCmsManTree.hh"
+#include "XrdCms/XrdCmsMeter.hh"
+#include "XrdCms/XrdCmsProtocol.hh"
+#include "XrdCms/XrdCmsRouting.hh"
+#include "XrdCms/XrdCmsRTable.hh"
+#include "XrdCms/XrdCmsState.hh"
+#include "XrdCms/XrdCmsTrace.hh"
+
+#include "XrdNet/XrdNetDNS.hh"
+
+#include "XrdOuc/XrdOucPup.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
+
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysTimer.hh"
+
+using namespace XrdCms;
+  
+/******************************************************************************/
+/*                        G l o b a l   O b j e c t s                         */
+/******************************************************************************/
+
+       XrdSysMutex      XrdCmsProtocol::ProtMutex;
+       XrdCmsProtocol  *XrdCmsProtocol::ProtStack = 0;
+
+       int              XrdCmsProtocol::readWait  = 1000;
+
+       XrdCmsParser     XrdCmsProtocol::ProtArgs;
+
+/******************************************************************************/
+/*                       P r o t o c o l   L o a d e r                        */
+/*                        X r d g e t P r o t o c o l                         */
+/******************************************************************************/
+  
+// This protocol can live in a shared library. It can also be statically linked
+// to provide a default protocol (which, for cms protocol we do). The interface
+// below is used by Xrd to obtain a copy of the protocol object that can be
+// used to decide whether or not a link is talking our particular protocol.
+// Phase 1 initialization occured on the call to XrdgetProtocolPort(). At this
+// point a network interface is defined and we can complete initialization.
+//
+
+extern "C"
+{
+XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
+                            XrdProtocol_Config *pi)
+{
+
+// Initialize the network interface and get the actual port number assigned
+//
+   Config.PortTCP = pi->NetTCP->Port();
+   Config.NetTCP  = pi->NetTCP;
+
+// If we have a connection allow list, add it to the network object. Note that
+// we clear the address because the object is lost in the add process.
+//
+   if (Config.Police) {pi->NetTCP->Secure(Config.Police); Config.Police = 0;}
+
+// Complete initialization and upon success return a protocol object
+//
+   if (Config.Configure2()) return (XrdProtocol *)0;
+
+// Return a new instance of this object
+//
+   return (XrdProtocol *)new XrdCmsProtocol();
+}
+}
+
+/******************************************************************************/
+/*           P r o t o c o l   P o r t   D e t e r m i n a t i o n            */
+/*                    X r d g e t P r o t o c o l P o r t                     */
+/******************************************************************************/
+  
+// Because the dcm port numbers are determined dynamically based on the role the
+// dcm plays, we need to process the configration file and return the right
+// port number if it differs from the one provided by the protocol driver. Only
+// one port instance of the dcmd protocol is allowed.
+//
+
+extern "C"
+{
+int XrdgetProtocolPort(const char *pname, char *parms,
+                       XrdProtocol_Config *pi)
+{
+   static int thePort = -1;
+   char *cfn = pi->ConfigFN, buff[128];
+
+// Check if we have been here before
+//
+   if (thePort >= 0)
+      {if (pi->Port && pi->Port != thePort)
+          {sprintf(buff, "%d disallowed; only using port %d",pi->Port,thePort);
+           Say.Emsg("Config", "Alternate port", buff);
+          }
+       return thePort;
+      }
+
+// Initialize the error message handler and some default values
+//
+   Say.logger(pi->eDest->logger(0));
+   Config.myName    = strdup(pi->myName);
+   Config.PortTCP   = (pi->Port < 0 ? 0 : pi->Port);
+   Config.myInsName = strdup(pi->myInst);
+   Config.myProg    = strdup(pi->myProg);
+   Sched            = pi->Sched;
+   if (pi->DebugON) Trace.What = TRACE_ALL;
+   memcpy(&Config.myAddr, pi->myAddr, sizeof(struct sockaddr));
+
+// The only parameter we accept is the name of an alternate config file
+//
+   if (parms) 
+      {while(*parms == ' ') parms++;
+       if (*parms) 
+          {char *pp = parms;
+           while(*parms != ' ' && *parms) parms++;
+           cfn = pp;
+          }
+      }
+
+// Put up the banner
+//
+   Say.Say("Copr.  2007 Stanford University/SLAC dcmd.");
+
+// Return failure if static init fails
+//
+   if (cfn) cfn = strdup(cfn);
+   if (Config.Configure1(pi->argc, pi->argv, cfn)) return -1;
+
+// Return the port number to be used
+//
+   thePort = Config.PortTCP;
+   return thePort;
+}
+}
+
+/******************************************************************************/
+/*                               E x e c u t e                                */
+/******************************************************************************/
+  
+void XrdCmsProtocol::Execute(XrdCmsRRData &Data)
+{
+   static kXR_unt32 theDelay = htonl(Config.SUPDelay);
+   XrdCmsRouter::NodeMethod_t Method;
+   const char *etxt;
+
+// Check if we can continue
+//
+   if (CmsState.Suspended && Data.Routing & XrdCmsRouting::Delayable)
+      {Reply_Delay(Data.Request.streamid, theDelay); return;}
+
+// Validate request code and execute the request. If successful, forward the
+// request to subscribers of this node if the request is forwardable.
+//
+   if (!(Method = Router.getMethod(Data.Request.rrCode)))
+      Say.Emsg("Protocol", "invalid request code from", myNode->Ident);
+      else if ((etxt = (myNode->*Method)(Data)))
+              Reply_Error(Data.Request.streamid, kYR_EINVAL, etxt);
+              else if (Data.Routing & XrdCmsRouting::Forward
+                   &&  Cluster.NodeCnt) Reissue(Data);
+}
+
+/******************************************************************************/
+/*                                 M a t c h                                  */
+/******************************************************************************/
+
+XrdProtocol *XrdCmsProtocol::Match(XrdLink *lp)
+{
+CmsRRHdr          Hdr;
+int               dlen;
+
+// Peek at the first few bytes of data (shouldb be all zeroes)
+//
+   if ((dlen = lp->Peek((char *)&Hdr,sizeof(Hdr),readWait)) != sizeof(Hdr))
+      {if (dlen <= 0) lp->setEtext("login not received");
+       return (XrdProtocol *)0;
+      }
+
+// Verify that this is our protocol and whether a version1 client is here
+//
+   if (Hdr.streamid || Hdr.rrCode != kYR_login)
+      {if (!strncmp((char *)&Hdr, "login ", 6))
+          lp->setEtext("protocol version 1 unsupported");
+       return (XrdProtocol *)0;
+      }
+
+// Return the protocol object
+//
+   return (XrdProtocol *)XrdCmsProtocol::Alloc();
+}
+
+/******************************************************************************/
+/*                                P a n d e r                                 */
+/******************************************************************************/
+  
+// Pander() handles all outgoing connections to a manager/supervisor
+
+void XrdCmsProtocol::Pander(const char *manager, int mport)
+{
+   EPNAME("Pander");
+
+   CmsLoginData Data, loginData;
+   unsigned int Mode, Role = 0;
+   int Lvl=0, Netopts=0, waits=6, tries=6, fails=0, xport=mport;
+   int rc, fsUtil, KickedOut, myNID = ManTree.Register();
+   char manbuff[256];
+   const char *manp = manager;
+   const int manblen = sizeof(manbuff);
+
+// Prefill the login data
+//
+   loginData.SID   = (kXR_char *)Config.mySID;
+   loginData.Paths = (kXR_char *)Config.myPaths;
+   loginData.dPort = Config.PortData;
+   loginData.sPort = Config.PortTCP;
+   loginData.fsNum = Meter.numFS();
+   loginData.fSpace= Meter.FreeSpace(fsUtil);
+   loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
+
+// Establish request routing based on who we are
+//
+   Routing = (Config.asManager() || Config.asPeer() ? &supVOps : &srvVOps);
+
+// Compute the Manager's status (this never changes for managers/supervisors)
+//
+   if (Config.asPeer())
+      if (Config.SUPCount)             Role  = CmsLoginData::kYR_peer
+                                             | CmsLoginData::kYR_suspend;
+               else                    Role  = CmsLoginData::kYR_peer;
+      else if (Config.asManager())     Role  = CmsLoginData::kYR_manager
+                                             | CmsLoginData::kYR_suspend;
+              else                     Role  = CmsLoginData::kYR_server;
+   if (Config.asProxy())               Role |= CmsLoginData::kYR_proxy;
+
+// Keep connecting to our manager. If XWait is present, wait for it to
+// be turned off first; then try to connect.
+//
+   do {while(Cluster.XWait)
+            {if (!waits--)
+                {Say.Emsg("Pander", "Suspend state still active."); waits=6;}
+             XrdSysTimer::Snooze(12);
+            }
+
+       if (!ManTree.Trying(myNID, Lvl) && Lvl)
+          {DEBUG("Restarting at root node " <<manager <<':' <<mport);
+           manp = manager; xport = mport; Lvl = 0;
+          }
+
+       DEBUG("Trying to connect to lvl " <<Lvl <<' ' <<manp <<':' <<xport);
+
+       if (!(Link = Config.NetTCP->Connect(manp, xport, Netopts)))
+          {if (tries--) Netopts = XRDNET_NOEMSG;
+              else {tries = 6; Netopts = 0;}
+           if ((Lvl = myMans.Next(xport,manbuff,manblen)))
+                   {XrdSysTimer::Snooze(3); manp = manbuff;}
+              else {if (manp != manager) fails++;
+                    XrdSysTimer::Snooze(6); manp = manager; xport = mport;
+                   }
+           continue;
+          }
+       Netopts = 0; tries = waits = 6;
+
+       // Obtain a new node object for this connection
+       //
+       if (!(myNode = Manager.Add(Link, Lvl+1)))
+          {Say.Emsg("Pander", "Unable to obtain node object.");
+           Link->Close(); XrdSysTimer::Snooze(15); continue;
+          }
+
+      // Compute current login mode
+      //
+      Mode = Role
+           | (Cluster.XWait    ? CmsLoginData::kYR_suspend : 0)
+           | (Cluster.XnoStage ? CmsLoginData::kYR_nostage : 0);
+       if (fails >= 6 && manp == manager) 
+          {fails = 0; Mode |=    CmsLoginData::kYR_trying;}
+
+       // Login this node with the correct state
+       //
+       KickedOut = 0; Data = loginData; Data.Mode = Mode;
+       if (!(rc = XrdCmsLogin::Login(Link, Data)))
+          if(!ManTree.Connect(myNID, myNode)) KickedOut = 1;
+            else {Say.Emsg("Protocol", "Logged into", Link->Name());
+                  if (Config.asManager()) CmsState.Sync(Link,
+                                          Mode & CmsLoginData::kYR_nostage,
+                                          Mode & CmsLoginData::kYR_suspend);
+                  Dispatch();
+                  rc = 0;
+                  loginData.fSpace= Meter.FreeSpace(fsUtil);
+                  loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
+                 }
+
+       // Remove manager from the config
+       //
+       Manager.Remove(myNode, (rc == kYR_redirect ? "redirected"
+                                  : (rc ? "lost connection" : 0)));
+       ManTree.Disc(myNID);
+       delete myNode; myNode = 0;
+
+       // Check if we should process the redirection
+       //
+       if (rc == kYR_redirect)
+          {struct sockaddr netaddr;
+           XrdOucTokenizer hList((char *)Data.Paths);
+           unsigned int ipaddr;
+           char *hP;
+           Link->Name(&netaddr);
+           ipaddr = XrdNetDNS::IPAddr(&netaddr);
+           myMans.Del(ipaddr);
+           while((hP = hList.GetToken()))
+                 myMans.Add(ipaddr, hP, Config.PortTCP, Lvl+1);
+           free(Data.Paths);
+          }
+
+       // Cycle on to the next manager if we have one or snooze and try over
+       //
+       if (!KickedOut && (Lvl = myMans.Next(xport,manbuff,manblen)))
+          {manp = manbuff; continue;}
+       XrdSysTimer::Snooze(9); Lvl = 0;
+       if (manp != manager) fails++;
+       manp = manager; xport = mport;
+      } while(1);
+}
+  
+/******************************************************************************/
+/*                               P r o c e s s                                */
+/******************************************************************************/
+  
+// Process is called only when we get a new connection. We only return when
+// the connection drops.
+//
+int XrdCmsProtocol::Process(XrdLink *lp)
+{
+
+// Now admit the login
+//
+   Link = lp;
+   if ((Routing=Admit()))
+      {loggedIn = 1;
+       myNode->UnLock();
+       Dispatch();
+       myNode->Lock();
+      }
+
+// Serialize all activity on the link before we proceed
+//
+   lp->Serialize();
+
+// Immediately terminate redirectors (they have an Rslot).
+//
+   if (RSlot)
+      {RTable.Del(myNode); RSlot  = 0;
+       myNode->UnLock(); delete myNode; myNode = 0;
+       return -1;
+      }
+
+// We have a node that may or may not be in the cluster at this point, or may
+// need to remain in the cluster as a shadow member. In any case, the node
+// object lock will be released either by Remove() or the destructor.
+//
+   if (myNode)
+      {myNode->isConn = 0;
+       if (myNode->isBound) Cluster.Remove(0, myNode, !loggedIn);
+          else if (myNode->isGone) delete myNode;
+              else myNode->UnLock();
+      }
+
+// All done indicate the connection is dead
+//
+   return -1;
+}
+
+/******************************************************************************/
+/*                               R e c y c l e                                */
+/******************************************************************************/
+
+void XrdCmsProtocol::Recycle(XrdLink *lp, int consec, const char *reason)
+{
+   char theBuff[280];
+
+   sprintf(theBuff, "%s %s", myRole, lp->Name());
+
+   if (loggedIn) 
+      if (reason) Say.Emsg("Protocol", theBuff, "logged out;",   reason);
+         else     Say.Emsg("Protocol", theBuff, "logged out.");
+      else     
+      if (reason) Say.Emsg("Protocol", theBuff, "login failed;", reason);
+
+   ProtMutex.Lock();
+   ProtLink  = ProtStack;
+   ProtStack = this;
+   ProtMutex.UnLock();
+}
+  
+/******************************************************************************/
+/*                       P r i v a t e   M e t h o d s                        */
+/******************************************************************************/
+/******************************************************************************/
+/*                                 A d m i t                                  */
+/******************************************************************************/
+  
+XrdCmsRouting *XrdCmsProtocol::Admit()
+{
+   EPNAME("Admit");
+   char         myBuff[1024];
+   XrdCmsLogin  Source(myBuff, sizeof(myBuff));
+   CmsLoginData Data;
+   const char  *Reason;
+   SMask_t      newmask, servset;
+   int addedp = 0, Status = 0, isMan = 0, isPeer = 0, isProxy = 0, isServ = 0;
+   int wasSuspended = 0;
+
+// Establish outgoing mode
+//
+   Data.Mode = 0;
+   if (Trace.What & TRACE_Debug) Data.Mode |= CmsLoginData::kYR_debug;
+   if (CmsState.Suspended)      {Data.Mode |= CmsLoginData::kYR_suspend;
+                                 wasSuspended = 1;
+                                }
+   Data.HoldTime = Config.LUPHold;
+
+// Do the login and get the data
+//
+   if (Source.Admit(Link, Data)) return 0;
+
+// Handle Redirectors here (minimal stuff to do)
+//
+   if (Data.Mode & CmsLoginData::kYR_director) 
+      return Admit_Redirector(wasSuspended);
+
+// Disallow subscriptions we are are configured as a solo manager
+//
+   if (Config.asSolo())
+      return Login_Failed("configuration disallows subscribers");
+
+// Determine the role of this incomming login.
+//
+        if ((isMan = Data.Mode & CmsLoginData::kYR_manager))
+           {Status = CMS_isMan;
+            if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
+               {Status |= CMS_isPeer;  myRole = "manager";}
+               else                    myRole = "supervisor";
+           }
+   else if ((isServ =  Data.Mode & CmsLoginData::kYR_server))
+            if ((isProxy=  Data.Mode & CmsLoginData::kYR_proxy))
+               {Status = CMS_isProxy; myRole = "proxy server";}
+               else                   myRole = "server";
+   else if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
+           {Status |= CMS_isPeer;
+            myRole = (CmsLoginData::kYR_proxy ? "peer" : "peer proxy");
+           }
+   else    return Login_Failed("invalid login role");
+
+// Make sure that our role is compatible with the incomming role
+//
+   Reason = 0;
+   if (Config.asServer())       // We are a supervisor
+      {if (Config.asProxy() && (!isProxy || isPeer))
+          Reason = "configuration only allows proxies";
+          else if (!isServ)
+          Reason = "configuration disallows peers and proxies";
+      } else {                  // We are a manager
+       if (Config.asProxy() &&   isServ)
+          Reason = "configuration only allows peers or proxies";
+          else if (isProxy)
+          Reason = "configuration disallows proxies";
+      }
+   if (Reason) return Login_Failed(Reason);
+
+// The server may specify nostage and suspend
+//
+   if (Data.Mode & CmsLoginData::kYR_nostage) Status |= CMS_noStage;
+   if (Data.Mode & CmsLoginData::kYR_suspend) Status |= CMS_Suspend;
+
+// The server may specify that it has been trying for a long time
+//
+   if (Data.Mode & CmsLoginData::kYR_trying)
+      Say.Emsg("Protocol",Link->Name(),"has not yet found a cluster slot!");
+
+// Add the node. The resulting node object will be locked and the caller will
+// unlock it prior to dispatching.
+//
+   if (!(myNode = Cluster.Add(myRole, Link, Data.dPort, Status, Data.sPort,
+                              (const char *)Data.SID)))
+      return (XrdCmsRouting *)0;
+
+// Record the status of the server's filesystem
+//
+   myNode->DiskFree = Data.fSpace;
+   myNode->DiskNums = Data.fsNum;
+   myNode->DiskUtil = Data.fsUtil;
+
+// Process all of the paths
+//
+   if (Data.Paths)
+      {XrdOucTokenizer thePaths((char *)Data.Paths);
+       char *tp, *pp;
+       while((tp = thePaths.GetLine()))
+            {DEBUG(Link->Name() <<" adding path: " <<tp);
+             if (!(tp = thePaths.GetToken())
+             ||  !(pp = thePaths.GetToken())) break;
+             if (!(newmask = AddPath(myNode, tp, pp)))
+                return Login_Failed("invalid exported path");
+             servset |= newmask;
+             addedp= 1;
+            }
+      }
+
+// Check if we have any special paths. If none, then we must set the cache for
+// all entries to indicate that the node bounced.
+//
+   if (!addedp) 
+      {XrdCmsPInfo pinfo;
+       pinfo.rovec = myNode->Mask();
+       if (myNode->isPeer) pinfo.ssvec = myNode->Mask();
+       servset = Cache.Paths.Insert("/", &pinfo);
+       Cache.Bounce(myNode->Mask());
+       Say.Emsg("Protocol", myNode->Ident, "defaulted r /");
+      }
+
+// Set the reference counts for intersecting nodes to be the same.
+// Additionally, indicate cache refresh will be needed because we have a new
+// node that may have files the we already reported on.
+//
+   Cluster.ResetRef(servset);
+   if (Config.asManager()) {Manager.Reset(); myNode->SyncSpace();}
+   myNode->isDisable = 0;
+
+// Document the login
+//
+   Say.Emsg("Protocol", myNode->Ident,
+            (myNode->isSuspend ? "logged in suspended." : "logged in."));
+
+// All done
+//
+   return &rspVOps;
+}
+  
+/******************************************************************************/
+/*                      A d m i t _ R e d i r e c t o r                       */
+/******************************************************************************/
+  
+XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
+{
+   EPNAME("Admit_Redirector");
+   static CmsStatusRequest newState 
+                   = {{0, kYR_status, CmsStatusRequest::kYR_Resume, 0}};
+
+// Indicate what role I have
+//
+   myRole = "Redirector";
+
+// Director logins have no additional parameters. We return with the node object
+// locked to be consistent with the way server/suprvisors nodes are returned.
+//
+   myNode = new XrdCmsNode(myRole, Link); myNode->Lock();
+   if (!(RSlot = RTable.Add(myNode)))
+      {Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
+       return 0;
+      } else myNode->setSlot(RSlot);
+
+// If we told the redirector we were suspended then we must check if that is no
+// longer true and generate a reume event as the redirector may have missed it
+//
+   if (wasSuspended && !CmsState.Suspended)
+      myNode->Send((char *)&newState, sizeof(newState));
+
+// Login succeeded
+//
+   Say.Emsg("Protocol", myNode->Ident, "logged in.");
+   DEBUG(myNode->Ident <<" assigned slot " <<RSlot);
+   return &rdrVOps;
+}
+
+/******************************************************************************/
+/*                               A d d P a t h                                */
+/******************************************************************************/
+  
+SMask_t XrdCmsProtocol::AddPath(XrdCmsNode *nP,
+                                const char *pType, const char *Path)
+{
+    XrdCmsPInfo pinfo;
+
+// Process: addpath {r | w | rw}[s] path
+//
+   while(*pType)
+        {     if ('r' == *pType) pinfo.rovec =               nP->Mask();
+         else if ('w' == *pType) pinfo.rovec = pinfo.rwvec = nP->Mask();
+         else if ('s' == *pType) pinfo.rovec = pinfo.ssvec = nP->Mask();
+         else return 0;
+         pType++;
+        }
+
+// Get the path
+//
+   if (pinfo.rwvec || pinfo.ssvec) nP->isRW = 1;
+
+// For everything matching the path indicate in the cache the node bounced
+//
+   Cache.Bounce(nP->Mask(), Path);
+
+// Add the path to the known path list
+//
+   return Cache.Paths.Insert(Path, &pinfo);
+}
+
+/******************************************************************************/
+/*                                 A l l o c                                  */
+/******************************************************************************/
+
+XrdCmsProtocol *XrdCmsProtocol::Alloc(const char *theRole, 
+                                      const char *theMan,
+                                            int   thePort)
+{
+   XrdCmsProtocol *xp;
+
+// Grab a protocol object and, if none, return a new one
+//
+   ProtMutex.Lock();
+   if ((xp = ProtStack)) ProtStack = xp->ProtLink;
+      else xp = new XrdCmsProtocol();
+   ProtMutex.UnLock();
+
+// Initialize the object if we actually got one
+//
+   if (!xp) Say.Emsg("Protocol","No more protocol objects.");
+      else {xp->myRole    = theRole;
+            xp->myMan     = theMan;
+            xp->myManPort = thePort;
+            xp->loggedIn  = 0;
+           }
+
+// All done
+//
+   return xp;
+}
+
+/******************************************************************************/
+/*                              D i s p a t c h                               */
+/******************************************************************************/
+  
+void XrdCmsProtocol::Dispatch()
+{
+   EPNAME("Dispatch");
+   XrdCmsRRData *Data = XrdCmsRRData::Objectify();
+   XrdCmsJob  *jp;
+   const char *myArgs, *myArgt;
+   char        buff[8];
+
+// Read in the request header
+//
+do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
+
+// Decode the length and get the rest of the data
+//
+   if (!(Data->Dlen = static_cast<int>(ntohs(Data->Request.datalen))))
+     {myArgs = myArgt = 0;
+      DEBUG("From " <<myNode->Ident <<" req " <<Router.getName(Data->Request.rrCode));
+     }
+      else {if (Data->Dlen > maxReqSize)
+               {Say.Emsg("Protocol","Request args too long from",Link->Name());
+                break;
+               }
+            if ((!Data->Buff || Data->Blen < Data->Dlen)
+            &&  !Data->getBuff(Data->Dlen))
+               {Say.Emsg("Protocol", "No buffers to serve", Link->Name());
+                break;
+               }
+            DEBUG("Reading from " <<myNode->Ident <<" req " 
+                  <<Router.getName(Data->Request.rrCode) <<" dlen=" <<Data->Dlen);
+            if (Link->RecvAll(Data->Buff, Data->Dlen) < 0) break;
+            myArgs = Data->Buff; myArgt = Data->Buff + Data->Dlen;
+           }
+
+// Check if request is actually valid
+//
+   if (!(Data->Routing = Routing->getRoute(int(Data->Request.rrCode))))
+      {sprintf(buff, "%d", Data->Request.rrCode);
+       Say.Emsg("Protocol",Link->Name(),"sent an invalid request -", buff);
+       continue;
+      }
+
+// Parse the arguments (we do this in the main thread to avoid overruns)
+//
+   if (!(Data->Routing & XrdCmsRouting::noArgs)
+   &&  !ProtArgs.Parse(int(Data->Request.rrCode), myArgs, myArgt, Data))
+      {Reply_Error(Data->Request.streamid, kYR_EINVAL, "badly formed request");
+       continue;
+      }
+
+// Insert correct identification
+//
+   if (!(Data->Ident) || !(*Data->Ident)) Data->Ident = myNode->Ident;
+
+// Schedule this request
+//
+   if (Data->Routing & XrdCmsRouting::isSync) Execute(*Data);
+      else if ((jp = XrdCmsJob::Alloc(this, Data)))
+              {Sched->Schedule((XrdJob *)jp);
+               Data = XrdCmsRRData::Objectify();
+              }
+              else {Say.Emsg("Protocol", "No jobs to serve", Link->Name());
+                    break;
+                   }
+  } while(1);
+}
+
+/******************************************************************************/
+/*                                  D o I t                                   */
+/******************************************************************************/
+  
+// Determine how we should proceed here
+//
+void XrdCmsProtocol::DoIt()
+{
+
+// If we have a role, then we should simply pander it
+//
+   if (myRole) Pander(myMan, myManPort);
+}
+
+/******************************************************************************/
+/*                          L o g i n _ F a i l e d                           */
+/******************************************************************************/
+  
+XrdCmsRouting *XrdCmsProtocol::Login_Failed(const char *reason)
+{
+   Link->setEtext(reason);
+   return (XrdCmsRouting *)0;
+}
+
+/******************************************************************************/
+/*                               R e i s s u e                                */
+/******************************************************************************/
+
+void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
+{
+   EPNAME("Resisue");
+   XrdCmsPInfo pinfo;
+   SMask_t amask;
+   struct iovec ioB[2] = {{(char *)&Data.Request, sizeof(Data.Request)},
+                          {         Data.Buff,    Data.Dlen}
+                         };
+
+// Check if we can really reissue the command
+//
+   if (!(Data.Request.modifier += kYR_hopcount))
+      {Say.Emsg("Job", Router.getName(Data.Request.rrCode),
+                       "msg TTL exceeded for", Data.Path);
+       return;
+      }
+
+// We do not support 2way re-issued messages
+//
+   Data.Request.streamid = 0;
+  
+// Find all the nodes that might be able to do somthing on this path
+//
+   if (!Cache.Paths.Find(Data.Path, pinfo)
+   || (amask = pinfo.rwvec | pinfo.rovec) == 0)
+      {Say.Emsg("Job", Router.getName(Data.Request.rrCode),
+                       "aborted; no servers handling", Data.Path);
+       return;
+      }
+
+// Do some debugging
+//
+   DEBUG("FWD " <<Router.getName(Data.Request.rrCode) <<' ' <<Data.Path);
+
+// Now send off the message to all the nodes
+//
+   Cluster.Broadcast(amask, ioB, 2);
+}
+  
+/******************************************************************************/
+/*                           R e p l y _ D e l a y                            */
+/******************************************************************************/
+  
+void XrdCmsProtocol::Reply_Delay(kXR_unt32 sID, kXR_unt32 theDelay)
+{
+     EPNAME("Reply_Delay");
+
+     CmsRdrResponse Resp = {{sID, kYR_wait, 0,
+                             htons(sizeof(kXR_unt32))}, theDelay};
+
+     if (sID) Link->Send((char *)&Resp, sizeof(Resp));
+
+     DEBUG(myNode->Ident <<(sID ? " sent " : " skip ") <<" delay " <<theDelay);
+}
+
+/******************************************************************************/
+/*                           R e p l y _ E r r o r                            */
+/******************************************************************************/
+  
+void XrdCmsProtocol::Reply_Error(kXR_unt32 sID, int ecode, const char *etext)
+{
+     EPNAME("Reply_Error");
+     int n = strlen(etext)+1;
+
+     CmsRdrResponse Resp = {{sID, kYR_error, 0,
+                             htons(sizeof(kXR_unt32)+n)},
+                             htonl(static_cast<unsigned int>(ecode))};
+     struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
+                            {(char *)etext, n}};
+
+     if (sID) Link->Send(ioV, 2);
+
+     DEBUG(myNode->Ident <<(sID ? " sent " : " skip ") <<" err " <<ecode
+                          <<' ' <<etext);
+}

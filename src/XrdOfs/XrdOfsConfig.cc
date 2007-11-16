@@ -49,7 +49,9 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
-#include "XrdOdc/XrdOdcFinder.hh"
+#include "XrdCms/XrdCmsClient.hh"
+#include "XrdCms/XrdCmsFinder.hh"
+
 #include "XrdAcc/XrdAccAuthorize.hh"
 
 /******************************************************************************/
@@ -281,8 +283,8 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
 
 // For manager roles, we simply do a standard config
 //
-   if (isRedir) {Finder=(XrdOdcFinder *)new XrdOdcFinderRMT(Eroute.logger(),
-                           (Options & XrdOfsREDIRTRG  ? XrdOdcIsTarget : 0));
+   if (isRedir) {Finder=(XrdCmsClient *)new XrdCmsFinderRMT(Eroute.logger(),
+                           (Options & XrdOfsREDIRTRG  ? XrdCms::IsTarget : 0));
        if (!Finder->Configure(ConfigFN))
           {delete Finder; Finder = 0; return 1;}
       }
@@ -309,8 +311,8 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
           }
-       Balancer = new XrdOdcFinderTRG(Eroute.logger(), 
-                         (isRedir ? XrdOdcIsRedir : 0), myPort);
+       Balancer = new XrdCmsFinderTRG(Eroute.logger(),
+                         (isRedir ? XrdCms::IsRedir : 0), myPort);
        if (!Balancer->Configure(ConfigFN)) 
           {delete Balancer; Balancer = 0; return 1;}
        if (Options & XrdOfsREDIROXY) Balancer = 0; // No chatting for proxies

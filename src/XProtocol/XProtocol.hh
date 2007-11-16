@@ -104,6 +104,10 @@ enum XLoginVersion {
    kXR_ver002 = 2   // Same as 1 but adds asyncresp recognition
 };
 
+enum XStatRequestOption {
+   kXR_vfs    = 1
+};
+
 enum XStatRespFlags {
    kXR_file    = 0,
    kXR_xset    = 1,

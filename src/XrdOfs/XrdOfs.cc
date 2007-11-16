@@ -51,6 +51,8 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 
+#include "XrdCms/XrdCmsClient.hh"
+
 #include "XrdOss/XrdOss.hh"
 
 #include "XrdNet/XrdNetDNS.hh"
@@ -1205,7 +1207,7 @@ int XrdOfs::chmod(const char             *path,    // In
       if (fwdCHMOD)
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
-          if ((retc = Finder->Forward(einfo, fwdCHMOD, buff, path)))
+          if ((retc = Finder->Forward(einfo, fwdCHMOD, path, buff, info)))
              return fsError(einfo, retc);
          }
       else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR)))
@@ -1389,8 +1391,10 @@ int XrdOfs::mkdir(const char             *path,    // In
       if (fwdMKDIR)
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
-          return ((retc = Finder->Forward(einfo, (mkpath ? fwdMKPATH : fwdMKDIR),
-                                  buff, path)) ? fsError(einfo, retc) : SFS_OK);
+          return ((retc = Finder->Forward(einfo, 
+                                         (mkpath ? fwdMKPATH:fwdMKDIR),
+                                         path, buff, info))
+                        ? fsError(einfo, retc) : SFS_OK);
          }
          else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR | SFS_O_CREAT)))
                  return fsError(einfo, retc);
@@ -1474,7 +1478,7 @@ int XrdOfs::remove(const char              type,    // In
 //
    if (Finder && Finder->isRemote())
       if ((fSpec = (type == 'd' ? fwdRMDIR : fwdRM)))
-         return ((retc = Finder->Forward(einfo, fSpec, path)) 
+         return ((retc = Finder->Forward(einfo, fSpec, path, 0, info))
                        ? fsError(einfo, retc) : SFS_OK);
          else if ((retc = Finder->Locate(einfo,path,SFS_O_WRONLY)))
                  return fsError(einfo, retc);
@@ -1538,7 +1542,8 @@ int XrdOfs::rename(const char             *old_name,  // In
 //
    if (Finder && Finder->isRemote())
       if (fwdMV)
-         return ((retc = Finder->Forward(einfo, fwdMV, old_name, new_name))
+         return ((retc = Finder->Forward(einfo, fwdMV, old_name, new_name,
+                                                       infoO,    infoN))
                 ? fsError(einfo, retc) : SFS_OK);
          else if ((retc = Finder->Locate(einfo,old_name,SFS_O_RDWR)))
                  return fsError(einfo, retc);
