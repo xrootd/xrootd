@@ -25,6 +25,7 @@ libXrdNet_la_SOURCES = \
         XrdNetConnect.cc XrdNetConnect.hh    \
         XrdNetDNS.cc XrdNetDNS.hh        \
         XrdNetLink.cc XrdNetLink.hh       \
+        XrdNetMsg.cc XrdNetMsg.hh        \
         XrdNetSecurity.cc XrdNetSecurity.hh   \
         XrdNetSocket.cc XrdNetSocket.hh     \
         XrdNetWork.cc XrdNetWork.hh

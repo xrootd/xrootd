@@ -16,6 +16,7 @@ SOURCES = \
         XrdNetConnect.cc     \
         XrdNetDNS.cc         \
         XrdNetLink.cc        \
+        XrdNetMsg.cc         \
         XrdNetSecurity.cc    \
         XrdNetSocket.cc      \
         XrdNetWork.cc
@@ -26,6 +27,7 @@ OBJECTS = \
         $(OBJDIR)/XrdNetConnect.o      \
         $(OBJDIR)/XrdNetDNS.o          \
         $(OBJDIR)/XrdNetLink.o         \
+        $(OBJDIR)/XrdNetMsg.o          \
         $(OBJDIR)/XrdNetSecurity.o     \
         $(OBJDIR)/XrdNetSocket.o       \
         $(OBJDIR)/XrdNetWork.o
@@ -90,6 +92,13 @@ $(OBJDIR)/XrdNetLink.o: XrdNetLink.cc XrdNetLink.hh          XrdNet.hh \
                         XrdSysPlatform.hh XrdOucStream.hh    XrdOucTokenizer.hh
 	@echo Compiling XrdNetLink.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetLink.cc -o $(OBJDIR)/XrdNetLink.o
+
+$(OBJDIR)/XrdNetMsg.o: XrdNetMsg.cc XrdNetMsg.hh \
+                       XrdNet.hh                 XrdNetDNS.hh \
+                       XrdNetOpts.hh             XrdNetPeer.hh \
+                       XrdSysError.hh            XrdSysPlatform.hh
+	@echo Compiling XrdNetMsg.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFGETHBYXR) $(CFNAMEINFO) $(CFPROTOR) $(INCLUDE) XrdNetMsg.cc -o $(OBJDIR)/XrdNetMsg.o
 
 $(OBJDIR)/XrdNetSecurity.o: XrdNetSecurity.cc XrdNetSecurity.hh \
                             XrdOucHash.hh     XrdOucHash.icc \
