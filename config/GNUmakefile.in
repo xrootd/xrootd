@@ -13,8 +13,8 @@
 #
 XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
 
-SERVER  = XrdSfs   XrdAcc XrdOdc XrdCms \
-          XrdOss   XrdOfs   Xrd  XrdOlb  XrdRootd   XrdXrootd
+SERVER  = XrdSfs XrdAcc XrdOdc Xrd \
+          XrdCms XrdOlb XrdOss XrdOfs XrdRootd XrdXrootd
 
 XRDCLIENT = XrdClient XrdPosix XrdPss
 
