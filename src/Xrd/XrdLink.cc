@@ -257,9 +257,8 @@ int XrdLink::Close(int defer)
    if (defer)
       {TRACE(DEBUG, "Defered close " <<ID <<" FD=" <<FD);
        if (FD > 1)
-          {if (!KeepFD) dup2(devNull, FD);
-           FD = -FD;
-           Instance = 0;
+          {fd = FD; FD = -FD; Instance = 0;
+           if (!KeepFD) dup2(devNull, fd);
           }
        opMutex.UnLock();
        return 0;
@@ -489,7 +488,7 @@ int XrdLink::Recv(char *Buff, int Blen)
    if (LockReads) rdMutex.UnLock();
 
    if (rlen >= 0) return int(rlen);
-   XrdLog.Emsg("Link", errno, "receive from", ID);
+   if (FD >= 0) XrdLog.Emsg("Link", errno, "receive from", ID);
    return -1;
 }
 
@@ -515,10 +514,10 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
             {if (retc == 0)
                 {tardyCnt++;
                  if (totlen  && (++stallCnt & 0xff) == 1)
-                    XrdLog.Emsg("Link", ID, "read timed out");
+                    TRACE(DEBUG, ID << " read timed out");
                  return int(totlen);
                 }
-             return XrdLog.Emsg("Link", -errno, "poll", ID);
+             return (FD >= 0 ? XrdLog.Emsg("Link", -errno, "poll", ID) : -1);
             }
 
          // Verify it is safe to read now
@@ -535,7 +534,7 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
          do {rlen = recv(FD, Buff, Blen, 0);} while(rlen < 0 && errno == EINTR);
          if (rlen <= 0)
             {if (!rlen) return -ENOMSG;
-             return XrdLog.Emsg("Link", -errno, "receive from", ID);
+             return (FD<0 ? -1 : XrdLog.Emsg("Link",-errno,"receive from",ID));
             }
          BytesIn += rlen; totlen += rlen; Blen -= rlen; Buff += rlen;
         }
@@ -560,8 +559,9 @@ int XrdLink::RecvAll(char *Buff, int Blen)
    if (LockReads) rdMutex.UnLock();
 
    if (int(rlen) == Blen) return Blen;
-   if (rlen < 0) XrdLog.Emsg("Link", errno, "recieve from", Lname);
-      else       XrdLog.Emsg("Link", "Premature end of recv().");
+   if (!rlen) {TRACE(DEBUG, "No RecvAll() data from " <<Lname <<" FD=" <<FD);}
+      else if (rlen > 0) XrdLog.Emsg("RecvAll","Premature end from", Lname);
+              else if (FD >= 0) XrdLog.Emsg("Link",errno,"recieve from",Lname);
    return -1;
 }
 
