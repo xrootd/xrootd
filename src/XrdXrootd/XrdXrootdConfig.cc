@@ -88,6 +88,12 @@ extern          XrdOucTrace       *XrdXrootdTrace;
 
                 XrdOucReqID       *XrdXrootdReqID;
 
+                const char        *XrdXrootdInstance;
+
+                XrdInet           *XrdXrootdNetwork;
+
+                int                XrdXrootdPort;
+
 /******************************************************************************/
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
@@ -125,6 +131,12 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    Window       = pi->WSize;
    WANPort      = pi->WANPort;
    WANWindow    = pi->WANWSize;
+
+// Record globally accessible values
+//
+   XrdXrootdInstance = pi->myInst;
+   XrdXrootdNetwork  = pi->NetTCP;
+   XrdXrootdPort     = pi->Port;
 
 // Set the callback object static areas now!
 //
