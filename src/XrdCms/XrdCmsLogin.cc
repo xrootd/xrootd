@@ -154,7 +154,7 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data)
 // Process error reply
 //
    if (LIHdr.rrCode == kYR_error)
-      return (dataLen < sizeof(kXR_unt32)+8
+      return (dataLen < (int)sizeof(kXR_unt32)+8
              ? Emsg(Link, "invalid error reply")
              : Emsg(Link, WorkBuff+sizeof(kXR_unt32)));
 

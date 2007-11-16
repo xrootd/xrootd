@@ -462,14 +462,13 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    XrdCmsRRQInfo reqInfo(Instance, RSlot, Arg.Request.streamid);
    XrdCmsSelect    Sel;
    XrdCmsSelected *sP;
-   SMask_t hfVec, pfVec, wfVec;
    struct {kXR_unt32 Val; 
            char outbuff[CmsLocateRequest::RILen*XrdCmsCluster::STMax];} Resp;
    struct iovec ioV[2] = {{(char *)&Arg.Request, sizeof(Arg.Request)},
                           {(char *)&Resp,        0}};
    const char *Why;
    char theopts[8], *toP = theopts;
-   int Opts, rc, bytes;
+   int rc, bytes;
 
 // Do a callout to the external manager if we have one
 //

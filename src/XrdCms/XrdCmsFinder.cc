@@ -239,12 +239,13 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 
 // Set options and command
 //
-   Data.Request.rrCode = kYR_select;
-        if (flags & SFS_O_LOCATE)
-           {Data.Request.rrCode = kYR_locate; 
-            Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap : 0);
-           }
-   else if (flags & SFS_O_CREAT)
+   if (flags & SFS_O_LOCATE)
+      {Data.Request.rrCode = kYR_locate;
+       Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0)
+                 | (flags & SFS_O_RESET  ? CmsLocateRequest::kYR_refresh : 0);
+      } else
+  {     Data.Request.rrCode = kYR_select;
+        if (flags & SFS_O_CREAT)
            Data.Opts = (flags & (SFS_O_WRONLY|SFS_O_RDWR) && flags & SFS_O_TRUNC
                 ? CmsSelectRequest::kYR_trunc : CmsSelectRequest::kYR_create);
    else if (flags & (SFS_O_WRONLY | SFS_O_RDWR))
@@ -253,13 +254,10 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
    else if (flags & SFS_O_STAT) Data.Opts   = CmsSelectRequest::kYR_stat;
    else                         Data.Opts   = CmsSelectRequest::kYR_read;
 
-   if (flags & SFS_O_NOWAIT)    Data.Opts|= (Data.Request.rrCode == kYR_select
-                                          ? CmsSelectRequest::kYR_online
-                                          : CmsLocateRequest::kYR_asap);
+   if (flags & SFS_O_NOWAIT)    Data.Opts  |= CmsSelectRequest::kYR_online;
 
-   if (flags & SFS_O_RESET)     Data.Opts|= (Data.Request.rrCode == kYR_select
-                                          ? CmsSelectRequest::kYR_refresh
-                                          : CmsLocateRequest::kYR_refresh);
+   if (flags & SFS_O_RESET)     Data.Opts  |= CmsSelectRequest::kYR_refresh;
+  }
 
 // Pack the arguments
 //
