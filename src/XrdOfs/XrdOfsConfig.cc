@@ -280,11 +280,13 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
 int XrdOfs::ConfigRedir(XrdSysError &Eroute) 
 {
    int isRedir = Options & XrdOfsREDIRRMT;
+   int RMTopts = (Options & XrdOfsREDIRTRG ? XrdCms::IsTarget : 0)
+               | (Options & XrdOfsREDIRMET ? XrdCms::IsMeta   : 0);
 
 // For manager roles, we simply do a standard config
 //
-   if (isRedir) {Finder=(XrdCmsClient *)new XrdCmsFinderRMT(Eroute.logger(),
-                           (Options & XrdOfsREDIRTRG  ? XrdCms::IsTarget : 0));
+   if (isRedir) 
+      {Finder=(XrdCmsClient *)new XrdCmsFinderRMT(Eroute.logger(),RMTopts);
        if (!Finder->Configure(ConfigFN))
           {delete Finder; Finder = 0; return 1;}
       }
@@ -771,13 +773,18 @@ int XrdOfs::xred(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xrole
 
-   Purpose:  Parse: role {[peer] [proxy] manager | peer | proxy | [proxy] server
-                          | [proxy] supervisor} [if ...]
+   Purpose:  Parse: role { {[meta] | [peer] [proxy]} manager
+                           | peer | proxy | [proxy]  server
+                           |                [proxy]  supervisor
+                         } [if ...]
 
-             manager    xrootd: act as a manager (redirecting server). Prefix
-                                modifications are ignored.
-                        olbd:   accept server subscribes and redirectors. Prefix
+             manager    xrootd: act as a manager (redirecting server). Prefixes:
+                                meta  - connect only to manager meta's
+                                peer  - ignored
+                                proxy - ignored
+                        cmsd:   accept server subscribes and redirectors. Prefix
                                 modifiers do the following:
+                                meta  - No other managers apply
                                 peer  - subscribe to other managers as a peer
                                 proxy - manage a cluster of proxy servers
 
@@ -804,14 +811,7 @@ int XrdOfs::xred(XrdOucStream &Config, XrdSysError &Eroute)
              if         Apply the manager directive if "if" is true. See
                         XrdOucUtils:doIf() for "if" syntax.
 
-   Notes: 1. This directive superceeds the redirect directive. There is no
-             equivalent for "peer" designation. For other possibilities:
-             manager    -> redirect remote
-             proxy      -> redirect proxy
-             server     -> redirect target
-             supervisor -> redirect remote + target
-
-          2. The peer designation only affects how the olbd communicates.
+   Notes  1. The peer designation only affects how the olbd communicates.
 
    Type: Server only, non-dynamic.
 
@@ -823,28 +823,28 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
    const int resetit = ~XrdOfsREDIRECT;
    char role[64];
    char *val;
-   int rc, qopt = 0, ropt = 0, sopt = 0;
+   int rc, mopt = 0, qopt = 0, ropt = 0, sopt = 0;
 
    *role = '\0';
    if (!(val = Config.GetWord()))
       {Eroute.Emsg("Config", "role not specified"); return 1;}
 
-// First screen for "peer"
-//
-   if (!strcmp("peer", val))
-      {qopt = XrdOfsREDIREER;
-       strcpy(role, val);
-       val = Config.GetWord();
-      }
 
-// Now scan for "proxy"
+// Scan for "meta" o/w "peer" or "proxy"
 //
-   if (val && !strcmp("proxy", val))
-      {ropt = XrdOfsREDIROXY;
-       if (qopt) strcat(role, " ");
-       strcat(role, val);
-       val = Config.GetWord();
-      }
+   if (!strcmp("meta", val))
+      {mopt = XrdOfsREDIRMET; strcpy(role, val); val = Config.GetWord();}
+      else {if (!strcmp("peer", val))
+               {qopt = XrdOfsREDIREER; strcpy(role, val);
+                val = Config.GetWord();
+               }
+            if (val && !strcmp("proxy", val))
+               {ropt = XrdOfsREDIROXY;
+                if (qopt) strcat(role, " ");
+                strcat(role, val);
+                val = Config.GetWord();
+               }
+           }
 
 // Scan for other possible alternatives
 //
@@ -854,21 +854,21 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
        else if (!strcmp("supervisor", val)) sopt = XrdOfsREDIRVER;
        else    {Eroute.Emsg("Config", "invalid role -", val); return 1;}
 
-       if (qopt || ropt) strcat(role, " ");
+       if (mopt || qopt || ropt) strcat(role, " ");
        strcat(role, val);
        val = Config.GetWord();
       }
 
 // Scan for invalid roles: peer proxy | peer server | {peer} supervisor
 //
-   if ((qopt && ropt && !sopt) 
-   ||  (qopt && sopt == XrdOfsREDIRTRG)
-   ||  (qopt && sopt == XrdOfsREDIRVER))
+   if (((mopt || (qopt && ropt)) && !sopt)
+   ||  ((mopt || qopt) && sopt == XrdOfsREDIRTRG)
+   ||  ((mopt || qopt) && sopt == XrdOfsREDIRVER))
       {Eroute.Emsg("Config", "invalid role -", role); return 1;}
 
 // Make sure a role was specified
 //
-    if (!(ropt = qopt | ropt | sopt))
+    if (!(ropt = mopt | qopt | ropt | sopt))
        {Eroute.Emsg("Config", "role not specified"); return 1;}
 
 // Pick up optional "if"

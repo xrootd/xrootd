@@ -46,9 +46,10 @@
 #define XrdOfsREDIRRMT     0x0040
 #define XrdOfsREDIRTRG     0x0080
 #define XrdOfsREDIRVER     0x00C0
-#define XrdOfsREDIRECT     0x00F0
+#define XrdOfsREDIRMET     0x0100
+#define XrdOfsREDIRECT     0x01F0
 
-#define XrdOfsFWD          0x0100
+#define XrdOfsFWD          0x1000
 
 /******************************************************************************/
 /*                         M i s c e l l a n e o u s                          */
