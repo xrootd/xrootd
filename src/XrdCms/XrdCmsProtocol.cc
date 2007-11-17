@@ -114,7 +114,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 // Because the dcm port numbers are determined dynamically based on the role the
 // dcm plays, we need to process the configration file and return the right
 // port number if it differs from the one provided by the protocol driver. Only
-// one port instance of the dcmd protocol is allowed.
+// one port instance of the cmsd protocol is allowed.
 //
 
 extern "C"
@@ -159,7 +159,7 @@ int XrdgetProtocolPort(const char *pname, char *parms,
 
 // Put up the banner
 //
-   Say.Say("Copr.  2007 Stanford University/SLAC dcmd.");
+   Say.Say("Copr.  2007 Stanford University/SLAC cmsd.");
 
 // Return failure if static init fails
 //
@@ -694,7 +694,9 @@ do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
 //
    if (!(Data->Dlen = static_cast<int>(ntohs(Data->Request.datalen))))
      {myArgs = myArgt = 0;
-      DEBUG("From " <<myNode->Ident <<" req " <<Router.getName(Data->Request.rrCode));
+      if ((QTRACE(Debug))
+      && Data->Request.rrCode != kYR_ping && Data->Request.rrCode != kYR_pong)
+         DEBUG(myNode->Ident <<" requests " <<Router.getName(Data->Request.rrCode));
      }
       else {if (Data->Dlen > maxReqSize)
                {Say.Emsg("Protocol","Request args too long from",Link->Name());

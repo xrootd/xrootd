@@ -144,10 +144,10 @@ void *XrdCmsState::Monitor()
        if (Changes & All_Suspend) 
           {myStatus.Hdr.modifier = rrModifier;
            if (Enabled)
-              {DEBUG("Sending status " <<SRstate);
+              {DEBUG("Sending redirectors status " <<SRstate);
                RTable.Send((char *)&myStatus, sizeof(myStatus));
               }
-           myStatus.Hdr.modifier = 0;
+//         myStatus.Hdr.modifier = 0;
           }
 
        if (curState & All_NoStage)
@@ -163,7 +163,7 @@ void *XrdCmsState::Monitor()
        if (myStatus.Hdr.modifier)
           { if (Enabled)
                {Suspended = Disabled;
-                DEBUG("Informing status " <<SRstate);
+                DEBUG("Sending managers status " <<SRstate);
                 Manager.Inform(myStatus.Hdr);
                }
            Say.Emsg("State", "Status changed to", SRstate, SNstate);

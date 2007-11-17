@@ -88,7 +88,7 @@ XrdCmsRouter    XrdCms::Router(kYR_login,   "login",  0,
            kYR_have,    XrdCmsRouting::isSync,
            kYR_load,    XrdCmsRouting::isSync,
            kYR_pong,    XrdCmsRouting::isSync | XrdCmsRouting::noArgs,
-           kYR_status,  XrdCmsRouting::isSync,
+           kYR_status,  XrdCmsRouting::isSync | XrdCmsRouting::noArgs,
            0,           0
           );
 
@@ -130,6 +130,6 @@ XrdCmsRouter    XrdCms::Router(kYR_login,   "login",  0,
            kYR_state,   XrdCmsRouting::isSync,
            kYR_stats,   XrdCmsRouting::isAsync | XrdCmsRouting::noArgs,
            kYR_try,     XrdCmsRouting::isSync,
-           kYR_usage,   XrdCmsRouting::isSync,
+           kYR_usage,   XrdCmsRouting::isSync  | XrdCmsRouting::noArgs,
            0,           0
           );

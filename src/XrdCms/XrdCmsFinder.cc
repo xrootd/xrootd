@@ -87,6 +87,7 @@ XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami)
      myManCount  = 0;
      SMode       = 0;
      sendID      = 0;
+     isMeta      = whoami & IsMeta;
      isTarget    = whoami & IsTarget;
      Say.logger(lp);
 }
@@ -108,12 +109,22 @@ XrdCmsFinderRMT::~XrdCmsFinderRMT()
   
 int XrdCmsFinderRMT::Configure(char *cfn)
 {
-   XrdCmsClientConfig config;
+   XrdCmsClientConfig             config;
+   XrdCmsClientConfig::configHow  How;
+   XrdCmsClientConfig::configWhat What;
+
+// Establish what we will be configuring
+//
+   if (myPersona == XrdCmsClient::amProxy) 
+      How = XrdCmsClientConfig::configProxy;
+      else if (isMeta) How = XrdCmsClientConfig::configMeta;
+              else     How = XrdCmsClientConfig::configNorm;
+   What = (isTarget ? XrdCmsClientConfig::configSuper
+                    : XrdCmsClientConfig::configMan);
 
 // Set the error dest and simply call the configration object
 //
-   if (config.Configure(cfn, (myPersona == XrdCmsClient::amProxy ?
-                             "Proxy" : "Manager"), isTarget)) return 0;
+   if (config.Configure(cfn, What, How)) return 0;
    XrdCmsClientMan::setConfig(cfn);
 
 // Set configured values and start the managers
@@ -637,12 +648,18 @@ void *XrdCmsStartRsp(void *carg)
   
 int XrdCmsFinderTRG::Configure(char *cfn)
 {
-   XrdCmsClientConfig config;
+   XrdCmsClientConfig             config;
+   XrdCmsClientConfig::configWhat What;
    pthread_t tid;
+
+// Establish what we will be configuring
+//
+   What = (isRedir ? XrdCmsClientConfig::configSuper 
+                   : XrdCmsClientConfig::configServer);
 
 // Set the error dest and simply call the configration object
 //
-   if (config.Configure(cfn, "Target", isRedir)) return 0;
+   if (config.Configure(cfn, What, XrdCmsClientConfig::configNorm)) return 0;
    if (!(CMSPath = config.CMSPath))
       {Say.Emsg("Config", "Unable to determine cms admin path"); return 0;}
 

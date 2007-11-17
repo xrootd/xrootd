@@ -68,6 +68,7 @@ int              RepDelay;
 int              RepNone;
 int              RepWait;
 int              PrepWait;
+int              isMeta;
 int              isTarget;
 unsigned char    SMode;
 unsigned char    sendID;
@@ -118,6 +119,6 @@ int            Active;
 
 namespace XrdCms
 {
-enum  {IsProxy = 1, IsRedir = 2, IsTarget = 4};
+enum  {IsProxy = 1, IsRedir = 2, IsTarget = 4, IsMeta = 8};
 }
 #endif

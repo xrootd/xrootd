@@ -63,7 +63,7 @@ XrdCmsClientConfig::~XrdCmsClientConfig()
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdCmsClientConfig::Configure(char *cfn, const char *mode, int isBoth)
+int XrdCmsClientConfig::Configure(char *cfn, configWhat What, configHow How)
 {
 /*
   Function: Establish configuration at start up time.
@@ -73,6 +73,7 @@ int XrdCmsClientConfig::Configure(char *cfn, const char *mode, int isBoth)
   Output:   0 upon success or !0 otherwise.
 */
    int i, NoGo = 0;
+   const char *eText = 0;
    char buff[256], *slash, *temp;
 
 // Preset tracing options
@@ -82,22 +83,16 @@ int XrdCmsClientConfig::Configure(char *cfn, const char *mode, int isBoth)
    myName = getenv("XRDNAME");
    if (!myName || !*myName) myName = "anon";
    CMSPath= strdup("/tmp/");
+   isMeta = How & configMeta;
 
 // Process the configuration file
 //
-   if (!(NoGo = ConfigProc(cfn)))
-           if (*mode == 'P')
-              {if (!PanList)
-                  {Say.Emsg("Config", "Proxy manager not specified.");
-                   NoGo=1;
-                  }
-              }
-      else if (*mode == 'R' && !isBoth)
-              {if (!ManList)
-                  {Say.Emsg("Config", "Manager not specified.");
-                   NoGo=1;
-                  }
-              }
+   if (!(NoGo = ConfigProc(cfn)) && (What & configMan))
+      {if (How & configProxy) eText = (PanList ? 0 : "Proxy manager");
+          else if (!ManList)
+                  eText = (How & configMeta ? "Meta manager" : "Manager");
+       if (eText) {Say.Emsg("Config", eText, "not specified."); NoGo=1;}
+      }
 
 // Set proper local socket path
 //
@@ -109,7 +104,7 @@ int XrdCmsClientConfig::Configure(char *cfn, const char *mode, int isBoth)
 
 // Construct proper communications path for a supervisor node
 //
-   if (*mode == 'R' && isBoth)
+   if (What & configSuper)
       {XrdOucTList *tpl;
        while((tpl = ManList)) {ManList = tpl->next; delete tpl;}
        slash = (CMSPath[i-1] == '/' ? (char *)"" : (char *)"/");
@@ -120,7 +115,7 @@ int XrdCmsClientConfig::Configure(char *cfn, const char *mode, int isBoth)
 
 // Construct proper old communication path for a target node
 //
-   temp = (isBoth ? (char *)"nimda" : (char *)"admin");
+   temp = (What & configSuper ? (char *)"nimda" : (char *)"admin");
    slash = (CMSPath[i-1] == '/' ? (char *)"" : (char *)"/");
    sprintf(buff, "%s%solbd.%s", CMSPath, slash, temp);
    free(CMSPath); CMSPath = strdup(buff);
@@ -290,10 +285,12 @@ int XrdCmsClientConfig::xconw(XrdOucStream &Config)
 
 /* Function: xmang
 
-   Purpose:  Parse: manager [peer | proxy] [all|any] <host>[+][:<port>|<port>] 
-                                                     [if ...]
+   Purpose:  Parse: manager [meta | peer | proxy] [all|any]
+                            <host>[+][:<port>|<port>] [if ...]
 
-             peer   For cmsd:   Specified the manager when running as a peer
+             meta   For cmsd:   Specifies the manager when running as a manager
+                    For xrootd: Specifies the manager when running as a meta
+             peer   For cmsd:   Specifies the manager when running as a peer
                     For xrootd: The directive is ignored.
              proxy  For cmsd:   This directive is ignored.
                     For xrootd: Specifies the cms-proxy service manager
@@ -327,8 +324,12 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
 //  Process the optional "peer" or "proxy"
 //
     if ((val = Config.GetWord()))
-       {if (!strcmp("peer", val)) return 0;
+       {if (!strcmp("peer", val)) return Config.noEcho();
         if ((isProxy = !strcmp("proxy", val))) val = Config.GetWord();
+           else if (!strcmp("meta", val))
+                   if (isMeta) val = Config.GetWord();
+                      else return Config.noEcho();
+                   else if (isMeta) return Config.noEcho();
        }
 
 //  We can accept this manager. Skip the optional "all" or "any"

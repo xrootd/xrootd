@@ -176,6 +176,7 @@ int               inArgc;
 char             *XmiPath;
 char             *XmiParms;
 int               isManager;
+int               isMeta;
 int               isPeer;
 int               isProxy;
 int               isServer;

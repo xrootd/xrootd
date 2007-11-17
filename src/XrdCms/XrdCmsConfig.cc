@@ -487,7 +487,7 @@ void XrdCmsConfig::DoIt()
 
 // Start the server subsystem.
 //
-   if (isServer || isPeer)
+   if (isManager || isServer || isPeer)
       {tp = ManList;
        while(tp)
             {pP = XrdCmsProtocol::Alloc(myRole, tp->text, tp->val);
@@ -620,6 +620,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    ConfigFN = 0;
    sched_RR = 0;
    isManager= 0;
+   isMeta   = 0;
    isPeer   = 0;
    isSolo   = 0;
    isProxy  = 0;
@@ -1187,7 +1188,7 @@ int XrdCmsConfig::xallow(XrdSysError *eDest, XrdOucStream &CFile)
     char *val;
     int ishost;
 
-    if (!isManager) return 0;
+    if (!isManager) return CFile.noEcho();
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "allow type not specified"); return 1;}
@@ -1287,7 +1288,7 @@ int XrdCmsConfig::xcache(XrdSysError *eDest, XrdOucStream &CFile)
     struct dirent *dir;
     DIR *DFD;
 
-    if (!isServer) return 0;
+    if (!isServer) return CFile.noEcho();
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "cache group not specified"); return 1;}
@@ -1393,7 +1394,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
        };
     int numopts = sizeof(dyopts)/sizeof(struct delayopts);
 
-    if (!isManager && !isPeer) return 0;
+    if (!isManager && !isPeer) return CFile.noEcho();
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "delay arguments not specified"); return 1;}
@@ -1446,7 +1447,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
 
 int XrdCmsConfig::xdefs(XrdSysError *eDest, XrdOucStream &CFile)
 {
-   if (!isServer) return 0;
+   if (!isServer) return CFile.noEcho();
    DirFlags = XrdOucExport::ParseDefs(CFile, *eDest, DirFlags);
    return 0;
 }
@@ -1470,7 +1471,7 @@ int XrdCmsConfig::xexpo(XrdSysError *eDest, XrdOucStream &CFile)
    XrdOucPList *plp, *olp;
    unsigned long long Opts = DirFlags & XRDEXP_SETTINGS;
 
-   if (!isServer) return 0;
+   if (!isServer) return CFile.noEcho();
 
 // Parse the arguments
 //
@@ -1521,7 +1522,7 @@ int XrdCmsConfig::xfsxq(XrdSysError *eDest, XrdOucStream &CFile)
 
 // If we are a manager, ignore this option
 //
-   if (!isServer) return 0;
+   if (!isServer) return CFile.noEcho();
 
 // Get the operation types
 //
@@ -1585,7 +1586,7 @@ int XrdCmsConfig::xfxhld(XrdSysError *eDest, XrdOucStream &CFile)
     char *val;
     int ct;
 
-    if (!isManager) return 0;
+    if (!isManager) return CFile.noEcho();
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "fxhold value not specified."); return 1;}
@@ -1619,7 +1620,7 @@ int XrdCmsConfig::xlclrt(XrdSysError *eDest, XrdOucStream &CFile)
 
 // If we are a manager, ignore this option
 //
-   if (!isServer) return 0;
+   if (!isServer) return CFile.noEcho();
 
 // Get path type
 //
@@ -1649,15 +1650,17 @@ int XrdCmsConfig::xlclrt(XrdSysError *eDest, XrdOucStream &CFile)
 
 /* Function: xmang
 
-   Purpose:  Parse: manager [peer | proxy] [all|any] <host>[+][:<port>|<port>] 
-                                                     [if ...]
+   Purpose:  Parse: manager [meta | peer | proxy] [all|any]
+                            <host>[+][:<port>|<port>] [if ...]
 
+             meta   For cmsd:   Specified the manager when running as a manager
+                    For xrootd: The directive is ignored.
              peer   For cmsd:   Specified the manager when running as a peer
                     For xrootd: The directive is ignored.
              proxy  For cmsd:   This directive is ignored.
-                    For xrootd: Specifies the odc-proxy service manager
-             all    Ignored (useful only to the odc)
-             any    Ignored (useful only to the odc)
+                    For xrootd: Specifies the cmsd-proxy service manager
+             all    Ignored (useful only to the cmsd client)
+             any    Ignored (useful only to the cmsd client)
              <host> The dns name of the host that is the cache manager.
                     If the host name ends with a plus, all addresses that are
                     associated with the host are treated as managers.
@@ -1665,13 +1668,7 @@ int XrdCmsConfig::xlclrt(XrdSysError *eDest, XrdOucStream &CFile)
              if     Apply the manager directive if "if" is true. See
                     XrdOucUtils:doIf() for "if" syntax.
 
-   Notes:   Any number of manager directives can be given. When niether peer nor
-            proxy is specified, then regardless of role the following occurs:
-            cmsd:   Subscribes to each manager whens role is not peer.
-            xrootd: Logins in as a redirector to each manager when role is not 
-                    proxy or server.
-            The subscribe directive also provides this information but is now 
-            deprecated.
+   Notes:   Any number of manager directives can be given. 
 
    Type: Remote server only, non-dynamic.
 
@@ -1683,15 +1680,18 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval = 0;
-    int j, i, port = 0, xPeer = 0, xProxy = 0;
+    int j, i, port = 0, xMeta = 0, xPeer = 0, xProxy = 0;
 
 //  Process the optional "peer" or "proxy"
 //
     if ((val = CFile.GetWord()))
-       if ((xPeer = !strcmp("peer", val)) || (xProxy = !strcmp("proxy", val)))
-          {if (xProxy || (xPeer && !isPeer)) return 0;
+       if ((xMeta  = !strcmp("meta", val))
+       ||  (xPeer  = !strcmp("peer", val))
+       ||  (xProxy = !strcmp("proxy", val)))
+          {if (xMeta && (isServer || isPeer || isProxy)) return CFile.noEcho();
+           if (xProxy || (xPeer && !isPeer)) return CFile.noEcho();
            val = CFile.GetWord();
-          } else if (isPeer) return 0;
+          } else if (isPeer) return CFile.noEcho();
 
 //  We can accept this manager. Skip the optional "all" or "any"
 //
@@ -1749,9 +1749,12 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
              }
 
     if (isManager && !isServer)
-       for (j = 0; j <= i; j++)
-           if (!memcmp(&InetAddr[j], &myAddr, sizeof(struct sockaddr)))
-              {PortTCP = port; break;}
+       {if (xMeta && isMeta || !xMeta && !isMeta)
+           for (j = 0; j <= i; j++)
+                if (!memcmp(&InetAddr[j], &myAddr, sizeof(struct sockaddr)))
+                   {PortTCP = port; return 0;}
+        if (!xMeta || isMeta) return 0;
+       }
 
     do {if (i)
            {i--; free(mval);
@@ -1833,7 +1836,7 @@ int XrdCmsConfig::xperf(XrdSysError *eDest, XrdOucStream &CFile)
 {   int   ival = 3*60;
     char *pgm=0, *val, rest[2048];
 
-    if (!isServer) return 0;
+    if (!isServer) return CFile.noEcho();
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "perf options not specified"); return 1;}
@@ -1980,7 +1983,7 @@ int XrdCmsConfig::xprep(XrdSysError *eDest, XrdOucStream &CFile)
 {   int   reset=0, scrub=0, echo = 0, doset = 0;
     char  *prepif=0, *val, rest[2048];
 
-    if (!isServer) return 0;
+    if (!isServer) return CFile.noEcho();
 
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "prep options not specified"); return 1;}
@@ -2093,7 +2096,7 @@ int XrdCmsConfig::xrmtrt(XrdSysError *eDest, XrdOucStream &CFile)
 
 // If we are a manager, ignore this option
 //
-   if (isManager) return 0;
+   if (isManager) return CFile.noEcho();
 
 // Get path type
 //
@@ -2122,13 +2125,18 @@ int XrdCmsConfig::xrmtrt(XrdSysError *eDest, XrdOucStream &CFile)
 /******************************************************************************/
 
 /* Function: xrole
-   Purpose:  Parse: role {[peer] [proxy] manager | peer | proxy | [proxy] server
-                          | [proxy] supervisor} [if ...]
+   Purpose:  Parse: role { {[meta] | [peer] [proxy]} manager
+                           | peer | proxy | [proxy]  server
+                           |                [proxy]  supervisor
+                         } [if ...]
 
-             manager    xrootd: act as a manager (redirecting server). Prefix
-                                modifications are ignored.
+             manager    xrootd: act as a manager (redirecting server). Prefixes:
+                                meta  - connect only to manager meta's
+                                peer  - ignored
+                                proxy - ignored
                         cmsd:   accept server subscribes and redirectors. Prefix
                                 modifiers do the following:
+                                meta  - No other managers apply
                                 peer  - subscribe to other managers as a peer
                                 proxy - manage a cluster of proxy servers
 
@@ -2164,29 +2172,25 @@ int XrdCmsConfig::xrmtrt(XrdSysError *eDest, XrdOucStream &CFile)
 int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val, role[64];
-    int rc, xPeer=0, xProxy=0, xServ=0, xMan=0, xSolo=0, xSup=0;
+    int rc, xMeta=0, xPeer=0, xProxy=0, xServ=0, xMan=0, xSolo=0, xSup=0;
 
     *role = '\0';
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "role not specified"); return 1;}
 
-
-// First screen for "peer"
+// Scan for "meta" o/w "peer" or "proxy"
 //
-   if (!strcmp("peer", val))
-      {xPeer = -1;
-       strcpy(role, val);
-       val = CFile.GetWord();
-      }
-
-// Now scan for "proxy"
-//
-   if (val && !strcmp("proxy", val))
-      {xProxy = -1;
-       if (xPeer) strcat(role, " ");
-       strcat(role, val);
-       val = CFile.GetWord();
-      }
+   if (!strcmp("meta", val))
+      {xMeta = -1; strcpy(role, val); val = CFile.GetWord();}
+      else {if (!strcmp("peer", val))
+               {xPeer = -1; strcpy(role, val); 
+                val = CFile.GetWord();
+               }
+            if (val && !strcmp("proxy", val))
+               {xProxy = -1; if (xPeer) strcat(role, " "); strcat(role, val);
+                val = CFile.GetWord();
+               }
+           }
 
 // Scan for other possible alternatives
 //
@@ -2196,16 +2200,17 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
        else if (!strcmp("supervisor", val)) {xMan = -1; xServ = -1; xSup = -1;}
        else    {eDest->Emsg("Config", "invalid role -", val); return 1;}
 
-       if (xPeer || xProxy) strcat(role, " ");
+       if (xMeta || xPeer || xProxy) strcat(role, " ");
        strcat(role, val);
        val = CFile.GetWord();
       }
 
-// Scan for invalid roles: peer proxy | peer server | peer supervisor
+// Scan for invalid roles
 //
-   if ((xPeer && xProxy) && !(xMan || xServ)
-   ||  (xPeer && xServ)
-   ||  (xPeer && xSup))
+   if ((xPeer && xProxy) && !(xMan || xServ) // peer proxy
+   ||  (xPeer && xServ)                      // peer server
+   ||  (xPeer && xSup)                       // peer supervisor
+   ||  (xMeta &&!xMan))                      // meta, meta server, meta supervisor
       {eDest->Emsg("Config", "invalid role -", role); return 1;}
    if (!(xMan || xServ) && xProxy)
       {eDest->Emsg("Config", "pure proxy role is not supported"); return 1;}
@@ -2227,8 +2232,8 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 
     if (isServer > 0 || isManager > 0 || isProxy > 0 || isPeer > 0)
        eDest->Say("Config warning: role directive over-ridden by command line options.");
-       else {isServer = xServ; isManager = xMan; isProxy = xProxy;
-             isPeer   = xPeer; isSolo    = xSolo;
+       else {isServer = xServ; isManager = xMan;  isProxy = xProxy;
+             isPeer   = xPeer; isSolo    = xSolo; isMeta  = xMeta;
              if (myRole) free(myRole); myRole = strdup(role);
             }
     return 0;

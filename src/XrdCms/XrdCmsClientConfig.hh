@@ -25,7 +25,10 @@ class XrdCmsClientConfig
 {
 public:
 
-int           Configure(char *cfn, const char *mode, int isBoth=0);
+enum configHow  {configMeta   = 1, configNorm  = 2, configProxy  = 4};
+enum configWhat {configMan    = 1, configSuper = 2, configServer = 4};
+
+int           Configure(char *cfn, configWhat What, configHow How);
 
 int           ConWait;      // Seconds to wait for a manager connection
 int           RepWait;      // Seconds to wait for manager replies
@@ -49,11 +52,12 @@ enum {FailOver = 'f', RoundRob = 'r'};
                   {ConWait = 10; RepWait = 3; RepWaitMS = 3000; RepDelay = 5;
                    PrepWait = 33; ManList = PanList = 0;
                    SMode = SModeP = FailOver;
-                   CMSPath = 0; RepNone = 8;
+                   CMSPath = 0; RepNone = 8; isMeta = 0;
                   }
      ~XrdCmsClientConfig();
 
 private:
+int isMeta;
 int ConfigProc(char *cfn);
 int ConfigXeq(char *var, XrdOucStream &Config);
 int xapath(XrdOucStream &Config);
