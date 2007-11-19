@@ -48,7 +48,7 @@ class XrdClientAdmin : public XrdClientAbs {
 
    int                             LocalLocate(kXR_char *path,
 					       XrdClientVector<XrdClientLocate_Info> &res,
-					       bool nowait);
+					       bool writable, bool nowait, bool all = false);
  protected:
 
    bool                            CanRedirOnError() {

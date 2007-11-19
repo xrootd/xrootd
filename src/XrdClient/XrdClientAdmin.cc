@@ -840,13 +840,17 @@ long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
    else return 0;
 }
 
-int XrdClientAdmin::LocalLocate(kXR_char *path, XrdClientVector<XrdClientLocate_Info> &res, bool nowait) {
+int XrdClientAdmin::LocalLocate(kXR_char *path, XrdClientVector<XrdClientLocate_Info> &res,
+                                bool writable, bool nowait, bool all) {
   // Fires a locate req towards the currently connected server, and pushes the
   // results into the res vector
   //
-  // Returns the number of pushed elements, or -1 if an error occurred
+  // If 'all' is false, returns the position in the vector of the found info (-1 if
+  // not found); else returns the number of non-data servers.
+
    ClientRequest locateRequest;
-   char *resp = 0, *token = 0;
+   char *resp = 0;
+   int retval = (all) ? 0 : -1;
 
    memset( &locateRequest, 0, sizeof(locateRequest) );
 
@@ -861,53 +865,70 @@ int XrdClientAdmin::LocalLocate(kXR_char *path, XrdClientVector<XrdClientLocate_
 					  (void **)&resp, 0, true,
 					  (char *)"LocalLocate");
 
-   if (!ret) return (-1);
-   if (!resp) return 0;
+   if (!ret) return -2;
+   if (!resp) return -1;
    if (!strlen(resp)) {
      free(resp);
-     return 0;
+     return -1;
    }
 
-   XrdOucTokenizer tkzer(resp);
-   int retval = 0;
-   XrdClientLocate_Info nfo;
-   if (!tkzer.GetLine()) return 0;
+ 
 
-   while ( (token = tkzer.GetToken(0, 0)) ) {
+   // Parse the output
+   XrdOucString rs(resp), s;
+   free(resp);
+   int from = 0;
+   while ((from = rs.tokenize(s,from,' ')) != -1) {
 
-     // If a token is bad, we keep the ones processed previously
-     if ( (strlen(token) < 8) || (token[2] != '[') || (token[4] != ':') ) {
-	  Error("LocalLocate",
-		"Invalid server response. Resp: '" << resp << "'");
-	  break;
-	  
-     }
+      // If a token is bad, we keep the ones processed previously
+      if (s.length() < 8 || (s[2] != '[') || (s[4] != ':')) {
+         Error("LocalLocate", "Invalid server response. Resp: '" << s << "'");
+         continue;
+      }
 
-     strcpy((char *)nfo.Location, token+5);
-     char *pp = strchr((char *)nfo.Location, ']');
-     if (pp)
-       memmove(pp, pp+1, strlen(pp+1)+1);
+      XrdClientLocate_Info nfo;
 
-     switch (token[0]) {
-     case 'S':
-       nfo.Infotype = XrdClientLocate_Info::kXrdcLocDataServer;
-       break;
-     case 's':
-       nfo.Infotype = XrdClientLocate_Info::kXrdcLocDataServerPending;
-       break;
-     case 'M':
-       nfo.Infotype = XrdClientLocate_Info::kXrdcLocManager;
-       break;
-     case 'm':
-       nfo.Infotype = XrdClientLocate_Info::kXrdcLocManagerPending;
-       break;
-     }
-     
+      // Info type
+      switch (s[0]) {
+      case 'S':
+         nfo.Infotype = XrdClientLocate_Info::kXrdcLocDataServer;
+         break;
+      case 's':
+         nfo.Infotype = XrdClientLocate_Info::kXrdcLocDataServerPending;
+         break;
+      case 'M':
+         nfo.Infotype = XrdClientLocate_Info::kXrdcLocManager;
+         break;
+      case 'm':
+         nfo.Infotype = XrdClientLocate_Info::kXrdcLocManagerPending;
+         break;
+      default:
+         Info(XrdClientDebug::kNODEBUG, "LocalLocate",
+               "Unknown info type: '" << s << "'");
+      }
 
-     nfo.CanWrite = (token[1] == 'w');
+      // Write capabilities
+      nfo.CanWrite = (s[1] == 'w') ? 1 : 0;
 
-     res.Push_back(nfo);
-     retval++;
+      // Endpoint url
+      s.erase(0, s.find("[::")+3);
+      s.replace("]","");
+      strcpy((char *)nfo.Location, s.c_str());
+
+      res.Push_back(nfo);
+
+      if (nfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServer) {
+         if (!all) {
+            if (!writable || nfo.CanWrite) {
+               retval = res.GetSize() - 1;
+               break;
+            }
+         }
+      } else {
+         if (all)
+            // Count non-dataservers
+            retval++;
+      }
    }
 
    return retval;
@@ -1000,34 +1021,14 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientLocate_Info &resp, bool wri
        }
 
        // We are connected, do the locate
-       int prevsz = hosts.GetSize();
-       int added = LocalLocate(path, hosts, true);
+       int posds = LocalLocate(path, hosts, writable, true);
 
-       // Now look into the added hosts if we have finished
-       if (added > 0)
-	 for (ii = prevsz-1; ii < hosts.GetSize(); ii++) {
-	   currnfo = hosts[ii];
+       found = (posds > -1) ? 1 : 0;
 
-	   // If it's a candidate we keep it as a temp result
-	   // After all, here we want to take only the first
-	   // At this stage we don't stop if we only find a pending item
-	   // Instead, the item is left in the queue
-	   if (currnfo.Infotype == XrdClientLocate_Info::kXrdcLocDataServer) {
-	     resp = currnfo;
-	     
-	     if (!writable || resp.CanWrite) {
-	       found = true;
-	       break;
-	     }
-	     
-
-
-
-	   }
-	 }
-
-
-       if (found) break;
+       if (found) {
+          resp = hosts[posds];
+          break;
+       }
 
        // We did not finish, take the next
        hosts.Erase(pos);
@@ -1152,7 +1153,7 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info
        }
 
        // We are connected, do the locate
-       LocalLocate(path, hosts, false);
+       LocalLocate(path, hosts, true, false, true);
 
        // We did not finish, take the next
        hosts.Erase(pos);
