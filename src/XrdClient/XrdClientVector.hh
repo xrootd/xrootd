@@ -23,7 +23,7 @@
 #include <iostream>
 
 
-#define IDXVEC_MINCAPACITY       16384
+#define IDXVEC_MINCAPACITY       8
 
 template<class T>
 class XrdClientVector {
@@ -53,27 +53,31 @@ private:
     // newsize elements
     int BufRealloc(int newsize);
 
-    inline void Init() {
+    inline void Init(int cap = -1) {
 	if (rawdata) free(rawdata);
 	if (index) free(index);
 
-	rawdata = static_cast<char *>(malloc(IDXVEC_MINCAPACITY * sizeof_t));
+	long mincap;
 
-	index = static_cast<myindex *>(malloc(IDXVEC_MINCAPACITY * sizeof(myindex)));
+        mincap = (cap > 0) ? cap : IDXVEC_MINCAPACITY;
+
+	rawdata = static_cast<char *>(malloc(mincap * sizeof_t));
+
+	index = static_cast<myindex *>(malloc(mincap * sizeof(myindex)));
 
 	if (!rawdata || !index) {
 	  std::cerr << "XrdClientIdxVector::Init .... out of memory. sizeof_t=" << sizeof_t <<
-	    " sizeof(myindex)=" << sizeof(myindex) << " capacity=" << IDXVEC_MINCAPACITY << std::endl;
+	    " sizeof(myindex)=" << sizeof(myindex) << " capacity=" << mincap << std::endl;
 	  abort();
 	}
 
 	// and we make every item as empty, i.e. not pointing to anything
-	memset(index, 0, IDXVEC_MINCAPACITY * sizeof(myindex));
+	memset(index, 0, mincap * sizeof(myindex));
 
 	holecount = 0;
 
 	size = 0;
-	maxsize = capacity = IDXVEC_MINCAPACITY;
+	maxsize = capacity = mincap;
     }
 
     // Makes a null position... not to be exposed
@@ -118,9 +122,7 @@ private:
 
 public:
 
-    int GetSize() {
-	return size;
-    }
+    inline int GetSize() const { return size; }
 
     void Clear() {
 	for (long i = 0; i < size; i++)
@@ -129,12 +131,12 @@ public:
 	Init();
     }
 
-    XrdClientVector():
+    XrdClientVector(int cap = -1):
 	sizeof_t(0), rawdata(0), index(0)
     {
 	// We calculate a size which is aligned on 4-bytes
 	sizeof_t = (sizeof(T) + 3) >> 2 << 2;
-	Init();
+	Init(cap);
     }
 
     XrdClientVector(XrdClientVector &v):
@@ -142,7 +144,7 @@ public:
 
         sizeof_t = (sizeof(T) + 3) >> 2 << 2;
 
-	Init();
+	Init(v.capacity);
 	BufRealloc(v.size);
 
 	for (int i = 0; i < v.size; i++)

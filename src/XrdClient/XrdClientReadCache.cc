@@ -56,7 +56,7 @@ long long XrdClientReadCache::GetTimestampTick()
 }
   
 //________________________________________________________________________
-XrdClientReadCache::XrdClientReadCache()
+XrdClientReadCache::XrdClientReadCache() : fItems(16384)
 {
     // Constructor
 
