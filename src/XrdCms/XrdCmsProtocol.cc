@@ -445,7 +445,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    XrdCmsLogin  Source(myBuff, sizeof(myBuff));
    CmsLoginData Data;
    const char  *Reason;
-   SMask_t      newmask, servset;
+   SMask_t      newmask, servset = 0;
    int addedp = 0, Status = 0, isMan = 0, isPeer = 0, isProxy = 0, isServ = 0;
    int wasSuspended = 0;
 

@@ -304,7 +304,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
    XrdOucTList       *tp, *op;
    XrdCmsClientMan   *Manp = 0;
 
-   int                iovcnt, NoteLen;
+   int                iovcnt = 0, NoteLen;
    char               Prty[8], *NoteNum = 0;
    char               Work[xNum*12];
    struct iovec       xmsg[xNum];

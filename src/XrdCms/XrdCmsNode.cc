@@ -461,7 +461,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    EPNAME("do_Locate";)
    XrdCmsRRQInfo reqInfo(Instance, RSlot, Arg.Request.streamid);
    XrdCmsSelect    Sel;
-   XrdCmsSelected *sP;
+   XrdCmsSelected *sP = 0;
    struct {kXR_unt32 Val; 
            char outbuff[CmsLocateRequest::RILen*XrdCmsCluster::STMax];} Resp;
    struct iovec ioV[2] = {{(char *)&Arg.Request, sizeof(Arg.Request)},
@@ -509,7 +509,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
            bytes = strlcpy(Resp.outbuff, "No servers have access to the file",
                    sizeof(Resp.outbuff)) + sizeof(Resp.Val) + 1;
           }
-      }
+      } else {Why = "?"; bytes = 0;}
 
 // List the servers
 //

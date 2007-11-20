@@ -216,6 +216,7 @@ void *XrdCmsRRQ::Respond()
 //
    do {isReady.Wait();     // DEBUG("responder awoken");
    do {myMutex.Lock();
+       lupQ = 0;
        if (readyQ.Singleton()) {myMutex.UnLock(); break;}
        sp = readyQ.Next()->Item(); sp->Link.Remove(); sp->Expire = 0;
        myMutex.UnLock();
