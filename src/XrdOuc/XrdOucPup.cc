@@ -125,7 +125,7 @@ int XrdOucPup::Pack(struct iovec *iovP, struct iovec *iovE, XrdOucPupArgs *pup,
    struct iovec  *vP = iovP;
    XrdOucPupArgs *pP = pup;
    char          *wP = Work;
-   int Dtype, dlen, TotLen = 0;
+   int Dtype, dlen = 0, TotLen = 0;
 
           unsigned long long  n64;
           unsigned int        n32;
