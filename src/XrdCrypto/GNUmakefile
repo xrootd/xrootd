@@ -120,13 +120,20 @@ anything: $(TARGETS)
 $(LIBARCH): $(OBJECTS)
 	@echo Creating archive $(LIBARCH) 
 	$(ECHO)rm -f $(LIBARCH)
-	$(ECHO)ar -rc $(LIBARCH) $(OBJECTS)
-	$(ECHO)ranlib $(LIBARCH)
-	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
-	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	      ar -rc $(LIBARCH) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-	   fi;\
-	fi
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	          if [ "x$(SUNCACHE)" != "x" ]; then \
+	             $(CC) -xar -o $(LIBARCH) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		  else \
+	             $(CC) -xar -o $(LIBARCH) $(OBJECTS); \
+		  fi; \
+	       else \
+	          ar -rc $(LIBARCH) $(OBJECTS); \
+	          ranlib $(LIBARCH); \
+               fi
+
+
+
+
 
 $(LIBRARY): $(OBJECTS) $(LIBUTIL)
 	@echo Creating shared library $(LIBRARY) 

@@ -131,13 +131,17 @@ perlmod: $(PERLMOD)
 
 $(LIBRARY): $(OBJECTS)
 	@echo Creating archive $(LIBRARY) 
-	$(ECHO)rm -f $(LIBRARY);
+	$(ECHO)rm -f $(LIBRARY)
 	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	   $(CC) -xar -o $(LIBRARY) $(OBJECTS); \
-	else \
-	   ar -rc $(LIBRARY) $(OBJECTS); \
-	   ranlib $(LIBRARY); \
-	fi
+	          if [ "x$(SUNCACHE)" != "x" ]; then \
+	             $(CC) -xar -o $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		  else \
+	             $(CC) -xar -o $(LIBRARY) $(OBJECTS); \
+		  fi; \
+	       else \
+	          ar -rc $(LIBRARY) $(OBJECTS); \
+	          ranlib $(LIBRARY); \
+               fi
 
 $(LIBSHARED): $(OBJECTS) $(LIBDEP)
 	@echo Creating shared library $(LIBSHARED) 

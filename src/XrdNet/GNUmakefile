@@ -16,7 +16,6 @@ SOURCES = \
         XrdNetConnect.cc     \
         XrdNetDNS.cc         \
         XrdNetLink.cc        \
-        XrdNetMsg.cc         \
         XrdNetSecurity.cc    \
         XrdNetSocket.cc      \
         XrdNetWork.cc
@@ -27,7 +26,6 @@ OBJECTS = \
         $(OBJDIR)/XrdNetConnect.o      \
         $(OBJDIR)/XrdNetDNS.o          \
         $(OBJDIR)/XrdNetLink.o         \
-        $(OBJDIR)/XrdNetMsg.o          \
         $(OBJDIR)/XrdNetSecurity.o     \
         $(OBJDIR)/XrdNetSocket.o       \
         $(OBJDIR)/XrdNetWork.o
@@ -59,13 +57,17 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY) 
-	@rm -f $(LIBRARY)
-	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	$(CC) -xar -o $(LIBRARY) $(OBJECTS); \
-	else \
-	ar -rc $(LIBRARY) $(OBJECTS); \
-	ranlib $(LIBRARY); \
-fi
+	$(ECHO)rm -f $(LIBRARY)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	          if [ "x$(SUNCACHE)" != "x" ]; then \
+	             $(CC) -xar -o $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		  else \
+	             $(CC) -xar -o $(LIBRARY) $(OBJECTS); \
+		  fi; \
+	       else \
+	          ar -rc $(LIBRARY) $(OBJECTS); \
+	          ranlib $(LIBRARY); \
+               fi
 
 $(OBJDIR)/XrdNet.o: XrdNet.cc       XrdNet.hh         XrdNetBuffer.hh \
                     XrdNetDNS.hh    XrdNetOpts.hh     XrdNetSecurity.hh \
@@ -92,13 +94,6 @@ $(OBJDIR)/XrdNetLink.o: XrdNetLink.cc XrdNetLink.hh          XrdNet.hh \
                         XrdSysPlatform.hh XrdOucStream.hh    XrdOucTokenizer.hh
 	@echo Compiling XrdNetLink.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetLink.cc -o $(OBJDIR)/XrdNetLink.o
-
-$(OBJDIR)/XrdNetMsg.o: XrdNetMsg.cc XrdNetMsg.hh \
-                       XrdNet.hh                 XrdNetDNS.hh \
-                       XrdNetOpts.hh             XrdNetPeer.hh \
-                       XrdSysError.hh            XrdSysPlatform.hh
-	@echo Compiling XrdNetMsg.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(CFGETHBYXR) $(CFNAMEINFO) $(CFPROTOR) $(INCLUDE) XrdNetMsg.cc -o $(OBJDIR)/XrdNetMsg.o
 
 $(OBJDIR)/XrdNetSecurity.o: XrdNetSecurity.cc XrdNetSecurity.hh \
                             XrdOucHash.hh     XrdOucHash.icc \

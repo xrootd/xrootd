@@ -22,7 +22,6 @@ SOURCES = \
         XrdOucName2Name.cc   \
         XrdOucNList.cc       \
         XrdOucProg.cc        \
-        XrdOucPup.cc         \
         XrdOucReqID.cc       \
         XrdOucStream.cc      \
         XrdOucString.cc      \
@@ -42,7 +41,6 @@ OBJECTS = \
         $(OBJDIR)/XrdOucName2Name.o    \
         $(OBJDIR)/XrdOucNList.o        \
         $(OBJDIR)/XrdOucProg.o         \
-        $(OBJDIR)/XrdOucPup.o          \
         $(OBJDIR)/XrdOucReqID.o        \
         $(OBJDIR)/XrdOucStream.o       \
         $(OBJDIR)/XrdOucString.o       \
@@ -60,7 +58,6 @@ TARGETS = $(LIBRARY)
 
 vpath XrdNet% ../XrdNet
 vpath XrdSys% ../XrdSys
-vpath XrdWin% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -79,11 +76,15 @@ $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY) 
 	$(ECHO)rm -f $(LIBRARY)
 	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	$(CC) -xar -o $(LIBRARY) $(OBJECTS); \
-	else \
-	ar -rc $(LIBRARY) $(OBJECTS); \
-	ranlib $(LIBRARY); \
-fi
+	          if [ "x$(SUNCACHE)" != "x" ]; then \
+	             $(CC) -xar -o $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		  else \
+	             $(CC) -xar -o $(LIBRARY) $(OBJECTS); \
+		  fi; \
+	       else \
+	          ar -rc $(LIBRARY) $(OBJECTS); \
+	          ranlib $(LIBRARY); \
+               fi
 
 $(OBJDIR)/XrdOuca2x.o: XrdOuca2x.cc XrdOuca2x.hh XrdSysError.hh
 	@echo Compiling XrdOuca2x.cc
@@ -125,12 +126,6 @@ $(OBJDIR)/XrdOucProg.o: XrdOucProg.cc  XrdOucProg.hh \
                         XrdSysError.hh XrdOucStream.hh XrdSysPthread.hh
 	@echo Compiling XrdOucProg.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucProg.cc -o $(OBJDIR)/XrdOucProg.o
-
-$(OBJDIR)/XrdOucPup.o: XrdOucPup.cc   XrdOucPup.hh \
-                       XrdSysError.hh XrdSysPlatform.hh \
-                       XrdWin32.hh
-	@echo Compiling XrdOucPup.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucPup.cc -o $(OBJDIR)/XrdOucPup.o
 
 $(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh XrdSysPthread.hh
 	@echo Compiling XrdOucReqID.cc

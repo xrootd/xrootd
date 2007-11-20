@@ -66,13 +66,16 @@ anything: $(TARGETS)
 $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY)
 	$(ECHO)rm -f $(LIBRARY)
-	$(ECHO)ar -rc $(LIBRARY) $(OBJECTS)
-	$(ECHO)ranlib $(LIBRARY)
-	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
-	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	      ar -rc $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-	   fi;\
-	fi
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+		  if [ "x$(SUNCACHE)" != "x" ]; then \
+		     $(CC) -xar -o $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		  else \
+		     $(CC) -xar -o $(LIBRARY) $(OBJECTS); \
+		  fi; \
+	       else \
+	          ar -rc $(LIBRARY) $(OBJECTS); \
+	          ranlib $(LIBRARY); \
+	       fi
 
 $(OBJDIR)/XrdOssAio.o: XrdOssAio.cc    XrdOssTrace.hh  XrdOssApi.hh \
                        XrdSysError.hh  XrdSysPthread.hh XrdSysPlatform.hh \
