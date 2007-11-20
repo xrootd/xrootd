@@ -117,7 +117,7 @@ T *XrdOucHash<T>::Apply(int (*func)(const char *, T *, void *), void *Arg)
 /******************************************************************************/
   
 template<class T>
-int XrdOucHash<T>::Del(const char *KeyVal, XrdOucHash_Options opt)
+int XrdOucHash<T>::Del(const char *KeyVal, XrdOucHash_Options)
 {
     unsigned long khash = XrdOucHashVal(KeyVal);
     int hent, cnt;
