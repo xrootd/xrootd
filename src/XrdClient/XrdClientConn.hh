@@ -81,6 +81,9 @@ public:
 
     static XrdClientPhyConnection     *GetPhyConn(int LogConnID);
 
+
+    // --------- Cache related stuff
+
     long                       GetDataFromCache(const void *buffer,
 						long long begin_offs,
 						long long end_offs,
@@ -123,6 +126,53 @@ public:
         if (fMainReadCache)
             fMainReadCache->PrintCache();
     }
+
+
+  bool                       GetCacheInfo(
+					  // The actual cache size
+					  int &size,
+
+					  // The number of bytes submitted since the beginning
+					  long long &bytessubmitted,
+
+					  // The number of bytes found in the cache (estimate)
+					  long long &byteshit,
+
+					  // The number of reads which did not find their data
+                                          // (estimate)
+					  long long &misscount,
+
+					  // miss/totalreads ratio (estimate)
+					  float &missrate,
+
+					  // number of read requests towards the cache
+					  long long &readreqcnt,
+
+					  // ratio between bytes found / bytes submitted
+					  float &bytesusefulness
+					  ) {
+      if (!fMainReadCache) return false;
+
+      fMainReadCache->GetInfo(size,
+			      bytessubmitted,
+			      byteshit,
+			      misscount,
+			      missrate,
+			      readreqcnt,
+			      bytesusefulness);
+      return true;
+    }  
+					  
+
+    void                       SetCacheSize(int CacheSize) {
+      if (!fMainReadCache && CacheSize)
+	fMainReadCache = new XrdClientReadCache();
+
+        if (fMainReadCache)
+	   fMainReadCache->SetSize(CacheSize);
+    }
+
+    // -------------------
 
 
     int                        GetLogConnID() const { return fLogConnID; }

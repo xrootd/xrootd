@@ -84,6 +84,8 @@ private:
 
     bool                        fOpenWithRefresh;
 
+    int                         fReadAheadSize;
+
     XrdSysCondVar              *fReadWaitData;  // Used to wait for outstanding data   
 
     struct XrdClientStatInfo    fStatInfo;
@@ -143,6 +145,45 @@ public:
     // Copy the whole file to the local filesystem. Not very efficient.
     bool                        Copy(const char *localpath);
 
+
+    bool                       GetCacheInfo(
+					    // The actual cache size
+					    int &size,
+					    
+					    // The number of bytes submitted since the beginning
+					    long long &bytessubmitted,
+					    
+					    // The number of bytes found in the cache (estimate)
+					    long long &byteshit,
+					    
+					    // The number of reads which did not find their data
+					    // (estimate)
+					    long long &misscount,
+					    
+					    // miss/totalreads ratio (estimate)
+					    float &missrate,
+					    
+					    // number of read requests towards the cache
+					    long long &readreqcnt,
+					    
+					    // ratio between bytes found / bytes submitted
+					    float &bytesusefulness
+					    ) {
+      if (!fConnModule) return false;
+      
+      if (!fConnModule->GetCacheInfo(size,
+				     bytessubmitted,
+				     byteshit,
+				     misscount,
+				     missrate,
+				     readreqcnt,
+				     bytesusefulness)
+	  return false;
+
+      return true;
+    }
+
+
     // Quickly tells if the file is open
     inline bool                 IsOpen() { return fOpenPars.opened; }
 
@@ -184,6 +225,17 @@ public:
         if (fConnModule)
             fConnModule->RemoveAllDataFromCache();
     }
+
+    // To set at run time the cache/readahead parameters for this instance only
+    // If a parameter is < 0 then it's left untouched.
+    // To simply enable/disable the caching, just use UseCache(), not this function
+    void                        SetCacheParameters(int CacheSize, int ReadAheadSize) {
+        if (fConnModule)
+	    fConnModule->SetCacheSize(CacheSize);
+
+	fReadAheadSize = ReadAheadSize;
+    }
+    
 
     // Write data to the file. If the multistream support is enabled, it will
     //  make sure about the arrival of the outstanding data if docheckppoint==true

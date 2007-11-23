@@ -93,8 +93,6 @@ bool XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
     XrdClientReadCacheItem *itm;
 
 
-    fMaxCacheSize = EnvGetLong(NAME_READCACHESIZE);
-
     Info(XrdClientDebug::kHIDEBUG, "Cache",
 	 "Submitting " << begin_offs << "->" << end_offs << " to cache.");
 
@@ -663,4 +661,20 @@ bool XrdClientReadCache::MakeFreeSpace(long long bytes)
 	if (!RemoveLRUItem()) break;
 
     return true;
+}
+
+
+void XrdClientReadCache::GetInfo(int &size, long long &bytessubmitted,
+				 long long &byteshit,
+				 long long &misscount,
+				 float &missrate,
+				 long long &readreqcnt,
+				 float &bytesusefulness ) {
+  size = fMaxCacheSize;
+  bytessubmitted = fBytesSubmitted;
+  byteshit = fBytesHit;
+  misscount = fMissCount;
+  missrate = fMissRate;
+  readreqcnt = fReadsCounter;
+  bytesusefulness = fBytesUsefulness;
 }

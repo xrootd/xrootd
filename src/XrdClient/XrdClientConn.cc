@@ -151,9 +151,6 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fUrl(""),
     fGlobalRedirCnt = 0;
     fMaxGlobalRedirCnt = EnvGetLong(NAME_MAXREDIRECTCOUNT);
 
-    if (EnvGetLong(NAME_READCACHESIZE))
-	fMainReadCache = new XrdClientReadCache();
-
     fOpenSockFD = -1;
 
     // Init connection manager (only once)

@@ -62,12 +62,8 @@ XrdClient::XrdClient(const char *url) {
     memset(&fStatInfo, 0, sizeof(fStatInfo));
     memset(&fOpenPars, 0, sizeof(fOpenPars));
 
-   // Pick-up the latest setting of the debug level
-   DebugSetLevel(EnvGetLong(NAME_DEBUG));
-
-   int CacheSize = EnvGetLong(NAME_READCACHESIZE);
-
-    fUseCache = (CacheSize > 0);
+    // Pick-up the latest setting of the debug level
+    DebugSetLevel(EnvGetLong(NAME_DEBUG));
 
     if (!ConnectionManager)
 	Info(XrdClientDebug::kNODEBUG,
@@ -89,6 +85,11 @@ XrdClient::XrdClient(const char *url) {
     }
 
     fConnModule->SetRedirHandler(this);
+
+    int CacheSize = EnvGetLong(NAME_READCACHESIZE);
+    int RaSize = EnvGetLong(NAME_READAHEADSIZE);
+    fUseCache = (CacheSize > 0);
+    SetCacheParameters(CacheSize, RaSize);
 }
 
 //_____________________________________________________________________________
@@ -1433,11 +1434,19 @@ bool XrdClient::UseCache(bool u)
   bool r = fUseCache;
 
   if (!u) {
-    fUseCache = FALSE;
+    fUseCache = false;
   } else {
-    if (EnvGetLong(NAME_READCACHESIZE) > 0)
-      fUseCache = TRUE;
+    int size;
+    long long bytessubmitted, byteshit, misscount, readreqcnt;
+    float missrate, bytesusefulness;
+
+
+    if ( fConnModule &&
+	 fConnModule->GetCacheInfo(size, bytessubmitted, byteshit, misscount, missrate, readreqcnt, bytesusefulness) &&
+	 size )
+      fUseCache = true;
   }
+
   // Return the previous setting
   return r;
 }
