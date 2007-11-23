@@ -22,6 +22,7 @@ SOURCES = \
         XrdOucName2Name.cc   \
         XrdOucNList.cc       \
         XrdOucProg.cc        \
+        XrdOucPup.cc         \
         XrdOucReqID.cc       \
         XrdOucStream.cc      \
         XrdOucString.cc      \
@@ -41,6 +42,7 @@ OBJECTS = \
         $(OBJDIR)/XrdOucName2Name.o    \
         $(OBJDIR)/XrdOucNList.o        \
         $(OBJDIR)/XrdOucProg.o         \
+        $(OBJDIR)/XrdOucPup.o          \
         $(OBJDIR)/XrdOucReqID.o        \
         $(OBJDIR)/XrdOucStream.o       \
         $(OBJDIR)/XrdOucString.o       \
@@ -126,6 +128,11 @@ $(OBJDIR)/XrdOucProg.o: XrdOucProg.cc  XrdOucProg.hh \
                         XrdSysError.hh XrdOucStream.hh XrdSysPthread.hh
 	@echo Compiling XrdOucProg.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucProg.cc -o $(OBJDIR)/XrdOucProg.o
+
+$(OBJDIR)/XrdOucPup.o: XrdOucPup.cc  XrdOucPup.hh
+	@echo Compiling XrdOucPup.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucPup.cc -o $(OBJDIR)/XrdOucPup.o
+
 
 $(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh XrdSysPthread.hh
 	@echo Compiling XrdOucReqID.cc
