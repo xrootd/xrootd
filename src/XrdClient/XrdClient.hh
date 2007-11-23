@@ -177,7 +177,7 @@ public:
 				     misscount,
 				     missrate,
 				     readreqcnt,
-				     bytesusefulness)
+				     bytesusefulness))
 	  return false;
 
       return true;
