@@ -22,6 +22,7 @@
 #include "XrdOuc/XrdOucTList.hh"
   
 class XrdInet;
+class XrdScheduler;
 class XrdNetSecurity;
 class XrdNetSocket;
 class XrdSysError;
