@@ -18,7 +18,7 @@ xrootdcmsinc_HEADERS = \
     XrdCmsCluster.hh      XrdCmsConfig.hh       XrdCmsFinder.hh       \
     XrdCmsJob.hh          XrdCmsLogin.hh        XrdCmsManList.hh      \
     XrdCmsManTree.hh      XrdCmsManager.hh      XrdCmsMeter.hh        \
-    XrdCmsNash.hh         XrdCmsNode.hh         XrdCmsPList.hh        \
+                          XrdCmsNode.hh         XrdCmsPList.hh        \
     XrdCmsParser.hh       XrdCmsPrepArgs.hh     XrdCmsPrepare.hh      \
     XrdCmsProtocol.hh     XrdCmsRRData.hh       XrdCmsRRQ.hh          \
     XrdCmsRTable.hh       XrdCmsReq.hh          XrdCmsResp.hh         \
@@ -34,7 +34,7 @@ cmsd_SOURCES = \
     XrdCmsClientMan.cc    XrdCmsClientMsg.cc    XrdCmsCluster.cc      \
     XrdCmsConfig.cc       XrdCmsFinder.cc       XrdCmsJob.cc          \
     XrdCmsLogin.cc        XrdCmsManList.cc      XrdCmsManTree.cc      \
-    XrdCmsManager.cc      XrdCmsMeter.cc        XrdCmsNash.cc         \
+    XrdCmsManager.cc      XrdCmsMeter.cc                              \
     XrdCmsNode.cc         XrdCmsPList.cc        XrdCmsParser.cc       \
     XrdCmsPrepArgs.cc     XrdCmsPrepare.cc      XrdCmsProtocol.cc     \
     XrdCmsRRData.cc       XrdCmsRRQ.cc          XrdCmsRTable.cc       \
