@@ -30,22 +30,46 @@ xrootdcmsinc_HEADERS = \
 INCLUDES = -I$(top_srcdir)/src
 
 cmsd_SOURCES = \
-    XrdCmsAdmin.cc        XrdCmsCache.cc        XrdCmsClientConfig.cc \
-    XrdCmsClientMan.cc    XrdCmsClientMsg.cc    XrdCmsCluster.cc      \
-    XrdCmsConfig.cc       XrdCmsFinder.cc       XrdCmsJob.cc          \
-    XrdCmsLogin.cc        XrdCmsManList.cc      XrdCmsManTree.cc      \
-    XrdCmsManager.cc      XrdCmsMeter.cc                              \
-    XrdCmsNode.cc         XrdCmsPList.cc        XrdCmsParser.cc       \
-    XrdCmsPrepArgs.cc     XrdCmsPrepare.cc      XrdCmsProtocol.cc     \
-    XrdCmsRRData.cc       XrdCmsRRQ.cc          XrdCmsRTable.cc       \
-    XrdCmsReq.cc          XrdCmsResp.cc         XrdCmsRouting.cc      \
-    XrdCmsState.cc        XrdCmsSupervisor.cc   XrdCmsXmiReq.cc
+XrdCmsAdmin.cc \
+XrdCmsCache.cc \
+XrdCmsCluster.cc \
+XrdCmsConfig.cc \
+XrdCmsJob.cc \
+XrdCmsManList.cc \
+XrdCmsManTree.cc \
+XrdCmsManager.cc \
+XrdCmsMeter.cc \
+XrdCmsNode.cc \
+XrdCmsPList.cc \
+XrdCmsPrepArgs.cc \
+XrdCmsPrepare.cc \
+XrdCmsProtocol.cc \
+XrdCmsReq.cc \
+XrdCmsRouting.cc \
+XrdCmsRRQ.cc \
+XrdCmsRTable.cc \
+XrdCmsState.cc \
+XrdCmsSupervisor.cc \
+XrdCmsXmiReq.cc \
+XrdCmsLogin.cc \
+XrdCmsParser.cc \
+XrdCmsRRData.cc
+
+#    XrdCmsAdmin.cc        XrdCmsCache.cc        XrdCmsClientConfig.cc \
+#    XrdCmsClientMan.cc    XrdCmsClientMsg.cc    XrdCmsCluster.cc      \
+#    XrdCmsConfig.cc       XrdCmsFinder.cc       XrdCmsJob.cc          \
+#    XrdCmsLogin.cc        XrdCmsManList.cc      XrdCmsManTree.cc      \
+#    XrdCmsManager.cc      XrdCmsMeter.cc                              \
+#    XrdCmsNode.cc         XrdCmsPList.cc        XrdCmsParser.cc       \
+#    XrdCmsPrepArgs.cc     XrdCmsPrepare.cc      XrdCmsProtocol.cc     \
+#    XrdCmsRRData.cc       XrdCmsRRQ.cc          XrdCmsRTable.cc       \
+#    XrdCmsReq.cc          XrdCmsResp.cc         XrdCmsRouting.cc      \
+#    XrdCmsState.cc        XrdCmsSupervisor.cc   XrdCmsXmiReq.cc
 
 cmsd_LDADD = ../XrdNet/libXrdNet.la \
              ../XrdOuc/libXrdOuc.la \
              ../XrdSys/libXrdSys.la \
              ../Xrd/libXrd.la \
-             ../XrdSys/libXrdSys.la \
              -ldl
 
 cmsd_LDFLAGS = -static -export-dynamic
