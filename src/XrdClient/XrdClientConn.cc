@@ -918,8 +918,17 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
                Retry= kXR_maxReqRetry;
                return TRUE;
             }
-            // Sleep now
-            sleep(bws);
+
+
+	    // Look for too stupid a delay. In this case, set a reasonable value.
+	    int newbws = bws;
+	    if (bws <= 0) newbws = 1;
+	    if (bws > 1800) newbws = 10;
+	    if (bws != newbws)
+	      Error("CheckErrorStatus", "Sleep time fixed from " << bws << " to " << newbws);
+
+            // Sleep now, and hope that the sandman does not enter here.
+            sleep(newbws);
 	}
 
 	// We don't want kxr_wait to count as an error
