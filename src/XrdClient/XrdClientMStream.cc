@@ -22,10 +22,12 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
     int i, res;
     int wan_port = 0, wan_window = 0;
 
+    if (mx <= 1) return 1;
+    if (cliconn->GetServerType() == kSTBaseXrootd) return 1;
+
     // Get the XrdClientPhyconn to be used
     XrdClientPhyConnection *phyconn = XrdClientConn::GetPhyConn(cliconn->GetLogConnID());
     if (!phyconn) return 0;
-    if (mx <= 1) return 1;
     
     // For a given phyconn we allow only one single attempt to establish multiple streams
     // Any other thread or subsequent attempt will exit

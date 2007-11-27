@@ -209,8 +209,10 @@ void XrdClientPhyConnection::StartReader() {
       Info(XrdClientDebug::kHIDEBUG,
 	   "StartReader", "Starting reader thread...");
 
+      int rdcnt = READERCOUNT;
+      if (fServerType == kSTBaseXrootd) rdcnt = 1;
 
-      for (int i = 0; i < READERCOUNT; i++) {
+      for (int i = 0; i < rdcnt; i++) {
 
       // Now we launch  the reader thread
       fReaderthreadhandler[i] = new XrdClientThread(SocketReaderThread);
