@@ -106,7 +106,7 @@ bool XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
     // We remove all the blocks contained in the one we are going to put
     RemoveItems(begin_offs, end_offs);
 
-    if (MakeFreeSpace(end_offs - begin_offs)) {
+    if (MakeFreeSpace(end_offs - begin_offs + 1)) {
 
 
 
@@ -468,6 +468,7 @@ void XrdClientReadCache::RemoveItems(long long begin_offs, long long end_offs)
     XrdSysMutexHelper mtx(fMutex);
 
     it = FindInsertionApprox(begin_offs);
+    if (it > 0) it--;
 
     // We remove all the blocks contained in the given interval
     while (it < fItems.GetSize()) {
@@ -633,7 +634,7 @@ bool XrdClientReadCache::RemoveFirstItem()
     fItems.Erase(lruit);
 
 
-    return false;
+    return true;
 }
 
 
@@ -647,7 +648,7 @@ bool XrdClientReadCache::RemoveLRUItem()
 
     int it, lruit;
     long long minticks = -1;
-    XrdClientReadCacheItem *item;
+    XrdClientReadCacheItem *item = 0;
 
     XrdSysMutexHelper mtx(fMutex);
 
@@ -681,13 +682,13 @@ bool XrdClientReadCache::RemoveLRUItem()
 	item = fItems[lruit];
     else return false;
 
-    if (minticks >= 0) {
-	fTotalByteCount -= item->Size();
-	delete item;
-	fItems.Erase(lruit);
+    if (item) {
+      fTotalByteCount -= item->Size();
+      delete item;
+      fItems.Erase(lruit);
     }
 
-    return false;
+    return true;
 }
 
 //________________________________________________________________________
@@ -718,7 +719,8 @@ bool XrdClientReadCache::MakeFreeSpace(long long bytes)
     XrdSysMutexHelper mtx(fMutex);
 
     while (fMaxCacheSize - fTotalByteCount < bytes)
-	if (!RemoveItem()) break;
+      if (!RemoveItem())
+	return false;
 
     return true;
 }
