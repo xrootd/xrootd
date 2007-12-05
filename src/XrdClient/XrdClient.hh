@@ -231,11 +231,11 @@ public:
     // To simply enable/disable the caching, just use UseCache(), not this function
     void                        SetCacheParameters(int CacheSize, int ReadAheadSize, int RmPolicy) {
         if (fConnModule) {
-	  fConnModule->SetCacheSize(CacheSize);
-	  fConnModule->SetCacheRmPolicy(RmPolicy);
+	  if (CacheSize >= 0) fConnModule->SetCacheSize(CacheSize);
+	  if (RmPolicy >= 0) fConnModule->SetCacheRmPolicy(RmPolicy);
 	}
 
-	fReadAheadSize = ReadAheadSize;
+	if (ReadAheadSize >= 0) fReadAheadSize = ReadAheadSize;
     }
     
 
