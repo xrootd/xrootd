@@ -167,7 +167,8 @@ public:
     // The algos available for the removal of "old" blocks
     enum {
       kRmBlk_LRU = 0,
-      kRmBlk_LeastOffs
+      kRmBlk_LeastOffs,
+      kRmBlk_FIFO
     };
 
     XrdClientReadCache();

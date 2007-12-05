@@ -345,7 +345,8 @@ long XrdClientReadCache::GetDataIfPresent(const void *buffer,
 	    bytesgot += l;
 	    lasttakenbyte = begin_offs+bytesgot-1;
 
-	    fItems[it]->Touch(GetTimestampTick());
+	    if (fBlkRemPolicy != kRmBlk_FIFO)
+	      fItems[it]->Touch(GetTimestampTick());
 
 	    if (PerfCalc) {
 		fBytesHit += l;
@@ -695,6 +696,7 @@ bool XrdClientReadCache::RemoveItem() {
     switch (fBlkRemPolicy) {
 
     case kRmBlk_LRU:
+    case kRmBlk_FIFO:
       return RemoveLRUItem();
 
     case kRmBlk_LeastOffs:
