@@ -5,7 +5,7 @@
 #-----------------------------------------------------------------------------#
 include ../GNUmake.env
 
-LIBLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys 
+LIBLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys $(LIBM)
 
 BINLIBS = $(LIBDIR)/libXrdClient.a $(LIBDIR)/libXrdCrypto.a \
           $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdNet.a \
