@@ -72,6 +72,7 @@ XrdClientReadCache::XrdClientReadCache() : fItems(16384)
     fBytesUsefulness = 0.0;
 
     fMaxCacheSize = EnvGetLong(NAME_READCACHESIZE);
+    fBlkRemPolicy = EnvGetLong(NAME_READCACHEBLKREMPOLICY);
 }
 
 //________________________________________________________________________
@@ -596,6 +597,47 @@ void XrdClientReadCache::RemovePlaceholders() {
 
 }
 
+
+
+//________________________________________________________________________
+bool XrdClientReadCache::RemoveFirstItem()
+{
+    // Finds the first item (lower offset) and removes it
+    // We don't remove placeholders
+
+    int it, lruit;
+    XrdClientReadCacheItem *item;
+
+    XrdSysMutexHelper mtx(fMutex);
+
+    lruit = -1;
+
+	// Kill the first not placeholder if we have too many blks
+	lruit = -1;
+	for (it = 0; it < fItems.GetSize(); it++) {
+	    // We don't remove placeholders
+	    if (!fItems[it]->IsPlaceholder()) {
+		lruit = it;
+		break;
+	    }
+	}
+
+
+    if (lruit >= 0)
+	item = fItems[lruit];
+    else return false;
+
+    fTotalByteCount -= item->Size();
+    delete item;
+    fItems.Erase(lruit);
+
+
+    return false;
+}
+
+
+
+
 //________________________________________________________________________
 bool XrdClientReadCache::RemoveLRUItem()
 {
@@ -648,6 +690,22 @@ bool XrdClientReadCache::RemoveLRUItem()
 }
 
 //________________________________________________________________________
+bool XrdClientReadCache::RemoveItem() {
+
+    switch (fBlkRemPolicy) {
+
+    case kRmBlk_LRU:
+      return RemoveLRUItem();
+
+    case kRmBlk_LeastOffs:
+      return RemoveFirstItem();
+
+    }
+
+    return RemoveLRUItem();
+}
+
+//________________________________________________________________________
 bool XrdClientReadCache::MakeFreeSpace(long long bytes)
 {
     // False if not possible (requested space exceeds max size!)
@@ -658,7 +716,7 @@ bool XrdClientReadCache::MakeFreeSpace(long long bytes)
     XrdSysMutexHelper mtx(fMutex);
 
     while (fMaxCacheSize - fTotalByteCount < bytes)
-	if (!RemoveLRUItem()) break;
+	if (!RemoveItem()) break;
 
     return true;
 }

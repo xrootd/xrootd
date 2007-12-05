@@ -165,13 +165,17 @@ public:
 					  
 
     void                       SetCacheSize(int CacheSize) {
-      if (!fMainReadCache && CacheSize)
-	fMainReadCache = new XrdClientReadCache();
+        if (!fMainReadCache && CacheSize)
+	  fMainReadCache = new XrdClientReadCache();
 
         if (fMainReadCache)
 	   fMainReadCache->SetSize(CacheSize);
     }
 
+    void                       SetCacheRmPolicy(int RmPolicy) {
+        if (fMainReadCache)
+	   fMainReadCache->SetBlkRemovalPolicy(RmPolicy);
+    }
     // -------------------
 
 

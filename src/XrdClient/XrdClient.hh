@@ -229,9 +229,11 @@ public:
     // To set at run time the cache/readahead parameters for this instance only
     // If a parameter is < 0 then it's left untouched.
     // To simply enable/disable the caching, just use UseCache(), not this function
-    void                        SetCacheParameters(int CacheSize, int ReadAheadSize) {
-        if (fConnModule)
-	    fConnModule->SetCacheSize(CacheSize);
+    void                        SetCacheParameters(int CacheSize, int ReadAheadSize, int RmPolicy) {
+        if (fConnModule) {
+	  fConnModule->SetCacheSize(CacheSize);
+	  fConnModule->SetCacheRmPolicy(RmPolicy);
+	}
 
 	fReadAheadSize = ReadAheadSize;
     }

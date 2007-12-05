@@ -88,8 +88,9 @@ XrdClient::XrdClient(const char *url) {
 
     int CacheSize = EnvGetLong(NAME_READCACHESIZE);
     int RaSize = EnvGetLong(NAME_READAHEADSIZE);
+    int RmPolicy = EnvGetLong(NAME_READCACHEBLKREMPOLICY);
     fUseCache = (CacheSize > 0);
-    SetCacheParameters(CacheSize, RaSize);
+    SetCacheParameters(CacheSize, RaSize, RmPolicy);
 }
 
 //_____________________________________________________________________________

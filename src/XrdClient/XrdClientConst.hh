@@ -74,8 +74,13 @@
 #define DFLT_READCACHESIZE      0
 #define NAME_READCACHESIZE      (char *)"ReadCacheSize"
 
-#define DFLT_READCACHEBLK       0
-#define NAME_READCACHEBLK       (char *)"ReadCacheBlk"
+#define DFLT_READCACHESIZE      0
+#define NAME_READCACHESIZE      (char *)"ReadCacheSize"
+
+// 0 = LRU
+// 1 = Remove least offest
+#define DFLT_READCACHEBLKREMPOLICY       0
+#define NAME_READCACHEBLKREMPOLICY       (char *)"ReadCacheBlk"
 
 #define DFLT_READAHEADSIZE      (0)
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
