@@ -121,7 +121,7 @@ public:
     ELoginState    IsLogged() const { return fLogged; }
     bool           IsPort(int port) { return (fServer.Port == port); };
     bool           IsUser(const XrdOucString &usr) { return (fServer.User == usr); };
-    bool           IsValid() const { return (fSocket && fSocket->IsConnected());}
+    bool           IsValid() const { return ( (fSocket != 0) && fSocket->IsConnected());}
     void           LockChannel();
 
     // see XrdClientSock for the meaning of the parameters

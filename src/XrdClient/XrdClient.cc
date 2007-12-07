@@ -620,8 +620,8 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 
     // First we want to know how much data we expect
     kXR_int64 maxbytes = 0;
-    for (int i = 0; i < nbuf; i++)
-      maxbytes += lens[i];
+    for (int ii = 0; ii < nbuf; ii++)
+      maxbytes += lens[ii];
 
     // Then we get a suggestion about the splitsize to use
     int spltsize = 0;
@@ -633,8 +633,8 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
     // if (spltsize > 2*READV_MAXCHUNKSIZE) blah blah
 
     // Each subchunk must not exceed spltsize bytes
-    for (int i = 0; i < nbuf; i++)
-      XrdClientReadV::PreProcessChunkRequest(reqvect, offsets[i], lens[i],
+    for (int ii = 0; ii < nbuf; ii++)
+      XrdClientReadV::PreProcessChunkRequest(reqvect, offsets[ii], lens[ii],
 					     fStatInfo.size,
 					     spltsize );
 
@@ -650,11 +650,12 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
       //  - do not request more than maxbytes bytes each
       kXR_int64 tmpbytes = 0;
       int chunkcnt = 0;
-      for ( ; i < reqvect.GetSize(); i++) {
+      while ( i < reqvect.GetSize() ) {
 	if (chunkcnt >= READV_MAXCHUNKS) break;
 	if (tmpbytes + reqvect[i].len >= spltsize) break;
 	tmpbytes += reqvect[i].len;
 	chunkcnt++;
+	i++;
       }
 
       res = XrdClientReadV::ReqReadV(fConnModule, fHandle, buf+bytesread,
@@ -703,8 +704,8 @@ bool XrdClient::Write(const void *buf, long long offset, int len, bool docheckpo
       writeFileRequest.write.pathid = rl[i].streamtosend;
    
       if (i < rl.GetSize()-1) {
-	bool b = fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend);
-	if (!b) return false;
+	XReqErrorType b = fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend);
+	if (b != kOK) return false;
       }
       else
 	
@@ -715,7 +716,7 @@ bool XrdClient::Write(const void *buf, long long offset, int len, bool docheckpo
 					     FALSE, (char *)"Write");
 	}
 	else
-	  return fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend);
+	  return (fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend) == kOK);
       
 
 
