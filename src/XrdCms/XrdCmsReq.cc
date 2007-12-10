@@ -342,7 +342,7 @@ void XrdCmsReq::Reply(       int    respCode, unsigned int respVal,
                       struct iovec *iov,      int iovnum)
 {
    EPNAME("Reply");
-   CmsRdrResponse Resp = {{ReqID, respCode, 0, 0}, htonl(respVal)};
+   CmsResponse Resp = {{ReqID, respCode, 0, 0}, htonl(respVal)};
    struct iovec myiov[2], *iovP;
    XrdCmsNode *nP;
 
@@ -381,7 +381,7 @@ void XrdCmsReq::Reply(       int    respCode, unsigned int respVal,
    RTable.Lock();
    if ((nP = RTable.Find(ReqNnum, ReqNins)))
       {Resp.Hdr.streamid = htonl(ReqID);
-       Resp.Hdr.modifier |= CmsRdrResponse::kYR_async;
+       Resp.Hdr.modifier |= CmsResponse::kYR_async;
        nP->Send(iov, iovnum);
       }
       else {DEBUG("Async resp " <<ReqID <<" discarded; server gone");}

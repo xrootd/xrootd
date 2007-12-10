@@ -460,7 +460,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 
 // Do the login and get the data
 //
-   if (Source.Admit(Link, Data)) return 0;
+   if (!Source.Admit(Link, Data)) return 0;
 
 // Handle Redirectors here (minimal stuff to do)
 //
@@ -821,12 +821,14 @@ void XrdCmsProtocol::Reply_Delay(kXR_unt32 sID, kXR_unt32 theDelay)
 {
      EPNAME("Reply_Delay");
 
-     CmsRdrResponse Resp = {{sID, kYR_wait, 0,
-                             htons(sizeof(kXR_unt32))}, theDelay};
+     if (sID)
+        {CmsResponse Resp = {{sID, kYR_wait, 0,
+                               htons(sizeof(kXR_unt32))}, theDelay};
 
-     if (sID) Link->Send((char *)&Resp, sizeof(Resp));
+         Link->Send((char *)&Resp, sizeof(Resp));
+        }
 
-     DEBUG(myNode->Ident <<(sID ? " sent " : " skip ") <<" delay " <<theDelay);
+     DEBUG(myNode->Ident <<(sID?" sent":" skip") <<" delay " <<ntohl(theDelay));
 }
 
 /******************************************************************************/
@@ -838,14 +840,16 @@ void XrdCmsProtocol::Reply_Error(kXR_unt32 sID, int ecode, const char *etext)
      EPNAME("Reply_Error");
      int n = strlen(etext)+1;
 
-     CmsRdrResponse Resp = {{sID, kYR_error, 0,
-                             htons(sizeof(kXR_unt32)+n)},
+     if (sID)
+        {CmsResponse Resp = {{sID, kYR_error, 0,
+                              htons(sizeof(kXR_unt32)+n)},
                              htonl(static_cast<unsigned int>(ecode))};
-     struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
-                            {(char *)etext, n}};
+         struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
+                                {(char *)etext, n}};
 
-     if (sID) Link->Send(ioV, 2);
+         Link->Send(ioV, 2);
+        }
 
-     DEBUG(myNode->Ident <<(sID ? " sent " : " skip ") <<" err " <<ecode
+     DEBUG(myNode->Ident <<(sID ? " sent" : " skip") <<" err " <<ecode
                           <<' ' <<etext);
 }

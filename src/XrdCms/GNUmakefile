@@ -25,7 +25,9 @@ SRCCLNT = \
 SRCBOTH = \
         XrdCmsLogin.cc       \
         XrdCmsParser.cc      \
-        XrdCmsRRData.cc
+        XrdCmsRRData.cc      \
+        XrdCmsSecurity.cc    \
+        XrdCmsTalk.cc
 
 SRCSRVR = \
         XrdCmsAdmin.cc       \
@@ -63,6 +65,8 @@ OBJBOTH = \
         $(OBJDIR)/XrdCmsLogin.o       \
         $(OBJDIR)/XrdCmsParser.o      \
         $(OBJDIR)/XrdCmsRRData.o      \
+        $(OBJDIR)/XrdCmsSecurity.o    \
+        $(OBJDIR)/XrdCmsTalk.o
 
 OBJSRVR = \
         $(OBJDIR)/XrdCmsAdmin.o       \
@@ -104,6 +108,7 @@ vpath XrdCms%    ../XrdCms
 vpath XrdNet%    ../XrdNet
 vpath XrdOdc%    ../XrdOdc
 vpath XrdOuc%    ../XrdOuc
+vpath XrdSec%    ../XrdSec
 vpath XrdSfs%    ../XrdSfs
 vpath XrdSys%    ../XrdSys
 vpath XrdXrootd% ../XrdXrootd
@@ -208,6 +213,7 @@ $(OBJDIR)/XrdCmsConfig.o:    XrdCmsConfig.cc     XrdCmsConfig.hh \
                              XrdCmsNode.hh       XrdCmsPList.hh \
                              XrdCmsPrepare.hh    XrdCmsPrepArgs.hh \
                              XrdCmsProtocol.hh   XrdCmsRRQ.hh \
+                             XrdCmsSecurity.hh \
                              XrdCmsState.hh      XrdCmsSupervisor.hh \
                              XrdCmsTrace.hh      XrdCmsTypes.hh \
                              XrdCmsXmi.hh        XrdCmsXmiReq.hh \
@@ -253,7 +259,8 @@ $(OBJDIR)/XrdCmsJob.o:       XrdCmsJob.cc        XrdCmsJob.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsJob.o XrdCmsJob.cc
 
 $(OBJDIR)/XrdCmsLogin.o:     XrdCmsLogin.cc      XrdCmsLogin.hh \
-                             XrdCmsParser.hh     XrdCmsTrace.hh \
+                             XrdCmsParser.hh     XrdCmsSecurity.hh \
+                             XrdCmsTalk.hh       XrdCmsTrace.hh \
                              XrdOucPup.hh \
                              XrdSysPthread.hh    XrdSysError.hh \
                              XrdLink.hh \
@@ -414,10 +421,20 @@ $(OBJDIR)/XrdCmsRouting.o:   XrdCmsRouting.cc    XrdCmsRouting.hh \
 	@echo Compiling XrdCmsRouting.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsRouting.o XrdCmsRouting.cc
 
+$(OBJDIR)/XrdCmsSecurity.o:  XrdCmsSecurity.cc   XrdCmsSecurity.hh \
+                             XrdCmsTalk.hh       XrdCmsTrace.hh \
+                             XrdOucErrInfo.hh \
+                             XrdSecInterface.hh \
+                             XrdSysError.hh      XrdSysPthread.hh \
+                             XrdLink.hh \
+                             YProtocol.hh
+	@echo Compiling XrdCmsSecurity.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsSecurity.o XrdCmsSecurity.cc
+
 $(OBJDIR)/XrdCmsState.o:     XrdCmsState.cc      XrdCmsState.hh \
                              XrdCmsCluster.hh    XrdCmsManager.hh \
-                             XrdCmsRTable.hh     XrdCmsTrace.hh \
-                             XrdCmsTypes.hh \
+                             XrdCmsRTable.hh     XrdCmsTalk.hh \
+                             XrdCmsTrace.hh      XrdCmsTypes.hh \
                              XrdSysError.hh      XrdSysPthread.hh \
                              XrdLink.hh \
                              YProtocol.hh
@@ -432,6 +449,12 @@ $(OBJDIR)/XrdCmsSupervisor.o: XrdCmsSupervisor.cc      XrdCmsSupervisor.hh \
                               XrdSysError.hh
 	@echo Compiling XrdCmsSupervisor.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsSupervisor.o XrdCmsSupervisor.cc
+
+$(OBJDIR)/XrdCmsTalk.o:      XrdCmsTalk.cc       XrdCmsTalk.hh \
+                             XrdLink.hh \
+                             YProtocol.hh
+	@echo Compiling XrdCmsTalk.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsTalk.o XrdCmsTalk.cc
 
 $(OBJDIR)/XrdCmsXmiReq.o:    XrdCmsXmiReq.cc     XrdCmsXmiReq.hh \
                              XrdCmsReq.hh        XrdCmsTrace.hh \

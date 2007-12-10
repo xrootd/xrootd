@@ -17,7 +17,7 @@
 // Data is serialized as explained in XrdOucPup.
   
 /******************************************************************************/
-/*       C o m m o n   R e q u e s t / R e s p o n s e   S e c t i o n        */
+/*                C o m m o n   R e q u e s t   S e c t i o n                 */
 /******************************************************************************/
 
 namespace XrdCms
@@ -33,7 +33,7 @@ struct CmsRRHdr
 };
   
 enum CmsReqCode            // Request Codes
-{    kYR_login   =  0,
+{    kYR_login   =  0,     // Same as kYR_data
      kYR_chmod   =  1,
      kYR_locate  =  2,
      kYR_mkdir   =  3,
@@ -62,15 +62,6 @@ enum CmsReqCode            // Request Codes
      kYR_MaxReq            // Count of request numbers (highest + 1)
 };
 
-enum CmsRspCode            // Response codes
-{    kYR_data    = 0,
-     kYR_error   = 1,
-     kYR_redirect= 2,
-     kYR_wait    = 3,
-     kYR_waitresp= 4,
-     kYR_yauth   = 5
-};
-
 // The hopcount is used for forwarded requests. It is incremented upon each
 // forwarding until it wraps to zero. At this point the forward is not done.
 // Forwarding applies to: chmod, have, mkdir, mkpath, mv, prepdel, rm, and 
@@ -79,6 +70,43 @@ enum CmsRspCode            // Response codes
 enum CmsFwdModifier
 {    kYR_hopcount = 0xe0,
      kYR_hopincr  = 0x40
+};
+
+/******************************************************************************/
+/*               C o m m o n   R e s p o n s e   S e c t i o n                */
+/******************************************************************************/
+  
+enum CmsRspCode            // Response codes
+{    kYR_data    = 0,      // Same as kYR_login
+     kYR_error   = 1,
+     kYR_redirect= 2,
+     kYR_wait    = 3,
+     kYR_waitresp= 4,
+     kYR_yauth   = 5
+};
+
+enum YErrorCode
+{  kYR_ENOENT = 1,
+   kYR_EPERM,
+   kYR_EACCES,
+   kYR_EINVAL,
+   kYR_EIO,
+   kYR_ENOMEM,
+   kYR_ENOSPC,
+   kYR_ENAMETOOLONG,
+   kYR_ENETUNREACH,
+   kYR_ENOTBLK,
+   kYR_EISDIR
+};
+
+struct CmsResponse
+{      CmsRRHdr      Hdr;
+
+enum  {kYR_async   = 128                 // Modifier: Reply to prev waitresp
+      };
+
+       kXR_unt32     Val;                // Port, Wait val, rc, asyncid
+//     kXR_char      Data[Hdr.datalen-4];// Target host, more data, or emessage
 };
 
 /******************************************************************************/
@@ -165,7 +193,9 @@ static const int     RILen = 32;  // Max length of each response item
 /*                         l o g i n   R e q u e s t                          */
 /******************************************************************************/
   
-// Request: <id> login  <mode> <authenticator> <login_data> ...
+// Request: login  <login_data>
+// Respond: xauth  <auth_data>
+//          login  <login_data>
 //
 
 struct CmsLoginData
@@ -178,7 +208,6 @@ struct CmsLoginData
        kXR_unt16  fsUtil;            // FS Utilization (servers / supervisors)
        kXR_unt16  dPort;             // Data port      (servers /supervisors)
        kXR_unt16  sPort;             // Subs port      (managers/supervisors)
-       kXR_char  *Auth;              // Auth token     (all)
        kXR_char  *SID;               // Server ID      (servers/ supervisors)
        kXR_char  *Paths;             // Exported paths (servers/ supervisors)
 
@@ -469,34 +498,6 @@ struct CmsUpdateRequest
 //
 struct CmsUsageRequest
 {      CmsRRHdr      Hdr;
-};
-
-/******************************************************************************/
-/*               R e s p o n s e s   t o   R e d i r e c t o r                */
-/******************************************************************************/
-
-enum YErrorCode
-{  kYR_ENOENT = 1,
-   kYR_EPERM,
-   kYR_EACCES,
-   kYR_EINVAL,
-   kYR_EIO,
-   kYR_ENOMEM,
-   kYR_ENOSPC,
-   kYR_ENAMETOOLONG,
-   kYR_ENETUNREACH,
-   kYR_ENOTBLK,
-   kYR_EISDIR
-};
-
-struct CmsRdrResponse
-{      CmsRRHdr      Hdr;
-
-enum  {kYR_async   = 128               // Modifier: Reply to prev waitresp
-      };
-
-       kXR_unt32     Val;              // Port, Wait val, Error code, asyncid
-//     kXR_char      Data[Hdr.datalen];// Target host, data, or error message
 };
 
 }; // namespace XrdCms

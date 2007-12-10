@@ -115,9 +115,9 @@ static const int numSlots = 1024;
 static   const int                     iov_cnt = 2;
          struct iovec                  data_iov[iov_cnt];
          struct iovec                  redr_iov[iov_cnt];
-         XrdCms::CmsRdrResponse        dataResp;
-         XrdCms::CmsRdrResponse        redrResp;
-         XrdCms::CmsRdrResponse        waitResp;
+         XrdCms::CmsResponse           dataResp;
+         XrdCms::CmsResponse           redrResp;
+         XrdCms::CmsResponse           waitResp;
 union   {char                          hostbuff[288];
          char                          databuff[XrdCms::CmsLocateRequest::RILen
                                                *XrdCmsCluster::STMax];

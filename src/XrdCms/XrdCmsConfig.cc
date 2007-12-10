@@ -52,6 +52,7 @@ const char *XrdCmsConfigCVSID = "$Id$";
 #include "XrdCms/XrdCmsPrepArgs.hh"
 #include "XrdCms/XrdCmsProtocol.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
+#include "XrdCms/XrdCmsSecurity.hh"
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsSupervisor.hh"
 #include "XrdCms/XrdCmsTrace.hh"
@@ -122,6 +123,21 @@ Where:
        XrdCmsXmi       *XrdCms::Xmi_Stat   = 0;
 
        size_t           XrdCms::PageSize  = sysconf(_SC_PAGESIZE);
+
+/******************************************************************************/
+/*                S e c u r i t y   S y m b o l   T i e - I n                 */
+/******************************************************************************/
+  
+// The following is a bit of a kludge. The client side will use the xrootd
+// security infrastructure if it exists. This is tipped off by the presence
+// of the following symbol being non-zero. On the server side, we have no
+// such symbol and need to provide one initialized to zero.
+//
+       XrdSecProtocol *(*XrdXrootdSecGetProtocol)
+                                          (const char             *hostname,
+                                           const struct sockaddr  &netaddr,
+                                           const XrdSecParameters &parms,
+                                                 XrdOucErrInfo    *einfo)=0;
   
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
@@ -416,6 +432,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("prepmsg",       xprepm);  // Any,     non-dynamic
    TS_Xeq("remoteroot",    xrmtrt);  // Any,     non-dynamic
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
+   TS_Xeq("seclib",        xsecl);   // Server,  non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
    TS_Xeq("xmilib",        xxmi);    // Any,     non-dynamic
@@ -524,30 +541,6 @@ int XrdCmsConfig::GenLocalPath(const char *oldp, char *newp)
     if (strlen(oldp) >= XrdCmsMAX_PATH_LEN) return -ENAMETOOLONG;
     strcpy(newp, oldp);
     return 0;
-}
-
-/******************************************************************************/
-/*                              G e n M s g I D                               */
-/******************************************************************************/
-
-int XrdCmsConfig::GenMsgID(char *oldmid, char *buff, int blen)
-{
-   char *ep;
-   int msgnum, midlen;
-
-// Find the id separator, if none, allow the message to be forwarded only 
-// one additional time (compatability feature)
-//
-   msgnum = strtol(oldmid, &ep, 10);
-   if (*ep != '@') {msgnum = 1; ep = oldmid;}
-      else if (msgnum <= 1) return 0;
-              else {msgnum--; ep++;}
-
-// Format new msgid
-//
-   midlen = snprintf(buff, blen, "%d@%s ", msgnum, ep);
-   if (midlen < 0 || midlen >= blen) return 0;
-   return midlen;
 }
   
 /******************************************************************************/
@@ -662,6 +655,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    XmiPath     = 0;
    XmiParms    = 0;
    DirFlags    = 0;
+   SecLib      = 0;
 }
   
 /******************************************************************************/
@@ -745,7 +739,8 @@ int XrdCmsConfig::ConfigProc(int getrole)
                 ||  !strcmp(var, "all.adminpath")
                 ||  !strcmp(var, "all.export")
                 ||  !strcmp(var, "all.manager")
-                ||  !strcmp(var, "all.role"))
+                ||  !strcmp(var, "all.role")
+                ||  !strcmp(var, "all.seclib"))
                    {if (ConfigXeq(var+4, CFile, 0)) {CFile.Echo(); NoGo = 1;}}
                    else if (!strcmp(var, "oss.stagecmd")) DiskSS |= 2;
 
@@ -954,6 +949,10 @@ int XrdCmsConfig::setupManager()
 // Initialize the fast redirect queue
 //
    RRQ.Init(LUPHold, LUPDelay);
+
+// Initialize the security interface
+//
+   if (SecLib && !XrdCmsSecurity::Configure(SecLib, ConfigFN)) return 1;
 
 // All done
 //
@@ -2308,6 +2307,42 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
     return 0;
 }
 
+/******************************************************************************/
+/*                                 x s e c l                                  */
+/******************************************************************************/
+
+/* Function: xsecl
+
+   Purpose:  To parse the directive: seclib <path>
+
+             <path>    the location of the security library.
+
+   Type: Server only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xsecl(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val;
+
+// If we are a server, ignore this option
+//
+   if (!isManager) return CFile.noEcho();
+
+// Get path
+//
+   val = CFile.GetWord();
+   if (!val || !val[0])
+      {eDest->Emsg("Config", "seclib path not specified"); return 1;}
+
+// Assign new path
+//
+   if (SecLib) free(SecLib);
+   SecLib = strdup(val);
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                x s p a c e                                 */
 /******************************************************************************/

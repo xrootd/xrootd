@@ -18,6 +18,8 @@
 
 #include "XrdCms/XrdCmsLogin.hh"
 #include "XrdCms/XrdCmsParser.hh"
+#include "XrdCms/XrdCmsTalk.hh"
+#include "XrdCms/XrdCmsSecurity.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
 #include "XrdOuc/XrdOucPup.hh"
@@ -28,12 +30,6 @@
 using namespace XrdCms;
 
 /******************************************************************************/
-/*                           S t a t i c   D a t a                            */
-/******************************************************************************/
-  
-int       XrdCmsLogin::TimeOut = 1000;
-
-/******************************************************************************/
 /* Public:                         A d m i t                                  */
 /******************************************************************************/
   
@@ -41,24 +37,22 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 {
    CmsRRHdr      myHdr;
    CmsLoginData  myData;
-            int  myDlen;
+   const char   *eText, *Token;
+            int  myDlen, Toksz;
 
-// First obtain the complete header
+// Get complete request
 //
-   if (Link->Recv((char *)&myHdr, sizeof(myHdr), TimeOut) != sizeof(myHdr))
-      return sendError(Link, "login header not sent");
+   if ((eText = XrdCmsTalk::Attend(Link, myHdr, myBuff, myBlen, myDlen)))
+      return Emsg(Link, eText, 0);
 
-// Decode the length and get the rest of the data. Login data will never
-// exceeds 1k bytes (well, not at the moment anyway)
+// If we need to do authentication, do so now
 //
-   myDlen = static_cast<int>(ntohs(myHdr.datalen));
-   if (myDlen > myBlen) return sendError(Link, "login data too long");
-   if (Link->Recv(myBuff,myDlen,TimeOut) != myDlen)
-      return sendError(Link, "login data not sent");
+   if ((Token = XrdCmsSecurity::getToken(Toksz, Link->Host()))
+   &&  !XrdCmsSecurity::Authenticate(Link, Token, Toksz)) return 0;
 
 // Fiddle with the login data structures
 //
-   Data.SID = Data.Paths = Data.Auth = 0;
+   Data.SID = Data.Paths = 0;
    memset(&myData, 0, sizeof(myData));
    myData.Mode     = Data.Mode;
    myData.HoldTime = Data.HoldTime;
@@ -67,33 +61,16 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 // Decode the data pointers ans grab the login data
 //
    if (!Parser.Parse(&Data, myBuff, myBuff+myDlen)) 
-      return sendError(Link, "invalid login data");
-   myData.Auth = Data.Auth;
+      return Emsg(Link, "invalid login data", 0);
 
-// Do authentication, send login reply, and receive final authentication reply
+// Do authentication now, if needed
 //
-   return Authenticate(Link, myData);
-}
-
-/******************************************************************************/
-/* Private:                 A u t h e n t i c a t e                           */
-/******************************************************************************/
-  
-int XrdCmsLogin::Authenticate(XrdLink *Link, CmsLoginData &Data)
-{
-
-// At this point, we would decrypt the authtoken and generate a new token
-//
+   if ((Token = XrdCmsSecurity::getToken(Toksz, Link->Host())))
+      if (!XrdCmsSecurity::Authenticate(Link, Token, Toksz)) return 0;
 
 // Send off login reply
 //
-   return sendData(Link, Data);
-
-// Receive final authentication reply
-
-// If we sent a token, then the sender must send back the token. Since we know
-// we didn't send one, we don't receive one here. Eventually we will.
-
+   return (sendData(Link, myData) ? 0 : 1);
 }
 
 /******************************************************************************/
@@ -116,10 +93,6 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data)
    char WorkBuff[4096], *hList, *wP = WorkBuff;
    int n, dataLen;
 
-// Generate an authenticatioon token
-//
-   Data.Auth = 0;
-
 // Send the data
 //
    if (sendData(Link, Data)) return kYR_EINVAL;
@@ -139,6 +112,16 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data)
           return Emsg(Link, "login reply too long");
        if (Link->RecvAll(WorkBuff, dataLen) < 0)
           return Emsg(Link, "login receive error");
+      }
+
+// Check if we are being asked to identify ourselves
+//
+   if (LIHdr.rrCode == kYR_xauth)
+      {if (!XrdCmsSecurity::Identify(Link, LIHdr, WorkBuff, sizeof(WorkBuff)))
+          return kYR_EINVAL;
+       dataLen = static_cast<int>(ntohs(LIHdr.datalen));
+       if (dataLen > (int)sizeof(WorkBuff))
+          return Emsg(Link, "login reply too long");
       }
 
 // The response can also be a login redirect (i.e., a try request).
@@ -163,13 +146,6 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data)
    if (LIHdr.rrCode != kYR_login
    || !Parser.Parse(&Data, WorkBuff, WorkBuff+dataLen))
       return Emsg(Link, "invalid login response");
-
-// At this point we would validate the authentication token, generate a new
-// one and send it using a kYR_data response. For now, skip it.
-//
-
-// All done
-//
    return 0;
 }
 
@@ -184,7 +160,7 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
    int          iovcnt;
    char         Work[xNum*12];
    struct iovec Liov[xNum];
-   CmsRRHdr     LIHdr={0, kYR_login, 0, 0};
+   CmsRRHdr     Resp={0, kYR_login, 0, 0};
 
 // Pack the response (ignore the auth token for now)
 //
@@ -193,9 +169,9 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 
 // Complete I/O vector
 //
-   LIHdr.datalen = Data.Size;
-   Liov[0].iov_base = (char *)&LIHdr;
-   Liov[0].iov_len  = sizeof(LIHdr);
+   Resp.datalen = Data.Size;
+   Liov[0].iov_base = (char *)&Resp;
+   Liov[0].iov_len  = sizeof(Resp);
 
 // Send off the data
 //
@@ -204,33 +180,4 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 // Return success
 //
    return 0;
-}
-
-/******************************************************************************/
-/* Private:                    s e n d E r r o r                              */
-/******************************************************************************/
-  
-int XrdCmsLogin::sendError(XrdLink *Link, const char *msg, int ecode)
-{
-   static const int xNum   = 2;
-
-   struct iovec Liov[xNum];
-   int mlen = strlen(msg)+1;
-   CmsRdrResponse LEResp={{0, kYR_error, 0, 0}, htonl(ecode)};
-
-// Fill out header and iovector
-//
-   LEResp.Hdr.datalen = htons(static_cast<kXR_unt16>(mlen+sizeof(LEResp.Val)));
-   Liov[0].iov_base = (char *)&LEResp;
-   Liov[0].iov_len  = sizeof(LEResp);
-   Liov[1].iov_base = (char *)msg;
-   Liov[1].iov_len  = mlen;
-
-// Send off the data
-//
-   Link->Send(Liov, xNum);
-
-// Return the error text
-//
-   return Emsg(Link, msg, ecode);
 }

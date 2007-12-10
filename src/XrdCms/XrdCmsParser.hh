@@ -39,7 +39,7 @@ static int            Pack(int rnum, struct iovec *iovP, struct iovec *iovE,
 
 inline int            Parse(XrdCms::CmsLoginData *Data, 
                             const char *Aps, const char *Apt)
-                           {Data->Auth = Data->SID = Data->Paths = 0;
+                           {Data->SID = Data->Paths = 0;
                             return Pup.Unpack(Aps,Apt,vecArgs[XrdCms::kYR_login],
                                               (char *)Data);
                            }

@@ -212,10 +212,9 @@ XrdOucPupArgs XrdCmsParser::logArgs[] =
 /*6*/         setPUP1(XrdCmsRRData::Arg_Port,    short,   CmsLoginData, dPort),
 /*7*/         setPUP1(XrdCmsRRData::Arg_Port,    short,   CmsLoginData, sPort),
 /*8*/         setPUP0(Fence),
-/*9*/         setPUP1(XrdCmsRRData::Arg_AToken,  char,    CmsLoginData, Auth),
-/*0*/         setPUP1(XrdCmsRRData::Arg_SID,     char,    CmsLoginData, SID),
-/*1*/         setPUP1(XrdCmsRRData::Arg_Path,    char,    CmsLoginData, Paths),
-/*2*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,   CmsLoginData, Size)
+/*9*/         setPUP1(XrdCmsRRData::Arg_SID,     char,    CmsLoginData, SID),
+/*0*/         setPUP1(XrdCmsRRData::Arg_Path,    char,    CmsLoginData, Paths),
+/*1*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,   CmsLoginData, Size)
              };
 
 /******************************************************************************/
