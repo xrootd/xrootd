@@ -185,6 +185,11 @@ XrdSecgsi: FORCE
 	$(ECHO)cd src/XrdSecgsi;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
+XrdSecunix: FORCE
+	@echo $(XMSG) secunix $(XDBG) component...
+	$(ECHO)cd src/XrdSecunix;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
 XrdSut: FORCE
 	@echo $(XMSG) sut "(sec utils)" $(XDBG) component...
 	$(ECHO)cd src/XrdSut;\

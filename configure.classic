@@ -1817,7 +1817,7 @@ fi
 ### Collect security setup
 xrdsec="XrdSec $xrdsut $xrdcrypto"
 if test "x$buildsec" = "xyes" ; then
-   xrdsec="$xrdsec $havekrb4 $havekrb5 $havepwd $havegsi"
+   xrdsec="$xrdsec $havekrb4 $havekrb5 $havepwd $havegsi XrdSecunix"
 fi
 cryptlib="CRYPTLIB = -lcrypt"
 if test "x$platform" = "xmacosx" ; then
