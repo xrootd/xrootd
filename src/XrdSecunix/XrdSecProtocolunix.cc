@@ -47,6 +47,7 @@ friend class XrdSecProtocolDummy; // Avoid stupid gcc warnings about destructor
                            const struct sockaddr     *ipadd)
                           {Entity.host = strdup(hname);
                            Entity.name = (char *)"?";
+                           credBuff    = 0;
                           }
 
         void              Delete() {delete this;}
