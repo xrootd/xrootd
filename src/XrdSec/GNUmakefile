@@ -82,7 +82,7 @@ $(LIBARCH): $(OBJSLIB)
 
 $(LIBRARY): $(OBJSLIB) $(LIBDEPS)
 	@echo Creating shared library $(LIBRARY) 
-	$(ECHO)$(CC) $(OBJSLIB) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY); \
+	$(ECHO)$(CC) $(OBJSLIB) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY);
 
 $(TSTBINA): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(TSTBINA) 
