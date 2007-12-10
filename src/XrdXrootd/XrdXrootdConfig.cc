@@ -310,8 +310,10 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
    // Process items
    //
    while((var = Config.GetMyFirstWord()))
-        {if ((ismine = !strncmp("xrootd.", var, 7)) && var[7]) var += 7;
-            else if ((ismine = !strcmp("all.export", var)))    var += 4;
+        {     if ((ismine = !strncmp("xrootd.", var, 7)) && var[7]) var += 7;
+         else if ((ismine = !strcmp("all.export", var)))    var += 4;
+         else if ((ismine = !strcmp("all.seclib", var)))    var += 4;
+
          if (ismine)
             {     if TS_Xeq("async",         xasync);
              else if TS_Xeq("chksum",        xcksum);
