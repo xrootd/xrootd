@@ -23,7 +23,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-
+#include "XrdCms/XrdCmsFinder.hh"
 class XrdOfsEvs;
 class XrdOssDir;
 class XrdOucEnv;

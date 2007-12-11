@@ -18,13 +18,13 @@ xrootdcmsinc_HEADERS = \
     XrdCmsCluster.hh      XrdCmsConfig.hh       XrdCmsFinder.hh       \
     XrdCmsJob.hh          XrdCmsLogin.hh        XrdCmsManList.hh      \
     XrdCmsManTree.hh      XrdCmsManager.hh      XrdCmsMeter.hh        \
-                          XrdCmsNode.hh         XrdCmsPList.hh        \
+    XrdCmsSecurity.hh     XrdCmsNode.hh         XrdCmsPList.hh        \
     XrdCmsParser.hh       XrdCmsPrepArgs.hh     XrdCmsPrepare.hh      \
     XrdCmsProtocol.hh     XrdCmsRRData.hh       XrdCmsRRQ.hh          \
     XrdCmsRTable.hh       XrdCmsReq.hh          XrdCmsResp.hh         \
     XrdCmsRouting.hh      XrdCmsSelect.hh       XrdCmsState.hh        \
     XrdCmsSupervisor.hh   XrdCmsTrace.hh        XrdCmsTypes.hh        \
-    XrdCmsXmi.hh          XrdCmsXmiReq.hh
+    XrdCmsXmi.hh          XrdCmsXmiReq.hh       XrdCmsTalk.hh
 
 
 INCLUDES = -I$(top_srcdir)/src
@@ -49,11 +49,13 @@ XrdCmsRouting.cc \
 XrdCmsRRQ.cc \
 XrdCmsRTable.cc \
 XrdCmsState.cc \
+XrdCmsSecurity.cc \
 XrdCmsSupervisor.cc \
 XrdCmsXmiReq.cc \
 XrdCmsLogin.cc \
 XrdCmsParser.cc \
-XrdCmsRRData.cc
+XrdCmsRRData.cc \
+XrdCmsTalk.cc
 
 #    XrdCmsAdmin.cc        XrdCmsCache.cc        XrdCmsClientConfig.cc \
 #    XrdCmsClientMan.cc    XrdCmsClientMsg.cc    XrdCmsCluster.cc      \

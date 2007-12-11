@@ -12,7 +12,8 @@
 ################################################################################
 
 
-noinst_HEADERS = XrdVersion.hh XProtocol/XProtocol.hh  XProtocol/XPtypes.hh
+noinst_HEADERS = XrdVersion.hh XProtocol/YProtocol.hh XProtocol/XProtocol.hh \
+                 XProtocol/XPtypes.hh
 
 #######################################################################
 ## Option conditionals
@@ -66,6 +67,7 @@ SUBDIRS = XrdSys \
           $(XRDSECKRB4) \
           $(XRDSECKRB5) \
           $(XRDSECGSI) \
+          XrdSecunix \
           XrdSfs \
           XrdAcc \
           XrdOdc \
