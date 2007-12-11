@@ -8,67 +8,86 @@
 ## Checked in by $Author$
 #######################################################################
 
+#####################################################
+# TARGETS
 bin_PROGRAMS = cmsd
 
+lib_LTLIBRARIES = libXrdCms.la
+
+# convenience library for the common sources, just used for the build
+noinst_LTLIBRARIES = libXrdCmsConv.la
+
+#####################################################
+# HEADERS to be installed
 xrootdcmsincdir = $(includedir)/xrootd/XrdCms
 
 xrootdcmsinc_HEADERS = \
-    XrdCmsAdmin.hh        XrdCmsCache.hh        XrdCmsClient.hh       \
-    XrdCmsClientConfig.hh XrdCmsClientMan.hh    XrdCmsClientMsg.hh    \
-    XrdCmsCluster.hh      XrdCmsConfig.hh       XrdCmsFinder.hh       \
-    XrdCmsJob.hh          XrdCmsLogin.hh        XrdCmsManList.hh      \
-    XrdCmsManTree.hh      XrdCmsManager.hh      XrdCmsMeter.hh        \
-    XrdCmsSecurity.hh     XrdCmsNode.hh         XrdCmsPList.hh        \
-    XrdCmsParser.hh       XrdCmsPrepArgs.hh     XrdCmsPrepare.hh      \
-    XrdCmsProtocol.hh     XrdCmsRRData.hh       XrdCmsRRQ.hh          \
-    XrdCmsRTable.hh       XrdCmsReq.hh          XrdCmsResp.hh         \
-    XrdCmsRouting.hh      XrdCmsSelect.hh       XrdCmsState.hh        \
-    XrdCmsSupervisor.hh   XrdCmsTrace.hh        XrdCmsTypes.hh        \
-    XrdCmsXmi.hh          XrdCmsXmiReq.hh       XrdCmsTalk.hh
+XrdCmsAdmin.hh         XrdCmsManTree.hh   XrdCmsReq.hh \
+XrdCmsCache.hh         XrdCmsManager.hh   XrdCmsResp.hh \
+XrdCmsClient.hh        XrdCmsMeter.hh     XrdCmsRouting.hh \
+XrdCmsClientConfig.hh  XrdCmsNode.hh      XrdCmsSecurity.hh \
+XrdCmsClientMan.hh     XrdCmsPList.hh     XrdCmsSelect.hh \
+XrdCmsClientMsg.hh     XrdCmsParser.hh    XrdCmsState.hh \
+XrdCmsCluster.hh       XrdCmsPrepArgs.hh  XrdCmsSupervisor.hh \
+XrdCmsConfig.hh        XrdCmsPrepare.hh   XrdCmsTalk.hh \
+XrdCmsFinder.hh        XrdCmsProtocol.hh  XrdCmsTrace.hh \
+XrdCmsJob.hh           XrdCmsRRData.hh    XrdCmsTypes.hh \
+XrdCmsLogin.hh         XrdCmsRRQ.hh       XrdCmsXmi.hh \
+XrdCmsManList.hh       XrdCmsRTable.hh    XrdCmsXmiReq.hh
 
 
-INCLUDES = -I$(top_srcdir)/src
+
+######################################################
+# BUILD DEFINITIONS (SOURCES AND FLAGS)
+
+AM_CPPFLAGS = -I$(top_srcdir)/src
+
+# for convenience:
+libXrdCmsConv_la_SOURCES = \
+        XrdCmsLogin.cc       \
+        XrdCmsParser.cc      \
+        XrdCmsRRData.cc      \
+        XrdCmsSecurity.cc    \
+        XrdCmsTalk.cc
+
+
+libXrdCms_la_SOURCES = \
+        XrdCmsClientConfig.cc\
+        XrdCmsClientMan.cc   \
+        XrdCmsClientMsg.cc   \
+        XrdCmsFinder.cc      \
+        XrdCmsResp.cc
+
+libXrdCms_la_LIBADD = libXrdCmsConv.la
+
 
 cmsd_SOURCES = \
-XrdCmsAdmin.cc \
-XrdCmsCache.cc \
-XrdCmsCluster.cc \
-XrdCmsConfig.cc \
-XrdCmsJob.cc \
-XrdCmsManList.cc \
-XrdCmsManTree.cc \
-XrdCmsManager.cc \
-XrdCmsMeter.cc \
-XrdCmsNode.cc \
-XrdCmsPList.cc \
-XrdCmsPrepArgs.cc \
-XrdCmsPrepare.cc \
-XrdCmsProtocol.cc \
-XrdCmsReq.cc \
-XrdCmsRouting.cc \
-XrdCmsRRQ.cc \
-XrdCmsRTable.cc \
-XrdCmsState.cc \
-XrdCmsSecurity.cc \
-XrdCmsSupervisor.cc \
-XrdCmsXmiReq.cc \
-XrdCmsLogin.cc \
-XrdCmsParser.cc \
-XrdCmsRRData.cc \
-XrdCmsTalk.cc
+        XrdCmsAdmin.cc       \
+        XrdCmsCache.cc       \
+        XrdCmsCluster.cc     \
+        XrdCmsConfig.cc      \
+        XrdCmsJob.cc         \
+        XrdCmsManList.cc     \
+        XrdCmsManTree.cc     \
+        XrdCmsManager.cc     \
+        XrdCmsMeter.cc       \
+        XrdCmsNode.cc        \
+        XrdCmsPList.cc       \
+        XrdCmsPrepArgs.cc    \
+        XrdCmsPrepare.cc     \
+        XrdCmsProtocol.cc    \
+        XrdCmsReq.cc         \
+        XrdCmsRouting.cc     \
+        XrdCmsRRQ.cc         \
+        XrdCmsRTable.cc      \
+        XrdCmsState.cc       \
+        XrdCmsSupervisor.cc  \
+        XrdCmsXmiReq.cc
 
-#    XrdCmsAdmin.cc        XrdCmsCache.cc        XrdCmsClientConfig.cc \
-#    XrdCmsClientMan.cc    XrdCmsClientMsg.cc    XrdCmsCluster.cc      \
-#    XrdCmsConfig.cc       XrdCmsFinder.cc       XrdCmsJob.cc          \
-#    XrdCmsLogin.cc        XrdCmsManList.cc      XrdCmsManTree.cc      \
-#    XrdCmsManager.cc      XrdCmsMeter.cc                              \
-#    XrdCmsNode.cc         XrdCmsPList.cc        XrdCmsParser.cc       \
-#    XrdCmsPrepArgs.cc     XrdCmsPrepare.cc      XrdCmsProtocol.cc     \
-#    XrdCmsRRData.cc       XrdCmsRRQ.cc          XrdCmsRTable.cc       \
-#    XrdCmsReq.cc          XrdCmsResp.cc         XrdCmsRouting.cc      \
-#    XrdCmsState.cc        XrdCmsSupervisor.cc   XrdCmsXmiReq.cc
 
-cmsd_LDADD = ../XrdNet/libXrdNet.la \
+
+cmsd_LDADD = libXrdCmsConv.la \
+             ../XrdNet/libXrdNet.la \
              ../XrdOuc/libXrdOuc.la \
              ../XrdSys/libXrdSys.la \
              ../Xrd/libXrd.la \
