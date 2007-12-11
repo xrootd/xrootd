@@ -474,6 +474,11 @@ int main(int argc, char**argv) {
 	 }
 	 else path = currentpath;
 
+	 if (!path.length()) {
+	    cout << "The current path is empty." << endl;
+	    continue;
+	 }
+
 	 // Now try to issue the request
 	 vecString vs;
 	 genadmin->DirList(path.c_str(), vs);
