@@ -34,6 +34,7 @@ libXrdOfs_la_LDFLAGS = -module
 
 libXrdOfs_la_LIBADD = ../XrdAcc/libXrdAcc.la \
                       ../XrdOss/libXrdOss.la \
+                      ../XrdCms/libXrdCms.la \
                       ../XrdOdc/libXrdOdc.la \
                       ../XrdNet/libXrdNet.la \
                       ../XrdOuc/libXrdOuc.la \

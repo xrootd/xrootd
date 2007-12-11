@@ -58,6 +58,11 @@ libXrdCms_la_SOURCES = \
         XrdCmsFinder.cc      \
         XrdCmsResp.cc
 
+# WARNING: there is an undefined symbol XrdCms::PageSize that prevents libXrdOfs from
+# loading libXrdCms as a shared library. Therefore we enforce libXrdCms to be created
+# as a static library only, for now.
+libXrdCms_la_LDFLAGS = -static
+
 libXrdCms_la_LIBADD = libXrdCmsConv.la
 
 
