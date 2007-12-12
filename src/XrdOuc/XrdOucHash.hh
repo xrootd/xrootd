@@ -165,7 +165,7 @@ T           *Apply(int (*func)(const char *, T *, void *), void *Arg);
 // series is simply n[j] = n[j-1] + n[j-2].
 //
     XrdOucHash(int psize = 89, int size=144, int load=80);
-   ~XrdOucHash() {Purge(); free(hashtable);}
+   ~XrdOucHash() {if (hashtable) {Purge(); free(hashtable); hashtable = 0;}}
 
 private:
 void Remove(int kent, XrdOucHash_Item<T> *hip, XrdOucHash_Item<T> *phip);
