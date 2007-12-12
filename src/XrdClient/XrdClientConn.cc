@@ -2020,7 +2020,7 @@ XReqErrorType XrdClientConn::GoBackToRedirector() {
   // redirections. Used typically for stat and similar functions
   Disconnect(false);
   if (fGlobalRedirCnt) fGlobalRedirCnt--;
-  return GoToAnotherServer(*fLBSUrl);
+  return (fLBSUrl ? GoToAnotherServer(*fLBSUrl) : kOK);
 }
 
 //_____________________________________________________________________________
