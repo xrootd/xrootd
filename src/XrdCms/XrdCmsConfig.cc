@@ -2090,7 +2090,7 @@ int XrdCmsConfig::xprepm(XrdSysError *eDest, XrdOucStream &CFile)
 
 int XrdCmsConfig::xrmtrt(XrdSysError *eDest, XrdOucStream &CFile)
 {
-    char *val;
+    char *val, *colon, *slash;
     int i;
 
 // If we are a manager, ignore this option
@@ -2102,8 +2102,14 @@ int XrdCmsConfig::xrmtrt(XrdSysError *eDest, XrdOucStream &CFile)
    val = CFile.GetWord();
    if (!val || !val[0])
       {eDest->Emsg("Config", "remoteroot path not specified"); return 1;}
+
+// For remote roots we allow a url-type specification o/w path must be absolute
+//
    if (*val != '/')
-      {eDest->Emsg("Config", "remoteroot path not absolute"); return 1;}
+      {colon = index(val, ':'); slash = index(val, '/');
+       if ((colon+1) != slash)
+          {eDest->Emsg("Config", "remoteroot path not absolute"); return 1;}
+      }
 
 // Cleanup the path
 //

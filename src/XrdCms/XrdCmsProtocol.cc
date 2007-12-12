@@ -85,6 +85,9 @@ extern "C"
 XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
                             XrdProtocol_Config *pi)
 {
+// If we failed in Phase 1 initialization, immediately fail Phase 2.
+//
+   if (Config.doWait < 0) return (XrdProtocol *)0;
 
 // Initialize the network interface and get the actual port number assigned
 //
@@ -161,10 +164,11 @@ int XrdgetProtocolPort(const char *pname, char *parms,
 //
    Say.Say("Copr.  2007 Stanford University/SLAC cmsd.");
 
-// Return failure if static init fails
+// Indicate failure if static init fails
 //
    if (cfn) cfn = strdup(cfn);
-   if (Config.Configure1(pi->argc, pi->argv, cfn)) return -1;
+   if (Config.Configure1(pi->argc, pi->argv, cfn))
+      {Config.doWait = -1; return 0;}
 
 // Return the port number to be used
 //
