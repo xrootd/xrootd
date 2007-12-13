@@ -12,10 +12,10 @@
 # TARGETS
 bin_PROGRAMS = cmsd
 
-lib_LTLIBRARIES = libXrdCms.la
+#lib_LTLIBRARIES = libXrdCms.la
 
 # convenience library for the common sources, just used for the build
-noinst_LTLIBRARIES = libXrdCmsConv.la
+noinst_LTLIBRARIES = libXrdCmsConv.la libXrdCms.la
 
 #####################################################
 # HEADERS to be installed
@@ -59,9 +59,8 @@ libXrdCms_la_SOURCES = \
         XrdCmsResp.cc
 
 # WARNING: there is an undefined symbol XrdCms::PageSize that prevents libXrdOfs from
-# loading libXrdCms as a shared library. Therefore we enforce libXrdCms to be created
-# as a static library only, for now.
-libXrdCms_la_LDFLAGS = -static
+# loading libXrdCms as a shared library. Therefore we build libXrdCms as a
+# convenience library only, for now.
 
 libXrdCms_la_LIBADD = libXrdCmsConv.la
 
