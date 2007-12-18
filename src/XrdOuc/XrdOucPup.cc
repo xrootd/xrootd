@@ -165,14 +165,14 @@ int XrdOucPup::Pack(struct iovec *iovP, struct iovec *iovE, XrdOucPupArgs *pup,
                    break;
 
               case PT_int:
-                   n32 = htons(*Base.B32);
+                   n32 = htonl(*Base.B32);
                    *wP = PT_int;      memcpy(wP+1, &n32, sizeof(n32));
                    vP->iov_base = wP; vP->iov_len = Sz32; vP++;
                    wP += Sz32; TotLen += Sz32; dlen = sizeof(n32);
                    break;
 
               case PT_longlong:
-                   n64 = htons(*Base.B64);
+                         h2nll(*Base.B64, n64);
                    *wP = PT_longlong; memcpy(wP+1, &n64, sizeof(n64));
                    vP->iov_base = wP; vP->iov_len = Sz64; vP++;
                    wP += Sz64; TotLen += Sz64; dlen = sizeof(n64);
