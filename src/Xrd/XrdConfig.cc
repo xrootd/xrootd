@@ -708,6 +708,7 @@ int XrdConfig::Setup(char *dfltp)
   
 void XrdConfig::UnderCover()
 {
+   static const int maxFiles = 256;
    pid_t mypid;
    int myfd;
 
@@ -742,6 +743,10 @@ void XrdConfig::UnderCover()
        return;
       }
    dup2(myfd, 0); dup2(myfd, 1); dup2(myfd, 2);
+
+// Close any open file descriptors left open by the parent process
+//
+  for (myfd = 3; myfd < maxFiles; myfd++) close(myfd);
 }
 
 /******************************************************************************/
