@@ -12,8 +12,6 @@
 
 //       $Id$
 
-#include <stdarg.h>
-
 #include "XProtocol/YProtocol.hh"
 
 class XrdCmsRouting
@@ -28,19 +26,17 @@ enum {isInvalid = 0x00,
       Delayable = 0x10
      };
 
+struct      theRouting {int reqCode; int reqOpts;};
+
 inline int  getRoute(int reqCode)
                       {return reqCode < XrdCms::kYR_MaxReq
                                       ? valVec[reqCode] : isInvalid;
                       }
 
-            XrdCmsRouting(int mVal, ...)
-                          {va_list ap;
-                           int     vp = mVal;
-                           memset(valVec, 0, sizeof(valVec));
-                           va_start(ap, mVal);
-                           do { valVec[vp] = va_arg(ap, int);
-                              } while((vp  = va_arg(ap, int)));
-                           va_end(ap);
+            XrdCmsRouting(theRouting *initP)
+                          {memset(valVec, 0, sizeof(valVec));
+                           do {valVec[initP->reqCode] = initP->reqOpts;
+                              } while((++initP)->reqCode);
                            }
             ~XrdCmsRouting() {}
 
@@ -61,6 +57,8 @@ public:
 
 typedef const char *(XrdCmsNode::*NodeMethod_t)(XrdCmsRRData &);
 
+struct  theRoute {int reqCode; const char *reqName; NodeMethod_t reqMeth;};
+
 inline  NodeMethod_t getMethod(int Code)
                            {return Code < XrdCms::kYR_MaxReq
                                         ? methVec[Code] : (NodeMethod_t)0;
@@ -71,17 +69,11 @@ inline  const char  *getName(int Code)
                                          ? nameVec[Code] : "?";
                             }
 
-              XrdCmsRouter(int mVal, ...)
-                          {va_list ap;
-                           int     vp = mVal;
-                           NodeMethod_t *Method;
-                           memset(methVec, 0, sizeof(methVec));
-                           va_start(ap, mVal);
-                           do { nameVec[vp] = (const char  *)va_arg(ap,const char *);
-                                Method      = (NodeMethod_t*)va_arg(ap,NodeMethod_t*);
-                                methVec[vp] = (Method ? *Method : (NodeMethod_t) 0);
-                              } while((vp = va_arg(ap, int)));
-                           va_end(ap);
+              XrdCmsRouter(theRoute *initP)
+                          {memset(methVec, 0, sizeof(methVec));
+                           do {nameVec[initP->reqCode] = initP->reqName;
+                               methVec[initP->reqCode] = initP->reqMeth;
+                              } while((++initP)->reqCode);
                            }
              ~XrdCmsRouter() {}
 
