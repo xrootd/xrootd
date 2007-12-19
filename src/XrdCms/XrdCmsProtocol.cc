@@ -260,6 +260,11 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    loginData.fSpace= Meter.FreeSpace(fsUtil);
    loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
 
+   loginData.Version = kYR_Version; // These to keep compiler happy
+   loginData.HoldTime= 0;
+   loginData.Mode    = 0;
+   loginData.Size    = 0;
+
 // Establish request routing based on who we are
 //
    Routing = (Config.asManager() || Config.asPeer() ? &supVOps : &srvVOps);
