@@ -161,6 +161,10 @@ int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env)
     char *val;
     int rc, prty;
 
+// If there is no stagecmd then return an error
+//
+   if (!StageCmd) return -XRDOSS_E8006;
+
 // Set up the minimal new request structure
 //
    req.hash = XrdOucHashVal(fn);

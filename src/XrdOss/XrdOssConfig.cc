@@ -524,9 +524,14 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
 {
    char *tp, *gwp = 0, *stgp = 0;
    unsigned long long dflags, flags;
-   int retc, numt, NoGo = 0;
+   int isMan, retc, numt, NoGo = 0;
    pthread_t tid;
    XrdOucPList *fp;
+
+// Determine if we are a manager/supervisor. These never stage files so we
+// really don't need (nor want) a stagecmd or an msscmd.
+//
+   isMan = ((tp = getenv("XRDREDIRECT")) && !strcmp(tp, "R"));
 
 // A mssgwcmd implies mig and a stagecmd implies stage as defaults
 //
@@ -558,6 +563,15 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
                   (DirFlags & XRDEXP_RCREATE))  gwp = (char *)"/";
       }
 
+// If we are a manager/supervisor, short circuit MSS initialization
+//
+   if (isMan)
+      {if (MSSgwCmd) {free(MSSgwCmd); MSSgwCmd = 0;}
+       if (StageCmd) {free(StageCmd); StageCmd = 0;}
+       MSSgwProg = 0;
+       return NoGo;
+      }
+
 // Check if we need or don't need the stagecmd
 //
    if (stgp && !StageCmd)
@@ -574,7 +588,7 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
 //
    if (gwp && !MSSgwCmd)
       {Eroute.Emsg("Config","MSS path", gwp,
-                            "present but mssgwcmd not specified.");
+                            "present but msscmd not specified.");
        NoGo = 1;
       }
       else if (MSSgwCmd && !gwp)
