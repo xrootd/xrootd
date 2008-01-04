@@ -300,7 +300,9 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
 // 
     fs_list = tlp; 
     MinFree = Config.DiskMin;
+    MinStype= Scale(MinFree, MinShow);
     HWMFree = Config.DiskHWM;
+    HWMStype= Scale(HWMFree, HWMShow);
     dsk_calc = (Config.DiskAsk < 5 ? 5 : Config.DiskAsk);
 
 // Calculate number of filesystems without duplication
@@ -355,12 +357,12 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
    if (fs_nums)
       {sfx1 = Scale(dsk_maxf, maxfree);
        sfx2 = Scale(dsk_tot,  totDisk);
-       sprintf(buff,"Found %d filesystem(s); %ld%c total bytes (%d%% utilized);"
-                    " %ld%c max available",
+       sprintf(buff,"Found %d filesystem(s); %ld%cB total (%d%% utilized);"
+                    " %ld%cB max available",
                     fs_nums, totDisk, sfx2, dsk_util, maxfree, sfx1);
        Say.Emsg("Meter", buff);
        if (noSpace)
-          {sprintf(buff, "%lldK minimum", MinFree);
+          {sprintf(buff, "%ld%cB minimum", MinShow, MinStype);
            Say.Emsg("Meter", "Warning! Available space <", buff);
           }
       }
@@ -395,6 +397,7 @@ int XrdCmsMeter::isDup(struct stat &buf, XrdCmsMeterFS *baseFS)
 void XrdCmsMeter::calcSpace()
 {
    EPNAME("calcSpace")
+   int       old_util;
    long long fsbsize;
    long long bytes, fsutil, fsavail = 0, fstotav = 0;
    XrdOucTList *tlp = fs_list;
@@ -429,12 +432,12 @@ void XrdCmsMeter::calcSpace()
 // Update the stats and release the lock
 //
    cfsMutex.Lock();
-   bytes    = dsk_maxf;
+   old_util = dsk_util;
    dsk_maxf = fsavail/1024;
    dsk_free = fsavail/1024;
    dsk_util = static_cast<int>(fsutil);
    cfsMutex.UnLock();
-   if (bytes != dsk_maxf)
+   if (old_util != dsk_util)
       DEBUG("New fs info; maxfree=" <<dsk_maxf <<"K utilized=" <<dsk_util <<"%");
 }
 
@@ -442,12 +445,14 @@ void XrdCmsMeter::calcSpace()
 /*                                 S c a l e                                  */
 /******************************************************************************/
   
+// Note: Input quantity is always in kilobytes!
+
 const char XrdCmsMeter::Scale(long long inval, long &outval)
 {
     const char sfx[] = {'K', 'M', 'G', 'T', 'P'};
     unsigned int i;
 
-    for (i = 0; i < sizeof(sfx) && inval > 9999; i++) inval = inval/1024;
+    for (i = 0; i < sizeof(sfx) && inval > 1024; i++) inval = inval/1024;
 
     outval = static_cast<long>(inval);
     return sfx[i];
@@ -459,13 +464,24 @@ const char XrdCmsMeter::Scale(long long inval, long &outval)
 
 void XrdCmsMeter::SpaceMsg(int why)
 {
-   char buff[1024];
+   const char *What;
+   char sfx, buff[1024];
+   long maxfree;
+
+   sfx = Scale(dsk_maxf, maxfree);
+
    if (why)
-      sprintf(buff, "Insufficient space; %lldK available < %lld %s",
-                    dsk_maxf, (noSpace ? HWMFree : MinFree),
-                              (noSpace ? "high watermark" : "minimum"));
-      else 
-      sprintf(buff, "  Sufficient space; %lldK available > %lldK high watermak",
-                    dsk_maxf, HWMFree);
-      Say.Emsg("Meter", buff);
+      {What = "Insufficient space; ";
+       if (noSpace)
+          sprintf(buff, "%ld%cB available < %ld%cB high watermark",
+                                maxfree, sfx, HWMShow, HWMStype);
+          else
+          sprintf(buff, "%ld%cB available < %ld%cB minimum",
+                                maxfree, sfx, MinShow, MinStype);
+      } else {
+       What = "  Sufficient space; ";
+       sprintf(buff, "%ld%cB available > %ld%cB high watermak",
+                                maxfree, sfx, HWMShow, HWMStype);
+      }
+      Say.Emsg("Meter", What, buff);
 }

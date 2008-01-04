@@ -12,19 +12,22 @@
 
 //       $Id$
 
+#include "XrdCms/XrdCmsKey.hh"
+
 /******************************************************************************/
 /*                    C l a s s   X r d C m s S e l e c t                     */
 /******************************************************************************/
+
+class XrdCmsRRQInfo;
   
 class XrdCmsSelect
 {
 public:
-char          *Path;    //  In: Path to select
-int            PLen;    //  In: Length of path
-int            iovN;    //  In: Prepare notification I/O vector count
-struct iovec  *iovP;    //  In: Prepare notification I/O vector
-SMask_t        nmask;   //  In: Nodes to avoid
+XrdCmsKey      Path;    //  In: Path to select or lookup in the cache
 XrdCmsRRQInfo *InfoP;   //  In: Fast redirect routing
+SMask_t        nmask;   //  In: Nodes to avoid
+struct iovec  *iovP;    //  In: Prepare notification I/O vector
+int            iovN;    //  In: Prepare notification I/O vector count
 int            Opts;    //  In: One or more of the following enums
 
 enum {Write   = 0x0001, // File will be open in write mode (select & cache)
@@ -35,23 +38,24 @@ enum {Write   = 0x0001, // File will be open in write mode (select & cache)
       Refresh = 0x0040, // Cache should be refreshed
       Asap    = 0x0080, // Respond as soon as possible
       noStage = 0x0800, // Do not stage the file
+      Advisory= 0x4000, // Cache Add/Del is advisory (no delay)
       Pending = 0x8000  // File being staged (select & cache)
      };
 
 struct {SMask_t wf;     // Out: Writable locations
         SMask_t hf;     // Out: Existing locations
         SMask_t pf;     // Out: Pending  locations
-       }     Vec;
+        SMask_t bf;     // Out: Bounced  locations
+       }        Vec;
 
 struct {int  Port;      // Out: Target node port number
         char Data[256]; // Out: Target node or error message
         int  DLen;      // Out: Length of Data including null byte
        }     Resp;
 
-             XrdCmsSelect(int opts=0)
-                         {Opts = opts; Resp.Port = 0;
-                          *Resp.Data = '\0'; Resp.DLen = 0;
-                              }
+             XrdCmsSelect(int opts=0, char *thePath=0, int thePLen=0)
+                         : Path(thePath,thePLen), Opts(opts)
+                         {Resp.Port = 0; *Resp.Data = '\0'; Resp.DLen = 0;}
             ~XrdCmsSelect() {}
 };
 

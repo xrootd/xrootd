@@ -57,8 +57,8 @@ XrdOucStream  myMeter;
 XrdSysMutex   cfsMutex;
 XrdSysMutex   repMutex;
 XrdOucTList  *fs_list;
-long long     MinFree;
-long long     HWMFree;
+long long     MinFree;  // Calculated only once
+long long     HWMFree;  // Calculated only once
 long long     dsk_tot;  // Calculated only once
 long long     dsk_free;
 long long     dsk_maxf;
@@ -67,6 +67,10 @@ int           dsk_calc;
 int           fs_nums;  // Calculated only once
 int           noSpace;
 int           Running;
+long          MinShow;  // Calculated only once
+long          HWMShow;  // Calculated only once
+char          MinStype; // Calculated only once
+char          HWMStype; // Calculated only once
 
 char          ubuff[64];
 time_t        rep_tod;

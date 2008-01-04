@@ -49,7 +49,7 @@ public:
        int    DiskFree;     // Largest free KB
        int    DiskUtil;     // Total disk utilization
        int    DiskNums;     // Number of file systems
-       int    Reserved;
+unsigned int  ConfigID;     // Configuration identifier
 
 const  char  *do_AvKb(XrdCmsRRData &Arg);
 const  char  *do_Chmod(XrdCmsRRData &Arg);

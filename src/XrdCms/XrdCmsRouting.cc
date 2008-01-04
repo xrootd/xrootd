@@ -65,29 +65,30 @@ XrdCmsRouter::theRoute initRouter[] =
 namespace XrdCms
 {
 XrdCmsRouting::theRouting initRDRrouting[] =
-     {{kYR_chmod,   XrdCmsRouting::isAsync | XrdCmsRouting::Forward
-                  | XrdCmsRouting::Delayable},
+     {{kYR_chmod,   XrdCmsRouting::isAsync   | XrdCmsRouting::Forward
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
       {kYR_locate,  XrdCmsRouting::isAsync
-                  | XrdCmsRouting::Delayable},
-      {kYR_mkdir,   XrdCmsRouting::isAsync | XrdCmsRouting::Forward
-                  | XrdCmsRouting::Delayable},
-      {kYR_mkpath,  XrdCmsRouting::isAsync | XrdCmsRouting::Forward
-                  | XrdCmsRouting::Delayable},
-      {kYR_mv,      XrdCmsRouting::isAsync | XrdCmsRouting::Forward
-                  | XrdCmsRouting::Delayable},
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_mkdir,   XrdCmsRouting::isAsync   | XrdCmsRouting::Forward
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_mkpath,  XrdCmsRouting::isAsync   | XrdCmsRouting::Forward
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_mv,      XrdCmsRouting::isAsync   | XrdCmsRouting::Forward
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
       {kYR_prepadd, XrdCmsRouting::isSync
-                  | XrdCmsRouting::Delayable},
-      {kYR_prepdel, XrdCmsRouting::isSync  | XrdCmsRouting::Forward
-                  | XrdCmsRouting::Delayable},
-      {kYR_rm,      XrdCmsRouting::isAsync | XrdCmsRouting::Forward
-                  | XrdCmsRouting::Delayable},
-      {kYR_rmdir,   XrdCmsRouting::isAsync | XrdCmsRouting::Forward
-                  | XrdCmsRouting::Delayable},
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_prepdel, XrdCmsRouting::isSync    | XrdCmsRouting::Forward
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_rm,      XrdCmsRouting::isAsync   | XrdCmsRouting::Forward
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_rmdir,   XrdCmsRouting::isAsync   | XrdCmsRouting::Forward
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
       {kYR_select,  XrdCmsRouting::isAsync
-                  | XrdCmsRouting::Delayable},
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
       {kYR_stats,   XrdCmsRouting::isAsync
-                  | XrdCmsRouting::Delayable},
-      {kYR_update,  XrdCmsRouting::isSync | XrdCmsRouting::noArgs},
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_update,  XrdCmsRouting::isSync    | XrdCmsRouting::noArgs
+                  | XrdCmsRouting::Repliable},
       {0,           0}};
 }
 

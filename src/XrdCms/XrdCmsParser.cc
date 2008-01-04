@@ -191,7 +191,8 @@ XrdOucPupArgs XrdCmsParser::avkArgs[] =
 //
 XrdOucPupArgs XrdCmsParser::pthArgs[] =
 /*0*/        {setPUP1(XrdCmsRRData::Arg_Path,    char, XrdCmsRRData, Path),
-/*1*/         setPUP0(End)
+/*1*/         setPUP1(XrdCmsRRData::Arg_Datlen,Datlen, XrdCmsRRData, PathLen),
+/*2*/         setPUP0(End)
              };
 
 // load <cpu> <io> <load> <mem> <pag> <dut> <dsk>

@@ -48,6 +48,7 @@ const char *XrdCmsProtocolCVSID = "$Id$";
 
 #include "XrdNet/XrdNetDNS.hh"
 
+#include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 
@@ -190,7 +191,7 @@ void XrdCmsProtocol::Execute(XrdCmsRRData &Data)
 // Check if we can continue
 //
    if (CmsState.Suspended && Data.Routing & XrdCmsRouting::Delayable)
-      {Reply_Delay(Data.Request.streamid, theDelay); return;}
+      {Reply_Delay(Data, theDelay); return;}
 
 // Validate request code and execute the request. If successful, forward the
 // request to subscribers of this node if the request is forwardable.
@@ -198,7 +199,7 @@ void XrdCmsProtocol::Execute(XrdCmsRRData &Data)
    if (!(Method = Router.getMethod(Data.Request.rrCode)))
       Say.Emsg("Protocol", "invalid request code from", myNode->Ident);
       else if ((etxt = (myNode->*Method)(Data)))
-              Reply_Error(Data.Request.streamid, kYR_EINVAL, etxt);
+              Reply_Error(Data, kYR_EINVAL, etxt);
               else if (Data.Routing & XrdCmsRouting::Forward
                    &&  Cluster.NodeCnt) Reissue(Data);
 }
@@ -279,6 +280,12 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
                                              | CmsLoginData::kYR_suspend;
               else                     Role  = CmsLoginData::kYR_server;
    if (Config.asProxy())               Role |= CmsLoginData::kYR_proxy;
+
+// If we are a simple server, permanently add the nostage option if we are
+// not able to stage any files.
+//
+   if (Role == CmsLoginData::kYR_server && !Config.DiskSS)
+      Role |=  CmsLoginData::kYR_nostage;
 
 // Keep connecting to our manager. If XWait is present, wait for it to
 // be turned off first; then try to connect.
@@ -538,11 +545,12 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    myNode->DiskNums = Data.fsNum;
    myNode->DiskUtil = Data.fsUtil;
 
-// Process all of the paths
+// Check for any configuration changes and then process all of the paths.
 //
-   if (Data.Paths)
+   if (Data.Paths && *Data.Paths)
       {XrdOucTokenizer thePaths((char *)Data.Paths);
        char *tp, *pp;
+       ConfigCheck(Data.Paths);
        while((tp = thePaths.GetLine()))
             {DEBUG(Link->Name() <<" adding path: " <<tp);
              if (!(tp = thePaths.GetToken())
@@ -554,15 +562,14 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
             }
       }
 
-// Check if we have any special paths. If none, then we must set the cache for
-// all entries to indicate that the node bounced.
+// Check if we have any special paths. If none, then add the default path.
 //
    if (!addedp) 
       {XrdCmsPInfo pinfo;
+       ConfigCheck(0);
        pinfo.rovec = myNode->Mask();
        if (myNode->isPeer) pinfo.ssvec = myNode->Mask();
        servset = Cache.Paths.Insert("/", &pinfo);
-       Cache.Bounce(myNode->Mask());
        Say.Emsg("Protocol", myNode->Ident, "defaulted r /");
       }
 
@@ -643,10 +650,6 @@ SMask_t XrdCmsProtocol::AddPath(XrdCmsNode *nP,
 //
    if (pinfo.rwvec || pinfo.ssvec) nP->isRW = 1;
 
-// For everything matching the path indicate in the cache the node bounced
-//
-   Cache.Bounce(nP->Mask(), Path);
-
 // Add the path to the known path list
 //
    return Cache.Paths.Insert(Path, &pinfo);
@@ -681,6 +684,29 @@ XrdCmsProtocol *XrdCmsProtocol::Alloc(const char *theRole,
 // All done
 //
    return xp;
+}
+
+/******************************************************************************/
+/*                           C o n f i g C h e c k                            */
+/******************************************************************************/
+  
+void XrdCmsProtocol::ConfigCheck(unsigned char *theConfig)
+{
+  unsigned int ConfigID;
+
+// Compute the new configuration ID
+//
+   if (!theConfig) ConfigID = 1;
+      else ConfigID = XrdOucCRC::CRC32(theConfig, strlen((char *)theConfig));
+
+// If the configuration chaged or a new node, then we must bounce this node
+//
+   if (ConfigID != myNode->ConfigID)
+      {if (myNode->ConfigID) Say.Emsg("Protocol",Link->Name(),"reconfigured.");
+       Cache.Paths.Remove(myNode->Mask());
+       Cache.Bounce(myNode->Mask());
+       myNode->ConfigID = ConfigID;
+      }
 }
 
 /******************************************************************************/
@@ -734,7 +760,7 @@ do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
 //
    if (!(Data->Routing & XrdCmsRouting::noArgs)
    &&  !ProtArgs.Parse(int(Data->Request.rrCode), myArgs, myArgt, Data))
-      {Reply_Error(Data->Request.streamid, kYR_EINVAL, "badly formed request");
+      {Reply_Error(*Data, kYR_EINVAL, "badly formed request");
        continue;
       }
 
@@ -826,39 +852,40 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
 /*                           R e p l y _ D e l a y                            */
 /******************************************************************************/
   
-void XrdCmsProtocol::Reply_Delay(kXR_unt32 sID, kXR_unt32 theDelay)
+void XrdCmsProtocol::Reply_Delay(XrdCmsRRData &Data, kXR_unt32 theDelay)
 {
      EPNAME("Reply_Delay");
+     const char *act;
 
-     if (sID)
-        {CmsResponse Resp = {{sID, kYR_wait, 0,
+     if (Data.Request.streamid && (Data.Routing & XrdCmsRouting::Repliable))
+        {CmsResponse Resp = {{Data.Request.streamid, kYR_wait, 0,
                                htons(sizeof(kXR_unt32))}, theDelay};
-
+         act = " sent";
          Link->Send((char *)&Resp, sizeof(Resp));
-        }
+        } else act = " skip";
 
-     DEBUG(myNode->Ident <<(sID?" sent":" skip") <<" delay " <<ntohl(theDelay));
+     DEBUG(myNode->Ident <<act <<" delay " <<ntohl(theDelay));
 }
 
 /******************************************************************************/
 /*                           R e p l y _ E r r o r                            */
 /******************************************************************************/
   
-void XrdCmsProtocol::Reply_Error(kXR_unt32 sID, int ecode, const char *etext)
+void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etext)
 {
      EPNAME("Reply_Error");
+     const char *act;
      int n = strlen(etext)+1;
 
-     if (sID)
-        {CmsResponse Resp = {{sID, kYR_error, 0,
+     if (Data.Request.streamid && (Data.Routing & XrdCmsRouting::Repliable))
+        {CmsResponse Resp = {{Data.Request.streamid, kYR_error, 0,
                               htons(sizeof(kXR_unt32)+n)},
                              htonl(static_cast<unsigned int>(ecode))};
          struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
                                 {(char *)etext, n}};
-
+         act = " sent";
          Link->Send(ioV, 2);
-        }
+        } else act = " skip";
 
-     DEBUG(myNode->Ident <<(sID ? " sent" : " skip") <<" err " <<ecode
-                          <<' ' <<etext);
+     DEBUG(myNode->Ident <<act <<" err " <<ecode  <<' ' <<etext);
 }

@@ -11,107 +11,72 @@
 /******************************************************************************/
 
 //         $Id$
+
+#include <string.h>
   
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "XrdCms/XrdCmsKey.hh"
+#include "XrdCms/XrdCmsNash.hh"
 #include "XrdCms/XrdCmsPList.hh"
-#include "XrdCms/XrdCmsTypes.hh"
-#include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
- 
-/******************************************************************************/
-/*                    S t r u c t   X r d C m s C I n f o                     */
-/******************************************************************************/
-  
-struct XrdCmsCInfo
-       {SMask_t hfvec;    // Servers who are staging or have the file
-        SMask_t pfvec;    // Servers who are staging         the file
-        SMask_t sbvec;    // Servers that are suspect (eventually TOE clock)
-        int     deadline;
-        short   roPend;   // Redirectors waiting for R/O response
-        short   rwPend;   // Redirectors waiting for R/W response
-
-        XrdCmsCInfo() {roPend = rwPend = 0;}
-       ~XrdCmsCInfo();
-       };
-
-/******************************************************************************/
-/*                     C l a s s   X r d C m s C a c h e                      */
-/******************************************************************************/
-
-class XrdCmsRRQInfo;
+#include "XrdCms/XrdCmsSelect.hh"
+#include "XrdCms/XrdCmsTypes.hh"
   
 class XrdCmsCache
 {
 public:
-friend class XrdCmsCache_Scrubber;
+friend class XrdCmsCacheJob;
 
 XrdCmsPList_Anchor Paths;
 
-// AddFile() returns true if this is the first addition, false otherwise. Opts
-//           are those defined for XrdCmsSelect::Opts. However, only Write and
-//           Pending are currently recognized.
+// AddFile() returns true if this is the first addition, false otherwise. See
+//           method for detailed information on processing.
 //
-int        AddFile(const char *path, SMask_t mask, int Opts=0,
-                   int dltime=0, XrdCmsRRQInfo *Info=0);
-
-// DelCache() deletes a specific cache line
-//
-void       DelCache(const char *path);
+int         AddFile(XrdCmsSelect &Sel, SMask_t mask);
 
 // DelFile() returns true if this is the last deletion, false otherwise
 //
-int        DelFile(const char *path, SMask_t mask, int dltime=0);
+int         DelFile(XrdCmsSelect &Sel, SMask_t mask);
 
 // GetFile() returns true if we actually found the file
 //
-int        GetFile(const char *path, XrdCmsCInfo &cinfo,
-                   int isrw=0, XrdCmsRRQInfo *Info=0);
+int         GetFile(XrdCmsSelect &Sel, SMask_t mask);
 
-void       Apply(int (*func)(const char *, XrdCmsCInfo *, void *), void *Arg);
+// UnkFile() updates the unqueried vector and returns 1 upon success, 0 o/w.
+//
+int         UnkFile(XrdCmsSelect &Sel, SMask_t mask);
 
-void       Bounce(SMask_t mask, const char *path=0);
+// WT4File() adds a request to the callback queue and returns a 0 if added
+//           of a wait time to be returned to the client.
+//
+int         WT4File(XrdCmsSelect &Sel, SMask_t mask);
 
-void       Extract(const char *pathpfx, XrdOucHash<char> *hashp);
+void        Bounce(SMask_t mask);
 
-void       Reset(int servid);
+void        Drop(SMask_t mask);
 
-void       Scrub();
+int         Init(int fxHold, int fxDelay);
 
-void       setLifetime(int lsec) {LifeTime = lsec;}
+void       *TickTock();
 
-           XrdCmsCache() {LifeTime = 8*60*60;}
-          ~XrdCmsCache() {}   // Never gets deleted
-
-private:
-
-void                    Add2Q(XrdCmsRRQInfo *Info, XrdCmsCInfo *cp, int isrw);
-void                    Dispatch(XrdCmsCInfo *cinfo, short roQ, short rwQ);
-XrdSysMutex             PTMutex;
-XrdOucHash<XrdCmsCInfo> PTable;
-int                     LifeTime;
-};
- 
-/******************************************************************************/
-/*            C l a s s   X r d C m s C a c h e _ S c r u b b e r             */
-/******************************************************************************/
-  
-class XrdCmsCache_Scrubber : public XrdJob
-{
-public:
-
-void  DoIt() {CacheP->Scrub();
-              SchedP->Schedule((XrdJob *)this, CacheP->LifeTime+time(0));
-             }
-      XrdCmsCache_Scrubber(XrdCmsCache *cp, XrdScheduler *sp)
-                        : XrdJob("File cache scrubber")
-                {CacheP = cp; SchedP = sp;}
-     ~XrdCmsCache_Scrubber() {}
+            XrdCmsCache() : okVec(0), Tick(8*60*60), Tock(0), DLTime(5)
+                          {memset(Bounced, 0, sizeof(Bounced));}
+           ~XrdCmsCache() {}   // Never gets deleted
 
 private:
 
-XrdCmsCache     *CacheP;
-XrdScheduler    *SchedP;
+void          Add2Q(XrdCmsRRQInfo *Info, XrdCmsKeyItem *cp, int isrw);
+void          Dispatch(XrdCmsKeyItem *cinfo, short roQ, short rwQ);
+void          Recycle(XrdCmsKeyItem *theList);
+
+XrdSysMutex   myMutex;
+XrdCmsNash    CTable;
+SMask_t       Bounced[XrdCmsKeyItem::TickRate];
+SMask_t       okVec;
+unsigned int  Tick;
+unsigned int  Tock;
+         int  DLTime;
 };
 
 namespace XrdCms

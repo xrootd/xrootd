@@ -35,10 +35,12 @@ SRCSRVR = \
         XrdCmsCluster.cc     \
         XrdCmsConfig.cc      \
         XrdCmsJob.cc         \
+        XrdCmsKey.cc         \
         XrdCmsManList.cc     \
         XrdCmsManTree.cc     \
         XrdCmsManager.cc     \
         XrdCmsMeter.cc       \
+        XrdCmsNash.cc        \
         XrdCmsNode.cc        \
         XrdCmsPList.cc       \
         XrdCmsPrepArgs.cc    \
@@ -74,10 +76,12 @@ OBJSRVR = \
         $(OBJDIR)/XrdCmsCluster.o     \
         $(OBJDIR)/XrdCmsConfig.o      \
         $(OBJDIR)/XrdCmsJob.o         \
+        $(OBJDIR)/XrdCmsKey.o         \
         $(OBJDIR)/XrdCmsManList.o     \
         $(OBJDIR)/XrdCmsManTree.o     \
         $(OBJDIR)/XrdCmsManager.o     \
         $(OBJDIR)/XrdCmsMeter.o       \
+        $(OBJDIR)/XrdCmsNash.o        \
         $(OBJDIR)/XrdCmsNode.o        \
         $(OBJDIR)/XrdCmsPList.o       \
         $(OBJDIR)/XrdCmsPrepArgs.o    \
@@ -155,10 +159,10 @@ $(OBJDIR)/XrdCmsAdmin.o:     XrdCmsAdmin.cc      XrdCmsAdmin.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsAdmin.o XrdCmsAdmin.cc
 
 $(OBJDIR)/XrdCmsCache.o:     XrdCmsCache.cc      XrdCmsCache.hh \
+                             XrdCmsKey.hh        XrdCmsNash.hh \
                              XrdCmsPList.hh      XrdCmsRRQ.hh \
                              XrdCmsSelect.hh     XrdCmsTypes.hh \
-                             XrdOucHash.hh \
-                             XrdSysPthread.hh \
+                             XrdSysPthread.hh    XrdSysTimer.hh \
                              XrdJob.hh           XrdScheduler.hh
 	@echo Compiling XrdCmsCache.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsCache.o XrdCmsCache.cc
@@ -195,6 +199,7 @@ $(OBJDIR)/XrdCmsClientMan.o: XrdCmsClientMan.cc   XrdCmsClientMan.hh \
 
 $(OBJDIR)/XrdCmsCluster.o:   XrdCmsCluster.cc    XrdCmsCluster.hh \
                              XrdCmsCache.hh      XrdCmsConfig.hh \
+                             XrdCmsKey.hh \
                              XrdCmsManager.hh    XrdCmsNode.hh \
                              XrdCmsSelect.hh     XrdCmsState.hh \
                              XrdCmsTrace.hh      XrdCmsTypes.hh \
@@ -258,6 +263,13 @@ $(OBJDIR)/XrdCmsJob.o:       XrdCmsJob.cc        XrdCmsJob.hh \
 	@echo Compiling XrdCmsJob.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsJob.o XrdCmsJob.cc
 
+$(OBJDIR)/XrdCmsKey.o:       XrdCmsKey.cc        XrdCmsKey.hh \
+                             XrdCmsTypes.hh      XrdCmsTrace.hh \
+                             XrdOucCRC.hh \
+                             XrdSysError.hh
+	@echo Compiling XrdCmsKey.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsKey.o XrdCmsKey.cc
+
 $(OBJDIR)/XrdCmsLogin.o:     XrdCmsLogin.cc      XrdCmsLogin.hh \
                              XrdCmsParser.hh     XrdCmsSecurity.hh \
                              XrdCmsTalk.hh       XrdCmsTrace.hh \
@@ -301,9 +313,15 @@ $(OBJDIR)/XrdCmsMeter.o:     XrdCmsMeter.cc      XrdCmsMeter.hh \
 	@echo Compiling XrdCmsMeter.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsMeter.o XrdCmsMeter.cc
 
+$(OBJDIR)/XrdCmsNash.o:      XrdCmsNash.cc       XrdCmsNash.hh \
+                             XrdCmsKey.hh
+	@echo Compiling XrdCmsNash.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsNash.o XrdCmsNash.cc
+
 $(OBJDIR)/XrdCmsNode.o:      XrdCmsNode.cc       XrdCmsNode.hh \
                              XrdCmsCache.hh      XrdCmsCluster.hh \
-                             XrdCmsConfig.hh     XrdCmsManager.hh \
+                             XrdCmsConfig.hh     XrdCmsKey.hh \
+                             XrdCmsManager.hh \
                              XrdCmsManList.hh    XrdCmsManTree.hh \
                              XrdCmsMeter.hh      XrdCmsPList.hh \
                              XrdCmsPrepare.hh    XrdCmsRRData.hh \
@@ -361,6 +379,7 @@ $(OBJDIR)/XrdCmsProtocol.o:  XrdCmsProtocol.cc   XrdCmsProtocol.hh \
                              XrdCmsParser.hh     XrdCmsRouting.hh \
                              XrdCmsRTable.hh     XrdCmsState.hh \
                              XrdCmsTypes.hh      XrdCmsTrace.hh \
+                             XrdOucCRC.hh \
                              XrdOucPup.hh        XrdOucTokenizer.hh \
                              XrdNetDNS.hh \
                              XrdSysError.hh      XrdSysPthread.hh \

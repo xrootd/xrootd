@@ -116,14 +116,15 @@ XrdCmsNode::XrdCmsNode(const char *Role, XrdLink *lnkp, int port,
     Port     =  0;
     myNID    = strdup(nid ? nid : "?");
     myLevel  = lvl;
+    ConfigID =  0;
 
 // setName() will set Ident, IPAddr, IPV6, myName, myNlen, & Port!
 //
-    setName(Role, lnkp, (nid ? port : 0));
+   setName(Role, lnkp, (nid ? port : 0));
 
-    iMutex.Lock();
-    Instance =  iNum++;
-    iMutex.UnLock();
+   iMutex.Lock();
+   Instance =  iNum++;
+   iMutex.UnLock();
 }
 
 /******************************************************************************/
@@ -318,10 +319,13 @@ const char *XrdCmsNode::do_Gone(XrdCmsRRData &Arg)
 // staging node. We can also be called via the admin end-point interface
 // In this case, we have no cache and simply forward up the request.
 //
-   if (Config.asManager()) newgone = Cache.DelFile(Arg.Path, NodeMask);
-      else {newgone = 1;
-            if (Config.DiskSS) PrepQ.Gone(Arg.Path);
-           }
+   if (Config.asManager())
+      {XrdCmsSelect Sel(XrdCmsSelect::Advisory, Arg.Path, Arg.PathLen-1);
+       newgone = Cache.DelFile(Sel, NodeMask);
+      } else {
+       newgone = 1;
+       if (Config.DiskSS) PrepQ.Gone(Arg.Path);
+      }
 
 // If we have no managers and we still have the file or never had it, return
 //
@@ -363,8 +367,11 @@ const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 
 // Update path information
 //
-   if (Config.asManager()) isnew = Cache.AddFile(Arg.Path, NodeMask, Opts);
-      else isnew = 1;
+   if (!Config.asManager()) isnew = 1;
+      else {XrdCmsSelect Sel(XrdCmsSelect::Advisory|Opts,Arg.Path,Arg.PathLen-1);
+            Sel.Path.Hash = Arg.Request.streamid;
+            isnew = Cache.AddFile(Sel, NodeMask);
+           }
 
 // Return if we have no managers or we already informed the managers
 //
@@ -410,7 +417,7 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
 //
    DEBUGR("load cpu=" <<pcpu <<" net=" <<pnet <<" xeq=" <<pxeq
             <<" mem=" <<pmem <<" pag=" <<ppag <<" dsk=" <<pdsk
-            <<' ' <<DiskFree <<" TLD=" <<myLoad <<" TMS=" <<myMass);
+            <<' ' <<DiskFree <<" load=" <<myLoad <<" mass=" <<myMass);
 
 // If we are also a manager then use this load figure to come up with
 // an overall load to report when asked. If we get free space, then we
@@ -460,7 +467,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 {
    EPNAME("do_Locate";)
    XrdCmsRRQInfo reqInfo(Instance, RSlot, Arg.Request.streamid);
-   XrdCmsSelect    Sel;
+   XrdCmsSelect    Sel(0, Arg.Path, Arg.PathLen-1);
    XrdCmsSelected *sP = 0;
    struct {kXR_unt32 Val; 
            char outbuff[CmsLocateRequest::RILen*XrdCmsCluster::STMax];} Resp;
@@ -481,15 +488,9 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 //
    if (Arg.Opts & CmsLocateRequest::kYR_refresh)
       {Sel.Opts = XrdCmsSelect::Refresh; *toP++='s'; Sel.InfoP = 0;}
-      else Sel.Opts = 0;
    if (Arg.Opts & CmsLocateRequest::kYR_asap)
       {Sel.Opts = XrdCmsSelect::Asap; *toP++='i';    Sel.InfoP = &reqInfo;}
       else                                           Sel.InfoP = 0;
-
-// Complete the select object
-//
-   Sel.Path = Arg.Path;
-   Sel.PLen = Arg.PathLen;
 
 // Do some debugging
 //
@@ -514,8 +515,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // List the servers
 //
    if (!rc)
-      if ((!(Sel.Vec.hf |= Sel.Vec.pf)
-      ||  !(sP = Cluster.List(Sel.Vec.hf, XrdCmsCluster::LS_IPV6))))
+      if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf,XrdCmsCluster::LS_IPV6)))
          {Arg.Request.rrCode = kYR_error;
           rc = kYR_ENOENT; Why = "none ";
           bytes = strlcpy(Resp.outbuff, "No servers have the file",
@@ -922,7 +922,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 {
    EPNAME("do_Select")
    XrdCmsRRQInfo reqInfo(Instance, RSlot, Arg.Request.streamid);
-   XrdCmsSelect Sel(XrdCmsSelect::Peers);
+   XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.Path, Arg.PathLen-1);
    struct iovec ioV[2];
    char theopts[8], *toP = theopts;
    int rc, bytes;
@@ -975,7 +975,6 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 
 // Perform selection
 //
-   Sel.Path = Arg.Path; Sel.PLen = Arg.PathLen;
    if ((rc = Cluster.Select(Sel)))
       {if (rc > 0)
           {Arg.Request.rrCode = kYR_wait;
@@ -1019,7 +1018,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 int XrdCmsNode::do_SelPrep(XrdCmsPrepArgs &Arg) // Static!!!
 {
    EPNAME("do_SelPrep")
-   XrdCmsSelect Sel(XrdCmsSelect::Peers);
+   XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.path, Arg.pathlen-1);
    int rc;
 
 // Do a callout to the external manager if we have one
@@ -1042,8 +1041,6 @@ int XrdCmsNode::do_SelPrep(XrdCmsPrepArgs &Arg) // Static!!!
    Sel.iovN  = (Sel.Opts & XrdCmsSelect::noStage ? 0 : Arg.iovNum);
    Sel.InfoP = 0;  // No fast redirects
    Sel.nmask = ~SMask_t(0);
-   Sel.Path  = Arg.path;
-   Sel.PLen  = Arg.pathlen;
 
 // Perform selection
 //
@@ -1153,40 +1150,36 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
 int XrdCmsNode::do_StateFWD(XrdCmsRRData &Arg)
 {
    EPNAME("do_StateFWD");
-   XrdCmsPInfo pinfo;
-   XrdCmsCInfo cinfo;
-   int dowt, retc;
-   SMask_t pmask = 0, smask = 0;
+   XrdCmsSelect Sel(0, Arg.Path, Arg.PathLen-1);
+   XrdCmsPInfo  pinfo;
+   int retc;
 
-// Find out who exports this path
+// Find out who could serve this file
 //
    if (!Cache.Paths.Find(Arg.Path, pinfo) || pinfo.rovec == 0)
       {DEBUGR("Path find failed for state " <<Arg.Path);
        return 0;
       }
 
-// First check if we have seen this file before. If so, get primary selections.
+// Get the primary locations for this file
 //
+   Sel.Vec.hf = Sel.Vec.pf = Sel.Vec.bf = 0;
    if (Arg.Request.modifier & CmsStateRequest::kYR_refresh) retc = 0;
-      else if ((retc = Cache.GetFile(Arg.Path, cinfo)))
-              {pmask = cinfo.hfvec; smask = cinfo.pfvec;}
+      else retc = Cache.GetFile(Sel, pinfo.rovec);
 
-// If we didn't find the file, or it's being searched for, then return failure.
-// Otherwise, we will ask the relevant nodes if they have the file.
+// If need be, ask the relevant nodes if they have the file.
 //
-   dowt = (!retc || cinfo.deadline);
-   if (dowt || (retc && (cinfo.sbvec != 0)))
-      {if (!retc) Cache.AddFile(Arg.Path, 0, 0, Config.LUPDelay);
-          else Cache.DelFile(Arg.Path,cinfo.sbvec,(dowt ? Config.LUPDelay : 0));
-       Cluster.Broadcast((retc ? cinfo.sbvec : pinfo.rovec), Arg.Request,
+   if (!retc || Sel.Vec.bf != 0)
+      {if (!retc) Cache.AddFile(Sel, 0);
+       Cluster.Broadcast((retc ? Sel.Vec.bf : pinfo.rovec), Arg.Request,
                          (void *)Arg.Buff, Arg.Dlen);
       }
 
 // Return true if anyone has the file at this point
 //
-   if (pmask != 0) return CmsHaveRequest::Online;
-   if (smask != 0) return CmsHaveRequest::Pending;
-                   return 0;
+   if (Sel.Vec.hf != 0) return CmsHaveRequest::Online;
+   if (Sel.Vec.pf != 0) return CmsHaveRequest::Pending;
+                        return 0;
 }
   
 /******************************************************************************/

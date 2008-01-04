@@ -55,12 +55,13 @@ XrdCmsRouting  *Admit_Redirector(int);
 XrdCmsRouting  *Admit_Supervisor(int);
 SMask_t         AddPath(XrdCmsNode *nP, const char *pType, const char *Path);
 int             Authenticate();
+void            ConfigCheck(unsigned char *theConfig);
 void            Dispatch();
 XrdCmsRouting  *Login_Failed(const char *Reason);
 void            Pander(const char *manager, int mport);
 void            Reissue(XrdCmsRRData &Data);
-void            Reply_Delay(kXR_unt32 sID, kXR_unt32 theDelay);
-void            Reply_Error(kXR_unt32 sID, int ecode, const char *etext);
+void            Reply_Delay(XrdCmsRRData &Data, kXR_unt32 theDelay);
+void            Reply_Error(XrdCmsRRData &Data, int ecode, const char *etext);
 
 static XrdSysMutex     ProtMutex;
 static XrdCmsProtocol *ProtStack;

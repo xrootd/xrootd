@@ -84,7 +84,6 @@ int  nodeInst;
 XrdCmsCluster::XrdCmsCluster()
 {
      memset((void *)NodeTab, 0, sizeof(NodeTab));
-     memset((void *)NodeBat, 0, sizeof(NodeBat));
      memset((void *)AltMans, (int)' ', sizeof(AltMans));
      AltMend = AltMans;
      AltMent = -1;
@@ -97,7 +96,7 @@ XrdCmsCluster::XrdCmsCluster()
      doReset = 0;
      resetMask = 0;
      peerHost  = 0;
-     peerMask  = 0; peerMask = ~peerMask;
+     peerMask  = ~peerHost;
 }
   
 /******************************************************************************/
@@ -126,12 +125,12 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 // Bump3 = Disconnected managr/peer ( 1st in table) if new one is managr/peer
 //
    for (Slot = 0; Slot < STMax; Slot++)
-       if (NodeBat[Slot])
-          {if (NodeBat[Slot]->isNode(ipaddr, port, theNID)) break;
-//Conn//   if (NodeTab[Slot])
-              {if (!NodeBat[Slot]->isPerm)   Bump2 = Slot; // Last conn Server
+       if (NodeTab[Slot])
+          {if (NodeTab[Slot]->isNode(ipaddr, port, theNID)) break;
+//Conn//   if (NodeTab[Slot]->isConn)
+              {if (!NodeTab[Slot]->isPerm)   Bump2 = Slot; // Last conn Server
 //Disc//      } else {
-               if ( NodeBat[Slot]->isPerm)
+               if ( NodeTab[Slot]->isPerm)
                   {if (Bump3 < 0 && Special) Bump3 = Slot;}//  1st disc Man/Pr
                   else                       Bump1 = Slot; // Last disc Server
               }
@@ -144,13 +143,12 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
          {Say.Emsg("Cluster", Role, hnp, "already logged in.");
           return 0;
          } else { // Rehook node to previous unconnected entry
-          nP = NodeBat[Slot];
+          nP = NodeTab[Slot];
           nP->Link      = lp;
           nP->isOffline = 0;
           nP->isConn    = 1;
           nP->Instance++;
           nP->setName(Role, lp, port);  // Just in case it changed
-          NodeTab[Slot] = nP;
           act = "Re-added ";
          }
 
@@ -171,13 +169,12 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 
                 if (NodeTab[Slot] && !(Status & CMS_isPeer)) sendAList(lp);
 
-                DEBUG(hnp << " bumps " << NodeBat[Slot]->Ident <<" #" <<Slot);
-                NodeBat[Slot]->Lock();
-                Remove("redirected", NodeBat[Slot], -1);
+                DEBUG(hnp << " bumps " << NodeTab[Slot]->Ident <<" #" <<Slot);
+                NodeTab[Slot]->Lock();
+                Remove("redirected", NodeTab[Slot], -1);
                 act = "Shoved ";
                }
-       nP = new XrdCmsNode(Role, lp, port, theNID, 0, Slot);
-       NodeTab[Slot] = NodeBat[Slot] = nP;
+       NodeTab[Slot] = nP = new XrdCmsNode(Role, lp, port, theNID, 0, Slot);
       }
 
 // Indicate whether this snode can be redirected
@@ -224,8 +221,8 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 /*                             B r o a d c a s t                              */
 /******************************************************************************/
 
-void XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod, 
-                              int iovcnt, int iotot)
+SMask_t XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod,
+                                 int iovcnt, int iotot)
 {
    int i;
    XrdCmsNode *nP;
@@ -243,17 +240,18 @@ void XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod,
            nP->Lock();
            else continue;
         STMutex.UnLock();
-        nP->Send(iod, iovcnt, iotot);
+        if (nP->Send(iod, iovcnt, iotot) >= 0) bmask &= ~nP->Mask();
         nP->UnLock();
         STMutex.Lock();
        }
    STMutex.UnLock();
+   return bmask;
 }
 
 /******************************************************************************/
 
-void XrdCmsCluster::Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
-                              char *Data,    int Dlen)
+SMask_t XrdCmsCluster::Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
+                                 char *Data,    int Dlen)
 {
    struct iovec ioV[3], *iovP = &ioV[1];
    unsigned short Temp;
@@ -268,19 +266,19 @@ void XrdCmsCluster::Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
 // Complete the iovec and send off the data
 //
    ioV[0].iov_base = (char *)&Hdr; ioV[0].iov_len = sizeof(Hdr);
-   Broadcast(smask, ioV, 3, Blen+sizeof(Hdr));
+   return Broadcast(smask, ioV, 3, Blen+sizeof(Hdr));
 }
 
 /******************************************************************************/
 
-void XrdCmsCluster::Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
-                              void *Data,    int Dlen)
+SMask_t XrdCmsCluster::Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
+                                 void *Data,    int Dlen)
 {
    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)}, {(char *)Data, Dlen}};
 
 // Send of the data as eveything was constructed properly
 //
-   Broadcast(smask, ioV, 2, Dlen+sizeof(Hdr));
+   return Broadcast(smask, ioV, 2, Dlen+sizeof(Hdr));
 }
 
 /******************************************************************************/
@@ -329,8 +327,7 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
             nP = (Config.sched_RR
                  ? SelbyRef( mask, nump, delay, &reason, 0)
                  : SelbyLoad(mask, nump, delay, &reason, 0));
-           else if (((nP = NodeTab[i]) || (nP = NodeBat[i]))
-                &&  !lsall && !(nP->NodeMask & mask)) nP = 0;
+           else if ((nP=NodeTab[i]) && !lsall && !(nP->NodeMask & mask)) nP=0;
         if (nP)
            {sip = new XrdCmsSelected((opts & LS_IPO) ? 0 : nP->Name(), sipp);
             if (opts & LS_IPV6)
@@ -372,15 +369,15 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
 int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 {
    XrdCmsPInfo   pinfo;
-   XrdCmsCInfo   cinfo;
    SMask_t       qfVec = 0;
+   int           retc = 0;
 
 // Find out who serves this path
 //
-   if (!Cache.Paths.Find(Sel.Path, pinfo) || !pinfo.rovec)
+   if (!Cache.Paths.Find(Sel.Path.Val, pinfo) || !pinfo.rovec)
       {Sel.Vec.hf = Sel.Vec.pf = Sel.Vec.wf = 0;
        return -1;
-      }
+      } else Sel.Vec.wf = pinfo.rwvec;
 
 // Complete the request info object if we have one
 //
@@ -395,35 +392,26 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 // bounce; the client must wait.
 //
    if (Sel.Opts & XrdCmsSelect::Refresh 
-   ||  !Cache.GetFile(Sel.Path, cinfo, 0, Sel.InfoP))
-      {Cache.AddFile(Sel.Path, 0, Sel.Opts, Config.LUPDelay, Sel.InfoP);
-       qfVec = pinfo.rovec; Sel.Vec.hf=Sel.Vec.pf=Sel.Vec.wf=0;
-      } else if (cinfo.sbvec != 0)
-                {Cache.DelFile(Sel.Path, cinfo.sbvec, Config.LUPDelay);
-                 qfVec = cinfo.sbvec; Sel.Vec.hf=Sel.Vec.pf=Sel.Vec.wf=0;
-                }
+   || !(retc = Cache.GetFile(Sel, pinfo.rovec)))
+      {Cache.AddFile(Sel, 0);
+       qfVec = pinfo.rovec; Sel.Vec.hf = 0;
+      } else qfVec = Sel.Vec.bf;
+
+// Compute the delay, if any
+//
+   if ((!qfVec && retc >= 0) || (Sel.Vec.hf && Sel.InfoP)) retc =  0;
+      else if (!(retc = Cache.WT4File(Sel, Sel.Vec.hf)))   retc = -2;
 
 // Check if we have to ask any nodes if they have the file
 //
    if (qfVec)
-      {CmsStateRequest QReq = {{0, kYR_state, 0, 0}};
+      {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, 0, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
           QReq.Hdr.modifier = CmsStateRequest::kYR_refresh;
-       Cluster.Broadcast(qfVec, QReq.Hdr, Sel.Path, Sel.PLen);
-       return (Sel.InfoP && Sel.InfoP->Key ? -2 : Config.LUPDelay);
+       qfVec = Cluster.Broadcast(qfVec, QReq.Hdr, Sel.Path.Val, Sel.Path.Len);
+       if (qfVec) Cache.UnkFile(Sel, qfVec);
       }
-
-// Return a delay if we have some information but a query is in progress
-//
-   if (cinfo.deadline)
-      return (Sel.InfoP && Sel.InfoP->Key ? -2 : Config.LUPDelay);
-
-// Return to the client who has what
-//
-   Sel.Vec.wf = pinfo.rwvec;
-   Sel.Vec.hf = cinfo.hfvec;
-   Sel.Vec.pf = cinfo.pfvec;
-   return 0;
+   return retc;
 }
   
 /******************************************************************************/
@@ -543,18 +531,19 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 //
    theNode->isOffline = 1;
 
+// If the node is part of the cluster, do not count it anymore
+//
+   if (theNode->isBound) {theNode->isBound = 0; NodeCnt--;}
+
 // If the node is connected the simply close the connection. This will cause
 // the connection handler to re-initiate the node removal. The LockHandler
 // destructor will release the node table and node object locks as needed.
+// This condition exists only if one node is being displaced by another node.
 //
    if (theNode->isConn)
       {theNode->Disc(reason, 0);
        return;
       }
-
-// If the node is part of the cluster, do not count it anymore
-//
-   if (theNode->isBound) {theNode->isBound = 0; NodeCnt--;}
 
 // Compute new state of all nodes if we are a reporting manager
 //
@@ -562,7 +551,7 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
       CmsState.Calc(-1, theNode->isNoStage, theNode->isSuspend);
 
 // If this is an immediate drop request, do so now. Drop() will delete
-// the node object and remove the node lock. Som tell LockHandler that.
+// the node object and remove the node lock. So, tell LockHandler that.
 //
    if (immed || !Config.DRPDelay) 
       {Drop(NodeID, Inst);
@@ -631,9 +620,8 @@ void XrdCmsCluster::ResetRef(SMask_t smask)
   
 int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 {
-   XrdCmsPInfo pinfo;
-   XrdCmsCInfo cinfo;
-   const char *Amode;
+   XrdCmsPInfo  pinfo;
+   const char  *Amode;
    int dowt = 0, retc, isRW;
    SMask_t amask, smask, pmask;
 
@@ -644,61 +632,53 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 
 // Find out who serves this path
 //
-   if (!Cache.Paths.Find(Sel.Path, pinfo)
+   if (!Cache.Paths.Find(Sel.Path.Val, pinfo)
    || (amask = ((isRW ? pinfo.rwvec : pinfo.rovec) & Sel.nmask)) == 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                        "No servers have %s access to the file", Amode)+1;
        return -1;
       }
 
-// First check if we have seen this file before. If so, get primary selections.
+// If either a refresh is wanted or we didn't find the file, re-prime the cache
+// which will force the client to wait. Otherwise, compute the primary and
+// secondary selections. If there are none, the client may have to wait if we
+// have servers that we can query regarding the file.
 //
-   if (Sel.Opts & XrdCmsSelect::Refresh) {retc = 0; pmask = 0;}
-      else if (!(retc = Cache.GetFile(Sel.Path,cinfo,isRW,Sel.InfoP))) pmask=0;
-              else pmask = (isRW ? cinfo.hfvec & pinfo.rwvec
-                                 : cinfo.hfvec & Sel.nmask);
-
-// We didn't find the file or a refresh is wanted (easy case) or the file was
-// found but either a query is in progress. In either case, the client must
-// either wait a for full period or a short period if its in the pending queue.
-// If we have a server bounce the client waits if no alternative is available. 
-//
-   if (!retc)
-      {Cache.AddFile(Sel.Path, 0, Sel.Opts, Config.LUPDelay, Sel.InfoP);
-       cinfo.sbvec = pinfo.rovec;
-       dowt = (Sel.InfoP && Sel.InfoP->Key ? -1 : 1);// Placed in pending state
+   if (!(Sel.Opts & XrdCmsSelect::Refresh)
+   &&   (retc = Cache.GetFile(Sel, pinfo.rovec)))
+      {pmask = (Sel.Opts & XrdCmsSelect::Asap
+             ?  Sel.Vec.hf & amask & ~Sel.Vec.pf : Sel.Vec.hf & amask);
+       if (Sel.Opts & XrdCmsSelect::Online) smask = 0;
+          else smask = (Sel.Opts & XrdCmsSelect::NewFile
+                     ? Sel.nmask & pinfo.rwvec : amask & pinfo.ssvec);
       } else {
-       if (cinfo.sbvec != 0) Cache.DelFile(Sel.Path,cinfo.sbvec,Config.LUPDelay);
-       if (cinfo.deadline) dowt = (Sel.InfoP && Sel.InfoP->Key ? -1 : 1);
-          else             dowt = 0;
+       Cache.AddFile(Sel, 0); 
+       Sel.Vec.bf = pinfo.rovec; 
+       Sel.Vec.hf = Sel.Vec.pf = pmask = smask = 0;
+       retc = 0;
       }
+   dowt = (!pmask && !smask);
 
-// Check if we have to ask any nodes if they have the file
+// If we can query additional servers, do so now. The client will be placed
+// in the callback queue only if we have no possible selections
 //
-   if (cinfo.sbvec != 0)
-      {CmsStateRequest QReq = {{0, kYR_state, 0, 0}};
+   if (Sel.Vec.bf != 0)
+      {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, 0, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
           QReq.Hdr.modifier = CmsStateRequest::kYR_refresh;
-       Cluster.Broadcast(cinfo.sbvec, QReq.Hdr, Sel.Path, Sel.PLen);
-      }
-
-// If the client has to wait now, delay the client and return
-//
-   if (dowt) return (dowt > 0 ? Config.LUPDelay : 0);
-
-// Compute the primary and secondary selections:
-// Primary:   Servers who already have the file (computed above)
-// Secondary: Servers who don't have the file but can get it
-//
-   if (Sel.Opts & XrdCmsSelect::Online) smask = 0;
-      else smask = (Sel.Opts & XrdCmsSelect::NewFile ?
-                    Sel.nmask & pinfo.rwvec: amask & pinfo.ssvec); // Alternates
+       if (dowt) retc = Cache.WT4File(Sel, Sel.Vec.hf);
+       amask = Cluster.Broadcast(Sel.Vec.bf,QReq.Hdr,Sel.Path.Val,Sel.Path.Len);
+       if (amask) Cache.UnkFile(Sel, amask);
+       if (dowt) return retc;
+      } else if (dowt && retc < 0) return Cache.WT4File(Sel, Sel.Vec.hf);
 
 // Select a node
 //
    if ((!pmask && !smask) || (retc = SelNode(Sel, pmask, smask)) < 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-                       "No servers are available to %s the file.", Amode)+1;
+                       "No servers are available to %s%s the file.",
+                       Sel.Opts & XrdCmsSelect::Asap ? "immediately " : "",
+                       Amode)+1;
        return -1;
       }
 
@@ -950,7 +930,6 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 // Remove node from the manager table
 //
    NodeTab[sent] = 0;
-   NodeBat[sent] = 0;
    nP->isOffline = 1;
    nP->DropTime  = 0;
    nP->DropJob   = 0;
@@ -979,10 +958,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 
 // Invalidate any cached entries for this node
 //
-   if (nP->NodeMask)
-      {Cache.Paths.Remove(nP->NodeMask);
-       Cache.Reset(nP->NodeID);
-      }
+   if (nP->NodeMask) Cache.Drop(nP->NodeMask);
 
 // Document the drop
 //
@@ -1053,10 +1029,12 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
        Sel.Resp.DLen++;
        if (isalt || (Sel.Opts & XrdCmsSelect::NewFile) || Sel.iovN)
           {if (isalt) 
-              Cache.AddFile(Sel.Path,nP->NodeMask,Sel.Opts|XrdCmsSelect::Pending);
+              {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
+               Cache.AddFile(Sel, nP->NodeMask);
+              }
            if (Sel.iovN && Sel.iovP) nP->Send(Sel.iovP, Sel.iovN);
-                  TRACE(Stage, Sel.Resp.Data <<" staging " <<Sel.Path);
-          } else {TRACE(Stage, Sel.Resp.Data <<" serving " <<Sel.Path);}
+                  TRACE(Stage, Sel.Resp.Data <<" staging " <<Sel.Path.Val);
+          } else {TRACE(Stage, Sel.Resp.Data <<" serving " <<Sel.Path.Val);}
        nP->UnLock();
        return 0;
       } else if (!delay && NodeCnt < Config.SUPCount)
@@ -1067,7 +1045,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 // Return delay if selection failure is recoverable
 //
    if (delay && delay < Config.PSDelay)
-      {Record(Sel.Path, reason);
+      {Record(Sel.Path.Val, reason);
        return delay;
       }
 
@@ -1083,7 +1061,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
            Sel.Resp.DLen++;
            if (Sel.iovN && Sel.iovP) nP->Send(Sel.iovP, Sel.iovN);
            nP->UnLock();
-           TRACE(Stage, "Peer " <<Sel.Resp.Data <<" handling " <<Sel.Path);
+           TRACE(Stage, "Peer " <<Sel.Resp.Data <<" handling " <<Sel.Path.Val);
            return 0;
           }
        if (!delay) {delay = delay2; reason = reason2;}
@@ -1092,7 +1070,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 // At this point we either don't have enough nodes or simply can't handle this
 //
    if (delay)
-      {TRACE(Defer, "client defered; " <<reason <<" for " <<Sel.Path);
+      {TRACE(Defer, "client defered; " <<reason <<" for " <<Sel.Path.Val);
        return delay;
       }
    return -1;
@@ -1165,15 +1143,15 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
                              || np->DiskFree < Config.DiskMin))
               {numf++; continue;}
            if (!sp) sp = np;
-              else if (abs(sp->myLoad - np->myLoad)
-                          <= Config.P_fuzz)
-                      {if (needspace)
-                          {if (sp->RefA > (np->RefA+Config.DiskLinger))
-                               sp=np;
-                           } 
-                           else if (sp->RefR > np->RefR) sp=np;
-                       }
-                       else if (sp->myLoad > np->myLoad) sp=np;
+              else if (needspace)
+                      {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
+                          {if (sp->RefA > (np->RefA+Config.DiskLinger)) sp=np;}
+                          else if (sp->myMass > np->myMass)             sp=np;
+                      } else {
+                       if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
+                          {if (sp->RefR > np->RefR)                     sp=np;}
+                          else if (sp->myLoad > np->myLoad)             sp=np;
+                      }
           }
 
 // Check for overloaded node and return result

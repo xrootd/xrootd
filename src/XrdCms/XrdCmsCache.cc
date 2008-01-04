@@ -18,322 +18,385 @@ const char *XrdCmsCacheCVSID = "$Id$";
 
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
-#include "XrdCms/XrdCmsSelect.hh"
+#include "XrdCms/XrdCmsTrace.hh"
+
+#include "XrdSys/XrdSysTimer.hh"
+
+#include "Xrd/XrdJob.hh"
+#include "Xrd/XrdScheduler.hh"
+
+namespace XrdCms
+{
+extern XrdScheduler *Sched;
+}
 
 using namespace XrdCms;
-
-/******************************************************************************/
-/*                      L o c a l   S t r u c t u r e s                       */
-/******************************************************************************/
-  
-struct XrdCmsBNCArgs
-       {SMask_t          smask;
-        const char      *ppfx;
-        int              plen;
-       };
-  
-struct XrdCmsEXTArgs
-       {XrdOucHash<char> *hp;
-        char             *ppfx;
-        int               plen;
-       };
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
 XrdCmsCache XrdCms::Cache;
-
+  
 /******************************************************************************/
-/*                    E x t e r n a l   F u n c t i o n s                     */
-/******************************************************************************/
-/******************************************************************************/
-/*                       X r d C m s B o u n c e A l l                        */
+/*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
   
-int XrdCmsBounceAll(const char *key, XrdCmsCInfo *cinfo, void *maskp)
+class XrdCmsCacheJob : XrdJob
 {
-    SMask_t xmask, smask = *(SMask_t *)maskp;
+public:
 
-// Clear the vector for this server and indicate it bounced
-//
-   xmask = ~smask;
-   cinfo->hfvec &= xmask;
-   cinfo->pfvec &= xmask;
-   cinfo->sbvec |= smask;
+void   DoIt() {Cache.Recycle(myList);}
 
-// Return a zero to keep this hash table
-//
-   return 0;
-}
+       XrdCmsCacheJob(XrdCmsKeyItem *List)
+                     : XrdJob("cache scrubber"), myList(List) {}
+      ~XrdCmsCacheJob() {}
 
-/******************************************************************************/
-/*                      X r d C m s B o u n c e S o m e                       */
-/******************************************************************************/
+private:
 
-int XrdCmsBounceSome(const char *key, XrdCmsCInfo *cip, void *xargp)
-{
-    struct XrdCmsBNCArgs *xargs = (struct XrdCmsBNCArgs *)xargp;
-
-// Check for match
-//
-   if (!strncmp(key, xargs->ppfx, xargs->plen))
-      return XrdCmsBounceAll(key, cip, (void *)&xargs->smask);
-
-// Keep the entry otherwise
-//
-   return 0;
-}
+XrdCmsKeyItem *myList;
+};
 
 /******************************************************************************/
-/*                        X r d C m s C l e a r V e c                         */
+/*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-int XrdCmsClearVec(const char *key, XrdCmsCInfo *cinfo, void *sid)
-{
-    const SMask_t smask_1 = 1;  // Avoid compiler promotion errors
-    SMask_t smask = smask_1<<*(int *)sid;
-
-// Clear the vector for this server
-//
-   smask = ~smask;
-   cinfo->hfvec &= smask;
-   cinfo->pfvec &= smask;
-   cinfo->sbvec &= smask;
-
-// Return indicating whether we should delete this or not
-//
-   return (cinfo->hfvec ? 0 : -1);
-}
+void *XrdCmsStartTickTock(void *carg)
+     {XrdCmsCache *myCache = (XrdCmsCache *)carg;
+      return myCache->TickTock();
+     }
 
 /******************************************************************************/
-/*                       X r d C m s E x t r a c t F N                        */
+/*     P u b l i c   C a c h e   M a n i p u l a t i o n   M e t h o d s      */
 /******************************************************************************/
+/******************************************************************************/
+/* Public                        A d d F i l e                                */
+/******************************************************************************/
+
+// This method insert or updates information about a path in the cache.
+
+// Key was found:  Location information is updated depending on mask
+// mask == 0       Indicates that the information is being refreshed.
+//                 Location information is nullified. The update deadline is set
+//                 DLTime seconds in the future. The entry window is set to the
+//                 current window to be held for a full fxhold period.
+// mask != 0       Indicates that some location information is now known.
+//                 Location information is updated according to the mask.
+//                 For a r/w location, the deadline is satisfied and all
+//                 callbacks are dispatched. For an r/o location the deadline
+//                 is satisfied if no r/w callback is pending. Any r/o
+//                 callback is dispatched. The Info object is ignored.
+
+// Key not found:  A selective addition occurs, depending on Sel.Opts
+// Opts !Advisory: The entry is added to the cache with location information
+//                 set as passed (usually 0). The update deadline is us set to
+//                 DLTtime seconds in the future. The entry window is set 
+//                 to the current window.
+// Opts  Advisory: The call is ignored since we do not keep information about
+//                 paths that were never asked for.
+
+// Returns True    If this is the first time location information was added
+//                 to the entry.
+// Returns False   Otherwise.
   
-int XrdCmsExtractFN(const char *key, XrdCmsCInfo *cip, void *xargp)
+int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
 {
-    struct XrdCmsEXTArgs *xargs = (struct XrdCmsEXTArgs *)xargp;
+   XrdCmsKeyItem *iP;
+   int isrw = (Sel.Opts & XrdCmsSelect::Write), isnew = 0;
 
-// Check for match
+// Serialize processing
 //
-   if (xargs->plen <= (int)strlen(key)
-   &&  !strncmp(key, xargs->ppfx, xargs->plen)) xargs->hp->Add(key, 0);
+   myMutex.Lock();
 
-// All done
+// Check for fast path processing
 //
-   return 0;
-}
-
-/******************************************************************************/
-/*                       X r d C m s S c r u b S c a n                        */
-/******************************************************************************/
-  
-int XrdCmsScrubScan(const char *key, XrdCmsCInfo *cip, void *xargp)
-{
-   return 0;
-}
-
-/******************************************************************************/
-/*                               A d d F i l e                                */
-/******************************************************************************/
-  
-int XrdCmsCache::AddFile(const char    *path,
-                         SMask_t        mask,
-                         int            Opts,   // From XrdCmsSelect::Opts
-                         int            dltime,
-                         XrdCmsRRQInfo *Info)
-{
-   XrdCmsCInfo *cinfo;
-   int isrw = (Opts & XrdCmsSelect::Write), isnew = 0;
-
-// Lock the hash table
-//
-   PTMutex.Lock();
+   if (!(iP = Sel.Path.TODRef) || !(iP->Key.Equiv(Sel.Path)))
+      iP = CTable.Find(Sel.Path);
 
 // Add/Modify the entry
 //
-   if ((cinfo = PTable.Find(path)))
-      {if (dltime > 0) 
-          {cinfo->deadline = dltime + time(0);
-           cinfo->hfvec = 0; cinfo->pfvec = 0; cinfo->sbvec = 0;
-           if (Info) Add2Q(Info, cinfo, isrw);
+   if (iP)
+      {if (!mask)
+          {iP->Loc.deadline = DLTime + time(0);
+           iP->Loc.hfvec = 0; iP->Loc.pfvec = 0; iP->Loc.qfvec = 0;
+           iP->Loc.sbvec = Bounced[Tock];
+           iP->Key.TOD = Tock;
           } else {
-           isnew = (cinfo->hfvec == 0);
-           cinfo->hfvec |=  mask; cinfo->sbvec &= ~mask;
-           if (isrw) {cinfo->deadline = 0;
-                      if (cinfo->roPend || cinfo->rwPend)
-                         Dispatch(cinfo, cinfo->roPend, cinfo->rwPend);
+           isnew = (iP->Loc.hfvec == 0);
+           if (Sel.Opts & XrdCmsSelect::Pending) iP->Loc.pfvec |= mask;
+              else iP->Loc.pfvec &= ~mask;
+           iP->Loc.hfvec |=  mask;
+           iP->Loc.qfvec &= ~mask;
+           if (isrw) {iP->Loc.deadline = 0;
+                      if (iP->Loc.roPend || iP->Loc.rwPend)
+                         Dispatch(iP, iP->Loc.roPend, iP->Loc.rwPend);
                      }
-              else   {if (!cinfo->rwPend) cinfo->deadline = 0;
-                      if (cinfo->roPend) Dispatch(cinfo, cinfo->roPend, 0);
+              else   {if (!iP->Loc.rwPend) iP->Loc.deadline = 0;
+                      if (iP->Loc.roPend) Dispatch(iP, iP->Loc.roPend, 0);
                      }
           }
-      } else if (dltime)
-                {cinfo = new XrdCmsCInfo();
-                 cinfo->hfvec = mask; cinfo->pfvec=cinfo->sbvec = 0; isnew = 1;
-                 if (dltime > 0) cinfo->deadline = dltime + time(0);
-                 PTable.Add(path, cinfo, LifeTime);
-                 if (Info) Add2Q(Info, cinfo, isrw);
+      } else if (!(Sel.Opts & XrdCmsSelect::Advisory)
+             &&   (iP = CTable.Add(Sel.Path)))
+                {iP->Loc.pfvec    = (Sel.Opts&XrdCmsSelect::Pending ? mask : 0);
+                 iP->Loc.hfvec    = mask;
+                 iP->Loc.sbvec    = Bounced[Tock];
+                 iP->Loc.qfvec    = 0;
+                 iP->Key.TOD      = Tock; isnew = 1;
+                 iP->Loc.deadline = DLTime + time(0);
+                 Sel.Path.TODRef  = iP;
                 }
 
 // All done
 //
-   PTMutex.UnLock();
+   myMutex.UnLock();
    return isnew;
 }
   
 /******************************************************************************/
-/*                              D e l C a c h e                               */
+/* Public                        D e l F i l e                                */
 /******************************************************************************/
 
-void XrdCmsCache::DelCache(const char *path)
-{
+// This method removes location information from existing valid entries. If an
+// existing valid entry is found, based on Sel.Opts the following occurs:
 
-// Lock the hash table
-//
-   PTMutex.Lock();
+// Opts !Advisory an update deadline is set dltime seconds into the future.
+// Opts  Advisory if the entry has no location information it is removed from
+//                the cache, if possible.
 
-// Delete the cache line
-//
-   PTable.Del(path);
-
-// All done
-//
-   PTMutex.UnLock();
-}
+// TRUE is trurned if the entry was valid but location information was cleared.
+// Otherwise, FALSE is returned.
   
-/******************************************************************************/
-/*                               D e l F i l e                                */
-/******************************************************************************/
-  
-int XrdCmsCache::DelFile(const char    *path,
-                         SMask_t        mask,
-                         int            dltime)
+int XrdCmsCache::DelFile(XrdCmsSelect &Sel, SMask_t mask)
 {
-   XrdCmsCInfo *cinfo;
+   XrdCmsKeyItem *iP;
    int gone4good;
 
 // Lock the hash table
 //
-   PTMutex.Lock();
+   myMutex.Lock();
 
 // Look up the entry and remove server
 //
-   if ((cinfo = PTable.Find(path)))
-      {cinfo->hfvec &= ~mask;
-       cinfo->pfvec &= ~mask;
-       cinfo->sbvec &= ~mask;
-       gone4good = (cinfo->hfvec == 0);
-       if (dltime > 0) cinfo->deadline = dltime + time(0);
-          else if (gone4good) PTable.Del(path);
+   if ((iP = CTable.Find(Sel.Path)))
+      {iP->Loc.hfvec &= ~mask;
+       iP->Loc.pfvec &= ~mask;
+       if ((gone4good = (iP->Loc.hfvec == 0))
+       && (!(Sel.Opts & XrdCmsSelect::Advisory))
+       && (XrdCmsKeyItem::Unload(iP) && !CTable.Recycle(iP)))
+          Say.Emsg("DelFile", "Delete failed for", iP->Key.Val);
       } else gone4good = 0;
 
 // All done
 //
-   PTMutex.UnLock();
+   myMutex.UnLock();
    return gone4good;
 }
   
 /******************************************************************************/
-/*                               G e t F i l e                                */
+/* Public                        G e t F i l e                                */
 /******************************************************************************/
+
+// This method looks up entries in the cache. An "entry not found" condition
+// holds is the entry was found but is marked as deleted.
+
+// Entry was found: Location information is passed bask. If the update deadline
+//                  has passed, it is nullified and 1 is returned. Otherwise,
+//                  -1 is returned indicating a query is in progress.
+
+// Entry not found: FALSE is returned.
   
-int  XrdCmsCache::GetFile(const char    *path,
-                          XrdCmsCInfo   &cinfo,
-                          int            isrw,
-                          XrdCmsRRQInfo *Info)
+int  XrdCmsCache::GetFile(XrdCmsSelect &Sel, SMask_t mask)
 {
-   XrdCmsCInfo *info;
+   XrdCmsKeyItem *iP;
+   SMask_t bVec;
+   int retc;
 
 // Lock the hash table
 //
-   PTMutex.Lock();
+   myMutex.Lock();
 
-// Look up the entry and remove server
+// Look up the entry and return location information
 //
-   if ((info = PTable.Find(path)))
-      {cinfo.hfvec = info->hfvec;
-       cinfo.pfvec = info->pfvec;
-       cinfo.sbvec = info->sbvec;
-       if (info->deadline && info->deadline <= time(0))
-          info->deadline = 0;
-          else if (Info && info->deadline && !info->sbvec) Add2Q(Info,info,isrw);
-       cinfo.deadline = info->deadline;
-      }
+   if ((iP = CTable.Find(Sel.Path)))
+      {if ((bVec = (Bounced[iP->Key.TOD]) & mask & ~(iP->Loc.sbvec)))
+          {iP->Loc.hfvec &= ~bVec; 
+           iP->Loc.pfvec &= ~bVec;
+           iP->Loc.qfvec &= ~mask;
+           iP->Loc.sbvec  = Bounced[iP->Key.TOD];
+           iP->Loc.deadline = DLTime + time(0); 
+           retc = -1;
+          } else if (iP->Loc.deadline)
+                    if (iP->Loc.deadline > time(0)) retc = -1;
+                       else {iP->Loc.deadline = 0;  retc =  1;}
+                    else retc = 1;
+       Sel.Vec.hf      = okVec & iP->Loc.hfvec;
+       Sel.Vec.pf      = okVec & iP->Loc.pfvec;
+       Sel.Vec.bf      = okVec & (bVec | iP->Loc.qfvec); iP->Loc.qfvec = 0;
+       Sel.Path.TODRef = iP;
+       Sel.Path.Ref    = iP->Key.Ref;
+      } else retc = 0;
 
 // All done
 //
-   PTMutex.UnLock();
-   return (info != 0);
+   myMutex.UnLock();
+   Sel.Path.TODRef = iP;
+   return retc;
 }
 
 /******************************************************************************/
-/*                                 A p p l y                                  */
+/* Public                        U n k F i l e                                */
 /******************************************************************************/
   
-void XrdCmsCache::Apply(int (*func)(const char *,XrdCmsCInfo *,void *), void *Arg)
+int XrdCmsCache::UnkFile(XrdCmsSelect &Sel, SMask_t mask)
 {
-     PTMutex.Lock();
-     PTable.Apply(func, Arg);
-     PTMutex.UnLock();
-}
- 
-/******************************************************************************/
-/*                                B o u n c e                                 */
-/******************************************************************************/
+   XrdCmsKeyItem *iP;
 
-void XrdCmsCache::Bounce(SMask_t smask, const char *path)
-{
-
-// Remove server from cache entries and indicate that it bounced
+// Make sure we have the proper information. If so, lock the hash table
 //
-   if (!path)
-      {PTMutex.Lock();
-       PTable.Apply(XrdCmsBounceAll, (void *)&smask);
-       PTMutex.UnLock();
-      } else {
-       struct XrdCmsBNCArgs xargs = {smask, path, strlen(path)};
-       PTMutex.Lock();
-       PTable.Apply(XrdCmsBounceSome, (void *)&xargs);
-       PTMutex.UnLock();
+   myMutex.Lock();
+
+// Look up the entry and if valid update the unqueried vector. Note that
+// this method may only be called after GetFile() or AddFile() for a new entry
+//
+   if ((iP = Sel.Path.TODRef))
+      if (iP->Key.Equiv(Sel.Path)) iP->Loc.qfvec = mask;
+         else iP = 0;
+
+// Return result
+//
+   myMutex.UnLock();
+   return (iP ? 1 : 0);
+}
+  
+/******************************************************************************/
+/* Public                        W T 4 F i l e                                */
+/******************************************************************************/
+  
+int XrdCmsCache::WT4File(XrdCmsSelect &Sel, SMask_t mask)
+{
+   EPNAME("WT4File");
+   XrdCmsKeyItem *iP;
+   time_t  Now;
+   int     retc;
+
+// Make sure we have the proper information. If so, lock the hash table
+//
+   if (!Sel.InfoP) return DLTime;
+   myMutex.Lock();
+
+// Look up the entry and if valid add it to the callback queue. Note that
+// this method may only be called after GetFile() or AddFile() for a new entry
+//
+   if (!(iP = Sel.Path.TODRef) || !(iP->Key.Equiv(Sel.Path))) retc = DLTime;
+      else if (iP->Loc.hfvec != mask)                         retc = 1;
+              else {Now = time(0);                            retc = 0;
+                    if (iP->Loc.deadline && iP->Loc.deadline <= Now)
+                        iP->Loc.deadline = DLTime + Now;
+                    Add2Q(Sel.InfoP, iP, Sel.Opts & XrdCmsSelect::Write);
+                   }
+
+// Return result
+//
+   myMutex.UnLock();
+   DEBUG("rc=" <<retc <<" path=" <<Sel.Path.Val);
+   return retc;
+}
+  
+/******************************************************************************/
+/*         P u b l i c   A d m i n i s t r a t i v e   C l a s s e s          */
+/******************************************************************************/
+/******************************************************************************/
+/* public                         B o u n c e                                 */
+/******************************************************************************/
+
+void XrdCmsCache::Bounce(SMask_t smask)
+{
+   unsigned int i;
+
+// Simply indicate that this server bounced for all time periods
+//
+   myMutex.Lock();
+   for (i = 0; i < XrdCmsKeyItem::TickRate; i++) Bounced[i] |= smask;
+   okVec |= smask;
+   myMutex.UnLock();
+}
+
+/******************************************************************************/
+/* Public                           D r o p                                   */
+/******************************************************************************/
+  
+void XrdCmsCache::Drop(SMask_t smask)
+{
+   SMask_t nmask = ~smask;
+   unsigned int i;
+
+// Remove the node from the path list
+//
+   Paths.Remove(smask);
+
+// Remove the node from the list of valid nodes
+//
+   myMutex.Lock();
+   for (i = 0; i < XrdCmsKeyItem::TickRate; i++) Bounced[i] &= nmask;
+   okVec &= nmask;
+   myMutex.UnLock();
+}
+
+/******************************************************************************/
+/* public                           I n i t                                   */
+/******************************************************************************/
+  
+int XrdCmsCache::Init(int fxHold, int fxDelay)
+{
+   XrdCmsKeyItem *iP;
+   pthread_t tid;
+
+// Initialize the delay time and the bounce clock tick window
+//
+   DLTime = fxDelay;
+   if (!(Tick = fxHold/XrdCmsKeyItem::TickRate)) Tick = 1;
+
+// Start the clock thread
+//
+   if (XrdSysThread::Run(&tid, XrdCmsStartTickTock, (void *)this,
+                            0, "Cache Clock"))
+      {Say.Emsg("Init", errno, "start cache clock");
+       return 0;
       }
-}
-  
-/******************************************************************************/
-/*                               E x t r a c t                                */
-/******************************************************************************/
 
-void XrdCmsCache::Extract(const char *pathpfx, XrdOucHash<char> *hashp)
-{
-   struct XrdCmsEXTArgs xargs = {hashp, (char *)pathpfx, strlen(pathpfx)};
-
-// Search the cache for all matching elements and insert them into the new hash
+// Get the first reserve of cache items
 //
-   PTMutex.Lock();
-   PTable.Apply(XrdCmsExtractFN, (void *)&xargs);
-   PTMutex.UnLock();
-}
-  
-/******************************************************************************/
-/*                                 R e s e t                                  */
-/******************************************************************************/
-  
-void XrdCmsCache::Reset(int nodeid)
-{
-     PTMutex.Lock();
-     PTable.Apply(XrdCmsClearVec, (void *)&nodeid);
-     PTMutex.UnLock();
+   iP = XrdCmsKeyItem::Alloc(0);
+   XrdCmsKeyItem::Unload((unsigned int)0);
+   iP->Recycle();
+
+// All done
+//
+   return 1;
 }
 
 /******************************************************************************/
-/*                                 S c r u b                                  */
+/* public                       T i c k T o c k                               */
 /******************************************************************************/
-  
-void XrdCmsCache::Scrub()
+
+void *XrdCmsCache::TickTock()
 {
-     PTMutex.Lock();
-     PTable.Apply(XrdCmsScrubScan, (void *)0);
-     PTMutex.UnLock();
+   XrdCmsKeyItem *iP;
+
+// Simply adjust the clock and trim old entries
+//
+   do {XrdSysTimer::Snooze(Tick);
+       myMutex.Lock();
+       Tock = (Tock+1) & XrdCmsKeyItem::TickMask;
+       iP = XrdCmsKeyItem::Unload(Tock);
+       Bounced[Tock] = 0;
+       myMutex.UnLock();
+       if (iP) Sched->Schedule((XrdJob *)new XrdCmsCacheJob(iP));
+      } while(1);
+
+// Keep compiler happy
+//
+   return (void *)0;
 }
 
 /******************************************************************************/
@@ -343,42 +406,74 @@ void XrdCmsCache::Scrub()
 /*                                 A d d 2 Q                                  */
 /******************************************************************************/
   
-void XrdCmsCache::Add2Q(XrdCmsRRQInfo *Info, XrdCmsCInfo *cp, int isrw)
+void XrdCmsCache::Add2Q(XrdCmsRRQInfo *Info, XrdCmsKeyItem *iP, int isrw)
 {
-   short Slot = (isrw ? cp->rwPend : cp->roPend);
+   short Slot = (isrw ? iP->Loc.rwPend : iP->Loc.roPend);
 
 // Add the request to the appropriate pending queue
 //
-   Info->Key = cp;
+   Info->Key = iP;
    Info->isRW= isrw;
    if (!(Slot = RRQ.Add(Slot, Info))) Info->Key = 0;
-      else if (isrw) cp->rwPend = Slot;
-               else  cp->roPend = Slot;
+      else if (isrw) iP->Loc.rwPend = Slot;
+               else  iP->Loc.roPend = Slot;
 }
 
 /******************************************************************************/
 /*                              D i s p a t c h                               */
 /******************************************************************************/
   
-void XrdCmsCache::Dispatch(XrdCmsCInfo *cinfo, short roQ, short rwQ)
+void XrdCmsCache::Dispatch(XrdCmsKeyItem *iP, short roQ, short rwQ)
 {
 
 // Dispach the waiting elements
 //
-   if (roQ) {RRQ.Ready(roQ, cinfo, cinfo->hfvec, cinfo->pfvec);
-             cinfo->roPend = 0;
+   if (roQ) {RRQ.Ready(roQ, iP, iP->Loc.hfvec, iP->Loc.pfvec);
+             iP->Loc.roPend = 0;
             }
-   if (rwQ) {RRQ.Ready(rwQ, cinfo, cinfo->hfvec, cinfo->pfvec);
-             cinfo->rwPend = 0;
+   if (rwQ) {RRQ.Ready(rwQ, iP, iP->Loc.hfvec, iP->Loc.pfvec);
+             iP->Loc.rwPend = 0;
             }
 }
 
 /******************************************************************************/
-/*                X r d C m s C I n f o   D e s t r u c t o r                 */
+/*                               R e c y c l e                                */
 /******************************************************************************/
   
-XrdCmsCInfo::~XrdCmsCInfo()
+void XrdCmsCache::Recycle(XrdCmsKeyItem *theList)
 {
-   if (roPend) RRQ.Del(roPend, this);
-   if (rwPend) RRQ.Del(rwPend, this);
+   XrdCmsKeyItem *iP;
+   char msgBuff[100];
+   int numNull, numHave, numFree, numRecycled = 0;
+
+// Recycle the list of cache items, as needed
+//
+   while((iP = theList))
+        {theList = iP->Key.TODRef;
+         if (iP->Loc.roPend) RRQ.Del(iP->Loc.roPend, iP);
+         if (iP->Loc.rwPend) RRQ.Del(iP->Loc.rwPend, iP);
+         myMutex.Lock(); CTable.Recycle(iP); myMutex.UnLock();
+         numRecycled++;
+        }
+
+// See if we have enough items in reserve
+//
+   myMutex.Lock();
+   XrdCmsKeyItem::Stats(numHave, numFree, numNull);
+   if (numFree < XrdCmsKeyItem::minFree)
+      {myMutex.UnLock();
+       if (!(numNull /= 4)) numNull = 1;
+       numHave += XrdCmsKeyItem::minAlloc * numNull;
+       while(numNull--)
+            {myMutex.Lock();
+             numFree = XrdCmsKeyItem::Replenish();
+             myMutex.UnLock();
+            }
+      } else myMutex.UnLock();
+
+// Log the stats
+//
+   sprintf(msgBuff, "%d cache items; %d allocated %d free",
+           numRecycled, numHave, numFree);
+   Say.Emsg("Recycle", msgBuff);
 }

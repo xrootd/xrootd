@@ -323,10 +323,7 @@ int XrdCmsConfig::Configure2()
 // Determine who we are. If we are a manager or supervisor start the file
 // location cache scrubber.
 //
-   if (isManager) 
-      {XrdJob *jp=(XrdJob *)new XrdCmsCache_Scrubber(&Cache, Sched);
-       Sched->Schedule(jp, cachelife+time(0));
-      }
+   if (isManager) NoGo = !Cache.Init(cachelife, LUPDelay);
 
 // Issue warning if the adminpath resides in /tmp
 //
@@ -1593,7 +1590,6 @@ int XrdCmsConfig::xfxhld(XrdSysError *eDest, XrdOucStream &CFile)
     if (XrdOuca2x::a2tm(*eDest, "fxhold value", val, &ct, 60)) return 1;
 
     cachelife = ct;
-    Cache.setLifetime(ct);
     return 0;
 }
 

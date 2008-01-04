@@ -73,12 +73,12 @@ XrdCmsNode     *Add(const char *Role, XrdLink *lp, int dport, int Status,
 
 // Sends a message to all nodes matching smask (three forms for convenience)
 //
-void            Broadcast(SMask_t, const struct iovec *, int, int tot=0);
+SMask_t         Broadcast(SMask_t, const struct iovec *, int, int tot=0);
 
-void            Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
+SMask_t         Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
                           char *Data,    int Dlen=0);
 
-void            Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
+SMask_t         Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
                           void *Data,    int Dlen);
 
 // Returns the node mask matching the given IP address
@@ -159,8 +159,7 @@ static const  int AltSize = 24; // Number of IP:Port characters per entry
 
 XrdSysMutex   XXMutex;          // Protects cluster summary state variables
 XrdSysMutex   STMutex;          // Protects all node information  variables
-XrdCmsNode   *NodeTab[STMax];   // Active   set of nodes
-XrdCmsNode   *NodeBat[STMax];   // Complete set of nodes
+XrdCmsNode   *NodeTab[STMax];   // Current  set of nodes
 
 int           STHi;             // NodeTab high watermark
 int           SelAcnt;          // Total number of r/w selections
