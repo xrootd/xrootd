@@ -32,7 +32,6 @@ SOURCES = \
 
 OBJECTS = \
         $(OBJDIR)/XrdOuca2x.o          \
-        $(OBJDIR)/XrdOucCRC.o          \
         $(OBJDIR)/XrdOucEnv.o          \
         $(OBJDIR)/XrdSysError.o        \
         $(OBJDIR)/XrdOucExport.o       \
@@ -48,7 +47,8 @@ OBJECTS = \
         $(OBJDIR)/XrdOucString.o       \
         $(OBJDIR)/XrdOucTokenizer.o    \
         $(OBJDIR)/XrdOucTrace.o        \
-        $(OBJDIR)/XrdOucUtils.o
+        $(OBJDIR)/XrdOucUtils.o        \
+        $(OBJDIR)/XrdOucCRC.o
 
 LIBRARY = $(LIBDIR)/libXrdOuc.a
 
@@ -59,6 +59,7 @@ TARGETS = $(LIBRARY)
 #------------------------------------------------------------------------------#
 
 vpath XrdNet% ../XrdNet
+vpath XrdOuc% ../XrdOuc
 vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
@@ -134,7 +135,8 @@ $(OBJDIR)/XrdOucPup.o: XrdOucPup.cc  XrdOucPup.hh
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucPup.cc -o $(OBJDIR)/XrdOucPup.o
 
 
-$(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh XrdSysPthread.hh
+$(OBJDIR)/XrdOucReqID.o: XrdOucReqID.cc XrdOucReqID.hh \
+                         XrdOucCRC.hh   XrdSysPthread.hh
 	@echo Compiling XrdOucReqID.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucReqID.cc -o $(OBJDIR)/XrdOucReqID.o
 

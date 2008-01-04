@@ -261,11 +261,18 @@ int XrdOucPup::Unpack(const char    *buff, const char *bend,
           char              **B08;} Base;
 
 
-   while(!Done && bp < bend)
-        {if (uP->Dtype == PT_Fence)  {Aok = 1; uP++; continue;}
-         Base.B08 = (char **)(base+uP->Doffs);
-         if (uP->Dtype == PT_Datlen)
-            {*Base.B32 = dlen; uP++; continue;}
+   while(!Done)
+        {Base.B08 = (char **)(base+uP->Doffs);
+         if (uP->Dtype & PT_MaskD)
+            {switch(uP->Dtype)
+                   {case PT_Fence:   Aok = 1;         break;
+                    case PT_Datlen: *Base.B32 = dlen; break;
+                    case PT_End:
+                    case PT_EndFill: Done = 1; uP--;  break;
+                    default: {}
+                   }
+             uP++; continue;
+            }
          if (bp+2 > bend)
             return eMsg("buffer overrun unpacking", int(uP-pup), uP);
          if (uP->Dtype == PT_char && !(*bp & PT_short))
@@ -296,15 +303,6 @@ int XrdOucPup::Unpack(const char    *buff, const char *bend,
 
                     case PT_longlong: *Base.B64 = ntohll(Temp.b64); break;
 
-//                  case PT_special:
-//                  case PT_Ignore:
-//                  case PT_MandS:
-//                  case PT_Mark;
-//                  case PT_Skip:
-//                  case PT_Totlen:
-                    case PT_End:
-                    case PT_EndFill: Done = 1; break;
-
                     default: {}
                    }
              }
@@ -313,7 +311,7 @@ int XrdOucPup::Unpack(const char    *buff, const char *bend,
 
 // Make sure we are not missing any items
 //
-   if (Aok || (!Done && (uP->Dtype == PT_End || uP->Dtype == PT_EndFill)))
+   if (Aok || uP->Dtype == PT_End || uP->Dtype == PT_EndFill)
       return static_cast<int>(uP-pup);
    return eMsg("missing arg unpacking", int(uP-pup), uP);
 }
