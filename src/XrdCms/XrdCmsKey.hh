@@ -42,16 +42,16 @@ void              setHash();
 inline int        Equiv(XrdCmsKey &oth)
                        {return Hash == oth.Hash && Ref == oth.Ref;}
 
-inline XrdCmsKey& XrdCmsKey::operator=(const XrdCmsKey &rhs)
+inline XrdCmsKey& operator=(const XrdCmsKey &rhs)
                            {Val = strdup(rhs.Val); Hash = rhs.Hash;
                             Len = rhs.Len; TOD = rhs.TOD; Ref = rhs.Ref;
                             return *this;
                            }
 
-inline int        XrdCmsKey::operator==(const XrdCmsKey &oth)
+inline int        operator==(const XrdCmsKey &oth)
                           {return Hash == oth.Hash && !strcmp(Val, oth.Val);}
 
-inline int        XrdCmsKey::operator!=(const XrdCmsKey &oth)
+inline int        operator!=(const XrdCmsKey &oth)
                           {return Hash != oth.Hash || strcmp(Val, oth.Val);}
 
          XrdCmsKey(char *key=0, int klen=0)
@@ -83,7 +83,7 @@ short          roPend;   // Redirectors waiting for R/O response
 short          rwPend;   // Redirectors waiting for R/W response
 
 inline 
-XrdCmsKeyLoc&  XrdCmsKeyLoc::operator=(const XrdCmsKeyLoc &rhs)
+XrdCmsKeyLoc&  operator=(const XrdCmsKeyLoc &rhs)
                            {hfvec=rhs.hfvec; pfvec=rhs.pfvec; sbvec=rhs.sbvec;
                             deadline = rhs.deadline;
                             roPend = rhs.roPend; rwPend = rhs.rwPend;
