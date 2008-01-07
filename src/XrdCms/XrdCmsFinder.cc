@@ -368,7 +368,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
    while(tp)
         {if (NoteNum) sprintf(NoteNum, "%d", tp->val);
          Data.Path = tp->text;
-         if (op) {Data.Opaque = (*(op->text) ? op->text : 0); op = op->next;}
+         if (op) {Data.Opaque = op->text; op = op->next;}
             else  Data.Opaque = 0;
          if (!(iovcnt = Parser.Pack(kYR_prepadd, &xmsg[1], &xmsg[xNum],
                                    (char *)&Data, Work))) break;
