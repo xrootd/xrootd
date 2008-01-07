@@ -141,7 +141,7 @@ XrdPosix: FORCE
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdPss: FORCE
-	@echo $(XMSG) oss $(XDBG) component...
+	@echo $(XMSG) pss $(XDBG) component...
 	$(ECHO)cd src/XrdPss;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
