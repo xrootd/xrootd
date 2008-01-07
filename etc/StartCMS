@@ -6,24 +6,23 @@
 #                          All Rights Reserved
 # Produced by Andrew Hanushevsky for Stanford University under contract
 #            DE-AC03-76-SFO0515 with the Deprtment of Energy
+# Modified by Fabrizio Furano 12/7/2007
 
-# Syntax: StartCMS [-c cfile] [-D] [oth] [-v] [ver]
+# Syntax: StartCMS [-c cfile] [-D] [-t] [-v] [oth]
 
 # Where:  -c  specifies the configuration file to be used.
-#         -d  passes the -d option to cmsd
 #         -D  turns on internal debugging.
 #         -t  types the commands and does not execute them
 #         -v  produces verbose output.
-#         oth Any other single letter options to be passed to the executable.
+#         oth Any other options to be passed to the executable.
 
-#        ver  is version number to use. This is the string that is put in
-#             $CMSBASE/<ver>/bin, the default is prod.
 #
-# Set default values
+# Set default values from the StartXRD.cf file
 #
-. $0.cf
+. `dirname $0`/StartXRD.cf
 
 VERBOSE=0
+
 # Set TEST to equal /bin/echo to only display lines to be executed
 #
 TEST=
@@ -36,7 +35,7 @@ umask 002
 
 Debug () {
     if test $VERBOSE -eq 1; then
-       /bin/echo $1
+       echo $1
     fi
     }
   
@@ -49,10 +48,8 @@ MustExist () {
 
 Writable () {
     Debug "Checking writability of $1 $2 ..."
-    if test -r $2 ; then
-       if test ! -w $2 ; then
-          Notify "$1 $2 is not writable by $MYNAME."
-       fi
+    if test ! -w $2 ; then
+       Notify "$1 $2 is not writable by $MYNAME."
     fi
     }
   
@@ -60,8 +57,8 @@ Wait4File () {
     Debug "Checking file $2 ..."
     tcnt=$count
     until test -${1} $2 -o $tcnt -eq 0; do
-          /bin/echo StartCMS: File $2 not found\; waiting $time seconds...
-          /bin/sleep $time
+          echo StartCMS: File $2 not found\; waiting $time seconds...
+          sleep $time
           tcnt=`/usr/bin/expr $tcnt - 1`
     done
     if [ $tcnt -le 0 ]; then
@@ -70,7 +67,7 @@ Wait4File () {
     }
 
 Notify () {
-    /bin/echo StartCMS: $1
+    echo StartCMS: $1
     exit 4
     }
 
@@ -80,18 +77,11 @@ Notify () {
 
 # Pick up options
 #
-HAVEVER=
 CMSOPTS=
 CMSPARM=$*
 
 while test -n "$1"; do
-     isopt=0
-     case $1 in [-]*) isopt=1;
-     esac
-     if [ "$isopt" = "0" -a -z "$HAVEVER" ]; then
-        CMSVER=$1
-        HAVEVER=1
-   elif [ "$1" = "-c" ]; then
+     if [ "$1" = "-c" ]; then
         if [ -z "$2" ]; then
            Notify "Configuration file not specified."
         fi
@@ -102,9 +92,6 @@ while test -n "$1"; do
         shift
    elif [ "$1" = "-D" ]; then
         set -x
-   elif [ "$1" = "-n" ]; then
-        shift
-        CMSOPTS="$CMSOPTS -n $1"
    elif [ "$1" = "-t" ]; then
         TEST=echo
    elif [ "$1" = "-v" ]; then
@@ -117,51 +104,54 @@ while test -n "$1"; do
 
 # Establish location of the CMS executables
 #
-  CMSBASE=`(cd $CMSBASE/$CMSVER; pwd)`
+  XRDBASE=`(cd $XRDBASE; pwd)`
+  Debug "XRDBASE has been set to '$XRDBASE'"
   if [ $? != 0 ]; then
      exit 4
   fi
 
-  CMSPROG=$CMSBASE/bin/$CMSPROG
-  PROGRAM=$CMSBASE/etc/$PROGRAM
+  CMSPROG=$XRDBASE/bin/$XRDARCH/cmsd
+  XRDLIBBASE=$XRDBASE/lib/$XRDARCH
+  PROGRAM=$XRDCFG/$PROGRAM
   if [ "$CMSCONFIGFN" = "" ]; then
-     CMSCONFIGFN=$CMSBASE/etc/$OLBCONFIG
+     CMSCONFIGFN=$XRDCFG/$XRDCONFIG
   fi
 
 # Establish log file name
 #
-  CMSLOGFILE=$CMSLOGDIR/$CMSLOGFN
-  if [ "x$CMSMODE" = "x-m -s" ]; then
-     CMSLOGFILE=$CMSLOGFILE.super
-  fi
+  CMSLOGFILE=$XRDLOGDIR/$CMSLOGFN
 
 # Verify that we are not executing this script as root (if we are, switch)
 #
 if [ $MYNAME = root ]; then
-   if [ $CMSUSER != root ]; then
-      $TEST exec /bin/su $CMSUSER -c "$PROGRAM $CMSPARM"
+   if [ $XRDUSER != root ]; then
+      $TEST exec su $XRDUSER -c "$PROGRAM $CMSPARM"
       fi
-   elif [ $MYNAME != $CMSUSER ]; then
+   elif [ $MYNAME != $XRDUSER ]; then
         Notify "Attempt to start $CMSUSER cmsd as user $MYNAME."
    fi
 
+# Just in case we don't have the basic directories, try to create them
+#
+$TEST mkdir -m 0744 -p $XRDLOGDIR $CMSHOMEDIR 2> /dev/null
+
 # Verify that all required directories are present
 #
-for FN in $CMSBASE $CMSLOGDIR $CMSHOMEDIR
+for FN in $XRDBASE $XRDLOGDIR $CMSHOMEDIR
     do
     MustExist Directory d $FN
 done
 
 # Verify that all owned directories are writable
 #
-for FN in $CMSLOGDIR $CMSHOMEDIR
+for FN in $XRDLOGDIR $CMSHOMEDIR
     do
     Writable Directory $FN
 done
   
 # Verify that all required readable files are present
 #
-for FN in $CMSCONFIGFN
+for FN in $XRDCFG
     do
     Wait4File r $FN
 done
@@ -171,8 +161,14 @@ done
 XLIST="$CMSPROG"
 for FN in $XLIST
     do
-    Wait4File x $FN
+   Wait4File x $FN
 done
+
+# Export the variables required in the config file
+#
+$TEST export XRDCFG
+$TEST export XRDBASE
+$TEST export XRDLIBBASE
 
 # Set appropriate limits
 #
@@ -181,7 +177,7 @@ $TEST ulimit -c unlimited
 
 # Add our "lib" directory to LD_LIBRARY_PATH
 #
-  CMSLIBBASE=$CMSBASE/lib
+  CMSLIBBASE=$XRDBASE/lib/$XRDARCH
   if [ -z "$LD_LIBRARY_PATH" ]; then
      LD_LIBRARY_PATH=$CMSLIBBASE
      else
@@ -191,9 +187,9 @@ $TEST ulimit -c unlimited
 
 # Now start the daemon
 #
-/bin/echo Starting cmsd ...
-$TEST cd $OLBHOMEDIR
-$TEST $CMSPROG $CMSOPTS $CMSMODE -l $CMSLOGFILE -c $CMSCONFIGFN &
+echo Starting cmsd ...
+$TEST cd $CMSHOMEDIR
+$TEST $CMSPROG $CMSOPTS -l $CMSLOGFILE -c $CMSCONFIGFN &
 stat=$?
 
 # Check if we were successful

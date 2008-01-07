@@ -7,7 +7,7 @@
 # Produced by Andrew Hanushevsky for Stanford University under contract
 #            DE-AC03-76-SFO0515 with the Deprtment of Energy
 
-# Syntax: StartXRD [-c cfile] [-D] [-f] [-s service] [oth] [-v] [ver]
+# Syntax: StartXRD [-c cfile] [-D] [-v] [oth]
 
 # Where:  -c  specifies the configuration file to be used.
 #         -D  turns on script debugging.
@@ -16,8 +16,6 @@
 #         -v  produces verbose output.
 #         oth Any other single letter options to be passed to the executable.
 
-#        ver  is version number to use. This is the string that is put in
-#             $XRDBASE/<ver>/bin, the default is prod.
 #
 # Set default values
 #
@@ -37,7 +35,7 @@ umask 002
 
 Debug () {
     if test $VERBOSE -eq 1; then
-       /bin/echo $1
+       echo $1
     fi
     }
   
@@ -50,10 +48,8 @@ MustExist () {
 
 Writable () {
     Debug "Checking writability of $1 $2 ..."
-    if test -r $2 ; then
-       if test ! -w $2 ; then
-          Notify "$1 $2 is not writable by $MYNAME."
-       fi
+    if test ! -w $2 ; then
+       Notify "$1 $2 is not writable by $MYNAME."
     fi
     }
   
@@ -61,8 +57,8 @@ Wait4File () {
     Debug "Checking file $2 ..."
     tcnt=$count
     until test -${1} $2 -o $tcnt -eq 0; do
-          /bin/echo StartXRD: File $2 not found\; waiting $time seconds...
-          /bin/sleep $time
+          echo StartXRD: File $2 not found\; waiting $time seconds...
+          sleep $time
           tcnt=`/usr/bin/expr $tcnt - 1`
     done
     if [ $tcnt -le 0 ]; then
@@ -71,7 +67,7 @@ Wait4File () {
     }
 
 Notify () {
-    /bin/echo StartXRD: $1
+    echo StartXRD: $1
     exit 4
     }
 
@@ -82,20 +78,12 @@ Notify () {
 # Pick up options
 #
 XRDOPTIONS=
-HAVEVER=
 XRDPARMS=$*
 XRDPORT=
-XRDPFIX=0
 XRDLOGSFX=
 
 while test -n "$1"; do
-     isopt=0
-     case $1 in [-]*) isopt=1;
-     esac
-     if [ "$isopt" = "0" -a -z "$HAVEVER" ]; then
-        XRDVER=$1
-        HAVEVER=1
-   elif [ "$1" = "-c" ]; then
+     if [ "$1" = "-c" ]; then
         if [ -z "$2" ]; then
            Notify "Configuration file not specified."
         fi
@@ -106,22 +94,8 @@ while test -n "$1"; do
         shift
    elif [ "$1" = "-D" ]; then
         set -x
-   elif [ "$1" = "-f" ]; then
-        XRDPFIX=1
-   elif [ "$1" = "-n" ]; then
-        shift
-        XRDOPTIONS="$XRDOPTIONS -n $1"
-   elif [ "$1" = "-s" ]; then
-        if [ -z "$2" ]; then
-           Notify "Service not specified."
-        fi
-        xrd_XRDALT=`/bin/grep $2 /etc/services | /bin/awk '{split($2,x,"/");print x[1]}'`
-        if [ -z "$xrd_XRDALT" ]; then
-           Notify "Service $2 not found."
-        fi
-        XRDPORT=$xrd_XRDALT
-        XRDLOGSFX=_$2
-        shift
+   elif [ "$1" = "-t" ]; then
+        TEST=echo
    elif [ "$1" = "-v" ]; then
         VERBOSE=1
    else
@@ -132,16 +106,17 @@ while test -n "$1"; do
 
 # Establish location of the XRD executable and libraries
 #
-  XRDBASE=`(cd $XRDBASE/$XRDVER; pwd)`
+  XRDBASE=`(cd $XRDBASE; pwd)`
+  Debug "XRDBASE has been set to '$XRDBASE'"
   if [ $? != 0 ]; then
      exit 4
   fi
 
-  XRDPROG=$XRDBASE/bin/$XRDPROG
-  XRDLIBBASE=$XRDBASE/lib
-  PROGRAM=$XRDBASE/etc/$PROGRAM
+  XRDPROG=$XRDBASE/bin/$XRDARCH/xrootd
+  XRDLIBBASE=$XRDBASE/lib/$XRDARCH
+  PROGRAM=$XRDCFG/$PROGRAM
   if [ "$XRDCONFIGFN" = "" ]; then
-     XRDCONFIGFN=$XRDBASE/etc/$XRDCONFIG
+     XRDCONFIGFN=$XRDCFG/$XRDCONFIG
   fi
 
   if [ -z "$LD_LIBRARY_PATH" ]; then
@@ -156,20 +131,25 @@ while test -n "$1"; do
 if [ $MYNAME = root ]; then
    if [ $XRDUSER != root ]; then
       $TEST export LD_LIBRARY_PATH
-      $TEST exec /bin/su $XRDUSER -c "$PROGRAM $XRDPARMS"
+      $TEST exec su $XRDUSER -c "$PROGRAM $XRDPARMS"
    fi
    elif [ $MYNAME != $XRDUSER ]; then
         Notify "Attempt to start $XRDUSER XRD as user $MYNAME."
 fi
 
-# Establish the port number to be used
+# Establish the port number to be used. Treat this as an explicit override of the main config file.
 #
-  if [ "$XRDPFIX" = "0" -a "x$XRDPORT" = "x" ]; then
-     XRDPORT=any
-  fi
   if [ "x$XRDPORT" != "x" ]; then
      XRDPORT="-p $XRDPORT"
   fi
+
+# Set the log file name
+#
+XRDLOGFILE=$XRDLOGDIR/$XRDLOGFN
+
+# Just in case we don't have the basic directories, try to create them
+#
+$TEST mkdir -m 0744 -p $XRDLOGDIR $XRDHOMEDIR 2> /dev/null
 
 # Verify that all required directories are present
 #
@@ -199,9 +179,11 @@ for FN in $XRDPROG
     Wait4File x $FN
 done
 
-# Export required variables
+# Export the variables required in the config file
 #
-$TEST export LD_LIBRARY_PATH
+$TEST export XRDCFG
+$TEST export XRDBASE
+$TEST export XRDLIBBASE
 
 # Set appropriate limits
 #
@@ -210,7 +192,7 @@ $TEST ulimit -c unlimited
 
 # Now start the daemon
 #
-/bin/echo Starting xrootd ...
+echo Starting xrootd ...
 $TEST cd $XRDHOMEDIR
 $TEST $XRDPROG $XRDOPTIONS $XRDPORT -l $XRDLOGFILE -c $XRDCONFIGFN &
 stat=$?
