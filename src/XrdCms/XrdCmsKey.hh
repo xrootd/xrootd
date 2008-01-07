@@ -30,8 +30,8 @@ class XrdCmsKey
 {
 public:
 
-char             *Val;
 XrdCmsKeyItem    *TODRef;
+char             *Val;
 unsigned int      Hash;
 short             Len;
 unsigned char     TOD;
@@ -124,7 +124,7 @@ static XrdCmsKeyItem *Unload(unsigned int   theTock);
 
 static XrdCmsKeyItem *Unload(XrdCmsKeyItem *theItem);
 
-       XrdCmsKeyItem() {}
+       XrdCmsKeyItem() {Next = Free; Free = this;}
       ~XrdCmsKeyItem() {} // These are never deleted
 
 static const unsigned int TickRate =   64;

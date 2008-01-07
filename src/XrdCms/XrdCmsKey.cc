@@ -111,18 +111,15 @@ int XrdCmsKeyItem::Replenish()
 {
    EPNAME("Replenish");
    XrdCmsKeyItem *kP;
-   int i;
 
 // Allocate a quantum of free elements and chain them into the free list
 //
    if (!(kP = new XrdCmsKeyItem[minAlloc])) return 0;
    DEBUG("old free " <<numFree <<" + " <<minAlloc <<" = " <<numHave+minAlloc);
   
-// Put them on the free list but return the last one allocated
+// Return the number we have free
 //
    numHave += minAlloc;
-   for (i = 0; i < minAlloc; i++)
-       {kP->Next = Free; Free = kP; kP++;}
    numFree += minAlloc;
    return numFree;
 }
