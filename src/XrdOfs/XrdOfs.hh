@@ -14,7 +14,6 @@
 
 #include <string.h>
 #include <dirent.h>
-#include <sys/time.h>
 #include <sys/types.h>
   
 #include "XrdOfs/XrdOfsEvr.hh"
@@ -114,26 +113,19 @@ public:
 
         int            getCXinfo(char cxtype[4], int &cxrsz);
 
-                       XrdOfsFile(const char *user) : XrdSfsFile(user)
-                                 {oh = (XrdOfsHandle *)0; dorawio = 0;
-                                  tident = (user ? user : "");
-                                  gettimeofday(&tod, 0);
-                                 }
+                       XrdOfsFile(const char *user);
 
 virtual               ~XrdOfsFile() {if (oh) close();}
 
 protected:
-const char    *tident;
+       const char   *tident;
 
 private:
 
-       void         setCXinfo(XrdSfsFileOpenMode mode);
-       void         TimeStamp() {gettimeofday(&tod, 0);}
-        int         Unclose();
+void           GenFWEvent();
 
 XrdOfsHandle  *oh;
 int            dorawio;
-struct timeval tod;
 };
 
 /******************************************************************************/
@@ -228,8 +220,6 @@ virtual int            Configure(XrdSysError &);
 
         void           Config_Display(XrdSysError &);
 
-virtual int            Unopen(XrdOfsHandle *);
-
                        XrdOfs();
 virtual               ~XrdOfs() {}  // Too complicate to delete :-)
 
@@ -239,8 +229,19 @@ virtual               ~XrdOfs() {}  // Too complicate to delete :-)
   
 // Configuration values for this filesystem
 //
-int   Options;        //    Various options
-int   myPort;         //    Port number being used
+enum {Authorize = 0x0001,    // Authorization wanted
+      isPeer    = 0x0050,    // Role peer
+      isProxy   = 0x0020,    // Role proxy
+      isManager = 0x0040,    // Role manager
+      isServer  = 0x0080,    // Role server
+      isSuper   = 0x00C0,    // Role supervisor
+      isMeta    = 0x0100,    // Role meta + above
+      haveRole  = 0x01F0,    // A role is present
+      Forward   = 0x1000     // Fowarding wanted
+     };                      // These are set in Options below
+
+int   Options;               // Various options
+int   myPort;                // Port number being used
 
 // Forward options
 //
@@ -251,16 +252,7 @@ const char *fwdMV;
 const char *fwdRM;
 const char *fwdRMDIR;
 
-int   FDConn;         //    Number of conn file descriptors
-int   FDOpen;         //    Number of open file descriptors
-int   FDOpenMax;      //    Max open FD's before we do scan
-int   FDMinIdle;      //    Min idle time in seconds
-int   FDMaxIdle;      //    Max idle time before close
-
 int   MaxDelay;       //    Max delay imposed during staging
-
-int   LockTries;      //    Number of times to try for a lock
-int   LockWait;       //    Number of milliseconds to wait for lock
 
 char *HostName;       //    ->Our hostname
 char *HostPref;       //    ->Our hostname with domain removed
@@ -273,19 +265,12 @@ char *OssLib;         //    ->Oss Library
 
 protected:
 
-// The following structure defines an anchor for the valid file list. There is
-// one entry in the list for each validpath directive. When a request comes in,
-// the named path is compared with entries in the VFlist. If no prefix match is
-// found, the request is treated as being invalid (i.e., EACCES).
-//
-XrdOucPListAnchor VPlist;     // -> Valid file list
-
-XrdOfsEvr         evrObject;  // Event receiver
+XrdOfsEvr     evrObject;      // Event receiver
+XrdCmsClient *Finder;         // ->Cluster Management Service
 
 virtual int   ConfigXeq(char *var, XrdOucStream &, XrdSysError &);
 static  int   Emsg(const char *, XrdOucErrInfo  &, int, const char *x,
                    const char *y="");
-XrdCmsClient *Finder;         //    ->Cluster Management Service
 static  int   fsError(XrdOucErrInfo &myError, int rc);
         int   Stall(XrdOucErrInfo  &, int, const char *);
         char *WaitTime(int, char *, int);
@@ -305,14 +290,15 @@ XrdOfsEvs        *evsObject;      //    ->Event Notifier
 char             *locResp;        //    ->Locate Response
 int               locRlen;        //      Length of locResp;
 
+static XrdOfsHandle     *dummyHandle;
+XrdSysMutex              ocMutex; // Global mutex for open/close
+
 /******************************************************************************/
 /*                            O t h e r   D a t a                             */
 /******************************************************************************/
 
 // Common functions
 //
-        int   Close(XrdOfsHandle *, const char *trid=0);
-        void  Detach_Name(const char *);
         int   remove(const char type, const char *path,
                      XrdOucErrInfo &out_error, const XrdSecEntity     *client,
                      const char *opaque);
@@ -323,11 +309,8 @@ int           ConfigRedir(XrdSysError &Eroute);
 const char   *Fname(const char *);
 int           setupAuth(XrdSysError &);
 const char   *theRole(int opts);
-void          List_VPlist(char *, XrdOucPListAnchor &, XrdSysError &);
 int           xalib(XrdOucStream &, XrdSysError &);
-int           xfdscan(XrdOucStream &, XrdSysError &);
 int           xforward(XrdOucStream &, XrdSysError &);
-int           xlocktry(XrdOucStream &, XrdSysError &);
 int           xmaxd(XrdOucStream &, XrdSysError &);
 int           xnot(XrdOucStream &, XrdSysError &);
 int           xolib(XrdOucStream &, XrdSysError &);

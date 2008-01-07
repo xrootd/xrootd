@@ -15,7 +15,7 @@ INCLUDES = -I$(top_srcdir)/src
 xrootdofsincdir = $(includedir)/xrootd/XrdOfs
 
 xrootdofsinc_HEADERS = \
-    XrdOfs.hh  XrdOfs.icc  XrdOfsConfig.hh \
+    XrdOfs.hh \
     XrdOfsEvr.hh  XrdOfsEvs.hh  XrdOfsHandle.hh \
     XrdOfsSecurity.hh  XrdOfsTrace.hh \
     XrdOfsConfig.cc XrdOfsEvs.cc XrdOfsEvr.cc XrdOfsHandle.cc XrdOfs.cc
@@ -23,8 +23,8 @@ xrootdofsinc_HEADERS = \
 # derived objects of the Ofs can be built
 
 libXrdOfs_la_SOURCES = \
-        XrdOfs.cc XrdOfs.hh XrdOfsSecurity.hh XrdOfsTrace.hh XrdOfs.icc \
-        XrdOfsConfig.cc XrdOfsConfig.hh \
+        XrdOfs.cc XrdOfs.hh XrdOfsSecurity.hh XrdOfsTrace.hh XrdOfsFS.cc \
+        XrdOfsConfig.cc \
         XrdOfsEvr.cc XrdOfsEvr.hh   \
         XrdOfsEvs.cc XrdOfsEvs.hh   \
         XrdOfsHandle.cc XrdOfsHandle.hh
