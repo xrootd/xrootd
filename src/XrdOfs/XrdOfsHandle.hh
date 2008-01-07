@@ -34,18 +34,18 @@ unsigned int         Hash;
 short                Len;
 unsigned short       Links;
 
-inline XrdOfsHanKey& XrdOfsHanKey::operator=(const XrdOfsHanKey &rhs)
+inline XrdOfsHanKey& operator=(const XrdOfsHanKey &rhs)
                                  {Val = strdup(rhs.Val); Hash = rhs.Hash;
                                   Len = rhs.Len;
                                   return *this;
                                  }
 
-inline int           XrdOfsHanKey::operator==(const XrdOfsHanKey &oth)
+inline int           operator==(const XrdOfsHanKey &oth)
                                  {return Hash == oth.Hash && Len == oth.Len
                                       && !strcmp(Val, oth.Val);
                                  }
 
-inline int           XrdOfsHanKey::operator!=(const XrdOfsHanKey &oth)
+inline int           operator!=(const XrdOfsHanKey &oth)
                                  {return Hash != oth.Hash || Len != oth.Len
                                       || strcmp(Val, oth.Val);
                                  }
