@@ -15,7 +15,7 @@ count=30
 
 # Set XRDUSER to be the username to "su" to if the script is run as root
 #
-XRDUSER=abh
+XRDUSER=fabrizio
 
 # Set XRDBASE to be the base directory where xrootd has
 # been installed or compiled.
@@ -75,16 +75,25 @@ CMSLOGFN=cmslog
 # MYNAME  - the current username
 # PROGRAM - the name of the start script
 #
-MYOS=`/bin/uname | awk '{print $1}'`
+MYOS=`uname | awk '{print $1}'`
 if [ "$MYOS" = "SunOS" ]; then
+
 MAXFD=`ulimit -H -n`
 MYNAME=`/usr/ucb/whoami`
 else
-MAXFD=`ulimit -H -n | /bin/grep files | awk '{print $3}'`
+
+if [ "$MYOS" = "Darwin" ]; then
+MAXFD=1024
+else
+
+MAXFD=`ulimit -H -n | grep files | awk '{print $3}'`
 if [ "$MAXFD" = "" ]; then
 MAXFD=`ulimit -H -n`
 fi
-MYNAME=`/usr/bin/whoami`
+
+fi
+
+MYNAME=`whoami`
 fi
 
 ############################################
