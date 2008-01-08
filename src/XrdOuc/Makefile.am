@@ -43,6 +43,7 @@ libXrdOuc_la_SOURCES = \
         XrdOucTrace.cc XrdOucTrace.hh      \
         XrdOucUtils.cc XrdOucUtils.hh      \
 	XrdOucExport.cc XrdOucExport.hh \
+        XrdOucCRC.cc XrdOucCRC.hh \
         XrdOucHash.icc
 
 libXrdOuc_la_LIBADD = $(LIBPTHREAD) $(SEM_LIBRT) $(LIBNSL)
