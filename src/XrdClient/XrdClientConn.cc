@@ -551,21 +551,25 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 			// Let's sleep!
 			kXR_int32 *maxwait = (kXR_int32 *)cmdrespMex->GetData();
 			kXR_int32 mw;
-			mw = ntohl(*maxwait);
+
+			if (maxwait)
+			  mw = ntohl(*maxwait);
+			else mw = 30;
 
 			if (!WaitResp(mw)) {
 			    // we did not time out, so the response is here
 		  
 			    memcpy(&LastServerResp, &fREQWaitRespData->resphdr,
 				   sizeof(struct ServerResponseHeader));
-		  
-		   
+		  		   
 			    // Let's fake a regular answer
 
 			    // Note: kXR_wait can be a fake response used to make the client retry!
-			    if (LastServerResp.status == kXR_wait) {
+			    if (fREQWaitRespData->resphdr.status == kXR_wait) {
 				cmdrespMex->fHdr.status = kXR_wait;
-				memcpy(cmdrespMex->GetData(), fREQWaitRespData->respdata, sizeof(kXR_int32));
+				if (fREQWaitRespData->resphdr.dlen) 
+				  memcpy(cmdrespMex->GetData(), fREQWaitRespData->respdata, sizeof(kXR_int32));
+				else memset(cmdrespMex->GetData(), 0, sizeof(kXR_int32));
 
 				CheckErrorStatus(cmdrespMex, retry, CmdName);
 				// This causes a retry
