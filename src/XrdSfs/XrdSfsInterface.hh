@@ -95,6 +95,7 @@ enum XrdSfsFileExistence
 #define Prep_SENDERR 8
 #define Prep_SENDACK 12
 #define Prep_WMODE   16
+#define Prep_STAGE   32
 
 class XrdOucTList;
 

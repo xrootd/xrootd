@@ -1075,15 +1075,15 @@ int XrdXrootdProtocol::do_Prepare()
 // Get a request ID for this prepare and check for static routine
 //
    if (opts & kXR_stage && !(opts & kXR_cancel)) 
-      XrdOucReqID::ID(reqid, sizeof(reqid));
-      else {reqid[0] = '*'; reqid[1] = '\0';}
+      {XrdOucReqID::ID(reqid, sizeof(reqid)); fsprep.opts = Prep_STAGE;}
+      else {reqid[0] = '*'; reqid[1] = '\0';  fsprep.opts = 0;}
 
 // Initialize the fsile system prepare arg list
 //
    fsprep.reqid   = reqid;
    fsprep.paths   = 0;
    fsprep.oinfo   = 0;
-   fsprep.opts    = Prep_PRTY0;
+   fsprep.opts   |= Prep_PRTY0;
    fsprep.notify  = 0;
 
 // Check if this is a cancel request
