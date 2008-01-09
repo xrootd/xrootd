@@ -6,7 +6,7 @@
 #                          All Rights Reserved
 # Produced by Andrew Hanushevsky for Stanford University under contract
 #            DE-AC03-76-SFO0515 with the Deprtment of Energy
-#Syntax:   StopOLB
+#Syntax:   StopCMS
 
 # The following snippet is from the StartOLB.cf file.
 #
@@ -72,7 +72,7 @@ Check(){
 # Pick up options
 #
 while test -n "$1"; do
-     if test -n "'$1'" -a "'$1'" = "'-d'"; then
+     if test -n "'$1'" -a "'$1'" = "'-D'"; then
         set -x
    elif test -n "'$1'" -a "'$1'" = "'-c'"; then
         CONDCHK=1
