@@ -321,14 +321,12 @@ struct CmsPongRequest {
 // Respond: No response.
 //
 struct CmsPrepAddRequest
-{      CmsRRHdr      Hdr;
-//     kXR_string    Ident;
-//     kXR_unt32     Opts;
+{      CmsRRHdr      Hdr;    // Modifier used with following options
 
-enum  {kYR_read    = 0x0001, // Default
-       kYR_stage   = 0x0002, //
-       kYR_write   = 0x0004
+enum  {kYR_stage   = 0x0001, // Stage   the data
+       kYR_write   = 0x0002  // Prepare for writing
       };
+//     kXR_string    Ident;
 //     kXR_string    reqid;
 //     kXR_string    user;
 //     kXR_string    prty;
