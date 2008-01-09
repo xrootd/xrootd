@@ -340,6 +340,12 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
        return ConWait;
       }
 
+// Set prepadd options
+//
+   Data.Request.modifier =
+               (pargs.opts & Prep_STAGE ? CmsPrepAddRequest::kYR_stage : 0)
+             | (pargs.opts & Prep_WMODE ? CmsPrepAddRequest::kYR_write : 0);
+
 // Set the prepadd mode
 //
    if (!pargs.notify || !(pargs.opts & Prep_SENDACK))

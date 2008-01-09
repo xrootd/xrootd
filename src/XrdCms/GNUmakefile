@@ -333,7 +333,8 @@ $(OBJDIR)/XrdCmsNode.o:      XrdCmsNode.cc       XrdCmsNode.hh \
                              XrdOucPup.hh        XrdOucTokenizer.hh \
                              XrdOucUtils.hh \
                              XrdSysPlatform.hh   XrdSysPthread.hh \
-                             XrdJob.hh           XrdLink.hh
+                             XrdJob.hh           XrdLink.hh  \
+                             YProtocol.hh
 	@echo Compiling XrdCmsNode.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsNode.o XrdCmsNode.cc
 

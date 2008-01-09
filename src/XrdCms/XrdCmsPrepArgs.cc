@@ -53,6 +53,7 @@ XrdCmsPrepArgs::XrdCmsPrepArgs(XrdCmsRRData &Arg) : XrdJob("prepare")
    path    = Arg.Path;
    pathlen = Arg.PathLen;
    opaque  = Arg.Opaque;
+   options = Arg.Request.modifier;
    Data    = Arg.Buff; Arg.Buff = 0; Arg.Blen = 0;
 
 // Fill out the iovec

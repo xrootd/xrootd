@@ -30,16 +30,15 @@ struct iovec  *iovP;    //  In: Prepare notification I/O vector
 int            iovN;    //  In: Prepare notification I/O vector count
 int            Opts;    //  In: One or more of the following enums
 
-enum {Write   = 0x0001, // File will be open in write mode (select & cache)
-      NewFile = 0x0802, // Gile will be created should not exist
-      Online  = 0x0004, // Only consider online files
-      Trunc   = 0x0808, // File will be truncated (w/ NewFile may exist)
-      Peers   = 0x0020, // Peer clusters may be selected
-      Refresh = 0x0040, // Cache should be refreshed
-      Asap    = 0x0080, // Respond as soon as possible
-      noStage = 0x0800, // Do not stage the file
-      Advisory= 0x4000, // Cache Add/Del is advisory (no delay)
-      Pending = 0x8000  // File being staged (select & cache)
+enum {Write   = 0x0001, // File will be open in write mode     (select & cache)
+      NewFile = 0x0002, // Gile will be created may not exist  (select)
+      Online  = 0x0004, // Only consider online files          (select & prep)
+      Trunc   = 0x0008, // File 2b trunced (NewFile->exist OK) (Select   only)
+      Peers   = 0x0020, // Peer clusters may be selected       (select   only)
+      Refresh = 0x0040, // Cache should be refreshed           (all)
+      Asap    = 0x0080, // Respond as soon as possible         (locate   only)
+      Advisory= 0x4000, // Cache A/D is advisory (no delay)    (have   & cache)
+      Pending = 0x8000  // File being staged                   (have   & cache)
      };
 
 struct {SMask_t wf;     // Out: Writable locations

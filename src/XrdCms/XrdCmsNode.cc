@@ -1,4 +1,4 @@
-/******************************************************************************/
+/***********************************************************************************************/
 /*                                                                            */
 /*                         X r d C m s N o d e . c c                          */
 /*                                                                            */
@@ -25,6 +25,8 @@ const char *XrdCmsNodeCVSID = "$Id$";
 
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdLink.hh"
+
+#include "XProtocol/YProtocol.hh"
 
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsCluster.hh"
@@ -489,7 +491,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    if (Arg.Opts & CmsLocateRequest::kYR_refresh)
       {Sel.Opts = XrdCmsSelect::Refresh; *toP++='s'; Sel.InfoP = 0;}
    if (Arg.Opts & CmsLocateRequest::kYR_asap)
-      {Sel.Opts = XrdCmsSelect::Asap; *toP++='i';    Sel.InfoP = &reqInfo;}
+      {Sel.Opts = XrdCmsSelect::Asap;    *toP++='i'; Sel.InfoP = &reqInfo;}
       else                                           Sel.InfoP = 0;
 
 // Do some debugging
@@ -783,7 +785,8 @@ const char *XrdCmsNode::do_PrepAdd(XrdCmsRRData &Arg)
 // Do an Xmi callout if need be
 //
    if (Xmi_Prep
-   &&  Xmi_Prep->Prep(Arg.Reqid, (index(Arg.Mode, 'w') ? XMI_RW:0),
+   &&  Xmi_Prep->Prep(Arg.Reqid,
+                      Arg.Opts & CmsPrepAddRequest::kYR_write ? XMI_RW : 0,
                       Arg.Path, Arg.Opaque))
        return 0;
 
@@ -1030,15 +1033,14 @@ int XrdCmsNode::do_SelPrep(XrdCmsPrepArgs &Arg) // Static!!!
 
 // Complete the arguments to select
 //
-   if (  Arg.options & CmsPrepAddRequest::kYR_write)
+   if ( Arg.options & CmsPrepAddRequest::kYR_write) 
       Sel.Opts |= XrdCmsSelect::Write;
-   if (!(Arg.options & CmsPrepAddRequest::kYR_stage))
-      Sel.Opts |= XrdCmsSelect::noStage;
+   if (Arg.options & CmsPrepAddRequest::kYR_stage) 
+           {Sel.iovP = Arg.ioV; Sel.iovN = Arg.iovNum;}
+      else {Sel.iovP = 0;       Sel.iovN = 0;}
 
 // Setup select data (note that prepare does not allow fast redirect)
 //
-   Sel.iovP  = (Sel.Opts & XrdCmsSelect::noStage ? 0 : Arg.ioV);
-   Sel.iovN  = (Sel.Opts & XrdCmsSelect::noStage ? 0 : Arg.iovNum);
    Sel.InfoP = 0;  // No fast redirects
    Sel.nmask = ~SMask_t(0);
 

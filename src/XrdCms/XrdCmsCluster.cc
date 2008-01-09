@@ -646,11 +646,12 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 //
    if (!(Sel.Opts & XrdCmsSelect::Refresh)
    &&   (retc = Cache.GetFile(Sel, pinfo.rovec)))
-      {pmask = (Sel.Opts & XrdCmsSelect::Asap
-             ?  Sel.Vec.hf & amask & ~Sel.Vec.pf : Sel.Vec.hf & amask);
-       if (Sel.Opts & XrdCmsSelect::Online) smask = 0;
-          else smask = (Sel.Opts & XrdCmsSelect::NewFile
-                     ? Sel.nmask & pinfo.rwvec : amask & pinfo.ssvec);
+      {pmask = Sel.Vec.hf & amask;
+       if (Sel.Opts & XrdCmsSelect::Online)
+          {pmask &= ~Sel.Vec.pf;
+           smask  = (Sel.Opts&XrdCmsSelect::NewFile ?amask : 0);
+          } else
+           smask  = (Sel.Opts&XrdCmsSelect::NewFile ?amask : pinfo.ssvec&amask);
       } else {
        Cache.AddFile(Sel, 0); 
        Sel.Vec.bf = pinfo.rovec; 
@@ -677,7 +678,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
    if ((!pmask && !smask) || (retc = SelNode(Sel, pmask, smask)) < 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                        "No servers are available to %s%s the file.",
-                       Sel.Opts & XrdCmsSelect::Asap ? "immediately " : "",
+                       Sel.Opts & XrdCmsSelect::Online ? "immediately " : "",
                        Amode)+1;
        return -1;
       }
@@ -1028,7 +1029,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
       {strcpy(Sel.Resp.Data, nP->Name(Sel.Resp.DLen, Sel.Resp.Port));
        Sel.Resp.DLen++;
        if (isalt || (Sel.Opts & XrdCmsSelect::NewFile) || Sel.iovN)
-          {if (isalt) 
+          {if (isalt || (Sel.Opts & XrdCmsSelect::NewFile))
               {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
                Cache.AddFile(Sel, nP->NodeMask);
               }
