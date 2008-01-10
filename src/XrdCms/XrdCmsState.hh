@@ -23,7 +23,7 @@ public:
 
 int   Suspended;
 
-void  Calc(int how, int nosState, int susState);
+void  Calc(int add2Stage, int add2Active);
 
 void  Enable(char *theState=0);
 
@@ -31,7 +31,7 @@ void *Monitor();
 
 void  sendState(XrdLink *Link);
 
-void  Sync(XrdLink *lp, int nosState, int susState);
+void  setNodeCnt(int val) {myMutex.Lock(); minNodeCnt=val; myMutex.UnLock();}
 
       XrdCmsState();
      ~XrdCmsState() {}
@@ -44,7 +44,8 @@ static const int All_NoStage = 2;
 XrdSysSemaphore mySemaphore;
 XrdSysMutex     myMutex;
 
-int             numSuspend;
+int             minNodeCnt;
+int             numActive;
 int             numStaging;
 int             curState;
 int             Changes;

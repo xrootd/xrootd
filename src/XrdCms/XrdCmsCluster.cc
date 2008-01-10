@@ -147,6 +147,7 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
           nP->Link      = lp;
           nP->isOffline = 0;
           nP->isConn    = 1;
+          nP->PingPong  = 1;
           nP->Instance++;
           nP->setName(Role, lp, port);  // Just in case it changed
           act = "Re-added ";
@@ -195,7 +196,7 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
    NodeCnt++;
    if (Config.SUPLevel
    && (tmp = NodeCnt*Config.SUPLevel/100) > Config.SUPCount)
-      Config.SUPCount=tmp;
+      {Config.SUPCount=tmp; CmsState.setNodeCnt(tmp);}
 
 // Compute new peer mask, as needed
 //
@@ -210,7 +211,8 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 
 // Compute new state of all nodes if we are a reporting manager.
 //
-   if (Config.asManager()) CmsState.Calc(1, nP->isNoStage, nP->isSuspend);
+   if (Config.asManager()) 
+      CmsState.Calc(nP->isSuspend ? 0 : 1, nP->isNoStage ? 0 : 1);
 
 // All done
 //
@@ -548,7 +550,7 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 // Compute new state of all nodes if we are a reporting manager
 //
    if (Config.asManager()) 
-      CmsState.Calc(-1, theNode->isNoStage, theNode->isSuspend);
+      CmsState.Calc(theNode->isSuspend ? 0 : 1, theNode->isNoStage ? 0 : 1);
 
 // If this is an immediate drop request, do so now. Drop() will delete
 // the node object and remove the node lock. So, tell LockHandler that.

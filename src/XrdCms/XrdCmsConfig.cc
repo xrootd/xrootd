@@ -366,6 +366,7 @@ int XrdCmsConfig::Configure2()
        SUPLevel = 0; 
        XrdCmsNode::setSpace(0x7fffffff, 0);
       }
+    CmsState.setNodeCnt(SUPCount);
 
 // Create the pid file
 //
@@ -409,8 +410,8 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("fxhold",        xfxhld);  // Manager,     dynamic
    TS_Xeq("ping",          xping);   // Manager,     dynamic
    TS_Xeq("sched",         xsched);  // Any,         dynamic
-   TS_Xeq("space",         xspace);  // Any,        dynamic
-   TS_Xeq("trace",         xtrace);  // Any,        dynamic
+   TS_Xeq("space",         xspace);  // Any,         dynamic
+   TS_Xeq("trace",         xtrace);  // Any,         dynamic
 
    if (!dynamic)
    {
@@ -418,7 +419,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
    TS_Xeq("cache",         xcache);  // Server,  non-dynamic
    TS_Xeq("defaults",      xdefs);   // Server,  non-dynamic
-   TS_Xeq("export",        xexpo);   // Server,  non-dynamic
+   TS_Xeq("export",        xexpo);   // Any,     non-dynamic
    TS_Xeq("fsxeq",         xfsxq);   // Server,  non-dynamic
    TS_Xeq("localroot",     xlclrt);  // Any,     non-dynamic
    TS_Xeq("manager",       xmang);   // Server,  non-dynamic
@@ -853,8 +854,9 @@ int XrdCmsConfig::MergeP()
        myPaths++;
       }
 
-// All done
+// All done update the staging status (it's nostage by default)
 //
+   if (DiskSS) CmsState.Calc(0, 1);
    return NoGo;
 }
 
@@ -1466,8 +1468,6 @@ int XrdCmsConfig::xexpo(XrdSysError *eDest, XrdOucStream &CFile)
 {
    XrdOucPList *plp, *olp;
    unsigned long long Opts = DirFlags & XRDEXP_SETTINGS;
-
-   if (!isServer) return CFile.noEcho();
 
 // Parse the arguments
 //

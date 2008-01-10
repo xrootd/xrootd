@@ -18,7 +18,6 @@ const char *XrdCmsStateCVSID = "$Id$";
 
 #include "Xrd/XrdLink.hh"
 
-#include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsManager.hh"
 #include "XrdCms/XrdCmsRTable.hh"
 #include "XrdCms/XrdCmsState.hh"
@@ -40,7 +39,8 @@ XrdCmsState XrdCms::CmsState;
   
 XrdCmsState::XrdCmsState() : mySemaphore(0)
 {
-   numSuspend = 0;
+   minNodeCnt = 1;
+   numActive  = 0;
    numStaging = 0;
    curState   = All_NoStage | All_Suspend;
    Changes    = 0;
@@ -52,19 +52,17 @@ XrdCmsState::XrdCmsState() : mySemaphore(0)
 /******************************************************************************/
 /*                                  C a l c                                   */
 /******************************************************************************/
-  
-// Warning: We must have a stable NodeCnt (i.e., STMutex must be locked)!
 
-void XrdCmsState::Calc(int how, int nostg, int susp)
+void XrdCmsState::Calc(int add2Activ, int add2Stage)
 {
   int newState, newChanges;
 
-// Calculate new state (depends on overlapping mutex locks)
+// Calculate new state
 //
    myMutex.Lock();
-   if (!nostg) numStaging += how;
-   if ( susp)  numSuspend += how;
-   newState = (numSuspend == Cluster.NodeCnt ? All_Suspend : 0) |
+   numStaging += add2Stage;
+   numActive  += add2Activ;
+   newState = (numActive  < minNodeCnt ? All_Suspend : 0) |
               (numStaging ? 0 : All_NoStage);
 
 // If any changes are noted then we must notify all our managers
@@ -81,7 +79,7 @@ void XrdCmsState::Calc(int how, int nostg, int susp)
 }
  
 /******************************************************************************/
-/*                               E n a b l e d                                */
+/*                                E n a b l e                                 */
 /******************************************************************************/
   
 void XrdCmsState::Enable(char *theState)
@@ -195,39 +193,5 @@ void XrdCmsState::sendState(XrdLink *lp)
                           : CmsStatusRequest::kYR_Stage;
 
    lp->Send((char *)&myStatus.Hdr, sizeof(myStatus.Hdr));
-   myMutex.UnLock();
-}
-
-/******************************************************************************/
-/*                                  S y n c                                   */
-/******************************************************************************/
-  
-void XrdCmsState::Sync(XrdLink *lp, int oldnos, int oldsus)
-{
-   CmsStatusRequest myStatus = {{0, kYR_status, 0, 0}};
-   int oldState, oldChanges;
-
-// Compute the old state
-//
-   oldState = (oldnos ? All_NoStage : 0);
-   if (oldsus) oldState |= All_Suspend;
-
-// If the current state does not correspond to the incomming state, notify
-// the mansger of the actual new state.
-//
-   myMutex.Lock();
-   if ((oldChanges = oldState ^ curState))
-      {if (oldChanges & All_Suspend) 
-          myStatus.Hdr.modifier  = (curState & All_Suspend)
-                                 ? CmsStatusRequest::kYR_Suspend
-                                 : CmsStatusRequest::kYR_Resume;
-       if (oldChanges & All_NoStage) 
-          myStatus.Hdr.modifier |= (curState & All_NoStage)
-                                 ? CmsStatusRequest::kYR_noStage
-                                 : CmsStatusRequest::kYR_Stage;
-
-       if (myStatus.Hdr.modifier) 
-          lp->Send((char *)&myStatus.Hdr, sizeof(myStatus.Hdr));
-      }
    myMutex.UnLock();
 }

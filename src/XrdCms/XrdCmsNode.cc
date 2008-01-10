@@ -1257,12 +1257,13 @@ const char *XrdCmsNode::do_Stats(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 {
    EPNAME("do_Status")
-   const char *why;
+   const char *srvMsg, *stgMsg;
    int   Stage = Arg.Request.modifier & CmsStatusRequest::kYR_Stage;
    int noStage = Arg.Request.modifier & CmsStatusRequest::kYR_noStage;
    int Resume  = Arg.Request.modifier & CmsStatusRequest::kYR_Resume;
    int Suspend = Arg.Request.modifier & CmsStatusRequest::kYR_Suspend;
    int Reset   = Arg.Request.modifier & CmsStatusRequest::kYR_Reset;
+   int add2Activ, add2Stage;
 
 // Do some debugging
 //
@@ -1279,38 +1280,34 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 
 // Process stage/nostage
 //
-    if (Stage || noStage)
-       {if (Stage)
-           {if (!isNoStage) return 0;
-            isNoStage = 0;
-            if (!isOffline && !isDisable) why = "staging resumed";
-               else why = isOffline ? "offlined" : "disabled";
-           } else
-        if (noStage)
-           if (isNoStage) return 0;
-              else {why = "staging suspended"; isNoStage = 1;}
-
-        if (isMan) CmsState.Calc(Stage ? 1 : -1, 0, 0);
-
-        Say.Emsg("Node", Name(), why);
-       }
+    if ((Stage && isNoStage) || (noStage && !isNoStage))
+       if (noStage) {add2Stage = -1; isNoStage = 1; stgMsg="staging suspended";}
+          else      {add2Stage =  1; isNoStage = 0; stgMsg="staging resumed";}
+       else         {add2Stage =  0;                stgMsg = 0;}
 
 // Process suspend/resume
 //
-    if (Resume || Suspend)
-       {if (Resume)
-           {if (!isSuspend) return 0;
-            isSuspend = 0;
-            if (!isOffline && !isDisable) why = "service resumed";
-               else why = isOffline ? "offlined" : "disabled";
-           } else
-        if (Suspend)
-           if (isSuspend) return 0;
-              else {why = "service suspended"; isSuspend = 1;}
+    if ((Resume && isSuspend) || (Suspend && !isSuspend))
+       if (Suspend) {add2Activ = -1; isSuspend = 1;
+                     srvMsg="service suspended"; 
+                     stgMsg = 0;
+                    }
+          else      {add2Activ =  1; isSuspend = 0;
+                     srvMsg="service resumed";
+                     stgMsg = (isNoStage ? "(no staging)" : "(staging)");
+                    }
+       else         {add2Activ =  0; srvMsg = 0;}
 
-        if (isMan) CmsState.Calc(Resume ? -1 : 1, 1, 1);
+// Get the most important message out
+//
+   if (isOffline)         {srvMsg = "service offline";  stgMsg = 0;}
+      else if (isDisable) {srvMsg = "service disabled"; stgMsg = 0;}
 
-        Say.Emsg("Node", Name(), why);
+// Now see if we need to change anything
+//
+   if (add2Activ || add2Stage)
+       {CmsState.Calc(add2Activ, add2Stage);
+        Say.Emsg("Node", Name(), srvMsg, stgMsg);
        }
 
    return 0;

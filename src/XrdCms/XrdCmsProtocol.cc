@@ -336,9 +336,6 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
        if (!(rc = XrdCmsLogin::Login(Link, Data)))
           if(!ManTree.Connect(myNID, myNode)) KickedOut = 1;
             else {Say.Emsg("Protocol", "Logged into", Link->Name());
-                  if (Config.asManager()) CmsState.Sync(Link,
-                                          Mode & CmsLoginData::kYR_nostage,
-                                          Mode & CmsLoginData::kYR_suspend);
                   Dispatch();
                   rc = 0;
                   loginData.fSpace= Meter.FreeSpace(fsUtil);

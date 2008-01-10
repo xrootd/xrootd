@@ -452,7 +452,7 @@ $(OBJDIR)/XrdCmsSecurity.o:  XrdCmsSecurity.cc   XrdCmsSecurity.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsSecurity.o XrdCmsSecurity.cc
 
 $(OBJDIR)/XrdCmsState.o:     XrdCmsState.cc      XrdCmsState.hh \
-                             XrdCmsCluster.hh    XrdCmsManager.hh \
+                             XrdCmsManager.hh \
                              XrdCmsRTable.hh     XrdCmsTalk.hh \
                              XrdCmsTrace.hh      XrdCmsTypes.hh \
                              XrdSysError.hh      XrdSysPthread.hh \
