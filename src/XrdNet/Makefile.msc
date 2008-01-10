@@ -60,17 +60,17 @@ CXXFLAGS = /nologo /MD /W3 /EHsc /O2 /I "./" /D "_WIN32" /D "WIN32" /D "_LIB" /D
 LDFLAGS  = 
 !ELSEIF  "$(CFG)" == "Win32 Debug"
 CXXFLAGS = /nologo /MDd /W3 /Gm /EHsc /Zi /Od /I "./" /D "_WIN32" /D "WIN32" /D "_LIB" /D "_DEBUG" /D "_WINDOWS" /D "WINDOWS" /Fo"$(OUTDIR)/" /FD /RTC1 /c
-LDFLAGS  = /DEBUG
+LDFLAGS  =
 !ENDIF 
 
 !if ("$(_NMAKE_VER)" == "8.00.50727.42") || ("$(_NMAKE_VER)" == "8.00.50727.762")
 MT_EXE        = mt -nologo -manifest $@.manifest -outputresource:$@;1
 MT_DLL        = mt -nologo -manifest $@.manifest -outputresource:$@;2
-EXTRAFLAGS    = /wd4244 /wd4996 /wd4273 /D_CRT_SECURE_NO_DEPRECATE
+EXTRAFLAGS    = /wd4244 /wd4996 /wd4273 /wd4355 /wd4800 /D_CRT_SECURE_NO_DEPRECATE
 !else
 MT_EXE        = 
 MT_DLL        = 
-EXTRAFLAGS    = /G6 /wd4244 /wd4996 /wd4273
+EXTRAFLAGS    = /G6 /wd4244 /wd4996 /wd4273 /wd4355 /wd4800
 !endif
 
 ######################

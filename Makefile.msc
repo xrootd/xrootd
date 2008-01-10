@@ -107,11 +107,11 @@ LDFLAGS = -debug
 !if ("$(_NMAKE_VER)" == "8.00.50727.42") || ("$(_NMAKE_VER)" == "8.00.50727.762")
 MT_EXE        = mt -nologo -manifest $@.manifest -outputresource:$@;1
 MT_DLL        = mt -nologo -manifest $@.manifest -outputresource:$@;2
-EXTRAFLAGS    = /wd4244 /wd4996 /wd4273 /D_CRT_SECURE_NO_DEPRECATE
+EXTRAFLAGS    = /wd4244 /wd4996 /wd4273 /wd4355 /wd4800 /D_CRT_SECURE_NO_DEPRECATE
 !else
 MT_EXE        = 
 MT_DLL        = 
-EXTRAFLAGS    = /G6 /wd4244 /wd4996 /wd4273
+EXTRAFLAGS    = /G6 /wd4244 /wd4996 /wd4273 /wd4355 /wd4800
 !endif
 
 LIBS     = $(LIBDIR)/libXrdClient.lib

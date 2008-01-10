@@ -393,7 +393,7 @@ int writev(int fd, const struct iovec iov[], int nvecs)
    else {
 
       /* Find the total number of bytes to write */
-      for (i = 0; i < nvecs; i++)
+      for (i = 0; i < (size_t)nvecs; i++)
          bytes += iov[i].iov_len;
 
       if (bytes == 0)   /* not an error */
@@ -407,7 +407,7 @@ int writev(int fd, const struct iovec iov[], int nvecs)
       }
 
       /* Copy the data into buffer. */
-      for (i = 0; i < nvecs; ++i) {
+      for (i = 0; i < (size_t)nvecs; ++i) {
          memcpy (bp, iov[i].iov_base, iov[i].iov_len);
          bp += iov[i].iov_len;
       }
