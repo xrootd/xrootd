@@ -192,7 +192,12 @@ $SIG{TERM} = 'THandler';
   &Emsg('Source file not specified.') if (!($src_fn = $ARGV[0]));
   &Emsg('Target file not specified.') if (!($trg_fn = $ARGV[1]));
   &Emsg("Extraneous parameter, $ARGV[2].") if ($ARGV[2]);
-  while ($src_fn =~ s|//|/|g) {}           # remove double slashes
+
+  # Remove double slashes only if src_fn does not look like an url
+  if (!($src_fn =~ "\:\/\/")) {
+    while ($src_fn =~ s|//|/|g) {}           # remove double slashes
+  }
+
   while ($trg_fn =~ s|//|/|g) {}           # remove double slashes
   $Immed = 1 if ("$src_fn" ne "$trg_fn");  # prestage cannot handle names being different
 
