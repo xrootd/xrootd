@@ -359,14 +359,18 @@ int XrdCmsConfig::Configure2()
   if (!NoGo && isManager) NoGo = setupManager();
   if (!NoGo && isServer)  NoGo = setupServer();
 
-// If we are a solo peer then we have no servers and a lot of space
+// If we are a solo peer then we have no servers and a lot of space and
+// connections don't matter. Connections only matter for true managers.
+// Meta managers need only one subscriber to give it a go.
 //
    if (isPeer && isSolo) 
-      {SUPCount = 0; 
-       SUPLevel = 0; 
+      {SUPCount = SUPLevel = 0;
        XrdCmsNode::setSpace(0x7fffffff, 0);
-      } else if (isManager & !isServer) CmsState.Update(XrdCmsState::FrontEnd,1);
-    CmsState.Set(SUPCount, AdminPath);
+      } else if (isManager)
+                {if (isMeta) {SUPCount = 1; SUPLevel = 0;}
+/* Hack */       if (!isServer) CmsState.Update(XrdCmsState::FrontEnd,1);
+                }
+    CmsState.Set(SUPCount, isManager && !isServer, AdminPath);
 
 // Create the pid file
 //
@@ -504,6 +508,14 @@ void XrdCmsConfig::DoIt()
              Sched->Schedule((XrdJob *)pP);
              tp = tp->next;
             }
+      }
+
+// Start state monitoring thread
+//
+   if (XrdSysThread::Run(&tid, XrdCmsStartMonStat, (void *)0,
+                               0, "State monitor"))
+      {Say.Emsg("Config", errno, "create state monitor thread");
+       return;
       }
 
 // If we are a manager then we must do a service enable after a service delay
@@ -906,14 +918,6 @@ int XrdCmsConfig::setupManager()
           {Say.Emsg("Config", rc, "create refcount monitor thread");
            return 1;
           }
-      }
-
-// Create state monitoring thread
-//
-   if ((rc = XrdSysThread::Run(&tid, XrdCmsStartMonStat, (void *)0,
-                               0, "State monitor")))
-      {Say.Emsg("Config", rc, "create state monitor thread");
-       return 1;
       }
 
 // Initialize the fast redirect queue

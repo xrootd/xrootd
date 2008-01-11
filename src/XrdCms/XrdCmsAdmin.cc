@@ -268,7 +268,7 @@ int XrdCmsAdmin::do_Login()
    Primary = 1;
    POnline = 1;
    if (Config.doWait) Config.PortData = Port;
-   CmsState.Update(XrdCmsState::FrontEnd, 1, -1);
+   CmsState.Update(XrdCmsState::FrontEnd, 1, Port);
 
 // Check if this is the first primary login and resume if we must
 //

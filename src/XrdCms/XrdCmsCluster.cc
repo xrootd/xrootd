@@ -123,7 +123,7 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 //
    for (Slot = 0; Slot < STMax; Slot++)
        if (NodeTab[Slot])
-          {if (NodeTab[Slot]->isNode(ipaddr, port, theNID)) break;
+          {if (NodeTab[Slot]->isNode(ipaddr, theNID)) break;
 //Conn//   if (NodeTab[Slot]->isConn)
               {if (!NodeTab[Slot]->isPerm)   Bump2 = Slot; // Last conn Server
 //Disc//      } else {

@@ -272,12 +272,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 
 // Compute the Manager's status (this never changes for managers/supervisors)
 //
-   if (Config.asPeer())
-      if (Config.SUPCount)             Role  = CmsLoginData::kYR_peer
-                                             | CmsLoginData::kYR_suspend;
-               else                    Role  = CmsLoginData::kYR_peer;
-      else if (Config.asManager())     Role  = CmsLoginData::kYR_manager
-                                             | CmsLoginData::kYR_suspend;
+   if (Config.asPeer())                Role  = CmsLoginData::kYR_peer;
+      else if (Config.asManager())     Role  = CmsLoginData::kYR_manager;
               else                     Role  = CmsLoginData::kYR_server;
    if (Config.asProxy())               Role |= CmsLoginData::kYR_proxy;
 

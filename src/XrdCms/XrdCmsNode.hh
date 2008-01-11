@@ -90,10 +90,8 @@ inline int    isNode(const char *hn)
                     {return Link && !strcmp(Link->Host(), hn);}
 inline int    isNode(unsigned int ipa)
                     {return ipa == IPAddr;}
-inline int    isNode(unsigned int ipa, int port, const char *nid)
-                    {return ipa == IPAddr && port == Port
-                         && (nid ? !strcmp(myNID, nid) : 1);
-                    }
+inline int    isNode(unsigned int ipa, const char *nid)
+                    {return ipa == IPAddr && (nid ? !strcmp(myNID, nid) : 1);}
 inline char  *Name()   {return (myName ? myName : (char *)"?");}
 
 inline char  *Name(int &len, int &port)

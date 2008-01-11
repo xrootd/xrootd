@@ -1295,6 +1295,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
           else      {add2Activ =  1; isSuspend = 0;
                      srvMsg="service resumed";
                      stgMsg = (isNoStage ? "(no staging)" : "(staging)");
+                     Port = ntohl(Arg.Request.streamid);
                     }
        else         {add2Activ =  0; srvMsg = 0;}
 

@@ -17,6 +17,7 @@ const char *XrdCmsStateCVSID = "$Id$";
 #include <fcntl.h>
 #include <limits.h>
 #include <unistd.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -57,6 +58,7 @@ XrdCmsState::XrdCmsState() : mySemaphore(0)
    adminSuspend = 0;
    NoStageFile  = "";
    SuspendFile  = "";
+   isPure       = 0;
    Enabled      = 0;
 }
  
@@ -95,7 +97,7 @@ void *XrdCmsState::Monitor()
 {
    EPNAME("Monitor");
    CmsStatusRequest myStatus = {{0, kYR_status, 0, 0}};
-   int theState, Changes;
+   int theState, Changes, myPort;
 
 // Do this forever (we are only posted when finally enabled)
 //
@@ -104,10 +106,14 @@ void *XrdCmsState::Monitor()
        Changes   = currState ^ prevState;
        theState  = currState;
        prevState = currState;
+       myPort    = dataPort;
        myMutex.UnLock();
 
        if (Changes && (myStatus.Hdr.modifier = Status(Changes, theState)))
-          {DEBUG("Sending status " <<(theState & Changes));
+          {DEBUG("Sending status " <<(theState & Changes) <<" port=" <<myPort);
+           if (myStatus.Hdr.modifier & CmsStatusRequest::kYR_Resume)
+                    myStatus.Hdr.streamid = htonl(myPort);
+               else myStatus.Hdr.streamid = 0;
            RTable.Send((char *)&myStatus, sizeof(myStatus));
            Manager.Inform(myStatus.Hdr);
           }
@@ -143,7 +149,7 @@ void XrdCmsState::sendState(XrdLink *lp)
 /* Public                            S e t                                    */
 /******************************************************************************/
   
-void XrdCmsState::Set(int ncount, const char *AdminPath)
+void XrdCmsState::Set(int ncount)
 {
 
 // Set the node count (this requires a lock)
@@ -151,21 +157,26 @@ void XrdCmsState::Set(int ncount, const char *AdminPath)
    myMutex.Lock(); 
    minNodeCnt = ncount;
    myMutex.UnLock();
+}
 
-// If we have an adminpath then this is an configuration call as well.
+/******************************************************************************/
+
+void XrdCmsState::Set(int ncount, int ispure, const char *AdminPath)
+{
+   char fnbuff[1048];
+   int i;
+
+// This is a configuration call no locks are required
 //
-   if (AdminPath)
-      {char fnbuff[1048];
-       int i;
-
-       i = strlen(AdminPath);
-       strcpy(fnbuff, AdminPath);
-       if (AdminPath[i-1] != '/') fnbuff[i++] = '/';
-       strcpy(fnbuff+i, "NOSTAGE");
-       NoStageFile = strdup(fnbuff);
-       strcpy(fnbuff+i, "SUSPEND");
-       SuspendFile = strdup(fnbuff);
-      }
+   minNodeCnt = ncount;
+   isPure = ispure;
+   i = strlen(AdminPath);
+   strcpy(fnbuff, AdminPath);
+   if (AdminPath[i-1] != '/') fnbuff[i++] = '/';
+   strcpy(fnbuff+i, "NOSTAGE");
+   NoStageFile = strdup(fnbuff);
+   strcpy(fnbuff+i, "SUSPEND");
+   SuspendFile = strdup(fnbuff);
 }
 
 /******************************************************************************/
@@ -216,9 +227,8 @@ unsigned char XrdCmsState::Status(int Changes, int theState)
 void XrdCmsState::Update(StateType StateT, int ActivCnt, int StageCnt)
 {
   EPNAME("Update");
+  const char *What;
   char newVal;
-  DEBUG("Type=" <<StateT <<" ActivCnt=" <<ActivCnt <<" StageCnt=" <<StageCnt);
-
 
 // Create new state
 //
@@ -230,13 +240,17 @@ void XrdCmsState::Update(StateType StateT, int ActivCnt, int StageCnt)
                                                              S_IRUSR|S_IWUSR));
                              adminSuspend = newVal;
                             }
+                         What = "Active";
                          break;
           case Counts:   numStaging += StageCnt;
                          numActive  += ActivCnt;
+                         What = "Counts";
                          break;
-          case FrontEnd: feOK = ActivCnt ? 1 : 0;
+          case FrontEnd: if ((feOK = ActivCnt ? 1 : 0)) dataPort = StageCnt;
+                         What = "FrontEnd";
                          break;
           case Space:    noSpace = (ActivCnt ? 0 : 1);
+                         What = "Space";
                          break;
           case Stage:    if ((newVal = ActivCnt ? 0 : 1) != adminNoStage)
                             {if (newVal) unlink(NoStageFile);
@@ -244,11 +258,14 @@ void XrdCmsState::Update(StateType StateT, int ActivCnt, int StageCnt)
                                                              S_IRUSR|S_IWUSR));
                              adminNoStage = newVal;
                             }
+                         What = "Stage";
                          break;
           default:       Say.Emsg("State", "Invalid state update");
+                         What = "Unknown";
                          break;
          }
 
+   DEBUG("Type=" <<What <<" Parm1=" <<ActivCnt <<" Parm2=" <<StageCnt);
    currState=(numActive  < minNodeCnt ||adminSuspend|| !feOK  ? All_Suspend:0)
             |(numStaging < 1          ||adminNoStage|| noSpace? All_NoStage:0);
 

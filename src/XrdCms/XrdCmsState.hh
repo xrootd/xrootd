@@ -30,7 +30,8 @@ void *Monitor();
 
 void  sendState(XrdLink *Link);
 
-void  Set(int val, const char *AdminPath=0);
+void  Set(int ncount);
+void  Set(int ncount, int ispure, const char *AdminPath);
 
 enum  StateType {Active = 0, Counts, FrontEnd, Space, Stage};
 
@@ -54,6 +55,7 @@ const char     *SuspendFile;
 int             minNodeCnt;   // Minimum number of needed subscribers
 int             numActive;    // Number of active subscribers
 int             numStaging;   // Number of subscribers that can stage
+int             dataPort;     // Current data port number
 
 char            currState;    // Current  state
 char            prevState;    // Previous state
@@ -61,6 +63,7 @@ char            feOK;         // Front end functioing
 char            noSpace;      // We don't have enough space
 char            adminSuspend; // Admin asked for suspension
 char            adminNoStage; // Admin asked for no staging
+char            isPure;       // We are a pure manager
 char            Enabled;      // We are now enabled for reporting
 };
 
