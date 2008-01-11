@@ -114,7 +114,7 @@ $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
                                 XrdPosixExtern.hh      XrdPosixStream.hh \
                                 XrdPosixXrootd.hh      XrdSysPlatform.hh
 	@echo Compiling XrdPosixPreload32.cc
-	$(ECHO)$(CC) -c $(CFLAGS32) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
+	$(ECHO)$(CC) -c $(CFLAGS32) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
 
 $(OBJDIR)/XrdPosixStream.o:  XrdPosixStream.cc   XrdPosixStream.hh \
                              XrdSysPthread.hh    XrdPosixLinkage.hh \

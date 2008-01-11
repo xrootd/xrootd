@@ -106,6 +106,7 @@ endif
 TARGETS = $(LIBRARY) $(LIBSHARED) $(LIBAUX) \
 	  $(TESTBIN) $(XRDCP) $(XRDCLI) $(XRDADMIN) \
 	  $(LIBRARY_JNI) $(CLASS_JNI_TARGET)
+
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
 #------------------------------------------------------------------------------#
@@ -205,7 +206,7 @@ $(OBJDIR)/XrdClientAdmin_c.o: XrdClientAdmin_c.cc ../XrdClient/XrdClientAdmin.hh
   ../XrdClient/XrdClientEnv.hh ../XrdOuc/XrdOucEnv.hh \
   ../XrdSys/XrdSysLogger.hh ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClientAdmin_c.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) $(PERLCCFLAGS) -o $(OBJDIR)/XrdClientAdmin_c.o XrdClientAdmin_c.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) $(PERLCCFLAGS) -o $(OBJDIR)/XrdClientAdmin_c.o XrdClientAdmin_c.cc
 
 $(OBJDIR)/XrdClientThread.o: XrdClientThread.cc ../XrdClient/XrdClientThread.hh \
   ../XrdSys/XrdSysPthread.hh ../XrdSys/XrdSysError.hh
@@ -264,7 +265,7 @@ $(OBJDIR)/XrdClientAdmin.o: XrdClientAdmin.cc ../XrdClient/XrdClientAdmin.hh \
   ../XrdClient/XrdClientConnMgr.hh ../XrdClient/XrdClientLogConnection.hh \
   ../XrdClient/XrdClientPhyConnection.hh ../XrdClient/XrdClientThread.hh
 	@echo Compiling XrdClientAdmin.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAdmin.o XrdClientAdmin.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdClientAdmin.o XrdClientAdmin.cc
 
 $(OBJDIR)/XrdClientAdminJNI.o: XrdClientAdminJNI.cc ../XrdClient/XrdClientAdmin.hh \
   ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientUnsolMsg.hh \
@@ -324,7 +325,7 @@ $(OBJDIR)/XrdClientConn.o: XrdClientConn.cc XrdClientConn.hh ../XrdClient/XrdCli
   ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
   ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClientConn.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientConn.o XrdClientConn.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdClientConn.o XrdClientConn.cc
 
 
 
@@ -579,6 +580,6 @@ $(OBJDIR)/XrdClientMStream.o: XrdClientMStream.cc ../XrdClient/XrdClientDebug.hh
   ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
   ../XrdSys/XrdSysPlatform.hh
 	@echo Compiling XrdClientMStream.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientMStream.o XrdClientMStream.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdClientMStream.o XrdClientMStream.cc
 
 

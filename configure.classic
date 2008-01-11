@@ -833,6 +833,22 @@ fi
 
 ######################################################################
 #
+### echo %%% Check for compiler special options:
+#            - need of '-Wno-strict-aliasing'
+#
+nostrictalias=""
+if test "x$ccflv" = "xgcc" ; then
+   message "Checking for gcc special options"
+   if [ `gcc -dumpversion 2>&1 | cut -d'.' -f1` -ge 4 ] ; then
+      nostrictalias="-Wno-strict-aliasing"
+      echo "yes, $nostrictalias"
+   else
+      echo "no"
+   fi
+fi
+
+######################################################################
+#
 ### echo %%% Check for strlcpy
 #
 hasstrlcpy=""
@@ -1559,7 +1575,7 @@ if test ! "x$enable_afs" = "xno" ; then
     # libraries
     #
     afslib=""
-    check_library "libafsauthent" "no" "$afslibdir" \
+    check_library "libafsauthent" "$enable_shared" "$afslibdir" \
         /usr/lib /usr/local/lib /opt/lib $finkdir/lib
     if test "x$found_lib" = "x" ; then
         afslib=""
@@ -1581,7 +1597,7 @@ if test ! "x$enable_afs" = "xno" ; then
           tmpafslibdir=`echo $afslibdir | cut -c3-`
        fi
        # All libraries in the same directory
-       check_library "libafsrpc" "no" "$tmpafslibdir" /usr/lib
+       check_library "libafsrpc" "$enable_shared" "$tmpafslibdir" /usr/lib
        if test "x$found_lib" = "x" ; then
           afslib=""
           afslibdir=""
@@ -2014,6 +2030,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@javainc@|$javainc|" \
     -e "s|@perlincdir@|$perlincdir|" \
     -e "s|@perlccflags@|$perlccflags|" \
+    -e "s|@nostrictalias@|$nostrictalias|" \
     < GNUmake.env.tmp > $ENVOUT
 rm -f GNUmake.env.tmp
 

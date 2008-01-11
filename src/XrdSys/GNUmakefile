@@ -97,7 +97,7 @@ $(OBJDIR)/XrdSysPriv.o: XrdSysPriv.cc  XrdSysPriv.hh
 
 $(OBJDIR)/XrdSysPthread.o: XrdSysPthread.cc XrdSysPthread.hh XrdSysError.hh
 	@echo Compiling XrdSysPthread.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysPthread.cc -o $(OBJDIR)/XrdSysPthread.o
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) XrdSysPthread.cc -o $(OBJDIR)/XrdSysPthread.o
 
 $(OBJDIR)/XrdSysTimer.o: XrdSysTimer.cc XrdSysTimer.hh  
 	@echo Compiling XrdSysTimer.cc

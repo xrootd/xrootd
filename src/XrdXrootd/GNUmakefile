@@ -178,7 +178,6 @@ $(OBJDIR)/XrdXrootdMonitor.o: XrdSysError.hh      \
 
 $(OBJDIR)/XrdXrootdPio.o:  XrdXrootdPio.hh  XrdXrootdPio.cc \
                            XrdSysPthread.hh XPtypes.hh
-                              
 	@echo Compiling XrdXrootdPio.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdPio.o XrdXrootdPio.cc
 
@@ -233,7 +232,7 @@ $(OBJDIR)/XrdXrootdXeq.o: XrdXrootdFile.hh      XrdXrootdFileLock.hh  \
                           XrdOucReqID.hh        XrdOucStream.hh \
                           XrdXrootdJob.hh       XrdXrootdXeq.cc
 	@echo Compiling XrdXrootdXeq.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdXeq.o XrdXrootdXeq.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdXeq.o XrdXrootdXeq.cc
 
 $(OBJDIR)/XrdXrootdXeqAio.o: XrdXrootdXeqAio.cc \
                              XrdBuffer.hh         XrdLink.hh       \
