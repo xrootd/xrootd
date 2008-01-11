@@ -33,10 +33,10 @@ const char *XrdCmsMeterCVSID = "$Id$";
 #include <sys/statvfs.h>
 #endif
 
-#include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsMeter.hh"
 #include "XrdCms/XrdCmsNode.hh"
+#include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -272,7 +272,7 @@ void *XrdCmsMeter::RunFS()
          if (noSpace != noNewSpace)
             {SpaceMsg(noNewSpace);
              noSpace = noNewSpace;
-             Cluster.Space(noSpace);
+             if (!Config.asSolo()) CmsState.Update(XrdCmsState::Space, noSpace);
             }
             else if (noSpace && !nowlim) SpaceMsg(noNewSpace);
          nowlim = (nowlim ? nowlim-1 : mlim);
@@ -339,12 +339,13 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
 //
    if (!fs_nums) 
       {noSpace = 1;
-       Cluster.Space(1,0);
+       if (!Config.asSolo()) CmsState.Update(XrdCmsState::Space, 0);
        Say.Emsg("Meter", "Warning! No writable filesystems found; "
                             "write access and staging prohibited.");
       } else {
        calcSpace();
-       if ((noSpace = (dsk_maxf < MinFree))) Cluster.Space(1,0);
+       if ((noSpace = (dsk_maxf < MinFree)) && !Config.asSolo())
+          CmsState.Update(XrdCmsState::Space, 0);
        XrdSysThread::Run(&monFStid,XrdCmsMeterRunFS,(void *)this,0,"FS meter");
       }
 

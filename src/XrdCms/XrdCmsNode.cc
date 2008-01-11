@@ -1306,7 +1306,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 // Now see if we need to change anything
 //
    if (add2Activ || add2Stage)
-       {CmsState.Calc(add2Activ, add2Stage);
+       {CmsState.Update(XrdCmsState::Counts, add2Activ, add2Stage);
         Say.Emsg("Node", Name(), srvMsg, stgMsg);
        }
 

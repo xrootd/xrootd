@@ -62,9 +62,7 @@ friend class XrdCmsDrop;
 
 static const int STMax = 64;   // Maximum number of Nodes (a.k.a. subscribers)
 
-int             NodeCnt;          // Number of active nodes
-int             XWait;            // Cluster is in suspend   state
-int             XnoStage;         // Cluster is in nostaging state
+int             NodeCnt;       // Number of active nodes
 
 // Called to add a new node to the cluster. Status values are defined above.
 //
@@ -108,10 +106,6 @@ void           *MonRefs();
 //
 void            Remove(const char *reason, XrdCmsNode *theNode, int immed=0);
 
-// Called when cluster activity can be resumed
-//
-void            Resume();
-
 // Called to reset the node reference counts for nodes matching smask
 //
 void            ResetRef(SMask_t smask);
@@ -127,17 +121,9 @@ int             Select(int isrw, SMask_t pmask, int &port,
 //
 void            Space(int none, int doinform=1);
 
-// Called when staging is (not) possible
-//
-void            Stage(int ison, int doinform=1);
-
 // Called to returns statistics (not really implemented)
 //
 int             Stats(char *bfr, int bln);
-
-// Called when cluster activity should be suspended
-//
-void            Suspend(int doinform=1);
 
                 XrdCmsCluster();
                ~XrdCmsCluster() {} // This object should never be deleted

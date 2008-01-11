@@ -148,7 +148,7 @@ $(LIBRARY): $(OBJCLNT) $(OBJBOTH)
 	fi
 
 $(OBJDIR)/XrdCmsAdmin.o:     XrdCmsAdmin.cc      XrdCmsAdmin.hh \
-                             XrdCmsCluster.hh    XrdCmsConfig.hh \
+                             XrdCmsState.hh      XrdCmsConfig.hh \
                              XrdCmsManager.hh    XrdCmsPrepare.hh \
                              XrdCmsProtocol.hh   XrdCmsTrace.hh \
                              XrdNetSocket.hh     XrdOuca2x.hh \
@@ -199,8 +199,7 @@ $(OBJDIR)/XrdCmsClientMan.o: XrdCmsClientMan.cc   XrdCmsClientMan.hh \
 
 $(OBJDIR)/XrdCmsCluster.o:   XrdCmsCluster.cc    XrdCmsCluster.hh \
                              XrdCmsCache.hh      XrdCmsConfig.hh \
-                             XrdCmsKey.hh \
-                             XrdCmsManager.hh    XrdCmsNode.hh \
+                             XrdCmsKey.hh        XrdCmsNode.hh \
                              XrdCmsSelect.hh     XrdCmsState.hh \
                              XrdCmsTrace.hh      XrdCmsTypes.hh \
                              XrdNetDNS.hh        XrdOucPup.hh \
@@ -305,8 +304,8 @@ $(OBJDIR)/XrdCmsManager.o:   XrdCmsManager.cc    XrdCmsManager.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsManager.o XrdCmsManager.cc
 
 $(OBJDIR)/XrdCmsMeter.o:     XrdCmsMeter.cc      XrdCmsMeter.hh \
-                             XrdCmsCluster.hh    XrdCmsConfig.hh \
-                             XrdCmsNode.hh       XrdCmsTrace.hh \
+                             XrdCmsConfig.hh     XrdCmsNode.hh \
+                             XrdCmsState.hh      XrdCmsTrace.hh \
                              XrdOucStream.hh     XrdOucTList.hh \
                              XrdSysError.hh      XrdSysPlatform.hh \
                              XrdSysPthread.hh

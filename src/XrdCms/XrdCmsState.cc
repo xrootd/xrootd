@@ -14,6 +14,12 @@
 
 const char *XrdCmsStateCVSID = "$Id$";
 
+#include <fcntl.h>
+#include <limits.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "XProtocol/YProtocol.hh"
 
 #include "Xrd/XrdLink.hh"
@@ -39,135 +45,72 @@ XrdCmsState XrdCms::CmsState;
   
 XrdCmsState::XrdCmsState() : mySemaphore(0)
 {
-   minNodeCnt = 1;
-   numActive  = 0;
-   numStaging = 0;
-   curState   = All_NoStage | All_Suspend;
-   Changes    = 0;
-   Suspended  = 1;
-   Enabled    = 0;
-   Disabled   = 1;
+   minNodeCnt   = 1;
+   numActive    = 0;
+   numStaging   = 0;
+   currState    = All_NoStage | All_Suspend;
+   prevState    = 0;
+   Suspended    = 1;
+   feOK         = 0;
+   noSpace      = 0;
+   adminNoStage = 0;
+   adminSuspend = 0;
+   NoStageFile  = "";
+   SuspendFile  = "";
+   Enabled      = 0;
 }
  
 /******************************************************************************/
-/*                                  C a l c                                   */
-/******************************************************************************/
-
-void XrdCmsState::Calc(int add2Activ, int add2Stage)
-{
-  int newState, newChanges;
-
-// Calculate new state
-//
-   myMutex.Lock();
-   numStaging += add2Stage;
-   numActive  += add2Activ;
-   newState = (numActive  < minNodeCnt ? All_Suspend : 0) |
-              (numStaging ? 0 : All_NoStage);
-
-// If any changes are noted then we must notify all our managers
-//
-   if ((newChanges = (newState ^ curState)))
-      {curState = newState;
-       Changes |= newChanges;
-       mySemaphore.Post();
-      }
-
-// All done
-//
-   myMutex.UnLock();
-}
- 
-/******************************************************************************/
-/*                                E n a b l e                                 */
+/* Punlic                         E n a b l e                                 */
 /******************************************************************************/
   
-void XrdCmsState::Enable(char *theState)
+void XrdCmsState::Enable()
 {
    EPNAME("Enable");
-   CmsStatusRequest myStatus = {{0, kYR_status, 0, 0}};
+   struct stat buff;
 
-// Allow state changes to be refelected. By default we will not be suspended.
-// Always reflect the current state when we become enabled.
+// Set correct admin staging state
+//
+   Update(Stage, stat(NoStageFile, &buff));
+
+// Set correct admin suspend state
+//
+   Update(Active, stat(SuspendFile, &buff));
+
+// We will force the information to be sent to interested parties by making
+// the previous state different from the current state and enabling ourselves.
 //
    myMutex.Lock();
    Enabled = 1;
-   Suspended = Disabled;
-   if (curState & All_Suspend)
-      {myStatus.Hdr.modifier  = CmsStatusRequest::kYR_Suspend;
-       if (theState) strcpy(theState, "suspended ");
-      } else {
-       myStatus.Hdr.modifier  = CmsStatusRequest::kYR_Resume;
-       if (theState) strcpy(theState, "active ");
-      }
-   if (curState & All_NoStage)
-      {myStatus.Hdr.modifier |= CmsStatusRequest::kYR_noStage;
-       if (theState) strcat(theState, "+ nostage");
-      } else {
-       myStatus.Hdr.modifier |= CmsStatusRequest::kYR_Stage;
-       if (theState) strcat(theState, "+ stage");
-      }
-   DEBUG("Sending status " <<(theState ? theState : ""));
-   Manager.Inform(myStatus.Hdr);
-   RTable.Send((char *)&myStatus, sizeof(myStatus));
+   prevState = ~currState;
+   mySemaphore.Post();
    myMutex.UnLock();
 }
 
 /******************************************************************************/
-/*                               M o n i t o r                                */
+/* Public                        M o n i t o r                                */
 /******************************************************************************/
   
 void *XrdCmsState::Monitor()
 {
    EPNAME("Monitor");
    CmsStatusRequest myStatus = {{0, kYR_status, 0, 0}};
-   const char *SRstate, *SNstate;
-   int rrModifier;
+   int theState, Changes;
 
-// Do this forever
+// Do this forever (we are only posted when finally enabled)
 //
    do {mySemaphore.Wait();
-       myMutex.Lock();
-       myStatus.Hdr.modifier = 0;
-       if (curState & All_Suspend)
-          {rrModifier = CmsStatusRequest::kYR_Suspend;
-           SRstate = "suspended";
-           Disabled = 1;
-          } else {
-           rrModifier = CmsStatusRequest::kYR_Resume;
-           SRstate = "active";
-           Disabled = 0;
-          }
-
-       if (Changes & All_Suspend) 
-          {myStatus.Hdr.modifier = rrModifier;
-           if (Enabled)
-              {DEBUG("Sending redirectors status " <<SRstate);
-               RTable.Send((char *)&myStatus, sizeof(myStatus));
-              }
-//         myStatus.Hdr.modifier = 0;
-          }
-
-       if (curState & All_NoStage)
-          {rrModifier |= CmsStatusRequest::kYR_noStage;
-           SNstate = "+ nostaging";
-          } else {
-           rrModifier |= CmsStatusRequest::kYR_Stage;
-           SNstate = "+ staging";
-          }
-
-       if (Changes & All_NoStage) myStatus.Hdr.modifier |= rrModifier;
-
-       if (myStatus.Hdr.modifier)
-          { if (Enabled)
-               {Suspended = Disabled;
-                DEBUG("Sending managers status " <<SRstate);
-                Manager.Inform(myStatus.Hdr);
-               }
-           Say.Emsg("State", "Status changed to", SRstate, SNstate);
-          }
-       Changes = 0;
+       myMutex.Lock(); 
+       Changes   = currState ^ prevState;
+       theState  = currState;
+       prevState = currState;
        myMutex.UnLock();
+
+       if (Changes && (myStatus.Hdr.modifier = Status(Changes, theState)))
+          {DEBUG("Sending status " <<(theState & Changes));
+           RTable.Send((char *)&myStatus, sizeof(myStatus));
+           Manager.Inform(myStatus.Hdr);
+          }
       } while(1);
 
 // All done
@@ -176,7 +119,7 @@ void *XrdCmsState::Monitor()
 }
   
 /******************************************************************************/
-/*                             s e n d S t a t e                              */
+/* Public                      s e n d S t a t e                              */
 /******************************************************************************/
   
 void XrdCmsState::sendState(XrdLink *lp)
@@ -188,10 +131,135 @@ void XrdCmsState::sendState(XrdLink *lp)
                           ? CmsStatusRequest::kYR_Suspend
                           : CmsStatusRequest::kYR_Resume;
 
-   myStatus.Hdr.modifier |= (curState & All_NoStage)
+   myStatus.Hdr.modifier |= NoStaging
                           ? CmsStatusRequest::kYR_noStage
                           : CmsStatusRequest::kYR_Stage;
 
    lp->Send((char *)&myStatus.Hdr, sizeof(myStatus.Hdr));
+   myMutex.UnLock();
+}
+
+/******************************************************************************/
+/* Public                            S e t                                    */
+/******************************************************************************/
+  
+void XrdCmsState::Set(int ncount, const char *AdminPath)
+{
+
+// Set the node count (this requires a lock)
+//
+   myMutex.Lock(); 
+   minNodeCnt = ncount;
+   myMutex.UnLock();
+
+// If we have an adminpath then this is an configuration call as well.
+//
+   if (AdminPath)
+      {char fnbuff[1048];
+       int i;
+
+       i = strlen(AdminPath);
+       strcpy(fnbuff, AdminPath);
+       if (AdminPath[i-1] != '/') fnbuff[i++] = '/';
+       strcpy(fnbuff+i, "NOSTAGE");
+       NoStageFile = strdup(fnbuff);
+       strcpy(fnbuff+i, "SUSPEND");
+       SuspendFile = strdup(fnbuff);
+      }
+}
+
+/******************************************************************************/
+/* Private                        S t a t u s                                 */
+/******************************************************************************/
+  
+unsigned char XrdCmsState::Status(int Changes, int theState)
+{
+   const char *SRstate = 0, *SNstate = 0;
+   unsigned char rrModifier;
+
+// Check for suspend changes
+//
+   if (Changes & All_Suspend)
+      if (theState & All_Suspend)
+         {rrModifier = CmsStatusRequest::kYR_Suspend;
+          SRstate = "suspended";
+         } else {
+          rrModifier = CmsStatusRequest::kYR_Resume;
+          SRstate = "active";
+         }
+      else rrModifier = 0;
+
+// Check for staging changes
+//
+   if (Changes & All_NoStage)
+      if (theState & All_NoStage)
+         {rrModifier |= CmsStatusRequest::kYR_noStage;
+          SNstate = "+ nostaging";
+         } else {
+          rrModifier |= CmsStatusRequest::kYR_Stage;
+          SNstate = "+ staging";
+         }
+
+// Report and return status
+//
+   if (rrModifier) 
+      {if (!SRstate && SNstate) SNstate += 2;
+       Say.Emsg("State", "Status changed to", SRstate, SNstate);
+      }
+   return rrModifier;
+}
+ 
+/******************************************************************************/
+/* Public                         U p d a t e                                 */
+/******************************************************************************/
+
+void XrdCmsState::Update(StateType StateT, int ActivCnt, int StageCnt)
+{
+  EPNAME("Update");
+  char newVal;
+  DEBUG("Type=" <<StateT <<" ActivCnt=" <<ActivCnt <<" StageCnt=" <<StageCnt);
+
+
+// Create new state
+//
+   myMutex.Lock();
+   switch(StateT)
+         {case Active:   if ((newVal = ActivCnt ? 0 : 1) != adminSuspend)
+                            {if (newVal) unlink(SuspendFile);
+                                else close(open(SuspendFile, O_WRONLY|O_CREAT,
+                                                             S_IRUSR|S_IWUSR));
+                             adminSuspend = newVal;
+                            }
+                         break;
+          case Counts:   numStaging += StageCnt;
+                         numActive  += ActivCnt;
+                         break;
+          case FrontEnd: feOK = ActivCnt ? 1 : 0;
+                         break;
+          case Space:    noSpace = (ActivCnt ? 0 : 1);
+                         break;
+          case Stage:    if ((newVal = ActivCnt ? 0 : 1) != adminNoStage)
+                            {if (newVal) unlink(NoStageFile);
+                                else close(open(NoStageFile, O_WRONLY|O_CREAT,
+                                                             S_IRUSR|S_IWUSR));
+                             adminNoStage = newVal;
+                            }
+                         break;
+          default:       Say.Emsg("State", "Invalid state update");
+                         break;
+         }
+
+   currState=(numActive  < minNodeCnt ||adminSuspend|| !feOK  ? All_Suspend:0)
+            |(numStaging < 1          ||adminNoStage|| noSpace? All_NoStage:0);
+
+   Suspended = currState & All_Suspend;
+   NoStaging = currState & All_NoStage;
+
+// If any changes are noted then we must send out notifications
+//
+   if (currState != prevState && Enabled) mySemaphore.Post();
+
+// All done
+//
    myMutex.UnLock();
 }

@@ -44,7 +44,7 @@ inline int        Equiv(XrdCmsKey &oth)
 
 inline XrdCmsKey& operator=(const XrdCmsKey &rhs)
                            {Val = strdup(rhs.Val); Hash = rhs.Hash;
-                            Len = rhs.Len; TOD = rhs.TOD; Ref = rhs.Ref;
+                            Len = rhs.Len; TOD = rhs.TOD;
                             return *this;
                            }
 

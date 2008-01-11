@@ -14,20 +14,18 @@
 
 const char *XrdCmsAdminCVSID = "$Id$";
 
-#include <fcntl.h>
 #include <limits.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 
 #include "XProtocol/YProtocol.hh"
 
 #include "XrdCms/XrdCmsAdmin.hh"
-#include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsManager.hh"
 #include "XrdCms/XrdCmsPrepare.hh"
 #include "XrdCms/XrdCmsProtocol.hh"
+#include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
@@ -90,10 +88,14 @@ void XrdCmsAdmin::Login(int socknum)
    while((request = Stream.GetLine()))
         {DEBUG("received admin request: '" <<request <<"'");
          if ((tp = Stream.GetToken()))
-            {     if (!strcmp("resume",   tp)) do_Resume();
+            {     if (!strcmp("resume",   tp))
+                      CmsState.Update(XrdCmsState::Active, 1);
              else if (!strcmp("rmdid",    tp)) do_RmDid();   // via lfn
              else if (!strcmp("newfn",    tp)) do_RmDud();   // via lfn
-             else if (!strcmp("suspend",  tp)) do_Suspend();
+             else if (!strcmp("suspend",  tp)) 
+                     {CmsState.Update(XrdCmsState::Active, 0);
+                      Say.Emsg("Notes","suspend requested by",Stype,Sname);
+                     }
              else Say.Emsg(epname, "invalid admin request,", tp);
             }
         }
@@ -105,8 +107,8 @@ void XrdCmsAdmin::Login(int socknum)
 // If this is a primary, we must suspend but do not record this event!
 //
    if (Primary) 
-      {myMutex.Lock();
-       Cluster.Suspend();
+      {CmsState.Update(XrdCmsState::FrontEnd, 0, -1);
+       myMutex.Lock();
        POnline = 0;
        myMutex.UnLock();
       }
@@ -137,8 +139,12 @@ void *XrdCmsAdmin::Notes(XrdNetSocket *AnoteSock)
                  else if (!strcmp("rmdid",   tp)) do_RmDid(0); // via lfn
                  else if (!strcmp("have",    tp)) do_RmDud(1); // via pfn
                  else if (!strcmp("newfn",   tp)) do_RmDud(0); // via lfn
-                 else if (!strcmp("nostage", tp)) do_NoStage();
-                 else if (!strcmp("stage",   tp)) do_Stage();
+                 else if (!strcmp("nostage", tp))
+                         {CmsState.Update(XrdCmsState::Stage, 0);
+                          Say.Emsg("Notes","nostage requested by",Stype,Sname);
+                         }
+                 else if (!strcmp("stage",   tp))
+                          CmsState.Update(XrdCmsState::Stage, 1);
                  else Say.Emsg(epname, "invalid notification,", tp);
                 }
             }
@@ -262,41 +268,13 @@ int XrdCmsAdmin::do_Login()
    Primary = 1;
    POnline = 1;
    if (Config.doWait) Config.PortData = Port;
+   CmsState.Update(XrdCmsState::FrontEnd, 1, -1);
 
 // Check if this is the first primary login and resume if we must
 //
-   if (SyncUp)
-      {SyncUp->Post();
-       SyncUp = 0;
-       myMutex.UnLock();
-       return 1;
-      }
-   Cluster.Resume();
+   if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
    myMutex.UnLock();
-
    return 1;
-}
- 
-/******************************************************************************/
-/*                            d o _ N o S t a g e                             */
-/******************************************************************************/
-  
-void XrdCmsAdmin::do_NoStage()
-{
-   Say.Emsg("do_NoStage", "nostage requested by", Stype, Sname);
-   Cluster.Stage(0);
-   close(open(Config.NoStageFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
-}
- 
-/******************************************************************************/
-/*                             d o _ R e s u m e                              */
-/******************************************************************************/
-  
-void XrdCmsAdmin::do_Resume()
-{
-   Say.Emsg("do_Resume", "resume requested by", Stype, Sname);
-   unlink(Config.SuspendFile);
-   Cluster.Resume();
 }
  
 /******************************************************************************/
@@ -361,26 +339,4 @@ void XrdCmsAdmin::do_RmDud(int isPfn)
 
    DEBUG("Sending managers have online " <<tp);
    Manager.Inform(kYR_have, CmsHaveRequest::Online, tp, strlen(tp));
-}
- 
-/******************************************************************************/
-/*                              d o _ S t a g e                               */
-/******************************************************************************/
-  
-void XrdCmsAdmin::do_Stage()
-{
-   Say.Emsg("do_Stage", "stage requested by", Stype, Sname);
-   Cluster.Stage(1);
-   unlink(Config.NoStageFile);
-}
-  
-/******************************************************************************/
-/*                            d o _ S u s p e n d                             */
-/******************************************************************************/
-  
-void XrdCmsAdmin::do_Suspend()
-{
-   Say.Emsg("do_Suspend", "suspend requested by", Stype, Sname);
-   Cluster.Suspend();
-   close(open(Config.SuspendFile, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR));
 }

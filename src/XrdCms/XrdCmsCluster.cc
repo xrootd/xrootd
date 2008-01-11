@@ -30,7 +30,6 @@ const char *XrdCmsClusterCVSID = "$Id$";
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsCluster.hh"
-#include "XrdCms/XrdCmsManager.hh"
 #include "XrdCms/XrdCmsNode.hh"
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsSelect.hh"
@@ -89,8 +88,6 @@ XrdCmsCluster::XrdCmsCluster()
      AltMent = -1;
      NodeCnt =  0;
      STHi    = -1;
-     XWait   = 0;
-     XnoStage= 0;
      SelAcnt = 0;
      SelRcnt = 0;
      doReset = 0;
@@ -196,7 +193,7 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
    NodeCnt++;
    if (Config.SUPLevel
    && (tmp = NodeCnt*Config.SUPLevel/100) > Config.SUPCount)
-      {Config.SUPCount=tmp; CmsState.setNodeCnt(tmp);}
+      {Config.SUPCount=tmp; CmsState.Set(tmp);}
 
 // Compute new peer mask, as needed
 //
@@ -212,7 +209,7 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 // Compute new state of all nodes if we are a reporting manager.
 //
    if (Config.asManager()) 
-      CmsState.Calc(nP->isSuspend ? 0 : 1, nP->isNoStage ? 0 : 1);
+      CmsState.Update(XrdCmsState::Counts,nP->isSuspend?0:1,nP->isNoStage?0:1);
 
 // All done
 //
@@ -547,10 +544,11 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
        return;
       }
 
-// Compute new state of all nodes if we are a reporting manager
+// Indicate new state of this nodes if we are a reporting manager
 //
    if (Config.asManager()) 
-      CmsState.Calc(theNode->isSuspend ? 0 : 1, theNode->isNoStage ? 0 : 1);
+      CmsState.Update(XrdCmsState::Counts, theNode->isSuspend ? 0 : -1,
+                                           theNode->isNoStage ? 0 : -1);
 
 // If this is an immediate drop request, do so now. Drop() will delete
 // the node object and remove the node lock. So, tell LockHandler that.
@@ -574,25 +572,6 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
       Say.Emsg("Manager", theNode->Ident, "scheduled for removal;", reason);
       else DEBUG("Will remove " <<theNode->Ident <<" node "
                  <<NodeID <<'.' <<Inst);
-}
-
-/******************************************************************************/
-/*                                R e s u m e                                 */
-/******************************************************************************/
-
-void XrdCmsCluster::Resume()
-{
-     static CmsStatusRequest myState = {{0, kYR_status, 
-                                            CmsStatusRequest::kYR_Resume, 0}};
-     static const int        szReqst = sizeof(CmsStatusRequest);
-
-// If the suspend file is still present, ignore this resume request
-//
-   if (Config.inSuspend())
-      Say.Emsg("Manager","Resume request ignored; suspend file present.");
-      else {XWait = 0;
-            Manager.Inform("resume", (char *)&myState, szReqst);
-           }
 }
 
 /******************************************************************************/
@@ -734,60 +713,6 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
 }
 
 /******************************************************************************/
-/*                                 S p a c e                                  */
-/******************************************************************************/
-  
-void XrdCmsCluster::Space(int none, int doinform)
-{
-     static const int         szReqst = sizeof(CmsStatusRequest);
-     static CmsStatusRequest  okSpace = {{0, kYR_status, 
-                                             CmsStatusRequest::kYR_Stage,   0}};
-     static CmsStatusRequest  noSpace = {{0, kYR_status, 
-                                             CmsStatusRequest::kYR_noStage, 0}};
-            CmsStatusRequest *qSpace;
-            const char       *What;
-            int               PStage;
-
-     if (Config.asSolo()) return;
-
-     if (none) {qSpace = &noSpace; What = "nostage";}
-        else   {qSpace = &okSpace; What = "stage";}
-
-     XXMutex.Lock();
-     PStage = XnoStage;
-     if (none) {XnoStage |=  CMS_noSpace; PStage = !PStage;}
-        else    XnoStage &= ~CMS_noSpace;
-     if (doinform && PStage) Manager.Inform(What, (char *)qSpace, szReqst);
-     XXMutex.UnLock();
-}
-
-/******************************************************************************/
-/*                                 S t a g e                                  */
-/******************************************************************************/
-  
-void XrdCmsCluster::Stage(int ison, int doinform)
-{
-     static const int         szReqst = sizeof(CmsStatusRequest);
-     static CmsStatusRequest  okStage = {{0, kYR_status,
-                                             CmsStatusRequest::kYR_Stage,   0}};
-     static CmsStatusRequest  noStage = {{0, kYR_status,
-                                             CmsStatusRequest::kYR_noStage, 0}};
-            CmsStatusRequest *qStage = (ison ? &okStage : &noStage);
-            const char       *What;
-            int               PStage;
-
-     if (ison) {qStage = &noStage; What = "nostage";}
-        else   {qStage = &okStage; What = "stage";}
-
-     XXMutex.Lock();
-     PStage = XnoStage;
-     if (ison)  XnoStage &= ~CMS_noStage;
-        else   {XnoStage |=  CMS_noStage; PStage = !PStage;}
-     if (doinform && PStage) Manager.Inform(What, (char *)qStage, szReqst);
-     XXMutex.UnLock();
-}
-
-/******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
@@ -849,20 +774,6 @@ int XrdCmsCluster::Stats(char *bfr, int bln)
    bfr += mlen;
    strcpy(bfr, statfmt3);
    return tlen;
-}
-  
-/******************************************************************************/
-/*                               S u s p e n d                                */
-/******************************************************************************/
-
-void XrdCmsCluster::Suspend(int doinform)
-{
-     static CmsStatusRequest myState = {{0, kYR_status, 
-                                            CmsStatusRequest::kYR_Suspend, 0}};
-     static const int szReqst = sizeof(CmsStatusRequest);
-
-     XWait = 1;
-     if (doinform) Manager.Inform("suspend", (char *)&myState, szReqst);
 }
   
 /******************************************************************************/
@@ -930,7 +841,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 //
    strlcpy(hname, nP->Ident, sizeof(hname));
 
-// Remove node from the manager table
+// Remove node from the node table
 //
    NodeTab[sent] = 0;
    nP->isOffline = 1;

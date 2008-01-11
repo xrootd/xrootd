@@ -287,10 +287,9 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    if (Role == CmsLoginData::kYR_server && !Config.DiskSS)
       Role |=  CmsLoginData::kYR_nostage;
 
-// Keep connecting to our manager. If XWait is present, wait for it to
-// be turned off first; then try to connect.
+// Keep connecting to our manager. If suspended, wait for a resumption first
 //
-   do {while(Cluster.XWait)
+   do {while(CmsState.Suspended)
             {if (!waits--)
                 {Say.Emsg("Pander", "Suspend state still active."); waits=6;}
              XrdSysTimer::Snooze(12);
@@ -325,8 +324,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
       // Compute current login mode
       //
       Mode = Role
-           | (Cluster.XWait    ? CmsLoginData::kYR_suspend : 0)
-           | (Cluster.XnoStage ? CmsLoginData::kYR_nostage : 0);
+           | (CmsState.Suspended ? CmsLoginData::kYR_suspend : 0)
+           | (CmsState.NoStaging ? CmsLoginData::kYR_nostage : 0);
        if (fails >= 6 && manp == manager) 
           {fails = 0; Mode |=    CmsLoginData::kYR_trying;}
 

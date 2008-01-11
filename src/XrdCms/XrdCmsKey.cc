@@ -63,6 +63,7 @@ XrdCmsKeyItem *XrdCmsKeyItem::Alloc(unsigned int theTock)
            kP->Key.TODRef = TockTable[theTock];
            TockTable[theTock] = kP;
            if (!(kP->Key.Ref++)) kP->Key.Ref = 1;
+            kP->Loc.roPend = kP->Loc.rwPend = 0;
            return kP;
           }
        numNull++;
@@ -80,11 +81,12 @@ XrdCmsKeyItem *XrdCmsKeyItem::Alloc(unsigned int theTock)
   
 void XrdCmsKeyItem::Recycle()
 {
+   static char *noKey = (char *)"";
 
 // Clear up data areas
 //
-   if (Key.Val) {free(Key.Val); Key.Val = (char *)"";}
-   Key.Hash = 0; Key.Ref = 0;
+   if (Key.Val && Key.Val != noKey) {free(Key.Val); Key.Val = noKey;}
+   Key.Ref++; Key.Hash = 0;
 
 // Put entry on the free list
 //

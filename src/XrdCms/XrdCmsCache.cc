@@ -111,7 +111,7 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
 // Check for fast path processing
 //
    if (!(iP = Sel.Path.TODRef) || !(iP->Key.Equiv(Sel.Path)))
-      iP = CTable.Find(Sel.Path);
+         iP = Sel.Path.TODRef = CTable.Find(Sel.Path);
 
 // Add/Modify the entry
 //
@@ -135,15 +135,17 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
                       if (iP->Loc.roPend) Dispatch(iP, iP->Loc.roPend, 0);
                      }
           }
-      } else if (!(Sel.Opts & XrdCmsSelect::Advisory)
-             &&   (iP = CTable.Add(Sel.Path)))
-                {iP->Loc.pfvec    = (Sel.Opts&XrdCmsSelect::Pending ? mask : 0);
-                 iP->Loc.hfvec    = mask;
-                 iP->Loc.sbvec    = Bounced[Tock];
-                 iP->Loc.qfvec    = 0;
-                 iP->Key.TOD      = Tock; isnew = 1;
-                 iP->Loc.deadline = DLTime + time(0);
-                 Sel.Path.TODRef  = iP;
+      } else if (!(Sel.Opts & XrdCmsSelect::Advisory))
+                {Sel.Path.TOD = Tock;
+                 if ((iP = CTable.Add(Sel.Path)))
+                    {iP->Loc.pfvec    = (Sel.Opts&XrdCmsSelect::Pending?mask:0);
+                     iP->Loc.hfvec    = mask;
+                     iP->Loc.sbvec    = Bounced[Tock];
+                     iP->Loc.qfvec    = 0;
+                     iP->Loc.deadline = DLTime + time(0);
+                     Sel.Path.Ref     = iP->Key.Ref;
+                     Sel.Path.TODRef  = iP; isnew = 1;
+                    }
                 }
 
 // All done
@@ -232,7 +234,6 @@ int  XrdCmsCache::GetFile(XrdCmsSelect &Sel, SMask_t mask)
        Sel.Vec.hf      = okVec & iP->Loc.hfvec;
        Sel.Vec.pf      = okVec & iP->Loc.pfvec;
        Sel.Vec.bf      = okVec & (bVec | iP->Loc.qfvec); iP->Loc.qfvec = 0;
-       Sel.Path.TODRef = iP;
        Sel.Path.Ref    = iP->Key.Ref;
       } else retc = 0;
 

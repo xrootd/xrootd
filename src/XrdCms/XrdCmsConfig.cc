@@ -365,8 +365,8 @@ int XrdCmsConfig::Configure2()
       {SUPCount = 0; 
        SUPLevel = 0; 
        XrdCmsNode::setSpace(0x7fffffff, 0);
-      }
-    CmsState.setNodeCnt(SUPCount);
+      } else if (isManager & !isServer) CmsState.Update(XrdCmsState::FrontEnd,1);
+    CmsState.Set(SUPCount, AdminPath);
 
 // Create the pid file
 //
@@ -459,7 +459,6 @@ void XrdCmsConfig::DoIt()
    XrdOucTList    *tp;
    pthread_t       tid;
    time_t          eTime = time(0);
-   char            buff[128];
    int             wTime;
 
 // Start the notification thread if we need to
@@ -496,10 +495,6 @@ void XrdCmsConfig::DoIt()
           }
       }
 
-// For solo peers we do not run disabled
-//
-   if (isPeer && isSolo) CmsState.Suspended = 0;
-
 // Start the server subsystem.
 //
    if (isManager || isServer || isPeer)
@@ -513,15 +508,15 @@ void XrdCmsConfig::DoIt()
 
 // If we are a manager then we must do a service enable after a service delay
 //
-   if ((isManager || isPeer) && CmsState.Suspended)
+   if ((isManager || isPeer) && SRVDelay)
       {wTime = SRVDelay - static_cast<int>((time(0) - eTime));
        if (wTime > 0) XrdSysTimer::Wait(wTime*1000);
       }
 
 // All done
 //
-   CmsState.Enable(buff);
-   Say.Emsg("Config", myRole, "service enabled; now", buff);
+   CmsState.Enable();
+   Say.Emsg("Config", myRole, "service enabled.");
 }
 
 /******************************************************************************/
@@ -539,28 +534,6 @@ int XrdCmsConfig::GenLocalPath(const char *oldp, char *newp)
     if (strlen(oldp) >= XrdCmsMAX_PATH_LEN) return -ENAMETOOLONG;
     strcpy(newp, oldp);
     return 0;
-}
-  
-/******************************************************************************/
-/*                             i n N o S t a g e                              */
-/******************************************************************************/
-
-int  XrdCmsConfig::inNoStage()
-{
-   struct stat buff;
-
-   return (!stat(NoStageFile, &buff));
-}
-
-/******************************************************************************/
-/*                             i n S u s p e n d                              */
-/******************************************************************************/
-  
-int  XrdCmsConfig::inSuspend()
-{
-   struct stat buff;
-
-   return (!stat(SuspendFile, &buff));
 }
   
 /******************************************************************************/
@@ -648,8 +621,6 @@ void XrdCmsConfig::ConfigDefaults(void)
    doWait   = 1;
    RefReset = 60*60;
    RefTurn  = 3*XrdCmsCluster::STMax*(DiskLinger+1);
-   NoStageFile = 0;
-   SuspendFile = 0;
    XmiPath     = 0;
    XmiParms    = 0;
    DirFlags    = 0;
@@ -856,7 +827,7 @@ int XrdCmsConfig::MergeP()
 
 // All done update the staging status (it's nostage by default)
 //
-   if (DiskSS) CmsState.Calc(0, 1);
+   if (DiskSS) CmsState.Update(XrdCmsState::Counts, 0, 1);
    return NoGo;
 }
 
@@ -1009,36 +980,11 @@ int XrdCmsConfig::setupServer()
                              (isManager|isPeer ? "olbd.seton":"olbd.notes"),
                              AdminMode, XRDNET_UDPSOCKET))) return 1;
 
-// Construct the nostage/suspend file path names
-//
-  {char fnbuff[1048];
-   int i;
-
-   i = strlen(AdminPath);
-   strcpy(fnbuff, AdminPath);
-   if (AdminPath[i-1] != '/') fnbuff[i++] = '/';
-   strcpy(fnbuff+i, "NOSTAGE");
-   NoStageFile = strdup(fnbuff);
-   strcpy(fnbuff+i, "SUSPEND");
-   SuspendFile = strdup(fnbuff);
-  }
-
-// Determine if we are in nostage and/or suspend state
-//
-   if (inNoStage())
-      {Say.Say("Config starting in NOSTAGE state.");
-       Cluster.Stage(0, 0);
-      }
-   if (inSuspend())
-      {Say.Say("Config starting in SUSPEND state.");
-       Cluster.Suspend(0);
-      }
-
 // We have data only if we are a pure data server (the default is noData)
 // If we have no data, then we are done (the rest is for pure servers)
 //
    if (isManager || isPeer || isProxy) return 0;
-   DiskOK = 1;
+   DiskOK = 1; SUPCount = 0; SUPLevel = 0;
 
 // If no cache has been specified but paths exist get the pfn for each path
 // in the list for monitoring purposes

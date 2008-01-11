@@ -40,8 +40,6 @@ int   Configure2();
 int   ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest);
 void  DoIt();
 int   GenLocalPath(const char *oldp, char *newp);
-int   inSuspend();
-int   inNoStage();
 int   asManager() {return isManager;}
 int   asPeer()    {return isPeer;}
 int   asProxy()   {return isProxy;}
@@ -105,9 +103,6 @@ const char  *myInsName;
 const char  *myInstance;
 const char  *mySID;
 XrdOucTList *ManList;     // From manager directive
-
-char        *NoStageFile;
-char        *SuspendFile;
 
 XrdOucProg  *ProgCH;      // Server only chmod
 XrdOucProg  *ProgMD;      // Server only mkdir
