@@ -122,8 +122,6 @@ Where:
        XrdCmsXmi       *XrdCms::Xmi_Space  = 0;
        XrdCmsXmi       *XrdCms::Xmi_Stat   = 0;
 
-       size_t           XrdCms::PageSize  = sysconf(_SC_PAGESIZE);
-
 /******************************************************************************/
 /*                S e c u r i t y   S y m b o l   T i e - I n                 */
 /******************************************************************************/

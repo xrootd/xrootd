@@ -10,7 +10,8 @@
   
 //         $Id$
 
-#include "XrdCms/XrdCmsConfig.hh"
+#include <unistd.h>
+
 #include "XrdCms/XrdCmsRRData.hh"
 
 #include "XrdSys/XrdSysPlatform.hh"
@@ -24,7 +25,8 @@ using namespace XrdCms;
   
 int XrdCmsRRData::getBuff(size_t bsz)
 {  
-   size_t Alignment = PageSize;
+   static size_t PageSize  = sysconf(_SC_PAGESIZE);
+          size_t Alignment = PageSize;
 
    if (bsz < Alignment)
       {do {Alignment = Alignment >> 1;} while(bsz < Alignment);

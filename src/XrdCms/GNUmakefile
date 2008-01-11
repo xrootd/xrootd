@@ -401,7 +401,6 @@ $(OBJDIR)/XrdCmsResp.o:    XrdCmsResp.cc      XrdCmsResp.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsResp.o XrdCmsResp.cc
 
 $(OBJDIR)/XrdCmsRRData.o:    XrdCmsRRData.cc     XrdCmsRRData.hh \
-                             XrdCmsConfig.hh \
                              XrdSysPlatform.hh   YProtocol.hh
 	@echo Compiling XrdCmsRRData.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsRRData.o XrdCmsRRData.cc
