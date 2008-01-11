@@ -68,7 +68,6 @@ XrdCmsState::XrdCmsState() : mySemaphore(0)
   
 void XrdCmsState::Enable()
 {
-   EPNAME("Enable");
    struct stat buff;
 
 // Set correct admin staging state
