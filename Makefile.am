@@ -108,7 +108,7 @@ EXTRA_DIST = Doxyfile README.Maintainer bootstrap.sh config pthreads-win32 \
              getAutotools.sh
 
 
-TESTS = test/test1.sh
+TESTS = test/test1.sh test/test2.sh
 
 
 

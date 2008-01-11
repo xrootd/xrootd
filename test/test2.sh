@@ -35,20 +35,42 @@ fi
 ##################################################################
 # CONFIGURATION SETTINGS
 
-testname=test1
-testdescr="test of a minimally configured xrootd"
+testname=test2
+testdescr="test of a minimally configured xrootd with libXrdOfs"
 xrdport=22000
 testdir=$top_srcdir/test
 workdir=$top_builddir/test/work
 exportdir=$workdir/exportdir
 
-logfile=$workdir/${testname}-xrootd.log
+logfile=$workdir/test2-xrootd.log
 # name of the xrootd to avoid clashes with other running instances
 # Warning: this strangely also affects the name of the logfile 
 name=testxrootd$$
 # logfile's true name is
 reallogfile=$workdir/$name/test2-xrootd.log
 ##################################################################
+
+# given the location of the libtool library, this returns the location
+# of the shared library in the build tree
+get_lib_location() {
+    if test x"$1" = x; then
+	echo "get_lib_location error: No library name given" >&2
+	exit 1
+    fi
+    if test ! -r "$1"; then
+	echo "get_lib_location error: Cannot access library ($1)" >&2
+	exit 1
+    fi
+    local line=`grep dlname $1`
+    local libname=`expr $line : "dlname= *'\(.*\)'"`
+    libname=`dirname $1`/.libs/$libname
+    if test ! -e $libname; then
+	echo "get_lib_location error: Cannot locate $libname" >&2
+        exit 1
+    fi
+    echo $libname
+    return 0
+}
 
 cleanup() {
     if test 0"$1" -lt 2; then
@@ -70,8 +92,8 @@ cleanup_workarea() {
     files="$exportdir/testfile_r 
 $exportdir/testfile_w
 $workdir/testfile_r
-$workdir/${testname}-xrootd.cfg
-$workdir/$name/${testname}-xrootd.log"
+$workdir/$testname-xrootd.cfg
+$workdir/$name/$testname-xrootd.log"
 
     rm -f $files
     test -d $exportdir && rmdir $exportdir
@@ -98,11 +120,20 @@ mkdir -p $workdir
 mkdir -p $exportdir
 cp $testdir/${testname}.sh $exportdir/testfile_r
 
+ofslib=`get_lib_location $top_srcdir/src/XrdOfs/libXrdOfs.la`
+status=$?
+if test 0"$status" -ne 0; then
+    echo "Terminating..." >&2
+    exit 1
+fi
+echo $ofslib
+
 # Create simple xrootd config file
-echo "writing $workdir/test1-xrootd.cfg"
+echo "writing $workdir/${testname}-xrootd.cfg"
 cat <<EOF > $workdir/${testname}-xrootd.cfg
 xrootd.export $exportdir
 xrd.port $xrdport
+xrootd.fslib $ofslib
 EOF
 
 # start up xrootd
