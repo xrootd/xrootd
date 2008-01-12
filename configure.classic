@@ -1567,7 +1567,7 @@ fi
 #
 # (See http://www.openafs.org)
 #
-# Check for AFS (libdes.a)
+# Check for AFS
 #
 if test ! "x$enable_afs" = "xno" ; then
 
@@ -1593,7 +1593,7 @@ if test ! "x$enable_afs" = "xno" ; then
        #
        afssymbols="afs_add_to_error_table strcompose stolower ucstring lcstring AssertionFailed"
        for s in $afssymbols ; do
-          check_symbol $s "$afslib" "$afslibdir"
+          check_symbol $s "$found_lib" "$found_dir"
           if test  $found_symbol -eq 0 ; then
              echo "Checking for AFS symbols: '$s' not found"
              afs_shared="no"
@@ -1611,12 +1611,13 @@ if test ! "x$enable_afs" = "xno" ; then
        fi
     fi
 
+    dirlibafs=""
     if test "x$enable_afs" = "xyes" ; then
        #
        # Libraries
        #
        for i in $afslibs ; do
-          check_library "$i" "$afs_shared" "$afsdir" $afslibdirs
+          check_library "$i" "$afs_shared" "$afslibdir" $afslibdirs
           if test "x$found_lib" = "x" ; then
              afslib=""
              afslibdir=""
@@ -1624,7 +1625,11 @@ if test ! "x$enable_afs" = "xno" ; then
              break
           fi
           afslib="$found_lib $afslib"
-          afslibdir=" $found_dir $afslibdir"
+          if test ! "x$found_dir" = "x" ; then
+             if [ `dirname $found_lib` != $found_dir ] ; then
+                dirlibafs="-L$found_dir $dirlibafs"
+             fi
+          fi
        done
     fi
 
@@ -1658,7 +1663,7 @@ if test ! "x$enable_afs" = "xno" ; then
         else
            incafs="INCAFS ="
         fi
-        libafs="LIBAFS = $afslibdir $afslib"
+        libafs="LIBAFS = $dirlibafs $afslib"
 
         # Warn about usage of static libs to build a shared object
         if test "x$afs_shared" = "xno" ; then
