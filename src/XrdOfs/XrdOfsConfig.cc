@@ -280,7 +280,8 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
 // For manager roles, we simply do a standard config
 //
    if (isRedir) 
-      {Finder=(XrdCmsClient *)new XrdCmsFinderRMT(Eroute.logger(),RMTopts);
+      {Finder = (XrdCmsClient *)new XrdCmsFinderRMT(Eroute.logger(),
+                                                    RMTopts,myPort);
        if (!Finder->Configure(ConfigFN))
           {delete Finder; Finder = 0; return 1;}
       }

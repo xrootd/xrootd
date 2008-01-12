@@ -67,16 +67,6 @@ XrdOfsHandle *XrdOfsHandle::Free = 0;
 /*                    c l a s s   X r d O f s H a n d l e                     */
 /******************************************************************************/
 /******************************************************************************/
-/*                           C o n s t r u c t o r                            */
-/******************************************************************************/
-
-XrdOfsHandle::XrdOfsHandle() : Path(0,0)
-{
-    Next         = Free;                    // Place ourselves on the free list
-    Free         = this;
-}
-
-/******************************************************************************/
 /* static public                A l l o c   # 1                               */
 /******************************************************************************/
   
@@ -139,7 +129,8 @@ int XrdOfsHandle::Alloc(XrdOfsHanKey theKey, int isrw, XrdOfsHandle **Handle)
 
 // No handle currently in the table. Get a new one off the free list
 //
-   if (!Free) hP = new XrdOfsHandle[minAlloc];
+   if (!Free && (hP = new XrdOfsHandle[minAlloc]))
+      {int i = minAlloc; while(i--) {hP->Next = Free; Free = hP; hP++;}}
    if ((hP = Free)) Free = hP->Next;
 
 // Initialize the new handle, if we have one, and add it to the table

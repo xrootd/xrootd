@@ -130,7 +130,7 @@ int                 Usage() {return Path.Links;}
 inline void         Lock()   {hMutex.Lock();}
 inline void         UnLock() {hMutex.UnLock();}
 
-          XrdOfsHandle();
+          XrdOfsHandle() : Path(0,0) {}
 
          ~XrdOfsHandle() {Retire();}
 

@@ -577,9 +577,11 @@ int XrdOfsFile::close()  // In
 // Verify the handle (we briefly maintain a global lock)
 //
     XrdOfsFS.ocMutex.Lock();
+    if (oh == XrdOfs::dummyHandle)
+       {XrdOfsFS.ocMutex.UnLock(); return SFS_OK;}
     if ((oh->Inactive()))
        {XrdOfsFS.ocMutex.UnLock();
-        return XrdOfsFS.Emsg(epname, error, EBADF, "");
+        return XrdOfsFS.Emsg(epname, error, EBADF, "close file");
        }
     hP = oh; oh = XrdOfs::dummyHandle;
     XrdOfsFS.ocMutex.UnLock();
