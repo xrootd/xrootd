@@ -124,8 +124,8 @@ static XrdCmsKeyItem *Unload(unsigned int   theTock);
 
 static XrdCmsKeyItem *Unload(XrdCmsKeyItem *theItem);
 
-       XrdCmsKeyItem() {Next = Free; Free = this;}
-      ~XrdCmsKeyItem() {} // These are never deleted
+       XrdCmsKeyItem() {}  // Warning see the constructor!
+      ~XrdCmsKeyItem() {}  // These are usually never deleted
 
 static const unsigned int TickRate =   64;
 static const unsigned int TickMask =   63;

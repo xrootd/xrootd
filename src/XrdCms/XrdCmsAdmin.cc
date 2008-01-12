@@ -70,7 +70,7 @@ void XrdCmsAdmin::Login(int socknum)
 // The first request better be "login"
 //
    if ((request = Stream.GetLine()))
-      {DEBUG("Initial admin request: '" <<request <<"'");
+      {DEBUG("initial request: '" <<request <<"'");
        if (!(tp = Stream.GetToken()) || strcmp("login", tp) || !do_Login())
           {Say.Emsg(epname, "Invalid admin login sequence");
            return;
@@ -79,14 +79,10 @@ void XrdCmsAdmin::Login(int socknum)
                return;
               }
 
-// Document the login
-//
-   Say.Emsg(epname, Stype, Sname, "logged in");
-
 // Start receiving requests on this stream
 //
    while((request = Stream.GetLine()))
-        {DEBUG("received admin request: '" <<request <<"'");
+        {DEBUG("received request: '" <<request <<"'");
          if ((tp = Stream.GetToken()))
             {     if (!strcmp("resume",   tp))
                       CmsState.Update(XrdCmsState::Active, 1);
@@ -195,7 +191,7 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 int XrdCmsAdmin::do_Login()
 {
    const char *emsg;
-   char *tp, Ltype = 0;
+   char buff[64], *tp, Ltype = 0;
    int Port = 0;
 
 // Process: login {p | P | s | u} <name> [port <port>]
@@ -267,13 +263,17 @@ int XrdCmsAdmin::do_Login()
 //
    Primary = 1;
    POnline = 1;
-   if (Config.doWait) Config.PortData = Port;
    CmsState.Update(XrdCmsState::FrontEnd, 1, Port);
 
 // Check if this is the first primary login and resume if we must
 //
    if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
    myMutex.UnLock();
+
+// Document the login
+//
+   sprintf(buff, "logged in; data port is %d", Port);
+   Say.Emsg("do_Login:", Stype, Sname, buff);
    return 1;
 }
  
@@ -312,7 +312,7 @@ void XrdCmsAdmin::do_RmDid(int isPfn)
           return;
          } else tp = apath;
 
-   DEBUG("Sending managers gone " <<tp);
+   DEBUG("sending managers gone " <<tp);
    Manager.Inform(kYR_gone, 0, tp, strlen(tp));
 }
  
@@ -337,6 +337,6 @@ void XrdCmsAdmin::do_RmDud(int isPfn)
           return;
          } else tp = apath;
 
-   DEBUG("Sending managers have online " <<tp);
+   DEBUG("sending managers have online " <<tp);
    Manager.Inform(kYR_have, CmsHaveRequest::Online, tp, strlen(tp));
 }

@@ -58,7 +58,8 @@ XrdCmsState::XrdCmsState() : mySemaphore(0)
    adminSuspend = 0;
    NoStageFile  = "";
    SuspendFile  = "";
-   isPure       = 0;
+   isMan        = 0;
+   dataPort     = 0;
    Enabled      = 0;
 }
  
@@ -94,9 +95,8 @@ void XrdCmsState::Enable()
   
 void *XrdCmsState::Monitor()
 {
-   EPNAME("Monitor");
    CmsStatusRequest myStatus = {{0, kYR_status, 0, 0}};
-   int theState, Changes, myPort;
+   int RTsend, theState, Changes, myPort;
 
 // Do this forever (we are only posted when finally enabled)
 //
@@ -109,11 +109,13 @@ void *XrdCmsState::Monitor()
        myMutex.UnLock();
 
        if (Changes && (myStatus.Hdr.modifier = Status(Changes, theState)))
-          {DEBUG("Sending status " <<(theState & Changes) <<" port=" <<myPort);
-           if (myStatus.Hdr.modifier & CmsStatusRequest::kYR_Resume)
-                    myStatus.Hdr.streamid = htonl(myPort);
-               else myStatus.Hdr.streamid = 0;
-           RTable.Send((char *)&myStatus, sizeof(myStatus));
+          {if (myStatus.Hdr.modifier & CmsStatusRequest::kYR_Resume)
+                    {myStatus.Hdr.streamid = htonl(myPort); RTsend = 1;}
+               else {myStatus.Hdr.streamid = 0;
+                     RTsend = (theState & SRV_Suspend);
+                    }
+           if (isMan && RTsend) 
+              RTable.Send("status", (char *)&myStatus, sizeof(myStatus));
            Manager.Inform(myStatus.Hdr);
           }
       } while(1);
@@ -123,6 +125,20 @@ void *XrdCmsState::Monitor()
    return (void *)0;
 }
   
+/******************************************************************************/
+/* Public                           P o r t                                   */
+/******************************************************************************/
+  
+int XrdCmsState::Port()
+{
+    int xPort;
+
+    myMutex.Lock(); 
+    xPort = dataPort;
+    myMutex.UnLock();
+    return xPort;
+}
+
 /******************************************************************************/
 /* Public                      s e n d S t a t e                              */
 /******************************************************************************/
@@ -160,15 +176,15 @@ void XrdCmsState::Set(int ncount)
 
 /******************************************************************************/
 
-void XrdCmsState::Set(int ncount, int ispure, const char *AdminPath)
+void XrdCmsState::Set(int ncount, int isman, const char *AdminPath)
 {
    char fnbuff[1048];
    int i;
 
-// This is a configuration call no locks are required
+// This is a configuration call no locks are required.
 //
    minNodeCnt = ncount;
-   isPure = ispure;
+   isMan = isman;
    i = strlen(AdminPath);
    strcpy(fnbuff, AdminPath);
    if (AdminPath[i-1] != '/') fnbuff[i++] = '/';
@@ -245,7 +261,8 @@ void XrdCmsState::Update(StateType StateT, int ActivCnt, int StageCnt)
                          numActive  += ActivCnt;
                          What = "Counts";
                          break;
-          case FrontEnd: if ((feOK = ActivCnt ? 1 : 0)) dataPort = StageCnt;
+          case FrontEnd: if ((feOK = (ActivCnt ? 1 : 0)) && StageCnt >= 0)
+                            dataPort = StageCnt;
                          What = "FrontEnd";
                          break;
           case Space:    noSpace = (ActivCnt ? 0 : 1);
@@ -265,8 +282,9 @@ void XrdCmsState::Update(StateType StateT, int ActivCnt, int StageCnt)
          }
 
    DEBUG("Type=" <<What <<" Parm1=" <<ActivCnt <<" Parm2=" <<StageCnt);
-   currState=(numActive  < minNodeCnt ||adminSuspend|| !feOK  ? All_Suspend:0)
-            |(numStaging < 1          ||adminNoStage|| noSpace? All_NoStage:0);
+   currState=(numActive  < minNodeCnt   || adminSuspend ? SRV_Suspend:0)
+            |(numStaging < 1 || noSpace || adminNoStage ? All_NoStage:0)
+            |                                   ( !feOK ? FES_Suspend:0);
 
    Suspended = currState & All_Suspend;
    NoStaging = currState & All_NoStage;

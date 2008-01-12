@@ -110,8 +110,9 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
 
 // Check for fast path processing
 //
-   if (!(iP = Sel.Path.TODRef) || !(iP->Key.Equiv(Sel.Path)))
-         iP = Sel.Path.TODRef = CTable.Find(Sel.Path);
+   if (  !(iP = Sel.Path.TODRef) || !(iP->Key.Equiv(Sel.Path)))
+      if ((iP = Sel.Path.TODRef = CTable.Find(Sel.Path)))
+         Sel.Path.Ref = iP->Key.Ref;
 
 // Add/Modify the entry
 //

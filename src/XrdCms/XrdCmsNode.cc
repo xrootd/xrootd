@@ -220,7 +220,7 @@ const char *XrdCmsNode::do_AvKb(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("avkb " <<DiskFree <<" util " <<DiskUtil);
+   DEBUGR(DiskFree <<"KB free; " <<DiskUtil <<"% util");
    return 0;
 }
 
@@ -239,7 +239,7 @@ const char *XrdCmsNode::do_Chmod(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("chmod " <<Arg.Mode <<Arg.Path);
+   DEBUGR("mode " <<Arg.Mode <<Arg.Path);
 
 // If we have an Xmi then call it
 //
@@ -315,7 +315,7 @@ const char *XrdCmsNode::do_Gone(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("gone " <<Arg.Path);
+   DEBUGR(Arg.Path);
 
 // Update path information and delete this from the prep queue if we are a
 // staging node. We can also be called via the admin end-point interface
@@ -357,8 +357,7 @@ const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("have " <<(Arg.Request.modifier & CmsHaveRequest::Pending ? "P ":"")
-                  <<Arg.Path);
+   DEBUGR((Arg.Request.modifier&CmsHaveRequest::Pending ? "P ":"") <<Arg.Path);
 
 // Find if we can handle the file in r/w mode and if staging is present
 //
@@ -417,9 +416,9 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("load cpu=" <<pcpu <<" net=" <<pnet <<" xeq=" <<pxeq
-            <<" mem=" <<pmem <<" pag=" <<ppag <<" dsk=" <<pdsk
-            <<' ' <<DiskFree <<" load=" <<myLoad <<" mass=" <<myMass);
+   DEBUGR("cpu=" <<pcpu <<" net=" <<pnet <<" xeq=" <<pxeq
+       <<" mem=" <<pmem <<" pag=" <<ppag <<" dsk=" <<pdsk
+       <<' ' <<DiskFree <<" load=" <<myLoad <<" mass=" <<myMass);
 
 // If we are also a manager then use this load figure to come up with
 // an overall load to report when asked. If we get free space, then we
@@ -497,7 +496,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // Do some debugging
 //
    *toP = '\0';
-   DEBUGR("locate " <<theopts <<' ' <<Arg.Path);
+   DEBUGR(theopts <<' ' <<Arg.Path);
 
 // Perform location
 //
@@ -528,7 +527,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 //
    if (rc)
       {Resp.Val           = htonl(rc);
-       DEBUGR("Locate " <<Why <<Arg.Path);
+       DEBUGR(Why <<Arg.Path);
       } else {
        bytes=do_LocFmt(Resp.outbuff,sP,Sel.Vec.pf,Sel.Vec.wf)+sizeof(Resp.Val)+1;
        Resp.Val            = 0;
@@ -590,7 +589,7 @@ const char *XrdCmsNode::do_Mkdir(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("mkdir " <<Arg.Mode <<Arg.Path);
+   DEBUGR("mode " <<Arg.Mode <<Arg.Path);
 
 // If we have an Xmi then call it
 //
@@ -640,7 +639,7 @@ const char *XrdCmsNode::do_Mkpath(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("mkpath " <<Arg.Mode <<Arg.Path);
+   DEBUGR("mode " <<Arg.Mode <<Arg.Path);
 
 // If we have an Xmi then call it
 //
@@ -691,7 +690,7 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("mv " <<Arg.Path <<' ' <<Arg.Path2);
+   DEBUGR(Arg.Path <<" to " <<Arg.Path2);
 
 // If we have an Xmi then call it
 //
@@ -779,8 +778,8 @@ const char *XrdCmsNode::do_PrepAdd(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("prepadd " <<Arg.Reqid <<' ' <<Arg.Notify <<' ' <<Arg.Prty <<' '
-                     <<Arg.Mode  <<' ' <<Arg.Path);
+   DEBUGR("parms: " <<Arg.Reqid <<' ' <<Arg.Notify <<' ' <<Arg.Prty <<' '
+                    <<Arg.Mode  <<' ' <<Arg.Path);
 
 // Do an Xmi callout if need be
 //
@@ -806,7 +805,7 @@ const char *XrdCmsNode::do_PrepDel(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("prepdel " <<Arg.Reqid);
+   DEBUGR("reqid " <<Arg.Reqid);
 
 // Do a callout to the external manager if we have one
 //
@@ -815,8 +814,8 @@ const char *XrdCmsNode::do_PrepDel(XrdCmsRRData &Arg)
 // Cancel the request if applicable.
 //
    if (Config.DiskOK)
-      if (!Config.DiskSS) {DEBUGR("Ignoring cancel prepare " <<Arg.Reqid);}
-         else {DEBUGR("Canceling prepare " <<Arg.Reqid);
+      if (!Config.DiskSS) {DEBUGR("ignoring cancel prepare " <<Arg.Reqid);}
+         else {DEBUGR("canceling prepare " <<Arg.Reqid);
                PrepQ.Del(Arg.Reqid);
               }
   return 0;
@@ -836,7 +835,7 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("rm " <<Arg.Path);
+   DEBUGR(Arg.Path);
 
 // If we have an Xmi then call it
 //
@@ -882,7 +881,7 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("rmdir " <<Arg.Path);
+   DEBUGR(Arg.Path);
 
 // If we have an Xmi then call it
 //
@@ -965,7 +964,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 // Do some debugging
 //
    *toP = '\0';
-   DEBUGR("select " <<theopts <<' ' <<Arg.Path);
+   DEBUGR(theopts <<' ' <<Arg.Path);
 
 // Check if an avoid node present. If so, this is ineligible for fast redirect.
 //
@@ -983,11 +982,11 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
           {Arg.Request.rrCode = kYR_wait;
            Sel.Resp.Port      = rc;
            Sel.Resp.DLen      = 0;
-           DEBUGR("Select delay " <<rc <<' ' <<Arg.Path);
+           DEBUGR("delay " <<rc <<' ' <<Arg.Path);
           } else {
            Arg.Request.rrCode = kYR_error;
            Sel.Resp.Port      = kYR_ENOENT;
-           DEBUGR("Select failed; " <<Sel.Resp.Data << ' ' <<Arg.Path);
+           DEBUGR("failed; " <<Sel.Resp.Data << ' ' <<Arg.Path);
           }
       } else if (!Sel.Resp.DLen) return 0;
                 else {Arg.Request.rrCode = kYR_redirect;
@@ -1049,7 +1048,7 @@ int XrdCmsNode::do_SelPrep(XrdCmsPrepArgs &Arg) // Static!!!
    if ((rc = Cluster.Select(Sel)))
       {if (rc > 0)
           {Sched->Schedule((XrdJob *)&Arg, rc+time(0));
-           DEBUGR("Prepare delayed " <<rc <<" seconds");
+           DEBUGR("delayed " <<rc <<" seconds");
            return 1;
           }
        Say.Emsg("SelPrep", Arg.path, "failed;", Sel.Resp.Data);
@@ -1083,7 +1082,7 @@ const char *XrdCmsNode::do_Space(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("space -> avkb " <<maxfr <<" util " <<tutil);
+   DEBUGR(maxfr <<"KB free; " <<tutil <<"% util");
 
 // Construct a message to be sent to the manager.
 //
@@ -1117,7 +1116,7 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("state " <<Arg.Path);
+   DEBUGR(Arg.Path);
 
 // Process: state <path>
 // Respond: have <path>
@@ -1267,9 +1266,9 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("status " <<(Reset  ? "reset " : "")
-                    <<(Resume ? "resume " : (Suspend ? "suspend " : ""))
-                    <<(Stage  ? "stage "  : (noStage ? "nostage " : "")));
+   DEBUGR(  (Reset  ? "reset " : "")
+          <<(Resume ? "resume " : (Suspend ? "suspend " : ""))
+          <<(Stage  ? "stage "  : (noStage ? "nostage " : "")));
 
 // Process reset requests. These are exclsuive to any other request
 //
@@ -1296,6 +1295,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
                      srvMsg="service resumed";
                      stgMsg = (isNoStage ? "(no staging)" : "(staging)");
                      Port = ntohl(Arg.Request.streamid);
+                     DEBUGR("set data port to " <<Port);
                     }
        else         {add2Activ =  0; srvMsg = 0;}
 
@@ -1329,7 +1329,7 @@ const char *XrdCmsNode::do_Try(XrdCmsRRData &Arg)
 
 // Do somde debugging
 //
-   DEBUGR("try " <<Arg.Path);
+   DEBUGR(Arg.Path);
 
 // Delete any additions from this manager
 //
@@ -1417,8 +1417,8 @@ void XrdCmsNode::Report_Usage(XrdLink *lp)   // Static!
 
 // Do some debugging
 //
-   DEBUG("usage cpu=" <<pcpu <<" net=" <<pnet <<" xeq=" <<pxeq
-             <<" mem=" <<pmem <<" pag=" <<ppag <<" dsk=" <<pdsk <<' ' <<maxfr);
+   DEBUG("cpu=" <<pcpu <<" net=" <<pnet <<" xeq=" <<pxeq
+      <<" mem=" <<pmem <<" pag=" <<ppag <<" dsk=" <<pdsk <<' ' <<maxfr);
 }
   
 /******************************************************************************/

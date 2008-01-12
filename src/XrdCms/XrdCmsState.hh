@@ -28,10 +28,12 @@ void  Enable();
 
 void *Monitor();
 
+int   Port();
+
 void  sendState(XrdLink *Link);
 
 void  Set(int ncount);
-void  Set(int ncount, int ispure, const char *AdminPath);
+void  Set(int ncount, int isman, const char *AdminPath);
 
 enum  StateType {Active = 0, Counts, FrontEnd, Space, Stage};
 
@@ -43,8 +45,10 @@ void  Update(StateType StateT, int ActivVal, int StageVal=0);
 private:
 unsigned char Status(int Changes, int theState);
   
-static const char All_Suspend = 1;
-static const char All_NoStage = 2;
+static const char SRV_Suspend = 1;
+static const char FES_Suspend = 2;
+static const char All_Suspend = 3;
+static const char All_NoStage = 4;
 
 XrdSysSemaphore mySemaphore;
 XrdSysMutex     myMutex;
@@ -63,7 +67,7 @@ char            feOK;         // Front end functioing
 char            noSpace;      // We don't have enough space
 char            adminSuspend; // Admin asked for suspension
 char            adminNoStage; // Admin asked for no staging
-char            isPure;       // We are a pure manager
+char            isMan;        // We are a manager (i.e., have redirectors)
 char            Enabled;      // We are now enabled for reporting
 };
 

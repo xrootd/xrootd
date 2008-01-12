@@ -251,11 +251,14 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    const char *manp = manager;
    const int manblen = sizeof(manbuff);
 
+// Do some debugging
+//
+   DEBUG(myRole <<" services to " <<manager <<':' <<mport);
+
 // Prefill the login data
 //
    loginData.SID   = (kXR_char *)Config.mySID;
    loginData.Paths = (kXR_char *)Config.myPaths;
-   loginData.dPort = Config.PortData;
    loginData.sPort = Config.PortTCP;
    loginData.fsNum = Meter.numFS();
    loginData.fSpace= Meter.FreeSpace(fsUtil);
@@ -285,18 +288,19 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 
 // Keep connecting to our manager. If suspended, wait for a resumption first
 //
-   do {while(CmsState.Suspended)
-            {if (!waits--)
-                {Say.Emsg("Pander", "Suspend state still active."); waits=6;}
-             XrdSysTimer::Snooze(12);
-            }
+   do {if (Config.doWait) 
+          while(CmsState.Suspended)
+               {if (!waits--)
+                   {Say.Emsg("Pander", "Suspend state still active."); waits=6;}
+                XrdSysTimer::Snooze(12);
+               }
 
        if (!ManTree.Trying(myNID, Lvl) && Lvl)
-          {DEBUG("Restarting at root node " <<manager <<':' <<mport);
+          {DEBUG("restarting at root node " <<manager <<':' <<mport);
            manp = manager; xport = mport; Lvl = 0;
           }
 
-       DEBUG("Trying to connect to lvl " <<Lvl <<' ' <<manp <<':' <<xport);
+       DEBUG("trying to connect to lvl " <<Lvl <<' ' <<manp <<':' <<xport);
 
        if (!(Link = Config.NetTCP->Connect(manp, xport, Netopts)))
           {if (tries--) Netopts = XRDNET_NOEMSG;
@@ -327,7 +331,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 
        // Login this node with the correct state
        //
-       KickedOut = 0; Data = loginData; Data.Mode = Mode;
+       KickedOut = 0; loginData.dPort = CmsState.Port();
+       Data = loginData; Data.Mode = Mode;
        if (!(rc = XrdCmsLogin::Login(Link, Data)))
           if(!ManTree.Connect(myNID, myNode)) KickedOut = 1;
             else {Say.Emsg("Protocol", "Logged into", Link->Name());
@@ -595,7 +600,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 
 // Indicate what role I have
 //
-   myRole = "Redirector";
+   myRole = "redirector";
 
 // Director logins have no additional parameters. We return with the node object
 // locked to be consistent with the way server/suprvisors nodes are returned.
@@ -719,12 +724,12 @@ do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
 
 // Decode the length and get the rest of the data
 //
-   if (!(Data->Dlen = static_cast<int>(ntohs(Data->Request.datalen))))
-     {myArgs = myArgt = 0;
-      if ((QTRACE(Debug))
-      && Data->Request.rrCode != kYR_ping && Data->Request.rrCode != kYR_pong)
-         DEBUG(myNode->Ident <<" requests " <<Router.getName(Data->Request.rrCode));
-     }
+   Data->Dlen = static_cast<int>(ntohs(Data->Request.datalen));
+   if ((QTRACE(Debug))
+   && Data->Request.rrCode != kYR_ping && Data->Request.rrCode != kYR_pong)
+      DEBUG(myNode->Ident <<" for " <<Router.getName(Data->Request.rrCode)
+                          <<" dlen=" <<Data->Dlen);
+   if (!(Data->Dlen)) {myArgs = myArgt = 0;}
       else {if (Data->Dlen > maxReqSize)
                {Say.Emsg("Protocol","Request args too long from",Link->Name());
                 break;
@@ -734,8 +739,6 @@ do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
                {Say.Emsg("Protocol", "No buffers to serve", Link->Name());
                 break;
                }
-            DEBUG("Reading from " <<myNode->Ident <<" req " 
-                  <<Router.getName(Data->Request.rrCode) <<" dlen=" <<Data->Dlen);
             if (Link->RecvAll(Data->Buff, Data->Dlen) < 0) break;
             myArgs = Data->Buff; myArgt = Data->Buff + Data->Dlen;
            }

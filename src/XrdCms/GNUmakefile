@@ -390,6 +390,16 @@ $(OBJDIR)/XrdCmsProtocol.o:  XrdCmsProtocol.cc   XrdCmsProtocol.hh \
 	@echo Compiling XrdCmsProtocol.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsProtocol.o XrdCmsProtocol.cc
 
+$(OBJDIR)/XrdCmsReq.o:       XrdCmsReq.cc        XrdCmsReq.hh \
+                             XrdCmsNode.hh       XrdCmsRRQ.hh \
+                             XrdCmsRTable.hh     XrdCmsTrace.hh \
+                             XrdSysError.hh      XrdSysPlatform.hh \
+                             XrdSysPthread.hh \
+                             XrdXrootdStat.icc \
+                             XProtocol.hh        YProtocol.hh
+	@echo Compiling XrdCmsReq.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsReq.o XrdCmsReq.cc
+
 $(OBJDIR)/XrdCmsResp.o:    XrdCmsResp.cc      XrdCmsResp.hh \
                            XrdCmsClientMsg.hh XrdCmsParser.hh \
                            XrdCmsTrace.hh \
@@ -418,20 +428,10 @@ $(OBJDIR)/XrdCmsRRQ.o:       XrdCmsRRQ.cc        XrdCmsRRQ.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsRRQ.o XrdCmsRRQ.cc
 
 $(OBJDIR)/XrdCmsRTable.o:    XrdCmsRTable.cc     XrdCmsRTable.hh \
-                             XrdCmsNode.hh \
+                             XrdCmsNode.hh       XrdCmsTrace.hh \
                              XrdSysPthread.hh
 	@echo Compiling XrdCmsRTable.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsRTable.o XrdCmsRTable.cc
-
-$(OBJDIR)/XrdCmsReq.o:       XrdCmsReq.cc        XrdCmsReq.hh \
-                             XrdCmsNode.hh       XrdCmsRRQ.hh \
-                             XrdCmsRTable.hh     XrdCmsTrace.hh \
-                             XrdSysError.hh      XrdSysPlatform.hh \
-                             XrdSysPthread.hh \
-                             XrdXrootdStat.icc \
-                             XProtocol.hh        YProtocol.hh
-	@echo Compiling XrdCmsReq.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsReq.o XrdCmsReq.cc
 
 $(OBJDIR)/XrdCmsRouting.o:   XrdCmsRouting.cc    XrdCmsRouting.hh \
                              XrdCmsNode.hh \

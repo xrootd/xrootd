@@ -113,11 +113,18 @@ int XrdCmsKeyItem::Replenish()
 {
    EPNAME("Replenish");
    XrdCmsKeyItem *kP;
+   int i;
 
 // Allocate a quantum of free elements and chain them into the free list
 //
    if (!(kP = new XrdCmsKeyItem[minAlloc])) return 0;
    DEBUG("old free " <<numFree <<" + " <<minAlloc <<" = " <<numHave+minAlloc);
+
+// We would do this in an initializer but that causes problems when alloacting
+// temporary items on the stack. So, manually put these on the free list.
+//
+   i = minAlloc;
+   while(i--) {kP->Next = Free; Free = kP; kP++;}
   
 // Return the number we have free
 //
@@ -145,7 +152,7 @@ void XrdCmsKeyItem::Stats(int &isAlloc, int &isFree, int &wasNull)
   
 XrdCmsKeyItem *XrdCmsKeyItem::Unload(unsigned int theTock)
 {
-   XrdCmsKeyItem  myItem, *nP, *pP = &myItem;
+   XrdCmsKeyItem myItem, *nP, *pP = &myItem;
 
 // Remove all entries from the indicated list. If any entries have been
 // reassigned to a different list, move them to the right list. Otherwise,

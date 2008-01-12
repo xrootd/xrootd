@@ -15,6 +15,9 @@
 const char *XrdCmsRTableCVSID = "$Id$";
 
 #include "XrdCms/XrdCmsRTable.hh"
+#include "XrdCms/XrdCmsTrace.hh"
+
+using namespace XrdCms;
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -95,13 +98,18 @@ XrdCmsNode *XrdCmsRTable::Find(short Num, int Inst)
 /*                                  S e n d                                   */
 /******************************************************************************/
   
-void XrdCmsRTable::Send(const char *data, int dlen)
+void XrdCmsRTable::Send(const char *What, const char *data, int dlen)
 {
+   EPNAME("Send");
    int i;
 
 // Send the data to all nodes in this table
 //
    myMutex.Lock();
-   for (i = 1; i <= Hwm; i++) if (Rtable[i]) Rtable[i]->Send(data, dlen);
+   for (i = 1; i <= Hwm; i++) 
+       if (Rtable[i])
+          {DEBUG(What <<" to " <<Rtable[i]->Ident);
+           Rtable[i]->Send(data, dlen);
+          }
    myMutex.UnLock();
 }

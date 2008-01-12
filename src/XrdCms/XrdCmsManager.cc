@@ -87,7 +87,7 @@ XrdCmsNode *XrdCmsManager::Add(XrdLink *lp, int Lvl)
 
 // Document login
 //
-   DEBUG("Added " <<nP->Name() <<" to manager config; id=" <<i);
+   DEBUG(nP->Name() <<" to manager config; id=" <<i);
    return nP;
 }
   
@@ -111,7 +111,7 @@ void XrdCmsManager::Inform(const char *What, const char *Data, int Dlen)
        {if ((nP=MastTab[i]) && !nP->isOffline)
            {nP->Lock();
             MTMutex.UnLock();
-            DEBUG("sending " <<nP->Name() <<" " <<What);
+            DEBUG(nP->Name() <<" " <<What);
             nP->Send(Data, Dlen);
             nP->UnLock();
             MTMutex.Lock();
@@ -138,7 +138,7 @@ void XrdCmsManager::Inform(const char *What, struct iovec *vP, int vN, int vT)
        {if ((nP=MastTab[i]) && !nP->isOffline)
            {nP->Lock();
             MTMutex.UnLock();
-            DEBUG("sending " <<nP->Name() <<" " <<What);
+            DEBUG(nP->Name() <<" " <<What);
             nP->Send(vP, vN, vT);
             nP->UnLock();
             MTMutex.Lock();
@@ -218,7 +218,7 @@ void XrdCmsManager::Remove(XrdCmsNode *nP, const char *reason)
 //
    if (!(nP == MastTab[sent]))
       {MTMutex.UnLock();
-       DEBUG("Remove manager " <<sent <<'.' <<sinst <<" failed.");
+       DEBUG("manager " <<sent <<'.' <<sinst <<" failed.");
        return;
       }
 
@@ -226,7 +226,7 @@ void XrdCmsManager::Remove(XrdCmsNode *nP, const char *reason)
 //
    MastTab[sent] = 0;
    nP->isOffline = 1;
-   DEBUG("Removed " <<nP->Name() <<" manager " <<sent <<'.' <<sinst);
+   DEBUG("completed " <<nP->Name() <<" manager " <<sent <<'.' <<sinst);
 
 // Readjust MTHi
 //
@@ -262,7 +262,7 @@ void XrdCmsManager::Reset()
            {nP->Lock();
             nP->isKnown = 0;
             MTMutex.UnLock();
-            DEBUG("Sending " <<nP->Name() <<" reset");
+            DEBUG("sent to " <<nP->Name());
             nP->Send((char *)&myState, szReqst);
             nP->UnLock();
             MTMutex.Lock();

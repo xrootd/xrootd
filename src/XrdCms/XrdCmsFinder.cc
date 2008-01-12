@@ -78,13 +78,14 @@ XrdOucTrace  Trace(&Say);
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami)
+XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami, int Port)
                : XrdCmsClient((whoami & IsProxy
                                       ? XrdCmsClient::amProxy
                                       : XrdCmsClient::amRemote))
 {
      myManagers  = 0;
      myManCount  = 0;
+     myPort      = Port;
      SMode       = 0;
      sendID      = 0;
      isMeta      = whoami & IsMeta;
@@ -138,6 +139,14 @@ int XrdCmsFinderRMT::Configure(char *cfn)
    if (myPersona == XrdCmsClient::amProxy)
            {SMode = config.SModeP; StartManagers(config.PanList);}
       else {SMode = config.SMode;  StartManagers(config.ManList);}
+
+// If we are a plain manager but have a meta manager then we must start
+// a responder (that we will hide) to pass through the port number.
+//
+   if (!isMeta && !isTarget && config.haveMeta)
+      {XrdCmsFinderTRG *Rsp = new XrdCmsFinderTRG(Say.logger(),IsRedir,myPort);
+       return Rsp->RunAdmin(CMSPath);
+      }
 
 // All done
 //
@@ -656,27 +665,17 @@ int XrdCmsFinderTRG::Configure(char *cfn)
 {
    XrdCmsClientConfig             config;
    XrdCmsClientConfig::configWhat What;
-   pthread_t tid;
 
 // Establish what we will be configuring
 //
    What = (isRedir ? XrdCmsClientConfig::configSuper 
                    : XrdCmsClientConfig::configServer);
 
-// Set the error dest and simply call the configration object
+// Set the error dest and simply call the configration object and if
+// successful, run the Admin thread
 //
    if (config.Configure(cfn, What, XrdCmsClientConfig::configNorm)) return 0;
-   if (!(CMSPath = config.CMSPath))
-      {Say.Emsg("Config", "Unable to determine cms admin path"); return 0;}
-
-// Start a thread to connect with the local cmsd
-//
-   if (XrdSysThread::Run(&tid, XrdCmsStartRsp, (void *)this, 0, "cms i/f"))
-      Say.Emsg("Config", errno, "start cmsd interface");
-
-// All done
-//
-   return 1;
+   return RunAdmin(config.CMSPath);
 }
   
 /******************************************************************************/
@@ -701,6 +700,27 @@ void XrdCmsFinderTRG::Removed(const char *path)
    if (Active && CMSp->Put((const char **)data, (const int *)dlen))
       {CMSp->Close(); Active = 0;}
    myData.UnLock();
+}
+
+/******************************************************************************/
+/*                              R u n A d m i n                               */
+/******************************************************************************/
+  
+int XrdCmsFinderTRG::RunAdmin(char *Path)
+{
+   pthread_t tid;
+
+// Make sure we have a path to the cmsd
+//
+   if (!(CMSPath = Path))
+      {Say.Emsg("Config", "Unable to determine cms admin path"); return 0;}
+
+// Start a thread to connect with the local cmsd
+//
+   if (XrdSysThread::Run(&tid, XrdCmsStartRsp, (void *)this, 0, "cms i/f"))
+      {Say.Emsg("Config", errno, "start cmsd interface"); return 0;}
+
+   return 1;
 }
 
 /******************************************************************************/

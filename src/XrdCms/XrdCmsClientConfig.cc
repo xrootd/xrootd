@@ -84,10 +84,11 @@ int XrdCmsClientConfig::Configure(char *cfn, configWhat What, configHow How)
    if (!myName || !*myName) myName = "anon";
    CMSPath= strdup("/tmp/");
    isMeta = How & configMeta;
+   isMan  = What& configMan;
 
 // Process the configuration file
 //
-   if (!(NoGo = ConfigProc(cfn)) && (What & configMan))
+   if (!(NoGo = ConfigProc(cfn)) && isMan)
       {if (How & configProxy) eText = (PanList ? 0 : "Proxy manager");
           else if (!ManList)
                   eText = (How & configMeta ? "Meta manager" : "Manager");
@@ -115,7 +116,7 @@ int XrdCmsClientConfig::Configure(char *cfn, configWhat What, configHow How)
 
 // Construct proper old communication path for a target node
 //
-   temp = (What & configSuper ? (char *)"nimda" : (char *)"admin");
+   temp = (What & (configMan|configSuper) ? (char *)"nimda" : (char *)"admin");
    slash = (CMSPath[i-1] == '/' ? (char *)"" : (char *)"/");
    sprintf(buff, "%s%solbd.%s", CMSPath, slash, temp);
    free(CMSPath); CMSPath = strdup(buff);
@@ -319,15 +320,15 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval = 0;
-    int rc, i, port, isProxy = 0, smode = FailOver;
+    int rc, i, port, xMeta = 0, isProxy = 0, smode = FailOver;
 
 //  Process the optional "peer" or "proxy"
 //
     if ((val = Config.GetWord()))
        {if (!strcmp("peer", val)) return Config.noEcho();
         if ((isProxy = !strcmp("proxy", val))) val = Config.GetWord();
-           else if (!strcmp("meta", val))
-                   if (isMeta) val = Config.GetWord();
+           else if ((xMeta = !strcmp("meta", val)))
+                   if (isMeta || isMan) val = Config.GetWord();
                       else return Config.noEcho();
                    else if (isMeta) return Config.noEcho();
        }
@@ -382,6 +383,9 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
                   free(bval); free(mval); return 1;
                  }
              }
+
+    if (xMeta && !isMeta) 
+       {haveMeta = 1; free(bval); free(mval); return 0;}
 
     do {if (i)
            {i--; free(mval);

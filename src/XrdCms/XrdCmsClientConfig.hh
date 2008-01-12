@@ -36,6 +36,7 @@ int           RepWaitMS;    // RepWait*1000 for poll()
 int           RepDelay;     // Seconds to delay before retrying manager
 int           RepNone;      // Max number of consecutive non-responses
 int           PrepWait;     // Millisecond wait between prepare requests
+int           haveMeta;     // Have a meta manager (only if we are a manager)
 
 char         *CMSPath;      // Path to the local cmsd for target nodes
 char         *myHost;
@@ -52,12 +53,14 @@ enum {FailOver = 'f', RoundRob = 'r'};
                   {ConWait = 10; RepWait = 3; RepWaitMS = 3000; RepDelay = 5;
                    PrepWait = 33; ManList = PanList = 0;
                    SMode = SModeP = FailOver;
-                   CMSPath = 0; RepNone = 8; isMeta = 0;
+                   CMSPath = 0; RepNone = 8; isMeta = 0; haveMeta = 0;
                   }
      ~XrdCmsClientConfig();
 
 private:
-int isMeta;
+int isMeta;   // We are  a meta manager
+int isMan;    // We are  a      manager
+
 int ConfigProc(char *cfn);
 int ConfigXeq(char *var, XrdOucStream &Config);
 int xapath(XrdOucStream &Config);

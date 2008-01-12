@@ -353,20 +353,22 @@ int XrdCmsConfig::Configure2()
    if ((LocalRoot || RemotRoot) && ConfigN2N()) NoGo = 1;
 
 // Setup manager or server, as needed
-//                                                      x
+//
   if (!NoGo && isManager) NoGo = setupManager();
   if (!NoGo && isServer)  NoGo = setupServer();
 
 // If we are a solo peer then we have no servers and a lot of space and
-// connections don't matter. Connections only matter for true managers.
-// Meta managers need only one subscriber to give it a go.
+// connections don't matter. Only one connection matters for a meta-manager.
+// Servers, supervisors, and managers who have a meta manager must wait for
+// for the local data server to connect so port mapping occurs. Otherwise,
+// we indicate that it doesn't matter as the local server won't connect.
 //
    if (isPeer && isSolo) 
       {SUPCount = SUPLevel = 0;
        XrdCmsNode::setSpace(0x7fffffff, 0);
       } else if (isManager)
                 {if (isMeta) {SUPCount = 1; SUPLevel = 0;}
-/* Hack */       if (!isServer) CmsState.Update(XrdCmsState::FrontEnd,1);
+                 if (!ManList) CmsState.Update(XrdCmsState::FrontEnd, 1);
                 }
     CmsState.Set(SUPCount, isManager && !isServer, AdminPath);
 
@@ -572,7 +574,6 @@ void XrdCmsConfig::ConfigDefaults(void)
    MaxLoad  = 0x7fffffff;
    MsgTTL   = 7;
    PortTCP  = 0;
-   PortData = 0;
    P_cpu    = 0;
    P_fuzz   = 20;
    P_io     = 0;
@@ -731,7 +732,7 @@ int XrdCmsConfig::ConfigProc(int getrole)
 
 // Merge Paths as needed
 //
-   if (!getrole && isServer) NoGo |= MergeP();
+   if (!getrole && ManList) NoGo |= MergeP();
 
 // Return final return code
 //
@@ -813,7 +814,9 @@ int XrdCmsConfig::MergeP()
 // Document what we will be declaring as available
 //
    if (!NoGo)
-      {Say.Say("The following paths are available to the redirector:");
+      {const char *Who = (isManager ? (isServer ? "manager:" : "meta-manager:")
+                                    : "redirector:");
+       Say.Say("The following paths are available to the ", Who);
        if (!(pp = PathList.First())) Say.Say("r  /");
         else while(pp)
              {ptype = pp->PType();
@@ -1620,9 +1623,19 @@ int XrdCmsConfig::xlclrt(XrdSysError *eDest, XrdOucStream &CFile)
 
 int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
 {
+    class StorageHelper
+    {public:
+          StorageHelper(char **v1, char **v2) : val1(v1), val2(v2) {}
+         ~StorageHelper() {if (*val1) free(*val1);
+                           if (*val2) free(*val2);
+                          }
+    char **val1, **val2;
+    };
+
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0;
     char *val, *bval = 0, *mval = 0;
+    StorageHelper SHelp(&bval, &mval);
     int j, i, port = 0, xMeta = 0, xPeer = 0, xProxy = 0;
 
 //  Process the optional "peer" or "proxy"
@@ -1665,7 +1678,7 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
        else if (!(port = PortTCP))
                eDest->Emsg("Config","manager port not specified for",mval);
 
-    if (!port) {free(mval); return 1;}
+    if (!port) return 1;
 
     if ((val = CFile.GetWord()))
        {if (strcmp(val, "if"))
@@ -1681,13 +1694,13 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
        {i = 0;
         if (!XrdNetDNS::getHostAddr(mval, InetAddr))
            {eDest->Emsg("CFile","Manager host", mval, "not found");
-            free(mval); return 1;
+            return 1;
            }
        }
         else {bval = strdup(mval); mval[i-1] = '\0';
               if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
                  {eDest->Emsg("CFile","Manager host", mval, "not found");
-                  free(bval); free(mval); return 1;
+                  return 1;
                  }
              }
 
@@ -1716,8 +1729,6 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
         ManList = new XrdOucTList(mval, port, ManList);
        } while(i);
 
-    if (bval) free(bval);
-    free(mval);
     return tp != 0;
 }
   

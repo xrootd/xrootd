@@ -106,7 +106,7 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 {
    EPNAME("Add")
     sockaddr InetAddr;
-    const char *act = "Added ";
+    const char *act = "";
     const char *hnp = lp->Name(&InetAddr);
     unsigned int ipaddr = XrdNetDNS::IPAddr(&InetAddr);
     XrdCmsNode *nP = 0;
@@ -570,8 +570,7 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 //
    if (reason) 
       Say.Emsg("Manager", theNode->Ident, "scheduled for removal;", reason);
-      else DEBUG("Will remove " <<theNode->Ident <<" node "
-                 <<NodeID <<'.' <<Inst);
+      else DEBUG(theNode->Ident <<" node " <<NodeID <<'.' <<Inst);
 }
 
 /******************************************************************************/
@@ -826,7 +825,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 //
    if (!(nP = NodeTab[sent]) || nP->Inst() != sinst)
       {if (djp == nP->DropJob) {nP->DropJob = 0; nP->DropTime = 0;}
-       DEBUG("Drop node " <<sent <<'.' <<sinst <<" cancelled.");
+       DEBUG(sent <<'.' <<sinst <<" cancelled.");
        return 0;
       }
 
@@ -876,7 +875,6 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 
 // Document the drop
 //
-   DEBUG("Node " <<hname <<' ' <<sent <<'.' <<sinst <<" dropped.");
    Say.Emsg("Drop_Node", hname, "dropped.");
 
 // Delete the node object

@@ -27,7 +27,7 @@ void          Del(XrdCmsNode *nP);
 
 XrdCmsNode   *Find(short Num, int Inst);
 
-void          Send(const char *data, int dlen);
+void          Send(const char *What, const char *data, int dlen);
 
 void          Lock() {myMutex.Lock();}
 

@@ -65,7 +65,6 @@ int         AskPing;      // Number of ping requests per AskPerf window
 int         LogPerf;      // AskPerf intervals before logging perf
 
 int         PortTCP;      // TCP Port to  listen on
-int         PortData;     // TCP Port for data connections
 XrdInet    *NetTCP;       // -> Network Object
 
 int         P_cpu;        // % CPU Capacity in load factor

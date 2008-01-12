@@ -46,7 +46,7 @@ public:
 
         void   Removed(const char *path) {}
 
-               XrdCmsFinderRMT(XrdSysLogger *lp, int whoami = 0);
+               XrdCmsFinderRMT(XrdSysLogger *lp, int whoami=0, int Port=0);
               ~XrdCmsFinderRMT();
 
 static const int MaxMan = 16;
@@ -70,6 +70,7 @@ int              RepWait;
 int              PrepWait;
 int              isMeta;
 int              isTarget;
+int              myPort;
 unsigned char    SMode;
 unsigned char    sendID;
 };
@@ -97,6 +98,8 @@ public:
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) {return 0;}
 
         void   Removed(const char *path);
+
+        int    RunAdmin(char *Path);
 
         void  *Start();
 
