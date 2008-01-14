@@ -121,7 +121,7 @@ lib:  $(TARGET)
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 $(TARGET) : "$(OUTDIR)" $(OBJECTS)
-    $(LD) $(LDOPT) $(LDFLAGS) $(LIBS) @<<
+    $(LD) $(LDOPT) /ignore:4006,4221 $(LDFLAGS) $(LIBS) @<<
   $(OBJECTS)
 <<
 
