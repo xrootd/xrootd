@@ -46,7 +46,7 @@
 #define POLLRDBAND      0x0000
 
 struct pollfd {
-   int fd;
+   unsigned int fd;
    short events;
    short revents;
 };
