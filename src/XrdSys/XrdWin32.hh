@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <Winsock2.h>
 
+#ifndef POLLIN
 #define POLLIN          0x0001    /* There is data to read */
 #define POLLPRI         0x0002    /* There is urgent data to read */
 #define POLLOUT         0x0004    /* Writing now will not block */
@@ -43,6 +44,13 @@
 #define POLLRDNORM      0x0001
 #define POLLWRNORM      0x0002
 #define POLLRDBAND      0x0000
+
+struct pollfd {
+   int fd;
+   short events;
+   short revents;
+};
+#endif
 
 #define EMSGSIZE        WSAEMSGSIZE 
 #define EAFNOSUPPORT    WSAEAFNOSUPPORT 
@@ -182,15 +190,9 @@ struct timezone {
    int tz_dsttime;     /* type of dst correction */
 };
 
-struct pollfd {
-   int fd;
-   short events;
-   short revents;
-};
-
 inline int poll(struct pollfd *fds, unsigned int nfds, int timeout)
 {
-   int max_fd = 0;
+   unsigned int max_fd = 0;
    unsigned int i;
 
    fd_set *open_fds, *read_fds, *write_fds, *except_fds;

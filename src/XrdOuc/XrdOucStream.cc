@@ -193,11 +193,12 @@ void XrdOucStream::Close(int hold)
   
 int XrdOucStream::Drain() 
 {
-    int Status = 0, retc;
+    int Status = 0;
 
     // Drain any outstanding processes (i.e., kill the process group)
     //
 #ifndef WIN32
+    int retc;
     if (child) {kill(-child, 9);
                 do {retc = waitpid(child, &Status, 0);}
                     while(retc > 0 || (retc == -1 && errno == EINTR));
