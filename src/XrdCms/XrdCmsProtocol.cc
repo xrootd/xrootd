@@ -261,8 +261,6 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    loginData.Paths = (kXR_char *)Config.myPaths;
    loginData.sPort = Config.PortTCP;
    loginData.fsNum = Meter.numFS();
-   loginData.fSpace= Meter.FreeSpace(fsUtil);
-   loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
 
    loginData.Version = kYR_Version; // These to keep compiler happy
    loginData.HoldTime= 0;
@@ -331,6 +329,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 
        // Login this node with the correct state
        //
+       loginData.fSpace= Meter.FreeSpace(fsUtil);
+       loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
        KickedOut = 0; loginData.dPort = CmsState.Port();
        Data = loginData; Data.Mode = Mode;
        if (!(rc = XrdCmsLogin::Login(Link, Data)))
@@ -541,6 +541,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    myNode->DiskFree = Data.fSpace;
    myNode->DiskNums = Data.fsNum;
    myNode->DiskUtil = Data.fsUtil;
+   Meter.setVirtUpdt();
 
 // Check for any configuration changes and then process all of the paths.
 //
@@ -643,9 +644,10 @@ SMask_t XrdCmsProtocol::AddPath(XrdCmsNode *nP,
          pType++;
         }
 
-// Get the path
+// Set node options
 //
-   if (pinfo.rwvec || pinfo.ssvec) nP->isRW = 1;
+   nP->isRW = (pinfo.rwvec ? XrdCmsNode::allowsRW : 0) 
+            | (pinfo.ssvec ? XrdCmsNode::allowsSS : 0);
 
 // Add the path to the known path list
 //

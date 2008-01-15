@@ -354,8 +354,8 @@ int XrdCmsConfig::Configure2()
 
 // Setup manager or server, as needed
 //
-  if (!NoGo && isManager) NoGo = setupManager();
-  if (!NoGo && isServer)  NoGo = setupServer();
+  if (!NoGo && isManager)              NoGo = setupManager();
+  if (!NoGo && (isServer || ManList))  NoGo = setupServer();
 
 // If we are a solo peer then we have no servers and a lot of space and
 // connections don't matter. Only one connection matters for a meta-manager.
@@ -364,12 +364,12 @@ int XrdCmsConfig::Configure2()
 // we indicate that it doesn't matter as the local server won't connect.
 //
    if (isPeer && isSolo) 
-      {SUPCount = SUPLevel = 0;
-       XrdCmsNode::setSpace(0x7fffffff, 0);
-      } else if (isManager)
-                {if (isMeta) {SUPCount = 1; SUPLevel = 0;}
-                 if (!ManList) CmsState.Update(XrdCmsState::FrontEnd, 1);
-                }
+      {SUPCount = SUPLevel = 0; Meter.setVirtual(XrdCmsMeter::peerFS);}
+      else if (isManager)
+              {Meter.setVirtual(XrdCmsMeter::manFS);
+               if (isMeta) {SUPCount = 1; SUPLevel = 0;}
+               if (!ManList) CmsState.Update(XrdCmsState::FrontEnd, 1);
+              }
     CmsState.Set(SUPCount, isManager && !isServer, AdminPath);
 
 // Create the pid file
@@ -972,13 +972,6 @@ int XrdCmsConfig::setupServer()
        return 1;
       }
 
-// If this is a staging server then set up the Prepq object
-//
-   if (DiskSS) 
-      {PrepOK = PrepQ.Reset();
-       Sched->Schedule((XrdJob *)&PrepQ,pendplife+time(0));
-      }
-
 // Setup notification path
 //
    if (!(AnoteSock = XrdNetSocket::Create(&Say, AdminPath,
@@ -990,6 +983,13 @@ int XrdCmsConfig::setupServer()
 //
    if (isManager || isPeer || isProxy) return 0;
    DiskOK = 1; SUPCount = 0; SUPLevel = 0;
+
+// If this is a staging server then set up the Prepq object
+//
+   if (DiskSS) 
+      {PrepOK = PrepQ.Reset();
+       Sched->Schedule((XrdJob *)&PrepQ,pendplife+time(0));
+      }
 
 // If no cache has been specified but paths exist get the pfn for each path
 // in the list for monitoring purposes

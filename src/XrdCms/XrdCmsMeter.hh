@@ -33,6 +33,9 @@ int   isOn() {return Running;}
 
 int   Monitor(char *pgm, int itv);
 
+void  Record(int pcpu, int pnet, int pxeq,
+             int pmem, int ppag, int pdsk);
+
 int   Report(int &pcpu, int &pnet, int &pxeq,
              int &pmem, int &ppag, int &pdsk);
 
@@ -43,6 +46,12 @@ void *RunFS();
 int   numFS() {return fs_nums;}
 
 void  setParms(XrdOucTList *tlp, int warnDups);
+
+enum  vType {manFS = 1, peerFS = 2};
+
+void  setVirtual(vType vVal) {Virtual = vVal;}
+
+void  setVirtUpdt() {cfsMutex.Lock(); VirtUpdt = 1; cfsMutex.UnLock();}
 
        XrdCmsMeter();
       ~XrdCmsMeter();
@@ -71,6 +80,8 @@ long          MinShow;  // Calculated only once
 long          HWMShow;  // Calculated only once
 char          MinStype; // Calculated only once
 char          HWMStype; // Calculated only once
+char          Virtual;  // This is a virtual filesystem
+char          VirtUpdt; // Data changed for the virtul FS
 
 char          ubuff[64];
 time_t        rep_tod;

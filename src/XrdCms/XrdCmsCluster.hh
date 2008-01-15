@@ -45,6 +45,25 @@ static const int CMS_Lost    = 16;
 static const int CMS_isPeer  = 32;
 static const int CMS_isProxy = 64;
 static const int CMS_noSpace =128;
+
+// Class passed to Space()
+//
+class SpaceData
+{
+public:
+
+long long DiskFtot;   // Total   free space (no more that DiskFree<<5)
+int       DiskFree;   // Maximum free space
+int       UtilFree;   // MaxFree disk utilization
+int       UtilAvg;    // Average disk utilization
+int       numServ;    // Number of servers
+int       numStage;   // Number of servers that can stage data
+int       numRW;      // Number of servers that provide r/w access
+
+          SpaceData() : DiskFtot(0), DiskFree(0), UtilFree(0), UtilAvg(0),
+                        numServ(0),  numStage(0), numRW(0) {}
+         ~SpaceData() {}
+};
 }
   
 /******************************************************************************/
@@ -117,9 +136,9 @@ int             Select(XrdCmsSelect &Sel);
 int             Select(int isrw, SMask_t pmask, int &port, 
                        char *hbuff, int &hlen);
 
-// Called when space is (not) available
+// Called to get cluster space (for managers and supervisors only)
 //
-void            Space(int none, int doinform=1);
+void            Space(XrdCms::SpaceData &sData, SMask_t smask);
 
 // Called to returns statistics (not really implemented)
 //

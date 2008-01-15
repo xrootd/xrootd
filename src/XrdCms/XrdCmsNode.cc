@@ -62,13 +62,7 @@ using namespace XrdCms;
 
 XrdSysMutex XrdCmsNode::mlMutex;
 
-int         XrdCmsNode::xeq_load = 0;
-int         XrdCmsNode::cpu_load = 0;
-int         XrdCmsNode::mem_load = 0;
-int         XrdCmsNode::pag_load = 0;
-int         XrdCmsNode::net_load = 0;
-int         XrdCmsNode::dsk_free = 0;
-int         XrdCmsNode::dsk_util = 0;
+int         XrdCmsNode::LastFree = 0;
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -425,22 +419,13 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
 // must report that now so that we can be selected for allocation.
 //
    if (Config.asManager())
-      {mlMutex.Lock();
-       temp = cpu_load + cpu_load/2;
-       cpu_load = (cpu_load + (pcpu > temp ? temp : pcpu))/2;
-       temp = net_load + net_load/2;
-       net_load = (net_load + (pnet > temp ? temp : pnet))/2;
-       temp = xeq_load + xeq_load/2;
-       xeq_load = (xeq_load + (pxeq > temp ? temp : pxeq))/2;
-       temp = mem_load + mem_load/2;
-       mem_load = (mem_load + (pmem > temp ? temp : pmem))/2;
-       temp = pag_load + pag_load/2;
-       pag_load = (pag_load + (ppag > temp ? temp : ppag))/2;
-       if (isRW && DiskFree > dsk_free)
-          {temp = dsk_free; dsk_free = DiskFree; dsk_util = DiskUtil;
-           if (!temp) do_Space(Arg);
+      {Meter.Record(pcpu, pnet, pxeq, pmem, ppag, pdsk);
+       if (isRW && DiskFree != LastFree)
+          {mlMutex.Lock();
+           temp = LastFree; LastFree = DiskFree; Meter.setVirtUpdt();
+           if (!temp && DiskFree >= Config.DiskMin) do_Space(Arg);
+           mlMutex.UnLock();
           }
-       mlMutex.UnLock();
       }
 
 // Report new load if need be
@@ -449,7 +434,7 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
       {char buff[1024];
        snprintf(buff, sizeof(buff)-1,
                "load=%d; cpu=%d net=%d inq=%d mem=%d pag=%d dsk=%d utl=%d",
-               myLoad, pcpu, pnet, pxeq, pmem, ppag, DiskFree, DiskUtil);
+               myLoad, pcpu, pnet, pxeq, pmem, ppag, Arg.dskFree, pdsk);
        Say.Emsg("Node", Name(), buff);
        logload = Config.LogPerf;
       } else logload--;
@@ -1077,8 +1062,7 @@ const char *XrdCmsNode::do_Space(XrdCmsRRData &Arg)
 // Process: <id> space
 // Respond: <id> avkb <numkb> <dskutil>
 //
-   if (Config.asManager()) {maxfr = dsk_free; tutil = dsk_util;}
-      else                  maxfr = Meter.FreeSpace(tutil);
+   maxfr = Meter.FreeSpace(tutil);
 
 // Do some debugging
 //
@@ -1391,11 +1375,7 @@ void XrdCmsNode::Report_Usage(XrdLink *lp)   // Static!
 
 // Respond: <id> load <cpu> <io> <load> <mem> <pag> <dskfree> <dskutil>
 //
-   if (Config.asManager())
-      {pcpu = cpu_load; pnet = net_load; pxeq = xeq_load;
-       pmem = mem_load; ppag = pag_load; pdsk = dsk_util;
-       maxfr = dsk_free;
-      } else maxfr = Meter.Report(pcpu, pnet, pxeq, pmem, ppag, pdsk);
+   maxfr = Meter.Report(pcpu, pnet, pxeq, pmem, ppag, pdsk);
 
    loadbuff[CmsLoadRequest::cpuLoad] = static_cast<char>(pcpu);
    loadbuff[CmsLoadRequest::netLoad] = static_cast<char>(pnet);
@@ -1433,15 +1413,17 @@ void XrdCmsNode::SyncSpace()
 // For newly logged in nodes, we need to sync the free space stats
 //
    mlMutex.Lock();
-   if (isRW && DiskFree > dsk_free)
-      {old_free = dsk_free; dsk_free = DiskFree; dsk_util = DiskUtil;}
+   if (isRW && DiskFree > LastFree)
+      {old_free = LastFree; LastFree = DiskFree;}
    mlMutex.UnLock();
 
 // Tell our manager if we now have more space, if need be.
 //
    if (!old_free)
       {Arg.Request.rrCode = kYR_login;
-       Arg.Ident = Ident;
+       Arg.Ident   = Ident;
+       Arg.dskFree = DiskFree;
+       Arg.dskUtil = DiskUtil;
        do_Space(Arg);
       }
 }

@@ -104,6 +104,8 @@ XrdCmsMeter::XrdCmsMeter() : myMeter(&Say)
     mem_load = 0;
     pag_load = 0;
     net_load = 0;
+    Virtual  = 0;
+    VirtUpdt = 1;
 }
   
 /******************************************************************************/
@@ -142,7 +144,24 @@ int XrdCmsMeter::calcLoad(int nowload, int pdsk)
   
 int XrdCmsMeter::FreeSpace(int &tot_util)
 {
+   static const SMask_t allNodes = ~0;
+   static SpaceData     lastSpace;
    long long fsavail;
+
+// If we are a virtual filesystem, do virtual stats
+//
+   if (Virtual)
+      {if (Virtual == peerFS) {tot_util = 0; return 0x7fffffff;}
+       if (VirtUpdt)
+          {SpaceData mySpace;
+           Cluster.Space(mySpace, allNodes);
+           cfsMutex.Lock();
+           lastSpace = mySpace; VirtUpdt = 0;
+           cfsMutex.UnLock();
+          }
+       tot_util = lastSpace.UtilFree;
+       return lastSpace.DiskFree;
+      }
 
 // The values are calculated periodically so use the last available ones
 //
@@ -189,6 +208,29 @@ int XrdCmsMeter::Monitor(char *pgm, int itv)
    Running = 1;
    return 0;
 }
+
+/******************************************************************************/
+/*                                R e c o r d                                 */
+/******************************************************************************/
+  
+void XrdCmsMeter::Record(int pcpu, int pnet, int pxeq,
+                         int pmem, int ppag, int pdsk)
+{
+   int temp;
+
+   repMutex.Lock();
+   temp = cpu_load + cpu_load/2;
+   cpu_load = (cpu_load + (pcpu > temp ? temp : pcpu))/2;
+   temp = net_load + net_load/2;
+   net_load = (net_load + (pnet > temp ? temp : pnet))/2;
+   temp = xeq_load + xeq_load/2;
+   xeq_load = (xeq_load + (pxeq > temp ? temp : pxeq))/2;
+   temp = mem_load + mem_load/2;
+   mem_load = (mem_load + (pmem > temp ? temp : pmem))/2;
+   temp = pag_load + pag_load/2;
+   pag_load = (pag_load + (ppag > temp ? temp : ppag))/2;
+   repMutex.UnLock();
+}
  
 /******************************************************************************/
 /*                                R e p o r t                                 */
@@ -201,13 +243,13 @@ int XrdCmsMeter::Report(int &pcpu, int &pnet, int &pxeq,
 
 // Force restart the monitor program if it hasn't reported within 2 intervals
 //
-   if (montid && (time(0) - rep_tod > monint*2)) myMeter.Drain();
+   if (!Virtual && montid && (time(0) - rep_tod > monint*2)) myMeter.Drain();
 
 // Format a usage line
 //
    repMutex.Lock();
    maxfree = FreeSpace(pdsk);
-   if (!Running) pcpu = pnet = pmem = ppag = pxeq = 0;
+   if (!Running && !Virtual) pcpu = pnet = pmem = ppag = pxeq = 0;
       else {pcpu = cpu_load; pnet = net_load; pmem = mem_load; 
             ppag = pag_load; pxeq = xeq_load;
            }

@@ -46,6 +46,9 @@ public:
        char   PingPong;     //5 Keep alive field
        char   isReserved[2];
 
+static const char allowsRW = 0x01; // in isRW -> Server allows r/w access
+static const char allowsSS = 0x02; // in isRW -> Server can stage data
+
        int    DiskFree;     // Largest free KB
        int    DiskUtil;     // Total disk utilization
        int    DiskNums;     // Number of file systems
@@ -114,8 +117,6 @@ inline int   Send(const struct iovec *iov, int iovcnt, int iotot=0)
 inline void  setSlot(short rslot) {RSlot = rslot;}
 inline short getSlot() {return RSlot;}
 
-static void  setSpace(int Dfree, int Dutil) {dsk_free = Dfree; dsk_util = Dutil;}
-
        void  SyncSpace();
 
              XrdCmsNode(const char *Role,  XrdLink *lnkp, int port=0,
@@ -156,15 +157,9 @@ short              RSlot;
 char               isLocked;
 char               RSVD;
 
-// The following fields are used to keep the supervisor's load values
+// The following fields are used to keep the supervisor's free space value
 //
 static XrdSysMutex mlMutex;
-static int         xeq_load;
-static int         cpu_load;
-static int         mem_load;
-static int         pag_load;
-static int         net_load;
-static int         dsk_free;
-static int         dsk_util;
+static int         LastFree;
 };
 #endif

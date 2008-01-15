@@ -659,7 +659,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                        "No servers are available to %s%s the file.",
                        Sel.Opts & XrdCmsSelect::Online ? "immediately " : "",
-                       Amode)+1;
+                       (smask ? "stage" : Amode))+1;
        return -1;
       }
 
@@ -709,6 +709,42 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
        return 1;
       }
    return 0;
+}
+
+/******************************************************************************/
+/*                                 S p a c e                                  */
+/******************************************************************************/
+  
+void XrdCmsCluster::Space(SpaceData &sData, SMask_t smask)
+{
+   int i;
+   XrdCmsNode *nP;
+   SMask_t bmask;
+
+// Obtain a lock on the table and screen out peer nodes
+//
+   STMutex.Lock();
+   bmask = smask & peerMask;
+
+// Run through the table adding up space information
+//
+   for (i = 0; i <= STHi; i++)
+       {if ((nP = NodeTab[i]) && nP->isNode(bmask) && !nP->isOffline)
+           {sData.numServ++; sData.UtilAvg += nP->DiskUtil;
+            if (nP->isRW)
+               {sData.numStage++;
+                if (nP->isRW & XrdCmsNode::allowsRW) sData.numRW++;
+                sData.DiskFtot += nP->DiskFree;
+                if (sData.DiskFree < nP->DiskFree) 
+                   {sData.DiskFree = nP->DiskFree; 
+                    sData.UtilFree = nP->DiskUtil;
+                   }
+
+               }
+           }
+       }
+   STMutex.UnLock();
+   if (sData.numServ) sData.UtilAvg /= sData.numServ;
 }
 
 /******************************************************************************/
