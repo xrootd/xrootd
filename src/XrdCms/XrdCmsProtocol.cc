@@ -755,11 +755,13 @@ do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
 
 // Parse the arguments (we do this in the main thread to avoid overruns)
 //
-   if (!(Data->Routing & XrdCmsRouting::noArgs)
-   &&  !ProtArgs.Parse(int(Data->Request.rrCode), myArgs, myArgt, Data))
-      {Reply_Error(*Data, kYR_EINVAL, "badly formed request");
-       continue;
-      }
+   if (!(Data->Routing & XrdCmsRouting::noArgs))
+      if (Data->Routing & XrdCmsRouting::rawPath)
+         {Data->Path = Data->Buff; Data->PathLen = Data->Dlen;}
+         else if (!ProtArgs.Parse(int(Data->Request.rrCode),myArgs,myArgt,Data))
+                 {Reply_Error(*Data, kYR_EINVAL, "badly formed request");
+                  continue;
+                 }
 
 // Insert correct identification
 //

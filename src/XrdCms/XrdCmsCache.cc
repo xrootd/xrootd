@@ -46,7 +46,7 @@ class XrdCmsCacheJob : XrdJob
 {
 public:
 
-void   DoIt() {Cache.Recycle(myList);}
+void   DoIt() {Cache.Recycle(myList); delete this;}
 
        XrdCmsCacheJob(XrdCmsKeyItem *List)
                      : XrdJob("cache scrubber"), myList(List) {}
@@ -102,6 +102,7 @@ void *XrdCmsStartTickTock(void *carg)
 int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
 {
    XrdCmsKeyItem *iP;
+   SMask_t xmask;
    int isrw = (Sel.Opts & XrdCmsSelect::Write), isnew = 0;
 
 // Serialize processing
@@ -123,9 +124,10 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
            iP->Loc.sbvec = Bounced[Tock];
            iP->Key.TOD = Tock;
           } else {
-           isnew = (iP->Loc.hfvec == 0);
+           xmask = iP->Loc.pfvec;
            if (Sel.Opts & XrdCmsSelect::Pending) iP->Loc.pfvec |= mask;
               else iP->Loc.pfvec &= ~mask;
+           isnew = (iP->Loc.hfvec == 0) || (iP->Loc.pfvec != xmask);
            iP->Loc.hfvec |=  mask;
            iP->Loc.qfvec &= ~mask;
            if (isrw) {iP->Loc.deadline = 0;

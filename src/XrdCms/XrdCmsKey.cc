@@ -60,6 +60,7 @@ XrdCmsKeyItem *XrdCmsKeyItem::Alloc(unsigned int theTock)
           {Free = kP->Next;
            numFree--;
            theTock &= TickMask;
+           kP->Key.TOD    = theTock;
            kP->Key.TODRef = TockTable[theTock];
            TockTable[theTock] = kP;
            if (!(kP->Key.Ref++)) kP->Key.Ref = 1;

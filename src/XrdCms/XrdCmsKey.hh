@@ -43,8 +43,8 @@ inline int        Equiv(XrdCmsKey &oth)
                        {return Hash == oth.Hash && Ref == oth.Ref;}
 
 inline XrdCmsKey& operator=(const XrdCmsKey &rhs)
-                           {Val = strdup(rhs.Val); Hash = rhs.Hash;
-                            Len = rhs.Len; TOD = rhs.TOD;
+                           {Val = strdup(rhs.Val); Hash = rhs.Hash; 
+                            Len = rhs.Len;
                             return *this;
                            }
 
