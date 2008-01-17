@@ -137,6 +137,7 @@ virtual
 int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t);
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int resonly=0);
+int       StatFS(const char *path, char *buff, int &blen);
 int       Unlink(const char *);
 
 static int   AioInit();
@@ -222,6 +223,8 @@ friend class XrdOssCache_FS;
 friend class XrdOssCache_Group;
 friend class XrdOssCache_Lock;
 
+long long           fsFree;   // Maximum contiguous free space
+long long           fsSize;   // Size of partition with fsFree
 XrdOssCache_FSData *fsdata;   // -> Filesystem data
 XrdOssCache_FS     *fsfirst;  // -> First  filesystem
 XrdOssCache_FS     *fslast;   // -> Last   filesystem

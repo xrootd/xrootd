@@ -312,7 +312,7 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
 
 int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
 {
-     const int ro_Mode = ~(S_IWUSR | S_IWGRP | S_IWOTH);
+    const int ro_Mode = ~(S_IWUSR | S_IWGRP | S_IWOTH);
     char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *remote_path;
     unsigned long long popts;
     int retc;
@@ -354,6 +354,61 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
    return XrdOssOK;
 }
 
+/******************************************************************************/
+/*                                S t a t F S                                 */
+/******************************************************************************/
+
+/*
+  Function: Return free space information based on a path
+
+  Input:    path        - Is the fully qualified name of the file to be tested.
+            buff        - pointer to a buffer to hold the information.
+            blen        - the length of the buffer
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+*/
+
+int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
+{
+   int Opt, sVal, wVal, Util;
+   long long fSpace, fSize;
+
+// Preset the staging and write values
+//
+   Opt = RPList.Find(path);
+   sVal = (Opt & XRDEXP_REMOTE ? 1 : 0);
+   wVal = (Opt & XRDEXP_NOTRW  ? 0 : 1);
+
+// For in-place paths we just get the free space in that partition, otherwise
+// get the maximum available in any partition.
+//
+   if (wVal || sVal)
+      if ((Opt & XRDEXP_INPLACE) || !fsgroups)
+         {char lcl_path[XrdOssMAX_PATH_LEN+1];
+          if (lcl_N2N)
+             if (lcl_N2N->lfn2pfn(path, lcl_path, sizeof(lcl_path)))
+                fSpace = -1;
+                else fSpace = XrdOssCache_FS::freeSpace(fSize, lcl_path);
+             else    fSpace = XrdOssCache_FS::freeSpace(fSize, path);
+         } else     {fSpace = XrdOssCache_FS::freeSpace(fSize);}
+      else          {fSpace = 0;      fSize = 0;}
+
+// Size the value to fit in an int
+//
+   if (fSpace <= 0) {fSize = fSpace = 0; Util = 0;}
+      else {Util = (fSize ? (fSize - fSpace)*100LL/fSize : 0);
+            fSpace = fSpace >> 20LL;
+            if ((fSpace >> 31LL)) fSpace = 0x7fffffff;
+           }
+
+// Return the result
+//
+   blen = snprintf(buff, blen, "%d %lld %d %d %lld %d",
+                               wVal, (wVal ? fSpace : 0LL), (wVal ? Util : 0),
+                               sVal, (sVal ? fSpace : 0LL), (sVal ? Util : 0));
+   return XrdOssOK;
+}
+  
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/

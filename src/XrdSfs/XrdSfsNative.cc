@@ -721,7 +721,7 @@ int XrdSfsNative::mkdir(const char             *path,    // In
 
 int XrdSfsNative::Mkpath(const char *path, mode_t mode, const char *info)
 {
-    char actual_path[SFS_MAX_FILE_NAME_LEN], *local_path, *next_path;
+    char actual_path[MAXPATHLEN], *local_path, *next_path;
     unsigned int plen;
     struct stat buf;
 
@@ -897,7 +897,7 @@ int XrdSfsNative::Emsg(const char    *pfx,    // Message prefix value
                        const char    *op,     // Operation being performed
                        const char    *target) // The target (e.g., fname)
 {
-    char *etext, buffer[SFS_MAX_ERROR_LEN], unkbuff[64];
+    char *etext, buffer[XrdOucEI::Max_Error_Len], unkbuff[64];
 
 // Get the reason for the error
 //

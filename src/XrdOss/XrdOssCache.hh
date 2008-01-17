@@ -132,6 +132,8 @@ const   char       *path;
 int                 plen;
 XrdOssCache_FSData *fsdata;
 
+static long long    freeSpace(long long &Size, const char *path=0);
+
        XrdOssCache_FS(      int  &retc, // Yucky historical output value
                       const char *fsg,
                       const char *fsp, 

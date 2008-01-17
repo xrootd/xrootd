@@ -187,6 +187,8 @@ XrdOssSys::XrdOssSys()
    xfrthreads    = XrdOssXFRTHREADS;
    ConfigFN      = 0;
    DeprLine      = 0;
+   fsFree        = 0;
+   fsSize        = 0;
 }
   
 /******************************************************************************/

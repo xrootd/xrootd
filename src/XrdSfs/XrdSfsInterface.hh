@@ -46,19 +46,12 @@
 /*                               D e f i n e s                                */
 /******************************************************************************/
 
-// Longest filename returned by interface (including trailing null)
-//
-#define SFS_MAX_FILE_NAME_LEN (1024+1)
-
-// Maximum number of bytes of opaque information that can be set
-//
-#define SFS_MAX_ERROR_LEN 1280
-
 // Common fsctl command values (0 to 255)
 //
 #define SFS_FSCTL_CMD   255
 
 #define SFS_FSCTL_LOCATE  1 // Locate a file
+#define SFS_FSCTL_STATFS  2 // Return FS data
 
 // Return Values for Integer Returning XrdSfs Interface
 //

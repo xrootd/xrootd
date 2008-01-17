@@ -1706,8 +1706,9 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
   
 int XrdXrootdProtocol::do_Stat()
 {
-   int rc;
    static XrdXrootdCallBack statCB("stat");
+   static const int fsctl_cmd = SFS_FSCTL_STATFS;
+   int rc;
    const char *opaque;
    char xxBuff[256];
    struct stat buf;
@@ -1725,10 +1726,16 @@ int XrdXrootdProtocol::do_Stat()
 
 // Preform the actual function
 //
-   rc = osFS->stat(argp->buff, &buf, myError, CRED, opaque);
-   TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
-   if (rc != SFS_OK) return fsError(rc, myError);
-   return Response.Send(xxBuff, StatGen(buf, xxBuff));
+   if (Request.prepare.options & kXR_vfs)
+      {rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
+       TRACEP(FS, "rc=" <<rc <<" statfs " <<argp->buff);
+       if (rc == SFS_OK) Response.Send(xxBuff, strlen(xxBuff)+1);
+      } else {
+       rc = osFS->stat(argp->buff, &buf, myError, CRED, opaque);
+       TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
+       if (rc == SFS_OK) return Response.Send(xxBuff, StatGen(buf, xxBuff));
+      }
+   return fsError(rc, myError);
 }
 
 /******************************************************************************/

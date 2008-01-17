@@ -54,11 +54,12 @@ enum CmsReqCode            // Request Codes
      kYR_pong    = 18,
      kYR_space   = 19,
      kYR_state   = 20,
-     kYR_status  = 21,
-     kYR_try     = 22,
-     kYR_update  = 23,
-     kYR_usage   = 24,
-     kYR_xauth   = 25,
+     kYR_statfs  = 21,
+     kYR_status  = 22,
+     kYR_try     = 23,
+     kYR_update  = 24,
+     kYR_usage   = 25,
+     kYR_xauth   = 26,
      kYR_MaxReq            // Count of request numbers (highest + 1)
 };
 
@@ -434,6 +435,18 @@ struct CmsStateRequest
 
 enum  {kYR_refresh = 0x0001    // Modifier
       };
+};
+  
+/******************************************************************************/
+/*                        s t a t f s   R e q u e s t                         */
+/******************************************************************************/
+  
+// Request: statfs <path>
+//
+
+struct CmsStatfsRequest
+{      CmsRRHdr      Hdr;
+//     kXR_string    Path;
 };
 
 /******************************************************************************/

@@ -406,7 +406,8 @@ struct ClientSetRequest {
 struct ClientStatRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
-   kXR_char reserved[16];
+   kXR_char  options;
+   kXR_char reserved[15];
    kXR_int32  dlen;
 };
 struct ClientSyncRequest {

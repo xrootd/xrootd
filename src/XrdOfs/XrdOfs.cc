@@ -1187,11 +1187,11 @@ int XrdOfs::fsctl(const int               cmd,
 {
    EPNAME("fsctl");
    int retc, find_flag = SFS_O_LOCATE | (cmd & (SFS_O_NOWAIT | SFS_O_RESET));
-   int opcode = cmd & SFS_FSCTL_CMD;
+   int blen, opcode = cmd & SFS_FSCTL_CMD;
    const char *tident = einfo.getErrUser();
    XTRACE(fsctl, args, "");
 
-// Screen for commands we support (each has it's own security and implentation)
+// Process the LOCATE request
 //
    if (opcode == SFS_FSCTL_LOCATE)
       {struct stat fstat;
@@ -1206,6 +1206,18 @@ int XrdOfs::fsctl(const int               cmd,
        rType[1] = (fstat.st_mode & S_IWUSR            ? 'w' : 'r');
        rType[2] = '\0';
        einfo.setErrInfo(locRlen+3, (const char **)Resp, 2);
+       return SFS_DATA;
+      }
+
+// Process the STATFS request
+//
+   if (opcode == SFS_FSCTL_STATFS)
+      {AUTHORIZE(client,0,AOP_Stat,"statfs",args,einfo);
+       if (Finder && Finder->isRemote()
+       &&  (retc = Finder->Space(einfo, args))) return fsError(einfo, retc);
+       if ((retc = XrdOfsOss->StatFS(args, einfo.getMsgBuff(blen), blen)))
+          return XrdOfsFS.Emsg(epname, einfo, retc, "locate", args);
+       einfo.setErrCode(blen);
        return SFS_DATA;
       }
 
