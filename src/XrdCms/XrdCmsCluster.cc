@@ -278,6 +278,7 @@ SMask_t XrdCmsCluster::Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
 
 // Send of the data as eveything was constructed properly
 //
+   Hdr.datalen = htons(static_cast<unsigned short>(Dlen));
    return Broadcast(smask, ioV, 2, Dlen+sizeof(Hdr));
 }
 
@@ -405,10 +406,11 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 // Check if we have to ask any nodes if they have the file
 //
    if (qfVec)
-      {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, 0, 0}};
+      {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
-          QReq.Hdr.modifier = CmsStateRequest::kYR_refresh;
-       qfVec = Cluster.Broadcast(qfVec, QReq.Hdr, Sel.Path.Val, Sel.Path.Len);
+          QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
+       qfVec = Cluster.Broadcast(qfVec, QReq.Hdr, 
+                                 (void *)Sel.Path.Val, Sel.Path.Len+1);
        if (qfVec) Cache.UnkFile(Sel, qfVec);
       }
    return retc;
@@ -645,11 +647,12 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // in the callback queue only if we have no possible selections
 //
    if (Sel.Vec.bf != 0)
-      {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, 0, 0}};
+      {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
           QReq.Hdr.modifier = CmsStateRequest::kYR_refresh;
        if (dowt) retc = Cache.WT4File(Sel, Sel.Vec.hf);
-       amask = Cluster.Broadcast(Sel.Vec.bf,QReq.Hdr,Sel.Path.Val,Sel.Path.Len);
+       amask = Cluster.Broadcast(Sel.Vec.bf, QReq.Hdr,
+                                 (void *)Sel.Path.Val,Sel.Path.Len+1);
        if (amask) Cache.UnkFile(Sel, amask);
        if (dowt) return retc;
       } else if (dowt && retc < 0) return Cache.WT4File(Sel, Sel.Vec.hf);

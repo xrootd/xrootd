@@ -23,9 +23,8 @@ enum {isInvalid = 0x00,
       isSync    = 0x02,
       Forward   = 0x04,
       noArgs    = 0x08,
-      rawPath   = 0x10,
-      Delayable = 0x20,
-      Repliable = 0x40
+      Delayable = 0x10,
+      Repliable = 0x20
      };
 
 struct      theRouting {int reqCode; int reqOpts;};

@@ -722,7 +722,7 @@ void XrdCmsProtocol::Dispatch()
 
 // Read in the request header
 //
-do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
+do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) return;
 
 // Decode the length and get the rest of the data
 //
@@ -756,7 +756,7 @@ do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
 // Parse the arguments (we do this in the main thread to avoid overruns)
 //
    if (!(Data->Routing & XrdCmsRouting::noArgs))
-      if (Data->Routing & XrdCmsRouting::rawPath)
+      if (Data->Request.modifier & kYR_raw)
          {Data->Path = Data->Buff; Data->PathLen = Data->Dlen;}
          else if (!ProtArgs.Parse(int(Data->Request.rrCode),myArgs,myArgt,Data))
                  {Reply_Error(*Data, kYR_EINVAL, "badly formed request");
@@ -774,10 +774,15 @@ do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) break;
               {Sched->Schedule((XrdJob *)jp);
                Data = XrdCmsRRData::Objectify();
               }
-              else {Say.Emsg("Protocol", "No jobs to serve", Link->Name());
-                    break;
-                   }
+              else Say.Emsg("Protocol", "No jobs to serve", Link->Name());
   } while(1);
+
+// We encountered an error while processing a live link. The only way to
+// resynchonize is to close the link and pretend the recv() failed.
+//
+   Link->Serialize();
+   Link->Close();
+   myNode->isConn = 0;
 }
 
 /******************************************************************************/

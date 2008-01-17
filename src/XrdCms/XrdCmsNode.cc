@@ -1118,11 +1118,12 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
 // Respond appropriately
 //
    if (Arg.Request.modifier)
-      {xmsg[0].iov_base   = (char *)&Arg.Request;
-       xmsg[0].iov_len    = sizeof(Arg.Request);
-       xmsg[1].iov_base   = Arg.Buff;
-       xmsg[1].iov_len    = Arg.Dlen;
-       Arg.Request.rrCode = kYR_have;
+      {xmsg[0].iov_base      = (char *)&Arg.Request;
+       xmsg[0].iov_len       = sizeof(Arg.Request);
+       xmsg[1].iov_base      = Arg.Buff;
+       xmsg[1].iov_len       = Arg.Dlen;
+       Arg.Request.rrCode    = kYR_have;
+       Arg.Request.modifier |= kYR_raw;
        Link->Send(xmsg, 2);
       }
    return 0;
