@@ -73,6 +73,11 @@ inline int   setErrInfo(int code, const char *txtlist[], int n)
 inline void  setErrUser(const char *user) {ErrInfo.user = (user ? user : "?");}
 
 inline unsigned long long  getErrArg() {return ErrCBarg;}
+
+inline char               *getMsgBuff(int &mblen)
+                                   {mblen = sizeof(ErrInfo.message);
+                                    return ErrInfo.message;
+                                   }
 inline XrdOucEICB         *getErrCB() {return ErrCB;}
 inline XrdOucEICB         *getErrCB(unsigned long long &ap) 
                                    {ap = ErrCBarg; return ErrCB;}
