@@ -1168,6 +1168,40 @@ int XrdCmsNode::do_StateFWD(XrdCmsRRData &Arg)
 }
   
 /******************************************************************************/
+/*                             d o _ S t a t F S                              */
+/******************************************************************************/
+  
+const char *XrdCmsNode::do_StatFS(XrdCmsRRData &Arg)
+{
+   static kXR_unt32 Zero = 0;
+   char         buff[256];
+   struct iovec ioV[3] = {{(char *)&Arg.Request, sizeof(Arg.Request)},
+                          {(char *)&Zero,        sizeof(Zero)},
+                          {(char *)&buff,        0}};
+   XrdCmsPInfo   pinfo;
+   int           bytes;
+   SpaceData     theSpace;
+
+// Find out who serves this path and get space relative to it
+//
+   if (Cache.Paths.Find(Arg.Path, pinfo) && pinfo.rovec)
+      {Cluster.Space(theSpace, pinfo.rovec);
+       bytes = sprintf(buff, "%d %d %d %d %d %d",
+                       theSpace.wNum, theSpace.wFree>>10, theSpace.wUtil,
+                       theSpace.sNum, theSpace.sFree>>10, theSpace.sUtil) + 1;
+      } else bytes = strlcpy(buff, "-1 -1 -1 -1 -1 -1", sizeof(buff)) + 1;
+
+// Send the response
+//
+   ioV[2].iov_len      = bytes;
+   bytes              += sizeof(Zero);
+   Arg.Request.rrCode  = kYR_data;
+   Arg.Request.datalen = htons(bytes);
+   Link->Send(ioV, 3, bytes+sizeof(Arg.Request));
+   return 0;
+}
+
+/******************************************************************************/
 /*                              d o _ S t a t s                               */
 /******************************************************************************/
   

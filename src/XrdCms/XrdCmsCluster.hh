@@ -52,16 +52,15 @@ class SpaceData
 {
 public:
 
-long long DiskFtot;   // Total   free space (no more that DiskFree<<5)
-int       DiskFree;   // Maximum free space
-int       UtilFree;   // MaxFree disk utilization
-int       UtilAvg;    // Average disk utilization
-int       numServ;    // Number of servers
-int       numStage;   // Number of servers that can stage data
-int       numRW;      // Number of servers that provide r/w access
+int       wFree;    // Free space for nodes providing r/w access
+int       wNum;     // Number of      nodes providing r/w access
+int       wUtil;    // Average utilization
+int       sFree;    // Free space for nodes providing staging
+int       sNum;     // Number of      nodes providing staging
+int       sUtil;    // Average utilization
 
-          SpaceData() : DiskFtot(0), DiskFree(0), UtilFree(0), UtilAvg(0),
-                        numServ(0),  numStage(0), numRW(0) {}
+          SpaceData() : wFree(0), wNum(0), wUtil(0),
+                        sFree(0), sNum(0), sUtil(0) {}
          ~SpaceData() {}
 };
 }

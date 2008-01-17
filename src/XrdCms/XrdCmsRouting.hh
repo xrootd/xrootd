@@ -67,7 +67,7 @@ inline  NodeMethod_t getMethod(int Code)
                            }
 
 inline  const char  *getName(int Code)
-                            {return Code < XrdCms::kYR_MaxReq
+                            {return Code < XrdCms::kYR_MaxReq || !nameVec[Code]
                                          ? nameVec[Code] : "?";
                             }
 

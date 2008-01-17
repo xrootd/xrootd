@@ -76,6 +76,7 @@ static int    do_SelPrep(XrdCmsPrepArgs &Arg);
 const  char  *do_Space(XrdCmsRRData &Arg);
 const  char  *do_State(XrdCmsRRData &Arg);
        int    do_StateFWD(XrdCmsRRData &Arg);
+const  char  *do_StatFS(XrdCmsRRData &Arg);
 const  char  *do_Stats(XrdCmsRRData &Arg);
 const  char  *do_Status(XrdCmsRRData &Arg);
 const  char  *do_Try(XrdCmsRRData &Arg);

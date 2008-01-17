@@ -145,7 +145,7 @@ int XrdCmsMeter::calcLoad(int nowload, int pdsk)
 int XrdCmsMeter::FreeSpace(int &tot_util)
 {
    static const SMask_t allNodes = ~0;
-   static SpaceData     lastSpace;
+   static int lastFree, lastUtil;
    long long fsavail;
 
 // If we are a virtual filesystem, do virtual stats
@@ -156,11 +156,16 @@ int XrdCmsMeter::FreeSpace(int &tot_util)
           {SpaceData mySpace;
            Cluster.Space(mySpace, allNodes);
            cfsMutex.Lock();
-           lastSpace = mySpace; VirtUpdt = 0;
+           if (mySpace.wFree > mySpace.sFree)
+              {lastFree = mySpace.wFree; lastUtil = mySpace.wUtil;
+              } else {
+               lastFree = mySpace.sFree; lastUtil = mySpace.sUtil;
+              }
+           VirtUpdt = 0;
            cfsMutex.UnLock();
           }
-       tot_util = lastSpace.UtilFree;
-       return lastSpace.DiskFree;
+       tot_util = lastUtil;
+       return lastFree;
       }
 
 // The values are calculated periodically so use the last available ones

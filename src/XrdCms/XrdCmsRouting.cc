@@ -36,6 +36,7 @@ XrdCmsRouter::theRoute initRouter[] =
        {kYR_rm,      "rm",     &XrdCmsNode::do_Rm},
        {kYR_rmdir,   "rmdir",  &XrdCmsNode::do_Rmdir},
        {kYR_select,  "select", &XrdCmsNode::do_Select},
+       {kYR_statfs,  "statfs", &XrdCmsNode::do_StatFS},
        {kYR_stats,   "stats",  &XrdCmsNode::do_Stats},
 /* Server */
        {kYR_avkb,    "avkb",   &XrdCmsNode::do_AvKb},
@@ -84,6 +85,8 @@ XrdCmsRouting::theRouting initRDRrouting[] =
       {kYR_rmdir,   XrdCmsRouting::isAsync   | XrdCmsRouting::Forward
                   | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
       {kYR_select,  XrdCmsRouting::isAsync
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_statfs,  XrdCmsRouting::isAsync
                   | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
       {kYR_stats,   XrdCmsRouting::isAsync
                   | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},

@@ -597,6 +597,52 @@ int XrdCmsFinderRMT::StartManagers(XrdOucTList *myManList)
 }
  
 /******************************************************************************/
+/*                                 S p a c e                                  */
+/******************************************************************************/
+  
+int XrdCmsFinderRMT::Space(XrdOucErrInfo &Resp, const char *path)
+{
+   static const int xNum   = 4;
+
+   XrdCmsRRData   Data;
+   int            iovcnt;
+   char           Work[xNum*12];
+   struct iovec   xmsg[xNum];
+
+// If really using protocol 1, it does not support statfs. So, return defaults
+//
+   if (XrdCmsClientMan::v1Mode)
+      {Resp.setErrInfo(ENOTSUP, "The v1 protocol does not support statfs.");
+       return -ENOTSUP;
+      }
+
+// Fill out the RR data structure
+//
+   Data.Ident   = (char *)(XrdCmsClientMan::doDebug ? Resp.getErrUser() : "");
+   Data.Path    = (char *)path;
+
+// Pack the arguments
+//
+   if (!(iovcnt = Parser.Pack(kYR_statfs, &xmsg[1], &xmsg[xNum],
+                                  (char *)&Data, Work)))
+      {Resp.setErrInfo(EINVAL, "Internal error processing file.");
+       return -EINVAL;
+      }
+
+// Insert the header into the stream
+//
+   Data.Request.rrCode   = kYR_statfs;
+   Data.Request.streamid = 0;
+   Data.Request.modifier = 0;
+   xmsg[0].iov_base      = (char *)&Data.Request;
+   xmsg[0].iov_len       = sizeof(Data.Request);
+
+// Send the 2way message
+//
+   return send2Man(Resp, path, xmsg, iovcnt+1);
+}
+  
+/******************************************************************************/
 /*                         T a r g e t   F i n d e r                          */
 /******************************************************************************/
 /******************************************************************************/

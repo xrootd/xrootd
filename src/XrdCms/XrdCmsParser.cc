@@ -133,7 +133,7 @@ XrdOucPupArgs XrdCmsParser::fwdArgB[] =
 /*6*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,XrdCmsRRData, Request.datalen)
              };
 
-// {rm, rmdir} <id> <path> <opq>
+// {rm, rmdir, statfs} <id> <path> <opq>
 //
 XrdOucPupArgs XrdCmsParser::fwdArgC[] =
 /*0*/        {setPUP1(XrdCmsRRData::Arg_Ident,   char, XrdCmsRRData, Ident),
@@ -187,12 +187,12 @@ XrdOucPupArgs XrdCmsParser::avkArgs[] =
 /*2*/         setPUP0(End)
              };
 
-// {gone, have, state, try} <path>
+// try <path>
 //
 XrdOucPupArgs XrdCmsParser::pthArgs[] =
 /*0*/        {setPUP1(XrdCmsRRData::Arg_Path,    char, XrdCmsRRData, Path),
 /*1*/         setPUP1(XrdCmsRRData::Arg_Datlen,Datlen, XrdCmsRRData, PathLen),
-/*2*/         setPUP0(End)
+/*2*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,XrdCmsRRData, Request.datalen)
              };
 
 // load <cpu> <io> <load> <mem> <pag> <dut> <dsk>
@@ -240,7 +240,8 @@ XrdCmsParser::XrdCmsParser()
        vecArgs[kYR_rm]      =  fwdArgC;
        vecArgs[kYR_rmdir]   =  fwdArgC;
        vecArgs[kYR_select]  =  locArgs;
-       vecArgs[kYR_stats]   =  0;
+       vecArgs[kYR_rm]      =  fwdArgC;
+       vecArgs[kYR_statfs]  =  pthArgs;
        vecArgs[kYR_avkb]    =  avkArgs;
        vecArgs[kYR_gone]    =  pthArgs;
        vecArgs[kYR_try]     =  pthArgs;

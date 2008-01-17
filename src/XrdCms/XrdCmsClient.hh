@@ -52,6 +52,8 @@ virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) = 0;
 
 virtual void   Removed(const char *path) = 0;
 
+virtual int    Space(XrdOucErrInfo &Resp, const char *path) = 0;
+
         enum   Persona {amLocal, amProxy, amRemote, amTarget};
 
                XrdCmsClient(Persona acting) {myPersona = acting;}

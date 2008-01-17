@@ -73,7 +73,7 @@ static XrdOucPupArgs  locArgs[];  // locate | select
 static XrdOucPupArgs  padArgs[];  // prepadd
 static XrdOucPupArgs  pdlArgs[];  // prepdel
 static XrdOucPupArgs  avkArgs[];  // avkb
-static XrdOucPupArgs  pthArgs[];  // gone | have | state | try
+static XrdOucPupArgs  pthArgs[];  // statfs | try
 static XrdOucPupArgs  lodArgs[];  // load
 static XrdOucPupArgs  logArgs[];  // login
 

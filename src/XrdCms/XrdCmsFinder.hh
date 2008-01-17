@@ -46,6 +46,8 @@ public:
 
         void   Removed(const char *path) {}
 
+        int    Space(XrdOucErrInfo &Resp, const char *path);
+
                XrdCmsFinderRMT(XrdSysLogger *lp, int whoami=0, int Port=0);
               ~XrdCmsFinderRMT();
 
@@ -100,6 +102,8 @@ public:
         void   Removed(const char *path);
 
         int    RunAdmin(char *Path);
+
+        int    Space(XrdOucErrInfo &Resp, const char *path) {return 0;}
 
         void  *Start();
 
