@@ -73,6 +73,10 @@ enum CmsFwdModifier
      kYR_hopincr  = 0x40
 };
 
+enum CmsReqModifier
+{    kYR_raw = 0x20      // Modifier: Unmarshalled data
+};
+
 /******************************************************************************/
 /*               C o m m o n   R e s p o n s e   S e c t i o n                */
 /******************************************************************************/
@@ -182,8 +186,8 @@ struct CmsLocateRequest
 //     kXR_string    Ident;
 //     kXR_unt32     Opts;
 
-enum  {kYR_refresh = 0x0001,
-       kYR_asap    = 0x0080
+enum  {kYR_refresh = 0x01,
+       kYR_asap    = 0x80
       };
 //     kXR_string    Path;
 
@@ -433,7 +437,7 @@ struct CmsStateRequest
 {      CmsRRHdr      Hdr;
 //     kXR_string    Path;
 
-enum  {kYR_refresh = 0x0001    // Modifier
+enum  {kYR_refresh = 0x01    // Modifier
       };
 };
   
