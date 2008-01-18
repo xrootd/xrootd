@@ -60,7 +60,7 @@ $LOCKNOERR = 0;				# ignore errors in getlock
 $LOCKERR   = 1;				# report errors in getlock
 
 # Process parameters
-if (! &Getopts('c:f:l:wx:')) {
+if (! &Getopts('c:f:l:wx:p:')) {
    logerr("Missing or invalid argument"); 
    exit 1;
    }
@@ -78,6 +78,11 @@ if (defined($opt_f)) {			# filename for priority stage-ins
 if (defined($opt_x)) {			# debug level
    $debug = "$opt_x";
    }
+if (defined($opt_p)) {
+   $discardpfx = "$opt_p";
+   }
+
+print "discardpfx=$discardpfx\n\n";
 
 $parm = shift;
 if ("$parm" eq '') {
@@ -138,14 +143,16 @@ sub add_queue {
 	    close(FILE);
 	    foreach $fn (@temp) {
 		$tmpid = ($usrid =~ m|^file://|) ? "$usrid"."?lfn=$fn" : $usrid;
+		$fn =~ s/^$discardpfx//;
 		$fn = none2mss($fn);
-		print $fh "$reqid $tmpid $func $fn";
+		print $fh "$reqid $tmpid $func $fn\n";
 	    }
 	}
 	else {
 	    $tmpid = ($usrid =~ m|^file://|) ? "$usrid"."?lfn=$fn" : $usrid;
-	    $fn = none2mss($fn);
-	    print $fh "$reqid $tmpid $func $fn\n";
+		$fn =~ s/^$discardpfx//;
+		$fn = none2mss($fn);
+		print $fh "$reqid $tmpid $func $fn\n";
 	}
     }
     unlock($fh, "$file");
