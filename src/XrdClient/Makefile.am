@@ -40,7 +40,7 @@ xrootdclientinc_HEADERS = XrdClient.hh XrdClientAdmin.hh \
                XrdClientInputBuffer.hh XrdClientEnv.hh XrdClientThread.hh \
                XrdClientPhyConnection.hh XrdClientLogConnection.hh \
                XrdClientDebug.hh XrdClientReadV.hh XrdClientPSock.hh \
-               XrdCpMthrQueue.hh XrdCpWorkLst.hh
+               XrdCpMthrQueue.hh XrdCpWorkLst.hh XrdClientAbsMonIntf.hh
 
 #############################################################################
 # Build rules
