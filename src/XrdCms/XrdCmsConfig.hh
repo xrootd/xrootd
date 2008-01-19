@@ -75,8 +75,8 @@ int         P_load;       // % MSC Capacity in load factor
 int         P_mem;        // % MEM Capacity in load factor
 int         P_pag;        // % PAG Capacity in load factor
 
-long long   DiskMin;      // Minimum KB needed of space in a partition
-long long   DiskHWM;      // Minimum KB needed of space to requalify
+int         DiskMin;      // Minimum MB needed of space in a partition
+int         DiskHWM;      // Minimum MB needed of space to requalify
 int         DiskLinger;   // Manager Only
 int         DiskAsk;      // Seconds between disk space reclaculations
 int         DiskWT;       // Seconds to defer client while waiting for space

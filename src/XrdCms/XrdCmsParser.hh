@@ -72,7 +72,7 @@ static XrdOucPupArgs  fwdArgC[];  // rm | rmdir
 static XrdOucPupArgs  locArgs[];  // locate | select
 static XrdOucPupArgs  padArgs[];  // prepadd
 static XrdOucPupArgs  pdlArgs[];  // prepdel
-static XrdOucPupArgs  avkArgs[];  // avkb
+static XrdOucPupArgs  avlArgs[];  // avail
 static XrdOucPupArgs  pthArgs[];  // statfs | try
 static XrdOucPupArgs  lodArgs[];  // load
 static XrdOucPupArgs  logArgs[];  // login

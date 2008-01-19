@@ -584,8 +584,8 @@ void XrdCmsConfig::ConfigDefaults(void)
    AskPing  = 60;         // Every  1 minute
    MaxDelay = -1;
    LogPerf  = 10;         // Every 10 usage requests
-   DiskMin  = 10485760LL; // 10737418240/1024 10GB (Min partition space) in KB
-   DiskHWM  = 11534336LL; // 11811160064/1024 11GB (High Water Mark SUO) in KB
+   DiskMin  = 10240;      // 10GB*1024 (Min partition space) in MB
+   DiskHWM  = 11264;      // 11GB*1024 (High Water Mark SUO) in MB
    DiskAsk  = 12;         // 15 Seconds between space calibrations.
    DiskWT   = 0;          // Do not defer when out of space
    DiskSS   = 0;          // Not a staging server
@@ -2370,11 +2370,12 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
     if (arecalc >= 0) DiskAsk    = arecalc;
 
     if (minf >= 0)
-       {if (hwm < 0) DiskHWM = minf+1073741824;
-           else if (hwm < minf) DiskHWM = minf + hwm;
-                   else DiskHWM = hwm;
-        DiskMin = minf / 1024;
-        DiskHWM /= 1024;
+       {if (hwm < 0 || hwm < minf) hwm = minf+1073741824; // Minimum + 1GB
+        minf = minf >> 20LL; hwm = hwm >> 20LL;           // Now Megabytes
+        if (minf >> 31LL) {minf = 0x7fefffff; hwm = 0x7fffffff;}
+           else if (hwm >> 31LL) minf = 0x7fffffff;
+        DiskMin = static_cast<int>(minf);
+        DiskHWM = static_cast<int>(hwm);
        }
     return 0;
 }

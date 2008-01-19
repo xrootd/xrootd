@@ -177,7 +177,7 @@ int XrdCmsMeter::FreeSpace(int &tot_util)
 
 // Now adjust the values to fit
 //
-   if (fsavail >> 31) fsavail = 0x7fffffff;
+   if (fsavail >> 31LL) fsavail = 0x7fffffff;
 
 // Return amount available
 //
@@ -336,14 +336,14 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
     pthread_t monFStid;
     XrdCmsMeterFS *fsP, baseFS(0,0);
     XrdOucTList *plp, *nlp;
-    char buff[1024], sfx1, sfx2;
+    char buff[1024], sfx1, sfx2, sfx3;
     long long fsbsize;
-    long maxfree, totDisk;
+    long maxfree, totfree, totDisk;
     struct stat buf;
     STATFS_BUFF fsdata;
     int rc;
 
-// Set values (disk space values are in kilobytes)
+// Set values (disk space values are in megabytes)
 // 
     fs_list = tlp; 
     MinFree = Config.DiskMin;
@@ -380,7 +380,7 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
               }
            plp = nlp;
           } while((nlp = nlp->next));
-   dsk_tot = dsk_tot/1024;
+   dsk_tot = dsk_tot >> 20LL; // in MB
 
 // Calculate the initial free space and start the FS monitor thread
 //
@@ -405,9 +405,10 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
    if (fs_nums)
       {sfx1 = Scale(dsk_maxf, maxfree);
        sfx2 = Scale(dsk_tot,  totDisk);
-       sprintf(buff,"Found %d filesystem(s); %ld%cB total (%d%% utilized);"
-                    " %ld%cB max available",
-                    fs_nums, totDisk, sfx2, dsk_util, maxfree, sfx1);
+       sfx3 = Scale(dsk_free, totfree);
+       sprintf(buff,"Found %d filesystem(s); %ld%cB total (%d%% util);"
+                    " %ld%cB free (%ld%cB max)", fs_nums, totDisk, sfx2,
+                    dsk_util, totfree, sfx3, maxfree, sfx1);
        Say.Emsg("Meter", buff);
        if (noSpace)
           {sprintf(buff, "%ld%cB minimum", MinShow, MinStype);
@@ -481,8 +482,8 @@ void XrdCmsMeter::calcSpace()
 //
    cfsMutex.Lock();
    old_util = dsk_util;
-   dsk_maxf = fsavail/1024;
-   dsk_free = fsavail/1024;
+   dsk_maxf = fsavail >> 20LL; // In MB
+   dsk_free = fstotav >> 20LL; // In MB
    dsk_util = static_cast<int>(fsutil);
    cfsMutex.UnLock();
    if (old_util != dsk_util)
@@ -497,7 +498,7 @@ void XrdCmsMeter::calcSpace()
 
 const char XrdCmsMeter::Scale(long long inval, long &outval)
 {
-    const char sfx[] = {'K', 'M', 'G', 'T', 'P'};
+    const char sfx[] = {'M', 'G', 'T', 'P'};
     unsigned int i;
 
     for (i = 0; i < sizeof(sfx) && inval > 1024; i++) inval = inval/1024;

@@ -39,7 +39,7 @@ XrdCmsRouter::theRoute initRouter[] =
        {kYR_statfs,  "statfs", &XrdCmsNode::do_StatFS},
        {kYR_stats,   "stats",  &XrdCmsNode::do_Stats},
 /* Server */
-       {kYR_avkb,    "avkb",   &XrdCmsNode::do_AvKb},
+       {kYR_avail,   "avail",  &XrdCmsNode::do_Avail},
        {kYR_disc,    "disc",   &XrdCmsNode::do_Disc},
        {kYR_gone,    "gone",   &XrdCmsNode::do_Gone},
        {kYR_have,    "have",   &XrdCmsNode::do_Have},
@@ -106,7 +106,7 @@ XrdCmsRouting::theRouting initRDRrouting[] =
 namespace XrdCms
 {
 XrdCmsRouting::theRouting initRSProuting[] =
-     {{kYR_avkb,    XrdCmsRouting::isSync},
+     {{kYR_avail,   XrdCmsRouting::isSync},
       {kYR_disc,    XrdCmsRouting::isSync | XrdCmsRouting::noArgs},
       {kYR_gone,    XrdCmsRouting::isSync},
       {kYR_have,    XrdCmsRouting::isSync},

@@ -179,9 +179,9 @@ XrdOucPupArgs XrdCmsParser::pdlArgs[] =
 /*2*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,XrdCmsRRData, Request.datalen)
              };
 
-// avkb    <dskFree> <dskUtil>
+// avail   <dskFree> <dskUtil>
 //
-XrdOucPupArgs XrdCmsParser::avkArgs[] =
+XrdOucPupArgs XrdCmsParser::avlArgs[] =
 /*0*/        {setPUP1(XrdCmsRRData::Arg_dskFree, int, XrdCmsRRData, dskFree),
 /*1*/         setPUP1(XrdCmsRRData::Arg_dskUtil, int, XrdCmsRRData, dskUtil),
 /*2*/         setPUP0(End)
@@ -242,7 +242,7 @@ XrdCmsParser::XrdCmsParser()
        vecArgs[kYR_select]  =  locArgs;
        vecArgs[kYR_rm]      =  fwdArgC;
        vecArgs[kYR_statfs]  =  pthArgs;
-       vecArgs[kYR_avkb]    =  avkArgs;
+       vecArgs[kYR_avail]   =  avlArgs;
        vecArgs[kYR_gone]    =  pthArgs;
        vecArgs[kYR_try]     =  pthArgs;
        vecArgs[kYR_have]    =  pthArgs;

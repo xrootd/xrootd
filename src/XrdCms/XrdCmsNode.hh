@@ -49,12 +49,12 @@ public:
 static const char allowsRW = 0x01; // in isRW -> Server allows r/w access
 static const char allowsSS = 0x02; // in isRW -> Server can stage data
 
-       int    DiskFree;     // Largest free KB
+       int    DiskFree;     // Largest free MB
        int    DiskUtil;     // Total disk utilization
        int    DiskNums;     // Number of file systems
 unsigned int  ConfigID;     // Configuration identifier
 
-const  char  *do_AvKb(XrdCmsRRData &Arg);
+const  char  *do_Avail(XrdCmsRRData &Arg);
 const  char  *do_Chmod(XrdCmsRRData &Arg);
 const  char  *do_Disc(XrdCmsRRData &Arg);
 const  char  *do_Gone(XrdCmsRRData &Arg);

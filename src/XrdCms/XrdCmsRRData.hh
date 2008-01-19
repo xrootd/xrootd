@@ -46,8 +46,8 @@ XrdCms::CmsRRHdr       Request;     // all
         char          *Ident;       // all
         unsigned int   Opts;        // locate, select
                  int   PathLen;     // locate, prepadd, select (inc null byte)
-        unsigned int   dskFree;     // avkb, load
-        unsigned int   dskUtil;     // avkb
+        unsigned int   dskFree;     // avail, load
+        unsigned int   dskUtil;     // avail
 
         char          *Buff;        // Buffer underlying the pointers
         int            Blen;        // Length of buffer

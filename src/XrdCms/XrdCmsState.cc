@@ -281,7 +281,7 @@ void XrdCmsState::Update(StateType StateT, int ActivCnt, int StageCnt)
                          break;
          }
 
-   DEBUG("Type=" <<What <<" Parm1=" <<ActivCnt <<" Parm2=" <<StageCnt);
+   DEBUG(What <<" Parm1=" <<ActivCnt <<" Parm2=" <<StageCnt);
    currState=(numActive  < minNodeCnt   || adminSuspend ? SRV_Suspend:0)
             |(numStaging < 1 || noSpace || adminNoStage ? All_NoStage:0)
             |                                   ( !feOK ? FES_Suspend:0);

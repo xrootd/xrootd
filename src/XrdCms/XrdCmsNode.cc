@@ -197,24 +197,24 @@ void XrdCmsNode::Disc(const char *reason, int needLock)
 }
   
 /******************************************************************************/
-/*                               d o _ A v K b                                */
+/*                              d o _ A v a i l                               */
 /******************************************************************************/
   
 // Node responses to space usage requests from a manager are localized to the 
 // cell and need not be propopagated in any direction.
 //
-const char *XrdCmsNode::do_AvKb(XrdCmsRRData &Arg)
+const char *XrdCmsNode::do_Avail(XrdCmsRRData &Arg)
 {
-   EPNAME("do_AvKb")
+   EPNAME("do_Avail")
 
-// Process: avkb <fsdsk> <util>
+// Process: avail <fsdsk> <util>
 //
    DiskFree = Arg.dskFree;
    DiskUtil = static_cast<int>(Arg.dskUtil);
 
 // Do some debugging
 //
-   DEBUGR(DiskFree <<"KB free; " <<DiskUtil <<"% util");
+   DEBUGR(DiskFree <<"MB free; " <<DiskUtil <<"% util");
    return 0;
 }
 
@@ -412,7 +412,7 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
 //
    DEBUGR("cpu=" <<pcpu <<" net=" <<pnet <<" xeq=" <<pxeq
        <<" mem=" <<pmem <<" pag=" <<ppag <<" dsk=" <<pdsk
-       <<' ' <<DiskFree <<" load=" <<myLoad <<" mass=" <<myMass);
+       <<"% " <<DiskFree <<"MB load=" <<myLoad <<" mass=" <<myMass);
 
 // If we are also a manager then use this load figure to come up with
 // an overall load to report when asked. If we get free space, then we
@@ -1055,18 +1055,18 @@ const char *XrdCmsNode::do_Space(XrdCmsRRData &Arg)
 {
    EPNAME("do_Space")
    struct iovec xmsg[2];
-   CmsAvkbRequest mySpace = {{0, kYR_avkb, 0, 0}};
+   CmsAvailRequest mySpace = {{0, kYR_avail, 0, 0}};
    char         buff[sizeof(int)*2+2], *bp = buff;
    int blen, maxfr, tutil;
 
 // Process: <id> space
-// Respond: <id> avkb <numkb> <dskutil>
+// Respond: <id> avail <numkb> <dskutil>
 //
    maxfr = Meter.FreeSpace(tutil);
 
 // Do some debugging
 //
-   DEBUGR(maxfr <<"KB free; " <<tutil <<"% util");
+   DEBUGR(maxfr <<"MB free; " <<tutil <<"% util");
 
 // Construct a message to be sent to the manager.
 //
