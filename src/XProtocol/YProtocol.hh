@@ -45,7 +45,7 @@ enum CmsReqCode            // Request Codes
      kYR_rmdir   =  9,
      kYR_select  = 10,
      kYR_stats   = 11,
-     kYR_avkb    = 12,
+     kYR_avail   = 12,
      kYR_disc    = 13,
      kYR_gone    = 14,
      kYR_have    = 15,
@@ -115,13 +115,13 @@ enum  {kYR_async   = 128                 // Modifier: Reply to prev waitresp
 };
 
 /******************************************************************************/
-/*                          a v k b   R e q u e s t                           */
+/*                         a v a i l   R e q u e s t                          */
 /******************************************************************************/
   
-// Request: avkb <diskFree> <diskUtil>
+// Request: avail <diskFree> <diskUtil>
 // Respond: n/a
 //
-struct CmsAvkbRequest
+struct CmsAvailRequest
 {      CmsRRHdr      Hdr;
 //     kXR_int32     diskFree;
 //     kXR_int32     diskUtil;
