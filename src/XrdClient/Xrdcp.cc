@@ -22,6 +22,8 @@
 #include <XrdCrypto/XrdCryptoFactory.hh>
 #include <XrdCrypto/XrdCryptoMsgDigest.hh>
 
+#include "XrdClient/XrdClientAbsMonIntf.hh"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -31,6 +33,7 @@
 #endif
 #include <stdarg.h>
 #include <stdio.h>
+#include <dlfcn.h>
 
 extern "C" {
    /////////////////////////////////////////////////////////////////////
@@ -73,6 +76,7 @@ struct XrdCpInfo {
    int                          localfile;
    long long                    len, bread, bwritten;
    XrdCpMthrQueue               queue;
+   XrdClientAbsMonIntf          *mon;
 } cpnfo;
 
 #define XRDCP_BLOCKSIZE          (512*1024)
@@ -85,6 +89,7 @@ struct XrdCpInfo {
 bool summary=false;            // print summary
 bool progbar=true;             // print progbar
 bool md5=false;                // print md5
+XrdOucString monlibname = "XrdCpMonLib.so"; // Default name for the ext monitoring lib
 
 char *srcopaque=0,
    *dstopaque=0;   // opaque info to be added to urls
@@ -442,6 +447,9 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 		  break;
 	       }
 
+	       if (cpnfo.mon)
+		 cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len);
+
 	       offs += len;
 	       free(buf);
 	    }
@@ -569,6 +577,9 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	       break;
 	    }
 
+	    if (cpnfo.mon)
+	      cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len);
+
 	    free(buf);
 	 }
 	 else  {
@@ -691,6 +702,9 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	       break;
 	    }
 
+	    if (cpnfo.mon)
+	      cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len);
+
 	    offs += len;
 	    free(buf);
 	 }
@@ -777,6 +791,11 @@ void PrintUsage() {
    cerr << " -R     :         recurse subdirectories" << endl;
    cerr << " -S num :         use <num> additional parallel streams to do the xfer." << endl << 
            "                  The max value is 15. The default is 0 (i.e. use only the main stream)" << endl;
+   cerr << " -MLlibname" << endl <<
+           "        :         use <libname> as external monitoring reporting library." << endl <<
+           "                  The default name if XrdCpMonlib.so . Make sure it is reachable." << endl;
+
+
    cerr << " where:" << endl;
    cerr << "   parmname     is the name of an internal parameter" << endl;
    cerr << "   stringvalue  is a string to be assigned to an internal parameter" << endl;
@@ -1033,6 +1052,50 @@ int main(int argc, char**argv) {
 	MD_5->Reset("md5");
       }
 
+
+      // Initialize monitoring client, if a plugin is present
+      cpnfo.mon = 0;
+      void *monhandle = dlopen (monlibname.c_str(), RTLD_LAZY);
+
+      if (monhandle) {
+	XrdClientMonIntfHook monlibhook = (XrdClientMonIntfHook)dlsym(monhandle, "XrdClientgetMonIntf");
+
+	const char *err = 0;
+	if ((err = dlerror())) {
+	  cerr << "Error accessing monitoring client library " << monhandle << ". Inappropriate content." << endl <<
+	    "error: " << err << endl;
+	  dlclose(monhandle);
+	  monhandle = 0;
+	}
+	else	
+	  cpnfo.mon = (XrdClientAbsMonIntf *)monlibhook(src.c_str(), dest.c_str());
+      }
+      
+      if (cpnfo.mon) {
+
+	char *name, *ver, *rem;
+	if (!cpnfo.mon->GetMonLibInfo(name, ver, rem)) {
+	  Info(XrdClientDebug::kUSERDEBUG,
+	       "main", "Monitoring client plugin found. Name:" << name << " ver:" << ver << "remarks:" << rem);
+	}
+	else {
+	  delete cpnfo.mon;
+	  cpnfo.mon = 0;
+	}
+
+      }
+
+      if (!cpnfo.mon && monhandle) {
+	dlclose(monhandle);
+	monhandle = 0;
+      }
+
+      // Ok, the plugin is now loaded...
+      if (cpnfo.mon) {
+	cpnfo.mon->Init(src.c_str(), dest.c_str());
+	cpnfo.mon->PutProgressInfo();
+      }
+
       if ( (src.beginswith("root://")) || (src.beginswith("xroot://")) ) {
 	 // source is xrootd
 
@@ -1095,6 +1158,17 @@ int main(int argc, char**argv) {
 	 }
 
       }
+
+
+      if (cpnfo.mon) {
+	cpnfo.mon->DeInit();
+	delete cpnfo.mon;
+	cpnfo.mon = 0;
+
+	if (monhandle) dlclose(monhandle);
+	monhandle = 0;
+      }
+
 
    }
 

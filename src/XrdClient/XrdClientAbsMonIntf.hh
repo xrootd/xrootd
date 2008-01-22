@@ -12,7 +12,7 @@ public:
 
 
   // Initialization of the external library
-  virtual int Init(char *src, char *dest) = 0;
+  virtual int Init(const char *src, const char *dest) = 0;
   virtual int DeInit() = 0;
 
   // To get the name of the library and other info
@@ -21,8 +21,7 @@ public:
 
   // To submit a set of info about the progress of something
   // Set force to true to be sure that the info is sent and not eventually skipped
-  virtual int PutProgressInfo(char *fname,
-			      long long bytecount=0,
+  virtual int PutProgressInfo(long long bytecount=0,
 			      long long size=0,
 			      float percentage=0.0,
 			      bool force=false) = 0;
@@ -44,10 +43,12 @@ public:
 // 'extern "C"' defined function.
 
 
-#define XrdClientMonIntfArgs char *src, char*dst
+#define XrdClientMonIntfArgs const char *src, const char *dst
 
-extern "C" XrdClientAbsMonIntf *XrdClientgetMonIntf(XrdClientMonIntfArgs);
-
+extern "C" {
+  typedef XrdClientAbsMonIntf *(*XrdClientMonIntfHook)(XrdClientMonIntfArgs);
+XrdClientAbsMonIntf *XrdClientgetMonIntf(XrdClientMonIntfArgs);
+}
 
 
 
