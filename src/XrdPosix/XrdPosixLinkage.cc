@@ -29,7 +29,12 @@
 
 #include <errno.h>
 #include "XrdPosix/XrdPosixLinkage.hh"
-
+ 
+/******************************************************************************/
+/*                   G l o b a l   D e c l a r a t i o n s                    */
+/******************************************************************************/
+  
+XrdPosixLinkage Xunix;
  
 /******************************************************************************/
 /*                          M a c r o   L o a d e r                           */
@@ -40,19 +45,13 @@
                           if (!symb) symb = Xrd_U_ ## symb;
  
 /******************************************************************************/
-/*                   G l o b a l   D e c l a r a t i o n s                    */
-/******************************************************************************/
-  
-XrdPosixLinkage Xunix;
-
-XrdPosixRootVec xinuX;
- 
-/******************************************************************************/
 /*          U n r e s o l v e d   R e f e r e n c e   L i n k a g e           */
 /******************************************************************************/
 
       Retv_Access      Xrd_U_Access(Args_Access)
                          {return (Retv_Access)Xunix.Load_Error("access");}
+      Retv_Acl         Xrd_U_Acl(Args_Acl)
+                         {return (Retv_Acl)Xunix.Load_Error("acl");}
       Retv_Chdir       Xrd_U_Chdir(Args_Chdir) 
                          {return (Retv_Chdir)Xunix.Load_Error("chdir");}
       Retv_Close       Xrd_U_Close(Args_Close) 
@@ -99,6 +98,8 @@ XrdPosixRootVec xinuX;
                          {return (Retv_Open64)Xunix.Load_Error("open");}
       Retv_Opendir     Xrd_U_Opendir(Args_Opendir) 
                          {Xunix.Load_Error("opendir"); return (Retv_Opendir)0;}
+      Retv_Pathconf    Xrd_U_Pathconf(Args_Pathconf)
+                         {return (Retv_Pathconf)Xunix.Load_Error("pathconf");}
       Retv_Pread       Xrd_U_Pread(Args_Pread)
                          {return (Retv_Pread)Xunix.Load_Error("pread");}
       Retv_Pread64     Xrd_U_Pread64(Args_Pread64)
@@ -147,6 +148,7 @@ XrdPosixRootVec xinuX;
 int XrdPosixLinkage::Resolve()
 {
   LOOKUP_UNIX(Access)
+  LOOKUP_UNIX(Acl)
   LOOKUP_UNIX(Chdir)
   LOOKUP_UNIX(Close)
   LOOKUP_UNIX(Closedir)
@@ -171,6 +173,7 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Open)
   LOOKUP_UNIX(Open64)
   LOOKUP_UNIX(Opendir)
+  LOOKUP_UNIX(Pathconf)
   LOOKUP_UNIX(Pread)
   LOOKUP_UNIX(Pread64)
   LOOKUP_UNIX(Read)
@@ -205,55 +208,4 @@ int XrdPosixLinkage::Load_Error(const char *epname, int retv)
        cerr << "PosixPreload: Unable to resolve Unix '" <<epname <<"()'" <<endl;
     errno = ELIBACC;
     return retv;
-}
- 
-/******************************************************************************/
-/*                 X r d P o s i x R o o t V e c   C l a s s                  */
-/******************************************************************************/
-/******************************************************************************/
-/*                          M a c r o   L o a d e r                           */
-/******************************************************************************/
-  
-#define LOOKUP_XROOT(symb) \
-        extern XRD_Retv_ ## symb XrdPosix_ ## symb(XRD_Args_ ## symb);\
-        symb = &XrdPosix_ ## symb;
-  
-/******************************************************************************/
-/*           X r d P o s i x R o o t V e c   C o n s t r u c t o r            */
-/******************************************************************************/
-  
-int XrdPosixRootVec::Resolve()
-{
-  LOOKUP_XROOT(Access)
-  LOOKUP_XROOT(Chdir)
-  LOOKUP_XROOT(Close)
-  LOOKUP_XROOT(Closedir)
-  LOOKUP_XROOT(Fcntl)
-  LOOKUP_XROOT(Fstat)
-  LOOKUP_XROOT(Fsync)
-  LOOKUP_XROOT(Lseek)
-  LOOKUP_XROOT(Lstat)
-  LOOKUP_XROOT(Mkdir)
-  LOOKUP_XROOT(Open)
-  LOOKUP_XROOT(Opendir)
-  LOOKUP_XROOT(Pread)
-  LOOKUP_XROOT(Read)
-  LOOKUP_XROOT(Readv)
-  LOOKUP_XROOT(Readdir)
-  LOOKUP_XROOT(Readdir64)
-  LOOKUP_XROOT(Readdir_r)
-  LOOKUP_XROOT(Readdir64_r)
-  LOOKUP_XROOT(Rename)
-  LOOKUP_XROOT(Rewinddir)
-  LOOKUP_XROOT(Rmdir)
-  LOOKUP_XROOT(Seekdir)
-  LOOKUP_XROOT(Stat)
-  LOOKUP_XROOT(Pwrite)
-  LOOKUP_XROOT(Telldir)
-  LOOKUP_XROOT(Unlink)
-  LOOKUP_XROOT(Write)
-  LOOKUP_XROOT(Writev)
-  LOOKUP_XROOT(isMyPath)
-  Done = 1;
-  return 1;
 }

@@ -205,9 +205,9 @@ char *XrdPosixXrootPath::URL(const char *path, char *buff, int blen)
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
   
-static XrdPosixXrootd    Xroot;
+       XrdPosixXrootd    Xroot;
 
-static XrdPosixXrootPath XrootPath;
+       XrdPosixXrootPath XrootPath;
   
 extern XrdPosixLinkage   Xunix;
 
@@ -215,6 +215,8 @@ extern XrdPosixLinkage   Xunix;
 /*                        X r d P o s i x _ C h d i r                         */
 /******************************************************************************/
 
+extern "C"
+{
 int XrdPosix_Chdir(const char *path)
 {
    int rc;
@@ -224,23 +226,29 @@ int XrdPosix_Chdir(const char *path)
    if (!(rc = Xunix.Chdir(path))) XrootPath.CWD(path);
    return rc;
 }
+}
   
 /******************************************************************************/
 /*                        X r d P o s i x _ C l o s e                         */
 /******************************************************************************/
 
+extern "C"
+{
 int XrdPosix_Close(int fildes)
 {
 
 // Return result of the close
 //
-   return (fildes < XrdPosixFD ? Xunix.Close(fildes) : Xroot.Close(fildes));
+   return (Xroot.myFD(fildes) ? Xroot.Close(fildes) : Xunix.Close(fildes));
+}
 }
 
 /******************************************************************************/
 /*                       X r d P o s i x _ A c c e s s                        */
 /******************************************************************************/
   
+extern "C"
+{
 int XrdPosix_Access(const char *path, int amode)
 {
    char *myPath, buff[2048];
@@ -258,84 +266,180 @@ int XrdPosix_Access(const char *path, int amode)
 //
    return Xroot.Access(myPath, amode);
 }
+}
 
 /******************************************************************************/
 /*                     X r d P o s i x _ C l o s e d i r                      */
 /******************************************************************************/
 
+extern "C"
+{
 int XrdPosix_Closedir(DIR *dirp)
 {
+
    return (Xroot.isXrootdDir(dirp) ? Xroot.Closedir(dirp)
                                    : Xunix.Closedir(dirp));
+}
+}
+
+/******************************************************************************/
+/*                       X r d P o s i x _ F c l o s e                        */
+/******************************************************************************/
+
+extern "C"
+{
+int XrdPosix_Fclose(FILE *stream)
+{
+   int nullfd = fileno(stream);
+
+// Close the associated file
+//
+   if (Xroot.myFD(nullfd)) Xroot.Close(nullfd, 1);
+
+// Now close the stream
+//
+   return Xunix.Fclose(stream);
+}
 }
 
 /******************************************************************************/
 /*                        X r d P o s i x _ F c n t l                         */
 /******************************************************************************/
   
-int XrdPosix_Fcntl(int fd, int cmd, ...) {return 0;}
-
-/******************************************************************************/
-/*                        X r d P o s i x _ L s e e k                         */
-/******************************************************************************/
-  
-off_t XrdPosix_Lseek(int fildes, off_t offset, int whence)
+extern "C"
 {
+int XrdPosix_Fcntl(int fd, int cmd, ...)
+{
+   va_list ap;
+   void *theArg;
 
-// Return the operation of the seek
-//
-   return (fildes < XrdPosixFD ? Xunix.Lseek(fildes, offset, whence)
-                               : Xroot.Lseek(fildes, offset, whence));
+   if (Xroot.myFD(fd)) return 0;
+   va_start(ap, cmd);
+   theArg = va_arg(ap, void *);
+   va_end(ap);
+   return Xunix.Fcntl64(fd, cmd, theArg);
+}
 }
 
 /******************************************************************************/
 /*                    X r d P o s i x _ F d a t a s y n c                     */
 /******************************************************************************/
   
+extern "C"
+{
 int XrdPosix_Fdatasync(int fildes)
 {
 
 // Return the result of the sync
 //
-   return (fildes < XrdPosixFD ? Xunix.Fdatasync(fildes)
-                               : Xroot.Fsync(fildes));
+   return (Xroot.myFD(fildes) ? Xroot.Fsync(fildes)
+                              : Xunix.Fsync(fildes));
+}
+}
+
+/******************************************************************************/
+/*                        X r d P o s i x _ F o p e n                         */
+/******************************************************************************/
+
+#define ISMODE(x) !strcmp(mode, x)
+  
+extern "C"
+{
+FILE *XrdPosix_Fopen(const char *path, const char *mode)
+{
+   char *myPath, buff[2048];
+   int erc, fd, omode;
+   FILE *stream;
+
+// Transfer to unix if this is not our path
+//
+   if (!(myPath = XrootPath.URL(path, buff, sizeof(buff))))
+      Xunix.Fopen64(path, mode);
+
+// Translate the mode flags
+//
+        if (ISMODE("r")  || ISMODE("rb"))                   omode = O_RDONLY;
+   else if (ISMODE("w")  || ISMODE("wb"))                   omode = O_WRONLY;
+   else if (ISMODE("a")  || ISMODE("ab"))                   omode = O_APPEND;
+   else if (ISMODE("r+") || ISMODE("rb+") || ISMODE("r+b")) omode = O_RDWR;
+   else if (ISMODE("w+") || ISMODE("wb+") || ISMODE("w+b")) omode = O_RDWR;
+// else if (ISMODE("a+") || ISMODE("ab+") || ISMODE("a+b")) omode = unsupported;
+   else {errno = EINVAL; return 0;}
+
+// Now open the file
+//
+   if ((fd = Xroot.Open(myPath, omode, 0, 1)) < 0) return 0;
+
+// First obtain a free stream
+//
+   if (!(stream = fdopen(fd, mode))) 
+      {erc = errno; Xroot.Close(fd); errno = erc;}
+
+// All done
+//
+   return stream;
+}
 }
 
 /******************************************************************************/
 /*                        X r d P o s i x _ F s t a t                         */
 /******************************************************************************/
   
+extern "C"
+{
 int XrdPosix_Fstat(int fildes, struct stat *buf)
 {
 
 // Return result of the close
 //
-   return (fildes < XrdPosixFD
+   return (Xroot.myFD(fildes)
+          ? Xroot.Fstat(fildes, buf)
 #ifdef __linux__
-          ? Xunix.Fstat64(_STAT_VER, fildes, (struct stat64 *)buf)
+          : Xunix.Fstat64(_STAT_VER, fildes, (struct stat64 *)buf));
 #else
-          ? Xunix.Fstat64(           fildes, (struct stat64 *)buf)
+          : Xunix.Fstat64(           fildes, (struct stat64 *)buf));
 #endif
-          : Xroot.Fstat(fildes, buf));
+}
 }
 
 /******************************************************************************/
 /*                        X r d P o s i x _ F s y n c                         */
 /******************************************************************************/
   
+extern "C"
+{
 int XrdPosix_Fsync(int fildes)
 {
 
 // Return the result of the sync
 //
-   return (fildes < XrdPosixFD ? Xunix.Fsync(fildes)
-                               : Xroot.Fsync(fildes));
+   return (Xroot.myFD(fildes) ? Xroot.Fsync(fildes)
+                              : Xunix.Fsync(fildes));
+}
+}
+
+/******************************************************************************/
+/*                        X r d P o s i x _ L s e e k                         */
+/******************************************************************************/
+  
+extern "C"
+{
+off64_t XrdPosix_Lseek(int fildes, off64_t offset, int whence)
+{
+
+// Return the operation of the seek
+//
+   return (Xroot.myFD(fildes) ? Xroot.Lseek  (fildes, offset, whence)
+                              : Xunix.Lseek64(fildes, offset, whence));
+}
 }
 
 /******************************************************************************/
 /*                        X r d P o s i x _ L s t a t                         */
 /******************************************************************************/
   
+extern "C"
+{
 int XrdPosix_Lstat(const char *path, struct stat *buf)
 {
    char *myPath, buff[2048];
@@ -354,11 +458,14 @@ int XrdPosix_Lstat(const char *path, struct stat *buf)
 #endif
           : Xroot.Stat(myPath, buf));
 }
+}
   
 /******************************************************************************/
 /*                        X r d P o s i x _ M k d i r                         */
 /******************************************************************************/
 
+extern "C"
+{
 int XrdPosix_Mkdir(const char *path, mode_t mode)
 {
    char *myPath, buff[2048];
@@ -376,11 +483,14 @@ int XrdPosix_Mkdir(const char *path, mode_t mode)
 //
    return Xroot.Mkdir(myPath, mode);
 }
+}
 
 /******************************************************************************/
 /*                         X r d P o s i x _ O p e n                          */
 /******************************************************************************/
   
+extern "C"
+{
 int XrdPosix_Open(const char *path, int oflag, ...)
 {
    char *myPath, buff[2048];
@@ -409,11 +519,14 @@ int XrdPosix_Open(const char *path, int oflag, ...)
    va_end(ap);
    return Xroot.Open(myPath, oflag, (mode_t)mode);
 }
+}
 
 /******************************************************************************/
 /*                       X r d P o s i x _ O p e n d i r                      */
 /******************************************************************************/
 
+extern "C"
+{
 DIR* XrdPosix_Opendir(const char *path)
 {
    char *myPath, buff[2048];
@@ -431,56 +544,67 @@ DIR* XrdPosix_Opendir(const char *path)
 //
    return Xroot.Opendir(myPath);
 }
-
-
-/******************************************************************************/
-/*                         X r d P o s i x _ R e a d                          */
-/******************************************************************************/
-  
-ssize_t XrdPosix_Read(int fildes, void *buf, size_t nbyte)
-{
-
-// Return the results of the read
-//
-   return (fildes < XrdPosixFD ? Xunix.Read(fildes, buf, nbyte)
-                               : Xroot.Read(fildes, buf, nbyte));
 }
 
 /******************************************************************************/
 /*                        X r d P o s i x _ P r e a d                         */
 /******************************************************************************/
   
-ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off_t offset)
+extern "C"
+{
+ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off64_t offset)
 {
 
 // Return the results of the read
 //
-   return (fildes < XrdPosixFD ? Xunix.Pread(fildes, buf, nbyte, offset)
-                               : Xroot.Pread(fildes, buf, nbyte, offset));
+   return (Xroot.myFD(fildes) ? Xroot.Pread  (fildes, buf, nbyte, offset)
+                              : Xunix.Pread64(fildes, buf, nbyte, offset));
+}
+}
+
+/******************************************************************************/
+/*                         X r d P o s i x _ R e a d                          */
+/******************************************************************************/
+  
+extern "C"
+{
+ssize_t XrdPosix_Read(int fildes, void *buf, size_t nbyte)
+{
+
+// Return the results of the read
+//
+   return (Xroot.myFD(fildes) ? Xroot.Read(fildes, buf, nbyte)
+                              : Xunix.Read(fildes, buf, nbyte));
+}
 }
  
 /******************************************************************************/
 /*                        X r d P o s i x _ R e a d v                         */
 /******************************************************************************/
   
+extern "C"
+{
 ssize_t XrdPosix_Readv(int fildes, const struct iovec *iov, int iovcnt)
 {
 
 // Return results of the readv
 //
-   return (fildes < XrdPosixFD ? Xunix.Readv(fildes, iov, iovcnt)
-                               : Xroot.Readv(fildes, iov, iovcnt));
+   return (Xroot.myFD(fildes) ? Xroot.Readv(fildes, iov, iovcnt)
+                              : Xunix.Readv(fildes, iov, iovcnt));
+}
 }
 
 /******************************************************************************/
 /*                      X r d P o s i x _ R e a d d i r                       */
 /******************************************************************************/
 
-
+extern "C"
+{
 // On some platforms both 32- and 64-bit versions are callable. so do the same
 //
 struct dirent   * XrdPosix_Readdir  (DIR *dirp)
 {
+
 // Return result of readdir
 //
    return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir(dirp)
@@ -489,18 +613,23 @@ struct dirent   * XrdPosix_Readdir  (DIR *dirp)
 
 struct dirent64 * XrdPosix_Readdir64(DIR *dirp)
 {
+
 // Return result of readdir
 //
    return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir64(dirp)
                                    : Xunix.Readdir64(dirp));
+}
 }
 
 /******************************************************************************/
 /*                    X r d P o s i x _ R e a d d i r _ r                     */
 /******************************************************************************/
 
+extern "C"
+{
 int XrdPosix_Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
+
 // Return result of readdir
 //
    return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir_r(dirp,entry,result)
@@ -509,16 +638,20 @@ int XrdPosix_Readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 
 int XrdPosix_Readdir64_r(DIR *dirp, struct dirent64 *entry, struct dirent64 **result)
 {
+
 // Return result of readdir
 //
    return (Xroot.isXrootdDir(dirp) ? Xroot.Readdir64_r(dirp,entry,result)
                                    : Xunix.Readdir64_r(dirp,entry,result));
+}
 }
 
 /******************************************************************************/
 /*                       X r d P o s i x _ R e n a m e                        */
 /******************************************************************************/
 
+extern "C"
+{
 int XrdPosix_Rename(const char *oldpath, const char *newpath)
 {
    char *oldPath, buffold[2048], *newPath, buffnew[2048];
@@ -537,23 +670,30 @@ int XrdPosix_Rename(const char *oldpath, const char *newpath)
 //
    return Xroot.Rename(oldPath, newPath);
 }
+}
 
 /******************************************************************************/
 /*                    X r d P o s i x _ R e w i n d d i r                     */
 /******************************************************************************/
 
+extern "C"
+{
 void XrdPosix_Rewinddir(DIR *dirp)
 {
+
 // Return result of rewind
 //
    return (Xroot.isXrootdDir(dirp) ? Xroot.Rewinddir(dirp)
                                    : Xunix.Rewinddir(dirp));
+}
 }
 
 /******************************************************************************/
 /*                        X r d P o s i x _ R m d i r                         */
 /******************************************************************************/
 
+extern "C"
+{
 int XrdPosix_Rmdir(const char *path)
 {
    char *myPath, buff[2048];
@@ -571,23 +711,30 @@ int XrdPosix_Rmdir(const char *path)
 //
    return Xroot.Rmdir(myPath);
 }
+}
 
 /******************************************************************************/
 /*                      X r d P o s i x _ S e e k d i r                       */
 /******************************************************************************/
 
+extern "C"
+{
 void XrdPosix_Seekdir(DIR *dirp, long loc)
 {
+
 // Call seekdir
 //
    (Xroot.isXrootdDir(dirp) ? Xroot.Seekdir(dirp, loc)
                             : Xunix.Seekdir(dirp, loc));
+}
 }
 
 /******************************************************************************/
 /*                         X r d P o s i x _ S t a t                          */
 /******************************************************************************/
   
+extern "C"
+{
 int XrdPosix_Stat(const char *path, struct stat *buf)
 {
    char *myPath, buff[2048];
@@ -606,24 +753,46 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
 #endif
           : Xroot.Stat(myPath, buf));
 }
+}
+
+/******************************************************************************/
+/*                       X r d P o s i x _ P w r i t e                        */
+/******************************************************************************/
+  
+extern "C"
+{
+ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off64_t offset)
+{
+
+// Return the results of the write
+//
+   return (Xroot.myFD(fildes) ? Xroot.Pwrite  (fildes, buf, nbyte, offset)
+                              : Xunix.Pwrite64(fildes, buf, nbyte, offset));
+}
+}
 
 /******************************************************************************/
 /*                      X r d P o s i x _ T e l l d i r                       */
 /******************************************************************************/
 
+extern "C"
+{
 long XrdPosix_Telldir(DIR *dirp)
 {
+
 // Return result of telldir
 //
    return (Xroot.isXrootdDir(dirp) ? Xroot.Telldir(dirp)
                                    : Xunix.Telldir(dirp));
 }
-
+}
 
 /******************************************************************************/
 /*                      X r d P o s i x _ U n l i n k                         */
 /******************************************************************************/
 
+extern "C"
+{
 int XrdPosix_Unlink(const char *path)
 {   
    char *myPath, buff[2048];
@@ -641,44 +810,38 @@ int XrdPosix_Unlink(const char *path)
 //
    return Xroot.Unlink(myPath);
 }
+}
 
 /******************************************************************************/
 /*                        X r d P o s i x _ W r i t e                         */
 /******************************************************************************/
   
+extern "C"
+{
 ssize_t XrdPosix_Write(int fildes, const void *buf, size_t nbyte)
 {
 
 // Return the results of the write
 //
-   return (fildes < XrdPosixFD ? Xunix.Write(fildes, buf, nbyte)
-                               : Xroot.Write(fildes, buf, nbyte));
+   return (Xroot.myFD(fildes) ? Xroot.Write(fildes, buf, nbyte)
+                              : Xunix.Write(fildes, buf, nbyte));
 }
-
-/******************************************************************************/
-/*                       X r d P o s i x _ P w r i t e                        */
-/******************************************************************************/
-  
-ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
-{
-
-// Return the results of the write
-//
-   return (fildes < XrdPosixFD ? Xunix.Pwrite(fildes, buf, nbyte, offset)
-                               : Xroot.Pwrite(fildes, buf, nbyte, offset));
 }
  
 /******************************************************************************/
 /*                       X r d P o s i x _ W r i t e v                        */
 /******************************************************************************/
   
+extern "C"
+{
 ssize_t XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt)
 {
 
 // Return results of the writev
 //
-   return (fildes < XrdPosixFD ? Xunix.Writev(fildes, iov, iovcnt)
-                               : Xroot.Writev(fildes, iov, iovcnt));
+   return (Xroot.myFD(fildes) ? Xroot.Writev(fildes, iov, iovcnt)
+                              : Xunix.Writev(fildes, iov, iovcnt));
+}
 }
 
 /******************************************************************************/

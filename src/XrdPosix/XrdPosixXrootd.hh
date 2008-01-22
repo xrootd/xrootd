@@ -20,8 +20,6 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-const int XrdPosixFD = 16384;
-
 class XrdPosixFile;
 class XrdPosixDir;
 
@@ -31,7 +29,7 @@ public:
 
 // POSIX methods
 //
-static int     Close(int fildes);
+static int     Close(int fildes, int Stream=0);
 
 static int     Closedir(DIR *dirp);
 
@@ -43,7 +41,7 @@ static int     Fsync(int fildes);
 
 static int     Mkdir(const char *path, mode_t mode);
 
-static int     Open(const char *path, int oflag, mode_t mode=0);
+static int     Open(const char *path, int oflag, mode_t mode=0, int Stream=0);
 
 static DIR*    Opendir(const char *path);
   
@@ -89,6 +87,9 @@ static bool    isXrootdDir(DIR *dirp);
 
 static int     mapError(int rc);
 
+static
+inline bool    myFD(int fd) {return fd <= highFD && myFiles && myFiles[fd];}
+
 static void    setDebug(int val);
 
 static void    setEnv(const char *var, const char *val);
@@ -111,14 +112,12 @@ static int                   mapFlags(int flags);
 static int                   mapMode(mode_t Mode);
 
 static XrdSysMutex    myMutex;
-static const  int     FDMask;
-static const  int     FDOffs;
-static const  int     FDLeft;
 static XrdPosixFile **myFiles;
 static XrdPosixDir  **myDirs;
 static int            lastFD;
 static int            highFD;
 static int            lastDir;
 static int            highDir;
+static int            devNull;
 };
 #endif

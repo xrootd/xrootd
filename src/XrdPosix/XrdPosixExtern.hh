@@ -14,6 +14,7 @@
 //           $Id$
 
 #include <dirent.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -30,17 +31,31 @@
 // externs are included by XrdPosix.hh to complete the macro definitions.
 // Use this file directly to define your own macros or interfaces.
 //
+extern "C"
+{
+extern int     XrdPosix_Access(const char *path, int amode);
+
 extern int     XrdPosix_Chdir(const char *path);
 
 extern int     XrdPosix_Close(int fildes);
 
 extern int     XrdPosix_Closedir(DIR *dirp);
 
-extern off_t   XrdPosix_Lseek(int fildes, off_t offset, int whence);
+extern int     XrdPosix_Fclose(FILE *stream);
+
+extern int     XrdPosix_Fcntl(int fd, int cmd, ...);
+
+extern int     XrdPosix_Fdatasync(int fildes);
+
+extern FILE   *XrdPosix_Fopen(const char *path, const char *mode);
 
 extern int     XrdPosix_Fstat(int fildes, struct stat *buf);
 
 extern int     XrdPosix_Fsync(int fildes);
+
+extern off64_t XrdPosix_Lseek(int fildes, off64_t offset, int whence);
+
+extern int     XrdPosix_Lstat(const char *path, struct stat *buf);
 
 extern int     XrdPosix_Mkdir(const char *path, mode_t mode);
 
@@ -48,7 +63,7 @@ extern int     XrdPosix_Open(const char *path, int oflag, ...);
 
 extern DIR*    XrdPosix_Opendir(const char *path);
   
-extern ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off_t offset);
+extern ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off64_t offset);
 
 extern ssize_t XrdPosix_Read(int fildes, void *buf, size_t nbyte);
   
@@ -70,7 +85,7 @@ extern void    XrdPosix_Seekdir(DIR *dirp, long loc);
 
 extern int     XrdPosix_Stat(const char *path, struct stat *buf);
 
-extern ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
+extern ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off64_t offset);
 
 extern long    XrdPosix_Telldir(DIR *dirp);
 
@@ -79,6 +94,7 @@ extern int     XrdPosix_Unlink(const char *path);
 extern ssize_t XrdPosix_Write(int fildes, const void *buf, size_t nbyte);
 
 extern ssize_t XrdPosix_Writev(int fildes, const struct iovec *iov, int iovcnt);
+};
 
 // The following is for use for wrapper classeses
 //

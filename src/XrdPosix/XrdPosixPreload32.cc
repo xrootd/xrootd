@@ -25,7 +25,6 @@
 
 #include "XrdPosix/XrdPosixExtern.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
-#include "XrdPosix/XrdPosixStream.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdSys/XrdSysPlatform.hh"
  
@@ -34,10 +33,6 @@
 /******************************************************************************/
   
 extern XrdPosixLinkage Xunix;
-
-extern XrdPosixRootVec xinuX;
-
-extern XrdPosixStream  streamX;
  
 /******************************************************************************/
 /*               6 4 - t o 3 2   B i t   C o n v e r s i o n s                */
@@ -114,9 +109,7 @@ extern "C"
 {
 int     creat(const char *path, mode_t mode)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-
-   return xinuX.Open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+   return XrdPosix_Open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 }
 #endif
@@ -129,11 +122,10 @@ extern "C"
 {
 int     fcntl(int fd, int cmd, ...)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
    va_list ap;
    void *theArg;
 
-   if (fd >= XrdPosixFD) return 0;
+   if (XrdPosixXrootd::myFD(fd)) return 0;
    va_start(ap, cmd);
    theArg = va_arg(ap, void *);
    va_end(ap);
@@ -149,11 +141,7 @@ extern "C"
 {
 FILE  *fopen(const char *path, const char *mode)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-
-   return xinuX.isMyPath(path)
-          ? streamX.Fopen(path, mode)
-          :   Xunix.Fopen(path, mode);
+   return XrdPosix_Fopen(path, mode);
 }
 }
 */
@@ -172,25 +160,24 @@ int   _fxstat(int ver, int fildes, struct stat *buf)
 int     fstat(         int fildes, struct stat *buf)
 #endif
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #if defined(__macos__) || defined(_LP64)
 #ifdef __linux__
-   return (fildes < XrdPosixFD) ? Xunix.Fstat(ver, fildes, buf)
+   return (!XrdPosixXrootd::myFD(fildes)) ?    Xunix.Fstat(ver, fildes, buf)
 #else
-   return (fildes < XrdPosixFD) ? Xunix.Fstat(     fildes, buf)
+   return (!XrdPosixXrootd::myFD(fildes)) ?    Xunix.Fstat(     fildes, buf)
 #endif
-                                : xinuX.Fstat(     fildes, buf);
+                                          : XrdPosix_Fstat(     fildes, buf);
 #else
    struct stat64 buf64;
    int rc;
 
 #ifdef __linux__
-   if (fildes < XrdPosixFD) return Xunix.Fstat(ver, fildes, buf);
+   if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(ver, fildes, buf);
 #else
-   if (fildes < XrdPosixFD) return Xunix.Fstat(     fildes, buf);
+   if (!XrdPosixXrootd::myFD(fildes)) return Xunix.Fstat(     fildes, buf);
 #endif
 
-   if ((rc = xinuX.Fstat(fildes, (struct stat *)&buf64))) return rc;
+   if ((rc = XrdPosix_Fstat(fildes, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
 #endif
 }
@@ -206,11 +193,7 @@ extern "C"
 {
 off_t   lseek(int fildes, off_t offset, int whence)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-
-   return (fildes >= XrdPosixFD)
-          ? xinuX.Lseek(fildes, offset, whence)
-          : Xunix.Lseek(fildes, offset, whence);
+   return XrdPosix_Lseek(fildes, offset, whence);
 }
 }
 #endif
@@ -230,27 +213,26 @@ int      _lxstat(int ver, const char *path, struct stat *buf)
 int        lstat(         const char *path, struct stat *buf)
 #endif
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #if defined(__macos__) || defined(_LP64)
 #if defined(__linux__)
-   return (!xinuX.isMyPath(path) ? Xunix.Lstat(ver, path, buf)
-                                 : xinuX.Stat(      path, buf));
+   return (!XrdPosix_isMyPath(path) ?    Xunix.Lstat(ver, path, buf)
+                                    : XrdPosix_Lstat(     path, buf));
 #else
-   return (!xinuX.isMyPath(path) ? Xunix.Lstat(     path, buf)
-                                 : xinuX.Stat(     path, buf));
+   return (!XrdPosix_isMyPath(path) ?    Xunix.Lstat(     path, buf)
+                                    : XrdPosix_Lstat(     path, buf));
 #endif
 #else
    struct stat64 buf64;
    int rc;
 
-   if (!xinuX.isMyPath(path))
+   if (!XrdPosix_isMyPath(path))
 #ifdef __linux__
       return Xunix.Lstat(ver, path, buf);
 #else
       return Xunix.Lstat(     path, buf);
 #endif
 
-   if ((rc = xinuX.Stat(path, (struct stat *)&buf64))) return rc;
+   if ((rc = XrdPosix_Lstat(path, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
 #endif
 }
@@ -266,14 +248,13 @@ extern "C"
 {
 int     open(const char *path, int oflag, ...)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
    va_list ap;
    int mode;
 
    va_start(ap, oflag);
    mode = va_arg(ap, int);
    va_end(ap);
-   return xinuX.Open(path, oflag, mode);
+   return XrdPosix_Open(path, oflag, mode);
 }
 }
 #endif
@@ -287,11 +268,7 @@ extern "C"
 {
 ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-
-   return (fildes >= XrdPosixFD)
-          ? xinuX.Pread(fildes, buf, nbyte, offset)
-          : Xunix.Pread(fildes, buf, nbyte, offset);
+   return XrdPosix_Pread(fildes, buf, nbyte, offset);
 }
 }
 #endif
@@ -305,10 +282,9 @@ extern "C"
 {
 struct dirent* readdir(DIR *dirp)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
    struct dirent64 *dp64;
 
-   if (!(dp64 = xinuX.Readdir64(dirp))) return 0;
+   if (!(dp64 = XrdPosix_Readdir64(dirp))) return 0;
 
 #if !defined(__macos__) && !defined(_LP64)
    if (XrdPosix_CopyDirent((struct dirent *)dp64, dp64)) return 0;
@@ -328,16 +304,15 @@ extern "C"
 {
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #if defined(__macos__) || defined(_LP64)
-   return xinuX.Readdir_r(dirp, entry, result);
+   return XrdPosix_Readdir_r(dirp, entry, result);
 #else
    char buff[sizeof(struct dirent64) + 2048];
    struct dirent64 *dp64 = (struct dirent64 *)buff;
    struct dirent64 *mydirent;
    int rc;
 
-   if ((rc = xinuX.Readdir64_r(dirp, dp64, &mydirent)))
+   if ((rc = XrdPosix_Readdir64_r(dirp, dp64, &mydirent)))
       return rc;
 
    if (!mydirent) {*result = 0; return 0;}
@@ -366,26 +341,25 @@ int      _xstat(int ver, const char *path, struct stat *buf)
 int        stat(         const char *path, struct stat *buf)
 #endif
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
 #if defined(__macos__) || defined(_LP64)
 #if defined(__linux__)
-   return (!xinuX.isMyPath(path) ? Xunix.Stat(ver, path, buf)
-                                 : xinuX.Stat(     path, buf));
+   return (!XrdPosix_isMyPath(path) ?    Xunix.Stat(ver, path, buf)
+                                    : XrdPosix_Stat(     path, buf));
 #else
-   return (!xinuX.isMyPath(path) ? Xunix.Stat(     path, buf)
-                                 : xinuX.Stat(     path, buf));
+   return (!XrdPosix_isMyPath(path) ?    Xunix.Stat(     path, buf)
+                                    : XrdPosix_Stat(     path, buf));
 #endif
 #else
    struct stat64 buf64;
    int rc;
 
-   if (!xinuX.isMyPath(path))
+   if (!XrdPosix_isMyPath(path))
 #ifdef __linux__
       return Xunix.Stat(ver, path, buf);
 #else
       return Xunix.Stat(     path, buf);
 #endif
-   if ((rc = xinuX.Stat(path, (struct stat *)&buf64))) return rc;
+   if ((rc = XrdPosix_Stat(path, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
 #endif
 }
@@ -401,11 +375,7 @@ extern "C"
 {
 ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
 {
-   static int init1 = xinuX.Init(&init1), init2 = Xunix.Init(&init2);
-
-   return (fildes >= XrdPosixFD)
-          ? xinuX.Pwrite(fildes, buf, nbyte, offset)
-          : Xunix.Pwrite(fildes, buf, nbyte, offset);
+   return XrdPosix_Pwrite(fildes, buf, nbyte, offset);
 }
 }
 #endif

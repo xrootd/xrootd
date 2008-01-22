@@ -27,7 +27,8 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdPosixXrootd.hh"
+#include "XrdPosix/XrdPosixLinkage.hh"
+#include "XrdPosix/XrdPosixXrootd.hh"
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -147,8 +148,7 @@ typedef XrdClientVector<bool> vecBool;
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-int            XrdPosixDir::maxname = (pathconf("./",_PC_NAME_MAX) > 0 ?
-                                       pathconf("./",_PC_NAME_MAX) : 255);
+int            XrdPosixDir::maxname = 255;
 XrdSysMutex    XrdPosixXrootd::myMutex;
 XrdPosixFile **XrdPosixXrootd::myFiles  =  0;
 XrdPosixDir  **XrdPosixXrootd::myDirs   =  0;
@@ -156,10 +156,8 @@ int            XrdPosixXrootd::highFD   = -1;
 int            XrdPosixXrootd::lastFD   = -1;
 int            XrdPosixXrootd::highDir  = -1;
 int            XrdPosixXrootd::lastDir  = -1;
+int            XrdPosixXrootd::devNull  = -1;
 long           XrdPosixXrootd::Debug    = -2;
-const int      XrdPosixXrootd::FDMask   = 0x00003fff;
-const int      XrdPosixXrootd::FDOffs   = 0x00004000;
-const int      XrdPosixXrootd::FDLeft   = 0x7fffC000;
   
 /******************************************************************************/
 /*                X r d P o s i x A d m i n N e w   C l a s s                 */
@@ -229,6 +227,7 @@ XrdPosixDir::~XrdPosixDir()
 {
   if (fpath)    free(fpath);
   if (myDirent) free(myDirent);
+  close(fdirno);
 }
 
 /******************************************************************************/
@@ -299,6 +298,7 @@ XrdPosixFile::XrdPosixFile(int fd, const char *path)
 XrdPosixFile::~XrdPosixFile()
 {
    if (XClient) delete XClient;
+   if (FD >= 0) close(FD);
 }
 
 /******************************************************************************/
@@ -310,9 +310,14 @@ XrdPosixFile::~XrdPosixFile()
 
 XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 {
+   extern XrdPosixLinkage Xunix;
    struct rlimit rlim;
    char *cvar;
    long isize;
+
+// Initialize the linkage table first
+//
+   Xunix.Init(0);
 
 // Compute size of table
 //
@@ -334,6 +339,10 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
      memset((void *)myDirs, 0, isize);
      lastDir = dirnum;
    }
+
+// Open /dev/null as we will be allocating file descriptors based on this fd
+//
+   devNull = open("/dev/null", O_RDWR, 0744);
 
 // Establish debugging level
 //
@@ -417,13 +426,14 @@ int XrdPosixXrootd::Access(const char *path, int amode)
 /*                                 C l o s e                                  */
 /******************************************************************************/
 
-int     XrdPosixXrootd::Close(int fildes)
+int     XrdPosixXrootd::Close(int fildes, int Stream)
 {
    XrdPosixFile *fp;
 
 // Find the file object. We tell findFP() to leave the global lock on
 //
    if (!(fp = findFP(fildes, 1))) return -1;
+   if (Stream) fp->FD = -1;
 
 // Deallocate the file. We have the global lock.
 //
@@ -557,20 +567,10 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 /*                                  O p e n                                   */
 /******************************************************************************/
   
-int     XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode)
+int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
 {
    XrdPosixFile *fp;
    int retc = 0, fd, XOflags, XMode;
-
-// Allocate a new file descriptor.
-//
-   myMutex.Lock();
-   for (fd = 0; fd < lastFD; fd++) if (!myFiles[fd]) break;
-   if (fd > lastFD || !(fp = new XrdPosixFile(fd, path)))
-      {errno = EMFILE; myMutex.UnLock(); return -1;}
-   myFiles[fd] = fp;
-   if (fd > highFD) highFD = fd;
-   myMutex.UnLock();
 
 // Translate option bits to the appropraite values. Always 
 // make directory path for new file.
@@ -578,10 +578,24 @@ int     XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode)
    XOflags = (oflags & (O_WRONLY | O_RDWR) ? kXR_open_updt : kXR_open_read);
    if (oflags & O_CREAT) {
        XOflags |= (oflags & O_EXCL ? kXR_new : kXR_delete);
-       XOflags |= kXR_mkpath | kXR_new;
+       XOflags |= kXR_mkpath;
    }
    else if (oflags & O_TRUNC && XOflags & kXR_open_updt)
               XOflags |= kXR_delete;
+
+// Obtain a new filedscriptor from the system. Use the fd to track the file.
+//
+   if ((fd = dup(devNull)) < 0) return -1;
+   if (Stream && fd > 255) {close(fd); errno = EMFILE; return -1;}
+
+// Allocate the new file object
+//
+   myMutex.Lock();
+   if (fd > lastFD || !(fp = new XrdPosixFile(fd, path)))
+      {errno = EMFILE; myMutex.UnLock(); return -1;}
+   myFiles[fd] = fp;
+   if (fd > highFD) highFD = fd;
+   myMutex.UnLock();
 
 // Translate the mode, if need be
 //
@@ -606,7 +620,7 @@ int     XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode)
 
 // Return the fd number
 //
-   return fd | FDOffs;
+   return fd;
 }
 
 /******************************************************************************/
@@ -616,20 +630,22 @@ int     XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode)
 DIR* XrdPosixXrootd::Opendir(const char *path)
 {
    XrdPosixDir *dirp = 0; // Avoid MacOS compiler warning
-   int rc, dir;
+   int rc, fd;
+
+// Obtain a new filedscriptor from the system. Use the fd to track the dir.
+//
+   if ((fd = dup(devNull)) < 0) return (DIR*)0;
 
 // Allocate a new directory structure
 //
    myMutex.Lock();
-   for (dir = 0; dir < lastDir; dir++) if (!myDirs[dir]) break;
-
-   if (dir > lastDir) rc = EMFILE;
-      else if (!(dirp = new XrdPosixDir(dir, path))) rc = ENOMEM;
+   if (fd > lastDir) rc = EMFILE;
+      else if (!(dirp = new XrdPosixDir(fd, path))) rc = ENOMEM;
               else rc = dirp->Status();
 
    if (!rc)
-      {myDirs[dir] = dirp;
-       if (dir > highDir) highDir = dir;
+      {myDirs[fd] = dirp;
+       if (fd > highDir) highDir = fd;
       }
    myMutex.UnLock();
 
@@ -1112,15 +1128,13 @@ int XrdPosixXrootd::Fault(XrdPosixFile *fp, int complete)
 /*                                f i n d F P                                 */
 /******************************************************************************/
   
-XrdPosixFile *XrdPosixXrootd::findFP(int fildes, int glk)
+XrdPosixFile *XrdPosixXrootd::findFP(int fd, int glk)
 {
    XrdPosixFile *fp;
-   int fd;
 
 // Validate the fildes
 //
-   fd = fildes & FDMask;
-   if (fd >= lastFD || fildes < 0 || (fildes & FDLeft) != FDOffs) 
+   if (fd >= lastFD || fd < 0)
       {errno = EBADF; return (XrdPosixFile *)0;}
 
 // Obtain the file object, if any
@@ -1147,11 +1161,11 @@ XrdPosixDir *XrdPosixXrootd::findDIR(DIR *dirp, int glk)
 //
    XrdPosixDir *XrdDirp = (XrdPosixDir*)dirp;
    myMutex.Lock();
-   if (!(myDirs[XrdDirp->dirNo()]==XrdDirp)) {
-      myMutex.UnLock();
-      errno = EBADF;
-      return 0;
-   }
+   if (!(myDirs[XrdDirp->dirNo()]==XrdDirp))
+      {myMutex.UnLock();
+       errno = EBADF;
+       return 0;
+      }
 
 // Lock the object and unlock the global lock unless it is to be held
 //
@@ -1173,7 +1187,7 @@ void XrdPosixXrootd::initStat(struct stat *buf)
    static gid_t myGID = getgid();
 
 // Initialize the xdev fields. This cannot be done in the constructor because
-// we mau not yet have resolved the C-library symbols.
+// we may not yet have resolved the C-library symbols.
 //
    if (!initDone) {initDone = 1; initXdev(st_dev, st_rdev);}
    memset(buf, 0, sizeof(struct stat));

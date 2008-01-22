@@ -17,8 +17,7 @@ SOURCES  = \
 
 SOURCET = \
         XrdPosixPreload.cc \
-        XrdPosixPreload32.cc \
-        XrdPosixStream.cc
+        XrdPosixPreload32.cc
 
 OBJECTS  = \
         $(OBJDIR)/XrdPosix.o  \
@@ -27,10 +26,10 @@ OBJECTS  = \
 
 OBJECTT = \
         $(OBJDIR)/XrdPosixPreload.o  \
-        $(OBJDIR)/XrdPosixPreload32.o \
-        $(OBJDIR)/XrdPosixStream.o
+        $(OBJDIR)/XrdPosixPreload32.o
 
-OBJECTU = $(LIBDIR)/libXrdClient.a
+OBJECTU = \
+        $(LIBDIR)/libXrdClient.a
 
 MORELIBS = -L$(LIBDIR) $(LIBM) -lXrdNet -lXrdOuc -lXrdSys
 
@@ -84,7 +83,7 @@ $(LIBARCH): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 
 $(LIBPLDR): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 	@echo Creating shared library $(LIBPLDR)
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(OBJECTT) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
 
 $(LIBRARY): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
@@ -105,22 +104,15 @@ $(OBJDIR)/XrdPosixLinkage.o:  XrdPosixLinkage.cc   XrdPosixLinkage.hh
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixLinkage.o XrdPosixLinkage.cc
 
 $(OBJDIR)/XrdPosixPreload.o:  XrdPosixPreload.cc   XrdPosixLinkage.hh \
-                              XrdPosixExtern.hh    XrdPosixStream.hh \
-                              XrdPosixXrootd.hh
+                              XrdPosixExtern.hh    XrdPosixXrootd.hh
 	@echo Compiling XrdPosixPreload.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload.o XrdPosixPreload.cc
 
 $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
-                                XrdPosixExtern.hh      XrdPosixStream.hh \
-                                XrdPosixXrootd.hh      XrdSysPlatform.hh
+                                XrdPosixExtern.hh      XrdPosixXrootd.hh \
+                                XrdSysPlatform.hh
 	@echo Compiling XrdPosixPreload32.cc
 	$(ECHO)$(CC) -c $(CFLAGS32) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
-
-$(OBJDIR)/XrdPosixStream.o:  XrdPosixStream.cc   XrdPosixStream.hh \
-                             XrdSysPthread.hh    XrdPosixLinkage.hh \
-                             XrdPosixExtern.hh   XrdPosixXrootd.hh
-	@echo Compiling XrdPosixStream.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixStream.o XrdPosixStream.cc
 
 $(OBJDIR)/XrdPosixXrootd.o:  XrdPosixXrootd.cc   XrdPosixXrootd.hh \
                              XrdClient.hh        XrdPosixExtern.hh
