@@ -424,7 +424,7 @@ int XrdPosix_Fsync(int fildes)
   
 extern "C"
 {
-off64_t XrdPosix_Lseek(int fildes, off64_t offset, int whence)
+long long XrdPosix_Lseek(int fildes, long long offset, int whence)
 {
 
 // Return the operation of the seek
@@ -552,7 +552,7 @@ DIR* XrdPosix_Opendir(const char *path)
   
 extern "C"
 {
-ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off64_t offset)
+ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, long long offset)
 {
 
 // Return the results of the read
@@ -761,7 +761,7 @@ int XrdPosix_Stat(const char *path, struct stat *buf)
   
 extern "C"
 {
-ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off64_t offset)
+ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, long long offset)
 {
 
 // Return the results of the write

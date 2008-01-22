@@ -99,7 +99,8 @@ $(OBJDIR)/XrdPosix.o:  XrdPosix.cc XrdPosix.hh XrdPosixXrootd.hh  \
 	@echo Compiling XrdPosix.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosix.o XrdPosix.cc
 
-$(OBJDIR)/XrdPosixLinkage.o:  XrdPosixLinkage.cc   XrdPosixLinkage.hh
+$(OBJDIR)/XrdPosixLinkage.o:  XrdPosixLinkage.cc   XrdPosixLinkage.hh \
+                              XrdSysPlatform.hh
 	@echo Compiling XrdPosixLinkage.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixLinkage.o XrdPosixLinkage.cc
 

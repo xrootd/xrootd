@@ -21,7 +21,10 @@
 
 // We need to avoid using dirent64 for MacOS platforms. We would normally
 // include XrdSysPlatform.hh for this but this include file needs to be
-// standalone. So, we replicate the dirent64 redefinition here,
+// standalone. So, we replicate the dirent64 redefinition here, Additionally,
+// off64_t, normally defined in Solaris and Linux, is cast as long long (the
+// appropriate type for the next 25 years). The Posix interface only supports
+// 64-bit offsets at the moment.
 //
 #if defined(__macos__) && !defined(dirent64)
 #define dirent64 dirent
@@ -53,7 +56,7 @@ extern int     XrdPosix_Fstat(int fildes, struct stat *buf);
 
 extern int     XrdPosix_Fsync(int fildes);
 
-extern off64_t XrdPosix_Lseek(int fildes, off64_t offset, int whence);
+extern long long  XrdPosix_Lseek(int fildes, long long offset, int whence);
 
 extern int     XrdPosix_Lstat(const char *path, struct stat *buf);
 
@@ -63,7 +66,7 @@ extern int     XrdPosix_Open(const char *path, int oflag, ...);
 
 extern DIR*    XrdPosix_Opendir(const char *path);
   
-extern ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, off64_t offset);
+extern ssize_t XrdPosix_Pread(int fildes, void *buf, size_t nbyte, long long offset);
 
 extern ssize_t XrdPosix_Read(int fildes, void *buf, size_t nbyte);
   
@@ -85,7 +88,7 @@ extern void    XrdPosix_Seekdir(DIR *dirp, long loc);
 
 extern int     XrdPosix_Stat(const char *path, struct stat *buf);
 
-extern ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, off64_t offset);
+extern ssize_t XrdPosix_Pwrite(int fildes, const void *buf, size_t nbyte, long long offset);
 
 extern long    XrdPosix_Telldir(DIR *dirp);
 

@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "XrdSys/XrdSysPlatform.hh"
+
 /******************************************************************************/
 /*                Posix Symbols vs Return Valus and Arguments                 */
 /******************************************************************************/
@@ -31,7 +33,6 @@
 //#endif
 
 #ifdef __macos__
-#define off64_t int64_t
 #define ELIBACC ESHLIBVERS
 #endif
   
