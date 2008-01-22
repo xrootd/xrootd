@@ -12,7 +12,7 @@ public:
 
 
   // Initialization of the external library
-  virtual int Init(const char *src, const char *dest) = 0;
+  virtual int Init(const char *src, const char *dest, int debug=0, void *parm=0) = 0;
   virtual int DeInit() = 0;
 
   // To get the name of the library and other info

@@ -81,7 +81,7 @@ struct XrdCpInfo {
 
 #define XRDCP_BLOCKSIZE          (512*1024)
 #define XRDCP_XRDRASIZE          (20*XRDCP_BLOCKSIZE)
-#define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 0.2"
+#define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 1.0"
 
 ///////////////////////////////////////////////////////////////////////
 // Coming from parameters on the cmd line
@@ -89,7 +89,7 @@ struct XrdCpInfo {
 bool summary=false;            // print summary
 bool progbar=true;             // print progbar
 bool md5=false;                // print md5
-XrdOucString monlibname = "XrdCpMonLib.so"; // Default name for the ext monitoring lib
+XrdOucString monlibname = "libXrdCpMonitorClient.so"; // Default name for the ext monitoring lib
 
 char *srcopaque=0,
    *dstopaque=0;   // opaque info to be added to urls
