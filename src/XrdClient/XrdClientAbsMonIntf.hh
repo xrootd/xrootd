@@ -27,7 +27,7 @@ public:
 			      bool force=false) = 0;
 
 
-  XrdClientAbsMonIntf();
+  XrdClientAbsMonIntf() {};
   virtual ~XrdClientAbsMonIntf() {};
 };
 

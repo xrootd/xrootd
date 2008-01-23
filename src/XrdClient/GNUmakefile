@@ -505,7 +505,8 @@ $(OBJDIR)/Xrdcp.o: Xrdcp.cc ../XrdClient/XrdClientUrlInfo.hh \
   ../XrdClient/XrdClientVector.hh ../XrdClient/XrdCpMthrQueue.hh \
   ../XrdClient/XrdClientDebug.hh ../XrdClient/XrdClientEnv.hh \
   ../XrdOuc/XrdOucEnv.hh ../XrdSys/XrdSysLogger.hh \
-  ../XrdClient/XrdCpWorkLst.hh ../XrdClient/XrdClientAdmin.hh
+  ../XrdClient/XrdCpWorkLst.hh ../XrdClient/XrdClientAdmin.hh \
+  ../XrdClient/XrdClientAbsMonIntf.hh
 	@echo Compiling Xrdcp.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/Xrdcp.o Xrdcp.cc
 
