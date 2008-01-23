@@ -3722,7 +3722,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
    }
    int ntry = 3;
    bool parsefile = 1;
-   bool chainfromfile = 0;
+   bool exportbucket = 0;
    XrdCryptoX509ParseFile_t ParseFile = 0;
    XrdCryptoX509ParseBucket_t ParseBucket = 0;
    while (!hasproxy && ntry > 0) {
@@ -3738,6 +3738,8 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
             ntry--;
             continue;
          }
+         // We need to explicitely export the proxy in a bucket
+         exportbucket = 1;
 #ifndef HASGRIDPROXYINIT
          // Chain is already loaded if we used the internal function
          // to initialize the proxies
@@ -3788,7 +3790,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
                      " (found: "<<nci<<")");
                continue;
             }
-            chainfromfile = 1;
+            exportbucket = 1;
          }
       }
 
@@ -3818,7 +3820,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       }
 
       // Create bucket for export
-      if (chainfromfile) {
+      if (exportbucket) {
          po->cbck = (*ExportChain)(po->chain, 0);
          if (!(po->cbck)) {
             DEBUG("could not create bucket for export");
