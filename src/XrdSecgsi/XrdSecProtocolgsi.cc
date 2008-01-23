@@ -23,6 +23,7 @@
 
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
+#include "XrdSys/XrdSysPriv.hh"
 #include <XrdOuc/XrdOucStream.hh>
 
 #include <XrdSut/XrdSutCache.hh>
@@ -549,6 +550,25 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          }
       }
       //
+      // Check if we can read the certificate key
+      if (access(SrvKey.c_str(), R_OK)) {
+         PRINT("WARNING: process has no permission to read the certificate key file: "<<SrvKey);
+      }
+      //
+      // Get the IDs of the file: we need them to acquire the right privileges when opening
+      // the certificate
+      bool getpriv = 0;
+      uid_t gsi_uid = geteuid();
+      gid_t gsi_gid = getegid();
+      struct stat st;
+      if (!stat(SrvKey.c_str(), &st)) {
+         if (st.st_uid != gsi_uid || st.st_gid != gsi_gid) {
+            getpriv = 1;
+            gsi_uid = st.st_uid;
+            gsi_gid = st.st_gid;
+         }
+      }
+      //
       // Init cache for certificates (we allow for more instances of
       // the same certificate, one for each different crypto module
       // available; this may evetually not be strictly needed.)
@@ -561,7 +581,11 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       String certcalist = "";   // list of CA for server certificates
       for (; i<ncrypt; i++) {
          // Check normal certificates
-         XrdCryptoX509 *xsrv = cryptF[i]->X509(SrvCert.c_str(),SrvKey.c_str());
+         XrdCryptoX509 *xsrv = 0;
+         {  XrdSysPrivGuard pGuard(gsi_uid, gsi_gid);
+            if (pGuard.Valid())
+               xsrv = cryptF[i]->X509(SrvCert.c_str(), SrvKey.c_str());
+         }
          if (xsrv) {
             // Must be of EEC type
             if (xsrv->type != XrdCryptoX509::kEEC) {
@@ -1748,7 +1772,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       String md = "";
       String gridmap = "";
       int ca = 1;
-      int crl = 2;
+      int crl = 1;
       int ogmap = 1;
       int dlgpxy = 0;
       char *op = 0;
