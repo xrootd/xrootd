@@ -31,9 +31,10 @@ int            iovN;    //  In: Prepare notification I/O vector count
 int            Opts;    //  In: One or more of the following enums
 
 enum {Write   = 0x0001, // File will be open in write mode     (select & cache)
-      NewFile = 0x0002, // Gile will be created may not exist  (select)
+      NewFile = 0x0002, // File will be created may not exist  (select)
       Online  = 0x0004, // Only consider online files          (select & prep)
-      Trunc   = 0x0008, // File 2b trunced (NewFile->exist OK) (Select   only)
+      Trunc   = 0x0008, // File will be truncated              (Select   only)
+      Create  = 0x000A, // Create file, truncate if exists
       Peers   = 0x0020, // Peer clusters may be selected       (select   only)
       Refresh = 0x0040, // Cache should be refreshed           (all)
       Asap    = 0x0080, // Respond as soon as possible         (locate   only)

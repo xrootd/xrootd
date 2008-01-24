@@ -722,7 +722,7 @@ int XrdCmsConfig::ConfigProc(int getrole)
                 ||  !strcmp(var, "all.role")
                 ||  !strcmp(var, "all.seclib"))
                    {if (ConfigXeq(var+4, CFile, 0)) {CFile.Echo(); NoGo = 1;}}
-                   else if (!strcmp(var, "oss.stagecmd")) DiskSS |= 2;
+                   else if (!strcmp(var, "oss.stagecmd")) DiskSS = 1;
 
 // Now check if any errors occured during file i/o
 //
@@ -779,20 +779,21 @@ int XrdCmsConfig::MergeP()
    const char *ptype;
    char *pbP;
    unsigned long long Opts;
-   int pbLen = 0, NoGo = 0;
+   int pbLen = 0, NoGo = 0, dfltSS = 0;
    npinfo.rovec = 1;
 
 // First, add nostage to all exported path if nothing was specified and stagecmd
-// was not specified in the oss section (this is really how it works)
+// was not specified in the oss section (this is really how it works). We will
+// also see if we implicitly defaulted any path to warn the user about it.
 //
-   if (DiskSS < 2)
-      {while(plp)
-            {Opts = plp->Flag();
-             if (!(Opts & XRDEXP_STAGE_X)) plp->Set(Opts | XRDEXP_NOSTAGE);
-             plp = plp->Next();
-            }
-       plp = PexpList.First();
-      }
+   while(plp)
+        {Opts = plp->Flag();
+         if (!(Opts & XRDEXP_STAGE_X))
+            if (DiskSS) dfltSS = 1;
+               else plp->Set(Opts | XRDEXP_NOSTAGE);
+         plp = plp->Next();
+        }
+   plp = PexpList.First();
 
 // For each path in the export list merge it into the path list
 //
@@ -810,6 +811,11 @@ int XrdCmsConfig::MergeP()
                     }
           plp = plp->Next();
          }
+
+// Issue a reminder if we implcitly defaulted something
+//
+   if (dfltSS) Say.Say("Config notice: stagecmd defaulted 1 or more paths "
+                                       "to staging.");
 
 // Document what we will be declaring as available
 //

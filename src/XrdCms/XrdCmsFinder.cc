@@ -265,14 +265,13 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                  | (flags & SFS_O_RESET  ? CmsLocateRequest::kYR_refresh : 0);
       } else
   {     Data.Request.rrCode = kYR_select;
-        if (flags & SFS_O_CREAT)
-           Data.Opts = (flags & (SFS_O_WRONLY|SFS_O_RDWR) && flags & SFS_O_TRUNC
-                ? CmsSelectRequest::kYR_trunc : CmsSelectRequest::kYR_create);
-   else if (flags & (SFS_O_WRONLY | SFS_O_RDWR))
-           Data.Opts = (flags & SFS_O_TRUNC ? CmsSelectRequest::kYR_trunc
-                                            : CmsSelectRequest::kYR_write);
-   else if (flags & SFS_O_STAT) Data.Opts   = CmsSelectRequest::kYR_stat;
-   else                         Data.Opts   = CmsSelectRequest::kYR_read;
+        if (flags & SFS_O_TRUNC) Data.Opts = CmsSelectRequest::kYR_trunc;
+   else if (flags & SFS_O_CREAT) Data.Opts = CmsSelectRequest::kYR_create;
+   else if (flags & SFS_O_STAT)  Data.Opts = CmsSelectRequest::kYR_stat;
+   else                          Data.Opts = 0;
+
+   Data.Opts |= (flags & (SFS_O_WRONLY | SFS_O_RDWR)
+              ? CmsSelectRequest::kYR_write : CmsSelectRequest::kYR_read);
 
    if (flags & SFS_O_NOWAIT)    Data.Opts  |= CmsSelectRequest::kYR_online;
 

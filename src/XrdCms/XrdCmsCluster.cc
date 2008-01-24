@@ -14,6 +14,7 @@
 
 const char *XrdCmsClusterCVSID = "$Id$";
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -629,12 +630,18 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 //
    if (!(Sel.Opts & XrdCmsSelect::Refresh)
    &&   (retc = Cache.GetFile(Sel, pinfo.rovec)))
-      {pmask = Sel.Vec.hf & amask;
-       if (Sel.Opts & XrdCmsSelect::Online)
-          {pmask &= ~Sel.Vec.pf;
-           smask  = (Sel.Opts&XrdCmsSelect::NewFile ?amask : 0);
-          } else
-           smask  = (Sel.Opts&XrdCmsSelect::NewFile ?amask : pinfo.ssvec&amask);
+      {if (Sel.Opts & XrdCmsSelect::Create)
+          {smask = 0;
+           if (Sel.Vec.hf)
+              {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,EEXIST);
+               if (!(pmask = Sel.Vec.hf & amask))    return SelFail(Sel,EROFS);
+                  else pmask = amask;
+              } else   pmask = amask;
+          } else {pmask = Sel.Vec.hf  & amask;
+                  smask = pinfo.ssvec & amask;
+                  if (Sel.Opts & XrdCmsSelect::Online)
+                     {pmask &= ~Sel.Vec.pf; smask  =  0;}
+                 }
       } else {
        Cache.AddFile(Sel, 0); 
        Sel.Vec.bf = pinfo.rovec; 
@@ -715,6 +722,20 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
    return 0;
 }
 
+/******************************************************************************/
+/*                               S e l F a i l                                */
+/******************************************************************************/
+  
+int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
+{
+    const char *etext = (rc == EEXIST
+                      ? "Unable to create new file; file already exists."
+                      : "Unable to create file; r/o file already exists.");
+
+    Sel.Resp.DLen = strlcpy(Sel.Resp.Data, etext, sizeof(Sel.Resp.Data))+1;
+    return -1;
+}
+  
 /******************************************************************************/
 /*                                 S p a c e                                  */
 /******************************************************************************/
@@ -950,7 +971,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
     EPNAME("SelNode")
     const char *reason, *reason2;
     int delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
-    int needrw = Sel.Opts & XrdCmsSelect::Write;
+    int needrw = (Sel.Opts & XrdCmsSelect::Write ? XrdCmsNode::allowsRW : 0);
     SMask_t mask;
     XrdCmsNode *nP = 0;
 
@@ -966,7 +987,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
                    : SelbyLoad(mask, nump, delay, &reason, isalt||needrw));
              if (nP || (nump && delay) || NodeCnt < Config.SUPCount) break;
             }
-         mask = amask & peerMask; isalt = 1;
+         mask = amask & peerMask; isalt = XrdCmsNode::allowsSS;
         }
    STMutex.UnLock();
 
@@ -975,8 +996,8 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
    if (nP)
       {strcpy(Sel.Resp.Data, nP->Name(Sel.Resp.DLen, Sel.Resp.Port));
        Sel.Resp.DLen++;
-       if (isalt || (Sel.Opts & XrdCmsSelect::NewFile) || Sel.iovN)
-          {if (isalt || (Sel.Opts & XrdCmsSelect::NewFile))
+       if (isalt || (Sel.Opts & XrdCmsSelect::Create) || Sel.iovN)
+          {if (isalt || (Sel.Opts & XrdCmsSelect::Create))
               {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
                Cache.AddFile(Sel, nP->NodeMask);
               }
@@ -1076,6 +1097,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
                                      const char **reason, int needspace)
 {
     int i, numd, numf, numo, nums;
+    int reqSS = needspace & XrdCmsNode::allowsSS;
     XrdCmsNode *np, *sp = 0;
 
 // Scan for a node (preset possible, suspended, overloaded, full, and dead)
@@ -1087,8 +1109,8 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
            if (np->isOffline)                     {numd++; continue;}
            if (np->isSuspend || np->isDisable)    {nums++; continue;}
            if (np->myLoad > Config.MaxLoad) {numo++; continue;}
-           if (needspace && (   np->isNoStage
-                             || np->DiskFree < Config.DiskMin))
+           if (needspace && (np->DiskFree < Config.DiskMin
+                             || (reqSS && np->isNoStage)))
               {numf++; continue;}
            if (!sp) sp = np;
               else if (needspace)
@@ -1119,6 +1141,7 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, int &nump, int &delay,
                                     const char **reason, int needspace)
 {
     int i, numd, numf, nums;
+    int reqSS = needspace & XrdCmsNode::allowsSS;
     XrdCmsNode *np, *sp = 0;
 
 // Scan for a node (sp points to the selected one)
@@ -1129,8 +1152,8 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, int &nump, int &delay,
           {nump++;
            if (np->isOffline)                   {numd++; continue;}
            if (np->isSuspend || np->isDisable)  {nums++; continue;}
-           if (needspace && (   np->isNoStage
-                             || np->DiskFree < Config.DiskMin))
+           if (needspace && (np->DiskFree < Config.DiskMin
+                             || (reqSS && np->isNoStage)))
               {numf++; continue;}
            if (!sp) sp = np;
               else if (needspace)

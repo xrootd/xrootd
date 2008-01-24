@@ -151,6 +151,7 @@ XrdCmsNode *calcDelay(int nump, int numd, int numf, int numo,
                       int nums, int &delay, const char **reason);
 int         Drop(int sent, int sinst, XrdCmsDrop *djp=0);
 void        Record(char *path, const char *reason);
+int         SelFail(XrdCmsSelect &Sel, int rc);
 int         SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask);
 XrdCmsNode *SelbyCost(SMask_t, int &, int &, const char **, int);
 XrdCmsNode *SelbyLoad(SMask_t, int &, int &, const char **, int);
