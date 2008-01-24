@@ -427,9 +427,13 @@ int XrdOfsFile::open(const char          *path,      // In
    switch(open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
                        SFS_O_CREAT  | SFS_O_TRUNC))
    {
-   case SFS_O_CREAT:  open_flag   = O_EXCL; crOpts |= XRDOSS_new;
+   case SFS_O_CREAT:  open_flag   = O_RDWR     | O_CREAT  | O_EXCL;
+                      find_flag  |= SFS_O_RDWR | SFS_O_CREAT;
+                      crOpts     |= XRDOSS_new;
+                      isRW = 1;
+                      break;
    case SFS_O_TRUNC:  open_flag  |= O_RDWR     | O_CREAT     | O_TRUNC;
-                      find_flag  |= SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC;
+                      find_flag  |= SFS_O_RDWR | SFS_O_TRUNC;
                       isRW = 1;
                       break;
    case SFS_O_RDONLY: open_flag = O_RDONLY; find_flag |= SFS_O_RDONLY;
