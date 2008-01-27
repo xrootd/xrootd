@@ -17,10 +17,17 @@ TYPECF64   = -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 TYPELINK   = -undefined dynamic_lookup -multiply_defined suppress 
 TYPEOPT    = $(TYPEMISC) $(TYPELINK) -O2
 TYPEDBG    = $(TYPEMISC) $(TYPELINK) -g
+ifeq ($(subst $(MACOSX_MINOR),,1234),1234)
+TYPELDSO   = $(TYPELINK) -dynamiclib -single_module -m64
+TYPELDDY   = $(TYPELINK) -dynamiclib -single_module -m64
+TYPESHLIB  = so
+TYPEDYLIB  = so
+else
 TYPELDSO   = $(TYPELINK) -bundle -m64
 TYPELDDY   = $(TYPELINK) -dynamiclib -single_module -m64
 TYPESHLIB  = so
 TYPEDYLIB  = dylib
+endif
 
 # In MacOSx the threading functions should come libc.
 #TYPELIBS   =  $(PTHREAD) -ldl -lc 

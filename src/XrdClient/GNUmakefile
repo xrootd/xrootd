@@ -148,9 +148,11 @@ $(LIBSHARED): $(OBJECTS) $(LIBDEP)
 	@echo Creating shared library $(LIBSHARED) 
 	$(ECHO)rm -f $(LIBSHARED)
 	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(LDSO) $(LIBLIBS) $(LIBS) -o $(LIBSHARED)
+ifneq ($(subst $(MACOSX_MINOR),,1234),1234)
 	$(ECHO)if [ "x$(TYPE)" = "xDarwin" ]; then \
 	          $(CC) $(CFLAGS) $(OBJECTS) $(TYPELDDY) $(LIBLIBS) $(LIBS) -o $(LIBDIR)/libXrdClient.$(TYPEDYLIB); \
 	fi
+endif
 
 $(LIBRARY_JNI): $(OBJECT_JNI)
 	@echo Creating shared library $(LIBRARY_JNI) 

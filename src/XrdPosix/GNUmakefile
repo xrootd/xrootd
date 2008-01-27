@@ -88,9 +88,11 @@ $(LIBPLDR): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 $(LIBRARY): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
 	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
+ifneq ($(subst $(MACOSX_MINOR),,1234),1234)
 	$(ECHO)if [ "x$(TYPE)" = "xDarwin" ]; then \
 	   $(CC) $(CFLAGS) $(OBJECTS) $(TYPELDDY) $(MORELIBS) $(LIBS) -o $(LIBDIR)/libXrdPosix.$(TYPEDYLIB); \
 	fi
+endif
 # MacOS X does not support linking against shared libraries so include
 # all of the objects in the preload library (yech).
 
