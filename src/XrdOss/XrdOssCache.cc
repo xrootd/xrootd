@@ -263,7 +263,8 @@ void *XrdOssSys::CacheScan(void *carg)
            XrdOssSS->fsSize =  0;
            fsdp = XrdOssSS->fsdata;
            while(fsdp)
-                {if ((fsdp->stat & XrdOssFSData_REFRESH)
+                {retc = 0;
+                 if ((fsdp->stat & XrdOssFSData_REFRESH)
                  || !(fsdp->stat & XrdOssFSData_ADJUSTED))
                      {if ((retc = FS_Stat(fsdp->path, &fsbuff)))
                          OssEroute.Emsg("XrdOssCacheScan", errno ,
