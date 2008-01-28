@@ -75,6 +75,14 @@ class XrdClientAdmin : public XrdClientAbs {
                                         long &flags,
                                         long &modtime);
 
+
+   bool                            Stat_vfs(const char *fname,
+					    long &nn,
+					    long long &free,
+					    long &flags,
+					    long long &size,
+					    long &util);
+
    bool                            DirList(const char *dir,
                                            vecString &);
 

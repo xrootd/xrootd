@@ -296,6 +296,55 @@ bool XrdClientAdmin::Stat(const char *fname, long &id, long long &size, long &fl
 
 
 
+//_____________________________________________________________________________
+bool XrdClientAdmin::Stat_vfs(const char *fname,
+			      long &nn, long long &free, long &flags, long long &size, long &util)
+{
+   // Return information for a virtual file system
+
+   bool ok;
+
+   // asks the server for stat file informations
+   ClientRequest statFileRequest;
+
+   memset( &statFileRequest, 0, sizeof(ClientRequest) );
+
+   fConnModule->SetSID(statFileRequest.header.streamid);
+
+   statFileRequest.stat.requestid = kXR_stat;
+
+   memset(statFileRequest.stat.reserved, 0,
+	  sizeof(statFileRequest.stat.reserved));
+
+   statFileRequest.stat.options = kXR_vfs;
+
+   statFileRequest.header.dlen = strlen(fname);
+
+   char fStats[2048];
+   nn = 0;
+   free = 0;
+   flags = 0;
+   size = 0;
+   util = 0;
+
+   ok = fConnModule->SendGenCommand(&statFileRequest, (const char*)fname,
+				    NULL, fStats , FALSE, (char *)"Stat_vfs");
+
+
+   if (ok && (fConnModule->LastServerResp.status == 0)) {
+      if (fConnModule->LastServerResp.dlen >= 0)
+         fStats[fConnModule->LastServerResp.dlen] = 0;
+      else
+         fStats[0] = 0;
+      Info(XrdClientDebug::kHIDEBUG,
+	   "Stat_vfs", "Returned stats=" << fStats);
+
+      sscanf(fStats, "%ld %lld %ld %lld %ld", &nn, &free, &flags, &size, &util);
+
+   }
+
+   return ok;
+}
 
 
 //_____________________________________________________________________________

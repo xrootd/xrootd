@@ -156,6 +156,8 @@ void PrintHelp() {
       "  gets the requested directory listing." << endl <<
       " stat [fileordirname]" << endl <<
       "  gets info about the given file or directory path." << endl <<
+      " statvfs [vfilesystempath]" << endl <<
+      "  gets info about a virtual file system." << endl <<
       " existfile <filename>" << endl <<
       "  tells if the specified file exists." << endl <<
       " existdir <dirname>" << endl <<
@@ -604,6 +606,41 @@ int main(int argc, char**argv) {
 	    continue;
       
 	 cout << "Id: " << id << " Size: " << size << " Flags: " << flags << " Modtime: " << modtime << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- statvfs ---------------------------
+      if (!strcmp(cmd, "statvfs")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 XrdOucString pathname;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname = fname;
+	    else
+	       pathname = currentpath + "/" + fname;
+	 }
+	 else pathname = currentpath;
+
+	 // Now try to issue the request
+	 long nn, flags, util;
+	 long long free, size;
+	 genadmin->Stat_vfs(pathname.c_str(), nn, free, flags, size, util);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+      
+	 cout << "Nodes: " << nn << " Freeblk: " << free << " Flags: " << flags << " Size: " << size <<
+	   " Util: " << util << endl;
 
 	 cout << endl;
 	 continue;
