@@ -1073,7 +1073,7 @@ int main(int argc, char**argv) {
       
       if (cpnfo.mon) {
 
-	char *name, *ver, *rem;
+	char *name=0, *ver=0, *rem=0;
 	if (!cpnfo.mon->GetMonLibInfo(name, ver, rem)) {
 	  Info(XrdClientDebug::kUSERDEBUG,
 	       "main", "Monitoring client plugin found. Name:" << name << " ver:" << ver << "remarks:" << rem);
