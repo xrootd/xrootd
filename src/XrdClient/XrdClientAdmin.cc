@@ -298,7 +298,12 @@ bool XrdClientAdmin::Stat(const char *fname, long &id, long long &size, long &fl
 
 //_____________________________________________________________________________
 bool XrdClientAdmin::Stat_vfs(const char *fname,
-			      long &nn, long long &free, long &flags, long long &size, long &util)
+			      int &rwservers,
+			      long long &rwfree,
+			      int &rwutil,
+			      int &stagingservers,
+			      long long &stagingfree,
+			      int &stagingutil)
 {
    // Return information for a virtual file system
 
@@ -321,11 +326,13 @@ bool XrdClientAdmin::Stat_vfs(const char *fname,
    statFileRequest.header.dlen = strlen(fname);
 
    char fStats[2048];
-   nn = 0;
-   free = 0;
-   flags = 0;
-   size = 0;
-   util = 0;
+   rwservers = 0;
+   rwfree = 0;
+   rwutil = 0;
+   stagingservers = 0;
+   stagingfree = 0;
+   stagingutil = 0;
+
 
    ok = fConnModule->SendGenCommand(&statFileRequest, (const char*)fname,
 				    NULL, fStats , FALSE, (char *)"Stat_vfs");
@@ -339,7 +346,8 @@ bool XrdClientAdmin::Stat_vfs(const char *fname,
       Info(XrdClientDebug::kHIDEBUG,
 	   "Stat_vfs", "Returned stats=" << fStats);
 
-      sscanf(fStats, "%ld %lld %ld %lld %ld", &nn, &free, &flags, &size, &util);
+      sscanf(fStats, "%d %lld %d %d %lld %d", &rwservers, &rwfree, &rwutil,
+	     &stagingservers, &stagingfree, &stagingutil);
 
    }
 

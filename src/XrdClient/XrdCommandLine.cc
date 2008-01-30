@@ -631,16 +631,27 @@ int main(int argc, char**argv) {
 	 else pathname = currentpath;
 
 	 // Now try to issue the request
-	 long nn, flags, util;
-	 long long free, size;
-	 genadmin->Stat_vfs(pathname.c_str(), nn, free, flags, size, util);
+	 int rwservers = 0;
+	 long long rwfree = 0;
+	 int rwutil = 0;
+	 int stagingservers = 0;
+	 long long stagingfree = 0;
+	 int stagingutil = 0;
+
+
+	 genadmin->Stat_vfs(pathname.c_str(), rwservers, rwfree, rwutil,
+			    stagingservers, stagingfree, stagingutil);
 
 	 // Now check the answer
 	 if (!CheckAnswer(genadmin))
 	    continue;
       
-	 cout << "Nodes: " << nn << " Freeblk: " << free << " Flags: " << flags << " Size: " << size <<
-	   " Util: " << util << endl;
+	 cout << "r/w nodes: " << rwservers <<
+	   " r/w free space: " << rwfree <<
+	   " r/w utilization: " << rwutil <<
+	   " staging nodes: " << rwservers <<
+	   " staging free space: " << rwfree <<
+	   " staging utilization: " << rwutil << endl;
 
 	 cout << endl;
 	 continue;
