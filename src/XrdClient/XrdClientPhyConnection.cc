@@ -19,7 +19,6 @@
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientSid.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #ifndef WIN32
 #include <sys/socket.h>
@@ -804,4 +803,14 @@ bool XrdClientPhyConnection::TestAndSetMStreamsGoing() {
   bool retval = fMStreamsGoing;
   fMStreamsGoing = true;
   return retval;
+}
+
+bool XrdClientPhyConnection::IsValid() {
+  XrdSysMutexHelper l(fMutex);
+  return ( (fSocket != 0) && fSocket->IsConnected());
+}
+
+ELoginState XrdClientPhyConnection::IsLogged() {
+  const XrdSysMutexHelper l(fMutex);
+  return fLogged;
 }

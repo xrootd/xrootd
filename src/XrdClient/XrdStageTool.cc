@@ -74,15 +74,16 @@ extern "C" {
 ///////////////////////////////////////////////////////////////////////
 // Coming from parameters on the cmd line
 
-char *opaqueinfo = 0;   // opaque info to be added to urls
+XrdOucString opaqueinfo;
 
 // Default open flags for opening a file (xrd)
-kXR_unt16 xrd_open_flags= kXR_mkpath | kXR_retstat;
+kXR_unt16 xrd_open_flags = kXR_retstat;
 
 XrdOucString srcurl;
 bool useprepare = false;
 int maxopens = 2;
 int dbglvl = 0;
+int verboselvl = 0;
 
 ///////////////////////
 
@@ -115,14 +116,13 @@ void PrintUsage() {
      "usage2: xrdstagetool [-d dbglevel] [-p] xrootd_url_dest -S xrootd_url_src" << endl <<
      " Contacts the dest host and requests to stage the file xrootd_url_dest" << endl <<
      "  by fetching it from xrootd_url_src." <<
-	" This feature must be set up in the dest host, and the src host must be reachable by dest host."<< endl << endl <<
+     " This feature must be set up in the dest host, and the src host must be reachable by dest host."<< endl <<
+     "  and by all its data servers." << endl << endl <<
      " Parameters:" << endl <<
      "  -d dbglevel      : set the XrdClient debug level (0..4)" << endl <<
      "  -p               : asynchronous staging through Prepare request" << endl <<
      "                     (must be set up at the involved server side)" << endl <<
-     "  -s               : print out the Stat information for each staged file." <<
-     "                     (ignored if -p has been specified)" << endl <<
-     "  -O info          : add some opaque info to the request." << endl;
+     "  -O info          : add some opaque info to the issued requests" << endl;
 }
 
 
@@ -150,7 +150,7 @@ bool CheckAnswer(XrdClientAbs *gencli) {
 // Main program
 int main(int argc, char**argv) {
 
-  dbglvl = 0;
+  dbglvl = -1;
 
    // We want this tool to be able to connect everywhere
    // Note that the side effect of these calls here is to initialize the
@@ -160,6 +160,11 @@ int main(int argc, char**argv) {
    EnvPutString( NAME_CONNECTDOMAINALLOW_RE, "*" );
    EnvPutString( NAME_REDIRDOMAINDENY_RE, "" );
    EnvPutString( NAME_CONNECTDOMAINDENY_RE, "" );
+
+   if (argc <= 2) {
+     PrintUsage();
+     exit(0);
+   }
 
    for (int i=1; i < argc; i++) {
 
@@ -173,12 +178,18 @@ int main(int argc, char**argv) {
       if ( (strstr(argv[i], "-h") == argv[i])) {
 	 PrintUsage();
 	 exit(0);
-	 continue;
       }
 
       if ( (strstr(argv[i], "-p") == argv[i])) {
 	 // Use prepare instead of Open
  	 useprepare = true;
+	 continue;
+      }
+
+      if ( (strstr(argv[i], "-v") == argv[i])) {
+	 // Increase verbosity level
+ 	 verboselvl++;
+	 cout << "Verbosity level is now " << verboselvl << endl;
 	 continue;
       }
 
@@ -204,17 +215,23 @@ int main(int argc, char**argv) {
       }
 
       // Any other par is considered as an url and queued
-      if ( (strstr(argv[i], "-") == argv[i]) && (strlen(argv[i]) > 1) ) {
+      if ( (strstr(argv[i], "-") != argv[i]) && (strlen(argv[i]) > 1) ) {
 	// Enqueue
+	if (verboselvl > 0)
+	  cout << "Enqueueing file " << argv[i] << endl;
 	XrdClientUrlInfo u(argv[i]);
 	urls.Push_back(u);
+
+	if (verboselvl > 1)
+	  cout << "Enqueued URL " << u.GetUrl() << endl;
+
 	continue;
       }
 
 
    }
 
-   EnvPutInt( NAME_DEBUG, dbglvl);
+   EnvPutInt(NAME_DEBUG, dbglvl);
 
    if (useprepare) {
      // Fire all the prepare requests at max speed
@@ -224,7 +241,7 @@ int main(int argc, char**argv) {
 
        if (srcurl.length() > 5) {
 	 // If -S is specified and has a non trivial content,
-	 // we must connect to the dest host
+	 // we must connect to the dest host anyway
 	 // but add the source url as opaque info to the filename
 	 u.TakeUrl(urls[i].GetUrl().c_str());
 	 u.File += "?fetchfrom=";
@@ -232,12 +249,27 @@ int main(int argc, char**argv) {
        }
        else u.TakeUrl(urls[i].GetUrl().c_str());
 
+       if (opaqueinfo.length() > 0) {
+	 // Take care of the heading "?"
+	 if (opaqueinfo[0] != '?') {
+	   u.File += "?";
+	 }
+
+	 u.File += opaqueinfo;
+       }
+
        XrdClientAdmin adm(u.GetUrl().c_str());
+
+       if (verboselvl > 1)
+	 cout << "Connecting to: " << u.GetUrl() << endl;
 
        if (!adm.Connect()) {
 	 cout << "Unable to connect to " << u.GetUrl() << endl;
 	 continue;
        }
+
+       if (verboselvl > 0)
+	 cout << "Requesting prepare for: " << u.GetUrl() << endl;
 
        if (!adm.Prepare(u.File.c_str(), (kXR_char)kXR_stage, 0)) {
 	 cout << "Unable to send Prepare request for " << u.GetUrl() << endl;
@@ -247,7 +279,7 @@ int main(int argc, char**argv) {
      }
    }
    else
-     while(urls.GetSize() > 0) {
+     while((urls.GetSize() > 0) || (opening.GetSize() > 0)) {
        // Open all the files in sequence, asynchronously
        // Keep a max of maxopens as outstanding
 
@@ -275,6 +307,10 @@ int main(int argc, char**argv) {
 
        // See how many attempts to start now
        int todonow = maxopens - opening.GetSize();
+       todonow = xrdmin(todonow, urls.GetSize());
+
+       if (verboselvl > 1)
+	 cout << "Sync staging attempts to start: " << todonow << endl;
 
        for (int i = 0; i < todonow; i++) {
 	 XrdClient *cli = new XrdClient(urls[0].GetUrl().c_str());
@@ -301,7 +337,7 @@ int main(int argc, char**argv) {
 
 
 
-
+   cout << endl;
    return 0;
 
 }

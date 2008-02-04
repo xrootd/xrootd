@@ -1546,6 +1546,7 @@ bool XrdClientConn::DoLogin()
     if (plist)
 	free(plist);
 
+
     return resp;
 
 }

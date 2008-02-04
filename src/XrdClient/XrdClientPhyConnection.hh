@@ -21,6 +21,7 @@
 #include "XrdClient/XrdClientInputBuffer.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientThread.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
 
 #include <time.h> // for time_t data type
@@ -118,10 +119,13 @@ public:
 		 (fServer.HostAddr == addr) );
     }
 
-    ELoginState    IsLogged() const { return fLogged; }
+    ELoginState    IsLogged();
+
     bool           IsPort(int port) { return (fServer.Port == port); };
     bool           IsUser(const XrdOucString &usr) { return (fServer.User == usr); };
-    bool           IsValid() const { return ( (fSocket != 0) && fSocket->IsConnected());}
+    bool           IsValid();
+    
+
     void           LockChannel();
 
     // see XrdClientSock for the meaning of the parameters
