@@ -49,7 +49,7 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
 				   false, (char *)"QueryConfig");
 
     if (res && (cliconn->LastServerResp.status == kXR_ok) &&
-	qryResp && cliconn->LastServerResp.dlen) {
+	cliconn->LastServerResp.dlen) {
 
       sscanf(qryResp, "%d\n%d",
 	     &wan_port,
