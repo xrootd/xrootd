@@ -448,7 +448,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 	       }
 
 	       if (cpnfo.mon)
-		 cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len);
+		 cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len, (float)bytesread / cpnfo.len * 100.0);
 
 	       offs += len;
 	       free(buf);
@@ -468,6 +468,9 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 
 	 buf = 0;
       }
+
+      if (cpnfo.mon)
+	cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len, (float)bytesread / cpnfo.len * 100.0, 1);
 
       if(progbar) {
 	cout << endl;
@@ -578,7 +581,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	    }
 
 	    if (cpnfo.mon)
-	      cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len);
+	      cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len, (float)bytesread / cpnfo.len * 100.0);
 
 	    free(buf);
 	 }
@@ -597,6 +600,9 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       buf = 0;
 
    }
+
+   if (cpnfo.mon)
+     cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len, (float)bytesread / cpnfo.len * 100.0, 1);
 
    if(progbar) {
       cout << endl;
@@ -703,7 +709,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	    }
 
 	    if (cpnfo.mon)
-	      cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len);
+	      cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len, (float)bytesread / cpnfo.len * 100.0);
 
 	    offs += len;
 	    free(buf);
@@ -723,6 +729,10 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
       buf = 0;
       blkcnt++;
    }
+
+
+   if (cpnfo.mon)
+     cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len, (float)bytesread / cpnfo.len * 100.0, 1);
 
    if(progbar) {
      cout << endl;
@@ -793,7 +803,7 @@ void PrintUsage() {
            "                  The max value is 15. The default is 0 (i.e. use only the main stream)" << endl;
    cerr << " -MLlibname" << endl <<
            "        :         use <libname> as external monitoring reporting library." << endl <<
-           "                  The default name if XrdCpMonlib.so . Make sure it is reachable." << endl;
+           "                  The default name if XrdCpMonitorClient.so . Make sure it is reachable." << endl;
 
 
    cerr << " where:" << endl;
@@ -1074,9 +1084,10 @@ int main(int argc, char**argv) {
       if (cpnfo.mon) {
 
 	char *name=0, *ver=0, *rem=0;
-	if (!cpnfo.mon->GetMonLibInfo(name, ver, rem)) {
+	if (!cpnfo.mon->GetMonLibInfo(&name, &ver, &rem)) {
 	  Info(XrdClientDebug::kUSERDEBUG,
-	       "main", "Monitoring client plugin found. Name:" << name << " ver:" << ver << "remarks:" << rem);
+	       "main", "Monitoring client plugin found. Name:'" << name <<
+	       "' Ver:'" << ver << "' Remarks:'" << rem << "'");
 	}
 	else {
 	  delete cpnfo.mon;
@@ -1092,8 +1103,8 @@ int main(int argc, char**argv) {
 
       // Ok, the plugin is now loaded...
       if (cpnfo.mon) {
-	cpnfo.mon->Init(src.c_str(), dest.c_str());
-	cpnfo.mon->PutProgressInfo();
+	cpnfo.mon->Init(src.c_str(), dest.c_str(), 1);
+	cpnfo.mon->PutProgressInfo(0, cpnfo.len, 0, 1);
       }
 
       if ( (src.beginswith("root://")) || (src.beginswith("xroot://")) ) {

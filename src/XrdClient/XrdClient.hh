@@ -123,9 +123,17 @@ protected:
 						       bool &wasopen);
 
     virtual bool                CanRedirOnError() {
-	// Can redir away on error if no file is opened
-	// or the file is opened in read mode
-	return ( !fOpenPars.opened || (fOpenPars.opened && (fOpenPars.options & kXR_open_read)) );
+      // Can redir away on error if no file is opened
+      // or the file is opened in read mode
+
+      if ( !fOpenPars.opened ) return true;
+
+      // This supposes that no options means read only
+      if (!fOpenPars.options) return true;
+
+      if (fOpenPars.options & kXR_open_read) return true;
+
+      return false;
     }
 
 

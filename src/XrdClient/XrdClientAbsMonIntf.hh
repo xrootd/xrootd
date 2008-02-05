@@ -16,7 +16,7 @@ public:
   virtual int DeInit() = 0;
 
   // To get the name of the library and other info
-  virtual int GetMonLibInfo(char *name, char *version, char *remarks) = 0;
+  virtual int GetMonLibInfo(char **name, char **version, char **remarks) = 0;
 
 
   // To submit a set of info about the progress of something
