@@ -13,14 +13,15 @@ lib_LTLIBRARIES = libXrdPosix.la libXrdPosixPreload.la
 # N.B.: XrdPosixXrootd.hh includes XrdSysPthread.hh!
 xrootdposixincdir = $(includedir)/xrootd/XrdPosix
 xrootdposixinc_HEADERS = XrdPosixXrootd.hh XrdPosixLinkage.hh \
-                        XrdPosixExtern.hh
+                        XrdPosix.hh XrdPosixExtern.hh
+
 
 INCLUDES = -I$(top_srcdir)/src
 
 libXrdPosix_la_SOURCES = \
         XrdPosix.cc  \
         XrdPosixLinkage.cc \
-        XrdPosixXrootd.cc
+        XrdPosixXrootd.cc 
 
 libXrdPosix_la_LIBADD = ../XrdClient/libXrdClient.la \
                         ../XrdSec/libXrdSec.la \
@@ -32,10 +33,13 @@ libXrdPosixPreload_la_SOURCES = \
          XrdPosixPreload.cc  \
          XrdPosixLinkage.cc \
          XrdPosixXrootd.cc \
-         XrdPosix.cc  
+         XrdPosix.cc
+
+# TODO: What to do with XrdPosixPreload32.cc?
 
 libXrdPosixPreload_la_LIBADD = ../XrdClient/libXrdClient.la \
                          ../XrdNet/libXrdNet.la \
                          ../XrdOuc/libXrdOuc.la \
                          ../XrdSec/libXrdSec.la \
                          ../XrdSys/libXrdSys.la
+

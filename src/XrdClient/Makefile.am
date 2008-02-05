@@ -19,7 +19,7 @@ xrootdclientincdir = $(includedir)/xrootd/XrdClient
 
 #############################################################################
 ## deliverables
-bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd
+bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd xrdstagetool
 
 ## old automake does not know += operator, so we have to do this
 ## very awkwardly using the EXTRA_ definition
@@ -44,6 +44,8 @@ xrootdclientinc_HEADERS = XrdClient.hh XrdClientAdmin.hh \
 
 #############################################################################
 # Build rules
+
+# the following source may be built during the build itself
 BUILT_SOURCES=XrdClientAdmin_c_wrap.cc
 
 libXrdClient_la_SOURCES = \
@@ -74,6 +76,7 @@ libXrdClient_la_SOURCES = \
 libXrdClient_la_LIBADD = $(LIBSUNMATH) \
               ../XrdSys/libXrdSys.la \
 	      ../XrdCrypto/libXrdCrypto.la \
+              ../XrdSut/libXrdSut.la \
               ../XrdNet/libXrdNet.la \
               ../XrdOuc/libXrdOuc.la \
               ../XrdSys/libXrdSys.la
@@ -87,20 +90,32 @@ xrdcp_SOURCES = Xrdcp.cc
 xrdcp_LDFLAGS = -static -export-dynamic
 xrdcp_LDADD = $(clientlibs)
 
+
+
 xrd_SOURCES = XrdCommandLine.cc
 xrd_LDADD = $(clientlibs) $(READLINE_LIBS)
+
+
 
 TestXrdClient_SOURCES = XrdClientAdmin_c.cc XrdClientAdmin_c.hh \
                         TestXrdClient.cc
 TestXrdClient_LDADD =  $(clientlibs)
 
+
+
 TestXrdClient_read_SOURCES = TestXrdClient_read.cc
 TestXrdClient_read_LDADD =  $(clientlibs)
+
+
+xrdstagetool_SOURCES = XrdStageTool.cc
+xrdstagetool_LDADD = $(clientlibs)
+
+$(OBJECT_STAGETOOL) $(BINLIBS) $(LIBM) $(LIBS)
+
 
 if ENABLE_JAVAINT
 libXrdClientAdminJNI_la_SOURCES = XrdClientAdminJNI.cc
 libXrdClientAdminJNI_la_LIBADD = $(clientlibs)                                                        
-
 all-local: XrdClientAdminJNI.class
 XrdClientAdminJNI.class: XrdClientAdminJNI.java
 	$(JAVAC) -d ./ $(srcdir)/XrdClientAdminJNI.java
@@ -110,6 +125,8 @@ install-exec-local:  XrdClientAdminJNI.class
 uninstall-local:
 	rm -f $(javaclassdir)/xrootdadmin/XrdClientAdminJNI.class
 endif
+
+
 
 clean-local:
 	rm -f xrootdadmin/XrdClientAdminJNI.class XrdClientAdmin_c_wrap.cc
