@@ -174,21 +174,36 @@ bool XrdCryptosslgsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *
    // We allow proxies issued by other proxies. In such cases we must
    // ignore the last '/CN=' in the issuer name; this explains the need
    // for the following gymnastic.
-   char *pcn = (char *) strstr(xcer->Issuer(),"/CN=");
-   pcn = (char *) strstr(pcn+1,"/CN=");
-   int ilen = (pcn) ? (int)(pcn - xcer->Issuer()) : strlen(xcer->Issuer());
+
+   int ilen = strlen(xcer->Issuer());
    if (strncmp(xcer->Subject(), xcer->Issuer(), ilen)) {
-      errcode = kInvalidNames;
-      lastError = "subject check:";
-      lastError += X509ChainError(errcode);
-      return 0;
+      // Check if the issuer is a proxy: ignore the last 'CN='
+      char *pcn = (char *) strstr(xcer->Issuer(), "/CN=");
+      if (pcn) {
+         char *pcnn = 0;
+         while ((pcnn = (char *) strstr(pcn+1,"/CN=")))
+	    pcn = pcnn;
+         ilen = (int)(pcn - xcer->Issuer());
+      }
+      if (strncmp(xcer->Subject() + ilen,"/CN=",4)) {
+         errcode = kInvalidNames;
+         lastError = "proxy subject check: found additional chars :";
+         lastError += X509ChainError(errcode);
+         return 0;
+      }
+      if (strncmp(xcer->Subject(), xcer->Issuer(), ilen)) {
+         errcode = kInvalidNames;
+         lastError = "proxy issuer check: issuer not found in subject :";
+         lastError += X509ChainError(errcode);
+         return 0;
+      }
    }
 
    // A common name must be appendend
    char *pp = (char *)strstr(xcer->Subject()+ilen, "CN=");
    if (!pp) {
       errcode = kInvalidNames;
-      lastError = "proxy subject check:";
+      lastError = "proxy subject check: no appended 'CN='";
       lastError += X509ChainError(errcode);
       return 0;
    }
@@ -197,7 +212,7 @@ bool XrdCryptosslgsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *
    pp = strstr(pp+strlen("CN="), "CN=");
    if (pp) {
       errcode = kInvalidNames;
-      lastError = "proxy subject check:";
+      lastError = "proxy subject check: too many appended 'CN='s";
       lastError += X509ChainError(errcode);
       return 0;
    }
