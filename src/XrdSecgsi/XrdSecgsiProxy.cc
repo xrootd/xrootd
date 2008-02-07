@@ -456,7 +456,7 @@ int ParseArguments(int argc, char **argv)
             return 1;
          }
          EEcert = DefEEcert;
-         EEcert.insert(pw->pw_dir, 0);
+         EEcert.insert(XrdSutHome(), 0);
          if (stat(EEcert.c_str(),&st) != 0) {
             PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             PRT("+ Cannot access certificate file: "<<EEcert.c_str());
@@ -487,7 +487,7 @@ int ParseArguments(int argc, char **argv)
             return 1;
          }
          EEkey = DefEEkey;
-         EEkey.insert(pw->pw_dir, 0);
+         EEkey.insert(XrdSutHome(), 0);
          if (stat(EEkey.c_str(),&st) != 0) {
             PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             PRT("+ Cannot access certificate file: "<<EEkey.c_str());

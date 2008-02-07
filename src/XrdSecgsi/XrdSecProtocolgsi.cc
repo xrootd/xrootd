@@ -768,7 +768,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          }
       } else {
          if (pw)
-            UsrCert.insert(pw->pw_dir,0);
+            UsrCert.insert(XrdSutHome(),0);
       }
       // Define user private key file
       if (opt.key) {
@@ -780,7 +780,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          }
       } else {
          if (pw)
-            UsrKey.insert(pw->pw_dir,0);
+            UsrKey.insert(XrdSutHome(),0);
       }
       // Define proxy validity at renewal
       if (opt.valid)

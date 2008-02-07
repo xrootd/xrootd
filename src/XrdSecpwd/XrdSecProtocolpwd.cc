@@ -377,7 +377,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       argdir = 1;
    } else {
       // use default dir $(HOME)/.<prefix>
-      infodir = pw->pw_dir;
+      infodir = XrdSutHome();
       infodir += ("/." + Prefix);
    }
    if (!infodir.endswith("/")) infodir += "/";
