@@ -358,8 +358,7 @@ int XrdSutExpand(XrdOucString &path)
       return 0;
 
    if (path[0] == '~') {
-      struct passwd *pw = 0;
-      XrdOucString unam;
+      XrdOucString unam, home;
       XrdOucString sdir(path);
       int iu = path.find('/');
       if (iu != STR_NPOS) {
@@ -368,17 +367,18 @@ int XrdSutExpand(XrdOucString &path)
          sdir.erase(0, iu);
       } else
          sdir = '/';
-      if (unam.length() > 0)
-         pw = getpwnam(unam.c_str());
-      else
-         pw = getpwuid(getuid());
-      if (!pw) {
-         DEBUG("cannot pwnam information for local user "<<
-               ((unam.length() > 0) ? unam : XrdOucString("")));
-         return -errno;
-      }
-      if (pw) {
-         sdir.insert(pw->pw_dir,0);
+      if (unam.length() > 0) {
+         struct passwd *pw = 0;
+         if (!(pw = getpwnam(unam.c_str()))) {
+            DEBUG("cannot pwnam information for local user "<<
+                 ((unam.length() > 0) ? unam : XrdOucString("")));
+            return -errno;
+         }
+         home = pw->pw_dir;
+      } else
+ 	 home = XrdSutHome();
+      if (home.length() > 0) {
+         sdir.insert(home.c_str(),0);
          path = sdir;
       }
    } else {
@@ -394,6 +394,32 @@ int XrdSutExpand(XrdOucString &path)
       }
    }
    return 0;
+}
+
+/******************************************************************************/
+/*  X r d S u t H o m e                                                       */
+/******************************************************************************/
+const char *XrdSutHome()
+{
+   // Gets the home directory preferentially from HOME or from getpwuid()
+   EPNAME("Home");
+
+   // Use the save value, if any
+   static XrdOucString homedir;
+   if (homedir.length() <= 0) {
+      // Check the HOME environment variable
+      if (getenv("HOME"))
+         homedir = getenv("HOME");
+      if (homedir.length() <= 0) {
+         struct passwd *pw = getpwuid(getuid());
+         homedir = pw->pw_dir;
+      }
+      if (homedir.length() <= 0)
+         DEBUG("Warning: home directory undefined! ");
+   }
+
+   // Done
+   return homedir.c_str();
 }
 
 /******************************************************************************/

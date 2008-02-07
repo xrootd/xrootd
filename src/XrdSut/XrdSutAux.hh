@@ -167,6 +167,14 @@ int XrdSutTimeString(int t, char *st, int opt = 0);
 int XrdSutExpand(XrdOucString &path);
 
 /******************************************************************************/
+/*  X r d S u t H o m e                                                       */
+/*                                                                            */
+/*  Return the home directory                                                 */
+/*  Checks, in the order, HOME and getpwuid()                                 */
+/******************************************************************************/
+const char *XrdSutHome();
+
+/******************************************************************************/
 /*  X r d S u t M k d i r                                                     */
 /*                                                                            */
 /*  Make directory dir                                                        */
