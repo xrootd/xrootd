@@ -335,10 +335,12 @@ void XrdXrootdJob2Do::Redrive()
    while ((jp = theJob->JobTable.Apply(XrdXrootdJobWaiting, (void *)0)))
          if (jp->verClient(jp->JobMark > 0)) break;
 
-// Schedule this job
+// Schedule this job if we really have one here
 //
-   jp->Status = Job_Active;
-   theJob->Sched->Schedule((XrdJob *)jp);
+   if (jp)
+      {jp->Status = Job_Active;
+       theJob->Sched->Schedule((XrdJob *)jp);
+      }
 }
 
 /******************************************************************************/
