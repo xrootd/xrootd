@@ -68,6 +68,16 @@ enum kgsiServerSteps {
    kXGS_reserved             //
 };
 
+// Handshake options
+enum kgsiHandshakeOpts {
+   kOptsDlgPxy     = 1,      // 0x0001: Ask for a delegated proxy
+   kOptsFwdPxy     = 2,      // 0x0002: Forward local proxy
+   kOptsSigReq     = 4,      // 0x0004: Accept to sign delegated proxy
+   kOptsSrvReq     = 8,      // 0x0008: Server request for delegated proxy
+   kOptsPxFile     = 16,     // 0x0010: Save delegated proxies in file
+   kOptsDelChn     = 32      // 0x0020: Delete chain
+};
+
 // Error codes
 enum kgsiErrors {
    kGSErrParseBuffer = 10000,       // 10000
@@ -173,7 +183,8 @@ public:
    ~gsiHSVars() { SafeDelete(Cref);
                   if (Chain)
                      Chain->Cleanup(1);
-                  SafeDelete(Chain);
+                  if (Options & kOptsDelChn)
+                     SafeDelete(Chain);
                   if (PxyChain)
                      PxyChain->Cleanup(1);
                   SafeDelete(PxyChain); }

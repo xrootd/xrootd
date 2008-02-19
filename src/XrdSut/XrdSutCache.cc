@@ -132,7 +132,7 @@ XrdSutPFEntry *XrdSutCache::Get(const char *ID, bool *wild)
 }
 
 //__________________________________________________________________
-XrdSutPFEntry *XrdSutCache::Add(const char *ID)
+XrdSutPFEntry *XrdSutCache::Add(const char *ID, bool force)
 {
    // Add an entry with ID in cache
    // Cache buffer is re-allocated with double size, if needed
@@ -184,6 +184,9 @@ XrdSutPFEntry *XrdSutCache::Add(const char *ID)
       // Cleanup and reassign
       delete[] cachent;
       cachent = newcache;
+      //
+      // Force rehash in this case
+      force = 1;
    }
    //
    // The next free
@@ -202,7 +205,7 @@ XrdSutPFEntry *XrdSutCache::Add(const char *ID)
    utime = (kXR_int32)time(0);
 
    // Rebuild hash table
-   if (Rehash(1) != 0) {
+   if (Rehash(force) != 0) {
       DEBUG("problems re-hashing");
       return (XrdSutPFEntry *)0 ;
    }

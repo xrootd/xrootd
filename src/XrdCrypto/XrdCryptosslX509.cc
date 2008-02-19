@@ -339,7 +339,7 @@ const char *XrdCryptosslX509::Subject()
          DEBUG("WARNING: no certificate available - cannot extract subject name");
          return (const char *)0;
       }
-      
+
       // Extract subject name
       subject = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
    }
@@ -362,7 +362,7 @@ const char *XrdCryptosslX509::Issuer()
          DEBUG("WARNING: no certificate available - cannot extract issuer name");
          return (const char *)0;
       }
-      
+
       // Extract issuer name
       issuer = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
    }
@@ -417,15 +417,38 @@ const char *XrdCryptosslX509::SubjectHash()
    return (subjecthash.length() > 0) ? subjecthash.c_str() : (const char *)0;
 }
 
+//_____________________________________________________________________________
+kXR_int64 XrdCryptosslX509::SerialNumber()
+{
+   // Return serial number as a kXR_int64
+
+   kXR_int64 sernum = -1;
+   if (cert && X509_get_serialNumber(cert)) {
+      BIGNUM *bn = BN_new();
+      ASN1_INTEGER_to_BN(X509_get_serialNumber(cert), bn);
+      char *sn = BN_bn2dec(bn);
+      sernum = strtoll(sn, 0, 10);
+      BN_free(bn);
+      OPENSSL_free(sn);
+   }
+
+   return sernum;
+}
 
 //_____________________________________________________________________________
-int XrdCryptosslX509::SerialNumber()
+XrdOucString XrdCryptosslX509::SerialNumberString()
 {
-   // Return issuer name
+   // Return serial number as a hex string
 
-   int sernum = -1;
-   if (cert && X509_get_serialNumber(cert))
-      sernum = ASN1_INTEGER_get(X509_get_serialNumber(cert));
+   XrdOucString sernum;
+   if (cert && X509_get_serialNumber(cert)) {
+      BIGNUM *bn = BN_new();
+      ASN1_INTEGER_to_BN(X509_get_serialNumber(cert), bn);
+      char *sn = BN_bn2hex(bn);
+      sernum = sn;
+      BN_free(bn);
+      OPENSSL_free(sn);
+   }
 
    return sernum;
 }

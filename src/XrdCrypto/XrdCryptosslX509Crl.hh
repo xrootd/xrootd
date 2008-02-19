@@ -55,6 +55,7 @@ public:
 
    // Chec certificate revocation
    bool IsRevoked(int serialnumber, int when = 0);
+   bool IsRevoked(const char *sernum, int when = 0);
 
    // Verify signature
    bool Verify(XrdCryptoX509 *ref);

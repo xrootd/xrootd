@@ -24,6 +24,7 @@
 #include <XrdCrypto/XrdCryptosslAux.hh>
 #include <XrdCrypto/XrdCryptosslTrace.hh>
 
+#include <openssl/bn.h>
 #include <openssl/pem.h>
 
 //_____________________________________________________________________________
@@ -132,15 +133,17 @@ int XrdCryptosslX509Crl::LoadCache()
    }
 
    // Get serial numbers of revoked certificates
-   char tagser[20] = {0};
+   char *tagser = 0;
    int i = 0;
    for (; i < nrevoked; i++ ){
       X509_REVOKED *rev = (X509_REVOKED *)sk_value(rsk,i);
       if (rev) {
-         tagser[0] = 0;
-         sprintf(tagser,"%lx",ASN1_INTEGER_get(rev->serialNumber));
+         BIGNUM *bn = BN_new();
+         ASN1_INTEGER_to_BN(rev->serialNumber, bn);
+         tagser = BN_bn2hex(bn);
+         BN_free(bn);
          TRACE(Dump, "certificate with serial number: "<<tagser<<
-               "     has been revoked");
+                     "  has been revoked");
          // Add to the cache
          XrdSutPFEntry *cent = cache.Add((const char *)tagser);
          if (!cent) {
@@ -149,6 +152,8 @@ int XrdCryptosslX509Crl::LoadCache()
          }
          // Add revocation date
          cent->mtime = XrdCryptosslASN1toUTC(rev->revocationDate);
+         // Release the string for the serial number
+         OPENSSL_free(tagser);
       }
    }
 
@@ -204,7 +209,7 @@ const char *XrdCryptosslX509Crl::Issuer()
          DEBUG("WARNING: no CRL available - cannot extract issuer name");
          return (const char *)0;
       }
-      
+
       // Extract issuer name
       issuer = X509_NAME_oneline(X509_CRL_get_issuer(crl), 0, 0);
    }
@@ -255,7 +260,6 @@ bool XrdCryptosslX509Crl::Verify(XrdCryptoX509 *ref)
    return (X509_CRL_verify(crl, rk) > 0);
 }
 
-
 //_____________________________________________________________________________
 bool XrdCryptosslX509Crl::IsRevoked(int serialnumber, int when)
 {
@@ -287,6 +291,41 @@ bool XrdCryptosslX509Crl::IsRevoked(int serialnumber, int when)
       // Check the revocation time
       if (now > cent->mtime) {
          DEBUG("certificate "<<tagser<<" has been revoked");
+         return 1;
+      }
+   }
+
+   // Certificate not revoked
+   return 0;
+}
+
+//_____________________________________________________________________________
+bool XrdCryptosslX509Crl::IsRevoked(const char *sernum, int when)
+{
+   // Check if certificate with 'sernum' is in the
+   // list of revocated certificates
+   EPNAME("IsRevoked");
+
+   // Reference time
+   int now = (when > 0) ? when : time(0);
+
+   // Warn if CRL should be updated
+   if (now > NextUpdate()) {
+      DEBUG("WARNING: CRL is expired: you should download the updated one");
+   }
+
+   // We must have something to check against
+   if (nrevoked <= 0) {
+      DEBUG("No certificate in the list");
+      return 0;
+   }
+
+   // Look into the cache
+   XrdSutPFEntry *cent = cache.Get((const char *)sernum);
+   if (cent) {
+      // Check the revocation time
+      if (now > cent->mtime) {
+         DEBUG("certificate "<<sernum<<" has been revoked");
          return 1;
       }
    }

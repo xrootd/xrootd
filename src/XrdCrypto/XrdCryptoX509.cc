@@ -180,11 +180,19 @@ void XrdCryptoX509::SetPKI(XrdCryptoX509data)
 }
 
 //_____________________________________________________________________________
-int XrdCryptoX509::SerialNumber()
+kXR_int64 XrdCryptoX509::SerialNumber()
 {
    // Return issuer name
    ABSTRACTMETHOD("XrdCryptoX509::SerialNumber");
    return -1;
+}
+
+//_____________________________________________________________________________
+XrdOucString XrdCryptoX509::SerialNumberString()
+{
+   // Return issuer name
+   ABSTRACTMETHOD("XrdCryptoX509::SerialNumberString");
+   return XrdOucString("");
 }
 
 //_____________________________________________________________________________

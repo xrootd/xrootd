@@ -87,12 +87,6 @@ static const char *gGSErrStr[] = {
    "ErrError"                      // 10026  
 };
 
-// Masks for options
-static const short kOptsDlgPxy  = 0x0001; //Ask for a delegated proxy
-static const short kOptsFwdPxy  = 0x0002; //Forward local proxy
-static const short kOptsSigReq  = 0x0004; //Accept to sign delegated proxy
-static const short kOptsSrvReq  = 0x0008; //Server request for delegated proxy
-static const short kOptsPxFile  = 0x0010; //Save delegated proxies in file
 // One day in secs
 static const int kOneDay = 86400; 
 
@@ -2200,6 +2194,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       hs->Chain = 0;
       return -1;
    }
+
    //
    // Finalize chain: get a copy of it (we do not touch the reference)
    hs->Chain = new X509Chain(hs->Chain);
@@ -2207,6 +2202,9 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
       emsg = "cannot duplicate reference chain";
       return -1;
    }
+   // The new chain must be deleted at destruction
+   hs->Options |= kOptsDelChn;
+
    // Get hook to parsing function
    XrdCryptoX509ParseBucket_t ParseBucket = sessionCF->X509ParseBucket();
    if (!ParseBucket) {
@@ -2678,6 +2676,9 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       cmsg = "cannot suplicate reference chain";
       return -1;
    }
+   // The new chain must be deleted at destruction
+   hs->Options |= kOptsDelChn;
+
    // Get hook to parsing function
    XrdCryptoX509ParseBucket_t ParseBucket = sessionCF->X509ParseBucket();
    if (!ParseBucket) {
@@ -3013,7 +3014,7 @@ bool XrdSecProtocolgsi::CheckRtag(XrdSutBuffer *bm, String &emsg)
       return 0;
    }
    //
-   // If we sent out a random tag check it signature
+   // If we sent out a random tag check its signature
    if (hs->Cref && hs->Cref->buf1.len > 0) {
       XrdSutBucket *brt = 0;
       if ((brt = bm->GetBucket(kXRS_signed_rtag))) {
@@ -3295,7 +3296,7 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
    XrdCryptoX509Chain::ECAStatus st = XrdCryptoX509Chain::kUnknown;
    cca->SetStatusCA(st);
 
-   // We nust have got a CA hash
+   // We nust have got a chain
    if (!cca) {
       DEBUG("Invalid input ");
       return 0;
@@ -3349,20 +3350,22 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
             }
          }
          if (!notdone) {
-            // Add the certificate to the requested CA chain
+            // Verify the chain
             X509Chain::EX509ChainErr e;
             verified = cca->Verify(e);
          } else {
             PRINT("CA certificate not self-signed: cannot verify integrity ("<<xc->SubjectHash()<<")");
          }
-      } else if (opt == 1) {
-         // Cannot check: warn
-         verified = 1;
-         PRINT("Warning: CA certificate not self-signed:"
-               " integrity not checked, assuming OK ("<<xc->SubjectHash()<<")");
       } else {
-         // No check required
+         // Fill CA information
+         cca->CheckCA(0);
+         // Set OK in any case
          verified = 1;
+         // Notify if some sort of check was required
+         if (opt == 1) {
+            DEBUG("Warning: CA certificate not self-signed:"
+                  " integrity not checked, assuming OK ("<<xc->SubjectHash()<<")");
+         }
       }
    } else if (CACheck > 0) {
       // Check self-signature

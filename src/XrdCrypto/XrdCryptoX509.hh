@@ -18,6 +18,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
+#include <XProtocol/XPtypes.hh>
 #include <XrdSut/XrdSutBucket.hh>
 #include <XrdCrypto/XrdCryptoRSA.hh>
 
@@ -64,7 +65,8 @@ public:
    virtual int BitStrength();
 
    // Serial number
-   virtual int  SerialNumber();
+   virtual kXR_int64 SerialNumber();
+   virtual XrdOucString SerialNumberString();
 
    // Validity interval
    virtual int  NotBefore();  // begin-validity time in secs since Epoch

@@ -56,7 +56,7 @@ public:
    XrdSutPFEntry *Get(int i) const { return (i<=cachemx) ? cachent[i] :
                                                           (XrdSutPFEntry *)0; }
    XrdSutPFEntry *Get(const char *ID, bool *wild = 0);
-   XrdSutPFEntry *Add(const char *ID);
+   XrdSutPFEntry *Add(const char *ID, bool force = 0);
    bool           Remove(const char *ID, int opt = 1);
    int            Trim(int lifet = 0);
 

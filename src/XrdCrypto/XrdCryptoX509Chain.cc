@@ -146,11 +146,12 @@ void XrdCryptoX509Chain::Cleanup(bool keepCA)
 }
 
 //___________________________________________________________________________
-bool XrdCryptoX509Chain::CheckCA()
+bool XrdCryptoX509Chain::CheckCA(bool checkselfsigned)
 {
    // Search the list for a valid CA and set it at top.
    // Search stops when a valid CA is found; an invalid CA is flagged.
    // A second CA is always ignored.
+   // Signature check failures are accepted if 'checkselfsigned' is false.
    // Return 1 if found, 0 otherwise; lastError is filled with the reason of
    // failure, if any.
 
@@ -165,9 +166,10 @@ bool XrdCryptoX509Chain::CheckCA()
       if (xc->type == XrdCryptoX509::kCA) {
          caname = xc->Subject();
          EX509ChainErr ecode = kNone;
-         if (!Verify(ecode, "CA: ",XrdCryptoX509::kCA, 0, xc, xc)) {
+         bool CAok = Verify(ecode, "CA: ",XrdCryptoX509::kCA, 0, xc, xc);
+         if (!CAok && (ecode != kVerifyFail || checkselfsigned)) {
             statusCA = kInvalid;
-            lastError += X509ChainError(kVerifyFail);
+            lastError += X509ChainError(ecode);
          } else {
             statusCA = kValid;
             if (p) {
@@ -603,6 +605,7 @@ bool XrdCryptoX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t *vo
    // Verification options
    int when = (vopt) ? vopt->when : (int)time(0);
    int plen = (vopt) ? vopt->pathlen : -1;
+   bool chkss = (vopt) ? (vopt->opt & kOptsCheckSelfSigned) : 1;
 
    //
    // Global path depth length consistency check
@@ -615,14 +618,7 @@ bool XrdCryptoX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t *vo
    //
    // Check the first certificate: it MUST be of CA type, valid,
    // self-signed
-   XrdCryptoX509ChainNode *node = begin;
-   XrdCryptoX509 *xcer = node->Cert();      // Certificate under exam
-   XrdCryptoX509 *xsig = xcer;              // Signing certificate
-   if (statusCA == kUnknown) {
-      if (!Verify(errcode, "CA: ",XrdCryptoX509::kCA, when, xcer, xsig))
-         return 0;
-      statusCA = kValid;
-   } else if (statusCA == kAbsent || statusCA == kInvalid) {
+   if (!CheckCA(chkss)) {
       errcode = kNoCA;
       lastError = X509ChainError(errcode);
       return 0;
@@ -630,7 +626,9 @@ bool XrdCryptoX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t *vo
 
    //
    // Analyse the rest
-   xsig = xcer;
+   XrdCryptoX509ChainNode *node = begin;
+   XrdCryptoX509 *xsig = node->Cert();    // Signing certificate
+   XrdCryptoX509 *xcer = 0;               // Certificate under exam
    node = node->Next();
    while (node) {
 
@@ -719,8 +717,8 @@ bool XrdCryptoX509Chain::Verify(EX509ChainErr &errcode, const char *msg,
    // Must not be revoked (check only if required)
    if (crl) {
       // Get certificate serial number
-      int sn = xcer->SerialNumber();
-      if (crl->IsRevoked(sn, when)) {
+      XrdOucString sn = xcer->SerialNumberString();
+      if (crl->IsRevoked(sn.c_str(), when)) {
          errcode = kRevoked;
          lastError = msg;
          lastError += X509ChainError(errcode);

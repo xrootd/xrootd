@@ -53,7 +53,8 @@ public:
    int BitStrength() { return ((cert) ? EVP_PKEY_bits(X509_get_pubkey(cert)) : -1);}
 
    // Serial number
-   int SerialNumber();
+   kXR_int64 SerialNumber();
+   XrdOucString SerialNumberString();
 
    // Validity
    int NotBefore();  // get begin-validity time in secs since Epoch

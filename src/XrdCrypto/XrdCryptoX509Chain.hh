@@ -36,6 +36,8 @@ typedef struct {
    XrdCryptoX509Crl *crl; // CRL
 } x509ChainVerifyOpt_t;
 
+const int kOptsCheckSelfSigned = 0x2;    // CA ckecking option
+
 //
 // Node definition
 //
@@ -67,7 +69,7 @@ public:
    virtual ~XrdCryptoX509Chain();
 
    // CA status
-   enum ECAStatus { kUnknown = 0, kAbsent, kInvalid, kValid };
+   enum ECAStatus { kUnknown = 0, kAbsent, kInvalid, kValid};
 
    // Error codes
    enum EX509ChainErr { kNone = 0, kInconsistent, kTooMany, kNoCA,
@@ -94,7 +96,7 @@ public:
    void                PutInFront(XrdCryptoX509 *c);
    void                PushBack(XrdCryptoX509 *c);
    void                Remove(XrdCryptoX509 *c);
-   bool                CheckCA();
+   bool                CheckCA(bool checkselfsigned = 1);
    void                Cleanup(bool keepCA = 0);
    void                SetStatusCA(ECAStatus st) { statusCA = st; }
 

@@ -105,3 +105,11 @@ bool XrdCryptoX509Crl::IsRevoked(int, int)
    ABSTRACTMETHOD("XrdCryptoX509Crl::IsRevoked");
    return 1;
 }
+
+//_____________________________________________________________________________
+bool XrdCryptoX509Crl::IsRevoked(const char *, int)
+{
+   // Verify if certificate with specified serial number has been revoked
+   ABSTRACTMETHOD("XrdCryptoX509Crl::IsRevoked");
+   return 1;
+}
