@@ -3024,7 +3024,7 @@ bool XrdSecProtocolgsi::CheckRtag(XrdSutBuffer *bm, String &emsg)
             return 0;
          }
          // Decrypt it with the counter part public key
-         if (!(sessionKver->DecryptPublic(*brt))) {
+         if (sessionKver->DecryptPublic(*brt) != 0) {
             emsg = "error decrypting random tag with public key";
             return 0;
          }
@@ -3642,6 +3642,7 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
          // Load the crypto factory
          if ((sessionCF = 
               XrdCryptoFactory::GetCryptoFactory(hs->CryptoMod.c_str()))) {
+            sessionCF->SetTrace(GSITrace->What);
             int fid = sessionCF->ID();
             int i = 0;
             // Retrieve the index in local table
