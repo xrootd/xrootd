@@ -117,6 +117,16 @@ private:
     // To call it we need to be aware of the restrictions so the public
     // interface should be ReadV()
     kXR_int64                   ReadVEach(char *buf, kXR_int64 *offsets, int *lens, int &nbuf);
+
+    bool IsOpenedForWrite() {
+      // This supposes that no options means read only
+      if (!fOpenPars.options) return false;
+      
+      if (fOpenPars.options & kXR_open_read) return false;
+      
+      return true;
+    }
+
 protected:
 
     virtual bool                OpenFileWhenRedirected(char *newfhandle,
@@ -128,12 +138,8 @@ protected:
 
       if ( !fOpenPars.opened ) return true;
 
-      // This supposes that no options means read only
-      if (!fOpenPars.options) return true;
+      return !IsOpenedForWrite();
 
-      if (fOpenPars.options & kXR_open_read) return true;
-
-      return false;
     }
 
 

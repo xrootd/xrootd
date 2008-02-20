@@ -1014,12 +1014,16 @@ bool XrdClient::Close() {
     memcpy(closeFileRequest.close.fhandle, fHandle, sizeof(fHandle) );
     closeFileRequest.close.dlen = 0;
 
+    // Use the sync one only if the file was opened for writing
+    // To enforce the server side correct data flushing
+    if (IsOpenedForWrite())
+      fConnModule->SendGenCommand(&closeFileRequest,
+				  0,
+				  0, 0 , FALSE, (char *)"Close");
+    
 
-    fConnModule->SendGenCommand(&closeFileRequest,
-    					  0,
-    					  0, 0 , FALSE, (char *)"Close");
-
-    //fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
+    else
+      fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
   
     // No file is opened for now
     fOpenPars.opened = FALSE;
