@@ -656,7 +656,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
    if (Sel.Vec.bf != 0)
       {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
-          QReq.Hdr.modifier = CmsStateRequest::kYR_refresh;
+          QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
        if (dowt) retc = Cache.WT4File(Sel, Sel.Vec.hf);
        amask = Cluster.Broadcast(Sel.Vec.bf, QReq.Hdr,
                                  (void *)Sel.Path.Val,Sel.Path.Len+1);

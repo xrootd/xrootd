@@ -148,13 +148,14 @@ void XrdCmsNode::setName(const char *Role, XrdLink *lnkp, int port)
    char *bp, buff[512];
    const char *hname = lnkp->Host();
    const char *hnick = lnkp->Name(&netaddr);
+   unsigned int hAddr= XrdNetDNS::IPAddr(&netaddr);
 
    if (myName)
-      if (!strcmp(myName, hname) && port == Port) return;
+      if (!strcmp(myName, hname) && port == Port && hAddr == IPAddr) return;
          else free(myName);
 
-   IPAddr = XrdNetDNS::IPAddr(&netaddr);
-   myName = (char *)hname;
+   IPAddr = hAddr;
+   myName = strdup(hname);
    myNlen = strlen(hname)+1;
    Port = port;
 
@@ -473,10 +474,10 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // Grab the refresh option (the only one we support)
 //
    if (Arg.Opts & CmsLocateRequest::kYR_refresh)
-      {Sel.Opts = XrdCmsSelect::Refresh; *toP++='s'; Sel.InfoP = 0;}
+       Sel.Opts  = XrdCmsSelect::Refresh; *toP++='s';
    if (Arg.Opts & CmsLocateRequest::kYR_asap)
-      {Sel.Opts = XrdCmsSelect::Asap;    *toP++='i'; Sel.InfoP = &reqInfo;}
-      else                                           Sel.InfoP = 0;
+      {Sel.Opts |= XrdCmsSelect::Asap;    *toP++='i'; Sel.InfoP = &reqInfo;}
+      else                                            Sel.InfoP = 0;
 
 // Do some debugging
 //
@@ -935,7 +936,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 // Complete the arguments to select
 //
          if (Arg.Opts & CmsSelectRequest::kYR_refresh) 
-           {Sel.Opts |= XrdCmsSelect::Refresh; Sel.InfoP = 0;      *toP++='s';}
+           {Sel.Opts |= XrdCmsSelect::Refresh;                     *toP++='s';}
          if (Arg.Opts & CmsSelectRequest::kYR_online)  
            {Sel.Opts |= XrdCmsSelect::Online;                      *toP++='o';}
    else {if (Arg.Opts & CmsSelectRequest::kYR_trunc)   
