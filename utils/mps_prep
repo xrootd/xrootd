@@ -82,10 +82,20 @@ if (defined($opt_p)) {
    $discardpfx = "$opt_p";
    }
 
-print "discardpfx=$discardpfx\n\n";
-
 $parm = shift;
 if ("$parm" eq '') {
+    # This is the pipe-oriented way of functioning
+    # Time to start the PreStage process, looking
+    # at the same config file
+    # We assume that mps_PreStage lies in the same dir as mps_prep
+    my (@thispath) = split(/\//, $0);
+    pop @thispath;
+    push @thispath, "mps_PreStage";
+    my ($mypstpath) = join("/", @thispath);
+    
+    @prepargs = ($mypstpath, "-c", $cfgfn);
+    system(@prepargs);
+
     do_input();
 }
 elsif ("$parm" eq 'add') {
