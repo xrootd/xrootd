@@ -10,37 +10,18 @@
 
 //           $Id$
 
-#include <dirent.h>
-#include <stdarg.h>
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <stdarg.h>
 #include <unistd.h>
-#include <iostream.h>
+
+#include "XrdPosix/XrdPosixOsDep.hh"
+
+/******************************************************************************/
+/*                      P r e - D e c l a r a t i o n s                       */
+/******************************************************************************/
 
 #include "XrdPosix/XrdPosixExtern.hh"
-#include "XrdPosix/XrdPosixLinkage.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
- 
-/******************************************************************************/
-/*                         L o c a l   C l a s s e s                          */
-/******************************************************************************/
   
-class XrdPosixPreloadEnv
-{
-public:
-      XrdPosixPreloadEnv()
-              {if (!getenv("XRDPOSIX_DEBUG")) XrdPosixXrootd::setDebug(-1);}
-     ~XrdPosixPreloadEnv() {}
-};
-
-/******************************************************************************/
-/*                   G l o b a l   D e c l a r a t i o n s                    */
-/******************************************************************************/
-  
-extern XrdPosixLinkage    Xunix;
-
-       XrdPosixPreloadEnv dummyENV;
-
 /******************************************************************************/
 /*                                a c c e s s                                 */
 /******************************************************************************/
@@ -63,8 +44,7 @@ extern "C"
 {
 int acl(const char *path, int cmd, int nentries, void *aclbufp)
 {
-   return (XrdPosix_isMyPath(path) ? Xunix.Acl("/tmp", cmd,nentries,aclbufp)
-                                   : Xunix.Acl(path,   cmd,nentries,aclbufp));
+   return XrdPosix_Acl(path, cmd, nentries, aclbufp);
 }
 }
   
@@ -112,7 +92,7 @@ extern "C"
 {
 int     creat64(const char *path, mode_t mode)
 {
-   return XrdPosix_Open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+   return XrdPosix_Creat(path, mode);
 }
 }
   
@@ -182,13 +162,10 @@ int  __fxstat64(int ver, int fildes, struct stat64 *buf)
 int     fstat64(         int fildes, struct stat64 *buf)
 #endif
 {
-
-   return (XrdPosixXrootd::myFD(fildes))
-          ? XrdPosix_Fstat(    fildes, (struct stat *)buf)
 #ifdef __linux__
-          : Xunix.Fstat64(ver, fildes,                buf);
+   return XrdPosix_FstatV(ver, fildes, (struct stat *)buf);
 #else
-          : Xunix.Fstat64(     fildes,                buf);
+   return XrdPosix_Fstat (     fildes, (struct stat *)buf);
 #endif
 }
 }
@@ -214,9 +191,7 @@ extern "C"
 {
 ssize_t fgetxattr (int fd, const char *name, void *value, size_t size)
 {
-
-   if (XrdPosixXrootd::myFD(fd)) {errno = ENOTSUP; return -1;}
-   return Xunix.Fgetxattr(fd, name, value, size);
+   return XrdPosix_Fgetxattr(fd, name, value, size);
 }
 }
 #endif
@@ -230,9 +205,7 @@ extern "C"
 {
 ssize_t getxattr (const char *path, const char *name, void *value, size_t size)
 {
-
-   if (XrdPosix_isMyPath(path)) {errno = ENOTSUP; return -1;}
-   return Xunix.Getxattr(path, name, value, size);
+   return XrdPosix_Getxattr(path, name, value, size);
 }
 }
 #endif
@@ -246,9 +219,7 @@ extern "C"
 {
 ssize_t lgetxattr (const char *path, const char *name, void *value, size_t size)
 {
-
-   if (XrdPosix_isMyPath(path)) {errno = ENOTSUP; return -1;}
-   return Xunix.Lgetxattr(path, name, value, size);
+   return XrdPosix_Lgetxattr(path, name, value, size);
 }
 }
 #endif
@@ -259,7 +230,7 @@ ssize_t lgetxattr (const char *path, const char *name, void *value, size_t size)
   
 extern "C"
 {
-off64_t   lseek64(int fildes, off64_t offset, int whence)
+off64_t lseek64(int fildes, off64_t offset, int whence)
 {
    return XrdPosix_Lseek(fildes, offset, whence);
 }
@@ -349,8 +320,7 @@ extern "C"
 {
 long pathconf(const char *path, int name)
 {
-   return (XrdPosix_isMyPath(path) ? Xunix.Pathconf("/tmp", name)
-                                   : Xunix.Pathconf(path,   name));
+   return XrdPosix_Pathconf(path, name);
 }
 }
 
@@ -477,6 +447,32 @@ int        stat64(         const char *path, struct stat64 *buf)
 #endif
 {
    return XrdPosix_Stat(path, (struct stat *)buf);
+}
+}
+
+/******************************************************************************/
+/*                                s t a t f s                                 */
+/******************************************************************************/
+
+#if !defined(__solaris__)
+extern "C"
+{
+int        statfs64(       const char *path, struct statfs64 *buf)
+{
+   return XrdPosix_Statfs(path, (struct statfs *)buf);
+}
+}
+#endif
+
+/******************************************************************************/
+/*                               s t a t v f s                                */
+/******************************************************************************/
+
+extern "C"
+{
+int        statvfs64(         const char *path, struct statvfs64 *buf)
+{
+   return XrdPosix_Statvfs(path, (struct statvfs *)buf);
 }
 }
 

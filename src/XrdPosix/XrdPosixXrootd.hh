@@ -16,8 +16,17 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/types.h>
 
+#ifdef __macos__
+#include <sys/param.h>
+#include <sys/mount.h>
+#else
+#include <sys/statfs.h>
+#endif
+
+#include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdPosixFile;
@@ -67,6 +76,10 @@ static void    Seekdir(DIR *dirp, long loc);
 
 static int     Stat(const char *path, struct stat *buf);
 
+static int     Statfs(const char *path, struct statfs *buf);
+
+static int     Statvfs(const char *path, struct statvfs *buf);
+
 static ssize_t Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
 
 static long    Telldir(DIR *dirp);
@@ -98,7 +111,7 @@ static void    setEnv(const char *var, long val);
 
 static long    Debug;
 
-               XrdPosixXrootd(int maxfd=64, int maxdir=64);
+               XrdPosixXrootd(int maxfd=255, int maxdir=255);
               ~XrdPosixXrootd();
 
 private:

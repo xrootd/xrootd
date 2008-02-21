@@ -12,7 +12,7 @@ lib_LTLIBRARIES = libXrdPosix.la libXrdPosixPreload.la
 
 # N.B.: XrdPosixXrootd.hh includes XrdSysPthread.hh!
 xrootdposixincdir = $(includedir)/xrootd/XrdPosix
-xrootdposixinc_HEADERS = XrdPosixXrootd.hh XrdPosixLinkage.hh \
+xrootdposixinc_HEADERS = XrdPosixXrootd.hh XrdPosixOsDep.hh XrdPosixLinkage.hh \
                         XrdPosix.hh XrdPosixExtern.hh
 
 

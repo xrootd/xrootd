@@ -14,12 +14,14 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 
+#include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -32,10 +34,6 @@
 #define UNIX_PFX
 //#endif
 
-#ifdef __macos__
-#define ELIBACC ESHLIBVERS
-#endif
-  
 #define Symb_Access UNIX_PFX "access"
 #define Retv_Access int
 #define Args_Access const char *path, int amode
@@ -232,6 +230,22 @@
 #define Args_Stat64 const char *, struct stat64 *
 #endif
 
+#define Symb_Statfs    UNIX_PFX "statfs"
+#define Retv_Statfs    int
+#define Args_Statfs    const char *, struct statfs *
+
+#define Symb_Statfs64  UNIX_PFX "statfs64"
+#define Retv_Statfs64  int
+#define Args_Statfs64  const char *, struct statfs64 *
+
+#define Symb_Statvfs UNIX_PFX "statvfs"
+#define Retv_Statvfs int
+#define Args_Statvfs const char *, struct statvfs *
+
+#define Symb_Statvfs64 UNIX_PFX "statvfs64"
+#define Retv_Statvfs64 int
+#define Args_Statvfs64 const char *, struct statvfs64 *
+
 #define Symb_Pwrite UNIX_PFX "pwrite"
 #define Retv_Pwrite ssize_t
 #define Args_Pwrite int, const void *, size_t, off_t
@@ -262,7 +276,7 @@
   
 class XrdPosixLinkage
 {public:
-      int              Init(int *x) {return (Done ? 0 : Resolve());}
+      void             Init() {if (!Done) Done = Resolve();}
 
       Retv_Access      (*Access)(Args_Access);
       Retv_Acl         (*Acl)(Args_Acl);
@@ -304,6 +318,10 @@ class XrdPosixLinkage
       Retv_Seekdir     (*Seekdir)(Args_Seekdir);
       Retv_Stat        (*Stat)(Args_Stat);
       Retv_Stat64      (*Stat64)(Args_Stat64);
+      Retv_Statfs      (*Statfs)(Args_Statfs);
+      Retv_Statfs64    (*Statfs64)(Args_Statfs64);
+      Retv_Statvfs     (*Statvfs)(Args_Statvfs);
+      Retv_Statvfs64   (*Statvfs64)(Args_Statvfs64);
       Retv_Pwrite      (*Pwrite)(Args_Pwrite);
       Retv_Pwrite64    (*Pwrite64)(Args_Pwrite64);
       Retv_Telldir     (*Telldir)(Args_Telldir);
@@ -313,12 +331,13 @@ class XrdPosixLinkage
 
       int              Load_Error(const char *epname, int retv=-1);
 
-      XrdPosixLinkage() : Done(0) {Init(0);}
+      XrdPosixLinkage() : Done(0) {Init();}
      ~XrdPosixLinkage() {}
 
 private:
-int Done;
-int Resolve();
+int  Done;
+void Missing(const char *);
+int  Resolve();
 };
 // Warning! This class is meant to be defined as a static object.
 #endif

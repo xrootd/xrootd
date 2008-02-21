@@ -28,6 +28,8 @@
 
 #define lseek(a,b,c)     XrdPosix_Lseek(a,b,c)
 
+#define fopen(a,b)       XrdPosix_Fopen(a,b)
+
 #define fstat(a,b)       XrdPosix_Fstat(a,b)
 
 #define fsync(a)         XrdPosix_Fsync(a)
@@ -59,6 +61,10 @@
 #define seekdir(a,b)     XrdPosix_Seekdir(a,b)
 
 #define stat(a,b)        XrdPosix_Stat(a,b)
+
+#define statfs(a,b)      XrdPosix_Statfs(a,b)
+
+#define statvfs(a,b)     XrdPosix_Statvfs(a,b)
 
 #define pwrite(a,b,c,d)  XrdPosix_Pwrite(a,b,c,d)
 

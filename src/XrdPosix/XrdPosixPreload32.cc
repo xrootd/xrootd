@@ -10,9 +10,10 @@
 
 //           $Id$
 
-//#undef  _LARGEFILE_SOURCE
-//#undef  _FILE_OFFSET_BITS
-//#define _FILE_OFFSET_BITS 32
+#undef  _LARGEFILE_SOURCE
+#undef  _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 32
+#define XRDPOSIXPRELOAD32
 
 #include <errno.h>
 #include <dirent.h>
@@ -23,8 +24,16 @@
 #include <unistd.h>
 #include <iostream.h>
 
+#ifdef __macos__
+#include <sys/param.h>
+#include <sys/mount.h>
+#else
+#include <sys/statfs.h>
+#endif
+
 #include "XrdPosix/XrdPosixExtern.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
+#include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdSys/XrdSysPlatform.hh"
  
@@ -45,7 +54,7 @@ extern XrdPosixLinkage Xunix;
 // defined as 64 bits anyway. So, the dirent structure is 64-bit conformable
 // making CopyDirent() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
-#if !defined( __macos__) && !defined(_LP64) && !defined(SUNX86)
+#if !defined( __macos__) && !defined(SUNX86)
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -72,7 +81,7 @@ int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 // defined as 64 bits anyway. So, the stat structure is 64-bit conformable
 // making CopyStat() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
-#if !defined( __macos__) && !defined(_LP64) && !defined(SUNX86)
+#if !defined( __macos__) && !defined(SUNX86)
 int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -160,13 +169,8 @@ int   _fxstat(int ver, int fildes, struct stat *buf)
 int     fstat(         int fildes, struct stat *buf)
 #endif
 {
-#if defined(__macos__) || defined(_LP64)
-#ifdef __linux__
-   return (!XrdPosixXrootd::myFD(fildes)) ?    Xunix.Fstat(ver, fildes, buf)
-#else
-   return (!XrdPosixXrootd::myFD(fildes)) ?    Xunix.Fstat(     fildes, buf)
-#endif
-                                          : XrdPosix_Fstat(     fildes, buf);
+#if defined(__macos__)
+   return XrdPosix_Fstat(fildes, (struct stat64 *)buf);
 #else
    struct stat64 buf64;
    int rc;
@@ -213,14 +217,8 @@ int      _lxstat(int ver, const char *path, struct stat *buf)
 int        lstat(         const char *path, struct stat *buf)
 #endif
 {
-#if defined(__macos__) || defined(_LP64)
-#if defined(__linux__)
-   return (!XrdPosix_isMyPath(path) ?    Xunix.Lstat(ver, path, buf)
-                                    : XrdPosix_Lstat(     path, buf));
-#else
-   return (!XrdPosix_isMyPath(path) ?    Xunix.Lstat(     path, buf)
-                                    : XrdPosix_Lstat(     path, buf));
-#endif
+#if defined(__macos__)
+   return XrdPosix_Lstat(path, (struct stat64 *)buf);
 #else
    struct stat64 buf64;
    int rc;
@@ -327,6 +325,20 @@ int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 #endif
 
 /******************************************************************************/
+/*                                p w r i t e                                 */
+/******************************************************************************/
+  
+#ifndef SUNX86
+extern "C"
+{
+ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
+{
+   return XrdPosix_Pwrite(fildes, buf, nbyte, offset);
+}
+}
+#endif
+
+/******************************************************************************/
 /*                                  s t a t                                   */
 /******************************************************************************/
 
@@ -341,14 +353,8 @@ int      _xstat(int ver, const char *path, struct stat *buf)
 int        stat(         const char *path, struct stat *buf)
 #endif
 {
-#if defined(__macos__) || defined(_LP64)
-#if defined(__linux__)
-   return (!XrdPosix_isMyPath(path) ?    Xunix.Stat(ver, path, buf)
-                                    : XrdPosix_Stat(     path, buf));
-#else
-   return (!XrdPosix_isMyPath(path) ?    Xunix.Stat(     path, buf)
-                                    : XrdPosix_Stat(     path, buf));
-#endif
+#if defined(__macos__)
+   return XrdPosix_Stat(path, (struct stat64 *)buf);
 #else
    struct stat64 buf64;
    int rc;
@@ -367,15 +373,44 @@ int        stat(         const char *path, struct stat *buf)
 #endif
 
 /******************************************************************************/
-/*                                p w r i t e                                 */
+/*                                s t a t f s                                 */
 /******************************************************************************/
-  
-#ifndef SUNX86
+
+#if !defined(__solaris__) && !defined(__macos__)
 extern "C"
 {
-ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
+int        statfs(         const char *path, struct statfs *buf)
 {
-   return XrdPosix_Pwrite(fildes, buf, nbyte, offset);
+   struct statfs64 buf64;
+   int rc;
+
+   if ((rc = XrdPosix_Statfs(path, (struct statfs *)&buf64))) return rc;
+   buf->f_type    = buf64.f_type;
+   buf->f_bsize   = buf64.f_bsize;
+   buf->f_blocks  = buf64.f_blocks;
+   buf->f_bfree   = buf64.f_bfree;
+   buf->f_files   = buf64.f_files;
+   buf->f_ffree   = buf64.f_ffree;
+   buf->f_fsid    = buf64.f_fsid;
+   buf->f_namelen = buf64.f_namelen;
+   return 0;
+}
+}
+#endif
+
+/******************************************************************************/
+/*                               s t a t v f s                                */
+/******************************************************************************/
+
+#if !defined(__macos__)
+extern "C"
+{
+int        statvfs(         const char *path, struct statvfs *buf)
+{
+   struct statvfs64 buf64;
+   int rc;
+   if ((rc = XrdPosix_Statvfs(path, (struct statvfs *)&buf64))) return rc;
+   return 0;
 }
 }
 #endif

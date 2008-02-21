@@ -42,7 +42,8 @@ XrdPosixLinkage Xunix;
   
 #define LOOKUP_UNIX(symb) symb = (Retv_ ## symb (*)(Args_ ## symb)) \
                                  dlsym(RTLD_NEXT, Symb_ ## symb); \
-                          if (!symb) symb = Xrd_U_ ## symb;
+                          if (!symb) {symb = Xrd_U_ ## symb; \
+                                      Missing(Symb_ ## symb);}
  
 /******************************************************************************/
 /*          U n r e s o l v e d   R e f e r e n c e   L i n k a g e           */
@@ -128,6 +129,14 @@ XrdPosixLinkage Xunix;
                          {return (Retv_Stat)Xunix.Load_Error("stat");}
       Retv_Stat64      Xrd_U_Stat64(Args_Stat64)
                          {return (Retv_Stat64)Xunix.Load_Error("stat");}
+      Retv_Statfs      Xrd_U_Statfs(Args_Statfs)
+                         {return (Retv_Statfs)Xunix.Load_Error("statfs");}
+      Retv_Statfs64    Xrd_U_Statfs64(Args_Statfs64)
+                         {return (Retv_Statfs64)Xunix.Load_Error("statfs64");}
+      Retv_Statvfs     Xrd_U_Statvfs(Args_Statvfs)
+                         {return (Retv_Statvfs)Xunix.Load_Error("statvfs");}
+      Retv_Statvfs64   Xrd_U_Statvfs64(Args_Statvfs64)
+                         {return (Retv_Statvfs64)Xunix.Load_Error("statvfs64");}
       Retv_Pwrite      Xrd_U_Pwrite(Args_Pwrite) 
                          {return (Retv_Pwrite)Xunix.Load_Error("pwrite");}
       Retv_Pwrite64    Xrd_U_Pwrite64(Args_Pwrite64)
@@ -188,13 +197,17 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Seekdir)
   LOOKUP_UNIX(Stat)
   LOOKUP_UNIX(Stat64)
+  LOOKUP_UNIX(Statfs)
+  LOOKUP_UNIX(Statfs64)
+  LOOKUP_UNIX(Statvfs)
+  LOOKUP_UNIX(Statvfs64)
   LOOKUP_UNIX(Pwrite)
   LOOKUP_UNIX(Pwrite64)
   LOOKUP_UNIX(Telldir)
   LOOKUP_UNIX(Unlink)
   LOOKUP_UNIX(Write)
   LOOKUP_UNIX(Writev)
-  Done = 1;
+  if (getenv("XRDPOSIX_REPORT")) Missing(0);
   return 1;
 }
 
@@ -208,4 +221,29 @@ int XrdPosixLinkage::Load_Error(const char *epname, int retv)
        cerr << "PosixPreload: Unable to resolve Unix '" <<epname <<"()'" <<endl;
     errno = ELIBACC;
     return retv;
+}
+
+/******************************************************************************/
+/*                               M i s s i n g                                */
+/******************************************************************************/
+  
+void XrdPosixLinkage::Missing(const char *epname)
+{
+   struct Missing
+         {struct Missing *Next;
+          const char     *What;
+
+                          Missing(Missing *Prev, const char *That)
+                                 : Next(Prev), What(That) {}
+                         ~Missing() {}
+         };
+
+   static Missing *epList = 0;
+
+   if (epname) epList = new Missing(epList, epname);
+      else {Missing *np = epList;
+            while(np) cerr << "PosixPreload: Unable to resolve Unix '" 
+                           <<epname <<"()'" <<endl;
+            np = np->Next;
+           }
 }

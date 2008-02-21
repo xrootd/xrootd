@@ -10,11 +10,8 @@
   
 const char *XrdPosixXrootdCVSID = "$Id$";
 
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
@@ -29,6 +26,8 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+
+#include <iostream.h>
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -317,7 +316,7 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 
 // Initialize the linkage table first
 //
-   Xunix.Init(0);
+   Xunix.Init();
 
 // Compute size of table
 //
@@ -346,8 +345,8 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 
 // Establish debugging level
 //
-   if ((cvar = getenv("XRDPOSIX_DEBUG")) && *cvar)
-      {Debug = atol(cvar); setEnv(NAME_DEBUG, Debug);}
+   if ((cvar = getenv("XRDPOSIX_DEBUG")) && *cvar) Debug = atol(cvar);
+   setEnv(NAME_DEBUG, Debug);
 
 // Establish read ahead size
 //
@@ -924,6 +923,102 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
    buf->st_atime  = buf->st_mtime = buf->st_ctime = st_modtime;
    buf->st_ino    = st_id;
    buf->st_mode   = mapFlags(st_flags);
+   return 0;
+}
+
+/******************************************************************************/
+/*                                S t a t f s                                 */
+/******************************************************************************/
+  
+int XrdPosixXrootd::Statfs(const char *path, struct statfs *buf)
+{
+   struct statvfs myVfs;
+   int rc;
+
+// Issue a statvfs() call and transcribe the results
+//
+   if ((rc = Statvfs(path, &myVfs))) return rc;
+
+// The vfs structure and fs structures should be size compatible (not really)
+//
+   memset(buf, 0, sizeof(buf));
+   buf->f_bsize   = myVfs.f_bsize;
+   buf->f_blocks  = myVfs.f_blocks;
+   buf->f_bfree   = myVfs.f_bfree;
+   buf->f_files   = myVfs.f_files;
+   buf->f_ffree   = myVfs.f_ffree;
+#if defined(__macos__)
+   buf->f_iosize  = myVfs.f_frsize;
+#else
+   buf->f_frsize  = myVfs.f_frsize;
+#endif
+#if defined(__linux__) || defined(__macos__)
+   buf->f_bavail  = myVfs.f_bavail;
+#endif
+#if defined(__linux__)
+   buf->f_namelen = myVfs.f_namemax;
+#endif
+   return 0;
+}
+
+/******************************************************************************/
+/*                               S t a t v f s                                */
+/******************************************************************************/
+  
+int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
+{
+   static const int szVFS = sizeof(buf->f_bfree);
+   static const long long max32 = 0x7fffffffLL;
+// XrdPosixAdminNew admin(path);
+   long long rwFree, ssFree, rwBlks;
+   int       rwNum, ssNum, rwUtil, ssUtil;
+
+// Make sure we connected
+//
+   cerr <<"xroot statvfs: " <<path <<endl;
+// if (!admin.isOK()) return admin.Result();
+
+// Extract out path from the url
+//
+   XrdOucString str(path);
+   XrdClientUrlSet url(str);
+
+// Open the file first
+//
+// if (!admin.Admin.Stat(url.GetFile().c_str(),
+//                       rwNum, rwFree, rwUtil, ssNum, ssFree, ssUtil);
+//    return admin.Fault();
+   rwFree = ssFree = 0; rwNum = ssNum = rwUtil = ssUtil = 0;
+   if (rwNum < 0) {errno = ENOENT; return -1;}
+
+// Calculate number of blocks
+//
+   if (rwUtil == 0) rwBlks = rwFree;
+      else if (rwUtil >= 100) rwBlks = 0;
+              else rwBlks = rwFree * (100 / (100 - rwUtil));
+   if (ssUtil == 0) rwBlks += ssFree;
+      else if (ssUtil < 100) rwBlks += ssFree * (100 / (100 - ssUtil));
+
+// Scale units to what will fit here (we can have a 32-bit or 64-bit struct)
+//
+   if (szVFS < 8)
+      {if (rwBlks > max32) rwBlks = max32;
+       if (rwFree > max32) rwFree = max32;
+       if (ssFree > max32) ssFree = max32;
+      }
+
+// Return what little we can
+//
+   memset(buf, 0, sizeof(buf));
+   buf->f_bsize   = 1024*1024;
+   buf->f_frsize  = 1024*1024;
+   buf->f_blocks  = static_cast<fsblkcnt_t>(rwBlks);
+   buf->f_bfree   = static_cast<fsblkcnt_t>(rwFree + ssFree);
+   buf->f_bavail  = static_cast<fsblkcnt_t>(rwFree);
+   buf->f_ffree   = rwNum + ssNum;
+   buf->f_favail  = rwNum;
+   buf->f_namemax = 255;    // The best we are going to do here
+   buf->f_flag    = (rwNum == 0 ? ST_RDONLY|ST_NOSUID : ST_NOSUID);
    return 0;
 }
 
