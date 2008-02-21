@@ -59,6 +59,8 @@ $LOCK_UN = 8;
 $LOCKNOERR = 0;				# ignore errors in getlock
 $LOCKERR   = 1;				# report errors in getlock
 
+$pstgpid = 0;
+
 # Process parameters
 if (! &Getopts('c:f:l:wx:p:')) {
    logerr("Missing or invalid argument"); 
@@ -93,10 +95,12 @@ if ("$parm" eq '') {
     push @thispath, "mps_PreStage";
     my ($mypstpath) = join("/", @thispath);
     
-    @prepargs = ($mypstpath, "-c", $cfgfn);
-    system(@prepargs);
+    @pstgargs = ($mypstpath, "-c", $cfgfn);
+    fork_prestage(@pstgargs);
 
     do_input();
+
+    kill 15, $pstgpid;
 }
 elsif ("$parm" eq 'add') {
     $cflg = 1;
@@ -117,6 +121,24 @@ else {
     exit 1;
 }
 
+#===================================================================
+# Subroutine to fork an mps_PreStage process
+#===================================================================
+sub fork_prestage {
+my(@cmdline) = @_;
+
+# Fork a process to stage-in file.
+if ($pstgpid = fork) {		# parent
+   return;
+   }
+elsif (defined $pstgpid) {		# child
+    exec(@cmdline);
+   exit 0;
+   }
+else {
+   logit("fork_stagein: fork failed for $action: $!\n") if $debug >= $ERR;
+   }
+}
 #===================================================================
 sub add_queue {
     my($data) = @_;
@@ -243,6 +265,8 @@ sub do_input {
 	}
     }
 }
+
+
 #===================================================================
 sub do_list {
     my($lflg) = @_;
