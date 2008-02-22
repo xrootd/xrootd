@@ -969,14 +969,14 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 {
    static const int szVFS = sizeof(buf->f_bfree);
    static const long long max32 = 0x7fffffffLL;
-// XrdPosixAdminNew admin(path);
+   XrdPosixAdminNew admin(path);
    long long rwFree, ssFree, rwBlks;
    int       rwNum, ssNum, rwUtil, ssUtil;
 
 // Make sure we connected
 //
    cerr <<"xroot statvfs: " <<path <<endl;
-// if (!admin.isOK()) return admin.Result();
+   if (!admin.isOK()) return admin.Result();
 
 // Extract out path from the url
 //
@@ -985,10 +985,8 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 
 // Open the file first
 //
-// if (!admin.Admin.Stat(url.GetFile().c_str(),
-//                       rwNum, rwFree, rwUtil, ssNum, ssFree, ssUtil);
-//    return admin.Fault();
-   rwFree = ssFree = 0; rwNum = ssNum = rwUtil = ssUtil = 0;
+   if (!admin.Admin.Stat_vfs(url.GetFile().c_str(),
+       rwNum, rwFree, rwUtil, ssNum, ssFree, ssUtil)) return admin.Fault();
    if (rwNum < 0) {errno = ENOENT; return -1;}
 
 // Calculate number of blocks
