@@ -43,9 +43,9 @@ using namespace XrdCms;
   
 void *XrdCmsXmi_StartPrpQ(void *parg)
 {  
-// XrdCmsXmiReq *requestProcessor = (XrdCmsXmiReq *)parg;
+   XrdCmsXmiReq *requestProcessor = (XrdCmsXmiReq *)parg;
 
-//?requestProcessor->processPrpQ();
+   requestProcessor->processPrpQ();
 
    return (void *)0;
 }
@@ -145,11 +145,11 @@ void XrdCmsXmiReq::processPrpQ()
 // responses are possible, so we pass a null XmiReq pointer.
 //
    while(1)
-        {stgReady.Wait();
-         stgMutex.Lock();
-         myQueue  = stgFirst;
-         stgFirst = stgLast = 0;
-         stgMutex.UnLock();
+        {prpReady.Wait();
+         prpMutex.Lock();
+         myQueue  = prpFirst;
+         prpFirst = prpLast = 0;
+         prpMutex.UnLock();
 
          while((rp = myQueue))
               {myQueue = rp->Next;

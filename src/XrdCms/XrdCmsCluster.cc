@@ -626,17 +626,22 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // If either a refresh is wanted or we didn't find the file, re-prime the cache
 // which will force the client to wait. Otherwise, compute the primary and
 // secondary selections. If there are none, the client may have to wait if we
-// have servers that we can query regarding the file.
+// have servers that we can query regarding the file. Note that for files being
+// opened in write mode, only one writable copy may exist.
 //
    if (!(Sel.Opts & XrdCmsSelect::Refresh)
    &&   (retc = Cache.GetFile(Sel, pinfo.rovec)))
-      {if (Sel.Opts & XrdCmsSelect::Create)
-          {smask = 0;
-           if (Sel.Vec.hf)
+      {if (isRW)
+          {if (Sel.Vec.hf)
               {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,EEXIST);
+               if (Multiple(Sel.Vec.hf))             return SelFail(Sel,ENOTUNIQ);
                if (!(pmask = Sel.Vec.hf & amask))    return SelFail(Sel,EROFS);
-                  else pmask = amask;
-              } else   pmask = amask;
+               smask = 0;
+              } else if (Sel.Vec.bf) pmask =        smask = 0;
+                        else if (Sel.Opts & XrdCmsSelect::Trunc)
+                                    {pmask = amask; smask = 0;}
+                                else pmask = (     (smask = pinfo.ssvec & amask)
+                                           ? 0 : amask);
           } else {pmask = Sel.Vec.hf  & amask;
                   smask = pinfo.ssvec & amask;
                   if (Sel.Opts & XrdCmsSelect::Online)
@@ -730,7 +735,9 @@ int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
 {
     const char *etext = (rc == EEXIST
                       ? "Unable to create new file; file already exists."
-                      : "Unable to create file; r/o file already exists.");
+                      : (rc == EROFS)
+                      ? "Unable to write file; r/o file already exists."
+                      : "Unable to write file; multiple files exist.");
 
     Sel.Resp.DLen = strlcpy(Sel.Resp.Data, etext, sizeof(Sel.Resp.Data))+1;
     return -1;
@@ -941,6 +948,38 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 }
 
 /******************************************************************************/
+/*                              M u l t i p l e                               */
+/******************************************************************************/
+
+int XrdCmsCluster::Multiple(SMask_t mVec)
+{
+   static const long long Left32  = 0xffffffff00000000LL;
+   static const long long Right32 = 0x00000000ffffffffLL;
+   static const long long Left16  = 0x00000000ffff0000LL;
+   static const long long Right16 = 0x000000000000ffffLL;
+   static const long long Left08  = 0x000000000000ff00LL;
+   static const long long Right08 = 0x00000000000000ffLL;
+   static const long long Left04  = 0x00000000000000f0LL;
+   static const long long Right04 = 0x000000000000000fLL;
+//                                0 1 2 3 4 5 6 7 8 9 A B C D E F
+   static const int isMult[16] = {0,0,0,1,0,1,1,1,0,1,1,1,1,1,1,1};
+
+   if (mVec & Left32)
+      if (mVec & Right32) return 1;
+         else mVec = mVec >> 32LL;
+   if (mVec & Left16)
+      if (mVec & Right16) return 1;
+         else mVec = mVec >> 16LL;
+   if (mVec & Left08)
+      if (mVec & Right08) return 1;
+         else mVec = mVec >>  8LL;
+   if (mVec & Left04)
+      if (mVec & Right04) return 1;
+         else mVec = mVec >>  4LL;
+   return isMult[mVec];
+}
+  
+/******************************************************************************/
 /*                                R e c o r d                                 */
 /******************************************************************************/
   
@@ -983,8 +1022,8 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
    while(pass--)
         {if (mask)
             {nP = (Config.sched_RR
-                   ? SelbyRef( mask, nump, delay, &reason, isalt||needrw)
-                   : SelbyLoad(mask, nump, delay, &reason, isalt||needrw));
+                   ? SelbyRef( mask, nump, delay, &reason, isalt | needrw)
+                   : SelbyLoad(mask, nump, delay, &reason, isalt | needrw));
              if (nP || (nump && delay) || NodeCnt < Config.SUPCount) break;
             }
          mask = amask & peerMask; isalt = XrdCmsNode::allowsSS;
@@ -1108,7 +1147,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
           {nump++;
            if (np->isOffline)                     {numd++; continue;}
            if (np->isSuspend || np->isDisable)    {nums++; continue;}
-           if (np->myLoad > Config.MaxLoad) {numo++; continue;}
+           if (np->myLoad > Config.MaxLoad)       {numo++; continue;}
            if (needspace && (np->DiskFree < Config.DiskMin
                              || (reqSS && np->isNoStage)))
               {numf++; continue;}
@@ -1133,6 +1172,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
    delay = 0;
    return sp;
 }
+
 /******************************************************************************/
 /*                              S e l b y R e f                               */
 /******************************************************************************/
