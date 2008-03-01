@@ -18,6 +18,7 @@ const char *XrdCmsRRQCVSID = "$Id$";
 #include <netinet/in.h>
 #include <inttypes.h>
 
+#include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsNode.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
 #include "XrdCms/XrdCmsRTable.hh"

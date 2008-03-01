@@ -35,6 +35,7 @@ enum {Write   = 0x0001, // File will be open in write mode     (select & cache)
       Online  = 0x0004, // Only consider online files          (select & prep)
       Trunc   = 0x0008, // File will be truncated              (Select   only)
       Create  = 0x000A, // Create file, truncate if exists
+      Defer   = 0x0010, // Do not assign a server now          (prepare  only)
       Peers   = 0x0020, // Peer clusters may be selected       (select   only)
       Refresh = 0x0040, // Cache should be refreshed           (all)
       Asap    = 0x0080, // Respond as soon as possible         (locate   only)

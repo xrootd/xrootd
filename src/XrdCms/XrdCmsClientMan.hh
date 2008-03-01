@@ -56,7 +56,7 @@ void                 setNext(XrdCmsClientMan *np) {Next = np;}
 
 static void          setConfig(char *cfn) {ConfigFN = cfn;}
 
-void                 whatsUp();
+void                 whatsUp(const char *user, const char *path);
 
 inline int           waitTime() {return repWait;}
 
@@ -93,7 +93,7 @@ int               RecvCnt;
 int               nrMax;
 int               maxMsgID;
 int               repWait;
-int               repWVal;
+int               repWMax;
 int               chkCount;
 time_t            lastUpdt;
 XrdCms::CmsRRHdr  Response;

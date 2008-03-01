@@ -33,6 +33,7 @@ const char *XrdCmsMeterCVSID = "$Id$";
 #include <sys/statvfs.h>
 #endif
 
+#include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsMeter.hh"
 #include "XrdCms/XrdCmsNode.hh"
@@ -144,7 +145,7 @@ int XrdCmsMeter::calcLoad(int nowload, int pdsk)
   
 int XrdCmsMeter::FreeSpace(int &tot_util)
 {
-   static const SMask_t allNodes = ~0;
+   static const SMask_t allNodes = ~0ULL;
    static int lastFree, lastUtil;
    long long fsavail;
 

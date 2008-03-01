@@ -50,6 +50,7 @@ int         LUPDelay;     // Maximum delay at look-up
 int         LUPHold;      // Maximum hold  at look-up (in millisconds)
 int         DRPDelay;     // Maximum delay for dropping an offline server
 int         PSDelay;      // Maximum delay time before peer is selected
+int         RWDelay;      // R/W lookup delay handling (0 | 1 | 2)
 int         SRVDelay;     // Minimum delay at startup
 int         SUPCount;     // Minimum server count
 int         SUPLevel;     // Minimum server count as floating percentage

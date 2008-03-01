@@ -130,7 +130,7 @@ int XrdCmsClientMsg::Reply(const char *Man, CmsRRHdr &hdr, XrdNetBuffer *buff)
 // Find the appropriate message
 //
    if (!(mp = XrdCmsClientMsg::RemFromWaitQ(hdr.streamid)))
-      {DEBUG("Reply to non-existent message; id=" <<hdr.streamid);
+      {DEBUG("to non-existent message; id=" <<hdr.streamid);
        return 0;
       }
 

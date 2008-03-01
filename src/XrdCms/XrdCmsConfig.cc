@@ -566,6 +566,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    LUPHold  = 133;
    DRPDelay = 10*60;
    PSDelay  = 0;
+   RWDelay  = 2;
    SRVDelay = 90;
    SUPCount = 1;
    SUPLevel = 80;
@@ -631,7 +632,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    ProgRM   = 0;
    doWait   = 1;
    RefReset = 60*60;
-   RefTurn  = 3*XrdCmsCluster::STMax*(DiskLinger+1);
+   RefTurn  = 3*STMax*(DiskLinger+1);
    XmiPath     = 0;
    XmiParms    = 0;
    DirFlags    = 0;
@@ -918,7 +919,7 @@ int XrdCmsConfig::setupManager()
 
 // Create reference monitoring thread
 //
-   RefTurn  = 3*XrdCmsCluster::STMax*(DiskLinger+1);
+   RefTurn  = 3*STMax*(DiskLinger+1);
    if (RefReset)
       {if ((rc = XrdSysThread::Run(&tid, XrdCmsStartMonRefs, (void *)0,
                                    0, "Refcount monitor")))
@@ -1309,7 +1310,7 @@ int XrdCmsConfig::Fsysadd(XrdSysError *eDest, int chk, char *fn)
                                            [full <sec>] [discard <cnt>]
                                            [suspend <sec>] [drop <sec>]
                                            [service <sec>] [hold <msec>]
-                                           [peer <sec>]
+                                           [peer <sec>] [rw <lvl>]
 
    discard   <cnt>     maximum number a message may be forwarded.
    drop      <sec>     seconds to delay a drop of an offline server.
@@ -1319,6 +1320,10 @@ int XrdCmsConfig::Fsysadd(XrdSysError *eDest, int chk, char *fn)
    overload  <sec>     seconds to delay client when all servers overloaded.
    peer      <sec>     maximum seconds client may be delayed before peer
                        selection is triggered.
+   rw        <lvl>     how to delay r/w lookups (one of three levels):
+                       0 - always use fast redirect when possible
+                       1 - delay update requests only
+                       2 - delay all rw requests (the default)
    servers   <cnt>     minimum number of servers we need.
    service   <sec>     seconds to delay client when waiting for servers.
    startup   <sec>     seconds to delay enabling our service
@@ -1342,6 +1347,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
         {"lookup",   &LUPDelay, 1},
         {"overload", &MaxDelay,-1},
         {"peer",     &PSDelay,  1},
+        {"rw",       &RWDelay,  0},
         {"servers",  &SUPCount, 0},
         {"service",  &SUPDelay, 1},
         {"startup",  &SRVDelay, 1},
@@ -1365,6 +1371,10 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
                    if (dyopts[i].istime < 0 && !strcmp(val, "*")) ppp = -1;
                       else if (dyopts[i].istime)
                               {if (XrdOuca2x::a2tm(*eDest,etxt,val,&ppp,1))
+                                  return 1;
+                              } else
+                               if (*dyopts[i].opname == 'r')
+                              {if (XrdOuca2x::a2i( *eDest,etxt,val,&ppp,0,2))
                                   return 1;
                               } else {
                                if (*dyopts[i].opname == 's')

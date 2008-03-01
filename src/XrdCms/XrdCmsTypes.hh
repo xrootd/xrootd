@@ -16,6 +16,10 @@ typedef unsigned long long SMask_t;
 
 #define FULLMASK 0xFFFFFFFFFFFFFFFFULL
 
+// The following defines our cell size (maximum subscribers)
+//
+#define STMax 64
+
 #define XrdCmsMAX_PATH_LEN 1024
 
 #define XrdCmsVERSION "1.0.0"

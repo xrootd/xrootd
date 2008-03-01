@@ -78,8 +78,6 @@ class XrdCmsCluster
 public:
 friend class XrdCmsDrop;
 
-static const int STMax = 64;   // Maximum number of Nodes (a.k.a. subscribers)
-
 int             NodeCnt;       // Number of active nodes
 
 // Called to add a new node to the cluster. Status values are defined above.
@@ -152,6 +150,7 @@ XrdCmsNode *calcDelay(int nump, int numd, int numf, int numo,
 int         Drop(int sent, int sinst, XrdCmsDrop *djp=0);
 void        Record(char *path, const char *reason);
 int         Multiple(SMask_t mVec);
+enum        {eExists, eDups, eROfs}; // Passed to SelFail
 int         SelFail(XrdCmsSelect &Sel, int rc);
 int         SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask);
 XrdCmsNode *SelbyCost(SMask_t, int &, int &, const char **, int);

@@ -24,6 +24,7 @@
 class XrdCmsDrop;
 class XrdCmsPrepArgs;
 class XrdCmsRRData;
+class XrdCmsSelected;
 
 class XrdCmsNode
 {

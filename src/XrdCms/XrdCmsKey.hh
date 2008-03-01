@@ -64,8 +64,8 @@ inline int        operator!=(const XrdCmsKey &oth)
 /******************************************************************************/
   
 // The XrdCmsKeyLoc object describes the location of the key (servers as well
-// our local cache). The semantics differ depending on whether it is on the
-// cache or the information has been eported out of the cache.
+// our local cache). The semantics differ depending on whether it is in the
+// cache or the information has been reported out of the cache.
 //
 class XrdCmsKeyLoc
 {
@@ -74,7 +74,8 @@ public:
 SMask_t        hfvec;    // Servers that are staging or have the file
 SMask_t        pfvec;    // Servers that are staging         the file
 SMask_t        qfvec;    // Servers that are not yet queried
-SMask_t        sbvec;    // Servers that are suspect
+unsigned int   TOD_B;    // Server currency clock
+unsigned int   Reserved;
 union {
 unsigned int   HashSave; // Where hash goes upon item unload
 int            deadline;
@@ -84,7 +85,7 @@ short          rwPend;   // Redirectors waiting for R/W response
 
 inline 
 XrdCmsKeyLoc&  operator=(const XrdCmsKeyLoc &rhs)
-                           {hfvec=rhs.hfvec; pfvec=rhs.pfvec; sbvec=rhs.sbvec;
+                           {hfvec=rhs.hfvec; pfvec=rhs.pfvec; TOD_B=rhs.TOD_B;
                             deadline = rhs.deadline;
                             roPend = rhs.roPend; rwPend = rhs.rwPend;
                             return *this;

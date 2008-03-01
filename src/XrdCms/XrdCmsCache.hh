@@ -52,31 +52,44 @@ int         UnkFile(XrdCmsSelect &Sel, SMask_t mask);
 //
 int         WT4File(XrdCmsSelect &Sel, SMask_t mask);
 
-void        Bounce(SMask_t mask);
+void        Bounce(SMask_t smask, int SNum);
 
-void        Drop(SMask_t mask);
+void        Drop(SMask_t mask, int SNum, int xHi);
 
 int         Init(int fxHold, int fxDelay);
 
 void       *TickTock();
 
-            XrdCmsCache() : okVec(0), Tick(8*60*60), Tock(0), DLTime(5)
-                          {memset(Bounced, 0, sizeof(Bounced));}
+            XrdCmsCache() : okVec(0), Tick(8*60*60), Tock(0), BClock(0), 
+                            DLTime(5), Bhits(0), Bmiss(0), vecHi(-1)
+                          {memset(Bounced,  0, sizeof(Bounced));
+                           memset(Bhistory, 0, sizeof(Bhistory));
+                          }
            ~XrdCmsCache() {}   // Never gets deleted
 
 private:
 
 void          Add2Q(XrdCmsRRQInfo *Info, XrdCmsKeyItem *cp, int isrw);
 void          Dispatch(XrdCmsKeyItem *cinfo, short roQ, short rwQ);
+SMask_t       getBVec(unsigned int todA, unsigned int &todB);
 void          Recycle(XrdCmsKeyItem *theList);
+
+struct  {SMask_t      Vec;
+         unsigned int Start;
+         unsigned int End;
+        }             Bhistory[XrdCmsKeyItem::TickRate];
 
 XrdSysMutex   myMutex;
 XrdCmsNash    CTable;
-SMask_t       Bounced[XrdCmsKeyItem::TickRate];
+unsigned int  Bounced[STMax];
 SMask_t       okVec;
 unsigned int  Tick;
 unsigned int  Tock;
+unsigned int  BClock;
          int  DLTime;
+         int  Bhits;
+         int  Bmiss;
+         int  vecHi;
 };
 
 namespace XrdCms

@@ -692,6 +692,7 @@ XrdCmsProtocol *XrdCmsProtocol::Alloc(const char *theRole,
 void XrdCmsProtocol::ConfigCheck(unsigned char *theConfig)
 {
   unsigned int ConfigID;
+  int tmp;
 
 // Compute the new configuration ID
 //
@@ -703,7 +704,7 @@ void XrdCmsProtocol::ConfigCheck(unsigned char *theConfig)
    if (ConfigID != myNode->ConfigID)
       {if (myNode->ConfigID) Say.Emsg("Protocol",Link->Name(),"reconfigured.");
        Cache.Paths.Remove(myNode->Mask());
-       Cache.Bounce(myNode->Mask());
+       Cache.Bounce(myNode->Mask(), myNode->ID(tmp));
        myNode->ConfigID = ConfigID;
       }
 }

@@ -304,7 +304,8 @@ $(OBJDIR)/XrdCmsManager.o:   XrdCmsManager.cc    XrdCmsManager.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsManager.o XrdCmsManager.cc
 
 $(OBJDIR)/XrdCmsMeter.o:     XrdCmsMeter.cc      XrdCmsMeter.hh \
-                             XrdCmsConfig.hh     XrdCmsNode.hh \
+                             XrdCmsCluster.hh    XrdCmsConfig.hh \
+                             XrdCmsNode.hh \
                              XrdCmsState.hh      XrdCmsTrace.hh \
                              XrdOucStream.hh     XrdOucTList.hh \
                              XrdSysError.hh      XrdSysPlatform.hh \

@@ -457,7 +457,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    XrdCmsSelect    Sel(0, Arg.Path, Arg.PathLen-1);
    XrdCmsSelected *sP = 0;
    struct {kXR_unt32 Val; 
-           char outbuff[CmsLocateRequest::RILen*XrdCmsCluster::STMax];} Resp;
+           char outbuff[CmsLocateRequest::RILen*STMax];} Resp;
    struct iovec ioV[2] = {{(char *)&Arg.Request, sizeof(Arg.Request)},
                           {(char *)&Resp,        0}};
    const char *Why;
@@ -1022,7 +1022,9 @@ int XrdCmsNode::do_SelPrep(XrdCmsPrepArgs &Arg) // Static!!!
       Sel.Opts |= XrdCmsSelect::Write;
    if (Arg.options & CmsPrepAddRequest::kYR_stage) 
            {Sel.iovP = Arg.ioV; Sel.iovN = Arg.iovNum;}
-      else {Sel.iovP = 0;       Sel.iovN = 0;}
+      else {Sel.iovP = 0;       Sel.iovN = 0;
+            Sel.Opts |= XrdCmsSelect::Defer;
+           }
 
 // Setup select data (note that prepare does not allow fast redirect)
 //
@@ -1293,8 +1295,8 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 // Process reset requests. These are exclsuive to any other request
 //
    if (Reset)
-      {Manager.Reset();        // Propagate the reset to our managers
-       Cache.Bounce(NodeMask); // Now invalidate our cache lines
+      {Manager.Reset();                // Propagate the reset to our managers
+       Cache.Bounce(NodeMask, NodeID); // Now invalidate our cache lines
       }
 
 // Process stage/nostage

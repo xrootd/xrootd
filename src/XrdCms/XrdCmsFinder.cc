@@ -507,9 +507,7 @@ int XrdCmsFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
 //
    if (!Manp->Send(xmsg, xnum) || (mp->Wait4Reply(Manp->waitTime())))
       {mp->Recycle();
-       Manp->whatsUp();
-       TRACE(Redirect, Resp.getErrUser() <<" got no response from "
-                       <<Manp->NPfx() <<" path=" <<path);
+       Manp->whatsUp(Resp.getErrUser(), path);
        Resp.setErrInfo(RepDelay, "");
        return RepDelay;
       }

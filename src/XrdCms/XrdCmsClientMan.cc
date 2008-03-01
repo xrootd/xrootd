@@ -72,8 +72,8 @@ XrdCmsClientMan::XrdCmsClientMan(char *host, int port, int cw, int nr, int rw)
    RecvCnt = 0;
    nrMax   = nr;
    NetBuff = BuffQ.Alloc();
-   repWVal = rw;
-   repWait = rw;
+   repWMax = rw;
+   repWait = 0;
    chkCount= chkVal;
    lastUpdt= time(0);
 
@@ -255,10 +255,16 @@ void *XrdCmsClientMan::Start()
 /*                               w h a t s U p                                */
 /******************************************************************************/
   
-void XrdCmsClientMan::whatsUp()
+void XrdCmsClientMan::whatsUp(const char *user, const char *path)
 {
+   EPNAME("whatsUp");
+
+// Do Some tracing here
+//
+   TRACE(Redirect, user <<" got no response from " <<HPfx  <<" path=" <<path);
 
 // The cmsd did not respond. Increase silent count and see if restart is needed
+// Otherwise, increase the wait interval just in case things are just slow.
 //
    myData.Lock();
    if (Active)
@@ -267,7 +273,7 @@ void XrdCmsClientMan::whatsUp()
           if (Silent > nrMax)
              {Active = 0; Silent = 0; Suspend = 1;
               if (Link) Link->Close(1);
-             }
+             } else if (Silent & 0x02 && repWait < repWMax) repWait++;
          } else Active = RecvCnt;
    myData.UnLock();
 }
@@ -286,7 +292,7 @@ int XrdCmsClientMan::Hookup()
    CmsLoginData Data;
    XrdLink *lp;
    char buff[256];
-   int rc, tries = 12, opts = 0, bigW = 0, reject = 2;
+   int rc, oldWait, tries = 12, opts = 0, reject = 2;
 
 // Turn off our debugging and version flags
 //
@@ -340,11 +346,17 @@ int XrdCmsClientMan::Hookup()
    Silent   = 0;
    RecvCnt  = 1;
    Suspend  = (Data.Mode & CmsLoginData::kYR_suspend);
-   if (Data.HoldTime > repWVal*1000) {repWait = repWVal; bigW = 1;}
-      else if (Data.HoldTime <= 0)    repWait = repWVal;
+
+// Calculate how long we will wait for replies before delaying the client.
+// This is computed dynamically based on the expected response window.
+//
+   oldWait = (repWait*20/100);
+   if (Data.HoldTime > repWMax*1000) repWait = repWMax;
+      else if (Data.HoldTime <= 0)   repWait = repWMax;
               else {repWait = Data.HoldTime*3;
                     repWait = (repWait/1000) + (repWait % 1000 ? 1 : 0);
-                    if (repWait > repWVal) repWait = repWVal;
+                    if (repWait > repWMax) repWait = repWMax;
+                       else if (repWait < oldWait) repWait = oldWait;
                    }
    myData.UnLock();
 
@@ -392,7 +404,7 @@ void XrdCmsClientMan::relayResp()
 // Remove the response object from our queue.
 //
    if (!(rp = RespQ.Rem(Response.streamid)))
-      {DEBUG(Host <<" Replied to non-existent request; id=" <<Response.streamid);
+      {DEBUG(Host <<" replied to non-existent request; id=" <<Response.streamid);
        return;
       }
 

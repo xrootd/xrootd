@@ -121,7 +121,7 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
       {if (!mask)
           {iP->Loc.deadline = DLTime + time(0);
            iP->Loc.hfvec = 0; iP->Loc.pfvec = 0; iP->Loc.qfvec = 0;
-           iP->Loc.sbvec = Bounced[Tock];
+           iP->Loc.TOD_B = BClock;
            iP->Key.TOD = Tock;
           } else {
            xmask = iP->Loc.pfvec;
@@ -143,7 +143,7 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
                  if ((iP = CTable.Add(Sel.Path)))
                     {iP->Loc.pfvec    = (Sel.Opts&XrdCmsSelect::Pending?mask:0);
                      iP->Loc.hfvec    = mask;
-                     iP->Loc.sbvec    = Bounced[Tock];
+                     iP->Loc.TOD_B    = BClock;
                      iP->Loc.qfvec    = 0;
                      iP->Loc.deadline = DLTime + time(0);
                      Sel.Path.Ref     = iP->Key.Ref;
@@ -223,11 +223,11 @@ int  XrdCmsCache::GetFile(XrdCmsSelect &Sel, SMask_t mask)
 // Look up the entry and return location information
 //
    if ((iP = CTable.Find(Sel.Path)))
-      {if ((bVec = (Bounced[iP->Key.TOD]) & mask & ~(iP->Loc.sbvec)))
+      {if ((bVec = (iP->Loc.TOD_B < BClock 
+                 ? getBVec(iP->Key.TOD, iP->Loc.TOD_B) & mask : 0)))
           {iP->Loc.hfvec &= ~bVec; 
            iP->Loc.pfvec &= ~bVec;
            iP->Loc.qfvec &= ~mask;
-           iP->Loc.sbvec  = Bounced[iP->Key.TOD];
            iP->Loc.deadline = DLTime + time(0); 
            retc = -1;
           } else if (iP->Loc.deadline)
@@ -253,6 +253,7 @@ int  XrdCmsCache::GetFile(XrdCmsSelect &Sel, SMask_t mask)
   
 int XrdCmsCache::UnkFile(XrdCmsSelect &Sel, SMask_t mask)
 {
+   EPNAME("UnkFile");
    XrdCmsKeyItem *iP;
 
 // Make sure we have the proper information. If so, lock the hash table
@@ -269,6 +270,7 @@ int XrdCmsCache::UnkFile(XrdCmsSelect &Sel, SMask_t mask)
 // Return result
 //
    myMutex.UnLock();
+   DEBUG("rc=" <<(iP ? 1 : 0) <<" path=" <<Sel.Path.Val);
    return (iP ? 1 : 0);
 }
   
@@ -313,15 +315,15 @@ int XrdCmsCache::WT4File(XrdCmsSelect &Sel, SMask_t mask)
 /* public                         B o u n c e                                 */
 /******************************************************************************/
 
-void XrdCmsCache::Bounce(SMask_t smask)
+void XrdCmsCache::Bounce(SMask_t smask, int SNum)
 {
-   unsigned int i;
 
-// Simply indicate that this server bounced for all time periods
+// Simply indicate that this server bounced
 //
    myMutex.Lock();
-   for (i = 0; i < XrdCmsKeyItem::TickRate; i++) Bounced[i] |= smask;
+   Bounced[SNum] = ++BClock;
    okVec |= smask;
+   if (SNum > vecHi) vecHi = SNum;
    myMutex.UnLock();
 }
 
@@ -329,10 +331,9 @@ void XrdCmsCache::Bounce(SMask_t smask)
 /* Public                           D r o p                                   */
 /******************************************************************************/
   
-void XrdCmsCache::Drop(SMask_t smask)
+void XrdCmsCache::Drop(SMask_t smask, int SNum, int xHi)
 {
    SMask_t nmask = ~smask;
-   unsigned int i;
 
 // Remove the node from the path list
 //
@@ -341,8 +342,9 @@ void XrdCmsCache::Drop(SMask_t smask)
 // Remove the node from the list of valid nodes
 //
    myMutex.Lock();
-   for (i = 0; i < XrdCmsKeyItem::TickRate; i++) Bounced[i] &= nmask;
+   Bounced[SNum] = 0;
    okVec &= nmask;
+   vecHi = xHi;
    myMutex.UnLock();
 }
 
@@ -392,8 +394,8 @@ void *XrdCmsCache::TickTock()
    do {XrdSysTimer::Snooze(Tick);
        myMutex.Lock();
        Tock = (Tock+1) & XrdCmsKeyItem::TickMask;
+       Bhistory[Tock].Start = Bhistory[Tock].End = 0;
        iP = XrdCmsKeyItem::Unload(Tock);
-       Bounced[Tock] = 0;
        myMutex.UnLock();
        if (iP) Sched->Schedule((XrdJob *)new XrdCmsCacheJob(iP));
       } while(1);
@@ -438,6 +440,35 @@ void XrdCmsCache::Dispatch(XrdCmsKeyItem *iP, short roQ, short rwQ)
    if (rwQ) {RRQ.Ready(rwQ, iP, iP->Loc.hfvec, iP->Loc.pfvec);
              iP->Loc.rwPend = 0;
             }
+}
+
+/******************************************************************************/
+/*                               g e t B V e c                                */
+/******************************************************************************/
+  
+SMask_t XrdCmsCache::getBVec(unsigned int TODa, unsigned int &TODb)
+{
+   EPNAME("getBVec");
+   SMask_t BVec = 0;
+   long long i;
+
+// See if we can use a previously calculated bVec
+//
+   if (Bhistory[TODa].End == BClock && Bhistory[TODa].Start <= TODb)
+      {Bhits++; TODb = BClock; return Bhistory[TODa].Vec;}
+
+// Calculate the new vector
+//
+   for (i = 0; i <= vecHi; i++)
+       if (TODb < Bounced[i]) BVec |= 1ULL << i;
+
+   Bhistory[TODa].Vec   = BVec;
+   Bhistory[TODa].Start = TODb;
+   Bhistory[TODa].End   = BClock;
+   TODb                 = BClock;
+   Bmiss++;
+   if (!(Bmiss & 0xff)) DEBUG("hits=" <<Bhits <<" miss=" <<Bmiss);
+   return BVec;
 }
 
 /******************************************************************************/

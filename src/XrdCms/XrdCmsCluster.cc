@@ -606,13 +606,19 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 {
    XrdCmsPInfo  pinfo;
    const char  *Amode;
-   int dowt = 0, retc, isRW;
+   int dowt = 0, retc, isRW, fRD, noSel = (Sel.Opts & XrdCmsSelect::Defer);
    SMask_t amask, smask, pmask;
 
 // Establish some local options
 //
-   if (Sel.Opts & XrdCmsSelect::Write) {isRW = 1; Amode = "write";}
-      else                             {isRW = 0; Amode = "read";}
+   if (Sel.Opts & XrdCmsSelect::Write) 
+      {isRW = 1; Amode = "write";
+       if (Config.RWDelay)
+          if (Sel.Opts & XrdCmsSelect::Create && Config.RWDelay < 2) fRD = 1;
+             else fRD = 0;
+          else fRD = 1;
+      }
+      else {isRW = 0; Amode = "read"; fRD = 1;}
 
 // Find out who serves this path
 //
@@ -632,21 +638,20 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
    if (!(Sel.Opts & XrdCmsSelect::Refresh)
    &&   (retc = Cache.GetFile(Sel, pinfo.rovec)))
       {if (isRW)
-          {if (Sel.Vec.hf)
-              {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,EEXIST);
-               if (Multiple(Sel.Vec.hf))             return SelFail(Sel,ENOTUNIQ);
-               if (!(pmask = Sel.Vec.hf & amask))    return SelFail(Sel,EROFS);
-               smask = 0;
-              } else if (Sel.Vec.bf) pmask =        smask = 0;
-                        else if (Sel.Opts & XrdCmsSelect::Trunc)
-                                    {pmask = amask; smask = 0;}
-                                else pmask = (     (smask = pinfo.ssvec & amask)
-                                           ? 0 : amask);
-          } else {pmask = Sel.Vec.hf  & amask;
-                  smask = pinfo.ssvec & amask;
-                  if (Sel.Opts & XrdCmsSelect::Online)
-                     {pmask &= ~Sel.Vec.pf; smask  =  0;}
-                 }
+          {     if (Sel.Vec.bf) pmask = smask = 0;
+           else if (Sel.Vec.hf)
+                   {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,eExists);
+                    if (Multiple(Sel.Vec.hf))             return SelFail(Sel,eDups);
+                    if (!(pmask = Sel.Vec.hf & amask))    return SelFail(Sel,eROfs);
+                    smask = 0;
+                   }
+           else if (Sel.Opts & XrdCmsSelect::Trunc) {pmask = amask; smask = 0;}
+           else    pmask = ((smask = pinfo.ssvec & amask) ? 0 : amask);
+          } else {
+           pmask = Sel.Vec.hf  & amask; 
+           if (Sel.Opts & XrdCmsSelect::Online) {pmask &= ~Sel.Vec.pf; smask=0;}
+              else smask = pinfo.ssvec & amask;
+          }
       } else {
        Cache.AddFile(Sel, 0); 
        Sel.Vec.bf = pinfo.rovec; 
@@ -658,20 +663,25 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // If we can query additional servers, do so now. The client will be placed
 // in the callback queue only if we have no possible selections
 //
-   if (Sel.Vec.bf != 0)
+   if (Sel.Vec.bf)
       {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
           QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
-       if (dowt) retc = Cache.WT4File(Sel, Sel.Vec.hf);
+       if (dowt) retc= (fRD ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
        amask = Cluster.Broadcast(Sel.Vec.bf, QReq.Hdr,
                                  (void *)Sel.Path.Val,Sel.Path.Len+1);
        if (amask) Cache.UnkFile(Sel, amask);
-       if (dowt) return retc;
-      } else if (dowt && retc < 0) return Cache.WT4File(Sel, Sel.Vec.hf);
+       if (dowt) return (noSel ? 0 : retc);
+      } else if (dowt && retc < 0 && !noSel)
+                return (fRD ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
+
+// If we need to defer selection, simply return as this is a mindless prepare
+//
+   if (noSel) return 0;
 
 // Select a node
 //
-   if ((!pmask && !smask) || (retc = SelNode(Sel, pmask, smask)) < 0)
+   if (dowt || (retc = SelNode(Sel, pmask, smask)) < 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                        "No servers are available to %s%s the file.",
                        Sel.Opts & XrdCmsSelect::Online ? "immediately " : "",
@@ -733,9 +743,9 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
   
 int XrdCmsCluster::SelFail(XrdCmsSelect &Sel, int rc)
 {
-    const char *etext = (rc == EEXIST
+    const char *etext = (rc == eExists
                       ? "Unable to create new file; file already exists."
-                      : (rc == EROFS)
+                      : (rc == eROfs)
                       ? "Unable to write file; r/o file already exists."
                       : "Unable to write file; multiple files exist.");
 
@@ -935,7 +945,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 
 // Invalidate any cached entries for this node
 //
-   if (nP->NodeMask) Cache.Drop(nP->NodeMask);
+   if (nP->NodeMask) Cache.Drop(nP->NodeMask, sent, STHi);
 
 // Document the drop
 //
@@ -1008,7 +1018,7 @@ void XrdCmsCluster::Record(char *path, const char *reason)
 int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 {
     EPNAME("SelNode")
-    const char *reason, *reason2;
+    const char *act, *reason, *reason2;
     int delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
     int needrw = (Sel.Opts & XrdCmsSelect::Write ? XrdCmsNode::allowsRW : 0);
     SMask_t mask;
@@ -1040,8 +1050,10 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
               {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
                Cache.AddFile(Sel, nP->NodeMask);
               }
-           if (Sel.iovN && Sel.iovP) nP->Send(Sel.iovP, Sel.iovN);
-                  TRACE(Stage, Sel.Resp.Data <<" staging " <<Sel.Path.Val);
+           if (Sel.iovN && Sel.iovP) 
+              {nP->Send(Sel.iovP, Sel.iovN); act = " staging ";}
+              else                           act = " assigned ";
+                  TRACE(Stage, Sel.Resp.Data <<act         <<Sel.Path.Val);
           } else {TRACE(Stage, Sel.Resp.Data <<" serving " <<Sel.Path.Val);}
        nP->UnLock();
        return 0;

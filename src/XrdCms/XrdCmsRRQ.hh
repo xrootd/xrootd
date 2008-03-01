@@ -17,7 +17,6 @@
 #include "XProtocol/XPtypes.hh"
 #include "XProtocol/YProtocol.hh"
 
-#include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsTypes.hh"
 #include "XrdOuc/XrdOucDLlist.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -120,7 +119,7 @@ static   const int                     iov_cnt = 2;
          XrdCms::CmsResponse           waitResp;
 union   {char                          hostbuff[288];
          char                          databuff[XrdCms::CmsLocateRequest::RILen
-                                               *XrdCmsCluster::STMax];
+                                               *STMax];
         };
          int                           Tslice;
          int                           Tdelay;
