@@ -28,6 +28,7 @@ SOURCES = \
 	XrdClientMessage.cc		\
 	XrdClientPhyConnection.cc	\
 	XrdClientReadCache.cc		\
+	XrdClientPrep.cc		\
 	XrdClientUrlInfo.cc		\
 	XrdClientUrlSet.cc		\
 	XrdClientThread.cc              \
@@ -73,6 +74,8 @@ OBJECTC = $(OBJDIR)/Xrdcp.o
 OBJECTD = $(OBJDIR)/TestXrdClient_read.o
 OBJECT_JNI = $(OBJDIR)/XrdClientAdminJNI.o
 
+OBJECT_PREPTOOL = $(OBJDIR)/XrdClientPrep.o
+
 OBJECT_STAGETOOL = $(OBJDIR)/XrdStageTool.o
 
 OBJECT_CLI = $(OBJDIR)/XrdCommandLine.o
@@ -99,6 +102,7 @@ TESTBIN = $(BINDIR)/TestXrdClient $(BINDIR)/TestXrdClient_read
 XRDCP = $(BINDIR)/xrdcp
 XRDCLI = $(BINDIR)/xrd
 XRDADMIN = $(BINDIR)/xrdadmin
+XRDPREPTOOL = $(BINDIR)/xprep
 XRDSTAGETOOL = $(BINDIR)/xrdstagetool
 
 PERLMOD =
@@ -108,7 +112,7 @@ endif
 
 TARGETS = $(LIBRARY) $(LIBSHARED) $(LIBAUX) \
 	  $(TESTBIN) $(XRDCP) $(XRDCLI) $(XRDADMIN) \
-	  $(LIBRARY_JNI) $(CLASS_JNI_TARGET) $(XRDSTAGETOOL)
+	  $(LIBRARY_JNI) $(CLASS_JNI_TARGET) $(XRDPREPTOOL) $(XRDSTAGETOOL)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -177,6 +181,10 @@ $(BINDIR)/TestXrdClient: $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 	@echo Creating executable $(XRDCP) 
 	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(BINLIBS) $(LIBM) $(LIBS) -o $(XRDCP)
+
+$(XRDPREPTOOL): $(OBJECTS) $(OBJECT_PREPTOOL) $(LIBDEPS)
+	@echo Creating executable $(XRDPREPTOOL)
+	$(ECHO)$(LD) $(LDOP) $(OBJECT_PREPTOOL) $(BINLIBS) $(LIBM) $(LIBS) -o $(XRDPREPTOOL)
 
 $(XRDSTAGETOOL): $(OBJECTS) $(OBJECT_STAGETOOL) $(LIBDEPS)
 	@echo Creating executable $(XRDSTAGETOOL) 
@@ -518,6 +526,12 @@ $(OBJDIR)/Xrdcp.o: Xrdcp.cc ../XrdClient/XrdClientUrlInfo.hh \
   ../XrdClient/XrdClientAbsMonIntf.hh
 	@echo Compiling Xrdcp.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/Xrdcp.o Xrdcp.cc
+
+$(OBJDIR)/XrdClientPrep.o: XrdClientPrep.cc ../XProtocol/XProtocol.hh \
+                           ../XrdClient/XrdClientAdmin.hh \
+                           ../XrdClient/XrdClientEnv.hh
+	@echo Compiling XrdClientPrep.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientPrep.o XrdClientPrep.cc
 
 $(OBJDIR)/XrdStageTool.o: XrdStageTool.cc ../XrdClient/XrdClientUrlInfo.hh \
    ../XrdSys/XrdSysPthread.hh \

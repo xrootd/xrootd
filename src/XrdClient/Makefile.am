@@ -19,7 +19,7 @@ xrootdclientincdir = $(includedir)/xrootd/XrdClient
 
 #############################################################################
 ## deliverables
-bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd xrdstagetool
+bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd xprep xrdstagetool
 
 ## old automake does not know += operator, so we have to do this
 ## very awkwardly using the EXTRA_ definition
@@ -107,11 +107,16 @@ TestXrdClient_read_SOURCES = TestXrdClient_read.cc
 TestXrdClient_read_LDADD =  $(clientlibs)
 
 
+xprep_SOURCES = XrdClientPrep.cc
+xprep_LDADD = $(clientlibs)
+
+$(OBJECT_XPREP) $(BINLIBS) $(LIBM) $(LIBS)
+
+
 xrdstagetool_SOURCES = XrdStageTool.cc
 xrdstagetool_LDADD = $(clientlibs)
 
 $(OBJECT_STAGETOOL) $(BINLIBS) $(LIBM) $(LIBS)
-
 
 if ENABLE_JAVAINT
 libXrdClientAdminJNI_la_SOURCES = XrdClientAdminJNI.cc
