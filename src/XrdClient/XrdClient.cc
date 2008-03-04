@@ -1396,9 +1396,18 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 	    
 	    readFileRequest.read.offset = c->offset;
 	    readFileRequest.read.rlen = c->len;
-	    readFileRequest.read.dlen = sizeof(read_args);
-	    ok = fConnModule->WriteToServer_Async(&readFileRequest, &args,
-						  0);
+
+	    if (args.pathid != 0) {
+	      readFileRequest.read.dlen = sizeof(read_args);
+	      ok = fConnModule->WriteToServer_Async(&readFileRequest, &args,
+						    0);
+	    }
+	    else {
+	      readFileRequest.read.dlen = 0;
+	      ok = fConnModule->WriteToServer_Async(&readFileRequest, 0,
+						    0);
+	    }
+
 
 	    if (ok != kOK) break;
 	}
