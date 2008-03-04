@@ -10,9 +10,11 @@
 
 //           $Id$
 
+#if !defined(SUNX86)
 #undef  _LARGEFILE_SOURCE
 #undef  _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 32
+#endif
 #define XRDPOSIXPRELOAD32
 
 #include <errno.h>
