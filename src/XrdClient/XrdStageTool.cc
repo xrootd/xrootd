@@ -161,7 +161,7 @@ int main(int argc, char**argv) {
    EnvPutString( NAME_REDIRDOMAINDENY_RE, "" );
    EnvPutString( NAME_CONNECTDOMAINDENY_RE, "" );
 
-   if (argc <= 2) {
+   if (argc <= 1) {
      PrintUsage();
      exit(0);
    }
