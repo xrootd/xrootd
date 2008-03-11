@@ -68,7 +68,8 @@ enum XRequestTypes {
    kXR_bind,    // 3024
    kXR_readv,   // 3025
    kXR_verifyw, // 3026
-   kXR_locate   // 3027
+   kXR_locate,  // 3027
+   kXR_truncate // 3028
 };
 
 // OPEN MODE FOR A REMOTE FILE
@@ -417,6 +418,14 @@ struct ClientSyncRequest {
    kXR_char reserved[12];
    kXR_int32  dlen;
 };
+struct ClientTruncateRequest {
+   kXR_char  streamid[2];
+   kXR_unt16 requestid;
+   kXR_char fhandle[4];
+   kXR_int64 offset;
+   kXR_char reserved[4];
+   kXR_int32  dlen;
+};
 struct ClientWriteRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
@@ -471,6 +480,7 @@ typedef union {
    struct ClientSetRequest set;
    struct ClientStatRequest stat;
    struct ClientSyncRequest sync;
+   struct ClientTruncateRequest truncate;
    struct ClientWriteRequest write;
 } ClientRequest;
 
