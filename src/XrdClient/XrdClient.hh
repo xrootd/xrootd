@@ -252,6 +252,8 @@ public:
 	if (ReadAheadSize >= 0) fReadAheadSize = ReadAheadSize;
     }
     
+    // Truncates the open file at a specified length
+    bool                        Truncate(long long len);
 
     // Write data to the file. If the multistream support is enabled, it will
     //  make sure about the arrival of the outstanding data if docheckppoint==true

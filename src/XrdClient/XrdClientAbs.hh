@@ -68,6 +68,9 @@ class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
       else return 0;
    }
 
+   // Asks for the value of some parameter
+   bool Query(kXR_int16 ReqCode, const kXR_char *Args, kXR_char *Resp, kXR_int32 MaxResplen);
+
 };
 
 #endif

@@ -190,6 +190,8 @@ void PrintHelp() {
       " cp <fileordirname> <fileordirname> [xrdcp parameters]" << endl <<
       "  copies a file using xrdcp. <fileordirname> are always relative to the" << endl <<
       "  current remote path. Also, they can be root:// URLs specifying any other host." << endl <<
+      " query <reqcode> <parms>" << endl <<
+      "  obtain server information" << endl <<
       endl <<
       "For further information, please read the xrootd protocol documentation." << endl <<
       endl;
@@ -1193,6 +1195,30 @@ int main(int argc, char**argv) {
 	 int rt = system(cmd.c_str());
 
 	 cout << "cp returned " << rt << endl;
+
+	 cout << endl;
+	 continue;
+      }
+
+      // -------------------------- query ---------------------------
+      if (!strcmp(cmd, "query")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *reqcode = tkzer.GetToken(0, 0);
+         const kXR_char *args = (const kXR_char *)tkzer.GetToken(0, 0);
+         kXR_char Resp[1024];
+
+	 genadmin->Query(atoi(reqcode), args, Resp, 1024);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+      
+	 cout << Resp << endl;
 
 	 cout << endl;
 	 continue;

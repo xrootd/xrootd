@@ -140,6 +140,8 @@ class XrdClientAdmin : public XrdClientAbs {
    bool                            Locate(kXR_char *path,
 					  XrdClientVector<XrdClientLocate_Info> &hosts);
 
+
+   
    UnsolRespProcResult             ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                                          XrdClientMessage *unsolmsg);
 

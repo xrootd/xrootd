@@ -1448,6 +1448,36 @@ bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasiz
 }
 
 //_____________________________________________________________________________
+// Truncates the open file at a specified length
+bool XrdClient::Truncate(long long len) {
+
+    if (!IsOpen_wait()) {
+	Info(XrdClientDebug::kUSERDEBUG, "Truncate", "File not opened.");
+	return true;
+    }
+
+    ClientRequest truncFileRequest;
+  
+    memset(&truncFileRequest, 0, sizeof(truncFileRequest) );
+
+    fConnModule->SetSID(truncFileRequest.header.streamid);
+
+    truncFileRequest.truncate.requestid = kXR_truncate;
+    memcpy(truncFileRequest.truncate.fhandle, fHandle, sizeof(fHandle) );
+    truncFileRequest.truncate.offset = len;
+
+    bool ok = fConnModule->SendGenCommand(&truncFileRequest,
+                                          0,
+                                          0, 0 , FALSE, (char *)"Truncate");
+
+    if (ok && fStatInfo.stated) fStatInfo.size = len;
+
+    return ok;
+}
+
+
+
+//_____________________________________________________________________________
 // Sleeps on a condvar which is signalled when a new async block arrives
 void XrdClient::WaitForNewAsyncData() {
     XrdSysCondVarHelper cndh(fReadWaitData);

@@ -120,3 +120,52 @@ void XrdClientAbs::SetParm(const char *parm, double val)
    //EnvPutString(parm, val);
 }
 
+
+
+//_____________________________________________________________________________
+// Returns query information
+bool XrdClientAbs::Query(kXR_int16 ReqCode, const kXR_char *Args, kXR_char *Resp, kXR_int32 MaxResplen) {
+   if (!fConnModule) return false;
+   if (!fConnModule->IsConnected()) return false;
+   if (!Resp) return false;
+
+   ClientRequest qryRequest;
+
+   memset( &qryRequest, 0, sizeof(qryRequest) );
+
+   fConnModule->SetSID(qryRequest.header.streamid);
+
+   qryRequest.query.requestid = kXR_query;
+   qryRequest.query.infotype = ReqCode;
+
+   if (Args)
+      qryRequest.query.dlen = strlen((char *)Args);
+
+   kXR_char *rsp = 0;
+   bool ret = fConnModule->SendGenCommand(&qryRequest, (const char*)Args,
+					  (void **)&rsp, 0, true,
+					  (char *)"Query");
+  
+   if (ret) {
+
+      if (Args) {
+         Info(XrdClientDebug::kHIDEBUG,
+              "XrdClientAdmin::Query",
+              "Query(" << ReqCode << ", '" << Args << "') returned '" << rsp << "'" );
+      }
+      else {
+         Info(XrdClientDebug::kHIDEBUG,
+              "XrdClientAdmin::Query",
+              "Query(" << ReqCode << ", NULL') returned '" << rsp << "'" );
+      }
+      
+      int l = xrdmin(MaxResplen, LastServerResp()->dlen);
+      strncpy((char *)Resp, (char *)rsp, l);
+      if (l >= 0) Resp[l-1] = '\0';
+      free(rsp);
+      rsp = 0;
+   }
+
+   return ret;
+}
+
