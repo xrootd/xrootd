@@ -22,6 +22,27 @@ const char *XrdOucStringCVSID = "$Id$";
 
 #define kMAXINT64LEN   25
 
+//
+// Macro for 'form'-like operations
+#define XOSINTFORM(f,b) \
+   int buf_len = 256; \
+   va_list ap; \
+   va_start(ap, f); \
+again: \
+   b = (char *)realloc(b, buf_len); \
+   int n = vsnprintf(b, buf_len, f, ap); \
+   if (n == -1 || n >= buf_len) { \
+      if (n == -1) \
+         buf_len *= 2; \
+      else \
+         buf_len = n+1; \
+      va_end(ap); \
+      va_start(ap, f); \
+      goto again; \
+   } \
+   va_end(ap);
+// End-Of-Macro for 'form'-like operations
+
 // Default blksize for (re-)allocations; active if > 0.
 // Use XrdOucString::setblksize() to activate
 int XrdOucString::blksize = -1;
@@ -162,6 +183,54 @@ XrdOucString::~XrdOucString()
    // Destructor
 
    if (str) free(str);
+}
+
+//___________________________________________________________________________
+void XrdOucString::setbuffer(char *buf)
+{
+   // Adopt buffer 'buf'
+
+   if (str) free(str);
+   init();
+   if (buf) {
+      str = buf;
+      len = strlen(buf);
+      siz = len + 1;
+      str = (char *)realloc(str, siz);
+   }
+}
+
+//______________________________________________________________________________
+int XrdOucString::form(const char *fmt, ...)
+{
+   // Recreate the string according to 'fmt' and the arguments
+   // Return -1 in case of failure, or the new length.
+
+   // Decode the arguments
+   XOSINTFORM(fmt, str);
+
+   // Re-adjust the length
+   len = strlen(str);
+   str = bufalloc(len+1);
+
+   // Return the new length (in n)
+   return n;
+}
+
+//______________________________________________________________________________
+int XrdOucString::form(XrdOucString &str, const char *fmt, ...)
+{
+   // Format a string in 'str' according to 'fmt' and the arguments
+
+   // Decode the arguments
+   char *buf = 0;
+   XOSINTFORM(fmt, buf);
+
+   // Adopt the new formatted buffer in the string
+   str.setbuffer(buf);
+
+   // Done
+   return n;
 }
 
 //______________________________________________________________________________
