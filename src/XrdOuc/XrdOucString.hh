@@ -225,6 +225,7 @@
 /******************************************************************************/
 #include <iostream>
 #include <stdarg.h>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -339,6 +340,10 @@ public:
    int operator!=(const char c) { return !(*this == c); }
    int operator!=(const char *s) { return !(*this == s); }
    int operator!=(const XrdOucString s) { return !(*this == s); }
+
+   // Miscellanea
+   bool isdigit(int from = 0, int to = -1);
+   long atoi(int from = 0, int to = -1);
 
    // Static methods to change / monitor the default blksize
    static int getblksize();

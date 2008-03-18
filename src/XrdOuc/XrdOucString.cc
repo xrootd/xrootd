@@ -9,7 +9,6 @@
 const char *XrdOucStringCVSID = "$Id$";
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <XrdOuc/XrdOucString.hh>
@@ -1239,4 +1238,46 @@ int XrdOucString::tokenize(XrdOucString &tok, int from, char del)
 
    // return
    return next;
+}
+
+//______________________________________________________________________________
+bool XrdOucString::isdigit(int from, int to)
+{
+   // Return true is all chars between from and to (included) are digits
+
+   // Make sure inputs make sense
+   if (len <= 0) return 0;
+
+   // Adjust range
+   if (from < 0 || from > (len-1)) from = 0;
+   if (to < from) to = len - 1;
+
+   char *c = str + from;
+   while (c <= str + to) {
+      if (*c < 48 || *c > 57) return 0;
+      c++;
+   }
+
+   return 1;
+}
+
+//______________________________________________________________________________
+long XrdOucString::atoi(int from, int to)
+{
+   // Return the long integer corresponding to the number between from and to
+   // (included), assuming they are digits (check with 'isdigit()').
+   // Return LONG_MAX in case they are not digits
+
+   if (!isdigit(from, to)) return LONG_MAX;
+
+   // Adjust range
+   if (from < 0 || from > (len-1)) from = 0;
+   if (to < from) to = len - 1;
+
+   // Save end char
+   char e = str[to+1];
+   str[to+1] = '\0';
+   long out = strtol(&str[from], 0, 10);
+   str[to+1] = e;
+   return out;
 }
