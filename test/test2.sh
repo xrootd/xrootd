@@ -120,7 +120,7 @@ mkdir -p $workdir
 mkdir -p $exportdir
 cp $testdir/${testname}.sh $exportdir/testfile_r
 
-ofslib=`get_lib_location $top_srcdir/src/XrdOfs/libXrdOfs.la`
+ofslib=`get_lib_location $top_builddir/src/XrdOfs/libXrdOfs.la`
 status=$?
 if test 0"$status" -ne 0; then
     echo "Terminating..." >&2

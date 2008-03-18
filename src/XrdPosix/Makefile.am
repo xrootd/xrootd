@@ -31,6 +31,7 @@ libXrdPosix_la_LIBADD = ../XrdClient/libXrdClient.la \
 
 libXrdPosixPreload_la_SOURCES = \
          XrdPosixPreload.cc  \
+         XrdPosixPreload32.cc  \
          XrdPosixLinkage.cc \
          XrdPosixXrootd.cc \
          XrdPosix.cc

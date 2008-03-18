@@ -16,6 +16,10 @@
 ## Checked in by $Author$
 #######################################################################
 
+# Note: All macros with the prefix ACX_ are custom macros. Their usage
+# information and the source code can be found in acinclude.m4
+
+
 AC_PREREQ(2.57)
 AC_INIT(xrootd,Unknown,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
@@ -45,10 +49,10 @@ CXX_PREFERENCE="g++ c++"
 
 # Note:
 # adding wildly to CFLAGS, CXXFLAGS, LDFLAGS, etc is not good
-# style, because the user should have the possibility to use
-# the provided --with-FEATURE-DIR options to specify locations.
-# The separately specified LDFLAGS (like -Lpath) will be put
-# in front of the usual options and override them!
+# style. The user should have the possibility to use
+# the more specific --with-FEATURE-DIR options to specify locations.
+# Any explicitely specified LDFLAGS (e.g. LDFLAGS="-Lpath") will be put
+# in front of other options and therefore may override them!
 
 ###############################################################
 
@@ -156,9 +160,11 @@ for name in $extra_lib_path_default ; do
    fi
 done
 
-# this extension allows the definition of a base dir where dependencies are found
+
+# this extension allows the definition of a base dir for finding dependencies
 # in basedir/lib, basedir/etc, ...
-# easier then specifying multiple options or using CPPFLAGS/LDFLAGS
+# This is easier for the user than forcing him to specify multiple
+# --with-FEATURE-DIR options or having him set CPPFLAGS/LDFLAGS
 ACX_WITH_BASEDIR
 
 extra_inc_path="$acx_base_incdir $extra_inc_path"
@@ -233,8 +239,20 @@ if test x"$GCC" = xyes ; then
    AC_GNU_SOURCE
 fi
 
-# invoke large file support (Defines _FILE_OFFSET_BITS and _LARGE_FILES if necessary)
-AC_SYS_LARGEFILE
+# Need to find a cleaner solution for the large file support settings
+# The standard autoconf macro AC_SYS_LARGEFILE is not enough for xrootd which
+# explicitely tests for a number of compilation flags in XrdPosixExtern.hh
+# For now, we set the flags explicitely based on the architecture
+case "$target_os" in
+   solaris*)
+     AC_SYS_LARGEFILE
+     ;;
+   *)
+     AC_DEFINE(_LARGEFILE_SOURCE)
+     AC_DEFINE(_LARGEFILE64_SOURCE)
+     AC_DEFINE(_FILE_OFFSET_BITS,64)
+     ;;
+esac
 
 AM_INIT_AUTOMAKE(1.6 subdir-objects)
 

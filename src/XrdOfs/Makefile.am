@@ -17,11 +17,11 @@ xrootdofsincdir = $(includedir)/xrootd/XrdOfs
 xrootdofsinc_HEADERS = \
     XrdOfs.hh \
     XrdOfsEvr.hh  XrdOfsEvs.hh  XrdOfsHandle.hh \
-    XrdOfsSecurity.hh  XrdOfsTrace.hh \
-    XrdOfsConfig.cc XrdOfsEvs.cc XrdOfsEvr.cc XrdOfsHandle.cc XrdOfs.cc \
-    XrdOfsConfig.hh
-# Note: the source files above also get installed, so that third party
-# derived objects of the Ofs can be built
+    XrdOfsSecurity.hh  XrdOfsTrace.hh  XrdOfsConfig.hh \
+    XrdOfsConfig.cc XrdOfsEvs.cc XrdOfsEvr.cc XrdOfsHandle.cc XrdOfs.cc 
+# Note: the source files above also get installed in the headers directory,
+# so that derived objects of the Ofs can be built. This was originally
+# needed for the ALICE tokenauthz extension.
 
 libXrdOfs_la_SOURCES = \
         XrdOfs.cc XrdOfs.hh XrdOfsSecurity.hh XrdOfsTrace.hh XrdOfsFS.cc \
