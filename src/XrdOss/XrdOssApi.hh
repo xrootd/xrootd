@@ -17,7 +17,6 @@
 #include <iostream.h>
 
 #include "XrdOss/XrdOss.hh"
-#include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -33,7 +32,7 @@
 class XrdOssDir : public XrdOssDF
 {
 public:
-int     Close();
+int     Close(long long *retsz=0);
 int     Opendir(const char *);
 int     Readdir(char *buff, int blen);
 
@@ -56,6 +55,7 @@ unsigned long long  pflags;
 
 class oocx_CXFile;
 class XrdSfsAio;
+class XrdOssCache_FS;
 class XrdOssMioFile;
   
 class XrdOssFile : public XrdOssDF
@@ -65,7 +65,7 @@ public:
 // The following two are virtual functions to allow for upcasting derivations
 // of this implementation
 //
-virtual int     Close();
+virtual int     Close(long long *retsz=0);
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &);
 
 int     Fstat(struct stat *);
@@ -92,13 +92,15 @@ virtual ~XrdOssFile() {if (fd >= 0) Close();}
 private:
 int     Open_ufs(const char *, int, int, unsigned long long);
 
-static int   AioFailure;
-oocx_CXFile *cxobj;
-XrdOssMioFile *mmFile;
-const char  *tident;
-int          rawio;
-int          cxpgsz;
-char         cxid[4];
+static int      AioFailure;
+oocx_CXFile    *cxobj;
+XrdOssCache_FS *cacheP;
+XrdOssMioFile  *mmFile;
+const char     *tident;
+long long       FSize;
+int             rawio;
+int             cxpgsz;
+char            cxid[4];
 };
 
 /******************************************************************************/
@@ -108,6 +110,8 @@ char         cxid[4];
 class XrdOucMsubs;
 class XrdOucName2Name;
 class XrdOucProg;
+class XrdOssSpace;
+class XrdOssStage_Req;
 
 class XrdOssSys : public XrdOss
 {
@@ -138,6 +142,8 @@ int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t);
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int resonly=0);
 int       StatFS(const char *path, char *buff, int &blen);
+int       StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);
+int       StatXA(const char *path, char *buff, int &blen);
 int       Unlink(const char *);
 
 static int   AioInit();
@@ -154,6 +160,11 @@ int       MSS_Remdir(const char *, const char *) {return -ENOTSUP;}
 int       MSS_Rename(const char *, const char *);
 int       MSS_Stat(const char *, struct stat *);
 int       MSS_Unlink(const char *);
+
+void            Adjust(XrdOssCache_FS *fsp, off_t size);
+XrdOssCache_FS *Find_Cache(const char *Path);
+XrdOssSpace    *Quotas;
+XrdOssSpace    *Space;
 
 static const int MaxArgs = 15;
 
@@ -221,58 +232,51 @@ int       badreqs;           //    Total unsuccessful requests
 friend class XrdOssCache_FSData;
 friend class XrdOssCache_FS;
 friend class XrdOssCache_Group;
-friend class XrdOssCache_Lock;
 
+XrdSysMutex     CacheContext; // Protects cache related objects
 long long           fsFree;   // Maximum contiguous free space
 long long           fsSize;   // Size of partition with fsFree
 XrdOssCache_FSData *fsdata;   // -> Filesystem data
 XrdOssCache_FS     *fsfirst;  // -> First  filesystem
 XrdOssCache_FS     *fslast;   // -> Last   filesystem
 XrdOssCache_FS     *fscurr;   // -> Curent filesystem (global allocation only)
-XrdOssCache_Group  *fsgroups; // -> Cache group list
 
-XrdOssCache_FSData *xsdata;   // -> Filesystem data   (config time only)
-XrdOssCache_FS     *xsfirst;  // -> First  filesystem (config time only)
-XrdOssCache_FS     *xslast;   // -> Last   filesystem (config time only)
-XrdOssCache_FS     *xscurr;   // -> Curent filesystem (config time only)
-XrdOssCache_Group  *xsgroups; // -> Cache group list  (config time only)
-
-XrdOssCache_Req StageQ;       //    Queue of staging requests
 XrdOucProg     *StageProg;    //    Command or manager than handles staging
 XrdOucProg     *MSSgwProg;    //    Command for MSS meta-data operations
 
-XrdSysMutex     CacheContext;
-XrdSysSemaphore ReadyRequest;
+char          **sfx;          // -> Valid filename suffixes
+char           *UDir;         // -> Usage logdir
+char           *QFile;        // -> Quota file
 
-char **sfx;                  // -> Valid filename suffixes
-
+void               Adjust(dev_t devid, off_t size);
+void               Adjust(const char *Path, off_t size);
 int                Alloc_Cache(const char *, int, mode_t, XrdOucEnv &);
 int                Alloc_Local(const char *, int, mode_t, XrdOucEnv &);
 int                BreakLink(const char *local_path, struct stat &statbuff);
 int                CalcTime();
-int                CalcTime(XrdOssCache_Req *req);
+int                CalcTime(XrdOssStage_Req *req);
 void               doScrub();
-int                Find(XrdOssCache_Req *req, void *carg);
-int                GetFile(XrdOssCache_Req *req);
+int                Find(XrdOssStage_Req *req, void *carg);
+int                getCname(const char *path, struct stat *sbuff, char *cgbuff);
+int                GetFile(XrdOssStage_Req *req);
 time_t             HasFile(const char *fn, const char *sfx);
-void               List_Cache(char *lname, int self, XrdSysError &Eroute);
-void               ReCache();
+void               List_Cache(const char *lname, XrdSysError &Eroute);
+int                ReCache(const char *UDir, const char *Qfile);
 int                Stage_QT(const char *, const char *, XrdOucEnv &, int, mode_t);
 int                Stage_RT(const char *, const char *, XrdOucEnv &);
 
 // Configuration related methods
 //
-off_t  Adjust(dev_t devid, off_t size);
 int    chkDep(const char *var);
 void   ConfigMio(XrdSysError &Eroute);
 int    ConfigN2N(XrdSysError &Eroute);
 int    ConfigProc(XrdSysError &Eroute);
 int    ConfigStage(XrdSysError &Eroute);
 int    ConfigXeq(char *, XrdOucStream &, XrdSysError &);
-void   List_Path(const char *, char *, unsigned long long, XrdSysError &);
+void   List_Path(const char *, const char *, unsigned long long, XrdSysError &);
 int    xalloc(XrdOucStream &Config, XrdSysError &Eroute);
 int    xcache(XrdOucStream &Config, XrdSysError &Eroute);
-int    xcacheBuild(char *grp, char *fn, XrdSysError &Eroute);
+int    xcacheBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute);
 int    xcompdct(XrdOucStream &Config, XrdSysError &Eroute);
 int    xcachescan(XrdOucStream &Config, XrdSysError &Eroute);
 int    xdefault(XrdOucStream &Config, XrdSysError &Eroute);
@@ -282,6 +286,7 @@ int    xmemf(XrdOucStream &Config, XrdSysError &Eroute);
 int    xnml(XrdOucStream &Config, XrdSysError &Eroute);
 int    xpath(XrdOucStream &Config, XrdSysError &Eroute);
 int    xstg(XrdOucStream &Config, XrdSysError &Eroute);
+int    xusage(XrdOucStream &Config, XrdSysError &Eroute);
 int    xtrace(XrdOucStream &Config, XrdSysError &Eroute);
 int    xxfr(XrdOucStream &Config, XrdSysError &Eroute);
 
@@ -294,19 +299,13 @@ int    MSS_Xeq(XrdOucStream **xfd, int okerr,
 // Other methods
 //
 int    RenameLink(char *old_path, char *new_path);
+int    RenameLink2(int Llen, char *oLnk, char *old_path,
+                             char *nLnk, char *new_path);
 };
 
 /******************************************************************************/
 /*                  A P I   S p e c i f i c   D e f i n e s                   */
 /******************************************************************************/
-  
-// The following defines are used to translate symbolicly linked paths
-//
-#define XrdOssTPC '%'
-#define XrdOssTAMP(dst, src) \
-   while(*src) {*dst = (*src == '/' ? XrdOssTPC : *src); src++; dst++;}; *dst='\0'
-#define XrdOssTRNP(src) \
-   while(*src) {if (*src == '/') *src = XrdOssTPC; src++;}
 
 // The Check_RO macro is valid only for XrdOssSys objects.
 //

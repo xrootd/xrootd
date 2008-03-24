@@ -139,7 +139,7 @@ int XrdOssSys::Init(XrdSysLogger *lp, const char *configfn)
 // Do the herald thing
 //
    OssEroute.logger(lp);
-   OssEroute.Say("Copr.  2007, Stanford University, oss Version " XrdVSTRING);
+   OssEroute.Say("Copr.  2008, Stanford University, oss Version " XrdVSTRING);
 
 // Initialize the subsystems
 //
@@ -295,119 +295,6 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
    if (mkdir(local_path, mode) && errno != EEXIST) return -errno;
    return XrdOssOK;
 }
-
-/******************************************************************************/
-/*                                 s t a t                                    */
-/******************************************************************************/
-
-/*
-  Function: Determine if file 'path' actually exists.
-
-  Input:    path        - Is the fully qualified name of the file to be tested.
-            buff        - pointer to a 'stat' structure to hold the attributes
-                          of the file.
-
-  Output:   Returns XrdOssOK upon success and -errno upon failure.
-*/
-
-int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
-{
-    const int ro_Mode = ~(S_IWUSR | S_IWGRP | S_IWOTH);
-    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *remote_path;
-    unsigned long long popts;
-    int retc;
-
-// Construct the processing options for this path
-//
-   popts = PathOpts(path);
-
-// Generate local path
-//
-   if (lcl_N2N)
-      if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path)))) 
-         return retc;
-         else local_path = actual_path;
-      else local_path = (char *)path;
-
-// Stat the file in the local filesystem first.
-//
-   if (!stat(local_path, buff)) 
-      {if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
-       return XrdOssOK;
-      }
-   if (!IsRemote(path)) return -errno;
-   if (resonly) return -ENOMSG;
-
-// Generate remote path
-//
-   if (rmt_N2N)
-      if ((retc = rmt_N2N->lfn2pfn(path, actual_path, sizeof(actual_path))))
-         return retc;
-         else remote_path = actual_path;
-      else remote_path = (char *)path;
-
-// Now stat the file in the remote system (it doesn't exist locally)
-//
-   if ((retc = MSS_Stat(remote_path, buff))) return retc;
-   if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
-   buff->st_mode |= S_IFBLK;
-   return XrdOssOK;
-}
-
-/******************************************************************************/
-/*                                S t a t F S                                 */
-/******************************************************************************/
-
-/*
-  Function: Return free space information based on a path
-
-  Input:    path        - Is the fully qualified name of the file to be tested.
-            buff        - pointer to a buffer to hold the information.
-            blen        - the length of the buffer
-
-  Output:   Returns XrdOssOK upon success and -errno upon failure.
-*/
-
-int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
-{
-   int Opt, sVal, wVal, Util;
-   long long fSpace, fSize;
-
-// Preset the staging and write values
-//
-   Opt = RPList.Find(path);
-   sVal = (Opt & XRDEXP_REMOTE ? 1 : 0);
-   wVal = (Opt & XRDEXP_NOTRW  ? 0 : 1);
-
-// For in-place paths we just get the free space in that partition, otherwise
-// get the maximum available in any partition.
-//
-   if (wVal || sVal)
-      if ((Opt & XRDEXP_INPLACE) || !fsgroups)
-         {char lcl_path[XrdOssMAX_PATH_LEN+1];
-          if (lcl_N2N)
-             if (lcl_N2N->lfn2pfn(path, lcl_path, sizeof(lcl_path)))
-                fSpace = -1;
-                else fSpace = XrdOssCache_FS::freeSpace(fSize, lcl_path);
-             else    fSpace = XrdOssCache_FS::freeSpace(fSize, path);
-         } else     {fSpace = XrdOssCache_FS::freeSpace(fSize);}
-      else          {fSpace = 0;      fSize = 0;}
-
-// Size the value to fit in an int
-//
-   if (fSpace <= 0) {fSize = fSpace = 0; Util = 0;}
-      else {Util = (fSize ? (fSize - fSpace)*100LL/fSize : 0);
-            fSpace = fSpace >> 20LL;
-            if ((fSpace >> 31LL)) fSpace = 0x7fffffff;
-           }
-
-// Return the result
-//
-   blen = snprintf(buff, blen, "%d %lld %d %d %lld %d",
-                               wVal, (wVal ? fSpace : 0LL), (wVal ? Util : 0),
-                               sVal, (sVal ? fSpace : 0LL), (sVal ? Util : 0));
-   return XrdOssOK;
-}
   
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
@@ -554,7 +441,7 @@ int XrdOssDir::Readdir(char *buff, int blen)
 
   Output:   Returns XrdOssOK upon success and (errno) upon failure.
 */
-int XrdOssDir::Close(void)
+int XrdOssDir::Close(long long *retsz)
 {
     int retc;
 
@@ -638,6 +525,9 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
       {do {retc = fstat(fd, &buf);} while(retc && errno == EINTR);
        if (!retc && !(buf.st_mode & S_IFREG))
           {close(fd); fd = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
+       if (Oflag & (O_WRONLY | O_RDWR))
+          {FSize = buf.st_size; cacheP = XrdOssSS->Find_Cache(local_path);}
+          else {FSize = -1; cacheP = 0;}
       } else if (fd == -EEXIST)
                 {do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
                  if (!retc && (buf.st_mode & S_IFDIR)) fd = -EISDIR;
@@ -670,15 +560,23 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
   Output:   Returns XrdOssOK upon success and -1 upon failure.
 */
-int XrdOssFile::Close(void) 
+int XrdOssFile::Close(long long *retsz)
 {
     if (fd < 0) return -XRDOSS_E8004;
+    if (retsz || cacheP)
+       {struct stat buf;
+        int retc;
+        do {retc = fstat(fd, &buf);} while(retc && errno == EINTR);
+        if (cacheP && FSize != buf.st_size)
+           XrdOssSS->Adjust(cacheP, buf.st_size - FSize);
+        if (retsz) *retsz = buf.st_size;
+       }
     if (close(fd)) return -errno;
     if (mmFile) {XrdOssMio::Recycle(mmFile); mmFile = 0;}
 #ifdef XRDOSSCX
     if (cxobj) {delete cxobj; cxobj = 0;}
 #endif
-    fd = -1;
+    fd = -1; FSize = -1; cacheP = 0;
     return XrdOssOK;
 }
 

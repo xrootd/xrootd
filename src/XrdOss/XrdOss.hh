@@ -57,7 +57,7 @@ virtual ssize_t Write(const void *, off_t, size_t)           {return (ssize_t)-E
 virtual int     Write(XrdSfsAio *aiop)                       {return (ssize_t)-EISDIR;}
 
                 // Methods common to both
-virtual int     Close()=0;
+virtual int     Close(long long *retsz=0)=0;
 inline  int     Handle() {return fd;}
 
                 XrdOssDF() {fd = -1;}
@@ -91,8 +91,12 @@ virtual int     Mkdir(const char *, mode_t mode, int mkpath=0)=0;
 virtual int     Remdir(const char *)=0;
 virtual int     Rename(const char *, const char *)=0;
 virtual int     Stat(const char *, struct stat *, int resonly=0)=0;
-virtual int     StatFS(const char *path, char *buff, int &blen)
-                      {*buff = '\0'; blen = 0; return 0;}
+virtual int     StatFS(const char *path, char *buff, int &blen) 
+                      {return -ENOTSUP;}
+virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
+                      {return -ENOTSUP;}
+virtual int     StatXA(const char *path, char *buff, int &blen)
+                      {return -ENOTSUP;}
 virtual int     Unlink(const char *)=0;
 
                 XrdOss() {}

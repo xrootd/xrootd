@@ -24,6 +24,8 @@ const char *XrdOssUnlinkCVSID = "$Id$";
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"
+#include "XrdOss/XrdOssOpaque.hh"
+#include "XrdOss/XrdOssPath.hh"
 #include "XrdOss/XrdOssTrace.hh"
 
 /******************************************************************************/
@@ -91,7 +93,7 @@ int XrdOssSys::Unlink(const char *path)
    if (!retc)
       if (unlink(local_path)) retc = -errno;
          else {i = strlen(local_path); fnp = &local_path[i];
-               Adjust(statbuff.st_dev, statbuff.st_size);
+               Adjust(statbuff.st_dev, -statbuff.st_size);
                if (ismig) for (i = 0; sfx[i]; i++)
                   {strcpy(fnp, sfx[i]);
                    if (unlink(local_path))
@@ -126,7 +128,7 @@ int XrdOssSys::Unlink(const char *path)
 int XrdOssSys::BreakLink(const char *local_path, struct stat &statbuff)
 {
     EPNAME("BreakLink")
-    char lnkbuff[PATH_MAX+1];
+    char *lP, lnkbuff[PATH_MAX+64];
     int lnklen, retc = 0;
 
 // Read the contents of the link
@@ -137,20 +139,25 @@ int XrdOssSys::BreakLink(const char *local_path, struct stat &statbuff)
 // Return the actual stat information on the target (which might not exist
 //
    lnkbuff[lnklen] = '\0';
-   if (stat(lnkbuff, &statbuff)) 
-      {statbuff.st_size = 0;
-       if (errno == ENOENT) return 0;
-      }
+   if (stat(lnkbuff, &statbuff)) statbuff.st_size = 0;
+      else if (unlink(lnkbuff) && errno != ENOENT)
+              {retc = -errno;
+               OssEroute.Emsg("BreakLink",retc,"unlink symlink target",lnkbuff);
+              } else {DEBUG("broke link " <<local_path <<"->" <<lnkbuff);}
 
-// Now unlink the target
+// If this is a new-style cache, then we must also remove the pfn file.
+// In any case, return the appropriate cache group.
 //
-   if (unlink(lnkbuff) && errno != ENOENT)
-      {retc = -errno;
-       OssEroute.Emsg("XrdOssBreakLink",retc,"unlink symlink target",lnkbuff);
+   lP = lnkbuff+lnklen-1;
+   if (*lP == XrdOssPath::xChar)
+      {strcpy(lP+1, ".pfn"); unlink(lnkbuff);
+       if (statbuff.st_size)
+          {XrdOssPath::Trim2Base(lP);
+           Adjust(lnkbuff, -statbuff.st_size);
+          }
       }
 
 // All done
 //
-   DEBUG("broke link " <<local_path <<"->" <<lnkbuff);
    return retc;
 }
