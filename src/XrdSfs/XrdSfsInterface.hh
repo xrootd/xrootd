@@ -52,6 +52,8 @@
 
 #define SFS_FSCTL_LOCATE  1 // Locate a file
 #define SFS_FSCTL_STATFS  2 // Return FS data
+#define SFS_FSCTL_STATLS  3 // Return LS data
+#define SFS_FSCTL_STATXA  4 // Return XA data
 
 // Return Values for Integer Returning XrdSfs Interface
 //
