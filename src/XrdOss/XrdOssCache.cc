@@ -358,9 +358,10 @@ void *XrdOssSys::CacheScan(void *carg)
                  fsdp = fsdp->next;
                 }
 
-         // Unlock the cache and go wait for the next interval
+         // Unlock the cache and if we have quotas check them out
          //
             XrdOssSS->CacheContext.UnLock();
+            if (Quotas) Quotas->Quotas();
          }
 
 // Keep the compiler happy
