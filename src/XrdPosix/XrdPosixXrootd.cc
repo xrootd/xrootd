@@ -533,8 +533,65 @@ int     XrdPosixXrootd::Fsync(int fildes)
    fp->UnLock();
    return 0;
 }
+  
+/******************************************************************************/
+/*                             F t r u n c a t e                              */
+/******************************************************************************/
+  
+int     XrdPosixXrootd::Ftruncate(int fildes, off_t offset)
+{
+   XrdPosixFile *fp;
 
+// Find the file object
+//
+   if (!(fp = findFP(fildes))) return -1;
 
+// Do the sync
+//
+   if (!fp->XClient->Truncate(offset)) return Fault(fp);
+   fp->UnLock();
+   return 0;
+}
+
+/******************************************************************************/
+/*                              G e t x a t t r                               */
+/******************************************************************************/
+
+#ifndef ENOATTR
+#define ENOATTR ENOTSUP
+#endif
+
+long long XrdPosixXrootd::Getxattr (const char *path, const char *name, 
+                                    void *value, unsigned long long size)
+{
+  XrdPosixAdminNew admin(path);
+  kXR_int16 ReqCode = 0;
+  kXR_int32 vsize;
+
+// Check if user just wants the maximum length needed
+//
+   if (size == 0) return 1024;
+   vsize = static_cast<kXR_int32>(size);
+
+// Check if we support the query
+//
+   if (name)
+      {     if (!strcmp(name, "xroot.space")) ReqCode = kXR_Qspace;
+       else if (!strcmp(name, "xroot.xattr")) ReqCode = kXR_Qxattr;
+       else {errno = ENOATTR; return -1;}
+      }else {errno = EINVAL;  return -1;}
+
+  if (admin.isOK())
+     {XrdOucString str(path);
+      XrdClientUrlSet url(str);
+      if (admin.Admin.Query(ReqCode, (kXR_char *)url.GetFile().c_str(),
+                                     (kXR_char *)value, vsize))
+         return strlen((char *)value);
+      return admin.Fault();
+     }
+  return admin.Result();
+}
+  
 /******************************************************************************/
 /*                                 M k d i r                                  */
 /******************************************************************************/

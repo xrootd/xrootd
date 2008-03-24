@@ -77,6 +77,10 @@ XrdPosixLinkage Xunix;
                          {return (Retv_Fstat64)Xunix.Load_Error("fstat");}
       Retv_Fsync       Xrd_U_Fsync(Args_Fsync) 
                          {return (Retv_Fsync)Xunix.Load_Error("fsync");}
+      Retv_Ftruncate   Xrd_U_Ftruncate(Args_Ftruncate)
+                         {return (Retv_Ftruncate)Xunix.Load_Error("ftruncate");}
+      Retv_Ftruncate64 Xrd_U_Ftruncate64(Args_Ftruncate64)
+                         {return (Retv_Ftruncate64)Xunix.Load_Error("ftruncate64");}
       Retv_Fgetxattr   Xrd_U_Fgetxattr(Args_Fgetxattr)
                          {return (Retv_Fgetxattr)Xunix.Load_Error("fgetxattr");}
       Retv_Getxattr    Xrd_U_Getxattr(Args_Getxattr)
@@ -170,6 +174,8 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Fstat)
   LOOKUP_UNIX(Fstat64)
   LOOKUP_UNIX(Fsync)
+  LOOKUP_UNIX(Ftruncate)
+  LOOKUP_UNIX(Ftruncate64)
   LOOKUP_UNIX(Fgetxattr)
   LOOKUP_UNIX(Getxattr)
   LOOKUP_UNIX(Lgetxattr)

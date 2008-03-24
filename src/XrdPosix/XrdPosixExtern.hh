@@ -95,6 +95,8 @@ extern int        XrdPosix_FstatV(int ver, int fildes, struct stat *buf);
 
 extern int        XrdPosix_Fsync(int fildes);
 
+extern int        XrdPosix_Ftruncate(int fildes, long long offset);
+
 #ifdef __linux__
 extern long long  XrdPosix_Getxattr (const char *path, const char *name, 
                                      void *value, unsigned long long size);

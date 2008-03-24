@@ -472,6 +472,22 @@ int XrdPosix_Fsync(int fildes)
                               : Xunix.Fsync(fildes));
 }
 }
+  
+/******************************************************************************/
+/*                    X r d P o s i x _ F t r u n c a t e                     */
+/******************************************************************************/
+  
+extern "C"
+{
+int XrdPosix_Ftruncate(int fildes, long long offset)
+{
+
+// Return the result of the ftruncate
+//
+   return (Xroot.myFD(fildes) ? Xroot.Ftruncate  (fildes, offset)
+                              : Xunix.Ftruncate64(fildes, offset));
+}
+}
 
 /******************************************************************************/
 /*                     X r d P o s i x _ G e t x a t t r                      */
@@ -483,8 +499,12 @@ extern "C"
 long long XrdPosix_Getxattr (const char *path, const char *name, void *value, 
                              unsigned long long size)
 {
-   if (XrootPath.URL(path, 0, 0)) {errno = ENOTSUP; return -1;}
-   return Xunix.Getxattr(path, name, value, size);
+   char *myPath, buff[2048];
+
+   if (!(myPath = XrootPath.URL(path, buff, sizeof(buff))))
+      return Xunix.Getxattr(path, name, value, size);
+
+   return Xroot.Getxattr(myPath, name, value, size);
 }
 }
 #endif

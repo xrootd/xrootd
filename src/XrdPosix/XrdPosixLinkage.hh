@@ -102,6 +102,14 @@
 #define Retv_Fsync int
 #define Args_Fsync int
 
+#define Symb_Ftruncate UNIX_PFX "ftruncate"
+#define Retv_Ftruncate int
+#define Args_Ftruncate int, off_t
+
+#define Symb_Ftruncate64 UNIX_PFX "ftruncate64"
+#define Retv_Ftruncate64 int
+#define Args_Ftruncate64 int, off64_t
+
 #define Symb_Fgetxattr UNIX_PFX "fgetxattr"
 #define Retv_Fgetxattr ssize_t
 #define Args_Fgetxattr int, const char *, const void *, size_t
@@ -292,6 +300,8 @@ class XrdPosixLinkage
       Retv_Fstat       (*Fstat)(Args_Fstat);
       Retv_Fstat64     (*Fstat64)(Args_Fstat64);
       Retv_Fsync       (*Fsync)(Args_Fsync);
+      Retv_Ftruncate   (*Ftruncate)(Args_Ftruncate);
+      Retv_Ftruncate64 (*Ftruncate64)(Args_Ftruncate64);
       Retv_Fgetxattr   (*Fgetxattr)(Args_Fgetxattr);
       Retv_Lgetxattr   (*Lgetxattr)(Args_Lgetxattr);
       Retv_Getxattr    (*Getxattr)(Args_Getxattr);

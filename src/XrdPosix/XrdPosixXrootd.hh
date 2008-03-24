@@ -48,6 +48,11 @@ static int     Fstat(int fildes, struct stat *buf);
 
 static int     Fsync(int fildes);
 
+static int     Ftruncate(int fildes, off_t offset);
+
+static long long Getxattr (const char *path, const char *name,
+                           void *value, unsigned long long size);
+
 static int     Mkdir(const char *path, mode_t mode);
 
 static int     Open(const char *path, int oflag, mode_t mode=0, int Stream=0);
