@@ -312,6 +312,7 @@ const char   *theRole(int opts);
 int           xalib(XrdOucStream &, XrdSysError &);
 int           xforward(XrdOucStream &, XrdSysError &);
 int           xmaxd(XrdOucStream &, XrdSysError &);
+int           xnmsg(XrdOucStream &, XrdSysError &);
 int           xnot(XrdOucStream &, XrdSysError &);
 int           xolib(XrdOucStream &, XrdSysError &);
 int           xred(XrdOucStream &, XrdSysError &);

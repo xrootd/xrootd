@@ -90,7 +90,8 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc             XrdOfs.hh \
                      XrdOucLock.hh    XrdSysLogger.hh       XrdSysPlugin.hh \
                      XrdOucPList.hh   XrdSysPthread.hh      XrdOucTrace.hh     \
                      XrdNetDNS.hh     XrdSecEntity.hh       XrdSecInterface.hh \
-                     XrdSfsNative.hh  XrdSfsAio.hh     XrdOss.hh          \
+                     XrdSfsNative.hh  XrdSfsAio.hh          XrdSfsInterface.hh \
+                     XrdOss.hh        XrdSysPlatform.hh \
                      XrdOucTList.hh   XrdCmsClient.hh  XrdAccAuthorize.hh      \
                   ../XrdVersion.hh
 	@echo Compiling XrdOfs.cc 
@@ -119,8 +120,10 @@ $(OBJDIR)/XrdOfsEvr.o:  XrdOfsEvr.cc      XrdOfsEvr.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsEvr.o XrdOfsEvr.cc
 
 $(OBJDIR)/XrdOfsEvs.o:  XrdOfsEvs.cc      XrdOfsEvs.hh \
-                        XrdSysPthread.hh  XrdOucProg.hh \
-                        XrdNetOpts.hh     XrdNetSocket.hh
+                        XrdSysError.hh    XrdSysPthread.hh \
+                        XrdOucEnv.hh      XrdOucProg.hh \
+                        XrdNetOpts.hh     XrdNetSocket.hh \
+                        XrdSysPlatform.hh
 	@echo Compiling XrdOfsEvs.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsEvs.o XrdOfsEvs.cc
 

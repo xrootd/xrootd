@@ -45,7 +45,7 @@ public:
         int     Write(XrdSfsAio *aiop)              {return (ssize_t)-EBADF;}
 
                 // Methods common to both
-        int     Close()                                      {return -EBADF;}
+        int     Close(long long *retsz=0)                    {return -EBADF;}
 inline  int     Handle() {return -1;}
 
                 XrdOfsHanOss() {}
@@ -183,7 +183,7 @@ int XrdOfsHandle::Inactive()
 
 // The handle must be locked upon entry! It is unlocked upon exit.
 
-int XrdOfsHandle::Retire(char *buff, int blen)
+int XrdOfsHandle::Retire(long long *retsz, char *buff, int blen)
 {
    extern XrdSysError OfsEroute;
    int numLeft;
@@ -200,7 +200,8 @@ int XrdOfsHandle::Retire(char *buff, int blen)
          {Next = Free; Free = this;
           if (Path.Val) {free((void *)Path.Val); Path.Val = (char *)"";}
           Path.Len = 0;
-          if (ssi && ssi != ossDF) {delete ssi; ssi = ossDF;}
+          if (ssi && ssi != ossDF)
+             {ssi->Close(retsz); delete ssi; ssi = ossDF;}
          } else OfsEroute.Emsg("Retire", "Lost handle to", Path.Val);
       } else numLeft = --Path.Links;
    UnLock();

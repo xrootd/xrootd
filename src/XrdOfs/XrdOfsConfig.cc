@@ -259,7 +259,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
          cloc = evsObject->Prog();
          if (*cloc != '>') setBuff("|",1);
          setBuff(cloc, strlen(cloc));
-         setBuff("\n", 1);
+         setBuff("\0", 1);
          Eroute.Say(buff);
         }
 }
@@ -336,6 +336,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("forward",       xforward);
     TS_Xeq("maxdelay",      xmaxd);
     TS_Xeq("notify",        xnot);
+    TS_Xeq("notifymsg",     xnmsg);
     TS_Xeq("osslib",        xolib);
     TS_Xeq("redirect",      xred);     // Deprecated
     TS_Xeq("role",          xrole);
@@ -497,6 +498,78 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdSysError &Eroute)
 }
 
 /******************************************************************************/
+/*                                 x n m s g                                  */
+/******************************************************************************/
+
+/* Function: xnmsg
+
+   Purpose:  To parse the directive: notifymsg <event> <msg>
+
+   Args:     <events> - one or more of: all chmod closer closew close mkdir mv
+                                        openr openw open rm rmdir fwrite
+             <msg>      the notification message to be sent (see notify).
+
+   Type: Manager only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xnmsg(XrdOucStream &Config, XrdSysError &Eroute)
+{
+    static struct notopts {const char *opname; XrdOfsEvs::Event opval;}
+        noopts[] = {
+        {"chmod",    XrdOfsEvs::Chmod},
+        {"closer",   XrdOfsEvs::Closer},
+        {"closew",   XrdOfsEvs::Closew},
+        {"create",   XrdOfsEvs::Create},
+        {"mkdir",    XrdOfsEvs::Mkdir},
+        {"mv",       XrdOfsEvs::Mv},
+        {"openr",    XrdOfsEvs::Openr},
+        {"openw",    XrdOfsEvs::Openw},
+        {"rm",       XrdOfsEvs::Rm},
+        {"rmdir",    XrdOfsEvs::Rmdir},
+        {"fwrite",   XrdOfsEvs::Fwrite}
+       };
+    XrdOfsEvs::Event noval;
+    int numopts = sizeof(noopts)/sizeof(struct notopts);
+    char *val, buff[1024];
+    XrdOucEnv *myEnv;
+    int i;
+
+   // At this point, make sure we have a value
+   //
+   if (!(val = Config.GetWord()))
+      {Eroute.Emsg("Config", "notifymsg event not specified");
+       Config.SetEnv(myEnv);
+       return 1;
+      }
+
+   // Get the evant number
+   //
+   for (i = 0; i < numopts; i++) if (!strcmp(val, noopts[i].opname)) break;
+   if (i >= numopts)
+      {Eroute.Say("Config warning: ignoring invalid notify event '",val,"'.");
+       return 1;
+      }
+   noval = noopts[i].opval;
+
+   // We need to suck all the tokens to the end of the line for remaining
+   // options. Do so, until we run out of space in the buffer.
+   //
+   myEnv = Config.SetEnv(0);
+   if (!Config.GetRest(buff, sizeof(buff)))
+      {Eroute.Emsg("Config", "notifymsg arguments too long");
+       Config.SetEnv(myEnv);
+       return 1;
+      }
+
+   // Restore substitutions and parse the message
+   //
+   Config.SetEnv(myEnv);
+   return XrdOfsEvs::Parse(Eroute, noval, buff);
+}
+  
+/******************************************************************************/
 /*                                  x n o t                                   */
 /* Based on code developed by Derek Feichtinger, CERN.                        */
 /******************************************************************************/
@@ -508,6 +581,7 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdSysError &Eroute)
 
    Args:     <events> - one or more of: all chmod closer closew close mkdir mv
                                         openr openw open rm rmdir fwrite
+                        opaque and other possible information to be sent.
              msgs     - Maximum number of messages to keep and queue. The
                         <min> if for small messages (default 90) and <max> is
                         for big messages (default 10).
@@ -520,7 +594,7 @@ int XrdOfs::xmaxd(XrdOucStream &Config, XrdSysError &Eroute)
 */
 int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 {
-    static struct notopts {const char *opname; XrdOfsEvs::Event opval;} 
+    static struct notopts {const char *opname; XrdOfsEvs::Event opval;}
         noopts[] = {
         {"all",      XrdOfsEvs::All},
         {"chmod",    XrdOfsEvs::Chmod},
@@ -558,10 +632,11 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
               continue;
              }
           if ((neg = (val[0] == '-' && val[1]))) val++;
+          i = strlen(val);
           for (i = 0; i < numopts; i++)
               {if (!strcmp(val, noopts[i].opname))
-                  {if (neg) noval = static_cast<XrdOfsEvs::Event>(~noopts[i].opval & noval);
-                      else  noval = static_cast<XrdOfsEvs::Event>(noopts[i].opval|noval);
+                  {if (neg) noval = static_cast<XrdOfsEvs::Event>(~noopts[i].opval&noval);
+                      else  noval = static_cast<XrdOfsEvs::Event>( noopts[i].opval|noval);
                    break;
                   }
               }
@@ -594,7 +669,6 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
    return 0;
 }
   
-
 /******************************************************************************/
 /*                                 x o l i b                                  */
 /******************************************************************************/

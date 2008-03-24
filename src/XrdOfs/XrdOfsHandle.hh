@@ -121,7 +121,7 @@ int                 Inactive();
 
 inline const char  *Name() {return Path.Val;}
 
-int                 Retire(char *buff=0, int blen=0);
+int                 Retire(long long *retsz=0, char *buff=0, int blen=0);
 
 XrdOssDF           &Select(void) {return *ssi;}   // To allow for mt interfaces
 

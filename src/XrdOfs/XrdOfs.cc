@@ -62,6 +62,7 @@ const char *XrdOfsCVSID = "$Id$";
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -71,15 +72,6 @@ const char *XrdOfsCVSID = "$Id$";
 
 #ifdef AIX
 #include <sys/mode.h>
-#endif
-// IOS_USING_DECLARATION_MARKER - BaBar iostreams migration, do not touch this line!
-
-/******************************************************************************/
-/*                       C u r i o u s   D e f i n e s                        */
-/******************************************************************************/
-  
-#ifndef S_IAMB
-#define S_IAMB  0x1FF
 #endif
 
 /******************************************************************************/
@@ -483,9 +475,8 @@ int XrdOfsFile::open(const char          *path,      // In
             open_flag  = O_RDWR|O_TRUNC;
             if (XrdOfsFS.evsObject 
             &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Create))
-               {char buff[16];
-                sprintf(buff, "%o", (Mode & S_IAMB));
-                XrdOfsFS.evsObject->Notify(XrdOfsEvs::Create,tident,buff,path);
+               {XrdOfsEvsInfo evInfo(tident,path,info,&Open_Env,Mode);
+                XrdOfsFS.evsObject->Notify(XrdOfsEvs::Create, evInfo);
                }
           }
 
@@ -545,10 +536,11 @@ int XrdOfsFile::open(const char          *path,      // In
 // Send an open event if we must
 //
    if (XrdOfsFS.evsObject)
-      {XrdOfsEvs::Event theEvent = oh->isRW
-                                 ? XrdOfsEvs::Openw : XrdOfsEvs::Openr;
+      {XrdOfsEvs::Event theEvent = (hP->isRW?XrdOfsEvs::Openw:XrdOfsEvs::Openr);
        if (XrdOfsFS.evsObject->Enabled(theEvent))
-           XrdOfsFS.evsObject->Notify(theEvent, tident, oh->Name());
+          {XrdOfsEvsInfo evInfo(tident, path, info, &Open_Env);
+           XrdOfsFS.evsObject->Notify(theEvent, evInfo);
+          }
       }
 
 // All done
@@ -572,7 +564,6 @@ int XrdOfsFile::close()  // In
 {
    EPNAME("close");
    XrdOfsHandle *hP;
-   char pathbuff[MAXPATHLEN+8];
 
 // Trace the call
 //
@@ -597,12 +588,17 @@ int XrdOfsFile::close()  // In
 // close actually occurs. The path is not copied if it's not final and we
 // don't bother with any of it if we need not generate an event.
 //
-   if (XrdOfsFS.evsObject && tident)
-      {XrdOfsEvs::Event theEvent = hP->isRW 
-                                 ? XrdOfsEvs::Closew : XrdOfsEvs::Closer;
-       if (XrdOfsFS.evsObject->Enabled(theEvent))
-          {if (!(hP->Retire(pathbuff, sizeof(pathbuff))))
-              XrdOfsFS.evsObject->Notify(theEvent, tident, pathbuff);
+   if (XrdOfsFS.evsObject && tident
+   &&  XrdOfsFS.evsObject->Enabled(hP->isRW ? XrdOfsEvs::Closew
+                                            : XrdOfsEvs::Closer))
+      {long long FSize, *retsz;
+       char pathbuff[MAXPATHLEN+8];
+       XrdOfsEvs::Event theEvent;
+       if (hP->isRW) {theEvent = XrdOfsEvs::Closew; retsz = &FSize;}
+          else {      theEvent = XrdOfsEvs::Closer; retsz = 0; FSize=0;}
+       if (!(hP->Retire(retsz, pathbuff, sizeof(pathbuff))))
+          {XrdOfsEvsInfo evInfo(tident, pathbuff, "" , 0, 0, FSize);
+           XrdOfsFS.evsObject->Notify(theEvent, evInfo);
           } else hP->Retire();
       } else     hP->Retire();
 
@@ -1036,7 +1032,9 @@ void XrdOfsFile::GenFWEvent()
    if ((first_write = !(oh->isChanged))) oh->isChanged = 1;
    oh->UnLock();
    if (first_write)
-      XrdOfsFS.evsObject->Notify(XrdOfsEvs::Fwrite, tident, oh->Name());
+      {XrdOfsEvsInfo evInfo(tident, oh->Name());
+       XrdOfsFS.evsObject->Notify(XrdOfsEvs::Fwrite, evInfo);
+      }
 }
 
 /******************************************************************************/
@@ -1090,10 +1088,9 @@ int XrdOfs::chmod(const char             *path,    // In
 // Check if we should generate an event
 //
    if (evsObject && evsObject->Enabled(XrdOfsEvs::Chmod))
-         {char buff[8];
-          sprintf(buff, "%o", acc_mode);
-          evsObject->Notify(XrdOfsEvs::Chmod, tident, buff, path);
-         }
+      {XrdOfsEvsInfo evInfo(tident, path, info, &chmod_Env, acc_mode);
+       evsObject->Notify(XrdOfsEvs::Chmod, evInfo);
+      }
 
 // Now try to find the file or directory
 //
@@ -1180,6 +1177,9 @@ int XrdOfs::fsctl(const int               cmd,
 
   Input:    cmd       - Operation command (currently supported):
                         SFS_FSCTL_LOCATE - locate file
+                        SFS_FSCTL_STATFS - return file system info (physical)
+                        SFS_FSCTL_STATLS - return file system info (logical)
+                        SFS_FSCTL_STATXA - return file extended attributes
             arg       - Command dependent argument:
                       - Locate: The path whose location is wanted
             buf       - The stat structure to hold the results
@@ -1190,9 +1190,20 @@ int XrdOfs::fsctl(const int               cmd,
 */
 {
    EPNAME("fsctl");
+   static int PrivTab[]     = {XrdAccPriv_Delete, XrdAccPriv_Insert,
+                               XrdAccPriv_Lock,   XrdAccPriv_Lookup,
+                               XrdAccPriv_Rename, XrdAccPriv_Read,
+                               XrdAccPriv_Write};
+   static char PrivLet[]    = {'d',               'i',
+                               'k',               'l',
+                               'n',               'r',
+                               'w'};
+   static const int PrivNum = sizeof(PrivLet);
+
    int retc, find_flag = SFS_O_LOCATE | (cmd & (SFS_O_NOWAIT | SFS_O_RESET));
-   int blen, opcode = cmd & SFS_FSCTL_CMD;
+   int i, blen, privs, opcode = cmd & SFS_FSCTL_CMD;
    const char *tident = einfo.getErrUser();
+   char *bP, *cP;
    XTRACE(fsctl, args, "");
 
 // Process the LOCATE request
@@ -1219,9 +1230,55 @@ int XrdOfs::fsctl(const int               cmd,
       {AUTHORIZE(client,0,AOP_Stat,"statfs",args,einfo);
        if (Finder && Finder->isRemote()
        &&  (retc = Finder->Space(einfo, args))) return fsError(einfo, retc);
-       if ((retc = XrdOfsOss->StatFS(args, einfo.getMsgBuff(blen), blen)))
-          return XrdOfsFS.Emsg(epname, einfo, retc, "locate", args);
-       einfo.setErrCode(blen);
+       bP = einfo.getMsgBuff(blen);
+       if ((retc = XrdOfsOss->StatFS(args, bP, blen)))
+          return XrdOfsFS.Emsg(epname, einfo, retc, "statfs", args);
+       einfo.setErrCode(blen+1);
+       return SFS_DATA;
+      }
+
+// Process the STATLS request
+//
+   if (opcode == SFS_FSCTL_STATLS)
+      {const char *path;
+       char pbuff[1024], *opq = index(args, '?');
+       XrdOucEnv statls_Env(opq ? opq+1 : 0);
+       if (!opq) path = args;
+          else {int plen = opq-args;
+                if (plen >= (int)sizeof(pbuff)) plen = sizeof(pbuff)-1;
+                strncpy(pbuff, args, plen);
+                path = pbuff;
+               }
+       AUTHORIZE(client,0,AOP_Stat,"statfs",path,einfo);
+       if (Finder && Finder->isRemote()
+       &&  (retc = Finder->Space(einfo, path))) return fsError(einfo, retc);
+       bP = einfo.getMsgBuff(blen);
+       if ((retc = XrdOfsOss->StatLS(statls_Env, path, bP, blen)))
+          return XrdOfsFS.Emsg(epname, einfo, retc, "statls", path);
+       einfo.setErrCode(blen+1);
+       return SFS_DATA;
+      }
+
+// Process the STATXA request
+//
+   if (opcode == SFS_FSCTL_STATXA)
+      {AUTHORIZE(client,0,AOP_Stat,"statxa",args,einfo);
+       if (Finder && Finder->isRemote()
+       && (retc = Finder->Locate(einfo, args, SFS_O_RDONLY|SFS_O_STAT)))
+          return fsError(einfo, retc);
+       bP = einfo.getMsgBuff(blen);
+       if ((retc = XrdOfsOss->StatXA(args, bP, blen)))
+          return XrdOfsFS.Emsg(epname, einfo, retc, "statxa", args);
+       if (!client || !XrdOfsFS.Authorization) privs = XrdAccPriv_All;
+          else privs = XrdOfsFS.Authorization->Access(client, args, AOP_Any);
+       cP = bP + blen; strcpy(cP, "&ofs.ap="); cP += 8;
+       if (privs == XrdAccPriv_All) *cP++ = 'a';
+          else {for (i = 0; i < PrivNum; i++)
+                    if (PrivTab[i] & privs) *cP++ = PrivLet[i];
+                if (cP == (bP + blen + 1)) *cP++ = '?';
+               }
+       *cP++ = '\0';
+       einfo.setErrCode(cP-bP+1);
        return SFS_DATA;
       }
 
@@ -1293,10 +1350,9 @@ int XrdOfs::mkdir(const char             *path,    // In
 // Check if we should generate an event
 //
    if (evsObject && evsObject->Enabled(XrdOfsEvs::Mkdir))
-         {char buff[8];
-          sprintf(buff, "%o", acc_mode);
-          evsObject->Notify(XrdOfsEvs::Mkdir, tident, buff, path);
-         }
+      {XrdOfsEvsInfo evInfo(tident, path, info, &mkdir_Env, acc_mode);
+       evsObject->Notify(XrdOfsEvs::Mkdir, evInfo);
+      }
 
     return SFS_OK;
 }
@@ -1374,7 +1430,9 @@ int XrdOfs::remove(const char              type,    // In
    if (evsObject)
       {XrdOfsEvs::Event theEvent=(type == 'd' ? XrdOfsEvs::Rmdir:XrdOfsEvs::Rm);
        if (evsObject->Enabled(theEvent))
-          evsObject->Notify(theEvent, tident, path);
+          {XrdOfsEvsInfo evInfo(tident, path, info, &rem_Env);
+           evsObject->Notify(theEvent, evInfo);
+          }
       }
 
 // Perform the actual deletion
@@ -1437,7 +1495,10 @@ int XrdOfs::rename(const char             *old_name,  // In
 // Check if we should generate an event
 //
    if (evsObject && evsObject->Enabled(XrdOfsEvs::Mv))
-      evsObject->Notify(XrdOfsEvs::Mv, tident, old_name, new_name);
+      {XrdOfsEvsInfo evInfo(tident, old_name, infoO, &old_Env, 0, 0,
+                                    new_name, infoN, &new_Env);
+       evsObject->Notify(XrdOfsEvs::Mv, evInfo);
+      }
 
 // Perform actual rename operation
 //
