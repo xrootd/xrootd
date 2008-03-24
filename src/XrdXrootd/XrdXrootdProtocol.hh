@@ -121,7 +121,9 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
        int   do_Protocol();
        int   do_Putfile();
        int   do_Qconf();
+       int   do_Qspace();
        int   do_Query();
+       int   do_Qxattr();
        int   do_Read();
        int   do_ReadV();
        int   do_ReadAll();
@@ -133,6 +135,7 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
        int   do_Stat();
        int   do_Statx();
        int   do_Sync();
+       int   do_Truncate();
        int   do_Write();
        int   do_WriteAll();
        int   do_WriteCont();

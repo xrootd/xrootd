@@ -347,6 +347,7 @@ int XrdXrootdProtocol::Process2()
           case kXR_write:    return do_Write();
           case kXR_sync:     return do_Sync();
           case kXR_close:    return do_Close();
+          case kXR_truncate: return do_Truncate();
           default:           break;
          }
 
@@ -367,7 +368,7 @@ int XrdXrootdProtocol::Process2()
                return -1;
               }
 
-// Process items that don't need arguments
+// Process items that don't need arguments but may have them
 //
    switch(Request.header.requestid)
          {case kXR_endsess:   return do_Endsess();
