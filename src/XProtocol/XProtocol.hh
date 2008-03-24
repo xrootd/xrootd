@@ -144,8 +144,8 @@ enum XQueryType {
    kXR_QStats = 1,
    kXR_QPrep  = 2,
    kXR_Qcksum = 3,
-   kXR_Qolbd  = 4,
-   kXR_Qmaxs  = 5,
+   kXR_Qxattr = 4,
+   kXR_Qspace = 5,
    kXR_Qckscan= 6,
    kXR_Qconfig= 7
 };
