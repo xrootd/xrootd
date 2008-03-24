@@ -359,7 +359,7 @@ int XrdPssDir::Readdir(char *buff, int blen)
 
   Output:   Returns XrdOssOK upon success and (errno) upon failure.
 */
-int XrdPssDir::Close(void)
+int XrdPssDir::Close(long long *retsz)
 {
 
 // Make sure this object is open
@@ -421,9 +421,10 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
   Output:   Returns XrdOssOK upon success aud -errno upon failure.
 */
-int XrdPssFile::Close(void) 
+int XrdPssFile::Close(long long *retsz)
 {
     if (fd < 0) return -XRDOSS_E8004;
+    if (retsz) *retsz = 0;
     return XrdPosixXrootd::Close(fd) ? -errno : XrdOssOK;
 }
 

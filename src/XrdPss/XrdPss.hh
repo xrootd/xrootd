@@ -25,7 +25,7 @@
 class XrdPssDir : public XrdOssDF
 {
 public:
-int     Close();
+int     Close(long long *retsz=0);
 int     Opendir(const char *);
 int     Readdir(char *buff, int blen);
 
@@ -52,7 +52,7 @@ public:
 // The following two are virtual functions to allow for upcasting derivations
 // of this implementation
 //
-virtual int     Close();
+virtual int     Close(long long *retsz=0);
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &);
 
 int     Fstat(struct stat *);
