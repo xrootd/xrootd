@@ -108,25 +108,11 @@ int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
    int Opt, sVal, wVal, Util;
    long long fSpace, fSize;
 
-// Preset the staging and write values
+// Get the values for this file system
 //
-   Opt = RPList.Find(path);
+   StatFS(path, Opt, fSize, fSpace);
    sVal = (Opt & XRDEXP_REMOTE ? 1 : 0);
    wVal = (Opt & XRDEXP_NOTRW  ? 0 : 1);
-
-// For in-place paths we just get the free space in that partition, otherwise
-// get the maximum available in any partition.
-//
-   if (wVal || sVal)
-      if ((Opt & XRDEXP_INPLACE) || !XrdOssCache_Group::fsgroups)
-         {char lcl_path[XrdOssMAX_PATH_LEN+1];
-          if (lcl_N2N)
-             if (lcl_N2N->lfn2pfn(path, lcl_path, sizeof(lcl_path)))
-                fSpace = -1;
-                else fSpace = XrdOssCache_FS::freeSpace(fSize, lcl_path);
-             else    fSpace = XrdOssCache_FS::freeSpace(fSize, path);
-         } else     {fSpace = XrdOssCache_FS::freeSpace(fSize);}
-      else          {fSpace = 0;      fSize = 0;}
 
 // Size the value to fit in an int
 //
@@ -141,6 +127,40 @@ int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
    blen = snprintf(buff, blen, "%d %lld %d %d %lld %d",
                                wVal, (wVal ? fSpace : 0LL), (wVal ? Util : 0),
                                sVal, (sVal ? fSpace : 0LL), (sVal ? Util : 0));
+   return XrdOssOK;
+}
+
+/******************************************************************************/
+
+/*
+  Function: Return free space information based on a path
+
+  Input:    path        - Is the fully qualified name of the file to be tested.
+            opt         - Options associated with the path
+            fSize       - total bytes in the filesystem.
+            fSpace      - total free bytes in the filesystem. It is set to
+                          -1 if the path is not convertable.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+*/
+
+int XrdOssSys::StatFS(const char *path, 
+                      int &Opt, long long &fSize, long long &fSpace)
+{
+
+// For in-place paths we just get the free space in that partition, otherwise
+// get the maximum available in any partition.
+//
+   if ((Opt & XRDEXP_REMOTE) || !(Opt & XRDEXP_NOTRW))
+      if ((Opt & XRDEXP_INPLACE) || !XrdOssCache_Group::fsgroups)
+         {char lcl_path[XrdOssMAX_PATH_LEN+1];
+          if (lcl_N2N)
+             if (lcl_N2N->lfn2pfn(path, lcl_path, sizeof(lcl_path)))
+                fSpace = -1;
+                else fSpace = XrdOssCache_FS::freeSpace(fSize, lcl_path);
+             else    fSpace = XrdOssCache_FS::freeSpace(fSize, path);
+         } else     {fSpace = XrdOssCache_FS::freeSpace(fSize);}
+      else          {fSpace = 0;      fSize = 0;}
    return XrdOssOK;
 }
 
@@ -171,13 +191,25 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
    char *cgrp, cgbuff[64];
    int retc;
 
-// Find the cache group
+// We provide psuedo support whould be not have a cache
+//
+   if (!fsg)
+      {int Opt;
+       long long fSpace, fSize;
+       StatFS(path, Opt, fSize, fSpace);
+       if (fSpace < 0) fSpace = 0;
+       blen = snprintf(buff, blen, Resp, "public", fSize, fSpace, fSpace,
+                                                   fSize-fSpace, -1LL);
+       return XrdOssOK;
+      }
+
+// Find the cache group. We provide pshuedo support whould be not have a cache
 //
    if (!(cgrp = env.Get(OSS_CGROUP)))
       if ((retc = getCname(path, &sbuff, cgbuff))) return retc;
          else cgrp = cgbuff;
 
-// Try to find the cache group
+// Try to find the cache group. If there is no cache and
 //
    while(fsg && strcmp(cgrp, fsg->group)) fsg = fsg->next;
    if (!fsg)
