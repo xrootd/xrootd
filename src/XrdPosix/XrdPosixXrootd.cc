@@ -104,6 +104,8 @@ public:
 
 XrdClient *XClient;
 
+void       isOpen() {doClose = 1;}
+
 long long  Offset() {return currOffset;}
 
 long long  addOffset(long long offs, int updtSz=0)
@@ -131,6 +133,7 @@ private:
 
 XrdSysMutex myMutex;
 long long   currOffset;
+int         doClose;
 };
 
 
@@ -283,7 +286,8 @@ dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
 
 XrdPosixFile::XrdPosixFile(int fd, const char *path)
              : FD(fd),
-               currOffset(0)
+               currOffset(0),
+               doClose(0)
 {
 // Allocate a new client object
 //
@@ -296,7 +300,10 @@ XrdPosixFile::XrdPosixFile(int fd, const char *path)
   
 XrdPosixFile::~XrdPosixFile()
 {
-   if (XClient) delete XClient;
+   if (XClient)
+      {if (doClose) XClient->Close();
+       delete XClient;
+      }
    if (FD >= 0) close(FD);
 }
 
@@ -672,6 +679,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
 
 // Get the file size
 //
+   fp->isOpen();
    fp->XClient->Stat(&fp->stat);
 
 // Return the fd number
