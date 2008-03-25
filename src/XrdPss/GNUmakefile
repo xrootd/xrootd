@@ -21,6 +21,7 @@ OBJECTS  = \
         $(OBJDIR)/XrdPssConfig.o
 
 OBJECTT  = \
+        $(OBJDIR)/XrdPosixLinkage.o \
         $(OBJDIR)/XrdPosixXrootd.o
 
 OBJECTU  = $(LIBDIR)/libXrdClient.a
