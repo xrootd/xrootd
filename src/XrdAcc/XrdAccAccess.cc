@@ -116,21 +116,21 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
 // credentials, in which case we need not have a username, or from the
 // standard unix-username group mapping.
 //
-   if (Entity->grps)
-      {char gBuff[1024];
-       XrdOucTokenizer gList(gBuff);
-       strlcpy(gBuff, Entity->grps, sizeof(gBuff));
-       gList.GetLine();
-       while((gname = gList.GetToken()))
-            if ((cp = Atab.G_Hash->Find((const char *)gname)))
-               cp->Privs(caps, path, plen, phash);
-      } else if (isuser && Atab.G_Hash
-             && (glp = XrdAccConfiguration.GroupMaster.Groups(id)))
-                {while((gname = (char *)glp->Next()))
-                      if ((cp = Atab.G_Hash->Find((const char *)gname)))
-                         cp->Privs(caps, path, plen, phash);
-                 delete glp;
-                }
+   if (Atab.G_Hash)
+      if (Entity->grps)
+         {char gBuff[1024];
+          XrdOucTokenizer gList(gBuff);
+          strlcpy(gBuff, Entity->grps, sizeof(gBuff));
+          gList.GetLine();
+          while((gname = gList.GetToken()))
+               if ((cp = Atab.G_Hash->Find((const char *)gname)))
+                  cp->Privs(caps, path, plen, phash);
+         } else if (isuser && (glp=XrdAccConfiguration.GroupMaster.Groups(id)))
+                   {while((gname = (char *)glp->Next()))
+                         if ((cp = Atab.G_Hash->Find((const char *)gname)))
+                            cp->Privs(caps, path, plen, phash);
+                    delete glp;
+                   }
 
 // Now add in the netgroup privileges
 //
