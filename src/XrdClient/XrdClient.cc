@@ -96,25 +96,25 @@ XrdClient::XrdClient(const char *url) {
 //_____________________________________________________________________________
 XrdClient::~XrdClient()
 {
-    // Terminate the opener thread
 
-    fOpenProgCnd->Lock();
+   if (IsOpen_wait()) Close();
 
-    if (fOpenerTh) {
-	delete fOpenerTh;
-	fOpenerTh = 0;
-    }
+   // Terminate the opener thread
+   fOpenProgCnd->Lock();
 
-    fOpenProgCnd->UnLock();
+   if (fOpenerTh) {
+      delete fOpenerTh;
+      fOpenerTh = 0;
+   }
+
+   fOpenProgCnd->UnLock(); 
 
 
-    Close();
-
-    if (fConnModule)
+   if (fConnModule)
       delete fConnModule;
 
-    delete fReadWaitData;
-    delete fOpenProgCnd;
+   delete fReadWaitData;
+   delete fOpenProgCnd;
 }
 
 //_____________________________________________________________________________
@@ -823,14 +823,16 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
 	// And here we fire up the needed parallel streams
 	XrdClientMStream::EstablishParallelStreams(fConnModule);
-	TerminateOpenAttempt();
+        int retc;
 
-	if (!fConnModule->IsConnected()) {
-	    fOpenPars.opened = false;
-	    return false;
-	}
+        if (!fConnModule->IsConnected()) {
+           fOpenPars.opened = false;
+           retc = false;
+        } else retc = true;
+        
+        TerminateOpenAttempt();
+        return retc; 
 
-	return TRUE;
     }
 
     // If the open request failed for the error "file not found" proceed, 
@@ -1256,10 +1258,10 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
     else
 	// Let's see if the message is a communication error message
        if (unsolmsg->GetStatusCode() != XrdClientMessage::kXrdMSC_ok){
-	 // This is a low level error. The outstanding things have to be terminated
-	 // Awaken all the waiting threads, some of them may be interested
-	 fReadWaitData->Broadcast();
-	 TerminateOpenAttempt();
+          // This is a low level error. The outstanding things have to be terminated
+          // Awaken all the waiting threads, some of them may be interested
+          fReadWaitData->Broadcast();
+          TerminateOpenAttempt();
 	 
 	  return fConnModule->ProcessAsynResp(unsolmsg);
 	}
