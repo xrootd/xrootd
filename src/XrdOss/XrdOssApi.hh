@@ -112,6 +112,7 @@ class XrdOucName2Name;
 class XrdOucProg;
 class XrdOssSpace;
 class XrdOssStage_Req;
+class XrdOssCache_FSData;
 
 class XrdOssSys : public XrdOss
 {
