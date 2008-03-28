@@ -939,6 +939,8 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
            {Sel.Opts |= XrdCmsSelect::Refresh;                     *toP++='s';}
          if (Arg.Opts & CmsSelectRequest::kYR_online)  
            {Sel.Opts |= XrdCmsSelect::Online;                      *toP++='o';}
+         if (Arg.Opts & CmsSelectRequest::kYR_stat)
+           {Sel.Opts |= XrdCmsSelect::Defer;                       *toP++='x';}
    else {if (Arg.Opts & CmsSelectRequest::kYR_trunc)   
            {Sel.Opts |= XrdCmsSelect::Write | XrdCmsSelect::Trunc; *toP++='t';}
          if (Arg.Opts & CmsSelectRequest::kYR_write)   

@@ -1018,7 +1018,7 @@ void XrdCmsCluster::Record(char *path, const char *reason)
 int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 {
     EPNAME("SelNode")
-    const char *act, *reason, *reason2;
+    const char *act=0, *reason, *reason2;
     int delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
     int needrw = (Sel.Opts & XrdCmsSelect::Write ? XrdCmsNode::allowsRW : 0);
     SMask_t mask;
@@ -1048,14 +1048,15 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
        if (isalt || (Sel.Opts & XrdCmsSelect::Create) || Sel.iovN)
           {if (isalt || (Sel.Opts & XrdCmsSelect::Create))
               {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
-               Cache.AddFile(Sel, nP->NodeMask);
+               if (Sel.Opts & XrdCmsSelect::Defer) act = " handling ";
+                  else Cache.AddFile(Sel, nP->NodeMask);
               }
            if (Sel.iovN && Sel.iovP) 
               {nP->Send(Sel.iovP, Sel.iovN); act = " staging ";}
-              else                           act = " assigned ";
-                  TRACE(Stage, Sel.Resp.Data <<act         <<Sel.Path.Val);
-          } else {TRACE(Stage, Sel.Resp.Data <<" serving " <<Sel.Path.Val);}
+              else if (!act)                 act = " assigned ";
+          } else                             act = " serving ";
        nP->UnLock();
+       TRACE(Stage, Sel.Resp.Data <<act <<Sel.Path.Val);
        return 0;
       } else if (!delay && NodeCnt < Config.SUPCount)
                 {reason = "insufficient number of nodes";
