@@ -159,6 +159,7 @@ int            XrdPosixXrootd::lastFD   = -1;
 int            XrdPosixXrootd::highDir  = -1;
 int            XrdPosixXrootd::lastDir  = -1;
 int            XrdPosixXrootd::devNull  = -1;
+int            XrdPosixXrootd::pllOpen  =  0;
 long           XrdPosixXrootd::Debug    = -2;
   
 /******************************************************************************/
@@ -364,6 +365,11 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 //
    if ((cvar = getenv("XRDPOSIX_RCSZ")) && *cvar)
       {isize = atol(cvar); setEnv(NAME_READCACHESIZE, isize);}
+
+// Establish parallel open option
+//
+   if ((cvar = getenv("XRDPOSIX_POPEN")) && *cvar)
+      pllOpen = atoi(cvar);
 }
  
 /******************************************************************************/
@@ -666,7 +672,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
 
 // Open the file
 //
-   if (!fp->XClient->Open(XMode, XOflags)
+   if (!fp->XClient->Open(XMode, XOflags, 0)
    || (fp->XClient->LastServerResp()->status) != kXR_ok)
       {retc = Fault(fp, 0);
        myMutex.Lock();

@@ -120,6 +120,8 @@ extern "C"
 {
 int     creat(const char *path, mode_t mode)
 {
+   static int Init = Xunix.Init(&Init);
+
    return XrdPosix_Open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 }
@@ -133,6 +135,7 @@ extern "C"
 {
 int     fcntl(int fd, int cmd, ...)
 {
+   static int Init = Xunix.Init(&Init);
    va_list ap;
    void *theArg;
 
@@ -152,6 +155,8 @@ extern "C"
 {
 FILE  *fopen(const char *path, const char *mode)
 {
+   static int Init = Xunix.Init(&Init);
+
    return XrdPosix_Fopen(path, mode);
 }
 }
@@ -171,6 +176,7 @@ int   _fxstat(int ver, int fildes, struct stat *buf)
 int     fstat(         int fildes, struct stat *buf)
 #endif
 {
+   static int Init = Xunix.Init(&Init);
 #if defined(__macos__)
    return XrdPosix_Fstat(fildes, (struct stat64 *)buf);
 #else
@@ -199,6 +205,8 @@ extern "C"
 {
 ssize_t ftruncate(int fildes, off_t offset)
 {
+   static int Init = Xunix.Init(&Init);
+
    return XrdPosix_Ftruncate(fildes, offset);
 }
 }
@@ -213,6 +221,8 @@ extern "C"
 {
 off_t   lseek(int fildes, off_t offset, int whence)
 {
+   static int Init = Xunix.Init(&Init);
+
    return XrdPosix_Lseek(fildes, offset, whence);
 }
 }
@@ -233,6 +243,7 @@ int      _lxstat(int ver, const char *path, struct stat *buf)
 int        lstat(         const char *path, struct stat *buf)
 #endif
 {
+   static int Init = Xunix.Init(&Init);
 #if defined(__macos__)
    return XrdPosix_Lstat(path, (struct stat64 *)buf);
 #else
@@ -262,6 +273,7 @@ extern "C"
 {
 int     open(const char *path, int oflag, ...)
 {
+   static int Init = Xunix.Init(&Init);
    va_list ap;
    int mode;
 
@@ -282,6 +294,8 @@ extern "C"
 {
 ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
 {
+   static int Init = Xunix.Init(&Init);
+
    return XrdPosix_Pread(fildes, buf, nbyte, offset);
 }
 }
@@ -296,6 +310,7 @@ extern "C"
 {
 struct dirent* readdir(DIR *dirp)
 {
+   static int Init = Xunix.Init(&Init);
    struct dirent64 *dp64;
 
    if (!(dp64 = XrdPosix_Readdir64(dirp))) return 0;
@@ -318,6 +333,7 @@ extern "C"
 {
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 {
+   static int Init = Xunix.Init(&Init);
 #if defined(__macos__) || defined(_LP64)
    return XrdPosix_Readdir_r(dirp, entry, result);
 #else
@@ -349,6 +365,8 @@ extern "C"
 {
 ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
 {
+   static int Init = Xunix.Init(&Init);
+
    return XrdPosix_Pwrite(fildes, buf, nbyte, offset);
 }
 }
@@ -369,6 +387,7 @@ int      _xstat(int ver, const char *path, struct stat *buf)
 int        stat(         const char *path, struct stat *buf)
 #endif
 {
+   static int Init = Xunix.Init(&Init);
 #if defined(__macos__)
    return XrdPosix_Stat(path, (struct stat64 *)buf);
 #else
@@ -397,6 +416,7 @@ extern "C"
 {
 int        statfs(         const char *path, struct statfs *buf)
 {
+   static int Init = Xunix.Init(&Init);
    struct statfs64 buf64;
    int rc;
 
@@ -423,6 +443,7 @@ extern "C"
 {
 int        statvfs(         const char *path, struct statvfs *buf)
 {
+   static int Init = Xunix.Init(&Init);
    struct statvfs64 buf64;
    int rc;
    if ((rc = XrdPosix_Statvfs(path, (struct statvfs *)&buf64))) return rc;

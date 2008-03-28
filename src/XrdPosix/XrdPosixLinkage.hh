@@ -284,7 +284,7 @@
   
 class XrdPosixLinkage
 {public:
-      void             Init() {if (!Done) Done = Resolve();}
+      int              Init(int *X=0) {if (!Done) Done = Resolve(); return 0;}
 
       Retv_Access      (*Access)(Args_Access);
       Retv_Acl         (*Acl)(Args_Acl);

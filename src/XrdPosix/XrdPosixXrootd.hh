@@ -137,5 +137,6 @@ static int            highFD;
 static int            lastDir;
 static int            highDir;
 static int            devNull;
+static int            pllOpen;
 };
 #endif
