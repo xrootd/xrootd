@@ -672,7 +672,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
 
 // Open the file
 //
-   if (!fp->XClient->Open(XMode, XOflags, 0)
+   if (!fp->XClient->Open(XMode, XOflags, pllOpen)
    || (fp->XClient->LastServerResp()->status) != kXR_ok)
       {retc = Fault(fp, 0);
        myMutex.Lock();
