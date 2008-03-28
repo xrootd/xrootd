@@ -63,6 +63,9 @@ void *XrdOfsEvsSend(void *pp)
 
 XrdOfsEvsFormat XrdOfsEvs::MsgFmt[XrdOfsEvs::nCount];
 
+const int       XrdOfsEvs::minMsgSize;
+const int       XrdOfsEvs::maxMsgSize;
+
 /******************************************************************************/
 /*                     X r d E v s F o r m a t : : D e f                      */
 /******************************************************************************/

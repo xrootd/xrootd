@@ -103,11 +103,6 @@ class XrdOfsEvs
 {
 public:
 
-static const int   minMsgSize = (16+320+1024);
-static const int   maxMsgSize = (16+320+1024+1024);
-
-//static const int evMask = 0xff;
-
 enum Event {All    = 0x7fffff00, None   = 0x00000000,
             Chmod  = 0x00000100, Closer = 0x00000201,
             Closew = 0x00000402, Close  = 0x00000600,
@@ -118,6 +113,9 @@ enum Event {All    = 0x7fffff00, None   = 0x00000000,
             Rmdir  = 0x0004040a, nCount = 11,
             Mask   = 0X000000ff, enMask = 0x7fffff00
            };
+
+static const int   minMsgSize = 1360; // (16+320+1024)
+static const int   maxMsgSize = 2384; // (16+320+1024+1024);
 
 int         Enabled(Event theEvents) {return theEvents & enEvents;}
 
