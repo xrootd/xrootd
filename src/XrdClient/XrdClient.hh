@@ -228,8 +228,9 @@ public:
     //  (if any!!)
     XReqErrorType               Read_Async(long long offset, int len);
 
-    // Get stat info about the file
-    bool                        Stat(struct XrdClientStatInfo *stinfo);
+    // Get stat info about the file. Normally it tries to guess the file size variations
+    // unless force==true
+    bool                        Stat(struct XrdClientStatInfo *stinfo, bool force = false);
 
     // On-the-fly enabling/disabling of the cache
     bool                        UseCache(bool u = TRUE);

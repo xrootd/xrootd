@@ -707,6 +707,7 @@ bool XrdClient::Write(const void *buf, long long offset, int len, bool docheckpo
     XrdClientVector<XrdClientMStream::ReadChunk> rl;
     XrdClientMStream::SplitReadRequest(fConnModule, offset, len, rl);
     kXR_char *cbuf = (kXR_char *)buf;
+    int writtenok = 0;
 
     // Prepare request
     ClientRequest writeFileRequest;
@@ -715,6 +716,7 @@ bool XrdClient::Write(const void *buf, long long offset, int len, bool docheckpo
     writeFileRequest.write.requestid = kXR_write;
     memcpy( writeFileRequest.write.fhandle, fHandle, sizeof(fHandle) );
 
+    bool ret = false;
     for (int i = 0; i < rl.GetSize(); i++) {
 
       writeFileRequest.write.offset = rl[i].offset;
@@ -723,25 +725,37 @@ bool XrdClient::Write(const void *buf, long long offset, int len, bool docheckpo
    
       if (i < rl.GetSize()-1) {
 	XReqErrorType b = fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend);
-	if (b != kOK) return false;
+	if (b != kOK) {
+           ret = false;
+           break;
+        }
+        writtenok += rl[i].len;
       }
       else
 	
 	if (docheckpoint || (rl.GetSize() == 1)) {
 	  writeFileRequest.write.pathid = 0;
 	  //	  if (!Sync()) return false;
-	  return fConnModule->SendGenCommand(&writeFileRequest, (void *)cbuf, 0, 0,
+	  ret = fConnModule->SendGenCommand(&writeFileRequest, (void *)cbuf, 0, 0,
 					     FALSE, (char *)"Write");
+          if (ret) writtenok += rl[i].len;
+          break;
 	}
-	else
-	  return (fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend) == kOK);
+	else {
+	  ret = (fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend) == kOK);
+          if (ret) writtenok += rl[i].len;
+          break;
+        }
       
 
 
       cbuf += rl[i].len;
     }
 
-    return true;
+    if (ret && fStatInfo.stated)
+       fStatInfo.size = xrdmax(fStatInfo.size, offset + writtenok);
+
+    return ret;
 }
 
 
@@ -963,19 +977,21 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 }
 
 //_____________________________________________________________________________
-bool XrdClient::Stat(struct XrdClientStatInfo *stinfo) {
+bool XrdClient::Stat(struct XrdClientStatInfo *stinfo, bool force) {
 
-    if (!IsOpen_wait()) {
-	Error("Stat", "File not opened.");
-	return FALSE;
-    }
-
-    if (fStatInfo.stated) {
+    if (!force && fStatInfo.stated) {
 	if (stinfo)
 	    memcpy(stinfo, &fStatInfo, sizeof(fStatInfo));
 	return TRUE;
     }
-   
+
+    if (!IsOpen_wait()) {
+       Error("Stat", "File not opened.");
+       return FALSE;
+    }
+
+    if (force && !Sync()) return false;
+
     // asks the server for stat file informations
     ClientRequest statFileRequest;
    
