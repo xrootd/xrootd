@@ -160,7 +160,7 @@ int            XrdPosixXrootd::highDir  = -1;
 int            XrdPosixXrootd::lastDir  = -1;
 int            XrdPosixXrootd::devNull  = -1;
 int            XrdPosixXrootd::pllOpen  =  0;
-long           XrdPosixXrootd::Debug    = -2;
+int            XrdPosixXrootd::Debug    = -2;
   
 /******************************************************************************/
 /*                X r d P o s i x A d m i n N e w   C l a s s                 */
@@ -318,9 +318,24 @@ XrdPosixFile::~XrdPosixFile()
 XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 {
    extern XrdPosixLinkage Xunix;
+
+   struct XrdPosix_Env {const char *eName; const char *xName; int *vDest;}
+          Posix_Env[] =
+          {
+          {"XRDPOSIX_DEBUG",       NAME_DEBUG,                &Debug},
+          {"XRDPOSIX_DSTTL",       NAME_DATASERVERCONN_TTL,   0},
+          {"XRDPOSIX_POPEN",       "",                        &pllOpen},
+          {"XRDPOSIX_RASZ",        NAME_READAHEADSIZE,        0},
+          {"XRDPOSIX_RCSZ",        NAME_READCACHESIZE,        0},
+          {"XRDPOSIX_RDTTL",       NAME_LBSERVERCONN_TTL,     0},
+          {"XRDPOSIX_RTO",         NAME_REQUESTTIMEOUT,       0},
+          {"XRDPSOIX_PSPC",        NAME_MULTISTREAMCNT,       0}
+          };
+   int    Posix_Num = sizeof(Posix_Env)/sizeof(XrdPosix_Env);
    struct rlimit rlim;
-   char *cvar;
-   long isize;
+   char *cvar, *evar;
+   int i, doEcho;
+   long isize, nval;
 
 // Initialize the linkage table first
 //
@@ -342,34 +357,31 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
    if (dirnum > 32768) dirnum = 32768;
    isize = dirnum * sizeof(XrdPosixDir *);
    if (!(myDirs = (XrdPosixDir **)malloc(isize))) lastDir = -1;
-   else {
-     memset((void *)myDirs, 0, isize);
-     lastDir = dirnum;
-   }
+      else {memset((void *)myDirs, 0, isize); lastDir = dirnum;}
 
 // Open /dev/null as we will be allocating file descriptors based on this fd
 //
    devNull = open("/dev/null", O_RDWR, 0744);
 
-// Establish debugging level
+// Establish wether we need to echo any envars
 //
-   if ((cvar = getenv("XRDPOSIX_DEBUG")) && *cvar) Debug = atol(cvar);
-   setEnv(NAME_DEBUG, Debug);
+   if ((cvar = getenv("XRDPOSIX_ECHO"))) doEcho = strcmp(cvar, "0");
+      else doEcho = 0;
 
-// Establish read ahead size
+// Run through all of the numeric envars that may be set
 //
-   if ((cvar = getenv("XRDPOSIX_RASZ")) && *cvar)
-      {isize = atol(cvar); setEnv(NAME_READAHEADSIZE, isize);}
-
-// Establish cache size
-//
-   if ((cvar = getenv("XRDPOSIX_RCSZ")) && *cvar)
-      {isize = atol(cvar); setEnv(NAME_READCACHESIZE, isize);}
-
-// Establish parallel open option
-//
-   if ((cvar = getenv("XRDPOSIX_POPEN")) && *cvar)
-      pllOpen = atoi(cvar);
+   for (i = 0; i < Posix_Num; i++)
+       if ((cvar = getenv(Posix_Env[i].eName)) && *cvar)
+          {nval = strtol(cvar, &evar, 10);
+           if (*evar) cerr <<"XrdPosix: Invalid " <<Posix_Env[i].eName
+                           <<" value - " <<cvar <<endl;
+              else {if (Posix_Env[i].xName[0]) setEnv(Posix_Env[i].xName, nval);
+                    if (Posix_Env[i].vDest)
+                       *Posix_Env[i].vDest = static_cast<int>(nval);
+                    if (doEcho) cerr <<"XrdPosix: " <<Posix_Env[i].eName <<" = "
+                                <<nval <<'(' <<Posix_Env[i].xName <<')' <<endl;
+                   }
+          }
 }
  
 /******************************************************************************/

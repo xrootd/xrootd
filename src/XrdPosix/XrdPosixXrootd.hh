@@ -114,7 +114,7 @@ static void    setEnv(const char *var, const char *val);
 
 static void    setEnv(const char *var, long val);
 
-static long    Debug;
+static int     Debug;
 
                XrdPosixXrootd(int maxfd=255, int maxdir=255);
               ~XrdPosixXrootd();
