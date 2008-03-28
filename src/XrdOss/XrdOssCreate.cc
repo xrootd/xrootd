@@ -216,7 +216,7 @@ int XrdOssSys::Alloc_Cache(const char *path, int Oflag, mode_t amode,
 // Compute appropriate allocation size and fuzz factor
 //
    if ( (size = size * ovhalloc / 100 + size) < minalloc) size = minalloc;
-   fuzz = ((double)fuzalloc)/100.0;
+   fuzz = static_cast<double>(fuzalloc)/100.0;
 
 // Find the corresponding cache group
 //
@@ -237,18 +237,19 @@ int XrdOssSys::Alloc_Cache(const char *path, int Oflag, mode_t amode,
        curfree = fsp->fsdata->frsz;
        if (size > curfree) continue;
 
-       if (!fuzz) {if (curfree > maxfree) {fsp_sel = fsp; maxfree = curfree;}}
-          else {if (!(curfree + maxfree)) diffree = 0.0;
-                   else diffree = (double)(curfree - maxfree)/
-                                  (double)(curfree + maxfree);
-                if (diffree > fuzz) {fsp_sel = fsp; maxfree = curfree;}
-               }
+             if (!fsp_sel)       {fsp_sel = fsp; maxfree = curfree;}
+       else  if (!fuzz) {if (curfree > maxfree) 
+                                 {fsp_sel = fsp; maxfree = curfree;}}
+       else {diffree = (!(curfree + maxfree) ? 0.0
+                     : static_cast<double>(llabs(maxfree - curfree)) /
+                       static_cast<double>(      maxfree + curfree));
+             if (diffree > fuzz) {fsp_sel = fsp; maxfree = curfree;}
+            }
       } while((fsp = fsp->next) != fspend);
 
 // Check if we can realy fit this file
 //
-   if (size > maxfree || !fsp_sel)
-      {CacheContext.UnLock(); return -XRDOSS_E8020;}
+   if (!fsp_sel) {CacheContext.UnLock(); return -XRDOSS_E8020;}
 
 // Construct the target filename
 //
