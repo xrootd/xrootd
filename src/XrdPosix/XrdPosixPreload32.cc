@@ -203,7 +203,7 @@ int     fstat(         int fildes, struct stat *buf)
 #ifndef SUNX86
 extern "C"
 {
-ssize_t ftruncate(int fildes, off_t offset)
+int ftruncate(int fildes, off_t offset)
 {
    static int Init = Xunix.Init(&Init);
 

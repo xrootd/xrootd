@@ -218,7 +218,7 @@ int     fsync(int fildes)
   
 extern "C"
 {
-ssize_t ftruncate64(int fildes, off_t offset)
+int ftruncate64(int fildes, off_t offset)
 {
    static int Init = Xunix.Init(&Init);
 
