@@ -231,7 +231,7 @@ int XrdOssSys::Alloc_Cache(const char *path, int Oflag, mode_t amode,
 
 // Find a cache that will fit this allocation request
 //
-   maxfree = fsp->fsdata->frsz; fspend = fsp; fsp_sel = fsp; fsp = fsp->next;
+   maxfree = fsp->fsdata->frsz; fspend = fsp; fsp_sel = 0; fsp = fsp->next;
    do {
        if (strcmp(cgroup, fsp->group)) continue;
        curfree = fsp->fsdata->frsz;
@@ -247,7 +247,8 @@ int XrdOssSys::Alloc_Cache(const char *path, int Oflag, mode_t amode,
 
 // Check if we can realy fit this file
 //
-   if (size > maxfree) {CacheContext.UnLock(); return -XRDOSS_E8020;}
+   if (size > maxfree || !fsp_sel)
+      {CacheContext.UnLock(); return -XRDOSS_E8020;}
 
 // Construct the target filename
 //
