@@ -231,7 +231,7 @@ int XrdOssSys::Alloc_Cache(const char *path, int Oflag, mode_t amode,
 
 // Find a cache that will fit this allocation request
 //
-   maxfree = fsp->fsdata->frsz; fspend = fsp; fsp_sel = 0; fsp = fsp->next;
+   maxfree = fsp->fsdata->frsz; fsp_sel = 0; fspend = fsp = fsp->next;
    do {
        if (strcmp(cgroup, fsp->group)) continue;
        curfree = fsp->fsdata->frsz;
