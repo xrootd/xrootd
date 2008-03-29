@@ -368,6 +368,10 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
    if ((cvar = getenv("XRDPOSIX_ECHO"))) doEcho = strcmp(cvar, "0");
       else doEcho = 0;
 
+// Establish the default debugging level (none)
+//
+   setEnv(NAME_DEBUG, Debug);
+
 // Run through all of the numeric envars that may be set
 //
    for (i = 0; i < Posix_Num; i++)
