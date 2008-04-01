@@ -44,6 +44,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdClient/XrdClientThread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
+#include "XrdVersion.hh"
 
 struct XrdClientOpenInfo {
     bool      inprogress;
