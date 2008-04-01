@@ -68,7 +68,7 @@ XrdClient::XrdClient(const char *url) {
     if (!ConnectionManager)
 	Info(XrdClientDebug::kNODEBUG,
 	     "Create",
-	     "(C) 2004 SLAC INFN XrdClient " << XRD_CLIENT_VERSION);
+	     "(C) 2004 SLAC INFN XrdClient $Revision$ - Xrootd version: " << XrdVSTRING);
 
 #ifndef WIN32
     signal(SIGPIPE, SIG_IGN);

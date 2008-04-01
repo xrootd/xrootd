@@ -81,7 +81,7 @@ struct XrdCpInfo {
 
 #define XRDCP_BLOCKSIZE          (512*1024)
 #define XRDCP_XRDRASIZE          (20*XRDCP_BLOCKSIZE)
-#define XRDCP_VERSION            "(C) 2004 SLAC INFN xrdcp 1.0"
+#define XRDCP_VERSION            "(C) 2004 SLAC INFN $Revision$ - Xrootd version: "XrdVSTRING
 
 ///////////////////////////////////////////////////////////////////////
 // Coming from parameters on the cmd line
