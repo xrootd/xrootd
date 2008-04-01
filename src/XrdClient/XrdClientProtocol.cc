@@ -120,6 +120,11 @@ void clientMarshall(ClientRequest* str)
       tmpl = _htonll(tmpl);
       memcpy(&str->write.offset, &tmpl, sizeof(kXR_int64) );
       break;
+   case kXR_truncate:
+      memcpy(&tmpl, &str->truncate.offset, sizeof(kXR_int64) );
+      tmpl = _htonll(tmpl);
+      memcpy(&str->truncate.offset, &tmpl, sizeof(kXR_int64) );
+      break;
    }
 
    str->header.requestid = htons(str->header.requestid);
@@ -274,6 +279,9 @@ char *convertRequestIdToChar(kXR_unt16 requestid)
       break;
    case kXR_bind:
       return (char *)"kXR_bind";
+      break;
+   case kXR_truncate:
+      return (char *)"kXR_truncate";
       break;
    default:
       return (char *)"kXR_UNKNOWN";
