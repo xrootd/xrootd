@@ -44,7 +44,9 @@ XrdOssSpace::XrdOssSpace(const char *apath, const char *qfile)
        aP = buff + strlen(apath);
        if (*(aP-1) != '/') *aP++ = '/';
        if ((iP = getenv("XRDNAME")) && *iP && strcmp(iP, "anon"))
-          {strcpy(aP, iP); aP += strlen(iP); *aP++ = '/';}
+          {strcpy(aP, iP); aP += strlen(iP); *aP++ = '/'; *aP = '\0';
+           mkdir(buff, S_IRWXU | S_IRWXG);
+          }
        strcpy(aP, "Usage");
        aFname = strdup(buff);
        nextEnt = 0;
