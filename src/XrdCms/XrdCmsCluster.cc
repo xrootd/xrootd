@@ -1048,7 +1048,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
        if (isalt || (Sel.Opts & XrdCmsSelect::Create) || Sel.iovN)
           {if (isalt || (Sel.Opts & XrdCmsSelect::Create))
               {Sel.Opts |= (XrdCmsSelect::Pending | XrdCmsSelect::Advisory);
-               if (Sel.Opts & XrdCmsSelect::Defer) act = " handling ";
+               if (Sel.Opts & XrdCmsSelect::noBind) act = " handling ";
                   else Cache.AddFile(Sel, nP->NodeMask);
               }
            if (Sel.iovN && Sel.iovP) 
