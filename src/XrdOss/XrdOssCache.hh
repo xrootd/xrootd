@@ -121,6 +121,7 @@ XrdOssCache_FS    *curr;
 long long          Usage;
 long long          Quota;
 int                GRPid;
+static long long   PubQuota;
 
 static XrdOssCache_Group *fsgroups;
 

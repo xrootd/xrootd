@@ -233,8 +233,9 @@ int XrdOssSpace::Quotas()
          fsg = XrdOssCache_Group::fsgroups;
          while(fsg && strcmp(cgroup, fsg->group)) fsg = fsg->next;
          if (fsg) fsg->Quota = qval;
-            else OssEroute.Emsg("Quotas", cgroup, "cache group not found; "
-                                "quota ignored");
+         if (!strcmp("public", cgroup)) XrdOssCache_Group::PubQuota = qval;
+            else if (!fsg) OssEroute.Emsg("Quotas", cgroup, 
+                                     "cache group not found; quota ignored");
         }
     close(qFD);
     return (NoGo ? 0 : 1);

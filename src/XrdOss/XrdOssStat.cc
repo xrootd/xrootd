@@ -199,7 +199,7 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
        StatFS(path, Opt, fSize, fSpace);
        if (fSpace < 0) fSpace = 0;
        blen = snprintf(buff, blen, Resp, "public", fSize, fSpace, fSpace,
-                                                   fSize-fSpace, -1LL);
+                                   fSize-fSpace, XrdOssCache_Group::PubQuota);
        return XrdOssOK;
       }
 

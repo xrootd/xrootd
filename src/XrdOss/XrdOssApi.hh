@@ -251,7 +251,7 @@ char           *UDir;         // -> Usage logdir
 char           *QFile;        // -> Quota file
 
 void               Adjust(dev_t devid, off_t size);
-void               Adjust(const char *Path, off_t size);
+void               Adjust(const char *Path, off_t size, struct stat *buf=0);
 int                Alloc_Cache(const char *, int, mode_t, XrdOucEnv &);
 int                Alloc_Local(const char *, int, mode_t, XrdOucEnv &);
 int                BreakLink(const char *local_path, struct stat &statbuff);

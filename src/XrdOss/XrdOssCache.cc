@@ -40,6 +40,8 @@ extern XrdOucTrace OssTrace;
 
 XrdOssCache_Group *XrdOssCache_Group::fsgroups = 0;
 
+long long          XrdOssCache_Group::PubQuota = -1;
+
 /******************************************************************************/
 /*            X r d O s s C a c h e _ F S D a t a   M e t h o d s             */
 /******************************************************************************/
@@ -168,41 +170,53 @@ void  XrdOssSys::Adjust(dev_t devid, off_t size)
 {
    EPNAME("Adjust")
    XrdOssCache_FSData *fsdp;
-
-// Obtain cache lock
-//
-   CacheContext.Lock();
+   XrdOssCache_Group  *fsgp;
 
 // Search for matching filesystem
 //
    fsdp = fsdata;
    while(fsdp && fsdp->fsid != devid) fsdp = fsdp->next;
+   if (!fsdp) {DEBUG("dev " <<devid <<" not found."); return;}
+
+// Find the public cache group (it might not exist)
+//
+   fsgp = XrdOssCache_Group::fsgroups;
+   while(fsgp && strcmp("public", fsgp->group)) fsgp = fsgp->next;
 
 // Process the result
 //
    if (fsdp) 
-      {DEBUG("size=" <<fsdp->frsz <<'+' <<size <<" path=" <<fsdp->path);
-       if ((size = (fsdp->frsz += size)) < 0) size = 0;
+      {DEBUG("free=" <<fsdp->frsz <<'-' <<size <<" path=" <<fsdp->path);
+       CacheContext.Lock();
+       if ((size = (fsdp->frsz  -= size)) < 0) size = 0;
        fsdp->stat |= XrdOssFSData_ADJUSTED;
+       if (fsgp && (fsgp->Usage += size) < 0) fsgp->Usage = 0;
+       CacheContext.UnLock();
       } else {
        DEBUG("dev " <<devid <<" not found.");
       }
-
-// All done
-//
-   CacheContext.UnLock();
 }
 
 /******************************************************************************/
   
-void XrdOssSys::Adjust(const char *Path, off_t size)
+void XrdOssSys::Adjust(const char *Path, off_t size, struct stat *buf)
 {
    EPNAME("Adjust")
    XrdOssCache_FS *fsp;
 
-// Obtain cache lock
+// If we have a struct then we need to do some more work
 //
-   CacheContext.Lock();
+   if (buf) 
+      {if ((buf->st_mode & S_IFMT) != S_IFLNK) Adjust(buf->st_dev, size);
+          else {char lnkbuff[PATH_MAX+64];
+                int  lnklen = readlink(Path, lnkbuff, sizeof(lnkbuff)-1);
+                if (lnklen > 0)
+                   {XrdOssPath::Trim2Base(lnkbuff+lnklen-1);
+                    Adjust(lnkbuff, size);
+                   }
+               }
+       return;
+      }
 
 // Search for matching logical partition
 //
@@ -212,17 +226,8 @@ void XrdOssSys::Adjust(const char *Path, off_t size)
 
 // Process the result
 //
-   if (fsp) 
-      {DEBUG("size=" <<fsp->fsgroup->Usage <<'+' <<size <<" path=" <<fsp->path);
-       if ((fsp->fsgroup->Usage += size) < 0) fsp->fsgroup->Usage = 0;
-       if (XrdOssSS->Space) XrdOssSS->Space->Adjust(fsp->fsgroup->GRPid, size);
-      } else {
-       DEBUG("path " <<Path <<" not found.");
-      }
-
-// All done
-//
-   CacheContext.UnLock();
+   if (fsp) Adjust(fsp, size);
+      else {DEBUG("cahe path " <<Path <<" not found.");}
 }
 
 /******************************************************************************/
@@ -231,21 +236,15 @@ void XrdOssSys::Adjust(XrdOssCache_FS *fsp, off_t size)
 {
    EPNAME("Adjust")
 
-// Obtain cache lock
-//
-   CacheContext.Lock();
-
 // Process the result
 //
    if (fsp) 
-      {DEBUG("size=" <<fsp->fsgroup->Usage <<'+' <<size <<" path=" <<fsp->path);
+      {DEBUG("used=" <<fsp->fsgroup->Usage <<'+' <<size <<" path=" <<fsp->path);
+       CacheContext.Lock();
        if ((fsp->fsgroup->Usage += size) < 0) fsp->fsgroup->Usage = 0;
        if (XrdOssSS->Space) XrdOssSS->Space->Adjust(fsp->fsgroup->GRPid, size);
+       CacheContext.UnLock();
       }
-
-// All done
-//
-   CacheContext.UnLock();
 }
 
 /******************************************************************************/
@@ -270,19 +269,11 @@ XrdOssCache_FS *XrdOssSys::Find_Cache(const char *Path)
 //
    XrdOssPath::Trim2Base(lnkbuff+lnklen-1);
 
-// Obtain cache lock
-//
-   CacheContext.Lock();
-
 // Search for matching logical partition
 //
    fsp = fsfirst;
    while(fsp && strcmp(fsp->path, lnkbuff))
         if ((fsp = fsp->next) == fsfirst) {fsp = 0; break;}
-
-// All done
-//
-   CacheContext.UnLock();
    return fsp;
 }
 
@@ -296,7 +287,6 @@ void XrdOssSys::List_Cache(const char *lname, XrdSysError &Eroute)
      const char *theOpt;
      char *pP, buff[4096];
 
-     CacheContext.Lock();
      if ((fsp = fsfirst)) do
         {if (fsp->opts & XrdOssCache_FS::isXA)
             {pP = (char *)fsp->path + fsp->plen - 1;
@@ -309,7 +299,6 @@ void XrdOssSys::List_Cache(const char *lname, XrdSysError &Eroute)
          Eroute.Say(buff);
          fsp = fsp->next;
         } while(fsp != fsfirst);
-     CacheContext.UnLock();
 }
  
 /******************************************************************************/
