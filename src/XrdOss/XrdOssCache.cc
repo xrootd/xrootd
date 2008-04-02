@@ -188,7 +188,7 @@ void  XrdOssSys::Adjust(dev_t devid, off_t size)
    if (fsdp) 
       {DEBUG("free=" <<fsdp->frsz <<'-' <<size <<" path=" <<fsdp->path);
        CacheContext.Lock();
-       if ((size = (fsdp->frsz  -= size)) < 0) size = 0;
+       if (        (fsdp->frsz  -= size) < 0) fsdp->frsz = 0;
        fsdp->stat |= XrdOssFSData_ADJUSTED;
        if (fsgp && (fsgp->Usage += size) < 0) fsgp->Usage = 0;
        CacheContext.UnLock();
