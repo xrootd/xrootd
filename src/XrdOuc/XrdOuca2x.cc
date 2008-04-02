@@ -121,6 +121,7 @@ long long XrdOuca2x::a2sz(XrdSysError &Eroute, const char *emsg, const char *ite
                                 long long *val, long long minv, long long maxv)
 {   int i = strlen(item)-1;
     long long qmult = 1;
+    char *eP;
 
     if (!item || !*item)
        {Eroute.Emsg("a2x", emsg, "value not specified"); return -1;}
@@ -128,9 +129,9 @@ long long XrdOuca2x::a2sz(XrdSysError &Eroute, const char *emsg, const char *ite
     errno = 0;
     if (item[i] == 'k' || item[i] == 'K') qmult = 1024;
     if (item[i] == 'm' || item[i] == 'M') qmult = 1024*1024;
-    if (item[i] == 'g' || item[i] == 'g') qmult = 1024*1024*1024;
-    *val  = strtoll(item, (char **)NULL, 10) * qmult;
-    if (errno)
+    if (item[i] == 'g' || item[i] == 'G') qmult = 1024*1024*1024;
+    *val  = strtoll(item, &eP, 10) * qmult;
+    if (errno || *eP)
        {Eroute.Emsg("a2x", emsg, item, "is not a number");
         return -1;
        }
