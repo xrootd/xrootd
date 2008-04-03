@@ -368,6 +368,7 @@ int XrdOssSys::ReCache(const char *Path, const char *Qfile)
 {
      XrdOssCache_Group *cgp;
      XrdOssSpace *sP;
+     long long bytesUsed;
 
 // If usage directory or quota file was passed then we initialize space handling
 // We need to create a space object to track usage across failures.
@@ -383,6 +384,8 @@ int XrdOssSys::ReCache(const char *Path, const char *Qfile)
 // to a save set. If there is no space object then skip all of this.
 //
    if (Path && (cgp = XrdOssCache_Group::fsgroups))
-      do {cgp->GRPid = Space->Assign(cgp->group);} while((cgp = cgp->next));
+      do {cgp->GRPid = Space->Assign(cgp->group, bytesUsed);
+          cgp->Usage = bytesUsed;
+         } while((cgp = cgp->next));
    return 0;
 }

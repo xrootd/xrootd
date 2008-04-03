@@ -86,7 +86,7 @@ void XrdOssSpace::Adjust(int Gent, off_t Space)
 /*                                A s s i g n                                 */
 /******************************************************************************/
   
-int XrdOssSpace::Assign(const char *GName)
+int XrdOssSpace::Assign(const char *GName, long long &Usage)
 {
    off_t offset;
    int i;
@@ -99,17 +99,20 @@ int XrdOssSpace::Assign(const char *GName)
 // Check if we should create a new entry or return an existing one
 //
    if (i >= nextEnt)
-      if (i >= maxEnt) 
+      {Usage = 0;
+       if (i >= maxEnt)
          {OssEroute.Emsg("Assign", aFname, "overflow for", GName);
           return -1;
          } else {
+          memset(&uData[i], 0, sizeof(uEnt));
           strcpy(uData[i].gName, GName); nextEnt++;
           offset = sizeof(uEnt) * i;
-          if (pwrite(aFD, &uData[i].gName, sizeof(uData[0].gName), offset) < 0)
+          if (pwrite(aFD, &uData[i], sizeof(uEnt), offset) < 0)
             {OssEroute.Emsg("Adjust", errno, "update usage file", aFname);
              return -1;
             }
          }
+      } else Usage = uData[i].Used;
 
 // All done here
 //

@@ -20,7 +20,7 @@ public:
 
 void       Adjust(int Gent, off_t Space);
 
-int        Assign(const char *GName);
+int        Assign(const char *GName, long long &bytesUsed);
 
 int        Init();
 

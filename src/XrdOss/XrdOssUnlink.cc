@@ -51,7 +51,7 @@ int XrdOssSys::Unlink(const char *path)
 {
     EPNAME("Unlink")
     unsigned long long ismig, remotefs;
-    int i, retc2, retc = XrdOssOK;
+    int i, retc2, doAdjust = 0, retc = XrdOssOK;
     XrdOssLock un_file;
     struct stat statbuff;
     char *fnp;
@@ -86,14 +86,15 @@ int XrdOssSys::Unlink(const char *path)
                         if (rmdir(local_path)) retc = -errno;
                         DEBUG("dir rc=" <<retc <<" path=" <<local_path);
                         return retc;
-                       }
+                       } else doAdjust = 1;
 
 // Delete the local copy and every valid suffix variation
 //
    if (!retc)
       if (unlink(local_path)) retc = -errno;
          else {i = strlen(local_path); fnp = &local_path[i];
-               Adjust(statbuff.st_dev, -statbuff.st_size);
+               if (doAdjust && statbuff.st_size)
+                  Adjust(statbuff.st_dev, -statbuff.st_size);
                if (ismig) for (i = 0; sfx[i]; i++)
                   {strcpy(fnp, sfx[i]);
                    if (unlink(local_path))
@@ -155,7 +156,7 @@ int XrdOssSys::BreakLink(const char *local_path, struct stat &statbuff)
           {XrdOssPath::Trim2Base(lP);
            Adjust(lnkbuff, -statbuff.st_size);
           }
-      }
+      } else if (statbuff.st_size) Adjust(statbuff.st_dev, -statbuff.st_size);
 
 // All done
 //
