@@ -720,7 +720,7 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
                && (nP->myLoad > Config.MaxLoad))                 nP = 0;
        if (nP)
           if (isrw)
-             if (nP->isNoStage || nP->DiskFree < Config.DiskMin) nP = 0;
+             if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)   nP = 0;
                 else {SelAcnt++; nP->Lock();}
             else     {SelRcnt++; nP->Lock();}
       }
@@ -1164,7 +1164,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
            if (np->isOffline)                     {numd++; continue;}
            if (np->isSuspend || np->isDisable)    {nums++; continue;}
            if (np->myLoad > Config.MaxLoad)       {numo++; continue;}
-           if (needspace && (np->DiskFree < Config.DiskMin
+           if (needspace && (np->DiskFree < np->DiskMinF
                              || (reqSS && np->isNoStage)))
               {numf++; continue;}
            if (!sp) sp = np;
@@ -1208,7 +1208,7 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, int &nump, int &delay,
           {nump++;
            if (np->isOffline)                   {numd++; continue;}
            if (np->isSuspend || np->isDisable)  {nums++; continue;}
-           if (needspace && (np->DiskFree < Config.DiskMin
+           if (needspace && (np->DiskFree < np->DiskMinF
                              || (reqSS && np->isNoStage)))
               {numf++; continue;}
            if (!sp) sp = np;
