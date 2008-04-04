@@ -587,6 +587,8 @@ void XrdCmsConfig::ConfigDefaults(void)
    LogPerf  = 10;         // Every 10 usage requests
    DiskMin  = 10240;      // 10GB*1024 (Min partition space) in MB
    DiskHWM  = 11264;      // 11GB*1024 (High Water Mark SUO) in MB
+   DiskMinP = 0;
+   DiskHWMP = 0;
    DiskAsk  = 12;         // 15 Seconds between space calibrations.
    DiskWT   = 0;          // Do not defer when out of space
    DiskSS   = 0;          // Not a staging server
@@ -2326,14 +2328,19 @@ int XrdCmsConfig::xsecl(XrdSysError *eDest, XrdOucStream &CFile)
 
 /* Function: xspace
 
-   Purpose:  To parse the directive: space [linger <num>] [[min] <min> [<hwm>]]
-                                           [recalc <sec>]
+   Purpose:  To parse the directive: space [linger <num>] [recalc <sec>]
+
+                          [[min] {<mnp> [<min>] | <min>}  [[<hwp>] <hwm>]]
 
              <num> Maximum number of times a server may be reselected without
                    a break. The default is 0.
 
-             <min> Minimum free space need in bytes (or K, M, G) in a partition.
+             <mnp> Min free space needed as percentage of the largest partition.
+
+             <min> Min free space needed in bytes (or K, M, G) in a partition.
                    The default is 10G.
+
+             <hwp> Percentage of free space needed to requalify.
 
              <hwm> Bytes (or K, M,G) of free space needed when bytes falls below
                    <min> to requalify a server for selection.
@@ -2352,7 +2359,7 @@ int XrdCmsConfig::xsecl(XrdSysError *eDest, XrdOucStream &CFile)
 int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
-    int alinger = -1, arecalc = -1;
+    int i, alinger = -1, arecalc = -1, minfP = 0, hwmP = 0;
     long long minf = -1, hwm = -1;
 
     while((val = CFile.GetWord()))
@@ -2366,28 +2373,65 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
                   {eDest->Emsg("Config", "recalc value not specified"); return 1;}
                if (XrdOuca2x::a2i(*eDest,"recalc",val,&arecalc,1)) return 1;
               }
-      else if (isdigit(*val) || (!strcmp("min", val) && (val = CFile.GetWord())) )
-              {if (XrdOuca2x::a2sz(*eDest,"space minfree",val,&minf,0)) return 1;
-               if ((val = CFile.GetWord()))
-                  {if (isdigit(*val))
-                       {if (XrdOuca2x::a2sz(*eDest,"space high watermark",
-                                            val,&hwm,0)) return 1;
-                       }
-                      else CFile.RetToken();
-                  } else break;
+      else if (!strcmp("min", val))
+              {if (!(val = CFile.GetWord()) || !isdigit(*val))
+                  {eDest->Emsg("Config", "space min value not specified"); return 1;}
+               break;
               }
-       else {eDest->Emsg("Config", "invalid space parameters"); return 1;}
+      else if (isdigit(*val)) break;
+      else {eDest->Emsg("Config", "invalid space parameters"); return 1;}
+      }
+
+    if (val && isdigit(*val))
+       {i = strlen(val);
+        if (val[i-1] == '%')
+           {val[i-1] = '\0';
+            if (XrdOuca2x::a2i(*eDest,"space % minfree",val,&minfP,1,99)) return 1;
+            val = CFile.GetWord(); minf  = 10240LL<<20LL; hwm  = 11264LL<<20LL;
+           }
        }
+
+    if (val && isdigit(*val))
+       {i = strlen(val);
+        if (val[i-1] != '%')
+           {if (XrdOuca2x::a2sz(*eDest,"space minfree",val,&minf,0)) return 1;
+            val = CFile.GetWord();
+           }
+       }
+
+    if (val && isdigit(*val))
+       {i = strlen(val);
+        if (val[i-1] == '%')
+           {val[i-1] = '\0';
+            if (XrdOuca2x::a2i(*eDest,"space % high watermark",val,&hwmP,1,99)) return 1;
+            val = CFile.GetWord();
+           }
+       }
+
+    if (val && isdigit(*val))
+       {i = strlen(val);
+        if (val[i-1] != '%')
+           {if (XrdOuca2x::a2sz(*eDest,"space high watermark",val,&hwm,0)) return 1;
+            val = CFile.GetWord();
+           }
+       }
+
+    if (val) {eDest->Emsg("Config", "invalid space parameter -", val); return 1;}
     
-    if (alinger < 0 && arecalc < 0 && minf < 0)
+    if (alinger < 0 && arecalc < 0 && minf < 0 && minfP)
        {eDest->Emsg("Config", "no space values specified"); return 1;}
 
     if (alinger >= 0) DiskLinger = alinger;
     if (arecalc >= 0) DiskAsk    = arecalc;
 
+    if (minfP)
+       {if (hwmP < minfP) hwmP = minfP + 1;
+        DiskMinP = minfP; DiskHWMP = hwmP;
+       }
+
     if (minf >= 0)
-       {if (hwm < 0 || hwm < minf) hwm = minf+1073741824; // Minimum + 1GB
-        minf = minf >> 20LL; hwm = hwm >> 20LL;           // Now Megabytes
+       {if (hwm < minf) hwm = minf+1073741824;     // Minimum + 1GB
+        minf = minf >> 20LL; hwm = hwm >> 20LL;    // Now Megabytes
         if (minf >> 31LL) {minf = 0x7fefffff; hwm = 0x7fffffff;}
            else if (hwm >> 31LL) minf = 0x7fffffff;
         DiskMin = static_cast<int>(minf);

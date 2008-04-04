@@ -78,6 +78,8 @@ int         P_pag;        // % PAG Capacity in load factor
 
 int         DiskMin;      // Minimum MB needed of space in a partition
 int         DiskHWM;      // Minimum MB needed of space to requalify
+short       DiskMinP;     // Minimum MB needed of space in a partition as %
+short       DiskHWMP;     // Minimum MB needed of space to requalify   as %
 int         DiskLinger;   // Manager Only
 int         DiskAsk;      // Seconds between disk space reclaculations
 int         DiskWT;       // Seconds to defer client while waiting for space

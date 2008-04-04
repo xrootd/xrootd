@@ -52,6 +52,8 @@ class SpaceData
 {
 public:
 
+long long Total;    // Total space
+int       wMinF;    // Free space minimum to select wFree node
 int       wFree;    // Free space for nodes providing r/w access
 int       wNum;     // Number of      nodes providing r/w access
 int       wUtil;    // Average utilization
@@ -59,7 +61,8 @@ int       sFree;    // Free space for nodes providing staging
 int       sNum;     // Number of      nodes providing staging
 int       sUtil;    // Average utilization
 
-          SpaceData() : wFree(0), wNum(0), wUtil(0),
+          SpaceData() : Total(0), wMinF(0),
+                        wFree(0), wNum(0), wUtil(0),
                         sFree(0), sNum(0), sUtil(0) {}
          ~SpaceData() {}
 };

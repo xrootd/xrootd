@@ -47,6 +47,8 @@ int   numFS() {return fs_nums;}
 
 void  setParms(XrdOucTList *tlp, int warnDups);
 
+unsigned int TotalSpace(unsigned int &minfree);
+
 enum  vType {manFS = 1, peerFS = 2};
 
 void  setVirtual(vType vVal) {Virtual = vVal;}
@@ -61,6 +63,7 @@ private:
       int  isDup(struct stat &buf, XrdCmsMeterFS *baseFS);
 const char Scale(long long inval, long &outval);
       void SpaceMsg(int why);
+      void UpdtSpace();
 
 XrdOucStream  myMeter;
 XrdSysMutex   cfsMutex;
@@ -68,12 +71,15 @@ XrdSysMutex   repMutex;
 XrdOucTList  *fs_list;
 long long     MinFree;  // Calculated only once
 long long     HWMFree;  // Calculated only once
+long long     dsk_lpn;  // Calculated only once
 long long     dsk_tot;  // Calculated only once
 long long     dsk_free;
 long long     dsk_maxf;
 int           dsk_util;
 int           dsk_calc;
 int           fs_nums;  // Calculated only once
+int           lastFree;
+int           lastUtil;
 int           noSpace;
 int           Running;
 long          MinShow;  // Calculated only once

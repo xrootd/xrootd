@@ -261,6 +261,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    loginData.Paths = (kXR_char *)Config.myPaths;
    loginData.sPort = Config.PortTCP;
    loginData.fsNum = Meter.numFS();
+   loginData.tSpace= Meter.TotalSpace(loginData.mSpace);
 
    loginData.Version = kYR_Version; // These to keep compiler happy
    loginData.HoldTime= 0;
@@ -538,9 +539,14 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 
 // Record the status of the server's filesystem
 //
-   myNode->DiskFree = Data.fSpace;
-   myNode->DiskNums = Data.fsNum;
-   myNode->DiskUtil = Data.fsUtil;
+   DEBUG(Link->Name() <<" TSpace=" <<Data.tSpace <<"GB NumFS=" <<Data.fsNum
+                      <<" FSpace=" <<Data.fSpace <<"MB MinFR=" <<Data.mSpace
+                      <<"MB Util=" <<Data.fsUtil);
+   myNode->DiskTotal = Data.tSpace;
+   myNode->DiskMinF  = Data.mSpace;
+   myNode->DiskFree  = Data.fSpace;
+   myNode->DiskNums  = Data.fsNum;
+   myNode->DiskUtil  = Data.fsUtil;
    Meter.setVirtUpdt();
 
 // Check for any configuration changes and then process all of the paths.

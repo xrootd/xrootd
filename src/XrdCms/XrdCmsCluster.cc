@@ -773,13 +773,16 @@ void XrdCmsCluster::Space(SpaceData &sData, SMask_t smask)
    for (i = 0; i <= STHi; i++)
        if ((nP = NodeTab[i]) && nP->isNode(bmask)
        &&  !nP->isOffline    && nP->isRW)
-          {sData.sNum++;
+          {sData.Total += nP->DiskTotal;
+           sData.sNum++;
            if (sData.sFree < nP->DiskFree)
               {sData.sFree = nP->DiskFree; sData.sUtil = nP->DiskUtil;}
            if (nP->isRW & XrdCmsNode::allowsRW)
               {sData.wNum++;
                if (sData.wFree < nP->DiskFree)
-                  {sData.wFree = nP->DiskFree; sData.wUtil = nP->DiskUtil;}
+                  {sData.wFree = nP->DiskFree; sData.wUtil = nP->DiskUtil;
+                   sData.wMinF = nP->DiskMinF;
+                  }
               }
           }
    STMutex.UnLock();

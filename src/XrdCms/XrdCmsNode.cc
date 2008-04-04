@@ -95,7 +95,9 @@ XrdCmsNode::XrdCmsNode(const char *Role, XrdLink *lnkp, int port,
     myCost   =  0;
     myLoad   =  0;
     myMass   =  0;
+    DiskTotal=  0;
     DiskFree =  0;
+    DiskMinF =  0;
     DiskNums =  0;
     DiskUtil =  0;
     Next     =  0;

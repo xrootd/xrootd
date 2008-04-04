@@ -92,9 +92,12 @@ XrdCmsMeter::XrdCmsMeter() : myMeter(&Say)
     noSpace  = 0;
     MinFree  = 0;
     HWMFree  = 0;
+    dsk_lpn  = 0;
     dsk_tot  = 0;
     dsk_free = 0;
     dsk_maxf = 0;
+    lastFree = 0;
+    lastUtil = 0;
     monpgm   = 0;
     monint   = 0;
     montid   = 0;
@@ -145,26 +148,13 @@ int XrdCmsMeter::calcLoad(int nowload, int pdsk)
   
 int XrdCmsMeter::FreeSpace(int &tot_util)
 {
-   static const SMask_t allNodes = ~0ULL;
-   static int lastFree, lastUtil;
    long long fsavail;
 
 // If we are a virtual filesystem, do virtual stats
 //
    if (Virtual)
       {if (Virtual == peerFS) {tot_util = 0; return 0x7fffffff;}
-       if (VirtUpdt)
-          {SpaceData mySpace;
-           Cluster.Space(mySpace, allNodes);
-           cfsMutex.Lock();
-           if (mySpace.wFree > mySpace.sFree)
-              {lastFree = mySpace.wFree; lastUtil = mySpace.wUtil;
-              } else {
-               lastFree = mySpace.sFree; lastUtil = mySpace.sUtil;
-              }
-           VirtUpdt = 0;
-           cfsMutex.UnLock();
-          }
+       if (VirtUpdt) UpdtSpace();
        tot_util = lastUtil;
        return lastFree;
       }
@@ -338,23 +328,15 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
     XrdCmsMeterFS *fsP, baseFS(0,0);
     XrdOucTList *plp, *nlp;
     char buff[1024], sfx1, sfx2, sfx3;
-    long long fsbsize;
+    long long fsbsize, fsval;
     long maxfree, totfree, totDisk;
     struct stat buf;
     STATFS_BUFF fsdata;
     int rc;
 
-// Set values (disk space values are in megabytes)
-// 
-    fs_list = tlp; 
-    MinFree = Config.DiskMin;
-    MinStype= Scale(MinFree, MinShow);
-    HWMFree = Config.DiskHWM;
-    HWMStype= Scale(HWMFree, HWMShow);
-    dsk_calc = (Config.DiskAsk < 5 ? 5 : Config.DiskAsk);
-
 // Calculate number of filesystems without duplication
 //
+    fs_list = tlp; 
     fs_nums = 0; plp = 0;
     if ((nlp = tlp))
        do {if ((rc = stat(nlp->text, &buf)) || isDup(buf, &baseFS))
@@ -376,12 +358,25 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
 #else
                   {fsbsize = fsdata.f_bsize;
 #endif
-                   dsk_tot += fsdata.f_blocks*(fsbsize ? fsbsize : FS_BLKFACT);
+                   fsval = fsdata.f_blocks*(fsbsize ? fsbsize : FS_BLKFACT);
+                   if (fsval > dsk_lpn) dsk_lpn = fsval;
+                   dsk_tot += fsval;
                   }
               }
            plp = nlp;
           } while((nlp = nlp->next));
    dsk_tot = dsk_tot >> 20LL; // in MB
+   dsk_lpn = dsk_lpn >> 20LL;
+
+// Set values (disk space values are in megabytes)
+// 
+    if (Config.DiskMinP) MinFree = dsk_lpn * Config.DiskMinP / 100;
+    if (Config.DiskMin > MinFree) MinFree  = Config.DiskMin;
+    MinStype= Scale(MinFree, MinShow);
+    if (Config.DiskHWMP) HWMFree = dsk_lpn * Config.DiskHWMP / 100;
+    if (Config.DiskHWM > HWMFree) HWMFree  = Config.DiskHWM;
+    HWMStype= Scale(HWMFree, HWMShow);
+    dsk_calc = (Config.DiskAsk < 5 ? 5 : Config.DiskAsk);
 
 // Calculate the initial free space and start the FS monitor thread
 //
@@ -416,6 +411,41 @@ void  XrdCmsMeter::setParms(XrdOucTList *tlp, int warnDups)
            Say.Emsg("Meter", "Warning! Available space <", buff);
           }
       }
+}
+  
+/******************************************************************************/
+/*                            T o t a l S p a c e                             */
+/******************************************************************************/
+
+unsigned int XrdCmsMeter::TotalSpace(unsigned int &minfree)
+{
+   long long fstotal, fsminfr;
+
+// If we are a virtual filesystem, do virtual stats
+//
+   if (Virtual)
+      {if (Virtual == peerFS) {minfree = 0; return 0x7fffffff;}
+       if (VirtUpdt) UpdtSpace();
+      }
+
+// The values are calculated periodically so use the last available ones
+//
+   cfsMutex.Lock();
+   fstotal = dsk_tot;
+   fsminfr = MinFree;
+   cfsMutex.UnLock();
+
+// Now adjust the values to fit
+//
+   if (fsminfr >> 31LL) minfree = 0x7fffffff;
+      else              minfree = static_cast<unsigned int>(fsminfr);
+   fstotal = fstotal >> 10LL;
+   if (fstotal == 0) fstotal = 1;
+      else if (fstotal >> 31LL) fstotal = 0x7fffffff;
+
+// Return amount available
+//
+   return static_cast<unsigned int>(fstotal);
 }
   
 /******************************************************************************/
@@ -534,4 +564,31 @@ void XrdCmsMeter::SpaceMsg(int why)
                                 maxfree, sfx, HWMShow, HWMStype);
       }
       Say.Emsg("Meter", What, buff);
+}
+
+/******************************************************************************/
+/*                             U p d t S p a c e                              */
+/******************************************************************************/
+  
+void XrdCmsMeter::UpdtSpace()
+{
+   static const SMask_t allNodes = ~0ULL;
+   SpaceData mySpace;
+
+// Get new space values for the cluser
+//
+   Cluster.Space(mySpace, allNodes);
+
+// Update out local information
+//
+   cfsMutex.Lock();
+   if (mySpace.wFree > mySpace.sFree)
+      {lastFree = mySpace.wFree; lastUtil = mySpace.wUtil;
+      } else {
+       lastFree = mySpace.sFree; lastUtil = mySpace.sUtil;
+      }
+   dsk_tot = static_cast<long long>(mySpace.Total)<<10LL; // In MB
+   MinFree = mySpace.wMinF;
+   VirtUpdt = 0;
+   cfsMutex.UnLock();
 }
