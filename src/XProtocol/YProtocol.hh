@@ -208,9 +208,11 @@ struct CmsLoginData
        kXR_unt16  Version;
        kXR_unt32  Mode;              // From LoginMode
        kXR_int32  HoldTime;          // Hold time in ms(managers)
-       kXR_unt32  fSpace;            // Free Space     (servers)
+       kXR_unt32  tSpace;            // Tot  Space  GB (servers)
+       kXR_unt32  fSpace;            // Free Space  MB (servers)
+       kXR_unt32  mSpace;            // Minf Space  MB (servers)
        kXR_unt16  fsNum;             // File Systems   (servers /supervisors)
-       kXR_unt16  fsUtil;            // FS Utilization (servers / supervisors)
+       kXR_unt16  fsUtil;            // FS Utilization (servers /supervisors)
        kXR_unt16  dPort;             // Data port      (servers /supervisors)
        kXR_unt16  sPort;             // Subs port      (managers/supervisors)
        kXR_char  *SID;               // Server ID      (servers/ supervisors)
