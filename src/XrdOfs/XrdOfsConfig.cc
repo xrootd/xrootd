@@ -166,13 +166,14 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
 
 // Turn off forwarding if we are not a pure remote redirector or a peer
 //
-   if (Options & Forward)
+   if (Options & Forwarding)
       if (!(Options & isPeer)
       && (Options & (isServer | isProxy)))
          {Eroute.Say("Config warning: forwarding turned off; not a pure manager");
-          Options &= ~(Forward);
-          fwdCHMOD      = 0; fwdMKDIR      = 0; fwdMKPATH     = 0;
-          fwdMV         = 0; fwdRM         = 0; fwdRMDIR      = 0;
+          Options &= ~(Forwarding);
+          fwdCHMOD.Reset(); fwdMKDIR.Reset(); fwdMKPATH.Reset();
+          fwdMV.Reset();    fwdRM.Reset();    fwdRMDIR.Reset();
+          fwdTRUNC.Reset();
          }
 
 // Initialize th Evr object if we are an actual server
@@ -204,19 +205,8 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
 void XrdOfs::Config_Display(XrdSysError &Eroute)
 {
      const char *cloc;
-     char buff[8192], fwbuff[256], *bp;
+     char buff[8192], fwbuff[512], *bp;
      int i;
-
-     if (!(Options & Forward)) fwbuff[0] = '\0';
-        else {bp = fwbuff;
-              setBuff("       ofs.forward", 11);
-              if (fwdCHMOD) setBuff(" chmod", 6);
-              if (fwdMKDIR) setBuff(" mkdir", 6);
-              if (fwdMV   ) setBuff(" mv"   , 3);
-              if (fwdRM   ) setBuff(" rm"   , 3);
-              if (fwdRMDIR) setBuff(" rmdir", 6);
-              setBuff("\n", 1);
-             }
 
      if (!ConfigFN || !ConfigFN[0]) cloc = "default";
         else cloc = ConfigFN;
@@ -224,7 +214,6 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
                                   "       ofs.role %s\n"
                                   "%s"
                                   "%s%s%s"
-                                  "%s"
                                   "       ofs.maxdelay   %d\n"
                                   "%s%s%s"
                                   "       ofs.trace      %x",
@@ -232,12 +221,21 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
               (Options & Authorize ? "       ofs.authorize\n" : ""),
               (AuthLib                   ? "       ofs.authlib " : ""),
               (AuthLib ? AuthLib : ""), (AuthLib ? "\n" : ""),
-              fwbuff, MaxDelay,
+               MaxDelay,
               (OssLib                    ? "       ofs.osslib " : ""),
               (OssLib ? OssLib : ""), (OssLib ? "\n" : ""),
               OfsTrace.What);
 
      Eroute.Say(buff);
+
+     if (Options & Forwarding)
+        {if (ConfigDispFwd(buff, fwdCHMOD)) Eroute.Say(buff);
+         if (ConfigDispFwd(buff, fwdMKDIR)) Eroute.Say(buff);
+         if (ConfigDispFwd(buff, fwdMV))    Eroute.Say(buff);
+         if (ConfigDispFwd(buff, fwdRM))    Eroute.Say(buff);
+         if (ConfigDispFwd(buff, fwdRMDIR)) Eroute.Say(buff);
+         if (ConfigDispFwd(buff, fwdTRUNC)) Eroute.Say(buff);
+        }
 
      if (evsObject)
         {bp = buff;
@@ -267,6 +265,36 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
 /******************************************************************************/
 /*                     p r i v a t e   f u n c t i o n s                      */
 /******************************************************************************/
+/******************************************************************************/
+/*                         C o n f i g D i s p F w d                          */
+/******************************************************************************/
+  
+int XrdOfs::ConfigDispFwd(char *buff, struct fwdOpt &Fwd)
+{
+   const char *cP;
+   char pbuff[16], *bp;
+
+// Return if this is not being forwarded
+//
+   if (!(cP = Fwd.Cmd)) return 0;
+   bp = buff;
+   setBuff("       ofs.forward ", 19);
+
+// Chck which way this is being forwarded
+//
+         if (*Fwd.Cmd == '+'){setBuff("2way ",5); cP++;}
+   else  if (!Fwd.Port)      {setBuff("1way ",5);}
+   else {                     setBuff("3way ",5);
+         if (Fwd.Port < 0)   {setBuff("local ",6);}
+            else {int n = sprintf(pbuff, ":%d ", Fwd.Port);
+                  setBuff(Fwd.Host, strlen(Fwd.Host));
+                  setBuff(pbuff, n);
+                 }
+        }
+   setBuff(cP, strlen(cP));
+   return 1;
+}
+
 /******************************************************************************/
 /*                           C o n f i g R e d i r                            */
 /******************************************************************************/
@@ -398,10 +426,13 @@ int XrdOfs::xalib(XrdOucStream &Config, XrdSysError &Eroute)
   
 /* Function: xforward
 
-   Purpose:  To parse the directive: forward [1way | 2way] <metaops>
+   Purpose:  To parse the directive: forward [<handling>] <metaops>
+
+             handling: 1way | 2way | 3way {local | <host>:<port>}
 
              1way      forward does not respond (the default)
              2way      forward responds; relay response back.
+             3way      forward 1way and execute locally or redirect to <host>
              <metaops> list of meta-file operations to forward to manager
 
    Output: 0 upon success or !0 upon failure.
@@ -409,9 +440,9 @@ int XrdOfs::xalib(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
 {
-    enum fwdType {OfsFWDALL = 0x1f, OfsFWDCHMOD = 0x01, OfsFWDMKDIR = 0x02,
+    enum fwdType {OfsFWDALL = 0x3f, OfsFWDCHMOD = 0x01, OfsFWDMKDIR = 0x02,
                   OfsFWDMV  = 0x04, OfsFWDRM    = 0x08, OfsFWDRMDIR = 0x10,
-                  OfsFWDREM = 0x18, OfsFWDNONE  = 0};
+                  OfsFWDREM = 0x18, OfsFWDTRUNC = 0x20, OfsFWDNONE  = 0};
 
     static struct fwdopts {const char *opname; fwdType opval;} fwopts[] =
        {
@@ -421,18 +452,37 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
         {"mv",       OfsFWDMV},
         {"rm",       OfsFWDRM},
         {"rmdir",    OfsFWDRMDIR},
-        {"remove",   OfsFWDREM}
+        {"remove",   OfsFWDREM},
+        {"trunc",    OfsFWDTRUNC}
        };
     int fwval = OfsFWDNONE, fwspec = OfsFWDNONE;
     int numopts = sizeof(fwopts)/sizeof(struct fwdopts);
-    int i, neg, is2way = 0;
-    char *val;
+    int i, neg, rPort = 0, is2way = 0, is3way = 0;
+    char *val, *pp, rHost[512];
 
+    *rHost = '\0';
     if (!(val = Config.GetWord()))
        {Eroute.Emsg("Config", "foward option not specified"); return 1;}
-    if ((is2way = !strcmp("2way", val)) || !strcmp("1way", val))
+    if ((is2way = !strcmp("2way", val)) || !strcmp("1way", val)
+    ||  (is3way = !strcmp("3way", val)))
        if (!(val = Config.GetWord()))
           {Eroute.Emsg("Config", "foward operation not specified"); return 1;}
+
+    if (is3way)
+       {if (!strcmp("local", val)) rPort = -1;
+        else
+       {if (*val == ':')
+           {Eroute.Emsg("Config", "redirect host not specified"); return 1;}
+        if (!(pp = index(val, ':')))
+           {Eroute.Emsg("Config", "redirect port not specified"); return 1;}
+        if ((rPort = atoi(pp+1)) <= 0)
+           {Eroute.Emsg("Config", "redirect port is invalid");    return 1;}
+        *pp = '\0';
+        strlcpy(rHost, val, sizeof(rHost));
+       }
+        if (!(val = Config.GetWord()))
+           {Eroute.Emsg("Config", "foward operation not specified"); return 1;}
+       }
 
     while (val)
          {if (!strcmp(val, "off")) {fwval = OfsFWDNONE; fwspec = OfsFWDALL;}
@@ -452,22 +502,42 @@ int XrdOfs::xforward(XrdOucStream &Config, XrdSysError &Eroute)
          }
 
     if (fwspec & OfsFWDCHMOD) 
-        fwdCHMOD = (fwval & OfsFWDCHMOD ? (is2way ? "+chmod"  : "chmod")  : 0);
-    if (fwspec & OfsFWDMKDIR) 
-        fwdMKDIR = (fwval & OfsFWDMKDIR ? (is2way ? "+mkdir"  : "mkdir")  : 0);
-        fwdMKPATH= (fwval & OfsFWDMKDIR ? (is2way ? "+mkpath" : "mkpath") : 0);
-    if (fwspec & OfsFWDMV)    
-        fwdMV    = (fwval & OfsFWDMV    ? (is2way ? "+mv"     : "mv")     : 0);
-    if (fwspec & OfsFWDRM)    
-        fwdRM    = (fwval & OfsFWDRM    ? (is2way ? "+rm"     : "rm")     : 0);
-    if (fwspec & OfsFWDRMDIR) 
-        fwdRMDIR = (fwval & OfsFWDRMDIR ? (is2way ? "+rmdir"  : "rmdir")  : 0);
+       {fwdCHMOD.Cmd = (fwval&OfsFWDCHMOD ? (is2way ? "+chmod" :"chmod")  : 0);
+        if (fwdCHMOD.Host) free(fwdCHMOD.Host);
+        fwdCHMOD.Host = strdup(rHost); fwdCHMOD.Port = rPort;
+       }
+    if (fwspec&OfsFWDMKDIR) 
+       {fwdMKDIR.Cmd = (fwval&OfsFWDMKDIR ? (is2way ? "+mkdir" :"mkdir")  : 0);
+        if (fwdMKDIR.Host) free(fwdMKDIR.Host);
+        fwdMKDIR.Host = strdup(rHost); fwdMKDIR.Port = rPort;
+        fwdMKPATH.Cmd= (fwval&OfsFWDMKDIR ? (is2way ? "+mkpath":"mkpath") : 0);
+        if (fwdMKPATH.Host) free(fwdMKPATH.Host);
+        fwdMKPATH.Host = strdup(rHost); fwdMKPATH.Port = rPort;
+       }
+    if (fwspec&OfsFWDMV)    
+       {fwdMV   .Cmd = (fwval&OfsFWDMV    ? (is2way ? "+mv"    :"mv")     : 0);
+        if (fwdMV.Host) free(fwdMV.Host);
+        fwdMV.Host = strdup(rHost); fwdMV.Port = rPort;
+       }
+    if (fwspec&OfsFWDRM)    
+       {fwdRM   .Cmd = (fwval&OfsFWDRM    ? (is2way ? "+rm"    :"rm")     : 0);
+        if (fwdRM.Host) free(fwdRM.Host);
+        fwdRM.Host = strdup(rHost); fwdRM.Port = rPort;
+       }
+    if (fwspec&OfsFWDRMDIR) 
+       {fwdRMDIR.Cmd = (fwval&OfsFWDRMDIR ? (is2way ? "+rmdir" :"rmdir")  : 0);
+        if (fwdRMDIR.Host) free(fwdRMDIR.Host);
+        fwdRMDIR.Host = strdup(rHost); fwdRMDIR.Port = rPort;
+       }
+    if (fwspec&OfsFWDTRUNC) 
+       {fwdTRUNC.Cmd = (fwval&OfsFWDTRUNC ? (is2way ? "+trunc" :"trunc")  : 0);
+        if (fwdTRUNC.Host) free(fwdTRUNC.Host);
+        fwdTRUNC.Host = strdup(rHost); fwdTRUNC.Port = rPort;
+       }
 
 // All done
 //
-   if (fwdCHMOD || fwdMKDIR || fwdMV || fwdRM || fwdRMDIR)
-           Options |=   Forward;
-      else Options &= ~(Forward);
+   Options |= Forwarding;
    return 0;
 }
   

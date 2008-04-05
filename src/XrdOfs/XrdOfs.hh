@@ -237,7 +237,7 @@ enum {Authorize = 0x0001,    // Authorization wanted
       isSuper   = 0x00C0,    // Role supervisor
       isMeta    = 0x0100,    // Role meta + above
       haveRole  = 0x01F0,    // A role is present
-      Forward   = 0x1000     // Fowarding wanted
+      Forwarding= 0x1000     // Fowarding wanted
      };                      // These are set in Options below
 
 int   Options;               // Various options
@@ -245,12 +245,24 @@ int   myPort;                // Port number being used
 
 // Forward options
 //
-const char *fwdCHMOD;
-const char *fwdMKDIR;
-const char *fwdMKPATH;
-const char *fwdMV;
-const char *fwdRM;
-const char *fwdRMDIR;
+struct fwdOpt
+      {const char *Cmd;
+             char *Host;
+             int   Port;
+             void  Reset() {Cmd = 0; Port = 0;
+                            if (Host) {free(Host); Host = 0;}
+                           }
+                   fwdOpt() : Cmd(0), Host(0), Port(0) {}
+                  ~fwdOpt() {}
+      };
+
+struct fwdOpt fwdCHMOD;
+struct fwdOpt fwdMKDIR;
+struct fwdOpt fwdMKPATH;
+struct fwdOpt fwdMV;
+struct fwdOpt fwdRM;
+struct fwdOpt fwdRMDIR;
+struct fwdOpt fwdTRUNC;
 
 int   MaxDelay;       //    Max delay imposed during staging
 
@@ -305,8 +317,12 @@ XrdSysMutex              ocMutex; // Global mutex for open/close
 
 // Function used during Configuration
 //
+int           ConfigDispFwd(char *buff, struct fwdOpt &Fwd);
 int           ConfigRedir(XrdSysError &Eroute);
 const char   *Fname(const char *);
+int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
+                      const char *arg1=0, const char *arg2=0,
+                      const char *arg3=0, const char *arg4=0);
 int           setupAuth(XrdSysError &);
 const char   *theRole(int opts);
 int           xalib(XrdOucStream &, XrdSysError &);

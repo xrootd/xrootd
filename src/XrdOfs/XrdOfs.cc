@@ -117,12 +117,6 @@ XrdOfs::XrdOfs()
    Finder        = 0;
    Balancer      = 0;
    evsObject     = 0;
-   fwdCHMOD      = 0;
-   fwdMKDIR      = 0;
-   fwdMKPATH     = 0;
-   fwdMV         = 0;
-   fwdRM         = 0;
-   fwdRMDIR      = 0;
    myRole        = strdup("server");
 
 // Obtain port number we will be using
@@ -1076,11 +1070,10 @@ int XrdOfs::chmod(const char             *path,    // In
 // Find out where we should chmod this file
 //
    if (Finder && Finder->isRemote())
-      if (fwdCHMOD)
+      if (fwdCHMOD.Cmd)
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
-          if ((retc = Finder->Forward(einfo, fwdCHMOD, path, buff, info)))
-             return fsError(einfo, retc);
+          if (Forward(retc, einfo, fwdCHMOD, path, buff, info)) return retc;
          }
       else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR)))
               return fsError(einfo, retc);
@@ -1331,13 +1324,11 @@ int XrdOfs::mkdir(const char             *path,    // In
 // Find out where we should remove this file
 //
    if (Finder && Finder->isRemote())
-      if (fwdMKDIR)
+      if (fwdMKDIR.Cmd)
          {char buff[8];
           sprintf(buff, "%o", acc_mode);
-          return ((retc = Finder->Forward(einfo, 
-                                         (mkpath ? fwdMKPATH:fwdMKDIR),
-                                         path, buff, info))
-                        ? fsError(einfo, retc) : SFS_OK);
+          if (Forward(retc, einfo, (mkpath ? fwdMKPATH:fwdMKDIR),
+                      path, buff, info)) return retc;
          }
          else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR | SFS_O_CREAT)))
                  return fsError(einfo, retc);
@@ -1408,7 +1399,6 @@ int XrdOfs::remove(const char              type,    // In
    EPNAME("remove");
    int retc;
    const char *tident = einfo.getErrUser();
-   const char *fSpec;
    XrdOucEnv rem_Env(info);
    XTRACE(remove, path, type);
 
@@ -1419,11 +1409,12 @@ int XrdOfs::remove(const char              type,    // In
 // Find out where we should remove this file
 //
    if (Finder && Finder->isRemote())
-      if ((fSpec = (type == 'd' ? fwdRMDIR : fwdRM)))
-         return ((retc = Finder->Forward(einfo, fSpec, path, 0, info))
-                       ? fsError(einfo, retc) : SFS_OK);
-         else if ((retc = Finder->Locate(einfo,path,SFS_O_WRONLY)))
-                 return fsError(einfo, retc);
+      {struct fwdOpt *fSpec = (type == 'd' ? &fwdRMDIR : &fwdRM);
+       if (fSpec->Cmd)
+          {if (Forward(retc, einfo, *fSpec, path, 0, info)) return retc;}
+          else if ((retc = Finder->Locate(einfo,path,SFS_O_WRONLY)))
+                  return fsError(einfo, retc);
+      }
 
 // Check if we should generate an event
 //
@@ -1485,10 +1476,10 @@ int XrdOfs::rename(const char             *old_name,  // In
 // Find out where we should rename this file
 //
    if (Finder && Finder->isRemote())
-      if (fwdMV)
-         return ((retc = Finder->Forward(einfo, fwdMV, old_name, new_name,
-                                                       infoO,    infoN))
-                ? fsError(einfo, retc) : SFS_OK);
+      if (fwdMV.Cmd)
+         {if (Forward(retc, einfo, fwdMV, old_name, new_name, infoO, infoN))
+             return retc;
+         }
          else if ((retc = Finder->Locate(einfo,old_name,SFS_O_RDWR)))
                  return fsError(einfo, retc);
 
@@ -1654,6 +1645,31 @@ const char *XrdOfs::Fname(const char *path)
    while(i) if (path[i] == '/') return &path[i+1];
                else i--;
    return path;
+}
+
+/******************************************************************************/
+/*                               F o r w a r d                                */
+/******************************************************************************/
+  
+int XrdOfs::Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
+                    const char *arg1, const char *arg2,
+                    const char *arg3, const char *arg4)
+{
+   int retc;
+
+   if ((retc = Finder->Forward(Resp, Fwd.Cmd, arg1, arg2, arg3, arg4)))
+      {Result = fsError(Resp, retc);
+       return 1;
+      }
+
+   if (Fwd.Port <= 0)
+      {Result = SFS_OK;
+       return (Fwd.Port ? 0 : 1);
+      }
+
+   Resp.setErrInfo(Fwd.Port, Fwd.Host);
+   Result = SFS_REDIRECT;
+   return 1;
 }
 
 /******************************************************************************/
