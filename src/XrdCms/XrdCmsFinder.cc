@@ -439,7 +439,7 @@ XrdCmsClientMan *XrdCmsFinderRMT::SelectManager(XrdOucErrInfo &Resp,
 
 // Find the next active server
 //
-   do {if (Manp->isActive()) return Manp;
+   do {if (Manp->isActive()) return (Manp->Suspended() ? 0 : Manp);
       } while((Manp = Manp->nextManager()) != Womp);
 
 // All managers are dead
