@@ -109,6 +109,10 @@ XrdPosixLinkage Xunix;
                          {return (Retv_Pread)Xunix.Load_Error("pread");}
       Retv_Pread64     Xrd_U_Pread64(Args_Pread64)
                          {return (Retv_Pread64)Xunix.Load_Error("pread");}
+      Retv_Pwrite      Xrd_U_Pwrite(Args_Pwrite) 
+                         {return (Retv_Pwrite)Xunix.Load_Error("pwrite");}
+      Retv_Pwrite64    Xrd_U_Pwrite64(Args_Pwrite64)
+                         {return (Retv_Pwrite64)Xunix.Load_Error("pwrite");}
       Retv_Read        Xrd_U_Read(Args_Read) 
                          {return (Retv_Read)Xunix.Load_Error("read");}
       Retv_Readv       Xrd_U_Readv(Args_Readv) 
@@ -141,12 +145,12 @@ XrdPosixLinkage Xunix;
                          {return (Retv_Statvfs)Xunix.Load_Error("statvfs");}
       Retv_Statvfs64   Xrd_U_Statvfs64(Args_Statvfs64)
                          {return (Retv_Statvfs64)Xunix.Load_Error("statvfs64");}
-      Retv_Pwrite      Xrd_U_Pwrite(Args_Pwrite) 
-                         {return (Retv_Pwrite)Xunix.Load_Error("pwrite");}
-      Retv_Pwrite64    Xrd_U_Pwrite64(Args_Pwrite64)
-                         {return (Retv_Pwrite64)Xunix.Load_Error("pwrite");}
       Retv_Telldir     Xrd_U_Telldir(Args_Telldir) 
                          {return (Retv_Telldir)Xunix.Load_Error("telldir");}
+      Retv_Truncate    Xrd_U_Truncate(Args_Truncate)
+                         {return (Retv_Truncate)Xunix.Load_Error("truncate");}
+      Retv_Truncate64  Xrd_U_Truncate64(Args_Truncate64)
+                         {return (Retv_Truncate64)Xunix.Load_Error("truncate64");}
       Retv_Unlink      Xrd_U_Unlink(Args_Unlink) 
                          {return (Retv_Unlink)Xunix.Load_Error("unlink");}
       Retv_Write       Xrd_U_Write(Args_Write) 
@@ -191,6 +195,8 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Pathconf)
   LOOKUP_UNIX(Pread)
   LOOKUP_UNIX(Pread64)
+  LOOKUP_UNIX(Pwrite)
+  LOOKUP_UNIX(Pwrite64)
   LOOKUP_UNIX(Read)
   LOOKUP_UNIX(Readv)
   LOOKUP_UNIX(Readdir)
@@ -207,9 +213,9 @@ int XrdPosixLinkage::Resolve()
   LOOKUP_UNIX(Statfs64)
   LOOKUP_UNIX(Statvfs)
   LOOKUP_UNIX(Statvfs64)
-  LOOKUP_UNIX(Pwrite)
-  LOOKUP_UNIX(Pwrite64)
   LOOKUP_UNIX(Telldir)
+  LOOKUP_UNIX(Truncate)
+  LOOKUP_UNIX(Truncate64)
   LOOKUP_UNIX(Unlink)
   LOOKUP_UNIX(Write)
   LOOKUP_UNIX(Writev)

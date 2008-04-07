@@ -166,6 +166,11 @@ XrdOfsEvs::XrdOfsEvs(Event theEvents, const char *Target, int minq, int maxq)
    MsgFmt[Rmdir  & Mask].Def(XrdOfsEvsFormat::Null,    "%s rmdir %s\n",
                              XrdOfsEvsInfo::evTID,   XrdOfsEvsInfo::evLFN1, -1);
                                               
+// <tid> trunc  <size>
+//
+   MsgFmt[Trunc  & Mask].Def(XrdOfsEvsFormat::cvtFSize,"%s trunc %s\n",
+                             XrdOfsEvsInfo::evTID,   XrdOfsEvsInfo::evFSIZE,-1);
+                                              
 // <tid> fwrite <path>
 //
    MsgFmt[Fwrite & Mask].Def(XrdOfsEvsFormat::Null,    "%s fwrite %s\n",

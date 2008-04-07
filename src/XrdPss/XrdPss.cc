@@ -121,7 +121,7 @@ int XrdPssSys::Init(XrdSysLogger *lp, const char *configfn)
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 
-  Notes:    This function is currently unsupported, we always return success.
+  Notes:    This function is currently unsupported.
 */
 
 int XrdPssSys::Chmod(const char *path, mode_t mode)
@@ -252,6 +252,33 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int resonly)
 // Return proxied stat (note we do not properly handle the resonly flag!)
 //
    return (XrdPosixXrootd::Stat(pbuff, buff) ? -errno : XrdOssOK);
+}
+
+/******************************************************************************/
+/*                              T r u n c a t e                               */
+/******************************************************************************/
+/*
+  Function: Truncate a file.
+
+  Input:    path        - Is the fully qualified name of the target file.
+            flen        - The new size that the file is to have.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+
+  Notes:    This function is currently unsupported.
+*/
+
+int XrdPssSys::Truncate(const char *path, unsigned long long flen)
+{
+   char pbuff[PBsz];
+
+// Convert path to URL
+//
+   if (!P2URL(pbuff, PBsz, path)) return -ENAMETOOLONG;
+
+// Return proxied truncate
+//
+   return (XrdPosixXrootd::Truncate(pbuff, flen) ? -errno : XrdOssOK);
 }
   
 /******************************************************************************/
@@ -535,7 +562,7 @@ ssize_t XrdPssFile::Write(const void *buff, off_t offset, size_t blen)
 
 int XrdPssFile::Fstat(struct stat *buff)
 {
-    if (fd < 0) return (ssize_t)-XRDOSS_E8004;
+    if (fd < 0) return -XRDOSS_E8004;
 
     return (XrdPosixXrootd::Fstat(fd, buff) ? -errno : XrdOssOK);
 }
@@ -553,9 +580,38 @@ int XrdPssFile::Fstat(struct stat *buff)
 */
 int XrdPssFile::Fsync(void)
 {
-    if (fd < 0) return (ssize_t)-XRDOSS_E8004;
+    if (fd < 0) return -XRDOSS_E8004;
 
     return (XrdPosixXrootd::Fsync(fd) ? -errno : XrdOssOK);
+}
+
+/******************************************************************************/
+/*                             f t r u n c a t e                              */
+/******************************************************************************/
+
+/*
+  Function: Set the length of associated file to 'flen'.
+
+  Input:    flen      - The new size of the file.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+
+  Notes:    If 'flen' is smaller than the current size of the file, the file
+            is made smaller and the data past 'flen' is discarded. If 'flen'
+            is larger than the current size of the file, a hole is created
+            (i.e., the file is logically extended by filling the extra bytes 
+            with zeroes).
+
+            If compiled w/o large file support, only lower 32 bits are used.
+            used.
+
+            Currently not supported for proxies.
+*/
+int XrdPssFile::Ftruncate(unsigned long long flen)
+{
+    if (fd < 0) return -XRDOSS_E8004;
+
+    return (XrdPosixXrootd::Ftruncate(fd, flen) ?  -errno : XrdOssOK);
 }
 
 /******************************************************************************/
@@ -595,40 +651,6 @@ off_t XrdPssFile::getMmap(void **addr)   // Not Supported for proxies
 int XrdPssFile::isCompressed(char *cxidp)  // Not supported for proxies
 {
     return 0;
-}
-
-/******************************************************************************/
-/*                              t r u n c a t e                               */
-/******************************************************************************/
-
-/*
-  Function: Set the length of associated file to 'flen'.
-
-  Input:    flen      - The new size of the file.
-
-  Output:   Returns XrdOssOK upon success and -errno upon failure.
-
-  Notes:    If 'flen' is smaller than the current size of the file, the file
-            is made smaller and the data past 'flen' is discarded. If 'flen'
-            is larger than the current size of the file, a hole is created
-            (i.e., the file is logically extended by filling the extra bytes 
-            with zeroes).
-
-            If compiled w/o large file support, only lower 32 bits are used.
-            used.
-
-            Currently not supported for proxies.
-*/
-int XrdPssFile::Ftruncate(unsigned long long flen) {
-//  off_t newlen = flen;
-
-#if _FILE_OFFSET_BITS!=64
-//  if (flen>>31) return -XRDOSS_E8008;
-#endif
-
-//  return (XrdPosixXrootd::Ftruncate(fd, newlen) ?  -errno : XrdOssOK);
-
-    return (ssize_t)-ENOTSUP;
 }
 
 /******************************************************************************/

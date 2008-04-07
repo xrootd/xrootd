@@ -110,7 +110,8 @@ enum Event {All    = 0x7fffff00, None   = 0x00000000,
             Mkdir  = 0x00002005, Mv     = 0x00004006,
             Openr  = 0x00008007, Openw  = 0x00010008,
             Open   = 0x00018000, Rm     = 0x00020009,
-            Rmdir  = 0x0004040a, nCount = 11,
+            Rmdir  = 0x0004000a, Trunc  = 0x0008000b,
+            nCount = 12,
             Mask   = 0X000000ff, enMask = 0x7fffff00
            };
 

@@ -451,3 +451,19 @@ int        statvfs(         const char *path, struct statvfs *buf)
 }
 }
 #endif
+
+/******************************************************************************/
+/*                              t r u n c a t e                               */
+/******************************************************************************/
+  
+#ifndef SUNX86
+extern "C"
+{
+int truncate(const char *path, off_t offset)
+{
+   static int Init = Xunix.Init(&Init);
+
+   return XrdPosix_Truncate(path, offset);
+}
+}
+#endif

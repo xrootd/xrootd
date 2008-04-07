@@ -686,6 +686,23 @@ long long XrdPosix_Pread(int fildes, void *buf, unsigned long long nbyte,
 }
 
 /******************************************************************************/
+/*                       X r d P o s i x _ P w r i t e                        */
+/******************************************************************************/
+  
+extern "C"
+{
+long long XrdPosix_Pwrite(int fildes, const void *buf, unsigned long long nbyte,
+                          long long offset)
+{
+
+// Return the results of the write
+//
+   return (Xroot.myFD(fildes) ? Xroot.Pwrite  (fildes, buf, nbyte, offset)
+                              : Xunix.Pwrite64(fildes, buf, nbyte, offset));
+}
+}
+
+/******************************************************************************/
 /*                         X r d P o s i x _ R e a d                          */
 /******************************************************************************/
   
@@ -923,23 +940,6 @@ int XrdPosix_Statvfs(const char *path, struct statvfs *buf)
 }
 
 /******************************************************************************/
-/*                       X r d P o s i x _ P w r i t e                        */
-/******************************************************************************/
-  
-extern "C"
-{
-long long XrdPosix_Pwrite(int fildes, const void *buf, unsigned long long nbyte,
-                          long long offset)
-{
-
-// Return the results of the write
-//
-   return (Xroot.myFD(fildes) ? Xroot.Pwrite  (fildes, buf, nbyte, offset)
-                              : Xunix.Pwrite64(fildes, buf, nbyte, offset));
-}
-}
-
-/******************************************************************************/
 /*                      X r d P o s i x _ T e l l d i r                       */
 /******************************************************************************/
 
@@ -955,6 +955,31 @@ long XrdPosix_Telldir(DIR *dirp)
 }
 }
 
+/******************************************************************************/
+/*                     X r d P o s i x _ T r u n c a t e                      */
+/******************************************************************************/
+  
+extern "C"
+{
+int XrdPosix_Truncate(const char *path, long long offset)
+{
+   char *myPath, buff[2048];
+
+// Make sure a path was passed
+//
+   if (!path) {errno = EFAULT; return -1;}
+
+// Return the results of a truncate of a Unix file system
+//
+   if (!(myPath = XrootPath.URL(path, buff, sizeof(buff))))
+      return Xunix.Truncate64(path, offset);
+
+// Return the results of an truncate of an xrootd file system
+//
+   return Xroot.Truncate(myPath, offset);
+}
+}
+  
 /******************************************************************************/
 /*                      X r d P o s i x _ U n l i n k                         */
 /******************************************************************************/

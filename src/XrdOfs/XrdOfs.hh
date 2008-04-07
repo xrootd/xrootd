@@ -22,8 +22,10 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdCms/XrdCmsFinder.hh"
+#include "XrdCms/XrdCmsClient.hh"
+
 class XrdOfsEvs;
+class XrdOss;
 class XrdOssDir;
 class XrdOucEnv;
 class XrdSysError;
@@ -214,9 +216,16 @@ const   char          *getVersion();
                             const XrdSecEntity     *client,
                             const char             *opaque = 0);
 
+        int            truncate(const char             *Name,
+                                      XrdSfsFileOffset fileOffset,
+                                      XrdOucErrInfo    &out_error,
+                                const XrdSecEntity     *client = 0,
+                                const char             *opaque = 0);
 // Management functions
 //
 virtual int            Configure(XrdSysError &);
+
+        void           Config_Cluster(XrdOss *);
 
         void           Config_Display(XrdSysError &);
 

@@ -347,7 +347,7 @@ int XrdXrootdProtocol::Process2()
           case kXR_write:    return do_Write();
           case kXR_sync:     return do_Sync();
           case kXR_close:    return do_Close();
-          case kXR_truncate: return do_Truncate();
+          case kXR_truncate: if (!Request.header.dlen) return do_Truncate();
           default:           break;
          }
 
@@ -416,6 +416,7 @@ int XrdXrootdProtocol::Process2()
           case kXR_set:       return do_Set();
           case kXR_stat:      return do_Stat();
           case kXR_statx:     return do_Statx();
+          case kXR_truncate:  return do_Truncate();
           default:            break;
          }
 

@@ -105,6 +105,7 @@ int       Mkdir(const char *, mode_t mode, int mkpath=0);
 int       Remdir(const char *);
 int       Rename(const char *, const char *);
 int       Stat(const char *, struct stat *, int resonly=0);
+int       Truncate(const char *, unsigned long long);
 int       Unlink(const char *);
 
 static int P2URL(char *pbuff,int pblen,const char *path,XrdOucEnv *env=0);

@@ -58,6 +58,9 @@ const char *XrdOfsConfigCVSID = "$Id$";
 /******************************************************************************/
 
 extern XrdOucTrace OfsTrace;
+  
+class  XrdOss;
+extern XrdOss     *XrdOfsOss;
 
 /******************************************************************************/
 /*                               d e f i n e s                                */
@@ -88,6 +91,7 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
 
   Output:   0 upon success or !0 otherwise.
 */
+   extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
    char *var;
    const char *tmp;
    int  i, j, cfgFD, retc, NoGo = 0;
@@ -156,6 +160,26 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
    if (Options & isManager)
            putenv((char *)"XRDREDIRECT=R");
       else putenv((char *)"XRDREDIRECT=0");
+
+// Configure the storage system at this point. This must be done prior to
+// configuring cluster processing. First check if we will be proxying.
+//
+   if (Options & isProxy)
+      {char buff[2048], *bp, *libofs = getenv("XRDOFSLIB");
+       if (OssLib) Eroute.Say("Config warning: ",
+                   "specified osslib overrides default proxy lib.");
+          else {if (!libofs) bp = buff;
+                   else {strcpy(buff, libofs); bp = buff+strlen(buff)-1;
+                         while(bp != buff && *(bp-1) != '/') bp--;
+                        }
+                strcpy(bp, "libXrdProxy.so");
+                OssLib = strdup(buff);
+               }
+      }
+
+// Now configure the storage system
+//
+   if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib))) NoGo = 1;
 
 // Initialize redirection.  We type te herald here to minimize confusion
 //
@@ -250,6 +274,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
          if (evsObject->Enabled(XrdOfsEvs::Openw))  setBuff("openw ",  6);
          if (evsObject->Enabled(XrdOfsEvs::Rm))     setBuff("rm ",     3);
          if (evsObject->Enabled(XrdOfsEvs::Rmdir))  setBuff("rmdir ",  6);
+         if (evsObject->Enabled(XrdOfsEvs::Trunc))  setBuff("trunc ",  6);
          if (evsObject->Enabled(XrdOfsEvs::Fwrite)) setBuff("fwrite ", 7);
          setBuff("msgs ", 5);
          i=sprintf(fwbuff,"%d %d ",evsObject->maxSmsg(),evsObject->maxLmsg());
@@ -314,21 +339,6 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
           {delete Finder; Finder = 0; return 1;}
       }
 
-// For proxy roles, we specify the proxy oss library if possible
-//
-   if (Options & isProxy)
-      {char buff[2048], *bp, *libofs = getenv("XRDOFSLIB");
-       if (OssLib) Eroute.Say("Config warning: ",
-                   "specified osslib overrides default proxy lib.");
-          else {if (!libofs) bp = buff;
-                   else {strcpy(buff, libofs); bp = buff+strlen(buff)-1;
-                         while(bp != buff && *(bp-1) != '/') bp--;
-                        }
-                strcpy(bp, "libXrdProxy.so");
-                OssLib = strdup(buff);
-               }
-      }
-
 // For server roles find the port number and create the object
 //
    if (Options & (isServer | (isPeer & ~isManager)))
@@ -337,8 +347,9 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
            return 1;
           }
        Balancer = new XrdCmsFinderTRG(Eroute.logger(),
-                         (isRedir ? XrdCms::IsRedir : 0), myPort);
-       if (!Balancer->Configure(ConfigFN)) 
+                         (isRedir ? XrdCms::IsRedir : 0), myPort, 
+                         (Options & isProxy ? 0 : XrdOfsOss));
+       if (!Balancer->Configure(ConfigFN))
           {delete Balancer; Balancer = 0; return 1;}
        if (Options & isProxy) Balancer = 0; // No chatting for proxies
       }
@@ -679,6 +690,7 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
         {"openw",    XrdOfsEvs::Openw},
         {"rm",       XrdOfsEvs::Rm},
         {"rmdir",    XrdOfsEvs::Rmdir},
+        {"trunc",    XrdOfsEvs::Trunc},
         {"fwrite",   XrdOfsEvs::Fwrite}
        };
     XrdOfsEvs::Event noval = XrdOfsEvs::None;

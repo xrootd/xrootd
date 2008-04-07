@@ -273,7 +273,7 @@ int XrdXrootdProtocol::do_Chmod()
 // Preform the actual function
 //
    rc = osFS->chmod(argp->buff, (XrdSfsMode)mode, myError, CRED, opaque);
-   TRACEP(FS, "rc=" <<rc <<" chmod " <<std::oct <<mode <<std::dec <<' ' <<argp->buff);
+   TRACEP(FS, "chmod rc=" <<rc <<" mode=" <<std::oct <<mode <<std::dec <<' ' <<argp->buff);
    if (SFS_OK == rc) return Response.Send();
 
 // An error occured
@@ -1881,25 +1881,48 @@ int XrdXrootdProtocol::do_Truncate()
    long long theOffset;
    int rc;
 
-// Update misc stats count
-//
-   UPSTATS(miscCnt);
-
 // Unmarshall the data
 //
    n2hll(Request.truncate.offset, theOffset);
 
-// Find the file object
+// Check if this is a truncate for an open file (no path given)
 //
-   if (!FTab || !(fp = FTab->Get(fh.handle)))
-      return Response.Send(kXR_FileNotOpen,"trunc does not refer to an open file");
+   if (!Request.header.dlen)
+      {
+       // Update misc stats count
+       //
+          UPSTATS(miscCnt);
 
-// Truncate the file
-//
-   rc = fp->XrdSfsp->truncate(theOffset);
-   TRACEP(FS, "trunc rc=" <<rc <<" fh=" <<fh.handle);
-   if (SFS_OK != rc)
-      return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+      // Find the file object
+      //
+         if (!FTab || !(fp = FTab->Get(fh.handle)))
+            return Response.Send(kXR_FileNotOpen,
+                                     "trunc does not refer to an open file");
+
+     // Truncate the file
+     //
+        rc = fp->XrdSfsp->truncate(theOffset);
+        TRACEP(FS, "trunc rc=" <<rc <<" sz=" <<theOffset <<" fh=" <<fh.handle);
+        if (SFS_OK != rc)
+           return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+
+   } else {
+
+       XrdOucErrInfo myError(Link->ID);
+       const char *opaque;
+
+    // Verify the path and extract out the opaque information
+    //
+       if (rpCheck(argp->buff,&opaque)) return rpEmsg("Truncating",argp->buff);
+       if (!Squash(argp->buff))         return vpEmsg("Truncating",argp->buff);
+
+    // Preform the actual function
+    //
+       rc = osFS->truncate(argp->buff, (XrdSfsFileOffset)theOffset, myError,
+                           CRED, opaque);
+       TRACEP(FS, "rc=" <<rc <<" trunc " <<theOffset <<' ' <<argp->buff);
+       if (SFS_OK != rc) return fsError(rc, myError);
+   }
 
 // Respond that all went well
 //

@@ -188,6 +188,12 @@ virtual int            stat(const char               *Name,
                             const XrdSecEntity       *client = 0,
                             const char               *opaque = 0) = 0;
 
+virtual int            truncate(const char             *Name,
+                                      XrdSfsFileOffset fileOffset,
+                                      XrdOucErrInfo    &out_error,
+                                const XrdSecEntity     *client = 0,
+                                const char             *opaque = 0) = 0;
+
                        XrdSfsFileSystem() {}
 virtual               ~XrdSfsFileSystem() {}
 

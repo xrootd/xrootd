@@ -201,6 +201,12 @@ const   char          *getVersion();
                         return rc;
                        }
 
+        int            truncate(const char             *Name,
+                                      XrdSfsFileOffset fileOffset,
+                                      XrdOucErrInfo    &out_error,
+                                const XrdSecEntity     *client = 0,
+                                const char             *opaque = 0);
+
 // Common functions
 //
 static  int            Mkpath(const char *path, mode_t mode, 

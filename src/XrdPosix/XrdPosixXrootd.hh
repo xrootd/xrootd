@@ -89,6 +89,8 @@ static ssize_t Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
 
 static long    Telldir(DIR *dirp);
 
+static int     Truncate(const char *path, off_t offset);
+
 static int     Unlink(const char *path);
 
 static ssize_t Write(int fildes, const void *buf, size_t nbyte);

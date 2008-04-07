@@ -151,6 +151,8 @@ extern long long  XrdPosix_Pwrite(int fildes, const void *buf,
 
 extern long       XrdPosix_Telldir(DIR *dirp);
 
+extern int        XrdPosix_Truncate(const char *path, long long offset);
+
 extern int        XrdPosix_Unlink(const char *path);
 
 extern long long  XrdPosix_Write(int fildes, const void *buf,

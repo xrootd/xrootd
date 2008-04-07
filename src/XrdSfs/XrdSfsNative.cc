@@ -77,6 +77,8 @@ static int Rename(const char *ofn, const char *nfn) {return rename(ofn, nfn);}
 static int Statfd(int fd, struct stat *buf) {return  fstat(fd, buf);}
 
 static int Statfn(const char *fn, struct stat *buf) {return stat(fn, buf);}
+
+static int Truncate(const char *fn, off_t flen) {return truncate(fn, flen);}
 };
   
 /******************************************************************************/
@@ -549,10 +551,8 @@ int XrdSfsNativeFile::truncate(XrdSfsFileOffset  flen)  // In
 
 // Make sure the offset is not too larg
 //
-#if _FILE_OFFSET_BITS!=64
-   if (flen >  0x000000007fffffff)
+   if (sizeof(off_t) < sizeof(flen) && flen >  0x000000007fffffff)
       return XrdSfsNative::Emsg(epname, error, EFBIG, "truncate", fname);
-#endif
 
 // Perform the function
 //
@@ -883,6 +883,50 @@ int XrdSfsNative::stat(const char              *path,        // In
       return XrdSfsNative::Emsg(epname, error, errno, "state", path);
 
 // All went well
+//
+   return SFS_OK;
+}
+
+/******************************************************************************/
+/*                              t r u n c a t e                               */
+/******************************************************************************/
+  
+int XrdSfsNative::truncate(const char             *path,    // In
+                                 XrdSfsFileOffset  flen,    // In
+                                 XrdOucErrInfo    &error,   // Out
+                           const XrdSecClientName *client,  // In
+                           const char             *info)    // In
+/*
+  Function: Set the length of the file object to 'flen' bytes.
+
+  Input:    path      - The path to the file.
+            flen      - The new size of the file.
+            einfo     - Error information object to hold error details.
+            client    - Authentication credentials, if any.
+            info      - Opaque information, if any.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+
+  Notes:    If 'flen' is smaller than the current size of the file, the file
+            is made smaller and the data past 'flen' is discarded. If 'flen'
+            is larger than the current size of the file, a hole is created
+            (i.e., the file is logically extended by filling the extra bytes 
+            with zeroes).
+*/
+{
+   static const char *epname = "trunc";
+
+// Make sure the offset is not too larg
+//
+   if (sizeof(off_t) < sizeof(flen) && flen >  0x000000007fffffff)
+      return XrdSfsNative::Emsg(epname, error, EFBIG, "truncate", path);
+
+// Perform the function
+//
+   if (XrdSfsUFS::Truncate(path, flen) )
+      return XrdSfsNative::Emsg(epname, error, errno, "truncate", path);
+
+// All done
 //
    return SFS_OK;
 }

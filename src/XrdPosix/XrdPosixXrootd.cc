@@ -771,6 +771,37 @@ ssize_t XrdPosixXrootd::Pread(int fildes, void *buf, size_t nbyte, off_t offset)
 }
 
 /******************************************************************************/
+/*                                P w r i t e                                 */
+/******************************************************************************/
+  
+ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
+{
+   XrdPosixFile *fp;
+   long long     offs;
+   int           iosz;
+
+// Find the file object
+//
+   if (!(fp = findFP(fildes))) return -1;
+
+// Make sure the size is not too large
+//
+   if (nbyte > (size_t)0x7fffffff) {Scuttle(fp,EOVERFLOW);}
+      else iosz = static_cast<int>(nbyte);
+
+// Issue the write
+//
+   offs = static_cast<long long>(offset);
+   if (!fp->XClient->Write(buf, offs, iosz) && iosz) return Fault(fp);
+
+// All went well
+//
+   if (offs+iosz > fp->stat.size) fp->stat.size = offs + iosz;
+   fp->UnLock();
+   return (ssize_t)iosz;
+}
+
+/******************************************************************************/
 /*                                  R e a d                                   */
 /******************************************************************************/
   
@@ -1108,37 +1139,6 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 }
 
 /******************************************************************************/
-/*                                P w r i t e                                 */
-/******************************************************************************/
-  
-ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
-{
-   XrdPosixFile *fp;
-   long long     offs;
-   int           iosz;
-
-// Find the file object
-//
-   if (!(fp = findFP(fildes))) return -1;
-
-// Make sure the size is not too large
-//
-   if (nbyte > (size_t)0x7fffffff) {Scuttle(fp,EOVERFLOW);}
-      else iosz = static_cast<int>(nbyte);
-
-// Issue the write
-//
-   offs = static_cast<long long>(offset);
-   if (!fp->XClient->Write(buf, offs, iosz) && iosz) return Fault(fp);
-
-// All went well
-//
-   if (offs+iosz > fp->stat.size) fp->stat.size = offs + iosz;
-   fp->UnLock();
-   return (ssize_t)iosz;
-}
-
-/******************************************************************************/
 /*                                T e l l d i r                               */
 /******************************************************************************/
 
@@ -1154,6 +1154,24 @@ long XrdPosixXrootd::Telldir(DIR *dirp)
    else pos = XrdDirp->getOffset();
    XrdDirp->UnLock();
    return pos;
+}
+
+/******************************************************************************/
+/*                              T r u n c a t e                               */
+/******************************************************************************/
+  
+int XrdPosixXrootd::Truncate(const char *path, off_t Size)
+{
+  XrdPosixAdminNew admin(path);
+
+  if (admin.isOK())
+     {XrdOucString str(path);
+      XrdClientUrlSet url(str);
+//    if (admin.Admin.Truncate(url.GetFile().c_str(), Size)) return 0;
+//    return admin.Fault();
+      errno = ENOTSUP; return -1;
+     }
+  return admin.Result();
 }
 
 /******************************************************************************/

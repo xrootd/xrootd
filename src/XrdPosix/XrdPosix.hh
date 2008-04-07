@@ -34,6 +34,8 @@
 
 #define fsync(a)         XrdPosix_Fsync(a)
 
+#define ftuncate(a,b)    XrdPosix_Ftruncate(a,b)
+
 #define mkdir(a,b)       XrdPosix_Mkdir(a,b)
 
 #define open             XrdPosix_Open
@@ -69,6 +71,8 @@
 #define pwrite(a,b,c,d)  XrdPosix_Pwrite(a,b,c,d)
 
 #define telldir(a)       XrdPosix_Telldir(a)
+
+#define tuncate(a,b)     XrdPosix_Truncate(a,b)
 
 #define unlink(a)        XrdPosix_Unlink(a)
 

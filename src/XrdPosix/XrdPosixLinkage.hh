@@ -178,6 +178,14 @@
 #define Retv_Pread64 ssize_t
 #define Args_Pread64 int, void *, size_t, off64_t
 
+#define Symb_Pwrite UNIX_PFX "pwrite"
+#define Retv_Pwrite ssize_t
+#define Args_Pwrite int, const void *, size_t, off_t
+
+#define Symb_Pwrite64 UNIX_PFX "pwrite64"
+#define Retv_Pwrite64 ssize_t
+#define Args_Pwrite64 int, const void *, size_t, off64_t
+
 #define Symb_Read UNIX_PFX "read"
 #define Retv_Read ssize_t
 #define Args_Read int, void *, size_t
@@ -254,17 +262,17 @@
 #define Retv_Statvfs64 int
 #define Args_Statvfs64 const char *, struct statvfs64 *
 
-#define Symb_Pwrite UNIX_PFX "pwrite"
-#define Retv_Pwrite ssize_t
-#define Args_Pwrite int, const void *, size_t, off_t
-
-#define Symb_Pwrite64 UNIX_PFX "pwrite64"
-#define Retv_Pwrite64 ssize_t
-#define Args_Pwrite64 int, const void *, size_t, off64_t
-
 #define Symb_Telldir UNIX_PFX "telldir"
 #define Retv_Telldir long
 #define Args_Telldir DIR *
+
+#define Symb_Truncate UNIX_PFX "truncate"
+#define Retv_Truncate int
+#define Args_Truncate const char *, off_t
+
+#define Symb_Truncate64 UNIX_PFX "truncate64"
+#define Retv_Truncate64 int
+#define Args_Truncate64 const char *, off64_t
 
 #define Symb_Unlink UNIX_PFX "unlink"
 #define Retv_Unlink int
@@ -316,6 +324,8 @@ class XrdPosixLinkage
       Retv_Pathconf    (*Pathconf)(Args_Pathconf);
       Retv_Pread       (*Pread)(Args_Pread);
       Retv_Pread64     (*Pread64)(Args_Pread64);
+      Retv_Pwrite      (*Pwrite)(Args_Pwrite);
+      Retv_Pwrite64    (*Pwrite64)(Args_Pwrite64);
       Retv_Read        (*Read)(Args_Read);
       Retv_Readv       (*Readv)(Args_Readv);
       Retv_Readdir     (*Readdir)(Args_Readdir);
@@ -332,9 +342,9 @@ class XrdPosixLinkage
       Retv_Statfs64    (*Statfs64)(Args_Statfs64);
       Retv_Statvfs     (*Statvfs)(Args_Statvfs);
       Retv_Statvfs64   (*Statvfs64)(Args_Statvfs64);
-      Retv_Pwrite      (*Pwrite)(Args_Pwrite);
-      Retv_Pwrite64    (*Pwrite64)(Args_Pwrite64);
       Retv_Telldir     (*Telldir)(Args_Telldir);
+      Retv_Truncate    (*Truncate)(Args_Truncate);
+      Retv_Truncate64  (*Truncate64)(Args_Truncate64);
       Retv_Unlink      (*Unlink)(Args_Unlink);
       Retv_Write       (*Write)(Args_Write);
       Retv_Writev      (*Writev)(Args_Writev);

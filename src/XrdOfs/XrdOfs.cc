@@ -157,8 +157,6 @@ XrdOfsFile::XrdOfsFile(const char *user) : XrdSfsFile(user)
 /******************************************************************************/
 /*                         G e t F i l e S y s t e m                          */
 /******************************************************************************/
-
-extern XrdOss    *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
   
 extern "C"
 {
@@ -170,16 +168,12 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 //
    OfsEroute.SetPrefix("ofs_");
    OfsEroute.logger(lp);
-   OfsEroute.Say("Copr.  2007 Stanford University, Ofs Version " XrdVSTRING);
+   OfsEroute.Say("Copr.  2008 Stanford University, Ofs Version " XrdVSTRING);
 
 // Initialize the subsystems
 //
    XrdOfsFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
    if ( XrdOfsFS.Configure(OfsEroute) ) return 0;
-
-// Initialize the target storage system
-//
-   if (!(XrdOfsOss = XrdOssGetSS(lp, configfn, XrdOfsFS.OssLib))) return 0;
 
 // All done, we can return the callout vector to these routines.
 //
@@ -964,10 +958,8 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 
 // Make sure the offset is not too large
 //
-#if _FILE_OFFSET_BITS!=64
-   if (flen >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
-#endif
+   if (sizeof(off_t) < sizeof(flen) && flen >  0x000000007fffffff)
+      return  XrdOfsFS.Emsg(epname, error, EFBIG, "truncate", oh->Name());
 
 // Silly Castor stuff
 //
@@ -1428,8 +1420,8 @@ int XrdOfs::remove(const char              type,    // In
 
 // Perform the actual deletion
 //
-    if ((retc = XrdOfsOss->Unlink(path)))
-       return XrdOfsFS.Emsg(epname, einfo, retc, "remove", path);
+    retc = (type == 'd' ? XrdOfsOss->Remdir(path) : XrdOfsOss->Unlink(path));
+    if (retc) return XrdOfsFS.Emsg(epname, einfo, retc, "remove", path);
     if (type == 'f')
        {XrdOfsHandle::Hide(path);
         if (Balancer) Balancer->Removed(path);
@@ -1591,6 +1583,64 @@ int XrdOfs::stat(const char             *path,        // In
       else if ((-ENOMSG) != retc) return XrdOfsFS.Emsg(epname, einfo, retc,
                                                     "locate", path);
    return SFS_OK;
+}
+
+/******************************************************************************/
+/*                              t r u n c a t e                               */
+/******************************************************************************/
+
+int XrdOfs::truncate(const char             *path,    // In
+                           XrdSfsFileOffset  Size,    // In
+                           XrdOucErrInfo    &einfo,   // Out
+                     const XrdSecEntity     *client,  // In
+                     const char             *info)    // In
+/*
+  Function: Change the mode on a file or directory.
+
+  Input:    path      - Is the fully qualified name of the file to be removed.
+            Size      - the size the file should have.
+            einfo     - Error information object to hold error details.
+            client    - Authentication credentials, if any.
+            info      - Opaque information to be used as seen fit.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+   EPNAME("truncate");
+   const char *tident = einfo.getErrUser();
+   XrdOucEnv trunc_Env(info);
+   int retc;
+   XTRACE(truncate, path, "");
+
+// Apply security, as needed
+//
+   AUTHORIZE(client,&trunc_Env,AOP_Update,"truncate",path,einfo);
+
+// Find out where we should chmod this file
+//
+   if (Finder && Finder->isRemote())
+      if (fwdTRUNC.Cmd)
+         {char xSz[32];
+          sprintf(xSz, "%lld", static_cast<long long>(Size));
+          if (Forward(retc, einfo, fwdTRUNC, path, xSz, info)) return retc;
+         }
+      else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR)))
+              return fsError(einfo, retc);
+
+// Check if we should generate an event
+//
+   if (evsObject && evsObject->Enabled(XrdOfsEvs::Trunc))
+      {XrdOfsEvsInfo evInfo(tident, path, info, &trunc_Env, 0, Size);
+       evsObject->Notify(XrdOfsEvs::Trunc, evInfo);
+      }
+
+// Now try to find the file or directory
+//
+   if (!(retc = XrdOfsOss->Truncate(path, Size))) return SFS_OK;
+
+// An error occured, return the error info
+//
+   return XrdOfsFS.Emsg(epname, einfo, retc, "trunc", path);
 }
 
 /******************************************************************************/

@@ -85,8 +85,8 @@ $(TARGETS): $(OBJECTS) $(OBJFS) $(LIBDEP)
 $(OBJDIR)/XrdOfs.o:  XrdOfs.cc             XrdOfs.hh \
                      XrdOfsHandle.hh       XrdOfsEvs.hh       \
                      XrdOfsSecurity.hh     XrdOfsTrace.hh   XrdOfsEvr.hh   \
-                     XrdOuca2x.hh     XrdOucEnv.hh          XrdSysError.hh     \
-                     XrdOucMsubs.hh \
+                     XrdOuca2x.hh          XrdOucEnv.hh     XrdSysError.hh     \
+                     XrdOucMsubs.hh        XrdCmsClient.hh \
                      XrdOucLock.hh    XrdSysLogger.hh       XrdSysPlugin.hh \
                      XrdOucPList.hh   XrdSysPthread.hh      XrdOucTrace.hh     \
                      XrdNetDNS.hh     XrdSecEntity.hh       XrdSecInterface.hh \
@@ -106,7 +106,7 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc \
                            XrdOuca2x.hh      XrdSysError.hh   XrdOucStream.hh \
                            XrdOucTrace.hh    XrdOucUtils.hh   XrdNetDNS.hh   \
                            XrdOucEnv.hh      XrdAccAuthorize.hh \
-                           XrdCmsFinder.hh   XrdOdcFinder.hh
+                           XrdCmsClient.hh   XrdCmsFinder.hh  XrdOdcFinder.hh
 	@echo Compiling XrdOfsConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsConfig.o XrdOfsConfig.cc
 

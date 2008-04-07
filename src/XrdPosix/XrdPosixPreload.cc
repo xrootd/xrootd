@@ -402,6 +402,20 @@ ssize_t pread64(int fildes, void *buf, size_t nbyte, off_t offset)
 }
 
 /******************************************************************************/
+/*                                p w r i t e                                 */
+/******************************************************************************/
+  
+extern "C"
+{
+ssize_t pwrite64(int fildes, const void *buf, size_t nbyte, off_t offset)
+{
+   static int Init = Xunix.Init(&Init);
+
+   return XrdPosix_Pwrite(fildes, buf, nbyte, offset);
+}
+}
+
+/******************************************************************************/
 /*                                  r e a d                                   */
 /******************************************************************************/
   
@@ -564,20 +578,6 @@ int        statvfs64(         const char *path, struct statvfs64 *buf)
 }
 
 /******************************************************************************/
-/*                                p w r i t e                                 */
-/******************************************************************************/
-  
-extern "C"
-{
-ssize_t pwrite64(int fildes, const void *buf, size_t nbyte, off_t offset)
-{
-   static int Init = Xunix.Init(&Init);
-
-   return XrdPosix_Pwrite(fildes, buf, nbyte, offset);
-}
-}
-
-/******************************************************************************/
 /*                               t e l l d i r                                */
 /******************************************************************************/
   
@@ -588,6 +588,20 @@ long    telldir(DIR *dirp)
    static int Init = Xunix.Init(&Init);
 
    return XrdPosix_Telldir(dirp);
+}
+}
+  
+/******************************************************************************/
+/*                              t r u n c a t e                               */
+/******************************************************************************/
+  
+extern "C"
+{
+int truncate64(const char *path, off_t offset)
+{
+   static int Init = Xunix.Init(&Init);
+
+   return XrdPosix_Truncate(path, offset);
 }
 }
 
