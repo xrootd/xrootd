@@ -56,10 +56,11 @@ enum CmsReqCode            // Request Codes
      kYR_state   = 20,
      kYR_statfs  = 21,
      kYR_status  = 22,
-     kYR_try     = 23,
-     kYR_update  = 24,
-     kYR_usage   = 25,
-     kYR_xauth   = 26,
+     kYR_trunc   = 23,
+     kYR_try     = 24,
+     kYR_update  = 25,
+     kYR_usage   = 26,
+     kYR_xauth   = 27,
      kYR_MaxReq            // Count of request numbers (highest + 1)
 };
 
@@ -69,7 +70,7 @@ enum CmsReqCode            // Request Codes
 // rmdir. Any other modifiers must be encoded in the low order 6 bits.
 //
 enum CmsFwdModifier
-{    kYR_hopcount = 0xe0,
+{    kYR_hopcount = 0xc0,
      kYR_hopincr  = 0x40
 };
 
@@ -482,6 +483,20 @@ enum  {kYR_Stage  = 0x01, kYR_noStage = 0x02,  // Modifier
        kYR_Resume = 0x04, kYR_Suspend = 0x08,
        kYR_Reset  = 0x10                       // Exclusive
       };
+};
+
+/******************************************************************************/
+/*                         t r u n c   R e q u e s t                          */
+/******************************************************************************/
+  
+// Request: <id> trunc <path>
+// Respond: n/a
+//
+struct CmsTruncRequest
+{      CmsRRHdr      Hdr;
+//     kXR_string    Ident;
+//     kXR_string    Size;
+//     kXR_string    Path;
 };
 
 /******************************************************************************/
