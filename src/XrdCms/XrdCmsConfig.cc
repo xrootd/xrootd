@@ -102,6 +102,8 @@ Where:
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
 
+       XrdCmsAdmin      XrdCms::Admin;
+
        XrdCmsConfig     XrdCms::Config;
 
        XrdSysError      XrdCms::Say(0, "");
@@ -150,8 +152,7 @@ void *XrdCmsStartMonRefs(void *carg) { return Cluster.MonRefs(); }
 void *XrdCmsStartMonStat(void *carg) { return CmsState.Monitor(); }
 
 void *XrdCmsStartAdmin(void *carg)
-      {XrdCmsAdmin Admin;
-       return Admin.Start((XrdNetSocket *)carg);
+      {return XrdCms::Admin.Start((XrdNetSocket *)carg);
       }
 
 void *XrdCmsStartAnote(void *carg)
@@ -1480,7 +1481,8 @@ int XrdCmsConfig::xfsxq(XrdSysError *eDest, XrdOucStream &CFile)
         {"mkpath",   0, &ProgMP},
         {"mv",       0, &ProgMV},
         {"rm",       0, &ProgRM},
-        {"rmdir",    0, &ProgRD}
+        {"rmdir",    0, &ProgRD},
+        {"trunc",    0, &ProgTR}
        };
     int i, xtval = 0, numopts = sizeof(xqopts)/sizeof(struct xeqopts);
     char *val;

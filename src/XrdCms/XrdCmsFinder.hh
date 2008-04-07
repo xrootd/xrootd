@@ -17,10 +17,12 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 class  XrdCmsClientMan;
+class  XrdOss;
 class  XrdOucEnv;
 class  XrdOucErrInfo;
 class  XrdOucTList;
 struct XrdCmsData;
+class  XrdCmsRRData;
 struct XrdSfsPrep;
 class  XrdSysLogger;
 
@@ -45,6 +47,8 @@ public:
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs);
 
         void   Removed(const char *path) {}
+
+        void   setSS(XrdOss *thess) {}
 
         int    Space(XrdOucErrInfo &Resp, const char *path);
 
@@ -107,13 +111,15 @@ public:
 
         void  *Start();
 
-               XrdCmsFinderTRG(XrdSysLogger *lp, int whoami, int port);
+               XrdCmsFinderTRG(XrdSysLogger *, int, int, XrdOss *theSS=0);
               ~XrdCmsFinderTRG();
 
 private:
 
 void  Hookup();
+int   Process(XrdCmsRRData &Data);
 
+XrdOss        *SS;
 XrdOucStream  *CMSp;
 XrdSysMutex    myData;
 int            myPort;

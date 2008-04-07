@@ -112,7 +112,7 @@ XrdCmsParser   XrdCms::Parser;
 /*          S t a t i c   P a r s i n g   D e s i f i n i t i o n s           */
 /******************************************************************************/
   
-// {chmod, mkdir, mkpath} <id> <mode> <path> [<opq>]
+// {chmod, mkdir, mkpath, trunc} <id> <mode> <path> [<opq>]
 //
 XrdOucPupArgs XrdCmsParser::fwdArgA[] =
 /*0*/        {setPUP1(XrdCmsRRData::Arg_Ident,   char, XrdCmsRRData, Ident),
@@ -248,6 +248,7 @@ XrdCmsParser::XrdCmsParser()
        vecArgs[kYR_statfs]  =  pthArgs;
        vecArgs[kYR_avail]   =  avlArgs;
        vecArgs[kYR_gone]    =  pthArgs;
+       vecArgs[kYR_trunc]   =  fwdArgA;
        vecArgs[kYR_try]     =  pthArgs;
        vecArgs[kYR_have]    =  pthArgs;
        vecArgs[kYR_load]    =  lodArgs;

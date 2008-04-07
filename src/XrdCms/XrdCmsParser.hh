@@ -66,7 +66,7 @@ private:
 static const char   **PupNVec;
 static XrdOucPupNames PupName;
 
-static XrdOucPupArgs  fwdArgA[];  // chmod | mkdir | mkpath
+static XrdOucPupArgs  fwdArgA[];  // chmod | mkdir | mkpath | trunc
 static XrdOucPupArgs  fwdArgB[];  // mv
 static XrdOucPupArgs  fwdArgC[];  // rm | rmdir
 static XrdOucPupArgs  locArgs[];  // locate | select

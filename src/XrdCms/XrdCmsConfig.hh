@@ -29,6 +29,7 @@ class XrdSysError;
 class XrdOucName2Name;
 class XrdOucProg;
 class XrdOucStream;
+class XrdCmsAdmin;
 class XrdCmsXmi;
 
 class XrdCmsConfig : public XrdJob
@@ -112,6 +113,7 @@ XrdOucProg  *ProgMP;      // Server only mkpath
 XrdOucProg  *ProgMV;      // Server only mv
 XrdOucProg  *ProgRD;      // Server only rmdir
 XrdOucProg  *ProgRM;      // Server only rm
+XrdOucProg  *ProgTR;      // Server only trunc
 
 unsigned long long DirFlags;
 XrdCmsPList_Anchor PathList;
@@ -188,6 +190,7 @@ int               pendplife;
 };
 namespace XrdCms
 {
+extern XrdCmsAdmin   Admin;
 extern XrdCmsConfig  Config;
 extern XrdScheduler *Sched;
 extern XrdCmsXmi    *Xmi_Chmod;

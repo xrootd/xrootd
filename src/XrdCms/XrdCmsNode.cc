@@ -28,6 +28,7 @@ const char *XrdCmsNodeCVSID = "$Id$";
 
 #include "XProtocol/YProtocol.hh"
 
+#include "XrdCms/XrdCmsAdmin.hh"
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
@@ -236,7 +237,7 @@ const char *XrdCmsNode::do_Chmod(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("mode " <<Arg.Mode <<Arg.Path);
+   DEBUGR("mode " <<Arg.Mode <<' ' <<Arg.Path);
 
 // If we have an Xmi then call it
 //
@@ -577,7 +578,7 @@ const char *XrdCmsNode::do_Mkdir(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("mode " <<Arg.Mode <<Arg.Path);
+   DEBUGR("mode " <<Arg.Mode <<' ' <<Arg.Path);
 
 // If we have an Xmi then call it
 //
@@ -627,7 +628,7 @@ const char *XrdCmsNode::do_Mkpath(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR("mode " <<Arg.Mode <<Arg.Path);
+   DEBUGR("mode " <<Arg.Mode <<' ' <<Arg.Path);
 
 // If we have an Xmi then call it
 //
@@ -671,9 +672,6 @@ const char *XrdCmsNode::do_Mkpath(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 {
    EPNAME("do_Mv")
-   char *oldPath, *newPath;
-   char old_lclpath[XrdCmsMAX_PATH_LEN+1];
-   char new_lclpath[XrdCmsMAX_PATH_LEN+1];
    int rc;
 
 // Do some debugging
@@ -692,24 +690,31 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 //
    if (!Config.DiskOK) return 0;
   
-// Generate the true local path for old name and new name
+// If we need to call an external program then we need to pass it pfn's.
+// So, generate the true local path for old name and new name. Otherwise,
+// simply send the request to the local xrootd and let it handle it.
 //
-   if (Config.lcl_N2N)
-      {if (Config.lcl_N2N->lfn2pfn(Arg.Path,old_lclpath,sizeof(old_lclpath)))
-          return "lfn2pfn failed on old path";
-       if (Config.lcl_N2N->lfn2pfn(Arg.Path,new_lclpath,sizeof(new_lclpath)))
-         return "lfn2pfn failed on new path";
-       oldPath = old_lclpath; newPath = new_lclpath;
-      }
-      else {oldPath = Arg.Path; newPath = Arg.Path2;}
+   if (Config.ProgMV)
+      {char *oldPath, *newPath;
+       char old_lclpath[XrdCmsMAX_PATH_LEN+1];
+       char new_lclpath[XrdCmsMAX_PATH_LEN+1];
 
-// Attempt to rename the file
+       if (Config.lcl_N2N)
+          {if (Config.lcl_N2N->lfn2pfn(Arg.Path,old_lclpath,sizeof(old_lclpath)))
+              return "lfn2pfn failed on old path";
+           if (Config.lcl_N2N->lfn2pfn(Arg.Path,new_lclpath,sizeof(new_lclpath)))
+              return "lfn2pfn failed on new path";
+                  oldPath = old_lclpath; newPath = new_lclpath;
+          } else {oldPath = Arg.Path;    newPath = Arg.Path2;}
+       rc = Config.ProgMV->Run(oldPath, newPath);
+      } else {
+       rc = Admin.Send(&Arg.Request, Arg.Buff, Arg.Dlen);
+      }
+
+// Diagnore any errors
 //
-   if (Config.ProgMV) rc = Config.ProgMV->Run(oldPath, newPath);
-      else if (rename(oldPath, newPath)) rc = errno;
-              else rc = 0;
-   if (rc) Say.Emsg("Node", rc, "rename", oldPath);
-      else DEBUGR("rc=" <<rc <<" mv " <<oldPath <<' ' <<newPath);
+   if (rc) Say.Emsg("Node", rc, "rename", Arg.Path);
+      else DEBUGR("rc=" <<rc <<" mv " <<Arg.Path <<' ' <<Arg.Path2);
 
    return rc ? strerror(rc) : 0;
 }
@@ -818,7 +823,6 @@ const char *XrdCmsNode::do_PrepDel(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 {
    EPNAME("do_Rm")
-   char *myPath, lclpath[XrdCmsMAX_PATH_LEN+1];
    int rc;
 
 // Do some debugging
@@ -836,21 +840,26 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 //
    if (!Config.DiskOK) return 0;
   
-// Generate the true local path
+// If we need to call an external program we need to pass it the pfn.
+// So, generate the true local path. Otherwise, send the request to the
+// local xrootd and let it figure it out.
 //
-   if (Config.lcl_N2N)
-      if (Config.lcl_N2N->lfn2pfn(Arg.Path,lclpath,sizeof(lclpath))) 
-         return "lfn2pfn failed";
-         else myPath = lclpath;
-      else myPath = Arg.Path;
+   if (Config.ProgRM) 
+      {char *myPath, lclpath[XrdCmsMAX_PATH_LEN+1];
+       if (Config.lcl_N2N)
+          if (Config.lcl_N2N->lfn2pfn(Arg.Path,lclpath,sizeof(lclpath)))
+             return "lfn2pfn failed";
+             else myPath = lclpath;
+          else myPath = Arg.Path;
+       rc = Config.ProgRM->Run(myPath);
+      } else {
+       rc = Admin.Send(&Arg.Request, Arg.Buff, Arg.Dlen);
+      }
 
-// Attempt to remove the file
+// Diagnose any errors
 //
-   if (Config.ProgRM) rc = Config.ProgRM->Run(myPath);
-      else if (unlink(myPath)) rc = errno;
-              else rc = 0;
-   if (rc && rc != ENOENT) Say.Emsg("Node", rc, "remove", myPath);
-      else {DEBUGR("rc=" <<rc <<" rm " <<myPath);}
+   if (rc && rc != ENOENT) Say.Emsg("Node", rc, "remove", Arg.Path);
+      else {DEBUGR("rc=" <<rc <<" rm " <<Arg.Path);}
 
    return rc ? strerror(rc) : 0;
 }
@@ -864,7 +873,6 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 {
    EPNAME("do_Rmdir")
-   char *myPath, lclpath[XrdCmsMAX_PATH_LEN+1];
    int rc;
 
 // Do some debugging
@@ -882,21 +890,27 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 //
    if (!Config.DiskOK) return 0;
   
-// Generate the true local path
+  
+// If we need to call an external program we need to pass it the pfn.
+// So, generate the true local path. Otherwise, send the request to the
+// local xrootd and let it figure it out.
 //
-   if (Config.lcl_N2N)
-      if (Config.lcl_N2N->lfn2pfn(Arg.Path,lclpath,sizeof(lclpath))) 
-         return "lfn2pfn failed";
-         else myPath = lclpath;
-      else myPath = Arg.Path;
+   if (Config.ProgRD)
+      {char *myPath, lclpath[XrdCmsMAX_PATH_LEN+1];
+       if (Config.lcl_N2N)
+          if (Config.lcl_N2N->lfn2pfn(Arg.Path,lclpath,sizeof(lclpath)))
+             return "lfn2pfn failed";
+             else myPath = lclpath;
+          else myPath = Arg.Path;
+       rc = Config.ProgRD->Run(myPath);
+      } else {
+       rc = Admin.Send(&Arg.Request, Arg.Buff, Arg.Dlen);
+      }
 
-// Attempt to remove the file
+// Diagnose any errors
 //
-   if (Config.ProgRD) rc = Config.ProgRD->Run(myPath);
-      else if (rmdir(myPath)) rc = errno;
-              else rc = 0;
-   if (rc && rc != ENOENT) Say.Emsg("Node", rc, "remove", myPath);
-      else {DEBUGR("rc=" <<rc <<" rmdir " <<myPath);}
+   if (rc && rc != ENOENT) Say.Emsg("Node", rc, "remdir", Arg.Path);
+      else {DEBUGR("rc=" <<rc <<" rm " <<Arg.Path);}
 
    return rc ? strerror(rc) : 0;
 }
@@ -1341,6 +1355,58 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 }
 
 /******************************************************************************/
+/*                              d o _ T r u n c                               */
+/******************************************************************************/
+  
+// Trunc requests are forwarded to all subscribers subject to an Xmi callout.
+// Currently, we have no definition in Xmi for trunc!
+//
+const char *XrdCmsNode::do_Trunc(XrdCmsRRData &Arg)
+{
+   EPNAME("do_Trunc")
+   char *myPath, lclpath[XrdCmsMAX_PATH_LEN+1];
+   long long Size = -1;
+   int rc;
+
+// Do some debugging
+//
+   DEBUGR("size " <<Arg.Mode <<' ' <<Arg.Path);
+
+// If we have an Xmi then call it
+//
+// if (Xmi_Trunc)
+//    {XrdCmsReq Req(this, Arg.Request.streamid);
+//     if (!getSize(Arg.Mode, Size)) return "invalid size";
+//        else if (Xmi_Trunc->Trunc(&Req, Size, Arg.Path, Arg.Opaque)) return 0;
+//    }
+
+// We are don here if we have no data; otherwise convert the mode if we
+// haven't done so already.
+//
+   if (!Config.DiskOK) return 0;
+   if (Size < 0 && !getSize(Arg.Mode, Size)) return "invalid size";
+
+// Generate the true local path
+//
+   if (Config.lcl_N2N)
+      if (Config.lcl_N2N->lfn2pfn(Arg.Path,lclpath,sizeof(lclpath))) 
+         return "lfn2pfn failed";
+         else myPath = lclpath;
+      else myPath = Arg.Path;
+
+// Attempt to change the size
+//
+   if (Config.ProgTR) rc = Config.ProgTR->Run(Arg.Mode, myPath);
+      else if (truncate(myPath, Size)) rc = errno;
+              else rc = 0;
+   if (rc && rc != ENOENT)
+      Say.Emsg("Job", rc, "change size for", myPath);
+      else DEBUGR("rc=" <<rc <<" trunc " <<Arg.Mode <<' ' <<myPath);
+
+   return rc ? strerror(rc) : 0;
+}
+
+/******************************************************************************/
 /*                                d o _ T r y                                 */
 /******************************************************************************/
 
@@ -1487,6 +1553,20 @@ int XrdCmsNode::getMode(const char *theMode, mode_t &Mode)
    return 1;
 }
 
+/******************************************************************************/
+/*                               g e t S i z e                                */
+/******************************************************************************/
+
+int XrdCmsNode::getSize(const char *theSize, long long &Size)
+{
+   char *eP;
+
+// Convert the size argument
+//
+   if (!(Size = strtoll(theSize, &eP, 10)) || *eP) return 0;
+   return 1;
+}
+  
 /******************************************************************************/
 /*                              i s O n l i n e                               */
 /******************************************************************************/

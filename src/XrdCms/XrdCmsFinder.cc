@@ -29,6 +29,8 @@ const char *XrdCmsFinderCVSID = "$Id$";
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <netinet/in.h>
+#include <inttypes.h>
   
 #include "XProtocol/YProtocol.hh"
 
@@ -43,6 +45,8 @@ const char *XrdCmsFinderCVSID = "$Id$";
 #include "XrdCms/XrdCmsTrace.hh"
 
 #include "XrdOdc/XrdOdcFinder.hh"
+
+#include "XrdOss/XrdOss.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -184,6 +188,7 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
    else if (!strcmp("mv",    cmd)) Data.Request.rrCode = kYR_mv;
    else if (!strcmp("rm",    cmd)) Data.Request.rrCode = kYR_rm;
    else if (!strcmp("rmdir", cmd)) Data.Request.rrCode = kYR_rmdir;
+   else if (!strcmp("trunc", cmd)) Data.Request.rrCode = kYR_trunc;
    else {Say.Emsg("Finder", "Unable to forward '", cmd, "'.");
          Resp.setErrInfo(EINVAL, "Internal error processing file.");
          return -EINVAL;
@@ -646,12 +651,14 @@ int XrdCmsFinderRMT::Space(XrdOucErrInfo &Resp, const char *path)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdCmsFinderTRG::XrdCmsFinderTRG(XrdSysLogger *lp, int whoami, int port)
+XrdCmsFinderTRG::XrdCmsFinderTRG(XrdSysLogger *lp, int whoami, int port,
+                                 XrdOss *theSS)
                : XrdCmsClient(XrdCmsClient::amTarget)
 {
    char buff [256];
    isRedir = whoami & IsRedir;
    isProxy = whoami & IsProxy;
+   SS      = theSS;
    CMSPath = 0;
    CMSp    = new XrdOucStream(&Say);
    Active  = 0;
@@ -772,9 +779,12 @@ int XrdCmsFinderTRG::RunAdmin(char *Path)
   
 void *XrdCmsFinderTRG::Start()
 {
-   int   retc;
+   XrdCmsRRData Data;
+   int retc;
 
-// First step is to connect to the local cmsd
+// First step is to connect to the local cmsd. We also establish a binary
+// read stream (old olbd's never used it) to get requests that can only be
+// executed by the xrootd (e.g., rm and mv).
 //
    while(1)
         {do {Hookup();
@@ -785,12 +795,18 @@ void *XrdCmsFinderTRG::Start()
              retc = CMSp->Put(Login);
              myData.UnLock();
 
-             // Put up a read. We don't expect any responses at this point but
-             // should cmsd die, we will notice and try to reconnect.
+             // Get the FD for this connection
              //
-             while(CMSp->GetLine()) {}
+             Data.Routing = CMSp->FDNum();
+
+             // Put up a read to process local requests. Sould the cmsd die,
+             // we will notice and try to reconnect.
+             //
+             while(recv(Data.Routing, &Data.Request, sizeof(Data.Request),
+                        MSG_WAITALL) > 0 && Process(Data)) {}
              break;
             } while(1);
+
          // The cmsd went away
          //
          myData.Lock();
@@ -848,4 +864,79 @@ void XrdCmsFinderTRG::Hookup()
 // Tell the world
 //
    Say.Emsg("Finder", "Connected to cmsd via", CMSPath);
+}
+
+/******************************************************************************/
+/*                               P r o c e s s                                */
+/******************************************************************************/
+  
+int XrdCmsFinderTRG::Process(XrdCmsRRData &Data)
+{
+   EPNAME("Process")
+   static const int maxReqSize = 16384;
+   static       int Wmsg = 255;
+   const char *myArgs, *myArgt, *Act;
+   char buff[16];
+
+// Decode the length and get the rest of the data
+//
+   Data.Dlen = static_cast<int>(ntohs(Data.Request.datalen));
+   if (!(Data.Dlen)) {myArgs = myArgt = 0;}
+      else {if (Data.Dlen > maxReqSize)
+               {Say.Emsg("Finder","Request args too long from local cmsd");
+                return 0;
+               }
+            if ((!Data.Buff || Data.Blen < Data.Dlen)
+            &&  !Data.getBuff(Data.Dlen))
+               {Say.Emsg("Finder", "No buffers to serve local cmsd");
+                return 0;
+               }
+            if (recv(Data.Routing,Data.Buff,Data.Dlen,MSG_WAITALL) != Data.Dlen)
+                return 0;
+            myArgs = Data.Buff; myArgt = Data.Buff + Data.Dlen;
+           }
+
+// Process the request as needed. We ignore opaque information for now.
+// If the request is not valid is could be that we lost sync on the connection.
+// The only way to recover is to tear it down and start over.
+//
+   switch(Data.Request.rrCode)
+         {case kYR_mv:    Act = "mv";                             break;
+          case kYR_rm:    Act = "rm";    Data.Path2 = (char *)""; break;
+          case kYR_rmdir: Act = "rmdir"; Data.Path2 = (char *)""; break;
+          default: sprintf(buff, "%d", Data.Request.rrCode);
+                   Say.Emsg("Finder","Local cmsd sent an invalid request -",buff);
+                   return 0;
+         }
+
+// Parse the arguments
+//
+   if (!Parser.Parse(int(Data.Request.rrCode), myArgs, myArgt, &Data))
+      {Say.Emsg("Finder", "Local cmsd sent a badly formed",Act,"request");
+       return 1;
+      }
+   DEBUG("cmsd requested " <<Act <<" " <<Data.Path <<' ' <<Data.Path2);
+
+// If we have no storage system then issue a warning but otherwise
+// ignore this operation (this may happen in proxy mode).
+//
+   if (SS == 0)
+      {Wmsg++;
+       if (!(Wmsg & 255)) Say.Emsg("Finder", "Local cmsd request",Act,
+                                   "ignored; no storage system provided.");
+       return 1;
+      }
+
+// Perform the request
+//
+   switch(Data.Request.rrCode)
+         {case kYR_mv:    SS->Rename(Data.Path, Data.Path2);   break;
+          case kYR_rm:    SS->Unlink(Data.Path);               break;
+          case kYR_rmdir: SS->Remdir(Data.Path);               break;
+          default:                                             break;
+         }
+
+// All Done
+//
+   return 1;
 }

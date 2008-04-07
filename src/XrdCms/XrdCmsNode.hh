@@ -82,6 +82,7 @@ const  char  *do_State(XrdCmsRRData &Arg);
 const  char  *do_StatFS(XrdCmsRRData &Arg);
 const  char  *do_Stats(XrdCmsRRData &Arg);
 const  char  *do_Status(XrdCmsRRData &Arg);
+const  char  *do_Trunc(XrdCmsRRData &Arg);
 const  char  *do_Try(XrdCmsRRData &Arg);
 const  char  *do_Update(XrdCmsRRData &Arg);
 const  char  *do_Usage(XrdCmsRRData &Arg);
@@ -129,6 +130,7 @@ inline short getSlot() {return RSlot;}
 
 private:
        int   getMode(const char *theMode, mode_t &Mode);
+       int   getSize(const char *theSize, long long &Size);
 static int   isOnline(char *path, int upt=1);
 
 XrdSysMutex        myMutex;

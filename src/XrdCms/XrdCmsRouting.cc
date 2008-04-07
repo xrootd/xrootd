@@ -38,6 +38,7 @@ XrdCmsRouter::theRoute initRouter[] =
        {kYR_select,  "select", &XrdCmsNode::do_Select},
        {kYR_statfs,  "statfs", &XrdCmsNode::do_StatFS},
        {kYR_stats,   "stats",  &XrdCmsNode::do_Stats},
+       {kYR_trunc,   "trunc",  &XrdCmsNode::do_Trunc},
 /* Server */
        {kYR_avail,   "avail",  &XrdCmsNode::do_Avail},
        {kYR_disc,    "disc",   &XrdCmsNode::do_Disc},
@@ -90,6 +91,8 @@ XrdCmsRouting::theRouting initRDRrouting[] =
                   | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
       {kYR_stats,   XrdCmsRouting::isAsync
                   | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
+      {kYR_trunc,   XrdCmsRouting::isAsync   | XrdCmsRouting::Forward
+                  | XrdCmsRouting::Repliable | XrdCmsRouting::Delayable},
       {kYR_update,  XrdCmsRouting::isSync    | XrdCmsRouting::noArgs
                   | XrdCmsRouting::Repliable},
       {0,           0}};
@@ -140,6 +143,7 @@ XrdCmsRouting::theRouting initSRVrouting[] =
       {kYR_space,   XrdCmsRouting::isSync  | XrdCmsRouting::noArgs},
       {kYR_state,   XrdCmsRouting::isSync},
       {kYR_stats,   XrdCmsRouting::isAsync | XrdCmsRouting::noArgs},
+      {kYR_trunc,   XrdCmsRouting::isAsync},
       {kYR_try,     XrdCmsRouting::isSync},
       {kYR_usage,   XrdCmsRouting::isSync  | XrdCmsRouting::noArgs},
       {0,           0}};
@@ -169,6 +173,7 @@ XrdCmsRouting::theRouting initSUProuting[] =
       {kYR_space,   XrdCmsRouting::isSync  | XrdCmsRouting::noArgs},
       {kYR_state,   XrdCmsRouting::isSync},
       {kYR_stats,   XrdCmsRouting::isAsync | XrdCmsRouting::noArgs},
+      {kYR_trunc,   XrdCmsRouting::isAsync | XrdCmsRouting::Forward},
       {kYR_try,     XrdCmsRouting::isSync},
       {kYR_usage,   XrdCmsRouting::isSync  | XrdCmsRouting::noArgs},
       {0,           0}};

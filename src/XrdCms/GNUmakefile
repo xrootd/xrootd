@@ -111,6 +111,7 @@ vpath YProtocol% ../XProtocol
 vpath XrdCms%    ../XrdCms
 vpath XrdNet%    ../XrdNet
 vpath XrdOdc%    ../XrdOdc
+vpath XrdOss%    ../XrdOss
 vpath XrdOuc%    ../XrdOuc
 vpath XrdSec%    ../XrdSec
 vpath XrdSfs%    ../XrdSfs
@@ -255,7 +256,7 @@ $(OBJDIR)/XrdCmsFinder.o:    XrdCmsFinder.cc     XrdCmsFinder.hh \
 
 $(OBJDIR)/XrdCmsJob.o:       XrdCmsJob.cc        XrdCmsJob.hh \
                              XrdCmsProtocol.hh   XrdCmsRRData.hh \
-                             XrdCmsTrace.hh \
+                             XrdCmsTrace.hh      XrdOss.hh \
                              XrdSysPthread.hh \
                              XrdJob.hh           XrdLink.hh \
                              YProtocol.hh
@@ -321,7 +322,7 @@ $(OBJDIR)/XrdCmsNash.o:      XrdCmsNash.cc       XrdCmsNash.hh \
 $(OBJDIR)/XrdCmsNode.o:      XrdCmsNode.cc       XrdCmsNode.hh \
                              XrdCmsCache.hh      XrdCmsCluster.hh \
                              XrdCmsConfig.hh     XrdCmsKey.hh \
-                             XrdCmsManager.hh \
+                             XrdCmsManager.hh    XrdCmsAdmin.hh \
                              XrdCmsManList.hh    XrdCmsManTree.hh \
                              XrdCmsMeter.hh      XrdCmsPList.hh \
                              XrdCmsPrepare.hh    XrdCmsRRData.hh \

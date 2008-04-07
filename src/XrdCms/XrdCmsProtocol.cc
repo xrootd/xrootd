@@ -831,7 +831,7 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
 
 // Check if we can really reissue the command
 //
-   if (!(Data.Request.modifier += kYR_hopcount))
+   if (!((Data.Request.modifier += kYR_hopincr) & kYR_hopcount))
       {Say.Emsg("Job", Router.getName(Data.Request.rrCode),
                        "msg TTL exceeded for", Data.Path);
        return;
@@ -856,7 +856,7 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
 
 // Now send off the message to all the nodes
 //
-   Cluster.Broadcast(amask, ioB, 2);
+   Cluster.Broadcast(amask, ioB, 2, sizeof(Data.Request)+Data.Dlen);
 }
   
 /******************************************************************************/

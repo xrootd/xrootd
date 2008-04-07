@@ -13,7 +13,9 @@
 //         $Id$
 
 #include <stdlib.h>
+#include <sys/uio.h>
 
+#include "XrdCms/XrdCmsProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -28,6 +30,8 @@ public:
 static void  setSync(XrdSysSemaphore  *sync)  {SyncUp = sync;}
 
        void *Notes(XrdNetSocket *AdminSock);
+
+       int   Send(XrdCms::CmsRRHdr *Hdr, const char *Arg, int Alen);
 
        void *Start(XrdNetSocket *AdminSock);
 

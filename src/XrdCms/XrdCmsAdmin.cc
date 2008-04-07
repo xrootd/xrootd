@@ -24,7 +24,6 @@ const char *XrdCmsAdminCVSID = "$Id$";
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsManager.hh"
 #include "XrdCms/XrdCmsPrepare.hh"
-#include "XrdCms/XrdCmsProtocol.hh"
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -155,6 +154,33 @@ void *XrdCmsAdmin::Notes(XrdNetSocket *AnoteSock)
 }
 
 /******************************************************************************/
+/*                           S e n d 2 S e r v e r                            */
+/******************************************************************************/
+  
+int XrdCmsAdmin::Send(XrdCms::CmsRRHdr *Hdr, const char *Data, int Dlen)
+{
+   static XrdSysMutex sendMutex;
+   int retc;
+
+// If the primary server is not online, ignore the request
+//
+   if (!POnline) return ENOTCONN;
+
+// Send the request
+//
+   sendMutex.Lock();
+   if ((retc = write(POnline, Hdr, sizeof(CmsRRHdr))) != sizeof(CmsRRHdr)
+   ||  (retc = write(POnline, Data, Dlen))            != Dlen)
+      retc = (retc < 0 ? errno : ECANCELED);
+      else retc = 0;
+   sendMutex.UnLock();
+
+// All done
+//
+   return retc;
+}
+
+/******************************************************************************/
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
@@ -262,7 +288,7 @@ int XrdCmsAdmin::do_Login()
 // Indicate we have a primary
 //
    Primary = 1;
-   POnline = 1;
+   POnline = Stream.FDNum();
    CmsState.Update(XrdCmsState::FrontEnd, 1, Port);
 
 // Check if this is the first primary login and resume if we must
