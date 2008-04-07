@@ -136,7 +136,7 @@ int       IsRemote(const char *path)
 int       Mkdir(const char *, mode_t mode, int mkpath=0);
 int       Mkpath(const char *, mode_t mode);
 unsigned long long PathOpts(const char *path) {return RPList.Find(path);}
-int       Remdir(const char *) {return -ENOTSUP;}
+int       Remdir(const char *);  // In Unlink()
 int       Rename(const char *, const char *);
 virtual 
 int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t);
@@ -146,6 +146,7 @@ int       StatFS(const char *path, char *buff, int &blen);
 int       StatFS(const char *path, int &Opt, long long &fSize, long long &fSpace);
 int       StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);
 int       StatXA(const char *path, char *buff, int &blen);
+int       Truncate(const char *, unsigned long long Size);
 int       Unlink(const char *);
 
 static int   AioInit();

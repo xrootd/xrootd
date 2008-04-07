@@ -37,6 +37,42 @@ extern XrdSysError OssEroute;
 extern XrdOucTrace OssTrace;
   
 /******************************************************************************/
+/*                                R e m d i r                                 */
+/******************************************************************************/
+  
+/*
+  Function: Delete a directory from the namespace.
+
+  Input:    path      - Is the fully qualified name of the dir to be removed.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+*/
+int XrdOssSys::Remdir(const char *path)
+{
+    unsigned long long opts;
+    int retc;
+    struct stat statbuff;
+    char  local_path[XrdOssMAX_PATH_LEN+1+8];
+
+// Determine whether we can actually unlink a dir on this server.
+//
+   Check_RO(Unlink, opts, path, "deleting ");
+
+// Build the right local and remote paths.
+//
+   if ( (retc = GenLocalPath( path,  local_path))) return retc;
+
+// Check if this path is really a directory
+//
+    if (lstat(local_path, &statbuff)) return (errno == ENOENT ? 0 : -errno);
+    if ((statbuff.st_mode & S_IFMT) != S_IFDIR) return -ENOTDIR;
+
+// Complete by calling Unlink()
+//
+    return Unlink(path);
+}
+
+/******************************************************************************/
 /*                                U n l i n k                                 */
 /******************************************************************************/
 
@@ -79,11 +115,9 @@ int XrdOssSys::Unlink(const char *path)
        else if ((statbuff.st_mode & S_IFMT) == S_IFLNK)
                retc = BreakLink(local_path, statbuff);
                else if ((statbuff.st_mode & S_IFMT) == S_IFDIR)
-                       {if (remotefs) 
-                           {un_file.UnSerialize(0);
-                            un_file.NoSerialize(local_path, XrdOssDIR);
-                           }
-                        if (rmdir(local_path)) retc = -errno;
+                       {if (remotefs) un_file.UnSerialize(0);
+                        un_file.NoSerialize(local_path, XrdOssDIR);
+                        if ((retc = rmdir(local_path))) retc = -errno;
                         DEBUG("dir rc=" <<retc <<" path=" <<local_path);
                         return retc;
                        } else doAdjust = 1;

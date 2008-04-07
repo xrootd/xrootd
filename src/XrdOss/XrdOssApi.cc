@@ -214,8 +214,7 @@ int XrdOssSys::Chmod(const char *path, mode_t mode)
 
 // Change the file only in the local filesystem.
 //
-   if (!chmod(local_path, mode)) return XrdOssOK;
-   return -errno;
+   return (chmod(local_path, mode) ? -errno : XrdOssOK);
 }
 
 /******************************************************************************/
@@ -295,6 +294,40 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
    if (mkdir(local_path, mode) && errno != EEXIST) return -errno;
    return XrdOssOK;
 }
+  
+/******************************************************************************/
+/*                              T r u n c a t e                               */
+/******************************************************************************/
+
+/*
+  Function: Truncate a file.
+
+  Input:    path        - Is the fully qualified name of the target file.
+            size        - The new size that the file is to have.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+
+  Notes:    Files are only changed in the local disk cache.
+*/
+
+int XrdOssSys::Truncate(const char *path, unsigned long long size)
+{
+    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
+    int retc;
+
+// Generate local path
+//
+   if (lcl_N2N)
+      if ((retc = lcl_N2N->lfn2pfn(path, actual_path, sizeof(actual_path)))) 
+         return retc;
+         else local_path = actual_path;
+      else local_path = (char *)path;
+
+// Change the file only in the local filesystem.
+//
+   return (truncate(local_path, size) ? -errno : XrdOssOK);
+}
+
   
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
@@ -801,9 +834,7 @@ int XrdOssFile::isCompressed(char *cxidp)
 int XrdOssFile::Ftruncate(unsigned long long flen) {
     off_t newlen = flen;
 
-#if _FILE_OFFSET_BITS!=64
-    if (flen>>31) return -XRDOSS_E8008;
-#endif
+    if (sizeof(newlen) < sizeof(flen) && (flen>>31)) return -XRDOSS_E8008;
 
     return (ftruncate(fd, newlen) ?  -errno : XrdOssOK);
     }

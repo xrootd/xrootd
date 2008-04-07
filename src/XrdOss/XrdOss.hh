@@ -97,6 +97,7 @@ virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
                       {return -ENOTSUP;}
 virtual int     StatXA(const char *path, char *buff, int &blen)
                       {return -ENOTSUP;}
+virtual int     Truncate(const char *, unsigned long long)=0;
 virtual int     Unlink(const char *)=0;
 
                 XrdOss() {}
