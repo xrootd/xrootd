@@ -678,6 +678,18 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 //
    DEBUGR(Arg.Path <<" to " <<Arg.Path2);
 
+// If we are not a server, if must remove references to the old and new names
+// from our cache. This is independent of how the raname is handled. We need
+// not back percolate the mv since it was hanled top down in the first place.
+//
+   if (!Config.DiskOK)
+      {XrdCmsSelect Sel1(XrdCmsSelect::Advisory, Arg.Path, strlen(Arg.Path ));
+       XrdCmsSelect Sel2(XrdCmsSelect::Advisory, Arg.Path2,strlen(Arg.Path2));
+       SMask_t allNodes = ~static_cast<SMask_t>(0);
+       Cache.DelFile(Sel1, allNodes);
+       Cache.DelFile(Sel2, allNodes);
+      }
+
 // If we have an Xmi then call it
 //
    if (Xmi_Rename)
