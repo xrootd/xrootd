@@ -137,21 +137,28 @@ void PrintHelp() {
    cout << endl <<
       XRDCLI_VERSION << endl << endl <<
       "List of available commands:" << endl <<
+      " cat <filename> [xrdcp parameters]" << endl <<
+      "  outputs a file on standard output using xrdcp. <filename> can be a root:// URL." << endl <<
       " cd <dir name>" << endl <<
       "  changes the current directory" << endl <<
       "  Note: no existence check is performed." << endl <<
+      " chmod <fileordirname> <user> <group> <other>" << endl <<
+      "  modifies file permissions." << endl <<
+      " connect [hostname[:port]]" << endl <<
+      "  connects to the specified host." << endl <<
+      " cp <fileordirname> <fileordirname> [xrdcp parameters]" << endl <<
+      "  copies a file using xrdcp. <fileordirname> are always relative to the" << endl <<
+      "  current remote path. Also, they can be root:// URLs specifying any other host." << endl <<
+      " dirlist [dirname]" << endl <<
+      "  gets the requested directory listing." << endl <<
       " envputint <varname> <intval>" << endl <<
       "  puts an integer in the internal environment." << endl <<
       " envputstring <varname> <stringval>" << endl <<
       "  puts a string in the internal environment." << endl <<
-      " help" << endl <<
-      "  this help screen." << endl <<
       " exit" << endl <<
       "  exits from the program." << endl <<
-      " connect [hostname[:port]]" << endl <<
-      "  connects to the specified host." << endl <<
-      " dirlist [dirname]" << endl <<
-      "  gets the requested directory listing." << endl <<
+      " help" << endl <<
+      "  this help screen." << endl <<
       " stat [fileordirname]" << endl <<
       "  gets info about the given file or directory path." << endl <<
       " statvfs [vfilesystempath]" << endl <<
@@ -175,19 +182,12 @@ void PrintHelp() {
       "  moves filename1 to filename2 locally to the same server." << endl <<
       " mkdir <dirname> [user] [group] [other]" << endl <<
       "  creates a directory." << endl <<
-      " chmod <fileordirname> <user> <group> <other>" << endl <<
-      "  modifies file permissions." << endl <<
       " rm <filename>" << endl <<
       "  removes a file." << endl <<
       " rmdir <dirname>" << endl <<
       "  removes a directory." << endl <<
       " prepare <filename> <options> <priority>" << endl <<
       "  stages a file in." << endl <<
-      " cat <filename> [xrdcp parameters]" << endl <<
-      "  outputs a file on standard output using xrdcp. <filename> can be a root:// URL." << endl <<
-      " cp <fileordirname> <fileordirname> [xrdcp parameters]" << endl <<
-      "  copies a file using xrdcp. <fileordirname> are always relative to the" << endl <<
-      "  current remote path. Also, they can be root:// URLs specifying any other host." << endl <<
       " query <reqcode> <parms>" << endl <<
       "  obtain server information" << endl <<
       endl <<
@@ -944,6 +944,53 @@ int main(int argc, char**argv) {
 	 continue;
       }
 
+      // -------------------------- truncate ---------------------------
+      if (!strcmp(cmd, "truncate")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    continue;
+	 }
+
+	 char *fname = tkzer.GetToken(0, 0);
+	 char *slen = tkzer.GetToken(0, 0);
+
+	 long long len = 0;
+	 if (slen) len = atoll(slen);
+         else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+         if (len <= 0) {
+	    cout << "Bad length." << endl;
+	    continue;
+	 }
+
+	 XrdOucString pathname1;
+
+	 if (fname) {
+	    if (fname[0] == '/')
+	       pathname1 = fname;
+	    else
+	       pathname1 = currentpath + "/" + fname;
+	 }
+	 else {
+	    cout << "Missing parameter." << endl;
+	    continue;
+	 }
+
+
+	 // Now try to issue the request
+	 genadmin->Truncate(pathname1.c_str(), len);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	    continue;
+
+	 cout << endl;
+	 continue;
+      }
 
       // -------------------------- rm ---------------------------
       if (!strcmp(cmd, "rm")) {

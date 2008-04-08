@@ -1229,6 +1229,29 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info
    return (hosts.GetSize() > 0);
 }
 
+bool XrdClientAdmin::Truncate(const char *path, long long newsize) {
+
+   ClientRequest truncateRequest;
+   int l = strlen(path);
+   if (!l) return false;
+
+   memset( &truncateRequest, 0, sizeof(truncateRequest) );
+
+   fConnModule->SetSID(truncateRequest.header.streamid);
+
+   truncateRequest.header.requestid     = kXR_truncate;
+   truncateRequest.truncate.offset      = newsize;
+
+   truncateRequest.header.dlen = l;
+
+   bool ret = fConnModule->SendGenCommand(&truncateRequest, path,
+                                          NULL, NULL , FALSE, (char *)"Truncate");
+
+   return ret;
+
+
+}
+
 
 
 // Quickly jump to the former redirector. Useful after having been redirected.

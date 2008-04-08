@@ -141,6 +141,7 @@ class XrdClientAdmin : public XrdClientAbs {
 					  XrdClientVector<XrdClientLocate_Info> &hosts);
 
 
+   bool                            Truncate(const char *path, long long newsize);
    
    UnsolRespProcResult             ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *sender,
                                                          XrdClientMessage *unsolmsg);
