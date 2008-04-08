@@ -116,7 +116,9 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
            if (datfd < 0) return -errno;
        close(datfd);
        if (Opts>>8 & O_TRUNC && buf.st_size)
-          Adjust(local_path, -buf.st_size, &buf);
+          {off_t theSize = buf.st_size;
+           if (!lstat(local_path, &buf)) Adjust(local_path, -theSize, &buf);
+          }
        return 0;
       }
 
