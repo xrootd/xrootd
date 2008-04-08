@@ -438,7 +438,7 @@ int        statfs(         const char *path, struct statfs *buf)
 /*                               s t a t v f s                                */
 /******************************************************************************/
 
-#if !defined(__macos__)
+#if !defined(__macos__) && !defined(SUNX86)
 extern "C"
 {
 int        statvfs(         const char *path, struct statvfs *buf)

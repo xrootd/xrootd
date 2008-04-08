@@ -1167,8 +1167,8 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
   if (admin.isOK())
      {XrdOucString str(path);
       XrdClientUrlSet url(str);
-//    if (admin.Admin.Truncate(url.GetFile().c_str(), Size)) return 0;
-//    return admin.Fault();
+      if (admin.Admin.Truncate(url.GetFile().c_str(), Size)) return 0;
+      return admin.Fault();
       errno = ENOTSUP; return -1;
      }
   return admin.Result();
