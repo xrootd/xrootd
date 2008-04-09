@@ -877,6 +877,7 @@ int XrdCmsFinderTRG::Process(XrdCmsRRData &Data)
    static       int Wmsg = 255;
    const char *myArgs, *myArgt, *Act;
    char buff[16];
+   int rc;
 
 // Decode the length and get the rest of the data
 //
@@ -930,11 +931,12 @@ int XrdCmsFinderTRG::Process(XrdCmsRRData &Data)
 // Perform the request
 //
    switch(Data.Request.rrCode)
-         {case kYR_mv:    SS->Rename(Data.Path, Data.Path2);   break;
-          case kYR_rm:    SS->Unlink(Data.Path);               break;
-          case kYR_rmdir: SS->Remdir(Data.Path);               break;
-          default:                                             break;
+         {case kYR_mv:    rc = SS->Rename(Data.Path, Data.Path2);   break;
+          case kYR_rm:    rc = SS->Unlink(Data.Path);               break;
+          case kYR_rmdir: rc = SS->Remdir(Data.Path);               break;
+          default:        rc = 0;                                   break;
          }
+   if (rc) Say.Emsg("Finder", rc, Act, Data.Path);
 
 // All Done
 //

@@ -35,8 +35,73 @@ const char *XrdCmsAdminCVSID = "$Id$";
 using namespace XrdCms;
  
 /******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+  
+namespace XrdCms
+{
+class AdminReq
+{
+public:
+
+       AdminReq *Next;
+const  char     *Req;
+const  char     *Path;
+       CmsRRHdr  Hdr;
+       char     *Data;
+       int       Dlen;
+static int       numinQ;
+static const int maxinQ = 1024;
+
+static AdminReq *getReq() {AdminReq *arP;
+                           do {QPresent.Wait();
+                               QMutex.Lock();
+                               if ((arP = First))
+                                  {if (!(First = arP->Next)) Last = 0;
+                                   numinQ--;
+                                  }
+                               QMutex.UnLock();
+                              } while (!arP);
+                           return arP;
+                          }
+
+       void      Requeue() {QMutex.Lock();
+                            Next=First; First=this; QPresent.Post(); numinQ++;
+                            QMutex.UnLock();
+                           }
+
+          AdminReq(const char *req, XrdCmsRRData &RRD) 
+                  : Next(0), Req(req), Path(RRD.Path ? RRD.Path : ""),
+                    Hdr(RRD.Request), Data(RRD.Buff), Dlen(RRD.Dlen)
+                  {RRD.Buff = 0;
+                   QMutex.Lock();
+                   if (Last) {Last->Next = this; Last = this;}
+                      else    First=Last = this;
+                   QPresent.Post();
+                   numinQ++;
+                   QMutex.UnLock();
+                  }
+
+     ~AdminReq() {if (Data) free(Data);}
+
+private:
+
+static XrdSysSemaphore QPresent;
+static XrdSysMutex     QMutex;
+static AdminReq       *First;
+static AdminReq       *Last;
+};
+};
+
+/******************************************************************************/
 /*                     G l o b a l s   &   S t a t i c s                      */
 /******************************************************************************/
+
+       XrdSysSemaphore  AdminReq::QPresent(0);
+       XrdSysMutex      AdminReq::QMutex;
+       AdminReq        *AdminReq::First = 0;
+       AdminReq        *AdminReq::Last  = 0;
+       int              AdminReq::numinQ= 0;
 
        XrdSysMutex      XrdCmsAdmin::myMutex;
        XrdSysSemaphore *XrdCmsAdmin::SyncUp = 0;
@@ -46,10 +111,15 @@ using namespace XrdCms;
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
-void *XrdCmsLoginAdmin(void *carg)
+void *XrdCmsAdminLogin(void *carg)
       {XrdCmsAdmin *Admin = new XrdCmsAdmin();
        Admin->Login(*(int *)carg);
        delete Admin;
+       return (void *)0;
+      }
+
+void *XrdCmsAdminSend(void *carg)
+      {XrdCmsAdmin::Relay(0,0);
        return (void *)0;
       }
  
@@ -105,6 +175,7 @@ void XrdCmsAdmin::Login(int socknum)
       {CmsState.Update(XrdCmsState::FrontEnd, 0, -1);
        myMutex.Lock();
        POnline = 0;
+       Relay(1,-1);
        myMutex.UnLock();
       }
    return;
@@ -154,30 +225,65 @@ void *XrdCmsAdmin::Notes(XrdNetSocket *AnoteSock)
 }
 
 /******************************************************************************/
-/*                           S e n d 2 S e r v e r                            */
+/*                                 R e l a y                                  */
 /******************************************************************************/
   
-int XrdCmsAdmin::Send(XrdCms::CmsRRHdr *Hdr, const char *Data, int Dlen)
+void XrdCmsAdmin::Relay(int setSock, int newSock)
 {
-   static XrdSysMutex sendMutex;
-   int retc;
+   const char            *epname = "Admin_Relay";
+   static const int       HdrSz = sizeof(CmsRRHdr);
+   static XrdSysMutex     SMutex;
+   static XrdSysSemaphore SReady(0);
+   static int             curSock = -1;
+   AdminReq              *arP;
+   int                    retc, mySock = -1;
 
-// If the primary server is not online, ignore the request
-//
-   if (!POnline) return ENOTCONN;
+// Set socket for writing (called from admin thread when pimary logs on)
+   if (setSock)
+      {SMutex.Lock();
+       if (curSock >= 0) close(curSock);
+          else if (newSock >= 0) SReady.Post();
+       curSock = (newSock >= 0 ? dup(newSock) : -1);
+       SMutex.UnLock();
+       return;
+      }
 
-// Send the request
+// This is just an endless loop
 //
-   sendMutex.Lock();
-   if ((retc = write(POnline, Hdr, sizeof(CmsRRHdr))) != sizeof(CmsRRHdr)
-   ||  (retc = write(POnline, Data, Dlen))            != Dlen)
-      retc = (retc < 0 ? errno : ECANCELED);
-      else retc = 0;
-   sendMutex.UnLock();
+   do {while(mySock < 0)
+            {SMutex.Lock();
+             if (curSock < 0) {SMutex.UnLock(); SReady.Wait(); SMutex.Lock();}
+             mySock = curSock; curSock = -1;
+             SMutex.UnLock();
+            }
 
-// All done
-//
-   return retc;
+       do {arP = AdminReq::getReq();
+
+           if ((retc = write(mySock, &arP->Hdr, HdrSz))     != HdrSz
+           ||  (retc = write(mySock, arP->Data, arP->Dlen)) != arP->Dlen)
+              retc = (retc < 0 ? errno : ECANCELED);
+              else {DEBUG("sent " <<arP->Req <<' ' <<arP->Path);
+                    delete arP; retc = 0;
+                   }
+          } while(retc == 0);
+
+       if (retc) Say.Emsg("AdminRelay", retc, "relay", arP->Req);
+       arP->Requeue();
+       close(mySock);
+       mySock = -1;
+      } while(1);
+}
+
+/******************************************************************************/
+/*                                  S e n d                                   */
+/******************************************************************************/
+  
+void XrdCmsAdmin::Send(const char *Req, XrdCmsRRData &Data)
+{
+   AdminReq *arP;
+
+   if (AdminReq::numinQ < AdminReq::maxinQ) arP = new AdminReq(Req, Data);
+      else Say.Emsg("Send", "Queue full; ignoring", Req, Data.Path);
 }
 
 /******************************************************************************/
@@ -190,6 +296,11 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
    int InSock;
    pthread_t tid;
 
+// Start the relay thread
+//
+   if (XrdSysThread::Run(&tid,XrdCmsAdminSend,(void *)0))
+      Say.Emsg(epname, errno, "start admin relay");
+
 // If we are in independent mode then let the caller continue
 //
    if (Config.doWait && Config.asServer() || Config.asSolo())
@@ -199,7 +310,7 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 // Accept connections in an endless loop
 //
    while(1) if ((InSock = AdminSock->Accept()) >= 0)
-               {if (XrdSysThread::Run(&tid,XrdCmsLoginAdmin,(void *)&InSock))
+               {if (XrdSysThread::Run(&tid,XrdCmsAdminLogin,(void *)&InSock))
                    {Say.Emsg(epname, errno, "start admin");
                     close(InSock);
                    }
@@ -288,7 +399,8 @@ int XrdCmsAdmin::do_Login()
 // Indicate we have a primary
 //
    Primary = 1;
-   POnline = Stream.FDNum();
+   POnline = 1;
+   Relay(1, Stream.FDNum());
    CmsState.Update(XrdCmsState::FrontEnd, 1, Port);
 
 // Check if this is the first primary login and resume if we must

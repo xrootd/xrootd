@@ -720,7 +720,8 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
           } else {oldPath = Arg.Path;    newPath = Arg.Path2;}
        rc = Config.ProgMV->Run(oldPath, newPath);
       } else {
-       rc = Admin.Send(&Arg.Request, Arg.Buff, Arg.Dlen);
+       Admin.Send("mv", Arg);
+       rc = 0;
       }
 
 // Diagnore any errors
@@ -865,7 +866,8 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
           else myPath = Arg.Path;
        rc = Config.ProgRM->Run(myPath);
       } else {
-       rc = Admin.Send(&Arg.Request, Arg.Buff, Arg.Dlen);
+       Admin.Send("rm", Arg);
+       rc = 0;
       }
 
 // Diagnose any errors
@@ -916,12 +918,13 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
           else myPath = Arg.Path;
        rc = Config.ProgRD->Run(myPath);
       } else {
-       rc = Admin.Send(&Arg.Request, Arg.Buff, Arg.Dlen);
+       Admin.Send("rmdir", Arg);
+       rc = 0;
       }
 
 // Diagnose any errors
 //
-   if (rc && rc != ENOENT) Say.Emsg("Node", rc, "remdir", Arg.Path);
+   if (rc && rc != ENOENT) Say.Emsg("Node", rc, "rmdir", Arg.Path);
       else {DEBUGR("rc=" <<rc <<" rm " <<Arg.Path);}
 
    return rc ? strerror(rc) : 0;

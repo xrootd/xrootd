@@ -151,7 +151,8 @@ $(LIBRARY): $(OBJCLNT) $(OBJBOTH)
 $(OBJDIR)/XrdCmsAdmin.o:     XrdCmsAdmin.cc      XrdCmsAdmin.hh \
                              XrdCmsState.hh      XrdCmsConfig.hh \
                              XrdCmsManager.hh    XrdCmsPrepare.hh \
-                             XrdCmsProtocol.hh   XrdCmsTrace.hh \
+                             XrdCmsProtocol.hh   XrdCmsRRData.hh \
+                             XrdCmsTrace.hh \
                              XrdNetSocket.hh     XrdOuca2x.hh \
                              XrdOucName2Name.hh  XrdOucStream.hh \
                              XrdSysError.hh      XrdSysPlatform.hh \

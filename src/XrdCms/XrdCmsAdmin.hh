@@ -16,6 +16,7 @@
 #include <sys/uio.h>
 
 #include "XrdCms/XrdCmsProtocol.hh"
+#include "XrdCms/XrdCmsRRData.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -31,7 +32,9 @@ static void  setSync(XrdSysSemaphore  *sync)  {SyncUp = sync;}
 
        void *Notes(XrdNetSocket *AdminSock);
 
-       int   Send(XrdCms::CmsRRHdr *Hdr, const char *Arg, int Alen);
+static void  Relay(int setSock, int newSock);
+
+       void  Send(const char *Req, XrdCmsRRData &Data);
 
        void *Start(XrdNetSocket *AdminSock);
 
