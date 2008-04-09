@@ -78,6 +78,10 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
    XrdOssCache_FSData *fdp;
    XrdOssCache_FS     *fsp;
 
+// Prefill in case of failure
+//
+   path = group = 0;
+
 // Verify that this is not a duplicate
 //
    fsp = XrdOssSS->fsfirst;

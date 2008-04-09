@@ -105,13 +105,13 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
 
 // Check if this path is really a symbolic link elsewhere
 //
-    if (lstat(local_path_Old, &statbuff)) retc = (errno == ENOENT ? 0 : -errno);
+    if (lstat(local_path_Old, &statbuff)) retc = -errno;
        else if ((statbuff.st_mode & S_IFMT) == S_IFLNK)
                retc = RenameLink(local_path_Old, local_path_New);
                else if (rename(local_path_Old, local_path_New)) retc = -errno;
     DEBUG("lcl rc=" <<retc <<" op=" <<local_path_Old <<" np=" <<local_path_New);
 
-// For migratable spave, rename all suffix variations of the base file
+// For migratable space, rename all suffix variations of the base file
 //
    if (ismig)
       {if ((!retc || retc == -ENOENT))
