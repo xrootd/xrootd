@@ -296,7 +296,7 @@ void XrdOssSys::List_Cache(const char *lname, XrdSysError &Eroute)
             {pP = (char *)fsp->path + fsp->plen - 1;
              do {pP--;} while(*pP != '/');
              *pP = '\0';   theOpt = " xa";
-            } else {*pP=0; theOpt = "";}
+            } else {pP=0;  theOpt = "";}
          snprintf(buff, sizeof(buff), "%s %s %s%s", lname, 
                         fsp->group, fsp->path, theOpt);
          if (pP) *pP = '/';
