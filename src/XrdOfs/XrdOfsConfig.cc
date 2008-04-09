@@ -609,6 +609,7 @@ int XrdOfs::xnmsg(XrdOucStream &Config, XrdSysError &Eroute)
         {"openw",    XrdOfsEvs::Openw},
         {"rm",       XrdOfsEvs::Rm},
         {"rmdir",    XrdOfsEvs::Rmdir},
+        {"trunc",    XrdOfsEvs::Trunc},
         {"fwrite",   XrdOfsEvs::Fwrite}
        };
     XrdOfsEvs::Event noval;
