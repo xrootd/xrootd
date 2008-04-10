@@ -400,7 +400,7 @@ FILE *XrdPosix_Fopen(const char *path, const char *mode)
 // Transfer to unix if this is not our path
 //
    if (!(myPath = XrootPath.URL(path, buff, sizeof(buff))))
-      Xunix.Fopen64(path, mode);
+      return Xunix.Fopen64(path, mode);
 
 // Translate the mode flags
 //

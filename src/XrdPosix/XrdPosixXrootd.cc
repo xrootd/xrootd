@@ -1098,7 +1098,6 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 
 // Make sure we connected
 //
-   cerr <<"xroot statvfs: " <<path <<endl;
    if (!admin.isOK()) return admin.Result();
 
 // Extract out path from the url
