@@ -705,12 +705,12 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
        // Perform selection
        //
        if ((rc = Cluster.Select(Sel2)))
-          {if (rc > 0) {Arg.waitVal = rc; return "!mv";}
-           Cache.DelFile(Sel2, allNodes);
-          } else if (Sel2.Vec.hf)
+          if (rc > 0) {Arg.waitVal = rc; return "!mv";}
+             else if (Sel2.Vec.hf)
                     {Say.Emsg("do_Mv",Arg.Path2,"exists; mv failed for",Arg.Path);
                      return "target file exists";
                     }
+       Cache.DelFile(Sel2, allNodes);
        Cache.DelFile(Sel1, allNodes);
        return 0;
       }
