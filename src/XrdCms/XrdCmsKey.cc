@@ -186,6 +186,7 @@ XrdCmsKeyItem *XrdCmsKeyItem::Unload(XrdCmsKeyItem *theItem)
    if (kP)
       {if (pP) pP->Key.TODRef     = kP->Key.TODRef;
           else TockTable[theTock] = kP->Key.TODRef;
+       kP->Loc.HashSave = kP->Key.Hash; kP->Key.Hash = 0;
       }
    return kP;
 }
