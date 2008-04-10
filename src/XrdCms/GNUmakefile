@@ -260,6 +260,7 @@ $(OBJDIR)/XrdCmsJob.o:       XrdCmsJob.cc        XrdCmsJob.hh \
                              XrdCmsTrace.hh      XrdOss.hh \
                              XrdSysPthread.hh \
                              XrdJob.hh           XrdLink.hh \
+                             XrdScheduler.hh \
                              YProtocol.hh
 	@echo Compiling XrdCmsJob.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsJob.o XrdCmsJob.cc

@@ -19,6 +19,7 @@ const char *XrdCmsJobCVSID = "$Id$";
 #include <stdlib.h>
 
 #include "Xrd/XrdLink.hh"
+#include "Xrd/XrdScheduler.hh"
 
 #include "XrdCms/XrdCmsJob.hh"
 #include "XrdCms/XrdCmsProtocol.hh"
@@ -30,6 +31,11 @@ using namespace XrdCms;
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
+
+namespace XrdCms
+{
+extern XrdScheduler               *Sched;
+};
 
        XrdSysMutex      XrdCmsJob::JobMutex;
        XrdCmsJob       *XrdCmsJob::JobStack = 0;
@@ -69,10 +75,14 @@ XrdCmsJob *XrdCmsJob::Alloc(XrdCmsProtocol *Proto, XrdCmsRRData *Data)
   
 void XrdCmsJob::DoIt()
 {
+   int rc;
 
-// Simply execute the method on the data
+// Simply execute the method on the data. If operation started and we have to
+// wait foir it, simply reschedule ourselves for a later time.
 //
-   theProto->Execute(*theData);
+   if ((rc = theProto->Execute(*theData)))
+      if (rc == -EINPROGRESS)
+         {Sched->Schedule((XrdJob *)this, theData->waitVal+time(0)); return;}
    Recycle();
 }
 

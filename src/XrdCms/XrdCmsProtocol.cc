@@ -182,26 +182,31 @@ int XrdgetProtocolPort(const char *pname, char *parms,
 /*                               E x e c u t e                                */
 /******************************************************************************/
   
-void XrdCmsProtocol::Execute(XrdCmsRRData &Data)
+int XrdCmsProtocol::Execute(XrdCmsRRData &Arg)
 {
+   EPNAME("Execute");
    static kXR_unt32 theDelay = htonl(Config.SUPDelay);
    XrdCmsRouter::NodeMethod_t Method;
    const char *etxt;
 
 // Check if we can continue
 //
-   if (CmsState.Suspended && Data.Routing & XrdCmsRouting::Delayable)
-      {Reply_Delay(Data, theDelay); return;}
+   if (CmsState.Suspended && Arg.Routing & XrdCmsRouting::Delayable)
+      {Reply_Delay(Arg, theDelay); return 0;}
 
 // Validate request code and execute the request. If successful, forward the
 // request to subscribers of this node if the request is forwardable.
 //
-   if (!(Method = Router.getMethod(Data.Request.rrCode)))
+   if (!(Method = Router.getMethod(Arg.Request.rrCode)))
       Say.Emsg("Protocol", "invalid request code from", myNode->Ident);
-      else if ((etxt = (myNode->*Method)(Data)))
-              Reply_Error(Data, kYR_EINVAL, etxt);
-              else if (Data.Routing & XrdCmsRouting::Forward
-                   &&  Cluster.NodeCnt) Reissue(Data);
+      else if ((etxt = (myNode->*Method)(Arg)))
+              if (*etxt == '!')
+                 {DEBUGR(etxt+1 <<" delayed " <<Arg.waitVal <<" seconds");
+                  return -EINPROGRESS;
+                 } else Reply_Error(Arg, kYR_EINVAL, etxt);
+              else if (Arg.Routing & XrdCmsRouting::Forward
+                   &&  Cluster.NodeCnt) Reissue(Arg);
+   return 0;
 }
 
 /******************************************************************************/

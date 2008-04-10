@@ -672,23 +672,12 @@ const char *XrdCmsNode::do_Mkpath(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 {
    EPNAME("do_Mv")
+   static const SMask_t allNodes = ~static_cast<SMask_t>(0);
    int rc;
 
 // Do some debugging
 //
    DEBUGR(Arg.Path <<" to " <<Arg.Path2);
-
-// If we are not a server, if must remove references to the old and new names
-// from our cache. This is independent of how the raname is handled. We need
-// not back percolate the mv since it was hanled top down in the first place.
-//
-   if (!Config.DiskOK)
-      {XrdCmsSelect Sel1(XrdCmsSelect::Advisory, Arg.Path, strlen(Arg.Path ));
-       XrdCmsSelect Sel2(XrdCmsSelect::Advisory, Arg.Path2,strlen(Arg.Path2));
-       SMask_t allNodes = ~static_cast<SMask_t>(0);
-       Cache.DelFile(Sel1, allNodes);
-       Cache.DelFile(Sel2, allNodes);
-      }
 
 // If we have an Xmi then call it
 //
@@ -698,9 +687,33 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
           return 0;
       }
 
-// If we have no data we are done
+// If we are not a server, if must remove references to the old and new names
+// from our cache. This is independent of how the raname is handled. We need
+// not back percolate the mv since it was hanled top down in the first place.
+// Note that we will scuttle the mv if the target file exists somewhere.
 //
-   if (!Config.DiskOK) return 0;
+   if (!Config.DiskOK)
+      {XrdCmsSelect Sel1(XrdCmsSelect::Defer, Arg.Path, strlen(Arg.Path ));
+       XrdCmsSelect Sel2(XrdCmsSelect::Defer, Arg.Path2,strlen(Arg.Path2));
+
+       // Setup select data (note that mv does not allow fast redirect)
+       //
+       Sel2.iovP = 0; Sel2.iovN = 0;
+       Sel2.InfoP = 0;  // No fast redirects
+       Sel2.nmask = ~SMask_t(0);
+
+       // Perform selection
+       //
+       if ((rc = Cluster.Select(Sel2)))
+          {if (rc > 0) {Arg.waitVal = rc; return "!mv";}
+           Cache.DelFile(Sel2, allNodes);
+          } else if (Sel2.Vec.hf)
+                    {Say.Emsg("do_Mv",Arg.Path2,"exists; mv failed for",Arg.Path);
+                     return "target file exists";
+                    }
+       Cache.DelFile(Sel1, allNodes);
+       return 0;
+      }
   
 // If we need to call an external program then we need to pass it pfn's.
 // So, generate the true local path for old name and new name. Otherwise,
@@ -836,6 +849,7 @@ const char *XrdCmsNode::do_PrepDel(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 {
    EPNAME("do_Rm")
+   static const SMask_t allNodes = ~static_cast<SMask_t>(0);
    int rc;
 
 // Do some debugging
@@ -849,9 +863,13 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
        if (Xmi_Remove->Remove(&Req, Arg.Path, Arg.Opaque)) return 0;
       }
 
-// If we have no data then we are done
+// If we have no data then we should remove this file from our cache
 //
-   if (!Config.DiskOK) return 0;
+   if (!Config.DiskOK)
+      {XrdCmsSelect Sel(0, Arg.Path, strlen(Arg.Path));
+       Cache.DelFile(Sel, allNodes);
+       return 0;
+      }
   
 // If we need to call an external program we need to pass it the pfn.
 // So, generate the true local path. Otherwise, send the request to the
@@ -887,6 +905,7 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 {
    EPNAME("do_Rmdir")
+   static const SMask_t allNodes = ~static_cast<SMask_t>(0);
    int rc;
 
 // Do some debugging
@@ -900,10 +919,13 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
        if (Xmi_Remdir->Remdir(&Req, Arg.Path, Arg.Opaque)) return 0;
       }
 
-// If we have no data then we are done
+// If we have no data then we should remove this directory from our cache
 //
-   if (!Config.DiskOK) return 0;
-  
+   if (!Config.DiskOK)
+      {XrdCmsSelect Sel(0, Arg.Path, strlen(Arg.Path));
+       Cache.DelFile(Sel, allNodes);
+       return 0;
+      }
   
 // If we need to call an external program we need to pass it the pfn.
 // So, generate the true local path. Otherwise, send the request to the
@@ -1068,7 +1090,8 @@ int XrdCmsNode::do_SelPrep(XrdCmsPrepArgs &Arg) // Static!!!
 //
    if ((rc = Cluster.Select(Sel)))
       {if (rc > 0)
-          {Sched->Schedule((XrdJob *)&Arg, rc+time(0));
+          {if (!(Arg.options & CmsPrepAddRequest::kYR_stage)) return 0;
+           Sched->Schedule((XrdJob *)&Arg, rc+time(0));
            DEBUGR("delayed " <<rc <<" seconds");
            return 1;
           }

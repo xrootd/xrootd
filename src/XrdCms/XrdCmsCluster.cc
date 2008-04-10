@@ -671,7 +671,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
        amask = Cluster.Broadcast(Sel.Vec.bf, QReq.Hdr,
                                  (void *)Sel.Path.Val,Sel.Path.Len+1);
        if (amask) Cache.UnkFile(Sel, amask);
-       if (dowt) return (noSel ? 0 : retc);
+       if (dowt) return retc;
       } else if (dowt && retc < 0 && !noSel)
                 return (fRD ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
 

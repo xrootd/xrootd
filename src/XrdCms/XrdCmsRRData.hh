@@ -47,8 +47,9 @@ XrdCms::CmsRRHdr       Request;     // all
         unsigned int   Opts;        // locate, select
                  int   PathLen;     // locate, prepadd, select (inc null byte)
         unsigned int   dskFree;     // avail, load
-        unsigned int   dskUtil;     // avail
-
+union  {unsigned int   dskUtil;     // avail
+                 int   waitVal;
+       };
         char          *Buff;        // Buffer underlying the pointers
         int            Blen;        // Length of buffer
         int            Dlen;        // Length of data in the buffer

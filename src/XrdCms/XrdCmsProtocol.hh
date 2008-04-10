@@ -32,7 +32,7 @@ static XrdCmsProtocol *Alloc(const char *theRole = "",
 
        void            DoIt();
 
-       void            Execute(XrdCmsRRData &Data);
+       int             Execute(XrdCmsRRData &Data);
 
        XrdProtocol    *Match(XrdLink *lp);   // Upon    accept
 
