@@ -301,9 +301,11 @@ XrdPosixFile::XrdPosixFile(int fd, const char *path)
   
 XrdPosixFile::~XrdPosixFile()
 {
-   if (XClient)
-      {if (doClose) XClient->Close();
-       delete XClient;
+   XrdClient *cP;
+   if ((cP = XClient))
+      {XClient = 0;
+       if (doClose) {doClose = 0; cP->Close();}
+       delete cP;
       }
    if (FD >= 0) close(FD);
 }
@@ -394,16 +396,19 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
   
 XrdPosixXrootd::~XrdPosixXrootd()
 {
+   XrdPosixDir  *dP;
+   XrdPosixFile *fP;
    int i;
 
    if (myFiles)
-      {for (i = 0; i <= highFD; i++) if (myFiles[i]) delete myFiles[i];
+      {for (i = 0; i <= highFD; i++) 
+           if ((fP = myFiles[i])) {myFiles[i] = 0; delete fP;};
        free(myFiles); myFiles = 0;
       }
 
    if (myDirs) {
      for (i = 0; i <= highDir; i++)
-       if (myDirs[i]) delete myDirs[i];
+       if ((dP = myDirs[i])) {myDirs[i] = 0; delete dP;}
      free(myDirs); myDirs = 0;
    }
 }
@@ -461,11 +466,11 @@ int     XrdPosixXrootd::Close(int fildes, int Stream)
 // Find the file object. We tell findFP() to leave the global lock on
 //
    if (!(fp = findFP(fildes, 1))) return -1;
+   myFiles[fp->FD] = 0;
    if (Stream) fp->FD = -1;
 
 // Deallocate the file. We have the global lock.
 //
-   myFiles[fp->FD] = 0;
    fp->UnLock();
    myMutex.UnLock();
    delete fp;
