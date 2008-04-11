@@ -152,6 +152,7 @@ $(OBJDIR)/XrdOssPath.o:   XrdOssPath.hh \
 
 $(OBJDIR)/XrdOssRename.o: XrdOssApi.hh  XrdOssError.hh XrdOssLock.hh \
                           XrdOssPath.hh XrdOssTrace.hh XrdOucExport.hh \
+                          XrdOucUtils.hh \
                           XrdOssRename.cc
 	@echo Compiling XrdOssRename.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssRename.o XrdOssRename.cc

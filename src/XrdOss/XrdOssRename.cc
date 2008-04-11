@@ -17,6 +17,7 @@ const char *XrdOssRenameCVSID = "$Id$";
 #include <strings.h>
 #include <iostream.h>
 #include <limits.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -27,6 +28,7 @@ const char *XrdOssRenameCVSID = "$Id$";
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOuc/XrdOucExport.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 /******************************************************************************/
 /*           G l o b a l   E r r o r   R o u t i n g   O b j e c t            */
@@ -51,11 +53,13 @@ extern XrdOucTrace OssTrace;
 int XrdOssSys::Rename(const char *oldname, const char *newname)
 {
     EPNAME("Rename")
+    static const mode_t pMode = S_IRWXU | S_IRWXG;
     unsigned long long remotefs_Old, remotefs_New, remotefs, ismig;
     unsigned long long old_popts, new_popts;
     int i, retc2, retc = XrdOssOK;
     XrdOssLock old_file, new_file;
     struct stat statbuff;
+    char  *slashPlus, sPChar;
     char  local_path_Old[XrdOssMAX_PATH_LEN+1+8], *lpo;
     char  local_path_New[XrdOssMAX_PATH_LEN+1+8], *lpn;
     char remote_path_Old[XrdOssMAX_PATH_LEN+1];
@@ -96,6 +100,14 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
    retc2 = lstat(local_path_New, &statbuff);
    if (remotefs) new_file.UnSerialize(0);
    if (!retc2) return -EEXIST;
+
+// We need to create the directory path if it does not exist.
+//
+   if (!(slashPlus = rindex(local_path_New, '/'))) return -EINVAL;
+   slashPlus++; sPChar = *slashPlus; *slashPlus = '\0';
+   retc2 = XrdOucUtils::makePath(local_path_New, pMode);
+   *slashPlus = sPChar;
+   if (retc2) return retc2;
 
 // Serialize access to the source directory.
 //
@@ -220,7 +232,7 @@ int XrdOssSys::RenameLink2(int Llen, char *oLnk, char *old_path,
 // Setup to create new pfn file for this file
 //
    strcpy(nLnk, oLnk);
-   strcpy(nLnk+Llen, ".PFN");
+   strcpy(nLnk+Llen, ".pfn");
    unlink(nLnk);
 
 // Create the new pfn symlink
