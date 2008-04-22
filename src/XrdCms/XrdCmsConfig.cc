@@ -588,8 +588,8 @@ void XrdCmsConfig::ConfigDefaults(void)
    LogPerf  = 10;         // Every 10 usage requests
    DiskMin  = 10240;      // 10GB*1024 (Min partition space) in MB
    DiskHWM  = 11264;      // 11GB*1024 (High Water Mark SUO) in MB
-   DiskMinP = 0;
-   DiskHWMP = 0;
+   DiskMinP = 2;
+   DiskHWMP = 5;
    DiskAsk  = 12;         // 15 Seconds between space calibrations.
    DiskWT   = 0;          // Do not defer when out of space
    DiskSS   = 0;          // Not a staging server
