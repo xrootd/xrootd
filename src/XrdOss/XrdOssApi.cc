@@ -312,7 +312,9 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
 
 int XrdOssSys::Truncate(const char *path, unsigned long long size)
 {
+    struct stat statbuff;
     char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
+    long long oldsz;
     int retc;
 
 // Generate local path
@@ -323,11 +325,21 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size)
          else local_path = actual_path;
       else local_path = (char *)path;
 
-// Change the file only in the local filesystem.
+// Get file info to do the correct adjustment
 //
-   return (truncate(local_path, size) ? -errno : XrdOssOK);
-}
+   if (lstat(local_path, &statbuff)) return -errno;
+       else if ((statbuff.st_mode & S_IFMT) == S_IFLNK)
+               {struct stat buff;
+                if (lstat(local_path, &buff)) return -errno;
+                oldsz = buff.st_size;
+               } else oldsz = statbuff.st_size;
 
+// Change the file only in the local filesystem and make space adjustemt
+//
+   if (truncate(local_path, size)) return -errno;
+   Adjust(local_path, static_cast<long long>(size) - oldsz, &statbuff);
+   return XrdOssOK;
+}
   
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
@@ -836,6 +848,8 @@ int XrdOssFile::Ftruncate(unsigned long long flen) {
 
     if (sizeof(newlen) < sizeof(flen) && (flen>>31)) return -XRDOSS_E8008;
 
+// Note that space adjustment will occur when the file is closed, not here
+//
     return (ftruncate(fd, newlen) ?  -errno : XrdOssOK);
     }
 

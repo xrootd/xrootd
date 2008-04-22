@@ -239,13 +239,17 @@ void XrdOssSys::Adjust(const char *Path, off_t size, struct stat *buf)
 void XrdOssSys::Adjust(XrdOssCache_FS *fsp, off_t size)
 {
    EPNAME("Adjust")
+   XrdOssCache_FSData *fsdp = fsp->fsdata;
 
 // Process the result
 //
    if (fsp) 
       {DEBUG("used=" <<fsp->fsgroup->Usage <<'+' <<size <<" path=" <<fsp->path);
+       DEBUG("free=" <<fsdp->frsz <<'-' <<size <<" path=" <<fsdp->path);
        CacheContext.Lock();
        if ((fsp->fsgroup->Usage += size) < 0) fsp->fsgroup->Usage = 0;
+       if (        (fsdp->frsz  -= size) < 0) fsdp->frsz = 0;
+       fsdp->stat |= XrdOssFSData_ADJUSTED;
        if (XrdOssSS->Space) XrdOssSS->Space->Adjust(fsp->fsgroup->GRPid, size);
        CacheContext.UnLock();
       }
