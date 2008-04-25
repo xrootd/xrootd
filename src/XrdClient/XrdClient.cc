@@ -246,8 +246,16 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	    Info(XrdClientDebug::kHIDEBUG, "Open", "Working url is " << thisUrl->GetUrl());
         
 	    // after connection deal with server
-	    if (!fConnModule->GetAccessToSrv())
-           
+	    if (!fConnModule->GetAccessToSrv()) {
+               
+               if (fConnModule->GetRedirCnt() >= fConnModule->GetMaxRedirCnt()) {
+                  // We have been so unlucky.
+                  // The max number of redirections was exceeded while logging in
+                  fConnModule->Disconnect(TRUE);
+                  Error("Open", "Access to server failed: Max redirections exceeded. This means typically 'too many errors'.");
+                  break;
+               }
+
 		if (fConnModule->LastServerError.errnum == kXR_NotAuthorized) {
 		    if (urlstried == urlArray.Size()) {
 			// Authentication error: we tried all the indicated URLs:
@@ -264,10 +272,12 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 			     "Authentication failure: " << msg);
 		    }
 		} else {
+                   fConnModule->Disconnect(TRUE);
 		    Error("Open", "Access to server failed: error: " <<
 			  fConnModule->LastServerError.errnum << " (" << 
 			  fConnModule->LastServerError.errmsg << ") - retrying.");
 		}
+            }
 	    else {
 		Info(XrdClientDebug::kUSERDEBUG, "Open", "Access to server granted.");
 		break;

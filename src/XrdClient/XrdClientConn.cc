@@ -1394,8 +1394,18 @@ bool XrdClientConn::DoLogin()
 	 "Logging into the server [" << fUrl.Host << ":" << fUrl.Port <<
 	 "]. pid=" << reqhdr.login.pid << " uid=" << reqhdr.login.username);
 
-    ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()
-	->SetLogged(kNo);
+    {
+       XrdClientLogConnection *l = ConnectionManager->GetConnection(fLogConnID);
+       XrdClientPhyConnection *p = 0;
+       if (l) p = l->GetPhyConnection();
+       if (p) p->SetLogged(kNo);
+       else {
+          Error("DoLogin",
+                "Logical connection disappeared before request?!? Srv: [" << fUrl.Host << ":" << fUrl.Port <<
+                "]. Exiting.");
+          return false;
+       }
+    }
 
 
     char *plist = 0;
@@ -1536,16 +1546,26 @@ bool XrdClientConn::DoLogin()
     }
 
     // Flag success if everything went ok
-    if (resp) {
-	ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()
-	    ->SetLogged(kYes);
-	ConnectionManager->GetConnection(fLogConnID)->GetPhyConnection()
-	    ->SetSecProtocol(secp);
+    {
+       XrdClientLogConnection *l = ConnectionManager->GetConnection(fLogConnID);
+       XrdClientPhyConnection *p = 0;
+       if (l) p = l->GetPhyConnection();
+       if (!p) {
+          Error("DoLogin",
+                "Logical connection disappeared after request?!? Srv: [" << fUrl.Host << ":" << fUrl.Port <<
+                "]. Exiting.");
+          return false;
+       }
+
+       if (resp) {
+          p->SetLogged(kYes);
+          p->SetSecProtocol(secp);
+       }
+       else Disconnect(true);
     }
 
     if (plist)
 	free(plist);
-
 
     return resp;
 
@@ -1742,8 +1762,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
     int newport; 	
     XrdOucString newhost; 	
   
-    bool noRedirError =
-       (fMaxGlobalRedirCnt == 1 && xmsg && isRedir(&xmsg->fHdr)) ? 1 : 0;
+    bool noRedirError = (fMaxGlobalRedirCnt == 1 && xmsg && isRedir(&xmsg->fHdr));
 
     // Close the log connection at this point the fLogConnID is no longer valid.
     // On read/write error the physical channel may be not OK, so it's a good

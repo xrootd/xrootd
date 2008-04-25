@@ -95,7 +95,11 @@ int DisconnectElapsedPhyConn(const char *key,
       }
       
       if (!p->IsValid()) {
-	  
+
+        // Make sure that we kill the socket in the case of conns killed by the server
+        p->Touch();
+        p->Disconnect();
+
 	// And then add the instance to the trashed list
 	cmgr->fPhyTrash.Push_back(p);
 
