@@ -20,7 +20,7 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientAdmin.hh"
-#include "XrdClient/XrdClientUrlSet.hh"
+#include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -211,8 +211,8 @@ XrdPosixDir::XrdPosixDir(int dirno, const char *path) : XAdmin(path)
 // Get the path of the url 
 //
    XrdOucString str(path);
-   XrdClientUrlSet url(str);
-   XrdOucString dir = url.GetFile();
+   XrdClientUrlInfo url(str);
+   XrdOucString dir = url.File;
    fpath = strdup(dir.c_str());
 
 // Allocate a local dirent. Note that we get additional padding because on
@@ -431,11 +431,11 @@ int XrdPosixXrootd::Access(const char *path, int amode)
 // Extract out path from the url
 //
    XrdOucString str(path);
-   XrdClientUrlSet url(str);
+   XrdClientUrlInfo url(str);
 
 // Open the file first
 //
-   if (!admin.Admin.Stat(url.GetFile().c_str(),
+   if (!admin.Admin.Stat(url.File.c_str(),
                          st_id, st_size, st_flags, st_modtime))
       {errno = admin.lastError();
        return -1;
@@ -617,8 +617,8 @@ long long XrdPosixXrootd::Getxattr (const char *path, const char *name,
 
   if (admin.isOK())
      {XrdOucString str(path);
-      XrdClientUrlSet url(str);
-      if (admin.Admin.Query(ReqCode, (kXR_char *)url.GetFile().c_str(),
+      XrdClientUrlInfo url(str);
+      if (admin.Admin.Query(ReqCode, (kXR_char *)url.File.c_str(),
                                      (kXR_char *)value, vsize))
          return strlen((char *)value);
       return admin.Fault();
@@ -637,7 +637,7 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 
   if (admin.isOK())
      {XrdOucString str(path);
-      XrdClientUrlSet url(str);
+      XrdClientUrlInfo url(str);
       if (mode & S_IRUSR) uMode |= 4;
       if (mode & S_IWUSR) uMode |= 2;
       if (mode & S_IXUSR) uMode |= 1;
@@ -646,7 +646,7 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
       if (mode & S_IXGRP) gMode |= 1;
       if (mode & S_IROTH) oMode |= 4;
       if (mode & S_IXOTH) oMode |= 1;
-      if (admin.Admin.Mkdir(url.GetFile().c_str(), uMode, gMode, oMode))
+      if (admin.Admin.Mkdir(url.File.c_str(), uMode, gMode, oMode))
          return 0;
       return admin.Fault();
      }
@@ -951,11 +951,11 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 
   if (admin.isOK())
      {XrdOucString    oldstr(oldpath);
-      XrdClientUrlSet oldurl(oldstr);
+      XrdClientUrlInfo oldurl(oldstr);
       XrdOucString    newstr(newpath);
-      XrdClientUrlSet newurl(newstr);
-      if (admin.Admin.Mv(oldurl.GetFile().c_str(),
-                         newurl.GetFile().c_str())) return 0;
+      XrdClientUrlInfo newurl(newstr);
+      if (admin.Admin.Mv(oldurl.File.c_str(),
+                         newurl.File.c_str())) return 0;
       return admin.Fault();
      }
   return admin.Result();
@@ -987,8 +987,8 @@ int XrdPosixXrootd::Rmdir(const char *path)
 
   if (admin.isOK())
      {XrdOucString str(path);
-      XrdClientUrlSet url(str);
-      if (admin.Admin.Rmdir(url.GetFile().c_str())) return 0;
+      XrdClientUrlInfo url(str);
+      if (admin.Admin.Rmdir(url.File.c_str())) return 0;
       return admin.Fault();
      }
   return admin.Result();
@@ -1030,11 +1030,11 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 // Extract out path from the url
 //
    XrdOucString str(path);
-   XrdClientUrlSet url(str);
+   XrdClientUrlInfo url(str);
 
 // Open the file first
 //
-   if (!admin.Admin.Stat(url.GetFile().c_str(),
+   if (!admin.Admin.Stat(url.File.c_str(),
                          st_id, st_size, st_flags, st_modtime))
       return admin.Fault();
 
@@ -1103,11 +1103,11 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 // Extract out path from the url
 //
    XrdOucString str(path);
-   XrdClientUrlSet url(str);
+   XrdClientUrlInfo url(str);
 
 // Open the file first
 //
-   if (!admin.Admin.Stat_vfs(url.GetFile().c_str(),
+   if (!admin.Admin.Stat_vfs(url.File.c_str(),
        rwNum, rwFree, rwUtil, ssNum, ssFree, ssUtil)) return admin.Fault();
    if (rwNum < 0) {errno = ENOENT; return -1;}
 
@@ -1170,8 +1170,8 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
   if (admin.isOK())
      {XrdOucString str(path);
-      XrdClientUrlSet url(str);
-      if (admin.Admin.Truncate(url.GetFile().c_str(), Size)) return 0;
+      XrdClientUrlInfo url(str);
+      if (admin.Admin.Truncate(url.File.c_str(), Size)) return 0;
       return admin.Fault();
       errno = ENOTSUP; return -1;
      }
@@ -1188,8 +1188,8 @@ int XrdPosixXrootd::Unlink(const char *path)
 
   if (admin.isOK())
      {XrdOucString str(path);
-      XrdClientUrlSet url(str);
-      if (admin.Admin.Rm(url.GetFile().c_str())) return 0;
+      XrdClientUrlInfo url(str);
+      if (admin.Admin.Rm(url.File.c_str())) return 0;
       return admin.Fault();
      }
   return admin.Result();
