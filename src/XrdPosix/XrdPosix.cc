@@ -405,10 +405,12 @@ FILE *XrdPosix_Fopen(const char *path, const char *mode)
 // Translate the mode flags
 //
         if (ISMODE("r")  || ISMODE("rb"))                   omode = O_RDONLY;
-   else if (ISMODE("w")  || ISMODE("wb"))                   omode = O_WRONLY;
+   else if (ISMODE("w")  || ISMODE("wb"))                   omode = O_WRONLY
+                                                        | O_CREAT | O_TRUNC;
    else if (ISMODE("a")  || ISMODE("ab"))                   omode = O_APPEND;
    else if (ISMODE("r+") || ISMODE("rb+") || ISMODE("r+b")) omode = O_RDWR;
-   else if (ISMODE("w+") || ISMODE("wb+") || ISMODE("w+b")) omode = O_RDWR;
+   else if (ISMODE("w+") || ISMODE("wb+") || ISMODE("w+b")) omode = O_RDWR
+                                                        | O_CREAT | O_TRUNC;
 // else if (ISMODE("a+") || ISMODE("ab+") || ISMODE("a+b")) omode = unsupported;
    else {errno = EINVAL; return 0;}
 

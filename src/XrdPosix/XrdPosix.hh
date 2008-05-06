@@ -30,11 +30,15 @@
 
 #define fopen(a,b)       XrdPosix_Fopen(a,b)
 
+#define fread(b,s,n,f)   read(fileno(f), b, s*n)/s
+
 #define fstat(a,b)       XrdPosix_Fstat(a,b)
 
 #define fsync(a)         XrdPosix_Fsync(a)
 
 #define ftuncate(a,b)    XrdPosix_Ftruncate(a,b)
+
+#define fwrite(b,s,n,f)  write(fileno(f), b, s*n)/s
 
 #define mkdir(a,b)       XrdPosix_Mkdir(a,b)
 
