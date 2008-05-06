@@ -330,7 +330,7 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size)
    if (lstat(local_path, &statbuff)) return -errno;
        else if ((statbuff.st_mode & S_IFMT) == S_IFLNK)
                {struct stat buff;
-                if (lstat(local_path, &buff)) return -errno;
+                if (stat(local_path, &buff)) return -errno;
                 oldsz = buff.st_size;
                } else oldsz = statbuff.st_size;
 
