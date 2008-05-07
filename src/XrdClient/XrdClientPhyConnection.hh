@@ -100,6 +100,8 @@ public:
 
     bool           ExpiredTTL();
     short          GetLogConnCnt() const { return fLogConnCnt; }
+    int            GetReaderThreadsCnt() { XrdSysMutexHelper l(fMutex); return fReaderthreadrunning; }
+
     long           GetTTL() { return fTTLsec; }
 
     XrdSecProtocol *GetSecProtocol() const { return fSecProtocol; }

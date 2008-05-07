@@ -56,7 +56,6 @@ void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
    if (thr->MaskSignal(0) != 0)
       Error("GarbageCollectorThread", "Warning: problems masking signals");
 
-   int i;
    XrdClientConnectionMgr *thisObj = (XrdClientConnectionMgr *)arg;
 
    thr->SetCancelDeferred();
@@ -67,11 +66,10 @@ void * GarbageCollectorThread(void *arg, XrdClientThread *thr)
 
       thisObj->GarbageCollect();
 
-      for (i = 0; i < 10; i++) {
-	 thr->CancelPoint();
+      thr->CancelPoint();
 
-         usleep(200000);
-      }
+      sleep(30);
+
    }
 
    return 0;
@@ -243,7 +241,14 @@ void XrdClientConnectionMgr::GarbageCollect()
 
      if ( !fPhyTrash[i] || 
 	  ((fPhyTrash[i]->GetLogConnCnt() <= 0) && (fPhyTrash[i]->ExpiredTTL())) ) {
-       if (fPhyTrash[i]) delete fPhyTrash[i];
+
+        if (fPhyTrash[i] && (fPhyTrash[i]->GetReaderThreadsCnt() <= 0)) {
+           delete fPhyTrash[i];
+           
+
+        }
+
+
        fPhyTrash.Erase(i);
      }
    }
