@@ -200,7 +200,8 @@ $(OBJDIR)/XrdXrootdProtocol.o: XrdXrootdFile.hh       XrdXrootdFileLock.hh \
                                XrdSecEntity.hh \
                                XrdSysError.hh         XrdSysPthread.hh   \
                                XrdSysTimer.hh         XrdOucTrace.hh \
-                               XrdXrootdPio.hh        XrdXrootdProtocol.cc
+                               XrdXrootdPio.hh        \
+                               XrdXrootdProtocol.hh   XrdXrootdProtocol.cc
 	@echo Compiling XrdXrootdProtocol.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdProtocol.o XrdXrootdProtocol.cc
 

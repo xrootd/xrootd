@@ -94,11 +94,11 @@ static int           StatGen(struct stat &buf, char *xxBuff);
 
 private:
 
-// Note that Route[] structure (velow) must have equivalent elemnts!
-//            0             1           2         3         4
+// Note that Route[] structure (below) must have RD_Num elements!
+//
 enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
-              RD_prepare,   RD_prepstg, RD_rm,    RD_rmdir, RD_stat};
-//            5             6           7         8         9  (10 elements)
+              RD_prepare,   RD_prepstg, RD_rm,    RD_rmdir, RD_stat,
+              RD_open1,     RD_open2,   RD_open3, RD_open4, RD_Num};
 
        int   do_Admin();
        int   do_Auth();
@@ -179,7 +179,8 @@ XrdObject<XrdXrootdProtocol>         ProtLink;
 
 protected:
 
-static XrdXrootdXPath        XPList;    // Exported paths
+static XrdXrootdXPath        RPList;    // Redirected paths
+static XrdXrootdXPath        XPList;    // Exported   paths
 static XrdSfsFileSystem     *osFS;      // The filesystem
 static XrdSecService        *CIA;       // Authentication Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
@@ -211,7 +212,7 @@ static char               *JobCKT;
 
 // Static redirection
 //
-static struct RD_Table {char *Host; int Port;} Route[10];
+static struct RD_Table {char *Host; int Port;} Route[RD_Num];
 
 // async configuration values
 //

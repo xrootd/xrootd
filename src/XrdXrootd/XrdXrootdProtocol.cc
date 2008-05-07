@@ -36,8 +36,8 @@ const char *XrdXrootdProtocolCVSID = "$Id$";
 
 XrdOucTrace          *XrdXrootdTrace;
 
+XrdXrootdXPath        XrdXrootdProtocol::RPList;
 XrdXrootdXPath        XrdXrootdProtocol::XPList;
-XrdXrootdXPath       *XrdXrootdXPath::first = 0;
 XrdSfsFileSystem     *XrdXrootdProtocol::osFS;
 char                 *XrdXrootdProtocol::FSLib    = 0;
 XrdXrootdFileLock    *XrdXrootdProtocol::Locker;
@@ -77,7 +77,7 @@ const char           *XrdXrootdProtocol::myInst  = 0;
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
 int                   XrdXrootdProtocol::myPID = static_cast<int>(getpid());
 
-struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[10] = {{0,0}};
+struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[RD_Num] = {{0,0}};
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */

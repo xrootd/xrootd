@@ -904,6 +904,14 @@ int XrdXrootdProtocol::do_Open()
 // Check if opaque data has been provided
 //
    if (rpCheck(fn, &opaque)) return rpEmsg("Opening", fn);
+
+// Check if static redirection applies
+//
+   if (Route[RD_open1].Host && (popt = RPList.Validate(fn)))
+      return Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
+
+// Validate the path
+//
    if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
 
 // Get a file object
