@@ -56,7 +56,7 @@ int XrdOssSys::Remdir(const char *path)
 
 // Determine whether we can actually unlink a dir on this server.
 //
-   Check_RO(Unlink, opts, path, "deleting ");
+   retc = Check_RO(Unlink, opts, path, "deleting ");
 
 // Build the right local and remote paths.
 //
