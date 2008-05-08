@@ -369,8 +369,10 @@ struct ClientQueryRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
    kXR_unt16 infotype;
-   kXR_char reserved[14];
-   kXR_int32  dlen;
+   kXR_char  reserved1[2];
+   kXR_char  fhandle[4];
+   kXR_char  reserved2[8];
+   kXR_int32 dlen;
 };
 struct ClientReadRequest {
    kXR_char  streamid[2];
