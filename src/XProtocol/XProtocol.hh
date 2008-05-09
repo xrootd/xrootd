@@ -147,7 +147,8 @@ enum XQueryType {
    kXR_Qxattr = 4,
    kXR_Qspace = 5,
    kXR_Qckscan= 6,
-   kXR_Qconfig= 7
+   kXR_Qconfig= 7,
+   kXR_Qvisa  = 8
 };
 
 enum XVerifyType {
