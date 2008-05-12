@@ -36,6 +36,7 @@ OBJECTS_LIB_DEC =                             \
 	$(OBJDIR)/XrdMonDecPreProcess.o       \
 	$(OBJDIR)/XrdMonBufferedOutput.o      \
 	$(OBJDIR)/XrdMonDecSink.o             \
+        $(OBJDIR)/XrdMonDecStageInfo.o        \
 	$(OBJDIR)/XrdMonDecTraceInfo.o        \
         $(OBJDIR)/XrdMonDecUserInfo.o         \
 
@@ -43,6 +44,7 @@ OBJECTS_LIB_SND =                             \
 	$(OBJDIR)/XrdMonSndCoder.o            \
 	$(OBJDIR)/XrdMonSndDebug.o            \
 	$(OBJDIR)/XrdMonSndDictEntry.o        \
+	$(OBJDIR)/XrdMonSndStageEntry.o       \
 	$(OBJDIR)/XrdMonSndDummyXrootd.o      \
 	$(OBJDIR)/XrdMonSndPacket.o           \
 	$(OBJDIR)/XrdMonSndTraceCache.o       \
@@ -83,8 +85,8 @@ COUT2FILE      = $(BINDIR)/xrdmonCout2file
 
 BINARIES       = $(COLLECTOR)        \
                  $(ADMIN)            \
-#                 $(COUT2FILE)       \
-#                 $(SENDER)          \
+                 $(COUT2FILE)       \
+                 $(SENDER)          \
 #                 $(FSENDER)         \
 #                 $(DECODER)         \
 #                 $(DUMPPACKETS)     \

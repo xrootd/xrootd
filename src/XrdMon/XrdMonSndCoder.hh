@@ -17,6 +17,7 @@
 #include "XrdMon/XrdMonSndAdminEntry.hh"
 #include "XrdMon/XrdMonSndDebug.hh"
 #include "XrdMon/XrdMonSndDictEntry.hh"
+#include "XrdMon/XrdMonSndStageEntry.hh"
 #include "XrdMon/XrdMonSndPacket.hh"
 #include "XrdMon/XrdMonSndTraceEntry.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -42,6 +43,7 @@ public:
     int prepare2Transfer(const vector<XrdMonSndTraceEntry>& vector);
     int prepare2Transfer(const vector<kXR_int32>& vector);
     int prepare2Transfer(const XrdMonSndDictEntry::CompactEntry& ce);
+    int prepare2Transfer(const XrdMonSndStageEntry::CompactEntry& ce);
 
     const XrdMonSndPacket& packet() { return _packet; }
     void reset() { _packet.reset(); }
