@@ -5,7 +5,7 @@ sub monStage {my($usr, $mssfn, $sz, $etm) = @_; my($ip_addr);
 # If we have no place to send this, return
 #
   my($monhost, $monport) = $Config{mondest} =~ m/^(.*):(.*)$/;
-  return if !$monhost || !monport;
+  return if !$monhost || !$monport;
 
 # Convert the mss directory to the logical filename
 #
@@ -24,13 +24,14 @@ sub monStage {my($usr, $mssfn, $sz, $etm) = @_; my($ip_addr);
 
 # Construct message
 #
-  my($msg) = "$usr\n$lfn\n&sz=$sz&tm=$etm";
+  my($tod) = time();
+  my($msg) = "$usr\n$lfn\n&tod=$tod&sz=$sz&tm=$etm";
   my($mln) = length($msg) + 8 + 4;
-  my($pkt) = pack('CCnNNa*', 's', '\0', $mln, time(), 0, $msg);
+  my($pkt) = pack('CCnNNa*', 's', '\0', $mln, $tod, 0, $msg);
 
 # Send the message
 #
-  return &Emsg("Unable to send rec to $Cnfig{mondest}; $!", 1)
+  return &Emsg("Unable to send rec to $Config{mondest}; $!", 1)
          if $mln != send(MYSOCK, $pkt, 0, $ip_dest);
   return;
 }
