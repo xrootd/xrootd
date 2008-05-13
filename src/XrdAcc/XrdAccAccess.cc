@@ -273,7 +273,8 @@ int XrdAccAccess::Audit(const int              accok,
 /*                              S w a p T a b s                               */
 /******************************************************************************/
 
-#define XrdAccSWAP(x) oldtab.x = Atab.x; Atab.x = newtab.x;newtab.x = oldtab.x
+#define XrdAccSWAP(x) oldtab.x = Atab.x;   Atab.x  =  newtab.x; \
+                      newtab.x = oldtab.x; oldtab.x = 0;
 
 void XrdAccAccess::SwapTabs(struct XrdAccAccess_Tables &newtab)
 {
