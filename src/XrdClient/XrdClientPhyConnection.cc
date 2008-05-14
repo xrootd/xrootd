@@ -120,6 +120,7 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
       for (int i = 0; i < READERCOUNT; i++)
 	if (fReaderthreadhandler[i]) {
 	  fReaderthreadhandler[i]->Cancel();
+	  fReaderthreadhandler[i]->Join();
 	  delete fReaderthreadhandler[i];
 	}
 

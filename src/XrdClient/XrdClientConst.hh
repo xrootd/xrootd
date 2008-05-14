@@ -112,11 +112,11 @@
 #define NAME_DFLTTCPWINDOWSIZE     (char *)"DfltTcpWindowSize"
 
 // A connection towards a data server timeouts quickly
-#define DFLT_DATASERVERCONN_TTL    60
+#define DFLT_DATASERVERCONN_TTL    300
 #define NAME_DATASERVERCONN_TTL    (char *)"DataServerConn_ttl"
 
 // A connection towards a Load Balancer timeouts after many seconds of no use
-#define DFLT_LBSERVERCONN_TTL      600
+#define DFLT_LBSERVERCONN_TTL      1200
 #define NAME_LBSERVERCONN_TTL      (char *)"LBServerConn_ttl"
 
 #define TRUE  1
