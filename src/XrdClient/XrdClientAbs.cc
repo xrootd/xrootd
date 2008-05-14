@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdClientAbs                                                     // 
+// XrdClientAbs                                                         // 
 //                                                                      //
 // Author: Fabrizio Furano (INFN Padova, 2004)                          //
 // Adapted from TXNetFile (root.cern.ch) originally done by             //
@@ -140,6 +140,9 @@ bool XrdClientAbs::Query(kXR_int16 ReqCode, const kXR_char *Args, kXR_char *Resp
 
    if (Args)
       qryRequest.query.dlen = strlen((char *)Args);
+
+   if (ReqCode == kXR_Qvisa)
+      memcpy( qryRequest.query.fhandle, fHandle, sizeof(fHandle) );
 
    kXR_char *rsp = 0;
    bool ret = fConnModule->SendGenCommand(&qryRequest, (const char*)Args,

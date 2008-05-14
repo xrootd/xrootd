@@ -16,9 +16,11 @@ XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
 SERVER  = XrdSfs XrdAcc XrdOdc Xrd \
           XrdCms XrdOlb XrdOss XrdOfs XrdRootd XrdXrootd
 
-XRDCLIENT = XrdClient XrdPosix XrdPss
+XRDCLIENT = XrdClient
 
 XRDMON    = XrdMon
+
+XRDPOSIX  = XrdPosix XrdPss
 
 TARGETS = @targets@
 

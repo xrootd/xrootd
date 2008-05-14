@@ -67,9 +67,6 @@ class XrdClient : public XrdClientAbs {
 
 private:
 
-    char                        fHandle[4];  // The file handle returned by the server,
-    // to use for successive requests
-
     struct XrdClientOpenInfo    fOpenPars;   // Just a container for the last parameters
     // passed to a Open method
 

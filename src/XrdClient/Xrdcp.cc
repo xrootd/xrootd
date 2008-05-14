@@ -102,6 +102,9 @@ kXR_unt16 xrd_wr_flags=kXR_async | kXR_mkpath | kXR_open_updt | kXR_new;
 int loc_wr_flags = LOC_WR_FLAGS;
 
 bool recurse = false;
+
+char BWMHost[1024]; // The given bandwidth limiter on the local site. If not empty then a bwm has to be used
+
 ///////////////////////
 
 // To compute throughput etc
@@ -498,6 +501,66 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    return retvalue;
 }
 
+XrdClient *BWMToken_Init(const char *bwmhost, const char *srcurl, const char *dsturl) {
+   // Initialize a special client in order to get a bandwidth manager token
+   // bwmhost is the hostname of the bwm to contact
+   //  it can come from the one specified in the command line option -bwm
+   //  it is mandatory
+   //
+   // src and dst are the src and dest urls, ev. 0
+   //
+   // The token is considered gone by the bwm server when the fake file is closed
+   // or when the connection drops
+   //
+   if (!bwmhost[0]) return 0;
+
+   XrdClientUrlInfo usrc(srcurl);
+   XrdClientUrlInfo udst(dsturl);
+   XrdOucString s = "root://";
+   s += bwmhost;
+   s += "//_bwm_/";
+   
+   s += usrc.File;
+
+   char hname[1024];
+   memset(hname, 0, sizeof(hname));
+
+   if (gethostname(hname, sizeof(hname)))
+       strcpy(hname, "Unknown");
+
+   s += "?bwm.src=";
+   if (usrc.Host != "")
+      s += usrc.Host; // or the hostname() if it's local
+   else
+      s += hname;
+
+   s += "?bwm.dst=";
+   if (udst.Host != "")
+      s += udst.Host; // or the hostname() if it's local
+   else
+      s += hname;
+
+   XrdClient *cli = new XrdClient(s.c_str());
+   if (cli) cli->Open(0, kXR_open_updt);
+   return cli;
+}
+
+bool BWMToken_WaitFor(XrdClient *cli) {
+
+   // Here the actual wait phase is performed through a call to kxr_query(Qvisa)
+   // Note that this func is synchronous. To allow for parallel enqueueing in multiple
+   // different BWMs we will have to use threads calling this func
+
+   kXR_char buf[4096];
+   // This handles the enqueueing for the current file handle opened
+   if (cli) {
+      if (!cli->IsOpen()) return false;
+      return cli->Query(kXR_Qvisa, 0, buf, sizeof(buf));
+   }
+   else return true;
+}
+
+
 int doCp_xrd2loc(const char *src, const char *dst) {
    // ----------- xrd to loc affair
    pthread_t myTID;
@@ -505,6 +568,17 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    XrdClientStatInfo stat;
    int f;
    int retvalue = 0;
+
+   if (BWMHost[0]) {
+   // Get the queue bwm token from the local site
+   XrdClient *tok1 = BWMToken_Init(BWMHost, src, dst);
+   if (!tok1 || !BWMToken_WaitFor(tok1)) return 100;
+
+   // Get the queue bwm token from the remote site
+   XrdClientUrlInfo u(src);
+   XrdClient *tok2 = BWMToken_Init(u.Host.c_str(), src, dst);
+   if (!tok2 || !BWMToken_WaitFor(tok2)) return 100;
+   }
 
    gettimeofday(&abs_start_time,&tz);
 
@@ -816,6 +890,7 @@ void PrintUsage() {
 // Main program
 int main(int argc, char**argv) {
    char *srcpath = 0, *destpath = 0;
+   memset (BWMHost, 0, sizeof(BWMHost));
 
    if (argc < 3) {
       PrintUsage();

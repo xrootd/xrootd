@@ -61,6 +61,7 @@ options="                 \
    enable_shared          \
    enable_ssl             \
    enable_trace           \
+   enable_posix           \
    enable_javaint
 "
 
@@ -79,6 +80,7 @@ enable_shared=yes
 enable_ssl=
 enable_thread=yes
 enable_javaint=no
+
 
 #
 # ./configure arguments and defaults set via supported env vars
@@ -448,6 +450,9 @@ guess_architecture () {
           ;;
     esac
     if [ "$platform" = "macosx" ]; then
+       # the default for macosx is NOT to build xrdposix unless required
+       enable_posix=no
+
        if [ `sw_vers | sed -n 's/ProductVersion://p' | cut -d . -f 2` = 5 ]; then
           if `sysctl machdep.cpu.extfeatures | grep "64" > /dev/null  2>&1` ; then
              ccflv=macos64
@@ -520,6 +525,7 @@ enable/disable options, prefix with either --enable- or --disable-
    krb5            Kerberos5 support, requires Kerberos libs
    mon             Enable/disable building of monitoring services
    perlint         Enable/disable building of the perl admin interface
+   posix           Enable/disable building of the posix preload lib
    pwd             Password-based authentication support
    sec             Sets gsi krb4 krb5 pwd and ssl together
    shadowpw        Force support for shadow passwords
@@ -829,6 +835,10 @@ fi
 if test "x$enable_mon" = "xyes" ; then
    echo "Building monitor module ..."
    targets="$targets \$(XRDMON)"
+fi
+if test "x$enable_posix" = "xyes" ; then
+   echo "Building posix module and related ones..."
+   targets="$targets \$(XRDPOSIX)"
 fi
 
 ######################################################################

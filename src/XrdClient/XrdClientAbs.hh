@@ -24,9 +24,12 @@ class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
    // Do NOT abuse of this
    friend class XrdClientConn;
 
- protected:
-   XrdClientConn*           fConnModule;
 
+protected:
+   XrdClientConn*              fConnModule;
+
+   char                        fHandle[4];  // The file handle returned by the server,
+                                            // to be used for successive requests
    // After a redirection the file must be reopened.
    virtual bool OpenFileWhenRedirected(char *newfhandle, 
 				       bool &wasopen) = 0;
@@ -35,7 +38,11 @@ class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
    // a redirection on error must be denied
    virtual bool CanRedirOnError() = 0;
 
- public:
+public:
+
+   XrdClientAbs() {
+      memset( fHandle, 0, sizeof(fHandle) );
+   }
 
    virtual bool IsOpen_wait() {
      return true;
