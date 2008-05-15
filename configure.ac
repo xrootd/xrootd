@@ -87,6 +87,7 @@ case "$target_os" in
    linux*)
      AC_DEFINE(__linux__)
      if test -r /etc/redhat-release; then
+        # load the redhat linux default option settings
         ACX_LOAD_DEFAULTS(config/ac_default_linux_rh)
      fi
      ;;
@@ -428,6 +429,21 @@ fi
 
 AM_CONDITIONAL(ENABLE_OPENSSL,test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes)
 AM_CONDITIONAL(ENABLE_GSI,test x"$activate_gsi" = xyes -o x"$activate_gsi" = xdefault_yes)
+
+####################################################################
+# Posix I/O compatibility libraries
+# There are some problems with compiling XrdPosix/XrdPss under MacOs
+# Leopard (10.5). Therefore the build of these components was made
+# optional
+if test x"$activate_posix" = x; then
+   activate_posix=default_yes
+fi
+AC_ARG_ENABLE(posix,
+              [  --enable-posix     Enable/disable building of the posix preload library [[default=yes]] ],
+              [],[enable_posix=$activate_posix]
+             )
+ACX_COLLECT_OPTION(posix,$enable_posix)
+AM_CONDITIONAL(ENABLE_POSIX,test x"$activate_posix" = xyes -o x"$activate_posix" = xdefault_yes)
 
 
 ####################################################################

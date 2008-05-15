@@ -54,6 +54,11 @@ if ENABLE_CASTOR
 CASTOR = XrdCS2
 endif
 
+if ENABLE_POSIX
+XRDPOSIX = XrdPosix
+XRDPSS = XrdPss
+endif
+
 
 #######################################################################
 
@@ -79,8 +84,8 @@ SUBDIRS = XrdSys \
           XrdRootd \
           XrdXrootd \
           XrdClient \
-          XrdPosix \
-          XrdPss \
+          $(XRDPOSIX) \
+          $(XRDPSS) \
           $(XRDMON) \
           $(CASTOR) \
           $(TOKENAUTHZ)
