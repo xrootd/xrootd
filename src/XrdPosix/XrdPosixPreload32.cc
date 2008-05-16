@@ -52,7 +52,7 @@ extern XrdPosixLinkage Xunix;
 /*                   X r d P o s i x _ C o p y D i r e n t                    */
 /******************************************************************************/
   
-// Macos is a curious beast. It is not an LP64 platform but offset are
+// Macos is a curious beast. It is not an LP64 platform but offsets are
 // defined as 64 bits anyway. So, the dirent structure is 64-bit conformable
 // making CopyDirent() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
@@ -81,9 +81,11 @@ int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
   
 // Macos is a curious beast. It is not an LP64 platform but stat sizes are
 // defined as 64 bits anyway. So, the stat structure is 64-bit conformable
-// making CopyStat() superfluous. In Solaris x86 there are no 32 bit interfaces.
+// making CopyStat() seemingly superfluous. However, starting in Darwin 10.5
+// stat and stat64 are defined separately making it necessary to use CopyStat().
+// In Solaris x86 there are no 32 bit interfaces.
 //
-#if !defined( __macos__) && !defined(SUNX86)
+#if !defined(SUNX86)
 int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -177,9 +179,6 @@ int     fstat(         int fildes, struct stat *buf)
 #endif
 {
    static int Init = Xunix.Init(&Init);
-#if defined(__macos__)
-   return XrdPosix_Fstat(fildes, (struct stat64 *)buf);
-#else
    struct stat64 buf64;
    int rc;
 
@@ -191,7 +190,6 @@ int     fstat(         int fildes, struct stat *buf)
 
    if ((rc = XrdPosix_Fstat(fildes, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
-#endif
 }
 }
 #endif
@@ -244,9 +242,6 @@ int        lstat(         const char *path, struct stat *buf)
 #endif
 {
    static int Init = Xunix.Init(&Init);
-#if defined(__macos__)
-   return XrdPosix_Lstat(path, (struct stat64 *)buf);
-#else
    struct stat64 buf64;
    int rc;
 
@@ -259,7 +254,6 @@ int        lstat(         const char *path, struct stat *buf)
 
    if ((rc = XrdPosix_Lstat(path, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
-#endif
 }
 }
 #endif
@@ -388,9 +382,6 @@ int        stat(         const char *path, struct stat *buf)
 #endif
 {
    static int Init = Xunix.Init(&Init);
-#if defined(__macos__)
-   return XrdPosix_Stat(path, (struct stat64 *)buf);
-#else
    struct stat64 buf64;
    int rc;
 
@@ -402,7 +393,6 @@ int        stat(         const char *path, struct stat *buf)
 #endif
    if ((rc = XrdPosix_Stat(path, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
-#endif
 }
 }
 #endif

@@ -33,12 +33,16 @@
 #if !defined(off64_t)
 #define off64_t long long
 #endif
+
+#if defined(__DARWIN_VERS_1050) && !__DARWIN_VERS_1050
 #if !defined(stat64)
 #define stat64 stat
 #endif
 #if !defined(statfs64)
 #define statfs64 statfs
 #endif
+#endif
+
 #if !defined(statvfs64)
 #define statvfs64 statvfs
 #endif
