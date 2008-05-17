@@ -346,6 +346,27 @@ int XrdSfsNativeFile::close()
 }
 
 /******************************************************************************/
+/*                                  f c t l                                   */
+/******************************************************************************/
+
+int      XrdSfsNativeFile::fctl(const int               cmd,
+                                const char             *args,
+                                      XrdOucErrInfo    &out_error)
+{
+// See if we can do this
+//
+   if (cmd == SFS_FCTL_GETFD)
+      {out_error.setErrCode(oh);
+       return SFS_OK;
+      }
+
+// We don't support this
+//
+   out_error.setErrInfo(EEXIST, "fctl operation not supported");
+   return SFS_ERROR;
+}
+  
+/******************************************************************************/
 /*                                  r e a d                                   */
 /******************************************************************************/
 

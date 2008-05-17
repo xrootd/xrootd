@@ -46,6 +46,11 @@
 /*                               D e f i n e s                                */
 /******************************************************************************/
 
+// Common fctl  command values (0 to 255)
+//
+#define SFS_FCTL_GETFD    1 // Return file descriptor if possible
+#define SFS_FCTL_STATV    2 // Return visa information
+
 // Common fsctl command values (0 to 255)
 //
 #define SFS_FSCTL_CMD   255
@@ -231,6 +236,10 @@ virtual int            open(const char                *fileName,
                             const char                *opaque = 0) = 0;
 
 virtual int            close() = 0;
+
+virtual int            fctl(const int               cmd,
+                            const char             *args,
+                                  XrdOucErrInfo    &out_error) = 0;
 
 virtual const char    *FName() = 0;
 
