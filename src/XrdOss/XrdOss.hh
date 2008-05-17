@@ -46,6 +46,7 @@ virtual int     Fstat(struct stat *)                         {return -EISDIR;}
 virtual int     Fsync()                                      {return -EISDIR;}
 virtual int     Fsync(XrdSfsAio *aiop)                       {return -EISDIR;}
 virtual int     Ftruncate(unsigned long long)                {return -EISDIR;}
+virtual int     getFD()                                      {return -1;}
 virtual off_t   getMmap(void **addr)                         {return 0;}
 virtual int     isCompressed(char *cxidp=0)                  {return -EISDIR;}
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EISDIR;}
