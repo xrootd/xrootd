@@ -227,6 +227,7 @@ enum XErrorCode {
    kXR_Cancelled,
    kXR_ChkLenErr,
    kXR_ChkSumErr,
+   kXR_inProgress,
    kXR_noErrorYet = 10000
 };
 
