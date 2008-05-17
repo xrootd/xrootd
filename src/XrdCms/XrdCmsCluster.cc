@@ -623,7 +623,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // Find out who serves this path
 //
    if (!Cache.Paths.Find(Sel.Path.Val, pinfo)
-   || (amask = ((isRW ? pinfo.rwvec : pinfo.rovec) & Sel.nmask)) == 0)
+   || (amask = ((isRW ? pinfo.rwvec : pinfo.rovec) & ~Sel.nmask)) == 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
                        "No servers have %s access to the file", Amode)+1;
        return -1;
@@ -652,12 +652,16 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
            if (Sel.Opts & XrdCmsSelect::Online) {pmask &= ~Sel.Vec.pf; smask=0;}
               else smask = pinfo.ssvec & amask;
           }
+       if (Sel.Vec.hf & Sel.nmask) Cache.UnkFile(Sel, Sel.nmask);
       } else {
        Cache.AddFile(Sel, 0); 
        Sel.Vec.bf = pinfo.rovec; 
        Sel.Vec.hf = Sel.Vec.pf = pmask = smask = 0;
        retc = 0;
       }
+
+// A wait is required if we don't have any primary or seconday servers
+//
    dowt = (!pmask && !smask);
 
 // If we can query additional servers, do so now. The client will be placed
@@ -1022,10 +1026,16 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 {
     EPNAME("SelNode")
     const char *act=0, *reason, *reason2;
-    int delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
-    int needrw = (Sel.Opts & XrdCmsSelect::Write ? XrdCmsNode::allowsRW : 0);
+    int pspace, needspace, delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
     SMask_t mask;
     XrdCmsNode *nP = 0;
+
+// There is a difference bwteen needing space and needing r/w access. The former
+// is needed when we will be writing data the latter for inode modifications.
+//
+   if (Sel.Opts & XrdCmsSelect::isMeta) needspace = 0;
+      else needspace = (Sel.Opts & XrdCmsSelect::Write?XrdCmsNode::allowsRW:0);
+   pspace = needspace;
 
 // Scan for a primary and alternate node (alternates do staging). At this
 // point we omit all peer nodes as they are our last resort.
@@ -1035,11 +1045,12 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
    while(pass--)
         {if (mask)
             {nP = (Config.sched_RR
-                   ? SelbyRef( mask, nump, delay, &reason, isalt | needrw)
-                   : SelbyLoad(mask, nump, delay, &reason, isalt | needrw));
+                   ? SelbyRef( mask, nump, delay, &reason, needspace)
+                   : SelbyLoad(mask, nump, delay, &reason, needspace));
              if (nP || (nump && delay) || NodeCnt < Config.SUPCount) break;
             }
          mask = amask & peerMask; isalt = XrdCmsNode::allowsSS;
+         if (!(Sel.Opts & XrdCmsSelect::isMeta)) needspace |= isalt;
         }
    STMutex.UnLock();
 
@@ -1078,7 +1089,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
    if (Sel.Opts & XrdCmsSelect::Peers)
       {STMutex.Lock();
        if ((mask = (pmask | amask) & peerHost))
-          nP = SelbyCost(mask, nump, delay2, &reason2, needrw);
+          nP = SelbyCost(mask, nump, delay2, &reason2, pspace);
        STMutex.UnLock();
        if (nP)
           {strcpy(Sel.Resp.Data, nP->Name(Sel.Resp.DLen, Sel.Resp.Port));

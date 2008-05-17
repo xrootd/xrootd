@@ -278,6 +278,8 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
    Data.Opts |= (flags & (SFS_O_WRONLY | SFS_O_RDWR)
               ? CmsSelectRequest::kYR_write : CmsSelectRequest::kYR_read);
 
+   if (flags & SFS_O_META)      Data.Opts  |= CmsSelectRequest::kYR_metaop;
+
    if (flags & SFS_O_NOWAIT)    Data.Opts  |= CmsSelectRequest::kYR_online;
 
    if (flags & SFS_O_RESET)     Data.Opts  |= CmsSelectRequest::kYR_refresh;

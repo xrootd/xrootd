@@ -164,11 +164,11 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
 // This method removes location information from existing valid entries. If an
 // existing valid entry is found, based on Sel.Opts the following occurs:
 
-// Opts !Advisory an update deadline is set dltime seconds into the future.
-// Opts  Advisory if the entry has no location information it is removed from
+// Opts  Advisory only locate information is removed.
+// Opts !Advisory if the entry has no location information it is removed from
 //                the cache, if possible.
 
-// TRUE is trurned if the entry was valid but location information was cleared.
+// TRUE is returned if the entry was valid but location information was cleared.
 // Otherwise, FALSE is returned.
   
 int XrdCmsCache::DelFile(XrdCmsSelect &Sel, SMask_t mask)

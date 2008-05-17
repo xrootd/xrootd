@@ -700,7 +700,7 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
        //
        Sel2.iovP = 0; Sel2.iovN = 0;
        Sel2.InfoP = 0;  // No fast redirects
-       Sel2.nmask = ~SMask_t(0);
+       Sel2.nmask = SMask_t(0);
 
        // Perform selection
        //
@@ -965,7 +965,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
    XrdCmsRRQInfo reqInfo(Instance, RSlot, Arg.Request.streamid);
    XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.Path, Arg.PathLen-1);
    struct iovec ioV[2];
-   char theopts[8], *toP = theopts;
+   char theopts[16], *toP = theopts;
    int rc, bytes;
 
 // Do a callout to the external manager if we have one
@@ -998,6 +998,8 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
            {Sel.Opts |= XrdCmsSelect::Write | XrdCmsSelect::Trunc; *toP++='t';}
          if (Arg.Opts & CmsSelectRequest::kYR_write)   
            {Sel.Opts |= XrdCmsSelect::Write;                       *toP++='w';}
+         if (Arg.Opts & CmsSelectRequest::kYR_metaop)
+           {Sel.Opts |= XrdCmsSelect::Write|XrdCmsSelect::isMeta;  *toP++='m';}
          if (Arg.Opts & CmsSelectRequest::kYR_create)  
            {Sel.Opts |= XrdCmsSelect::Write|XrdCmsSelect::NewFile; *toP++='c';}
         }
@@ -1012,9 +1014,9 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
    if (Arg.Avoid) 
       {unsigned int IPaddr;
        if (XrdNetDNS::Host2IP(Arg.Avoid, &IPaddr))
-          Sel.nmask = ~Cluster.getMask(IPaddr);
+          Sel.nmask = Cluster.getMask(IPaddr);
        Sel.InfoP = 0;
-      } else Sel.nmask = ~SMask_t(0);
+      } else Sel.nmask = SMask_t(0);
 
 // Perform selection
 //
@@ -1084,7 +1086,7 @@ int XrdCmsNode::do_SelPrep(XrdCmsPrepArgs &Arg) // Static!!!
 // Setup select data (note that prepare does not allow fast redirect)
 //
    Sel.InfoP = 0;  // No fast redirects
-   Sel.nmask = ~SMask_t(0);
+   Sel.nmask = SMask_t(0);
 
 // Perform selection
 //
