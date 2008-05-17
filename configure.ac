@@ -21,7 +21,7 @@
 
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,Unknown,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,CVS20080517,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -905,6 +905,7 @@ AC_OUTPUT(Makefile
 	  src/XrdSecunix/Makefile
 	  src/XrdSfs/Makefile
           src/XrdAcc/Makefile
+          src/XrdBwm/Makefile
           src/XrdOdc/Makefile
           src/XrdOss/Makefile
           src/XrdOfs/Makefile

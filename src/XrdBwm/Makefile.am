@@ -2,13 +2,20 @@
 ## Makefile.am for xrootd
 ##
 ##
-## Initial version: 1.8.2005
+## Initial version: 17.5.2008
 ##
 ## Version info: $Id$
 ## Checked in by $Author$
 #######################################################################
 
+#############################################################################
+## extra directory definitions
 xrootdbwmincdir = $(includedir)/xrootd/XrdBwm
+
+#############################################################################
+## deliverables
+lib_LTLIBRARIES = libXrdBwm.la 
+
 xrootdbwminc_HEADERS = XrdBwm.hh \
                        XrdBwmHandle.hh \
                        XrdBwmLogger.hh \
@@ -16,7 +23,9 @@ xrootdbwminc_HEADERS = XrdBwm.hh \
                        XrdBwmPolicy1.hh \
                        XrdBwmTrace.hh
 
-INCLUDES = -I$(top_srcdir)/src
+#############################################################################
+## Build rules
+AM_CPPFLAGS = -I$(top_srcdir)/src
 
 libXrdBwm_la_SOURCES = \
                        XrdBwm.cc \
@@ -25,7 +34,7 @@ libXrdBwm_la_SOURCES = \
                        XrdBwmLogger.cc \
                        XrdBwmPolicy1.cc
 
-libXrdProxy_la_LIBADD = ../XrdAcc/libXrdAcc.la \
-                        ../XrdNet/libXrdNet.la \
-                        ../XrdOuc/libXrdOuc.la \
-                        ../XrdSys/libXrdSys.la
+libXrdBwm_la_LIBADD = ../XrdAcc/libXrdAcc.la \
+                      ../XrdNet/libXrdNet.la \
+                      ../XrdOuc/libXrdOuc.la \
+                      ../XrdSys/libXrdSys.la

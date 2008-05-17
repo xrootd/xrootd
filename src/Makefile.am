@@ -75,6 +75,7 @@ SUBDIRS = XrdSys \
           XrdSecunix \
           XrdSfs \
           XrdAcc \
+          XrdBwm \
           XrdOdc \
           XrdOss \
           Xrd \
