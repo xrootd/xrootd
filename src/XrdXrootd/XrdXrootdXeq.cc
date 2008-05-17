@@ -1261,6 +1261,50 @@ int XrdXrootdProtocol::do_Qconf()
 }
   
 /******************************************************************************/
+/*                                d o _ Q f h                                 */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_Qfh()
+{
+   static const int fsctl_cmd1 = SFS_FCTL_STATV;
+   static XrdXrootdCallBack qryCB("query");
+   XrdOucErrInfo myError(Link->ID, &qryCB, ReqID.getID());
+   XrdXrootdFHandle fh(Request.query.fhandle);
+   XrdXrootdFile *fp;
+   short qopt = (short)ntohs(Request.query.infotype);
+   int rc, fsctl_cmd;
+
+// Update misc stats count
+//
+   UPSTATS(miscCnt);
+
+// Perform the appropriate query
+//
+   switch(qopt)
+         {case kXR_Qvisa:   fsctl_cmd = fsctl_cmd1;
+                            break;
+          default:          return Response.Send(kXR_ArgMissing, 
+                                   "Required query argument not present");
+         }
+
+// Find the file object
+//
+   if (!FTab || !(fp = FTab->Get(fh.handle)))
+      return Response.Send(kXR_FileNotOpen,
+                           "query does not refer to an open file");
+
+// Preform the actual function
+//
+   rc = fp->XrdSfsp->fctl(fsctl_cmd, 0, myError);
+   TRACEP(FS, "query rc=" <<rc <<" fh=" <<fh.handle);
+
+// Return appropriately
+//
+   if (SFS_OK != rc) return fsError(rc, myError);
+   return Response.Send();
+}
+  
+/******************************************************************************/
 /*                             d o _ Q s p a c e                              */
 /******************************************************************************/
   
@@ -1801,7 +1845,7 @@ int XrdXrootdProtocol::do_Stat()
 
 // Preform the actual function
 //
-   if (Request.prepare.options & kXR_vfs)
+   if (Request.stat.options & kXR_vfs)
       {rc = osFS->fsctl(fsctl_cmd, argp->buff, myError, CRED);
        TRACEP(FS, "rc=" <<rc <<" statfs " <<argp->buff);
        if (rc == SFS_OK) Response.Send("");
