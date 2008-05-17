@@ -86,6 +86,10 @@ public:
 
         int          close();
 
+virtual int          fctl(const int               cmd,
+                          const char             *args,
+                                XrdOucErrInfo    &out_error);
+
         const char  *FName() {return (oh ? oh->Name() : "?");}
 
         int          getMmap(void **Addr, off_t &Size);

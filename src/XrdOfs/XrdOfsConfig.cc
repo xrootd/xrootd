@@ -737,10 +737,8 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 //
    Config.RetToken();
    if (!Config.GetRest(parms, sizeof(parms)))
-      {Eroute.Emsg("Config", "authlib parameters too long"); return 1;}
+      {Eroute.Emsg("Config", "notify parameters too long"); return 1;}
    val = (*parms == '|' ? parms+1 : parms);
-
-// Get the remaining
 
 // Create an notification object
 //
