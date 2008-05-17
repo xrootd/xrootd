@@ -534,6 +534,17 @@ int XrdNetDNS::IP2String(unsigned int ipaddr, int port, char *buff, int blen)
 }
 
 /******************************************************************************/
+/*                              i s D o m a i n                               */
+/******************************************************************************/
+  
+int XrdNetDNS::isDomain(const char *Hostname, const char *Domname, int Domlen)
+{
+   int hlen = strlen(Hostname);
+
+   return (hlen >= Domlen && !strcmp(Hostname+(hlen-Domlen), Domname));
+}
+
+/******************************************************************************/
 /*                            i s L o o p b a c k                             */
 /******************************************************************************/
   
