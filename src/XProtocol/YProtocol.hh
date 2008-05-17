@@ -386,12 +386,13 @@ struct CmsRmdirRequest
 /*                        s e l e c t   R e q u e s t                         */
 /******************************************************************************/
   
-// Request: <id> select[s] {c | d | r | w | s | t | x} <path> [-host]
+// Request: <id> select[s] {c | d | m | r | w | s | t | x} <path> [-host]
 
 // Note: selects - requests a cache refresh for <path>
 // kYR_refresh   - refresh file location cache
 // kYR_create  c - file will be created
 // kYR_delete  d - file will be created or truncated
+// kYR_metaop  m - inod will only be modified
 // kYR_read    r - file will only be read
 // kYR_write   w - file will be read and writen
 // kYR_stats   s - only stat information will be obtained
@@ -411,7 +412,8 @@ enum  {kYR_refresh = 0x0001,
        kYR_read    = 0x0008, // Default
        kYR_trunc   = 0x0010, // -> write
        kYR_write   = 0x0020,
-       kYR_stat    = 0x0040  // Exclusive
+       kYR_stat    = 0x0040, // Exclsuive
+       kYR_metaop  = 0x0080
       };
 //     kXR_string    Path;
 //     kXR_string    Opaque; // Optional

@@ -1088,7 +1088,7 @@ int XrdOfs::chmod(const char             *path,    // In
           sprintf(buff, "%o", acc_mode);
           if (Forward(retc, einfo, fwdCHMOD, path, buff, info)) return retc;
          }
-      else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR)))
+      else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR|SFS_O_META)))
               return fsError(einfo, retc);
 
 // Check if we should generate an event
@@ -1324,6 +1324,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 */
 {
    EPNAME("mkdir");
+   static const int LocOpts = SFS_O_RDWR | SFS_O_CREAT | SFS_O_META;
    mode_t acc_mode = Mode & S_IAMB;
    int retc, mkpath = Mode & SFS_O_MKPTH;
    const char *tident = einfo.getErrUser();
@@ -1343,7 +1344,7 @@ int XrdOfs::mkdir(const char             *path,    // In
           if (Forward(retc, einfo, (mkpath ? fwdMKPATH:fwdMKDIR),
                       path, buff, info)) return retc;
          }
-         else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR | SFS_O_CREAT)))
+         else if ((retc = Finder->Locate(einfo,path,LocOpts)))
                  return fsError(einfo, retc);
 
 // Perform the actual operation
@@ -1425,7 +1426,7 @@ int XrdOfs::remove(const char              type,    // In
       {struct fwdOpt *fSpec = (type == 'd' ? &fwdRMDIR : &fwdRM);
        if (fSpec->Cmd)
           {if (Forward(retc, einfo, *fSpec, path, 0, info)) return retc;}
-          else if ((retc = Finder->Locate(einfo,path,SFS_O_WRONLY)))
+          else if ((retc = Finder->Locate(einfo,path,SFS_O_WRONLY|SFS_O_META)))
                   return fsError(einfo, retc);
       }
 
@@ -1493,7 +1494,7 @@ int XrdOfs::rename(const char             *old_name,  // In
          {if (Forward(retc, einfo, fwdMV, old_name, new_name, infoO, infoN))
              return retc;
          }
-         else if ((retc = Finder->Locate(einfo,old_name,SFS_O_RDWR)))
+         else if ((retc = Finder->Locate(einfo,old_name,SFS_O_RDWR|SFS_O_META)))
                  return fsError(einfo, retc);
 
 // Check if we should generate an event
