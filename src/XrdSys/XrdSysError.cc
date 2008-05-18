@@ -23,9 +23,6 @@ const char *XrdSysErrorCVSID = "$Id$";
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#if !defined(__macos__) && !defined(__CYGWIN__)
-#include <stropts.h>
-#endif
 #else
 #include <iostream>
 using namespace std;
