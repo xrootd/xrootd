@@ -1178,7 +1178,8 @@ int main(int argc, char**argv) {
 
       // Ok, the plugin is now loaded...
       if (cpnfo.mon) {
-	cpnfo.mon->Init(src.c_str(), dest.c_str(), 1);
+	// We associate the monitoring debug to the XrdClient debug level
+	cpnfo.mon->Init(src.c_str(), dest.c_str(), (DebugLevel() > 0) );
 	cpnfo.mon->PutProgressInfo(0, cpnfo.len, 0, 1);
       }
 
