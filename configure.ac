@@ -788,6 +788,9 @@ case "$target_os" in
       ;;
 esac
 
+AX_HAVE_EPOLL(AC_DEFINE(_EPOLL),[])
+AC_SYS_DEV_POLL(AC_DEFINE(_DEVPOLL),[])
+
 ###########################################
 # GNU Readline checks
 AC_CHECK_HEADERS([readline/readline.h readline/history.h curses.h term.h],
