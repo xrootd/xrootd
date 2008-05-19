@@ -45,6 +45,7 @@ friend class XrdLinkScan;
 friend class XrdPoll;
 friend class XrdPollPoll;
 friend class XrdPollDev;
+friend class XrdPollE;
 
 static XrdLink *Alloc(XrdNetPeer &Peer, int opts=0);
 
