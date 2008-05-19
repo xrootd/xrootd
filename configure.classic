@@ -979,6 +979,24 @@ fi
 
 ######################################################################
 #
+### echo %%% Flag for epoll
+#
+hasepoll=""
+message "Checking for epoll support"
+if test -f /usr/include/sys/epoll.h ; then
+   eprel=`uname -r | cut -d '.' -f 1-2 | tr '.' '0'`
+   if [ $eprel -gt 205 ]; then
+      echo "yes"
+      hasepoll="-D_EPOLL"
+   else
+      echo "not really"
+   fi
+else
+   echo "no"
+fi
+
+######################################################################
+#
 ### echo %%% Flags steering echoing of command lines
 #
 xrdecho="@"
@@ -2060,6 +2078,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@libssl@|$libssl|"           \
     -e "s|@sslextracflags@|$sslextracflags|" \
     -e "s|@hasdevpoll@|$hasdevpoll|" \
+    -e "s|@hasepoll@|$hasepoll|" \
     -e "s|@hassigwti@|$hassigwti|" \
     -e "s|@hassetresuid@|$hassetresuid|" \
     -e "s|@hasgethbyxr@|$hasgethbyxr|" \
