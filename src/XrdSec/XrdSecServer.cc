@@ -256,7 +256,7 @@ const char *XrdSecServer::getParms(int &size, const char *hname)
 // Try to find a specific token binding for a host or return default binding
 //
    if (!hname) bp = 0;
-      else if ((bp = bpFirst)) while(!bp->Match(hname)) bp = bp->next;
+      else if ((bp = bpFirst)) while(bp && !bp->Match(hname)) bp = bp->next;
 
 // If we have a binding, return that else return the default
 //
