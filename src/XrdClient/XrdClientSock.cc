@@ -168,8 +168,10 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
 
          // If we read nothing, the connection has been closed by the other side
          if (n <= 0) {
-            Error("XrdClientSock::RecvRaw", "Error " << n << " reading from socket: " <<
-            ::strerror(errno));
+	    if (errno > 0) {
+	       Error("XrdClientSock::RecvRaw", "Error reading from socket: " <<
+                                               ::strerror(errno));
+	    }
             return TXSOCK_ERR;
          }
          bytesread += n;
