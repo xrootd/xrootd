@@ -23,6 +23,7 @@ const char *XrdSecServerCVSID = "$Id$";
 #include <stdio.h>
 #include <sys/param.h>
 
+#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -70,7 +71,7 @@ XrdSecProtBind::XrdSecProtBind(char *th, char *st, XrdSecPMask_t pmask)
    if (!(starp = index(thost, '*')))
       {tsfxlen = -1;
        thostsfx = (char *)0;
-       tpfxlen = tsfxlen = 0;
+       tpfxlen = 0;
       } else {
        *starp = '\0';
        tpfxlen = strlen(thost);
@@ -550,6 +551,11 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdSysError &Eroute)
                           "host' negates all other bound protocols.");
        *sectoken = '\0';
       }
+
+// Translate "localhost" to our local hostname
+//
+   if (!strcmp("localhost", thost))
+      {free(thost); thost = XrdNetDNS::getHostName();}
 
 // Create new bind object
 //
