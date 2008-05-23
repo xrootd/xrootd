@@ -449,10 +449,6 @@ int XrdXrootdProtocol::do_Endsess()
    memcpy((void *)&sessID.FD,   &sp->FD,   sizeof(sessID.FD));
    memcpy((void *)&sessID.Inst, &sp->Inst, sizeof(sessID.Inst));
 
-// Trace this request
-//
-   TRACEP(DEBUG, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst);
-
 // If this session id does not refer to us, ignore the request
 //
    if (sessID.Pid != myPID) return Response.Send();
@@ -461,6 +457,15 @@ int XrdXrootdProtocol::do_Endsess()
 //
    if ((sessID.FD == 0 && sessID.Inst == 0) 
    ||  !(rc = Link->Terminate(Link, sessID.FD, sessID.Inst))) return -1;
+
+// Trace this request
+//
+// XrdXrootdTrace->Beg(TraceID,TRACELINK->ID,Response.ID());
+// cerr <<"endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
+//        <<" rc=" <<rc <<" (" <<strerror(rc) <<")";
+// XrdXrootdTrace->End();
+   TRACEP(DEBUG, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
+          <<" rc=" <<rc <<" (" <<strerror(rc) <<")");
 
 // Return result
 //
@@ -588,7 +593,7 @@ int XrdXrootdProtocol::do_Login()
 // authentication. We can then optimize of each case.
 //
    if (CIA)
-      {const char *pp=CIA->getParms(i, Link->Name());
+      {const char *pp=CIA->getParms(i, Link->Host());
        if (pp && i ) {if (!sendSID) rc = Response.Send((void *)pp, i);
                          else {struct iovec iov[3];
                                iov[1].iov_base = (char *)&sessID;
@@ -1434,7 +1439,7 @@ int XrdXrootdProtocol::do_Read()
    if (monIO && Monitor) Monitor->Add_rd(myFile->FileID, Request.read.rlen,
                                          Request.read.offset);
 
-// See if an alternate path is required
+// See if an alternate path is required, offload the read
 //
    if (pathID) return do_Offload(pathID, 0);
 
@@ -1447,10 +1452,6 @@ int XrdXrootdProtocol::do_Read()
               return Response.Send(myFile->mmAddr+myOffset, myIOLen);
       else    return Response.Send(myFile->mmAddr+myOffset, 
                                    myFile->mmSize - myOffset);
-
-// If an alternate path was specified, offload this read
-//
-   if (pathID) return do_Offload(pathID, 1);
 
 // If we are in async mode, schedule the read to ocur asynchronously
 //

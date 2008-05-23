@@ -365,7 +365,7 @@ int XrdXrootdProtocol::Process2()
    if (Status & XRD_NEED_AUTH)
       if (Request.header.requestid == kXR_auth) return do_Auth();
          else {Response.Send(kXR_InvalidRequest,
-                             "Invalid request; user not logged in");
+                             "Invalid request; user not authenticated");
                return -1;
               }
 
