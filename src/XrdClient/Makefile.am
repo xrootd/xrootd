@@ -156,9 +156,12 @@ if ENABLE_PERLINT
 
 libXrdClientAdmin_la_SOURCES = XrdClientAdmin_c.cc \
                                XrdClientAdmin_c_wrap.cc
+libXrdClientAdmin_la_LIBADD = $(clientlibs)                                                        
 
 libXrdClientAdmin_la_CXXFLAGS = $(PERL_CCOPTS)
+install-exec-local: libXrdClientAdmin.la XrdClientAdmin.pm
+	$(INSTALL) -m 644 $(srcdir)/XrdClientAdmin.pm  $(DESTDIR)/$(libdir)/XrdClientAdmin.pm
 endif
 
-# we need to include the pregenerated swig file in the disribution
+# we need to include the pregenerated swig file in the distribution
 EXTRA_DIST = XrdClientAdmin_c_wrap.c XrdClientAdmin.pm
