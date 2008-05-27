@@ -523,7 +523,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		    // in advance into the cache. The higher the araoffset will be,
 		    // the best chances we have not to cause overhead
                     if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
-		      araoffset = xrdmax(fReadAheadLast, offset);
+		      araoffset = xrdmax(fReadAheadLast, offset+len);
                       blkstowait++;
                     }
                     else
