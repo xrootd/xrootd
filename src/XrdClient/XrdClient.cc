@@ -523,7 +523,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		    // in advance into the cache. The higher the araoffset will be,
 		    // the best chances we have not to cause overhead
                     if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
-		      araoffset = xrdmax(fReadAheadLast, offset+len);
+		      araoffset = xrdmax(fReadAheadLast, offset);
                       blkstowait++;
                     }
                     else
@@ -1451,19 +1451,24 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 bool XrdClient::TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize) {
 
     kXR_int64 newoffs;
-    kXR_int32 newlen, minlen, blksz;
+    kXR_int32 newlen, blksz;
 
     if (!fUseCache ) return false;
 
     blksz = xrdmax(rasize, 16384);
 
-    newoffs = offs / blksz * blksz;
+//     kXR_int64 minlen;
+//     newoffs = offs / blksz * blksz;
+//     minlen = (offs + len - newoffs);
+//     newlen = ((minlen / blksz + 1) * blksz);
+//     newlen = xrdmax(rasize, newlen);
 
-    minlen = (offs + len - newoffs);
-    newlen = ((minlen / blksz + 1) * blksz);
-
-
-    newlen = xrdmax(rasize, newlen);
+    kXR_int64 lastbyte;
+    newoffs = offs;
+    lastbyte = offs+len+blksz-1;
+    lastbyte = (lastbyte / blksz) * blksz;
+    
+    newlen = lastbyte-newoffs+1;
 
     if (fConnModule->CacheWillFit(newlen)) {
 	offs = newoffs;
