@@ -95,12 +95,14 @@ utils/mps_Stage \
 utils/mps_Xeq \
 utils/mps_prep \
 utils/xrdcksum \
-utils/xrdmd5sum
+utils/xrdmd5sum \
+utils/XrdCmsNotify.pm
 
 dist_xrootdutils_DATA = utils/ooss_CAlloc.pm \
 utils/ooss_Lock.pm \
 utils/ooss_MonP.pm \
-utils/ooss_name2name.pm
+utils/ooss_name2name.pm \
+utils/mps_monStage.pm
 
 # Extra files/directories to go into the distribution tarball
 EXTRA_DIST = Doxyfile README.Maintainer bootstrap.sh config pthreads-win32 \
