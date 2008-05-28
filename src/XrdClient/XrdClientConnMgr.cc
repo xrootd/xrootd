@@ -436,18 +436,14 @@ int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
   	 fPhyHash.Rep(key1.c_str(), phyconn, 0, Hash_keepdata);
       }
 
-//
-//  Fix for serious bug affecting cases with more of 32767 logical connections
-//  (> 16284 in case of redirections). G. Ganis, 5 Aug 2006 .
-// 
       if (fLogVec.GetSize() < XRC_MAXVECTSIZE) {
-            // Then we push the logical connection into its vector
+            // Then we push the logical connection into its vector, up to a max size
             fLogVec.Push_back(logconn);
             // and the new position is the ID
             newid = fLogVec.GetSize()-1;
       }
       else {
-         // The array is full, get a free slot, if any
+         // The array is too big, get a free slot, if any
          newid = -1;
          for (int i = 0; i < fLogVec.GetSize(); i++) {
             int idx = (fLastLogIdUsed + i) % fLogVec.GetSize();

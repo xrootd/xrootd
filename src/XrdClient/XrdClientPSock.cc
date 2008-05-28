@@ -163,7 +163,9 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	       return TXSOCK_ERR;
 	     else {
 	       XrdSysMutexHelper mtx(fMutex);
-	       FD_CLR(sock, &globalfdinfo.fdset);
+               if (sock >= 0)
+                  FD_CLR(sock, &globalfdinfo.fdset);
+
 	       RemoveParallelSock(substreamid);
 	       //ReinitFDTable();
 	       return TXSOCK_ERR_TIMEOUT;
@@ -375,7 +377,7 @@ int XrdClientPSock::GetSockIdHint(int reqsperstream) {
   }
   else lastsidhint = 0;
 
-  return fSocketIdRepo[lastsidhint / reqsperstream + 1];
+  return fSocketIdRepo[lastsidhint / reqsperstream];
   //return (random() % (fSocketIdRepo.GetSize()+1));
 
 }

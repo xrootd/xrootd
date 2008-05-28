@@ -79,7 +79,7 @@ struct XrdCpInfo {
    XrdClientAbsMonIntf          *mon;
 } cpnfo;
 
-#define XRDCP_BLOCKSIZE          (512*1024)
+#define XRDCP_BLOCKSIZE          (1024*1024)
 #define XRDCP_XRDRASIZE          (20*XRDCP_BLOCKSIZE)
 #define XRDCP_VERSION            "(C) 2004 SLAC INFN $Revision$ - Xrootd version: "XrdVSTRING
 
