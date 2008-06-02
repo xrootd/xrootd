@@ -62,9 +62,9 @@ class XrdCmsDrop : XrdJob
 public:
 
      void DoIt() {Cluster.STMutex.Lock();
-                  Cluster.Drop(nodeEnt, nodeInst, this);
+                  int rc = Cluster.Drop(nodeEnt, nodeInst, this);
                   Cluster.STMutex.UnLock();
-                  delete this;
+                  if (!rc) delete this;
                  }
 
           XrdCmsDrop(int nid, int inst) : XrdJob("drop node")
