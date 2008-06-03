@@ -113,7 +113,7 @@ $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
                        XrdOucTrace.hh   XrdLinkMatch.hh    XrdLink.cc \
                        XrdNetDNS.hh     XrdNetPeer.hh
 	@echo Compiling XrdLink.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFSENDFILE) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
 
 $(OBJDIR)/XrdLinkMatch.o: XrdLinkMatch.cc XrdLinkMatch.hh XrdSysPlatform.hh
 	@echo Compiling XrdLinkMatch.cc

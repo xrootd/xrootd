@@ -19,6 +19,17 @@ const char *XrdLinkCVSID = "$Id$";
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+#ifdef __linux__
+#include <netinet/tcp.h>
+#if !defined(TCP_CORK)
+#undef HAS_SENDFILE
+#endif
+#endif
+
+#ifdef HAS_SENDFILE
+#include <sys/sendfile.h>
+#endif
+
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -70,6 +81,12 @@ extern XrdScheduler    XrdSched;
 
 extern XrdInet        *XrdNetTCP;
 extern XrdOucTrace     XrdTrace;
+
+#if defined(HAS_SENDFILE)
+       int             XrdLink::sfOK = 1;
+#else
+       int             XrdLink::sfOK = 0;
+#endif
 
        XrdLink       **XrdLink::LinkTab;
        char           *XrdLink::LinkBat;
@@ -644,6 +661,137 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
    return -1;
 }
  
+/******************************************************************************/
+int XrdLink::Send(const struct sfVec *sfP, int sfN)
+{
+#if !defined(HAS_SENDFILE)
+   return -1;
+#else
+// Make sure we have valid vector count
+//
+   if (sfN < 1 || sfN > sfMax)
+      {XrdLog.Emsg("Link", EINVAL, "send file to", ID);
+       return -1;
+      }
+
+#ifdef __solaris__
+    sendfilevec_t vecSF[sfMax];
+    size_t xframt, bytes = 0;
+    ssize_t retc;
+    int i = 0;
+
+// Construct the sendfilev() vector
+//
+   for (i = 0; i < sfN; sfP++, i++)
+       {if (sfP->fdnum < 0)
+           {vecSF[i].sfv_fd  = SFV_FD_SELF;
+            vecSF[i].sfv_off = (off_t)sfP->buffer;
+           } else {
+            vecSF[i].sfv_fd  = sfP->fdnum;
+            vecSF[i].sfv_off = sfP->offset;
+           }
+        vecSF[i].sfv_flag = 0;
+        vecSF[i].sfv_len  = sfP->sendsz;
+        bytes += sfP->sendsz;
+       }
+
+// Lock the link, issue sendfilev(), and unlock the link
+//
+   wrMutex.Lock();
+   isIdle = 0;
+   retc = sendfilev(FD, vecSF, sfN, &xframt);
+
+// Check if all went well and return if so (usual case)
+//
+   if (retc == bytes)
+      {BytesOut += bytes;
+       wrMutex.UnLock();
+       return bytes;
+      }
+
+// See if we can recover without destroying the connection
+//
+   wrMutex.UnLock();
+   if (retc >= 0) errno = ECANCELED;
+   XrdLog.Emsg("Link", errno, "send file to", ID);
+   return -1;
+
+#elif defined(__linux__)
+
+   static const int setON = 1, setOFF = 0;
+   ssize_t retc, bytesleft;
+   off_t myOffset;
+   int i, xfrbytes = 0, uncork = 1;
+
+// lock the link
+//
+   wrMutex.Lock();
+   isIdle = 0;
+
+// In linux we need to cork the socket. On permanent errors we do not uncork
+// the socket because it will be closed in short order.
+//
+   if (setsockopt(FD, SOL_TCP, TCP_CORK, &setON, sizeof(setON)) < 0)
+      {XrdLog.Emsg("Link", errno, "cork socket for", ID); uncork = 0;}
+
+// Send the header first
+//
+   for (i = 0; i < sfN; sfP++, i++)
+       {if (sfP->fdnum < 0) retc = sendData(sfP->buffer, sfP->sendsz);
+           else {myOffset = sfP->offset; bytesleft = sfP->sendsz;
+                 while(bytesleft
+                    && (retc=sendfile(FD,sfP->fdnum,&myOffset,bytesleft)) > 0)
+                      {myOffset += retc; bytesleft -= retc;}
+                }
+        if (retc <= 0) break;
+        xfrbytes += sfP->sendsz;
+       }
+
+// Diagnose any sendfile errors
+//
+   if (retc <= 0)
+      {if (retc == 0) errno = ECANCELED;
+       wrMutex.UnLock();
+       XrdLog.Emsg("Link", errno, "send file to", ID);
+       return -1;
+      }
+
+// Now uncork the socket
+//
+   if (uncork && setsockopt(FD, SOL_TCP, TCP_CORK, &setOFF, sizeof(setOFF)) < 0)
+      XrdLog.Emsg("Link", errno, "uncork socket for", ID);
+
+// All done
+//
+   BytesOut += xfrbytes;
+   wrMutex.UnLock();
+   return xfrbytes;
+#endif
+#endif
+}
+
+/******************************************************************************/
+/* private                      s e n d D a t a                               */
+/******************************************************************************/
+  
+int XrdLink::sendData(const char *Buff, int Blen)
+{
+   ssize_t retc, bytesleft = Blen;
+
+// Write the data out
+//
+   while(bytesleft)
+        {if ((retc = write(FD, Buff, bytesleft)) < 0)
+            if (errno == EINTR) continue;
+               else break;
+         bytesleft -= retc; Buff += retc;
+        }
+
+// All done
+//
+   return retc;
+}
+
 /******************************************************************************/
 /*                              s e t E t e x t                               */
 /******************************************************************************/

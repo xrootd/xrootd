@@ -115,6 +115,18 @@ int           RecvAll(char *buff, int blen);
 int           Send(const char *buff, int blen);
 int           Send(const struct iovec *iov, int iocnt, int bytes=0);
 
+struct sfVec {union {char *buffer;    // ->Data if fdnum < 0
+                     off_t offset;    // File offset      of data
+                    };
+              int   sendsz;           // Length of data at offset
+              int   fdnum;            // File descriptor for data
+             };
+static const int sfMax = 8;
+
+static int    sfOK;                   // True if Send(sfVec) enabled
+
+int           Send(const struct sfVec *sdP, int sdn); // Iff sfOK > 0
+
 int           setEtext(const char *text);
 
 void          setID(const char *userid, int procid);
@@ -143,6 +155,7 @@ int           UseCnt() {return InUse;}
 private:
 
 void   Reset();
+int    sendData(const char *Buff, int Blen);
 
 static XrdSysMutex   LTMutex;    // For the LinkTab only LTMutex->IOMutex allowed
 static XrdLink     **LinkTab;

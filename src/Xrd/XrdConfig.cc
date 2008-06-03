@@ -362,18 +362,18 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Process the configuration file, if one is present
 //
+   XrdLog.Say("++++++ ", myInstance, " initialization started.");
    if (ConfigFN && *ConfigFN)
       {XrdLog.Say("Config using configuration file ", ConfigFN);
-       XrdLog.Say("++++++ ", myInstance, " initialization started.");
        ProtInfo.ConfigFN = ConfigFN;
        NoGo = ConfigProc();
-      }else  XrdLog.Say("++++++ ", myInstance, " initialization started.");
+      }
    if (clPort >= 0) PortTCP = clPort;
-   if (!NoGo) NoGo = Setup(dfltProt);
    if (ProtInfo.DebugON) 
       {XrdTrace.What = TRACE_ALL;
        XrdSysThread::setDebug(&XrdLog);
       }
+   if (!NoGo) NoGo = Setup(dfltProt);
    ProtInfo.Threads = XrdThread;
 
 // If we hae a net name change the working directory
@@ -603,6 +603,7 @@ int XrdConfig::Setup(char *dfltp)
 // Establish the FD limit
 //
    if (setFDL()) return 1;
+   TRACE(NET,"sendfile " <<(XrdLink::sfOK ? "enabled." : "disabled!"));
 
 // Initialize the buffer manager
 //
@@ -664,7 +665,8 @@ int XrdConfig::Setup(char *dfltp)
        if (NetWAN->Bind(0, "tcp")) return 1;
        PortWAN  = NetWAN->Port();
        wsz      = NetWAN->WSize();
-       Wan_Blen = (wsz < Wan_Blen ? wsz : Wan_Blen);
+       Wan_Blen = (wsz < Wan_Blen || !Wan_Blen ? wsz : Wan_Blen);
+       TRACE(NET,"WAN port " <<PortWAN <<" wsz=" <<Wan_Blen <<" (" <<wsz <<')');
        XrdNetTCP[XrdProtLoad::ProtoMax] = NetWAN;
       } else {PortWAN = 0; Wan_Blen = 0;}
 
@@ -682,7 +684,9 @@ int XrdConfig::Setup(char *dfltp)
              ProtInfo.Port   = XrdNetTCP[XrdNetTCPlep]->Port();
              ProtInfo.NetTCP = XrdNetTCP[XrdNetTCPlep];
              wsz             = XrdNetTCP[XrdNetTCPlep]->WSize();
-             ProtInfo.WSize  = (wsz < Net_Blen ? wsz : Net_Blen);
+             ProtInfo.WSize  = (wsz < Net_Blen || !Net_Blen ? wsz : Net_Blen);
+             TRACE(NET,"LCL port " <<ProtInfo.Port <<" wsz=" <<ProtInfo.WSize
+                       <<" (" <<wsz <<')');
              if (cp->wanopt)
                 {ProtInfo.WANPort = PortWAN;
                  ProtInfo.WANWSize= Wan_Blen;
