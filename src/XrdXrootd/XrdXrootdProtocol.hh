@@ -221,10 +221,12 @@ static int                 as_maxperlnk; // Max async requests per link
 static int                 as_maxperreq; // Max async ops per request
 static int                 as_maxpersrv; // Max async ops per server
 static int                 as_miniosz;   // Min async request size
+static int                 as_minsfsz;   // Min sendf request size
 static int                 as_segsize;   // Aio quantum (optimal)
 static int                 as_maxstalls; // Maximum stalls we will tolerate
 static int                 as_force;     // aio to be forced
 static int                 as_noaio;     // aio is disabled
+static int                 as_nosf;      // sendfile is disabled
 static int                 as_syncw;     // writes to be synchronous
 static int                 maxBuffsz;    // Maximum buffer size we can have
 static int                 maxTransz;    // Maximum transfer size we can have

@@ -191,9 +191,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Initialiaze for AIO
 //
    if (!as_noaio) XrdXrootdAioReq::Init(as_segsize, as_maxperreq, as_maxpersrv);
-      else {eDest.Say("Config warining: asynchronous I/O has been disabled!");
-            as_noaio = 1;
-           }
+      else eDest.Say("Config warning: asynchronous I/O has been disabled!");
 
 // Initialize the security system if this is wanted
 //
@@ -232,7 +230,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Create the file lock manager
 //
    Locker = (XrdXrootdFileLock *)new XrdXrootdFileLock1();
-   XrdXrootdFile::Init(Locker);
+   XrdXrootdFile::Init(Locker, as_nosf == 0);
+   if (as_nosf) eDest.Say("Config warning: sendfile I/O has been disabled!");
 
 // Schedule protocol object cleanup
 //
@@ -359,7 +358,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
    Purpose:  To parse directive: async [limit <aiopl>] [maxsegs <msegs>]
                                        [maxtot <mtot>] [segsize <segsz>]
                                        [minsize <iosz>] [maxstalls <cnt>]
-                                       [force] [syncw] [off]
+                                       [force] [syncw] [off] [nosf]
 
              <aiopl>  maximum number of async ops per link. Default 8.
              <msegs>  maximum number of async ops per request. Default 8.
@@ -377,6 +376,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
                       requested (this is compatible with synchronous clients).
              syncw    Use synchronous i/o for write requests.
              off      Disables async i/o
+             nosf     Disables use of sendfile to send data to the client.
 
    Output: 0 upon success or 1 upon failure.
 */
@@ -385,20 +385,23 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 {
     char *val;
     int  i, ppp;
-    int  V_force=-1, V_syncw = -1, V_off = -1, V_mstall = -1;
+    int  V_force=-1, V_syncw = -1, V_off = -1, V_mstall = -1, V_nosf = -1;
     int  V_limit=-1, V_msegs=-1, V_mtot=-1, V_minsz=-1, V_segsz=-1;
+    int  V_minsf=-1;
     long long llp;
     static struct asyncopts {const char *opname; int minv; int *oploc;
                              const char *opmsg;} asopts[] =
        {
         {"force",     -1, &V_force, ""},
         {"off",       -1, &V_off,   ""},
+        {"nosf",      -1, &V_nosf,  ""},
         {"syncw",     -1, &V_syncw, ""},
         {"limit",      0, &V_limit, "async limit"},
         {"segsize", 4096, &V_segsz, "async segsize"},
         {"maxsegs",    0, &V_msegs, "async maxsegs"},
         {"maxstalls",  0, &V_mstall,"async maxstalls"},
         {"maxtot",     0, &V_mtot,  "async maxtot"},
+        {"minsfsz",    1, &V_minsf, "async minsfsz"},
         {"minsize", 4096, &V_minsz, "async minsize"}};
     int numopts = sizeof(asopts)/sizeof(struct asyncopts);
 
@@ -460,6 +463,8 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
    if (V_force > 0) as_force     = 1;
    if (V_off   > 0) as_noaio     = 1;
    if (V_syncw > 0) as_syncw     = 1;
+   if (V_nosf  > 0) as_nosf      = 1;
+   if (V_minsf > 0) as_minsfsz   = V_minsf;
 
    return 0;
 }

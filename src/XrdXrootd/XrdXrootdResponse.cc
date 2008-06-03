@@ -191,6 +191,34 @@ int XrdXrootdResponse::Send(XErrorCode ecode, const char *msg)
  
 /******************************************************************************/
 
+int XrdXrootdResponse::Send(int fdnum, long long offset, int dlen)
+{
+   struct XrdLink::sfVec myVec[2];
+
+// We are only called should sendfile be enabled for this response
+//
+   Resp.status = static_cast<kXR_unt16>(htons(kXR_ok));
+   Resp.dlen   = static_cast<kXR_int32>(htonl(dlen));
+
+// Fill out the sendfile vector
+//
+   myVec[0].buffer = (char *)&Resp;
+   myVec[0].sendsz = sizeof(Resp);
+   myVec[0].fdnum  = -1;
+   myVec[1].offset = static_cast<off_t>(offset);
+   myVec[1].sendsz = dlen;
+   myVec[1].fdnum  = fdnum;
+
+// Send off the request
+//
+    TRACES(RSP, "sendfile " <<dlen <<" data bytes; status=0");
+    if (Link->Send(myVec, 2) < 0)
+       return Link->setEtext("sendfile failure");
+    return 0;
+}
+
+/******************************************************************************/
+
 int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID, 
                             XResponseType   Status,
                             struct iovec   *IOResp, 

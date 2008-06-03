@@ -460,11 +460,7 @@ int XrdXrootdProtocol::do_Endsess()
 
 // Trace this request
 //
-// XrdXrootdTrace->Beg(TraceID,TRACELINK->ID,Response.ID());
-// cerr <<"endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
-//        <<" rc=" <<rc <<" (" <<strerror(rc) <<")";
-// XrdXrootdTrace->End();
-   TRACEP(DEBUG, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
+   TRACEP(LOGIN, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
           <<" rc=" <<rc <<" (" <<strerror(rc) <<")");
 
 // Return result
@@ -861,7 +857,6 @@ int XrdXrootdProtocol::do_Open()
    struct stat statbuf;
    struct ServerResponseBody_Open myResp;
    int resplen = sizeof(myResp.fhandle);
-   off_t mmSize;
    struct iovec IOResp[3];  // Note that IOResp[0] is completed by Response
 
 // Keep Statistics
@@ -939,7 +934,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Obtain a hyper file object
 //
-   if (!(xp = new XrdXrootdFile(Link->ID, fp, usage, isAsync)))
+   if (!(xp=new XrdXrootdFile(Link->ID,fp,usage,isAsync,Link->sfOK,&statbuf)))
       {delete fp;
        snprintf(ebuff, sizeof(ebuff)-1, "Insufficient memory to open %s", fn);
        eDest.Emsg("Xeq", ebuff);
@@ -1006,19 +1001,10 @@ int XrdXrootdProtocol::do_Open()
                         } else myResp.cpsize = 0;
            }
 
-// Determine if file is memory mapped
-//
-   if (fp->getMmap((void **)&xp->mmAddr, mmSize) == SFS_OK) 
-      xp->mmSize = static_cast<long long>(mmSize);
-
-// Determine file size of we will need to send it back
+// If client wants a stat in open, return the stat information
 //
    if (retStat)
-      {if (!fp->stat(&statbuf)) retStat = StatGen(statbuf, ebuff);
-          else {statbuf.st_size = 1; 
-                strcpy(ebuff, "0 1 0 0"); 
-                retStat = strlen(ebuff)+1;
-               }
+      {retStat = StatGen(statbuf, ebuff);
        IOResp[1].iov_base = (char *)&myResp; IOResp[1].iov_len = sizeof(myResp);
        IOResp[2].iov_base =         ebuff;   IOResp[2].iov_len = retStat;
        resplen = sizeof(myResp) + retStat;
@@ -1028,7 +1014,6 @@ int XrdXrootdProtocol::do_Open()
 //
    if (monFILE && Monitor) 
       {xp->FileID = Monitor->Map(XROOTD_MON_MAPPATH, Link->ID, fn);
-       if (!retStat && fp->stat(&statbuf)) statbuf.st_size = 0;
        Monitor->Open(xp->FileID, statbuf.st_size);
       }
 
@@ -1446,12 +1431,18 @@ int XrdXrootdProtocol::do_Read()
 // If this file is memory mapped, short ciruit all the logic and immediately
 // transfer the requested data to minimize latency.
 //
-   if (myFile->mmSize)
-           if (myOffset >= myFile->mmSize) return Response.Send();
-      else if (myOffset+myIOLen <= myFile->mmSize)
+   if (myFile->isMMapped)
+           if (myOffset >= myFile->fSize) return Response.Send();
+      else if (myOffset+myIOLen <= myFile->fSize)
               return Response.Send(myFile->mmAddr+myOffset, myIOLen);
       else    return Response.Send(myFile->mmAddr+myOffset, 
-                                   myFile->mmSize - myOffset);
+                                   myFile->fSize -myOffset);
+
+// If we are sendfile enabled, then just send the file if possible
+//
+   if (myFile->sfEnabled && myIOLen >= as_minsfsz
+   &&  myOffset+myIOLen <= myFile->fSize)
+      return Response.Send(myFile->fdNum, myOffset, myIOLen);
 
 // If we are in async mode, schedule the read to ocur asynchronously
 //

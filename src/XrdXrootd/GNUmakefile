@@ -6,7 +6,8 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrd -lXrdNet -lXrdOuc -lXrdSys $(OBJDIR)/XrdSfsNative.o
+BINLIBS = -L$(LIBDIR) -lXrd -lXrdNet -lXrdOuc -lXrdSys $(TYPELIBSF) \
+                      $(OBJDIR)/XrdSfsNative.o
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
