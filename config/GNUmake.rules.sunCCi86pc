@@ -17,4 +17,5 @@ TYPELDSO   = -G
 TYPESHLIB  = so
 
 TYPELIBS   =  -lposix4 -lsocket -lnsl $(PTHREAD) -ldl -lCstd
+TYPELIBSF  =  -lsendfile
 TYPELIBSM  =  -lsunmath

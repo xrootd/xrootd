@@ -18,4 +18,5 @@ TYPESHLIB  = so
 
 TYPELIBS   = -L/usr/lib/amd64 -L/lib/amd64 \
              -lposix4 -lsocket -lnsl $(PTHREAD) -ldl
+TYPELIBSF  = -lsendfile
 TYPELIBSM  = -lsunmath
