@@ -997,6 +997,19 @@ fi
 
 ######################################################################
 #
+### echo %%% Flag for sendfile
+#
+hassendfile=""
+message "Checking for sendfile support"
+if test -f /usr/include/sys/sendfile.h ; then
+      echo "yes"
+      hassendfile="-DHAS_SENDFILE"
+else
+   echo "no"
+fi
+
+######################################################################
+#
 ### echo %%% Flags steering echoing of command lines
 #
 xrdecho="@"
@@ -2074,6 +2087,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@sslextracflags@|$sslextracflags|" \
     -e "s|@hasdevpoll@|$hasdevpoll|" \
     -e "s|@hasepoll@|$hasepoll|" \
+    -e "s|@hassendfile@|$hassendfile|" \
     -e "s|@hassigwti@|$hassigwti|" \
     -e "s|@hassetresuid@|$hassetresuid|" \
     -e "s|@hasgethbyxr@|$hasgethbyxr|" \

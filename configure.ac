@@ -760,6 +760,8 @@ AC_CHECK_FUNC([getprotobyname_r],[AC_DEFINE(HAS_PROTOR)],
 
 AC_CHECK_FUNC([strlcpy],[AC_DEFINE(HAS_STRLCPY)])
 
+AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAS_SENDFILE)])
+
 #   note: needed for solaris
 AC_CHECK_LIB([rt],[sem_post],
              [AC_SUBST(SEM_LIBRT,[-lrt])]
