@@ -16,7 +16,6 @@ const char *XrdSecServerCVSID = "$Id$";
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <iostream.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -28,6 +27,7 @@ const char *XrdSecServerCVSID = "$Id$";
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecServer.hh"
@@ -641,9 +641,10 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdSysError &Eroute)
    strcpy(pid, val);
    while((args = Config.GetWord())) if (!myParms.Cat(args)) return 1;
    if ((pp = myParms.Find(pid, 1)))
-      if ((*myParms.Result(psize) && !myParms.Insert('\n'))
-      ||  !myParms.Cat(pp->Result(psize))) return 1;
-         else delete pp;
+      {if ((*myParms.Result(psize) && !myParms.Insert('\n'))
+       ||  !myParms.Cat(pp->Result(psize))) return 1;
+          else delete pp;
+      }
 
 // Load this protocol
 //

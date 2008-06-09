@@ -28,7 +28,6 @@ const char *XrdAccTestCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <iostream.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
@@ -42,6 +41,7 @@ const char *XrdAccTestCVSID = "$Id$";
 #include "XrdAcc/XrdAccGroups.hh"
 #include "XrdAcc/XrdAccPrivs.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdOuc/XrdOucStream.hh"
 

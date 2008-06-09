@@ -13,8 +13,8 @@
 #define STAGEENTRY_HH
 
 #include "XrdMon/XrdMonTypes.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 
-#include <iostream>
 #include <string>
 using std::ostream;
 using std::string;

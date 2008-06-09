@@ -23,7 +23,7 @@
 
 #if !defined(WINDOWS)
 #include <stdio.h>
-#include <iostream.h>
+#include "XrdSys/XrdSysHeaders.hh"
 #include <unistd.h>
 #include <pwd.h>
 #include <errno.h>

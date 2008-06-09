@@ -14,7 +14,8 @@
 #define XRDMONSNDTRACEENTRY_HH
 
 #include "XrdMon/XrdMonTypes.hh"
-#include <iostream>
+#include "XrdSys/XrdSysHeaders.hh"
+
 using std::ostream;
 
 class XrdMonSndTraceEntry {

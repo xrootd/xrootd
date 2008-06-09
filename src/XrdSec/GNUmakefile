@@ -103,7 +103,7 @@ $(OBJDIR)/XrdSecPManager.o: XrdSecInterface.hh XrdSecPManager.hh \
                             XrdOucErrInfo.hh   XrdSysPthread.hh \
                             XrdSecPManager.cc
 	@echo Compiling XrdSecPManager.cc 
-	$(ECHO)$(CC) -c $(CFLAGS32) $(INCLUDE) -o $(OBJDIR)/XrdSecPManager.o XrdSecPManager.cc
+	$(ECHO)$(CC) -c $(CFLAGS32) $(CFUSENEWHDRS) $(INCLUDE) -o $(OBJDIR)/XrdSecPManager.o XrdSecPManager.cc
 
 $(OBJDIR)/XrdSecProtocolhost.o: XrdSecProtocolhost.cc XrdSecProtocolhost.hh \
                                 XrdSecInterface.hh    XrdSecEntity.hh

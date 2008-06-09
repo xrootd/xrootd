@@ -35,7 +35,6 @@ const char *XrdOfsCVSID = "$Id$";
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <iostream.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <sys/param.h>
@@ -56,6 +55,7 @@ const char *XrdOfsCVSID = "$Id$";
 
 #include "XrdNet/XrdNetDNS.hh"
 
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"

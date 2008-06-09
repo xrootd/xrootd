@@ -25,7 +25,6 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <iostream.h>
 #include <strings.h>
 #include <stdio.h>
 #include <sys/param.h>
@@ -65,6 +64,7 @@ const char *XrdOlbConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"

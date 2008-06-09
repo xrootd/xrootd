@@ -62,7 +62,8 @@ options="                 \
    enable_ssl             \
    enable_trace           \
    enable_posix           \
-   enable_javaint
+   enable_javaint         \
+   enable_usenewhdrs
 "
 
 #
@@ -80,7 +81,7 @@ enable_shared=yes
 enable_ssl=
 enable_thread=yes
 enable_javaint=no
-
+enable_usenewhdrs=yes
 
 #
 # ./configure arguments and defaults set via supported env vars
@@ -532,6 +533,8 @@ enable/disable options, prefix with either --enable- or --disable-
    shared          Use shared 3rd party libraries if possible
    ssl             Build OpenSSL implementation of crypto interfaces
    trace           Support for trace statements via the "-d" flag
+   usenewhdrs      Enable/disable usage of std headers in form of <name>
+                   instead of <name>.h, e.g. <iostream>
 
 with options, prefix with --with-, enables corresponding support
 
@@ -820,6 +823,15 @@ if test "x$enable_trace" = "xyes" ; then
    tracedbg=""
 else
    echo "Support for trace statements disabled"
+fi
+
+# Check if it is required to use old header format
+usenewhdrs="-DUSENEWHDRS"
+if test "x$enable_newheaders" = "xno" ; then
+   usenewhdrs=""
+   echo "Using old format (<name>.h) for standard headers"
+else
+   echo "Using new format (<name>) for standard headers"
 fi
 
 # Which targets to build
@@ -2103,6 +2115,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@perlincdir@|$perlincdir|" \
     -e "s|@perlccflags@|$perlccflags|" \
     -e "s|@nostrictalias@|$nostrictalias|" \
+    -e "s|@usenewhdrs@|$usenewhdrs|" \
     < GNUmake.env.tmp > $ENVOUT
 rm -f GNUmake.env.tmp
 

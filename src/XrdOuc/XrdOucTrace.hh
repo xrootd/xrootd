@@ -12,13 +12,7 @@
 
 //         $Id$
 
-#ifndef WIN32
-#include <iostream.h>
-#else
-#include <iostream>
-using namespace std;
-#endif
-
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysError.hh"
 
 class XrdOucTrace

@@ -10,6 +10,7 @@ const char *XrdOucStringCVSID = "$Id$";
 
 #include <stdio.h>
 #include <string.h>
+#include <climits>
 
 #include <XrdOuc/XrdOucString.hh>
 

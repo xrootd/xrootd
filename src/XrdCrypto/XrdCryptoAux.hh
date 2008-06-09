@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #ifndef WIN32
-#include <iostream.h>
+#include "XrdSys/XrdSysHeaders.hh"
 #endif
 #include <XProtocol/XProtocol.hh>
 

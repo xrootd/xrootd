@@ -21,8 +21,8 @@
 #include "XrdMon/XrdMonSndPacket.hh"
 #include "XrdMon/XrdMonSndTraceEntry.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include <assert.h>
-#include <iostream>
 #include <netinet/in.h>
 #include <utility> // for pair
 #include <vector>

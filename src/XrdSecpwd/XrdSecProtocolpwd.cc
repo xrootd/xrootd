@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <iostream.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
@@ -44,6 +43,7 @@ void      ka_StringToKey(char *str, char *cell,
 }
 #endif
 
+#include "XrdSys/XrdSysHeaders.hh"
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
 #include <XrdOuc/XrdOucStream.hh>

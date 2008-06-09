@@ -24,7 +24,7 @@
 
 #ifndef NODEBUG
 
-#include <iostream.h>
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
 #define QTRACE(act) Trace.What & TRACE_ ## act

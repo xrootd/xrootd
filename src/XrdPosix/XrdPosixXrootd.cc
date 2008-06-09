@@ -22,12 +22,11 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientVector.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
-
-#include <iostream.h>
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */

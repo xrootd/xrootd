@@ -24,7 +24,6 @@ const char *XrdOssApiCVSID = "$Id$";
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <iostream.h>
 #include <signal.h>
 #include <strings.h>
 #include <stdio.h>
@@ -43,8 +42,9 @@ const char *XrdOssApiCVSID = "$Id$";
 #include "XrdOss/XrdOssLock.hh"
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssTrace.hh"
-#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 

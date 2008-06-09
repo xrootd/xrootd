@@ -12,7 +12,7 @@
 /******************************************************************************/
 
 #ifndef WIN32
-#include <iostream.h>
+#include "XrdSys/XrdSysHeaders.hh"
 #endif
 #ifndef __XPROTOCOL_H
 #include <XProtocol/XProtocol.hh>

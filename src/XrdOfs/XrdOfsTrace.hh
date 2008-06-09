@@ -14,7 +14,7 @@
 
 #ifndef NODEBUG
 
-#include <iostream.h>
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOfs/XrdOfs.hh"
 
 #define GTRACE(act)         OfsTrace.What & TRACE_ ## act

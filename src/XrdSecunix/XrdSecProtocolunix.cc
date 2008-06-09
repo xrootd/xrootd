@@ -15,7 +15,6 @@ const char *XrdSecProtocolunixCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <iostream.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <grp.h>
@@ -23,6 +22,7 @@ const char *XrdSecProtocolunixCVSID = "$Id$";
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 

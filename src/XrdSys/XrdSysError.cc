@@ -16,7 +16,6 @@ const char *XrdSysErrorCVSID = "$Id$";
 #ifndef WIN32
 #include <unistd.h>
 #include <errno.h>
-#include <iostream.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,8 +23,6 @@ const char *XrdSysErrorCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/uio.h>
 #else
-#include <iostream>
-using namespace std;
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,6 +31,7 @@ using namespace std;
 #endif
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 

@@ -68,7 +68,6 @@ const char *XrdOssLockCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
-#include <iostream.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <strings.h>
@@ -79,6 +78,7 @@ const char *XrdOssLockCVSID = "$Id$";
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/

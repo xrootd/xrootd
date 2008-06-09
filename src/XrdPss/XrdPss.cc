@@ -19,7 +19,6 @@ const char *XrdPssCVSID = "$Id$";
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <iostream.h>
 #include <signal.h>
 #include <strings.h>
 #include <stdio.h>
@@ -38,6 +37,7 @@ const char *XrdPssCVSID = "$Id$";
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/

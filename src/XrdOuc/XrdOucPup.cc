@@ -16,7 +16,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
-#include <iostream.h>
 
 #ifdef WIN32
 #include <direct.h>
@@ -25,6 +24,7 @@
 
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
  
 /******************************************************************************/

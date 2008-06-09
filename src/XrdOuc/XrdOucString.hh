@@ -223,7 +223,8 @@
 /*     static void setblksize(const int bs);                                  */
 /*                                                                            */
 /******************************************************************************/
-#include <iostream>
+#include "XrdSys/XrdSysHeaders.hh"
+
 #include <stdarg.h>
 #include <stdlib.h>
 

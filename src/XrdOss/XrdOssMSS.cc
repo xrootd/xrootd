@@ -16,7 +16,6 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include <unistd.h>
 #include <errno.h>
 #include <strings.h>
-#include <iostream.h>
 #include <signal.h>
 #include <stdio.h>
 #include <time.h>
@@ -39,6 +38,7 @@ const char *XrdOssMSSCVSID = "$Id$";
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 

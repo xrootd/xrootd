@@ -20,7 +20,6 @@ const char *XrdSectestClientCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <iostream.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <stdio.h>
@@ -29,6 +28,7 @@ const char *XrdSectestClientCVSID = "$Id$";
 #include <sys/param.h>
 #include <sys/socket.h>
 
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSec/XrdSecInterface.hh"
   
 /******************************************************************************/

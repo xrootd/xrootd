@@ -24,7 +24,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <iostream.h>
 
 #ifdef __macos__
 #include <sys/param.h>
@@ -37,6 +36,7 @@
 #include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
  
 /******************************************************************************/

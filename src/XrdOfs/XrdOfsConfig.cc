@@ -26,7 +26,6 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <iostream.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -43,6 +42,7 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"

@@ -15,12 +15,12 @@ const char *XrdOssUnlinkCVSID = "$Id$";
 #include <unistd.h>
 #include <errno.h>
 #include <strings.h>
-#include <iostream.h>
 #include <limits.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"

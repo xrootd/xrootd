@@ -20,13 +20,13 @@ const char *XrdSfsNativeCVSID = "$Id$";
 #include <memory.h>
 #include <string.h>
 #include <stdio.h>
-#include <iostream.h>
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 
 #include "XrdVersion.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"

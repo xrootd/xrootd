@@ -12,11 +12,11 @@
 
 #include "XrdMon/XrdMonSndDummyXrootd.hh"
 #include "XrdMon/XrdMonSndDebug.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 
 #include "sys/time.h"
 #include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <sstream>
 using std::cerr;
 using std::cout;

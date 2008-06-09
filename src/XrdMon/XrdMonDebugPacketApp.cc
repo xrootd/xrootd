@@ -14,11 +14,11 @@
 #include "XrdMon/XrdMonDecDictInfo.hh"
 #include "XrdMon/XrdMonDecUserInfo.hh"
 #include "XrdMon/XrdMonHeader.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <netinet/in.h>
 #include <unistd.h>
 

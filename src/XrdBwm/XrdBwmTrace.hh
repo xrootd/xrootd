@@ -14,7 +14,7 @@
 
 #ifndef NODEBUG
 
-#include <iostream.h>
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
 extern XrdOucTrace BwmTrace;

@@ -2,12 +2,12 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <iostream.h>
 #include <errno.h>
 #include <sys/param.h>
 #include <sys/types.h>
 
 #include "XProtocol/XProtocol.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClientEnv.hh"
   

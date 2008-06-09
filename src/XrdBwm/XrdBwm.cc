@@ -16,7 +16,6 @@ const char *XrdBwmCVSID = "$Id$";
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
-#include <iostream.h>
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -40,6 +39,7 @@ const char *XrdBwmCVSID = "$Id$";
 #include "XrdSfs/XrdSfsInterface.hh"
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"

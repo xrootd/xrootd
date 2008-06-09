@@ -18,7 +18,6 @@ const char *XrdCmsProtocolCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <iostream.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +52,7 @@ const char *XrdCmsProtocolCVSID = "$Id$";
 #include "XrdOuc/XrdOucTokenizer.hh"
 
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdCms;

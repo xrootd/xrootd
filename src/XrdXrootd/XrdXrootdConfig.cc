@@ -15,7 +15,6 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <iostream.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/param.h>
@@ -37,6 +36,7 @@ const char *XrdXrootdConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
 #include "XrdXrootd/XrdXrootdAdmin.hh"

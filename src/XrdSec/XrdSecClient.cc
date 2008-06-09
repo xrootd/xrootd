@@ -15,7 +15,6 @@ const char *XrdSecClientCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <iostream.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -27,6 +26,7 @@ const char *XrdSecClientCVSID = "$Id$";
 #include <arpa/inet.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecPManager.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -102,8 +102,9 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
 // Find a supported protocol.
 //
    if (!(protp = PManager.Get(hostname, netaddr, sectoken)))
-      if (einfo) einfo->setErrInfo(ENOPROTOOPT, noperr);
+      {if (einfo) einfo->setErrInfo(ENOPROTOOPT, noperr);
          else cerr <<noperr <<endl;
+      }
 
 // All done
 //

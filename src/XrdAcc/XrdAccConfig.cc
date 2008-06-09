@@ -23,7 +23,6 @@ const char *XrdAccConfigCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <iostream.h>
 #include <strings.h>
 #include <stdio.h>
 #include <time.h>
@@ -34,6 +33,7 @@ const char *XrdAccConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdAcc/XrdAccAccess.hh"
 #include "XrdAcc/XrdAccAudit.hh"

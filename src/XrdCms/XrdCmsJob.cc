@@ -15,11 +15,12 @@ const char *XrdCmsJobCVSID = "$Id$";
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <iostream.h>
 #include <stdlib.h>
 
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdScheduler.hh"
+
+#include "XrdSys/XrdSysHeaders.hh"
 
 #include "XrdCms/XrdCmsJob.hh"
 #include "XrdCms/XrdCmsProtocol.hh"

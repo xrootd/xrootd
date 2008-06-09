@@ -16,7 +16,6 @@ const char *XrdCmsClientConfigCVSID = "$Id$";
 
 #include <unistd.h>
 #include <ctype.h>
-#include <iostream.h>
 #include <strings.h>
 #include <stdio.h>
 #include <sys/param.h>
@@ -30,6 +29,7 @@ const char *XrdCmsClientConfigCVSID = "$Id$";
 #include "XrdCms/XrdCmsClientMsg.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"

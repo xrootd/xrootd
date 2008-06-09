@@ -17,9 +17,9 @@
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 
 #include <stdio.h>
-#include <iostream>
 #include <unistd.h>
 #include <stdarg.h>
 #include <sstream>
