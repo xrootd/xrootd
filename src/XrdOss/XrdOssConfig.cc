@@ -537,7 +537,8 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
    dflags = (MSSgwCmd ? XRDEXP_MIG : XRDEXP_NOCHECK|XRDEXP_NODREAD);
    if (!StageCmd) dflags |= XRDEXP_NOSTAGE;
    DirFlags = DirFlags | (dflags & (~(DirFlags >> XRDEXP_MASKSHIFT)));
-   if (MSSgwCmd && (DirFlags & XRDEXP_MIG)) DirFlags |= XRDEXP_REMOTE;
+   if ((MSSgwCmd &&  (DirFlags & XRDEXP_MIG))
+   ||  (StageCmd && !(DirFlags & XRDEXP_NOSTAGE))) DirFlags |= XRDEXP_REMOTE;
    RPList.Default(DirFlags);
 
 // Reprocess the paths to set correct defaults
@@ -549,7 +550,9 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
          if (!(flags & XRDEXP_NOSTAGE)) gwp = stgp = fp->Path();
             else if (!(flags & XRDEXP_NOCHECK) || !(flags & XRDEXP_NODREAD) ||
                     (flags & XRDEXP_RCREATE))  gwp = fp->Path();
-         if (MSSgwCmd && (flags & XRDEXP_MIG)) flags |= XRDEXP_REMOTE;
+         if ((MSSgwCmd  && (flags & XRDEXP_MIG))
+         ||  (StageCmd && !(flags & XRDEXP_NOSTAGE))) flags |= XRDEXP_REMOTE;
+            else flags &= ~XRDEXP_REMOTE;
          fp->Set(flags);
          fp = fp->Next();
         }
