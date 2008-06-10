@@ -86,8 +86,8 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
    if ( (retc = GenLocalPath( oldname, local_path_Old))
      || (retc = GenLocalPath( newname, local_path_New)) ) return retc;
    if (remotefs
-     && (retc = GenRemotePath(oldname, remote_path_Old))
-     || (retc = GenRemotePath(newname, remote_path_New)) ) return retc;
+     && (((retc = GenRemotePath(oldname, remote_path_Old))
+     ||   (retc = GenRemotePath(newname, remote_path_New)))) ) return retc;
 
 // Lock the target directory if this is a remote backed filesystem
 //

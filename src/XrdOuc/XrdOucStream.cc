@@ -258,12 +258,13 @@ int XrdOucStream::Exec(char **parm, int inrd)
                 }
 
         if (inrd)
-           if (pipe(fildes))
-              return Err(Exec, errno, "create output pipe for", parm[0]);
-              else {
-                    fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
-                    FE = fildes[1]; Child_in  = fildes[0];
-                   }
+           {if (pipe(fildes))
+               return Err(Exec, errno, "create output pipe for", parm[0]);
+               else {
+                     fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
+                     FE = fildes[1]; Child_in  = fildes[0];
+                    }
+           }
        } else {Child_out = FD; Child_in = FE;}
 
     // Fork a process first so we can pick up the next request. We also
@@ -286,10 +287,11 @@ int XrdOucStream::Exec(char **parm, int inrd)
     //
     if (Child_in >= 0)
        {if (inrd)
-           if (dup2(Child_in, STDIN_FILENO) < 0)
-              {Erp(Exec, errno, "set up standard in for", parm[0]);
-               exit(255);
-              } else if (Child_in != Child_out) close(Child_in);
+           {if (dup2(Child_in, STDIN_FILENO) < 0)
+               {Erp(Exec, errno, "set up standard in for", parm[0]);
+                exit(255);
+               } else if (Child_in != Child_out) close(Child_in);
+           }
        }
 
     // Reassign the stream to be standard out to capture all of the output.
@@ -467,10 +469,11 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
    llBok = 0;
 
    if (!myInst)
-      if (!myEnv) return add2llB(GetFirstWord(lowcase), 1);
-         else {while((var = GetFirstWord(lowcase)) && !isSet(var)) {}
-               return add2llB(var, 1);
-              }
+      {if (!myEnv) return add2llB(GetFirstWord(lowcase), 1);
+          else {while((var = GetFirstWord(lowcase)) && !isSet(var)) {}
+                return add2llB(var, 1);
+               }
+      }
 
    do {if (!(var = GetFirstWord(lowcase)))
           {if (sawif)

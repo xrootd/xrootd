@@ -102,8 +102,9 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data)
 // to the old protocol but only if this is a redirector login.
 //
    if (Link->RecvAll((char *)&LIHdr, sizeof(LIHdr)) < 0)
-      if (Data.Mode & CmsLoginData::kYR_director) return kYR_ENETUNREACH;
-         else return Emsg(Link, "login rejected");
+      {if (Data.Mode & CmsLoginData::kYR_director) return kYR_ENETUNREACH;
+          else return Emsg(Link, "login rejected");
+      }
 
 // Receive and decode the response. We apparently have protocol version 2.
 //

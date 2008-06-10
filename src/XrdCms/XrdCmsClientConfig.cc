@@ -356,7 +356,7 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
        else {*val = '\0'; val++;}
 
     if (val)
-       if (isdigit(*val))
+       {if (isdigit(*val))
            {if (XrdOuca2x::a2i(Say,"manager port",val,&port,1,65535))
                port = 0;
            }
@@ -364,7 +364,7 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
                    {Say.Emsg("Config", "unable to find tcp service", val);
                     port = 0;
                    }
-       else Say.Emsg("Config","manager port not specified for",mval);
+       } else Say.Emsg("Config","manager port not specified for",mval);
 
     if (!port) {free(mval); return 1;}
 

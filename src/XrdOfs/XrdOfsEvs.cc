@@ -479,10 +479,12 @@ XrdOfsEvsMsg *XrdOfsEvs::getMsg(int bigmsg)
 // Check if we have to allocate a new item
 //
    if (!tp && (numMax + numMin) < (maxMax + maxMin))
-      if ((tp = new XrdOfsEvsMsg((char *)malloc(msz), bigmsg)))
-         if (!(tp->text)) {delete tp; tp = 0;}
-            else if (bigmsg) numMax++;
-                    else     numMin++;
+      {if ((tp = new XrdOfsEvsMsg((char *)malloc(msz), bigmsg)))
+          {if (!(tp->text)) {delete tp; tp = 0;}
+              else if (bigmsg) numMax++;
+                      else     numMin++;
+          }
+      }
 
 // Unlock and return result
 //

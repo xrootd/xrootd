@@ -100,8 +100,9 @@ int XrdOssSys::Create(const char *tident, const char *path, mode_t access_mode,
    if (StageCreate)
       {struct stat buf;
        if (lstat(local_path, &buf))
-          if (errno != ENOENT) return -errno;
-             else return XrdOssSS->Stage(tident,path,env,Opts>>8,access_mode);
+          {if (errno != ENOENT) return -errno;
+              else return XrdOssSS->Stage(tident,path,env,Opts>>8,access_mode);
+          }
        return 0;
       }
 

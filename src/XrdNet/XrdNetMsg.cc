@@ -31,9 +31,10 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest)
 
    eDest = erp; DestHN = 0; FD = -1;
    if (dest)
-      if (!XrdNetDNS::Host2Dest(dest, DestIP))
-         eDest->Emsg("Msg", "Default", dest, "is unreachable");
-         else DestHN = strdup(dest);
+      {if (!XrdNetDNS::Host2Dest(dest, DestIP))
+          eDest->Emsg("Msg", "Default", dest, "is unreachable");
+          else DestHN = strdup(dest);
+      }
 
     if (!myNet.Relay(Peer, 0, XRDNET_SENDONLY))
        eDest->Emsg("Msg", "Unable top create UDP msg socket.");

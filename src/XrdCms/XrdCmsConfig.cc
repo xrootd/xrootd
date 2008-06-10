@@ -232,7 +232,8 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 // Bail if no configuration file specified
 //
    inArgv = argv; inArgc = argc;
-   if (!(ConfigFN = cfn) && !(ConfigFN = getenv("XrdCmsCONFIGFN")) || !*ConfigFN)
+   if ((!(ConfigFN = cfn) && !(ConfigFN = getenv("XrdCmsCONFIGFN")))
+   ||  !*ConfigFN)
       {Say.Emsg("Config", "Required config file not specified.");
        Usage(1);
       }
@@ -284,11 +285,12 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 // For servers or supervisors, force an ephemeral port to be used.
 //
    if (!NoGo)
-      if ((isManager && !isServer) || isPeer)
-         {if (PortTCP < 0)
-             {Say.Emsg("Config", myRole, "port not specified."); NoGo = 1;}
-         }
-         else PortTCP = 0;
+      {if ((isManager && !isServer) || isPeer)
+          {if (PortTCP < 0)
+              {Say.Emsg("Config", myRole, "port not specified."); NoGo = 1;}
+          }
+          else PortTCP = 0;
+      }
 
 // Determine how we ended and return status
 //
@@ -793,8 +795,9 @@ int XrdCmsConfig::MergeP()
    while(plp)
         {Opts = plp->Flag();
          if (!(Opts & XRDEXP_STAGE_X))
-            if (DiskSS) dfltSS = 1;
-               else plp->Set(Opts | XRDEXP_NOSTAGE);
+            {if (DiskSS) dfltSS = 1;
+                else plp->Set(Opts | XRDEXP_NOSTAGE);
+            }
          plp = plp->Next();
         }
    plp = PexpList.First();
@@ -1211,10 +1214,11 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
 // Get the optional access rights
 //
    if ((val = CFile.GetWord()) && val[0])
-      if (!strcmp("group", val)) mode |= S_IRWXG;
-         else {eDest->Emsg("Config", "invalid admin path modifier -", val);
-               free(pval); return 1;
-              }
+      {if (!strcmp("group", val)) mode |= S_IRWXG;
+          else {eDest->Emsg("Config", "invalid admin path modifier -", val);
+                free(pval); return 1;
+               }
+      }
 
 // Record the path
 //
@@ -1661,13 +1665,14 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
 //  Process the optional "peer" or "proxy"
 //
     if ((val = CFile.GetWord()))
-       if ((xMeta  = !strcmp("meta", val))
-       ||  (xPeer  = !strcmp("peer", val))
-       ||  (xProxy = !strcmp("proxy", val)))
-          {if (xMeta && (isServer || isPeer || isProxy)) return CFile.noEcho();
-           if (xProxy || (xPeer && !isPeer)) return CFile.noEcho();
-           val = CFile.GetWord();
-          } else if (isPeer) return CFile.noEcho();
+       {if ((xMeta  = !strcmp("meta", val))
+        ||  (xPeer  = !strcmp("peer", val))
+        ||  (xProxy = !strcmp("proxy", val)))
+           {if (xMeta && (isServer || isPeer || isProxy)) return CFile.noEcho();
+            if (xProxy || (xPeer && !isPeer)) return CFile.noEcho();
+            val = CFile.GetWord();
+           } else if (isPeer) return CFile.noEcho();
+       }
 
 //  We can accept this manager. Skip the optional "all" or "any"
 //
@@ -1725,7 +1730,7 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
              }
 
     if (isManager && !isServer)
-       {if (xMeta && isMeta || !xMeta && !isMeta)
+       {if ((xMeta && isMeta) || (!xMeta && !isMeta))
            for (j = 0; j <= i; j++)
                 if (!memcmp(&InetAddr[j], &myAddr, sizeof(struct sockaddr)))
                    {PortTCP = port; return 0;}
@@ -1838,9 +1843,9 @@ int XrdCmsConfig::xperf(XrdSysError *eDest, XrdOucStream &CFile)
 // Make sure that the perf program is here
 //
    if (perfpgm) {free(perfpgm); perfpgm = 0;}
-   if (pgm)
-      if (!isExec(eDest, "perf", pgm)) return 1;
-         else perfpgm = strdup(pgm);
+   if (pgm) {if (!isExec(eDest, "perf", pgm)) return 1;
+                else perfpgm = strdup(pgm);
+            }
 
 // Set remaining values
 //
@@ -1998,9 +2003,9 @@ int XrdCmsConfig::xprep(XrdSysError *eDest, XrdOucStream &CFile)
 //
    if (scrub) pendplife = scrub;
    if (doset) PrepQ.setParms(reset, scrub, echo);
-   if (prepif) 
-      if (!isExec(eDest, "prep", prepif)) return 1;
-         else return PrepQ.setParms(prepif);
+   if (prepif) {if (!isExec(eDest, "prep", prepif)) return 1;
+                   else return PrepQ.setParms(prepif);
+               }
    return 0;
 }
 
@@ -2187,10 +2192,10 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 
 // Scan for invalid roles
 //
-   if ((xPeer && xProxy) && !(xMan || xServ) // peer proxy
-   ||  (xPeer && xServ)                      // peer server
-   ||  (xPeer && xSup)                       // peer supervisor
-   ||  (xMeta &&!xMan))                      // meta, meta server, meta supervisor
+   if (((xPeer && xProxy) && !(xMan || xServ)) // peer proxy
+   ||  (xPeer && xServ)                        // peer server
+   ||  (xPeer && xSup)                         // peer supervisor
+   ||  (xMeta &&!xMan))                        // meta, meta server, meta super
       {eDest->Emsg("Config", "invalid role -", role); return 1;}
    if (!(xMan || xServ) && xProxy)
       {eDest->Emsg("Config", "pure proxy role is not supported"); return 1;}

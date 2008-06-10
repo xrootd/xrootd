@@ -316,14 +316,16 @@ int XrdCmsPrepare::isOnline(char *path)
 //
    lclpath = path;
    if (Config.lcl_N2N)
-      if (Config.lcl_N2N->lfn2pfn(lclpath,lclbuff,sizeof(lclbuff))) return 0;
-         else lclpath = lclbuff;
+      {if (Config.lcl_N2N->lfn2pfn(lclpath,lclbuff,sizeof(lclbuff))) return 0;
+          else lclpath = lclbuff;
+      }
 
 // Do a stat
 //
    if (stat(lclpath, &buf))
-      if (Config.DiskSS && Exists(path)) return -1;
-         else return 0;
+      {if (Config.DiskSS && Exists(path)) return -1;
+          else return 0;
+      }
 
 // Make sure we are doing a stat on a file
 //

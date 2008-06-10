@@ -500,8 +500,9 @@ void XrdXrootdJob::DoIt()
    while((jNum = JobTable.Next(jNext)) >= 0)
         {myMutex.Lock();
          if ((jp = JobTable.Item(jNum)))
-            if (jp->JobMark) {if (!jp->verClient()) CleanUp(jp);}
-               else jp->JobMark = 1;
+            {if (jp->JobMark) {if (!jp->verClient()) CleanUp(jp);}
+                else jp->JobMark = 1;
+            }
          myMutex.UnLock();
         }
 

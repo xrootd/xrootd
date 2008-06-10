@@ -1432,11 +1432,12 @@ int XrdXrootdProtocol::do_Read()
 // transfer the requested data to minimize latency.
 //
    if (myFile->isMMapped)
-           if (myOffset >= myFile->fSize) return Response.Send();
-      else if (myOffset+myIOLen <= myFile->fSize)
-              return Response.Send(myFile->mmAddr+myOffset, myIOLen);
-      else    return Response.Send(myFile->mmAddr+myOffset, 
-                                   myFile->fSize -myOffset);
+      {     if (myOffset >= myFile->fSize) return Response.Send();
+       else if (myOffset+myIOLen <= myFile->fSize)
+               return Response.Send(myFile->mmAddr+myOffset, myIOLen);
+       else    return Response.Send(myFile->mmAddr+myOffset,
+                                    myFile->fSize -myOffset);
+      }
 
 // If we are sendfile enabled, then just send the file if possible
 //
@@ -1621,10 +1622,11 @@ int XrdXrootdProtocol::do_ReadV()
         //
         currFH.Set(rdVec[i].fhandle);
         if (currFH.handle != lastFH.handle)
-           if (!(myFile = FTab->Get(currFH.handle)))
-              return Response.Send(kXR_FileNotOpen,
-                              "readv does not refer to an open file");
-              else lastFH.handle = currFH.handle;
+           {if (!(myFile = FTab->Get(currFH.handle)))
+               return Response.Send(kXR_FileNotOpen,
+                               "readv does not refer to an open file");
+               else lastFH.handle = currFH.handle;
+           }
       
         // Read in the vector, segmenting as needed. Note that we gaurantee
         // that a single readv element will never need to be segmented.
@@ -2015,9 +2017,11 @@ int XrdXrootdProtocol::do_Write()
    if (myFile->AsyncMode && !as_syncw)
       {if (myStalls > as_maxstalls) myStalls--;
           else if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
-                  if ((retc = aio_Write()) != -EAGAIN)
-                     if (retc == -EIO) return do_WriteNone();
-                        else return retc;
+                  {if ((retc = aio_Write()) != -EAGAIN)
+                      {if (retc == -EIO) return do_WriteNone();
+                          else return retc;
+                      }
+                  }
        SI->AsyncRej++;
       }
 
@@ -2169,8 +2173,9 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
 // Process the data response
 //
    if (rc == SFS_DATA)
-      if (ecode) return Response.Send((void *)eMsg, ecode);
-         else    return Response.Send();
+      {if (ecode) return Response.Send((void *)eMsg, ecode);
+          else    return Response.Send();
+      }
 
 // Process the deferal
 //

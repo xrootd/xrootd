@@ -429,8 +429,9 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 // was to create the file. For now we ignore the special create flags.
 //
    if (fd >= 0)
-      if (fd != 17 || crPath != path) return -XRDOSS_E8003;
-         else {fd = 0; crPath = 0; Oflag = crOpts >> 8 | (Oflag & ~O_TRUNC);}
+      {if (fd != 17 || crPath != path) return -XRDOSS_E8003;
+          else {fd = 0; crPath = 0; Oflag = crOpts >> 8 | (Oflag & ~O_TRUNC);}
+      }
 
 // Return the result of this open
 //

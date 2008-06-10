@@ -206,8 +206,9 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
 // Find the cache group. We provide pshuedo support whould be not have a cache
 //
    if (!(cgrp = env.Get(OSS_CGROUP)))
-      if ((retc = getCname(path, &sbuff, cgbuff))) return retc;
-         else cgrp = cgbuff;
+      {if ((retc = getCname(path, &sbuff, cgbuff))) return retc;
+          else cgrp = cgbuff;
+      }
 
 // Try to find the cache group. If there is no cache and
 //

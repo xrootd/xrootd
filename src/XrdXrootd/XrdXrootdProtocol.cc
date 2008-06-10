@@ -277,12 +277,13 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
 // Check if we are servicing a slow link
 //
    if (Resume)
-      if (myBlen && (rc = getData("data", myBuff, myBlen)) != 0) 
-         {if (rc < 0 && myAioReq) myAioReq->Recycle(-1);
-          return rc;
-         }
-         else if ((rc = (*this.*Resume)()) != 0) return rc;
-                 else {Resume = 0; return 0;}
+      {if (myBlen && (rc = getData("data", myBuff, myBlen)) != 0)
+          {if (rc < 0 && myAioReq) myAioReq->Recycle(-1);
+           return rc;
+          }
+          else if ((rc = (*this.*Resume)()) != 0) return rc;
+                  else {Resume = 0; return 0;}
+      }
 
 // Read the next request header
 //
@@ -369,11 +370,12 @@ int XrdXrootdProtocol::Process2()
 // Force authentication at this point, if need be
 //
    if (Status & XRD_NEED_AUTH)
-      if (Request.header.requestid == kXR_auth) return do_Auth();
-         else {Response.Send(kXR_InvalidRequest,
-                             "Invalid request; user not authenticated");
-               return -1;
-              }
+      {if (Request.header.requestid == kXR_auth) return do_Auth();
+          else {Response.Send(kXR_InvalidRequest,
+                              "Invalid request; user not authenticated");
+                return -1;
+               }
+      }
 
 // Process items that don't need arguments but may have them
 //
@@ -573,8 +575,9 @@ int XrdXrootdProtocol::getData(const char *dtype, char *buff, int blen)
 //
    rlen = Link->Recv(buff, blen, readWait);
    if (rlen  < 0)
-      if (rlen != -ENOMSG) return Link->setEtext("link read error");
-         else return -1;
+      {if (rlen != -ENOMSG) return Link->setEtext("link read error");
+          else return -1;
+      }
    if (rlen < blen)
       {myBuff = buff+rlen; myBlen = blen-rlen;
        TRACEP(REQ, dtype <<" timeout; read " <<rlen <<" of " <<blen <<" bytes");

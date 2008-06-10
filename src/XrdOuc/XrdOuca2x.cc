@@ -129,10 +129,10 @@ long long XrdOuca2x::a2sz(XrdSysError &Eroute, const char *emsg, const char *ite
     if (!item || !*item)
        {Eroute.Emsg("a2x", emsg, "value not specified"); return -1;}
 
-         if (*fP == 'k' || *fP == 'K') qmult = 1024;
-    else if (*fP == 'm' || *fP == 'M') qmult = 1024*1024;
-    else if (*fP == 'g' || *fP == 'G') qmult = 1024*1024*1024;
-    else if (*fP == 't' || *fP == 'T') qmult = 1024*1024*1024*1024;
+         if (*fP == 'k' || *fP == 'K') qmult = 1024LL;
+    else if (*fP == 'm' || *fP == 'M') qmult = 1024LL*1024LL;
+    else if (*fP == 'g' || *fP == 'G') qmult = 1024LL*1024LL*1024LL;
+    else if (*fP == 't' || *fP == 'T') qmult = 1024LL*1024LL*1024LL*1024LL;
     else                              {qmult = 1; fP++;}
     errno = 0;
     *val  = strtoll(item, &eP, 10) * qmult;

@@ -340,13 +340,14 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
        KickedOut = 0; loginData.dPort = CmsState.Port();
        Data = loginData; Data.Mode = Mode;
        if (!(rc = XrdCmsLogin::Login(Link, Data)))
-          if(!ManTree.Connect(myNID, myNode)) KickedOut = 1;
-            else {Say.Emsg("Protocol", "Logged into", Link->Name());
-                  Dispatch();
-                  rc = 0;
-                  loginData.fSpace= Meter.FreeSpace(fsUtil);
-                  loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
-                 }
+          {if(!ManTree.Connect(myNID, myNode)) KickedOut = 1;
+             else {Say.Emsg("Protocol", "Logged into", Link->Name());
+                   Dispatch();
+                   rc = 0;
+                   loginData.fSpace= Meter.FreeSpace(fsUtil);
+                   loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
+                  }
+          }
 
        // Remove manager from the config
        //
@@ -768,12 +769,13 @@ do{if (Link->RecvAll((char *)&Data->Request, sizeof(Data->Request)) < 0) return;
 // Parse the arguments (we do this in the main thread to avoid overruns)
 //
    if (!(Data->Routing & XrdCmsRouting::noArgs))
-      if (Data->Request.modifier & kYR_raw)
-         {Data->Path = Data->Buff; Data->PathLen = Data->Dlen;}
-         else if (!ProtArgs.Parse(int(Data->Request.rrCode),myArgs,myArgt,Data))
-                 {Reply_Error(*Data, kYR_EINVAL, "badly formed request");
-                  continue;
-                 }
+      {if (Data->Request.modifier & kYR_raw)
+          {Data->Path = Data->Buff; Data->PathLen = Data->Dlen;}
+          else if (!ProtArgs.Parse(int(Data->Request.rrCode),myArgs,myArgt,Data))
+                  {Reply_Error(*Data, kYR_EINVAL, "badly formed request");
+                   continue;
+                  }
+      }
 
 // Insert correct identification
 //

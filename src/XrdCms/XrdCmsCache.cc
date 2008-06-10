@@ -264,8 +264,9 @@ int XrdCmsCache::UnkFile(XrdCmsSelect &Sel, SMask_t mask)
 // this method may only be called after GetFile() or AddFile() for a new entry
 //
    if ((iP = Sel.Path.TODRef))
-      if (iP->Key.Equiv(Sel.Path)) iP->Loc.qfvec = mask;
-         else iP = 0;
+      {if (iP->Key.Equiv(Sel.Path)) iP->Loc.qfvec = mask;
+          else iP = 0;
+      }
 
 // Return result
 //

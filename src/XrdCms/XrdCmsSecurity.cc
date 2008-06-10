@@ -126,10 +126,11 @@ do {
 // Check if we succeeded
 //
    if (!eText)
-      if (!(authName = AuthProt->Entity.name)) eText = "entity name missing";
-         else {Link->setID(authName,0);
-               Say.Emsg("Auth",Link->Host(),"authenticated as", authName);
-              }
+      {if (!(authName = AuthProt->Entity.name)) eText = "entity name missing";
+          else {Link->setID(authName,0);
+                Say.Emsg("Auth",Link->Host(),"authenticated as", authName);
+               }
+      }
 
 // Check if we failed
 //
@@ -155,9 +156,10 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 // If we aleady have a security interface, return (may happen in client)
 //
    if (!Cfn)
-      if (secProtocol) return 1;
-         else if (XrdXrootdSecGetProtocol)
-                 {secProtocol = XrdXrootdSecGetProtocol; return 1;}
+      {if (secProtocol) return 1;
+          else if (XrdXrootdSecGetProtocol)
+                  {secProtocol = XrdXrootdSecGetProtocol; return 1;}
+      }
 
 // Open the security library
 //

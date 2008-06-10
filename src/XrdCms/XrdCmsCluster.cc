@@ -138,19 +138,20 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 // Check if node is already logged in or is a relogin
 //
    if (Slot < STMax)
-      if (NodeTab[Slot] && NodeTab[Slot]->isBound)
-         {Say.Emsg("Cluster", Role, hnp, "already logged in.");
-          return 0;
-         } else { // Rehook node to previous unconnected entry
-          nP = NodeTab[Slot];
-          nP->Link      = lp;
-          nP->isOffline = 0;
-          nP->isConn    = 1;
-          nP->PingPong  = 1;
-          nP->Instance++;
-          nP->setName(Role, lp, port);  // Just in case it changed
-          act = "Re-added ";
-         }
+      {if (NodeTab[Slot] && NodeTab[Slot]->isBound)
+          {Say.Emsg("Cluster", Role, hnp, "already logged in.");
+           return 0;
+          } else { // Rehook node to previous unconnected entry
+           nP = NodeTab[Slot];
+           nP->Link      = lp;
+           nP->isOffline = 0;
+           nP->isConn    = 1;
+           nP->PingPong  = 1;
+           nP->Instance++;
+           nP->setName(Role, lp, port);  // Just in case it changed
+           act = "Re-added ";
+          }
+      }
 
 // Reuse an old ID if we must or redirect the incomming node
 //
@@ -466,8 +467,9 @@ void *XrdCmsCluster::MonRefs()
 // Compute snooze interval
 //
    if ((loopmax = Config.RefReset / snooze_interval) <= 1)
-      if (!Config.RefReset) loopmax = 0;
-         else {loopmax = 1; snooze_interval = Config.RefReset;}
+      {if (!Config.RefReset) loopmax = 0;
+          else {loopmax = 1; snooze_interval = Config.RefReset;}
+      }
 
 // Sleep for the snooze interval. If a reset was requested then do a selective
 // reset unless we reached our snooze maximum and enough selections have gone
@@ -723,10 +725,11 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
           else if (!Config.sched_RR
                && (nP->myLoad > Config.MaxLoad))                 nP = 0;
        if (nP)
-          if (isrw)
-             if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)   nP = 0;
-                else {SelAcnt++; nP->Lock();}
-            else     {SelRcnt++; nP->Lock();}
+          {if (isrw)
+              if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)  nP = 0;
+                 else {SelAcnt++; nP->Lock();}
+              else     {SelRcnt++; nP->Lock();}
+          }
       }
    STMutex.UnLock();
 
@@ -981,18 +984,18 @@ int XrdCmsCluster::Multiple(SMask_t mVec)
 //                                0 1 2 3 4 5 6 7 8 9 A B C D E F
    static const int isMult[16] = {0,0,0,1,0,1,1,1,0,1,1,1,1,1,1,1};
 
-   if (mVec & Left32)
-      if (mVec & Right32) return 1;
-         else mVec = mVec >> 32LL;
-   if (mVec & Left16)
-      if (mVec & Right16) return 1;
-         else mVec = mVec >> 16LL;
-   if (mVec & Left08)
-      if (mVec & Right08) return 1;
-         else mVec = mVec >>  8LL;
-   if (mVec & Left04)
-      if (mVec & Right04) return 1;
-         else mVec = mVec >>  4LL;
+   if (mVec & Left32) {if (mVec & Right32) return 1;
+                          else mVec = mVec >> 32LL;
+                      }
+   if (mVec & Left16) {if (mVec & Right16) return 1;
+                          else mVec = mVec >> 16LL;
+                      }
+   if (mVec & Left08) {if (mVec & Right08) return 1;
+                          else mVec = mVec >>  8LL;
+                      }
+   if (mVec & Left04) {if (mVec & Right04) return 1;
+                          else mVec = mVec >>  4LL;
+                      }
    return isMult[mVec];
 }
   

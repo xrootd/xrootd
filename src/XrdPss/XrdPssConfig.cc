@@ -281,15 +281,15 @@ int XrdPssSys::xmang(XrdSysError *errp, XrdOucStream &Config)
        else {*val = '\0'; val++;}
 
     if (val)
-       if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*errp,"manager port",val,&port,1,65535))
-               port = 0;
-           }
-           else if (!(port = XrdNetDNS::getPort(val, "tcp")))
-                   {errp->Emsg("Config", "unable to find tcp service", val);
-                    port = 0;
-                   }
-       else errp->Emsg("Config","manager port not specified for",mval);
+       {if (isdigit(*val))
+            {if (XrdOuca2x::a2i(*errp,"manager port",val,&port,1,65535))
+                port = 0;
+            }
+            else if (!(port = XrdNetDNS::getPort(val, "tcp")))
+                    {errp->Emsg("Config", "unable to find tcp service", val);
+                     port = 0;
+                    }
+       } else errp->Emsg("Config","manager port not specified for",mval);
 
     if (!port) {free(mval); return 1;}
 

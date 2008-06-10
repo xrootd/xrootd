@@ -1083,13 +1083,14 @@ int XrdOfs::chmod(const char             *path,    // In
 // Find out where we should chmod this file
 //
    if (Finder && Finder->isRemote())
-      if (fwdCHMOD.Cmd)
-         {char buff[8];
-          sprintf(buff, "%o", acc_mode);
-          if (Forward(retc, einfo, fwdCHMOD, path, buff, info)) return retc;
-         }
-      else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR|SFS_O_META)))
-              return fsError(einfo, retc);
+      {if (fwdCHMOD.Cmd)
+          {char buff[8];
+           sprintf(buff, "%o", acc_mode);
+           if (Forward(retc, einfo, fwdCHMOD, path, buff, info)) return retc;
+          }
+          else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR|SFS_O_META)))
+                  return fsError(einfo, retc);
+      }
 
 // Check if we should generate an event
 //
@@ -1223,7 +1224,7 @@ int XrdOfs::fsctl(const int               cmd,
           return fsError(einfo, retc);
        if ((retc = XrdOfsOss->Stat(args, &fstat)))
           return XrdOfsFS.Emsg(epname, einfo, retc, "locate", args);
-       rType[0] = (fstat.st_mode & S_IFBLK == S_IFBLK ? 's' : 'S');
+       rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
        rType[1] = (fstat.st_mode & S_IWUSR            ? 'w' : 'r');
        rType[2] = '\0';
        einfo.setErrInfo(locRlen+3, (const char **)Resp, 2);
@@ -1338,14 +1339,15 @@ int XrdOfs::mkdir(const char             *path,    // In
 // Find out where we should remove this file
 //
    if (Finder && Finder->isRemote())
-      if (fwdMKDIR.Cmd)
-         {char buff[8];
-          sprintf(buff, "%o", acc_mode);
-          if (Forward(retc, einfo, (mkpath ? fwdMKPATH:fwdMKDIR),
-                      path, buff, info)) return retc;
-         }
-         else if ((retc = Finder->Locate(einfo,path,LocOpts)))
-                 return fsError(einfo, retc);
+      {if (fwdMKDIR.Cmd)
+          {char buff[8];
+           sprintf(buff, "%o", acc_mode);
+           if (Forward(retc, einfo, (mkpath ? fwdMKPATH:fwdMKDIR),
+                       path, buff, info)) return retc;
+          }
+          else if ((retc = Finder->Locate(einfo,path,LocOpts)))
+                  return fsError(einfo, retc);
+      }
 
 // Perform the actual operation
 //
@@ -1490,12 +1492,13 @@ int XrdOfs::rename(const char             *old_name,  // In
 // Find out where we should rename this file
 //
    if (Finder && Finder->isRemote())
-      if (fwdMV.Cmd)
-         {if (Forward(retc, einfo, fwdMV, old_name, new_name, infoO, infoN))
-             return retc;
-         }
-         else if ((retc = Finder->Locate(einfo,old_name,SFS_O_RDWR|SFS_O_META)))
-                 return fsError(einfo, retc);
+      {if (fwdMV.Cmd)
+          {if (Forward(retc, einfo, fwdMV, old_name, new_name, infoO, infoN))
+              return retc;
+          }
+          else if ((retc = Finder->Locate(einfo,old_name,SFS_O_RDWR|SFS_O_META)))
+                  return fsError(einfo, retc);
+      }
 
 // Check if we should generate an event
 //
@@ -1641,13 +1644,14 @@ int XrdOfs::truncate(const char             *path,    // In
 // Find out where we should chmod this file
 //
    if (Finder && Finder->isRemote())
-      if (fwdTRUNC.Cmd)
-         {char xSz[32];
-          sprintf(xSz, "%lld", static_cast<long long>(Size));
-          if (Forward(retc, einfo, fwdTRUNC, path, xSz, info)) return retc;
-         }
-      else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR)))
-              return fsError(einfo, retc);
+      {if (fwdTRUNC.Cmd)
+          {char xSz[32];
+           sprintf(xSz, "%lld", static_cast<long long>(Size));
+           if (Forward(retc, einfo, fwdTRUNC, path, xSz, info)) return retc;
+          }
+          else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR)))
+                  return fsError(einfo, retc);
+      }
 
 // Check if we should generate an event
 //

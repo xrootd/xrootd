@@ -550,8 +550,9 @@ int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 // Get export lock option
 //
    if ((val = Config.GetWord()))
-      if (!strcmp("nolock", val)) popt = XROOTDXP_NOLK;
-         else if (strcmp("lock", val)) Config.RetToken();
+      {if (!strcmp("nolock", val)) popt = XROOTDXP_NOLK;
+          else if (strcmp("lock", val)) Config.RetToken();
+      }
 
 // Add path to configuration
 //
@@ -733,9 +734,10 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
         }
 
     if (val)
-       if (!strcmp("dest", val))
-          eDest.Emsg("Config", "Warning, a maximum of two dest values allowed.");
-          else eDest.Emsg("Config", "Warning, invalid monitor option", val);
+       {if (!strcmp("dest", val))
+           eDest.Emsg("Config", "Warning, a maximum of two dest values allowed.");
+           else eDest.Emsg("Config", "Warning, invalid monitor option", val);
+       }
 
 // Make sure dests differ
 //

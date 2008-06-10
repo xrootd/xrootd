@@ -154,8 +154,9 @@ void XrdCmsNode::setName(const char *Role, XrdLink *lnkp, int port)
    unsigned int hAddr= XrdNetDNS::IPAddr(&netaddr);
 
    if (myName)
-      if (!strcmp(myName, hname) && port == Port && hAddr == IPAddr) return;
-         else free(myName);
+      {if (!strcmp(myName, hname) && port == Port && hAddr == IPAddr) return;
+          else free(myName);
+      }
 
    IPAddr = hAddr;
    myName = strdup(hname);
@@ -505,12 +506,13 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // List the servers
 //
    if (!rc)
-      if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf,XrdCmsCluster::LS_IPV6)))
-         {Arg.Request.rrCode = kYR_error;
-          rc = kYR_ENOENT; Why = "none ";
-          bytes = strlcpy(Resp.outbuff, "No servers have the file",
-                         sizeof(Resp.outbuff)) + sizeof(Resp.Val) + 1;
-         } else rc = 0;
+      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf,XrdCmsCluster::LS_IPV6)))
+          {Arg.Request.rrCode = kYR_error;
+           rc = kYR_ENOENT; Why = "none ";
+           bytes = strlcpy(Resp.outbuff, "No servers have the file",
+                          sizeof(Resp.outbuff)) + sizeof(Resp.Val) + 1;
+          } else rc = 0;
+      }
 
 // Either prepare to send an error or format the result
 //
@@ -705,11 +707,12 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
        // Perform selection
        //
        if ((rc = Cluster.Select(Sel2)))
-          if (rc > 0) {Arg.waitVal = rc; return "!mv";}
-             else if (Sel2.Vec.hf)
-                    {Say.Emsg("do_Mv",Arg.Path2,"exists; mv failed for",Arg.Path);
-                     return "target file exists";
-                    }
+          {if (rc > 0) {Arg.waitVal = rc; return "!mv";}
+              else if (Sel2.Vec.hf)
+                     {Say.Emsg("do_Mv",Arg.Path2,"exists; mv failed for",Arg.Path);
+                      return "target file exists";
+                     }
+          }
        Cache.DelFile(Sel2, allNodes);
        Cache.DelFile(Sel1, allNodes);
        return 0;
@@ -833,10 +836,11 @@ const char *XrdCmsNode::do_PrepDel(XrdCmsRRData &Arg)
 // Cancel the request if applicable.
 //
    if (Config.DiskOK)
-      if (!Config.DiskSS) {DEBUGR("ignoring cancel prepare " <<Arg.Reqid);}
-         else {DEBUGR("canceling prepare " <<Arg.Reqid);
-               PrepQ.Del(Arg.Reqid);
-              }
+      {if (!Config.DiskSS) {DEBUGR("ignoring cancel prepare " <<Arg.Reqid);}
+          else {DEBUGR("canceling prepare " <<Arg.Reqid);
+                PrepQ.Del(Arg.Reqid);
+               }
+      }
   return 0;
 }
   
@@ -1621,14 +1625,16 @@ int XrdCmsNode::isOnline(char *path, int upt) // Static!!!
 //
    lclpath = path;
    if (Config.lcl_N2N)
-      if (Config.lcl_N2N->lfn2pfn(lclpath,lclbuff,sizeof(lclbuff))) return 0;
-         else lclpath = lclbuff;
+      {if (Config.lcl_N2N->lfn2pfn(lclpath,lclbuff,sizeof(lclbuff))) return 0;
+          else lclpath = lclbuff;
+      }
 
 // Do a stat
 //
    if (stat(lclpath, &buf))
-      if (Config.DiskSS && PrepQ.Exists(path)) return CmsHaveRequest::Pending;
-         else return 0;
+      {if (Config.DiskSS && PrepQ.Exists(path)) return CmsHaveRequest::Pending;
+          else return 0;
+      }
 
 // Update access time, if need be, if we are doing a state on a file
 //

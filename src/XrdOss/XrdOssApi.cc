@@ -89,9 +89,9 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char   *config_fn,
 
 // If no library has been specified, return the default object
 //
-   if (!OssLib)
-      if (myOssSys.Init(Logger, config_fn)) return 0;
-         else return (XrdOss *)&myOssSys;
+   if (!OssLib) {if (myOssSys.Init(Logger, config_fn)) return 0;
+                    else return (XrdOss *)&myOssSys;
+                }
 
 // Find the parms (ignore the constness of the variable)
 //
@@ -550,8 +550,9 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 // Check if this is a read/only filesystem
 //
    if ((Oflag & (O_WRONLY | O_RDWR)) && (popts & XRDEXP_NOTRW))
-      if (popts & XRDEXP_FORCERO) Oflag = O_RDONLY;
-         else return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8005,"open r/w",path);
+      {if (popts & XRDEXP_FORCERO) Oflag = O_RDONLY;
+          else return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8005,"open r/w",path);
+      }
 
 // If we can open the local copy. If not found, try to stage it in if possible.
 // Note that stage will regenerate the right local and remote paths.
@@ -897,9 +898,10 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
 //
     if (myfd >= 0)
        {if (myfd < XrdOssSS->FDFence)
-           if ((newfd = fcntl(myfd, F_DUPFD, XrdOssSS->FDFence)) < 0)
-              OssEroute.Emsg("XrdOssOpen_ufs",errno,"reloc FD",path);
-              else {close(myfd); myfd = newfd;}
+           {if ((newfd = fcntl(myfd, F_DUPFD, XrdOssSS->FDFence)) < 0)
+               OssEroute.Emsg("XrdOssOpen_ufs",errno,"reloc FD",path);
+               else {close(myfd); myfd = newfd;}
+           }
         fcntl(myfd, F_SETFD, FD_CLOEXEC);
 #ifdef XRDOSSCX
         // If the file is compressed get a CXFile object and attach the FD to it

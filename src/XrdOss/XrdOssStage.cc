@@ -245,10 +245,11 @@ int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env)
 // Calculate the user priority
 //
    if (OptFlags & XrdOss_USRPRTY)
-      if ((val = env.Get(OSS_USRPRTY))
-      && (XrdOuca2x::a2i(OssEroute,"user prty",val,&rc,0)
-          || rc > OSS_MAX_PRTY)) return -XRDOSS_E8010;
-         else prty |= rc;
+      {if ((val = env.Get(OSS_USRPRTY))
+       && (XrdOuca2x::a2i(OssEroute,"user prty",val,&rc,0)
+           || rc > OSS_MAX_PRTY)) return -XRDOSS_E8010;
+          else prty |= rc;
+      }
 
 // Queue the request at the right position and signal an xfr thread
 //
@@ -371,8 +372,9 @@ int XrdOssSys::CalcTime(XrdOssStage_Req *req) // StageMutex lock held!
 // If the request is active, recalculate the time based on previous estimate
 //
    if (req->flags & XRDOSS_REQ_ACTV) 
-      if ((xfrtime = req->sigtod - time(0)) > xfrovhd) return xfrtime;
-         else return (xfrovhd < 4 ? 2 : xfrovhd / 2);
+      {if ((xfrtime = req->sigtod - time(0)) > xfrovhd) return xfrtime;
+          else return (xfrovhd < 4 ? 2 : xfrovhd / 2);
+      }
 
 // Calculate the number of pending bytes being transfered plus 1/2 of the
 // current number of bytes being transfered

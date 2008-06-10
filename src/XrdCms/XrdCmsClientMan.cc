@@ -268,13 +268,14 @@ void XrdCmsClientMan::whatsUp(const char *user, const char *path)
 //
    myData.Lock();
    if (Active)
-      if (Active == RecvCnt)
-         {Silent++;
-          if (Silent > nrMax)
-             {Active = 0; Silent = 0; Suspend = 1;
-              if (Link) Link->Close(1);
-             } else if (Silent & 0x02 && repWait < repWMax) repWait++;
-         } else Active = RecvCnt;
+      {if (Active == RecvCnt)
+          {Silent++;
+           if (Silent > nrMax)
+              {Active = 0; Silent = 0; Suspend = 1;
+               if (Link) Link->Close(1);
+              } else if (Silent & 0x02 && repWait < repWMax) repWait++;
+          } else Active = RecvCnt;
+      }
    myData.UnLock();
 }
 

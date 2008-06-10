@@ -149,7 +149,7 @@ void XrdPollE::Disable(XrdLink *lp, const char *etxt)
 
 int XrdPollE::Enable(XrdLink *lp)
 {
-   struct epoll_event myEvents = {ePollEvents, (void *)lp};
+   struct epoll_event myEvents = {ePollEvents, {(void *)lp}};
 
 // Simply return if the link is already enabled
 //
@@ -190,7 +190,7 @@ void XrdPollE::Exclude(XrdLink *lp)
   
 int XrdPollE::Include(XrdLink *lp)
 {
-   struct epoll_event myEvent = {0, (void *)lp};
+   struct epoll_event myEvent = {0, {(void *)lp}};
    int rc;
 
 // Add this fd to the poll set

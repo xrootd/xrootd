@@ -303,9 +303,9 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 
 // If we are in independent mode then let the caller continue
 //
-   if (Config.doWait && Config.asServer() || Config.asSolo())
-      Say.Emsg(epname, "Waiting for primary server to login.");
-      else if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
+   if ((Config.doWait && Config.asServer()) || Config.asSolo())
+      {Say.Emsg(epname, "Waiting for primary server to login.");}
+       else if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
 
 // Accept connections in an endless loop
 //
@@ -445,10 +445,11 @@ void XrdCmsAdmin::do_RmDid(int isPfn)
 // If we have a pfn then we must get the lfn to inform our manager about the file
 //
    if (isPfn && Config.lcl_N2N)
-      if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
-         {Say.Emsg(epname, rc, "determine lfn for removed path", tp);
-          return;
-         } else tp = apath;
+      {if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
+          {Say.Emsg(epname, rc, "determine lfn for removed path", tp);
+           return;
+          } else tp = apath;
+      }
 
    DEBUG("sending managers gone " <<tp);
    Manager.Inform(kYR_gone, kYR_raw, tp, strlen(tp)+1);
@@ -470,10 +471,11 @@ void XrdCmsAdmin::do_RmDud(int isPfn)
       }
 
    if (isPfn && Config.lcl_N2N)
-      if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
-         {Say.Emsg(epname, rc, "determine lfn for added path", tp);
-          return;
-         } else tp = apath;
+      {if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
+          {Say.Emsg(epname, rc, "determine lfn for added path", tp);
+           return;
+          } else tp = apath;
+      }
 
    DEBUG("sending managers have online " <<tp);
    Manager.Inform(kYR_have, CmsHaveRequest::Online|kYR_raw, tp, strlen(tp)+1);

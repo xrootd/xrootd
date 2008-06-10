@@ -125,20 +125,21 @@ int XrdOssSys::Unlink(const char *path)
 // Delete the local copy and every valid suffix variation
 //
    if (!retc)
-      if (unlink(local_path)) retc = -errno;
-         else {i = strlen(local_path); fnp = &local_path[i];
-               if (doAdjust && statbuff.st_size)
-                  Adjust(statbuff.st_dev, -statbuff.st_size);
-               if (ismig) for (i = 0; sfx[i]; i++)
-                  {strcpy(fnp, sfx[i]);
-                   if (unlink(local_path))
-                      if (errno == ENOENT) continue;
-                         else retc2 = errno;
-                      else retc2 = 0;
-                   DEBUG("sfx retc=" <<retc2 <<' ' <<local_path);
-                  }
-              }
-      DEBUG("lcl rc=" <<retc <<" path=" <<local_path);
+      {if (unlink(local_path)) retc = -errno;
+          else {i = strlen(local_path); fnp = &local_path[i];
+                if (doAdjust && statbuff.st_size)
+                   Adjust(statbuff.st_dev, -statbuff.st_size);
+                if (ismig) for (i = 0; sfx[i]; i++)
+                   {strcpy(fnp, sfx[i]);
+                    if (unlink(local_path))
+                       if (errno == ENOENT) continue;
+                          else retc2 = errno;
+                       else retc2 = 0;
+                    DEBUG("sfx retc=" <<retc2 <<' ' <<local_path);
+                   }
+               }
+       DEBUG("lcl rc=" <<retc <<" path=" <<local_path);
+      }
 
 // If local copy effectively deleted. delete the remote copy if need be
 //

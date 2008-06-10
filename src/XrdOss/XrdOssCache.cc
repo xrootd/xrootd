@@ -113,8 +113,9 @@ XrdOssCache_FS::XrdOssCache_FS(int &retc,
 // If we didn't find the filesystem, then create one
 //
    if (!fdp)
-      if (!(fdp = new XrdOssCache_FSData(fsPath,fsbuff,sfbuff.st_dev))) return;
-         else {fdp->next = XrdOssSS->fsdata; XrdOssSS->fsdata = fdp;}
+      {if (!(fdp = new XrdOssCache_FSData(fsPath,fsbuff,sfbuff.st_dev))) return;
+          else {fdp->next = XrdOssSS->fsdata; XrdOssSS->fsdata = fdp;}
+      }
 
 // Complete the filesystem block (failure now is not an option)
 //

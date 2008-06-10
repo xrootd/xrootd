@@ -635,8 +635,9 @@ int XrdConfig::Setup(char *dfltp)
 // Determine the default port number (only for xrootd) if not specified.
 //
    if (PortTCP < 0)  
-      if ((PortTCP = XrdNetDNS::getPort(dfltp, "tcp"))) PortUDP = PortTCP;
-         else PortTCP = -1;
+      {if ((PortTCP = XrdNetDNS::getPort(dfltp, "tcp"))) PortUDP = PortTCP;
+          else PortTCP = -1;
+      }
 
 // We now go through all of the protocols and get each respective port
 // number and arrange them in descending port number order.
@@ -814,10 +815,11 @@ int XrdConfig::xapath(XrdSysError *eDest, XrdOucStream &Config)
 // Get the optional access rights
 //
    if ((val = Config.GetWord()) && val[0])
-      if (!strcmp("group", val)) mode |= S_IRWXG;
-         else {eDest->Emsg("Config", "invalid admin path modifier -", val);
-               return 1;
-              }
+      {if (!strcmp("group", val)) mode |= S_IRWXG;
+          else {eDest->Emsg("Config", "invalid admin path modifier -", val);
+                return 1;
+               }
+      }
    AdminMode = ProtInfo.AdmMode = mode;
    return 0;
 }
@@ -1060,8 +1062,9 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
        else parms = 0;
 
     if ((val = index(proname, ':')))
-       if ((portnum = yport(&XrdLog, "tcp", val+1)) < 0) return 1;
-          else *val = '\0';
+       {if ((portnum = yport(&XrdLog, "tcp", val+1)) < 0) return 1;
+           else *val = '\0';
+       }
 
     if (wanopt && !PortWAN) PortWAN = 1;
 

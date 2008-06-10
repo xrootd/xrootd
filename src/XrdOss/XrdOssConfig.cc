@@ -631,12 +631,13 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
       // For queue-style staging, start the program that handles the queue
       //
          if (!NoGo)
-            if (StageRealTime)
-               {if ((numt = xfrthreads - xfrtcount) > 0) while(numt--)
-                    if ((retc = XrdSysThread::Run(&tid,XrdOssxfr,(void *)0,0,"staging")))
-                       Eroute.Emsg("Config", retc, "create staging thread");
-                       else xfrtcount++;
-               } else NoGo = StageProg->Start();
+            {if (StageRealTime)
+                {if ((numt = xfrthreads - xfrtcount) > 0) while(numt--)
+                     if ((retc = XrdSysThread::Run(&tid,XrdOssxfr,(void *)0,0,"staging")))
+                        Eroute.Emsg("Config", retc, "create staging thread");
+                        else xfrtcount++;
+                } else NoGo = StageProg->Start();
+            }
 
       // Set up the event path
       //
@@ -891,9 +892,10 @@ int XrdOssSys::xcache(XrdOucStream &Config, XrdSysError &Eroute)
     strcpy(fn, val);
 
     if ((val = Config.GetWord()))
-       if (strcmp("xa", val))
-          {Eroute.Emsg("Config","invalid cache option - ",val); return 1;}
-          else isxa = 1;
+       {if (strcmp("xa", val))
+           {Eroute.Emsg("Config","invalid cache option - ",val); return 1;}
+           else isxa = 1;
+       }
 
     if (fn[k-1] != '*')
        {for (i = k-1; i; i--) if (fn[i] != '/') break;
@@ -1433,17 +1435,18 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdSysError &Eroute)
     while((val = Config.GetWord()))        // <threads> | keep
          {if (!strcmp("keep", val))
              {if ((val = Config.GetWord()))     // keep time
-                 if (XrdOuca2x::a2tm(Eroute,"xfr keep",val,&ktime,0)) return 1;
-                    else {xfrkeep=ktime; haveparm=1;}
+                 {if (XrdOuca2x::a2tm(Eroute,"xfr keep",val,&ktime,0)) return 1;
+                     else {xfrkeep=ktime; haveparm=1;}
+                 }
              }
              else break;
          };
 
-    if (!val)
-       if (haveparm) return 0;
-          else {Eroute.Emsg("Config", "xfr parameter not specified");
-                return 1;
-               }
+    if (!val) {if (haveparm) return 0;
+                  else {Eroute.Emsg("Config", "xfr parameter not specified");
+                        return 1;
+                       }
+              }
 
       if (strcmp(val, "*") && XrdOuca2x::a2i(Eroute,"xfr threads",val,&thrds,1))
          return 1;

@@ -218,13 +218,14 @@ unsigned char XrdCmsState::Status(int Changes, int theState)
 // Check for staging changes
 //
    if (Changes & All_NoStage)
-      if (theState & All_NoStage)
-         {rrModifier |= CmsStatusRequest::kYR_noStage;
-          SNstate = "+ nostaging";
-         } else {
-          rrModifier |= CmsStatusRequest::kYR_Stage;
-          SNstate = "+ staging";
-         }
+      {if (theState & All_NoStage)
+          {rrModifier |= CmsStatusRequest::kYR_noStage;
+           SNstate = "+ nostaging";
+          } else {
+           rrModifier |= CmsStatusRequest::kYR_Stage;
+           SNstate = "+ staging";
+          }
+      }
 
 // Report and return status
 //
