@@ -67,7 +67,7 @@ inline  NodeMethod_t getMethod(int Code)
 
 inline  const char  *getName(int Code)
                             {return Code < XrdCms::kYR_MaxReq || !nameVec[Code]
-                                         ? nameVec[(XrdCms::CmsReqCode)Code] : "?";
+                                         ? nameVec[Code] : "?";
                             }
 
               XrdCmsRouter(theRoute *initP)
@@ -80,7 +80,7 @@ inline  const char  *getName(int Code)
 
 private:
 
-const  char         *nameVec [XrdCms::kYR_MaxReq];
+const  char         *nameVec [static_cast<int>(XrdCms::kYR_MaxReq)];
        NodeMethod_t  methVec [XrdCms::kYR_MaxReq];
 };
 
