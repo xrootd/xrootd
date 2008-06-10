@@ -65,8 +65,8 @@ public:
     XrdClientSock(XrdClientUrlInfo host, int windowsize = 0);
     virtual ~XrdClientSock();
 
-    virtual void BanSockDescr(Sockdescr s, Sockid id) {}
-    virtual void UnBanSockDescr(Sockdescr s) { }
+    virtual void BanSockDescr(Sockdescr, Sockid) {}
+    virtual void UnBanSockDescr(Sockdescr) { }
 
     // Makes a pending recvraw to rebuild the list of interesting selectors
     void           ReinitFDTable() { fReinit_fd = true; }
