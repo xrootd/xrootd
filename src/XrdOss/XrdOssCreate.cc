@@ -246,8 +246,8 @@ int XrdOssSys::Alloc_Cache(const char *path, int Oflag, mode_t amode,
        else  if (!fuzz) {if (curfree > maxfree) 
                                  {fsp_sel = fsp; maxfree = curfree;}}
        else {diffree = (!(curfree + maxfree) ? 0.0
-                     : static_cast<double>(llabs(maxfree - curfree)) /
-                       static_cast<double>(      maxfree + curfree));
+                     : static_cast<double>(std::llabs(maxfree - curfree)) /
+                       static_cast<double>(           maxfree + curfree));
              if (diffree > fuzz) {fsp_sel = fsp; maxfree = curfree;}
             }
       } while((fsp = fsp->next) != fspend);

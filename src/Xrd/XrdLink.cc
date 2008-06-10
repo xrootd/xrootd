@@ -721,7 +721,7 @@ int XrdLink::Send(const struct sfVec *sfP, int sfN)
 #elif defined(__linux__)
 
    static const int setON = 1, setOFF = 0;
-   ssize_t retc, bytesleft;
+   ssize_t retc = 0, bytesleft;
    off_t myOffset;
    int i, xfrbytes = 0, uncork = 1;
 
@@ -778,7 +778,7 @@ int XrdLink::Send(const struct sfVec *sfP, int sfN)
   
 int XrdLink::sendData(const char *Buff, int Blen)
 {
-   ssize_t retc, bytesleft = Blen;
+   ssize_t retc = 0, bytesleft = Blen;
 
 // Write the data out
 //

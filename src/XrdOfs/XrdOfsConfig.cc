@@ -622,7 +622,6 @@ int XrdOfs::xnmsg(XrdOucStream &Config, XrdSysError &Eroute)
    //
    if (!(val = Config.GetWord()))
       {Eroute.Emsg("Config", "notifymsg event not specified");
-       Config.SetEnv(myEnv);
        return 1;
       }
 
