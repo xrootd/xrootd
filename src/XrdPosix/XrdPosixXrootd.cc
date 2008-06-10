@@ -328,9 +328,16 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
           {"XRDPOSIX_POPEN",       "",                        &pllOpen},
           {"XRDPOSIX_RASZ",        NAME_READAHEADSIZE,        0},
           {"XRDPOSIX_RCSZ",        NAME_READCACHESIZE,        0},
+          {"XRDPOSIX_RCRP",        NAME_READCACHEBLKREMPOLICY,0},
+          {"XRDPOSIX_RCUP",        NAME_REMUSEDCACHEBLKS,     0},
           {"XRDPOSIX_RDTTL",       NAME_LBSERVERCONN_TTL,     0},
           {"XRDPOSIX_RTO",         NAME_REQUESTTIMEOUT,       0},
-          {"XRDPSOIX_PSPC",        NAME_MULTISTREAMCNT,       0}
+          {"XRDPSOIX_PSPC",        NAME_MULTISTREAMCNT,       0},
+          {"XRDPSOIX_CTO",         NAME_CONNECTTIMEOUT,       0},
+          {"XRDPSOIX_CTOWAN",      NAME_CONNECTTIMEOUTWAN,    0},
+          {"XRDPSOIX_CRDELAY",     NAME_RECONNECTTIMEOUT,     0},
+          {"XRDPSOIX_CRETRY",      NAME_FIRSTCONNECTMAXCNT,   0},
+          {"XRDPSOIX_TCPWSZ",      NAME_DFLTTCPWINDOWSIZE,    0}
           };
    int    Posix_Num = sizeof(Posix_Env)/sizeof(XrdPosix_Env);
    struct rlimit rlim;
