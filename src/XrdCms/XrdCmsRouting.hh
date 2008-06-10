@@ -80,7 +80,7 @@ inline  const char  *getName(int Code)
 
 private:
 
-const  char         *nameVec [static_cast<int>(XrdCms::kYR_MaxReq)];
+const  char         *nameVec [XrdCms::kYR_MaxReq];
        NodeMethod_t  methVec [XrdCms::kYR_MaxReq];
 };
 
