@@ -66,7 +66,7 @@ T *XrdOucHash<T>::Add(const char *KeyVal, T *KeyData, const int LifeTime,
        } else {
        // Check if we should expand the table
        //
-       if (++hashnum > hashmax) {Expand(); hent = khash % hashtablesize;}
+       if (hashnum >= hashmax) {Expand(); hent = khash % hashtablesize;}
        }
 
     // Add the entry
@@ -75,6 +75,7 @@ T *XrdOucHash<T>::Add(const char *KeyVal, T *KeyData, const int LifeTime,
     if ( !(newhip = new XrdOucHash_Item<T>(khash, KeyVal, KeyData, KeyTime, 
                              hashtable[hent], opt)) ) throw ENOMEM;
     hashtable[hent] = newhip;
+    hashnum++;
     return (T *)0;
 }
 
