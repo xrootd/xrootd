@@ -160,6 +160,8 @@ int            XrdPosixXrootd::lastDir  = -1;
 int            XrdPosixXrootd::devNull  = -1;
 int            XrdPosixXrootd::pllOpen  =  0;
 int            XrdPosixXrootd::Debug    = -2;
+
+XrdPosixXrootd XrdPosixXrootd;
   
 /******************************************************************************/
 /*                X r d P o s i x A d m i n N e w   C l a s s                 */
