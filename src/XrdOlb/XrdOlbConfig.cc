@@ -214,7 +214,7 @@ int XrdOlbConfig::Configure1(int argc, char **argv, char *cfn)
 // Bail if no configuration file specified
 //
    inArgv = argv; inArgc = argc;
-   if (!((ConfigFN = cfn) && !(ConfigFN = getenv("XrdOlbCONFIGFN"))) || !*ConfigFN)
+   if ((!(ConfigFN = cfn) && !(ConfigFN = getenv("XrdOlbCONFIGFN"))) || !*ConfigFN)
       {Say.Emsg("Config", "Required config file not specified.");
        Usage(1);
       }
