@@ -14,7 +14,7 @@ xrootdsysinc_HEADERS = \
      XrdSysDir.hh    XrdSysLogger.hh    XrdSysPlugin.hh \
      XrdSysPthread.hh  XrdSysTimer.hh   XrdWin32.hh \
      XrdSysError.hh  XrdSysPlatform.hh  XrdSysPriv.hh \
-     XrdSysSemWait.hh  XrdSysXSLock.hh
+     XrdSysSemWait.hh  XrdSysXSLock.hh  XrdSysHeaders.hh
 
 lib_LTLIBRARIES = libXrdSys.la
 
