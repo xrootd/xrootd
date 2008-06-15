@@ -1392,6 +1392,7 @@ XReqErrorType XrdClient::Read_Async(long long offset, int len) {
 
     if (fUseCache)
 	fConnModule->SubmitPlaceholderToCache(offset, offset+len-1);
+    else return kOK;
 
     // Prepare request
     ClientRequest readFileRequest;
