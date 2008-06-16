@@ -55,16 +55,16 @@ extern "C" {
     !defined(__OpenBSD__)
 static int setresgid(gid_t r, gid_t e, gid_t)
 {
-   if (setgid(r) == -1)
+   if (r != NOGC && setgid(r) == -1)
       return XSPERR(errno);
-   return setegid(e);
+   return ((e != NOGC) ? setegid(e) : 0);
 }
 
 static int setresuid(uid_t r, uid_t e, uid_t)
 {
-   if (setuid(r) == -1)
+   if (r != NOUC && setuid(r) == -1)
       return XSPERR(errno);
-   return seteuid(e);
+   return ((e != NOUC) ? seteuid(e) : 0);
 }
 
 static int getresgid(gid_t *r, gid_t *e, gid_t *)
@@ -184,7 +184,7 @@ int XrdSysPriv::ChangeTo(uid_t newuid, gid_t newgid)
          return XSPERR(errno);
 
       // Make sure the new effective GID is the one wanted
-      if (egid != newgid || sgid != oegid)
+      if (egid != newgid)
          return XSPERR(errno);
    }
 
@@ -201,7 +201,7 @@ int XrdSysPriv::ChangeTo(uid_t newuid, gid_t newgid)
          return XSPERR(errno);
 
       // Make sure the new effective UID is the one wanted
-      if (euid != newuid || suid != oeuid)
+      if (euid != newuid)
          return XSPERR(errno);
    }
 
@@ -253,7 +253,7 @@ int XrdSysPriv::ChangePerm(uid_t newuid, gid_t newgid)
          return XSPERR(errno);
       }
       // Make sure the new GIDs are all equal to the one asked
-      if (rgid != newgid || egid != newgid || sgid != newgid) {
+      if (rgid != newgid || egid != newgid) {
          XrdSysPriv::fgMutex.UnLock();
          return XSPERR(errno);
       }
@@ -274,7 +274,7 @@ int XrdSysPriv::ChangePerm(uid_t newuid, gid_t newgid)
          return XSPERR(errno);
       }
       // Make sure the new UIDs are all equal to the one asked 
-      if (ruid != newuid || euid != newuid || suid != newuid) {
+      if (ruid != newuid || euid != newuid) {
          XrdSysPriv::fgMutex.UnLock();
          return XSPERR(errno);
       }
