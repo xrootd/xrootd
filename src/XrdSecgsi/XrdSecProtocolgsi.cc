@@ -23,6 +23,7 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
+#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPriv.hh"
 #include <XrdOuc/XrdOucStream.hh>
 
@@ -115,6 +116,7 @@ String XrdSecProtocolgsi::DefCipher= "aes-128-cbc:bf-cbc:des-ede3-cbc";
 String XrdSecProtocolgsi::DefMD    = "sha1:md5";
 String XrdSecProtocolgsi::DefError = "invalid credentials ";
 int    XrdSecProtocolgsi::PxyReqOpts = 0;
+XrdSecgsiGMAP_t XrdSecProtocolgsi::GMAPFun = 0;
 //
 // Crypto related info
 int  XrdSecProtocolgsi::ncrypt    = 0;                 // Number of factories
@@ -128,6 +130,7 @@ XrdSutCache XrdSecProtocolgsi::cacheCA;   // CA info
 XrdSutCache XrdSecProtocolgsi::cacheCert; // Server certificates info
 XrdSutCache XrdSecProtocolgsi::cachePxy;  // Client proxies
 XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
+XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
 //
 // Running options / settings
 int  XrdSecProtocolgsi::Debug       = 0; // [CS] Debug level
@@ -689,6 +692,27 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          }
          if (QTRACE(Authen)) { cacheGMAP.Dump(); }
       }
+      //
+      // Load function be used to map DN to usernames, if specified
+      if (opt.gmapfun && GMAPOpt > 0) {
+         if (!(GMAPFun = LoadGMAPFun((const char *) opt.gmapfun))) {
+            PRINT("Could not load plug-in: "<<opt.gmapfun<<": ignore");
+         } else {
+            // Init or reset the cache
+            if (cacheGMAPFun.Empty()) {
+               if (cacheGMAPFun.Init(100) != 0) {
+                  PRINT("error initializing cache");
+                  return Parms;
+               }
+            } else {
+               if (cacheGMAPFun.Reset() != 0) {
+                  PRINT("error resetting cache");
+                  return Parms;
+               }
+            }
+         }
+      }
+
       //
       // Request for delegated proxies
       if (opt.dlgpxy == 1 || opt.dlgpxy == 3)
@@ -1474,7 +1498,6 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       kS_rc = kgST_ok;
       nextstep = kXGS_none;
 
-      // we set the client name
       if (GMAPOpt > 0) {
          // Get name from gridmap
          char *name = QueryGMAP(hs->Chain->EECname(), hs->TimeStamp);
@@ -1752,6 +1775,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-ca:<crl_verification_level>]
       //              [-crl:<crl_check_level>]
       //              [-gridmap:<grid_map_file>]
+      //              [-gmapfun:<grid_map_function>]
       //              [-gmapopt:<grid_map_check_option>]
       //              [-dlgpxy:<proxy_req_option>]
       //
@@ -1765,6 +1789,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       String cipher = "";
       String md = "";
       String gridmap = "";
+      String gmapfun = "";
       int ca = 1;
       int crl = 1;
       int ogmap = 1;
@@ -1798,6 +1823,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                ogmap = atoi(op+9);
             } else if (!strncmp(op, "-gridmap:",9)) {
                gridmap = (const char *)(op+9);
+            } else if (!strncmp(op, "-gmapfun:",9)) {
+               gmapfun = (const char *)(op+9);
             } else if (!strncmp(op, "-dlgpxy:",8)) {
                dlgpxy = atoi(op+8);
             }
@@ -1830,6 +1857,8 @@ char *XrdSecProtocolgsiInit(const char mode,
          opts.md = (char *)md.c_str();
       if (gridmap.length() > 0)
          opts.gridmap = (char *)gridmap.c_str();
+      if (gmapfun.length() > 0)
+         opts.gmapfun = (char *)gmapfun.c_str();
       //
       // Setup the plug-in with the chosen options
       return XrdSecProtocolgsi::Init(opts,erp);
@@ -3974,16 +4003,69 @@ char *XrdSecProtocolgsi::QueryGMAP(const char *dn, int now)
    // since last check
    EPNAME("QueryGMAP");
 
-   if (LoadGMAP(now) != 0) {
-      DEBUG("error loading/ refreshing grid map file");
-      return (char *)0;
+   XrdSutPFEntry *cent = 0;
+   // We set the client name from the map function first, if any
+   if (GMAPFun) {
+      // We may have it in the cache
+      if (!(cent = cacheGMAPFun.Get(dn))) {
+         char *name = 0;
+         if ((*GMAPFun)(dn, now, &name) == 0) {
+            cent = cacheGMAPFun.Add(dn);
+            if (cent) {
+               cent->status = kPFE_ok;
+               cent->cnt = 0;
+               cent->mtime = now; // creation time
+               // Add username
+               SafeFree(cent->buf1.buf);
+               cent->buf1.buf = name;
+               cent->buf1.len = strlen(name);
+               // Rehash cache
+               cacheGMAPFun.Rehash(1);
+            }
+         }
+      }
    }
 
-   // Lookup for 'dn' in the cache
-   XrdSutPFEntry *cent = cacheGMAP.Get(dn);
-   if (cent)
-      return (char *)(cent->buf1.buf);
+   // Try also the map file, if any
+   if (!cent) {
+      if (LoadGMAP(now) != 0) {
+         DEBUG("error loading/ refreshing grid map file");
+         return (char *)0;
+      }
 
-   // Nothing found
-   return (char *)0;
+      // Lookup for 'dn' in the cache
+      cent = cacheGMAP.Get(dn);
+   }
+
+   // Done
+   return ((cent) ? (char *)(cent->buf1.buf) : (char *)0);
+}
+
+//_____________________________________________________________________________
+XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin)
+{
+   // Load the DN-Username mapping function from the specified plug-in
+   EPNAME("LoadGMAPFun");
+
+   // Make sure the input config file is defined
+   if (!plugin || strlen(plugin) <= 0) {
+      PRINT("plug-in file undefined");
+      return (XrdSecgsiGMAP_t)0;
+   }
+
+   // Create the plug-in instance
+   XrdSysPlugin pin(&XrdSecProtocolgsi::eDest, plugin);
+
+   // Get the function
+   XrdSecgsiGMAP_t ep = 0;
+   if (!(ep = (XrdSecgsiGMAP_t) pin.getPlugin("XrdSecgsiGMAPFun"))) {
+      PRINT("could not find 'XrdSecgsiGMAPFun()' in "<<plugin);
+      return (XrdSecgsiGMAP_t)0;
+   }
+
+   // Notify
+   PRINT("using 'XrdSecgsiGMAPFun()' from "<<plugin);
+
+   // Done
+   return ep;
 }

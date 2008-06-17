@@ -24,6 +24,10 @@ libXrdSecgsi_la_LIBADD = ../XrdCrypto/libXrdCrypto.la
 # following line disabled. Look for reason in XrdSec/Makefile.am
 #libXrdSecgsi_la_LIBTOOLFLAGS = --tag=disable-static
 
+# GridMAP function looking up an LDAP database
+libXrdSecgsiGMAPLADP_la_SOURCES = XrdSecgsiGMAPFunLDAP.cc
+libXrdSecgsiGMAPLADP_la_LDFLAGS = -module
+
 xrdgsiproxy_SOURCES = XrdSecgsiProxy.cc
 xrdgsiproxy_LDFLAGS =  -static
 xrdgsiproxy_LDADD = libXrdSecgsi.la \

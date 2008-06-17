@@ -54,7 +54,8 @@ endif
 SOURCES = \
         XrdSecProtocolgsi.cc \
         XrdSecgsiProxy.cc \
-	XrdSecgsitest.cc
+        XrdSecgsitest.cc \
+        XrdSecgsiGMAPFunLDAP.cc
 
 HEADERS = \
         XrdSecProtocolgsi.hh
@@ -68,15 +69,20 @@ OBJECTA = \
 OBJECTB = \
         $(OBJDIR)/XrdSecgsiProxy.o
 
+OBJECTC = \
+        $(OBJDIR)/XrdSecgsiGMAPFunLDAP.o
+
 GSIEXTRACFLAGS = $(INCSSL) -DPERL5 $(CRYPTOSSLEXTRACFLAGS)
 
 LIBRARY = $(LIBDIR)/libXrdSecgsi.$(TYPESHLIB)
+
+LIBLDAP = $(LIBDIR)/libXrdSecgsiGMAPLDAP.$(TYPESHLIB)
 
 SECGSITEST = $(BINDIR)/xrdsecgsitest
 
 SECGSIPROXY = $(BINDIR)/xrdgsiproxy
 
-TARGETS = $(LIBRARY) $(SECGSIPROXY)
+TARGETS = $(LIBRARY) $(LIBLDAP) $(SECGSIPROXY)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
@@ -106,6 +112,10 @@ anything: $(TARGETS)
 $(LIBRARY): $(OBJECTS) $(LIBDEPS)
 	@echo Creating shared library $(LIBRARY) 
 	$(ECHO)$(LD) $(OBJECTS) $(LDSO) $(LIBLIBS) $(LIBS) -o $(LIBRARY)
+
+$(LIBLDAP): $(OBJECTC)
+	@echo Creating shared library $(LIBLDAP) 
+	$(ECHO)$(LD) $(OBJECTC) $(LDSO) $(LIBS) -o $(LIBLDAP)
 
 $(SECGSITEST): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SECGSITEST) 
@@ -146,3 +156,8 @@ $(OBJDIR)/XrdSecProtocolgsi.o: XrdSecProtocolgsi.cc XrdSysLogger.hh \
 		XrdSutRndm.hh XrdCryptoCipher.hh XrdCryptoFactory.hh
 	@echo Compiling XrdSecProtocolgsi.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(GSIEXTRACFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolgsi.o XrdSecProtocolgsi.cc
+
+$(OBJDIR)/XrdSecgsiGMAPFunLDAP.o: XrdSecgsiGMAPFunLDAP.cc
+	@echo Compiling XrdSecgsiGMAPFunLDAP.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsiGMAPFunLDAP.o XrdSecgsiGMAPFunLDAP.cc
+
