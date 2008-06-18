@@ -102,19 +102,22 @@ XrdCmsCluster::XrdCmsCluster()
 /*                                   A d d                                    */
 /******************************************************************************/
   
-XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
-                               int port,  int Status,
+XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
                                int sport, const char *theNID)
 {
    EPNAME("Add")
-    sockaddr InetAddr;
-    const char *act = "";
-    const char *hnp = lp->Name(&InetAddr);
-    unsigned int ipaddr = XrdNetDNS::IPAddr(&InetAddr);
-    XrdCmsNode *nP = 0;
-    int Slot, Free = -1, Bump1 = -1, Bump2 = -1, Bump3 = -1;
-    int tmp, Special = (Status & (CMS_isMan|CMS_isPeer));
-    XrdSysMutexHelper STMHelper(STMutex);
+   sockaddr InetAddr;
+   const char *act = "";
+   unsigned int ipaddr;
+   XrdCmsNode *nP = 0;
+   int Slot, Free = -1, Bump1 = -1, Bump2 = -1, Bump3 = -1;
+   int tmp, Special = (Status & (CMS_isMan|CMS_isPeer));
+   XrdSysMutexHelper STMHelper(STMutex);
+
+// Establish our IP address
+//
+   lp->Name(&InetAddr);
+   ipaddr = XrdNetDNS::IPAddr(&InetAddr);
 
 // Find available slot for this node. Here are the priorities:
 // Slot  = Reconnecting node
@@ -139,7 +142,7 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
 //
    if (Slot < STMax)
       {if (NodeTab[Slot] && NodeTab[Slot]->isBound)
-          {Say.Emsg("Cluster", Role, hnp, "already logged in.");
+          {Say.Emsg("Cluster", lp->ID, "already logged in.");
            return 0;
           } else { // Rehook node to previous unconnected entry
            nP = NodeTab[Slot];
@@ -148,7 +151,7 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
            nP->isConn    = 1;
            nP->PingPong  = 1;
            nP->Instance++;
-           nP->setName(Role, lp, port);  // Just in case it changed
+           nP->setName(lp, port);  // Just in case it changed
            act = "Re-added ";
           }
       }
@@ -160,22 +163,22 @@ XrdCmsNode *XrdCmsCluster::Add(const char *Role, XrdLink *lp,
           else {if (Bump1 >= 0) Slot = Bump1;
                    else Slot = (Bump2 >= 0 ? Bump2 : Bump3);
                 if (Slot < 0)
-                   {if (Status & CMS_isPeer) Say.Emsg("Cluster", "Add peer", hnp,
+                   {if (Status & CMS_isPeer) Say.Emsg("Cluster", "Add peer", lp->ID,
                                                 "failed; too many subscribers.");
                        else {sendAList(lp);
-                             DEBUG(hnp <<" redirected; too many subscribers.");
+                             DEBUG(lp->ID <<" redirected; too many subscribers.");
                             }
                     return 0;
                    }
 
                 if (NodeTab[Slot] && !(Status & CMS_isPeer)) sendAList(lp);
 
-                DEBUG(hnp << " bumps " << NodeTab[Slot]->Ident <<" #" <<Slot);
+                DEBUG(lp->ID << " bumps " << NodeTab[Slot]->Ident <<" #" <<Slot);
                 NodeTab[Slot]->Lock();
                 Remove("redirected", NodeTab[Slot], -1);
                 act = "Shoved ";
                }
-       NodeTab[Slot] = nP = new XrdCmsNode(Role, lp, port, theNID, 0, Slot);
+       NodeTab[Slot] = nP = new XrdCmsNode(lp, port, theNID, 0, Slot);
       }
 
 // Indicate whether this snode can be redirected

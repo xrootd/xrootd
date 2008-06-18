@@ -269,7 +269,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    loginData.tSpace= Meter.TotalSpace(loginData.mSpace);
 
    loginData.Version = kYR_Version; // These to keep compiler happy
-   loginData.HoldTime= 0;
+   loginData.HoldTime= static_cast<int>(getpid());
    loginData.Mode    = 0;
    loginData.Size    = 0;
 
@@ -435,15 +435,11 @@ int XrdCmsProtocol::Process(XrdLink *lp)
 
 void XrdCmsProtocol::Recycle(XrdLink *lp, int consec, const char *reason)
 {
-   char theBuff[280];
-
-   sprintf(theBuff, "%s %s", myRole, lp->Name());
-
    if (loggedIn) 
-      if (reason) Say.Emsg("Protocol", theBuff, "logged out;",   reason);
-         else     Say.Emsg("Protocol", theBuff, "logged out.");
+      if (reason) Say.Emsg("Protocol", lp->ID, "logged out;",   reason);
+         else     Say.Emsg("Protocol", lp->ID, "logged out.");
       else     
-      if (reason) Say.Emsg("Protocol", theBuff, "login failed;", reason);
+      if (reason) Say.Emsg("Protocol", lp->ID, "login failed;", reason);
 
    ProtMutex.Lock();
    ProtLink  = ProtStack;
@@ -485,7 +481,9 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 // Handle Redirectors here (minimal stuff to do)
 //
    if (Data.Mode & CmsLoginData::kYR_director) 
-      return Admit_Redirector(wasSuspended);
+      {Link->setID("redirector", Data.HoldTime);
+       return Admit_Redirector(wasSuspended);
+      }
 
 // Disallow subscriptions we are are configured as a solo manager
 //
@@ -502,13 +500,17 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
            }
    else if ((isServ =  Data.Mode & CmsLoginData::kYR_server))
             if ((isProxy=  Data.Mode & CmsLoginData::kYR_proxy))
-               {Status = CMS_isProxy; myRole = "proxy server";}
+               {Status = CMS_isProxy; myRole = "proxy_srvr";}
                else                   myRole = "server";
    else if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
            {Status |= CMS_isPeer;
-            myRole = (CmsLoginData::kYR_proxy ? "peer" : "peer proxy");
+            myRole = (CmsLoginData::kYR_proxy ? "peer" : "peer_proxy");
            }
    else    return Login_Failed("invalid login role");
+
+// Set the link identification
+//
+   Link->setID(myRole, Data.HoldTime);
 
 // Make sure that our role is compatible with the incomming role
 //
@@ -539,7 +541,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 // Add the node. The resulting node object will be locked and the caller will
 // unlock it prior to dispatching.
 //
-   if (!(myNode = Cluster.Add(myRole, Link, Data.dPort, Status, Data.sPort,
+   if (!(myNode = Cluster.Add(Link, Data.dPort, Status, Data.sPort,
                               (const char *)Data.SID)))
       return (XrdCmsRouting *)0;
 
@@ -618,7 +620,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit_Redirector(int wasSuspended)
 // Director logins have no additional parameters. We return with the node object
 // locked to be consistent with the way server/suprvisors nodes are returned.
 //
-   myNode = new XrdCmsNode(myRole, Link); myNode->Lock();
+   myNode = new XrdCmsNode(Link); myNode->Lock();
    if (!(RSlot = RTable.Add(myNode)))
       {Say.Emsg("Protocol",myNode->Ident,"login failed; too many redirectors.");
        return 0;

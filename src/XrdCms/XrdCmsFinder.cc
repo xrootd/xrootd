@@ -352,7 +352,7 @@ int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
        DEBUG("Finder: Failed to send prepare cancel to " 
              <<Manp->Name() <<" reqid=" <<pargs.reqid);
        Resp.setErrInfo(RepDelay, "");
-       return ConWait;
+       return RepDelay;
       }
 
 // Set prepadd options
@@ -514,9 +514,9 @@ int XrdCmsFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
 //
    if (!Manp->Send(xmsg, xnum) || (mp->Wait4Reply(Manp->waitTime())))
       {mp->Recycle();
-       Manp->whatsUp(Resp.getErrUser(), path);
-       Resp.setErrInfo(RepDelay, "");
-       return RepDelay;
+       retc = Manp->whatsUp(Resp.getErrUser(), path);
+       Resp.setErrInfo(retc, "");
+       return retc;
       }
 
 // A reply was received; process as appropriate
@@ -561,7 +561,7 @@ int XrdCmsFinderRMT::StartManagers(XrdOucTList *myManList)
 //
    tp = myManList;
    while(tp && i < MaxMan)
-        {mp = new XrdCmsClientMan(tp->text, tp->val, ConWait, RepNone, RepWait);
+        {mp = new XrdCmsClientMan(tp->text,tp->val,ConWait,RepNone,RepWait,RepDelay);
          myManTable[i] = mp;
          if (myManagers) mp->setNext(myManagers);
             else firstone = mp;

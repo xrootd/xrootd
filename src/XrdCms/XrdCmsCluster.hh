@@ -85,7 +85,7 @@ int             NodeCnt;       // Number of active nodes
 
 // Called to add a new node to the cluster. Status values are defined above.
 //
-XrdCmsNode     *Add(const char *Role, XrdLink *lp, int dport, int Status,
+XrdCmsNode     *Add(XrdLink *lp, int dport, int Status,
                     int sport, const char *theNID);
 
 // Sends a message to all nodes matching smask (three forms for convenience)

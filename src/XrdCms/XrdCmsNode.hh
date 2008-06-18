@@ -117,14 +117,14 @@ inline int   Send(const char *buff, int blen=0)
 inline int   Send(const struct iovec *iov, int iovcnt, int iotot=0)
                  {return (isOffline ? -1 : Link->Send(iov, iovcnt, iotot));}
 
-       void  setName(const char *Role, XrdLink *lnkp, int port);
+       void  setName(XrdLink *lnkp, int port);
 
 inline void  setSlot(short rslot) {RSlot = rslot;}
 inline short getSlot() {return RSlot;}
 
        void  SyncSpace();
 
-             XrdCmsNode(const char *Role,  XrdLink *lnkp, int port=0,
+             XrdCmsNode(XrdLink *lnkp, int port=0,
                         const char *sid=0, int lvl=0, int id=-1);
             ~XrdCmsNode();
 

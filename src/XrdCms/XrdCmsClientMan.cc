@@ -53,7 +53,8 @@ XrdSysMutex   XrdCmsClientMan::manMutex;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdCmsClientMan::XrdCmsClientMan(char *host, int port, int cw, int nr, int rw)
+XrdCmsClientMan::XrdCmsClientMan(char *host, int port, 
+                                 int cw, int nr, int rw, int rd)
                 : syncResp(0)
 {
    static XrdSysMutex initMutex;
@@ -74,6 +75,8 @@ XrdCmsClientMan::XrdCmsClientMan(char *host, int port, int cw, int nr, int rw)
    NetBuff = BuffQ.Alloc();
    repWMax = rw;
    repWait = 0;
+   minDelay= rd;
+   maxDelay= rd*3;
    chkCount= chkVal;
    lastUpdt= time(0);
 
@@ -162,10 +165,11 @@ int XrdCmsClientMan::Send(char *msg, int mlen)
    if (Active)
       {myData.Lock();
        if (Link)
-          if (!(allok = Link->Send(msg, mlen) > 0))
-             {Active = 0;
-              Link->Close(1);
-             }
+          {if (!(allok = Link->Send(msg, mlen) > 0))
+              {Active = 0;
+               Link->Close(1);
+              } else SendCnt++;
+          }
        myData.UnLock();
       }
 
@@ -255,9 +259,10 @@ void *XrdCmsClientMan::Start()
 /*                               w h a t s U p                                */
 /******************************************************************************/
   
-void XrdCmsClientMan::whatsUp(const char *user, const char *path)
+int  XrdCmsClientMan::whatsUp(const char *user, const char *path)
 {
    EPNAME("whatsUp");
+   int theDelay;
 
 // Do Some tracing here
 //
@@ -276,7 +281,16 @@ void XrdCmsClientMan::whatsUp(const char *user, const char *path)
               } else if (Silent & 0x02 && repWait < repWMax) repWait++;
           } else Active = RecvCnt;
       }
+
+// Calclulate how long to delay the client. This will be based on the number
+// of outstanding requests bounded by the config delay value.
+//
+   theDelay = (SendCnt - RecvCnt) * qTime;
    myData.UnLock();
+   theDelay = theDelay/1000 + (theDelay % 1000 ? 1 : 0);
+   if (theDelay < minDelay) return minDelay;
+   if (theDelay > maxDelay) return maxDelay;
+   return theDelay;
 }
 
 /******************************************************************************/
@@ -288,6 +302,7 @@ void XrdCmsClientMan::whatsUp(const char *user, const char *path)
   
 int XrdCmsClientMan::Hookup()
 {
+   EPNAME("Hookup");
    static int oldVersion = 0, newVersion = 0;
 
    CmsLoginData Data;
@@ -313,6 +328,7 @@ int XrdCmsClientMan::Hookup()
             }
        memset(&Data, 0, sizeof(Data));
        Data.Mode = CmsLoginData::kYR_director;
+       Data.HoldTime = static_cast<int>(getpid());
        if (!(rc = XrdCmsLogin::Login(lp, Data)))
           {manMutex.Lock();
            if ((Data.Version < 2 && newVersion)
@@ -346,6 +362,7 @@ int XrdCmsClientMan::Hookup()
    Active   = 1;
    Silent   = 0;
    RecvCnt  = 1;
+   SendCnt  = 1;
    Suspend  = (Data.Mode & CmsLoginData::kYR_suspend);
 
 // Calculate how long we will wait for replies before delaying the client.
@@ -359,6 +376,7 @@ int XrdCmsClientMan::Hookup()
                     if (repWait > repWMax) repWait = repWMax;
                        else if (repWait < oldWait) repWait = oldWait;
                    }
+   qTime = (Data.HoldTime < 100 ? 100 : Data.HoldTime);
    myData.UnLock();
 
 // Tell the world
@@ -366,6 +384,7 @@ int XrdCmsClientMan::Hookup()
    sprintf(buff, "v %d", Data.Version);
    Say.Emsg("ClientMan", (Suspend ? "Connected to suspended" : "Connected to"),
                          Host, buff);
+   DEBUG(Host <<" qt=" <<qTime <<"ms rw=" <<repWait);
    return 1;
 }
 

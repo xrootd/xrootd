@@ -56,11 +56,11 @@ void                 setNext(XrdCmsClientMan *np) {Next = np;}
 
 static void          setConfig(char *cfn) {ConfigFN = cfn;}
 
-void                 whatsUp(const char *user, const char *path);
+int                  whatsUp(const char *user, const char *path);
 
 inline int           waitTime() {return repWait;}
 
-                  XrdCmsClientMan(char *host, int port, int cw, int nr, int rw);
+                  XrdCmsClientMan(char *host,int port,int cw,int nr,int rw,int rd);
                  ~XrdCmsClientMan();
 
 private:
@@ -90,10 +90,14 @@ int               Active;
 int               Silent;
 int               Suspend;
 int               RecvCnt;
+int               SendCnt;
 int               nrMax;
 int               maxMsgID;
 int               repWait;
 int               repWMax;
+int               minDelay;
+int               maxDelay;
+int               qTime;
 int               chkCount;
 time_t            lastUpdt;
 XrdCms::CmsRRHdr  Response;

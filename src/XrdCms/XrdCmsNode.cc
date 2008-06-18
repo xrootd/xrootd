@@ -69,7 +69,7 @@ int         XrdCmsNode::LastFree = 0;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdCmsNode::XrdCmsNode(const char *Role, XrdLink *lnkp, int port, 
+XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
                        const char *nid,  int lvl, int id)
 {
     static XrdSysMutex   iMutex;
@@ -119,7 +119,7 @@ XrdCmsNode::XrdCmsNode(const char *Role, XrdLink *lnkp, int port,
 
 // setName() will set Ident, IPAddr, IPV6, myName, myNlen, & Port!
 //
-   setName(Role, lnkp, (nid ? port : 0));
+   setName(lnkp, (nid ? port : 0));
 
    iMutex.Lock();
    Instance =  iNum++;
@@ -145,26 +145,34 @@ XrdCmsNode::~XrdCmsNode()
 /*                               s e t N a m e                                */
 /******************************************************************************/
   
-void XrdCmsNode::setName(const char *Role, XrdLink *lnkp, int port)
+void XrdCmsNode::setName(XrdLink *lnkp, int port)
 {
    struct sockaddr netaddr;
    char *bp, buff[512];
    const char *hname = lnkp->Host();
-   const char *hnick = lnkp->Name(&netaddr);
-   unsigned int hAddr= XrdNetDNS::IPAddr(&netaddr);
+   unsigned int hAddr;
 
+// Get our address (the long way)
+//
+   lnkp->Name(&netaddr);
+   hAddr= XrdNetDNS::IPAddr(&netaddr);
+
+// Check if this is a duplicate
+//
    if (myName)
       {if (!strcmp(myName, hname) && port == Port && hAddr == IPAddr) return;
           else free(myName);
       }
 
+// Construct our identification
+//
    IPAddr = hAddr;
    myName = strdup(hname);
    myNlen = strlen(hname)+1;
    Port = port;
 
-   if (!port) sprintf(buff, "%s %s",    Role, hnick);
-      else    sprintf(buff, "%s %s:%d", Role, hnick, port);
+   if (!port) strcpy(buff, lnkp->ID);
+      else    sprintf(buff, "%s:%d", lnkp->ID, port);
    if (Ident) free(Ident);
    Ident = strdup(buff);
 
