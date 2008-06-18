@@ -734,7 +734,9 @@ int XrdLink::Send(const struct sfVec *sfP, int sfN)
 // the socket because it will be closed in short order.
 //
    if (setsockopt(FD, SOL_TCP, TCP_CORK, &setON, sizeof(setON)) < 0)
-      {XrdLog.Emsg("Link", errno, "cork socket for", ID); uncork = 0;}
+      {XrdLog.Emsg("Link", errno, "cork socket for", ID); 
+       uncork = 0; sfOK = 0;
+      }
 
 // Send the header first
 //

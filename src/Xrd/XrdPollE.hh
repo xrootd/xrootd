@@ -36,6 +36,8 @@ protected:
        char *x2Text(unsigned int evf);
 
 private:
+void remFD(XrdLink *lp, unsigned int events);
+
 #ifdef EPOLLONESHOT
    static const int ePollOneShot = EPOLLONESHOT;
 #else
