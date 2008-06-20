@@ -1578,10 +1578,6 @@ char *XrdSecProtocolpwdInit(const char mode,
    char *rc = (char *)"";
    char *cenv = 0;
 
-   // Take into account xrootd debug flag
-   cenv = getenv("XRDDEBUG");
-   if (cenv && !strcmp(cenv,"1")) opts.debug = 1;
-   
    //
    // Clients first
    if (mode == 'c') {
@@ -1642,6 +1638,10 @@ char *XrdSecProtocolpwdInit(const char mode,
       // We are done
       return rc;
    }
+
+   // Take into account xrootd debug flag
+   cenv = getenv("XRDDEBUG");
+   if (cenv && !strcmp(cenv,"1")) opts.debug = 1;
 
    //
    // Server initialization
