@@ -95,11 +95,11 @@ int XrdSecgsiGMAPInit(const char *cfg)
          if (l[len-1] == '\n') l[len-1] = '\0';
          sscanf(l, "%s %s", k, val);
          if (!strcmp(k, "srv:")) {
-            ldapsrv = strdup(l);
+            ldapsrv = strdup(val);
          } else if (!strcmp(k, "base:")) {
-            searchbase = strdup(l);
+            searchbase = strdup(val);
          } else if (!strcmp(k, "attr:")) {
-            attribute = strdup(l);
+            attribute = strdup(val);
          } else {
             fprintf(stderr, "XrdSecgsiGMAPInit (LDAP): warning: unknown key: '%s' - ignoring\n", k);
          }
