@@ -16,28 +16,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 static char *ldapsrv    = 0;
 static char *searchbase = 0;
 static char *attribute  = 0;
 
-static bool gInit = 0;
-void XrdSecgsiGMAPInit();
+int XrdSecgsiGMAPInit(const char *cfg);
 
 //
 // Main function
 //
-int XrdSecgsiGMAPFun(const char *dn, int /*now*/, char **name)
+extern "C"
+{
+char *XrdSecgsiGMAPFun(const char *dn, int now)
 {
    // Implementation of XrdSecgsiGMAPFun querying an LDAP server
    // for the distinguished name 'dn'; the unused argument is the time at
    // which the function is called.
 
    // Init the relevant fields (only once)
-   if (!gInit) XrdSecgsiGMAPInit();
+   if (now <= 0) {
+      if (XrdSecgsiGMAPInit(dn) != 0)
+         return (char *)-1;
+      return (char *)0;
+   }
 
-   // Return code
-   int rc = -1;
+   // Output
+   char *name = 0;
 
    // Prepare the command to be executed
    char cmd[4096];
@@ -53,8 +59,7 @@ int XrdSecgsiGMAPFun(const char *dn, int /*now*/, char **name)
          // Look for a line starting with "uid: "
          if (!strncmp(line, att, strlen(att))) {
             sscanf(line, "%s %s", att, uname);
-            if (name && *name) *name = strdup(uname);
-            rc = 0;
+            name = strdup(uname);
             break;
          }
       }
@@ -62,41 +67,49 @@ int XrdSecgsiGMAPFun(const char *dn, int /*now*/, char **name)
    }
 
    // Done
-   return rc;
-}
+   return name;
+}}
 
 //
 // Init the relevant parameters from a dedicated config file
 //
-void XrdSecgsiGMAPInit()
+int XrdSecgsiGMAPInit(const char *cfg)
 {
-   // Initialize the relevant parameters from the file defined by XRDGSIGMAPLDAPCF
+   // Initialize the relevant parameters from the file 'cfg' or
+   // from the one defined by XRDGSIGMAPLDAPCF.
+   // Return 0 on success, -1 otherwise
 
-   if (!gInit) {
-      if (getenv("XRDGSIGMAPLDAPCF")) {
-         FILE *fcf = fopen(getenv("XRDGSIGMAPLDAPCF"), "r");
-         if (fcf) {
-            char l[4096], k[20], val[4096];
-            while (fgets(l, sizeof(l), fcf)) {
-               int len = strlen(l);
-               if (len < 2) continue;
-               if (l[0] == '#') continue;
-               if (l[len-1] == '\n') l[len-1] = '\0';
-               sscanf(l, "%s %s", k, val);
-               if (!strcmp(k, "srv:")) {
-                  ldapsrv = strdup(l);
-               } else if (!strcmp(k, "base:")) {
-                  searchbase = strdup(l);
-               } else if (!strcmp(k, "attr:")) {
-                  attribute = strdup(l);
-               } else {
-                  fprintf(stderr, "XrdSecgsiGMAPInit (LDAP): warning: unknown key: '%s' - ignoring\n", k);
-               }
-            }
-            // Set flag
-            gInit = 1;
-            fclose(fcf);
+   if (!cfg) cfg = getenv("XRDGSIGMAPLDAPCF");
+   if (!cfg || strlen(cfg) <= 0) {
+      fprintf(stderr, " +++ XrdSecgsiGMAPInit (LDAP): error: undefined config file path +++\n");
+      return -1;
+   }
+
+   FILE *fcf = fopen(cfg, "r");
+   if (fcf) {
+      char l[4096], k[20], val[4096];
+      while (fgets(l, sizeof(l), fcf)) {
+         int len = strlen(l);
+         if (len < 2) continue;
+         if (l[0] == '#') continue;
+         if (l[len-1] == '\n') l[len-1] = '\0';
+         sscanf(l, "%s %s", k, val);
+         if (!strcmp(k, "srv:")) {
+            ldapsrv = strdup(l);
+         } else if (!strcmp(k, "base:")) {
+            searchbase = strdup(l);
+         } else if (!strcmp(k, "attr:")) {
+            attribute = strdup(l);
+         } else {
+            fprintf(stderr, "XrdSecgsiGMAPInit (LDAP): warning: unknown key: '%s' - ignoring\n", k);
          }
       }
+      fclose(fcf);
+   } else {
+      fprintf(stderr, " +++ XrdSecgsiGMAPInit (LDAP): error: config file '%s'"
+                      " could not be open (errno: %d) +++\n", cfg, errno);
+      return -1;
    }
+   // Done
+   return 0;
 }
