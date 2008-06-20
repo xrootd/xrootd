@@ -696,6 +696,7 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 
 // Point the received creds
 //
+    krbContext.Lock();
     krb5_data forwardCreds;
     forwardCreds.data = &cred->buffer[XrdSecPROTOIDLEN];
     forwardCreds.length = cred->size -XrdSecPROTOIDLEN;
@@ -727,6 +728,12 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
     if ((rc = krb5_cc_resolve(krb_context, ccfile, &cache)))
        return rc;
 
+// Need privileges from now on
+//
+    XrdSysPrivGuard pGuard((uid_t)0, (gid_t)0);
+    if (!pGuard.Valid())
+       return Fatal(erp, EINVAL, "Unable to acquire privileges;", ccfile, 0);
+
 // Init cache
 //
     if ((rc = krb5_cc_initialize(krb_context, cache,
@@ -744,9 +751,6 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 
 // Change permission and ownership of the file
 //
-    XrdSysPrivGuard pGuard((uid_t)0, (gid_t)0);
-    if (!pGuard.Valid())
-       return Fatal(erp, EINVAL, "Unable to acquire privileges;", ccfile, 0);
     if (chown(ccfile, pw->pw_uid, pw->pw_gid) == -1)
        return Fatal(erp, errno, "Unable to change file ownership;", ccfile, 0);
     if (chmod(ccfile, 0600) == -1)
