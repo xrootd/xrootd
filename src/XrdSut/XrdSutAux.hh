@@ -32,7 +32,7 @@ class XrdSutBuffer;
 #define XrdSutMAXPPT      512
 #define XrdSutMAXBUCKS    10
 #define XrdSutMAXINT64LEN 25
-#define XrdSutPRINTLEN    50
+#define XrdSutPRINTLEN    100
 
 enum kXRSBucketTypes {
    kXRS_none     =     0,      // end-of-vector
