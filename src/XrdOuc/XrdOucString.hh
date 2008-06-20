@@ -225,8 +225,9 @@
 /******************************************************************************/
 #include "XrdSys/XrdSysHeaders.hh"
 
-#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 using namespace std;
 
@@ -289,7 +290,9 @@ public:
    void          append(const XrdOucString s);
    void          assign(const char *s, int j, int k = -1);
    void          assign(const XrdOucString s, int j, int k = -1);
+#if !defined(WINDOWS)
    int           form(const char *fmt, ...);
+#endif
    int           keep(int start = 0, int size = 0);
    void          insert(const int i, int start = -1);
    void          insert(const char c, int start = -1);
@@ -350,8 +353,10 @@ public:
    static int getblksize();
    static void setblksize(const int bs);
 
+#if !defined(WINDOWS)
    // format a string
    static int form(XrdOucString &str, const char *fmt, ...);
+#endif
 };
 
 // Operator << is useful to print a string into a stream

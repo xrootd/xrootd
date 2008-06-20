@@ -22,6 +22,7 @@ const char *XrdOucStringCVSID = "$Id$";
 
 #define kMAXINT64LEN   25
 
+#if !defined(WINDOWS)
 //
 // Macro for 'form'-like operations
 #define XOSINTFORM(f,b) \
@@ -42,6 +43,7 @@ again: \
    } \
    va_end(ap);
 // End-Of-Macro for 'form'-like operations
+#endif
 
 // Default blksize for (re-)allocations; active if > 0.
 // Use XrdOucString::setblksize() to activate
@@ -200,6 +202,7 @@ void XrdOucString::setbuffer(char *buf)
    }
 }
 
+#if !defined(WINDOWS)
 //______________________________________________________________________________
 int XrdOucString::form(const char *fmt, ...)
 {
@@ -232,6 +235,7 @@ int XrdOucString::form(XrdOucString &str, const char *fmt, ...)
    // Done
    return n;
 }
+#endif
 
 //______________________________________________________________________________
 int XrdOucString::find(const char c, int start, bool forward)
