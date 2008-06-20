@@ -615,13 +615,13 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                cent->mtime = xsrv->NotAfter(); // expiration time
                // Save pointer to certificate
                cent->buf1.buf = (char *)xsrv;
-               cent->buf1.len = 1;  // just a flag
+               cent->buf1.len = 0;  // just a flag
                // Save pointer to key
                cent->buf2.buf = (char *)(xsrv->PKI());
-               cent->buf2.len = 1;  // just a flag
+               cent->buf2.len = 0;  // just a flag
                // Save pointer to bucket
                cent->buf3.buf = (char *)(xbck);
-               cent->buf3.len = 1;  // just a flag
+               cent->buf3.len = 0;  // just a flag
                // Save CA hash in list to communicate to clients
                if (certcalist.find(xsrv->IssuerHash()) == STR_NPOS) {
                   if (certcalist.length() > 0)
@@ -1682,12 +1682,14 @@ char *XrdSecProtocolgsiInit(const char mode,
          if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);
 
       // directory with CA certificates
-      cenv = getenv("XrdSecGSICADIR");
+      cenv = (getenv("XrdSecGSICADIR") ? getenv("XrdSecGSICADIR")
+                                       : getenv("X509_CERT_DIR"));
       if (cenv)
          opts.certdir = strdup(cenv);
 
       // directory with CRL info
-      cenv = getenv("XrdSecGSICRLDIR");
+      cenv = (getenv("XrdSecGSICRLDIR") ? getenv("XrdSecGSICRLDIR")
+                                        : getenv("X509_CERT_DIR"));
       if (cenv)
          opts.crldir = strdup(cenv);
 
@@ -1697,17 +1699,20 @@ char *XrdSecProtocolgsiInit(const char mode,
          opts.crlext = strdup(cenv);
 
       // file with user cert
-      cenv = getenv("XrdSecGSIUSERCERT");
+      cenv = (getenv("XrdSecGSIUSERCERT") ? getenv("XrdSecGSIUSERCERT")
+                                          : getenv("X509_USER_CERT"));
       if (cenv)
          opts.cert = strdup(cenv);  
 
       // file with user key
-      cenv = getenv("XrdSecGSIUSERKEY");
+      cenv = (getenv("XrdSecGSIUSERKEY") ? getenv("XrdSecGSIUSERKEY")
+                                         : getenv("X509_USER_KEY"));
       if (cenv)
          opts.key = strdup(cenv);
 
       // file with user proxy
-      cenv = getenv("XrdSecGSIUSERPROXY");
+      cenv = (getenv("XrdSecGSIUSERPROXY") ? getenv("XrdSecGSIUSERPROXY")
+                                           : getenv("X509_USER_PROXY"));
       if (cenv)
          opts.proxy = strdup(cenv);
 
@@ -3187,10 +3192,10 @@ int XrdSecProtocolgsi::LoadCADir(int timestamp)
                XrdSutPFEntry *cent = ca->Add(tag.c_str());
                if (cent) {
                   cent->buf1.buf = (char *)chain;
-                  cent->buf1.len = 1;      // Just a flag
+                  cent->buf1.len = 0;      // Just a flag
                   if (crl) {
                      cent->buf2.buf = (char *)crl;
-                     cent->buf2.len = 1;      // Just a flag
+                     cent->buf2.len = 0;      // Just a flag
                   }
                   cent->mtime = timestamp;
                   cent->status = kPFE_ok;
@@ -3506,10 +3511,10 @@ int XrdSecProtocolgsi::GetCA(const char *cahash)
             cent = cacheCA.Add(tag.c_str());
             if (cent) {
                cent->buf1.buf = (char *)(hs->Chain);
-               cent->buf1.len = 1;      // Just a flag
+               cent->buf1.len = 0;      // Just a flag
                if (hs->Crl) {
                   cent->buf2.buf = (char *)(hs->Crl);
-                  cent->buf2.len = 1;      // Just a flag
+                  cent->buf2.len = 0;      // Just a flag
                }
                cent->mtime = hs->TimeStamp;
                cent->status = kPFE_ok;
@@ -3896,13 +3901,13 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       cent->cnt = 0;
       // The chain
       cent->buf1.buf = (char *)(po->chain);
-      cent->buf1.len = 1;      // Just a flag
+      cent->buf1.len = 0;      // Just a flag
       // The key
       cent->buf2.buf = (char *)(po->chain->End()->PKI());
-      cent->buf2.len = 1;      // Just a flag
+      cent->buf2.len = 0;      // Just a flag
       // The export bucket
       cent->buf3.buf = (char *)(po->cbck);
-      cent->buf3.len = 1;      // Just a flag
+      cent->buf3.len = 0;      // Just a flag
 
       // Rehash cache
       cache->Rehash(1);
