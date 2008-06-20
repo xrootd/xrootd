@@ -30,10 +30,10 @@
 #ifndef WIN32
 #include <sys/time.h>
 #include <unistd.h>
+#include <dlfcn.h>
 #endif
 #include <stdarg.h>
 #include <stdio.h>
-#include <dlfcn.h>
 
 extern "C" {
    /////////////////////////////////////////////////////////////////////
@@ -1140,6 +1140,7 @@ int main(int argc, char**argv) {
 
       // Initialize monitoring client, if a plugin is present
       cpnfo.mon = 0;
+#ifndef WIN32
       void *monhandle = dlopen (monlibname.c_str(), RTLD_LAZY);
 
       if (monhandle) {
@@ -1155,6 +1156,7 @@ int main(int argc, char**argv) {
 	else	
 	  cpnfo.mon = (XrdClientAbsMonIntf *)monlibhook(src.c_str(), dest.c_str());
       }
+#endif
       
       if (cpnfo.mon) {
 
@@ -1171,10 +1173,12 @@ int main(int argc, char**argv) {
 
       }
 
+#ifndef WIN32
       if (!cpnfo.mon && monhandle) {
 	dlclose(monhandle);
 	monhandle = 0;
       }
+#endif
 
       // Ok, the plugin is now loaded...
       if (cpnfo.mon) {
@@ -1251,9 +1255,10 @@ int main(int argc, char**argv) {
 	cpnfo.mon->DeInit();
 	delete cpnfo.mon;
 	cpnfo.mon = 0;
-
+#ifndef WIN32
 	if (monhandle) dlclose(monhandle);
 	monhandle = 0;
+#endif
       }
 
 
