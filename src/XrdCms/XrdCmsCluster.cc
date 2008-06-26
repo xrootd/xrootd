@@ -374,6 +374,7 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
 
 int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 {
+   EPNAME("Locate");
    XrdCmsPInfo   pinfo;
    SMask_t       qfVec = 0;
    int           retc = 0;
@@ -414,6 +415,7 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
       {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
        if (Sel.Opts & XrdCmsSelect::Refresh)
           QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
+       TRACE(Files, "seeking " <<Sel.Path.Val);
        qfVec = Cluster.Broadcast(qfVec, QReq.Hdr, 
                                  (void *)Sel.Path.Val, Sel.Path.Len+1);
        if (qfVec) Cache.UnkFile(Sel, qfVec);
@@ -609,6 +611,7 @@ void XrdCmsCluster::ResetRef(SMask_t smask)
   
 int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 {
+   EPNAME("Select");
    XrdCmsPInfo  pinfo;
    const char  *Amode;
    int dowt = 0, retc, isRW, fRD, noSel = (Sel.Opts & XrdCmsSelect::Defer);
@@ -677,6 +680,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
        if (Sel.Opts & XrdCmsSelect::Refresh)
           QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
        if (dowt) retc= (fRD ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
+       TRACE(Files, "seeking " <<Sel.Path.Val);
        amask = Cluster.Broadcast(Sel.Vec.bf, QReq.Hdr,
                                  (void *)Sel.Path.Val,Sel.Path.Len+1);
        if (amask) Cache.UnkFile(Sel, amask);

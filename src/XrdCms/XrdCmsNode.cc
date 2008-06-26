@@ -322,7 +322,7 @@ const char *XrdCmsNode::do_Gone(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR(Arg.Path);
+   TRACER(Files,Arg.Path);
 
 // Update path information and delete this from the prep queue if we are a
 // staging node. We can also be called via the admin end-point interface
@@ -364,7 +364,8 @@ const char *XrdCmsNode::do_Have(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR((Arg.Request.modifier&CmsHaveRequest::Pending ? "P ":"") <<Arg.Path);
+   TRACER(Files, (Arg.Request.modifier&CmsHaveRequest::Pending ? "P ":"") 
+                 <<Arg.Path);
 
 // Find if we can handle the file in r/w mode and if staging is present
 //
@@ -1173,7 +1174,7 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
 
 // Do some debugging
 //
-   DEBUGR(Arg.Path);
+   TRACER(Files,Arg.Path);
 
 // Process: state <path>
 // Respond: have <path>

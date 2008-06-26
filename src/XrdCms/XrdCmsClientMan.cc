@@ -78,7 +78,7 @@ XrdCmsClientMan::XrdCmsClientMan(char *host, int port,
    minDelay= rd;
    maxDelay= rd*3;
    chkCount= chkVal;
-   lastUpdt= time(0);
+   lastUpdt= lastTOut = time(0);
 
 // Compute dally value
 //
@@ -270,12 +270,14 @@ int  XrdCmsClientMan::whatsUp(const char *user, const char *path)
    myData.Lock();
    if (Active)
       {if (Active == RecvCnt)
-          {Silent++;
-           if (Silent > nrMax)
-              {Active = 0; Silent = 0; Suspend = 1;
-               if (Link) Link->Close(1);
-              } else if (Silent & 0x02 && repWait < repWMax) repWait++;
-          } else Active = RecvCnt;
+          {if ((time(0)-lastTOut) >= repWait)
+              {Silent++;
+               if (Silent > nrMax)
+                  {Active = 0; Silent = 0; Suspend = 1;
+                   if (Link) Link->Close(1);
+                  } else if (Silent & 0x02 && repWait < repWMax) repWait++;
+              }
+          } else {Active = RecvCnt; Silent = 0; lastTOut = time(0);}
       }
 
 // Calclulate how long to delay the client. This will be based on the number
@@ -378,6 +380,7 @@ int XrdCmsClientMan::Hookup()
                        else if (repWait < oldWait) repWait = oldWait;
                    }
    qTime = (Data.HoldTime < 100 ? 100 : Data.HoldTime);
+   lastTOut = time(0);
    myData.UnLock();
 
 // Tell the world
