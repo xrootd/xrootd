@@ -211,6 +211,7 @@ int XrdOucString::form(const char *fmt, ...)
 
    // Decode the arguments
    XOSINTFORM(fmt, str);
+   siz = buf_len;
 
    // Re-adjust the length
    len = strlen(str);
