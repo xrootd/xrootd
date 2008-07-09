@@ -163,8 +163,12 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
 
       // First of all, we check if there is something to read
       if (fds_r.revents & (POLLIN | POLLPRI)) {
-         int n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
+         int n = 0;
+
+         do {
+         n = ::recv(fSocket, static_cast<char *>(buffer) + bytesread,
                         length - bytesread, 0);
+         } while(n < 0 && errno == EINTR);
 
          // If we read nothing, the connection has been closed by the other side
          if (n <= 0) {
