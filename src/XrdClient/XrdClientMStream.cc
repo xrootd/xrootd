@@ -91,7 +91,7 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
     // By starting one thread for each, calling AddParallelStream once
     // If no more threads are available, wait and retry
 
-    ParStreamOpenerArgs paropeners[mx];
+    ParStreamOpenerArgs paropeners[16];
     for (i = 0; i < mx; i++) {
        paropeners[i].thr = 0;
        paropeners[i].cliconn = cliconn;
