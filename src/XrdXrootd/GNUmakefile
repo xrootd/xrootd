@@ -144,7 +144,7 @@ $(OBJDIR)/XrdXrootdFile.o:   XrdSfsInterface.hh   XrdXrootdFile.hh \
                              XrdSysError.hh       XrdOucTrace.hh \
                              XrdSysPthread.hh     XPtypes.hh
 	@echo Compiling XrdXrootdFile.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdFile.o XrdXrootdFile.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdFile.o XrdXrootdFile.cc
 
 $(OBJDIR)/XrdXrootdFileLock1.o: XrdXrootdFile.hh XrdXrootdFileLock1.hh \
                                  XrdOucHash.hh   XrdOucHash.icc XrdSysPthread.hh \

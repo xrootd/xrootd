@@ -417,7 +417,7 @@ $(OBJDIR)/XrdCmsResp.o:    XrdCmsResp.cc      XrdCmsResp.hh \
 $(OBJDIR)/XrdCmsRRData.o:    XrdCmsRRData.cc     XrdCmsRRData.hh \
                              XrdSysPlatform.hh   YProtocol.hh
 	@echo Compiling XrdCmsRRData.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsRRData.o XrdCmsRRData.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdCmsRRData.o XrdCmsRRData.cc
 
 $(OBJDIR)/XrdCmsRRQ.o:       XrdCmsRRQ.cc        XrdCmsRRQ.hh \
                              XrdCmsCluster.hh    XrdCmsNode.hh \

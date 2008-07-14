@@ -243,7 +243,7 @@ $(OBJDIR)/XrdClientAbs.o: XrdClientAbs.cc ../XrdClient/XrdClientAbs.hh \
   ../XrdClient/XrdClientDebug.hh ../XrdClient/XrdClientEnv.hh \
   ../XrdOuc/XrdOucEnv.hh ../XrdSys/XrdSysLogger.hh
 	@echo Compiling XrdClientAbs.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientAbs.o XrdClientAbs.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdClientAbs.o XrdClientAbs.cc
 
 $(OBJDIR)/XrdClient.o: XrdClient.cc ../XrdClient/XrdClient.hh \
   ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientUnsolMsg.hh \
