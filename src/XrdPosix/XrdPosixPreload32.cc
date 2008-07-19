@@ -163,6 +163,24 @@ FILE  *fopen(const char *path, const char *mode)
 }
 }
 */
+
+  
+/******************************************************************************/
+/*                                f s e e k o                                 */
+/******************************************************************************/
+
+#ifndef SUNX86
+extern "C"
+{
+int fseeko(FILE *stream, off_t offset, int whence)
+{
+   static int Init = Xunix.Init(&Init);
+
+   return XrdPosix_Fseeko(stream, offset, whence);
+}
+}
+#endif
+
 /******************************************************************************/
 /*                                 f s t a t                                  */
 /******************************************************************************/
@@ -190,6 +208,23 @@ int     fstat(         int fildes, struct stat *buf)
 
    if ((rc = XrdPosix_Fstat(fildes, (struct stat *)&buf64))) return rc;
    return XrdPosix_CopyStat(buf, buf64);
+}
+}
+#endif
+
+  
+/******************************************************************************/
+/*                                f t e l l o                                 */
+/******************************************************************************/
+
+#ifndef SUNX86
+extern "C"
+{
+off_t ftello(FILE *stream)
+{
+   static int Init = Xunix.Init(&Init);
+
+   return static_cast<off_t>(XrdPosix_Ftello(stream));
 }
 }
 #endif
