@@ -902,10 +902,12 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 /* Function: xnet
 
    Purpose:  To parse directive: network [wan] [keepalive] [buffsz <blen>]
+                                         [nodnr]
 
              wan       parameters apply only to the wan port
              keepalive sets the socket keepalive option.
              <blen>    is the socket's send/rcv buffer size.
+             nodnr     do not perform a reverse DNS lookup if not needed.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -913,7 +915,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int  i, V_keep = 0, V_iswan = 0, V_blen = -1;
+    int  i, V_keep = 0, V_nodnr = 0, V_iswan = 0, V_blen = -1;
     long long llp;
     static struct netopts {const char *opname; int hasarg;
                            int  *oploc;  const char *etxt;}
@@ -921,6 +923,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
        {
         {"keepalive",  0, &V_keep,   "option"},
         {"buffsz",     1, &V_blen,   "network buffsz"},
+        {"nodnr",      0, &V_nodnr,  "option"},
         {"wan",        0, &V_iswan,  "option"}
        };
     int numopts = sizeof(ntopts)/sizeof(struct netopts);
@@ -950,11 +953,13 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 
      if (V_iswan)
         {if (V_blen >= 0) Wan_Blen = V_blen;
-         Wan_Opts = (V_keep ? XRDNET_KEEPALIVE : 0);
+         Wan_Opts  = (V_keep  ? XRDNET_KEEPALIVE : 0)
+                   | (V_nodnr ? XRDNET_NORLKUP   : 0);
          PortWAN  = 1;
         } else {
          if (V_blen >= 0) Net_Blen = V_blen;
-         Net_Opts = (V_keep ? XRDNET_KEEPALIVE : 0);
+         Net_Opts  = (V_keep  ? XRDNET_KEEPALIVE : 0)
+                   | (V_nodnr ? XRDNET_NORLKUP   : 0);
         }
      return 0;
 }
