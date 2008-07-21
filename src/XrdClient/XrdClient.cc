@@ -868,7 +868,7 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
     // If the open request failed for the error "file not found" proceed, 
     // otherwise return FALSE
-    if (fConnModule->GetOpenError() != kXR_NotFound) {
+    if (fConnModule->LastServerResp.status != kXR_NotFound) {
 	TerminateOpenAttempt();
 	return FALSE;
     }

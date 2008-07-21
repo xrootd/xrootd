@@ -1227,6 +1227,8 @@ bool XrdClientConn::GetAccessToSrv()
 
     bool retval = false;
 
+    XrdClientPhyConnLocker pl(logconn->GetPhyConnection());
+
     // Execute a login if connected to a xrootd server
     if (fServerType != kSTRootd) {
 
