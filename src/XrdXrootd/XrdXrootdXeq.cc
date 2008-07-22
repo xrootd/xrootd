@@ -806,10 +806,9 @@ int XrdXrootdProtocol::do_OffloadIO()
 //
    if (!doWriteC && (sesSem = reTry)) {reTry = 0; sesSem->Post();}
   
-// Perform all I/O operations on a parallel stream. Currently we do not
-// support memory based or async I/O.
+// Perform all I/O operations on a parallel stream (suppress async I/O).
 //
-   do {if (!doWrite) rc = do_ReadAll();
+   do {if (!doWrite) rc = do_ReadAll(0);
           else if ( (rc = (doWriteC ? do_WriteCont() : do_WriteAll()) ) > 0)
                   {Resume = &XrdXrootdProtocol::do_OffloadIO;
                    doWriteC = 1;
@@ -1428,6 +1427,24 @@ int XrdXrootdProtocol::do_Read()
 //
    if (pathID) return do_Offload(pathID, 0);
 
+// Now read all of the data (do pre-reads first)
+//
+   return do_ReadAll();
+}
+
+/******************************************************************************/
+/*                            d o _ R e a d A l l                             */
+/******************************************************************************/
+
+// myFile   = file to be read
+// myOffset = Offset at which to read
+// myIOLen  = Number of bytes to read from file and write to socket
+  
+int XrdXrootdProtocol::do_ReadAll(int asyncOK)
+{
+   int rc, xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
+   char *buff;
+
 // If this file is memory mapped, short ciruit all the logic and immediately
 // transfer the requested data to minimize latency.
 //
@@ -1447,29 +1464,11 @@ int XrdXrootdProtocol::do_Read()
 
 // If we are in async mode, schedule the read to ocur asynchronously
 //
-   if (myFile->AsyncMode)
+   if (asyncOK && myFile->AsyncMode)
       {if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
-          if ((retc = aio_Read()) != -EAGAIN) return retc;
+          if ((rc = aio_Read()) != -EAGAIN) return rc;
        SI->AsyncRej++;
       }
-
-// Now read all of the data (do pre-reads first)
-//
-   return do_ReadAll();
-}
-
-/******************************************************************************/
-/*                            d o _ R e a d A l l                             */
-/******************************************************************************/
-
-// myFile   = file to be read
-// myOffset = Offset at which to read
-// myIOLen  = Number of bytes to read from file and write to socket
-  
-int XrdXrootdProtocol::do_ReadAll()
-{
-   int rc, xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
-   char *buff;
 
 // Make sure we have a large enough buffer
 //

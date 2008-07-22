@@ -127,7 +127,7 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
        int   do_Qxattr();
        int   do_Read();
        int   do_ReadV();
-       int   do_ReadAll();
+       int   do_ReadAll(int asyncOK=1);
        int   do_ReadNone(int &retc, int &pathID);
        int   do_Rm();
        int   do_Rmdir();
