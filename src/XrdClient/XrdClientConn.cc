@@ -1227,15 +1227,29 @@ bool XrdClientConn::GetAccessToSrv()
 
     bool retval = false;
 
-    XrdClientPhyConnLocker pl(logconn->GetPhyConnection());
+
+    XrdClientPhyConnection *phyc = logconn->GetPhyConnection();
+    if (!phyc) {
+       fGettingAccessToSrv = false;
+       return false;
+    }
+
+    XrdClientPhyConnLocker pl(phyc);
 
     // Execute a login if connected to a xrootd server
     if (fServerType != kSTRootd) {
 
-	// Start the reader thread in the phyconn, if needed
-	logconn->GetPhyConnection()->StartReader();
+        phyc = logconn->GetPhyConnection();
+        if (!phyc || !phyc->IsValid()) {
+           Error( "GetAccessToSrv", "Physical connection disappeared.");
+           fGettingAccessToSrv = false;
+           return false;
+        }
 
-	if (logconn->GetPhyConnection()->IsLogged() == kNo)
+	// Start the reader thread in the phyconn, if needed
+	phyc->StartReader();
+
+	if (phyc->IsLogged() == kNo)
 	    retval = DoLogin();
 	else {
 

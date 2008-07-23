@@ -284,7 +284,7 @@ int main(int argc, char**argv) {
        // Keep a max of maxopens as outstanding
 
        // See if there are open instances to clean up
-       for (int i = opening.GetSize()-1; i >= 0; i--) {
+       for (int i = opening.GetSize()-1; (i >= 0) && (opening.GetSize() > 0); i--) {
 	 struct OpenInfo oi = opening[i];
 
 	 if ( !oi.cli->IsOpen_inprogress() ) {
@@ -295,7 +295,7 @@ int main(int argc, char**argv) {
 		 " Size: " << sti.size << endl;
 	     }
 	     else {
-	       cout << "FAIL " << oi.origurl->GetUrl();
+	       cout << "FAIL " << oi.origurl->GetUrl() << endl;
 	     }
 
 	     // In any case this element has to be removed.
