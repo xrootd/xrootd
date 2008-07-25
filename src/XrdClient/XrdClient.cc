@@ -22,6 +22,7 @@
 #include "XrdClient/XrdClientSid.hh"
 #include "XrdClient/XrdClientMStream.hh"
 #include "XrdClient/XrdClientReadV.hh"
+#include "XrdOuc/XrdOucCRC.hh"
 
 #include <stdio.h>
 #ifndef WIN32
@@ -189,6 +190,13 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	return FALSE;
     }
 
+    XrdClientUrlInfo unfo(fInitialUrl);
+    if (unfo.File == "") {
+      Error("Open", "The URL provided is incorrect.");
+      return FALSE;
+    }
+    
+
     //
     // Now start the connection phase, picking randomly from UrlArray
     //
@@ -205,8 +213,10 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	bool nogoodurl = TRUE;
 	while (urlArray.Size() > 0) {
 
+	  unsigned int seed = XrdOucCRC::CRC32((const unsigned char*)unfo.File.c_str(), unfo.File.length());
+
 	    // Get an url from the available set
-	    if ((thisUrl = urlArray.GetARandomUrl())) {
+	    if ((thisUrl = urlArray.GetARandomUrl(seed))) {
 
 		if (fConnModule->CheckHostDomain(thisUrl->Host)) {
 		    nogoodurl = FALSE;
