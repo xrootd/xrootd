@@ -156,9 +156,9 @@ XrdConfig::XrdConfig(void)
    AdminMode= 0700;
    Police   = 0;
    Net_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
-   Net_Opts = XRDNET_NORLKUP;
+   Net_Opts = 0;
    Wan_Blen = 1024*1024; // Default window size 1M
-   Wan_Opts = XRDNET_NORLKUP;
+   Wan_Opts = 0;
    setSched = 1;
 
    Firstcp = Lastcp = 0;
