@@ -27,7 +27,11 @@ const char *XrdLinkCVSID = "$Id$";
 #endif
 
 #ifdef HAS_SENDFILE
+
+#ifndef __macos__
 #include <sys/sendfile.h>
+#endif
+
 #endif
 
 #include "XrdNet/XrdNetDNS.hh"
