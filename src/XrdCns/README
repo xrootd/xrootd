@@ -1,0 +1,63 @@
+You will find the Clust Name Space daemon that must run on each data server in
+the bin subdirectory of this directory. It is called XrdCnsd. Some architectures
+have been pre-compiled. If you do not find the one you need or you wish to
+recompile XrdCnsd, read the README.BUILD file to see how its done. Otherwise,
+install the XrdCnsd daemon on each data server and follow the steps below for
+configuring each server to use XrdCnsd facilities.
+
+Requirement #1: Each data server's config file must have the following line 
+                added to it:
+
+ofs.notify create mkdir mv rm rmdir |<path>/XrdCnsd [options] <route>
+
+Where:
+<route> - is the location of the xroot server that maintains the name space.
+          This is specified as the URL prefix to any LFN encountered by the
+          data server. For instance: "xroot://io:1094/". You may also specify
+          a path prefix to the LFN by adding a path to the URL. So, say the
+          name space server export /cns then the URL should be specified as
+          "xroot://io:1094//cns".
+
+<options>
+
+-a <apath>   The adminstrative path where various files are kept. The default
+             comes from whatever the xroot server is using and if that
+             cannot be determined it defaults to /tmp. Typically, you need not
+             specify it.
+
+-d           debugging
+
+-l <logfile> Where you want the error message logfile to go. This is normally 
+             specified.
+
+-q <qlim>    The max number of events that should be logged before events are
+             dropped. The log is used to recover from crashes as well as
+             name space server outages. The default is 1024. If you think that
+             the name server may suffer long outages then you should increase
+             the number. Note that each record is 2K long.
+
+Requirement #2: You must run a standard xroot server that will be used by
+                XrdCnsd to maintain a composite image of the cluster's name
+                space. This server need not be clustered (we can't imagine why
+                you would want to). You may find it convenient to run it on a
+                redirector at some other port number. You must setup a 
+                directory where all of the LFN's will be kept as a true
+                hierarchical name space. Typically, choose some root directory.
+                The server either must export this root (and you specify it
+                in the ofs.notify directive) or it exports some portion of the
+                LFN prefix and you use the all.localroot directive to attach
+                the root directory to each LFN.
+
+Optional #3:    You can create a seamless environment by adding the following
+                directive to each redirector's configuration file:
+
+xrootd.redirect <host>[:<port>] dirlist
+
+                where <host>:<port> is the host (and port) of the cluster name
+                space xrootd server. This directive will automatically
+                redirect clients to this server should they try to list the
+                contents of a directory. If you do not add this directive,
+                then the redirector itself will try to list the directory.
+                This wll fail unless the redirector's localroot is identical
+                to the localroot (i.e., path prefix) used by the name space
+                xrootd server.
