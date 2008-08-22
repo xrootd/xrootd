@@ -122,6 +122,7 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
        int   do_Putfile();
        int   do_Qconf();
        int   do_Qfh();
+       int   do_Qopaque(short);
        int   do_Qspace();
        int   do_Query();
        int   do_Qxattr();

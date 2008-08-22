@@ -1054,7 +1054,8 @@ int XrdXrootdProtocol::do_Prepare()
    char opts, hname[32], reqid[64], nidbuff[512], *path;
    XrdOucErrInfo myError(Link->ID);
    XrdOucTokenizer pathlist(argp->buff);
-   XrdOucTList *pathp = 0, *oinfo = 0;
+   XrdOucTList *pFirst, *pP, *pLast = 0;
+   XrdOucTList *oFirst, *oP, *oLast = 0;
    XrdXrootdPrepArgs pargs(0, 1);
    XrdSfsPrep fsprep;
 
@@ -1072,7 +1073,9 @@ int XrdXrootdProtocol::do_Prepare()
 // Get a request ID for this prepare and check for static routine
 //
    if (opts & kXR_stage && !(opts & kXR_cancel)) 
-      {XrdOucReqID::ID(reqid, sizeof(reqid)); fsprep.opts = Prep_STAGE;}
+      {XrdOucReqID::ID(reqid, sizeof(reqid)); 
+       fsprep.opts = Prep_STAGE | (opts & kXR_coloc ? Prep_COLOC : 0);
+      }
       else {reqid[0] = '*'; reqid[1] = '\0';  fsprep.opts = 0;}
 
 // Initialize the fsile system prepare arg list
@@ -1080,7 +1083,7 @@ int XrdXrootdProtocol::do_Prepare()
    fsprep.reqid   = reqid;
    fsprep.paths   = 0;
    fsprep.oinfo   = 0;
-   fsprep.opts   |= Prep_PRTY0;
+   fsprep.opts   |= Prep_PRTY0 | (opts & kXR_fresh ? Prep_FRESH : 0);
    fsprep.notify  = 0;
 
 // Check if this is a cancel request
@@ -1107,14 +1110,16 @@ int XrdXrootdProtocol::do_Prepare()
    while((path = pathlist.GetLine()))
         {if (rpCheck(path, &opaque)) return rpEmsg("Preparing", path);
          if (!Squash(path))          return vpEmsg("Preparing", path);
-         pathp = new XrdOucTList(path, pathnum, pathp);
-         oinfo = new XrdOucTList(opaque, 0, oinfo);
+         pP = new XrdOucTList(path, pathnum);
+         (pLast ? (pLast->next = pP) : (pFirst = pP)); pLast = pP;
+         oP = new XrdOucTList(opaque, 0);
+         (oLast ? (oLast->next = oP) : (oFirst = oP)); oLast = oP;
          pathnum++;
         }
 
 // Make sure we have at least one path
 //
-   if (!pathp)
+   if (!pFirst)
       return Response.Send(kXR_ArgMissing, "No prepare paths specified");
 
 // Issue the prepare
@@ -1125,8 +1130,8 @@ int XrdXrootdProtocol::do_Prepare()
        fsprep.opts = (opts & kXR_noerrs ? Prep_SENDAOK : Prep_SENDACK);
       }
    if (opts & kXR_wmode) fsprep.opts |= Prep_WMODE;
-   fsprep.paths = pathp;
-   fsprep.oinfo = oinfo;
+   fsprep.paths = pFirst;
+   fsprep.oinfo = oFirst;
    if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
       return fsError(rc, myError);
 
@@ -1136,7 +1141,7 @@ int XrdXrootdProtocol::do_Prepare()
       else {rc = Response.Send(reqid, strlen(reqid));
             pargs.reqid=reqid;
             pargs.user=Link->ID;
-            pargs.paths=pathp;
+            pargs.paths=pFirst;
             XrdXrootdPrepare::Log(pargs);
            }
    return rc;
@@ -1294,6 +1299,54 @@ int XrdXrootdProtocol::do_Qfh()
 }
   
 /******************************************************************************/
+/*                            d o _ Q o p a q u e                             */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_Qopaque(short qopt)
+{
+   static const int fsctl_cmd1 = SFS_FSCTL_PLUGIN;
+   XrdOucErrInfo myError(Link->ID);
+   XrdSfsFSctl myData;
+   const char *opaque, *Act, *AData;
+   int fsctl_cmd, n, rc, dlen = ntohl(Request.query.dlen);
+
+// Process unstructured as well as structured (path/opaque) requests
+//
+   if (qopt == kXR_Qopaque)
+      {myData.Arg1 = argp->buff; myData.Arg1Len = dlen;
+       myData.Arg2 = 0;          myData.Arg1Len = 0;
+       fsctl_cmd = SFS_FSCTL_PLUGIO;
+       Act = " qopaque '"; AData = "...";
+      } else {
+       // Check for static routing (this falls under stat)
+       //
+       if (Route[RD_stat].Port)
+          return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+
+       // Prescreen the path
+       //
+       if (rpCheck(argp->buff, &opaque)) return rpEmsg("Querying", argp->buff);
+       if (!Squash(argp->buff))          return vpEmsg("Querying", argp->buff);
+
+       // Setup arguments
+       //
+       myData.Arg1    = argp->buff;
+       myData.Arg1Len = (opaque ? opaque - argp->buff - 1    : dlen);
+       myData.Arg2    = opaque;
+       myData.Arg2Len = (opaque ? argp->buff + dlen - opaque : 0);
+       fsctl_cmd = SFS_FSCTL_PLUGIN;
+       Act = " qopaquf '"; AData = argp->buff;
+      }
+
+// Preform the actual function using the supplied arguments
+//
+   rc = osFS->FSctl(fsctl_cmd, myData, myError, CRED);
+   TRACEP(FS, "rc=" <<rc <<Act <<AData <<"'");
+   if (rc == SFS_OK) Response.Send("");
+   return fsError(rc, myError);
+}
+
+/******************************************************************************/
 /*                             d o _ Q s p a c e                              */
 /******************************************************************************/
   
@@ -1347,6 +1400,8 @@ int XrdXrootdProtocol::do_Query()
           case kXR_Qconfig: return do_Qconf();
           case kXR_Qspace:  return do_Qspace();
           case kXR_Qxattr:  return do_Qxattr();
+          case kXR_Qopaque:
+          case kXR_Qopaquf: return do_Qopaque(qopt);
           default:          break;
          }
 
