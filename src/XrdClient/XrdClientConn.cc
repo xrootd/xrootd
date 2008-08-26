@@ -142,6 +142,7 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fUrl(""),
     fREQWait = new XrdSysCondVar(0);
     fREQConnectWait = new XrdSysCondVar(0);
     fREQWaitResp = new XrdSysCondVar(0);
+    fWriteWaitAck = new XrdSysCondVar(0);
 
     fRedirHandler = 0;
     fUnsolMsgHandler = 0;
@@ -209,6 +210,10 @@ XrdClientConn::~XrdClientConn()
 
   delete fREQWaitResp;
   fREQWaitResp = 0;
+
+  delete fWriteWaitAck;
+  fWriteWaitAck = 0;
+
 }
 
 //_____________________________________________________________________________
@@ -265,10 +270,14 @@ short XrdClientConn::Connect(XrdClientUrlInfo Host2Conn,
 //_____________________________________________________________________________
 void XrdClientConn::Disconnect(bool ForcePhysicalDisc)
 {
-    // Disconnect
+    // Disconnect... is it so difficult? Yes!
+
+    ConnectionManager->SidManager()->GetAllOutstandingWriteRequests(fPrimaryStreamid, fWriteReqsToRetry);
+    fMainReadCache->PrintCache();
 
     if (fConnected)
        ConnectionManager->Disconnect(fLogConnID, ForcePhysicalDisc);
+
     fConnected = FALSE;
 }
 
@@ -773,6 +782,7 @@ XReqErrorType XrdClientConn::WriteToServer(ClientRequest *req,
 					   const void* reqMoreData,
 					   short LogConnID,
 					   int substreamid) {
+
     // Send message to server
     ClientRequest req_netfmt = *req;
     XrdClientLogConnection *lgc = 0;
@@ -2224,6 +2234,27 @@ XReqErrorType XrdClientConn::WriteToServer_Async(ClientRequest *req,
     if (!ConnectionManager->SidManager()->GetNewSid(fPrimaryStreamid, req))
 	return kNOMORESTREAMS;
 
+    // If this is a write request, its buffer has to be inserted into the cache
+    // This will be used for reference if the request has to be retried later
+    // or to give coherency to the read/write semantic
+    // From this point on, we consider the request as outstanding
+    // Note that his kind of blocks has to be pinned inside the cache until the write is successful
+    if (fMainReadCache && (req->header.requestid == kXR_write)) {
+      // We have to dup the mem blk
+      // It will be destroyed when purged by the cache, only after it has been
+      // acknowledged and pinned
+      void *locbuf = malloc(req->header.dlen);
+      if (!locbuf) { 
+	Error("WriteToServer_Async", "Error allocating " << 
+	      req->header.dlen << " bytes.");
+	return kGENERICERR;
+      }
+
+      memcpy(locbuf, reqMoreData, req->header.dlen);
+
+      if (!fMainReadCache->SubmitRawData(locbuf, req->write.offset, req->write.offset+req->header.dlen-1, true))
+	free(locbuf);
+    }
     // Send the req to the server
     return WriteToServer(req, reqMoreData, fLogConnID, substreamid);
 
@@ -2542,8 +2573,7 @@ int XrdClientConn:: GetParallelStreamCount() {
 
 
 //_____________________________________________________________________________
-XrdClientPhyConnection *XrdClientConn::GetPhyConn(int LogConnID)
-{
+XrdClientPhyConnection *XrdClientConn::GetPhyConn(int LogConnID) {
   // Protected way to get the underlying physical connection
 
   XrdClientLogConnection *log;
@@ -2551,5 +2581,71 @@ XrdClientPhyConnection *XrdClientConn::GetPhyConn(int LogConnID)
   log = ConnectionManager->GetConnection(LogConnID);
   if (log) return log->GetPhyConnection();
   return 0;
+
+}
+
+
+bool XrdClientConn::DoWriteSoftCheckPoint() {
+  // Cycle trough the outstanding write requests,
+  // If some of them are expired, cancel them
+  // and retry in the sync way, one by one
+  // If some of them got a negative response of some kind... the same
+
+  // Exit at the first sync error
+
+  // Get the failed write reqs, and put them in a safe place.
+  // This call has to be done also just before disconnecting a logical conn,
+  // in order to collect all the outstanding write requests before they are forgotten
+  ConnectionManager->SidManager()->GetFailedOutstandingWriteRequests(fPrimaryStreamid, fWriteReqsToRetry);
+
+  for (int it = 0; it < fWriteReqsToRetry.GetSize(); it++) {
+
+    ClientRequest req;
+    req = fWriteReqsToRetry[it];
+
+    // Get the mem blk to write, directly from the cache, where it should be
+    // a unique blk. If it's not there, then this is an internal error.
+    void *data = fMainReadCache->FindBlk(req.write.offset, req.write.offset+req.write.dlen-1);
+
+    // Now we have the req and the data, we let the things go almost normally
+    // No big troubles, this func is called by the main requesting thread
+    if (data) {
+      // The recoveries go always through the main stream
+      req.write.pathid = 0;
+      bool ok = SendGenCommand(&req, data, 0, 0,
+					    false, (char *)"Write_checkpoint");
+
+      UnPinCacheBlk(req.write.offset, req.write.offset+req.write.dlen-1);
+      // A total sync failure means that there is no more hope and that the destination file is
+      // surely incomplete.
+      if (!ok) return false;
+
+    }
+    else {
+      Error("DoWriteSoftCheckPoint", "Checkpoint data disappeared.");
+      return false;
+    }
+
+  }
+
+  // If we are here, all the requests were successful
+  fWriteReqsToRetry.Clear();
+  return true;
+}
+
+bool XrdClientConn::DoWriteHardCheckPoint() {
+  // Do almost the same as the soft checkpoint,
+  // But don't exit if there are still pending write reqs
+  // This has to guarantee that either a fatal error or a full success has happened
+  // Acts like a client-and-network-side flush
+  
+  while(1) {
+    if (ConnectionManager->SidManager()->GetOutstandingWriteRequestCnt(fPrimaryStreamid) == 0) return true;      
+    if (!DoWriteSoftCheckPoint()) return false;
+    if (ConnectionManager->SidManager()->GetOutstandingWriteRequestCnt(fPrimaryStreamid) == 0) return true;
+
+    //ConnectionManager->SidManager()->PrintoutOutstandingRequests();
+    fWriteWaitAck->Wait(1);
+  }
 
 }

@@ -717,17 +717,13 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 
 
 //_____________________________________________________________________________
-bool XrdClient::Write(const void *buf, long long offset, int len, bool docheckpoint) {
+bool XrdClient::Write(const void *buf, long long offset, int len) {
 
     if (!IsOpen_wait()) {
 	Error("WriteBuffer", "File not opened.");
 	return FALSE;
     }
 
-    XrdClientVector<XrdClientMStream::ReadChunk> rl;
-    XrdClientMStream::SplitReadRequest(fConnModule, offset, len, rl);
-    kXR_char *cbuf = (kXR_char *)buf;
-    int writtenok = 0;
 
     // Prepare request
     ClientRequest writeFileRequest;
@@ -737,45 +733,62 @@ bool XrdClient::Write(const void *buf, long long offset, int len, bool docheckpo
     memcpy( writeFileRequest.write.fhandle, fHandle, sizeof(fHandle) );
 
     bool ret = false;
+
+    if (!fUseCache) {
+      // Silly situation but worth handling
+      writeFileRequest.write.pathid = 0;
+      writeFileRequest.write.dlen = len;
+      writeFileRequest.write.offset = offset;
+      ret = fConnModule->SendGenCommand(&writeFileRequest, (void *)buf, 0, 0,
+					FALSE, (char *)"Write");
+      return ret;
+    }
+
+    // Soft checkpoint, we check just for timeouts in old outstanding write requests
+    // An unrecoverable error in an old request gives no sense to continue here.
+    // Rather unfortunate but happens. One more weird metaphor of life?!?!?
+    if (!fConnModule->DoWriteSoftCheckPoint()) return false;
+
+    XrdClientVector<XrdClientMStream::ReadChunk> rl;
+    XrdClientMStream::SplitReadRequest(fConnModule, offset, len, rl);
+    kXR_char *cbuf = (kXR_char *)buf;
+    int writtenok = 0;
+
     for (int i = 0; i < rl.GetSize(); i++) {
 
       writeFileRequest.write.offset = rl[i].offset;
       writeFileRequest.write.dlen = rl[i].len;
       writeFileRequest.write.pathid = rl[i].streamtosend;
    
-      if (i < rl.GetSize()-1) {
-	XReqErrorType b = fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend);
-	if (b != kOK) {
-           // Try again the write op, but in sync mode
-           ret = fConnModule->SendGenCommand(&writeFileRequest, (void *)cbuf, 0, 0,
-					     FALSE, (char *)"Write");
-           if (!ret) break;
-        }
-        writtenok += rl[i].len;
+      // The req is sent only asynchronously. So, the only bottleneck here is the kernel
+      // and its tcp buffer sizes... and the network of course. But beware of the crappy
+      // default tcp settings of the various SLCs
+      XReqErrorType b;
+      int cnt = 0;
+      do {
+	b = fConnModule->WriteToServer_Async(&writeFileRequest, (kXR_char *)buf+(rl[i].offset-offset), rl[i].streamtosend);
+	ret = (b == kOK);
+	if (b != kNOMORESTREAMS) break;
+
+	// There are no more slots for outstanding requests
+	// Asking for a hard checkpoint is a good way to waste some time
+	// and to wait for some slots to be free
+	// The only drawback is that the mechanism needs enough memory to fill
+	// the pipeline given by the network+server latency, or the max number of available slots
+	if (!fConnModule->DoWriteHardCheckPoint()) break;
+      } while (cnt < 10);
+
+      if (b != kOK) {
+	// We need to deal with errors while sending the request
+	// So, if there is an error or timeout while sending the req, it has to be retried sync
+	// in order to trigger immediately the normal retry mechanism, if needed
+	// Try again the write op, but in sync mode
+	writeFileRequest.write.pathid = 0;
+	ret = fConnModule->SendGenCommand(&writeFileRequest, (kXR_char *)buf+(rl[i].offset-offset), 0, 0,
+					  FALSE, (char *)"Write");
+	if (!ret) break;
       }
-      else
-	
-	if (docheckpoint || (rl.GetSize() == 1)) {
-	  writeFileRequest.write.pathid = 0;
-	  //	  if (!Sync()) return false;
-	  ret = fConnModule->SendGenCommand(&writeFileRequest, (void *)cbuf, 0, 0,
-					     FALSE, (char *)"Write");
-          if (ret) writtenok += rl[i].len;
-          else break;
-	}
-	else {
-	  ret = (fConnModule->WriteToServer_Async(&writeFileRequest, cbuf, rl[i].streamtosend) == kOK);
-
-          if (!ret)
-             ret = fConnModule->SendGenCommand(&writeFileRequest, (void *)cbuf, 0, 0,
-                                               FALSE, (char *)"Write");
-
-          if (ret) writtenok += rl[i].len;
-          else break;
-        }
-      
-
-
+      writtenok += rl[i].len;
       cbuf += rl[i].len;
     }
 
@@ -797,6 +810,7 @@ bool XrdClient::Sync()
 	return FALSE;
     }
 
+    if (!fConnModule->DoWriteHardCheckPoint()) return false;
 
     // Prepare request
     ClientRequest flushFileRequest;
@@ -1079,12 +1093,12 @@ bool XrdClient::Close() {
 
     // Use the sync one only if the file was opened for writing
     // To enforce the server side correct data flushing
-    if (IsOpenedForWrite())
+    if (IsOpenedForWrite()) {
+      fConnModule->DoWriteHardCheckPoint();
       fConnModule->SendGenCommand(&closeFileRequest,
 				  0,
 				  0, 0 , FALSE, (char *)"Close");
-    
-
+    }
     else
       fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
   
@@ -1309,7 +1323,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 	  return fConnModule->ProcessAsynResp(unsolmsg);
 	}
 	else
-	    // Let's see if we are receiving the response to an async read request
+	    // Let's see if we are receiving the response to an async read/write request
 	    if ( ConnectionManager->SidManager()->JoinedSids(fConnModule->GetStreamID(),
                                                              unsolmsg->HeaderSID()) ) {
 		struct SidInfo *si =
@@ -1378,7 +1392,22 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
 			break;
 		    }
+		      
+
+		    case kXR_write: {
+		      Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
+			   "Got positive ack for write req " << req->header.dlen <<
+			   "@" << req->write.offset);
+
+			// the corresponding cache blk has to be unpinned, and eventually
+			// purged
+			fConnModule->UnPinCacheBlk(req->write.offset, req->write.offset+req->header.dlen);
+
+		      // This streamid will be released
+		      return kUNSOL_DISPOSE;
 		    }
+		    }
+		    
 		} // if oksofar or ok
 			 
 	 

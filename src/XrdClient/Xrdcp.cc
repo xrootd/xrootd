@@ -774,8 +774,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	      MD_5->Update((const char*)buf,len);
 	    }
 
-	    // Always do a checkpoint for the multistream mode
-	    if ( !(*xrddest)->Write(buf, offs, len, true) ) {
+	    if ( !(*xrddest)->Write(buf, offs, len) ) {
 	       cerr << "Error writing to output server." << endl;
 	       PrintLastServerError(*xrddest);
 	       retvalue = 12;
