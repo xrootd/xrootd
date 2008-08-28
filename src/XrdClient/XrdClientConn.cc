@@ -273,7 +273,8 @@ void XrdClientConn::Disconnect(bool ForcePhysicalDisc)
     // Disconnect... is it so difficult? Yes!
 
     ConnectionManager->SidManager()->GetAllOutstandingWriteRequests(fPrimaryStreamid, fWriteReqsToRetry);
-    fMainReadCache->PrintCache();
+
+    if (fMainReadCache && (DebugLevel() >= XrdClientDebug::kDUMPDEBUG) ) fMainReadCache->PrintCache();
 
     if (fConnected)
        ConnectionManager->Disconnect(fLogConnID, ForcePhysicalDisc);
