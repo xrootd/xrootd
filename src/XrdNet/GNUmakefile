@@ -86,7 +86,8 @@ $(OBJDIR)/XrdNetConnect.o: XrdNetConnect.cc XrdNetConnect.hh XrdSysPlatform.hh
 	@echo Compiling XrdNetConnect.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetConnect.cc -o $(OBJDIR)/XrdNetConnect.o
 
-$(OBJDIR)/XrdNetDNS.o: XrdNetDNS.cc XrdNetDNS.hh XrdSysPlatform.hh XrdSysPthread.hh
+$(OBJDIR)/XrdNetDNS.o: XrdNetDNS.cc XrdNetDNS.hh XrdSysHeaders.hh \
+                       XrdSysPlatform.hh XrdSysPthread.hh
 	@echo Compiling XrdNetDNS.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFGETHBYXR) $(CFNAMEINFO) $(CFPROTOR) $(INCLUDE) XrdNetDNS.cc -o $(OBJDIR)/XrdNetDNS.o
 

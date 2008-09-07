@@ -296,6 +296,7 @@ int XrdNet::WSize()
   
 int XrdNet::do_Accept_TCP(XrdNetPeer &myPeer, int opts)
 {
+  static int noAcpt = 0;
   int        newfd;
   char      *hname;
   struct sockaddr addr;
@@ -307,7 +308,8 @@ int XrdNet::do_Accept_TCP(XrdNetPeer &myPeer, int opts)
       while(newfd < 0 && errno == EINTR);
 
    if (newfd < 0)
-      {eDest->Emsg("Accept", errno, "perform accept."); 
+      {if (errno != EMFILE || !(0x1ff & noAcpt++))
+          eDest->Emsg("Accept", errno, "perform accept");
        return 0;
       }
 
