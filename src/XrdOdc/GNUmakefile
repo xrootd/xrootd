@@ -84,6 +84,7 @@ $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 $(OBJDIR)/XrdOdcConfig.o: XrdOdcConfig.hh XrdOdcMsg.hh     XrdOdcTrace.hh \
                           XrdOuca2x.hh    XrdOucStream.hh  XrdOucTList.hh  \
                           XrdOucEnv.hh    XrdOucUtils.hh   XrdNetWork.hh \
+                          XrdSysHeaders.hh \
                           XrdOdcConfig.cc XrdOdcConfDefs.hh
 	@echo Compiling XrdOdcConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcConfig.o XrdOdcConfig.cc
@@ -118,7 +119,7 @@ $(OBJDIR)/XrdOdcResp.o: XrdOdcResp.hh     XrdOdcTrace.hh  XrdOucErrInfo.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcResp.o XrdOdcResp.cc
 
 $(OBJDIR)/XrdOdcTest.o: XrdSysError.hh   XrdOdcFinder.hh  XrdOucErrInfo.hh \
-                        XrdSysLogger.hh  XrdOucStream.hh   \
+                        XrdSysHeaders.hh XrdSysLogger.hh  XrdOucStream.hh   \
                         XrdOdcTest.cc
 	@echo Compiling XrdOdcTest.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOdcTest.o XrdOdcTest.cc

@@ -171,7 +171,7 @@ $(OBJDIR)/XrdCmsCache.o:     XrdCmsCache.cc      XrdCmsCache.hh \
 
 $(OBJDIR)/XrdCmsClientConfig.o: XrdCmsClientConfig.cc   XrdCmsClientConfig.hh \
                                 XrdCmsClientMsg.hh      XrdCmsTrace.hh \
-                                XrdNetDNS.hh \
+                                XrdNetDNS.hh            XrdSysHeaders.hh \
                                 XrdOuca2x.hh            XrdOucEnv.hh \
                                 XrdOucStream.hh         XrdOucTList.hh \
                                 XrdOucUtils.hh
@@ -229,7 +229,7 @@ $(OBJDIR)/XrdCmsConfig.o:    XrdCmsConfig.cc     XrdCmsConfig.hh \
                              XrdOucExport.hh     XrdOucName2Name.hh \
                              XrdOucPList.hh      XrdOucProg.hh \
                              XrdOucStream.hh     XrdOucTList.hh \
-                             XrdOucUtils.hh \
+                             XrdOucUtils.hh      XrdSysHeaders.hh \
                              XrdSysError.hh      XrdSysPlatform.hh \
                              XrdSysPlugin.hh     XrdSysPthread.hh \
                              XrdSysTimer.hh \
@@ -258,7 +258,7 @@ $(OBJDIR)/XrdCmsFinder.o:    XrdCmsFinder.cc     XrdCmsFinder.hh \
 $(OBJDIR)/XrdCmsJob.o:       XrdCmsJob.cc        XrdCmsJob.hh \
                              XrdCmsProtocol.hh   XrdCmsRRData.hh \
                              XrdCmsTrace.hh      XrdOss.hh \
-                             XrdSysPthread.hh \
+                             XrdSysHeaders.hh    XrdSysPthread.hh \
                              XrdJob.hh           XrdLink.hh \
                              XrdScheduler.hh \
                              YProtocol.hh
@@ -387,7 +387,7 @@ $(OBJDIR)/XrdCmsProtocol.o:  XrdCmsProtocol.cc   XrdCmsProtocol.hh \
                              XrdOucPup.hh        XrdOucTokenizer.hh \
                              XrdNetDNS.hh \
                              XrdSysError.hh      XrdSysPthread.hh \
-                             XrdSysTimer.hh \
+                             XrdSysHeaders.hh    XrdSysTimer.hh \
                              XrdInet.hh          XrdLink.hh \
                              XrdProtocol.hh \
                              YProtocol.hh

@@ -112,6 +112,7 @@ $(OBJDIR)/XrdOlbConfig.o: XrdOlbConfig.hh   XrdOlbConfig.cc \
                           XrdOucPList.hh    XrdOucExport.hh \
                           XrdSysPlatform.hh XrdSysPlugin.hh  XrdOucProg.hh \
                           XrdSysPthread.hh  XrdOucStream.hh  XrdSysTimer.hh \
+                          XrdSysHeaders.hh \
                           XrdOucTList.hh    XrdOucUtils.hh   XrdOucEnv.hh \
                           ../XrdVersion.hh
 	@echo Compiling XrdOlbConfig.cc 
@@ -170,7 +171,8 @@ $(OBJDIR)/XrdOlbProtocol.o: XrdOlbProtocol.hh  XrdOlbProtocol.cc  \
                             XrdInet.hh         XrdLink.hh       XrdProtocol.hh   \
                             XrdNetLink.hh      XrdNetPeer.hh \
                             XrdOlbConfig.hh    XrdOlbManager.hh XrdOlbTrace.hh \
-                            XrdSysError.hh     XrdSysLogger.hh  XrdSysPthread.hh
+                            XrdSysError.hh     XrdSysHeaders.hh \
+                            XrdSysLogger.hh    XrdSysPthread.hh
 	@echo Compiling XrdOlbProtocol.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOlbProtocol.o XrdOlbProtocol.cc
 

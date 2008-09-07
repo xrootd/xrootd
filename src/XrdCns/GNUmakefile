@@ -60,14 +60,14 @@ $(OBJDIR)/XrdCnsConfig.o:  XrdCnsDaemon.hh XrdCnsEvent.hh   XrdCnsConfig.cc \
                            XrdNetDNS.hh    XrdNetOpts.hh    XrdNetSocket.hh \
                            XrdScheduler.hh XrdTrace.hh \
                            XrdSysError.hh  XrdSysLogger.hh  XrdOucUtils.hh \
-                           XrdSysTimer.hh
+                           XrdSysHeaders.hh XrdSysTimer.hh
 	@echo Compiling XrdCnsConfig.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCnsConfig.o XrdCnsConfig.cc
 
 $(OBJDIR)/XrdCnsDaemon.o: XrdCnsDaemon.hh  XrdCnsDaemon.cc  XrdCnsEvent.hh\
                           XrdTrace.hh      XrdNetDNS.hh  \
                           XrdSysError.hh   XrdOucStream.hh  XrdOucUtils.hh \
-                          XrdSysTimer.hh   XrdSysPthread.hh \
+                          XrdSysTimer.hh   XrdSysHeaders.hh XrdSysPthread.hh \
                           XrdPosixXrootd.hh
 	@echo Compiling XrdCnsDaemon.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCnsDaemon.o XrdCnsDaemon.cc
@@ -79,7 +79,7 @@ $(OBJDIR)/XrdCnsEvent.o: XrdCnsEvent.hh  XrdCnsEvent.cc  \
 
 $(OBJDIR)/XrdCnsMain.o:    XrdCnsDaemon.hh    XrdCnsMain.cc \
                            XrdScheduler.hh    XrdTrace.hh \
-                           XrdSysError.hh     XrdSysLogger.hh  \
+                           XrdSysError.hh     XrdSysHeaders.hh XrdSysLogger.hh  \
                            XrdSysPlatform.hh  XrdSysPthread.hh
 	@echo Compiling XrdCnsMain.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCnsMain.o XrdCnsMain.cc

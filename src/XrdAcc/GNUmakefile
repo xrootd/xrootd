@@ -109,19 +109,20 @@ $(OBJDIR)/XrdAccConfig.o: XrdAccConfig.hh     XrdAccConfig.cc \
                           XrdAccAccess.hh     XrdAccAudit.hh  XrdAccAuthDB.hh \
                           XrdAccCapability.hh XrdAccGroups.hh XrdOucLock.hh \
                           XrdOuca2x.hh        XrdOucEnv.hh    XrdSysError.hh  \
-                          XrdOucHash.hh       XrdOucHash.icc \
+                          XrdOucHash.hh       XrdOucHash.icc  XrdSysHeaders.hh \
                           XrdSysPthread.hh    XrdOucStream.hh XrdOucStream.hh
 	@echo Compiling XrdAccConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccConfig.o XrdAccConfig.cc
 
 $(OBJDIR)/XrdAccGroups.o: XrdAccGroups.hh     XrdAccGroups.cc \
-                          XrdAccCapability.hh XrdAccPrivs.hh \
+                          XrdAccCapability.hh XrdAccPrivs.hh  XrdSysHeaders.hh \
                           XrdOucHash.hh       XrdOucHash.icc  XrdSysPthread.hh
 	@echo Compiling XrdAccGroups.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccGroups.o XrdAccGroups.cc
 
 $(OBJDIR)/XrdAccTest.o: XrdAccAuthorize.hh XrdAccConfig.hh XrdAccGroups.hh \
                         XrdAccPrivs.hh     XrdOucStream.hh XrdSysError.hh \
-                        XrdSysLogger.hh    XrdAccTest.cc   XrdSecEntity.hh
+                        XrdSysLogger.hh    XrdAccTest.cc   XrdSecEntity.hh \
+                        XrdSysHeaders.hh
 	@echo Compiling XrdAccTest.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdAccTest.o XrdAccTest.cc

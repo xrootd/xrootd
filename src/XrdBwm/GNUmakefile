@@ -84,7 +84,7 @@ $(OBJDIR)/XrdBwm.o:  XrdBwm.cc           XrdBwm.hh \
                      XrdSecEntity.hh \
                      XrdSfsAio.hh        XrdSfsInterface.hh \
                      XrdSysError.hh      XrdSysLogger.hh    XrdSysPlatform.hh \
-                     XrdSysPthread.hh \
+                     XrdSysPthread.hh    XrdSysHeaders.hh \
                   ../XrdVersion.hh
 	@echo Compiling XrdBwm.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBwm.o XrdBwm.cc
@@ -95,7 +95,7 @@ $(OBJDIR)/XrdBwmConfig.o:  XrdBwmConfig.cc \
                            XrdBwmPolicy1.hh   XrdBwmTrace.hh \
                            XrdOuca2x.hh       XrdOucEnv.hh     XrdOucStream.hh\
                            XrdOucTrace.hh \
-                           XrdSysError.hh     XrdSysPlugin.hh
+                           XrdSysError.hh     XrdSysHeaders.hh XrdSysPlugin.hh
 	@echo Compiling XrdBwmConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdBwmConfig.o XrdBwmConfig.cc
 
