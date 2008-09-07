@@ -49,6 +49,6 @@ $(TARGETS): $(OBJECTS) $(LIBDEPS)
 
 $(OBJDIR)/XrdSecProtocolkrb5.o: XrdSecProtocolkrb5.cc XrdSecInterface.hh \
                                 XrdSysPthread.hh      XrdOucTokenizer.hh \
-                                XrdOucErrInfo.hh
+                                XrdOucErrInfo.hh      XrdSysHeaders.hh
 	@echo Compiling XrdSecProtocolkrb5.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $(INCKRB5) -o $(OBJDIR)/XrdSecProtocolkrb5.o XrdSecProtocolkrb5.cc

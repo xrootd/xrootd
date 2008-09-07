@@ -69,7 +69,7 @@ $(TARGETS): $(OBJECTS) $(OBJECTT) $(LIBDEP)
 
 $(OBJDIR)/XrdPss.o:  XrdPss.cc         XrdPss.hh      XrdPosixXrootd.hh \
                      XrdOss.hh         XrdOssError.hh XrdOucEnv.hh \
-                     XrdSysError.hh    \
+                     XrdSysError.hh    XrdSysHeaders.hh \
                      XrdSysPlatform.hh \
                      ../XrdVersion.hh
 	@echo Compiling XrdPss.cc
@@ -83,7 +83,7 @@ $(OBJDIR)/XrdPssAio.o:  XrdPssAio.cc   XrdPss.hh \
 $(OBJDIR)/XrdPssConfig.o:  XrdPssConfig.cc   XrdPss.hh \
                            XrdOuca2x.hh      XrdOucEnv.hh      XrdSysError.hh \
                            XrdOucStream.hh   XrdOucTList.hh    XrdOucUtils.hh \
-                           XrdNetDNS.hh      XrdSysPlatform.hh \
+                           XrdNetDNS.hh      XrdSysPlatform.hh XrdSysHeaders.hh \
                            XrdPosixXrootd.hh
 	@echo Compiling XrdPssConfig.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPssConfig.o XrdPssConfig.cc

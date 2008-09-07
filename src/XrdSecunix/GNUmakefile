@@ -28,6 +28,7 @@ TARGETS = $(LIBDIR)/libXrdSecunix.$(TYPESHLIB)
 
 vpath XrdOuc% ../XrdOuc
 vpath XrdSec% ../XrdSec
+vpath XrdSys% ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -47,6 +48,7 @@ $(TARGETS): $(OBJECTS) $(LIBDEPS)
 	$(ECHO)$(CC) $(OBJECTS) $(LDSO) $(MORELIBS) $(LIBS) -o $(TARGETS);
 
 $(OBJDIR)/XrdSecProtocolunix.o: XrdSecProtocolunix.cc XrdSecInterface.hh \
+                                XrdSysHeaders.hh \
                                 XrdSecEntity.hh       XrdOucErrInfo.hh
 	@echo Compiling XrdSecProtocolunix.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolunix.o XrdSecProtocolunix.cc
