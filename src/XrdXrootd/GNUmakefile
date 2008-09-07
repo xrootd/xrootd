@@ -131,7 +131,8 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdNetDNS.hh         XrdNetSocket.hh  XrdNetOpts.hh \
                              XrdBuffer.hh         XProtocol.hh \
                              XrdOuca2x.hh         XrdSysError.hh  \
-                             XrdSysLogger.hh      XrdOucReqID.hh \
+                             XrdSysLogger.hh      XrdSysHeaders.hh \
+                             XrdOucReqID.hh \
                              XrdOucTokenizer.hh   XrdOucTrace.hh \
                              XrdOucProg.hh        XrdXrootdConfig.cc \
                              XrdOucStream.hh      XrdOucEnv.hh
