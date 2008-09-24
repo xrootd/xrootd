@@ -13,6 +13,7 @@ lib_LTLIBRARIES = libXrdSeckrb5.la
 INCLUDES = -I$(top_srcdir)/src $(KRB5_INCDIR)
 
 libXrdSeckrb5_la_SOURCES = XrdSecProtocolkrb5.cc
-libXrdSeckrb5_la_LIBADD = ../XrdSys/libXrdSys.la $(KRB5_LIBDIR) -lkrb5 -lk5crypto -lcom_err
+libXrdSeckrb5_la_LIBADD = ../XrdSys/libXrdSys.la ../XrdSys/libXrdOuc.la ../XrdSys/libXrdNet.la \
+                          $(KRB5_LIBDIR) -lkrb5 -lk5crypto -lcom_err
 libXrdSeckrb5_la_LDFLAGS = -module
 libXrdSeckrb5_la_LIBTOOLFLAGS = --tag=disable-static
