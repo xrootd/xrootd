@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifdef __macos__
+#if defined(__macos__) || defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
@@ -57,7 +57,7 @@ extern XrdPosixLinkage Xunix;
 // making CopyDirent() superfluous. In Solaris x86 there are no 32 bit interfaces.
 //
 #if !defined(__LP64__) && !defined(_LP64)
-#if !defined( __macos__) && !defined(SUNX86)
+#if !defined( __macos__) && !defined(SUNX86) && !defined(__FreeBSD__)
 int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -88,7 +88,7 @@ int XrdPosix_CopyDirent(struct dirent *dent, struct dirent64 *dent64)
 // In Solaris x86 there are no 32 bit interfaces.
 //
 #if !defined(__LP64__) && !defined(_LP64)
-#if !defined(SUNX86)
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 {
   const unsigned long long LLMask = 0xffffffff00000000LL;
@@ -121,7 +121,7 @@ int XrdPosix_CopyStat(struct stat *buf, struct stat64 &buf64)
 /*                                 c r e a t                                  */
 /******************************************************************************/
   
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 int     creat(const char *path, mode_t mode)
@@ -189,7 +189,7 @@ int fseeko(FILE *stream, off_t offset, int whence)
 /*                                 f s t a t                                  */
 /******************************************************************************/
 
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 #if defined __linux__ && __GNUC__ && __GNUC__ >= 2
@@ -241,7 +241,7 @@ off_t ftello(FILE *stream)
 /*                             f t r u n c a t e                              */
 /******************************************************************************/
   
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 int ftruncate(int fildes, off_t offset)
@@ -257,7 +257,7 @@ int ftruncate(int fildes, off_t offset)
 /*                                 l s e e k                                  */
 /******************************************************************************/
   
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 off_t   lseek(int fildes, off_t offset, int whence)
@@ -273,7 +273,7 @@ off_t   lseek(int fildes, off_t offset, int whence)
 /*                                 l s t a t                                  */
 /******************************************************************************/
 
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2 && defined(__linux__)
@@ -309,7 +309,7 @@ int        lstat(         const char *path, struct stat *buf)
 /*                                  o p e n                                   */
 /******************************************************************************/
   
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 int     open(const char *path, int oflag, ...)
@@ -330,7 +330,7 @@ int     open(const char *path, int oflag, ...)
 /*                                 p r e a d                                  */
 /******************************************************************************/
   
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
@@ -346,7 +346,7 @@ ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset)
 /*                               r e a d d i r                                */
 /******************************************************************************/
 
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 struct dirent* readdir(DIR *dirp)
@@ -369,7 +369,7 @@ struct dirent* readdir(DIR *dirp)
 /*                             r e a d d i r _ r                              */
 /******************************************************************************/
   
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
@@ -401,7 +401,7 @@ int     readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result)
 /*                                p w r i t e                                 */
 /******************************************************************************/
   
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
@@ -417,7 +417,7 @@ ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset)
 /*                                  s t a t                                   */
 /******************************************************************************/
 
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 #if defined __GNUC__ && __GNUC__ >= 2
@@ -453,7 +453,7 @@ int        stat(         const char *path, struct stat *buf)
 /*                                s t a t f s                                 */
 /******************************************************************************/
 
-#if !defined(__solaris__) && !defined(__macos__)
+#if !defined(__solaris__) && !defined(__macos__) && !defined(__FreeBSD__)
 extern "C"
 {
 int        statfs(         const char *path, struct statfs *buf)
@@ -481,7 +481,7 @@ int        statfs(         const char *path, struct statfs *buf)
 /*                               s t a t v f s                                */
 /******************************************************************************/
 
-#if !defined(__macos__) && !defined(SUNX86)
+#if !defined(__macos__) && !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 int        statvfs(         const char *path, struct statvfs *buf)
@@ -508,7 +508,7 @@ int        statvfs(         const char *path, struct statvfs *buf)
 /*                              t r u n c a t e                               */
 /******************************************************************************/
   
-#ifndef SUNX86
+#if !defined(SUNX86) && !defined(__FreeBSD__)
 extern "C"
 {
 int truncate(const char *path, off_t offset)
