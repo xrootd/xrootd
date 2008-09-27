@@ -7,7 +7,7 @@ include ../GNUmake.env
 ifneq ($(TYPE),Darwin)
 
 LIBUTIL = $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdOuc.a \
-          $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdSys.a $(LIBDIR)/libXrdNet.a
 
 ifneq ($(LIBSSL),)
 LIBDEPS = $(LIBDIR)/libXrdCryptossl.$(TYPESHLIB) $(LIBUTIL)
@@ -27,8 +27,9 @@ else
 
 ifneq ($(LIBSSL),)
 
-LIBUTIL = $(LIBDIR)/libXrdCryptossl.a \
-	$(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdOuc.a
+LIBUTIL = $(LIBDIR)/libXrdCryptossl.a $(LIBDIR)/libXrdCrypto.a \
+          $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a \
+          $(LIBDIR)/libXrdNet.a
 
 BINLIBS = $(LIBSSL) $(LIBUTIL)
 
@@ -36,7 +37,9 @@ LIBLIBS = $(LIBSSL) $(LIBUTIL)
 
 else
 
-LIBUTIL = $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdOuc.a
+LIBUTIL = $(LIBDIR)/libXrdCrypto.a \
+          $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a \
+          $(LIBDIR)/libXrdNet.a
 
 BINLIBS = $(LIBUTIL)
 
@@ -150,7 +153,7 @@ $(OBJDIR)/XrdSecProtocolgsi.o: XrdSecProtocolgsi.cc XrdSysLogger.hh \
 		XrdCryptosslgsiAux.hh XrdCryptosslgsiX509Chain.hh \
 		XrdCryptoX509Chain.hh XrdCryptoX509.hh XrdCryptoRSA.hh XrdCryptoAux.hh \
 		XrdCryptoX509Crl.hh XrdCryptoX509Req.hh XrdSecProtocolgsi.hh \
-		XrdOucErrInfo.hh XrdSysPlatform.hh  XrdOucTokenizer.hh XrdSysHeaders.hh \
+		XrdOucErrInfo.hh XrdSysPlatform.hh  XrdOucTokenizer.hh \
 		XrdSecInterface.hh XrdSecEntity.hh XrdSecgsiTrace.hh \
 		XrdOucTrace.hh XrdSutPFile.hh XrdSutBuffer.hh XrdSutBuckList.hh \
 		XrdSutRndm.hh XrdCryptoCipher.hh XrdCryptoFactory.hh

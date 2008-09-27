@@ -151,13 +151,14 @@ public:
    int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy 
                   // [s] ask client for proxies
    int    sigpxy; // [c] accept delegated proxy requests 
+   char  *srvnames;// [c] '|' separated list of allowed server names
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
                   cipher = 0; md = 0; ca = 1 ; crl = 1;
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
                   gridmap = 0; gmapto = -1; gmapfun = 0; gmapfunparms = 0; ogmap = 1;
-                  dlgpxy = 0; sigpxy = 1;}
+                  dlgpxy = 0; sigpxy = 1; srvnames = 0;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
 };
 
@@ -282,6 +283,7 @@ private:
    static XrdSysPlugin    *GMAPPlugin;
    static XrdSecgsiGMAP_t  GMAPFun;
    static int              PxyReqOpts;
+   static String           SrvAllowedNames;
    //
    // Crypto related info
    static int              ncrypt;                  // Number of factories
@@ -351,6 +353,7 @@ private:
    int            GetCA(const char *cahash);
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
+   bool           ServerCertNameOK(const char *subject);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca,
