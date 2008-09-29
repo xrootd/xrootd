@@ -82,7 +82,7 @@ void XrdCnsDaemon::getEvents(XrdOucStream &Events)
    mode_t    Mode;
    const char *eP;
    char *tp, *etp;
-   XrdCnsEvent *evP;
+   XrdCnsEvent *evP = 0;
 
 // Each ofs request comes in as:
 // <traceid> {closew <lfn> <size> | create <mode> <lfn> | mkdir <mode> <lfn> |

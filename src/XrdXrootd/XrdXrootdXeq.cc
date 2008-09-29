@@ -1054,8 +1054,8 @@ int XrdXrootdProtocol::do_Prepare()
    char opts, hname[32], reqid[64], nidbuff[512], *path;
    XrdOucErrInfo myError(Link->ID);
    XrdOucTokenizer pathlist(argp->buff);
-   XrdOucTList *pFirst, *pP, *pLast = 0;
-   XrdOucTList *oFirst, *oP, *oLast = 0;
+   XrdOucTList *pFirst=0, *pP, *pLast = 0;
+   XrdOucTList *oFirst=0, *oP, *oLast = 0;
    XrdXrootdPrepArgs pargs(0, 1);
    XrdSfsPrep fsprep;
 
