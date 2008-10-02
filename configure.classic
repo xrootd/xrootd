@@ -864,8 +864,12 @@ fi
 ### echo %%% Check for compiler special options:
 #            - need of '-Wno-strict-aliasing'
 #
+checkgccopt="no"
+case "$ccflv" in
+   gcc*) checkgccopt="yes" ;;
+esac
 nostrictalias=""
-if test "x$ccflv" = "xgcc" ; then
+if test "x$checkgccopt" = "xyes" ; then
    message "Checking for gcc special options"
    if [ `gcc -dumpversion 2>&1 | cut -d'.' -f1` -ge 4 ] ; then
       nostrictalias="-Wno-strict-aliasing"
