@@ -15,11 +15,11 @@ const char *XrdOucStreamCVSID = "$Id$";
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #ifndef WIN32
+#include <poll.h>
 #include <unistd.h>
 #include <strings.h>
 #if !defined(__linux__) && !defined(__CYGWIN__)
