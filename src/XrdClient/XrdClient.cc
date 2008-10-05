@@ -257,7 +257,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
         
 	    // after connection deal with server
 	    if (!fConnModule->GetAccessToSrv()) {
-               
+
                if (fConnModule->GetRedirCnt() >= fConnModule->GetMaxRedirCnt()) {
                   // We have been so unlucky.
                   // The max number of redirections was exceeded while logging in
@@ -274,7 +274,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 			XrdOucString msg(fConnModule->LastServerError.errmsg);
 			msg.erasefromend(1);
 			Error("Open", "Authentication failure: " << msg);
-			break;
+                        connectTry = connectMaxTry;
 		    } else {
 			XrdOucString msg(fConnModule->LastServerError.errmsg);
 			msg.erasefromend(1);
@@ -311,7 +311,6 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	}
 
     } //for connect try
-
 
     if (!fConnModule->IsConnected()) {
 	return FALSE;
