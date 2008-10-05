@@ -21,6 +21,7 @@ const char *XrdClientConnCVSID = "$Id$";
 #include "XrdClient/XrdClientPhyConnection.hh"
 #include "XrdClient/XrdClientProtocol.hh"
 
+#include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
@@ -1517,7 +1518,7 @@ bool XrdClientConn::DoLogin()
 	    putenv(cenv);
 
 	    secp = DoAuthentication(pauth, lenauth);
-	    resp = (secp != 0);
+	    resp = (secp != 0) ? 1 : 0;
 	}
 
 
@@ -1699,7 +1700,8 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 	XrdOucString protname = protocol->Entity.prot;
 	//
 	// Once we have the protocol, get the credentials
-	credentials = protocol->getCredentials(&Parms);
+        XrdOucErrInfo ei;
+	credentials = protocol->getCredentials(0, &ei);
 	if (!credentials) {
 	    Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
 		 "cannot obtain credentials (protocol: "<<protname<<")");
@@ -1707,8 +1709,10 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 	    fOpenError = kXR_NotAuthorized;
 	    LastServerError.errnum = fOpenError;
 	    strcpy(LastServerError.errmsg, "cannot obtain credentials for protocol: ");
-	    strcat(LastServerError.errmsg, protname.c_str());
+	    strcat(LastServerError.errmsg, ei.getErrText());
 	    pp = pn;
+            protocol->Delete();
+            protocol = 0;
 	    continue;
 	} else {
 	    Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
@@ -1746,7 +1750,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 		secToken = new XrdSecParameters(srvans,LastServerResp.dlen);
 		//
 		// then get next part of the credentials
-		credentials = protocol->getCredentials(secToken);
+		credentials = protocol->getCredentials(secToken, &ei);
 		SafeDelete(secToken); // nb: srvans is released here
 		srvans = 0;
 		if (!credentials) {
@@ -1755,7 +1759,10 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 		    // Set error, in case of need
 		    fOpenError = kXR_NotAuthorized;
 		    LastServerError.errnum = fOpenError;
-		    strcpy(LastServerError.errmsg, "cannot obtain credentials");
+		    strcpy(LastServerError.errmsg, "cannot obtain credentials: ");
+                    strcat(LastServerError.errmsg, ei.getErrText());
+                    protocol->Delete();
+                    protocol = 0;
 		    break;
 		} else {
 		    Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
@@ -1764,6 +1771,12 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 	    } else if (LastServerResp.status == kXR_ok) {
 		// Success
 		resp = TRUE;
+            } else {
+                // Print error msg, if any
+                if (LastServerError.errmsg)
+                   Error("DoAuthentication", LastServerError.errmsg);
+                protocol->Delete();
+                protocol = 0;
 	    }
 	}
 	if (!resp)
