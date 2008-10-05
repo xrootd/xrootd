@@ -26,6 +26,8 @@ static const char evMv     = 'm';
 static const char evRm     = 'r';
 static const char evRmdir  = 'D';
 
+static const int  lfnBSize = 2050; // (2 * 1024 + 2)
+
 static XrdCnsEvent *Alloc();
 
 static int          Init(const char *aP, const char *pP, int qLim);
@@ -87,8 +89,6 @@ static int Recover(const char *, off_t);
 
 XrdCnsEvent  *Next;
 
-
-static const int     lfnBSize = 2050; // (2 * 1024 + 2)
 
 struct EventRec 
        {unsigned int     Number;
