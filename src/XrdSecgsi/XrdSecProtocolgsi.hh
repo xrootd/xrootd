@@ -181,12 +181,13 @@ public:
    bool              Tty;           // Terminal attached / not attached
    int               LastStep;      // Step required at previous iteration
    int               Options;       // Handshake options;
+   XrdSutBuffer     *Parms;         // Buffer with server parms on first iteration 
 
    gsiHSVars() { Iter = 0; TimeStamp = -1; CryptoMod = "";
                  RemVers = -1; Rcip = 0;
                  Cbck = 0;
                  ID = ""; Cref = 0; Pent = 0; Chain = 0; Crl = 0; PxyChain = 0;
-                 RtagOK = 0; Tty = 0; LastStep = 0; Options = 0;}
+                 RtagOK = 0; Tty = 0; LastStep = 0; Options = 0; Parms = 0;}
 
    ~gsiHSVars() { SafeDelete(Cref);
                   if (Chain)
@@ -195,7 +196,7 @@ public:
                      SafeDelete(Chain);
                   if (PxyChain)
                      PxyChain->Cleanup(1);
-                  SafeDelete(PxyChain); }
+                  SafeDelete(Parms); }
    void Dump(XrdSecProtocolgsi *p = 0);
 };
 
@@ -232,7 +233,7 @@ public:
                                           XrdOucErrInfo     *einfo=0);
 
         XrdSecProtocolgsi(int opts, const char *hname,
-                          const struct sockaddr *ipadd);
+                          const struct sockaddr *ipadd, const char *parms = 0);
         virtual ~XrdSecProtocolgsi() {} // Delete() does it all
 
         // Initialization methods
@@ -353,7 +354,7 @@ private:
    int            GetCA(const char *cahash);
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
-   bool           ServerCertNameOK(const char *subject);
+   bool           ServerCertNameOK(const char *subject, String &e);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca,
