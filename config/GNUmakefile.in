@@ -74,6 +74,7 @@ clean: FORCE
 	      $(RM) -fr obj$(SUNCACHE);\
 	   fi;\
 	fi
+	$(RM) -f test-comp.*
 
 distclean: FORCE
 	@$(MAKE) $(TARGETS) MAKEXEQ=clean XMSG=Cleaning --no-print-directory
@@ -81,6 +82,8 @@ distclean: FORCE
 	$(ECHO)$(RM) -f GNUmakefile
 	$(ECHO)$(RM) -f src/GNUmake.env
 	$(ECHO)$(RM) -f src/GNUmake.options
+	$(ECHO)$(RM) -f config.log
+	$(ECHO)$(RM) -f test-comp.*
 
 XrdAcc: FORCE
 	@echo $(XMSG) acc $(XDBG) component...

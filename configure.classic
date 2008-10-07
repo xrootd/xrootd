@@ -408,9 +408,10 @@ check_prototype() {
         echo "check_prototype: no test program for $1"
         return 1
     fi
-    testtmp="/tmp/test.cc"
-    rm -f $testtmp
-    cp -rp $testfile $testtmp
+    testtmp="test-comp"
+    testcc="/tmp/$testtmp.cc"
+    rm -f "$testcc"
+    cp -rp $testfile "$testcc"
 
     # Make sure that the compiler exists
     xcc=`which $2 2> /dev/null`
@@ -424,7 +425,8 @@ check_prototype() {
     outfiletmp="$outfile.tmp"
 
     # Compilation test
-    $2 $3 $testtmp > $outfiletmp 2>&1
+    $2 $3 $testcc > $outfiletmp 2>&1
+    rm -f $testcc $testtmp.*
 
     # Check the result
     found_prototype="yes"
