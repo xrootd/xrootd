@@ -795,8 +795,9 @@ AC_SYS_DEV_POLL(AC_DEFINE(_DEVPOLL),[])
 
 ###########################################
 # GNU Readline checks
+enable_readline=yes
 AC_CHECK_HEADERS([readline/readline.h readline/history.h curses.h term.h],
-                  [enable_readline="yes"]
+                  [],[enable_readline="no"]
 		 )
 if test x"$enable_readline" = xyes; then
    AC_CHECK_LIB([readline],[readline],
@@ -809,7 +810,6 @@ AC_SUBST(READLINE_LIBS)
 if test x"$enable_readline" != xyes; then
    AC_MSG_WARN([xrd application will be built without GNU readline support])
 fi
-
 ###########################################
 # Kerberos 4 checks
 krb4tests=ok
