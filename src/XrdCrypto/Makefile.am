@@ -12,8 +12,8 @@
 ## include them in the distribution via the EXTRA_DIST keyword
 EXTRA_DIST = XrdCryptosslX509Store.cc XrdCryptosslX509Store.hh
 
-lib_LTLIBRARIES = libXrdCrypto.la
-noinst_LTLIBRARIES = libXrdSSLutil.la
+lib_LTLIBRARIES = libXrdCrypto.la libXrdCryptossl.la
+noinst_LTLIBRARIES = libXrdSSLutil.la 
 
 xrdcryptoincdir = $(includedir)/xrootd/XrdCrypto
 xrdcryptoinc_HEADERS = \
@@ -67,6 +67,22 @@ libXrdCrypto_la_LIBADD = libXrdSSLutil.la \
                          ../XrdOuc/libXrdOuc.la \
                          ../XrdSys/libXrdSys.la \
                          ../XrdNet/libXrdNet.la
+
+
+libXrdCryptossl_la_SOURCES = \
+        XrdCryptosslAux.cc         \
+        XrdCryptosslCipher.cc         \
+        XrdCryptosslFactory.cc      \
+        XrdCryptosslMsgDigest.cc      \
+        XrdCryptosslRSA.cc      \
+        XrdCryptosslX509.cc      \
+        XrdCryptosslX509Crl.cc      \
+        XrdCryptosslX509Req.cc    \
+        XrdCryptosslgsiAux.cc      \
+        XrdCryptosslgsiX509Chain.cc
+libXrdCryptossl_la_LIBADD = ../XrdSut/libXrdSut.la \
+                            $(OPENSSL_LIBDIR) -lssl -lcrypto
+libXrdCryptossl_la_CXXFLAGS = $(SSLCXXFLAGS)
 
 
 xrdcryptotest_SOURCES = XrdCryptotest.cc
