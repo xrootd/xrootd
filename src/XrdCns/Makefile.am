@@ -31,12 +31,12 @@ XrdCnsd_SOURCES = \
                   XrdCnsMain.cc
 
 XrdCnsd_LDADD   = \
-                  libXrd.la        \
-                  libXrdPosix.la   \
-                  libXrdClient.la  \
-                  libXrdNet.la     \
-                  libXrdOuc.la     \
-                  libXrdSys.la
+                  ../Xrd/libXrd.la        \
+                  ../XrdOuc/libXrdOuc.la     \
+                  ../XrdNet/libXrdNet.la     \
+                  ../XrdSys/libXrdSys.la \
+                  ../XrdPosix/libXrdPosix.la   \
+                  ../XrdClient/libXrdClient.la
 
 XrdCnsd_LDFLAGS = -static -export-dynamic
 

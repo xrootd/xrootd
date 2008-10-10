@@ -57,6 +57,7 @@ endif
 if ENABLE_POSIX
 XRDPOSIX = XrdPosix
 XRDPSS = XrdPss
+XRDCNS = XrdCns
 endif
 
 
@@ -87,6 +88,7 @@ SUBDIRS = XrdSys \
           XrdClient \
           $(XRDPOSIX) \
           $(XRDPSS) \
+          $(XRDCNS) \
           $(XRDMON) \
           $(CASTOR) \
           $(TOKENAUTHZ)
