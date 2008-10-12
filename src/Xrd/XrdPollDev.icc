@@ -70,6 +70,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
 //
    if ((pfd = open("/dev/poll", O_RDWR)) < 0)
       {XrdLog.Emsg("Poll", errno, "open /dev/poll"); return 0;}
+   fcntl(pfd, F_SETFD, FD_CLOEXEC);
 
 // Calculate the size of the poll table and allocate it
 //
