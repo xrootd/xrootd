@@ -1745,6 +1745,29 @@ fi
 
 ######################################################################
 #
+### echo %%% Support for simple-shared-secret authentication
+#
+#
+havesss=""
+if test ! "x$enable_sss" = "xno" ; then
+    #
+    message "Enabling simple-shared-secret authentication module"
+    #
+    buildsec="yes"
+    # plug-in name
+    havesss="XrdSecsss"
+    # Cryptography needed
+    xrdcrypto="XrdCrypto"
+    # Enable OpenSSL, if not explicitely disabled
+    if test ! "x$enable_ssl" = "xno" ; then
+       enable_ssl="yes"
+    fi
+    #
+    echo "done"
+fi
+
+######################################################################
+#
 ### echo %%% AFS Support - Third party libraries
 #
 # (See http://www.openafs.org)
@@ -2049,7 +2072,7 @@ fi
 ### Collect security setup
 xrdsec="XrdSec $xrdsut $xrdcrypto"
 if test "x$buildsec" = "xyes" ; then
-   xrdsec="$xrdsec $havekrb4 $havekrb5 $havepwd $havegsi XrdSecunix"
+   xrdsec="$xrdsec $havekrb4 $havekrb5 $havepwd $havesss $havegsi XrdSecunix"
 fi
 cryptlib="CRYPTLIB = -lcrypt"
 if test "x$platform" = "xmacosx" ; then
