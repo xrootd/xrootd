@@ -303,7 +303,7 @@ sub do_list_fn {
 		    }
 		    else {
 			$fn = mss2none($fn);
-			print("$fn\n");
+			print("$fn\n") if $fn;
 		    }
 		}
 	    }
