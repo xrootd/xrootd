@@ -23,7 +23,7 @@ xrdcryptoinc_HEADERS = \
       XrdCryptoBasic.hh        XrdCryptosslAux.hh        XrdCryptosslTrace.hh         XrdCryptoX509Crl.hh \
       XrdCryptoCipher.hh       XrdCryptosslCipher.hh     XrdCryptosslX509Crl.hh       XrdCryptoX509.hh \
       XrdCryptoFactory.hh      XrdCryptosslFactory.hh    XrdCryptosslX509.hh          XrdCryptoX509Req.hh \
-      XrdCryptolocalCipher.hh  XrdCryptosslgsiAux.hh     XrdCryptosslX509Req.hh
+      XrdCryptolocalCipher.hh  XrdCryptosslgsiAux.hh     XrdCryptosslX509Req.hh       XrdCryptoLite.hh
 
 
 check_PROGRAMS = xrdcryptotest
@@ -46,8 +46,6 @@ libXrdSSLutil_la_LIBADD = ../XrdSut/libXrdSut.la \
                           $(OPENSSL_LIBDIR) -lssl -lcrypto
 libXrdSSLutil_la_CXXFLAGS = $(SSLCXXFLAGS)
 
-
-
 libXrdCrypto_la_SOURCES = \
         PC1.cc PC1.hh    \
         PC3.cc PC3.hh    \
@@ -67,6 +65,12 @@ libXrdCrypto_la_LIBADD = libXrdSSLutil.la \
                          ../XrdOuc/libXrdOuc.la \
                          ../XrdSys/libXrdSys.la \
                          ../XrdNet/libXrdNet.la
+
+libXrdCryptoLite_la_SOURCES = \
+        XrdCryptoLite.hh \
+        XrdCryptoLite.cc \
+        XrdCryptoLite_bf32.cc
+libXrdCrytoLite_la_CXXFLAGS = $(SSLCXXFLAGS)
 
 
 libXrdCryptossl_la_SOURCES = \
