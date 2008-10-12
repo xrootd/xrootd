@@ -12,7 +12,7 @@
 ## include them in the distribution via the EXTRA_DIST keyword
 EXTRA_DIST = XrdCryptosslX509Store.cc XrdCryptosslX509Store.hh
 
-lib_LTLIBRARIES = libXrdCrypto.la libXrdCryptossl.la
+lib_LTLIBRARIES = libXrdCrypto.la libXrdCryptossl.la libXrdCryptoLite.la
 noinst_LTLIBRARIES = libXrdSSLutil.la 
 
 xrdcryptoincdir = $(includedir)/xrootd/XrdCrypto

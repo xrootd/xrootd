@@ -907,6 +907,7 @@ AC_OUTPUT(Makefile
 	  src/XrdSeckrb4/Makefile
 	  src/XrdSeckrb5/Makefile
 	  src/XrdSecgsi/Makefile
+          src/XrdSecsss/Makefile
 	  src/XrdSecunix/Makefile
 	  src/XrdSfs/Makefile
           src/XrdAcc/Makefile

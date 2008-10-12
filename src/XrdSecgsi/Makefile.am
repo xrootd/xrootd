@@ -8,7 +8,7 @@
 ## Checked in by $Author$
 #######################################################################
 
-lib_LTLIBRARIES = libXrdSecgsi.la
+lib_LTLIBRARIES = libXrdSecgsi.la libXrdSecgsiGMAPLADP.la
 
 bin_PROGRAMS = xrdgsiproxy
 

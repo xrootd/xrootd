@@ -28,6 +28,7 @@ endif
 
 if ENABLE_OPENSSL
 XRDSECPWD = XrdSecpwd
+XRDSECSSS = XrdSecsss
 endif
 
 if ENABLE_KRB4
@@ -73,6 +74,7 @@ SUBDIRS = XrdSys \
           $(XRDSECKRB4) \
           $(XRDSECKRB5) \
           $(XRDSECGSI) \
+          $(XRDSECSSS) \
           XrdSecunix \
           XrdSfs \
           XrdAcc \
