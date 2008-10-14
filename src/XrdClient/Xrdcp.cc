@@ -175,7 +175,6 @@ void print_md5(const char* src, unsigned long long bytesread, XrdCryptoMsgDigest
 
 
 
-
 // The body of a thread which reads from the global
 //  XrdClient and keeps the queue filled
 //____________________________________________________________________________
@@ -405,17 +404,19 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       // if xrddest if nonzero, then the file is already opened for writing
       if (!*xrddest) {
 	 *xrddest = new XrdClient(dst);
-	 if (!(*xrddest)->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-			       xrd_wr_flags)) {
-	    cerr << "Error opening remote destination file " << dst << endl;
-	    PrintLastServerError(*xrddest);
 
-	    delete cpnfo.XrdCli;
-	    delete *xrddest;
-	    *xrddest = 0;
-	    cpnfo.XrdCli = 0;
-	    return -1;
-	 }
+         if (!PedanticOpen4Write(*xrddest, kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
+                              xrd_wr_flags)) {
+            cerr << "Error opening remote destination file " << dst << endl;
+            PrintLastServerError(*xrddest);
+                  
+            delete cpnfo.XrdCli;
+            delete *xrddest;
+            *xrddest = 0;
+            cpnfo.XrdCli = 0;
+            return -1;
+         }
+
       }
 
       // Start reader on xrdc
@@ -735,11 +736,11 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    if (!*xrddest) {
 
       *xrddest = new XrdClient(dst);
-      if (!(*xrddest)->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
-			    xrd_wr_flags)) {
+      if (!PedanticOpen4Write(*xrddest, kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
+                           xrd_wr_flags) ) {
 	 cerr << "Error opening remote destination file " << dst << endl;
 	 PrintLastServerError(*xrddest);
-
+         
 	 close(cpnfo.localfile);
 	 delete *xrddest;
 	 *xrddest = 0;
