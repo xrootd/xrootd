@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 #******************************************************************************
 # (c) 2002 by the Board of Trustees of the Leland Stanford, Jr., University   *
 #                          All Rights Reserved                                *
