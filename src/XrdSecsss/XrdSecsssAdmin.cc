@@ -124,11 +124,12 @@ int main(int argc, char **argv)
 
 // Grab any arguments
 //
+   if (optind < argc) Opt.KeyName = argv[optind++];
+      else if (doIt == doDel)
+              {eMsg(Opt.Action <<" keyname not specified."); Usage(1);}
+
    if (doIt == doDel)
-      {if (optind >= argc)
-          {eMsg(Opt.Action <<" keyname not specified."); Usage(1);}
-          else Opt.KeyName = argv[optind++];
-       if (optind >= argc)
+      {if (optind < argc)
           {eMsg(Opt.Action <<" key number not specified."); Usage(1);}
        if (!strcmp("all", argv[optind])) Opt.KeyNum = -1;
           else if ((Opt.KeyNum = atoi(argv[optind])) <= 0)
@@ -203,9 +204,9 @@ int isNo(int dflt, const char *Msg1, const char *Msg2, const char *Msg3)
    cin.getline(Answer, sizeof(Answer));
    if (!*Answer) return dflt;
 
-   if (strcmp("y",Answer) && strcmp("ye",Answer) && strcmp("yes",Answer))
-      return 0;
-   return 1;
+   if (!strcmp("y",Answer) || !strcmp("ye",Answer) || !strcmp("yes",Answer))
+      return 1;
+   return 0;
 }
 
 /******************************************************************************/
