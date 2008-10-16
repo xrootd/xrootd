@@ -459,7 +459,9 @@ int XrdOfsFile::open(const char          *path,      // In
                return XrdOfsFS.fsError(error, retc);
               }
            if (retc != -ENOTSUP)
-              return XrdOfsFS.Emsg(epname, error, retc, "create", path);
+              {if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Removed(path);
+               return XrdOfsFS.Emsg(epname, error, retc, "create", path);
+              }
           } else {
             if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path);
             open_flag  = O_RDWR|O_TRUNC;
