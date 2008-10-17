@@ -129,7 +129,7 @@ int main(int argc, char **argv)
               {eMsg(Opt.Action <<" keyname not specified."); Usage(1);}
 
    if (doIt == doDel)
-      {if (optind < argc)
+      {if (optind >= argc)
           {eMsg(Opt.Action <<" key number not specified."); Usage(1);}
        if (!strcmp("all", argv[optind])) Opt.KeyNum = -1;
           else if ((Opt.KeyNum = atoi(argv[optind])) <= 0)
@@ -205,8 +205,8 @@ int isNo(int dflt, const char *Msg1, const char *Msg2, const char *Msg3)
    if (!*Answer) return dflt;
 
    if (!strcmp("y",Answer) || !strcmp("ye",Answer) || !strcmp("yes",Answer))
-      return 1;
-   return 0;
+      return 0;
+   return 1;
 }
 
 /******************************************************************************/
@@ -305,7 +305,7 @@ int  XrdSecsssAdmin_delKey(XrdsecsssAdmin_Opts &Opt)
 // It's possible that all of the keys were deleted. Check for that
 //
    if (Opt.kTab->keyList() == 0)
-      {if (isNo(1, "No keys will remain is ", Opt.KeyFile,
+      {if (isNo(1, "No keys will remain in ", Opt.KeyFile,
                    ". Delete file? (n | y): "))
           {eMsg("No keys deleted!"); return 2;}
        unlink(Opt.KeyFile);
