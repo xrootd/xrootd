@@ -205,6 +205,7 @@ $(OBJDIR)/XrdCmsCluster.o:   XrdCmsCluster.cc    XrdCmsCluster.hh \
                              XrdCmsSelect.hh     XrdCmsState.hh \
                              XrdCmsTrace.hh      XrdCmsTypes.hh \
                              XrdNetDNS.hh        XrdOucPup.hh \
+                             XrdOucTList.hh \
                              XrdSysPlatform.hh   XrdSysPthread.hh \
                              XrdSysTimer.hh \
                              XrdJob.hh           XrdLink.hh \
