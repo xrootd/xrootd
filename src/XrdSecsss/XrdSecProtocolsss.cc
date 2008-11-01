@@ -20,6 +20,7 @@ const char *XrdSecProtocolsssCVSID = "$Id$";
 #include <stdio.h>
 #include <sys/param.h>
 
+#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucPup.hh"
@@ -43,10 +44,12 @@ const char *XrdSecProtocolsssCVSID = "$Id$";
 /*                           S t a t i c   D a t a                            */
 /******************************************************************************/
 
+const char    *XrdSecProtocolsss::myName;
+int            XrdSecProtocolsss::myNLen;
+
 XrdCryptoLite *XrdSecProtocolsss::CryptObj   = 0;
 XrdSecsssKT   *XrdSecProtocolsss::ktObject   = 0;
 XrdSecsssID   *XrdSecProtocolsss::idMap      = 0;
-char          *XrdSecProtocolsss::authID     = 0;
 char          *XrdSecProtocolsss::staticID   = 0;
 int            XrdSecProtocolsss::staticIDsz = 0;
 int            XrdSecProtocolsss::options    = 0;
@@ -71,7 +74,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    XrdSecsssRR_Data    rrData;
    XrdSecsssKT::ktEnt  decKey;
    XrdSecEntity        myID;
-   char lidBuff[16],  eType, *idP, *dP, *eodP;
+   char lidBuff[16],  eType, *idP, *dP, *eodP, *theHost = 0;
    int idTLen = 0, idSz, dLen;
 
 // Decode the credentials
@@ -79,13 +82,11 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    if ((dLen = Decode(einfo, decKey, cred->buffer, &rrData, cred->size)) <= 0)
       return -1;
 
-// If the authID is fixed, use it now
-//
-   if (authID) {Entity.name = authID; return 0;}
-
 // Check if we should just use the LID
 //
-   if (rrData.Options == XrdSecsssRR_Data::UseLID)
+   if (decKey.Opts & XrdSecsssKT::ktEnt::useLID
+   ||  (rrData.Options == XrdSecsssRR_Data::UseLID
+        && decKey.Opts & XrdSecsssKT::ktEnt::anyUSR))
       {if (idBuff) free(idBuff);
        idBuff = Entity.name = strdup(getLID(lidBuff, sizeof(lidBuff)));
        return 0;
@@ -119,6 +120,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
                 case XrdSecsssRR_Data::theRole: myID.role         = idP; break;
                 case XrdSecsssRR_Data::theGrps: myID.grps         = idP; break;
                 case XrdSecsssRR_Data::theEndo: myID.endorsements = idP; break;
+                case XrdSecsssRR_Data::theHost: theHost           = idP; break;
                 case XrdSecsssRR_Data::theRand: idTLen -= idSz;          break;
                 default: Fatal(einfo,"Authenticate",EINVAL,"Invalid id type.");
                          return -1;
@@ -132,10 +134,36 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
        return -1;
       }
 
+// Verify the source of the information to largely prevent packet stealing
+//
+   if (!theHost)
+      {Fatal(einfo, "Authenticate", ENOENT, "No hostname specified.");
+       return -1;
+      }
+   if (strcmp(theHost, urName))
+      {Fatal(einfo, "Authenticate", EINVAL, "Hostname mismatch.");
+       return -1;
+      }
+
+// Set correct username
+//
+        if (decKey.Opts & XrdSecsssKT::ktEnt::anyUSR)
+           {if (!myID.name) myID.name = (char *)"nobody";}
+   else if (decKey.Opts & XrdSecsssKT::ktEnt::useLID)
+           myID.name = getLID(lidBuff, sizeof(lidBuff));
+   else myID.name = decKey.User;
+
+// Set correct group
+//
+   if (decKey.Opts & XrdSecsssKT::ktEnt::anyGRP)
+      {if (!myID.grps) myID.grps = (char *)"nogroup";}
+      else myID.grps = decKey.Grup;
+
 // Complete constructing our identification
 //
    if (idBuff) free(idBuff);
    idBuff = idP = (char *)malloc(idTLen);
+   Entity.name         = setID(myID.name,         &idP);
    Entity.name         = setID(myID.name,         &idP);
    Entity.vorg         = setID(myID.vorg,         &idP);
    Entity.role         = setID(myID.role,         &idP);
@@ -154,6 +182,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
 void XrdSecProtocolsss::Delete()
 {
      if (Entity.host)         free(Entity.host);
+     if (urName)              free(urName);
      if (idBuff)              free(idBuff);
      if (staticID)            free(staticID);
      if (keyTab && keyTab != ktObject) delete keyTab;
@@ -310,6 +339,14 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
    XrdSecsssID::authType aType;
    const char *kP = 0;
 
+// Get our full host name
+//
+   if (!(myName = XrdNetDNS::getHostName()))
+      {Fatal(erp, "Load_Client", ENOENT, "Unable to obtain local hostname.");
+       return (char *)0;
+      }
+   myNLen = strlen(myName)+1;
+
 // Check for the presence of a registry object
 //
    aType = XrdSecsssID::getObj(&idMap);
@@ -425,7 +462,6 @@ char *XrdSecProtocolsss::Load_Server(XrdOucErrInfo *erp, const char *parms)
 {
    const char *msg = 0;
    const char *encName = "bf32", *ktClient = "", *ktServer = 0;
-   const char *mapID = "nobody";
    char buff[2048], parmbuff[2048], *op, *od, *eP;
    int lifeTime = 13, rfrTime = 60*60;
    XrdOucTokenizer inParms(parmbuff);
@@ -434,7 +470,7 @@ char *XrdSecProtocolsss::Load_Server(XrdOucErrInfo *erp, const char *parms)
 //
    if (parms) strlcpy(parmbuff, parms, sizeof(parmbuff));
 
-// Expected parameters: [-a {* | usr}] [-c <ckt_path>] [-e <enctype>]
+// Expected parameters: [-c <ckt_path>] [-e <enctype>]
 //                      [-r <minutes>] [-l <seconds>]  [-s <skt_path>]
 //
    if (parms && inParms.GetLine())
@@ -443,9 +479,7 @@ char *XrdSecProtocolsss::Load_Server(XrdOucErrInfo *erp, const char *parms)
                {sprintf(buff,"Secsss: Missing %s parameter argument",op);
                 msg = buff; break;
                }
-                 if (!strcmp("-a", op))
-                    mapID = (strcmp(od,"*") ? od : 0);
-            else if (!strcmp("-c", op)) ktClient = od;
+                 if (!strcmp("-c", op)) ktClient = od;
             else if (!strcmp("-e", op)) encName  = od;
             else if (!strcmp("-l", op))
                     {lifeTime = strtol(od, &eP, 10) * 60;
@@ -478,10 +512,6 @@ char *XrdSecProtocolsss::Load_Server(XrdOucErrInfo *erp, const char *parms)
 // Set the delta time used to expire credentials
 //
    deltaTime = lifeTime;
-
-// Set the target ID
-//
-   if (mapID) authID = strdup(mapID);
 
 // Create a keytab object (only one for the server)
 //
@@ -580,9 +610,17 @@ XrdSecCredentials *XrdSecProtocolsss::Encode(XrdOucErrInfo      *einfo,
 
 // Make sure we have enought space left in the buffer
 //
-   if (dLen > (int)sizeof(rrData->Data) - 16)
+   if (dLen > (int)sizeof(rrData->Data) - (16+myNLen))
       {Fatal(einfo,"Encode",ENOBUFS,"Insufficient buffer space for credentials.");
        return (XrdSecCredentials *)0;
+      }
+
+// Add in our host name for source verification
+//
+   if (myName)
+      {*eodP++ = XrdSecsssRR_Data::theHost;
+       XrdOucPup::Pack(&eodP, myName, myNLen);
+       dLen = eodP - (char *)rrData;
       }
 
 // Make sure we have at least 128 bytes of encrypted data
@@ -686,7 +724,8 @@ int XrdSecProtocolsss::getCred(XrdOucErrInfo    *einfo,
    dP = prData.Data; eodP = dLen + (char *)&prData;
    while(dP < eodP)
         {idType = *dP++;
-         if (!XrdOucPup::Unpack(&dP, eodP, &idP, idSz) || *idP == '\0')
+         if (!XrdOucPup::Unpack(&dP, eodP, &idP, idSz) 
+         ||  !idP || *idP == '\0')
             return Fatal(einfo, "getCred", EINVAL, "Invalid id string.");
          switch(idType)
                {case XrdSecsssRR_Data::theLgid: lidP = idP; lidSz = idSz; break;

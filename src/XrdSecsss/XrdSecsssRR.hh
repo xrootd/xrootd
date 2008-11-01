@@ -53,6 +53,7 @@ static const char theEndo = 0x05;
 //                theCert = 0x06; // Reserved for future use
 static const char theRand = 0x07; // Random string (ignored)
 static const char theLgid = 0x10; // from server only
+static const char theHost = 0x20; // from client only (required)
 };
 
 static const int  XrdSecsssRR_Data_HdrLen = sizeof(XrdSecsssRR_Data) -

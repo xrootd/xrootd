@@ -54,7 +54,8 @@ static  void  setOpts(int opts) {options = opts;}
 
         XrdSecProtocolsss(const char                *hname,
                           const struct sockaddr     *ipadd)
-                         : keyTab(0), Crypto(0), idBuff(0), Sequence(0) {}
+                         : keyTab(0), Crypto(0), idBuff(0), Sequence(0)
+                         {urName = strdup(hname);}
 
 struct Crypto {const char *cName; char cType;};
 
@@ -78,7 +79,9 @@ char          *setID(char *id, char **idP);
 
 static struct Crypto  CryptoTab[];
 
-static char          *authID;
+static const char    *myName;
+static int            myNLen;
+       char          *urName;
 static int            options;
 static int            isMutual;
 static int            deltaTime;

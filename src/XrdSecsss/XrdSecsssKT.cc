@@ -132,7 +132,7 @@ void XrdSecsssKT::addKey(ktEnt &ktNew)
 // Locate place to insert this key
 //
    ktP = ktList;
-   while(ktP && strcmp(ktP->Name, ktNew.Name)) {ktPP = ktP; ktP = ktP->Next;}
+   while(ktP && !isKey(*ktP, &ktNew, 0)) {ktPP = ktP; ktP = ktP->Next;}
 
 // Now chain in the entry
 //
@@ -148,33 +148,19 @@ void XrdSecsssKT::addKey(ktEnt &ktNew)
 int XrdSecsssKT::delKey(ktEnt &ktDel)
 {
    ktEnt *ktN, *ktPP = 0, *ktP = ktList;
+   int nDel = 0;
 
-// If the key number is negative, remove all named keys
+// Remove all matching keys
 //
-   if (ktDel.ID < 0)
-      {while(ktP && strcmp(ktP->Name,ktDel.Name)) {ktPP = ktP; ktP = ktP->Next;}
-       if (!ktP) return ENOENT;
-       do {ktN = ktP->Next; delete ktP; ktP = ktN;
-          } while(ktN && !strcmp(ktN->Name, ktDel.Name));
-       if (ktPP) ktPP->Next = ktN;
-          else   ktList     = ktN;
-       return 0;
-      }
+   while(ktP)
+        {if (isKey(ktDel, ktP))
+            {if (ktPP) ktPP->Next = ktP->Next;
+                else   ktList     = ktP->Next;
+             ktN = ktP; ktP = ktP->Next; delete ktN; nDel++;
+            } else {ktPP = ktP; ktP = ktP->Next;}
+        }
 
-// Locate place to remove this key
-//
-   ktP = ktList;
-   while(ktP && (strcmp(ktP->Name, ktDel.Name)
-      || (ktP->ID & 0x7fffffff) != (ktDel.ID & 0x7fffffff)))
-         {ktPP = ktP; ktP = ktP->Next;}
-
-// Delete the entry
-//
-   if (!ktP) return ENOENT;
-   if (ktPP) ktPP->Next = ktP->Next;
-      else   ktList     = ktP->Next;
-   delete ktP;
-   return 0;
+   return nDel;
 }
 
 /******************************************************************************/
@@ -293,9 +279,10 @@ void XrdSecsssKT::Refresh()
   
 int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
 {
-   char currID[32], tmpFN[1024], buff[256], kbuff[4096], *Slash;
+   char tmpFN[1024], buff[256], kbuff[4096], *Slash;
    int ktFD, numID, n, retc = 0;
-   ktEnt *ktP, *ktN;
+   ktEnt ktCurr, *ktP, *ktN;
+   mode_t theMode = fileMode(ktPath);
 
 // Invoke mkpath in case the path is missing
 //
@@ -312,20 +299,21 @@ int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
 
 // Open the file for output
 //
-   if ((ktFD = open(tmpFN, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) < 0)
+   if ((ktFD = open(tmpFN, O_WRONLY|O_CREAT|O_TRUNC, theMode)) < 0)
       return errno;
 
 // Write all of the keytable
 //
-   ktN = ktList; *currID = '\0'; numKeys = numTot = numExp = 0;
+   ktCurr.Name[0] = ktCurr.User[0] = ktCurr.Grup[0] = 3;
+   ktN = ktList; numKeys = numTot = numExp = 0;
    while((ktP = ktN))
         {ktN = ktN->Next; numTot++;
          if (ktP->Name[0] == '\0') continue;
          if (ktP->Exp && ktP->Exp <= time(0)) {numExp++; continue;}
-         if (strcmp(ktP->Name, currID)) {strcpy(currID,ktP->Name); numID = 0;}
+         if (!isKey(ktCurr, ktP, 0)) {ktCurr.NUG(ktP); numID = 0;}
             else if (Keep && numID >= Keep) continue;
-         n = sprintf(buff, "%s0 %s %lld %ld %ld ", (numKeys ? "\n" : ""),
-                     ktP->Name, ktP->ID, ktP->Crt, ktP->Exp);
+         n = sprintf(buff, "%s0 %s %s %s %lld %ld %ld ", (numKeys ? "\n" : ""),
+                     ktP->User,ktP->Grup,ktP->Name,ktP->ID,ktP->Crt,ktP->Exp);
          numID++; numKeys++; keyB2X(ktP, kbuff);
          if (write(ktFD, buff, n) < 0
          ||  write(ktFD, kbuff, ktP->Len*2) < 0) break;
@@ -376,6 +364,7 @@ int XrdSecsssKT::eMsg(const char *epname, int rc,
 XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
                                            time_t Mtime, mode_t Amode)
 {
+   static const int altMode = S_IRWXG | S_IRWXO;
    XrdOucStream myKT;
    int ktFD, retc, tmpID, recno = 0, NoGo = 0;
    const char *What, *ktFN;
@@ -385,7 +374,7 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
 // Verify that the keytable is only readable by us
 //
    ktMtime = Mtime;
-   if (Amode & (S_IRWXG | S_IRWXO))
+   if ((Amode & altMode) & ~fileMode(ktPath))
       {eMsg("getKeyTab",-1,"Unable to process ",ktPath,"; file is not secure!");
        return 0;
       }
@@ -405,12 +394,17 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
 
 // Now start reading the keytable which always has the form:
 //
-// <fmt> <keyid> <keynum> <keyct> <keyxt> <key>
+// <fmt> <keyusr> <keygrp> <keyid> <keynum> <keyct> <keyxt> <key>
 //
 do{while((lp = myKT.GetLine()))
-        {ktNew = new ktEnt; recno++;
+        {if (!*lp) continue;
+         ktNew = new ktEnt; recno++;
          What = "fmt";    if (!(tp = myKT.GetToken())) break;
          if (strcmp("0", tp)) break;
+         What = "user";   if (!(tp = myKT.GetToken())) break;
+         strlcpy(ktNew->User,tp,sizeof(ktNew->User));
+         What = "group";  if (!(tp = myKT.GetToken())) break;
+         strlcpy(ktNew->Grup,tp,sizeof(ktNew->Grup));
          What = "name";   if (!(tp = myKT.GetToken())) break;
          strlcpy(ktNew->Name,tp,sizeof(ktNew->Name));
          What = "keyid";  if (!(tp = myKT.GetToken())) break;
@@ -424,8 +418,11 @@ do{while((lp = myKT.GetLine()))
          if (ktMode != isAdmin && ktNew->Exp <- time(0)) continue;
          tmpID = static_cast<int>(ktNew->ID & 0x7fffffff);
          if (tmpID > kthiID) kthiID = tmpID;
+         if (!strcmp(ktNew->User, "anyuser"))        ktNew->Opts =ktEnt::anyUSR;
+            else if (!strcmp(ktNew->User,"loginid")) ktNew->Opts =ktEnt::useLID;
+         if (!strcmp(ktNew->Grup, "anygroup"))       ktNew->Opts|=ktEnt::anyGRP;
          ktP = ktBase; ktPP = 0;
-         while(ktP && strcmp(ktP->Name,ktNew->Name)) {ktPP=ktP; ktP=ktP->Next;}
+         while(ktP && !isKey(*ktP, ktNew, 0)) {ktPP=ktP; ktP=ktP->Next;}
          if (!ktP) {ktNew->Next = ktBase; ktBase = ktNew;}
             else {if (ktMode == isClient)
                      {if ((ktNew->Exp == 0 && ktP->Exp != 0)
@@ -434,7 +431,7 @@ do{while((lp = myKT.GetLine()))
                      } else {
                       while(ktNew->Crt < ktP->Crt)
                            {ktPP = ktP; ktP = ktP->Next;
-                            if (!ktP || strcmp(ktP->Name, ktNew->Name)) break;
+                            if (!ktP || !isKey(*ktP, ktNew, 0)) break;
                            }
                       if (ktPP) {ktPP->Next = ktNew; ktNew->Next = ktP;}
                          else   {ktNew->Next= ktBase; ktBase = ktNew;}
@@ -464,6 +461,32 @@ do{while((lp = myKT.GetLine()))
    return ktBase;
 }
 
+/******************************************************************************/
+/*                               g r p F i l e                                */
+/******************************************************************************/
+  
+mode_t XrdSecsssKT::fileMode(const char *Path)
+{
+   int n;
+
+   return (!Path || (n = strlen(Path)) < 5 || strcmp(".grp", &Path[n-4])
+        ? S_IRUSR|S_IWUSR : S_IRUSR|S_IWUSR|S_IRGRP);
+}
+
+/******************************************************************************/
+/*                                 i s K e y                                  */
+/******************************************************************************/
+
+int  XrdSecsssKT::isKey(ktEnt &ktRef, ktEnt *ktP, int Full)
+{
+   if (*ktRef.Name && strcmp(ktP->Name, ktRef.Name)) return 0;
+   if (*ktRef.User && strcmp(ktP->User, ktRef.User)) return 0;
+   if (*ktRef.Grup && strcmp(ktP->Grup, ktRef.Grup)) return 0;
+   if (Full && ktRef.ID > 0
+   && (ktP->ID & 0x7fffffff) != ktRef.ID) return 0;
+   return 1;
+}
+  
 /******************************************************************************/
 /*                                k e y B 2 X                                 */
 /******************************************************************************/

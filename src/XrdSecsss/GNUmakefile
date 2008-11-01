@@ -49,6 +49,7 @@ TARGETS = $(TARGLIB) $(TARGBIN)
 #------------------------------------------------------------------------------#
 
 vpath XrdCrypto% ../XrdCrypto
+vpath XrdNet%    ../XrdNet
 vpath XrdOuc%    ../XrdOuc
 vpath XrdSec%    ../XrdSec
 vpath XrdSys%    ../XrdSys
@@ -75,7 +76,7 @@ $(TARGBIN): $(OBJSBIN)
 	$(ECHO)$(CC) $(OBJSBIN) $(MORELIBS) $(LIBS) -o $(TARGBIN);
 
 $(OBJDIR)/XrdSecProtocolsss.o: XrdSecProtocolsss.cc    XrdSecProtocolsss.hh \
-                               XrdOucErrInfo.hh \
+                               XrdNetDNS.hh            XrdOucErrInfo.hh \
                                XrdOucPup.hh            XrdOucTokenizer.hh \
                                XrdCryptoLite.hh        XrdSecInterface.hh \
                                XrdSecsssID.hh          XrdSecsssKT.hh \
