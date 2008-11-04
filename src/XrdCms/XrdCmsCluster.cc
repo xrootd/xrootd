@@ -942,7 +942,7 @@ int XrdCmsCluster::Assign(const char *Cid)
 
 // If an exiting cluster simply return the cluster number
 //
-   if (!n) {n = cP->val; cidMutex.UnLock(); return n;}
+   if (!n && cP) {n = cP->val; cidMutex.UnLock(); return n;}
 
 // Add this cluster
 //
