@@ -214,9 +214,10 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 
 // Document login
 //
-   DEBUG(act <<nP->Ident <<" to cluster; id=" <<Slot <<'.' <<nP->Instance
+   DEBUG(act <<nP->Ident <<" to cluster; ref=" <<Slot <<'.' <<nP->Instance
          <<"; num=" <<NodeCnt <<"; min=" <<Config.SUPCount);
-   DEBUG(act <<nP->Ident <<" cluster " <<nP->myCNUM <<" ID=" <<nP->myCID);
+   DEBUG(act <<nP->Ident <<" cluster " <<nP->myCNUM <<" ID=" <<nP->myCID
+         <<'[' <<nP->myNID <<']');
 
 // Compute new state of all nodes if we are a reporting manager.
 //

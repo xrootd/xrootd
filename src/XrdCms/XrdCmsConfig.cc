@@ -313,6 +313,7 @@ int XrdCmsConfig::Configure2()
 
   Output:   0 upon success or !0 otherwise.
 */
+   EPNAME("Configure2");
    int NoGo = 0;
    char *p, buff[512];
 
@@ -348,7 +349,7 @@ int XrdCmsConfig::Configure2()
    if (!NoGo && !(mySID = setupSid()))
       {Say.Emsg("cmsd", "Unable to generate system ID; too many managers.");
        NoGo = 1;
-      }
+      } else {DEBUG("Cluster/Node ID = " <<mySID);}
 
 // If we need a name library, load it now
 //
@@ -907,7 +908,7 @@ int XrdCmsConfig::PidFile()
 
      if (xop) Say.Emsg("Config", errno, xop, pidFN);
         else setenv(envPIDFN, pidFN, 1);
-     if (*Space) *Space = ' ';
+     if (Space) *Space = ' ';
      return xop != 0;
 }
 
@@ -1064,7 +1065,7 @@ char *XrdCmsConfig::setupSid()
    static const char *envCNAME = "XRDCMSCLUSTERID";
    XrdOucTList *tpF, *tp = (NanList ? NanList : ManList);
    const char *insName = (myInsName ? myInsName : "anon");
-   char sidbuff[8192], *sidend = sidbuff+sizeof(sidbuff)-8, *sp = sidbuff;
+   char sidbuff[8192], *sidend = sidbuff+sizeof(sidbuff)-32, *sp = sidbuff;
    char *fMan, *fp, *xp, sfx; 
    int n;
 
@@ -1079,10 +1080,12 @@ char *XrdCmsConfig::setupSid()
                       xp--;
                      } while(fp-- != tpF->text);
                   if ((n = xp - tp->text + 1) > 0)
-                     {if (sp+n >= sidend) return (char *)0;
+                     {sp += sprintf(sp, "%d", tp->val);
+                      if (sp+n >= sidend) return (char *)0;
                       strncpy(sp, tp->text, n); sp += n;
                      }
                  }
+            sp += sprintf(sp, "%d", tpF->val);
             n = strlen(tpF->text);
             if (sp+n >= sidend) return (char *)0;
             strcpy(sp, tpF->text); sp += n;
