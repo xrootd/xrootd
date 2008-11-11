@@ -307,10 +307,9 @@ int  XrdSecsssAdmin_delKey(XrdsecsssAdmin_Opts &Opt)
 //
    Opt.kTab = new XrdSecsssKT(&eInfo, Opt.KeyFile, XrdSecsssKT::isAdmin);
    if ((retc = eInfo.getErrInfo()))
-      {if (retc == ENOENT)
-          {eMsg("Keyfile '" <<Opt.KeyFile <<"' does not exist.");
-           return 4;
-          }
+      {if (retc == ENOENT) 
+          {eMsg("Keyfile '" <<Opt.KeyFile <<"' does not exist.");}
+       return 4;
       }
 
 // Construct deletion reference
@@ -462,9 +461,8 @@ int  XrdSecsssAdmin_lstKey(XrdsecsssAdmin_Opts &Opt)
    Opt.kTab = new XrdSecsssKT(&eInfo, Opt.KeyFile, XrdSecsssKT::isAdmin);
    if ((retc = eInfo.getErrInfo()))
       {if (retc == ENOENT)
-          {eMsg("Keyfile '" <<Opt.KeyFile <<"' does not exist.");
-           return 4;
-          }
+          {eMsg("Keyfile '" <<Opt.KeyFile <<"' does not exist.");}
+       return 4;
       }
 
 // Obtain the keytab list
