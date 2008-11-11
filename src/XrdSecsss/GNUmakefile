@@ -73,7 +73,7 @@ $(TARGLIB): $(OBJSLIB) $(LIBDEPS)
 
 $(TARGBIN): $(OBJSBIN)
 	@echo Creating executable $(TARGBIN)
-	$(ECHO)$(CC) $(OBJSBIN) $(MORELIBS) $(LIBS) -o $(TARGBIN);
+	$(ECHO)$(LD) $(LDOP) $(OBJSBIN) $(MORELIBS) $(LIBS) -o $(TARGBIN);
 
 $(OBJDIR)/XrdSecProtocolsss.o: XrdSecProtocolsss.cc    XrdSecProtocolsss.hh \
                                XrdNetDNS.hh            XrdOucErrInfo.hh \
