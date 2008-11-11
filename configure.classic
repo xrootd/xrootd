@@ -497,7 +497,7 @@ guess_architecture () {
       darwin:power*:7.4*) arch=macosx_74       ; platform=macosx; ccflv=macos;;
       darwin:power*:7*)   arch=ppc_darwin_70   ; platform=macosx; ccflv=macos;;
       darwin:power*:*)    arch=macosx          ; platform=macosx; ccflv=macos;;
-      darwin:*86*:*)      arch=macosx          ; platform=macosx; ccflv=macos;;
+      darwin:*86*:*)      arch=x86_macosx      ; platform=macosx; ccflv=macos;;
       irix*:sgi*:*)       arch=sgi             ; platform=sgi;    ccflv=sgiCC;;
       sunos:i86pc:*)      arch=sunx86_510      ; platform=solaris; ccflv=sunCCamd;;
       sunos:i386:*)       arch=sunx86_510      ; platform=solaris; ccflv=sunCC;;
