@@ -65,7 +65,7 @@ XrdSecsssKT::XrdSecsssKT(XrdOucErrInfo *eInfo, const char *kPath,
 //
    ktPath = (kPath ? strdup(kPath) : 0);
    ktList = 0; kthiID = 0; ktMode = oMode; ktRefT = (time_t)refrInt;
-   eInfo->setErrCode(0);
+   if (eInfo) eInfo->setErrCode(0);
 
 // Prepare /dev/random if we have it
 //
@@ -78,22 +78,21 @@ XrdSecsssKT::XrdSecsssKT(XrdOucErrInfo *eInfo, const char *kPath,
    if (!kPath)
       {if (oMode != isAdmin)
           {eMsg("sssKT", -1, "Keytable path not specified.");
-           eInfo->setErrCode(EINVAL);
+           if (eInfo) eInfo->setErrInfo(EINVAL, "Keytable path missing.");
            return;
           }
        sbuf.st_mtime = 0; sbuf.st_mode = S_IRWXU;
       } else if (stat(kPath, &sbuf))
-                {eInfo->setErrCode(errno);
+                {if (eInfo) eInfo->setErrInfo(errno, "Keytable not found");
                  if (errno != ENOENT || oMode != isAdmin)
                     eMsg("sssKT",errno,"Unable process keytable ",kPath);
                  return;
                 }
 
-
 // Now read in the whole key table and start possible refresh thread
 //
    if ((ktList = getKeyTab(eInfo, sbuf.st_mtime, sbuf.st_mode))
-   && (oMode == isServer) && eInfo->getErrInfo() == 0)
+   && (oMode != isAdmin) && (!eInfo || eInfo->getErrInfo() == 0))
       {if ((retc = XrdSysThread::Run(&pid,XrdSecsssKTRefresh,(void *)this)))
           {eMsg("sssKT", errno, eText); eInfo->setErrInfo(-1, eText);}
       }
@@ -226,9 +225,16 @@ void XrdSecsssKT::genKey(char *kBP, int kLen)
    struct timeval tval;
    int kTemp;
 
-// See if we can directly service the key
+// See if we can directly service the key. Make sure that we get some entropy
+// because some /dev/random devices start out really cold.
 //
-   if (randFD >= 0) {read(randFD, kBP, kLen); return;}
+   if (randFD >= 0) 
+      {if (read(randFD, kBP, kLen) == kLen)
+          {int i, zcnt = 0, maxZ = kLen*25/100;
+           for (i = 0; i < kLen; i++) if (!kBP[i]) zcnt++;
+           if (zcnt <= maxZ) return;
+          }
+      }
 
 // Generate a seed
 //
@@ -375,7 +381,8 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
 //
    ktMtime = Mtime;
    if ((Amode & altMode) & ~fileMode(ktPath))
-      {eMsg("getKeyTab",-1,"Unable to process ",ktPath,"; file is not secure!");
+      {if (eInfo) eInfo->setErrInfo(EACCES, "Keytab file is not secure!");
+       eMsg("getKeyTab",-1,"Unable to process ",ktPath,"; file is not secure!");
        return 0;
       }
 
@@ -383,7 +390,8 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
 //
    if (ktPath)
       {if ((ktFD = open(ktPath, O_RDONLY)) < 0)
-          {eMsg("getKeyTab", errno, "Unable to open ", ktPath);
+          {if (eInfo) eInfo->setErrInfo(errno, "Unable to open keytab file.");
+           eMsg("getKeyTab", errno, "Unable to open ", ktPath);
            return 0;
           } else ktFN = ktPath;
       } else {ktFD = dup(STDIN_FILENO); ktFN = "stdin";}
@@ -439,21 +447,26 @@ do{while((lp = myKT.GetLine()))
                  }
         }
    if (lp)
-      {sprintf(rbuff, " line %d", recno); NoGo = 1;
-       eMsg("getKeyTab",-1,What," missing or invalid in ",ktFN,rbuff);
+      {if (eInfo) eInfo->setErrInfo(EINVAL, "Invalid keytab file.");
+       sprintf(rbuff, " line %d", recno);
+       NoGo = eMsg("getKeyTab",-1,What," missing or invalid in ",ktFN,rbuff);
       }
   } while(lp);
 
 // Check for stream problems
 //
    if ((retc = myKT.LastError()))
-      NoGo = eMsg("getKeyTab", retc, "Unable to read keytab ",ktFN);
-      else if (!ktBase) NoGo = eMsg("getKeyTab",-1,"No keys found in ",ktFN);
+      {if (eInfo) eInfo->setErrInfo(retc, "Unable to read keytab file.");
+       NoGo = eMsg("getKeyTab", retc, "Unable to read keytab ",ktFN);
+      } else if (!ktBase) 
+                {if (eInfo) eInfo->setErrInfo(ESRCH, "Keytabl is empty.");
+                 NoGo = eMsg("getKeyTab",-1,"No keys found in ",ktFN);
+                }
+
 
 // Check if an error should be returned
 //
-   if (NoGo) eInfo->setErrInfo(-1, "Error processing keytab.");
-      else   eInfo->setErrCode(0);
+   if (!NoGo) eInfo->setErrCode(0);
 
 // All done
 //
