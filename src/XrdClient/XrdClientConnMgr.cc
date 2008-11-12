@@ -535,6 +535,8 @@ void XrdClientConnectionMgr::Disconnect(int LogConnectionID,
 	 fLogVec[LogConnectionID]->GetPhyConnection()->Disconnect();
 	 GarbageCollect();
       }
+      else
+         fLogVec[LogConnectionID]->GetPhyConnection()->WipeStreamid(fLogVec[LogConnectionID]->Streamid());
     
       fLogVec[LogConnectionID]->GetPhyConnection()->Touch();
       delete fLogVec[LogConnectionID];
