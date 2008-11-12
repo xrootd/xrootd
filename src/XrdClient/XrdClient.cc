@@ -966,7 +966,7 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
     ClientRequest openFileRequest;
 
     char buf[1024];
-    struct ServerResponseBody_Open *openresp = (struct ServerResponseBody_Open *)buf;;
+    struct ServerResponseBody_Open *openresp = (struct ServerResponseBody_Open *)buf;
 
     memset(&openFileRequest, 0, sizeof(openFileRequest));
 
@@ -988,28 +988,34 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 					    (const void *)finalfilename.c_str(),
 					    0, openresp, false, (char *)"Open");
 
-    if (resp) {
-	// Get the file handle to use for future read/write...
-	memcpy( fHandle, openresp->fhandle, sizeof(fHandle) );
+    if (resp && (fConnModule->LastServerResp.status == 0)) {
+       // Get the file handle to use for future read/write...
+       if (fConnModule->LastServerResp.dlen >= (kXR_int32)sizeof(fHandle)) {
 
-	fOpenPars.opened = TRUE;
-	fOpenPars.options = options;
-	fOpenPars.mode = mode;
+          memcpy( fHandle, openresp->fhandle, sizeof(fHandle) );
 
-	if (fConnModule->LastServerResp.dlen > 12) {
+          fOpenPars.opened = TRUE;
+          fOpenPars.options = options;
+          fOpenPars.mode = mode;
+       }
+       else
+          Error("Open",
+                "Server did not return a filehandle. Protocol error.");
+
+       if (fConnModule->LastServerResp.dlen > 12) {
 	  // Get the stats
 	  Info(XrdClientDebug::kHIDEBUG,
 	       "Open", "Returned stats=" << ((char *)openresp + sizeof(struct ServerResponseBody_Open)));
-
+          
 	  sscanf((char *)openresp + sizeof(struct ServerResponseBody_Open), "%ld %lld %ld %ld",
 		 &fStatInfo.id,
 		 &fStatInfo.size,
 		 &fStatInfo.flags,
 		 &fStatInfo.modtime);
-
+          
 	  fStatInfo.stated = true;
-	}
-
+       }
+       
     }
 
 
