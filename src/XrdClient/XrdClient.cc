@@ -1098,14 +1098,12 @@ bool XrdClient::Close() {
 
     // Use the sync one only if the file was opened for writing
     // To enforce the server side correct data flushing
-    if (IsOpenedForWrite()) {
+    if (IsOpenedForWrite())
       fConnModule->DoWriteHardCheckPoint();
-      fConnModule->SendGenCommand(&closeFileRequest,
-				  0,
-				  0, 0 , FALSE, (char *)"Close");
-    }
-    else
-      fConnModule->WriteToServer_Async(&closeFileRequest, 0, 0); 
+
+    fConnModule->SendGenCommand(&closeFileRequest,
+				0,
+				0, 0 , FALSE, (char *)"Close");
   
     // No file is opened for now
     fOpenPars.opened = FALSE;
