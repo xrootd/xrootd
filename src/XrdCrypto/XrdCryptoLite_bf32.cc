@@ -21,11 +21,11 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <inttypes.h>
-#include <iostream.h>
 
 #include <openssl/blowfish.h>
 
 #include "XrdOuc/XrdOucCRC.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 
 /******************************************************************************/
 /*              C l a s s   X r d C r y p t o L i t e _ b f 3 2               */

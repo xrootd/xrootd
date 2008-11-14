@@ -32,7 +32,7 @@
 XrdCryptoLite *XrdCryptoLite::Create(int &rc, const char *Name, const char Type)
 {
    extern XrdCryptoLite *XrdCryptoLite_New_bf32(const char Type);
-   XrdCryptoLite *cryptoP;
+   XrdCryptoLite *cryptoP = 0;
 
    if (!strcmp(Name, "bf32"))     cryptoP = XrdCryptoLite_New_bf32(Type);
 
