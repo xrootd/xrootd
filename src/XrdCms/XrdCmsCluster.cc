@@ -327,7 +327,7 @@ SMask_t XrdCmsCluster::getMask(const char *Cid)
    XrdCmsNode *nP;
    SMask_t smask = 0;
    XrdOucTList *cP;
-   int i, Cnum;
+   int i = 1, Cnum = -1;
 
 // Lock the cluster ID list
 //
