@@ -930,7 +930,7 @@ int XrdCmsCluster::Assign(const char *Cid)
 {
    static int cNum = 0;
    XrdOucTList *cP, *cPP, *cNew;
-   int n;
+   int n = -1;
 
 // Lock the cluster ID list
 //
