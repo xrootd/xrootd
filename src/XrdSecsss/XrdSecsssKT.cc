@@ -260,7 +260,7 @@ void XrdSecsssKT::Refresh()
    XrdOucErrInfo eInfo;
    ktEnt *ktNew, *ktOld, *ktNext;
    struct stat sbuf;
-   int retc;
+   int retc = 0;
 
 // Get change time of keytable and if changed, update it
 //
@@ -286,7 +286,7 @@ void XrdSecsssKT::Refresh()
 int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
 {
    char tmpFN[1024], buff[256], kbuff[4096], *Slash;
-   int ktFD, numID, n, retc = 0;
+   int ktFD, numID = 0, n, retc = 0;
    ktEnt ktCurr, *ktP, *ktN;
    mode_t theMode = fileMode(ktPath);
 

@@ -83,7 +83,7 @@ int main(int argc, char **argv)
    char c, *sp;
    const char *validOpts = "dg:h:k:l:n:s:u:x:";
    int rc;
-   What2Do doIt;
+   What2Do doIt = doList;
 
 // Get the name of our program
 //
@@ -451,7 +451,7 @@ int  XrdSecsssAdmin_lstKey(XrdsecsssAdmin_Opts &Opt)
    extern int XrdSecsssAdmin_isKey(XrdsecsssAdmin_Opts &Opt,
                                    XrdSecsssKT::ktEnt *ktP);
    XrdOucErrInfo eInfo;
-   XrdSecsssKT::ktEnt *ktP, *ktSort, *ktS, *ktSP, *ktX;
+   XrdSecsssKT::ktEnt *ktP, *ktSort = 0, *ktS, *ktSP, *ktX;
    char crfmt[] = "%D %T", exfmt[] = "%D";
    char buff[128], crbuff[64], exbuff[16];
    int retc, pHdr = 1;
