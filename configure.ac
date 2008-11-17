@@ -298,7 +298,7 @@ ACX_COLLECT_OPTION(pwd,$enable_pwd)
 
 ####################################################################
 # Kerberos IV support
-ACX_LIBOPTION(krb4,[Kerberos4 support],yes)
+ACX_LIBOPTION(krb4,[   Kerberos4 support],yes)
 if test x"$acx_krb4_incdir" != x ; then
    AC_MSG_CHECKING([for kerberosIV/krb.h in $acx_krb4_incdir])
    if test ! -f "$acx_krb4_incdir"/kerberosIV/krb.h ; then
@@ -309,14 +309,14 @@ if test x"$acx_krb4_incdir" != x ; then
          AC_MSG_WARN([disabling krb4 support])
          activate_krb4=disabled
       fi
-   else      
+   else
       AC_MSG_RESULT([found])
    fi
 fi
 
 ####################################################################
 # Kerberos 5 support
-ACX_LIBOPTION(krb5,[Kerberos5 support],yes)
+ACX_LIBOPTION(krb5,[   Kerberos5 support],yes)
 if test x"$acx_krb5_incdir" != x ; then
    AC_MSG_CHECKING([for krb5.h in $acx_krb5_incdir])
    if test ! -f "$acx_krb5_incdir"/krb5.h ; then
@@ -338,7 +338,7 @@ if test x"$activate_gsi" = x; then
    activate_gsi=default_no
 fi
 AC_ARG_ENABLE(gsi,
-              [  --enable-gsi     GSI authentication support, requires OpenSSL [[default=no]] ],
+              [  --enable-gsi            GSI authentication support, requires OpenSSL [[default=no]] ],
               [],[enable_gsi=$activate_gsi]
               )
 ACX_COLLECT_OPTION(gsi,$enable_gsi)
@@ -439,7 +439,7 @@ if test x"$activate_posix" = x; then
    activate_posix=default_yes
 fi
 AC_ARG_ENABLE(posix,
-              [  --enable-posix     Enable/disable building of the posix preload library [[default=yes]] ],
+              [  --enable-posix          Enable/disable building of the posix preload library [[default=yes]] ],
               [],[enable_posix=$activate_posix]
              )
 ACX_COLLECT_OPTION(posix,$enable_posix)
@@ -452,7 +452,7 @@ if test x"$activate_mon" = x; then
    activate_mon=default_no
 fi
 AC_ARG_ENABLE(mon,
-              [  --enable-mon     Enable/disable building of monitoring services [[default=no]] ],
+              [  --enable-mon            Enable/disable building of monitoring services [[default=no]] ],
               [],[enable_mon=$activate_mon]
              )
 ACX_COLLECT_OPTION(mon,$enable_mon)
@@ -464,7 +464,7 @@ if test x"$activate_perlint" = x; then
    activate_perlint=default_yes
 fi
 AC_ARG_ENABLE(perlint,
-              [  --enable-perlint      build perl interface [[default=yes]] ],
+              [  --enable-perlint        build perl interface [[default=yes]] ],
               [],[enable_perlint=$activate_perlint]
              )
 ACX_COLLECT_OPTION(perlint,$enable_perlint)
@@ -514,7 +514,7 @@ if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; the
      activate_swig=default_yes
   fi
   AC_ARG_ENABLE(swig,
-              [  --enable-swig     enable rebuilding of Perl wrapper with SWIG [[default=yes]] ],
+              [  --enable-swig           enable rebuilding of Perl wrapper with SWIG [[default=yes]] ],
               [],[enable_swig=$activate_swig])
   if test $enable_swig = "yes"; then activate_swig=yes; fi
   if test $enable_swig = "no"; then activate_swig=no; fi
@@ -550,7 +550,7 @@ if test x"$activate_javaint" = x; then
    activate_javaint=default_no
 fi
 AC_ARG_ENABLE(javaint,
-              [  --enable-javaint      build java interface [[default=no]] ],
+              [  --enable-javaint        build java interface [[default=no]] ],
               [],[enable_javaint=$activate_javaint])
 ACX_COLLECT_OPTION(javaint,$enable_javaint)
 AM_CONDITIONAL(ENABLE_JAVAINT, test x"$activate_javaint" = xyes -o x"$activate_javaint" = xdefault_yes)
@@ -638,7 +638,7 @@ AC_PROG_LIBTOOL
 # Doxygen documentation
 if test x"$activate_doc" = x; then activate_doc=default_no; fi
 AC_ARG_ENABLE(doc,
-              [  --enable-doc      build Doxygen documentation [[default=no]] ],
+              [  --enable-doc            build Doxygen documentation [[default=no]] ],
               [],[enable_doc=$activate_doc])
 ACX_COLLECT_OPTION(doc,$enable_doc)
 AC_PATH_PROGS(DOXYGEN,[doxygen],
@@ -648,6 +648,19 @@ if test x"$DOXYGEN" = x; then
    activate_doc=disabled
 fi
 AM_CONDITIONAL(ENABLE_DOC, test x"$activate_doc" = xyes -o x"$activate_doc" = xdefault_yes)
+
+####################################################################
+# Old headers (<header.h>) usage 
+if test x"$activate_oldhdrs" = x; then activate_oldhdrs=default_no; fi
+AC_ARG_ENABLE(oldhdrs,
+              [  --enable-oldhdrs        Enable/disable usage of std headers
+                          in form of <name.h> instead of <name>, e.g. <iostream.h>  [[default=disabled]]],
+              [],[enable_oldhdrs=$activate_oldhdrs]
+             )
+ACX_COLLECT_OPTION(oldhdrs,$enable_oldhdrs)
+if test x"$enable_oldhdrs" = xyes; then
+   AC_DEFINE(HAS_OLD_HDRS)
+fi
 
 #################################################################
 # additional architecture dependent compiler flags
