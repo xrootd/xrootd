@@ -907,7 +907,10 @@ int XrdCmsConfig::PidFile()
             }
 
      if (xop) Say.Emsg("Config", errno, xop, pidFN);
-        else setenv(envPIDFN, pidFN, 1);
+        else {char *benv = (char *) malloc(strlen(envPIDFN) + strlen(pidFN) + 2);
+              sprintf(benv,"%s=%s", envPIDFN, pidFN); putenv(benv);
+             }
+
      if (Space) *Space = ' ';
      return xop != 0;
 }
@@ -1094,7 +1097,8 @@ char *XrdCmsConfig::setupSid()
 // Set envar to hold the cluster name
 //
    *sp = '\0';
-   setenv(envCNAME, sidbuff, 1);
+   char *benv = (char *) malloc(strlen(envCNAME) + strlen(sidbuff) + 2);
+   sprintf(benv,"%s=%s", envCNAME, sidbuff); putenv(benv);
 
 // Add semi-unique name for this node in the cluster
 //
