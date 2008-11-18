@@ -1174,7 +1174,7 @@ bool XrdClient::Copy(const char *localpath) {
     }
 
     Stat(0);
-    int f = open(localpath, O_CREAT | O_RDWR);   
+    int f = open(localpath, O_CREAT | O_RDWR, 0);   
     if (f < 0) {
 	Error("Copy", "Error opening local file.");
 	return FALSE;
