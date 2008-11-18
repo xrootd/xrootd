@@ -15,8 +15,8 @@ INCLUDES = -I$(top_srcdir)/src $(KRB5_INCDIR)
 libXrdSeckrb5_la_SOURCES = XrdSecProtocolkrb5.cc
 libXrdSeckrb5_la_LIBADD = \
               ../XrdSys/libXrdSys.la \
-              ../XrdOuc/libXrdOuc.la \
-              ../XrdNet/libXrdNet.la \
+              ../XrdSys/libXrdOuc.la \
+              ../XrdSys/libXrdNet.la \
               $(KRB5_LIBDIR) -lkrb5 -lk5crypto -lcom_err
 
 libXrdSeckrb5_la_LDFLAGS = -module

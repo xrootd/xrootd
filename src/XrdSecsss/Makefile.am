@@ -9,17 +9,19 @@
 #######################################################################
 
 # preprocessor flags
-INCLUDES = -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/src
 
 #############################################################################
 ## extra directory definitions for install area
-## Secsssincdir = $(includedir)/xrootd/XrdSecsss
+Secsssincdir = $(includedir)/xrootd/XrdSecsss
 
 #############################################################################
 ## deliverables
 lib_LTLIBRARIES = libXrdSecsss.la
 
 bin_PROGRAMS = xrdsssadmin
+
+Secsssinc_HEADERS = XrdSecProtocolsss.hh  XrdSecsssID.hh  XrdSecsssKT.hh  XrdSecsssRR.hh
 
 #############################################################################
 ## Build rules

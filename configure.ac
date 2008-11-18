@@ -21,7 +21,7 @@
 
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,CVS20080517,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,CVS20081118,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -650,17 +650,26 @@ fi
 AM_CONDITIONAL(ENABLE_DOC, test x"$activate_doc" = xyes -o x"$activate_doc" = xdefault_yes)
 
 ####################################################################
-# Old headers (<header.h>) usage 
-if test x"$activate_oldhdrs" = x; then activate_oldhdrs=default_no; fi
-AC_ARG_ENABLE(oldhdrs,
-              [  --enable-oldhdrs        Enable/disable usage of std headers
-                          in form of <name.h> instead of <name>, e.g. <iostream.h>  [[default=disabled]]],
-              [],[enable_oldhdrs=$activate_oldhdrs]
-             )
-ACX_COLLECT_OPTION(oldhdrs,$enable_oldhdrs)
-if test x"$enable_oldhdrs" = xyes; then
-   AC_DEFINE(HAS_OLD_HDRS)
-fi
+# Test for old STL headers (<header.h>) usage 
+# Rather than testing for the availability of old headers, we test for the new headers and only
+# if they do not exist, switch to old header format. If these also do not exist, the error will
+# show up at compile time (well... We do not need to catch everything....)
+AC_CHECK_HEADER([iostream],
+                [],[AC_MSG_WARN([header <iostream> not found. Using old STL header style <iostream.h>])
+                    AC_DEFINE(HAS_OLD_HDRS)]
+               )
+
+#  commented out the following code which implements the header based on a configure switch:
+#if test x"$activate_oldhdrs" = x; then activate_oldhdrs=default_no; fi
+#AC_ARG_ENABLE(oldhdrs,
+#              [  --enable-oldhdrs        Enable/disable usage of std headers
+#                          in form of <name.h> instead of <name>, e.g. <iostream.h>  [[default=disabled]]],
+#              [],[enable_oldhdrs=$activate_oldhdrs]
+#             )
+#ACX_COLLECT_OPTION(oldhdrs,$enable_oldhdrs)
+#if test x"$enable_oldhdrs" = xyes; then
+#   AC_DEFINE(HAS_OLD_HDRS)
+#fi
 
 #################################################################
 # additional architecture dependent compiler flags
@@ -772,6 +781,7 @@ AC_CHECK_FUNC([getprotobyname_r],[AC_DEFINE(HAS_PROTOR)],
               ])
 
 AC_CHECK_FUNC([strlcpy],[AC_DEFINE(HAS_STRLCPY)])
+AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAS_SENDFILE)])
 
 AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAS_SENDFILE)])
 
