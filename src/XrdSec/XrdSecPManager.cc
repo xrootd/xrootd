@@ -117,7 +117,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
                                     char           *sectoken)
 {
    char *nscan, *pname, *pargs, *bp = sectoken;
-   const char *wantProt = getenv("XRDSECPROTOCOL");
+   const char *wantProt = getenv("XrdSecPROTOCOL");
    XrdSecProtList *pl;
    XrdSecProtocol *pp;
    XrdOucErrInfo   erp;
