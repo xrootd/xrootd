@@ -501,9 +501,38 @@ if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; the
         ;;
     esac
   done
+  PERL_CCOPTS=`${PERL} -MExtUtils::Embed -e ccopts`
+
+  # since MacOS now allows packing several archs into one file and
+  # this results in link errors for the unwanted arch, we need to filter
+  # the wrong flags out. This present solution is not nice!
+  twoarchsld=`expr "$PERL_LDOPTS" : '.*\(-arch  *[[a-z0-9]]*.*-arch  *[[a-z0-9]]*\)'`
+  if test x"$twoarchsld" != x; then
+    AC_MSG_WARN([perl says it was linked with multiple -arch flags ($twoarchsld)! Will try to remove one])
+    if test x"$target_cpu" = xi386 -o x"$target_cpu" = xi686; then
+      PERL_LDOPTS=`echo $PERL_LDOPTS | sed -e 's/-arch  *ppc//'` 
+    fi
+    twoarchsld=`expr "$PERL_LDOPTS" : '.*\(-arch  *[[a-z0-9]]*.*-arch  *[[a-z0-9]]*\)'`
+  fi
+
+  twoarchscc=`expr "$PERL_CCOPTS" : '.*\(-arch  *[[a-z0-9]]*.*-arch  *[[a-z0-9]]*\)'`
+  if test x"$twoarchscc" != x; then
+    AC_MSG_WARN([perl says it was compiled with multiple -arch flags ($twoarchscc)! Will try to remove one])
+    if test x"$target_cpu" = xi386 -o x"$target_cpu" = xi686; then
+      PERL_CCOPTS=`echo $PERL_CCOPTS | sed -e 's/-arch  *ppc//'` 
+    fi
+    twoarchscc=`expr "$PERL_CCOPTS" : '.*\(-arch  *[[a-z0-9]]*.*-arch  *[[a-z0-9]]*\)'`
+  fi
+
+  if test x"$twoarchsld" != x -o x"$twoarchscc" != x; then
+     AC_MSG_ERROR([Failed to remove extra -arch flags
+                     LD: $PERL_LDOPTS
+                     CC: $PERL_CCOPTS
+!!!!!!  Please notify maintainers at $PACKAGE_BUGREPORT !!!!!!])
+  fi
+
   AC_MSG_NOTICE([perlembed libraries to link: $PERL_LIBS])
   AC_MSG_NOTICE([perlembed link flags: $PERL_LDOPTS])
-  PERL_CCOPTS=`${PERL} -MExtUtils::Embed -e ccopts`
   AC_MSG_NOTICE([perlembed cc options: $PERL_CCOPTS])
   AC_SUBST(PERL_LIBS)
   AC_SUBST(PERL_LDOPTS)
