@@ -1331,6 +1331,14 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
                                                              unsolmsg->HeaderSID()) ) {
 		struct SidInfo *si =
                    ConnectionManager->SidManager()->GetSidInfo(unsolmsg->HeaderSID());
+
+                if (!si) {
+                   Error("ProcessUnsolicitedMsg",
+                         "Orphaned streamid detected: " << unsolmsg->HeaderSID());
+                   return kUNSOL_DISPOSE;
+                }
+
+
 		ClientRequest *req = &(si->outstandingreq);
 	 
 		Info(XrdClientDebug::kHIDEBUG,
@@ -1338,7 +1346,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 		     "Processing async response from streamid " <<
 		     unsolmsg->HeaderSID() << " father=" <<
 		     si->fathersid );
-
+                
 		// We are interested in data, not errors...
 		if ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
 		     (unsolmsg->HeaderStatus() == kXR_ok) ) {
