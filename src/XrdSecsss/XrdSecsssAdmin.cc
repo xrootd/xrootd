@@ -268,14 +268,14 @@ int  XrdSecsssAdmin_addKey(XrdsecsssAdmin_Opts &Opt)
 
 // Construct a new KeyTab entry
 //
-   strcpy(ktEnt.Name, (Opt.KeyName ? Opt.KeyName : "nowhere"));
-   strcpy(ktEnt.User, (Opt.KeyUser ? Opt.KeyUser : "nobody"));
-   strcpy(ktEnt.Grup, (Opt.KeyGrup ? Opt.KeyGrup : "nogroup"));
+   strcpy(ktEnt.Data.Name, (Opt.KeyName ? Opt.KeyName : "nowhere"));
+   strcpy(ktEnt.Data.User, (Opt.KeyUser ? Opt.KeyUser : "nobody"));
+   strcpy(ktEnt.Data.Grup, (Opt.KeyGrup ? Opt.KeyGrup : "nogroup"));
         if (Opt.KeyLen > XrdSecsssKT::ktEnt::maxKLen)
-           ktEnt.Len = XrdSecsssKT::ktEnt::maxKLen;
-   else if (Opt.KeyLen < 4) ktEnt.Len = 4;
-   else ktEnt.Len = Opt.KeyLen/4*4;
-   ktEnt.Exp = Opt.Expdt;
+           ktEnt.Data.Len = XrdSecsssKT::ktEnt::maxKLen;
+   else if (Opt.KeyLen < 4) ktEnt.Data.Len = 4;
+   else ktEnt.Data.Len = Opt.KeyLen/4*4;
+   ktEnt.Data.Exp = Opt.Expdt;
    Opt.kTab->addKey(ktEnt);
 
 // Now rewrite the file
@@ -314,10 +314,10 @@ int  XrdSecsssAdmin_delKey(XrdsecsssAdmin_Opts &Opt)
 
 // Construct deletion reference
 //
-   if (Opt.KeyName) strcpy(ktEnt.Name, Opt.KeyName);
-   if (Opt.KeyUser) strcpy(ktEnt.User, Opt.KeyUser);
-   if (Opt.KeyGrup) strcpy(ktEnt.Grup, Opt.KeyGrup);
-   ktEnt.ID = static_cast<long long>(Opt.KeyNum);
+   if (Opt.KeyName) strcpy(ktEnt.Data.Name, Opt.KeyName);
+   if (Opt.KeyUser) strcpy(ktEnt.Data.User, Opt.KeyUser);
+   if (Opt.KeyGrup) strcpy(ktEnt.Data.Grup, Opt.KeyGrup);
+   ktEnt.Data.ID = static_cast<long long>(Opt.KeyNum);
 
 // Delete the keys from the key table
 //
@@ -373,7 +373,7 @@ int  XrdSecsssAdmin_insKey(XrdsecsssAdmin_Opts &Opt)
    if (Opt.KeyName || Opt.KeyUser || Opt.KeyGrup)
       {ktP = Opt.kTab->keyList();
        while(ktP)
-            {if (!XrdSecsssAdmin_isKey(Opt, ktP)) ktP->Name[0] = '\0';
+            {if (!XrdSecsssAdmin_isKey(Opt, ktP)) ktP->Data.Name[0] = '\0';
                 else numKeys++;
              ktP = ktP->Next;
             }
@@ -406,9 +406,9 @@ int  XrdSecsssAdmin_insKey(XrdsecsssAdmin_Opts &Opt)
 int  XrdSecsssAdmin_isKey(XrdsecsssAdmin_Opts &Opt,
                           XrdSecsssKT::ktEnt *ktP)
 {
-   if (Opt.KeyName && strcmp(ktP->Name, Opt.KeyName)) return 0;
-   if (Opt.KeyUser && strcmp(ktP->User, Opt.KeyUser)) return 0;
-   if (Opt.KeyGrup && strcmp(ktP->Grup, Opt.KeyGrup)) return 0;
+   if (Opt.KeyName && strcmp(ktP->Data.Name, Opt.KeyName)) return 0;
+   if (Opt.KeyUser && strcmp(ktP->Data.User, Opt.KeyUser)) return 0;
+   if (Opt.KeyGrup && strcmp(ktP->Data.Grup, Opt.KeyGrup)) return 0;
    return 1;
 }
 
@@ -423,17 +423,17 @@ int XrdSecsssAdmin_Here(char sType, XrdSecsssKT::ktEnt *ktX,
    char *sf1, *sf2;
 
    switch(sType)
-         {case 'c': return ktX->Crt < ktS->Crt;
-          case 'g': sf1 = ktX->Grup; sf2 = ktS->Grup; break;
-          case 'k': sf1 = ktX->Name; sf2 = ktS->Name; break;
-          case 'n': return (ktX->ID & 0x7fffffff) < (ktS->ID & 0x7fffffff);
-          case 'u': sf1 = ktX->User; sf2 = ktS->User; break;
-          case 'x': return ktX->Exp < ktS->Exp;
+         {case 'c': return ktX->Data.Crt < ktS->Data.Crt;
+          case 'g': sf1 = ktX->Data.Grup; sf2 = ktS->Data.Grup; break;
+          case 'k': sf1 = ktX->Data.Name; sf2 = ktS->Data.Name; break;
+          case 'n': return (ktX->Data.ID & 0x7fffffff) < (ktS->Data.ID & 0x7fffffff);
+          case 'u': sf1 = ktX->Data.User; sf2 = ktS->Data.User; break;
+          case 'x': return ktX->Data.Exp < ktS->Data.Exp;
           default:  return 0;
          }
 
    if ((n = strcmp(sf1, sf2))) return n < 0;
-   return (ktX->ID & 0x7fffffff) < (ktS->ID & 0x7fffffff);
+   return (ktX->Data.ID & 0x7fffffff) < (ktS->Data.ID & 0x7fffffff);
 }
 
 /******************************************************************************/
@@ -491,12 +491,12 @@ int  XrdSecsssAdmin_lstKey(XrdsecsssAdmin_Opts &Opt)
    while(ktP)
         {if (XrdSecsssAdmin_isKey(Opt, ktP))
             {if (pHdr) {cout <<Hdr1 <<Hdr2; pHdr = 0;}
-             sprintf(buff, "%11lld %3d ", (ktP->ID & 0x7fffffff), ktP->Len);
-             strftime(crbuff, sizeof(crbuff), crfmt, localtime(&ktP->Crt));
-             if (!ktP->Exp) strcpy(exbuff, "--------");
-                else strftime(exbuff,sizeof(exbuff),exfmt,localtime(&ktP->Exp));
-             cout <<buff <<crbuff <<' ' <<exbuff <<' ' <<ktP->Name <<' '
-                  <<ktP->User <<' ' <<ktP->Grup <<endl;
+             sprintf(buff, "%11lld %3d ", (ktP->Data.ID & 0x7fffffff), ktP->Data.Len);
+             strftime(crbuff, sizeof(crbuff), crfmt, localtime(&ktP->Data.Crt));
+             if (!ktP->Data.Exp) strcpy(exbuff, "--------");
+                else strftime(exbuff,sizeof(exbuff),exfmt,localtime(&ktP->Data.Exp));
+             cout <<buff <<crbuff <<' ' <<exbuff <<' ' <<ktP->Data.Name <<' '
+                  <<ktP->Data.User <<' ' <<ktP->Data.Grup <<endl;
             }
          ktP = ktP->Next;
         }

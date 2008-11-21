@@ -14,6 +14,7 @@ const char *XrdSecsssKTCVSID = "$Id$";
 
 #include <fcntl.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
@@ -123,10 +124,10 @@ void XrdSecsssKT::addKey(ktEnt &ktNew)
 
 // Generate a key for this entry
 //
-   genKey(ktNew.Val, ktNew.Len);
-   ktNew.Crt = time(0);
-   ktNew.ID  = static_cast<long long>(ktNew.Crt & 0x7fffffff) << 32L
-             | static_cast<long long>(++kthiID);
+   genKey(ktNew.Data.Val, ktNew.Data.Len);
+   ktNew.Data.Crt = time(0);
+   ktNew.Data.ID  = static_cast<long long>(ktNew.Data.Crt & 0x7fffffff) << 32L
+                  | static_cast<long long>(++kthiID);
 
 // Locate place to insert this key
 //
@@ -177,11 +178,14 @@ int XrdSecsssKT::getKey(ktEnt &theEnt)
 
 // Find first key by key name (used normally by clients) or by keyID
 //
-   if (!*theEnt.Name)
-      {if (theEnt.ID >= 0) while(ktP && ktP->ID != theEnt.ID)  ktP = ktP->Next;}
-      else {while(ktP && strcmp(ktP->Name,theEnt.Name)) ktP = ktP->Next;
-            while(ktP && ktP->Exp <= time(0))
-                 {if (!(ktN=ktP->Next) || strcmp(ktN->Name,theEnt.Name)) break;
+   if (!*theEnt.Data.Name)
+      {if (theEnt.Data.ID >= 0) 
+          while(ktP && ktP->Data.ID != theEnt.Data.ID)  ktP = ktP->Next;
+      }
+      else {while(ktP && strcmp(ktP->Data.Name,theEnt.Data.Name)) ktP=ktP->Next;
+            while(ktP && ktP->Data.Exp <= time(0))
+                 {if (!(ktN=ktP->Next) 
+                  ||  strcmp(ktN->Data.Name,theEnt.Data.Name)) break;
                   ktP = ktN;
                  }
            }
@@ -194,7 +198,7 @@ int XrdSecsssKT::getKey(ktEnt &theEnt)
 // Indicate if key expired
 //
    if (!ktP) return ENOENT;
-   return (theEnt.Exp && theEnt.Exp <= time(0) ? -1 : 0);
+   return (theEnt.Data.Exp && theEnt.Data.Exp <= time(0) ? -1 : 0);
 }
 
 /******************************************************************************/
@@ -285,8 +289,8 @@ void XrdSecsssKT::Refresh()
   
 int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
 {
-   char tmpFN[1024], buff[256], kbuff[4096], *Slash;
-   int ktFD, numID = 0, n, retc = 0;
+   char tmpFN[1024], buff[2048], kbuff[4096], *Slash;
+   int ktFD, numID, n, retc = 0;
    ktEnt ktCurr, *ktP, *ktN;
    mode_t theMode = fileMode(ktPath);
 
@@ -310,19 +314,21 @@ int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
 
 // Write all of the keytable
 //
-   ktCurr.Name[0] = ktCurr.User[0] = ktCurr.Grup[0] = 3;
+   ktCurr.Data.Name[0] = ktCurr.Data.User[0] = ktCurr.Data.Grup[0] = 3;
    ktN = ktList; numKeys = numTot = numExp = 0;
    while((ktP = ktN))
         {ktN = ktN->Next; numTot++;
-         if (ktP->Name[0] == '\0') continue;
-         if (ktP->Exp && ktP->Exp <= time(0)) {numExp++; continue;}
+         if (ktP->Data.Name[0] == '\0') continue;
+         if (ktP->Data.Exp && ktP->Data.Exp <= time(0)) {numExp++; continue;}
          if (!isKey(ktCurr, ktP, 0)) {ktCurr.NUG(ktP); numID = 0;}
             else if (Keep && numID >= Keep) continue;
-         n = sprintf(buff, "%s0 %s %s %s %lld %ld %ld ", (numKeys ? "\n" : ""),
-                     ktP->User,ktP->Grup,ktP->Name,ktP->ID,ktP->Crt,ktP->Exp);
+         n = sprintf(buff, "%s0 u:%s g:%s n:%s N:%lld c:%ld e:%ld k:",
+                    (numKeys ? "\n" : ""),
+                     ktP->Data.User,ktP->Data.Grup,ktP->Data.Name,ktP->Data.ID,
+                     ktP->Data.Crt, ktP->Data.Exp);
          numID++; numKeys++; keyB2X(ktP, kbuff);
          if (write(ktFD, buff, n) < 0
-         ||  write(ktFD, kbuff, ktP->Len*2) < 0) break;
+         ||  write(ktFD, kbuff, ktP->Data.Len*2) < 0) break;
         }
 
 // Check for errors
@@ -373,8 +379,8 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
    static const int altMode = S_IRWXG | S_IRWXO;
    XrdOucStream myKT;
    int ktFD, retc, tmpID, recno = 0, NoGo = 0;
-   const char *What, *ktFN;
-   char *ep, *lp, *tp, rbuff[64];
+   const char *What = 0, *ktFN;
+   char *lp, *tp, rbuff[64];
    ktEnt *ktP, *ktPP, *ktNew, *ktBase = 0;
 
 // Verify that the keytable is only readable by us
@@ -402,42 +408,30 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
 
 // Now start reading the keytable which always has the form:
 //
-// <fmt> <keyusr> <keygrp> <keyid> <keynum> <keyct> <keyxt> <key>
+// <format> <whatever data based on format>
 //
 do{while((lp = myKT.GetLine()))
-        {if (!*lp) continue;
-         ktNew = new ktEnt; recno++;
-         What = "fmt";    if (!(tp = myKT.GetToken())) break;
-         if (strcmp("0", tp)) break;
-         What = "user";   if (!(tp = myKT.GetToken())) break;
-         strlcpy(ktNew->User,tp,sizeof(ktNew->User));
-         What = "group";  if (!(tp = myKT.GetToken())) break;
-         strlcpy(ktNew->Grup,tp,sizeof(ktNew->Grup));
-         What = "name";   if (!(tp = myKT.GetToken())) break;
-         strlcpy(ktNew->Name,tp,sizeof(ktNew->Name));
-         What = "keyid";  if (!(tp = myKT.GetToken())) break;
-         ktNew->ID = strtoll(tp, &ep,10 ); if (ep && *ep) break;
-         What = "crdt";   if (!(tp = myKT.GetToken())) break;
-         ktNew->Crt = strtoll(tp, &ep,10 ); if (ep && *ep) break;
-         What = "expdt";  if (!(tp = myKT.GetToken())) break;
-         ktNew->Exp = strtoll(tp, &ep, 10); if (ep && *ep) break;
-         What = "keyval"; if (!(tp = myKT.GetToken())) break;
-         keyX2B(ktNew, tp);
-         if (ktMode != isAdmin && ktNew->Exp <- time(0)) continue;
-         tmpID = static_cast<int>(ktNew->ID & 0x7fffffff);
+        {recno++; What = 0;
+         if (!*lp) continue;
+         if (!(tp = myKT.GetToken()) || strcmp("0", tp))
+            {What = "keytable format missing or unsupported";      break;}
+         if (!(ktNew = ktDecode0(myKT, eInfo)))
+            {What = (eInfo ? eInfo->getErrText(): "invalid data"); break;}
+         if (ktMode != isAdmin && ktNew->Data.Exp <= time(0))
+            {delete ktNew; continue;}
+         tmpID = static_cast<int>(ktNew->Data.ID & 0x7fffffff);
          if (tmpID > kthiID) kthiID = tmpID;
-         if (!strcmp(ktNew->User, "anyuser"))        ktNew->Opts =ktEnt::anyUSR;
-            else if (!strcmp(ktNew->User,"loginid")) ktNew->Opts =ktEnt::useLID;
-         if (!strcmp(ktNew->Grup, "anygroup"))       ktNew->Opts|=ktEnt::anyGRP;
+         
          ktP = ktBase; ktPP = 0;
          while(ktP && !isKey(*ktP, ktNew, 0)) {ktPP=ktP; ktP=ktP->Next;}
          if (!ktP) {ktNew->Next = ktBase; ktBase = ktNew;}
             else {if (ktMode == isClient)
-                     {if ((ktNew->Exp == 0 && ktP->Exp != 0)
-                      ||  (ktP->Exp!=0 && ktP->Exp<ktNew->Exp)) ktP->Set(*ktNew);
+                     {if ((ktNew->Data.Exp == 0 && ktP->Data.Exp != 0)
+                      ||  (ktP->Data.Exp!=0 && ktP->Data.Exp < ktNew->Data.Exp))
+                          ktP->Set(*ktNew);
                       delete ktNew;
                      } else {
-                      while(ktNew->Crt < ktP->Crt)
+                      while(ktNew->Data.Crt < ktP->Data.Crt)
                            {ktPP = ktP; ktP = ktP->Next;
                             if (!ktP || !isKey(*ktP, ktNew, 0)) break;
                            }
@@ -446,22 +440,23 @@ do{while((lp = myKT.GetLine()))
                      }
                  }
         }
-   if (lp)
-      {if (eInfo) eInfo->setErrInfo(EINVAL, "Invalid keytab file.");
-       sprintf(rbuff, " line %d", recno);
-       NoGo = eMsg("getKeyTab",-1,What," missing or invalid in ",ktFN,rbuff);
+   if (What)
+      {sprintf(rbuff, "; line %d in ", recno);
+       NoGo = eMsg("getKeyTab", -1, What, rbuff, ktFN);
       }
   } while(lp);
 
-// Check for stream problems
+// Check for problems
 //
-   if ((retc = myKT.LastError()))
-      {if (eInfo) eInfo->setErrInfo(retc, "Unable to read keytab file.");
-       NoGo = eMsg("getKeyTab", retc, "Unable to read keytab ",ktFN);
-      } else if (!ktBase) 
-                {if (eInfo) eInfo->setErrInfo(ESRCH, "Keytabl is empty.");
-                 NoGo = eMsg("getKeyTab",-1,"No keys found in ",ktFN);
-                }
+        if (NoGo) {if (eInfo) eInfo->setErrInfo(EINVAL,"Invalid keytab file.");}
+   else if ((retc = myKT.LastError()))
+           {if (eInfo) eInfo->setErrInfo(retc,"Unable to read keytab file.");
+            NoGo = eMsg("getKeyTab", retc, "Unable to read keytab ",ktFN);
+           }
+   else if (!ktBase)
+           {if (eInfo) eInfo->setErrInfo(ESRCH,"Keytable is empty.");
+            NoGo = eMsg("getKeyTab",-1,"No keys found in ",ktFN);
+           }
 
 
 // Check if an error should be returned
@@ -492,11 +487,11 @@ mode_t XrdSecsssKT::fileMode(const char *Path)
 
 int  XrdSecsssKT::isKey(ktEnt &ktRef, ktEnt *ktP, int Full)
 {
-   if (*ktRef.Name && strcmp(ktP->Name, ktRef.Name)) return 0;
-   if (*ktRef.User && strcmp(ktP->User, ktRef.User)) return 0;
-   if (*ktRef.Grup && strcmp(ktP->Grup, ktRef.Grup)) return 0;
-   if (Full && ktRef.ID > 0
-   && (ktP->ID & 0x7fffffff) != ktRef.ID) return 0;
+   if (*ktRef.Data.Name && strcmp(ktP->Data.Name, ktRef.Data.Name)) return 0;
+   if (*ktRef.Data.User && strcmp(ktP->Data.User, ktRef.Data.User)) return 0;
+   if (*ktRef.Data.Grup && strcmp(ktP->Data.Grup, ktRef.Data.Grup)) return 0;
+   if (Full && ktRef.Data.ID > 0
+   && (ktP->Data.ID & 0x7fffffff) != ktRef.Data.ID) return 0;
    return 1;
 }
   
@@ -507,8 +502,8 @@ int  XrdSecsssKT::isKey(ktEnt &ktRef, ktEnt *ktP, int Full)
 void XrdSecsssKT::keyB2X(ktEnt *theKT, char *buff)
 {
    static const char xTab[] = "0123456789abcdef";
-   int  kLen = theKT->Len;
-   char *kP  = theKT->Val, Val;
+   int  kLen = theKT->Data.Len;
+   char *kP  = theKT->Data.Val, Val;
 
 // Convert
 //
@@ -531,12 +526,12 @@ void XrdSecsssKT::keyX2B(ktEnt *theKT, char *xKey)
    int n = strlen(xKey);
    char *kp, kByte;
 
-// Allocate buffer long enough
+// Make sure we don't overflow
 //
    n = (n%2 ? (n+1)/2 : n/2);
    if (n > ktEnt::maxKLen) n = ktEnt::maxKLen;
-   kp = theKT->Val;
-   theKT->Val[n-1] = 0;
+   kp = theKT->Data.Val;
+   theKT->Data.Val[n-1] = 0;
 
 // Now convert (we need this to be just consistent not necessarily correct)
 //
@@ -551,5 +546,97 @@ void XrdSecsssKT::keyX2B(ktEnt *theKT, char *xKey)
 
 // Return data via the structure
 //
-   theKT->Len = n;
+   theKT->Data.Len = n;
+}
+
+/******************************************************************************/
+/*                             k t D e c o d e 0                              */
+/******************************************************************************/
+  
+XrdSecsssKT::ktEnt *XrdSecsssKT::ktDecode0(XrdOucStream  &kTab,
+                                           XrdOucErrInfo *eInfo)
+{
+   static const short haveCRT = 0x0001;
+   static const short haveEXP = 0x0002;
+   static const short isTIMET = 0x0003;
+   static const short haveGRP = 0x0004;
+   static const short haveKEY = 0x0008;
+   static const short haveNAM = 0x0010;
+   static const short haveNUM = 0x0020;
+   static const short haveUSR = 0x0040;
+
+   static struct 
+          {const char *Name; size_t Offset; int Ctl; short What; char Tag;}
+          ktDesc[] = {
+   {"crtdt",   offsetof(ktEnt::ktData,Crt),  0,                haveCRT, 'c'},
+   {"expdt",   offsetof(ktEnt::ktData,Exp),  0,                haveEXP, 'e'},
+   {"group",   offsetof(ktEnt::ktData,Grup), ktEnt::GrupSZ,    haveGRP, 'g'},
+   {"keyval",  offsetof(ktEnt::ktData,Val),  ktEnt::maxKLen*2, haveKEY, 'k'},
+   {"keyname", offsetof(ktEnt::ktData,Name), ktEnt::NameSZ,    haveNAM, 'n'},
+   {"keynum",  offsetof(ktEnt::ktData,ID),   0,                haveNUM, 'N'},
+   {"user",    offsetof(ktEnt::ktData,User), ktEnt::UserSZ,    haveUSR, 'u'}
+   };
+   static const int ktDnum = sizeof(ktDesc)/sizeof(ktDesc[0]);
+
+   ktEnt *ktNew = new ktEnt;
+   const char *Prob = 0, *What = "Whatever";
+   char Tag, *Dest, *ep, *tp;
+   long long nVal;
+   short Have = 0;
+   int i;
+
+// Decode the record using the tags described in the above table
+//
+while((tp = kTab.GetToken()) && !Prob)
+     {Tag = *tp++;
+      if (*tp++ == ':')
+         for (i = 0; i < ktDnum; i++)
+             if (ktDesc[i].Tag == Tag)
+                {Dest = (char *)&(ktNew->Data) + ktDesc[i].Offset;
+                 Have |= ktDesc[i].What; What = ktDesc[i].Name;
+                 if (ktDesc[i].Ctl)
+                    {if ((int)strlen(tp) >= ktDesc[i].Ctl) Prob=" is too long";
+                        else if (Tag == 'k') keyX2B(ktNew, tp);
+                                else strcpy(Dest, tp);
+                    } else {
+                     nVal = strtoll(tp, &ep, 10);
+                     if (ep && *ep) Prob = " has invalid value";
+                        else if (ktDesc[i].What & isTIMET)
+                                 *(time_t *)Dest = static_cast<time_t>(nVal);
+                                else *(long long *)Dest = nVal;
+                    }
+                }
+     }
+
+// If no problem, make sure we have the essential elements
+//
+   if (!Prob)
+      {if (!(Have & haveGRP)) strcpy(ktNew->Data.Grup, "nogroup");
+       if (!(Have & haveNAM)) strcpy(ktNew->Data.Name, "nowhere");
+       if (!(Have & haveUSR)) strcpy(ktNew->Data.User, "nobody");
+            if (!(Have & haveKEY)) {What = "keyval"; Prob = " not found";}
+       else if (!(Have & haveNUM)) {What = "keynum"; Prob = " not found";}
+      }
+
+// Check if we have a problem
+//
+   if (Prob)
+      {const char *eVec[] = {ktDesc[i].Name, What, Prob};
+       if (eInfo) eInfo->setErrInfo(-1, eVec, 3);
+       delete ktNew;
+       return 0;
+      }
+
+// Set special value options
+//
+   if (!strcmp(ktNew->Data.Grup, "anygroup"))       
+      ktNew->Data.Opts|=ktEnt::anyGRP;
+   if (!strcmp(ktNew->Data.User, "anyuser"))
+      ktNew->Data.Opts =ktEnt::anyUSR;
+      else if (!strcmp(ktNew->Data.User,"loginid"))
+              ktNew->Data.Opts =ktEnt::useLID;
+
+// All done
+//
+   return ktNew;
 }

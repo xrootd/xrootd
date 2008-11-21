@@ -84,9 +84,9 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
 
 // Check if we should just use the LID
 //
-   if (decKey.Opts & XrdSecsssKT::ktEnt::useLID
+   if (decKey.Data.Opts & XrdSecsssKT::ktEnt::useLID
    ||  (rrData.Options == XrdSecsssRR_Data::UseLID
-        && decKey.Opts & XrdSecsssKT::ktEnt::anyUSR))
+        && decKey.Data.Opts & XrdSecsssKT::ktEnt::anyUSR))
       {if (idBuff) free(idBuff);
        idBuff = Entity.name = strdup(getLID(lidBuff, sizeof(lidBuff)));
        return 0;
@@ -147,17 +147,17 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
 
 // Set correct username
 //
-        if (decKey.Opts & XrdSecsssKT::ktEnt::anyUSR)
+        if (decKey.Data.Opts & XrdSecsssKT::ktEnt::anyUSR)
            {if (!myID.name) myID.name = (char *)"nobody";}
-   else if (decKey.Opts & XrdSecsssKT::ktEnt::useLID)
+   else if (decKey.Data.Opts & XrdSecsssKT::ktEnt::useLID)
            myID.name = getLID(lidBuff, sizeof(lidBuff));
-   else myID.name = decKey.User;
+   else myID.name = decKey.Data.User;
 
 // Set correct group
 //
-   if (decKey.Opts & XrdSecsssKT::ktEnt::anyGRP)
+   if (decKey.Data.Opts & XrdSecsssKT::ktEnt::anyGRP)
       {if (!myID.grps) myID.grps = (char *)"nogroup";}
-      else myID.grps = decKey.Grup;
+      else myID.grps = decKey.Data.Grup;
 
 // Complete constructing our identification
 //
@@ -252,7 +252,7 @@ XrdSecCredentials *XrdSecProtocolsss::getCredentials(XrdSecParameters *parms,
 //
    strcpy(rrHdr.ProtID, XrdSecPROTOIDENT);
    memset(rrHdr.Pad, 0, sizeof(rrHdr.Pad));
-   rrHdr.KeyID = htonll(encKey.ID);
+   rrHdr.KeyID = htonll(encKey.Data.ID);
    rrHdr.EncType = Crypto->Type();
 
 // Now simply encode the data and return the result
@@ -571,14 +571,14 @@ int                XrdSecProtocolsss::Decode(XrdOucErrInfo      *error,
 
 // Get the key
 //
-   decKey.ID = ntohll(rrHdr->KeyID);
-   decKey.Name[0] = '\0';
+   decKey.Data.ID = ntohll(rrHdr->KeyID);
+   decKey.Data.Name[0] = '\0';
    if (keyTab->getKey(decKey))
       return Fatal(error, "Decode", ENOENT, "Decryption key not found.");
 
 // Decrypt
 //
-   if ((rc = Crypto->Decrypt(decKey.Val, decKey.Len, 
+   if ((rc = Crypto->Decrypt(decKey.Data.Val, decKey.Data.Len,
                              iBuff+sizeof(XrdSecsssRR_Hdr), dLen,
                              (char *)rrData, sizeof(XrdSecsssRR_Data))) <= 0)
       return Fatal(error, "Decode", -rc, "Unable to decrypt credentials.");
@@ -651,15 +651,15 @@ XrdSecCredentials *XrdSecProtocolsss::Encode(XrdOucErrInfo      *einfo,
 // Copy the header and encrypt the data
 //
    memcpy(credP, (const void *)rrHdr, hdrSZ);
-   if ((dLen = Crypto->Encrypt(encKey.Val, encKey.Len, (char *)rrData, dLen,
-                               credP+hdrSZ, cLen-hdrSZ)) <= 0)
+   if ((dLen = Crypto->Encrypt(encKey.Data.Val, encKey.Data.Len, (char *)rrData,
+                               dLen, credP+hdrSZ, cLen-hdrSZ)) <= 0)
       {Fatal(einfo, "Encode", -dLen, "Unable to encrypt credentials.");
        return (XrdSecCredentials *)0;
       }
 
 // Return new credentials
 //
-   dLen += hdrSZ; knum = encKey.ID&0x7fffffff;
+   dLen += hdrSZ; knum = encKey.Data.ID&0x7fffffff;
    CLDBG("Ret " <<dLen <<" bytes of credentials; k=" <<knum);
    return new XrdSecCredentials(credP, dLen);
 }
