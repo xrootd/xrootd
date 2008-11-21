@@ -290,7 +290,7 @@ void XrdSecsssKT::Refresh()
 int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
 {
    char tmpFN[1024], buff[2048], kbuff[4096], *Slash;
-   int ktFD, numID, n, retc = 0;
+   int ktFD, numID = 0, n, retc = 0;
    ktEnt ktCurr, *ktP, *ktN;
    mode_t theMode = fileMode(ktPath);
 
@@ -583,7 +583,7 @@ XrdSecsssKT::ktEnt *XrdSecsssKT::ktDecode0(XrdOucStream  &kTab,
    char Tag, *Dest, *ep, *tp;
    long long nVal;
    short Have = 0;
-   int i;
+   int i = 0;
 
 // Decode the record using the tags described in the above table
 //
