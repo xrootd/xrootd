@@ -30,6 +30,8 @@ const char *XrdClientConnCVSID = "$Id$";
 
 #include "XrdClient/XrdClientSid.hh"
 
+#include "XrdSys/XrdSysPriv.hh"
+
 // Dynamic libs
 // Bypass Solaris ELF madness
 //
@@ -1411,6 +1413,24 @@ bool XrdClientConn::DoLogin()
 	strcpy( (char *)reqhdr.login.username, User.c_str() );
     else
 	strcpy( (char *)reqhdr.login.username, "????" );
+
+    // If we run with root as effective user we need to temporary change
+    // effective ID to User
+    XrdOucString effUser = User;
+    if (!getuid()) {
+      if (getenv("XrdClientEUSER")) effUser = getenv("XrdClientEUSER");
+    }
+    XrdSysPrivGuard guard(effUser.c_str());
+    if (!guard.Valid() && !getuid()) {
+      // Set error, in case of need
+      fOpenError = kXR_NotAuthorized;
+      LastServerError.errnum = fOpenError;
+      XrdOucString emsg("Cannot set effective uid for user: ");
+      emsg += effUser;
+      strcpy(LastServerError.errmsg, emsg.c_str());
+      Error("DoLogin", emsg << ". Exiting.");
+      return false;
+    }
 
     // set the token with the value provided by a previous 
     // redirection (if any)
