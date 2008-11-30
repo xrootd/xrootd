@@ -276,10 +276,14 @@ int XrdLink::Close(int defer)
 //
    opMutex.Lock();
    if (defer)
-      {TRACE(DEBUG, "Defered close " <<ID <<" FD=" <<FD);
+      {TRACE(DEBUG, "Closing FD only " <<ID <<" FD=" <<FD);
        if (FD > 1)
-          {fd = FD; FD = -FD; Instance = 0;
-           if (!KeepFD) dup2(devNull, fd);
+          {fd = FD; FD = -FD; csec = Instance; Instance = 0;
+           if (!KeepFD)
+              if (dup2(devNull, fd) < 0)
+                 {FD = fd; Instance = csec;
+                  XrdLog.Emsg("Link",errno,"close FD for",ID);
+                 }
           }
        opMutex.UnLock();
        return 0;
