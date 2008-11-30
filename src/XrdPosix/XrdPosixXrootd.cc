@@ -1313,7 +1313,6 @@ int XrdPosixXrootd::mapError(int rc)
 long long XrdPosixXrootd::QueryOpaque(const char *path, char *value, int size)
 {
   XrdPosixAdminNew admin(path);
-  kXR_int16 ReqCode = 0;
   kXR_int32 vsize = static_cast<kXR_int32>(size);
 
   if (admin.isOK())
