@@ -489,8 +489,8 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 
 // Grab the refresh option (the only one we support)
 //
-   if (Arg.Opts & CmsLocateRequest::kYR_refresh)
-       Sel.Opts  = XrdCmsSelect::Refresh; *toP++='s';
+   if (Arg.Opts & CmsLocateRequest::kYR_refresh) 
+      {Sel.Opts  = XrdCmsSelect::Refresh; *toP++='s';}
    if (Arg.Opts & CmsLocateRequest::kYR_asap)
       {Sel.Opts |= XrdCmsSelect::Asap;    *toP++='i'; Sel.InfoP = &reqInfo;}
       else                                            Sel.InfoP = 0;
