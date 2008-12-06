@@ -236,9 +236,10 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 SMask_t XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod,
                                  int iovcnt, int iotot)
 {
+   EPNAME("Broadcast")
    int i;
    XrdCmsNode *nP;
-   SMask_t bmask;
+   SMask_t bmask, unQueried = 0;
 
 // Obtain a lock on the table and screen out peer nodes
 //
@@ -248,16 +249,19 @@ SMask_t XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod,
 // Run through the table looking for nodes to send messages to
 //
    for (i = 0; i <= STHi; i++)
-       {if ((nP = NodeTab[i]) && nP->isNode(bmask) && !nP->isOffline)
-           nP->Lock();
-           else continue;
-        STMutex.UnLock();
-        if (nP->Send(iod, iovcnt, iotot) >= 0) bmask &= ~nP->Mask();
-        nP->UnLock();
-        STMutex.Lock();
+       {if ((nP = NodeTab[i]) && nP->isNode(bmask))
+           {nP->Lock();
+            STMutex.UnLock();
+            if (nP->Send(iod, iovcnt, iotot) < 0) 
+               {unQueried |= nP->Mask();
+                DEBUG(nP->Ident <<" is unreachable");
+               }
+            nP->UnLock();
+            STMutex.Lock();
+           }
        }
    STMutex.UnLock();
-   return bmask;
+   return unQueried;
 }
 
 /******************************************************************************/
