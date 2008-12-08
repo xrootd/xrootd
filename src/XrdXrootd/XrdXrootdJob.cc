@@ -328,12 +328,14 @@ void XrdXrootdJob2Do::Destruct(int sendresp)
 void XrdXrootdJob2Do::Redrive()
 {
    XrdXrootdJob2Do *jp;
+   int Start = 0;
 
 // Find the first waiting job
 //
 
-   while ((jp = theJob->JobTable.Apply(XrdXrootdJobWaiting, (void *)0)))
+   while ((jp = theJob->JobTable.Apply(XrdXrootdJobWaiting, (void *)0, Start)))
          if (jp->verClient(jp->JobMark > 0)) break;
+            else Start = jp->JobNum+1;
 
 // Schedule this job if we really have one here
 //
