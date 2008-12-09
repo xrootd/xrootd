@@ -573,21 +573,42 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
    struct theLocks
           {XrdSysMutex *myMutex;
            XrdCmsNode  *myNode;
+           char        *myIdent;
            int          myImmed;
+           int          myNID;
+           int          myInst;
 
                        theLocks(XrdSysMutex *mtx, XrdCmsNode *node, int immed)
-                               {myImmed = immed; myNode = node; myMutex = mtx;
-                                if (myImmed >= 0) myMutex->Lock();
+                               : myMutex(mtx), myNode(node), myImmed(immed)
+                               {myIdent = strdup(node->Ident);
+                                myNID = node->ID(myInst);
+                                if (myImmed >= 0)
+                                   {myNode->UnLock();
+                                    myMutex->Lock();
+                                    myNode->Lock();
+                                   }
                                }
                       ~theLocks()
                                {if (myImmed >= 0) myMutex->UnLock();
                                 if (myNode) myNode->UnLock();
+                                free(myIdent);
                                }
           } LockHandler(&STMutex, theNode, immed);
 
    int Inst, NodeID = theNode->ID(Inst);
 
-// Handle Locks Obtained a lock on the node table. Mark node as being offline
+// The LockHandler makes sure that the proper locks are obtained in a deadlock
+// free order. However, this may require that the node lock be released and
+// then re-aquired. We check if we are still dealing with same node at entry.
+// If not, issue message and high-tail it out.
+//
+   if (LockHandler.myNID != NodeID || LockHandler.myInst != Inst)
+      {Say.Emsg("Manager", LockHandler.myIdent, "removal aborted.");
+       DEBUG(LockHandler.myIdent <<" node " <<NodeID <<'.' <<Inst <<" != "
+             << LockHandler.myNID <<'.' <<LockHandler.myInst <<" at entry.");
+      }
+
+// Mark node as being offline
 //
    theNode->isOffline = 1;
 
