@@ -977,7 +977,6 @@ AC_OUTPUT(Makefile
           src/XrdPss/Makefile
           src/XrdMon/Makefile
           src/XrdCns/Makefile
-          src/XrdCS2/Makefile
           src/XrdTokenAuthzOfs/Makefile
           test/testconfig.sh
           xrootd.spec)
