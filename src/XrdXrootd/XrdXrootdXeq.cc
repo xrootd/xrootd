@@ -1057,7 +1057,7 @@ int XrdXrootdProtocol::do_Prepare()
    XrdOucTList *pFirst=0, *pP, *pLast = 0;
    XrdOucTList *oFirst=0, *oP, *oLast = 0;
    XrdOucTListHelper pHelp(&pFirst), oHelp(&oFirst);
-   XrdXrootdPrepArgs pargs(0, 1);
+   XrdXrootdPrepArgs pargs(0, 0);
    XrdSfsPrep fsprep;
 
 // Grab the options
