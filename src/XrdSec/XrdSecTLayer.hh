@@ -95,7 +95,6 @@ virtual XrdSecCredentials *getCredentials(XrdSecParameters   *parm=0,
                                           XrdOucErrInfo      *einfo=0);
 
         void               secXeq();
-static const char    *secErrno(int rc, char *buff);
 
 protected:
 
@@ -106,6 +105,7 @@ private:
 int            bootUp(Initiator Who);
 int            secDone();
 void           secDrain();
+const char    *secErrno(int rc, char *buff);
 void           secError(const char *Msg, int rc, int iserrno=1);
 
 XrdSysSemaphore mySem;

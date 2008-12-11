@@ -21,6 +21,15 @@
 #include "XrdSys/XrdSysHeaders.hh"
 
 /******************************************************************************/
+/*                         S t a t i c   V a l u e s                          */
+/******************************************************************************/
+
+// Some compilers are incapable of optimizing away inline static const char's.
+//
+const char  XrdSecTLayer::TLayerRR::endData;
+const char  XrdSecTLayer::TLayerRR::xfrData;
+  
+/******************************************************************************/
 /*               C l i e n t   O r i e n t e d   M e t h o d s                */
 /******************************************************************************/
 /******************************************************************************/
