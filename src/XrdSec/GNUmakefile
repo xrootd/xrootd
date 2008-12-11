@@ -21,6 +21,7 @@ SOURCES = \
         XrdSecPManager.cc      \
         XrdSecProtocolhost.cc  \
         XrdSecServer.cc        \
+        XrdSecTLayer.cc        \
         XrdSectestClient.cc    \
         XrdSectestServer.cc    \
   
@@ -28,7 +29,8 @@ OBJSLIB = \
         $(OBJDIR)/XrdSecClient.o        \
         $(OBJDIR)/XrdSecPManager.o      \
         $(OBJDIR)/XrdSecProtocolhost.o  \
-        $(OBJDIR)/XrdSecServer.o
+        $(OBJDIR)/XrdSecServer.o        \
+        $(OBJDIR)/XrdSecTLayer.o
 
 OBJECTA = \
         $(OBJDIR)/XrdSectestClient.o
@@ -117,6 +119,13 @@ $(OBJDIR)/XrdSecServer.o: XrdSecServer.cc       XrdSecServer.hh \
                           XrdSecTrace.hh        XrdOucEnv.hh
 	@echo Compiling XrdSecServer.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecServer.o XrdSecServer.cc
+
+$(OBJDIR)/XrdSecTLayer.o: XrdSecTLayer.cc       XrdSecTLayer.hh \
+                          XrdSysPthread.hh      XrdSysHeaders.hh \
+                          XrdOucErrInfo.hh \
+                          XrdSecInterface.hh
+	@echo Compiling XrdSecTLayer.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecTLayer.o XrdSecTLayer.cc
 
 $(OBJDIR)/XrdSectestClient.o:   XrdSectestClient.cc XrdSecInterface.hh \
                                 XrdSysHeaders.hh    XrdSecEntity.hh

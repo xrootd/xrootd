@@ -21,7 +21,9 @@ libXrdSec_la_SOURCES = \
         XrdSecClient.cc XrdSecInterface.hh XrdSecEntity.hh      \
         XrdSecPManager.cc XrdSecPManager.hh     \
         XrdSecProtocolhost.cc XrdSecProtocolhost.hh \
-        XrdSecServer.cc XrdSecServer.hh XrdSecTrace.hh
+        XrdSecServer.cc XrdSecServer.hh \
+        XrdSecTLayer.cc XrdSecTLayer.hh \
+        XrdSecTrace.hh
 libXrdSec_la_LDFLAGS = -module
 
 # Note: the next option leads to problems at least on Darwin
