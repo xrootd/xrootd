@@ -142,8 +142,6 @@ Where:
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
-  
-void *XrdCmsStartMonPing(void *carg) { return Manager.MonPing(); }
 
 void *XrdCmsStartMonPerf(void *carg) { return Cluster.MonPerf(); }
 
@@ -997,14 +995,6 @@ int XrdCmsConfig::setupServer()
    if (MaxDelay < 0) MaxDelay = AskPerf*AskPing+30;
    if (DiskWT   < 0) DiskWT   = AskPerf*AskPing+30;
 
-// Create manager monitoring thread
-//
-   if ((rc = XrdSysThread::Run(&tid, XrdCmsStartMonPing, (void *)0,
-                               0, "Ping monitor")))
-      {Say.Emsg("Config", rc, "create ping monitor thread");
-       return 1;
-      }
-
 // Setup notification path
 //
    if (!(AnoteSock = XrdNetSocket::Create(&Say, AdminPath,
@@ -1068,13 +1058,19 @@ char *XrdCmsConfig::setupSid()
    static const char *envCNAME = "XRDCMSCLUSTERID";
    XrdOucTList *tpF, *tp = (NanList ? NanList : ManList);
    const char *insName = (myInsName ? myInsName : "anon");
-   char sidbuff[8192], *sidend = sidbuff+sizeof(sidbuff)-32, *sp = sidbuff;
+   char sidbuff[8192], *sidend = sidbuff+sizeof(sidbuff)-32, *sp, *cP;
    char *fMan, *fp, *xp, sfx; 
    int n;
 
+// The system ID starts with the semi-unique name of this node
+//
+   if (isManager && isServer) sfx = 'u';
+      else sfx = (isManager ? 'm' : 's');
+   sp = sidbuff + sprintf(sidbuff, "%s-%c ", insName, sfx); cP = sp;
+
 // Develop a unique cluster name for this cluster
 //
-   if (!tp) {strcpy(sidbuff, myInstance); sp += strlen(myInstance);}
+   if (!tp) {strcpy(sp, myInstance); sp += strlen(myInstance);}
       else {tpF = tp;
             fMan = tp->text + strlen(tp->text) - 1;
             while((tp = tp->next))
@@ -1097,15 +1093,11 @@ char *XrdCmsConfig::setupSid()
 // Set envar to hold the cluster name
 //
    *sp = '\0';
-   char *benv = (char *) malloc(strlen(envCNAME) + strlen(sidbuff) + 2);
-   sprintf(benv,"%s=%s", envCNAME, sidbuff); putenv(benv);
+   char *benv = (char *) malloc(strlen(envCNAME) + strlen(cP) + 2);
+   sprintf(benv,"%s=%s", envCNAME, cP); putenv(benv);
 
-// Add semi-unique name for this node in the cluster
+// Return the system ID
 //
-   if (sp+strlen(myInstance) >= sidend) return (char *)0;
-   if (isManager && isServer) sfx = 'u';
-      else sfx = (isManager ? 'm' : 's');
-   sprintf(sp, " %s-%c", insName, sfx);
    return  strdup(sidbuff);
 }
 

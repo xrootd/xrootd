@@ -150,7 +150,6 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
            nP->Link      = lp;
            nP->isOffline = 0;
            nP->isConn    = 1;
-           nP->PingPong  = 1;
            nP->Instance++;
            nP->setName(lp, port);  // Just in case it changed
            act = "Re-added ";
@@ -214,10 +213,9 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 
 // Document login
 //
-   DEBUG(act <<nP->Ident <<" to cluster; ref=" <<Slot <<'.' <<nP->Instance
-         <<"; num=" <<NodeCnt <<"; min=" <<Config.SUPCount);
-   DEBUG(act <<nP->Ident <<" cluster " <<nP->myCNUM <<" ID=" <<nP->myCID
-         <<'[' <<nP->myNID <<']');
+   DEBUG(act <<nP->Ident <<" to cluster " <<nP->myCNUM <<" slot "
+         <<Slot <<'.' <<nP->Instance <<" (n=" <<NodeCnt <<" m="
+         <<Config.SUPCount <<") ID=" <<nP->myNID);
 
 // Compute new state of all nodes if we are a reporting manager.
 //
@@ -479,32 +477,18 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
   
 void *XrdCmsCluster::MonPerf()
 {
-   CmsPingRequest   Ping  = {{0, kYR_ping,  0, 0}};
-   CmsUsageRequest  Usage = {{0, kYR_usage, 0, 0}};
-   CmsRRHdr *Req;
-   XrdCmsNode *nP;
-   int i, doping = 0;
+   CmsUsageRequest Usage = {{0, kYR_usage, 0, 0}};
+   struct iovec ioV[] = {{(char *)&Usage, sizeof(Usage)}};
+   int ioVnum = sizeof(ioV)/sizeof(struct iovec);
+   int ioVtot = sizeof(Usage);
+   SMask_t allNodes = -1;
+   int uInterval = Config.AskPing*Config.AskPerf;
 
-// Sleep for the indicated amount of time, then maintain load on each server
+// Sleep for the indicated amount of time, then ask for load on each server
 //
-   while(Config.AskPing)
-        {XrdSysTimer::Snooze(Config.AskPing);
-         if (--doping < 0) doping = Config.AskPerf;
-         STMutex.Lock();
-         for (i = 0; i <= STHi; i++)
-             if ((nP = NodeTab[i]) && nP->isBound)
-                {nP->Lock();
-                 STMutex.UnLock();
-                 if (nP->PingPong <= 0) Remove("not responding", nP);
-                    else {Req = (doping || !Config.AskPerf)
-                              ? (CmsRRHdr *)&Ping.Hdr:(CmsRRHdr *)&Usage.Hdr;
-                          nP->Send((char *)Req, sizeof(CmsRRHdr));
-                         }
-                 nP->PingPong--;
-                 nP->UnLock();
-                 STMutex.Lock();
-                }
-         STMutex.UnLock();
+   while(uInterval)
+        {XrdSysTimer::Snooze(uInterval);
+         Broadcast(allNodes, ioV, ioVnum, ioVtot);
         }
    return (void *)0;
 }
@@ -623,6 +607,7 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 //
    if (theNode->isConn)
       {theNode->Disc(reason, 0);
+       theNode->isGone = 1;
        return;
       }
 
