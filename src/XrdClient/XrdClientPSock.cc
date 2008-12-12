@@ -208,7 +208,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	 // Wait for some events from the socket pool
 	 selRet = select(locfdinfo.maxfd+1, &locfdinfo.fdset, NULL, NULL, &tv);
 
-	 if ((selRet < 0) && (errno != EINTR)) {
+	 if ( (selRet < 0) && (errno != EINTR) && (errno != EAGAIN) ) {
 	     Error("XrdClientPSock::RecvRaw", "Error in select() : " <<
 		   ::strerror(errno));
 
@@ -245,7 +245,7 @@ int XrdClientPSock::RecvRaw(void* buffer, int length, int substreamid,
 	      do {
                  n = ::recv(ii, static_cast<char *>(buffer) + bytesread,
                             length - bytesread, 0);
-              } while(n < 0 && errno == EINTR);
+              } while (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR));
 
 	      // If we read nothing, the connection has been closed by the other side
 	      if ((n <= 0)  && (errno != EINTR)) {
