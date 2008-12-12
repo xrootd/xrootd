@@ -119,8 +119,6 @@ extern XrdOucTrace     XrdTrace;
 #define XRDLINK_FREE 0x00
 #define XRDLINK_USED 0x01
 #define XRDLINK_IDLE 0x02
-
-pthread_t theThread;
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -617,22 +615,39 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
 /*                               R e c v A l l                                */
 /******************************************************************************/
   
-int XrdLink::RecvAll(char *Buff, int Blen)
+int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
 {
+   struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
    ssize_t rlen;
+   int     retc;
+
+// Check if timeout specified. Notice that the timeout is the max we will
+// for some data. We will wait forever for all the data. Yeah, it's weird.
+//
+   if (timeout >= 0)
+      {do {retc = poll(&polltab,1,timeout);} while(retc < 0 && errno == EINTR);
+       if (retc != 1)
+          {if (!retc) return -ETIMEDOUT;
+           XrdLog.Emsg("Link",errno,"poll",ID);
+           return -1;
+          }
+       if (!(polltab.revents & (POLLIN|POLLRDNORM)))
+          {XrdLog.Emsg("Link",XrdPoll::Poll2Text(polltab.revents),"polling",ID);
+           return -1;
+          }
+      }
 
 // Note that we will block until we receive all he bytes.
 //
    if (LockReads) rdMutex.Lock();
    isIdle = 0;
-   theThread = pthread_self();
    do {rlen = recv(FD,Buff,Blen,MSG_WAITALL);} while(rlen < 0 && errno == EINTR);
    if (LockReads) rdMutex.UnLock();
 
    if (int(rlen) == Blen) return Blen;
-   if (!rlen) {TRACE(DEBUG, "No RecvAll() data from " <<Lname <<" FD=" <<FD);}
-      else if (rlen > 0) XrdLog.Emsg("RecvAll","Premature end from", Lname);
-              else if (FD >= 0) XrdLog.Emsg("Link",errno,"recieve from",Lname);
+   if (!rlen) {TRACE(DEBUG, "No RecvAll() data from " <<ID <<" FD=" <<FD);}
+      else if (rlen > 0) XrdLog.Emsg("RecvAll","Premature end from", ID);
+              else if (FD >= 0) XrdLog.Emsg("Link",errno,"recieve from",ID);
    return -1;
 }
 
