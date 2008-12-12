@@ -347,7 +347,7 @@ int XrdCmsConfig::Configure2()
    if (!NoGo && !(mySID = setupSid()))
       {Say.Emsg("cmsd", "Unable to generate system ID; too many managers.");
        NoGo = 1;
-      } else {DEBUG("Cluster/Node ID = " <<mySID);}
+      } else {DEBUG("Global System Identification: " <<mySID);}
 
 // If we need a name library, load it now
 //
@@ -869,7 +869,8 @@ int XrdCmsConfig::PidFile()
 {
     static const char *envPIDFN = "XRDCMSPIDFN=";
     int rc, xfd;
-    char buff[1024], *Space;
+    const char *clID;
+    char buff[1024];
     char pidFN[1200], *ppath=XrdOucUtils::genPath(pidPath,
                               (strcmp("anon",myInsName)?myInsName:0));
     const char *xop = 0;
@@ -880,7 +881,8 @@ int XrdCmsConfig::PidFile()
         return 1;
        }
 
-    if ((Space = index(mySID, ' '))) *Space = '\0';
+    if ((clID = index(mySID, ' '))) clID++;
+       else clID = mySID;
 
          if (isManager && isServer)
             snprintf(pidFN, sizeof(pidFN), "%s/cmsd.super.pid", ppath);
@@ -899,7 +901,7 @@ int XrdCmsConfig::PidFile()
                             write(xfd,(void *)AdminPath,strlen(AdminPath)) < 0
                 )          )
              ||             write(xfd,(void *)"\n&cn=", 5)  < 0
-             ||             write(xfd,(void *)mySID,    strlen(mySID))     < 0
+             ||             write(xfd,(void *)clID,     strlen(clID))      < 0
                 ) xop = "write";
              close(xfd);
             }
@@ -909,7 +911,6 @@ int XrdCmsConfig::PidFile()
               sprintf(benv,"%s=%s", envPIDFN, pidFN); putenv(benv);
              }
 
-     if (Space) *Space = ' ';
      return xop != 0;
 }
 
@@ -972,7 +973,6 @@ int XrdCmsConfig::setupManager()
 int XrdCmsConfig::setupServer()
 {
    XrdOucTList *tp;
-   pthread_t tid;
    int n = 0, rc;
 
 // Make sure we have enough info to be a server
