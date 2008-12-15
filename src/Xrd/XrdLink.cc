@@ -645,7 +645,7 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
    if (LockReads) rdMutex.UnLock();
 
    if (int(rlen) == Blen) return Blen;
-   if (!rlen) {TRACE(DEBUG, "No RecvAll() data from " <<ID <<" FD=" <<FD);}
+   if (!rlen) {TRACE(DEBUG, "No RecvAll() data from " <<ID <<" FD=" <<FD <<" errno=" <<errno);}
       else if (rlen > 0) XrdLog.Emsg("RecvAll","Premature end from", ID);
               else if (FD >= 0) XrdLog.Emsg("Link",errno,"recieve from",ID);
    return -1;
