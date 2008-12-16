@@ -504,13 +504,22 @@ void XrdCmsConfig::DoIt()
           }
       }
 
-// Start the server subsystem.
+// Start the server subsystem. We check here to make sure we will not be
+// tying to connect to ourselves. This is possible if the manager and meta-
+// manager were defined to be the same and we are a manager. We would have
+// liked to screen this out earlier but port discovery prevents it.
 //
    if (isManager || isServer || isPeer)
       {tp = ManList;
        while(tp)
-            {pP = XrdCmsProtocol::Alloc(myRole, tp->text, tp->val);
-             Sched->Schedule((XrdJob *)pP);
+            {if (strcmp(tp->text, myName) || tp->val != PortTCP)
+                {pP = XrdCmsProtocol::Alloc(myRole, tp->text, tp->val);
+                 Sched->Schedule((XrdJob *)pP);
+                } else {
+                 char buff[512];
+                 sprintf(buff, "%s:%d", tp->text, tp->val);
+                 Say.Emsg("Config", "Circular connection to", buff, "ignored.");
+                }
              tp = tp->next;
             }
       }
@@ -1718,6 +1727,7 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
     char **val1, **val2;
     };
 
+    static const int sockALen = sizeof(struct sockaddr);
     struct sockaddr InetAddr[8];
     XrdOucTList *tp = 0, *tpp = 0, *tpnew;
     char *val, *bval = 0, *mval = 0;
@@ -1797,12 +1807,14 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
     if (isManager && !isServer)
        {if ((xMeta && isMeta) || (!xMeta && !isMeta))
            for (j = 0; j < i; j++)
-                if (!memcmp(&InetAddr[j], &myAddr, sizeof(struct sockaddr)))
+                if (!memcmp(&InetAddr[j], &myAddr, sockALen))
                    {PortTCP = port; break;}
         if (isMeta) return (xMeta ? 0: CFile.noEcho());
         if (!xMeta) Prt = 0;
        }
 
+// Now construct the list of [meta] managers
+//
     do {if (multi)
            {free(mval);
             char mvBuff[1024];
