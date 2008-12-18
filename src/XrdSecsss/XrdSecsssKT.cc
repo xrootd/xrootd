@@ -417,7 +417,7 @@ do{while((lp = myKT.GetLine()))
             {What = "keytable format missing or unsupported";      break;}
          if (!(ktNew = ktDecode0(myKT, eInfo)))
             {What = (eInfo ? eInfo->getErrText(): "invalid data"); break;}
-         if (ktMode != isAdmin && ktNew->Data.Exp <= time(0))
+         if (ktMode!=isAdmin && ktNew->Data.Exp && ktNew->Data.Exp <= time(0))
             {delete ktNew; continue;}
          tmpID = static_cast<int>(ktNew->Data.ID & 0x7fffffff);
          if (tmpID > kthiID) kthiID = tmpID;
@@ -621,8 +621,8 @@ while((tp = kTab.GetToken()) && !Prob)
 // Check if we have a problem
 //
    if (Prob)
-      {const char *eVec[] = {ktDesc[i].Name, What, Prob};
-       if (eInfo) eInfo->setErrInfo(-1, eVec, 3);
+      {const char *eVec[] = {What, Prob};
+       if (eInfo) eInfo->setErrInfo(-1, eVec, 2);
        delete ktNew;
        return 0;
       }
