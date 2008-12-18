@@ -51,7 +51,7 @@ XrdSecCredentials *XrdSecTLayer::getCredentials(XrdSecParameters *parm,
        if (Starter == isServer) rdLen = 0;
       } else {
        if (parm->size < hdrSz) 
-          {secError("Invalid parms length", EBADR);
+          {secError("Invalid parms length", EPROTO);
            return 0;
           }
        Req  = ((TLayerRR *)parm->buffer)->protCode;
@@ -72,7 +72,7 @@ XrdSecCredentials *XrdSecTLayer::getCredentials(XrdSecParameters *parm,
                   {secError("Socket read failed", errno); return 0;}
                break;
           case TLayerRR::endData:
-               if (myFD < 0) {secError("Protocol violation", EBADE); return 0;}
+               if (myFD < 0) {secError("Protocol violation", EPROTO); return 0;}
                Blen = -1;
                break;
           default: secError("Unknown parms request", EINVAL); return 0;
@@ -112,7 +112,7 @@ int XrdSecTLayer::Authenticate  (XrdSecCredentials  *cred,
 
 // Get the request code
 //
-   if (cred->size < hdrSz) {secError("Invalid credentials", EBADR); return -1;}
+   if (cred->size < hdrSz) {secError("Invalid credentials",EBADMSG); return -1;}
    Req  = ((TLayerRR *)cred->buffer)->protCode;
    wrLen= cred->size - hdrSz;
 
