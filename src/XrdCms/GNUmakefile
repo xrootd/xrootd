@@ -134,7 +134,7 @@ anything: $(TARGETS)
 
 $(BINARY): $(OBJSRVR) $(OBJBOTH) $(LIBDEPS)
 	@echo Creating executable $(BINARY) 
-	$(ECHO)$(LD) $(LDOP) $(OBJSRVR) $(OBJBOTH) $(BINLIBS) $(LIBS) -o $(BINARY)
+	$(ECHO)$(LD) $(LDOP) $(OBJSRVR) $(OBJBOTH) $(BINLIBS) $(LIBS) $(TYPELIBMT) -o $(BINARY)
 
 
 $(LIBRARY): $(OBJCLNT) $(OBJBOTH)
