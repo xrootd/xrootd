@@ -85,7 +85,7 @@ anything: $(TARGETS)
 
 $(TARGETS): $(OBJECTS) $(OBJDEPS)
 	@echo Creating executable $(TARGETS) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) -o $(TARGETS)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTS) $(LIBS) $(BINLIBS) $(TYPELIBMT) -o $(TARGETS)
 
 $(OBJDIR)/XrdXrootdAdmin.o: XrdXrootdAdmin.hh      XrdXrootdAdmin.cc \
                             XrdXrootdTrace.hh      XrdXrootdProtocol.hh \
