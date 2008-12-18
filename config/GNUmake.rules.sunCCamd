@@ -17,6 +17,7 @@ TYPELDSO   = -G -xtarget=opteron -xarch=amd64
 TYPESHLIB  = so
 
 TYPELIBS   = -L/usr/lib/amd64 -L/lib/amd64 \
-             -lmtmalloc -lposix4 -lsocket -lnsl $(PTHREAD) -ldl
+             -lposix4 -lsocket -lnsl $(PTHREAD) -ldl
+TYPELIBMT  = -lmtmalloc
 TYPELIBSF  = -lsendfile
 TYPELIBSM  = -lsunmath
