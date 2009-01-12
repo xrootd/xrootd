@@ -237,9 +237,11 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
     if (FDFence < 0 || FDFence >= FDLimit) FDFence = FDLimit >> 1;
    }
 
-// Establish cached filesystems
+// Establish cached filesystems. However, if we are a manager/supervisor. 
+// then we will not (for now) maintain usage statistics or quota info.
 //
-   NoGo |= ReCache(UDir, QFile);
+   if (!(val = getenv("XRDREDIRECT")) || strcmp(val, "R"))
+      NoGo |= ReCache(UDir, QFile);
 
 // Configure the MSS interface including staging
 //
@@ -522,7 +524,7 @@ int XrdOssSys::ConfigProc(XrdSysError &Eroute)
 
 int XrdOssSys::ConfigStage(XrdSysError &Eroute)
 {
-   char *tp, *gwp = 0, *stgp = 0;
+   char *sp, *tp, *gwp = 0, *stgp = 0;
    unsigned long long dflags, flags;
    int isMan, retc, numt, NoGo = 0;
    pthread_t tid;
@@ -571,7 +573,7 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
    if (isMan)
       {if (MSSgwCmd) {free(MSSgwCmd); MSSgwCmd = 0;}
        if (StageCmd) {free(StageCmd); StageCmd = 0;}
-       MSSgwProg = 0;
+       MSSgwProg = 0; StageCreate = 0;
        return NoGo;
       }
 
@@ -622,6 +624,15 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
           tp = StageCmd;
           while(*tp && *tp == ' ') tp++;
           if (*tp == '|') {StageRealTime = 0; StageCmd = tp+1;}
+
+       // This is a bit of hackery to get the traceid sent over to the
+       // new file residency manager (frm). Keeps the config simple.
+       //
+          if (!(sp = index(StageCmd, ' '))) sp = StageCmd + strlen(StageCmd);
+          *sp = '\0';
+          if (!(tp = rindex (StageCmd, '/'))) tp = StageCmd;
+             else tp++;
+          if (!strcmp("frm_pstga", tp)) StageFormat = 1;
 
       // Set up a program object for the command
       //
@@ -1359,7 +1370,7 @@ int XrdOssSys::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 
    Purpose:  To parse the directive: usage <parms>
 
-             <parms>: [nolog | log <path>] [quotafile <qfile>]
+             <parms>: [nolog | log <path>] [noquotafile | quotafile <qfile>]
 
              nolog    does not save usage info across restarts
              log      saves usages information in the <path> directory
@@ -1390,6 +1401,8 @@ int XrdOssSys::xusage(XrdOucStream &Config, XrdSysError &Eroute)
                       }
                    UDir = strdup(val);
                   }
+          else if (!strcmp("noquotafile",val))
+                  {if (QFile) {free(QFile); QFile= 0;}}
           else if (!strcmp("quotafile",val))
                   {if (QFile) {free(QFile); QFile= 0;}
                    if (!(val = Config.GetWord()))

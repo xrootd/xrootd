@@ -33,6 +33,7 @@ const char *XrdOssStageCVSID = "$Id$";
 #include <sys/wait.h>
 
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"
@@ -110,7 +111,7 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
    static XrdSysMutex      PTMutex;
    static XrdOucHash<char> PTable;
    static time_t nextScrub = xfrkeep + time(0);
-   char *Found, *pdata[XrdOucMsubs::maxElem + 2];
+   char *Found, *pdata[XrdOucMsubs::maxElem + 2], fmt2[1024];
    int rc, pdlen[XrdOucMsubs::maxElem + 2];
    time_t tNow = time(0);
 
@@ -142,9 +143,11 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
 // If a stagemsg template was not defined; use our default template
 //
    if (!StageSnd)
-      {char idbuff[64];
+      {char idbuff[64], usrbuff[512];
        ReqID.ID(idbuff, sizeof(idbuff));
-       pdata[0] = (char *)"+ ";  pdlen[0] = 2;
+       if (!StageFormat)
+      {pdata[0] = (char *)"+ ";  pdlen[0] = 2;}
+else  {pdlen[0] = getID(Tid,env,usrbuff,sizeof(usrbuff)); pdata[0] = usrbuff;}
        pdata[1] = idbuff;        pdlen[1] = strlen(idbuff);  // Request ID
        pdata[2] = (char *)" ";   pdlen[2] = 1;
        pdata[3] = StageEvents;   pdlen[3] = StageEvSize;     // notification
@@ -417,6 +420,34 @@ int XrdOssSys::GetFile(XrdOssStage_Req *req)
 // All went well
 //
    return 0;
+}
+
+/******************************************************************************/
+/*                                 g e t I D                                  */
+/******************************************************************************/
+  
+int XrdOssSys::getID(const char *Tid, XrdOucEnv &Env, char *buff, int bsz)
+{
+   const char *usr;
+   char *bP, *cP;
+   int n;
+
+// The buffer always starts with a '+'
+//
+   *buff = '+'; bP = buff+1; bsz -= 2;
+
+// First get the unauthenticated user name
+//
+   if (!(usr = Env.Get(SEC_USER))
+   ||  (n = strlen(usr)) > bsz/2
+   ||  !(cP = index(Tid, '.'))) strlcpy(bP, Tid, bsz);
+      else {strcpy(bP, usr); bP += n; strlcpy(bP, cP, bsz-n);}
+
+// All done
+//
+   n = strlen(buff);
+   buff[n] = ' '; buff[n+1] = '\0';
+   return n+1;
 }
 
 /******************************************************************************/
