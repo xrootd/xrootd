@@ -37,7 +37,7 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest)
           else DestHN = strdup(dest);
       }
 
-    if (!myNet.Relay(Peer, 0, XRDNET_SENDONLY))
+    if (!myNet.Relay(Peer, dest, XRDNET_SENDONLY))
        eDest->Emsg("Msg", "Unable top create UDP msg socket.");
        else FD = Peer.fd;
 }
