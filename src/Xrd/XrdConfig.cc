@@ -203,11 +203,12 @@ int XrdConfig::Configure(int argc, char **argv)
    const char *xrdName="XRDNAME=";
    const char *xrdHost="XRDHOST=";
    const char *xrdProg="XRDPROG=";
+   const char *xrdCfn ="XRDCONFIGFN=";
 
    static sockaddr myIPAddr;
    int n, retc, dotrim = 1, NoGo = 0, aP = 1, clPort = -1, optbg = 0;
    const char *temp;
-   char c, *Penv, buff[512], *dfltProt, *logfn = 0;
+   char c, buff[512], *dfltProt, *logfn = 0;
    long long logkeep = 0;
    uid_t myUid = 0;
    gid_t myGid = 0;
@@ -338,16 +339,13 @@ int XrdConfig::Configure(int argc, char **argv)
    putenv(myInstance);
    myInstance += strlen(xrdInst);
    sprintf(buff, "%s%s", xrdHost, myName);
-   Penv = strdup(buff);
-   putenv(Penv);
+   putenv(strdup(buff));
    if (myInsName)
       {sprintf(buff, "%s%s", xrdName, myInsName);
-       Penv = strdup(buff);
-       putenv(Penv);
+       putenv(strdup(buff));
       }
    sprintf(buff, "%s%s", xrdProg, myProg);
-   Penv = strdup(buff);
-   putenv(Penv);
+   putenv(strdup(buff));
 
 // Put out the herald
 //
@@ -369,6 +367,8 @@ int XrdConfig::Configure(int argc, char **argv)
    if (ConfigFN && *ConfigFN)
       {XrdLog.Say("Config using configuration file ", ConfigFN);
        ProtInfo.ConfigFN = ConfigFN;
+       sprintf(buff, "%s%s", xrdCfn, ConfigFN);
+       putenv(strdup(buff));
        NoGo = ConfigProc();
       }
    if (clPort >= 0) PortTCP = clPort;
