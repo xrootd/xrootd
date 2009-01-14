@@ -14,7 +14,7 @@
 XRDSEC  = XrdSys XrdOuc XrdNet @xrdsec@
 
 SERVER  = XrdSfs XrdAcc XrdOdc Xrd \
-          XrdCms XrdOlb XrdOss XrdOfs XrdBwm XrdRootd XrdXrootd
+          XrdCms XrdOlb XrdOss XrdOfs XrdBwm XrdRootd XrdXrootd XrdFrm
 
 XRDCLIENT = XrdClient
 
@@ -121,8 +121,13 @@ XrdCrypto: FORCE
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdNet: FORCE
-	@echo $(XMSG) ouc $(XDBG) component...
+	@echo $(XMSG) net $(XDBG) component...
 	@cd src/XrdNet;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdFrm: FORCE
+	@echo $(XMSG) frm $(XDBG) component...
+	@cd src/XrdFrm;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdOdc: FORCE
