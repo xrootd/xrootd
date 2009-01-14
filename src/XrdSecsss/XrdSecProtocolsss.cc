@@ -164,7 +164,6 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    if (idBuff) free(idBuff);
    idBuff = idP = (char *)malloc(idTLen);
    Entity.name         = setID(myID.name,         &idP);
-   Entity.name         = setID(myID.name,         &idP);
    Entity.vorg         = setID(myID.vorg,         &idP);
    Entity.role         = setID(myID.role,         &idP);
    Entity.grps         = setID(myID.grps,         &idP);

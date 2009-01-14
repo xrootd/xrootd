@@ -233,9 +233,16 @@ void XrdSecsssKT::genKey(char *kBP, int kLen)
 // because some /dev/random devices start out really cold.
 //
    if (randFD >= 0) 
-      {if (read(randFD, kBP, kLen) == kLen)
-          {int i, zcnt = 0, maxZ = kLen*25/100;
-           for (i = 0; i < kLen; i++) if (!kBP[i]) zcnt++;
+      {char *buffP = kBP;
+       int i, Got, Want = kLen, zcnt = 0, maxZ = kLen*25/100;
+       while(Want)
+       do { {do {Got = read(randFD, buffP, Want);}
+                while(Got < 0 && errno == EINTR);
+             if (Got > 0) {buffP += Got; Want -= Got;}
+            }
+          } while(Got > 0 && Want);
+       if (!Want)
+          {for (i = 0; i < kLen; i++) if (!kBP[i]) zcnt++;
            if (zcnt <= maxZ) return;
           }
       }
@@ -243,8 +250,9 @@ void XrdSecsssKT::genKey(char *kBP, int kLen)
 // Generate a seed
 //
    gettimeofday(&tval, 0);
-   if (tval.tv_usec == 0) {tval.tv_usec = tval.tv_sec ^ getpid();}
-   srand48(tval.tv_usec);
+   if (tval.tv_usec == 0) tval.tv_usec = tval.tv_sec;
+   tval.tv_usec = tval.tv_usec ^ getpid();
+   srand48(static_cast<long>(tval.tv_usec));
 
 // Now generate the key (we ignore he fact that longs may be 4 or 8 bytes)
 //
@@ -536,11 +544,11 @@ void XrdSecsssKT::keyX2B(ktEnt *theKT, char *xKey)
 // Now convert (we need this to be just consistent not necessarily correct)
 //
    while(*xKey)
-        {if (*xKey <= '9') kByte = (*xKey & 0x0f) << 4;
+        {if (*xKey <= '9') kByte  = (*xKey & 0x0f) << 4;
             else kByte = xtab[*xKey & 0x07] << 4;
          xKey++;
-         if (*xKey <= '9') kByte = (*xKey & 0x0f) << 4;
-            else kByte = xtab[*xKey & 0x07] << 4;
+         if (*xKey <= '9') kByte |= (*xKey & 0x0f);
+            else kByte |= xtab[*xKey & 0x07];
          *kp++ = kByte; xKey++;
         }
 
