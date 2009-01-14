@@ -111,7 +111,7 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
    static XrdSysMutex      PTMutex;
    static XrdOucHash<char> PTable;
    static time_t nextScrub = xfrkeep + time(0);
-   char *Found, *pdata[XrdOucMsubs::maxElem + 2], fmt2[1024];
+   char *Found, *pdata[XrdOucMsubs::maxElem + 2];
    int rc, pdlen[XrdOucMsubs::maxElem + 2];
    time_t tNow = time(0);
 
