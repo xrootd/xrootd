@@ -295,9 +295,13 @@ int XrdConfig::Configure(int argc, char **argv)
 // Bind the log file if we have one
 //
    if (logfn)
-      {if (!(logfn = XrdOucUtils::subLogfn(XrdLog, myInsName, logfn))) _exit(16);
+      {char ldbuff[1024], *lP;
+       if (!(logfn = XrdOucUtils::subLogfn(XrdLog, myInsName, logfn))) _exit(16);
        if (logkeep) XrdLogger.setKeep(logkeep);
        XrdLogger.Bind(logfn, 24*60*60);
+       if ((lP = rindex(logfn,'/'))) {*(lP+1) = '\0'; lP = logfn;}
+          else lP = (char *)"./";
+       strcpy(ldbuff, "XRDLOGDIR="); strcat(ldbuff, lP); putenv(strdup(ldbuff));
        free(logfn);
       }
 
