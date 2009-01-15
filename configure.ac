@@ -754,7 +754,7 @@ AC_CHECK_LIB([rt],[aio_fsync],
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h limits.h malloc.h memory.h netdb.h netinet/in.h shadow.h stdlib.h string.h strings.h sys/file.h sys/mount.h sys/param.h sys/socket.h sys/statfs.h sys/statvfs.h sys/time.h sys/vfs.h unistd.h utime.h])
+AC_CHECK_HEADERS([et/com_err.h arpa/inet.h fcntl.h inttypes.h limits.h malloc.h memory.h netdb.h netinet/in.h shadow.h stdlib.h string.h strings.h sys/file.h sys/mount.h sys/param.h sys/socket.h sys/statfs.h sys/statvfs.h sys/time.h sys/vfs.h unistd.h utime.h])
 
 #################################################################
 # Checks for typedefs, structures, and compiler characteristics.
@@ -972,6 +972,7 @@ AC_OUTPUT(Makefile
           src/XrdCms/Makefile
           src/XrdRootd/Makefile
           src/XrdXrootd/Makefile
+          src/XrdFrm/Makefile
           src/XrdClient/Makefile
           src/XrdPosix/Makefile
           src/XrdPss/Makefile

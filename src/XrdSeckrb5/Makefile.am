@@ -8,9 +8,17 @@
 ## Checked in by $Author$
 #######################################################################
 
+
+#############################################################################
+## deliverables
+
 lib_LTLIBRARIES = libXrdSeckrb5.la
 
-INCLUDES = -I$(top_srcdir)/src $(KRB5_INCDIR)
+#############################################################################
+## Build rules
+
+AM_CPPFLAGS = -I$(top_srcdir)/src $(KRB5_INCDIR)
+
 
 libXrdSeckrb5_la_SOURCES = XrdSecProtocolkrb5.cc
 libXrdSeckrb5_la_LIBADD = \
