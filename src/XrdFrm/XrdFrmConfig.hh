@@ -25,6 +25,8 @@ const char         *myProg;
 const char         *myName;
 const char         *myInst;
 const char         *myInsName;
+const char         *myFrmid;
+const char         *myFrmID;
 char               *AdminPath;
 char               *myInstance;
 char               *StopFile;
@@ -39,6 +41,7 @@ int                 isAgent;
 int                 xfrMax;
 int                 WaitTime;
 int                 monStage;
+int                 sSpec;
 
 int   Configure(int argc, char **argv, int (*ppf)());
 

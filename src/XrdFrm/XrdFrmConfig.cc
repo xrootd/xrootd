@@ -67,30 +67,33 @@ void *XrdLogWorker(void *parg)
   
 XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 {
-   const char *pfx, *sP;
-   char buff[128];
+   char *sP, buff[128];
 
 // Preset all variables with common defaults
 //
    vOpts    = vopts;
    uInfo    = uinfo;
    ssID     = ss;
-   myInsName= 0;
    AdminPath= 0;
    AdminMode= 0740;
    xfrMax   = 1;
    WaitTime = 300;
    xfrCmd   = 0;
    xfrVec   = 0;
-   StopFile = 0;
    qPath    = 0;
    isAgent  = (getenv("XRDADMINPATH") ? 1 : 0);
    ossLib   = 0;
    monStage = 0;
+   sSpec    = 0;
 
    LocalRoot= RemoteRoot = 0;
    lcl_N2N  = rmt_N2N = the_N2N = 0;
    N2N_Lib  = N2N_Parms         = 0;
+
+// Establish our instance name
+//
+   if ((sP = getenv("XRDNAME")) && *sP) myInsName = sP;
+      else myInsName = 0;
 
 // Establish default config file
 //
@@ -99,21 +102,21 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 
 // Establish directive postfix
 //
-   if (ss == ssMigr)                 pfx = "migr";
-      else if (ss == ssPstg)         pfx = "pstg";
-              else if (ss == ssPurg) pfx = "purg";
-                      else           pfx = "frm";
+   if (ss == ssMigr)                 {myFrmid = "migr"; myFrmID = "MIGR";}
+      else if (ss == ssPstg)         {myFrmid = "pstg"; myFrmID = "PSTG";}
+              else if (ss == ssPurg) {myFrmid = "purg"; myFrmID = "PURG";}
+                      else           {myFrmid = "frm";  myFrmID = "FRM";}
 
 // Set correct error prefix
 //
-   strcpy(buff, pfx);
+   strcpy(buff, myFrmid);
    strcat(buff, "_");
    Say.SetPrefix(strdup(buff));
 
 // Set correct option prefix
 //
    strcpy(buff, "frm.");
-   strcat(buff, pfx);
+   strcat(buff, myFrmid);
    strcat(buff, ".");
    pfxDTS = strdup(buff); plnDTS = strlen(buff);
 }
@@ -124,15 +127,10 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
   
 int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 {
-   const char *frmInst="XRDINSTANCE=";
-   const char *frmName="XRDNAME=";
-   const char *frmHost="XRDHOST=";
-   const char *frmProg="XRDPROG=";
-
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
    int n, retc, myXfrMax = -1, NoGo = 0;
    const char *temp;
-   char c, buff[512], *logfn = 0;
+   char c, buff[1024], *logfn = 0;
    long long logkeep = 0;
    extern char *optarg;
    extern int opterr, optopt;
@@ -150,8 +148,6 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
       while ((c = getopt(argc,argv,vOpts)) && ((unsigned char)c != 0xff))
      { switch(c)
        {
-       case 'A': isAgent = 1;
-                 break;
        case 'c': if (ConfigFN) free(ConfigFN);
                  ConfigFN = strdup(optarg);
                  break;
@@ -174,6 +170,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
                  break;
        case 'n': myInsName = optarg;
                  break;
+       case 's': sSpec = 1;
+                 break;
        case 'w': if (XrdOuca2x::a2tm(Say,"wait time",optarg,&WaitTime))
                     Usage(1);
                  break;
@@ -184,13 +182,20 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        }
      }
 
+// If we are an agent without a logfile and one is actually defined for the
+// underlying system, use the directory of the underlying system.
+//
+   if (!logfn && isAgent && (logfn = getenv("XRDLOGDIR")))
+      {sprintf(buff, "%s%s%clog", logfn, myFrmid, (isAgent ? 'a' : 'd'));
+       logfn = strdup(buff);
+      }
+
 // Bind the log file if we have one
 //
    if (logfn)
       {if (!(logfn = XrdOucUtils::subLogfn(Say, myInsName, logfn))) _exit(16);
        if (logkeep) Logger.setKeep(logkeep);
        Logger.Bind(logfn, 24*60*60);
-       free(logfn);
       }
 
 // Get the full host name. In theory, we should always get some kind of name.
@@ -200,23 +205,16 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        _exit(16);
       }
 
-// Set the Environmental variable to hold the instance name only if not an agent
+// Set the Environmental variables to hold some config information
 // XRDINSTANCE=<pgm> <instance name>@<host name>
 //
-   sprintf(buff,"%s%s %s@%s",frmInst,myProg,(myInst ? myInst:"anon"),myName);
-   myInstance = strdup(buff);
-   if (!isAgent)
-      {putenv(myInstance);
-       sprintf(buff, "%s%s", frmHost, myName);
-       putenv(strdup(buff));
-       if (myInsName)
-          {sprintf(buff, "%s%s", frmName, myInsName);
-           putenv(strdup(buff));
-          }
-       sprintf(buff, "%s%s", frmProg, myProg);
-       putenv(strdup(buff));
-      }
-   myInstance += strlen(frmInst);
+   sprintf(buff,"XRDINSTANCE=%s %s@%s",myProg,(myInst ? myInst:"anon"),myName);
+   putenv(strdup(buff)); // XRDINSTANCE
+   myInstance = strdup(index(buff,'=')+1);
+   sprintf(buff,"XRDHOST=%s", myName); putenv(strdup(buff));
+   sprintf(buff,"XRDPROG=%s", myProg); putenv(strdup(buff));
+   if (myInsName)
+      {sprintf(buff, "XRDNAME=%s", myInsName); putenv(strdup(buff));}
 
 // Determine which configuration file we should use
 //
@@ -379,15 +377,15 @@ int XrdFrmConfig::ConfigN2N()
   
 int XrdFrmConfig::ConfigPaths()
 {
-   char *aPath;
+   char *xPath, buff[1024];
    int retc;
 
 // Get the directory where the meta information is to go
 //
-   if (!(aPath = AdminPath) && !(aPath = getenv("XRDADMINPATH")))
-       aPath = (char *)"/tmp/";
-   aPath = XrdOucUtils::genPath(aPath, myInsName, "frm");
-   if (AdminPath) free(AdminPath); AdminPath = aPath;
+   if (!(xPath = AdminPath) && !(xPath = getenv("XRDADMINPATH")))
+       xPath = (char *)"/tmp/";
+   xPath = XrdOucUtils::genPath(xPath, myInsName, "frm");
+   if (AdminPath) free(AdminPath); AdminPath = xPath;
 
 // Create the admin directory if it does not exists
 //
@@ -399,6 +397,21 @@ int XrdFrmConfig::ConfigPaths()
 // Now we should create a home directory for core files
 //
    if (myInsName) XrdOucUtils::makeHome(Say, myInsName);
+
+// Set up the stop file path
+//
+   if (!StopFile)
+      {sprintf(buff,"%sSTOP%s", AdminPath, myFrmID); StopFile = strdup(buff);}
+
+// If a qpath was specified, differentiate it by the instance name
+//
+   if (qPath)
+      {xPath = XrdOucUtils::genPath(qPath, myInsName, "frm");
+       free(qPath); qPath = xPath;
+      }
+
+// All done
+//
    return 0;
 }
 

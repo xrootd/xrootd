@@ -14,10 +14,10 @@ const char *XrdFrmPreStageCVSID = "$Id$";
 
 /* This is the "main" part of the frm_PreStage command. Syntax is:
 */
-static const char *XrdFrmOpts  = ":c:dk:l:m:n:";
+static const char *XrdFrmOpts  = ":c:dk:l:n:s";
 static const char *XrdFrmUsage =
 
-  " [-c <cfgfile>] [-d] [-k {num | sz{k|m|g}] [-l <lfile>] [-m num] [-n name]\n";
+  " [-c <cfgfile>] [-d] [-k {num | sz{k|m|g}] [-l <lfile>] [-n name] [-s]\n";
 /*
 Where:
 
@@ -178,11 +178,8 @@ int mainConfig()
 // Make the queue path
 //
    if ((qPath = Config.qPath))
-      {strcpy(buff, qPath);
-       n = strlen(buff);
-       if (buff[n-1] != '/') {buff[n] = '/'; buff[n+1] = '\0';}
-       if ((retc = XrdOucUtils::makePath(buff, Config.AdminMode)))
-          {Say.Emsg("Config", retc, "create queue directory", buff);
+      {if ((retc = XrdOucUtils::makePath(qPath, Config.AdminMode)))
+          {Say.Emsg("Config", retc, "create queue directory", qPath);
            return 1;
           }
       } else qPath = Config.AdminPath;
