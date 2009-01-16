@@ -211,7 +211,7 @@ char *XrdOucMsubs::getVal(XrdOucMsubsInfo &Info, int vNum)
       case vUSR:  if ((op = Info.Env->Get(SEC_USER))) return op;
                   break;
 
-      case vRID:
+      case vRID:  if (Info.Rid) return (char *)Info.Rid;
       case vTID:  return (char *)Info.Tid;
 
       case vCGI:  if (!(op = Info.Env->Env(n))) op = (char *)"";
