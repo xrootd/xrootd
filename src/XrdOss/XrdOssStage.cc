@@ -159,7 +159,8 @@ else  {pdlen[0] = getID(Tid,env,usrbuff,sizeof(usrbuff)); pdata[0] = usrbuff;}
        pdata[9] = 0;             pdlen[9] = 0;
        if (StageProg->Feed((const char **)pdata, pdlen)) return -XRDOSS_E8025;
       } else {
-       XrdOucMsubsInfo Info(Tid, &env, lcl_N2N, fn, 0, Mode, Oflag);
+       XrdOucMsubsInfo Info(Tid, &env, lcl_N2N, fn, 0, 
+                            Mode, Oflag, StageAction, "n/a");
        int k = StageSnd->Subs(Info, pdata, pdlen);
        pdata[k]   = (char *)"\n"; pdlen[k++] = 1;
        pdata[k]   = 0;            pdlen[k]   = 0;
@@ -428,26 +429,21 @@ int XrdOssSys::GetFile(XrdOssStage_Req *req)
   
 int XrdOssSys::getID(const char *Tid, XrdOucEnv &Env, char *buff, int bsz)
 {
-   const char *usr;
-   char *bP, *cP;
+   char *bP;
    int n;
 
 // The buffer always starts with a '+'
 //
-   *buff = '+'; bP = buff+1; bsz -= 2;
+   *buff = '+'; bP = buff+1; bsz -= 3;
 
-// First get the unauthenticated user name
+// Get the trace id
 //
-   if (!(usr = Env.Get(SEC_USER))
-   ||  (n = strlen(usr)) > bsz/2
-   ||  !(cP = index(Tid, '.'))) strlcpy(bP, Tid, bsz);
-      else {strcpy(bP, usr); bP += n; strlcpy(bP, cP, bsz-n);}
+   if (Tid && (n = strlen(Tid)) <= bsz) {strcpy(bP, Tid); bP += n;}
 
-// All done
+// Insert space
 //
-   n = strlen(buff);
-   buff[n] = ' '; buff[n+1] = '\0';
-   return n+1;
+   *bP++ = ' '; *bP++ = '\0';
+   return bP - buff;
 }
 
 /******************************************************************************/
