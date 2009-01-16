@@ -39,6 +39,7 @@ static void Send2File(char *Dest, char *Msg, int Mln);
 static void Send2UDP(char *Dest, char *Msg, int Mln);
 const char *Stage(XrdFrmPstgXrq *xP, int &retcode);
 int         StageCmd(XrdFrmPstgXrq *xP, XrdOucEnv *theEnv);
+const char *StageOpt(XrdFrmPstgXrq *xP);
 
 static XrdSysMutex               hMutex;
 static XrdOucHash<XrdFrmPstgXrq> hTab;

@@ -78,7 +78,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    AdminMode= 0740;
    xfrMax   = 1;
    WaitTime = 300;
-   xfrCmd   = 0;
+   xfrCmd   = strdup("/opt/xrootd/utils/frm_xfr -p $OFLAG $RFN $PFN");
    xfrVec   = 0;
    qPath    = 0;
    isAgent  = (getenv("XRDADMINPATH") ? 1 : 0);
@@ -97,7 +97,8 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 
 // Establish default config file
 //
-   if (!(sP = getenv("XRDCONFIGFN")) || !*sP) ConfigFN = 0;
+   if (!(sP = getenv("XRDCONFIGFN")) || !*sP) 
+            ConfigFN = 0;
       else {ConfigFN = strdup(sP); isAgent = 1;}
 
 // Establish directive postfix
@@ -216,24 +217,18 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    if (myInsName)
       {sprintf(buff, "XRDNAME=%s", myInsName); putenv(strdup(buff));}
 
-// Determine which configuration file we should use
-//
-   if (!ConfigFN)
-      {Say.Emsg("Config", "Configuration file not specified."); exit(8);}
-
 // Put out the herald
 //
    sprintf(buff, "Scalla %s is starting. . .", myProg);
    Say.Say(0, buff);
    Say.Say(XrdBANNER);
 
-// Process the configuration file, if one is present
+// Process the configuration file.
 //
    Say.Say("++++++ ", myInstance, " initialization started.");
-   if (ConfigFN && *ConfigFN)
-      {Say.Say("Config using configuration file ", ConfigFN);
-       NoGo = ConfigProc();
-      }
+   if (!ConfigFN || !*ConfigFN) ConfigFN = strdup("/opt/xrootd/etc/xrootd.cf");
+   Say.Say("Config using configuration file ", ConfigFN);
+   NoGo = ConfigProc();
 
 // Create the correct admin path
 //

@@ -31,7 +31,7 @@ Where:
           XrdOucLOGFILE environmental variable.
           By default, error messages go to standard error.
 
-   -m     Maximum number of simultneous transfers.
+   -s     Prints transfer statistics for each successful file transfer.
 
    -n     The instance name.
 */

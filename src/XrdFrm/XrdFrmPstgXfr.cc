@@ -400,14 +400,14 @@ const char *XrdFrmPstgXfr::Stage(XrdFrmPstgXrq *xP, int &retcode)
   
 int XrdFrmPstgXfr::StageCmd(XrdFrmPstgXrq *xP, XrdOucEnv *theEnv)
 {
-   static const mode_t fMode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    char *pdata[XrdOucMsubs::maxElem + 2], *cP;
    int   pdlen[XrdOucMsubs::maxElem + 2], i, k, n;
 
-   XrdOucMsubsInfo Info(xP->reqData.User, theEnv, Config.the_N2N,
-                        xP->reqData.LFN, 0, fMode,
-                        xP->reqData.Options & XrdFrmPstgReq::stgRW
-                        ? O_RDWR : O_RDONLY, 0, xP->PFN);
+   XrdOucMsubsInfo 
+              Info(xP->reqData.User, theEnv, Config.the_N2N, xP->reqData.LFN, 0,
+                   xP->reqData.Prty,
+                   xP->reqData.Options & XrdFrmPstgReq::stgRW ? O_RDWR:O_RDONLY,
+                   StageOpt(xP), xP->reqData.ID, xP->PFN);
 
 // Substitute in the parameters
 //
@@ -428,6 +428,21 @@ int XrdFrmPstgXfr::StageCmd(XrdFrmPstgXrq *xP, XrdOucEnv *theEnv)
 // Now setup the command
 //
    return (xfrCmd->Setup(cmdBuff, &Say) == 0);
+}
+
+/******************************************************************************/
+/* Private:                     S t a g e O p t                               */
+/******************************************************************************/
+  
+const char *XrdFrmPstgXfr::StageOpt(XrdFrmPstgXrq *xP)
+{
+
+    if (xP->reqData.Options & XrdFrmPstgReq::msgFail
+    &&  xP->reqData.Options & XrdFrmPstgReq::msgSucc) return "fn";
+
+    if (xP->reqData.Options & XrdFrmPstgReq::msgSucc) return "nq";
+
+    return "f";
 }
 
 /******************************************************************************/
