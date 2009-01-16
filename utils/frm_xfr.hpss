@@ -31,11 +31,10 @@
 
 # -P The MSS port number to use (default is 2021).
 
-# -p set the protection mode of the file. Specify 1 to 4 octal digits.
+# -p set the protection mode of the file. Specify 1 to 4 octal digits, the
+#    letter 'r' for 0440, or the letter 'w' for 640.
 
-# -r set the access mode to be readonly (i.e., 440)
-
-# -t number of times to retry a failing copy that is retriable (default is 1).
+# -t number of times to retry a failing copy that is retriable (default is 2).
 
 # -x The pftp command to use (default is /opt/xrootd/utils/pftp_client).
 
@@ -68,7 +67,7 @@ $LockFile= '';     # The lock file handle
 $xfrtime = 0;      # Time to transfer the file
 $newPGRP = 1;      # Set new process group
 $DMode   = 0775;   # Directory create mode
-$MaxTries= 1;      # Number of tries.
+$MaxTries= 2;      # Number of tries.
 $doGet   = 1;      # We assume we will be doing gets
 
 # Transfer specific items (all can be over-ridden via command line)
@@ -100,12 +99,14 @@ $XfrRC   = 0;     # The final return code
                           &Emsg("Invalid port '$XfrPort'.") if !isNum($XfrPort);
                          }
      elsif ($op eq '-p') {$Mode =  &GetVal('mode');
-                          &Emsg("Invalid mode '$Mode'.") 
-                               if !IsOct($Mode) || $Mode > 7777;
-                          $Mode = oct($Mode);
-                          $Mode = undef if $Mode == 0;
+                             if ($Mode eq 'r') {$Mode = oct('0440');}
+                          elsif ($Mode eq 'w') {$Mode = oct('0640');}
+                          else {&Emsg("Invalid mode '$Mode'.")
+                                     if !IsOct($Mode) || $Mode > 7777;
+                                $Mode = oct($Mode);
+                                $Mode = undef if $Mode == 0;
+                               }
                          }
-     elsif ($op eq '-r') {$ReadOnly = 1}
      elsif ($op eq '-t') {$MaxTries =  &GetVal('tries');
                           &Emsg("Invalid tries '$MaxTries'.") 
                                if !isNum($MaxTries) || $MaxTries < 1;
@@ -114,10 +115,6 @@ $XfrRC   = 0;     # The final return code
      elsif ($op eq '-z') {$newPGRP = 0;}
      else {&Emsg("Invalid option '$op'.")}
      }
-
-# Set the mode accordingly
-#
-  if ($ReadOnly) {$Mode = (defined($Mode) ? $Mode & oct('0440') : oct('0440'))}
 
 # Get the source and target filenames
 #
