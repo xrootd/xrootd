@@ -186,16 +186,17 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 // If we are an agent without a logfile and one is actually defined for the
 // underlying system, use the directory of the underlying system.
 //
-   if (!logfn && isAgent && (logfn = getenv("XRDLOGDIR")))
-      {sprintf(buff, "%s%s%clog", logfn, myFrmid, (isAgent ? 'a' : 'd'));
-       logfn = strdup(buff);
-      }
+   if (!logfn)
+      {if (isAgent && (logfn = getenv("XRDLOGDIR")))
+          {sprintf(buff, "%s%s%clog", logfn, myFrmid, (isAgent ? 'a' : 'd'));
+           logfn = strdup(buff);
+          }
+      } else if (!(logfn=XrdOucUtils::subLogfn(Say,myInsName,logfn))) _exit(16);
 
 // Bind the log file if we have one
 //
    if (logfn)
-      {if (!(logfn = XrdOucUtils::subLogfn(Say, myInsName, logfn))) _exit(16);
-       if (logkeep) Logger.setKeep(logkeep);
+      {if (logkeep) Logger.setKeep(logkeep);
        Logger.Bind(logfn, 24*60*60);
       }
 
@@ -377,9 +378,9 @@ int XrdFrmConfig::ConfigPaths()
 
 // Get the directory where the meta information is to go
 //
-   if (!(xPath = AdminPath) && !(xPath = getenv("XRDADMINPATH")))
-       xPath = (char *)"/tmp/";
-   xPath = XrdOucUtils::genPath(xPath, myInsName, "frm");
+   if (!(xPath = AdminPath) && (xPath = getenv("XRDADMINPATH")))
+           xPath = XrdOucUtils::genPath( xPath, (char *)0, "frm");
+      else xPath = XrdOucUtils::genPath((xPath?xPath:"/tmp/"),myInsName,"frm");
    if (AdminPath) free(AdminPath); AdminPath = xPath;
 
 // Create the admin directory if it does not exists
