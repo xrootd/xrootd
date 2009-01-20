@@ -442,7 +442,7 @@ int XrdOssSys::getID(const char *Tid, XrdOucEnv &Env, char *buff, int bsz)
 
 // Insert space
 //
-   *bP++ = ' '; *bP++ = '\0';
+   *bP++ = ' '; *bP = '\0';
    return bP - buff;
 }
 

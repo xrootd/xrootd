@@ -628,11 +628,11 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
        // This is a bit of hackery to get the traceid sent over to the
        // new file residency manager (frm). Keeps the config simple.
        //
-          if (!(sp = index(StageCmd, ' '))) sp = StageCmd + strlen(StageCmd);
-          *sp = '\0';
+          if ((sp = index(StageCmd, ' '))) *sp = '\0';
           if (!(tp = rindex (StageCmd, '/'))) tp = StageCmd;
              else tp++;
           if (!strcmp("frm_pstga", tp)) StageFormat = 1;
+          if (sp) *sp = ' ';
 
       // Set up a program object for the command
       //
