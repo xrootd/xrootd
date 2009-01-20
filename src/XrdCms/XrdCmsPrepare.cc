@@ -329,7 +329,7 @@ int XrdCmsPrepare::getID(const char *Tid, char *buff, int bsz)
 
 // Insert space
 //
-   *bP++ = ' '; *bP++ = '\0';
+   *bP++ = ' '; *bP = '\0';
    return bP - buff;
 }
 
