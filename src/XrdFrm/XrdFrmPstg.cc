@@ -112,9 +112,10 @@ void XrdFrmPstg::Agent_Add(XrdOucStream &Request, char *Tok)
       {if (!(tp = Request.GetToken())) Miss = "mode";
           else {if (index(tp,'w')) myReq.Options |= XrdFrmPstgReq::stgRW;
                 if (*myReq.Notify != '-')
-                   {if (index(tp,'n')) myReq.Options |= XrdFrmPstgReq::msgSucc;
+                   {if (index(tp,'s') ||  index(tp,'n'))
+                       myReq.Options |= XrdFrmPstgReq::msgSucc;
                     if (index(tp,'f') || !index(tp,'q'))
-                        myReq.Options |= XrdFrmPstgReq::msgFail;
+                       myReq.Options |= XrdFrmPstgReq::msgFail;
                    }
                }
       }
@@ -178,7 +179,7 @@ void XrdFrmPstg::Agent_Lst(XrdOucStream &Request, char *Tok)
                              {"rid",    XrdFrmPstgReq::getRID},
                              {"tod",    XrdFrmPstgReq::getTOD},
                              {"note",   XrdFrmPstgReq::getNOTE},
-                             {"user",   XrdFrmPstgReq::getUSER}};
+                             {"tid",    XrdFrmPstgReq::getUSER}};
    static int ITNum = sizeof(ITList)/sizeof(struct ITypes);
 
    char myLfn[4096];
