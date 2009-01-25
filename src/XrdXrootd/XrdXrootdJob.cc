@@ -284,7 +284,7 @@ XrdOucTList *XrdXrootdJob2Do::lstClient()
 
 // Return the text
 //
-   return new XrdOucTList(buff, bp-buff+4);
+   return new XrdOucTList(buff, bp-buff+7);
 }
 
 /******************************************************************************/
