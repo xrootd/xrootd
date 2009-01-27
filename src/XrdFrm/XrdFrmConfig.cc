@@ -277,7 +277,7 @@ int XrdFrmConfig::LocalPath(const char *oldp, char *newp, int newpsz)
     int rc = 0;
 
     if (lcl_N2N) rc = lcl_N2N->lfn2pfn(oldp, newp, newpsz);
-       else if (int(strlen(oldp)) >= newpsz) rc = ENAMETOOLONG;
+       else if (((int)strlen(oldp)) >= newpsz) rc = ENAMETOOLONG;
                else strcpy(newp, oldp);
     if (rc) {Say.Emsg("Config", rc, "generate local path from", oldp);
              return 0;
@@ -294,7 +294,7 @@ int XrdFrmConfig::RemotePath(const char *oldp, char *newp, int newpsz)
     int rc = 0;
 
     if (rmt_N2N) rc = rmt_N2N->lfn2rfn(oldp, newp, newpsz);
-       else if (int(strlen(oldp)) >= newpsz) rc = ENAMETOOLONG;
+       else if (((int)strlen(oldp)) >= newpsz) rc = ENAMETOOLONG;
                else strcpy(newp, oldp);
     if (rc) {Say.Emsg("Config", rc, "generate rmote path from", oldp);
              return 0;
