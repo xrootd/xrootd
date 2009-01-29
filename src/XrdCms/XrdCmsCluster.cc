@@ -481,7 +481,7 @@ void *XrdCmsCluster::MonPerf()
    struct iovec ioV[] = {{(char *)&Usage, sizeof(Usage)}};
    int ioVnum = sizeof(ioV)/sizeof(struct iovec);
    int ioVtot = sizeof(Usage);
-   SMask_t allNodes = -1;
+   SMask_t allNodes = ~static_cast<SMask_t>(0);
    int uInterval = Config.AskPing*Config.AskPerf;
 
 // Sleep for the indicated amount of time, then ask for load on each server
