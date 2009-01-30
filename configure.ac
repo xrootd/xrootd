@@ -814,6 +814,8 @@ AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAS_SENDFILE)])
 
 AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAS_SENDFILE)])
 
+AC_CHECK_FUNCS([fstatat])
+
 #   note: needed for solaris
 AC_CHECK_LIB([rt],[sem_post],
              [AC_SUBST(SEM_LIBRT,[-lrt])]
