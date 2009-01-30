@@ -318,7 +318,7 @@ int XrdLink::Close(int defer)
 //
    opMutex.Lock();
    if (defer)
-      {TRACE(DEBUG, "Closing FD only " <<ID <<" FD=" <<FD);
+      {TRACEI(DEBUG, "Closing FD only");
        if (FD > 1)
           {fd = FD; FD = -FD; csec = Instance; Instance = 0;
            if (!KeepFD)
@@ -337,7 +337,7 @@ int XrdLink::Close(int defer)
 //
    while(InUse > 1)
       {opMutex.UnLock();
-       TRACE(DEBUG, "Close " <<ID <<" defered, use count=" <<InUse);
+       TRACEI(DEBUG, "Close defered, use count=" <<InUse);
        Serialize();
        opMutex.Lock();
       }
@@ -582,7 +582,7 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
             {if (retc == 0)
                 {tardyCnt++;
                  if (totlen  && (++stallCnt & 0xff) == 1)
-                    TRACE(DEBUG, ID << " read timed out");
+                    TRACEI(DEBUG, "read timed out");
                  return int(totlen);
                 }
              return (FD >= 0 ? XrdLog.Emsg("Link", -errno, "poll", ID) : -1);
@@ -645,7 +645,7 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
    if (LockReads) rdMutex.UnLock();
 
    if (int(rlen) == Blen) return Blen;
-   if (!rlen) {TRACE(DEBUG, "No RecvAll() data from " <<ID <<" FD=" <<FD <<" errno=" <<errno);}
+   if (!rlen) {TRACEI(DEBUG, "No RecvAll() data; errno=" <<errno);}
       else if (rlen > 0) XrdLog.Emsg("RecvAll","Premature end from", ID);
               else if (FD >= 0) XrdLog.Emsg("Link",errno,"recieve from",ID);
    return -1;
@@ -962,7 +962,7 @@ void XrdLink::Serialize()
    if (InUse <= 1) opMutex.UnLock();
       else {doPost++;
             opMutex.UnLock();
-            TRACE(DEBUG, "Waiting for link serialization; use=" <<InUse);
+            TRACEI(DEBUG, "Waiting for link serialization; use=" <<InUse);
             IOSemaphore.Wait();
            }
 }
@@ -990,7 +990,7 @@ XrdProtocol *XrdLink::setProtocol(XrdProtocol *pp)
 void XrdLink::setRef(int use)
 {
    opMutex.Lock();
-   TRACE(DEBUG,"Setting link ref to " <<InUse <<'+' <<use <<" post=" <<doPost);
+   TRACEI(DEBUG,"Setting ref to " <<InUse <<'+' <<use <<" post=" <<doPost);
    InUse += use;
 
          if (!InUse)
@@ -1000,7 +1000,7 @@ void XrdLink::setRef(int use)
     else if (InUse == 1 && doPost)
             {doPost--;
              IOSemaphore.Post();
-             TRACE(CONN, "setRef posted link " <<ID);
+             TRACEI(CONN, "setRef posted link");
              opMutex.UnLock();
             }
     else if (InUse < 0)
