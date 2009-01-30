@@ -155,9 +155,11 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
 
 // Set correct group
 //
-   if (decKey.Data.Opts & XrdSecsssKT::ktEnt::anyGRP)
-      {if (!myID.grps) myID.grps = (char *)"nogroup";}
-      else myID.grps = decKey.Data.Grup;
+         if (decKey.Data.Opts & XrdSecsssKT::ktEnt::usrGRP) myID.grps = 0;
+   else {if (decKey.Data.Opts & XrdSecsssKT::ktEnt::anyGRP)
+            {if (!myID.grps) myID.grps = (char *)"nogroup";}
+            else myID.grps = decKey.Data.Grup;
+        }
 
 // Complete constructing our identification
 //
