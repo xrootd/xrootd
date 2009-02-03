@@ -464,10 +464,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 			 " offset=" << offset);
 
 		    // Are we using read ahead?
-		    // We read ahead only if the last byte we got is near (or over) to the last byte read
-		    // in advance. But not too much over.
+		    // We read ahead only if (offs+len) lies in an interval of fReadAheadLast not bigger than the readahead size
 		    if ( (fReadAheadLast - (offset+len) < fReadAheadSize) &&
-			 //(fReadAheadLast - (offset+len) > -10*rasize) &&
+			 (fReadAheadLast - (offset+len) > -fReadAheadSize) &&
 			 (fReadAheadSize > 0) ) {
 
 			kXR_int64 araoffset;
@@ -516,13 +515,13 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	
 		// Here we forget to have read in advance if the last byte taken is
 		// too much before the first read ahead byte
-		if ( fReadAheadLast - 2*fReadAheadSize > (offset+len) ) fReadAheadLast = offset+len-1;
+		// if ( fReadAheadLast - 2*fReadAheadSize > (offset+len) ) fReadAheadLast = offset+len-1;
 
 		// Are we using read ahead?
-		// We read ahead only if the last byte we got is near (or over) to the last byte read
+		// We read ahead only if (offs+len) lies in an interval of fReadAheadLast not bigger than the readahead size
 		// in advance. But not too much over.
 		if ( (fReadAheadLast - (offset+len) < fReadAheadSize) &&
-		     //(fReadAheadLast - (offset+len) > -10*rasize) &&
+		     (fReadAheadLast - (offset+len) > -fReadAheadSize) &&
 		     (fReadAheadSize > 0) ) {
 
 		    kXR_int64 araoffset;
@@ -531,12 +530,12 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		    // This is a HIT case. Async readahead will try to put some data
 		    // in advance into the cache. The higher the araoffset will be,
 		    // the best chances we have not to cause overhead
-                    if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
-		      araoffset = xrdmax(fReadAheadLast, offset);
-                      blkstowait++;
-                    }
-                    else
-                      araoffset = xrdmax(fReadAheadLast, offset + len);
+                    //if (!bytesgot && !blkstowait && !cacheholes.GetSize()) {
+		    //  araoffset = xrdmax(fReadAheadLast, offset);
+                    //  blkstowait++;
+                    //}
+                    //else
+		     araoffset = xrdmax(fReadAheadLast, offset + len);
 
 		    aralen = xrdmin(fReadAheadSize,
 				    offset + len + fReadAheadSize -
