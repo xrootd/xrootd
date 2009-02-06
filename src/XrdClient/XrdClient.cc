@@ -104,6 +104,8 @@ XrdClient::~XrdClient()
    fOpenProgCnd->Lock();
 
    if (fOpenerTh) {
+      fOpenerTh->Cancel();
+      fOpenerTh->Join();
       delete fOpenerTh;
       fOpenerTh = 0;
    }
@@ -144,6 +146,7 @@ bool XrdClient::IsOpen_wait() {
     if (fOpenPars.inprogress) {
 	fOpenProgCnd->Wait();
 	if (fOpenerTh) {
+            fOpenerTh->Join();
 	    delete fOpenerTh;
 	    fOpenerTh = 0;
 	}
@@ -845,8 +848,8 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	    if (!thrst) {
 		// The thread start seems OK. This open will go in parallel
 
-		if (fOpenerTh->Detach())
-		    Error("XrdClient", "Thread detach failed. Low system resources?");
+		//if (fOpenerTh->Detach())
+		//    Error("XrdClient", "Thread detach failed. Low system resources?");
 
 		return true;
 	    }
