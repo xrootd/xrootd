@@ -750,6 +750,8 @@ bool XrdClient::Write(const void *buf, long long offset, int len) {
     // Rather unfortunate but happens. One more weird metaphor of life?!?!?
     if (!fConnModule->DoWriteSoftCheckPoint()) return false;
 
+    fConnModule->RemoveDataFromCache(offset, offset+len+1, true);
+
     XrdClientVector<XrdClientMStream::ReadChunk> rl;
     XrdClientMStream::SplitReadRequest(fConnModule, offset, len, rl);
     kXR_char *cbuf = (kXR_char *)buf;
