@@ -742,6 +742,10 @@ bool XrdClient::Write(const void *buf, long long offset, int len) {
       writeFileRequest.write.offset = offset;
       ret = fConnModule->SendGenCommand(&writeFileRequest, (void *)buf, 0, 0,
 					FALSE, (char *)"Write");
+
+      if (ret && fStatInfo.stated)
+         fStatInfo.size = xrdmax(fStatInfo.size, offset + len);
+
       return ret;
     }
 
