@@ -15,7 +15,7 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-struct XrdFrmPstgReq::Request;
+struct Request;
 struct XrdFrmPstgXrq;
 class  XrdOucEnv;
 class  XrdOucProg;

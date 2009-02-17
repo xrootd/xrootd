@@ -247,7 +247,8 @@ void XrdFrmPstgXfr::Send2File(char *Dest, char *Msg, int Mln)
 
 // Write the message
 //
-   write(FD, Msg, Mln);
+   if (write(FD, Msg, Mln) < 0)
+      Say.Emsg("Notify", errno, "send notification via", Dest);
    close(FD);
 }
 

@@ -182,7 +182,8 @@ void XrdOucUtils::makeHome(XrdSysError &eDest, const char *inst)
        return;
       }
 
-   chdir(buff);
+   if (chdir(buff) < 0)
+      eDest.Emsg("Config", errno, "chdir to home directory", buff);
 }
 
 /******************************************************************************/

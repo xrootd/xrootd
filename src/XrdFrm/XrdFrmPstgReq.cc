@@ -360,7 +360,7 @@ void XrdFrmPstgReq::ListL(XrdFrmPstgReq::Request tmpReq, char *Buff, int bsz,
                case getUSER:    n = strlen(tmpReq.User);
                                 strlcpy(Buff, tmpReq.User, bln);
                                 break;
-               default:         break;
+               default:         n = 0; break;
               }
         if (bln > 0) {bln -= n; Buff += n;}
         if (bln > 0) {*Buff++ = ' '; bln--;}
