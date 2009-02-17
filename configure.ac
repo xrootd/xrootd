@@ -685,7 +685,7 @@ AM_CONDITIONAL(ENABLE_DOC, test x"$activate_doc" = xyes -o x"$activate_doc" = xd
 # show up at compile time (well... We do not need to catch everything....)
 AC_CHECK_HEADER([iostream],
                 [],[AC_MSG_WARN([header <iostream> not found. Using old STL header style <iostream.h>])
-                    AC_DEFINE(HAS_OLD_HDRS)]
+                    AC_DEFINE(HAVE_OLD_HDRS)]
                )
 
 #  commented out the following code which implements the header based on a configure switch:
@@ -697,7 +697,7 @@ AC_CHECK_HEADER([iostream],
 #             )
 #ACX_COLLECT_OPTION(oldhdrs,$enable_oldhdrs)
 #if test x"$enable_oldhdrs" = xyes; then
-#   AC_DEFINE(HAS_OLD_HDRS)
+#   AC_DEFINE(HAVE_OLD_HDRS)
 #fi
 
 #################################################################
@@ -793,26 +793,26 @@ AM_PROG_CC_C_O
 #AC_FUNC_VPRINTF
 #AC_CHECK_FUNCS([bzero dup2 endgrent ftruncate getcwd gethostbyaddr gethostbyname gethostname getpagesize getpass getspnam gettimeofday inet_ntoa localtime_r memchr memmove memset mkdir munmap pathconf putenv rmdir socket strcasecmp strchr strcspn strdup strerror strncasecmp strspn strstr strtol utime])
 
-AC_CHECK_FUNC([getnameinfo],[AC_DEFINE(HAS_NAMEINFO)],
+AC_CHECK_FUNC([getnameinfo],[AC_DEFINE(HAVE_NAMEINFO)],
               [AC_CHECK_LIB([socket],[getnameinfo],
                  [
-                 AC_DEFINE(HAS_NAMEINFO)
+                 AC_DEFINE(HAVE_NAMEINFO)
                  AC_SUBST(LIBSOCKET,[-lsocket])
                  ])
               ])
 
-AC_CHECK_FUNC([getprotobyname_r],[AC_DEFINE(HAS_PROTOR)],
+AC_CHECK_FUNC([getprotobyname_r],[AC_DEFINE(HAVE_PROTOR)],
               [AC_CHECK_LIB([socket],[getprotobyname_r],
                   [
-                  AC_DEFINE(HAS_PROTOR)
+                  AC_DEFINE(HAVE_PROTOR)
                   AC_SUBST(LIBSOCKET,[-lsocket])
                   ])
               ])
 
-AC_CHECK_FUNC([strlcpy],[AC_DEFINE(HAS_STRLCPY)])
-AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAS_SENDFILE)])
+AC_CHECK_FUNC([strlcpy],[AC_DEFINE(HAVE_STRLCPY)])
+AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAVE_SENDFILE)])
 
-AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAS_SENDFILE)])
+AC_CHECK_FUNC([sendfile],[AC_DEFINE(HAVE_SENDFILE)])
 
 AC_CHECK_FUNCS([fstatat])
 
@@ -827,10 +827,10 @@ AC_CHECK_LIB([nsl],[gethostbyname],
              [AC_SUBST(LIBNSL,[-lnsl])]
             )
 
-AC_CHECK_FUNC(sigwaitinfo,[AC_DEFINE(HAS_SIGWTI)],
+AC_CHECK_FUNC(sigwaitinfo,[AC_DEFINE(HAVE_SIGWTI)],
                 [AC_CHECK_LIB([rt],[sigwaitinfo],
                    [
-                   AC_DEFINE(HAS_SIGWTI)
+                   AC_DEFINE(HAVE_SIGWTI)
                    AC_SUBST(LIBRT,[-lrt])
                    ])
                 ])
@@ -839,7 +839,7 @@ AC_CHECK_FUNC(sigwaitinfo,[AC_DEFINE(HAS_SIGWTI)],
 case "$target_os" in
    linux*)
       AC_CHECK_FUNCS(setresuid,
-                     AC_DEFINE(HAS_SETRESUID)
+                     AC_DEFINE(HAVE_SETRESUID)
                     )
       ;;
 esac

@@ -23,11 +23,11 @@ const char *XrdLinkCVSID = "$Id$";
 #ifdef __linux__
 #include <netinet/tcp.h>
 #if !defined(TCP_CORK)
-#undef HAS_SENDFILE
+#undef HAVE_SENDFILE
 #endif
 #endif
 
-#ifdef HAS_SENDFILE
+#ifdef HAVE_SENDFILE
 
 #ifndef __macos__
 #include <sys/sendfile.h>
@@ -87,7 +87,7 @@ extern XrdScheduler    XrdSched;
 extern XrdInet        *XrdNetTCP;
 extern XrdOucTrace     XrdTrace;
 
-#if defined(HAS_SENDFILE)
+#if defined(HAVE_SENDFILE)
        int             XrdLink::sfOK = 1;
 #else
        int             XrdLink::sfOK = 0;
@@ -735,7 +735,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 /******************************************************************************/
 int XrdLink::Send(const struct sfVec *sfP, int sfN)
 {
-#if !defined(HAS_SENDFILE)
+#if !defined(HAVE_SENDFILE)
    return -1;
 #else
 // Make sure we have valid vector count
