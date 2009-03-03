@@ -180,7 +180,7 @@ $(BINDIR)/TestXrdClient: $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 
 $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 	@echo Creating executable $(XRDCP) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(BINLIBS) $(LIBM) $(LIBS) -o $(XRDCP)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(BINLIBS) $(LIBM) $(LIBS) $(LIBZ) -o $(XRDCP)
 
 $(XRDPREPTOOL): $(OBJECTS) $(OBJECT_PREPTOOL) $(LIBDEPS)
 	@echo Creating executable $(XRDPREPTOOL)

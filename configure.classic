@@ -1115,6 +1115,30 @@ esac
 
 ######################################################################
 #
+### echo %%% Check for libz
+#
+haslibz=""
+message "Checking for zlib.h"
+if test -f /usr/include/zlib.h ; then
+    echo "yes"
+    haslibz="-DHAVE_LIBZ"
+    libz="-lz"
+else
+    echo "no"
+fi
+
+zlibdirs="/usr/local/lib /opt/lib $finkdir/lib"
+if test "x$haslibz" != "x"; then
+   check_library "libz" "$enable_shared" "/usr/lib" "$zlibdirs"
+   if test "x$found_lib" = "x" ; then
+        haslibz=""
+        libz=""
+   fi
+fi
+
+
+######################################################################
+#
 ### echo %%% Check for fstatat
 #
 if test "x$hasfstatat" = "x"; then
@@ -2281,6 +2305,8 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@sslextracflags@|$sslextracflags|" \
     -e "s|@hasdevpoll@|$hasdevpoll|" \
     -e "s|@hasepoll@|$hasepoll|" \
+    -e "s|@haslibz@|$haslibz|" \
+    -e "s|@libz@|$libz|" \
     -e "s|@hassendfile@|$hassendfile|" \
     -e "s|@hassigwti@|$hassigwti|" \
     -e "s|@hassetresuid@|$hassetresuid|" \

@@ -35,6 +35,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#ifdef HAVE_LIBZ
+#include <zlib.h>
+#endif
+
 extern "C" {
    /////////////////////////////////////////////////////////////////////
 // function + macro to allow formatted print via cout,cerr
@@ -89,6 +93,8 @@ struct XrdCpInfo {
 bool summary=false;            // print summary
 bool progbar=true;             // print progbar
 bool md5=false;                // print md5
+bool adlerchk=false;           // print adler32 chksum
+
 XrdOucString monlibname = "libXrdCpMonitorClient.so"; // Default name for the ext monitoring lib
 
 char *srcopaque=0,
@@ -116,8 +122,10 @@ struct timezone tz;
 XrdCryptoMsgDigest *MD_5=0;    // md5 computation
 XrdCryptoFactory *gCryptoFactory = 0;
 
+// To calculate the adler32 cksum
+unsigned int adler = 0;
 
-void print_summary(const char* src, const char* dst, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5) {
+void print_summary(const char* src, const char* dst, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5, unsigned int adler ) {
    gettimeofday (&abs_stop_time, &tz);
    float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
 			   (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
@@ -141,6 +149,10 @@ void print_summary(const char* src, const char* dst, unsigned long long bytesrea
      COUT(("[xrdcp] # md5                      : %s\n",_MD_5->AsHexString()));
    }
 #endif
+
+   if (adlerchk) {
+      COUT(("[xrdcp] # adler32                  : %x\n", adler));
+   }
    COUT(("[xrdcp] #################################################################\n"));
 }
 
@@ -161,14 +173,19 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
 }
 
 
-void print_md5(const char* src, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5) {
-  if (_MD_5) {
+void print_chksum(const char* src, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5, unsigned adler) {
+  if (_MD_5 || adlerchk) {
     XrdOucString xsrc(src);
     xsrc.erase(xsrc.rfind('?'));
     //    printf("md5: %s\n",_MD_5->AsHexString());
 #ifndef WIN32
-    cout << "md5: " << _MD_5->AsHexString() << " " << xsrc << " " << bytesread << endl;
+    if (_MD_5)
+       cout << "md5: " << _MD_5->AsHexString() << " " << xsrc << " " << bytesread << endl;
 #endif
+
+    if (adlerchk)
+       cout << "adler32: " << hex << adler << " " << xsrc << bytesread << endl;
+
   }
 }
 
@@ -444,6 +461,12 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 		 MD_5->Update((const char*)buf,len);
 	       }
 
+#ifdef HAVE_LIBZ
+               if (adlerchk) {
+                  adler = adler32(adler, (const Bytef*)buf, len);
+               }
+#endif
+
 	       if (!(*xrddest)->Write(buf, offs, len)) {
 		  cerr << "Error writing to output server." << endl;
 		  PrintLastServerError(*xrddest);
@@ -480,13 +503,13 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 	cout << endl;
       }
 
-      if (md5) {
-	MD_5->Final();
-	print_md5(src,bytesread,MD_5);
+      if (md5) MD_5->Final();
+      if (adlerchk || md5) {
+        print_chksum(src, bytesread, MD_5, adler);
       }
       
       if (summary) {        
-	print_summary(src,dst,bytesread,MD_5);
+         print_summary(src, dst, bytesread, MD_5, adler);
       }
       
       if (retvalue >= 0) {
@@ -648,6 +671,12 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	      MD_5->Update((const char*)buf,len);
 	    }
 
+#ifdef HAVE_LIBZ
+               if (adlerchk) {
+                  adler = adler32(adler, (const Bytef*)buf, len);
+               }
+#endif
+
 	    if (write(f, buf, len) <= 0) {
 	       cerr << "Error '" << strerror(errno) <<
 		  "' writing to " << dst << endl;
@@ -683,13 +712,13 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       cout << endl;
    }
 
-   if (md5) {
-     MD_5->Final();
-     print_md5(src,bytesread,MD_5);
+   if (md5) MD_5->Final();
+   if (md5 || adlerchk) {
+      print_chksum(src, bytesread, MD_5, adler);
    }
       
    if (summary) {        
-      print_summary(src,dst,bytesread,MD_5);
+      print_summary(src,dst,bytesread,MD_5, adler);
    }      
 
    int closeres = close(f);
@@ -775,6 +804,11 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	      MD_5->Update((const char*)buf,len);
 	    }
 
+#ifdef HAVE_LIBZ
+            if (adlerchk) {
+               adler = adler32(adler, (const Bytef*)buf, len);
+            }
+#endif
 	    if ( !(*xrddest)->Write(buf, offs, len) ) {
 	       cerr << "Error writing to output server." << endl;
 	       PrintLastServerError(*xrddest);
@@ -812,13 +846,13 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
      cout << endl;
    }
 
-   if (md5) {
-     MD_5->Final();
-     print_md5(src,bytesread,MD_5);
+   if (md5) MD_5->Final();
+   if (md5 || adlerchk) {
+      print_chksum(src, bytesread, MD_5, adler);
    }
    
    if (summary) {        
-     print_summary(src,dst,bytesread,MD_5);
+      print_summary(src, dst, bytesread, MD_5, adler);
    }	 
    
    pthread_cancel(myTID);
@@ -837,7 +871,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 void PrintUsage() {
    cerr << "usage: xrdcp <source> <dest> "
      "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v]"
-     " [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5] [-np] [-f] [-R] [-S]" << endl << endl;
+     " [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5] [-adler] [-np] [-f] [-R] [-S]" << endl << endl;
 
    cerr << "<source> can be:" << endl <<
      "   a local file" << endl <<
@@ -871,8 +905,11 @@ void PrintUsage() {
      " (ignore if file is already opened)" << endl;
    cerr << " -force :         set 1-min (re)connect attempts to retry for up to 1 week,"
      " to block until xrdcp is executed" << endl << endl;
-   cerr << " -md5   :         calculate the md5 sum during transfers\n" << endl; 
-   cerr << " -R     :         recurse subdirectories" << endl;
+   cerr << " -md5   :         calculate the md5 checksum during transfers\n" << endl; 
+#ifdef HAVE_LIBZ
+   cerr << " -adler :         calculate the adler32 checksum during transfers\n" << endl; 
+#endif
+   cerr << " -R     :         recurse subdirectories (where it can be applied)" << endl;
    cerr << " -S num :         use <num> additional parallel streams to do the xfer." << endl << 
            "                  The max value is 15. The default is 0 (i.e. use only the main stream)" << endl;
    cerr << " -MLlibname" << endl <<
@@ -1084,6 +1121,13 @@ int main(int argc, char**argv) {
       }
 #endif
 
+#ifdef HAVE_LIBZ
+     if ( (strstr(argv[i], "-adler") == argv[i])) {
+	adlerchk=true;
+	continue;
+     }
+#endif
+
       // Any other par is ignored
       if ( (strstr(argv[i], "-") == argv[i]) && (strlen(argv[i]) > 1) ) {
 	 cerr << "Unknown parameter " << argv[i] << endl;
@@ -1136,6 +1180,7 @@ int main(int argc, char**argv) {
       if (md5) {
 	MD_5->Reset("md5");
       }
+      adler = 0;
 
 
       // Initialize monitoring client, if a plugin is present
