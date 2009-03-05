@@ -503,6 +503,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 	cout << endl;
       }
 
+      if ((unsigned)cpnfo.len != bytesread) retvalue = 13;
+
       if (md5) MD_5->Final();
       if (adlerchk || md5) {
         print_chksum(src, bytesread, MD_5, adler);
@@ -712,6 +714,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       cout << endl;
    }
 
+   if ((unsigned)cpnfo.len != bytesread) retvalue = 13;
+
    if (md5) MD_5->Final();
    if (md5 || adlerchk) {
       print_chksum(src, bytesread, MD_5, adler);
@@ -845,6 +849,8 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    if(progbar) {
      cout << endl;
    }
+
+   if (size != bytesread) retvalue = 13;
 
    if (md5) MD_5->Final();
    if (md5 || adlerchk) {

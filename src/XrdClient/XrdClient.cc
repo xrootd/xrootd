@@ -568,6 +568,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		if (retrysync) fReadAheadLast = offset+len;
 
 		retrysync = false;
+                memset(&fConnModule->LastServerError, 0, sizeof(fConnModule->LastServerError));
 
 		Info( XrdClientDebug::kHIDEBUG, "Read",
 		      "Read(offs=" << offset <<
@@ -583,8 +584,9 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		readFileRequest.read.rlen = len;
 		readFileRequest.read.dlen = 0;
 
-		fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
-					    FALSE, (char *)"ReadBuffer");
+		if (!fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
+                                                 FALSE, (char *)"ReadBuffer"))
+                   return 0;
 
 		return fConnModule->LastServerResp.dlen;
 	    }
@@ -596,13 +598,14 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		      "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
 
 		if (!fConnModule->IsPhyConnConnected() ||
-		    fReadWaitData->Wait( EnvGetLong(NAME_REQUESTTIMEOUT) )) {
+		    fReadWaitData->Wait( EnvGetLong(NAME_REQUESTTIMEOUT) ) ||
+                    fConnModule->LastServerError.errnum ) {
 
                   if (DebugLevel() >= XrdClientDebug::kUSERDEBUG) {
                     fConnModule->PrintCache();
 
 		    Error( "Read",
-                           "Timeout waiting outstanding blocks. "
+                           "Timeout or error waiting outstanding blocks. "
                            "Retrying sync! "
                            "List of outstanding reqs follows." );
                     ConnectionManager->SidManager()->PrintoutOutstandingRequests();
@@ -1355,7 +1358,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 		     unsolmsg->HeaderSID() << " father=" <<
 		     si->fathersid );
                 
-		// We are interested in data, not errors...
+		// We are interested in data, not errors here...
 		if ( (unsolmsg->HeaderStatus() == kXR_oksofar) || 
 		     (unsolmsg->HeaderStatus() == kXR_ok) ) {
 
@@ -1434,13 +1437,13 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
                     switch (req->header.requestid) {
 
 		    case kXR_read: {
-			long long offs = req->read.offset + si->reqbyteprogress;
+                        // We invalidate the whole request in the cache
 	    
 			Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
-			     "Got a kxr_read error. Offset=" <<
-			     offs <<
-			     " len " <<
-			     unsolmsg->fHdr.dlen);
+			     "Got a kxr_read error. Req offset=" <<
+			     req->read.offset <<
+			     " len=" <<
+			     req->read.rlen);
 
 			{
 			// Keep in sync with the cache lookup
@@ -1449,10 +1452,25 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 			// To compute the end offset of the block we have to take 1 from the size!
                         // Note that this is an error, we try to invalidate everythign which
                         // can be related to this chunk
-			fConnModule->RemoveDataFromCache(offs,
-                                                         offs + unsolmsg->fHdr.dlen - 1, true);
+			fConnModule->RemoveDataFromCache(req->read.offset,
+                                                         req->read.offset + req->read.rlen - 1, true);
 
 			}
+
+
+                        // Print out the error information, as received by the server	
+                        struct ServerResponseBody_Error *body_err;
+                        body_err = (struct ServerResponseBody_Error *)(unsolmsg->GetData());
+                        if (body_err)
+                           Info(XrdClientDebug::kNODEBUG, "ProcessUnsolicitedMsg", "Server declared: " <<
+                                (const char*)body_err->errmsg << "(error code: " << ntohl(body_err->errnum) << ")");
+                        
+                        // Save the last error received
+                        memset(&fConnModule->LastServerError, 0, sizeof(fConnModule->LastServerError));
+                        memcpy(&fConnModule->LastServerError, body_err,
+                               xrdmin(sizeof(fConnModule->LastServerError), (unsigned)unsolmsg->DataLen()) );
+                        fConnModule->LastServerError.errnum = ntohl(body_err->errnum);
+	
 
 			// Awaken all the waiting threads, some of them may be interested
 			fReadWaitData->Broadcast();
