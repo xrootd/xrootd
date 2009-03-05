@@ -1428,6 +1428,47 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 		    }
 		    
 		} // if oksofar or ok
+                else {
+                   // And here we treat the errors which can be fatal or just ugly to ignore
+                   //  even if the strategy should be completely async
+                    switch (req->header.requestid) {
+
+		    case kXR_read: {
+			long long offs = req->read.offset + si->reqbyteprogress;
+	    
+			Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
+			     "Got a kxr_read error. Offset=" <<
+			     offs <<
+			     " len " <<
+			     unsolmsg->fHdr.dlen);
+
+			{
+			// Keep in sync with the cache lookup
+			XrdSysCondVarHelper cndh(fReadWaitData);
+
+			// To compute the end offset of the block we have to take 1 from the size!
+                        // Note that this is an error, we try to invalidate everythign which
+                        // can be related to this chunk
+			fConnModule->RemoveDataFromCache(offs,
+                                                         offs + unsolmsg->fHdr.dlen - 1, true);
+
+			}
+
+			// Awaken all the waiting threads, some of them may be interested
+			fReadWaitData->Broadcast();
+
+			// Other clients might be interested
+			return kUNSOL_CONTINUE;
+
+			break;
+		    }
+
+                    } // switch
+                } // else
+
+
+
+
 			 
 	 
 	    }
