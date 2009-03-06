@@ -742,6 +742,9 @@ AC_SUBST(LIBPTHREAD)
 AC_CHECK_LIB([rt],[aio_fsync],
              [AC_SUBST(LIBRT,[-lrt])])
 
+AC_CHECK_LIB([z], [gzdopen],
+             [AC_DEFINE(HAVE_LIBZ)])
+
 ##  ---- DISABLED FOR NOW ----
 ## check for the MonALISA client cpp library
 ##AC_CHECK_LIB([apmoncpp],[main],
