@@ -47,13 +47,6 @@ if ENABLE_MON
 XRDMON = XrdMon
 endif
 
-if ENABLE_TOKENAUTHZ
-TOKENAUTHZ = XrdTokenAuthzOfs
-endif
-
-if ENABLE_CASTOR
-CASTOR = XrdCS2
-endif
 
 if ENABLE_POSIX
 XRDPOSIX = XrdPosix
@@ -92,9 +85,7 @@ SUBDIRS = XrdSys \
           $(XRDPOSIX) \
           $(XRDPSS) \
           $(XRDCNS) \
-          $(XRDMON) \
-          $(CASTOR) \
-          $(TOKENAUTHZ)
+          $(XRDMON)
 
 
 

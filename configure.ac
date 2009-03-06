@@ -21,7 +21,7 @@
 
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,CVS20081118,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,CVS20090306,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -622,17 +622,19 @@ AC_SUBST(JAVA_INCDIR)
 AC_SUBST(JAVAC)
 AC_SUBST(JAVA_CLASSPATH)
 #################################################################
-# Castor interface options
+# OBSOLETE
+# Castor interface options (src/XrdCS2)
 # Currently disabled since building seems to require arcane knowledge
 # ACX_LIBOPTION(castor,[enable building of castor interface module],no)
-activate_castor=no
-AM_CONDITIONAL(ENABLE_CASTOR, test x"$activate_castor" = xyes -o x"$activate_castor" = xdefault_yes)
+# activate_castor=no
+# AM_CONDITIONAL(ENABLE_CASTOR, test x"$activate_castor" = xyes -o x"$activate_castor" = xdefault_yes)
 
 #################################################################
+# OBSOLETE - now built as an external plugin
 # Catalog token authorization mechanism
-ACX_LIBOPTION(tkauthz,[enable building of catalog token authorization Ofs module],no)
-
-AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes)
+#ACX_LIBOPTION(tkauthz,[enable building of catalog token authorization Ofs module],no)
+#
+#AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes)
 
 
 #################################################################
@@ -849,19 +851,27 @@ AC_SYS_DEV_POLL(AC_DEFINE(_DEVPOLL),[])
 
 ###########################################
 # GNU Readline checks
-enable_readline=yes
-AC_CHECK_HEADERS([readline/readline.h readline/history.h curses.h term.h],
-                  [],[enable_readline="no"]
+ACX_LIBOPTION(readline,[use GNU Readline support],yes)
+
+# extend the preprocessor and link PATHs to the Vars provided by ACX_LIBOPTION
+CPPFLAGS="$READLINE_INCDIR $CPPFLAGS"
+LDFLAGS="$READLINE_LIBDIR $LDFLAGS"
+
+if test x"$activate_readline" = xyes -o x"$activate_readline" = xdefault_yes ; then
+   AC_CHECK_HEADERS([readline/readline.h readline/history.h curses.h term.h],
+                  [],[activate_readline="no"]
 		 )
-if test x"$enable_readline" = xyes; then
+fi
+
+if test x"$activate_readline" = xyes -o x"$activate_readline" = xdefault_yes ; then
    AC_CHECK_LIB([readline],[readline],
                [AC_DEFINE(HAVE_READLINE)
-               READLINE_LIBS="-lreadline -lcurses"]
-               ,[enable_readline="no"],[-lcurses])
+               READLINE_LIBS="-lreadline -lhistory -lcurses"]
+               ,[activate_readline="no"],[-lcurses])
 fi
 AC_SUBST(READLINE_LIBS)
 
-if test x"$enable_readline" != xyes; then
+if test x"$activate_readline" != xyes -a  x"$activate_readline" != xdefault_yes ; then
    AC_MSG_WARN([xrd application will be built without GNU readline support])
 fi
 ###########################################

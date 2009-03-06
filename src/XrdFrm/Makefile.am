@@ -20,7 +20,8 @@ bin_PROGRAMS = frm_pstga frm_pstgd
 xrootdfrminc_HEADERS = XrdFrmConfig.hh  \
                        XrdFrmPstg.hh    \
                        XrdFrmPstgReq.hh \
-                       XrdFrmPstgXfr.hh
+                       XrdFrmPstgXfr.hh \
+                       XrdFrmTrace.hh
 
 # convenience library to help in the build
 noinst_LTLIBRARIES = libXrdFrm.la

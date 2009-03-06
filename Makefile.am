@@ -116,4 +116,9 @@ TESTS = test/test1.sh test/test2.sh
 
 
 
-
+#### WARNING: this rpm target is put in for convenience. It makes
+####        the assumption that builds are done in the standard location
+####         Needs to be improved
+rpm:    dist
+	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
+	rpmbuild -bb xrootd.spec
