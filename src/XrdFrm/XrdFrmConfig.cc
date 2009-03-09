@@ -467,7 +467,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
-       if (!strcmp(var, "oss.remoteroot")) return Grab(var, &LocalRoot, 0);
+       if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot,0);
        if (!strcmp(var, "xrootd.monitor")) return xmon();
        if (!strcmp(var, "waittime"      )) return xwtm();
        if (!strcmp(var, "xfrmax"        )) return xmaxx();
