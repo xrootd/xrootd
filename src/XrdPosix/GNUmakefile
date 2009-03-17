@@ -44,12 +44,7 @@ LIBRARY  = $(LIBDIR)/libXrdPosix.$(TYPESHLIB)
 
 LIBPLDR  = $(LIBDIR)/libXrdPosixPreload.$(TYPESHLIB)
 
-OBJECTXRDADLER32 = $(OBJDIR)/Xrdadler32.o
-XRDADLER32 = $(BINDIR)/xrdadler32
-
-CLIENTS = $(XRDADLER32)
-
-TARGETS  = $(LIBARCH) $(LIBRARY) $(LIBPLDR) $(CLIENTS)
+TARGETS  = $(LIBARCH) $(LIBRARY) $(LIBPLDR)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
@@ -100,21 +95,6 @@ ifneq ($(subst $(MACOSX_MINOR),,1234),1234)
 endif
 # MacOS X does not support linking against shared libraries so include
 # all of the objects in the preload library (yech).
-
-$(XRDADLER32): $(OBJECTXRDADLER32)
-	@echo Creating executable $(XRDADLER32) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTXRDADLER32) $(LIBARCH) $(LIBDEP) $(LIBM) $(LIBS) $(LIBZ) -o $(XRDADLER32)
-
-$(OBJDIR)/Xrdadler32.o: Xrdadler32.cc ../XrdPosix/XrdPosixExtern.hh \
-  ../XrdPosix/XrdPosixXrootd.hh \
-  ../XrdClient/XrdClientUrlInfo.hh \
-  ../XrdClient/XrdClientConst.hh \
-  ../XrdClient/XrdClient.hh \
-  ../XrdClient/XrdClientEnv.hh \
-  ../XrdClient/XrdClientAdmin.hh \
-  ../XrdOuc/XrdOucString.hh
-	@echo Compiling Xrdadler32.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/Xrdadler32.o Xrdadler32.cc
 
 $(OBJDIR)/XrdPosix.o:  XrdPosix.cc XrdPosix.hh XrdPosixXrootd.hh  \
                        XrdPosixExtern.hh XrdPosixLinkage.hh \
