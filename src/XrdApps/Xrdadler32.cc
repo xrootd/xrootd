@@ -72,6 +72,7 @@ char getchksum(const char *rooturl, char *chksum)
             ptb = strchr(sum, ' ');
             ptb++;
             pte = strchr(ptb, ' ');
+            if (pte == NULL) pte = &sum[sumlen];
         }
         strncpy(chksum, ptb, pte - ptb);
         chksum[pte - ptb] = '\0';
