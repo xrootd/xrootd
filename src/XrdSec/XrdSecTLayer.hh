@@ -31,6 +31,12 @@
    3) The protocol must not be sensitive to the fact that the socket will 
       identify itself as a local socket with an IPV4 address of 127.0.0.1.
 
+   In order accomodate restriction (1), the initializer accepts the parameter:
+
+   pollwt (default 1):  Milleseconds to wait on the socket for additional
+                        data after the first read. This is to allow the
+                        protocol to write data using several write calls.
+
    For more information, see pure abstract methods secClient() and secServer()
    which must be implemented by the derived class (in addition to delete()).
    Finally, consider the parameters you may need to pass to the constructor of
@@ -77,9 +83,10 @@ virtual void    Delete()=0; // Normally does "delete this"
 //
 enum Initiator {isClient = 0, isServer};
 
-               XrdSecTLayer(const char *pName, Initiator who1st=isClient)
+               XrdSecTLayer(const char *pName, Initiator who1st=isClient,
+                            int pollwt=1)
                            : mySem(0), Starter(who1st), myFD(-1), urFD(-1),
-                             eCode(0), eText(0)
+                             Pwt(pollwt), eCode(0), eText(0)
                            {memset((void *)&Hdr, 0, sizeof(Hdr));
                             strncpy(Hdr.protName,pName,sizeof(Hdr.protName)-1);
                            }
@@ -103,6 +110,7 @@ virtual       ~XrdSecTLayer() {if (eText) free(eText);}
 private:
 
 int            bootUp(Initiator Who);
+int            Read(int FD, char *Buff, int rdLen);
 int            secDone();
 void           secDrain();
 const char    *secErrno(int rc, char *buff);
@@ -114,6 +122,7 @@ Initiator       Responder;
 pthread_t       secTid;
 int             myFD;
 int             urFD;
+int             Pwt;
 int             eCode;
 char           *eText;
 XrdOucErrInfo  *eDest;

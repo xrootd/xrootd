@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <poll.h>
 #include <stdio.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -66,8 +67,7 @@ XrdSecCredentials *XrdSecTLayer::getCredentials(XrdSecParameters *parm,
          {case TLayerRR::xfrData:
                if (wrLen > 0 && write(myFD, parm->buffer+hdrSz, wrLen) < 0)
                   {secError("Socket write failed", errno); return 0;}
-               if (rdLen) do {Blen = read(myFD, Buff, rdLen);}
-                             while(Blen < 0 && errno == EINTR);
+               if (rdLen) Blen = Read(myFD, Buff, rdLen);
                if (Blen < 0 && errno != EPIPE)
                   {secError("Socket read failed", errno); return 0;}
                break;
@@ -124,8 +124,7 @@ int XrdSecTLayer::Authenticate  (XrdSecCredentials  *cred,
          {case TLayerRR::xfrData:
                if (wrLen > 0 && write(myFD, cred->buffer+hdrSz, wrLen) < 0)
                   {secError("Socket write failed", errno); return -1;}
-               do {Blen = read(myFD, Buff, dataSz);}
-                  while(Blen < 0 && errno == EINTR);
+               Blen = Read(myFD, Buff, dataSz);
                if (Blen < 0 && errno != EPIPE)
                   {secError("Socket read failed", errno); return 0;}
                break;
@@ -186,6 +185,29 @@ int XrdSecTLayer::bootUp(Initiator whoami)
 // All done
 //
    return 1;
+}
+
+/******************************************************************************/
+/*                                  R e a d                                   */
+/******************************************************************************/
+  
+int XrdSecTLayer::Read(int FD, char *Buff, int rdLen)
+{
+   struct pollfd polltab = {FD, POLLIN|POLLRDNORM, 0};
+   int retc, Tlen = 0;
+
+// Read the data. Taking Andreas Peters' suggestion, we do the initial read
+// and then we wait a certain amount of time to see if we should read more.
+// This is because certain trasport layer protocols issue several writes in
+// a row to complete the client/server interaction.
+//
+   do {do {retc = read(FD, Buff, rdLen);}  while(retc < 0 && errno == EINTR);
+       if (retc < 0) return retc;
+       Tlen += retc; Buff += retc; rdLen -= retc;
+       do {retc = poll(&polltab, 1, Pwt);} while(retc < 0 && errno == EINTR);
+      } while(retc = 1 && rdLen > 0);
+
+   return Tlen;
 }
 
 /******************************************************************************/
