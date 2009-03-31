@@ -9,7 +9,7 @@
 #######################################################################
 
 
-AM_CPPFLAGS = -I$(top_srcdir)/src $(JAVA_INCDIR) 
+AM_CPPFLAGS = -I$(top_srcdir)/src $(READLINE_INCDIR) $(JAVA_INCDIR) 
 
 #############################################################################
 ## extra directory definitions
@@ -82,7 +82,7 @@ libXrdClient_la_LIBADD = $(LIBSUNMATH) \
               ../XrdSys/libXrdSys.la
 
 clientlibs =  libXrdClient.la \
-              -ldl
+              -ldl $(LIBZ)
 
 xrdcp_SOURCES = Xrdcp.cc
 # Note: static is required for Darwin. Linux and Solaris nicely manage to integrate
@@ -93,7 +93,7 @@ xrdcp_LDADD = $(clientlibs)
 
 
 xrd_SOURCES = XrdCommandLine.cc
-xrd_LDADD = $(clientlibs) $(READLINE_LIBS)
+xrd_LDADD = $(clientlibs) $(READLINE_LIBDIR) $(READLINE_LIBS)
 
 
 
