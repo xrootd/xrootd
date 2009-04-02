@@ -21,7 +21,7 @@
 
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,CVS20090306,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,CVS20090402,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -868,9 +868,14 @@ if test x"$activate_readline" = xyes -o x"$activate_readline" = xdefault_yes ; t
 fi
 
 if test x"$activate_readline" = xyes -o x"$activate_readline" = xdefault_yes ; then
+   # Note: some systems like Mac offer all readline symbols within libreadline and
+   # have no additional libhisory installed on the system
+   AC_CHECK_LIB([history],[clear_history],
+               [HISTORY_LIB="-lhistory"]
+               ,,[-lcurses])
    AC_CHECK_LIB([readline],[readline],
                [AC_DEFINE(HAVE_READLINE)
-               READLINE_LIBS="-lreadline -lhistory -lcurses"]
+               READLINE_LIBS="-lreadline $HISTORY_LIB -lcurses"]
                ,[activate_readline="no"],[-lcurses])
 fi
 AC_SUBST(READLINE_LIBS)
@@ -878,6 +883,10 @@ AC_SUBST(READLINE_LIBS)
 if test x"$activate_readline" != xyes -a  x"$activate_readline" != xdefault_yes ; then
    AC_MSG_WARN([xrd application will be built without GNU readline support])
 fi
+
+CPPFLAGS="$CPPFLAGS_BUP"
+LDFLAGS="$LDFLAGS_BUP"
+
 ###########################################
 # Kerberos 4 checks
 krb4tests=ok
