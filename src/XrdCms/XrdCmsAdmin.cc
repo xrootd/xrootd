@@ -303,7 +303,7 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 
 // If we are in independent mode then let the caller continue
 //
-   if ((Config.doWait && Config.asServer()) || Config.asSolo())
+   if (Config.doWait)
       {Say.Emsg(epname, "Waiting for primary server to login.");}
        else if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
 

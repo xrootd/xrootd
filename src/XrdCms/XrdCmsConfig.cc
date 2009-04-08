@@ -483,6 +483,16 @@ void XrdCmsConfig::DoIt()
                              (void *)0, 0, "Prep handler"))
       Say.Emsg("cmsd", errno, "start prep handler");
 
+// Start the supervisor subsystem
+//
+   if (XrdCmsSupervisor::superOK)
+      {if (XrdSysThread::Run(&tid,XrdCmsStartSupervising, 
+                             (void *)0, 0, "supervisor"))
+          {Say.Emsg("cmsd", errno, "start", myRole);
+          return;
+          }
+      }
+
 // Start the admin thread if we need to, we will not continue until told
 // to do so by the admin interface.
 //
@@ -492,16 +502,6 @@ void XrdCmsConfig::DoIt()
                              0, "Admin traffic"))
           Say.Emsg("cmsd", errno, "start admin handler");
        SyncUp.Wait();
-      }
-
-// Start the supervisor subsystem
-//
-   if (XrdCmsSupervisor::superOK)
-      {if (XrdSysThread::Run(&tid,XrdCmsStartSupervising, 
-                             (void *)0, 0, "supervisor"))
-          {Say.Emsg("cmsd", errno, "start", myRole);
-          return;
-          }
       }
 
 // Start the server subsystem. We check here to make sure we will not be
