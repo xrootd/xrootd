@@ -624,7 +624,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
     // To lower caching overhead in copy-like applications
     if (EnvGetLong(NAME_REMUSEDCACHEBLKS))
-       fConnModule->RemoveDataFromCache(0, offset+len+1);
+       fConnModule->RemoveDataFromCache(0, offset);
 
     return len;
 }

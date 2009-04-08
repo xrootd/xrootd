@@ -641,7 +641,7 @@ $(OBJDIR)/XrdClientMStream.o: XrdClientMStream.cc ../XrdClient/XrdClientDebug.hh
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdClientMStream.o XrdClientMStream.cc
 
 
-$(OBJDIR)/XrdcpXtremeRead.o: XrdcpXtremeRead.cc ../XrdClient/XrdcpXtremeRead.hh \
+$(OBJDIR)/XrdcpXtremeRead.o: XrdcpXtremeRead.cc  ../XrdClient/XrdcpXtremeRead.hh \
   ../XrdSys/XrdSysPthread.hh ../XrdSys/XrdSysError.hh \
   ../XrdClient/XrdClient.hh ../XrdClient/XrdClientAbs.hh \
   ../XrdClient/XrdClientUnsolMsg.hh ../XrdClient/XrdClientConn.hh \
