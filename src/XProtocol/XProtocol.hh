@@ -137,7 +137,8 @@ enum XOpenRequestOption {
    kXR_retstat  = 1024,
    kXR_replica  = 2048,
    kXR_ulterior = 4096,
-   kXR_nowait   = 8192
+   kXR_nowait   = 8192,
+   kXR_seqio    =16384
 };
 
 enum XQueryType {
@@ -416,7 +417,8 @@ struct ClientStatRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
    kXR_char  options;
-   kXR_char reserved[15];
+   kXR_char reserved[11];
+   kXR_char fhandle[4];
    kXR_int32  dlen;
 };
 struct ClientSyncRequest {
