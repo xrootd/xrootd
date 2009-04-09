@@ -205,7 +205,7 @@ int XrdSecTLayer::Read(int FD, char *Buff, int rdLen)
        if (retc < 0) return retc;
        Tlen += retc; Buff += retc; rdLen -= retc;
        do {retc = poll(&polltab, 1, Pwt);} while(retc < 0 && errno == EINTR);
-      } while(retc = 1 && rdLen > 0);
+      } while((retc == 1) && rdLen > 0);
 
    return Tlen;
 }
