@@ -470,6 +470,12 @@ void XrdCmsConfig::DoIt()
    time_t          eTime = time(0);
    int             wTime;
 
+// Set doWait correctly. We only wait if we have to provide a data path. This
+// include server, supervisors, and managers who have a meta-manager, only.
+// Why? Because we never get a primary login if we are a mere manager.
+//
+   if (isManager && !isServer && !ManList) doWait = 0;
+
 // Start the notification thread if we need to
 //
    if (AnoteSock)
