@@ -40,7 +40,8 @@ xrootdclientinc_HEADERS = XrdClient.hh XrdClientAdmin.hh \
                XrdClientInputBuffer.hh XrdClientEnv.hh XrdClientThread.hh \
                XrdClientPhyConnection.hh XrdClientLogConnection.hh \
                XrdClientDebug.hh XrdClientReadV.hh XrdClientPSock.hh \
-               XrdCpMthrQueue.hh XrdCpWorkLst.hh XrdClientAbsMonIntf.hh
+               XrdCpMthrQueue.hh XrdCpWorkLst.hh XrdClientAbsMonIntf.hh \
+               XrdcpXtremeRead.hh
 
 #############################################################################
 # Build rules
@@ -84,7 +85,7 @@ libXrdClient_la_LIBADD = $(LIBSUNMATH) \
 clientlibs =  libXrdClient.la \
               -ldl $(LIBZ)
 
-xrdcp_SOURCES = Xrdcp.cc
+xrdcp_SOURCES = Xrdcp.cc XrdcpXtremeRead.cc
 # Note: static is required for Darwin. Linux and Solaris nicely manage to integrate
 #       all needed symbols with shared lib linking
 xrdcp_LDFLAGS = -static -export-dynamic
