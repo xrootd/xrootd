@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
             adler = adler32(adler, (const Bytef*)buf, len);
 
         if (fd != STDIN_FILENO) close(fd);
-        printf("%08x %s\n", adler, path);
+        printf("%08lx %s\n", adler, path);
         return 0;
     }
     else
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
                 adler = adler32(adler, (const Bytef*)buf, len);
 
             XrdPosixXrootd::Close(fd);
-            printf("%08x %s\n", adler, argv[1]);
+            printf("%08lx %s\n", adler, argv[1]);
             return 0;
         }
     }
