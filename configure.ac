@@ -430,6 +430,20 @@ fi
 AM_CONDITIONAL(ENABLE_OPENSSL,test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes)
 AM_CONDITIONAL(ENABLE_GSI,test x"$activate_gsi" = xyes -o x"$activate_gsi" = xdefault_yes)
 
+
+#################################################################
+# optional building of APPS
+if test x"$activate_apps" = x; then
+   activate_apps=default_yes
+fi
+AC_ARG_ENABLE(apps,
+              [  --enable-apps        build XrdApps directory (xrdadler32) ],
+              [],[enable_apps=$activate_apps]
+             )
+ACX_COLLECT_OPTION(apps,$enable_apps)
+AM_CONDITIONAL(ENABLE_APPS, test x"$activate_apps" = xyes -o x"$activate_apps" = xdefault_yes)
+
+
 ####################################################################
 # Posix I/O compatibility libraries
 # There are some problems with compiling XrdPosix/XrdPss under MacOs
@@ -438,8 +452,13 @@ AM_CONDITIONAL(ENABLE_GSI,test x"$activate_gsi" = xyes -o x"$activate_gsi" = xde
 if test x"$activate_posix" = x; then
    activate_posix=default_yes
 fi
+if test x"$activate_apps" = xyes -o x"$activate_apps" = default_yes; then
+   AC_MSG_NOTICE([Building of XrdApps (xrdadler32) requires also building of the posix library])
+   activate_posix=yes
+fi
+
 AC_ARG_ENABLE(posix,
-              [  --enable-posix          Enable/disable building of the posix preload library [[default=yes]] ],
+              [  --enable-posix          Enable/disable building of the posix compatibility library [[default=yes]] ],
               [],[enable_posix=$activate_posix]
              )
 ACX_COLLECT_OPTION(posix,$enable_posix)
@@ -635,6 +654,7 @@ AC_SUBST(JAVA_CLASSPATH)
 #ACX_LIBOPTION(tkauthz,[enable building of catalog token authorization Ofs module],no)
 #
 #AM_CONDITIONAL(ENABLE_TOKENAUTHZ, test x"$activate_tkauthz" = xyes -o x"$activate_tkauthz" = xdefault_yes)
+
 
 
 #################################################################

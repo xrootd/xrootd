@@ -54,6 +54,10 @@ XRDPSS = XrdPss
 XRDCNS = XrdCns
 endif
 
+if ENABLE_APPS
+XRDAPPS=XrdApps
+endif
+
 
 #######################################################################
 
@@ -82,7 +86,7 @@ SUBDIRS = XrdSys \
           XrdXrootd \
           XrdFrm \
           XrdClient \
-          XrdApps \
+          $(XRDAPPS) \
           $(XRDPOSIX) \
           $(XRDPSS) \
           $(XRDCNS) \

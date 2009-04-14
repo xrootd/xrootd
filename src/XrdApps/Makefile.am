@@ -8,9 +8,8 @@
 ## Checked in by $Author$
 #######################################################################
 
-#TODO: xrdadler32 unfortunately has a dependency on the XrdPosix library.
-# Since that module is optional, this suggests making XrdApps also an option
-# or building of XrdPosix compulsory!
+#Note: xrdadler32 unfortunately has a dependency on the XrdPosix library
+
 
 #############################################################################
 ## extra directory definitions
