@@ -243,7 +243,8 @@ void XrdCmsAdmin::Relay(int setSock, int newSock)
       {SMutex.Lock();
        if (curSock >= 0) close(curSock);
           else if (newSock >= 0) SReady.Post();
-       curSock = (newSock >= 0 ? dup(newSock) : -1);
+       if (newSock < 0) curSock = -1;
+          else {curSock = dup(newSock); XrdNetSocket::setOpts(curSock, 0);}
        SMutex.UnLock();
        return;
       }
@@ -310,7 +311,8 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 // Accept connections in an endless loop
 //
    while(1) if ((InSock = AdminSock->Accept()) >= 0)
-               {if (XrdSysThread::Run(&tid,XrdCmsAdminLogin,(void *)&InSock))
+               {XrdNetSocket::setOpts(InSock, 0);
+                if (XrdSysThread::Run(&tid,XrdCmsAdminLogin,(void *)&InSock))
                    {Say.Emsg(epname, errno, "start admin");
                     close(InSock);
                    }
