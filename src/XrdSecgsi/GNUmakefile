@@ -122,7 +122,7 @@ $(LIBLDAP): $(OBJECTC)
 
 $(SECGSITEST): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SECGSITEST) 
-	$(ECHO)$(LD) $(OBJECTA) $(BINLIBS) $(LIBS) -o $(SECGSITEST)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTA) $(BINLIBS) $(LIBS) -o $(SECGSITEST)
 
 $(SECGSIPROXY): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(SECGSIPROXY) 
