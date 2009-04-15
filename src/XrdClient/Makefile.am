@@ -72,7 +72,8 @@ libXrdClient_la_SOURCES = \
         XrdClientSid.cc XrdClientSid.hh \
         XrdClientPSock.cc XrdClientPSock.hh \
 	XrdClientMStream.cc XrdClientMStream.hh \
-        XrdClientReadV.cc XrdClientReadV.hh
+        XrdClientReadV.cc XrdClientReadV.hh \
+        XrdcpXtremeRead.cc XrdcpXtremeRead.hh
 
 libXrdClient_la_LIBADD = $(LIBSUNMATH) \
               ../XrdSys/libXrdSys.la \
@@ -85,7 +86,7 @@ libXrdClient_la_LIBADD = $(LIBSUNMATH) \
 clientlibs =  libXrdClient.la \
               -ldl $(LIBZ)
 
-xrdcp_SOURCES = Xrdcp.cc XrdcpXtremeRead.cc
+xrdcp_SOURCES = Xrdcp.cc
 # Note: static is required for Darwin. Linux and Solaris nicely manage to integrate
 #       all needed symbols with shared lib linking
 xrdcp_LDFLAGS = -static -export-dynamic
