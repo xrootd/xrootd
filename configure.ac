@@ -21,7 +21,7 @@
 
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,CVS20090402,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,CVS20090415,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -1024,7 +1024,6 @@ AC_OUTPUT(Makefile
           src/XrdMon/Makefile
           src/XrdCns/Makefile
           src/XrdApps/Makefile
-          src/XrdTokenAuthzOfs/Makefile
           test/testconfig.sh
           xrootd.spec)
 

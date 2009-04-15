@@ -86,8 +86,8 @@ SUBDIRS = XrdSys \
           XrdXrootd \
           XrdFrm \
           XrdClient \
-          $(XRDAPPS) \
           $(XRDPOSIX) \
+          $(XRDAPPS) \
           $(XRDPSS) \
           $(XRDCNS) \
           $(XRDMON)
