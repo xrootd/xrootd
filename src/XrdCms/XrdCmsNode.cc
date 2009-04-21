@@ -560,14 +560,14 @@ int XrdCmsNode::do_LocFmt(char *buff, XrdCmsSelected *sP,
 // xy[::123.123.123.123]:123456
 //
    while(sP)
-        {if (sP->Status & Skip) continue;
-         *oP     = (sP->Status & XrdCmsSelected::isMangr ? 'M' : 'S');
-         if (sP->Mask & pfVec) *oP = tolower(*oP);
-         *(oP+1) = (sP->Mask   & wfVec                   ? 'w' : 'r');
-         strcpy(oP+2, sP->IPV6); oP += sP->IPV6Len + 2;
-         pP = sP; 
-         if ((sP = sP->next)) *oP++ = ' ';
-         delete pP;
+        {if (!(sP->Status & Skip))
+            {*oP     = (sP->Status & XrdCmsSelected::isMangr ? 'M' : 'S');
+             if (sP->Mask & pfVec) *oP = tolower(*oP);
+             *(oP+1) = (sP->Mask   & wfVec                   ? 'w' : 'r');
+             strcpy(oP+2, sP->IPV6); oP += sP->IPV6Len + 2;
+             if (sP->next) *oP++ = ' ';
+            }
+         pP = sP; sP = sP->next; delete pP;
         }
 
 // Send of the result
