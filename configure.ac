@@ -389,19 +389,6 @@ if test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes ; the
   fi
   #AC_MSG_NOTICE([Openssl version: $vermajor  $verminor  $verrelease == $vernum])
 
-  # note: -DPERL5 is needed for resolving a clash between unistd.h and
-  # openssl/des.h regarding the crypt function on some older systems (e.g. RH7.3)
-  if test 0"$vernum" -lt 907 ; then
-    AC_DEFINE(R__SSL_096)
-    AC_SUBST(SSLCXXFLAGS,[-DPERL5])
-  fi
-
-  # note: -DR__SSL_GE_098 allows to deal with some differences in ANS1 macros
-  # introduced in version 0.9.8
-  if test 0"$vernum" -ge 908 ; then
-    AC_DEFINE(R__SSL_GE_098)
-  fi
-
   # note: openssl may require kerberos5 include files
   CPPFLAGS="$OPENSSL_INCDIR $KRB5_INCDIR $CPPFLAGS"
   AC_CHECK_HEADER([openssl/ssl.h],
@@ -421,6 +408,20 @@ if test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes ; the
     AC_MSG_WARN([disabling openssl support])
     activate_openssl=disabled
     activate_gsi=disabled
+  else
+    AC_DEFINE(R__SSL)
+    # note: -DPERL5 is needed for resolving a clash between unistd.h and
+    # openssl/des.h regarding the crypt function on some older systems (e.g. RH7.3)
+    if test 0"$vernum" -lt 907 ; then
+      AC_DEFINE(R__SSL_096)
+      AC_SUBST(SSLCXXFLAGS,[-DPERL5])
+    fi
+
+    # note: -DR__SSL_GE_098 allows to deal with some differences in ANS1 macros
+    # introduced in version 0.9.8
+    if test 0"$vernum" -ge 908 ; then
+      AC_DEFINE(R__SSL_GE_098)
+    fi
   fi
 
   CPPFLAGS="$CPPFLAGS_BUP"
@@ -586,6 +587,10 @@ if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; the
         activate_swig=yes
      fi
      AC_SUBST(SWIG)
+     # if a swig rebuild is desired, we must enforce that the dependency of
+     # the swig files (XrdClientAdmin_c.hh) is newer than the targets!
+     chmod u+x ${srcdir}/src/XrdClient/XrdClientAdmin_c.hh
+     touch ${srcdir}/src/XrdClient/XrdClientAdmin_c.hh
   fi
   ACX_COLLECT_OPTION(swig,$activate_swig)
 fi
