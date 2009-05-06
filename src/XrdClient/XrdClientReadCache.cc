@@ -355,11 +355,23 @@ long XrdClientReadCache::GetDataIfPresent(const void *buffer,
 	if (!fItems[it]) continue;
 
 	if (fItems[it]->BeginOffset() > lasttakenbyte+1) break;
-
+        
 	if (!fItems[it]->IsPlaceholder())
-	    l = fItems[it]->GetPartialInterval(((char *)buffer)+bytesgot,
-					       begin_offs+bytesgot, end_offs);
-	else break;
+           // If it's not a placeholder then we take useful bytes from it
+           l = fItems[it]->GetPartialInterval(((char *)buffer)+bytesgot,
+                                              begin_offs+bytesgot, end_offs);
+	else {
+           // If it's a placeholder and it has useful bytes,
+           //  we increment the outstanding blks counter
+           if (fItems[it]->GetPartialInterval(0, begin_offs+bytesgot, end_offs) > 0) {
+              if (fBlkRemPolicy != kRmBlk_FIFO)
+                 fItems[it]->Touch(GetTimestampTick());
+              outstandingblks++;
+           }
+
+        }
+
+
 
 	if (l > 0) {
 	    bytesgot += l;
@@ -429,11 +441,11 @@ long XrdClientReadCache::GetDataIfPresent(const void *buffer,
 
     }
 
-     if (lasttakenbyte+1 < end_offs) {
- 	    intv.beginoffs = lasttakenbyte+1;
- 	    intv.endoffs = end_offs;
- 	    missingblks.Push_back( intv );
-     }
+    if (lasttakenbyte+1 <= end_offs) {
+       intv.beginoffs = lasttakenbyte+1;
+       intv.endoffs = end_offs;
+       missingblks.Push_back( intv );
+    }
 
 
     if (PerfCalc) {
