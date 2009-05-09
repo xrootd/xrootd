@@ -23,19 +23,17 @@
    socket level interactions to occur across an existing client/xrootd
    connection. To that extent, there are certain limitations in this
    virtualization:
-   1) Interactions must be discreete. That is, x bytes of data sent produces
-      a fixed y bytes of response, for artbitrary x and y but which cannot
-      exceed 8,000 bytes for each interaction.
+   1) Interactions must complete within a window whose upper bound is set to
+      CPU 10 seconds (i.e., Network RTT and artificial delays do not apply).
+      The window has no lower bound so that an interaction may complete as fast
+      as conditions allow. An interaction is whatever bytes produce a single
+      request/response. These bytes need not be produced all at once but the
+      last required byte of an interaction must be produced within 10 CPU
+      seconds of the 1st byte. There is no limit on the number of interactions.
    2) The use of the supplied socket must use standard and common socket
       operations (e.g., read(), write(), send(), recv(), close()).
    3) The protocol must not be sensitive to the fact that the socket will 
       identify itself as a local socket with an IPV4 address of 127.0.0.1.
-
-   In order accomodate restriction (1), the initializer accepts the parameter:
-
-   pollwt (default 1):  Milleseconds to wait on the socket for additional
-                        data after the first read. This is to allow the
-                        protocol to write data using several write calls.
 
    For more information, see pure abstract methods secClient() and secServer()
    which must be implemented by the derived class (in addition to delete()).
@@ -48,6 +46,16 @@ class XrdOucErrInfo;
 class XrdSecTLayer : public XrdSecProtocol
 {
 public:
+
+// The object inheriting this class should call the initializer indicating
+// the true name of the protocol (no more that 7 characters). To optimize the
+// start-up, indicate who is the initiator (i.e., first one to send data). Using
+// the enum below, specify isClient (the default) or isServer. If the initiator
+// is not known, use the default and the class will dynamically determine it.
+//
+enum Initiator {isClient = 0, isServer};
+
+               XrdSecTLayer(const char *pName, Initiator who1st=isClient);
 
 // This is a symmetric wrapper. At the start on each end, secClient() is
 // called on the client-side and secServer() is called on the server side.
@@ -64,34 +72,20 @@ public:
 //               some errno value) as well as text explaining the problem.
 
 // Client: theFD - file descriptor to be used
-//         einfo - optional error object where ending status must be returned
+//         einfo - the error object where ending status must be returned
 //
-virtual void   secClient(int theFD, XrdOucErrInfo      *einfo)=0;
+virtual void   secClient(int theFD, XrdOucErrInfo *einfo)=0;
 
 // Server: theFD - file descriptor to be used
-//         einfo - optional error object where ending status must be returned
+//         einfo - the error object where ending status must be returned
 //
-virtual void   secServer(int theFD, XrdOucErrInfo      *einfo=0)=0;
+virtual void   secServer(int theFD, XrdOucErrInfo *einfo)=0;
 
 // You must implete the proper delete()
 //
 virtual void    Delete()=0; // Normally does "delete this"
 
-// The object inheriting this class should call the initializer indicating
-// the true name of the protocol (no more that 7 characters) and whether the
-// client (the default) or server will initiate the exchange using the enum:
-//
-enum Initiator {isClient = 0, isServer};
-
-               XrdSecTLayer(const char *pName, Initiator who1st=isClient,
-                            int pollwt=1)
-                           : mySem(0), Starter(who1st), myFD(-1), urFD(-1),
-                             Pwt(pollwt), eCode(0), eText(0)
-                           {memset((void *)&Hdr, 0, sizeof(Hdr));
-                            strncpy(Hdr.protName,pName,sizeof(Hdr.protName)-1);
-                           }
-
-// Classes that must be public but used only internally
+// Classes that must be public are only internally used
 //
 
 virtual int                Authenticate  (XrdSecCredentials  *cred,
@@ -122,7 +116,8 @@ Initiator       Responder;
 pthread_t       secTid;
 int             myFD;
 int             urFD;
-int             Pwt;
+int             Tmax; // Maximum timeslices per interaction
+int             Tcur; // Current timeslice
 int             eCode;
 char           *eText;
 XrdOucErrInfo  *eDest;
