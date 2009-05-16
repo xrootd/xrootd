@@ -1993,7 +1993,6 @@ if test "x$enable_ssl" = "xyes" ; then
     # dirs: --with-ssl-incdir and --with-ssl-libdir have priority on --with-ssl-dir
     #       in both cases we link statically unless --with-ssl-shared is 'yes'
     #
-    echo "sslshared: '$sslshared'"
     if test ! "x$ssldir" = "x" ; then
        if test "x$sslincdir" = "x" ; then
           sslincdir=$ssldir/include/openssl
@@ -2011,10 +2010,6 @@ if test "x$enable_ssl" = "xyes" ; then
           fi
        fi
     fi
-    echo "ssldir: '$ssldir'"
-    echo "sslincdir: '$sslincdir'"
-    echo "ssllibdir: '$ssllibdir'"
-    echo "sslshared: '$sslshared'"
     if test "x$sslshared" = "x" ; then
        sslshared="$enable_shared"
     fi
