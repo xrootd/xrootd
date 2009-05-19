@@ -14,6 +14,8 @@
 #       behavior somehow deals with the symbol clash. This is surely a source
 #       of portability problems. I do not yet know hot to best solve it here
 
+include $(top_srcdir)/src/Makefile_include
+
 # preprocessor flags
 AM_CPPFLAGS = -I$(top_srcdir)/src
 

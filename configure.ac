@@ -66,19 +66,26 @@ case "$target_os" in
      AC_DEFINE(__macos__)
      need_macos_dt=no
      if test x"$MACOSX_DEPLOYMENT_TARGET" = x; then
-        AC_MSG_WARN([MACOSX_DEPLOYMENT_TARGET environment variable not set. Setting it to 10.3])
+        macosversion=`sw_vers -productVersion`
+        AC_MSG_NOTICE([Detected MacOS Version $macosversion])
+        vermajor=`expr x"$macosversion" : 'x\([[0-9]][[0-9]]*\).[[0-9]][[0-9]]*'`
+        verminor=`expr x"$macosversion" : 'x[[0-9]][[0-9]]*.\([[0-9]][[0-9]]*\)'`
+        AC_MSG_WARN([MACOSX_DEPLOYMENT_TARGET environment variable not set. Setting it to ${vermajor}.$verminor])
+        AC_SUBST([MACOSX_DEPLOYMENT_TARGET],${vermajor}.$verminor)
         need_macos_dt=yes
      else
+        # if the user has set the variable himself, we trust him
         vermajor=`expr x"$MACOSX_DEPLOYMENT_TARGET" : 'x\([[0-9]][[0-9]]*\).[[0-9]][[0-9]]*'`
         verminor=`expr x"$MACOSX_DEPLOYMENT_TARGET" : 'x[[0-9]][[0-9]]*.\([[0-9]][[0-9]]*\)'`
         if test 0"$vermajor" -lt 10 ; then need_macos_dt=ok;
         else if test 0"$vermajor" -eq 10 -a 0"$verminor" -lt 3; then need_macos_dt=failed;
               fi
         fi
+        AC_SUBST([MACOSX_DEPLOYMENT_TARGET],${MACOSX_DEPLOYMENT_TARGET})
 
-        if test x"$need_macos_dt" = xfailed; then
-           AC_MSG_ERROR([MACOSX_DEPLOYMENT_TARGET must be >= 10.3 (current value: $MACOSX_DEPLOYMENT_TARGET)])
-        fi
+     fi
+     if test x"$need_macos_dt" = xfailed; then
+        AC_MSG_ERROR([MACOSX_DEPLOYMENT_TARGET must be >= 10.3 (current value: $MACOSX_DEPLOYMENT_TARGET)])
      fi
      ;;
    apple*)
@@ -134,7 +141,7 @@ if test "x$domain" = "x" ; then
 fi
 
 # look whether there is a site specific defaults file for this domain
-domain=`expr $domain : '.*\.\(.*\..*\)$'`
+### TODO: does this line still make sense?    domain=`expr x"$domain" : 'x.*\.\(.*\..*\)$'`
 if test x"$domain" != x -a  x"$domain" != "x(none)"; then
    ACX_LOAD_DEFAULTS(config/ac_default_$domain)
 fi
@@ -999,6 +1006,7 @@ CXXFLAGS="$CXXFLAGS -D_REENTRANT"
 
 AC_OUTPUT(Makefile
           src/Makefile
+          src/Makefile_include
           src/XrdSys/Makefile
           src/XrdOuc/Makefile
           src/XrdNet/Makefile
