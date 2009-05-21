@@ -90,7 +90,7 @@ XrdSecCredentials *XrdSecTLayer::getCredentials(XrdSecParameters *parm,
                if (wrLen > 0 && write(myFD, parm->buffer+hdrSz, wrLen) < 0)
                   {secError("Socket write failed", errno); return 0;}
                Blen = Read(myFD, Buff, dataSz);
-               if (Blen < 0 && Blen != -EPIPE)
+               if (Blen < 0 && (Blen != -EPIPE) && (Blen != -ECONNRESET))
                   {secError("Socket read failed", -Blen); return 0;}
                break;
           case TLayerRR::endData:
@@ -150,7 +150,7 @@ int XrdSecTLayer::Authenticate  (XrdSecCredentials  *cred,
                if (wrLen > 0 && write(myFD, cred->buffer+hdrSz, wrLen) < 0)
                   {secError("Socket write failed", errno); return -1;}
                Blen = Read(myFD, Buff, dataSz);
-               if (Blen < 0 && Blen != -EPIPE)
+               if (Blen < 0 && (Blen != -EPIPE) && (Blen != -ECONNRESET))
                   {secError("Socket read failed", -Blen); return 0;}
                break;
           case TLayerRR::endData: return (secDone() ? 0 : -1);
