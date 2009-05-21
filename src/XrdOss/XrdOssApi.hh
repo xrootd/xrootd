@@ -140,7 +140,7 @@ unsigned long long PathOpts(const char *path) {return RPList.Find(path);}
 int       Remdir(const char *);  // In Unlink()
 int       Rename(const char *, const char *);
 virtual 
-int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t);
+int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t, unsigned long long );
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int resonly=0);
 int       StatFS(const char *path, char *buff, int &blen);
@@ -269,7 +269,7 @@ time_t             HasFile(const char *fn, const char *sfx);
 void               List_Cache(const char *lname, XrdSysError &Eroute);
 int                ReCache(const char *UDir, const char *Qfile);
 int                Stage_QT(const char *, const char *, XrdOucEnv &, int, mode_t);
-int                Stage_RT(const char *, const char *, XrdOucEnv &);
+int                Stage_RT(const char *, const char *, XrdOucEnv &, unsigned long long);
 
 // Configuration related methods
 //

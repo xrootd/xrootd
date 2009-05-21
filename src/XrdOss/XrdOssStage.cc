@@ -91,11 +91,11 @@ int XrdOssFind_Req(XrdOssStage_Req *req, void *carg)
 /******************************************************************************/
   
 int XrdOssSys::Stage(const char *Tid, const char *fn, XrdOucEnv &env, 
-                     int Oflag, mode_t Mode)
+                     int Oflag, mode_t Mode, unsigned long long Popts)
 {
 // Use the appropriate method here: queued staging or real-time staging
 //
-   return (StageRealTime ? Stage_RT(Tid, fn, env)
+   return (StageRealTime ? Stage_RT(Tid, fn, env, Popts)
                          : Stage_QT(Tid, fn, env, Oflag, Mode));
 }
 
@@ -176,7 +176,8 @@ else  {pdlen[0] = getID(Tid,env,usrbuff,sizeof(usrbuff)); pdata[0] = usrbuff;}
 /*                              S t a g e _ R T                               */
 /******************************************************************************/
   
-int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env)
+int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env,
+                        unsigned long long Popts)
 {
     extern int XrdOssFind_Prty(XrdOssStage_Req *req, void *carg);
     XrdSysMutexHelper StageAccess(XrdOssStage_Req::StageMutex);
@@ -221,9 +222,11 @@ int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env)
 // that a request for the file may come in again before we have the size. This
 // is ok, it just means that we'll be off in our time estimate
 //
-   StageAccess.UnLock();
-   if ((rc = MSS_Stat(remote_path, &statbuff))) return rc;
-   StageAccess.Lock(&XrdOssStage_Req::StageMutex);
+   if (Popts & XRDEXP_NOCHECK) statbuff.st_size = 1024*1024*1024;
+      else {StageAccess.UnLock();
+            if ((rc = MSS_Stat(remote_path, &statbuff))) return rc;
+            StageAccess.Lock(&XrdOssStage_Req::StageMutex);
+           }
 
 // Create a new request
 //

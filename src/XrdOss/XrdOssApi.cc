@@ -410,8 +410,11 @@ int XrdOssDir::Opendir(const char *dir_path)
    if (pflags & XRDEXP_NODREAD)
       {struct stat fstat;
        if (stat(local_path, &fstat))
-          {if (!XrdOssSS->MSSgwCmd) return -errno;
-           if ((retc = XrdOssSS->MSS_Stat(remote_path, &fstat))) return retc;
+          {if (pflags & XRDEXP_NOCHECK) fstat.st_mode = S_IFDIR;
+              else {if (!XrdOssSS->MSSgwCmd) return -errno;
+                    if ((retc = XrdOssSS->MSS_Stat(remote_path, &fstat)))
+                       return retc;
+                   }
           }
        if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
        isopen = -1;
@@ -563,7 +566,8 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
          == -ENOENT && (popts & XRDEXP_REMOTE))
       {if (popts & XRDEXP_NOSTAGE)
           return OssEroute.Emsg("XrdOssOpen",-XRDOSS_E8006,"open",path);
-       if ((retc = XrdOssSS->Stage(tident, path, Env, Oflag, Mode))) return retc;
+       if ((retc = XrdOssSS->Stage(tident, path, Env, Oflag, Mode, popts)))
+          return retc;
        fd = (int)Open_ufs(local_path, Oflag, Mode, popts & ~XRDEXP_REMOTE);
       }
 
