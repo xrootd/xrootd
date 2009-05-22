@@ -1417,7 +1417,7 @@ int XrdOfs::remove(const char              type,    // In
 */
 {
    EPNAME("remove");
-   int retc;
+   int retc, Opt;
    const char *tident = einfo.getErrUser();
    XrdOucEnv rem_Env(info);
    XTRACE(remove, path, type);
@@ -1446,9 +1446,13 @@ int XrdOfs::remove(const char              type,    // In
           }
       }
 
+// Check if this is an online deletion only
+//
+   Opt = (rem_Env.Get("ofs.lcl") ? XRDOSS_Online : 0);
+
 // Perform the actual deletion
 //
-    retc = (type == 'd' ? XrdOfsOss->Remdir(path) : XrdOfsOss->Unlink(path));
+    retc = (type=='d' ? XrdOfsOss->Remdir(path) : XrdOfsOss->Unlink(path,Opt));
     if (retc) return XrdOfsFS.Emsg(epname, einfo, retc, "remove", path);
     if (type == 'f')
        {XrdOfsHandle::Hide(path);
