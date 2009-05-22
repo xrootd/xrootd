@@ -638,6 +638,7 @@ Advanced options:
    --with-nameinfo=dir Do not check for getnameinfo, take prototype from 'dir'/netdb.h
    --has-sigwaitinfo   Do not check for sigwaitinfo
    --has-fstatat       Do not check for fstatat
+   --has-readline      Do not check for readline
 
 Supported Architectures:
 
@@ -701,6 +702,7 @@ hasgethbyxr=""
 hasnameinfo=""
 hassigwti=""
 hasfstatat=""
+hasreadline=""
 afslibdir=""
 afsincdir=""
 ssldir=""
@@ -735,6 +737,7 @@ if test $# -gt 0 ; then
       --with-nameinfo=*)       hasnameinfo="$optarg" ;;
       --has-sigwaitinfo)       hassigwti="yes" ;;
       --has-fstatat)           hasfstatat="yes"      ;;
+      --has-readline)          hasreadline="yes"     ;;
       --with-afs-incdir=*)     afsincdir=$optarg     ; enable_afs="yes"    ;;
       --with-afs-libdir=*)     afslibdir=$optarg     ; enable_afs="yes"    ;;
       --with-java=*)           javadir=$optarg       ; enable_javaint="yes" ;;
@@ -1177,6 +1180,23 @@ if test "x$hasfstatat" = "x"; then
    fi
 else
    hasfstatat=" -DHAVE_FSTATAT"
+fi
+
+######################################################################
+#
+### echo %%% Check for fstatat
+#
+if test "x$hasreadline" = "x"; then
+   message "Checking for readline"
+   check_prototype "readline" $ccbin "-c"
+   if test "x$found_prototype" = "xyes" ; then
+      echo "yes"
+      hasreadline=" -DHAVE_READLINE"
+   else
+      echo "no"
+   fi
+else
+   hasreadline=" -DHAVE_READLINE"
 fi
 
 ######################################################################
@@ -2367,6 +2387,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasstrlcpy@|$hasstrlcpy|" \
     -e "s|@hasprotor@|$hasprotor|" \
     -e "s|@hasfstatat@|$hasfstatat|" \
+    -e "s|@hasreadline@|$hasreadline|" \
     -e "s|@tracedbg@|$tracedbg|" \
     -e "s|@suncache@|$suncache|" \
     -e "s|@perlbin@|$perlbin|" \
