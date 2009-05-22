@@ -36,7 +36,6 @@ noinst_LTLIBRARIES = libXrdFrm.la
 AM_CPPFLAGS = -I$(top_srcdir)/src
 
 libXrdFrm_la_SOURCES = \
-                  XrdFrmAdmin.cc   \
                   XrdFrmAdminAudit.cc  \
                   XrdFrmAdminFiles.cc  \
                   XrdFrmAdminFind.cc   \
@@ -56,8 +55,12 @@ libXrdFrm_la_LIBADD = \
                   ../XrdOss/libXrdOss.la     \
                   ../XrdNet/libXrdNet.la     \
                   ../XrdOuc/libXrdOuc.la     \
-                  ../XrdSys/libXrdSys.la
+                  ../XrdSys/libXrdSys.la     \
+                  ../XrdCms/libXrdCms.la     \
+                  ../Xrd/libXrd.la
 
+frm_admin_SOURCES = XrdFrmAdmin.cc \
+                    ../XrdXrootd/XrdXrootdMonitor.cc
 frm_admin_LDADD = libXrdFrm.la
 frm_admin_LDFLAGS = -static -export-dynamic -ldl
 
@@ -65,6 +68,7 @@ frm_admin_LDFLAGS = -static -export-dynamic -ldl
 # behave differently based on their invocation name
 
 frm_pstga_SOURCES = \
+                    XrdFrmAdmin.cc \
                     ../XrdXrootd/XrdXrootdMonitor.cc \
                     ../Xrd/XrdScheduler.cc
 frm_pstga_LDADD = libXrdFrm.la
@@ -72,6 +76,7 @@ frm_pstga_LDFLAGS = -static -export-dynamic -ldl
 
 
 frm_pstgd_SOURCES = \
+                    XrdFrmAdmin.cc \
                     ../XrdXrootd/XrdXrootdMonitor.cc \
                     ../Xrd/XrdScheduler.cc
 frm_pstgd_LDADD = libXrdFrm.la
