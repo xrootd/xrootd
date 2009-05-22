@@ -234,11 +234,11 @@ void XrdOucStream::Echo()
 int XrdOucStream::Exec(const char *theCmd, int inrd)
 {
     int j;
-    char *cmd, *parm[MaxARGC];
+    char *cmd, *origcmd, *parm[MaxARGC];
 
     // Allocate a buffer for the command as we will be modifying it
     //
-    cmd = (char *)malloc(strlen(theCmd)+1);
+    origcmd = cmd = (char *)malloc(strlen(theCmd)+1);
     strcpy(cmd, theCmd);
   
     // Construct the argv array based on passed command line.
@@ -255,7 +255,7 @@ int XrdOucStream::Exec(const char *theCmd, int inrd)
     // Continue with normal processing
     //
     j = Exec(parm, inrd);
-    free(cmd);
+    free(origcmd);
     return j;
 }
 
