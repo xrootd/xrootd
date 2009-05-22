@@ -28,7 +28,8 @@ const char *XrdOssStageCVSID = "$Id$";
 #include <signal.h>
 #include <stdio.h>
 #include <time.h>
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -184,7 +185,7 @@ int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env,
     XrdOssStage_Req req, *newreq, *oldreq;
     struct stat statbuff;
     extern int XrdOssFind_Req(XrdOssStage_Req *req, void *carg);
-    char actual_path[XrdOssMAX_PATH_LEN+1], *remote_path;
+    char actual_path[MAXPATHLEN+1], *remote_path;
     char *val;
     int rc, prty;
 
@@ -405,8 +406,8 @@ int XrdOssSys::CalcTime(XrdOssStage_Req *req) // StageMutex lock held!
 
 int XrdOssSys::GetFile(XrdOssStage_Req *req)
 {
-   char rfs_fn[XrdOssMAX_PATH_LEN+1];
-   char lfs_fn[XrdOssMAX_PATH_LEN+1];
+   char rfs_fn[MAXPATHLEN+1];
+   char lfs_fn[MAXPATHLEN+1];
    int retc;
 
 // Convert the local filename and generate the corresponding remote name.
@@ -457,7 +458,7 @@ time_t XrdOssSys::HasFile(const char *fn, const char *fsfx)
 {
     struct stat statbuff;
     int fnlen;
-    char path[XrdOssMAX_PATH_LEN+1];
+    char path[MAXPATHLEN+1];
     char *pp = path;
 
 // Copy the path with possible conversion

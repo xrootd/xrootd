@@ -75,8 +75,10 @@ int     fd;      // The associated file descriptor.
 
 // Options that can be passed to Create()
 //
-#define XRDOSS_mkpath 01
-#define XRDOSS_new    02
+#define XRDOSS_mkpath 0x01
+#define XRDOSS_new    0x02
+#define XRDOSS_Online 0x04
+#define XRDOSS_isPFN  0x08
   
 class XrdOss
 {
@@ -89,7 +91,9 @@ virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &,
                        int opts=0)=0;
 virtual int     Init(XrdSysLogger *, const char *)=0;
 virtual int     Mkdir(const char *, mode_t mode, int mkpath=0)=0;
-virtual int     Remdir(const char *)=0;
+virtual int     Reloc(const char *, const char *, const char *, const char *x=0)
+                      {return -ENOTSUP;}
+virtual int     Remdir(const char *, int Opts=0)=0;
 virtual int     Rename(const char *, const char *)=0;
 virtual int     Stat(const char *, struct stat *, int resonly=0)=0;
 virtual int     StatFS(const char *path, char *buff, int &blen) 
@@ -98,8 +102,10 @@ virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
                       {return -ENOTSUP;}
 virtual int     StatXA(const char *path, char *buff, int &blen)
                       {return -ENOTSUP;}
+virtual int     StatXP(const char *path, unsigned long long &attr)
+                      {return -ENOTSUP;}
 virtual int     Truncate(const char *, unsigned long long)=0;
-virtual int     Unlink(const char *)=0;
+virtual int     Unlink(const char *, int Opts=0)=0;
 
                 XrdOss() {}
 virtual        ~XrdOss() {}

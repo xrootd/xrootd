@@ -30,6 +30,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #ifdef __solaris__
 #include <sys/vnode.h>
 #endif
@@ -37,6 +38,7 @@ const char *XrdOssApiCVSID = "$Id$";
 #include "XrdVersion.hh"
 
 #include "XrdOss/XrdOssApi.hh"
+#include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssLock.hh"
@@ -158,12 +160,12 @@ int XrdOssSys::Init(XrdSysLogger *lp, const char *configfn)
 /* GenLocalPath() generates the path that a file will have in the local file
    system. The decision is made based on the user-given path (typically what 
    the user thinks is the local file system path). The output buffer where the 
-   new path is placed must be at least XrdOssMAX_PATH_LEN bytes long.
+   new path is placed must be at least MAXPATHLEN bytes long.
 */
 int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 {
-    if (lcl_N2N) return -(lcl_N2N->lfn2pfn(oldp, newp, XrdOssMAX_PATH_LEN));
-    if (strlen(oldp) >= XrdOssMAX_PATH_LEN) return -ENAMETOOLONG;
+    if (lcl_N2N) return -(lcl_N2N->lfn2pfn(oldp, newp, MAXPATHLEN));
+    if (strlen(oldp) >= MAXPATHLEN) return -ENAMETOOLONG;
     strcpy(newp, oldp);
     return 0;
 }
@@ -175,12 +177,12 @@ int XrdOssSys::GenLocalPath(const char *oldp, char *newp)
 /* GenRemotePath() generates the path that a file will have in the remote file
    system. The decision is made based on the user-given path (typically what 
    the user thinks is the local file system path). The output buffer where the 
-   new path is placed must be at least XrdOssMAX_PATH_LEN bytes long.
+   new path is placed must be at least MAXPATHLEN bytes long.
 */
 int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
 {
-    if (rmt_N2N) return -(rmt_N2N->lfn2rfn(oldp, newp, XrdOssMAX_PATH_LEN));
-    if (strlen(oldp) >= XrdOssMAX_PATH_LEN) return -ENAMETOOLONG;
+    if (rmt_N2N) return -(rmt_N2N->lfn2rfn(oldp, newp, MAXPATHLEN));
+    if (strlen(oldp) >= MAXPATHLEN) return -ENAMETOOLONG;
     strcpy(newp, oldp);
     return 0;
 }
@@ -201,7 +203,7 @@ int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
 
 int XrdOssSys::Chmod(const char *path, mode_t mode)
 {
-    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
+    char actual_path[MAXPATHLEN+1], *local_path;
     int retc;
 
 // Generate local path
@@ -234,7 +236,7 @@ int XrdOssSys::Chmod(const char *path, mode_t mode)
 
 int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 {
-    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
+    char actual_path[MAXPATHLEN+1], *local_path;
     int retc;
 
 // Generate local path
@@ -268,7 +270,7 @@ int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 
 int XrdOssSys::Mkpath(const char *path, mode_t mode)
 {
-    char local_path[XrdOssMAX_PATH_LEN+1], *next_path;
+    char local_path[MAXPATHLEN+1], *next_path;
     int  i = strlen(path);
 
 // Copy the path so we can modify it
@@ -313,7 +315,7 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
 int XrdOssSys::Truncate(const char *path, unsigned long long size)
 {
     struct stat statbuff;
-    char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
+    char actual_path[MAXPATHLEN+1], *local_path;
     long long oldsz;
     int retc;
 
@@ -337,7 +339,7 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size)
 // Change the file only in the local filesystem and make space adjustemt
 //
    if (truncate(local_path, size)) return -errno;
-   Adjust(local_path, static_cast<long long>(size) - oldsz, &statbuff);
+   XrdOssCache::Adjust(local_path,static_cast<long long>(size)-oldsz,&statbuff);
    return XrdOssOK;
 }
   
@@ -363,7 +365,7 @@ int XrdOssDir::Opendir(const char *dir_path)
 #ifndef NODEBUG
    const char *epname = "Opendir";
 #endif
-   char actual_path[XrdOssMAX_PATH_LEN+1], *local_path, *remote_path;
+   char actual_path[MAXPATHLEN+1], *local_path, *remote_path;
    unsigned long long isremote;
    int retc;
 
@@ -532,7 +534,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 {
    unsigned long long popts;
    int retc, mopts;
-   char actual_path[XrdOssMAX_PATH_LEN+1], *local_path;
+   char actual_path[MAXPATHLEN+1], *local_path;
    struct stat buf;
 
 // Return an error if this object is already open
@@ -578,7 +580,7 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
        if (!retc && !(buf.st_mode & S_IFREG))
           {close(fd); fd = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
        if (Oflag & (O_WRONLY | O_RDWR))
-          {FSize = buf.st_size; cacheP = XrdOssSS->Find_Cache(local_path);}
+          {FSize = buf.st_size; cacheP = XrdOssCache::Find(local_path);}
           else {FSize = -1; cacheP = 0;}
       } else if (fd == -EEXIST)
                 {do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
@@ -620,7 +622,7 @@ int XrdOssFile::Close(long long *retsz)
         int retc;
         do {retc = fstat(fd, &buf);} while(retc && errno == EINTR);
         if (cacheP && FSize != buf.st_size)
-           XrdOssSS->Adjust(cacheP, buf.st_size - FSize);
+           XrdOssCache::Adjust(cacheP, buf.st_size - FSize);
         if (retsz) *retsz = buf.st_size;
        }
     if (close(fd)) return -errno;
