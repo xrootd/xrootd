@@ -832,8 +832,10 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       }
 
    }
-   else
+   else {
+      doXtremeCp = false;
       XrdSysThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
+   }
 
    int len = 1;
    void *buf;
@@ -867,7 +869,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
                }
 #endif
 
-	    if (lseek(f, offs, SEEK_SET) < 0) {
+	    if (doXtremeCp && (f != STDOUT_FILENO) && lseek(f, offs, SEEK_SET) < 0) {
 	       cerr << "Error '" << strerror(errno) <<
 		  "' seeking to " << dst << endl;
 	       retvalue = 10;
@@ -1161,7 +1163,8 @@ int main(int argc, char**argv) {
    EnvPutString( NAME_CONNECTDOMAINDENY_RE, "" );
 
    EnvPutInt( NAME_READAHEADSIZE, XRDCP_XRDRASIZE);
-   EnvPutInt( NAME_READCACHESIZE, 2*XRDCP_XRDRASIZE );
+   EnvPutInt( NAME_READCACHESIZE, 3*XRDCP_XRDRASIZE );
+   EnvPutInt( NAME_READCACHEBLKREMPOLICY, XrdClientReadCache::kRmBlk_LeastOffs );
 //   EnvPutInt(NAME_REMUSEDCACHEBLKS, 1);
 
    EnvPutInt( NAME_DEBUG, -1);
