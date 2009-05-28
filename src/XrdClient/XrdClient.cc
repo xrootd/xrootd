@@ -594,12 +594,14 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	    // Now it's time to sleep
 	    // This thread will be awakened when new data will arrive
 	    if ((blkstowait > 0)|| cacheholes.GetSize()) {
-		Info( XrdClientDebug::kUSERDEBUG, "Read",
+		Info( XrdClientDebug::kHIDEBUG, "Read",
 		      "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
 
 		if (!fConnModule->IsPhyConnConnected() ||
 		    fReadWaitData->Wait( EnvGetLong(NAME_REQUESTTIMEOUT) ) ||
-                    fConnModule->LastServerError.errnum ) {
+                    (fConnModule->LastServerError.errnum != kXR_noErrorYet) ) {
+
+                   fConnModule->LastServerError.errnum = kXR_noErrorYet;
 
                   if (DebugLevel() >= XrdClientDebug::kUSERDEBUG) {
                     fConnModule->PrintCache();

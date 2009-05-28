@@ -85,7 +85,7 @@ struct XrdCpInfo {
 } cpnfo;
 
 #define XRDCP_BLOCKSIZE          (4*1024*1024)
-#define XRDCP_XRDRASIZE          (10*XRDCP_BLOCKSIZE)
+#define XRDCP_XRDRASIZE          (20*XRDCP_BLOCKSIZE)
 #define XRDCP_VERSION            "(C) 2004 SLAC INFN $Revision$ - Xrootd version: "XrdVSTRING
 
 ///////////////////////////////////////////////////////////////////////
@@ -230,6 +230,7 @@ void *ReaderThread_xrd(void *)
 
       if ( (nr = cpnfo.XrdCli->Read(buf, offs, blksize)) ) {
          cpnfo.queue.PutBuffer(buf, offs, nr);
+         cpnfo.XrdCli->RemoveDataFromCache(offs, offs+nr-1, false);
 	 bread += nr;
 	 offs += nr;
       }
@@ -325,7 +326,7 @@ void *ReaderThread_xrd_xtreme(void *parm)
          //cout << "cli: " << thrnfo->clientidx << "     read: " << lr << " offs: " << blknfo->offs << " len: " << blknfo->len << endl;
          nr = thrnfo->cli->Read(buf, blknfo->offs, blknfo->len);
          if ( nr >= 0 ) {
-            thrnfo->cli->RemoveDataFromCache(blknfo->offs, blknfo->offs+blknfo->len+1, false);
+            thrnfo->cli->RemoveDataFromCache(blknfo->offs, blknfo->offs+blknfo->len-1, false);
             lastread = lr;
             noutstanding--;
             cpnfo.queue.PutBuffer(buf, blknfo->offs, nr);
