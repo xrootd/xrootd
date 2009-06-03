@@ -116,7 +116,8 @@ enum XStatRespFlags {
    kXR_other   = 4,
    kXR_offline = 8,
    kXR_readable=16,
-   kXR_writable=32
+   kXR_writable=32,
+   kXR_poscpend=64
 };
 
 enum XDirlistRequestOption {
