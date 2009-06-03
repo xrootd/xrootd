@@ -204,8 +204,8 @@ int XrdCmsProtocol::Execute(XrdCmsRRData &Arg)
                  {DEBUGR(etxt+1 <<" delayed " <<Arg.waitVal <<" seconds");
                   return -EINPROGRESS;
                  } else Reply_Error(Arg, kYR_EINVAL, etxt);
-              else if (Arg.Routing & XrdCmsRouting::Forward
-                   &&  Cluster.NodeCnt) Reissue(Arg);
+              else if (Arg.Routing & XrdCmsRouting::Forward && Cluster.NodeCnt
+                   &&  !(Arg.Request.modifier & kYR_dnf)) Reissue(Arg);
    return 0;
 }
 

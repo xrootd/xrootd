@@ -465,13 +465,16 @@ void XrdCmsAdmin::do_RmDid(int isPfn)
 void XrdCmsAdmin::do_RmDud(int isPfn)
 {
    const char *epname = "do_RmDud";
-   char *tp, apath[XrdCmsMAX_PATH_LEN];
-   int   rc;
+   char *tp, *pp, apath[XrdCmsMAX_PATH_LEN];
+   int   rc, Mods = kYR_raw;
 
    if (!(tp = Stream.GetToken()))
       {Say.Emsg(epname,"added path not specified by",Stype,Sname);
        return;
       }
+
+   if ((pp = Stream.GetToken()) && *pp == 'p') Mods |= CmsHaveRequest::Pending;
+      else Mods |= CmsHaveRequest::Online;
 
    if (isPfn && Config.lcl_N2N)
       {if ((rc = Config.lcl_N2N->pfn2lfn(tp, apath, sizeof(apath))))
@@ -481,5 +484,5 @@ void XrdCmsAdmin::do_RmDud(int isPfn)
       }
 
    DEBUG("sending managers have online " <<tp);
-   Manager.Inform(kYR_have, CmsHaveRequest::Online|kYR_raw, tp, strlen(tp)+1);
+   Manager.Inform(kYR_have, Mods, tp, strlen(tp)+1);
 }

@@ -695,7 +695,7 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 // If we have an Xmi then call it
 //
    if (Xmi_Rename)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
+      {XrdCmsReq Req(this, Arg.Request.streamid, Arg.Request.modifier & kYR_dnf);
        if (Xmi_Rename->Rename(&Req,Arg.Path,Arg.Opaque,Arg.Path2,Arg.Opaque2))
           return 0;
       }
@@ -863,7 +863,7 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 // If we have an Xmi then call it
 //
    if (Xmi_Remove)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
+      {XrdCmsReq Req(this, Arg.Request.streamid, Arg.Request.modifier & kYR_dnf);
        if (Xmi_Remove->Remove(&Req, Arg.Path, Arg.Opaque)) return 0;
       }
 
@@ -919,7 +919,7 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 // If we have an Xmi then call it
 //
    if (Xmi_Remdir)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
+      {XrdCmsReq Req(this, Arg.Request.streamid, Arg.Request.modifier & kYR_dnf);
        if (Xmi_Remdir->Remdir(&Req, Arg.Path, Arg.Opaque)) return 0;
       }
 
@@ -1665,7 +1665,8 @@ int XrdCmsNode::isOnline(char *path, int upt) // Static!!!
            times.modtime = buf.st_mtime;
            utime(lclpath, &times);
           }
-       return CmsHaveRequest::Online;
+       return (buf.st_mode & S_ISUID ? CmsHaveRequest::Pending
+                                     : CmsHaveRequest::Online);
       }
 
 // Determine what to return
