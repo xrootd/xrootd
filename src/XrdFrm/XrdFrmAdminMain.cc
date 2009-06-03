@@ -48,7 +48,7 @@ Where:
 #include <stdio.h>
 #include <sys/param.h>
 
-#ifdef HAS_READLINE
+#ifdef HAVE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
 #endif
@@ -90,7 +90,7 @@ using namespace XrdFrm;
 /*                              r e a d l i n e                               */
 /******************************************************************************/
 
-#ifndef HAS_READLINE
+#ifndef HAVE_READLINE
 
 // replacement function for GNU readline
 //
