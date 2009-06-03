@@ -33,7 +33,7 @@ noinst_LTLIBRARIES = libXrdFrm.la
 #############################################################################
 ## Build rules
 
-AM_CPPFLAGS = -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/src $(READLINE_INCDIR)
 
 libXrdFrm_la_SOURCES = \
                   XrdFrmAdminAudit.cc  \
@@ -57,7 +57,7 @@ libXrdFrm_la_LIBADD = \
                   ../XrdOuc/libXrdOuc.la     \
                   ../XrdSys/libXrdSys.la     \
                   ../XrdCms/libXrdCms.la     \
-                  ../Xrd/libXrd.la
+                  ../Xrd/libXrd.la $(READLINE_LIBDIR) $(READLINE_LIBS)
 
 frm_admin_SOURCES = XrdFrmAdmin.cc \
                     ../XrdXrootd/XrdXrootdMonitor.cc
