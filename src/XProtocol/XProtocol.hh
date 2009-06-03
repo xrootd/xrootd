@@ -136,7 +136,7 @@ enum XOpenRequestOption {
    kXR_open_apnd= 512,
    kXR_retstat  = 1024,
    kXR_replica  = 2048,
-   kXR_ulterior = 4096,
+   kXR_posc     = 4096,
    kXR_nowait   = 8192,
    kXR_seqio    =16384
 };
