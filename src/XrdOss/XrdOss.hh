@@ -42,6 +42,7 @@ virtual int     Opendir(const char *)                        {return -ENOTDIR;}
 virtual int     Readdir(char *buff, int blen)                {return -ENOTDIR;}
 
                 // File oriented methods
+virtual int     Fchmod(mode_t mode)                          {return -EISDIR;}
 virtual int     Fstat(struct stat *)                         {return -EISDIR;}
 virtual int     Fsync()                                      {return -EISDIR;}
 virtual int     Fsync(XrdSfsAio *aiop)                       {return -EISDIR;}

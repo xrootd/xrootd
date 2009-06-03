@@ -581,7 +581,9 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
           {close(fd); fd = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
        if (Oflag & (O_WRONLY | O_RDWR))
           {FSize = buf.st_size; cacheP = XrdOssCache::Find(local_path);}
-          else {FSize = -1; cacheP = 0;}
+          else {if (buf.st_mode & S_ISUID && fd >= 0) {close(fd); fd=-ETXTBSY;}
+                FSize = -1; cacheP = 0;
+               }
       } else if (fd == -EEXIST)
                 {do {retc = stat(local_path,&buf);} while(retc && errno==EINTR);
                  if (!retc && (buf.st_mode & S_IFDIR)) fd = -EISDIR;
@@ -754,7 +756,24 @@ ssize_t XrdOssFile::Write(const void *buff, off_t offset, size_t blen)
 }
 
 /******************************************************************************/
-/*                                 f s t a t                                  */
+/*                                F c h m o d                                 */
+/******************************************************************************/
+
+/*
+  Function: Sets mode bits for an open file.
+
+  Input:    Mode      - The mode to set.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+*/
+
+int XrdOssFile::Fchmod(mode_t Mode)
+{
+    return (fchmod(fd, Mode) ? -errno : XrdOssOK);
+}
+  
+/******************************************************************************/
+/*                                 F s t a t                                  */
 /******************************************************************************/
 
 /*
@@ -771,7 +790,7 @@ int XrdOssFile::Fstat(struct stat *buff)
 }
 
 /******************************************************************************/
-/*                               f s y n c                                    */
+/*                               F s y n c                                    */
 /******************************************************************************/
 
 /*

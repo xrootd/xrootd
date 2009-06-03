@@ -327,6 +327,7 @@ int XrdXrootdProtocol::do_Close()
 {
    XrdXrootdFile *fp;
    XrdXrootdFHandle fh(Request.close.fhandle);
+   int rc;
 
 // Keep statistics
 //
@@ -347,14 +348,17 @@ int XrdXrootdProtocol::do_Close()
 //
    if (monFILE && Monitor) Monitor->Close(fp->FileID,fp->readCnt,fp->writeCnt);
 
+// Do an explicit close of the file here; reflecting any errors
+//
+   rc = fp->XrdSfsp->close();
+   TRACEP(FS, "close rc=" <<rc <<" fh=" <<fh.handle);
+   if (SFS_OK != rc)
+      return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+
 // Delete the file from the file table; this will unlock/close the file
 //
    FTab->Del(fh.handle);
    numFiles--;
-
-// Respond that all went well
-//
-   TRACEP(FS, "close fh=" <<fh.handle);
    return Response.Send();
 }
 
@@ -901,6 +905,7 @@ int XrdXrootdProtocol::do_Open()
                                        UPSTATS(Refresh);
                                       }
    if (opts & kXR_retstat)            {*op++ = 't'; retStat = 1;}
+   if (opts & kXR_posc)               {*op++ = 'p'; openopts |= SFS_O_POSC;}
    *op = '\0';
    TRACEP(FS, "open " <<opt <<' ' <<fn);
 
@@ -2304,6 +2309,7 @@ int XrdXrootdProtocol::mapError(int rc)
         case ENOTBLK:      return kXR_NotFile;
         case EISDIR:       return kXR_isDirectory;
         case EEXIST:       return kXR_InvalidRequest;
+        case ETXTBSY:      return kXR_inProgress;
         default:           return kXR_FSError;
        }
 }
