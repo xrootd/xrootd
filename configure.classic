@@ -1252,7 +1252,7 @@ fi
 
 ######################################################################
 #
-### echo %%% Check for fstatat
+### echo %%% Check for readline
 #
 if test "x$hasreadline" = "x"; then
    message "Checking for readline"
@@ -1260,11 +1260,13 @@ if test "x$hasreadline" = "x"; then
    if test "x$found_prototype" = "xyes" ; then
       echo "yes"
       hasreadline=" -DHAVE_READLINE"
+      libreadline="-lreadline -lcurses"
    else
       echo "no"
    fi
 else
    hasreadline=" -DHAVE_READLINE"
+   libreadline="-lreadline -lcurses"
 fi
 
 ######################################################################
@@ -2456,6 +2458,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasprotor@|$hasprotor|" \
     -e "s|@hasfstatat@|$hasfstatat|" \
     -e "s|@hasreadline@|$hasreadline|" \
+    -e "s|@libreadline@|$libreadline|" \
     -e "s|@tracedbg@|$tracedbg|" \
     -e "s|@suncache@|$suncache|" \
     -e "s|@perlbin@|$perlbin|" \
