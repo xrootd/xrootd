@@ -1127,6 +1127,7 @@ void PrintUsage() {
            "                  additional sources." << endl;
    cerr << " -x     :         Activate the Xtreme copy algorithm. Use the source hostname to query for " << endl <<
            "                  additional sources." << endl;
+   cerr << " -P     :         request POSC (persist-on-successful-close) processing to create a new file." << endl;
    cerr << " where:" << endl;
    cerr << "   parmname     is the name of an internal parameter" << endl;
    cerr << "   stringvalue  is a string to be assigned to an internal parameter" << endl;
@@ -1205,6 +1206,11 @@ int main(int argc, char**argv) {
 
       if ( (strstr(argv[i], "-F") == argv[i])) {
 	 xrd_wr_flags |= kXR_force;
+	continue;
+      }
+
+      if ( (strstr(argv[i], "-P") == argv[i])) {
+	 xrd_wr_flags |= kXR_posc;
 	continue;
       }
 
