@@ -469,13 +469,17 @@ int XrdXrootdProtocol::do_Endsess()
 // Trace this request
 //
    TRACEP(LOGIN, "endsess " <<sessID.Pid <<':' <<sessID.FD <<'.' <<sessID.Inst
-          <<" rc=" <<rc <<" (" <<strerror(rc) <<")");
+          <<" rc=" <<rc <<" (" <<strerror(rc < 0 ? -rc : EAGAIN) <<")");
 
 // Return result
 //
-   if (rc == EACCES) return Response.Send(kXR_NotAuthorized, "not session owner");
-   if (rc == ESRCH)  return Response.Send(kXR_NotFound, "session not found");
-   if (rc == EBUSY)  return Response.Send(kXR_InvalidRequest, "session is active");
+   if (rc >  0)
+      return (rc = Response.Send(kXR_wait, rc, "session still active")) ? rc:1;
+
+   if (rc == -EACCES)return Response.Send(kXR_NotAuthorized, "not session owner");
+   if (rc == -ESRCH) return Response.Send(kXR_NotFound, "session not found");
+   if (rc == -ETIME) return Response.Send(kXR_Cancelled,"session not ended");
+
    return Response.Send();
 }
 
@@ -2230,7 +2234,7 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
        TRACEI(STALL, Response.ID() <<"delaying client up to " <<ecode <<" sec");
        rc = Response.Send(kXR_waitresp, ecode, eMsg);
        myError.getErrCB()->Done(ecode, &myError);
-       return rc;
+       return (rc ? rc : 1);
       }
 
 // Process the data response
@@ -2245,7 +2249,7 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
    if (rc >= SFS_STALL)
       {SI->stallCnt++;
        TRACEI(STALL, Response.ID() <<"stalling client for " <<rc <<" sec");
-       return Response.Send(kXR_wait, rc, eMsg);
+       return (rc = Response.Send(kXR_wait, rc, eMsg)) ? rc : 1;
       }
 
 // Unknown conditions, report it
