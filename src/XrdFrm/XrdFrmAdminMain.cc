@@ -102,6 +102,9 @@ char *readline(const char *prompt)
    if (!fgets(buff, 4096, stdin) || *buff == '\n' || !strlen(buff)) return 0;
    return strdup(buff);
 }
+
+void    add_history(const char *cLine) {}
+void stifle_history(int hnum) {}
 #endif
 
 /******************************************************************************/
@@ -113,7 +116,7 @@ int main(int argc, char *argv[])
    extern int mainConfig();
    sigset_t myset;
    XrdOucTokenizer Request(0);
-   char *cLine = 0, *Cmd = 0, *CmdArgs;
+   char *cLine = 0, *pLine = 0, *Cmd = 0, *CmdArgs;
    int IMode;
 
 // Turn off sigpipe and host a variety of others before we start any threads
@@ -140,12 +143,22 @@ int main(int argc, char *argv[])
             IMode = 0;
            }
 
+// Set readline history list (keep only 256 lines, max)
+//
+   if (IMode) stifle_history(256);
+
 // Process the request(s)
 //
    do {if (IMode)
           {if (!(cLine = readline("frm_admin> "))) Admin.Quit();
+           if (!pLine || strcmp(pLine, cLine))
+              {add_history(cLine);
+               if (pLine) free(pLine);
+               pLine = strdup(cLine);
+              }
            Request.Attach(cLine);
-           if ((Cmd=Request.GetLine()) && (Cmd=Request.GetToken(&CmdArgs)))
+           if (!Request.GetLine() || !(Cmd=Request.GetToken(&CmdArgs)))
+              Admin.Quit();
            Admin.setArgs(CmdArgs);
           }
        Admin.xeqArgs(Cmd);
