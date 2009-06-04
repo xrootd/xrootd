@@ -130,8 +130,8 @@ $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdInet.hh \
 $(OBJDIR)/XrdPoll.o:   XrdLink.hh       XrdPoll.hh        XrdProtocol.hh   \
                        XrdPoll.cc       XrdPollDev.hh     XrdPollDev.icc \
                                         XrdPollE.hh       XrdPollE.icc  \
-                       XrdPollPoll.hh   XrdPollPoll.icc   XrdScheduler.hh \
-                       XrdTrace.hh     \
+                       XrdPollPoll.hh   XrdPollPoll.icc   XrdProtocol.hh \
+                       XrdScheduler.hh  XrdTrace.hh     \
                        XrdSysError.hh   XrdSysPlatform.hh XrdSysPthread.hh \
                        XrdOucTrace.hh
 	@echo Compiling XrdPoll.cc 

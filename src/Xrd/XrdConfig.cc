@@ -1226,15 +1226,18 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 
 /* Function: xtmo
 
-   Purpose:  To parse directive: timeout [read <msd>] [idle <msi>] [hail <msh>]
+   Purpose:  To parse directive: timeout [read <msd>] [hail <msh>]
+                                         [idle <msi>] [kill <msk>]
 
              <msd>    is the maximum number of seconds to wait for pending
                       data to arrive before we reschedule the link
                       (default is 5 seconds).
-             <msi>    is the minimum number of seconds a connection may remain
-                      idle before it is closed (default is 5400 = 90 minutes)
              <msh>    is the maximum number of seconds to wait for the initial
                       data after a connection  (default is 30 seconds)
+             <msi>    is the minimum number of seconds a connection may remain
+                      idle before it is closed (default is 5400 = 90 minutes)
+             <msk>    is the minimum number of seconds to wait after killing a
+                      connection for it to end (default is 3 seconds)
 
    Output: 0 upon success or 1 upon failure.
 */
@@ -1243,14 +1246,15 @@ int XrdConfig::xtmo(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
     int  i, ppp, rc;
-    int  V_read = -1, V_idle = -1, V_hail = -1;
+    int  V_read = -1, V_idle = -1, V_hail = -1, V_kill = -1;
     static struct tmoopts { const char *opname; int istime; int minv;
                             int  *oploc;  const char *etxt;}
            tmopts[] =
        {
         {"read",       1, 1, &V_read, "timeout read"},
         {"hail",       1, 1, &V_hail, "timeout hail"},
-        {"idle",       1, 0, &V_idle, "timeout idle"}
+        {"idle",       1, 0, &V_idle, "timeout idle"},
+        {"kill",       1, 0, &V_kill, "timeout kill"}
        };
     int numopts = sizeof(tmopts)/sizeof(struct tmoopts);
 
@@ -1284,6 +1288,7 @@ int XrdConfig::xtmo(XrdSysError *eDest, XrdOucStream &Config)
    if (V_read >  0) ProtInfo.readWait = V_read*1000;
    if (V_hail >= 0) ProtInfo.hailWait = V_hail*1000;
    if (V_idle >= 0) ProtInfo.idleWait = V_idle;
+   XrdLink::setKWT(V_read, V_kill);
    return 0;
 }
   
