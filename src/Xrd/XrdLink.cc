@@ -756,8 +756,8 @@ int XrdLink::Send(const struct sfVec *sfP, int sfN)
       }
 
 #ifdef __solaris__
-    sendfilevec_t vecSF[sfMax];
-    size_t xframt, bytes = 0;
+    sendfilevec_t vecSF[sfMax], *vecSFP = vecSF;
+    size_t xframt, totamt, bytes = 0;
     ssize_t retc;
     int i = 0;
 
@@ -775,6 +775,7 @@ int XrdLink::Send(const struct sfVec *sfP, int sfN)
         vecSF[i].sfv_len  = sfP->sendsz;
         bytes += sfP->sendsz;
        }
+   totamt = bytes;
 
 // Lock the link, issue sendfilev(), and unlock the link. The documentation
 // is very spotty and inconsistent. We can only retry this operation under
@@ -782,7 +783,7 @@ int XrdLink::Send(const struct sfVec *sfP, int sfN)
 //
    wrMutex.Lock();
    isIdle = 0;
-   do {retc = sendfilev(FD, vecSF, sfN, &xframt);}
+do{do {retc = sendfilev(FD, vecSFP, sfN, &xframt);}
       while ((retc < 0 && errno == EINTR) || !retc);
 
 // Check if all went well and return if so (usual case)
@@ -790,14 +791,25 @@ int XrdLink::Send(const struct sfVec *sfP, int sfN)
    if (retc == bytes)
       {BytesOut += bytes;
        wrMutex.UnLock();
-       return bytes;
+       return totamt;
       }
+
+// See if we can resume the transfer
+//
+   if (retc <= 0 || !sfN) break;
+   BytesOut += retc; bytes -= retc;
+   while(retc > 0 && sfN)
+       {if (retc < (ssize_t)vecSFP->sfv_len)
+           {vecSFP->sfv_off += retc; vecSFP->sfv_len -= retc; break;}
+        retc -= vecSFP->sfv_len; vecSFP++; sfN--;
+       }
+  } while(sfN > 0);
 
 // See if we can recover without destroying the connection
 //
+   retc = (retc < 0 ? errno : ECANCELED);
    wrMutex.UnLock();
-   if (retc >= 0) errno = ECANCELED;
-   XrdLog.Emsg("Link", errno, "send file to", ID);
+   XrdLog.Emsg("Link", retc, "send file to", ID);
    return -1;
 
 #elif defined(__linux__)
