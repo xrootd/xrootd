@@ -289,8 +289,7 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
    XrdOssCache_FS *fsp, *fspend, *fsp_sel;
    XrdOssCache_Group *cgp = 0;
    long long size, maxfree, curfree;
-   char *pfnSfx;
-   int rc, datfd = 0;
+   int rc, madeDir, datfd = 0;
 
 // Compute appropriate allocation size
 //
@@ -345,10 +344,12 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
 // Simply open the file in the local filesystem, creating it if need be.
 //
    if (aInfo.aMode)
-      {do {do {datfd = open(aInfo.cgPFbf,O_CREAT|O_TRUNC|O_WRONLY,aInfo.aMode);}
+      {madeDir = 0;
+       do {do {datfd = open(aInfo.cgPFbf,O_CREAT|O_TRUNC|O_WRONLY,aInfo.aMode);}
                while(datfd < 0 && errno == EINTR);
-           if (datfd >= 0 || errno != ENOENT || !pfnSfx) break;
+           if (datfd >= 0 || errno != ENOENT || madeDir) break;
            *Info.Slash='\0'; rc=mkdir(aInfo.cgPFbf,theMode); *Info.Slash='/';
+           madeDir = 1;
           } while(!rc);
        if (datfd < 0) return (errno ? -errno : -ENOSYS);
       }
