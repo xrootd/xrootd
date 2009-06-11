@@ -134,7 +134,7 @@ char *XrdOucArgs::getarg()
   
 char XrdOucArgs::getopt()
 {
-   char optbuff[3] = {'-', 'x', '\0'}, *optspec, *arglist, *optname;
+   char optbuff[3] = {'-', 'x', '\0'}, *optspec, *arglist, *optname = 0;
 
 // Check if we really have any more options
 //

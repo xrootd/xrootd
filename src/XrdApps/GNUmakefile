@@ -46,4 +46,4 @@ $(XRDADLER32_OBJ): Xrdadler32.cc \
                    XrdClient.hh         XrdClientEnv.hh \
                    XrdClientAdmin.hh \
                    XrdOucString.hh
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(XRDADLER32_OBJ) Xrdadler32.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(XRDADLER32_OBJ) Xrdadler32.cc
