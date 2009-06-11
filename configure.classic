@@ -939,6 +939,9 @@ if test "x$platform" = "xmacosx" ; then
       echo "$macosx_major.$macosx_minor: OS version not supported (must be >= 10.3). Sorry."
       exit 1
    fi
+   if test "x$nccflv" = "xicc" ; then
+      nccflv="macosicc"
+   fi
 fi
 
 #
