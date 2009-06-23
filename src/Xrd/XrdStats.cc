@@ -21,12 +21,15 @@ const char *XrdStatsCVSID = "$Id$";
   
 #include "XrdVersion.hh"
 #include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdJob.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
+#include "XrdNet/XrdNetMsg.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
@@ -35,6 +38,27 @@ const char *XrdStatsCVSID = "$Id$";
 extern XrdBuffManager    XrdBuffPool;
 
 extern XrdScheduler      XrdSched;
+
+/******************************************************************************/
+/*               L o c a l   C l a s s   X r d S t a t s J o b                */
+/******************************************************************************/
+  
+class XrdStatsJob : XrdJob
+{
+public:
+
+     void DoIt() {Stats->Report();
+                  XrdSched.Schedule((XrdJob *)this, time(0)+iVal);
+                 }
+
+          XrdStatsJob(XrdStats *sP, int iV) : XrdJob("stats reporter"),
+                                              Stats(sP), iVal(iV)
+                     {XrdSched.Schedule((XrdJob *)this, time(0)+iVal);}
+         ~XrdStatsJob() {}
+private:
+XrdStats *Stats;
+int       iVal;
+};
 
 /******************************************************************************/
 /*                           C o n s t r c u t o r                            */
@@ -50,21 +74,69 @@ XrdStats::XrdStats(const char *hname, int port)
 }
  
 /******************************************************************************/
+/*                                R e p o r t                                 */
+/******************************************************************************/
+  
+void XrdStats::Report(char **Dest, int iVal, int Opts)
+{
+   extern XrdSysError XrdLog;
+   static XrdNetMsg *netDest[2] = {0,0};
+   static int autoSync, repOpts = Opts;
+   XrdJob *jP;
+   const char *Data;
+          int theOpts, Dlen;
+
+// If we have dest then this is for initialization
+//
+   if (Dest)
+   // Establish up to two destinations
+   //
+      {if (Dest[0]) netDest[0] = new XrdNetMsg(&XrdLog, Dest[0]);
+       if (Dest[1]) netDest[1] = new XrdNetMsg(&XrdLog, Dest[1]);
+       if (!(repOpts & XRD_STATS_ALL)) repOpts |= XRD_STATS_ALL;
+       autoSync = repOpts & XRD_STATS_SYNCA;
+
+   // Get and schedule a new job to report (ignore the jP pointer afterwards)
+   //
+      if (netDest[0]) jP = (XrdJob *)new XrdStatsJob(this, iVal);
+       return;
+      }
+
+// This is a re-entry for reporting purposes, establish the sync flag
+//
+   if (!autoSync || XrdSched.Active() <= 30) theOpts = repOpts;
+      else theOpts = repOpts & ~XRD_STATS_SYNC;
+
+// Now get the statistics
+//
+   Lock();
+   if ((Data = Stats(theOpts)))
+      {Dlen = strlen(Data);
+       netDest[0]->Send(Data, Dlen);
+       if (netDest[1]) netDest[1]->Send(Data, Dlen);
+      }
+   UnLock();
+}
+
+/******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
   
 const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 {
-#define XRDSHEAD "<statistics tod=\"%ld\" ver=\"" XrdVSTRING "\">"
-#define XRDSTAIL "</statistics>"
-#define XRDSNULL "<statistics tod=\"0\" ver=\"" XrdVSTRING "\">" XRDSTAIL
+   static const char *head =
+          "<statistics tod=\"%ld\" ver=\"" XrdVSTRING "\">";
+   static const char *sgen = "<stats id=\"sgen\" syn=\"%d\">"
+                             "<et>%lu</et></stats>";
+   static const char *tail = "</statistics>";
+   static const char *snul = 
+          "<statistics tod=\"0\" ver=\"" XrdVSTRING "\"></statistics>";
 
    static XrdProtLoad Protocols;
-   static const char head[] = XRDSHEAD;
-   static const char tail[] = XRDSTAIL;
-   static const int  ovrhed = strlen(head)+16+sizeof(XrdVSTRING)+strlen(tail);
+   static const int  ovrhed = strlen(head)+256+strlen(sgen)+strlen(tail);
+   XrdSysTimer myTimer;
    char *bp;
-   int   bl, sz, do_sync = opts & XRD_STATS_SYNC;
+   int   bl, sz, do_sync = (opts & XRD_STATS_SYNC ? 1 : 0);
 
 // If buffer is not allocated, do it now. We must defer buffer allocation
 // until all components that can provide statistics have been loaded
@@ -72,9 +144,13 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
    if (!(bp = buff))
       {bl = Protocols.Stats(0,0) + ovrhed;
        if (getBuff(bl)) bp = buff;
-          else return XRDSNULL;
+          else return snul;
       }
    bl = blen;
+
+// Start the time if need be
+//
+   if (opts & XRD_STATS_SGEN) myTimer.Reset();
 
 // Insert the heading
 //
@@ -118,7 +194,14 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
        bp += sz; bl -= sz;
       }
 
-   strcpy(bp, tail);
+   if (opts & XRD_STATS_SGEN)
+      {unsigned long totTime = 0;
+       myTimer.Report(totTime);
+       sz = snprintf(bp, bl, sgen, do_sync, totTime/1000);
+       bp += sz; bl -= sz;
+      }
+
+   strlcpy(bp, tail, bl);
    return buff;
 }
  

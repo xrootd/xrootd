@@ -160,6 +160,10 @@ XrdConfig::XrdConfig(void)
    Wan_Blen = 1024*1024; // Default window size 1M
    Wan_Opts = 0;
    setSched = 1;
+   repDest[0] = 0;
+   repDest[1] = 0;
+   repInt     = 600;
+   repOpts    = 0;
 
    Firstcp = Lastcp = 0;
 
@@ -425,6 +429,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("allow",         xallow);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
+   TS_Xeq("report",        xrep);
    TS_Xeq("timeout",       xtmo);
    }
 
@@ -734,6 +739,11 @@ int XrdConfig::Setup(char *dfltp)
    PortTCP = ProtInfo.Port;
    sprintf(portbuff, "XRDPORT=%d", PortTCP);
    putenv(portbuff);
+
+// Now check if we have to setup automatic reporting
+//
+   if (repDest[0] != 0 && repOpts) 
+      ProtInfo.Stats->Report(repDest, repInt, repOpts);
 
 // All done
 //
@@ -1125,6 +1135,115 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
        }
 
     return 0;
+}
+
+/******************************************************************************/
+/*                                  x r e p                                   */
+/******************************************************************************/
+  
+/* Function: xrep
+
+   Purpose:  To parse the directive: report <dest1>[,<dest2>]
+                                            [every <sec>] <opts>
+
+             <dest1>   where a UDP based report is to be sent. It may be a
+                       <host:port> or a local named UDP pipe (i.e., "/...").
+
+             <dest2>   A secondary destination.
+
+             <sec>     the reporting interval. The default is 10 minutes.
+
+             <opts>    What to report. "all" is the default.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
+{
+   static struct repopts {const char *opname; int opval;} rpopts[] =
+       {
+        {"all",      XRD_STATS_ALL},
+        {"buff",     XRD_STATS_BUFF},
+        {"info",     XRD_STATS_INFO},
+        {"link",     XRD_STATS_LINK},
+        {"poll",     XRD_STATS_POLL},
+        {"process",  XRD_STATS_PROC},
+        {"protocols",XRD_STATS_PROT},
+        {"prot",     XRD_STATS_PROT},
+        {"sched",    XRD_STATS_SCHD},
+        {"sgen",     XRD_STATS_SGEN},
+        {"sync",     XRD_STATS_SYNC},
+        {"syncwp",   XRD_STATS_SYNCA}
+       };
+   int i, neg, numopts = sizeof(rpopts)/sizeof(struct repopts);
+   char  *val, *cp;
+
+   if (!(val = Config.GetWord()))
+      {eDest->Emsg("Config", "report parameters not specified"); return 1;}
+
+// Cleanup to start anew
+//
+   if (repDest[0]) {free(repDest[0]); repDest[0] = 0;}
+   if (repDest[1]) {free(repDest[1]); repDest[1] = 0;}
+   repOpts = 0;
+   repInt  = 600;
+
+// Decode the destination
+//
+   if ((cp = (char *)index(val, ',')))
+      {if (!*(cp+1))
+          {eDest->Emsg("Config","malformed report destination -",val); return 1;}
+          else { repDest[1] = cp+1; *cp = '\0';}
+      }
+   repDest[0] = val;
+   for (i = 0; i < 2; i++)
+       {if (!(val = repDest[i])) break;
+        if (*val != '/' && (!(cp = index(val, (int)':')) || !atoi(cp+1)))
+           {eDest->Emsg("Config","report dest port missing or invalid in",val);
+            return 1;
+           }
+        repDest[i] = strdup(val);
+       }
+
+// Make sure dests differ
+//
+   if (repDest[0] && repDest[1] && !strcmp(repDest[0], repDest[1]))
+      {eDest->Emsg("Config", "Warning, report dests are identical.");
+       free(repDest[1]); repDest[1] = 0;
+      }
+
+// Get optional "every"
+//
+   if (!(val = Config.GetWord())) {repOpts = XRD_STATS_ALL; return 0;}
+   if (!strcmp("every", val))
+      {if (!(val = Config.GetWord()))
+          {eDest->Emsg("Config", "report every value not specified"); return 1;}
+       if (XrdOuca2x::a2tm(*eDest,"report every",val,&repInt,1)) return 1;
+       val = Config.GetWord();
+      }
+
+// Get reporting options
+//
+   while(val)
+        {if (!strcmp(val, "off")) repOpts = 0;
+            else {if ((neg = (val[0] == '-' && val[1]))) val++;
+                  for (i = 0; i < numopts; i++)
+                      {if (!strcmp(val, rpopts[i].opname))
+                          {if (neg) repOpts &= ~rpopts[i].opval;
+                              else  repOpts |=  rpopts[i].opval;
+                           break;
+                          }
+                      }
+                  if (i >= numopts)
+                     eDest->Say("Config warning: ignoring invalid report option '",val,"'.");
+                 }
+         val = Config.GetWord();
+        }
+
+// All done
+//
+   if (!(repOpts & XRD_STATS_ALL)) repOpts = XRD_STATS_ALL;
+   return 0;
 }
 
 /******************************************************************************/

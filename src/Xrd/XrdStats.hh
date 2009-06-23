@@ -24,11 +24,15 @@
 #define XRD_STATS_PROC   0x00000010
 #define XRD_STATS_PROT   0x00000020
 #define XRD_STATS_SCHD   0x00000040
+#define XRD_STATS_SGEN   0x00000080
 #define XRD_STATS_SYNC   0x40000000
+#define XRD_STATS_SYNCA  0x20000000
 
 class XrdStats
 {
 public:
+
+void  Report(char **Dest=0, int iVal=600, int Opts=0);
 
 void  Lock() {statsMutex.Lock();}       // Call before doing Stats()
 
