@@ -1410,7 +1410,7 @@ bool XrdClientConn::DoLogin()
 #endif
     }
     if (User.length() > 0)
-	strcpy( (char *)reqhdr.login.username, User.c_str() );
+      strncpy( (char *)reqhdr.login.username, User.c_str(), 8 );
     else
 	strcpy( (char *)reqhdr.login.username, "????" );
 
@@ -1587,7 +1587,7 @@ bool XrdClientConn::DoLogin()
 	    // No session info? Let's create one.
 	    SessionIDInfo *newsessid = new SessionIDInfo;
 
-	    for (int i=0; i < int(sizeof(prevsessid->id)); i++)
+	    for (int i=0; i < int(sizeof(newsessid->id)); i++)
 		newsessid->id[i] = plist[i];
 
 	    fSessionIDRepo.Rep(sessname.c_str(), newsessid);
