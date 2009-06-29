@@ -324,14 +324,31 @@ void *ReaderThread_xrd_xtreme(void *parm)
          }
 
          //cout << "cli: " << thrnfo->clientidx << "     read: " << lr << " offs: " << blknfo->offs << " len: " << blknfo->len << endl;
+
+         // It is very important that the search for a blk to read starts from the first block upwards
          nr = thrnfo->cli->Read(buf, blknfo->offs, blknfo->len);
          if ( nr >= 0 ) {
-            thrnfo->cli->RemoveDataFromCache(blknfo->offs, blknfo->offs+blknfo->len-1, false);
             lastread = lr;
             noutstanding--;
             cpnfo.queue.PutBuffer(buf, blknfo->offs, nr);
-            thrnfo->xtrdhandler->MarkBlkAsRead(lr);
+
+            // If this block was stolen by somebody else then this client has to be penalized
+            // If this client stole the blk to some other client, then this client has to be rewarded
+            int reward = thrnfo->xtrdhandler->MarkBlkAsRead(lr);
+            if (reward > 0) {
+               thrnfo->maxoutstanding++;
+               thrnfo->cli->SetCacheParameters(XRDCP_BLOCKSIZE*4*thrnfo->maxoutstanding*2, 0, XrdClientReadCache::kRmBlk_FIFO);
+            }
+            if (reward < 0) thrnfo->maxoutstanding--;
+            if (thrnfo->maxoutstanding <= 0) {
+               sleep(1);
+               thrnfo->maxoutstanding = 1;
+            }
+
          }
+
+         // It is very important that the search for a blk to read starts from the first block upwards
+         thrnfo->cli->RemoveDataFromCache(blknfo->offs, blknfo->offs+blknfo->len-1, false);
       }
       else {
 
@@ -568,7 +585,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
          nfo->cli = xtremeclients[iii];
          nfo->clientidx = xrdxtrdfile->GimmeANewClientIdx();
          nfo->startfromblk = iii*xrdxtrdfile->GetNBlks() / xtremeclients.GetSize();
-         nfo->maxoutstanding = xrdmin( 3, xrdxtrdfile->GetNBlks() / xtremeclients.GetSize() );
+         nfo->maxoutstanding = xrdmin( 5, xrdxtrdfile->GetNBlks() / xtremeclients.GetSize() );
 
          XrdSysThread::Run(&myTID, ReaderThread_xrd_xtreme, (void *)nfo);
          myTIDVec.Push_back(myTID);
