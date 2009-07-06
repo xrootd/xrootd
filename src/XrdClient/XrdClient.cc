@@ -112,7 +112,6 @@ XrdClient::~XrdClient()
 
    fOpenProgCnd->UnLock(); 
 
-
    if (fConnModule)
       delete fConnModule;
 
@@ -759,7 +758,7 @@ bool XrdClient::Write(const void *buf, long long offset, int len) {
     // Rather unfortunate but happens. One more weird metaphor of life?!?!?
     if (!fConnModule->DoWriteSoftCheckPoint()) return false;
 
-    fConnModule->RemoveDataFromCache(offset, offset+len+1, true);
+    fConnModule->RemoveDataFromCache(offset, offset+len-1, true);
 
     XrdClientVector<XrdClientMStream::ReadChunk> rl;
     XrdClientMStream::SplitReadRequest(fConnModule, offset, len, rl);
@@ -1427,6 +1426,10 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 			// purged
 			fConnModule->UnPinCacheBlk(req->write.offset, req->write.offset+req->header.dlen);
 
+                        // A bit cpu consuming... need to optimize this
+                        if (EnvGetLong(NAME_PURGEWRITTENBLOCKS))
+                           fConnModule->RemoveDataFromCache(req->write.offset, req->write.offset+req->header.dlen-1, true);
+
 		      // This streamid will be released
 		      return kUNSOL_DISPOSE;
 		    }
@@ -1441,7 +1444,7 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 		    case kXR_read: {
                         // We invalidate the whole request in the cache
 	    
-			Info(XrdClientDebug::kHIDEBUG, "ProcessUnsolicitedMsg",
+			Error("ProcessUnsolicitedMsg",
 			     "Got a kxr_read error. Req offset=" <<
 			     req->read.offset <<
 			     " len=" <<
@@ -1482,6 +1485,49 @@ UnsolRespProcResult XrdClient::ProcessUnsolicitedMsg(XrdClientUnsolMsgSender *se
 
 			break;
 		    }
+                    case kXR_write: {
+                       Error("ProcessUnsolicitedMsg",
+                              "Got a kxr_write error. Req offset=" <<
+                             req->write.offset <<
+                             " len=" <<
+                             req->write.dlen);
+                     
+  
+                       // Print out the error information, as received by the server	
+                       struct ServerResponseBody_Error *body_err;
+                       body_err = (struct ServerResponseBody_Error *)(unsolmsg->GetData());
+                       if (body_err) {
+                          Info(XrdClientDebug::kNODEBUG, "ProcessUnsolicitedMsg", "Server declared: " <<
+                               (const char*)body_err->errmsg << "(error code: " << ntohl(body_err->errnum) << ") writing " <<
+                               req->write.dlen << "@" << req->write.offset);
+                       
+                          // Save the last error received
+                          memset(&fConnModule->LastServerError, 0, sizeof(fConnModule->LastServerError));
+                          memcpy(&fConnModule->LastServerError, body_err,
+                                 xrdmin(sizeof(fConnModule->LastServerError), (unsigned)unsolmsg->DataLen()) );
+                          fConnModule->LastServerError.errnum = ntohl(body_err->errnum);
+                       
+                          // Mark the request as an error. It will be catched by the next write soft checkpoint
+                          ConnectionManager->SidManager()->ReportSidResp(unsolmsg->HeaderSID(),
+                                                                         unsolmsg->GetStatusCode(),
+                                                                         ntohl(body_err->errnum),
+                                                                         body_err->errmsg);
+                       }
+                       else
+                          ConnectionManager->SidManager()->ReportSidResp(unsolmsg->HeaderSID(),
+                                                                         unsolmsg->GetStatusCode(),
+                                                                         kXR_noErrorYet,
+                                                                         0);
+
+                       // Awaken all the waiting threads, some of them may be interested
+                       fReadWaitData->Broadcast();
+                       
+                       // This streamid must be kept as pending. It will be handled by the subsequent
+                       // write checkpoint
+                       return kUNSOL_KEEP;
+
+                       break;
+                    }
 
                     } // switch
                 } // else

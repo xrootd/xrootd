@@ -80,7 +80,6 @@ XrdClientReadCache::XrdClientReadCache() : fItems(16384)
 XrdClientReadCache::~XrdClientReadCache()
 {
   // Destructor
-
   RemoveItems(false);
 
 }

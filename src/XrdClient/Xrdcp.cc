@@ -337,6 +337,7 @@ void *ReaderThread_xrd_xtreme(void *parm)
             int reward = thrnfo->xtrdhandler->MarkBlkAsRead(lr);
             if (reward > 0) {
                thrnfo->maxoutstanding++;
+               thrnfo->maxoutstanding = xrdmin(20, thrnfo->maxoutstanding);
                thrnfo->cli->SetCacheParameters(XRDCP_BLOCKSIZE*4*thrnfo->maxoutstanding*2, 0, XrdClientReadCache::kRmBlk_FIFO);
             }
             if (reward < 0) thrnfo->maxoutstanding--;
@@ -1184,7 +1185,8 @@ int main(int argc, char**argv) {
    EnvPutInt( NAME_READAHEADSIZE, XRDCP_XRDRASIZE);
    EnvPutInt( NAME_READCACHESIZE, 3*XRDCP_XRDRASIZE );
    EnvPutInt( NAME_READCACHEBLKREMPOLICY, XrdClientReadCache::kRmBlk_LeastOffs );
-//   EnvPutInt(NAME_REMUSEDCACHEBLKS, 1);
+   EnvPutInt( NAME_PURGEWRITTENBLOCKS, 1 );
+
 
    EnvPutInt( NAME_DEBUG, -1);
 
@@ -1326,12 +1328,6 @@ int main(int argc, char**argv) {
 
 	 cerr << "Set " << NAME_MULTISTREAMCNT << " to " <<
 	   EnvGetLong(NAME_MULTISTREAMCNT) << endl;
-
-	 // For the multistream we need to enable the cache.
-	 // Note that the cache is emptied as new blocks arrive. The memory usage
-	 // will never grow up to this level since it's used only for temporary
-	 // placement of arriving blocks.
-	 //EnvPutInt( NAME_READCACHESIZE, 50000000 );
 
          i++;
          continue;
