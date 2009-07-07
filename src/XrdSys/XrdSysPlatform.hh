@@ -77,31 +77,11 @@ typedef off_t offset_t;
 
 #define GTZ_NULL (void *)0
 
-#define GETHOSTBYNAME(hname, rbuff, cbuff, cblen, rpnt, pretc) \
-(rpnt=gethostbyname_r(hname, rbuff, cbuff, cblen,       pretc))
-
-
-#define GETHOSTBYADDR(haddr, hlen, htype, rbuff, cbuff, cblen, rpnt, pretc) \
-(rpnt=gethostbyaddr_r(haddr, hlen, htype, rbuff, cbuff, cblen,       pretc))
-
-#define GETSERVBYNAME(name, stype, psrv, buff, blen, rpnt) \
-(rpnt=getservbyname_r(name, stype, psrv, buff, blen))
-
 #endif
 
 #ifdef __linux__
 
 #define SHMDT_t const void *
-
-#define GETHOSTBYNAME(hname, rbuff, cbuff, cblen,  rpnt, pretc) \
-     (gethostbyname_r(hname, rbuff, cbuff, cblen, &rpnt, pretc) == 0)
-
-#define GETHOSTBYADDR(haddr,hlen,htype,rbuff,cbuff,cblen, rpnt,pretc) \
-     (gethostbyaddr_r(haddr,hlen,htype,rbuff,cbuff,cblen,&rpnt,pretc) == 0)
-
-#define GETSERVBYNAME(name, stype, psrv, buff, blen,  rpnt) \
-     (getservbyname_r(name, stype, psrv, buff, blen, &rpnt) == 0)
-
 #endif
 
 // For alternative platforms
