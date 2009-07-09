@@ -40,7 +40,7 @@ const char *Stats(int opts);
 
 void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
 
-      XrdStats(const char *hn, int port);
+      XrdStats(const char *hn, int port, const char *in);
      ~XrdStats() {if (buff) free(buff);}
 
 private:
@@ -53,6 +53,7 @@ XrdSysMutex statsMutex;
 
 char       *buff;        // Used by all callers
 int         blen;
+const char *myName;
 const char *myHost;
 int         myPort;
 int         myPid;

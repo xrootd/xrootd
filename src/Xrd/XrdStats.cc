@@ -64,8 +64,9 @@ int       iVal;
 /*                           C o n s t r c u t o r                            */
 /******************************************************************************/
   
-XrdStats::XrdStats(const char *hname, int port)
+XrdStats::XrdStats(const char *hname, int port, const char *iname)
 {
+   myName = iname;
    myHost = hname;
    myPort = port;
    myPid  = getpid();
@@ -126,8 +127,8 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 {
    static const char *head =
           "<statistics tod=\"%ld\" ver=\"" XrdVSTRING "\">";
-   static const char *sgen = "<stats id=\"sgen\" syn=\"%d\">"
-                             "<et>%lu</et></stats>";
+   static const char *sgen = "<stats id=\"sgen\">"
+                             "<as>%d</as><et>%lu</et></stats>";
    static const char *tail = "</statistics>";
    static const char *snul = 
           "<statistics tod=\"0\" ver=\"" XrdVSTRING "\"></statistics>";
@@ -197,7 +198,7 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
    if (opts & XRD_STATS_SGEN)
       {unsigned long totTime = 0;
        myTimer.Report(totTime);
-       sz = snprintf(bp, bl, sgen, do_sync, totTime/1000);
+       sz = snprintf(bp, bl, sgen, do_sync == 0, totTime/1000);
        bp += sz; bl -= sz;
       }
 
@@ -238,7 +239,7 @@ int XrdStats::getBuff(int xtra)
 int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"info\"><host>%s</host>"
-                     "<port>%d</port></stats>";
+                     "<port>%d</port><name>%s</name></stats>";
 
 // Check if actual length wanted
 //
@@ -246,7 +247,7 @@ int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 
 // Format the statistics
 //
-   return snprintf(bfr, bln, statfmt, myHost, myPort);
+   return snprintf(bfr, bln, statfmt, myHost, myPort, myName);
 }
  
 /******************************************************************************/
