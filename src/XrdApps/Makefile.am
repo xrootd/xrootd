@@ -18,7 +18,7 @@
 #############################################################################
 ## deliverables
 
-bin_PROGRAMS = xrdadler32
+bin_PROGRAMS = xrdadler32 mpxstats
 
 
 #############################################################################
@@ -35,3 +35,12 @@ xrdadler32_LDADD = \
                        ../XrdSys/libXrdSys.la
 
 xrdadler32_LDFLAGS = -static -export-dynamic -ldl -lz
+
+xrdmpxstats_SOURCES = XrdMpxStats.cc
+
+xrdmpxstats_LDADD = \
+                       ../XrdNet/libXrdNet.la   \
+                       ../XrdOuc/libXrdOuc.la     \
+                       ../XrdSys/libXrdSys.la
+
+xrdmpxstats_LDFLAGS = -static -export-dynamic

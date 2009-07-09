@@ -11,12 +11,16 @@ BINLIBS = $(LIBDIR)/libXrdPosix.a $(LIBDIR)/libXrdClient.a $(LIBDIR)/libXrdCrypt
           $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdNet.a \
           $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a 
 
+XRDMPXLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys
+XRDMPXOBJ  = $(OBJDIR)/XrdMpxStats.o
+XRDMPXBIN  = $(BINDIR)/mpxstats
+
 XRDADLERLIBS = $(PTHREAD) $(LIBS) $(LIBM) $(LIBZ)
 
 XRDADLER32_OBJ = $(OBJDIR)/Xrdadler32.o
 XRDADLER32 = $(BINDIR)/xrdadler32
 
-TARGETS = $(XRDADLER32)
+TARGETS = $(XRDADLER32) $(XRDMPXBIN)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                           -
@@ -26,6 +30,7 @@ vpath XrdClient% ../XrdClient
 vpath XrdNet%    ../XrdNet
 vpath XrdOuc%    ../XrdOuc
 vpath XrdPosix%  ../XrdPosix
+vpath XrdSys%    ../XrdSys
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -46,4 +51,17 @@ $(XRDADLER32_OBJ): Xrdadler32.cc \
                    XrdClient.hh         XrdClientEnv.hh \
                    XrdClientAdmin.hh \
                    XrdOucString.hh
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(XRDADLER32_OBJ) Xrdadler32.cc
+	@echo Compiling Xrdadler32.cc 
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(XRDADLER32_OBJ) Xrdadler32.cc
+
+$(XRDMPXBIN): $(XRDMPXOBJ)
+	@echo Creating executable $(XRDMPXBIN)
+	$(ECHO)$(LD) $(LDOP) $(XRDMPXOBJ) $(XRDMPXLIBS) $(LIBS) -o $(XRDMPXBIN)
+
+$(XRDMPXOBJ): XrdMpxStats.cc \
+              XrdNetDNS.hh       XrdNetSocket.hh   XrdNetOpts.hh \
+              XrdOucTokenizer.hh \
+              XrdSysError.hh     XrdSysLogger.hh \
+              XrdSysHeaders.hh   XrdSysPlatform.hh XrdSysPthread.hh
+	@echo Compiling XrdMpxStats.cc 
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(XRDMPXOBJ) XrdMpxStats.cc
