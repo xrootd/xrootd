@@ -36,6 +36,7 @@ const char *XrdOfsConfigCVSID = "$Id$";
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
+#include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
 #include "XrdNet/XrdNetDNS.hh"
@@ -57,6 +58,8 @@ const char *XrdOfsConfigCVSID = "$Id$";
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
+
+extern XrdOfsStats OfsStats;
 
 extern XrdOucTrace OfsTrace;
   
@@ -214,6 +217,10 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
 // the last item in the configuration list as we need a working filesystem.
 //
    if (poscAuto != -1 && !NoGo) NoGo |= ConfigPosc(Eroute);
+
+// Setup statistical monitoring
+//
+   OfsStats.setRole(myRole);
 
 // Display final configuration
 //

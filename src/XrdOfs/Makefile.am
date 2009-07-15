@@ -19,7 +19,7 @@ xrootdofsinc_HEADERS = \
     XrdOfsEvr.hh  XrdOfsEvs.hh  XrdOfsHandle.hh \
     XrdOfsSecurity.hh  XrdOfsTrace.hh  XrdOfsConfig.hh \
     XrdOfsConfig.cc XrdOfsEvs.cc XrdOfsEvr.cc XrdOfsHandle.cc XrdOfs.cc \
-    XrdOfsPoscq.hh
+    XrdOfsPoscq.hh XrdOfsStats.hh
 # Note: the source files above also get installed in the headers directory,
 # so that derived objects of the Ofs can be built. This was originally
 # needed for the ALICE tokenauthz extension.
@@ -30,7 +30,7 @@ libXrdOfs_la_SOURCES = \
         XrdOfsEvr.cc XrdOfsEvr.hh   \
         XrdOfsEvs.cc XrdOfsEvs.hh   \
         XrdOfsHandle.cc XrdOfsHandle.hh \
-        XrdOfsPoscq.cc
+        XrdOfsPoscq.cc  XrdOfsStats.cc
 
 libXrdOfs_la_LIBTOOLFLAGS = --tag=disable-static
 libXrdOfs_la_LDFLAGS = -module
