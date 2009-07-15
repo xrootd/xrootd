@@ -803,7 +803,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
    if (xframt > 0)
       {BytesOut += xframt; bytes -= xframt; SfIntr++;
        while(xframt > 0 && sfN)
-            {if (xframt < (ssize_t)vecSFP->sfv_len)
+            {if ((ssize_t)xframt < (ssize_t)vecSFP->sfv_len)
                 {vecSFP->sfv_off += xframt; vecSFP->sfv_len -= xframt; break;}
              xframt -= vecSFP->sfv_len; vecSFP++; sfN--;
             }

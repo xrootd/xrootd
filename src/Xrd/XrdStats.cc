@@ -143,9 +143,11 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 // until all components that can provide statistics have been loaded
 //
    if (!(bp = buff))
-      {bl = Protocols.Stats(0,0) + ovrhed;
-       if (getBuff(bl)) bp = buff;
-          else return snul;
+      {blen = InfoStats(0,0) + XrdBuffPool.Stats(0,0) + XrdLink::Stats(0,0)
+            + ProcStats(0,0) + XrdSched.Stats(0,0)    + XrdPoll::Stats(0,0)
+            + Protocols.Stats(0,0) + ovrhed;
+       buff = (char *)memalign(getpagesize(), blen+256);
+       if (!(bp = buff)) return snul;
       }
    bl = blen;
 
@@ -209,29 +211,6 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
-/******************************************************************************/
-/*                               g e t B u f f                                */
-/******************************************************************************/
-  
-int XrdStats::getBuff(int xtra)
-{
-
-// Calculate the number of bytes needed for all stats
-//
-   blen  = xtra;
-   blen += XrdBuffPool.Stats(0,0);
-   blen += InfoStats(0,0);
-   blen += XrdLink::Stats(0,0);
-   blen += XrdPoll::Stats(0,0);
-   blen += ProcStats(0,0);
-   blen += XrdSched.Stats(0,0);
-
-// Allocate a buffer of this size
-//
-   buff = (char *)memalign(getpagesize(), blen+256);
-   return buff != 0;
-}
-
 /******************************************************************************/
 /*                             I n f o S t a t s                              */
 /******************************************************************************/

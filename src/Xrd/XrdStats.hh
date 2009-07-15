@@ -45,7 +45,6 @@ void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
 
 private:
 
-int        getBuff(int xtra);
 int        InfoStats(char *buff, int blen, int dosync=0);
 int        ProcStats(char *buff, int blen, int dosync=0);
 
