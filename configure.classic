@@ -17,6 +17,9 @@
 # done directly in the CVS repository so the history of the file did not get   #
 # lost. (D. Feichtinger, G. Ganis)                                             #
 #                                                                              #
+# Jul 15, 2009                                                                 #
+# Added options and functionalities to support the make install process        #
+# (F.Furano)                                                                   #
 ################################################################################
 #                                                                              #
 # A simple configure script.                                                   #
@@ -710,6 +713,16 @@ Advanced options:
    --has-fstatat       Do not check for fstatat
    --has-readline      Do not check for readline
 
+Install-related options:
+
+   --prefix            Base directory where to install everything needed (default is /opt/xrootd)
+   --libdir            Set this to override the placement of the libraries
+   --etcdir            Set this to override the placement of the etc files
+   --bindir            Set this to override the placement of the binaries
+   --utilsdir          Set this to override the placement of the support utils
+   --incdir            Set this to override the placement of the include files
+
+
 Supported Architectures:
 
    Platform        Default  Support Description
@@ -783,6 +796,14 @@ sslshared=""
 altcxx=""
 altld=""
 nccflv="$ccflv"
+
+inst_prefix="/opt/xrootd"
+inst_libdir=""
+inst_etcdir=""
+inst_bindir=""
+inst_utilsdir=""
+inst_incdir=""
+
 if test $# -gt 0 ; then
    while test ! "x$1" = "x" ; do
       case "$1" in
@@ -826,6 +847,12 @@ if test $# -gt 0 ; then
       --with-ssl-libdir=*)     ssllibdir=$optarg     ; enable_ssl="yes"     ;;
       --with-ssl-shared=*)     sslshared=$optarg     ; enable_ssl="yes"     ;;
       --with-thread-libdir=*)  threadlibdir=$optarg  ; enable_thread="yes"  ;;
+      --prefix=*)              inst_prefix=$optarg   ;;
+      --libdir=*)              inst_libdir=$optarg   ;;
+      --etcdir=*)              inst_etcdir=$optarg   ;;
+      --bindir=*)              inst_bindir=$optarg   ;;
+      --utilsdir=*)            inst_utilsdir=$optarg ;;
+      --incdir=*)              inst_incdir=$optarg   ;;
       --with-cxx=*)            altcxx=$optarg        ;;
       --with-ld=*)             altld=$optarg         ;;
       ################################################################
@@ -2454,6 +2481,12 @@ sed -e "s|@arch@|$arch|"                   \
     -e "s|@dbgsfx@|$dbgsfx|g"   \
     -e "s|@dbgmsg@|$dbgmsg|g"   \
     -e "s|@suncache@|$suncache|" \
+    -e "s|@inst_prefix@|$inst_prefix|" \
+    -e "s|@inst_libdir@|$inst_libdir|" \
+    -e "s|@inst_etcdir@|$inst_etcdir|" \
+    -e "s|@inst_bindir@|$inst_bindir|" \
+    -e "s|@inst_utilsdir@|$inst_utilsdir|" \
+    -e "s|@inst_incdir@|$inst_incdir|" \
     < GNUmakefile.tmp > $MAKEOUT
 rm -f GNUmakefile.tmp
 
@@ -2509,7 +2542,14 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasoldhdrs@|$hasoldhdrs|" \
     -e "s|@altcxx@|$altcxx|" \
     -e "s|@altld@|$altld|" \
+    -e "s|@inst_prefix@|$inst_prefix|" \
+    -e "s|@inst_libdir@|$inst_libdir|" \
+    -e "s|@inst_etcdir@|$inst_etcdir|" \
+    -e "s|@inst_bindir@|$inst_bindir|" \
+    -e "s|@inst_utilsdir@|$inst_utilsdir|" \
+    -e "s|@inst_incdir@|$inst_incdir|" \
     < GNUmake.env.tmp > $ENVOUT
+
 rm -f GNUmake.env.tmp
 
 echo "done"

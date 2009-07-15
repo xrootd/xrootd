@@ -36,6 +36,15 @@ LN      = @lnpath@
 
 SUNCACHE= @suncache@
 
+#
+# Envvars influencing what 'make install' does
+export INSTPFX = @inst_prefix@
+export LIBPATH = @inst_libdir@
+export ETCPATH = @inst_etcdir@
+export BINPATH = @inst_bindir@
+export UTILSPATH = @inst_utilsdir@
+export INCPATH = @inst_incdir@
+
 #------------------------------------------------------------------------------#
 #                                  R u l e s                                   #
 #------------------------------------------------------------------------------#
@@ -84,6 +93,10 @@ distclean: FORCE
 	$(ECHO)$(RM) -f src/GNUmake.options
 	$(ECHO)$(RM) -f config.log
 	$(ECHO)$(RM) -f test-comp.*
+
+install: FORCE
+	@echo Installing...
+	$(ECHO) ./makeinstall.sh ./ @inst_prefix@
 
 XrdAcc: FORCE
 	@echo $(XMSG) acc $(XDBG) component...
