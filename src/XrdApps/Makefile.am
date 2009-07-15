@@ -36,11 +36,11 @@ xrdadler32_LDADD = \
 
 xrdadler32_LDFLAGS = -static -export-dynamic -ldl -lz
 
-xrdmpxstats_SOURCES = XrdMpxStats.cc
+mpxstats_SOURCES = XrdMpxStats.cc
 
-xrdmpxstats_LDADD = \
+mpxstats_LDADD = \
                        ../XrdNet/libXrdNet.la   \
                        ../XrdOuc/libXrdOuc.la     \
                        ../XrdSys/libXrdSys.la
 
-xrdmpxstats_LDFLAGS = -static -export-dynamic
+mpxstats_LDFLAGS = -static -export-dynamic
