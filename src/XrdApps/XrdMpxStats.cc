@@ -80,8 +80,8 @@ static const int   vMax = 16;
   
 int XrdMpxVar::Pop(const char *vName)
 {
-    if (Debug) cerr <<"Pop:  " <<vName <<"; var=" <<vBuff <<endl;
-    if (vNum < 0 || strcmp(vStack[vNum], vName)) return 0;
+    if (Debug) cerr <<"Pop:  " <<(vName ? vName : "") <<"; var=" <<vBuff <<endl;
+    if (vNum < 0 || (vName && strcmp(vStack[vNum], vName))) return 0;
     vEnd = vStack[vNum]-1; *vEnd = '\0'; vNum--;
     return 1;
 }
@@ -146,16 +146,14 @@ char    vSfx;
 int XrdMpxXml::Format(const char *Host, char *ibuff, char *obuff)
 {
    static const char *Hdr0 = "<statistics ";
-   static const char *Hdr1 = "<stats ";
    static const int   H0Len = strlen(Hdr0);
-   static const int   H1Len = strlen(Hdr1);
 
    XrdMpxVar       xVar;
    XrdOucTokenizer Data(ibuff);
    VarInfo vHead[] = {{"tod", 0}, {"ver", 0}, {0, 0}};
    VarInfo vStat[] = {{"id",  0}, {0, 0}};
-   char *lP = ibuff, *oP = obuff, *tP;
-   int i;
+   char *lP = ibuff, *oP = obuff, *tP, *vP;
+   int i, rc;
 
 // Insert a newline for the first '>'
 //
@@ -192,29 +190,29 @@ int XrdMpxXml::Format(const char *Host, char *ibuff, char *obuff)
 // The following segment reads all of the "stats" entries
 //
    while((tP = Data.GetToken()) && strcmp(tP, "/statistics"))
-        {if (!strncmp(tP, Hdr1, H1Len))
-            return xmlErr("Expecting '<stats' but found '", tP, "'.");
-         getVars(Data, vStat); xVar.Reset();
-         if (!vStat[0].Data)
-             return xmlErr("'id' missing in <stats> header.");
-         if (!xVar.Push(vStat[0].Data))
-            return xmlErr("Nesting too deep for ", xVar.Var());
-         while((tP = Data.GetToken()) && strcmp(tP, "/stats"))
-              {if (*tP == '/')
-                  {if (!xVar.Pop(tP+1))
-                      return xmlErr(tP, "invalid end for ", xVar.Var());
-                   continue;
-                  }
-               if (*tP != '<')
-                  return xmlErr("Expecting '<' but found '", tP, "'.");
-               do {if (!xVar.Push(tP+1))
-                      return xmlErr("Nesting too deep for ", xVar.Var());
-                   if (!(tP = Data.GetToken()))
-                      return xmlErr("Value missing for ", xVar.Var());
-                  } while(*tP == '<');
-               oP = Add(oP, xVar.Var(), tP);
-              }
-         if (!tP) return xmlErr("Missing '</stats>' in xml stream.");
+        {     if (*tP == '/')
+                 {if (!xVar.Pop(strcmp("/stats", tP) ? tP+1 : 0))
+                     return xmlErr(tP, "invalid end for ", xVar.Var());
+                 }
+         else if (*tP == '<')
+                 {if (strcmp("<stats", tP)) rc = xVar.Push(tP+1);
+                     else {getVars(Data, vStat);
+                           rc = (vStat[0].Data ? xVar.Push(vStat[0].Data)
+                                               : xVar.Push(tP+1));
+                          }
+                  if (!rc) return xmlErr("Nesting too deep for ", xVar.Var());
+                 }
+         else    {if ((vP = index(tP, '<'))) *vP = '\0';
+                  if (*tP == '"')
+                     {i = strlen(tP)-1;
+                      if (*(tP+i) == '"') {*(tP+i) = '\0'; i = 1;}
+                     } else i = 0;
+                  oP = Add(oP, xVar.Var(), tP+i);
+                  if (vP) {*vP = '<';
+                           if (vP != tP) memset(tP, ' ', vP - tP);
+                           Data.RetToken();
+                          }
+                 }
         }
    if (!tP) return xmlErr("Missing '</statistics>' in xml stream.");
    if (*(oP-1) == '&') oP--;
@@ -253,7 +251,7 @@ void XrdMpxXml::getVars(XrdOucTokenizer &Data, VarInfo Var[])
 
 // Get all of the variables/values and return where possible
 //
-   while((tVar = Data.GetToken()) && *tVar != '<')
+   while((tVar = Data.GetToken()) && *tVar != '<' && *tVar != '/')
         {if (!(tVal = (char *)index(tVar, '='))) continue;
          *tVal++ = '\0';
          if (*tVal == '"')
@@ -266,7 +264,7 @@ void XrdMpxXml::getVars(XrdOucTokenizer &Data, VarInfo Var[])
                   else i++;
               }
         }
-   if (tVar && *tVar == '<') Data.RetToken();
+   if (tVar && (*tVar == '<' || *tVar == '/')) Data.RetToken();
 }
 
 /******************************************************************************/
