@@ -152,6 +152,7 @@ int XrdMpxXml::Format(const char *Host, char *ibuff, char *obuff)
    XrdOucTokenizer Data(ibuff);
    VarInfo vHead[] = {{"tod", 0}, {"ver", 0}, {0, 0}};
    VarInfo vStat[] = {{"id",  0}, {0, 0}};
+   VarInfo vTail[] = {{"toe", 0}, {0, 0}};
    char *lP = ibuff, *oP = obuff, *tP, *vP;
    int i, rc;
 
@@ -215,6 +216,8 @@ int XrdMpxXml::Format(const char *Host, char *ibuff, char *obuff)
                  }
         }
    if (!tP) return xmlErr("Missing '</statistics>' in xml stream.");
+   getVars(Data, vTail);
+   if (vHead[0].Data) oP = Add(oP, vHead[0].Name, vHead[0].Data);
    if (*(oP-1) == '&') oP--;
    *oP++ = '\n';
    return oP - obuff;
