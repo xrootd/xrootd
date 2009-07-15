@@ -217,7 +217,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!osFS)
       {eDest.Emsg("Config", "Unable to load file system.");
        return 0;
-      }
+      } else SI->setFS(osFS);
 
 // Check if the file system version matches our version
 //

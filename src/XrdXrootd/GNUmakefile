@@ -215,7 +215,8 @@ $(OBJDIR)/XrdXrootdResponse.o: XrdLink.hh           XrdXrootdResponse.hh  \
 	@echo Compiling XrdXrootdResponse.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdResponse.o XrdXrootdResponse.cc
 
-$(OBJDIR)/XrdXrootdStats.o: XrdXrootdResponse.hh XrdStats.hh XrdSysPthread.hh \
+$(OBJDIR)/XrdXrootdStats.o: XrdXrootdResponse.hh XrdStats.hh \
+                            XrdSfsInterface.hh   XrdSysPthread.hh \
                             XrdXrootdStats.cc
 	@echo Compiling XrdXrootdStats.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdStats.o XrdXrootdStats.cc
