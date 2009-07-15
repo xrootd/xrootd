@@ -39,6 +39,8 @@ extern XrdBuffManager    XrdBuffPool;
 
 extern XrdScheduler      XrdSched;
 
+       long long         XrdStats::tBoot = static_cast<long long>(time(0));
+
 /******************************************************************************/
 /*               L o c a l   C l a s s   X r d S t a t s J o b                */
 /******************************************************************************/
@@ -129,9 +131,9 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
           "<statistics tod=\"%ld\" ver=\"" XrdVSTRING "\">";
    static const char *sgen = "<stats id=\"sgen\">"
                              "<as>%d</as><et>%lu</et></stats>";
-   static const char *tail = "</statistics>";
-   static const char *snul = 
-          "<statistics tod=\"0\" ver=\"" XrdVSTRING "\"></statistics>";
+   static const char *tail = "</statistics toe=\"%ld\">";
+   static const char *snul = "<statistics tod=\"0\" ver=\"" XrdVSTRING "\">"
+                            "</statistics toe=\"0\">";
 
    static XrdProtLoad Protocols;
    static const int  ovrhed = strlen(head)+256+strlen(sgen)+strlen(tail);
@@ -200,11 +202,11 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
    if (opts & XRD_STATS_SGEN)
       {unsigned long totTime = 0;
        myTimer.Report(totTime);
-       sz = snprintf(bp, bl, sgen, do_sync == 0, totTime/1000);
+       sz = snprintf(bp, bl, sgen, do_sync == 0, totTime);
        bp += sz; bl -= sz;
       }
 
-   strlcpy(bp, tail, bl);
+   snprintf(bp, bl, tail, static_cast<long>(time(0)));
    return buff;
 }
  
@@ -218,15 +220,15 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"info\"><host>%s</host>"
-                     "<port>%d</port><name>%s</name></stats>";
+                     "<port>%d</port><name>%s</name><bt>%lld</bt></stats>";
 
 // Check if actual length wanted
 //
-   if (!bfr) return sizeof(statfmt)+16 + strlen(myHost);
+   if (!bfr) return sizeof(statfmt)+24 + strlen(myHost);
 
 // Format the statistics
 //
-   return snprintf(bfr, bln, statfmt, myHost, myPort, myName);
+   return snprintf(bfr, bln, statfmt, myHost, myPort, myName, tBoot);
 }
  
 /******************************************************************************/
@@ -236,16 +238,13 @@ int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"proc\"><pid>%d</pid>"
-          "<utime><s>%lld</s><u>%lld</u></utime>"
-          "<stime><s>%lld</s><u>%lld</u></stime>"
-          "<maxrss>%lld</maxrss><majflt>%lld</majflt><nswap>%lld</nswap>"
-          "<inblock>%lld</inblock><oublock>%lld</oublock>"
-          "<msgsnd>%lld</msgsnd><msgrcv>%lld</msgrcv>"
-          "<nsignals>%lld</nsignals></stats>";
+          "<usr><s>%lld</s><u>%lld</u></usr>"
+          "<sys><s>%lld</s><u>%lld</u></sys>"
+          "</stats>";
    struct rusage r_usage;
    long long utime_sec, utime_usec, stime_sec, stime_usec;
-   long long ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock;
-   long long ru_msgsnd, ru_msgrcv, ru_nsignals;
+// long long ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock;
+// long long ru_msgsnd, ru_msgrcv, ru_nsignals;
 
 // Check if actual length wanted
 //
@@ -255,25 +254,29 @@ int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 //
    if (getrusage(RUSAGE_SELF, &r_usage)) return 0;
 
-// Convert fields to correspond to the format we are using
+// Convert fields to correspond to the format we are using. Commented out fields
+// are either not uniformaly reported or are incorrectly reported making them
+// useless across multiple platforms.
+//
 //
    utime_sec   = static_cast<long long>(r_usage.ru_utime.tv_sec);
    utime_usec  = static_cast<long long>(r_usage.ru_utime.tv_usec);
    stime_sec   = static_cast<long long>(r_usage.ru_stime.tv_sec);
    stime_usec  = static_cast<long long>(r_usage.ru_stime.tv_usec);
-   ru_maxrss   = static_cast<long long>(r_usage.ru_maxrss);
-   ru_majflt   = static_cast<long long>(r_usage.ru_majflt);
-   ru_nswap    = static_cast<long long>(r_usage.ru_nswap);
-   ru_inblock  = static_cast<long long>(r_usage.ru_inblock);
-   ru_oublock  = static_cast<long long>(r_usage.ru_oublock);
-   ru_msgsnd   = static_cast<long long>(r_usage.ru_msgsnd);
-   ru_msgrcv   = static_cast<long long>(r_usage.ru_msgrcv);
-   ru_nsignals = static_cast<long long>(r_usage.ru_nsignals);
+// ru_maxrss   = static_cast<long long>(r_usage.ru_maxrss);
+// ru_majflt   = static_cast<long long>(r_usage.ru_majflt);
+// ru_nswap    = static_cast<long long>(r_usage.ru_nswap);
+// ru_inblock  = static_cast<long long>(r_usage.ru_inblock);
+// ru_oublock  = static_cast<long long>(r_usage.ru_oublock);
+// ru_msgsnd   = static_cast<long long>(r_usage.ru_msgsnd);
+// ru_msgrcv   = static_cast<long long>(r_usage.ru_msgrcv);
+// ru_nsignals = static_cast<long long>(r_usage.ru_nsignals);
 
 // Format the statistics
 //
    return snprintf(bfr, bln, statfmt, myPid,
-          utime_sec, utime_usec, stime_sec, stime_usec,
-          ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock,
-          ru_msgsnd, ru_msgrcv, ru_nsignals);
+          utime_sec, utime_usec, stime_sec, stime_usec
+//        ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock,
+//        ru_msgsnd, ru_msgrcv, ru_nsignals
+         );
 }

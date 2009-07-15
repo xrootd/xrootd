@@ -48,6 +48,8 @@ private:
 int        InfoStats(char *buff, int blen, int dosync=0);
 int        ProcStats(char *buff, int blen, int dosync=0);
 
+static long long tBoot;  // Time at boot time
+
 XrdSysMutex statsMutex;
 
 char       *buff;        // Used by all callers
