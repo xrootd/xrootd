@@ -49,7 +49,7 @@ etcp=$ETCPATH
 utilsp=$UTILSPATH
 
 if [ "x$incp" = "x" ]; then
- incp=$destp/include
+ incp=$destp/include/xrootd
 fi
 
 if [ "x$binp" = "x" ]; then
@@ -61,11 +61,11 @@ if [ "x$libp" = "x" ]; then
 fi
 
 if [ "x$etcp" = "x" ]; then
- etcp=$destp/etc
+ etcp=$destp/etc/xrootd
 fi
 
 if [ "x$utilsp" = "x" ]; then
- utilsp=$etcp/xrootdutils
+ utilsp=$binp/xrootdutils
 fi
 
 

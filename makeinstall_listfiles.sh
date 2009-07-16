@@ -29,6 +29,7 @@ if [ $? -ne 0 ]; then
  exit 1
 fi
 find . -type f -iname "*.hh" | awk "$awkcmd"
+find . -type f -iname "*.icc" | awk "$awkcmd"
 
 # Binaries
 awkcmd='{ print "'$srcp'/bin"substr($1, 2)" '$binp'"substr($1, 2) }'
