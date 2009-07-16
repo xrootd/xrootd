@@ -15,11 +15,26 @@
 #  $ETCPATH: path where to install the etc stuff
 #  $UTILSPATH: path where to install the utils stuff
 cd $1
+if [ $? -ne 0 ]; then
+ echo "Invalid path for the source distribution"
+ exit 1
+fi
+
 srcp="`pwd`"
 echo "Distribution path: $srcp"
 
 mkdir -p $2
+if [ $? -ne 0 ]; then
+ echo "Invalid path for the source distribution"
+ exit 1
+fi
+
 cd $2
+if [ $? -ne 0 ]; then
+ echo "Invalid destination path"
+ exit 1
+fi
+
 destp="`pwd`"
 echo "Destination path: $destp"
 
@@ -50,15 +65,39 @@ if [ "x$etcp" = "x" ]; then
 fi
 
 if [ "x$utilsp" = "x" ]; then
- utilsp=$destp/xrootdutils
+ utilsp=$etcp/xrootdutils
 fi
 
 
 mkdir -p $incp
+if [ $? -ne 0 ]; then
+ echo "Invalid includes path"
+ exit 1
+fi
+
 mkdir -p $binp
+if [ $? -ne 0 ]; then
+ echo "Invalid binaries path"
+ exit 1
+fi
+
 mkdir -p $libp
+if [ $? -ne 0 ]; then
+ echo "Invalid libs path"
+ exit 1
+fi
+
 mkdir -p $etcp
+if [ $? -ne 0 ]; then
+ echo "Invalid etc path"
+ exit 1
+fi
+
 mkdir -p $utilsp
+if [ $? -ne 0 ]; then
+ echo "Invalid utils path"
+ exit 1
+fi
 
 echo
 echo "------- Final destination paths:"
@@ -72,6 +111,10 @@ echo
 cd $srcp
 rm -f ./makeinstall_filelist.log
 ./makeinstall_listfiles.sh $srcp $incp $binp $libp $etcp $utilsp > makeinstall_filelist.log
+if [ $? -ne 0 ]; then
+ echo "File list creation failed"
+ exit 1
+fi
 
 cat makeinstall_filelist.log | awk '{print $2}' | xargs -n 1 dirname | xargs -n 1 mkdir -p
 cat makeinstall_filelist.log | xargs -n 2 cp
