@@ -150,7 +150,8 @@ int XrdMpxXml::Format(const char *Host, char *ibuff, char *obuff)
 
    XrdMpxVar       xVar;
    XrdOucTokenizer Data(ibuff);
-   VarInfo vHead[] = {{"tod", 0}, {"ver", 0}, {0, 0}};
+   VarInfo vHead[] = {{"tod", 0}, {"ver", 0}, {"src", 0}, {"tos", 0},
+                      {"pgm", 0}, {"ins", 0}, {"pid", 0}, {0, 0}};
    VarInfo vStat[] = {{"id",  0}, {0, 0}};
    VarInfo vTail[] = {{"toe", 0}, {0, 0}};
    char *lP = ibuff, *oP = obuff, *tP, *vP;

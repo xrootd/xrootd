@@ -686,7 +686,8 @@ int XrdConfig::Setup(char *dfltp)
 // Allocate the statistics object. This is akward since we only know part
 // of the current configuration. The object will figure this out later.
 //
-   ProtInfo.Stats = new XrdStats(ProtInfo.myName,POrder->port,ProtInfo.myInst);
+   ProtInfo.Stats = new XrdStats(ProtInfo.myName, POrder->port,
+                                 ProtInfo.myInst, ProtInfo.myProg);
 
 // Allocate a WAN port number of we need to
 //
@@ -1242,7 +1243,7 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
 
 // All done
 //
-   if (!(repOpts & XRD_STATS_ALL)) repOpts = XRD_STATS_ALL;
+   if (!(repOpts & XRD_STATS_ALL)) repOpts = XRD_STATS_ALL & ~XRD_STATS_INFO;
    return 0;
 }
 

@@ -39,7 +39,7 @@ extern XrdBuffManager    XrdBuffPool;
 
 extern XrdScheduler      XrdSched;
 
-       long long         XrdStats::tBoot = static_cast<long long>(time(0));
+       long              XrdStats::tBoot = static_cast<long>(time(0));
 
 /******************************************************************************/
 /*               L o c a l   C l a s s   X r d S t a t s J o b                */
@@ -66,14 +66,22 @@ int       iVal;
 /*                           C o n s t r c u t o r                            */
 /******************************************************************************/
   
-XrdStats::XrdStats(const char *hname, int port, const char *iname)
+XrdStats::XrdStats(const char *hname, int port,
+                   const char *iname, const char *pname)
 {
-   myName = iname;
+   static const char *head =
+          "<statistics tod=\"%%ld\" ver=\"" XrdVSTRING "\" src=\"%s:%d\" "
+                      "tos=\"%ld\" pgm=\"%s\" ins=\"%s\" pid=\"%d\">";
+   char myBuff[1024];
+
+   Hlen = sprintf(myBuff, head, hname, port, tBoot, pname, iname,
+                          static_cast<int>(getpid()));
+   Head = strdup(myBuff);
+   buff = 0;
+   blen = 0;
    myHost = hname;
+   myName = iname;
    myPort = port;
-   myPid  = getpid();
-   buff   = 0;   // Allocated on first Stats() call
-   blen   = 0;
 }
  
 /******************************************************************************/
@@ -127,8 +135,6 @@ void XrdStats::Report(char **Dest, int iVal, int Opts)
   
 const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 {
-   static const char *head =
-          "<statistics tod=\"%ld\" ver=\"" XrdVSTRING "\">";
    static const char *sgen = "<stats id=\"sgen\">"
                              "<as>%d</as><et>%lu</et></stats>";
    static const char *tail = "</statistics toe=\"%ld\">";
@@ -136,7 +142,7 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
                             "</statistics toe=\"0\">";
 
    static XrdProtLoad Protocols;
-   static const int  ovrhed = strlen(head)+256+strlen(sgen)+strlen(tail);
+   static const int  ovrhed = 256+strlen(sgen)+strlen(tail);
    XrdSysTimer myTimer;
    char *bp;
    int   bl, sz, do_sync = (opts & XRD_STATS_SYNC ? 1 : 0);
@@ -147,7 +153,7 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
    if (!(bp = buff))
       {blen = InfoStats(0,0) + XrdBuffPool.Stats(0,0) + XrdLink::Stats(0,0)
             + ProcStats(0,0) + XrdSched.Stats(0,0)    + XrdPoll::Stats(0,0)
-            + Protocols.Stats(0,0) + ovrhed;
+            + Protocols.Stats(0,0) + ovrhed + Hlen;
        buff = (char *)memalign(getpagesize(), blen+256);
        if (!(bp = buff)) return snul;
       }
@@ -159,7 +165,7 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 
 // Insert the heading
 //
-   sz = sprintf(buff, head, static_cast<long>(time(0)));
+   sz = sprintf(buff, Head, static_cast<long>(time(0)));
    bl -= sz; bp += sz;
 
 // Extract out the statistics, as needed
@@ -220,7 +226,7 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
 int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"info\"><host>%s</host>"
-                     "<port>%d</port><name>%s</name><bt>%lld</bt></stats>";
+                     "<port>%d</port><name>%s</name></stats>";
 
 // Check if actual length wanted
 //
@@ -228,7 +234,7 @@ int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
 
 // Format the statistics
 //
-   return snprintf(bfr, bln, statfmt, myHost, myPort, myName, tBoot);
+   return snprintf(bfr, bln, statfmt, myHost, myPort, myName);
 }
  
 /******************************************************************************/
@@ -237,7 +243,7 @@ int XrdStats::InfoStats(char *bfr, int bln, int do_sync)
   
 int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 {
-   static const char statfmt[] = "<stats id=\"proc\"><pid>%d</pid>"
+   static const char statfmt[] = "<stats id=\"proc\">"
           "<usr><s>%lld</s><u>%lld</u></usr>"
           "<sys><s>%lld</s><u>%lld</u></sys>"
           "</stats>";
@@ -274,7 +280,7 @@ int XrdStats::ProcStats(char *bfr, int bln, int do_sync)
 
 // Format the statistics
 //
-   return snprintf(bfr, bln, statfmt, myPid,
+   return snprintf(bfr, bln, statfmt,
           utime_sec, utime_usec, stime_sec, stime_usec
 //        ru_maxrss, ru_majflt, ru_nswap, ru_inblock, ru_oublock,
 //        ru_msgsnd, ru_msgrcv, ru_nsignals

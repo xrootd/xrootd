@@ -40,7 +40,8 @@ const char *Stats(int opts);
 
 void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
 
-      XrdStats(const char *hn, int port, const char *in);
+      XrdStats(const char *hn, int port, const char *in, const char *pn);
+
      ~XrdStats() {if (buff) free(buff);}
 
 private:
@@ -48,15 +49,16 @@ private:
 int        InfoStats(char *buff, int blen, int dosync=0);
 int        ProcStats(char *buff, int blen, int dosync=0);
 
-static long long tBoot;  // Time at boot time
+static long tBoot;       // Time at boot time
 
 XrdSysMutex statsMutex;
 
 char       *buff;        // Used by all callers
 int         blen;
-const char *myName;
+int         Hlen;
+char       *Head;
 const char *myHost;
+const char *myName;
 int         myPort;
-int         myPid;
 };
 #endif
