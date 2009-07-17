@@ -217,7 +217,7 @@ int XrdMpxXml::Format(const char *Host, char *ibuff, char *obuff)
         }
    if (!tP) return xmlErr("Missing '</statistics>' in xml stream.");
    getVars(Data, vTail);
-   if (vHead[0].Data) oP = Add(oP, vHead[0].Name, vHead[0].Data);
+   if (vTail[0].Data) oP = Add(oP, vTail[0].Name, vTail[0].Data);
    if (*(oP-1) == '&') oP--;
    *oP++ = '\n';
    return oP - obuff;
