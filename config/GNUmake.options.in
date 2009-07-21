@@ -18,7 +18,7 @@ CFOP="$(@buildopt@)" \
 LD="$(TYPELD)" \
 LDOP="$(@buildopt@)" \
 LDSO="$(TYPELDSO)" \
-LIBS="$(TYPELIBS)" \
+LIBS=" @ldsyslibs@ $(TYPELIBS)" \
 LIBM="$(TYPELIBSM)" \
 TYPE="$(TYPE)"
 
@@ -36,7 +36,7 @@ CFOP="$(@buildopt@)" \
 LD="$(TYPELD)" \
 LDOP="$(@buildopt@)" \
 LDSO="$(TYPELDSO)" \
-LIBS="$(TYPELIBS)" \
+LIBS=" @ldsyslibs@ $(TYPELIBS)" \
 LIBM="$(TYPELIBSM)" \
 TYPE="$(TYPE)"
 
