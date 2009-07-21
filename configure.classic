@@ -181,7 +181,7 @@ check_library() {
 
     # check if we got a specific argument as to where the library
     # is to be found
-    if test ! "x$libdirl" = "x" ; then
+    if test "x$libdirl" != "x" ; then
         libdirs=$libdirl
     fi
     found_lib=no
@@ -712,6 +712,7 @@ Advanced options:
    --has-sigwaitinfo   Do not check for sigwaitinfo
    --has-fstatat       Do not check for fstatat
    --has-readline      Do not check for readline
+   --syslibs           Base directory where to look for system libraries to link with
 
 Install-related options:
 
@@ -855,6 +856,7 @@ if test $# -gt 0 ; then
       --incdir=*)              inst_incdir=$optarg   ;;
       --with-cxx=*)            altcxx=$optarg        ;;
       --with-ld=*)             altld=$optarg         ;;
+      --syslibs=*)             syslibs=$optarg       ;;
       ################################################################
       #
       # Enable/disable to turn on/off third party software linkage and
@@ -1258,9 +1260,8 @@ else
     echo "no"
 fi
 
-zlibdirs="/usr/local/lib /opt/lib $finkdir/lib"
 if test "x$haslibz" != "x"; then
-   check_library "libz" "$enable_shared" "/usr/lib" "$zlibdirs"
+   check_library "libz" "$enable_shared" "" "$syslibs" "/usr/lib" "/usr/local/lib" "/opt/lib" "$finkdir/lib"
    if test "x$found_lib" = "x" ; then
         haslibz=""
         libz=""
@@ -1546,6 +1547,16 @@ if test "x$xrdbuild" = "xdebug"; then
    buildopt="TYPEDBG"
 fi
 
+
+######################################################################
+#
+### Eventually prepend the global libpath to look for libs to link wth
+#
+if test "x$syslibs" != "x"; then
+   ldsyslibs="-L${syslibs}"
+fi
+
+
 ######################################################################
 #
 ### echo %%% Check if architecure dependent names for bin, lib, obj
@@ -1624,7 +1635,7 @@ linux|fbsd)
 esac
 if test "x$enable_thread" = "xyes" && \
    test "x$threadlib" = "x" ; then
-    check_library "libpthread" "$enable_shared" "$threadlibdir" \
+    check_library "libpthread" "$enable_shared" "$threadlibdir" "$syslibs" \
 	$THREAD $THREAD/lib /usr/lib /usr/local/lib /usr/lib/X11 \
 	/usr/local/lib/X11 /usr/X11R6/lib /usr/local/X11R6/lib \
 	/usr/X11/lib /usr/shlib
@@ -1712,14 +1723,14 @@ if test ! "x$enable_krb4" = "xno" ; then
     krb4mit=no
     krb4lib=""
     krb4libdir=""
-    check_library libk5crypto "$enable_shared" "$krb4libdirorg" $krb4libdirs
+    check_library libk5crypto "$enable_shared" "$krb4libdirorg" "$syslibs" $krb4libdirs
     if test ! "x$found_lib" = "x" ; then
 	krb5mit=yes
     fi
     message "Checking whether we're using MIT Kerberos"
     echo "$krb5mit"
 
-    check_library libkrb5 "$enable_shared" "$krb4libdirorg" $krb4libdirs
+    check_library libkrb5 "$enable_shared" "$krb4libdirorg" "$syslibs" $krb4libdirs
     if test "x$found_lib" = "x" ; then
 	enable_krb4=no
     else
@@ -1727,7 +1738,7 @@ if test ! "x$enable_krb4" = "xno" ; then
 	if test "x$krb5mit" = "xyes" ; then
             tmplibs="libkrb4 libkrb5 libdes425 libk5crypto"
             for i in $tmplibs ; do
-               check_library $i "$enable_shared" "$krb4libdirorg" $krb4libdirs
+               check_library $i "$enable_shared" "$krb4libdirorg" "$syslibs" $krb4libdirs
 	       if test "x$found_lib" = "x" ; then
 	          enable_krb4=no
 	       else
@@ -1749,7 +1760,7 @@ if test ! "x$enable_krb4" = "xno" ; then
 	       fi
             done
 	elif test "x$cryptolib" = "x" ; then
-            check_library "libcrypto" "$enable_shared" "$krb4libdirorg" \
+            check_library "libcrypto" "$enable_shared" "$krb4libdirorg" "$syslibs"\
                           $krb4libdirs
             cryptolib=$found_lib
             cryptolibdir=$found_dir
@@ -1839,7 +1850,7 @@ if test ! "x$enable_krb5" = "xno" ; then
     krb5mit=no
     krb5lib=""
     krb5libdir=""
-    check_library libk5crypto "$enable_shared" "$krb5libdirorg" $krb5libdirs
+    check_library libk5crypto "$enable_shared" "$krb5libdirorg" "$syslibs" $krb5libdirs
     if test ! "x$found_lib" = "x" ; then
 	krb5mit=yes
         krb5lib=$found_lib
@@ -1848,7 +1859,7 @@ if test ! "x$enable_krb5" = "xno" ; then
     message "Checking whether we're using MIT Kerberos"
     echo "$krb5mit"
 
-    check_library libkrb5 "$enable_shared" "$krb5libdirorg" $krb5libdirs
+    check_library libkrb5 "$enable_shared" "$krb5libdirorg" "$syslibs" $krb5libdirs
     if test "x$found_lib" = "x" ; then
 	enable_krb5=no
     else
@@ -1872,7 +1883,7 @@ if test ! "x$enable_krb5" = "xno" ; then
 	if test "x$krb5mit" = "xyes" ; then
 	    :
 	elif test "x$cryptolib" = "x" ; then
-            check_library "libcrypto" "$enable_shared" "$krb5libdirorg" \
+            check_library "libcrypto" "$enable_shared" "$krb5libdirorg" "$syslibs"\
                           $krb5libdirs
             cryptolib=$found_lib
             cryptolibdir=$found_dir
@@ -1998,7 +2009,7 @@ if test ! "x$enable_afs" = "xno" ; then
        # versions <= 1.4.6 these were inconsistent, some needed symbols not being
        # exported. We need to check the symbols first
        echo "Checking for shared AFS libs:"
-       check_library libafsrpc "$afsshared" "$afslibdir" $afslibdirs
+       check_library libafsrpc "$afsshared" "$afslibdir" "$syslibs" $afslibdirs
        if test "x$found_lib" = "x" ; then
           afslib=""
           afslibdir=""
@@ -2020,7 +2031,7 @@ if test ! "x$enable_afs" = "xno" ; then
        #
        # Save lib, if OK
        if test "x$afsshared" = "xyes" ; then
-         check_library libafsauthent "$afsshared" "$afslibdir" $afslibdirs
+         check_library libafsauthent "$afsshared" "$afslibdir" "$syslibs" $afslibdirs
          if test ! "x$found_lib" = "x" ; then
             check_symbol ka_GetAFSTicket "$found_lib" "$found_dir"
             if test ! $found_symbol -eq 0 ; then
@@ -2047,7 +2058,7 @@ if test ! "x$enable_afs" = "xno" ; then
        echo "Checking for static AFS libs:"
        #
        for i in $afslibs ; do
-          check_library "$i" "$afsshared" "$afslibdir" $afslibdirs
+          check_library "$i" "$afsshared" "$afslibdir" "$syslibs" $afslibdirs
           if test "x$found_lib" = "x" ; then
              afslib=""
              afslibdir=""
@@ -2233,7 +2244,7 @@ if test "x$enable_ssl" = "xyes" ; then
     #
     # libraries
     #
-    check_library "libssl" "$sslshared" "$ssllibdir" \
+    check_library "libssl" "$sslshared" "$ssllibdir" "$syslibs"\
         $SSL $SSL/lib /lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
     if test "x$found_lib" = "x" ; then
         ssllib=""
@@ -2258,7 +2269,7 @@ if test "x$enable_ssl" = "xyes" ; then
           tmpssllibdir=`echo $ssllibdir | cut -c3-`
        fi
        # All libraries in the same directory
-       check_library "libcrypto" "$sslshared" "$tmpssllibdir" /usr/lib
+       check_library "libcrypto" "$sslshared" "$tmpssllibdir" "$syslibs" /usr/lib
        if test "x$found_lib" = "x" ; then
           ssllib=""
           ssllibdir=""
@@ -2368,7 +2379,7 @@ if test "x$enable_krb5" = "xyes" ; then
             comerrlibdir=$krb5libdirorg
         fi
     fi
-    check_library libcom_err "$enable_shared" "$comerrlibdir" \
+    check_library libcom_err "$enable_shared" "$comerrlibdir" "$syslibs"\
                                               "$afslibdirs $krb5libdirs"
 
     inckrb4="INCKRB4 = "
@@ -2563,6 +2574,7 @@ sed -e "s|@dbgsfx@|$dbgsfx|g"   \
     -e "s|@dbgflg@|$dbgflg|"   \
     -e "s|@makemsg@|$makemsg|" \
     -e "s|@buildopt@|$buildopt|" \
+    -e "s|@ldsyslibs@|$ldsyslibs|" \
     -e "s|@macosx_target_setting@|$macosx_target_setting|" \
     < GNUmake.options.tmp > $OPTOUT
 rm -f GNUmake.options.tmp
