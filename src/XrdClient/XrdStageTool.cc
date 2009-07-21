@@ -68,7 +68,7 @@ extern "C" {
 //////////////////////////////////////////////////////////////////////
 
 
-#define XRDSTAGETOOL_VERSION            "(C) 2004 SLAC INFN $Revision$ - Xrootd version: "XrdVSTRING
+#define XRDSTAGETOOL_VERSION            "(C) 2004-2010 by the Xrootd group. $Revision$ - Xrootd version: "XrdVSTRING
 
 
 ///////////////////////////////////////////////////////////////////////

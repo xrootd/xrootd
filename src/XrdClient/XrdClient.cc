@@ -67,9 +67,9 @@ XrdClient::XrdClient(const char *url) {
     DebugSetLevel(EnvGetLong(NAME_DEBUG));
 
     if (!ConnectionManager)
-	Info(XrdClientDebug::kNODEBUG,
+	Info(XrdClientDebug::kUSERDEBUG,
 	     "Create",
-	     "(C) 2004 SLAC INFN XrdClient $Revision$ - Xrootd version: " << XrdVSTRING);
+	     "(C) 2004-2010 by the Xrootd group. XrdClient $Revision$ - Xrootd version: " << XrdVSTRING);
 
 #ifndef WIN32
     signal(SIGPIPE, SIG_IGN);

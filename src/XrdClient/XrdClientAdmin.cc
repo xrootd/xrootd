@@ -62,9 +62,9 @@ XrdClientAdmin::XrdClientAdmin(const char *url) {
   DebugSetLevel(EnvGetLong(NAME_DEBUG));
 
   if (!ConnectionManager)
-    Info(XrdClientDebug::kNODEBUG,
+    Info(XrdClientDebug::kUSERDEBUG,
 	 "",
-	 "(C) 2004 SLAC XrdClientAdmin " << XRD_CLIENT_VERSION);
+	 "(C) 2004-2010 by the Xrootd group. XrdClientAdmin " << XRD_CLIENT_VERSION);
 
    fInitialUrl = url;
 

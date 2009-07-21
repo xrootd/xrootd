@@ -86,7 +86,7 @@ struct XrdCpInfo {
 
 #define XRDCP_BLOCKSIZE          (4*1024*1024)
 #define XRDCP_XRDRASIZE          (20*XRDCP_BLOCKSIZE)
-#define XRDCP_VERSION            "(C) 2004 SLAC INFN $Revision$ - Xrootd version: "XrdVSTRING
+#define XRDCP_VERSION            "(C) 2004-2010 by the Xrootd group. $Revision$ - Xrootd version: "XrdVSTRING
 
 ///////////////////////////////////////////////////////////////////////
 // Coming from parameters on the cmd line
@@ -1401,7 +1401,7 @@ int main(int argc, char**argv) {
 
    DebugSetLevel(EnvGetLong(NAME_DEBUG));
 
-   Info(XrdClientDebug::kNODEBUG, "main", XRDCP_VERSION);
+   Info(XrdClientDebug::kUSERDEBUG, "main", XRDCP_VERSION);
 
    XrdCpWorkLst *wklst = new XrdCpWorkLst();
    XrdOucString src, dest;
