@@ -713,6 +713,7 @@ Advanced options:
    --has-fstatat       Do not check for fstatat
    --has-readline      Do not check for readline
    --syslibs           Base directory where to look for system libraries to link with
+   --incpfx            Base directory where to look for include files
 
 Install-related options:
 
@@ -857,6 +858,7 @@ if test $# -gt 0 ; then
       --with-cxx=*)            altcxx=$optarg        ;;
       --with-ld=*)             altld=$optarg         ;;
       --syslibs=*)             syslibs=$optarg       ;;
+      --incpfx=*)              incpfx=$optarg        ;;
       ################################################################
       #
       # Enable/disable to turn on/off third party software linkage and
@@ -1252,7 +1254,14 @@ esac
 #
 haslibz=""
 message "Checking for zlib.h"
-if test -f /usr/include/zlib.h ; then
+
+if test "x$incpfx" = "x" ; then
+   what2look4="/usr/include/zlib.h"
+else
+   what2look4="$incpfx/zlib.h"
+fi
+
+if test -f $what2look4 ; then
     echo "yes"
     haslibz="-DHAVE_LIBZ"
     libz="-lz"
@@ -1260,8 +1269,14 @@ else
     echo "no"
 fi
 
+if test "x$syslibs" = "x" ; then
+   what2look4="/usr/lib /usr/local/lib /opt/lib $finkdir/lib"
+else
+   what2look4="$syslibs"
+fi
+
 if test "x$haslibz" != "x"; then
-   check_library "libz" "$enable_shared" "" "$syslibs" "/usr/lib" "/usr/local/lib" "/opt/lib" "$finkdir/lib"
+   check_library "libz" "$enable_shared" "" $what2look4
    if test "x$found_lib" = "x" ; then
         haslibz=""
         libz=""
@@ -1311,7 +1326,14 @@ fi
 #
 hasdevpoll=""
 message "Checking for /dev/poll support"
-if test -f /usr/include/sys/devpoll.h -a  -c /dev/poll ; then
+if test "x$incpfx" = "x" ; then
+   what2look4="/usr/include/sys/devpoll.h"
+else
+   what2look4="$incpfx/sys/devpoll.h"
+fi
+
+
+if test -f $what2look4 -a  -c /dev/poll ; then
    echo "yes"
    hasdevpoll="-D_DEVPOLL"
 else
@@ -1324,7 +1346,13 @@ fi
 #
 hasepoll=""
 message "Checking for epoll support"
-if test -f /usr/include/sys/epoll.h ; then
+if test "x$incpfx" = "x" ; then
+   what2look4="/usr/include/sys/epoll.h"
+else
+   what2look4="$incpfx/sys/epoll.h"
+fi
+
+if test -f $what2look4 ; then
    eprel=`uname -r | cut -d '.' -f 1-2 | tr '.' '0'`
    if [ $eprel -gt 205 ]; then
       echo "yes"
@@ -1342,7 +1370,13 @@ fi
 #
 hassendfile=""
 message "Checking for sendfile support"
-if test -f /usr/include/sys/sendfile.h ; then
+if test "x$incpfx" = "x" ; then
+   what2look4="/usr/include/sys/sendfile.h"
+else
+   what2look4="$incpfx/sys/sendfile.h"
+fi
+
+if test -f $what2look4 ; then
       echo "yes"
       hassendfile="-DHAVE_SENDFILE"
 else
@@ -1633,12 +1667,17 @@ linux|fbsd)
     fi
     ;;
 esac
+
 if test "x$enable_thread" = "xyes" && \
-   test "x$threadlib" = "x" ; then
-    check_library "libpthread" "$enable_shared" "$threadlibdir" "$syslibs" \
-	$THREAD $THREAD/lib /usr/lib /usr/local/lib /usr/lib/X11 \
-	/usr/local/lib/X11 /usr/X11R6/lib /usr/local/X11R6/lib \
-	/usr/X11/lib /usr/shlib
+    test "x$threadlib" = "x" ; then
+
+    if test "x$syslibs" = "x" ; then
+       what2look4="$THREAD $THREAD/lib /usr/lib /usr/local/lib /usr/lib/X11 /usr/local/lib/X11 /usr/X11R6/lib /usr/local/X11R6/lib /usr/X11/lib /usr/shlib"
+    else
+       what2look4="$syslibs"
+    fi
+
+    check_library "libpthread" "$enable_shared" "$threadlibdir" "$what2look4"
     threadlib=$found_lib
     threadlibdir=$found_dir
 
@@ -1698,10 +1737,14 @@ if test ! "x$enable_krb4" = "xno" ; then
            ;;
     esac
 
-    check_header "kerberosIV/krb.h" "$krb4incdir" \
-            "$slackrbinc" /usr/kerberos/include \
-	    /usr/krb5/include /usr/local/kerberos/include \
-	    /usr/include /usr/local/include
+
+    if test "x$incpfx" = "x" ; then
+       what2look4="$slackrbinc /usr/kerberos/include /usr/krb5/include /usr/local/kerberos/include /usr/include /usr/local/include"
+    else
+       what2look4="$incpfx"
+    fi
+
+    check_header "kerberosIV/krb.h" "$krb4incdir" "$what2look4"
     if test "x$found_dir" = "x" ; then
 	enable_krb4=no
     else
@@ -1723,14 +1766,21 @@ if test ! "x$enable_krb4" = "xno" ; then
     krb4mit=no
     krb4lib=""
     krb4libdir=""
-    check_library libk5crypto "$enable_shared" "$krb4libdirorg" "$syslibs" $krb4libdirs
+
+    if test "x$syslibs" = "x" ; then
+       what2look4="$krb4libdirs"
+    else
+       what2look4="$syslibs $syslibs/krb4 $syslibs/kerberros"
+    fi
+
+    check_library libk5crypto "$enable_shared" "$krb4libdirorg" "$what2look4"
     if test ! "x$found_lib" = "x" ; then
 	krb5mit=yes
     fi
     message "Checking whether we're using MIT Kerberos"
     echo "$krb5mit"
 
-    check_library libkrb5 "$enable_shared" "$krb4libdirorg" "$syslibs" $krb4libdirs
+    check_library libkrb5 "$enable_shared" "$krb4libdirorg" $what2look4
     if test "x$found_lib" = "x" ; then
 	enable_krb4=no
     else
@@ -1738,7 +1788,7 @@ if test ! "x$enable_krb4" = "xno" ; then
 	if test "x$krb5mit" = "xyes" ; then
             tmplibs="libkrb4 libkrb5 libdes425 libk5crypto"
             for i in $tmplibs ; do
-               check_library $i "$enable_shared" "$krb4libdirorg" "$syslibs" $krb4libdirs
+               check_library $i "$enable_shared" "$krb4libdirorg" "$what2look4"
 	       if test "x$found_lib" = "x" ; then
 	          enable_krb4=no
 	       else
@@ -1760,8 +1810,7 @@ if test ! "x$enable_krb4" = "xno" ; then
 	       fi
             done
 	elif test "x$cryptolib" = "x" ; then
-            check_library "libcrypto" "$enable_shared" "$krb4libdirorg" "$syslibs"\
-                          $krb4libdirs
+            check_library "libcrypto" "$enable_shared" "$krb4libdirorg" "$what2look4"
             cryptolib=$found_lib
             cryptolibdir=$found_dir
             if test -r "$cryptolib" && test "x$enable_shared" = "xno" ; then
@@ -1825,10 +1874,15 @@ if test ! "x$enable_krb5" = "xno" ; then
            ;;
     esac
 
-    check_header "krb5.h" "$krb5incdir" \
-            "$slackrbinc" /usr/kerberos/include \
+    if test "x$incpfx" = "x" ; then
+       what2look4="$slackrbinc /usr/kerberos/include \
     	    /usr/krb5/include /usr/local/kerberos/include \
-    	    /usr/include/et /usr/include /usr/local/include
+    	    /usr/include/et /usr/include /usr/local/include"
+    else
+       what2look4="$incpfx"
+    fi
+
+    check_header "krb5.h" "$krb5incdir" "$what2look4"
     if test "x$found_dir" = "x" ; then
     	  enable_krb5=no
     else
@@ -1843,14 +1897,20 @@ if test ! "x$enable_krb5" = "xno" ; then
     if test "x$krb5libdir" = "x" && test ! "x$krb5dir" = "x" ; then
 	krb5libdirorg=$krb5dir/lib
     fi
-    krb5libdirs="$slackrblib /usr/kerberos/lib \
-                 /usr/krb5/lib /usr/local/kerberos/lib /usr/lib /usr/local/lib"
+    krb5libdirs="$slackrblib /usr/kerberos/lib /usr/krb5/lib /usr/local/kerberos/lib /usr/lib /usr/local/lib"
 
     # check whether using MIT krb5
     krb5mit=no
     krb5lib=""
     krb5libdir=""
-    check_library libk5crypto "$enable_shared" "$krb5libdirorg" "$syslibs" $krb5libdirs
+
+    if test "x$syslibs" = "x" ; then
+       what2look4="$krb5libdirs"
+    else
+       what2look4="$syslibs $syslibs/krb5 $syslibs/kerberos"
+    fi
+
+    check_library libk5crypto "$enable_shared" "$krb5libdirorg" "$what2look4"
     if test ! "x$found_lib" = "x" ; then
 	krb5mit=yes
         krb5lib=$found_lib
@@ -1859,7 +1919,7 @@ if test ! "x$enable_krb5" = "xno" ; then
     message "Checking whether we're using MIT Kerberos"
     echo "$krb5mit"
 
-    check_library libkrb5 "$enable_shared" "$krb5libdirorg" "$syslibs" $krb5libdirs
+    check_library libkrb5 "$enable_shared" "$krb5libdirorg" $what2look4
     if test "x$found_lib" = "x" ; then
 	enable_krb5=no
     else
@@ -1883,8 +1943,7 @@ if test ! "x$enable_krb5" = "xno" ; then
 	if test "x$krb5mit" = "xyes" ; then
 	    :
 	elif test "x$cryptolib" = "x" ; then
-            check_library "libcrypto" "$enable_shared" "$krb5libdirorg" "$syslibs"\
-                          $krb5libdirs
+            check_library "libcrypto" "$enable_shared" "$krb5libdirorg" "$what2look4"
             cryptolib=$found_lib
             cryptolibdir=$found_dir
             if test -r "$cryptolib" && test "x$enable_shared" = "xno" ; then
@@ -2009,7 +2068,15 @@ if test ! "x$enable_afs" = "xno" ; then
        # versions <= 1.4.6 these were inconsistent, some needed symbols not being
        # exported. We need to check the symbols first
        echo "Checking for shared AFS libs:"
-       check_library libafsrpc "$afsshared" "$afslibdir" "$syslibs" $afslibdirs
+
+       if test "x$syslibs" = "x" ; then
+          what2look4="$afslibdirs"
+       else
+          what2look4="$syslibs"
+       fi
+
+
+       check_library libafsrpc "$afsshared" "$afslibdir" "$what2look4"
        if test "x$found_lib" = "x" ; then
           afslib=""
           afslibdir=""
@@ -2031,7 +2098,7 @@ if test ! "x$enable_afs" = "xno" ; then
        #
        # Save lib, if OK
        if test "x$afsshared" = "xyes" ; then
-         check_library libafsauthent "$afsshared" "$afslibdir" "$syslibs" $afslibdirs
+         check_library libafsauthent "$afsshared" "$afslibdir" "$what2look4"
          if test ! "x$found_lib" = "x" ; then
             check_symbol ka_GetAFSTicket "$found_lib" "$found_dir"
             if test ! $found_symbol -eq 0 ; then
@@ -2058,7 +2125,7 @@ if test ! "x$enable_afs" = "xno" ; then
        echo "Checking for static AFS libs:"
        #
        for i in $afslibs ; do
-          check_library "$i" "$afsshared" "$afslibdir" "$syslibs" $afslibdirs
+          check_library "$i" "$afsshared" "$afslibdir" "$what2look4"
           if test "x$found_lib" = "x" ; then
              afslib=""
              afslibdir=""
@@ -2079,9 +2146,15 @@ if test ! "x$enable_afs" = "xno" ; then
     #
     if test "x$enable_afs" = "xyes" ; then
        incafs="stds.h kautils.h"
+
+       if test "x$incpfx" = "x" ; then
+          what2look4="/usr/include /usr/local/include /opt/include $finkdir/include"
+       else
+          what2look4="$incpfx"
+       fi
+
        for i in $incafs ; do
-           check_header "afs/$i" "$afsincdir" \
-              /usr/include /usr/local/include /opt/include $finkdir/include
+           check_header "afs/$i" "$afsincdir" "$what2look4"
            if test "x$found_hdr" = "x" ; then
                afsincdir=""
                enable_afs="no"
@@ -2183,8 +2256,13 @@ if test "x$enable_ssl" = "xyes" ; then
     #
     # Version
     #
-    check_header "openssl/opensslv.h" "$sslincdir" $SSL $SSL/include \
-               /usr/include /usr/local/include /opt/include $finkdir/include
+
+    if test "x$incpfx" = "x" ; then
+       what2look4="$SSL $SSL/include /usr/include /usr/local/include /opt/include /opt/openssl/include $finkdir/include"
+    else
+       what2look4="$incpfx $incpfx/openssl"
+    fi
+    check_header "openssl/opensslv.h" "$sslincdir" $what2look4
     if test "x$found_hdr" = "x" ; then
        sslincdir=""
        enable_ssl="no"
@@ -2244,8 +2322,14 @@ if test "x$enable_ssl" = "xyes" ; then
     #
     # libraries
     #
-    check_library "libssl" "$sslshared" "$ssllibdir" "$syslibs"\
-        $SSL $SSL/lib /lib /usr/lib /usr/local/lib /opt/lib $finkdir/lib
+
+    if test "x$syslibs" = "x" ; then
+       what2look4="$SSL $SSL/lib /lib /usr/lib /usr/local/lib /opt/lib /opt/openssl/lib $finkdir/lib"
+    else
+       what2look4="$syslibs $syslibs/openssl"
+    fi
+
+    check_library "libssl" "$sslshared" "$ssllibdir" "$what2look4"
     if test "x$found_lib" = "x" ; then
         ssllib=""
         ssllibdir=""
@@ -2269,7 +2353,7 @@ if test "x$enable_ssl" = "xyes" ; then
           tmpssllibdir=`echo $ssllibdir | cut -c3-`
        fi
        # All libraries in the same directory
-       check_library "libcrypto" "$sslshared" "$tmpssllibdir" "$syslibs" /usr/lib
+       check_library "libcrypto" "$sslshared" "$tmpssllibdir" "$what2look4"
        if test "x$found_lib" = "x" ; then
           ssllib=""
           ssllibdir=""
@@ -2289,8 +2373,15 @@ if test "x$enable_ssl" = "xyes" ; then
 
        incssl="asn1.h asn1_mac.h bio.h dh.h evp.h err.h pem.h \
                rand.h rsa.h ssl.h x509.h x509v3.h"
+
+       if test "x$incpfx" = "x" ; then
+          what2look4="$fullincdir"
+       else
+          what2look4="$incpfx"
+       fi
+
        for i in $incssl ; do
-           check_header "openssl/$i" "" "$fullincdir"
+           check_header "openssl/$i" "" "$what2look4"
            if test "x$found_hdr" = "x" ; then
                sslincdir=""
                enable_ssl="no"
@@ -2362,11 +2453,16 @@ if test "x$enable_krb5" = "xyes" ; then
             comerrincdir=$krb5incdir
         fi
     fi
-    check_header "com_err.h" "$comerrincdir" \
-            "$slackrbinc" /usr/kerberos/include \
-    	    /usr/krb5/include /usr/local/kerberos/include \
-    	    /usr/include /usr/local/include
 
+    if test "x$incpfx" = "x" ; then
+        what2look4="$slackrbinc /usr/kerberos/include \
+    	    /usr/krb5/include /usr/local/kerberos/include \
+    	    /usr/include /usr/local/include"
+    else
+        what2look4="$incpfx $incpfx/kerberos $incpfx/krb5 $incpfx/openafs"
+    fi
+
+    check_header "com_err.h" "$comerrincdir" "$what2look4"
     ceincdir="."
     if test ! "x$found_dir" = "x" ; then
        ceincdir=$found_dir
@@ -2379,8 +2475,14 @@ if test "x$enable_krb5" = "xyes" ; then
             comerrlibdir=$krb5libdirorg
         fi
     fi
-    check_library libcom_err "$enable_shared" "$comerrlibdir" "$syslibs"\
-                                              "$afslibdirs $krb5libdirs"
+
+    if test "x$syslibs" = "x" ; then
+       what2look4="$afslibdirs $krb5libdirs"
+    else
+       what2look4="$syslibs $syslibs/kerberos $syslibs/krb5 $syslibs/openafs"
+    fi
+
+    check_library libcom_err "$enable_shared" "$comerrlibdir" "$what2look4"
 
     inckrb4="INCKRB4 = "
     libkrb4="LIBKRB4 = "
@@ -2503,6 +2605,12 @@ rm -f GNUmakefile.tmp
 
 echo "done"
 
+
+if test "x$incpfx" != "x" ; then
+    incpfx="-I$incpfx"
+fi
+
+
 #---------------------------------------------------------------------
 # GNUmake.env
 #
@@ -2559,6 +2667,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@inst_bindir@|$inst_bindir|" \
     -e "s|@inst_utilsdir@|$inst_utilsdir|" \
     -e "s|@inst_incdir@|$inst_incdir|" \
+    -e "s|@glbincpfx@|$incpfx|" \
     < GNUmake.env.tmp > $ENVOUT
 
 rm -f GNUmake.env.tmp
