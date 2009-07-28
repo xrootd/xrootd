@@ -122,14 +122,20 @@ struct timeval abs_start_time;
 struct timeval abs_stop_time;
 struct timezone tz;
 
+#ifdef HAVE_XRDCRYPTO
 // To calculate md5 sums during transfers
 XrdCryptoMsgDigest *MD_5=0;    // md5 computation
 XrdCryptoFactory *gCryptoFactory = 0;
+#endif
 
 // To calculate the adler32 cksum
 unsigned int adler = 0;
 
+#ifdef HAVE_XRDCRYPTO
 void print_summary(const char* src, const char* dst, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5, unsigned int adler ) {
+#else
+void print_summary(const char* src, const char* dst, unsigned long long bytesread, unsigned int adler ) {
+#endif
    gettimeofday (&abs_stop_time, &tz);
    float abs_time=((float)((abs_stop_time.tv_sec - abs_start_time.tv_sec) *1000 +
 			   (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
@@ -148,12 +154,13 @@ void print_summary(const char* src, const char* dst, unsigned long long bytesrea
    if (abs_time > 0) {
       COUT(("[xrdcp] # Eff.Copy. Rate[MB/s]     : %f\n",bytesread/abs_time/1000.0));
    }
+#ifdef HAVE_XRDCRYPTO
 #ifndef WIN32
    if (md5) {
      COUT(("[xrdcp] # md5                      : %s\n",_MD_5->AsHexString()));
    }
 #endif
-
+#endif
    if (adlerchk) {
       COUT(("[xrdcp] # adler32                  : %x\n", adler));
    }
@@ -176,17 +183,22 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
    CERR(("| %.02f %% [%.01f MB/s]\r",100.0*bytesread/size,bytesread/abs_time/1000.0));
 }
 
-
+#ifdef HAVE_XRDCRYPTO
 void print_chksum(const char* src, unsigned long long bytesread, XrdCryptoMsgDigest* _MD_5, unsigned adler) {
   if (_MD_5 || adlerchk) {
+#else
+void print_chksum(const char* src, unsigned long long bytesread, unsigned adler) {
+  if (adlerchk) {
+#endif
     XrdOucString xsrc(src);
     xsrc.erase(xsrc.rfind('?'));
     //    printf("md5: %s\n",_MD_5->AsHexString());
+#ifdef HAVE_XRDCRYPTO
 #ifndef WIN32
     if (_MD_5)
        cout << "md5: " << _MD_5->AsHexString() << " " << xsrc << " " << bytesread << endl;
 #endif
-
+#endif
     if (adlerchk)
        cout << "adler32: " << hex << adler << " " << xsrc << bytesread << endl;
 
@@ -625,9 +637,11 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
                print_progbar(bytesread,size);
             }
 
+#ifdef HAVE_XRDCRYPTO
             if (md5) {
                MD_5->Update((const char*)buf,len);
             }
+#endif
 
 #ifdef HAVE_LIBZ
             if (adlerchk) {
@@ -673,6 +687,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 
    if ((unsigned)cpnfo.len != bytesread) retvalue = 13;
 
+#ifdef HAVE_XRDCRYPTO
    if (md5) MD_5->Final();
    if (adlerchk || md5) {
       print_chksum(src, bytesread, MD_5, adler);
@@ -681,6 +696,15 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    if (summary) {        
       print_summary(src, dst, bytesread, MD_5, adler);
    }
+#else
+   if (adlerchk) {
+      print_chksum(src, bytesread, adler);
+   }
+      
+   if (summary) {        
+      print_summary(src, dst, bytesread, adler);
+   }
+#endif
       
    if (retvalue >= 0) {
 
@@ -878,9 +902,11 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	       print_progbar(bytesread,size);
 	    }
 
+#ifdef HAVE_XRDCRYPTO
 	    if (md5) {
 	      MD_5->Update((const char*)buf,len);
 	    }
+#endif
 
 #ifdef HAVE_LIBZ
                if (adlerchk) {
@@ -933,6 +959,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 
    if ((unsigned)cpnfo.len != bytesread) retvalue = 13;
 
+#ifdef HAVE_XRDCRYPTO
    if (md5) MD_5->Final();
    if (md5 || adlerchk) {
       print_chksum(src, bytesread, MD_5, adler);
@@ -941,6 +968,15 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    if (summary) {        
       print_summary(src,dst,bytesread,MD_5, adler);
    }      
+#else
+   if (adlerchk) {
+      print_chksum(src, bytesread, adler);
+   }
+      
+   if (summary) {        
+      print_summary(src,dst,bytesread,adler);
+   }      
+#endif
 
    int closeres = close(f);
    if (!retvalue) retvalue = closeres;
@@ -1025,9 +1061,11 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 	      print_progbar(bytesread,size);
 	    }
 
+#ifdef HAVE_XRDCRYPTO
 	    if (md5) {
 	      MD_5->Update((const char*)buf,len);
 	    }
+#endif
 
 #ifdef HAVE_LIBZ
             if (adlerchk) {
@@ -1072,6 +1110,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
    if (size != bytesread) retvalue = 13;
 
+#ifdef HAVE_XRDCRYPTO
    if (md5) MD_5->Final();
    if (md5 || adlerchk) {
       print_chksum(src, bytesread, MD_5, adler);
@@ -1080,6 +1119,15 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    if (summary) {        
       print_summary(src, dst, bytesread, MD_5, adler);
    }	 
+#else
+   if (adlerchk) {
+      print_chksum(src, bytesread, adler);
+   }
+   
+   if (summary) {        
+      print_summary(src, dst, bytesread, adler);
+   }     
+#endif
    
    pthread_cancel(myTID);
    pthread_join(myTID, &thret);
@@ -1354,6 +1402,7 @@ int main(int argc, char**argv) {
          continue;
       }
 
+#ifdef HAVE_XRDCRYPTO
 #ifndef WIN32
       if ( (strstr(argv[i], "-md5") == argv[i])) {
 	md5=true;
@@ -1370,6 +1419,7 @@ int main(int argc, char**argv) {
 	}
 	continue;
       }
+#endif
 #endif
 
 #ifdef HAVE_LIBZ
@@ -1429,9 +1479,11 @@ int main(int argc, char**argv) {
    while (!retval && wklst->GetCpJob(src, dest)) {
       Info(XrdClientDebug::kUSERDEBUG, "main", src << " --> " << dest);
       
+#ifdef HAVE_XRDCRYPTO
       if (md5) {
 	MD_5->Reset("md5");
       }
+#endif
       adler = 0;
 
 
@@ -1561,8 +1613,10 @@ int main(int argc, char**argv) {
 
    }
 
+#ifdef HAVE_XRDCRYPTO
    if (md5 && MD_5) 
      delete MD_5;
+#endif
 
    return retval;
 }

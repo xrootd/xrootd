@@ -7,9 +7,14 @@ include ../GNUmake.env
 
 LIBLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys $(LIBM)
 
-BINLIBS = $(LIBDIR)/libXrdClient.a $(LIBDIR)/libXrdCrypto.a \
-          $(LIBDIR)/libXrdSut.a $(LIBDIR)/libXrdNet.a \
-          $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
+ifneq ($(XRDSEC),)
+BINLIBS = $(LIBDIR)/libXrdClient.a \
+          $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a \
+          $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
+else
+BINLIBS = $(LIBDIR)/libXrdClient.a \
+          $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
+endif
 
 LIBDEPS = $(BINLIBS)
 
@@ -538,7 +543,7 @@ $(OBJDIR)/Xrdcp.o: Xrdcp.cc ../XrdClient/XrdClientUrlInfo.hh \
   ../XrdSut/XrdSutAux.hh ../XrdClient/XrdClientAbsMonIntf.hh \
   ../XrdClient/XrdcpXtremeRead.hh
 	@echo Compiling Xrdcp.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/Xrdcp.o Xrdcp.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFHASXRDCRYPTO) $(INCLUDE) -o $(OBJDIR)/Xrdcp.o Xrdcp.cc
 
 $(OBJDIR)/XrdClientPrep.o: XrdClientPrep.cc ../XProtocol/XProtocol.hh \
                            ../XrdClient/XrdClientAdmin.hh \
