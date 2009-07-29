@@ -41,8 +41,6 @@
 
 #include <XrdSecgsi/XrdSecgsiTrace.hh>
 
-#include <openssl/x509v3.h>
-
 #define PRT(x) {cerr <<x <<endl;}
 
 //
