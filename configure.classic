@@ -763,10 +763,10 @@ EOF
 #
 ### echo %%% See if we got the architecture
 #
-if test $# -lt 1 ; then
-   guess_architecture
-else
-    case $1 in
+# This call fills the defaults, which could be overwritten by argument
+guess_architecture
+if test $# -gt 0 ; then
+   case $1 in
       -h|--help) confhelp ; exit 0 ;;
       -*) # in case the first argument wasn't an architecure but an option
           guess_architecture
@@ -1005,7 +1005,7 @@ done
 goodarch="no"
 if test "x$support" = "x" ; then
    # No support
-   echo "Invalid architecture. Try $0 --help"
+   echo "Invalid architecture: $arch . Try $0 --help"
    exit 1
 else
    goodarch="yes"
