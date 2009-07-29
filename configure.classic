@@ -872,6 +872,7 @@ if test "x$f" = "xenable_sec" ; then
    enable_krb5=yes
    enable_pwd=yes
    enable_ssl=yes
+   enable_sss=yes
    else
    eval $f=yes
    for c in $options ; do
@@ -892,6 +893,7 @@ if test "x$f" = "xenable_sec" ; then
    enable_krb5=no
    enable_pwd=no
    enable_ssl=no
+   enable_sss=no
    else
    eval $f=no
    for c in $options ; do
@@ -1074,14 +1076,14 @@ else
 fi
 
 # Which targets to build
-targets="\$(XRDSEC) \$(SERVER) \$(XRDCLIENT) "
+targets="\$(XRDCOMMON) \$(XRDSEC) \$(SERVER) \$(XRDCLIENT) "
 if test "x$clientonly" = "xyes" ; then
    echo "Building only client ..."
-   targets="\$(XRDSEC) \$(XRDCLIENT)"
+   targets="\$(XRDCOMMON) \$(XRDSEC) \$(XRDCLIENT)"
 fi
 if test "x$seconly" = "xyes" ; then
    echo "Building only security modules..."
-   targets="\$(XRDSEC)"
+   targets="\$(XRDCOMMON) \$(XRDSEC)"
 fi
 if test "x$enable_mon" = "xyes" ; then
    echo "Building monitor module ..."
@@ -2424,9 +2426,13 @@ fi
 ######################################################################
 #
 ### Collect security setup
-xrdsec="XrdSec $xrdsut $xrdcrypto"
+xrdsec=
+hasxrdcrypto=
 if test "x$buildsec" = "xyes" ; then
-   xrdsec="$xrdsec $havekrb4 $havekrb5 $havepwd $havesss $havegsi XrdSecunix"
+   xrdsec="$xrdsut $xrdcrypto $havekrb4 $havekrb5 $havepwd $havesss $havegsi XrdSecunix"
+   if test ! "x$xrdcrypto" = "x" ; then
+      hasxrdcrypto="-DHAVE_XRDCRYPTO"
+   fi
 fi
 cryptlib="CRYPTLIB = -lcrypt"
 if test "x$platform" = "xmacosx" ; then
@@ -2435,7 +2441,6 @@ fi
 if test "x$arch" = "xsunx86_510" ; then
    cryptlib="CRYPTLIB = -lcryptoutil"
 fi
-
 ######################################################################
 #
 ### echo %%% Communication of errors library
@@ -2659,6 +2664,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@perlccflags@|$perlccflags|" \
     -e "s|@nostrictalias@|$nostrictalias|" \
     -e "s|@hasoldhdrs@|$hasoldhdrs|" \
+    -e "s|@hasxrdcrypto@|$hasxrdcrypto|" \
     -e "s|@altcxx@|$altcxx|" \
     -e "s|@altld@|$altld|" \
     -e "s|@inst_prefix@|$inst_prefix|" \
