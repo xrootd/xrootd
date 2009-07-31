@@ -440,10 +440,19 @@ int XrdOssSys::ConfigN2N(XrdSysError &Eroute)
 //
    if (!N2N_Lib)
       {the_N2N = XrdOucgetName2Name(&Eroute, ConfigFN, "", LocalRoot, RemoteRoot);
-       if (LocalRoot)  lcl_N2N = the_N2N;
-       if (RemoteRoot) rmt_N2N = the_N2N;
+       if (LocalRoot) {lcl_N2N = the_N2N;
+                       XrdOucEnv::Export("XRDLCLROOT", LocalRoot);
+                      }
+       if (RemoteRoot){rmt_N2N = the_N2N;
+                       XrdOucEnv::Export("XRDRMTROOT",RemoteRoot);
+                      }
        return 0;
       }
+
+// Export name lib information
+//
+   XrdOucEnv::Export("XRDN2NLIB", N2N_Lib);
+   if (N2N_Parms) XrdOucEnv::Export("XRDN2NPARMS", N2N_Parms);
 
 // Create a pluin object (we will throw this away without deletion because
 // the library must stay open but we never want to reference it again).
