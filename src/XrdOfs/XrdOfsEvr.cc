@@ -133,7 +133,7 @@ int XrdOfsEvr::Init(XrdSysError *eobj, XrdCmsClient *trgp)
    strcpy(path, p); n = strlen(p);
    if (path[n-1] != '/') {path[n] = '/'; n++;}
    strcpy(&path[n], "ofsEvents");
-   putenv(strdup(pbuff));
+   putenv(strdup(pbuff));    // XrdOucEnv::Export("XRDOFSEVENTS")
 
 // Now create a socket to a path
 //
