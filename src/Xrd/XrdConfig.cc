@@ -205,10 +205,6 @@ int XrdConfig::Configure(int argc, char **argv)
   Output:   0 upon success or !0 otherwise.
 */
    const char *xrdInst="XRDINSTANCE=";
-   const char *xrdName="XRDNAME=";
-   const char *xrdHost="XRDHOST=";
-   const char *xrdProg="XRDPROG=";
-   const char *xrdCfn ="XRDCONFIGFN=";
 
    static sockaddr myIPAddr;
    int n, retc, dotrim = 1, NoGo = 0, aP = 1, clPort = -1, optbg = 0;
@@ -241,7 +237,7 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'd': XrdTrace.What |= TRACE_ALL;
                  ProtInfo.DebugON = 1;
-                 putenv((char *)"XRDDEBUG=1");
+                 putenv((char *)"XRDDEBUG=1"); // XrdOucEnv::Export()
                  break;
        case 'h': Usage(0);
        case 'k': n = strlen(optarg)-1;
@@ -300,13 +296,13 @@ int XrdConfig::Configure(int argc, char **argv)
 // Bind the log file if we have one
 //
    if (logfn)
-      {char ldbuff[1024], *lP;
+      {char *lP;
        if (!(logfn = XrdOucUtils::subLogfn(XrdLog, myInsName, logfn))) _exit(16);
        if (logkeep) XrdLogger.setKeep(logkeep);
        XrdLogger.Bind(logfn, 24*60*60);
        if ((lP = rindex(logfn,'/'))) {*(lP+1) = '\0'; lP = logfn;}
           else lP = (char *)"./";
-       strcpy(ldbuff, "XRDLOGDIR="); strcat(ldbuff, lP); putenv(strdup(ldbuff));
+       XrdOucEnv::Export("XRDLOGDIR", lP);
        free(logfn);
       }
 
@@ -342,19 +338,15 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Set the Environmental variable to hold the instance name
 // XRDINSTANCE=<pgm> <instance name>@<host name>
+//                 XrdOucEnv::Export("XRDINSTANCE")
 //
    sprintf(buff,"%s%s %s@%s", xrdInst, myProg, ProtInfo.myInst, myName);
    myInstance = strdup(buff);
    putenv(myInstance);
    myInstance += strlen(xrdInst);
-   sprintf(buff, "%s%s", xrdHost, myName);
-   putenv(strdup(buff));
-   if (myInsName)
-      {sprintf(buff, "%s%s", xrdName, myInsName);
-       putenv(strdup(buff));
-      }
-   sprintf(buff, "%s%s", xrdProg, myProg);
-   putenv(strdup(buff));
+                   XrdOucEnv::Export("XRDHOST", myName);
+   if (myInsName)  XrdOucEnv::Export("XRDNAME", myInsName);
+                   XrdOucEnv::Export("XRDPROG", myProg);
 
 // Put out the herald
 //
@@ -376,8 +368,7 @@ int XrdConfig::Configure(int argc, char **argv)
    if (ConfigFN && *ConfigFN)
       {XrdLog.Say("Config using configuration file ", ConfigFN);
        ProtInfo.ConfigFN = ConfigFN;
-       sprintf(buff, "%s%s", xrdCfn, ConfigFN);
-       putenv(strdup(buff));
+       XrdOucEnv::Export("XRDCONFIGFN", ConfigFN);
        NoGo = ConfigProc();
       }
    if (clPort >= 0) PortTCP = clPort;
@@ -608,7 +599,6 @@ int XrdConfig::setFDL()
   
 int XrdConfig::Setup(char *dfltp)
 {
-   static char portbuff[32], AdmPathBuff[1056];
    XrdInet *NetWAN;
    XrdConfigProt *cp, *pp, *po, *POrder = 0;
    int wsz, lastPort = -17;
@@ -654,8 +644,7 @@ int XrdConfig::Setup(char *dfltp)
 //
    if (myInsName) ProtInfo.AdmPath = XrdOucUtils::genPath(AdminPath,myInsName);
       else ProtInfo.AdmPath = AdminPath;
-   sprintf(AdmPathBuff, "XRDADMINPATH=%s", ProtInfo.AdmPath);
-   putenv(AdmPathBuff);
+   XrdOucEnv::Export("XRDADMINPATH", ProtInfo.AdmPath);
    AdminPath = XrdOucUtils::genPath(AdminPath, myInsName, ".xrd");
 
 // Setup admin connection now
@@ -671,10 +660,11 @@ int XrdConfig::Setup(char *dfltp)
 
 // We now go through all of the protocols and get each respective port
 // number and arrange them in descending port number order.
+// XrdOucEnv::Export(XRDPORT
 //
    while((cp = Firstcp))
         {ProtInfo.Port = (cp->port < 0 ? PortTCP : cp->port);
-         sprintf(portbuff, "XRDPORT=%d", ProtInfo.Port); putenv(portbuff);
+         XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
          if ((cp->port = XrdProtLoad::Port(cp->libpath, cp->proname,
                                            cp->parms, &ProtInfo)) < 0) return 1;
          pp = 0; po = POrder; Firstcp = cp->Next;
@@ -723,8 +713,7 @@ int XrdConfig::Setup(char *dfltp)
                 {ProtInfo.WANPort = PortWAN;
                  ProtInfo.WANWSize= Wan_Blen;
                 } else ProtInfo.WANPort = ProtInfo.WANWSize = 0;
-             sprintf(portbuff, "XRDPORT=%d", ProtInfo.Port);
-             putenv(portbuff);
+             XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
              lastPort = cp->port;
             }
          if (!XrdProtLoad::Load(cp->libpath,cp->proname,cp->parms,&ProtInfo))
@@ -738,8 +727,7 @@ int XrdConfig::Setup(char *dfltp)
 //
    ProtInfo.Port = XrdNetTCP[0]->Port();
    PortTCP = ProtInfo.Port;
-   sprintf(portbuff, "XRDPORT=%d", PortTCP);
-   putenv(portbuff);
+   XrdOucEnv::Export("XRDPORT", PortTCP);
 
 // Now check if we have to setup automatic reporting
 //
