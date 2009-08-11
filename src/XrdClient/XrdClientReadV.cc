@@ -79,6 +79,7 @@ kXR_int64 XrdClientReadV::ReqReadV(XrdClientConn *xrdc, char *handle, char *dest
 	  if (xrdc->WriteToServer_Async(&readvFileRequest,
 					buflis) != kOK )
 	    total_len = 0;
+          clientUnMarshallReadAheadList(buflis, readvFileRequest.readv.dlen);
 	}
 
     }
