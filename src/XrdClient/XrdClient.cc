@@ -692,18 +692,28 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
       //  - are compliant with the max number of blocks the server supports
       //  - do not request more than maxbytes bytes each
       kXR_int64 tmpbytes = 0;
+
+      int maxchunkcnt = READV_MAXCHUNKS;
+      if (EnvGetLong(NAME_MULTISTREAMCNT) > 0)
+         maxchunkcnt = reqvect.GetSize() / EnvGetLong(NAME_MULTISTREAMCNT)+1;
+
       int chunkcnt = 0;
       while ( i < reqvect.GetSize() ) {
-	if (chunkcnt >= READV_MAXCHUNKS) break;
+	if (chunkcnt >= maxchunkcnt) break;
 	if (tmpbytes + reqvect[i].len >= spltsize) break;
 	tmpbytes += reqvect[i].len;
 	chunkcnt++;
 	i++;
       }
 
-      res = XrdClientReadV::ReqReadV(fConnModule, fHandle, buf+bytesread,
-				     reqvect, startitem, i-startitem,
-				     fConnModule->GetParallelStreamToUse(reqsperstream) );
+      if (buf)
+         res = XrdClientReadV::ReqReadV(fConnModule, fHandle, buf+bytesread,
+                                        reqvect, startitem, i-startitem,
+                                        fConnModule->GetParallelStreamToUse(reqsperstream) );
+      else
+         res = XrdClientReadV::ReqReadV(fConnModule, fHandle, 0,
+                                        reqvect, startitem, i-startitem,
+                                        fConnModule->GetParallelStreamToUse(reqsperstream) );
 
       // The next bunch of chunks to request starts from here
       startitem = i;
