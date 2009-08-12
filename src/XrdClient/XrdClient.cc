@@ -368,6 +368,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 int XrdClient::Read(void *buf, long long offset, int len) {
     XrdClientIntvList cacheholes;
     long blkstowait;
+    char *tmpbuf = (char *)buf;
 
     Info( XrdClientDebug::kHIDEBUG, "Read",
 	  "Read(offs=" << offset <<
@@ -424,6 +425,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
     len = xrdmax(0, xrdmin(len, stinfo.size - offset));
 
     bool retrysync = false;
+    long totbytes = 0;
 
     
 	
@@ -446,13 +448,15 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
 	      
 
-		bytesgot = fConnModule->GetDataFromCache(buf, offset,
+		bytesgot = fConnModule->GetDataFromCache(tmpbuf+totbytes, offset + totbytes,
 							 len + offset - 1,
 							 true,
 							 cacheholes, blkstowait);
 
+                totbytes += bytesgot;
+
 		Info(XrdClientDebug::kHIDEBUG, "Read",
-		     "Cache response: got " << bytesgot << "@" << offset << " bytes. Holes= " <<
+		     "Cache response: got " << bytesgot << "@" << offset + totbytes << " bytes. Holes= " <<
 		     cacheholes.GetSize() << " Outstanding= " << blkstowait);
 
 		// If the cache gives the data to us
@@ -696,6 +700,9 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
       int maxchunkcnt = READV_MAXCHUNKS;
       if (EnvGetLong(NAME_MULTISTREAMCNT) > 0)
          maxchunkcnt = reqvect.GetSize() / EnvGetLong(NAME_MULTISTREAMCNT)+1;
+
+      if (maxchunkcnt < 2) maxchunkcnt = 2;
+      if (maxchunkcnt > READV_MAXCHUNKS) maxchunkcnt = READV_MAXCHUNKS;
 
       int chunkcnt = 0;
       while ( i < reqvect.GetSize() ) {
