@@ -596,7 +596,7 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
 	    // Now it's time to sleep
 	    // This thread will be awakened when new data will arrive
-	    if ((blkstowait > 0)|| cacheholes.GetSize()) {
+	    if ( (blkstowait > 0) || cacheholes.GetSize() ) {
 		Info( XrdClientDebug::kHIDEBUG, "Read",
 		      "Waiting " << blkstowait+cacheholes.GetSize() << "outstanding blocks." );
 
@@ -663,7 +663,7 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 
     // We pre-process the request list in order to make it compliant
     //  with the restrictions imposed by the server
-    XrdClientVector<XrdClientReadVinfo> reqvect;
+    XrdClientVector<XrdClientReadVinfo> reqvect(nbuf);
 
     // First we want to know how much data we expect
     kXR_int64 maxbytes = 0;
@@ -725,7 +725,7 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
       // The next bunch of chunks to request starts from here
       startitem = i;
 
-      if ( res <= 0)
+      if ( res < 0 )
 	break;
 
       bytesread += res;
