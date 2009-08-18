@@ -191,20 +191,21 @@ public:
     // Inserts an item in the given position
     void Insert(T& item, int pos) {
       
-	if (pos >= size) {
-	    Push_back(item);
-	    return;
-	}
+        if (pos >= size) {
+            Push_back(item);
+            return;
+        }
 
-        struct myindex tmpi;
+        if ( BufRealloc(size+1) ) {
 
-	if ( BufRealloc(size+1) ) {
-           if (holecount > 0) tmpi = index[size];
-
-           memmove(&index[pos+1], &index[pos], (size-pos) * sizeof(myindex));
-           if (holecount > 0) index[pos] = tmpi;
-	   else
+           if (holecount > 0) {
+              struct myindex tmpi = index[size];
+              memmove(&index[pos+1], &index[pos], (size-pos) * sizeof(myindex));
+              index[pos] = tmpi;
+           } else {
+              memmove(&index[pos+1], &index[pos], (size-pos) * sizeof(myindex));
               index[pos].notempty = false;
+           }
 
            size++;
            put(item, pos);
