@@ -22,7 +22,7 @@ xrootdoucinc_HEADERS = \
     XrdOucTable.hh  XrdOucTList.hh      XrdOucTokenizer.hh \
     XrdOucTrace.hh  XrdOucUtils.hh      XrdOucProg.hh \
     XrdOucPup.hh    XrdOucCRC.hh        XrdOucArgs.hh \
-    XrdOucNSWalk.hh
+    XrdOucNSWalk.hh XrdOucSxeq.hh
 
 lib_LTLIBRARIES = libXrdOuc.la
 
@@ -42,6 +42,7 @@ libXrdOuc_la_SOURCES = \
         XrdOucReqID.cc XrdOucReqID.hh      \
         XrdOucStream.cc XrdOucStream.hh     \
         XrdOucString.cc XrdOucString.hh     \
+        XrdOucSxeq.cc XrdOucSxeq.hh \
         XrdOucTokenizer.cc XrdOucTokenizer.hh  \
         XrdOucTrace.cc XrdOucTrace.hh      \
         XrdOucUtils.cc XrdOucUtils.hh      \
