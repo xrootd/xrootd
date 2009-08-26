@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
    struct stat Stat;
    const char *eText;
    char buff[8];
-   int i, rc;
+   int i;
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
