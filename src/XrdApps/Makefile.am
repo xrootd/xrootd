@@ -18,7 +18,7 @@
 #############################################################################
 ## deliverables
 
-bin_PROGRAMS = xrdadler32 mpxstats
+bin_PROGRAMS = xrdadler32 mpxstats wait41
 
 
 #############################################################################
@@ -44,3 +44,11 @@ mpxstats_LDADD = \
                        ../XrdSys/libXrdSys.la
 
 mpxstats_LDFLAGS = -static -export-dynamic
+
+wait41_SOURCES = XrdWait41.cc
+
+wait41_LDADD = \
+                       ../XrdOuc/libXrdOuc.la     \
+                       ../XrdSys/libXrdSys.la
+
+wait41_LDFLAGS = -static -export-dynamic
