@@ -1,63 +1,44 @@
 /******************************************************************************/
 /*                                                                            */
-/*                         X r d G n s M a i n . c c                          */
+/*                      X r d C n s S s i M a i n . c c                       */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
 //           $Id$
 
-const char *XrdCnsMainCVSID = "$Id$";
+const char *XrdCnsSsiMainCVSID = "$Id$";
 
-/* This is the Cluster Name Space interface. The syntax is:
+/* This is the Cluster Name Space utility. The syntax is:
 
-   XrdCnsd [options] [[xroot://]<host[:port]>[/[/prefix]] . . .]
+   cns_ssi {diff | list | updt} [options] <path>
 
-   options: [-a <apath>] [-b <bpath>] [-d] [-e <epath>] [-i <tspec>]
+   options: [-f] [-h] [-m] [-n] [-p] [-s] [-S] [-v] [-l <lfile>]
 
-            [-l <lfile>] [-p <port>] [-q <lim>]
 Where:
-   -a     The admin path where the event log is placed and where named
-          sockets are created. If not specified, the admin path comes from
-          the XRDADMINPATH env variable. Otherwise, /tmp is used. This option
-          is valid only for command line use.
 
-   -b     The archive (i.e., backup) path to use. If not specified, no backup
-          is done. Data is  written to "<bpath>/cns/<host>". By default, the
-          backups are written to each redirector. By prefixing <bpath> with
-          <host[:port]:> then backups are written to the specified host:port.
-          If <port> is omitted the the specified or default -p value is used.
+   <path> The archive (i.e., backup) path to use. All sub-directories in
+          <path> of the form "<path>/cns/<host>" are considered.
 
-   -d     Turns on debugging mode. Valid only via command line.
+   -l     list: Equivalent to specifying '-h -m -n -p -s'.
 
-   -e     The directory where the event logs are to be written. By default
-          this is whatever <apath> becomes.
+   -m     list: Displays the file mode.
 
-   -i     The interval between forced log archiving. Default is 20m (minutes).
+   -n     list: Displays the space name.
 
-   -l     Specifies location of the log file. This may also come from the
-          XRDLOGDIR environmental variable. Valid only via command line.
-          By default, error messages go to standard error.
+   -p     list: Displays the physical location.
 
-   -L     The local root (ignored except when -R specified).
+   -s     list: Displays the file size.
 
-   -N     The name2name library and parms (ignored except when -R specified).
+   -S     list: Same as -s but displays size in k, m, g, or t.
 
-   -p     The default port number to use for the xrootd that can be used to
-          create/maintain the name space as well as hold archived logs. The
-          number 1095 is used bt default.
+   -l     updt: Specifies location of the log file. This may also come from the
+          XRDLOGDIR environmental variable. By default, messages go to stderr.
 
-   -q     Maximum number of log records before the log is closed and archived.
-          Specify 1 to 1024. The default if 512.
-
-   -X     The export list (ignored except when -R specified).
-
-<host>    Is the hostname of the server managing the cluster name space. You
-          may specify more than one if they are replicated. The default is to
-          use the hosts specified via the "all.manager" directive.
+   -v     updt: Increases the verbosity of messages.
 */
 
 /******************************************************************************/
@@ -74,32 +55,28 @@ Where:
 #include <stdio.h>
 #include <sys/param.h>
 
-#include "Xrd/XrdTrace.hh"
+#include "XrdCns/XrdCnsSsi.hh"
+#include "XrdCns/XrdCnsSsiCfg.hh"
+#include "XrdCns/XrdCnsSsiSay.hh"
 
-#include "XrdCns/XrdCnsConfig.hh"
-#include "XrdCns/XrdCnsDaemon.hh"
-
-#include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucTList.hh"
 
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
-  
+
 /******************************************************************************/
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
 
 namespace XrdCns
 {
-extern XrdCnsConfig       Config;
-
-extern XrdCnsDaemon       XrdCnsd;
+extern XrdCnsSsiCfg       Config;
 
        XrdSysError        MLog(0,"Cns_");
 
-       XrdOucTrace        XrdTrace(&MLog);
+       XrdCnsSsiSay       Say(&MLog);
 }
 
 /******************************************************************************/
@@ -131,8 +108,10 @@ using namespace XrdCns;
 int main(int argc, char *argv[])
 {
    XrdSysLogger MLogger;
-   XrdOucStream stdinEvents;    // STDIN fed events
+   XrdOucTList *tP;
    sigset_t myset;
+   char *hP;
+   int rc = 0;
 
 // Establish message routing
 //
@@ -154,15 +133,15 @@ int main(int argc, char *argv[])
 // Process the options and arguments
 //
    if (!Config.Configure(argc, argv)) exit(1);
+   Say.setV(Config.Verbose);
 
 // Construct the logfile path and bind it (command line only)
 //
-   if (!Config.logfn && (Config.logfn = getenv("XRDLOGDIR")))
+   if (!Config.logFN && (Config.logFN = getenv("XRDLOGDIR")))
       {pthread_t tid;
        char buff[2048];
        int retc;
-       if (Config.logKeep) MLogger.setKeep(Config.logKeep);
-       strcpy(buff, Config.logfn); strcat(buff, "cnsdlog");
+       strcpy(buff, Config.logFN); strcat(buff, "cnsssilog");
        MLogger.Bind(buff, 24*60*60);
        MLog.logger(&MLogger);
        if ((retc = XrdSysThread::Run(&tid, MLogWorker, (void *)0,
@@ -170,17 +149,20 @@ int main(int argc, char *argv[])
           MLog.Emsg("Main", retc, "create midnight runner");
       }
 
-// Complete configuration. We do it this was so that we can easily run this
-// either as a plug-in or as a command.
+// Process the request
 //
-   if (!Config.Configure(getenv("XRDCONFIGFN"))) _exit(1);
+   while((tP = Config.dirList))
+        {hP = tP->text + tP->val;
+         if (Config.Xeq == 'l') rc |= XrdCnsSsi::List(hP, tP->text);
+            else {int i = XrdCnsSsi::Updt(hP, tP->text);
+                  if (i) Say.M("Unable to update ", hP, " inventory.");
+                  rc |= i;
+                 }
+         Config.dirList = tP->next;
+         delete tP;
+        }
 
-// At this point we should be able to accept new requests
+// All done
 //
-   stdinEvents.Attach(STDIN_FILENO, 32*1024);
-   XrdCnsd.getEvents(stdinEvents, "xrootd");
-
-// We should never get here
-//
-   _exit(8);
+   exit(rc);
 }

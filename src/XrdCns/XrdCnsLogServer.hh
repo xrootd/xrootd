@@ -1,30 +1,42 @@
-#ifndef _CNS_DAEMON_H_
-#define _CNS_DAEMON_H_
+#ifndef __XRDCNS_LogServer__
+#define __XRDCNS_LogServer__
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d C n s D a e m o n . h h                        */
+/*                    X r d C n s L o g S e r v e r . h h                     */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
+//          $Id$
 
-#include "XrdSys/XrdSysPthread.hh"
+#include <sys/param.h>
 
-class XrdOucStream;
-
-class XrdCnsDaemon
+class XrdOucTList;
+class XrdCnsLogClient;
+class XrdCnsLogFile;
+  
+class XrdCnsLogServer
 {
 public:
 
-void  getEvents(XrdOucStream &, const char *Who);
+int  Init(XrdOucTList *rList);
 
-      XrdCnsDaemon() {}
-     ~XrdCnsDaemon() {}
+void Run();
+
+     XrdCnsLogServer();
+    ~XrdCnsLogServer() {}
+
 
 private:
+void Massage(XrdCnsLogRec *lrP);
+
+XrdCnsLogClient *Client;
+XrdCnsLogFile   *logFile;
+
+char             logDir[MAXPATHLEN+1];
+char            *logFN;
 };
 #endif
