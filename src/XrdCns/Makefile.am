@@ -14,7 +14,7 @@ xrootdcnsincdir = $(includedir)/xrootd/XrdCns
 
 #############################################################################
 ## deliverables
-bin_PROGRAMS = XrdCnsd
+bin_PROGRAMS = XrdCnsd cns_ssi
 
 INCLUDES = -I$(top_srcdir)/src
 
