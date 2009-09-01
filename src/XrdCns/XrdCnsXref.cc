@@ -133,5 +133,7 @@ int XrdCnsXref::availI()
   
 int XrdCnsXref::c2i(char xCode)
 {
-   return (xCode <= 0x7f ? xCode - '0' : -1);
+   int n = static_cast<int>(xCode);
+
+   return (n <= 127 ? xCode - '0' : -1);
 }
