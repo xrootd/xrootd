@@ -88,11 +88,11 @@ anything: $(TARGETS)
 
 $(TARGCNSD): $(OBJCNSD) $(OBJCOM) $(LIBDEP)
 	@echo Creating executable $(BINDIR)/XrdCnsd
-	$(ECHO)$(CC) $(CFLAGS) $(OBJCNSD) $(OBJCOM) $(LIBDEP) $(MORELIBS) $(LIBS) -o $(BINDIR)/XrdCnsd
+	$(ECHO)$(LD) $(LDOP) $(CFLAGS) $(OBJCNSD) $(OBJCOM) $(LIBDEP) $(MORELIBS) $(LIBS) -o $(BINDIR)/XrdCnsd
 
 $(TARGSSI): $(OBJSSI) $(OBJCOM) $(LIBDEP)
 	@echo Creating executable $(BINDIR)/cns_ssi
-	$(ECHO)$(CC) $(CFLAGS) $(OBJSSI) $(OBJCOM) $(LIBDEP) $(MORELIBS) $(LIBS) -o $(BINDIR)/cns_ssi
+	$(ECHO)$(CC) $(LDOP) $(CFLAGS) $(OBJSSI) $(OBJCOM) $(LIBDEP) $(MORELIBS) $(LIBS) -o $(BINDIR)/cns_ssi
 
 $(OBJDIR)/XrdCnsConfig.o:  XrdCnsConfig.hh    XrdCnsConfig.cc \
                            XrdCnsDaemon.hh    XrdCnsLogRec.hh \
