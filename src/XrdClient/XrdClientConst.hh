@@ -87,11 +87,16 @@
 #define DFLT_READAHEADSIZE      (0)
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
 
+#define DFLT_READAHEADSTRATEGY  (1) // This is the sequential readahead
+#define NAME_READAHEADSTRATEGY  (char *)"ReadAheadStrategy"
+
+
 // To be used in copy-like apps when the data is to be accessed only once
 // ... to reduce additional cache overhead
 #define DFLT_REMUSEDCACHEBLKS   0
 #define NAME_REMUSEDCACHEBLKS   (char *)"RemoveUsedCacheBlocks"
 
+// When writing async, purge immediately the written blocks from the cache
 #define DFLT_PURGEWRITTENBLOCKS   0
 #define NAME_PURGEWRITTENBLOCKS    (char *)"PurgeWrittenBlocks"
 

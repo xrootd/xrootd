@@ -54,7 +54,7 @@ XrdClientEnv::XrdClientEnv() {
    PutInt(NAME_DATASERVERCONN_TTL, DFLT_DATASERVERCONN_TTL);
    PutInt(NAME_LBSERVERCONN_TTL, DFLT_LBSERVERCONN_TTL);
    PutInt(NAME_PURGEWRITTENBLOCKS, DFLT_PURGEWRITTENBLOCKS);
-
+   PutInt(NAME_READAHEADSTRATEGY, DFLT_READAHEADSTRATEGY);
 }
 
 //_____________________________________________________________________________
