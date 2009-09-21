@@ -82,7 +82,7 @@
 // 0 = LRU
 // 1 = Remove least offest
 #define DFLT_READCACHEBLKREMPOLICY       0
-#define NAME_READCACHEBLKREMPOLICY       (char *)"ReadCacheBlk"
+#define NAME_READCACHEBLKREMPOLICY       (char *)"ReadCacheBlkRemPolicy"
 
 #define DFLT_READAHEADSIZE      (0)
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
