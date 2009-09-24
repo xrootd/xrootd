@@ -312,7 +312,7 @@ int XrdCnsSsi::Updt(const char *Host, const char *Path)
    nsHelper theNS;
    struct stat Stat;
    char cSave, iBuff[MAXPATHLEN+1], oBuff[MAXPATHLEN+1], *lP;
-   int iFD, rc, TOD;
+   int iFD, rc, TOD = 0;
 
 // Make sure we are the only ones running here for this directory
 //

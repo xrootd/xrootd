@@ -298,7 +298,7 @@ int XrdCnsConfig::Configure(const char *Cfn)
    if ((tP = getenv("XRDNAME")) && *tP) {strcpy(buff,"./"); strcat(buff, tP);}
       else strcpy(buff, ".");
    strcat(buff, "/cns/");
-   if (!XrdOucUtils::makePath(buff,0770)) chdir(buff);
+   if (!XrdOucUtils::makePath(buff,0770) && chdir(buff)) {}
 
 // Do some XrdClient specific optimizations
 //

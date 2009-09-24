@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 
 // Now wait for the process to die
 //
-   read(STDIN_FILENO, buff, sizeof(buff));
+   if (read(STDIN_FILENO, buff, sizeof(buff))) {}
    exit(0);
 }
 
