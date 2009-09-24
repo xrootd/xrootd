@@ -224,7 +224,10 @@ int XrdCryptosslX509Crl::InitFromURI(const char *uri, const char *hash)
 
    // Execute 'wget'
    DEBUG("executing ... "<<cmd);
-   system(cmd.c_str());
+   if (system(cmd.c_str()) == -1) {
+      DEBUG("'system' could not fork to execute command '"<<cmd<<"'");
+      return -1;
+   }
    struct stat st;
    if (stat(outder.c_str(), &st) != 0) {
       DEBUG("did not manage to get the CRL file from "<<uri);
