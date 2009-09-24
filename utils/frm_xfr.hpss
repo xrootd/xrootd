@@ -524,7 +524,8 @@ return $XfrMaxTR+2;
 #******************************************************************************
  
 sub Transfer {my($Cmds, $isWrite) = @_;
-              my($i, $pid, @Resp, $aOK1, $aOK2, $fsz, $xfr);
+              my($i, $n, $pid, @Resp, $aOK1, $aOK2, $fsz, $xfr);
+              my($xdir) = ' bytes '.($isWrite ? 'sent ' : 'received ');
               local(*Reader, *Writer);
 
 # Det things up
@@ -579,25 +580,25 @@ sub Transfer {my($Cmds, $isWrite) = @_;
           last;
          }
 
-      $aOK2 = 0;
+      $fsz = 0; $aOK2 = 0;
       for $i ($aOK1 .. $#Resp)
-          {if (($fsz)=$Resp[$i] =~ m/226 Transfer Complete.\(moved = (\d+)\)/)
-              {$aOK2 = $i+1; last;} }
-      if (!$aOK2)
-         {Logit("!!! '226 Transfer Complete' msg not found.\n");
-          $XfrRC = 8;
-          last;
-         }
+          {if (($xfr)=$Resp[$i] =~ m/226 Transfer Complete.\(moved = (\d+)\)/)
+              {$fsz += $xfr; $aOK2 = 1;
+               if (($n  = index( $Resp[$i+1], $xdir)) > 0)
+                  {$xfr = substr($Resp[$i+1], 0, $n); last;}
+              }
+          }
 
       # Make sure all the bytes were sent/received
       #
-      if ($isWrite)
-         {($xfr) = $Resp[$aOK2] =~ m/(\d+) bytes sent.+/;}
-         else {($xfr) = $Resp[$aOK2] =~ m/(\d+) bytes received.+/;}
-      if ($fsz != $xfr)
-         {Logit("!!! Transfer bytes do not match ($fsz != $xfr).");
+      if (!$aOK2)
+         {Logit("!!! '226 Transfer Complete' msg not found.\n");
           $XfrRC = 8;
          }
+         elsif ($fsz != $xfr)
+               {Logit("!!! Transfer bytes do not match ($fsz != $xfr).");
+                $XfrRC = 8;
+               }
       last;
      }
 
