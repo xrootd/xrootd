@@ -602,7 +602,13 @@ guess_architecture () {
     fi
     if [ "$platform" = "solaris" -a "$chip" = "i86pc" ]; then
        if `isainfo -b | grep "64" > /dev/null  2>&1` ; then
-          ccflv=sunCCamd
+          if [ "$rele" = "5.10" ]; then
+             ccflv=sunCCamd510
+          else
+             ccflv=sunCCamd
+          fi
+       else
+          ccflv=sunCC
        fi
     fi
     echo "$osys | $chip | $rele | $arch | $ccflv"
@@ -2242,6 +2248,13 @@ if test "x$enable_ssl" = "xyes" ; then
     # dirs: --with-ssl-incdir and --with-ssl-libdir have priority on --with-ssl-dir
     #       in both cases we link statically unless --with-ssl-shared is 'yes'
     #
+    if test "x$ssldir" = "x" ; then
+       # Check if we got it via the SSL env ...
+       ssldir="$SSL"
+       if test ! "x$ssldir" = "x" ; then
+	   echo "Using OpenSSL from the SSL environment setting: $SSL"
+       fi
+    fi
     if test ! "x$ssldir" = "x" ; then
        if test "x$sslincdir" = "x" ; then
           sslincdir=$ssldir/include
@@ -2268,7 +2281,7 @@ if test "x$enable_ssl" = "xyes" ; then
     #
 
     if test "x$incpfx" = "x" ; then
-       what2look4="$SSL $SSL/include /usr/include /usr/local/include /opt/include /opt/openssl/include $finkdir/include"
+       what2look4="/usr/include /usr/local/include /opt/include /opt/openssl/include $finkdir/include"
     else
        what2look4="$incpfx $incpfx/openssl"
     fi
