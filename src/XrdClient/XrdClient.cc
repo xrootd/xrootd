@@ -416,8 +416,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	readFileRequest.read.rlen = len;
 	readFileRequest.read.dlen = 0;
 
-	fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
-				    FALSE, (char *)"ReadBuffer");
+	if (!fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
+                                         FALSE, (char *)"ReadBuffer")) return 0;
 
 	return fConnModule->LastServerResp.dlen;
     }
