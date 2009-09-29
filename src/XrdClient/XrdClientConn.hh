@@ -203,10 +203,15 @@ public:
     bool                       IsPhyConnConnected();
 
     struct ServerResponseHeader
-    LastServerResp;
+                               LastServerResp;
 
     struct ServerResponseBody_Error
-    LastServerError;
+                               LastServerError;
+
+    void                       ClearLastServerError() {
+                                   memset(&LastServerError, 0, sizeof(LastServerError));
+                                   LastServerError.errnum = kXR_noErrorYet;
+                               }
 
     UnsolRespProcResult        ProcessAsynResp(XrdClientMessage *unsolmsg);
 
