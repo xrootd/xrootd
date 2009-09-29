@@ -135,12 +135,10 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fUrl(""),
 				fREQWaitTimeLimit(0),
 				fREQConnectWaitTimeLimit(0) {
     // Constructor
-
+    ClearLastServerError();
     memset(&LastServerResp, 0, sizeof(LastServerResp));
-    memset(&LastServerError, 0, sizeof(LastServerError));
     LastServerResp.status = kXR_noResponsesYet;
-    LastServerError.errnum = kXR_noErrorYet;
-
+ 
     fREQUrl.Clear();
     fREQWait = new XrdSysCondVar(0);
     fREQConnectWait = new XrdSysCondVar(0);
