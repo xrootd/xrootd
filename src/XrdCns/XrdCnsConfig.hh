@@ -42,7 +42,7 @@ static const int  optRecr = 0x0001;
 
 int               Configure(int argc, char **argv, char *argt=0);
 
-int               Configure(const char *Cfn);
+int               Configure();
 
 int               LocalPath(const char *oldp, char *newp, int newpsz);
 
@@ -50,9 +50,9 @@ int               LogicPath(const char *oldp, char *newp, int newpsz);
 
 int               MountPath(const char *oldp, char *newp, int newpsz);
 
-                  XrdCnsConfig() : aPath(0), bPath(0), ePath(0), Dest(0),
-                                   bDest(0), Exports(0), LCLRoot(0), N2N(0),
-                                   XrdCnsLog(0),
+                  XrdCnsConfig() : aPath(0), bPath(0), cPath(0), ePath(0),
+                                   Dest(0),  bDest(0), Exports(0),
+                                   LCLRoot(0), N2N(0), XrdCnsLog(0),
                                    logfn(0), logKeep(0), Port(1095),
                                    mInt(1800), cInt(1200), qLim(512), Opts(0)
                                  {}

@@ -16,9 +16,9 @@ const char *XrdCnsMainCVSID = "$Id$";
 
    XrdCnsd [options] [[xroot://]<host[:port]>[/[/prefix]] . . .]
 
-   options: [-a <apath>] [-b <bpath>] [-d] [-e <epath>] [-i <tspec>]
+   options: [-a <apath>] [-b <bpath>] [-c] [-d] [-e <epath>] [-i <tspec>]
 
-            [-l <lfile>] [-p <port>] [-q <lim>]
+            [-I <tspec>] [-l <lfile>] [-p <port>] [-q <lim>] [-R]
 Where:
    -a     The admin path where the event log is placed and where named
           sockets are created. If not specified, the admin path comes from
@@ -30,13 +30,22 @@ Where:
           backups are written to each redirector. By prefixing <bpath> with
           <host[:port]:> then backups are written to the specified host:port.
           If <port> is omitted the the specified or default -p value is used.
+          Note that this backup can be used to create an inventory file.
+
+   -c     Specified the config file name. By defaults this comes from the envar
+          XRDCONFIGFN set by the underlying xrootd. Note that if -R is specified
+          then -c must be specified as there is no underlying xrootd.
 
    -d     Turns on debugging mode. Valid only via command line.
+
+   -D     Sets the client library debug value. Specify an number -2 to 3.
 
    -e     The directory where the event logs are to be written. By default
           this is whatever <apath> becomes.
 
    -i     The interval between forced log archiving. Default is 20m (minutes).
+
+   -I     The time interval, in seconds, between checks for the inventory file.
 
    -l     Specifies location of the log file. This may also come from the
           XRDLOGDIR environmental variable. Valid only via command line.
@@ -53,7 +62,8 @@ Where:
    -q     Maximum number of log records before the log is closed and archived.
           Specify 1 to 1024. The default if 512.
 
-   -X     The export list (ignored except when -R specified).
+   -R     Run is stand-alone mode and recreate the name space and, perhaps,
+          the inventory file.
 
 <host>    Is the hostname of the server managing the cluster name space. You
           may specify more than one if they are replicated. The default is to
@@ -170,10 +180,10 @@ int main(int argc, char *argv[])
           MLog.Emsg("Main", retc, "create midnight runner");
       }
 
-// Complete configuration. We do it this was so that we can easily run this
+// Complete configuration. We do it this way so that we can easily run this
 // either as a plug-in or as a command.
 //
-   if (!Config.Configure(getenv("XRDCONFIGFN"))) _exit(1);
+   if (!Config.Configure()) _exit(1);
 
 // At this point we should be able to accept new requests
 //

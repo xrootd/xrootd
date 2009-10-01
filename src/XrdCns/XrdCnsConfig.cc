@@ -109,8 +109,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
 
    const char *TraceID = "Config";
    XrdOucArgs Spec(&MLog,(argt ? "Cns_Config: ":"XrdCnsd: "),
-                         (argt ? "b:D:e:i:I:p:q:"
-                               : "a:b:dD:e:E:i:I:l:L:N:p:q:R"),0);
+                          "a:b:c:dD:e:E:i:I:l:L:N:p:q:R", 0);
    char buff[2048], *dP, *tP, *dnsEtxt = 0, *n2n = 0, *lroot = 0, *xpl = 0;
    char theOpt, *theArg;
    long long llval;
@@ -130,6 +129,8 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                     else NoGo = NAPath("'-a'", Spec.argval);
                  break;
        case 'b': bPath = Spec.argval;
+                 break;
+       case 'c': cPath = Spec.argval;
                  break;
        case 'D': NoGo |= XrdOuca2x::a2i(MLog,"-D value",Spec.argval,&n,0,4);
                  if (!NoGo) EnvPutInt("DebugLevel", n);
@@ -176,19 +177,22 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
       {if (getenv("XRDINSTANCE") || getenv("XRDPROG"))
           {MLog.Emsg("Config","'-R' is valid only for a stand-alone command.");
            return 0;
-          } else {
-           if (bPath) {free(bPath); bPath = 0;}
-           if (lroot)
-              {sprintf(buff, "XRDLCLROOT=%s", lroot); putenv(strdup(buff));}
-           if (n2n)
-              {if ((tP=index(n2n, ' '))) {*tP++ = '\0'; while(*tP == ' ') tP++;}
-               sprintf(buff, "XRDN2NLIB=%s", n2n); putenv(strdup(buff));
-               if (tP && *tP)
-                  {sprintf(buff, "XRDN2NPARMS=%s", tP); putenv(strdup(buff));}
-              }
-           if (xpl)
-              {sprintf(buff, "XRDEXPORTS=%s", xpl); putenv(strdup(buff));}
           }
+       if (!cPath)
+          {MLog.Emsg("Config","'-R' requires config file via -c option.");
+           return 0;
+          }
+       if (bPath) {free(bPath); bPath = 0;}
+       if (lroot)
+          {sprintf(buff, "XRDLCLROOT=%s", lroot); putenv(strdup(buff));}
+       if (n2n)
+          {if ((tP=index(n2n, ' '))) {*tP++ = '\0'; while(*tP == ' ') tP++;}
+           sprintf(buff, "XRDN2NLIB=%s", n2n); putenv(strdup(buff));
+           if (tP && *tP)
+              {sprintf(buff, "XRDN2NPARMS=%s", tP); putenv(strdup(buff));}
+          }
+       if (xpl)
+          {sprintf(buff, "XRDEXPORTS=%s", xpl); putenv(strdup(buff));}
       } else {
        *buff = '\0'; tP = buff;
        if (lroot) {*tP++ = ' '; *tP++ = '-'; *tP++ = 'L';}
@@ -197,6 +201,11 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
        if (*buff)
           MLog.Emsg("Config", buff+1, "options ignored; valid only with -R.");
       }
+
+// Handle config
+//
+   if (!cPath) cPath = getenv("XRDCONFIGFN");
+   cPath = (cPath ? strdup(cPath) : (char *)"");
 
 // Handle the backup directory now. If there is one then we will create a
 // thread that periodically closes and backs up the log files.
@@ -271,7 +280,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
 
 /******************************************************************************/
 
-int XrdCnsConfig::Configure(const char *Cfn)
+int XrdCnsConfig::Configure()
 {
 /*
   Function: Establish configuration at start up time.
@@ -290,7 +299,6 @@ int XrdCnsConfig::Configure(const char *Cfn)
 
 // Put out the herald
 //
-   cPath = (Cfn ? strdup(Cfn) : (char *)"");
    if (!(Opts & optRecr)) MLog.Emsg("Config", "Cns initialization started.");
 
 // Set current working directory for core files
