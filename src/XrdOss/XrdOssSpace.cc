@@ -279,7 +279,7 @@ int XrdOssSpace::Quotas()
   XrdOssCache_Group *fsg;
   struct stat buf;
   long long qval;
-  char cgroup[16], *val;
+  char cgroup[minSNbsz], *val;
   int qFD, NoGo = 0;
 
 // See if the file has changed (note the firs time through it will have)
