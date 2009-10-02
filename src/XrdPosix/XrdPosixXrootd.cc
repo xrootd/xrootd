@@ -1389,7 +1389,7 @@ int XrdPosixXrootd::Fault(XrdPosixFile *fp, int complete)
    if (!complete) return rc;
    fp->UnLock();
    errno = ecode;
-   return -1;
+   return rc;
 }
   
 /******************************************************************************/
