@@ -172,12 +172,6 @@ XrdPosixXrootd XrdPosixXrootd;
   
 XrdPosixAdminNew::XrdPosixAdminNew(const char *path) : Admin(path)
 {
-   static int initDone = 0;
-
-// Initialize environment if not done before. This avoid static initialization
-// dependencies as we need to do it once but we must be the last ones to do it.
-//
-   if (!initDone) {XrdPosixXrootd::initEnv(); initDone = 1;}
 
 // Now Connect to the target host
 //
@@ -210,12 +204,6 @@ int XrdPosixAdminNew::Fault()
 
 XrdPosixDir::XrdPosixDir(int dirno, const char *path) : XAdmin(path)
 {
-   static int initDone = 0;
-
-// Initialize environment if not done before. This avoid static initialization
-// dependencies as we need to do it once but we must be the last ones to do it.
-//
-   if (!initDone) {XrdPosixXrootd::initEnv(); initDone = 1;}
 
 // Now connect up
 //
@@ -309,12 +297,6 @@ XrdPosixFile::XrdPosixFile(int fd, const char *path)
                currOffset(0),
                doClose(0)
 {
-   static int initDone = 0;
-
-// Initialize environment if not done before. This avoid static initialization
-// dependencies as we need to do it once but we must be the last ones to do it.
-//
-   if (!initDone) {XrdPosixXrootd::initEnv(); initDone = 1;}
 
 // Allocate a new client object
 //
@@ -346,12 +328,24 @@ XrdPosixFile::~XrdPosixFile()
 XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum)
 {
    extern XrdPosixLinkage Xunix;
+   static int initDone = 0;
    struct rlimit rlim;
    long isize;
 
-// Initialize the linkage table first
+// Only static fields are initialized here. We need to do this only once!
+//
+   if (initDone) return;
+   initDone = 1;
+
+// Initialize the linkage table first before any C calls!
 //
    Xunix.Init();
+
+// Initialize environment if not done before. To avoid static initialization
+// dependencies, we need to do it once but we must be the last ones to do it
+// before any XrdClient library routines are called.
+//
+   initEnv();
 
 // Compute size of table
 //
@@ -1260,16 +1254,10 @@ void XrdPosixXrootd::initEnv()
           {"XRDPSOIX_CRETRY",      NAME_FIRSTCONNECTMAXCNT,   0},
           {"XRDPSOIX_TCPWSZ",      NAME_DFLTTCPWINDOWSIZE,    0}
           };
-   static int initDone = 0;
    int    Posix_Num = sizeof(Posix_Env)/sizeof(XrdPosix_Env);
    char *cvar, *evar;
    int i, doEcho;
    long nval;
-
-// We only do this once (though it might get done a couple of times in MT code)
-//
-   if (initDone) return;
-   initDone = 1;
 
 // Establish wether we need to echo any envars
 //
