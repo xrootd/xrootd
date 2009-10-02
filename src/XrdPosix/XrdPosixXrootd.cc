@@ -1378,7 +1378,7 @@ int XrdPosixXrootd::Fault(XrdPosixFile *fp, int complete)
    int   rc = -1;
 
    if (complete < 0)
-      {if (ecode || ecode != kXR_noErrorYet) ecode = mapError(ecode);
+      {if (ecode && ecode != kXR_noErrorYet) ecode = mapError(ecode);
           else ecode = rc = 0;
       } else {
        ecode = mapError(ecode);
