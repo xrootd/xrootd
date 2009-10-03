@@ -61,12 +61,12 @@ char XrdCnsXref::Add(const char *kval, char idx)
 
 // Try to add the new entry
 //
-   if (!(oldx = xTable.Add(xKey, xIndex+i, Hash_keep))) yTable[i] = xKey;
+   if (!(oldx = xTable.Add(xKey, xIndex+i, 0, Hash_keep))) yTable[i] = xKey;
       else if (*oldx != idx)
               {if ((j = c2i(*oldx)) >= 0)
                   {if (yTable[j])
                       {xTable.Del(yTable[j]); free(yTable[j]); yTable[j] = 0;}
-                   xTable.Rep(xKey, xIndex+i, Hash_keep);
+                   xTable.Rep(xKey, xIndex+i, 0, Hash_keep);
                    yTable[static_cast<int>(idx)] = xKey;
                   }
               } else free(xKey);
