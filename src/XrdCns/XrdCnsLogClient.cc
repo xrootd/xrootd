@@ -258,6 +258,9 @@ do{if (arkFN && time(0) >= mCheck)
                      case XrdCnsLogRec::lrRmdir:  Ok = do_Rmdir (lrP); break;
                      case XrdCnsLogRec::lrMount:
                      case XrdCnsLogRec::lrSpace:
+                          if (Config.Space)
+                             Config.Space->Add(lrP->Lfn1(),lrP->Space());
+                                                                       break;
                      case XrdCnsLogRec::lrTOD:                         break;
                      default: MLog.Emsg("Run","Invalid logrec for",lrP->Lfn1());
                               Ok = 0;
@@ -413,8 +416,14 @@ int XrdCnsLogClient::do_Create(XrdCnsLogRec *lrP, const char *lfn)
 
 // Get a client instance
 //
-   if (lfn) strcpy(crtFN, lfn);
-      else  strcpy(crtFN, lrP->Lfn1());
+   if (!lfn) strcpy(crtFN, lrP->Lfn1());
+      else {strcpy(crtFN, lfn);
+            if (Config.Space)
+               {char *spName = Config.Space->Key(lrP->Space());
+                if (spName && strcmp(spName, "public"))
+                   {strcat(crtFN, "?oss.cgroup="); strcat(crtFN, spName);}
+               }
+           }
    fP = new XrdClient(crtURL);
 
 // Open the target file and write out the log

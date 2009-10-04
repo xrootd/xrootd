@@ -44,6 +44,7 @@ const char *XrdCnsConfigCVSID = "$Id$";
 #include "XrdCns/XrdCnsDaemon.hh"
 #include "XrdCns/XrdCnsLogRec.hh"
 #include "XrdCns/XrdCnsLogServer.hh"
+#include "XrdCns/XrdCnsXref.hh"
 
 /******************************************************************************/
 /*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
@@ -109,7 +110,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
 
    const char *TraceID = "Config";
    XrdOucArgs Spec(&MLog,(argt ? "Cns_Config: ":"XrdCnsd: "),
-                          "a:b:c:dD:e:E:i:I:l:L:N:p:q:R", 0);
+                          "a:b:dD:e:E:i:I:l:L:N:p:q:R:", 0);
    char buff[2048], *dP, *tP, *dnsEtxt = 0, *n2n = 0, *lroot = 0, *xpl = 0;
    char theOpt, *theArg;
    long long llval;
@@ -130,8 +131,6 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                  break;
        case 'b': bPath = Spec.argval;
                  break;
-       case 'c': cPath = Spec.argval;
-                 break;
        case 'D': NoGo |= XrdOuca2x::a2i(MLog,"-D value",Spec.argval,&n,0,4);
                  if (!NoGo) EnvPutInt("DebugLevel", n);
                  break;
@@ -140,8 +139,6 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                  break;
        case 'e': if (*ePath == '/') ePath = Spec.argval;
                     else NoGo = NAPath("'-e'", Spec.argval);
-                 break;
-       case 'E': xpl   = Spec.argval;
                  break;
        case 'k': n = strlen(Spec.argval)-1;
                  NoGo |= (isalpha(Spec.argval[n])
@@ -166,6 +163,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
        case 'q': NoGo |= XrdOuca2x::a2i(MLog,"-q value",Spec.argval,&qLim,1,1024);
                  break;
        case 'R': Opts |= optRecr;
+                 xpl   = Spec.argval;
                  break;
        default:  NoGo = 1;
        }
@@ -178,10 +176,6 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
           {MLog.Emsg("Config","'-R' is valid only for a stand-alone command.");
            return 0;
           }
-       if (!cPath)
-          {MLog.Emsg("Config","'-R' requires config file via -c option.");
-           return 0;
-          }
        if (bPath) {free(bPath); bPath = 0;}
        if (lroot)
           {sprintf(buff, "XRDLCLROOT=%s", lroot); putenv(strdup(buff));}
@@ -191,13 +185,18 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
            if (tP && *tP)
               {sprintf(buff, "XRDN2NPARMS=%s", tP); putenv(strdup(buff));}
           }
-       if (xpl)
-          {sprintf(buff, "XRDEXPORTS=%s", xpl); putenv(strdup(buff));}
+       if (xpl && *xpl)
+          {char *Colon = xpl;
+           while((Colon = index(Colon, ':'))) *Colon++ = ' ';
+           sprintf(buff, "XRDEXPORTS=%s", xpl); putenv(strdup(buff));
+          } else {MLog.Emsg("Config","'-R' requires exports to be specified.");
+                  return 0;
+                 }
+       Space = new XrdCnsXref("public",0);
       } else {
        *buff = '\0'; tP = buff;
        if (lroot) {*tP++ = ' '; *tP++ = '-'; *tP++ = 'L';}
        if (n2n)   {*tP++ = ' '; *tP++ = '-'; *tP++ = 'N';}
-       if (xpl)   {*tP++ = ' '; *tP++ = '-'; *tP++ = 'X';}
        if (*buff)
           MLog.Emsg("Config", buff+1, "options ignored; valid only with -R.");
       }

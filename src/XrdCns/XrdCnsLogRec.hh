@@ -161,6 +161,8 @@ inline void          setType(const char evt) {Rec.Data.Type = evt;}
 
 inline long long     Size() {return Rec.Hdr.Size;}
 
+inline char          Space(){return Rec.Data.Space;}
+
 inline int           L1sz() {return Rec.Hdr.lfn1Len;}
 
 inline int           L2sz() {return Rec.Hdr.lfn2Len;}

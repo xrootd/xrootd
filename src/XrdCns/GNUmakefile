@@ -96,7 +96,7 @@ $(TARGSSI): $(OBJSSI) $(OBJCOM) $(LIBDEP)
 
 $(OBJDIR)/XrdCnsConfig.o:  XrdCnsConfig.hh    XrdCnsConfig.cc \
                            XrdCnsDaemon.hh    XrdCnsLogRec.hh \
-                           XrdCnsLogServer.hh \
+                           XrdCnsLogServer.hh XrdCnsXref.hh \
                            XrdClientConst.hh  XrdClientEnv.hh \
                            XrdNetOpts.hh      XrdNetSocket.hh \
                            XrdNetDNS.hh       XrdTrace.hh \
