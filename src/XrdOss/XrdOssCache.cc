@@ -559,6 +559,7 @@ void *XrdOssCache::Scan(int cscanint)
          //
             Mutex.UnLock();
             if (Quotas) XrdOssSpace::Quotas();
+            if (Usage)  XrdOssSpace::Readjust();
          }
 
 // Keep the compiler happy
