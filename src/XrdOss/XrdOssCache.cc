@@ -516,6 +516,7 @@ void *XrdOssCache::Scan(int cscanint)
 {
    EPNAME("CacheScan")
    XrdOssCache_FSData *fsdp;
+   XrdOssCache_Group  *fsgp;
    STATFS_t fsbuff;
    const struct timespec naptime = {cscanint, 0};
    long long llT; // A dummy temporary
@@ -555,12 +556,22 @@ void *XrdOssCache::Scan(int cscanint)
                  fsdp = fsdp->next;
                 }
 
-         // Unlock the cache and if we have quotas check them out
-         //
-            Mutex.UnLock();
-            if (Quotas) XrdOssSpace::Quotas();
-            if (Usage)  XrdOssSpace::Readjust();
-         }
+        // Unlock the cache and if we have quotas check them out
+        //
+           Mutex.UnLock();
+           if (Quotas) XrdOssSpace::Quotas();
+
+        // Update usage information if we are keeping track of it
+           if (Usage && XrdOssSpace::Readjust())
+              {fsgp = XrdOssCache_Group::fsgroups;
+               Mutex.Lock();
+               while(fsgp)
+                    {fsgp->Usage = XrdOssSpace::Usage(fsgp->GRPid);
+                     fsgp = fsgp->next;
+                    }
+               Mutex.UnLock();
+              }
+        }
 
 // Keep the compiler happy
 //
