@@ -524,7 +524,7 @@ return $XfrMaxTR+2;
 #******************************************************************************
  
 sub Transfer {my($Cmds, $isWrite) = @_;
-              my($i, $n, $pid, @Resp, $aOK1, $aOK2, $fsz, $xfr);
+              my($i, $n, $pid, @Resp, $aOK, $fsz, $xfr);
               my($xdir) = ' bytes '.($isWrite ? 'sent ' : 'received ');
               local(*Reader, *Writer);
 
@@ -571,19 +571,10 @@ sub Transfer {my($Cmds, $isWrite) = @_;
 # Verify that the transfer completed
 #
   while($XfrRC == 0)
-     {$aOK1 = 0;
+     {$fsz = 0; $aOK = 0;
       for $i (0 .. $#Resp)
-          {if ($Resp[$i] =~ m/^150 Transfer starting.*/) {$aOK1 = $i+1; last;} }
-      if (!$aOK1) 
-         {Logit("!!! '150 Transfer starting' msg not found.\n");
-          $XfrRC = 8;
-          last;
-         }
-
-      $fsz = 0; $aOK2 = 0;
-      for $i ($aOK1 .. $#Resp)
           {if (($xfr)=$Resp[$i] =~ m/226 Transfer Complete.\(moved = (\d+)\)/)
-              {$fsz += $xfr; $aOK2 = 1;
+              {$fsz += $xfr; $aOK = 1;
                if (($n  = index( $Resp[$i+1], $xdir)) > 0)
                   {$xfr = substr($Resp[$i+1], 0, $n); last;}
               }
@@ -591,7 +582,7 @@ sub Transfer {my($Cmds, $isWrite) = @_;
 
       # Make sure all the bytes were sent/received
       #
-      if (!$aOK2)
+      if (!$aOK)
          {Logit("!!! '226 Transfer Complete' msg not found.\n");
           $XfrRC = 8;
          }
