@@ -9,6 +9,8 @@
 /******************************************************************************/
 
 //         $Id$
+ 
+const char *XrdOssPathCVSID = "$Id$";
 
 #include <errno.h>
 #include <fcntl.h>

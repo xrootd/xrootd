@@ -10,6 +10,8 @@
 
 //          $Id$
 
+const char *XrdOucExportCVSID = "$Id$";
+
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdSys/XrdSysPlatform.hh"
   

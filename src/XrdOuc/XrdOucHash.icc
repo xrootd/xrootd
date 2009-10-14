@@ -10,6 +10,8 @@
 
 //          $Id$
 
+//const char *XrdOucHashCVSID = "$Id$";
+
 #include <errno.h>
 #include <string.h>
 

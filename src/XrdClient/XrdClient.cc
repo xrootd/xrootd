@@ -13,6 +13,8 @@
 
 //         $Id$
 
+const char *XrdClientCVSID = "$Id$";
+
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientUrlSet.hh"

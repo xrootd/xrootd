@@ -1,3 +1,6 @@
+//         $Id$
+
+// const char *TestXrdClient_readCVSID = "$Id$";
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdSys/XrdSysHeaders.hh"

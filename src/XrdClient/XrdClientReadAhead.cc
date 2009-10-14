@@ -8,6 +8,10 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//         $Id$
+
+const char *XrdClientReadAheadCVSID = "$Id$";
+
 #include "XrdClientReadAhead.hh"
 #include "XrdClientConst.hh"
 #include "XrdClientVector.hh"

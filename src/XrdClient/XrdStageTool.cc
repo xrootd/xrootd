@@ -11,6 +11,8 @@
 
 //       $Id$
 
+const char *XrdStageToolCVSID = "$Id$";
+
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientAdmin.hh"

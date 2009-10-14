@@ -10,7 +10,7 @@
   
 //         $Id$
 
-const char *XrdXrootdStatCVSID = "$Id$";
+//const char *XrdXrootdStatCVSID = "$Id$";
 
 // This method has been extracted from this file so that it can be easily
 // included in other parts of the system that need to generate a protocol

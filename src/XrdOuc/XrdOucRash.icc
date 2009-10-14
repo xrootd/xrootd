@@ -10,6 +10,8 @@
 
 //          $Id$
 
+//const char *XrdOucRashCVSID = "$Id$";
+
 #include <errno.h>
 
 #include "XrdSys/XrdSysPlatform.hh"

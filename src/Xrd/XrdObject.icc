@@ -10,6 +10,8 @@
 
 //          $Id$
 
+//const char *XrdObjectCVSID = "$Id$";
+
 #include "Xrd/XrdScheduler.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 

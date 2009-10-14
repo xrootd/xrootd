@@ -11,6 +11,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+//         $Id$
+
 const char *XrdClientUrlSetCVSID = "$Id$";
 
 #include <XrdClient/XrdClientUrlSet.hh>
