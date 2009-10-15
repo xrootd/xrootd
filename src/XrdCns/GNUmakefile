@@ -92,7 +92,7 @@ $(TARGCNSD): $(OBJCNSD) $(OBJCOM) $(LIBDEP)
 
 $(TARGSSI): $(OBJSSI) $(OBJCOM) $(LIBDEP)
 	@echo Creating executable $(BINDIR)/cns_ssi
-	$(ECHO)$(CC) $(LDOP) $(CFLAGS) $(OBJSSI) $(OBJCOM) $(LIBDEP) $(MORELIBS) $(LIBS) -o $(BINDIR)/cns_ssi
+	$(ECHO)$(LD) $(LDOP) $(CFLAGS) $(OBJSSI) $(OBJCOM) $(LIBDEP) $(MORELIBS) $(LIBS) -o $(BINDIR)/cns_ssi
 
 $(OBJDIR)/XrdCnsConfig.o:  XrdCnsConfig.hh    XrdCnsConfig.cc \
                            XrdCnsDaemon.hh    XrdCnsLogRec.hh \
