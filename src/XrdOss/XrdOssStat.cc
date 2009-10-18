@@ -231,6 +231,61 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
 }
 
 /******************************************************************************/
+/*                                S t a t V S                                 */
+/******************************************************************************/
+  
+/*
+  Function: Return space information for space name "sname".
+
+  Input:    sname       - The name of the same, null if all space wanted.
+            sP          - pointer to XrdOssVSInfo to hold information.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+            Note that quota is zero when sname is null.
+*/
+
+int XrdOssSys::StatVS(XrdOssVSInfo *sP, const char *sname, int updt)
+{
+   XrdOssCache_Space   CSpace;
+   XrdOssCache_Group  *fsg = XrdOssCache_Group::fsgroups;
+
+// Check if we should update the statistics
+//
+   if (updt) XrdOssCache::Scan(0);
+
+// If no space name present or no spaces defined and the space is public then
+// return information on all spaces.
+//
+   if (!sname || (!fsg && !strcmp("public", sname)))
+      {XrdOssCache::Mutex.Lock();
+       sP->Total  = XrdOssCache::fsTotal;
+       sP->Free   = XrdOssCache::fsTotFr;
+       sP->Contig = XrdOssCache::fsFree;
+       sP->Extents= XrdOssCache::fsCount;
+       XrdOssCache::Mutex.UnLock();
+       return XrdOssOK;
+      }
+
+// Try to find the cache group.
+//
+   while(fsg && strcmp(sname, fsg->group)) fsg = fsg->next;
+   if (!fsg) return -ENOENT;
+
+// Accumulate the stats
+//
+   sP->Extents = getSpace(fsg, CSpace);
+
+// Return the result
+//
+   sP->Total = CSpace.Total;
+   sP->Free  = CSpace.Free;
+   sP->Contig= CSpace.Maxfree;
+   sP->Usage = CSpace.Usage;
+   sP->Quota = CSpace.Quota;
+   return XrdOssOK;
+}
+
+/******************************************************************************/
 /*                                S t a t X A                                 */
 /******************************************************************************/
   

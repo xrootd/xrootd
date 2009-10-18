@@ -80,6 +80,24 @@ int     fd;      // The associated file descriptor.
 #define XRDOSS_new    0x02
 #define XRDOSS_Online 0x04
 #define XRDOSS_isPFN  0x08
+
+// Class passed to StatVS()
+//
+class XrdOssVSInfo
+{
+public:
+long long Total;   // Total bytes
+long long Free;    // Total bytes free
+long long Contig;  // Max   bytes free in contiguous chunk
+long long Usage;   // Used  bytes (if usage enabled)
+long long Quota;   // Quota bytes (if quota enabled)
+int       Extents; // Number of partitions/extents
+int       Reserved;
+
+          XrdOssVSInfo() : Total(0),Free(0),Contig(0),Extents(0),Reserved(0),
+                          Usage(0) {}
+         ~XrdOssVSInfo() {}
+};
   
 class XrdOss
 {
@@ -109,6 +127,9 @@ virtual int     Truncate(const char *, unsigned long long)=0;
 virtual int     Unlink(const char *, int Opts=0)=0;
 
 virtual int     Stats(char *bp, int bl) {return 0;}
+
+virtual int     StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0)
+                      {return -ENOTSUP;}
 
                 XrdOss() {}
 virtual        ~XrdOss() {}
