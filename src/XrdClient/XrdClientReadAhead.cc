@@ -18,12 +18,13 @@ const char *XrdClientReadAheadCVSID = "$Id$";
 
 
 
-bool XrdClientReadAheadMgr::TrimReadRequest(long long &offs, long &len, long rasize) {
+bool XrdClientReadAheadMgr::TrimReadRequest(long long &offs, long &len, long rasize, long blksz) {
+
+    if (!blksz) return true;
 
     long long newoffs;
-    long newlen, blksz;
+    long newlen;
 
-    blksz = 128*1024;
     long long lastbyte;
     newoffs = offs;
     lastbyte = offs+len+blksz-1;
@@ -61,7 +62,7 @@ public:
       RALast = 0;
    }
 
-   virtual int GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen);
+   virtual int GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen, long blksz);
 
    virtual int Reset() {
       RALast = 0;
@@ -74,7 +75,9 @@ public:
 
 
 
-int XrdClientReadAhead_pureseq::GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen) {
+int XrdClientReadAhead_pureseq::GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen, long blksz) {
+
+   if (!blksz) blksz = 128*1024;
 
    // We read ahead only if (offs+len) lies in an interval of RALast not bigger than the readahead size
    if ( (RALast - (offset+len) < RASize) &&
@@ -89,7 +92,7 @@ int XrdClientReadAhead_pureseq::GetReadAheadHint(long long offset, long len, lon
                      offset + len + RASize - raoffset);
       
       if (ralen > 0) {
-         TrimReadRequest(raoffset, ralen, RASize);
+         TrimReadRequest(raoffset, ralen, RASize, blksz);
          RALast = raoffset + ralen;
          return 0;
       }
@@ -128,7 +131,7 @@ public:
 
    }
 
-   virtual int GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen);
+   virtual int GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen, long blksz);
 
    virtual int Reset() {
       RALast = 0;
@@ -143,7 +146,9 @@ public:
 
 
 
-int XrdClientReadAhead_slidingavg::GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen) {
+int XrdClientReadAhead_slidingavg::GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen, long blksz) {
+
+   if (!blksz) blksz = 128*1024;
 
    // Keep the sums up to date, together with the max array size and the sumsqs
    LastOffsSum += offset;
@@ -200,9 +205,9 @@ int XrdClientReadAhead_slidingavg::GetReadAheadHint(long long offset, long len, 
                      lastavg + RASize/2 - raoffset);
 
       if (ralen > (1024*1024)) {
-         TrimReadRequest(raoffset, ralen, RASize);
+         TrimReadRequest(raoffset, ralen, RASize, blksz);
          RALast = raoffset + ralen;
-         std::cerr << " raoffs:" << raoffset << " ralen:" << ralen << " Got avg" << std::endl;
+         //std::cerr << " raoffs:" << raoffset << " ralen:" << ralen << " Got avg" << std::endl;
          return 0;
       }
       //std::cerr << std::endl;
@@ -216,9 +221,9 @@ int XrdClientReadAhead_slidingavg::GetReadAheadHint(long long offset, long len, 
 
  
          if (ralen > (1024*1024)) {
-            TrimReadRequest(raoffset, ralen, RASize);
+            TrimReadRequest(raoffset, ralen, RASize, blksz);
             RALast = raoffset + ralen;
-            std::cerr << " raoffs:" << raoffset << " ralen:" << ralen  << " Got avg2" << std::endl;
+            //std::cerr << " raoffs:" << raoffset << " ralen:" << ralen  << " Got avg2" << std::endl;
             return 0;
          }
          //std::cerr << std::endl;
@@ -261,5 +266,6 @@ XrdClientReadAheadMgr *XrdClientReadAheadMgr::CreateReadAheadMgr(XrdClient_RAStr
      
    }
 
+   if (ramgr) ramgr->currstrategy = strategy;
    return ramgr;
 }

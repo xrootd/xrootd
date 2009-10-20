@@ -76,9 +76,6 @@
 #define DFLT_READCACHESIZE      0
 #define NAME_READCACHESIZE      (char *)"ReadCacheSize"
 
-#define DFLT_READCACHESIZE      0
-#define NAME_READCACHESIZE      (char *)"ReadCacheSize"
-
 // 0 = LRU
 // 1 = Remove least offest
 #define DFLT_READCACHEBLKREMPOLICY       0
@@ -87,6 +84,11 @@
 #define DFLT_READAHEADSIZE      (0)
 #define NAME_READAHEADSIZE      (char *)"ReadAheadSize"
 
+// Align all the read requests to multiples of a number
+#define DFLT_READTRIMBLKSZ      (0)
+#define NAME_READTRIMBLKSZ      (char *)"ReadTrimBlockSize"
+
+// The default read ahead strategy to use
 #define DFLT_READAHEADSTRATEGY  (1) // This is the sequential readahead
 #define NAME_READAHEADSTRATEGY  (char *)"ReadAheadStrategy"
 

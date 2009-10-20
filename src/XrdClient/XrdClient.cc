@@ -59,6 +59,7 @@ void *FileOpenerThread(void *arg, XrdClientThread *thr) {
 //_____________________________________________________________________________
 XrdClient::XrdClient(const char *url) {
    fReadAheadMgr = 0;
+   fReadTrimBlockSize = 0;
    fOpenerTh = 0;
    fOpenProgCnd = new XrdSysCondVar(0);
    fReadWaitData = new XrdSysCondVar(0);
@@ -95,7 +96,8 @@ XrdClient::XrdClient(const char *url) {
    int RmPolicy = EnvGetLong(NAME_READCACHEBLKREMPOLICY);
    int ReadAheadStrategy = EnvGetLong(NAME_READAHEADSTRATEGY);
 
-   fReadAheadMgr = XrdClientReadAheadMgr::CreateReadAheadMgr((XrdClientReadAheadMgr::XrdClient_RAStrategy)ReadAheadStrategy);
+   SetReadAheadStrategy(ReadAheadStrategy);
+   SetBlockReadTrimming(EnvGetLong(NAME_READTRIMBLKSZ));
 
    fUseCache = (CacheSize > 0);
    SetCacheParameters(CacheSize, RaSize, RmPolicy);
@@ -121,6 +123,9 @@ XrdClient::~XrdClient()
 
    if (fConnModule)
       delete fConnModule;
+
+   if (fReadAheadMgr) delete fReadAheadMgr;
+   fReadAheadMgr = 0;
 
    delete fReadWaitData;
    delete fOpenProgCnd;
@@ -431,10 +436,19 @@ int XrdClient::Read(void *buf, long long offset, int len) {
     long long araoffset;
     long aralen;
     if (fReadAheadMgr && fUseCache &&
-        !fReadAheadMgr->GetReadAheadHint(offset, len, araoffset, aralen) &&
+        !fReadAheadMgr->GetReadAheadHint(offset, len, araoffset, aralen, fReadTrimBlockSize) &&
         fConnModule->CacheWillFit(aralen)) {
 
-       Read_Async(araoffset, aralen);
+       long long o = araoffset;
+       long l = aralen;
+
+       while (l > 0) {
+          long ll = xrdmin(1048576, l);
+          Read_Async(o, ll);
+          l -= ll;
+          o += ll;
+       }
+
     }
 
     struct XrdClientStatInfo stinfo;
@@ -497,8 +511,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		// We are here if the cache did not give all the data to us
 		// We should have a list of blocks to request
 		for (int i = 0; i < cacheholes.GetSize(); i++) {
-		    kXR_int64 offs;
-		    kXR_int32 len;
+		    long long offs;
+		    long len;
 	    
 		    offs = cacheholes[i].beginoffs;
 		    len = cacheholes[i].endoffs - offs + 1;
@@ -507,7 +521,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		    Info( XrdClientDebug::kHIDEBUG, "Read",
 			  "Hole in the cache: offs=" << offs <<
 			  ", len=" << len );
-	    
+
+                    XrdClientReadAheadMgr::TrimReadRequest(offs, len, 0, fReadTrimBlockSize);
 		    Read_Async(offs, len);
 		}
 	
@@ -531,14 +546,18 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		      "Read(offs=" << offset <<
 		      ", len=" << len << "). Going sync." );
 
+                long long offs = offset;
+                long l = len;
+                XrdClientReadAheadMgr::TrimReadRequest(offs, l, 0, fReadTrimBlockSize);
+
 		// Prepare a request header 
 		ClientRequest readFileRequest;
 		memset( &readFileRequest, 0, sizeof(readFileRequest) );
 		fConnModule->SetSID(readFileRequest.header.streamid);
 		readFileRequest.read.requestid = kXR_read;
 		memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
-		readFileRequest.read.offset = offset;
-		readFileRequest.read.rlen = len;
+		readFileRequest.read.offset = offs;
+		readFileRequest.read.rlen = l;
 		readFileRequest.read.dlen = 0;
 
 		if (!fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
@@ -1680,3 +1699,30 @@ void XrdClient::SetCacheParameters(int CacheSize, int ReadAheadSize, int RmPolic
    
    if ((ReadAheadSize >= 0) && fReadAheadMgr) fReadAheadMgr->SetRASize(ReadAheadSize);
 }
+
+// To enable/disable different read ahead strategies. Defined in XrdClientReadAhead.hh
+void XrdClient::SetReadAheadStrategy(int strategy) {
+   if (!fConnModule) return;
+
+   if (fReadAheadMgr && fReadAheadMgr->GetCurrentStrategy() != (XrdClientReadAheadMgr::XrdClient_RAStrategy)strategy) {
+
+      delete fReadAheadMgr;
+      fReadAheadMgr = 0;
+   }
+
+   if (!fReadAheadMgr)
+      fReadAheadMgr = XrdClientReadAheadMgr::CreateReadAheadMgr((XrdClientReadAheadMgr::XrdClient_RAStrategy)strategy);
+}
+    
+// To enable the trimming of the blocks to read. Blocksize will be rounded to a multiple of 512.
+// Each read request will have the offset and length aligned with a multiple of blocksize
+// This strategy is similar to a read ahead, but not quite. It anyway needs to have the cache enabled to work.
+// Here we see it as a transformation of the stream of the read accesses to request.
+void XrdClient::SetBlockReadTrimming(int blocksize) {
+   blocksize = blocksize >> 9;
+   blocksize = blocksize << 9;
+   if (blocksize < 512) blocksize = 512;
+
+   fReadTrimBlockSize = blocksize;
+}
+

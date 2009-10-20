@@ -89,6 +89,8 @@ private:
 
     struct XrdClientStatInfo    fStatInfo;
 
+    long                        fReadTrimBlockSize;
+
     bool                        fUseCache;
 
     XrdOucString                fInitialUrl;
@@ -104,8 +106,6 @@ private:
 					char *additionalquery = 0);
 
     void                        TerminateOpenAttempt();
-
-    bool                        TrimReadRequest(kXR_int64 &offs, kXR_int32 &len, kXR_int32 rasize);
 
     void                        WaitForNewAsyncData();
 
@@ -249,6 +249,15 @@ public:
     // If a parameter is < 0 then it's left untouched.
     // To simply enable/disable the caching, just use UseCache(), not this function
     void                        SetCacheParameters(int CacheSize, int ReadAheadSize, int RmPolicy);
+
+    // To enable/disable different read ahead strategies. Defined in XrdClientReadAhead.hh
+    void                        SetReadAheadStrategy(int strategy);
+    
+    // To enable the trimming of the blocks to read. Blocksize will be rounded to a multiple of 512.
+    // Each read request will have the offset and length aligned with a multiple of blocksize
+    // This strategy is similar to a read ahead, but not quite. Here we see it as a transformation
+    // of the stream of the read accesses to request
+    void                        SetBlockReadTrimming(int blocksize);
     
     // Truncates the open file at a specified length
     bool                        Truncate(long long len);

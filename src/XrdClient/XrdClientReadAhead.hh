@@ -16,28 +16,32 @@
 
 
 class XrdClientReadAheadMgr {
-
-protected:
-   long RASize;
-   
 public:
    enum XrdClient_RAStrategy {
       RAStr_none,
       RAStr_pureseq,
       RAStr_SlidingAvg
    };
+
+protected:
+   long RASize;
+   XrdClient_RAStrategy currstrategy;
+
+public:
       
    static XrdClientReadAheadMgr *CreateReadAheadMgr(XrdClient_RAStrategy strategy);
    
 
    XrdClientReadAheadMgr() { RASize = 0; };
-   ~XrdClientReadAheadMgr() {};
+   virtual ~XrdClientReadAheadMgr() {};
 
-   virtual int GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen) = 0;
+   virtual int GetReadAheadHint(long long offset, long len, long long &raoffset, long &ralen, long blksize) = 0;
    virtual int Reset() = 0;
    virtual void SetRASize(long bytes) { RASize = bytes; };
    
-   static bool TrimReadRequest(long long &offs, long &len, long rasize);
+   static bool TrimReadRequest(long long &offs, long &len, long rasize, long blksize);
+
+   XrdClient_RAStrategy GetCurrentStrategy() { return currstrategy; }
 };
 
 
