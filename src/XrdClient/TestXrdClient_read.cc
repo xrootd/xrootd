@@ -11,7 +11,7 @@
 #include <math.h>
 
 kXR_unt16 open_mode = (kXR_ur | kXR_uw);
-kXR_unt16 open_opts = (kXR_open_updt);
+kXR_unt16 open_opts = (0);
  
 int ReadSome(kXR_int64 *offs, kXR_int32 *lens, int maxnread, long long &totalbytes) {
 
@@ -144,6 +144,10 @@ int main(int argc, char **argv) {
        break;
     case 4:
        cout << "Asynchronous reads." << endl;
+       break;
+    case 5:
+       cout << "Write test file." << endl;
+       open_opts |= kXR_open_updt;
        break;
     default:
        cout << "Unknown." << endl;
