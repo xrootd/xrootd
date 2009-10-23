@@ -546,25 +546,31 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		      "Read(offs=" << offset <<
 		      ", len=" << len << "). Going sync." );
 
-                long long offs = offset;
-                long l = len;
-                XrdClientReadAheadMgr::TrimReadRequest(offs, l, 0, fReadTrimBlockSize);
+                if ((fReadTrimBlockSize > 0) && !retrysync) {
+                   long long offs = offset;
+                   long l = len;
 
-		// Prepare a request header 
-		ClientRequest readFileRequest;
-		memset( &readFileRequest, 0, sizeof(readFileRequest) );
-		fConnModule->SetSID(readFileRequest.header.streamid);
-		readFileRequest.read.requestid = kXR_read;
-		memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
-		readFileRequest.read.offset = offs;
-		readFileRequest.read.rlen = l;
-		readFileRequest.read.dlen = 0;
+                   XrdClientReadAheadMgr::TrimReadRequest(offs, l, 0, fReadTrimBlockSize);
+                   Read_Async(offs, l);
+                   blkstowait++;
+                } else {
 
-		if (!fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
-                                                 FALSE, (char *)"ReadBuffer"))
-                   return 0;
+                   // Prepare a request header 
+                   ClientRequest readFileRequest;
+                   memset( &readFileRequest, 0, sizeof(readFileRequest) );
+                   fConnModule->SetSID(readFileRequest.header.streamid);
+                   readFileRequest.read.requestid = kXR_read;
+                   memcpy( readFileRequest.read.fhandle, fHandle, sizeof(fHandle) );
+                   readFileRequest.read.offset = offset;
+                   readFileRequest.read.rlen = len;
+                   readFileRequest.read.dlen = 0;
 
-		return fConnModule->LastServerResp.dlen;
+                   if (!fConnModule->SendGenCommand(&readFileRequest, 0, 0, (void *)buf,
+                                                    FALSE, (char *)"ReadBuffer"))
+                      return 0;
+
+                   return fConnModule->LastServerResp.dlen;
+                }
 	    }
 
 	    // Now it's time to sleep
