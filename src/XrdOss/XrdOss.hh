@@ -81,6 +81,11 @@ int     fd;      // The associated file descriptor.
 #define XRDOSS_Online 0x04
 #define XRDOSS_isPFN  0x08
 
+// Options that can be passed to Stat()
+//
+#define XRDOSS_resonly 0x01
+#define XRDOSS_updtatm 0x02
+
 // Class passed to StatVS()
 //
 class XrdOssVSInfo
@@ -94,8 +99,8 @@ long long Quota;   // Quota bytes (if quota enabled)
 int       Extents; // Number of partitions/extents
 int       Reserved;
 
-          XrdOssVSInfo() : Total(0),Free(0),Contig(0),Extents(0),Reserved(0),
-                          Usage(0) {}
+          XrdOssVSInfo() : Total(0),Free(0),Contig(0),Usage(0),Quota(-1),
+                           Extents(0),Reserved(0) {}
          ~XrdOssVSInfo() {}
 };
   
@@ -114,7 +119,7 @@ virtual int     Reloc(const char *, const char *, const char *, const char *x=0)
                       {return -ENOTSUP;}
 virtual int     Remdir(const char *, int Opts=0)=0;
 virtual int     Rename(const char *, const char *)=0;
-virtual int     Stat(const char *, struct stat *, int resonly=0)=0;
+virtual int     Stat(const char *, struct stat *, int opts=0)=0;
 virtual int     StatFS(const char *path, char *buff, int &blen) 
                       {return -ENOTSUP;}
 virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)

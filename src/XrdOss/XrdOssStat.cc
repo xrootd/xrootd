@@ -18,6 +18,7 @@ const char *XrdOssStatCVSID = "$Id$";
 #include <stdio.h>
 #include <strings.h>
 #include <time.h>
+#include <utime.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -47,7 +48,7 @@ const char *XrdOssStatCVSID = "$Id$";
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
 
-int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
+int XrdOssSys::Stat(const char *path, struct stat *buff, int opts)
 {
     const int ro_Mode = ~(S_IWUSR | S_IWGRP | S_IWOTH);
     char actual_path[MAXPATHLEN+1], *local_path, *remote_path;
@@ -66,14 +67,24 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int resonly)
          else local_path = actual_path;
       else local_path = (char *)path;
 
-// Stat the file in the local filesystem first.
+// Stat the file in the local filesystem first. If there. make sure the mode
+// bits correspond to our reality and update access time if so requested.
 //
    if (!stat(local_path, buff)) 
       {if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
+       if (opts & XRDOSS_updtatm && (buff->st_mode & S_IFMT) == S_IFREG)
+          {struct utimbuf times;
+           times.actime  = time(0);
+           times.modtime = buff->st_mtime;
+           utime(local_path, &times);
+          }
        return XrdOssOK;
       }
+
+// The file may be offline in a mass storage system, check if this is possible
+//
    if (!IsRemote(path)) return -errno;
-   if (resonly || !MSSgwCmd) return -ENOMSG;
+   if (opts & XRDOSS_resonly || !MSSgwCmd) return -ENOMSG;
 
 // Generate remote path
 //
