@@ -26,13 +26,17 @@ bool XrdClientReadAheadMgr::TrimReadRequest(long long &offs, long &len, long ras
     long newlen;
 
     long long lastbyte;
-    newoffs = offs;
-    lastbyte = offs+len+blksz-1;
-    lastbyte = (lastbyte / blksz) * blksz - 1;
-    
-    newlen = lastbyte-newoffs+1;
 
-    //std::cerr << "Trim: " << offs << "," << len << " --> " << newoffs << "," << newlen << std::endl;
+    newoffs = (long long)(offs / blksz);
+    newoffs *= blksz;
+
+    lastbyte = offs+len+blksz-1;
+    lastbyte = (long long)(lastbyte / blksz);
+    lastbyte *= blksz;
+    
+    newlen = lastbyte-newoffs;
+
+//    std::cerr << "Trim: " << offs << "," << len << " --> " << newoffs << "," << newlen << std::endl;
     offs = newoffs;
     len = newlen;
     return true;
