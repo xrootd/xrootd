@@ -196,7 +196,9 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
     // Max number of tries
     int connectMaxTry = EnvGetLong(NAME_FIRSTCONNECTMAXCNT);
-  
+
+    fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
+
     // Construction of the url set coming from the resolution of the hosts given
     XrdClientUrlSet urlArray(fInitialUrl);
     if (!urlArray.IsValid()) {
@@ -223,6 +225,13 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
 	XrdClientUrlInfo *thisUrl = 0;
 	urlstried = (urlstried == urlArray.Size()) ? 0 : urlstried;
+
+        if ( fConnModule->IsOpTimeLimitElapsed(time(0)) ) {
+           // We have been so unlucky and wasted too much time in connecting and being redirected
+           fConnModule->Disconnect(TRUE);
+           Error("Open", "Access to server failed: Too much time elapsed without success.");
+           break;
+        }
 
 	bool nogoodurl = TRUE;
 	while (urlArray.Size() > 0) {
@@ -318,9 +327,9 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	    if (DebugLevel() >= XrdClientDebug::kUSERDEBUG)
 		Info(XrdClientDebug::kUSERDEBUG, "Open",
 		     "Connection attempt failed. Sleeping " <<
-		     EnvGetLong(NAME_RECONNECTTIMEOUT) << " seconds.");
+		     EnvGetLong(NAME_RECONNECTWAIT) << " seconds.");
      
-	    sleep(EnvGetLong(NAME_RECONNECTTIMEOUT));
+	    sleep(EnvGetLong(NAME_RECONNECTWAIT));
 
 	}
 
@@ -391,6 +400,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 	return 0;
     }
 
+    // Set the max transaction duration
+    fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
 
     int cachesize = 0;
     long long cachebytessubmitted = 0;
@@ -640,6 +651,10 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 
     Stat(0);
 
+
+    // Set the max transaction duration
+    fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
+
     // We pre-process the request list in order to make it compliant
     //  with the restrictions imposed by the server
     XrdClientVector<XrdClientReadVinfo> reqvect(nbuf);
@@ -738,6 +753,10 @@ bool XrdClient::Write(const void *buf, long long offset, int len) {
     }
 
 
+    // Set the max transaction duration
+    fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
+
+
     // Prepare request
     ClientRequest writeFileRequest;
     memset( &writeFileRequest, 0, sizeof(writeFileRequest) );
@@ -830,6 +849,10 @@ bool XrdClient::Sync()
     }
 
     if (!fConnModule->DoWriteHardCheckPoint()) return false;
+
+
+    // Set the max transaction duration
+    fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
 
     // Prepare request
     ClientRequest flushFileRequest;
