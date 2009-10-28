@@ -1251,8 +1251,7 @@ void XrdPosixXrootd::initEnv()
           {"XRDPOSIX_RTO",         NAME_REQUESTTIMEOUT,       0},
           {"XRDPSOIX_PSPC",        NAME_MULTISTREAMCNT,       0},
           {"XRDPSOIX_CTO",         NAME_CONNECTTIMEOUT,       0},
-          {"XRDPSOIX_CTOWAN",      NAME_CONNECTTIMEOUTWAN,    0},
-          {"XRDPSOIX_CRDELAY",     NAME_RECONNECTTIMEOUT,     0},
+          {"XRDPSOIX_CRDELAY",     NAME_RECONNECTWAIT,        0},
           {"XRDPSOIX_CRETRY",      NAME_FIRSTCONNECTMAXCNT,   0},
           {"XRDPSOIX_TCPWSZ",      NAME_DFLTTCPWINDOWSIZE,    0}
           };
