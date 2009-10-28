@@ -2362,7 +2362,7 @@ bool XrdClientConn::WaitResp(int secsmax) {
 
     // Returns true on timeout, false if a signal was caught
 
-    int rc = false;
+    int rc = true;
 
     // Lock mutex
     fREQWaitResp->Lock();
