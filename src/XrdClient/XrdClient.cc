@@ -550,8 +550,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
  	        fReadWaitData->UnLock();
 
-		retrysync = false;
                 memset(&fConnModule->LastServerError, 0, sizeof(fConnModule->LastServerError));
+                fConnModule->LastServerError.errnum = kXR_noErrorYet;
 
 		Info( XrdClientDebug::kHIDEBUG, "Read",
 		      "Read(offs=" << offset <<
@@ -582,6 +582,8 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
                    return fConnModule->LastServerResp.dlen;
                 }
+
+                retrysync = false;
 	    }
 
 	    // Now it's time to sleep
