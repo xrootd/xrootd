@@ -106,7 +106,7 @@ use IPC::Open2;
 # Global variables:
 #
 ($CMD)     = "/$0" =~ m|^.*/([^.]*).*$|g;
-$isCPY     = $CMD eq 'hpsscp';
+$isCPY     = $CMD =~ m/^hpsscp/;
 $MsgPfx    = "$CMD: ";
 $ER_SFX    = '.fail';        # Suffix for fail file when error occurrs
 $OKFile    = 1;              # If file already present, all is good.
@@ -275,7 +275,7 @@ $XfrRC   = 0;      # The final return code
   if (!$doGet)
      {@Svec = stat($XfrSrcFN);
       &CleanUp(&Emsg(ET("Unable to put $XfrSrcFN"), 0)) if $Svec[7] eq '';
-      &MakePath($nsMkd) if !($rc = TransPace(0)) && $nsMkd ne '';
+      &MakePath($nsMkd) if !($rc = TransPace(0,$Svec[7])) && $nsMkd ne '';
       &CleanUp($rc);
      }
 
@@ -293,7 +293,7 @@ $XfrRC   = 0;      # The final return code
 # At this point we need to bring the file into this cache. Issue the
 # appropriate command to do this and set the access mode if it succeeded.
 #
-  &CleanUp($rc) if ($rc = TransPace(1));
+  &CleanUp($rc) if ($rc = TransPace(1,-1));
   &Emsg(ET("Unable to set mode for '$XfrTrgFN'"), 1)
        if (defined($Mode) && !chmod($Mode, $XfrTrgFN));
 
@@ -366,7 +366,7 @@ sub Get_File {my($cmd, $resp, $GetTries);
     # Execute the command to get the file (as many times as wanted/needed)
     #
     $GetTries = 0;
-    do {return if &Transfer($cmd);
+    do {return 0 if &Transfer($cmd);
         $GetTries += &TransErr($GetTries+1);
        } while($GetTries < $XfrMaxTR);
     return $XfrRC;
@@ -376,7 +376,7 @@ sub Get_File {my($cmd, $resp, $GetTries);
 #*                              P u t _ F i l e                               *
 #******************************************************************************
  
-sub Put_File {my($cmd, $dir, $resp, $sfx, $PutTries);
+sub Put_File {my($Fsz) = @_; my($cmd, $dir, $resp, $sfx, $PutTries);
 
     # Establish command stream preamble
     #
@@ -406,7 +406,7 @@ sub Put_File {my($cmd, $dir, $resp, $sfx, $PutTries);
     # Execute the command to get the file (as many times as wanted/needed)
     #
     $PutTries = 0;
-    do {return 0 if &Transfer($cmd, 1);
+    do {return 0 if &Transfer($cmd, 1, $Fsz);
         $PutTries += &TransErr($PutTries+1, 1);
        } while($PutTries < $XfrMaxTR);
     return $XfrRC;
@@ -523,8 +523,8 @@ return $XfrMaxTR+2;
 #*                              T r a n s f e r                               *
 #******************************************************************************
  
-sub Transfer {my($Cmds, $isWrite) = @_;
-              my($i, $n, $pid, @Resp, $aOK, $fsz, $xfr);
+sub Transfer {my($Cmds, $isWrite, $Fsz) = @_;
+              my($i, $n, $pid, @Resp);
               my($xdir) = ' bytes '.($isWrite ? 'sent ' : 'received ');
               local(*Reader, *Writer);
 
@@ -568,41 +568,48 @@ sub Transfer {my($Cmds, $isWrite) = @_;
   $XfrResp = join('',@Resp);
   $XfrSess .= $XfrResp.'==================================='."\n";
 
-# Verify that the transfer completed
+# If we ended with an error, bail out
 #
-  while($XfrRC == 0)
-     {$fsz = 0; $aOK = 0;
-      for $i (0 .. $#Resp)
-          {if (($xfr)=$Resp[$i] =~ m/226 Transfer Complete.\(moved = (\d+)\)/)
-              {$fsz += $xfr; $aOK = 1;
-               if (($n  = index( $Resp[$i+1], $xdir)) > 0)
-                  {$xfr = substr($Resp[$i+1], 0, $n); last;}
-              }
-          }
+  if ($XfrRC != 0)
+     {Logit("!!! Transfer ended with non-zero status ($XfrRC)."); return 0;}
 
-      # Make sure all the bytes were sent/received
-      #
-      if (!$aOK)
-         {Logit("!!! '226 Transfer Complete' msg not found.\n");
-          $XfrRC = 8;
-         }
-         elsif ($fsz != $xfr)
-               {Logit("!!! Transfer bytes do not match ($fsz != $xfr).");
-                $XfrRC = 8;
-               }
-      last;
-     }
+# Verify that the transfer fully completed. Note that the "transfer complete"
+# message comes in two flavors and may be repeated. We want the last instance
+# which cannot be neither on the last nor first lines of the response.
+#
+  $i = $#Resp; $XfrRC = 8;
+  while($i--)
+       {last if ($Resp[$i] =~ m/226 Transfer Complete\./)
+             || ($Resp[$i] =~ m/226 Transfer complete\./);
+       }
+
+# Make sure we found the transfer complete message
+#
+  if ($i < 0)
+     {Logit("!!! '226 Transfer complete' msg not found."); return 0;}
+
+# Make sure we have the number of bytes sent/received
+#
+  if (($n  = index( $Resp[$i+1], $xdir)) < 0)
+     {Logit("!!! '226 Transfer bytes' msg not found."); return 0;}
+  $XfrBytes = substr($Resp[$i+1], 0, $n);
+
+# For writes, make sure all the bytes were transferred
+#
+  if ($isWrite && $XfrBytes != $Fsz)
+     {Logit("Transfer bytes ($XfrBytes) != file bytes ($Fsz)."); return 0;}
 
 # All done
 #
-  return $XfrRC == 0;
+  $XfrRC = 0;
+  return 1;
 }
 
 #******************************************************************************
 #*                             T r a n s P a c e                              *
 #******************************************************************************
  
-sub TransPace {my($doGet) = @_; my($resp, $pid);
+sub TransPace {my($doGet, $Fsz) = @_; my($resp, $pid);
               local(*xfrRDR, *xfrWRT);
 
 
@@ -623,7 +630,7 @@ sub TransPace {my($doGet) = @_; my($resp, $pid);
               SayDebug("Xfer slot obtained in $xsT seconds.");}
          }
      }
-   $rc = ($doGet ? Get_File() : Put_File());
+   $rc = ($doGet ? Get_File($Fsz) : Put_File($Fsz));
 
    if ($okPace)
       {close(xfrRDR); close(xfrWRT); waitpid($pid,0);}
