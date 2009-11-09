@@ -124,6 +124,7 @@ bool XrdClientReadCache::SubmitRawData(const void *buffer, long long begin_offs,
 	if (pos < 0) pos = 0;
 
 	for (; pos < fItems.GetSize(); pos++) {
+           // Don't add this block if it is contained in a bigger one
 	    if (!fItems[pos]->IsPlaceholder() && fItems[pos]->ContainsInterval(begin_offs, end_offs)) {
 		pos = -1;
 		break;
