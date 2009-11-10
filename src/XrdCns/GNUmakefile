@@ -147,7 +147,7 @@ $(OBJDIR)/XrdCnsLogClient.o: XrdCnsLogClient.hh  XrdCnsLogClient.cc  \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCnsLogClient.o XrdCnsLogClient.cc
 
 $(OBJDIR)/XrdCnsLogFile.o: XrdCnsLogFile.hh  XrdCnsLogFile.cc  \
-                           XrdCnsLogRec.hh \
+                           XrdCnsLogRec.hh   XrdSysPlatform.hh \
                            XrdSysError.hh  XrdSysPthread.hh
 	@echo Compiling XrdCnsLogFile.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCnsLogFile.o XrdCnsLogFile.cc
