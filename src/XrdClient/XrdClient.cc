@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
 //                                                                      //
 // XrdClient                                                            //
 //                                                                      //
@@ -526,19 +526,21 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 		// We are here if the cache did not give all the data to us
 		// We should have a list of blocks to request
 		for (int i = 0; i < cacheholes.GetSize(); i++) {
-		    long long offs;
-		    long len;
+		    long long o;
+		    long l;
 	    
-		    offs = cacheholes[i].beginoffs;
-		    len = cacheholes[i].endoffs - offs + 1;
+		    o = cacheholes[i].beginoffs;
+		    l = cacheholes[i].endoffs - o + 1;
 
 
-		    Info( XrdClientDebug::kHIDEBUG, "Read",
-			  "Hole in the cache: offs=" << offs <<
-			  ", len=" << len );
+		    Info( XrdClientDebug::kUSERDEBUG, "Read",
+			  "Hole in the cache: offs=" << o <<
+			  ", len=" << l );
 
-                    XrdClientReadAheadMgr::TrimReadRequest(offs, len, 0, fReadTrimBlockSize);
-		    Read_Async(offs, len, false);
+
+                    XrdClientReadAheadMgr::TrimReadRequest(o, l, 0, fReadTrimBlockSize);
+
+		    Read_Async(o, l, false);
 
                     cachehit = false;
 		}
@@ -628,9 +630,13 @@ int XrdClient::Read(void *buf, long long offset, int len) {
 
 	} while ((blkstowait > 0) || cacheholes.GetSize());
 
-    // To lower caching overhead in copy-like applications
-    if (EnvGetLong(NAME_REMUSEDCACHEBLKS))
-       fConnModule->RemoveDataFromCache(0, offset);
+        // To lower caching overhead in copy-like applications
+        if (EnvGetLong(NAME_REMUSEDCACHEBLKS)) {
+           Info(XrdClientDebug::kHIDEBUG, "Read",
+                "Removing used blocks " << 0 << "->" << offset );
+           fConnModule->RemoveDataFromCache(0, offset);
+        }
+
 
     if (cachehit) fCounters.ReadHits++;
     fCounters.ReadBytes += len;
