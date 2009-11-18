@@ -774,6 +774,11 @@ kXR_int64 XrdClient::ReadV(char *buf, kXR_int64 *offsets, int *lens, int nbuf)
 
     }
 
+    if (!buf && !fConnModule->CacheWillFit(bytesread+bytesread/4)) {
+       Info(XrdClientDebug::kUSERDEBUG, "ReadV",
+         "Excessive async readv size " << bytesread+bytesread/4 << ". Fixing cache size." );
+       SetCacheParameters(bytesread, -1, -1);
+    }
 
     // pos will indicate the size of the data read
     // Even if we were able to read only a part of the buffer !!!
