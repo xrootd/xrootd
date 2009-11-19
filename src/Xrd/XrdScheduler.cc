@@ -285,6 +285,7 @@ void XrdScheduler::Run()
                    return;
                   }
               }
+           SchedMutex.UnLock();
           } while(!jp);
        TRACE(SCHED, "running " <<jp->Comment <<" inq=" <<num_JobsinQ);
        jp->DoIt();
