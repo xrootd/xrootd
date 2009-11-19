@@ -20,3 +20,5 @@ TYPELDSO   = -shared
 TYPESHLIB  = so
 
 TYPELIBS   =  -lnsl $(PTHREAD) -lrt -ldl
+
+CC_NOWARN  = -w

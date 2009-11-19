@@ -20,6 +20,8 @@ TYPESHLIB  = so
 
 TYPELIBS   =  -lnsl $(PTHREAD) -lrt -ldl
 
+CC_NOWARN  = -w
+
 # Compiler version:
 ICC_MAJOR    := $(shell $(CXX) -v 2>&1 | awk '{ if (NR==1) print $$2 }' | \
                 cut -d'.' -f1)
