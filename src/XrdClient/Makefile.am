@@ -73,6 +73,7 @@ libXrdClient_la_SOURCES = \
         XrdClientPSock.cc XrdClientPSock.hh \
 	XrdClientMStream.cc XrdClientMStream.hh \
         XrdClientReadV.cc XrdClientReadV.hh \
+        XrdClientReadAhead.cc XrdClientReadAhead.hh \
         XrdcpXtremeRead.cc XrdcpXtremeRead.hh
 
 libXrdClient_la_LIBADD = $(LIBSUNMATH) \
