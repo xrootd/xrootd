@@ -51,6 +51,10 @@
 
 # -n do not redirect standard error when invoking the copy function
 
+# -o the onwership information in the form of <usr>:<grp> where either one
+#    or both may be specified. The default comes from the data source.
+#    Ownership can only be maintained by root proceses or pftp logins.
+
 # -P The MSS port number to use (default is 2021).
 
 # -p set the protection mode of the file. Specify 1 to 4 octal digits, the
@@ -144,9 +148,11 @@ $XfrPswd = '';     # MSS user password
 $XfrKey  = '/var/adm/xrootd/pftp/keyfile';
 $XfrGet  = 'open %xfrhost %xfrport;user %xfruser %xfrpswd;binary;' .
            'setpblocksize 2097152;pget %xfrsfn %xfrtfn;quit;';
-$XfrPut1 = 'open %xfrhost %xfrport;user %xfruser %xfrpswd;binary';
-$XfrPut2 = ';setpblocksize 2097152;pput %xfrsfn %xfrtfn;quit;';
+$XfrPut1 = 'open %xfrhost %xfrport;user %xfruser %xfrpswd;delete %xfrtfn';
+$XfrPut2 = ';binary;setpblocksize 2097152;pput %xfrsfn %xfrtfn';
 
+$XfrGID  = '';     # The group ID (usually from source file)
+$XfrUID  = '';     # The user  ID (usually from source file)
 $XfrCOS  = -1;     # Class of Service
 $XfrApnd = '';     # Value of '-a'
 $XfrBase = '';     # Target prior to appending with XfrApnd
@@ -173,6 +179,7 @@ $XfrRC   = 0;      # The final return code
                          }
      elsif ($op eq '-m') {$OKFile  =  0;}
      elsif ($op eq '-n') {$XfrOut = ''}
+     elsif ($op eq '-o') {&GetOwners(&GetVal('ownership'));}
      elsif ($op eq '-P') {$XfrPort =  &GetVal('port', 'N', 1);}
      elsif ($op eq '-p') {$Mode =  &GetVal('mode');
                              if ($Mode eq 'r') {$Mode = oct('0440');}
@@ -275,6 +282,8 @@ $XfrRC   = 0;      # The final return code
   if (!$doGet)
      {@Svec = stat($XfrSrcFN);
       &CleanUp(&Emsg(ET("Unable to put $XfrSrcFN"), 0)) if $Svec[7] eq '';
+      $XfrUID = $Svec[4] if $XfrUID eq '';
+      $XfrGID = $Svec[5] if $XfrGID eq '';
       &MakePath($nsMkd) if !($rc = TransPace(0,$Svec[7])) && $nsMkd ne '';
       &CleanUp($rc);
      }
@@ -399,9 +408,17 @@ sub Put_File {my($Fsz) = @_; my($cmd, $dir, $resp, $sfx, $PutTries);
     #
     $cmd .= ";site setcos $XfrCos" if $XfrCOS >= 0;
 
-    # Construct the final command stream
+    # Construct the penultimate command stream
     #
     $cmd .= TransCmd($XfrPut2);
+
+    # Now add the uid/gid settings, as needed, followed by a quit.
+    #
+    if ($XfrUser eq 'root')
+       {$cmd .= ";site chuid $XfrUID $XfrTrgFN" if $XfrUID ne '';
+        $cmd .= ";site chgid $XfrGID $XfrTrgFN" if $XfrGID ne '';
+       }
+    $cmd .= ';quit';
 
     # Execute the command to get the file (as many times as wanted/needed)
     #
@@ -690,6 +707,22 @@ sub GetDir {my($item) = @_; my($v);
     &Emsg(ucfirst($item).' not specified.') if $v eq '';
     &Emsg(ET("Invalid $item, '$v'")) if !-d $v;
     return $v;
+}
+
+sub GetOwners {my($ug) = @_;
+     my($usr, $grp) = split(/:/, $ug, 2);
+     if ($usr ne '')
+        {if (IsNum($usr)) {$XfrUID = $usr;}
+            else {$XfrUID = getpwnam($usr);
+                  &Emsg("User '$usr' is not valid.") if !defined($XfrUID);
+                 }
+        }
+     if ($grp ne '')
+        {if (IsNum($grp)) {$XfrGID = $grp;}
+            else {$XfrGID = getgrnam($grp);
+                  &Emsg("Group '$grp' is not valid.") if !defined($XfrGID);
+                 }
+        }
 }
 
 sub GetPswd {my($fn) = @_;
