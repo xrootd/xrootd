@@ -111,14 +111,14 @@ $(OBJDIR)/XrdPosixPreload.o:  XrdPosixPreload.cc   XrdPosixLinkage.hh \
                               XrdPosixExtern.hh    XrdPosixOsDep.hh \
                               XrdPosixXrootd.hh
 	@echo Compiling XrdPosixPreload.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(NOWARN) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload.o XrdPosixPreload.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload.o XrdPosixPreload.cc
 
 $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
                                 XrdPosixExtern.hh      XrdPosixXrootd.hh \
                                 XrdPosixOsDep.hh \
                                 XrdSysHeaders.hh       XrdSysPlatform.hh
 	@echo Compiling XrdPosixPreload32.cc
-	$(ECHO)$(CC) -c $(CFLAGS32) $(CFUSENEWHDRS) $(CFNOSTRICTALIAS) $(NOWARN) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
+	$(ECHO)$(CC) -c $(CFLAGS32) $(CFUSENEWHDRS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
 
 $(OBJDIR)/XrdPosixXrootd.o:  XrdPosixXrootd.cc   XrdPosixXrootd.hh \
                              XrdClient.hh        XrdPosixExtern.hh \
