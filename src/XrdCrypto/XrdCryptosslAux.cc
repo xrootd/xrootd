@@ -566,14 +566,11 @@ int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1)
    // Function to convert from ASN1 time format into UTC
    // since Epoch (Jan 1, 1970) 
    // Return -1 if something went wrong
-   static bool havetzcor = 0;
-   static int tzcor = 0;
    int etime = -1;
 
    //
    // Make sure there is something to convert
-   if (!tsn1)
-      return etime;
+   if (!tsn1) return etime;
 
    //
    // Parse the input string: here we basically cut&paste from GRIDSITE
@@ -605,23 +602,13 @@ int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1)
    etime = mktime(&ltm);
    //
    // If GMT we need a correction because mktime use local time zone
-   if (!havetzcor) {
-      //
-      // We calculate it in pragmatic way only once
-      time_t now = time(0);
-      struct tm ltn, gtn;
-      if (!localtime_r(&now, &ltn))
-         return etime;
-      if (!gmtime_r(&now, &gtn))
-         return etime;
-      //
-      // Calculate correction
-      tzcor = ((ltn.tm_hour - gtn.tm_hour) +
-               (ltn.tm_mday - gtn.tm_mday) * 24) * 3600;
-      //
-      // We did it
-      havetzcor = 1;
-   }
+   time_t now = time(0);
+   struct tm ltn, gtn;
+   if (!localtime_r(&now, &ltn)) return etime;
+   if (!gmtime_r(&now, &gtn)) return etime;
+   //
+   // Calculate correction
+   int tzcor = difftime(mktime(&ltn), mktime(&gtn));
    //
    // Apply correction
    etime += tzcor;
