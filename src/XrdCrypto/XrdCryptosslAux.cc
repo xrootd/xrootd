@@ -143,7 +143,11 @@ bool XrdCryptosslX509VerifyChain(XrdCryptoX509Chain *chain, int &errcode)
    }
 
    // Make sure all the certificates have been inserted
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L
+   if (sk_X509_num(stk) != chain->Size() - 1)
+#else /* OPENSSL */
    if (sk_num(stk) != chain->Size() - 1)
+#endif /* OPENSSL */
       return 0;
 
    // Create a store ctx ...
@@ -412,7 +416,11 @@ int XrdCryptosslX509ParseFile(const char *fname,
                   // Get the public key
                   EVP_PKEY *evpp = X509_get_pubkey((X509 *)(cert->Opaque()));
                   if (evpp) {
+#if 0
                      if (PEM_read_bio_PrivateKey(bkey,&evpp,0,0)) {
+#else
+                     if (PEM_read_bio_RSAPrivateKey(bkey,&(evpp->pkey.rsa),0,0)) {
+#endif
                         DEBUG("RSA key completed ");
                         // Test consistency
                         int rc = RSA_check_key(evpp->pkey.rsa);
