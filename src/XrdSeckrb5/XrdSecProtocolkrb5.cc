@@ -42,6 +42,8 @@ extern "C" {
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysPriv.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSut/XrdSutAux.hh"
   
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -686,6 +688,7 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 
 // Create the cache filename, expanding the keywords, if needed
 //
+#if 0
     char ccfile[XrdSecMAXPATHLEN];
     strcpy(ccfile, XrdSecProtocolkrb5::ExpFile);
     int nlen = strlen(ccfile);
@@ -723,7 +726,21 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 // Terminate to the new length
 //
     ccfile[nlen] = 0;
-
+#else
+    XrdOucString ccfn(XrdSecProtocolkrb5::ExpFile);
+// Resolve place-holders, if any
+//
+    if (XrdSutResolve(ccfn, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0)
+       return rc;
+    struct passwd *pw = getpwnam(CName);
+    if (!pw)
+       return rc;
+    if (ccfn.find("<uid>") != STR_NPOS)
+       {XrdOucString suid; if (pw) suid += (int) pw->pw_uid;
+        ccfn.replace("<uid>", suid.c_str());
+       }
+    char *ccfile = (char *) ccfn.c_str();
+#endif
 // Point the received creds
 //
     krbContext.Lock();
