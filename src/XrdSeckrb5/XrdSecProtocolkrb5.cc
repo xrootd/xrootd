@@ -688,46 +688,8 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 
 // Create the cache filename, expanding the keywords, if needed
 //
-#if 0
-    char ccfile[XrdSecMAXPATHLEN];
-    strcpy(ccfile, XrdSecProtocolkrb5::ExpFile);
-    int nlen = strlen(ccfile);
-    char *pusr = (char *) strstr(&ccfile[0], "<user>");
-    if (pusr)
-       {int ln = strlen(CName);
-        if (ln != 6) {
-           // Adjust the space
-           int lm = strlen(ccfile) - (int)(pusr + 6 - &ccfile[0]); 
-           memmove(pusr+ln, pusr+6, lm);
-        }
-        // Copy the name
-        memcpy(pusr, CName, ln);
-        // Adjust the length
-        nlen += (ln - 6);
-        }
-    char *puid = (char *) strstr(&ccfile[0], "<uid>");
-    struct passwd *pw = getpwnam(CName);
-    if (puid)
-       {char cuid[20] = {0};
-        if (pw)
-           sprintf(cuid, "%d", pw->pw_uid);
-        int ln = strlen(cuid);
-        if (ln != 5) {
-           // Adjust the space
-           int lm = strlen(ccfile) - (int)(puid + 5 - &ccfile[0]); 
-           memmove(puid+ln, pusr+5, lm);
-        }
-        // Copy the name
-        memcpy(puid, cuid, ln);
-        // Adjust the length
-        nlen += (ln - 5);
-        }
-
-// Terminate to the new length
-//
-    ccfile[nlen] = 0;
-#else
     XrdOucString ccfn(XrdSecProtocolkrb5::ExpFile);
+
 // Resolve place-holders, if any
 //
     if (XrdSutResolve(ccfn, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0)
@@ -740,7 +702,7 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
         ccfn.replace("<uid>", suid.c_str());
        }
     char *ccfile = (char *) ccfn.c_str();
-#endif
+
 // Point the received creds
 //
     krbContext.Lock();

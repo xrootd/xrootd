@@ -416,10 +416,11 @@ int XrdCryptosslX509ParseFile(const char *fname,
                   // Get the public key
                   EVP_PKEY *evpp = X509_get_pubkey((X509 *)(cert->Opaque()));
                   if (evpp) {
-#if 0
-                     if (PEM_read_bio_PrivateKey(bkey,&evpp,0,0)) {
-#else
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L
+                     // evpp gets reset by the other call on >=1.0.0; to be investigated
                      if (PEM_read_bio_RSAPrivateKey(bkey,&(evpp->pkey.rsa),0,0)) {
+#else
+                     if (PEM_read_bio_PrivateKey(bkey,&evpp,0,0)) {
 #endif
                         DEBUG("RSA key completed ");
                         // Test consistency
