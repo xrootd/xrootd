@@ -264,13 +264,15 @@ int XrdFrmFiles::Process(XrdOucNSWalk::NSEnt *nP, const char *dPath)
    XrdFrmFileset       *sP;
    XrdOucTList         *dP = 0;
    char *dotP;
-   int fType, ival[2];
+   int fType;
 
 // If compressed directories wanted, then setup a shared directory buffer
+// Warning! We use a hard-coded value for maximum filename length instead of
+//          constantly calling pathconf().
 //
    if (shareD)
       {int n = strlen(dPath);
-       char *dBuff = (char *)malloc(n+MAXNAMELEN+1);
+       char *dBuff = (char *)malloc(n+264);
        strcpy(dBuff, dPath);
        dP = new XrdOucTList;
        dP->text = dBuff;
