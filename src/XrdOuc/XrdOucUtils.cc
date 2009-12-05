@@ -155,7 +155,7 @@ int XrdOucUtils::fmtBytes(long long val, char *buff, int bsz)
    static const long long Gval = 1024LL*1024LL*1024LL;
    static const long long Tval = 1024LL*1024LL*1024LL*1024LL;
    char sName = ' ';
-   int n, resid;
+   int resid;
 
 // Get correct scaling
 //

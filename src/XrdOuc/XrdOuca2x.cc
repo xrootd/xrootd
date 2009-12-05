@@ -144,7 +144,7 @@ int XrdOuca2x::a2sp(XrdSysError &Eroute, const char *emsg, const char *item,
     if (maxv < 0) maxv = 100;
 
     if (*val > maxv)
-       {sprintf(buff, "may not be greater than %d%%", maxv);
+       {sprintf(buff, "may not be greater than %lld%%", maxv);
         Eroute.Emsg("a2x", emsg, item, buff);
         return -1;
        }
@@ -152,7 +152,7 @@ int XrdOuca2x::a2sp(XrdSysError &Eroute, const char *emsg, const char *item,
     if (minv < 0) minv = 0;
 
     if (*val > maxv)
-       {sprintf(buff, "may not be less than %d%%", minv);
+       {sprintf(buff, "may not be less than %lld%%", minv);
         Eroute.Emsg("a2x", emsg, item, buff);
         return -1;
        }
