@@ -139,13 +139,13 @@ $(OBJDIR)/XrdFrmAdminAudit.o:  XrdFrmAdmin.hh    XrdFrmAdminAudit.cc \
 
 $(OBJDIR)/XrdFrmAdminFiles.o: XrdFrmAdmin.hh    XrdFrmAdminFiles.cc \
                               XrdFrmConfig.hh   XrdFrmFiles.hh  \
-                              XrdFrmTrace.hh    XrdOssPath.hh
+                              XrdFrmTrace.hh
 	@echo Compiling XrdFrmAdminFiles.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmAdminFiles.o XrdFrmAdminFiles.cc
 
 $(OBJDIR)/XrdFrmAdminFind.o:  XrdFrmAdmin.hh    XrdFrmAdminFind.cc \
                               XrdFrmConfig.hh   XrdFrmFiles.hh  \
-                              XrdFrmTrace.hh    XrdOssPath.hh \
+                              XrdFrmTrace.hh    \
                               XrdOucArgs.hh     XrdOucNSWalk.hh
 	@echo Compiling XrdFrmAdminFind.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmAdminFind.o XrdFrmAdminFind.cc
@@ -190,7 +190,8 @@ $(OBJDIR)/XrdFrmConfig.o: XrdFrmConfig.hh XrdFrmConfig.cc    XrdFrmTrace.hh \
 
 $(OBJDIR)/XrdFrmFiles.o:  XrdFrmFiles.hh    XrdFrmFiles.cc  XrdFrmTrace.hh \
                           XrdFrmConfig.hh   XrdFrmUtils.hh  XrdOssPath.hh \
-                          XrdOucHash.hh     XrdOucNSWalk.hh
+                          XrdOucHash.hh     XrdOucNSWalk.hh \
+                          XrdSysPlatform.hh
 	@echo Compiling XrdFrmFiles.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmFiles.o XrdFrmFiles.cc
 
