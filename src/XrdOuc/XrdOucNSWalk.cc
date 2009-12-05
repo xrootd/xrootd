@@ -27,7 +27,8 @@ const char *XrdOucNSWalkCVSID = "$Id$";
 /******************************************************************************/
   
 XrdOucNSWalk::XrdOucNSWalk(XrdSysError *erp, const char *dpath,
-                                             const char *lkfn, int opts)
+                                             const char *lkfn, int opts,
+                                             XrdOucTList *xlist)
 {
 
 // Set the required fields
@@ -40,6 +41,14 @@ XrdOucNSWalk::XrdOucNSWalk(XrdSysError *erp, const char *dpath,
    DPfd = LKfd = -1;
    errOK= opts & skpErrs;
    DEnts= 0;
+
+// Copy the exclude list if one exists
+//
+   if (!xlist) XList = 0;
+      else while(xlist)
+                {XList = new XrdOucTList(xlist->text,0,XList);
+                 xlist = xlist->next;
+                }
 }
 
 /******************************************************************************/
@@ -53,6 +62,8 @@ XrdOucNSWalk::~XrdOucNSWalk()
    if (LKFn) free(LKFn);
 
    while((tP = DList)) {DList = tP->next; delete tP;}
+
+   while((tP = XList)) {XList = tP->next; delete tP;}
 }
 
 /******************************************************************************/
@@ -75,6 +86,11 @@ XrdOucNSWalk::NSEnt *XrdOucNSWalk::Index(int &rc, const char **dPath)
          if (LKfd >= 0) close(LKfd);
          if (DEnts || (rc && !errOK)) break;
         }
+
+// The exclude list only applies to the first level. So, we need to delete
+// it if it exists because we already scanned the 1st level directory.
+//
+   while((tP = XList)) {XList = tP->next; delete tP;}
 
 // Return the result
 //
@@ -154,7 +170,8 @@ int XrdOucNSWalk::Build()
          rc = getStat(theEnt.P, getLI);
          switch(theEnt.P->Type)
                {case NSEnt::isDir:
-                     if (Opts & Recurse && (!getLI || !isSymlink()))
+                     if (Opts & Recurse && (!getLI || !isSymlink())
+                     &&  (!XList || !inXList(File)))
                         DList = new XrdOucTList(DPath, 0, DList);
                      if (!(Opts & retDir)) continue;
                      break;
@@ -245,6 +262,27 @@ do{rc = doLstat ? lstat(DPath, &(eP->Stat)) : stat(DPath, &(eP->Stat));
    else                                             eP->Type = NSEnt::isMisc;
 
    return 0;
+}
+  
+/******************************************************************************/
+/*                               i n X L i s t                                */
+/******************************************************************************/
+  
+int XrdOucNSWalk::inXList(const char *dName)
+{
+    XrdOucTList *xTP = XList, *pTP = 0;
+
+// Search for the directory entry
+//
+    while(xTP && strcmp(dName, xTP->text)) {pTP = xTP; xTP = xTP->next;}
+
+// If not found return false. Otherwise, delete the entry and return true.
+//
+   if (!xTP) return 0;
+   if (pTP) pTP->next = xTP->next;
+      else      XList = xTP->next;
+   delete xTP;
+   return 1;
 }
   
 /******************************************************************************/

@@ -22,6 +22,7 @@ public:
 inline unsigned long long  Flag() {return flags;}
 inline XrdOucPList        *Next() {return next;}
 inline char               *Path() {return path;}
+inline int                 Plen() {return pathlen;}
 
 inline int          PathOK(const char *pd, const int pl)
                           {return pl >= pathlen && !strncmp(pd, path, pathlen);}

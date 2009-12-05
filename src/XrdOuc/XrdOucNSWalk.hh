@@ -76,7 +76,8 @@ static const int skpErrs=  0x8000; // Skip any entry causing an error
              XrdOucNSWalk(XrdSysError *erp,  // Error msg object. If 0->silent
                          const char *dname,  // Initial directory path
                          const char *LKfn=0, // Lock file name (see note below)
-                         int opts=retAll);   // Options        (see above)
+                         int opts=retAll,    // Options        (see above)
+                         XrdOucTList *xP=0); // 1st Level dir exclude list
             ~XrdOucNSWalk();
 
 // Note: When Lkfn is supplied and it exists in a directory about to be indexed
@@ -90,12 +91,14 @@ int           Build();
 int           getLink(XrdOucNSWalk::NSEnt *eP);
 int           getStat(XrdOucNSWalk::NSEnt *eP, int doLstat=0);
 int           getStat();
+int           inXList(const char *dName);
 int           isSymlink();
 int           LockFile();
 void          setPath(char *newpath);
 
 XrdSysError  *eDest;
 XrdOucTList  *DList;
+XrdOucTList  *XList;
 struct NSEnt *DEnts;
 char          DPath[1032];
 char         *File;
