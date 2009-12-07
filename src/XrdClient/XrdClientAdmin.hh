@@ -45,7 +45,7 @@ struct XrdClientLocate_Info {
 class XrdClientAdmin : public XrdClientAbs {
 
    XrdOucString                    fInitialUrl;
-
+   bool                            DirList_low(const char *dir, vecString &entries);
    int                             LocalLocate(kXR_char *path,
 					       XrdClientVector<XrdClientLocate_Info> &res,
 					       bool writable, bool nowait, bool all = false);
@@ -85,7 +85,7 @@ class XrdClientAdmin : public XrdClientAbs {
 					    int &stagingutil);
 
    bool                            DirList(const char *dir,
-                                           vecString &);
+                                           vecString &entries, bool askallservers=true);
 
    bool                            ExistFiles(vecString&,
                                               vecBool&);

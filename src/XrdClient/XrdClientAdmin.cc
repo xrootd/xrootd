@@ -871,7 +871,49 @@ bool XrdClientAdmin::Prepare(const char *buf, kXR_char option, kXR_char prty)
 }
 
 //_____________________________________________________________________________
-bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
+bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallservers) {
+   // Get an ls-like output with respect to the specified dir
+
+   // If this is a redirector, we will be given the list of the servers
+   //  which host this directory
+   // If askallservers is true then we will just ask for the whole list of servers.
+   //  the query will always be the same, and this will likely skip the 5s delay after the first shot
+   //  The danger is to be forced to contact a huge number of servers in very big clusters
+   //
+   bool ret = true;
+   XrdClientVector<XrdClientLocate_Info> hosts;
+   if (askallservers) {
+      if (!Locate((kXR_char *)"/./", hosts)) return false;
+   } else
+      if (!Locate((kXR_char *)dir, hosts)) return false;
+
+   // Then we cycle among them asking everyone
+   for (int i = 0; i < hosts.GetSize(); i++) {
+      fConnModule->Disconnect(false);
+      XrdClientUrlInfo url((const char *)hosts[i].Location);
+      if (!url.Port) url.Port = 1094;
+      if (url.HostAddr == "") url.HostAddr = url.Host;
+      url.Proto = "root";
+
+      if (fConnModule->GoToAnotherServer(url) != kOK) {
+         ret = false;
+         break;
+      }
+
+      if (!DirList_low(dir, entries)) {
+         ret = false;
+         break;
+      }
+
+   }
+
+   // At the end we want to rewind to the main redirector in any case
+   GoBackToRedirector();
+   return ret;
+}
+
+//_____________________________________________________________________________
+bool  XrdClientAdmin::DirList_low(const char *dir, vecString &entries) {
    bool ret;
    // asks the server for the content of a directory
    ClientRequest DirListFileRequest;
@@ -924,7 +966,6 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries) {
    return(ret);
 
 }
-
 
 //_____________________________________________________________________________
 long XrdClientAdmin::GetChecksum(kXR_char *path, kXR_char **chksum)
@@ -1078,7 +1119,7 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientLocate_Info &resp, bool wri
        resp.CanWrite = 1;
        strcpy((char *)resp.Location, fConnModule->GetCurrentUrl().HostWPort.c_str());
      }
-     fConnModule->GoBackToRedirector();
+     GoBackToRedirector();
      return ok;
    }
 
@@ -1164,7 +1205,7 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientLocate_Info &resp, bool wri
    }
 
    // At the end we want to rewind to the main redirector in any case
-   fConnModule->GoBackToRedirector();
+   GoBackToRedirector();
 
    return found;
 }
@@ -1201,7 +1242,8 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info
        strcpy((char *)resp.Location, fConnModule->GetCurrentUrl().HostWPort.c_str());
        hosts.Push_back(resp);
      }
-     fConnModule->GoBackToRedirector();
+     GoBackToRedirector();
+
      return ok;
    }
 
@@ -1258,7 +1300,7 @@ bool XrdClientAdmin::Locate(kXR_char *path, XrdClientVector<XrdClientLocate_Info
    }
    
    // At the end we want to rewind to the main redirector in any case
-   fConnModule->GoBackToRedirector();
+   GoBackToRedirector();
 
    return (hosts.GetSize() > 0);
 }
@@ -1295,8 +1337,11 @@ bool XrdClientAdmin::Truncate(const char *path, long long newsize) {
 // Quickly jump to the former redirector. Useful after having been redirected.
 void XrdClientAdmin::GoBackToRedirector() {
 
-  if (fConnModule)
-    fConnModule->GoBackToRedirector();
+   if (fConnModule) {
+      fConnModule->GoBackToRedirector();
+      XrdClientUrlInfo u(fInitialUrl);
+      if (!fConnModule->IsConnected()) fConnModule->GoToAnotherServer(u);
+   }
 
 
 
