@@ -492,7 +492,7 @@ int main(int argc, char**argv) {
 
 	 if (!path.length()) {
 	    cout << "The current path is empty." << endl;
-	    retval = 1;
+	    path = '/';
 	 }
 
 	 // Now try to issue the request
