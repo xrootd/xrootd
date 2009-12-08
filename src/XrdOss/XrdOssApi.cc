@@ -432,9 +432,16 @@ int XrdOssDir::Opendir(const char *dir_path)
 
 // If this is a local filesystem request, open locally.
 //
-   if (!isremote)
+   if (!isremote || (pflags & XRDEXP_NODREAD))
       {TRACE(Opendir, "lcl path " <<local_path <<" (" <<dir_path <<")");
-       if (!(lclfd = opendir((char *)local_path))) return -errno;
+       if ((lclfd = opendir((char *)local_path)))
+          {if (!isremote) return -errno;
+           if (!(pflags & XRDEXP_NOCHECK) && XrdOssSS->MSSgwCmd)
+              {struct stat fstat;
+               if ((retc = XrdOssSS->MSS_Stat(remote_path,&fstat))) return retc;
+               if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
+              }
+          }
        isopen = 1;
        return XrdOssOK;
       }
@@ -450,25 +457,6 @@ int XrdOssDir::Opendir(const char *dir_path)
 // Trace this remote request
 //
    TRACE(Opendir, "rmt path " <<remote_path <<" (" <<dir_path <<")");
-
-// If we need not read the actual directory, just check if it exists
-//
-   if (pflags & XRDEXP_NODREAD)
-      {struct stat fstat;
-       if (stat(local_path, &fstat))
-          {if (pflags & XRDEXP_NOCHECK) fstat.st_mode = S_IFDIR;
-              else {if (!XrdOssSS->MSSgwCmd) return -errno;
-                    if ((retc = XrdOssSS->MSS_Stat(remote_path, &fstat)))
-                       return retc;
-                   }
-          }
-       if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
-       isopen = -1;
-       return XrdOssOK;
-      }
-
-// This is a remote directory and we must read it. Perform remote open
-//
    if (!(mssfd = XrdOssSS->MSS_Opendir(remote_path, retc))) return retc;
    isopen = 1;
    return XrdOssOK;
