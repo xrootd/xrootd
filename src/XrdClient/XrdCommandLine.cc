@@ -159,6 +159,8 @@ void PrintHelp() {
       "  current remote path. Also, they can be root:// URLs specifying any other host." << endl <<
       " dirlist [dirname]" << endl <<
       "  gets the requested directory listing." << endl <<
+      " dirlistrec [dirname]" << endl <<
+      "  gets the requested recursive directory listing." << endl <<
       " envputint <varname> <intval>" << endl <<
       "  puts an integer in the internal environment." << endl <<
       " envputstring <varname> <stringval>" << endl <<
@@ -471,6 +473,86 @@ int main(int argc, char**argv) {
 
       }
       else
+      // -------------------------- dirlistrec ---------------------------
+      if (!strcmp(cmd, "dirlistrec")) {
+         XrdClientVector<XrdOucString> pathq;
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    retval = 1;
+	 }
+
+	 char *dirname = tkzer.GetToken(0, 0);
+	 XrdOucString path;
+
+	 if (dirname) {
+	    if (dirname[0] == '/')
+	       path = dirname;
+	    else
+	       path = currentpath + "/" + dirname;
+	 }
+	 else path = currentpath;
+
+	 if (!path.length()) {
+	    cout << "The current path is empty." << endl;
+	    path = '/';
+	 }
+
+
+         // Initialize the queue with this path
+         pathq.Push_back(path);
+
+
+         while (pathq.GetSize() > 0) {
+            XrdOucString pathtodo = pathq.Pop_back();
+
+            // Now try to issue the request
+            XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
+            if (!genadmin->DirList(pathtodo.c_str(), nfo)) {
+               retval = 1;  
+            }
+
+            // Now check the answer
+            if (!CheckAnswer(genadmin))
+               retval = 1;
+      
+            for (int i = 0; i < nfo.GetSize(); i++) {
+               if (nfo[i].flags & kXR_isDir)
+                  pathq.Push_back(nfo[i].fullpath);
+               char ts[256];
+               strcpy(ts, "n/a");
+
+               struct tm *t = gmtime(&nfo[i].modtime);
+               strftime(ts, 255, "%F %T", t);
+
+               char cflgs[16];
+               memset(cflgs, 0, 16);
+
+               if (nfo[i].flags & kXR_isDir)
+                  strcat(cflgs, "d");
+               else strcat(cflgs, "-");
+
+               if (nfo[i].flags & kXR_readable)
+                  strcat(cflgs, "r");
+               else strcat(cflgs, "-");
+
+               if (nfo[i].flags & kXR_writable)
+                  strcat(cflgs, "w");
+               else strcat(cflgs, "-");
+
+               if (nfo[i].flags & kXR_xset)
+                  strcat(cflgs, "x");
+               else strcat(cflgs, "-");
+
+               printf("%s(%03ld) %12lld %s %s\n", cflgs, nfo[i].flags, nfo[i].size, ts, nfo[i].fullpath.c_str());
+
+            }
+            
+            cout << endl;
+         }
+
+      }
+      else
       // -------------------------- dirlist ---------------------------
       if (!strcmp(cmd, "dirlist")) {
 
@@ -496,9 +578,8 @@ int main(int argc, char**argv) {
 	 }
 
 	 // Now try to issue the request
-	 vecString vs;
          XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
-	 if (!genadmin->DirList(path.c_str(), vs, nfo)) {
+	 if (!genadmin->DirList(path.c_str(), nfo)) {
             retval = 1;
             
          }
@@ -507,9 +588,36 @@ int main(int argc, char**argv) {
 	 if (!CheckAnswer(genadmin))
 	    retval = 1;
       
-	 for (int i = 0; i < vs.GetSize(); i++)
-	    cout << vs[i] << " " << 
-               nfo[i].fullpath << " " << nfo[i].size << "   " << nfo[i].flags << "   " << ctime(&nfo[i].modtime);
+
+            for (int i = 0; i < nfo.GetSize(); i++) {
+               char ts[256];
+               strcpy(ts, "n/a");
+
+               struct tm *t = gmtime(&nfo[i].modtime);
+               strftime(ts, 255, "%F %T", t);
+
+               char cflgs[16];
+               memset(cflgs, 0, 16);
+
+               if (nfo[i].flags & kXR_isDir)
+                  strcat(cflgs, "d");
+               else strcat(cflgs, "-");
+
+               if (nfo[i].flags & kXR_readable)
+                  strcat(cflgs, "r");
+               else strcat(cflgs, "-");
+
+               if (nfo[i].flags & kXR_writable)
+                  strcat(cflgs, "w");
+               else strcat(cflgs, "-");
+
+               if (nfo[i].flags & kXR_xset)
+                  strcat(cflgs, "x");
+               else strcat(cflgs, "-");
+
+               printf("%s(%03ld) %12lld %s %s\n", cflgs, nfo[i].flags, nfo[i].size, ts, nfo[i].fullpath.c_str());
+
+            }
 
 	 cout << endl;
 
