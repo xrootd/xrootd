@@ -161,6 +161,7 @@ public:
 
     void Resize(int newsize) {
 	BufRealloc(newsize);
+        size = newsize;
     }
 
     void Push_back(T& item) {
