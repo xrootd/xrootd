@@ -160,8 +160,20 @@ public:
     }
 
     void Resize(int newsize) {
-	BufRealloc(newsize);
-        size = newsize;
+        long oldsize = size;
+
+        if (newsize > oldsize) {
+           BufRealloc(newsize);
+           T item;
+           // Add new elements if needed
+           for (long i = oldsize; i < newsize; i++) {
+              put(item, size++);
+           }
+        }
+        else {
+           for (long i = oldsize; i > newsize; i--)
+              Erase(i-1, false);
+        }
     }
 
     void Push_back(T& item) {
