@@ -87,6 +87,17 @@ class XrdClientAdmin : public XrdClientAbs {
    bool                            DirList(const char *dir,
                                            vecString &entries, bool askallservers=true);
 
+   struct DirListInfo {
+      XrdOucString fullpath;
+      long long size;
+      long id;
+      long flags;
+      long modtime;
+   };
+   bool                            DirList(const char *dir, vecString &entries,
+                                           XrdClientVector<DirListInfo> &dirlistinfo,
+                                           bool askallservers=true);
+
    bool                            ExistFiles(vecString&,
                                               vecBool&);
 

@@ -497,14 +497,19 @@ int main(int argc, char**argv) {
 
 	 // Now try to issue the request
 	 vecString vs;
-	 genadmin->DirList(path.c_str(), vs);
+         XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
+	 if (!genadmin->DirList(path.c_str(), vs, nfo)) {
+            retval = 1;
+            
+         }
 
 	 // Now check the answer
 	 if (!CheckAnswer(genadmin))
 	    retval = 1;
       
 	 for (int i = 0; i < vs.GetSize(); i++)
-	    cout << vs[i] << endl;
+	    cout << vs[i] << " " << 
+               nfo[i].fullpath << " " << nfo[i].size << "   " << nfo[i].flags << "   " << ctime(&nfo[i].modtime);
 
 	 cout << endl;
 

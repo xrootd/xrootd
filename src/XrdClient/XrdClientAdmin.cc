@@ -913,6 +913,89 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
 }
 
 //_____________________________________________________________________________
+bool  XrdClientAdmin::DirList(const char *dir, vecString &entries,
+                              XrdClientVector<XrdClientAdmin::DirListInfo> &dirlistinfo,
+                              bool askallservers) {
+   // Get an ls-like output with respect to the specified dir
+   // Here we are also interested in the stat information for each file
+
+   // If this is a redirector, we will be given the list of the servers
+   //  which host this directory
+   // If askallservers is true then we will just ask for the whole list of servers.
+   //  the query will always be the same, and this will likely skip the 5s delay after the first shot
+   //  The danger is to be forced to contact a huge number of servers in very big clusters
+   //  If this is a concern, one should set askallservers to false
+   //
+   bool ret = true;
+   XrdClientVector<XrdClientLocate_Info> hosts;
+   XrdOucString fullpath;
+
+   if (askallservers) {
+      if (!Locate((kXR_char *)"/./", hosts)) return false;
+   } else
+      if (!Locate((kXR_char *)dir, hosts)) return false;
+
+   // Then we cycle among them asking everyone
+   for (int i = 0; i < hosts.GetSize(); i++) {
+      fConnModule->Disconnect(false);
+      XrdClientUrlInfo url((const char *)hosts[i].Location);
+      if (!url.Port) url.Port = 1094;
+      if (url.HostAddr == "") url.HostAddr = url.Host;
+      url.Proto = "root";
+
+      if (fConnModule->GoToAnotherServer(url) != kOK) {
+         ret = false;
+         break;
+      }
+
+      int precentries = entries.GetSize();
+      if (!DirList_low(dir, entries)) {
+         ret = false;
+         break;
+      }
+      int newentries = entries.GetSize();
+
+      DirListInfo info;
+      for (int k = precentries; k < newentries; k++) {
+         dirlistinfo.Push_back(info);
+      }
+
+      // Here we have the entries. We want to accumulate the stat information for each of them
+      // We are still connected to the same server which gave the last dirlist response
+      for (int k = precentries; k < newentries; k++) {
+         info.fullpath = dir;
+         info.fullpath += "/";
+         info.fullpath += entries[k];
+         info.size = 0;
+         info.id = 0;
+         info.flags = 0;
+         info.modtime = 0;
+
+         if (!Stat(info.fullpath.c_str(),
+                   info.id,
+                   info.size,
+                   info.flags,
+                   info.modtime)) {
+            ret = false;
+            break;
+         }
+
+         dirlistinfo[k] = info;
+
+      }
+
+   }
+
+   // At the end we want to rewind to the main redirector in any case
+   GoBackToRedirector();
+   return ret;
+ }
+
+
+
+
+
+//_____________________________________________________________________________
 bool  XrdClientAdmin::DirList_low(const char *dir, vecString &entries) {
    bool ret;
    // asks the server for the content of a directory
