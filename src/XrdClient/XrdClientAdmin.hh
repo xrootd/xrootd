@@ -89,12 +89,13 @@ class XrdClientAdmin : public XrdClientAbs {
 
    struct DirListInfo {
       XrdOucString fullpath;
+      XrdOucString host;
       long long size;
       long id;
       long flags;
       long modtime;
    };
-   bool                            DirList(const char *dir, vecString &entries,
+   bool                            DirList(const char *dir,
                                            XrdClientVector<DirListInfo> &dirlistinfo,
                                            bool askallservers=true);
 

@@ -913,7 +913,7 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
 }
 
 //_____________________________________________________________________________
-bool  XrdClientAdmin::DirList(const char *dir, vecString &entries,
+bool  XrdClientAdmin::DirList(const char *dir,
                               XrdClientVector<XrdClientAdmin::DirListInfo> &dirlistinfo,
                               bool askallservers) {
    // Get an ls-like output with respect to the specified dir
@@ -927,6 +927,7 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries,
    //  If this is a concern, one should set askallservers to false
    //
    bool ret = true;
+   vecString entries;
    XrdClientVector<XrdClientLocate_Info> hosts;
    XrdOucString fullpath;
 
@@ -956,15 +957,14 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries,
       int newentries = entries.GetSize();
 
       DirListInfo info;
-      for (int k = precentries; k < newentries; k++) {
-         dirlistinfo.Push_back(info);
-      }
+      dirlistinfo.Resize(newentries);
 
       // Here we have the entries. We want to accumulate the stat information for each of them
       // We are still connected to the same server which gave the last dirlist response
+      info.host = GetCurrentUrl().HostWPort;
       for (int k = precentries; k < newentries; k++) {
          info.fullpath = dir;
-         info.fullpath += "/";
+         if (info.fullpath[info.fullpath.length()-1] != '/') info.fullpath += "/";
          info.fullpath += entries[k];
          info.size = 0;
          info.id = 0;
