@@ -16,7 +16,7 @@ TYPEDBG    = $(TYPEMISC) $(SUNMT) -g -xs -xtarget=opteron -xarch=amd64
 TYPELDSO   = -G -xtarget=opteron -xarch=amd64
 TYPESHLIB  = so
 
-TYPELIBS   = -L/usr/lib/amd64 -L/lib/amd64 \
+TYPELIBS   = -R/usr/lib/amd64 -L/usr/lib/amd64 -L/lib/amd64 \
              -lposix4 -lsocket -lnsl $(PTHREAD) -ldl
 TYPELIBMT  = -lmtmalloc
 TYPELIBSF  = -lsendfile
