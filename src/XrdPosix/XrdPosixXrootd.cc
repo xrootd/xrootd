@@ -1249,6 +1249,7 @@ void XrdPosixXrootd::initEnv()
           {"XRDPOSIX_RCUP",        NAME_REMUSEDCACHEBLKS,     0},
           {"XRDPOSIX_RDTTL",       NAME_LBSERVERCONN_TTL,     0},
           {"XRDPOSIX_RTO",         NAME_REQUESTTIMEOUT,       0},
+          {"XRDPOSIX_TTO",         NAME_TRANSACTIONTIMEOUT,   0},
           {"XRDPSOIX_PSPC",        NAME_MULTISTREAMCNT,       0},
           {"XRDPSOIX_CTO",         NAME_CONNECTTIMEOUT,       0},
           {"XRDPSOIX_CRDELAY",     NAME_RECONNECTWAIT,        0},
