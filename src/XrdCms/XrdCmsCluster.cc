@@ -1355,7 +1355,7 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, int &nump, int &delay,
 
 void XrdCmsCluster::sendAList(XrdLink *lp)
 {
-   static CmsTryRequest Req = {{0, kYR_try, 0, 0}, 0};
+   static CmsTryRequest Req = {{0, kYR_try, kYR_raw, 0}, 0};
    static char *AltNext = AltMans;
    static struct iovec iov[4] = {{(caddr_t)&Req, sizeof(Req)},
                                  {0, 0},
