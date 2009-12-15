@@ -203,7 +203,8 @@ int XrdCmsProtocol::Execute(XrdCmsRRData &Arg)
               if (*etxt == '!')
                  {DEBUGR(etxt+1 <<" delayed " <<Arg.waitVal <<" seconds");
                   return -EINPROGRESS;
-                 } else Reply_Error(Arg, kYR_EINVAL, etxt);
+                 } else if (*etxt == '.') return -ECONNABORTED;
+                           else Reply_Error(Arg, kYR_EINVAL, etxt);
               else if (Arg.Routing & XrdCmsRouting::Forward && Cluster.NodeCnt
                    &&  !(Arg.Request.modifier & kYR_dnf)) Reissue(Arg);
    return 0;
@@ -254,7 +255,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    int rc, fsUtil, KickedOut, myNID = ManTree.Register();
    int chk4Suspend = XrdCmsState::All_Suspend, TimeOut = Config.AskPing*1000;
    char manbuff[256];
-   const char *Reason = 0, *manp = manager;
+   const char *Reason, *manp = manager;
    const int manblen = sizeof(manbuff);
 
 // Do some debugging
@@ -354,7 +355,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
        // Remove manager from the config
        //
        Manager.Remove(myNode, (rc == kYR_redirect ? "redirected"
-                                  : (rc ? "lost connection" : Reason)));
+                                  : (Reason ? Reason : "lost connection")));
        ManTree.Disc(myNID);
        Link->Close();
        delete myNode; myNode = 0;
@@ -814,9 +815,11 @@ do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
 //
    if (!(Data->Ident) || !(*Data->Ident)) Data->Ident = myNode->Ident;
 
-// Schedule this request
+// Schedule this request if async. Otherwise, do this inline. Note that
+// synchrnous requests are allowed to return status changes (e.g., redirect)
 //
-   if (Data->Routing & XrdCmsRouting::isSync) Execute(*Data);
+   if (Data->Routing & XrdCmsRouting::isSync)
+      {if ((rc = Execute(*Data)) && rc == -ECONNABORTED) return "redirected";}
       else if ((jp = XrdCmsJob::Alloc(this, Data)))
               {Sched->Schedule((XrdJob *)jp);
                Data = XrdCmsRRData::Objectify();

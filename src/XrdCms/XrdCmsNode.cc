@@ -1405,13 +1405,14 @@ const char *XrdCmsNode::do_Try(XrdCmsRRData &Arg)
 
 // Add all the alternates to our alternate list
 //
+   tp = theList.GetLine();
    while((tp = theList.GetToken()))
          myMans.Add(IPAddr, tp, Config.PortTCP, myLevel);
 
 // Close the link and return an error
 //
-   Disc("redirected.");
-   return 0;
+// Disc("redirected.");
+   return ".redirected";
 }
   
 /******************************************************************************/

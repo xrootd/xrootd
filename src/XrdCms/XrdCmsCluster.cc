@@ -124,15 +124,16 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 // Slot  = Reconnecting node
 // Free  = Available slot           ( 1st in table)
 // Bump1 = Disconnected server      (last in table)
-// Bump2 = Connected    server      (last in table)
+// Bump2 = Connected    server      (last in table) if new one is managr/peer
 // Bump3 = Disconnected managr/peer ( 1st in table) if new one is managr/peer
 //
    for (Slot = 0; Slot < STMax; Slot++)
        if (NodeTab[Slot])
           {if (NodeTab[Slot]->isNode(ipaddr, theNID)) break;
-//Conn//   if (NodeTab[Slot]->isConn)
-              {if (!NodeTab[Slot]->isPerm)   Bump2 = Slot; // Last conn Server
-//Disc//      } else {
+/*Conn*/   if (NodeTab[Slot]->isConn)
+              {if (!NodeTab[Slot]->isPerm && Special)
+                                             Bump2 = Slot; // Last conn Server
+/*Disc*/      } else {
                if ( NodeTab[Slot]->isPerm)
                   {if (Bump3 < 0 && Special) Bump3 = Slot;}//  1st disc Man/Pr
                   else                       Bump1 = Slot; // Last disc Server
@@ -171,7 +172,9 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
                     return 0;
                    }
 
-                if (NodeTab[Slot] && !(Status & CMS_isPeer)) sendAList(lp);
+                if (Status & CMS_isMan) setAltMan(Slot, ipaddr, sport);
+                if (NodeTab[Slot] && !(Status & CMS_isPeer))
+                   sendAList(NodeTab[Slot]->Link);
 
                 DEBUG(lp->ID << " bumps " << NodeTab[Slot]->Ident <<" #" <<Slot);
                 NodeTab[Slot]->Lock();
@@ -187,7 +190,6 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 
 // Assign new server
 //
-   if (Status & CMS_isMan) setAltMan(Slot, ipaddr, sport);
    if (Slot > STHi) STHi = Slot;
    nP->isBound   = 1;
    nP->isConn    = 1;
@@ -1355,9 +1357,10 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, int &nump, int &delay,
 
 void XrdCmsCluster::sendAList(XrdLink *lp)
 {
-   static CmsTryRequest Req = {{0, kYR_try, kYR_raw, 0}, 0};
+   static CmsTryRequest Req = {{0, kYR_try, 0, 0}, 0};
+   static int HdrSize = sizeof(Req.Hdr) + sizeof(Req.sLen);
    static char *AltNext = AltMans;
-   static struct iovec iov[4] = {{(caddr_t)&Req, sizeof(Req)},
+   static struct iovec iov[4] = {{(caddr_t)&Req, HdrSize},
                                  {0, 0},
                                  {AltMans, 0},
                                  {(caddr_t)"\0", 1}};
@@ -1377,14 +1380,15 @@ void XrdCmsCluster::sendAList(XrdLink *lp)
         dlen = iov[1].iov_len + iov[2].iov_len;
       }
 
-// Complete the request
+// Complete the request (account for trailing null character)
 //
+   dlen++;
    Req.Hdr.datalen = htons(static_cast<unsigned short>(dlen+sizeof(Req.sLen)));
    Req.sLen = htons(static_cast<unsigned short>(dlen));
 
 // Send the list of alternates (rotated once)
 //
-   lp->Send(iov, 4, dlen+sizeof(Req));
+   lp->Send(iov, 4, dlen+HdrSize);
 }
 
 /******************************************************************************/
