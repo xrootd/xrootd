@@ -61,6 +61,7 @@ XrdFrmFileset *Next;
 int            Age;
 
 private:
+int         chkLock(const char *Path);
 int         getLock(char *Path, int Shared=0, int noWait=0);
 const char *Mkfn(XrdOucNSWalk::NSEnt *fP);
 
@@ -87,11 +88,12 @@ public:
 
 XrdFrmFileset *Get(int &rc, int noBase=0);
 
-static const int Recursive = 0x0001;
-static const int CompressD = 0x0002;
+static const int Recursive = 0x0001;   // List filesets recursively
+static const int CompressD = 0x0002;   // Use shared directory object (not MT)
+static const int NoAutoDel = 0x0004;   // Do not automatically delete objects
 
             XrdFrmFiles(const char *dname, int opts=Recursive,
-                        XrdOucTList *XList=0);
+                        XrdOucTList *XList=0, XrdOucNSWalk::CallBack *cbP=0);
 
            ~XrdFrmFiles() {}
 
@@ -102,6 +104,7 @@ XrdOucHash<XrdFrmFileset>fsTab;
 
 XrdOucNSWalk             nsObj;
 XrdFrmFileset           *fsList;
+XrdOucHash_Options       manMem;
 int                      shareD;
 };
 #endif

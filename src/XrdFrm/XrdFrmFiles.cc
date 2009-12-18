@@ -70,11 +70,11 @@ int XrdFrmFileset::dirPath(char *dBuff, int dBlen)
 //
    if (dInfo) {dP = dInfo->text; dN = dInfo->ival[dLen];}
       else {for (i = 0; i < XrdOssPath::sfxNum; i++)
-                if(File[i])
-                  {dP = File[i]->Path;
-                   dN = File[i]->File - File[i]->Path;
-                   break;
-                  }
+                if (File[i])
+                   {dP = File[i]->Path;
+                    dN = File[i]->File - File[i]->Path;
+                    break;
+                   }
            }
 
 // Copy out the directory path
@@ -100,13 +100,17 @@ int XrdFrmFileset::Refresh(int isMig, int doLock)
    if (!(n = dirPath(pBuff, sizeof(pBuff)-1))) return 0;
    fnP = pBuff+n;
 
-// If we need to lock the entry, do so.
+// If we need to lock the entry, do so. We also check if file is in use
 //
-   if (doLock && bP && lP && dlkFD < 0)
-      {if ((dlkFD = getLock(pBuff)) < 0) return 0;
-       strcpy(fnP, lockFile()->File);
-       if ((flkFD = getLock(pBuff,0,1)) < 0)
-          {close(dlkFD); dlkFD = -1; return 0;}
+   if (doLock && bP)
+      {strcpy(fnP, baseFile()->File);
+       if (chkLock(pBuff)) return 0;
+       if (lP && dlkFD < 0)
+          {if ((dlkFD = getLock(pBuff)) < 0) return 0;
+           strcpy(fnP, lockFile()->File);
+           if ((flkFD = getLock(pBuff,0,1)) < 0)
+              {close(dlkFD); dlkFD = -1; return 0;}
+          }
       }
 
 // Do a new stat call on each relevant file (pin file excluded for isMig)
@@ -149,6 +153,42 @@ void XrdFrmFileset::UnLock()
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
+/*                               c h k L o c k                                */
+/******************************************************************************/
+
+// Returns 0 if no lock exists o/w returns 1 or -1;
+  
+int XrdFrmFileset::chkLock(const char *Path)
+{
+   FLOCK_t lock_args;
+   int rc, lokFD;
+
+// Open the file appropriately
+//
+   if ((lokFD = open(Path, O_RDONLY)) < 0)
+      {Say.Emsg("chkLock", errno, "open", Path); return -1;}
+
+// Initialize the lock arguments
+//
+   bzero(&lock_args, sizeof(lock_args));
+   lock_args.l_type = F_WRLCK;
+
+// Now check if the lock can be obtained
+//
+   do {rc = fcntl(lokFD, F_GETLK, &lock_args);} while(rc < 0 && errno == EINTR);
+
+// Determine the result
+//
+   if (rc) Say.Emsg("chkLock", errno, "lock", Path);
+      else rc = (lock_args.l_type == F_UNLCK ? 0 : 1);
+
+// All done
+//
+   close(lokFD);
+   return rc;
+}
+
+/******************************************************************************/
 /*                               g e t L o c k                                */
 /******************************************************************************/
   
@@ -162,7 +202,7 @@ int XrdFrmFileset::getLock(char *Path, int Shared, int noWait)
 // Open the file appropriately
 //
    if ((lokFD = open(Path, oFlags, AMode)) < 0)
-      {Say.Emsg("Refresh", errno, "open", Path); return -1;}
+      {Say.Emsg("getLock", errno, "open", Path); return -1;}
 
 // Initialize the lock arguments
 //
@@ -177,7 +217,7 @@ int XrdFrmFileset::getLock(char *Path, int Shared, int noWait)
 // Determine the result
 //
    if (rc)
-      {if (errno != EAGAIN) Say.Emsg("Refresh", errno, "lock", Path);
+      {if (errno != EAGAIN) Say.Emsg("getLock", errno, "lock", Path);
        close(lokFD); return -1;
       }
 
@@ -208,17 +248,27 @@ const char *XrdFrmFileset::Mkfn(XrdOucNSWalk::NSEnt *fP)
 }
   
 /******************************************************************************/
+/*                     C l a s s   X r d F r m F i l e s                      */
+/******************************************************************************/
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdFrmFiles::XrdFrmFiles(const char *dname, int opts, XrdOucTList *XList)
+XrdFrmFiles::XrdFrmFiles(const char *dname, int opts,
+                        XrdOucTList *XList, XrdOucNSWalk::CallBack *cbP)
             : nsObj(&Say, dname, Config.lockFN,
                     XrdOucNSWalk::retFile | XrdOucNSWalk::retLink
                    |XrdOucNSWalk::retStat | XrdOucNSWalk::skpErrs
                    | (opts & CompressD  ?   XrdOucNSWalk::noPath  : 0)
                    | (opts & Recursive  ?   XrdOucNSWalk::Recurse : 0), XList),
-              fsList(0), shareD(opts & CompressD)
-{}
+              fsList(0), manMem(opts & NoAutoDel ? Hash_keep : Hash_default),
+              shareD(opts & CompressD)
+{
+
+// Set Call Back method
+//
+   nsObj.setCallBack(cbP);
+}
 
 /******************************************************************************/
 /*                                   G e t                                    */
@@ -235,7 +285,7 @@ XrdFrmFileset *XrdFrmFiles::Get(int &rc, int noBase)
 do{while ((fsetP = fsList))
          {fsList = fsetP->Next; fsetP->Next = 0;
           if (fsetP->File[XrdOssPath::isBase] || noBase) {rc = 0; return fsetP;}
-             else delete fsetP;
+             else if (manMem) delete fsetP;
          }
 
 // Start with next directory (we return when no directories left).
@@ -288,7 +338,7 @@ int XrdFrmFiles::Process(XrdOucNSWalk::NSEnt *nP, const char *dPath)
          if ((dotP = rindex(fP->File, '.'))) *dotP = '\0';
          if (!(sP = fsTab.Find(fP->File)))
             {sP = fsList = new XrdFrmFileset(fsList, dP);
-             fsTab.Add(fP->File, sP);
+             fsTab.Add(fP->File, sP, 0, manMem);
             }
          if (dotP) *dotP = '.';
          fType = (int)XrdOssPath::pathType(fP->File);
