@@ -136,7 +136,7 @@ int XrdOuca2x::a2sp(XrdSysError &Eroute, const char *emsg, const char *item,
     errno = 0;
     *val  = strtoll(item, &pp, 10);
 
-    if (errno || *pp != '\0')
+    if (errno || *pp != '%')
        {Eroute.Emsg("a2x", emsg, item, "is not a number");
         return -1;
        }

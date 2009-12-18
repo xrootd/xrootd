@@ -580,7 +580,7 @@ int XrdOucStream::GetRest(char *theBuff, int Blen, int lowcase)
    while ((tp = GetWord(lowcase)))
          {tlen = strlen(tp);
           if (tlen+1 >= Blen) return 0;
-          if (myBuff != theBuff) *myBuff++ = ' ';
+          if (myBuff != theBuff) {*myBuff++ = ' '; Blen--;}
           strcpy(myBuff, tp);
           Blen -= tlen; myBuff += tlen;
          }

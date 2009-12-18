@@ -30,7 +30,6 @@ XrdOucNSWalk::XrdOucNSWalk(XrdSysError *erp, const char *dpath,
                                              const char *lkfn, int opts,
                                              XrdOucTList *xlist)
 {
-
 // Set the required fields
 //
    eDest = erp;
@@ -41,12 +40,13 @@ XrdOucNSWalk::XrdOucNSWalk(XrdSysError *erp, const char *dpath,
    DPfd = LKfd = -1;
    errOK= opts & skpErrs;
    DEnts= 0;
+   edCB = 0;
 
 // Copy the exclude list if one exists
 //
    if (!xlist) XList = 0;
       else while(xlist)
-                {XList = new XrdOucTList(xlist->text,0,XList);
+                {XList = new XrdOucTList(xlist->text,xlist->ival,XList);
                  xlist = xlist->next;
                 }
 }
@@ -85,12 +85,8 @@ XrdOucNSWalk::NSEnt *XrdOucNSWalk::Index(int &rc, const char **dPath)
          rc = Build();
          if (LKfd >= 0) close(LKfd);
          if (DEnts || (rc && !errOK)) break;
+         if (edCB && isEmpty) edCB->isEmpty(&dStat, DPath, LKFn);
         }
-
-// The exclude list only applies to the first level. So, we need to delete
-// it if it exists because we already scanned the 1st level directory.
-//
-   while((tP = XList)) {XList = tP->next; delete tP;}
 
 // Return the result
 //
@@ -144,6 +140,11 @@ int XrdOucNSWalk::Build()
                  } theEnt;
    struct dirent  *dp;
    int             rc = 0, getLI = Opts & retLink;
+   int             nEnt = 0, xLKF = 0, chkED = (edCB != 0) && (LKFn != 0);
+
+// Initialize the empty flag prior to doing anything else
+//
+   isEmpty = 0;
 
 // If we can optimize with a directory file descriptor, get one
 //
@@ -165,7 +166,7 @@ int XrdOucNSWalk::Build()
    errno = 0;
    while((dp = readdir(theEnt.D)))
         {if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")) continue;
-         strcpy(File, dp->d_name);
+         strcpy(File, dp->d_name); nEnt++;
          if (!theEnt.P) theEnt.P = new NSEnt();
          rc = getStat(theEnt.P, getLI);
          switch(theEnt.P->Type)
@@ -176,7 +177,8 @@ int XrdOucNSWalk::Build()
                      if (!(Opts & retDir)) continue;
                      break;
                 case NSEnt::isFile:
-                     if (!(Opts & retFile)) continue;
+                     if ((chkED && !xLKF && (xLKF = !strcmp(File, LKFn)))
+                     ||  !(Opts & retFile)) continue;
                      break;
                 case NSEnt::isLink:
                      if ((rc = getLink(theEnt.P)))
@@ -201,6 +203,13 @@ int XrdOucNSWalk::Build()
    *File = '\0';
    if ((rc = errno) && !errOK)
       {eDest->Emsg("Build", rc, "reading directory", DPath); return rc;}
+
+// Check if we need to do a callback for an empty directory
+//
+   if (edCB && xLKF == nEnt && !DEnts)
+      {if (!fstat(DPfd, &dStat)) isEmpty = 1;
+          else eDest->Emsg("Build", errno, "stating directory", DPath);
+      }
    return 0;
 }
 
@@ -274,7 +283,7 @@ int XrdOucNSWalk::inXList(const char *dName)
 
 // Search for the directory entry
 //
-    while(xTP && strcmp(dName, xTP->text)) {pTP = xTP; xTP = xTP->next;}
+    while(xTP && strcmp(DPath, xTP->text)) {pTP = xTP; xTP = xTP->next;}
 
 // If not found return false. Otherwise, delete the entry and return true.
 //
