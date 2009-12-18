@@ -598,10 +598,6 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
 //
    theNode->isOffline = 1;
 
-// If the node is part of the cluster, do not count it anymore
-//
-   if (theNode->isBound) {theNode->isBound = 0; NodeCnt--;}
-
 // If the node is connected the simply close the connection. This will cause
 // the connection handler to re-initiate the node removal. The LockHandler
 // destructor will release the node table and node object locks as needed.
@@ -613,11 +609,16 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
        return;
       }
 
-// Indicate new state of this nodes if we are a reporting manager
+
+// If the node is part of the cluster, do not count it anymore and
+// indicate new state of this nodes if we are a reporting manager
 //
-   if (Config.asManager()) 
-      CmsState.Update(XrdCmsState::Counts, theNode->isSuspend ? 0 : -1,
-                                           theNode->isNoStage ? 0 : -1);
+   if (theNode->isBound)
+      {theNode->isBound = 0; NodeCnt--;
+       if (Config.asManager())
+          CmsState.Update(XrdCmsState::Counts, theNode->isSuspend ? 0 : -1,
+                                               theNode->isNoStage ? 0 : -1);
+      }
 
 // If this is an immediate drop request, do so now. Drop() will delete
 // the node object and remove the node lock. So, tell LockHandler that.
