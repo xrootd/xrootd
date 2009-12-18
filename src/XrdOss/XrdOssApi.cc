@@ -903,7 +903,7 @@ int XrdOssFile::isCompressed(char *cxidp)
             used.
             in supporting it for any other system.
 */
-int XrdOssFile::Ftruncate(unsigned long long flen) {
+int XrdOssFile::Ftruncate(unsigned long lnng flen) {
     off_t newlen = flen;
 
     if (sizeof(newlen) < sizeof(flen) && (flen>>31)) return -XRDOSS_E8008;
@@ -924,6 +924,7 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
                          unsigned long long popts)
 {
     EPNAME("Open_ufs")
+    static const int isWritable = O_WRONLY|O_RDWR;
     int myfd, newfd, retc;
 #ifndef NODEBUG
     char *ftype = (char *)" path=";
@@ -942,6 +943,13 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
 //
     do { myfd = open(path, Oflag|O_LARGEFILE, Mode);}
        while( myfd < 0 && errno == EINTR);
+
+// If the file is marked purgeable or migratable and we may modify this file,
+// then get a shared lock on the file to keep it from being migrated or purged
+// while it is open.
+//
+   if (popts & XRDEXP_PURGE || (popts & XRDEXP_MIG && Oflag & isWritable))
+      ufs_file.Serialize(myfd, XrdOssSHR);
 
 // Chck if file is compressed
 //
