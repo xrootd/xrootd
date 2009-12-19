@@ -115,7 +115,7 @@ void *XrdCmsState::Monitor()
                else {myStatus.Hdr.streamid = 0;
                      RTsend = (isMan > 0 ? (theState & SRV_Suspend) : 0);
                     }
-           if (RTsend)
+           if (isMan && RTsend)
               RTable.Send("status", (char *)&myStatus, sizeof(myStatus));
            Manager.Inform(myStatus.Hdr);
           }
