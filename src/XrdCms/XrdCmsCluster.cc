@@ -111,7 +111,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
    const char *act = "";
    unsigned int ipaddr;
    XrdCmsNode *nP = 0;
-   int Slot, Free = -1, Bump1 = -1, Bump2 = -1, Bump3 = -1;
+   int Slot, Free = -1, Bump1 = -1, Bump2 = -1, Bump3 = -1, aSet = 0;
    int tmp, Special = (Status & (CMS_isMan|CMS_isPeer));
    XrdSysMutexHelper STMHelper(STMutex);
 
@@ -172,7 +172,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
                     return 0;
                    }
 
-                if (Status & CMS_isMan) setAltMan(Slot, ipaddr, sport);
+                if (Status & CMS_isMan) {setAltMan(Slot,ipaddr,sport); aSet=1;}
                 if (NodeTab[Slot] && !(Status & CMS_isPeer))
                    sendAList(NodeTab[Slot]->Link);
 
@@ -190,6 +190,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 
 // Assign new server
 //
+   if (!aSet && (Status & CMS_isMan)) setAltMan(Slot, ipaddr, sport);
    if (Slot > STHi) STHi = Slot;
    nP->isBound   = 1;
    nP->isConn    = 1;
