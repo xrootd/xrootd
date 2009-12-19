@@ -903,7 +903,7 @@ int XrdOssFile::isCompressed(char *cxidp)
             used.
             in supporting it for any other system.
 */
-int XrdOssFile::Ftruncate(unsigned long lnng flen) {
+int XrdOssFile::Ftruncate(unsigned long long flen) {
     off_t newlen = flen;
 
     if (sizeof(newlen) < sizeof(flen) && (flen>>31)) return -XRDOSS_E8008;
