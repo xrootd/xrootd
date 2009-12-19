@@ -1339,13 +1339,17 @@ int XrdOfs::fsctl(const int               cmd,
 //
    if (opcode == SFS_FSCTL_LOCATE)
       {struct stat fstat;
+       const char *Path, *locArg;
        char rType[3], *Resp[] = {rType, locResp};
-       AUTHORIZE(client,0,AOP_Stat,"locate",args,einfo);
+            if (*args == '*')      {Path = args+1; locArg = args;}
+       else if (cmd & SFS_O_TRUNC) {Path = args;   locArg = (char *)"*";}
+       else                         Path = locArg = args;
+       AUTHORIZE(client,0,AOP_Stat,"locate",Path,einfo);
        if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Locate(einfo, args, find_flag)))
+       &&  (retc = Finder->Locate(einfo, locArg, find_flag)))
           return fsError(einfo, retc);
-       if ((retc = XrdOfsOss->Stat(args, &fstat)))
-          return XrdOfsFS.Emsg(epname, einfo, retc, "locate", args);
+       if ((retc = XrdOfsOss->Stat(Path, &fstat)))
+          return XrdOfsFS.Emsg(epname, einfo, retc, "locate", Path);
        rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
        rType[1] = (fstat.st_mode & S_IWUSR            ? 'w' : 'r');
        rType[2] = '\0';

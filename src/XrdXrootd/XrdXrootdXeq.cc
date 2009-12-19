@@ -512,7 +512,7 @@ int XrdXrootdProtocol::do_Locate()
    static XrdXrootdCallBack locCB("locate");
    int rc, opts, fsctl_cmd = SFS_FSCTL_LOCATE;
    const char *opaque;
-   char *fn = argp->buff, opt[8], *op=opt;
+   char *Path, *fn = argp->buff, opt[8], *op=opt;
    XrdOucErrInfo myError(Link->ID, &locCB, ReqID.getID());
 
 // Unmarshall the data
@@ -532,10 +532,21 @@ int XrdXrootdProtocol::do_Locate()
       return Response.Send(kXR_redirect, Route[RD_locate].Port,
                                          Route[RD_locate].Host);
 
+// Check if this is a non-specific locate
+//
+        if (*fn != '*') Path = fn;
+   else if (*(fn+1))    Path = fn+1;
+   else                {Path = 0; 
+                        fn = XPList.Next()->Path();
+                        fsctl_cmd |= SFS_O_TRUNC;
+                       }
+
 // Prescreen the path
 //
-   if (rpCheck(fn, &opaque)) return rpEmsg("Locating", fn);
-   if (!Squash(fn))          return vpEmsg("Locating", fn);
+   if (Path)
+      {if (rpCheck(Path, &opaque)) return rpEmsg("Locating", Path);
+       if (!Squash(Path))          return vpEmsg("Locating", Path);
+      }
 
 // Preform the actual function
 //

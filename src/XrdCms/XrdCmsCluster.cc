@@ -428,14 +428,33 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
    EPNAME("Locate");
    XrdCmsPInfo   pinfo;
    SMask_t       qfVec = 0;
+   char         *Path;
    int           retc = 0;
+
+// Check if this is a locate for all current servers
+//
+   if (*Sel.Path.Val != '*') Path = Sel.Path.Val;
+      else {if (*(Sel.Path.Val+1) == '\0')
+               {Sel.Vec.hf = -1; Sel.Vec.pf = Sel.Vec.wf = 0;
+                return 0;
+               }
+            Path = Sel.Path.Val+1;
+           }
 
 // Find out who serves this path
 //
-   if (!Cache.Paths.Find(Sel.Path.Val, pinfo) || !pinfo.rovec)
+   if (!Cache.Paths.Find(Path, pinfo) || !pinfo.rovec)
       {Sel.Vec.hf = Sel.Vec.pf = Sel.Vec.wf = 0;
        return -1;
       } else Sel.Vec.wf = pinfo.rwvec;
+
+// Check if this was a non-lookup request
+//
+   if (*Sel.Path.Val == '*')
+      {Sel.Vec.hf = pinfo.rovec; Sel.Vec.pf = 0;
+       Sel.Vec.wf = pinfo.rwvec;
+       return 0;
+      }
 
 // Complete the request info object if we have one
 //
