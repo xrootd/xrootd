@@ -2244,7 +2244,6 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
        if (ecode <= 0) ecode = 1800;
        TRACEI(STALL, Response.ID() <<"delaying client up to " <<ecode <<" sec");
        rc = Response.Send(kXR_waitresp, ecode, eMsg);
-       myError.getErrCB()->Done(ecode, &myError);
        return (rc ? rc : 1);
       }
 
