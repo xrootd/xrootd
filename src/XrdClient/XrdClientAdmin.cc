@@ -883,12 +883,15 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
    bool ret = true;
    XrdClientVector<XrdClientLocate_Info> hosts;
    if (askallservers) {
-      if (!Locate((kXR_char *)"/./", hosts)) return false;
-   } else
-      if (!Locate((kXR_char *)dir, hosts)) return false;
-
+      if (!Locate((kXR_char *)"*", hosts)) return false;
+   } else {
+      char str[1024] = "*";
+      strncat(str, dir, 1024);
+      if (!Locate((kXR_char *)str, hosts)) return false;
+   }
    // Then we cycle among them asking everyone
    for (int i = 0; i < hosts.GetSize(); i++) {
+
       fConnModule->Disconnect(false);
       XrdClientUrlInfo url((const char *)hosts[i].Location);
       if (!url.Port) url.Port = 1094;
@@ -932,12 +935,16 @@ bool  XrdClientAdmin::DirList(const char *dir,
    XrdOucString fullpath;
 
    if (askallservers) {
-      if (!Locate((kXR_char *)"/./", hosts)) return false;
-   } else
-      if (!Locate((kXR_char *)dir, hosts)) return false;
+      if (!Locate((kXR_char *)"*", hosts)) return false;
+   } else {
+      char str[1024] = "*";
+      strncat(str, dir, 1024);
+      if (!Locate((kXR_char *)str, hosts)) return false;
+   }
 
    // Then we cycle among them asking everyone
    for (int i = 0; i < hosts.GetSize(); i++) {
+
       fConnModule->Disconnect(false);
       XrdClientUrlInfo url((const char *)hosts[i].Location);
       if (!url.Port) url.Port = 1094;
