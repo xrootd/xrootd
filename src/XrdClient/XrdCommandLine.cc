@@ -508,7 +508,7 @@ int main(int argc, char**argv) {
 
             // Now try to issue the request
             XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
-            if (!genadmin->DirList(pathtodo.c_str(), nfo)) {
+            if (!genadmin->DirList(pathtodo.c_str(), nfo, true)) {
                retval = 1;  
             }
 
@@ -579,7 +579,7 @@ int main(int argc, char**argv) {
 
 	 // Now try to issue the request
          XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
-	 if (!genadmin->DirList(path.c_str(), nfo)) {
+	 if (!genadmin->DirList(path.c_str(), nfo, true)) {
             retval = 1;
             
          }
