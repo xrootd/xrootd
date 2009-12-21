@@ -85,7 +85,7 @@ class XrdClientAdmin : public XrdClientAbs {
 					    int &stagingutil);
 
    bool                            DirList(const char *dir,
-                                           vecString &entries, bool askallservers=true);
+                                           vecString &entries, bool askallservers=false);
 
    struct DirListInfo {
       XrdOucString fullpath;
