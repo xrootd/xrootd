@@ -97,7 +97,7 @@ class XrdClientAdmin : public XrdClientAbs {
    };
    bool                            DirList(const char *dir,
                                            XrdClientVector<DirListInfo> &dirlistinfo,
-                                           bool askallservers=true);
+                                           bool askallservers=false);
 
    bool                            ExistFiles(vecString&,
                                               vecBool&);
