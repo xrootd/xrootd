@@ -434,7 +434,7 @@ int XrdOssDir::Opendir(const char *dir_path)
 //
    if (!isremote || (pflags & XRDEXP_NODREAD))
       {TRACE(Opendir, "lcl path " <<local_path <<" (" <<dir_path <<")");
-       if ((lclfd = opendir((char *)local_path)))
+       if (!(lclfd = opendir((char *)local_path)))
           {if (!isremote) return -errno;
            if (!(pflags & XRDEXP_NOCHECK) && XrdOssSS->MSSgwCmd)
               {struct stat fstat;
