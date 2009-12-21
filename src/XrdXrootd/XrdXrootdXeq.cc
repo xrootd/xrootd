@@ -2237,13 +2237,16 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
       }
 
 // Process the deferal. We also synchronize sending the deferal response with
-// sending the actual defered response as these can violate time causality.
+// sending the actual defered response by calling Done() in the callback object.
+// This allows the requestor of he callback know that we actually send the
+// kXR_waitresp to the end client and avoid violating time causality.
 //
    if (rc == SFS_STARTED)
       {SI->stallCnt++;
        if (ecode <= 0) ecode = 1800;
        TRACEI(STALL, Response.ID() <<"delaying client up to " <<ecode <<" sec");
        rc = Response.Send(kXR_waitresp, ecode, eMsg);
+       myError.getErrCB()->Done(ecode, &myError);
        return (rc ? rc : 1);
       }
 
