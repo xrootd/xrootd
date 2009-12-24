@@ -720,7 +720,8 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 // which will force the client to wait. Otherwise, compute the primary and
 // secondary selections. If there are none, the client may have to wait if we
 // have servers that we can query regarding the file. Note that for files being
-// opened in write mode, only one writable copy may exist.
+// opened in write mode, only one writable copy may exist unless this is a
+// meta-operation (e.g., remove) in which case the file itself remain unmodified
 //
    if (!(Sel.Opts & XrdCmsSelect::Refresh)
    &&   (retc = Cache.GetFile(Sel, pinfo.rovec)))
@@ -728,7 +729,8 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
           {     if (Sel.Vec.bf) pmask = smask = 0;
            else if (Sel.Vec.hf)
                    {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,eExists);
-                    if (Multiple(Sel.Vec.hf))             return SelFail(Sel,eDups);
+                    if (!(Sel.Opts & XrdCmsSelect::isMeta)
+                    &&  Multiple(Sel.Vec.hf))             return SelFail(Sel,eDups);
                     if (!(pmask = Sel.Vec.hf & amask))    return SelFail(Sel,eROfs);
                     smask = 0;
                    }
