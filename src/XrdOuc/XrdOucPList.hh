@@ -29,12 +29,9 @@ inline int          PathOK(const char *pd, const int pl)
 
 inline void         Set(unsigned long long fval) {flags = fval;}
 
-             XrdOucPList(const char *pathdata="", unsigned long long fvals=0)
-                  {next = 0; 
-                   pathlen = strlen(pathdata); 
-                   path    = strdup(pathdata);
-                   flags   = fvals;}
-
+             XrdOucPList(const char *pd="", unsigned long long fv=0)
+                        : flags(fv), next(0),  path(strdup(pd)),
+                          pathlen(strlen(pd)), reserved(0) {}
             ~XrdOucPList()
                   {if (path) free(path);}
 
@@ -42,10 +39,11 @@ friend class XrdOucPListAnchor;
 
 private:
 
-XrdOucPList       *next;
 unsigned long long flags;
+XrdOucPList       *next;
 char              *path;
 int                pathlen;
+int                reserved;
 };
 
 class XrdOucPListAnchor : public XrdOucPList
