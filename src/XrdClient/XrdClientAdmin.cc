@@ -885,8 +885,9 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
    if (askallservers) {
       if (!Locate((kXR_char *)"*", hosts)) return false;
    } else {
-      char str[1024] = "*";
-      strncat(str, dir, 1024);
+      char str[1024];
+      strcpy(str, "*");
+      strncat(str, dir, 1023);
       if (!Locate((kXR_char *)str, hosts)) return false;
    }
    // Then we cycle among them asking everyone
@@ -937,8 +938,9 @@ bool  XrdClientAdmin::DirList(const char *dir,
    if (askallservers) {
       if (!Locate((kXR_char *)"*", hosts)) return false;
    } else {
-      char str[1024] = "*";
-      strncat(str, dir, 1024);
+      char str[1024];
+      strcpy(str, "*");
+      strncat(str, dir, 1023);
       if (!Locate((kXR_char *)str, hosts)) return false;
    }
 
