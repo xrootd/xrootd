@@ -164,10 +164,10 @@ public:
 
         if (newsize > oldsize) {
            BufRealloc(newsize);
-           T item;
+           T *item = new T;
            // Add new elements if needed
            for (long i = oldsize; i < newsize; i++) {
-              put(item, size++);
+              put(*item, size++);
            }
         }
         else {
