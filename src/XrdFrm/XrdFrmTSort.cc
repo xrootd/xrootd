@@ -14,7 +14,7 @@ const char *XrdFrmTSortCVSID = "$Id$";
 
 #include "XrdFrm/XrdFrmFiles.hh"
 #include "XrdFrm/XrdFrmTSort.hh"
-#include "iostream.h"
+//#include "iostream.h"
 
 /******************************************************************************/
 /*                                   A d d                                    */

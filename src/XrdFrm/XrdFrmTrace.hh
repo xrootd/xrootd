@@ -35,7 +35,7 @@
                        {Trace.Beg(epname, Req.User); cerr <<y; Trace.End();}
 
 #define TRACEX(y) {Trace.Beg(0,epname); cerr <<y; Trace.End();}
-#define EPNAME(x) const char *epname = x;
+#define EPNAME(x) static const char *epname = x;
 
 #else
 

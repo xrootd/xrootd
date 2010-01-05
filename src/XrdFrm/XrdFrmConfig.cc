@@ -385,7 +385,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    if (isMum)
       {close(STDERR_FILENO);
        theSE.mySem.Wait();
-       if (NoGo) write(STDERR_FILENO, theSE.Buff, theSE.BLen);
+       if (NoGo && write(STDERR_FILENO, theSE.Buff, theSE.BLen)) {}
       }
 
 // All done
@@ -1383,7 +1383,7 @@ int XrdFrmConfig::xpol()
       {if (    XrdOuca2x::a2sp(Say, "min free", val, &minP, 1)) return 1;
        if ((val = cFile->GetWord()) && isdigit(*val))
           {if (XrdOuca2x::a2sp(Say, "max free", val, &maxP, 1)) return 1;
-           if (minP < 0 && maxP >= 0 || minP >= 0 && maxP < 0)
+           if ((minP < 0 && maxP >= 0) || (minP >= 0 && maxP < 0))
               {Say.Emsg("Config", "purge min/max may not differ in type.");
                return 1;
               }
