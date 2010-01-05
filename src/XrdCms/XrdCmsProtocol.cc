@@ -255,7 +255,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    int rc, fsUtil, KickedOut, myNID = ManTree.Register();
    int chk4Suspend = XrdCmsState::All_Suspend, TimeOut = Config.AskPing*1000;
    char manbuff[256];
-   const char *Reason, *manp = manager;
+   const char *Reason = 0, *manp = manager;
    const int manblen = sizeof(manbuff);
 
 // Do some debugging
