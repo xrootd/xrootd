@@ -53,7 +53,6 @@ const char *XrdOssApiCVSID = "$Id$";
 #ifdef XRDOSSCX
 #include "oocx_CXFile.h"
 #endif
-// IOS_USING_DECLARATION_MARKER - BaBar iostreams migration, do not touch this line!
 
 /******************************************************************************/
 /*                  E r r o r   R o u t i n g   O b j e c t                   */
@@ -406,9 +405,7 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size)
 */
 int XrdOssDir::Opendir(const char *dir_path) 
 {
-#ifndef NODEBUG
-   const char *epname = "Opendir";
-#endif
+   EPNAME("Opendir");
    char actual_path[MAXPATHLEN+1], *local_path, *remote_path;
    unsigned long long isremote;
    int retc;
@@ -434,17 +431,10 @@ int XrdOssDir::Opendir(const char *dir_path)
 //
    if (!isremote || (pflags & XRDEXP_NODREAD))
       {TRACE(Opendir, "lcl path " <<local_path <<" (" <<dir_path <<")");
-       if (!(lclfd = opendir((char *)local_path)))
-          {if (!isremote) return -errno;
-           if (!(pflags & XRDEXP_NOCHECK) && XrdOssSS->MSSgwCmd)
-              {struct stat fstat;
-               if ((retc = XrdOssSS->MSS_Stat(remote_path,&fstat))) return retc;
-               if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
-              }
-          }
-       isopen = 1;
-       return XrdOssOK;
+       if ((lclfd = opendir((char *)local_path))) {isopen = 1; return XrdOssOK;}
+          else if (!isremote) return -errno;
       }
+   TRACE(Opendir, "rmt path " <<remote_path <<" (" <<dir_path <<")");
 
 // Generate remote path
 //
@@ -454,9 +444,18 @@ int XrdOssDir::Opendir(const char *dir_path)
          else remote_path = actual_path;
       else remote_path = (char *)dir_path;
 
-// Trace this remote request
+// If NOCHECK is in effect and we have an mss meta-cmd, just do a stat
 //
-   TRACE(Opendir, "rmt path " <<remote_path <<" (" <<dir_path <<")");
+   if (!(pflags & XRDEXP_NOCHECK) && XrdOssSS->MSSgwCmd)
+      {struct stat fstat;
+       if ((retc = XrdOssSS->MSS_Stat(remote_path,&fstat))) return retc;
+       if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
+       isopen = 1;
+       return XrdOssOK;
+      }
+
+// Open the directory at the remote location.
+//
    if (!(mssfd = XrdOssSS->MSS_Opendir(remote_path, retc))) return retc;
    isopen = 1;
    return XrdOssOK;
