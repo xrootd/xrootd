@@ -446,7 +446,7 @@ $(OBJDIR)/XrdCmsRRQ.o:       XrdCmsRRQ.cc        XrdCmsRRQ.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsRRQ.o XrdCmsRRQ.cc
 
 $(OBJDIR)/XrdCmsRTable.o:    XrdCmsRTable.cc     XrdCmsRTable.hh \
-                             XrdCmsNode.hh       XrdCmsTrace.hh \
+                             XrdCmsNode.hh       XrdCmsTrace.hh  XrdCmsTypes.hh\
                              XrdSysPthread.hh
 	@echo Compiling XrdCmsRTable.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsRTable.o XrdCmsRTable.cc
