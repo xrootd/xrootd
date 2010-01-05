@@ -1387,7 +1387,7 @@ int XrdFrmConfig::xpol()
               {Say.Emsg("Config", "purge min/max may not differ in type.");
                return 1;
               }
-           if (llabs(minP) >= llabs(maxP))
+           if (XRDABS(minP) >= XRDABS(maxP))
               {Say.Emsg("Config", "purge min must be < max value."); return 1;}
            val = cFile->GetWord();
           } else {

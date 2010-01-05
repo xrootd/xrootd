@@ -31,6 +31,7 @@ const char *XrdFrmPurgeCVSID = "$Id$";
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmPurge.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdFrm;
 
@@ -467,8 +468,8 @@ int XrdFrmPurge::Init(XrdOucTList *sP, long long minV, int hVal)
          spP->spaceTLep = sprintf(xBuff, "%lld", vsInfo.Large);
          spP->spaceTotP =  strdup(xBuff);
          if (spP->minFSpace < 0)
-            {spP->minFSpace = vsInfo.Total * llabs(spP->minFSpace) / 100LL;
-             spP->maxFSpace = vsInfo.Total * llabs(spP->maxFSpace) / 100LL;
+            {spP->minFSpace = vsInfo.Total * XRDABS(spP->minFSpace) / 100LL;
+             spP->maxFSpace = vsInfo.Total * XRDABS(spP->maxFSpace) / 100LL;
             } else if (vsInfo.Total < spP->minFSpace
                    ||  vsInfo.Total < spP->maxFSpace)
                       Say.Emsg("Init", "Warning: ", spP->SName, " min/max free "

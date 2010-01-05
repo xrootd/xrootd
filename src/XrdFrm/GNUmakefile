@@ -255,7 +255,8 @@ $(OBJDIR)/XrdFrmPurge.o:  XrdFrmPurge.hh   XrdFrmPurge.cc    XrdFrmTrace.hh \
                           XrdCmsNotify.hh \
                           XrdOss.hh        XrdOssPath.hh     XrdOssSpace.hh \
                           XrdOucHash.hh    XrdOucNSWalk.hh   XrdOucUtils.hh \
-                          XrdOucProg.hh    XrdOucStream.hh   XrdSysError.hh
+                          XrdOucProg.hh    XrdOucStream.hh   XrdSysError.hh \
+                          XrdSysPlatform.hh
 	@echo Compiling XrdFrmPurge.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmPurge.o XrdFrmPurge.cc
 

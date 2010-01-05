@@ -435,7 +435,7 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 //
    if (*Sel.Path.Val != '*') Path = Sel.Path.Val;
       else {if (*(Sel.Path.Val+1) == '\0')
-               {Sel.Vec.hf = -1; Sel.Vec.pf = Sel.Vec.wf = 0;
+               {Sel.Vec.hf = ~0LL; Sel.Vec.pf = Sel.Vec.wf = 0;
                 return 0;
                }
             Path = Sel.Path.Val+1;
