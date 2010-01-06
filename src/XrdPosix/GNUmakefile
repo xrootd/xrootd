@@ -122,7 +122,7 @@ $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
 
 $(OBJDIR)/XrdPosixXrootd.o:  XrdPosixXrootd.cc   XrdPosixXrootd.hh \
                              XrdClient.hh        XrdPosixExtern.hh \
-                             XrdSysHeaders.hh \
+                             XrdSysHeaders.hh    XrdPosixCallBack.hh \
                              XrdPosixOsDep.hh
 	@echo Compiling XrdPosixXrootd.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixXrootd.o XrdPosixXrootd.cc

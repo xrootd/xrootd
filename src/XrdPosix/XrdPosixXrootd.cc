@@ -20,13 +20,15 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include <sys/uio.h>
 
 #include "XrdClient/XrdClient.hh"
-#include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientAdmin.hh"
+#include "XrdClient/XrdClientCallback.hh"
+#include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
@@ -99,7 +101,7 @@ private:
 /*                    X r d P o s i x F i l e   C l a s s                     */
 /******************************************************************************/
   
-class XrdPosixFile
+class XrdPosixFile : public XrdClientCallback
 {
 public:
 
@@ -123,11 +125,18 @@ long long  setOffset(long long offs)
 void         Lock() {myMutex.Lock();}
 void       UnLock() {myMutex.UnLock();}
 
+void       OpenComplete(XrdClientAbs *clientP, void *cbArg, bool res)
+                       {if (cbDone) return;
+                        if (XrdPosixXrootd::OpenCB(res, this, cbArg)) cbDone=1;
+                           else delete this;
+                       }
 int               FD;
 
 XrdClientStatInfo stat;
+XrdPosixCallBack *theCB;
 
-           XrdPosixFile(int fd, const char *path);
+           XrdPosixFile(int fd, const char *path,
+                                XrdPosixCallBack *cbP=0, void *cbArg=0);
           ~XrdPosixFile();
 
 private:
@@ -135,6 +144,7 @@ private:
 XrdSysMutex myMutex;
 long long   currOffset;
 int         doClose;
+int         cbDone;
 };
 
 
@@ -294,15 +304,19 @@ dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdPosixFile::XrdPosixFile(int fd, const char *path)
+XrdPosixFile::XrdPosixFile(int fd, const char *path,
+                                   XrdPosixCallBack *cbP, void *cbArg)
              : FD(fd),
+               theCB(cbP),
                currOffset(0),
-               doClose(0)
+               doClose(0),
+               cbDone(0)
 {
+   XrdClientCallback *myCB = (cbP ? (XrdClientCallback *)this : 0);
 
 // Allocate a new client object
 //
-   if (!(XClient = new XrdClient(path))) stat.size = 0;
+   if (!(XClient = new XrdClient(path, myCB, cbArg))) stat.size = 0;
 }
   
 /******************************************************************************/
@@ -639,7 +653,8 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 /*                                  O p e n                                   */
 /******************************************************************************/
   
-int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
+int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
+                         XrdPosixCallBack *cbP, void *cbA)
 {
    XrdPosixFile *fp;
    int retc = 0, fd, XOflags, XMode;
@@ -658,12 +673,12 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
 // Obtain a new filedscriptor from the system. Use the fd to track the file.
 //
    if ((fd = dup(devNull)) < 0) return -1;
-   if (Stream && fd > 255) {close(fd); errno = EMFILE; return -1;}
+   if (oflags & isStream && fd > 255) {close(fd); errno = EMFILE; return -1;}
 
 // Allocate the new file object
 //
    myMutex.Lock();
-   if (fd > lastFD || !(fp = new XrdPosixFile(fd, path)))
+   if (fd > lastFD || !(fp = new XrdPosixFile(fd, path, cbP, cbA)))
       {errno = EMFILE; myMutex.UnLock(); return -1;}
    myFiles[fd] = fp;
    if (fd > highFD) highFD = fd;
@@ -675,7 +690,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
 
 // Open the file
 //
-   if (!fp->XClient->Open(XMode, XOflags, pllOpen)
+   if (!fp->XClient->Open(XMode, XOflags, (cbP ? 1 : pllOpen))
    || (fp->XClient->LastServerResp()->status) != kXR_ok)
       {retc = Fault(fp, 0);
        myMutex.Lock();
@@ -683,6 +698,13 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
        delete fp;
        myMutex.UnLock();
        errno = retc;
+       return -1;
+      }
+
+// If this is a callback open then just return EINPROGRESS
+//
+   if (cbP)
+      {errno = EINPROGRESS;
        return -1;
       }
 
@@ -694,6 +716,35 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode, int Stream)
 // Return the fd number
 //
    return fd;
+}
+
+/******************************************************************************/
+/*                                O p e n C B                                 */
+/******************************************************************************/
+  
+int XrdPosixXrootd::OpenCB(int res, XrdPosixFile *fp, void *cbArg)
+{
+   int retc;
+
+// Diagnose any error
+//
+   if (!res || (fp->XClient->LastServerResp()->status) != kXR_ok)
+      {retc = Fault(fp, 0);
+       myMutex.Lock();
+       myFiles[fp->FD] = 0;
+       myMutex.UnLock();
+       errno = retc;
+       retc = -1;
+      } else {
+       fp->isOpen();
+       fp->XClient->Stat(&fp->stat);
+       retc = fp->FD;
+      }
+
+// Call the callback
+//
+   fp->theCB->Complete(retc, cbArg);
+   return retc != -1;
 }
 
 /******************************************************************************/
