@@ -137,6 +137,11 @@ virtual int     Stats(char *bp, int bl) {return 0;}
 virtual int     StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0)
                       {return -ENOTSUP;}
 
+virtual int     Lfn2Pfn(const char *Path, char *buff, int blen)
+                       {if (strlen(Path) >= blen) return -ENAMETOOLONG;
+                        strcpy(buff, Path); return 0;
+                       }
+
                 XrdOss() {}
 virtual        ~XrdOss() {}
 };

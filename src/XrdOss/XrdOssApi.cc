@@ -153,6 +153,18 @@ int XrdOssSys::Init(XrdSysLogger *lp, const char *configfn)
 }
 
 /******************************************************************************/
+/*                               L f n 2 P f n                                */
+/******************************************************************************/
+  
+int XrdOssSys::Lfn2Pfn(const char *oldp, char *newp, int blen)
+{
+    if (lcl_N2N) return -(lcl_N2N->lfn2pfn(oldp, newp, blen));
+    if (strlen(oldp) >= blen) return -ENAMETOOLONG;
+    strcpy(newp, oldp);
+    return 0;
+}
+
+/******************************************************************************/
 /*                          G e n L o c a l P a t h                           */
 /******************************************************************************/
   
