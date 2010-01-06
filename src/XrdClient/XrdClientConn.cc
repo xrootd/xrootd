@@ -2050,6 +2050,10 @@ XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo &newdest)
     // Re-directs to another server
    
     fGettingAccessToSrv = false; 
+
+    if (!newdest.Port) newdest.Port = 1094;
+    if (newdest.HostAddr == "") newdest.HostAddr = newdest.Host;
+
     if ( (fLogConnID = Connect( newdest, fUnsolMsgHandler)) == -1) {
 	  
 	// Note: if Connect is unable to work then we are in trouble.

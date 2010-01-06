@@ -883,8 +883,6 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
    bool ret = true;
    XrdClientVector<XrdClientLocate_Info> hosts;
    if (askallservers) {
-      if (!Locate((kXR_char *)"*", hosts)) return false;
-   } else {
       char str[1024];
       strcpy(str, "*");
       strncat(str, dir, 1023);
@@ -895,8 +893,7 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
 
       fConnModule->Disconnect(false);
       XrdClientUrlInfo url((const char *)hosts[i].Location);
-      if (!url.Port) url.Port = 1094;
-      if (url.HostAddr == "") url.HostAddr = url.Host;
+
       url.Proto = "root";
 
       if (fConnModule->GoToAnotherServer(url) != kOK) {
@@ -936,8 +933,6 @@ bool  XrdClientAdmin::DirList(const char *dir,
    XrdOucString fullpath;
 
    if (askallservers) {
-      if (!Locate((kXR_char *)"*", hosts)) return false;
-   } else {
       char str[1024];
       strcpy(str, "*");
       strncat(str, dir, 1023);
@@ -949,8 +944,6 @@ bool  XrdClientAdmin::DirList(const char *dir,
 
       fConnModule->Disconnect(false);
       XrdClientUrlInfo url((const char *)hosts[i].Location);
-      if (!url.Port) url.Port = 1094;
-      if (url.HostAddr == "") url.HostAddr = url.Host;
       url.Proto = "root";
 
       if (fConnModule->GoToAnotherServer(url) != kOK) {
@@ -1431,8 +1424,12 @@ void XrdClientAdmin::GoBackToRedirector() {
 
    if (fConnModule) {
       fConnModule->GoBackToRedirector();
-      XrdClientUrlInfo u(fInitialUrl);
-      if (!fConnModule->IsConnected()) fConnModule->GoToAnotherServer(u);
+
+      if (!fConnModule->IsConnected()) {
+         XrdClientUrlInfo u(fInitialUrl);
+         fConnModule->GoToAnotherServer(u);
+      }
+
    }
 
 
